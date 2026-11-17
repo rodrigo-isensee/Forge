@@ -25,7 +25,7 @@ Parecer completo (não havia parecer anterior nesta branch), sobre o head 007cd9
 - Os outros testes novos: lidos; cada um tem ramo de falha com comportamento (sem leitura de texto da fonte). `test_desde_real...` usa repositório real e comandos git com `cwd`.
 
 ## Achados
-- A1 (bloqueante, resolvido no 94cbaa1b) tests/mutantes/pr-verde-lote-check.json:79 · M8 retargeteado para a linha 1494 e sobrevive; na develop o `de` casava a linha 1785 e o mutante morria. A "correção" criou o sobrevivente. Volte ao `de`/`para` que casa 1785 (use `# D4; E1g; E2.252`) e rode a spec; AR-12.
+- A1 (bloqueante) tests/mutantes/pr-verde-lote-check.json:79 · [resolvido no 94cbaa1b] M8 retargeteado para a linha 1494 e sobrevive; na develop o `de` casava a linha 1785 e o mutante morria. A "correção" criou o sobrevivente. Volte ao `de`/`para` que casa 1785 (use `# D4; E1g; E2.252`) e rode a spec; AR-12.
 - A2 (recomendado) tests/mutantes/t6t3-mensagem.json:103 · lista de dois testes em uma só linha, fora do formato das outras specs (um por linha); separe.
 
 ## Revalidação (delta 007cd931..94cbaa1b)
