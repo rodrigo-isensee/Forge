@@ -385,6 +385,20 @@ class VariosProjetos(unittest.TestCase):
         self.assertTrue(self.medir("Projeto: loja\nFeito.", "veja o estoque", depois=[so_espaco])["cita_outro_projeto"])
         self.assertEqual((self.meta.fala_do_dono(None), self.meta.ultima_mensagem(None)), (None, None), "sem transcrito")
 
+    def test_leitor_distingue_sem_registro_de_registro_ilegivel(self):
+        """MP5: sem o arquivo, [] (um projeto); link, FIFO, pasta, caminho sob arquivo ou fora da forma, None (o `agentes`
+        recusa o escape, falha fechada)."""
+        ler, ativos = self.meta.ler_projetos_ativos, self.tmp / "ativos.json"
+        self.assertEqual(ler(str(self.tmp / "nada.json")), [], "sem o arquivo")
+        self.assertIsNone(ler(str(ativos / "sob-arquivo.json")), "caminho sob um arquivo")
+        for nome, montar in {"link": lambda: ativos.symlink_to(self.tmp / "nada.json"), "fifo": lambda: os.mkfifo(ativos),
+                             "pasta": lambda: ativos.mkdir(), "lista": lambda: self.ativos("[]"),
+                             "projetos texto": lambda: self.ativos('{"projetos": "loja"}')}.items():
+            with self.subTest(caso=nome):
+                ativos.unlink(missing_ok=True) if not ativos.is_dir() or ativos.is_symlink() else ativos.rmdir()
+                montar()
+                self.assertIsNone(ler(str(ativos)))
+
     def test_proprio_projeto_sem_diferenca_de_maiusculas(self):
         self.ativos(["Loja", "estoque"])
         self.assertFalse(self.medir("Projeto: loja\nFeito.", "mude a loja")["cita_outro_projeto"])

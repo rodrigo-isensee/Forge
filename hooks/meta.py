@@ -23,11 +23,11 @@ import datetime
 import json
 import os
 import re
-import stat
 import subprocess
 from pathlib import Path
 
-from _comum import PLUGIN, bloquear, caminhos_extra, e_clone_do_forge, executar, expandir_home, gravar_json, ler_json
+from _comum import (ARQUIVO_DE_ATIVOS, MAXIMO_DE_ATIVOS, MAXIMO_DO_NOME, PLUGIN, TETO_DE_ATIVOS, bloquear, caminhos_extra,
+                    e_clone_do_forge, executar, gravar_json, ler_json, ler_projetos_ativos)
 from vigia import texto_do_dono
 
 CHECAGEM_S = 60
@@ -234,37 +234,15 @@ def idioma_do_dono(raiz):
     return valor if isinstance(valor, str) and valor in PALAVRAS_DO_IDIOMA else None
 
 
-# MP1 (diretriz 35): o sinal de vários projetos ativos é o arquivo ATIVOS, {"projetos": ["<nome>", ...]}, que o registro da
-# máquina (MP2, 0.47.6) vai preencher; aqui só se lê. O nome do projeto é o da pasta da raiz.
-ATIVOS = "~/.forge/maquina/projetos-ativos.json"
-TETO_DE_ATIVOS = 64 * 1024  # bytes; acima, conta como um projeto só
-MAXIMO_DE_ATIVOS = 64  # nomes; acima, idem
-MAXIMO_DO_NOME = 128  # caracteres; nome maior fica de fora
+# MP1 (diretriz 35): o sinal de vários projetos ativos é o arquivo ATIVOS (leitor em `_comum.ler_projetos_ativos`).
+ATIVOS = ARQUIVO_DE_ATIVOS
 PREFIXO_DO_PROJETO = re.compile(r"\s*Projeto: \S")
 PERGUNTA_DO_PROJETO = "isto é para o projeto"
 
 
 def projetos_ativos():
-    """Os nomes de ATIVOS; [] sem o arquivo, em link ou fora de arquivo regular (FIFO, dispositivo), acima de TETO_DE_ATIVOS
-    bytes ou de MAXIMO_DE_ATIVOS nomes, ilegível ou fora da forma (conta como um projeto só: nada muda). A leitura não
-    espera nem cresce: a medida roda no finally do Stop e não troca a decisão dele."""
-    try:
-        fd = os.open(expandir_home(ATIVOS), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-    except OSError:
-        return []
-    try:
-        if not stat.S_ISREG(os.fstat(fd).st_mode):
-            return []
-        bruto = os.read(fd, TETO_DE_ATIVOS + 1)  # arquivo regular: a leitura não volta curta antes do fim
-    finally:
-        os.close(fd)
-    try:
-        dados = json.loads(bruto) if len(bruto) <= TETO_DE_ATIVOS else {}
-    except (ValueError, RecursionError):
-        return []
-    lista = dados.get("projetos") if isinstance(dados, dict) else None
-    nomes = [n for n in lista if isinstance(n, str) and n.strip() and len(n) <= MAXIMO_DO_NOME] if isinstance(lista, list) else []
-    return nomes if len(nomes) <= MAXIMO_DE_ATIVOS else []
+    """Os nomes de ATIVOS; registro ilegível ou fora da forma conta como um projeto só (nada muda)."""
+    return ler_projetos_ativos(ATIVOS) or []
 
 
 def medida_do_projeto(hook, raiz, texto):
