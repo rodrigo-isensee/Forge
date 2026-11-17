@@ -40,6 +40,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import remoto_sem_manutencao  # noqa: E402
 from sem_claude_ancestral import comando  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -362,6 +363,7 @@ class Mundo(unittest.TestCase):
         remoto = self.tmp / "remotos" / f"{nome}.git"
         remoto.parent.mkdir(exist_ok=True)
         git_real("init", "-q", "--bare", "-b", "main", str(remoto), cwd=self.tmp)
+        remoto_sem_manutencao(remoto)  # o receive-pack local não herda GIT_CONFIG_* (ver ambiente_git.py)
         p = self.home / nome
         git_real("clone", "-q", str(remoto), str(p), cwd=self.tmp)
         (p / ".forge").mkdir()
