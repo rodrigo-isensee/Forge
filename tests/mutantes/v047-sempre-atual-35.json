@@ -82,5 +82,12 @@
         "tests.test_atualizar.HooksDoModeloSemChamada.test_hook_com_fim_de_linha_do_windows_so_avisa"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge_versoes.py",
+      "trecho": "original[\"escopo\"] != \"user\"",
+      "motivo": "E6.5 (ADR 0017): devolver_original deixou o marketplace remove, que desinstalaria os projetos; o add sobre a existente vale para os dois escopos, sem condição no lugar"
+    }
   ]
 }
