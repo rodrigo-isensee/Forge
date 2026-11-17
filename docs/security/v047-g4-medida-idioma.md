@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-g4-medida-idioma
-commit: 675cf7a1f90676de32932e82b6a219401a77d94a
+commit: bdbb45cd5235d601649e3bbdd889bb8b4aaae4cb
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-17
@@ -11,6 +11,8 @@ data: 2026-11-17
 # Review de segurança: v047 (SIEG-G4, medida de idioma no hook meta)
 
 Etapa E2.699. Diff revisado: `5b1aacd5..675cf7a1` (hooks/meta.py, tests/test_meta.py, tests/mutantes/v047-g4-medida-idioma.json, changelog.d/v047-g4-medida-idioma.md).
+
+Revalidação por delta: `675cf7a1..bdbb45cd` só mudou `tests/mutantes/v047-jargao-medida-4.json` (`de` do M27 realinhado à linha nova de hooks/meta.py), fora do domínio; nenhum arquivo do domínio mudou, achados anteriores: nenhum, parecer segue aprovado.
 
 ## Gatilhos
 Gatilhos: hook do Forge (`R-SEGURANCA`): grava em `.forge/run/mensagens.jsonl` dado derivado da mensagem ao dono e lê `.forge/config.json` do projeto.
