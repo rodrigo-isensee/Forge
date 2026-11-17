@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-reverte-610
-commit: 82e957a6bac42e571660a54736b6ff42502cfc16
+commit: 9173dd2142a63fa457bdb2abb2beb552e3b1ea84
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
@@ -12,7 +12,7 @@ data: 2026-11-16
 
 Classe T (`forge-check classe`: só testes e documentação); parecer só do review.
 
-Leitura: `git diff 4068c807 82e957a6 --stat` dá só `CHANGELOG.md | 1 +`, ou seja, a árvore volta à marca da 0.47.2 com a linha do revert na entrada [0.47.2]. O commit 5477e380 é o inverso exato do 002f52f0 (mesmos 94 linhas nos 4 arquivos), mais o fragmento, que o 82e957a6 anexou à [0.47.2] com `bin/forge-changelog release --anexar 0.47.2` (decisão do Jarvis), sem fragmento pendente em `changelog.d/`.
+Leitura: `git diff 4068c807 9173dd21 --stat` dá só `changelog.d/v047-reverte-610.md | 2 ++`, ou seja, a árvore volta à marca da 0.47.2 mais o fragmento do revert. O commit 5477e380 é o inverso exato do 002f52f0 (as mesmas 94 linhas nos 4 arquivos). O `--anexar` no mesmo PR (82e957a6) caiu no CI: o `conferir_fechamento` de `bin/forge-changelog` só vale para PR que apenas fecha fragmentos; o 9173dd21 o desfaz, e o fechamento na [0.47.2] vai num PR próprio.
 
 Sem guarda nova nem mudada: sem mutante a declarar. Suíte: CI do PR.
 
