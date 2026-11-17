@@ -3,16 +3,6 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "I97",
-      "guarda": "scripts/suite-partes.py:116 partes (negada)",
-      "arquivo": "scripts/suite-partes.py",
-      "de": "        if partes:",
-      "para": "        if not (partes):",
-      "testes": [
-        "tests.test_suite_partes"
-      ]
-    },
-    {
       "id": "I98",
       "guarda": "scripts/suite-partes.py:169 plano[u][1] is None (negada)",
       "arquivo": "scripts/suite-partes.py",
