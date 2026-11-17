@@ -53,7 +53,7 @@ Para saber como a entrega fica sobre a base de integração, simule o merge fora
 Nunca use um clone sem as refs remotas (por exemplo `git clone --no-tags --single-branch` de outra ref, ou clone local sem `origin/<base>`): a checagem compara com a base errada e sai com rc 0. Confira que `git rev-parse refs/remotes/origin/<base>` responde antes de confiar no resultado.
 
 ## Tempo e dependências
-- Meça a duração por workflow e os minutos usados (`gh run list`); um checkpoint por release. Subiu mais de 20% ou passou de 80% da franquia gratuita: abra cartão de melhoria.
+- Meça a duração por workflow e os minutos usados (`gh run list`); um checkpoint por release. Subiu mais de 20% ou passou de 80% da franquia gratuita: abra cartão de melhoria. Os minutos do mês: `forge-cota-ci` (só leitura, `gh api` com o token que já existe; avisa acima de 80%, rc 1); o Jarvis a roda no marco (release e checkpoint). Sem permissão, diz `não verificável` e o comando para o dono rodar; não peça token nem escopo.
 - Dependabot para ações, imagens e pacotes, com agrupamento e janela; a triagem separa o bump sem quebra (mecânico) do que exige correção de código (dev da stack).
 - Modelo do projeto: `templates/projeto/.github/dependabot.yml` (ações, neutro) e o bloco do ecossistema de pacotes em `stacks/<stack>/pronto.md`, seção "CI". Grupos de rotina só com minor e patch; major em grupo à parte, que vira cartão de migração.
 - A configuração do Dependabot só vale na branch padrão (`main`), e o alerta de segurança abre contra a branch padrão, não contra o `target-branch`; o conserto segue pela branch de integração.
