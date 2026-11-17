@@ -67,7 +67,7 @@
       "guarda": "diretriz 36 (R-CONTRIB): git branch sem nome posicional (-a) libera",
       "arquivo": "hooks/conformidade.py",
       "de": "return any(not a.startswith(\"-\") for a in args)",
-      "para": "return True",
+      "para": "return any(a.startswith(\"-\") for a in args)",
       "testes": [
         "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
       ]

@@ -51,6 +51,26 @@
       "testes": [
         "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
       ]
+    },
+    {
+      "id": "M14",
+      "guarda": "diretriz 36 (R-CONTRIB): a recusa do worktree diz `git worktree add`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "{' add' if sub == 'worktree' else ''}",
+      "para": "{' add' if sub == 'worktree-x' else ''}",
+      "testes": [
+        "tests.test_hook_dir36.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "diretriz 36 (R-CONTRIB): gh pr create, merge, edit... no Forge entram na recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "proibido = (grupo == \"pr\" and sub in CONTRIB_PR ",
+      "para": "proibido = (grupo == \"pr\" and sub in CONTRIB_PR - {\"create\"} ",
+      "testes": [
+        "tests.test_hook_dir36.HookDir36.test_fixtures_contrib"
+      ]
     }
   ]
 }
