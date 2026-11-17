@@ -4,11 +4,11 @@ contrato: 1
 pedido: v0474
 branch: melhoria/v047-h2-autor-fica
 commit: 6d73898a54d405cae438ed76d745fd32bc2436f4
-parecer: aprovado
+parecer: reprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 0
+bugs_medios: 1
 bugs_baixos: 0
 data: 2026-11-17
 ---
@@ -17,6 +17,7 @@ data: 2026-11-17
 Etapa E2.30, H2-AUTOR-FICA-ATE-O-MERGE (classe C, `hooks/agentes.py`). Intervalo `e2880b42..6d73898a`. Sem especificação de UX nem contrato de API: as obrigações são as da descrição do H2 (E2.10) e as condições novas do diff. Acessibilidade e E2E: n/a.
 
 ## Achados
+- A1 (bloqueante) hooks/agentes.py:467 · reproduzido: autores_retomaveis(..., lapides=[{'id': ['x']}], ...) lança TypeError (unhashable); o disparo sai 0 sem reserva (R-TETO, estado corrompido nunca libera). Fixture autor-* com id de lápide ou de registro não texto falta; mesma causa do A1 da segurança
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -36,6 +37,9 @@ Ambiente: clone `~/.forge-contrib/wt/v047-h2-autor-fica-E230`, head `6d73898a`, 
 - `test_hooks_agentes_autor.py`: 6 testes OK.
 - `test_hooks.py` inteiro (141 testes, 79 min sob carga): 3 falhas, do tipo prazo; o ramo `aviso` novo do `executar_fixture` roda nos fixtures `autor-*` e passa.
 - `test_prazo_do_merge` (hook parecer, fora do diff): falha de ambiente, não do diff. Sob carga 21 a 29, `-k test_prazo_do_merge` falha com `R-REVIEW: o hook não decidiu em 8 s` (`failures=3`), e falha igual na base `e2880b42` (cópia via `git archive`, mesma carga, `failures=3`). `git diff e2880b42 HEAD` não toca `hooks/parecer.py`, `hooks/comum.py` nem `hooks.json`. O teste depende de tempo de parede (git lento de 4 e 9 s contra prazos de 3 e 8 s). Nas duas rodadas `-k test_fixtures` o único fixture que caiu foi `pesado/mesma-sessao-libera`, por prazo de 120 s estourado, também fora do diff; nenhum fixture `agentes/` falhou.
+
+## Lacuna do plano e prova do achado
+Os fixtures `autor-*` cobrem `autores` ilegível e id inválido de autor, mas nenhum põe `id` não texto em lápide ou em agente ativo, o caminho que `autores_retomaveis` percorre com `set`. Sonda no head: `autores_retomaveis([{'id': A, 'desde': 1.0, 'escrita': ['melhoria/a']}], [], [{'id': ['x']}], {'melhoria/a'})` dá `TypeError: unhashable type: 'list'`, depois do `agentes.append` e antes do `gravar_json`, e o hook libera com 0. Mesmo defeito do A1 do parecer de segurança (E2.29). Correção no agente da stack (developer do H2); depois, fixtures `autor-*` com lápide de `id` lista e registro de `id` objeto, esperando o disparo gravado e o segundo escritor recusado, e mutante na checagem de tipo.
 
 ## Observações (sem bloqueio)
 - O brief diz 12 fixtures `autor-*` com 2 avisando; só `autor-retomavel-avisa` traz `aviso` no esperado (1 avisa, 11 liberam). O segundo aviso (D3 + H2 juntos) é coberto por `test_dois_avisos_saem_num_json_so`. Contagem do brief imprecisa, cobertura completa.
