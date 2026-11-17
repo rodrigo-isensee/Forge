@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ambiente-sobrevive
-commit: 584b2239f8debe47126d1b4fee8a24f6996cab9f
+commit: 443bd16125869d3272ee1fcc428382473d197a14
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-15
+data: 2026-11-16
 ---
 # QA: v047 AMBIENTE-SOBREVIVE-RECRIACAO (E2.54, parecer E2.91)
 
@@ -20,6 +20,16 @@ Parecer anterior no 68072575 (aprovado, A1 recomendado); este revalida por delta
 - A1 (recomendado) templates/projeto/.devcontainer/preparar-ambiente.sh:45 · o mutante `: || faltas+=` do link agora morre (M20); fechado, sem pendência. Conferi à mão: 1 falha em 24.
 - A2 (recomendado) hooks/ambiente.py:21 · sem mutante e sem `isentas`: linhas 21 (padrão `/workspaces`), 33 (`is_file`, defesa) e 40 (`startswith`, `returncode == 1`) sobrevivem a mutação à mão (`rc in (0,1)` imprime só `ambiente: ok`). São equivalentes; declare-os em `equivalente`/`isentas`.
 - A3 (recomendado) tests/test_forge.py:2043 · M23 morre por `CalledProcessError` do helper `git` (chave `core.hooksPath` ausente), não por asserção; a morte é legítima (passa sem o mutante), mas a mensagem some. Ler com `check=False` e `assertEqual` dá falha clara.
+
+## Revalidação 584b2239..b5ec13af (E2.569: junção com a develop e conserto do autor)
+Mudou no domínio (`forge-check parecer delta`): `scripts/preparar-estacao.sh`, `tests/test_ambiente_hook.py`, `tests/test_forge.py`, `docs/engineering/achados-recorrentes.md`. O 443bd161 (Revisar-sha) e o b5ec13af só diferem por parecer de review.
+- `preparar-estacao.sh`: o `gh >= 2.47` (`gh_versao_ok`, `garantir_gh`) vem da develop (outro item); `git diff origin/develop` do arquivo mostra que a junção manteve nele só o que é deste item (impressão digital da chave, `FORGE_APT_*`, `--verificar`, essencial) e que `garantir_gh` o usa, inclusive no modo normal. Conferi à mão: `chave_confere` roda antes de instalar e falha fechada.
+- Testes: `gh` falso responde `--version` com 2.104 e fora do registro; `sem_manutencao` nos helpers `git`; mensagem de `TesteEParecerSeparados` tolera o texto da base. Nenhum teste enfraquecido: mesmas asserções de comportamento.
+- `nice -n 19 python3 -m unittest tests.test_ambiente_hook tests.test_ambiente_git tests.test_forge.PrepararEstacao tests.test_forge.TesteEParecerSeparados tests.test_forge.RodarUmModuloComIsolamento` -> Ran 56 tests, OK; `shellcheck` dos 2 scripts sem aviso. Suíte inteira: só no CI do PR (sem PR ainda, sem check-run `bateria`).
+- `forge-mutante --processos 3 --base 584b2239f8debe47126d1b4fee8a24f6996cab9f` nas specs -1 e -2 (rev=b5ec13af8bb4): `base=584b2239f8debe47126d1b4fee8a24f6996cab9f mb=584b2239f8debe47126d1b4fee8a24f6996cab9f`; M1..M25 todos `morreu`, nenhum sobrevivente (M23 segue `(erro)`, aceito em A3). As linhas de M13, M14, M17..M19, M23 e M24 apontam para as linhas novas do script depois da junção.
+- Fora do escopo do QA deste item: a lógica `gh_versao_ok` (versão mínima) é da develop e tem teste e mutante lá; aqui só conferi que os falsos a satisfazem.
+- Vermelho antes do verde: sem alteração nos testes novos do item desde o parecer anterior (cópia da base, 11 testes caem); o delta só ajusta falsos. Não rerrodei `forge-testes --vermelho` (ordem do dono de não rodar suíte local completa).
+- Os achados A1..A3 anteriores seguem recomendados e sem pendência bloqueante. Sem bug novo: `docs/qa/bugs/` inalterado.
 
 ## Critério → teste → resultado
 | Obrigação | Teste | Fronteira protegida | Resultado |
