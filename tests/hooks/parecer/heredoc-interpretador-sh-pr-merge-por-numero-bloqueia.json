@@ -1,0 +1,18 @@
+{
+  "descricao": "HOOK-CONTRIB-HEREDOC-FP, caso verdadeiro: o gh pr merge que o sh roda segue conferido (PR só por número).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "sh <<'EOF'\ngh pr merge 12 --squash\nEOF"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: PR indicado só por número"
+  }
+}

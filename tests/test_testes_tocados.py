@@ -20,7 +20,9 @@ from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda d
 
 RAIZ = Path(__file__).resolve().parent.parent
 FERRAMENTA = RAIZ / "bin" / "forge-testes"
-AMBIENTE = sem_manutencao({**os.environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null",
+# sem o `GIT_*` herdado: um hook exporta `GIT_DIR` e `GIT_INDEX_FILE`, e o git do repositório de brinquedo cairia no do clone
+AMBIENTE = sem_manutencao({**{k: v for k, v in os.environ.items() if not k.startswith("GIT_")},
+                           "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null",
                            "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
                            "GIT_COMMITTER_EMAIL": "t@t"})
 
@@ -71,7 +73,7 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 86)  # v047 E2.222: + test_sessao_automatica (86 sobre os 85 da develop). v047 E2.117: + test_pr_hook_rapido (85 sobre os 84 da develop). v047 E2.81: 84 com #559 (test_conferida_por_branch) e #564 (test_conferencia_dois_pedidos) juntos. v047 E1.277: + test_conferencia_dois_pedidos. v047 E2.55: + test_conferida_por_branch. mp1311 E1.17: + test_pre_envio_brief. v047: + test_hook_erro_libera (HOOK-ERRO-LIBERA). v046: + test_pr_hook_prazo (PR-HOOK-PRAZO). v046 E20.29: + test_hook_git_comum. 0.45.7: + test_r_limites (AV5), test_forge_medidas (F6, E5.6), test_forge_dora (TM-16) e test_hooks_fila27 (FILA-27). v046 E12.1: + test_git_rede_config. 0.45.6: + test_forge_check_base_igual, test_forge_check_versao_livre e test_pre_push_link_apoio (junção), test_metricas_portoes (E1.1) e test_metricas_main_vermelha (E5.1). 0.44.2: + test_decisor (orkastery 3), test_forge_run (S5), test_meta (S4), test_pesado_fila (orkastery 5), test_aq1_texto e test_textos_034 (troca dos testes de frase). 0.44.1: + test_v0441_review (review), test_acao_da_reprovacao (O1) e test_forge_dono (O4, S2, S8, X1). 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
+        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 88)  # junção v047 E2.421: + test_hook_destino_opaco e test_conformidade_opaco (A9, desta branch; 88 sobre os 86 da develop). v047 E2.222: + test_sessao_automatica (86 sobre os 85 da develop). v047 E2.117: + test_pr_hook_rapido (85 sobre os 84 da develop). v047 E2.81: 84 com #559 (test_conferida_por_branch) e #564 (test_conferencia_dois_pedidos) juntos. v047 E1.277: + test_conferencia_dois_pedidos. v047 E2.55: + test_conferida_por_branch. mp1311 E1.17: + test_pre_envio_brief. v047: + test_hook_erro_libera (HOOK-ERRO-LIBERA). v046: + test_pr_hook_prazo (PR-HOOK-PRAZO). v046 E20.29: + test_hook_git_comum. 0.45.7: + test_r_limites (AV5), test_forge_medidas (F6, E5.6), test_forge_dora (TM-16) e test_hooks_fila27 (FILA-27). v046 E12.1: + test_git_rede_config. 0.45.6: + test_forge_check_base_igual, test_forge_check_versao_livre e test_pre_push_link_apoio (junção), test_metricas_portoes (E1.1) e test_metricas_main_vermelha (E5.1). 0.44.2: + test_decisor (orkastery 3), test_forge_run (S5), test_meta (S4), test_pesado_fila (orkastery 5), test_aq1_texto e test_textos_034 (troca dos testes de frase). 0.44.1: + test_v0441_review (review), test_acao_da_reprovacao (O1) e test_forge_dono (O4, S2, S8, X1). 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
         for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
                        "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_forge_medidas", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
@@ -232,6 +234,13 @@ class Convencao(unittest.TestCase):
             with self.subTest(caminho):
                 self.assertFalse(any(re.fullmatch(p, caminho) for p, _ in self.f.MAPA))
                 self.assertEqual(self.f.planejar([caminho], RAIZ)[0], "dirigido")
+
+    def test_o_patch_do_pre_push_e_o_comum_dos_hooks_levam_ao_test_pre_push_patch(self):  # v047 E2.567
+        for caminho in ("docs/devops/pp1-pre-push.patch", "hooks/_comum.py"):
+            with self.subTest(caminho):
+                modo, plano = self.f.planejar([caminho], RAIZ)
+                self.assertEqual(modo, "dirigido")
+                self.assertIn("test_pre_push_patch", plano)
 
 
 class MapaDosNovos(unittest.TestCase):

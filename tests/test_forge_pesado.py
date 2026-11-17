@@ -70,7 +70,7 @@ class ForgePesado(unittest.TestCase):
         self.assertIn(f"pid {PID_MORTO}: não visto", r.stdout)
 
     def test_trava_vencida_fica_livre(self):
-        self.trava(desde=time.time() - 601)
+        self.trava(desde=time.time() - 1201)  # TRAVA_S = 1.200 s do hook (MAQ-I9)
         self.assertEqual(self.rodar("status").stdout.strip(), "pesado: livre · fila: 0")
 
     def test_trava_sem_desde_numerico_ou_que_nao_e_objeto_fica_livre(self):

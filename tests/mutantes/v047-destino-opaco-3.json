@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O17",
+      "guarda": "A9, U3: a variável da linha vale pelo valor dela na lista positiva",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if m and m[\"nome\"]:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O18",
+      "guarda": "A9, U3: só a variável atribuída uma vez, e de um jeito só, vale pela lista positiva",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if len(valores) == 1 and not outro else None",
+      "para": "if valores and not outro else None",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O19",
+      "guarda": "A9, U3: valor que não é uma substituição só (outra variável) fica fora da lista positiva",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not m or m[\"nome\"]:\n            return False",
+      "para": "        if not m or m[\"nome\"]:\n            return True",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O20",
+      "guarda": "A9, U3: lista positiva fechada (mktemp só com -d, -p literal, -t, -q, -u)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "CORPO_POSITIVO = re.compile(r\"mktemp(?:\\s+(?:-[duqt]+|-p\\s+[\\w./-]+|--tmpdir(?:=[\\w./-]+)?|[\\w.-]*XXX[\\w.-]*))*\"",
+      "para": "CORPO_POSITIVO = re.compile(r\"mktemp.*\"",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O21",
+      "guarda": "A9, U3: vale para cp, mv, install e ln",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if prog in (\"cp\", \"mv\", \"install\", \"ln\"):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O22",
+      "guarda": "A9, U1: `.git` como componente, não como trecho (`x.github` livre)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "CITA_DIR_DO_GIT = re.compile(r\"(?<![\\w.])\\.git(?![\\w.-])|",
+      "para": "CITA_DIR_DO_GIT = re.compile(r\"\\.git|",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O23",
+      "guarda": "A9, U1: curinga que casa `.git` com nocaseglob (AR-13)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return bool(CITA_DIR_DO_GIT.search(texto)) or any(",
+      "para": "    return bool(CITA_DIR_DO_GIT.search(texto)) or False and any(",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "O24",
+      "guarda": "A9, U3: a lista da C18 tem os nomes de hook (githooks(5))",
+      "arquivo": "hooks/conformidade.py",
+      "de": "post-checkout post-merge pre-push pre-receive",
+      "para": "post-checkout post-merge pre-receive",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
+      ]
+    }
+  ]
+}

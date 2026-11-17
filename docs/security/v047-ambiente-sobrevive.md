@@ -1,15 +1,21 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v047-ambiente-sobrevive
+pedido: v047
 branch: melhoria/v047-ambiente-sobrevive
-commit: 584b2239f8debe47126d1b4fee8a24f6996cab9f
+commit: 4ed7cb7d208f4c11686fad22c3ada3a90c1924fd
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-15
+data: 2026-11-17
 ---
-# Review de segurança: v047-ambiente-sobrevive (E2.136, revalidação por delta)
+# Review de segurança: v047-ambiente-sobrevive (E2.670, revalidação por delta)
 
+E2.670: revalidação por delta `c2b55568..4ed7cb7d` (`forge-check parecer delta`: nenhum arquivo do domínio mudou; entraram `docs/hooks-fixtures.md`, `tests/mutantes/v047-ambiente-sobrevive-3.json` e `tests/test_ambiente_hook.py`, além dos pareceres). `hooks/ambiente.py` não mudou. A spec `-3` declara M26 a M30 sobre guardas que este parecer já cita (pasta persistente, script ausente no plugin, só as linhas `falta: `, só o código 1); os 3 testes novos usam um `bash` falso no PATH do teste e uma cópia do hook numa pasta temporária, sem tocar o hook. A isenção de `hooks/ambiente.py:55` (`__name__ == "__main__"`) é legítima: é o ponto de entrada do script, não uma guarda de segurança, e todo teste do hook o roda como processo; o formato passa por `validar_isentas` (`bin/forge-mutante:347`). Veredito e achados A3 a A5 valem sem mudança. Sem suíte local (brief); rodado `tests.test_ambiente_hook` (9, OK). PA-7: nada novo. Rodada anterior (E2.650, head c2b55568) no git.
+
+Histórico (E2.206):
+E2.206: revalidação por delta `584b2239..e3dfc4cb` (`forge-check parecer delta`: nenhum arquivo do domínio mudou; só pareceres em `docs/`). O veredito e os achados abaixo valem sem mudança para o head e3dfc4cb. O campo `pedido:` passa a `v047`. Teste do item rodado de novo: `tests.test_ambiente_hook` (6, OK). PA-7 conferida: nenhum item novo se aplica ao delta.
+
+Histórico (E2.136):
 Revalidação por delta `68072575..584b2239` (`forge-check parecer delta`). No domínio entraram os dois devcontainer.json, `scripts/preparar-estacao.sh`, `templates/projeto/.devcontainer/preparar-ambiente.sh`, o hook novo `hooks/ambiente.py` e a entrada nova em `hooks/hooks.json` (SessionStart), além da emenda da ADR 0003. As specs de mutante `-1` e `-2`, os testes e o fragmento do changelog ficam fora do domínio. O parecer anterior (head 68072575, reprovado) tinha A1 e A2 bloqueantes e A3 recomendado.
 
 ## Gatilhos

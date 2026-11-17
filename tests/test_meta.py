@@ -94,7 +94,7 @@ class Jargao(unittest.TestCase):
                 chamado.append(erro)
 
         original_medir, original_meta = meta.medir_mensagem, meta.avaliar_meta
-        meta.medir_mensagem = lambda hook: (_ for _ in ()).throw(RuntimeError("medida"))
+        meta.medir_mensagem = lambda hook, raiz: (_ for _ in ()).throw(RuntimeError("medida"))
         meta.avaliar_meta = lambda hook, raiz: chamado.append("meta")
         try:
             try:
@@ -127,7 +127,7 @@ class Jargao(unittest.TestCase):
                 return Path("/x")
 
         original_medir, original_meta = meta.medir_mensagem, meta.avaliar_meta
-        meta.medir_mensagem = lambda hook: chamado.append("medida")
+        meta.medir_mensagem = lambda hook, raiz: chamado.append(("medida", raiz))
         meta.avaliar_meta = lambda hook, raiz: sys.exit(2)
         try:
             with self.assertRaises(SystemExit) as saida:
@@ -135,7 +135,7 @@ class Jargao(unittest.TestCase):
         finally:
             meta.medir_mensagem, meta.avaliar_meta = original_medir, original_meta
         self.assertEqual(saida.exception.code, 2)
-        self.assertEqual(chamado, ["medida"])
+        self.assertEqual(chamado, [("medida", Path("/x"))], "a medida recebe a raiz (idioma do dono, SIEG-G4)")
 
 
 def importar_meta():
@@ -250,6 +250,64 @@ class JargaoPorClasse(unittest.TestCase):
         self.assertEqual(segunda["classes"], {"regra": 1}, "sem a mensagem do evento, cai para o transcrito")
         for termo in ("E7.4", "e13aed85", "R-MAIN"):
             self.assertNotIn(termo, gravado)
+
+
+class IdiomaDoDono(unittest.TestCase):
+    """SIEG-G4 (v047, E2.683): a medida acusa mensagem ao dono em outro idioma; o idioma do dono vem do .forge/config.json."""
+
+    PT = "Terminei a etapa e não ficou pendência; está tudo verde e você já pode ver."
+    EN = "I finished the step and it is ready; you can check the branch now."
+    ES = "Hecho. El cambio quedó bien y usted puede ver los detalles cuando hay tiempo."
+
+    def setUp(self):
+        self.meta = importar_meta()
+        self.raiz = Path(tempfile.mkdtemp(prefix="forge-idioma-"))
+        self.addCleanup(shutil.rmtree, self.raiz, ignore_errors=True)
+
+    def configurar(self, config):
+        (self.raiz / ".forge").mkdir(exist_ok=True)
+        (self.raiz / ".forge" / "config.json").write_text(json.dumps(config), encoding="utf-8")
+
+    def medir(self, texto, raiz):
+        with tempfile.TemporaryDirectory() as pasta:
+            hook = type("Hook", (), {"campo": lambda self, chave: {"last_assistant_message": texto}.get(chave),
+                                     "run": lambda self: Path(pasta), "iniciante": lambda self: False})()
+            self.meta.medir_mensagem(hook, raiz)
+            linha = json.loads((Path(pasta) / "mensagens.jsonl").read_text(encoding="utf-8"))
+        return linha["idioma"], linha["idioma_do_dono"], linha["outro_idioma"]
+
+    def test_sem_configuracao_o_dono_fala_portugues_e_ingles_e_acusado(self):
+        self.assertEqual(self.medir(self.PT, None), ("pt", "pt", False))
+        self.assertEqual(self.medir(self.EN, None), ("en", "pt", True))
+        self.assertEqual(self.medir(self.EN, self.raiz), ("en", "pt", True), "raiz sem .forge/config.json")
+        self.configurar({"pesados": []})
+        self.assertEqual(self.medir(self.ES, self.raiz), ("es", "pt", True), "config sem a chave")
+        self.configurar(["en"])
+        self.assertEqual(self.medir(self.EN, self.raiz), ("en", "pt", True), "config que não é objeto")
+
+    def test_idioma_vem_da_configuracao_do_projeto(self):
+        self.configurar({"idioma_do_dono": "en"})
+        self.assertEqual(self.medir(self.EN, self.raiz), ("en", "en", False))
+        self.assertEqual(self.medir(self.PT, self.raiz), ("pt", "en", True))
+
+    def test_idioma_sem_lista_nao_mede_nem_acusa(self):
+        self.configurar({"idioma_do_dono": "fr"})
+        self.assertEqual(self.medir(self.PT, self.raiz), ("pt", None, False))
+        self.configurar({"idioma_do_dono": ["pt"]})
+        self.assertEqual(self.medir(self.EN, self.raiz), ("en", None, False))
+
+    def test_mensagem_curta_mista_ou_em_codigo_fica_sem_idioma_e_nao_e_acusada(self):
+        cerca = "`" * 3
+        for texto in ("Feito: git push.", "Feito, não ficou nada.", "the and is não que uma", f"Pronto.\n{cerca}\n{self.EN}\n{cerca}\n> {self.EN}"):
+            with self.subTest(texto=texto[:20]):
+                self.assertEqual(self.medir(texto, None), (None, "pt", False))
+
+    def test_listas_de_palavras_sao_disjuntas(self):
+        listas = list(self.meta.PALAVRAS_DO_IDIOMA.values())
+        self.assertGreaterEqual(len(listas), 3)
+        for i, uma in enumerate(listas):
+            for outra in listas[i + 1:]:
+                self.assertEqual(uma & outra, frozenset())
 
 
 if __name__ == "__main__":

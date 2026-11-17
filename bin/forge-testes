@@ -109,11 +109,11 @@ FORGE_CHECK = ("test_anotar", "test_conferida_por_branch", "test_forge_check_bas
                "test_testes_tocados", "test_pre_envio_brief", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
                "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt", "test_governanca", "test_selo_e_entrega",
                "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados", "test_aq5_parecer_novo", "test_brief_gerar_custo", "test_git_rede_config",
-               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo", "test_conferencia_dois_pedidos", "test_pr_hook_rapido", "test_sessao_automatica") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
+               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo", "test_hook_destino_opaco", "test_conformidade_opaco", "test_conferencia_dois_pedidos", "test_pr_hook_rapido", "test_sessao_automatica") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
 # E1.120 (v047): quem reaproveita `Hooks.executar_em_lote` sem herdar de `Hooks` (git grep; os VOLTA_UNICA pela base de
 # `tests/apoio_volta_unica.py`) quebra quando o test_hooks muda o lote; pedir tests/test_hooks.py pelo caminho os roda junto.
 REAPROVEITAM_O_LOTE = ("test_esperar_estado", "test_hook_ansi_c", "test_hook_git_comum", "test_hooks_fila27",
-                       "test_hooks_parecer_pasta", "test_hook_erro_libera") + VOLTA_UNICA
+                       "test_hooks_parecer_pasta", "test_hook_destino_opaco", "test_hook_erro_libera") + VOLTA_UNICA
 JUNTO_DO_MODULO = {"test_hooks": REAPROVEITAM_O_LOTE}
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
@@ -136,7 +136,8 @@ RODAM_OS_HOOKS = (("test_hooks", "test_catraca", "test_sugerir", "test_forge", "
                    "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10", "test_hook_ansi_c",
                    "test_hooks_parecer_pasta", "test_esperar_estado", "test_brief_forma_aceita", "test_conformidade_verde", "test_reval_delta", "test_selo_e_entrega",
                    "test_classe_risco", "test_pesado_fila", "test_meta", "test_vigia", "test_trava_agente_morto", "test_pr_hook_prazo",
-                   "test_pr_hook_rapido") + VOLTA_UNICA
+                   "test_hook_destino_opaco", "test_conformidade_opaco", "test_pr_hook_rapido",
+                   "test_pre_push_patch", "test_ambiente_hook") + VOLTA_UNICA  # v047 E2.567: test_pre_push_patch lê hooks/_comum.py
                   + EVALS_DE_FORMA)
 MAPA = [
     (r"bin/forge-changelog", ("test_changelog", "test_conferir_release", "test_forge", "test_pre_push_afetados") + EVALS_DE_FORMA),  # PREPUSH-BARATAS
@@ -173,8 +174,6 @@ MAPA = [
     # hooks/agentes.py e hooks/_comum.py: o teto de agentes (R-TETO), o hash do brief (R-BRIEF) e a liberação do agente morto
     # (test_trava_agente_morto) rodam o script nos testes abaixo;
     # hooks/vigia.py: test_textos_dono_f10 lê o texto. O resto de hooks/ é coberto pela regra larga seguinte.
-    # v047 E2.54: test_ambiente_hook roda hooks/ambiente.py e lê o registro dele no hooks/hooks.json.
-    (r"hooks/(ambiente\.py|hooks\.json)", ("test_ambiente_hook",) + RODAM_OS_HOOKS),
     (r"hooks/.*", RODAM_OS_HOOKS),  # EST-M4: guarda C-2
     # v047 E6.5: as entradas do FORGE-SEMPRE-ATUAL (atalhos, trampolins, preparo do container) rodam nos testes do núcleo e no oráculo do QA
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados", "test_sempre_atual", "test_oraculo_sempre_atual", "test_sessao_automatica")),
@@ -193,6 +192,7 @@ MAPA = [
     (r"docs/(security|devops)/_modelo\.md", CONTEUDO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),
     (r"skills/esperar-estado/.*|agents/tech-lead\.md", CONTEUDO + ("test_esperar_estado",)),
     (r"skills/(produto-criterios|observabilidade-incidentes|explicar-para-o-leigo|modo-iniciante)/.*|agents/(jarvis|devops-engineer)\.md", CONTEUDO + ("test_skills_v0442",)),
+    (r"docs/devops/pp1-pre-push\.patch", CONTEUDO + ("test_pre_push_patch",)),  # v047 E2.567: o teste aplica o patch
     (r"(agents|skills|docs)/.*", CONTEUDO),
     (r"README\.md", ("test_forge", "test_doutor")),  # PY-MINIMO: test_doutor confere o Python mínimo no README
     (r"CONTRIBUTING\.md", ("test_forge", "test_changelog")),

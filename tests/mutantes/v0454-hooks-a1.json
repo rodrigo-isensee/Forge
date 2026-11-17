@@ -26,7 +26,7 @@
       "id": "A1-3",
       "guarda": "o heredoc gravado vale para a linha com alias",
       "arquivo": "hooks/parecer.py",
-      "de": "    if gravado and critico_ou_alias(original):  # M3",
+      "de": "    if gravado and marcado:  # M3",
       "para": "    if gravado and CRITICO.search(original):  # M3",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"
@@ -46,7 +46,7 @@
       "id": "A1-5",
       "guarda": "a gramática com heredoc vale para a linha com alias",
       "arquivo": "hooks/parecer.py",
-      "de": "    if nivel == 0 and critico_ou_alias(original) and not (SO_CAT",
+      "de": "    if nivel == 0 and marcado_fora_do_shell and not (SO_CAT",
       "para": "    if nivel == 0 and CRITICO.search(original) and not (SO_CAT",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_v0454_gh_alias_parecer"

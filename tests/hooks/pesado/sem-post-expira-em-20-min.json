@@ -1,10 +1,10 @@
 {
-  "descricao": "Trava de outra sessão com mais de 10 min sem o Post: libera.",
+  "descricao": "Trava de outra sessão com mais de 20 min sem o Post: libera.",
   "estado": {
     "pesado.json": {
       "pid": "{pid_outro}",
       "comando": "npx playwright test",
-      "desde": "{agora-700}",
+      "desde": "{agora-1300}",
       "tool_use_id": "toolu_1"
     }
   },
