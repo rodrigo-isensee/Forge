@@ -3,20 +3,20 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-sieg-g1-autorizacao
-commit: 2f150f4dac973291017e18556b652ba65ee9748d
+commit: 7d8ff8f51af8e12b1b8aed4f12b2bc9f3f78a07e
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-17
 ---
-# Review de segurança: v047 ADR 0018, G1.0 e G1.1 (E1.22 do v0474, head 2f150f4d)
+# Review de segurança: v047 ADR 0018, G1.0 e G1.1 (E1.34 do v0474, head 7d8ff8f5)
 
-Gatilhos: autorização, controle do Forge (`bin/forge-check`, leitura das concessões). Volta por delta do parecer aprovado do head c890fbd6 (a rodada anterior fica no git).
+Gatilhos: autorização, controle do Forge (`bin/forge-check`, leitura das concessões). Volta por delta do parecer aprovado do head 2f150f4d (a rodada anterior fica no git).
 
 ## Resumo
-- Delta lido (`forge-check parecer delta`, c890fbd6..2f150f4d): no domínio só `bin/forge-testes:112`, que põe `test_autorizacao` na tupla `FORGE_CHECK` (mapa de testes afetados; A5 do review E1.11). Fora do domínio, conferidos: a docstring de `tests/test_autorizacao.py:1` (só o caminho `bin/forge-check`) e a contagem 88→89 em `tests/test_testes_tocados.py:77`; o resto do diff são pareceres.
-- Efeito na segurança: o mapa só amplia o que roda ao tocar `bin/forge-check`; não afrouxa portão nem muda a leitura das concessões. `bin/forge_autorizacao.py` e `bin/forge-check` não mudam no delta (último commit do leitor: 580b6c34): a conclusão do c890fbd6 vale. Nenhum achado novo; A9 a A14 seguem como estavam.
-- Rodado no 2f150f4d: `python3 -m unittest tests.test_autorizacao` (8 OK) e `python3 -m unittest tests.test_testes_tocados` (162 OK, 1 pulado), o teste que deixou o CI vermelho no c890fbd6.
-- CI do PR 629: sem execução no 2f150f4d; o PR está `CONFLICTING` com a develop (`mergeStateStatus: DIRTY`) e a última execução (1b5de74f) é anterior à correção. A suíte completa segue portão do merge, fora da segurança (dono: tech-lead, trazer a develop e ter o CI verde).
+- Delta lido (`forge-check parecer delta`, 2f150f4d..7d8ff8f5, sem o que veio da develop): junção da develop (#630 e #632). No domínio só `bin/forge-testes`, que juntou sem conflito (`git show --remerge-diff 7d8ff8f5 -- bin/` vazio): `test_estado_ilegivel` entra em `FORGE_CHECK` (:107), em `REAPROVEITAM_O_LOTE` (:117) e no mapa de `hooks/` (:173), ao lado do `test_autorizacao` desta branch (:112), que segue lá. Fora do domínio, conferido: o único conflito, `tests/test_testes_tocados.py:77`, resolvido para 90 (89 da develop mais `test_autorizacao`).
+- Efeito na segurança: o mapa só amplia o que roda; não afrouxa portão. `bin/forge_autorizacao.py` e `bin/forge-check` sem diff em 2f150f4d..7d8ff8f5; `hooks/agentes.py`, `hooks/meta.py` e `hooks/pesado.py` vêm da develop (#630, #628) sem mudança da branch. A conclusão do 2f150f4d vale; nenhum achado novo; A9 a A14 seguem como estavam.
+- Rodado no 7d8ff8f5: `python3 -m unittest tests.test_autorizacao tests.test_estado_ilegivel` (17 OK).
+- CI do PR 629 no 7d8ff8f5: suíte 3.12 e 3.14 (partes 1 a 5), teto de pulados e bateria (passos, verificações longas, 3.14) verdes; `bateria (pareceres)` e `catraca` vermelhos à espera dos pareceres deste head (portão do merge, dono: tech-lead).
 
 ## Achados
 - A9 (recomendado) docs/adr/0018-autorizacao-do-dono-gravada.md:25 · Aberto, vai ao G1.2 (gravar): com `Fuso` Etc/UTC a leitura aceita `ate:` de data escrita (sonda S7: `ativa`); a regra de tratar UTC ou sem região como não legível em data, hora e "esta noite" segue pendente.
@@ -44,4 +44,4 @@ Sondas desta rodada (nenhuma prova bloqueante; registro dos recomendados): scrip
 - PA-7: AR-1 e AR-2 com mutantes da leitura (`tests/mutantes/v047-sieg-g1-autorizacao*.json`, fora do domínio, só conferidos na lista).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Suíte: só no CI do PR (sem execução no 2f150f4d, PR em conflito com a develop), portão do merge. Lacuna: `gitleaks`, `osv-scanner`, `semgrep`, `zizmor` e `actionlint` fora do PATH.
+Nenhum risco aceito. Suíte: CI do PR 629 no 7d8ff8f5, suíte verde nas duas versões do Python. Lacuna: `gitleaks`, `osv-scanner`, `semgrep`, `zizmor` e `actionlint` fora do PATH.
