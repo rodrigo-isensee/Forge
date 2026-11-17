@@ -3,22 +3,22 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-sieg-g1-autorizacao
-commit: 580b6c34c8cc46ae8270cc42017427d82f64b784
-parecer: reprovado
-escopo: completo
+commit: 7b20d073c4d8cd596518000064e50e68eb1168e2
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-17
 ---
-# QA: v047 G1.0-G1.1, `forge-check autorizacao ler` e ADR 0018 (head 580b6c34)
+# QA: v047 G1.0-G1.1, `forge-check autorizacao ler` e ADR 0018 (head 7b20d073)
 
 Escopo: `bin/forge_autorizacao.py`, a ligação em `bin/forge-check`, `tests/test_autorizacao.py`, os 7 mutantes e a ADR 0018 (itens 1, 2, 5 a 7 e 12; etapa G1.1 do corte). Sem PR aberto, então não há check-run `bateria` do sha; a suíte inteira não foi rodada (brief). Rodei só os testes dos arquivos tocados.
 
 ## Achados
-- A1 (bloqueante) tests/test_autorizacao.py:18 · R-QA: `forge-testes --vermelho 86ac0fcb --modulos test_autorizacao` sai 2 (sem veredito) duas vezes; o módulo carrega `bin/forge_autorizacao.py` no import e quebra na base. Sem rc 0 não há vermelho. Carregue em setUpModule/setUpClass.
-- A2 (recomendado) bin/forge_autorizacao.py:46 · única linha de guarda mudada sem mutante (`--cobertura`): `e.strerror or e` na mensagem de erro de leitura. Quase equivalente; declare-o em `equivalente` com justificativa ou mate-o com `assertIn` do texto do erro.
+- A1 (recomendado) tests/test_autorizacao.py:18 · resolvido em 99c79c67: o módulo carrega em setUpModule; `forge-testes --vermelho 86ac0fcb --modulos test_autorizacao` sai rc 0, 8 provam por API ausente.
+- A2 (recomendado) bin/forge_autorizacao.py:46 · resolvido em 99c79c67: M56 (`{e.strerror or e}` para `{e}`) morreu pelo teste do evento ilegível.
 
 ## Critério → teste → resultado
 Obrigações da ADR 0018 (itens 5 a 7, 12 e etapa G1.1); sem `CA-n`, a UX não se aplica.
@@ -47,3 +47,11 @@ sem veredito: volta ao autor; não vale como vermelho nem como já falhava.   (r
 ```
   Prova manual (não substitui a ferramenta): na base, `python3 -m unittest tests.test_autorizacao` cai em `FileNotFoundError: .../bin/forge_autorizacao.py` na linha 18 do teste, então a base falha; o que falta é a ferramenta registrar isso por teste (A1).
 - Suíte inteira: não rodada aqui; o CI do PR a roda.
+
+
+## Revalidação (head 7b20d073, delta de 580b6c34)
+Delta no domínio: `bin/forge-check` (só texto da ajuda), `docs/adr/README.md`, `tests/test_autorizacao.py`, mutante M56. Nada mais de código.
+- `python3 -m unittest tests.test_autorizacao` (TMPDIR, sem `-I`): 8 testes, OK.
+- Vermelho (rc 0): `vermelho: base=86ac0fcb9495 head=7b20d073c4d8 módulos=test_autorizacao`; os 8 testes de `Ler`: `H=ok · B=erro · prova (API ausente)`; `contagem: prova (API ausente)=8`.
+- Mutante do delta: `forge-mutante --base 580b6c34 tests/mutantes/v047-sieg-g1-autorizacao-8.json`: `base=580b6c34c8cc... rev=7b20d073c4d8...`, `M56 · morreu · bin/forge_autorizacao.py:46`, rc 0.
+- Suíte inteira: não rodada; o CI do PR a roda.
