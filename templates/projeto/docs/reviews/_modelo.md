@@ -12,7 +12,9 @@ data: AAAA-MM-DD
 
 Copie para `docs/reviews/<pedido>.md`. Formato: ADR 0004 do Forge; `forge-check docs` valida. Arquivos que começam com `_` são ignorados.
 
-Formato do bloco `## Achados` (lido por máquina em `forge-check brief gerar --volta` e conferido por `forge-check docs`): uma linha por achado, `- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>`, sem quebra de linha nem caractere de controle, com até 300 caracteres no texto; só essas linhas entram no bloco (a prosa fica nas outras seções), e parecer reprovado traz ao menos um `bloqueante`. Parecer aprovado traz só linhas `(recomendado)` ou o bloco vazio.
+`pedido:` é o id do pedido (o nome do arquivo `docs/pedidos/<id>.md`, local ou na raiz de pedidos) ou `release-X.Y.Z`; nunca o nome da branch. Antes do envio, `forge-check docs <arquivo>` confere o parecer, também a cópia fora da pasta.
+
+Formato do bloco `## Achados` (lido por máquina em `forge-check brief gerar --volta` e conferido por `forge-check docs`): uma linha por achado, `- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>`, sem quebra de linha nem caractere de controle, com até 300 caracteres no texto; só essas linhas entram no bloco (a prosa fica nas outras seções), e parecer reprovado traz ao menos um `bloqueante`. Parecer aprovado traz só linhas `(recomendado)`; sem achados, omita o bloco inteiro (cabeçalho incluído), e nada de "nenhum" dentro dele.
 
 Formato do bloco `## Sondas` (PAR-P1, conferido por `forge-check docs`): em entrega de analisador ou hook, uma linha por sonda executada que prova um bloqueante, `- S<n> · <comando ou entrada literal> · espera: <resultado esperado> · obtido: <resultado obtido>`, numa linha só, sem caractere de controle, com ` · espera: ` e ` · obtido: ` uma vez cada e até 300 caracteres depois do id; só essas linhas entram no bloco, e sem sonda o bloco fica vazio.
 
