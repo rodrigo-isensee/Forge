@@ -819,8 +819,8 @@ class Hooks(unittest.TestCase):
             self.assertIn(esperado["pergunta"], saida["permissionDecisionReason"])
         elif "aviso" in esperado:  # H2 (v047): o `agentes` avisa sem recusar, uma linha no stderr e no systemMessage
             self.assertEqual((f.hook, esperado["codigo"]), ("agentes", 0))
-            self.assertIn(esperado["aviso"], json.loads(r.stdout)["systemMessage"])
             self.assertIn(esperado["aviso"], r.stderr)
+            self.assertIn(esperado["aviso"], json.loads(r.stdout)["systemMessage"])
         else:
             self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
         self.assertEqual(r.returncode, esperado["codigo"], r.stderr)
