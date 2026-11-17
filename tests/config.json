@@ -186,6 +186,9 @@
       "critério de reversão"
     ],
     "agents/jarvis.md": [
+      "Não trava \\(diretriz 34\\): decisão pendente é perguntada uma vez",
+      "skills/falar-com-o-dono/nao-trava\\.md",
+      "a versão sai quando ficar pronta \\(diretriz 34\\)",
       "o pedido só fecha com ela gravada",
       "Teto do time \\(H6\\): até 20 agentes e 12 branches abertas",
       "agente livre termina o que está aberto",
@@ -356,6 +359,7 @@
       "vira pendência no parecer, não revisão manual"
     ],
     "agents/tech-lead.md": [
+      "\\*\\*Versão \\(diretriz 34\\):\\*\\*",
       "`sem teste:` do `forge-check pr` pede justificativa no `## Sem teste` do PR",
       "\\*\\*Ritmo e corte \\(diretrizes 32 e 33; H6\\):\\*\\*",
       "skills/trabalho-em-paralelo/ritmo-e-corte\\.md",
@@ -584,7 +588,16 @@
       "nunca para agentes diferentes em paralelo",
       "no máximo 12 branches com trabalho aberto",
       "Até 20 agentes ao mesmo tempo",
-      "Agente livre termina o que está aberto"
+      "Agente livre termina o que está aberto",
+      "## Versão quando ficar pronta \\(diretriz 34 do dono\\)",
+      "até 2 por dia, ou mais se couber",
+      "o Jarvis avisa o dono numa linha quando ele fica verde"
+    ],
+    "skills/falar-com-o-dono/nao-trava.md": [
+      "\\*\\*Decisão pendente do dono não para o time:\\*\\*",
+      "Sem repetir \"sigo esperando\"",
+      "vira na hora o comando exato para o dono rodar",
+      "espera apenas o item bloqueado"
     ],
     "templates/projeto/CLAUDE.md": [
       "`R-MAIN`",
@@ -699,6 +712,7 @@
     "skills/esperar-estado/SKILL.md": ["nunca por `kill -0` no pid gravado"]
   },
   "invariantes_motivo": {
+    "skills/falar-com-o-dono/nao-trava.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis para o time à espera de decisão do dono ou de bloqueio de ambiente e repete \"sigo esperando\" (diretriz 34)"},
     "skills/trabalho-em-paralelo/ritmo-e-corte.md": {"regra": "R-FLUXO", "porque": "sem o texto, somem o ritmo diário, o corte por arquivo e o teto do H6 que o Jarvis manda ler (diretrizes 32 e 33)"},
     "docs/fechamento-integrador.md": {"regra": "R-FLUXO", "porque": "sem o texto, o autor abre PR só para rodar o CI e o PR acaba fechado e reaberto, uma rodada a mais (decisão Q9 do dono)"},
     "docs/regras/R-SEGURANCA.md": {"regra": "R-SEGURANCA", "porque": "sem o texto, a mudança com gatilho de segurança segue sem o parecer do security-engineer"},
@@ -793,6 +807,9 @@
       "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado": {"regra": "R-QA", "porque": "sem o texto, o parecer lê só o git log e aceita o oráculo apagado da história por reset ou rebase (EXT-1, C-2)"}
     },
     "agents/jarvis.md": {
+      "Não trava \\(diretriz 34\\): decisão pendente é perguntada uma vez": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis segura o time por uma decisão pendente e repete a pergunta ao dono (diretriz 34)"},
+      "skills/falar-com-o-dono/nao-trava\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o Jarvis perde o detalhe de não travar e do comando exato no bloqueio de ambiente (diretriz 34)"},
+      "a versão sai quando ficar pronta \\(diretriz 34\\)": {"regra": "R-FLUXO", "porque": "sem o texto, a versão volta a esperar a manhã e o que está verde na develop fica parado (diretriz 34)"},
       "Teto do time \\(H6\\): até 20 agentes e 12 branches abertas": {"regra": "R-TETO", "porque": "sem o texto, o Jarvis abre branch nova acima de 12 e as branches abertas se acumulam sem terminar (decisão do dono no H6)"},
       "agente livre termina o que está aberto": {"regra": "R-TETO", "porque": "sem o texto, o agente livre abre item novo e a revisão, o conserto e o teste vermelho das branches abertas ficam parados (H6)"},
       "skills/trabalho-em-paralelo/ritmo-e-corte\\.md": {"regra": "R-FLUXO", "porque": "sem o apontamento, o Jarvis perde o detalhe do ritmo diário e do corte por arquivo (diretrizes 32 e 33 do dono)"},
@@ -819,6 +836,7 @@
       "skills/kanban-scrum/experimentos\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, a skill perde o caminho do formato dos experimentos de melhoria, movido pelo teto de caracteres (diretriz 25)"}
     },
     "agents/tech-lead.md": {
+      "\\*\\*Versão \\(diretriz 34\\):\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o tech-lead marca a versão uma vez só de manhã e o que está verde na develop espera (diretriz 34)"},
       "\\*\\*Ritmo e corte \\(diretrizes 32 e 33; H6\\):\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o tech-lead junta sem lote, divide o mesmo arquivo entre agentes e abre conflito no fim (diretrizes 32 e 33)"},
       "skills/trabalho-em-paralelo/ritmo-e-corte\\.md": {"regra": "R-FLUXO", "porque": "sem o apontamento, o tech-lead perde o detalhe do ritmo, do corte por arquivo e do teto do H6, movido pelo teto de caracteres (diretriz 25)"},
       "suíte inteira roda só no CI": {"regra": "R-QA", "porque": "sem o texto, review, segurança e QA voltam a rodar a suíte inteira na máquina e a fila local cresce sem ganho; ela roda uma vez no CI do PR"},
