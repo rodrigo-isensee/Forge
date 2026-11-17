@@ -1,0 +1,98 @@
+diff --git a/.githooks/pre-push b/.githooks/pre-push
+index f944360..1420ab0 100755
+--- a/.githooks/pre-push
++++ b/.githooks/pre-push
+@@ -56,8 +56,10 @@ trava_arquivo() {
+   return 1
+ }
+ # Texto da trava (de outro processo): até 200 bytes, só imprimíveis, para um escape gravado nela não chegar ao terminal (C-14).
++# PRE-PUSH-TEXTO-TRAVA-FD: lê o arquivo já aberto e conferido no descritor 9 (/proc/self/fd/9), não o caminho: trocar o caminho por
++# um link depois da conferência não desvia a leitura. Sem o descritor aberto o head falha em silêncio e o texto sai vazio (falha fechada).
+ texto_da_trava() {
+-  head -c 200 -- "$trava" 2>/dev/null | LC_ALL=C tr -cd '[:print:]' || true
++  head -c 200 -- /proc/self/fd/9 2>/dev/null | LC_ALL=C tr -cd '[:print:]' || true
+ }
+ # Confere o arquivo já aberto no descritor 9 (não o caminho): do próprio usuário e não é link no caminho.
+ trava_confere() {
+@@ -329,6 +331,31 @@ for rel in sys.argv[1:]:
+                 falhas = 1
+ sys.exit(falhas)
+ '
++# PREPUSH-LEVE-COBERTURA-CATRACA: filtra a saída do `forge-mutante --cobertura` (stdin) pela lista da catraca: só a falta (sem mutante,
++# só equivalente, apagada) em arquivo de controle (classe C, `motivo_de_controle`) e que não é teste (`TESTE`) conta. Saída 0 = nenhuma,
++# 1 = há (impressas), 2 = não consegui carregar a catraca (aviso; o CI confere).
++COBERTURA_FILTRO_PY='import argparse, re, sys
++sys.path.insert(0, "tests")
++try:
++    import catraca
++    fc = catraca.forge_check()
++    listas = argparse.Namespace(PROTEGIDOS=catraca.PROTEGIDOS, SENSIVEIS=catraca.SENSIVEIS, FORMA_COMPILADA=catraca.FORMA_COMPILADA)
++    faltas = catraca.FALTAS_DE_MUTANTE
++except Exception:
++    sys.exit(2)
++conta = []
++for linha in sys.stdin.read().splitlines():
++    if not linha.startswith(faltas):
++        continue
++    m = re.match(r"[^·]*· (.+?):\d+", linha)
++    if m is None:
++        sys.exit(2)
++    arq = m.group(1)
++    if fc.motivo_de_controle(arq, listas) and not fc.TESTE.search(arq):
++        conta.append(linha)
++print("\n".join(conta))
++sys.exit(1 if conta else 0)
++'
+ tipo_de_script() {
+   local primeira
+   case "$1" in *.py) echo python; return ;; *.sh) echo shell; return ;; esac
+@@ -336,7 +363,7 @@ tipo_de_script() {
+   case "$primeira" in '#!'*python*) echo python ;; '#!'*bash*|'#!'*/sh|'#!'*' sh') echo shell ;; esac
+ }
+ checagens_baratas() {
+-  local arquivo falhas=0 shell=() ancora branch envio ponta ref saida rc
++  local arquivo falhas=0 shell=() ancora branch envio ponta ref saida rc controle faltas
+   for arquivo in "${alterados[@]}"; do
+     if [ ! -f "$arquivo" ] || [ -L "$arquivo" ]; then continue; fi
+     n_baratas=$((n_baratas + 1))
+@@ -370,6 +397,29 @@ checagens_baratas() {
+       echo "pre-push: aviso: scripts/verificar-contribuicao.sh não conferiu o delta (saída ${rc}); o CI confere." >&2
+     fi
+   fi
++  # PREPUSH-LEVE-COBERTURA-CATRACA: diff com Python de controle pede mutante declarado; o CI reprova sem ele (regra_guardas_dos_hooks).
++  # `bin/forge-mutante --cobertura` não roda teste (menos de 1 s), mas julga todo o Python do diff; o filtro abaixo fica só com as
++  # faltas em arquivo da classe C sem teste, a mesma lista da catraca (motivo_de_controle e TESTE). 1 reprova; outra saída é aviso.
++  if [ -n "$base_dev" ] && [ -f bin/forge-mutante ] && [ ! -L bin/forge-mutante ] && [ -f bin/forge-check ] && [ -f tests/catraca.py ]; then
++    controle=0
++    for arquivo in "${alterados[@]}"; do
++      if [ -f "$arquivo" ] && [ ! -L "$arquivo" ] && [ "$(tipo_de_script "$arquivo")" = python ]; then controle=1; break; fi
++    done
++    if [ "$controle" = 1 ] && ancora="$(git merge-base "$base_dev" HEAD 2>/dev/null)"; then
++      rc=0; saida="$(python3 -I bin/forge-mutante --cobertura --base "$ancora" 2>&1)" || rc=$?
++      if [ "$rc" -eq 1 ]; then
++        faltas="$(printf '%s\n' "$saida" | python3 -I -c "$COBERTURA_FILTRO_PY")" && rc=0 || rc=$?
++        if [ "$rc" -eq 1 ]; then
++          printf '%s\n' "$faltas" | LC_ALL=C tr -d '\000-\011\013-\037\177' >&2
++          echo "pre-push: bin/forge-mutante --cobertura reprovou: condição mudada em código de controle sem mutante declarado (o CI reprova igual); declare em tests/mutantes/<pedido>.json." >&2
++          falhas=1
++        fi
++      fi
++      if [ "$rc" -gt 1 ]; then
++        echo "pre-push: aviso: bin/forge-mutante --cobertura não conferiu o delta (saída ${rc}); o CI confere." >&2
++      fi
++    fi
++  fi
+   # O changelog é o do HEAD: confere quando o HEAD é a ponta de uma branch enviada (o nome da branch decide o fragmento).
+   if [ -n "$base_dev" ] && [ -f bin/forge-changelog ] && [ ! -L bin/forge-changelog ] && [ -f .claude-plugin/plugin.json ]; then
+     for envio in "${envios[@]}"; do
+@@ -406,7 +456,9 @@ fi
+ espera="${FORGE_TRAVA_ESPERA:-1200}"
+ case "$espera" in ''|*[!0-9]*) echo "pre-push: FORGE_TRAVA_ESPERA deve ser um número de segundos inteiro (veio '${espera}')." >&2; exit 1 ;; esac
+ intervalo="${FORGE_FILA_INTERVALO:-60}"
+-case "$intervalo" in ''|*[!0-9]*) echo "pre-push: FORGE_FILA_INTERVALO deve ser um número de segundos inteiro (veio '${intervalo}')." >&2; exit 1 ;; esac
++# FILA-INTERVALO-ZERO: 0 (ou 00...) imprimiria a fila a cada 0,2 s; recusado como o valor inválido.
++case "$intervalo" in ''|*[!0-9]*) echo "pre-push: FORGE_FILA_INTERVALO deve ser um número de segundos inteiro maior que zero (veio '${intervalo}')." >&2; exit 1 ;; esac
++[ "$((10#$intervalo))" -gt 0 ] || { echo "pre-push: FORGE_FILA_INTERVALO deve ser um número de segundos inteiro maior que zero (veio '${intervalo}')." >&2; exit 1; }
+ trava="$(trava_arquivo criar)" || exit 1
+ if [ -L "$trava" ]; then
+   echo "pre-push: ${trava} é link simbólico ou não é do próprio usuário; recusado. Apague-o e tente de novo." >&2

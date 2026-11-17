@@ -353,6 +353,18 @@ class GrupoDaEtapa(Repo):
         filho = self.le("filho")[0]
         self.assertTrue(ate(lambda: filho not in vivos(), 30))
 
+    def test_ps_sem_resposta_com_o_grupo_criado_ainda_encerra_o_filho(self):
+        """A etapa curta sai antes do ps e o bash já a colheu: o ps não a acha, mas o grupo dela segue com o filho."""
+        falso = self.dir / "falso"
+        falso.mkdir()
+        (falso / "ps").write_text("#!/bin/sh\n")
+        (falso / "ps").chmod(0o755)
+        self.amb["PATH"] = f"{falso}:{self.amb['PATH']}"
+        self.etapa('sleep 60 & echo $! > "$(dirname "$0")/../filho"')
+        self.assertEqual(self.fim(self.lanca())[0], 0)
+        filho = self.le("filho")[0]
+        self.assertTrue(ate(lambda: filho not in vivos(), 30))
+
     def test_grupo_nao_criado_ou_pgid_ilegivel_sinaliza_so_a_etapa(self):
         falso = self.dir / "falso"
         falso.mkdir()

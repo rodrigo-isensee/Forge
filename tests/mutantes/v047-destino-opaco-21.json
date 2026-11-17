@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "O141",
+      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): `f ( )` com espaço define a função",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if palavras[i - 1:i + 1] == [\"(\", \")\"]:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O142",
+      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): valor calculado só da linha que o hook junta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "valores = None if linha is None else valores_da_palavra(palavra, linha)",
+      "para": "valores = None if False else valores_da_palavra(palavra, linha)",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O143",
+      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): `$[` recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "CONTEXTO_ARITMETICO = re.compile(r\"\\$\\[|",
+      "para": "CONTEXTO_ARITMETICO = re.compile(r\"(?!x)x|",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O144",
+      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): `((` e `$((` recusam",
+      "arquivo": "hooks/conformidade.py",
+      "de": "|\\(\\(|=\\(|",
+      "para": "|(?!x)x|=\\(|",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O145",
+      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): vetor composto `=(` recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "|\\(\\(|=\\(|",
+      "para": "|\\(\\(|(?!x)x|",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O146",
+      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): índice de `${a[…]}` que não é número, `@` nem `*` recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "|\\$\\{[^}\\[]*\\[(?![0-9]+\\]|[@*]\\])|",
+      "para": "|(?!x)x|",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O147",
+      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): deslocamento de `${x:…}` que não é só número recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "|\\$\\{[^}:]*:(?![-=+?]|[0-9\\s:-]*\\})\"",
+      "para": "|(?!x)x\"",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    },
+    {
+      "id": "O148",
+      "guarda": "E1.326, volta do redesenho (A4 do review E1.323, A10 da segurança E1.324, A3 do QA E1.325): descritor nomeado `{nome}>f` recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "r\"|(?<!\\$)\\{[^{}\\s]*\\}[<>]\")",
+      "para": "r\"|(?!x)x\")",
+      "testes": [
+        "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
+      ]
+    }
+  ]
+}

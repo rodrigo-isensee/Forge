@@ -69,6 +69,28 @@ class MensagemPelaEtapaDoBrief(Cenario):
                 self.assertEqual(rc, 0, saida)
                 self.assertIn(f"Desde: {esperado}", saida.decode().splitlines())
 
+    def test_desde_real_e_a_linha_mais_recente_valida_com_commits_da_branch(self):
+        """Com SHAs que não existem, o `Desde` cai na última linha do pedido sem passar pelo `desde_valido`; aqui o worktree
+        é um repositório de verdade, e a escolha (a última linha válida, conferida ou base do dono) é a do `desde_valido`."""
+        git("init", "-q", cwd=self.pasta)
+        shas = []
+        for n in range(3):
+            git("-c", "user.email=t@example.com", "-c", "user.name=T", "commit", "-q", "--allow-empty", "-m", f"c{n}", cwd=self.pasta)
+            shas.append(git("rev-parse", "HEAD", cwd=self.pasta).stdout.strip())
+        c0, c1, _ = shas
+        decisao = "DECISÃO DO DONO (2026-10-29): \"fixar a base\".\n"
+        conferida = lambda sha: f"- 2026-10-29 07:36: entrega conferida {sha}\n"
+        dono = lambda sha: f"- 2026-10-29 11:00: base do delta fixada pelo dono {sha}\n"
+        casos = {"duas conferidas: a última, não a primeira": (conferida(c0) + conferida(c1), c1),
+                 "dono depois da conferida: a do dono vale": (decisao + conferida(c0) + dono(c1), c1),
+                 "conferida depois do dono": (decisao + dono(c0) + conferida(c1), c1),
+                 "só a do dono": (decisao + dono(c1), c1)}
+        for nome, (historico, esperado) in casos.items():
+            with self.subTest(nome):
+                rc, saida = self.entrega("--worktree", str(self.pasta), pedido_extra=historico)
+                self.assertEqual(rc, 0, saida)
+                self.assertIn(f"Desde: {esperado}", saida.decode().splitlines())
+
     def recusa(self, motivo, *extra):
         rc, saida = self.entrega(*extra)
         self.assertEqual(rc, 2, saida)
