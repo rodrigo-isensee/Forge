@@ -1,0 +1,156 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M50",
+      "guarda": "anotacoes que nao sao lista nao quebram",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "isinstance(lista, list)",
+      "para": "True",
+      "testes": [
+        "tests.test_ci_rapido_guardas.GerarEColetar.test_api_sem_lista_de_execucoes_ou_de_jobs_ou_de_anotacoes_nao_quebra"
+      ]
+    },
+    {
+      "id": "M51",
+      "guarda": "anotacao descartada nao soma",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "                if lido is not None:",
+      "para": "                if True:",
+      "testes": [
+        "tests.test_pesos_do_ci.Leitura.test_anotacao_fora_do_formato_e_descartada_inteira"
+      ]
+    },
+    {
+      "id": "M52",
+      "guarda": "perna sem tempo valido nao conta",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "            if tempos:\n                do_run",
+      "para": "            if True:\n                do_run",
+      "testes": [
+        "tests.test_ci_rapido_guardas.GerarEColetar.test_perna_sem_anotacao_valida_deixa_o_conjunto_incompleto"
+      ]
+    },
+    {
+      "id": "M53",
+      "guarda": "URL da API padrao",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "(env.get(\"GITHUB_API_URL\") or \"https://api.github.com\")",
+      "para": "(env.get(\"GITHUB_API_URL\"))",
+      "testes": [
+        "tests.test_ci_rapido_guardas.LeitorDaApi.test_sem_url_nem_token_usa_a_api_publica_e_nao_manda_autorizacao"
+      ]
+    },
+    {
+      "id": "M54",
+      "guarda": "token so quando existe",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "    if env.get(\"GH_TOKEN\"):",
+      "para": "    if True:",
+      "testes": [
+        "tests.test_ci_rapido_guardas.LeitorDaApi.test_sem_url_nem_token_usa_a_api_publica_e_nao_manda_autorizacao"
+      ]
+    },
+    {
+      "id": "M55",
+      "guarda": "env vem do processo quando nao informado",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "env is None",
+      "para": "False",
+      "testes": [
+        "tests.test_ci_rapido_guardas.PrincipalGuardas.test_env_nao_informado_vem_do_ambiente_do_processo"
+      ]
+    },
+    {
+      "id": "M56",
+      "guarda": "repo no formato",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "if not REPOSITORIO.fullmatch(a.repo) or not 1",
+      "para": "if not 1",
+      "testes": [
+        "tests.test_ci_rapido_guardas.PrincipalGuardas.test_repo_ruim_ou_execucoes_fora_da_faixa_nao_chegam_a_ler_a_api"
+      ]
+    },
+    {
+      "id": "M57",
+      "guarda": "execucoes de 1 a 30",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": " or not 1 <= a.execucoes <= 30:",
+      "para": ":",
+      "testes": [
+        "tests.test_ci_rapido_guardas.PrincipalGuardas.test_repo_ruim_ou_execucoes_fora_da_faixa_nao_chegam_a_ler_a_api"
+      ]
+    },
+    {
+      "id": "M58",
+      "guarda": "conhecidas injetadas dispensam o plano",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "conhecidas is None",
+      "para": "True",
+      "testes": [
+        "tests.test_ci_rapido_guardas.PrincipalGuardas.test_conhecidas_injetadas_dispensam_o_plano_da_arvore"
+      ]
+    },
+    {
+      "id": "M59",
+      "guarda": "leitor injetado dispensa o da API",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "ler or leitor_da_api(env)",
+      "para": "leitor_da_api(env)",
+      "testes": [
+        "tests.test_ci_rapido_guardas.PrincipalGuardas.test_leitor_injetado_dispensa_o_da_api"
+      ]
+    },
+    {
+      "id": "M60",
+      "guarda": "sem amostra nao gera",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "    if not amostras:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_pesos_do_ci.Principal.test_sem_amostra_valida_nao_gera_nada"
+      ]
+    },
+    {
+      "id": "M61",
+      "guarda": "peso atual que nao e objeto vale vazio",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "isinstance(atuais, dict)",
+      "para": "True",
+      "testes": [
+        "tests.test_ci_rapido_guardas.PrincipalGuardas.test_peso_atual_que_nao_e_objeto_vale_vazio"
+      ]
+    },
+    {
+      "id": "M62",
+      "guarda": "aviso so com unidade sem medida",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "    if sem_medida:",
+      "para": "    if True:",
+      "testes": [
+        "tests.test_ci_rapido_guardas.PrincipalGuardas.test_aviso_de_sem_medida_so_com_unidade_sem_medida_e_abrevia_acima_de_dez"
+      ]
+    },
+    {
+      "id": "M63",
+      "guarda": "aviso abrevia acima de dez",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "if len(sem_medida) > 10 else",
+      "para": "if False else",
+      "testes": [
+        "tests.test_ci_rapido_guardas.PrincipalGuardas.test_aviso_de_sem_medida_so_com_unidade_sem_medida_e_abrevia_acima_de_dez"
+      ]
+    },
+    {
+      "id": "M64",
+      "guarda": "saida em arquivo so com --saida",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "    if a.saida:",
+      "para": "    if True:",
+      "testes": [
+        "tests.test_pesos_do_ci.Principal.test_sem_saida_escreve_so_no_stdout_e_nao_toca_nos_pesos_do_repositorio"
+      ]
+    }
+  ]
+}
