@@ -1,4 +1,4 @@
-"""ADR 0018, G1.1: formato, integridade e estado das autorizações gravadas (`bin/forge_autorizacao.py`, `forge-check autorizacao ler`)."""
+"""ADR 0018, G1.1: formato, integridade e estado das autorizações gravadas (`bin/forge_autorizacao.py`, `bin/forge-check autorizacao ler`)."""
 import contextlib
 import datetime
 import errno
