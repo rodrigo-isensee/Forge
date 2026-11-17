@@ -206,9 +206,9 @@ def idioma_do_dono(raiz):
     """`idioma_do_dono` do .forge/config.json da raiz (neutro: vem do projeto); sem raiz, arquivo ou chave: IDIOMA_PADRAO.
     Código sem lista em PALAVRAS_DO_IDIOMA: None (sem medida, para não acusar o próprio idioma do dono)."""
     config = ler_json(Path(raiz) / ".forge" / "config.json", {}) if raiz is not None else {}
-    if not isinstance(config, dict) or "idioma_do_dono" not in config:
+    valor = config.get("idioma_do_dono") if isinstance(config, dict) else None
+    if valor is None:
         return IDIOMA_PADRAO
-    valor = config["idioma_do_dono"]
     return valor if isinstance(valor, str) and valor in PALAVRAS_DO_IDIOMA else None
 
 

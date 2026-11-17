@@ -282,6 +282,8 @@ class IdiomaDoDono(unittest.TestCase):
         self.assertEqual(self.medir(self.EN, self.raiz), ("en", "pt", True), "raiz sem .forge/config.json")
         self.configurar({"pesados": []})
         self.assertEqual(self.medir(self.ES, self.raiz), ("es", "pt", True), "config sem a chave")
+        self.configurar(["en"])
+        self.assertEqual(self.medir(self.EN, self.raiz), ("en", "pt", True), "config que não é objeto")
 
     def test_idioma_vem_da_configuracao_do_projeto(self):
         self.configurar({"idioma_do_dono": "en"})
@@ -296,7 +298,7 @@ class IdiomaDoDono(unittest.TestCase):
 
     def test_mensagem_curta_mista_ou_em_codigo_fica_sem_idioma_e_nao_e_acusada(self):
         cerca = "`" * 3
-        for texto in ("Feito: git push.", "the and não que", f"Pronto.\n{cerca}\n{self.EN}\n{cerca}\n> {self.EN}"):
+        for texto in ("Feito: git push.", "Feito, não ficou nada.", "the and is não que uma", f"Pronto.\n{cerca}\n{self.EN}\n{cerca}\n> {self.EN}"):
             with self.subTest(texto=texto[:20]):
                 self.assertEqual(self.medir(texto, None), (None, "pt", False))
 

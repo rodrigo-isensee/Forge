@@ -36,8 +36,8 @@
       "id": "M4",
       "guarda": "SIEG-G4: config sem a chave idioma_do_dono vale o padrão",
       "arquivo": "hooks/meta.py",
-      "de": "if not isinstance(config, dict) or \"idioma_do_dono\" not in config:",
-      "para": "if not isinstance(config, dict):",
+      "de": "    if valor is None:\n        return IDIOMA_PADRAO",
+      "para": "    if False:\n        return IDIOMA_PADRAO",
       "testes": [
         "tests.test_meta.IdiomaDoDono.test_sem_configuracao_o_dono_fala_portugues_e_ingles_e_acusado"
       ]
@@ -47,7 +47,7 @@
       "guarda": "SIEG-G4: código de idioma sem lista não mede",
       "arquivo": "hooks/meta.py",
       "de": "return valor if isinstance(valor, str) and valor in PALAVRAS_DO_IDIOMA else None",
-      "para": "return valor",
+      "para": "return valor if isinstance(valor, str) or valor in PALAVRAS_DO_IDIOMA else None",
       "testes": [
         "tests.test_meta.IdiomaDoDono.test_idioma_sem_lista_nao_mede_nem_acusa"
       ]
@@ -61,6 +61,16 @@
       "testes": [
         "tests.test_meta.IdiomaDoDono.test_idioma_sem_lista_nao_mede_nem_acusa",
         "tests.test_meta.IdiomaDoDono.test_mensagem_curta_mista_ou_em_codigo_fica_sem_idioma_e_nao_e_acusada"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "SIEG-G4: só config objeto dá o idioma do dono",
+      "arquivo": "hooks/meta.py",
+      "de": "if isinstance(config, dict) else None",
+      "para": "if not isinstance(config, dict) else None",
+      "testes": [
+        "tests.test_meta.IdiomaDoDono.test_idioma_vem_da_configuracao_do_projeto"
       ]
     }
   ]
