@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ambiente-sobrevive
-commit: c2b5556888ed272694c3d321244ea734a829c16c
+commit: a359df54ffb83949d5a85d7cd37f0aef266e1cee
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -20,6 +20,9 @@ Parecer anterior no 68072575 (aprovado, A1 recomendado); este revalida por delta
 - A1 (recomendado) templates/projeto/.devcontainer/preparar-ambiente.sh:45 · o mutante `: || faltas+=` do link agora morre (M20); fechado, sem pendência. Conferi à mão: 1 falha em 24.
 - A2 (recomendado) hooks/ambiente.py:21 · sem mutante e sem `isentas`: linhas 21 (padrão `/workspaces`), 33 (`is_file`, defesa) e 40 (`startswith`, `returncode == 1`) sobrevivem a mutação à mão (`rc in (0,1)` imprime só `ambiente: ok`). São equivalentes; declare-os em `equivalente`/`isentas`.
 - A3 (recomendado) tests/test_forge.py:2043 · M23 morre por `CalledProcessError` do helper `git` (chave `core.hooksPath` ausente), não por asserção; a morte é legítima (passa sem o mutante), mas a mensagem some. Ler com `check=False` e `assertEqual` dá falha clara.
+
+## Revalidação c2b55568..a359df54 (E2.659: índice de fixtures)
+- Delta no domínio do QA: só `docs/hooks-fixtures.md` (2793 -> 2796, 3 fixtures `ambiente`: erro, fora, sem). `python3 -I scripts/indice-fixtures.py --conferir` -> `em dia`, rc=0; `python3 -m unittest tests.test_indice_fixtures` -> 7 testes, OK. Sem código nem teste mudado; veredito anterior mantido.
 
 ## Revalidação be5bf3ea..c2b55568 (E2.639: junção com a develop 73a0ab81 e testes do hook)
 `forge-check parecer delta` lista no domínio: `bin/forge-testes`, 3 fixtures `tests/hooks/ambiente/*.json`, `tests/test_hooks.py`, `tests/test_forge.py`. O resto do diff contra a base é da develop (outros itens). `hooks/ambiente.py`, scripts e devcontainer sem mudança.
