@@ -70,7 +70,8 @@ pronto: na primeira mudança (`git status --porcelain`), a rodada para, lista o 
 Nunca escreve na árvore de trabalho nem muta arquivo de teste. Só até 16 mutantes por spec. Sem shell. Uma spec
 inválida barra todas antes de rodar qualquer mutante.
 
-A rodada é evidência do QA; `--cobertura` é a checagem do autor; nenhum hook, pre-push nem CI chama. Cobertura é
+A rodada é evidência do QA; `--cobertura` é a checagem do autor; o CI não a chama (a catraca usa `analisar` direto) e o envio leve do
+`.githooks/pre-push` a chama só depois de aplicado o patch `docs/devops/pp1-pre-push.patch`, filtrando a saída pela lista da catraca. Cobertura é
 "declarado, não provado": quem prova que o mutante morre é a rodada (`forge-mutante SPEC`).
 """
 import argparse
