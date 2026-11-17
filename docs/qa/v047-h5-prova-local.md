@@ -1,7 +1,7 @@
 ---
 tipo: qa
 contrato: 1
-pedido: v047-h5-prova-local
+pedido: v047
 branch: melhoria/v047-h5-prova-local
 commit: c046a44b34066447d9f595b9d31e3679ba2b9fba
 parecer: aprovado
