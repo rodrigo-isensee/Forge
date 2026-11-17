@@ -11,7 +11,6 @@ data: 2026-11-17
 # Review: v047 (E2.679, MAQ-I9 fatia 2, TRAVA_S 1200)
 
 ## Achados
-- A1 (bloqueante, resolvido em 07319ed9) docs/hooks.md:14 · a referência do hook ainda diz que a trava vale "há menos de 10 minutos"; o mesmo em :72 ("a trava de tarefa pesada, em 10 minutos") e :122-123; com TRAVA_S = 1200 isso é falso. Doc afetada na mesma entrega (Definição de pronto, R-REVIEW); trocar por 20 minutos (1.200 s)
 - A2 (recomendado) tests/test_pesado_fila.py:92 · `tempfile.mkdtemp` sem `addCleanup(shutil.rmtree, ...)` deixa uma pasta por teste no TMPDIR; mesmo padrão das classes já existentes no arquivo, então fica para um ajuste do arquivo inteiro
 
 ## Sondas
@@ -29,6 +28,7 @@ Diff 73a0ab81...8bff4e7d (7 arquivos; código e teste: hooks/pesado.py 4+/2-, te
 - Suíte completa: fica no CI do PR; não rodada aqui.
 
 ## Revalidação (delta)
+Achado A1 (bloqueante, resolvido em 07319ed9), registrado aqui na forma original: docs/hooks.md:14 · a referência do hook ainda diz que a trava vale "há menos de 10 minutos"; o mesmo em :72 ("a trava de tarefa pesada, em 10 minutos") e :122-123; com TRAVA_S = 1200 isso é falso. Doc afetada na mesma entrega (Definição de pronto, R-REVIEW); trocar por 20 minutos (1.200 s)
 `forge-check parecer delta` lido: o delta de código e teste é só `docs/hooks.md` (4+/4-, linhas 14, 72, 122, 123), que agora diz 20 minutos (1.200 s); o resto do intervalo são os pareceres de QA e segurança. O único "10 min" que sobra em `docs/hooks.md` é o retry do hook `doutor` (linha 16), alheio à trava. A1 resolvido; A2 segue recomendado, fora do bloqueio.
 
 ## Parecer
