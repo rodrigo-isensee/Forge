@@ -1,0 +1,16 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "G1.1a (ADR 0018 item 7): erro de leitura sai com rc 1",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "return 1 if erros or adulteradas else 0",
+      "para": "return 1 if adulteradas else 0",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_ilegivel_e_erro_e_nada_e_integro_por_ele"
+      ]
+    }
+  ]
+}

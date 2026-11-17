@@ -1,2 +1,3 @@
 ### Adicionado
 - ADR 0018 (aceita): autorização do dono gravada com escopo, palavras exatas e validade antes do rótulo `afrouxa-regra` e do merge na `main`; decisões do dono D1 (48 h sem prazo, até 7 dias com prazo escrito), D2 a) e D4 c) (v047 E2.483, E2.641)
+- `forge-check autorizacao ler` (ADR 0018, G1.1a): lista as concessões de `.forge/autorizacoes/` da cópia principal com a integridade (Sha256 do corpo, `Gravado-por` igual ao `forge-check` carregado, campos e forma) e a mensagem inteira do dono; evento que é link, que não é arquivo comum ou fora da forma é erro (falha fechada); só leitura, nada barra (v047 E2.643)
