@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-hook-heredoc-fp
-commit: 0eee14533b579e8a7117666faad15f421fe4b17b
+commit: fea6e9f6d66638d5144ca676931a5fff624779d0
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-13
+data: 2026-11-16
 ---
 # QA: v047 (E4.4, falso positivo de heredoc no hook de PR)
 
@@ -52,5 +52,8 @@ Vermelho antes do verde: `forge-testes --vermelho` não rodado nesta janela (car
 - S7 · X chr, base64, f-string, reverso, rot13, "g"+"h", "p"+"r" em itens, arquivo, lançador mais docstring · espera: rc 2 (como a base) · obtido: rc 0 (A1 recomendado, limitação documentada)
 - S8 · C print("gh pr merge 5") e docstring · espera: rc 0 (a correção) · obtido: rc 0
 
-## Revalidação
+## Revalidação E2.516 (delta `0eee1453..fea6e9f6`)
+Delta no domínio: `hooks/parecer.py`, `docs/hooks.md`, `docs/hooks-fixtures.md` e a fixture `texto-barra-python-stdin-com-gh-pr`, todos vindos da develop (de76a630, c70fd89d, merge 952b97e8 e dd71ea87); o patch do item não mudou (review aprovou). Local, só o afetado: `python3 -m unittest tests.test_hooks_parecer_pasta` no head fea6e9f6: `Ran 4 tests in 32.224s · OK` (36 fixtures `heredoc-interpretador-*`). Suíte completa: check-run `bateria` do CI do PR. Parecer segue aprovado, sem achado novo.
+
+## Revalidação anterior
 `forge-check parecer delta docs/qa/v047-hook-heredoc-fp.md` lista o resto do delta; a UX não mudou.
