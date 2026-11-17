@@ -1403,8 +1403,9 @@ def base_do_delta(raiz, base, ref=None):
 
 def tamanho_do_pr(raiz, ref, base, branch, previo=False):
     """H1 (v0474 E2.13): as linhas de código do diff `base...ref` (testes e documentação não contam, `e_codigo`); acima do teto, o
-    aviso no stderr e, com o PR da `branch` aberto, a violação se o corpo dele não traz `teto: excedido, <n> linhas, <motivo>`. Sem PR
-    ainda, no `--previo` ou sem `gh`, só o aviso: o corpo se confere quando o PR existe (o `forge-fechar` roda o `pr` de novo)."""
+    aviso no stderr e, com o PR da `branch` aberto (state OPEN; o fechado ou mesclado não conta), a violação se o corpo dele não traz
+    `teto: excedido, <n> linhas, <motivo>` com `<n>` de pelo menos o total medido. Sem PR aberto, no `--previo` ou sem `gh`, só o
+    aviso: o corpo se confere quando o PR existe (o `forge-fechar` roda o `pr` de novo)."""
     b = base_da_entrega(raiz, base, so_a_pedida=True)
     if not b:
         return []
@@ -1424,7 +1425,9 @@ def tamanho_do_pr(raiz, ref, base, branch, previo=False):
     if pr is None:
         print(f"pr: tamanho: corpo do PR não verificável ({motivo}); o forge-fechar confere de novo (H1)", file=sys.stderr)
         return []
-    falta = tamanho.falta_de_motivo(total, pr.get("body"), pr.get("number")) if pr else None
+    if pr.get("state") != "OPEN":  # sem PR ({}), ou o último PR da branch fechado ou mesclado: o corpo dele não vale
+        return []
+    falta = tamanho.falta_de_motivo(total, pr.get("body"), pr.get("number"))
     return [falta] if falta else []
 
 

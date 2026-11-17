@@ -36,7 +36,7 @@
       "id": "M4",
       "guarda": "sem motivo no corpo reprova",
       "arquivo": "bin/forge_tamanho.py",
-      "de": "if total <= TETO_DE_LINHAS_DE_CODIGO or tem_motivo(corpo):",
+      "de": "if total <= TETO_DE_LINHAS_DE_CODIGO or tem_motivo(corpo, total):",
       "para": "if total <= TETO_DE_LINHAS_DE_CODIGO or True:",
       "testes": [
         "tests.test_forge_tamanho.Funcoes.test_falta_de_motivo",

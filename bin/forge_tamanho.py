@@ -33,14 +33,15 @@ def aviso_de_linhas(total):
             "<motivo>` no corpo do PR")
 
 
-def tem_motivo(corpo):
-    """True se o corpo do PR tem a linha `teto: excedido, <n> linhas, <motivo>` com motivo não vazio."""
-    return bool(LINHA_DE_MOTIVO.search(corpo or ""))
+def tem_motivo(corpo, total=0):
+    """True se o corpo do PR tem a linha `teto: excedido, <n> linhas, <motivo>` com motivo não vazio e `<n>` de pelo menos `total`
+    (o número declarado cobre o tamanho medido: a linha de um item menor não libera o item que cresceu)."""
+    return any(int(m.group(1)) >= total for m in LINHA_DE_MOTIVO.finditer(corpo or ""))
 
 
 def falta_de_motivo(total, corpo, numero):
     """A violação do `pr` quando o item passa do teto e o corpo do PR `numero` não traz o motivo, ou None."""
-    if total <= TETO_DE_LINHAS_DE_CODIGO or tem_motivo(corpo):
+    if total <= TETO_DE_LINHAS_DE_CODIGO or tem_motivo(corpo, total):
         return None
     return (f"pr: tamanho: {total} linhas de código acima do teto de {TETO_DE_LINHAS_DE_CODIGO} sem a linha "
             f"`teto: excedido, {total} linhas, <motivo>` no corpo do PR #{numero} ({ORIGEM})")

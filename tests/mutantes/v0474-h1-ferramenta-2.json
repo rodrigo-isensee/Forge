@@ -54,12 +54,12 @@
     },
     {
       "id": "M13",
-      "guarda": "sem PR aberto nao reprova",
+      "guarda": "PR fechado ou mesclado nao reprova",
       "arquivo": "bin/forge-check",
-      "de": "pr.get(\"number\")) if pr else None",
-      "para": "pr.get(\"number\")) if True else None",
+      "de": "    if pr.get(\"state\") != \"OPEN\":",
+      "para": "    if not pr:",
       "testes": [
-        "tests.test_forge_tamanho.NoPr.test_sem_pr_so_avisa"
+        "tests.test_forge_tamanho.NoPr.test_pr_fechado_ou_mesclado_nao_reprova"
       ]
     },
     {
@@ -70,6 +70,16 @@
       "para": "    return [falta] if True else []",
       "testes": [
         "tests.test_forge_tamanho.NoPr.test_motivo_presente_devolve_lista_vazia"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "sem PR nao reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    if pr.get(\"state\") != \"OPEN\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_tamanho.NoPr.test_sem_pr_so_avisa"
       ]
     }
   ]

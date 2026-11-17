@@ -3,6 +3,7 @@ linhas de código (testes e documentação não contam; decisão do dono 17/11 1
 `teto: excedido, <n> linhas, <motivo>` no corpo. O `brief gerar` avisa do pedido com mais de 50 etapas e do brief perto do teto de
 caracteres. Sem rede: o `gh` é um falso no PATH e o `origin` é um repositório nu local."""
 import contextlib
+import functools
 import io
 import json
 import os
@@ -17,43 +18,54 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho ta
 from ambiente_git import sem_manutencao  # noqa: E402
 from test_selo_e_entrega import FORGE_CHECK, PEDIDO, RAIZ, Repositorio, fc  # noqa: E402
 
-tam = SourceFileLoader("forge_tamanho_teste", str(RAIZ / "bin" / "forge_tamanho.py")).load_module()
+
+
+@functools.lru_cache(maxsize=None)
+def tam():
+    """bin/forge_tamanho.py carregado sob demanda: sem ele (a base), cada teste falha sozinho e o `--vermelho` tem veredito."""
+    return SourceFileLoader("forge_tamanho_teste", str(RAIZ / "bin" / "forge_tamanho.py")).load_module()
 
 
 class Funcoes(unittest.TestCase):
     def test_so_codigo_conta_e_binario_fica_fora(self):
         contagens = {"bin/app": ("100", "51"), "tests/test_app.py": ("900", "0"), "docs/a.md": ("500", "5"),
                      "changelog.d/x.md": ("3", "0"), "bin/imagem": ("-", "-")}
-        self.assertEqual(tam.linhas_de_codigo(contagens, fc.e_codigo), 151)
+        self.assertEqual(tam().linhas_de_codigo(contagens, fc.e_codigo), 151)
 
     def test_borda_do_teto_de_linhas(self):
-        self.assertIsNone(tam.aviso_de_linhas(150))
-        self.assertIn("tamanho: 151 linhas de código, acima do teto de 150", tam.aviso_de_linhas(151))
-        self.assertIn("`teto: excedido, 151 linhas, <motivo>`", tam.aviso_de_linhas(151))
+        self.assertIsNone(tam().aviso_de_linhas(150))
+        self.assertIn("tamanho: 151 linhas de código, acima do teto de 150", tam().aviso_de_linhas(151))
+        self.assertIn("`teto: excedido, 151 linhas, <motivo>`", tam().aviso_de_linhas(151))
 
     def test_motivo_no_corpo(self):
         for corpo in ("teto: excedido, 180 linhas, a guarda e o teste não ficam verdes separados",
                       "texto\n- teto: excedido, 180 linhas, o corte quebra a suíte\nmais", "  * teto: excedido, 9 linhas,  x"):
             with self.subTest(corpo=corpo):
-                self.assertTrue(tam.tem_motivo(corpo))
+                self.assertTrue(tam().tem_motivo(corpo))
         for corpo in (None, "", "teto: excedido, 180 linhas, ", "teto: excedido, 180 linhas,", "teto excedido, 180 linhas, x",
                       "o teto: excedido, 180 linhas, x", "teto: excedido, muitas linhas, x"):
             with self.subTest(corpo=corpo):
-                self.assertFalse(tam.tem_motivo(corpo))
+                self.assertFalse(tam().tem_motivo(corpo))
 
     def test_falta_de_motivo(self):
-        self.assertIsNone(tam.falta_de_motivo(150, "", 7))
-        self.assertIsNone(tam.falta_de_motivo(151, "teto: excedido, 151 linhas, a suíte quebra", 7))
-        self.assertIn("no corpo do PR #7", tam.falta_de_motivo(151, "sem a linha", 7))
+        self.assertIsNone(tam().falta_de_motivo(150, "", 7))
+        self.assertIsNone(tam().falta_de_motivo(151, "teto: excedido, 151 linhas, a suíte quebra", 7))
+        self.assertIn("no corpo do PR #7", tam().falta_de_motivo(151, "sem a linha", 7))
+
+    def test_numero_do_motivo_cobre_o_total(self):
+        self.assertIsNotNone(tam().falta_de_motivo(160, "teto: excedido, 9 linhas, ok", 7))
+        self.assertIsNotNone(tam().falta_de_motivo(400, "teto: excedido, 151 linhas, o item cresceu", 7))
+        self.assertIsNone(tam().falta_de_motivo(160, "teto: excedido, 9 linhas, velho\nteto: excedido, 200 linhas, novo", 7))
+        self.assertIsNone(tam().falta_de_motivo(160, "teto: excedido, 160 linhas, a suíte quebra", 7))
 
     def test_borda_das_etapas(self):
-        self.assertIsNone(tam.aviso_de_etapas(50))
-        self.assertIn("o pedido tem 51 etapas", tam.aviso_de_etapas(51))
+        self.assertIsNone(tam().aviso_de_etapas(50))
+        self.assertIn("o pedido tem 51 etapas", tam().aviso_de_etapas(51))
 
     def test_borda_dos_caracteres(self):
-        self.assertIsNone(tam.aviso_de_caracteres(8999, 10000))
-        self.assertIn("o brief tem 9000 caracteres, perto do teto de 10000", tam.aviso_de_caracteres(9000, 10000))
-        self.assertIn("pedido de continuação", tam.aviso_de_caracteres(10500, 10000))
+        self.assertIsNone(tam().aviso_de_caracteres(8999, 10000))
+        self.assertIn("o brief tem 9000 caracteres, perto do teto de 10000", tam().aviso_de_caracteres(9000, 10000))
+        self.assertIn("pedido de continuação", tam().aviso_de_caracteres(10500, 10000))
 
 
 GH_FALSO = """#!/bin/sh
@@ -81,8 +93,8 @@ class ComRepositorio(Repositorio):
         arq.write_text(GH_FALSO.format(log=self.log_gh, saida=saida, erro=erro, rc=rc), encoding="utf-8")
         arq.chmod(0o755)
 
-    def pr_aberto(self, corpo):
-        self.gh(saida=json.dumps({"number": 7, "state": "OPEN", "headRefOid": "a" * 40, "body": corpo}))
+    def pr_aberto(self, corpo, estado="OPEN"):
+        self.gh(saida=json.dumps({"number": 7, "state": estado, "headRefOid": "a" * 40, "body": corpo}))
 
     def item(self, linhas_de_codigo):
         """A branch com `linhas_de_codigo` linhas novas em bin/app e muitas em teste e documentação, que não contam."""
@@ -98,10 +110,10 @@ class ComRepositorio(Repositorio):
         self.assertNotIn("Traceback", r.stderr)
         return r.returncode, r.stdout, r.stderr
 
-    def tamanho(self, previo=False, base="develop", branch="melhoria/x"):
+    def tamanho(self, previo=False, base="develop", branch="melhoria/x", ref=None):
         erro = io.StringIO()
         with contextlib.redirect_stderr(erro), mock.patch.dict(os.environ, {"PATH": self.env["PATH"]}):  # o `gh` falso também em processo
-            saida = fc.tamanho_do_pr(self.proj, None, base, branch, previo)
+            saida = fc.tamanho_do_pr(self.proj, ref, base, branch, previo)
         return saida, erro.getvalue()
 
 
@@ -135,6 +147,27 @@ class NoPr(ComRepositorio):
         self.assertEqual(saida, [])
         self.assertIn("pr: tamanho: 151 linhas de código", erro)
         self.assertNotIn("não verificável", erro)
+
+    def test_pr_fechado_ou_mesclado_nao_reprova(self):
+        self.item(151)
+        for estado in ("CLOSED", "MERGED"):
+            with self.subTest(estado=estado):
+                self.pr_aberto("sem a linha do teto", estado)
+                saida, erro = self.tamanho()
+                self.assertEqual(saida, [])
+                self.assertIn("pr: tamanho: 151 linhas de código", erro)
+        self.pr_aberto("sem a linha do teto")
+        self.assertIn("no corpo do PR #7", self.tamanho()[0][0])
+
+    def test_ref_diferente_do_head_mede_a_ref(self):
+        sha = self.item(151)
+        self.git("rm", "-q", "bin/app")
+        self.commit("revert: tira o item")
+        self.pr_aberto("sem a linha do teto")
+        self.assertEqual(self.tamanho(), ([], ""))
+        saida, erro = self.tamanho(ref=sha)
+        self.assertIn("pr: tamanho: 151 linhas de código", erro)
+        self.assertIn("no corpo do PR #7", saida[0])
 
     def test_motivo_presente_devolve_lista_vazia(self):
         self.item(151)
