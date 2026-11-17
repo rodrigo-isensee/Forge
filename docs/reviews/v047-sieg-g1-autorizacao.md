@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-sieg-g1-autorizacao
-commit: 580b6c34c8cc46ae8270cc42017427d82f64b784
+commit: 7b20d073c4d8cd596518000064e50e68eb1168e2
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
@@ -26,3 +26,6 @@ Aprovado. Desenho conferido contra as decisões do dono: D2=a (ordem de 17/11 08
 Código: `bin/forge_autorizacao.py` só lê; abre sem seguir link e recusa o que não é arquivo comum, UTF-8 inválido, cabeçalho fora da forma e campo repetido; o `Gravado-por` aceito é o sha256 do `forge-check` carregado; `limite` exige que a `Validade` no `Fuso` e a `Validade-utc` deem o mesmo instante (A6) e corta no teto da D1; `C-` só confirma íntegra, do mesmo gravador e de fala posterior; `R-` e `U-` só apertam e valem sem integridade (lado estreito); qualquer erro de leitura tira toda ativa (`inativa`), e o rc é 1 com erro ou adulterada, sem barrar nada. `SEM_GUARDA_DE_VERSAO` ganha `autorizacao`, coerente com subcomando que não confere repositório. R-NEUTRO: fuso vem do campo, nada fixo de projeto.
 
 Verificadores: `python3 -m unittest tests.test_autorizacao` 8 testes OK; `bin/forge-mutante --processos 1 tests/mutantes/v047-sieg-g1-autorizacao*.json` 55 de 55 mortos; `--cobertura --base 86ac0fcb` deixa só `bin/forge_autorizacao.py:46` (texto de erro, não guarda). Suíte inteira: fica para o CI do PR (sem PR nesta etapa). Os achados A1 a A4 são recomendados e não devolvem (`R-REVIEW`).
+
+## Revalidação (head 7b20d073)
+Delta lido com `forge-check parecer delta` (`580b6c34..7b20d073`: `bin/forge-check`, `docs/adr/README.md`, `tests/mutantes/v047-sieg-g1-autorizacao-8.json`, `tests/test_autorizacao.py`). A1 e A2 fechados: índice com a 0018 aceita (D1, D2 e D4 decididas, D3 do dono) e ajuda sem o "G1.1b". Do QA, `setUpModule` carrega o módulo (na base cada teste cai sozinho) e o teste do link confere o texto de `os.strerror(ELOOP)`; M56 (`{e.strerror or e}` para `{e}`) morre, 1 de 1. `python3 -m unittest tests.test_autorizacao` 8 testes OK; `--cobertura --base 580b6c34` sem linha descoberta. A3 e A4 seguem recomendados, sem mudança. Aprovado no novo head.
