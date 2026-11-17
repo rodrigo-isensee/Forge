@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-falhas-no-resumo
-commit: 8262345394250e8b2f2130950da47af33fac4621
+commit: 0f4a541379ec862622d23c1e330293bb7b78bb79
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -18,6 +18,7 @@ Parecer completo (não havia parecer anterior) no head 82623453, base 5e74c70e. 
 
 ## Achados
 - A1 (recomendado) scripts/falhas-no-resumo.py:156 · 10 condições Python mudadas sem mutante declarado em `--cobertura` (linhas 156, 160, 162, 171, 178, 179, 180, 189, 199, 209). Não é pedido de controle, não bloqueia; o autor pode declarar ou isentar.
+- A2 (recomendado) tests/test_suite_partes.py:383 · `(linha,) = [...]` (também em :372) dá ValueError, não asserção, na base: o `forge-testes --vermelho` marca "sem veredito" (rc=2) em 2 testes do Brinquedo5. Pôr `assertEqual(len(...), 1)` antes do desempacotamento.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -58,3 +59,30 @@ Sem gatilho de segurança declarado no brief. O abuso evidente (injeção de com
 
 ## Achados recorrentes (PA-7)
 Conferi AR-5 (python sem `-I` em caminho que decide): o leitor é chamado com `-I` nos 4 passos (F14 guarda o do 3.14). AR-12 (spec de mutante desatualizada): os 14 mutantes aplicam no head. Sem classe nova.
+
+## Revalidação por delta no head 0f4a5413 (E2.511)
+`forge-check parecer delta` deu o intervalo `82623453..0f4a5413`, sem o que veio da develop. Quase todo o delta repete o CI-RAPIDO do #576 (`ci.yml`, `scripts/suite-partes.py`, `scripts/pesos-do-ci.py`, 7 specs `v047-ci-rapido-*`); o novo é o leitor de falhas nas 4 matrizes, a guarda dos 4 agregadores na catraca (`test_catraca`: `always()` só no if dos agregadores, sem `uses:`, só `needs.*.result`) e as specs realinhadas (`v0432-integracao-6/7`, `v046-ci-lote-e1`). `forge-check parecer delta` não lista `scripts/falhas-no-resumo.py` nem `tests/test_falhas_no_resumo.py`: o domínio do parecer anterior não mudou.
+
+Rodado local só nos arquivos tocados (sem `-I`, sem suíte completa; a suíte inteira é o check-run `bateria` do PR, que ainda não existe para este sha, sem PR aberto):
+- `python3 -m unittest tests.test_ci_local tests.test_ci_rapido_guardas tests.test_falhas_no_resumo tests.test_pesos_do_ci tests.test_suite_partes tests.test_catraca`: `Ran 534 tests in 290.808s`, `OK`.
+- `python3 -m unittest tests.test_forge.RodarUmModuloComIsolamento tests.test_forge.PrePushSoOsAfetados`: `Ran 6 tests`, `OK`.
+
+### Mutantes (`bin/forge-mutante`, `--processos 4`)
+`--conferir --base 86ac0fcb`: `conferidas: o trecho de cada spec do diff está no lugar` (AR-12). Spec do item (pedido próprio, rodada à parte): `v047-ci-falhas-no-resumo.json`, `rev=0f4a541379ec`, 14 morreu, rc=0. As 7 specs `v047-ci-rapido-1..7` (pedido v047), `rev=0f4a541379ec`, rc=0:
+```
+87 morreu · M20 · equivalente · scripts/pesos-do-ci.py:85 (declarado, não rodou) · 88 mutantes · nenhum sobrevivente, nenhum sem veredito
+```
+`--cobertura --base 86ac0fcb`: as condições de `suite-partes.py` e `pesos-do-ci.py` saem `coberta ... declarado, não provado`; `ci.yml` sai `não coberto` (YAML); as 3 specs editadas saem `spec editada`; as condições sem mutante são só as de `scripts/falhas-no-resumo.py` (A1, já recomendado, o item não é de controle).
+
+### Vermelho antes do verde (`forge-testes --vermelho 86ac0fcb --modulos` nos 6 módulos tocados, `--prazo 500`)
+```
+vermelho: base=86ac0fcb9495 head=0f4a541379ec módulos=test_catraca,test_ci_rapido_guardas,test_pesos_do_ci,test_suite_partes,test_falhas_no_resumo,test_ci_local (restrito por --modulos)
+contagem: não prova (passa na base)=440; prova (API ausente)=67; prova (asserção)=25; sem veredito=2
+rc=2
+```
+Nenhum teste cai no HEAD (todos `H=ok`). Os 2 sem veredito são `Brinquedo5.test_parte_que_nao_divide_anota_o_erro_da_guarda` e `...test_parte_vermelha_anota_o_teste_que_caiu_e_a_verde_nao` (H=ok, B=erro): na base não há linha `::error`, e o desempacotamento `(linha,) = [...]` levanta ValueError em vez de falhar por asserção; o `forge-testes` não conta erro do módulo como vermelho. A causa é a ausência do recurso na base, confirmada na leitura do teste, e as 3 outras provas do `Brinquedo5` (`H=ok, B=falha`) cobrem o mesmo comportamento; vira A2 (recomendado), sem bloquear.
+
+### Segurança, fronteiras e recorrentes
+Sem gatilho de segurança. A guarda dos agregadores protege a fronteira `always()` sem checkout nem código da branch (cancelado ou pulado reprova). PA-7 conferido: AR-5 (`-I` no leitor, F14 morreu), AR-12 (specs aplicam no head), AR-1 (lista de mutantes: 1 por guarda mudada de `suite-partes.py` e `pesos-do-ci.py`, sem condição sem mutante fora do A1). Sem classe nova.
+
+Parecer: aprovado, sem bug crítico, alto, médio ou baixo; A1 e A2 recomendados.
