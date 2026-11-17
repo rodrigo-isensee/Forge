@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M24",
+      "guarda": "G1.1b (ADR 0018 item 6): Hora-da-fala sem fuso é ilegível, nunca o relógio local",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if momento.tzinfo is None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_validade_em_utc_a6_e_teto_d1_fala_as_21h_locais_que_ja_e_o_dia_seguinte_em_utc"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "G1.1b (ADR 0018 item 6, D1): uso único para em 48 h desde a fala",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "curto = campos[\"Validade\"] == \"uso-unico\" or normal(",
+      "para": "curto = normal(",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_validade_em_utc_a6_e_teto_d1_fala_as_21h_locais_que_ja_e_o_dia_seguinte_em_utc"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "G1.1b (ADR 0018 item 6, D1): sem termo, hoje e até amanhã param em 48 h",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "or normal(campos[\"Origem-da-validade\"]) in SEM_PRAZO_ESCRITO",
+      "para": "or False",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_validade_em_utc_a6_e_teto_d1_fala_as_21h_locais_que_ja_e_o_dia_seguinte_em_utc"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "G1.1b (ADR 0018 item 6, D1): prazo escrito para em 7 dias, não em 48 h",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "hours=48 if curto else 7 * 24",
+      "para": "hours=48 if True else 7 * 24",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_validade_em_utc_a6_e_teto_d1_fala_as_21h_locais_que_ja_e_o_dia_seguinte_em_utc"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "G1.1b (ADR 0018 item 6): uso único sem Validade-utc de data",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if campos[\"Validade\"] == campos[\"Validade-utc\"] == \"uso-unico\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_validade_em_utc_a6_e_teto_d1_fala_as_21h_locais_que_ja_e_o_dia_seguinte_em_utc"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "G1.1b (ADR 0018 item 2): Validade fora de uso-unico e ate: é ilegível",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if not campos[\"Validade\"].startswith(\"ate:\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_validade_em_utc_a6_e_teto_d1_fala_as_21h_locais_que_ja_e_o_dia_seguinte_em_utc"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "G1.1b (ADR 0018 A6): Validade no Fuso e Validade-utc dão o mesmo instante",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if local != utc:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_validade_em_utc_a6_e_teto_d1_fala_as_21h_locais_que_ja_e_o_dia_seguinte_em_utc"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "G1.1b (ADR 0018 item 6, D1): a validade para no teto",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    return min(utc, teto)",
+      "para": "    return utc",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_validade_em_utc_a6_e_teto_d1_fala_as_21h_locais_que_ja_e_o_dia_seguinte_em_utc"
+      ]
+    }
+  ]
+}

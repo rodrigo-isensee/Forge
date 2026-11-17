@@ -1,0 +1,26 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M40",
+      "guarda": "G1.1b (ADR 0018 item 7): evento ilegível na pasta tira a ativa (falha fechada)",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "        if erros and est == \"ativa\":",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_fechamento_do_pedido_pendente_e_falha_fechada"
+      ]
+    },
+    {
+      "id": "M41",
+      "guarda": "G1.1b (ADR 0018 item 1): F-<Pedido> é nome de evento da pasta",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "|F-{PEDIDO}\")",
+      "para": "\")",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_fechamento_do_pedido_pendente_e_falha_fechada"
+      ]
+    }
+  ]
+}
