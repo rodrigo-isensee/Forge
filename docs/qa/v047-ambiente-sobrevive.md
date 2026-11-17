@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ambiente-sobrevive
-commit: be5bf3ea2fbadf41b490a3e24af6d56bb3a48361
+commit: c2b5556888ed272694c3d321244ea734a829c16c
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -20,6 +20,14 @@ Parecer anterior no 68072575 (aprovado, A1 recomendado); este revalida por delta
 - A1 (recomendado) templates/projeto/.devcontainer/preparar-ambiente.sh:45 · o mutante `: || faltas+=` do link agora morre (M20); fechado, sem pendência. Conferi à mão: 1 falha em 24.
 - A2 (recomendado) hooks/ambiente.py:21 · sem mutante e sem `isentas`: linhas 21 (padrão `/workspaces`), 33 (`is_file`, defesa) e 40 (`startswith`, `returncode == 1`) sobrevivem a mutação à mão (`rc in (0,1)` imprime só `ambiente: ok`). São equivalentes; declare-os em `equivalente`/`isentas`.
 - A3 (recomendado) tests/test_forge.py:2043 · M23 morre por `CalledProcessError` do helper `git` (chave `core.hooksPath` ausente), não por asserção; a morte é legítima (passa sem o mutante), mas a mensagem some. Ler com `check=False` e `assertEqual` dá falha clara.
+
+## Revalidação be5bf3ea..c2b55568 (E2.639: junção com a develop 73a0ab81 e testes do hook)
+`forge-check parecer delta` lista no domínio: `bin/forge-testes`, 3 fixtures `tests/hooks/ambiente/*.json`, `tests/test_hooks.py`, `tests/test_forge.py`. O resto do diff contra a base é da develop (outros itens). `hooks/ambiente.py`, scripts e devcontainer sem mudança.
+- Fixtures e `test_hooks` (E2.628): o `ambiente` entra no conjunto de hooks que só avisam (código 0) e no SessionStart permitido, com `sem-forge-versao` e `erro-interno` presentes; nenhuma asserção afrouxada além do que a emenda da ADR 0003 já prevê. `bin/forge-testes`: mapa ganha `test_ambiente_hook` para `hooks/` (lista unida com a da develop).
+- `python3 -I -m unittest discover -s tests -p test_ambiente_hook.py` -> Ran 6 tests, OK. `test_testes_tocados.py` -> Ran 162 tests, OK (skipped=1; skip de ambiente já existente, não meu). `test_hook_destino_opaco.py` -> Ran 4 tests, OK. `test_hooks.py` com `-k ambiente -k fixtures -k SessionStart -k permitidos -k erro_interno` -> Ran 28 tests, OK (skipped=6, skips preexistentes do arquivo). O módulo `test_hooks.py` inteiro rodou (15 min) mas a linha final saiu cortada pelo meu `tail`; fica para o CI do PR (sem PR, sem check-run `bateria`).
+- `forge-mutante --processos 3 --base be5bf3ea2fbadf41b490a3e24af6d56bb3a48361` nas specs -1 e -2 -> rc=0, 25 `morreu`, nenhum sobrevivente (M23 segue `(erro)`, aceito em A3); `base=be5bf3ea2fbadf41b490a3e24af6d56bb3a48361 mb=be5bf3ea2fbadf41b490a3e24af6d56bb3a48361 rev=c2b5556888ed272694c3d321244ea734a829c16c`.
+- Vermelho antes do verde: sem teste novo do item desde o parecer anterior além das fixtures de hook (que o `test_hooks` exige, caem sem o `ambiente` na lista); `forge-testes --vermelho` não rerrodado (R-TETO, suíte local completa fora da ordem).
+- Achados A1..A3 seguem recomendados, sem bloqueio. Sem bug novo (`docs/qa/bugs/` inalterado).
 
 ## Revalidação 443bd161..be5bf3ea (head b14da707; junção com a develop)
 `forge-check parecer delta` (intervalo 443bd161..b14da707, "sem o que veio da base") lista no domínio só `tests/test_forge.py`: a classe `DocsPareceresPedidoECaminho` entrou pela develop (dd059105, E1.252, PR 616; `git show origin/develop:tests/test_forge.py` a contém), outro item. O b14da707 só difere do be5bf3ea por parecer de review. Código do item (`hooks/ambiente.py`, scripts, devcontainer, `tests/test_ambiente_hook.py`) sem mudança desde o parecer anterior.
