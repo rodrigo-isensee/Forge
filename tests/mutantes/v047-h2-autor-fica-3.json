@@ -81,6 +81,16 @@
       "testes": [
         "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
       ]
+    },
+    {
+      "id": "M25",
+      "guarda": "H2-AUTOR-FICA-ATE-O-MERGE (R-TETO): só a reserva da retomada se converte no SubagentStart; o agente ativo com o mesmo id fica como está",
+      "arquivo": "hooks/agentes.py",
+      "de": "a.get(\"id\") == aid and a.get(\"tipo\") == RETOMADA), None)",
+      "para": "a.get(\"id\") == aid), None)",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
     }
   ]
 }
