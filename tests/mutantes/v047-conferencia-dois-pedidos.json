@@ -1,0 +1,87 @@
+{
+  "pedido": "v047-conferencia-dois-pedidos",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o brief ilegível é pulado, não derruba a conferência",
+      "arquivo": "bin/forge-check",
+      "de": "except (OSError, UnicodeDecodeError):\n                continue\n            valor = grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Pedido\"], cabecalho)\n            if valor and grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho) == branch:\n                pedido_id",
+      "para": "except (OSError,):\n                continue\n            valor = grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Pedido\"], cabecalho)\n            if valor and grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho) == branch:\n                pedido_id",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.PedidoDaConferencia.test_brief_ilegivel_e_pulado"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "só contam os briefs cuja Branch: é a da ref",
+      "arquivo": "bin/forge-check",
+      "de": "if valor and grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho) == branch:\n                pedido_id",
+      "para": "if valor:\n                pedido_id",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.PedidoDaConferencia.test_um_pedido_sem_codigo_segue_valendo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "sem branch, nenhum brief é lido",
+      "arquivo": "bin/forge-check",
+      "de": "etapas = etapas_dos_briefs_da_branch(raiz, branch) if branch else {}",
+      "para": "etapas = etapas_dos_briefs_da_branch(raiz, branch) if True else {}",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.PedidoDaConferencia.test_sem_branch_nao_le_os_briefs"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "com dois pedidos, só o que tem brief de codigo na branch fica",
+      "arquivo": "bin/forge-check",
+      "de": "ids = {i for i, e in etapas.items() if \"codigo\" in e} if len(etapas) > 1",
+      "para": "ids = {i for i, e in etapas.items() if True} if len(etapas) > 1",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.PedidoDaConferencia.test_dois_pedidos_um_so_com_codigo_e_o_da_conferencia"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "sem um só pedido de codigo entre dois, falha fechada",
+      "arquivo": "bin/forge-check",
+      "de": "if len(ids) != 1 and etapas:  # dois pedidos",
+      "para": "if False:  # dois pedidos",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.PedidoDaConferencia.test_dois_pedidos_com_codigo_falha_fechado",
+        "tests.test_conferencia_dois_pedidos.PedidoDaConferencia.test_dois_pedidos_sem_codigo_falha_fechado"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o parecer tem o tipo da pasta, a branch da ref e um veredito válido",
+      "arquivo": "bin/forge-check",
+      "de": "if fm.get(\"tipo\") != tipo or fm.get(\"branch\") != branch or fm.get(\"parecer\") not in (\"aprovado\", \"reprovado\"):\n        return False\n    for outro",
+      "para": "if False:\n        return False\n    for outro",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.ParecerMandadoPeloPortao.test_parecer_com_veredito_invalido_segue_fora"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "pedido sem arquivo legível não ancora",
+      "arquivo": "bin/forge-check",
+      "de": "except (PedidoFora, OSError, UnicodeDecodeError):\n            continue",
+      "para": "except (PedidoFora, OSError, UnicodeDecodeError):\n            return True",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.ParecerMandadoPeloPortao.test_brief_do_outro_pedido_sem_selo_nao_ancora"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o brief é do papel do parecer",
+      "arquivo": "bin/forge-check",
+      "de": "if nome_do_papel(grupo(r\"^\\s*Agente destino:\\s*(\\S+)\", cabecalho)) != PAPEL_DO_BRIEF_DO_PARECER[tipo] \\\n                    or not mesmo_pedido",
+      "para": "if False \\\n                    or not mesmo_pedido",
+      "testes": [
+        "tests.test_conferencia_dois_pedidos.ParecerMandadoPeloPortao.test_brief_de_outro_papel_nao_ancora"
+      ]
+    }
+  ]
+}

@@ -61,6 +61,9 @@ class EventoElegivel(unittest.TestCase):
         class Texto(str):
             pass
         self.assertFalse(at.evento_elegivel({k: Texto(v) for k, v in env().items()})[0])
+        for chave in ("REPO", "EVENTO", "HEAD_REPO"):  # uma só subclasse: o tipo do par também é conferido na tabela PROMOCOES
+            with self.subTest(chave=chave):
+                self.assertFalse(at.evento_elegivel({**env(), chave: Texto(env()[chave])})[0])
 
 
 def execucao(**muda):

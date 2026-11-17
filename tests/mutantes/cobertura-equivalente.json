@@ -46,8 +46,8 @@
       "id": "Q5",
       "guarda": "o mutante que rodou teste marca a rodada",
       "arquivo": "bin/forge-mutante",
-      "de": "            rodou = True\n",
-      "para": "            rodou = False\n",
+      "de": "rodou = any(r for _, _, r in resultados)",
+      "para": "rodou = False",
       "testes": [
         "tests.test_forge_mutante.Execucao.test_equivalente_com_testes_roda_e_o_que_eles_matam_e_invalido"
       ]
