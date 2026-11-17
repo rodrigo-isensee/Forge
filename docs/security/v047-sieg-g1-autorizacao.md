@@ -3,21 +3,19 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v047
 branch: melhoria/v047-sieg-g1-autorizacao
-commit: 580b6c34c8cc46ae8270cc42017427d82f64b784
+commit: 7b20d073c4d8cd596518000064e50e68eb1168e2
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-17
 ---
-# Review de segurança: v047 ADR 0018, G1.0 e G1.1 (E2.667, head 580b6c34)
+# Review de segurança: v047 ADR 0018, G1.0 e G1.1 (E2.702, head 7b20d073)
 
-Gatilhos: autorização, controle do Forge (`bin/forge-check`, leitura das concessões). Volta por delta do parecer aprovado do head f42850b5 (a rodada anterior fica no git).
+Gatilhos: autorização, controle do Forge (`bin/forge-check`, leitura das concessões). Volta por delta do parecer aprovado do head 580b6c34 (a rodada anterior fica no git).
 
 ## Resumo
-- Delta lido (`forge-check parecer delta`, f42850b5..580b6c34): no domínio, `bin/forge-check` (subcomando `autorizacao ler`, sem guarda de versão), `bin/forge_autorizacao.py` (novo, 190 linhas, lido inteiro) e a ADR 0018; fora do domínio, lidos para conferir os casos de abuso, `tests/test_autorizacao.py` e os mutantes.
-- G1.0: a ADR passa a `aceita`, com D1, D2 e D4 decididas pelo dono e D3 como ação dele; confere com o registro das decisões (linhas 47 a 53). Campo `Pedido` e fechamento `F-<Pedido>` (itens 1, 2 e 7): **aval da segurança dado**. O `F-` vale pela presença e só aperta (`bin/forge_autorizacao.py:154` só leva a `vencida`); `F-` forjado só encurta, sem caminho que amplie. Resolve o A10.
-- G1.1, falha fechada: link, não comum, FIFO (`O_NONBLOCK`), fora de UTF-8, cabeçalho repetido ou nome fora da forma viram erro e nenhuma concessão fica `ativa` (`:44-80`, `:167`); campo ausente, `Sha256`, `Gravado-por` (sha256 do `forge-check` carregado, `bin/forge-check` em `executar`), ato, alvos, `Pedido`, `Autoriza` e validade ilegível dão `adulterada` (`:111-128`). `Fuso` vazio ou com `..` cai em validade ilegível (sondas S5, S6 abaixo). Saída passa por `sem_controle`.
-- Caso de abuso `inativa` (o único do Critério de parada que vale para a leitura): vencida em UTC com o `Fuso` batendo (`:104-107`), teto de 48 h ou 7 dias (`:98-108`), retirada, usada (`U-`), adulterada, de outro `forge-check` e fechamento do pedido (`:148-155`): cobertos e provados por `tests.test_autorizacao` (8 testes, rodados aqui: OK). Os demais casos (fala-forjada, recorte-ou-ressalva, numero-solto, forma-opaca, escrita-direta, escopo-largo, uso-duplo, rotulo-sem-autorizacao, ci-sem-declaracao) são do G1.2 em diante.
-- Aprovado: só leitura, nada barra; os três achados novos são coerência do leitor que só pesa quando o G1.3 passar a barrar, e todos exigem escrita direta na pasta, que a G1.2 protege (Consequências, linha 69).
+- Delta lido (`forge-check parecer delta`, 580b6c34..7b20d073): no domínio, só o texto de ajuda do subcomando `autorizacao` em `bin/forge-check` (`:9548`, sem mudança de lógica) e a linha da ADR 0018 como aceita em `docs/adr/README.md:26` (confere com a ADR e com as decisões D1, D2 e D4). Fora do domínio, lidos: `setUpModule` em `tests/test_autorizacao.py` (só move o carregamento do módulo; sem skip nem variável de ambiente) e o `assertIn` do texto do erro de link, com o mutante M56.
+- Nada no delta toca `bin/forge_autorizacao.py`, a leitura nem o `Gravado-por`: a conclusão do 580b6c34 vale. Nenhum achado novo; A9 a A14 seguem como estavam.
+- Rodado: `python3 -m unittest tests.test_autorizacao` (8 OK). Suíte inteira: só no CI do PR, portão do merge.
 
 ## Achados
 - A9 (recomendado) docs/adr/0018-autorizacao-do-dono-gravada.md:25 · Aberto, vai ao G1.2 (gravar): com `Fuso` Etc/UTC a leitura aceita `ate:` de data escrita (sonda S7: `ativa`); a regra de tratar UTC ou sem região como não legível em data, hora e "esta noite" segue pendente.
@@ -45,4 +43,4 @@ Sondas desta rodada (nenhuma prova bloqueante; registro dos recomendados): scrip
 - PA-7: AR-1 e AR-2 com mutantes da leitura (`tests/mutantes/v047-sieg-g1-autorizacao*.json`, fora do domínio, só conferidos na lista).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Suíte: não rodada (brief: sem suíte local); a branch não tem PR nem execução de CI (`gh run list` vazio), então o CI do PR segue como portão do merge. Rodado: `python3 -m unittest tests.test_autorizacao` (8 OK). Lacuna: `gitleaks`, `osv-scanner`, `semgrep`, `zizmor` e `actionlint` fora do PATH.
+Nenhum risco aceito. Suíte: não rodada (brief: sem suíte local); o CI do PR segue como portão do merge. Lacuna: `gitleaks`, `osv-scanner`, `semgrep`, `zizmor` e `actionlint` fora do PATH.
