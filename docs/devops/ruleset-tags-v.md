@@ -80,26 +80,42 @@ Confira já na resposta 201 (ou por `gh api repos/rodrigo-isensee/Forge/rulesets
 5. **Rules:** marque **Restrict creations**, **Restrict updates** e **Restrict deletions**; desmarque o resto.
 6. **Create**.
 
-## Token fino para os agentes (proposta ao dono; fecha o resíduo)
-Sem custo (`R-CUSTO`). Nenhum agente cria nem troca token; o dono executa e decide (`R-CONFORMIDADE`, `R-DECISAO`).
+## Token fino para os agentes (proposta ao dono; fecha a edição de workflow e a desativação de regras, não a `main`)
+Sem custo (`R-CUSTO`). **O que o token fino não faz (achado A5 do parecer `docs/security/v0475-ruleset-tags.md`):** ele continua sendo da conta admin do dono. O ruleset 25432260 (`homolog`, `main`) exige 0 aprovações e dá bypass `RepositoryRole` 5 (admin) `always`; lido em 17/11: `current_user_can_bypass: always`, regras `pull_request`, `required_status_checks`, `non_fast_forward`, `deletion` (**sem** `update`). Com `Contents: write` o agente mescla PR na `main` com os checks verdes, sem aprovação humana, e talvez empurre direto (o bypass é por usuário); o merge roda `release.yml`, que cria `v<versão>`. Só os hooks (`R-MAIN`) seguram isso. O token fino fecha workflow e regra, **não a `main`**; o fechamento da `main` está em "Conta separada para os agentes".
+ Nenhum agente cria nem troca token; o dono executa e decide (`R-CONFORMIDADE`, `R-DECISAO`).
 
 Passo a passo (tela do GitHub, conta do dono):
 1. Anote os escopos do token atual (`gh auth status`) e onde ele está configurado para os agentes, para poder voltar.
 2. **Settings** (da conta) > **Developer settings** > **Personal access tokens** > **Fine-grained tokens** > **Generate new token**.
 3. **Token name:** `forge-agentes`. **Expiration:** curta (30 a 90 dias; anote a renovação).
 4. **Resource owner:** a conta do dono. **Repository access:** **Only select repositories** > `rodrigo-isensee/Forge` (só este).
-5. **Repository permissions:** `Contents: Read and write`, `Pull requests: Read and write`, `Issues: Read and write` (rótulos e comentários), `Actions: Read` (ler execuções) e `Metadata: Read` (automático). **Administration: No access. Workflows: No access.** Todo o resto, sem acesso. Nenhuma permissão de conta.
-6. **Generate token**, copie uma vez e coloque-o no lugar do token atual na sessão dos agentes (`GH_TOKEN` ou `gh auth login --with-token`). O token com `admin`, `workflow` e `delete_repo` fica só com o dono, fora da sessão dos agentes.
-7. Conferir: `gh api repos/rodrigo-isensee/Forge --jq .permissions` deve trazer `admin: false`; um GET em `repos/rodrigo-isensee/Forge/rulesets` deve ser recusado; um `git push` que toque `.github/workflows/` deve ser recusado.
+5. **Repository permissions:** `Contents: Read and write` (push de branch e, também, mesclar PR e criar release/ref), `Pull requests: Read and write`, `Issues: Read and write` (rótulos e comentários), `Actions: Read` (ler execuções), `Commit statuses: Read` (checks do PR) e `Metadata: Read` (automático). **Administration: No access. Workflows: No access.** Todo o resto, sem acesso. Nenhuma permissão de conta.
+6. **Generate token**, copie uma vez e coloque-o no lugar do token atual na sessão dos agentes (`GH_TOKEN` ou `gh auth login --with-token`). O token antigo (`admin`, `workflow`, `delete_repo`) **não** fica no config do `gh` (`~/.config/gh/hosts.yml`), em `GH_TOKEN`, no `.git-credentials` nem em qualquer variável ou arquivo do usuário do sistema em que os agentes rodam: o `gh` e o `git push` leem esses lugares e o agente voltaria a ter admin (achado A8). Guarde-o fora da máquina dos agentes ou sob outro usuário do sistema (gerenciador de senhas do dono) e, melhor, revogue-o depois do período de uso sem erro.
+7. Conferir, com o token novo ativo (achado A6; `GET rulesets` só pede Metadata read e o repositório é público, então responde 200 mesmo com o token certo e **não** serve de prova; `.permissions.admin` também não prova o token):
+   - `gh api repos/rodrigo-isensee/Forge/keys` deve dar **403** (Administration read ausente);
+   - `gh api repos/rodrigo-isensee/Forge/rulesets/25432260 --jq .current_user_can_bypass` deve dar `never` (só com a conta separada; com o token fino da conta admin continua `always`, e isso é o resíduo A5);
+   - `gh pr checks <n> --json name,state` em um PR aberto deve responder (Commit statuses; achado A7);
+   - um `git push` que toque `.github/workflows/` deve ser recusado.
 
 O que isso quebra ou muda no fluxo atual (para o dono decidir):
 - **Pushes de branch `melhoria/*`:** continuam (Contents: write). Push que toque `.github/workflows/` passa a ser recusado: já era o desenho (o bot não tem `workflow`), mas hoje o token dos agentes tem o escopo e a recusa dependia de disciplina; agora é estrutural, e o dono segue enviando mudança de workflow.
 - **PRs, comentários e rótulos:** abrir, editar e comentar PR continua (Pull requests e Issues em escrita). O rótulo `afrouxa-regra` continua sendo do dono, como hoje.
 - **`gh run view` e `gh run list`:** continuam (Actions: Read). **`gh run rerun` e `gh workflow run` deixam de funcionar** (exigem Actions: write). Reexecutar o mesmo sha fica com o dono, ou o dono libera `Actions: Read and write`, sabendo que isso permite disparar `workflow_dispatch` (hoje só `ci.yml`, com jobs `contents: read`); o resíduo não reabre, porque editar workflow continua sem `Workflows`.
 - **`gh api` em proteção de branch, rulesets, environments, segredos, deploy keys e configuração do repositório:** deixam de funcionar (Administration). Já eram do dono por `R-CONFORMIDADE`; o resíduo de desativar o ruleset some.
-- **Merge de PR:** Pull requests em escrita permite mesclar; quem mescla segue a regra de fluxo e os rulesets de branch (o bypass de admin sai da conta dos agentes, e a `main` continua só do dono). Release (`gh release create`) fica barrada pelo ruleset.
+- **Merge de PR:** mesclar PR exige `Contents: write` (não Pull requests). Com o token fino **da conta admin**, o bypass de admin do ruleset 25432260 continua valendo para o agente: ele mescla na `main`, e o release cria a tag desse commit (resíduo A5). A criação direta de release fica barrada pelo ruleset de tag; o merge na `main` não. Fechamento: próxima seção.
 - **Outros repositórios:** o token é só deste; se os agentes usam a mesma conta em outros repositórios, cada um precisa do seu token fino ou segue no atual (o resíduo permanece lá).
 - **Limites do token fino:** expira e exige renovação; confira pelos GET acima antes de tirar o token antigo da sessão; revogue o antigo só depois de um período de uso sem erro. Reverter é recolocar o token antigo.
+
+## Conta separada para os agentes (fecha a `main`; decisão do dono)
+Sem custo (`R-CUSTO`): conta gratuita adicional do GitHub. Nenhum agente cria conta, convida nem aplica regra (`R-CONFORMIDADE`); o dono executa e decide (`R-DECISAO`). Em repositório de usuário, colaborador **não** é admin.
+1. Crie uma conta GitHub nova só para os agentes (e-mail próprio, 2FA ligado, nome como `forge-agentes-<dono>`). Confira nos termos do GitHub a regra para conta de máquina no momento.
+2. Com a conta do dono: **Settings** > **Collaborators** > **Add people** > a conta nova, papel **Write** (nunca Maintain nem Admin). A conta nova aceita o convite.
+3. Na conta nova, gere o token fino da seção anterior (passos 2 a 5). O repositório é do dono: o colaborador o vê em "Only select repositories". Sem Administration e sem Workflows.
+4. No ruleset 25432260 (**Settings** > **Rules** > **Rulesets**), marque **Restrict updates** (regra `update`), mantendo o bypass do papel **Repository admin** em **Always**; o mesmo no ruleset de `homolog`, se for outro. Efeito: só o admin (o dono) atualiza `main` e `homolog`; a conta colaboradora, sem bypass, não mescla nem empurra nelas. Atenção: a promoção `develop` > `homolog` hoje é do `tech-lead` (agente); com Restrict updates na `homolog` ela passa a ser do dono, ou pede outro desenho (decisão dele). Não marque `update` na `develop` (os agentes mesclam lá).
+5. Troque o token na sessão dos agentes pelo da conta nova e guarde o antigo longe deles (passo 6 da seção anterior).
+6. Conferir com o token da conta nova: `gh api repos/rodrigo-isensee/Forge/rulesets/25432260 --jq .current_user_can_bypass` = `never`; `gh api repos/rodrigo-isensee/Forge/keys` = 403; o merge de um PR de teste para a `main` recusado (para a `develop`, aceito); push direto na `main` recusado.
+
+**Risco que sobra sem a conta separada** (risco aceito do dono, se ele não a adotar; `R-DECISAO`): o token fino, da conta admin, mescla PR na `main` com checks verdes e 0 aprovações (e talvez empurra direto, pelo bypass por usuário), e o `release.yml` cria a tag `v*` desse commit, que os projetos consomem. Impacto alto, probabilidade baixa; as únicas barreiras são os hooks e a disciplina do fluxo (`R-MAIN`), que um agente desviado pode contornar. Restrict updates **sem** conta separada não ajuda: o bypass de admin vale para a mesma conta. O token fino fecha só a edição de workflow e a desativação de regra, não a `main`.
 
 ## Como conferir depois
 1. Leitura: `gh api repos/rodrigo-isensee/Forge/rulesets --jq '.[]|select(.target=="tag")|{name,enforcement}'` mostra `tags-v-so-release` `active`; `gh api repos/rodrigo-isensee/Forge/rulesets/<id> --jq '{conditions,bypass_actors,rules:[.rules[].type]}'` bate com o JSON.
