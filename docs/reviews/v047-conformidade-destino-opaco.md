@@ -2,11 +2,11 @@
 tipo: review
 contrato: 1
 pedido: v047
-branch: melhoria/v047-conformidade-destino-opaco
-commit: 081473ac553f7a38d80c1783052afd03f34da97c
+branch: melhoria/v047-conformidade-cf1
+commit: 0121b3b2e7fd4aeafdf9b773d441f428af662d3b
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-15
+data: 2026-11-16
 ---
 # Review: v047 · CONFORMIDADE-A9-DESTINO-OPACO e CONFORMIDADE-A10-OPERADOR-COLADO (E1.335, E1.339, E1.343)
 
@@ -68,9 +68,20 @@ Contagem: `FORGE_CHECK` tem 76 nomes na base, 79 na develop e 81 na junção, se
 
 Conclusão: a resolução não muda comportamento além da soma dos dois lados; a contagem 86 corrige de quebra o vermelho da develop.
 
+## Revalidação por delta 081473ac..0121b3b2 (E2.493, CF1 sobre a A9, com a develop 86ac0fcb; instância que não fez a entrega)
+Delta lido: `forge-check parecer delta docs/reviews/v047-conformidade-destino-opaco.md` (rc 0), intervalo `081473ac..0121b3b2`, sem o que veio da base. O parecer segue neste arquivo porque a branch `melhoria/v047-conformidade-cf1` parte da A9; não existe `v047-conformidade-cf1.md`.
+
+No domínio, o código do CF1: `hooks/_comum.py` (`DESCRITOR_DA_REDIRECAO`, o número ou `{fd}` colado a `>`/`<` não é palavra: A17), `hooks/conformidade.py` (`SO_VARIAVEL` com `$@` e `$*`: A18; `atribui_como_argumento` e o `or` em `valores_da_variavel`: `declare -n d=_` não dá valor: A19), `bin/forge-testes` (3 módulos nas listas), 32 fixtures `opaco-cf1-*` e `trava-cf1-*` (os dois lados, com piso 13, 8 e 10), `tests/test_conformidade_verde.py` (`OraculoCf1`, com o bash como oráculo do esperado) e a spec `tests/mutantes/v047-conformidade-cf1.json` (CF1-R1, S1, D1 a D6). O merge da develop 86ac0fcb (0121b3b2) só trouxe pares de listas.
+
+Verificadores, no clone no 0121b3b2: `python3 -m unittest tests.test_conformidade_verde` 16 testes OK; `tests.test_conformidade_opaco` e `tests.test_hook_destino_opaco` 6 testes OK; `tests.test_testes_tocados` 161 testes OK (skipped=1, /proc do sandbox). As 8 linhas `de` da spec casam uma vez no arquivo. A mutação e a suíte completa ficam com o autor e o CI.
+
+Leitura: cada guarda nova tem teste de comportamento do ramo de falha (fixture que bloqueia) e o lado que libera. Os casos que fecham o buraco (`2>/dev/null` depois de `.git/config`, `2>x git push`, `declare -n`, `$@`) falham fechado; `$$`, `$!`, `$#`, `$?` seguem literais por desenho. Sem achado.
+
 ## Achados
 
 ## Sondas
 
 ## Parecer
+Aprovado no 0121b3b2 (R-REVIEW): o CF1 (A17, A18, A19) fecha as três formas sem afrouxar nada, com fixtures dos dois lados, oráculo pelo bash e mutantes por guarda. Aprovações anteriores mantidas; a suíte completa fica com o CI do PR.
+
 Aprovado no 081473ac (R-REVIEW). A junção com a develop bf475209 resolve os conflitos de `bin/forge-testes` e `tests/test_testes_tocados.py` pela união dos dois lados, sem mudar comportamento; a contagem 86 confere com o plano real. Aprovação anterior no c22624c5 mantida; a suíte completa fica com o CI do PR.
