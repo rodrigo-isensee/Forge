@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-hook-heredoc-fp
-commit: 0eee14533b579e8a7117666faad15f421fe4b17b
+commit: dd71ea876eebc0ff6ce48c6686d9fabe60438a2a
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-13
+data: 2026-11-16
 ---
 # Review: v047-hook-heredoc-fp
 
@@ -33,3 +33,10 @@ Sondas refeitas (hook rodado do head e da `main` 0.46.0, repositório de teste, 
 Verificações: `tests/test_hooks_parecer_pasta.py` (4 testes, OK, 81 s); `bin/forge-mutante tests/mutantes/v047-hook-heredoc-fp-4.json` (M25 e M26 mortos); log do autor `v047-e411-mut3.log` no head, rc=0, 25 mortos. Sem PR aberto, sem CI para citar. Tamanho: 56 linhas em `hooks/parecer.py` e 1 em `tests/*.py`, abaixo de 150, um comportamento só. Sem falso de git/gh no delta.
 
 Aprovado no head 0eee1453, sem bloqueante.
+
+## Revalidação por delta (E2.501, depois da atualização com a develop)
+Delta lido: `forge-check parecer delta`, intervalo 0eee1453..dd71ea87. Desde o head aprovado entraram só pareceres (QA e segurança, aprovados em 0eee1453) e dois merges da `develop` (952b97e8 e dd71ea87, o último sem conflito). O código do item (`hooks/parecer.py`, 12 fixtures `heredoc-interpretador-*`, `tests/test_hooks_parecer_pasta.py`, specs de mutantes) não mudou de patch: o que o delta mostra além disso veio da base (86ac0fcb), fora do domínio do item. Sem achado novo; A1 e A2 seguem recomendados e registrados.
+
+Verificação: `python3 -m unittest tests.test_hooks_parecer_pasta` no clone no head dd71ea87 (4 testes, OK, 55 s). Suíte completa fica no CI, por ordem do dono (16/11). Sem PR, sem CI para citar. Tamanho inalterado, abaixo de 150 linhas, um comportamento só.
+
+Aprovado no head dd71ea87, sem bloqueante.
