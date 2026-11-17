@@ -46,8 +46,8 @@
       "id": "M5",
       "guarda": "HOOK-HEREDOC-PALAVRA-FP: atribuição na chamada (PATH=/tmp ls) não deixa o corpo ser dado",
       "arquivo": "hooks/parecer.py",
-      "de": "    if chamada_muda_o_corpo(comando):\n        return False\n    leitura = palavras_do_texto(comando)",
-      "para": "    if False:\n        return False\n    leitura = palavras_do_texto(comando)",
+      "de": "    if chamada_muda_o_corpo(comando):\n        return False\n    if \"`\" in comando:",
+      "para": "    if False:\n        return False\n    if \"`\" in comando:",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_heredoc_dado_libera_e_bloqueia"
       ]
