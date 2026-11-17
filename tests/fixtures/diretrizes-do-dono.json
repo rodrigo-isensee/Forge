@@ -162,9 +162,11 @@
    ]
   },
   "26": {
-   "onde": "pendente",
+   "onde": "fabrica",
    "resumo": "integração na develop em lotes de até 3",
-   "cartao": "INTEGRACAO-EM-LOTE"
+   "trechos": [
+    "Até 3 PRs verdes sem arquivo em comum entram em seguida e um CI só"
+   ]
   },
   "27": {
    "onde": "pendente",
@@ -183,6 +185,31 @@
     "a lista curta de todas as decisões pendentes, da de maior peso para a menor",
     "Não há decisão sua pendente",
     "Leia `\\$\\{CLAUDE_PLUGIN_ROOT\\}/skills/falar-com-o-dono/SKILL\\.md` antes de responder a um pedido de decisões"
+   ]
+  },
+  "30": {
+   "onde": "pendente",
+   "resumo": "Forge sempre na última versão, sem o usuário agir",
+   "cartao": "FORGE-SEMPRE-ATUAL"
+  },
+  "31": {
+   "onde": "pendente",
+   "resumo": "visão de foco ligada por padrão e Jarvis em linguagem fácil",
+   "cartao": "VISAO-DE-FOCO"
+  },
+  "32": {
+   "onde": "fabrica",
+   "resumo": "ritmo diário: junção contínua na develop e um PR por dia para a main",
+   "trechos": [
+    "Ritmo diário \\(diretriz 32\\): cada item verde entra na `develop` em lote de até 3",
+    "À noite você não escreve ao dono, salvo algo grave que mude prazo ou risco"
+   ]
+  },
+  "33": {
+   "onde": "fabrica",
+   "resumo": "corte do trabalho por arquivo: mesmos arquivos, mesmo agente e mesma branch",
+   "trechos": [
+    "cartões nos mesmos arquivos vão ao mesmo agente, na mesma branch, um depois do outro"
    ]
   }
  }
