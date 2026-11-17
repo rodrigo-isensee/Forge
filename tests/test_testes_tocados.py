@@ -20,7 +20,9 @@ from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda d
 
 RAIZ = Path(__file__).resolve().parent.parent
 FERRAMENTA = RAIZ / "bin" / "forge-testes"
-AMBIENTE = sem_manutencao({**os.environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null",
+# sem o `GIT_*` herdado: um hook exporta `GIT_DIR` e `GIT_INDEX_FILE`, e o git do repositório de brinquedo cairia no do clone
+AMBIENTE = sem_manutencao({**{k: v for k, v in os.environ.items() if not k.startswith("GIT_")},
+                           "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null",
                            "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
                            "GIT_COMMITTER_EMAIL": "t@t"})
 
@@ -226,6 +228,13 @@ class Convencao(unittest.TestCase):
             with self.subTest(caminho):
                 self.assertFalse(any(re.fullmatch(p, caminho) for p, _ in self.f.MAPA))
                 self.assertEqual(self.f.planejar([caminho], RAIZ)[0], "dirigido")
+
+    def test_o_patch_do_pre_push_e_o_comum_dos_hooks_levam_ao_test_pre_push_patch(self):  # v047 E2.567
+        for caminho in ("docs/devops/pp1-pre-push.patch", "hooks/_comum.py"):
+            with self.subTest(caminho):
+                modo, plano = self.f.planejar([caminho], RAIZ)
+                self.assertEqual(modo, "dirigido")
+                self.assertIn("test_pre_push_patch", plano)
 
 
 class MapaDosNovos(unittest.TestCase):

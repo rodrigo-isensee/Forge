@@ -193,7 +193,11 @@ def release(args):
     conferir_caminho(caminho, "CHANGELOG.md", Path.cwd().resolve())
     texto = caminho.read_text(encoding="utf-8")
     if re.search(rf"^## \[{re.escape(args.versao)}\]", texto, re.M):
-        sys.exit(f"CHANGELOG.md já tem a versão {args.versao}.")
+        sys.exit(f"CHANGELOG.md já tem a versão {args.versao} (entrada '## [{args.versao}]'); nada foi gravado. Por quê: a "
+                 "release abre uma entrada nova, e uma segunda entrada da mesma versão deixaria o changelog ambíguo para a "
+                 "tag e a release. Como destravar: fragmento que chegou depois da versão fechada vai para a entrada "
+                 f"existente com `bin/forge-changelog release --anexar {args.versao}`; mudança de versão nova pede outro "
+                 "número X.Y.Z, ainda sem entrada no CHANGELOG.md.")
     m = SECAO_NAO_PUBLICADO.search(texto)
     if not m:
         sys.exit("CHANGELOG.md sem a seção '## [Não publicado]'.")
