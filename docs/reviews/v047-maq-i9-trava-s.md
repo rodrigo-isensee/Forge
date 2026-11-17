@@ -3,15 +3,15 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-maq-i9-trava-s
-commit: 8bff4e7dbb0a168e55356899a00e64648c27a49f
-parecer: reprovado
+commit: 07319ed9b506d894403898f7efde8e3ce08090bb
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
 ---
 # Review: v047 (E2.679, MAQ-I9 fatia 2, TRAVA_S 1200)
 
 ## Achados
-- A1 (bloqueante) docs/hooks.md:14 · a referência do hook ainda diz que a trava vale "há menos de 10 minutos"; o mesmo em :72 ("a trava de tarefa pesada, em 10 minutos") e :122-123; com TRAVA_S = 1200 isso é falso. Doc afetada na mesma entrega (Definição de pronto, R-REVIEW); trocar por 20 minutos (1.200 s)
+- A1 (bloqueante, resolvido em 07319ed9) docs/hooks.md:14 · a referência do hook ainda diz que a trava vale "há menos de 10 minutos"; o mesmo em :72 ("a trava de tarefa pesada, em 10 minutos") e :122-123; com TRAVA_S = 1200 isso é falso. Doc afetada na mesma entrega (Definição de pronto, R-REVIEW); trocar por 20 minutos (1.200 s)
 - A2 (recomendado) tests/test_pesado_fila.py:92 · `tempfile.mkdtemp` sem `addCleanup(shutil.rmtree, ...)` deixa uma pasta por teste no TMPDIR; mesmo padrão das classes já existentes no arquivo, então fica para um ajuste do arquivo inteiro
 
 ## Sondas
@@ -28,5 +28,8 @@ Diff 73a0ab81...8bff4e7d (7 arquivos; código e teste: hooks/pesado.py 4+/2-, te
 - Fixture renomeado (`sem-post-expira-em-20-min.json`, `desde` agora-1300) coerente com o novo prazo.
 - Suíte completa: fica no CI do PR; não rodada aqui.
 
+## Revalidação (delta)
+`forge-check parecer delta` lido: o delta de código e teste é só `docs/hooks.md` (4+/4-, linhas 14, 72, 122, 123), que agora diz 20 minutos (1.200 s); o resto do intervalo são os pareceres de QA e segurança. O único "10 min" que sobra em `docs/hooks.md` é o retry do hook `doutor` (linha 16), alheio à trava. A1 resolvido; A2 segue recomendado, fora do bloqueio.
+
 ## Parecer
-Reprovado por A1: a doc de referência do hook (`docs/hooks.md`) promete 10 minutos em quatro lugares e o código agora segura 20; o código, os testes e os mutantes estão corretos. Correção de texto pequena, do autor; na volta, só o delta de `docs/hooks.md`.
+Aprovado no head 07319ed9: código, testes e mutantes já estavam corretos e a doc de referência agora bate com TRAVA_S = 1200.
