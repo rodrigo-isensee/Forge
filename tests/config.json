@@ -359,6 +359,9 @@
       "vira pendência no parecer, não revisão manual"
     ],
     "agents/tech-lead.md": [
+      "\\*\\*Tamanho por item \\(H1, decisão do dono\\):\\*\\*",
+      "Passa só se cortar mais deixa a suíte vermelha",
+      "skills/engineering-practices/tamanho-por-item\\.md",
       "\\*\\*Versão \\(diretriz 34\\):\\*\\*",
       "`sem teste:` do `forge-check pr` pede justificativa no `## Sem teste` do PR",
       "\\*\\*Ritmo e corte \\(diretrizes 32 e 33; H6\\):\\*\\*",
@@ -565,6 +568,9 @@
     ],
     "skills/engineering-practices/SKILL.md": [
       "suíte inteira roda só no CI",
+      "\\*\\*Tamanho por item \\(H1, decisão do dono; alinha o M14\\):\\*\\*",
+      "Passa só se cortar mais deixa a suíte vermelha",
+      "`tamanho-por-item\\.md` nesta skill",
       "comando de pronto do projeto \\(`CLAUDE.md`\\) verde, rodado da raiz do repositório",
       "nem conta como volta de `R-QA`",
       "## Definição de pronto",
@@ -598,6 +604,12 @@
       "Sem repetir \"sigo esperando\"",
       "vira na hora o comando exato para o dono rodar",
       "espera apenas o item bloqueado"
+    ],
+    "skills/engineering-practices/tamanho-por-item.md": [
+      "\\*\\*Decisão do dono \\(17/11, H1\\):\\*\\* até 150 linhas de código por item; testes e documentação não contam",
+      "ficam fora `tests/` inteira",
+      "uma classe de comportamento por PR em `hooks/`, com corpus próprio",
+      "\\*\\*Passar do teto:\\*\\* só se cortar mais deixa a suíte vermelha"
     ],
     "templates/projeto/CLAUDE.md": [
       "`R-MAIN`",
@@ -712,6 +724,7 @@
     "skills/esperar-estado/SKILL.md": ["nunca por `kill -0` no pid gravado"]
   },
   "invariantes_motivo": {
+    "skills/engineering-practices/tamanho-por-item.md": {"regra": "R-REVIEW", "porque": "sem o texto, somem a contagem do teto de 150 linhas de código por item e a única exceção decidida pelo dono (H1)"},
     "skills/falar-com-o-dono/nao-trava.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis para o time à espera de decisão do dono ou de bloqueio de ambiente e repete \"sigo esperando\" (diretriz 34)"},
     "skills/trabalho-em-paralelo/ritmo-e-corte.md": {"regra": "R-FLUXO", "porque": "sem o texto, somem o ritmo diário, o corte por arquivo e o teto do H6 que o Jarvis manda ler (diretrizes 32 e 33)"},
     "docs/fechamento-integrador.md": {"regra": "R-FLUXO", "porque": "sem o texto, o autor abre PR só para rodar o CI e o PR acaba fechado e reaberto, uma rodada a mais (decisão Q9 do dono)"},
@@ -800,6 +813,9 @@
       "flock -w \"\\$espera\" 9": {"regra": "R-TETO", "porque": "sem a espera limitada na trava, duas checagens pesadas do projeto rodam juntas ou um envio espera para sempre"}
     },
     "skills/engineering-practices/SKILL.md": {
+      "\\*\\*Tamanho por item \\(H1, decisão do dono; alinha o M14\\):\\*\\*": {"regra": "R-REVIEW", "porque": "sem o texto, a skill volta ao teto por risco e o item grande passa sem corte nem motivo (H1)"},
+      "Passa só se cortar mais deixa a suíte vermelha": {"regra": "R-REVIEW", "porque": "sem o texto, a exceção do H1 deixa de ser a única e o teto vira orientação"},
+      "`tamanho-por-item\\.md` nesta skill": {"regra": "R-REVIEW", "porque": "sem o apontamento, a skill perde a contagem do H1 e o que conta no Forge, movidos pelo teto de caracteres (diretriz 25)"},
       "suíte inteira roda só no CI": {"regra": "R-QA", "porque": "sem o texto, review, segurança e QA voltam a rodar a suíte inteira na máquina e a fila local cresce sem ganho; ela roda uma vez no CI do PR"},
       "o autor roda o oráculo e não o edita": {"regra": "R-CONFORMIDADE", "porque": "sem o texto, o autor trata o oráculo do portão como teste seu e o ajusta para passar (EXT-1)"}
     },
@@ -836,6 +852,9 @@
       "skills/kanban-scrum/experimentos\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, a skill perde o caminho do formato dos experimentos de melhoria, movido pelo teto de caracteres (diretriz 25)"}
     },
     "agents/tech-lead.md": {
+      "\\*\\*Tamanho por item \\(H1, decisão do dono\\):\\*\\*": {"regra": "R-REVIEW", "porque": "sem o texto, o tech-lead deixa passar item acima de 150 linhas de código sem cortar antes de começar (H1)"},
+      "Passa só se cortar mais deixa a suíte vermelha": {"regra": "R-REVIEW", "porque": "sem o texto, o teto do H1 volta a ser orientação e o item grande passa sem o motivo no PR"},
+      "skills/engineering-practices/tamanho-por-item\\.md": {"regra": "R-REVIEW", "porque": "sem o apontamento, o tech-lead perde a contagem do H1 e o que conta no Forge, movidos pelo teto de caracteres (diretriz 25)"},
       "\\*\\*Versão \\(diretriz 34\\):\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o tech-lead marca a versão uma vez só de manhã e o que está verde na develop espera (diretriz 34)"},
       "\\*\\*Ritmo e corte \\(diretrizes 32 e 33; H6\\):\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o tech-lead junta sem lote, divide o mesmo arquivo entre agentes e abre conflito no fim (diretrizes 32 e 33)"},
       "skills/trabalho-em-paralelo/ritmo-e-corte\\.md": {"regra": "R-FLUXO", "porque": "sem o apontamento, o tech-lead perde o detalhe do ritmo, do corte por arquivo e do teto do H6, movido pelo teto de caracteres (diretriz 25)"},
