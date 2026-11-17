@@ -58,6 +58,12 @@ class CotaCi(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertIn("não verificável", out)
 
+    def test_so_um_dos_campos_nao_verifica(self):
+        for resposta in ({"total_minutes_used": 5}, {"included_minutes": 5}):
+            rc, out, _ = rodar(resposta)
+            self.assertEqual(rc, 0)
+            self.assertIn("não verificável", out)
+
     def test_franquia_zero_nao_divide(self):
         rc, out, _ = rodar({"total_minutes_used": 10, "included_minutes": 0})
         self.assertEqual(rc, 0)

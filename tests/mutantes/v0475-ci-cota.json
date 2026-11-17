@@ -40,7 +40,7 @@
       "arquivo": "bin/forge-cota-ci",
       "de": "    if not (numero(usado) and numero(incluido)):\n",
       "para": "    if not (numero(usado) or numero(incluido)):\n",
-      "testes": ["tests.test_cota_ci.CotaCi.test_resposta_sem_os_campos_nao_verifica"]
+      "testes": ["tests.test_cota_ci.CotaCi.test_resposta_sem_os_campos_nao_verifica", "tests.test_cota_ci.CotaCi.test_so_um_dos_campos_nao_verifica"]
     },
     {
       "id": "M6",
