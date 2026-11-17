@@ -98,3 +98,6 @@ Um cartão por (origem, área, faixa de severidade), revisável de uma vez: bloq
 3. Encaminha ao autor e puxa os bugs antes de trabalho novo.
 4. Ao receber a correção: Code review, QA, UX; só fecha o pai com todos os bloqueantes, críticos e altos fechados.
 5. Pede ao agile-coach a auditoria do quadro e inclui as métricas de retrabalho na retrospectiva.
+
+## Experimentos e Scrum
+Experimentos de melhoria (`docs/kanban/melhorias.md`): colunas e regra em `${CLAUDE_PLUGIN_ROOT}/skills/kanban-scrum/experimentos.md`. Retrospectiva e elementos de Scrum: skill `kanban-metricas`. O técnico (desenho, portões, integração, versão) é do `tech-lead`; o aprendizado com os erros, do `agile-coach`.

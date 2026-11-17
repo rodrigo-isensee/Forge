@@ -36,8 +36,8 @@
    "id": "M4",
    "guarda": "jargao achado",
    "arquivo": "hooks/meta.py",
-   "de": "if re.search(r\"(?<!\\w)\" + re.escape(p) + r\"(?!\\w)\", texto, re.I)}",
-   "para": "if re.search(r\"xyz\", texto)}",
+   "de": "if re.search(r\"(?<!\\w)\" + re.escape(p) + r\"(?!\\w)\", medido, re.I)}",
+   "para": "if re.search(r\"xyz\", medido)}",
    "testes": [
     "tests.test_hooks.Hooks.test_fixtures_do_v0442"
    ]

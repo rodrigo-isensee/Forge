@@ -258,8 +258,8 @@
       "id": "I47",
       "guarda": "bin/forge-check:7582 (m := LINHA_DE_ARQUIVOS.match(linha)) (negada)",
       "arquivo": "bin/forge-check",
-      "de": "    declarados = [t.strip(\"`'\\\".;\") for linha in entregar if (m := LINHA_DE_ARQUIVOS.match(linha)) for t in re.split(r\"[,\\s]+\", m.group(1))]",
-      "para": "    declarados = [t.strip(\"`'\\\".;\") for linha in entregar if (not (m := LINHA_DE_ARQUIVOS.match(linha))) for t in re.split(r\"[,\\s]+\", m.group(1))]",
+      "de": "[item_do_entregar(t) for linha in entregar if (m := LINHA_DE_ARQUIVOS.match(linha))",
+      "para": "[item_do_entregar(t) for linha in entregar if (not (m := LINHA_DE_ARQUIVOS.match(linha)))",
       "testes": [
         "tests.test_t1_codigo_sem_teste",
         "tests.test_aq5_parecer_novo",

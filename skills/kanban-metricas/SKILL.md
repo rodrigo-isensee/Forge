@@ -39,8 +39,7 @@ Mesma regra de amostra das métricas de fluxo. Taxa de falha e tempo de recupera
 - Na retrospectiva da 0.42, rode `forge-check provas medida --desde <abertura da 0.41>` e leve o número (conferências de entrega pegas só pelo conferente × as que o CI com a M15 pegaria) ao cartão EST-M2B-REAVALIAR (0.43), como a decisão 9 do dono pede.
 
 ## Experimentos de melhoria (`docs/kanban/melhorias.md`)
-| ID | Hipótese | Mudança | Métrica | Critério de reversão | Início | Revisão | Resultado |
-Uma mudança por vez em cada parte do processo, para saber o que causou o efeito.
+Colunas e regra em `${CLAUDE_PLUGIN_ROOT}/skills/kanban-scrum/experimentos.md`.
 
 ## Elementos de Scrum usados
-O time trabalha em fluxo contínuo (Kanban), aproveitando de Scrum: **objetivo claro por pedido** (como meta de sprint), **revisão** com o usuário ao fim de cada pedido, **retrospectiva** com ações concretas e **definição de pronto** compartilhada. Não há sprints de duração fixa nem pontos de estória.
+O time trabalha em fluxo contínuo (Kanban), aproveitando de Scrum: **objetivo claro por pedido** (como meta de sprint), **revisão** com o usuário ao fim de cada pedido, **retrospectiva** com ações concretas e **definição de pronto** compartilhada. Não há sprints de duração fixa nem pontos de estória. O técnico (desenho, portões, integração, versão) é do `tech-lead`; o aprendizado com os erros, do `agile-coach`.

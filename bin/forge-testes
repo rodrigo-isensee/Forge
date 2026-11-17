@@ -26,7 +26,8 @@ Os módulos do plano dirigido rodam em paralelo por `scripts/suite-partes.py` (o
 Convenção (O2, 0.44.1): sem regra no mapa, bin/forge-x leva a tests/test_forge_x.py, hooks/x.py e scripts/x.py a
 tests/test_x.py (se o arquivo existe); o mapa fica para as exceções. Sem as duas (E14.1): bin/forge-x leva a tests/test_x.py,
 test_forge e quem cita forge-x; bin/forge_x.py, a quem cita forge_x e test_forge; tests/mutantes/<spec>.json, aos módulos
-do campo `testes` da spec.
+do campo `testes` da spec e ao test_forge_mutante. O hook leva também a quem o importa, direto ou por outro hook, apoio
+ou módulo de teste (E1.253).
 Falha fechada: qualquer caminho sem entrada no mapa nem teste pela convenção, `tests/config.json`, este script (que contém o mapa),
 um módulo mapeado que não existe, um erro ao ler o git e todo módulo de teste no diff (alterado, novo ou apagado:
 ele pode importar outro, ler todos os de tests/ ou carregá-los pelo nome) fazem rodar a suíte completa. O `--vermelho`
@@ -121,7 +122,8 @@ LEITORES_DE_TEXTO = ("test_anotar", "test_citacao", "test_clareza", "test_depend
                      "test_textos_dono_f7", "test_textos_dono_f10", "test_qa_lote_l09", "test_conferente_estavel", "test_jarvis_n_jar_a", "test_reval_delta",
                      "test_orcamento_instrucao", "test_metricas_texto", "test_aq1_texto", "test_textos_034",
                      "test_achado_teto_doc", "test_medidas_m14b",
-                     "test_ambiente_sem_auto_update", "test_sessao_automatica")  # EST-M4: a guarda C-2 lê agents/ e skills/
+                     "test_ambiente_sem_auto_update", "test_sessao_automatica",
+                     "test_frontmatter_agentes")  # EST-M4: a guarda C-2 lê agents/ e skills/; E2.363: agents/ e stacks/*/agents/
 CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor",
             "test_modelos_citados") + LEITORES_DE_TEXTO
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
@@ -175,6 +177,7 @@ MAPA = [
     (r"templates/projeto/docs/(reviews|qa|security|devops)/_modelo\.md", PUBLICADO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),  # o teste gera parecer do modelo
     (r"templates/projeto/\.githooks/pre-push", PUBLICADO + ("test_prepush_so_docs", "test_caminhos_extra_pre_push", "test_prepush_refs")),
     (r"templates/projeto/\.forge/config\.json", PUBLICADO + ("test_ritmo",)),  # v0457 E3.9: test_ritmo lê o modelo do config
+    (r"templates/projeto/(docs/devops/pos-release\.(md|passos)|scripts/pos-release)", PUBLICADO + ("test_pos_release",)),  # v047 E2.394: o teste lê os três
     (r"(migrations|templates)/.*", PUBLICADO),
     (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
     (r"docs/hooks-fixtures\.md", CONTEUDO + ("test_indice_fixtures",)),  # Fase C: o índice gerado confere em dia
@@ -190,7 +193,8 @@ MAPA = [
 ]
 # Sem regra (de propósito), por exemplo: .github/, .githooks/, tests/config.json, tests/catraca.py e os outros
 # arquivos de apoio de tests/ (inclui tests/hooks/, tests/migracoes/, tests/transcricoes/ e fixtures), LICENSE,
-# CLAUDE.md, .claude/ e .gitignore. Tudo o que não casa com uma regra acima cai na suíte completa.
+# CLAUDE.md, .claude/ e .gitignore. Tudo o que não casa com uma regra acima cai na suíte completa (o apoio também:
+# decisão 7 do dono sobre a opção C da M8). O hook leva também a quem o importa (`quem_importa`, E1.253).
 # O próprio script entra na suíte completa: ver ALTERA_O_MAPA.
 # Módulo de teste no diff não tem regra: cai na suíte completa (M8, opção C). Um teste pode importar outro, ler todos os
 # de tests/ ou carregá-los pelo nome; o mapa não tenta saber como, e por isso não há grafo de importação para divergir.
@@ -227,8 +231,13 @@ ORACULO = re.compile(r"test_oraculo_[a-z0-9_]+")
 # E14.1 (FORGE-TESTES-MAPA): o que entra novo sem regra no MAPA nem teste pela convenção O2 deixa de cair na suíte completa.
 SUBCOMANDO = re.compile(r"bin/forge-([a-z][a-z0-9-]*)")  # bin/forge-x -> tests/test_x.py, test_forge e quem cita forge-x
 MODULO_DO_BIN = re.compile(r"bin/(forge_[a-z][a-z0-9_]*)\.py")  # bin/forge_x.py -> quem cita forge_x (o importa), e test_forge
-SPEC_DE_MUTANTES = re.compile(r"tests/mutantes/[a-z0-9][a-z0-9_.-]*\.json")  # -> os módulos do campo `testes` da spec
+SPEC_DE_MUTANTES = re.compile(r"tests/mutantes/[a-z0-9][a-z0-9_.-]*\.json")  # -> o campo `testes` e test_forge_mutante
 TESTE_DA_SPEC = re.compile(r"tests\.((?:[a-z0-9_]+\.)*?test_[a-z0-9_]+)(?:\.[A-Za-z0-9_]+)*")
+# E1.253 (v047, TESTE-RITMO-SEM-MAPA): quem importa um hook sai do texto dos testes (`quem_importa`), sem lista à mão.
+HOOK = re.compile(r"hooks/([a-z_][a-z0-9_]*)\.py")
+# `from x import`, `import x`, `import a, x as b`, em qualquer ponto do texto (também no código que o teste manda ao subprocesso).
+IMPORTA = re.compile(r"(?<![\w.])(?:from\s+([A-Za-z_][\w.]*)\s+import\b|import\s+([A-Za-z_][\w.]*(?:\s+as\s+\w+)?"
+                     r"(?:\s*,\s*[A-Za-z_][\w.]*(?:\s+as\s+\w+)?)*))")
 
 
 def git(*args):
@@ -273,7 +282,7 @@ def planejar(caminhos, raiz=Path(".")):
         casou = casou or modulos_da_convencao(caminho, raiz) or modulos_do_novo(caminho, raiz)
         if casou is None:
             return "completo", [f"{caminho} sem mapa"]
-        modulos.update(casou)
+        modulos.update(casou, quem_importa(caminho, raiz, casou))
     ausentes = sorted(m for m in modulos if not arquivo_do_modulo(m, raiz).is_file())
     if ausentes:
         return "completo", [f"módulo sem arquivo: {', '.join(ausentes)}"]
@@ -306,9 +315,40 @@ def modulos_do_novo(caminho, raiz=Path(".")):
     do_bin = MODULO_DO_BIN.fullmatch(caminho)
     if do_bin:
         return tuple(sorted({"test_forge"} | leitores(do_bin.group(1), raiz)))
-    if SPEC_DE_MUTANTES.fullmatch(caminho):
-        return modulos_da_spec(raiz / caminho)
+    if SPEC_DE_MUTANTES.fullmatch(caminho):  # e o test_forge_mutante, que confere toda spec contra a fonte (--todas, AR-12)
+        da_spec = modulos_da_spec(raiz / caminho)
+        return tuple(sorted({*da_spec, "test_forge_mutante"})) if da_spec else None
     return None
+
+
+def importados(texto):
+    """Os módulos que o texto importa (IMPORTA), sem o `as`."""
+    nomes = set()
+    for de, lista in IMPORTA.findall(texto):
+        nomes |= {de} if de else {parte.split()[0] for parte in lista.split(",")}
+    return nomes
+
+
+def quem_importa(caminho, raiz=Path("."), junto=()):
+    """E1.253 (v047): para hooks/x.py, os módulos de teste que importam o hook ou um módulo de `junto`, pelo fecho: o
+    hook, o apoio da raiz de tests/ e o módulo de teste que importa um deles também leva a quem o importa (os
+    test_fechar_* que importam o test_fechar, o teste que importa o apoio que importa o _comum). Vazio fora de hooks/: o
+    apoio de tests/ no diff segue na suíte completa (decisão 7 do dono sobre a opção C da M8)."""
+    achado = HOOK.fullmatch(caminho)
+    if not achado:
+        return set()
+    textos = textos_dos_testes(raiz)
+    lidos = {p.stem: p.read_text(encoding="utf-8", errors="replace") for pasta in ("hooks", "tests")
+             for p in sorted((raiz / pasta).glob("*.py")) if p.is_file()}
+    importa = {nome: importados(texto) for nome, texto in {**lidos, **textos}.items()}
+    vistos, fila = set(), [achado[1], *junto]
+    while fila:
+        nome = fila.pop()
+        if nome in vistos:
+            continue
+        vistos.add(nome)
+        fila += [outro for outro, nomes in importa.items() if nome in nomes]
+    return vistos & set(textos)
 
 
 def leitores(nome, raiz=Path(".")):
@@ -383,6 +423,7 @@ def planejar_afetados(caminhos, raiz=Path(".")):
         regra = (next((destino for padrao, destino in MAPA if re.fullmatch(padrao, caminho)), None)
                  or modulos_da_convencao(caminho, raiz) or modulos_do_novo(caminho, raiz))
         achados.update(regra or ())
+        achados |= quem_importa(caminho, raiz, regra or ())
         for padrao, agulhas in EXERCITAM:
             if re.fullmatch(padrao, caminho):
                 achados |= citam(textos, agulhas)
