@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-falhas-no-resumo
-commit: a00638dbc0e5f8dbd150b631c4399b096f501e73
+commit: 21fa3b1780da40fee7148eb522359753789d5df0
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
@@ -44,3 +44,11 @@ Revalidação por delta do parecer aprovado no head 82623453 (E2.287). Li só `f
 - Tirar as linhas da skill `ci-cd` resolve as métricas sem perder a regra, que fica no modelo do projeto.
 
 Os três achados são recomendados, sem defeito provado. O A1 é texto órfão de referência e o A2 é duplicação de anotação. Os A1 a A4 do parecer anterior seguem abertos como recomendados, porque o delta não os toca.
+
+## Revalidação por delta no head 21fa3b17 (E2.583)
+Li só `forge-check parecer delta docs/reviews/v047-ci-falhas-no-resumo.md` (intervalo `a00638db..21fa3b17`, sem o que veio da base `develop`). No domínio entraram 3 arquivos, todos só de comentário: `.github/workflows/ci.yml` (2 linhas) e `tests/test_catraca.py` (1) trocam o caminho `docs/propostas/ci-rapido.md` por "a proposta ci-rapido"; `tests/mutantes/v047-ci-rapido-3.json` (M25 e M26) foi sincronizada com o texto do ci.yml. Nenhuma guarda mudou.
+- `bin/forge-mutante --conferir --base a00638db`: "conferidas: o trecho de cada spec do diff está no lugar".
+- `bin/forge-mutante --processos 1 tests/mutantes/v047-ci-rapido-3.json`: M25 a M34 `morreu`; M25 e M26 matam a mesma mutação (matriz de 5 partes trocada por 4).
+- Testes tocados, na raiz do clone e sem `-I`: `python3 -m unittest tests.test_suite_partes tests.test_catraca.Workflows`: `Ran 55 tests`, `OK`.
+- Suíte inteira: não rodei, por ordem do dono (16/11); fica no CI do PR.
+- Achados A1 a A3 seguem recomendados, intocados pelo delta. Parecer segue **aprovado**.
