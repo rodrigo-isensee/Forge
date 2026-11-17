@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-mutante-helper
-commit: 4d2a9b7d93fa8b929cddf36da9fe4b80a5d84759
+commit: 52f0ce3ee6abf96d2ee48bb3e10d868cef05b63a
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-15
+data: 2026-11-16
 ---
 # Review: v047 (MU1, helper de teste na --base do forge-mutante)
 
@@ -39,3 +39,10 @@ Etapa E2.110, classe C, parecer completo (não havia parecer anterior) no head `
 
 ## Parecer
 Aprovado. A mudança passa a tratar como apoio o `test_*.py` que outro teste importa e o `.py` de `tests/mutantes/`, com aviso e todos os mutantes no diff. Os nove mutantes morrem e os testes do item passam. A1 é recomendado: o grep só olha a linha do `from`/`import`, e um import em várias linhas, entre parênteses, escapa. Hoje o repositório não usa essa forma; vale registrar o limite na docstring ou cobrir o caso, sem devolver a entrega.
+
+## Revalidação (E2.514, head `52f0ce3e`)
+- Delta lido por `forge-check parecer delta`, de `4d2a9b7d` a `52f0ce3e`: o código do item (`bin/forge-mutante`, `tests/test_forge_mutante.py`) segue o já aprovado; a mudança nova do autor é o commit `78248550`, que realinha M41 (`guarda-sem-mutante-7.json`) e M19 e M20 (`v046-mutacao-bench-3.json`) ao `forge-mutante` alterado (AR-12).
+- Mesma mutação em cada um: M41 troca o `errors="replace"` do `git()` (linha 140) por nada, e o `de` novo (`cwd=cwd, capture_output=True, ...`) é só dessa linha, pois a outra ocorrência (linha 921) não leva `cwd=cwd`. M19 troca `return not a.endswith(".json")` por `True` (spec de `tests/mutantes/` virar apoio). M20 troca `return importado_por_teste(a, sha)` por `True` (todo `test_*.py` virar apoio). Cada um é a guarda antiga na forma nova, sem sobrevivente.
+- `bin/forge-mutante guarda-sem-mutante-7.json`: M40 a M47 `morreu` (M41 na linha 140). `bin/forge-mutante v046-mutacao-bench-3.json`: M16 a M20 `morreu` (M19 934, M20 936).
+- `python3 -m unittest tests.test_forge_mutante` (sem `-I`): `Ran 127 tests ... OK`. Suíte completa no CI.
+- A1 segue recomendado, sem mudança. Parecer: aprovado.
