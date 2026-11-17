@@ -1365,6 +1365,19 @@ class FixacaoDoDono(Base):
         self.assertEqual(codigo, 0, saida)
         fix = self.fixacao()
         self.assertEqual((fix["motivo"], fix["para"]), ("dono", VERSAO), fix)
+        self.assertNotIn("não gravei a fixação", saida, "gravou: sem aviso")
+
+    def test_voltar_versao_que_nao_grava_a_fixacao_avisa_e_volta(self):
+        """ramo de falha do `if not gravou` do voltar-versao (E1.62): a pasta de estado que é arquivo recusa a gravação; a volta segue e avisa"""
+        self.publicar("9.9.0")
+        self.assertEqual(self.rodar(ATUALIZAR, respostas=["s"])[0], 0)
+        estado = self.home / ".claude/plugins/data/forge-forge/forge/sempre-atual"
+        shutil.rmtree(estado, ignore_errors=True)
+        estado.parent.mkdir(parents=True, exist_ok=True)
+        estado.write_text("não é pasta", encoding="utf-8")
+        codigo, saida = self.rodar(VOLTAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("não gravei a fixação", saida)
 
     def test_atualizar_solta_so_a_fixacao_do_dono(self):
         self.publicar("9.9.0")
@@ -1421,6 +1434,19 @@ class HooksDoModeloSemChamada(Base):
         self.assertEqual(linhas[-1], "exit 0", "nada do hook do projeto foi apagado")
         self.assertIn("chore(forge): liga o pre-push.local ao pre-push do projeto", self.git("log", "--format=%s", "origin/develop..forge/upgrade-9.9.0"))
         self.assertEqual(self.git("status", "--porcelain"), "")
+
+    def test_commit_da_ligacao_recusado_desfaz_o_hook_e_so_avisa(self):
+        """ramo de falha do `if not ligou` (E1.62): o commit da ligação recusado (commit-msg do projeto) desfaz a mudança no arquivo
+        e no índice; nada fica pela metade"""
+        self.escrever(".githooks/commit-msg", "#!/bin/sh\ngrep -q 'liga o' \"$1\" && exit 1\nexit 0\n")
+        (self.proj / ".githooks" / "commit-msg").chmod(0o755)
+        self.com_hooks()
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertNotIn("Liguei a chamada", saida)
+        self.assertEqual(self.git("status", "--porcelain"), "")
+        self.assertEqual((self.proj / ".githooks" / "pre-push").read_text(encoding="utf-8"), "#!/bin/sh\nexit 0\n")
 
     def test_o_hook_ligado_roda_o_local_e_o_erro_do_local_barra_o_envio(self):
         self.com_hooks()
