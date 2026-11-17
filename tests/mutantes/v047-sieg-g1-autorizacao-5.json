@@ -49,7 +49,7 @@
       "de": "    if \"pedido\" in normal(campos[\"Origem-da-validade\"]) and f\"F-",
       "para": "    if False and f\"F-",
       "testes": [
-        "tests.test_autorizacao.Ler.test_fechamento_do_pedido_pendente_e_falha_fechada"
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
       ]
     },
     {
@@ -59,7 +59,7 @@
       "de": "and f\"F-{campos['Pedido']}\" in nomes:",
       "para": ":",
       "testes": [
-        "tests.test_autorizacao.Ler.test_fechamento_do_pedido_pendente_e_falha_fechada"
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
       ]
     },
     {
@@ -69,17 +69,17 @@
       "de": "    if \"pedido\" in normal(campos[\"Origem-da-validade\"]) and f\"F-",
       "para": "    if True and f\"F-",
       "testes": [
-        "tests.test_autorizacao.Ler.test_fechamento_do_pedido_pendente_e_falha_fechada"
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
       ]
     },
     {
       "id": "M39",
       "guarda": "G1.1b (ADR 0018 item 5): pendente-confirmacao não é ativa",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "    if campos[\"Estado-inicial\"] == \"pendente-confirmacao\":",
-      "para": "    if False:",
+      "de": "    if campos[\"Estado-inicial\"] == \"pendente-confirmacao\" and",
+      "para": "    if False and",
       "testes": [
-        "tests.test_autorizacao.Ler.test_fechamento_do_pedido_pendente_e_falha_fechada"
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
       ]
     }
   ]

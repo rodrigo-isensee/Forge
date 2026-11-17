@@ -27,7 +27,16 @@ def concessao(corpo=CORPO, **troca):
               "Estado-inicial": "ativa", "Motivo-da-pendencia": "nenhum", "Mensagem": "u-1",
               "Hora-da-fala": "2026-11-18T00:00:00Z", "Sessao": "s-1", "Pedido": "v047", "Sha256": fa.sha(CORPO), "Gravado-por": GRAVADOR,
               "Autoriza": fa.AUTORIZA, **troca}
+    return evento(corpo, campos)
+
+
+def evento(corpo, campos):
     return "".join(f"{k}: {v}\n" for k, v in campos.items() if v is not None) + "\n" + corpo
+
+
+def confirmacao(hora="2026-11-18T00:05:00Z", corpo="confirmo A-1", **troca):
+    return evento(corpo, {"Confirma": "A-1", "Mensagem": "u-2", "Hora-da-fala": hora, "Sessao": "s-1", "Sha256": fa.sha(corpo),
+                          "Gravado-por": GRAVADOR, **troca})
 
 
 def em(texto):
@@ -150,10 +159,18 @@ class Ler(unittest.TestCase):
             with self.subTest(troca=troca, agora=agora):
                 self.assertEqual(self.estados(agora, A_1=concessao(**troca)), [esperado])
 
-    def test_fechamento_do_pedido_pendente_e_falha_fechada(self):
-        agora, fim = "2026-11-18 07:00", concessao(**{"Origem-da-validade": "até o fim deste pedido"})
-        casos = [(dict(A_1=fim, F_v047=""), "vencida"), (dict(A_1=fim, F_v046=""), "ativa"), (dict(F_v047=""), "ativa"),
-                 (dict(A_1=concessao(**{"Estado-inicial": "pendente-confirmacao"})), "pendente"), (dict(lixo=""), "inativa")]
+    def test_retirada_uso_fechamento_do_pedido_e_confirmacao(self):
+        agora, pendente = "2026-11-18 07:00", concessao(**{"Estado-inicial": "pendente-confirmacao"})
+        uso = concessao(**{"Validade": "uso-unico", "Validade-utc": "uso-unico", "Origem-da-validade": "quando der"})
+        fim = concessao(**{"Origem-da-validade": "até o fim deste pedido"})
+        casos = [(dict(R_1=evento("", {"Retira": "A-1"})), "retirada"), (dict(A_1=uso, U_A_1=""), "usada"),
+                 (dict(A_1=uso, U_A_1_1=""), "ativa"), (dict(A_1=fim, F_v047=""), "vencida"), (dict(A_1=fim, F_v046=""), "ativa"),
+                 (dict(F_v047=""), "ativa"), (dict(A_1=pendente), "pendente"), (dict(A_1=pendente, C_A_1=confirmacao()), "ativa"),
+                 (dict(A_1=pendente, C_A_1=confirmacao("2026-11-18T00:00:00Z")), "pendente"),
+                 (dict(A_1=pendente, C_A_1=confirmacao(Sha256="0" * 64)), "pendente"),
+                 (dict(A_1=pendente, C_A_1=confirmacao(**{"Gravado-por": "f" * 64})), "pendente"),
+                 (dict(A_1=pendente, C_A_1=confirmacao(Confirma="A-2")), "pendente"),
+                 (dict(A_1=pendente, C_A_1=confirmacao("ontem")), "pendente"), (dict(lixo=""), "inativa")]
         for eventos, esperado in casos:
             with self.subTest(eventos=list(eventos), esperado=esperado):
                 self.assertEqual(self.estados(agora, **{"A_1": concessao(), **eventos}), [esperado])

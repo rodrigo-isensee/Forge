@@ -9,7 +9,7 @@
       "de": "        if erros and est == \"ativa\":",
       "para": "        if False:",
       "testes": [
-        "tests.test_autorizacao.Ler.test_fechamento_do_pedido_pendente_e_falha_fechada"
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
       ]
     },
     {
@@ -19,7 +19,7 @@
       "de": "|F-{PEDIDO}\")",
       "para": "\")",
       "testes": [
-        "tests.test_autorizacao.Ler.test_fechamento_do_pedido_pendente_e_falha_fechada"
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
       ]
     },
     {

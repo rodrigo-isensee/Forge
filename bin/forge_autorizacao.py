@@ -1,7 +1,7 @@
 """Forge: as autorizações do dono gravadas (ADR 0018, G1.1: formato, integridade e estado). Só biblioteca padrão; só leitura.
 
 `forge-check autorizacao ler` lista cada concessão de `<raiz principal>/.forge/autorizacoes/` com o estado (ativa, pendente com o
-motivo, vencida, adulterada, inativa), a validade no `Fuso` e em UTC e a mensagem inteira do dono. Gravar e
+motivo, vencida, retirada, usada, adulterada, inativa), a validade no `Fuso` e em UTC e a mensagem inteira do dono. Gravar e
 travar vêm no G1.2 em diante. Erro ao ler qualquer evento vale como "não há autorização" (falha fechada): nenhuma fica ativa.
 """
 import datetime
@@ -128,17 +128,32 @@ def problemas(campos, corpo, gravador):
     return achados
 
 
+def confirmada(nome, campos, lidos, gravador):
+    """`C-<nome>` íntegro, do forge-check carregado e de fala posterior à da concessão (ADR 0018 item 5)."""
+    conf, corpo = lidos.get(f"C-{nome}", ({}, ""))
+    if conf.get("Confirma") != nome or conf.get("Sha256") != sha(corpo) or conf.get("Gravado-por") != gravador:
+        return False
+    try:
+        return instante(conf.get("Hora-da-fala", "")) > instante(campos["Hora-da-fala"])
+    except ValueError:
+        return False
+
+
 def estado(nome, nomes, lidos, gravador, agora):
     """(estado, motivo) da concessão `nome`; só `ativa` autoriza (item 7)."""
     campos, corpo = lidos[nome]
     achados = problemas(campos, corpo, gravador)
     if achados:
         return "adulterada", "; ".join(achados)
+    if any(n.startswith("R-") and c.get("Retira") == nome for n, (c, _) in lidos.items()):
+        return "retirada", ""
+    if campos["Validade"] == "uso-unico" and f"U-{nome}" in nomes:
+        return "usada", ""
     if agora >= limite(campos):
         return "vencida", ""
     if "pedido" in normal(campos["Origem-da-validade"]) and f"F-{campos['Pedido']}" in nomes:
         return "vencida", "pedido fechado"
-    if campos["Estado-inicial"] == "pendente-confirmacao":  # a confirmação C-<Id>, a retirada e o uso vêm no G1.1c
+    if campos["Estado-inicial"] == "pendente-confirmacao" and not confirmada(nome, campos, lidos, gravador):
         return "pendente", campos["Motivo-da-pendencia"]
     return "ativa", ""
 
