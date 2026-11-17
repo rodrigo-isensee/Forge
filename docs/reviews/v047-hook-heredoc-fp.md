@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-hook-heredoc-fp
-commit: dd71ea876eebc0ff6ce48c6686d9fabe60438a2a
+commit: 0d7f1562f07b3427c8f9e6236b7827e914b9211c
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
@@ -40,3 +40,10 @@ Delta lido: `forge-check parecer delta`, intervalo 0eee1453..dd71ea87. Desde o h
 Verificação: `python3 -m unittest tests.test_hooks_parecer_pasta` no clone no head dd71ea87 (4 testes, OK, 55 s). Suíte completa fica no CI, por ordem do dono (16/11). Sem PR, sem CI para citar. Tamanho inalterado, abaixo de 150 linhas, um comportamento só.
 
 Aprovado no head dd71ea87, sem bloqueante.
+
+## Revalidação por delta (E2.631, depois da junção com a develop e do realinhamento dos specs)
+Delta lido: `forge-check parecer delta`, intervalo dd71ea87..0d7f1562, 3 arquivos no domínio: `docs/hooks-fixtures.md` (índice regenerado pelo integrador, só contagens e a linha `opaco-*`, que vem da base), `docs/hooks.md` (parágrafo da base) e `tests/mutantes/v0454-hooks-a1.json` (A1-3 e A1-5: o `de` passou a `marcado` e `marcado_fora_do_shell`, o `para` ficou igual; as linhas 1040 e 1052 de `hooks/parecer.py` trazem esses textos). `hooks/parecer.py` do item não mudou. Sem achado novo; A1 e A2 seguem recomendados.
+
+Verificações (sem `-I`, no clone no head 0d7f1562): `tests.test_forge_mutante.ConferirTodas` (4 testes, OK, 3,7 s) e `tests.test_hooks_parecer_pasta` (4 testes, OK, 17 s). Suíte completa no CI. Sem PR, sem CI para citar. Tamanho inalterado, um comportamento só.
+
+Aprovado no head 0d7f1562, sem bloqueante.
