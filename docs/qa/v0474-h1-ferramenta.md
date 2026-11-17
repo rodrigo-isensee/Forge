@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0474-h1-ferramenta
-commit: 7924b25bd1fc5dbd50213c6cf303cbfce774a365
+commit: db0b1f987bccc0cf549d47cd2cd7073a01404ac0
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -35,3 +35,4 @@ Nenhum aberto. Revalidação E2.36 no head 7924b25b (delta sobre 4ddaa68b):
 - Cobertura (`--cobertura --base 681d4b33`): resta `sem mutante · bin/forge-check:8477` (`dados.get('body') or ''`), coberta por M19 (a troca sai do nó da condição; aceito); `spec editada · tests/mutantes/lote-l08-e7.json`.
 - Testes: `python3 -m unittest tests.test_forge_tamanho tests.test_forge_mutante.ConferirTodas`: 27 testes, OK.
 - Suíte inteira: não rodada aqui; vale o check-run `bateria` do CI do mesmo sha.
+- Revalidação E2.49 (head db0b1f98, delta sobre 7924b25b): junção da develop; no domínio só `bin/forge-testes` (+ `test_conformidade_verde` na lista) e a contagem 92 em `tests/test_testes_tocados.py`, sem lógica nova. `python3 -m unittest tests.test_testes_tocados tests.test_forge_tamanho`: 185 testes, OK (1 pulado pelo sandbox, /proc de outro namespace). Suíte inteira: check-run `bateria` do mesmo sha.
