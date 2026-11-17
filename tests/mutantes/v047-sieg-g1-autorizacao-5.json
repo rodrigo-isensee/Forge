@@ -1,0 +1,86 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M32",
+      "guarda": "G1.1b (ADR 0018 item 2): Pedido fora da forma é adulterada",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(not re.fullmatch(PEDIDO, campos[\"Pedido\"]),",
+      "para": "(False,",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_evento_adulterado_ou_fora_da_forma"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "G1.1b (ADR 0018 item 7): validade ilegível é adulterada",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "        achados.append(f\"validade ilegível ({e})\")",
+      "para": "        pass",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_validade_em_utc_a6_e_teto_d1_fala_as_21h_locais_que_ja_e_o_dia_seguinte_em_utc"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "G1.1b (ADR 0018 item 7): vencida a partir da Validade-utc",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if agora >= limite(campos):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_validade_em_utc_a6_e_teto_d1_fala_as_21h_locais_que_ja_e_o_dia_seguinte_em_utc"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "G1.1b (ADR 0018 item 7): vence no instante exato da Validade-utc",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if agora >= limite(campos):",
+      "para": "    if agora > limite(campos):",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_validade_em_utc_a6_e_teto_d1_fala_as_21h_locais_que_ja_e_o_dia_seguinte_em_utc"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "G1.1b (ADR 0018 item 7): até o fim deste pedido para no F-<Pedido>",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if \"pedido\" in normal(campos[\"Origem-da-validade\"]) and f\"F-",
+      "para": "    if False and f\"F-",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "G1.1b (ADR 0018 item 7): só o F- do pedido da concessão a fecha",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "and f\"F-{campos['Pedido']}\" in nomes:",
+      "para": ":",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "G1.1b (ADR 0018 item 7): só a concessão de até o fim do pedido para no F-",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if \"pedido\" in normal(campos[\"Origem-da-validade\"]) and f\"F-",
+      "para": "    if True and f\"F-",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "G1.1b (ADR 0018 item 5): pendente-confirmacao não é ativa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if campos[\"Estado-inicial\"] == \"pendente-confirmacao\" and",
+      "para": "    if False and",
+      "testes": [
+        "tests.test_autorizacao.Ler.test_retirada_uso_fechamento_do_pedido_e_confirmacao"
+      ]
+    }
+  ]
+}

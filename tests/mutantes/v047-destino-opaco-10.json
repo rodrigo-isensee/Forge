@@ -26,8 +26,8 @@
       "id": "O60",
       "guarda": "U4: variável atribuída mais de uma vez na linha",
       "arquivo": "hooks/conformidade.py",
-      "de": "    if len(atribuicoes) > 1:",
-      "para": "    if False:",
+      "de": "    if len(atribuicoes) > 1 or atribuicoes and atribui_como_argumento(nome, linha):",
+      "para": "    if False or atribuicoes and atribui_como_argumento(nome, linha):",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]

@@ -1,0 +1,29 @@
+{
+  "descricao": "HOOK-HEREDOC-PALAVRA-FP: mkdir, cat > arq com git pull e git merge no texto, wc e head que só leem o arquivo gravado; libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "mkdir -p docs/qa && cat > docs/qa/n.md <<'FIM'\ngit pull origin develop antes do git merge melhoria/x\nFIM\nwc -l docs/qa/n.md && head -3 docs/qa/n.md"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -10,6 +10,11 @@ Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, http
 ## Sessão
 - Abra e retome o Jarvis sempre no automático: `jarvis` ou `claude --agent forge:jarvis --permission-mode auto`. No primeiro comando o Jarvis confere o sandbox do Bash; se falhar, para e avisa o dono com o comando para reabrir a sessão (o dono nunca aprova comando a comando).
 
+## Ritmo do time
+- **Ritmo diário:** o time desenvolve em paralelo, dia e noite, e junta cada item verde na branch de integração em lotes de até 3, nunca sem os testes verdes; a versão sai quando a branch de integração tem um conjunto verde que valha uma versão, até 2 por dia, num PR para a `main`. À noite o Jarvis não escreve ao dono, salvo algo grave que mude prazo ou risco.
+- **Corte por arquivo:** cartões que mexem nos mesmos arquivos vão para o mesmo agente, na mesma branch, um depois do outro; de 3 a 5 cartões pequenos por lote, com uma revisão só.
+- **Teto do time:** até 20 agentes e 12 branches abertas; agente livre termina o que está aberto (revisão, conserto, teste vermelho) antes de abrir item novo.
+
 ## Fonte da verdade
 <!-- Documentos de referência do sistema (briefing, especificações, contratos). Aponte caminho e o que cada um decide. -->
 - `docs/pedidos/`: pedidos do usuário, um arquivo por pedido.

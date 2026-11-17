@@ -1,0 +1,30 @@
+{
+  "descricao": "HOOK-HEREDOC-PALAVRA-FP, caso verdadeiro (A1 da E2.6-E2.8): o alvo vem do head de crase (`head -1 n`), sem valor literal; o arquivo n pode dizer bin/ls; recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cat > `head -1 n` <<'FIM'\n#!/bin/sh\ngit merge melhoria/x\nFIM\nls"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW"
+  }
+}

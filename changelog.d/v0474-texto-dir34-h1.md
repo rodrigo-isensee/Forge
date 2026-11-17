@@ -1,0 +1,4 @@
+### Alterado
+- Diretriz 34 no Jarvis e no tech-lead: decisão pendente do dono não para o time (perguntada uma vez, sem repetir "sigo esperando"), bloqueio de ambiente vira na hora o comando exato para o dono, e a versão sai quando a develop tem um conjunto verde, até 2 por dia (skills/falar-com-o-dono/nao-trava.md e ritmo-e-corte.md).
+- H1: teto de 150 linhas de código por item, fora testes e documentação; passa só se cortar mais deixar a suíte vermelha, com o motivo no PR (decisão do dono de 17/11). Substitui a orientação por risco do M14 no tech-lead e na skill engineering-practices; detalhe em skills/engineering-practices/tamanho-por-item.md.
+- H1 e diretriz 34 também na skill trabalho-em-paralelo, no modelo de PR e no `CLAUDE.md` do projeto novo: teto de 150 linhas de código por item fora testes e documentação, e a versão para a `main` quando houver um conjunto verde, até 2 por dia (no lugar de "de manhã, um PR só").

@@ -9,7 +9,7 @@
       "de": "    0) return 1 ;;\n    1) echo \"arquivos em conflito",
       "para": "    0) return 0 ;;\n    1) echo \"arquivos em conflito",
       "testes": [
-        "tests.test_fechar_base_andou.Teste.test_e8_arquivo_em_comum_sem_conflito_segue_sem_trazer_a_base"
+        "tests.test_fechar_base_andou.Teste.test_h4_arquivo_em_comum_sem_conflito_traz_a_base_e_recomeca"
       ]
     },
     {

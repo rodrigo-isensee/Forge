@@ -24,7 +24,9 @@ SKILLS_COM_PONTEIRO = SKILLS_L51 + ("fluxo-do-pedido",)
 DIRETRIZES = json.loads((RAIZ / "tests" / "fixtures" / "diretrizes-do-dono.json").read_text(encoding="utf-8"))["diretrizes"]
 # P4 (decisões do dono de 14/11 08:16 e 08:38): pendentes 2, 11, 23, 24, 26, 27 e 28, cada uma com o seu cartão; só desce.
 # A 29 virou de fábrica com o FOCO-NAS-DECISOES.
-MAX_PENDENTES = 7
+# v047 (afrouxa, liberação do dono para o plano v047): 8 = as 7 da P4 menos a 26 (fábrica, INTEGRACAO-EM-LOTE) mais a 30 e a
+# 31, que nasceram depois da P4; não é regressão: a 27 segue pendente com o RELEASE-EM-1H. Só desce.
+MAX_PENDENTES = 8
 # P3: a mensagem do núcleo manda mover, não reduzir (diretriz 25).
 MOVA = ("não apague nem resuma regra (diretriz 25): mova o detalhe para uma skill que o Jarvis manda ler e deixe o resumo; "
         "não suba o teto")
