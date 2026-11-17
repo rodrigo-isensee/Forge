@@ -3,33 +3,44 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-ci-falhas-no-resumo
-commit: 8262345394250e8b2f2130950da47af33fac4621
+commit: a00638dbc0e5f8dbd150b631c4399b096f501e73
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-16
 ---
-# Review: v047-ci-falhas-no-resumo (E2.287, item E2.270)
+# Review: v047-ci-falhas-no-resumo (E2.503, revalidação por delta no head a00638db)
 
-Parecer completo (não havia parecer anterior) sobre o head 82623453, base 5e74c70e. Diff: `scripts/falhas-no-resumo.py` (novo), `tests/test_falhas_no_resumo.py` (novo), fiação em `.github/workflows/ci.yml` (4 jobs que rodam a suíte), ajustes em `tests/test_ci_local.py` e `tests/test_suite_partes.py`, spec de mutantes e fragmento de changelog.
+Revalidação por delta do parecer aprovado no head 82623453 (E2.287). Li só `forge-check parecer delta docs/reviews/v047-ci-falhas-no-resumo.md` (intervalo `82623453..a00638db`, sem o que veio da base `develop` 86ac0fcb). No domínio entraram 29 arquivos: o resumo de falhas readaptado (3a9a8181) e a volta do CI-RAPIDO do #576 com os consertos (a00638db). O delta é quase todo o #576, já aprovado no head 0237a1bc (`docs/reviews/v047-ci-rapido.md` no 22f1eaa8). Por isso li o interdiff dele contra o 22f1eaa8, e não as 3,4 mil linhas de novo.
+- `scripts/pesos-do-ci.py`, `scripts/suite-partes.py`, `tests/test_pesos_do_ci.py`, `tests/test_suite_partes.py`, `tests/test_ci_rapido_guardas.py`, `tests/test_ci_local.py`, `tests/test_forge.py`, `docs/propostas/ci-rapido.md`, os `stacks/*/pronto.md`, o README, a economia de tokens e as specs `v047-ci-rapido-{1,2,4..7}` estão iguais ao #576.
+- **ci.yml:** só muda pelo resumo de falhas nas 4 matrizes de 5 partes (`rapida-partes-doze`, `rapida-partes-quatorze`, `partes-doze` e `partes-quatorze`). Cada matriz ganha `set -o pipefail` e `| tee` no passo da parte, e o leitor `python3 -I` com `!cancelled()`. No PR o leitor vem com `provada != 'true'`.
+- **Catraca** (`tests/test_catraca.py:3492-3515`): conta os 18 tetos de tempo e o `always()` dos dois agregadores de prova da develop. Os 4 jobs com `always()` não podem ter `uses:`, precisam de `needs: [` e não rodam código da branch.
+- **Métricas do ci-cd:** os 2 bullets que o #576 punha em `skills/ci-cd/SKILL.md` saíram de lá.
+- **Orçamento de devops:** foi para `templates/projeto/docs/engineering/protecao-de-branch.md:15`.
+- **Specs:** a `v047-ci-rapido-3` e a `v046-ci-lote-e1` foram realinhadas ao YAML novo. I96 e I97 foram retiradas, porque a função `pesos_por_modulo` saiu. O F14 aponta para a rápida do 3.14.
 
 ## Achados
-- A1 (recomendado) scripts/falhas-no-resumo.py:30 · mecanismo paralelo ao do suite-paralela: SEGREDO de lá (:75) é mais amplo (glpat-, sk-, xox), causa_da_falha (:339) já acha o local em tests/ e o resumo já lista os caídos (:625); reuse ou ponha no PR "Por que o existente não basta" (R-DECISAO).
-- A2 (recomendado) tests/test_falhas_no_resumo.py:58 · subprocesso herda o ambiente: o unittest de registro_real e o bash de :243 (BASH_ENV entra) usam o env do CI; Execucao (:173) só tira GITHUB_*. Passe env mínimo (PATH, LANG, HOME) (AR-4, R-REVIEW).
-- A3 (recomendado) tests/mutantes/v047-ci-falhas-no-resumo.json:1 · forge-mutante --cobertura lista 34 condições sem mutante; das guardas, :180 (len(argv)), :189 (texto is None), :199 (destino) e :162 (teto) só têm o return ou nada; declare um por linha de guarda (R-QA, AR-1, a cargo do QA).
-- A4 (recomendado) tests/test_falhas_no_resumo.py:239 · assertNotIn("write") no ci.yml inteiro sem comentários quebra com qualquer nome de passo ou texto futuro que tenha "write"; restrinja às chaves de permissions (R-REVIEW).
-- A5 (recomendado) scripts/falhas-no-resumo.py:1 · 498 linhas de código e teste (git diff --numstat, M14): o corpo do PR precisa de `teto: excedido, 498 linhas, <motivo>` (R-REVIEW).
+- A1 (recomendado) stacks/node-react/pronto.md:65 · remete o T à skill `ci-cd`, "Tempo e dependências", mas a definição de T e o orçamento não estão mais na skill: o conserto das métricas os pôs em `templates/projeto/docs/engineering/protecao-de-branch.md:15`. Aponte para lá (R-REVIEW).
+- A2 (recomendado) scripts/suite-partes.py:227 · a parte vermelha passa a anotar a falha duas vezes: a linha `::error title=forge-suite` daqui e um `::error` por falha do leitor (`.github/workflows/ci.yml:92`). São dois mecanismos para a mesma saída: fique com um ou justifique (R-DECISAO; segue o A1 anterior).
+- A3 (recomendado) .github/workflows/ci.yml:1 · são 2051 linhas de código e teste contra a develop (`git diff --numstat`, M14). Quando o PR existir, o corpo dele leva `teto: excedido, 2051 linhas, <motivo>`; substitui o A5 anterior (R-REVIEW).
 
 ## Sondas
 
 ## Verificações citadas
-- Testes do item na raiz do clone: `python3 -m unittest tests.test_falhas_no_resumo tests.test_suite_partes tests.test_ci_local` · `Ran 119 tests` · `OK`.
-- Mutantes declarados: `bin/forge-mutante --processos 1 tests/mutantes/v047-ci-falhas-no-resumo.json` · F1 a F14 `morreu`, rc=0.
-- `bin/forge-mutante --conferir --base 5e74c70e` · "conferidas: o trecho de cada spec do diff está no lugar".
-- `bin/forge-mutante --cobertura --base 5e74c70e` · 34 `sem mutante`, `.github/workflows/ci.yml` não coberto (base do A3).
-- Suíte inteira: não rerrodada (fica no CI do PR); não há PR aberto nem CI do head para citar.
-- `docs/engineering/praticas.md` não existe no Forge: sem regras "leitura" nem "ferramenta" a aplicar; checklist da skill.
+- Delta: `forge-check parecer delta docs/reviews/v047-ci-falhas-no-resumo.md`, intervalo `8262345394250e8b2f2130950da47af33fac4621..a00638dbc0e5f8dbd150b631c4399b096f501e73`, 29 arquivos no domínio.
+- Testes dos arquivos tocados, na raiz do clone e sem `-I`:
+  - `python3 -m unittest tests.test_falhas_no_resumo tests.test_suite_partes tests.test_ci_local tests.test_ci_rapido_guardas tests.test_pesos_do_ci`: `Ran 180 tests`, `OK`.
+  - `tests.test_catraca.Workflows`: `Ran 6 tests`, `OK`.
+  - `tests.test_forge.PrePushSoOsAfetados`: `OK`.
+- `bin/forge-mutante --conferir --base 86ac0fcb`: "conferidas: o trecho de cada spec do diff está no lugar".
+- `bin/forge-mutante --processos 1 tests/mutantes/v047-ci-falhas-no-resumo.json`: F1 a F14 `morreu`; o F14 está em `.github/workflows/ci.yml:203`.
+- Suíte inteira: não rodei, por ordem do dono (16/11). Fica no CI do PR, que ainda não existe (brief sem PR).
+- Pareceres de devops e de segurança do workflow: cabem a esses papéis (`R-SEGURANCA`), e não os refiz.
 
 ## Parecer
-Aprovado. O leitor faz o que E2.270 pede: teste, módulo, arquivo:linha e primeira linha do erro de cada falha no `GITHUB_STEP_SUMMARY` e em `::error`, com tetos, nos jobs `rapida`, `rapida-quatorze`, `partes-doze` e `partes-quatorze`. O `set -o pipefail` antes do `tee` preserva o código da suíte (teste de comportamento em :241); o passo do leitor roda com `!cancelled()`, sai sempre com 0 e não toca `permissions`. Escapes de comando de workflow (`%`, CR, LF, `::`, `:` e `,` nas propriedades) e de Markdown estão cobertos por teste e mutante. A extração usa a saída real do `unittest` (falha, erro, subteste, setUpClass, formato do 3.11), e o formato do `suite-paralela`/`suite-partes` (blocos do `printErrors` e `Ran N tests` por processo) é o que o leitor espera (`scripts/suite-paralela.py:313-314`).
+**Aprovado.** O consertado está certo:
+- O `pipefail` antes do `tee` mantém o código da parte vermelha.
+- O leitor não roda em execução cancelada nem na promoção com árvore provada.
+- Os agregadores de prova da develop só leem `needs.*.result`, e a catraca agora prova isso, job a job.
+- Tirar as linhas da skill `ci-cd` resolve as métricas sem perder a regra, que fica no modelo do projeto.
 
-Os cinco achados são recomendados: nenhum defeito provado. O A1 é o principal: o Forge já tem redação de segredo e local da falha no `suite-paralela`, e o novo script repete os dois com regex própria; a escolha vale, mas o PR precisa dizer por que o existente não basta. O A2 repete a classe AR-4 (linha atualizada em `docs/engineering/achados-recorrentes.md`).
+Os três achados são recomendados, sem defeito provado. O A1 é texto órfão de referência e o A2 é duplicação de anotação. Os A1 a A4 do parecer anterior seguem abertos como recomendados, porque o delta não os toca.
