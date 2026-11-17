@@ -3,12 +3,16 @@ tipo: review
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-h2-autor-fica
-commit: 74e14194c106bdbeb8ed36678654dc27de7cf658
+commit: 981ce8a99ac19a46f611ca08a6a290f2d0e809c3
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
 ---
-# Review: v0474 (E2.64, H2-AUTOR-FICA-ATE-O-MERGE, parte de ferramenta), revalidação 3
+# Review: v0474 (E2.64, H2-AUTOR-FICA-ATE-O-MERGE, parte de ferramenta), revalidação 4
+
+Delta lido (revalidação 4, E2.73): `forge-check parecer delta docs/reviews/v047-h2-autor-fica.md`, intervalo 74e14194..981ce8a9. No domínio: `tests/hooks/agentes/autor-ativo-inicio-repetido-nao-converte.json` (fixture nova) e `tests/mutantes/v047-h2-autor-fica-3.json` (M25). `hooks/` sem mudança. O aviso do delta sobre o merge ca3bf21 é a junção da branch remota (pareceres), sem código. M25 declara a guarda `a.get("tipo") == RETOMADA` de `iniciar` (hooks/agentes.py:987), que a catraca do CI acusou sem mutante. Apliquei M25 à mão: `PeloHook.test_fixtures_do_pedido` falha na fixture nova (o `forge:qa-engineer` ativo vira `forge:software-engineer`), e o arquivo foi restaurado. `python3 -m unittest tests.test_forge_mutante.ConferirTodas tests.test_hooks_agentes_autor`: 14 testes, OK. `python3 -I tests/catraca.py --base origin/develop`: rc=0, sem saída. Não há achado novo; A6 segue recomendado.
+
+Revalidação 3 (histórico):
 
 Delta lido (revalidação 3): `forge-check parecer delta docs/reviews/v047-h2-autor-fica.md`, intervalo f26b0721..74e14194, escopo sem o que veio da develop. No domínio só ficou `docs/hooks-fixtures.md`, o índice gerado, cujo conflito a junção de bda457e4 resolveu regerando pelo script (`git show --remerge-diff 74e14194`: 1 linha a mais, 5 a menos). `python3 -I scripts/indice-fixtures.py --conferir`: "docs/hooks-fixtures.md: em dia". O aviso do delta sobre o merge 27bdaab trata da junção da própria branch remota (pareceres), sem código. Nenhum código do H2 mudou: A6 segue recomendado e não há achado novo.
 
