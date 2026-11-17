@@ -3,7 +3,7 @@ tipo: revisao-devops
 contrato: 1
 pedido: release-0.47.4
 branch: melhoria/v0474-release-0474
-commit: 2539b54fcaa895549fc9e2df35d45cd8588cc16b
+commit: f198cfbd8261eb15acee8adbb95709484f524097
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-17
@@ -25,3 +25,5 @@ Aprovado. Entre a v0.47.3 (que é a `main`, `cacbdf06`) e este head, `.github/` 
 
 ## Custo e rollback
 Sem recurso pago novo (R-CUSTO). O CI roda mais jobs mais curtos em paralelo (5 partes por Python), então os minutos totais sobem um pouco; medir na checagem de tempo da release (`gh run list`). Volta: reverter o commit de versão na `develop` antes da promoção; depois da release, reimplantar a tag anterior (v0.47.3).
+
+O Revisar-sha passou de 2539b54f (que só tem parecer) para f198cfbd (commit da versão); o conteúdo revisado é o mesmo.
