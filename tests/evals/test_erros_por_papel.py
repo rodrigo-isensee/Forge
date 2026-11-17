@@ -220,6 +220,27 @@ class MensagemEmOutroIdioma(unittest.TestCase):
         self.assertTrue(any(l["outro_idioma"] for l in self.medir(self.PT, notas=[self.EN])))
 
 
+class RodadaQueNaoEncerra(unittest.TestCase):
+    """JARVIS-ENCERRA-RODADA (ORDEM DO DONO 16/11 21:36, v047: duas mensagens do dono presas na fila por mais de 10 min porque a
+    rodada não encerrava). A regra está em skills/falar-com-o-dono/toda-mensagem.md; a medida, no backlog: nenhuma ferramenta lê
+    ainda o `queue-operation` (enqueue e dequeue) do transcrito para contar a espera da mensagem do dono."""
+    PAPEL = "jarvis"
+
+    @unittest.expectedFailure
+    def test_mensagem_do_dono_presa_mais_de_10_min_e_acusada(self):
+        """ERRO 16/11 21:36: o `forge-check transcricao` não tem medida da fila do dono (alvo 0 acima de 10 min)."""
+        fila = [("enqueue", "2026-11-16T21:25:00.000Z"), ("dequeue", "2026-11-16T21:37:00.000Z"),
+                ("enqueue", "2026-11-16T21:40:00.000Z"), ("dequeue", "2026-11-16T21:41:00.000Z")]
+        with tempfile.TemporaryDirectory(prefix="forge-evals-rodada-") as tmp:
+            transcrito = Path(tmp) / "sessao.jsonl"
+            transcrito.write_text("".join(json.dumps({"type": "queue-operation", "operation": op, "timestamp": t,
+                                                      "content": "mensagem do dono"}) + "\n" for op, t in fila), encoding="utf-8")
+            r = subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-check"), "transcricao", "fila", str(transcrito)],
+                               capture_output=True, text=True, timeout=60, env={"PATH": os.environ.get("PATH", ""), "HOME": tmp})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("acima de 10 min: 1", r.stdout)
+
+
 class Catalogo(unittest.TestCase):
     """O `SEM_FERRAMENTA` tem a forma que o placar lê: papel -> [(fonte, descrição)]."""
 

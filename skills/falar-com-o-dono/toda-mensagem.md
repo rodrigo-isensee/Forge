@@ -10,3 +10,8 @@ ponteiro). Vale como a skill (`R-DECISAO`).
 ferramenta e as mensagens depois de uma compactação da conversa. O idioma vem de `idioma_do_dono` no `.forge/config.json` do
 projeto; sem a chave, português. Comando, caminho e citação ficam como estão. Medida: o hook `meta` grava `outro_idioma` em
 `.forge/run/mensagens.jsonl`; alvo 0 por dia.
+
+**A rodada encerra a cada marco (JARVIS-ENCERRA-RODADA):** agente disparado ou de volta, item integrado, pergunta feita ao
+dono ou time só esperando agente: o Jarvis encerra a rodada ali, para a mensagem do dono nunca esperar na fila. Espera de agente ou
+de CI na conversa principal vai ao segundo plano (skill `esperar-estado`, regra 6), nunca num laço que segura a rodada. Medida:
+espera da mensagem do dono na fila, alvo 0 acima de 10 min.
