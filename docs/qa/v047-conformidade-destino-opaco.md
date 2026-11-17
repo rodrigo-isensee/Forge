@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-conformidade-destino-opaco
-commit: 81c503420c2cd99a376ac73a68a7ef7be1181bf2
+commit: 1df5245b257c35fe86f49f4278a0beb1e363ba4a
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-16
+data: 2026-11-17
 ---
 # QA: v047 conformidade, destino opaco sem resto (A9, A10)
 
@@ -178,3 +178,16 @@ Domínio lido por `forge-check parecer delta`: o que veio da base saiu do escopo
 - CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local.
 
 Parecer aprovado no 8e40fe69 (`R-QA`): a junção não altera o comportamento do item, sem bug aberto, sem achado.
+
+## Revalidação por delta 8e40fe69..1df5245b (E2.609; instância que não fez a entrega)
+Domínio lido por `forge-check parecer delta`: `tests/mutantes/v046-conformidade-caminho-git-2.json` (G12, G13, G14), `-4.json` (G20) e `tests/test_oraculo_v047.py`. O hook `hooks/conformidade.py` não mudou contra o 81c50342 (`git diff --stat` vazio). Escopo do plano (A9, A10, D2b, U4) inalterado.
+- Oráculo editado pela segurança, com autorização do dono (`sem_manutencao` no ambiente git; fixture `README.md` renomeada para `LEIAME.md`). Prova de não edição: o blob mudou de `535134e9…` para `a9eddad2…` por decisão do dono; commit `1df5245b` toca só o oráculo. Diff linha a linha contra o 730843a9: 4 hunks, todos de ambiente (import de `ambiente_git.sem_manutencao`, a chave `LEIAME.md` e as duas chamadas de `subprocess.run` com `env=sem_manutencao(ambiente())`). Asserções: 10 no original e 10 agora, nenhuma removida nem afrouxada; nenhum `skip`, `skipIf` nem `expectedFailure`; `README` não aparece mais no arquivo (o nome só vivia na tabela `ARQUIVOS`).
+- Mutantes realinhados: o `de` de G12, G13, G14 e G20 agora é o trecho com o sufixo `# A5`, `# A3`, a atribuição inteira ou o `self.rev_parse_misto or`; o `para` faz a mesma troca de antes (`--target-directory` ignorado, `"`" in a` vira `False`, `m["crase"]` sai, `any(...)` vira `False`). Cada `de` existe uma única vez em `hooks/conformidade.py` (linhas 2059, 2060, 387, 1572) e o teste que deve cair é o mesmo (`test_fixtures_gitcomum`).
+- Mutação: `bin/forge-mutante --processos 4 --base 81c503420c2cd99a376ac73a68a7ef7be1181bf2 tests/mutantes/v046-conformidade-caminho-git-2.json tests/mutantes/v046-conformidade-caminho-git-4.json`, cabeçalho `base=81c503420c2c… mb=81c503420c2c… rev=1df5245b257c`: G12, G13, G14 e G20 `morreu`; também `morreu` G9, G10, G11, G15, G16, G21, G22, G23, G24 e G26; `G25 · sobreviveu · hooks/conformidade.py:1947` (ver A1).
+- Testes, sem `-I`: `python3 -m unittest tests.test_oraculo_v047 tests.test_ambiente_git tests.test_reval_delta`: 33 testes, OK, 52 s.
+- CI: sem PR nem check-run `bateria` para este sha (pedido sem PR por ordem do brief); a suíte inteira fica para o CI do PR. Não cito `.verde` local.
+
+Parecer aprovado no 1df5245b (`R-QA`): oráculo sem asserção mais fraca, G12, G13, G14 e G20 mortos como antes, 33 testes OK. Sem bug do pedido; o A1 é dívida herdada da v046 e não bloqueia este pedido.
+
+## Achados
+- A1 (recomendado) tests/mutantes/v046-conformidade-caminho-git-4.json:1 · G25 sobrevive (hooks/conformidade.py:1947). Fora do delta: igual no 81c50342 e no develop; o pedido não toca a linha. Vira cartão: teste que mate G25 ou declará-lo equivalente.
