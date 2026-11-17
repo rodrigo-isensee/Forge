@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from apoio_jarvis import texto_do_jarvis  # noqa: E402
 from test_forge import RAIZ, ambiente_limpo, git  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+from ambiente_git import remoto_sem_manutencao  # noqa: E402
 from gh_falso import com_gh_falso  # noqa: E402
 
 FORGE_CHECK = str(RAIZ / "bin" / "forge-check")
@@ -617,6 +618,7 @@ class DeltaComBaseAtrasada(Repositorio):
         self.commitar({"docs/security/p1.md": self.SEG.format(c=self.c1)}, "parecer")
         self.origem = self.tmp / "origem.git"
         git("init", "-q", "--bare", str(self.origem), cwd=self.tmp)
+        remoto_sem_manutencao(self.origem)
         git("remote", "add", "origin", str(self.origem), cwd=self.repo)
         self.base_anda({"d1.txt": "1\n", "src/d3.txt": "3\n"})
         git("push", "-q", "origin", "develop", cwd=self.repo)  # a develop do servidor já tem o que a branch vai integrar
