@@ -3,15 +3,18 @@ tipo: review
 contrato: 1
 pedido: v047
 branch: melhoria/v047-docs-pareceres
-commit: b3bc317ac53cdf6f5038421635fd87144cbfcebb
+commit: 853e5f30085d70fc94d396c282ed43397ba1e49b
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-15
+data: 2026-11-16
 ---
 # Review: v047 (melhoria/v047-docs-pareceres, E1.315)
 
 ## Parecer
 Aprovado no b3bc317a. A volta (E1.309) corrige o que o lote de pareceres apontou: o nome da cópia de fora da raiz passa por `sem_controle` antes de virar o `rel` virtual (a regressão que o teste de AST da `SaidaSanitizada`, abuso 18, pegava), os avisos de `conferir_criterio` saem com o caminho dado como as violações (fecha o A1 do parecer anterior), os testes novos falham por asserção na base sem `FC-DOCS-CAMINHO` (o `docs()` do teste devolve uma violação, não `TypeError`) e o M8 segue o texto novo da linha.
+
+## Revalidação no 853e5f30 (E2.500)
+Aprovado no 853e5f30. Depois do b3bc317a só entraram merges da develop (86ac0fcb); o código e o teste do autor contra o merge-base da develop seguem `bin/forge-check` 70+13 e `tests/test_forge.py` 114, iguais ao já revisado (sem resolução à mão). Delta lido: `forge-check parecer delta docs/reviews/v047-docs-pareceres.md` (intervalo `b3bc317a..853e5f30`, no domínio `bin/forge-check` e `tests/test_forge.py`; o resto do diff é a develop). No 853e5f30: `python3 -m unittest tests.test_forge.DocsPareceresPedidoECaminho tests.test_forge.SaidaSanitizada` → `Ran 19 tests ... OK`; `bin/forge-mutante --processos 1 tests/mutantes/v047-docs-pareceres.json` → M1 a M8 `morreu`; `forge-check docs` rc=0. A1 segue recomendado.
 
 ## Delta lido
 `forge-check parecer delta docs/reviews/v047-docs-pareceres.md` (rc=0): intervalo `7d32017c..b3bc317a`; no domínio `bin/forge-check` (+3 −2), `tests/mutantes/v047-docs-pareceres.json` (M8 realinhado) e `tests/test_forge.py` (+10). Os commits entre os dois heads fora disso são só pareceres (QA, segurança, este review) e merges.
