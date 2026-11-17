@@ -5,7 +5,7 @@
     {
       "id": "M9",
       "guarda": "medida/piora: com menos de 3 tópicos com número na atual, só tabela",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_medidas.py",
       "de": "if len(agora) < 3 or not antes:",
       "para": "if len(agora) < 2 or not antes:",
       "testes": [
@@ -15,7 +15,7 @@
     {
       "id": "M10",
       "guarda": "medida/piora: sem release anterior medida, só tabela",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_medidas.py",
       "de": "if len(agora) < 3 or not antes:",
       "para": "if len(agora) < 3 or False:",
       "testes": [
@@ -25,7 +25,7 @@
     {
       "id": "M11",
       "guarda": "medida/piora: a mediana tem de subir mais de 20% (condição a)",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_medidas.py",
       "de": "m1 > 1.2 * m0 and acima >= 2",
       "para": "m1 > 1.0 * m0 and acima >= 2",
       "testes": [
@@ -35,7 +35,7 @@
     {
       "id": "M12",
       "guarda": "medida/piora: pelo menos 2 tópicos acima do maior da anterior (condição b)",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_medidas.py",
       "de": "m1 > 1.2 * m0 and acima >= 2",
       "para": "m1 > 1.2 * m0 and acima >= 1",
       "testes": [
@@ -45,8 +45,8 @@
     {
       "id": "M13",
       "guarda": "medida/piora: sem aviso, a saída é só tabela; com aviso, só o aviso",
-      "arquivo": "bin/forge-check",
-      "de": "\"\\n\".join(piora_da_release(atual, anterior, tags)) or ",
+      "arquivo": "bin/forge_medidas.py",
+      "de": "\"\\n\".join(piora_da_release(atual, anterior, tags, ctx)) or ",
       "para": "\"\" or ",
       "testes": [
         "tests.test_voltas.MedidaDaRelease.test_a_piora_da_026_para_a_028_avisa_com_os_numeros_e_a_fonte_e_sai_0"
@@ -55,7 +55,7 @@
     {
       "id": "M14",
       "guarda": "medida/piora: passar do maior é estritamente acima (o empate não conta)",
-      "arquivo": "bin/forge-check",
+      "arquivo": "bin/forge_medidas.py",
       "de": "sum(1 for v in agora if v > teto)",
       "para": "sum(1 for v in agora if v >= teto)",
       "testes": [

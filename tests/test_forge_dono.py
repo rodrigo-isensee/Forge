@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import unittest.mock
 from importlib.machinery import SourceFileLoader
@@ -687,6 +688,143 @@ class ModeloDeProjeto(SelarConfere):  # CT-E6-19, CT-E7-10, CT-E8-18: as três c
         antes = self.pedido()
         rc, saida = self.anotar("decisao", "sim")
         self.assertEqual((rc, self.pedido()), (2, antes), saida)
+
+
+class PerguntasAbertas(unittest.TestCase):  # diretriz 29 (FOCO-NAS-DECISOES, v047 E1.135): `cmd_abertas`, só leitura
+    QUADRO = ("# Quadro\n\n## Pronto\n| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n"
+              "| FORA-DO-PAINEL | não é do dono | docs/pedidos/a.md | dono | 2026-11-01 | 2026-11-01 | — |\n\n"
+              "## Aguardando o dono (PA-6: ação · comando · destrava · desde)\n"
+              "| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n"
+              "| TOKEN-X | decidir o token · recomendação A: o bot · ação: responder | docs/pedidos/b.md | dono | 2026-11-02 | 2026-11-02T08:30-0300 | — |\n")
+
+    def setUp(self):
+        self.raiz = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.raiz)
+        (self.raiz / "docs" / "pedidos").mkdir(parents=True)
+        sys.path.insert(0, str(Path(FORGE_CHECK).parent))
+        self.addCleanup(sys.path.remove, str(Path(FORGE_CHECK).parent))
+        import forge_dono  # noqa: PLC0415
+        self.dono = forge_dono
+
+    def pedido(self, nome, *linhas):
+        (self.raiz / "docs" / "pedidos" / f"{nome}.md").write_text("# p\n\n## Decisões\n" + "\n".join(linhas) + "\n", encoding="utf-8")
+
+    def abertas(self):
+        linhas, rc = self.dono.cmd_abertas(self.raiz)
+        self.assertEqual(rc, 0, linhas)
+        return linhas
+
+    def test_aberta_sai_com_pedido_hora_pergunta_e_recomendada(self):
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-03 10:00): contexto → "1a) usar a fila [recomendada] [reversível] 1b) usar o banco"')
+        self.assertEqual(self.abertas(), ["aberta: outro | a | 2026-11-03 10:00 | 1a) usar a fila [recomendada] [reversível] 1b) usar o "
+                                          "banco | recomendada: 1a) usar a fila", "abertas: total=1"])
+
+    def test_respondida_sai_e_decisao_anterior_nao_responde(self):
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-03 10:00): → "pode A?"', "DECISÃO DO DONO (2026-11-03 10:00): sim",
+                    'PERGUNTA AO DONO (2026-11-03 11:00): → "pode B? Recomendação: não, espera a C"',
+                    "DECISÃO DO DONO (2026-11-03 10:30): a outra")
+        self.assertEqual(self.abertas(), ["aberta: outro | a | 2026-11-03 11:00 | pode B? Recomendação: não, espera a C | "
+                                          "recomendada: não, espera a C", "abertas: total=1"])
+
+    def test_painel_do_quadro_entra_e_o_resto_do_quadro_nao(self):
+        (self.raiz / "KANBAN.md").write_text(self.QUADRO, encoding="utf-8")
+        self.assertEqual(self.abertas(), ["aberta: outro | b | 2026-11-02 08:30 | TOKEN-X: decidir o token · recomendação A: o bot · "
+                                          "ação: responder | recomendada: A: o bot", "abertas: total=1"])
+
+    def test_sem_pendencia_uma_linha(self):
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-03 10:00): → "pode?"', "DECISÃO DO DONO (2026-11-04 09:00): pode")
+        self.assertEqual(self.abertas(), ["Não há decisão sua pendente"])
+
+    def test_ordem_por_peso_e_depois_a_mais_antiga(self):
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-05 10:00): → "muda o escopo da 0.48?"',
+                    'PERGUNTA AO DONO (2026-11-06 10:00): → "apaga a branch velha? irreversível"',
+                    'PERGUNTA AO DONO (2026-11-01 10:00): → "renomeia o cartão?"',
+                    'PERGUNTA AO DONO (2026-11-07 10:00): → "assina o serviço pago?"',
+                    'PERGUNTA AO DONO (2026-11-02 10:00): → "tira o item do escopo?"')
+        pesos = [(l.split(" | ")[0], l.split(" | ")[2]) for l in self.abertas()[:-1]]
+        self.assertEqual(pesos, [("aberta: irreversível", "2026-11-06 10:00"), ("aberta: dinheiro", "2026-11-07 10:00"),
+                                 ("aberta: escopo", "2026-11-02 10:00"), ("aberta: escopo", "2026-11-05 10:00"),
+                                 ("aberta: outro", "2026-11-01 10:00")])
+
+    def test_formas_do_registro_com_prefixo_aspas_e_sem_parenteses(self):
+        self.pedido("a", '- 2026-11-03 09:00: PERGUNTA AO DONO: quem faz a E1.6?', '- 2026-11-03 09:30: DECISÃO DO DONO "A" no H1',
+                    'PERGUNTA AO DONO (2026-11-03 ~10h15): → "pode C?"', 'DECISÃO DO DONO 2026-11-03 10:20: "sim"',
+                    'PERGUNTA AO DONO (2026-11-04 08:00): → "pode D?"')
+        self.pedido("b", '- 2026-11-05 07:00: PERGUNTA AO DONO: com prefixo e sem decisão?')
+        self.assertEqual([l.split(" | ")[1:4] for l in self.abertas()[:-1]],
+                         [["a", "2026-11-04 08:00", "pode D?"], ["b", "2026-11-05 07:00", "com prefixo e sem decisão?"]])
+
+    def test_pergunta_longa_sai_cortada_numa_linha(self):
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-03 10:00): → "' + "palavra " * 40 + '"')
+        pergunta = self.abertas()[0].split(" | ")[3]
+        self.assertEqual((len(pergunta), pergunta[-1]), (200, "…"))
+
+    def test_cartao_sem_data_sai_com_traco(self):
+        (self.raiz / "KANBAN.md").write_text(self.QUADRO.replace("2026-11-02T08:30-0300", "sem data"), encoding="utf-8")
+        self.assertEqual(self.abertas()[0].split(" | ")[2], "—")
+
+    def test_link_e_arquivo_ilegivel_ficam_fora(self):
+        fora = self.raiz / "fora.md"
+        fora.write_text('PERGUNTA AO DONO (2026-11-03 10:00): → "de fora"\n' + self.QUADRO, encoding="utf-8")
+        (self.raiz / "docs" / "pedidos" / "link.md").symlink_to(fora)
+        (self.raiz / "KANBAN.md").symlink_to(fora)
+        (self.raiz / "docs" / "pedidos" / "ruim.md").write_bytes(b"PERGUNTA AO DONO (2026-11-03 10:00): \xff\n")
+        self.assertEqual(self.abertas(), ["abertas: aviso: ruim.md ilegível (UnicodeDecodeError); fora da lista",
+                                          "Não há decisão sua pendente"])
+
+
+    def test_cada_decisao_fecha_no_maximo_uma_pergunta(self):  # review A1, sonda S1
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-03 10:00): → "1) pode A?"', 'PERGUNTA AO DONO (2026-11-03 10:05): → "2) pode B?"',
+                    'DECISÃO DO DONO (2026-11-03 10:10): pergunta 1 de 10:00 → "sim"')
+        self.pedido("b", 'PERGUNTA AO DONO (2026-11-03 10:00): → "pode C?"', 'PERGUNTA AO DONO (2026-11-03 10:05): → "pode D?"',
+                    'DECISÃO DO DONO (2026-11-03 10:10): "sim"')
+        self.assertEqual([l.split(" | ")[1:4] for l in self.abertas()[:-1]],
+                         [["b", "2026-11-03 10:00", "pode C?"], ["a", "2026-11-03 10:05", "2) pode B?"]])
+
+    def test_decisao_sobre_outro_assunto_nao_fecha_a_pergunta(self):  # review A1, sonda S2: outra fala do dono entre as duas
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-13 08:52): pendente → "pode fechar essa rota?"',
+                    "ORDEM DO DONO (2026-11-13 10:56): registre a queda", 'DECISÃO DO DONO (2026-11-13 13:48): "teto de agentes 16"',
+                    'PERGUNTA AO DONO (2026-11-13 14:00): → "pode E?"', 'DECISÃO DO DONO (2026-11-13 14:05): pergunta de 09:00 → "sim"')
+        self.assertEqual([l.split(" | ")[2:4] for l in self.abertas()[:-1]],
+                         [["2026-11-13 08:52", "pode fechar essa rota?"], ["2026-11-13 14:00", "pode E?"]])
+
+    def test_forma_antiga_pergunta_dois_pontos(self):  # review A3
+        self.pedido("a", "PERGUNTA: (2026-10-19 16:30) PA-8 em paralelo?", "PERGUNTA: nenhuma", 'PERGUNTA: 2026-10-17 · Q1 de 3 · resposta: "A"',
+                    "- 2026-10-20 09:00: PERGUNTA: D1 branch padrão? → \"B\".", "PERGUNTA: (2026-10-21) PA-5? (respondida: A)",
+                    "PERGUNTA: (dono, 2026-10-22 12:00) risco 2: juntar a4 e a5?", "DECISÃO DO DONO (2026-10-22 12:10): A")
+        self.assertEqual([l.split(" | ")[2:4] for l in self.abertas()[:-1]], [["2026-10-19 16:30", "PA-8 em paralelo?"]])
+
+    def test_quadro_ilegivel_vira_aviso(self):  # QA A1, bug V047-PA-01
+        self.pedido("a", 'PERGUNTA AO DONO (2026-11-03 10:00): → "pode A?"')
+        (self.raiz / "KANBAN.md").write_text(self.QUADRO, encoding="utf-8")
+        ler = Path.read_text
+
+        def read_text(caminho, *args, **kw):
+            if caminho.name == "KANBAN.md":
+                raise PermissionError(13, "Permission denied")
+            return ler(caminho, *args, **kw)
+        with unittest.mock.patch.object(Path, "read_text", read_text):
+            linhas = self.abertas()
+        self.assertEqual([linhas[0], linhas[-1]], ["abertas: aviso: KANBAN.md ilegível (PermissionError); fora da lista", "abertas: total=1"])
+
+    def test_pasta_de_pedidos_por_link_e_recusada(self):  # segurança A1
+        fora = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, fora)
+        (fora / "pedidos").mkdir()
+        (fora / "pedidos" / "y.md").write_text('PERGUNTA AO DONO (2026-11-03 10:00): → "de fora"\n', encoding="utf-8")
+        shutil.rmtree(self.raiz / "docs")
+        (self.raiz / "docs").symlink_to(fora)
+        self.assertEqual(self.dono.cmd_abertas(self.raiz), (["abertas: erro: docs/pedidos ou docs é link simbólico; recusado"], 1))
+        (self.raiz / "docs").unlink()
+        (self.raiz / "docs").mkdir()
+        (self.raiz / "docs" / "pedidos").symlink_to(fora / "pedidos")
+        self.assertEqual(self.dono.cmd_abertas(self.raiz)[1], 1)
+
+    def test_linha_longa_nao_trava(self):  # segurança A2: o trecho depois da data era quadrático (8 mil espaços, 1,8 s)
+        texto = "PERGUNTA AO DONO (2026-11-03" + " " * 12000 + "x\nPERGUNTA AO DONO" + " " * 12000 + "x\n"
+        inicio = time.perf_counter()
+        self.assertEqual(self.dono.perguntas_do_pedido("a", texto), [])
+        self.assertLess(time.perf_counter() - inicio, 1.0)
 
 
 if __name__ == "__main__":

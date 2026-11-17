@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "S2: pasta que e link recusa",
       "arquivo": "bin/forge_dono.py",
-      "de": "    if pasta.is_symlink() or pasta.parent.is_symlink():",
-      "para": "    if pasta.is_symlink() and pasta.parent.is_symlink():",
+      "de": "    if pasta.is_symlink() or pasta.parent.is_symlink():\n        raise OSError(",
+      "para": "    if pasta.is_symlink() and pasta.parent.is_symlink():\n        raise OSError(",
       "testes": [
         "tests.test_forge_dono.Fala.test_pasta_da_fala_que_e_link_recusa"
       ]

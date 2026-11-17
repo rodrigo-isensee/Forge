@@ -6,8 +6,9 @@ o evento está na lista branca, um commit do `git log` do HEAD tem a MESMA árvo
 develop nesse commit tem o job de prova do Python pedido (padrão: o do interpretador) em `success`. Qualquer falta, erro de
 git, de rede ou de formato sai 1 e a suíte roda inteira (falha fechada: só o rc 0 pula a suíte). Lê GH_TOKEN e
 GITHUB_API_URL (padrão https://api.github.com), mais o `env:` do passo; nunca imprime o token.
-  evento_elegivel(env): lista branca exata de eventos (C-1 de docs/security/ameacas/versao-040.md). O workflow vem de
-      GITHUB_WORKFLOW_REF, que o runner define e o passo não sobrescreve; o resto vem do `env:` do passo.
+  evento_elegivel(env, raiz): lista branca exata de eventos (C-1 de docs/security/ameacas/versao-040.md). O workflow vem de
+      GITHUB_WORKFLOW_REF, que o runner define e o passo não sobrescreve; o resto vem do `env:` do passo. O par do PR é o da
+      tabela única PROMOCOES de tests/catraca.py (`promocao_aceita`, com HEAD_SHA na develop do servidor quando a linha pede).
   prova_valida(execucoes, jobs, d, python, repo): uma execução `push` da develop no commit `d`, do ci.yml do próprio
       repositório, concluída, com o job de prova do Python pedido em `success` na tentativa mais recente (C-3).
       `jobs` é {id da execução: [jobs]}. Campo ausente ou de tipo errado não prova.
@@ -15,6 +16,7 @@ GITHUB_API_URL (padrão https://api.github.com), mais o `env:` do passo; nunca i
   provar(env, python, arvore, log, ler): junta as três, com `ler(caminho)` da API injetado (sem rede nos testes).
 """
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -22,9 +24,9 @@ import subprocess
 import sys
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 WORKFLOW_DE_PROVA = ".github/workflows/ci.yml"
-PRS = {("homolog", "develop"), ("main", "homolog")}  # (BASE_REF, HEAD_REF)
 PUSHES = {WORKFLOW_DE_PROVA: {"refs/heads/homolog", "refs/heads/main"}, ".github/workflows/release.yml": {"refs/heads/main"}}
 JOBS_DE_PROVA = {"3.12": "checagem rápida (push na develop)", "3.14": "checagem rápida (push na develop, python 3.14)"}
 SHA = re.compile(r"[0-9a-f]{40}")
@@ -36,6 +38,18 @@ PRAZO_DA_API_S = 20
 REPOSITORIO = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 
 
+def _catraca():
+    """tests/catraca.py ao lado deste script: a tabela PROMOCOES é uma só (R-FLUXO)."""
+    caminho = Path(__file__).resolve().parent.parent / "tests" / "catraca.py"
+    spec = importlib.util.spec_from_file_location("catraca_da_arvore", caminho)
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+CATRACA = _catraca()
+
+
 def campo(obj, caminho, tipo):
     """O valor em `caminho` (chaves separadas por ponto) se for exatamente do `tipo`; senão None (bool não é int)."""
     for chave in caminho.split("."):
@@ -43,8 +57,8 @@ def campo(obj, caminho, tipo):
     return obj if type(obj) is tipo else None
 
 
-def evento_elegivel(env):
-    """(True, motivo) só para PR develop->homolog e homolog->main do próprio repositório no ci.yml, push na homolog
+def evento_elegivel(env, raiz="."):
+    """(True, motivo) só para PR de promoção (PROMOCOES) do próprio repositório no ci.yml, push na homolog
     ou na main no ci.yml e push na main no release.yml; qualquer outro caso, (False, motivo)."""
     repo, evento, ref = (campo(env, k, str) or "" for k in ("REPO", "EVENTO", "REF"))
     origem, _, _ = (campo(env, "GITHUB_WORKFLOW_REF", str) or "").partition("@")
@@ -53,7 +67,8 @@ def evento_elegivel(env):
         return False, "REPO ou GITHUB_WORKFLOW_REF fora do formato"
     if evento == "pull_request":
         par = (campo(env, "BASE_REF", str), campo(env, "HEAD_REF", str))
-        ok = workflow == WORKFLOW_DE_PROVA and par in PRS and campo(env, "HEAD_REPO", str) == repo
+        ok = (workflow == WORKFLOW_DE_PROVA and campo(env, "HEAD_REPO", str) == repo
+              and CATRACA.promocao_aceita(raiz, par[1], par[0], campo(env, "HEAD_SHA", str)))
         return ok, f"pull_request {par[1]} -> {par[0]} em {workflow}: {'elegível' if ok else 'fora da lista'}"
     ok = evento == "push" and ref in PUSHES.get(workflow, ())
     return ok, f"{evento or '(sem evento)'} {ref} em {workflow}: {'elegível' if ok else 'fora da lista'}"

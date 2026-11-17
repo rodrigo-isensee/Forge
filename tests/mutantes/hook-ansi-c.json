@@ -6,7 +6,7 @@
       "id": "A1",
       "guarda": "leituras não falha fechado na aspa escapada do ansi (os dois casos do cartão voltam a sair 0)",
       "arquivo": "hooks/_comum.py",
-      "de": "                or palavras_do_texto(comando).aspa_escapada  # HOOK-ANSI-C: o `shlex` não fecha `$'…\\'…'` como o bash\n",
+      "de": "                or palavras_do_texto(comando if sem_marcas is None else sem_marcas).aspa_escapada\n",
       "para": "",
       "testes": [
         "tests.test_hook_ansi_c.HookAnsiC.test_os_dois_casos_do_cartao_saem_2",
