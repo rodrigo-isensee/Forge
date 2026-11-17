@@ -15,9 +15,7 @@ data: 2026-11-17
 # QA: v0474 (E2.27, H1 ferramenta)
 
 ## Achados
-Nenhum aberto. Revalidação E2.36 no head 7924b25b (delta sobre 4ddaa68b):
-- A1 (fechado) tests/test_forge_tamanho.py · carga sob demanda; `forge-testes --vermelho 681d4b33 --modulos test_forge_tamanho` sai 0 com veredito: 20 provas (15 API ausente, 5 asserção) e 3 que passam na base (negativos esperados).
-- A2 (fechado) bin/forge-check:1412 · teste `test_ref_diferente_do_head_mede_a_ref` e M20 (morreu); `ref or "HEAD"` já não sobrevive.
+Nenhum achado aberto.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -36,3 +34,4 @@ Nenhum aberto. Revalidação E2.36 no head 7924b25b (delta sobre 4ddaa68b):
 - Testes: `python3 -m unittest tests.test_forge_tamanho tests.test_forge_mutante.ConferirTodas`: 27 testes, OK.
 - Suíte inteira: não rodada aqui; vale o check-run `bateria` do CI do mesmo sha.
 - Revalidação E2.49 (head db0b1f98, delta sobre 7924b25b): junção da develop; no domínio só `bin/forge-testes` (+ `test_conformidade_verde` na lista) e a contagem 92 em `tests/test_testes_tocados.py`, sem lógica nova. `python3 -m unittest tests.test_testes_tocados tests.test_forge_tamanho`: 185 testes, OK (1 pulado pelo sandbox, /proc de outro namespace). Suíte inteira: check-run `bateria` do mesmo sha.
+- Revalidação E2.36 (head 7924b25b, delta sobre 4ddaa68b), achados fechados: A1 (tests/test_forge_tamanho.py, carga sob demanda; `forge-testes --vermelho 681d4b33 --modulos test_forge_tamanho` sai 0 com 20 provas, 15 API ausente e 5 asserção, e 3 que passam na base, negativos esperados); A2 (bin/forge-check:1412, teste `test_ref_diferente_do_head_mede_a_ref` e M20 morreu; `ref or "HEAD"` já não sobrevive).
