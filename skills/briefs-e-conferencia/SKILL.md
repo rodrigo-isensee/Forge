@@ -21,7 +21,7 @@ O `forge:conferente` é opcional: chame-o só com uma dúvida de conteúdo que a
 - Depois, `forge-check classe` e os portões da classe numa passada, em paralelo, no mesmo head (`R-REVIEW`).
 
 ## Brief de volta
-Os achados bloqueantes de review, segurança e QA viram **um** brief de volta: `forge-check brief gerar --pedido <p> --volta <brief anterior> --ref <branch> --parecer <arquivo>...`. Recomendação não entra. A revalidação de cada parecer lê só `forge-check parecer delta <parecer>`.
+Os bloqueantes de review, segurança e QA viram **um** brief de volta, ao autor da branch, retomado por `SendMessage` até o merge (H2; comando e detalhe em `autor-ate-o-merge.md` nesta skill). A revalidação de cada parecer lê só `forge-check parecer delta <parecer>`.
 
 ## Brief que manda escrever parecer
 Avise que o achado tem até 300 caracteres e que regra se cita pelo ID, não copiada.

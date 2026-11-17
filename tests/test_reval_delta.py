@@ -123,7 +123,7 @@ _NOME = {"bin/forge-check": 1, "scripts/suite-paralela.py": 1, "bin/forge-novo-p
 CITACOES_CONHECIDAS = {**{(a, "README.md"): (n, "nome") for a, n in _NOME.items()},
                        ("hooks/conformidade.json", "docs/propostas/"): (1, "destino"),
                        ("agents/agile-coach.md", "docs/retrospectivas/"): (2, "destino"),
-                       ("skills/kanban-scrum/SKILL.md", "docs/retrospectivas/"): (1, "destino"),
+                       ("skills/kanban-metricas/SKILL.md", "docs/retrospectivas/"): (1, "destino"),  # v047 P1: movida da kanban-scrum
                        ("tests/test_hooks.py", "docs/propostas/"): (17, "destino"),
                        ("tests/test_brief_forma_aceita.py", "docs/propostas/"): (14, "destino"),  # 0.43.3: briefs sintéticos
                        ("hooks/conformidade.py", "README.md"): (1, "prosa"),  # 0.43.1 T: o jarvis.md não cita mais o README.md
@@ -134,6 +134,7 @@ CITACOES_CONHECIDAS = {**{(a, "README.md"): (n, "nome") for a, n in _NOME.items(
                        # 0.45.7 E1: o texto da R-WIP mora em docs/regras/README.md; o invariante, o teste e o apoio o leem
                        ("tests/test_jarvis_nucleo.py", "README.md"): (1, "teste-le"),  # lê a linha da R-WIP em docs/regras/README.md
                        ("tests/config.json", "README.md"): (2, "teste-le"), ("tests/apoio_regra_id.py", "README.md"): (1, "teste-le"),
+                       ("tests/apoio_jarvis.py", "README.md"): (1, "teste-le"),  # v047 P4: o índice das regras (IDs e a linha da R-WIP)
                        ("tests/test_ambiente_sem_auto_update.py", "README.md"): (1, "teste-le"),  # v047: o teste lê o texto do README
                        ("tests/test_sessao_automatica.py", "README.md"): (1, "teste-le")}  # v047 E2.222: o teste lê o README para conferir que nenhuma instrução abre o claude sem o modo
 MOTIVOS = ("nome", "destino", "prosa", "teste-le")

@@ -1,0 +1,116 @@
+{
+  "pedido": "v047",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M65",
+      "guarda": "executado como script chama o main",
+      "arquivo": "scripts/pesos-do-ci.py",
+      "de": "__name__ == \"__main__\"",
+      "para": "__name__ == \"__main_\"",
+      "testes": [
+        "tests.test_ci_rapido_guardas.PrincipalGuardas.test_executado_como_script_sai_com_o_codigo_do_main"
+      ]
+    },
+    {
+      "id": "M66",
+      "guarda": "ID sem modulo na divisao nao tem unidade",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if modulo is None:\n        return None\n    chaves = {}",
+      "para": "    if False:\n        return None\n    chaves = {}",
+      "testes": [
+        "tests.test_ci_rapido_guardas.GuardasDaDivisao.test_id_sem_modulo_na_divisao_nao_tem_unidade_nem_vira_chave_nula"
+      ]
+    },
+    {
+      "id": "M67",
+      "guarda": "cache de chaves compartilhado",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "chaves is None",
+      "para": "True",
+      "testes": [
+        "tests.test_ci_rapido_guardas.GuardasDaDivisao.test_o_cache_de_chaves_por_modulo_e_compartilhado_entre_ids"
+      ]
+    },
+    {
+      "id": "M68",
+      "guarda": "chaves do modulo calculadas uma vez",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if modulo not in chaves:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_ci_rapido_guardas.GuardasDaDivisao.test_modulo_sem_chave_separada_e_a_propria_unidade_e_com_chave_vai_pela_mais_longa"
+      ]
+    },
+    {
+      "id": "M69",
+      "guarda": "modulo sem chave separada e a propria unidade",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "if chaves[modulo] else modulo",
+      "para": "if not chaves[modulo] else modulo",
+      "testes": [
+        "tests.test_ci_rapido_guardas.GuardasDaDivisao.test_modulo_sem_chave_separada_e_a_propria_unidade_e_com_chave_vai_pela_mais_longa"
+      ]
+    },
+    {
+      "id": "M70",
+      "guarda": "ID sem unidade fica fora do esperado",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "        if unidade is not None:\n            saida",
+      "para": "        if True:\n            saida",
+      "testes": [
+        "tests.test_ci_rapido_guardas.GuardasDaDivisao.test_id_sem_modulo_na_divisao_nao_tem_unidade_nem_vira_chave_nula"
+      ]
+    },
+    {
+      "id": "M71",
+      "guarda": "completude usa os pesos passados",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "pesos is None",
+      "para": "True",
+      "testes": [
+        "tests.test_ci_rapido_guardas.GuardasDaDivisao.test_completude_usa_os_pesos_passados_e_nao_os_do_arquivo"
+      ]
+    },
+    {
+      "id": "M72",
+      "guarda": "duracoes ausentes nao quebram",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "duracoes or {}",
+      "para": "duracoes",
+      "testes": [
+        "tests.test_ci_rapido_guardas.GuardasDaDivisao.test_anotacao_sem_duracoes_nao_gera_linha"
+      ]
+    },
+    {
+      "id": "M73",
+      "guarda": "sem bloco nao gera anotacao vazia",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if atual:\n        blocos.append(atual)",
+      "para": "    if True:\n        blocos.append(atual)",
+      "testes": [
+        "tests.test_ci_rapido_guardas.GuardasDaDivisao.test_anotacao_sem_duracoes_nao_gera_linha"
+      ]
+    },
+    {
+      "id": "M74",
+      "guarda": "sem plano, planeja pelos modulos",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    if plano is None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_suite_partes.Brinquedo.test_modulos_rodam_so_os_pedidos"
+      ]
+    },
+    {
+      "id": "M75",
+      "guarda": "relatorio ausente nao entra nos tempos",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "relatorios if rel for u, v in",
+      "para": "relatorios if True for u, v in",
+      "testes": [
+        "tests.test_ci_rapido_guardas.GuardasDaDivisao.test_anotar_tempos_ignora_relatorio_ausente"
+      ]
+    }
+  ]
+}

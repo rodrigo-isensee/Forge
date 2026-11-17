@@ -52,10 +52,10 @@
     },
     {
       "id": "I20",
-      "guarda": "bin/forge-check:2425 isinstance(lido, FalhaDoGit) (negada)",
+      "guarda": "bin/forge-check:3200 isinstance(lido, FalhaDoGit) (negada)",
       "arquivo": "bin/forge-check",
-      "de": "    q, dispensados = testes_do_qa(raiz, campos.get(\"pedido\"), campos.get(\"branch\"), fim, inicio) if tipo == \"review\" else (None, set())\n    lido = intervalo_do_delta(raiz, inicio, fim, base)\n    if isinstance(lido, FalhaDoGit):",
-      "para": "    q, dispensados = testes_do_qa(raiz, campos.get(\"pedido\"), campos.get(\"branch\"), fim, inicio) if tipo == \"review\" else (None, set())\n    lido = intervalo_do_delta(raiz, inicio, fim, base)\n    if not (isinstance(lido, FalhaDoGit)):",
+      "de": "    lido = intervalo_do_delta(raiz, inicio, fim, base)\n    if isinstance(lido, FalhaDoGit):\n        print(\"parecer delta: \"",
+      "para": "    lido = intervalo_do_delta(raiz, inicio, fim, base)\n    if not (isinstance(lido, FalhaDoGit)):\n        print(\"parecer delta: \"",
       "testes": [
         "tests.test_classe_risco",
         "tests.test_proximo",

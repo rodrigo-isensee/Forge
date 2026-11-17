@@ -1,0 +1,87 @@
+{
+  "pedido": "v0474-h1-ferramenta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "so arquivo de codigo conta (testes e documentacao fora)",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "if e_codigo(nome) and mais.isdigit() and menos.isdigit():",
+      "para": "if mais.isdigit() and menos.isdigit():",
+      "testes": [
+        "tests.test_forge_tamanho.Funcoes.test_so_codigo_conta_e_binario_fica_fora"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "binario (sem numero de linhas) nao conta",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "if e_codigo(nome) and mais.isdigit() and menos.isdigit():\n            total",
+      "para": "if e_codigo(nome):\n            total",
+      "testes": [
+        "tests.test_forge_tamanho.Funcoes.test_so_codigo_conta_e_binario_fica_fora"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "no teto de 150 nao avisa",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "    if total <= TETO_DE_LINHAS_DE_CODIGO:\n        return None",
+      "para": "    if total < TETO_DE_LINHAS_DE_CODIGO:\n        return None",
+      "testes": [
+        "tests.test_forge_tamanho.Funcoes.test_borda_do_teto_de_linhas"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "sem motivo no corpo reprova",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "if total <= TETO_DE_LINHAS_DE_CODIGO or tem_motivo(corpo, total):",
+      "para": "if total <= TETO_DE_LINHAS_DE_CODIGO or True:",
+      "testes": [
+        "tests.test_forge_tamanho.Funcoes.test_falta_de_motivo",
+        "tests.test_forge_tamanho.NoPr.test_pr_aberto_sem_motivo_reprova"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "motivo vazio nao vale",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "linhas, [ \\t]*\\S\", re.M)",
+      "para": "linhas, \", re.M)",
+      "testes": [
+        "tests.test_forge_tamanho.Funcoes.test_motivo_no_corpo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "50 etapas nao avisa, 51 avisa",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "if quantas <= TETO_DE_ETAPAS:",
+      "para": "if quantas < TETO_DE_ETAPAS:",
+      "testes": [
+        "tests.test_forge_tamanho.Funcoes.test_borda_das_etapas"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "90% do teto de caracteres avisa",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "if quantos < int(teto * MARGEM_DO_BRIEF):",
+      "para": "if quantos <= int(teto * MARGEM_DO_BRIEF):",
+      "testes": [
+        "tests.test_forge_tamanho.Funcoes.test_borda_dos_caracteres"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "corpo ausente vale texto vazio",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "LINHA_DE_MOTIVO.finditer(corpo or \"\")",
+      "para": "LINHA_DE_MOTIVO.finditer(corpo)",
+      "testes": [
+        "tests.test_forge_tamanho.Funcoes.test_motivo_no_corpo"
+      ]
+    }
+  ]
+}

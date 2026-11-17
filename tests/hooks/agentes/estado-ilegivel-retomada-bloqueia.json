@@ -1,0 +1,30 @@
+{
+  "descricao": "HOOK-ESTADO-ILEGIVEL-LIBERA (A1, R-TETO): a retomada (SendMessage) com o estado ilegível recusa.",
+  "estado": {
+    "agentes.json": "x"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "SendMessage",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "to": "a0123456789abcdef",
+      "message": "continue"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO: registro de agentes ilegível",
+    "erros_log": "agentes EstadoIlegivel",
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "x"
+        ],
+        "ausente": [
+          "Explore"
+        ]
+      }
+    }
+  }
+}

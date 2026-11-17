@@ -10,7 +10,7 @@ Regras como o teto de agentes simultâneos, "pesado um por vez" e "PR só com pa
 1. **Silenciosos:** um hook nunca injeta contexto. Sem violação, sai com 0 e sem saída (inclusive em `SessionStart`). Com violação, sai com 2 e uma mensagem curta no stderr (uma linha, até ~200 caracteres), com o ID da regra (ADR 0002) e o que fazer. Nada de `additionalContext`.
 2. **Determinísticos:** cada hook é um script Python só com biblioteca padrão, chamado em forma exec (sem shell). Ele lê o JSON do stdin e decide só pelo estado em disco e pelo git local: sem rede, sem IA, sem executar nada vindo da entrada.
 3. **Só agem em projeto do Forge:** se não existir `.forge/versao` (ADR 0005) na raiz do projeto, saem com 0. Isso evita bloquear quem só tem o plugin ativo.
-4. **Falha interna não bloqueia** (emendado pela ADR 0009, seção 7: `parecer` e `conformidade` falham fechado, só com marcador crítico no comando ou no caminho da ação; no `conformidade`, o marcador vem da política, e o prazo vencido segue o mesmo marcador; no `agentes`, a conferência do R-BRIEF falha fechado): erro inesperado do script sai com 0 e é registrado em `.forge/run/erros.log`. Os hooks são proteção de processo, não fronteira de segurança; a fronteira continua sendo o hook de git, o CI e a proteção de branch.
+4. **Falha interna não bloqueia** (emendado pela ADR 0009, seção 7: `parecer` e `conformidade` falham fechado, só com marcador crítico no comando ou no caminho da ação; no `conformidade`, o marcador vem da política, e o prazo vencido segue o mesmo marcador; no `agentes`, a conferência do R-BRIEF falha fechado, e o estado ilegível (`agentes.json` que existe e não é o registro, pasta do estado do clone que não se fixa, `.forge/config.json` ilegível) recusa o disparo e a retomada com R-TETO, sem regravar o arquivo, HOOK-ESTADO-ILEGIVEL-LIBERA): erro inesperado do script sai com 0 e é registrado em `.forge/run/erros.log`. Os hooks são proteção de processo, não fronteira de segurança; a fronteira continua sendo o hook de git, o CI e a proteção de branch.
 5. **Estado em `.forge/run/`** na cópia de trabalho principal, resolvida por `git rev-parse --git-common-dir` para que as worktrees somem no mesmo teto. O hook cria `.forge/run/.gitignore` com `*` na primeira escrita. Cada registro tem horário e expira (padrão 2 h), para não travar após uma sessão interrompida.
 6. **Limites configuráveis** em `.forge/config.json` do projeto (teto de agentes, lista de comandos pesados); sem o arquivo, valem os padrões de `R-TETO`.
 7. **Lista inicial:**
@@ -51,3 +51,10 @@ Estado da emenda: **proposta**. Nenhum hook injeta contexto até esse PR; o item
 5. Registro velho (hora do registro além do prazo do item 5) sai marcado como velho, nunca omitido.
 
 Critério de reversão da emenda: um caso em que o texto do Histórico, injetado, mude o comportamento da sessão (injeção no contexto), ou mais de 2 retomadas por mês com o estado injetado divergente do pedido.
+
+## Emenda: SessionStart do ambiente (E2.54, ORDEM DO DONO 15/11 16:46)
+**Exceção ao item 1**, além da emenda da retomada: o hook `ambiente` escreve no `SessionStart` **só quando falta algo no ambiente do container** e então imprime as linhas `falta:` com o comando exato de cada uma, mais um recado ao Jarvis para dá-las ao dono na 1ª mensagem. Regras:
+1. Ambiente em ordem, fora do container, erro interno ou demora: silêncio total e saída 0 (itens 1 e 4).
+2. O conteúdo vem do `--verificar` do script do **plugin** (cópia instalada), nunca do work tree que o agente edita; o `--verificar` só lê, sem rede além do `gh auth status` e com prazo de 7 s (item 2).
+3. As linhas são `falta: <comando fixo>` geradas pelo script, sem texto vindo do projeto, do pedido ou do usuário.
+4. O núcleo do Jarvis não muda: o recado vive no texto do hook.

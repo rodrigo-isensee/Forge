@@ -1,0 +1,15 @@
+{
+  "descricao": "Projeto do Forge fora de /workspaces: o ambiente não confere nada e fica em silêncio (ADR 0003, emenda E2.54).",
+  "arquivos": {
+    ".claude/settings.json": "{}\n"
+  },
+  "entrada": {
+    "hook_event_name": "SessionStart",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "source": "startup"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
