@@ -181,6 +181,45 @@ class EtapaJaResolvidaNaDevelop(RaizSintetica):
         self.assertBarra(*self.conferir(self.brief_da_etapa()))
 
 
+class MensagemEmOutroIdioma(unittest.TestCase):
+    """JARVIS-SO-PORTUGUES (ORDEM DO DONO 16/11 21:36, v047: às 21:18 o Jarvis escreveu ao dono em inglês). A regra única está em
+    skills/falar-com-o-dono/toda-mensagem.md (SIEG-G4); a medida é o `outro_idioma` do hook meta. A nota entre chamadas de
+    ferramenta ainda não é medida: o hook lê só a mensagem final (backlog)."""
+    PAPEL = "jarvis"
+    PT = "Disparei os portões da branch e não ficou pendência; você já pode ver o PR quando quiser."
+    EN = "Waiting for the agents to finish; the branch is ready and you can check it now."
+
+    @classmethod
+    def setUpClass(cls):
+        cls.meta = carregar("forge_meta_evals_papel", RAIZ / "hooks" / "meta.py")
+
+    def medir(self, final, notas=()):
+        """As linhas do mensagens.jsonl para a mensagem `final`, com as `notas` antes de ferramentas no transcrito; dono sem config."""
+        with tempfile.TemporaryDirectory(prefix="forge-evals-idioma-") as tmp:
+            transcrito = Path(tmp) / "sessao.jsonl"
+            linhas = [{"type": "assistant", "message": {"content": [{"type": "text", "text": n},
+                                                                   {"type": "tool_use", "name": "Bash", "input": {}}]}} for n in notas]
+            linhas.append({"type": "assistant", "message": {"content": [{"type": "text", "text": final}]}})
+            transcrito.write_text("".join(json.dumps(l) + "\n" for l in linhas), encoding="utf-8")
+            campos = {"last_assistant_message": final, "transcript_path": str(transcrito)}
+            hook = type("Hook", (), {"campo": lambda self, chave: campos.get(chave), "run": lambda self: Path(tmp),
+                                     "iniciante": lambda self: False})()
+            self.meta.medir_mensagem(hook, None)
+            return [json.loads(l) for l in (Path(tmp) / "mensagens.jsonl").read_text(encoding="utf-8").splitlines()]
+
+    def test_controle_mensagem_em_portugues_passa(self):
+        self.assertEqual([l["outro_idioma"] for l in self.medir(self.PT)], [False])
+
+    def test_mensagem_final_ao_dono_em_ingles_e_acusada(self):
+        (linha,) = self.medir(self.EN)
+        self.assertEqual((linha["idioma"], linha["idioma_do_dono"], linha["outro_idioma"]), ("en", "pt", True))
+
+    @unittest.expectedFailure
+    def test_nota_entre_ferramentas_em_ingles_e_acusada(self):
+        """ERRO 16/11 21:18: o hook meta mede só a mensagem final; a nota em inglês antes de uma ferramenta passa sem acusação."""
+        self.assertTrue(any(l["outro_idioma"] for l in self.medir(self.PT, notas=[self.EN])))
+
+
 class Catalogo(unittest.TestCase):
     """O `SEM_FERRAMENTA` tem a forma que o placar lê: papel -> [(fonte, descrição)]."""
 
