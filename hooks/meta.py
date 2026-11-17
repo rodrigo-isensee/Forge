@@ -14,7 +14,10 @@ bloco de código e de citação; grava uma linha em .forge/run/mensagens.jsonl (
 texto nem o termo achado das classes). SIEG-G4 (0.47.4): a linha leva também o idioma da mensagem (por palavras
 frequentes de PALAVRAS_DO_IDIOMA, fora de código e citação) e `outro_idioma`, verdadeiro quando ele difere do idioma do dono
 (`idioma_do_dono` no .forge/config.json do projeto; ausente: IDIOMA_PADRAO; código sem lista: sem medida). A medida roda depois da decisão do objetivo e lê só TETO_DA_MEDIDA caracteres
-(`cortado` na linha): o tempo dela não cresce com a mensagem. Erro interno: libera e vai ao erros.log.
+(`cortado` na linha): o tempo dela não cresce com a mensagem. MP1 (diretriz 35, 0.47.5): com mais de um projeto ativo
+(nomes em ATIVOS), fora da sessão do próprio Forge, a linha leva também se a mensagem não começa por `Projeto:` e se a
+última fala do dono cita outro projeto ativo sem a pergunta "isto é para o projeto" (só contagens, nunca o nome).
+Erro interno: libera e vai ao erros.log.
 """
 import datetime
 import json
@@ -23,7 +26,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from _comum import PLUGIN, bloquear, caminhos_extra, executar, gravar_json, ler_json
+from _comum import PLUGIN, bloquear, caminhos_extra, e_clone_do_forge, executar, expandir_home, gravar_json, ler_json
 
 CHECAGEM_S = 60
 REPETICOES_PARA_PAUSAR = 4
@@ -119,8 +122,9 @@ def jargao():
     return [p.strip() for linha in linhas for p in linha.strip().strip("|").split("|")[0].split(",")]
 
 
-def ultima_mensagem(transcrito):
-    """O texto da última mensagem do assistente (com texto) no transcrito JSONL, lido do fim (até LEITURA_MAXIMA bytes)."""
+def ultima_mensagem(transcrito, papel="assistant"):
+    """O texto da última mensagem de `papel` (com texto; a do dono é `user`) no transcrito JSONL, lido do fim (até
+    LEITURA_MAXIMA bytes). Conteúdo em texto puro vale como um bloco de texto."""
     try:
         with open(transcrito, "rb") as f:
             f.seek(0, 2)
@@ -131,7 +135,9 @@ def ultima_mensagem(transcrito):
     for linha in reversed(linhas):
         try:
             obj = json.loads(linha)
-            textos = [c["text"] for c in obj["message"]["content"] if c["type"] == "text"] if obj["type"] == "assistant" else []
+            conteudo = obj["message"]["content"]
+            blocos = [{"type": "text", "text": conteudo}] if isinstance(conteudo, str) else conteudo
+            textos = [c["text"] for c in blocos if c["type"] == "text"] if obj["type"] == papel else []
         except (ValueError, KeyError, TypeError, AttributeError):
             continue
         if textos:
@@ -212,6 +218,35 @@ def idioma_do_dono(raiz):
     return valor if isinstance(valor, str) and valor in PALAVRAS_DO_IDIOMA else None
 
 
+# MP1 (diretriz 35): o sinal de vários projetos ativos é o arquivo ATIVOS, {"projetos": ["<nome>", ...]}, que o registro da
+# máquina (MP2, 0.47.6) vai preencher; aqui só se lê. O nome do projeto é o da pasta da raiz.
+ATIVOS = "~/.forge/maquina/projetos-ativos.json"
+PREFIXO_DO_PROJETO = re.compile(r"\s*Projeto: \S")
+PERGUNTA_DO_PROJETO = "isto é para o projeto"
+
+
+def projetos_ativos():
+    """Os nomes de ATIVOS; [] sem o arquivo, ilegível ou fora da forma (conta como um projeto só: nada muda)."""
+    try:
+        dados = ler_json(Path(expandir_home(ATIVOS)), {})
+    except (OSError, ValueError):
+        return []
+    lista = dados.get("projetos") if isinstance(dados, dict) else None
+    return [n for n in lista if isinstance(n, str) and n.strip()] if isinstance(lista, list) else []
+
+
+def medida_do_projeto(hook, raiz, texto):
+    """MP1: {} com um projeto ativo, sem raiz ou na sessão do próprio Forge (exceção do dono, 17/11); senão as contagens."""
+    ativos = projetos_ativos()
+    if len(ativos) < 2 or raiz is None or e_clone_do_forge(raiz):
+        return {}
+    fala = ultima_mensagem(hook.campo("transcript_path"), "user") or ""
+    outros = [n for n in ativos if n != Path(raiz).name]
+    cita = any(re.search(r"(?<![\w-])" + re.escape(n) + r"(?![\w-])", fala, re.I) for n in outros)
+    return {"projetos_ativos": len(ativos), "sem_projeto": not PREFIXO_DO_PROJETO.match(texto), "cita_outro_projeto": cita,
+            "sem_pergunta_do_projeto": cita and PERGUNTA_DO_PROJETO not in texto.lower()}
+
+
 def mensagem_ao_dono(hook):
     """A mensagem final do evento (last_assistant_message); o transcrito só sem ela, que ali pode faltar a final (D13)."""
     texto = hook.campo("last_assistant_message")
@@ -228,7 +263,8 @@ def medir_mensagem(hook, raiz=None):
         linha = {"em": agora(), "caracteres": len(texto), "teto": TETO_DA_MENSAGEM, "passou_do_teto": len(texto) > TETO_DA_MENSAGEM,
                  "jargao": achados, "classes": classes_de_jargao(medido), "cortado": len(texto) > TETO_DA_MEDIDA,
                  "idioma": idioma, "idioma_do_dono": dono,
-                 "outro_idioma": idioma is not None and dono is not None and idioma != dono, "iniciante": hook.iniciante()}
+                 "outro_idioma": idioma is not None and dono is not None and idioma != dono, "iniciante": hook.iniciante(),
+                 **medida_do_projeto(hook, raiz, medido)}
         with open(hook.run() / "mensagens.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(linha, ensure_ascii=False) + "\n")
 

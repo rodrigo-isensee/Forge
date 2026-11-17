@@ -1,0 +1,86 @@
+{
+  "pedido": "v0475-mp1-mp7",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "MP1 (diretriz 35): o registro ilegível conta como um projeto só (sem erro)",
+      "arquivo": "hooks/meta.py",
+      "de": "    except (OSError, ValueError):\n        return []",
+      "para": "    except (OSError,):\n        return []",
+      "testes": [
+        "tests.test_meta.VariosProjetos"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "MP1 (diretriz 35): registro que não é objeto conta como um projeto só",
+      "arquivo": "hooks/meta.py",
+      "de": "if isinstance(dados, dict) else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_meta.VariosProjetos"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "MP1 (diretriz 35): lista de projetos que não é lista conta como um projeto só",
+      "arquivo": "hooks/meta.py",
+      "de": "if isinstance(lista, list) else []",
+      "para": "if True else []",
+      "testes": [
+        "tests.test_meta.VariosProjetos"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "MP1 (diretriz 35): nome vazio no registro não conta como projeto",
+      "arquivo": "hooks/meta.py",
+      "de": "if isinstance(n, str) and n.strip()]",
+      "para": "if isinstance(n, str)]",
+      "testes": [
+        "tests.test_meta.VariosProjetos"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "MP1 (diretriz 35): com um projeto só nada muda",
+      "arquivo": "hooks/meta.py",
+      "de": "if len(ativos) < 2 or raiz is None or e_clone_do_forge(raiz):",
+      "para": "if len(ativos) < 1 or raiz is None or e_clone_do_forge(raiz):",
+      "testes": [
+        "tests.test_meta.VariosProjetos"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "MP1 (diretriz 35): sem raiz não mede o projeto",
+      "arquivo": "hooks/meta.py",
+      "de": "if len(ativos) < 2 or raiz is None or e_clone_do_forge(raiz):",
+      "para": "if len(ativos) < 2 or e_clone_do_forge(raiz):",
+      "testes": [
+        "tests.test_meta.VariosProjetos"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "MP1 (diretriz 35): exceção do dono: a sessão do Forge não confirma o projeto",
+      "arquivo": "hooks/meta.py",
+      "de": "if len(ativos) < 2 or raiz is None or e_clone_do_forge(raiz):",
+      "para": "if len(ativos) < 2 or raiz is None:",
+      "testes": [
+        "tests.test_meta.VariosProjetos"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "MP1 (diretriz 35): a fala do dono em texto puro é lida do transcrito",
+      "arquivo": "hooks/meta.py",
+      "de": "if isinstance(conteudo, str) else conteudo",
+      "para": "if False else conteudo",
+      "testes": [
+        "tests.test_meta.VariosProjetos"
+      ]
+    }
+  ]
+}

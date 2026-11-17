@@ -310,5 +310,61 @@ class IdiomaDoDono(unittest.TestCase):
                 self.assertEqual(uma & outra, frozenset())
 
 
+class VariosProjetos(unittest.TestCase):
+    """MP1 (diretriz 35, v0474 E3.3): com dois projetos ativos, a medida acusa a mensagem sem `Projeto:` e a fala do dono que
+    cita o outro projeto sem a pergunta; com um projeto só ou na sessão do Forge, nada muda."""
+
+    def setUp(self):
+        self.meta = importar_meta()
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-mp1-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.raiz = self.tmp / "loja"
+        (self.raiz / ".forge").mkdir(parents=True)
+        (self.raiz / ".forge" / "versao").write_text("0.47.5\n", encoding="utf-8")
+        ativos = self.tmp / "ativos.json"
+        original, self.meta.ATIVOS = self.meta.ATIVOS, str(ativos)
+        self.addCleanup(setattr, self.meta, "ATIVOS", original)
+        self.ativos(["loja", "estoque"])
+
+    def ativos(self, valor):
+        (self.tmp / "ativos.json").write_text(valor if isinstance(valor, str) else json.dumps({"projetos": valor}), encoding="utf-8")
+
+    def medir(self, resposta, fala="faça o relatório", raiz=None):
+        transcrito = self.tmp / "t.jsonl"
+        transcrito.write_text(json.dumps({"type": "user", "message": {"content": fala}}) + "\n", encoding="utf-8")
+        campos = {"last_assistant_message": resposta, "transcript_path": str(transcrito)}
+        with tempfile.TemporaryDirectory() as pasta:
+            hook = type("Hook", (), {"campo": lambda self, chave: campos.get(chave), "run": lambda self: Path(pasta),
+                                     "iniciante": lambda self: False})()
+            self.meta.medir_mensagem(hook, self.raiz if raiz is None else raiz)
+            linha = json.loads((Path(pasta) / "mensagens.jsonl").read_text(encoding="utf-8"))
+        return {k: linha[k] for k in ("projetos_ativos", "sem_projeto", "cita_outro_projeto", "sem_pergunta_do_projeto") if k in linha}
+
+    def test_recibo_sem_projeto_acusa_e_com_projeto_passa(self):
+        self.assertEqual(self.medir("Recebi: vou fazer o relatório."),
+                         {"projetos_ativos": 2, "sem_projeto": True, "cita_outro_projeto": False, "sem_pergunta_do_projeto": False})
+        self.assertFalse(self.medir("Projeto: loja\nRecebi: vou fazer o relatório.")["sem_projeto"])
+
+    def test_fala_que_cita_o_outro_projeto_pede_a_pergunta(self):
+        fala = "mude o login do Estoque"
+        self.assertEqual(self.medir("Projeto: loja\nFeito.", fala)["sem_pergunta_do_projeto"], True)
+        self.assertEqual(self.medir("Projeto: loja\nIsto é para o projeto estoque?", fala),
+                         {"projetos_ativos": 2, "sem_projeto": False, "cita_outro_projeto": True, "sem_pergunta_do_projeto": False})
+        self.assertFalse(self.medir("Projeto: loja\nFeito.", "mude o login da loja")["cita_outro_projeto"], "o próprio projeto")
+        self.assertFalse(self.medir("Projeto: loja\nFeito.", "mude o estoque-novo")["cita_outro_projeto"], "nome dentro de outro")
+
+    def test_um_projeto_so_registro_ilegivel_ou_sessao_do_forge_nao_mede(self):
+        for valor in (["loja"], ["loja", ""], "{x", json.dumps(["loja", "estoque"]), json.dumps({"projetos": "loja estoque"})):
+            with self.subTest(ativos=str(valor)[:20]):
+                self.ativos(valor)
+                self.assertEqual(self.medir("Recebi."), {})
+        self.ativos(["loja", "estoque"])
+        forge = self.tmp / "Forge"
+        (forge / ".claude-plugin").mkdir(parents=True)
+        (forge / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
+        self.assertEqual(self.medir("Recebi.", "mude o estoque", raiz=forge), {}, "exceção do dono: a sessão do Forge")
+        self.assertEqual(self.meta.medida_do_projeto(None, None, "Recebi."), {}, "sem raiz")
+
+
 if __name__ == "__main__":
     unittest.main()
