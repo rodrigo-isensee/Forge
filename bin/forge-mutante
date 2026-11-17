@@ -21,7 +21,10 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--prazo SEGUNDOS] [
            (`tests.x.Classe.teste` → `tests/x.py`); os outros saem `fora do diff: <id> · <arquivo>`, sem rodar. Arquivo de
            tests/ que não é spec (`.json` de tests/mutantes/) nem `test_*.py` que nenhum outro teste importa (helper,
            fixture, `.py` de tests/mutantes/, `test_*.py` importado por outro teste) põe todos no diff, com a linha
-           `apoio de teste no diff: <arquivos>`. Nenhum no diff, ou SHA que não é commit: saída 2. A 1.ª rodada do QA é a spec
+           `apoio de teste no diff: <arquivos>`. Nenhum no diff, ou SHA que não é commit: saída 2. H5: dos mutantes que
+           rodam, os `testes` ficam só os dos módulos que `forge-testes --listar` aponta para os caminhos do diff
+           (`testes fora dos módulos do diff: <id> · <testes>`); sem plano dirigido (suíte completa, erro) ou sem
+           nenhum teste do mutante nesses módulos, os testes declarados rodam inteiros. A 1.ª rodada do QA é a spec
            inteira, sem --base; a --base serve só à revalidação, com SHA = o head que o QA já aprovou, e o parecer
            confere a linha `base=` da saída contra esse head.
   --prazo  por execução de testes, em segundos (padrão 600)
@@ -133,6 +136,10 @@ MAXIMO_DE_CONDICOES = 5000
 MAXIMO_DE_ISENTAS = 8
 SPEC_DO_DIFF = re.compile(r"tests/mutantes/[^/]+\.json")
 FORA_DA_COBERTURA = re.compile(r".*\.md|changelog\.d/.*")
+# H5 (E2.642 da v047): o plano do `forge-testes --listar` para os caminhos do diff; só a linha do plano dirigido limita.
+FORGE_TESTES = Path(__file__).resolve().parent / "forge-testes"
+PLANO_DIRIGIDO = re.compile(r"forge-testes: dirigido \((.+)\)\. O CI do PR roda a suíte inteira\.")
+PRAZO_DO_LISTAR = 60
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", re.M)
 ROTULO_DA_SPEC = {"D": "removida", "M": "editada"}
 # Onde mora a condição em cada tipo de nó; `not` só conta como condição (o `-x` não).
@@ -1012,7 +1019,39 @@ def dirigir(specs, caminhos, base, sha):
     if not any(dados["mutantes"] for _, dados in dirigidas):
         print("forge-mutante: nenhum mutante da spec cai no diff da --base; nada foi executado.", file=sys.stderr)
         return None
-    return dirigidas
+    modulos = modulos_listados(sorted(mudados - {""}))
+    return [(spec_bytes, {**dados, "mutantes": [limitar(m, modulos) for m in dados["mutantes"]]})
+            for spec_bytes, dados in dirigidas]
+
+
+def modulos_listados(caminhos):
+    """H5: os módulos de teste que o `forge-testes --listar` aponta para os caminhos do diff (o plano dirigido, sem
+    editar o `forge-testes`). A suíte completa, o erro, o prazo estourado ou a saída fora do formato dão o conjunto
+    vazio: sem módulo mapeado, os testes declarados rodam inteiros, como antes."""
+    try:
+        r = subprocess.run([sys.executable, "-I", str(FORGE_TESTES), "--listar", "--", *caminhos], capture_output=True,
+                           text=True, errors="replace", timeout=PRAZO_DO_LISTAR)
+    except (OSError, subprocess.TimeoutExpired) as erro:
+        print(f"forge-mutante: forge-testes --listar falhou ({erro}); os testes declarados rodam inteiros.", file=sys.stderr)
+        return set()
+    achado = PLANO_DIRIGIDO.fullmatch(r.stdout.strip())
+    return set(achado.group(1).split(", ")) if achado else set()
+
+
+def modulos_candidatos(ident):
+    """`tests.x.Classe.teste` → os nomes que o `forge-testes` pode dar ao módulo dele (`x`, `x.Classe`, ...)."""
+    partes = ident.split(".")[1:]
+    return {".".join(partes[:i]) for i in range(1, len(partes) + 1)}
+
+
+def limitar(m, modulos):
+    """H5: o mutante só com os `testes` dos `modulos` do plano; sem nenhum deles (ou com todos), fica como está."""
+    testes = m.get("testes", [])
+    dentro = [t for t in testes if modulos_candidatos(t) & modulos]
+    if not dentro or len(dentro) == len(testes):
+        return m
+    print(f"testes fora dos módulos do diff: {m['id']} · {', '.join(sorted(set(testes) - set(dentro)))}")
+    return {**m, "testes": dentro}
 
 
 def main(argv=None):

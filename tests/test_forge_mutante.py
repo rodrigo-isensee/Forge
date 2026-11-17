@@ -1627,5 +1627,76 @@ class MutacaoDirigida(unittest.TestCase):
                 self.assertNotIn("Traceback", r.stderr)
 
 
+class LimiteDosModulos(unittest.TestCase):
+    """H5 (E2.642 da v047): com --base, os `testes` de cada mutante ficam só os dos módulos que `forge-testes --listar`
+    aponta para o diff; sem plano dirigido ou sem teste do mutante nele, rodam inteiros, como antes."""
+    LIMITE = ("import runpy\nimport unittest\nfrom pathlib import Path\n\n"
+              "limite = runpy.run_path(str(Path(__file__).resolve().parent.parent / 'bin' / 'forge-lib'))['limite']\n\n\n"
+              "class T(unittest.TestCase):\n    def test_borda(self):\n        self.assertEqual(limite(11), 2)\n")
+    VERMELHO = "import unittest\n\n\nclass T(unittest.TestCase):\n    def test_falha(self):\n        self.fail('fora')\n"
+    TESTES = ("tests.test_forge_lib.T.test_borda", "tests.test_vermelho.T.test_falha")
+
+    def setUp(self):
+        self._t = tempfile.TemporaryDirectory()
+        self.addCleanup(self._t.cleanup)
+        base = Path(self._t.name)
+        self.dir, self.tmp = base / "repo", base / "tmp"
+        self.tmp.mkdir()
+        self.dir.mkdir()
+        git(self.dir, "init", "-q", "-b", "develop")
+        for nome, texto in (("bin/forge-lib", LIB), ("tests/test_forge_lib.py", self.LIMITE),
+                            ("tests/test_forge.py", "import unittest\n"), ("tests/test_vermelho.py", self.VERMELHO),
+                            (".gitignore", ".forge\n")):
+            Execucao.gravar(self, nome, texto)
+        Execucao.salvar(self)
+        self.base = git(self.dir, "rev-parse", "HEAD").strip()
+        self.spec = Path(self._t.name) / "spec.json"
+        self.spec.write_text(json.dumps({"pedido": "x", "mutantes": [
+            mutante(testes=self.TESTES, arquivo="bin/forge-lib")]}), encoding="utf-8")
+
+    def rodar(self):
+        """Ambiente limpo (sem o herdado de quem roda a suíte) e Python com -I."""
+        env = sem_manutencao({"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.tmp),
+                              "TMPDIR": str(self.tmp), "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null"})
+        return subprocess.run([sys.executable, "-I", str(FERRAMENTA), str(self.spec), "--base", self.base],
+                              cwd=self.dir, env=env, capture_output=True, text=True)
+
+    def mudar_o_bin(self):
+        Execucao.gravar(self, "bin/forge-lib", LIB + "# mudou\n")
+        Execucao.salvar(self)
+
+    def test_teste_fora_dos_modulos_do_diff_nao_roda(self):
+        self.mudar_o_bin()
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("testes fora dos módulos do diff: M1 · tests.test_vermelho.T.test_falha", r.stdout)
+        self.assertIn("M1 · morreu · bin/forge-lib:2", r.stdout)
+
+    def test_sem_plano_dirigido_roda_os_testes_declarados_inteiros(self):
+        git(self.dir, "rm", "-q", "tests/test_forge.py")  # o forge-testes cai na suíte completa (módulo sem arquivo)
+        self.mudar_o_bin()
+        r = self.rodar()
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)  # o test_vermelho roda e o controle fica vermelho
+        self.assertNotIn("testes fora dos módulos do diff", r.stdout)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_mutante_sem_teste_nos_modulos_ou_com_todos_fica_como_esta(self):
+        f, m = carregar(), mutante(testes=self.TESTES)
+        for modulos in (set(), {"test_outro"}, {"test_forge_lib", "test_vermelho"}, {"test_forge_lib.T", "test_vermelho"}):
+            with self.subTest(modulos), mock.patch("sys.stdout", new_callable=io.StringIO) as saida:
+                self.assertIs(f.limitar(m, modulos), m)
+                self.assertEqual(saida.getvalue(), "")
+        with mock.patch("sys.stdout", new_callable=io.StringIO):
+            self.assertEqual(f.limitar(m, {"test_forge_lib"})["testes"], [self.TESTES[0]])
+
+    def test_listar_que_falha_ou_estoura_o_prazo_nao_limita(self):
+        f = carregar()
+        for erro in (subprocess.TimeoutExpired("forge-testes", 60), OSError("sem python")):
+            with self.subTest(erro), mock.patch.object(f.subprocess, "run", side_effect=erro), \
+                    mock.patch("sys.stderr", new_callable=io.StringIO) as saida:
+                self.assertEqual(f.modulos_listados(["bin/forge-lib"]), set())
+                self.assertIn("forge-testes --listar falhou", saida.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()
