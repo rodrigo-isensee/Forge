@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v047
 branch: melhoria/v047-forge-check-fc2
-commit: b7a180d61469a6aed2d6accee139622ca5944eaf
+commit: e1aff90260eba1e97fa153ddcd9b5e8127e5945f
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-16
+data: 2026-11-17
 ---
 # QA: v047-forge-check-fc2 (E2.181, portão na E2.437)
 
@@ -60,3 +60,11 @@ FC2-M9 · morreu · bin/forge-check:3197
 
 ## Bugs
 Nenhum aberto.
+
+## Revalidação por delta (head d3429349)
+`forge-check parecer delta docs/qa/v047-forge-check-fc2.md` (intervalo b7a180d6..d3429349, sem o que veio da develop) listou no domínio: `bin/forge-check`, `skills/qa-testing/SKILL.md`, `tests/mutantes/v0432-integracao-2.json`, `tests/test_volta_por_delta.py`.
+- `bin/forge-check` e a spec de mutante: vieram da develop (merge); fora do diff do autor e sem mudança nos testes dos CA-1 e CA-2.
+- `skills/qa-testing/SKILL.md` (e1aff902): só reescrita de palavras na linha "Teste e parecer" (`aponta (commit:) para o commit que o inclui` virou `aponta (commit:) o commit que o inclui`; `revalidação` virou `volta`; `sem ler o código do autor (independência)`); toda regra e ID segue no texto (diff lido).
+- `tests/test_volta_por_delta.py`: `remoto_sem_manutencao(self.origem)` no `setUp` de `DeltaComBaseAtrasada`, com o import de `ambiente_git`; só isola o remoto bare, não relaxa asserção.
+- Rodado no head, sem `-I`: `test_metricas_texto` Ran 2 · OK; `test_ambiente_git` Ran 20 · OK; `test_volta_por_delta.DeltaComBaseAtrasada` Ran 3 · OK.
+- Suíte inteira: CI do PR. Os achados e a tabela acima seguem valendo; A1 continua recomendado, sem bloqueio. Bugs: nenhum aberto.
