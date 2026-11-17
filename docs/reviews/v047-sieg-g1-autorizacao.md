@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-sieg-g1-autorizacao
-commit: c890fbd68ead4e201005380220d7815f6d226fa3
-parecer: reprovado
+commit: 2f150f4dac973291017e18556b652ba65ee9748d
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
 ---
@@ -33,3 +33,6 @@ Delta lido com `forge-check parecer delta` (`580b6c34..7b20d073`: `bin/forge-che
 
 ## Revalidação (head c890fbd6, pedido v0474)
 Delta lido com `forge-check parecer delta` (`7b20d073..c890fbd6`, junção da origin/develop b07e6a39, 0.47.3); a ferramenta acusa `bin/forge-check` no domínio. Resolução da junção conferida: `git merge-tree --write-tree c992f567 b07e6a39` dá a mesma árvore do c890fbd6 (junção limpa, sem edição à mão), e o patch da branch fora dos pareceres (`b07e6a39..c890fbd6`) é idêntico, linha a linha, ao de `86ac0fcb..7b20d073`; em `bin/forge-check` seguem só as 8 linhas do G1.1 (`SEM_GUARDA_DE_VERSAO`, subparser e despacho), e `escritor_do_resultado`, `raiz_principal` e `modulo_do_bin` existem na base nova. As demais linhas acusadas vêm da develop. `python3 -m unittest tests.test_autorizacao` 8 testes OK. Bloqueia A5: CI vermelho no head pelo mapa do `forge-testes` (defeito provado, `R-REVIEW`); A3 e A4 seguem recomendados. Reprovado no head c890fbd6; a volta revalida por delta.
+
+## Revalidação (head 2f150f4d, pedido v0474, E1.21)
+Delta lido com `forge-check parecer delta` (`c890fbd6..2f150f4d`; no domínio só `bin/forge-testes`, `tests/test_autorizacao.py` e `tests/test_testes_tocados.py`, 1 linha cada). A5 fechado: `test_autorizacao` entra em `FORGE_CHECK`, e `bin/forge-testes --listar bin/forge-check` passa a listá-lo; a docstring de `tests/test_autorizacao.py:1` cita `bin/forge-check` (o que o mapa exige) sem mudar teste, e a contagem em `tests/test_testes_tocados.py:77` vai de 88 para 89 com a origem anotada. `python3 -m unittest tests.test_testes_tocados tests.test_autorizacao`: 170 testes OK (1 pulado). Suíte inteira: fica para o CI do PR 629 no head novo, sem resultado ainda (`gh pr checks 629`: nenhum check). A3 e A4 seguem recomendados. Aprovado no head 2f150f4d.
