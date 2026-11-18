@@ -304,11 +304,39 @@ class Fechar(unittest.TestCase):
         self.assertTrue((self.estado / "da_fabrica").exists())
         self.assertFalse((self.estado / "falso").exists())
 
-    def test_1c_no_dry_run_e_fora_da_base_develop_nao_roda(self):
-        sha = self.git("rev-parse", "melhoria/x")
-        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
-        self.assertIn(f"[1c] python3 -I {self.tmp / 'promover.py'} --conferir-ref {sha}", r.stdout)
+    def test_1c_fora_da_base_develop_nao_roda(self):
         self.assertNotEqual(self.fechar("p1", "--ref", "melhoria/x", "--base", "origin/homolog").returncode, 0)
+        self.assertFalse((self.estado / "promover").exists())
+
+    # ---- FECHAR-DRY-RUN-1C (v0478): o --dry-run roda o --conferir-ref de verdade, sem buscar a homolog ----
+    def test_1c_no_dry_run_roda_o_conferir_ref_contra_a_homolog_local_sem_busca(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        self.git("push", "-q", "origin", "melhoria/x:refs/heads/homolog")
+        local = self.git("rev-parse", "develop")
+        self.git("update-ref", "refs/remotes/origin/homolog", local)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn(f"[1c] python3 -I {self.tmp / 'promover.py'} --conferir-ref {sha}", r.stdout)
+        self.assertEqual((self.estado / "promover").read_text(), f"--conferir-ref {sha}\n")
+        self.assertIn(f"1c: promovível (contra a origin/homolog local {local[:12]}, sem busca).", r.stdout)
+        self.assertEqual(self.homolog_local(), local)  # o --dry-run não fala com o servidor
+        self.assertIn("[7]", r.stdout)
+        self.assertFalse([c for c in self.chamadas() if c.startswith(("gh ", "forge-check "))])
+
+    def test_1c_no_dry_run_que_recusa_para_com_1_e_diz_a_homolog_lida(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", PROMOVER_RC="1", PROMOVER_SAIDA="versão 0.47.6 já na homolog")
+        self.assert_parou_no_1c(r)
+        self.assertIn("versão 0.47.6 já na homolog", r.stderr)
+        self.assertIn("--dry-run: conferido contra a origin/homolog local (ausente), sem busca; se ela estiver velha, rode git fetch "
+                      "origin homolog e repita", r.stderr)
+        self.assertNotIn("[2] ", r.stdout)
+        self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 1"))
+
+    def test_1c_no_dry_run_sem_a_branch_local_nao_roda(self):
+        self.git("branch", "-q", "-D", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("1c: não rodou: sem a branch local melhoria/x.", r.stdout)
         self.assertFalse((self.estado / "promover").exists())
 
     # ---- FECHAR-SEM-HOMOLOG-LOCAL ----
