@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v0475-ci-custo
+pedido: v0474
 branch: melhoria/v0475-ci-custo
 commit: 8a4a97077c22308b0a503d4e33f72bb91700e12a
 parecer: aprovado
