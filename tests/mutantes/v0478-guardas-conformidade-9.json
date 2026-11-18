@@ -1,0 +1,36 @@
+{
+  "pedido": "v0478-guardas-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M63",
+      "guarda": "7z: as chaves (-y) não são o comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    palavras = [a for a in args if not a.startswith(\"-\")]\n    comando, arquivo",
+      "para": "    palavras = [a for a in args if True]\n    comando, arquivo",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M64",
+      "guarda": "7z: o comando é a primeira palavra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(palavras[0].lower() if palavras else \"\")",
+      "para": "(palavras[0].lower() if not palavras else \"\")",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M65",
+      "guarda": "7z x sem -o extrai na pasta corrente",
+      "arquivo": "hooks/conformidade.py",
+      "de": "([a[2:] for a in args if a.startswith(\"-o\")] or [\".\"])",
+      "para": "([a[2:] for a in args if a.startswith(\"-o\")] or [])",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    }
+  ]
+}

@@ -47,7 +47,7 @@
       "guarda": "valor colado na letra (S1, S2)",
       "arquivo": "hooks/conformidade.py",
       "de": "valor = \"\" if velho else grupo[k + 1:]",
-      "para": "valor = \"\"",
+      "para": "valor = \"\" if True else grupo[k + 1:]",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]

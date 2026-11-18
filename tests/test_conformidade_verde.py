@@ -362,7 +362,8 @@ class EstadoDoAgentesNoClone(CloneDoForge):
                     "7z a .git/forge/run/agentes.json docs", "7z a docs/a.7z .git/forge/run/agentes.json -sdel",
                     "7za x docs/a.7z -o.git/forge", "/usr/bin/gtar -xf docs/a.tar -C .git/forge",
                     "busybox rm .git/forge/run/agentes.json", "busybox unzip docs/a.zip -d .git/forge/run",
-                    "tar --checkpoint -xf docs/a.tar -C .git/forge", "tar -xf docs/a.tar -Cdocs/b -C .git/forge")
+                    "tar --checkpoint -xf docs/a.tar -C .git/forge", "tar -xf docs/a.tar -Cdocs/b -C .git/forge",
+                    "7z -y a .git/forge/run/agentes.json docs", "cd .git/forge/run && 7z x ../../../docs/a.7z")
         for papel in ("forge:tech-lead", "forge:jarvis"):
             for c in sondas + (vizinhas if papel == "forge:jarvis" else ()):
                 self.recusa(self.rodar("Bash", {"command": c}, papel), f"{papel}: {c}")
