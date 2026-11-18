@@ -22,5 +22,12 @@
         "tests.test_maquina.FilaPesada.test_na_espera_a_vaga_solta_passa_por_cima_da_senha_presa"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/pesado.py",
+      "trecho": "c.is_symlink()",
+      "motivo": "a checagem de link da senha passou ao O_NOFOLLOW de abrir_senha (mutante N7) e a da pasta a pasta_da_fila (N5)"
+    }
   ]
 }
