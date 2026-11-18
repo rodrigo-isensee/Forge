@@ -46,7 +46,7 @@
       "id": "M21",
       "guarda": "diretriz 36 (R-CONTRIB): insteadOf na linha: o hook não confirma o destino e falha fechado",
       "arquivo": "hooks/conformidade.py",
-      "de": "duvida = next((c for c in troca if not c.lower().startswith(\"remote.\") or \"$\" in c",
+      "de": "duvida = next((c for c in troca if c.lower().startswith(\"url.\") or \"$\" in c",
       "para": "duvida = next((c for c in troca if \"$\" in c",
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_dir36"

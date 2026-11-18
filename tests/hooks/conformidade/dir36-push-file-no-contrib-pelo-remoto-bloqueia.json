@@ -1,0 +1,46 @@
+{
+  "descricao": "Diretriz 36 (R-CONTRIB, E3.231, segurança A9): `git push origin` com `remote.origin.pushurl` `file://` em `~/.forge-contrib`: recusado.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin HEAD:melhoria/y"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: push para"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    },
+    {
+      "config": {
+        "remote.origin.url": "https://github.com/acme/proj.git"
+      }
+    }
+  ],
+  "repos": {
+    "home/.forge-contrib/proj": {}
+  },
+  "passos": [
+    {
+      "git": [
+        "config",
+        "remote.origin.pushurl",
+        "file://{tmp}/home/.forge-contrib/proj"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "pedido": "v0475-dir36",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M59",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.231, segurança A7: a chave gravada com a URL do Forge recusa o envio sem remoto)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if parecer.aponta_para_o_forge(valor) or self.caminho_do_forge(raiz, valor):",
+      "para": "if self.caminho_do_forge(raiz, valor):",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M60",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.231, segurança A9: o envio direto para caminho no ~/.forge-contrib recusa)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "remoto and self.caminho_do_forge(pasta, remoto)):",
+      "para": "remoto and False):",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M61",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.231, segurança A7: sem remoto na linha, a configuração gravada é lida)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if remoto is None and (chave := self.destino_na_config(pasta)):",
+      "para": "if remoto is None and False:",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M62",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.231, segurança A8: `git config -e`, `--edit` e `edit` falham fechado)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if args[:1] == [\"edit\"] or any(a == \"-e\" or abreviacao_de(a, (\"--edit\",)) for a in args):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    }
+  ]
+}
