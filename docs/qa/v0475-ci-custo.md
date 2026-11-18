@@ -1,0 +1,39 @@
+---
+tipo: qa
+contrato: 1
+pedido: v0475-ci-custo
+branch: melhoria/v0475-ci-custo
+commit: f59f7766bfcecbb1887cce0b6c0aff6ab31880cd
+parecer: aprovado
+escopo: completo
+bugs_criticos: 0
+bugs_altos: 0
+bugs_medios: 0
+bugs_baixos: 0
+data: 2026-11-17
+---
+# QA: v0475-ci-custo
+
+Escopo (E3.66, pedido v0474): modelo de CI de projeto enxuto (`templates/projeto/.github/workflows/ci.yml` e `ci-docs.yml`), seção "CI de projeto privado: minutos" da skill `ci-cd`, mapa do `bin/forge-testes`. Obrigação: `R-CUSTO`.
+
+## Achados
+- A1 (recomendado) templates/projeto/.github/workflows/ci.yml:12 · o modelo só se prova por texto; a execução real no Actions (agregador `ci` verde com ci-docs, PR misto md+código) não foi exercida aqui, confirmar no primeiro projeto.
+
+## Critério → teste → resultado
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| R-CUSTO: suíte só em PR e nas branches do fluxo | SuitePesada.test_push_so_nas_branches_do_fluxo, test_pull_request_dispara_a_suite | push de branch de trabalho fora | passou |
+| Documento não roda a suíte; par cobre a mesma lista | test_so_documento_nao_roda_a_suite_e_o_par_cobre_a_mesma_lista | lista de caminhos idêntica nos dois | passou |
+| Neutro de stack (ADR 0001) | test_comando_vem_da_stack_sem_nome_de_ferramenta | sem nome de ferramenta | passou |
+| Check exigido nunca pendente | CheckObrigatorio (3 testes) | falha da suíte reprova o agregador; skipped não passa | passou |
+| concurrency por branch | Concorrencia.test_push_e_pr_da_mesma_branch_dividem_o_grupo_e_cancelam | push e PR no mesmo grupo | passou |
+| Higiene (timeout, SHA, permissões) | Higiene (3 testes) | sem continue-on-error nem pull_request_target | passou |
+| Entrega pelo forge-init e skill | Entrega (2 testes) | placeholder substituído | passou |
+| Mapa do pre-push roda o teste | test_testes_tocados (M16, M17) | módulo listado | passou |
+
+## Cenários e resultado real
+- `python3 -I -m unittest discover -s tests -p test_modelo_ci.py`: Ran 13 tests, OK.
+- `test_testes_tocados.py`: Ran 162 tests, OK (skipped=1, preexistente).
+- Vermelho: `forge-testes --vermelho 3d8ad440` cai em suíte completa (o diff toca `bin/forge-testes`) e estourou meu prazo de 280 s (rc 124, sem veredito; não vale como vermelho). Substituto: o teste novo copiado sobre a árvore da base (`git archive 3d8ad440`): `Ran 13 tests ... FAILED (failures=1, errors=12)`, ou seja, nenhum passa sem a implementação.
+- Mutação: `bin/forge-mutante tests/mutantes/v0475-ci-custo.json tests/mutantes/v0475-ci-custo-2.json --processos 3`: M1 a M17 todos `morreu`, nenhum sobrevivente. Lista conferida contra o diff: cada guarda mudada (gatilhos, paths, concurrency, agregador, timeout, mapa) tem mutante.
+- Não rodei a suíte inteira; vale o check-run `bateria` do CI do PR (não há PR ainda).
