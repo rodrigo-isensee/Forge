@@ -1,0 +1,2 @@
+### Corrigido
+- `bin/forge-fechar --promover` passa título e corpo em português ao merge da promoção (`--subject 'chore(promoção): <versão> para a homolog (#<n>)'`): com `merge_commit_title=MERGE_MESSAGE` no repositório, o commit na homolog saía 'Merge pull request #N from ...' (prova: 335a2298, a promoção da 0.47.6). O método segue `--merge`; a integração na develop segue `--squash` com o título do PR, já em português, e não muda (v0478 FECHAR-PROMOVER-MENSAGEM-PT).
