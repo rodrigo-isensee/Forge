@@ -34,7 +34,7 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TET
                     LIMITE_MENSAGEM, PLUGIN, PROFUNDIDADE, bloquear, comentarios,
                     construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, formas_que_o_shell_le, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, expandir_home, fora_da_gramatica_com_heredoc,
-                    expandir_heredoc, fora_da_gramatica_de_leitura, heredocs, motivo_da_reavaliacao,
+                    expandir_heredoc, fora_da_gramatica_de_leitura, FORMA_DO_HEREDOC, heredocs, motivo_da_reavaliacao,
                     forge_check, git, leituras, mensagem, nome_da_branch, nome_do_caminho, raiz_declarada, raiz_do_projeto, reavaliacao,
                     sem_atribuicoes, separar_lancadores, SHELLS, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
@@ -143,6 +143,13 @@ LONGAS_SEM_EXEC = {"recursive", "dereference-recursive", "line-number", "ignore-
 ARQUIVO_ENV = re.compile(r"^\.env(\.[\w.-]+)?$")
 ENV_DE_EXEMPLO = {"example", "sample", "template", "dist"}
 PUSH_COM_VALOR = {"-o", "--push-option", "--repo", "--receive-pack", "--exec"}
+# v0474 (segurança A2): no repositório do Forge a tag `v*` é a versão que todas as máquinas instalam e só nasce do release.yml
+# sobre a main. `git tag` só lista ou confere (lista positiva); envio de tag, de qualquer forma, é recusado.
+TAG_SO_LEITURA_CURTAS = set("lvn0123456789i")
+TAG_SO_LEITURA_LONGAS = {"--list", "--verify", "--contains", "--no-contains", "--points-at", "--merged", "--no-merged", "--sort",
+                         "--format", "--column", "--no-column", "--ignore-case", "--omit-empty", "--color"}
+TAG_NO_ENVIO = re.compile(r"(\+?(refs/)?tags/|\+?v[\d*?\[])")
+TAG_NA_CONFIG = re.compile(r"followtags|refs/tags", re.I)
 CRIAR_PR_POR_API = re.compile(r"(^|/)repos/[^/]+/[^/]+/pulls/?$", re.I)  # FILA-22: POST aqui abre PR
 CRIAR_PR_NO_GRAPHQL = re.compile(r"createPullRequest", re.I)
 API_ADMIN = re.compile(r"/(git/refs|contents/|rulesets|branches/[^/]+/protection|collaborators|actions/(secrets|variables)"
@@ -806,6 +813,16 @@ def opcoes_sem_exec(args):
         elif a.startswith("+"):
             return False
     return True
+
+
+def forma_aceita(achado):
+    """ADR 0011, item 2 (E3.50): a forma que o hook aceita no lugar da construção recusada, dita na mensagem da recusa."""
+    if achado.startswith("$"):
+        return (f"valor literal no lugar de {achado} (caminho, branch, log); "
+                "texto com $ só entre aspas simples: '${{ x }}'")
+    if achado == "heredoc":
+        return FORMA_DO_HEREDOC
+    return "branch literal, um comando por linha, sem # entre linhas, $, crase, chaves nem case"
 
 
 def so_leitura(linha):
@@ -1794,8 +1811,7 @@ class Guarda:
             if not self.leitura:
                 self.barrar("R-CONFORMIDADE", "aspas sem par na leitura do hook, # que ele não prova ser comentário ou "
                                               "<< que ele não prova ser heredoc: o hook não modela a linha",
-                            "feche as aspas, tire aspas e # do comentário, use heredoc só com <<'FIM' ou separe os "
-                            "comandos")
+                            f"feche as aspas, tire aspas e # do comentário, {FORMA_DO_HEREDOC}, ou separe os comandos")
             return
         if nivel == 0:
             self.ambiente = {}
@@ -1877,19 +1893,19 @@ class Guarda:
     def nao_modelada(self, achado):
         """ADR 0011, item 2: recusa a linha crítica com construção que o analisador não modela (`construcao_nao_modelada`)."""
         if achado is not None:
-            self.barrar("R-CONFORMIDADE", f"`{achado}` com ação crítica: o hook não modela",
-                        "branch literal, um comando por linha, sem # entre linhas, "
-                        "$, crase, chaves nem case; heredoc só <<'FIM'")
+            self.barrar("R-CONFORMIDADE", f"`{achado}` com ação crítica: o hook não modela", forma_aceita(achado))
 
     def gramatica_de_leitura(self, linha):
         """ADR 0011, item 1: antes de qualquer outra checagem, a linha do papel só de leitura precisa caber na gramática
         positiva (`fora_da_gramatica_de_leitura`). O que ela não modela (`$`, crase, `\\`, `#`, chaves, globs,
         redirecionamento, substituição, várias linhas) recusa, e a mensagem diz a forma explícita."""
         sinal = fora_da_gramatica_de_leitura(linha)
+        contorno = "um comando por chamada; sinais só entre aspas simples"
+        if sinal == "$":  # E3.50: a variável sai pelo valor literal, que a gramática aceita (cabe no LIMITE_MENSAGEM)
+            contorno = "caminho literal no lugar da variável (não F=x; cat $F)"
+        contorno += "; no lugar de echo $?: && echo contém || echo não contém"
         if sinal is not None:
-            self.barrar("R-CONFORMIDADE", f"`{sinal}` fora da gramática do papel só de leitura ({self.papel})",
-                        "um comando por chamada; sinais só entre aspas simples; "
-                        "no lugar de echo $?: && echo contém || echo não contém")
+            self.barrar("R-CONFORMIDADE", f"`{sinal}` fora da gramática do papel só de leitura ({self.papel})", contorno)
 
     def sugerir_na_linha(self, linha):
         """F6, lista branca estrita: a única linha com `sugerir` que passa é `forge sugerir --guardar "<texto>"` inteira, ou a
@@ -2270,7 +2286,10 @@ class Guarda:
         self.git_integracao(sub, args, pasta_git, ramos)
         if sub in CAMINHOS_NO_GIT:
             self.git_caminhos(sub, args, [pasta, pasta_git], opcoes)
+        if sub == "tag":
+            self.git_tag(args, pasta_git)
         if sub in ("push", "send-pack"):  # o send-pack grava refs no destino como o push
+            self.git_tags_no_envio(args, palavras[1:i], pasta_git, sub)
             self.git_push(args, pasta_git, ramos, sub)
         elif parte and parte[0] == "merge" and parte[2]:
             atual = self.ramo_em(pasta_git, ramos)
@@ -2588,6 +2607,35 @@ class Guarda:
             return
         dica = "deixe ao usuário (R-DECISAO)" if do_merge else "use --worktree ou deixe ao usuário (R-DECISAO)"
         self.barrar("R-CONFORMIDADE", f"git config grava {chaves[0]} na configuração compartilhada do repositório", dica)
+
+    def git_tag(self, args, pasta):
+        """No Forge, `git tag` só lista ou confere: sem argumento, ou só com opções de leitura (`-l`, `-v`, `-n`, `--contains`...).
+        Criar, apagar ou mover tag é do release.yml (v0474, segurança A2)."""
+        if not self.repositorio_do_forge(pasta):
+            return
+        curtas = {c for a in args if re.fullmatch(r"-[a-zA-Z0-9]+", a) for c in a[1:]}
+        longas = {a.split("=", 1)[0] for a in args if a.startswith("--")}
+        leitura = curtas & set("lvn") or longas & {"--list", "--verify", "--contains", "--no-contains", "--points-at",
+                                                    "--merged", "--no-merged"}
+        so_opcoes_de_leitura = curtas <= TAG_SO_LEITURA_CURTAS and longas <= TAG_SO_LEITURA_LONGAS
+        if args and not (leitura and so_opcoes_de_leitura):
+            self.barrar("R-FLUXO", "git tag no repositório do Forge: a tag v* é a versão que todos os projetos instalam",
+                        "só o release.yml cria a tag, sobre a main; para ler, use git tag -l")
+
+    def git_tags_no_envio(self, args, globais, pasta, sub="push"):
+        """No Forge, nenhum envio leva tag: `--tags`, `--follow-tags`, `tag <nome>`, refspec com `refs/tags/` ou `v<número>`
+        e `-c` com `push.followTags` ou refspec de tags (v0474, segurança A2). Na dúvida (remoto de nome `v1`), recusa."""
+        posicionais = parecer.posicionais(args, PUSH_COM_VALOR)
+        remoto = posicionais[0] if posicionais else None
+        if not (self.repositorio_do_forge(pasta) or (remoto and parecer.aponta_para_o_forge(remoto))):
+            return
+        refs = posicionais  # o remoto entra também: com `--repo <remoto>`, o primeiro posicional já é refspec
+        envia_tag = ({"--tags", "--follow-tags"} & {a.split("=", 1)[0] for a in args} or "tag" in refs
+                     or any(TAG_NO_ENVIO.match(parte) for r in refs for parte in r.split(":"))
+                     or any(TAG_NA_CONFIG.search(g) for g in globais))
+        if envia_tag:
+            self.barrar("R-FLUXO", f"git {sub} de tag para o Forge: a tag v* é a versão que todos os projetos instalam",
+                        "envie só a branch; a tag nasce do release.yml, sobre a main")
 
     def git_push(self, args, pasta, ramos, sub="push"):
         refs = []

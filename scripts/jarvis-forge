@@ -177,6 +177,20 @@ atualizar_ao_abrir() {
   depois="$(git -C "$vigente" rev-parse HEAD)"
   [ "$antes" = "$depois" ] || echo "jarvis-forge: cópia vigente atualizada para a origin/develop ($(git -C "$vigente" rev-parse --short HEAD))." >&2
 }
+# FORGE-SEMPRE-ATUAL (ADR 0017): atualiza o plugin instalado (não a cópia vigente, que tem o caminho próprio acima). O código vem
+# só da pasta deste script, que o trampolim de ~/.local/bin leva ao installPath ativo; pasta com .git (work tree) não roda.
+# Sem pergunta, sem barrar: o resultado fica no registro da ferramenta, que nunca roda com a sessão do tmux aberta.
+atualizar_plugin() {
+  local raiz ferramenta
+  raiz="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  ferramenta="$raiz/bin/forge-sempre-atual"
+  if [ ! -x "$ferramenta" ] || [ -e "$raiz/.git" ]; then return 0; fi
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 90 "$ferramenta" --gatilho atalho --projeto "$PWD" </dev/null || true
+  else
+    "$ferramenta" --gatilho atalho --projeto "$PWD" </dev/null || true
+  fi
+}
 # No máximo uma consulta por dia (cache da data); sem registro local das fontes, `forge-check fontes` fica em silêncio.
 consultar_fontes() {
   local estado cache fc saida codigo
@@ -197,6 +211,7 @@ if [ -z "${FORGE_ABERTURA_FEITA:-}" ]; then
     if sessao_aberta; then avisar_na_sessao_aberta; else atualizar_ao_abrir; fi
   fi
   consultar_fontes
+  if ! sessao_aberta; then (cd "$HOME/Forge" && atualizar_plugin); fi
   # o tmux toma a tela logo em seguida: com terminal, dá tempo de ler o aviso de defasagem
   if [ "$avisou_defasagem" = 1 ] && [ -t 2 ]; then sleep 3; fi
 fi

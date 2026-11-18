@@ -7,6 +7,7 @@ import importlib.util
 import io
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -49,6 +50,7 @@ CATRACA = "python3 tests/catraca.py --modo pr-texto"
 TEXTO = "`python3 -m unittest tests.test_testes_tocados tests.test_forge.Orcamento tests.test_jarvis_nucleo tests.test_metricas_texto " \
         "tests.test_orcamento_instrucao`"
 AFETADOS = "`FORGE_PREPUSH_SUITE=afetados .githooks/pre-push`"
+ACHADOS = "`python3 -m unittest tests.test_forge_mutante.ConferirTodas`"
 
 
 class Gerar(unittest.TestCase):
@@ -68,7 +70,7 @@ class Gerar(unittest.TestCase):
 
     def test_codigo_traz_descricao_texto_e_testes_afetados(self):
         saida = self.gerar("codigo", "E1.1")
-        for trecho in (CATRACA, TEXTO, AFETADOS):
+        for trecho in (CATRACA, TEXTO, AFETADOS, ACHADOS):
             self.assertIn(trecho, saida)
         self.assertLess(saida.index(TEXTO), saida.index("forge-check entrega"))  # antes do PQ do autor que o selo numera
         self.assertNotIn("sem PR para a branch", saida)  # a linha do CI é só do parecer
@@ -78,6 +80,7 @@ class Gerar(unittest.TestCase):
         self.assertIn(CATRACA, saida)
         self.assertIn(TEXTO, saida)
         self.assertNotIn(AFETADOS, saida)
+        self.assertNotIn(ACHADOS, saida)  # H3 (a): a autoverificação do AR-12 só com código no Entregar
 
     def test_juncao_fica_sem_os_testes_afetados(self):
         saida = self.gerar("pr", "E1.3")
@@ -106,6 +109,113 @@ class Gerar(unittest.TestCase):
     def test_parecer_sem_gh_mantem_a_regra(self):
         saida = self.gerar("seguranca", "E1.4", destino="forge:revisor-exemplo", pr=(None, "sem gh"))
         self.assertIn("aprova só com o CI do head todo verde, e2e incluso (`gh pr checks <n>`), quando houver PR", saida)
+
+
+DESATUALIZADO = ("docs/reviews/exemplo.md: commit: desatualizado: bin/forge-x mudou depois de aaaaaaa; peça novo parecer; o que mudou no "
+                 "domínio: forge-check parecer delta docs/reviews/exemplo.md (R-REVIEW)")
+REPROVADO = "docs/qa/exemplo.md: parecer: o último parecer não é aprovado (R-QA)"
+LER_DO_DELTA = "- revalidação (H3, R-REVIEW): leia só `forge-check parecer delta docs/reviews/exemplo.md`"
+
+
+class PortaoNaBranch(unittest.TestCase):
+    """H3 (c): o brief de portão liga a revalidação ao `parecer delta` do parecer da branch e avisa quando o portão não precisa de agente."""
+
+    def portao(self, etapa, linhas, exigidos=("review", "qa"), existe=True, branch="melhoria/x", base="develop"):
+        with mock.patch.object(fc, "sha_do_commit", return_value="a" * 40 if existe else None), \
+                mock.patch.object(fc, "pr_da_cli", return_value=list(linhas)) as pr, \
+                mock.patch.object(fc, "base_do_delta", return_value=("refs/remotes/origin/develop", None)), \
+                mock.patch.object(fc, "exigidos_do_pr", return_value=(list(exigidos), [])):
+            return fc.portao_na_branch(RAIZ, "exemplo", etapa, branch, base), pr
+
+    def test_parecer_desatualizado_no_dominio_le_so_o_delta(self):
+        (ler, aviso), pr = self.portao("review", [DESATUALIZADO, REPROVADO])
+        self.assertIsNotNone(ler)
+        self.assertTrue(ler.startswith(LER_DO_DELTA), ler)
+        self.assertIsNone(aviso)
+        pr.assert_called_once_with(RAIZ, "exemplo", ref="melhoria/x", base="origin/develop")
+
+    def test_parecer_reprovado_revalida_pelo_delta_do_proprio_tipo(self):
+        (ler, aviso), _ = self.portao("qa", [DESATUALIZADO, REPROVADO])
+        self.assertIsNotNone(ler)
+        self.assertIn("`forge-check parecer delta docs/qa/exemplo.md`", ler)
+        self.assertIsNone(aviso)
+        (ler, _), _ = self.portao("seguranca", [DESATUALIZADO, REPROVADO], exigidos=("review", "qa", "revisao-seguranca"))
+        self.assertIsNone(ler)  # o delta de outro portão não vale para este
+
+    def test_parecer_exigido_aprovado_e_em_dia_avisa_que_nao_precisa_de_agente(self):
+        (ler, aviso), _ = self.portao("review", [REPROVADO])
+        self.assertIsNone(ler)
+        self.assertEqual(aviso, "o parecer de review da branch está aprovado e em dia no head (`forge-check pr`): a etapa review "
+                                "não precisa de agente (H3)")
+
+    def test_portao_que_a_classe_nao_exige_avisa_sem_tirar_o_reprovado(self):  # H8: a classe decide; nenhum portão sai dela
+        (ler, aviso), _ = self.portao("qa", [], exigidos=("review",))
+        self.assertIsNone(ler)
+        self.assertEqual(aviso, "a classe da entrega não exige o parecer de qa (`forge-check classe`): a etapa qa não precisa de agente (H8)")
+        nao_aprova = "docs/qa/exemplo.md: parecer: o último parecer não é aprovado; o tipo não é exigido pela classe, mas o reprovado vale (R-QA)"
+        ler, aviso = self.portao("qa", [nao_aprova], exigidos=("review",))[0]  # dispensar não é ignorar o reprovado: revalida pelo delta
+        self.assertIn("`forge-check parecer delta docs/qa/exemplo.md`", ler)
+        self.assertIsNone(aviso)
+        with mock.patch.object(fc, "sha_do_commit", return_value="a" * 40), mock.patch.object(fc, "pr_da_cli", return_value=[]), \
+                mock.patch.object(fc, "base_do_delta", return_value=("refs/remotes/origin/develop", None)), \
+                mock.patch.object(fc, "exigidos_do_pr", return_value=(["review"], [])) as exigidos:
+            fc.portao_na_branch(RAIZ, "exemplo", "qa", "melhoria/x", "origin/develop")
+        exigidos.assert_called_once_with(RAIZ, "exemplo", "melhoria/x", "refs/remotes/origin/develop")
+
+    def test_parecer_ausente_ou_com_outra_violacao_nao_avisa(self):
+        for linha in ("docs/reviews: review: sem parecer para o pedido `exemplo` (R-REVIEW)",
+                      "docs/reviews/exemplo.md: autoria: sem registro (R-REVIEW)"):
+            with self.subTest(linha=linha):
+                self.assertEqual(self.portao("review", [linha])[0], (None, None))
+
+    def test_base_fora_do_fluxo_nao_avisa_nem_le_o_pr(self):  # review A1 e segurança A1: a recusa de uso não é parecer em dia
+        for base in ("devlop", "origin/nada"):
+            with self.subTest(base=base):
+                resultado, pr = self.portao("review", [], base=base)
+                self.assertEqual(resultado, (None, None))
+                pr.assert_not_called()
+
+    def test_linha_de_erro_ou_fora_das_pastas_de_parecer_nao_avisa(self):  # segurança A2: aviso só sem linha desconhecida
+        for linha in ("pr: --base devlop: use develop, homolog, main (ou origin/<uma delas>); a base é lida de origin/<base>",
+                      "docs/pedidos: parecer conferido ilegível"):
+            with self.subTest(linha=linha):
+                self.assertEqual(self.portao("review", [REPROVADO, linha])[0], (None, None))
+                self.assertEqual(self.portao("qa", [linha], exigidos=("review",))[0], (None, None))
+
+    def test_brief_gerar_recusa_base_fora_do_fluxo(self):  # a CLI aceita só as bases do fluxo, como a juncao
+        tmp = Path(tempfile.mkdtemp(prefix="forge-portao-base-")).resolve()
+        self.addCleanup(shutil.rmtree, tmp, True)
+        env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(tmp)}
+        r = subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-check"), "brief", "gerar", "--pedido", "exemplo",
+                            "--base", "devlop"], capture_output=True, text=True, env=env, cwd=tmp)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("invalid choice: 'devlop'", r.stderr)
+
+    def test_fora_do_portao_ou_sem_a_branch_nao_le_o_pr(self):
+        for etapa, existe, branch in (("codigo", True, "melhoria/x"), ("pr", True, "melhoria/x"), ("review", False, "melhoria/x"),
+                                      ("review", True, None)):
+            with self.subTest(etapa=etapa, existe=existe, branch=branch):
+                resultado, pr = self.portao(etapa, [DESATUALIZADO], existe=existe, branch=branch)
+                self.assertEqual(resultado, (None, None))
+                pr.assert_not_called()
+
+    def test_o_brief_do_portao_traz_a_linha_no_ler_e_o_aviso_no_stderr(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-portao-")).resolve()
+        self.addCleanup(shutil.rmtree, tmp, True)
+        (tmp / "docs" / "pedidos").mkdir(parents=True)
+        (tmp / "docs" / "pedidos" / "exemplo.md").write_text(PEDIDO, encoding="utf-8")
+        for retorno, no_ler, no_stderr in (((LER_DO_DELTA, None), True, False), ((None, "em dia (H3)"), False, True)):
+            # create=True: na base sem portao_na_branch o patch não erra e o teste falha pela asserção (QA A1, veredito do vermelho)
+            with mock.patch.object(fc, "e_o_forge", return_value=True), \
+                    mock.patch.object(fc, "estado_da_branch", return_value=([], [])), mock.patch.object(fc, "pr_da_branch", return_value=({}, None)), \
+                    mock.patch.object(fc, "base_sha_real", return_value="b" * 40), \
+                    mock.patch.object(fc, "portao_na_branch", return_value=retorno, create=True), redirect_stderr(io.StringIO()) as err:
+                saida, rc, _ = fc.montar_brief(tmp, "exemplo", "forge:revisor-exemplo", "melhoria/x", "develop", etapa="review", cobre="E1.4")
+            self.assertEqual(rc, 0, retorno)
+            ler = saida.split("\n## Ler\n", 1)[1].split("\n## Decisões", 1)[0]
+            self.assertEqual(LER_DO_DELTA in ler, no_ler)
+            self.assertEqual(err.getvalue().count("brief gerar: aviso: em dia (H3)"), 1 if no_stderr else 0)
+            self.assertNotIn("aviso: None", err.getvalue())
 
 
 class Texto(unittest.TestCase):

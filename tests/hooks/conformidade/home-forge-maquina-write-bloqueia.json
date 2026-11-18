@@ -1,0 +1,30 @@
+{
+  "descricao": "Segurança A1 (MP4): Write no pesado.json da máquina (a vez de todos os projetos).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/home/.forge/maquina/pesado.json": "{}\n"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/.forge/maquina/pesado.json",
+      "content": "{}"
+    },
+    "agent_type": "forge:backend-developer",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "~/.forge/maquina/"
+  }
+}

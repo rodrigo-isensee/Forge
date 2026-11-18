@@ -180,7 +180,7 @@ class ProcessoOrfao(unittest.TestCase):
         """A sessão some entre a checagem e a gravação: a trava leva o dono checado, não o pid relido (o do reaper)."""
         pasta = pasta_temporaria(self)
         with mock.patch.object(pesado, "pid_da_sessao", side_effect=[4242, 4242] + [1] * 50), \
-                mock.patch.dict(os.environ, {"FORGE_PESADO_ESPERA_S": "0"}), \
+                mock.patch.dict(os.environ, {"FORGE_PESADO_ESPERA_S": "0", "FORGE_MAQUINA": str(pasta / "maquina")}), \
                 mock.patch.object(pesado, "processo", return_value=("S", 77)):
             pesado.esperar_a_vez(HookFalso(pasta), pasta, pasta / "pesado.json", "bin/forge-testes --completa", "toolu_1")
         trava = pesado.ler_json(pasta / "pesado.json", None)
@@ -200,7 +200,7 @@ class ProcessoOrfao(unittest.TestCase):
 
     def test_a_vez_grava_o_inicio_da_sessao(self):
         pasta = pasta_temporaria(self)
-        with mock.patch.dict(os.environ, {"FORGE_PESADO_ESPERA_S": "0"}), \
+        with mock.patch.dict(os.environ, {"FORGE_PESADO_ESPERA_S": "0", "FORGE_MAQUINA": str(pasta / "maquina")}), \
                 mock.patch.object(pesado, "processo", return_value=("S", 123)):
             pesado.esperar_a_vez(HookFalso(pasta), pasta, pasta / "pesado.json", "bin/forge-testes --completa", "toolu_1")
         self.assertEqual(pesado.ler_json(pasta / "pesado.json", None)["inicio"], 123)
@@ -209,13 +209,13 @@ class ProcessoOrfao(unittest.TestCase):
         pasta = pasta_temporaria(self)
         erro = io.StringIO()
         with mock.patch.object(pesado, "pid_da_sessao", side_effect=[4242] + [1] * 50), \
-                mock.patch.dict(os.environ, {"FORGE_PESADO_ESPERA_S": "1"}), contextlib.redirect_stderr(erro), \
+                mock.patch.dict(os.environ, {"FORGE_PESADO_ESPERA_S": "1", "FORGE_MAQUINA": str(pasta / "maquina")}), contextlib.redirect_stderr(erro), \
                 self.assertRaises(SystemExit) as saida:
             pesado.esperar_a_vez(HookFalso(pasta), pasta, pasta / "pesado.json", "bin/forge-testes --completa", "toolu_1")
         self.assertEqual(saida.exception.code, 2)
         self.assertIn("acabou", erro.getvalue())
         self.assertFalse((pasta / "pesado.json").exists(), "a vez não foi pega")
-        self.assertEqual(list((pasta / "pesado.fila").iterdir()), [], "a senha saiu da fila")
+        self.assertEqual(list((pasta / "maquina" / "pesado.fila").iterdir()), [], "a senha saiu da fila (MP4: a da máquina)")
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ PreToolUse (Agent/Task): bloqueia qualquer disparo com MemAvailable <= o piso de
 .forge/config.json o muda), sem trava por load (R-TETO, decisão do dono R-TETO-DISPONIBILIDADE de 2026-11-06 14:26);
 bloqueia também se já há o teto de agentes ativos ou um ativo com o mesmo tipo e descrição;
 senão reserva a vaga. `FORGE_CARGA_LIVRE=1` no ambiente do processo (só o dono) pula só a trava de memória
-(teto e duplicado seguem; o uso fica no erros.log). SubagentStart confirma a reserva com o agent_id; SubagentStop libera a vaga.
+(teto e duplicado seguem; o uso fica no erros.log), só com um projeto ativo (MP5). SubagentStart confirma a reserva com o agent_id; SubagentStop libera a vaga.
 Estado em .forge/run/agentes.json; no clone do Forge e nas worktrees dele (onde `.forge` é um arquivo, não uma pasta),
 em <diretório comum do git>/forge/run/agentes.json: protegido pela conformidade só nas sessões de projeto, no Forge sem guarda
 de escrita; `hooks_desligados` não vale no clone. Registros expiram (reserva sem início: 5 min; agente: expiracao_horas).
@@ -61,7 +61,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from _comum import (LIMITE_LOG, RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check,
-                    gravar_json, ler_json, mensagem)
+                    gravar_json, ler_json, ler_projetos_ativos, mensagem)
 from pesado import CASCAS, TRAVA_S, pid_da_sessao, pid_vivo
 
 FERRAMENTAS = {"Agent", "Task"}
@@ -959,10 +959,16 @@ def lancar(hook, agentes, agora, lidos):
             hook.registrar_escape(f"{variavel}={os.environ[variavel]} substitui a medida real do teto de agentes")
     piso = piso_de_memoria(hook.config())
     if carga_alta(carga, memoria, total, nproc, piso):  # vale para qualquer teto: teto_agentes e teto_maximo não desligam
-        if os.environ.get("FORGE_CARGA_LIVRE") == "1":  # escape só do dono: pula só a trava de memória
+        livre = os.environ.get("FORGE_CARGA_LIVRE") == "1"  # escape só do dono: pula só a trava de memória
+        projetos = ler_projetos_ativos() if livre else []  # MP5: o escape só vale com um projeto ativo
+        if livre and projetos is not None and len(projetos) < 2:
             hook.registrar_escape(f"FORGE_CARGA_LIVRE=1 liberou o disparo com memória baixa ({memoria:.1f} GB disponíveis, piso {piso:.1f} GB)")
         else:
             registrar_recusa(hook, "memoria", {"mem_gb": memoria, "nproc": nproc, "ativos": len(agentes)})
+            if livre:  # MP5: a recusa diz o motivo e a saída, dentro do LIMITE_MENSAGEM
+                motivo = "registro de projetos ilegível" if projetos is None else f"{len(projetos)} projetos ativos"
+                bloquear("R-TETO", f"memória baixa ({memoria:.1f} GB; piso {piso:.1f} GB); FORGE_CARGA_LIVRE=1 recusado: {motivo} "
+                                   "(MP5: só vale com um projeto ativo); feche a sessão de outro projeto ou espere memória liberar.")
             bloquear("R-TETO", f"memória baixa ({memoria:.1f} GB disponíveis; piso {piso:.1f} GB, `piso_memoria_gb` em .forge/config.json): "
                                "nenhum agente novo; espere memória liberar; só o dono: FORGE_CARGA_LIVRE=1.")
     teto, motivo = calcular_teto(hook.config(), ritmo=ritmo_do_projeto(hook.raiz))

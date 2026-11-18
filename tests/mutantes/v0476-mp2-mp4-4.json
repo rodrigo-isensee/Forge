@@ -1,0 +1,16 @@
+{
+  "pedido": "v0476-mp2-mp4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M12",
+      "guarda": "MP2: o script do hook anota quando roda",
+      "arquivo": "hooks/_maquina.py",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_maquina.Registro.test_dois_projetos_ativos_e_o_status_lista"
+      ]
+    }
+  ]
+}

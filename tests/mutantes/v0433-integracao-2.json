@@ -258,8 +258,8 @@
       "id": "I31",
       "guarda": "bin/forge-check:1926 ref or 'HEAD' (negada)",
       "arquivo": "bin/forge-check",
-      "de": "    cod, saida = git(raiz, \"rev-list\", \"--first-parent\", f\"--max-count={TETO_DE_COMMITS_SO_DE_PARECER}\", \"--end-of-options\", ref or \"HEAD\")",
-      "para": "    cod, saida = git(raiz, \"rev-list\", \"--first-parent\", f\"--max-count={TETO_DE_COMMITS_SO_DE_PARECER}\", \"--end-of-options\", not (ref or \"HEAD\"))",
+      "de": "    return ref or \"HEAD\"",
+      "para": "    return not (ref or \"HEAD\")",
       "testes": [
         "tests.test_t1_codigo_sem_teste",
         "tests.test_aq5_parecer_novo",
@@ -276,8 +276,8 @@
       "id": "I32",
       "guarda": "bin/forge-check:1927 cod (negada)",
       "arquivo": "bin/forge-check",
-      "de": "    cod, saida = git(raiz, \"rev-list\", \"--first-parent\", f\"--max-count={TETO_DE_COMMITS_SO_DE_PARECER}\", \"--end-of-options\", ref or \"HEAD\")\n    if cod:",
-      "para": "    cod, saida = git(raiz, \"rev-list\", \"--first-parent\", f\"--max-count={TETO_DE_COMMITS_SO_DE_PARECER}\", \"--end-of-options\", ref or \"HEAD\")\n    if not (cod):",
+      "de": "                     ref_publicada(raiz, ref))\n    if cod:",
+      "para": "                     ref_publicada(raiz, ref))\n    if not (cod):",
       "testes": [
         "tests.test_t1_codigo_sem_teste",
         "tests.test_aq5_parecer_novo",

@@ -209,6 +209,16 @@
             "args": [
               "-s",
               "-E",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/_maquina.py"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "-s",
+              "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/vigia.py"
             ],
             "timeout": 10
@@ -239,6 +249,16 @@
     "Stop": [
       {
         "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "-s",
+              "-E",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/_maquina.py"
+            ],
+            "timeout": 10
+          },
           {
             "type": "command",
             "command": "python3",

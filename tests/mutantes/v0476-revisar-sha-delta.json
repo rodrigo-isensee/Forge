@@ -1,0 +1,66 @@
+{
+  "pedido": "v0476-revisar-sha-delta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E3.49: branch publicada usa o head remoto (origin/<branch>), não a ref local",
+      "arquivo": "bin/forge-check",
+      "de": "    if ref and ref != \"HEAD\" and sha_do_commit(raiz, f\"refs/remotes/origin/{ref}\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_revisar_sha.HeadRemoto.test_ref_local_na_base_usa_o_head_remoto"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E3.49: HEAD nunca vira o origin/HEAD (branch padrão do remoto)",
+      "arquivo": "bin/forge-check",
+      "de": "    if ref and ref != \"HEAD\" and sha_do_commit(raiz, f\"refs/remotes/origin/{ref}\"):",
+      "para": "    if ref and sha_do_commit(raiz, f\"refs/remotes/origin/{ref}\"):",
+      "testes": [
+        "tests.test_revisar_sha.HeadRemoto.test_head_nunca_vira_o_origin_head"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E3.49: o parecer delta mantém o documento de docs/devops/ que não é parecer",
+      "arquivo": "bin/forge-check",
+      "de": "    nomes = [n for n in nomes if not livre(n, LIVRES + ANEXOS_DO_PORTAO) or documento_sem_parecer(raiz, fim, n)]",
+      "para": "    nomes = [n for n in nomes if not livre(n, LIVRES + ANEXOS_DO_PORTAO)]",
+      "testes": [
+        "tests.test_parecer_delta.DocumentoDeDevops.test_documento_sem_frontmatter_fica_no_delta"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E3.49: fora de docs/devops/ o livre continua livre",
+      "arquivo": "bin/forge-check",
+      "de": "    if not nome.startswith(\"docs/devops/\"):\n        return False\n    cod, blob",
+      "para": "    if False:\n        return False\n    cod, blob",
+      "testes": [
+        "tests.test_parecer_delta.DocumentoDeDevops.test_livre_fora_de_devops_sem_frontmatter_segue_fora_do_delta"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E3.49: o parecer de devops (com frontmatter) sai do delta",
+      "arquivo": "bin/forge-check",
+      "de": "    return bool(cod) or not blob.startswith(b\"---\")",
+      "para": "    return True",
+      "testes": [
+        "tests.test_parecer_delta.DocumentoDeDevops.test_parecer_de_devops_sai_do_delta"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E3.49: o documento sem frontmatter fica no delta",
+      "arquivo": "bin/forge-check",
+      "de": "    return bool(cod) or not blob.startswith(b\"---\")",
+      "para": "    return bool(cod)",
+      "testes": [
+        "tests.test_parecer_delta.DocumentoDeDevops.test_documento_sem_frontmatter_fica_no_delta"
+      ]
+    }
+  ]
+}

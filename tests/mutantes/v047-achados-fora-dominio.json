@@ -26,8 +26,8 @@
       "id": "AF-M3",
       "guarda": "o parecer delta deixa os achados recorrentes fora do domínio",
       "arquivo": "bin/forge-check",
-      "de": "    nomes = [n for n in nomes if not livre(n, LIVRES + ANEXOS_DO_PORTAO)]",
-      "para": "    nomes = [n for n in nomes if not livre(n, LIVRES)]",
+      "de": "    nomes = [n for n in nomes if not livre(n, LIVRES + ANEXOS_DO_PORTAO) or documento_sem_parecer(raiz, fim, n)]",
+      "para": "    nomes = [n for n in nomes if not livre(n, LIVRES) or documento_sem_parecer(raiz, fim, n)]",
       "testes": [
         "tests.test_parecer_conteudo.AchadosRecorrentesForaDoDominio.test_parecer_delta_nao_le_os_achados"
       ]

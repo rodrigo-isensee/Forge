@@ -9,6 +9,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ambiente_git import sem_manutencao  # noqa: E402
@@ -308,6 +309,181 @@ class IdiomaDoDono(unittest.TestCase):
         for i, uma in enumerate(listas):
             for outra in listas[i + 1:]:
                 self.assertEqual(uma & outra, frozenset())
+
+
+class VariosProjetos(unittest.TestCase):
+    """MP1 (diretriz 35, v0474 E3.3): com dois projetos ativos, a medida acusa a mensagem sem `Projeto:` e a fala do dono que
+    cita o outro projeto sem a pergunta; com um projeto só ou na sessão do Forge, nada muda."""
+
+    def setUp(self):
+        self.meta = importar_meta()
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-mp1-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.raiz = self.tmp / "loja"
+        (self.raiz / ".forge").mkdir(parents=True)
+        (self.raiz / ".forge" / "versao").write_text("0.47.5\n", encoding="utf-8")
+        ativos = self.tmp / "ativos.json"
+        original, self.meta.ATIVOS = self.meta.ATIVOS, str(ativos)
+        self.addCleanup(setattr, self.meta, "ATIVOS", original)
+        self.ativos(["loja", "estoque"])
+
+    def ativos(self, valor):
+        ativos = self.tmp / "ativos.json"
+        ativos.rmdir() if ativos.is_dir() and not ativos.is_symlink() else ativos.unlink(missing_ok=True)  # link, FIFO ou pasta
+        (self.tmp / "ativos.json").write_text(valor if isinstance(valor, str) else json.dumps({"projetos": valor}), encoding="utf-8")
+
+    def medir(self, resposta, fala="faça o relatório", raiz=None, depois=()):
+        transcrito = self.tmp / "t.jsonl"
+        linhas = [{"type": "user", "message": {"content": fala}}, {"type": "assistant", "message": {"content": "ok"}}, *depois]
+        transcrito.write_text("".join(json.dumps(l) + "\n" for l in linhas), encoding="utf-8")
+        campos = {"last_assistant_message": resposta, "transcript_path": str(transcrito)}
+        with tempfile.TemporaryDirectory() as pasta:
+            hook = type("Hook", (), {"campo": lambda self, chave: campos.get(chave), "run": lambda self: Path(pasta),
+                                     "iniciante": lambda self: False})()
+            self.meta.medir_mensagem(hook, self.raiz if raiz is None else raiz)
+            linha = json.loads((Path(pasta) / "mensagens.jsonl").read_text(encoding="utf-8"))
+        return {k: linha[k] for k in ("projetos_ativos", "sem_projeto", "cita_outro_projeto", "sem_pergunta_do_projeto") if k in linha}
+
+    def test_recibo_sem_projeto_acusa_e_com_projeto_passa(self):
+        self.assertEqual(self.medir("Recebi: vou fazer o relatório."),
+                         {"projetos_ativos": 2, "sem_projeto": True, "cita_outro_projeto": False, "sem_pergunta_do_projeto": False})
+        self.assertFalse(self.medir("Projeto: loja\nRecebi: vou fazer o relatório.")["sem_projeto"])
+
+    def test_fala_que_cita_o_outro_projeto_pede_a_pergunta(self):
+        fala = "mude o login do Estoque"
+        self.assertEqual(self.medir("Projeto: loja\nFeito.", fala)["sem_pergunta_do_projeto"], True)
+        self.assertEqual(self.medir("Projeto: loja\nIsto é para o projeto estoque?", fala),
+                         {"projetos_ativos": 2, "sem_projeto": False, "cita_outro_projeto": True, "sem_pergunta_do_projeto": False})
+        self.assertFalse(self.medir("Projeto: loja\nFeito.", "mude o login da loja")["cita_outro_projeto"], "o próprio projeto")
+        self.assertFalse(self.medir("Projeto: loja\nFeito.", "mude o estoque-novo")["cita_outro_projeto"], "nome dentro de outro")
+
+    def test_um_projeto_so_registro_ilegivel_ou_sessao_do_forge_nao_mede(self):
+        for valor in (["loja"], ["loja", ""], "{x", "[" * 50000, json.dumps(["loja", "estoque"]), json.dumps({"projetos": "loja estoque"})):
+            with self.subTest(ativos=str(valor)[:20]):
+                self.ativos(valor)
+                self.assertEqual(self.medir("Recebi."), {})
+        self.ativos(["loja", "estoque"])
+        forge = self.tmp / "Forge"
+        (forge / ".claude-plugin").mkdir(parents=True)
+        (forge / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
+        self.assertEqual(self.medir("Recebi.", "mude o estoque", raiz=forge), {}, "exceção do dono: a sessão do Forge")
+        self.assertEqual(self.meta.medida_do_projeto(None, None, "Recebi."), {}, "sem raiz")
+        with mock.patch.object(self.meta, "projetos_ativos", side_effect=AssertionError("ATIVOS lido")):
+            self.assertEqual(self.meta.medida_do_projeto(None, forge, "Recebi."), {}, "a sessão do Forge nem lê ATIVOS")
+            self.assertEqual(self.meta.medida_do_projeto(None, None, "Recebi."), {}, "sem raiz, nem lê ATIVOS")
+
+    def test_so_a_fala_digitada_pelo_dono_conta(self):
+        """Review A1: aviso de subagente, linha meta e lembrete do sistema depois da fala não são a fala do dono."""
+        avisos = ({"type": "user", "message": {"content": "<task-notification>o PR do estoque</task-notification>"}},
+                  {"type": "user", "isMeta": True, "message": {"content": "o estoque caiu"}},
+                  {"type": "user", "message": {"content": [{"type": "text", "text": "<system-reminder>estoque</system-reminder>"}]}})
+        for aviso in avisos:
+            with self.subTest(aviso=str(aviso)[:40]):
+                self.assertFalse(self.medir("Projeto: loja\nFeito.", "mude o login da loja", depois=[aviso])["cita_outro_projeto"])
+        self.assertTrue(self.medir("Projeto: loja\nFeito.", "veja o estoque", depois=[avisos[0]])["cita_outro_projeto"])
+        so_espaco = {"type": "user", "message": {"content": "  "}}
+        self.assertTrue(self.medir("Projeto: loja\nFeito.", "veja o estoque", depois=[so_espaco])["cita_outro_projeto"])
+        self.assertEqual((self.meta.fala_do_dono(None), self.meta.ultima_mensagem(None)), (None, None), "sem transcrito")
+
+    def test_leitor_distingue_sem_registro_de_registro_ilegivel(self):
+        """MP5: sem o arquivo, [] (um projeto); link, FIFO, pasta, caminho sob arquivo ou fora da forma, None (o `agentes`
+        recusa o escape, falha fechada)."""
+        ler, ativos = self.meta.ler_projetos_ativos, self.tmp / "ativos.json"
+        self.assertEqual(ler(str(self.tmp / "nada.json")), [], "sem o arquivo")
+        self.assertIsNone(ler(str(ativos / "sob-arquivo.json")), "caminho sob um arquivo")
+        for nome, montar in {"link": lambda: ativos.symlink_to(self.tmp / "nada.json"), "fifo": lambda: os.mkfifo(ativos),
+                             "pasta": lambda: ativos.mkdir(), "lista": lambda: self.ativos("[]"),
+                             "projetos texto": lambda: self.ativos('{"projetos": "loja"}')}.items():
+            with self.subTest(caso=nome):
+                ativos.unlink(missing_ok=True) if not ativos.is_dir() or ativos.is_symlink() else ativos.rmdir()
+                montar()
+                self.assertIsNone(ler(str(ativos)))
+
+    def test_erro_de_leitura_e_registro_ilegivel(self):
+        """MP5, volta (review A1, segurança A2): OSError no fstat ou no read devolve None, nunca exceção que o `executar`
+        libera (falha aberta)."""
+        self.ativos(["loja"])
+        for funcao in ("fstat", "read"):
+            with self.subTest(funcao=funcao), mock.patch.object(os, funcao, side_effect=OSError(5, "EIO")):
+                self.assertIsNone(self.meta.ler_projetos_ativos(self.meta.ATIVOS))
+
+    def test_nome_fora_da_forma_fecha_o_agentes_e_o_meta_tolera(self):
+        """MP5, volta (segurança A1): nome fora da forma não baixa a contagem do `agentes` (None); o `meta` só o deixa de fora."""
+        for ruim in ("x" * 129, 5, "  ", None):
+            with self.subTest(nome=str(ruim)[:10]):
+                self.ativos(["loja", ruim])
+                self.assertIsNone(self.meta.ler_projetos_ativos(self.meta.ATIVOS))
+                self.assertEqual(self.meta.ler_projetos_ativos(self.meta.ATIVOS, tolerante=True), ["loja"])
+        self.ativos(["loja", "x" * 128])
+        self.assertEqual(len(self.meta.ler_projetos_ativos(self.meta.ATIVOS)), 2, "128 caracteres ainda vale")
+        self.ativos(["loja", "estoque", 7])
+        self.assertEqual(self.medir("Recebi.")["projetos_ativos"], 2, "o `meta` segue tolerante")
+
+    def test_nome_repetido_conta_uma_vez(self):
+        """MP5, volta (review A2): repetido, sem diferença de maiúsculas, conta uma vez; vale o primeiro, na ordem."""
+        self.ativos(["Loja", "estoque", "loja", "LOJA"])
+        self.assertEqual(self.meta.ler_projetos_ativos(self.meta.ATIVOS), ["Loja", "estoque"])
+        self.ativos(["loja", "Loja"])
+        self.assertEqual(self.medir("Recebi."), {}, "um projeto só: o `meta` não mede")
+
+    def test_proprio_projeto_sem_diferenca_de_maiusculas(self):
+        self.ativos(["Loja", "estoque"])
+        self.assertFalse(self.medir("Projeto: loja\nFeito.", "mude a loja")["cita_outro_projeto"])
+
+    def test_ativos_em_link_fifo_grande_ou_com_nomes_demais_nao_mede(self):
+        """Segurança A1: ATIVOS só vale como arquivo regular, sem link, de até TETO_DE_ATIVOS bytes e MAXIMO_DE_ATIVOS nomes."""
+        ativos = self.tmp / "ativos.json"
+        valido = json.dumps({"projetos": ["loja", "estoque"]})
+        casos = {"link": lambda: (ativos.unlink(), (self.tmp / "real.json").write_text(valido, encoding="utf-8"),
+                                  ativos.symlink_to(self.tmp / "real.json")),  # o alvo é válido: só o link recusa
+                 "fifo": lambda: (ativos.unlink(), os.mkfifo(ativos)),
+                 "pasta": lambda: (ativos.unlink(), ativos.mkdir()),
+                 "grande": lambda: self.ativos(valido + " " * self.meta.TETO_DE_ATIVOS),
+                 "nomes demais": lambda: self.ativos(["loja"] + [f"p{i}" for i in range(self.meta.MAXIMO_DE_ATIVOS)])}
+        for nome, montar in casos.items():
+            with self.subTest(caso=nome):
+                self.ativos(valido)
+                montar()
+                self.assertEqual(self.medir("Recebi."), {})
+        self.ativos(valido + " " * (self.meta.TETO_DE_ATIVOS - len(valido)))
+        self.assertEqual(self.medir("Recebi.")["projetos_ativos"], 2, "no teto exato ainda vale")
+        self.ativos(["loja"] + [f"p{i}" for i in range(self.meta.MAXIMO_DE_ATIVOS - 1)])
+        self.assertEqual(self.medir("Recebi.")["projetos_ativos"], self.meta.MAXIMO_DE_ATIVOS, "no máximo exato ainda vale")
+        self.ativos(["loja", "estoque", "x" * (self.meta.MAXIMO_DO_NOME + 1)])
+        self.assertEqual(self.medir("Recebi.")["projetos_ativos"], 2, "nome longo demais fica de fora")
+        self.ativos(["loja", "x" * self.meta.MAXIMO_DO_NOME])
+        self.assertEqual(self.medir("Recebi.")["projetos_ativos"], 2, "nome no máximo exato vale")
+
+    def test_ativos_em_fifo_com_escritor_e_json_valido_nao_vale(self):
+        """Segurança A1 (MP5-01): o FIFO com escritor e JSON válido de dois nomes também dá None; só a guarda S_ISREG recusa."""
+        ativos = self.tmp / "ativos.json"
+        ativos.unlink()
+        os.mkfifo(ativos)
+        escritor = os.open(ativos, os.O_RDWR | os.O_NONBLOCK)  # o escritor fica aberto: a leitura acharia o JSON
+        self.addCleanup(os.close, escritor)
+        os.write(escritor, json.dumps({"projetos": ["loja", "estoque"]}).encode("utf-8"))
+        self.assertIsNone(self.meta.ler_projetos_ativos(self.meta.ATIVOS))
+
+    def test_ativos_em_fifo_nao_troca_a_recusa_do_stop(self):
+        """Segurança A1 (S2): com ATIVOS em FIFO, o Stop com a checagem falhando sai com 2 (R-PROVA) no prazo, sem travar."""
+        raiz = self.tmp / "proj"
+        (raiz / ".forge" / "run").mkdir(parents=True)
+        subprocess.run(["git", "init", "-q", str(raiz)], check=True, env=sem_manutencao(), capture_output=True)
+        (raiz / ".forge" / "versao").write_text("0.47.5\n", encoding="utf-8")
+        (raiz / ".forge" / "run" / "meta.json").write_text(json.dumps({"pedido": "p1", "checagens": [["false"]], "armado": True,
+                                                                       "repeticoes": 0}), encoding="utf-8")
+        (raiz / "t.jsonl").write_text(json.dumps({"type": "user", "message": {"content": "mude o estoque"}}) + "\n", encoding="utf-8")
+        (self.tmp / "home" / ".forge" / "maquina").mkdir(parents=True)
+        os.mkfifo(self.tmp / "home" / ".forge" / "maquina" / "projetos-ativos.json")
+        env = sem_manutencao({"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.tmp / "home"),
+                              "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull})
+        lancador = "import runpy, sys; sys.path.insert(0, sys.argv[1]); runpy.run_path(sys.argv[2], run_name='__main__')"
+        entrada = {"hook_event_name": "Stop", "session_id": "s1", "cwd": str(raiz), "transcript_path": str(raiz / "t.jsonl"),
+                   "last_assistant_message": "Recebi."}
+        r = subprocess.run([sys.executable, "-I", "-c", lancador, str(RAIZ / "hooks"), str(RAIZ / "hooks" / "meta.py")],
+                           input=json.dumps(entrada), cwd=raiz, env=env, capture_output=True, text=True, timeout=20)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("`false` (rc=1)", r.stderr)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,40 @@
+{
+  "descricao": "MP1 (diretriz 35, exceção do dono de 17/11): na sessão do próprio Forge, com dois projetos ativos, não há medida de projeto.",
+  "forge": false,
+  "arquivos": {
+    "t.jsonl": [
+      "{\"type\": \"user\", \"message\": {\"content\": \"mude o login do estoque\"}}"
+    ],
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/home/.forge/maquina/projetos-ativos.json": "{\"projetos\": [\"proj\", \"estoque\"]}"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{raiz}/t.jsonl",
+    "last_assistant_message": "Recebi: vou fazer o relatório."
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "mensagens.jsonl": {
+        "contem": [
+          "\"caracteres\": 30"
+        ],
+        "ausente": [
+          "projetos_ativos",
+          "sem_projeto"
+        ]
+      }
+    }
+  }
+}
