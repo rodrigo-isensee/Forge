@@ -16,10 +16,11 @@
       "id": "M28",
       "guarda": "GH-REPO-DE-ARQUIVO (A5 da E3.13): source e . mexem em todos os SENSIVEIS",
       "arquivo": "hooks/parecer.py",
-      "de": "if comando and comando[0] in CARREGA_ARQUIVO:",
-      "para": "if False:",
+      "de": "(comando[0] in CARREGA_ARQUIVO or nome_incerto(comando[0]))",
+      "para": "(False or nome_incerto(comando[0]))",
       "testes": [
-        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao",
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d1_opcoes_depois_de_builtin_e_command"
       ]
     },
     {
