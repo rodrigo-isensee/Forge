@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0475-ci-cota
-commit: e0ac850854ef8d5efc64507f04379864c893f803
+commit: 19e7b93fe4b59d2883128e17482ce3e1829955f4
 parecer: reprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -17,8 +17,8 @@ data: 2026-11-17
 Sem especificação de UX nem contrato de API: a obrigação é o item E3.42 (aviso de minutos do Actions acima de 80%, `R-CUSTO`) e o docstring de `bin/forge-cota-ci`. Diff conferido contra a base 2fa505d7: `bin/forge-cota-ci`, `tests/test_cota_ci.py`, `tests/mutantes/v0475-ci-cota.json`, duas skills (texto) e o fragmento de changelog. Só leitura por `gh api`, sem token novo e sem custo.
 
 ## Achados
-- A1 (bloqueante) skills/ci-cd/SKILL.md:56 · o texto novo estoura o teto de caracteres: test_metricas_texto.test_nenhuma_metrica_passa_do_teto e test_orcamento_instrucao.test_nenhum_agente_passa_do_teto passam na base e falham no head (reproduzido em e0ac8508). Encurtar a skill.
-- A2 (recomendado) tests/test_cota_ci.py:84 · test_opcao_desconhecida_sai_2 passa também na base (rc 2 de "arquivo não existe") e não confere stderr; assertir "uso:" em stderr para ele falhar sem a ferramenta.
+- A1 (bloqueante) tests/test_cota_ci.py:38 · test_ambiente_git.LeituraEstatica.test_nenhum_modulo_roda_git_sem_o_ponto_unico falha: `git init` (linha 38) e `git remote add` (linha 40) sem `env=` do ponto único (ambiente_git.sem_manutencao). Passar env=sem_manutencao(env) nos dois.
+- A2 (recomendado) tests/mutantes/v0475-ci-cota-2.json:2 · `pedido` difere do da spec 1 (v0475-ci-cota); `forge-mutante spec1 spec2` sai "spec inválida" (a skill manda uma só rodada, mesmo pedido). Alinhar o campo.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -40,3 +40,13 @@ Sem especificação de UX nem contrato de API: a obrigação é o item E3.42 (av
 - CI: sem PR nem check-run `bateria` para o sha ainda; a suíte inteira fica para o CI do PR.
 - Permissões e acessibilidade: não se aplicam (CLI de leitura, sem UI); o uso do token existente do `gh` não amplia escopo.
 - Regressão (forge-testes --vermelho 2fa505d7, saída final): `regressão=2` (test_metricas_texto e test_orcamento_instrucao, H=falha B=ok), `prova (asserção)=10`, `sem veredito=1` (test_forge). Reproduzido à mão no checkout de e0ac8508: os dois falham por estouro de `skills/ci-cd/SKILL.md` e do total de caracteres do devops-engineer. Por isso o parecer é reprovado.
+
+## Revalidação no head 19e7b93f (delta desde e0ac8508)
+- Corrigido: o antigo A1 (teto de texto): `python3 -m unittest tests.test_metricas_texto` -> `Ran 2 tests ... OK`; `tests.test_orcamento_instrucao` -> `Ran 8 tests ... OK`. O antigo A2 (stderr "uso:") foi tratado no teste novo.
+- `python3 -I tests/catraca.py --base origin/develop` -> rc 0 (sem guarda sem mutante).
+- `tests.test_cota_ci` -> `Ran 26 tests ... OK`.
+- `tests.test_ambiente_git` -> `Ran 20 tests ... FAILED (failures=1)` (A1; `test_cota_ci.py` não existe na base, a falha vem deste delta).
+- Mutação, uma rodada por pedido (`--processos 3`): spec 1 rev=19e7b93fe4b5, M1 a M11 `morreu`; spec 2 rev=19e7b93fe4b5, M12 a M27 `morreu`; nenhum sobrevivente.
+- Vermelho oficial (`forge-testes --vermelho`): não rerrodado (fila R-TETO ocupada); vale o substituto do parecer anterior e o autor cola o oficial.
+- CI: sem check-run `bateria` consultado para este sha; a suíte inteira fica para o CI do PR.
+- Parecer: reprovado por A1 (única razão).
