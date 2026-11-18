@@ -1,0 +1,76 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "H1",
+      "guarda": "git tag no Forge passa pela trava",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if sub == \"tag\":\n            self.git_tag(args, pasta_git)",
+      "para": "        if sub == \"tag-nunca\":\n            self.git_tag(args, pasta_git)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0474_tag"
+      ]
+    },
+    {
+      "id": "H2",
+      "guarda": "git tag fora do Forge não é barrado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not self.repositorio_do_forge(pasta):\n            return\n        curtas",
+      "para": "        if False:\n            return\n        curtas",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0474_tag"
+      ]
+    },
+    {
+      "id": "H3",
+      "guarda": "git tag sem argumento lista",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if args and not (leitura and so_opcoes_de_leitura):",
+      "para": "        if not (leitura and so_opcoes_de_leitura):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0474_tag"
+      ]
+    },
+    {
+      "id": "H4",
+      "guarda": "opção de mudar a tag ao lado da de lista barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if args and not (leitura and so_opcoes_de_leitura):",
+      "para": "        if args and not leitura:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0474_tag"
+      ]
+    },
+    {
+      "id": "H5",
+      "guarda": "envio de tag fora do Forge não é barrado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not (self.repositorio_do_forge(pasta) or (remoto and parecer.aponta_para_o_forge(remoto))):\n            return",
+      "para": "        if False:\n            return",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0474_tag"
+      ]
+    },
+    {
+      "id": "H6",
+      "guarda": "envio de tag para o Forge barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if envia_tag:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0474_tag"
+      ]
+    },
+    {
+      "id": "H7",
+      "guarda": "--follow-tags e push.followTags na linha barram",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                     or any(TAG_NA_CONFIG.search(g) for g in globais))",
+      "para": "                     or False)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_v0474_tag"
+      ]
+    }
+  ]
+}

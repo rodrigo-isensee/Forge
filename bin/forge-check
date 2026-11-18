@@ -9447,17 +9447,41 @@ def versao(texto):
         return None
 
 
-def migracao_pendente(raiz):
-    """Versões de migração do Forge (ADR 0005) acima da `.forge/versao` do projeto e até a do plugin."""
+def modelo_atras_do_plugin(raiz):
+    """(versão do modelo do projeto, versão do plugin) quando a `.forge/versao` está abaixo do plugin; senão None."""
     try:
         atual = versao((raiz / ".forge" / "versao").read_text(encoding="utf-8"))
         plugin = versao(json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"])
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
-        return []
+        return None
     if not atual or not plugin or atual >= plugin:
+        return None
+    return atual, plugin
+
+
+def migracao_pendente(raiz):
+    """Versões de migração do Forge (ADR 0005) acima da `.forge/versao` do projeto e até a do plugin."""
+    par = modelo_atras_do_plugin(raiz)
+    if par is None:
         return []
+    atual, plugin = par
     return sorted((p.parent.name for p in (PLUGIN / "migrations").glob("*/migrar")
                    if versao(p.parent.name) and atual < versao(p.parent.name) <= plugin), key=versao)
+
+
+def branch_do_modelo_sem_pr(raiz):
+    """ADR 0017 (seção 6 do desenho): a abertura automática prepara `forge/upgrade-<v>` só local, sem envio. Devolve o nome
+    quando o modelo está atrás do plugin, a branch existe local e não tem cópia em `origin` (sem rede nem `gh`); senão None."""
+    par = modelo_atras_do_plugin(raiz)
+    if par is None:
+        return None
+    ramo = "forge/upgrade-" + ".".join(str(n) for n in par[1])
+    try:
+        local = git(raiz, "rev-parse", "--verify", "-q", f"refs/heads/{ramo}")[0]
+        remoto = git(raiz, "rev-parse", "--verify", "-q", f"refs/remotes/origin/{ramo}")[0]
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return ramo if local == 0 and remoto != 0 else None
 
 
 # A ferramenta defasada (versão-defasada, VD-3): a conferência feita por uma cópia do forge-check atrás do repositório não vale -----
@@ -10132,7 +10156,12 @@ def executar(a, raiz):
             print(v)
         return 1 if any(not v.startswith("transcricao: aviso:") for v in violacoes) else 0  # aviso não falha
     pendentes = migracao_pendente(raiz)
-    if pendentes:
+    if ramo := branch_do_modelo_sem_pr(raiz):  # ADR 0017: a abertura já rodou o forge-upgrade; o Jarvis passa ao tech-lead
+        print(f"forge-check: aviso: branch {ramo} pronta, sem PR; o tech-lead a envia (git push origin {ramo}), "
+              "abre o PR na develop e o mescla com os portões da classe verdes, sem perguntar ao dono; o que a catraca pedir ao dono fica "
+              "parado e listado (R-CONFORMIDADE)",
+              file=sys.stderr)
+    elif pendentes:
         print(f"forge-check: aviso: migração do Forge pendente ({', '.join(pendentes)}); rode forge-upgrade",
               file=sys.stderr)
     branch_do_pr = None

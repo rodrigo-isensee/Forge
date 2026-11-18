@@ -17,6 +17,7 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import forge_sempre_atual as fsa  # noqa: E402
 import forge_versoes as fv  # noqa: E402
 
 RAIZ = fv.RAIZ
@@ -181,6 +182,22 @@ def resolver_conflito(projeto, nova, antes):
     return False
 
 
+def conferir_hooks(projeto, modelo, ligar):
+    """Q2 (E6.10): todo `<hook>.local` do modelo que o projeto tem precisa ser chamado pelo `<hook>` do projeto. `ligar` (só na branch do
+    upgrade) tenta ligar a chamada num commit à parte; fora dela, ou se não der, só avisa. Nunca apaga nada. Devolve as frases para o dono."""
+    frases = []
+    for hook, local, motivo in fv.hooks_sem_chamada(projeto, modelo):
+        ligou = False
+        if ligar and motivo == "nao-chama" and fv.ligar_hook(projeto, hook, local):
+            rel = f".githooks/{hook}"
+            ligou = (git(projeto, "add", "--", rel)[0] == 0 and
+                     git(projeto, "commit", "-q", "-m", f"chore(forge): liga o {local} ao {hook} do projeto", "--", rel)[0] == 0)
+            if not ligou:  # nada fica pela metade: desfaz a mudança no arquivo e no índice
+                git(projeto, "restore", "--source=HEAD", "--staged", "--worktree", "--", rel)
+        frases.append(fv.texto_do_hook_sem_chamada(hook, local, motivo, ligou))
+    return frases
+
+
 def oferecer_voltar(atual):
     print("\nAlgo não saiu como esperado. Nada foi enviado ao GitHub e nada foi apagado.")
     if confirmar(f"Voltar para a versão {atual}?"):
@@ -193,6 +210,10 @@ def oferecer_voltar(atual):
 def fixar_somente(url, atual, projeto):
     deu, msg = fv.fixar_plugin(url, atual, projeto=projeto)
     print(f"Forge: {msg}.", file=sys.stdout if deu else sys.stderr)
+    if deu:  # a fixação do dono vai para o estado da ferramenta: a abertura seguinte do atalho a respeita (ADR 0017, item 11)
+        gravou, motivo = fsa.fixar_como_dono(atual)
+        if not gravou:
+            print(f"Forge: não gravei a fixação para a atualização automática ({motivo}); ela pode voltar a subir de versão.", file=sys.stderr)
     return 0 if deu else 1
 
 
@@ -235,6 +256,8 @@ def main():
         return 1
     if nova is None or fv.versao_de(nova) <= fv.versao_de(atual):
         print(f"Você já está na última versão do Forge ({atual}).")
+        for frase in conferir_hooks(projeto, RAIZ / "templates" / "projeto", ligar=False):  # só avisa: sem branch do upgrade, nada muda
+            print(f"Atenção: {frase}")
         return 0
 
     with tempfile.TemporaryDirectory(prefix="forge-nova-") as tmp:
@@ -293,6 +316,7 @@ def atualizar(projeto, url, atual, nova, forge_novo):
         print(f"Não deu para trocar o plugin: {msg}. " + ("Só a cópia local da develop avançou; o resto do projeto não foi mexido." if avancou else "O projeto não foi mexido."))
         return 1
     print(f"Plugin: {msg}.")
+    fsa.soltar_fixacao_do_dono()  # atualizar de propósito solta a fixação que o dono tinha posto (ADR 0017, item 11)
 
     codigo, saida = rodar_do_forge_novo(forge_novo, "forge-upgrade", str(projeto))
     if codigo != 0:
@@ -303,6 +327,8 @@ def atualizar(projeto, url, atual, nova, forge_novo):
     criou_ramo = git(projeto, "branch", "--show-current")[1] == ramo
     if not integrar_develop(projeto, nova):
         return oferecer_voltar(atual)
+    for frase in conferir_hooks(projeto, forge_novo / "templates" / "projeto", ligar=criou_ramo):
+        print(f"Atenção: {frase}")
     abrir_pr = next((l.strip() for l in saida.splitlines() if l.strip().startswith("gh pr create")), "gh pr create")
 
     problemas, saida = fv.problemas_do_doutor(forge_novo / "bin", projeto)

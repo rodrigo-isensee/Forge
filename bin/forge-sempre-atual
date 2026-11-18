@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""Forge: mantém o plugin na última versão publicada (FORGE-SEMPRE-ATUAL, ADR 0017). Só biblioteca padrão.
+Uso: forge-sempre-atual --gatilho atalho|poststart [--projeto PASTA] [--orcamento SEGUNDOS]
+Chamado pelo atalho `jarvis` e pelo postStart do container, fora do Claude; recusa dentro dele. Não pergunta, não lê entrada,
+nunca barra quem o chamou: o resultado de cada rodada fica em `registro.log` na pasta de dados do plugin. Lógica em
+`forge_sempre_atual.py`."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import forge_sempre_atual  # noqa: E402
+
+if __name__ == "__main__":
+    sys.exit(forge_sempre_atual.main())
