@@ -16,6 +16,8 @@ PR só por número, `gh api` de merge e merge no Forge a partir de projeto são 
 No clone do Forge (`raiz_de_estado`: `~/Forge` e as worktrees de `~/.forge-contrib/wt/`) age também, sem
 `hooks_desligados`, e o PR fica em rascunho até o parecer: `gh pr create --draft` passa sem parecer e `gh pr ready`
 exige o parecer, como o merge (o GitHub não mescla PR em rascunho).
+O `gh pr` rodado fora de cópia de trabalho (com `-R`/`--repo`, `GH_REPO=` ou a URL do PR) é conferido no clone da sessão
+que tem remoto desse repositório; sem ele, recusa (INCIDENTE-HOOK-PARECER-CONTORNADO, `pasta_do_gh`).
 O `gh pr create` fora do rascunho decide pelo resultado que o `forge-check pr` gravou para o mesmo head, branch e base
 (PR-HOOK-PRAZO, `verificar` com `gravado`): sem o aprovado, recusa e diz o comando a rodar antes. O `gh pr ready` e o
 `gh pr merge` usam o mesmo resultado como atalho (E2.117): o aprovado do mesmo head e base decide sem refazer a checagem, o
@@ -34,10 +36,10 @@ from types import SimpleNamespace
 
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, OPCAO_DE_REAVALIACAO, PLUGIN,
                     PROFUNDIDADE, SHELLS_DA_REAVALIACAO, LancadorDemais, TextoDivididoAberto, bloquear,
-                    contorno_da_reavaliacao, conteudos_de_crase, formas_que_o_shell_le, corpo_so_lido, depois_das_atribuicoes, e_clone_do_forge,
+                    contorno_da_reavaliacao, conteudos_de_crase, copia_de_trabalho, formas_que_o_shell_le, corpo_so_lido, depois_das_atribuicoes, e_clone_do_forge,
                     excede_o_teto, executar,
                     fora_da_gramatica_com_heredoc, forge_check, git, nome_da_branch, nome_do_caminho, leituras, motivo_da_reavaliacao,
-                    palavras_do_texto, programas_e_atribuicoes, raiz_de_estado, reavaliacao, reavaliacao_das_palavras, reduzida, sem_atribuicoes,
+                    palavras_do_texto, programas_e_atribuicoes, raiz_declarada, raiz_de_estado, reavaliacao, reavaliacao_das_palavras, reduzida, sem_atribuicoes,
                     separar_lancadores, separar_regra, tirar_heredocs)
 
 MERGE = r"merge(?!-base\b)"  # `git merge-base` só lê o grafo (HK3-PARECER, E2): não é merge
@@ -365,7 +367,8 @@ def globais(toks):
 
 
 def analisar(toks):
-    """('cd', dir) | ('pr', None, base, head, rascunho) | ('prmerge', repo, alvo) | ('prready', alvo, desfaz) | ('api', args)
+    """('cd', dir) | ('pr', None, base, head, rascunho, repo) | ('prmerge', repo, alvo) | ('prready', alvo, desfaz, repo)
+    | ('api', args)
     | ('merge', dir, [(branch, [refs candidatas])]) | ('branch', dir, nome) | None."""
     sem = sem_atribuicoes(toks)
     atribuicoes, toks = toks[: len(toks) - len(sem)], sem
@@ -387,17 +390,17 @@ def analisar(toks):
             else:
                 repo_pr, j = toks[j].split("=", 1)[-1].removeprefix("-R"), j + 1
         args = toks[j + 1:]
+        repo = repo_pr or opcao(args, "--repo", "-R") or next((a.split("=", 1)[1] for a in atribuicoes
+                                                               if a.startswith("GH_REPO=")), None)
         if toks[j: j + 1] == ["create"]:
             return ("pr", None, opcao(args, "--base", "-B"), opcao(args, "--head", "-H"),
-                    bandeira(args, CREATE_COM_VALOR, {"--draft", "-d"}))
+                    bandeira(args, CREATE_COM_VALOR, {"--draft", "-d"}), repo)
         if toks[j: j + 1] == ["ready"]:
-            return ("prready", (posicionais(args, READY_COM_VALOR) or [None])[0],
-                    bandeira(args, READY_COM_VALOR, {"--undo"}))
+            alvo = (posicionais(args, READY_COM_VALOR) or [None])[0]
+            return ("prready", alvo, bandeira(args, READY_COM_VALOR, {"--undo"}), repo or repo_da_url(alvo))
         if toks[j: j + 1] == ["merge"]:
-            repo = repo_pr or opcao(args, "--repo", "-R") or next((a.split("=", 1)[1] for a in atribuicoes
-                                                                   if a.startswith("GH_REPO=")), None)
             alvo = (posicionais(args, MERGE_PR_COM_VALOR) or [None])[0]
-            return ("prmerge", repo, alvo)
+            return ("prmerge", repo or repo_da_url(alvo), alvo)
         return None
     if toks[0] != "git":
         return None
@@ -887,6 +890,45 @@ def branch_do_pr(raiz, alvo):
     return None if NUMERO_OU_URL.match(alvo) else nome_da_branch(alvo.split(":")[-1])
 
 
+URL_DO_PR = re.compile(r"^https?://[^/]+/([^/]+/[^/]+)/pull/", re.I)
+FIM_DO_SLUG = re.compile(r"([^/:\s]+)/([^/:\s]+?)(?:\.git)?/*$")
+
+
+def repo_da_url(alvo):
+    """`dono/repo` da URL do PR (`https://github.com/dono/repo/pull/5`), que o `gh` usa no lugar do `-R`; senão None."""
+    achado = URL_DO_PR.match(str(alvo))
+    return achado.group(1) if achado else None
+
+
+def slug(texto):
+    """`dono/repo` minúsculo do fim de `-R` ([HOST/]DONO/REPO) ou da URL de um remoto (https, ssh, `git@host:`); senão
+    None."""
+    achado = FIM_DO_SLUG.search(str(texto))
+    return f"{achado.group(1)}/{achado.group(2)}".lower() if achado else None
+
+
+def pasta_do_gh(hook, pasta, repo):
+    """INCIDENTE-HOOK-PARECER-CONTORNADO: a pasta em que o hook confere `gh pr create`, `ready` ou `merge`. Dentro de uma
+    cópia de trabalho, a do gh, como antes. Fora dela, o gh só age com `-R`/`--repo`, `GH_REPO=` ou a URL do PR: vale o
+    clone da sessão (`CLAUDE_PROJECT_DIR`) com remoto desse repositório; sem ele, recusa (falha fechada), porque sem
+    clone não há branch nem parecer a conferir. A sessão em que o hook não age (projeto com `hooks_desligados`, repositório
+    alheio) segue como antes."""
+    if copia_de_trabalho(pasta) is not None:
+        return pasta
+    sessao = raiz_declarada() or pasta  # sem a raiz da sessão, só a pasta do gh, que não é clone: recusa
+    clone = hook.projeto(sessao, clone_do_forge=True)
+    if clone is None and copia_de_trabalho(sessao) is not None:
+        return pasta
+    pedido = slug(repo)
+    if pedido and clone:
+        urls = git(clone, "config", "--get-regexp", r"^remote\..*\.url$")[1].splitlines()
+        if pedido in {slug(linha.partition(" ")[2]) for linha in urls}:
+            return clone
+    bloquear("R-REVIEW", f"gh pr fora de um clone do repositório indicado (-R, --repo, GH_REPO ou URL do PR: {repo}) e a "
+                         "sessão não é clone dele: sem a branch, não há parecer a conferir. Corrigir: rode o gh de dentro "
+                         "do clone (cd <clone>)")
+
+
 def merge_de_pr(hook, pasta, repo, alvo):
     raiz = hook.projeto(pasta, clone_do_forge=True)
     if not raiz:
@@ -1117,11 +1159,11 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
         elif parte[0] == "cd":
             pasta = (depois_do_cd(pasta, sem[1:], mexidas) if sem[1:] else resolver("~", mexidas, pasta)) if solto else None
         elif parte[0] == "pr":
-            pull_request(hook, raiz_gh, parte[2], parte[3], parte[4])
+            pull_request(hook, pasta_do_gh(hook, raiz_gh, parte[5]), parte[2], parte[3], parte[4])
         elif parte[0] == "prready":
-            pronto_de_pr(hook, raiz_gh, parte[1], parte[2])
+            pronto_de_pr(hook, pasta_do_gh(hook, raiz_gh, parte[3]), parte[1], parte[2])
         elif parte[0] == "prmerge":
-            merge_de_pr(hook, raiz_gh, parte[1], parte[2])
+            merge_de_pr(hook, pasta_do_gh(hook, raiz_gh, parte[1]), parte[1], parte[2])
         elif parte[0] == "api":
             merge_por_api(hook, raiz_gh, parte[1])
             pronto_por_graphql(hook, raiz_gh, parte[1], pasta)

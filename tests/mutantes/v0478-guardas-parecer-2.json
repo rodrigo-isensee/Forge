@@ -1,0 +1,16 @@
+{
+  "pedido": "v0478-guardas-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "INCIDENTE-HOOK-PARECER-CONTORNADO: a URL do PR lida vale como repositório (o desenho: nunca se lê)",
+      "arquivo": "hooks/parecer.py",
+      "de": "    return achado.group(1) if achado else None",
+      "para": "    return achado.group(1) if None else None",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "pedido": "v0478-guardas-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "INCIDENTE-HOOK-PARECER-CONTORNADO: dentro de cópia de trabalho a pasta do gh vale; fora dela, o hook resolve pelo -R",
+      "arquivo": "hooks/parecer.py",
+      "de": "if copia_de_trabalho(pasta) is not None:\n        return pasta",
+      "para": "if True:\n        return pasta",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "INCIDENTE-HOOK-PARECER-CONTORNADO: sessão em que o hook não age (hooks_desligados) segue como antes",
+      "arquivo": "hooks/parecer.py",
+      "de": "if clone is None and copia_de_trabalho(sessao) is not None:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "INCIDENTE-HOOK-PARECER-CONTORNADO: com -R e clone da sessão, o hook confere nele (o desenho: nunca acha)",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if pedido and clone:\n        urls = git(",
+      "para": "    if False:\n        urls = git(",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "INCIDENTE-HOOK-PARECER-CONTORNADO: o clone da sessão só vale se tem remoto do repositório do -R",
+      "arquivo": "hooks/parecer.py",
+      "de": "if pedido in {slug(linha.partition(\" \")[2]) for linha in urls}:",
+      "para": "if True:",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "INCIDENTE-HOOK-PARECER-CONTORNADO: gh pr ready <URL> usa o repositório da URL",
+      "arquivo": "hooks/parecer.py",
+      "de": "bandeira(args, READY_COM_VALOR, {\"--undo\"}), repo or repo_da_url(alvo))",
+      "para": "bandeira(args, READY_COM_VALOR, {\"--undo\"}), repo)",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "INCIDENTE-HOOK-PARECER-CONTORNADO: gh pr merge <URL> usa o repositório da URL",
+      "arquivo": "hooks/parecer.py",
+      "de": "return (\"prmerge\", repo or repo_da_url(alvo), alvo)",
+      "para": "return (\"prmerge\", repo, alvo)",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "INCIDENTE-HOOK-PARECER-CONTORNADO: GH_REPO= antes do gh pr também indica o repositório",
+      "arquivo": "hooks/parecer.py",
+      "de": "        repo = repo_pr or opcao(args, \"--repo\", \"-R\") or next((a.split(\"=\", 1)[1] for a in atribuicoes\n                                                               if a.startswith(\"GH_REPO=\")), None)",
+      "para": "        repo = repo_pr or opcao(args, \"--repo\", \"-R\")",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "INCIDENTE-HOOK-PARECER-CONTORNADO: o slug lido vale (o desenho: nenhum -R nem remoto se lê)",
+      "arquivo": "hooks/parecer.py",
+      "de": "return f\"{achado.group(1)}/{achado.group(2)}\".lower() if achado else None",
+      "para": "return f\"{achado.group(1)}/{achado.group(2)}\".lower() if None else None",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/parecer.py",
+      "trecho": "raiz_declarada() or pasta",
+      "motivo": "equivalente: o Claude Code sempre define CLAUDE_PROJECT_DIR; sem ela e fora de clone a sessao nao e vigiada (sessao_vigiada) e o hook nem chega aqui"
+    }
+  ]
+}

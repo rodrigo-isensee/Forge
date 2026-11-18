@@ -1,0 +1,2 @@
+### Corrigido
+- hook `parecer` (INCIDENTE-HOOK-PARECER-CONTORNADO, v0478 E3.1): `gh pr ready`, `gh pr merge` e `gh pr create` rodados fora de um repositório git, com `-R`/`--repo`, `GH_REPO=` ou a URL do PR, passavam sem conferência; agora o hook confere no clone da sessão (`CLAUDE_PROJECT_DIR`) que tem remoto desse repositório e recusa quando não o acha (falha fechada). Prova na develop 4182a6b9: 7 fixtures `incidente-r-*` de recusa davam 0.
