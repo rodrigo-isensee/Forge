@@ -3,21 +3,20 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0475-ci-custo
-commit: 7c7f6c42b2fc03ebeb781c3f1067520be7d8fb33
-parecer: reprovado
+commit: ae44f02bec60f2ab2f38aa677f9289bdd158ec0a
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 1
+bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-17
+data: 2026-11-18
 ---
 # QA: v0475-ci-custo
 
 Escopo (E3.66, pedido v0474): modelo de CI de projeto enxuto (`templates/projeto/.github/workflows/ci.yml` e `ci-docs.yml`), seção "CI de projeto privado: minutos" da skill `ci-cd`, mapa do `bin/forge-testes`. Obrigação: `R-CUSTO`.
 
 ## Achados
-- A2 (bloqueante) skills/ci-cd/SKILL.md:1 · tests.test_metricas_texto falha: 8490 caracteres (teto 6781), frase_media 191 (172), linhas_longas 32 (27); igual no 8a4a9707, o delta não tocou a skill. Enxugar o texto; subir o teto é afrouxar.
 - A1 (recomendado) templates/projeto/.github/workflows/ci.yml:12 · o modelo só se prova por texto; a execução real no Actions (agregador `ci` verde com ci-docs, PR misto md+código) não foi exercida aqui, confirmar no primeiro projeto.
 
 ## Critério → teste → resultado
@@ -61,3 +60,10 @@ Delta no domínio: `bin/forge-testes` (mapa: + test_parecer_delta e test_revisar
 - Mutação: `bin/forge-mutante tests/mutantes/v0475-ci-custo-3.json --base 8a4a9707`: `base=8a4a97077c22308b0a503d4e33f72bb91700e12a`, M30 `morreu`, rc 0.
 - `test_metricas_texto`: 1 falha (A2), anterior ao delta mas provada no head; a `bateria` do CI a pegaria.
 - Suíte inteira: vale o check-run `bateria` do mesmo sha. Resíduo A1 inalterado.
+
+## Revalidação por delta (7c7f6c42..ae44f02b)
+Delta no domínio: `skills/ci-cd/SKILL.md` (enxuta; o miolo foi para `skills/ci-cd/ci-de-projeto-privado.md`), `tests/test_modelo_ci.py` (lê a skill e o arquivo novo), `tests/mutantes/v0475-ci-custo-2.json` (M17, M18, M22 apontam para o arquivo novo). A2 (teto de texto) corrigido: `tests.test_metricas_texto` passa.
+- `catraca.py --base origin/develop`: rc 0, sem guarda sem mutante.
+- `test_metricas_texto` 2 OK; `test_orcamento_instrucao` 8 OK; `test_modelo_ci` 19 OK; `test_ambiente_git` 20 OK.
+- Mutação: `bin/forge-mutante tests/mutantes/v0475-ci-custo-2.json`: M17 a M22 todos `morreu`, rc 0 (os trechos `de` seguem existindo no arquivo novo, o que prova o deslocamento sem perda de guarda).
+- Suíte inteira: vale o check-run `bateria` do mesmo sha. Resíduo A1 inalterado (recomendado).
