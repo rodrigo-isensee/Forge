@@ -457,13 +457,11 @@ class CatalogoDosDestinos(unittest.TestCase):
 
     def ajuda_do_tar(self):
         tar = shutil.which("tar")
-        if not tar:
-            self.skipTest("sem tar no PATH: o catálogo do tar não tem com o que ser conferido")
-        r = subprocess.run([tar, "--help"], capture_output=True, text=True, timeout=60,
-                           env={"PATH": os.environ.get("PATH", ""), "LC_ALL": "C"})
-        if "GNU" not in r.stdout:
-            self.skipTest("o tar da máquina não é o GNU tar: o catálogo do tar é o da ajuda do GNU")
-        return r.stdout
+        ajuda = subprocess.run([tar, "--help"], capture_output=True, text=True, timeout=60,
+                               env={"PATH": os.environ.get("PATH", ""), "LC_ALL": "C"}).stdout if tar else ""
+        if "GNU" not in ajuda:  # um pulo só, com o motivo (a catraca conta cada pulo)
+            self.skipTest("sem o GNU tar no PATH: o catálogo do tar é o da ajuda do GNU e não tem com o que ser conferido")
+        return ajuda
 
     def catalogo(self, programa):
         codigo = ("import json, sys; sys.path.insert(0, sys.argv[1]); import conformidade as c; "
