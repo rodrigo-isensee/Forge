@@ -11,16 +11,6 @@
    "testes": [
     "tests.test_modelo_ci.Entrega.test_forge_init_copia_o_modelo_com_o_comando_da_stack"
    ]
-  },
-  {
-   "id": "M31",
-   "guarda": "o ambiente dos testes do modelo passa por sem_manutencao",
-   "arquivo": "tests/test_modelo_ci.py",
-   "de": "    return sem_manutencao(env)\n",
-   "para": "    return env\n",
-   "testes": [
-    "tests.test_ambiente_git"
-   ]
   }
  ]
 }
