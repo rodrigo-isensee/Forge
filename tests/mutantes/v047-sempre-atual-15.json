@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S33",
+      "guarda": "forge_sempre_atual.py:292 decide por `restante <= 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if restante <= 0:",
+      "para": "if not (restante <= 0):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S34",
+      "guarda": "forge_sempre_atual.py:318 decide por `pasta and os.path.isabs(pasta)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if pasta and os.path.isabs(pasta):",
+      "para": "if not (pasta and os.path.isabs(pasta)):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S35",
+      "guarda": "forge_sempre_atual.py:320 decide por `os.path.isfile(achado) and os.access(achado, os.X_OK)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if os.path.isfile(achado) and os.access(achado, os.X_OK):",
+      "para": "if not (os.path.isfile(achado) and os.access(achado, os.X_OK)):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S36",
+      "guarda": "forge_sempre_atual.py:323 decide por `local.is_file() and os.access(local, os.X_OK)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return str(local) if local.is_file() and os.access(local, os.X_OK) else None",
+      "para": "return str(local) if not (local.is_file() and os.access(local, os.X_OK)) else None",
+      "testes": [
+        "tests.test_sempre_atual.AncoraDentro.test_claude_so_do_path_ou_de_local_bin"
+      ]
+    },
+    {
+      "id": "S37",
+      "guarda": "forge_sempre_atual.py:327 decide por `shutil.which(\"bash\", path=self.env.get(\"PATH\", \"\")) or \"/bin/bash\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return shutil.which(\"bash\", path=self.env.get(\"PATH\", \"\")) or \"/bin/bash\"",
+      "para": "return not (shutil.which(\"bash\", path=self.env.get(\"PATH\", \"\")) or \"/bin/bash\")",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_adocao_sem_ultima_boa_so_confere_o_local"
+      ]
+    },
+    {
+      "id": "S38",
+      "guarda": "forge_sempre_atual.py:330 decide por `cwd or self.neutro`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return self.rodar([self.claude_bin, *args], cwd or self.neutro, cap)",
+      "para": "return self.rodar([self.claude_bin, *args], not (cwd or self.neutro), cap)",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S39",
+      "guarda": "forge_sempre_atual.py:341 decide por `rc == 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "dados = json.loads(saida) if rc == 0 else None",
+      "para": "dados = json.loads(saida) if not (rc == 0) else None",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S40",
+      "guarda": "forge_sempre_atual.py:344 decide por `not isinstance(dados, list)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not isinstance(dados, list):",
+      "para": "if isinstance(dados, list):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S193",
+      "guarda": "forge_versoes.py:553 decide por `partes and partes[0].endswith(\"/env\")`",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "if partes and partes[0].endswith(\"/env\"):",
+      "para": "if not (partes and partes[0].endswith(\"/env\")):",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_liga_a_chamada_no_hook_de_shell_do_projeto_num_commit_a_parte"
+      ]
+    },
+    {
+      "id": "S194",
+      "guarda": "forge_versoes.py:555 decide por `bool(partes) and Path(partes[0]).name in SHELLS`",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "return bool(partes) and Path(partes[0]).name in SHELLS",
+      "para": "return not (bool(partes) and Path(partes[0]).name in SHELLS)",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_hook_que_nao_e_de_shell_so_avisa_e_fica_intacto"
+      ]
+    },
+    {
+      "id": "S195",
+      "guarda": "forge_versoes.py:564 decide por `not pasta_modelo.is_dir()`",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "if not pasta_modelo.is_dir():",
+      "para": "if pasta_modelo.is_dir():",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_hook_com_fim_de_linha_do_windows_so_avisa"
+      ]
+    },
+    {
+      "id": "S196",
+      "guarda": "forge_versoes.py:567 decide por `not entrada.name.endswith(\".local\") or len(entrada.name) <= 6`",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "if not entrada.name.endswith(\".local\") or len(entrada.name) <= 6:",
+      "para": "if not (not entrada.name.endswith(\".local\") or len(entrada.name) <= 6):",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_hook_com_fim_de_linha_do_windows_so_avisa"
+      ]
+    },
+    {
+      "id": "S197",
+      "guarda": "forge_versoes.py:573 decide por `not alvo.is_file()`",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "if not alvo.is_file():",
+      "para": "if alvo.is_file():",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_hook_com_fim_de_linha_do_windows_so_avisa"
+      ]
+    },
+    {
+      "id": "S198",
+      "guarda": "forge_versoes.py:610 decide por `ligou`",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "if ligou:",
+      "para": "if not (ligou):",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_hook_com_fim_de_linha_do_windows_so_avisa"
+      ]
+    },
+    {
+      "id": "S199",
+      "guarda": "forge_versoes.py:613 decide por `motivo == \"sem-exec\"`",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "if motivo == \"sem-exec\":",
+      "para": "if not (motivo == \"sem-exec\"):",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_hook_com_fim_de_linha_do_windows_so_avisa"
+      ]
+    },
+    {
+      "id": "S200",
+      "guarda": "forge_versoes.py:615 decide por `motivo == \"sem-hook\"`",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "if motivo == \"sem-hook\":",
+      "para": "if not (motivo == \"sem-hook\"):",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_hook_com_fim_de_linha_do_windows_so_avisa"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge_versoes.py",
+      "trecho": "original[\"escopo\"] != \"user\"",
+      "motivo": "E6.5 (ADR 0017): devolver_original deixou o marketplace remove, que desinstalaria os projetos; o add sobre a existente vale para os dois escopos, sem condição no lugar"
+    }
+  ]
+}
