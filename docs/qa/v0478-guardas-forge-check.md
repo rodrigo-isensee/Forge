@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-forge-check
-commit: 63326514fc2bd1ba092acc22455176f04c0c6963
+commit: fca6174f1a9169a934c94484fa60d48d04085c94
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -30,3 +30,9 @@ Cartões FC-PR-PARECER-FORJADO e FILTROS-L08-G2-ORIGIN-LOCAL; o CONFIG-TETO-SEM-
 - Vermelho antes do verde: `forge-testes --vermelho 4182a6b9` não tem mapa para `bin/forge-testes` e caiu na suíte completa; estourou o prazo meu (rc=124), sem veredito. Refeito por cópia da base em `$TMPDIR` com os dois testes novos: test_fc_pr_parecer_forjado 4 falhas em 7; test_filtros_l08_g2_ancora 2 falhas e 1 erro em 4. Os que passam na base são os de não recusa (esperado).
 - Mutantes: `forge-mutante tests/mutantes/v0478-guardas-forge-check.json tests/mutantes/v0478-guardas-forge-check-2.json --base 4182a6b9`: M1 a M12 morreram, rc=0. `--cobertura --base 4182a6b9`: toda condição mudada de `bin/forge-check` tem mutante declarado; `tests/pesos-d4.json` é dado (não coberto, sem guarda).
 - Fora do que o diff muda: sem achado.
+
+## Revalidação (E2.8, head `fca6174f`)
+Delta `a3a92343..fca6174f` é a junção da develop (conflito resolvido em `tests/test_testes_tocados.py`); `bin/forge-check` não mudou no delta, então os mutantes M1 a M12 e o vermelho do parecer anterior seguem valendo (não rerrodados). `forge-check parecer delta` lista no domínio `bin/forge-testes`, `tests/pesos-d4.json` e `tests/test_testes_tocados.py`, tudo vindo da develop (índice do Forge, H7).
+- test_testes_tocados (python3 -I, TMPDIR): 162 testes, OK (skipped=1: sandbox sem /proc do mesmo pid, não é skip meu).
+- test_fc_pr_parecer_forjado 7 OK; test_filtros_l08_g2_ancora 4 OK, de novo no head.
+- Sem suíte local; a bateria é o check-run `bateria` do CI do PR.
