@@ -5,7 +5,7 @@
     {
       "id": "M4",
       "guarda": "FILA-27 A2: a consulta de arquivo (-F campo=@arq, --input arq) é lida, não só o inline",
-      "arquivo": "hooks/parecer.py",
+      "arquivo": "hooks/_gh_api.py",
       "de": "        if corpo or \"=@\" in a:",
       "para": "        if False:",
       "testes": [
@@ -15,17 +15,18 @@
     {
       "id": "M5",
       "guarda": "FILA-27 A2: --input - (entrada padrão) não dá para ler, mesmo com um arquivo chamado - na pasta",
-      "arquivo": "hooks/parecer.py",
+      "arquivo": "hooks/_gh_api.py",
       "de": "            if arq == \"-\":\n                return textos, False",
       "para": "            if False:\n                return textos, False",
       "testes": [
-        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone",
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_leitura_dos_arquivos_do_gh_api"
       ]
     },
     {
       "id": "M6",
       "guarda": "FILA-27 A2: arquivo da consulta que não abre recusa com a mensagem do R-CONTRIB",
-      "arquivo": "hooks/parecer.py",
+      "arquivo": "hooks/_gh_api.py",
       "de": "            except OSError:\n                return textos, False\n            if len(dados)",
       "para": "            except OSError:\n                return textos, True\n            if len(dados)",
       "testes": [
@@ -35,7 +36,7 @@
     {
       "id": "M7",
       "guarda": "FILA-27 A2: arquivo acima de 64 KiB não é lido (falha fechada)",
-      "arquivo": "hooks/parecer.py",
+      "arquivo": "hooks/_gh_api.py",
       "de": "            if len(dados) > TETO_DA_CONSULTA:",
       "para": "            if False:",
       "testes": [

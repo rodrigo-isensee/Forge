@@ -15,7 +15,7 @@
     {
       "id": "M78",
       "guarda": "a palavra com $ ou crase e expandida",
-      "arquivo": "hooks/parecer.py",
+      "arquivo": "hooks/_gh_api.py",
       "de": "any(o in palavra for o in EXPANSAO)",
       "para": "any(o not in palavra for o in EXPANSAO)",
       "testes": [

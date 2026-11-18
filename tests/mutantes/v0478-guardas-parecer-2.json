@@ -11,6 +11,47 @@
       "testes": [
         "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
       ]
+    },
+    {
+      "id": "M10",
+      "guarda": "GH-API-LEITURA-UNICA: `~` no começo do caminho recusa (o hook não sabe se o bash o expande)",
+      "arquivo": "hooks/_gh_api.py",
+      "de": "if arq.startswith(\"~\") or any(",
+      "para": "if any(",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_leitura_dos_arquivos_do_gh_api"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "GH-API-LEITURA-UNICA: curinga ou chave no caminho recusa (o bash troca o nome antes do gh)",
+      "arquivo": "hooks/_gh_api.py",
+      "de": "arq.startswith(\"~\") or any(c in arq for c in INCERTO_NO_CAMINHO):",
+      "para": "arq.startswith(\"~\"):",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_leitura_dos_arquivos_do_gh_api"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "GH-API-LEITURA-UNICA: `--input=@q` lê `@q` e o campo lê depois do `=@`, como o gh (o desenho é a leitura de antes)",
+      "arquivo": "hooks/_gh_api.py",
+      "de": "a.split(\"=\" if corpo else \"=@\", 1)[1]",
+      "para": "a.split(\"=\", 1)[1].removeprefix(\"@\")",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_leitura_dos_arquivos_do_gh_api",
+        "tests.test_hooks_parecer_repo.LeituraDoGhApi.test_campo_longo_com_igual_le_o_arquivo_depois_do_arroba"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "GH-API-LEITURA-UNICA: o campo `chave=@arq` corta no `=@`, não no primeiro `=`",
+      "arquivo": "hooks/_gh_api.py",
+      "de": "a.split(\"=\" if corpo else \"=@\", 1)[1]",
+      "para": "a.split(\"=\" if True else \"=@\", 1)[1]",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_leitura_dos_arquivos_do_gh_api"
+      ]
     }
   ]
 }
