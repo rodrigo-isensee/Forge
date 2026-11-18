@@ -40,7 +40,7 @@
       "de": "    except Exception as erro:  # noqa: BLE001 - sem ler a máquina, o disparo não sai",
       "para": "    except KeyError as erro:  # noqa: BLE001 - sem ler a máquina, o disparo não sai",
       "testes": [
-        "tests.test_maquina_teto.NoHook.test_registro_ilegivel_recusa"
+        "tests.test_maquina_teto.NoHook.test_pasta_da_maquina_aberta_ao_grupo_recusa"
       ]
     },
     {
@@ -71,7 +71,7 @@
       "de": "peso_valido(dados.get(\"peso\") if isinstance(dados, dict) else None)",
       "para": "peso_valido(dados.get(\"peso\") if isinstance(dados, (dict, list)) else None)",
       "testes": [
-        "tests.test_maquina_teto.QuatroCasos.test_sessao_sem_nome_de_projeto_e_config_fora_da_forma_nao_contam"
+        "tests.test_maquina_teto.QuatroCasos.test_sessao_sem_pasta_de_projeto_e_config_fora_da_forma_nao_contam"
       ]
     },
     {

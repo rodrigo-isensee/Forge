@@ -248,6 +248,14 @@ class NoHook(Base):
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("registro da máquina ilegível: ~/.forge/maquina/projetos-ativos.json; o usuário pode apagá-lo", r.stderr)
 
+    def test_pasta_da_maquina_aberta_ao_grupo_recusa(self):
+        """Outro erro ao ler a máquina (pasta fora de 0700) também recusa (falha fechada), com a pasta."""
+        self.gravar(_maquina.ATIVOS, {"sessoes": {}})
+        os.chmod(self.tmp / "maquina", 0o750)
+        r = self.rodar()
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("registro da máquina ilegível (~/.forge/maquina; registrado no erros.log)", r.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
