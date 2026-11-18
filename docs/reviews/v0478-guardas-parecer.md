@@ -3,41 +3,38 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: b989773a2ae7276692081441ff72c05d26d0f8da
+commit: 9b075525eaa2a3cadf408e77bafbe5e1817884ab
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-18
 ---
-# Review: v0478 E3.16 (melhoria/v0478-guardas-parecer), volta 2 do E3.12
+# Review: v0478 E3.21 (melhoria/v0478-guardas-parecer), volta 3 do E3.12
 
 ## Revalidação
-- Delta lido: `forge-check parecer delta docs/reviews/v0478-guardas-parecer.md`, intervalo 56bb90b5..b989773a (E3.15: 5c007978, 7b8d8466, cec853c9, b989773a). No domínio: `hooks/parecer.py` (`nomes_dinamicos`, `mexidas_na_linha`, `remotos`, mensagem do REPO_INCERTO), 16 fixtures `incidente-r-copia-alheia-*`, 1 `pasta-*`, specs `v0478-guardas-parecer-{5,6,7}.json` e `hk3-parecer-pasta-{11,12}.json`, `tests/test_hooks.py`, `tests/test_hooks_parecer_repo.py`, `docs/hooks-fixtures.md` (gerado) e o fragmento `changelog.d/`. Nada fora do delta relido.
+- Delta lido: `forge-check parecer delta docs/reviews/v0478-guardas-parecer.md`, intervalo b989773a..9b075525 (E3.19: 26262d6d, 652f4bd3, c98f3534, 9dd330f2, 65f4031d, 9b075525, e o merge 014f3e53). No domínio: `hooks/parecer.py` (`mexidas_na_linha`, `nome_incerto`, `mexe_no_config_do_git`, `linha_mantem_os_remotos`, `remotos_incertos`, `pasta_do_gh`, `conferir`), a matriz D1 a D7 em `docs/hooks.md`, o gerador `tests/test_hooks_parecer_matriz.py`, as specs `v0478-guardas-parecer-{5,8,9}.json`, `bin/forge-testes`, `tests/test_testes_tocados.py`, `tests/pesos-d4.json` e o fragmento `changelog.d/`. Nada fora do delta relido.
 
 ## Achados
-- A3 (bloqueante) hooks/parecer.py:624 · o laço tira só a palavra `command`, não as opções: `command -p . ./env.sh; gh pr ready feature/x` e `command -- . ./env.sh; …` dão 0 na cópia alheia sem parecer (S18, S26), e o bash carrega o GH_REPO nas duas; a docstring promete `source` e `.` depois de `command` (R-REVIEW).
-- A4 (recomendado) hooks/parecer.py:953 · (linha da base) a catraca (modo regras, script da develop 2904a68a) acusa R-QA `apagada` das 11 condições movidas para hooks/_gh_api.py e reprova o CI do PR; o `--cobertura` diz `movida`. Isenta não cabe (11 > 8). Saída: o rótulo `afrouxa-regra` do dono ou a catraca corrigida antes na develop.
+- A5 (bloqueante) hooks/parecer.py:646 · `${N:=v}` e `${N=v}` não contam como mexida: `set -a; : ${GH_REPO:=dono/forge}; gh pr ready feature/x` dá 0 na cópia alheia sem parecer (S28), e o bash exporta o GH_REPO; XDG_CONFIG_HOME e GIT_* idem (S29); a matriz não tem a forma (R-REVIEW).
 
 ## Sondas
-- S6 · cópia alheia da fixture `incidente-r-copia-alheia-source-gh-repo-ready-bloqueia` (env.sh com `export GH_REPO=dono/forge`), `source env.sh; gh pr ready feature/x` · espera: código 2 · obtido: código 2 (R-REVIEW, GH_REPO mexido)
-- S7 · mesma montagem, `. ./env.sh && gh pr ready feature/x` · espera: código 2 · obtido: código 2
-- S8 · mesma montagem, `builtin . ./env.sh; gh pr ready feature/x` · espera: código 2 · obtido: código 2
-- S9 · mesma montagem, `if source env.sh; then gh pr ready feature/x; fi`, `{ source env.sh; }; …`, `\source env.sh; …`, `time source …`, `! source …`, `set -a; source …` · espera: código 2 · obtido: código 2 nas seis
-- S11 · mesma montagem, `export $(cut -d' ' -f2 env.sh)`, `read "$n"`, `declare -n r=GH_REPO`, `local -n`, `readonly "$n"=…`, `builtin export "$k"=…`, `command -p export GH_REPO=…` antes do gh · espera: código 2 · obtido: código 2 nas sete
-- S19 · cópia alheia com `remote.origin.gh-resolved=dono/forge`, `gh pr ready feature/x` · espera: código 2 · obtido: código 2 (sem parecer)
-- S20 · cópia alheia com `url.git@github.com:dono/forge.git.insteadOf=<url da cópia>` · espera: código 2 · obtido: código 2 (sem parecer)
-- S25 · cópia alheia sem nada antes, `gh pr ready feature/x` (controle) · espera: código 0 · obtido: código 0
-- S18 · mesma montagem do S6, `command -p . ./env.sh; gh pr ready feature/x` · espera: código 2 · obtido: código 0 (bash: `command -p . ./env.sh; echo $GH_REPO` imprime dono/forge)
-- S26 · mesma montagem, `command -- . ./env.sh; gh pr ready feature/x` · espera: código 2 · obtido: código 0 (bash idem)
-- S27 · catraca da develop (`regra_guardas_dos_hooks`, base 4182a6b9, head b989773a) · espera: sem violação · obtido: 1 violação R-QA, `apagada · hooks/parecer.py:965(base) · corpo` e mais 10
+- S18 · cópia alheia da montagem do gerador (`incidente-r-copia-alheia-source-gh-repo-ready-bloqueia`), `command -p . ./env.sh; gh pr ready feature/x` · espera: código 2 · obtido: código 2 (GH_REPO mexido)
+- S26 · mesma montagem, `command -- . ./env.sh; gh pr ready feature/x` · espera: código 2 · obtido: código 2 (GH_REPO mexido)
+- S25 · mesma montagem, `gh pr ready feature/x` (controle) · espera: código 0 · obtido: código 0
+- S28 · mesma montagem, `set -a; : ${GH_REPO:=dono/forge}; gh pr ready feature/x`, com aspas e com `echo` no lugar de `:` · espera: código 2 · obtido: código 0 nas três (o bash exporta `GH_REPO=dono/forge`)
+- S29 · mesma montagem, `set -a; : ${XDG_CONFIG_HOME:=$PWD/x}; gh pr merge feature/x` e `set -a; : ${GIT_CONFIG_GLOBAL:=g.cfg}; gh pr ready feature/x` · espera: código 2 · obtido: código 0 nas duas
+- S30 · mesma montagem, `for HOME in $PWD/h; do :; done; gh pr ready feature/x` e `set -a; for GH_REPO in dono/forge; do :; done; gh pr ready feature/x` · espera: código 2 · obtido: código 2 nas duas
+- S31 · mesma montagem, `export PATH=bin:$PATH; gh pr ready feature/x` (D7) · espera: código 0 (dimensão aberta) · obtido: código 0
 
 ## Conferências
-- A2 (meu, E3.12) fechado nas formas do S6 a S11 e S19, S20; aberto só pelo prefixo `command` com opção (A3).
-- Mutação dirigida (`bin/forge-mutante tests/mutantes/v0478-guardas-parecer-7.json`, 1 processo): M39, M40, M41 `morreu`, rc=0.
-- Cobertura (`bin/forge-mutante --cobertura --base 56bb90b5`): as guardas novas :607 a :613, :624 a :629 e :937 `coberta`; rc=0.
-- Teste do item: `python3 -m unittest tests.test_hooks_parecer_repo`: 5 testes, OK.
-- Leitura (checklist 1 a 4, 7, 9): falha fechada nos remotos ilegíveis com saída dita; `read` com opção desconhecida (`-rp "$x"`) recusa a mais, nunca a menos; commits coerentes.
-- Tamanho (H1): cerca de 45 linhas de código no delta, um comportamento.
+- A3 (meu, E3.16) fechado: S18 e S26 dão 2; o laço de :640 tira as opções depois de `builtin` e `command`.
+- A5 já existia no head b989773a (S28 e S29 com o `hooks/parecer.py` da base dão 0): não é regressão do delta, mas é a classe que a E3.19 declara fechada na matriz. Sugestão: em `mexidas_na_linha`, o nome N de toda expansão `${N:=…}` ou `${N=…}` entra em `nomes` (vale a regra de `SENSIVEIS` e `GIT_*` de :646), e a indireta `${!n:=…}` mexe em todos; forma nova na D4 da matriz e no gerador.
+- D7 descrita certo: `PATH` fora de `SENSIVEIS` e de `CONFIG_DO_GIT`, a linha `export PATH=bin:$PATH; gh` dá 0 (S31), e `export PATH="$HOME/bin:$PATH"; {gh}` está nos `LEGITIMOS` do gerador; a decisão fica com o dono.
+- Mutação dirigida (`bin/forge-mutante`, 1 processo): specs `-8.json` M42 a M49 e `-9.json` M50 a M57 `morreu`, rc=0 nas duas.
+- Cobertura (`bin/forge-mutante --cobertura --base b989773a`): as 14 guardas novas `coberta`; `tests/pesos-d4.json` não coberto (dado, sem guarda).
+- Teste do item: `python3 -m unittest tests.test_hooks_parecer_matriz`: 5 testes, OK (237 casos gerados, mínimo 190).
+- Leitura (checklist 1 a 4, 7, 9, 11): D5 é lista positiva e falha fechada (programa fora da lista, redireção que grava, `leitura.duvida`); a recusa a mais está dita na matriz (`git -c … status`); o gerador afirma mínimo de itens; commits coerentes.
+- Tamanho (H1): cerca de 60 linhas de código no delta, um comportamento.
 - Suíte: sem PR, sem CI a citar; não rerrodada (R-REVIEW).
 
 ## Parecer
-Reprovado por A3. Sugestão: no laço de :624, depois de `command`, pular as opções (`-p`, `--`, combinações de `-pVv`), com fixture por forma e mutante na guarda. O A4 não é defeito do autor, mas o PR não fica verde sem o rótulo do dono ou a correção da catraca na develop.
+Reprovado por A5: forma de dar valor ao GH_REPO e ao config do git na linha que nenhuma dimensão da matriz cobre, com bypass provado (S28, S29). A3 fechado; a matriz D1 a D7 descreve certo o que o código faz, salvo a ausência da forma `${N:=v}`.
