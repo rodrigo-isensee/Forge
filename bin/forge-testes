@@ -195,6 +195,7 @@ MAPA = [
     (r"skills/esperar-estado/.*|agents/tech-lead\.md", CONTEUDO + ("test_esperar_estado",)),
     (r"skills/(produto-criterios|observabilidade-incidentes|explicar-para-o-leigo|modo-iniciante)/.*|agents/(jarvis|devops-engineer)\.md", CONTEUDO + ("test_skills_v0442",)),
     (r"docs/devops/pp1-pre-push\.patch", CONTEUDO + ("test_pre_push_patch",)),  # v047 E2.567: o teste aplica o patch
+    (r"scripts/indice-fixtures\.py", ("test_indice_fixtures", "test_forge", "test_testes_tocados", "test_oraculo_sempre_atual", "test_oraculo_v047", "test_pre_push_patch")),  # v0478 E14.1: o teste do patch copia o script (PREPUSH-INDICE-E-PULOS)
     (r"(agents|skills|docs)/.*", CONTEUDO),
     (r"README\.md", ("test_forge", "test_doutor")),  # PY-MINIMO: test_doutor confere o Python mínimo no README
     (r"CONTRIBUTING\.md", ("test_forge", "test_changelog")),
