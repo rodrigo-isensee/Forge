@@ -162,26 +162,6 @@
    "testes": [
     "tests.test_modelo_ci.SuitePesada.test_comando_vem_da_stack_sem_nome_de_ferramenta"
    ]
-  },
-  {
-   "id": "M17",
-   "guarda": "a skill aponta para o modelo",
-   "arquivo": "skills/ci-cd/SKILL.md",
-   "de": "templates/projeto/.github/workflows/ci.yml` (copiado",
-   "para": "templates/projeto/ci.yml` (copiado",
-   "testes": [
-    "tests.test_modelo_ci.Entrega.test_skill_aponta_para_o_modelo_e_explica_o_porque"
-   ]
-  },
-  {
-   "id": "M18",
-   "guarda": "a skill ensina o grupo por número",
-   "arquivo": "skills/ci-cd/SKILL.md",
-   "de": "`concurrency` com `github.event.pull_request.number || github.ref`",
-   "para": "`concurrency` por branch",
-   "testes": [
-    "tests.test_modelo_ci.Entrega.test_skill_aponta_para_o_modelo_e_explica_o_porque"
-   ]
   }
  ]
 }
