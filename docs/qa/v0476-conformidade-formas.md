@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0476-conformidade-formas
-commit: b4bd700e8eebe148c68b67f6e4465c49ecb7d0bf
+commit: 391011df0cac676754564741cc370fb38c656ec9
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-17
+data: 2026-11-18
 ---
 # QA: v0476-conformidade-formas (E3.50, E3.97)
 
@@ -42,4 +42,11 @@ Sem especificação de UX: as obrigações são os itens do changelog (E3.50) e 
 - Vermelho: `forge-testes --vermelho eb18768b --modulos tests.test_revisar_sha,tests.test_parecer_delta`: `contagem: não prova (passa na base)=4; prova (asserção)=4`; os 4 que passam na base são testes de guarda, mortos pelos mutantes.
 - Mutação: `bin/forge-mutante tests/mutantes/v0476-revisar-sha-delta.json --base eb18768b`: `base=eb18768bd45a... rev=b4bd700e8eeb`; M1 a M6 `morreu`.
 - Catraca (`--base origin/develop`): só 3 linhas `R-CONFORMIDADE` (bin/forge-check, hooks/_comum.py, hooks/conformidade.py: rótulo `afrouxa-regra` do dono); nenhuma guarda sem mutante.
+- Bateria completa: check-run `bateria` do CI do PR; não rodada aqui.
+
+## Revalidação (delta b4bd700e..391011df)
+Delta: `docs/hooks-fixtures.md` regenerado (E3.181) e merge limpo da `develop` (57a8cc8c); `e9986b4a` só acrescenta parecer de review. Nada de regra nova da branch.
+- `tests.test_indice_fixtures` (7), `tests.test_hooks.Hooks.test_fixtures_do_e350` (1), `tests.test_metricas_texto` (2), `tests.test_ambiente_git` (20): OK.
+- Catraca (`--base origin/develop`, rc 1): só as 3 linhas `R-CONFORMIDADE` (bin/forge-check, hooks/_comum.py, hooks/conformidade.py: rótulo `afrouxa-regra` do dono); nenhuma guarda sem mutante.
+- Sem teste novo da branch no delta: vermelho e mutação do parecer anterior seguem valendo.
 - Bateria completa: check-run `bateria` do CI do PR; não rodada aqui.
