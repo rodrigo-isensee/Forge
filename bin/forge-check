@@ -1473,7 +1473,7 @@ def checks_do_head(raiz, ref, branch, previo=False):
     """E3.45: com o PR da `branch` aberto, fora do rascunho e no head da ref, cada check dele concluído em pass ou skipping e cada
     exigido (`checks_exigidos` do destino do PR) presente e todo em pass; pendente, vermelho ou ausente não aprova para merge, com a
     lista. Sem PR aberto, em rascunho, com outro head ou no `--previo`, nada a conferir (o `gh pr merge` passa por aqui de novo)."""
-    if previo or not branch or branch in BASES_DO_FLUXO:  # o pré-voo e a integração não têm PR de trabalho a conferir
+    if previo or branch in BASES_DO_FLUXO or not branch:  # o pré-voo e a integração não têm PR de trabalho a conferir
         return []
     pr = gh_json(raiz, "pr", "view", branch, "--json", "number,state,isDraft,headRefOid,baseRefName")[0]
     if not isinstance(pr, dict) or pr.get("state") != "OPEN" or pr.get("isDraft") is not False:

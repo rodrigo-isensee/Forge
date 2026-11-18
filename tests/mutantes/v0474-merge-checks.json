@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "o previo nao consulta o gh nem reprova (E3.45)",
       "arquivo": "bin/forge-check",
-      "de": "if previo or not branch or branch in BASES_DO_FLUXO:  # o pré-voo",
-      "para": "if not branch or branch in BASES_DO_FLUXO:  # o pré-voo",
+      "de": "if previo or branch in BASES_DO_FLUXO or not branch:  # o pré-voo",
+      "para": "if branch in BASES_DO_FLUXO or not branch:  # o pré-voo",
       "testes": [
         "tests.test_forge_check_pr.ChecksDoHead.test_previo_e_branch_do_fluxo_nao_consultam_o_gh"
       ]
