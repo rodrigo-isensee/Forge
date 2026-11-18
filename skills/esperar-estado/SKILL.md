@@ -45,10 +45,10 @@ Lance com o `run_in_background`, trocando `<envio>` pelo comando e `<log>` pelo 
 
 `<envio> > <log> 2>&1 && echo rc=0 >> <log> || echo rc=1 >> <log>`
 
-No mesmo turno, em primeiro plano, espere o log (mesmo caminho):
+No mesmo turno, em primeiro plano, espere o log, com o caminho literal 3 vezes (`envio-longo.md`):
 
 ```bash
-log=<log>; fim=""; for i in $(seq 1 5); do fim=$(grep -m 1 '^rc=' "$log" 2>/dev/null) && break; sleep 30; done; echo "fim=${fim:-teto}"; [ -n "$fim" ]
+for i in $(seq 1 5); do grep -q '^rc=' <log> 2>/dev/null && break; sleep 30; done; echo "fim=$(grep -m 1 '^rc=' <log> 2>/dev/null || echo teto)"; test -f <log> && grep -q '^rc=' <log>
 ```
 
-`fim=rc=0` é sucesso; `fim=rc=1` é falha: leia o log. `fim=teto` (código 1) é o comando ainda rodando: repita, sem encerrar o turno. Vale para o `bin/forge-fechar` com `--espera` acima de 170 s: lance-o no lugar de `<envio>` e, com `fim=rc=1`, leia no log a linha `fim: código <n>` (3 é integrado com limpeza pendente).
+`fim=rc=0` é sucesso; `fim=rc=1` é falha: leia o log. `fim=teto` (código 1) é o comando ainda rodando: repita, sem encerrar o turno. O `bin/forge-fechar` com `--espera` longa: `envio-longo.md` nesta skill.
