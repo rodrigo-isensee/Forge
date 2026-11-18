@@ -28,6 +28,11 @@ exit "$(cat "$f.rc" 2>/dev/null || echo 0)"
 '''
 
 
+# FECHAR-PROMOVER-MENSAGEM-PT: o título e o corpo do merge da promoção (o registro do gh falso junta os argumentos com espaço).
+MSG_PROMOCAO = ("--subject chore(promoção): 0.9.0 para a homolog (#%d) --body Promoção da versão 0.9.0 para a homolog pelo commit da "
+                "marca %s (pedido release-0.9.0).")
+
+
 def merge_de(branch):
     return hashlib.sha1(branch.encode()).hexdigest()
 
@@ -379,7 +384,8 @@ class Promover(Ambiente):
         self.assertNotEqual(self.ramo(), self.depois)
         self.assertIn("a develop tem 1 commit(s) depois dela", r.stdout)
         self.assertIn("gh pr create --base homolog --head promocao/0.9.0", "\n".join(self.chamadas()))
-        self.assertEqual(self.merges(), [f"gh pr merge promocao/0.9.0 --auto --merge --match-head-commit {self.marca}"])
+        self.assertEqual(self.merges(), [f"gh pr merge promocao/0.9.0 --auto --merge --match-head-commit {self.marca} "
+                                         f"{MSG_PROMOCAO % (7, self.marca)}"])
         self.assertEqual((self.estado / "promover").read_text(), f"--conferir-ref {self.marca}\n")
         self.assertIn(f"--commit {self.marca}", self.runs()[0])
         self.assertIn("gh pr create --base main --head homolog", r.stdout)
@@ -406,6 +412,22 @@ class Promover(Ambiente):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertIn("PR #7 já aberto; retomo.", r.stdout)
         self.assertFalse([c for c in self.chamadas() if c.startswith("gh pr create")])
+
+    def test_merge_da_promocao_leva_titulo_e_corpo_em_portugues_com_o_numero_do_pr(self):
+        """FECHAR-PROMOVER-MENSAGEM-PT: sem --subject, o GitHub grava 'Merge pull request #N from ...' na homolog."""
+        for numero, reusa in ((42, False), (9, True)):
+            with self.subTest(numero=numero, reusa=reusa):
+                self.registro.write_text("")
+                (self.estado / "estado").write_text("OPEN")
+                if reusa:
+                    self.git("push", "-q", "origin", f"{self.marca}:refs/heads/promocao/0.9.0")
+                    (self.estado / "aberto").write_text(f"{numero} homolog")
+                else:
+                    (self.estado / "numero_criado").write_text(str(numero))
+                r = self.promover()
+                self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+                self.assertEqual(self.merges(), [f"gh pr merge promocao/0.9.0 --auto --merge --match-head-commit {self.marca} "
+                                                 f"{MSG_PROMOCAO % (numero, self.marca)}"])
 
     def test_pr_aberto_com_outra_base_para(self):
         self.git("push", "-q", "origin", f"{self.marca}:refs/heads/promocao/0.9.0")

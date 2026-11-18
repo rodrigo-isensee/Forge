@@ -777,9 +777,10 @@ mover_cartoes() {
   done
 }
 
-# mesclar_auto <método> <head>: o único `gh pr merge` do script (passo 6 e P6), por nome de branch ($ref, que o hook `parecer` exige),
-# com --auto e preso ao head.
-mesclar_auto() { "$gh" pr merge "$ref" --auto "$1" --match-head-commit "$2"; }
+# mesclar_auto <método> <head> [--subject T --body C]: o único `gh pr merge` do script (passo 6 e P6), por nome de branch ($ref, que o hook
+# `parecer` exige), com --auto e preso ao head. FECHAR-PROMOVER-MENSAGEM-PT: o merge com --merge (P6) leva título e corpo em português; sem
+# eles, o GitHub grava "Merge pull request #N from ..." (merge_commit_title=MERGE_MESSAGE). O --squash do passo 6 usa o título do PR.
+mesclar_auto() { "$gh" pr merge "$ref" --auto "$1" --match-head-commit "$2" "${@:3}"; }
 
 # estado_do_pr: lê o PR de número pr_n (leitura, com repetição) e define pr_estado, pr_head, pr_base e pr_merge ("-" sem commit de merge); vazios se a leitura falhar.
 estado_do_pr() {
@@ -1114,7 +1115,8 @@ Tempo do commit da marca até o PR para a main pronto, por versão (diretriz 27,
     fi
     passo P6 "merge automático preso ao commit da marca (até ${espera}s)"
     ref="$ramo"
-    if ! mesclar_auto --merge "$sha"; then echo "aviso: o gh pr merge devolveu erro; confiro o estado do PR." >&2; fi
+    if ! mesclar_auto --merge "$sha" --subject "chore(promoção): $versao para a homolog (#$pr_n)" \
+      --body "Promoção da versão $versao para a homolog pelo commit da marca $sha (pedido $pedido)."; then echo "aviso: o gh pr merge devolveu erro; confiro o estado do PR." >&2; fi
     inicio=$SECONDS
     estado_do_pr || true
     while [ "$pr_estado" = OPEN ]; do
@@ -1155,7 +1157,7 @@ if [ "$seco" = 1 ] && [ -n "$promover_sha" ]; then
   passo P3 "$gh run list --branch develop --event push --commit $promover_sha: verde (cancelado avisa e segue; o CI do PR decide)"
   passo P4 "git push origin $promover_sha:refs/heads/promocao/<versão> (se já existe no mesmo sha, retoma)"
   passo P5 "$gh pr create --base homolog --head promocao/<versão> (reusa o aberto ou o MERGED)"
-  passo P6 "$gh pr merge promocao/<versão> --auto --merge --match-head-commit $promover_sha; espera o MERGED até ${espera}s; apaga o ramo"
+  passo P6 "$gh pr merge promocao/<versão> --auto --merge --match-head-commit $promover_sha --subject 'chore(promoção): <versão> para a homolog (#<n>)' --body <corpo em português>; espera o MERGED até ${espera}s; apaga o ramo"
   exit 0
 fi
 if [ "$seco" = 1 ]; then
