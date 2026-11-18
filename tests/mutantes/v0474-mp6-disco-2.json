@@ -16,30 +16,21 @@
       "id": "M10",
       "guarda": "clone com mudanca ou arquivo novo fica",
       "arquivo": "bin/forge-fechar",
-      "de": "      || [ -n \"$(\"${g[@]}\" status --porcelain 2>/dev/null || echo erro)\" ] ||",
-      "para": "      || false ||",
+      "de": "      || [ -n \"$(\"${g[@]}\" status --porcelain 2>/dev/null || echo erro)\" ] \\",
+      "para": "      || false \\",
       "testes": [
         "tests.test_forge_fechar.LimparClones.test_arquivo_novo_fica"
       ]
     },
     {
-      "id": "M11",
-      "guarda": "clone com stash fica",
-      "arquivo": "bin/forge-fechar",
-      "de": "\"${g[@]}\" rev-parse -q --verify refs/stash >/dev/null",
-      "para": "false",
-      "testes": [
-        "tests.test_forge_fechar.LimparClones.test_stash_fica"
-      ]
-    },
-    {
       "id": "M12",
-      "guarda": "clone com commit fora das refs do origin fica",
+      "guarda": "clone com commit fora das refs do origin (branch, tag, stash) fica",
       "arquivo": "bin/forge-fechar",
       "de": "      || [ -n \"$(\"${g[@]}\" rev-list --all --not --remotes 2>/dev/null || echo erro)\" ] ||",
       "para": "      ||",
       "testes": [
-        "tests.test_forge_fechar.LimparClones.test_commit_nao_enviado_em_outra_branch_fica"
+        "tests.test_forge_fechar.LimparClones.test_commit_nao_enviado_em_outra_branch_fica",
+        "tests.test_forge_fechar.LimparClones.test_stash_fica"
       ]
     },
     {
