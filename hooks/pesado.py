@@ -148,10 +148,10 @@ def chave_da_senha(c):
         return f.read(4096).decode("utf-8", "replace")
 
 
-def frente_parada(vivas, agora, senha=None):
-    """Review A1 e A2: nenhuma senha à frente de `senha` (sem ela, a fila toda) anda agora; anda a que é de projeto sem
+def frente_parada(vivas, agora, vez_na_fila=None):
+    """Review A1 e A2: nenhuma senha à frente de `vez_na_fila` (sem ela, a fila toda) anda agora; anda a que é de projeto sem
     vez viva na máquina. A senha presa pela vez do próprio projeto não segura os outros projetos quando há vaga livre."""
-    frente = vivas[:vivas.index(senha)] if senha in vivas else vivas
+    frente = vivas[:vivas.index(vez_na_fila)] if vez_na_fila in vivas else vivas
     vezes = _maquina.ler("pesado.json")
     return all(vez_viva(vezes.get(chave_da_senha(c)), agora) for c in frente)
 

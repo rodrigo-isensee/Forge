@@ -26,7 +26,7 @@
       "id": "N11",
       "guarda": "review A2: sem senha, a frente é a fila toda",
       "arquivo": "hooks/pesado.py",
-      "de": "if senha in vivas else vivas",
+      "de": "if vez_na_fila in vivas else vivas",
       "para": "if True else vivas",
       "testes": [
         "tests.test_maquina.FilaPesada.test_senha_a_frente_que_pode_andar_segura_quem_vem_atras"
