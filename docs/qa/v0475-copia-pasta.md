@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0475-copia-pasta
-commit: a108ef531a7b40d2bcc05082f23a73ef3888aa37
+commit: 5d7ca50b2d8e9cabd196b8a1d5dd928536fd88fb
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -43,4 +43,10 @@ Escopo: `bin/forge-copia` (clone e worktree só dentro de `~/.forge-contrib`), `
 ## Revalidação (delta efe73e17..a108ef53)
 `forge-check parecer delta` lista no domínio: copia-pasta-settings.patch (allowWrite sem `/workspaces/.forge-contrib`), as duas skills (texto compactado) e tests/test_forge_copia.py (`sem_manutencao` no env, sem mudar asserção). `bin/forge-copia` não mudou: mutantes M1 a M10 seguem válidos.
 - A1 (antes bloqueante: teto de texto) resolvido: `python3 -I -m unittest discover -s tests -p <módulo>.py` no head a108ef53: test_metricas_texto 2 OK; test_orcamento_instrucao 8 OK; test_ambiente_git 20 OK (127 s); test_forge_copia 13 OK.
+- Check-run `bateria` do sha não citado: sem PR neste head no momento da revalidação.
+
+## Revalidação (delta a108ef53..5d7ca50b)
+`forge-check parecer delta` lista no domínio só `tests/mutantes/v0475-copia-pasta.json` (M11 a M14) e `tests/test_forge_copia.py` (teste novo `Recusa.test_origem_com_cara_de_opcao`: `--origem=--upload-pack=x` sai 2; protege a recusa de origem com cara de opção). `bin/forge-copia` não mudou.
+- Mutação, `bin/forge-mutante --base a108ef53 tests/mutantes/v0475-copia-pasta.json`: `base=a108ef53 ... rev=5d7ca50b2d8e`; M1 a M14 todos `morreu` (M11 linha 53, M12 59, M13 61, M14 70). Sobrevivente: nenhum. Cada mutante novo muda uma guarda real (origem, retorno de recusa, escolha do ramo worktree, ponto de entrada).
+- `python3 -I -m unittest discover -s tests -p test_forge_copia.py` no head: 14 testes, OK.
 - Check-run `bateria` do sha não citado: sem PR neste head no momento da revalidação.
