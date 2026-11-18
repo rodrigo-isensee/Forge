@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-fechar-mensagem
-commit: 3b1e324b285bd2037bdc49d928aef599583a972c
+commit: 8989baa06876e4ad25235c846aaf4926f686a1d1
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-18
@@ -26,6 +26,10 @@ Diff `4182a6b9..3b1e324b`: `bin/forge-fechar` (o `mesclar_auto` repassa `"${@:3}
 - `bin/forge-mutante tests/mutantes/v0478-fechar-mensagem.json` no 3b1e324b: `M1 · morreu · bin/forge-fechar:1118`, `M2 · morreu · bin/forge-fechar:783`.
 - Teste do item, `python3 -m unittest tests.test_fechar_lote.Promover`: `Ran 24 tests`, `OK`.
 - Suíte completa e shellcheck ficam no CI do PR (o shellcheck não está instalado neste ambiente).
+
+## Revalidação (8989baa0)
+- Delta lido: `forge-check parecer delta docs/reviews/v0478-fechar-mensagem.md`, intervalo `3b1e324b..8989baa0`, sem o que veio da develop; no domínio só `tests/mutantes/v047-integracao-em-lote-8.json` (IL-M63: `de`/`para` com o `--subject` novo).
+- A linha `de` bate com `bin/forge-fechar:1118`; `bin/forge-mutante --processos 1 tests/mutantes/v047-integracao-em-lote-8.json`: `IL-M63 · morreu · bin/forge-fechar:1118` (IL-M57 a IL-M64 morrem).
 
 ## Parecer
 Aprovado. A mudança é pequena, presa ao P6 do `--promover`, com teste de comportamento dos dois caminhos e mutantes que morrem.
