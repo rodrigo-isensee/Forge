@@ -180,7 +180,7 @@ MAPA = [
     # v047 E6.5: as entradas do FORGE-SEMPRE-ATUAL (atalhos, trampolins, preparo do container) rodam nos testes do núcleo e no oráculo do QA
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados", "test_sempre_atual", "test_oraculo_sempre_atual", "test_sessao_automatica")),
     (r"scripts/preparar-estacao\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve",
-                                       "test_sempre_atual", "test_oraculo_sempre_atual", "test_sessao_automatica")),  # v047 E6.5: o postStart chama a ferramenta e refaz os atalhos
+                                       "test_sempre_atual", "test_oraculo_sempre_atual", "test_sessao_automatica", "test_ferramentas_portoes")),  # v047 E6.5: o postStart chama a ferramenta e refaz os atalhos
     (r"scripts/(validar-plugin|configurar-ambiente-local|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve", "test_sessao_automatica")),  # v046 E19.3 (A4): o teste lê e grava o script
     (r"stacks/.*", CONTEUDO + ("test_hooks", "test_adotar", "test_stack_python") + VOLTA_UNICA),
     (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks", "test_stack_python") + VOLTA_UNICA),
