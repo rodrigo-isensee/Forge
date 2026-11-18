@@ -1,0 +1,47 @@
+{
+  "pedido": "v0478-prepush-pp1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M3",
+      "guarda": "o intervalo da fila lê em base 10: 08 e 09 são aceitos e a espera conta certo",
+      "arquivo": "docs/devops/pp1-pre-push.patch",
+      "de": "+intervalo_dec=$((10#$intervalo))",
+      "para": "+intervalo_dec=$((intervalo))",
+      "testes": [
+        "tests.test_pre_push_patch.IntervaloDaFila.test_zeros_a_esquerda_em_base_dez_sao_aceitos",
+        "tests.test_pre_push_patch.IntervaloDaFila.test_conta_da_espera_usa_o_valor_decimal"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "a contagem de pulos exclui a própria tests/catraca.py",
+      "arquivo": "docs/devops/pp1-pre-push.patch",
+      "de": " and a.endswith(\".py\") and a != \"tests/catraca.py\"]",
+      "para": " and a.endswith(\".py\")]",
+      "testes": [
+        "tests.test_pre_push_patch.IndiceEPulos.test_skip_novo_na_propria_catraca_nao_barra"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a contagem de pulos só olha arquivos sob tests/",
+      "arquivo": "docs/devops/pp1-pre-push.patch",
+      "de": "a.startswith(\"tests/\") and a.endswith",
+      "para": "a.endswith",
+      "testes": [
+        "tests.test_pre_push_patch.IndiceEPulos.test_skip_novo_fora_de_tests_nao_barra"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "a checagem de cobertura exige que bin/forge-check não seja link",
+      "arquivo": "docs/devops/pp1-pre-push.patch",
+      "de": " && [ ! -L bin/forge-check ]",
+      "para": "",
+      "testes": [
+        "tests.test_pre_push_patch.CoberturaDaCatraca.test_forge_check_que_e_link_nao_roda_a_checagem"
+      ]
+    }
+  ]
+}

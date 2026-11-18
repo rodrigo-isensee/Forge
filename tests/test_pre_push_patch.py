@@ -22,6 +22,7 @@ HOOK = RAIZ / ".githooks" / "pre-push"
 PATCH = RAIZ / "docs" / "devops" / "pp1-pre-push.patch"
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_"))})
 ZERO = "0" * 40
+SEGURA = "import fcntl, sys, time\nf = open(sys.argv[1], 'a')\nfcntl.flock(f, fcntl.LOCK_EX)\nprint('pronto', flush=True)\ntime.sleep(600)\n"
 SUITE_VERDE = "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        pass\n"
 
 
@@ -141,6 +142,36 @@ class IntervaloDaFila(Base):
                     else:
                         self.assertEqual(codigo, 0, "sem o patch o 0 é aceito e a suíte roda")
 
+    def test_zeros_a_esquerda_em_base_dez_sao_aceitos(self):
+        """A1 do QA (mutante M3, `$((10#$intervalo))` -> `$((intervalo))`): "08" e "09" não são octal inválido."""
+        for valor in ("08", "09", "010"):
+            with self.subTest(valor=valor):
+                codigo, erro = self.roda(self.remendado, valor)
+                self.assertEqual(codigo, 0, erro)
+                self.assertNotIn("maior que zero", erro)
+                self.assertNotIn("value too great", erro)
+
+    def test_conta_da_espera_usa_o_valor_decimal(self):
+        """Com a trava presa, "08" entra na espera (a_cada_intervalo soma 8 s) e o envio é barrado só pelo tempo, sem erro de base."""
+        for valor in ("08", "09"):
+            with self.subTest(valor=valor), tempfile.TemporaryDirectory() as t:
+                base = Path(t)
+                (base / "run").mkdir()
+                (base / "repo" / "tests").mkdir(parents=True)
+                (base / "repo" / "tests" / "test_a.py").write_text(SUITE_VERDE)
+                subprocess.run(["git", "init", "-q", str(base / "repo")], check=True, env=AMBIENTE)
+                trava = base / "run" / f"forge-suite-{os.getuid()}.lock"
+                dona = subprocess.Popen([sys.executable, "-I", "-c", SEGURA, str(trava)], stdout=subprocess.PIPE, text=True)
+                self.addCleanup(lambda d=dona: (d.kill(), d.wait(), d.stdout.close()))
+                self.assertEqual(dona.stdout.readline().strip(), "pronto")
+                env = dict(AMBIENTE, XDG_RUNTIME_DIR=str(base / "run"), HOME=str(base / "home"), FORGE_TRAVA_ESPERA="2",
+                           FORGE_FILA_INTERVALO=valor)
+                r = subprocess.run([str(self.remendado), "--suite"], cwd=base / "repo", env=env, capture_output=True, text=True, timeout=120)
+                self.assertEqual(r.returncode, 1, r.stderr)
+                self.assertIn("a vez não chegou em 2 s", r.stderr)
+                self.assertEqual(r.stderr.count("fila da suíte"), 1, r.stderr)  # só a linha da entrada: o próximo só em 8 ou 9 s
+                self.assertNotIn("value too great", r.stderr)
+
     def test_invalido_segue_recusado_e_o_valor_bom_passa(self):
         for valor, esperado in (("1m", 1), ("-1", 1), ("", 1), ("1", 0), ("60", 0)):
             with self.subTest(valor=valor):
@@ -228,6 +259,24 @@ class CoberturaDaCatraca(Base):
         self.assertEqual(codigo, 1, erro)
         self.assertIn("sem mutante · hooks/h.py", erro)
         self.assertNotIn("tests/catraca.py", erro.split("pre-push: bin/forge-mutante")[0])
+
+    def test_forge_check_que_e_link_nao_roda_a_checagem(self):
+        """A2 da segurança: a guarda confere que bin/forge-check não é link, como as vizinhas; com link, a checagem não roda."""
+        with tempfile.TemporaryDirectory() as t:
+            base = Path(t)
+            (base / "run").mkdir()
+            repo, git = self.repo(base)
+            (repo / "bin" / "forge-check").unlink()
+            (repo / "bin" / "forge-check").symlink_to(RAIZ / "bin" / "forge-check")
+            (repo / "hooks" / "h.py").write_text("def f(a, b):\n    if a and b:\n        return 1\n    return 0\n")
+            git("add", "-A")
+            git("commit", "-q", "-m", "muda")
+            sha = git("rev-parse", "HEAD")
+            env = dict(AMBIENTE, XDG_RUNTIME_DIR=str(base / "run"), HOME=str(base / "home"))
+            r = subprocess.run([str(self.remendado), "origin", "u"], cwd=repo, env=env, capture_output=True, text=True, timeout=120,
+                               input=f"refs/heads/x {sha} refs/heads/melhoria/x {ZERO}\n")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("forge-mutante --cobertura", r.stderr)
 
     def test_saida_2_da_ferramenta_e_so_aviso(self):
         codigo, erro = self.roda(self.remendado, {"hooks/h.py": "def f(a, b):\n    return 1\n", "tests/mutantes/x.json": "{"})
@@ -344,6 +393,26 @@ class IndiceEPulos(Base):
                 codigo, erro = self.roda(self.remendado, mudanca)
                 self.assertEqual(codigo, 0, erro)
                 self.assertNotIn("teste pulado", erro)
+
+
+    def test_skip_novo_na_propria_catraca_nao_barra(self):
+        """A2 do QA (mutante M11, soltar `a != "tests/catraca.py"`): a conta da catraca exclui a própria catraca."""
+        catraca = (RAIZ / "tests" / "catraca.py").read_text(encoding="utf-8")
+        texto = catraca + "\nimport unittest\nclass TX(unittest.TestCase):\n    def test_x(self):\n        self.skipTest('x')\n"
+        codigo, erro = self.roda(self.remendado, {"tests/catraca.py": texto})
+        self.assertEqual(codigo, 0, erro)
+        self.assertNotIn("teste pulado", erro)
+
+    def test_skip_novo_fora_de_tests_nao_barra(self):
+        """A2 do QA (mutante M12, soltar `startswith("tests/")`): x.py com skip fora de tests/ não conta."""
+        fora = SUITE_VERDE.replace("        pass\n", '        self.skipTest("depois")\n')
+        mudanca = {"x.py": fora, "bin/y.py": fora, "tests/fora.txt": "x\n"}
+        codigo, erro = self.roda(self.remendado, mudanca)
+        self.assertEqual(codigo, 0, erro)
+        self.assertNotIn("teste pulado", erro)
+        codigo, erro = self.roda(self.remendado, {"x.py": fora, "tests/test_a.py": SUITE_VERDE.replace("        pass\n", '        self.skipTest("d")\n')})
+        self.assertEqual(codigo, 1, erro)  # o mesmo envio com skip em tests/ continua barrado
+        self.assertIn("subiram de 0 para 1", erro)  # e o x.py fora de tests/ não somou
 
 
 if __name__ == "__main__":

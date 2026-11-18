@@ -1,5 +1,5 @@
 diff --git a/.githooks/pre-push b/.githooks/pre-push
-index f944360..0abb437 100755
+index f944360..a2df43f 100755
 --- a/.githooks/pre-push
 +++ b/.githooks/pre-push
 @@ -56,8 +56,10 @@ trava_arquivo() {
@@ -88,7 +88,7 @@ index f944360..0abb437 100755
 +  # PREPUSH-LEVE-COBERTURA-CATRACA: diff com Python de controle pede mutante declarado; o CI reprova sem ele (regra_guardas_dos_hooks).
 +  # `bin/forge-mutante --cobertura` não roda teste (menos de 1 s), mas julga todo o Python do diff; o filtro abaixo fica só com as
 +  # faltas em arquivo da classe C sem teste, a mesma lista da catraca (motivo_de_controle e TESTE). 1 reprova; outra saída é aviso.
-+  if [ -n "$base_dev" ] && [ -f bin/forge-mutante ] && [ ! -L bin/forge-mutante ] && [ -f bin/forge-check ] && [ -f tests/catraca.py ]; then
++  if [ -n "$base_dev" ] && [ -f bin/forge-mutante ] && [ ! -L bin/forge-mutante ] && [ -f bin/forge-check ] && [ ! -L bin/forge-check ] && [ -f tests/catraca.py ]; then
 +    controle=0
 +    for arquivo in "${alterados[@]}"; do
 +      if [ -f "$arquivo" ] && [ ! -L "$arquivo" ] && [ "$(tipo_de_script "$arquivo")" = python ]; then controle=1; break; fi
@@ -146,14 +146,17 @@ index f944360..0abb437 100755
    # O changelog é o do HEAD: confere quando o HEAD é a ponta de uma branch enviada (o nome da branch decide o fragmento).
    if [ -n "$base_dev" ] && [ -f bin/forge-changelog ] && [ ! -L bin/forge-changelog ] && [ -f .claude-plugin/plugin.json ]; then
      for envio in "${envios[@]}"; do
-@@ -406,7 +517,9 @@ fi
+@@ -406,7 +517,12 @@ fi
  espera="${FORGE_TRAVA_ESPERA:-1200}"
  case "$espera" in ''|*[!0-9]*) echo "pre-push: FORGE_TRAVA_ESPERA deve ser um número de segundos inteiro (veio '${espera}')." >&2; exit 1 ;; esac
  intervalo="${FORGE_FILA_INTERVALO:-60}"
 -case "$intervalo" in ''|*[!0-9]*) echo "pre-push: FORGE_FILA_INTERVALO deve ser um número de segundos inteiro (veio '${intervalo}')." >&2; exit 1 ;; esac
 +# FILA-INTERVALO-ZERO: 0 (ou 00...) imprimiria a fila a cada 0,2 s; recusado como o valor inválido.
 +case "$intervalo" in ''|*[!0-9]*) echo "pre-push: FORGE_FILA_INTERVALO deve ser um número de segundos inteiro maior que zero (veio '${intervalo}')." >&2; exit 1 ;; esac
-+[ "$((10#$intervalo))" -gt 0 ] || { echo "pre-push: FORGE_FILA_INTERVALO deve ser um número de segundos inteiro maior que zero (veio '${intervalo}')." >&2; exit 1; }
++# O 10# lê em base 10 ("08" e "09" não são octal inválido); o valor decimal segue para a conta da espera (a_cada_intervalo).
++intervalo_dec=$((10#$intervalo))
++[ "$intervalo_dec" -gt 0 ] || { echo "pre-push: FORGE_FILA_INTERVALO deve ser um número de segundos inteiro maior que zero (veio '${intervalo}')." >&2; exit 1; }
++intervalo="$intervalo_dec"
  trava="$(trava_arquivo criar)" || exit 1
  if [ -L "$trava" ]; then
    echo "pre-push: ${trava} é link simbólico ou não é do próprio usuário; recusado. Apague-o e tente de novo." >&2
