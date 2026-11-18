@@ -6,8 +6,8 @@
    "id": "M1",
    "guarda": "push só nas branches do fluxo",
    "arquivo": "templates/projeto/.github/workflows/ci.yml",
-   "de": "    branches: [develop, homolog, main]\n    paths-ignore",
-   "para": "    branches: ['**']\n    paths-ignore",
+   "de": "    branches: [develop, homolog, main]\n",
+   "para": "    branches: ['**']\n",
    "testes": [
     "tests.test_modelo_ci.SuitePesada.test_push_so_nas_branches_do_fluxo"
    ]
@@ -16,84 +16,115 @@
    "id": "M2",
    "guarda": "PR dispara a suíte",
    "arquivo": "templates/projeto/.github/workflows/ci.yml",
-   "de": "  pull_request:\n    types: [opened, synchronize, reopened]\n    paths-ignore",
-   "para": "  pull_request:\n    types: [closed]\n    paths-ignore",
+   "de": "    types: [opened, synchronize, reopened]\n",
+   "para": "    types: [closed]\n",
    "testes": [
     "tests.test_modelo_ci.SuitePesada.test_pull_request_dispara_a_suite"
    ]
   },
   {
    "id": "M3",
-   "guarda": "documento não roda a suíte no push",
+   "guarda": "sem filtro de caminho (um workflow só)",
    "arquivo": "templates/projeto/.github/workflows/ci.yml",
-   "de": "  push:\n    branches: [develop, homolog, main]\n    paths-ignore: [\"**/*.md\", \"docs/**\"]",
-   "para": "  push:\n    branches: [develop, homolog, main]",
+   "de": "  push:\n    branches: [develop, homolog, main]\n",
+   "para": "  push:\n    branches: [develop, homolog, main]\n    paths-ignore: [\"docs/**\"]\n",
    "testes": [
-    "tests.test_modelo_ci.SuitePesada.test_so_documento_nao_roda_a_suite_e_o_par_cobre_a_mesma_lista"
+    "tests.test_modelo_ci.SuitePesada.test_um_workflow_so_e_sem_filtro_de_caminho"
    ]
   },
   {
    "id": "M4",
-   "guarda": "job leve cobre a mesma lista de caminhos",
-   "arquivo": "templates/projeto/.github/workflows/ci-docs.yml",
-   "de": "  push:\n    branches: [develop, homolog, main]\n    paths: [\"**/*.md\", \"docs/**\"]",
-   "para": "  push:\n    branches: [develop, homolog, main]\n    paths: [\"docs/**\"]",
+   "guarda": "suíte pula só quando a detecção diz documento",
+   "arquivo": "templates/projeto/.github/workflows/ci.yml",
+   "de": "if: needs.mudanca.outputs.so_documento != 'true'",
+   "para": "if: always()",
    "testes": [
-    "tests.test_modelo_ci.SuitePesada.test_so_documento_nao_roda_a_suite_e_o_par_cobre_a_mesma_lista"
+    "tests.test_modelo_ci.SuitePesada.test_suite_pula_so_quando_a_deteccao_diz_documento"
    ]
   },
   {
    "id": "M5",
-   "guarda": "job leve tem o nome do check exigido",
-   "arquivo": "templates/projeto/.github/workflows/ci-docs.yml",
-   "de": "    name: ci\n",
-   "para": "    name: ci-leve\n",
+   "guarda": "detecção: um arquivo de código desfaz o só documento",
+   "arquivo": "templates/projeto/.github/workflows/ci.yml",
+   "de": "*) so_documento=false ;;",
+   "para": "*) ;;",
    "testes": [
-    "tests.test_modelo_ci.CheckObrigatorio.test_job_leve_tem_o_mesmo_nome_do_agregador"
+    "tests.test_modelo_ci.Deteccao.test_codigo_ou_misto_roda_a_suite"
    ]
   },
   {
    "id": "M6",
-   "guarda": "agregador exige success",
+   "guarda": "detecção: sem prova de só documento o padrão é código",
    "arquivo": "templates/projeto/.github/workflows/ci.yml",
-   "de": "test \"$RESULTADO\" = \"success\"",
-   "para": "test \"$RESULTADO\" != \"failure\"",
+   "de": "          so_documento=false\n          if [",
+   "para": "          so_documento=true\n          if [",
    "testes": [
-    "tests.test_modelo_ci.CheckObrigatorio.test_agregador_so_passa_com_suite_success"
+    "tests.test_modelo_ci.Deteccao.test_na_duvida_roda_a_suite"
    ]
   },
   {
    "id": "M7",
+   "guarda": "agregador exige suíte success com código",
+   "arquivo": "templates/projeto/.github/workflows/ci.yml",
+   "de": "            test \"$SUITE\" = \"success\"",
+   "para": "            test \"$SUITE\" != \"failure\"",
+   "testes": [
+    "tests.test_modelo_ci.CheckObrigatorio.test_nunca_verde_sem_a_suite_num_pr_com_codigo"
+   ]
+  },
+  {
+   "id": "M8",
+   "guarda": "agregador: pulo só com só documento",
+   "arquivo": "templates/projeto/.github/workflows/ci.yml",
+   "de": "test \"$SUITE\" = \"skipped\"",
+   "para": "true",
+   "testes": [
+    "tests.test_modelo_ci.CheckObrigatorio.test_so_documento_aceita_suite_pulada_e_nada_mais"
+   ]
+  },
+  {
+   "id": "M9",
+   "guarda": "agregador exige a detecção success",
+   "arquivo": "templates/projeto/.github/workflows/ci.yml",
+   "de": "test \"$MUDANCA\" = \"success\" || exit 1",
+   "para": "true",
+   "testes": [
+    "tests.test_modelo_ci.CheckObrigatorio.test_nunca_verde_sem_a_suite_num_pr_com_codigo",
+    "tests.test_modelo_ci.CheckObrigatorio.test_so_documento_aceita_suite_pulada_e_nada_mais"
+   ]
+  },
+  {
+   "id": "M10",
    "guarda": "agregador roda sempre",
    "arquivo": "templates/projeto/.github/workflows/ci.yml",
    "de": "    if: always()\n",
    "para": "    if: success()\n",
    "testes": [
-    "tests.test_modelo_ci.CheckObrigatorio.test_agregador_so_passa_com_suite_success"
+    "tests.test_modelo_ci.CheckObrigatorio.test_ci_e_unico_e_roda_sempre"
    ]
   },
   {
-   "id": "M8",
-   "guarda": "push e PR no mesmo grupo de concurrency",
+   "id": "M11",
+   "guarda": "grupo por número do PR ou ref",
    "arquivo": "templates/projeto/.github/workflows/ci.yml",
-   "de": "ci-${{ github.head_ref || github.ref_name }}",
-   "para": "ci-${{ github.ref }}",
+   "de": "ci-${{ github.event.pull_request.number || github.ref }}",
+   "para": "ci-${{ github.head_ref || github.ref_name }}",
    "testes": [
-    "tests.test_modelo_ci.Concorrencia.test_push_e_pr_da_mesma_branch_dividem_o_grupo_e_cancelam"
+    "tests.test_modelo_ci.Concorrencia.test_pr_pelo_numero_push_pela_ref_e_cancela_a_obsoleta"
    ]
   },
   {
-   "id": "M9",
+   "id": "M12",
    "guarda": "cancela a rodada obsoleta",
    "arquivo": "templates/projeto/.github/workflows/ci.yml",
    "de": "  cancel-in-progress: true",
    "para": "  cancel-in-progress: false",
    "testes": [
-    "tests.test_modelo_ci.Concorrencia.test_push_e_pr_da_mesma_branch_dividem_o_grupo_e_cancelam"
+    "tests.test_modelo_ci.Concorrencia.test_pr_pelo_numero_push_pela_ref_e_cancela_a_obsoleta"
    ]
   },
   {
-   "id": "M10",
+   "id": "M13",
    "guarda": "timeout em todo job",
    "arquivo": "templates/projeto/.github/workflows/ci.yml",
    "de": "    timeout-minutes: 15\n",
@@ -103,51 +134,51 @@
    ]
   },
   {
-   "id": "M11",
+   "id": "M14",
    "guarda": "ação fixada por SHA",
    "arquivo": "templates/projeto/.github/workflows/ci.yml",
-   "de": "actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0",
-   "para": "actions/checkout@v4",
+   "de": "actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n        with:\n          fetch-depth",
+   "para": "actions/checkout@v4\n        with:\n          fetch-depth",
    "testes": [
     "tests.test_modelo_ci.Higiene.test_acao_de_terceiros_fixada_por_sha"
    ]
   },
   {
-   "id": "M12",
+   "id": "M15",
    "guarda": "permissões mínimas",
    "arquivo": "templates/projeto/.github/workflows/ci.yml",
    "de": "\npermissions:\n  contents: read\n",
    "para": "\npermissions:\n  contents: write\n",
    "testes": [
-    "tests.test_modelo_ci.Higiene.test_permissoes_minimas"
+    "tests.test_modelo_ci.Higiene.test_permissoes_minimas_e_nenhuma_interpolacao_em_run"
    ]
   },
   {
-   "id": "M13",
+   "id": "M16",
    "guarda": "comando vem da stack",
    "arquivo": "templates/projeto/.github/workflows/ci.yml",
    "de": "          {{COMANDO_PRONTO}}\n",
-   "para": "          pytest\n",
+   "para": "          make\n",
    "testes": [
     "tests.test_modelo_ci.SuitePesada.test_comando_vem_da_stack_sem_nome_de_ferramenta"
    ]
   },
   {
-   "id": "M14",
-   "guarda": "job leve não faz checkout",
-   "arquivo": "templates/projeto/.github/workflows/ci-docs.yml",
-   "de": "      - name: Só documento",
-   "para": "      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n      - name: Só documento",
-   "testes": [
-    "tests.test_modelo_ci.CheckObrigatorio.test_job_leve_nao_gasta_suite"
-   ]
-  },
-  {
-   "id": "M15",
+   "id": "M17",
    "guarda": "a skill aponta para o modelo",
    "arquivo": "skills/ci-cd/SKILL.md",
    "de": "templates/projeto/.github/workflows/ci.yml` (copiado",
    "para": "templates/projeto/ci.yml` (copiado",
+   "testes": [
+    "tests.test_modelo_ci.Entrega.test_skill_aponta_para_o_modelo_e_explica_o_porque"
+   ]
+  },
+  {
+   "id": "M18",
+   "guarda": "a skill ensina o grupo por número",
+   "arquivo": "skills/ci-cd/SKILL.md",
+   "de": "`concurrency` com `github.event.pull_request.number || github.ref`",
+   "para": "`concurrency` por branch",
    "testes": [
     "tests.test_modelo_ci.Entrega.test_skill_aponta_para_o_modelo_e_explica_o_porque"
    ]

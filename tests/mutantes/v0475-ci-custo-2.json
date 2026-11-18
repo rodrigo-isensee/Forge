@@ -3,7 +3,7 @@
  "executor": "unittest",
  "mutantes": [
   {
-   "id": "M16",
+   "id": "M19",
    "guarda": "forge-init roda o teste do modelo",
    "arquivo": "bin/forge-testes",
    "de": "\"test_stack_python\", \"test_modelo_ci\")),",
@@ -13,7 +13,7 @@
    ]
   },
   {
-   "id": "M17",
+   "id": "M20",
    "guarda": "texto do Forge roda o teste do modelo",
    "arquivo": "bin/forge-testes",
    "de": "\"test_erros_no_brief\", \"test_modelo_ci\",\n",

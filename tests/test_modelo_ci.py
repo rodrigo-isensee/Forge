@@ -1,4 +1,6 @@
-"""Modelo de CI do projeto (E3.41, R-CUSTO): suíte só em PR e nas branches do fluxo, sem rodar em documento, check leve, concurrency."""
+"""Modelo de CI do projeto (E3.41, E3.74, R-CUSTO): suíte só em PR e nas branches do fluxo, um workflow só, detecção de só documento, um check "ci", concurrency."""
+import itertools
+import os
 import re
 import subprocess
 import tempfile
@@ -7,76 +9,137 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 MODELO = RAIZ / "templates" / "projeto" / ".github" / "workflows"
-DOC = '["**/*.md", "docs/**"]'
 
 
-def ler(nome):
+def ler(nome="ci.yml"):
     return (MODELO / nome).read_text(encoding="utf-8")
 
 
-def linhas_de_codigo(nome):
-    return [l for l in ler(nome).splitlines() if l.strip() and not l.lstrip().startswith("#")]
+def linhas_de_codigo():
+    return [l for l in ler().splitlines() if l.strip() and not l.lstrip().startswith("#")]
+
+
+def script(passo):
+    """Corpo do `run: |` do passo de nome `passo`, sem a indentação."""
+    m = re.search(r"- name: %s\n(?:.*\n)*?        run: \|\n((?:          .*\n)+)" % re.escape(passo), ler())
+    assert m, passo
+    return "".join(l[10:] + "\n" for l in m.group(1).splitlines())
+
+
+def git(cwd, *args):
+    return subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True).stdout.strip()
 
 
 class SuitePesada(unittest.TestCase):
+    def test_um_workflow_so_e_sem_filtro_de_caminho(self):
+        self.assertEqual(sorted(p.name for p in MODELO.iterdir()), ["ci.yml"])
+        self.assertNotIn("paths", ler().replace("paths-ignore", "paths"))
+        self.assertNotIn("paths:", ler())
+
     def test_push_so_nas_branches_do_fluxo(self):
-        for nome in ("ci.yml", "ci-docs.yml"):
-            self.assertIn("  push:\n    branches: [develop, homolog, main]\n", ler(nome), nome)
+        self.assertIn("  push:\n    branches: [develop, homolog, main]\n", ler())
 
     def test_pull_request_dispara_a_suite(self):
-        self.assertIn("  pull_request:\n    types: [opened, synchronize, reopened]\n", ler("ci.yml"))
+        self.assertIn("  pull_request:\n    types: [opened, synchronize, reopened]\n", ler())
 
-    def test_so_documento_nao_roda_a_suite_e_o_par_cobre_a_mesma_lista(self):
-        pesado, leve = ler("ci.yml"), ler("ci-docs.yml")
-        self.assertEqual(pesado.count("paths-ignore: " + DOC), 2)
-        self.assertEqual(leve.count("paths: " + DOC), 2)
+    def test_suite_pula_so_quando_a_deteccao_diz_documento(self):
+        self.assertIn("    needs: [mudanca]\n    if: needs.mudanca.outputs.so_documento != 'true'\n", ler())
 
     def test_comando_vem_da_stack_sem_nome_de_ferramenta(self):
-        texto = ler("ci.yml")
-        self.assertIn("          {{COMANDO_PRONTO}}\n", texto)
+        self.assertIn("          {{COMANDO_PRONTO}}\n", ler())
         for termo in ("npm ", "pnpm", "pytest", "setup-node", "setup-python"):
-            self.assertNotIn(termo, "\n".join(linhas_de_codigo("ci.yml")))
+            self.assertNotIn(termo, "\n".join(linhas_de_codigo()))
+
+
+class Deteccao(unittest.TestCase):
+    """Roda o script de detecção do modelo num repositório descartável."""
+
+    def detectar(self, arquivos, base="ok"):
+        with tempfile.TemporaryDirectory() as d:
+            git(d, "init", "-q", "-b", "main")
+            git(d, "config", "user.email", "t@t")
+            git(d, "config", "user.name", "t")
+            (Path(d) / "base.txt").write_text("a")
+            git(d, "add", "-A")
+            git(d, "commit", "-qm", "base")
+            b = git(d, "rev-parse", "HEAD")
+            for a in arquivos:
+                p = Path(d) / a
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_text("x")
+            git(d, "add", "-A")
+            git(d, "commit", "-qm", "muda", "--allow-empty")
+            cabeca = git(d, "rev-parse", "HEAD")
+            saida = Path(d) / "saida"
+            env = dict(os.environ, GITHUB_OUTPUT=str(saida), CABECA=cabeca,
+                       BASE={"ok": b, "vazia": "", "zeros": "0" * 40}[base])
+            subprocess.run(["bash", "-c", script("Detecta mudança só de documento")], cwd=d, env=env, check=True)
+            return saida.read_text().strip()
+
+    def test_so_documento(self):
+        self.assertEqual(self.detectar(["README.md", "docs/a/b.txt", "x/y.md"]), "so_documento=true")
+
+    def test_codigo_ou_misto_roda_a_suite(self):
+        self.assertEqual(self.detectar(["src/a.py"]), "so_documento=false")
+        self.assertEqual(self.detectar(["README.md", "src/a.py"]), "so_documento=false")
+        self.assertEqual(self.detectar(["docs.txt"]), "so_documento=false")
+
+    def test_na_duvida_roda_a_suite(self):
+        self.assertEqual(self.detectar(["README.md"], base="vazia"), "so_documento=false")
+        self.assertEqual(self.detectar(["README.md"], base="zeros"), "so_documento=false")
+        self.assertEqual(self.detectar([]), "so_documento=false")
 
 
 class CheckObrigatorio(unittest.TestCase):
-    def test_job_leve_tem_o_mesmo_nome_do_agregador(self):
-        self.assertIn("  ci:\n    name: ci\n", ler("ci.yml"))
-        self.assertIn("  ci:\n    name: ci\n", ler("ci-docs.yml"))
+    def agregar(self, mudanca, so_documento, suite):
+        env = dict(os.environ, MUDANCA=mudanca, SO_DOCUMENTO=so_documento, SUITE=suite)
+        return subprocess.run(["bash", "-c", script("Suíte verde ou só documento")], env=env).returncode == 0
 
-    def test_agregador_so_passa_com_suite_success(self):
-        texto = ler("ci.yml")
-        self.assertIn("    if: always()\n    needs: [suite]\n", texto)
-        self.assertIn('run: test "$RESULTADO" = "success"', texto)
-        self.assertIn("RESULTADO: ${{ needs.suite.result }}", texto)
+    def test_ci_e_unico_e_roda_sempre(self):
+        texto = ler()
+        self.assertEqual(len(re.findall(r"^    name: ci$", texto, re.M)), 1)
+        self.assertIn("    if: always()\n    needs: [mudanca, suite]\n", texto)
 
-    def test_job_leve_nao_gasta_suite(self):
-        self.assertNotIn("checkout", ler("ci-docs.yml"))
+    def test_nunca_verde_sem_a_suite_num_pr_com_codigo(self):
+        for mudanca, suite in itertools.product(("success", "failure", "cancelled", "skipped"), repeat=2):
+            for so_doc in ("false", ""):
+                esperado = mudanca == "success" and suite == "success"
+                self.assertEqual(self.agregar(mudanca, so_doc, suite), esperado, (mudanca, so_doc, suite))
+
+    def test_so_documento_aceita_suite_pulada_e_nada_mais(self):
+        self.assertTrue(self.agregar("success", "true", "skipped"))
+        for suite in ("success", "failure", "cancelled"):
+            self.assertFalse(self.agregar("success", "true", suite))
+        for mudanca in ("failure", "cancelled", "skipped"):
+            self.assertFalse(self.agregar(mudanca, "true", "skipped"))
 
 
 class Concorrencia(unittest.TestCase):
-    def test_push_e_pr_da_mesma_branch_dividem_o_grupo_e_cancelam(self):
-        for nome, prefixo in (("ci.yml", "ci"), ("ci-docs.yml", "ci-docs")):
-            texto = ler(nome)
-            self.assertIn("  group: %s-${{ github.head_ref || github.ref_name }}\n  cancel-in-progress: true\n" % prefixo, texto, nome)
+    def test_pr_pelo_numero_push_pela_ref_e_cancela_a_obsoleta(self):
+        self.assertIn("  group: ci-${{ github.event.pull_request.number || github.ref }}\n  cancel-in-progress: true\n", ler())
+        self.assertNotIn("head_ref", ler())
 
 
 class Higiene(unittest.TestCase):
     def test_todo_job_tem_timeout_e_nenhuma_burla(self):
-        for nome in ("ci.yml", "ci-docs.yml"):
-            texto = ler(nome)
-            jobs = len(re.findall(r"^    runs-on:", texto, re.M))
-            self.assertEqual(len(re.findall(r"^    timeout-minutes: \d+$", texto, re.M)), jobs, nome)
-            for burla in ("continue-on-error", "[skip ci]", "pull_request_target"):
-                self.assertNotIn(burla, texto, nome)
+        texto = ler()
+        jobs = len(re.findall(r"^    runs-on:", texto, re.M))
+        self.assertEqual(len(re.findall(r"^    timeout-minutes: \d+$", texto, re.M)), jobs)
+        for burla in ("continue-on-error", "[skip ci]", "pull_request_target"):
+            self.assertNotIn(burla, texto)
 
     def test_acao_de_terceiros_fixada_por_sha(self):
-        for nome in ("ci.yml", "ci-docs.yml"):
-            for uso in re.findall(r"uses: (\S+)", ler(nome)):
-                self.assertRegex(uso, r"@[0-9a-f]{40}$", nome)
+        usos = re.findall(r"uses: (\S+)", ler())
+        self.assertTrue(usos)
+        for uso in usos:
+            self.assertRegex(uso, r"@[0-9a-f]{40}$")
 
-    def test_permissoes_minimas(self):
-        self.assertIn("\npermissions:\n  contents: read\n", ler("ci.yml"))
-        self.assertIn("\npermissions: {}\n", ler("ci-docs.yml"))
+    def test_permissoes_minimas_e_nenhuma_interpolacao_em_run(self):
+        texto = ler()
+        self.assertIn("\npermissions:\n  contents: read\n", texto)
+        self.assertEqual(texto.count("    permissions: {}\n"), 1)
+        for corpo in re.findall(r"run: \|\n((?:          .*\n)+)", texto):
+            self.assertNotIn("${{", corpo)
 
 
 class Entrega(unittest.TestCase):
@@ -84,16 +147,19 @@ class Entrega(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             subprocess.run([str(RAIZ / "bin" / "forge-init"), "--nome", "x", "--stack", "python", "--pronto", "make pronto",
                             "--sem-sandbox", d], check=True, capture_output=True, text=True)
-            ci = (Path(d) / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+            fluxos = Path(d) / ".github" / "workflows"
+            ci = (fluxos / "ci.yml").read_text(encoding="utf-8")
             self.assertIn("          make pronto\n", ci)
             self.assertNotIn("{{COMANDO_PRONTO}}", ci)
-            self.assertTrue((Path(d) / ".github" / "workflows" / "ci-docs.yml").is_file())
+            self.assertFalse((fluxos / "ci-docs.yml").exists())
 
     def test_skill_aponta_para_o_modelo_e_explica_o_porque(self):
         skill = (RAIZ / "skills" / "ci-cd" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("templates/projeto/.github/workflows/ci.yml", skill)
         self.assertIn("minutos", skill)
         self.assertIn("push de branch de trabalho", skill)
+        self.assertIn("github.event.pull_request.number || github.ref", skill)
+        self.assertNotIn("github.head_ref || github.ref_name", skill)
 
 
 if __name__ == "__main__":

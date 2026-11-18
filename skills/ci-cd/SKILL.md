@@ -55,9 +55,9 @@ Nunca use um clone sem as refs remotas (por exemplo `git clone --no-tags --singl
 ## CI de projeto privado: minutos
 Em projeto privado, os minutos do Actions são a franquia gratuita (`R-CUSTO`); um dia de push em branch de trabalho a esgota (caso real: 163 rodadas de push de branch contra 33 de PR, 317 min em branches só de documento, push e PR em grupos de `concurrency` diferentes). O modelo `templates/projeto/.github/workflows/ci.yml` (copiado pelo `bin/forge-init`, com o comando de pronto da stack) fixa o padrão:
 - suíte pesada só em `pull_request` e no push de `develop`, `homolog` e `main`; nunca no push de branch de trabalho (o PR já a roda);
-- mudança só de documento (`**/*.md`, `docs/**`) não roda a suíte (`paths-ignore`); o `ci-docs.yml` traz o job leve de mesmo nome `ci`, que passa, para o check exigido não ficar pendente;
-- `concurrency` por branch (`github.head_ref || github.ref_name`), que junta push e PR no mesmo grupo, com `cancel-in-progress`;
-- o check a exigir na proteção da branch é o agregador `ci`; quem configura é o dono (`R-CONFORMIDADE`).
+- um workflow só, sem filtro de caminho: o job `mudanca` detecta se todos os arquivos alterados são documento (`**/*.md`, `docs/**`); só então a suíte é pulada, e na dúvida ela roda. Dois workflows com o mesmo nome de check, um deles filtrado por `paths`, deixam o `ci` leve verde antes da suíte num PR misto;
+- o check a exigir na proteção da branch é o único agregador `ci`: verde com a suíte `success`, ou com a suíte pulada só quando a detecção disse "só documento"; quem configura é o dono (`R-CONFORMIDADE`);
+- `concurrency` com `github.event.pull_request.number || github.ref` e `cancel-in-progress`: o PR cancela só a rodada anterior do mesmo PR. Por branch (`head_ref`) o push na `develop` e o PR `develop` -> `homolog` se cancelariam e o agregador ficaria vermelho, e um PR de fork de branch homônima cancelaria a rodada alheia. Como o push só roda nas branches do fluxo, juntar push e PR no mesmo grupo não evita duplicata nenhuma.
 
 ## Tempo e dependências
 - Meça a duração por workflow e os minutos usados (`gh run list`); um checkpoint por release. Subiu mais de 20% ou passou de 80% da franquia gratuita: abra cartão de melhoria.
