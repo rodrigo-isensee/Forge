@@ -1214,6 +1214,22 @@ class Vermelho(unittest.TestCase):
         self.assertEqual(modulos, ["test_forge", "test_outro", "test_sugerir"], r.stdout + r.stderr)
         self.assertNotIn("restrito", linha)
 
+    # VERMELHO-COM-PROGRESSO (v0478 E18.1): o teto e uma linha por módulo no stderr; os módulos de teste do diff primeiro.
+    def test_vermelho_escreve_progresso_com_o_teto_e_os_modulos_do_diff_primeiro(self):
+        self.com_modulos_do_mapa()
+        self.gravar("bin/forge-sugerir", "x = 2\n")
+        self.gravar("tests/test_sugerir.py", self.TRIVIAL + "# mudou\n")
+        self.salvar("muda")
+        r = self.rodar("--vermelho", "HEAD~1", "--prazo", "30")
+        progresso = [l for l in r.stderr.splitlines() if l.startswith("vermelho: ")]
+        self.assertEqual(progresso[0], "vermelho: 2 módulos em duas cópias, em série; prazo de 30 s por módulo e cópia "
+                                       "(teto 120 s)", r.stderr)
+        self.assertRegex(progresso[1], r"^vermelho: \[1/2\] test_sugerir H \d+\.\d s, B \d+\.\d s; \d+ s no total$")
+        self.assertRegex(progresso[2], r"^vermelho: \[2/2\] test_forge H ")
+        self.assertEqual(len(progresso), 3, r.stderr)
+        modulos, _ = self.modulos_do_vermelho(r)
+        self.assertEqual(modulos, ["test_forge", "test_sugerir"])  # a linha da saída segue em ordem alfabética
+
     # VERMELHO-FILTRO: os dados de teste do diff (a spec de mutantes de todo item) não levam à suíte completa.
     def test_vermelho_com_spec_e_fixture_no_diff_roda_so_o_plano_do_mapa(self):
         self.com_modulos_do_mapa()

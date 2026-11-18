@@ -51,6 +51,16 @@
       "testes": [
         "tests.test_suite_paralela.Brinquedo.test_medir_sem_modulo_ou_com_mais_argumentos_mostra_o_uso"
       ]
+    },
+    {
+      "id": "M6",
+      "guarda": "--vermelho: os módulos de teste do diff rodam primeiro (mutante: rodam por último)",
+      "arquivo": "bin/forge-testes",
+      "de": "key=lambda m: (m not in modificados, m)",
+      "para": "key=lambda m: (m in modificados, m)",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_escreve_progresso_com_o_teto_e_os_modulos_do_diff_primeiro"
+      ]
     }
   ]
 }
