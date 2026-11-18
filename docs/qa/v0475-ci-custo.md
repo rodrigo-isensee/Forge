@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0475-ci-custo
 branch: melhoria/v0475-ci-custo
-commit: f59f7766bfcecbb1887cce0b6c0aff6ab31880cd
+commit: d8e1b09b050f7455637234be5a9ccbc97c9d0ed5
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -37,3 +37,11 @@ Escopo (E3.66, pedido v0474): modelo de CI de projeto enxuto (`templates/projeto
 - Vermelho: `forge-testes --vermelho 3d8ad440` cai em suíte completa (o diff toca `bin/forge-testes`) e estourou meu prazo de 280 s (rc 124, sem veredito; não vale como vermelho). Substituto: o teste novo copiado sobre a árvore da base (`git archive 3d8ad440`): `Ran 13 tests ... FAILED (failures=1, errors=12)`, ou seja, nenhum passa sem a implementação.
 - Mutação: `bin/forge-mutante tests/mutantes/v0475-ci-custo.json tests/mutantes/v0475-ci-custo-2.json --processos 3`: M1 a M17 todos `morreu`, nenhum sobrevivente. Lista conferida contra o diff: cada guarda mudada (gatilhos, paths, concurrency, agregador, timeout, mapa) tem mutante.
 - Não rodei a suíte inteira; vale o check-run `bateria` do CI do PR (não há PR ainda).
+
+## Revalidação por delta (f59f7766..d8e1b09b)
+Delta no domínio: ci.yml (um workflow só, job `mudanca`, agregador `ci` único), remoção do ci-docs.yml, skill, `test_modelo_ci.py`, specs de mutantes. A detecção e o agregador agora são exercidos executando o shell dos passos (Deteccao e CheckObrigatorio rodam `bash -c`), não só por texto: o A1 anterior fica atendido no que é verificável localmente.
+- `python3 -I -m unittest discover -s tests -p test_modelo_ci.py`: Ran 17 tests, OK.
+- Vermelho: testes novos copiados sobre `git archive f59f7766`: Ran 17, FAILED (failures=11); os 6 que passam na base são de higiene herdada, os de regra nova caem.
+- Mutação do delta: `bin/forge-mutante tests/mutantes/v0475-ci-custo.json tests/mutantes/v0475-ci-custo-2.json --base f59f7766 --processos 3`: `base=f59f7766bfcecbb1887cce0b6c0aff6ab31880cd`, M1 a M20 todos `morreu`, nenhum sobrevivente. Cada guarda mudada (gatilhos, sem filtro de caminho, `if` da suíte, `case` da detecção, padrão código, agregador, concurrency, timeout, SHA) tem mutante.
+- Não rodei a suíte inteira: vale o check-run `bateria` do CI do PR no mesmo sha.
+- Resíduo (recomendado, não bloqueia): execução real no Actions segue por confirmar no primeiro projeto.
