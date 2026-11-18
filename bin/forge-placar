@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Forge: placar de qualidade do processo e portão de evolução (0.43.1, frente I). Só leitura, sem rede, biblioteca padrão.
 
-Uso: forge-placar [--raiz DIR] [--raiz-pedidos DIR] [--erros ARQ] [--git DIR --ref REF] [--ci ARQ.json] [--dias N] [--ate AAAA-MM-DD] [--evals DIR] [--json]
+Uso: forge-placar [--raiz DIR] [--raiz-pedidos DIR] [--erros ARQ] [--git DIR --ref REF] [--ci ARQ.json] [--prs ARQ.json] [--dias N] [--ate AAAA-MM-DD] [--evals DIR] [--json]
      forge-placar comparar --antes AAAA-MM-DD --depois AAAA-MM-DD [--metrica NOME] [--tolerancia F] [--folga F] [--minimo N] [...]
      forge-placar propostas [ARQUIVO] [--hoje AAAA-MM-DD] [--max-abertas N] [--json]
      forge-placar fases [--git DIR] [--ref REF] [--dia AAAA-MM-DD] [--json]
@@ -37,6 +37,10 @@ a ele (coluna `autor`; `destino` vira o papel do brief, `<pedido>-<papel>-<n>`) 
 os de brief; papel destino: as entregas dos briefs dele; conferente e ferramenta: todos), e os casos de eval do papel em
 `--evals` (padrão tests/evals/ do Forge): travados (teste comum), backlog (`expectedFailure`) e sem ferramenta (`SEM_FERRAMENTA`).
 Linha de 8 colunas (sem autor) fica fora da taxa por papel.
+
+Sem teste (decisão do dono 18/11 15:10): com `--prs` (JSON de `gh pr list --state merged --json body,mergedAt`, gerado
+fora), a linha `sem_teste:` conta, por semana ISO das duas janelas, os PRs mesclados cujo corpo tem a seção `## Sem teste` (T1)
+sobre os PRs mesclados: `2026-W47 2/9`. Sem `--prs`, `-`; no `--json`, a chave `sem_teste` ({semana: [com a seção, PRs]}).
 
 Disco (MP6): a linha `disco:` traz o uso do disco que guarda as cópias de trabalho (`~/.forge-contrib`) e o limiar de
 `forge_disco.py`, acima do qual o `forge-copia` recusa cópia nova; disco ilegível sai `-`. No `--json`, a chave `disco`.
@@ -79,6 +83,7 @@ ERRO_REGISTRO = re.compile(r"^## \d+\. .*\((\d{4}-\d{2}-\d{2})[ T]\d{2}:\d", re.
 TIPOS_DE_MUDANCA = ("código:", "codigo:", "texto:")
 RESULTADO = re.compile(r"^(manter|reverter)\b.*\S", re.I)
 PRAZO_MAXIMO = 30  # dias entre o início e a revisão
+SEM_TESTE = re.compile(r"^##[ \t]+Sem teste[ \t]*$", re.M | re.I)
 PASTAS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/security/", "docs/devops/")  # as do PASTA_E_REGRA do forge-check
 META_MINUTOS = 85  # ordem do dono 18/11 17:00: do 1.º commit ao merge, de 169 para 85 min
 FASES = ("desenvolvimento", "pareceres", "voltas", "integração")
@@ -179,6 +184,34 @@ def ci_vermelha(arq):
         raise SystemExit(f"forge-placar: --ci {arq} não é JSON")
     return [datetime.date.fromisoformat(e["createdAt"][:10]) for e in execucoes
             if isinstance(e, dict) and e.get("conclusion") == "failure" and DATA.match(str(e.get("createdAt", "")))]
+
+
+def sem_teste_por_semana(arq, janela):
+    """{semana ISO: [PRs com a seção `## Sem teste`, PRs]} dos PRs mesclados na janela; None sem `--prs`."""
+    if not arq:
+        return None
+    texto = ler(arq)
+    if texto is None:
+        raise SystemExit(f"forge-placar: --prs {arq} não existe")
+    try:
+        prs = json.loads(texto)
+    except json.JSONDecodeError:
+        raise SystemExit(f"forge-placar: --prs {arq} não é JSON")
+    if not isinstance(prs, list):
+        raise SystemExit(f"forge-placar: --prs {arq} não é uma lista de PRs")
+    semanas = {}
+    for pr in prs:
+        quando = str(pr.get("mergedAt")) if isinstance(pr, dict) else ""
+        if not DATA.match(quando):
+            continue  # PR aberto ou fechado sem merge (mergedAt nulo)
+        dia = datetime.date.fromisoformat(quando[:10])
+        if not dentro(dia, janela):
+            continue
+        ano, semana, _ = dia.isocalendar()
+        conta = semanas.setdefault(f"{ano}-W{semana:02d}", [0, 0])
+        conta[0] += bool(SEM_TESTE.search(str(pr.get("body"))))
+        conta[1] += 1
+    return dict(sorted(semanas.items()))
 
 
 PAPEIS_GERAIS = ("jarvis", "conferente", "ferramenta")
@@ -356,12 +389,15 @@ def cmd_placar(args):
     vistos = set(taxas_por_papel(vereditos, janelas[0])) | set(taxas_por_papel(vereditos, janelas[1]))
     papeis = {"atual": taxas_por_papel(vereditos, janelas[0], vistos), "anterior": taxas_por_papel(vereditos, janelas[1], vistos),
               "evals": evals_por_papel(args.evals)} if vereditos is not None or Path(args.evals).is_dir() else None
+    sem_teste = sem_teste_por_semana(args.prs, (janelas[1][0], ate))
     if args.json:
-        print(json.dumps({"atual": atual, "anterior": anterior, "papeis": papeis, "disco": disco(), "resumo": resumo(anterior, atual)},
+        print(json.dumps({"atual": atual, "anterior": anterior, "papeis": papeis, "sem_teste": sem_teste, "disco": disco(), "resumo": resumo(anterior, atual)},
                          ensure_ascii=False, sort_keys=True))
     else:
         imprimir(("atual", "anterior"), (atual, anterior))
         imprimir_papeis(papeis)
+        semanas = "-" if sem_teste is None else " · ".join(f"{s} {n}/{t}" for s, (n, t) in sem_teste.items()) or "nenhum PR mesclado"
+        print(f"sem_teste: {semanas} (PRs com a seção Sem teste / PRs mesclados, por semana)")
         d = disco()
         print(f"disco: {'-' if d['uso'] is None else str(d['uso']) + '%'} de uso em ~/.forge-contrib (limiar {d['limiar']}%)")
         print(resumo(anterior, atual))
@@ -585,6 +621,7 @@ def analisar(argv):
     comum.add_argument("--git")
     comum.add_argument("--ref", default="origin/develop")
     comum.add_argument("--ci")
+    comum.add_argument("--prs", metavar="ARQ.json", help="gh pr list --state merged --json body,mergedAt, gerado fora")
     comum.add_argument("--dias", type=int, default=7)
     comum.add_argument("--json", action="store_true")
     comum.add_argument("--evals", default=str(FORGE / "tests" / "evals"))

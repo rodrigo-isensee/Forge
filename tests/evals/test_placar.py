@@ -428,5 +428,70 @@ class Fases(unittest.TestCase):
         self.assertIn("git log falhou", r.stderr)
 
 
+# PLACAR-SEM-TESTE-POR-SEMANA (decisão do dono 18/11 15:10): `--prs` com JSON de exemplo, sem rede nem git.
+EXEMPLO = [
+    {"mergedAt": "2026-11-06T23:00:00Z", "body": "## Sem teste\nantes da janela"},
+    {"mergedAt": "2026-11-07T10:00:00Z", "body": "## Sem teste\nsó texto"},
+    {"mergedAt": "2026-11-10T10:00:00Z", "body": "## Sem teste\nmotivo"},
+    {"mergedAt": "2026-11-10T11:00:00Z", "body": "Sem teste no texto, sem a seção"},
+    {"mergedAt": "2026-11-11T10:00:00Z", "body": "### Sem teste\noutro nível de título"},
+    {"mergedAt": "2026-11-12T10:00:00Z", "body": None},
+    {"mergedAt": "2026-11-16T10:00:00Z", "body": "## O que mudou\nx\n\n## sem teste  \nmotivo"},
+    {"mergedAt": "2026-11-20T10:00:00Z", "body": "## O que mudou\nx"},
+    {"mergedAt": "2026-11-21T00:00:00Z", "body": "## Sem teste\nno fim exclusivo da janela"},
+    {"mergedAt": None, "body": "## Sem teste\nPR aberto"},
+    "não é PR",
+]
+
+
+class SemTeste(unittest.TestCase):
+    def setUp(self):
+        self.raiz = Path(tempfile.mkdtemp(prefix="forge-placar-sem-teste-"))
+        self.addCleanup(shutil.rmtree, self.raiz, ignore_errors=True)
+
+    def rodar(self, *args):
+        """Python com -I e ambiente limpo (AR-4): nada herdado de quem roda a suíte."""
+        env = {"PATH": os.environ.get("PATH", ""), "HOME": str(self.raiz / "home")}
+        r = subprocess.run([sys.executable, "-I", str(PLACAR), "--raiz", str(self.raiz), "--ate", "2026-11-21",
+                            "--evals", str(self.raiz / "sem-evals"), *args], capture_output=True, text=True, env=env, cwd=self.raiz,
+                           timeout=60)
+        return r.returncode, r.stdout, r.stderr
+
+    def prs(self, texto, nome="prs.json"):
+        arq = self.raiz / nome
+        arq.write_text(texto, encoding="utf-8")
+        return str(arq)
+
+    def test_dados_de_exemplo_por_semana(self):
+        arq = self.prs(json.dumps(EXEMPLO))
+        rc, saida, erro = self.rodar("--prs", arq, "--json")
+        self.assertEqual(rc, 0, erro)
+        self.assertEqual(json.loads(saida)["sem_teste"], {"2026-W45": [1, 1], "2026-W46": [1, 4], "2026-W47": [1, 2]})
+        rc, saida, erro = self.rodar("--prs", arq)
+        self.assertIn("sem_teste: 2026-W45 1/1 · 2026-W46 1/4 · 2026-W47 1/2 (PRs com a seção Sem teste / PRs mesclados, por semana)",
+                      saida)
+
+    def test_sem_dados_sai_tracinho_nunca_zero(self):
+        rc, saida, erro = self.rodar("--json")
+        self.assertEqual(rc, 0, erro)
+        self.assertIsNone(json.loads(saida)["sem_teste"])
+        rc, saida, erro = self.rodar()
+        self.assertIn("sem_teste: - (", saida)
+
+    def test_lista_vazia_diz_nenhum_pr(self):
+        rc, saida, erro = self.rodar("--prs", self.prs("[]"))
+        self.assertEqual(rc, 0, erro)
+        self.assertIn("sem_teste: nenhum PR mesclado (", saida)
+
+    def test_arquivo_ausente_ou_invalido_sai_com_2(self):
+        casos = ((str(self.raiz / "nada.json"), "não existe"), (self.prs("{nao json", "a.json"), "não é JSON"),
+                 (self.prs('{"mergedAt": "2026-11-10"}', "b.json"), "não é uma lista"))
+        for arq, motivo in casos:
+            with self.subTest(motivo=motivo):
+                rc, _, erro = self.rodar("--prs", arq)
+                self.assertEqual(rc, 2)
+                self.assertIn(motivo, erro)
+
+
 if __name__ == "__main__":
     unittest.main()
