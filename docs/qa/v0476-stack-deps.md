@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0476-stack-deps
-commit: f10912559b0561216f157059b9828099c5ee463e
+commit: 8727471d9fdde8d6e9bf04edb75a3c8a91adf9ba
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -100,5 +100,21 @@ Execução (clone do head f1091255, árvore limpa, `TMPDIR` do sandbox):
 - `bin/forge-mutante --base ecfc40c355010520c48d15ded98990fe3b66464b tests/mutantes/v0476-stack-deps-2.json`: `base=ecfc40c355010520c48d15ded98990fe3b66464b`, rc 0.
 - Vermelho: sem teste novo no delta (só remoção de entradas da lista fixa, comportamento igual); n/a.
 - Suíte inteira: check-run `bateria` do CI do PR (a branch não tem PR); não citada.
+
+Bugs: nenhum. Acessibilidade e E2E: n/a (CLI).
+
+## Revalidação (delta f1091255..8727471d, E3.307)
+`forge-check parecer delta` lista no domínio `bin/forge-copia`, `tests/test_forge.py` e `tests/test_forge_copia.py` (sem o que veio da develop). Mudanças: `PacotesDeStack` passa a aceitar `instalar.json` (valida o JSON e o inclui nos arquivos permitidos; corrige o vermelho do CI do PR 660); junção com a develop traz o MP6 (recusa por disco em `bin/forge-copia`, via `forge_disco.py`); o pacote falso dos testes copia `forge_disco.py`. Critérios anteriores seguem válidos; o novo (recusa por disco acima do limiar ou ilegível, antes de criar) é guardado pelos mutantes `v0474-mp6-disco*` (M1 a M3, `bin/forge-copia:117-118`).
+
+Execução (clone do head 8727471d, `TMPDIR` único, sandbox):
+- `python3 -I tests/catraca.py --base origin/develop`: rc 0.
+- `tests.test_forge_copia`: 36 testes, OK. `tests.test_forge.PacotesDeStack`: 4, OK. `tests.test_forge_fechar`: 17, OK. `tests.test_ambiente_git`: 20, OK. `tests.test_metricas_texto`: 2, OK.
+- `forge-mutante tests/mutantes/v0476-stack-deps.json`: `rev=8727471d9fdd`, M1 a M10 morreram. `-2.json`: M1, M4 a M14 morreram. `-3.json`: M1 a M5 morreram.
+- `v0474-mp6-disco.json`: M1 a M8 morreram (M4 e M5 por erro do teste declarado sob o mutante, que passa sem ele; morte válida pela ferramenta). `-2.json`: M9, M10, M12 a M16 morreram. `-3.json`: M17 a M19 morreram. Todas rc 0, sem sobreviventes.
+- Vermelho: o delta não traz teste novo de regra; a mudança em `test_forge.py` conserta teste que o CI marcava vermelho por `instalar.json` fora da forma do pacote. n/a.
+- Suíte inteira: check-run `bateria` do CI do PR 660 no mesmo sha; não citada daqui.
+
+## Achados
+Nenhum aberto.
 
 Bugs: nenhum. Acessibilidade e E2E: n/a (CLI).
