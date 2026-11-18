@@ -33,7 +33,7 @@
      "de": "(\"linha_base\" not in i or", "para": "(\"linha_base\" in i or",
      "testes": ["tests.test_forge_mutante.Cobertura.test_isenta_libera_a_condicao_sem_mutante_e_a_apagada_e_impressa"]},
     {"id": "IL11", "guarda": "a condição nova passa False: a isenta pelo texto nunca a libera (C-1, L7)", "arquivo": "bin/forge-mutante",
-     "de": "isenta(isentas, usadas, arquivo, depois, de, ate, False, nova=True)", "para": "isenta(isentas, usadas, arquivo, depois, de, ate, True, nova=True)",
+     "de": "isenta(isentas, usadas, arquivo, depois, de, ate, False, nova=irmas)", "para": "isenta(isentas, usadas, arquivo, depois, de, ate, True, nova=irmas)",
      "testes": ["tests.test_forge_mutante.Cobertura.test_isenta_vale_para_cada_condicao_nova_com_o_mesmo_trecho"]},
     {"id": "IL12", "guarda": "a apagada uma vez casa pelo texto (v047 E1.283: era a linha impressa em (base))", "arquivo": "bin/forge-mutante",
      "de": "isenta(isentas, usadas, arquivo, antes, de, ate, falta[texto] == 1)", "para": "isenta(isentas, usadas, arquivo, antes, de, ate, False)",

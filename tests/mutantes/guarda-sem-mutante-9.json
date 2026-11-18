@@ -16,8 +16,8 @@
       "id": "M58",
       "guarda": "trecho da isenta comeca dentro do no",
       "arquivo": "bin/forge-mutante",
-      "de": "ini <= onde and",
-      "para": "True and",
+      "de": "and ini <= onde and",
+      "para": "and True and",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_isenta_da_apagada_repetida_com_trecho_alem_do_no_e_velha"
       ]
