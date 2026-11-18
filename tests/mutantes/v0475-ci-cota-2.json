@@ -1,0 +1,134 @@
+{
+  "pedido": "v0475-ci-cota-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M12",
+      "guarda": "origin fora do GitHub não dá dono",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "return m.group(1) if m else \"\"",
+      "para": "return m.group(1) if True else \"\"",
+      "testes": ["tests.test_cota_ci.CotaCi.test_origin_fora_do_github_e_dono_desconhecido"]
+    },
+    {
+      "id": "M13",
+      "guarda": "falha do gh sem mensagem diz sem resposta",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "(r.stderr.strip().splitlines() or [\"sem resposta\"])[0]",
+      "para": "(r.stderr.strip().splitlines() or [\"\"])[0]",
+      "testes": ["tests.test_cota_ci.CotaCi.test_falha_do_gh_sem_mensagem_diz_sem_resposta"]
+    },
+    {
+      "id": "M14",
+      "guarda": "resposta que não é objeto não verifica",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "if not isinstance(d, dict):",
+      "para": "if False:",
+      "testes": ["tests.test_cota_ci.CotaCi.test_resposta_que_nao_e_objeto_nao_verifica"]
+    },
+    {
+      "id": "M15",
+      "guarda": "laço dos argumentos lê as opções",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "while i < len(argv):",
+      "para": "while False:",
+      "testes": ["tests.test_cota_ci.CotaCi.test_limite_configuravel"]
+    },
+    {
+      "id": "M16",
+      "guarda": "opção sem valor é uso errado (rc 2)",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "and i + 1 < len(argv):",
+      "para": "and True:",
+      "testes": ["tests.test_cota_ci.CotaCi.test_opcao_sem_valor_sai_2"]
+    },
+    {
+      "id": "M17",
+      "guarda": "--dono grava o dono, não o limite",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "if argv[i] == \"--dono\":",
+      "para": "if argv[i] == \"--limite\":",
+      "testes": ["tests.test_cota_ci.CotaCi.test_usuario_403_e_organizacao_404_mostra_os_dois_motivos", "tests.test_cota_ci.CotaCi.test_limite_configuravel"]
+    },
+    {
+      "id": "M18",
+      "guarda": "--dono vale mais que o origin",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "dono = dono or dono_do_origin()",
+      "para": "dono = dono_do_origin()",
+      "testes": ["tests.test_cota_ci.CotaCi.test_usuario_403_e_organizacao_404_mostra_os_dois_motivos"]
+    },
+    {
+      "id": "M19",
+      "guarda": "dono desconhecido com endpoint trocado ainda consulta",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "if not troca and not dono:",
+      "para": "if not dono:",
+      "testes": ["tests.test_cota_ci.CotaCi.test_endpoint_trocado_responde"]
+    },
+    {
+      "id": "M20",
+      "guarda": "dono fora do formato não é consultado",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "if not troca and not login_valido(dono):",
+      "para": "if not troca and False:",
+      "testes": ["tests.test_cota_ci.CotaCi.test_dono_fora_do_formato_de_login_nao_e_impresso_nem_consultado"]
+    },
+    {
+      "id": "M21",
+      "guarda": "endpoint trocado vale no lugar dos dois",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "endpoints = [troca] if troca else",
+      "para": "endpoints = [troca] if False else",
+      "testes": ["tests.test_cota_ci.CotaCi.test_endpoint_trocado_responde"]
+    },
+    {
+      "id": "M22",
+      "guarda": "resposta legível encerra a procura",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "if d is not None:",
+      "para": "if d is None:",
+      "testes": ["tests.test_cota_ci.CotaCi.test_abaixo_do_limite_diz_ok", "tests.test_cota_ci.CotaCi.test_organizacao_responde_quando_o_usuario_nao"]
+    },
+    {
+      "id": "M23",
+      "guarda": "motivos dos dois endpoints juntos",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "motivos.append(motivo)",
+      "para": "motivos = [motivo]",
+      "testes": ["tests.test_cota_ci.CotaCi.test_usuario_403_e_organizacao_404_mostra_os_dois_motivos"]
+    },
+    {
+      "id": "M24",
+      "guarda": "sem dono (endpoint trocado) não imprime /users//",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "(\"\" if troca else f",
+      "para": "(\"\" if False else f",
+      "testes": ["tests.test_cota_ci.CotaCi.test_endpoint_trocado_sem_dono_nao_imprime_users_vazio"]
+    },
+    {
+      "id": "M25",
+      "guarda": "formato de login casa a string inteira",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "bool(LOGIN.fullmatch(dono))",
+      "para": "bool(LOGIN.match(dono))",
+      "testes": ["tests.test_cota_ci.CotaCi.test_dono_fora_do_formato_de_login_nao_e_impresso_nem_consultado"]
+    },
+    {
+      "id": "M26",
+      "guarda": "login tem no máximo 39 caracteres",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "{0,38}",
+      "para": "{0,60}",
+      "testes": ["tests.test_cota_ci.CotaCi.test_dono_fora_do_formato_de_login_nao_e_impresso_nem_consultado"]
+    },
+    {
+      "id": "M27",
+      "guarda": "executa só como programa principal",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if False:",
+      "testes": ["tests.test_cota_ci.CotaCi.test_abaixo_do_limite_diz_ok"]
+    }
+  ]
+}

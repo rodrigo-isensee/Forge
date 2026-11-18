@@ -13,7 +13,7 @@ Texto do Jarvis (L51); a forma é da ferramenta.
 3. `forge-check brief selar --arquivo <brief> --pedido <p>`: reprovado, corrija o que ele aponta e rode de novo; aprovado, ele grava o selo e imprime o hash.
 4. Delegue citando o caminho do brief e o hash do selo. O hook `agentes` recusa brief sem selo ou com hash diferente em todo tipo que escreve (fora conferente e `Explore`). Brief editado pede selo novo. Uma delegação de escrita por branch (Z10); o parecer roda junto.
 
-O `forge:conferente` é opcional: chame-o só com uma dúvida de conteúdo que a ferramenta não decide (o Entregar é fiel ao pedido? contradiz uma decisão?), com a mensagem de `forge-check brief mensagem`.
+O `forge:conferente` é opcional: chame-o só com uma dúvida de conteúdo que a ferramenta não decide, com a mensagem de `forge-check brief mensagem`.
 
 ## Ao receber a entrega (`R-PROVA`)
 - `forge-check entrega --pedido <p> --branch <b> --etapa <etapa>`: confere o estado real, roda os PQ que sabe conferir e grava a linha `entrega conferida <sha40>` no `## Histórico`. Nunca escreva essa linha à mão; `--sem-gravar` só confere (o PQ do autor), `--so-leitura` sem PQ `cmd` (o conferente).
@@ -21,7 +21,7 @@ O `forge:conferente` é opcional: chame-o só com uma dúvida de conteúdo que a
 - Depois, `forge-check classe` e os portões da classe numa passada, em paralelo, no mesmo head (`R-REVIEW`).
 
 ## Brief de volta
-Os bloqueantes de review, segurança e QA viram **um** brief de volta, ao autor da branch, retomado por `SendMessage` até o merge (H2; comando e detalhe em `autor-ate-o-merge.md` nesta skill). A revalidação de cada parecer lê só `forge-check parecer delta <parecer>`.
+Os bloqueantes de review, segurança, QA e o CI vermelho viram **um** brief de volta, ao autor da branch, retomado por `SendMessage` até o merge (H2; comando e detalhe em `autor-ate-o-merge.md` nesta skill). A revalidação de cada parecer lê só `forge-check parecer delta <parecer>`. Sem `gh run rerun` à toa (`R-CUSTO`).
 
 ## Brief que manda escrever parecer
 Avise que o achado tem até 300 caracteres e que regra se cita pelo ID, não copiada.

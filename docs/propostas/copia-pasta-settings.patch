@@ -1,0 +1,11 @@
+diff --git a/templates/projeto/.claude/settings.json b/templates/projeto/.claude/settings.json
+--- a/templates/projeto/.claude/settings.json
++++ b/templates/projeto/.claude/settings.json
+@@ -28,6 +28,7 @@
+     "allowUnsandboxedCommands": false,
+     "autoAllowBashIfSandboxed": true,
+     "filesystem": {
++      "allowWrite": ["~/.forge-contrib"],
+       "denyRead": [
+         "~/.ssh",
+         "~/.config/gh",

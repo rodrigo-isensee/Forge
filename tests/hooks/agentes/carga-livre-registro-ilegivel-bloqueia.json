@@ -1,0 +1,40 @@
+{
+  "descricao": "MP5: registro de projetos ativos ilegível recusa o escape (falha fechada).",
+  "env": {
+    "FORGE_CARGA_LIVRE": "1",
+    "HOME": "{tmp}/home"
+  },
+  "proc": {
+    "loadavg": "7.0 1.0 1.0 1/100 1",
+    "mem_gb": 1.5
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": []
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "FORGE_CARGA_LIVRE=1 recusado: registro de projetos ilegível (MP5",
+    "stderr_sem": [
+      "…"
+    ]
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/home/.forge/maquina/projetos-ativos.json": "{x"
+      }
+    }
+  ]
+}

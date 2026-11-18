@@ -16,3 +16,10 @@ orientação do M14 (150 linhas de código e teste, sem trava por volume).
   nos mesmos arquivos seguem no mesmo agente, uma depois da outra (diretriz 33).
 - **Passar do teto:** só se cortar mais deixa a suíte vermelha (um pedaço não fica verde sozinho). O tech-lead explica o
   motivo no corpo do PR, com `teto: excedido, <n> linhas, <motivo>`.
+
+## Caminho curto para o pequeno (H8)
+- **A classe decide** (`forge-check classe`, `R-REVIEW`): na T (só documentação comum, só testes, ou até 20 linhas fora dos
+  caminhos de controle) o caminho é localizar, corrigir, validar por teste e uma revisão, sem QA separado; a segurança entra
+  só com gatilho (`R-SEGURANCA`). O `brief gerar` avisa quando a classe não exige o portão da etapa: não dispare o agente.
+- **Nenhum portão sai de classe nenhuma sem decisão do dono.** No Forge, texto de skill e de agente e correção em `bin/` e
+  `hooks/` são caminhos de controle (classe C): o caminho curto não os alcança.

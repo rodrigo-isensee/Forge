@@ -13,6 +13,13 @@ Detalhe da skill `trabalho-em-paralelo` (diretriz 25: o Jarvis traz o resumo e m
 - Cartões que mexem nos mesmos arquivos vão para o mesmo agente, na mesma branch, um depois do outro, nunca para agentes diferentes em paralelo (`forge-check sobreposicao` diz o arquivo em comum).
 - Lote de desenvolvimento: de 3 a 5 cartões pequenos (ou um dia de trabalho), com uma revisão só.
 - A junção na `develop` continua como na diretriz 26: até 3 PRs que não mexem nos mesmos arquivos.
+- Lote por arquivo: itens decididos no mesmo arquivo vão numa branch, um commit por item com seus testes, portões uma vez e um PR que cita os itens; item com defeito sai por revert; item à espera do dono não entra; nenhum portão cai.
+
+## CI pago (`R-CUSTO`, E3.43)
+Em projeto privado, cada push e cada `gh run rerun` custa um run de CI (num projeto de origem, 163 rodadas de push contra 33 de PR num dia esgotaram a cota grátis).
+- Junte os commits e envie uma vez, com a entrega pronta e o comando local verde; push de cada commit ou de trabalho pela metade é run gasto.
+- `gh run rerun` pede motivo escrito: falha de infraestrutura comprovada no log (runner, rede, serviço fora do ar). Teste vermelho não se repete: volta ao autor no brief de volta.
+- Vale para o autor, os portões e o Jarvis; o comando local é o pronto do `CLAUDE.md` (no Forge, o PQ do brief).
 
 ## Teto do time (decisão do dono, H6)
 - Até 20 agentes ao mesmo tempo, dentro do `R-TETO`, e no máximo 12 branches com trabalho aberto.

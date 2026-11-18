@@ -1,0 +1,86 @@
+{
+  "pedido": "v0476-mp2-mp4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "N1",
+      "guarda": "segurança A6: pasta da máquina aberta ao grupo levanta",
+      "arquivo": "hooks/_maquina.py",
+      "de": "if not so_do_usuario(caminho) or os.stat(caminho).st_mode & 0o077:",
+      "para": "if not so_do_usuario(caminho):",
+      "testes": [
+        "tests.test_maquina.Registro.test_pasta_aberta_ao_grupo_nao_grava"
+      ]
+    },
+    {
+      "id": "N2",
+      "guarda": "segurança A4: o que não é arquivo regular não se lê",
+      "arquivo": "hooks/_maquina.py",
+      "de": "        if not stat.S_ISREG(os.fstat(fd).st_mode):\n            raise",
+      "para": "        if False:\n            raise",
+      "testes": [
+        "tests.test_maquina.Leitura.test_fifo_e_arquivo_acima_do_teto_valem_vazio"
+      ]
+    },
+    {
+      "id": "N3",
+      "guarda": "segurança A4: acima do teto não se lê",
+      "arquivo": "hooks/_maquina.py",
+      "de": "if len(bruto) > teto:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_maquina.Leitura.test_fifo_e_arquivo_acima_do_teto_valem_vazio"
+      ]
+    },
+    {
+      "id": "N4",
+      "guarda": "segurança A5: gravação que falha apaga o temporário",
+      "arquivo": "hooks/_maquina.py",
+      "de": "        Path(tmp).unlink(missing_ok=True)\n        raise",
+      "para": "        raise",
+      "testes": [
+        "tests.test_maquina.Leitura.test_gravar_que_falha_nao_deixa_temporario"
+      ]
+    },
+    {
+      "id": "N5",
+      "guarda": "segurança A4: pesado.fila em link levanta",
+      "arquivo": "hooks/pesado.py",
+      "de": "    if pasta.is_symlink():\n        raise",
+      "para": "    if False:\n        raise",
+      "testes": [
+        "tests.test_maquina.Leitura.test_fila_em_link_levanta_e_senha_fora_da_forma_nao_conta"
+      ]
+    },
+    {
+      "id": "N6",
+      "guarda": "segurança A4: senha que não é arquivo regular não conta nem se apaga",
+      "arquivo": "hooks/pesado.py",
+      "de": "    if not stat.S_ISREG(os.fstat(fd).st_mode):\n        os.close(fd)",
+      "para": "    if False:\n        os.close(fd)",
+      "testes": [
+        "tests.test_maquina.Leitura.test_fila_em_link_levanta_e_senha_fora_da_forma_nao_conta"
+      ]
+    },
+    {
+      "id": "N7",
+      "guarda": "segurança A4: senha em link não se abre",
+      "arquivo": "hooks/pesado.py",
+      "de": "    except OSError:\n        return None",
+      "para": "    except OSError:\n        raise",
+      "testes": [
+        "tests.test_maquina.Leitura.test_fila_em_link_levanta_e_senha_fora_da_forma_nao_conta"
+      ]
+    },
+    {
+      "id": "N8",
+      "guarda": "segurança A4: senha que não se abre fica fora da fila",
+      "arquivo": "hooks/pesado.py",
+      "de": "        if fd is None:\n            continue",
+      "para": "        if False:\n            continue",
+      "testes": [
+        "tests.test_maquina.Leitura.test_fila_em_link_levanta_e_senha_fora_da_forma_nao_conta"
+      ]
+    }
+  ]
+}

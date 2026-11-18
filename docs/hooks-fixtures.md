@@ -2,17 +2,17 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (2887 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (2931 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
-| `agentes` | 120 | 63 | 57 | 30 |
+| `agentes` | 125 | 66 | 59 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2125 | 1573 | 552 | 91 |
+| `conformidade` | 2159 | 1596 | 563 | 93 |
 | `doutor` | 3 | 0 | 3 | 3 |
-| `meta` | 27 | 11 | 16 | 13 |
+| `meta` | 32 | 13 | 19 | 14 |
 | `parecer` | 529 | 407 | 122 | 24 |
 | `pesado` | 24 | 9 | 15 | 19 |
 | `quadro` | 7 | 2 | 5 | 7 |
@@ -24,8 +24,8 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2887 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | `autor-*` | 23 | 3 | 20 | `R-TETO` | `H2-AUTOR-FICA-ATE-O-MERGE` | H2-AUTOR-FICA-ATE-O-MERGE (R-TETO): só a reserva da retomada (tipo SendMessage) se converte no SubagentStart; o agente já ativo com o mesmo… |
 | `estado-*` | 15 | 12 | 3 | `R-TETO` | `HOOK-ESTADO-ILEGIVEL-LIBERA` | HOOK-ESTADO-ILEGIVEL-LIBERA (A1, R-TETO): `agentes` que não é lista (número) recusa o disparo. |
+| `carga-*` | 12 | 8 | 4 | `R-TETO` | `MP5` | Load 5 está abaixo de 80% de 8 núcleos (6,4): um ativo libera. |
 | `errointerno-*` | 8 | 7 | 1 | `R-BRIEF`, `R-TETO` | `HOOK-ERRO-LIBERA`, `HOOK-ESTADO-ILEGIVEL-LIBERA` | HOOK-ERRO-LIBERA (C7): erro ao fixar a pasta do estado não leva o R-BRIEF junto: o especialista sem brief segue recusado. |
-| `carga-*` | 7 | 5 | 2 | `R-TETO` | — | Load 5 está abaixo de 80% de 8 núcleos (6,4): um ativo libera. |
 | `pid-*` | 7 | 7 | 0 | — | `C1-1` | C1-1/C1-2: pid acima do pid_max mantém o registro (falha para o lado seguro) e o hook segue barrando no teto. |
 | `nproc-*` | 6 | 3 | 3 | — | — | 16 núcleos, load 3: teto 16; quinze ativos liberam (o teto segue o hardware). |
 | `inicio-*` | 5 | 0 | 5 | — | `C1-5` | C1-5: o SubagentStart da mesma sessão confirma a reserva e ela mantém o pid. |
@@ -95,6 +95,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2887 fixtures) roda em `tests/test
 | `n1-*` | 21 | 16 | 5 | `R-MAIN`, `R-VERIFY` | — | N1 (IMPL-FURO-HOOK-N, C-N1-2): o alias com ponto no nome também é lido |
 | `pacote-*` | 21 | 9 | 12 | `R-CONFORMIDADE` | `QA` | Dev instala dependência nova. |
 | `pr-*` | 21 | 17 | 4 | `R-CONFORMIDADE`, `R-MAIN` | `FILA-22`, `QA` | Dev criando PR: bloqueia. |
+| `tagv-*` | 21 | 15 | 6 | `R-FLUXO` | `V0474-TAG` | V0474-TAG: tag anotada no clone de contribuição do Forge (segurança A2 da v0474); a tag v* do Forge só nasce do release.yml. |
 | `aq-*` | 18 | 13 | 5 | — | `AQ` | AQ barrado em agents/ de uma worktree fora da raiz. |
 | `autoria-*` | 17 | 0 | 17 | — | — | Redirecionamento para docs/qa/ pelo Bash também registra. |
 | `desenho-*` | 16 | 7 | 9 | — | `E5-0` | E5-0 (Q-B, PAR-P2): sonda: docs/architecture/ de projeto fica sem dono até DESENHO-PROJETO-DONO; o devops grava a seção CI/CD do plano. |
@@ -102,11 +103,12 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2887 fixtures) roda em `tests/test
 | `subst-*` | 16 | 14 | 2 | `R-VERIFY`, `R-MAIN` | `HEAD` | Caminho colado a $(...): o resto é conferido também a partir da raiz (na dúvida, recusa). |
 | `flag-*` | 15 | 13 | 2 | `R-VERIFY` | — | Flag proibida: git -c core.hooksPath=/dev/null push origin feature/x |
 | `protegido-*` | 15 | 11 | 4 | `R-CONTRIB` | — | .claude-plugin/plugin.json: Dev em melhoria/*: bloqueia. |
+| `home-*` | 14 | 13 | 1 | — | `HOME` | ~/.claude.json é do usuário. |
 | `profundidade-*` | 14 | 10 | 4 | `R-CONFORMIDADE`, `R-VERIFY` | `PROFUNDIDADE-BASH-C` | PROFUNDIDADE-BASH-C (v0457 E17.1): 3 níveis legítimos de bash -c no projeto seguem liberados. |
 | `ar-*` | 13 | 11 | 2 | `R-VERIFY`, `R-MAIN`, `R-REVIEW` | `AR-TRAVA-UMA-SINTAXE` | AR-TRAVA-UMA-SINTAXE: o programa pelo caminho é o mesmo |
 | `n3-*` | 12 | 9 | 3 | — | — | N3 (IMPL-FURO-HOOK-N, S1b): cp -l faz o mesmo link físico |
 | `fila22-*` | 11 | 7 | 4 | `R-CONFORMIDADE` | `FILA-22` | FILA-22 (review da 0.43.2): abrir PR pelo `gh api` segue a política `pr_criar`; o jarvis (sessão principal) não abre. |
-| `home-*` | 11 | 10 | 1 | — | `HOME` | ~/.claude.json é do usuário. |
+| `e350-*` | 10 | 5 | 5 | — | `E3.50` | E3.50: git add && git commit com heredoc <<'EOF' na mesma chamada, com marcador crítico (docs/reviews), passa. |
 | `m1-*` | 10 | 7 | 3 | — | — | M1 (review da 0.43.2): a linha de selo ou de conferência é da ferramenta; `cd docs/pedidos && cat >> p1.md <<'FIM'` com a conferência no cor… |
 | `crase-*` | 9 | 7 | 2 | `R-CONFORMIDADE` | `CRASE-ASPA-HOOK`, `CRASE-SESSAO-PROJETO` | Orçamento: 60 cd e 60 crases aninhadas terminando em push com --no-verify: o hook recusa sem estourar o timeout (a base recusava em 0,34 s). |
 | `erro-*` | 7 | 5 | 2 | — | — | Config corrompida e comando sem marcador: libera e registra. |
@@ -170,6 +172,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (2887 fixtures) roda em `tests/test
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | `v0454-*` | 12 | 8 | 4 | — | `V0454-CAMINHOS-EXTRA` | V0454-CAMINHOS-EXTRA: a pasta de `caminhos_extra` entra no fim do PATH da checagem |
+| `mp1-*` | 5 | 2 | 3 | `R-PROVA` | `MP1` | MP1 (segurança A1 da v0475): ATIVOS acima de 64 KiB conta como um projeto só; a recusa R-PROVA do Stop fica intacta (rc 2) e a linha sai sem… |
 | `jargao-*` | 2 | 1 | 1 | `R-PROVA` | `E2.237`, `E7.4` | E7.4 (v047): S6 mede a mensagem do campo last_assistant_message (não a do transcrito), conta por classe, não grava o termo e o Stop passa. |
 | `mensagem-*` | 2 | 0 | 2 | — | — | S6: a última mensagem ao dono é medida (caracteres e jargão do modo iniciante) e o Stop passa. |
 | `sem-*` | 2 | 0 | 2 | — | — | Projeto sem .forge/versao: o hook não age. |

@@ -1,7 +1,8 @@
 {
   "descricao": "FORGE_CARGA_LIVRE=1 (só o dono): carga 7 com 0 ativos libera e deixa linha no erros.log. (memória 1,5 GB, abaixo do piso de 2 GB)",
   "env": {
-    "FORGE_CARGA_LIVRE": "1"
+    "FORGE_CARGA_LIVRE": "1",
+    "HOME": "{tmp}/home"
   },
   "proc": {
     "loadavg": "7.0 1.0 1.0 1/100 1",

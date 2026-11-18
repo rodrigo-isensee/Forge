@@ -708,6 +708,10 @@ class RegrasComId(unittest.TestCase):
                     self.assertTrue(rid in validos, f"{rid} não existe em docs/regras/")
 
 
+# Review A5 (v0476-mp2-mp4): as pastas da máquina de cada chamada ficam numa só, apagada na saída do processo.
+MAQUINAS = tempfile.TemporaryDirectory(prefix="forge-maquinas-")
+
+
 def ambiente_limpo():
     """Ambiente sem as variáveis GIT_* herdadas (um hook do git exporta GIT_DIR e afins) e sem config
     global/de sistema: o git dos testes só enxerga o repositório temporário em que roda. Sem `CLAUDE_PROJECT_DIR`
@@ -717,6 +721,7 @@ def ambiente_limpo():
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
     env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+    env["FORGE_MAQUINA"] = tempfile.mkdtemp(prefix="maquina-", dir=MAQUINAS.name)  # MP4: a fila pesada da máquina, uma por chamada
     return sem_manutencao(env)  # sem manutenção automática do git (ver ambiente_git.py)
 
 
@@ -787,7 +792,8 @@ class ForgeInit(unittest.TestCase):
         self.assertIn("`make pronto`", claude_md)
         for arq in minimo(self.tmp.rglob("*"), 27, "entradas do projeto gerado"):
             if arq.is_file() and ".git" not in arq.parts:
-                self.assertNotIn("{{", arq.read_text(encoding="utf-8", errors="ignore"), arq)
+                # `${{ }}` é expressão do GitHub Actions (ci.yml); marcador não trocado é `{{` sem o `$`
+                self.assertIsNone(re.search(r"(?<!\$)\{\{", arq.read_text(encoding="utf-8", errors="ignore")), arq)
         self.assertEqual(git("config", "core.hooksPath", cwd=self.tmp).stdout.strip(), ".githooks")
         self.assertTrue(os.access(self.tmp / ".githooks/pre-push", os.X_OK))
         settings = json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8"))
@@ -1818,7 +1824,8 @@ class PrepararEstacao(unittest.TestCase):
             novas.append(q)
         env["PATH"] = ":".join(novas)
 
-    def _container(self, tmp, *args, logado=False, escopos="'gist', 'repo', 'workflow'", essencial=False, sem_gh=False, extras=None):
+    def _container(self, tmp, *args, logado=False, escopos="'gist', 'repo', 'workflow'", essencial=False, sem_gh=False, extras=None,
+                   plugin_ativo=False):
         """Roda `preparar-estacao.sh --container` sem rede: gh, tmux, shellcheck, claude, sudo, curl e apt-get são
         falsos e registram a chamada; o jarvis-forge da origem falsa cria a cópia vigente com `dev/`."""
         tmp = Path(tmp)
@@ -1844,6 +1851,12 @@ class PrepararEstacao(unittest.TestCase):
         if sem_gh:
             falsos.pop("gh")
         falsos.update(extras or {})
+        if plugin_ativo:  # o installPath ativo do escopo do usuário (ADR 0017): só existe com o plugin instalado de verdade
+            ativo = home / ".claude/plugins/cache/forge/forge/9.9.9"
+            (ativo / "scripts").mkdir(parents=True, exist_ok=True)
+            (ativo / "scripts/instalar-atalho.sh").write_text("#!/bin/sh\nexit 0\n")
+            (home / ".claude/plugins/installed_plugins.json").write_text(json.dumps(
+                {"version": 2, "plugins": {"forge@forge": [{"scope": "user", "installPath": str(ativo), "version": "9.9.9"}]}}))
         for nome, corpo in falsos.items():
             falso = bin_falso / nome
             falso.write_text("#!/bin/sh\n" + corpo)
@@ -1915,7 +1928,7 @@ class PrepararEstacao(unittest.TestCase):
             mk = Path(tmp) / "home/.local/share/forge/dev-marketplace"
             mk.mkdir(parents=True)
             (mk / "forge-dev").symlink_to("../vigente/dev")  # o formato antigo, que o Claude recusa
-            r, home, persist, chamadas = self._container(tmp, logado=True)
+            r, home, persist, chamadas = self._container(tmp, logado=True, plugin_ativo=True)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertIn(f"gh repo clone rodrigo-isensee/forge-contrib {persist / '.forge-contrib'}", chamadas)
             self.assertIn("gh auth setup-git", chamadas)
@@ -2030,7 +2043,7 @@ class PrepararEstacao(unittest.TestCase):
 
     def test_container_essencial_nao_roda_vigente_nem_marketplace(self):
         with tempfile.TemporaryDirectory() as tmp:
-            r, home, _, chamadas = self._container(tmp, logado=True, essencial=True)
+            r, home, _, chamadas = self._container(tmp, logado=True, essencial=True, plugin_ativo=True)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertIn("fez: essencial:", r.stdout)
             self.assertFalse((home / ".local/share/forge").exists())
@@ -2595,7 +2608,7 @@ class JarvisForgeVigente(unittest.TestCase):
     def test_dev_atravessa_o_tmux(self):
         r = self.rodar("--dev")
         self.assertEqual(r.returncode, 0, r.stderr)
-        tmux = [c for c in self.chamadas() if c.startswith("tmux ")][0]
+        tmux = [c for c in self.chamadas() if c.startswith("tmux new-session")][0]
         self.assertIn("jarvis-Forge", tmux)
         self.assertIn("--dev", tmux)
 
@@ -3509,6 +3522,46 @@ class ForgeCheck(unittest.TestCase):
         self.assertEqual(fc.migracao_pendente(self.tmp), ["0.6.0"])
         self.escrever(".forge/versao", "0.6.0\n")
         self.assertEqual(fc.migracao_pendente(self.tmp), [])
+
+    def _plugin_do_modelo(self, versao="0.6.0"):
+        fc = carregar_forge_check()
+        plugin = self.tmp / "plugin"
+        (plugin / ".claude-plugin").mkdir(parents=True, exist_ok=True)
+        (plugin / ".claude-plugin/plugin.json").write_text(json.dumps({"version": versao}), encoding="utf-8")
+        fc.PLUGIN = plugin
+        return fc
+
+    def test_branch_do_modelo_pronta_sem_pr(self):  # v047 E6.6 (ADR 0017): a abertura deixa forge/upgrade-<v> só local
+        fc = self._plugin_do_modelo()
+        self.assertIsNone(fc.branch_do_modelo_sem_pr(self.tmp))  # sem .forge/versao: não é projeto do Forge
+        self.escrever(".forge/versao", "0.5.0\n")
+        self.assertIsNone(fc.branch_do_modelo_sem_pr(self.tmp))  # modelo atrás, mas sem a branch
+        git("branch", "forge/upgrade-0.6.0", cwd=self.tmp)
+        self.assertEqual(fc.branch_do_modelo_sem_pr(self.tmp), "forge/upgrade-0.6.0")
+        with mock.patch.object(fc, "git", side_effect=OSError("sem git")):
+            self.assertIsNone(fc.branch_do_modelo_sem_pr(self.tmp))  # git que falha: silêncio, não queda
+        self.escrever(".forge/versao", "0.6.0\n")
+        self.assertIsNone(fc.branch_do_modelo_sem_pr(self.tmp))  # modelo em dia: a branch velha não é aviso
+        self.escrever(".forge/versao", "0.5.0\n")
+        git("update-ref", "refs/remotes/origin/forge/upgrade-0.6.0", "HEAD", cwd=self.tmp)
+        self.assertIsNone(fc.branch_do_modelo_sem_pr(self.tmp))  # já enviada: o PR é de quem a enviou
+
+    def test_linha_da_branch_do_modelo_troca_o_rode_forge_upgrade(self):
+        versao = json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
+        self.escrever(".forge/versao", "0.4.0\n")
+
+        def stderr():
+            r = subprocess.run([*comando_do_forge_check(), "--raiz", str(self.tmp), "docs"], env=ambiente_limpo(),
+                               capture_output=True, text=True, timeout=60)
+            self.assertNotIn("Traceback", r.stderr)
+            return r.stderr
+        saida = stderr()
+        self.assertIn("migração do Forge pendente", saida)
+        self.assertNotIn("pronta, sem PR", saida)
+        git("branch", f"forge/upgrade-{versao}", cwd=self.tmp)
+        saida = stderr()
+        self.assertIn(f"forge-check: aviso: branch forge/upgrade-{versao} pronta, sem PR; o tech-lead a envia", saida)
+        self.assertNotIn("rode forge-upgrade", saida)
 
     SEGURANCA = ("tipo: revisao-seguranca\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\n"
                  "parecer: {p}\nrevisor: forge:security-engineer\ndata: 2026-10-14\n{extra}")
@@ -4956,9 +5009,8 @@ class ConferirBrief(unittest.TestCase):
             if {"E1.1", "E1"} & mod.ids_da_linha(linha):
                 self.assertIn(f"- {linha.strip()}\n", saida)
         self.assertIn("Retira do escopo original", saida)
-        self.assertIn("E3.1 (revisor): revisão de código da branch.", saida)
         self.assertIn('- "E1.1 (dev-exemplo): implementação do recurso A." (E1.1)', saida)  # a etapa coberta abre o Entregar (P2)
-        self.assertIn('- "E2.1 (dev-exemplo): texto da documentação." · etapa de outra delegação', saida)  # a outra do mesmo papel, sem marca
+        self.assertRegex(saida, r"\n- E2\.1, [^\n]*E3\.1[^\n]* · outras delegações\n")  # a outra do mesmo papel, sem marca, só o id (E3.48)
         self.assertIn("git ls-remote origin refs/heads/melhoria/a", saida)
         self.assertRegex(saida, r"Base-sha: (?:[0-9a-f]{40}|PREENCHER)")
         self.assertEqual(self.rodar(*args)[1], saida)

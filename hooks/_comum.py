@@ -99,6 +99,50 @@ def expandir_home(texto):
     return os.path.expanduser(texto)
 
 
+# MP1 e MP5 (diretriz 35): o sinal de vários projetos ativos é o arquivo, {"projetos": ["<nome>", ...]}, que o registro da
+# máquina (MP2, 0.47.6) vai preencher; os hooks só o leem. O nome do projeto é o da pasta da raiz.
+ARQUIVO_DE_ATIVOS = "~/.forge/maquina/projetos-ativos.json"
+TETO_DE_ATIVOS = 64 * 1024  # bytes; acima, fora da forma
+MAXIMO_DE_ATIVOS = 64  # nomes; acima, idem
+MAXIMO_DO_NOME = 128  # caracteres; nome maior fica de fora
+
+
+def ler_projetos_ativos(caminho=ARQUIVO_DE_ATIVOS, tolerante=False):
+    """Os nomes do registro, sem repetição (sem diferença de maiúsculas): [] sem o arquivo; None em link ou fora de arquivo
+    regular (FIFO, dispositivo), em erro de leitura, acima de TETO_DE_ATIVOS bytes ou de MAXIMO_DE_ATIVOS nomes, ilegível
+    ou fora da forma (quem lê decide: o `meta` conta um projeto só, o `agentes` recusa o escape, MP5). Nome fora da forma
+    (não texto, só espaço, acima de MAXIMO_DO_NOME) torna o registro fora da forma; com `tolerante` (o `meta`), só fica de
+    fora. A leitura não espera nem cresce."""
+    try:
+        fd = os.open(expandir_home(caminho), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
+        return []
+    except OSError:
+        return None
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return None
+        bruto = os.read(fd, TETO_DE_ATIVOS + 1)  # arquivo regular: a leitura não volta curta antes do fim
+    except OSError:  # erro de leitura (EIO): registro ilegível, nunca exceção que o `executar` libera
+        return None
+    finally:
+        os.close(fd)
+    try:
+        dados = json.loads(bruto) if len(bruto) <= TETO_DE_ATIVOS else {}
+    except (ValueError, RecursionError):
+        return None
+    lista = dados.get("projetos") if isinstance(dados, dict) else None
+    if not isinstance(lista, list):
+        return None
+    nomes = [n for n in lista if isinstance(n, str) and n.strip() and len(n) <= MAXIMO_DO_NOME]
+    if len(nomes) > MAXIMO_DE_ATIVOS or (len(nomes) < len(lista) and not tolerante):
+        return None
+    unicos = {}
+    for nome in nomes:
+        unicos.setdefault(nome.casefold(), nome)  # nome repetido conta uma vez; vale o primeiro
+    return list(unicos.values())
+
+
 def raiz_declarada():
     """`CLAUDE_PROJECT_DIR`: a raiz da sessão, que o Claude Code define no processo do hook (também para os
     subagentes). O Bash roda em outro processo: `export` ou `VAR=...` na linha de comando não a mudam."""
@@ -670,7 +714,9 @@ def fora_da_gramatica_de_leitura(linha):
 # ADR 0011, item 2: `case` como palavra de comando, no que sobra fora de aspas.
 CASE = re.compile(r"(?:^|[\s;&|()])case(?=\s|$)")
 # O único heredoc que o analisador modela: delimitador entre aspas (corpo literal, sem expansão), sem `-`, terminado na
-# palavra. É a forma que `tirar_heredocs` separa igual ao bash; qualquer outro `<<` é não modelado.
+# palavra. É a forma que `tirar_heredocs` separa igual ao bash; qualquer outro `<<` é não modelado. FORMA_DO_HEREDOC é o
+# texto único dela: as recusas do hook e o brief (`bin/forge-check`, formas de commit) o citam, sem reescrevê-lo.
+FORMA_DO_HEREDOC = "heredoc só com o delimitador entre aspas (<<'EOF' ou <<'FIM'), sem -, fechado por uma linha só com ele"
 HEREDOC_MODELADO = re.compile(r"<<[ \t]*(['\"])([A-Za-z_][A-Za-z0-9_]*)\1(?=[\s;&|)]|$)")
 
 
