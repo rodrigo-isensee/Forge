@@ -6,8 +6,8 @@
       "id": "T1",
       "guarda": "MP3: uso da máquina que não é objeto levanta",
       "arquivo": "hooks/agentes.py",
-      "de": "    if not isinstance(dados, dict):\n        raise ValueError(f\"{nome} da máquina não é objeto JSON\")",
-      "para": "    if False:\n        raise ValueError(f\"{nome} da máquina não é objeto JSON\")",
+      "de": "    if not isinstance(dados, dict):\n        raise Ilegivel(nome)",
+      "para": "    if False:\n        raise Ilegivel(nome)",
       "testes": [
         "tests.test_maquina_teto.FalhaFechada.test_registro_ou_uso_fora_da_forma_levanta"
       ]
@@ -16,8 +16,8 @@
       "id": "T2",
       "guarda": "MP3: `sessoes` que não é objeto levanta",
       "arquivo": "hooks/agentes.py",
-      "de": "    if not isinstance(sessoes, dict):\n        raise ValueError(\"`sessoes`",
-      "para": "    if False:\n        raise ValueError(\"`sessoes`",
+      "de": "    if not isinstance(sessoes, dict):\n        raise Ilegivel(_maquina.ATIVOS)",
+      "para": "    if False:\n        raise Ilegivel(_maquina.ATIVOS)",
       "testes": [
         "tests.test_maquina_teto.FalhaFechada.test_registro_ou_uso_fora_da_forma_levanta"
       ]
@@ -36,8 +36,8 @@
       "id": "T4",
       "guarda": "MP3: entrada de projeto que não é objeto levanta",
       "arquivo": "hooks/agentes.py",
-      "de": "    if not isinstance(entrada, dict):\n        raise ValueError(\"entrada",
-      "para": "    if False:\n        raise ValueError(\"entrada",
+      "de": "    if not isinstance(entrada, dict):\n        raise Ilegivel(USO_DA_MAQUINA)",
+      "para": "    if False:\n        raise Ilegivel(USO_DA_MAQUINA)",
       "testes": [
         "tests.test_maquina_teto.FalhaFechada.test_registro_ou_uso_fora_da_forma_levanta"
       ]

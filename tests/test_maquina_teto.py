@@ -1,6 +1,7 @@
 """MP3 (diretriz 35, dono 17/11 21:11): o teto de agentes flexível entre os projetos ativos da máquina."""
 import json
 import os
+import subprocess
 import sys
 import time
 import unittest
@@ -37,24 +38,36 @@ class Base(Maquina):
         self.raizes = {}
 
     def abrir(self, *nomes, batimento=None):
-        """Sessões vivas (o pid deste processo) dos projetos `nomes` no registro do MP2."""
+        """Sessões vivas (o pid deste processo) dos projetos `nomes` (caminhos sob o tmp) no registro do MP2."""
         agora, pid = time.time(), os.getpid()
-        sessoes = {f"s-{n}": {"projeto": n, "pid": pid, "inicio": pesado.inicio_de(pid), "batimento": batimento or agora}
-                   for n in nomes}
-        self.gravar(_maquina.ATIVOS, {"projetos": sorted(nomes), "sessoes": sessoes})
+        sessoes = {f"s-{n}": {"projeto": Path(n).name, "pasta": self.chave(n), "pid": pid, "inicio": pesado.inicio_de(pid),
+                              "batimento": batimento or agora} for n in nomes}
+        self.gravar(_maquina.ATIVOS, {"projetos": sorted({Path(n).name for n in nomes}), "sessoes": sessoes})
 
     def raiz(self, nome, peso=None):
-        if nome not in self.raizes:
-            self.raizes[nome] = raiz = self.tmp / nome
-            (raiz / ".forge").mkdir(parents=True)
+        raiz = self.raizes.setdefault(nome, self.tmp.resolve() / nome)
+        (raiz / ".forge").mkdir(parents=True, exist_ok=True)
+        if peso or not (raiz / ".forge" / "config.json").exists():
             (raiz / ".forge" / "config.json").write_text(json.dumps({"peso": peso} if peso else {}), encoding="utf-8")
-        return self.raizes[nome]
+        return raiz
+
+    def chave(self, nome):
+        """A chave do projeto `nome` na máquina: a pasta da cópia principal (`_maquina.identidade`)."""
+        return str(self.raiz(nome))
+
+    def gravar(self, nome, dados):
+        """O uso de agentes da máquina se escreve pelo nome do projeto no teste e vai ao arquivo pela pasta."""
+        if nome == agentes.USO_DA_MAQUINA and isinstance(dados, dict):
+            dados = {self.chave(projeto): entrada for projeto, entrada in dados.items()}
+        super().gravar(nome, dados)
 
     def maquina(self, nome, peso=None):
         return agentes.Maquina(Falso(self.raiz(nome, peso)), time.time())
 
     def usos(self):
-        return json.loads((self.tmp / "maquina" / agentes.USO_DA_MAQUINA).read_text(encoding="utf-8"))
+        """O uso de agentes da máquina, de volta pelo nome do projeto no teste."""
+        usos = json.loads((self.tmp / "maquina" / agentes.USO_DA_MAQUINA).read_text(encoding="utf-8"))
+        return {Path(pasta).relative_to(self.tmp.resolve()).as_posix(): entrada for pasta, entrada in usos.items()}
 
     def disparar(self, nome, meu):
         return self.maquina(nome).recusa(meu, TOTAL)
@@ -87,10 +100,10 @@ class QuatroCasos(Base):
         self.recusado("parte de alfa 4, uso 4", self.disparar("alfa", 4))
         self.assertIsNone(self.usos()["alfa"]["espera"])
 
-    def test_sessao_sem_nome_de_projeto_e_config_fora_da_forma_nao_contam(self):
+    def test_sessao_sem_pasta_de_projeto_e_config_fora_da_forma_nao_contam(self):
         self.abrir("alfa")
         registro = json.loads((self.tmp / "maquina" / _maquina.ATIVOS).read_text(encoding="utf-8"))
-        registro["sessoes"]["s-5"] = dict(registro["sessoes"]["s-alfa"], projeto=5)
+        registro["sessoes"]["s-5"] = dict(registro["sessoes"]["s-alfa"], pasta=5)
         self.gravar(_maquina.ATIVOS, registro)
         (self.raiz("alfa") / ".forge" / "config.json").write_text("[3]", encoding="utf-8")
         try:
@@ -139,6 +152,13 @@ class QuatroCasos(Base):
         self.gravar(agentes.USO_DA_MAQUINA, {"beta": {"uso": TOTAL, "peso": 1, "espera": None}})
         self.assertIsNone(self.disparar("alfa", 0))
 
+    def test_dois_projetos_de_mesmo_nome_de_pasta_sao_dois(self):
+        """Segurança A2: a chave é a pasta da cópia principal; o homônimo noutra pasta não sai da conta."""
+        self.abrir("p1/app", "p2/app")
+        self.gravar(agentes.USO_DA_MAQUINA, {"p2/app": {"uso": 4, "peso": 1, "espera": None}})
+        self.recusado("máquina cheia: 8 de 8 vagas com 2 projetos ativos; parte de app 4, uso 4", self.disparar("p1/app", 4))
+        self.assertEqual(sorted(self.usos()), ["p1/app", "p2/app"], "cada um com a sua entrada")
+
     def test_o_peso_muda_a_parte(self):
         self.abrir("alfa", "beta")
         self.gravar(agentes.USO_DA_MAQUINA, {"beta": {"uso": 2, "peso": 1, "espera": None}})
@@ -151,9 +171,9 @@ class QuatroCasos(Base):
 class FalhaFechada(Base):
     def test_registro_ou_uso_fora_da_forma_levanta(self):
         casos = [(_maquina.ATIVOS, "{"), (_maquina.ATIVOS, "[1]"), (_maquina.ATIVOS, '{"sessoes": [1]}'),
-                 (agentes.USO_DA_MAQUINA, "[1]"), (agentes.USO_DA_MAQUINA, '{"beta": 3}'),
-                 (agentes.USO_DA_MAQUINA, '{"beta": {"uso": -1}}'), (agentes.USO_DA_MAQUINA, '{"beta": {"uso": true}}'),
-                 (agentes.USO_DA_MAQUINA, '{"beta": {"uso": 1, "espera": "x"}}')]
+                 (agentes.USO_DA_MAQUINA, "[1]"), (agentes.USO_DA_MAQUINA, {"beta": 3}),
+                 (agentes.USO_DA_MAQUINA, {"beta": {"uso": -1}}), (agentes.USO_DA_MAQUINA, {"beta": {"uso": True}}),
+                 (agentes.USO_DA_MAQUINA, {"beta": {"uso": 1, "espera": "x"}})]
         for nome, bruto in casos:
             with self.subTest(nome=nome, bruto=bruto):
                 self.abrir("alfa", "beta")
@@ -161,7 +181,8 @@ class FalhaFechada(Base):
                 self.gravar(nome, bruto)
                 with self.assertRaises(Exception) as caso:
                     self.disparar("alfa", 0)
-                self.assertIsInstance(caso.exception, ValueError, "a forma conferida, não um erro qualquer")
+                self.assertIsInstance(caso.exception, agentes.Ilegivel, "a forma conferida, não um erro qualquer")
+                self.assertEqual(str(caso.exception), f"{_maquina.PASTA}/{nome}", "a recusa nomeia o arquivo")
 
 
 class NoHook(Base):
@@ -173,9 +194,41 @@ class NoHook(Base):
         self.env.update(FORGE_NPROC="4", FORGE_PROC=str(montar_proc(self.tmp / "p")))
         self.alfa = self.projeto("alfa")
 
-    def rodar(self):
+    def rodar(self, prompt="..."):
         return self.hook("agentes", self.alfa, hook_event_name="PreToolUse", tool_name="Agent", tool_use_id="toolu_1",
-                         tool_input={"subagent_type": "Explore", "description": "Ler", "prompt": "..."})
+                         tool_input={"subagent_type": "Explore", "description": "Ler", "prompt": prompt})
+
+    def test_sessao_em_worktree_conta_como_o_projeto_dela(self):
+        """Review e segurança A1: o registro (MP2) e o teto (MP3) dão à worktree o nome e a pasta da cópia principal."""
+        beta, wt = self.projeto("beta"), self.tmp / "wt-beta"
+        for args in (("commit", "-q", "--allow-empty", "-m", "x"), ("worktree", "add", "-q", "--detach", str(wt))):
+            subprocess.run(["git", "-C", str(beta), *args], env=self.env, check=True, capture_output=True, timeout=60)
+        (wt / ".forge").mkdir()
+        (wt / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        for raiz, sessao in ((self.alfa, "s1"), (wt, "s2")):
+            self.assertEqual(self.anotar(raiz, sessao, "SessionStart").returncode, 0)
+        self.assertEqual(self.registro()["projetos"], ["alfa", "beta"])
+        self.assertEqual(self.registro()["sessoes"]["s2"]["pasta"], self.chave("beta"))
+        self.gravar(agentes.USO_DA_MAQUINA, {"beta": {"uso": 4, "peso": 1, "espera": None}})
+        r = self.rodar()
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("máquina cheia: 4 de 4 vagas com 2 projetos ativos; parte de alfa 2, uso 0", r.stderr)
+        self.assertEqual(self.usos()["beta"]["uso"], 4, "o uso da worktree segue na conta")
+
+    def test_branch_ocupada_nao_conta_a_vaga_na_maquina(self):
+        """Review A3: a recusa por branch ocupada vem antes da máquina; o uso de alfa não sobe."""
+        (self.alfa / "docs" / "briefs").mkdir(parents=True)
+        (self.alfa / "docs" / "briefs" / "a.md").write_text(
+            "Agente destino: forge:x\nBranch: melhoria/a   Base: develop\nEtapa: codigo\n\n## Objetivo\nx\n", encoding="utf-8")
+        (self.alfa / ".forge" / "run").mkdir()
+        ocupante = {"id": "a1", "tipo": "forge:qa-engineer", "descricao": "o", "desde": time.time(),
+                    "branches": ["melhoria/a"], "escrita": ["melhoria/a"]}
+        (self.alfa / ".forge" / "run" / "agentes.json").write_text(json.dumps({"agentes": [ocupante]}), encoding="utf-8")
+        self.gravar(agentes.USO_DA_MAQUINA, {"alfa": {"uso": 1, "peso": 1, "espera": None}})
+        r = self.rodar("docs/briefs/a.md")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("melhoria/a ocupada por", r.stderr)
+        self.assertEqual(self.usos()["alfa"]["uso"], 1, "a recusa não deixa vaga fantasma")
 
     def test_um_projeto_libera_e_anota_o_uso(self):
         r = self.rodar()
@@ -193,7 +246,7 @@ class NoHook(Base):
         self.gravar(_maquina.ATIVOS, "{")
         r = self.rodar()
         self.assertEqual(r.returncode, 2, r.stderr)
-        self.assertIn("registro da máquina ilegível", r.stderr)
+        self.assertIn("registro da máquina ilegível: ~/.forge/maquina/projetos-ativos.json; o usuário pode apagá-lo", r.stderr)
 
 
 if __name__ == "__main__":

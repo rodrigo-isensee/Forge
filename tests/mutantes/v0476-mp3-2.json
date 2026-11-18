@@ -56,12 +56,12 @@
     },
     {
       "id": "T14",
-      "guarda": "MP3: sessão sem nome de projeto em texto não conta como projeto ativo",
+      "guarda": "MP3: sessão sem pasta de projeto em texto não conta como projeto ativo",
       "arquivo": "hooks/agentes.py",
-      "de": "return {s[\"projeto\"] for s in vivas if isinstance(s.get(\"projeto\"), str)} | {proprio}",
-      "para": "return {s[\"projeto\"] for s in vivas if isinstance(s.get(\"projeto\"), (str, int))} | {proprio}",
+      "de": "return {s[\"pasta\"] for s in vivas if isinstance(s.get(\"pasta\"), str)} | {proprio}",
+      "para": "return {s[\"pasta\"] for s in vivas if isinstance(s.get(\"pasta\"), (str, int))} | {proprio}",
       "testes": [
-        "tests.test_maquina_teto.QuatroCasos.test_sessao_sem_nome_de_projeto_e_config_fora_da_forma_nao_contam"
+        "tests.test_maquina_teto.QuatroCasos.test_sessao_sem_pasta_de_projeto_e_config_fora_da_forma_nao_contam"
       ]
     },
     {

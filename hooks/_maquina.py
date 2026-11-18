@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Forge: estado da máquina (diretriz 35), fora dos repositórios, em PASTA (0700), gravado só pelos hooks.
 
-MP2: o SessionStart e o Stop de cada sessão anotam a sessão em ATIVOS, com o projeto (nome da pasta da raiz, como no `meta`),
-a pasta, o pid da sessão e o batimento (a hora da anotação). A sessão some quando o processo dela acaba ou passa BATIMENTO_S
-sem bater: a poda roda a cada anotação, e quem lê as sessões filtra de novo (`vivas`; `forge-status --maquina`).
+MP2: o SessionStart e o Stop de cada sessão anotam a sessão em ATIVOS, com o projeto e a pasta da cópia principal
+(`identidade`: a sessão numa worktree conta como o projeto dela), o pid da sessão e o batimento (a hora da anotação). A
+sessão some quando o processo dela acaba ou passa BATIMENTO_S sem bater: a poda roda a cada anotação, e quem lê as
+sessões filtra de novo (`vivas`; `forge-status --maquina`).
 Formato: {"projetos": [nomes], "sessoes": {session_id: {...}}}; a chave `projetos` é a que o `meta` e o `agentes` leem
 (MP1, MP5). Registro ilegível ou fora da forma recomeça vazio na próxima anotação.
 MP4: a mesma pasta guarda as vagas e a fila do hook `pesado` (`pesado.json`, `pesado.fila/`), sob a mesma `trava`.
@@ -91,15 +92,23 @@ def vivas(sessoes, agora, vivo):
             and 0 <= agora - s["batimento"] < BATIMENTO_S and vivo(s.get("pid"), s.get("inicio"))}
 
 
+def identidade(hook):
+    """(nome, pasta) do projeto do hook, depois do `hook.projeto`: a cópia principal, a mesma no registro (MP2) e no teto
+    de agentes (MP3). A sessão numa worktree conta como o projeto dela; a pasta separa projetos de mesmo nome."""
+    principal = Path(hook.copia_principal())
+    return principal.name, str(principal)
+
+
 def anotar(hook):
     from pesado import inicio_de, pid_da_sessao, pid_vivo  # o `pesado` importa este módulo
     sid, raiz = hook.campo("session_id"), hook.projeto(hook.cwd(), clone_do_forge=True)
     if hook.campo("hook_event_name") not in EVENTOS or not isinstance(sid, str) or not sid or not raiz:
         return
     dono, agora = pid_da_sessao(), time.time()
+    nome, principal = identidade(hook)
     with trava():
         sessoes = vivas(ler(ATIVOS).get("sessoes"), agora, pid_vivo)
-        sessoes[sid] = {"projeto": Path(raiz).name, "pasta": str(raiz), "pid": dono, "inicio": inicio_de(dono), "batimento": agora}
+        sessoes[sid] = {"projeto": nome, "pasta": principal, "pid": dono, "inicio": inicio_de(dono), "batimento": agora}
         nomes = {s["projeto"] for s in sessoes.values() if isinstance(s.get("projeto"), str)}
         gravar(ATIVOS, {"projetos": sorted(nomes), "sessoes": sessoes})
 
