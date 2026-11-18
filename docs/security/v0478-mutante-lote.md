@@ -27,7 +27,8 @@ Delta lido (`forge-check parecer delta`, b11631b2..5520fd0d): no domínio, só b
 - S6 · `x is None` e `x is None or y` novas, isenta `x is None` · espera: sem mutante nas 2 · obtido: head sem mutante nas 2 (b11631b2: isenta nas 2)
 - S7 · cópias com aspas diferentes (`'a'` e `"a"`, mesmo unparse), isenta `x.startswith(` · espera: isenta nas 2 (mesma condição) · obtido: isenta nas 2
 
-Custo: `ocorrencias` é uma varredura com lookahead de trecho literal (`re.escape`, até MAXIMO_DO_TRECHO) sobre o arquivo limitado por MAXIMO_DO_ARQUIVO, vezes as cópias (MAXIMO_DE_CONDICOES); sem retrocesso explosivo.
+## Custo da checagem
+`ocorrencias` é uma varredura com lookahead de trecho literal (`re.escape`, até MAXIMO_DO_TRECHO) sobre o arquivo limitado por MAXIMO_DO_ARQUIVO, vezes as cópias (MAXIMO_DE_CONDICOES); sem retrocesso explosivo.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Ferramentas: leitura do delta e sondas locais com a biblioteca padrão (`python3 -I`) sobre cópias do módulo; sem segredo nem dependência no delta.
