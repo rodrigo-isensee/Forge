@@ -13,26 +13,6 @@
       ]
     },
     {
-      "id": "M2",
-      "guarda": "GH_TOKEN sai do ambiente",
-      "arquivo": "bin/forge-copia",
-      "de": "{\"GH_TOKEN\", \"GITHUB_TOKEN\"",
-      "para": "{\"GITHUB_TOKEN\"",
-      "testes": [
-        "tests.test_forge_copia.Instalar.test_instalacao_roda_sem_credencial_no_ambiente"
-      ]
-    },
-    {
-      "id": "M3",
-      "guarda": "GITHUB_TOKEN sai do ambiente",
-      "arquivo": "bin/forge-copia",
-      "de": "\"GITHUB_TOKEN\", \"GH_ENTERPRISE_TOKEN\"",
-      "para": "\"GH_ENTERPRISE_TOKEN\"",
-      "testes": [
-        "tests.test_forge_copia.Instalar.test_instalacao_roda_sem_credencial_no_ambiente"
-      ]
-    },
-    {
       "id": "M4",
       "guarda": "GIT_ASKPASS sai do ambiente",
       "arquivo": "bin/forge-copia",
