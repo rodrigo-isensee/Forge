@@ -385,6 +385,12 @@ class NotasEntreFerramentas(unittest.TestCase):
             self.assertEqual(len(self.meta.notas_da_rodada(str(caminho), self.PT)), 1)
         self.assertFalse([c for c in loads.call_args_list if "tool_result" in c.args[0]])
 
+    def test_registro_fora_da_forma_e_pulado_sem_erro(self):
+        """Transcrito com mensagem, conteúdo ou bloco fora da forma e sem mensagem final: a nota boa ainda é lida."""
+        registros = [self.dono("oi"), self.nota(self.EN), {"type": "assistant", "message": "texto solto"},
+                     {"type": "assistant", "message": {"content": None}}, {"type": "assistant", "message": {"content": ["solto"]}}]
+        self.assertEqual(self.meta.notas_da_rodada(str(self.transcrito(registros)), None), [self.EN])
+
     def test_notas_param_no_teto_da_medida(self):
         """O total lido das notas para em TETO_DA_MEDIDA: o tempo não cresce com a rodada."""
         caminho = self.transcrito([self.dono("oi")] + [self.nota("x" * 30) for _ in range(5)])
