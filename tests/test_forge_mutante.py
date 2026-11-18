@@ -1267,6 +1267,11 @@ class Cobertura(unittest.TestCase):
             with self.subTest(len(lista)):
                 self.assertNotEqual(self.por_linha(lista, ponta=ponta).returncode, 0)
 
+    def test_isenta_da_apagada_repetida_com_trecho_alem_do_no_e_velha(self):  # v0478 E17.1: o caminho sem `nova`
+        r = self.por_linha([{**self.ISENTA, "trecho": "x > 100 and y:\n    x = 2"}], ponta="x = 1\nx = 2\nx = 3\n")
+        self.assertEqual((r.returncode, [x.split(" · ")[0] for x in r.stdout.splitlines()[1:]]), (1, ["apagada", "isenta velha"]),
+                         r.stdout + r.stderr)
+
     def test_isenta_por_linha_invalida_e_o_teto_conta_as_duas_formas(self):
         maximo = self.f.MAXIMO_DO_ARQUIVO
         ruins = [{**self.POR_LINHA, "linha_base": v} for v in ("2", True, False, 0, -1, maximo + 1, 2.0, None)]

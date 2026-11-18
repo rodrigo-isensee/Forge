@@ -26,10 +26,10 @@
       "id": "M59",
       "guarda": "trecho da isenta termina dentro do no",
       "arquivo": "bin/forge-mutante",
-      "de": "onde + len(trecho) <= fim",
-      "para": "True",
+      "de": "ini <= onde and onde + len(trecho) <= fim",
+      "para": "ini <= onde and True",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_que_nao_cruza_condicao_listada_ou_nao_casa_uma_vez_e_2"
+        "tests.test_forge_mutante.Cobertura.test_isenta_da_apagada_repetida_com_trecho_alem_do_no_e_velha"
       ]
     },
     {
