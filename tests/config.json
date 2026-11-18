@@ -186,6 +186,7 @@
       "critério de reversão"
     ],
     "agents/jarvis.md": [
+      "\\*\\*Recibo antes de acionar o time\\*\\* \\(mensagem no meio da rodada: na fala seguinte, antes de tudo\\)",
       "\\*\\*Autor até o merge \\(H2\\):\\*\\* volta de review, QA, segurança, CI e conflito vai à mesma instância do autor",
       "agente novo apenas se ele travou",
       "skills/briefs-e-conferencia/autor-ate-o-merge\\.md",
@@ -312,7 +313,8 @@
     ],
     "skills/falar-com-o-dono/toda-mensagem.md": [
       "até \"continue\" ou \"ok\", recebe no mesmo turno a resposta e o passo seguinte",
-      "Silêncio, só quando um agente termina sem nada para o dono, e mesmo então o passo seguinte do time anda"
+      "Silêncio, só quando um agente termina sem nada para o dono, e mesmo então o passo seguinte do time anda",
+      "recibo na próxima fala do Jarvis, antes de qualquer outra coisa: o que ele pediu e \"vou fazer\" ou \"não vou fazer\""
     ],
     "skills/falar-com-o-dono/conferir-develop.md": [
       "antes de abrir ou delegar uma etapa, confira na `develop` se o item já foi entregue ou resolvido \\(`git log origin/develop --grep '<cartão>'`\\)",
@@ -862,6 +864,7 @@
       "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado": {"regra": "R-QA", "porque": "sem o texto, o parecer lê só o git log e aceita o oráculo apagado da história por reset ou rebase (EXT-1, C-2)"}
     },
     "agents/jarvis.md": {
+      "\\*\\*Recibo antes de acionar o time\\*\\* \\(mensagem no meio da rodada: na fala seguinte, antes de tudo\\)": {"regra": "R-DECISAO", "porque": "sem o texto, a mensagem do dono que chega no meio da rodada fica sem recibo e some atrás do andamento (RECIBO-NO-MEIO-DA-RODADA)"},
       "\\*\\*Autor até o merge \\(H2\\):\\*\\* volta de review, QA, segurança, CI e conflito vai à mesma instância do autor": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis manda a volta de review, QA, segurança, CI ou conflito a um agente novo, que relê tudo (H2)"},
       "agente novo apenas se ele travou": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis abre instância nova com o autor ainda retomável e dobra os agentes por item (H2)"},
       "skills/briefs-e-conferencia/autor-ate-o-merge\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o Jarvis perde o detalhe do H2 (quando o autor travou, o aviso do hook e a volta única), movido pelo teto de caracteres (diretriz 25)"},
