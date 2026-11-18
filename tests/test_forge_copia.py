@@ -133,6 +133,7 @@ class Instalar(Base):
         raiz = self.fora / "raiz"
         (raiz / "bin").mkdir(parents=True)
         (raiz / "bin" / "forge-copia").write_text(BIN.read_text())
+        (raiz / "bin" / "forge_disco.py").write_text((BIN.parent / "forge_disco.py").read_text())
         (raiz / "stacks" / "falsa").mkdir(parents=True)
         (raiz / "stacks" / "falsa" / "instalar.json").write_text(spec if isinstance(spec, str) else json.dumps(spec))
         self.bin = raiz / "bin" / "forge-copia"
