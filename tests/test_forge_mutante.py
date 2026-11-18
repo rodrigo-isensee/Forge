@@ -62,7 +62,6 @@ class Veredito(unittest.TestCase):
         self.assertEqual(self.f.veredito(D, [{"id": "tests.m", "res": "erro"}])[0], "inválido")
         self.assertEqual(self.f.veredito(D, [])[0], "inválido")
         self.assertEqual(self.f.veredito(D, [{"id": "tests.m.T.outro", "res": "falha"}])[0], "inválido")
-        self.assertEqual(self.f.veredito(D, [{"id": "tests.m.T.t", "res": "pulado"}])[0], "inválido")
 
     def test_id_de_classe_ou_modulo_cobre_os_testes_dele(self):
         self.assertEqual(self.f.veredito(["tests.m"], [{"id": "tests.m.T.t", "res": "falha"}])[0], "morreu")
@@ -88,6 +87,37 @@ class Veredito(unittest.TestCase):
         registro = [{"id": "tests.m.T.t", "res": "erro"}, {"id": "tests.m.T.u", "res": "falha"}]
         self.assertEqual(self.f.veredito(D, registro, erro_mata=True), ("morreu", ""))
         self.assertEqual(self.f.veredito(D, [{"id": "tests.m.T.t", "res": "ok"}], erro_mata=True), ("sobreviveu", ""))
+
+    def test_teste_declarado_pulado_e_sem_veredito_e_nunca_sobreviveu(self):  # DEFEITO-MUTANTE-PULADO-SOBREVIVE
+        ok, pulado = {"id": "tests.m.T.t", "res": "ok"}, {"id": "tests.m.T.u", "res": "pulado"}
+        for erro_mata in (False, True):
+            with self.subTest(erro_mata=erro_mata):
+                self.assertEqual(self.f.veredito(["tests.m.T"], [ok, pulado], erro_mata),
+                                 ("sem veredito", "teste declarado pulado: tests.m.T.u; os que rodaram não o mataram"))
+                self.assertEqual(self.f.veredito(["tests.m.T.u"], [pulado], erro_mata)[0], "sem veredito")
+                subteste = [{"id": "tests.m.T.t [x]", "res": "pulado"}]  # o pulo no subTest não anota o teste
+                self.assertEqual(self.f.veredito(["tests.m.T.t"], subteste, erro_mata)[0], "sem veredito")
+
+    def test_pulo_nao_esconde_a_morte_nem_o_teste_que_nao_rodou(self):  # DEFEITO-MUTANTE-PULADO-SOBREVIVE
+        pulado = {"id": "tests.m.T.u", "res": "pulado"}
+        self.assertEqual(self.f.veredito(["tests.m.T"], [{"id": "tests.m.T.t", "res": "falha"}, pulado]), ("morreu", ""))
+        self.assertEqual(self.f.veredito(["tests.m.T.t"], [pulado])[0], "inválido")
+        self.assertEqual(self.f.veredito(["tests.m.T"], [{"id": "tests.m.T.t", "res": "erro"}, pulado])[0], "inválido")
+        self.assertEqual(self.f.veredito(["tests.m.T"], [{"id": "tests.m.T.t", "res": "erro"}, pulado], erro_mata=True),
+                         ("morreu", self.f.MORREU_POR_ERRO))
+
+    def test_morte_provada_vale_com_outro_declarado_so_pulado(self):  # v0478 E13.5, A1 do review
+        A, B = "tests.m.T.a", "tests.m.T.b"
+        pulado = {"id": B, "res": "pulado"}
+        self.assertEqual(self.f.veredito([A, B], [{"id": A, "res": "falha"}, pulado]), ("morreu", ""))
+        self.assertEqual(self.f.veredito([B, A], [pulado, {"id": A, "res": "falha"}]), ("morreu", ""))
+        self.assertEqual(self.f.veredito([A, B], [{"id": A, "res": "erro"}, pulado], erro_mata=True),
+                         ("morreu", self.f.MORREU_POR_ERRO))
+        self.assertEqual(self.f.veredito([A, B], [{"id": A, "res": "ok"}, pulado]),
+                         ("sem veredito", f"teste declarado pulado: {B}"))  # sem morte, o pulo segue sem veredito
+        self.assertEqual(self.f.veredito([B], [pulado]), ("sem veredito", f"teste declarado pulado: {B}"))
+        self.assertEqual(self.f.veredito([A, B, "tests.m.T.c"], [{"id": A, "res": "falha"}, pulado]),
+                         ("inválido", "teste declarado que não rodou: tests.m.T.c"))  # a morte não cobre o que não rodou
 
     def test_registro_marca_o_erro_de_carga(self):  # MUTANTE-ERRO-INVALIDO
         class Falso:
@@ -601,6 +631,26 @@ class Execucao(unittest.TestCase):
                 time.sleep(0.1)
             else:
                 self.fail(f"o processo de teste {pid} segue vivo")
+
+    def test_teste_pulado_sai_2_sem_veredito_e_o_sobrevivente_segue_1(self):  # DEFEITO-MUTANTE-PULADO-SOBREVIVE
+        self.gravar("tests/test_lib.py", TESTE + "\n    def test_pula(self):\n        self.skipTest('sandbox')\n")
+        self.salvar()
+        fraco = {"de": "return 0", "para": "return 0 if x < 99 else 1"}  # nenhum teste o mata
+        for testes in (["tests.test_lib.T"], ["tests.test_lib.T.test_pula"]):
+            with self.subTest(testes=testes):
+                r = self.rodar(self.spec(mutante(testes=testes, **fraco)))
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("M1 · sem veredito · lib.py:4 · teste declarado pulado: tests.test_lib.T.test_pula", r.stdout)
+        equivalente = {**mutante(testes=["tests.test_lib.T"], **fraco), "equivalente": "o teste pulado não confirma isto"}
+        r = self.rodar(self.spec(equivalente))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("M1 · sem veredito · lib.py:4", r.stdout)
+        r = self.rodar(self.spec(mutante(testes=["tests.test_lib.T.test_baixo"], **fraco)))
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("M1 · sobreviveu · lib.py:4", r.stdout)
+        r = self.rodar(self.spec(mutante(testes=["tests.test_lib.T"])))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("M1 · morreu · lib.py:2", r.stdout)
 
     def test_teste_que_estoura_o_prazo_sai_2_sem_veredito(self):  # CA-9
         self.gravar("tests/test_lib.py", TESTE + "\n    def test_lento(self):\n        __import__('time').sleep(60)\n")
@@ -1338,7 +1388,8 @@ FALSO = ("import json, sys\na = sys.argv[1:]\nopen('.git/chamadas', 'a').write(j
          "specs = [json.load(open(s)) for s in a[1:]] if a[:1] == ['--'] else []\n"
          "if len({s['pedido'] for s in specs}) != 1:\n    sys.exit(2)\n"
          "for n, c in enumerate([c for s in specs for c in s['classes']]):\n"
-         "    print(f'equivalente: M{n} · razão' if c == 'equivalente' else f'M{n} · {c} · x.py:1')\n"
+         "    c = 'sem veredito · x.py:1 · teste declarado pulado: t' if c == 'pulado' else c + ' · x.py:1'\n"
+         "    print(f'equivalente: M{n} · razão' if c.startswith('equivalente') else f'M{n} · {c}')\n"
          "print('M99 · morreu')\n"
          "sys.exit(1 if any('falha' in s['pedido'] for s in specs) else 0)\n")
 
@@ -1364,7 +1415,7 @@ class PlacarDaRelease(unittest.TestCase):
         git(self.dir, "tag", "v1")
         self.commit({self.m + "placar.json": ["morreu", "morreu"], self.m + "antiga.json": ["sobreviveu"],
                      self.m + "nova-a.json": ["morreu", "sobreviveu"],
-                     self.m + "nova-b.json": ["equivalente", "inválido", "sem veredito"]})
+                     self.m + "nova-b.json": ["equivalente", "inválido", "sem veredito", "pulado"]})
 
     def placar(self, *args):
         r = subprocess.run([sys.executable, "-I", str(PLACAR), *args], cwd=self.dir, capture_output=True, text=True,
@@ -1379,7 +1430,10 @@ class PlacarDaRelease(unittest.TestCase):
         self.assertEqual(chamadas, [["--", self.m + s] for s in amostra])
         self.assertIn(f"spec: {self.m}nova-a.json rc=0 mortos=1 sobreviveu=1 ", r.stdout)
         self.assertEqual(r.stdout.splitlines()[-1],
-                         "placar: 0.41.0 mortos=3 sobreviveu=1 equivalente=1 invalido=1 sem-veredito=1 specs=3")
+                         "placar: 0.41.0 mortos=3 sobreviveu=1 equivalente=1 invalido=1 sem-veredito=1 "
+                         "sem-veredito-pulado=1 specs=3")  # A2 do review v0478: o pulo numa conta própria
+        self.assertIn(f"spec: {self.m}nova-b.json rc=0 mortos=0 sobreviveu=0 equivalente=1 invalido=1 sem-veredito=1 "
+                      "sem-veredito-pulado=1\n", r.stdout)
 
     def test_nome_que_parece_opcao_e_link_simbolico_ficam_fora(self):
         os.symlink("nova-a.json", self.dir / self.m / "link.json")

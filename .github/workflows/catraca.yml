@@ -42,9 +42,11 @@ jobs:
             git worktree add --detach "$RUNNER_TEMP/base" "$BASE"
             script="$RUNNER_TEMP/base/tests/catraca.py"
           fi
+          echo "CATRACA_DA_BASE=$script" >> "$GITHUB_ENV"
           python3 "$script" --base "$BASE"
-      - name: Seções "Projeto de origem" e "Como medir"
+      - name: Texto do PR ("Projeto de origem", "Como medir") e código sem teste (T1)
+        # Também o script da base (e o bin/forge-check ao lado dele), como o passo de regras: o PR não muda o próprio T1.
         if: ${{ !cancelled() && github.base_ref == 'develop' && github.event.pull_request.user.login != 'dependabot[bot]' }}
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
-        run: python3 tests/catraca.py --modo pr-texto
+        run: python3 "${CATRACA_DA_BASE:-tests/catraca.py}" --modo pr-texto --base "$(git rev-parse HEAD^1)"
