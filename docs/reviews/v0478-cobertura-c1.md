@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-cobertura-c1
-commit: c4ddc61daa61bd4341aded9ff3eb983893be3959
+commit: 67ef9dfbfc2d252ed7d82a7bd34269b5801291db
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-18
@@ -20,10 +20,12 @@ Diff `4182a6b9...c4ddc61d`: `tests/catraca.py` (+35 linhas de código, abaixo do
 - **Suíte.** Não rodei a suíte inteira, como o brief manda: vale o CI do PR.
 - **Ressalva do autor sobre `.github/pull_request_template.md`.** Ela procede. O comentário da linha 14 ainda descreve a seção como aviso do `forge-check pr` que o review confere. Não diz que o CI barra nem que é preciso citar cada arquivo. Isso não quebra nada, porque `secao` ignora o comentário, mas induz o autor ao erro (A1).
 
-## Achados
-- A1 (recomendado) .github/pull_request_template.md:14 · o comentário trata a seção como aviso do forge-check; diga que a catraca do CI barra o PR sem ela e que é preciso citar cada arquivo com o motivo (T1). Fica para cartão próprio, se o .github for de outra trilha
-- A2 (recomendado) tests/catraca.py:1685 · a violação aponta docs/regras/R-QA.md, que não fala do T1 (a decisão 9301b94c o deixou nas práticas); aponte docs/engineering/praticas.md para quem lê o CI achar a regra
-- A3 (recomendado) .github/workflows/catraca.yml:50 · o pr-texto roda a catraca e o forge-check da cópia do PR, não da base como no passo de regras (a docstring de forge_check, catraca.py:1689, diz base); um PR pode mudar o próprio T1. Rodar da base como o passo das regras
+## Revalidação no head 67ef9dfb (E9.6)
+Delta lido: `forge-check parecer delta docs/reviews/v0478-cobertura-c1.md`, intervalo `c4ddc61d..67ef9dfb`, 8 arquivos no domínio (modelo do PR, `catraca.yml`, fragmento, `praticas.md`, `catraca.py`, as duas specs de mutantes, `test_catraca.py`).
+- **A1 resolvido.** `.github/pull_request_template.md:14` diz que a seção é obrigatória, que a catraca do CI barra o PR sem ela e que cada arquivo vai com o caminho inteiro e o motivo.
+- **A2 resolvido.** A violação do T1 aponta `docs/engineering/praticas.md` (`catraca.py`, `violacoes_do_t1`), com o teste `test_violacao_aponta_a_regra_nas_praticas`.
+- **A3 resolvido.** O passo de regras grava `CATRACA_DA_BASE` antes de rodar o script, e o passo `pr-texto` roda `python3 "${CATRACA_DA_BASE:-tests/catraca.py}" --modo pr-texto --base "$(git rev-parse HEAD^1)"`. Assim a catraca e o `forge-check` ao lado dela vêm da base, e o `--raiz` padrão (`.`) continua no checkout do PR, onde está o diff. O `catraca.py` da base `4182a6b9` aceita `--base` no `pr-texto`. Sem catraca na base, ou se o `worktree add` falha antes do `echo`, o passo volta ao script do PR, como o passo de regras. Efeito previsto: neste PR, o CI roda o `pr-texto` da develop, ainda sem T1, então o portão só vale a partir do PR seguinte. É o mesmo comportamento da introdução do passo de regras.
+- **Novo no delta.** `com_motivo` mede o motivo por linha e por arquivo citado na linha. O A2 da segurança é atendido: um motivo genérico não cobre N arquivos. Os mutantes novos M12 a M16 têm teste do ramo de falha. Rodei `python3 -m unittest tests.test_catraca.T1NoTextoDoPr`: 12 testes OK. Apliquei à mão, numa cópia, o M12 (`len(resto) >= MINIMO_SECAO`): `test_motivo_vale_por_arquivo` falha, então o mutante morre. A bateria do `forge-mutante` fica com o QA, e a suíte, com o CI do PR, que ainda não foi aberto.
 
 ## Parecer
-Aprovado. A mudança torna portão de CI um aviso que já existia, reaproveita a regra única do `forge-check`, falha fechada e tem cada guarda coberta por mutante e teste do ramo de falha. O custo medido fica em cerca de 0,3 s por run. Os três achados são recomendados e não devolvem a entrega (`R-REVIEW`). O A3 já existia no modo `pr-texto` antes deste diff, e o T1 o herda.
+Aprovado. A mudança torna portão de CI um aviso que já existia, reaproveita a regra única do `forge-check`, falha fechada e tem cada guarda coberta por mutante e teste do ramo de falha. O custo medido fica em cerca de 0,3 s por run. Na revalidação do head 67ef9dfb, os três achados recomendados (A1 a A3) foram resolvidos e não aparece achado novo.
