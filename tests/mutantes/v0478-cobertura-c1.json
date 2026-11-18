@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_catraca.T1NoTextoDoPr.test_modo_pr_texto_soma_o_t1"
       ]
+    },
+    {
+      "id": "M15",
+      "guarda": "T1: o arquivo citado sem motivo entra na lista dos curtos (mutante: nunca entra)",
+      "arquivo": "tests/catraca.py",
+      "de": "if n not in faltam and not com_motivo(n, achados, texto)]",
+      "para": "if False]",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_motivo_curto_barra"
+      ]
     }
   ]
 }

@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_catraca.T1NoTextoDoPr.test_codigo_sem_teste_e_sem_secao_barra"
       ]
+    },
+    {
+      "id": "M16",
+      "guarda": "T1: a linha conta só os arquivos que ela cita (mutante: todos os arquivos)",
+      "arquivo": "tests/catraca.py",
+      "de": "for n in achados if citado(n, linha)]",
+      "para": "for n in achados if True]",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_motivo_vale_por_arquivo"
+      ]
     }
   ]
 }
