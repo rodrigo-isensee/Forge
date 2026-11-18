@@ -54,5 +54,37 @@
         "tests.test_meta.VariosProjetos.test_nome_fora_da_forma_fecha_o_agentes_e_o_meta_tolera"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/meta.py",
+      "trecho": "not stat.S_ISREG(os.fstat(fd).st_mode)",
+      "motivo": "guarda movida ao leitor comum: hooks/_comum.py:123 (`not stat.S_ISREG`), coberta pelo M3 de tests/mutantes/v0475-mp1-mp7.json"
+    },
+    {
+      "arquivo": "hooks/meta.py",
+      "trecho": "len(bruto) <= TETO_DE_ATIVOS",
+      "motivo": "guarda movida ao leitor comum: hooks/_comum.py:131 (`len(bruto) <= TETO_DE_ATIVOS`), coberta pelo M4 de tests/mutantes/v0475-mp1-mp7.json"
+    },
+    {
+      "arquivo": "hooks/meta.py",
+      "trecho": "isinstance(dados, dict)",
+      "motivo": "guarda movida ao leitor comum: hooks/_comum.py:134 (`isinstance(dados, dict)`), coberta pelo M6 de tests/mutantes/v0475-mp1-mp7.json"
+    },
+    {
+      "arquivo": "hooks/meta.py",
+      "trecho": "isinstance(lista, list)",
+      "motivo": "guarda movida ao leitor comum: hooks/_comum.py:135 (`not isinstance(lista, list)`), coberta pelo M7 de tests/mutantes/v0475-mp1-mp7.json"
+    },
+    {
+      "arquivo": "hooks/meta.py",
+      "trecho": "isinstance(n, str) and n.strip()",
+      "motivo": "filtro de nomes movido ao leitor comum: hooks/_comum.py:137, coberto pelo M8 de tests/mutantes/v0475-mp1-mp7.json e pelo M9 do -2"
+    },
+    {
+      "arquivo": "hooks/meta.py",
+      "trecho": "len(nomes) <= MAXIMO_DE_ATIVOS",
+      "motivo": "guarda movida ao leitor comum e invertida: hooks/_comum.py:138 (`len(nomes) > MAXIMO_DE_ATIVOS`), coberta pelo M10 de tests/mutantes/v0475-mp1-mp7-2.json e pelo N11"
+    }
   ]
 }
