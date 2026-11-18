@@ -818,7 +818,8 @@ class NaoEPortao(unittest.TestCase):
 
     # REVERSAO-MAPA (A6): script de aviso chama o forge-testes e não é portão; a lista é fechada. Script novo que o
     # cite sem entrar aqui reprova, e a entrada na lista é a decisão consciente de que ele só avisa.
-    AVISOS = {"scripts/conferir-reversao.py"}
+    # H7 (v0478 E8.1): o índice do Forge lê o mapa (`planejar`) para documentar a cobertura; não roda teste nem decide nada.
+    AVISOS = {"scripts/conferir-reversao.py", "scripts/indice-forge.py"}
 
     def test_so_script_de_aviso_cita_o_script_em_scripts(self):
         citam = set()
