@@ -118,6 +118,15 @@ CONFIG_DO_GH = {"GH_CONFIG_DIR", "XDG_CONFIG_HOME", "HOME"}
 SENSIVEIS = DESVIOS | {"HOME", "CDPATH", "GH_REPO"} | CONFIG_DO_GH  # o bash, o git e o gh os leem sozinhos: mexidos na
 # linha, a pasta (ou o alias do gh, ou o repositório do gh: GH-REPO-EXPORTADO) fica desconhecida
 ATRIBUICAO = re.compile(r"^([A-Za-z_]\w*)\+?=")
+# GH-REMOTO-NA-LINHA (E3.19, matriz em docs/hooks.md): D2, o caminho de variável simples com `/` literal antes do nome é
+# arquivo, nunca builtin nem função; D4, o config que o git do gh lê (todo `GIT_*`, HOME, XDG_CONFIG_HOME); D5, os
+# programas que não mudam os remotos da cópia e os `gh pr` que só os leem
+CAMINHO_DE_VARIAVEL = re.compile(r"(?:[^$`(){}]|\$[A-Za-z_]\w*|\$\{[A-Za-z_]\w*\})*/[^$`/(){}]+")
+CONFIG_DO_GIT = {"HOME", "XDG_CONFIG_HOME"}
+SO_LEEM_A_COPIA = frozenset({"cd", "echo", "printf", "true", "false", ":", "test", "[", "export", "declare", "typeset",
+                             "local", "readonly", "read", "set", "unset", "shift", "pwd", "sleep", "for", "done", "fi",
+                             "}", "ls", "cat", "wc", "head", "tail", "grep", "stat"})
+GH_PR_QUE_SO_LE = frozenset({"ready", "merge", "view", "list", "status", "checks", "diff"})
 Ambiente = collections.namedtuple("Ambiente", "mexidas desviado")  # mexidas: os SENSIVEIS que a linha mexeu (frozenset)
 SEM_AMBIENTE = Ambiente(frozenset(), bool(DESVIOS & set(os.environ)))
 # PARECER-HOOK-DICA-EDIT: o contorno das recusas de corpo de heredoc que a chamada pode rodar; o texto (`.md` e afins)
@@ -437,6 +446,9 @@ def analise_do_comando(palavras):
     except (LancadorDemais, TextoDivididoAberto) as achado:
         bloquear("R-REVIEW", f"`{achado}` antes de gh pr, gh api, merge ou pull: opção de lançador que o hook não lê. "
                              "Corrigir: rode o comando direto, sem lançador")
+    if comando and nome_incerto(comando[0]) and critico_ou_alias(" ".join(comando)):  # D2 e D3: `$c gh`, `env $(…) gh`
+        bloquear("R-REVIEW", f"`{comando[0]}` como nome do comando com gh pr, gh api, merge ou pull: o hook não sabe o "
+                             "que ele roda. Corrigir: escreva o comando por extenso, sem variável nem $( no nome")
     nome = next((Path(c).name for c in comando[:1]), "")
     if nome in OUTROS_LANCADORES or nome == "find" and EXEC_DO_FIND & set(comando):
         bloquear("R-REVIEW", f"`{nome}` na chamada com gh pr, gh api, merge ou pull: o hook não lê o que ele roda. "
@@ -623,13 +635,41 @@ def mexidas_na_linha(palavras):
     comando = sem_condicao(palavras[k:])
     while comando[:1] in (["builtin"], ["command"]):
         comando = comando[1:]
-    if comando and comando[0] in CARREGA_ARQUIVO:
+        while comando[:1] and comando[0].startswith("-"):  # D1: `command -p`, `command --`, `builtin --`
+            comando = comando[1:]
+    if comando and (comando[0] in CARREGA_ARQUIVO or nome_incerto(comando[0])):  # D2: `c=source; $c env.sh`
         return frozenset(SENSIVEIS)
     if comando and comando[0] in LE_VARIAVEL | NOMEIA:
         if nomes_dinamicos(comando):
             return frozenset(SENSIVEIS)
         nomes |= {n for p in comando[1:] for n in p.split("=")}  # `read HOME`, `printf -v GIT_DIR`, `declare -n r=HOME`
-    return SENSIVEIS & nomes
+    return frozenset(n for n in nomes if n in SENSIVEIS or n.startswith("GIT_"))  # D4: `GIT_CONFIG_GLOBAL=` e afins
+
+
+def nome_incerto(palavra):
+    """D2 (GH-REMOTO-NA-LINHA): o nome do comando sai de expansão (`$c`, `${c}`, `$(…)`, crase) e pode ser um builtin
+    (`source`) ou outro comando; o caminho de variável com `/` literal (`$F/bin/x`) é arquivo e não conta."""
+    return expande(palavra) and not CAMINHO_DE_VARIAVEL.fullmatch(palavra)
+
+
+def mexe_no_config_do_git(mexidas):
+    """D4: a linha mexeu numa variável que troca o config ou o repositório que o git do gh lê."""
+    return bool(CONFIG_DO_GIT & mexidas) or any(n.startswith("GIT_") for n in mexidas)
+
+
+def linha_mantem_os_remotos(linha):
+    """D5 (GH-REMOTO-NA-LINHA): todo programa da linha, de qualquer nível, é de `SO_LEEM_A_COPIA` ou `gh pr` de
+    `GH_PR_QUE_SO_LE`, e nenhuma redireção grava arquivo (só `/dev/null` e a cópia de descritor). Qualquer outro, `git`
+    incluído (numa cópia alheia ele roda o `core.fsmonitor` e os ganchos dela), pode mudar os remotos antes do gh."""
+    leitura = palavras_do_texto(linha)
+    for simples in leitura.simples:
+        for r in simples.redirecoes:
+            alvo = r.alvo.valor if r.alvo else None
+            if ">" in r.operador and alvo != "/dev/null" and not (r.operador == ">&" and alvo and alvo.isdigit()):
+                return False
+    return not leitura.duvida and all(
+        programa in SO_LEEM_A_COPIA or programa == "gh" and args[:1] == ["pr"] and args[1:2] and args[1] in GH_PR_QUE_SO_LE
+        for programa, args, _ in programas_e_atribuicoes(linha))
 
 
 def resolver(palavra, mexidas, base, fisico=False):
@@ -956,7 +996,19 @@ def repo_indicado(repo, mexidas):
     return REPO_INCERTO if repo is None and "GH_REPO" in mexidas else repo
 
 
-def pasta_do_gh(hook, pasta, repo):
+def remotos_incertos(hook, resolvida, mexidas):
+    """GH-REMOTO-NA-LINHA (A6 e A7 da E3.17): o motivo pelo qual os remotos que o gh lê podem não ser os que o hook leu
+    antes de a linha rodar (D4 a D6 da matriz em docs/hooks.md), ou None."""
+    if not resolvida:
+        return "pasta do gh que o hook não resolve (variável, crase ou $( ) no cd)"
+    if mexe_no_config_do_git(mexidas):
+        return "variável que troca o config do git (GIT_*, HOME ou XDG_CONFIG_HOME) mexida na linha"
+    if not linha_mantem_os_remotos(hook.campo("tool_input", "command")):
+        return "outro programa na linha (git, script, gh fora de pr, redireção que grava) que pode mudar os remotos"
+    return None
+
+
+def pasta_do_gh(hook, pasta, repo, mexidas=frozenset(), resolvida=True):
     """INCIDENTE-HOOK-PARECER-CONTORNADO: a pasta em que o hook confere `gh pr create`, `ready` ou `merge`. Num clone do
     Forge ou num projeto, a do gh, como antes. Noutra pasta (fora de cópia de trabalho ou numa cópia alheia, que qualquer
     um cria com `git init`), o alvo do gh vem do `-R`/`--repo`, de `GH_REPO=`, da URL do PR ou, sem eles, dos remotos da
@@ -978,6 +1030,11 @@ def pasta_do_gh(hook, pasta, repo):
                              "o gh de dentro do clone (cd <clone>)")
     pedido = slug(repo)
     if copia is not None and pedido is None:  # A2: sem -R, o gh age no repositório dos remotos da cópia
+        motivo = clone and remotos_incertos(hook, resolvida, mexidas)
+        if motivo:  # GH-REMOTO-NA-LINHA
+            bloquear("R-REVIEW", f"gh pr numa cópia alheia sem -R e com {motivo}: o hook lê os remotos antes de a linha "
+                                 "rodar. Corrigir: rode o gh pr sozinho na chamada (só o cd literal antes) ou use -R "
+                                 "<dono/repo>")
         return clone if clone and remotos(copia) & remotos(clone) else pasta
     if pedido and clone and pedido in remotos(clone):
         return clone
@@ -1188,6 +1245,7 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE, acompanhado=F
         desviado |= bool(DESVIOS & mexidas)
         sem = sem_atribuicoes(palavras)
         raiz_gh = pasta or hook.cwd()  # o `gh` acha o repositório pelo nome da branch: sem pasta resolvida, vale a da sessão
+        gh_na = (mexidas, pasta is not None)  # D4 e D6 da cópia alheia (`remotos_incertos`)
         comando = sem_condicao(sem)
         if comando[:1] in (["pushd"], ["popd"]) or comando[:1] == ["cd"] and len(comando) < len(sem):
             pasta = None  # a pilha o hook não segue; o `cd` de `if`, `while`... roda fora do que ele lê
@@ -1196,11 +1254,11 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE, acompanhado=F
         elif parte[0] == "cd":
             pasta = (depois_do_cd(pasta, sem[1:], mexidas) if sem[1:] else resolver("~", mexidas, pasta)) if solto else None
         elif parte[0] == "pr":
-            pull_request(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[5], mexidas)), parte[2], parte[3], parte[4])
+            pull_request(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[5], mexidas), *gh_na), parte[2], parte[3], parte[4])
         elif parte[0] == "prready":
-            pronto_de_pr(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[3], mexidas)), parte[1], parte[2])
+            pronto_de_pr(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[3], mexidas), *gh_na), parte[1], parte[2])
         elif parte[0] == "prmerge":
-            merge_de_pr(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[1], mexidas)), parte[1], parte[2])
+            merge_de_pr(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[1], mexidas), *gh_na), parte[1], parte[2])
         elif parte[0] == "api":
             merge_por_api(hook, raiz_gh, parte[1])
             arquivo_trocado_na_linha(hook, raiz_gh, parte[1], acompanhado)
