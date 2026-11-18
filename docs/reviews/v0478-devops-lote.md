@@ -3,31 +3,32 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-devops-lote
-commit: d50b9cd0783da93d77709cdba273c1f45ce053b2
-parecer: reprovado
+commit: f9356caf6fe937fd9d16d11e11c3d4588e4433e7
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-18
 ---
-# Review: v0478 (E6.3, lote de devops)
+# Review: v0478 (E6.7, revalidação do lote de devops)
 
 ## Achados
-- A1 (bloqueante) agents/devops-engineer.md:16 · a linha do **CI pago** perdeu "junte os commits" e "comando local verde" (R-CUSTO); tests.test_textos_ci_custo falha no head e passa na base. Restaure as duas partes e encurte outra frase se o teto de texto apertar.
-- A2 (recomendado) skills/ci-cd/SKILL.md:30 · o item 10 ainda diz "se já instalados"; alinhe com o agente: ferramenta ausente é achado do parecer e quem instala é scripts/preparar-estacao.sh.
-- A3 (recomendado) tests/test_ferramentas_portoes.py:80 · o teste do modo container lê o texto da fonte; troque por comportamento (rodar --container --simular com curl falso que acusa chamada).
-- A4 (recomendado) scripts/preparar-estacao.sh:104 · zizmor e semgrep entram por pipx sem versão fixada, ao contrário dos binários; fixe a versão (pipx install zizmor==X) ou registre o motivo. Parecer de segurança decide o peso.
+- A5 (recomendado) scripts/preparar-estacao.sh:98 · as guardas novas das linhas 98 (`elif install` do binário solto) e 99 (`if [ "$ok" = 1 ]`) ficaram sem mutante declarado; o M3 cobre só o ramo do tar. Declare um mutante por linha e um teste da falha do `install` sem tar.
 
 ## Sondas
 
 ## Parecer
-Reprovado por A1: defeito provado, regra protegida por teste removida do agente de devops.
+Aprovado. Revalidação por delta (H3, R-REVIEW): li só `forge-check parecer delta docs/reviews/v0478-devops-lote.md`, intervalo d50b9cd0..f9356caf, domínio código e testes: agents/devops-engineer.md, changelog.d/v0478-devops-lote.md, scripts/preparar-estacao.sh, skills/ci-cd/SKILL.md, tests/mutantes/v0478-devops-lote.json, tests/test_ferramentas_portoes.py.
 
-Escopo (E6.1, E6.2): os dois cartões estão nos commits 4b4ef58b (regra do ensaio em alvo descartável no agente, na skill ci-cd e como ameaça fixa no método da skill cyber-security; `--ferramentas` no preparar-estacao.sh com sha256 da release conferido, falha de uma ferramenta vira `falta:`, container não baixa binário) e 71a84aaf/d50b9cd0 (mapa do forge-testes e peso). Nada em hooks/, bin/forge-check nem bin/forge-fechar. O `imprimir_resultado` repete o padrão já usado depois do `garantir_gh`.
+Achados do parecer anterior (head d50b9cd0):
+- A1 corrigido: agents/devops-engineer.md:16 volta a ter "junte os commits" e "comando local verde" (R-CUSTO); tests.test_textos_ci_custo passa.
+- A2 corrigido: skills/ci-cd/SKILL.md:30 diz que ferramenta ausente é achado do parecer e quem instala é scripts/preparar-estacao.sh.
+- A3 corrigido: test_modo_container_nao_baixa_ferramenta roda `--container --simular` com curl falso que registra chamada; não lê mais a fonte.
+- A4 corrigido: zizmor 1.32.0 e semgrep 1.186.0 fixados (`pipx install "$1==$2"`), com teste e mutante M4. Além disso, os binários agora conferem também o sha256 fixado no script, e falha do tar vira `falta:`.
 
-Provas lidas e rodadas no clone (head d50b9cd0, base 4182a6b9):
-- `python3 -m unittest tests.test_textos_ci_custo tests.test_ferramentas_portoes`: 11 testes, 1 falha (A1: `'junte os commits' not found` em agents/devops-engineer.md); os 6 testes novos passam.
-- Ressalva do autor, `tests.test_forge.ForgeCheck.test_raiz_depois_do_subcomando_e_git_isolado`: falha igual no head e na base (gh sem rede na estação); não é do diff.
+Provas rodadas no clone (head f9356caf):
+- `python3 -m unittest tests.test_textos_ci_custo tests.test_ferramentas_portoes`: 14 testes, OK.
+- `bin/forge-mutante --processos 1 tests/mutantes/v0478-devops-lote.json`: M1 (:90), M2 (:92), M3 (:97), M4 (:112) morreram.
+- `bin/forge-mutante --cobertura --base d50b9cd0`: `não coberto: scripts/preparar-estacao.sh` (shell não se analisa, por desenho); conferido à mão, daí o A5.
 - `python3 -I tests/catraca.py --base 4182a6b9`: rc=0, sem saída.
-- `bash -n scripts/preparar-estacao.sh`: ok. shellcheck: ausente na estação (pendência, como o autor declarou); o CI do PR roda a bateria.
-- Instalação real das ferramentas: não rodada (rede e custo de estação); coberta pelos falsos de curl e pipx do teste novo.
+- shellcheck: ausente na estação (pendência); o CI do PR roda a bateria.
 
 Suíte inteira: só no CI do PR (ainda sem PR).
