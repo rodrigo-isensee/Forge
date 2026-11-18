@@ -1,0 +1,4 @@
+### Corrigido
+- `bin/forge-mutante`: o mutante cujo teste declarado é pulado (`skipTest`, também num subTest) sai `sem veredito` (saída 2) com os IDs pulados, nunca `sobreviveu`; com pulo e os outros testes verdes, a linha diz "os que rodaram não o mataram", e o equivalente declarado com pulo não se confirma (DEFEITO-MUTANTE-PULADO-SOBREVIVE, v0478 E13.1).
+- `bin/forge-mutante`: com testes declarados [A, B], A morto (falha, ou erro com o controle verde) e B só pulado, o mutante sai `morreu`: a morte provada vale com outro declarado pulado; sem morte, segue `sem veredito` (v0478 E13.5, A1 do review).
+- `scripts/placar-mutacao.py`: o placar ganha a coluna `sem-veredito-pulado`, o sem veredito por teste declarado pulado, fora de `sem-veredito`; a queda de `sobreviveu` pode vir dela, não de teste mais forte (v0478 E13.5, A2 do review).
