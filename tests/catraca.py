@@ -859,12 +859,18 @@ def regra_guardas_dos_hooks(raiz, b, h):
     except (OSError, SyntaxError, ImportError) as e:
         return [msg_guarda(f"não consegui carregar bin/forge-mutante para conferir as guardas de {', '.join(hooks)} ({type(e).__name__})")]
     mutantes, isentas, v = _specs_do_diff(raiz, h, fm, mudados)
+    lidos, por_arquivo = [], []
     for arq in hooks:
         try:
-            saida = fm.analisar(arq, _hunks(raiz, b, h, arq, fm), _texto_no(raiz, b, arq), _texto_no(raiz, h, arq), mutantes, isentas, set())
+            por_arquivo.append(fm.analisar_com_textos(arq, _hunks(raiz, b, h, arq, fm), _texto_no(raiz, b, arq),
+                                                      _texto_no(raiz, h, arq), mutantes, isentas, set()))
         except ILEGIVEL as e:
             v.append(msg_guarda(f"não consegui analisar as guardas de {arq} ({neutralizar(str(e))[:CORTE_DA_DECISAO]})"))
             continue
+        lidos.append(arq)
+    linhas = iter(fm.movidas(por_arquivo))  # como o `forge-mutante --cobertura`: a apagada coberta noutro arquivo é movida
+    for arq, (saida, _textos) in zip(lidos, por_arquivo):
+        saida = [next(linhas) for _ in saida]
         faltas = [neutralizar(x) for x in saida if x.startswith(FALTAS_DE_MUTANTE)]
         if faltas:
             mais = f" e mais {len(faltas) - MOSTRADAS_POR_ARQUIVO}" if len(faltas) > MOSTRADAS_POR_ARQUIVO else ""
