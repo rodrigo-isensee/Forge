@@ -1940,6 +1940,8 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
             ausente(f"{pasta}: {tipo}: sem parecer da branch {nome_seguro(branch)} para o pedido `{pedido}` ({rid})")
             continue
         _, rel, campos, viol, texto = sorted(da_branch or achados, key=lambda a: a[:2])[-1]  # o mais recente (da branch da ref, se houver)
+        if divergentes := pareceres_divergentes(da_branch or achados, campos):  # FC-PR-PARECER-FORJADO
+            saida.append(f"{pasta}: {tipo}: {divergentes} ({rid})")
         extra, avisos = conferir_criterio(raiz, rel, texto, campos, ref)  # PAR-P2 E2a2: o desenho da mesma ref do parecer
         saida += viol + extra + (aceite_do_qa_sem_dono(raiz, pedido, rel, campos, branch) if tipo == "qa" else [])  # QA-ACEITE-FALSO
         for aviso in avisos:
@@ -1982,6 +1984,17 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
     return saida + nao_exigidos_que_nao_aprovam(raiz, pedido, ref, branch if de_trabalho else None, exigidos)
 
 
+def pareceres_divergentes(achados, vigente):
+    """FC-PR-PARECER-FORJADO: a recusa quando, entre os `achados` (tuplas com os campos no índice 2) da branch do parecer `vigente`, há
+    mais de um arquivo e eles divergem no `parecer`, no `revisor` ou no `commit`; None se não. A escolha por (data, nome) deixava um
+    aprovado forjado em outro arquivo da pasta vencer o reprovado do portão."""
+    grupo = sorted((a[1], a[2]) for a in achados if a[2].get("branch") == vigente.get("branch"))
+    if len({tuple(c.get(k) for k in ("parecer", "revisor", "commit")) for _, c in grupo}) < 2:
+        return None
+    return (f"pareceres divergentes do mesmo pedido e branch ({', '.join(caminho_impresso(r) for r, _ in grupo)}); "
+            "o portão mantém um arquivo só: apague o que não emitiu ou peça o parecer de novo")
+
+
 def nao_exigidos_que_nao_aprovam(raiz, pedido, ref, branch, exigidos):
     """P5: o parecer de um tipo que a classe não exige (o QA numa entrega T, o devops sem infraestrutura) não conta como ausente, mas o
     último dele, se existe e não aprova, reprova como na catraca (`pareceres_que_nao_aprovam`): dispensar não é ignorar um reprovado.
@@ -1997,6 +2010,9 @@ def nao_exigidos_que_nao_aprovam(raiz, pedido, ref, branch, exigidos):
         if not achados:
             continue
         _, rel, campos = sorted(achados, key=lambda a: a[:2])[-1]
+        if divergentes := pareceres_divergentes(achados, campos):  # FC-PR-PARECER-FORJADO: o aprovado forjado não esconde o reprovado
+            saida.append(f"{_pasta}: {tipo}: {divergentes} ({rid})")
+            continue
         valor = campos.get("parecer")
         if valor == "aprovado" or (valor == "riscos-aceitos" and aceite_do_usuario(raiz, pedido, campos.get("commit"), ref)):
             continue

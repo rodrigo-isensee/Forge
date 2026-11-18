@@ -47,6 +47,7 @@
   "test_esperar_estado": 1.4,
   "test_estado_da_branch": 27.0,
   "test_etapa_do_brief": 42.2,
+  "test_fc_pr_parecer_forjado": 9.0,
   "test_fechar": 49.7,
   "test_fechar_auto_merge": 4.9,
   "test_fechar_aviso_rotulo": 3.1,
