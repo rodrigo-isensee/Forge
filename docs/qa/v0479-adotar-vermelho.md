@@ -3,16 +3,16 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-adotar-vermelho
-commit: 3f526e8b98a26e7e35d2b6ee5706e98dae687841
+commit: 60782c174474ecc203b5a01defcb7a58a038785c
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-18
 ---
-# QA: v0478 adotar o teste vermelho de outro item (E21.4)
+# QA: v0478 adotar o teste vermelho de outro item (E21.7, revalidação)
 
 Escopo: `tests/test_teste_vermelho_alheio.py`, as invariantes novas em `tests/config.json` e os textos apontados (`teste-vermelho-alheio.md`, `autor-ate-o-merge.md`, `engineering-practices`, `qa-testing`, `agents/qa-engineer.md`). Sem suíte local; a bateria é o check-run `bateria` do PR.
 
@@ -40,3 +40,18 @@ Escopo: `tests/test_teste_vermelho_alheio.py`, as invariantes novas em `tests/co
   - M5 remove um invariante da config: 1 falha, morto.
   - 5 de 5 mortos.
 - Merge: o remoto avançou só com pareceres (review e segurança); trazido por merge, sem conflito.
+
+## Revalidação E21.7 (head 60782c17, delta de 3f526e8)
+Delta pelo `forge-check parecer delta`: `teste-vermelho-alheio.md`, `tests/config.json` (+4 invariantes: critério herdado da base, formas proibidas, aviso ao tech-lead, linha bloqueante) e `tests/test_teste_vermelho_alheio.py` (+3 testes). O A1 acima segue recomendado, não bloqueia.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Vermelho é alheio só se já cai na base (A1 da segurança) | `test_criterio_de_alheio_e_so_herdado_da_base` | texto antigo "ou cai em código que o diff não toca" | passa; morre com o critério antigo |
+| Formas proibidas, autor e tech-lead são invariantes (A2) | `test_cada_trecho_tirado_do_texto_reprova_um_invariante` | 3 trechos | passa; morre sem as formas proibidas |
+| Config e texto não se afastam | `test_texto_inteiro_casa_todos_os_invariantes` | invariantes da skill | passa; morre nos 4 mutantes novos |
+
+## Provas da revalidação
+- `python3 -I -m unittest discover -s tests -p test_teste_vermelho_alheio.py` → `Ran 8 tests ... OK`.
+- Vermelho à mão (o `forge-testes --vermelho` estourou 120 s: sem veredito, não vale): cópia de 60782c17 com a skill de 3f526e8 → `FAILED (failures=2)` (critério herdado da base; texto casa invariantes).
+- Mutação manual na skill (cópia em `$TMPDIR`), um por invariante novo: volta o critério antigo, 2 falhas, morto; tira as formas proibidas, 2 falhas, morto; tira "avisa o `tech-lead`", 1 falha, morto; tira a linha do achado bloqueante, 1 falha, morto. 4 de 4 mortos.
+- Merge: o remoto avançou só com o parecer de segurança (915f67a7); trazido por merge, sem conflito. Suíte inteira: check-run `bateria` do PR.
