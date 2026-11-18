@@ -16,7 +16,7 @@
       "id": "M40",
       "guarda": "tar --extract extrai",
       "arquivo": "hooks/conformidade.py",
-      "de": "extrai = \"x\" in letras or any(longa_do_tar(n, (\"extract\", \"get\")) for n in longas)",
+      "de": "extrai = \"x\" in letras or any(longa_do_tar(n, (\"extract\", \"get\")) for n in nomes)",
       "para": "extrai = \"x\" in letras or False",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
@@ -26,8 +26,8 @@
       "id": "M41",
       "guarda": "tar -c grava o arquivo de -f",
       "arquivo": "hooks/conformidade.py",
-      "de": "grava = bool(letras & set(\"cruA\")) or any(longa_do_tar(n, TAR_GRAVA) for n in longas)",
-      "para": "grava = bool(False) or any(longa_do_tar(n, TAR_GRAVA) for n in longas)",
+      "de": "grava = bool(letras & set(\"cruA\")) or any(longa_do_tar(n, TAR_GRAVA) for n in nomes)",
+      "para": "grava = bool(False) or any(longa_do_tar(n, TAR_GRAVA) for n in nomes)",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
       ]
@@ -36,8 +36,8 @@
       "id": "M42",
       "guarda": "extração sem -C vai à pasta corrente",
       "arquivo": "hooks/conformidade.py",
-      "de": "return Alvos((pastas or [\".\"]) if extrai",
-      "para": "return Alvos((pastas or []) if extrai",
+      "de": "for d in (pastas or [\".\"])",
+      "para": "for d in (pastas or [])",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
       ]
@@ -46,8 +46,8 @@
       "id": "M43",
       "guarda": "sem extração, nenhuma pasta",
       "arquivo": "hooks/conformidade.py",
-      "de": "[\".\"]) if extrai else []",
-      "para": "[\".\"]) if True else []",
+      "de": "extracao if extrai else []",
+      "para": "extracao if True else []",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_find_tar_e_chmod_fora_do_estado_seguem_livres"
       ]
@@ -56,8 +56,8 @@
       "id": "M44",
       "guarda": "o arquivo - é a saída padrão",
       "arquivo": "hooks/conformidade.py",
-      "de": "for a in valores_de(valores, \"f\", (\"file\",)) if a != \"-\"]",
-      "para": "for a in valores_de(valores, \"f\", (\"file\",)) if False]",
+      "de": "for a in valores_do(valores, destinos.arquivo) if a != \"-\"]",
+      "para": "for a in valores_do(valores, destinos.arquivo) if False]",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
       ]

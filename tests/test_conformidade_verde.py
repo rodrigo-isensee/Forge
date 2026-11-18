@@ -4,6 +4,7 @@ CF1 (v047 E2.179): as fixtures `opaco-cf1-*` e `trava-cf1-*`, com o oráculo pel
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -369,6 +370,41 @@ class EstadoDoAgentesNoClone(CloneDoForge):
                 self.recusa(self.rodar("Bash", {"command": c}, papel), f"{papel}: {c}")
         self.assertEqual(self.estado.read_text(encoding="utf-8"), '{"agentes": []}')
 
+    def test_opcoes_do_catalogo_recusam(self):  # volta 3 (E1.13): review A1 (S3, S4) e segurança A5 (S15)
+        (self.clone / "docs").mkdir()
+        sondas = ("tar -xf docs/a.tar --one-top-level=.git/forge/run",  # S3
+                  "tar -xf docs/a.tar -C docs --one-top-level=../.git/forge",  # S4: relativo ao -C
+                  "7z x docs/a.7z -O.git/forge/run", "7z a docs/a.7z .git/forge/run/agentes.json -SDEL",  # S15
+                  "bsdtar -xf docs/a.tar --cd .git/forge/run", "toybox tar -xf docs/a.tar -C .git/forge/run")
+        vizinhas = ("tar -xf docs/a.tar --one=.git/forge", "tar xf docs/a.tar --one-top-level=.git/forge",
+                    "tar -xf docs/a.tar --transform 's,^,.git/forge/run/,'", "tar -xf docs/a.tar --xform=s,.*,.git/forge/&,",
+                    "tar -xf docs/a.tar -C docs --transform='s|^|../.git/forge/|'",
+                    "tar -cf docs/a.tar --volno-file=.git/forge/run/agentes.json docs",
+                    "tar -cf docs/a.tar --index-file .git/forge/run/agentes.json docs",
+                    "bsdtar -xf docs/a.tar -s ',^,.git/forge/run/,'", "bsdtar -x -f docs/a.tar --directory=.git/forge",
+                    "7z e docs/a.7z -O.git/forge", "7z x docs/a.7z -o.git/forge/run -y",
+                    "7z u docs/a.7z docs -up0q0!.git/forge/run/agentes.json", "7z a docs/a.7z docs -w.git/forge/run",
+                    "7z a docs/a.7z -sDeL -- .git/forge/run/agentes.json", "toybox cpio -idD.git/forge < docs/a.cpio",
+                    "busybox tar -xf docs/a.tar --one-top-level=.git/forge")
+        for papel in ("forge:tech-lead", "forge:jarvis"):
+            for c in sondas + (vizinhas if papel == "forge:jarvis" else ()):
+                self.recusa(self.rodar("Bash", {"command": c}, papel), f"{papel}: {c}")
+        self.assertEqual(self.estado.read_text(encoding="utf-8"), '{"agentes": []}')
+
+    def test_opcoes_do_catalogo_fora_do_estado_seguem_livres(self):  # volta 3: o legítimo de cada opção nova
+        (self.clone / "docs").mkdir()
+        for c in ("tar -xf docs/a.tar --one-top-level=docs/b", "tar -xf docs/a.tar --one-top-level",
+                  "tar -xf docs/a.tar -C docs --one-top-level=b", "tar -xf docs/a.tar --transform 's,^,docs/b/,'",
+                  "tar -xf docs/a.tar --xform=s/a/b/", "tar -cf docs/a.tar --transform 's,^,.git/forge/,' docs",
+                  "tar -cf docs/a.tar --volno-file=docs/v docs", "tar -cf docs/a.tar -T docs/l",
+                  "tar -cf docs/a.tar --exclude .git/forge .", "tar -cf docs/a.tar --exclude-from docs/x docs",
+                  "tar -czf docs/a.tgz --remove-files docs/x", "tar -tf .git/forge/a.tar --one-top-level=.git/forge",
+                  "7z x docs/a.7z -Odocs", "7z a docs/a.7z docs/x -SDEL", "7z u docs/a.7z docs -up0q0!docs/n.7z",
+                  "7z u docs/a.7z docs -up0q0", "7z a docs/a.7z docs -wdocs", "7z a docs/a.7z docs -w",
+                  "7z l .git/forge/a.7z -O.git/forge", "bsdtar -xf docs/a.tar --cd docs", "bsdtar -xf docs/a.tar -s ',^,docs/b/,'",
+                  "bsdtar -tf .git/forge/a.tar", "toybox tar -xf docs/a.tar -C docs", "toybox ls .git/forge", "toybox --help"):
+            self.libera(self.rodar("Bash", {"command": c}), c)
+
     def test_find_tar_e_chmod_fora_do_estado_seguem_livres(self):  # o ato por opção só conta no alvo; a raiz, como no `rm`, fica de fora
         (self.clone / "docs").mkdir()
         for c in ("find . -name '*.py'", "find docs -name x -delete", "find . -name x -exec grep y {} +",
@@ -411,6 +447,63 @@ class EstadoDoAgentesNoClone(CloneDoForge):
         (self.clone / ".claude-plugin" / "plugin.json").unlink()
         for c in ("rm .git/forge/run/agentes.json", "echo x > .git/forge/run/agentes.json \\"):
             self.libera(self.rodar("Bash", {"command": c}), c)
+
+
+class CatalogoDosDestinos(unittest.TestCase):
+    """Volta 3 (E1.13): o catálogo `DESTINOS` do hook declara, por programa, as opções que escolhem a pasta de destino ou o
+    arquivo gravado; a do tar é conferida contra o `tar --help` da máquina (GNU tar), nos dois sentidos."""
+
+    METAVARS = ("FILE", "DIR", "ARCHIVE", "DATE-OR-FILE")  # o valor da opção é um caminho
+
+    def ajuda_do_tar(self):
+        tar = shutil.which("tar")
+        if not tar:
+            self.skipTest("sem tar no PATH: o catálogo do tar não tem com o que ser conferido")
+        r = subprocess.run([tar, "--help"], capture_output=True, text=True, timeout=60,
+                           env={"PATH": os.environ.get("PATH", ""), "LC_ALL": "C"})
+        if "GNU" not in r.stdout:
+            self.skipTest("o tar da máquina não é o GNU tar: o catálogo do tar é o da ajuda do GNU")
+        return r.stdout
+
+    def catalogo(self, programa):
+        codigo = ("import json, sys; sys.path.insert(0, sys.argv[1]); import conformidade as c; "
+                  "print(json.dumps(c.DESTINOS[sys.argv[2]]._asdict()))")
+        r = subprocess.run([sys.executable, "-I", "-c", codigo, str(HOOKS_DO_CLONE), programa], capture_output=True,
+                           text=True, timeout=60, env={"PATH": os.environ.get("PATH", "")})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return json.loads(r.stdout)
+
+    def test_toda_opcao_de_caminho_da_ajuda_do_tar_esta_no_catalogo(self):
+        ajuda, cat = self.ajuda_do_tar(), self.catalogo("tar")
+        declaradas = {n for campo in cat.values() for n in campo} | {"info-script", "new-volume-script", "F"}  # executam
+        com_caminho = set()
+        for linha in ajuda.splitlines():
+            curta = re.match(r"\s+-(\w), --", linha)
+            for longa, meta in re.findall(r"--([a-z-]+)\[?=([A-Z-]+)", linha):
+                if meta in self.METAVARS:
+                    com_caminho |= {longa, curta.group(1)} if curta else {longa}
+        self.assertGreaterEqual(len(com_caminho), 20, "a leitura da ajuda achou poucas opções de caminho")
+        self.assertEqual(com_caminho - declaradas, set(), "opção da ajuda que lê ou grava caminho fora do catálogo")
+        self.assertIn("one-top-level", com_caminho)  # o review A1: `[=DIR]` opcional também é pasta
+
+    def test_toda_opcao_do_catalogo_do_tar_existe_na_ajuda(self):
+        ajuda, cat = self.ajuda_do_tar(), self.catalogo("tar")
+        longas = set(re.findall(r"--([a-z-]+)", ajuda))
+        curtas = set(re.findall(r"^\s+-(\w), --", ajuda, re.M))
+        nomes = [n for campo in cat.values() for n in campo]
+        self.assertGreaterEqual(len(nomes), 25)
+        self.assertEqual([n for n in nomes if n not in (curtas if len(n) == 1 else longas)], [])
+
+    def test_one_top_level_do_gnu_tar_extrai_na_pasta_dada(self):  # S5: a razão de a opção estar em `subpasta`
+        self.ajuda_do_tar()
+        tmp = Path(tempfile.mkdtemp(prefix="forge-tar-")).resolve()
+        self.addCleanup(shutil.rmtree, tmp, True)
+        (tmp / "src").mkdir()
+        (tmp / "src" / "f").write_text("x", encoding="utf-8")
+        env = {"PATH": os.environ.get("PATH", ""), "LC_ALL": "C"}
+        for c in (["tar", "-cf", "a.tar", "src"], ["tar", "-xf", "a.tar", "--one-top-level=dst/alvo"]):
+            subprocess.run(c, cwd=tmp, check=True, capture_output=True, timeout=60, env=env)
+        self.assertTrue((tmp / "dst" / "alvo" / "src" / "f").is_file())
 
 
 class ConfigDoTetoNoClone(CloneDoForge):

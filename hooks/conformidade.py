@@ -1088,60 +1088,120 @@ def longas_de(valores):
     return [n for n, _ in valores if len(n) > 1]
 
 
-def alvos_do_tar(args):
-    """A2 da segurança (v0478): o que o `tar` (e `bsdtar`, `gtar`, o do `busybox`) faz por opção. Extração (`-x`,
-    `--extract`, `--get`): as pastas de `-C`/`--directory`, ou a corrente. Criação, acréscimo e atualização (`-c`, `-r`,
-    `-u`, `-A`, `--create`, `--delete`...): o arquivo de `-f`/`--file`; `-g` e `--index-file` gravam sempre. `TAR_EXECUTA`
-    (`-I`, `-F`, `--to-command`, `--checkpoint-action=exec=`...) roda o valor; `--remove-files` apaga os operandos, também
-    a partir de cada `-C`. Na dúvida sobre o modo, não grava (o resto da linha segue as outras regras)."""
-    letras, valores, operandos = ler_opcoes(args, TAR_COM_VALOR, ("directory", "file", "index-file", "listed-incremental",
-                                                                   *TAR_EXECUTA), velho=True)
-    longas = longas_de(valores)
-    extrai = "x" in letras or any(longa_do_tar(n, ("extract", "get")) for n in longas)
-    grava = bool(letras & set("cruA")) or any(longa_do_tar(n, TAR_GRAVA) for n in longas)
-    pastas = valores_de(valores, "C", ("directory",))
-    arquivos = [a for a in valores_de(valores, "f", ("file",)) if a != "-"] if grava else []
-    arquivos += valores_de(valores, "g", ("listed-incremental", "index-file"))
+# Volta 3 (E1.13): por programa, as opções que escolhem a pasta de destino ou o arquivo gravado, tiradas da ajuda do
+# próprio programa (`tar --help` do GNU tar 1.35, `bsdtar --help` 3.7, `cpio --help` 2.15, `unzip -h` 6.0, `7z --help`
+# 23.01); `le` é o que a ajuda dá como arquivo só lido, para o teste conferir a do tar contra o `tar --help` da máquina.
+# `pasta`: onde extrai; `subpasta`: dentro de cada `pasta` (`--one-top-level=`); `reescreve`: expressão sed que manda o
+# nome a outra pasta; `arquivo`: gravado nos modos que gravam; `grava`: gravado sempre; `remove`: apaga os operandos.
+Destinos = collections.namedtuple("Destinos", "pasta subpasta reescreve arquivo grava remove le")
+DESTINOS = {
+    "tar": Destinos(("C", "directory"), ("one-top-level",), ("transform", "xform"), ("f", "file"),
+                    ("g", "listed-incremental", "index-file", "volno-file"), ("remove-files",),
+                    ("T", "files-from", "X", "exclude-from", "N", "newer", "after-date", "add-file", "exclude-ignore",
+                     "exclude-ignore-recursive", "exclude-tag", "exclude-tag-all", "exclude-tag-under", "group-map",
+                     "owner-map", "mtime")),
+    "bsdtar": Destinos(("C", "cd", "directory"), (), ("s",), ("f", "file"), (), (),
+                       ("T", "files-from", "X", "exclude-from", "newer-than", "newer-mtime-than", "older-than",
+                        "older-mtime-than")),
+    "cpio": Destinos(("D", "directory"), (), (), ("F", "file"), ("O",), (), ("E", "pattern-file", "I")),
+    "unzip": Destinos(("d",), (), (), (), (), (), ()),
+    "7z": Destinos(("o",), (), (), (), ("w", "u"), ("sdel",), ("i", "x", "ai", "ax")),  # chaves sem caixa, valor colado
+}
+
+
+def com_valor(destinos):
+    """As letras e as longas do catálogo que tomam valor (a `subpasta` do tar é opcional, só com `=`; `remove` não tem)."""
+    nomes = [n for campo in destinos._fields if campo not in ("subpasta", "remove") for n in getattr(destinos, campo)]
+    return "".join(n for n in nomes if len(n) == 1), tuple(n for n in nomes if len(n) > 1)
+
+
+def valores_do(valores, nomes):
+    """Os valores das opções de `nomes` (letras e longas misturadas, como no catálogo)."""
+    return valores_de(valores, "".join(n for n in nomes if len(n) == 1), tuple(n for n in nomes if len(n) > 1))
+
+
+def pastas_da_troca(expressao):
+    """A pasta para onde a expressão sed do `--transform` (`s,^,pasta/,`; várias com `;`) ou do `-s` do bsdtar
+    (`/^/pasta//`) manda o nome: o começo literal da troca, antes de `&` ou `\\`; troca sem pasta não conta."""
+    pastas = []
+    for e in expressao.split(";"):
+        e = e[1:] if e[:1] == "s" and len(e) > 1 and not e[1].isalnum() else e
+        partes = re.split(r"(?<!\\)" + re.escape(e[:1]), e[1:]) if e else []
+        prefixo = re.split(r"[&\\]", partes[1])[0] if len(partes) > 1 else ""
+        if "/" in prefixo or prefixo.startswith("."):
+            pastas.append(prefixo.rstrip("/") or "/")
+    return pastas
+
+
+def alvos_do_tar(args, destinos=DESTINOS["tar"]):
+    """A2 da segurança (v0478), pelo catálogo `DESTINOS`: o que o `tar` (e `bsdtar`, `gtar`, o do `busybox` e do
+    `toybox`) faz por opção. Extração (`-x`, `--extract`, `--get`): as pastas de `pasta`, ou a corrente, e dentro de
+    cada uma a `subpasta` e a pasta da `reescreve`. Criação, acréscimo e atualização (`-c`, `-r`, `-u`, `-A`,
+    `--create`, `--delete`...): o `arquivo`; `grava`, sempre. `TAR_EXECUTA` (`-I`, `-F`, `--to-command`,
+    `--checkpoint-action=exec=`...) roda o valor; `remove` apaga os operandos, também a partir de cada pasta. Na dúvida
+    sobre o modo, não grava (o resto da linha segue as outras regras)."""
+    curtas, longas = com_valor(destinos)
+    letras, valores, operandos = ler_opcoes(args, TAR_COM_VALOR + curtas, (*longas, *TAR_EXECUTA), velho=True)
+    nomes = longas_de(valores)
+    extrai = "x" in letras or any(longa_do_tar(n, ("extract", "get")) for n in nomes)
+    grava = bool(letras & set("cruA")) or any(longa_do_tar(n, TAR_GRAVA) for n in nomes)
+    pastas = valores_do(valores, destinos.pasta)
+    dentro = valores_do(valores, destinos.subpasta)
+    dentro += [t for e in valores_do(valores, destinos.reescreve) for t in pastas_da_troca(e)]
+    arquivos = [a for a in valores_do(valores, destinos.arquivo) if a != "-"] if grava else []
+    arquivos += valores_do(valores, destinos.grava)
     comandos = valores_de(valores, "IF", TAR_EXECUTA - {"checkpoint-action"})
     comandos += [v[5:] for v in valores_de(valores, "", ("checkpoint-action",)) if v.startswith("exec=")]
-    remove = any(longa_do_tar(n, ("remove-files",)) for n in longas)
+    remove = any(longa_do_tar(n, destinos.remove) for n in nomes)
     removidos = [f"{d}/{o}" for o in operandos for d in (".", *pastas)] if remove else []
-    return Alvos((pastas or ["."]) if extrai else [], arquivos, removidos, comandos)
+    extracao = [p for d in (pastas or ["."]) for p in (d, *(os.path.join(d, s) for s in dentro))]
+    return Alvos(extracao if extrai else [], arquivos, removidos, comandos)
 
 
-def alvos_do_cpio(args):
-    """A2 da volta 2: `cpio -i`/`--extract` extrai na pasta de `-D`/`--directory`, ou na corrente; `-p`/`--pass-through`,
-    também nos operandos (o destino); `-o`/`--create` grava o arquivo de `-F`/`--file`, e `-O` grava sempre;
+def alvos_do_cpio(args, destinos=DESTINOS["cpio"]):
+    """A2 da volta 2: `cpio -i`/`--extract` extrai na `pasta` (`-D`), ou na corrente; `-p`/`--pass-through`, também
+    nos operandos (o destino); `-o`/`--create` grava o `arquivo` (`-F`), e `grava` (`-O`) grava sempre;
     `--rsh-command` roda o valor."""
-    letras, valores, operandos = ler_opcoes(args, "CDEFHIMOR", ("directory", "file", "rsh-command", "pattern-file",
-                                                               "format", "message", "owner", "io-size"))
-    longas = longas_de(valores)
-    extrai = bool(letras & set("ip")) or any(longa_do_tar(n, ("extract", "pass-through")) for n in longas)
-    cria = "o" in letras or any(longa_do_tar(n, ("create",)) for n in longas)
-    pastas = (valores_de(valores, "D", ("directory",)) or ["."]) + operandos if extrai else []
-    arquivos = valores_de(valores, "O", ()) + (valores_de(valores, "F", ("file",)) if cria else [])
+    curtas, longas = com_valor(destinos)
+    letras, valores, operandos = ler_opcoes(args, "CHMR" + curtas, (*longas, "rsh-command", "format", "message",
+                                                                     "owner", "io-size"))
+    nomes = longas_de(valores)
+    extrai = bool(letras & set("ip")) or any(longa_do_tar(n, ("extract", "pass-through")) for n in nomes)
+    cria = "o" in letras or any(longa_do_tar(n, ("create",)) for n in nomes)
+    pastas = (valores_do(valores, destinos.pasta) or ["."]) + operandos if extrai else []
+    arquivos = valores_do(valores, destinos.grava) + (valores_do(valores, destinos.arquivo) if cria else [])
     return Alvos(pastas, arquivos, [], valores_de(valores, "", ("rsh-command",)))
 
 
-def alvos_do_unzip(args):
-    """A2 da volta 2: o `unzip` extrai na pasta de `-d` (colada ou na palavra seguinte), ou na corrente."""
-    return Alvos(valores_de(ler_opcoes(args, "d", ())[1], "d", ()) or ["."], [], [], [])
+def alvos_do_unzip(args, destinos=DESTINOS["unzip"]):
+    """A2 da volta 2: o `unzip` extrai na `pasta` (`-d`, colada ou na palavra seguinte), ou na corrente."""
+    return Alvos(valores_do(ler_opcoes(args, com_valor(destinos)[0], ())[1], destinos.pasta) or ["."], [], [], [])
 
 
-def alvos_do_7z(args):
-    """A4 da volta 2: `7z x`/`e` extrai na pasta de `-o<pasta>`, ou na corrente; `a`, `u`, `d` e `rn` gravam o arquivo
-    (o primeiro operando depois do comando); `-sdel` apaga os outros operandos."""
-    operandos = [a for a in args if not a.startswith("-")]
+def alvos_do_7z(args, destinos=DESTINOS["7z"]):
+    """A4 da volta 2 e A5 da segurança: o 7-Zip lê as chaves sem caixa (`-o`, `-O`, `-SDEL`) e com o valor colado.
+    `x`/`e` extraem na `pasta` (`-o<pasta>`), ou na corrente; `a`, `u`, `d` e `rn` gravam o arquivo (o primeiro operando
+    depois do comando); `grava`: a pasta de trabalho de `-w<pasta>` e o arquivo novo de `-u...!<arquivo>`; `remove`
+    (`-sdel`) apaga os outros operandos. Depois de `--`, só operandos."""
+    fim = args.index("--") if "--" in args else len(args)
+    chaves = [a[1:] for a in args[:fim] if a.startswith("-")]
+    operandos = [a for a in args[:fim] if not a.startswith("-")] + args[fim + 1:]
     comando, arquivo = (operandos[0].lower() if operandos else ""), operandos[1:2]
-    pastas = ([a[2:] for a in args if a.startswith("-o")] or ["."]) if comando in ("x", "e") else []
-    removidos = operandos[2:] if "-sdel" in args else []
-    return Alvos(pastas, arquivo if comando in ("a", "u", "d", "rn") else [], removidos, [])
+
+    def valores(nomes):
+        return [(n, c[len(n):]) for c in chaves for n in nomes if c.lower().startswith(n)]
+
+    pastas = ([v for _, v in valores(destinos.pasta)] or ["."]) if comando in ("x", "e") else []
+    gravados = [v.partition("!")[2] if n == "u" else v for n, v in valores(destinos.grava)]
+    removidos = operandos[2:] if any(c.lower() in destinos.remove for c in chaves) else []
+    return Alvos(pastas, (arquivo if comando in ("a", "u", "d", "rn") else []) + [g for g in gravados if g],
+                 removidos, [])
 
 
 # A2 e A4 da segurança, volta 2 (v0478): catálogo único dos programas que extraem, gravam ou rodam comando por opção;
-# o `busybox` repassa ao applet (`leitura_do_segmento`), e o `tar` dele cai aqui pelo nome.
-EXTRATORES = {"tar": alvos_do_tar, "bsdtar": alvos_do_tar, "gtar": alvos_do_tar, "cpio": alvos_do_cpio,
-              "unzip": alvos_do_unzip, **dict.fromkeys(("7z", "7za", "7zr", "7zz"), alvos_do_7z)}
+# o `busybox` e o `toybox` repassam ao applet (`leitura_do_segmento`), e o `tar` deles cai aqui pelo nome.
+EXTRATORES = {"tar": alvos_do_tar, "gtar": alvos_do_tar, "bsdtar": functools.partial(alvos_do_tar, destinos=DESTINOS["bsdtar"]),
+              "cpio": alvos_do_cpio, "unzip": alvos_do_unzip, **dict.fromkeys(("7z", "7za", "7zr", "7zz"), alvos_do_7z)}
 
 
 def sed_no_lugar(args):
@@ -2227,7 +2287,7 @@ class Guarda:
             return pasta
         prog = Path(palavras[0].lstrip("`")).name
         args = palavras[1:]
-        if prog == "busybox" and args and not args[0].startswith("-"):  # A4 da volta 2: o applet é o programa
+        if prog in ("busybox", "toybox") and args and not args[0].startswith("-"):  # A4 da volta 2, A5: o applet é o programa
             palavras, prog, args = args, Path(args[0]).name, args[1:]
         if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}:
             self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}).pop()  # recusa no fim da linha

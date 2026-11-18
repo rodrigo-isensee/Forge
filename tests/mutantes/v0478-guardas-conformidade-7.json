@@ -46,8 +46,8 @@
       "id": "M51",
       "guarda": "unzip sem -d extrai na pasta corrente",
       "arquivo": "hooks/conformidade.py",
-      "de": "\"d\", ()) or [\".\"], [], [], [])",
-      "para": "\"d\", ()) or [], [], [], [])",
+      "de": "destinos.pasta) or [\".\"], [], [], [])",
+      "para": "destinos.pasta) or [], [], [], [])",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
@@ -66,7 +66,7 @@
       "id": "M53",
       "guarda": "7z -sdel apaga os operandos",
       "arquivo": "hooks/conformidade.py",
-      "de": "removidos = operandos[2:] if \"-sdel\" in args else []",
+      "de": "removidos = operandos[2:] if any(c.lower() in destinos.remove for c in chaves) else []",
       "para": "removidos = operandos[2:] if False else []",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"

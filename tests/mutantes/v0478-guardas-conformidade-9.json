@@ -6,8 +6,8 @@
       "id": "M63",
       "guarda": "7z: as chaves (-y) não são o comando",
       "arquivo": "hooks/conformidade.py",
-      "de": "    operandos = [a for a in args if not a.startswith(\"-\")]\n    comando, arquivo",
-      "para": "    operandos = [a for a in args if True]\n    comando, arquivo",
+      "de": "operandos = [a for a in args[:fim] if not a.startswith(\"-\")] + args[fim + 1:]",
+      "para": "operandos = [a for a in args[:fim] if True] + args[fim + 1:]",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
@@ -26,8 +26,8 @@
       "id": "M65",
       "guarda": "7z x sem -o extrai na pasta corrente",
       "arquivo": "hooks/conformidade.py",
-      "de": "([a[2:] for a in args if a.startswith(\"-o\")] or [\".\"])",
-      "para": "([a[2:] for a in args if a.startswith(\"-o\")] or [])",
+      "de": "([v for _, v in valores(destinos.pasta)] or [\".\"])",
+      "para": "([v for _, v in valores(destinos.pasta)] or [])",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]

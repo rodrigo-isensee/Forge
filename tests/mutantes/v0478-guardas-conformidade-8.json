@@ -16,7 +16,7 @@
       "id": "M56",
       "guarda": "busybox repassa ao applet",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if prog == \"busybox\" and args and not args[0].startswith(\"-\"):",
+      "de": "        if prog in (\"busybox\", \"toybox\") and args and not args[0].startswith(\"-\"):",
       "para": "        if False:",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
@@ -66,8 +66,8 @@
       "id": "M61",
       "guarda": "cpio sem -D extrai na pasta corrente",
       "arquivo": "hooks/conformidade.py",
-      "de": "(valores_de(valores, \"D\", (\"directory\",)) or [\".\"])",
-      "para": "(valores_de(valores, \"D\", (\"directory\",)) or [])",
+      "de": "(valores_do(valores, destinos.pasta) or [\".\"])",
+      "para": "(valores_do(valores, destinos.pasta) or [])",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
@@ -76,8 +76,8 @@
       "id": "M62",
       "guarda": "cpio -o grava o -F",
       "arquivo": "hooks/conformidade.py",
-      "de": "(valores_de(valores, \"F\", (\"file\",)) if cria else [])",
-      "para": "(valores_de(valores, \"F\", (\"file\",)) if False else [])",
+      "de": "(valores_do(valores, destinos.arquivo) if cria else [])",
+      "para": "(valores_do(valores, destinos.arquivo) if False else [])",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
