@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "o laço do log sai na hora quando o log já tem a linha rc=, sem gastar as voltas do teto",
       "arquivo": "skills/esperar-estado/SKILL.md",
-      "de": "2>/dev/null) && break; sleep 30",
-      "para": "2>/dev/null); sleep 30",
+      "de": "2>/dev/null && break; sleep 30",
+      "para": "2>/dev/null; sleep 30",
       "testes": ["tests.test_esperar_estado.LacoDoLog"]
     },
     {
@@ -22,8 +22,8 @@
       "id": "M3",
       "guarda": "o laço do log tem 5 voltas de 30 s (150 s), abaixo dos 180 s em que o Bash passa a chamada para segundo plano",
       "arquivo": "skills/esperar-estado/SKILL.md",
-      "de": "seq 1 5); do fim=$(grep",
-      "para": "seq 1 6); do fim=$(grep",
+      "de": "seq 1 5); do grep",
+      "para": "seq 1 6); do grep",
       "testes": ["tests.test_esperar_estado.LacoDoLog"]
     },
     {
