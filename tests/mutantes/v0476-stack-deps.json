@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "falha de comando interrompe e reprova",
       "arquivo": "bin/forge-copia",
-      "de": "            if rc:\n",
-      "para": "            if False:\n",
+      "de": "            if rc:\n                print(f\"forge-copia: a instalação",
+      "para": "            if False:\n                print(f\"forge-copia: a instalação",
       "testes": [
         "tests.test_forge_copia.Instalar.test_comando_que_falha_sai_1_e_diz_qual",
         "tests.test_forge_copia.Instalar.test_falha_interrompe_os_comandos_seguintes"
