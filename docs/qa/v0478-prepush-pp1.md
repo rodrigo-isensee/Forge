@@ -16,10 +16,6 @@ data: 2026-11-18
 
 Escopo: `docs/devops/pp1-pre-push.patch`, `docs/devops/pp1-aplicar.md`, `tests/test_pre_push_patch.py`, mapa de `bin/forge-testes`. Sem especificação de UX nem contrato de API (pedido de controle do envio); as obrigações são os quatro cartões do roteiro. Sem suíte local; a suíte inteira fica no CI do PR.
 
-## Achados
-- A1 (fechado) docs/devops/pp1-pre-push.patch:157 · M3 agora morre: testes de base 10 ("08", "09") e da conta da espera.
-- A2 (fechado) docs/devops/pp1-pre-push.patch:53 · M11 e M12 agora morrem: skip na própria catraca e skip fora de tests/ não barram.
-
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
@@ -55,6 +51,6 @@ M11 · morreu · docs/devops/pp1-pre-push.patch:53
 M12 · morreu · docs/devops/pp1-pre-push.patch:53
 M15 · morreu · docs/devops/pp1-pre-push.patch:91
 ```
-Minha lista, aplicada ao hook remendado (patch aplicado sobre `git archive` do head, `bash -n` ok), classe do cartão: base `IndiceEPulos` 8 testes OK; M3 `IntervaloDaFila` FAILED (failures=4); M11 FAILED (failures=1); M12 FAILED (failures=1); M15 `CoberturaDaCatraca` FAILED (failures=1). Módulo inteiro no head: `Ran 23 tests ... OK`. Os demais mutantes (M1, M2, M4 a M10, M13, M14) já morriam e o delta não os toca. Sem bugs abertos.
+Minha lista, aplicada ao hook remendado (patch aplicado sobre `git archive` do head, `bash -n` ok), classe do cartão: base `IndiceEPulos` 8 testes OK; M3 `IntervaloDaFila` FAILED (failures=4); M11 FAILED (failures=1); M12 FAILED (failures=1); M15 `CoberturaDaCatraca` FAILED (failures=1). Módulo inteiro no head: `Ran 23 tests ... OK`. Os demais mutantes (M1, M2, M4 a M10, M13, M14) já morriam e o delta não os toca. Achados A1 e A2 da rodada anterior fechados (M3, M11 e M12 morrem); sem bugs abertos.
 
 CI: o check-run `bateria` do mesmo sha fica a cargo do PR.
