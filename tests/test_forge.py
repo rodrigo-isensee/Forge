@@ -708,6 +708,10 @@ class RegrasComId(unittest.TestCase):
                     self.assertTrue(rid in validos, f"{rid} não existe em docs/regras/")
 
 
+# Review A5 (v0476-mp2-mp4): as pastas da máquina de cada chamada ficam numa só, apagada na saída do processo.
+MAQUINAS = tempfile.TemporaryDirectory(prefix="forge-maquinas-")
+
+
 def ambiente_limpo():
     """Ambiente sem as variáveis GIT_* herdadas (um hook do git exporta GIT_DIR e afins) e sem config
     global/de sistema: o git dos testes só enxerga o repositório temporário em que roda. Sem `CLAUDE_PROJECT_DIR`
@@ -717,6 +721,7 @@ def ambiente_limpo():
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
     env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+    env["FORGE_MAQUINA"] = tempfile.mkdtemp(prefix="maquina-", dir=MAQUINAS.name)  # MP4: a fila pesada da máquina, uma por chamada
     return sem_manutencao(env)  # sem manutenção automática do git (ver ambiente_git.py)
 
 
@@ -787,7 +792,8 @@ class ForgeInit(unittest.TestCase):
         self.assertIn("`make pronto`", claude_md)
         for arq in minimo(self.tmp.rglob("*"), 27, "entradas do projeto gerado"):
             if arq.is_file() and ".git" not in arq.parts:
-                self.assertNotIn("{{", arq.read_text(encoding="utf-8", errors="ignore"), arq)
+                # `${{ }}` é expressão do GitHub Actions (ci.yml); marcador não trocado é `{{` sem o `$`
+                self.assertIsNone(re.search(r"(?<!\$)\{\{", arq.read_text(encoding="utf-8", errors="ignore")), arq)
         self.assertEqual(git("config", "core.hooksPath", cwd=self.tmp).stdout.strip(), ".githooks")
         self.assertTrue(os.access(self.tmp / ".githooks/pre-push", os.X_OK))
         settings = json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8"))
@@ -5003,9 +5009,8 @@ class ConferirBrief(unittest.TestCase):
             if {"E1.1", "E1"} & mod.ids_da_linha(linha):
                 self.assertIn(f"- {linha.strip()}\n", saida)
         self.assertIn("Retira do escopo original", saida)
-        self.assertIn("E3.1 (revisor): revisão de código da branch.", saida)
         self.assertIn('- "E1.1 (dev-exemplo): implementação do recurso A." (E1.1)', saida)  # a etapa coberta abre o Entregar (P2)
-        self.assertIn('- "E2.1 (dev-exemplo): texto da documentação." · etapa de outra delegação', saida)  # a outra do mesmo papel, sem marca
+        self.assertRegex(saida, r"\n- E2\.1, [^\n]*E3\.1[^\n]* · outras delegações\n")  # a outra do mesmo papel, sem marca, só o id (E3.48)
         self.assertIn("git ls-remote origin refs/heads/melhoria/a", saida)
         self.assertRegex(saida, r"Base-sha: (?:[0-9a-f]{40}|PREENCHER)")
         self.assertEqual(self.rodar(*args)[1], saida)

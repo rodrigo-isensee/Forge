@@ -139,7 +139,8 @@ class NoPr(ComRepositorio):
         self.pr_aberto("sem a linha")
         _, saida, erro = self.rodar3("pr", "x", "--base", "develop")
         self.assertNotIn("tamanho", saida + erro)
-        self.assertFalse(self.log_gh.exists())
+        gh = self.log_gh.read_text(encoding="utf-8") if self.log_gh.exists() else ""  # E3.45: os checks do head leem o PR sem o corpo
+        self.assertNotIn(",body", gh)
 
     def test_sem_pr_so_avisa(self):
         self.item(151)
@@ -226,7 +227,7 @@ class NoBriefGerar(ComRepositorio):
         self.assertNotIn("etapas, acima", erro)
 
     def test_brief_perto_do_teto_de_caracteres_avisa(self):
-        self.gravar("docs/pedidos/exemplo.md", pedido_com(["texto longo " * 200] * 5))
+        self.gravar("docs/pedidos/exemplo.md", pedido_com(["texto longo " * 900]))  # E3.48: a coberta vai inteira ao Entregar
         rc, saida, erro = self.gerar()
         self.assertEqual(rc, 0, erro)
         self.assertGreaterEqual(len(saida), 9000)
