@@ -1,0 +1,56 @@
+{
+  "descricao": "GH-REMOTO-RESOLVIDO (A6 da E3.13, sonda S12): o `remote.origin.gh-resolved dono/forge` da cópia alheia faz o gh agir no Forge: confere no clone da sessão (sem parecer, recusa).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "develop",
+        "remote.origin.url": "git@github.com:dono/forge.git"
+      }
+    }
+  ],
+  "repos": {
+    "alheio": {
+      "remotos": {
+        "origin": "git@github.com:outro/coisa.git"
+      },
+      "arquivos": {
+        "m.txt": "mutation { markPullRequestReadyForReview(input: {pullRequestId: \"PR_1\"}) { clientMutationId } }\n",
+        "q.graphql": "mutation { markPullRequestReadyForReview(input: {pullRequestId: \"PR_1\"}) { clientMutationId } }\n",
+        "l.graphql": "query { viewer { login } }\n"
+      },
+      "config": {
+        "remote.origin.gh-resolved": "dono/forge"
+      }
+    }
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/alheio",
+    "tool_input": {
+      "command": "gh pr ready feature/x"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: PR sai do rascunho só com parecer"
+  }
+}

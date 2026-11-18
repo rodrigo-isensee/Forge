@@ -107,6 +107,11 @@ SUBCOMANDOS = {"merge", "pull", "checkout", "switch"}
 ABRE = {"if", "while", "until", "for", "case", "select", "then", "do", "else", "elif", "{", "function", "coproc"}
 LE_VARIAVEL = {"source", ".", "eval", "read", "mapfile", "readarray", "getopts", "for", "select", "let", "declare",
                "typeset", "local", "readonly", "unset", "set", "printf"}  # mexem em variável sem `NOME=` na palavra
+# GH-REPO-DE-ARQUIVO (A5 da E3.13): `source` e `.` leem um arquivo que pode definir qualquer variável; NOMEIA, os comandos
+# cujas palavras são nomes (o `export` também); LE_COM_VALOR, as opções do `read` cuja palavra seguinte é valor, não nome
+CARREGA_ARQUIVO = {"source", "."}
+NOMEIA = {"export", "declare", "typeset", "local", "readonly", "unset"}
+LE_COM_VALOR = {"-p", "-d", "-t", "-n", "-N", "-u", "-i"}
 DESVIOS = {"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR"}
 # 0.45.4: as variáveis que mudam o config.yml que o gh lê (e os aliases dele); mexidas antes na linha, o alias fica incerto
 CONFIG_DO_GH = {"GH_CONFIG_DIR", "XDG_CONFIG_HOME", "HOME"}
@@ -595,15 +600,35 @@ def com_til(palavra, mexidas=frozenset()):
     return None if "HOME" in mexidas else str(Path(os.path.expanduser("~"))) + palavra[1:]
 
 
+def nomes_dinamicos(comando):
+    """GH-REPO-DE-ARQUIVO: o comando dá valor a uma variável cujo nome sai de expansão (`export $(cat .env)`,
+    `export "$k=$v"`, `read "$n"`, `printf -v "$n"`): o hook não o lê, e ele pode ser qualquer um dos SENSIVEIS."""
+    nome, args = comando[0], comando[1:]
+    if nome == "printf":
+        args = [p[2:] for p in args if p.startswith("-v") and len(p) > 2] + [b for a, b in zip(args, args[1:]) if a == "-v"]
+    elif nome == "read":
+        args = [b for a, b in zip([""] + args, args) if a not in LE_COM_VALOR]
+    elif nome not in NOMEIA:
+        return False
+    return any(expande(p) and not ATRIBUICAO.match(p) for p in args if not p.startswith("-"))
+
+
 def mexidas_na_linha(palavras):
     """Os SENSIVEIS que o comando mexe: por prefixo (`HOME=x cd`), atribuição (`HOME=x`, `export HOME=x`) ou nome em `read`,
-    `printf -v`, `declare`, `unset`... A pasta que depende deles fica desconhecida."""
+    `printf -v`, `declare`, `unset`... A pasta que depende deles fica desconhecida. GH-REPO-DE-ARQUIVO (A5 da E3.13, A2
+    da E3.12): `source` e `.` (também depois de `builtin` ou `command`) e o nome que sai de expansão mexem em todos."""
     k = depois_das_atribuicoes(palavras)
-    comando = palavras[k:]
     nomes = {ATRIBUICAO.match(a).group(1) for a in palavras[:k]}
-    nomes |= {m.group(1) for m in map(ATRIBUICAO.match, comando) if m}
-    if comando and comando[0] in LE_VARIAVEL:
-        nomes |= {p.split("=", 1)[0] for p in comando[1:]}  # `read HOME`, `printf -v GIT_DIR`
+    nomes |= {m.group(1) for m in map(ATRIBUICAO.match, palavras[k:]) if m}
+    comando = sem_condicao(palavras[k:])
+    while comando[:1] in (["builtin"], ["command"]):
+        comando = comando[1:]
+    if comando and comando[0] in CARREGA_ARQUIVO:
+        return frozenset(SENSIVEIS)
+    if comando and comando[0] in LE_VARIAVEL | NOMEIA:
+        if nomes_dinamicos(comando):
+            return frozenset(SENSIVEIS)
+        nomes |= {n for p in comando[1:] for n in p.split("=")}  # `read HOME`, `printf -v GIT_DIR`, `declare -n r=HOME`
     return SENSIVEIS & nomes
 
 
@@ -904,9 +929,17 @@ def slug(texto):
 
 
 def remotos(raiz):
-    """Os `dono/repo` dos remotos da cópia de trabalho `raiz`."""
-    urls = git(raiz, "config", "--get-regexp", r"^remote\..*\.url$")[1].splitlines()
-    return {slug(linha.partition(" ")[2]) for linha in urls} - {None}
+    """Os `dono/repo` em que o gh pode agir pelos remotos da cópia de trabalho `raiz`. GH-REMOTO-RESOLVIDO (A6 da E3.13):
+    as URLs como o `git remote -v` as mostra (com `insteadOf` e `pushInsteadOf` aplicados, as que o gh lê) e o
+    `remote.<nome>.gh-resolved` (o repositório escolhido no gh; `base` não é `dono/repo` e o `slug` o descarta). Sem os
+    remotos, o hook não sabe onde o gh age: recusa."""
+    codigo, linhas = git(raiz, "remote", "-v")
+    if codigo:
+        bloquear("R-REVIEW", "gh pr numa cópia cujos remotos o hook não lê (git remote -v falhou). Corrigir: use "
+                             "-R <dono/repo> ou rode o gh de dentro do clone (cd <clone>)")
+    valores = [url for linha in linhas.splitlines() for url in linha.split()[1:2]]
+    resolvidos = git(raiz, "config", "--get-regexp", r"^remote\..*\.gh-resolved$")[1].splitlines()
+    return {slug(v) for v in valores + [linha.partition(" ")[2] for linha in resolvidos]} - {None}
 
 
 def sessao_ou(pasta):
@@ -940,9 +973,9 @@ def pasta_do_gh(hook, pasta, repo):
     if clone is None and copia_de_trabalho(sessao) is not None:
         return pasta
     if repo is REPO_INCERTO:  # GH-REPO-EXPORTADO
-        bloquear("R-REVIEW", "gh pr fora de um clone com GH_REPO mexido antes na linha (export, declare -x, set -a): o hook "
-                             "não lê o repositório indicado. Corrigir: use -R <dono/repo> ou rode o gh de dentro do clone "
-                             "(cd <clone>)")
+        bloquear("R-REVIEW", "gh pr fora de um clone com GH_REPO mexido antes na linha (export, declare -x, set -a, source, "
+                             "nome por expansão): o hook não lê o repositório indicado. Corrigir: use -R <dono/repo> ou rode "
+                             "o gh de dentro do clone (cd <clone>)")
     pedido = slug(repo)
     if copia is not None and pedido is None:  # A2: sem -R, o gh age no repositório dos remotos da cópia
         return clone if clone and remotos(copia) & remotos(clone) else pasta
