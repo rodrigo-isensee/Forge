@@ -3,36 +3,41 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: 56bb90b555cc63d4f035dd27d0d35a6541e3647a
+commit: b989773a2ae7276692081441ff72c05d26d0f8da
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-18
 ---
-# Review: v0478 E3.12 (melhoria/v0478-guardas-parecer), volta do E3.7
+# Review: v0478 E3.16 (melhoria/v0478-guardas-parecer), volta 2 do E3.12
 
 ## Revalidação
-- Delta lido: `forge-check parecer delta docs/reviews/v0478-guardas-parecer.md`, intervalo c41f7fe5..56bb90b5 (commit 56bb90b5, E3.10; o merge c0c3af4f só trouxe os pareceres). No domínio: `hooks/parecer.py`, `tests/test_hooks_parecer_repo.py`, 4 fixtures `incidente-r-copia-alheia-*gh-repo*`, `tests/mutantes/v0478-guardas-parecer{,-4}.json`, `docs/hooks-fixtures.md` (gerado) e o fragmento `changelog.d/`. Nada fora do delta relido.
+- Delta lido: `forge-check parecer delta docs/reviews/v0478-guardas-parecer.md`, intervalo 56bb90b5..b989773a (E3.15: 5c007978, 7b8d8466, cec853c9, b989773a). No domínio: `hooks/parecer.py` (`nomes_dinamicos`, `mexidas_na_linha`, `remotos`, mensagem do REPO_INCERTO), 16 fixtures `incidente-r-copia-alheia-*`, 1 `pasta-*`, specs `v0478-guardas-parecer-{5,6,7}.json` e `hk3-parecer-pasta-{11,12}.json`, `tests/test_hooks.py`, `tests/test_hooks_parecer_repo.py`, `docs/hooks-fixtures.md` (gerado) e o fragmento `changelog.d/`. Nada fora do delta relido.
 
 ## Achados
-- A2 (bloqueante) hooks/parecer.py:605 · `mexidas_na_linha` não vê o GH_REPO que `source`/`.` exporta: na cópia alheia, `source env.sh; gh pr ready feature/x` (env.sh com `export GH_REPO=dono/forge`) dá 0 sem parecer (S6, S7; R-REVIEW). Mesmo achado que o A5 da segurança (E3.13).
+- A3 (bloqueante) hooks/parecer.py:624 · o laço tira só a palavra `command`, não as opções: `command -p . ./env.sh; gh pr ready feature/x` e `command -- . ./env.sh; …` dão 0 na cópia alheia sem parecer (S18, S26), e o bash carrega o GH_REPO nas duas; a docstring promete `source` e `.` depois de `command` (R-REVIEW).
+- A4 (recomendado) hooks/parecer.py:953 · (linha da base) a catraca (modo regras, script da develop 2904a68a) acusa R-QA `apagada` das 11 condições movidas para hooks/_gh_api.py e reprova o CI do PR; o `--cobertura` diz `movida`. Isenta não cabe (11 > 8). Saída: o rótulo `afrouxa-regra` do dono ou a catraca corrigida antes na develop.
 
 ## Sondas
-- S1 · cwd {tmp}/alheio (cópia alheia da fixture `incidente-r-copia-alheia-export-gh-repo-ready-bloqueia`), sessão no clone com remoto dono/forge, `export GH_REPO=dono/forge; gh pr ready feature/x`, sem parecer · espera: código 2 (R-REVIEW) · obtido: código 2 (R-REVIEW, GH_REPO mexido antes na linha)
-- S2 · mesma montagem, `GH_REPO=dono/forge gh pr ready feature/x` (controle) · espera: código 2 · obtido: código 2 (R-REVIEW, sem parecer)
-- S3 · mesma montagem, `set -a; GH_REPO=dono/forge; gh pr ready feature/x` · espera: código 2 · obtido: código 2
-- S4 · mesma montagem, `env GH_REPO=dono/forge gh pr ready feature/x` · espera: código 2 · obtido: código 2 (sem parecer)
-- S5 · mesma montagem, `typeset -x`, `read GH_REPO <<<…; export GH_REPO`, `printf -v GH_REPO`, subshell `( export …; gh pr ready … )` · espera: código 2 · obtido: código 2 nas quatro
-- S6 · mesma montagem, `env.sh` na cópia com `export GH_REPO=dono/forge`, `source env.sh; gh pr ready feature/x` · espera: código 2 (R-REVIEW) · obtido: código 0
-- S7 · mesma montagem, `. ./env.sh && gh pr ready feature/x` · espera: código 2 · obtido: código 0
+- S6 · cópia alheia da fixture `incidente-r-copia-alheia-source-gh-repo-ready-bloqueia` (env.sh com `export GH_REPO=dono/forge`), `source env.sh; gh pr ready feature/x` · espera: código 2 · obtido: código 2 (R-REVIEW, GH_REPO mexido)
+- S7 · mesma montagem, `. ./env.sh && gh pr ready feature/x` · espera: código 2 · obtido: código 2
+- S8 · mesma montagem, `builtin . ./env.sh; gh pr ready feature/x` · espera: código 2 · obtido: código 2
+- S9 · mesma montagem, `if source env.sh; then gh pr ready feature/x; fi`, `{ source env.sh; }; …`, `\source env.sh; …`, `time source …`, `! source …`, `set -a; source …` · espera: código 2 · obtido: código 2 nas seis
+- S11 · mesma montagem, `export $(cut -d' ' -f2 env.sh)`, `read "$n"`, `declare -n r=GH_REPO`, `local -n`, `readonly "$n"=…`, `builtin export "$k"=…`, `command -p export GH_REPO=…` antes do gh · espera: código 2 · obtido: código 2 nas sete
+- S19 · cópia alheia com `remote.origin.gh-resolved=dono/forge`, `gh pr ready feature/x` · espera: código 2 · obtido: código 2 (sem parecer)
+- S20 · cópia alheia com `url.git@github.com:dono/forge.git.insteadOf=<url da cópia>` · espera: código 2 · obtido: código 2 (sem parecer)
+- S25 · cópia alheia sem nada antes, `gh pr ready feature/x` (controle) · espera: código 0 · obtido: código 0
+- S18 · mesma montagem do S6, `command -p . ./env.sh; gh pr ready feature/x` · espera: código 2 · obtido: código 0 (bash: `command -p . ./env.sh; echo $GH_REPO` imprime dono/forge)
+- S26 · mesma montagem, `command -- . ./env.sh; gh pr ready feature/x` · espera: código 2 · obtido: código 0 (bash idem)
+- S27 · catraca da develop (`regra_guardas_dos_hooks`, base 4182a6b9, head b989773a) · espera: sem violação · obtido: 1 violação R-QA, `apagada · hooks/parecer.py:965(base) · corpo` e mais 10
 
 ## Conferências
-- A1 (meu, E3.7) fechado: `repo_indicado` (hooks/parecer.py:920-923) faz do GH_REPO mexido na linha, sem `-R` nem prefixo, um repositório incerto, e `pasta_do_gh` recusa fora de clone e de projeto (:942). `GH_REPO` entra nos `SENSIVEIS` (:113), que só alimentam `mexidas`; nenhum outro uso de `mexidas` muda por ele (`com_til`, `depois_do_cd`, `pasta_do_git` olham `HOME`, `CDPATH` e `DESVIOS`). Mesmo achado que o A5 da segurança.
-- Mutação dirigida (`bin/forge-mutante tests/mutantes/v0478-guardas-parecer-4.json`, 1 processo): M22 a M26 `morreu`, rc=0. O M26 substitui a isenta velha de `raiz_declarada() or pasta` (A1 da QA, E3.9).
-- Cobertura (`bin/forge-mutante --cobertura --base 4182a6b9`, Base-sha do brief): as guardas do delta `:914` (M26), `:923` (M23), `:942` (M24) `coberta`; o resto como na volta anterior; rc=0.
-- Teste do item: `python3 -m unittest tests.test_hooks_parecer_repo`: 5 testes, OK; o mínimo de `incidente-r-*` sobe de 19 para 23.
-- Leitura (checklist 1 a 4, 7, 9): a guarda é mais estrita, nunca mais frouxa; a mensagem diz a saída (`-R <dono/repo>` ou `cd <clone>`). `gh pr create --draft` com GH_REPO exportado na cópia alheia também recusa (sonda minha, código 2): falha fechada com saída dita, aceitável. Commit único e coerente; fragmento do changelog com a prova no head anterior.
-- Tamanho (H1): cerca de 20 linhas de código no delta, um comportamento.
+- A2 (meu, E3.12) fechado nas formas do S6 a S11 e S19, S20; aberto só pelo prefixo `command` com opção (A3).
+- Mutação dirigida (`bin/forge-mutante tests/mutantes/v0478-guardas-parecer-7.json`, 1 processo): M39, M40, M41 `morreu`, rc=0.
+- Cobertura (`bin/forge-mutante --cobertura --base 56bb90b5`): as guardas novas :607 a :613, :624 a :629 e :937 `coberta`; rc=0.
+- Teste do item: `python3 -m unittest tests.test_hooks_parecer_repo`: 5 testes, OK.
+- Leitura (checklist 1 a 4, 7, 9): falha fechada nos remotos ilegíveis com saída dita; `read` com opção desconhecida (`-rp "$x"`) recusa a mais, nunca a menos; commits coerentes.
+- Tamanho (H1): cerca de 45 linhas de código no delta, um comportamento.
 - Suíte: sem PR, sem CI a citar; não rerrodada (R-REVIEW).
 
 ## Parecer
-Reprovado por A2. O A1 da volta anterior está fechado nas formas em que a linha atribui o GH_REPO (export, `&&`, `set -a`, `declare -x`, `typeset -x`, `read`, `printf -v`, subshell), com fixture de recusa por forma e mutante morto por guarda; mas o arquivo lido por `source`/`.` pode exportá-lo sem que o hook veja (S6, S7, confirmando o A5 da segurança). Sugestão: fora de clone e de projeto, `source`/`.` antes do gh na linha conta como GH_REPO mexido (REPO_INCERTO), com fixture por forma e mutante na guarda. Segue fora deste item, para cartão próprio, o `gh api -X PUT repos/<dono>/<forge>/pulls/<n>/merge` com cwd fora de cópia de trabalho (código 0, já registrado no parecer anterior; `merge_por_api`, linha não tocada pelo delta).
+Reprovado por A3. Sugestão: no laço de :624, depois de `command`, pular as opções (`-p`, `--`, combinações de `-pVv`), com fixture por forma e mutante na guarda. O A4 não é defeito do autor, mas o PR não fica verde sem o rótulo do dono ou a correção da catraca na develop.
