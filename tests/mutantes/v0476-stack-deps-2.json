@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "GIT_CONFIG_COUNT sai do ambiente",
       "arquivo": "bin/forge-copia",
-      "de": ", \"GIT_CONFIG_COUNT\"}",
-      "para": "}",
+      "de": "\"GIT_CONFIG_COUNT\", ",
+      "para": "",
       "testes": [
         "tests.test_forge_copia.Instalar.test_instalacao_roda_sem_credencial_no_ambiente"
       ]
