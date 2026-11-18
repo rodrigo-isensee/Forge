@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-fechar-mensagem
-commit: 3b1e324b285bd2037bdc49d928aef599583a972c
+commit: 8989baa06876e4ad25235c846aaf4926f686a1d1
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -31,3 +31,11 @@ Escopo: `bin/forge-fechar` (P6 da promoção passa `--subject` e `--body` em por
   - `M2 · morreu · bin/forge-fechar:783`
   Os dois mutantes cobrem as duas linhas de guarda mudadas no diff; nenhum sobrevivente.
 - Não rodados: `forge-mutante --cobertura` e `forge-testes --vermelho` (fila R-TETO ocupada por outra sessão; o hook barrou) e `shellcheck` (ausente no ambiente). A morte de M1 e M2 pelo teste novo mostra que ele falha sem a implementação; a suíte inteira fica no check-run `bateria` do CI do PR.
+
+## Revalidação (head 8989baa0, delta desde 3b1e324b)
+- `forge-check parecer delta`: a base `develop` não foi encontrada no clone, e o intervalo saiu inteiro. Do domínio do QA, o que pertence a este pedido é só `tests/mutantes/v047-integracao-em-lote-8.json` (IL-M63 alinhado à linha nova do merge da promoção: `--merge "$sha" --subject`). O resto do intervalo veio da develop trazida pelo `forge-fechar`.
+- `bin/forge-mutante tests/mutantes/v047-integracao-em-lote-8.json` (rc 0, 8 mutantes, nenhum sobrevivente):
+  - `forge-mutante: pedido=v047 rev=8989baa06876 spec=78ba659ab1be415e5597f6461cdf9e393c4148242635f70574e9f1142636c01a`
+  - `IL-M57 · morreu · bin/forge-fechar:119`, `IL-M58 · morreu · :141`, `IL-M59 · morreu · :152`, `IL-M60 · morreu · :153`
+  - `IL-M61 · morreu · :1068`, `IL-M62 · morreu · :1123`, `IL-M63 · morreu · :1118`, `IL-M64 · morreu · :1456`
+- Sem `--base`: o comando rodou a spec inteira. O parecer anterior (aprovado) segue valendo; nenhum achado novo.
