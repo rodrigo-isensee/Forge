@@ -664,7 +664,7 @@ def linha_mantem_os_remotos(linha):
     leitura = palavras_do_texto(linha)
     for simples in leitura.simples:
         for r in simples.redirecoes:
-            alvo = r.alvo.valor if r.alvo else None
+            alvo = getattr(r.alvo, "valor", None)  # sem alvo: None, que grava
             if ">" in r.operador and alvo != "/dev/null" and not (r.operador == ">&" and alvo and alvo.isdigit()):
                 return False
     return not leitura.duvida and all(
