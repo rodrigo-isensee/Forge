@@ -397,6 +397,17 @@ class Brinquedo(unittest.TestCase):
         self.assertEqual((self.pesos()["test_b"], self.pesos()["test_c"]), (7.0, 3.0))
         self.assertIn("pesos regravados", erro)
 
+    def test_medir_verde_nao_grava_o_carimbo_da_suite_verde(self):  # A1 da segurança: um módulo não prova a suíte
+        codigo, saida, erro = self.medir("test_a")
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertEqual(sorted(p.name for p in (self.repo / ".git").glob("*verde*")), [], "--medir gravou o carimbo")
+        for marca in self.marcas.iterdir():
+            marca.unlink()
+        codigo, saida, erro = self.roda()  # sem carimbo, a suíte inteira roda e não reusa
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertNotIn("suite: reusa", saida)
+        self.assertEqual(self.rodaram(), ["a", "b", "c"])
+
     def test_medir_modulo_que_nao_existe_sai_2_sem_rodar_nem_gravar(self):
         for nome in ("test_x", "a", "../test_a", "test_a.T"):
             with self.subTest(nome):
