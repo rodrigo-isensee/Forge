@@ -34,9 +34,9 @@
     },
     {
       "id": "M4",
-      "guarda": "T1: a seção precisa do motivo além dos caminhos (mutante: só os caminhos)",
+      "guarda": "T1: cada arquivo citado precisa do motivo (mutante: basta citar)",
       "arquivo": "tests/catraca.py",
-      "de": "if not faltam and len(motivo) >= MINIMO_SECAO:",
+      "de": "if not faltam and not curtos:",
       "para": "if not faltam:",
       "testes": [
         "tests.test_catraca.T1NoTextoDoPr.test_motivo_curto_barra"
@@ -46,8 +46,8 @@
       "id": "M5",
       "guarda": "T1: a seção precisa citar cada arquivo (mutante: só o motivo)",
       "arquivo": "tests/catraca.py",
-      "de": "if not faltam and len(motivo) >= MINIMO_SECAO:",
-      "para": "if len(motivo) >= MINIMO_SECAO:",
+      "de": "if not faltam and not curtos:",
+      "para": "if not curtos:",
       "testes": [
         "tests.test_catraca.T1NoTextoDoPr.test_arquivo_nao_citado_ou_so_como_pedaco_de_outro_barra"
       ]

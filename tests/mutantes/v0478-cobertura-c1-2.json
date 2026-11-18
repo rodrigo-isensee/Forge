@@ -16,8 +16,8 @@
       "id": "M9",
       "guarda": "T1: a mensagem diz quais arquivos faltam (mutante: sempre a do motivo curto)",
       "arquivo": "tests/catraca.py",
-      "de": "else \"\") if faltam",
-      "para": "else \"\") if False",
+      "de": "f\"sem citar {nomes}\" if faltam",
+      "para": "f\"sem citar {nomes}\" if False",
       "testes": [
         "tests.test_catraca.T1NoTextoDoPr.test_codigo_sem_teste_e_sem_secao_barra"
       ]
@@ -26,8 +26,8 @@
       "id": "M10",
       "guarda": "T1: mais de 5 arquivos, a mensagem resume (mutante: nunca resume)",
       "arquivo": "tests/catraca.py",
-      "de": "len(faltam) > 5",
-      "para": "len(faltam) > 50",
+      "de": "len(lista) > 5",
+      "para": "len(lista) > 50",
       "testes": [
         "tests.test_catraca.T1NoTextoDoPr.test_muitos_arquivos_resumem_a_lista"
       ]
@@ -40,6 +40,36 @@
       "para": "if False:",
       "testes": [
         "tests.test_catraca.T1NoTextoDoPr.test_diff_dos_testes_ilegivel_barra"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "T1: o motivo vale por arquivo da linha (mutante: um motivo cobre a linha inteira)",
+      "arquivo": "tests/catraca.py",
+      "de": "len(resto) >= MINIMO_SECAO * len(nela)",
+      "para": "len(resto) >= MINIMO_SECAO",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_motivo_vale_por_arquivo"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "T1: o motivo vale só na linha que cita o arquivo (mutante: qualquer linha com motivo)",
+      "arquivo": "tests/catraca.py",
+      "de": "if caminho in nela and len(resto)",
+      "para": "if nela and len(resto)",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_motivo_vale_por_arquivo"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "T1: a mensagem lista os que faltam antes dos sem motivo (mutante: só os sem motivo)",
+      "arquivo": "tests/catraca.py",
+      "de": "lista = faltam or curtos",
+      "para": "lista = curtos",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_codigo_sem_teste_e_sem_secao_barra"
       ]
     }
   ]

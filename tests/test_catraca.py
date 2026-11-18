@@ -1968,6 +1968,27 @@ class T1NoTextoDoPr(Base):
         achadas = self.t1("## Sem teste\nbin/app: trivial\n")
         self.assertTrue(achadas and "com motivo de menos de 20" in achadas[0], achadas)
 
+    def test_motivo_vale_por_arquivo(self):
+        """Segurança A2: um motivo genérico na mesma linha não cobre dois arquivos, e o arquivo só citado, sem motivo, barra."""
+        casos = (("bin/app bin/app2: só troca o texto de um aviso", "para bin/app, bin/app2 (T1)"),
+                 ("bin/app: só troca o texto de uma mensagem impressa\nbin/app2", "para bin/app2 (T1)"),
+                 ("bin/app: só troca o texto de uma mensagem impressa\nbin/app2: só troca o texto de outra mensagem", None))
+        for texto, espera in casos:
+            with self.subTest(texto=texto):
+                self.setUp()
+                self.repo.escreve("bin/app2", "#!/bin/sh\necho oi\n")
+                achadas = self.t1(f"## Sem teste\n{texto}\n")
+                if espera is None:
+                    self.assertEqual(achadas, [])
+                else:
+                    self.assertTrue(achadas and "com motivo de menos de 20 caracteres por arquivo" in achadas[0]
+                                    and espera in achadas[0], achadas)
+
+    def test_violacao_aponta_a_regra_nas_praticas(self):
+        """Review A2: o T1 está em docs/engineering/praticas.md, não no R-QA; quem lê o CI precisa achar a regra."""
+        achadas = self.t1("")
+        self.assertTrue(achadas and achadas[0].endswith("(docs/engineering/praticas.md)"), achadas)
+
     def test_arquivo_nao_citado_ou_so_como_pedaco_de_outro_barra(self):
         for texto in ("só troca o texto de uma mensagem impressa", "bin/app2 só troca o texto de uma mensagem",
                       "x/bin/app só troca o texto de uma mensagem", "<!-- bin/app --> só troca o texto de uma mensagem"):

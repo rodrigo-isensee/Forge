@@ -1661,7 +1661,7 @@ def citado(caminho, texto):
 
 def violacoes_do_t1(raiz, base, head, corpo):
     """T1 (COBERTURA-ESTUDO C1): código mudado sem teste mudado nem novo barra o PR, salvo a seção `## Sem teste` que cita cada
-    arquivo e traz o motivo. A regra de código, teste e classe é a do `forge-check` (T1 da 0.43.3: a classe T fica isenta); a
+    arquivo com o motivo dele na mesma linha (regra em docs/engineering/praticas.md). A regra de código, teste e classe é a do `forge-check` (T1 da 0.43.3: a classe T fica isenta); a
     catraca só a torna portão. O git que falha barra (falha fechada)."""
     fc = forge_check()
     b = base_efetiva(raiz, base, head)
@@ -1675,18 +1675,32 @@ def violacoes_do_t1(raiz, base, head, corpo):
         raise ErroDeGit(msg_falha_git("o `git diff` dos testes falhou (T1)"))
     texto = secao(corpo, SEM_TESTE)
     faltam = [n for n in achados if not citado(n, texto)]
-    motivo = re.sub(r"\s", "", functools.reduce(lambda t, n: t.replace(n, ""), achados, texto))
-    if not faltam and len(motivo) >= MINIMO_SECAO:
+    curtos = [n for n in achados if n not in faltam and not com_motivo(n, achados, texto)]
+    if not faltam and not curtos:
         return []
-    oque = (f"sem citar {', '.join(faltam[:5])}" + (f" e mais {len(faltam) - 5}" if len(faltam) > 5 else "") if faltam
-            else f"com motivo de menos de {MINIMO_SECAO} caracteres além dos caminhos")
+    lista = faltam or curtos
+    nomes = ", ".join(lista[:5]) + (f" e mais {len(lista) - 5}" if len(lista) > 5 else "")
+    oque = (f"sem citar {nomes}" if faltam
+            else f"com motivo de menos de {MINIMO_SECAO} caracteres por arquivo, além dos caminhos, para {nomes}")
     return [msg("R-QA", f"código mudado sem teste mudado ou novo e '## {SEM_TESTE}' {oque} (T1)",
                 "código sem teste entra sem prova do comportamento; a exceção só vale escrita, arquivo por arquivo, para o review conferir",
-                f"acrescente o teste ou, em '## {SEM_TESTE}' do corpo do PR, cite cada arquivo e o motivo", "docs/regras/R-QA.md")]
+                f"acrescente o teste ou, em '## {SEM_TESTE}' do corpo do PR, cite cada arquivo e o motivo dele na mesma linha",
+                "docs/engineering/praticas.md")]
+
+
+def com_motivo(caminho, achados, texto):
+    """True se uma linha do texto cita `caminho` e traz MINIMO_SECAO caracteres além dos caminhos por arquivo que cita: o motivo
+    vale por arquivo, e um texto genérico não cobre N arquivos (segurança A2 da cobertura C1)."""
+    for linha in texto.splitlines():
+        nela = [n for n in achados if citado(n, linha)]
+        resto = re.sub(r"\s", "", functools.reduce(lambda t, n: t.replace(n, ""), achados, linha))
+        if caminho in nela and len(resto) >= MINIMO_SECAO * len(nela):
+            return True
+    return False
 
 
 def forge_check():
-    """O `bin/forge-check` ao lado deste script (uma fonte só, ADR 0002): no CI, a versão da base."""
+    """O `bin/forge-check` ao lado deste script (uma fonte só, ADR 0002): no CI, a versão da base, nos passos de regras e de texto do PR."""
     caminho = Path(__file__).resolve().parent.parent / "bin" / "forge-check"
     loader = SourceFileLoader("forge_check", str(caminho))
     modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader("forge_check", loader))
