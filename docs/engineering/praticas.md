@@ -12,7 +12,7 @@ Cada regra diz quem a decide: uma **ferramenta** (o comando abaixo, que roda no 
 | Testes passam | `scripts/suite-partes.py` (o job "suíte" do CI do PR; local, `.githooks/pre-push --suite`) |
 | Script de shell sem aviso do shellcheck (os arquivos vêm do shebang, P6) | o passo "shellcheck (scripts e hooks)" do `.github/workflows/ci.yml` |
 | Plugin válido | `scripts/validar-plugin.sh` (no CI, `claude plugin validate . --strict`) |
-| Arquivo de produção do diff tem teste | `bin/forge-check pr <pedido>` (linha `sem teste:`, T1); a justificativa do `## Sem teste` do PR: leitura |
+| Arquivo de produção do diff tem teste | a catraca no CI do PR (`tests/catraca.py --modo pr-texto`, T1): sem teste mudado ou novo, `## Sem teste` cita cada arquivo e o motivo, ou o PR fica vermelho; local, `bin/forge-check pr <pedido>` (linha `sem teste:`). O mérito da justificativa: leitura |
 | Guarda mudada tem mutante declarado e morto | `bin/forge-mutante` (com `--cobertura --base <Base-sha>`) e a catraca `tests/catraca.py` |
 | Cobertura por arquivo não cai | pendência: sem comando por PR até a decisão C3 do COBERTURA-ESTUDO (piso que só sobe, só se não aumentar o tempo do CI do PR); hoje `scripts/cobertura.py` só mede no push na `main`, no job "cobertura (informativa)", sem reprovar. Registrada aqui uma vez, não em cada parecer |
 | Neutralidade e invariantes da fábrica | `tests/test_forge.py` (classes `Neutralidade` e `NeutralidadeDoNucleo`) e `tests/config.json` |
