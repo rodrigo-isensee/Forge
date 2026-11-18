@@ -3,30 +3,35 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-conformidade
-commit: b0ffec816f8306b84660a00ae226317464ceed17
-parecer: aprovado
+commit: b3312958a3c27f9c13a94853647bc357a59ca27b
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-18
 ---
-# Review: v0478 E1.2 (guardas da conformidade no clone)
+# Review: v0478 E1.6 (revalidação da volta E1.5, guardas da conformidade no clone)
 
-Escopo lido: `git diff 4182a6b9..b0ffec81` (hooks/conformidade.py, docstring de hooks/agentes.py, 6 fixtures, 2 specs de mutantes, tests/test_conformidade_verde.py, fragmento do changelog, índice de fixtures). Cartões: AGENTES-JSON-SEM-GUARDA e a parte de hook do CONFIG-TETO-SEM-GUARDA, contra C9, C10, C12 e C13 de `docs/security/v047-v2-ameacas.md`.
+Escopo lido: só o delta de `forge-check parecer delta` (b0ffec81..b3312958): changelog.d, docs/hooks.md, hooks/agentes.py, hooks/conformidade.py, 6 specs de mutantes, tests/test_conformidade_verde.py. Fora do domínio, nada relido.
 
 ## Achados
-- A1 (recomendado) docs/hooks.md:73 · O contrato ainda diz que a pasta de estado do clone "no Forge não tem guarda de escrita"; depois deste item é o contrário, e o config da raiz também ganhou guarda. Atualize o parágrafo na mesma entrega (definição de pronto).
-- A2 (recomendado) tests/test_conformidade_verde.py:311 · O comentário diz "J1 a J11", mas o J10 (`chmod 000`) não está na lista e passa com rc 0 (minha sonda e S8 da segurança, A2 dela). Ao fechar o A2 da segurança, ponha o J10 no teste; até lá, o comentário não deve afirmar a cobertura.
+- A1 (bloqueante) hooks/conformidade.py:1063 · `alvos_do_tar` só lê `f` e `C` com o valor na palavra seguinte; o valor colado (`-C.git/forge/run`, `-cf.git/forge/run/agentes.json`), que o GNU tar aceita (S3), passa com rc 0 (S1, S2) e reabre o A2 da segurança. Tome o resto da palavra após `f`/`C` como valor e ponha os dois casos no teste.
 
 ## Sondas
+- S1 · `tar -xf docs/a.tar -C.git/forge/run` (jarvis, clone temporário) · espera: rc 2 · obtido: rc 0
+- S2 · `tar -cf.git/forge/run/agentes.json docs` (jarvis) · espera: rc 2 · obtido: rc 0
+- S3 · GNU tar real: `tar -cfa.tar src && tar -xfa.tar -Cdst` · espera: recusa da forma colada · obtido: cria a.tar e extrai em dst/src/f
+- S4 · controle: `tar -x -fdocs/a.tar -C .git/forge`, `tar -C .git/forge -xf docs/a.tar`, `--dir=.git/forge`, `chmod -R 000 .git`, `chmod --reference=docs .git/forge/run`, `find .git/forge/run -execdir rm {} ;` · espera: rc 2 · obtido: rc 2
 
-## Aperta ou afrouxa
-Aperta. A `GuardaDaProva` só ganha um ramo novo de `barrar` (a recusa cujo motivo é de `.git/forge/` ou de `.forge/config.json`, só com `no_clone`); nenhuma recusa que valia antes deixa de valer. O `caminho_barrado` sobrescrito só devolve `None` para a recusa do config fora da raiz da sessão, que na base também não valia no clone (a `GuardaDaProva` ignorava toda recusa fora da prova e da profundidade). O ajuste do padrão (`\.git/forge(?![\w.-])`) não libera nada: a linha com a prova da suíte continua com rc 2, agora pela recusa própria (R-VERIFY), e o M14 prova a troca. A mudança de comportamento é a rota manual: o jarvis deixa de editar o `agentes.json` (e o `.forge/config.json` da raiz). Isso tira poder, sem abrir exceção, logo é aperto; mas é a C12/R3 do modelo de ameaças, que pede decisão do dono antes do merge e registro no corpo do PR (`R-DECISAO`). O pedido tem 0 linhas DECISÃO DO DONO: pendência do jarvis para o merge, não do código. A C13 está cumprida (TRAVA-AGENTE-MORTO já na base, docs/hooks.md:73).
+## Revalidação dos achados anteriores
+- A1 (meu, docs/hooks.md:73): fechado; o parágrafo diz a guarda no clone para todo papel, o config da raiz e os atos por opção.
+- A2 (meu, tests/test_conformidade_verde.py:311): fechado; `chmod 000 .git/forge/run/agentes.json` entrou na lista e o comentário cobre J1 a J15.
+- A1 da segurança (teto da worktree): fechado no código; `pasta_da_config` lê o config da raiz da sessão quando as duas são clones do Forge, e `ConfigDaWorktreeNoClone` prova teto, piso, ritmo e peso. O `lancar` usa `hook.config()` pelo cache que o `ler_config` do `principal` enche (M11 guarda a chamada).
+- A2 da segurança (find, tar, chmod): find e chmod fechados; tar aberto pela forma colada (A1 acima).
 
 ## Verificação
-- Testes novos: `python3 -m unittest tests.test_conformidade_verde.EstadoDoAgentesNoClone tests.test_conformidade_verde.ConfigDoTetoNoClone`: 9 testes, OK.
-- Mutantes: `bin/forge-mutante` nas duas specs, M1 a M14 (14 de 14) morreram; `--cobertura --base 4182a6b9`: toda condição mudada coberta.
-- Sondas próprias (jarvis e qa-engineer, clone temporário): `./`, `docs/..`, `//`, link para a raiz, `mv .forge`, `cp`, `touch`, `$(git rev-parse --git-path forge/run)` recusam com rc 2; `cat` e `echo x > .git/forgery` liberam; `chmod 000 .git/forge/run/agentes.json` dá rc 0 (A2).
-- Tamanho (H1): cerca de 48 linhas de código em hooks/conformidade.py, dentro do teto.
+- Testes do delta: `python3 -m unittest tests.test_conformidade_verde.EstadoDoAgentesNoClone tests.test_conformidade_verde.ConfigDoTetoNoClone tests.test_conformidade_verde.ConfigDaWorktreeNoClone`: 16 testes, OK.
+- Mutantes: `bin/forge-mutante --processos 1` nas specs -3 a -6 (M15 a M45) e na v047-hook-estado-ilegivel-2: 39 de 39 morreram. `--cobertura --base b0ffec81`: toda condição mudada coberta; `--conferir`: M3, M6 e M7 da z075 com trecho duplicado em hooks/agentes.py, já na develop 4182a6b9, fora deste item.
+- Tamanho (H1): 106 linhas a mais em hooks/ no delta, somadas às cerca de 48 da E1.2; perto do teto de 150, sem PR para conferir a linha `teto:`.
 - Suíte inteira: não rodada (brief: sem suíte local); sem PR, CI do head não citável.
 
 ## Parecer
-Aprovado no código: faz o que os dois cartões pedem pela via mínima da C9 (a `GuardaDaProva` deixa valer a recusa da política, sem regra nova), com teste de comportamento do ramo de falha e mutante por guarda, todos mortos. Os dois achados são recomendados. O item não está pronto para merge: o parecer de segurança no mesmo head (c56ae709) está reprovado com A1 (config lido da worktree, não da raiz da sessão) e A2 (`find -delete`, `tar -C`, `chmod`), que eu não repito aqui; a volta deles muda o patch, e este parecer revalida pelo `forge-check parecer delta`. Antes do merge, o jarvis leva a C12 ao dono.
+Reprovado: um bloqueante, A1, com defeito provado (S1 a S3). A guarda nova do tar deixa passar a forma de opção curta com valor colado. O resto da volta fecha os quatro achados, com teste de comportamento e mutante morto por guarda. A correção é local em `alvos_do_tar`; a revalidação lê só o delta.
