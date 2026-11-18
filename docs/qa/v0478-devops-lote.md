@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-devops-lote
-commit: f9356caf6fe937fd9d16d11e11c3d4588e4433e7
+commit: f00c3da26d6be9051f14ad0b1cfad212b41998b4
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -35,4 +35,11 @@ Sem especificação de UX (pedido de ferramenta); a obrigação vem do escopo E6
 - `python3 -I -m unittest discover -s tests -p test_ferramentas_portoes.py`: 9 testes, OK.
 - `bin/forge-mutante tests/mutantes/v0478-devops-lote.json --base d50b9cd0783da93d77709cdba273c1f45ce053b2`: `base=d50b9cd0783da93d77709cdba273c1f45ce053b2 mb=d50b9cd0783da93d77709cdba273c1f45ce053b2 rev=f9356caf6fe937fd9d16d11e11c3d4588e4433e7`; M1 morreu (:90), M2 morreu (:92), M3 morreu (:97), M4 morreu (:112). A1 resolvido: a conferência do sha256 agora é presa.
 - A2 resolvido: o teste do modo container roda `--container --simular` com curl falso; mutação à mão (insere `garantir_ferramentas` em preparar_container) derruba o teste.
+- Suíte inteira: vale o check-run `bateria` do CI no mesmo sha, não rodado local.
+
+## Revalidação (delta f9356caf..f00c3da2)
+- Domínio: só `tests/test_ferramentas_portoes.py` (teste novo `test_falha_do_install_sem_tar_vira_falta_e_nao_grava_instalou`) e `tests/mutantes/v0478-devops-lote.json` (M5, M6); sem mudança de código de produção.
+- `python3 -I -m unittest discover -s tests -p test_ferramentas_portoes.py`: 10 testes, OK.
+- `bin/forge-mutante tests/mutantes/v0478-devops-lote.json --base f9356caf6fe937fd9d16d11e11c3d4588e4433e7`: `base=f9356caf6fe937fd9d16d11e11c3d4588e4433e7 mb=f9356caf6fe937fd9d16d11e11c3d4588e4433e7 rev=f00c3da26d6be9051f14ad0b1cfad212b41998b4`; M5 morreu (:98), M6 morreu (:99); M1 a M4 também morrem na rodada completa. Nenhum sobrevivente.
+- Vermelho: sem código novo de produção no delta; o teste novo guarda comportamento existente e a prova dele é a morte de M5 e M6.
 - Suíte inteira: vale o check-run `bateria` do CI no mesmo sha, não rodado local.
