@@ -6,8 +6,8 @@
       "id": "M8",
       "guarda": "T1: cada arquivo sem teste precisa estar citado (mutante: nenhum falta)",
       "arquivo": "tests/catraca.py",
-      "de": "faltam = [n for n in achados if not citado(n, texto)]",
-      "para": "faltam = []",
+      "de": "for n in achados if not citado(n, texto)]",
+      "para": "for n in achados if False]",
       "testes": [
         "tests.test_catraca.T1NoTextoDoPr.test_arquivo_nao_citado_ou_so_como_pedaco_de_outro_barra"
       ]
@@ -30,6 +30,16 @@
       "para": "len(faltam) > 50",
       "testes": [
         "tests.test_catraca.T1NoTextoDoPr.test_muitos_arquivos_resumem_a_lista"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "T1: o diff dos testes ilegível não segue para a seção (mutante: a condição nunca vale)",
+      "arquivo": "tests/catraca.py",
+      "de": "if achados is None:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_diff_dos_testes_ilegivel_barra"
       ]
     }
   ]
