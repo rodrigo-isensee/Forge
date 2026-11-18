@@ -1,0 +1,66 @@
+{
+  "pedido": "v0476-conformidade-formas",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E3.50: a recusa por $ com ação crítica diz o valor literal no lugar da variável",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if achado.startswith(\"$\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_e350"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E3.50: a recusa por heredoc com ação crítica diz FORMA_DO_HEREDOC",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if achado == \"heredoc\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_e350"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E3.50: a recusa por $ no papel só de leitura diz o caminho literal",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if sinal == \"$\":  # E3.50",
+      "para": "        if False:  # E3.50",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_e350"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E3.50: a forma em heredoc sai em bloco, com FORMA_DO_HEREDOC no rótulo",
+      "arquivo": "bin/forge-check",
+      "de": "        saida += [f\"- {rotulo}: `{cmd}`\" if \"\\n\" not in cmd else",
+      "para": "        saida += [f\"- {rotulo}: `{cmd}`\" if True else",
+      "testes": [
+        "tests.test_brief_forma_aceita.FormasNoBrief.test_brief_traz_a_forma_do_heredoc_do_hook"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E3.50: sem a linha rc= no log, o laço da skill imprime fim=teto",
+      "arquivo": "skills/esperar-estado/SKILL.md",
+      "de": " || echo teto)\"",
+      "para": ")\"",
+      "testes": [
+        "tests.test_esperar_estado.LacoDoLog"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E3.50: no teto, com o log ainda ausente, o laço sai com 1 (e não com o 2 do grep)",
+      "arquivo": "skills/esperar-estado/SKILL.md",
+      "de": "; test -f <log> && grep -q '^rc=' <log>",
+      "para": "; grep -q '^rc=' <log>",
+      "testes": [
+        "tests.test_esperar_estado.LacoDoLog"
+      ]
+    }
+  ]
+}
