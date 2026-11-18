@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0476-stack-deps
-commit: ecfc40c355010520c48d15ded98990fe3b66464b
-parecer: reprovado
+commit: f10912559b0561216f157059b9828099c5ee463e
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
@@ -15,9 +15,6 @@ data: 2026-11-18
 # QA: v0476-stack-deps (E3.249)
 
 Primeira rodada de QA neste pedido para a branch (sem parecer anterior; escopo completo). Diff `a1674911..95605e66` lido contra a decisão do dono 4 (cópia com dependências no pacote da stack, ADR 0001) e contra os achados A1 e A2 da segurança (head 89f7ef2f), que os commits `7ec76dca` e `95605e66` corrigem.
-
-## Achados
-- A1 (bloqueante) tests/mutantes/v0476-stack-deps-2.json:16 · M2 e M3 sobrevivem: tirar GH_TOKEN ou GH_ENTERPRISE_TOKEN da lista fixa nada muda, o padrão TOKEN já os remove. São equivalentes; declarar `equivalente` com justificativa ou apagar.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -87,6 +84,21 @@ Execução (ambiente: clone do head ecfc40c3, `TMPDIR` do sandbox):
 - Mutantes: `bin/forge-mutante tests/mutantes/v0476-stack-deps-3.json`, rc 0, `rev=ecfc40c35501`: M1 a M5 morreram (`bin/forge-copia:50, 51 (x3), 54`).
 - `bin/forge-mutante tests/mutantes/v0476-stack-deps-2.json` (com e sem `--base 95605e66...`; saída igual, `base=95605e662d55742e4af9b64e640878ea0bfa085b`), rc 1, `rev=ecfc40c35501`: M2 `sobreviveu` (`bin/forge-copia:50`), M3 `sobreviveu` (`bin/forge-copia:50`); os demais (M1, M4 a M14) morreram. Causa: o padrão de nome TOKEN, novo no delta, torna redundante GH_TOKEN e GH_ENTERPRISE_TOKEN na lista fixa; mutante equivalente não declarado como tal. Ver A1.
 - `bin/forge-mutante --cobertura --base 95605e66...`: linha 53 `coberta` (spec 2 M7 a M9, spec 3 M5); sem condição nova sem mutante.
+- Suíte inteira: check-run `bateria` do CI do PR (a branch não tem PR); não citada.
+
+Bugs: nenhum. Acessibilidade e E2E: n/a (CLI).
+
+## Revalidação (delta ecfc40c3..f1091255, E3.270)
+`forge-check parecer delta` lista no domínio `bin/forge-copia`, `stacks/node-react/pronto.md` e `tests/mutantes/v0476-stack-deps-2.json`. O A1 está corrigido: a lista fixa de `env_sem_credencial` perdeu `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN` e `GITHUB_ENTERPRISE_TOKEN` (já cobertos pelo padrão TOKEN, sem mudança de comportamento) e os mutantes equivalentes M2 e M3 saíram da spec 2. A frase nova em `pronto.md` documenta que `NPM_TOKEN` e afins não chegam à instalação.
+
+Execução (clone do head f1091255, árvore limpa, `TMPDIR` do sandbox):
+- `python3 -I tests/catraca.py --base origin/develop`: rc 0.
+- `tests.test_forge_copia`: 30 testes, OK. `tests.test_ambiente_git`: 20, OK. `tests.test_metricas_texto`: 2, OK (o delta toca `pronto.md`).
+- `bin/forge-mutante tests/mutantes/v0476-stack-deps.json`: `rev=f10912559b05`, M1 a M10 morreram.
+- `bin/forge-mutante tests/mutantes/v0476-stack-deps-2.json`: `rev=f10912559b05`, M1 e M4 a M14 morreram; sem sobreviventes.
+- `bin/forge-mutante tests/mutantes/v0476-stack-deps-3.json`: `rev=f10912559b05`, M1 a M5 morreram.
+- `bin/forge-mutante --base ecfc40c355010520c48d15ded98990fe3b66464b tests/mutantes/v0476-stack-deps-2.json`: `base=ecfc40c355010520c48d15ded98990fe3b66464b`, rc 0.
+- Vermelho: sem teste novo no delta (só remoção de entradas da lista fixa, comportamento igual); n/a.
 - Suíte inteira: check-run `bateria` do CI do PR (a branch não tem PR); não citada.
 
 Bugs: nenhum. Acessibilidade e E2E: n/a (CLI).
