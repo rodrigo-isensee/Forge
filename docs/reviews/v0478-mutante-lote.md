@@ -3,25 +3,21 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-mutante-lote
-commit: b11631b2e9e536b11b918c470f7e80c9147b83ec
+commit: 5520fd0d156beede30c54efb16227559be919e85
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-18
 ---
-# Review: v0478 (E17.2, melhoria/v0478-mutante-lote)
+# Review: v0478 (E17.6, melhoria/v0478-mutante-lote)
 
-Diff `0c47762a..b11631b2`: `bin/forge-mutante` (`--ids`, isenta velha à parte com rc 1, isenta fora do diff na volta, isenta da condição nova por ocorrência no nó), `skills/qa-testing/SKILL.md`, fragmento em `changelog.d/`, specs antigas realinhadas (AR-12) e duas specs novas (M1 a M17, sem M12).
-
-## Achados
-- A1 (recomendado) bin/forge-mutante:596 · afrouxa de fato: uma isenta passa a liberar toda condição nova com o trecho, até guardas distintas (S1). Propor: isenta consumida, uma condição por isenta (`id(i) not in usadas` e uma vez no nó); trecho repetido pede uma isenta por condição, no teto de 8. Merge só com OK do dono e afrouxa-regra.
-- A2 (recomendado) tests/test_forge_mutante.py:1053 · o teste fixa o comportamento que afrouxa (duas condições, uma isenta, rc 0); se A1 for aceito, ele vira o caso "duas condições pedem duas isentas" e a segunda condição com uma isenta só sai `sem mutante`, rc 1.
+Revalidação (H3, `R-REVIEW`) no head 5520fd0d. Delta lido só por `forge-check parecer delta docs/reviews/v0478-mutante-lote.md`: intervalo `b11631b2..5520fd0d`, domínio código e testes; no domínio `bin/forge-mutante`, `changelog.d/v0478-mutante-lote.md`, `tests/mutantes/guarda-sem-mutante-9.json`, `tests/mutantes/mutante-isenta-linha.json`, `tests/mutantes/v0478-mutante-lote{,-2,-3}.json` e `tests/test_forge_mutante.py`. Os merges `bdbf2872` e `b39110b2` trazem só pareceres (E17.3, E17.4), fora do domínio.
 
 ## Sondas
-- S1 · clone em b11631b2, spec v0478-mutante-lote sem M1 e M2 e com uma isenta de trecho `args.ids is not None`; `--cobertura --base 0c47762a` · espera: rc 1 (uma isenta, duas guardas) · obtido: rc 0, `isenta · bin/forge-mutante:1138` e `:1179`; o forge-mutante da base no mesmo commit sai rc 2
+- S1 · spec sem M1 e M2, isenta de trecho `args.ids is not None`; `--cobertura --base 0c47762a` · espera: rc 1 (duas guardas distintas) · obtido: rc 1, `sem mutante` em :1151 e :1192 e `isenta velha`
 
 ## Parecer
-Aprovado. O cartão 1 (`--ids`) e o 2 (erro sob mutante, só texto da skill) fazem o pedido e têm teste do ramo de falha: id ausente, vazio e `M1,` saem 2 sem rodar nada; `--ids` sem SPEC é recusado. A isenta velha à parte (rc 1, a cobertura inteira listada) e a isenta fora do diff na volta (pela spec do merge-base) corrigem o defeito do pedido sem afrouxar: a velha segue contando no rc.
+Aprovado. Os achados A1 e A2 do parecer anterior (b11631b2) estão resolvidos na forma pedida pela segurança: a isenta da condição nova vale só para as cópias da mesma condição (`irmas`, nós das condições novas de mesmo texto), exige o trecho dentro do nó e toda ocorrência dele no arquivo dentro de uma dessas cópias. Trecho comum a condições diferentes, cópia fora do hunk e comentário não isentam mais; a S1 refeita, que antes saía rc 0, agora sai rc 1 com as duas guardas `sem mutante` e a isenta velha. O caso legítimo (duas cópias idênticas da mesma condição, uma isenta) segue rc 0 pelo teste de E17.1, sem afrouxar: a isenta só cobre texto que é literalmente a mesma guarda.
 
-Pergunta do autor, cartão 3: afrouxa de fato. Antes, o trecho da isenta de condição nova tinha de ser único no arquivo, então uma isenta liberava uma condição. Agora vale para cada condição nova cujo nó contém o trecho, sem consumo: um trecho genérico de 8 não brancos libera guardas com semântica diferente sob um motivo só. A S1 prova isso neste próprio diff: `args.ids is not None` libera a guarda de uso (`--ids` sem SPEC) e a de filtro, e o rc fica 0. A linha impressa por condição deixa o efeito visível ao review, mas o portão mecânico deixa de exigir uma decisão por condição. Proposta que conserta o defeito "repetida" sem afrouxar: tratar a condição nova como a apagada uma vez (ISENTA-POR-TEXTO): trecho uma vez dentro do nó e isenta consumida (`usadas`), uma por condição; trecho repetido no arquivo deixa de ser recusa, e N condições pedem N isentas, dentro do teto de 8. Alternativa equivalente: campo `condicoes: N` na isenta, com rc 1 se o número casado diferir. Fica como A1 recomendado porque o comportamento atual é o que o cartão pede e a decisão é do dono (já registrada como pendente no histórico do pedido); sem o OK, o PR leva afrouxa-regra no título e o motivo (`R-REVIEW`, CLAUDE.md, regras protegidas).
+`cabe` e `ocorrencias` são pequenas e de um propósito; `nova=None` como sentinela deixa o modo explícito. Guardas mudadas com um mutante por linha: M7 (`if nova is not None`), M8 e M9 (`no_no and all`), M11 (`c[0] == texto`), M18 (`cabe`), M12 com `None`; M58 e IL11 realinhados à fonte nova. O teste novo cobre os três ramos de falha por subTest e reseta a base entre eles. O changelog descreve o comportamento novo. Tamanho do delta: cerca de 20 linhas de código, dentro do teto (H1).
 
-Ferramentas: `bin/forge-mutante --cobertura --base 0c47762a` no head sai rc 0, toda condição mudada coberta por mutante declarado, sem isenta. Rodei só os 6 testes novos ou mudados do lote (`OK`); a suíte inteira fica no CI do PR. Tamanho (H1): cerca de 60 linhas de código em `bin/forge-mutante`, fora a docstring de uso, dentro do teto. Commits em Conventional Commits, um por mudança.
+Ferramentas: `bin/forge-mutante --ids` no head: M7, M8 (v0478-mutante-lote), M9, M11 (-2) e M18 (-3) morreram. Rodei só o teste novo e o de E17.1 (`OK`, 2 testes); a suíte inteira fica no CI do PR.
