@@ -35,6 +35,10 @@ def ler(arq):
         return ""
 
 
+def sem_controle(texto):
+    return re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", texto)  # C0, DEL e C1 (review da 0.44.1)
+
+
 def colunas(kanban):
     """{id do pedido: seção do quadro} das linhas de tabela cuja 3ª célula (Pedido) cita um id."""
     saida, secao = {}, ""
@@ -56,7 +60,7 @@ def linhas(raiz, maximo):
         ultimo = historico[-1] if historico else ("", "--:--", "sem histórico")
         if coluna not in FECHADAS:
             pr = f" · PR #{prs[-1]}" if prs else ""
-            texto_ = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", ultimo[2])[:CORTE]  # C0, DEL e C1 (review da 0.44.1)
+            texto_ = sem_controle(ultimo[2])[:CORTE]
             pedidos.append((ultimo[0] + ultimo[1], f"{arq.stem} · {coluna}{pr} · {ultimo[1]} {texto_}"))
     pedidos.sort(reverse=True)
     saida = [linha for _, linha in pedidos[:maximo]] or ["forge: nenhum pedido em curso"]
@@ -73,7 +77,7 @@ def maquina():
         vivas = _maquina.vivas(json.loads(ler(_maquina.caminho_da_pasta() / _maquina.ATIVOS)).get("sessoes"), agora, pid_vivo)
     except (ValueError, AttributeError, OSError):
         vivas = {}
-    saida = [re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", f"{s.get('projeto')} · {s.get('pasta')} · batimento há "
+    saida = [sem_controle(f"{s.get('projeto')} · {s.get('pasta')} · batimento há "
                     f"{int((agora - s['batimento']) // 60)} min")[:200] for s in vivas.values()]
     return sorted(saida) or ["forge: nenhum projeto ativo na máquina"]
 
