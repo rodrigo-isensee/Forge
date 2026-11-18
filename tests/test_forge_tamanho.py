@@ -226,7 +226,7 @@ class NoBriefGerar(ComRepositorio):
         self.assertNotIn("etapas, acima", erro)
 
     def test_brief_perto_do_teto_de_caracteres_avisa(self):
-        self.gravar("docs/pedidos/exemplo.md", pedido_com(["texto longo " * 200] * 5))
+        self.gravar("docs/pedidos/exemplo.md", pedido_com(["texto longo " * 900]))  # E3.48: a coberta vai inteira ao Entregar
         rc, saida, erro = self.gerar()
         self.assertEqual(rc, 0, erro)
         self.assertGreaterEqual(len(saida), 9000)
@@ -243,6 +243,17 @@ class NoBriefGerar(ComRepositorio):
         rc, _, erro = self.gerar("--branch", "melhoria/x")
         self.assertEqual(rc, 0, erro)
         self.assertIn("pr: tamanho: 151 linhas de código, acima do teto de 150", erro)
+
+
+class CorpoDoPr(unittest.TestCase):
+    def pr(self, dados):
+        with mock.patch.object(subprocess, "run", return_value=subprocess.CompletedProcess([], 0, json.dumps(dados), "")):
+            return fc.pr_da_branch(RAIZ, "melhoria/x", corpo=True)[0]
+
+    def test_corpo_nulo_do_pr_vira_texto_vazio(self):
+        base = {"number": 1, "state": "OPEN", "headRefOid": "a" * 40}
+        self.assertEqual(self.pr({**base, "body": None})["body"], "")
+        self.assertEqual(self.pr({**base, "body": "oi"})["body"], "oi")
 
 
 if __name__ == "__main__":

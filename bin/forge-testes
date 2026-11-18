@@ -106,10 +106,10 @@ FORGE_CHECK = ("test_anotar", "test_forge_tamanho", "test_conferida_por_branch",
                "test_conf_escopo", "test_conferencia_registrar", "test_decisao_aprovacao", "test_decisao_aprovacao_raiz", "test_erros_no_brief", "test_hook_ansi_c", "test_citacao_p2",
                "test_entrega_git_falha", "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks", "test_hook_erro_libera", "test_estado_ilegivel", "test_hooks_parecer_pasta",
                "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_forge_medidas", "test_mensagem_conferente", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
-               "test_testes_tocados", "test_pre_envio_brief", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
+               "test_testes_tocados", "test_pre_envio_brief", "test_brief_tamanho", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
                "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt", "test_governanca", "test_selo_e_entrega",
                "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados", "test_aq5_parecer_novo", "test_brief_gerar_custo", "test_git_rede_config",
-               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo", "test_hook_destino_opaco", "test_conformidade_opaco", "test_conferencia_dois_pedidos", "test_pr_hook_rapido", "test_sessao_automatica", "test_autorizacao", "test_conformidade_verde", "test_hooks_agentes_autor") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
+               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo", "test_hook_destino_opaco", "test_conformidade_opaco", "test_conferencia_dois_pedidos", "test_pr_hook_rapido", "test_sessao_automatica", "test_autorizacao", "test_conformidade_verde", "test_hooks_agentes_autor", "test_parecer_delta", "test_revisar_sha") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
 # E1.120 (v047): quem reaproveita `Hooks.executar_em_lote` sem herdar de `Hooks` (git grep; os VOLTA_UNICA pela base de
 # `tests/apoio_volta_unica.py`) quebra quando o test_hooks muda o lote; pedir tests/test_hooks.py pelo caminho os roda junto.
 REAPROVEITAM_O_LOTE = ("test_esperar_estado", "test_hook_ansi_c", "test_hook_git_comum", "test_hooks_fila27",
@@ -132,6 +132,14 @@ CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_no
 PUBLICADO = CONTEUDO + ("test_atualizar",)
 # Módulo em subpasta de tests/ (pacote com __init__.py) entra pelo nome com ponto: `evals.test_x` é tests/evals/test_x.py.
 EVALS_DE_FORMA = ("evals.test_regressao_forma", "evals.test_erros_por_papel")  # 0.43.1, frente I, e E23 (0.43.3): os erros já cometidos contra a ferramenta
+# A regra larga de hooks/ (EST-M4, guarda C-2), também a base das regras de um hook só.
+RODAM_OS_HOOKS = (("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados",
+                   "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10", "test_hook_ansi_c",
+                   "test_hooks_parecer_pasta", "test_esperar_estado", "test_brief_forma_aceita", "test_conformidade_verde", "test_reval_delta", "test_selo_e_entrega",
+                   "test_classe_risco", "test_pesado_fila", "test_meta", "test_vigia", "test_trava_agente_morto", "test_pr_hook_prazo",
+                   "test_hook_destino_opaco", "test_conformidade_opaco", "test_pr_hook_rapido",
+                   "test_pre_push_patch", "test_ambiente_hook", "test_estado_ilegivel") + VOLTA_UNICA  # v047 E2.567: test_pre_push_patch lê hooks/_comum.py
+                  + EVALS_DE_FORMA)
 MAPA = [
     (r"bin/forge-changelog", ("test_changelog", "test_conferir_release", "test_forge", "test_pre_push_afetados") + EVALS_DE_FORMA),  # PREPUSH-BARATAS
     (r"bin/forge-check", FORGE_CHECK + EVALS_DE_FORMA),
@@ -144,7 +152,7 @@ MAPA = [
     (r"bin/forge-adotar", ("test_adotar", "test_stack_python", "test_forge")),  # 0.45.0: adoção de projeto existente
     (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge", "test_reval_delta", "test_salvar_desfazer", "test_adotar", "test_stack_python")),  # EST-M4: guarda C-2; GREP-UGREP
     (r"bin/(forge-atualizar|forge_versoes\.py|forge-voltar-versao)", ("test_atualizar", "test_forge", "test_doutor")),
-    (r"bin/forge-upgrade", ("test_atualizar", "test_forge", "test_doutor")),
+    (r"bin/forge-upgrade", ("test_atualizar", "test_forge", "test_doutor", "test_sempre_atual")),  # v0474: o test_sempre_atual roda o forge-upgrade de verdade (review A1)
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
     (r"bin/forge-sugerir", ("test_sugerir", "test_forge")),
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
@@ -160,20 +168,19 @@ MAPA = [
     # E14.1: o módulo comum é carregado pelo forge-testes e pelo forge-mutante, e os testes do forge-mutante não o citam
     (r"bin/forge_apoio_testes\.py", ("test_testes_tocados", "test_forge_mutante", "test_pre_push_afetados",
                                      "test_pre_push_parecer_curto", "test_forge", "test_pre_push_link_apoio")),
-    (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge", "test_atualizar")),
+    # v047 E6.4: o núcleo do FORGE-SEMPRE-ATUAL; o oráculo do QA o roda como processo e lê o código dele (RD11)
+    (r"bin/(forge-sempre-atual|forge_sempre_atual\.py)", ("test_sempre_atual", "test_oraculo_sempre_atual", "test_forge")),
+    (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge", "test_atualizar", "test_sempre_atual")),  # v047 E2.532: test_sempre_atual roda o trampolim ~/.local/bin/forge
     (r"hooks/doutor\.py", ("test_atualizar", "test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor") + VOLTA_UNICA),
     # hooks/agentes.py e hooks/_comum.py: o teto de agentes (R-TETO), o hash do brief (R-BRIEF) e a liberação do agente morto
     # (test_trava_agente_morto) rodam o script nos testes abaixo;
     # hooks/vigia.py: test_textos_dono_f10 lê o texto. O resto de hooks/ é coberto pela regra larga seguinte.
-    (r"hooks/.*", ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados",
-                   "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10", "test_hook_ansi_c",
-                   "test_hooks_parecer_pasta", "test_esperar_estado", "test_brief_forma_aceita", "test_conformidade_verde", "test_reval_delta", "test_selo_e_entrega",
-                   "test_classe_risco", "test_pesado_fila", "test_meta", "test_vigia", "test_trava_agente_morto", "test_pr_hook_prazo",
-                    "test_hook_destino_opaco", "test_conformidade_opaco", "test_pr_hook_rapido",
-                    "test_pre_push_patch", "test_ambiente_hook", "test_estado_ilegivel") + VOLTA_UNICA  # v047 E2.567: test_pre_push_patch lê hooks/_comum.py
-     + EVALS_DE_FORMA),  # EST-M4: guarda C-2
-    (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados", "test_sessao_automatica")),
-    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve", "test_sessao_automatica")),  # v046 E19.3 (A4): o teste lê e grava o script
+    (r"hooks/.*", RODAM_OS_HOOKS),  # EST-M4: guarda C-2
+    # v047 E6.5: as entradas do FORGE-SEMPRE-ATUAL (atalhos, trampolins, preparo do container) rodam nos testes do núcleo e no oráculo do QA
+    (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados", "test_sempre_atual", "test_oraculo_sempre_atual", "test_sessao_automatica")),
+    (r"scripts/preparar-estacao\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve",
+                                       "test_sempre_atual", "test_oraculo_sempre_atual", "test_sessao_automatica")),  # v047 E6.5: o postStart chama a ferramenta e refaz os atalhos
+    (r"scripts/(validar-plugin|configurar-ambiente-local|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve", "test_sessao_automatica")),  # v046 E19.3 (A4): o teste lê e grava o script
     (r"stacks/.*", CONTEUDO + ("test_hooks", "test_adotar", "test_stack_python") + VOLTA_UNICA),
     (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks", "test_stack_python") + VOLTA_UNICA),
     (r"templates/projeto/docs/(reviews|qa|security|devops)/_modelo\.md", PUBLICADO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),  # o teste gera parecer do modelo
@@ -285,7 +292,8 @@ def planejar(caminhos, raiz=Path(".")):
         casou = casou or modulos_da_convencao(caminho, raiz) or modulos_do_novo(caminho, raiz)
         if casou is None:
             return "completo", [f"{caminho} sem mapa"]
-        modulos.update(casou, quem_importa(caminho, raiz, casou))
+        # o oráculo entra em todo plano dirigido; quem o importa (o test_sempre_atual) vem junto (v047 E2.532)
+        modulos.update(casou, quem_importa(caminho, raiz, (*casou, *oraculos(raiz))))
     ausentes = sorted(m for m in modulos if not arquivo_do_modulo(m, raiz).is_file())
     if ausentes:
         return "completo", [f"módulo sem arquivo: {', '.join(ausentes)}"]
@@ -426,7 +434,7 @@ def planejar_afetados(caminhos, raiz=Path(".")):
         regra = (next((destino for padrao, destino in MAPA if re.fullmatch(padrao, caminho)), None)
                  or modulos_da_convencao(caminho, raiz) or modulos_do_novo(caminho, raiz))
         achados.update(regra or ())
-        achados |= quem_importa(caminho, raiz, regra or ())
+        achados |= quem_importa(caminho, raiz, (*(regra or ()), *oraculos(raiz)))  # v047 E2.532: quem importa o oráculo
         for padrao, agulhas in EXERCITAM:
             if re.fullmatch(padrao, caminho):
                 achados |= citam(textos, agulhas)

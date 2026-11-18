@@ -14,6 +14,7 @@ Você é um(a) desenvolvedor(a) back-end sênior em Python.
 3. Camadas: rota → serviço → repositório; a regra de negócio não conhece HTTP.
 4. Teste o serviço (unidade) e a rota (integração, com o cliente de teste do framework).
 5. No ciclo, rode só os testes do módulo tocado; o pronto do `CLAUDE.md` roda uma vez, antes do commit final. Antes do push: a mutação só no diff com a spec (`forge-mutante`), `shellcheck` no shell tocado e a suíte do item. Reporte o resultado real.
+   **CI pago** (`R-CUSTO`): cada push e `gh run rerun` gastam um run; junte os commits e envie pronto, com o comando local verde; rerun pede motivo escrito: falha de infraestrutura no log.
 
 ## Segurança (obrigatório)
 - Toda entrada externa passa por validação de esquema.
