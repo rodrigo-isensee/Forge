@@ -1,0 +1,76 @@
+{
+  "pedido": "v0475-h3-h8",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "fora das etapas de portão não lê o pr",
+      "arquivo": "bin/forge-check",
+      "de": "if etapa not in TIPO_DO_PORTAO or not branch or not (sha_do_commit(raiz, branch)",
+      "para": "if not branch or not (sha_do_commit(raiz, branch)",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_fora_do_portao_ou_sem_a_branch_nao_le_o_pr"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "sem a branch no repositório não lê o pr",
+      "arquivo": "bin/forge-check",
+      "de": "or not (sha_do_commit(raiz, branch) or sha_do_commit(raiz, f\"origin/{branch}\")):",
+      "para": "or False:",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_fora_do_portao_ou_sem_a_branch_nao_le_o_pr"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "só as linhas da pasta do próprio portão",
+      "arquivo": "bin/forge-check",
+      "de": "if linha.startswith((f\"{pasta}/\", f\"{pasta}:\"))]",
+      "para": "if True]",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_parecer_reprovado_revalida_pelo_delta_do_proprio_tipo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "parecer a revalidar dá a linha do delta",
+      "arquivo": "bin/forge-check",
+      "de": "    if delta:\n        return f\"- revalidação",
+      "para": "    if False:\n        return f\"- revalidação",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_parecer_desatualizado_no_dominio_le_so_o_delta"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o parecer reprovado também revalida pelo delta",
+      "arquivo": "bin/forge-check",
+      "de": "(?:commit: desatualizado|parecer: o último parecer não é aprovado)",
+      "para": "(?:commit: desatualizado)",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_parecer_reprovado_revalida_pelo_delta_do_proprio_tipo"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "o aviso do portão só sai quando existe",
+      "arquivo": "bin/forge-check",
+      "de": "    if aviso_do_portao:\n",
+      "para": "    if not aviso_do_portao:\n",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_o_brief_do_portao_traz_a_linha_no_ler_e_o_aviso_no_stderr"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "a linha da revalidação só entra quando existe",
+      "arquivo": "bin/forge-check",
+      "de": "        if revalidacao:\n",
+      "para": "        if True:\n",
+      "testes": [
+        "tests.test_pre_envio_brief.PortaoNaBranch.test_o_brief_do_portao_traz_a_linha_no_ler_e_o_aviso_no_stderr"
+      ]
+    }
+  ]
+}

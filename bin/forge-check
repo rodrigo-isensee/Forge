@@ -8586,6 +8586,7 @@ CAMINHO_DE_CODIGO = re.compile(r"(?<![\w./-])(?:bin|hooks|scripts|tests)/[\w.*-]
 # texto do teste dirigido do autor, que o portão não chama (tests/test_pre_envio_brief.py confere que as duas batem)
 TESTES_DE_TEXTO = ("tests.test_testes_tocados", "tests.test_forge.Orcamento", "tests.test_jarvis_nucleo",
                    "tests.test_metricas_texto", "tests.test_orcamento_instrucao")
+TESTE_DOS_ACHADOS = "tests.test_forge_mutante.ConferirTodas"  # H3 (a): o AR-12 de docs/engineering/achados-recorrentes.md, conferido pelo autor
 
 
 def pqs_de_pre_envio(raiz, etapa, entregar):
@@ -8600,7 +8601,38 @@ def pqs_de_pre_envio(raiz, etapa, entregar):
     if (etapa or "codigo") == "codigo" and CAMINHO_DE_CODIGO.search(entregar):
         linhas.append("- PQ-N (cmd, do autor): `FORGE_PREPUSH_SUITE=afetados .githooks/pre-push` · espera: rc=0 · testes afetados, com as refs "
                       "do envio no stdin e em segundo plano, com log que termina em `rc=` (skill esperar-estado)")
+        linhas.append(f"- PQ-N (cmd, do autor): `python3 -m unittest {TESTE_DOS_ACHADOS}` · espera: rc=0 · autoverificação contra os achados "
+                      "recorrentes antes de entregar (AR-12: spec de mutante alinhada à fonte; H3)")
     return linhas
+
+
+# H3 (c) e H8 (0.47.5): o brief de portão diz, pelas linhas do `forge-check pr` da branch, se o portão precisa de agente. Só lê e avisa:
+# nenhum portão sai de classe nenhuma (R-REVIEW; tirar portão é decisão do dono).
+TIPO_DO_PORTAO = {"review": "review", "seguranca": "revisao-seguranca", "qa": "qa"}
+PARECER_A_REVALIDAR = re.compile(r"^(docs/[a-z]+/[^:\s]+\.md): (?:commit: desatualizado|parecer: o último parecer não é aprovado)")
+
+
+def portao_na_branch(raiz, pedido_id, etapa, branch, base):
+    """(linha do `## Ler` ou None, aviso ou None) do brief de portão: com o parecer da branch desatualizado no domínio ou reprovado, a
+    revalidação lê só o `forge-check parecer delta` dele (H3 c); exigido, aprovado e em dia (H3), ou não exigido pela classe e sem parecer
+    que reprove (H8), o aviso de que a etapa não precisa de agente."""
+    if etapa not in TIPO_DO_PORTAO or not branch or not (sha_do_commit(raiz, branch) or sha_do_commit(raiz, f"origin/{branch}")):
+        return None, None
+    tipo, nome = TIPO_DO_PORTAO[etapa], base.removeprefix("origin/")
+    if nome not in BASES_DO_FLUXO:  # a recusa de uso do pr_da_cli não é parecer em dia: sem base do fluxo, nada se afirma
+        return None, None
+    pasta = PASTA_E_REGRA[tipo][0]
+    todas = pr_da_cli(raiz, pedido_id, ref=branch, base=f"origin/{nome}")
+    linhas = [linha for linha in todas if linha.startswith((f"{pasta}/", f"{pasta}:"))]
+    delta = next((m.group(1) for linha in linhas if (m := PARECER_A_REVALIDAR.match(linha))), None)
+    if delta:
+        return f"- revalidação (H3, R-REVIEW): leia só `forge-check parecer delta {delta}`; fora do domínio do parecer nada se relê", None
+    conhecidas = tuple(p for par in PASTA_E_REGRA.values() for p in (f"{par[0]}/", f"{par[0]}:"))
+    if linhas or any(not linha.startswith(conhecidas) for linha in todas):  # linha de erro ou desconhecida: sem aviso (falha fechada)
+        return None, None
+    if tipo not in exigidos_do_pr(raiz, pedido_id, branch, base_do_delta(raiz, nome, branch)[0])[0]:  # H8: a classe decide, sem tirar portão
+        return None, f"a classe da entrega não exige o parecer de {tipo} (`forge-check classe`): a etapa {etapa} não precisa de agente (H8)"
+    return None, f"o parecer de {tipo} da branch está aprovado e em dia no head (`forge-check pr`): a etapa {etapa} não precisa de agente (H3)"
 
 
 def linha_do_ci_do_parecer(raiz, branch):
@@ -8650,6 +8682,9 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
             print(linha, file=sys.stderr)
         if recusas:
             return None, 1, recusas
+    revalidacao, aviso_do_portao = portao_na_branch(raiz, pedido_id, etapa, branch, base)
+    if aviso_do_portao:
+        print(f"brief gerar: aviso: {aviso_do_portao}", file=sys.stderr)
     saida = [f"<!-- forge-check brief gerar: blocos fixos de {caminho_impresso(caminho_pedido.name)}; complete e apague toda linha com {PREENCHER} -->"]
     if destino:
         saida.append(f"Agente destino: {destino}")
@@ -8683,6 +8718,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
         saida.append(f"- comece por `forge-check proximo {caminho_impresso(pedido_id)}` (passo, dono, bloqueios); {LINHA_DO_PROXIMO}")  # orkastery 6: o agente começa pela ferramenta
         saida.append(f"- docs/pedidos/{sem_controle(caminho_pedido.name)}: só `## Escopo`, `## Etapas` e `## Decisões` e, do `## Histórico`, só as linhas que este brief cita; "
                      "nunca o pedido inteiro (docs/economia-de-tokens.md, regra 4)")
+        if revalidacao:
+            saida.append(revalidacao)
         if existe_achados:
             saida.append(f"- {PREENCHER}: demais leituras do destino (propostas, arquivos)")
     saida += ["", "## Decisões e restrições (decisões do dono por referência ao bloco do pedido; R-BRIEF)"]
@@ -9679,7 +9716,7 @@ def main():
     br.add_argument("--worktree", help="só em `mensagem --entrega`: a pasta absoluta da worktree da entrega")
     br.add_argument("--ref", help="branch ou commit da entrega, de onde se leem os pareceres (obrigatório em `gerar --volta`)")
     br.add_argument("--branch", help="só em `gerar`: branch da delegação")
-    br.add_argument("--base", default="develop", help="só em `gerar`: branch de integração da base (padrão develop)")
+    br.add_argument("--base", default="develop", choices=BASES_DO_FLUXO, help="só em `gerar`: branch de integração da base (padrão develop)")
     br.add_argument("--etapa", help="em `gerar`: etapa da delegação (codigo, review, qa, pr, merge-integracao, pedido-de-merge-ao-dono; os dois de merge acrescentam o PQ `git merge-base --is-ancestor <mergeCommit> origin/<base>`); em `mensagem`: a `Etapa:` do brief vale e o --etapa só pode repeti-la; sem `Etapa:` no brief, texto de uma linha (ex.: E1.1)")
     br.add_argument("--citar", action="append", metavar="R-ID:n|arquivo:n[-m]", help="só em `gerar`: imprime a linha literal da regra ou do arquivo (na raiz ou em ~/.forge-contrib) no bloco ## Citações, com a fonte; repita a opção (P3)")
     br.add_argument("--retomada", help="só em `gerar`: arquivo (na raiz ou em ~/.forge-contrib) cujas linhas DECISÃO DO DONO que citam o pedido e faltam nele saem como aviso `decisao:` no stderr (P4)")

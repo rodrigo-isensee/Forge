@@ -1,0 +1,40 @@
+{
+  "descricao": "MP1 (diretriz 35): a fala do dono cita o outro projeto ativo e a resposta não pergunta \"isto é para o projeto\": acusa, sem gravar o nome.",
+  "arquivos": {
+    "t.jsonl": [
+      "{\"type\": \"user\", \"message\": {\"content\": \"mude o login do estoque\"}}"
+    ]
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/home/.forge/maquina/projetos-ativos.json": "{\"projetos\": [\"proj\", \"estoque\"]}"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{raiz}/t.jsonl",
+    "last_assistant_message": "Projeto: proj\nFeito, mudei o login."
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "mensagens.jsonl": {
+        "contem": [
+          "\"sem_projeto\": false",
+          "\"cita_outro_projeto\": true",
+          "\"sem_pergunta_do_projeto\": true"
+        ],
+        "ausente": [
+          "estoque",
+          "login"
+        ]
+      }
+    }
+  }
+}
