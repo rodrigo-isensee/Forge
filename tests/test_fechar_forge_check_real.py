@@ -3,6 +3,7 @@
 
 Reaproveita o ambiente de `test_fechar.Fechar` (repositório temporário, `gh` falso) sem herdar os testes dele.
 """
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -57,6 +58,51 @@ class FecharComOForgeCheckReal(unittest.TestCase):
         r = self.fechar("x", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertTrue([c for c in self.chamadas() if c.startswith("gh pr merge melhoria/x --auto --squash")])
+
+
+# O `gh` que o forge-check real acha no PATH (o fechar usa o FORGE_GH): PR pronto no head da branch e o CI ainda rodando.
+GH_DO_CHECK = '''#!/usr/bin/env bash
+echo "gh-do-check $*" >> "$REGISTRO"
+case "$*" in
+  "pr view melhoria/x --json number,state,isDraft,headRefOid,baseRefName")
+    printf '{"number": 7, "state": "OPEN", "isDraft": false, "headRefOid": "%s", "baseRefName": "develop"}\\n' "$(cat "$ESTADO/head_do_pr")" ;;
+  "pr checks 7 --json name,bucket,workflow") echo '[{"name": "bateria", "bucket": "pending", "workflow": "CI"}]' ;;
+  api*) echo '{"message": "Not Found"}'; exit 1 ;;
+  *) exit 64 ;;
+esac
+'''
+
+
+class FecharComChecksPendentes(unittest.TestCase):
+    """A1 e A2 do review (E3.80): com o PR pronto e o CI rodando, o `forge-check pr` real reprova, mas o passo 1 do fechar só confere os
+    pareceres (os checks ficam para os passos 4 e 6): o --armar arma o auto-merge em vez de parar no passo 1."""
+
+    git, fechar, chamadas, tearDown = base.Fechar.git, base.Fechar.fechar, base.Fechar.chamadas, base.Fechar.tearDown
+
+    def setUp(self):
+        FecharComOForgeCheckReal.setUp(self)
+        self.pedido.write_text(f"# real\n\n## Histórico\n- 2026-11-04 09:00: entrega conferida {self.entrega} (E1.2)\n", encoding="utf-8")
+        pasta = self.tmp / "gh-do-check"
+        pasta.mkdir()
+        (pasta / "gh").write_text(GH_DO_CHECK, encoding="utf-8")
+        (pasta / "gh").chmod(0o755)
+        self.env["PATH"] = f"{pasta}:{self.env['PATH']}"
+        (self.estado / "head_do_pr").write_text(self.git("rev-parse", "melhoria/x") + "\n", encoding="utf-8")
+        (self.estado / "checks").write_text("bateria\tpending\t1m\turl\n")
+
+    def test_o_forge_check_real_reprova_o_pr_com_checks_pendentes(self):  # o falso responde: sem a variável do fechar, reprova
+        r = subprocess.run([sys.executable, "-I", str(base.RAIZ / "bin" / "forge-check"), "pr", "x", "--ref", "refs/heads/melhoria/x",
+                            "--base", "origin/develop"], cwd=self.proj, env=self.env, capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("checks do head no PR #7 não concluídos e verdes: CI/bateria (pending)", r.stdout)
+
+    def test_armar_com_checks_pendentes_passa_do_passo_1_e_arma(self):
+        (self.estado / "auto_arma").write_text("")
+        r = self.fechar("x", "--ref", "melhoria/x", "--armar")
+        self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
+        self.assertNotIn("parou no passo 1", r.stdout + r.stderr)
+        self.assertIn("auto-merge armado no PR #7", r.stdout)
+        self.assertFalse([c for c in self.chamadas() if c.startswith("gh-do-check pr ")], "o passo 1 não lê os checks")
 
 
 

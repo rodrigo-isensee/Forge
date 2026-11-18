@@ -37,8 +37,8 @@
       "id": "M12",
       "guarda": "PR-HOOK-PRAZO: o pré-voo (--previo) não grava resultado",
       "arquivo": "bin/forge-check",
-      "de": "    if a.cmd == \"pr\" and not getattr(a, \"previo\", False) and branch_do_pr is None:",
-      "para": "    if a.cmd == \"pr\" and branch_do_pr is None:",
+      "de": "    gravar = not getattr(a, \"previo\", False) and not sem_checks and branch_do_pr is None",
+      "para": "    gravar = not sem_checks and branch_do_pr is None",
       "testes": [
         "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_previo_e_head_sem_branch_nao_gravam"
       ]

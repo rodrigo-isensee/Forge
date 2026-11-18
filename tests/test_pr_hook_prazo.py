@@ -50,8 +50,20 @@ runpy.run_path(sys.argv[0], run_name="__main__")
 """
 
 
+# E3.185: o gh do runner do CI (sem GH_TOKEN) e o da máquina (com login) respondem diferente ao `gh pr view`; um falso no PATH responde
+# como o do runner, sem rede, e o resultado gravado não depende de onde a suíte roda.
+GH_DO_RUNNER = ("#!/bin/sh\necho 'gh: To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN environment variable. Example:' >&2\n"
+                "exit 4\n")
+
+
 def forge_check(raiz, *args):
-    return subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-check"), *args], cwd=raiz, env=ambiente_limpo(),
+    pasta = raiz.parent / "gh-falso"
+    pasta.mkdir(exist_ok=True)
+    (pasta / "gh").write_text(GH_DO_RUNNER, encoding="utf-8")
+    (pasta / "gh").chmod(0o755)
+    env = ambiente_limpo()
+    env["PATH"] = f"{pasta}{os.pathsep}{env.get('PATH', '')}"
+    return subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-check"), *args], cwd=raiz, env=env,
                           capture_output=True, text=True, timeout=300)
 
 

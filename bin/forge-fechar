@@ -84,6 +84,7 @@ subida_fecha() {
 # Constante: nada no ambiente, argumento ou arquivo a muda; vazia por erro de edição, para.
 readonly CHECKS_EXIGIDOS=("CI/bateria" "CI/bateria (python 3.14)" "Catraca/catraca")
 [ "${#CHECKS_EXIGIDOS[@]}" -gt 0 ] || die "CHECKS_EXIGIDOS vazia: o merge sem check exigido é recusado (I4)"
+exigidos=("${CHECKS_EXIGIDOS[@]}")  # E3.45: mais os do ruleset e da proteção do destino (ler_exigidos_do_destino); os pares nunca saem
 
 pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 trazida=0 so_remota=0 base_2b="" arvore_mt="" dorme_pid="" promover_teste="" subida_n="" subida_ini="" subida_extra=""  # nascem vazios: o fim nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
 armar=0 estado_lido=0  # --armar (R7): arma o auto-merge sem esperar os checks
@@ -515,10 +516,10 @@ estados_da_espera() {
 # só com --esperar-rotulo, a `catraca` velha (execução em `run_antes`) não conta. Falha com `exigido_nome` e `exigido_estado` (o lido ou "ausente").
 exigidos_ok() {
   local par wf_ex nome_ex nome_ck estado_ck wf_ck link_ck achou
-  for par in "${CHECKS_EXIGIDOS[@]}"; do
+  for par in "${exigidos[@]}"; do
     wf_ex="${par%%/*}" nome_ex="${par#*/}" achou=0
     while IFS=$'\037' read -r nome_ck estado_ck wf_ck link_ck; do
-      if [ "$nome_ck" != "$nome_ex" ] || [ "$wf_ck" != "$wf_ex" ]; then continue; fi
+      if [ "$nome_ck" != "$nome_ex" ] || { [ "$wf_ex" != "*" ] && [ "$wf_ck" != "$wf_ex" ]; }; then continue; fi
       if [ "$esperar" = 1 ] && [ "$nome_ex" = catraca ] && [[ "$link_ck" =~ /runs/([0-9]{1,20})/job/ ]] && [[ "$run_antes" == *" ${BASH_REMATCH[1]} "* ]]; then continue; fi
       achou=1
       if [ "$estado_ck" != pass ]; then exigido_nome="$nome_ex"; exigido_estado="$estado_ck"; return 1; fi
@@ -526,7 +527,18 @@ exigidos_ok() {
     if [ "$achou" = 0 ]; then exigido_nome="$nome_ex"; exigido_estado=ausente; return 1; fi
   done
 }
-msg_exigido() { echo "parou no passo 4: o check exigido $exigido_nome não passou (estado: $exigido_estado${1-}); os exigidos (${CHECKS_EXIGIDOS[*]}) só passam em pass"; }
+msg_exigido() { echo "parou no passo 4: o check exigido $exigido_nome não passou (estado: $exigido_estado${1-}); os exigidos (${exigidos[*]}) só passam em pass"; }
+# ler_exigidos_do_destino (E3.45): acrescenta `*/<contexto>` (de qualquer workflow, como o GitHub os casa) por contexto exigido no ruleset ou na
+# proteção da branch de destino (`gh api`, só leitura, grátis). Os pares de CHECKS_EXIGIDOS ficam: no Forge são o piso (C-6) e o fallback da leitura
+# que falha (a saída de uma leitura que falha, como o corpo do 404, não conta). O destino é o `alvo` (só develop: a --base passa antes pela lista do fluxo).
+ler_exigidos_do_destino() {
+  local ctx lidos="" saida
+  if saida="$("$gh" api "repos/{owner}/{repo}/rules/branches/$alvo" --jq '.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context' 2>/dev/null)"; then lidos="$saida"$'\n'; fi
+  if saida="$("$gh" api "repos/{owner}/{repo}/branches/$alvo/protection/required_status_checks" --jq '.contexts[]' 2>/dev/null)"; then lidos="$lidos$saida"; fi
+  while IFS= read -r ctx; do
+    exigidos+=("*/$ctx")
+  done < <(printf '%s\n' "$lidos" | grep -v '^$' | LC_ALL=C sort -u)
+}
 
 # leitura_sem_merge <rev>: as linhas que a pendência por commit sem merge imprime no lugar de `worktree remove`, `branch -D` e `push --delete`: um
 # comentário e uma leitura (`git log`), cada argumento escapado com `printf '%q'`. Só lê; a ref entra por nome completo (uma tag de mesmo nome não responde
@@ -1114,7 +1126,7 @@ if [ "$seco" = 1 ]; then
   passo 2 "git ls-remote origin refs/heads/$ref (igual ao head local de $ref; ausente com o head já em $alvo, PR MERGED ou na base, segue sem pedir push)"
   passo "2b" "git ls-remote origin refs/heads/$alvo (igual a $base; senão, git fetch origin $alvo); se a base andou, git merge-tree --write-tree do head com ela: com conflito para e lista os arquivos; sem conflito, em melhoria/* faz o merge da base (árvore do merge-tree), git push origin $ref e recomeça a cadeia no head novo (H4), fora dela avisa e segue sem trazer a base (E8) (não roda quando o head já está em $base ou o PR já está MERGED)"
   passo 3 "$gh pr create --base $alvo --head $ref --title '$titulo' (se não houver PR aberto; não abre se o head já está em $base ou já tem PR MERGED)"
-  passo 4 "$gh pr checks <número do PR, lido no passo 3> (espera até ${espera}s; por JSON; os exigidos, pelo par workflow/nome (${CHECKS_EXIGIDOS[*]}), só passam em pass, os demais em pass ou skipping)"
+  passo 4 "$gh pr checks <número do PR, lido no passo 3> (espera até ${espera}s; por JSON; os exigidos, pelo par workflow/nome (${CHECKS_EXIGIDOS[*]}) e os do ruleset ou da proteção de $alvo pelo nome, só passam em pass, os demais em pass ou skipping)"
   passo 5 "$gh pr view <número do PR, lido no passo 3> --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
   passo "6a" "git ls-remote origin refs/heads/$alvo (a base que o passo 2b leu? se andou durante os checks: com conflito no git merge-tree --write-tree para sem mesclar; sem conflito segue, sem trazer a base (E8); base local velha pede git fetch)"
   [ "$item_de_lote" = 1 ] || passo "6b" "$gh run list --branch $alvo --event push --commit <topo da $alvo>: verde antes do merge (pendente espera até ${espera_ci}s; vermelho para)"
@@ -1206,7 +1218,8 @@ fi
 if ! git rev-parse -q --verify refs/remotes/origin/homolog >/dev/null 2>&1; then
   git fetch -q origin homolog >/dev/null 2>&1 || echo "aviso: sem origin/homolog neste clone e a busca falhou; sigo para o forge-check pr." >&2
 fi
-"$check" pr "$pedido" --ref "$ref_check" --base "$base" || die "parou no passo 1: forge-check pr acusou violação (nada foi aberto nem mesclado)"
+# E3.80 (A1 do review): os checks do head ficam para os passos 4 e 6 (a espera e o auto-merge preso ao head); o pr não grava o resultado para o hook.
+FORGE_FECHAR_PASSO_1=1 "$check" pr "$pedido" --ref "$ref_check" --base "$base" || die "parou no passo 1: forge-check pr acusou violação (nada foi aberto nem mesclado)"
 local_sha="$(head_atual || true)"
 [ "$local_sha" = "$sha_conferido" ] || die "parou no passo 1: o head de $ref mudou durante a conferência dos pareceres (conferido $sha_conferido, agora ${local_sha:-ausente}); os pareceres valem para o sha conferido; confira e rode de novo"
 passo "1c" "promovível: $promover --conferir-ref $sha_conferido"
@@ -1260,6 +1273,7 @@ else
 fi
 
 if [ "$ja_mesclado" = 0 ]; then
+  [ "$armar" = 1 ] || ler_exigidos_do_destino
   inicio=$SECONDS
   apos_rotulo=0
   run_antes=" " run_cand=" " velha_pendente=""
@@ -1335,7 +1349,7 @@ if [ "$ja_mesclado" = 0 ]; then
     # com a espera do rótulo, o laço de fora relê o rótulo e o head a cada volta
     [ "$esperar" = 0 ] || continue 2
   done
-  [ "$armar" = 1 ] || echo "checks verdes (exigidos em pass: ${CHECKS_EXIGIDOS[*]})."
+  [ "$armar" = 1 ] || echo "checks verdes (exigidos em pass: ${exigidos[*]})."
   # Só apresentação (não muda nenhuma decisão do passo 4): run e job de cada check, lidos do link da última leitura, sem chamada nova.
   [ "$armar" = 1 ] || while IFS=$'\037' read -r nome_ck estado_ck link_ck; do
     run_do_link "$link_ck"

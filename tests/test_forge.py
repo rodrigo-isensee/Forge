@@ -792,7 +792,8 @@ class ForgeInit(unittest.TestCase):
         self.assertIn("`make pronto`", claude_md)
         for arq in minimo(self.tmp.rglob("*"), 27, "entradas do projeto gerado"):
             if arq.is_file() and ".git" not in arq.parts:
-                self.assertNotIn("{{", arq.read_text(encoding="utf-8", errors="ignore"), arq)
+                # `${{ }}` é expressão do GitHub Actions (ci.yml); marcador não trocado é `{{` sem o `$`
+                self.assertIsNone(re.search(r"(?<!\$)\{\{", arq.read_text(encoding="utf-8", errors="ignore")), arq)
         self.assertEqual(git("config", "core.hooksPath", cwd=self.tmp).stdout.strip(), ".githooks")
         self.assertTrue(os.access(self.tmp / ".githooks/pre-push", os.X_OK))
         settings = json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8"))
