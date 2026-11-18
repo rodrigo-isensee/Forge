@@ -4,10 +4,10 @@
   "mutantes": [
     {
       "id": "M39",
-      "guarda": "o valor de f vai aos arquivos",
+      "guarda": "valor de opção longa casa pela abreviação",
       "arquivo": "hooks/conformidade.py",
-      "de": "(arquivos if letra == \"f\" else pastas)",
-      "para": "(arquivos if False else pastas)",
+      "de": "(n in curtas if len(n) == 1 else longa_do_tar(n, longas))",
+      "para": "(n in curtas if True else longa_do_tar(n, longas))",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
       ]
@@ -36,8 +36,8 @@
       "id": "M42",
       "guarda": "extração sem -C vai à pasta corrente",
       "arquivo": "hooks/conformidade.py",
-      "de": "return (pastas or [\".\"]) if extrai",
-      "para": "return (pastas or []) if extrai",
+      "de": "return Alvos((pastas or [\".\"]) if extrai",
+      "para": "return Alvos((pastas or []) if extrai",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
       ]
@@ -56,8 +56,8 @@
       "id": "M44",
       "guarda": "o arquivo - é a saída padrão",
       "arquivo": "hooks/conformidade.py",
-      "de": "for a in arquivos if a != \"-\"]",
-      "para": "for a in arquivos if False]",
+      "de": "for a in valores_de(valores, \"f\", (\"file\",)) if a != \"-\"]",
+      "para": "for a in valores_de(valores, \"f\", (\"file\",)) if False]",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
       ]
@@ -70,6 +70,16 @@
       "para": "if a != \"-\"] if True else []",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_find_tar_e_chmod_fora_do_estado_seguem_livres"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "checkpoint-action roda o que vem depois de exec=",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if v.startswith(\"exec=\")]",
+      "para": "if False]",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
     }
   ]

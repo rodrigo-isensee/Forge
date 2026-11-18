@@ -339,12 +339,46 @@ class EstadoDoAgentesNoClone(CloneDoForge):
                 self.recusa(self.rodar("Bash", {"command": c}, papel), f"{papel}: {c}")
         self.assertEqual(self.estado.read_text(encoding="utf-8"), '{"agentes": []}')
 
+    def test_extrator_e_tar_por_opcao_recusam(self):  # volta 2: A2 e A4 da segurança (S10 a S13), A1 do review (S1, S2)
+        (self.clone / "docs").mkdir()
+        rm = "'rm .git/forge/run/agentes.json'"
+        sondas = ("unzip -o docs/a.zip -d .git/forge/run", "cd .git/forge/run && cpio -idm < ../../../docs/a.cpio",
+                  f"tar --to-command={rm} -xf docs/a.tar", f"tar -xf docs/a.tar --checkpoint=1 --checkpoint-action=exec={rm}",
+                  "tar -xf docs/a.tar -C.git/forge/run", "tar -cf.git/forge/run/agentes.json docs",
+                  "bsdtar -xf docs/a.tar -C .git/forge/run", "busybox tar -xf docs/a.tar -C .git/forge/run",
+                  "7z x docs/a.7z -o.git/forge/run")
+        vizinhas = ("tar -xvzfdocs/a.tar -C.git/forge", f"tar --checkpoint-action exec={rm} -xf docs/a.tar",
+                    f"tar --checkpoint --checkpoint-act=exec={rm} -xf docs/a.tar -C docs",
+                    f"tar --use-compress-program={rm} -xf docs/a.tar -C docs", f"tar -I {rm} -xf docs/a.tar -C docs",
+                    "tar -xIrm\\ .git/forge/run/agentes.json -f docs/a.tar -C docs", f"tar --to-com {rm} -xf docs/a.tar -C docs",
+                    f"tar -F {rm} -xf docs/a.tar -C docs", "tar -cf docs/a.tar --remove-files .git/forge/run/agentes.json",
+                    "tar -C .git/forge -cf docs/a.tar --remove-files run/agentes.json",
+                    "tar -cf docs/a.tar -g .git/forge/run/agentes.json docs", "tar xfC docs/a.tar .git/forge",
+                    "cpio -p .git/forge/run < docs/l", "cpio -iD.git/forge/run < docs/a.cpio",
+                    "cpio --extract --directory=.git/forge < docs/a.cpio", "cpio -o -O .git/forge/run/agentes.json < docs/l",
+                    "cpio -o -F .git/forge/run/agentes.json < docs/l", f"cpio -i --rsh-command={rm} < docs/a.cpio",
+                    "unzip -d.git/forge/run docs/a.zip", "unzip data -d .git/forge/run",
+                    "cd .git/forge/run && unzip ../../../docs/a.zip", "7z e docs/a.7z -o.git/forge/run",
+                    "7z a .git/forge/run/agentes.json docs", "7z a docs/a.7z .git/forge/run/agentes.json -sdel",
+                    "7za x docs/a.7z -o.git/forge", "/usr/bin/gtar -xf docs/a.tar -C .git/forge",
+                    "busybox rm .git/forge/run/agentes.json", "busybox unzip docs/a.zip -d .git/forge/run",
+                    "tar --checkpoint -xf docs/a.tar -C .git/forge", "tar -xf docs/a.tar -Cdocs/b -C .git/forge")
+        for papel in ("forge:tech-lead", "forge:jarvis"):
+            for c in sondas + (vizinhas if papel == "forge:jarvis" else ()):
+                self.recusa(self.rodar("Bash", {"command": c}, papel), f"{papel}: {c}")
+        self.assertEqual(self.estado.read_text(encoding="utf-8"), '{"agentes": []}')
+
     def test_find_tar_e_chmod_fora_do_estado_seguem_livres(self):  # o ato por opção só conta no alvo; a raiz, como no `rm`, fica de fora
         (self.clone / "docs").mkdir()
         for c in ("find . -name '*.py'", "find docs -name x -delete", "find . -name x -exec grep y {} +",
                   "find .git/forge -name '*.json'", "tar -xf docs/a.tar -C docs", "tar -tf docs/a.tar",
                   "tar -cf docs/a.tar .git/forge", "tar -xf .git/forge/a.tar -C docs", "tar -tf docs/a.tar -- .git/forge",
-                  "tar -cf docs/a.tar -C .git/forge run", "chmod +x docs/a.sh", "find . -name x -delete"):
+                  "tar -cf docs/a.tar -C .git/forge run", "chmod +x docs/a.sh", "find . -name x -delete",
+                  "tar --checkpoint -xf docs/a.tar -C docs", "tar --to-command=cat -xf docs/a.tar -C docs",
+                  "tar -czf docs/a.tgz --remove-files docs/x", "unzip docs/a.zip -d docs", "cd docs && unzip a.zip",
+                  "cd docs && cpio -id < a.cpio", "cpio -o < docs/l > docs/a.cpio", "7z x docs/a.7z -odocs",
+                  "7z l .git/forge/a.7z", "7z a docs/a.7z .git/forge", "busybox ls .git/forge", "busybox --list",
+                  "tar -xf docs/a.tar -C docs -- -C.git/forge"):
             self.libera(self.rodar("Bash", {"command": c}), c)
 
     def test_de_fora_do_clone_pelo_caminho_absoluto_recusa(self):  # J12: pasta corrente fora do clone
@@ -427,7 +461,7 @@ class ConfigDaWorktreeNoClone(CloneDoForge):
     LEITOR = ("import sys; sys.path.insert(0, sys.argv[1]); import agentes; from _comum import Hook; h = Hook('agentes'); "
               "h.projeto(sys.argv[2], clone_do_forge=True); c = agentes.ler_config(h); "
               "print(c['teto_agentes'], c['piso_memoria_gb'], agentes.ritmo_do_projeto(agentes.pasta_da_config(h)), "
-              "agentes.Maquina(h, 0).peso)")
+              "agentes.Maquina(h, 0).peso, h.config()['teto_agentes'], h.config()['piso_memoria_gb'])")
 
     def setUp(self):
         super().setUp()
@@ -449,10 +483,15 @@ class ConfigDaWorktreeNoClone(CloneDoForge):
         return r.stdout.split()
 
     def test_teto_da_worktree_nao_vale_com_a_sessao_no_clone(self):
-        self.assertEqual(self.ler(self.clone), ["2", "2.0", "equilibrado", "1.0"])
+        self.assertEqual(self.ler(self.clone), ["2", "2.0", "equilibrado", "1.0", "2", "2.0"])
+
+    def test_versao_na_worktree_nao_deixa_o_config_dela_no_cache(self):  # S9 (volta 2): `.forge/versao` na worktree faz o
+        # `hook.projeto` ler o config dela (o `hooks_desligados`); o cache não vence o da raiz da sessão no teto nem no piso
+        (self.wt / ".forge" / "versao").write_text("1\n", encoding="utf-8")
+        self.assertEqual(self.ler(self.clone), ["2", "2.0", "equilibrado", "1.0", "2", "2.0"])
 
     def test_sessao_na_worktree_le_o_config_dela(self):  # a raiz da sessão é a worktree: a conformidade guarda esse
-        self.assertEqual(self.ler(self.wt), ["99", "0.1", "acelerado", "10.0"])
+        self.assertEqual(self.ler(self.wt), ["99", "0.1", "acelerado", "10.0", "99", "0.1"])
 
     def test_escrita_no_config_da_worktree_com_a_sessao_nela_recusa(self):
         c = "echo '{\"teto_agentes\": 99}' > .forge/config.json"

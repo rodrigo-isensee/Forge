@@ -159,16 +159,18 @@ def ritmo_valido(valor):
 
 def pasta_da_config(hook):
     """A1 da segurança (v0478): no clone do Forge, a configuração (teto, piso, ritmo, peso) vem da raiz da sessão, o
-    `.forge/config.json` que a conformidade guarda; o da worktree da pasta corrente, que um subagente escreve, não vale."""
+    `.forge/config.json` que a conformidade guarda; o da pasta corrente, que um subagente escreve, não vale. Basta a sessão
+    no clone (volta 2, S9): a pasta corrente vira projeto com um `.forge/versao` que o subagente grava na worktree."""
     declarada = raiz_declarada()
     if declarada is None or os.path.realpath(declarada) == os.path.realpath(hook.raiz):
         return hook.raiz  # a mesma pasta: nada a decidir (e o erro de `e_clone_do_forge` fica com quem fixa o estado, C7)
-    return declarada if e_clone_do_forge(hook.raiz) and e_clone_do_forge(declarada) else hook.raiz
+    return declarada if e_clone_do_forge(declarada) else hook.raiz
 
 
 def ler_config(hook):
-    """`hook.config()` lido de `pasta_da_config`; o `hook.raiz` (estado e briefs) não muda."""
-    raiz, hook.raiz = hook.raiz, pasta_da_config(hook)
+    """`hook.config()` lido de `pasta_da_config`; o `hook.raiz` (estado e briefs) não muda. O cache sai antes da troca
+    (A1 da volta 2): o `hook.projeto` já pode ter lido o config da worktree, e o cache que fica é o da raiz lida."""
+    raiz, hook.raiz, hook._config = hook.raiz, pasta_da_config(hook), None
     try:
         return hook.config()
     finally:

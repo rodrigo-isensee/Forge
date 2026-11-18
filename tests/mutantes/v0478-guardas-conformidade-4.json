@@ -74,12 +74,12 @@
     },
     {
       "id": "M30",
-      "guarda": "opção longa do tar abreviada só com 2 letras ou mais",
+      "guarda": "o nome exato de outra opção (--checkpoint) não abrevia",
       "arquivo": "hooks/conformidade.py",
-      "de": "    return len(nome) >= 2 and any(o.startswith(nome) for o in opcoes)",
-      "para": "    return True and any(o.startswith(nome) for o in opcoes)",
+      "de": "nome not in LONGAS_EXATAS and any(o.startswith(nome) for o in opcoes)",
+      "para": "True and any(o.startswith(nome) for o in opcoes)",
       "testes": [
-        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_find_tar_e_chmod_fora_do_estado_seguem_livres"
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
     }
   ]

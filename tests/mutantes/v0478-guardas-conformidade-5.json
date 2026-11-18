@@ -4,80 +4,80 @@
   "mutantes": [
     {
       "id": "M31",
-      "guarda": "o tar lê todos os argumentos",
+      "guarda": "depois de -- só operandos",
       "arquivo": "hooks/conformidade.py",
-      "de": "    while i < len(args):\n        a, i = args[i], i + 1",
-      "para": "    while False:\n        a, i = args[i], i + 1",
+      "de": "        if a == \"--\" and not fim:",
+      "para": "        if False:",
       "testes": [
-        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_find_tar_e_chmod_fora_do_estado_seguem_livres"
       ]
     },
     {
       "id": "M32",
-      "guarda": "opção longa do tar",
+      "guarda": "o grupo velho do tar sem - na primeira palavra",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if a.startswith(\"--\"):\n            nome, igual",
-      "para": "        if False:\n            nome, igual",
+      "de": "not a.startswith(\"-\") and not (velho and i == 1 and re.fullmatch(r\"[A-Za-z]+\", a)):",
+      "para": "not a.startswith(\"-\"):",
       "testes": [
-        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
     },
     {
       "id": "M33",
-      "guarda": "tar --directory e --file longos",
+      "guarda": "longa com valor toma a palavra seguinte",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if longa_do_tar(nome, (\"directory\", \"file\")):",
+      "de": "            if not igual and longa_do_tar(nome, longas_com_valor) and i < len(args):",
       "para": "            if False:",
       "testes": [
-        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
     },
     {
       "id": "M34",
-      "guarda": "valor da opção longa na palavra seguinte",
+      "guarda": "toda letra com valor, não só f e C",
       "arquivo": "hooks/conformidade.py",
-      "de": "                if not igual and i < len(args):",
-      "para": "                if False:",
+      "de": "                if letra in curtas_com_valor:",
+      "para": "                if letra in \"fC\":",
       "testes": [
-        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
     },
     {
       "id": "M35",
-      "guarda": "--directory vai às pastas",
+      "guarda": "valor colado na letra (S1, S2)",
       "arquivo": "hooks/conformidade.py",
-      "de": "(pastas if longa_do_tar(nome, (\"directory\",)) else arquivos)",
-      "para": "(pastas if False else arquivos)",
+      "de": "valor = \"\" if velho else grupo[k + 1:]",
+      "para": "valor = \"\"",
       "testes": [
-        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
     },
     {
       "id": "M36",
-      "guarda": "tar com letras sem hífen no primeiro argumento",
+      "guarda": "sem valor colado, a palavra seguinte",
       "arquivo": "hooks/conformidade.py",
-      "de": "        elif re.fullmatch(r\"-[A-Za-z]+\", a) or (i == 1 and re.fullmatch(r\"[A-Za-z]+\", a)):",
-      "para": "        elif re.fullmatch(r\"-[A-Za-z]+\", a) or (False):",
+      "de": "                    if not valor and i < len(args):",
+      "para": "                    if False:",
       "testes": [
-        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
     },
     {
       "id": "M37",
-      "guarda": "f e C agrupados tomam valor",
+      "guarda": "no grupo com -, a letra com valor encerra o grupo",
       "arquivo": "hooks/conformidade.py",
-      "de": "for letra in (c for c in a if c in \"fC\"):",
-      "para": "for letra in (c for c in a if False):",
+      "de": "                    if not velho:\n                        break",
+      "para": "                    if False:\n                        break",
       "testes": [
-        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
     },
     {
       "id": "M38",
-      "guarda": "valores de f e C só se há palavra",
+      "guarda": "as longas saem dos valores",
       "arquivo": "hooks/conformidade.py",
-      "de": "                if i < len(args):\n                    (arquivos if letra",
-      "para": "                if False:\n                    (arquivos if letra",
+      "de": "    return [n for n, _ in valores if len(n) > 1]",
+      "para": "    return [n for n, _ in valores if False]",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
       ]

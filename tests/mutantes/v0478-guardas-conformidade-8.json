@@ -1,0 +1,26 @@
+{
+  "pedido": "v0478-guardas-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M55",
+      "guarda": "o cache do config sai antes da troca de raiz (S9)",
+      "arquivo": "hooks/agentes.py",
+      "de": "hook.raiz, hook._config = hook.raiz, pasta_da_config(hook), None",
+      "para": "hook.raiz, hook._config = hook.raiz, pasta_da_config(hook), hook._config",
+      "testes": [
+        "tests.test_conformidade_verde.ConfigDaWorktreeNoClone.test_versao_na_worktree_nao_deixa_o_config_dela_no_cache"
+      ]
+    },
+    {
+      "id": "M56",
+      "guarda": "busybox repassa ao applet",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if prog == \"busybox\" and args and not args[0].startswith(\"-\"):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    }
+  ]
+}

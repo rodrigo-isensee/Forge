@@ -902,6 +902,11 @@ MUDA_ATRIBUTO = {"chmod", "chown", "chgrp", "setfacl", "chattr"}
 FIND_EXECUTA = {"-exec", "-execdir", "-ok", "-okdir"}  # roda o comando até `;` ou `+`, com `{}` trocado pelo achado
 FIND_GRAVA = {"-fprint", "-fprint0", "-fprintf", "-fls"}  # grava no arquivo seguinte
 TAR_GRAVA = {"create", "append", "update", "concatenate", "catenate", "delete"}  # modos que gravam no arquivo de `-f`
+TAR_COM_VALOR = "bCfFgHIKLNTVX"  # letras curtas do GNU tar com valor, colado (`-C.git`) ou na palavra seguinte
+TAR_EXECUTA = {"to-command", "use-compress-program", "info-script", "new-volume-script", "rsh-command", "rmt-command",
+               "checkpoint-action"}  # rodam o valor (o `checkpoint-action`, o que vem depois de `exec=`)
+LONGAS_EXATAS = {"checkpoint"}  # nome exato de opção que é prefixo de outra (`--checkpoint-action`): não a abrevia
+Alvos = collections.namedtuple("Alvos", "pastas arquivos removidos comandos")  # o que um `EXTRATORES` faz por opção
 
 # Papel só de leitura: o `git ls-remote` aceita só estas opções (`--upload-pack`, `-u` e `--exec` rodam um programa num
 # shell); nos demais subcomandos da lista, a opção que executa programa ou grava arquivo recusa, mesmo abreviada.
@@ -1038,37 +1043,105 @@ def script_do_sed(arg):
 
 
 def longa_do_tar(nome, opcoes):
-    """O nome da opção longa do `tar` é uma das `opcoes` ou abreviação dela (o getopt do GNU aceita o prefixo; o ambíguo
-    o `tar` recusa, então contar a mais só recusa a mais)."""
-    return len(nome) >= 2 and any(o.startswith(nome) for o in opcoes)
+    """O nome da opção longa (do `tar`, do `cpio`) é uma das `opcoes` ou abreviação dela (o getopt do GNU aceita o prefixo;
+    o ambíguo o programa recusa, então contar a mais só recusa a mais); o nome exato de outra opção (`--checkpoint`) não."""
+    return nome in opcoes or len(nome) >= 2 and nome not in LONGAS_EXATAS and any(o.startswith(nome) for o in opcoes)
+
+
+def ler_opcoes(args, curtas_com_valor, longas_com_valor, velho=False):
+    """As opções de um extrator à maneira do getopt (volta 2, review A1): (letras, [(opção, valor)], operandos). A letra de
+    `curtas_com_valor` toma o resto do grupo (`-C.git/forge`, `-cf.git/a`) ou a palavra seguinte; com `velho` (o `tar`), o
+    grupo sem `-` na primeira palavra (`xfC a.tar d`) toma as palavras seguintes na ordem. A longa de `longas_com_valor` sem
+    `=` toma a palavra seguinte; as outras ficam com valor None. Depois de `--`, só operandos."""
+    letras, valores, operandos, i, fim = set(), [], [], 0, False
+    while i < len(args):
+        a, i = args[i], i + 1
+        if a == "--" and not fim:
+            fim = True
+        elif fim or a == "-" or not a.startswith("-") and not (velho and i == 1 and re.fullmatch(r"[A-Za-z]+", a)):
+            operandos.append(a)
+        elif a.startswith("--"):
+            nome, igual, valor = a[2:].partition("=")
+            if not igual and longa_do_tar(nome, longas_com_valor) and i < len(args):
+                valor, i, igual = args[i], i + 1, "="
+            valores.append((nome, valor if igual else None))
+        else:
+            velho, grupo = not a.startswith("-"), a.lstrip("-")
+            for k, letra in enumerate(grupo):
+                letras.add(letra)
+                if letra in curtas_com_valor:
+                    valor = "" if velho else grupo[k + 1:]
+                    if not valor and i < len(args):
+                        valor, i = args[i], i + 1
+                    valores.append((letra, valor))
+                    if not velho:
+                        break
+    return letras, valores, operandos
+
+
+def valores_de(valores, curtas, longas):
+    """Os valores da opção curta de `curtas` ou da longa de `longas` (também abreviada)."""
+    return [v for n, v in valores if v is not None and (n in curtas if len(n) == 1 else longa_do_tar(n, longas))]
+
+
+def longas_de(valores):
+    return [n for n, _ in valores if len(n) > 1]
 
 
 def alvos_do_tar(args):
-    """A2 da segurança (v0478): (pastas em que o `tar` extrai, arquivos que ele grava). Extração (`-x`, `xf`, `--extract`,
-    `--get`): as pastas de `-C`/`--directory`, ou a corrente. Criação, acréscimo e atualização (`-c`, `-r`, `-u`, `-A`,
-    `--create`, `--delete`...): o arquivo de `-f`/`--file`. Opção longa também abreviada (`longa_do_tar`). Opções curtas
-    agrupadas (`-xzf a.tar`, `xfC a.tar d`) tomam os valores de `f` e `C` na ordem. Na dúvida sobre o modo, não grava
-    (o resto da linha segue as outras regras)."""
-    letras, longas, pastas, arquivos = set(), set(), [], []
-    i = 0
-    while i < len(args):
-        a, i = args[i], i + 1
-        if a.startswith("--"):
-            nome, igual, valor = a[2:].partition("=")
-            longas.add(nome)
-            if longa_do_tar(nome, ("directory", "file")):
-                if not igual and i < len(args):
-                    valor, i = args[i], i + 1
-                (pastas if longa_do_tar(nome, ("directory",)) else arquivos).append(valor)
-        elif re.fullmatch(r"-[A-Za-z]+", a) or (i == 1 and re.fullmatch(r"[A-Za-z]+", a)):
-            letras |= set(a.lstrip("-"))
-            for letra in (c for c in a if c in "fC"):
-                if i < len(args):
-                    (arquivos if letra == "f" else pastas).append(args[i])
-                    i += 1
+    """A2 da segurança (v0478): o que o `tar` (e `bsdtar`, `gtar`, o do `busybox`) faz por opção. Extração (`-x`,
+    `--extract`, `--get`): as pastas de `-C`/`--directory`, ou a corrente. Criação, acréscimo e atualização (`-c`, `-r`,
+    `-u`, `-A`, `--create`, `--delete`...): o arquivo de `-f`/`--file`; `-g` e `--index-file` gravam sempre. `TAR_EXECUTA`
+    (`-I`, `-F`, `--to-command`, `--checkpoint-action=exec=`...) roda o valor; `--remove-files` apaga os operandos, também
+    a partir de cada `-C`. Na dúvida sobre o modo, não grava (o resto da linha segue as outras regras)."""
+    letras, valores, operandos = ler_opcoes(args, TAR_COM_VALOR, ("directory", "file", "index-file", "listed-incremental",
+                                                                   *TAR_EXECUTA), velho=True)
+    longas = longas_de(valores)
     extrai = "x" in letras or any(longa_do_tar(n, ("extract", "get")) for n in longas)
     grava = bool(letras & set("cruA")) or any(longa_do_tar(n, TAR_GRAVA) for n in longas)
-    return (pastas or ["."]) if extrai else [], [a for a in arquivos if a != "-"] if grava else []
+    pastas = valores_de(valores, "C", ("directory",))
+    arquivos = [a for a in valores_de(valores, "f", ("file",)) if a != "-"] if grava else []
+    arquivos += valores_de(valores, "g", ("listed-incremental", "index-file"))
+    comandos = valores_de(valores, "IF", TAR_EXECUTA - {"checkpoint-action"})
+    comandos += [v[5:] for v in valores_de(valores, "", ("checkpoint-action",)) if v.startswith("exec=")]
+    remove = any(longa_do_tar(n, ("remove-files",)) for n in longas)
+    removidos = [f"{d}/{o}" for o in operandos for d in (".", *pastas)] if remove else []
+    return Alvos((pastas or ["."]) if extrai else [], arquivos, removidos, comandos)
+
+
+def alvos_do_cpio(args):
+    """A2 da volta 2: `cpio -i`/`--extract` extrai na pasta de `-D`/`--directory`, ou na corrente; `-p`/`--pass-through`,
+    também nos operandos (o destino); `-o`/`--create` grava o arquivo de `-F`/`--file`, e `-O` grava sempre;
+    `--rsh-command` roda o valor."""
+    letras, valores, operandos = ler_opcoes(args, "CDEFHIMOR", ("directory", "file", "rsh-command", "pattern-file",
+                                                               "format", "message", "owner", "io-size"))
+    longas = longas_de(valores)
+    extrai = bool(letras & set("ip")) or any(longa_do_tar(n, ("extract", "pass-through")) for n in longas)
+    cria = "o" in letras or any(longa_do_tar(n, ("create",)) for n in longas)
+    pastas = (valores_de(valores, "D", ("directory",)) or ["."]) + operandos if extrai else []
+    arquivos = valores_de(valores, "O", ()) + (valores_de(valores, "F", ("file",)) if cria else [])
+    return Alvos(pastas, arquivos, [], valores_de(valores, "", ("rsh-command",)))
+
+
+def alvos_do_unzip(args):
+    """A2 da volta 2: o `unzip` extrai na pasta de `-d` (colada ou na palavra seguinte), ou na corrente."""
+    return Alvos(valores_de(ler_opcoes(args, "d", ())[1], "d", ()) or ["."], [], [], [])
+
+
+def alvos_do_7z(args):
+    """A4 da volta 2: `7z x`/`e` extrai na pasta de `-o<pasta>`, ou na corrente; `a`, `u`, `d` e `rn` gravam o arquivo
+    (o primeiro operando depois do comando); `-sdel` apaga os outros operandos."""
+    palavras = [a for a in args if not a.startswith("-")]
+    comando, arquivo = (palavras[0].lower() if palavras else ""), palavras[1:2]
+    pastas = ([a[2:] for a in args if a.startswith("-o")] or ["."]) if comando in ("x", "e") else []
+    removidos = palavras[2:] if "-sdel" in args else []
+    return Alvos(pastas, arquivo if comando in ("a", "u", "d", "rn") else [], removidos, [])
+
+
+# A2 e A4 da segurança, volta 2 (v0478): catálogo único dos programas que extraem, gravam ou rodam comando por opção;
+# o `busybox` repassa ao applet (`leitura_do_segmento`), e o `tar` dele cai aqui pelo nome.
+EXTRATORES = {"tar": alvos_do_tar, "bsdtar": alvos_do_tar, "gtar": alvos_do_tar, "cpio": alvos_do_cpio,
+              "unzip": alvos_do_unzip, **dict.fromkeys(("7z", "7za", "7zr", "7zz"), alvos_do_7z)}
 
 
 def sed_no_lugar(args):
@@ -2154,6 +2227,8 @@ class Guarda:
             return pasta
         prog = Path(palavras[0].lstrip("`")).name
         args = palavras[1:]
+        if prog == "busybox" and args and not args[0].startswith("-"):  # A4 da volta 2: o applet é o programa
+            palavras, prog, args = args, Path(args[0]).name, args[1:]
         if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}:
             self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}).pop()  # recusa no fim da linha
         parte = parecer.analisar(palavras)
@@ -2234,13 +2309,18 @@ class Guarda:
                     self.checar_escrita(a[3:], pasta)
         elif prog == "find":
             self.find(args, pasta, nivel, atribuicoes)
-        elif prog == "tar":
-            destinos, arquivos = alvos_do_tar(args)
-            for a in arquivos:
+        elif prog in EXTRATORES:
+            alvos = EXTRATORES[prog](args)
+            for a in alvos.arquivos:
                 self.checar_escrita(a, pasta)
-            for d in destinos:
+            for a in alvos.removidos:
+                self.checar_escrita(a, pasta, parecer_conta=False)
+                self.checar_remocao(a, pasta)
+            for d in alvos.pastas:
                 self.checar_escrita(d, pasta, parecer_conta=False)
                 self.checar_remocao(d, pasta, "extrair em")
+            for c in alvos.comandos:
+                self.aninhado(c, pasta, nivel, atribuicoes)
         elif prog in MUDA_ATRIBUTO:
             for a in args:
                 if not a.startswith("-"):

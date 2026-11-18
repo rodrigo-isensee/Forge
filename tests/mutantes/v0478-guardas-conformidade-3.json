@@ -4,12 +4,12 @@
   "mutantes": [
     {
       "id": "M15",
-      "guarda": "no clone, o config vem da raiz da sessão, não da worktree",
+      "guarda": "com a sessão no clone, o config vem dela, também com a pasta corrente feita projeto (S9)",
       "arquivo": "hooks/agentes.py",
-      "de": "    return declarada if e_clone_do_forge(hook.raiz) and e_clone_do_forge(declarada) else hook.raiz",
-      "para": "    return declarada if False else hook.raiz",
+      "de": "    return declarada if e_clone_do_forge(declarada) else hook.raiz",
+      "para": "    return declarada if e_clone_do_forge(hook.raiz) and e_clone_do_forge(declarada) else hook.raiz",
       "testes": [
-        "tests.test_conformidade_verde.ConfigDaWorktreeNoClone.test_teto_da_worktree_nao_vale_com_a_sessao_no_clone"
+        "tests.test_conformidade_verde.ConfigDaWorktreeNoClone.test_versao_na_worktree_nao_deixa_o_config_dela_no_cache"
       ]
     },
     {
@@ -34,12 +34,12 @@
     },
     {
       "id": "M18",
-      "guarda": "tar lido como escritor",
+      "guarda": "o catálogo de extratores é lido",
       "arquivo": "hooks/conformidade.py",
-      "de": "        elif prog == \"tar\":\n            destinos, arquivos",
-      "para": "        elif False:\n            destinos, arquivos",
+      "de": "        elif prog in EXTRATORES:\n            alvos =",
+      "para": "        elif prog == \"tar\":\n            alvos =",
       "testes": [
-        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
     },
     {
