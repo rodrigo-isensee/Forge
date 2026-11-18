@@ -375,6 +375,7 @@
       "`sem teste:` do `forge-check pr` pede justificativa no `## Sem teste` do PR",
       "\\*\\*Ritmo e corte \\(diretrizes 32 e 33; H6\\):\\*\\*",
       "skills/trabalho-em-paralelo/ritmo-e-corte\\.md",
+      "ritmo-e-corte\\.md` antes de abrir item novo ou juntar na `develop`",
       "suíte inteira roda só no CI",
       "Commite o parecer na branch revisada",
       "Fila de integração",
@@ -895,6 +896,7 @@
       "skills/kanban-scrum/experimentos\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, a skill perde o caminho do formato dos experimentos de melhoria, movido pelo teto de caracteres (diretriz 25)"}
     },
     "agents/tech-lead.md": {
+      "ritmo-e-corte\\.md` antes de abrir item novo ou juntar na `develop`": {"regra": "R-FLUXO", "porque": "sem o texto, o tech-lead abre item ou junta na develop sem ler o ritmo e o corte, que o Jarvis já lê nesse gatilho (TECH-LEAD-GATILHO-RITMO)"},
       "\\(H2, o autor fica até o merge\\): review, QA, segurança, CI e conflito, os três portões numa volta única": {"regra": "R-BRIEF", "porque": "sem o texto, o tech-lead autor deixa a branch na volta de CI ou conflito e os portões voltam em rodadas separadas (H2)"},
       "skills/briefs-e-conferencia/autor-ate-o-merge\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o tech-lead perde o detalhe do H2, movido pelo teto de caracteres (diretriz 25)"},
       "\\*\\*Tamanho por item \\(H1, decisão do dono\\):\\*\\*": {"regra": "R-REVIEW", "porque": "sem o texto, o tech-lead deixa passar item acima de 150 linhas de código sem cortar antes de começar (H1)"},

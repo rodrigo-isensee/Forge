@@ -1,0 +1,2 @@
+### Alterado
+- Tech-lead lê `skills/trabalho-em-paralelo/ritmo-e-corte.md` no mesmo gatilho do Jarvis: antes de abrir item novo ou juntar na `develop` (TECH-LEAD-GATILHO-RITMO, v0478 E19.1). A skill `trabalho-em-paralelo` não entrou no `skills:` do cabeçalho: somaria cerca de 3.000 caracteres e 6 marcadores ao que o tech-lead carrega (total 32.434 contra o teto 29.861; marcadores 60 contra 56) de `docs/regras/orcamento.json` (subir o teto pede a decisão do dono).
