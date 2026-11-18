@@ -3,30 +3,25 @@ tipo: review
 contrato: 1
 pedido: v0474
 branch: melhoria/v0475-ci-custo
-commit: 7c7f6c42b2fc03ebeb781c3f1067520be7d8fb33
+commit: ae44f02bec60f2ab2f38aa677f9289bdd158ec0a
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-17
+data: 2026-11-18
 ---
-# Review: v0474 (E3.149, melhoria/v0475-ci-custo), revalidação
+# Review: v0474 (E3.190, melhoria/v0475-ci-custo), revalidação
 
 ## Achados
-- A5 (recomendado) tests/test_modelo_ci.py:1 · tamanho (M14): 299 linhas contadas contra a base (`bin/forge-testes` 4, `ci.yml` 94, `tests/test_modelo_ci.py` 196, `tests/test_forge.py` 3, `tests/test_reval_delta.py` 2), um comportamento; o corpo do PR traz `teto: excedido, 299 linhas, <motivo>`.
-
-## Sondas
-- S1 · `GIT_DIR=/nonexistent python3 -m unittest tests.test_modelo_ci.Deteccao` · espera: OK (teste isolado do ambiente) · obtido: `OK` (antes, no d8e1b09b, `FAILED (errors=3)`)
+- A5 (recomendado) tests/test_modelo_ci.py:1 · tamanho (M14): 207 linhas contadas contra a base (`tests/test_modelo_ci.py` 198, `bin/forge-testes` 4, `tests/test_forge.py` 3, `tests/test_reval_delta.py` 2), um comportamento; o corpo do PR traz `teto: excedido, 207 linhas, <motivo>`.
 
 ## Parecer
-Aprovado (`R-REVIEW`). Delta lido: `forge-check parecer delta docs/reviews/v0475-ci-custo.md`, intervalo 8a4a9707..7c7f6c42, domínio código e testes (`tests/test_forge.py`, `tests/test_modelo_ci.py`, `tests/test_reval_delta.py`, `tests/mutantes/v0475-ci-custo-3.json`; a linha de `bin/forge-testes` no delta veio da `develop` pelo merge 96aa5f39, #646, fora do item).
+Aprovado (`R-REVIEW`). Delta lido: `forge-check parecer delta docs/reviews/v0475-ci-custo.md`, intervalo 7c7f6c42..ae44f02b, domínio código e testes (`skills/ci-cd/SKILL.md`, `skills/ci-cd/ci-de-projeto-privado.md`, `tests/mutantes/v0475-ci-custo-2.json`, `tests/test_modelo_ci.py`).
 
-- **Marcador `${{ }}` (CI do PR #651):** `test_forge.ForgeInit` e `test_modelo_ci.Entrega` trocam `assertNotIn("{{")` por `(?<!\$)\{\{`: a expressão do Actions fica, e marcador do modelo sem `$` reprova. O teste do modelo também afirma a presença de `${{`, então o regex não passa no vazio. M30 (`# {{SOBRA}}` no `ci.yml`) morreu.
-- **`ambiente_limpo` com `sem_manutencao`:** usa o ajudante comum `tests/ambiente_git.py`, como os outros testes que rodam git em subprocesso.
-- **`tests/test_reval_delta.py`:** a citação de `tests/test_modelo_ci.py` no README entra em `_NOME` com a contagem 4.
-- Revisões anteriores (A3 da segurança, A4) seguem resolvidas; o delta não toca a detecção.
+- **Texto movido:** a seção "CI de projeto privado: minutos" sai da `SKILL.md` e vai, igual, para `skills/ci-cd/ci-de-projeto-privado.md` (diff entre a seção antiga e o arquivo novo: só a linha em branco final e o nível do título). A `SKILL.md` aponta para o arquivo em "Tempo e dependências"; os outros ajustes da `SKILL.md` são encurtamento de redação, sem mudar regra.
+- **Teste:** `test_skill_aponta_para_o_modelo_e_explica_o_porque` afirma o ponteiro na `SKILL.md` e lê o conteúdo no arquivo novo; não passa no vazio se o arquivo sumir (o `read_text` falha).
+- **Mutantes M17, M18 e M22:** apontam ao arquivo novo e morrem no head.
 
-Ferramentas e provas, rodadas só no diff, no 7c7f6c42:
+Ferramentas e provas, rodadas só no diff, no ae44f02b:
+- `python3 -m unittest tests.test_metricas_texto tests.test_orcamento_instrucao tests.test_modelo_ci`: `Ran 29 tests ... OK`.
 - `python3 -I tests/catraca.py --base origin/develop`: rc=0.
-- `python3 -m unittest tests.test_modelo_ci tests.test_reval_delta tests.test_ambiente_git`: `Ran 49 tests ... OK`.
-- `python3 -m unittest tests.test_forge.ForgeInit`: `Ran 11 tests ... OK`.
-- `bin/forge-mutante --processos 1 tests/mutantes/v0475-ci-custo-3.json`: `M30 · morreu`, rc=0.
+- `bin/forge-mutante --processos 1 tests/mutantes/v0475-ci-custo-2.json`: `M17 · morreu`, `M18 · morreu`, `M22 · morreu`, rc=0.
 - CI: a suíte completa fica no CI do PR #651, obrigatório para o merge.
