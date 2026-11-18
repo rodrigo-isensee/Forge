@@ -170,6 +170,11 @@ class Disco(unittest.TestCase):
         rc, erro = self.copiar({"return_value": disco(0, 0)})
         self.assertEqual((rc, self.gits), (2, []), erro)
 
+    def test_destino_novo_mede_o_pai_que_existe(self):
+        medidos = []
+        rc, erro = self.copiar({"side_effect": lambda p: medidos.append(p) or disco(1, 99)})
+        self.assertEqual((rc, medidos), (0, [str(self.home / ".forge-contrib")]), erro)
+
     def test_o_limiar_mora_so_no_forge_disco(self):
         self.assertEqual(self.mod.LIMIAR_DISCO, 90)
         for nome in ("forge-copia", "forge-placar"):

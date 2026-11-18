@@ -36,8 +36,8 @@
       "id": "M4",
       "guarda": "disco sem espaco ocupavel conta como cheio",
       "arquivo": "bin/forge_disco.py",
-      "de": "return 100 if ocupavel <= 0 else",
-      "para": "return 0 if ocupavel <= 0 else",
+      "de": "if ocupavel <= 0 else",
+      "para": "if ocupavel < 0 else",
       "testes": [
         "tests.test_forge_copia.Disco.test_disco_sem_espaco_ocupavel_conta_como_cheio"
       ]
