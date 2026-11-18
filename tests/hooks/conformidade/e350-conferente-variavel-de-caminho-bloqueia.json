@@ -1,0 +1,25 @@
+{
+  "descricao": "E3.50: F=...; $F no papel só de leitura segue recusado (ADR 0011, item 1); a recusa diz a forma aceita.",
+  "arquivos": {
+    "docs/a.md": "parecer\n",
+    "docs/reviews/a.md": "## Achados\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "F=docs/a.md; grep -n parecer $F"
+    },
+    "agent_type": "conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "Corrigir: caminho literal no lugar da variável (não F=x; cat $F)"
+  }
+}

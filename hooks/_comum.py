@@ -670,7 +670,9 @@ def fora_da_gramatica_de_leitura(linha):
 # ADR 0011, item 2: `case` como palavra de comando, no que sobra fora de aspas.
 CASE = re.compile(r"(?:^|[\s;&|()])case(?=\s|$)")
 # O único heredoc que o analisador modela: delimitador entre aspas (corpo literal, sem expansão), sem `-`, terminado na
-# palavra. É a forma que `tirar_heredocs` separa igual ao bash; qualquer outro `<<` é não modelado.
+# palavra. É a forma que `tirar_heredocs` separa igual ao bash; qualquer outro `<<` é não modelado. FORMA_DO_HEREDOC é o
+# texto único dela: as recusas do hook e o brief (`bin/forge-check`, formas de commit) o citam, sem reescrevê-lo.
+FORMA_DO_HEREDOC = "heredoc só com o delimitador entre aspas (<<'EOF' ou <<'FIM'), sem -, fechado por uma linha só com ele"
 HEREDOC_MODELADO = re.compile(r"<<[ \t]*(['\"])([A-Za-z_][A-Za-z0-9_]*)\1(?=[\s;&|)]|$)")
 
 

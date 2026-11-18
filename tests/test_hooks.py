@@ -2715,6 +2715,11 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 34, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_e350(self):  # E3.50: formas aceitas e a recusa ao lado de cada uma, para a mutação
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("E3.50: ")]
+        self.assertGreaterEqual(len(lote), 10, "as fixtures do item")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_corpo_da_crase_como_o_bash_e_como_a_leitura_antiga(self):  # SEGMENTO-CRASE-HOOK
         _comum, _, _ = modulos_dos_hooks()
         self.assertEqual(_comum.conteudos_de_crase(r"echo `a \\$(b) \`c\``"), [r"a \$(b) `c`", r"a \\$(b) `c`"])
