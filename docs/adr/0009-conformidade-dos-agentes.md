@@ -86,6 +86,7 @@ O papel vem de `hooks/conformidade.json` (dado, não código): `jarvis` (`forge:
 
 ### 9. Identidade e servidor
 Continua valendo a ADR 0008 (conta de máquina; rulesets quando público). A verificar: dar às sessões de projeto um token **sem escrita no Forge**, com PR a partir de um fork da conta de máquina; se viável no plano gratuito, "projeto não mescla no Forge" vira [I] antes de o repositório ser público.
+Troca do `GH_TOKEN` dos agentes pela conta do bot, com papel Write e sem Admin (cartão TOKEN-AGENTES-BOT, opção A): passo a passo para o dono em `docs/token-dos-agentes.md`; quem executa é o dono.
 
 ## Alternativas consideradas
 | Opção | Prós | Contras |
