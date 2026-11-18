@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_contrib"
       ]
+    },
+    {
+      "id": "M40",
+      "guarda": "diretriz 36 (R-CONTRIB): git -C <clone do Forge> commit é recusado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if palavras[i] == \"-C\" and i + 1 < len(palavras):",
+      "para": "if palavras[i] == \"-C-x\" and i + 1 < len(palavras):",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
     }
   ]
 }

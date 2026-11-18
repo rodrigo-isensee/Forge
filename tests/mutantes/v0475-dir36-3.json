@@ -7,7 +7,7 @@
       "guarda": "diretriz 36 (R-CONTRIB): `-c remote.*.url|pushurl` e `insteadOf` na linha entram no destino do envio",
       "arquivo": "hooks/conformidade.py",
       "de": "troca += [palavras[i + 1]] if CONFIG_DO_DESTINO.fullmatch(palavras[i + 1]) else []",
-      "para": "troca += []",
+      "para": "troca += [palavras[i + 1]] if CONFIG_DO_DESTINO.fullmatch(\"x\") else []",
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
@@ -27,7 +27,7 @@
       "guarda": "diretriz 36 (R-CONTRIB): git push --repo <url> é o repositório do envio",
       "arquivo": "hooks/conformidade.py",
       "de": "repo = a if pulo == \"--repo\" else repo",
-      "para": "repo = repo",
+      "para": "repo = a if pulo == \"--repo-x\" else repo",
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
