@@ -4956,9 +4956,8 @@ class ConferirBrief(unittest.TestCase):
             if {"E1.1", "E1"} & mod.ids_da_linha(linha):
                 self.assertIn(f"- {linha.strip()}\n", saida)
         self.assertIn("Retira do escopo original", saida)
-        self.assertIn("E3.1 (revisor): revisão de código da branch.", saida)
         self.assertIn('- "E1.1 (dev-exemplo): implementação do recurso A." (E1.1)', saida)  # a etapa coberta abre o Entregar (P2)
-        self.assertIn('- "E2.1 (dev-exemplo): texto da documentação." · etapa de outra delegação', saida)  # a outra do mesmo papel, sem marca
+        self.assertRegex(saida, r"\n- E2\.1, [^\n]*E3\.1[^\n]* · outras delegações\n")  # a outra do mesmo papel, sem marca, só o id (E3.48)
         self.assertIn("git ls-remote origin refs/heads/melhoria/a", saida)
         self.assertRegex(saida, r"Base-sha: (?:[0-9a-f]{40}|PREENCHER)")
         self.assertEqual(self.rodar(*args)[1], saida)
