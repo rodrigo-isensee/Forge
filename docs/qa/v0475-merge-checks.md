@@ -10,12 +10,11 @@ bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-17
+data: 2026-11-18
 ---
 # QA: v0475-merge-checks (E3.45, parecer E3.72)
 
 ## Achados
-Nenhum aberto.
 
 ## Critério → teste → resultado
 O item E3.45 não tem `CA-n`; os critérios saem do texto do item e do fragmento do changelog.
@@ -34,7 +33,6 @@ O item E3.45 não tem `CA-n`; os critérios saem do texto do item e do fragmento
 - Sondei à mão a leitura que falha (gh ausente, `contexts` nulo): cai nos `except` sem erro.
 
 ## Bugs
-Nenhum aberto.
 
 ## Revalidação (delta 9f497b0f..27c4c567)
 - A1 anterior (falha do `gh pr view` aprovava calada) corrigido em `bin/forge-check`: `gh_json` devolve o motivo, `checks_do_head` avisa, soma a `CHECKS_NAO_CONFERIDOS` e o `main` grava reprovado para o hook; `GH_SEM_PR` mantém sem PR, sem remoto e sem login como passagem; `forge-fechar` passo 1 põe `FORGE_FECHAR_PASSO_1=1`.
