@@ -605,12 +605,12 @@ def nomes_dinamicos(comando):
     `export "$k=$v"`, `read "$n"`, `printf -v "$n"`): o hook não o lê, e ele pode ser qualquer um dos SENSIVEIS."""
     nome, args = comando[0], comando[1:]
     if nome == "printf":
-        args = [p[2:] for p in args if p.startswith("-v") and len(p) > 2] + [b for a, b in zip(args, args[1:]) if a == "-v"]
+        args = [p[2:] for p in args if p.startswith("-v")] + [b for a, b in zip(args, args[1:]) if a == "-v"]  # `-vN`, `-v N`
     elif nome == "read":
         args = [b for a, b in zip([""] + args, args) if a not in LE_COM_VALOR]
     elif nome not in NOMEIA:
         return False
-    return any(expande(p) and not ATRIBUICAO.match(p) for p in args if not p.startswith("-"))
+    return any(expande(p) and not ATRIBUICAO.match(p) for p in args)
 
 
 def mexidas_na_linha(palavras):
