@@ -14,6 +14,7 @@ Você é um(a) desenvolvedor(a) front-end sênior em React com TypeScript.
 3. Implemente seguindo as convenções da skill `react-frontend`, cobrindo todos os estados da tela (carregando, vazio, erro, sucesso).
 4. Escreva testes com Testing Library focados em comportamento do usuário.
 5. Durante o desenvolvimento rode só os testes e a checagem de tipos do pacote alterado; rode o comando de pronto completo (`CLAUDE.md`) uma vez, antes do commit final. Antes do push, rode também os verificadores do item: a mutação só no diff com a spec (`forge-mutante`, quando a stack tem leitor de veredito), `shellcheck` no shell tocado e a suíte do item. Meta: até 2 execuções do pronto por entrega. Reporte o resultado real.
+   **CI pago** (`R-CUSTO`): cada push e `gh run rerun` gastam um run; junte os commits e envie pronto, com o comando local verde; rerun pede motivo escrito: falha de infraestrutura no log.
 
 ## Limites
 - Não altere o back-end; necessidade nova na API vai ao resumo final.
