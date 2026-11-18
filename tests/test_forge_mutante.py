@@ -1062,6 +1062,21 @@ class Cobertura(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertEqual(sorted(x.split(" · ")[0] for x in r.stdout.splitlines()[1:]), ["isenta velha"] + ["sem mutante"] * 3)
 
+    def test_isenta_de_trecho_comum_nao_libera_outra_condicao_copia_fora_do_hunk_nem_comentario(self):  # v0478 E17.5, S1
+        duas = "def f(x, y):\n    if x.startswith('adm'):\n        return 1\n    if y.startswith('../') or y.startswith('/'):\n        return 2\n"
+        casos = {"outra condição": ({}, duas, 2), "comentário": ({}, "# x > 100 and y\n" + self.COND2, 1),
+                 "cópia fora do hunk": ({"lib.py": self.COND2}, self.COND2 + self.COND2, 1)}  # muda a base: por último
+        trechos = {"outra condição": ".startswith(", "cópia fora do hunk": "x > 100 and y", "comentário": "x > 100 and y"}
+        for nome, (base, texto, condicoes) in casos.items():
+            with self.subTest(nome):
+                if base:
+                    self.salvar(base, base=True)
+                self.salvar({"lib.py": texto, **self.isentas([{**self.ISENTA, "trecho": trechos[nome]}])})
+                r = self.cobertura()
+                git(self.dir, "reset", "-q", "--hard", self.base)
+                tipos = [x.split(" · ")[0] for x in r.stdout.splitlines()[1:] if not x.startswith("por quê")]
+                self.assertEqual((r.returncode, tipos), (1, ["sem mutante"] * condicoes + ["isenta velha"]), r.stdout + r.stderr)
+
     def test_isenta_invalida_e_mais_de_oito_somadas_sao_2(self):
         ruins = [{**self.ISENTA, "trecho": "x > 100"}, {**self.ISENTA, "motivo": "n/a"}, {**self.ISENTA, "arquivo": "tests/test_a.py"},
                  {**self.ISENTA, "extra": "x"}, {**self.ISENTA, "motivo": 20}, "x"]

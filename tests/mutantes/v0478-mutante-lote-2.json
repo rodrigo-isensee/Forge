@@ -4,10 +4,10 @@
   "mutantes": [
     {
       "id": "M9",
-      "guarda": "o trecho existe no arquivo (mutante: o trecho ausente cruza)",
+      "guarda": "o trecho ocorre dentro do nó (mutante: trecho ausente cruza)",
       "arquivo": "bin/forge-mutante",
-      "de": "return onde != -1 and onde + len(trecho) <= fim",
-      "para": "return onde + len(trecho) <= fim",
+      "de": "return no_no and all(",
+      "para": "return True and all(",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_isenta_velha_sai_a_parte_depois_da_cobertura_inteira_e_1"
       ]
@@ -24,12 +24,12 @@
     },
     {
       "id": "M11",
-      "guarda": "a condição nova usa a isenta por ocorrência (mutante: o modo da apagada repetida)",
+      "guarda": "só as cópias de mesmo texto entram (mutante: toda condição nova do arquivo)",
       "arquivo": "bin/forge-mutante",
-      "de": "depois, de, ate, False, nova=True)",
-      "para": "depois, de, ate, False, nova=False)",
+      "de": "for c in mudadas if c[0] == texto]",
+      "para": "for c in mudadas]",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_vale_para_cada_condicao_nova_com_o_mesmo_trecho"
+        "tests.test_forge_mutante.Cobertura.test_isenta_de_trecho_comum_nao_libera_outra_condicao_copia_fora_do_hunk_nem_comentario"
       ]
     },
     {
@@ -37,7 +37,7 @@
       "guarda": "a isenta cruza pelo modo da condição nova (mutante: o modo nunca chega a cruza)",
       "arquivo": "bin/forge-mutante",
       "de": "if cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto, nova):",
-      "para": "if cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto, False):",
+      "para": "if cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto, None):",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_isenta_vale_para_cada_condicao_nova_com_o_mesmo_trecho"
       ]
