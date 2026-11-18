@@ -245,5 +245,16 @@ class NoBriefGerar(ComRepositorio):
         self.assertIn("pr: tamanho: 151 linhas de código, acima do teto de 150", erro)
 
 
+class CorpoDoPr(unittest.TestCase):
+    def pr(self, dados):
+        with mock.patch.object(subprocess, "run", return_value=subprocess.CompletedProcess([], 0, json.dumps(dados), "")):
+            return fc.pr_da_branch(RAIZ, "melhoria/x", corpo=True)[0]
+
+    def test_corpo_nulo_do_pr_vira_texto_vazio(self):
+        base = {"number": 1, "state": "OPEN", "headRefOid": "a" * 40}
+        self.assertEqual(self.pr({**base, "body": None})["body"], "")
+        self.assertEqual(self.pr({**base, "body": "oi"})["body"], "oi")
+
+
 if __name__ == "__main__":
     unittest.main()
