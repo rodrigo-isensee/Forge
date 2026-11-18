@@ -41,6 +41,26 @@
       "testes": [
         "tests.test_ferramentas_portoes.FerramentasDosPortoes.test_pipx_recebe_a_versao_fixada"
       ]
+    },
+    {
+      "id": "M5",
+      "guarda": "falha do install do binário solto (sem tar) não grava instalou",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "elif install -m 755 \"$tmp/$arq\" \"$bin/$nome\"; then ok=1; else ok=0; fi",
+      "para": "elif install -m 755 \"$tmp/$arq\" \"$bin/$nome\"; then ok=1; else ok=1; fi",
+      "testes": [
+        "tests.test_ferramentas_portoes.FerramentasDosPortoes.test_falha_do_install_sem_tar_vira_falta_e_nao_grava_instalou"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "só diz instalou quando ok é 1",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "if [ \"$ok\" = 1 ]; then fez",
+      "para": "if true; then fez",
+      "testes": [
+        "tests.test_ferramentas_portoes.FerramentasDosPortoes.test_falha_do_install_sem_tar_vira_falta_e_nao_grava_instalou"
+      ]
     }
   ]
 }

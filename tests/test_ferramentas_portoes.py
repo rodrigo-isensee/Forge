@@ -99,6 +99,16 @@ case "$saida" in *somas) printf '%s  %s\\n' '{soma}' "${{ARQ:-x}}" > "$saida" ;;
         self.assertNotIn("instalou actionlint", r.stdout)
         self.assertFalse((self.home / ".local" / "bin" / "actionlint").exists())
 
+    def test_falha_do_install_sem_tar_vira_falta_e_nao_grava_instalou(self):
+        """Binário solto (sem tar): o install falha com a soma certa; vira falta, sem instalou e sem arquivo."""
+        copia = self.script_com_fixas(OSV=SOMA_FALSA)
+        self.curl_falso(SOMA_FALSA)
+        executavel(self.falsos / "install", "#!/bin/bash\nexit 1\n")
+        r = self.rodar_copia(copia, "--ferramentas", ARQ="osv-scanner_linux_amd64")
+        self.assertIn("falta: instalar osv-scanner (a extração ou a cópia falhou", r.stdout)
+        self.assertNotIn("instalou osv-scanner", r.stdout)
+        self.assertFalse((self.home / ".local" / "bin" / "osv-scanner").exists())
+
     def test_soma_certa_instala_o_binario(self):
         copia = self.script_com_fixas(OSV=SOMA_FALSA)
         self.curl_falso(SOMA_FALSA)
