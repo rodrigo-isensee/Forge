@@ -1,0 +1,36 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M8",
+      "guarda": "T1: cada arquivo sem teste precisa estar citado (mutante: nenhum falta)",
+      "arquivo": "tests/catraca.py",
+      "de": "faltam = [n for n in achados if not citado(n, texto)]",
+      "para": "faltam = []",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_arquivo_nao_citado_ou_so_como_pedaco_de_outro_barra"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "T1: a mensagem diz quais arquivos faltam (mutante: sempre a do motivo curto)",
+      "arquivo": "tests/catraca.py",
+      "de": "else \"\") if faltam",
+      "para": "else \"\") if False",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_codigo_sem_teste_e_sem_secao_barra"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "T1: mais de 5 arquivos, a mensagem resume (mutante: nunca resume)",
+      "arquivo": "tests/catraca.py",
+      "de": "len(faltam) > 5",
+      "para": "len(faltam) > 50",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_muitos_arquivos_resumem_a_lista"
+      ]
+    }
+  ]
+}

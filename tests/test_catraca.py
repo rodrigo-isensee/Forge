@@ -1958,6 +1958,12 @@ class T1NoTextoDoPr(Base):
     def test_secao_com_o_arquivo_e_o_motivo_passa(self):
         self.assertEqual(self.t1(), [])
 
+    def test_muitos_arquivos_resumem_a_lista(self):
+        for i in range(6):
+            self.repo.escreve(f"bin/app{i}", "#!/bin/sh\necho oi\n")
+        achadas = self.t1("")
+        self.assertTrue(achadas and "sem citar bin/app, bin/app0, bin/app1, bin/app2, bin/app3 e mais 2 (T1)" in achadas[0], achadas)
+
     def test_motivo_curto_barra(self):
         achadas = self.t1("## Sem teste\nbin/app: trivial\n")
         self.assertTrue(achadas and "com motivo de menos de 20" in achadas[0], achadas)

@@ -24,10 +24,10 @@
     },
     {
       "id": "M3",
-      "guarda": "T1: o diff dos testes ilegível barra (mutante: segue sem ler)",
+      "guarda": "T1: o diff dos testes ilegível barra (mutante: segue como se nada faltasse)",
       "arquivo": "tests/catraca.py",
-      "de": "if achados is None:",
-      "para": "if False:",
+      "de": "raise ErroDeGit(msg_falha_git(\"o `git diff` dos testes falhou (T1)\"))",
+      "para": "return []",
       "testes": [
         "tests.test_catraca.T1NoTextoDoPr.test_diff_dos_testes_ilegivel_barra"
       ]
