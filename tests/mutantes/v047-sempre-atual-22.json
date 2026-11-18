@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S89",
+      "guarda": "forge_sempre_atual.py:584 decide por `self.url is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if self.url is None:",
+      "para": "if not (self.url is None):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S90",
+      "guarda": "forge_sempre_atual.py:589 decide por `calculo is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if calculo is None:",
+      "para": "if not (calculo is None):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S91",
+      "guarda": "forge_sempre_atual.py:593 decide por `fix and fix[\"motivo\"] == \"dono\" and ultima > alvo`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if fix and fix[\"motivo\"] == \"dono\" and ultima > alvo:",
+      "para": "if not (fix and fix[\"motivo\"] == \"dono\" and ultima > alvo):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S92",
+      "guarda": "forge_sempre_atual.py:594 decide por `fix.get(\"avisada\") != versao_texto(ultima)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if fix.get(\"avisada\") != versao_texto(ultima):",
+      "para": "if not (fix.get(\"avisada\") != versao_texto(ultima)):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_do_dono_avisa_uma_vez_por_versao_nova"
+      ]
+    },
+    {
+      "id": "S93",
+      "guarda": "forge_sempre_atual.py:599 decide por `versao_tupla(e[\"versao\"]) == alvo`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if versao_tupla(e[\"versao\"]) == alvo:",
+      "para": "if not (versao_tupla(e[\"versao\"]) == alvo):",
+      "testes": [
+        "tests.test_sempre_atual.VoltaDentro.test_fixacao_do_dono_e_respeitada"
+      ]
+    },
+    {
+      "id": "S94",
+      "guarda": "forge_sempre_atual.py:603 decide por `e[\"chave\"] in self.res`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "for e in livres:\n            if e[\"chave\"] in self.res:\n                continue",
+      "para": "for e in livres:\n            if not (e[\"chave\"] in self.res):\n                continue",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S95",
+      "guarda": "forge_sempre_atual.py:606 decide por `atual == alvo`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if atual == alvo:",
+      "para": "if not (atual == alvo):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S96",
+      "guarda": "forge_sempre_atual.py:612 decide por `not pendentes`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not pendentes:",
+      "para": "if pendentes:",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    }
+  ]
+}

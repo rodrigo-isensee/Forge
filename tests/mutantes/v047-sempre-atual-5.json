@@ -1,0 +1,87 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A9",
+      "guarda": "o que foi dito fica marcado no estado",
+      "arquivo": "hooks/doutor.py",
+      "de": "        if mudou:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_doutor.SempreAtualNoStop.test_aviso_sai_uma_vez_e_fica_marcado_no_estado",
+        "tests.test_oraculo_sempre_atual.Avisos.test_aviso_pendente_da_volta_sai_uma_vez_no_stop"
+      ]
+    },
+    {
+      "id": "A10",
+      "guarda": "a falha de E/S no estado da ferramenta não come o aviso do doutor",
+      "arquivo": "hooks/doutor.py",
+      "de": "    except OSError as erro:  # a falha ao ler ou gravar o estado da ferramenta",
+      "para": "    except ValueError as erro:  # a falha ao ler ou gravar o estado da ferramenta",
+      "testes": [
+        "tests.test_doutor.SempreAtualNoStop.test_falha_ao_ler_o_estado_nao_come_o_aviso_do_doutor"
+      ]
+    },
+    {
+      "id": "A11",
+      "guarda": "modelo em dia com o plugin não é atraso",
+      "arquivo": "bin/forge-check",
+      "de": "    if not atual or not plugin or atual >= plugin:\n        return None",
+      "para": "    if not atual or not plugin:\n        return None",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_branch_do_modelo_pronta_sem_pr"
+      ]
+    },
+    {
+      "id": "A12",
+      "guarda": "sem atraso do modelo, nenhuma migração pendente",
+      "arquivo": "bin/forge-check",
+      "de": "    if par is None:\n        return []",
+      "para": "    if False:\n        return []",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_aviso_de_migracao_pendente"
+      ]
+    },
+    {
+      "id": "A13",
+      "guarda": "sem atraso do modelo, nenhuma branch do modelo",
+      "arquivo": "bin/forge-check",
+      "de": "    if par is None:\n        return None\n    ramo",
+      "para": "    if False:\n        return None\n    ramo",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_branch_do_modelo_pronta_sem_pr"
+      ]
+    },
+    {
+      "id": "A14",
+      "guarda": "git que falha não derruba o forge-check",
+      "arquivo": "bin/forge-check",
+      "de": "    except (OSError, subprocess.TimeoutExpired):\n        return None\n    return ramo",
+      "para": "    except (OSError, subprocess.TimeoutExpired):\n        raise\n    return ramo",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_branch_do_modelo_pronta_sem_pr"
+      ]
+    },
+    {
+      "id": "A15",
+      "guarda": "branch já enviada (origin) não é 'sem PR'",
+      "arquivo": "bin/forge-check",
+      "de": "    return ramo if local == 0 and remoto != 0 else None",
+      "para": "    return ramo if local == 0 else None",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_branch_do_modelo_pronta_sem_pr"
+      ]
+    },
+    {
+      "id": "A16",
+      "guarda": "a branch pronta aparece no aviso",
+      "arquivo": "bin/forge-check",
+      "de": "    if ramo := branch_do_modelo_sem_pr(raiz):",
+      "para": "    if ramo := None:",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_linha_da_branch_do_modelo_troca_o_rode_forge_upgrade"
+      ]
+    }
+  ]
+}
