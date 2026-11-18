@@ -950,7 +950,9 @@ class MapaCobreImportacaoEVarredura(unittest.TestCase):
 class MapaDoForgeCheck(unittest.TestCase):
     """O mapa de `bin/forge-check` lista todo módulo que importa ou executa o script (FORGE-TESTES-MAPA)."""
 
-    CITA = re.compile(r'bin/forge-check|"bin"\s*[,/]\s*"forge-check"|joinpath\("bin",\s*"forge-check"\)')
+    # CITA-BIN-BARRA (v0478 E18.1): também `BIN / "forge-check"`, a constante da pasta bin/ dividida pelo nome do script
+    CITA = re.compile(r'bin/forge-check|"bin"\s*[,/]\s*"forge-check"|joinpath\("bin",\s*"forge-check"\)'
+                      r'|\bBIN\s*/\s*["\']forge-check["\']')
     IMPORTA = re.compile(r"^\s*(?:from|import)\s+(test_[a-z0-9_]+)\b", re.M)
     IMPORTA_APOIO = re.compile(r"^\s*(?:from|import)\s+(apoio_[a-z0-9_]+)\b", re.M)
 
@@ -980,6 +982,15 @@ class MapaDoForgeCheck(unittest.TestCase):
         listados = set(carregar().FORGE_CHECK)
         self.assertEqual(sorted(usam - listados), [], "faltam no mapa FORGE_CHECK")
         self.assertEqual(sorted(listados - usam), [], "sobram no mapa FORGE_CHECK")
+
+    def test_cita_reconhece_as_formas_do_caminho_do_script(self):  # CITA-BIN-BARRA (v0478 E18.1)
+        for texto in ('BIN / "forge-check"', "BIN/'forge-check'", 'RAIZ / "bin/forge-check"', 'RAIZ / "bin" / "forge-check"',
+                      'RAIZ.joinpath("bin", "forge-check")'):
+            with self.subTest(texto):
+                self.assertTrue(self.CITA.search(texto))
+        for texto in ('BIN / "forge-changelog"', 'SBIN / "forge-check"', 'BIN / "forge_check.py"'):
+            with self.subTest(texto):
+                self.assertIsNone(self.CITA.search(texto))
 
     def test_erros_no_brief_roda_quando_so_o_forge_check_muda(self):
         modo, modulos = carregar().planejar(["bin/forge-check"], RAIZ)
