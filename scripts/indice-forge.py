@@ -108,7 +108,7 @@ def main(argv):
         return 2
     texto = gerar(RAIZ)
     destino = RAIZ / INDICE
-    if argv:
+    if argv == ["--conferir"]:
         em_dia = destino.is_file() and destino.read_text(encoding="utf-8") == texto
         print(f"{INDICE}: {'em dia' if em_dia else 'desatualizado; rode scripts/indice-forge.py'}")
         return 0 if em_dia else 1

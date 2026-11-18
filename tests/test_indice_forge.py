@@ -49,6 +49,14 @@ class IndiceDoForge(unittest.TestCase):
                 self.assertIn(f"| `{Path(caminho).name}` |", texto)
         self.assertIn("| `indice-forge.py` | índice do Forge", texto)
 
+    def test_lista_dada_entra_uma_vez_na_secao_da_pasta(self):
+        texto = self.indice.gerar(RAIZ, ["bin/forge-testes"])
+        self.assertIn("Os 1 arquivos versionados", texto)
+        linha = "| `forge-testes` | teste dirigido durante a iteração do autor"
+        self.assertEqual(texto.count(linha), 1)
+        self.assertLess(texto.index("## `bin/`"), texto.index(linha))
+        self.assertLess(texto.index(linha), texto.index("## `hooks/`"))
+
     def test_conferir_da_rc_0_em_dia(self):
         r = subprocess.run([sys.executable, "-I", str(SCRIPT), "--conferir"], capture_output=True, text=True,
                            env=ambiente_limpo(), cwd=RAIZ)

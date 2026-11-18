@@ -4,63 +4,62 @@
   "mutantes": [
     {
       "id": "M1",
-      "guarda": "main: argumento fora do uso dá rc 2 e não grava",
-      "arquivo": "scripts/indice-forge.py",
-      "de": "    if argv not in ([], [\"--conferir\"]):",
-      "para": "    if argv not in ([], [\"--conferir\"], [\"--gravar\"], [\"--conferir\", \"x\"]):",
-      "testes": [
-        "tests.test_indice_forge.Main.test_argumento_desconhecido_da_rc_2_e_nao_grava"
-      ]
-    },
-    {
-      "id": "M2",
-      "guarda": "main: --conferir não grava",
-      "arquivo": "scripts/indice-forge.py",
-      "de": "    if argv:",
-      "para": "    if not argv:",
-      "testes": [
-        "tests.test_indice_forge.Main.test_conferir_desatualizado_da_rc_1_e_nao_grava",
-        "tests.test_indice_forge.Main.test_sem_argumento_grava"
-      ]
-    },
-    {
-      "id": "M3",
-      "guarda": "conferir: sem o arquivo não está em dia",
-      "arquivo": "scripts/indice-forge.py",
-      "de": "        em_dia = destino.is_file() and destino.read_text(encoding=\"utf-8\") == texto",
-      "para": "        em_dia = not destino.is_file() or destino.read_text(encoding=\"utf-8\") == texto",
-      "testes": [
-        "tests.test_indice_forge.Main.test_conferir_sem_arquivo_da_rc_1"
-      ]
-    },
-    {
-      "id": "M4",
-      "guarda": "conferir: desatualizado dá rc 1",
-      "arquivo": "scripts/indice-forge.py",
-      "de": "        return 0 if em_dia else 1",
-      "para": "        return 0",
-      "testes": [
-        "tests.test_indice_forge.Main.test_conferir_desatualizado_da_rc_1_e_nao_grava"
-      ]
-    },
-    {
-      "id": "M5",
       "guarda": "arquivos: as GIT_* herdadas não desviam o git (AR-7)",
       "arquivo": "scripts/indice-forge.py",
-      "de": "    ambiente = {k: v for k, v in os.environ.items() if not k.startswith(\"GIT_\")}",
-      "para": "    ambiente = dict(os.environ)",
+      "de": "if not k.startswith(\"GIT_\")}",
+      "para": "if not k.startswith(\"GIT_X\")}",
       "testes": [
         "tests.test_indice_forge.Arquivos.test_git_dir_herdado_nao_desvia_a_leitura"
       ]
     },
     {
-      "id": "M6",
+      "id": "M2",
       "guarda": "arquivos: só o primeiro nível das pastas",
       "arquivo": "scripts/indice-forge.py",
-      "de": "    return sorted(c for c in saida.split(\"\\0\") if c and len(Path(c).parts) == 2)",
-      "para": "    return sorted(c for c in saida.split(\"\\0\") if c)",
+      "de": "if c and len(Path(c).parts) == 2)",
+      "para": "if c and len(Path(c).parts) >= 2)",
       "testes": [
         "tests.test_indice_forge.Arquivos.test_so_versionados_do_primeiro_nivel_das_pastas"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "python: pelo nome .py ou pelo shebang",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "    return caminho.endswith(\".py\") or bool(linhas) and linhas[0].startswith(\"#!\") and \"python\" in linhas[0]",
+      "para": "    return caminho.endswith(\".py\") or bool(linhas) and linhas[0].startswith(\"#!\") and \"pythonX\" in linhas[0]",
+      "testes": [
+        "tests.test_indice_forge.PrimeiraLinhaDeDoc.test_python_pela_docstring_sem_o_prefixo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "python: a doc vem da docstring",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "    if e_python(caminho, linhas):",
+      "para": "    if not e_python(caminho, linhas):",
+      "testes": [
+        "tests.test_indice_forge.PrimeiraLinhaDeDoc.test_python_pela_docstring_sem_o_prefixo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "python: sem docstring fica sem doc",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "(ast.get_docstring(ast.parse(texto)) or \"\")",
+      "para": "(ast.get_docstring(ast.parse(texto)) or \"x\")",
+      "testes": [
+        "tests.test_indice_forge.PrimeiraLinhaDeDoc.test_python_pela_docstring_sem_o_prefixo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "shell: só arquivo com shebang",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "    elif linhas and linhas[0].startswith(\"#!\"):",
+      "para": "    elif linhas and not linhas[0].startswith(\"#!\"):",
+      "testes": [
+        "tests.test_indice_forge.PrimeiraLinhaDeDoc.test_sem_shebang_nem_python_fica_sem_doc"
       ]
     },
     {
@@ -68,7 +67,7 @@
       "guarda": "shell: o comentário acaba na primeira linha de código",
       "arquivo": "scripts/indice-forge.py",
       "de": "            if not linha.startswith(\"#\"):",
-      "para": "            if not linha.strip():",
+      "para": "            if not linha.startswith(\"#X\"):",
       "testes": [
         "tests.test_indice_forge.PrimeiraLinhaDeDoc.test_shell_pelo_primeiro_comentario_depois_do_shebang"
       ]
@@ -78,7 +77,7 @@
       "guarda": "shell: diretiva do shellcheck não é doc",
       "arquivo": "scripts/indice-forge.py",
       "de": "            if not linha.lstrip(\"# \").startswith(\"shellcheck\"):",
-      "para": "            if True:",
+      "para": "            if not linha.lstrip(\"# \").startswith(\"shellcheckX\"):",
       "testes": [
         "tests.test_indice_forge.PrimeiraLinhaDeDoc.test_shell_pelo_primeiro_comentario_depois_do_shebang"
       ]
