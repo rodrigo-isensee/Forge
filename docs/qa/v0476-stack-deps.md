@@ -114,7 +114,6 @@ Execução (clone do head 8727471d, `TMPDIR` único, sandbox):
 - Vermelho: o delta não traz teste novo de regra; a mudança em `test_forge.py` conserta teste que o CI marcava vermelho por `instalar.json` fora da forma do pacote. n/a.
 - Suíte inteira: check-run `bateria` do CI do PR 660 no mesmo sha; não citada daqui.
 
-## Achados
-Nenhum aberto.
+Bugs: nenhum. Acessibilidade e E2E: n/a (CLI). Achados abertos: nenhum.
 
-Bugs: nenhum. Acessibilidade e E2E: n/a (CLI).
+## Achados
