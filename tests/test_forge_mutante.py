@@ -103,6 +103,8 @@ class Veredito(unittest.TestCase):
         self.assertEqual(self.f.veredito(["tests.m.T"], [{"id": "tests.m.T.t", "res": "falha"}, pulado]), ("morreu", ""))
         self.assertEqual(self.f.veredito(["tests.m.T.t"], [pulado])[0], "inválido")
         self.assertEqual(self.f.veredito(["tests.m.T"], [{"id": "tests.m.T.t", "res": "erro"}, pulado])[0], "inválido")
+        self.assertEqual(self.f.veredito(["tests.m.T"], [{"id": "tests.m.T.t", "res": "erro"}, pulado], erro_mata=True),
+                         ("morreu", self.f.MORREU_POR_ERRO))
 
     def test_registro_marca_o_erro_de_carga(self):  # MUTANTE-ERRO-INVALIDO
         class Falso:

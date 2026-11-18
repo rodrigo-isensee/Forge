@@ -313,11 +313,9 @@ def veredito(declarados, registro, erro_mata=False):
                 "inválido", f"teste declarado que não rodou: {declarado}")
     if any(e["res"] == "falha" for e in registro):
         return "morreu", ""
-    if erros:
-        return "morreu", MORREU_POR_ERRO
-    if pulados:  # os que rodaram passaram: o sobrevivente possível fica dito na linha, não escondido
+    if pulados and not erros:  # os que rodaram passaram: o sobrevivente possível fica dito na linha, não escondido
         return sem_veredito[0], sem_veredito[1] + "; os que rodaram não o mataram"
-    return "sobreviveu", ""
+    return ("morreu", MORREU_POR_ERRO) if erros else ("sobreviveu", "")
 
 
 # --- spec ----------------------------------------------------------------------------------------------------------
