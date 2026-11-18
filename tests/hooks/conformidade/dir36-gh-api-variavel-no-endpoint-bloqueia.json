@@ -1,0 +1,24 @@
+{
+  "descricao": "Diretriz 36 (R-CONTRIB, E3.106): `gh api -X POST $E`: o hook não lê o repositório do endpoint: falha fechado.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api -X POST $E -f head=x"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB"
+  }
+}

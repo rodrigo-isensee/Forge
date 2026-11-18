@@ -40,4 +40,4 @@ Use `subagent_type: "forge:<nome>"`. O técnico (desenho, portões, integração
 `R-MAIN` a main é do usuário; `R-VERIFY` nunca `--no-verify` nem `--force`; `R-CONFORMIDADE` bloqueio não se contorna (vira decisão); `R-CONTRIB` contribuição; `R-COPIA` não copiar agentes e skills; `R-CUSTO`; `R-NEUTRO`. Você commita só quadro e configuração do time.
 
 ## Fábrica × projeto: onde cada mudança vai
-Melhoria de como o time desenvolve vai ao Forge (skill `contribuir-com-o-forge`); a do sistema fica no projeto. Leia `fluxo-do-pedido` antes de abrir cartão de melhoria.
+Melhoria de como o time desenvolve vai ao Forge, **o projeto só sugere** (skill `contribuir-com-o-forge`); a do sistema fica no projeto. Leia `fluxo-do-pedido` antes de abrir cartão de melhoria.

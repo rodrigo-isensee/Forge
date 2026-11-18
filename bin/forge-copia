@@ -7,12 +7,17 @@ A branch de trabalho sai da base de integração com --no-track (o .git/config �
 link simbólico), a própria pasta, destino já ocupado, e nome de branch ou base que pareça opção. Nunca força nada.
 Com --instalar, depois de criar, roda na cópia os comandos de stacks/<stack>/instalar.json (lista de argv, sem shell) das stacks cujos
 arquivos de `detecta` (o lockfile) existem na cópia, com o ambiente sem credencial (GH_TOKEN e afins); sem stack detectada avisa e sai 0; comando ausente ou falho: sai 1 (a cópia fica).
+Disco (MP6): com o disco da pasta liberada acima do limiar de `forge_disco.py` (ou ilegível), recusa e manda limpar, antes de criar.
 Saída: 0 criou; 1 git ou instalação falhou; 2 recusou."""
 import argparse
 import json
 import os
 import subprocess
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from forge_disco import LIMIAR_DISCO, uso_do_disco  # noqa: E402
 
 PASTA = ".forge-contrib"  # relativa ao HOME; a mesma do allowWrite do modelo de projeto
 
@@ -106,6 +111,13 @@ def main(argv=None):
     real, motivo = destino_dentro(a.destino)
     if motivo:
         return recusa(motivo)
+    try:
+        uso = uso_do_disco(real)
+    except OSError as erro:
+        return recusa(f"não consegui medir o disco ({erro})")
+    if uso > LIMIAR_DISCO:
+        return recusa(f"disco com {uso}% de uso, acima de {LIMIAR_DISCO}%: limpe as cópias de itens fechados "
+                      "(forge-fechar <pedido> --ref <branch> --limpar) antes de criar outra")
     if a.modo == "worktree":
         if git("worktree", "add", "--no-track", "-b", a.branch, "--", real, a.base):
             return 1

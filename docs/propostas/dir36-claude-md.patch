@@ -1,0 +1,8 @@
+diff --git a/.claude/CLAUDE.md b/.claude/CLAUDE.md
+index 50efd34..a785cfc 100644
+--- a/.claude/CLAUDE.md
++++ b/.claude/CLAUDE.md
+@@ -13,2 +13,2 @@
+-- **Retroalimentação:** melhorias descobertas em qualquer projeto chegam aqui por PR na `develop` (ver "Fábrica × projeto" em `agents/jarvis.md`).
++- **Retroalimentação** (`R-CONTRIB`, diretriz 36): projeto nunca mexe no Forge, só sugere. A melhoria vista num projeto vira sugestão anonimizada (`forge sugerir --guardar`) e issue só com a confirmação do dono; esta sessão do Forge a tria para o quadro e a implementa por PR na `develop` (ver "Fábrica × projeto" em `agents/jarvis.md`).
+ - **Neutralidade** (`R-NEUTRO`): nada específico de um projeto (nomes, regras de negócio, stack fixa) entra em agentes, skills, docs ou modelos. O teste `Neutralidade` e a lista `termos_proibidos_hash` em `tests/config.json` garantem isso.

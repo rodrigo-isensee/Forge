@@ -1,0 +1,24 @@
+{
+  "descricao": "V0474-TAG: o valor do --push-option não é refspec (segurança A2 da v0474); a tag v* do Forge só nasce do release.yml. Com a diretriz 36, a sessão de projeto não envia do clone do Forge: a recusa é a do R-CONTRIB pela branch, não a da tag (R-FLUXO).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push --push-option v9 origin melhoria/proj-v047-tema"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/proj",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: push para melhoria/proj-v047-tema"
+  }
+}
