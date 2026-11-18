@@ -10,6 +10,8 @@ Pronto completo: o comando sugerido, que o autor roda antes de entregar e o CI r
 
 Detecção: `package.json`
 
+Instalação na cópia (`forge-copia --instalar`, `instalar.json`): só com `pnpm-lock.yaml` (`pnpm install --frozen-lockfile`); sem o lockfile não instala e avisa, em vez de falhar.
+
 Pronto existente: `package.json` com `"pronto":` → `pnpm run pronto`; `package.json` com `"test":` → `npm test`
 
 Ele precisa rodar, e falhar se algo falhar: lint (ESLint) e formatação (Prettier) · type-check (TypeScript `strict`) · testes unitários e de integração · build. Reporte o resultado real.

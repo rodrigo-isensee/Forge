@@ -6,7 +6,7 @@ A branch de trabalho sai da base de integração com --no-track (o .git/config �
 `templates/projeto/.claude/settings.json` põe em sandbox.filesystem.allowWrite. Recusa destino fora dela (inclusive por `..` ou
 link simbólico), a própria pasta, destino já ocupado, e nome de branch ou base que pareça opção. Nunca força nada.
 Com --instalar, depois de criar, roda na cópia os comandos de stacks/<stack>/instalar.json (lista de argv, sem shell) das stacks cujos
-arquivos de `detecta` existem na cópia; sem stack detectada avisa e sai 0; comando ausente ou falho: sai 1 (a cópia fica).
+arquivos de `detecta` (o lockfile) existem na cópia, com o ambiente sem credencial (GH_TOKEN e afins); sem stack detectada avisa e sai 0; comando ausente ou falho: sai 1 (a cópia fica).
 Saída: 0 criou; 1 git ou instalação falhou; 2 recusou."""
 import argparse
 import json
@@ -45,6 +45,13 @@ def git(*args, cwd=None):
     return subprocess.run(["git", *args], cwd=cwd).returncode
 
 
+def env_sem_credencial(base=None):
+    """Ambiente sem as variáveis de credencial (token do bot, askpass, agente SSH, config injetada do git)."""
+    fora = {"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GIT_ASKPASS", "SSH_AUTH_SOCK", "GIT_CONFIG_COUNT"}
+    return {k: v for k, v in (os.environ if base is None else base).items()
+            if k not in fora and not k.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"))}
+
+
 def instalar(copia):
     """Roda os comandos de instalação das stacks detectadas na cópia. Devolve 0 ou 1."""
     pacotes = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "stacks")
@@ -68,7 +75,7 @@ def instalar(copia):
         for cmd in comandos:
             print(f"forge-copia: instalando ({nome}): {' '.join(cmd)}", file=sys.stderr)
             try:
-                rc = subprocess.run(cmd, cwd=copia).returncode
+                rc = subprocess.run(cmd, cwd=copia, env=env_sem_credencial()).returncode
             except OSError as e:
                 print(f"forge-copia: comando de instalação indisponível ({cmd[0]}): {e.strerror}", file=sys.stderr)
                 return 1
@@ -76,7 +83,7 @@ def instalar(copia):
                 print(f"forge-copia: a instalação falhou (rc={rc}): {' '.join(cmd)}", file=sys.stderr)
                 return 1
     if not achou:
-        print("forge-copia: nenhuma stack detectada na cópia; nada a instalar", file=sys.stderr)
+        print("forge-copia: nenhuma stack detectada na cópia (sem lockfile, `detecta` aponta o lockfile); nada a instalar", file=sys.stderr)
     return 0
 
 

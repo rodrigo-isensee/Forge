@@ -1,1 +1,1 @@
-{"detecta": ["pyproject.toml"], "comandos": [["python3", "-m", "venv", ".venv"], [".venv/bin/python", "-m", "pip", "install", "-e", "."]]}
+{"detecta": ["requirements.lock"], "comandos": [["python3", "-m", "venv", ".venv"], [".venv/bin/python", "-m", "pip", "install", "--require-hashes", "--no-deps", "-r", "requirements.lock"], [".venv/bin/python", "-m", "pip", "install", "--no-deps", "-e", "."]]}

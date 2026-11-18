@@ -216,11 +216,57 @@ class Instalar(Base):
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertFalse((self.fora / "c").exists())
 
+    def test_instalacao_roda_sem_credencial_no_ambiente(self):
+        self.pacote({"detecta": ["marca.txt"], "comandos": [["sh", "-c", "env > ambiente.txt"]]}, "marca.txt")
+        cred = {n: "f" for n in ("GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GIT_ASKPASS", "SSH_AUTH_SOCK")}
+        self.env.update({**cred, "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "user.name", "GIT_CONFIG_VALUE_0": "v"})
+        d = self.pasta / "i11"
+        r = self.roda(d, "--instalar")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        nomes = {l.split("=", 1)[0] for l in (d / "ambiente.txt").read_text().splitlines()}
+        self.assertIn("HOME", nomes)
+        for n in (*cred, "GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0"):
+            self.assertNotIn(n, nomes)
+
+    def test_ambiente_da_instalacao_mantem_o_resto(self):
+        self.pacote({"detecta": ["marca.txt"], "comandos": [["sh", "-c", 'echo "$MINHA_VAR" > v.txt']]}, "marca.txt")
+        self.env["MINHA_VAR"] = "ok"
+        d = self.pasta / "i12"
+        self.assertEqual(self.roda(d, "--instalar").returncode, 0)
+        self.assertEqual((d / "v.txt").read_text().strip(), "ok")
+
     def test_pacotes_reais_declaram_instalar_valido(self):
+        stacks = list((BIN.parent.parent / "stacks").iterdir())
+        self.assertGreaterEqual(len(stacks), 2)
+        for stack in stacks:
+            spec = json.loads((stack / "instalar.json").read_text())
+            self.assertIsInstance(spec["detecta"], list, stack.name)
+            self.assertTrue(spec["detecta"] and spec["comandos"], stack.name)
+            self.assertTrue(all(isinstance(c, list) and c and all(isinstance(x, str) for x in c) for c in spec["comandos"]), stack.name)
+
+    def test_todo_instalar_json_usa_modo_congelado_ou_hash_e_detecta_o_lockfile(self):
         for stack in (BIN.parent.parent / "stacks").iterdir():
             spec = json.loads((stack / "instalar.json").read_text())
-            self.assertTrue(spec["detecta"] and spec["comandos"], stack.name)
-            self.assertTrue(all(isinstance(c, list) and c for c in spec["comandos"]), stack.name)
+            self.assertTrue(all("lock" in f for f in spec["detecta"]), f"{stack.name}: detecta tem de apontar o lockfile")
+            instala = [c for c in spec["comandos"] if "install" in c]
+            self.assertTrue(instala, stack.name)
+            for c in instala:
+                if c[0] == "pnpm" or c[0] == "npm":
+                    self.assertTrue("--frozen-lockfile" in c or c[:2] == ["npm", "ci"], f"{stack.name}: {c}")
+                else:
+                    self.assertTrue("--no-deps" in c or "--require-hashes" in c, f"{stack.name}: {c}")
+                    if "-r" in c:
+                        self.assertIn("--require-hashes", c, stack.name)
+                        self.assertIn("--no-deps", c, stack.name)
+                    else:
+                        self.assertIn("--no-deps", c, stack.name)  # pacote local sem resolver dependência
+
+    def test_instalacao_real_so_com_lockfile(self):
+        # o detecta real nunca aponta o manifesto: cópia só com o manifesto não instala
+        for stack in (BIN.parent.parent / "stacks").iterdir():
+            spec = json.loads((stack / "instalar.json").read_text())
+            self.assertNotIn("package.json", spec["detecta"])
+            self.assertNotIn("pyproject.toml", spec["detecta"])
 
 
 if __name__ == "__main__":
