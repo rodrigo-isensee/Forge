@@ -991,12 +991,12 @@ class Cobertura(unittest.TestCase):
                 self.assertEqual(r.stdout.splitlines()[1:], [f"não coberto: {nome}"])
                 self.salvar({nome: None})
 
-    def test_isenta_para_arquivo_de_shell_e_solta_e_sai_2(self):
+    def test_isenta_para_arquivo_de_shell_e_velha_e_sai_1(self):  # v0478 E17.1: era rc 2 e escondia a cobertura
         self.salvar({"run.sh": "#!/bin/sh\nif [ -f /etc/x ]; then exit 1; fi\n",
                      **self.isentas([{"arquivo": "run.sh", "trecho": "[ -f /etc/x ]", "motivo": self.MOTIVO}])})
         r = self.cobertura()
-        self.assertEqual(r.returncode, 2)
-        self.assertIn("isenta que não cruza", r.stderr)
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (1, ["não coberto: run.sh",
+                         "isenta velha · tests/mutantes/i.json: run.sh · não cruza condição listada: '[ -f /etc/x ]'"]), r.stderr)
 
     MOTIVO = "mensagem de erro sem efeito"
     ISENTA = {"arquivo": "lib.py", "trecho": "x > 100 and y", "motivo": MOTIVO}
@@ -1016,10 +1016,9 @@ class Cobertura(unittest.TestCase):
         r = self.cobertura()
         self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (0, [f"isenta · lib.py:2(base) · {self.MOTIVO}"]), r.stderr)
 
-    def test_isenta_que_nao_cruza_condicao_listada_ou_nao_casa_uma_vez_e_2(self):
+    def test_isenta_velha_sai_a_parte_depois_da_cobertura_inteira_e_1(self):  # v0478 E17.1: era rc 2 sem listar nada
         casos = {"coberta por mutante": ({"lib.py": self.COND2, "tests/mutantes/i.json": json.dumps({"pedido": "x", "mutantes": [
                      mutante(de="if x > 100 and y:", para="if x > 100 or y:")], "isentas": [self.ISENTA]})}),
-                 "trecho duas vezes": {"lib.py": self.COND2 + self.COND2, **self.isentas([self.ISENTA])},
                  "trecho fora do nó": {"lib.py": self.COND2, **self.isentas([{**self.ISENTA, "trecho": "x = 1\nif x > 100"}])},
                  "outro arquivo": {"lib.py": self.COND2, **self.isentas([{**self.ISENTA, "arquivo": "outro.py"}])},
                  "trecho além do nó": {"lib.py": self.COND2, **self.isentas([{**self.ISENTA, "trecho": "x > 100 and y:\n    x = 2"}])},
@@ -1029,8 +1028,23 @@ class Cobertura(unittest.TestCase):
                 self.salvar(arquivos)
                 r = self.cobertura()
                 git(self.dir, "reset", "-q", "--hard", self.base)
-                self.assertEqual(r.returncode, 2, r.stdout)
-                self.assertIn("isenta que não cruza condição listada", r.stderr)
+                linhas = r.stdout.splitlines()[1:]
+                self.assertEqual((r.returncode, len(linhas)), (1, 2), r.stdout + r.stderr)
+                self.assertRegex(linhas[0], r"^(coberta|sem mutante) · lib\.py:2 · ", "a cobertura sumiu")
+                self.assertTrue(linhas[1].startswith("isenta velha · tests/mutantes/i.json: "), linhas)
+                self.assertIn("1 isenta(s) velha(s) no fim da lista", r.stderr)
+
+    def test_isenta_vale_para_cada_condicao_nova_com_o_mesmo_trecho(self):  # v0478 E17.1: era rc 2
+        self.salvar({"lib.py": self.COND2 + self.COND2, **self.isentas([self.ISENTA])})
+        r = self.cobertura()
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (0, [f"isenta · lib.py:2 · {self.MOTIVO}",
+                         f"isenta · lib.py:5 · {self.MOTIVO}"]), r.stderr)
+        git(self.dir, "reset", "-q", "--hard", self.base)
+        self.salvar({"lib.py": self.COND2 + "if x > 100 and y:\n    x = 2\n    x = 3\n" + "if x > 100 and y: pass\n",
+                     **self.isentas([{**self.ISENTA, "trecho": "x > 100 and y:\n    x = 2\n    x = 3"}])})
+        r = self.cobertura()  # o trecho além do nó da 1.ª ocorrência não casa a 2.ª, que o contém por inteiro só fora do nó
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertEqual(sorted(x.split(" · ")[0] for x in r.stdout.splitlines()[1:]), ["isenta velha"] + ["sem mutante"] * 3)
 
     def test_isenta_invalida_e_mais_de_oito_somadas_sao_2(self):
         ruins = [{**self.ISENTA, "trecho": "x > 100"}, {**self.ISENTA, "motivo": "n/a"}, {**self.ISENTA, "arquivo": "tests/test_a.py"},
@@ -1215,8 +1229,8 @@ class Cobertura(unittest.TestCase):
         for nome, (lista, arquivos) in casos.items():
             with self.subTest(nome):
                 r = self.por_linha(lista, **arquivos)
-                self.assertEqual(r.returncode, 2, r.stdout)
-                self.assertIn("isenta que não cruza condição listada", r.stderr)
+                self.assertEqual(r.returncode, 1, r.stdout)  # v0478 E17.1: era rc 2, sem a cobertura
+                self.assertTrue(r.stdout.splitlines()[-1].startswith("isenta velha · tests/mutantes/i.json: "), r.stdout)
         r = self.por_linha([self.ISENTA], base=duas, ponta="x = 1\nx = 2\nx = 3\n")
         self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (1, ["apagada · lib.py:4(base) · z > 300 and w",
                          f"isenta · lib.py:2(base) · {self.MOTIVO}"]), "a isenta não solta a outra apagada")

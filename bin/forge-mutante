@@ -45,14 +45,16 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--ids M1,M2] [--pra
            entra coberta noutro arquivo do mesmo diff sai `movida · arq:L(base) · destino:L` e não pede isenta; cada
            coberta serve a uma apagada. `isentas` na spec do diff (até 8 somadas):
            [{"arquivo", "trecho" exato com 8+ não brancos e dentro do nó, "motivo" de 20+ caracteres}] libera a
-           condição sem mutante ou apagada que cruzam, impressa `isenta · arq:L · motivo`; isenta que não cruza condição
-           listada ou cujo trecho não casa uma vez é rc 2. A condição nova casa o trecho único no arquivo; a apagada uma
-           vez casa pelo texto (ISENTA-POR-TEXTO): o trecho uma vez dentro do nó, cada isenta cobre uma condição só, e a
+           condição sem mutante ou apagada que cruzam, impressa `isenta · arq:L · motivo`; a isenta que não cruza condição
+           listada (trecho velho, que não casa, ou fora do nó) sai à parte, depois da cobertura inteira, `isenta velha ·
+           <spec>: <arq> · <trecho>` (rc 1). A condição nova casa o trecho dentro do nó, e a isenta vale para cada
+           condição nova com o mesmo trecho (cada uma sai na sua linha); a apagada mais de uma vez, o trecho único no
+           arquivo; a apagada uma vez casa pelo texto (ISENTA-POR-TEXTO): o trecho uma vez dentro do nó, cada isenta cobre uma condição só, e a
            base nova que desloca a linha não solta a isenta. `linha_base`, de specs antigas, é aceita e ignorada. Para
            a condição `sem mutante`, cada mutante cujo `de` toca o nó sai `por quê · arq:L · <spec>:<id> · <motivo>`
            (o `de` repetido, curto ou a troca fora do nó). O mutante declarado equivalente não prova a condição: coberta
            só por ele sai `só equivalente · arq:L · <spec>:<id> · …`. Saída: 0 = toda condição mudada tem mutante com
-           teste ou isenta, 1 = alguma sem mutante, só com equivalente ou apagada, 2 = entrada inválida (base que não
+           teste ou isenta, 1 = alguma sem mutante, só com equivalente, apagada ou isenta velha, 2 = entrada inválida (base que não
            é commit, diff vazio, spec inválida, arquivo que não faz parse, mais de 300 arquivos, 1 MiB por arquivo, 4 MiB
            de diff, 5000 condições num arquivo ou spec com mais de 64 KiB). A primeira linha é `base= mb= rev=`, para bater com o Base-sha do brief.
   --conferir --base SHA  em segundos, sem rodar teste nem analisar condição: nas specs que o diff adiciona ou edita, o
@@ -578,9 +580,10 @@ def toca(condicao, linhas):
     return any(n in linhas for n in range(condicao[1], condicao[2] + 1))
 
 
-def cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto):
-    """A isenção `i` cruza a condição dos bytes [ini, fim] de `dados`? A condição nova e a apagada mais de uma vez: trecho
-    único no arquivo e dentro do nó. A apagada uma vez (`pelo_texto`, ISENTA-POR-TEXTO): o trecho uma vez na fatia de
+def cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto, nova=False):
+    """A isenção `i` cruza a condição dos bytes [ini, fim] de `dados`? A condição `nova`: uma ocorrência do trecho dentro
+    do nó (a isenta vale para todas as do mesmo trecho, E17.1). A apagada mais de uma vez: trecho único no arquivo e
+    dentro do nó. A apagada uma vez (`pelo_texto`, ISENTA-POR-TEXTO): o trecho uma vez na fatia de
     bytes do nó e a isenção ainda não usada (uma condição por isenta), sem número de linha (`linha_base` é ignorada:
     a base nova desloca a linha, não o texto)."""
     trecho = i["trecho"].encode("utf-8")
@@ -588,16 +591,19 @@ def cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto):
         return False
     if pelo_texto:
         return id(i) not in usadas and dados[ini:fim].count(trecho) == 1
+    if nova:
+        onde = dados.find(trecho, ini)
+        return onde != -1 and onde + len(trecho) <= fim
     onde = dados.find(trecho)
     return dados.count(trecho) == 1 and ini <= onde and onde + len(trecho) <= fim
 
 
-def isenta(isentas, usadas, arquivo, texto, ini, fim, pelo_texto):
+def isenta(isentas, usadas, arquivo, texto, ini, fim, pelo_texto, nova=False):
     """Motivo da isenção que cruza a condição [ini, fim] do `texto` (`cruza`), ou None; marca a isenção como usada: a
-    que não cruza nenhuma condição listada é rc 2."""
+    que não cruza nenhuma condição listada sai `isenta velha` (rc 1)."""
     dados = texto.encode("utf-8")
     for i in isentas:
-        if cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto):
+        if cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto, nova):
             usadas.add(id(i))
             return i["motivo"]
     return None
@@ -634,7 +640,7 @@ def analisar_com_textos(arquivo, hunks, antes, depois, mutantes, isentas, usadas
         casados = [(f"{espec}:{m['id']}", "equivalente" in m) for espec, m in mutantes
                    if casa(m, arquivo, depois, de, ate)]
         cobrem = [nome for nome, equivalente in casados if not equivalente]
-        motivo = None if cobrem else isenta(isentas, usadas, arquivo, depois, de, ate, False)
+        motivo = None if cobrem else isenta(isentas, usadas, arquivo, depois, de, ate, False, nova=True)
         if cobrem:
             textos[len(saida)] = (" ".join(texto.split()), 1)
             saida.append(f"coberta · {arquivo}:{ini} · {', '.join(cobrem)} · declarado, não provado")
@@ -806,14 +812,21 @@ def cobertura(base, rev):
             por_arquivo.append(analisar_com_textos(arquivo, hunks, fonte(arquivo, antes), fonte(arquivo, depois),
                                                    mutantes, isentas, usadas))
         saida += movidas(por_arquivo)
-        soltas = [f"{i['spec']}: {i['arquivo']}" for i in isentas if id(i) not in usadas]
-        if soltas:
-            raise ValueError(f"isenta que não cruza condição listada ou cujo trecho não casa uma vez: {'; '.join(soltas)}")
+        soltas = [i for i in isentas if id(i) not in usadas]
+        if soltas:  # à parte, depois da cobertura inteira (E17.1)
+            print(f"forge-mutante: {len(soltas)} isenta(s) velha(s) no fim da lista: tire da spec ou acerte o trecho.",
+                  file=sys.stderr)
+        saida += [solta(i) for i in soltas]
     except (RuntimeError, ValueError, OSError, SyntaxError) as erro:
         print(f"forge-mutante: {erro}", file=sys.stderr)
         return 2
     sys.stdout.writelines(f"{x}\n" for x in saida)
-    return 1 if any(x.startswith(("sem mutante", "só equivalente", "apagada")) for x in saida) else 0
+    return 1 if any(x.startswith(("sem mutante", "só equivalente", "apagada", "isenta velha")) for x in saida) else 0
+
+
+def solta(i):
+    """A linha da isenta que não cruzou nenhuma condição listada: o trecho velho (não casa) ou fora do nó."""
+    return f"isenta velha · {i['spec']}: {i['arquivo']} · não cruza condição listada: {i['trecho'][:60]!r}"
 
 
 def anotar(segundos, codigo):
