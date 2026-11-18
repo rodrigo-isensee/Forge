@@ -309,8 +309,10 @@ def veredito(declarados, registro, erro_mata=False):
     sem_veredito = ("sem veredito", f"teste declarado pulado: {', '.join(pulados)}")
     for declarado in declarados:
         if not any(cobre(declarado, e["id"]) and e["res"] in ("ok", "falha", "erro") for e in registro):
-            return sem_veredito if pulado_de([declarado], registro) else (
-                "inválido", f"teste declarado que não rodou: {declarado}")
+            if not pulado_de([declarado], registro):
+                return "inválido", f"teste declarado que não rodou: {declarado}"
+            if not (erros or any(e["res"] == "falha" for e in registro)):  # a morte provada vale com o pulo
+                return sem_veredito
     if any(e["res"] == "falha" for e in registro):
         return "morreu", ""
     if pulados and not erros:  # os que rodaram passaram: o sobrevivente possível fica dito na linha, não escondido

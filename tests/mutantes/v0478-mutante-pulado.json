@@ -16,8 +16,8 @@
    "id": "P2",
    "guarda": "declarado que só foi pulado é sem veredito, não inválido",
    "arquivo": "bin/forge-mutante",
-   "de": "return sem_veredito if pulado_de([declarado], registro) else (",
-   "para": "return sem_veredito if False else (",
+   "de": "if not pulado_de([declarado], registro):",
+   "para": "if True:",
    "testes": [
     "tests.test_forge_mutante.Veredito.test_teste_declarado_pulado_e_sem_veredito_e_nunca_sobreviveu"
    ]
