@@ -183,7 +183,9 @@ class Entrega(unittest.TestCase):
             self.assertIsNone(re.search(r"(?<!\$)\{\{", ci))
 
     def test_skill_aponta_para_o_modelo_e_explica_o_porque(self):
-        skill = (RAIZ / "skills" / "ci-cd" / "SKILL.md").read_text(encoding="utf-8")
+        pasta = RAIZ / "skills" / "ci-cd"
+        self.assertIn("ci-de-projeto-privado.md", (pasta / "SKILL.md").read_text(encoding="utf-8"))
+        skill = (pasta / "ci-de-projeto-privado.md").read_text(encoding="utf-8")
         self.assertIn("templates/projeto/.github/workflows/ci.yml", skill)
         self.assertIn("minutos", skill)
         self.assertIn("push de branch de trabalho", skill)
