@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-fechar-mensagem
-commit: 3b1e324b285bd2037bdc49d928aef599583a972c
+commit: 8989baa06876e4ad25235c846aaf4926f686a1d1
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-18
@@ -11,6 +11,9 @@ data: 2026-11-18
 # Review de segurança: v0478-fechar-mensagem
 
 Escopo: diff `4182a6b9..3b1e324b` (bin/forge-fechar, teste novo, mutantes, fragmento do changelog). O `forge-fechar` é controle de merge; a pergunta do brief é se o `--subject` e o `--body` novos do passo P6 abrem injeção de argumento na chamada de merge do gh.
+
+## Revalidação no head 8989baa0
+Delta lido: `forge-check parecer delta` de `3b1e324b..8989baa0`, sem o que veio da develop: nenhum arquivo do domínio mudou; fora do domínio só `tests/mutantes/v047-integracao-em-lote-8.json` (spec IL-M63). Já lido: a análise abaixo, de `3b1e324b`, que continua valendo. Achados anteriores: nenhum.
 
 ## Gatilhos
 Gatilhos: controle de merge (forge-fechar, passo P6 da promoção), argumentos montados para o gh
