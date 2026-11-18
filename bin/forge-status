@@ -70,7 +70,7 @@ def maquina():
     from pesado import pid_vivo
     agora = time.time()
     try:
-        vivas = _maquina.vivas(json.loads(ler(_maquina.caminho_da_pasta() / _maquina.ATIVOS) or "{}").get("sessoes"), agora, pid_vivo)
+        vivas = _maquina.vivas(json.loads(ler(_maquina.caminho_da_pasta() / _maquina.ATIVOS)).get("sessoes"), agora, pid_vivo)
     except (ValueError, AttributeError, OSError):
         vivas = {}
     saida = [re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", f"{s.get('projeto')} · {s.get('pasta')} · batimento há "

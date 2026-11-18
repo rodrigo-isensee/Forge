@@ -89,6 +89,11 @@ class Registro(Maquina):
         self.anotar(self.tmp / "alfa", "s1")
         self.assertEqual((self.registro()["projetos"], sorted(self.registro()["sessoes"])), (["alfa"], ["e", "s1"]))
 
+    def test_a_pasta_e_a_do_registro_que_o_meta_e_o_agentes_leem(self):
+        with mock.patch.dict(os.environ, {"HOME": str(self.tmp)}):
+            os.environ.pop("FORGE_MAQUINA", None)
+            self.assertEqual(_maquina.caminho_da_pasta() / _maquina.ATIVOS, self.tmp / ".forge/maquina/projetos-ativos.json")
+
     def test_so_a_sessao_de_projeto_no_inicio_e_no_fim_anota(self):
         alfa = self.projeto("alfa")
         for entrada in ({"hook_event_name": "PreToolUse", "session_id": "s1"}, {"hook_event_name": "Stop"},

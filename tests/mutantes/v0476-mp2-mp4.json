@@ -37,7 +37,7 @@
       "guarda": "MP2: registro que não é objeto recomeça vazio",
       "arquivo": "hooks/_maquina.py",
       "de": "return dados if isinstance(dados, dict) else {}",
-      "para": "return dados",
+      "para": "return dados if isinstance(dados, (dict, list)) else {}",
       "testes": [
         "tests.test_maquina.Registro.test_registro_ilegivel_recomeca"
       ]
@@ -47,7 +47,7 @@
       "guarda": "MP2: sessoes que não é objeto vale vazia",
       "arquivo": "hooks/_maquina.py",
       "de": "sessoes = sessoes if isinstance(sessoes, dict) else {}",
-      "para": "sessoes = sessoes",
+      "para": "sessoes = sessoes if isinstance(sessoes, (dict, list)) else {}",
       "testes": [
         "tests.test_maquina.Registro.test_registro_ilegivel_recomeca"
       ]

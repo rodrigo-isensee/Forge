@@ -17,7 +17,7 @@
       "guarda": "MP2: projeto que não é texto fica fora de `projetos`",
       "arquivo": "hooks/_maquina.py",
       "de": "for s in sessoes.values() if isinstance(s.get(\"projeto\"), str)}",
-      "para": "for s in sessoes.values()}",
+      "para": "for s in sessoes.values() if isinstance(s.get(\"projeto\"), (str, int))}",
       "testes": [
         "tests.test_maquina.Registro.test_sessao_fora_da_forma_e_registro_em_link_nao_contam"
       ]
@@ -27,7 +27,7 @@
       "guarda": "MP4: no mínimo uma vaga",
       "arquivo": "hooks/pesado.py",
       "de": "return max(1, (os.cpu_count() or 1) // NUCLEOS_POR_VAGA)",
-      "para": "return max(0, (os.cpu_count() or 1) // NUCLEOS_POR_VAGA)",
+      "para": "return max(1, (os.cpu_count() or 12) // NUCLEOS_POR_VAGA)",
       "testes": [
         "tests.test_maquina.FilaPesada.test_vagas_um_por_seis_nucleos"
       ]
@@ -67,7 +67,7 @@
       "guarda": "MP4: soltar tira a chave do projeto",
       "arquivo": "hooks/pesado.py",
       "de": "{**vezes, chave: trava} if trava else vezes)",
-      "para": "{**vezes, chave: trava})",
+      "para": "{**vezes, chave: trava} if not trava else vezes)",
       "testes": [
         "tests.test_maquina.FilaPesada.test_bateria_de_outro_projeto_espera_a_vaga_da_maquina"
       ]
