@@ -341,8 +341,10 @@ class StatusDaMaquina(Maquina):
 
 class SemProjeto(StatusDaMaquina):
     def test_sem_projeto_diz_nenhum_e_mede_a_maquina(self):
-        nenhum, medida, escape = self.linhas()
-        self.assertEqual(nenhum, "forge: nenhum projeto ativo na máquina")
+        linhas = self.linhas()
+        self.assertEqual(linhas[0], "forge: nenhum projeto ativo na máquina")
+        self.assertEqual(len(linhas), 3)
+        medida, escape = linhas[1:]
         for trecho in ("máquina: 12 núcleos", "carga 1.5", "memória 8.0 de 16.0 GB disponíveis", "disco ",
                        "recusa cópia nova acima de 90%", "tarefas pesadas 0 de ", "teto 12 agentes"):
             self.assertIn(trecho, medida)
