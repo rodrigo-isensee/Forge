@@ -454,6 +454,16 @@ class VariosProjetos(unittest.TestCase):
         self.ativos(["loja", "x" * self.meta.MAXIMO_DO_NOME])
         self.assertEqual(self.medir("Recebi.")["projetos_ativos"], 2, "nome no máximo exato vale")
 
+    def test_ativos_em_fifo_com_escritor_e_json_valido_nao_vale(self):
+        """Segurança A1 (MP5-01): o FIFO com escritor e JSON válido de dois nomes também dá None; só a guarda S_ISREG recusa."""
+        ativos = self.tmp / "ativos.json"
+        ativos.unlink()
+        os.mkfifo(ativos)
+        escritor = os.open(ativos, os.O_RDWR | os.O_NONBLOCK)  # o escritor fica aberto: a leitura acharia o JSON
+        self.addCleanup(os.close, escritor)
+        os.write(escritor, json.dumps({"projetos": ["loja", "estoque"]}).encode("utf-8"))
+        self.assertIsNone(self.meta.ler_projetos_ativos(self.meta.ATIVOS))
+
     def test_ativos_em_fifo_nao_troca_a_recusa_do_stop(self):
         """Segurança A1 (S2): com ATIVOS em FIFO, o Stop com a checagem falhando sai com 2 (R-PROVA) no prazo, sem travar."""
         raiz = self.tmp / "proj"

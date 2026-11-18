@@ -29,7 +29,8 @@
       "de": "if not stat.S_ISREG(os.fstat(fd).st_mode):",
       "para": "if False:",
       "testes": [
-        "tests.test_meta.VariosProjetos.test_ativos_em_link_fifo_grande_ou_com_nomes_demais_nao_mede"
+        "tests.test_meta.VariosProjetos.test_ativos_em_link_fifo_grande_ou_com_nomes_demais_nao_mede",
+        "tests.test_meta.VariosProjetos.test_ativos_em_fifo_com_escritor_e_json_valido_nao_vale"
       ]
     },
     {
