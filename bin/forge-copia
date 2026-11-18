@@ -45,10 +45,10 @@ def git(*args, cwd=None):
     return subprocess.run(["git", *args], cwd=cwd).returncode
 
 
-def env_sem_credencial(base=None):
+def env_sem_credencial():
     """Ambiente sem as variáveis de credencial (token do bot, askpass, agente SSH, config injetada do git)."""
     fora = {"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GIT_ASKPASS", "SSH_AUTH_SOCK", "GIT_CONFIG_COUNT"}
-    return {k: v for k, v in (os.environ if base is None else base).items()
+    return {k: v for k, v in os.environ.items()
             if k not in fora and not k.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"))}
 
 
