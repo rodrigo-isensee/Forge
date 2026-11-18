@@ -1,0 +1,2 @@
+### Adicionado
+- Devops (v0478 E6.1): ensaio de roteiro só em alvo provado descartável (conexão conferida antes do primeiro comando; valor padrão recusado), com item no modelo de ameaças; `scripts/preparar-estacao.sh --ferramentas` instala actionlint, gitleaks, osv-scanner (sha256 conferido), zizmor e semgrep sem custo nem credencial, e a ferramenta ausente é achado do parecer de devops. Sem hooks.
