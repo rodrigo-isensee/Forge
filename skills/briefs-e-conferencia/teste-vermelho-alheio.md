@@ -3,7 +3,7 @@
 Detalhe da skill `briefs-e-conferencia`, lido pelo autor, pelo `tech-lead` e pelo QA. Vale no Forge e em todo projeto. Decisão do dono de 18/11, com duas condições.
 
 ## Quando vale
-O PR de um item para por um teste vermelho que não é do item: o teste cai também na base, ou cai em código que o diff não toca (no Forge, `forge-testes --vermelho` o mostra como herdado da base). Em vez de o PR parar à espera do dono original do teste, o time adota o conserto.
+O PR de um item para por um teste vermelho que não é do item: o teste já cai na base, sem o diff do item (no Forge, `forge-testes --vermelho` o mostra como herdado da base). Teste que cai só com o diff é regressão do item, mesmo em código que o diff não toca. Em vez de o PR parar à espera do dono original do teste, o time adota o conserto.
 
 ## Condição 1: PR próprio e pequeno
 - **A correção vai num PR próprio e pequeno**, com prioridade máxima na fila de integração e **parecer próprio do QA**.

@@ -59,5 +59,34 @@ class DuasCondicoes(unittest.TestCase):
         self.assertTrue(faltam)
 
 
+    def test_criterio_de_alheio_e_so_herdado_da_base(self):
+        """A1 da segurança: o vermelho é alheio só se já cai na base; cair em código que o diff não toca não basta."""
+        linha = next(l for l in texto(DETALHE).splitlines() if l.startswith("O PR de um item para"))
+        self.assertIn("o teste já cai na base, sem o diff do item", linha)
+        self.assertNotRegex(linha, r"ou cai em código que o diff não toca")
+
+
+class FormasProibidasEPapeis(unittest.TestCase):
+    """A2 da segurança: a lista das formas proibidas e as linhas do autor e do tech-lead também são invariantes."""
+    TRECHOS = {
+        "formas proibidas": r"sem `skip`, sem tirar asserção, sem trocar o valor esperado pelo obtido, sem tirá-lo da lista que roda",
+        "autor": r"\*\*Autor:\*\*.*\n",
+        "tech-lead": r"\*\*`tech-lead`:\*\*.*\n",
+    }
+
+    def test_cada_trecho_tirado_do_texto_reprova_um_invariante(self):
+        corpo = texto(DETALHE)
+        for nome, padrao in self.TRECHOS.items():
+            with self.subTest(trecho=nome):
+                self.assertRegex(corpo, padrao)
+                sem = re.sub(padrao, "\n", corpo, count=1)
+                faltam = [t for t in CONFIG["invariantes"][DETALHE] if not re.search(t, sem, re.S)]
+                self.assertTrue(faltam, f"{nome}: tirar o trecho não quebra nenhum invariante")
+
+    def test_texto_inteiro_casa_todos_os_invariantes(self):
+        corpo = texto(DETALHE)
+        self.assertEqual([t for t in CONFIG["invariantes"][DETALHE] if not re.search(t, corpo, re.S)], [])
+
+
 if __name__ == "__main__":
     unittest.main()

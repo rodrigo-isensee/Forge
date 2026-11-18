@@ -765,7 +765,11 @@
       "\\*\\*É proibido apagar o teste, pulá-lo ou afrouxar o que ele confere para ficar verde:\\*\\*",
       "o QA explica no parecer do PR do conserto por que ele está errado",
       "\\*\\*Os mutantes daquele trecho continuam morrendo:\\*\\*",
-      "mutante sobrevivente bloqueia"
+      "mutante sobrevivente bloqueia",
+      "o teste já cai na base, sem o diff do item",
+      "sem `skip`, sem tirar asserção, sem trocar o valor esperado pelo obtido, sem tirá-lo da lista que roda",
+      "avisa o `tech-lead` e não mexe no teste na sua branch",
+      "é achado bloqueante o PR parado que traz o conserto e o conserto que apaga, pula ou afrouxa o teste"
     ]
   },
   "invariantes_motivo": {
