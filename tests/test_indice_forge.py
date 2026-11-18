@@ -1,4 +1,4 @@
-"""O índice do Forge (docs/indice-forge.md, H7) está em dia com bin/, hooks/, scripts/ e o mapa do bin/forge-testes."""
+"""O índice do Forge (docs/indice-forge.md, H7) está em dia com bin/, hooks/ e scripts/."""
 import importlib.machinery
 import importlib.util
 import io
@@ -51,9 +51,10 @@ class IndiceDoForge(unittest.TestCase):
 
     def test_lista_dada_entra_uma_vez_na_secao_da_pasta(self):
         texto = self.indice.gerar(RAIZ, ["bin/forge-testes"])
-        self.assertIn("Os 1 arquivos versionados", texto)
+        self.assertNotIn("| `forge-check` |", texto)
         linha = "| `forge-testes` | teste dirigido durante a iteração do autor"
         self.assertEqual(texto.count(linha), 1)
+        self.assertEqual(texto.count("\n| `"), 1)
         self.assertLess(texto.index("## `bin/`"), texto.index(linha))
         self.assertLess(texto.index(linha), texto.index("## `hooks/`"))
 
@@ -148,26 +149,58 @@ class PrimeiraLinhaDeDoc(unittest.TestCase):
                          "y" * self.indice.MAXIMO_DO_TEXTO)
 
 
-class TestesDoArquivo(unittest.TestCase):
+class SoNomeEDoc(unittest.TestCase):
+    """Review A1 de v0478: o índice não traz o que muda com teste de outra trilha (coluna de testes e contagem)."""
+
     def setUp(self):
         self.indice = carregar()
 
-    def falso(self, modo, modulos):
-        return SimpleNamespace(planejar=lambda caminhos, raiz: (modo, modulos), oraculos=lambda raiz: ["test_oraculo_p"])
+    def test_tabela_so_com_arquivo_e_doc_e_sem_contagem(self):
+        texto = self.indice.gerar(RAIZ, ["bin/forge-testes", "scripts/indice-forge.py"])
+        self.assertEqual(texto.count("| Arquivo | O que faz |\n| --- | --- |\n"), 3)
+        self.assertNotIn("Testes |", texto)
+        self.assertNotIn("Os 2 arquivos", texto)
+        self.assertIn("bin/forge-testes --listar <arquivo>", texto)
 
-    def test_dirigido_ordena_corta_e_tira_o_oraculo(self):
-        modulos = ["test_a", "test_b", "test_c", "test_d", "test_x_y_mais", "test_oraculo_p", "test_x_y", "test_z"]
-        texto = self.indice.testes_do_arquivo(self.falso("dirigido", modulos), RAIZ, "bin/x-y")
-        self.assertEqual(texto, "`test_x_y`, `test_x_y_mais`, `test_a`, `test_b`, `test_c`, `test_d` e mais 1")
+    def test_teste_novo_nao_muda_o_indice(self):
+        """Um módulo de teste a mais no plano não pode mudar o texto: só o arquivo e a doc contam."""
+        antes = self.indice.gerar(RAIZ, ["bin/forge-testes"])
+        with tempfile.TemporaryDirectory() as tmp:
+            raiz = Path(tmp)
+            for caminho in ("bin/forge-testes", "tests/test_forge_testes_outro.py"):
+                (raiz / caminho).parent.mkdir(parents=True, exist_ok=True)
+            (raiz / "bin" / "forge-testes").write_bytes((RAIZ / "bin" / "forge-testes").read_bytes())
+            (raiz / "tests" / "test_forge_testes_outro.py").write_text("# bin/forge-testes\n", encoding="utf-8")
+            self.assertEqual(self.indice.gerar(raiz, ["bin/forge-testes"]), antes)
 
-    def test_dirigido_curto_sem_resto(self):
-        self.assertEqual(self.indice.testes_do_arquivo(self.falso("dirigido", ["test_b", "test_a"]), RAIZ, "hooks/_q.py"),
-                         "`test_a`, `test_b`")
-        self.assertEqual(self.indice.testes_do_arquivo(self.falso("dirigido", ["test_oraculo_p"]), RAIZ, "hooks/q.py"), "—")
+    def test_o_plano_dirigido_das_pastas_roda_o_indice(self):
+        """Review A2 de v0478: o índice vencido aparece no plano dirigido de bin/, hooks/ e scripts/, não só no CI."""
+        # o caminho de fora das pastas vai partido: inteiro, o teste o leria (arquivo lido) e o plano dele teria de trazê-lo
+        casos = {"bin/forge-status": True, "bin/forge_meta.py": True, "hooks/_comum.py": True, "hooks/hooks.json": True,
+                 "scripts/indice-forge.py": True, "scripts/validar-plugin.sh": True, "agents/" + "qa-engineer.md": False}
+        for caminho, entra in casos.items():
+            with self.subTest(caminho=caminho):
+                r = subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-testes"), "--listar", caminho],
+                                   capture_output=True, text=True, env=ambiente_limpo(), cwd=RAIZ)
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                self.assertIn("forge-testes: dirigido (", r.stdout)
+                self.assertEqual("test_indice_forge" in r.stdout, entra, r.stdout)
 
-    def test_completo_diz_o_motivo(self):
-        self.assertEqual(self.indice.testes_do_arquivo(self.falso("completo", ["x sem mapa"]), RAIZ, "scripts/x.py"),
-                         "suíte completa (x sem mapa)")
+    def test_raiz_sem_o_teste_do_indice_segue_dirigida_sem_ele(self):
+        """Raiz sem tests/test_indice_forge.py (projeto ou raiz de teste): o plano não pede o módulo que falta."""
+        carregador = importlib.machinery.SourceFileLoader("forge_testes_a2", str(RAIZ / "bin" / "forge-testes"))
+        spec = importlib.util.spec_from_loader(carregador.name, carregador)
+        testes = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(testes)
+        with tempfile.TemporaryDirectory() as tmp:
+            raiz = Path(tmp)
+            for caminho in ("bin/forge-xyz", "tests/test_forge_xyz.py", "tests/test_forge.py"):
+                (raiz / caminho).parent.mkdir(parents=True, exist_ok=True)
+                (raiz / caminho).write_text("x = 1\n", encoding="utf-8")
+            self.assertEqual(testes.planejar(["bin/forge-xyz"], raiz), ("dirigido", ["test_forge", "test_forge_xyz"]))
+            (raiz / "tests" / "test_indice_forge.py").write_text("x = 1\n", encoding="utf-8")
+            self.assertEqual(testes.planejar(["bin/forge-xyz"], raiz),
+                             ("dirigido", ["test_forge", "test_forge_xyz", "test_indice_forge"]))
 
 
 class Arquivos(unittest.TestCase):

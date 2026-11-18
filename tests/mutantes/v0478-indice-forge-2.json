@@ -23,46 +23,6 @@
       ]
     },
     {
-      "id": "M11",
-      "guarda": "testes: plano não dirigido vira suíte completa com o motivo",
-      "arquivo": "scripts/indice-forge.py",
-      "de": "    if modo != \"dirigido\":",
-      "para": "    if modo == \"dirigido\":",
-      "testes": [
-        "tests.test_indice_forge.TestesDoArquivo.test_completo_diz_o_motivo"
-      ]
-    },
-    {
-      "id": "M12",
-      "guarda": "testes: o da convenção primeiro",
-      "arquivo": "scripts/indice-forge.py",
-      "de": "key=lambda m: (m != \"test_\" + nome, nome not in m, m))",
-      "para": "key=lambda m: (m == \"test_\" + nome, nome not in m, m))",
-      "testes": [
-        "tests.test_indice_forge.TestesDoArquivo.test_dirigido_ordena_corta_e_tira_o_oraculo"
-      ]
-    },
-    {
-      "id": "M13",
-      "guarda": "testes: os que trazem o nome antes dos outros",
-      "arquivo": "scripts/indice-forge.py",
-      "de": "key=lambda m: (m != \"test_\" + nome, nome not in m, m))",
-      "para": "key=lambda m: (m != \"test_\" + nome, nome in m, m))",
-      "testes": [
-        "tests.test_indice_forge.TestesDoArquivo.test_dirigido_ordena_corta_e_tira_o_oraculo"
-      ]
-    },
-    {
-      "id": "M14",
-      "guarda": "testes: corte em MAXIMO_DE_TESTES com o resto contado",
-      "arquivo": "scripts/indice-forge.py",
-      "de": "if len(lista) > MAXIMO_DE_TESTES else \"\")",
-      "para": "if len(lista) < MAXIMO_DE_TESTES else \"\")",
-      "testes": [
-        "tests.test_indice_forge.TestesDoArquivo.test_dirigido_ordena_corta_e_tira_o_oraculo"
-      ]
-    },
-    {
       "id": "M15",
       "guarda": "gerar: a lista dada vale no lugar do git",
       "arquivo": "scripts/indice-forge.py",
@@ -80,6 +40,17 @@
       "para": "for c in lista if not c.startswith(pasta + \"/\")):",
       "testes": [
         "tests.test_indice_forge.IndiceDoForge.test_lista_dada_entra_uma_vez_na_secao_da_pasta"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "plano dirigido: arquivo do primeiro nível de bin/, hooks/ e scripts/ leva o teste do índice (review A2)",
+      "arquivo": "bin/forge-testes",
+      "de": "    if INDICE_DAS_PASTAS.fullmatch(caminho) and arquivo_do_modulo(TESTE_DO_INDICE, raiz).is_file():",
+      "para": "    if not INDICE_DAS_PASTAS.fullmatch(caminho) and arquivo_do_modulo(TESTE_DO_INDICE, raiz).is_file():",
+      "testes": [
+        "tests.test_indice_forge.SoNomeEDoc.test_o_plano_dirigido_das_pastas_roda_o_indice",
+        "tests.test_indice_forge.SoNomeEDoc.test_raiz_sem_o_teste_do_indice_segue_dirigida_sem_ele"
       ]
     }
   ]

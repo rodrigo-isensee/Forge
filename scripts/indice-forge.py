@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
-"""Forge: índice do Forge (arquivo, o que faz e os testes que o cobrem), para o brief citar em vez de colar trechos (H7).
+"""Forge: índice do Forge (arquivo e o que faz), para o brief citar em vez de colar trechos (H7).
 
 Uso: indice-forge.py              grava docs/indice-forge.md a partir de bin/, hooks/ e scripts/
      indice-forge.py --conferir   não grava; rc 1 se o arquivo não está em dia (o teste do índice usa o mesmo texto)
 
 Os arquivos são os versionados (`git ls-files`) de bin/, hooks/ e scripts/. "O que faz" é a primeira linha da docstring
-do módulo (Python) ou do primeiro comentário depois do shebang (shell). Os testes são o plano dirigido do
-`bin/forge-testes` para o arquivo sozinho (mapa, convenção de nome e quem importa o hook), sem os oráculos do portão,
-que entram em todo plano. Só biblioteca padrão; o índice só lê.
+do módulo (Python) ou do primeiro comentário depois do shebang (shell). Sem a coluna de testes nem a contagem (review
+A1 de v0478): mudam a cada teste novo de outra trilha e poriam todas em fila no mesmo arquivo; os testes de um arquivo
+saem na hora por `bin/forge-testes --listar <arquivo>`. Assim o índice só muda quando um arquivo entra, sai ou muda a
+primeira linha da doc, o que cabe à trilha dona dele. Só biblioteca padrão; o índice só lê.
 """
 import ast
-import functools
-import importlib.machinery
-import importlib.util
 import os
 import subprocess
 import sys
@@ -22,22 +20,11 @@ RAIZ = Path(__file__).resolve().parent.parent
 INDICE = Path("docs/indice-forge.md")
 PASTAS = ("bin", "hooks", "scripts")
 MAXIMO_DO_TEXTO = 160
-MAXIMO_DE_TESTES = 6
 
 
 def celula(texto):
     """Texto numa célula de tabela Markdown: sem quebra de linha e sem `|` solto."""
     return " ".join(str(texto).split()).replace("|", "\\|")
-
-
-def carregar_testes(raiz):
-    """O `bin/forge-testes` da raiz como módulo, com a leitura dos textos dos testes guardada (é a mesma em todo arquivo)."""
-    carregador = importlib.machinery.SourceFileLoader("forge_testes_do_indice", str(raiz / "bin" / "forge-testes"))
-    spec = importlib.util.spec_from_loader(carregador.name, carregador)
-    modulo = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modulo)
-    modulo.textos_dos_testes = functools.lru_cache(maxsize=None)(modulo.textos_dos_testes)
-    return modulo
 
 
 def arquivos(raiz):
@@ -72,33 +59,17 @@ def primeira_linha_de_doc(raiz, caminho):
     return doc or "—"
 
 
-def testes_do_arquivo(testes, raiz, caminho):
-    """Os módulos do plano dirigido do arquivo, cortados em MAXIMO_DE_TESTES: o da convenção (`test_<nome>`) primeiro,
-    depois os que trazem o nome do arquivo, depois os outros, cada grupo em ordem alfabética."""
-    modo, modulos = testes.planejar([caminho], raiz)
-    if modo != "dirigido":
-        return "suíte completa (" + celula("; ".join(modulos)) + ")"
-    nome = Path(caminho).stem.lstrip("_").replace("-", "_")
-    lista = sorted(set(modulos) - set(testes.oraculos(raiz)),
-                   key=lambda m: (m != "test_" + nome, nome not in m, m))
-    texto = ", ".join(f"`{m}`" for m in lista[:MAXIMO_DE_TESTES])
-    return texto + (f" e mais {len(lista) - MAXIMO_DE_TESTES}" if len(lista) > MAXIMO_DE_TESTES else "") or "—"
-
-
 def gerar(raiz=RAIZ, lista=None):
-    testes = carregar_testes(raiz)
     lista = arquivos(raiz) if lista is None else lista
     linhas = ["# Índice do Forge", "",
-              "<!-- Gerado por scripts/indice-forge.py; não edite à mão. Rode o script depois de mudar bin/, hooks/, "
-              "scripts/ ou o mapa de testes. -->", "",
-              f"Os {len(lista)} arquivos versionados de `bin/`, `hooks/` e `scripts/`: o que cada um faz (a primeira linha "
-              "da doc) e os módulos de `tests/` que o cobrem (o plano dirigido do `bin/forge-testes` para o arquivo, sem os "
-              "oráculos do portão). A lista inteira de um arquivo: `bin/forge-testes --listar <arquivo>`."]
+              "<!-- Gerado por scripts/indice-forge.py; não edite à mão. Rode o script depois de criar, apagar ou mudar a "
+              "primeira linha da doc de um arquivo de bin/, hooks/ ou scripts/. -->", "",
+              "Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a primeira linha da doc). "
+              "Os testes de um arquivo: `bin/forge-testes --listar <arquivo>`."]
     for pasta in PASTAS:
-        linhas += ["", f"## `{pasta}/`", "", "| Arquivo | O que faz | Testes |", "| --- | --- | --- |"]
+        linhas += ["", f"## `{pasta}/`", "", "| Arquivo | O que faz |", "| --- | --- |"]
         for caminho in (c for c in lista if c.startswith(pasta + "/")):
-            linhas.append(f"| `{Path(caminho).name}` | {primeira_linha_de_doc(raiz, caminho)} | "
-                          f"{testes_do_arquivo(testes, raiz, caminho)} |")
+            linhas.append(f"| `{Path(caminho).name}` | {primeira_linha_de_doc(raiz, caminho)} |")
     return "\n".join(linhas) + "\n"
 
 
