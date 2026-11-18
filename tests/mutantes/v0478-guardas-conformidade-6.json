@@ -1,0 +1,76 @@
+{
+  "pedido": "v0478-guardas-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M39",
+      "guarda": "o valor de f vai aos arquivos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(arquivos if letra == \"f\" else pastas)",
+      "para": "(arquivos if False else pastas)",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "tar --extract extrai",
+      "arquivo": "hooks/conformidade.py",
+      "de": "extrai = \"x\" in letras or any(longa_do_tar(n, (\"extract\", \"get\")) for n in longas)",
+      "para": "extrai = \"x\" in letras or False",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M41",
+      "guarda": "tar -c grava o arquivo de -f",
+      "arquivo": "hooks/conformidade.py",
+      "de": "grava = bool(letras & set(\"cruA\")) or any(longa_do_tar(n, TAR_GRAVA) for n in longas)",
+      "para": "grava = bool(False) or any(longa_do_tar(n, TAR_GRAVA) for n in longas)",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M42",
+      "guarda": "extração sem -C vai à pasta corrente",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return (pastas or [\".\"]) if extrai",
+      "para": "return (pastas or []) if extrai",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "sem extração, nenhuma pasta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "[\".\"]) if extrai else []",
+      "para": "[\".\"]) if True else []",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_find_tar_e_chmod_fora_do_estado_seguem_livres"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "o arquivo - é a saída padrão",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for a in arquivos if a != \"-\"]",
+      "para": "for a in arquivos if False]",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "o arquivo de -f só é escrita nos modos que gravam",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if a != \"-\"] if grava else []",
+      "para": "if a != \"-\"] if True else []",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_find_tar_e_chmod_fora_do_estado_seguem_livres"
+      ]
+    }
+  ]
+}

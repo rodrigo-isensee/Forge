@@ -4,32 +4,82 @@
   "mutantes": [
     {
       "id": "M31",
-      "guarda": "extração sem -C vai à pasta corrente",
+      "guarda": "o tar lê todos os argumentos",
       "arquivo": "hooks/conformidade.py",
-      "de": "return (pastas or [\".\"]) if extrai else []",
-      "para": "return pastas if extrai else []",
+      "de": "    while i < len(args):\n        a, i = args[i], i + 1",
+      "para": "    while False:\n        a, i = args[i], i + 1",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
       ]
     },
     {
       "id": "M32",
-      "guarda": "o arquivo de -f só é escrita nos modos que gravam",
+      "guarda": "opção longa do tar",
       "arquivo": "hooks/conformidade.py",
-      "de": "if a != \"-\"] if grava else []",
-      "para": "if a != \"-\"]",
+      "de": "        if a.startswith(\"--\"):\n            nome, igual",
+      "para": "        if False:\n            nome, igual",
       "testes": [
-        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_find_tar_e_chmod_fora_do_estado_seguem_livres"
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
       ]
     },
     {
       "id": "M33",
-      "guarda": "a mesma raiz não consulta o clone (C7)",
-      "arquivo": "hooks/agentes.py",
-      "de": "    if declarada is None or os.path.realpath(declarada) == os.path.realpath(hook.raiz):\n        return hook.raiz",
-      "para": "    if declarada is None:\n        return hook.raiz",
+      "guarda": "tar --directory e --file longos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if longa_do_tar(nome, (\"directory\", \"file\")):",
+      "para": "            if False:",
       "testes": [
-        "tests.test_conformidade_verde.ConfigDaWorktreeNoClone.test_sessao_e_pasta_corrente_na_mesma_raiz_nao_consultam_o_clone"
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "valor da opção longa na palavra seguinte",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if not igual and i < len(args):",
+      "para": "                if False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "--directory vai às pastas",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(pastas if longa_do_tar(nome, (\"directory\",)) else arquivos)",
+      "para": "(pastas if False else arquivos)",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "tar com letras sem hífen no primeiro argumento",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif re.fullmatch(r\"-[A-Za-z]+\", a) or (i == 1 and re.fullmatch(r\"[A-Za-z]+\", a)):",
+      "para": "        elif re.fullmatch(r\"-[A-Za-z]+\", a) or (False):",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "f e C agrupados tomam valor",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for letra in (c for c in a if c in \"fC\"):",
+      "para": "for letra in (c for c in a if False):",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "valores de f e C só se há palavra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if i < len(args):\n                    (arquivos if letra",
+      "para": "                if False:\n                    (arquivos if letra",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
       ]
     }
   ]

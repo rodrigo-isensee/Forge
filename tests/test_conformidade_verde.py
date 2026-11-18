@@ -332,7 +332,8 @@ class EstadoDoAgentesNoClone(CloneDoForge):
                     "tar --extract --file docs/a.tar --directory=.git", "tar --extract --file docs/a.tar --directory .git/forge",
                     "cd .git/forge/run && tar xf ../../../docs/a.tar",
                     "tar -cf .git/forge/run/agentes.json docs", "chmod 000 .git/forge/run/agentes.json",
-                    "chmod -R 000 .git/forge", "chown nobody .git/forge/run/agentes.json", "chattr +i .git/forge/run")
+                    "chmod -R 000 .git/forge", "chown nobody .git/forge/run/agentes.json", "chattr +i .git/forge/run",
+                    "cd .git/forge/run && find -delete", "tar --extr --fi docs/a.tar --dir .git/forge")
         for papel in ("forge:tech-lead", "forge:jarvis"):
             for c in comandos:
                 self.recusa(self.rodar("Bash", {"command": c}, papel), f"{papel}: {c}")
@@ -342,7 +343,8 @@ class EstadoDoAgentesNoClone(CloneDoForge):
         (self.clone / "docs").mkdir()
         for c in ("find . -name '*.py'", "find docs -name x -delete", "find . -name x -exec grep y {} +",
                   "find .git/forge -name '*.json'", "tar -xf docs/a.tar -C docs", "tar -tf docs/a.tar",
-                  "tar -cf docs/a.tar .git/forge", "tar -xf .git/forge/a.tar -C docs", "chmod +x docs/a.sh", "find . -name x -delete"):
+                  "tar -cf docs/a.tar .git/forge", "tar -xf .git/forge/a.tar -C docs", "tar -tf docs/a.tar -- .git/forge",
+                  "tar -cf docs/a.tar -C .git/forge run", "chmod +x docs/a.sh", "find . -name x -delete"):
             self.libera(self.rodar("Bash", {"command": c}), c)
 
     def test_de_fora_do_clone_pelo_caminho_absoluto_recusa(self):  # J12: pasta corrente fora do clone
@@ -403,6 +405,8 @@ class ConfigDoTetoNoClone(CloneDoForge):
         for c in ("find .forge -delete", "tar -xf docs/a.tar -C .forge", "chmod 000 .forge/config.json"):
             for papel in ("forge:tech-lead", "forge:jarvis"):
                 self.recusa(self.rodar("Bash", {"command": c}, papel), f"{papel}: {c}")
+        r = self.rodar("Bash", {"command": "tar -xf docs/a.tar -C .forge"})
+        self.assertIn("extrair em .forge/ alcança .forge/config.json", r.stderr)  # o ato certo, não "apagar"
 
     def test_linha_que_o_hook_nao_le_e_cita_o_config_recusa(self):  # C10 estendido ao config da raiz
         c = ": " + "a " * 5001 + "; echo '{}' > .forge/config.json"

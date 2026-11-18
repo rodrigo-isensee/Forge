@@ -1037,11 +1037,18 @@ def script_do_sed(arg):
     return colado.group(1) if colado else "" if arg.startswith("-") else arg
 
 
+def longa_do_tar(nome, opcoes):
+    """O nome da opção longa do `tar` é uma das `opcoes` ou abreviação dela (o getopt do GNU aceita o prefixo; o ambíguo
+    o `tar` recusa, então contar a mais só recusa a mais)."""
+    return len(nome) >= 2 and any(o.startswith(nome) for o in opcoes)
+
+
 def alvos_do_tar(args):
     """A2 da segurança (v0478): (pastas em que o `tar` extrai, arquivos que ele grava). Extração (`-x`, `xf`, `--extract`,
     `--get`): as pastas de `-C`/`--directory`, ou a corrente. Criação, acréscimo e atualização (`-c`, `-r`, `-u`, `-A`,
-    `--create`, `--delete`...): o arquivo de `-f`/`--file`. Opções curtas agrupadas (`-xzf a.tar`, `xfC a.tar d`) tomam os
-    valores de `f` e `C` na ordem. Na dúvida sobre o modo, não grava (o resto da linha segue as outras regras)."""
+    `--create`, `--delete`...): o arquivo de `-f`/`--file`. Opção longa também abreviada (`longa_do_tar`). Opções curtas
+    agrupadas (`-xzf a.tar`, `xfC a.tar d`) tomam os valores de `f` e `C` na ordem. Na dúvida sobre o modo, não grava
+    (o resto da linha segue as outras regras)."""
     letras, longas, pastas, arquivos = set(), set(), [], []
     i = 0
     while i < len(args):
@@ -1049,18 +1056,18 @@ def alvos_do_tar(args):
         if a.startswith("--"):
             nome, igual, valor = a[2:].partition("=")
             longas.add(nome)
-            if nome in ("directory", "file"):
+            if longa_do_tar(nome, ("directory", "file")):
                 if not igual and i < len(args):
                     valor, i = args[i], i + 1
-                (pastas if nome == "directory" else arquivos).append(valor)
+                (pastas if longa_do_tar(nome, ("directory",)) else arquivos).append(valor)
         elif re.fullmatch(r"-[A-Za-z]+", a) or (i == 1 and re.fullmatch(r"[A-Za-z]+", a)):
             letras |= set(a.lstrip("-"))
             for letra in (c for c in a if c in "fC"):
                 if i < len(args):
                     (arquivos if letra == "f" else pastas).append(args[i])
                     i += 1
-    extrai = "x" in letras or bool(longas & {"extract", "get"})
-    grava = bool(letras & set("cruA") or longas & TAR_GRAVA)
+    extrai = "x" in letras or any(longa_do_tar(n, ("extract", "get")) for n in longas)
+    grava = bool(letras & set("cruA")) or any(longa_do_tar(n, TAR_GRAVA) for n in longas)
     return (pastas or ["."]) if extrai else [], [a for a in arquivos if a != "-"] if grava else []
 
 

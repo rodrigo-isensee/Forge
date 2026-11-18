@@ -7,13 +7,23 @@
       "guarda": "no clone, o config vem da raiz da sessão, não da worktree",
       "arquivo": "hooks/agentes.py",
       "de": "    return declarada if e_clone_do_forge(hook.raiz) and e_clone_do_forge(declarada) else hook.raiz",
-      "para": "    return hook.raiz",
+      "para": "    return declarada if False else hook.raiz",
       "testes": [
         "tests.test_conformidade_verde.ConfigDaWorktreeNoClone.test_teto_da_worktree_nao_vale_com_a_sessao_no_clone"
       ]
     },
     {
       "id": "M16",
+      "guarda": "a mesma raiz não consulta o clone (C7)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if declarada is None or os.path.realpath(declarada) == os.path.realpath(hook.raiz):",
+      "para": "    if declarada is None:",
+      "testes": [
+        "tests.test_conformidade_verde.ConfigDaWorktreeNoClone.test_sessao_e_pasta_corrente_na_mesma_raiz_nao_consultam_o_clone"
+      ]
+    },
+    {
+      "id": "M17",
       "guarda": "find lido como escritor",
       "arquivo": "hooks/conformidade.py",
       "de": "        elif prog == \"find\":\n            self.find(",
@@ -23,7 +33,7 @@
       ]
     },
     {
-      "id": "M17",
+      "id": "M18",
       "guarda": "tar lido como escritor",
       "arquivo": "hooks/conformidade.py",
       "de": "        elif prog == \"tar\":\n            destinos, arquivos",
@@ -33,7 +43,7 @@
       ]
     },
     {
-      "id": "M18",
+      "id": "M19",
       "guarda": "chmod, chown, chattr lidos como escritores",
       "arquivo": "hooks/conformidade.py",
       "de": "        elif prog in MUDA_ATRIBUTO:",
@@ -43,7 +53,7 @@
       ]
     },
     {
-      "id": "M19",
+      "id": "M20",
       "guarda": "operando do chmod é escrita",
       "arquivo": "hooks/conformidade.py",
       "de": "                if not a.startswith(\"-\"):\n                    self.checar_escrita(a, pasta, parecer_conta=False)\n                    self.checar_remocao(a, pasta, f\"{prog} em\")",
@@ -53,7 +63,7 @@
       ]
     },
     {
-      "id": "M20",
+      "id": "M21",
       "guarda": "opções do find antes dos pontos de partida",
       "arquivo": "hooks/conformidade.py",
       "de": "        while i < len(args) and re.fullmatch(r\"-[HLP]|-D|-O\\d*\", args[i]):",
@@ -63,21 +73,11 @@
       ]
     },
     {
-      "id": "M21",
-      "guarda": "pontos de partida do find",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        while i < len(args) and not re.match(r\"[-(!)]\", args[i]):",
-      "para": "        while False:",
-      "testes": [
-        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
-      ]
-    },
-    {
       "id": "M22",
-      "guarda": "find -delete apaga os pontos de partida",
+      "guarda": "-D do find toma um valor",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if a == \"-delete\":",
-      "para": "            if False:",
+      "de": "            i += 2 if args[i] == \"-D\" else 1",
+      "para": "            i += 2 if True else 1",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
       ]
