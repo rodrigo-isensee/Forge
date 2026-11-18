@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0475-copia-pasta
-commit: 5d7ca50b2d8e9cabd196b8a1d5dd928536fd88fb
+commit: d17f94a617c16226b543f5e5b79edaa6d0266120
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -50,3 +50,9 @@ Escopo: `bin/forge-copia` (clone e worktree só dentro de `~/.forge-contrib`), `
 - Mutação, `bin/forge-mutante --base a108ef53 tests/mutantes/v0475-copia-pasta.json`: `base=a108ef53 ... rev=5d7ca50b2d8e`; M1 a M14 todos `morreu` (M11 linha 53, M12 59, M13 61, M14 70). Sobrevivente: nenhum. Cada mutante novo muda uma guarda real (origem, retorno de recusa, escolha do ramo worktree, ponto de entrada).
 - `python3 -I -m unittest discover -s tests -p test_forge_copia.py` no head: 14 testes, OK.
 - Check-run `bateria` do sha não citado: sem PR neste head no momento da revalidação.
+
+## Revalidação (delta 5d7ca50b..d17f94a6)
+`forge-check parecer delta` lista no domínio só `skills/trabalho-em-paralelo/SKILL.md` (texto: frase sobre linhas do Histórico e `forge-check anotar`, exigida por `tests/test_anotar.py`; lote por arquivo remetido a `ritmo-e-corte.md`). Código, mutantes e testes não mudaram.
+- `python3 -I tests/catraca.py --base origin/develop`: rc 0, sem guarda sem mutante.
+- `python3 -m unittest tests.test_anotar`: 18 testes, OK. `tests.test_metricas_texto`: 2 OK.
+- Check-run `bateria` do sha não citado: sem PR neste head.
