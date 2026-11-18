@@ -3,33 +3,35 @@ tipo: review
 contrato: 1
 pedido: v0474
 branch: melhoria/v0475-merge-checks
-commit: 27c4c5672f8dda2d9381c04179b8d028fabfaaef
+commit: cc4934ded283fd19b3d614f7981431db61713739
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-17
+data: 2026-11-18
 ---
-# Review: v0474 (E3.142, branch melhoria/v0475-merge-checks)
+# Review: v0474 (E3.193, branch melhoria/v0475-merge-checks)
 
 ## Achados
-- A3 (recomendado) tests/test_forge_check_pr.py:1 · M14: 476 linhas de código e teste sobre origin/develop (135 em bin/); o corpo do PR deve trazer `teto: excedido, 476 linhas, <motivo>`
+- A3 (recomendado) tests/test_forge_check_pr.py:1 · M14: agora são 492 linhas de código e teste sobre origin/develop (141 em bin/). O `teto:` do corpo do PR #653 ainda diz 476; atualize o número.
 
 ## Revalidação
-Delta lido: `forge-check parecer delta docs/reviews/v0475-merge-checks.md`, intervalo 9f497b0f..27c4c567, só o domínio de código e testes. O delta também traz o que entrou da develop pelo merge 27c4c567 (E3.49: `ref_publicada`, `documento_sem_parecer`, a recusa do PR mesclado e o mapa do `forge-testes`). Esse trecho já foi revisado no PR #646 e não foi revisto aqui.
+Li o delta com `forge-check parecer delta docs/reviews/v0475-merge-checks.md`, no intervalo 27c4c567..cc4934de, só no domínio de código e testes.
 
-- **A1 corrigido.** O passo 1 do `forge-fechar` (bin/forge-fechar:1222) chama o `pr` com `FORGE_FECHAR_PASSO_1=1`.
-  - A variável dispensa só o `checks_do_head` (`previo_dos_checks`, bin/forge-check:1539).
-  - Com ela, o `executar` não grava o resultado para o hook (bin/forge-check:10254). Por isso a variável não forja um aprovado para o `gh pr merge`: o hook segue decidindo pela conferência de hoje ou por um resultado gravado antes.
-  - Só o valor exato `1` liga a dispensa. O mutante M24 do -4.json cobre isso, e o teste passa os valores "", "0" e "sim".
-- **A2 corrigido.** `FecharComChecksPendentes` usa o `forge-check` real com um `gh` falso que responde ao `pr view` e ao `pr checks`.
-  - Um teste prova que, sem a variável, o `pr` reprova pelo check pendente.
-  - Outro prova que o `--armar` passa do passo 1 e arma o auto-merge. O mutante M28 amarra esse teste.
-- **Entrou também a correção E3.80 da segurança e do QA.** Quando o `gh pr view` falha, o `pr` avisa e grava reprovado para o hook. Sem PR, sem remoto do GitHub, sem gh ou sem login, não há o que conferir. Os dois ramos têm teste, e o `gh_json` distingue o gh ausente do teto.
+O delta também traz o merge 881cf2cb da develop (f8e9c377): o mapa do `forge-testes`, `modelo_atras_do_plugin`, `branch_do_modelo_sem_pr` e `test_testes_tocados`. Esse merge está limpo: o `git merge-tree --write-tree` dos dois pais dá a mesma árvore, 794668c2. Por isso não revi esse trecho aqui.
 
-**Testes**, rodados com o ambiente limpo: `test_forge_check_pr`, `test_fechar_forge_check_real` e `test_testes_tocados`, 195 OK e 1 pulado.
+O código do autor está só em cc4934de (E3.185), com 31 linhas a mais e 6 a menos.
+- **bin/forge-check:1444.** `GH_SEM_PR` passa a incluir `"set the GH_TOKEN environment variable"`. É o texto que o gh mostra no GitHub Actions sem token, no lugar do "gh auth login". O casamento continua por trecho do stderr (bin/forge-check:1493), igual ao dos outros itens. Esse caso equivale ao "sem login" já aceito e não afrouxa a falha de rede, de teto ou de saída ilegível, que segue avisando e gravando reprovado.
+- **tests/test_forge_check_pr.py:137.** O subteste usa a mensagem real do runner.
+- **tests/test_pr_hook_prazo.py:55.** O `forge_check` dos testes põe à frente do PATH um `gh` falso que responde como o gh do runner (exit 4). O falso fica numa pasta irmã da raiz temporária. Com ele, o resultado gravado não depende da máquina nem da rede. O falso não é mais frouxo que o script (checklist 12): ele responde a qualquer subcomando com o mesmo erro do runner, e o script decide pelo stderr.
+- **M31** (tests/mutantes/v0474-merge-checks-5.json) declara a guarda mudada, uma linha e um mutante.
 
-**Catraca** (`--base origin/develop`): nenhuma linha R-QA. O rc=1 vem só do aviso R-CONFORMIDADE: a mudança em bin/forge-check pede o rótulo `afrouxa-regra` do dono depois do último push.
-
-Não há PR nem CI para citar; a suíte fica com o CI.
+## Verificação
+- **Mutante M31:** apliquei-o à mão e restaurei o arquivo com `git checkout`. Os dois testes declarados falham com o mutante, e ele morre: `test_sem_pr_sem_remoto_do_github_ou_sem_gh_nao_marca` falha no subteste do GH_TOKEN, e `test_pr_aprovado_grava_e_o_hook_libera_so_lendo` também falha.
+- **Testes do delta** (`tests.test_forge_check_pr`, `tests.test_pr_hook_prazo` e `tests.test_ambiente_git`): 66 testes OK.
+- **Catraca** (`--base origin/develop`): nenhuma linha R-QA. O rc=1 vem só do aviso R-CONFORMIDADE de bin/forge-check, porque o rótulo `afrouxa-regra` tem de ser aplicado depois do último push.
+- **PR #653:** head cc4934de, fora do rascunho, com o rótulo `afrouxa-regra`. O `gh pr checks` não mostra nenhum check, então ainda não há CI verde para citar. A suíte fica com o CI.
 
 ## Parecer
-Aprovado no head 27c4c567. Ficam pendentes o rótulo do dono (R-CONFORMIDADE) e a linha `teto:` no corpo do PR (A3).
+Aprovado no head cc4934de. Ficam pendentes:
+- o CI verde do PR;
+- a data do rótulo do dono em relação ao último push (R-CONFORMIDADE);
+- o número no `teto:` (A3).
