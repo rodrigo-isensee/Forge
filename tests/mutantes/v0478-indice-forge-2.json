@@ -1,0 +1,46 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "doc: texto longo é cortado",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "    if len(doc) > MAXIMO_DO_TEXTO:",
+      "para": "    if len(doc) >= MAXIMO_DO_TEXTO:",
+      "testes": [
+        "tests.test_indice_forge.PrimeiraLinhaDeDoc.test_texto_longo_e_cortado"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "python: pelo nome .py ou pelo shebang",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "    return caminho.endswith(\".py\") or bool(linhas) and linhas[0].startswith(\"#!\") and \"python\" in linhas[0]",
+      "para": "    return caminho.endswith(\".py\")",
+      "testes": [
+        "tests.test_indice_forge.PrimeiraLinhaDeDoc.test_python_pela_docstring_sem_o_prefixo"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "testes: plano não dirigido vira suíte completa com o motivo",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "    if modo != \"dirigido\":",
+      "para": "    if modo == \"nunca\":",
+      "testes": [
+        "tests.test_indice_forge.TestesDoArquivo.test_completo_diz_o_motivo"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "testes: corte em MAXIMO_DE_TESTES com o resto contado",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "    return texto + (f\" e mais {len(lista) - MAXIMO_DE_TESTES}\" if len(lista) > MAXIMO_DE_TESTES else \"\") or \"—\"",
+      "para": "    return texto or \"—\"",
+      "testes": [
+        "tests.test_indice_forge.TestesDoArquivo.test_dirigido_ordena_corta_e_tira_o_oraculo"
+      ]
+    }
+  ]
+}
