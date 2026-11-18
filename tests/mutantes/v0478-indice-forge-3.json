@@ -58,7 +58,7 @@
       "guarda": "linha de comando roda o main",
       "arquivo": "scripts/indice-forge.py",
       "de": "if __name__ == \"__main__\":",
-      "para": "if __name__ != \"__main__\":",
+      "para": "if __name__ == \"__main__\" and len(sys.argv) > 9:",
       "testes": [
         "tests.test_indice_forge.IndiceDoForge.test_conferir_da_rc_0_em_dia"
       ]
