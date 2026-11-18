@@ -1,0 +1,66 @@
+{
+  "pedido": "v0478-devops-lote",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "conferência do sha256 do download contra as somas da release",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "[ -z \"$esperado\" ] || [ \"$real\" != \"$esperado\" ]",
+      "para": "[ -z \"$esperado\" ] || false",
+      "testes": [
+        "tests.test_ferramentas_portoes.FerramentasDosPortoes.test_soma_da_release_errada_nao_instala"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "conferência do sha256 contra a soma fixada no script",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "elif [ \"$real\" != \"$fixo\" ]; then",
+      "para": "elif false; then",
+      "testes": [
+        "tests.test_ferramentas_portoes.FerramentasDosPortoes.test_soma_fixada_no_script_errada_nao_instala"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "falha do tar não grava instalou",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "install -m 755 \"$tmp/$tar\" \"$bin/$nome\"; then ok=1; else ok=0; fi",
+      "para": "install -m 755 \"$tmp/$tar\" \"$bin/$nome\"; then ok=1; else ok=1; fi",
+      "testes": [
+        "tests.test_ferramentas_portoes.FerramentasDosPortoes.test_falha_do_tar_vira_falta_e_nao_grava_instalou"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "pipx instala com a versão fixada",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "pipx install \"$1==$2\"",
+      "para": "pipx install \"$1\"",
+      "testes": [
+        "tests.test_ferramentas_portoes.FerramentasDosPortoes.test_pipx_recebe_a_versao_fixada"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "falha do install do binário solto (sem tar) não grava instalou",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "elif install -m 755 \"$tmp/$arq\" \"$bin/$nome\"; then ok=1; else ok=0; fi",
+      "para": "elif install -m 755 \"$tmp/$arq\" \"$bin/$nome\"; then ok=1; else ok=1; fi",
+      "testes": [
+        "tests.test_ferramentas_portoes.FerramentasDosPortoes.test_falha_do_install_sem_tar_vira_falta_e_nao_grava_instalou"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "só diz instalou quando ok é 1",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "if [ \"$ok\" = 1 ]; then fez",
+      "para": "if true; then fez",
+      "testes": [
+        "tests.test_ferramentas_portoes.FerramentasDosPortoes.test_falha_do_install_sem_tar_vira_falta_e_nao_grava_instalou"
+      ]
+    }
+  ]
+}

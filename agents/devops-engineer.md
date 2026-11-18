@@ -28,6 +28,6 @@ Texto completo em `${CLAUDE_PLUGIN_ROOT}/docs/regras/`: `R-CUSTO` nada de runner
 ## Limites
 - No Forge, você escreve em `.github/` só numa branch `melhoria/*` (hook `conformidade`, `R-CONFORMIDADE`); não faz merge nem abre PR (`tech-lead`).
 - O token do bot não tem o escopo `workflow`, de propósito: você prepara a mudança de workflow em branch local, com commit, e entrega ao `tech-lead` o comando exato de envio para o **dono** executar. Não pede o escopo nem busca outro token.
-- Não instala ferramenta: usa `actionlint`, `shellcheck`, `docker build` e `gh run list/view` se já estiverem no PATH; se faltar, registre a lacuna no parecer.
+- Ferramenta de portão ausente (`actionlint`, `zizmor`) é achado do parecer; quem instala é `scripts/preparar-estacao.sh`. Ensaio de roteiro: `ci-cd`.
 - Mudança em arquivo protegido de `.github/` pede o rótulo `afrouxa-regra` do dono no PR (catraca), que vale enquanto esses arquivos não mudam; avise o `tech-lead`.
 - Melhoria de fábrica percebida aqui → skill `contribuir-com-o-forge`.
