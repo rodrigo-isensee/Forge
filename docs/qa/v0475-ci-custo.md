@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0475-ci-custo
-commit: ae44f02bec60f2ab2f38aa677f9289bdd158ec0a
+commit: 5a397c61c3be84a131d0ec14e824bcc4575263ab
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -67,3 +67,9 @@ Delta no domínio: `skills/ci-cd/SKILL.md` (enxuta; o miolo foi para `skills/ci-
 - `test_metricas_texto` 2 OK; `test_orcamento_instrucao` 8 OK; `test_modelo_ci` 19 OK; `test_ambiente_git` 20 OK.
 - Mutação: `bin/forge-mutante tests/mutantes/v0475-ci-custo-2.json`: M17 a M22 todos `morreu`, rc 0 (os trechos `de` seguem existindo no arquivo novo, o que prova o deslocamento sem perda de guarda).
 - Suíte inteira: vale o check-run `bateria` do mesmo sha. Resíduo A1 inalterado (recomendado).
+
+## Revalidação no 5a397c61 (delta desde ae44f02b)
+Delta: merge da develop; conflito de texto na skill `ci-cd` resolvido (linha de medição de minutos, agora com `forge-cota-ci`; o CI de projeto privado segue em `ci-de-projeto-privado.md`). Sem marcas de conflito.
+- `python3 -m unittest tests.test_metricas_texto` Ran 2 OK; `tests.test_orcamento_instrucao` Ran 8 OK; `tests.test_modelo_ci` Ran 19 OK; `tests.test_cota_ci` Ran 26 OK.
+- `python3 -I tests/catraca.py --base origin/develop`: rc=0.
+- Suíte inteira: vale o check-run `bateria` do CI do PR (A1 anterior segue como recomendado).
