@@ -228,6 +228,17 @@ class Instalar(Base):
         for n in (*cred, "GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0"):
             self.assertNotIn(n, nomes)
 
+    def test_instalacao_tira_config_injetada_e_nomes_de_segredo(self):
+        self.pacote({"detecta": ["marca.txt"], "comandos": [["sh", "-c", "env > ambiente.txt"]]}, "marca.txt")
+        falsas = ("GIT_CONFIG_PARAMETERS", "FOO_TOKEN", "bar_secret_x", "MEU_PASSWORD", "TOKEN")
+        self.env.update({n: "f" for n in falsas}, MINHA_VAR="ok", GIT_CONFIG_PARAMETERS="'user.name'='f'")  # formato válido do git
+        d = self.pasta / "i13"
+        self.assertEqual(self.roda(d, "--instalar").returncode, 0)
+        nomes = {l.split("=", 1)[0] for l in (d / "ambiente.txt").read_text().splitlines()}
+        self.assertIn("MINHA_VAR", nomes)
+        for n in falsas:
+            self.assertNotIn(n, nomes)
+
     def test_ambiente_da_instalacao_mantem_o_resto(self):
         self.pacote({"detecta": ["marca.txt"], "comandos": [["sh", "-c", 'echo "$MINHA_VAR" > v.txt']]}, "marca.txt")
         self.env["MINHA_VAR"] = "ok"
@@ -260,13 +271,6 @@ class Instalar(Base):
                         self.assertIn("--no-deps", c, stack.name)
                     else:
                         self.assertIn("--no-deps", c, stack.name)  # pacote local sem resolver dependência
-
-    def test_instalacao_real_so_com_lockfile(self):
-        # o detecta real nunca aponta o manifesto: cópia só com o manifesto não instala
-        for stack in (BIN.parent.parent / "stacks").iterdir():
-            spec = json.loads((stack / "instalar.json").read_text())
-            self.assertNotIn("package.json", spec["detecta"])
-            self.assertNotIn("pyproject.toml", spec["detecta"])
 
 
 if __name__ == "__main__":

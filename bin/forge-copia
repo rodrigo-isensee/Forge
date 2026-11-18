@@ -46,10 +46,12 @@ def git(*args, cwd=None):
 
 
 def env_sem_credencial():
-    """Ambiente sem as variáveis de credencial (token do bot, askpass, agente SSH, config injetada do git)."""
-    fora = {"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GIT_ASKPASS", "SSH_AUTH_SOCK", "GIT_CONFIG_COUNT"}
+    """Ambiente sem as variáveis de credencial (token do bot, askpass, agente SSH, config injetada do git, todo nome com TOKEN, SECRET ou PASSWORD)."""
+    fora = {"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GIT_ASKPASS", "SSH_AUTH_SOCK", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS"}
+    padroes = ("TOKEN", "SECRET", "PASSWORD")  # por padrão de nome, não só pela lista fixa (só nomes; valor nunca impresso)
     return {k: v for k, v in os.environ.items()
-            if k not in fora and not k.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"))}
+            if k not in fora and not k.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"))
+            and not any(x in k.upper() for x in padroes)}
 
 
 def instalar(copia):
