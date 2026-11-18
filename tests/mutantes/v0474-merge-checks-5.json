@@ -1,0 +1,16 @@
+{
+  "pedido": "v0474-merge-checks",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M28",
+      "guarda": "o passo 1 do fechar chama o pr no modo que deixa os checks para os passos 4 e 6 (E3.80)",
+      "arquivo": "bin/forge-fechar",
+      "de": "FORGE_FECHAR_PASSO_1=1 \"$check\" pr",
+      "para": "\"$check\" pr",
+      "testes": [
+        "tests.test_fechar_forge_check_real.FecharComChecksPendentes.test_armar_com_checks_pendentes_passa_do_passo_1_e_arma"
+      ]
+    }
+  ]
+}

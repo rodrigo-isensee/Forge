@@ -1218,7 +1218,8 @@ fi
 if ! git rev-parse -q --verify refs/remotes/origin/homolog >/dev/null 2>&1; then
   git fetch -q origin homolog >/dev/null 2>&1 || echo "aviso: sem origin/homolog neste clone e a busca falhou; sigo para o forge-check pr." >&2
 fi
-"$check" pr "$pedido" --ref "$ref_check" --base "$base" || die "parou no passo 1: forge-check pr acusou violação (nada foi aberto nem mesclado)"
+# E3.80 (A1 do review): os checks do head ficam para os passos 4 e 6 (a espera e o auto-merge preso ao head); o pr não grava o resultado para o hook.
+FORGE_FECHAR_PASSO_1=1 "$check" pr "$pedido" --ref "$ref_check" --base "$base" || die "parou no passo 1: forge-check pr acusou violação (nada foi aberto nem mesclado)"
 local_sha="$(head_atual || true)"
 [ "$local_sha" = "$sha_conferido" ] || die "parou no passo 1: o head de $ref mudou durante a conferência dos pareceres (conferido $sha_conferido, agora ${local_sha:-ausente}); os pareceres valem para o sha conferido; confira e rode de novo"
 passo "1c" "promovível: $promover --conferir-ref $sha_conferido"

@@ -30,18 +30,26 @@ def ck(nome, bucket, workflow="CI"):
 
 
 class ChecksDoHead(unittest.TestCase):
-    def rodar(self, checks=None, pr=None, regras=None, protecao=None, forge=False, previo=False, branch="melhoria/x", erro_checks=""):
-        """`checks_do_head` com as respostas do `gh` por comando exato; comando sem resposta devolve (None, "") como o gh sem rede."""
+    def rodar(self, checks=None, pr=None, regras=None, protecao=None, forge=False, previo=False, branch="melhoria/x", erro_checks="",
+              erro_pr=None):
+        """`checks_do_head` com as respostas do `gh` por comando exato; comando sem resposta devolve (None, "") como o gh sem rede.
+        `erro_pr`: o `gh pr view` sem JSON e com este stderr. Guarda o stderr em `self.stderr` e as falhas de leitura do PR
+        (CHECKS_NAO_CONFERIDOS) em `self.nao_conferidos`."""
         pr = {"number": 7, "state": "OPEN", "isDraft": False, "headRefOid": HEAD, "baseRefName": "develop"} if pr is None else pr
-        respostas = {PR_VIEW: (pr, ""), PR_CHECKS: (checks, erro_checks), REGRAS: (regras, ""), PROTECAO: (protecao, "")}
+        respostas = {PR_VIEW: (pr, "") if erro_pr is None else (None, erro_pr), PR_CHECKS: (checks, erro_checks), REGRAS: (regras, ""),
+                     PROTECAO: (protecao, "")}
+        self.nao_conferidos, erro = [], io.StringIO()
         self.chamadas = []
 
         def gh_json(_raiz, *args):
             self.chamadas.append(args)
             return respostas.get(args, (None, ""))
         with mock.patch.object(fc, "gh_json", gh_json), mock.patch.object(fc, "sha_do_commit", lambda _r, _ref: HEAD), \
-                mock.patch.object(fc, "e_o_forge", lambda _r: forge), contextlib.redirect_stderr(io.StringIO()):
-            return fc.checks_do_head(Path("/nao-existe"), "refs/heads/melhoria/x", branch, previo)
+                mock.patch.object(fc, "e_o_forge", lambda _r: forge), mock.patch.object(fc, "CHECKS_NAO_CONFERIDOS", self.nao_conferidos), \
+                contextlib.redirect_stderr(erro):
+            saida = fc.checks_do_head(Path("/nao-existe"), "refs/heads/melhoria/x", branch, previo)
+        self.stderr = erro.getvalue()
+        return saida
 
     def reprova(self, saida, *trechos):
         self.assertEqual(len(saida), 1, saida)
@@ -113,6 +121,22 @@ class ChecksDoHead(unittest.TestCase):
         self.assertEqual(self.rodar([ck("testes", "pending")], branch="develop"), [])
         self.assertEqual(self.chamadas, [])
 
+    def test_pr_view_que_falha_avisa_e_marca_para_o_hook(self):  # A1 da segurança e do QA (E3.80): não aprova calado
+        for erro in ("error connecting to api.github.com\n", "sem resposta em 10 s", "saída ilegível", ""):
+            with self.subTest(erro=erro):
+                self.assertEqual(self.rodar([ck("testes", "pending")], erro_pr=erro), [])
+                self.assertEqual(len(self.nao_conferidos), 1, self.nao_conferidos)
+                self.assertIn('PR de "melhoria/x" não lido (gh pr view: ', self.nao_conferidos[0])
+                self.assertIn(self.nao_conferidos[0], self.stderr)
+                self.assertNotIn(PR_CHECKS, self.chamadas)
+
+    def test_sem_pr_sem_remoto_do_github_ou_sem_gh_nao_marca(self):
+        for erro in ('no pull requests found for branch "melhoria/x"\n', "no git remotes found\n",
+                     "none of the git remotes configured for this repository point to a known GitHub host.\n", fc.GH_AUSENTE):
+            with self.subTest(erro=erro):
+                self.assertEqual(self.rodar([ck("testes", "pending")], erro_pr=erro), [])
+                self.assertEqual((self.nao_conferidos, self.stderr), ([], ""))
+
     def test_destino_fora_do_padrao_nao_vai_a_api(self):
         pr = {"number": 7, "state": "OPEN", "isDraft": False, "headRefOid": HEAD, "baseRefName": "dev#x"}
         self.assertEqual(self.rodar([ck("testes", "pass")], pr=pr), [])
@@ -136,7 +160,47 @@ class GhJson(unittest.TestCase):
         self.assertEqual(self.gh("echo 'no checks reported' >&2\nexit 1\n"), (None, "no checks reported\n"))
 
     def test_saida_ilegivel_e_none(self):
-        self.assertEqual(self.gh("echo 'x{'\n"), (None, ""))
+        self.assertEqual(self.gh("echo 'x{'\n"), (None, "saída ilegível"))
+
+    def test_sem_gh_e_teto_dizem_o_motivo(self):  # E3.80: o checks_do_head separa o gh ausente (sem PR a conferir) do teto (falha)
+        for erro, esperado in ((FileNotFoundError(2, "x"), fc.GH_AUSENTE), (fc.subprocess.TimeoutExpired("gh", 10), "sem resposta em 10 s")):
+            with self.subTest(esperado=esperado), mock.patch.object(fc.subprocess, "run", side_effect=erro):
+                self.assertEqual(fc.gh_json(Path("/nao-existe"), "pr", "view", "x"), (None, esperado))
+
+
+class GravarParaOHook(unittest.TestCase):
+    """E3.80: o `executar` do `pr` com FORGE_FECHAR_PASSO_1=1 (o passo 1 do forge-fechar) não confere os checks e não grava o resultado;
+    sem ela, o PR não lido grava reprovado para o hook do `gh pr merge`, com o rc do comando inalterado."""
+    def executar(self, ambiente, nao_lido=False):
+        gravados, pedidos = [], []
+
+        def pr_da_cli(*_a, **k):
+            pedidos.append(k)
+            if nao_lido:
+                fc.CHECKS_NAO_CONFERIDOS.append("pr: PR de melhoria/x não lido")
+            return []
+        a = fc.argparse.Namespace(cmd="pr", pedido="p1", ref="refs/heads/melhoria/x", base="origin/develop", previo=False, numero_pr=None)
+        with mock.patch.dict(os.environ, ambiente), mock.patch.object(fc, "CHECKS_NAO_CONFERIDOS", []), \
+                mock.patch.object(fc, "guarda_de_versao", lambda *_: None), mock.patch.object(fc, "migracao_pendente", lambda _r: []), \
+                mock.patch.object(fc, "pedido_do_pr", lambda _r, p, _ref: p), mock.patch.object(fc, "uso_do_pr", lambda *_: None), \
+                mock.patch.object(fc, "pr_da_cli", pr_da_cli), mock.patch.object(fc, "veredito_do_pr", lambda *_: "pr: veredito: aprovado"), \
+                mock.patch.object(fc, "gravar_resultado_do_pr", lambda *args: gravados.append(args[-1])), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as erro:
+            rc = fc.executar(a, Path("/nao-existe"))
+        return rc, pedidos[0]["sem_checks"], gravados, erro.getvalue()
+
+    def test_passo_1_do_fechar_nao_confere_nem_grava(self):
+        rc, sem_checks, gravados, erro = self.executar({fc.SEM_CHECKS_DO_FECHAR: "1"})
+        self.assertEqual((rc, sem_checks, gravados), (0, True, []))
+        self.assertIn("checks do head não conferidos (FORGE_FECHAR_PASSO_1=1", erro)
+
+    def test_sem_a_variavel_confere_e_o_pr_nao_lido_grava_reprovado(self):
+        for valor in ("", "0", "sim"):
+            with self.subTest(valor=valor):
+                rc, sem_checks, gravados, _ = self.executar({fc.SEM_CHECKS_DO_FECHAR: valor}, nao_lido=True)
+                self.assertEqual((rc, sem_checks, gravados), (0, False, [["pr: PR de melhoria/x não lido"]]))
+        rc, _, gravados, _ = self.executar({fc.SEM_CHECKS_DO_FECHAR: ""})
+        self.assertEqual((rc, gravados), (0, [[]]))
 
 
 class ParesIguaisAoFechar(unittest.TestCase):
