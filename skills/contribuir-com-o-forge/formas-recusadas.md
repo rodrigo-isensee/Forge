@@ -8,8 +8,11 @@ Detalhe do trecho `R-CONTRIB` de `docs/regras/R-LIMITES.md`. O hook `conformidad
 - `fetch` com destino (`origem:destino`).
 
 ## Envio com o destino trocado na linha
-- `git -c remote.<n>.url=`, `-c remote.<n>.pushurl=`, `-c url.<base>.insteadOf=` e `pushInsteadOf`.
+- `git -c remote.<n>.url=`, `-c remote.<n>.pushurl=`, `-c url.<base>.insteadOf=` e `pushInsteadOf`; também `-c branch.<b>.pushRemote=`, `-c branch.<b>.remote=` e `-c remote.pushDefault=` com o Forge ou variável.
 - `git config` que grava a URL de um remoto com o Forge ou com variável, ou qualquer reescrita de URL (`insteadOf`, `pushInsteadOf`): o envio da mesma linha iria ao Forge antes que o hook leia o disco.
+- `git config` com as mesmas chaves do remoto do envio (`branch.<b>.pushRemote`, `branch.<b>.remote`, `remote.pushDefault`) e o Forge; `git config -e`, `--edit` e `edit` sempre (o editor grava o que o hook não vê).
+- `git push` sem remoto com uma dessas chaves já gravada no disco com o Forge, ou com a configuração ilegível.
+- Envio para caminho local ou `file://` em `~/.forge-contrib` ou num clone do Forge, direto ou pela URL do remoto.
 - `push --repo`, `-C` encadeado, `--git-dir`, `subtree push` e `remote add|set-url` com o Forge.
 
 ## gh no Forge

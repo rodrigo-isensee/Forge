@@ -47,7 +47,7 @@ Medida: 2 pontos de recusa `msg("R-CUSTO"` em `tests/catraca.py`; custo do Forge
 
 verificada_por: hooks `parecer` e `conformidade`, rulesets e catraca do CI (ADR 0008; vale em qualquer projeto)
 
-Medida: 10 pontos de recusa `barrar("R-CONTRIB"` em `hooks/conformidade.py` e 2 `msg("R-CONTRIB"` em `tests/catraca.py`
+Medida: 11 pontos de recusa `barrar("R-CONTRIB"` em `hooks/conformidade.py` e 2 `msg("R-CONTRIB"` em `tests/catraca.py`
 
 - **Projeto nunca mexe no Forge, só sugere** (diretriz 36 do dono, 2026-11-17). A sessão de outro projeto não cria branch, não commita, não envia, não abre PR, não comenta nem rotula no repositório do Forge, nem escreve em `~/.forge-contrib/`. A melhoria vista no projeto vira só sugestão anonimizada, guardada com `forge sugerir --guardar`; vira issue só depois que o dono confirma, no terminal dele. Quem implementa é sempre a sessão do Forge (triagem, PR e merge na `develop`); na `main`, o usuário.
 - **Nenhum portão tem exceção, nem para o dono:** os portões da classe da entrega, os checks e os rótulos valem para todos os autores.

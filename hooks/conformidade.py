@@ -179,8 +179,10 @@ BRANCH_COM_VALOR = {"--sort", "--format"}  # valem no modo de lista, mas não o 
 # Gravam commit ou ref no repositório da pasta (R-CONTRIB: no clone do Forge, vindo de sessão de projeto)
 GRAVA_NO_REPO = {"commit", "merge", "cherry-pick", "revert", "am", "rebase", "pull", "commit-tree", "update-ref", "subtree",
                  "reset", "stash", "notes", "symbolic-ref"}  # na dúvida grava: `stash list` e `notes show` também são recusados
-# A chave que troca para onde o envio vai: a URL do remoto ou a reescrita de URL (`git -c <chave>=` e `git config <chave>`)
-CHAVE_DO_DESTINO = r"(remote\..+\.(url|pushurl)|url\..+\.(insteadof|pushinsteadof))"
+# A chave que troca para onde o envio vai: a URL do remoto, a reescrita de URL ou o remoto do envio sem remoto na linha,
+# que aceita URL (`git -c <chave>=` e `git config <chave>`; segurança A7)
+CHAVE_DO_DESTINO = (r"(remote\..+\.(url|pushurl)|url\..+\.(insteadof|pushinsteadof)|branch\..+\.(remote|pushremote)"
+                    r"|remote\.pushdefault)")
 CONFIG_DO_DESTINO = re.compile(CHAVE_DO_DESTINO + "=.*", re.I | re.S)
 SUBTREE_COM_VALOR = {"-P", "--prefix", "-m", "--message", "-b", "--branch", "--onto", "--annotate"}
 ROTULO_PROTEGIDO = "afrouxa-regra"  # R-CONTRIB: só a conta do dono do Forge o aplica
@@ -1284,7 +1286,8 @@ class Guarda:
         chave = (raiz, remoto)
         if chave not in self._repos:
             self._repos[chave] = e_clone_do_forge(raiz) or any(
-                parecer.aponta_para_o_forge(url) for url in self.urls_dos_remotos(raiz, remoto))
+                parecer.aponta_para_o_forge(url) or self.caminho_do_forge(raiz, url)
+                for url in self.urls_dos_remotos(raiz, remoto))
         return self._repos[chave]
 
     @staticmethod
@@ -1299,6 +1302,30 @@ class Guarda:
                 cod, saida = git(raiz, "remote", "get-url", "--all", *push, nome)
                 urls += saida.splitlines() if not cod else []
         return urls
+
+    def caminho_do_forge(self, base, url):
+        """Segurança A9: o destino é caminho local (ou `file://`) em `~/.forge-contrib` ou num clone do Forge."""
+        local = url[7:] if url.startswith("file://") else None if re.match(r"[\w+.-]+://|[^/]*:", url) else url
+        if not local:
+            return False
+        alvo = self.caminho(Path(base), local)
+        return em_contrib(alvo) or e_clone_do_forge(self.raiz_git(alvo))
+
+    def destino_na_config(self, pasta):
+        """Segurança A7: sem remoto na linha, `branch.<b>.pushRemote`, `remote.pushDefault` e `branch.<b>.remote`
+        gravados escolhem o destino e aceitam URL. Devolve a chave que aponta ao Forge ou, se a leitura falha, o texto
+        da dúvida (falha fechado; o prazo vencido do git já bloqueia o envio, ADR 0009); senão None. O remoto nomeado já
+        passa pela URL dele (`repositorio_do_forge`)."""
+        if (raiz := self.raiz_git(pasta)) is None:
+            return None
+        cod, saida = git(raiz, "config", "--get-regexp", r"^(branch\..*\.(remote|pushremote)|remote\.pushdefault)$")
+        if cod not in (0, 1):
+            return "a configuração do envio, ilegível"
+        for linha in saida.splitlines():
+            chave, _, valor = linha.partition(" ")
+            if parecer.aponta_para_o_forge(valor) or self.caminho_do_forge(raiz, valor):
+                return chave
+        return None
 
     @staticmethod
     def caminho(pasta, texto):
@@ -2687,9 +2714,13 @@ class Guarda:
                 self.barrar("R-CONFORMIDADE", f"push direto para {d}", "abra um PR a partir de uma branch de trabalho",
                             "main")
         # o remoto nomeado (a URL dele, resolvida no repositório da pasta), a URL dada ou, sem remoto, a pasta
-        if self.alvo_do_forge(pasta, remoto=remoto) or (remoto and self.alvo_do_forge(pasta, remoto)):
+        if self.alvo_do_forge(pasta, remoto=remoto) or (remoto and self.alvo_do_forge(pasta, remoto)) or (
+                remoto and self.caminho_do_forge(pasta, remoto)):
             self.barrar("R-CONTRIB", f"push para {', '.join(map(str, destinos))}: {NO_FORGE}", SO_SUGERE)
-        duvida = next((c for c in troca if not c.lower().startswith("remote.") or "$" in c
+        if remoto is None and (chave := self.destino_na_config(pasta)):
+            self.barrar("R-CONTRIB", f"git {sub} sem remoto: `{chave}` escolhe o destino e o hook não confirma que não "
+                                     f"é o Forge: {NO_FORGE}", SO_SUGERE)
+        duvida = next((c for c in troca if c.lower().startswith("url.") or "$" in c
                        or parecer.aponta_para_o_forge(c.split("=", 1)[1])), None)
         if duvida:  # na dúvida sobre o alvo, a sessão de projeto falha fechado (a do Forge não passa pela Guarda)
             self.barrar("R-CONTRIB", f"git {sub} com `{duvida.split('=', 1)[0]}` na linha troca o destino e o hook não "
@@ -2715,7 +2746,10 @@ class Guarda:
     @staticmethod
     def config_troca_destino(args):
         """`git config` que grava a URL de um remoto com o Forge ou com `$`, ou qualquer reescrita de URL (`insteadOf`,
-        `pushInsteadOf`, cujo alvo o hook não confirma): o envio da mesma linha iria ao Forge sem o hook ver."""
+        `pushInsteadOf`, cujo alvo o hook não confirma): o envio da mesma linha iria ao Forge sem o hook ver. O editor
+        (`-e`, `--edit`, `edit`) grava o que o hook não vê: falha fechado (segurança A8)."""
+        if args[:1] == ["edit"] or any(a == "-e" or abreviacao_de(a, ("--edit",)) for a in args):
+            return True
         if any(a.startswith(("--get", "--show-")) or a in CONFIG_LEITURA for a in args):
             return False
         palavras = [a for a in args if not a.startswith("-")]
