@@ -3,12 +3,12 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0475-ci-custo
-commit: 8a4a97077c22308b0a503d4e33f72bb91700e12a
-parecer: aprovado
+commit: 7c7f6c42b2fc03ebeb781c3f1067520be7d8fb33
+parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 0
+bugs_medios: 1
 bugs_baixos: 0
 data: 2026-11-17
 ---
@@ -17,6 +17,7 @@ data: 2026-11-17
 Escopo (E3.66, pedido v0474): modelo de CI de projeto enxuto (`templates/projeto/.github/workflows/ci.yml` e `ci-docs.yml`), seção "CI de projeto privado: minutos" da skill `ci-cd`, mapa do `bin/forge-testes`. Obrigação: `R-CUSTO`.
 
 ## Achados
+- A2 (bloqueante) skills/ci-cd/SKILL.md:1 · tests.test_metricas_texto falha: 8490 caracteres (teto 6781), frase_media 191 (172), linhas_longas 32 (27); igual no 8a4a9707, o delta não tocou a skill. Enxugar o texto; subir o teto é afrouxar.
 - A1 (recomendado) templates/projeto/.github/workflows/ci.yml:12 · o modelo só se prova por texto; a execução real no Actions (agregador `ci` verde com ci-docs, PR misto md+código) não foi exercida aqui, confirmar no primeiro projeto.
 
 ## Critério → teste → resultado
@@ -52,3 +53,11 @@ Delta no domínio: `--no-renames` na detecção do ci.yml, skill, `test_modelo_c
 - Vermelho: o teste novo sobre `git archive d8e1b09b`: Ran 19, FAILED (failures=3); caem test_renomear_codigo_para_documento_roda_a_suite, test_deteccao_usa_no_renames e a asserção da skill.
 - Mutação: `bin/forge-mutante tests/mutantes/v0475-ci-custo.json tests/mutantes/v0475-ci-custo-2.json --base d8e1b09b --processos 3`: `base=d8e1b09b050f7455637234be5a9ccbc97c9d0ed5`, M1 a M22 todos `morreu`, rc 0; a única guarda mudada (`--no-renames`, M21; texto da skill, M22) tem mutante.
 - Suíte inteira: vale o check-run `bateria` do mesmo sha. Resíduo A1 inalterado (recomendado).
+
+## Revalidação por delta (8a4a9707..7c7f6c42)
+Delta no domínio: `bin/forge-testes` (mapa: + test_parecer_delta e test_revisar_sha), `tests/test_forge.py` (marcador `{{` sem `$`), `tests/test_modelo_ci.py` (ambiente_git.sem_manutencao), `tests/test_reval_delta.py` (citação conhecida), mutante M30.
+- `catraca.py --base origin/develop`: rc 0, sem guarda sem mutante.
+- `test_modelo_ci` 19 OK; `test_parecer_delta` 4 OK; `test_revisar_sha` 4 OK; `test_ambiente_git` 20 OK; `test_reval_delta` 10 OK; `tests.test_forge.ForgeInit` e `IsolamentoDoGit` 12 OK.
+- Mutação: `bin/forge-mutante tests/mutantes/v0475-ci-custo-3.json --base 8a4a9707`: `base=8a4a97077c22308b0a503d4e33f72bb91700e12a`, M30 `morreu`, rc 0.
+- `test_metricas_texto`: 1 falha (A2), anterior ao delta mas provada no head; a `bateria` do CI a pegaria.
+- Suíte inteira: vale o check-run `bateria` do mesmo sha. Resíduo A1 inalterado.
