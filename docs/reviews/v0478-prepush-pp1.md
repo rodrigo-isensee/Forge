@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-prepush-pp1
-commit: 6c84adb4ea7cda8e9b95de6d2857201afedc2f7e
+commit: 3d4a84ffecfeaf5ae35c2107706eafdaff2f37b6
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-18
 ---
-# Review: v0478 (E14.3, patch PP1 do envio local)
+# Review: v0478 (E14.3 e revalidação E14.7, patch PP1 do envio local)
 
 Escopo: `docs/devops/pp1-pre-push.patch`, `docs/devops/pp1-aplicar.md`, `tests/test_pre_push_patch.py`, a linha nova do mapa em `bin/forge-testes` e o fragmento `changelog.d/v0478-prepush-pp1.md`. O `.githooks/pre-push` da branch é idêntico ao da `develop` (4182a6b9, ponta atual): o patch é para o dono aplicar à mão.
 
@@ -21,10 +21,12 @@ Escopo: `docs/devops/pp1-pre-push.patch`, `docs/devops/pp1-aplicar.md`, `tests/t
 - Mapa: `bin/forge-testes --listar -- scripts/indice-fixtures.py` aponta `test_pre_push_patch` entre os dirigidos.
 - Suíte inteira: fica no CI do PR (decisão M8); não rerrodada aqui. `shellcheck` não está instalado neste ambiente: o CI confere o hook remendado quando o dono o commitar.
 
-## Achados
-- A1 (recomendado) docs/devops/pp1-aplicar.md:11 · a tabela lista os gatilhos do índice como tests/hooks/, tests/config.json e scripts/indice-fixtures.py, mas o patch também dispara com docs/hooks-fixtures.md; incluir o quarto caminho na linha.
-
-## Sondas
+## Revalidação E14.7 (head 3d4a84ff, delta desde 6c84adb4)
+Lido só `forge-check parecer delta docs/reviews/v0478-prepush-pp1.md`: intervalo 6c84adb4..3d4a84ff, no domínio `changelog.d/v0478-prepush-pp1.md`, `docs/devops/pp1-aplicar.md`, `docs/devops/pp1-pre-push.patch`, `tests/mutantes/v0478-prepush-pp1.json` e `tests/test_pre_push_patch.py`.
+- A1 resolvido: `docs/devops/pp1-aplicar.md:11` lista `docs/hooks-fixtures.md` entre os gatilhos, igual ao `case` do patch (`tests/hooks/*|scripts/indice-fixtures.py|docs/hooks-fixtures.md|tests/config.json`).
+- Patch: `$((10#$intervalo))` lido uma vez em `intervalo_dec`, que segue para a espera; `[ ! -L bin/forge-check ]` junto das guardas vizinhas. Mutantes declarados M3, M11, M12 e M15 (`bin/forge-mutante --processos 1 tests/mutantes/v0478-prepush-pp1.json`): os quatro morreram. Os quatro testes novos dos ramos de falha: `Ran 4 tests · OK`.
+- Roteiro novo de `pp1-aplicar.md`, numa cópia limpa da `develop` (4182a6b9, hook igual ao da branch): `git show 0a986ebe:docs/devops/pp1-pre-push.patch` rc=0 e idêntico ao patch do head (`cmp`); `git apply --stat` lista só `.githooks/pre-push | 122, 119 insertions(+), 3 deletions(-)`; `--check` e `apply` rc=0; `bash -n` passa; modo `-rwxr-xr-x` mantido; reaplicar recusa (`patch failed: .githooks/pre-push:56`, rc=1). Com os arquivos da branch trazidos, o comando de teste do roteiro: `Ran 185 tests in 174.697s · OK (skipped=1)` (o pulo é a comparação com o original).
+- Suíte inteira: fica no CI do PR (M8); não rerrodada.
 
 ## Parecer
-Aprovado. O patch aplica limpo sobre o hook da `develop`, os comandos de aplicar e testar do roteiro funcionam como escritos numa cópia limpa, e o envio segue leve (menos de 1 s somado, sem teste). A1 é só texto e não devolve.
+Aprovado no head 3d4a84ff. O A1 foi corrigido, o patch novo aplica limpo sobre a `develop` pelo roteiro como escrito, e as guardas mudadas têm mutante declarado que morre.
