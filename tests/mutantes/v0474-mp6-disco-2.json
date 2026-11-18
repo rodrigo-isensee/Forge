@@ -6,8 +6,8 @@
       "id": "M9",
       "guarda": "so o clone do mesmo origin",
       "arquivo": "bin/forge-fechar",
-      "de": "    [ -n \"$url_aqui\" ] && [ \"$(git -C \"$d\" remote get-url origin 2>/dev/null || true)\" = \"$url_aqui\" ] || continue",
-      "para": "    true || continue",
+      "de": "    if [ -z \"$url_aqui\" ] || [ \"$url_dela\" != \"$url_aqui\" ]; then continue; fi",
+      "para": "    if false; then continue; fi",
       "testes": [
         "tests.test_forge_fechar.LimparClones.test_clone_de_outra_branch_ou_de_outro_origin_nao_e_tocado"
       ]

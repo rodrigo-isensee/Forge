@@ -562,7 +562,7 @@ podar_orfaos() {
 # mesmo origin, saem só limpas (sem mudança, arquivo novo nem stash), sem commit fora das refs do origin e com o sha mesclado; as outras ficam
 # pendentes, com leitura no lugar de comando que apaga. Define `copia_st` (vazio: nenhum clone da branch) e acrescenta a `pend_cmds`.
 limpar_clones() {
-  local d url_aqui sha_dela comum
+  local d url_aqui url_dela sha_dela comum
   copia_st=""
   url_aqui="$(git remote get-url origin 2>/dev/null || true)"
   comum="$(cd "$(git rev-parse --git-common-dir)" && pwd -P || true)"
@@ -571,7 +571,8 @@ limpar_clones() {
     [ -d "$d/.git" ] || continue
     [ "$(cd "$d/.git" && pwd -P)" != "$comum" ] || continue  # o próprio repositório que roda o fechamento
     [ "$(git -C "$d" symbolic-ref -q HEAD 2>/dev/null || true)" = "refs/heads/$ref" ] || continue
-    [ -n "$url_aqui" ] && [ "$(git -C "$d" remote get-url origin 2>/dev/null || true)" = "$url_aqui" ] || continue
+    url_dela="$(git -C "$d" remote get-url origin 2>/dev/null || true)"
+    if [ -z "$url_aqui" ] || [ "$url_dela" != "$url_aqui" ]; then continue; fi
     sha_dela="$(git -C "$d" rev-parse -q --verify HEAD || true)"
     if [ -n "$(git -C "$d" status --porcelain 2>/dev/null || echo erro)" ] || git -C "$d" rev-parse -q --verify refs/stash >/dev/null \
       || [ -n "$(git -C "$d" rev-list --branches --not --remotes 2>/dev/null || echo erro)" ] || ! sha_confere "$sha_dela"; then
