@@ -3,14 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0474
 branch: melhoria/v0476-conformidade-formas
-commit: eb18768bd45af2addb34c9603b5de85d305837f0
+commit: b4bd700e8eebe148c68b67f6e4465c49ecb7d0bf
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-17
 ---
-# Review de segurança: v0476-conformidade-formas (v0474 E3.50, parecer E3.96)
+# Review de segurança: v0476-conformidade-formas (v0474 E3.50, parecer E3.146)
 
-Delta revisado: `3d8ad440..eb18768b` (19 arquivos). Foco: `hooks/conformidade.py` e `hooks/_comum.py` (controle, ADR 0011).
+Revalidação por delta: `eb18768b..b4bd700e` (`forge-check parecer delta`). A rodada anterior (aprovado no `eb18768b`, E3.96) fica no git.
 
 ## Gatilhos
 Gatilhos: hook de controle (`hooks/conformidade.py`, `hooks/_comum.py`), texto do brief que cita a forma aceita (`bin/forge-check`), receita de comando de skill (`skills/esperar-estado/SKILL.md`).
@@ -20,14 +20,11 @@ Gatilhos: hook de controle (`hooks/conformidade.py`, `hooks/_comum.py`), texto d
 ## Sondas
 
 ## Detalhe dos achados
-Nenhum achado. O que foi conferido:
+Nenhum achado; a rodada anterior não tinha achado aberto. Delta lido:
 
-- **Decisão do hook inalterada.** No `hooks/conformidade.py` só mudam textos de recusa: `forma_aceita` (`hooks/conformidade.py:811`) é função pura que escolhe a mensagem pelo `achado`; `nao_modelada` (`:1886`) chama `barrar` nas mesmas condições de antes; em `gramatica_de_leitura` (`:1891`) o contorno passa a ser montado antes do `if sinal is not None`, mas o `barrar` segue dentro dele, sem novo retorno nem desvio; a recusa de aspas sem par (`:1807`) só troca o texto. No `hooks/_comum.py:675` entra a constante de texto `FORMA_DO_HEREDOC`; `HEREDOC_MODELADO`, `CASE`, a gramática do item 1 e a lista do item 2 da ADR 0011 não mudam. `hooks/conformidade.json` idêntico à base.
-- **Nenhuma liberação nova (prova diferencial).** As 10 fixtures `tests/hooks/conformidade/e350-*.json` rodadas contra os hooks da base `3d8ad440` (cópia da árvore do head com `hooks/` da base): as 5 de `libera` saem rc 0 também na base (já passavam) e as 5 de `bloqueia` saem rc 2 na base, falhando só na asserção do texto novo da mensagem. No head, as 10 passam. Logo o delta não converte recusa em liberação: nada mais frouxo que a ADR 0011.
-- **Conteúdo das mensagens.** As formas oferecidas (valor literal no lugar da variável; `$` só entre aspas simples; heredoc com delimitador entre aspas, sem `-`) estão dentro do que a ADR 0011 já aceita; nenhuma ensina contorno de controle. O texto de `FORMA_DO_HEREDOC` é mais estreito que `HEREDOC_MODELADO` (cita só `EOF`/`FIM` e aspas simples): sem efeito de segurança; precisão de texto, se quiserem, é do `tech-lead`.
-- **`bin/forge-check:6544` (`forma_do_heredoc`).** Importa `_comum` de `PLUGIN/hooks` (caminho resolvido a partir do próprio script, não do diretório corrente) e remove a entrada do `sys.path` no `finally`; o módulo só define constantes e funções no topo, sem efeito colateral de import. Sem superfície nova.
-- **Skill `esperar-estado`.** A receita nova, com o caminho literal, já passava na base (fixture `e350-laco-do-log-da-skill-com-caminho-literal-libera`); a antiga com `$log` segue recusada com marcador crítico (`e350-laco-do-log-com-variavel-bloqueia`).
-- **Mutantes** (`tests/mutantes/pn5-espera-envio.json`, `tests/mutantes/v0476-conformidade-formas.json`): só acompanham o texto novo; não tocam controle.
+- **`bin/forge-check`:** listado pelo delta, mas o diff `eb18768b..b4bd700e` é idêntico, linha a linha, ao do `7c463a42` (#646, E3.49, já mesclado na `develop` com o próprio review) e chegou pelo merge `0d61a5e0` da `develop`; a branch não tem commit próprio em `bin/forge-check` nesse intervalo (`git log --first-parent` só mostra o merge). Fora do escopo desta branch.
+- **`skills/esperar-estado/SKILL.md` e `skills/esperar-estado/envio-longo.md` (`b4bd700e`, E3.139):** só texto. A receita do laço do log (bloco `bash`) não muda; o detalhe (caminho literal nas três vezes; `bin/forge-fechar` com `--espera` longa) vai para o arquivo de apoio, sem perder conteúdo nem afrouxar a orientação. A fixture `e350-laco-do-log-com-variavel-bloqueia` segue passando.
+- Nada de hook, workflow, segredo nem dependência mudou no delta próprio da branch.
 
 ## Riscos aceitos e ferramentas
-Riscos aceitos: nenhum. Suíte inteira: não conferida aqui (sem execução do CI visível para esta branch no momento da leitura; o CI do PR é o portão do merge). Rodados localmente: `tests.test_hooks.Hooks.test_fixtures_do_e350` no head (OK) e contra os hooks da base (5 falhas, todas de texto de mensagem nas fixtures de recusa). Ferramentas de varredura: não aplicáveis a delta só de texto e de teste; nada instalado.
+Riscos aceitos: nenhum. A catraca (rc 1) acusa só `R-CONFORMIDADE` em `bin/forge-check`, `hooks/_comum.py` e `hooks/conformidade.py` (controles tocados pela branch): o merge depende do rótulo `afrouxa-regra` do dono, já sabido na rodada anterior; não é achado de segurança. Suíte inteira: o CI do PR #652 é o portão. Rodados localmente no head: `tests.test_esperar_estado`, `tests.test_metricas_texto` (17 OK) e `tests.test_hooks.Hooks.test_fixtures_do_e350` (OK). Ferramentas de varredura: não aplicáveis a delta só de texto; nada instalado.
