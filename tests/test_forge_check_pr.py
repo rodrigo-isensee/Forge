@@ -133,7 +133,8 @@ class ChecksDoHead(unittest.TestCase):
     def test_sem_pr_sem_remoto_do_github_ou_sem_gh_nao_marca(self):
         for erro in ('no pull requests found for branch "melhoria/x"\n', "no git remotes found\n",
                      "none of the git remotes configured for this repository point to a known GitHub host.\n",
-                     "To get started with GitHub CLI, please run:  gh auth login\n", fc.GH_AUSENTE):
+                     "To get started with GitHub CLI, please run:  gh auth login\n", fc.GH_AUSENTE,
+                     "gh: To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN environment variable. Example:\n"):
             with self.subTest(erro=erro):
                 self.assertEqual(self.rodar([ck("testes", "pending")], erro_pr=erro), [])
                 self.assertEqual((self.nao_conferidos, self.stderr), ([], ""))

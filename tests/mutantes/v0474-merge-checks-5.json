@@ -31,6 +31,17 @@
       "testes": [
         "tests.test_forge_check_pr.ChecksDoHead.test_pr_view_que_falha_avisa_e_marca_para_o_hook"
       ]
+    },
+    {
+      "id": "M31",
+      "guarda": "o gh do GitHub Actions sem GH_TOKEN e nada a conferir, nao PR nao lido (E3.185)",
+      "arquivo": "bin/forge-check",
+      "de": "\"set the GH_TOKEN environment variable\", GH_AUSENTE)",
+      "para": "GH_AUSENTE)",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_sem_pr_sem_remoto_do_github_ou_sem_gh_nao_marca",
+        "tests.test_pr_hook_prazo.GravacaoDoForgeCheck.test_pr_aprovado_grava_e_o_hook_libera_so_lendo"
+      ]
     }
   ]
 }

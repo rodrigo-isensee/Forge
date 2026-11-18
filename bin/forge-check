@@ -1439,9 +1439,10 @@ def tamanho_do_pr(raiz, ref, base, branch, previo=False):
 CHECKS_EXIGIDOS_DO_FORGE = ("CI/bateria", "CI/bateria (python 3.14)", "Catraca/catraca")
 GH_AUSENTE = "gh não encontrado"
 # A1 da segurança e do QA (E3.80): o stderr do `gh pr view` que quer dizer "sem PR a conferir": a branch sem PR ou o clone sem remoto do
-# GitHub (ali o `gh pr merge` também não roda). Sem gh ou sem login nele, idem. Qualquer outra falha (rede, teto, saída ilegível) avisa e o hook
-# recusa.
-GH_SEM_PR = ("no pull requests found", "no git remotes found", "none of the git remotes configured", "gh auth login", GH_AUSENTE)
+# GitHub (ali o `gh pr merge` também não roda). Sem gh ou sem login nele, idem; no GitHub Actions sem GH_TOKEN, o gh troca o "gh auth login"
+# pelo pedido do GH_TOKEN (E3.185). Qualquer outra falha (rede, teto, saída ilegível) avisa e o hook recusa.
+GH_SEM_PR = ("no pull requests found", "no git remotes found", "none of the git remotes configured", "gh auth login",
+             "set the GH_TOKEN environment variable", GH_AUSENTE)
 # A1 do review (E3.80): o passo 1 do forge-fechar confere os pareceres antes de esperar os checks (passo 4) ou de armar o auto-merge;
 # com esta variável em 1, o `pr` não confere os checks do head e não grava o resultado (o hook do `gh pr merge` não o lê).
 SEM_CHECKS_DO_FECHAR = "FORGE_FECHAR_PASSO_1"
