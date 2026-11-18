@@ -46,8 +46,8 @@
       "id": "P3",
       "guarda": "MP4: máquina cheia com todas as vagas tomadas",
       "arquivo": "hooks/pesado.py",
-      "de": "return len(outras) >= vagas()",
-      "para": "return len(outras) > vagas()",
+      "de": "return len(outras_vezes(hook, uso, agora)) >= vagas()",
+      "para": "return len(outras_vezes(hook, uso, agora)) > vagas()",
       "testes": [
         "tests.test_maquina.FilaPesada.test_bateria_de_outro_projeto_espera_a_vaga_da_maquina"
       ]

@@ -16,8 +16,8 @@
       "id": "P8",
       "guarda": "MP4: máquina cheia não dá a vez na chegada",
       "arquivo": "hooks/pesado.py",
-      "de": "if not ocupada(hook, trava, uso, agora) and not maquina_cheia(hook, uso, agora) \\\n",
-      "para": "if not ocupada(hook, trava, uso, agora) \\\n",
+      "de": "        if not ocupada(hook, trava, uso, agora) and not maquina_cheia(hook, uso, agora) \\\n                and frente_parada(fila_viva(",
+      "para": "        if not ocupada(hook, trava, uso, agora) \\\n                and frente_parada(fila_viva(",
       "testes": [
         "tests.test_maquina.FilaPesada.test_bateria_de_outro_projeto_espera_a_vaga_da_maquina"
       ]
@@ -26,8 +26,8 @@
       "id": "P9",
       "guarda": "MP4: máquina cheia não dá a vez na fila",
       "arquivo": "hooks/pesado.py",
-      "de": "and not maquina_cheia(hook, uso, agora) and vivas[:1] == [senha]:",
-      "para": "and vivas[:1] == [senha]:",
+      "de": "and not maquina_cheia(hook, uso, agora) \\\n                        and frente_parada(vivas, agora, senha):",
+      "para": "\\\n                        and frente_parada(vivas, agora, senha):",
       "testes": [
         "tests.test_maquina.FilaPesada.test_bateria_de_outro_projeto_espera_a_vaga_da_maquina"
       ]

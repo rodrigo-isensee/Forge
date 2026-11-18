@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "MP2: registro em link não se lê",
       "arquivo": "hooks/_maquina.py",
-      "de": "if not caminho.is_symlink() else {}",
-      "para": "if True else {}",
+      "de": "os.open(caminho, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)",
+      "para": "os.open(caminho, os.O_RDONLY | os.O_NONBLOCK)",
       "testes": [
         "tests.test_maquina.Registro.test_sessao_fora_da_forma_e_registro_em_link_nao_contam"
       ]
