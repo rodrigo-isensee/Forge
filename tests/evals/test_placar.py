@@ -294,5 +294,139 @@ class Disco(Placar):
             self.assertEqual(mod.disco(), {"uso": 37, "limiar": 90})
 
 
+# META85 (ordem do dono 18/11): `forge-placar fases`, sobre um repositório git temporário com datas fixas em 2025.
+def ambiente_limpo(raiz):
+    """Ambiente limpo: nada herdado de quem roda a suíte (AR-4), sem config global nem de sistema."""
+    return sem_manutencao({"PATH": os.environ.get("PATH", ""), "HOME": str(raiz / "home"), "GIT_CONFIG_GLOBAL": os.devnull,
+                           "GIT_CONFIG_NOSYSTEM": "1", "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+                           "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
+
+
+def parecer_md(resultado):
+    return f"---\ntipo: review\nparecer: {resultado}\n---\n# parecer\n"
+
+
+class Fases(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.raiz = Path(tempfile.mkdtemp(prefix="forge-placar-fases-"))
+        cls.repo = cls.raiz / "repo"
+        cls.repo.mkdir()
+        cls.env = ambiente_limpo(cls.raiz)
+        cls.git("init", "-q", "-b", "develop")
+        cls.commit("2025-03-17T09:00", {"base.txt": "0"}, "chore: base")
+        # Item A (dia 18): desenvolvimento 30, pareceres 30, voltas 30, integração 30; o review reprova na 1.ª rodada
+        cls.git("switch", "-q", "-c", "melhoria/a")
+        cls.commit("2025-03-18T10:00", {"a.py": "1"}, "feat: a")
+        cls.commit("2025-03-18T10:30", {"a.py": "2"}, "feat: a mais")
+        cls.commit("2025-03-18T10:40", {"docs/reviews/a.md": parecer_md("reprovado")}, "docs(review): reprova")
+        cls.commit("2025-03-18T10:45", {"docs/qa/bugs/a-01.md": "# bug sem frontmatter\n"}, "docs(qa): bug")
+        cls.commit("2025-03-18T11:00", {"a.py": "3", "docs/devops/nota.md": "nota\n"}, "fix: a com nota")  # misto: é código
+        cls.commit("2025-03-18T11:20", {"docs/reviews/a.md": parecer_md("aprovado")}, "docs(review): aprova")
+        cls.commit("2025-03-18T11:30", {"docs/qa/a.md": parecer_md("aprovado")}, "docs(qa): aprova")
+        cls.mesclar("melhoria/a", "2025-03-18T12:00", "Merge pull request #7 from dono/melhoria/a")
+        # Item B (dia 18): pareceres 20, integração 30; aprovado na 1.ª rodada
+        cls.git("switch", "-q", "-c", "melhoria/b")
+        cls.commit("2025-03-18T13:00", {"b.py": "1"}, "feat: b")
+        cls.commit("2025-03-18T13:20", {"docs/security/b.md": parecer_md("aprovado")}, "docs(security): aprova")
+        cls.mesclar("melhoria/b", "2025-03-18T13:50", "Merge branch 'melhoria/b' into develop")
+        # Item C (dia 19): sem parecer, assunto fora dos dois formatos
+        cls.git("switch", "-q", "-c", "melhoria/c")
+        cls.commit("2025-03-19T14:00", {"c.py": "1"}, "feat: c")
+        cls.commit("2025-03-19T14:10", {"c.py": "2"}, "feat: c mais")
+        cls.mesclar("melhoria/c", "2025-03-19T14:30", "integra c")
+        # Item D (dia 20): tudo no mesmo minuto, total 0
+        cls.git("switch", "-q", "-c", "melhoria/d")
+        cls.commit("2025-03-20T15:00", {"d.py": "1"}, "feat: d")
+        cls.mesclar("melhoria/d", "2025-03-20T15:00", "Merge pull request #9 from dono/melhoria/d")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.raiz, ignore_errors=True)
+
+    @classmethod
+    def git(cls, *args, quando="2025-03-17T08:00"):
+        env = dict(cls.env, GIT_AUTHOR_DATE=f"{quando}:00+0000", GIT_COMMITTER_DATE=f"{quando}:00+0000")
+        subprocess.run(["git", *args], cwd=cls.repo, env=env, check=True, capture_output=True, timeout=30)
+
+    @classmethod
+    def commit(cls, quando, arquivos, msg):
+        for nome, texto in arquivos.items():
+            (cls.repo / nome).parent.mkdir(parents=True, exist_ok=True)
+            (cls.repo / nome).write_text(texto, encoding="utf-8")
+        cls.git("add", "-A")
+        cls.git("commit", "-q", "-m", msg, quando=quando)
+
+    @classmethod
+    def mesclar(cls, branch, quando, msg):
+        cls.git("switch", "-q", "develop")
+        cls.git("merge", "-q", "--no-ff", "-m", msg, branch, quando=quando)
+
+    def rodar(self, *args):
+        r = subprocess.run([sys.executable, "-I", str(PLACAR), "fases", "--git", str(self.repo), "--ref", "develop", *args],
+                           capture_output=True, text=True, env=self.env, cwd=self.raiz, timeout=60)
+        return r.returncode, r.stdout, r.stderr
+
+    def json(self, dia):
+        rc, saida, erro = self.rodar("--dia", dia, "--json")
+        self.assertEqual(rc, 0, erro)
+        return json.loads(saida)
+
+    def test_fases_e_primeira_rodada_por_item_e_total_do_dia(self):
+        dados = self.json("2025-03-18")
+        itens = {i["item"]: i for i in dados["itens"]}
+        self.assertEqual(set(itens), {"melhoria/a", "melhoria/b"})  # o C e o D, de outros dias, ficam fora
+        a, b = itens["melhoria/a"], itens["melhoria/b"]
+        self.assertEqual(a["fases"], {"desenvolvimento": 30, "pareceres": 30, "voltas": 30, "integração": 30})
+        self.assertEqual((a["total"], a["primeira_rodada"]), (120, False))  # a 1.ª versão do review reprovou
+        self.assertEqual(b["fases"], {"desenvolvimento": 0, "pareceres": 20, "voltas": 0, "integração": 30})
+        self.assertEqual((b["total"], b["primeira_rodada"]), (50, True))
+        self.assertEqual((dados["soma"]["integração"], dados["media_min"], dados["meta_min"], dados["primeira_rodada"]), (60, 85, 85, [1, 2]))
+
+    def test_texto_traz_a_meta_e_a_primeira_rodada(self):
+        rc, saida, erro = self.rodar("--dia", "2025-03-18")
+        self.assertEqual(rc, 0, erro)
+        self.assertIn("meta 85 min do 1.º commit ao merge", saida)
+        self.assertIn("item melhoria/a: desenvolvimento 30 min · pareceres 30 min · voltas 30 min · integração 30 min · total 120 min"
+                      " · primeira rodada aprovada: não", saida)
+        self.assertIn("total do dia: 2 itens · desenvolvimento 30 min (18%)", saida)
+        self.assertIn("média 85 min por item (meta 85 min) · primeira rodada aprovada 1/2", saida)
+
+    def test_item_sem_parecer_e_assunto_sem_branch(self):
+        (c,) = self.json("2025-03-19")["itens"]
+        self.assertEqual(len(c["item"]), 8)  # o sha curto do merge
+        self.assertEqual(c["fases"], {"desenvolvimento": 10, "pareceres": 0, "voltas": 0, "integração": 20})
+        self.assertIsNone(c["primeira_rodada"])
+
+    def test_item_de_total_zero_nao_divide_por_zero(self):
+        rc, saida, erro = self.rodar("--dia", "2025-03-20")
+        self.assertEqual(rc, 0, erro)
+        self.assertIn("total do dia: 1 itens · desenvolvimento 0 min (0%)", saida)
+        self.assertIn("primeira rodada aprovada: -", saida)
+
+    def test_dia_sem_item(self):
+        dados = self.json("2025-03-17")
+        self.assertEqual((dados["itens"], dados["media_min"], dados["primeira_rodada"]), ([], None, [0, 0]))
+        rc, saida, _ = self.rodar("--dia", "2025-03-17")
+        self.assertEqual((rc, saida.splitlines()[-1]), (0, "total do dia: nenhum item mesclado"))
+
+    def test_sem_dia_vale_hoje(self):
+        rc, saida, erro = self.rodar("--json")
+        self.assertEqual(rc, 0, erro)
+        self.assertEqual(json.loads(saida)["itens"], [])  # o repositório só tem 2025
+
+    def test_sem_git_vale_a_pasta_atual(self):
+        r = subprocess.run([sys.executable, "-I", str(PLACAR), "fases", "--ref", "develop", "--dia", "2025-03-19", "--json"],
+                           capture_output=True, text=True, env=self.env, cwd=self.repo, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(len(json.loads(r.stdout)["itens"]), 1)
+
+    def test_ref_que_nao_existe_sai_com_2(self):
+        r = subprocess.run([sys.executable, "-I", str(PLACAR), "fases", "--git", str(self.repo), "--ref", "nao-existe"],
+                           capture_output=True, text=True, env=self.env, cwd=self.repo, timeout=60)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("git log falhou", r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

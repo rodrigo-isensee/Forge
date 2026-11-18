@@ -4,6 +4,7 @@
 Uso: forge-placar [--raiz DIR] [--raiz-pedidos DIR] [--erros ARQ] [--git DIR --ref REF] [--ci ARQ.json] [--dias N] [--ate AAAA-MM-DD] [--evals DIR] [--json]
      forge-placar comparar --antes AAAA-MM-DD --depois AAAA-MM-DD [--metrica NOME] [--tolerancia F] [--folga F] [--minimo N] [...]
      forge-placar propostas [ARQUIVO] [--hoje AAAA-MM-DD] [--max-abertas N] [--json]
+     forge-placar fases [--git DIR] [--ref REF] [--dia AAAA-MM-DD] [--json]
 
 Fontes (na `--raiz`, padrão a pasta atual; no Forge, a área do Jarvis): `docs/kanban/conferencias.md` (vereditos do
 conferente), `docs/kanban/escapes.md` (defeitos achados depois do parecer final), `docs/pedidos/*.md` (linhas do
@@ -43,6 +44,15 @@ Disco (MP6): a linha `disco:` traz o uso do disco que guarda as cópias de traba
 A última linha do placar e do `comparar` é o `resumo:` em linguagem simples, para a pessoa que não programa (ex.: "os erros
 de forma do time caíram 20%; os defeitos que escaparam ficaram iguais; a mudança fica"); no `--json`, a chave `resumo`.
 
+Fases (META85, ordem do dono 18/11): `fases` mostra, para cada item mesclado na `--ref` (padrão origin/develop) no `--dia`
+(padrão hoje), o tempo do 1.º commit ao merge em quatro fases, só do git do projeto (`--git`, padrão a pasta atual):
+desenvolvimento (do 1.º commit ao último de código antes do 1.º parecer), pareceres (daí ao 1.º commit de código depois de
+um parecer, ou ao último parecer), voltas (daí ao último commit da branch) e integração (daí ao merge). Commit de parecer é o
+que só mexe em docs/reviews, docs/qa, docs/security ou docs/devops; a hora do commit é a do autor (o rebase não a muda).
+Primeira rodada aprovada: a primeira versão gravada de cada parecer da branch diz `parecer: aprovado`; sem parecer, `-`.
+O total do dia soma as fases e põe a média por item ao lado da meta de 85 min. Só merge de dois pais entra (o squash
+apaga as fases).
+
 Saída: 0 ok; 1 reprovado (comparar ou propostas); 2 uso errado ou fonte ilegível; 3 inconclusivo."""
 import argparse
 import ast
@@ -69,6 +79,11 @@ ERRO_REGISTRO = re.compile(r"^## \d+\. .*\((\d{4}-\d{2}-\d{2})[ T]\d{2}:\d", re.
 TIPOS_DE_MUDANCA = ("código:", "codigo:", "texto:")
 RESULTADO = re.compile(r"^(manter|reverter)\b.*\S", re.I)
 PRAZO_MAXIMO = 30  # dias entre o início e a revisão
+PASTAS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/security/", "docs/devops/")  # as do PASTA_E_REGRA do forge-check
+META_MINUTOS = 85  # ordem do dono 18/11 17:00: do 1.º commit ao merge, de 169 para 85 min
+FASES = ("desenvolvimento", "pareceres", "voltas", "integração")
+PARECER = re.compile(r"^parecer:[ \t]*(\S+)", re.M)
+NOME_DO_ITEM = re.compile(r"(?:from [^/\s]+/|Merge branch ')([^'\s]+)")
 
 
 def data(texto, nome):
@@ -480,6 +495,88 @@ def cmd_propostas(args):
     return 1 if faltas else 0
 
 
+def git(pasta, *args):
+    r = subprocess.run(["git", "-C", str(pasta), *args], capture_output=True, text=True)
+    if r.returncode:
+        raise SystemExit(f"forge-placar: git {args[0]} falhou em {pasta}")
+    return r.stdout
+
+
+def commits_do_item(pasta, base, ponta):
+    """[(hora do autor, é de parecer, arquivos de parecer, sha)] dos commits da branch, do mais antigo ao mais novo."""
+    saida = []
+    for bloco in git(pasta, "log", "--reverse", "--no-merges", "--format=%x00%H %at", "--name-only", f"{base}..{ponta}").split("\0")[1:]:
+        cabeca, *nomes = [linha for linha in bloco.splitlines() if linha]
+        sha, quando = cabeca.split()
+        pareceres = [n for n in nomes if n.startswith(PASTAS_DE_PARECER)]
+        saida.append((int(quando), bool(nomes) and len(pareceres) == len(nomes), pareceres, sha))
+    return saida
+
+
+def fases_do_item(commits, fim):
+    """Minutos por fase (ver o cabeçalho) entre o 1.º commit e o merge; sem parecer, tudo é desenvolvimento e integração."""
+    inicio, ultimo = commits[0][0], commits[-1][0]
+    i = next((k for k, c in enumerate(commits) if c[1]), None)
+    if i is None:
+        marcos = [inicio, ultimo, ultimo, ultimo, fim]
+    else:
+        volta = next((c[0] for c in commits[i:] if not c[1]), None)
+        marcos = [inicio, max((c[0] for c in commits[:i]), default=inicio), volta or ultimo, ultimo, fim]
+    return {fase: round((b - a) / 60) for fase, a, b in zip(FASES, marcos, marcos[1:])}
+
+
+def primeira_rodada(pasta, commits):
+    """True se a primeira versão gravada de cada parecer da branch diz `parecer: aprovado`; None sem parecer."""
+    vereditos = {}
+    for _, _, nomes, sha in commits:
+        for nome in nomes:
+            if nome not in vereditos:
+                r = subprocess.run(["git", "-C", str(pasta), "show", f"{sha}:{nome}"], capture_output=True, text=True)
+                m = PARECER.search(r.stdout)
+                if m:
+                    vereditos[nome] = m.group(1).lower() == "aprovado"
+    return all(vereditos.values()) if vereditos else None
+
+
+def itens_do_dia(pasta, ref, dia):
+    """Os itens mesclados (dois pais) na linha principal da `ref` no dia, com as fases e a primeira rodada."""
+    itens = []
+    for linha in git(pasta, "log", "--first-parent", "--merges", "--format=%H%x09%P%x09%ct%x09%cs%x09%s", ref).splitlines():
+        sha, pais, quando, cs, assunto = linha.split("\t", 4)
+        commits = commits_do_item(pasta, *pais.split()[:2]) if cs == dia else []
+        if commits:
+            nome = NOME_DO_ITEM.search(assunto)
+            itens.append({"item": nome.group(1) if nome else sha[:8], "fases": fases_do_item(commits, int(quando)),
+                          "total": round((int(quando) - commits[0][0]) / 60), "primeira_rodada": primeira_rodada(pasta, commits)})
+    return itens
+
+
+def cmd_fases(args):
+    dia = data(args.dia, "--dia") if args.dia else datetime.date.today()
+    itens = itens_do_dia(args.git or ".", args.ref, dia.isoformat())
+    soma = {fase: sum(i["fases"][fase] for i in itens) for fase in FASES}
+    julgados = [i["primeira_rodada"] for i in itens if i["primeira_rodada"] is not None]
+    dados = {"dia": dia.isoformat(), "meta_min": META_MINUTOS, "itens": itens, "soma": soma,
+             "media_min": round(sum(i["total"] for i in itens) / len(itens)) if itens else None,
+             "primeira_rodada": [sum(julgados), len(julgados)]}
+    if args.json:
+        print(json.dumps(dados, ensure_ascii=False, sort_keys=True))
+        return 0
+    sim = {True: "sim", False: "não", None: "-"}
+    print(f"fases do dia {dados['dia']} (meta {META_MINUTOS} min do 1.º commit ao merge, {args.ref}):")
+    for i in itens:
+        print(f"item {i['item']}: " + " · ".join(f"{f} {i['fases'][f]} min" for f in FASES)
+              + f" · total {i['total']} min · primeira rodada aprovada: {sim[i['primeira_rodada']]}")
+    if not itens:
+        print("total do dia: nenhum item mesclado")
+        return 0
+    total = sum(soma.values()) or 1
+    print(f"total do dia: {len(itens)} itens · " + " · ".join(f"{f} {soma[f]} min ({soma[f] / total:.0%})" for f in FASES)
+          + f" · média {dados['media_min']} min por item (meta {META_MINUTOS} min)"
+          + f" · primeira rodada aprovada {sum(julgados)}/{len(julgados)}")
+    return 0
+
+
 def analisar(argv):
     comum = argparse.ArgumentParser(add_help=False)
     comum.add_argument("--raiz", default=".")
@@ -506,6 +603,10 @@ def analisar(argv):
         p.add_argument("--hoje")
         p.add_argument("--max-abertas", type=int, default=1)
         return cmd_propostas, p.parse_args(argv[1:])
+    if argv[:1] == ["fases"]:
+        p = argparse.ArgumentParser(prog="forge-placar fases", parents=[comum])
+        p.add_argument("--dia")
+        return cmd_fases, p.parse_args(argv[1:])
     p = argparse.ArgumentParser(prog="forge-placar", parents=[comum])
     p.add_argument("--ate")
     return cmd_placar, p.parse_args(argv)
