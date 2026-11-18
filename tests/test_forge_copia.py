@@ -1,9 +1,13 @@
 """bin/forge-copia: a cópia de trabalho só nasce dentro de ~/.forge-contrib; fora dela, recusa."""
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
 
 BIN = Path(__file__).resolve().parent.parent / "bin" / "forge-copia"
 
@@ -17,7 +21,7 @@ class Base(unittest.TestCase):
         self.pasta.mkdir(parents=True)
         self.fora = Path(t.name).resolve() / "fora"
         self.fora.mkdir()
-        self.env = {**os.environ, "HOME": str(self.home), "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null"}
+        self.env = sem_manutencao({**os.environ, "HOME": str(self.home), "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null"})
         self.origem = self.pasta / "origem"
         self.git(self.pasta, "init", "-q", "-b", "develop", str(self.origem))
         self.git(self.origem, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "i")
