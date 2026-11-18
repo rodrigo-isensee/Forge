@@ -18,6 +18,11 @@
 # --limpar: roda só o passo 7, sem forge-check nem merge, e só com prova de PR MERGED na develop para a branch; cada parte é "se existe" (repete sem
 # efeito colateral). Rodado de dentro da worktree da própria branch, sai dela para a principal antes de remover. Só apaga a branch (local e remota) se o sha é o do PR mesclado ou já está na base; nunca usa a opção que força.
 # Clones (MP6): o passo 7 também apaga os clones da branch em ~/.forge-contrib/wt (limpos, sem stash, tudo na origem, sha mesclado); campo `clone=`.
+# FORGE-FECHAR-CLONE-LIMPAR: rodado num clone (ou na cópia principal) que está na própria branch, a árvore dela não é worktree ligada: o passo 7
+# não manda `git worktree remove` nem apaga a branch que ela usa ou a remota; limpa os outros clones e lista o resto como pendente (código 3),
+# com a leitura (commit sem merge) ou o caminho: clone em ~/.forge-contrib/wt, o --limpar de outra cópia (que o apaga só limpo e mesclado, e
+# depois a remota); fora dela, trocar de branch e repetir o --limpar.
+# -h, --help: imprime este cabeçalho e sai com 0, sem log.
 # --sem-limpar: faz o merge e pula o passo 7: imprime os comandos da limpeza pendente (o `--limpar` primeiro, que confere o sha; worktree, branch local se existe e branch remota) e sai com
 # código 3 (fechado, limpeza pendente). Incompatível com --limpar (erro de uso). Serve a quem prefere limpar depois (ou fora do sandbox).
 # --esperar-rotulo: em vez de parar quando o PR pede o rótulo do dono e ele não está aplicado, repete a leitura dos checks e do rótulo
@@ -94,6 +99,7 @@ args_originais=("$@")  # H4: o recomeço da cadeia depois do merge da base (pass
 cartoes=() quadro="${HOME:-}/.forge-contrib" motivo_cartao="" cartao_pend=0  # FECHAR-MOVE-CARTAO
 while [ $# -gt 0 ]; do
   case "$1" in
+    -h|--help) sed -n '2,/^set -euo pipefail$/{/^set -euo pipefail$/d;s/^# \{0,1\}//;p;}' "${BASH_SOURCE[0]}"; exit 0 ;;
     --ref) ref="${2-}"; shift 2 || die "--ref pede a branch" ;;
     --base) base="${2-}"; shift 2 || die "--base pede a base" ;;
     --titulo) titulo="${2-}"; shift 2 || die "--titulo pede o texto" ;;
@@ -598,6 +604,29 @@ rm -rf -- $(printf '%q' "$d")"
     fi
   done
 }
+# copia_propria <pasta> (FORGE-FECHAR-CLONE-LIMPAR): a cópia principal deste repositório está na branch $ref (`git worktree list` a dá como árvore
+# de $ref, mas ela é a principal): não sai daqui. Branch e cópia ficam pendentes; com commit sem merge, só a leitura (leitura_sem_merge); sem ele,
+# o clone em ~/.forge-contrib/wt sai pelo --limpar de outra cópia (limpar_clones o confere) e outra cópia troca de branch e repete o --limpar.
+# A remota fica para esse --limpar (limpar_entrega não a apaga daqui). Lê sem_merge e acrescenta a pend_cmds.
+copia_propria() {
+  local raiz_copia="$1"
+  br_st=pendente copia_st=pendente
+  echo "aviso: a cópia $raiz_copia é a principal deste repositório (um clone, não uma worktree) e está na branch $ref: o fechamento não a remove nem apaga a branch que ela usa ou a remota." >&2
+  if [ "$sem_merge" = 1 ]; then
+    echo "aviso: a branch local $ref ($sha_local) tem commit que não foi mesclado; confira (git log) antes de apagar qualquer coisa." >&2
+    pend_cmds="$pend_cmds
+$(leitura_sem_merge "refs/heads/$ref")"
+  elif [ "$(dirname "$raiz_copia")" = "$(cd "${HOME:-}/.forge-contrib/wt" 2>/dev/null && pwd -P)" ]; then  # a pasta que o limpar_clones percorre, resolvida
+    pend_cmds="$pend_cmds
+# de outra cópia do Forge: apaga este clone (só limpo, com tudo na origem e mesclado) e depois a branch remota
+forge-fechar $(printf '%q' "$pedido") --ref $(printf '%q' "$ref") --limpar"
+  else
+    pend_cmds="$pend_cmds
+git -C $(printf '%q' "$raiz_copia") switch develop
+git -C $(printf '%q' "$raiz_copia") branch -D $(printf '%q' "$ref")
+forge-fechar $(printf '%q' "$pedido") --ref $(printf '%q' "$ref") --limpar"
+  fi
+}
 # limpar_entrega: a limpeza do passo 7 e do --limpar, só depois da prova de merge (merged_heads). Cada parte é "se existe", então repete sem efeito
 # colateral. Ordem: worktree, branch local, e por último a remota (o pre-push reconhece o push só de remoção, não roda suíte nem espera a fila da trava; PREPUSH-DELETE). Nunca força: worktree suja e branch com commit
 # novo ficam pendentes. Resumo sempre gravado; define `pendencia` (0 ou 1) e deixa a decisão do código de saída a quem chama.
@@ -612,7 +641,12 @@ limpar_entrega() {
   atual="$(pwd -P)"
   # O caminho é a linha inteira depois de "worktree " (pode ter espaço); o nome da branch não tem.
   arvore="$(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=substr($0,10)} $1=="branch" && $2==b {print w}')"
-  local orfao=0 principal meta=""
+  local orfao=0 principal meta="" propria=""
+  # FORGE-FECHAR-CLONE-LIMPAR: a árvore de $ref é a principal deste repositório (o .git dela é a pasta comum): um clone, não worktree ligada.
+  if [ -n "$arvore" ] && [ -d "$arvore" ] && [ "$(cd "$arvore" && pwd -P)/.git" = "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)" ]; then
+    propria="$(cd "$arvore" && pwd -P)"
+    arvore=""
+  fi
   if [ -n "$arvore" ]; then
     if [ -d "$arvore" ] && [ "$(cd "$arvore" && pwd -P)" = "$atual" ]; then
       # Rodado de dentro da worktree da própria branch: sai dela para a worktree principal (a primeira de `worktree list`) antes de remover.
@@ -665,7 +699,7 @@ git worktree remove $(printf '%q' "$arvore")"
       fi
     fi
   fi
-  if [ -n "$sha_local" ]; then
+  if [ -n "$sha_local" ] && [ -z "$propria" ]; then
     if [ "$arv_st" != ok ]; then
       br_st=pendente
     elif ! sha_confere "$sha_local"; then
@@ -709,7 +743,10 @@ git branch -D $(printf '%q' "$ref")"
   # O campo do config vai no fim do estado da branch, a última coisa da linha `limpeza:` (só existe quando o passo acima o definiu).
   [ -z "${cfg_campo:-}" ] || br_st="$br_st$cfg_campo"
   limpar_clones
-  if ! sha_remoto="$(remoto_exato "$ref")"; then
+  if [ -n "$propria" ]; then
+    copia_propria "$propria"
+    rem_st=pendente  # o push daqui tiraria a origin/$ref do clone, e o limpar_clones da outra cópia o veria com commit fora da origem
+  elif ! sha_remoto="$(remoto_exato "$ref")"; then
     echo "aviso: não consegui ler a branch remota $ref." >&2
     rem_st=pendente
   else
@@ -737,7 +774,7 @@ git branch -D $(printf '%q' "$ref")"
       fi
     fi
   fi
-  if [ "$rem_st" = ok ]; then
+  if [ "$rem_st" = ok ] || [ -n "$propria" ]; then
     :
   elif [ -n "$rem_leitura" ]; then pend_cmds="$pend_cmds
 $rem_leitura"

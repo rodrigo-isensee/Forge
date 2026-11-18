@@ -1,0 +1,2 @@
+### Corrigido
+- `bin/forge-fechar --limpar` rodado num clone (ou na cópia principal) que está na própria branch não manda mais `git worktree remove` nem `git branch -D`: reconhece a cópia (`git rev-parse --git-common-dir` igual ao `.git` dela), limpa os outros clones e diz o que ficou (código 3): no clone de `~/.forge-contrib/wt`, o `--limpar` de outra cópia, que o apaga só limpo e mesclado e depois a remota; fora dela, trocar de branch e repetir; com commit sem merge, só a leitura. Aceita `--help` (v0478 FORGE-FECHAR-CLONE-LIMPAR).
