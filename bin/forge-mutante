@@ -47,9 +47,11 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--ids M1,M2] [--pra
            [{"arquivo", "trecho" exato com 8+ não brancos e dentro do nó, "motivo" de 20+ caracteres}] libera a
            condição sem mutante ou apagada que cruzam, impressa `isenta · arq:L · motivo`; a isenta que não cruza condição
            listada (trecho velho, que não casa, ou fora do nó) sai à parte, depois da cobertura inteira, `isenta velha ·
-           <spec>: <arq> · <trecho>` (rc 1). A condição nova casa o trecho dentro do nó, e a isenta vale para cada
-           condição nova com o mesmo trecho (cada uma sai na sua linha); a apagada mais de uma vez, o trecho único no
-           arquivo; a apagada uma vez casa pelo texto (ISENTA-POR-TEXTO): o trecho uma vez dentro do nó, cada isenta cobre uma condição só, e a
+           <spec>: <arq> · <trecho>` (rc 1); a que a spec já trazia no merge-base (na volta, com --base no head
+           aprovado, a isenta da 1.ª rodada) sai `isenta fora do diff`, fora do rc. A condição nova casa o trecho
+           dentro do nó, e a isenta vale para cada condição nova com o mesmo trecho (cada uma sai na sua linha); a
+           apagada mais de uma vez, o trecho único no arquivo; a apagada uma vez casa pelo texto (ISENTA-POR-TEXTO): o
+           trecho uma vez dentro do nó, cada isenta cobre uma condição só, e a
            base nova que desloca a linha não solta a isenta. `linha_base`, de specs antigas, é aceita e ignorada. Para
            a condição `sem mutante`, cada mutante cujo `de` toca o nó sai `por quê · arq:L · <spec>:<id> · <motivo>`
            (o `de` repetido, curto ou a troca fora do nó). O mutante declarado equivalente não prova a condição: coberta
@@ -812,11 +814,12 @@ def cobertura(base, rev):
             por_arquivo.append(analisar_com_textos(arquivo, hunks, fonte(arquivo, antes), fonte(arquivo, depois),
                                                    mutantes, isentas, usadas))
         saida += movidas(por_arquivo)
-        soltas = [i for i in isentas if id(i) not in usadas]
+        linhas = [solta(i, mb) for i in isentas if id(i) not in usadas]
+        soltas = [x for x in linhas if x.startswith("isenta velha")]
         if soltas:  # à parte, depois da cobertura inteira (E17.1)
             print(f"forge-mutante: {len(soltas)} isenta(s) velha(s) no fim da lista: tire da spec ou acerte o trecho.",
                   file=sys.stderr)
-        saida += [solta(i) for i in soltas]
+        saida += linhas
     except (RuntimeError, ValueError, OSError, SyntaxError) as erro:
         print(f"forge-mutante: {erro}", file=sys.stderr)
         return 2
@@ -824,8 +827,20 @@ def cobertura(base, rev):
     return 1 if any(x.startswith(("sem mutante", "só equivalente", "apagada", "isenta velha")) for x in saida) else 0
 
 
-def solta(i):
-    """A linha da isenta que não cruzou nenhuma condição listada: o trecho velho (não casa) ou fora do nó."""
+def isentas_na_base(spec, mb):
+    """(arquivo, trecho) das isentas da `spec` no merge-base; nenhuma se a base não tem a spec ou não a lê."""
+    try:
+        return {(i["arquivo"], i["trecho"]) for i in json.loads(texto_no_commit(mb, spec)).get("isentas", [])}
+    except (ValueError, TypeError, KeyError, AttributeError):
+        return set()
+
+
+def solta(i, mb):
+    """A linha da isenta que não cruzou nenhuma condição listada. A que a spec já trazia no merge-base é de fora do diff
+    (na volta, com --base no head aprovado, a isenta da 1.ª rodada): `isenta fora do diff`, fora do rc (E17.1). As outras
+    são velhas: o trecho não casa ou fica fora do nó."""
+    if (i["arquivo"], i["trecho"]) in isentas_na_base(i["spec"], mb):
+        return f"isenta fora do diff · {i['spec']}: {i['arquivo']} · já estava na spec da base; ignorada"
     return f"isenta velha · {i['spec']}: {i['arquivo']} · não cruza condição listada: {i['trecho'][:60]!r}"
 
 

@@ -1016,6 +1016,22 @@ class Cobertura(unittest.TestCase):
         r = self.cobertura()
         self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (0, [f"isenta · lib.py:2(base) · {self.MOTIVO}"]), r.stderr)
 
+    def test_na_volta_a_isenta_da_spec_da_base_fica_fora_do_rc_e_a_nova_velha_conta(self):  # v0478 E17.1
+        self.salvar({"lib.py": self.COND2, **self.isentas([self.ISENTA])}, base=True)  # o head que o QA aprovou
+        nova = mutante(de="if w > 500:", para="if w > 5000:")
+        self.salvar({"lib.py": self.COND2 + "if w > 500:\n    x = 4\n", **self.isentas([self.ISENTA], mutantes=[nova])})
+        r = self.cobertura()
+        fora = "isenta fora do diff · tests/mutantes/i.json: lib.py · já estava na spec da base; ignorada"
+        coberta = "coberta · lib.py:4 · tests/mutantes/i.json:M1 · declarado, não provado"
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (0, ["spec editada · tests/mutantes/i.json", coberta, fora]),
+                         r.stderr)
+        self.assertNotIn("velha", r.stderr)
+        self.salvar(self.isentas([self.ISENTA, {**self.ISENTA, "trecho": "w > 500 and q"}], mutantes=[nova]))
+        r = self.cobertura()  # a isenta que a volta acrescenta e não casa segue velha
+        self.assertEqual((r.returncode, r.stdout.splitlines()[2:]),
+                         (1, [coberta, fora, "isenta velha · tests/mutantes/i.json: lib.py · não cruza condição listada: 'w > 500 and q'"]))
+        self.assertIn("1 isenta(s) velha(s)", r.stderr)
+
     def test_isenta_velha_sai_a_parte_depois_da_cobertura_inteira_e_1(self):  # v0478 E17.1: era rc 2 sem listar nada
         casos = {"coberta por mutante": ({"lib.py": self.COND2, "tests/mutantes/i.json": json.dumps({"pedido": "x", "mutantes": [
                      mutante(de="if x > 100 and y:", para="if x > 100 or y:")], "isentas": [self.ISENTA]})}),

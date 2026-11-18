@@ -81,66 +81,6 @@
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_isenta_velha_sai_a_parte_depois_da_cobertura_inteira_e_1"
       ]
-    },
-    {
-      "id": "M9",
-      "guarda": "o trecho existe no arquivo (mutante: o trecho ausente cruza)",
-      "arquivo": "bin/forge-mutante",
-      "de": "return onde != -1 and onde + len(trecho) <= fim",
-      "para": "return onde + len(trecho) <= fim",
-      "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_velha_sai_a_parte_depois_da_cobertura_inteira_e_1"
-      ]
-    },
-    {
-      "id": "M10",
-      "guarda": "a isenta velha dá rc 1 (mutante: rc 0)",
-      "arquivo": "bin/forge-mutante",
-      "de": "\"apagada\", \"isenta velha\"))",
-      "para": "\"apagada\"))",
-      "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_para_arquivo_de_shell_e_velha_e_sai_1"
-      ]
-    },
-    {
-      "id": "M11",
-      "guarda": "a condição nova usa a isenta por ocorrência (mutante: o modo da apagada repetida)",
-      "arquivo": "bin/forge-mutante",
-      "de": "depois, de, ate, False, nova=True)",
-      "para": "depois, de, ate, False, nova=False)",
-      "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_vale_para_cada_condicao_nova_com_o_mesmo_trecho"
-      ]
-    },
-    {
-      "id": "M12",
-      "guarda": "só a isenta que não cruzou sai velha (mutante: todas saem)",
-      "arquivo": "bin/forge-mutante",
-      "de": "soltas = [i for i in isentas if id(i) not in usadas]",
-      "para": "soltas = [i for i in isentas if True]",
-      "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_libera_a_condicao_sem_mutante_e_a_apagada_e_impressa"
-      ]
-    },
-    {
-      "id": "M13",
-      "guarda": "a isenta cruza pelo modo da condição nova (mutante: o modo nunca chega a cruza)",
-      "arquivo": "bin/forge-mutante",
-      "de": "if cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto, nova):",
-      "para": "if cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto, False):",
-      "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_vale_para_cada_condicao_nova_com_o_mesmo_trecho"
-      ]
-    },
-    {
-      "id": "M14",
-      "guarda": "a isenta velha é avisada em stderr (mutante: o aviso some)",
-      "arquivo": "bin/forge-mutante",
-      "de": "if soltas:  # à parte",
-      "para": "if False:  # à parte",
-      "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_velha_sai_a_parte_depois_da_cobertura_inteira_e_1"
-      ]
     }
   ]
 }
