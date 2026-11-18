@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0476-brief-gerar
-commit: 2008e612de013e287fe544cd1f04dd4332a899f9
+commit: 57737d1045ef906f40eaedd22c24f2b7271a8f30
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -30,3 +30,10 @@ data: 2026-11-17
 - Suíte inteira: fica no check-run `bateria` do CI do PR (não rodada aqui).
 
 ## Achados
+
+## Revalidação (delta 2008e612..57737d10)
+O delta é a junção da `develop` e a contagem de `tests/test_testes_tocados.py` (96, hoje com `com_oraculos` no lugar de `sem_oraculos`).
+- `python3 -m unittest tests.test_testes_tocados`: 162 testes, OK (1 pulado pelo sandbox: `/proc` de outro namespace de pid, medida da vaga pesada; não é skip do teste).
+- `python3 -m unittest tests.test_ambiente_git`: 20 testes, OK.
+- `catraca.py --base origin/develop`: só aponta as linhas apagadas `bin/forge-check:8600/8601` (`ETAPA_FEITA.search`), código removido pelo E3.48 já aprovado no head 2008e612 (mutantes das linhas apagadas retirados da spec); e `R-CONFORMIDADE` (rótulo `afrouxa-regra` do dono). Nada novo no delta.
+- Nenhum achado novo.
