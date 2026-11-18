@@ -272,5 +272,27 @@ class PorPapel(Placar):
         rc, dados = self.json("--ate", "2026-11-14", "--evals", str(self.raiz / "nada"))
         self.assertIsNone(dados["papeis"])
 
+
+class Disco(Placar):
+    """MP6: a medida do disco das cópias de trabalho, com o limiar de bin/forge_disco.py; disco falso no processo."""
+
+    def test_json_e_texto_trazem_o_uso_e_o_limiar(self):
+        (self.raiz / "home" / ".forge-contrib").mkdir(parents=True)
+        rc, dados = self.json("--ate", "2026-11-14")
+        self.assertEqual(dados["disco"]["limiar"], 90)
+        self.assertIsInstance(dados["disco"]["uso"], int)
+        rc, saida, _ = self.rodar("--ate", "2026-11-14")
+        self.assertRegex(saida.splitlines()[-2], r"^disco: \d+% de uso em ~/.forge-contrib \(limiar 90%\)$")
+
+    def test_disco_ilegivel_da_uso_none(self):  # a medida que falha volta None; o traço do texto é o M15
+        from importlib.machinery import SourceFileLoader
+        from unittest import mock
+        mod = SourceFileLoader("forge_placar_teste", str(PLACAR)).load_module()
+        with mock.patch("shutil.disk_usage", side_effect=OSError("sem statvfs")):
+            self.assertEqual(mod.disco(), {"uso": None, "limiar": 90})
+        with mock.patch("shutil.disk_usage", return_value=shutil._ntuple_diskusage(100, 37, 63)):
+            self.assertEqual(mod.disco(), {"uso": 37, "limiar": 90})
+
+
 if __name__ == "__main__":
     unittest.main()

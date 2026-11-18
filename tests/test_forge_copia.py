@@ -1,10 +1,15 @@
 """bin/forge-copia: a cópia de trabalho só nasce dentro de ~/.forge-contrib; fora dela, recusa."""
+import io
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
+from importlib.machinery import SourceFileLoader
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ambiente_git import sem_manutencao  # noqa: E402
@@ -118,6 +123,62 @@ class Recusa(Base):
     def test_nome_de_branch_invalido(self):
         r = self.copia("worktree", str(self.pasta / "w"), "--branch", "a..b")
         self.assertEqual(r.returncode, 2, r.stderr)
+
+
+def disco(usado, livre):
+    return shutil._ntuple_diskusage(usado + livre, usado, livre)
+
+
+class Disco(unittest.TestCase):
+    """MP6: disco falso (shutil.disk_usage trocado no processo), sem encher disco de verdade; o git do clone também é falso."""
+
+    def setUp(self):
+        t = tempfile.TemporaryDirectory()
+        self.addCleanup(t.cleanup)
+        self.home = Path(t.name).resolve()
+        (self.home / ".forge-contrib").mkdir()
+        self.mod = SourceFileLoader("forge_copia_teste", str(BIN)).load_module()
+        self.gits = []
+        for alvo in (mock.patch.dict(os.environ, {"HOME": str(self.home)}),
+                     mock.patch.object(self.mod, "git", lambda *a, cwd=None: self.gits.append(a) or 0)):
+            alvo.start()
+            self.addCleanup(alvo.stop)
+
+    def copiar(self, uso):
+        erro = io.StringIO()
+        with mock.patch("shutil.disk_usage", **uso), redirect_stderr(erro):
+            rc = self.mod.main(["clone", str(self.home / ".forge-contrib" / "c"), "--branch", "melhoria/q", "--origem", "o"])
+        return rc, erro.getvalue()
+
+    def test_acima_do_limiar_recusa_e_manda_limpar_sem_chamar_o_git(self):
+        rc, erro = self.copiar({"return_value": disco(91, 9)})
+        self.assertEqual((rc, self.gits), (2, []), erro)
+        self.assertIn("91% de uso, acima de 90%", erro)
+        self.assertIn("--limpar", erro)
+
+    def test_no_limiar_cria(self):
+        rc, erro = self.copiar({"return_value": disco(90, 10)})
+        self.assertEqual(rc, 0, erro)
+        self.assertEqual(self.gits[0][0], "clone")
+
+    def test_disco_ilegivel_recusa(self):
+        rc, erro = self.copiar({"side_effect": OSError("sem statvfs")})
+        self.assertEqual((rc, self.gits), (2, []), erro)
+        self.assertIn("não consegui medir o disco", erro)
+
+    def test_disco_sem_espaco_ocupavel_conta_como_cheio(self):
+        rc, erro = self.copiar({"return_value": disco(0, 0)})
+        self.assertEqual((rc, self.gits), (2, []), erro)
+
+    def test_destino_novo_mede_o_pai_que_existe(self):
+        medidos = []
+        rc, erro = self.copiar({"side_effect": lambda p: medidos.append(p) or disco(1, 99)})
+        self.assertEqual((rc, medidos), (0, [str(self.home / ".forge-contrib")]), erro)
+
+    def test_o_limiar_mora_so_no_forge_disco(self):
+        self.assertEqual(self.mod.LIMIAR_DISCO, 90)
+        for nome in ("forge-copia", "forge-placar"):
+            self.assertNotRegex((BIN.parent / nome).read_text(), r"\b90\s*%|>\s*90\b")
 
 
 if __name__ == "__main__":
