@@ -25,7 +25,7 @@ Escopo: `tests/catraca.py` (`regra_guardas_dos_hooks` passa as saídas por `fm.m
 
 ## Provas
 - Classe `GuardasDosHooks` (TMPDIR, `python3 -I -m unittest discover -s tests -p test_catraca.py -k GuardasDosHooks`): `Ran 15 tests`, `OK`.
-- Vermelho (cópia em TMPDIR com `tests/catraca.py` da base 2904a68a e os testes do head): `FAIL: test_guarda_movida_de_arquivo_com_mutante_no_destino_passa`; os outros dois passam na base. `bin/forge-testes --vermelho` não deu veredito aqui (processo caiu: `fatal library error, lookup self`, sem saída); o vermelho acima é manual.
+- Vermelho (cópia em TMPDIR com `tests/catraca.py` da base 2904a68a e os testes do head): `FAIL: test_guarda_movida_de_arquivo_com_mutante_no_destino_passa`; os outros dois passam na base. `bin/forge-testes --vermelho 2904a68a --modulos tests.test_catraca` (saída 0, demorou além de 5 min): `vermelho: base=2904a68ae6d3 head=6c1f86913acb`, `...test_guarda_movida_de_arquivo_com_mutante_no_destino_passa · H=ok · B=falha · prova (asserção)`, `contagem: não prova (passa na base)=368; prova (asserção)=1`.
 - `bin/forge-mutante tests/mutantes/v0479-catraca-movidas.json` (rev=6c1f86913acb, saída 0): `M1 · morreu · tests/catraca.py:871`, `M2 · morreu · tests/catraca.py:873`.
 - `bin/forge-mutante --cobertura --base 2904a68a`: sem condição sem mutante (só a linha `base=`/`rev=`).
 
