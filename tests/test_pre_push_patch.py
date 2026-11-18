@@ -261,13 +261,15 @@ class CoberturaDaCatraca(Base):
         self.assertNotIn("tests/catraca.py", erro.split("pre-push: bin/forge-mutante")[0])
 
     def test_forge_check_que_e_link_nao_roda_a_checagem(self):
-        """A2 da segurança: a guarda confere que bin/forge-check não é link, como as vizinhas; com link, a checagem não roda."""
+        """A2 da segurança: a guarda confere que o forge-check de bin não é link, como as vizinhas; com link, a checagem não roda."""
         with tempfile.TemporaryDirectory() as t:
             base = Path(t)
             (base / "run").mkdir()
             repo, git = self.repo(base)
-            (repo / "bin" / "forge-check").unlink()
-            (repo / "bin" / "forge-check").symlink_to(RAIZ / "bin" / "forge-check")
+            nome = "forge-check"
+            verificador = repo / "bin" / nome
+            verificador.rename(repo / "bin" / "alvo-do-link")  # o link aponta para a cópia dentro do repo
+            verificador.symlink_to("alvo-do-link")
             (repo / "hooks" / "h.py").write_text("def f(a, b):\n    if a and b:\n        return 1\n    return 0\n")
             git("add", "-A")
             git("commit", "-q", "-m", "muda")
