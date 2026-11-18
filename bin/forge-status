@@ -74,7 +74,8 @@ def maquina():
     from pesado import pid_vivo
     agora = time.time()
     try:
-        vivas = _maquina.vivas(json.loads(ler(_maquina.caminho_da_pasta() / _maquina.ATIVOS)).get("sessoes"), agora, pid_vivo)
+        bruto = _maquina.ler_regular(_maquina.caminho_da_pasta() / _maquina.ATIVOS, _maquina.TETO_DE_BYTES)  # segurança A4
+        vivas = _maquina.vivas(json.loads(bruto).get("sessoes"), agora, pid_vivo)
     except (ValueError, AttributeError, OSError):
         vivas = {}
     saida = [sem_controle(f"{s.get('projeto')} · {s.get('pasta')} · batimento há "

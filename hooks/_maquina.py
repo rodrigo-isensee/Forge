@@ -12,15 +12,18 @@ import contextlib
 import fcntl
 import json
 import os
+import stat
+import tempfile
 import time
 from pathlib import Path
 
-from _comum import executar, expandir_home, gravar_json
+from _comum import executar, expandir_home, so_do_usuario
 
 PASTA = "~/.forge/maquina"
 ATIVOS = "projetos-ativos.json"
 BATIMENTO_S = 1800  # meia hora sem turno nenhum: a sessão deixa de contar como ativa
 EVENTOS = {"SessionStart", "Stop"}
+TETO_DE_BYTES = 65536  # o registro e as vezes cabem folgados; maior que isso não se lê
 
 
 def caminho_da_pasta():
@@ -29,11 +32,13 @@ def caminho_da_pasta():
 
 
 def pasta():
-    """A pasta do estado da máquina, criada; em link, levanta (ninguém desvia o estado para outro lugar)."""
+    """A pasta do estado da máquina, criada; em link, de outro dono ou aberta ao grupo, levanta (segurança A6)."""
     caminho = caminho_da_pasta()
     if caminho.is_symlink():
         raise OSError(f"{caminho} é link")
     caminho.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if not so_do_usuario(caminho) or os.stat(caminho).st_mode & 0o077:
+        raise OSError(f"{caminho} não é só do usuário (0700)")
     return caminho
 
 
@@ -46,17 +51,37 @@ def trava():
 
 
 def ler(nome):
-    """O objeto JSON de `nome` na pasta; {} sem o arquivo, em link, ilegível ou fora da forma."""
-    caminho = pasta() / nome
+    """O objeto JSON de `nome` na pasta; {} sem o arquivo, em link, FIFO, acima do teto, ilegível ou fora da forma."""
     try:
-        dados = json.loads(caminho.read_text(encoding="utf-8")) if not caminho.is_symlink() else {}
+        dados = json.loads(ler_regular(pasta() / nome, TETO_DE_BYTES))
     except (OSError, ValueError, RecursionError):
         return {}
     return dados if isinstance(dados, dict) else {}
 
 
+def ler_regular(caminho, teto):
+    """Até `teto` bytes do arquivo regular `caminho`, sem seguir link nem esperar FIFO (segurança A4); acima, levanta."""
+    fd = os.open(caminho, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, "rb") as f:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise OSError(f"{caminho} não é arquivo regular")
+        bruto = f.read(teto + 1)
+    if len(bruto) > teto:
+        raise OSError(f"{caminho} passa de {teto} bytes")
+    return bruto.decode("utf-8")
+
+
 def gravar(nome, dados):
-    gravar_json(pasta() / nome, dados)
+    """Temporário de nome imprevisível criado com O_EXCL (não segue link plantado; segurança A5) e trocado de uma vez."""
+    destino = pasta() / nome
+    fd, tmp = tempfile.mkstemp(dir=destino.parent, prefix=f".{nome}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(json.dumps(dados, ensure_ascii=False, indent=1) + "\n")
+        os.replace(tmp, destino)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
 
 
 def vivas(sessoes, agora, vivo):

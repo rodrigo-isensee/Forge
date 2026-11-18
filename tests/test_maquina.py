@@ -1,6 +1,7 @@
 """MP2 e MP4 (diretriz 35): o registro de projetos ativos da máquina e a fila pesada única, com projetos simulados."""
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -20,6 +21,7 @@ from test_hooks import ambiente_limpo, lancador, pid_morto, repositorio_vazio  #
 class Maquina(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="forge-maquina-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
         self.env = dict(ambiente_limpo(), FORGE_MAQUINA=str(self.tmp / "maquina"), FORGE_PESADO_ESPERA_S="0")
 
     def projeto(self, nome):
@@ -31,9 +33,11 @@ class Maquina(unittest.TestCase):
         (raiz / ".forge" / "config.json").write_text(json.dumps({"pesados": ["npx playwright test"]}), encoding="utf-8")
         return raiz
 
-    def hook(self, nome, raiz, **entrada):
-        entrada = {"cwd": str(raiz), **entrada}
-        return subprocess.run(lancador(nome), input=json.dumps(entrada), cwd=raiz, env=self.env, capture_output=True,
+    def hook(self, nome, raiz, nucleos=None, **entrada):
+        entrada, comando = {"cwd": str(raiz), **entrada}, lancador(nome)
+        if nucleos:  # o hook roda noutro processo: os núcleos (e as vagas) se fixam lá
+            comando[2] = f"import os; os.cpu_count = lambda: {nucleos}\n" + comando[2]
+        return subprocess.run(comando, input=json.dumps(entrada), cwd=raiz, env=self.env, capture_output=True,
                               text=True, timeout=60)
 
     def anotar(self, raiz, sessao, evento="Stop"):
@@ -47,7 +51,7 @@ class Maquina(unittest.TestCase):
                               capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL).stdout
 
     def gravar(self, nome, dados):
-        (self.tmp / "maquina").mkdir(exist_ok=True)
+        (self.tmp / "maquina").mkdir(mode=0o700, exist_ok=True)
         (self.tmp / "maquina" / nome).write_text(dados if isinstance(dados, str) else json.dumps(dados), encoding="utf-8")
 
 
@@ -81,7 +85,7 @@ class Registro(Maquina):
     def test_sessao_fora_da_forma_e_registro_em_link_nao_contam(self):
         agora, vivo = time.time(), os.getpid()
         (self.tmp / "fora.json").write_text(json.dumps({"sessoes": {"x": {"projeto": "fora", "pid": vivo, "batimento": agora}}}))
-        (self.tmp / "maquina").mkdir()
+        (self.tmp / "maquina").mkdir(mode=0o700)
         (self.tmp / "maquina" / _maquina.ATIVOS).symlink_to(self.tmp / "fora.json")
         self.anotar(self.projeto("alfa"), "s1")
         self.assertEqual(self.registro()["projetos"], ["alfa"], "o registro em link não se lê")
@@ -102,18 +106,167 @@ class Registro(Maquina):
                 self.assertEqual(self.hook("_maquina", alfa, **entrada).returncode, 0)
                 self.assertFalse((self.tmp / "maquina" / _maquina.ATIVOS).exists())
 
+    def test_pasta_aberta_ao_grupo_nao_grava(self):
+        """Segurança A6: a pasta que já existe vale só com o modo 0700."""
+        (self.tmp / "maquina").mkdir(mode=0o700)
+        os.chmod(self.tmp / "maquina", 0o750)
+        self.assertEqual(self.anotar(self.projeto("alfa"), "s1").returncode, 0)
+        self.assertFalse((self.tmp / "maquina" / _maquina.ATIVOS).exists())
+
     def test_pasta_em_link_nao_grava(self):
         alvo = self.tmp / "alvo"
-        alvo.mkdir()
+        alvo.mkdir(mode=0o700)  # só do usuário: quem recusa é a guarda do link
         (self.tmp / "maquina").symlink_to(alvo)
         self.assertEqual(self.anotar(self.projeto("alfa"), "s1").returncode, 0)
         self.assertEqual(list(alvo.iterdir()), [])
 
 
+class Leitura(Maquina):
+    """Segurança A4 e A5: a leitura não segue link nem espera FIFO e tem teto; a gravação não segue link plantado."""
+
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch.dict(os.environ, {"FORGE_MAQUINA": str(self.tmp / "maquina")})
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.pasta = _maquina.pasta()
+
+    def test_fifo_e_arquivo_acima_do_teto_valem_vazio(self):
+        os.mkfifo(self.pasta / "pesado.json")
+        self.assertEqual(_maquina.ler("pesado.json"), {}, "FIFO sem escritor não prende a leitura")
+        escritor = os.open(self.pasta / "pesado.json", os.O_RDWR)  # FIFO com dado à espera: também não se lê
+        self.addCleanup(os.close, escritor)
+        os.write(escritor, b'{"x": 1}')
+        self.assertEqual(_maquina.ler("pesado.json"), {})
+        self.gravar(_maquina.ATIVOS, json.dumps({"x": "a" * (_maquina.TETO_DE_BYTES - 8)}))  # teto + 1 bytes
+        self.assertEqual(_maquina.ler(_maquina.ATIVOS), {})
+        self.gravar(_maquina.ATIVOS, {"x": 1})
+        self.assertEqual(_maquina.ler(_maquina.ATIVOS), {"x": 1})
+
+    def test_gravar_que_falha_nao_deixa_temporario(self):
+        (self.pasta / "pesado.json").mkdir()
+        with self.assertRaises(OSError):
+            _maquina.gravar("pesado.json", {"a": 1})
+        self.assertEqual([c.name for c in self.pasta.iterdir()], ["pesado.json"])
+
+    def test_gravar_nao_segue_o_temporario_plantado(self):
+        fora = self.tmp / "fora.txt"
+        fora.write_text("intacto", encoding="utf-8")
+        (self.pasta / f"pesado.json.{os.getpid()}.tmp").symlink_to(fora)
+        _maquina.gravar("pesado.json", {"a": 1})
+        self.assertEqual((fora.read_text(encoding="utf-8"), _maquina.ler("pesado.json")), ("intacto", {"a": 1}))
+        self.assertEqual({c.name for c in self.pasta.iterdir()}, {f"pesado.json.{os.getpid()}.tmp", "pesado.json"}, "sem temporário solto")
+
+    def test_fila_em_link_levanta_e_senha_fora_da_forma_nao_conta(self):
+        fila = self.pasta / "pesado.fila"
+        fila.mkdir()
+        alvo = self.tmp / "alvo"
+        alvo.mkdir()
+        (alvo / "000001-1-1").write_text("", encoding="utf-8")
+        (fila / "000001-1-1").symlink_to(alvo / "000001-1-1")
+        os.mkfifo(fila / "000002-1-1")
+        self.assertEqual(pesado.fila_viva(fila), [])
+        self.assertTrue((alvo / "000001-1-1").exists(), "a poda não apaga fora da pasta")
+        self.assertTrue((fila / "000002-1-1").exists(), "o que não é arquivo regular não é senha")
+        self.assertEqual(pesado.chave_da_senha(fila / "000003-1-1"), "", "a senha que sumiu não tem chave")
+        shutil.rmtree(fila)
+        fila.symlink_to(alvo)
+        with self.assertRaises(OSError):
+            pesado.pasta_da_fila()
+
+
+class Protegida(unittest.TestCase):
+    """Segurança A1: nenhum papel grava nem apaga ~/.forge/maquina/ (só os hooks, fora da ferramenta)."""
+
+    def test_nenhum_papel_escreve_na_pasta_da_maquina(self):
+        import conformidade
+        politica = json.loads((RAIZ / "hooks" / "conformidade.json").read_text(encoding="utf-8"))
+        self.assertEqual([c["quem"] for c in politica["caminhos"] if c["caminho"].startswith("~/.forge/maquina")], [[]])
+        tipos = [t for lista in politica["papeis"].values() for t in lista] + [None, "general-purpose"]
+        self.assertGreaterEqual(len(tipos), 10)
+        with tempfile.TemporaryDirectory() as raiz:
+            for tipo in tipos:
+                for alvo in ("~/.forge/maquina", "~/.forge/maquina/pesado.json", "~/.forge/maquina/projetos-ativos.json",
+                             "~/.forge/maquina/.trava", "~/.forge/maquina/pesado.fila/x"):
+                    with self.subTest(tipo=tipo, alvo=alvo):
+                        recusa = conformidade.escrita_barrada(tipo, alvo, raiz, "melhoria/x")
+                        self.assertIsNotNone(recusa)
+                        self.assertIn("MP4", " ".join(map(str, recusa)))
+
+
 class FilaPesada(Maquina):
-    def pedir(self, raiz, agente, evento="PreToolUse", uso="toolu_1"):
-        return self.hook("pesado", raiz, hook_event_name=evento, tool_name="Bash", tool_use_id=uso, agent_id=agente,
+    def pedir(self, raiz, agente, evento="PreToolUse", uso="toolu_1", nucleos=None):
+        return self.hook("pesado", raiz, nucleos, hook_event_name=evento, tool_name="Bash", tool_use_id=uso, agent_id=agente,
                          tool_input={"command": "npx playwright test"})
+
+    def vez(self, nome, desde=None):
+        """A vez viva de um projeto simulado na máquina (dono: este processo, outro agente)."""
+        return str(self.tmp / nome / ".forge" / "run"), {"pid": os.getpid(), "agente": "outro", "tool_use_id": f"t-{nome}",
+                                                          "desde": time.time() if desde is None else desde}
+
+    def senha(self, nome, prio=0):
+        """A senha presa de um pedido de `nome` na fila da máquina, com a chave do projeto dentro."""
+        (self.tmp / "maquina").mkdir(mode=0o700, exist_ok=True)
+        _, preso = pesado.entrar_na_fila(self.tmp / "maquina" / "pesado.fila", prio, self.vez(nome)[0])
+        self.addCleanup(preso.close)
+
+    def test_com_duas_vagas_senha_presa_pela_vez_do_proprio_projeto_nao_prende_outro(self):
+        """Review A1, A2 e A4 (sonda S1): X tem a vez e outra senha de X espera; Y passa na vaga livre."""
+        self.gravar("pesado.json", dict([self.vez("x")]))
+        self.senha("x")
+        r = self.pedir(self.projeto("y"), "b", nucleos=12)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_com_vaga_e_a_frente_parada_nao_entra_na_fila(self):
+        """Review A2: no caminho rápido, Y pega a vaga sem entrar na fila (o cartão em "Aguardando o dono" só vale na espera)."""
+        self.gravar("pesado.json", dict([self.vez("x")]))
+        self.senha("x")
+        y = self.projeto("y")
+        (y / "KANBAN.md").write_text("## Aguardando o dono\n| develop |\n", encoding="utf-8")
+        subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "c"], cwd=y, env=self.env, check=True, capture_output=True)
+        self.assertTrue(pesado.aguardando_o_dono(y, pesado.branch_de(y)), "na espera, o cartão recusaria")
+        r = self.pedir(y, "b", nucleos=12)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_senha_a_frente_que_pode_andar_segura_quem_vem_atras(self):
+        self.senha("z")  # z sem vez na máquina: a senha dele anda primeiro
+        r = self.pedir(self.projeto("y"), "b", nucleos=12)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("senha à frente na fila da máquina", r.stderr)
+        self.assertNotIn("apague .forge/run/pesado.json", r.stderr, "review A3: a trava do projeto não é a causa")
+
+    def test_na_espera_a_vaga_solta_passa_por_cima_da_senha_presa(self):
+        """Review A1: na fila (não no caminho rápido), Y anda quando a vaga solta, com a senha de X presa à frente."""
+        self.gravar("pesado.json", dict([self.vez("x"), self.vez("z")]))
+        self.senha("x")
+        fila = self.tmp / "maquina" / "pesado.fila"
+        y, entrada = self.projeto("y"), {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_use_id": "toolu_1",
+                                         "agent_id": "b", "tool_input": {"command": "npx playwright test"}}
+        comando = lancador("pesado")
+        comando[2] = "import os; os.cpu_count = lambda: 12\n" + comando[2]
+        proc = subprocess.Popen(comando, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=y, text=True,
+                                env=dict(self.env, FORGE_PESADO_ESPERA_S="30"))
+        self.addCleanup(lambda: (proc.kill(), proc.wait(), proc.stdout.close(), proc.stderr.close()))
+        proc.stdin.write(json.dumps({"cwd": str(y), **entrada}))
+        proc.stdin.close()
+        for _ in range(200):
+            if len(list(fila.iterdir())) == 2:
+                break
+            time.sleep(0.05)
+        self.assertEqual(len(list(fila.iterdir())), 2, "Y entrou na fila")
+        self.gravar("pesado.json", dict([self.vez("x")]))  # z solta a vaga
+        self.assertEqual(proc.wait(timeout=20), 0, proc.stderr.read())
+
+    def test_maquina_cheia_diz_a_pasta_da_maquina_e_os_projetos(self):
+        self.gravar("pesado.json", dict([self.vez("x"), self.vez("z")]))
+        r = self.pedir(self.projeto("y"), "b", nucleos=12)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("máquina cheia: 2 vaga(s) com x, z (~/.forge/maquina/pesado.json)", r.stderr)
+
+    def test_vez_com_desde_no_futuro_nao_ocupa(self):
+        """Segurança A2 (sonda S2): a vez forjada com `desde` adiante nunca venceria."""
+        self.gravar("pesado.json", dict([self.vez("x", time.time() + 9e6), self.vez("z", time.time() + 9e6)]))
+        self.assertEqual(self.pedir(self.projeto("y"), "b", nucleos=12).returncode, 0)
 
     def test_vagas_um_por_seis_nucleos(self):
         for nucleos, vagas in ((None, 1), (4, 1), (6, 1), (12, 2), (18, 3)):

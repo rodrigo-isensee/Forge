@@ -33,10 +33,13 @@ def montar_proc(pasta, load="0.1 0.1 0.1", mem_gb=8):
     return proc
 
 
+MAQUINAS = tempfile.TemporaryDirectory(prefix="forge-maquinas-")  # review A5: apagada na saída do processo
+
+
 def rodar_hook(nome, entrada, cwd, proc, extra=None):
     env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
     env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, FORGE_PROC=str(proc),
-               FORGE_MAQUINA=tempfile.mkdtemp(prefix="forge-maquina-"), **(extra or {}))  # MP4: a fila pesada da máquina
+               FORGE_MAQUINA=tempfile.mkdtemp(prefix="maquina-", dir=MAQUINAS.name), **(extra or {}))  # MP4: a fila pesada da máquina
     return subprocess.run([sys.executable, "-c", LANCADOR, str(HOOKS), str(HOOKS / f"{nome}.py"), PRAZO_GIT],
                           input=json.dumps(entrada), cwd=cwd, env=sem_manutencao(env), capture_output=True, text=True,
                           timeout=120)
