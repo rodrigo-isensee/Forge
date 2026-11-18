@@ -34,10 +34,10 @@
     },
     {
       "id": "M28",
-      "guarda": "diretriz 36 (R-CONTRIB): a sessão do Forge usa o gh no Forge livre",
+      "guarda": "diretriz 36 (R-CONTRIB): gh api passa pela conferência do endpoint",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if self.clone_do_forge():\n            return\n        pos = parecer.posicionais(palavras[1:], GH_COM_VALOR)\n",
-      "para": "        if False:\n            return\n        pos = parecer.posicionais(palavras[1:], GH_COM_VALOR)\n",
+      "de": "        if grupo == \"api\":\n            self.gh_api_no_forge(",
+      "para": "        if grupo == \"api-x\":\n            self.gh_api_no_forge(",
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]

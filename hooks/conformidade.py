@@ -2649,7 +2649,7 @@ class Guarda:
             self.barrar("R-CONTRIB", f"push para {', '.join(map(str, destinos))}: {NO_FORGE}", SO_SUGERE)
         duvida = next((c for c in troca if not c.lower().startswith("remote.") or "$" in c
                        or parecer.aponta_para_o_forge(c.split("=", 1)[1])), None)
-        if duvida and not self.clone_do_forge():  # na dúvida sobre o alvo, a sessão de projeto falha fechado
+        if duvida:  # na dúvida sobre o alvo, a sessão de projeto falha fechado (a do Forge não passa pela Guarda)
             self.barrar("R-CONTRIB", f"git {sub} com `{duvida.split('=', 1)[0]}` na linha troca o destino e o hook não "
                                      f"confirma que não é o Forge: {NO_FORGE}", SO_SUGERE)
 
@@ -2886,9 +2886,8 @@ class Guarda:
     def gh_contrib(self, palavras, pasta, repo_env):
         """R-CONTRIB (diretriz 36): na sessão de outro projeto, o `gh` no Forge só lê (`GH_SO_LE`): abrir, comentar,
         editar, fechar, rotular, criar release ou rodar workflow é recusado. O alvo vem de `-R`, de `GH_REPO`, de URL
-        entre os argumentos ou da pasta; no `gh api`, do endpoint (`gh_api_no_forge`)."""
-        if self.clone_do_forge():
-            return
+        entre os argumentos ou da pasta; no `gh api`, do endpoint (`gh_api_no_forge`). A sessão do Forge não passa por
+        aqui (fora de projeto, só o rótulo é conferido)."""
         pos = parecer.posicionais(palavras[1:], GH_COM_VALOR)
         grupo, sub = (pos + [None, None])[:2]
         if grupo == "api":

@@ -64,10 +64,10 @@
     },
     {
       "id": "M23",
-      "guarda": "diretriz 36 (R-CONTRIB): a sessão do Forge envia com `-c pushurl` na linha: não é afetada",
+      "guarda": "diretriz 36 (R-CONTRIB): o destino trocado na linha que aponta ao Forge, ou ilegível, é recusado",
       "arquivo": "hooks/conformidade.py",
-      "de": "if duvida and not self.clone_do_forge():",
-      "para": "if duvida:",
+      "de": "        if duvida:  # na dúvida",
+      "para": "        if False:  # na dúvida",
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
