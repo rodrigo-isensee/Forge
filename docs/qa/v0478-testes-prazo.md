@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-testes-prazo
-commit: 318721dbbb87ab4db3db719d6f0207e8def10423
+commit: c460102d3d64d4f87b4367a4e5a32d365c43e759
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -52,3 +52,12 @@ Os quatro mutantes morreram, um por linha de guarda do lançador. A spec antiga 
 - Local (`test_hooks.py -k test_prazo_do_merge -k test_carga_explica -k test_referencia_da_cpu -k test_liberar_ou_provar`): 6 testes, OK, 43 s, inclusive a sonda S1 (`test_liberar_ou_provar_a_carga_recusa_a_sonda_s1`) e o critério com disputa provada.
 - A suíte inteira: check-run `bateria` do CI no mesmo sha; não rodei suíte local.
 - Achados: nenhum novo. Bugs: 0.
+
+## Revalidação (delta 318721db..c460102d)
+`forge-check parecer delta` lista só `tests/mutantes/v047-ci-rapido-3.json`: M33 e M34 alinhados ao passo novo de `PRAZO-CARGA` no `ci.yml` (a develop trazida pelo forge-fechar fica fora do domínio). Comando `bin/forge-mutante tests/mutantes/v047-ci-rapido-3.json --base 318721dbbb87ab4db3db719d6f0207e8def10423`, saída 0:
+```
+M25 a M32 · morreu
+M33 · morreu · .github/workflows/ci.yml:205
+M34 · morreu · .github/workflows/ci.yml:393
+```
+M33 e M34 morrem (`tests.test_suite_partes.FiacaoDoCI`); nenhum sobrevivente. A suíte inteira: check-run `bateria` do CI no mesmo sha; não rodei suíte local. Achados: nenhum novo. Bugs: 0.
