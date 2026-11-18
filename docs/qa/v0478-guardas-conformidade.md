@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-conformidade
-commit: b0ffec816f8306b84660a00ae226317464ceed17
+commit: b3312958a3c27f9c13a94853647bc357a59ca27b
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -17,6 +17,7 @@ data: 2026-11-18
 Diff contra a base 4182a6b9: `hooks/conformidade.py` (`GuardaDaProva` com `no_clone`, `ESTADO_DOS_HOOKS`, `ESTADO_NO_TEXTO`), comentário em `hooks/agentes.py`, 6 fixtures `estadoclone-*`, `tests/test_conformidade_verde.py` (classes `EstadoDoAgentesNoClone` e `ConfigDoTetoNoClone`), duas specs de mutantes e o fragmento de changelog. A suíte inteira não rodou aqui (fica no CI do PR; cite o check-run `bateria` do mesmo sha).
 
 ## Achados
+- A1 (recomendado) tests/mutantes/z075-uma-delegacao-por-branch.json:1 · M12 (hooks/agentes.py:784, `if False`) sobrevive e M3, M6 e M7 saem inválidos (trecho 2 vezes). Igual no base b0ffec8, fora do delta: vira cartão, não bloqueia.
 
 ## Critério → teste → resultado
 Sem especificação de UX; as obrigações vêm do escopo E1 do pedido (C9 e C10 do modelo de ameaças).
@@ -40,3 +41,10 @@ Sem especificação de UX; as obrigações vêm do escopo E1 do pedido (C9 e C10
 - Mutação: `forge-mutante --cobertura --base 4182a6b9` lista as condições mudadas (3511 a 3562) como cobertas por M1 a M14. `forge-mutante` das duas specs (`--processos 4`): M1 a M14 todos `morreu`, nenhum sobrevivente.
 - Exploração fora dos testes do autor (jarvis e tech-lead, todos rc 2): `cd .git && echo x > forge/run/agentes.json`, `tee`, `cp`, `sed -i`, `os.remove` em python, `cd .forge && echo > config.json`, `.forge/../.forge/config.json`, `./.forge//config.json`, `mv .forge/config.json`.
 - Sem skip, skipIf nem expectedFailure no código novo.
+
+## Revalidação incremental (head b3312958, base aprovada b0ffec81)
+`forge-check parecer delta` lista no domínio: `hooks/agentes.py` (`pasta_da_config`), `hooks/conformidade.py` (find, tar, chmod e afins; config da raiz), `tests/test_conformidade_verde.py`, specs de mutantes 3 a 6 (M15 a M45), duas specs editadas, `docs/hooks.md` e o changelog.
+- `python3 -I -m unittest discover -s tests -p test_conformidade_verde.py`: Ran 32 tests, OK (169 s). Não rodei `tests.test_hooks` inteiro (máquina carregada).
+- Vermelho antes do verde (cópia em `$TMPDIR` com os testes do head e `hooks/conformidade.py` e `hooks/agentes.py` de b0ffec8): `Ran 7 tests, FAILED (failures=5)`: `test_sessao_e_pasta_corrente_na_mesma_raiz_nao_consultam_o_clone`, `test_sessao_na_worktree_le_o_config_dela`, `test_teto_da_worktree_nao_vale_com_a_sessao_no_clone`, `test_find_tar_e_chmod_no_config_da_raiz_recusam`, `test_comando_que_escreve_ou_remove_por_opcao_recusa`; os 2 de "livre" passam na base, como esperado.
+- Mutação: `forge-mutante --processos 2` nas specs 3 a 6 (rev=b3312958a3c2): M15 a M45 todos `morreu`, nenhum sobrevivente, nenhum inválido. `--cobertura --base b0ffec81`: só linhas `coberta`; as duas specs editadas (`v047-hook-estado-ilegivel-2` e `z075`) avisadas como editadas. `v047-hook-estado-ilegivel-2`: M9 a M16 `morreu`. `z075` com o mutante editado (M1 e M2) `morreu`; ver A1 para os demais.
+- Sem skip, skipIf nem expectedFailure no delta.
