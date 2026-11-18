@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S49",
+      "guarda": "forge_sempre_atual.py:383 decide por `texto`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "resultado = f\"falhou:{etapa}\" + (f\":{resumo(texto)}\" if texto else \"\")",
+      "para": "resultado = f\"falhou:{etapa}\" + (f\":{resumo(texto)}\" if not (texto) else \"\")",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_sem_tag_publicada_registra_e_nao_mexe"
+      ]
+    },
+    {
+      "id": "S50",
+      "guarda": "forge_sempre_atual.py:385 decide por `e[\"chave\"] not in self.res`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "for e in escopos:\n            if e[\"chave\"] not in self.res:\n                self.definir(e, resultado)",
+      "para": "for e in escopos:\n            if not (e[\"chave\"] not in self.res):\n                self.definir(e, resultado)",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_sem_tag_publicada_registra_e_nao_mexe"
+      ]
+    },
+    {
+      "id": "S51",
+      "guarda": "forge_sempre_atual.py:392 decide por `not self.projeto`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not self.projeto:",
+      "para": "if self.projeto:",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_tmux_em_duvida_adia_o_escopo_que_cobre_o_projeto"
+      ]
+    },
+    {
+      "id": "S52",
+      "guarda": "forge_sempre_atual.py:403 decide por `rc == 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "dados = json.loads(saida.splitlines()[-1]) if rc == 0 else None",
+      "para": "dados = json.loads(saida.splitlines()[-1]) if not (rc == 0) else None",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_adiamento_conta_e_zera_quando_deixa_de_adiar"
+      ]
+    },
+    {
+      "id": "S53",
+      "guarda": "forge_sempre_atual.py:429 decide por `suite is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if suite is None:",
+      "para": "if not (suite is None):",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_adiamento_conta_e_zera_quando_deixa_de_adiar"
+      ]
+    },
+    {
+      "id": "S54",
+      "guarda": "forge_sempre_atual.py:431 decide por `suite`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return \"suite\" if suite else None",
+      "para": "return \"suite\" if not (suite) else None",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_adiamento_conta_e_zera_quando_deixa_de_adiar"
+      ]
+    },
+    {
+      "id": "S55",
+      "guarda": "forge_sempre_atual.py:437 decide por `e[\"escopo\"] in CASCA`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "proprios = [e[\"projeto\"] for e in escopos if e[\"escopo\"] in CASCA]",
+      "para": "proprios = [e[\"projeto\"] for e in escopos if not (e[\"escopo\"] in CASCA)]",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_usuario_cobre_a_raiz_com_claude_que_nao_tem_instalacao_propria"
+      ]
+    },
+    {
+      "id": "S56",
+      "guarda": "forge_sempre_atual.py:441 decide por `e[\"escopo\"] == \"user\" or (self.projeto and e[\"projeto\"] and dentro(sel`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "cobre_o_aberto = e[\"escopo\"] == \"user\" or (self.projeto and e[\"projeto\"] and dentro(self.projeto, e[\"projeto\"]))",
+      "para": "cobre_o_aberto = not (e[\"escopo\"] == \"user\" or (self.projeto and e[\"projeto\"] and dentro(self.projeto, e[\"projeto\"])))",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_tmux_em_duvida_adia_o_escopo_que_cobre_o_projeto"
+      ]
+    }
+  ]
+}
