@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0475-merge-checks
-commit: 9f497b0f140a450c578dae79e5ec00d88d3ff31c
+commit: 27c4c5672f8dda2d9381c04179b8d028fabfaaef
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -15,7 +15,7 @@ data: 2026-11-17
 # QA: v0475-merge-checks (E3.45, parecer E3.72)
 
 ## Achados
-- A1 (recomendado) bin/forge-check:1478 · `gh pr view` que falha (sem gh ou rede) devolve None e o `pr` aprova sem conferir os checks (falha aberta); coerente com o texto do item, mas sem aviso no stderr.
+Nenhum aberto.
 
 ## Critério → teste → resultado
 O item E3.45 não tem `CA-n`; os critérios saem do texto do item e do fragmento do changelog.
@@ -35,3 +35,11 @@ O item E3.45 não tem `CA-n`; os critérios saem do texto do item e do fragmento
 
 ## Bugs
 Nenhum aberto.
+
+## Revalidação (delta 9f497b0f..27c4c567)
+- A1 anterior (falha do `gh pr view` aprovava calada) corrigido em `bin/forge-check`: `gh_json` devolve o motivo, `checks_do_head` avisa, soma a `CHECKS_NAO_CONFERIDOS` e o `main` grava reprovado para o hook; `GH_SEM_PR` mantém sem PR, sem remoto e sem login como passagem; `forge-fechar` passo 1 põe `FORGE_FECHAR_PASSO_1=1`.
+- Testes locais com TMPDIR: `test_fechar_forge_check_real` 5 OK, `test_forge_check_pr` 28 OK, `test_forge_tamanho` 24 OK, `test_testes_tocados` 162 OK (1 skip herdado). Suíte inteira: só no CI do PR (não cito check-run `bateria` deste sha).
+- `forge-mutante --processos 2 --base 9f497b0f` (specs -4 e -5): `base=9f497b0f... mb=9f497b0f...`; M20 a M30 todos `morreu` (forge-check 1457, 1492, 1493, 1539, 10245, 10246, 10254, 10255, 10257; forge-fechar 1222).
+- `--cobertura --base 9db0705e`: toda condição Python mudada coberta; `não coberto: bin/forge-fechar` (shell; M28 cobre a linha 1222 à mão); specs editadas só realinhadas por linha.
+- `tests/catraca.py --base origin/develop`: só a exigência `afrouxa-regra` do dono (R-CONFORMIDADE, mudança em `bin/forge-check`); nenhuma guarda sem mutante.
+- Vermelho antes do verde: prova por mutação (11 mutantes novos mortos), não `forge-testes --vermelho`; limite registrado.
