@@ -102,7 +102,7 @@ NOME_DE_MODULO = re.compile(r"test_[a-z0-9_]+")
 # Os módulos que saíram de `test_hooks` (HOOKS-CORPUS-RAPIDO) rodam onde `test_hooks` roda e executam o `bin/forge-check`
 # pelo apoio `tests/apoio_volta_unica.py` (`test_doutor_relogio` o copia pelo apoio `tests/apoio_versao_defasada.py`).
 VOLTA_UNICA = ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades")
-FORGE_CHECK = ("test_anotar", "test_forge_tamanho", "test_conferida_por_branch", "test_forge_check_base_igual", "test_forge_check_versao_livre", "test_pre_push_link_apoio", "test_v0441_review", "test_brief_forma_aceita", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio", "test_qa_doutor_034",
+FORGE_CHECK = ("test_anotar", "test_forge_check_pr", "test_forge_tamanho", "test_conferida_por_branch", "test_forge_check_base_igual", "test_forge_check_versao_livre", "test_pre_push_link_apoio", "test_v0441_review", "test_brief_forma_aceita", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio", "test_qa_doutor_034",
                "test_conf_escopo", "test_conferencia_registrar", "test_decisao_aprovacao", "test_decisao_aprovacao_raiz", "test_erros_no_brief", "test_hook_ansi_c", "test_citacao_p2",
                "test_entrega_git_falha", "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks", "test_hook_erro_libera", "test_estado_ilegivel", "test_hooks_parecer_pasta",
                "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_forge_medidas", "test_mensagem_conferente", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
@@ -158,7 +158,7 @@ MAPA = [
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
     # MAPA-FORGE-FECHAR (mp1311 E1.38): todos os test_fechar_* (a convenção só achava os que citam forge-fechar pelo nome; ficavam de fora
     # sha_conferido, ref_por_nome, log_check, aviso_rotulo, corrida_rotulo, espera_catraca, pr_numero, tmp e vars_vazias) e os outros módulos que rodam o script
-    (r"bin/forge-fechar", ("test_fechar", "test_fechar_auto_merge", "test_fechar_base_andou", "test_fechar_checks_exigidos", "test_fechar_config",
+    (r"bin/forge-fechar", ("test_fechar", "test_forge_fechar", "test_forge_check_pr", "test_fechar_auto_merge", "test_fechar_base_andou", "test_fechar_checks_exigidos", "test_fechar_config",
                            "test_fechar_faixas", "test_fechar_forge_check_real", "test_fechar_log_check", "test_fechar_longas", "test_fechar_medir",
                            "test_fechar_move_cartao", "test_fechar_orfao", "test_fechar_prune_sandbox", "test_fechar_r1_worktree",
                            "test_fechar_rascunho", "test_fechar_ref_por_nome", "test_fechar_sha_arvore", "test_fechar_sha_conferido",
