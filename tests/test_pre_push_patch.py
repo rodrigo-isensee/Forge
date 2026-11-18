@@ -2,7 +2,7 @@
 
 O `.githooks/pre-push` em vigor não muda neste pedido: o teste copia o hook para $TMPDIR, aplica o patch na cópia e prova cada
 conserto, com o hook original falhando e o remendado passando (PRE-PUSH-TEXTO-TRAVA-FD, FILA-INTERVALO-ZERO,
-PREPUSH-LEVE-COBERTURA-CATRACA). Depois que o dono aplicar o patch, o hook em vigor já é o remendado e `git apply` do patch
+PREPUSH-LEVE-COBERTURA-CATRACA, PREPUSH-INDICE-E-PULOS). Depois que o dono aplicar o patch, o hook em vigor já é o remendado e `git apply` do patch
 recusa de novo: o teste então confere só o remendado e pula a comparação com o original.
 """
 import os
@@ -244,6 +244,106 @@ class CoberturaDaCatraca(Base):
                 codigo, erro = self.roda(self.remendado, mudanca)
                 self.assertEqual(codigo, 0, erro)
                 self.assertNotIn("forge-mutante --cobertura", erro)
+
+
+class IndiceEPulos(Base):
+    """PREPUSH-INDICE-E-PULOS: o envio leve confere o índice das fixtures e barra teste pulado novo em tests/."""
+
+    FIXTURE = '{"descricao": "caso novo", "esperado": {"codigo": 2}}\n'
+
+    def repo(self, base):
+        repo = base / "repo"
+        for pasta in ("scripts", "tests/hooks/h", "docs"):
+            (repo / pasta).mkdir(parents=True)
+        shutil.copy(RAIZ / "scripts" / "indice-fixtures.py", repo / "scripts" / "indice-fixtures.py")
+        for nome in ("catraca.py", "neutralidade.py", "config.json"):
+            shutil.copy(RAIZ / "tests" / nome, repo / "tests" / nome)
+        (repo / "tests" / "hooks" / "h" / "a-1.json").write_text(self.FIXTURE)
+        (repo / "tests" / "test_a.py").write_text(SUITE_VERDE)
+
+        def git(*args):
+            r = subprocess.run(["git", *args], cwd=repo, env=AMBIENTE, capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            return r.stdout.strip()
+
+        subprocess.run([sys.executable, "-I", "scripts/indice-fixtures.py"], cwd=repo, env=AMBIENTE, check=True, capture_output=True)
+        git("init", "-q", "-b", "melhoria/x")
+        git("config", "user.email", "t@example.com")
+        git("config", "user.name", "t")
+        git("add", "-A")
+        git("commit", "-q", "-m", "base")
+        git("update-ref", "refs/remotes/origin/develop", "HEAD")
+        return repo, git
+
+    def roda(self, hook, mudanca, regera=False):
+        with tempfile.TemporaryDirectory() as t:
+            base = Path(t)
+            (base / "run").mkdir()
+            repo, git = self.repo(base)
+            for nome, texto in mudanca.items():
+                (repo / nome).parent.mkdir(parents=True, exist_ok=True)
+                (repo / nome).write_text(texto)
+            if regera:
+                subprocess.run([sys.executable, "-I", "scripts/indice-fixtures.py"], cwd=repo, env=AMBIENTE, check=True, capture_output=True)
+            git("add", "-A")
+            git("commit", "-q", "-m", "muda")
+            sha = git("rev-parse", "HEAD")
+            env = dict(AMBIENTE, XDG_RUNTIME_DIR=str(base / "run"), HOME=str(base / "home"))
+            r = subprocess.run([str(hook), "origin", "u"], cwd=repo, env=env, capture_output=True, text=True, timeout=120,
+                               input=f"refs/heads/x {sha} refs/heads/melhoria/x {ZERO}\n")
+            return r.returncode, r.stderr
+
+    def test_fixture_nova_sem_regerar_o_indice_reprova(self):
+        for rotulo, hook, conserto in self.hooks():
+            with self.subTest(rotulo):
+                codigo, erro = self.roda(hook, {"tests/hooks/h/b-1.json": self.FIXTURE})
+                if conserto:
+                    self.assertEqual(codigo, 1, erro)
+                    self.assertIn("docs/hooks-fixtures.md: desatualizado", erro)
+                    self.assertIn("docs/hooks-fixtures.md desatualizado (o CI reprova igual)", erro)
+                else:
+                    self.assertEqual(codigo, 0, "sem o patch só o CI pega")
+
+    def test_fixture_nova_com_o_indice_regerado_passa(self):
+        codigo, erro = self.roda(self.remendado, {"tests/hooks/h/b-1.json": self.FIXTURE}, regera=True)
+        self.assertEqual(codigo, 0, erro)
+        self.assertNotIn("hooks-fixtures", erro)
+
+    def test_mudanca_fora_do_corpus_nao_roda_o_indice(self):
+        codigo, erro = self.roda(self.remendado, {"docs/x.md": "x\n"})
+        self.assertEqual(codigo, 0, erro)
+        self.assertNotIn("hooks-fixtures", erro)
+
+    def test_skip_novo_em_teste_reprova(self):
+        pulado = SUITE_VERDE.replace("        pass\n", '        self.skipTest("depois")\n')
+        for rotulo, hook, conserto in self.hooks():
+            with self.subTest(rotulo):
+                codigo, erro = self.roda(hook, {"tests/test_a.py": pulado})
+                if conserto:
+                    self.assertEqual(codigo, 1, erro)
+                    self.assertIn("subiram de 0 para 1", erro)
+                    self.assertIn("teste pulado novo em tests/", erro)
+                else:
+                    self.assertEqual(codigo, 0, "sem o patch só o CI pega")
+
+    def test_decoradores_de_pulo_tambem_contam(self):
+        for decorador in ("@unittest.skip('x')", "@unittest.skipIf(True, 'x')", "@unittest.skipUnless(False, 'x')", "@unittest.expectedFailure"):
+            with self.subTest(decorador):
+                texto = SUITE_VERDE.replace("    def test_a", f"    {decorador}\n    def test_a")
+                codigo, erro = self.roda(self.remendado, {"tests/test_a.py": texto})
+                self.assertEqual(codigo, 1, erro)
+
+    def test_pulo_que_ja_existia_ou_so_citado_em_texto_ou_na_catraca_passa(self):
+        casos = {
+            "só citado em texto": {"tests/test_a.py": SUITE_VERDE + '\nNOTA = "usa skipTest e skipIf"\n'},
+            "na catraca (a conta exclui)": {"tests/catraca.py": (RAIZ / "tests" / "catraca.py").read_text(encoding="utf-8") + "\nx = 1\n"},
+            "fora de tests/": {"docs.py": "def t(s):\n    s.skipTest('x')\n"},
+        }
+        for nome, mudanca in casos.items():
+            with self.subTest(nome):
+                codigo, erro = self.roda(self.remendado, mudanca)
+                self.assertEqual(codigo, 0, erro)
+                self.assertNotIn("teste pulado", erro)
 
 
 if __name__ == "__main__":
