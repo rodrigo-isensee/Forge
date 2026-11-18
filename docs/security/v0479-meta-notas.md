@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v0479-meta-notas
+pedido: v0478
 branch: melhoria/v0479-meta-notas
 commit: 870159838c177a81663725861816f6c14914b512
 parecer: aprovado
