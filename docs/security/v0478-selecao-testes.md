@@ -33,7 +33,7 @@ Gatilhos: controle do Forge (seleção de testes do envio e do autor em `bin/for
 - A1 (recomendado) scripts/suite-paralela.py:922 · Sem teste que prove que `--medir` verde não grava o carimbo K6 (forge-suite-verde): um ajuste futuro que reuse fechar_verde faria um módulo verde valer como suíte verde no reuso local. Correção: no teste do medir verde, assertar ausência do carimbo.
 
 ## Sondas
-- S1 · cópia de `bin tests scripts` do head com `"test_anotar"` tirado de `FORGE_CHECK` em `bin/forge-testes`; `python3 -I -m unittest discover -s tests -p test_testes_tocados.py -k test_forge_check_roda_os_modulos_dele -k test_mapa_lista_todo_modulo_que_usa_o_forge_check` · espera: as duas reprovam · obtido: `FAILED (failures=2)` (`'test_anotar' not found` e `faltam no mapa FORGE_CHECK: ['test_anotar']`)
+- S1 · `"test_anotar"` tirado de `FORGE_CHECK` (bin/forge-testes, cópia do head); `-k test_forge_check_roda_os_modulos_dele -k test_mapa_lista_todo_modulo_que_usa_o_forge_check` · espera: as duas reprovam · obtido: `FAILED (failures=2)`
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Ferramentas usadas: leitura do diff, a sonda S1 e os testes novos. `discover -s tests -p test_suite_paralela.py -k medir` deu 7 OK. `-p test_testes_tocados.py -k test_forge_check_roda_os_modulos_dele -k MapaDoForgeCheck -k progresso` deu 5 OK. A suíte inteira roda só no CI do PR e não foi rodada aqui. Não há segredo, dependência nem workflow no diff.
