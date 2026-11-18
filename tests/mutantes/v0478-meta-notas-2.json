@@ -1,0 +1,26 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "nota em outro idioma acende outro_idioma (mutante: só a final)",
+      "arquivo": "hooks/meta.py",
+      "de": "\"outro_idioma\": notas > 0 or (",
+      "para": "\"outro_idioma\": False or (",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_nota_em_outro_idioma_na_rodada_acusa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "resultado de ferramenta é pulado antes do json.loads (mutante: decodifica)",
+      "arquivo": "hooks/meta.py",
+      "de": "if '\"tool_result\"' in linha or (",
+      "para": "if False or (",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_resultado_de_ferramenta_nem_se_decodifica"
+      ]
+    }
+  ]
+}
