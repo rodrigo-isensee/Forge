@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0474
 branch: melhoria/v0476-conformidade-formas
-commit: eb18768bd45af2addb34c9603b5de85d305837f0
+commit: b4bd700e8eebe148c68b67f6e4465c49ecb7d0bf
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
@@ -24,6 +24,13 @@ Escopo: diff `3d8ad440..eb18768b` (um commit, `fix(hooks)`), 68 linhas de códig
 - A2 (recomendado) hooks/conformidade.py:814 · Com `${{` entre aspas duplas o achado é `${` e a recusa diz "valor literal no lugar de ${", que não nomeia variável; a segunda parte (aspas simples) resolve. Sugestão: no ramo de `${`, citar só a forma entre aspas simples.
 
 ## Sondas
+
+## Revalidação no head b4bd700e (E3.145)
+Delta lido: `forge-check parecer delta docs/reviews/v0476-conformidade-formas.md`, intervalo `eb18768b..b4bd700e`.
+- `skills/esperar-estado/SKILL.md` e `skills/esperar-estado/envio-longo.md` (commit b4bd700e, E3.139): o laço do log e a linha de código seguem iguais; só o porquê do caminho literal e o caso do `bin/forge-fechar --espera` passam ao arquivo de apoio, com ponteiro na skill e sem perder regra. `tests.test_esperar_estado` e `tests.test_metricas_texto`: 17 testes, OK.
+- `bin/forge-check` no delta: as linhas mudadas são todas do #646 (E3.49), vindas da `develop` pelos merges 0d61a5e0 e 08b94cbf; a mudança própria da branch em `bin/forge-check` (desde 9db0705e) é idêntica à revisada em eb18768b (desde 3d8ad440). Nada novo a revisar.
+- Delta sem guarda nova; a `catraca` acusa só o rótulo `afrouxa-regra` pelos arquivos de controle já tocados (`R-CONFORMIDADE`), nenhuma guarda sem mutante.
+- A1 e A2 seguem abertos (o delta não toca `hooks/`), recomendados.
 
 ## Parecer
 Aprovado. O item faz o que E3.50 pede: cada recusa por construção não modelada diz a forma aceita, o heredoc tem um texto só citado pelo hook e pelo brief, e o laço da skill passa no hook sem variável de caminho. A decisão do hook é idêntica à da base (fixtures da E3.50 rodadas nas duas versões), então nada fica mais frouxo que a ADR 0011 e não cabe rótulo `afrouxa-regra`. Os dois achados são de texto de mensagem, sem efeito na decisão do hook, e não devolvem (`R-REVIEW`).
