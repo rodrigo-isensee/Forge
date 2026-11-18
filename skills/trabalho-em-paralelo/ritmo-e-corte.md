@@ -13,6 +13,7 @@ Detalhe da skill `trabalho-em-paralelo` (diretriz 25: o Jarvis traz o resumo e m
 - Cartões que mexem nos mesmos arquivos vão para o mesmo agente, na mesma branch, um depois do outro, nunca para agentes diferentes em paralelo (`forge-check sobreposicao` diz o arquivo em comum).
 - Lote de desenvolvimento: de 3 a 5 cartões pequenos (ou um dia de trabalho), com uma revisão só.
 - A junção na `develop` continua como na diretriz 26: até 3 PRs que não mexem nos mesmos arquivos.
+- **Suíte verde sozinha (SIEG-G6):** no corte da versão e na integração (`R-FLUXO`), cada item deixa a suíte verde sozinho; o que depende de outro (uma interface e quem a usa) vai junto com ele, na mesma branch ou no mesmo lote.
 - Lote por arquivo: itens decididos no mesmo arquivo vão numa branch, um commit por item com seus testes, portões uma vez e um PR que cita os itens; item com defeito sai por revert; item à espera do dono não entra; nenhum portão cai.
 
 ## CI pago (`R-CUSTO`, E3.43)

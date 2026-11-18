@@ -41,7 +41,7 @@ verificada_por: revisão (code review do `tech-lead` em toda melhoria do Forge) 
 Medida: 2 pontos de recusa `msg("R-CUSTO"` em `tests/catraca.py`; custo do Forge hoje: 0
 
 - Nada no Forge (CI, testes, scripts, fluxo) consome API paga ou serviço cobrado.
-- Nada que custe dinheiro (API paga, serviço cobrado) entra no Forge sem autorização expressa do usuário, dono do Forge. Vale também para melhoria de fábrica vinda de qualquer projeto.
+- Nada que custe dinheiro (API paga, serviço cobrado) entra no Forge sem autorização expressa do usuário, dono do Forge. Vale para melhoria de fábrica vinda de qualquer projeto.
 
 ## R-CONTRIB: Contribuição ao Forge: projeto só sugere, nunca mexe no Forge
 
