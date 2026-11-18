@@ -6,18 +6,8 @@
       "id": "M43",
       "guarda": "diretriz 36 (R-CONTRIB, review A1): git config que troca o destino do envio entra na recusa",
       "arquivo": "hooks/conformidade.py",
-      "de": "if sub == \"config\" and not self.clone_do_forge() and self.config_troca_destino(args):",
-      "para": "if sub == \"config-x\" and not self.clone_do_forge() and self.config_troca_destino(args):",
-      "testes": [
-        "tests.test_hooks.HookDir36.test_fixtures_dir36"
-      ]
-    },
-    {
-      "id": "M44",
-      "guarda": "diretriz 36 (R-CONTRIB, review A1): a sessão do Forge grava a URL do remoto com o Forge",
-      "arquivo": "hooks/conformidade.py",
-      "de": "\"config\" and not self.clone_do_forge() and self.config_troca_destino(args)",
-      "para": "\"config\" and self.config_troca_destino(args)",
+      "de": "if sub == \"config\" and self.config_troca_destino(args):",
+      "para": "if sub == \"config-x\" and self.config_troca_destino(args):",
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
@@ -26,8 +16,8 @@
       "id": "M45",
       "guarda": "diretriz 36 (R-CONTRIB, review A1): git config --get com padrão de valor só lê",
       "arquivo": "hooks/conformidade.py",
-      "de": "a.startswith((\"--get\", \"--show-\")) for a in args):\n            return False",
-      "para": "a.startswith((\"--get-x\", \"--show-\")) for a in args):\n            return False",
+      "de": "if any(a.startswith((\"--get\", \"--show-\")) or a in CONFIG_LEITURA for a in args):",
+      "para": "if False:",
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]

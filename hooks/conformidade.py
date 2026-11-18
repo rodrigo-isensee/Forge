@@ -2708,7 +2708,7 @@ class Guarda:
         if sub == "remote" and args[:1] in (["add"], ["set-url"]) and not self.clone_do_forge() and any(
                 map(parecer.aponta_para_o_forge, args[1:])):
             self.barrar("R-CONTRIB", f"git remote {args[0]} com o Forge: {NO_FORGE}", SO_SUGERE)
-        if sub == "config" and not self.clone_do_forge() and self.config_troca_destino(args):
+        if sub == "config" and self.config_troca_destino(args):  # a sessão do Forge não chega à Guarda (E3.106)
             self.barrar("R-CONTRIB", f"git config que aponta o envio para o Forge (ou que o hook não confirma): {NO_FORGE}",
                         SO_SUGERE)
 
@@ -2716,7 +2716,7 @@ class Guarda:
     def config_troca_destino(args):
         """`git config` que grava a URL de um remoto com o Forge ou com `$`, ou qualquer reescrita de URL (`insteadOf`,
         `pushInsteadOf`, cujo alvo o hook não confirma): o envio da mesma linha iria ao Forge sem o hook ver."""
-        if any(a in CONFIG_LEITURA or a.startswith(("--get", "--show-")) for a in args):
+        if any(a.startswith(("--get", "--show-")) or a in CONFIG_LEITURA for a in args):
             return False
         palavras = [a for a in args if not a.startswith("-")]
         i = next((n for n, a in enumerate(palavras) if re.fullmatch(CHAVE_DO_DESTINO, a, re.I | re.S)), None)
