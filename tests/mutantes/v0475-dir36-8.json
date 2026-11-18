@@ -67,7 +67,7 @@
       "guarda": "diretriz 36 (R-CONTRIB, E3.231, segurança A7: fora de repositório não há configuração a ler)",
       "arquivo": "hooks/conformidade.py",
       "de": "if (raiz := self.raiz_git(pasta)) is None:",
-      "para": "if False:\n            raiz = pasta",
+      "para": "if (raiz := self.raiz_git(pasta)) is None and False:",
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]

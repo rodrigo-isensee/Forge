@@ -41,6 +41,28 @@
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
+    },
+    {
+      "id": "M63",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.231, segurança A9: `file://` é caminho local)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "local = url[7:] if url.startswith(\"file://\") else",
+      "para": "local = url[7:] if url.startswith(\"file-x://\") else",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "not d.startswith(propria)",
+      "motivo": "diretriz 36: a branch própria de contribuição deixou de existir e todo envio ao Forge da sessão de projeto recusa; a recusa ficou mais larga, coberta por M19, M20 e as fixtures dir36-push-*"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "alvo and (not self.clone_do_forge())",
+      "motivo": "o `not self.clone_do_forge()` repetia o que `alvo_do_forge` já faz (devolve False na sessão do Forge); o gh no Forge passou a só ler (GH_SO_LE), coberto por M15, M29 e as fixtures dir36-gh-*"
     }
   ]
 }
