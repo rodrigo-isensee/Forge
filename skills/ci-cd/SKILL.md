@@ -54,7 +54,7 @@ Nunca use um clone sem as refs remotas (ex.: `git clone --no-tags --single-branc
 
 ## Tempo e dependências
 - CI privado: `ci-de-projeto-privado.md`.
-- Meça a duração por workflow e os minutos usados (`gh run list`); um checkpoint por release. Subiu mais de 20% ou passou de 80% da franquia gratuita: abra cartão de melhoria.
+- Meça duração e minutos por release (`gh run list`; `forge-cota-ci`, rc 1 acima de 80%). Subiu 20% ou passou de 80%: cartão de melhoria. Sem permissão, não peça escopo.
 - Dependabot para ações, imagens e pacotes, com agrupamento e janela; a triagem separa o bump sem quebra (mecânico) do que exige correção de código (dev da stack).
 - Modelo do projeto: `templates/projeto/.github/dependabot.yml` (ações, neutro) e o bloco do ecossistema de pacotes em `stacks/<stack>/pronto.md`, seção "CI". Grupos de rotina só com minor e patch; major em grupo à parte, que vira cartão de migração.
 - A configuração do Dependabot só vale na branch padrão (`main`), e o alerta de segurança abre contra a branch padrão, não contra o `target-branch`; o conserto segue pela branch de integração.

@@ -1,0 +1,94 @@
+{
+  "pedido": "v0475-ci-cota",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "acima do limite avisa (estritamente maior)",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "    if pct > limite:\n",
+      "para": "    if pct < limite:\n",
+      "testes": ["tests.test_cota_ci.CotaCi.test_acima_de_80_avisa_com_rc_1", "tests.test_cota_ci.CotaCi.test_abaixo_do_limite_diz_ok"]
+    },
+    {
+      "id": "M2",
+      "guarda": "exatamente no limite não avisa",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "    if pct > limite:\n",
+      "para": "    if pct >= limite:\n",
+      "testes": ["tests.test_cota_ci.CotaCi.test_exatamente_80_nao_avisa"]
+    },
+    {
+      "id": "M3",
+      "guarda": "o limite padrão é 80%",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "LIMITE_PADRAO = 80.0",
+      "para": "LIMITE_PADRAO = 90.0",
+      "testes": ["tests.test_cota_ci.CotaCi.test_acima_de_80_avisa_com_rc_1"]
+    },
+    {
+      "id": "M4",
+      "guarda": "franquia zero não divide: não verificável",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "    if incluido <= 0:\n",
+      "para": "    if incluido < 0:\n",
+      "testes": ["tests.test_cota_ci.CotaCi.test_franquia_zero_nao_divide"]
+    },
+    {
+      "id": "M5",
+      "guarda": "campo ausente ou não numérico é não verificável",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "    if not (numero(usado) and numero(incluido)):\n",
+      "para": "    if not (numero(usado) or numero(incluido)):\n",
+      "testes": ["tests.test_cota_ci.CotaCi.test_resposta_sem_os_campos_nao_verifica", "tests.test_cota_ci.CotaCi.test_so_um_dos_campos_nao_verifica"]
+    },
+    {
+      "id": "M6",
+      "guarda": "booleano não vale como número",
+      "arquivo": "bin/forge-cota-ci",
+      "de": " and not isinstance(v, bool)",
+      "para": "",
+      "testes": ["tests.test_cota_ci.CotaCi.test_booleano_nao_vale_como_numero"]
+    },
+    {
+      "id": "M7",
+      "guarda": "sem permissão do gh diz não verificável com o comando para o dono",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "    if r.returncode:\n        return None,",
+      "para": "    if False:\n        return None,",
+      "testes": ["tests.test_cota_ci.CotaCi.test_sem_permissao_diz_nao_verificavel_e_o_comando"]
+    },
+    {
+      "id": "M8",
+      "guarda": "o aviso sai com rc 1",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "        return 1, f\"AVISO",
+      "para": "        return 0, f\"AVISO",
+      "testes": ["tests.test_cota_ci.CotaCi.test_acima_de_80_avisa_com_rc_1"]
+    },
+    {
+      "id": "M9",
+      "guarda": "--limite inválido é erro de uso (rc 2)",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "                    print(\"forge-cota-ci: --limite quer um número\", file=sys.stderr)\n                    return 2",
+      "para": "                    pass",
+      "testes": ["tests.test_cota_ci.CotaCi.test_limite_invalido_sai_2"]
+    },
+    {
+      "id": "M10",
+      "guarda": "--limite muda o patamar",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "                    limite = float(argv[i + 1])",
+      "para": "                    limite = LIMITE_PADRAO",
+      "testes": ["tests.test_cota_ci.CotaCi.test_limite_configuravel"]
+    },
+    {
+      "id": "M11",
+      "guarda": "opção desconhecida é erro de uso",
+      "arquivo": "bin/forge-cota-ci",
+      "de": "        else:\n            print(\"uso:",
+      "para": "        else:\n            i += 2\n            continue\n            print(\"uso:",
+      "testes": ["tests.test_cota_ci.CotaCi.test_opcao_desconhecida_sai_2"]
+    }
+  ]
+}

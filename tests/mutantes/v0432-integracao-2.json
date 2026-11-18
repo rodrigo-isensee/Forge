@@ -200,10 +200,10 @@
     },
     {
       "id": "I31",
-      "guarda": "bin/forge-upgrade:35 subprocess.run(['git', '-C', str(projeto), 'merge-base', '--is-ancestor', sha, f'refs/heads/{base}'], capture_output=Tru (negada)",
+      "guarda": "bin/forge-upgrade:35 subprocess.run(['git', '-C', str(projeto), 'merge-base', '--is-ancestor', sha, ref_base], capture_output=Tru (negada)",
       "arquivo": "bin/forge-upgrade",
-      "de": "    mesclada = subprocess.run([\"git\", \"-C\", str(projeto), \"merge-base\", \"--is-ancestor\", sha, f\"refs/heads/{base}\"],\n                              capture_output=True).returncode == 0",
-      "para": "    mesclada = not (subprocess.run([\"git\", \"-C\", str(projeto), \"merge-base\", \"--is-ancestor\", sha, f\"refs/heads/{base}\"],\n                              capture_output=True).returncode == 0)",
+      "de": "    mesclada = subprocess.run([\"git\", \"-C\", str(projeto), \"merge-base\", \"--is-ancestor\", sha, ref_base],\n                              capture_output=True).returncode == 0",
+      "para": "    mesclada = not (subprocess.run([\"git\", \"-C\", str(projeto), \"merge-base\", \"--is-ancestor\", sha, ref_base],\n                              capture_output=True).returncode == 0)",
       "testes": [
         "tests.test_forge"
       ]
