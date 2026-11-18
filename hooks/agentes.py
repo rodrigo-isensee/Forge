@@ -47,6 +47,11 @@ H2-AUTOR-FICA-ATE-O-MERGE (v047, E2.10): o `SubagentStop` de um agente de escrit
 escrevia. Um disparo de escrita numa dessas branches, dentro de expiracao_horas, avisa (R-TETO, código 0) que o autor pode ser
 retomado por `SendMessage`; o aviso some se o id tem lápide (liberado como morto: a desistência registrada), se está ativo ou se
 passou do prazo. Nunca recusa: `autores` ilegível vale vazio.
+MP3 (diretriz 35, dono 17/11 21:11): com um projeto ativo na máquina (registro do MP2, `_maquina`), o teto de sempre. Com dois ou
+mais, depois do teto do projeto (`teto_agentes` fixo vira só o máximo dele), a parte garantida de cada um sai do teto adaptativo
+da máquina dividido pelos pesos (`peso` em .forge/config.json, padrão 1); a vaga parada de um vai a outro, e o dono da vaga que
+achou a máquina cheia tem a próxima, antes de um disparo novo de quem está acima da parte (sem interromper agente). O uso de cada
+projeto fica em `~/.forge/maquina/agentes.json`; projeto que fecha ou para de bater sai da conta na hora. Registro ilegível recusa.
 """
 import hashlib
 import json
@@ -62,6 +67,7 @@ from pathlib import Path
 
 from _comum import (LIMITE_LOG, RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check,
                     gravar_json, ler_json, mensagem)
+import _maquina
 from pesado import CASCAS, TRAVA_S, pid_da_sessao, pid_vivo
 
 FERRAMENTAS = {"Agent", "Task"}
@@ -177,6 +183,90 @@ def calcular_teto(config, proc=None, ritmo=RITMO_PADRAO):
         teto = TETO_DO_RITMO[ritmo]
         origem += f", ritmo {ritmo}: {teto} agente por vez (`forge ritmo equilibrado` muda)"
     return teto, origem
+
+
+USO_DA_MAQUINA = "agentes.json"  # MP3: {projeto: {"uso", "peso", "espera"}} na pasta da máquina (`_maquina`)
+PESO_MAXIMO = 10  # `peso` em .forge/config.json, de 0 (exclusive) a 10; fora disso, 1
+
+
+def ler_da_maquina(nome):
+    """MP3: o objeto `nome` da pasta da máquina; sem o arquivo, {}; ilegível ou fora da forma, levanta (falha fechada)."""
+    try:
+        dados = json.loads(_maquina.ler_regular(_maquina.pasta() / nome, _maquina.TETO_DE_BYTES))
+    except FileNotFoundError:
+        return {}
+    if not isinstance(dados, dict):
+        raise ValueError(f"{nome} da máquina não é objeto JSON")
+    return dados
+
+
+def projetos_ativos(proprio, agora):
+    """MP3: os projetos com sessão viva no registro do MP2, mais o próprio; o que fecha ou para de bater sai na hora."""
+    sessoes = ler_da_maquina(_maquina.ATIVOS).get("sessoes", {})
+    if not isinstance(sessoes, dict):
+        raise ValueError("`sessoes` do registro da máquina não é objeto")
+    vivas = _maquina.vivas(sessoes, agora, pid_vivo).values()
+    return {s["projeto"] for s in vivas if isinstance(s.get("projeto"), str)} | {proprio}
+
+
+def peso_valido(valor):
+    return float(valor) if isinstance(valor, (int, float)) and not isinstance(valor, bool) and 0 < valor <= PESO_MAXIMO else 1.0
+
+
+def uso_de(entrada):
+    """(uso, peso, espera) da entrada de um projeto no USO_DA_MAQUINA; fora da forma, levanta (falha fechada)."""
+    if not isinstance(entrada, dict):
+        raise ValueError("entrada fora da forma no uso de agentes da máquina")
+    uso, espera = entrada.get("uso", 0), entrada.get("espera")
+    if isinstance(uso, bool) or not isinstance(uso, int) or uso < 0 or not (espera is None or isinstance(espera, (int, float))):
+        raise ValueError("uso ou espera fora da forma no uso de agentes da máquina")
+    return uso, peso_valido(entrada.get("peso")), espera
+
+
+class Maquina:
+    """MP3 (diretriz 35, dono 17/11 21:11): com um projeto ativo, o teto de sempre; com dois ou mais, cada um tem a parte
+    garantida (`total` x peso ÷ soma dos pesos, no mínimo 1), a vaga parada de um vai a outro, e quem está dentro da
+    parte e achou a máquina cheia deixa `espera`: até RESERVA_S, o disparo novo de quem está acima da parte é recusado."""
+
+    def __init__(self, hook, agora):
+        self.proprio, self.agora = hook.copia_principal().name, agora
+        try:
+            dados = json.loads((Path(hook.raiz) / ".forge" / "config.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            dados = {}
+        self.peso = peso_valido(dados.get("peso") if isinstance(dados, dict) else None)
+
+    def gravar(self, usos, ativos, uso, espera):
+        outros = {p: e for p, e in usos.items() if p in ativos and p != self.proprio}  # quem fechou devolve a parte
+        _maquina.gravar(USO_DA_MAQUINA, {**outros, self.proprio: {"uso": uso, "peso": self.peso, "espera": espera}})
+
+    def anotar(self, uso):
+        """O uso deste projeto depois do evento, mantida a espera dele."""
+        with _maquina.trava():
+            usos = ler_da_maquina(USO_DA_MAQUINA)
+            self.gravar(usos, projetos_ativos(self.proprio, self.agora), uso, uso_de(usos.get(self.proprio, {}))[2])
+
+    def recusa(self, meu, total):
+        """None se o disparo cabe (e o uso já sai anotado com ele), ou o texto da recusa com a parte e o uso."""
+        with _maquina.trava():
+            ativos, usos = projetos_ativos(self.proprio, self.agora), ler_da_maquina(USO_DA_MAQUINA)
+            outros = {p: uso_de(usos.get(p, {})) for p in ativos - {self.proprio}}
+            soma = self.peso + sum(peso for _, peso, _ in outros.values())
+            parte = {p: max(1, math.floor(total * peso / soma)) for p, (_, peso, _) in outros.items()}
+            minha = max(1, math.floor(total * self.peso / soma))
+            ocupadas = meu + sum(uso for uso, _, _ in outros.values())
+            credores = sorted(p for p, (uso, _, espera) in outros.items()
+                              if espera is not None and 0 <= self.agora - espera < RESERVA_S and uso < parte[p])
+            espera = texto = None
+            if outros and ocupadas >= total:
+                espera = self.agora if meu < minha else None
+                texto = (f"máquina cheia: {ocupadas} de {total} vagas com {len(ativos)} projetos ativos; parte de "
+                         f"{self.proprio} {minha}, uso {meu}" + ("; a próxima vaga livre é sua" if espera else ""))
+            elif outros and meu >= minha and credores:
+                texto = (f"parte de {self.proprio} {minha}, uso {meu}: a vaga emprestada volta a {', '.join(credores)}, "
+                         "que espera a parte dele")
+            self.gravar(usos, ativos, meu if texto else meu + 1, espera)
+            return texto
 
 
 PID_MAX_PADRAO = 4194304  # teto do Linux de 64 bits, quando /proc/sys/kernel/pid_max não pode ser lido
@@ -970,6 +1060,14 @@ def lancar(hook, agentes, agora, lidos):
         registrar_recusa(hook, "teto", {"mem_gb": memoria, "nproc": nproc, "ativos": len(agentes)})
         bloquear("R-TETO", f"{len(agentes)} agentes ativos, teto {teto} ({motivo}); "
                            "espere um terminar antes de lançar outro.")
+    try:  # MP3: a parte da máquina; o registro ilegível recusa (falha fechada)
+        vez = Maquina(hook, agora).recusa(len(agentes), teto_adaptativo(carga, memoria, total, nproc))
+    except Exception as erro:  # noqa: BLE001 - sem ler a máquina, o disparo não sai
+        hook.registrar_erro(erro)
+        vez = "registro da máquina ilegível (~/.forge/maquina; registrado no erros.log)"
+    if vez:
+        registrar_recusa(hook, "teto", {"mem_gb": memoria, "nproc": nproc, "ativos": len(agentes)})
+        bloquear("R-TETO", f"{vez}; espere um agente terminar antes de lançar outro.")
     escrita, a_conferir = set(), set()
     try:  # AG-1a (G-3): depois do teto e só calcula; o erro registra e a reserva sai com a lista vazia
         branches = branches_dos_briefs(hook, entrada.get("prompt"), escrita, a_conferir) if tipo != CONFERENTE else []
@@ -1078,6 +1176,10 @@ def atualizar_estado(hook, evento, ferramenta, lidos, recusa=None):
             autores = guardar_autores(autores, [a for a in agentes if aid and a.get("id") == aid], agora)
             agentes = [a for a in agentes if not aid or a.get("id") != aid]
         gravar_json(arquivo, {"agentes": agentes, "lapides": lapides, "autores": autores})
+        try:  # MP3: o uso deste projeto na máquina depois do evento; o erro não muda o evento
+            Maquina(hook, agora).anotar(len(agentes))
+        except Exception as erro:  # noqa: BLE001 - o ilegível segue recusando o próximo disparo
+            hook.registrar_erro(erro)
     if pendente:  # H2: depois de gravar a reserva; o aviso só informa
         vencido, escrita = pendente
         avisar([aviso_de_brief_vencido(vencido), aviso_de_autor(autores_retomaveis(autores, agentes, lapides, escrita))])

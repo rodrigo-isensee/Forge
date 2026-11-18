@@ -1,0 +1,16 @@
+{
+  "pedido": "v0476-mp3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "T17",
+      "guarda": "MP3: a recusa não conta a vaga no uso",
+      "arquivo": "hooks/agentes.py",
+      "de": "meu if texto else meu + 1",
+      "para": "meu if not texto else meu + 1",
+      "testes": [
+        "tests.test_maquina_teto.QuatroCasos.test_dois_ativos_um_parado_o_outro_usa_quase_tudo"
+      ]
+    }
+  ]
+}
