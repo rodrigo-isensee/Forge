@@ -34,6 +34,7 @@ Mantidas pelo `tech-lead` e pelo `software-architect`. Ajustes específicos do p
 - Toda regra de cálculo com teste unitário e casos de borda documentados.
 - Teste novo para todo bug corrigido (falha antes, passa depois).
 - Testes determinísticos: sem dependência de hora atual nem de ordem de execução.
+- Teste vermelho de outro item que para o PR: `briefs-e-conferencia/teste-vermelho-alheio.md`.
 
 ## Checklist de code review
 Cada regra do `docs/engineering/praticas.md` do projeto diz quem a decide: "decidida por: `<comando>`" (ferramenta) ou "decidida por: leitura". O review **lê só as regras "leitura" que alcançam os arquivos do diff** e **cita a saída dos comandos das regras "ferramenta"**, sem refazê-las (regra 5 de `docs/economia-de-tokens.md`). Regra "ferramenta" sem comando configurado vira pendência no parecer, não revisão manual. O checklist abaixo vale para o que é de leitura.

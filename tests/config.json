@@ -754,11 +754,23 @@
       "\\*\\*Uma volta por rodada:\\*\\* os bloqueantes dos três portões \\(review, segurança e QA\\) no mesmo head viram um brief único",
       "pare o agente novo e retome o autor por `SendMessage`, salvo se ele travou",
       "`forge-check brief gerar --pedido <p> --volta <brief anterior> --ref <branch> --parecer <arquivo>\\.\\.\\.`",
-      "Recomendação não entra"
+      "Recomendação não entra",
+      "`teste-vermelho-alheio\\.md` nesta skill"
+    ],
+    "skills/briefs-e-conferencia/teste-vermelho-alheio.md": [
+      "\\*\\*A correção vai num PR próprio e pequeno\\*\\*, com prioridade máxima",
+      "\\*\\*parecer próprio do QA\\*\\*",
+      "\\*\\*Nunca se mistura ao PR parado:\\*\\*",
+      "O PR parado espera só a correção chegar à base",
+      "\\*\\*É proibido apagar o teste, pulá-lo ou afrouxar o que ele confere para ficar verde:\\*\\*",
+      "o QA explica no parecer do PR do conserto por que ele está errado",
+      "\\*\\*Os mutantes daquele trecho continuam morrendo:\\*\\*",
+      "mutante sobrevivente bloqueia"
     ]
   },
   "invariantes_motivo": {
     "skills/briefs-e-conferencia/autor-ate-o-merge.md": {"regra": "R-BRIEF", "porque": "sem o texto, a volta de review, QA, segurança, CI e conflito vai a um agente novo que relê tudo, e os três portões voltam em rodadas separadas (H2)"},
+    "skills/briefs-e-conferencia/teste-vermelho-alheio.md": {"regra": "R-QA", "porque": "sem o texto, o PR travado por teste vermelho de outro item para à espera do dono do teste, ou o conserto entra misturado nele, ou o teste é apagado, pulado ou afrouxado para ficar verde (decisão do dono de 18/11)"},
     "skills/engineering-practices/tamanho-por-item.md": {"regra": "R-REVIEW", "porque": "sem o texto, somem a contagem do teto de 150 linhas de código por item e a única exceção decidida pelo dono (H1)"},
     "templates/projeto/.github/pull_request_template.md": {"regra": "R-REVIEW", "porque": "sem o texto, o PR do projeto volta a contar teste no teto e a passar dele sem o motivo (H1)"},
     "skills/falar-com-o-dono/varios-projetos.md": {"regra": "R-DECISAO", "porque": "sem o texto, com vários projetos na máquina o dono responde a decisão ou manda a ordem pelo Telegram ao Jarvis do projeto errado (diretriz 35, MP1 e MP7)"},
