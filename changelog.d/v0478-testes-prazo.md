@@ -1,0 +1,2 @@
+### Corrigido
+- Testes que falhavam com a máquina em carga (DEFEITO-TESTES-DE-PRAZO-SOB-CARGA, v0478): o oráculo do forge-sempre-atual vê só os processos do próprio teste (um forge-fechar de outra parte da suíte adiava o escopo de usuário, run 44333231292); o test_prazo_do_merge roda em série os merges que liberam e, quando o vigia de 8 s recusa, só aceita a recusa com a CPU do hook mais o git lento abaixo do prazo menos 1 s (vez na CPU, não trabalho do hook), com a linha PRAZO-CARGA no log. O hook não muda.
