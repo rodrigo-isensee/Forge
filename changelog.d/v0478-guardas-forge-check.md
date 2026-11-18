@@ -1,3 +1,0 @@
-### Corrigido
-- `forge-check pr` recusa mais de um parecer do mesmo tipo, pedido e branch com `parecer`, `revisor` ou `commit` divergentes e diz os arquivos: o aprovado forjado em outro arquivo da pasta do portão não vence mais o parecer emitido pela escolha por (data, nome) (FC-PR-PARECER-FORJADO, v0478 E2.1).
-- Na conferência (`forge-check entrega` com brief selado), os filtros L08, G2 e E2 do escopo só tiram o commit da base que também é ancestral do Base-sha da entrega ou do de um brief selado depois dele: a `origin/<base>` é ref local que o autor reescreve (`git update-ref`), e o arquivo fora do declarado não some mais do escopo; o merge da base sem âncora sai numa linha `escopo: merge da <base> sem âncora` (FILTROS-L08-G2-ORIGIN-LOCAL, v0478 E2.1).
