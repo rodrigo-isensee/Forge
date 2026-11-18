@@ -3,11 +3,11 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0475-copia-pasta
-commit: efe73e1755211bf8d2db0dbbf1fb4e1fc2f808af
-parecer: reprovado
-escopo: completo
+commit: a108ef531a7b40d2bcc05082f23a73ef3888aa37
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-17
@@ -16,8 +16,6 @@ data: 2026-11-17
 
 Escopo: `bin/forge-copia` (clone e worktree só dentro de `~/.forge-contrib`), `tests/test_forge_copia.py`, spec de mutantes, texto nas duas skills e patch em `docs/propostas/`. Sem especificação de UX nem contrato de API; as obrigações vêm do cabeçalho do script e da linha E3.44 do pedido (cópia só na pasta liberada, `--no-track`).
 
-## Achados
-- A1 (bloqueante) skills/contribuir-com-o-forge/SKILL.md:22 · texto novo estoura o teto de metricas (6430 > 6270) e o do Jarvis (40702 > 40566): test_metricas_texto e test_orcamento_instrucao caem no head e passam na base (forge-testes --vermelho: regressao=2). Mover detalhe, nao subir teto.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -41,3 +39,8 @@ Escopo: `bin/forge-copia` (clone e worktree só dentro de `~/.forge-contrib`), `
 - `forge-mutante --cobertura --base 2fa505d7` não rodou (fila da trava `R-TETO`). Conferência manual das guardas do diff: `..`, igualdade com a raiz, commonpath, destino ocupado, `-` inicial, ref-format, clone sem origem e os dois retornos 1 têm mutante.
 - Bordas lidas sem teste dedicado, sem defeito: destino com `~` é expandido depois do teste de `..`; link como último componente apontando para dentro é aceito se vazio, comportamento coerente.
 - Risco residual (não bloqueia): `forge-copia` não valida que `--origem` seja confiável; escopo do parecer de segurança paralelo.
+
+## Revalidação (delta efe73e17..a108ef53)
+`forge-check parecer delta` lista no domínio: copia-pasta-settings.patch (allowWrite sem `/workspaces/.forge-contrib`), as duas skills (texto compactado) e tests/test_forge_copia.py (`sem_manutencao` no env, sem mudar asserção). `bin/forge-copia` não mudou: mutantes M1 a M10 seguem válidos.
+- A1 (antes bloqueante: teto de texto) resolvido: `python3 -I -m unittest discover -s tests -p <módulo>.py` no head a108ef53: test_metricas_texto 2 OK; test_orcamento_instrucao 8 OK; test_ambiente_git 20 OK (127 s); test_forge_copia 13 OK.
+- Check-run `bateria` do sha não citado: sem PR neste head no momento da revalidação.
