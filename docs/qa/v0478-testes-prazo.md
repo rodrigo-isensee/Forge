@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-testes-prazo
-commit: bf3ce6af7420bc86931931866ef462163b5cec3c
+commit: 318721dbbb87ab4db3db719d6f0207e8def10423
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -45,3 +45,10 @@ Os quatro mutantes morreram, um por linha de guarda do lançador. A spec antiga 
 
 ## Achados
 - A1 (recomendado) tests/test_hooks.py:114 · `carga_explica_a_recusa` decide por condições (vigia, relógio, folga de CPU) sem mutante declarado em `tests/mutantes/v0478-testes-prazo.json`; os subtestes de fronteira cobrem, mas fica "declarado, não provado". É código de teste, não guarda: não bloqueia.
+
+## Revalidação (delta bf3ce6af..318721db)
+`forge-check parecer delta` lista: ci.yml (passo que só conta `PRAZO-CARGA` no resumo), fragmento do changelog, `tests/prova_de_carga.py` (novo), `tests/test_hooks.py` e as duas specs de mutantes. A1 anterior atendido: o critério saiu de `test_hooks.py` para `prova_de_carga.py` e ganhou M5 a M10, um por guarda.
+- Mutantes (`bin/forge-mutante tests/mutantes/v0478-testes-prazo.json tests/mutantes/v0478-testes-prazo-2.json`, rev=318721dbbb87): M1 a M10 morreram (M1 a M4 no lançador; M5 a M8 em `prova_de_carga.py:64,66,68,70`; M9 `:58` e M10 `:51`, estes dois mortos por erro do teste declarado sob o mutante, que passa sem ele). Nenhum sobrevivente, nenhum equivalente.
+- Local (`test_hooks.py -k test_prazo_do_merge -k test_carga_explica -k test_referencia_da_cpu -k test_liberar_ou_provar`): 6 testes, OK, 43 s, inclusive a sonda S1 (`test_liberar_ou_provar_a_carga_recusa_a_sonda_s1`) e o critério com disputa provada.
+- A suíte inteira: check-run `bateria` do CI no mesmo sha; não rodei suíte local.
+- Achados: nenhum novo. Bugs: 0.
