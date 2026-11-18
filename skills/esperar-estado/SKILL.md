@@ -38,8 +38,6 @@ n=123; while :; do e=$(gh pr view "$n" --json state --jq .state) || { echo "fim=
 | `fim=erro` | 0 | O `gh` não leu o estado (rede, credencial, número): relate. |
 | `fim=teto` | 1 | Teto com o PR aberto e checks pendentes: repita. |
 
-No marco (antes de esperar um CI longo ou ao fechar a release), rode `forge-cota-ci`: rc 1 é aviso de minutos do Actions acima de 80% da franquia (`R-CUSTO`), e `não verificável` traz o comando para o dono.
-
 Cache do `gh` só de leitura: `XDG_CACHE_HOME` em pasta gravável (por exemplo, `${TMPDIR:-/tmp}`).
 
 ## O envio longo
