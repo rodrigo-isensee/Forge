@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-conformidade
-commit: b3312958a3c27f9c13a94853647bc357a59ca27b
+commit: 848dd5ecd7bc18a87f957a26aec0e4bd1e88f51c
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -48,3 +48,11 @@ Sem especificação de UX; as obrigações vêm do escopo E1 do pedido (C9 e C10
 - Vermelho antes do verde (cópia em `$TMPDIR` com os testes do head e `hooks/conformidade.py` e `hooks/agentes.py` de b0ffec8): `Ran 7 tests, FAILED (failures=5)`: `test_sessao_e_pasta_corrente_na_mesma_raiz_nao_consultam_o_clone`, `test_sessao_na_worktree_le_o_config_dela`, `test_teto_da_worktree_nao_vale_com_a_sessao_no_clone`, `test_find_tar_e_chmod_no_config_da_raiz_recusam`, `test_comando_que_escreve_ou_remove_por_opcao_recusa`; os 2 de "livre" passam na base, como esperado.
 - Mutação: `forge-mutante --processos 2` nas specs 3 a 6 (rev=b3312958a3c2): M15 a M45 todos `morreu`, nenhum sobrevivente, nenhum inválido. `--cobertura --base b0ffec81`: só linhas `coberta`; as duas specs editadas (`v047-hook-estado-ilegivel-2` e `z075`) avisadas como editadas. `v047-hook-estado-ilegivel-2`: M9 a M16 `morreu`. `z075` com o mutante editado (M1 e M2) `morreu`; ver A1 para os demais.
 - Sem skip, skipIf nem expectedFailure no delta.
+
+## Revalidação incremental (head 848dd5ec, base aprovada b3312958)
+Delta no domínio: `hooks/agentes.py` (`pasta_da_config` basta a sessão no clone; cache zerado em `ler_config`), `hooks/conformidade.py` (`ler_opcoes`, `EXTRATORES`: tar, bsdtar, gtar, cpio, unzip, 7z e o applet repassado), `tests/test_conformidade_verde.py`, specs de mutantes 3 a 9, `docs/hooks.md` e changelog.
+- `python3 -I -m unittest discover -s tests -p test_conformidade_verde.py`: Ran 34 tests, OK (209 s). Não rodei `tests.test_hooks` inteiro (máquina carregada).
+- Vermelho antes do verde (cópia em `$TMPDIR` com `hooks/conformidade.py` e `hooks/agentes.py` de b3312958, testes do head): `Ran 3 tests, FAILED (failures=2)`: `test_extrator_e_tar_por_opcao_recusam` e `test_versao_na_worktree_nao_deixa_o_config_dela_no_cache`; o teste de "livre" passa na base, como esperado.
+- Mutação: `forge-mutante --processos 2 --base b3312958 <specs 3 a 9>` (`base=b3312958 rev=848dd5ecd7bc`): M15 a M65 todos `morreu`, nenhum sobrevivente, nenhum inválido. `--cobertura --base b3312958`: só `coberta`, mais `spec editada` (specs 3 a 6) e `apagada` (linhas do `alvos_do_tar` antigo, substituído por `ler_opcoes`).
+- Casos legítimos pelo hook direto: `unzip -l`, `7z l`, `cpio -it` rc 0; `tar -xf a.tar -C docs` recusa por `docs/security/aceites/` (guarda própria, R-SEGURANCA), não por falso positivo do extrator. Os casos livres do teste (`unzip -d docs`, `cpio -id` em docs, `7z x -odocs`, `ls` pelo applet, `-- -C.git/forge`) passam.
+- Sem skip, skipIf nem expectedFailure no delta. O remoto avançou (c42b8d97, só o parecer de segurança); trazido por fast-forward.
