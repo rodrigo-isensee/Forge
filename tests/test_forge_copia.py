@@ -111,6 +111,10 @@ class Recusa(Base):
         r = self.copia("clone", str(self.pasta / "c"), "--branch", "melhoria/q")
         self.assertEqual(r.returncode, 2, r.stderr)
 
+    def test_origem_com_cara_de_opcao(self):
+        r = self.copia("clone", str(self.pasta / "c"), "--branch", "melhoria/q", "--origem=--upload-pack=x")
+        self.assertEqual(r.returncode, 2, r.stderr)
+
     def test_nome_de_branch_invalido(self):
         r = self.copia("worktree", str(self.pasta / "w"), "--branch", "a..b")
         self.assertEqual(r.returncode, 2, r.stderr)
