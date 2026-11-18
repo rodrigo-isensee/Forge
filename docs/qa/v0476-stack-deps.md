@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0476-stack-deps
-commit: 95605e662d55742e4af9b64e640878ea0bfa085b
-parecer: aprovado
-escopo: completo
+commit: ecfc40c355010520c48d15ded98990fe3b66464b
+parecer: reprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -17,6 +17,7 @@ data: 2026-11-18
 Primeira rodada de QA neste pedido para a branch (sem parecer anterior; escopo completo). Diff `a1674911..95605e66` lido contra a decisão do dono 4 (cópia com dependências no pacote da stack, ADR 0001) e contra os achados A1 e A2 da segurança (head 89f7ef2f), que os commits `7ec76dca` e `95605e66` corrigem.
 
 ## Achados
+- A1 (bloqueante) tests/mutantes/v0476-stack-deps-2.json:16 · M2 e M3 sobrevivem: tirar GH_TOKEN ou GH_ENTERPRISE_TOKEN da lista fixa nada muda, o padrão TOKEN já os remove. São equivalentes; declarar `equivalente` com justificativa ou apagar.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -66,3 +67,26 @@ Nenhum aberto.
 ## Observações (sem achado)
 - A segurança reprovou o head 89f7ef2f (A1 e A2); os commits `7ec76dca` e `95605e66` os tratam, e os testes novos de lockfile/hash e de ambiente os guardam. A revalidação da segurança é do portão dela.
 - Parecer de review e de segurança no diretório `docs/` ainda citam o head 89f7ef2f; a atualização é do portão deles.
+
+## Revalidação (delta 95605e66..ecfc40c3, E3.259)
+Escopo incremental: `forge-check parecer delta` lista no domínio `bin/forge-copia`, `changelog.d/v0476-stack-deps.md`, `tests/mutantes/v0476-stack-deps-2.json`, `-3.json` e `tests/test_forge_copia.py`. A mudança é a E3.253: o ambiente da instalação perde `GIT_CONFIG_PARAMETERS` e todo nome com TOKEN, SECRET ou PASSWORD (comparação em maiúsculas). Parecer anterior (aprovado, head 95605e66) segue válido para o resto.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| ambiente sem config injetada e sem nome de segredo | `Instalar.test_instalacao_tira_config_injetada_e_nomes_de_segredo` | `GIT_CONFIG_PARAMETERS`, `FOO_TOKEN`, `bar_secret_x` (minúscula), `MEU_PASSWORD`, `TOKEN` exato; `MINHA_VAR` mantida | passou (M1 a M5 morrem) |
+| pacotes reais só com lockfile | `test_todo_instalar_json_usa_modo_congelado_ou_hash_e_detecta_o_lockfile` | `"lock" in f` para todo `detecta` | passou |
+
+O teste `test_instalacao_real_so_com_lockfile` foi removido no delta; é redundante com o de cima (`detecta` só com lockfile exclui `package.json` e `pyproject.toml`), sem perda de obrigação.
+
+Execução (ambiente: clone do head ecfc40c3, `TMPDIR` do sandbox):
+- `python3 -I tests/catraca.py --base origin/develop`: rc 0.
+- `python3 -m unittest tests.test_forge_copia`: 30 testes, OK.
+- `python3 -m unittest tests.test_ambiente_git`: 20 testes, OK.
+- `tests.test_metricas_texto`: não rodado; o delta não toca .md medido (só o fragmento de changelog).
+- Vermelho: `bin/forge-testes --vermelho 95605e662d55742e4af9b64e640878ea0bfa085b --modulos tests.test_forge_copia`: `vermelho: base=95605e662d55 head=ecfc40c35501`; `tests.test_forge_copia.Instalar.test_instalacao_tira_config_injetada_e_nomes_de_segredo · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=29; prova (asserção)=1`.
+- Mutantes: `bin/forge-mutante tests/mutantes/v0476-stack-deps-3.json`, rc 0, `rev=ecfc40c35501`: M1 a M5 morreram (`bin/forge-copia:50, 51 (x3), 54`).
+- `bin/forge-mutante tests/mutantes/v0476-stack-deps-2.json` (com e sem `--base 95605e66...`; saída igual, `base=95605e662d55742e4af9b64e640878ea0bfa085b`), rc 1, `rev=ecfc40c35501`: M2 `sobreviveu` (`bin/forge-copia:50`), M3 `sobreviveu` (`bin/forge-copia:50`); os demais (M1, M4 a M14) morreram. Causa: o padrão de nome TOKEN, novo no delta, torna redundante GH_TOKEN e GH_ENTERPRISE_TOKEN na lista fixa; mutante equivalente não declarado como tal. Ver A1.
+- `bin/forge-mutante --cobertura --base 95605e66...`: linha 53 `coberta` (spec 2 M7 a M9, spec 3 M5); sem condição nova sem mutante.
+- Suíte inteira: check-run `bateria` do CI do PR (a branch não tem PR); não citada.
+
+Bugs: nenhum. Acessibilidade e E2E: n/a (CLI).
