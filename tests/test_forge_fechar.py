@@ -135,6 +135,32 @@ class LimparClones(unittest.TestCase):
         self.git("push", "-q", "origin", "melhoria/x", cwd=d)
         self.fica(d, self.fechar("p1", "--ref", "melhoria/x", "--limpar"))
 
+    def test_clone_com_worktree_ligada_fica(self):  # sonda S1 da segurança: o rm levaria o repositório e o índice da ligada
+        d = self.clone()
+        w = self.tmp / ".forge-contrib" / "wt" / "zz-ligada"
+        self.git("worktree", "add", "-q", "-b", "outra", str(w), "origin/develop", cwd=d)
+        (w / "trabalho.txt").write_text("nao commitado\n")
+        self.git("add", "trabalho.txt", cwd=w)
+        self.fica(d, self.limpar())
+        self.assertEqual(self.git("status", "--short", cwd=w).strip(), "A  trabalho.txt")
+
+    def test_commit_so_em_tag_local_fica(self):
+        d = self.clone()
+        self.git("switch", "-q", "--detach", cwd=d)
+        self.git("commit", "-q", "--allow-empty", "-m", "so na tag", cwd=d)
+        self.git("tag", "t-local", cwd=d)
+        self.git("switch", "-q", "melhoria/x", cwd=d)
+        self.fica(d, self.limpar())
+
+    def test_fsmonitor_do_clone_nao_roda(self):
+        d = self.clone()
+        marca = self.tmp / "marca-fsmonitor"
+        self.git("config", "core.fsmonitor", f"touch {marca}; false #", cwd=d)
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertFalse(marca.exists())
+        self.assertFalse(d.exists())
+
     def test_clone_de_outra_branch_ou_de_outro_origin_nao_e_tocado(self):
         outra = self.clone("c1", "develop")
         alheio = self.clone("c2")

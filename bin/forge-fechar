@@ -559,10 +559,14 @@ podar_orfaos() {
   [ "$prune_rc" = 0 ] || echo "aviso: o prune saiu com código $prune_rc; a saída dele está no log: $log" >&2
 }
 # limpar_clones (MP6): as cópias que são clones (o `.git` delas é pasta, não arquivo de worktree) em ~/.forge-contrib/wt, na branch $ref e com o
-# mesmo origin, saem só limpas (sem mudança, arquivo novo nem stash), sem commit fora das refs do origin e com o sha mesclado; as outras ficam
-# pendentes, com leitura no lugar de comando que apaga. Define `copia_st` (vazio: nenhum clone da branch) e acrescenta a `pend_cmds`.
+# mesmo origin, saem só limpas (sem mudança, arquivo novo nem stash), sem worktree ligada (o rm levaria o repositório dela), sem commit fora das
+# refs do origin (`--all`: branch, tag, nota) e com o sha mesclado; as outras ficam pendentes, com leitura no lugar de comando que apaga. As refs
+# remotas são as locais do clone, sem fetch: a de uma branch já apagada no origin ainda conta como "na origem". O git do clone roda sem
+# fsmonitor e sem trava opcional (o .git/config dele é gravável no sandbox; como o forge-adotar, C-46-2). Define `copia_st` (vazio: nenhum
+# clone da branch) e acrescenta a `pend_cmds`.
 limpar_clones() {
   local d url_aqui url_dela sha_dela comum
+  local -a g
   copia_st=""
   url_aqui="$(git remote get-url origin 2>/dev/null || true)"
   comum="$(cd "$(git rev-parse --git-common-dir)" && pwd -P || true)"
@@ -570,13 +574,15 @@ limpar_clones() {
     d="${d%/}"
     [ -d "$d/.git" ] || continue
     [ "$(cd "$d/.git" && pwd -P)" != "$comum" ] || continue  # o próprio repositório que roda o fechamento
-    [ "$(git -C "$d" symbolic-ref -q HEAD 2>/dev/null || true)" = "refs/heads/$ref" ] || continue
-    url_dela="$(git -C "$d" remote get-url origin 2>/dev/null || true)"
+    g=(git --no-optional-locks -c core.fsmonitor= -C "$d")
+    [ "$("${g[@]}" symbolic-ref -q HEAD 2>/dev/null || true)" = "refs/heads/$ref" ] || continue
+    url_dela="$("${g[@]}" remote get-url origin 2>/dev/null || true)"
     if [ -z "$url_aqui" ] || [ "$url_dela" != "$url_aqui" ]; then continue; fi
-    sha_dela="$(git -C "$d" rev-parse -q --verify HEAD || true)"
-    if [ -n "$(git -C "$d" status --porcelain 2>/dev/null || echo erro)" ] || git -C "$d" rev-parse -q --verify refs/stash >/dev/null \
-      || [ -n "$(git -C "$d" rev-list --branches --not --remotes 2>/dev/null || echo erro)" ] || ! sha_confere "$sha_dela"; then
-      echo "aviso: o clone $d da branch $ref tem trabalho fora da origem (mudança, stash, commit não enviado ou não mesclado); não o apaguei." >&2
+    sha_dela="$("${g[@]}" rev-parse -q --verify HEAD || true)"
+    if [ "$("${g[@]}" worktree list --porcelain 2>/dev/null | grep -c '^worktree ' || true)" != 1 ] \
+      || [ -n "$("${g[@]}" status --porcelain 2>/dev/null || echo erro)" ] || "${g[@]}" rev-parse -q --verify refs/stash >/dev/null \
+      || [ -n "$("${g[@]}" rev-list --all --not --remotes 2>/dev/null || echo erro)" ] || ! sha_confere "$sha_dela"; then
+      echo "aviso: o clone $d da branch $ref tem trabalho fora da origem ou worktree ligada (mudança, stash, commit não enviado ou não mesclado); não o apaguei." >&2
       copia_st=pendente
       pend_cmds="$pend_cmds
 # confira; só apague depois de decidir
