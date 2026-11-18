@@ -118,7 +118,7 @@ _NOME = {"bin/forge-check": 1, "scripts/suite-paralela.py": 1, "bin/forge-novo-p
          "tests/test_changelog.py": 1, "tests/test_ci_local.py": 7, "tests/test_estado_da_branch.py": 1, "tests/test_etapa_do_brief.py": 1,
          "tests/test_hooks.py": 2, "tests/test_isencoes.py": 5, "tests/test_pre_push_parecer.py": 1, "tests/test_prepush_so_docs.py": 2,
          "tests/test_salvar_desfazer.py": 3, "tests/test_suite_reuso.py": 1, "tests/e2e-instalacao.sh": 1,
-         "tests/test_classe_risco.py": 1, "tests/test_parecer_conteudo.py": 2,
+         "tests/test_classe_risco.py": 1, "tests/test_modelo_ci.py": 4, "tests/test_parecer_conteudo.py": 2,
          "tests/test_t1_codigo_sem_teste.py": 1}  # 0.43.1 G e F: nome de arquivo sintético
 CITACOES_CONHECIDAS = {**{(a, "README.md"): (n, "nome") for a, n in _NOME.items()},
                        ("hooks/conformidade.json", "docs/propostas/"): (1, "destino"),
