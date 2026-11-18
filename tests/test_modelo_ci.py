@@ -26,8 +26,16 @@ def script(passo):
     return "".join(l[10:] + "\n" for l in m.group(1).splitlines())
 
 
+def ambiente_limpo(**extra):
+    """Ambiente do subprocesso sem GIT_* nem BASH_ENV herdados (como tests/test_adotar.py)."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "BASH_ENV"}
+    env.update(extra)
+    return env
+
+
 def git(cwd, *args):
-    return subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True).stdout.strip()
+    return subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True,
+                          env=ambiente_limpo()).stdout.strip()
 
 
 class SuitePesada(unittest.TestCase):
@@ -54,15 +62,21 @@ class SuitePesada(unittest.TestCase):
 class Deteccao(unittest.TestCase):
     """Roda o script de detecção do modelo num repositório descartável."""
 
-    def detectar(self, arquivos, base="ok"):
+    def detectar(self, arquivos, base="ok", mover=()):
         with tempfile.TemporaryDirectory() as d:
             git(d, "init", "-q", "-b", "main")
             git(d, "config", "user.email", "t@t")
             git(d, "config", "user.name", "t")
             (Path(d) / "base.txt").write_text("a")
+            for origem, _ in mover:
+                (Path(d) / origem).parent.mkdir(parents=True, exist_ok=True)
+                (Path(d) / origem).write_text("def f():\n    return 1\n")
             git(d, "add", "-A")
             git(d, "commit", "-qm", "base")
             b = git(d, "rev-parse", "HEAD")
+            for origem, destino in mover:
+                (Path(d) / destino).parent.mkdir(parents=True, exist_ok=True)
+                git(d, "mv", origem, destino)
             for a in arquivos:
                 p = Path(d) / a
                 p.parent.mkdir(parents=True, exist_ok=True)
@@ -71,7 +85,7 @@ class Deteccao(unittest.TestCase):
             git(d, "commit", "-qm", "muda", "--allow-empty")
             cabeca = git(d, "rev-parse", "HEAD")
             saida = Path(d) / "saida"
-            env = dict(os.environ, GITHUB_OUTPUT=str(saida), CABECA=cabeca,
+            env = ambiente_limpo(GITHUB_OUTPUT=str(saida), CABECA=cabeca,
                        BASE={"ok": b, "vazia": "", "zeros": "0" * 40}[base])
             subprocess.run(["bash", "-c", script("Detecta mudança só de documento")], cwd=d, env=env, check=True)
             return saida.read_text().strip()
@@ -84,6 +98,14 @@ class Deteccao(unittest.TestCase):
         self.assertEqual(self.detectar(["README.md", "src/a.py"]), "so_documento=false")
         self.assertEqual(self.detectar(["docs.txt"]), "so_documento=false")
 
+    def test_renomear_codigo_para_documento_roda_a_suite(self):
+        # sondas S1 e S2 do parecer de segurança: a renomeação não esconde a origem
+        self.assertEqual(self.detectar([], mover=[("src/app.py", "docs/app.py")]), "so_documento=false")
+        self.assertEqual(self.detectar([], mover=[("src/app.py", "src/app.md")]), "so_documento=false")
+
+    def test_deteccao_usa_no_renames(self):
+        self.assertIn('git diff --no-renames --name-only "$BASE...$CABECA"', script("Detecta mudança só de documento"))
+
     def test_na_duvida_roda_a_suite(self):
         self.assertEqual(self.detectar(["README.md"], base="vazia"), "so_documento=false")
         self.assertEqual(self.detectar(["README.md"], base="zeros"), "so_documento=false")
@@ -92,7 +114,7 @@ class Deteccao(unittest.TestCase):
 
 class CheckObrigatorio(unittest.TestCase):
     def agregar(self, mudanca, so_documento, suite):
-        env = dict(os.environ, MUDANCA=mudanca, SO_DOCUMENTO=so_documento, SUITE=suite)
+        env = ambiente_limpo(MUDANCA=mudanca, SO_DOCUMENTO=so_documento, SUITE=suite)
         return subprocess.run(["bash", "-c", script("Suíte verde ou só documento")], env=env).returncode == 0
 
     def test_ci_e_unico_e_roda_sempre(self):
@@ -146,7 +168,7 @@ class Entrega(unittest.TestCase):
     def test_forge_init_copia_o_modelo_com_o_comando_da_stack(self):
         with tempfile.TemporaryDirectory() as d:
             subprocess.run([str(RAIZ / "bin" / "forge-init"), "--nome", "x", "--stack", "python", "--pronto", "make pronto",
-                            "--sem-sandbox", d], check=True, capture_output=True, text=True)
+                            "--sem-sandbox", d], check=True, capture_output=True, text=True, env=ambiente_limpo())
             fluxos = Path(d) / ".github" / "workflows"
             ci = (fluxos / "ci.yml").read_text(encoding="utf-8")
             self.assertIn("          make pronto\n", ci)
@@ -160,6 +182,7 @@ class Entrega(unittest.TestCase):
         self.assertIn("push de branch de trabalho", skill)
         self.assertIn("github.event.pull_request.number || github.ref", skill)
         self.assertNotIn("github.head_ref || github.ref_name", skill)
+        self.assertIn("git diff --no-renames --name-only", skill)
 
 
 if __name__ == "__main__":

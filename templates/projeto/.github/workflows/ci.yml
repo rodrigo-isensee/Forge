@@ -42,7 +42,7 @@ jobs:
           CABECA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           so_documento=false
-          if [ -n "$BASE" ] && git cat-file -e "$BASE^{commit}" 2>/dev/null && arquivos=$(git diff --name-only "$BASE...$CABECA" 2>/dev/null) && [ -n "$arquivos" ]; then
+          if [ -n "$BASE" ] && git cat-file -e "$BASE^{commit}" 2>/dev/null && arquivos=$(git diff --no-renames --name-only "$BASE...$CABECA" 2>/dev/null) && [ -n "$arquivos" ]; then
             so_documento=true
             while IFS= read -r arquivo; do
               case "$arquivo" in
