@@ -6,8 +6,8 @@
       "id": "M63",
       "guarda": "7z: as chaves (-y) não são o comando",
       "arquivo": "hooks/conformidade.py",
-      "de": "    palavras = [a for a in args if not a.startswith(\"-\")]\n    comando, arquivo",
-      "para": "    palavras = [a for a in args if True]\n    comando, arquivo",
+      "de": "    operandos = [a for a in args if not a.startswith(\"-\")]\n    comando, arquivo",
+      "para": "    operandos = [a for a in args if True]\n    comando, arquivo",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
@@ -16,8 +16,8 @@
       "id": "M64",
       "guarda": "7z: o comando é a primeira palavra",
       "arquivo": "hooks/conformidade.py",
-      "de": "(palavras[0].lower() if palavras else \"\")",
-      "para": "(palavras[0].lower() if not palavras else \"\")",
+      "de": "(operandos[0].lower() if operandos else \"\")",
+      "para": "(operandos[0].lower() if not operandos else \"\")",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]

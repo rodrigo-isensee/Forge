@@ -66,8 +66,8 @@
       "id": "M53",
       "guarda": "7z -sdel apaga os operandos",
       "arquivo": "hooks/conformidade.py",
-      "de": "removidos = palavras[2:] if \"-sdel\" in args else []",
-      "para": "removidos = palavras[2:] if False else []",
+      "de": "removidos = operandos[2:] if \"-sdel\" in args else []",
+      "para": "removidos = operandos[2:] if False else []",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]

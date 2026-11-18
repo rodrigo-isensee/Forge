@@ -1131,10 +1131,10 @@ def alvos_do_unzip(args):
 def alvos_do_7z(args):
     """A4 da volta 2: `7z x`/`e` extrai na pasta de `-o<pasta>`, ou na corrente; `a`, `u`, `d` e `rn` gravam o arquivo
     (o primeiro operando depois do comando); `-sdel` apaga os outros operandos."""
-    palavras = [a for a in args if not a.startswith("-")]
-    comando, arquivo = (palavras[0].lower() if palavras else ""), palavras[1:2]
+    operandos = [a for a in args if not a.startswith("-")]
+    comando, arquivo = (operandos[0].lower() if operandos else ""), operandos[1:2]
     pastas = ([a[2:] for a in args if a.startswith("-o")] or ["."]) if comando in ("x", "e") else []
-    removidos = palavras[2:] if "-sdel" in args else []
+    removidos = operandos[2:] if "-sdel" in args else []
     return Alvos(pastas, arquivo if comando in ("a", "u", "d", "rn") else [], removidos, [])
 
 
