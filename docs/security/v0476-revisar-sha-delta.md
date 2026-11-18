@@ -28,7 +28,7 @@ Gatilhos: controle do Forge (forge-check: Revisar-sha, parecer delta, recusa do 
 
 **Mudança 3, recusa do PR mesclado** (`bin/forge-check:8525-8528`). Só o texto mudou; a recusa continua (`rc 1`, `tests/test_revisar_sha.py:39`). Base e branch passam por `caminho_impresso` (`sem_controle`): sem injeção de linha de veredito. A orientação não sugere `--force`, `--no-verify` nem recriar a branch apagada (`R-VERIFY`).
 
-**Suíte:** sem PR nesta etapa (brief: sem PR), logo sem CI no head; rodei os testes novos e os vizinhos das funções tocadas (ver relatório). A suíte inteira fica para o CI do PR, que o `tech-lead` cita no merge.
+**Suíte:** sem PR nesta etapa (brief: sem PR), logo sem CI no head; rodei os testes novos (`tests/test_parecer_delta.py` e `tests/test_revisar_sha.py`: 8 testes, OK); o lote vizinho (volta_por_delta, aq5_parecer_novo, estado_da_branch, reval_delta, selo_e_entrega) passou de 600 s no ambiente e foi cortado, sem resultado. A suíte inteira fica para o CI do PR, que o `tech-lead` cita no merge.
 
 ## Riscos aceitos e ferramentas
 Riscos aceitos: nenhum. Ferramentas: leitura estática do diff, testes locais da biblioteca padrão; `gitleaks`, `zizmor` e `semgrep` ausentes do PATH (lacuna; o diff não toca workflow, dependência nem segredo).
