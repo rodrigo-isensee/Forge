@@ -62,7 +62,6 @@ class Veredito(unittest.TestCase):
         self.assertEqual(self.f.veredito(D, [{"id": "tests.m", "res": "erro"}])[0], "inválido")
         self.assertEqual(self.f.veredito(D, [])[0], "inválido")
         self.assertEqual(self.f.veredito(D, [{"id": "tests.m.T.outro", "res": "falha"}])[0], "inválido")
-        self.assertEqual(self.f.veredito(D, [{"id": "tests.m.T.t", "res": "pulado"}])[0], "inválido")
 
     def test_id_de_classe_ou_modulo_cobre_os_testes_dele(self):
         self.assertEqual(self.f.veredito(["tests.m"], [{"id": "tests.m.T.t", "res": "falha"}])[0], "morreu")
@@ -88,6 +87,22 @@ class Veredito(unittest.TestCase):
         registro = [{"id": "tests.m.T.t", "res": "erro"}, {"id": "tests.m.T.u", "res": "falha"}]
         self.assertEqual(self.f.veredito(D, registro, erro_mata=True), ("morreu", ""))
         self.assertEqual(self.f.veredito(D, [{"id": "tests.m.T.t", "res": "ok"}], erro_mata=True), ("sobreviveu", ""))
+
+    def test_teste_declarado_pulado_e_sem_veredito_e_nunca_sobreviveu(self):  # DEFEITO-MUTANTE-PULADO-SOBREVIVE
+        ok, pulado = {"id": "tests.m.T.t", "res": "ok"}, {"id": "tests.m.T.u", "res": "pulado"}
+        for erro_mata in (False, True):
+            with self.subTest(erro_mata=erro_mata):
+                self.assertEqual(self.f.veredito(["tests.m.T"], [ok, pulado], erro_mata),
+                                 ("sem veredito", "teste declarado pulado: tests.m.T.u; os que rodaram não o mataram"))
+                self.assertEqual(self.f.veredito(["tests.m.T.u"], [pulado], erro_mata)[0], "sem veredito")
+                subteste = [{"id": "tests.m.T.t [x]", "res": "pulado"}]  # o pulo no subTest não anota o teste
+                self.assertEqual(self.f.veredito(["tests.m.T.t"], subteste, erro_mata)[0], "sem veredito")
+
+    def test_pulo_nao_esconde_a_morte_nem_o_teste_que_nao_rodou(self):  # DEFEITO-MUTANTE-PULADO-SOBREVIVE
+        pulado = {"id": "tests.m.T.u", "res": "pulado"}
+        self.assertEqual(self.f.veredito(["tests.m.T"], [{"id": "tests.m.T.t", "res": "falha"}, pulado]), ("morreu", ""))
+        self.assertEqual(self.f.veredito(["tests.m.T.t"], [pulado])[0], "inválido")
+        self.assertEqual(self.f.veredito(["tests.m.T"], [{"id": "tests.m.T.t", "res": "erro"}, pulado])[0], "inválido")
 
     def test_registro_marca_o_erro_de_carga(self):  # MUTANTE-ERRO-INVALIDO
         class Falso:
@@ -601,6 +616,26 @@ class Execucao(unittest.TestCase):
                 time.sleep(0.1)
             else:
                 self.fail(f"o processo de teste {pid} segue vivo")
+
+    def test_teste_pulado_sai_2_sem_veredito_e_o_sobrevivente_segue_1(self):  # DEFEITO-MUTANTE-PULADO-SOBREVIVE
+        self.gravar("tests/test_lib.py", TESTE + "\n    def test_pula(self):\n        self.skipTest('sandbox')\n")
+        self.salvar()
+        fraco = {"de": "return 0", "para": "return 0 if x < 99 else 1"}  # nenhum teste o mata
+        for testes in (["tests.test_lib.T"], ["tests.test_lib.T.test_pula"]):
+            with self.subTest(testes=testes):
+                r = self.rodar(self.spec(mutante(testes=testes, **fraco)))
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("M1 · sem veredito · lib.py:4 · teste declarado pulado: tests.test_lib.T.test_pula", r.stdout)
+        equivalente = {**mutante(testes=["tests.test_lib.T"], **fraco), "equivalente": "o teste pulado não confirma isto"}
+        r = self.rodar(self.spec(equivalente))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("M1 · sem veredito · lib.py:4", r.stdout)
+        r = self.rodar(self.spec(mutante(testes=["tests.test_lib.T.test_baixo"], **fraco)))
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("M1 · sobreviveu · lib.py:4", r.stdout)
+        r = self.rodar(self.spec(mutante(testes=["tests.test_lib.T"])))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("M1 · morreu · lib.py:2", r.stdout)
 
     def test_teste_que_estoura_o_prazo_sai_2_sem_veredito(self):  # CA-9
         self.gravar("tests/test_lib.py", TESTE + "\n    def test_lento(self):\n        __import__('time').sleep(60)\n")

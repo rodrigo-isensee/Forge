@@ -65,8 +65,9 @@ declarados, sem a troca) tem de passar. Aí o `de` tem de aparecer uma vez só n
 testes rodam: falha por asserção = morreu; tudo passa = sobreviveu. Erro (exceção, não asserção) de um teste
 declarado sob o mutante, com o controle verde, também mata: sai `morreu · <arq>:<linha> · (erro) ...`. Erro de carga
 do módulo, erro de fixture de classe, teste que não rodou, sintaxe quebrada, estouro de prazo ou sinal não são
-"morreu": são inválido ou sem veredito (saída 2); o erro também sem o mutante é controle vermelho (saída 2). No executor `unittest`,
-a asserção que falha não monta o diff do `difflib` (o `assertEqual` de texto ou sequência grande estourava o prazo):
+"morreu": são inválido ou sem veredito (saída 2). Teste declarado pulado (o `skipTest`, também num subTest) sem
+morte é `sem veredito · <arq>:<linha> · teste declarado pulado: <ids>` (saída 2), nunca "sobreviveu"; o erro
+também sem o mutante é controle vermelho (saída 2). No executor `unittest`, a asserção que falha não monta o diff do `difflib` (o `assertEqual` de texto ou sequência grande estourava o prazo):
 só o veredito conta, e ele não depende do diff.
 
 Saída: 0 = todos morreram (ou são equivalentes declarados) e algum teste rodou; 1 = algum sobreviveu e nenhum é
@@ -283,6 +284,12 @@ def cobre(declarado, ident):
     return ident == declarado or ident.startswith(declarado + ".")
 
 
+def pulado_de(declarados, registro):
+    """IDs pulados de um teste declarado, inclusive o subTest (`<id> [<descrição>]`, que não anota o teste)."""
+    return [e["id"] for e in registro if e["res"] == "pulado"
+            and any(cobre(d, e["id"]) or e["id"].startswith(d + " ") for d in declarados)]
+
+
 MORREU_POR_ERRO = "(erro) o teste declarado deu erro sob o mutante e passa sem ele"
 
 
@@ -292,17 +299,25 @@ def erro_que_mata(declarados, e):
 
 
 def veredito(declarados, registro, erro_mata=False):
-    """('morreu'|'sobreviveu'|'inválido', motivo) a partir do registro por teste; nunca pelo código de saída.
-    `erro_mata`: o controle (os mesmos testes sem o mutante) passou, e o erro de um teste declarado é morte."""
+    """('morreu'|'sobreviveu'|'inválido'|'sem veredito', motivo) a partir do registro por teste; nunca pelo código de
+    saída. `erro_mata`: o controle (os mesmos testes sem o mutante) passou, e o erro de um teste declarado é morte.
+    Teste declarado pulado sem morte é 'sem veredito', nunca 'sobreviveu' (DEFEITO-MUTANTE-PULADO-SOBREVIVE)."""
     erros = [e for e in registro if e["res"] == "erro"]
     if any(not (erro_mata and erro_que_mata(declarados, e)) for e in erros):
         return "inválido", "erro de carga ou de execução do teste"
+    pulados = pulado_de(declarados, registro)
+    sem_veredito = ("sem veredito", f"teste declarado pulado: {', '.join(pulados)}")
     for declarado in declarados:
         if not any(cobre(declarado, e["id"]) and e["res"] in ("ok", "falha", "erro") for e in registro):
-            return "inválido", f"teste declarado que não rodou: {declarado}"
+            return sem_veredito if pulado_de([declarado], registro) else (
+                "inválido", f"teste declarado que não rodou: {declarado}")
     if any(e["res"] == "falha" for e in registro):
         return "morreu", ""
-    return ("morreu", MORREU_POR_ERRO) if erros else ("sobreviveu", "")
+    if erros:
+        return "morreu", MORREU_POR_ERRO
+    if pulados:  # os que rodaram passaram: o sobrevivente possível fica dito na linha, não escondido
+        return sem_veredito[0], sem_veredito[1] + "; os que rodaram não o mataram"
+    return "sobreviveu", ""
 
 
 # --- spec ----------------------------------------------------------------------------------------------------------
@@ -851,7 +866,9 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
         registro = rodar(copia, m["testes"], trabalho / f"controle-{m['id']}.jsonl", prazo,
                          trabalho / f"pyc-controle-{m['id']}")
         resultado = None if registro is None else veredito(m["testes"], registro)
-        return "sem veredito" if resultado is None else ("ok" if resultado[0] == "sobreviveu" else "vermelho")
+        if resultado is None:
+            return "sem veredito"
+        return "ok" if resultado[0] in ("sobreviveu", "sem veredito") else "vermelho"  # o pulo decide-se no mutante
 
     estado = controles.obter(tuple(m["testes"]), controle)
     if estado != "ok":
@@ -865,11 +882,11 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
     if registro is None:
         return f"{m['id']} · sem veredito · {m['arquivo']}:{linha}", 2, False
     classe, motivo = veredito(m["testes"], registro, erro_mata=True)  # o controle passou: erro agora é do mutante
-    if "equivalente" in m and classe != "inválido":  # o teste listado que o mata desmente o equivalente
+    if "equivalente" in m and classe not in ("inválido", "sem veredito"):  # o teste que o mata desmente o equivalente
         classe, motivo = ("equivalente", "") if classe == "sobreviveu" else (
             "inválido", "declarado equivalente, mas os testes listados o matam")
     texto = f"{m['id']} · {classe} · {m['arquivo']}:{linha}" + (f" · {motivo}" if motivo else "")
-    return texto, {"inválido": 2, "sobreviveu": 1}.get(classe, 0), True
+    return texto, {"inválido": 2, "sem veredito": 2, "sobreviveu": 1}.get(classe, 0), True
 
 
 class ArvoreMudou(Exception):
