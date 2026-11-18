@@ -47,8 +47,10 @@ class Maquina(unittest.TestCase):
         return json.loads((self.tmp / "maquina" / _maquina.ATIVOS).read_text(encoding="utf-8"))
 
     def status(self):
-        return subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-status"), "--maquina"], env=self.env,
-                              capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL).stdout
+        """As linhas de projeto do `--maquina`; as `máquina:` da medida (MP8) ficam em StatusDaMaquina."""
+        saida = subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-status"), "--maquina"], env=self.env,
+                               capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL).stdout
+        return "".join(linha for linha in saida.splitlines(True) if not linha.startswith("máquina: "))
 
     def gravar(self, nome, dados):
         (self.tmp / "maquina").mkdir(mode=0o700, exist_ok=True)
@@ -306,6 +308,118 @@ class FilaPesada(Maquina):
         self.pedir(alfa, "a", "PostToolUse")
         self.pedir(beta, "b", uso="toolu_2")
         self.assertEqual(sorted(self.ler_vezes()), [str(beta / ".forge" / "run")])
+
+
+# MP8 (v0479, diretriz 35): `forge-status --maquina`, a visão da máquina para o dono, sem projeto, com um e com vários.
+class StatusDaMaquina(Maquina):
+    def setUp(self):
+        super().setUp()
+        self.proc = self.tmp / "proc"
+        self.proc.mkdir()
+        (self.proc / "loadavg").write_text("1.5 1.0 0.5 1/100 42\n", encoding="utf-8")
+        (self.proc / "meminfo").write_text("MemTotal: 16777216 kB\nMemAvailable: 8388608 kB\n", encoding="utf-8")
+        self.env.update(FORGE_PROC=str(self.proc), FORGE_NPROC="12", HOME=str(self.tmp))
+        self.sessoes = {}
+
+    def ativo(self, nome, versao="0.47.9", sessoes=1, **extra):
+        raiz = self.tmp / nome
+        (raiz / ".forge").mkdir(parents=True)
+        if versao:
+            (raiz / ".forge" / "versao").write_text(f"{versao}\n", encoding="utf-8")
+        for n in range(sessoes):
+            self.sessoes[f"{nome}{n}"] = {"projeto": nome, "pasta": str(raiz), "pid": os.getpid(), "batimento": time.time(),
+                                          **extra}
+        self.gravar(_maquina.ATIVOS, {"projetos": sorted({s["projeto"] for s in self.sessoes.values()}), "sessoes": self.sessoes})
+        return raiz
+
+    def linhas(self, *argumentos):
+        r = subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-status"), "--maquina", *argumentos], env=self.env,
+                           capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL)
+        self.assertEqual((r.returncode, r.stderr), (0, ""))
+        return r.stdout.splitlines()
+
+
+class SemProjeto(StatusDaMaquina):
+    def test_sem_projeto_diz_nenhum_e_mede_a_maquina(self):
+        nenhum, medida, escape = self.linhas()
+        self.assertEqual(nenhum, "forge: nenhum projeto ativo na máquina")
+        for trecho in ("máquina: 12 núcleos", "carga 1.5", "memória 8.0 de 16.0 GB disponíveis", "disco ",
+                       "recusa cópia nova acima de 90%", "tarefas pesadas 0 de ", "teto 12 agentes"):
+            self.assertIn(trecho, medida)
+        self.assertEqual(escape, "máquina: FORGE_CARGA_LIVRE vale (um projeto ativo ou nenhum; só o dono)")
+
+    def test_sem_leitura_de_proc_nem_de_nucleos(self):
+        for arquivo in self.proc.iterdir():
+            arquivo.unlink()
+        self.env["FORGE_NPROC"] = "abc"
+        medida = self.linhas()[1]
+        for trecho in ("máquina: ? núcleos", "carga ?", "memória sem leitura", "teto 3 agentes"):
+            self.assertIn(trecho, medida)
+
+    def test_registro_ilegivel_nao_lista_e_recusa_o_escape(self):
+        self.gravar(_maquina.ATIVOS, "{")
+        nenhum, _, escape = self.linhas()
+        self.assertEqual(nenhum, "forge: nenhum projeto ativo na máquina")
+        self.assertEqual(escape, "máquina: FORGE_CARGA_LIVRE recusado: registro de projetos ilegível")
+
+    def test_sessao_sem_pasta_absoluta_fica_fora(self):
+        self.gravar(_maquina.ATIVOS, {"projetos": ["solto"], "sessoes": {
+            "a": {"projeto": "solto", "pasta": "relativa", "pid": os.getpid(), "batimento": time.time()},
+            "b": {"projeto": "solto", "pid": os.getpid(), "batimento": time.time()}}})
+        self.assertEqual(self.linhas()[0], "forge: nenhum projeto ativo na máquina")
+
+    def test_help_mostra_a_opcao(self):
+        r = subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-status"), "--help"], env=self.env,
+                           capture_output=True, text=True, timeout=60)
+        self.assertIn("--maquina", r.stdout)
+        self.assertIn("visão da máquina", r.stdout)
+
+
+class UmProjeto(StatusDaMaquina):
+    def test_um_projeto_tem_o_teto_inteiro_versao_e_decisoes(self):
+        raiz = self.ativo("alfa", sessoes=2)
+        (raiz / "docs" / "pedidos").mkdir(parents=True)
+        (raiz / "docs" / "pedidos" / "p1.md").write_text(
+            "## Histórico\nPERGUNTA AO DONO (2026-11-18 10:00): seguir? 1a) sim [recomendada]\n", encoding="utf-8")
+        self.gravar("agentes.json", {str(raiz): {"uso": 3, "peso": 2, "espera": None}})
+        projeto, _, escape = self.linhas()
+        self.assertEqual(projeto.split(" · ")[:7], ["alfa", str(raiz), "Forge 0.47.9", "agentes 3 de 12 (peso 2)",
+                                                    "decisões pendentes 1", "2 sessões", "batimento há 0 min"])
+        self.assertIn("FORGE_CARGA_LIVRE vale", escape)
+
+    def test_versao_do_clone_do_forge_link_e_sem_versao(self):
+        raiz = self.ativo("clone", versao=None)
+        (raiz / ".claude-plugin").mkdir()
+        (raiz / ".claude-plugin" / "plugin.json").write_text('{"name": "forge", "version": "0.47.9"}', encoding="utf-8")
+        (self.tmp / "fora").write_text("9.9.9\n", encoding="utf-8")
+        (raiz / ".forge" / "versao").symlink_to(self.tmp / "fora")
+        self.assertIn(" · Forge 0.47.9 · ", self.linhas()[0], "o link não se segue; vale a do plugin")
+        (raiz / ".claude-plugin" / "plugin.json").write_text("{}", encoding="utf-8")
+        self.assertIn(" · Forge ? · ", self.linhas()[0])
+
+    def test_decisoes_por_link_e_uso_fora_da_forma(self):
+        raiz = self.ativo("alfa")
+        (self.tmp / "outro").mkdir()
+        (raiz / "docs").symlink_to(self.tmp / "outro")
+        self.gravar("agentes.json", {str(raiz): 5})
+        self.assertIn(" · agentes 0 de 12 (peso 1) · decisões pendentes ? · ", self.linhas()[0])
+        self.gravar("agentes.json", "[1]")
+        self.assertIn(" · agentes 0 de 12 (peso 1) · ", self.linhas()[0])
+
+    def test_tarefa_pesada_viva_conta(self):
+        self.ativo("alfa")
+        self.gravar("pesado.json", {"x": {"pid": os.getpid(), "desde": time.time()}})
+        self.assertIn("tarefas pesadas 1 de ", self.linhas()[1])
+
+
+class VariosProjetos(StatusDaMaquina):
+    def test_varios_projetos_repartem_o_teto_pelo_peso_e_o_escape_nao_vale(self):
+        alfa, beta = self.ativo("alfa"), self.ativo("beta")
+        self.gravar("agentes.json", {str(alfa): {"uso": 7, "peso": 2, "espera": None}, str(beta): {"uso": 1, "espera": None}})
+        a, b, _, escape = self.linhas()
+        self.assertIn(f"alfa · {alfa} · Forge 0.47.9 · agentes 7 de 8 (peso 2) · decisões pendentes 0 · 1 sessões", a)
+        self.assertIn(f"beta · {beta} · Forge 0.47.9 · agentes 1 de 4 (peso 1) · ", b)
+        self.assertEqual(escape, "máquina: FORGE_CARGA_LIVRE recusado: 2 projetos ativos, a trava de memória vale sempre")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,2 @@
+### Adicionado
+- `forge-status --maquina` mostra a visão da máquina para o dono (MP8): uma linha por projeto ativo com a versão do Forge, os agentes em uso e a parte de cada um (teto repartido pelo `peso`), as decisões pendentes e as sessões; e as linhas `máquina:` com núcleos, carga, memória, disco, tarefas pesadas e se o escape `FORGE_CARGA_LIVRE` vale (só com um projeto ativo). Só leitura, sem rede.
