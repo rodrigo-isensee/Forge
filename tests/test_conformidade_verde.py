@@ -265,3 +265,84 @@ class OraculoCf1(unittest.TestCase):
                           {k: v.replace("{tmp}", str(tmp)) for k, v in f.dados["env"].items()})
                 self.assertEqual(r.returncode, f.dados["esperado"]["codigo"], r.stderr)
                 self.assertIn(f.dados["esperado"]["stderr"], r.stderr)
+
+
+# AGENTES-JSON-SEM-GUARDA (v0478 E1.1; C9 e C10 de docs/security/v047-v2-ameacas.md, seção 2): no clone do Forge, o
+# papel sem lista de permissão passava só pela `GuardaDaProva`, e o estado do hook `agentes` (`<diretório comum>/forge/run/`)
+# ficava sem guarda. A recusa da política `.git/forge/` passa a valer ali para todo papel, o jarvis incluído; o resto do clone
+# segue livre. Fixture própria: clone temporário com o manifesto do Forge, sem tocar o `.git` real.
+HOOKS_DO_CLONE = Path(__file__).resolve().parent.parent / "hooks"
+LANCADOR_DO_CLONE = "import runpy, sys; sys.path.insert(0, sys.argv[1]); sys.argv = sys.argv[2:]; runpy.run_path(sys.argv[0], run_name='__main__')"
+PAPEIS_DO_CLONE = ("forge:tech-lead", "forge:security-engineer", "forge:qa-engineer", "forge:devops-engineer", "forge:jarvis", None)
+
+
+class CloneDoForge(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-estado-")).resolve()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.clone = self.tmp / "clone"
+        (self.clone / ".claude-plugin").mkdir(parents=True)
+        (self.clone / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}\n', encoding="utf-8")
+        subprocess.run(["git", "init", "-q", str(self.clone)], check=True, env=self.env(), capture_output=True, timeout=60)
+        self.run = self.clone / ".git" / "forge" / "run"
+        self.run.mkdir(parents=True)
+        self.estado = self.run / "agentes.json"
+        self.estado.write_text('{"agentes": []}', encoding="utf-8")
+
+    def env(self):
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
+        return sem_manutencao({**env, "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull})
+
+    def rodar(self, ferramenta, entrada, papel="forge:tech-lead", cwd=None):
+        dados = {"tool_name": ferramenta, "tool_input": entrada, "hook_event_name": "PreToolUse", "agent_type": papel}
+        return subprocess.run([sys.executable, "-I", "-c", LANCADOR_DO_CLONE, str(HOOKS_DO_CLONE), str(HOOKS_DO_CLONE / "conformidade.py")],
+                              input=json.dumps(dados), cwd=cwd or self.clone, capture_output=True, text=True, timeout=120,
+                              env={**self.env(), "CLAUDE_PROJECT_DIR": str(self.clone)})
+
+    def recusa(self, r, caso):
+        self.assertEqual(r.returncode, 2, f"{caso}: {r.stderr}")
+        self.assertIn("R-CONFORMIDADE", r.stderr, caso)
+
+    def libera(self, r, caso):
+        self.assertEqual(r.returncode, 0, f"{caso}: {r.stderr}")
+
+
+class EstadoDoAgentesNoClone(CloneDoForge):
+    def test_escrita_remocao_e_link_no_estado_recusam_para_todo_papel(self):  # J1 a J11, J13 a J15
+        absoluto = str(self.estado)
+        comandos = ("echo '{}' > .git/forge/run/agentes.json", "rm .git/forge/run/agentes.json", "rm -rf .git/forge",
+                    "mv .git/forge/run /tmp/r", "python3 -c \"open('.git/forge/run/agentes.json','w')\"",
+                    "cd .git/forge/run && : > agentes.json", "ln .git/forge/run/agentes.json h",
+                    "ln -sf /dev/null .git/forge/run/agentes.json", "truncate -s0 .git/forge/run/agentes.json",
+                    "d=.git/forge/run; echo x > $d/agentes.json", f"echo x > {absoluto}",
+                    "echo a >> .git/forge/run/autoria.jsonl", "rm -rf .git")
+        for papel in PAPEIS_DO_CLONE:  # a lista inteira para o tech-lead e o jarvis; para os outros, escrita e remoção
+            for c in comandos if papel in ("forge:tech-lead", "forge:jarvis") else comandos[:2]:
+                self.recusa(self.rodar("Bash", {"command": c}, papel), f"{papel}: {c}")
+            self.recusa(self.rodar("Write", {"file_path": absoluto, "content": "{}"}, papel), f"{papel}: Write")
+            self.recusa(self.rodar("Edit", {"file_path": absoluto, "old_string": "[]", "new_string": "[1]"}, papel),
+                        f"{papel}: Edit")
+        self.assertEqual(self.estado.read_text(encoding="utf-8"), '{"agentes": []}')
+
+    def test_de_fora_do_clone_pelo_caminho_absoluto_recusa(self):  # J12: pasta corrente fora do clone
+        fora = self.tmp / "fora"
+        fora.mkdir()
+        self.recusa(self.rodar("Bash", {"command": f"rm {self.estado}"}, cwd=fora), "rm de fora")
+
+    def test_linha_que_o_hook_nao_le_e_cita_o_estado_recusa(self):  # J16, C10: o recuo de falha fechada
+        teto = ": " + "a " * 5001 + "; echo x > .git/forge/run/agentes.json"  # acima do teto de palavras: sem leitura
+        for c in ("echo x > .git/forge/run/agentes.json (true)#'", "echo x > .git/forge/run/agentes.json \\", teto):
+            self.recusa(self.rodar("Bash", {"command": c}), c[:60])
+
+    def test_leitura_e_resto_do_clone_seguem_livres(self):  # legítimos do modelo de ameaças
+        for c in ("cat .git/forge/run/agentes.json", "ls .git/forge/run", "git status", "cp a docs/a.md",
+                  "echo x > docs/a.md \\"):
+            self.libera(self.rodar("Bash", {"command": c}), c)
+        self.libera(self.rodar("Write", {"file_path": str(self.clone / "docs" / "a.md"), "content": "x"}), "Write em docs")
+        c = "d=.claude/x; echo x > $d/a"  # o que o hook não modela só vale se a linha cita o estado
+        self.libera(self.rodar("Bash", {"command": c}), c)
+
+    def test_fora_do_clone_do_forge_a_guarda_nao_se_estende(self):  # outro repositório, sem o manifesto do Forge
+        (self.clone / ".claude-plugin" / "plugin.json").unlink()
+        for c in ("rm .git/forge/run/agentes.json", "echo x > .git/forge/run/agentes.json \\"):
+            self.libera(self.rodar("Bash", {"command": c}), c)

@@ -3488,19 +3488,44 @@ class ForaDaProva(Exception):
     """A `GuardaDaProva` achou outra recusa, que fora de projeto não vale (ADR 0009, seção 6)."""
 
 
+# AGENTES-JSON-SEM-GUARDA (v0478; C9 e C10 de docs/security/v047-v2-ameacas.md): no clone do Forge, as recusas destas
+# entradas da política valem também na `GuardaDaProva`, para todo papel (o jarvis incluído); o resto do clone segue livre.
+ESTADO_DOS_HOOKS = (".git/forge/",)
+ESTADO_NO_TEXTO = re.compile(r"\.git/forge|forge/run|agentes\.json")  # C10: linha que o hook não lê e cita o estado
+
+
 class GuardaDaProva(Guarda):
     """S8 (C-1) com a pasta corrente fora de projeto: a Guarda lê a escrita, mas só a recusa da prova da suíte vale, e a
     da linha que o hook não lê por passar de `PROFUNDIDADE` (PROFUNDIDADE-BASH-C).
     E16.1 (HOOK-RVERIFY-FALSO-POSITIVO): a outra recusa não para a leitura, que segue até o fim da linha; a prova é
     recusada pelo destino da escrita, resolvido pela Guarda, e não pelo texto. Só a linha que o hook não lê (teto,
-    ilegível: `sem_leitura`) volta ao texto em `prova_fora_de_projeto`, falhando fechado."""
+    ilegível: `sem_leitura`) volta ao texto em `prova_fora_de_projeto`, falhando fechado.
+    AGENTES-JSON-SEM-GUARDA: com a sessão no clone do Forge (`no_clone`), vale também a recusa que cita o motivo de uma
+    entrada de `ESTADO_DOS_HOOKS` (escrita, remoção do ancestral, link)."""
+    def __init__(self, hook, pol, papel, no_clone=False):
+        super().__init__(hook, pol, papel)
+        self.no_clone = no_clone
+        self.motivos_do_estado = tuple(e["motivo"] for e in pol["caminhos"] if e["caminho"] in ESTADO_DOS_HOOKS)
+
     def barrar(self, rid, o_que, corrigir, simples=None):
         if (rid, o_que, corrigir) == PROVA_DA_SUITE:
             super().barrar(rid, o_que, corrigir)
         if (rid, o_que, corrigir) == PROFUNDIDADE_EXCEDIDA:
             super().barrar(rid, o_que, corrigir)
+        if self.recusa_do_estado(o_que):
+            super().barrar(rid, o_que, corrigir)
         if self.sem_leitura:
             raise ForaDaProva(rid)
+
+    def recusa_do_estado(self, o_que):
+        """No clone: a recusa cita o motivo de uma entrada do estado, ou é a da construção que o hook não modela (`$d`,
+        J13) numa linha que cita o estado (`ESTADO_NO_TEXTO`)."""
+        if not self.no_clone:
+            return False
+        if any(m in o_que for m in self.motivos_do_estado):
+            return True
+        linha = self.h.campo("tool_input").get("command")
+        return "o hook não modela" in o_que and isinstance(linha, str) and bool(ESTADO_NO_TEXTO.search(linha))
 
     def perguntar(self, texto):
         """Fora de projeto não há confirmação a pedir."""
@@ -3509,11 +3534,11 @@ class GuardaDaProva(Guarda):
 def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
     """S8 (C-1, A2 da segurança g3): a prova da suíte é por uid, então vale também fora de projeto, em toda sessão e
     para todo papel. A outra recusa não vale e a leitura segue (`GuardaDaProva`); linha que o hook não lê ou erro
-    interno: falha fechado só se o alvo cita o nome da prova."""
+    interno: falha fechado só se o alvo cita o nome da prova ou, no clone do Forge, o estado dos hooks (C10)."""
     if hook.campo("hook_event_name") == "PostToolUse":
         return
     hook.raiz = raiz or Path(hook.cwd())
-    guarda = GuardaDaProva(hook, pol, papel)
+    guarda = GuardaDaProva(hook, pol, papel, bool(raiz and e_clone_do_forge(raiz)))
     try:
         decidir(hook, guarda, ferramenta, entrada)
     except Exception as erro:  # noqa: BLE001 - ForaDaProva ou erro interno; a decisão vem do texto do alvo
@@ -3521,6 +3546,10 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
         palavras = re.split(r"[\s'\"(),;=<>|&]+", alvo) if isinstance(alvo, str) else []
         if any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in palavras):
             Guarda.barrar(guarda, *PROVA_DA_SUITE)
+        if guarda.no_clone and isinstance(alvo, str) and ESTADO_NO_TEXTO.search(juntar_continuacoes(alvo)):
+            hook.registrar_erro(erro)
+            Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita o estado dos "
+                          "hooks (.git/forge/, forge/run, agentes.json)", f"só o usuário altera; {SUGESTAO}")
         pasta = Path(hook.cwd())
         opaco = bool(palavras and VARIAVEL.search(alvo))  # S3: `$(…)` ou variável no alvo
         for t in filter(CURINGA.search, palavras):  # A1 da segurança g1: o curinga que o bash expande no alvo

@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3037 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3041 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,7 +10,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3037 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 125 | 66 | 59 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2265 | 1683 | 582 | 94 |
+| `conformidade` | 2269 | 1686 | 583 | 95 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 32 | 13 | 19 | 14 |
 | `parecer` | 529 | 407 | 122 | 24 |
@@ -119,6 +119,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3037 fixtures) roda em `tests/test
 | `i-*` | 5 | 5 | 0 | `R-CONFORMIDADE` | — | Busca de classe: `awk -i inplace` sobre arquivo em vigor dá bloqueio. |
 | `ativar-*` | 4 | 2 | 2 | `R-VERIFY` | — | -c core.hooksPath= junto da ativação continua barrado. |
 | `d-*` | 4 | 4 | 0 | `R-CONFORMIDADE` | — | Achado D, cadeia 3: sem `.forge/versao`, `mv .git .g` (para depois usar `GIT_DIR=.g`) cai na conferência inteira: o `.git` da raiz é protegi… |
+| `estadoclone-*` | 4 | 3 | 1 | — | `AGENTES-JSON-SEM-GUARDA` | AGENTES-JSON-SEM-GUARDA: no clone do Forge, ler o agentes.json segue livre. |
 | `f-*` | 4 | 4 | 0 | `R-CONFORMIDADE` | — | Achado F: com o `commondir` escrito fora dos hooks no clone principal (a marca não se consulta) e sem `.forge/versao`, o push falha fechado. |
 | `pasta-*` | 4 | 2 | 2 | — | `HOOK-RAIZ-CONTRIB` | HOOK-RAIZ-CONTRIB: o jarvis grava em ~/.forge-contrib/forge/docs/briefs/ (a sessão do Forge grava ali). |
 | `regra-*` | 4 | 2 | 2 | — | — | Dev editando regra do Forge, mesmo em melhoria/*: bloqueia. |

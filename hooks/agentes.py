@@ -16,8 +16,8 @@ bloqueia também se já há o teto de agentes ativos ou um ativo com o mesmo tip
 senão reserva a vaga. `FORGE_CARGA_LIVRE=1` no ambiente do processo (só o dono) pula só a trava de memória
 (teto e duplicado seguem; o uso fica no erros.log), só com um projeto ativo (MP5). SubagentStart confirma a reserva com o agent_id; SubagentStop libera a vaga.
 Estado em .forge/run/agentes.json; no clone do Forge e nas worktrees dele (onde `.forge` é um arquivo, não uma pasta),
-em <diretório comum do git>/forge/run/agentes.json: protegido pela conformidade só nas sessões de projeto, no Forge sem guarda
-de escrita; `hooks_desligados` não vale no clone. Registros expiram (reserva sem início: 5 min; agente: expiracao_horas).
+em <diretório comum do git>/forge/run/agentes.json: protegido pela conformidade nas sessões de projeto e, no clone, para todo
+papel (AGENTES-JSON-SEM-GUARDA, v0478: a `GuardaDaProva` deixa valer a recusa de `.git/forge/`); `hooks_desligados` não vale no clone. Registros expiram (reserva sem início: 5 min; agente: expiracao_horas).
 O registro leva o PID da sessão do Claude Code, o namespace de PID e o session_id: com a sessão morta (PID inexistente, no mesmo
 namespace) a vaga sai na hora, sem esperar o prazo. Qualquer dúvida (tipo, faixa, namespace, erro) mantém o registro.
 AG-1a (E10): a reserva grava em `branches` as `Branch:` do cabeçalho dos briefs citados no prompt.
