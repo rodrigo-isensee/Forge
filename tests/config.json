@@ -460,6 +460,8 @@
       "só cria ou renomeia um rótulo com esse nome",
       "aplicar ou delegar esse rótulo a um agente é \\*\\*proibido\\*\\*",
       "barra branch, commit, envio e PR no Forge vindos de sessão de projeto",
+      "todo `gh` no Forge que não só lê",
+      "Decide pela raiz da sessão e, na dúvida sobre o alvo",
       "push sem arquivo protegido não o derruba"
     ],
     "docs/regras/R-QA.md": [

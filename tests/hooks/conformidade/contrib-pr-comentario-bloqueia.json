@@ -1,5 +1,5 @@
 {
-  "descricao": "Comentar no próprio PR continua livre.",
+  "descricao": "Diretriz 36 (R-CONTRIB, A4): comentar no PR do Forge (cd no clone) vindo de sessão de projeto é recusado.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -15,6 +15,7 @@
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-CONTRIB: gh"
   }
 }

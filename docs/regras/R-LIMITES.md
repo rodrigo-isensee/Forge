@@ -8,7 +8,7 @@ verificada_por: cada trecho abaixo diz a sua (hooks, permissões, catraca do CI,
 Propósito: texto único de cinco regras de limite (AV5, 2026-11-10); os outros arquivos citam o ID do trecho. Público: todo o time.
 
 Revisar em: 2027-01-07
-Medida: 25 pontos de recusa no código e 0 cópias; a de cada trecho vem nele
+Medida: 27 pontos de recusa no código e 0 cópias; a de cada trecho vem nele
 
 ## R-MAIN: A main é do usuário
 
@@ -47,13 +47,13 @@ Medida: 2 pontos de recusa `msg("R-CUSTO"` em `tests/catraca.py`; custo do Forge
 
 verificada_por: hooks `parecer` e `conformidade`, rulesets e catraca do CI (ADR 0008; vale em qualquer projeto)
 
-Medida: 7 pontos de recusa `barrar("R-CONTRIB"` em `hooks/conformidade.py` e 2 `msg("R-CONTRIB"` em `tests/catraca.py`
+Medida: 9 pontos de recusa `barrar("R-CONTRIB"` em `hooks/conformidade.py` e 2 `msg("R-CONTRIB"` em `tests/catraca.py`
 
 - **Projeto nunca mexe no Forge, só sugere** (diretriz 36 do dono, 2026-11-17). A sessão de outro projeto não cria branch, não commita, não envia, não abre PR, não comenta nem rotula no repositório do Forge e não escreve na pasta de trabalho do Forge (`~/.forge-contrib/`). A melhoria vista no projeto vira só sugestão anonimizada, guardada com `forge sugerir --guardar "<texto>"`; ela vira issue só depois que o dono confirma, enviada por ele no terminal dele. Quem implementa é sempre a sessão do Forge, que tria as sugestões para o quadro, abre o PR para a `develop` e o mescla; na `main`, o usuário.
 - **Nenhum portão tem exceção, nem para o dono:** os portões da classe da entrega, os checks e os rótulos valem para todos os autores.
 - **O rótulo `afrouxa-regra` é só do dono do Forge.** O agente só o aplica, e só cria ou renomeia um rótulo com esse nome, com a conta dona do repositório e decisão do dono registrada; fora disso, aplicar ou delegar esse rótulo a um agente é **proibido**. O rótulo vale para o conteúdo dos arquivos protegidos que o dono viu: push sem arquivo protegido não o derruba.
 - **O `tech-lead` abre e mescla o PR**, não o Jarvis (FILA-22, hook `conformidade`). **Checklist de merge:** na `develop` e na `homolog`, só com todos os checks verdes (`gh pr checks`), pareceres válidos (`forge-check pr`) e, se a catraca pedir, o rótulo do dono; na `main`, nunca (`R-MAIN`).
-- **O hook `conformidade` barra branch, commit, envio e PR no Forge vindos de sessão de projeto**, e também mesclar, fechar, editar, revisar ou rotular PR e criar issue, pela raiz da sessão, e falha fechado; a recusa diz a forma aceita (`forge sugerir --guardar`). A sessão do Forge não é afetada.
+- **O hook `conformidade` barra branch, commit, envio e PR no Forge vindos de sessão de projeto**, em toda forma: commit, merge, cherry-pick, `update-ref` e `fetch` com destino no clone do Forge; envio com o destino trocado na linha (`-c remote.<n>.url`, `insteadOf`, `--repo`, `-C` encadeado, `subtree push`, `remote add`); e todo `gh` no Forge que não só lê (PR, issue, comentário, rótulo, release, workflow), também pela API com URL completa. Decide pela raiz da sessão e, na dúvida sobre o alvo (ID numérico do repositório, variável no endpoint, reescrita de URL), falha fechado; a recusa diz a forma aceita (`forge sugerir --guardar`). A sessão do Forge não é afetada.
 
 ## R-COPIA: Não copiar agentes e skills para o projeto
 

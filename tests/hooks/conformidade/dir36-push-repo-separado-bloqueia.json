@@ -1,0 +1,29 @@
+{
+  "descricao": "Diretriz 36 (R-CONTRIB, E3.106): `git push --repo <Forge>` sem posicional envia ao Forge: recusado.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push --repo https://github.com/rodrigo-isensee/Forge.git"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ]
+}

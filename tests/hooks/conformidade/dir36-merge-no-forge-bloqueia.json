@@ -1,5 +1,5 @@
 {
-  "descricao": "cwd no clone: comentar no PR libera.",
+  "descricao": "Diretriz 36 (R-CONTRIB, E3.106): `git merge` grava commit no clone do Forge: recusado.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -10,13 +10,15 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "gh pr comment 70 --body ok"
+      "command": "git merge origin/develop"
     },
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9",
-    "cwd": "{tmp}/home/.forge-contrib/proj"
+    "cwd": "{tmp}/home/.forge-contrib/proj",
+    "agent_type": "forge:tech-lead"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-CONTRIB"
   }
 }
