@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0475-merge-checks
-commit: 27c4c5672f8dda2d9381c04179b8d028fabfaaef
+commit: cc4934ded283fd19b3d614f7981431db61713739
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -41,3 +41,10 @@ O item E3.45 não tem `CA-n`; os critérios saem do texto do item e do fragmento
 - `--cobertura --base 9db0705e`: toda condição Python mudada coberta; `não coberto: bin/forge-fechar` (shell; M28 cobre a linha 1222 à mão); specs editadas só realinhadas por linha.
 - `tests/catraca.py --base origin/develop`: só a exigência `afrouxa-regra` do dono (R-CONFORMIDADE, mudança em `bin/forge-check`); nenhuma guarda sem mutante.
 - Vermelho antes do verde: prova por mutação (11 mutantes novos mortos), não `forge-testes --vermelho`; limite registrado.
+
+## Revalidação (delta 27c4c567..cc4934de, E3.185)
+- Delta no domínio: `bin/forge-check` (`GH_SEM_PR` ganha "set the GH_TOKEN environment variable", o gh do GitHub Actions sem token), `bin/forge-testes`, `tests/test_forge_check_pr.py`, `tests/test_pr_hook_prazo.py`, `tests/test_testes_tocados.py`, spec `-5` (M31).
+- Local com TMPDIR: `test_pr_hook_prazo` 18 OK; de novo com `env -u GH_TOKEN -u GITHUB_TOKEN GITHUB_ACTIONS=true GH_CONFIG_DIR=<pasta vazia>`: 18 OK; `test_forge_check_pr` 28 OK; `test_testes_tocados` + `test_ambiente_git` 182 OK (1 skip herdado). Suíte inteira: só no CI do PR (não cito `bateria` deste sha).
+- `forge-mutante tests/mutantes/v0474-merge-checks-5.json --base 27c4c567`: `base=27c4c567... mb=27c4c567... rev=cc4934de...`; M28, M29, M30, M31 todos `morreu` (M31 em forge-check:1445), rc 0.
+- `tests/catraca.py --base origin/develop`: só a exigência `afrouxa-regra` do dono (R-CONFORMIDADE, mudança em `bin/forge-check`); nenhuma guarda sem mutante.
+- Vermelho antes do verde: prova por mutação (M31 morto); não rodei `forge-testes --vermelho`; limite registrado.
