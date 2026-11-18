@@ -4,10 +4,14 @@ import os
 import re
 import subprocess
 import tempfile
+import sys
 import unittest
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RAIZ / "tests"))
+from ambiente_git import sem_manutencao  # noqa: E402
+
 MODELO = RAIZ / "templates" / "projeto" / ".github" / "workflows"
 
 
@@ -30,7 +34,7 @@ def ambiente_limpo(**extra):
     """Ambiente do subprocesso sem GIT_* nem BASH_ENV herdados (como tests/test_adotar.py)."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "BASH_ENV"}
     env.update(extra)
-    return env
+    return sem_manutencao(env)
 
 
 def git(cwd, *args):
@@ -174,6 +178,9 @@ class Entrega(unittest.TestCase):
             self.assertIn("          make pronto\n", ci)
             self.assertNotIn("{{COMANDO_PRONTO}}", ci)
             self.assertFalse((fluxos / "ci-docs.yml").exists())
+            # `${{ }}` é do GitHub Actions e fica; marcador do modelo (`{{X}}` sem `$`) não pode sobrar
+            self.assertIn("${{", ci)
+            self.assertIsNone(re.search(r"(?<!\$)\{\{", ci))
 
     def test_skill_aponta_para_o_modelo_e_explica_o_porque(self):
         skill = (RAIZ / "skills" / "ci-cd" / "SKILL.md").read_text(encoding="utf-8")
