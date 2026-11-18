@@ -284,7 +284,7 @@ class Disco(Placar):
         rc, saida, _ = self.rodar("--ate", "2026-11-14")
         self.assertRegex(saida.splitlines()[-2], r"^disco: \d+% de uso em ~/.forge-contrib \(limiar 90%\)$")
 
-    def test_disco_ilegivel_sai_traco(self):
+    def test_disco_ilegivel_da_uso_none(self):  # a medida que falha volta None; o traço do texto é o M15
         from importlib.machinery import SourceFileLoader
         from unittest import mock
         mod = SourceFileLoader("forge_placar_teste", str(PLACAR)).load_module()

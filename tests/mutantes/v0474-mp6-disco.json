@@ -49,7 +49,7 @@
       "de": "    except OSError:\n        uso = None",
       "para": "    except ValueError:\n        uso = None",
       "testes": [
-        "tests.evals.test_placar.Disco.test_disco_ilegivel_sai_traco"
+        "tests.evals.test_placar.Disco.test_disco_ilegivel_da_uso_none"
       ]
     },
     {
