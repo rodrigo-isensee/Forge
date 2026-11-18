@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0475-merge-checks
-commit: cc4934ded283fd19b3d614f7981431db61713739
+commit: d8f33e1b54ef2c19e51a43bd3140c813211819e0
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -48,3 +48,9 @@ O item E3.45 não tem `CA-n`; os critérios saem do texto do item e do fragmento
 - `forge-mutante tests/mutantes/v0474-merge-checks-5.json --base 27c4c567`: `base=27c4c567... mb=27c4c567... rev=cc4934de...`; M28, M29, M30, M31 todos `morreu` (M31 em forge-check:1445), rc 0.
 - `tests/catraca.py --base origin/develop`: só a exigência `afrouxa-regra` do dono (R-CONFORMIDADE, mudança em `bin/forge-check`); nenhuma guarda sem mutante.
 - Vermelho antes do verde: prova por mutação (M31 morto); não rodei `forge-testes --vermelho`; limite registrado.
+
+## Revalidação (delta cc4934de..d8f33e1b, merge da develop, E3.219)
+- Delta: só o merge da `origin/develop` (791d94e8) com a contagem 97 em `tests/test_testes_tocados.py` (+ `test_forge_check_pr`, desta branch, sobre os 96 da develop). As linhas de `bin/forge-check` e `tests/test_forge_tamanho.py` que o `forge-check parecer delta` lista vêm da develop (E3.48); `git diff 791d94e8...HEAD` não toca `ROTULO_DO_DESTINO`.
+- Local com TMPDIR: `test_testes_tocados` 162 OK (1 skip herdado), `test_pr_hook_prazo` 18 OK, `test_forge_tamanho` 24 OK, `test_ambiente_git` 20 OK. Suíte inteira só no CI do PR.
+- `tests/catraca.py --base origin/develop`: rc 1 só pela exigência `afrouxa-regra` do dono (R-CONFORMIDADE, `bin/forge-check`); nenhuma guarda sem mutante. Sem guarda nova no delta, sem mutante novo.
+- Vermelho antes do verde: sem teste novo no delta; n/a.
