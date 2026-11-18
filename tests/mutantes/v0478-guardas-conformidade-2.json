@@ -51,6 +51,16 @@
       "testes": [
         "tests.test_conformidade_verde.ConfigDoTetoNoClone.test_modelo_e_config_de_outra_pasta_seguem_livres"
       ]
+    },
+    {
+      "id": "M14",
+      "guarda": "C10: .git/forge só como nome inteiro, a prova da suíte fica com a recusa própria",
+      "arquivo": "hooks/conformidade.py",
+      "de": "re.compile(r\"\\.git/forge(?![\\w.-])|",
+      "para": "re.compile(r\"\\.git/forge|",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_prova_da_suite_na_linha_que_o_hook_nao_le_segue_com_a_recusa_propria"
+      ]
     }
   ]
 }

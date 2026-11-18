@@ -334,6 +334,13 @@ class EstadoDoAgentesNoClone(CloneDoForge):
         for c in ("echo x > .git/forge/run/agentes.json (true)#'", "echo x > .git/forge/run/agentes.json \\", teto):
             self.recusa(self.rodar("Bash", {"command": c}), c[:60])
 
+    def test_prova_da_suite_na_linha_que_o_hook_nao_le_segue_com_a_recusa_propria(self):
+        # `.git/forge-suite-verde` não é o estado: a recusa é a da prova (R-VERIFY), não a do estado dos hooks.
+        for c in ("echo x > .git/forge-suite-verde; git push \\", "echo x > .git/forge-suite-verde (true)#'"):
+            r = self.rodar("Bash", {"command": c})
+            self.assertEqual(r.returncode, 2, f"{c}: {r.stderr}")
+            self.assertIn("R-VERIFY: a prova da suíte só é gravada pelo pre-push", r.stderr, c)
+
     def test_leitura_e_resto_do_clone_seguem_livres(self):  # legítimos do modelo de ameaças
         for c in ("cat .git/forge/run/agentes.json", "ls .git/forge/run", "git status", "cp a docs/a.md",
                   "echo x > docs/a.md \\"):

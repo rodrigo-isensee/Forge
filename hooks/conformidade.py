@@ -3493,7 +3493,8 @@ class ForaDaProva(Exception):
 # CONFIG-TETO-SEM-GUARDA (v0478, parte do hook): o `.forge/config.json` da raiz da sessão, onde o hook `agentes` lê o teto.
 CONFIG_DA_RAIZ = ".forge/config.json"
 ESTADO_DOS_HOOKS = (".git/forge/", CONFIG_DA_RAIZ)
-ESTADO_NO_TEXTO = re.compile(r"\.git/forge|forge/run|agentes\.json|\.forge/config\.json")  # C10: linha que o hook não lê e cita o estado
+# `.git/forge` só como nome inteiro: `.git/forge-suite-verde` é a prova da suíte, com a recusa própria (R-VERIFY).
+ESTADO_NO_TEXTO = re.compile(r"\.git/forge(?![\w.-])|forge/run|agentes\.json|\.forge/config\.json")  # C10: linha que o hook não lê e cita o estado
 
 
 class GuardaDaProva(Guarda):
