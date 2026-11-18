@@ -5,7 +5,7 @@
   {
    "id": "M17",
    "guarda": "a skill aponta para o modelo",
-   "arquivo": "skills/ci-cd/SKILL.md",
+   "arquivo": "skills/ci-cd/ci-de-projeto-privado.md",
    "de": "templates/projeto/.github/workflows/ci.yml` (copiado",
    "para": "templates/projeto/ci.yml` (copiado",
    "testes": [
@@ -15,7 +15,7 @@
   {
    "id": "M18",
    "guarda": "a skill ensina o grupo por número",
-   "arquivo": "skills/ci-cd/SKILL.md",
+   "arquivo": "skills/ci-cd/ci-de-projeto-privado.md",
    "de": "`concurrency` com `github.event.pull_request.number || github.ref`",
    "para": "`concurrency` por branch",
    "testes": [
@@ -56,7 +56,7 @@
   {
    "id": "M22",
    "guarda": "a skill cita --no-renames",
-   "arquivo": "skills/ci-cd/SKILL.md",
+   "arquivo": "skills/ci-cd/ci-de-projeto-privado.md",
    "de": "com `git diff --no-renames --name-only` (sem",
    "para": "com `git diff --name-only` (sem",
    "testes": [
