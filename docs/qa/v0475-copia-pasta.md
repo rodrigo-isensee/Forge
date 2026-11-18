@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0475-copia-pasta
-commit: 7884b151194706a0e9fcf2a1f216fe37525bac06
+commit: 0b4b146a252b183e4a83e1065587daed889e8e40
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -63,5 +63,8 @@ Escopo: `bin/forge-copia` (clone e worktree só dentro de `~/.forge-contrib`), `
 - `python3 -m unittest tests.test_jarvis_nucleo tests.test_metricas_texto`: 45 testes, OK.
 - Check-run `bateria` do sha não citado: sem PR neste head.
 
-## Achados
-Nenhum aberto.
+## Revalidação (delta 7884b151..0b4b146a)
+`forge-check parecer delta` lista no domínio só `skills/trabalho-em-paralelo/SKILL.md`: texto (sai "`worktree`" de `forge-copia`, "serializam" explicado, "confira que parou"). Código, mutantes e testes não mudaram.
+- `python3 -I tests/catraca.py --base origin/develop`: rc 0, sem guarda sem mutante.
+- `python3 -m unittest tests.test_sobreposicao_quadro`: 61 OK; `tests.test_jarvis_nucleo`: 43 OK; `tests.test_metricas_texto`: 2 OK.
+- Check-run `bateria` do sha não citado: sem PR neste head.
