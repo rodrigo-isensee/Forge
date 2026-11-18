@@ -34,10 +34,10 @@
     },
     {
       "id": "M62",
-      "guarda": "diretriz 36 (R-CONTRIB, E3.231, segurança A8: `git config -e`, `--edit` e `edit` falham fechado)",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.231 e E3.246, segurança A8: `git config -e`, também agrupada, `--edit` e `edit` falham fechado)",
       "arquivo": "hooks/conformidade.py",
-      "de": "if args[:1] == [\"edit\"] or any(a == \"-e\" or abreviacao_de(a, (\"--edit\",)) for a in args):",
-      "para": "if False:",
+      "de": "if args[:1] == [\"edit\"] or opcao_curta_presente(args, \"e\", \"ft\") or any(",
+      "para": "if False and any(",
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]

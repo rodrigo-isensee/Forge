@@ -1115,6 +1115,26 @@ def so_le(args, leitura):
     return any(prefixo_de(a.split("=", 1)[0], leitura) for a in args)
 
 
+def opcao_curta_presente(args, letra, com_valor=""):
+    """A opção curta `-<letra>` está na linha, sozinha ou agrupada (`-ze`, `-zze`), como o parse-options do git a lê: no
+    grupo, a letra de `com_valor` leva o resto como valor (`-fe` é `--file e`) ou, sem resto, a palavra seguinte; `--`
+    encerra as opções (segurança A8)."""
+    pula = False
+    for a in args:
+        if pula:
+            pula = False
+        elif a == "--":  # o fim das opções: o que vem depois é palavra
+            return False
+        elif re.fullmatch(r"-[^-].*", a, re.S):
+            for n, c in enumerate(a[1:], 2):
+                if c == letra:
+                    return True
+                if c in com_valor:
+                    pula = n == len(a)
+                    break
+    return False
+
+
 def abreviacao_de(opcao, longas):
     """A opção longa (sem o `=valor`) é uma das `longas` ou a abreviação dela que o git aceita (`--upload-p`)."""
     nome = opcao.split("=", 1)[0]
@@ -2721,7 +2741,8 @@ class Guarda:
             self.barrar("R-CONTRIB", f"git {sub} sem remoto: `{chave}` escolhe o destino e o hook não confirma que não "
                                      f"é o Forge: {NO_FORGE}", SO_SUGERE)
         duvida = next((c for c in troca if c.lower().startswith("url.") or "$" in c
-                       or parecer.aponta_para_o_forge(c.split("=", 1)[1])), None)
+                       or parecer.aponta_para_o_forge(c.split("=", 1)[1])
+                       or self.caminho_do_forge(pasta, c.split("=", 1)[1])), None)
         if duvida:  # na dúvida sobre o alvo, a sessão de projeto falha fechado (a do Forge não passa pela Guarda)
             self.barrar("R-CONTRIB", f"git {sub} com `{duvida.split('=', 1)[0]}` na linha troca o destino e o hook não "
                                      f"confirma que não é o Forge: {NO_FORGE}", SO_SUGERE)
@@ -2739,16 +2760,17 @@ class Guarda:
         if sub == "remote" and args[:1] in (["add"], ["set-url"]) and not self.clone_do_forge() and any(
                 map(parecer.aponta_para_o_forge, args[1:])):
             self.barrar("R-CONTRIB", f"git remote {args[0]} com o Forge: {NO_FORGE}", SO_SUGERE)
-        if sub == "config" and self.config_troca_destino(args):  # a sessão do Forge não chega à Guarda (E3.106)
+        if sub == "config" and self.config_troca_destino(args, pasta):  # a sessão do Forge não chega à Guarda (E3.106)
             self.barrar("R-CONTRIB", f"git config que aponta o envio para o Forge (ou que o hook não confirma): {NO_FORGE}",
                         SO_SUGERE)
 
-    @staticmethod
-    def config_troca_destino(args):
+    def config_troca_destino(self, args, pasta):
         """`git config` que grava a URL de um remoto com o Forge ou com `$`, ou qualquer reescrita de URL (`insteadOf`,
         `pushInsteadOf`, cujo alvo o hook não confirma): o envio da mesma linha iria ao Forge sem o hook ver. O editor
-        (`-e`, `--edit`, `edit`) grava o que o hook não vê: falha fechado (segurança A8)."""
-        if args[:1] == ["edit"] or any(a == "-e" or abreviacao_de(a, ("--edit",)) for a in args):
+        (`-e`, também agrupada, `--edit`, `edit`) grava o que o hook não vê: falha fechado (segurança A8). O valor que é
+        caminho em `~/.forge-contrib` ou num clone do Forge também troca o destino (segurança A9)."""
+        if args[:1] == ["edit"] or opcao_curta_presente(args, "e", "ft") or any(
+                abreviacao_de(a, ("--edit",)) for a in args):
             return True
         if any(a.startswith(("--get", "--show-")) or a in CONFIG_LEITURA for a in args):
             return False
@@ -2757,7 +2779,8 @@ class Guarda:
         if i is None or i + 1 >= len(palavras):
             return False
         valor = " ".join(palavras[i + 1:])
-        return palavras[i].lower().startswith("url.") or "$" in valor or parecer.aponta_para_o_forge(valor)
+        return (palavras[i].lower().startswith("url.") or "$" in valor or parecer.aponta_para_o_forge(valor)
+                or self.caminho_do_forge(pasta, palavras[i + 1]))
 
     @staticmethod
     def cria_branch(opcoes, a):

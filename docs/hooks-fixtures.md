@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3004 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3017 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,7 +10,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3004 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 120 | 63 | 57 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2237 | 1666 | 571 | 93 |
+| `conformidade` | 2250 | 1673 | 577 | 93 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 32 | 13 | 19 | 14 |
 | `parecer` | 529 | 407 | 122 | 24 |
@@ -69,9 +69,9 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3004 fixtures) roda em `tests/test
 | `trava-*` | 190 | 120 | 70 | `R-CONFORMIDADE`, `R-VERIFY`, `R-MAIN` | `TMPDIR`, `CONFORMIDADE-REDIRECAO-NUMERO` | git branch -D develop. (perfil iniciante: com a consequência em linguagem simples) |
 | `contrib-*` | 144 | 114 | 30 | `R-CONTRIB`, `R-CONFORMIDADE`, `R-MAIN` | `PR`, `FILA-22`, `PATCH`, `GET` | Comando aninhado que não dá para analisar (aspas abertas) e aponta para o Forge: falha fechado. |
 | `conferente-*` | 111 | 90 | 21 | — | `ADR`, `VV-2`, `AA2-01` | Citação ANSI-C $'...': o bash entrega --upload-pack ao git e o hook não vê a opção. |
+| `dir36-*` | 104 | 71 | 33 | `R-CONTRIB` | — | Diretriz 36 (R-CONTRIB): `git branch --contains <commit>` só lista: libera. |
 | `gh-*` | 99 | 84 | 15 | `R-MAIN`, `R-CONFORMIDADE` | `GH-MERGE-ADMIN` | GH-MERGE-ADMIN: gh pr merge melhoria/x --admin --squash |
 | `continuacao-*` | 98 | 85 | 13 | `R-CONFORMIDADE`, `R-CONTRIB`, `R-MAIN`, `R-VERIFY` | `HOOK-CONTINUACAO-LINHA` | HOOK-CONTINUACAO-LINHA: o bash junta \ + quebra de linha; a forma juntada recusa como a escrita direta. |
-| `dir36-*` | 91 | 64 | 27 | `R-CONTRIB` | — | Diretriz 36 (R-CONTRIB): `git branch --contains <commit>` só lista: libera. |
 | `gitcomum-*` | 84 | 61 | 23 | `R-CONFORMIDADE` | `E20.6` | Volta 1 da E20.6 (v046, segurança E20.8 A5, sem falso positivo): `--target-directory=docs` segue livre. |
 | `v0453-*` | 81 | 57 | 24 | `R-FLUXO`, `R-CONFORMIDADE` | `V0453-GH-ALIAS`, `V0453-AQ-LEITURA`, `V0453-PARECER-BASH`, `V0453-PUSH-TODAS` | V0453-AQ-LEITURA: aq não prepara commit |
 | `heredoc-*` | 68 | 59 | 9 | `R-CONFORMIDADE`, `R-MAIN`, `R-REVIEW`, `R-VERIFY` | `HEREDOC-FURO-HOOK`, `C-8`, `HEREDOC-COMENTARIO`, `HEREDOC-DONOS` e mais 1 | A1 do review (volta 3): o mkdir e o cd antes do && não leem o corpo: o dono é o cat > n.md, que só o grava. |
