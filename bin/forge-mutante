@@ -589,10 +589,7 @@ def cabe(onde, tamanho, ini, fim):
 
 def ocorrencias(dados, trecho):
     """Cada posição de `trecho` em `dados`, sobrepostas inclusive."""
-    onde = dados.find(trecho)
-    while onde != -1:
-        yield onde
-        onde = dados.find(trecho, onde + 1)
+    return [m.start() for m in re.finditer(b"(?=" + re.escape(trecho) + b")", dados)]
 
 
 def cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto, nova=None):
@@ -608,7 +605,7 @@ def cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto, nova=None):
     if pelo_texto:
         return id(i) not in usadas and dados[ini:fim].count(trecho) == 1
     if nova is not None:
-        todas = list(ocorrencias(dados, trecho))
+        todas = ocorrencias(dados, trecho)
         no_no = any(cabe(p, len(trecho), ini, fim) for p in todas)
         return no_no and all(any(cabe(p, len(trecho), de, ate) for de, ate in nova) for p in todas)
     onde = dados.find(trecho)

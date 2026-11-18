@@ -26,10 +26,10 @@
       "id": "M11",
       "guarda": "só as cópias de mesmo texto entram (mutante: toda condição nova do arquivo)",
       "arquivo": "bin/forge-mutante",
-      "de": "for c in mudadas if c[0] == texto]",
-      "para": "for c in mudadas]",
+      "de": "if c[0] == texto]",
+      "para": "if c[0] != texto]",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_de_trecho_comum_nao_libera_outra_condicao_copia_fora_do_hunk_nem_comentario"
+        "tests.test_forge_mutante.Cobertura.test_isenta_vale_para_cada_condicao_nova_com_o_mesmo_trecho"
       ]
     },
     {
