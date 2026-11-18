@@ -385,6 +385,47 @@ class VariosProjetos(unittest.TestCase):
         self.assertTrue(self.medir("Projeto: loja\nFeito.", "veja o estoque", depois=[so_espaco])["cita_outro_projeto"])
         self.assertEqual((self.meta.fala_do_dono(None), self.meta.ultima_mensagem(None)), (None, None), "sem transcrito")
 
+    def test_leitor_distingue_sem_registro_de_registro_ilegivel(self):
+        """MP5: sem o arquivo, [] (um projeto); link, FIFO, pasta, caminho sob arquivo ou fora da forma, None (o `agentes`
+        recusa o escape, falha fechada)."""
+        ler, ativos = self.meta.ler_projetos_ativos, self.tmp / "ativos.json"
+        self.assertEqual(ler(str(self.tmp / "nada.json")), [], "sem o arquivo")
+        self.assertIsNone(ler(str(ativos / "sob-arquivo.json")), "caminho sob um arquivo")
+        for nome, montar in {"link": lambda: ativos.symlink_to(self.tmp / "nada.json"), "fifo": lambda: os.mkfifo(ativos),
+                             "pasta": lambda: ativos.mkdir(), "lista": lambda: self.ativos("[]"),
+                             "projetos texto": lambda: self.ativos('{"projetos": "loja"}')}.items():
+            with self.subTest(caso=nome):
+                ativos.unlink(missing_ok=True) if not ativos.is_dir() or ativos.is_symlink() else ativos.rmdir()
+                montar()
+                self.assertIsNone(ler(str(ativos)))
+
+    def test_erro_de_leitura_e_registro_ilegivel(self):
+        """MP5, volta (review A1, segurança A2): OSError no fstat ou no read devolve None, nunca exceção que o `executar`
+        libera (falha aberta)."""
+        self.ativos(["loja"])
+        for funcao in ("fstat", "read"):
+            with self.subTest(funcao=funcao), mock.patch.object(os, funcao, side_effect=OSError(5, "EIO")):
+                self.assertIsNone(self.meta.ler_projetos_ativos(self.meta.ATIVOS))
+
+    def test_nome_fora_da_forma_fecha_o_agentes_e_o_meta_tolera(self):
+        """MP5, volta (segurança A1): nome fora da forma não baixa a contagem do `agentes` (None); o `meta` só o deixa de fora."""
+        for ruim in ("x" * 129, 5, "  ", None):
+            with self.subTest(nome=str(ruim)[:10]):
+                self.ativos(["loja", ruim])
+                self.assertIsNone(self.meta.ler_projetos_ativos(self.meta.ATIVOS))
+                self.assertEqual(self.meta.ler_projetos_ativos(self.meta.ATIVOS, tolerante=True), ["loja"])
+        self.ativos(["loja", "x" * 128])
+        self.assertEqual(len(self.meta.ler_projetos_ativos(self.meta.ATIVOS)), 2, "128 caracteres ainda vale")
+        self.ativos(["loja", "estoque", 7])
+        self.assertEqual(self.medir("Recebi.")["projetos_ativos"], 2, "o `meta` segue tolerante")
+
+    def test_nome_repetido_conta_uma_vez(self):
+        """MP5, volta (review A2): repetido, sem diferença de maiúsculas, conta uma vez; vale o primeiro, na ordem."""
+        self.ativos(["Loja", "estoque", "loja", "LOJA"])
+        self.assertEqual(self.meta.ler_projetos_ativos(self.meta.ATIVOS), ["Loja", "estoque"])
+        self.ativos(["loja", "Loja"])
+        self.assertEqual(self.medir("Recebi."), {}, "um projeto só: o `meta` não mede")
+
     def test_proprio_projeto_sem_diferenca_de_maiusculas(self):
         self.ativos(["Loja", "estoque"])
         self.assertFalse(self.medir("Projeto: loja\nFeito.", "mude a loja")["cita_outro_projeto"])
@@ -412,6 +453,16 @@ class VariosProjetos(unittest.TestCase):
         self.assertEqual(self.medir("Recebi.")["projetos_ativos"], 2, "nome longo demais fica de fora")
         self.ativos(["loja", "x" * self.meta.MAXIMO_DO_NOME])
         self.assertEqual(self.medir("Recebi.")["projetos_ativos"], 2, "nome no máximo exato vale")
+
+    def test_ativos_em_fifo_com_escritor_e_json_valido_nao_vale(self):
+        """Segurança A1 (MP5-01): o FIFO com escritor e JSON válido de dois nomes também dá None; só a guarda S_ISREG recusa."""
+        ativos = self.tmp / "ativos.json"
+        ativos.unlink()
+        os.mkfifo(ativos)
+        escritor = os.open(ativos, os.O_RDWR | os.O_NONBLOCK)  # o escritor fica aberto: a leitura acharia o JSON
+        self.addCleanup(os.close, escritor)
+        os.write(escritor, json.dumps({"projetos": ["loja", "estoque"]}).encode("utf-8"))
+        self.assertIsNone(self.meta.ler_projetos_ativos(self.meta.ATIVOS))
 
     def test_ativos_em_fifo_nao_troca_a_recusa_do_stop(self):
         """Segurança A1 (S2): com ATIVOS em FIFO, o Stop com a checagem falhando sai com 2 (R-PROVA) no prazo, sem travar."""
