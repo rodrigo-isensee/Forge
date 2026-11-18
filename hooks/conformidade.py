@@ -177,9 +177,11 @@ BRANCH_NOVA = {"switch": (re.compile(r"-[a-zA-Z]*[cCt][a-zA-Z]*"), ("--create", 
 BRANCH_LISTA = {"-l", "--list", "--show-current", "--contains", "--no-contains", "--merged", "--no-merged", "--points-at"}
 BRANCH_COM_VALOR = {"--sort", "--format"}  # valem no modo de lista, mas não o ligam: com nome, o git cria a branch
 # Gravam commit ou ref no repositório da pasta (R-CONTRIB: no clone do Forge, vindo de sessão de projeto)
-GRAVA_NO_REPO = {"commit", "merge", "cherry-pick", "revert", "am", "rebase", "pull", "commit-tree", "update-ref", "subtree"}
-# `git -c` que troca para onde o envio vai: a URL do remoto ou a reescrita de URL
-CONFIG_DO_DESTINO = re.compile(r"(remote\..+\.(url|pushurl)|url\..+\.(insteadof|pushinsteadof))=.*", re.I | re.S)
+GRAVA_NO_REPO = {"commit", "merge", "cherry-pick", "revert", "am", "rebase", "pull", "commit-tree", "update-ref", "subtree",
+                 "reset", "stash", "notes", "symbolic-ref"}  # na dúvida grava: `stash list` e `notes show` também são recusados
+# A chave que troca para onde o envio vai: a URL do remoto ou a reescrita de URL (`git -c <chave>=` e `git config <chave>`)
+CHAVE_DO_DESTINO = r"(remote\..+\.(url|pushurl)|url\..+\.(insteadof|pushinsteadof))"
+CONFIG_DO_DESTINO = re.compile(CHAVE_DO_DESTINO + "=.*", re.I | re.S)
 SUBTREE_COM_VALOR = {"-P", "--prefix", "-m", "--message", "-b", "--branch", "--onto", "--annotate"}
 ROTULO_PROTEGIDO = "afrouxa-regra"  # R-CONTRIB: só a conta do dono do Forge o aplica
 ROTULO_COM_VALOR = ("--add-label", "--label", "-l", "--remove-label")  # a opção que acaba a linha leva o valor do xargs
@@ -2341,6 +2343,7 @@ class Guarda:
         if not palavras:
             self.barrar("R-REVIEW", f"git {sub}: alias da configuração que o hook não lê",
                         "rode o subcomando do git por extenso")
+            return []  # a GuardaDaProva não para no barrar: sem palavras não há o que ler (segurança A6)
         if palavras[0] in ALIAS_QUE_MESCLA:
             self.barrar("R-REVIEW", f"git {sub}: alias da configuração que mescla (`{palavras[0]}`); o parecer só lê o merge "
                                     "por extenso", f"rode git {palavras[0]} direto, sem alias")
@@ -2705,6 +2708,22 @@ class Guarda:
         if sub == "remote" and args[:1] in (["add"], ["set-url"]) and not self.clone_do_forge() and any(
                 map(parecer.aponta_para_o_forge, args[1:])):
             self.barrar("R-CONTRIB", f"git remote {args[0]} com o Forge: {NO_FORGE}", SO_SUGERE)
+        if sub == "config" and not self.clone_do_forge() and self.config_troca_destino(args):
+            self.barrar("R-CONTRIB", f"git config que aponta o envio para o Forge (ou que o hook não confirma): {NO_FORGE}",
+                        SO_SUGERE)
+
+    @staticmethod
+    def config_troca_destino(args):
+        """`git config` que grava a URL de um remoto com o Forge ou com `$`, ou qualquer reescrita de URL (`insteadOf`,
+        `pushInsteadOf`, cujo alvo o hook não confirma): o envio da mesma linha iria ao Forge sem o hook ver."""
+        if any(a in CONFIG_LEITURA or a.startswith(("--get", "--show-")) for a in args):
+            return False
+        palavras = [a for a in args if not a.startswith("-")]
+        i = next((n for n, a in enumerate(palavras) if re.fullmatch(CHAVE_DO_DESTINO, a, re.I | re.S)), None)
+        if i is None or i + 1 >= len(palavras):
+            return False
+        valor = " ".join(palavras[i + 1:])
+        return palavras[i].lower().startswith("url.") or "$" in valor or parecer.aponta_para_o_forge(valor)
 
     @staticmethod
     def cria_branch(opcoes, a):
