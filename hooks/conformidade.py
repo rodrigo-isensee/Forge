@@ -1111,25 +1111,27 @@ DESTINOS = {
 
 def com_valor(destinos):
     """As letras e as longas do catálogo que tomam valor (a `subpasta` do tar é opcional, só com `=`; `remove` não tem)."""
-    nomes = [n for campo in destinos._fields if campo not in ("subpasta", "remove") for n in getattr(destinos, campo)]
+    return separar([n for campo in destinos._fields if campo not in ("subpasta", "remove") for n in getattr(destinos, campo)])
+
+
+def separar(nomes):
+    """As letras (juntas, como no getopt) e as longas de `nomes`, misturadas no catálogo."""
     return "".join(n for n in nomes if len(n) == 1), tuple(n for n in nomes if len(n) > 1)
 
 
 def valores_do(valores, nomes):
     """Os valores das opções de `nomes` (letras e longas misturadas, como no catálogo)."""
-    return valores_de(valores, "".join(n for n in nomes if len(n) == 1), tuple(n for n in nomes if len(n) > 1))
+    return valores_de(valores, *separar(nomes))
 
 
 def pastas_da_troca(expressao):
     """A pasta para onde a expressão sed do `--transform` (`s,^,pasta/,`; várias com `;`) ou do `-s` do bsdtar
-    (`/^/pasta//`) manda o nome: o começo literal da troca, antes de `&` ou `\\`; troca sem pasta não conta."""
+    (`/^/pasta//`) manda o nome: o começo literal da troca, antes de `&` ou `\\` (troca sem pasta dá a própria pasta)."""
     pastas = []
     for e in expressao.split(";"):
-        e = e[1:] if e[:1] == "s" and len(e) > 1 and not e[1].isalnum() else e
-        partes = re.split(r"(?<!\\)" + re.escape(e[:1]), e[1:]) if e else []
-        prefixo = re.split(r"[&\\]", partes[1])[0] if len(partes) > 1 else ""
-        if "/" in prefixo or prefixo.startswith("."):
-            pastas.append(prefixo.rstrip("/") or "/")
+        e = re.sub(r"^s(?=\W)", "", e)  # o `s` do GNU; o bsdtar começa no delimitador
+        partes = re.split(r"(?<!\\)" + re.escape(e[:1]), e[1:])
+        pastas.append(re.split(r"[&\\]", "".join(partes[1:2]))[0])
     return pastas
 
 
@@ -1182,20 +1184,20 @@ def alvos_do_7z(args, destinos=DESTINOS["7z"]):
     """A4 da volta 2 e A5 da segurança: o 7-Zip lê as chaves sem caixa (`-o`, `-O`, `-SDEL`) e com o valor colado.
     `x`/`e` extraem na `pasta` (`-o<pasta>`), ou na corrente; `a`, `u`, `d` e `rn` gravam o arquivo (o primeiro operando
     depois do comando); `grava`: a pasta de trabalho de `-w<pasta>` e o arquivo novo de `-u...!<arquivo>`; `remove`
-    (`-sdel`) apaga os outros operandos. Depois de `--`, só operandos."""
-    fim = args.index("--") if "--" in args else len(args)
-    chaves = [a[1:] for a in args[:fim] if a.startswith("-")]
-    operandos = [a for a in args[:fim] if not a.startswith("-")] + args[fim + 1:]
+    (`-sdel`) apaga os outros operandos. O `--` não é lido: o nome que começa com `-` depois dele conta como chave
+    (recusa a mais, nunca a menos); `-w` vazio (pasta temporária) e `-u` sem `!` contam como a pasta corrente."""
+    chaves, operandos = [], []
+    for a in args:
+        (chaves if a.startswith("-") else operandos).append(a)
     comando, arquivo = (operandos[0].lower() if operandos else ""), operandos[1:2]
 
     def valores(nomes):
-        return [(n, c[len(n):]) for c in chaves for n in nomes if c.lower().startswith(n)]
+        return [(n, c[len(n) + 1:]) for c in chaves for n in nomes if c[1:].lower().startswith(n)]
 
     pastas = ([v for _, v in valores(destinos.pasta)] or ["."]) if comando in ("x", "e") else []
     gravados = [v.partition("!")[2] if n == "u" else v for n, v in valores(destinos.grava)]
-    removidos = operandos[2:] if any(c.lower() in destinos.remove for c in chaves) else []
-    return Alvos(pastas, (arquivo if comando in ("a", "u", "d", "rn") else []) + [g for g in gravados if g],
-                 removidos, [])
+    removidos = operandos[2:] if any(c[1:].lower() in destinos.remove for c in chaves) else []
+    return Alvos(pastas, (arquivo if comando in ("a", "u", "d", "rn") else []) + gravados, removidos, [])
 
 
 # A2 e A4 da segurança, volta 2 (v0478): catálogo único dos programas que extraem, gravam ou rodam comando por opção;

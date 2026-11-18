@@ -6,8 +6,8 @@
       "id": "M63",
       "guarda": "7z: as chaves (-y) não são o comando",
       "arquivo": "hooks/conformidade.py",
-      "de": "operandos = [a for a in args[:fim] if not a.startswith(\"-\")] + args[fim + 1:]",
-      "para": "operandos = [a for a in args[:fim] if True] + args[fim + 1:]",
+      "de": "(chaves if a.startswith(\"-\") else operandos).append(a)",
+      "para": "(chaves if False else operandos).append(a)",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
