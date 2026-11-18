@@ -3,31 +3,29 @@ tipo: review
 contrato: 1
 pedido: v0474
 branch: melhoria/v0476-stack-deps
-commit: 89f7ef2f801d5a9d93d973497e7df5caf658027f
+commit: 95605e662d55742e4af9b64e640878ea0bfa085b
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-18
 ---
-# Review: v0474 (E3.236, item E3.235, `forge-copia --instalar`)
+# Review: v0474 (E3.247, item E3.245, `forge-copia --instalar` com lockfile e sem credencial)
 
 ## Achados
-- A1 (recomendado) stacks/python/instalar.json:1 · `detecta` só tem `pyproject.toml`, mas a `Detecção` do `pronto.md` da stack lista também `requirements.txt`, `setup.py` e `setup.cfg`: projeto só com `requirements.txt` cai em "nenhuma stack detectada" e a cópia nasce sem dependências.
-- A2 (recomendado) stacks/node-react/instalar.json:1 · `pnpm install --frozen-lockfile` sai com erro em projeto sem `pnpm-lock.yaml` (adotado com npm, `pronto.md` linha 13). Sai 1 com a mensagem e a cópia fica; vale dizer isso no `pronto.md` ou no PR.
-- A3 (recomendado) docs/adr/0001-nucleo-neutro-e-pacotes-de-stack.md:21 · a ADR lista os arquivos do pacote de stack (`pesados.json` opcional) e não ganhou `instalar.json` (opcional, formato `detecta` e `comandos` em argv). É documentação afetada pela mudança.
-- A4 (recomendado) tests/test_forge_copia.py:220 · o teste percorre `stacks/` sem afirmar um mínimo de itens (checklist 11) e confere menos que o código: não exige `detecta` em lista nem argv só de strings. Sugestão: `assertGreaterEqual(len(...), 2)` e a mesma checagem do `instalar()`.
-- A5 (recomendado) bin/forge-copia:48 · código e teste somam 152 linhas (45+4 em `bin/forge-copia`, 103 no teste), acima da orientação de 150 (M14). O corpo do PR leva `teto: excedido, 152 linhas, <motivo>`.
-- A6 (recomendado) tests/mutantes/v0476-stack-deps.json:87 · a spec tem 10 mutantes; passou de 8, M9 e M10 iriam para `v0476-stack-deps-2.json` (qa-testing, 'Mutantes declarados'). Não é defeito: todos morrem.
+- A5 (recomendado) bin/forge-copia:48 · código e teste somam agora 205 linhas (52+4 em `bin/forge-copia`, 149 no teste), acima da orientação de 150 (M14). O corpo do PR leva `teto: excedido, 205 linhas, <motivo>` (instalação e o endurecimento pedido pela segurança no mesmo comportamento).
+- A7 (recomendado) bin/forge-copia:50 · a lista tira `GIT_CONFIG_COUNT` e `GIT_CONFIG_KEY_*`/`VALUE_*`, mas não `GIT_CONFIG_PARAMETERS`, a outra via de config injetada do git (`git -c`, que pode levar `http.extraheader` com o token). Acrescentar à lista e ao teste.
+- A8 (recomendado) tests/test_forge_copia.py:264 · `test_instalacao_real_so_com_lockfile` repete o que o teste da linha 247 já prova (todo `detecta` contém "lock") e só nega dois nomes; pode sair. O teste da linha 247 percorre `stacks/` sem mínimo de itens (checklist 11), coberto hoje pelo da linha 240.
 
 ## Sondas
 
-## Parecer
-Aprovado, sem bloqueante (`R-REVIEW`). Diff `a1674911..89f7ef2f` lido inteiro: `bin/forge-copia`, os dois `instalar.json`, a skill, o teste, a spec de mutantes e o fragmento do changelog.
+## Revalidação
+Delta lido por `forge-check parecer delta docs/reviews/v0476-stack-deps.md`, intervalo `89f7ef2f..95605e66`: `bin/forge-copia`, os dois `instalar.json` e `pronto.md`, a ADR 0001, o fragmento do changelog, `tests/mutantes/v0476-stack-deps-2.json` e `tests/test_forge_copia.py`. Nada fora disso relido.
 
-- **Comportamento:** `instalar()` lê `stacks/*/instalar.json` do próprio plugin (caminho por `realpath(__file__)`, não da cópia), valida o formato (`detecta` em lista, cada comando lista não vazia de strings) e roda cada comando com `subprocess.run(cmd, cwd=copia)`, em argv, sem shell. Spec inválida, comando ausente (`OSError`) e rc diferente de zero saem 1 com mensagem, e a falha interrompe os comandos seguintes. Sem stack detectada, avisa e sai 0. Os dois modos (clone e worktree) só instalam com `--instalar`, e a recusa de pasta vem antes (teste `test_nao_afrouxa_a_recusa_de_pasta`, sai 2 sem criar). Bate com a decisão do dono 4 de 2026-11-17 (cópia com dependências, no pacote da stack, ADR 0001), com as ressalvas A1 e A2.
-- **Neutralidade (`R-NEUTRO`, ADR 0001):** `pnpm`, `venv` e `pip` só aparecem em `stacks/`; `bin/forge-copia` e a skill não citam linguagem. O teste usa `sh`, que não é stack.
-- **Frases protegidas:** a única linha mudada em `skills/trabalho-em-paralelo/SKILL.md` troca "`forge-copia clone` (padrão)" por "`forge-copia clone --instalar`". Nenhuma das 8 frases de `tests/config.json` para a skill toca essa linha, e `tests.test_jarvis_nucleo` passa.
-- **Testes:** `python3 -m unittest tests.test_forge_copia tests.test_sobreposicao_quadro tests.test_jarvis_nucleo tests.test_metricas_texto` deu 132 testes OK. Os testes usam pacote falso em raiz temporária, sem rede, e chamam `python3 -I` com o ambiente da base.
-- **Ferramentas:** `python3 -I tests/catraca.py --base origin/develop` deu rc=0. `bin/forge-mutante tests/mutantes/v0476-stack-deps.json` no head 89f7ef2f: M1 a M10 morreram (linhas 52 a 108), um por guarda nova.
-- **Segurança:** `pnpm install` e `pip install -e .` rodam scripts do repositório clonado. Isso é próprio de instalar dependências, e o parecer é da segurança (E3.237, `R-SEGURANCA`); não refaço aqui.
+- **Achados anteriores:** A1 resolvido por desenho (`detecta` aponta só o lockfile; sem ele avisa e sai 0, documentado no `pronto.md` da stack). A2 resolvido (`detecta` do node é `pnpm-lock.yaml`; sem ele não roda o `--frozen-lockfile`). A3 resolvido (ADR 0001 lista `instalar.json`). A4 resolvido (`assertGreaterEqual(len(stacks), 2)`, `detecta` em lista e argv só de strings). A5 segue, com o número novo. A6 resolvido (spec nova em `v0476-stack-deps-2.json`).
+- **Achados da segurança (no 89f7ef2f):** o A1 dela (instalação sem lockfile nem hash) tem resposta no delta: python instala de `requirements.lock` com `--require-hashes --no-deps` e o pacote local com `--no-deps`; node com `--frozen-lockfile`. O A2 dela (ambiente com o token) tem `env=env_sem_credencial()`. O veredito é da segurança (`R-SEGURANCA`); não refaço.
+- **Testes:** `python3 -m unittest tests.test_forge_copia tests.test_ambiente_git tests.test_metricas_texto` deu 52 testes OK. O teste de ambiente roda `env` real no comando de instalação e confere a saída (comportamento, não leitura de fonte), mais o teste de que o resto do ambiente permanece.
+- **Ferramentas:** `python3 -I tests/catraca.py --base origin/develop` deu rc=0. `bin/forge-mutante tests/mutantes/v0476-stack-deps-2.json` no head 95605e66: M1 a M14 morreram, um por guarda ou item da lista.
+- **Neutralidade (`R-NEUTRO`, ADR 0001):** `pnpm`, `pip` e os lockfiles só em `stacks/` e na ADR; `bin/forge-copia` cita só nomes de variáveis de credencial, sem linguagem.
 - **Suíte:** a suíte inteira fica para o CI do PR.
-- Commits no padrão Conventional Commits, em português, um por mudança.
+
+## Parecer
+Aprovado, sem bloqueante (`R-REVIEW`).
