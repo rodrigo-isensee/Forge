@@ -4,7 +4,7 @@ contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
 commit: c41f7fe58808dfae86c046611c39ee4de9825098
-parecer: aprovado
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-18
 ---
@@ -12,6 +12,13 @@ data: 2026-11-18
 
 ## Revalidação
 - Delta lido: `forge-check parecer delta docs/reviews/v0478-guardas-parecer.md`, intervalo d8e9aa8b..c41f7fe5 (commit c41f7fe5, E3.6). No domínio: `hooks/parecer.py`, `tests/test_hooks_parecer_repo.py`, 14 fixtures novas (`incidente-r-copia-alheia-*`, `graphql-*`), `tests/mutantes/v0478-guardas-parecer{,-2,-3}.json`, `tests/mutantes/v0457-fila27-2.json`, `docs/hooks-fixtures.md` (gerado) e o fragmento `changelog.d/`. Nada fora do delta relido.
+
+## Achados
+- A1 (bloqueante) hooks/parecer.py:932 · Na cópia alheia, GH_REPO exportado antes do gh na mesma linha (`export GH_REPO=dono/forge; gh pr ready feature/x`) não conta como repositório indicado: `pedido` None, decide pelos remotos da cópia e libera sem parecer (S1; R-REVIEW). Mesmo achado que o A5 da segurança (E3.8).
+
+## Sondas
+- S1 · cwd {tmp}/alheio (cópia alheia da fixture `incidente-r-copia-alheia-ready-r-bloqueia`), sessão no clone com remoto dono/forge, `export GH_REPO=dono/forge; gh pr ready feature/x`, sem parecer · espera: código 2 (R-REVIEW) · obtido: código 0
+- S2 · mesma montagem, `GH_REPO=dono/forge gh pr ready feature/x` (controle) · espera: código 2 · obtido: código 2 (R-REVIEW, sem parecer)
 
 ## Conferências
 - A1 (meu, E3.3) fechado: `pasta_do_gh` (hooks/parecer.py:925) só devolve a pasta do gh num clone do Forge ou num projeto; a cópia alheia com `-R`, `--repo`, `GH_REPO=` ou URL vai ao clone da sessão com remoto do slug, ou recusa. Fixtures `incidente-r-copia-alheia-{ready-r,merge-url,gh-repo-merge,create-r,cd-repo}-bloqueia` cobrem as sondas S1 a S3; `repo-desconhecido-bloqueia` e `sem-repo-libera` dão os dois lados.
@@ -26,4 +33,4 @@ data: 2026-11-18
 - Suíte: sem PR, sem CI a citar; não rerrodada (R-REVIEW).
 
 ## Parecer
-Aprovado. Os quatro achados da volta anterior (A1 do review e da QA; A2 a A4 da segurança) estão fechados com fixture de recusa por caminho, mutante declarado por guarda e todos mortos. Fica fora deste item, para cartão próprio: `gh api -X PUT repos/<dono>/<forge>/pulls/<n>/merge` com cwd fora de cópia de trabalho e sessão no clone dá código 0 no `parecer` (sonda no head c41f7fe5; `merge_por_api` decide pela pasta, mesma classe do A3, linha não tocada pelo delta).
+Reprovado por A1. Os quatro achados da volta anterior (A1 do review e da QA; A2 a A4 da segurança) estão fechados nas formas cobertas, com fixture de recusa por caminho, mutante declarado por guarda e todos mortos; mas o repositório indicado ainda vem só do `GH_REPO=` prefixo do comando, e o `export` (ou `declare -x`, `set -a`) anterior na linha passa (S1, confirmando o A5 da segurança). Sugestão: tomar como `repo` o `GH_REPO` do ambiente que `conferir` já acompanha na linha (`ambiente`) e somar fixture `incidente-r-copia-alheia-*` por forma, com mutante na guarda. Fica fora deste item, para cartão próprio: `gh api -X PUT repos/<dono>/<forge>/pulls/<n>/merge` com cwd fora de cópia de trabalho e sessão no clone dá código 0 no `parecer` (sonda no head c41f7fe5; `merge_por_api` decide pela pasta, mesma classe do A3, linha não tocada pelo delta).
