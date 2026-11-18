@@ -136,7 +136,8 @@ CITACOES_CONHECIDAS = {**{(a, "README.md"): (n, "nome") for a, n in _NOME.items(
                        ("tests/config.json", "README.md"): (2, "teste-le"), ("tests/apoio_regra_id.py", "README.md"): (1, "teste-le"),
                        ("tests/apoio_jarvis.py", "README.md"): (1, "teste-le"),  # v047 P4: o índice das regras (IDs e a linha da R-WIP)
                        ("tests/test_ambiente_sem_auto_update.py", "README.md"): (1, "teste-le"),  # v047: o teste lê o texto do README
-                       ("tests/test_sessao_automatica.py", "README.md"): (1, "teste-le")}  # v047 E2.222: o teste lê o README para conferir que nenhuma instrução abre o claude sem o modo
+                       ("tests/test_sessao_automatica.py", "README.md"): (1, "teste-le"),  # v047 E2.222: o teste lê o README para conferir que nenhuma instrução abre o claude sem o modo
+                       ("tests/test_guia_varios_projetos.py", "README.md"): (1, "teste-le")}  # v0478 E24.1 (MP9): o teste lê o guia no README  # v047 E2.222: o teste lê o README para conferir que nenhuma instrução abre o claude sem o modo
 MOTIVOS = ("nome", "destino", "prosa", "teste-le")
 LE_CONTEUDO = ("read_text(", "open(", '"show"', "cat ")  # (d): leitura de conteúdo não se esconde atrás de `nome`
 
