@@ -1,0 +1,16 @@
+{
+  "pedido": "v0478-fechar-lote",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "FL-M9",
+      "guarda": "o fim espera o registrador de stderr antes do fim: código (TESTE-FECHAR-L5-CORRIDA)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  wait \"$pid_err\" 2>/dev/null || true",
+      "para": "  true",
+      "testes": [
+        "tests.test_fechar.Fechar.test_l5_registrador_de_stderr_lento_ainda_grava_a_parada_antes_do_fim"
+      ]
+    }
+  ]
+}

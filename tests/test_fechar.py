@@ -1068,6 +1068,20 @@ class Fechar(unittest.TestCase):
         self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))
         self.assertIn("fim: código 0", r.stdout)
 
+    def test_l5_registrador_de_stderr_lento_ainda_grava_a_parada_antes_do_fim(self):
+        # TESTE-FECHAR-L5-CORRIDA (v0478): a corrida do L5 com o tempo a favor do defeito. O `sed` do mascarar atrasa 1 s só a linha da
+        # parada; o `fim` espera o registrador de stderr (wait) antes do `fim: código`, então a ordem sai a mesma de qualquer máquina.
+        lento = self.tmp / "bin" / "sed"
+        lento.write_text('#!/usr/bin/env bash\nif [ "${1-}" = -E ]; then\n  e="$(cat)"\n  case "$e" in *"parou no passo"*) sleep 1 ;; esac\n'
+                         f'  printf "%s" "$e" | exec {shutil.which("sed")} "$@"\nfi\nexec {shutil.which("sed")} "$@"\n', encoding="utf-8")
+        lento.chmod(0o755)
+        r = self.fechar("p1", "--ref", "melhoria/x", CHECK_RC="1")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        linhas = self.log_de(r).read_text().splitlines()
+        self.assertTrue(linhas[-1].endswith(" fim: código 1"), linhas)
+        erros = [x for x in linhas if " [err] " in x]
+        self.assertIn("[err] forge-fechar: parou no passo 1", erros[-1], linhas)
+
     def test_l6_stderr_vai_ao_log_com_prefixo_err_e_sem_linha_partida(self):
         (self.estado / "checks").write_text("bateria\tfail\t1m\turl\n")
         r = self.fechar("p1", "--ref", "melhoria/x")
