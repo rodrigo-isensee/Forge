@@ -4,6 +4,12 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.47.7] - 2026-11-18
+### Alterado
+- Tech-lead: o item pequeno segue o caminho curto da classe (H8), e no corte da versão e na integração cada item deixa a suíte verde sozinho ou vai junto com quem depende dele (SIEG-G6).
+### Corrigido
+- VEREDITO-TROCADO-LENTO (v0477 E1.1): a conferência do parecer de portão da própria branch (`veredito_trocado` do `forge-check`) filtra com um `git grep -l` as versões da pasta que citam o sha revisado e só lê essas, no lugar de um `git show` por arquivo de cada versão; no Forge, 21 versões de `docs/reviews/`, de 81,8 s para 0,7 s. O `git grep` que falha conta como veredito trocado (falha fechada). Conferidos contra a develop 038249c5 e sem mudança de código: ENTREGA-PUSH-RAIZ-PEDIDOS já não acontece (a causa era o ambiente do proxy apagado no `ls-remote`, corrigida em a2dfb22b com `tests/test_git_rede_config.py`; a prova de push da entrega com `--raiz-pedidos` fora do clone sai ok); BRIEF-SELAR-LINHA-DA-ETAPA também não: o selo já aceita a etapa pelo ID, com o texto do Entregar diferente do pedido (o cartão, pela retrospectiva 0.46.0, pede a trava contrária e segue nele, sob R-DECISAO).
+
 ## [0.47.6] - 2026-11-18
 ### Adicionado
 - Teto de agentes flexível entre projetos (diretriz 35, MP3; ajuste do dono de 17/11): com um projeto ativo na máquina, o teto de sempre; com dois ou mais, cada projeto tem a parte garantida (teto adaptativo da máquina dividido entre os ativos, ou pelo `peso` opcional em .forge/config.json, de 0 a 10), a vaga parada de um vai a outro, e o dono da vaga que achou a máquina cheia tem a próxima, antes de um disparo novo de quem está acima da parte, sem interromper agente em andamento. Projeto que fecha ou para de bater devolve a parte na hora; `teto_agentes` fixo vira só o máximo do projeto. A recusa diz a parte e o uso; o registro da máquina ilegível recusa o disparo (falha fechada). O uso de cada projeto fica em ~/.forge/maquina/agentes.json, pela pasta da cópia principal, a mesma do registro da máquina (sessão numa worktree conta como o projeto dela; dois projetos de mesmo nome de pasta são dois). A recusa por arquivo da máquina ilegível nomeia o arquivo e diz que o usuário pode apagá-lo; a recusa por branch ocupada vem antes da conta da máquina e não deixa vaga contada.
