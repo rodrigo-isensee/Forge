@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0474
 branch: melhoria/v0476-brief-gerar
-commit: 2008e612de013e287fe544cd1f04dd4332a899f9
+commit: 57737d1045ef906f40eaedd22c24f2b7271a8f30
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-17
@@ -16,6 +16,12 @@ O que muda: (1) o Fora do escopo do brief novo usa `linhas_de_ids_do_fora`, a me
 
 Ferramenta: `forge-mutante` no head 2008e612, 1 processo: v0474-e348 M1 a M6 morreram; v0457-aqr2 M4 morreu. `forge-mutante --cobertura --base 5fb2c856`: guardas 8711 e 8734 cobertas, 8578 e 8579 apagadas; spec v0457-aqr2 editada (alinhada à fonte). Testes do item (`test_brief_tamanho`, `GerarComCumpridas`, `LinhasDoDestino`, `ConferirBrief`): 41 OK. A suíte inteira fica no CI do PR (ainda não aberto).
 
+## Revalidação (E3.160, head 57737d10)
+
+Delta lido: `forge-check parecer delta` de 2008e612 a 57737d10 (junção da develop f8e9c377, sem o que veio da base): no domínio `bin/forge-check`, `bin/forge-testes`, `tests/test_forge.py` e `tests/test_testes_tocados.py`. O `git show --cc 57737d10` mostra resolução manual só em `bin/forge-testes` (a tupla `FORGE_CHECK` junta `test_brief_tamanho` desta branch com `test_parecer_delta` e `test_revisar_sha` do E3.49) e em `tests/test_testes_tocados.py:77` (contagem 96 = 93 + 1 desta branch + 2 da develop, com o histórico das duas linhas preservado no comentário). `bin/forge-check` e `tests/test_forge.py` entram limpos, com o código do E3.49 já revisado na develop; nada do item E3.48 mudou.
+
+Ferramenta: `python3 -I tests/catraca.py --base origin/develop` aponta as guardas apagadas `bin/forge-check:8600` e `8601` (base), as mesmas 8578 e 8579 do parecer anterior deslocadas pela junção, e o `R-CONFORMIDADE` do `bin/forge-check`: ambos já sabidos, decididos pelo rótulo `afrouxa-regra` do dono no PR, não pelo review. `python3 -m unittest tests.test_testes_tocados tests.test_ambiente_git tests.test_brief_tamanho tests.test_parecer_delta tests.test_revisar_sha`: 193 testes, OK (1 skip). A1 a A3 seguem abertos, recomendados.
+
 ## Achados
 - A1 (recomendado) docs/regras/R-BRIEF.md:16 · a regra ainda manda o "trecho literal" das outras etapas no Fora do escopo; o gerar (e a volta) já escreve só os ids, que o selo aceita. Alinhe o texto da regra ao que a ferramenta faz, num item próprio.
 - A2 (recomendado) bin/forge-check:8711 · sem --cobre, o brief sai com `--etapa <a etapa do Cobre>`, que a conferência não cobra; use o marcador PREENCHER, que o selo barra até ser preenchido, e um teste do ramo sem coberta.
@@ -24,4 +30,4 @@ Ferramenta: `forge-mutante` no head 2008e612, 1 processo: v0474-e348 M1 a M6 mor
 ## Sondas
 
 ## Parecer
-Aprovado. O brief fica menor sem perder regra: as etapas continuam todas citadas (pelo id, como na volta), o `proximo` aponta a etapa do Cobre e o portão recebe o formato dos Achados. As guardas mudadas têm mutante que morre e teste do ramo de falha. Os três achados são recomendações e não devolvem (`R-REVIEW`). A catraca decide, no PR, se a troca do Fora do escopo pede `afrouxa-regra`; o review não a refaz.
+Aprovado no head 57737d10: a junção só soma os módulos das duas linhas e a contagem bate (96). O brief fica menor sem perder regra: as etapas continuam todas citadas (pelo id, como na volta), o `proximo` aponta a etapa do Cobre e o portão recebe o formato dos Achados. As guardas mudadas têm mutante que morre e teste do ramo de falha. Os três achados são recomendações e não devolvem (`R-REVIEW`). A catraca decide, no PR, se a troca do Fora do escopo pede `afrouxa-regra`; o review não a refaz.
