@@ -27,7 +27,7 @@ Checklist de workflow:
 7. Jobs independentes em paralelo; passo caro só depois do barato (lint antes de teste, teste antes de imagem).
 8. Artefatos e logs com retenção curta, dentro da franquia gratuita.
 9. Nenhum workflow escreve na `main`, faz auto-merge para ela nem publica release antes do merge do dono (`R-MAIN`).
-10. Valide com `actionlint` (e `shellcheck` nos scripts) se já instalados; o agente não instala ferramenta.
+10. Valide com `actionlint` e `shellcheck`; ausente é achado do parecer, e quem instala é `scripts/preparar-estacao.sh`.
 
 Checks exigidos, proteção de branch, rulesets, segredos e `environments` são do dono (`R-CONFORMIDADE`): proponha, não altere por `gh api`. O token do bot não tem o escopo `workflow`: a mudança de workflow é preparada em branch local e enviada pelo dono.
 
@@ -45,8 +45,8 @@ Dentro da topologia, do provedor e da ferramenta decididos pelo arquiteto em ADR
 - PR de release (branch de homologação → `main`): abre-se só com o portão da homologação **verde** no sha do candidato; antes do merge do dono, os checks do PR (entre eles "Nada pula degrau" (a `main` só aceita PR da `homolog`) e o de versão nova e `CHANGELOG` fechado) rodam no sha do candidato, e quem decide é o resultado deles naquele sha. Check em andamento: espere; falha externa: reexecute o **mesmo sha**, nunca marcar como aprovado nem afrouxar o check (`R-CONFORMIDADE`). PR aberto antes do portão: edite e aguarde; não feche e recrie para "limpar" o vermelho. Passo a passo do `tech-lead` (listar, conferir, editar): `R-FLUXO`. O corpo do PR `homolog` → `main` traz a saída do modo `rotulados` da catraca (`tests/catraca.py --modo rotulados`, ADR 0008): os PRs rotulados da leva com a decisão declarada de cada um.
 
 ## Ensaio de roteiro
-Ensaie roteiro apenas em alvo provado descartável: confira a conexão antes do primeiro
-comando e recuse o valor padrão se a variável do alvo falta.
+Ensaie roteiro só em alvo provado descartável: confira a conexão antes do
+primeiro comando e recuse o valor padrão.
 
 ## Simulação de merge (a base certa)
 Para saber como a entrega fica sobre a base de integração, simule o merge fora da árvore de trabalho:

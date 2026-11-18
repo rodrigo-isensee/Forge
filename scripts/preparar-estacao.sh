@@ -70,48 +70,56 @@ como_root() {
 
 # PORTAO-DEVOPS-FERRAMENTAS (R-CUSTO): ferramentas dos portões de devops e de segurança (skill cyber-security), só gratuitas e
 # sem credencial, em ~/.local/bin. Binário só entra se o sha256 bater com as somas da mesma release (integridade do download,
-# não autenticidade; versão fixada aqui). zizmor e semgrep vêm do PyPI por pipx. A falha de uma não barra as outras: vira
+# não autenticidade) e com o sha256 fixado aqui ao lado da versão: release trocada depois vira "falta:". zizmor e semgrep vêm
+# do PyPI por pipx, com versão fixada. Bump de versão, soma e pacote seguem juntos pelo mesmo review. A falha de uma não barra as outras: vira
 # "falta:". O trivy roda no CI (a skill manda), não aqui.
-ACTIONLINT_V="1.7.12"; GITLEAKS_V="8.30.1"; OSV_V="v2.7.1"
-# instalar_binario nome url url-das-somas arquivo-nas-somas [binario-dentro-do-tar.gz]
+ACTIONLINT_V="1.7.12"; GITLEAKS_V="8.30.1"; OSV_V="v2.7.1"; ZIZMOR_V="1.32.0"; SEMGREP_V="1.186.0"
+ACTIONLINT_SHA="8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+GITLEAKS_SHA="551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+OSV_SHA="fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8"
+# instalar_binario nome url url-das-somas arquivo-nas-somas sha256-fixado [binario-dentro-do-tar.gz]
 instalar_binario() {
-  local nome="$1" url="$2" somas="$3" arq="$4" tar="${5:-}" tmp esperado bin="$HOME/.local/bin"
+  local nome="$1" url="$2" somas="$3" arq="$4" fixo="$5" tar="${6:-}" tmp esperado real ok bin="$HOME/.local/bin"
   if tem "$nome"; then fez "$nome já instalado"; return 0; fi
   if ! tem curl; then falta "instalar $nome (sem curl)"; return 0; fi
   if [ "$simular" = 1 ]; then printf '[simular] baixar %s e conferir o sha256 em %s\n' "$url" "$somas"; fez "instalaria $nome em $bin"; return 0; fi
   tmp="$(mktemp -d)"
   if curl -fsSL -o "$tmp/$arq" "$url" && curl -fsSL -o "$tmp/somas" "$somas"; then
     esperado="$(awk -v a="$arq" '$2 == a || $2 == "*" a {print $1; exit}' "$tmp/somas")"
-    if [ -n "$esperado" ] && [ "$(sha256sum "$tmp/$arq" | cut -d' ' -f1)" = "$esperado" ]; then
-      mkdir -p "$bin"
-      if [ -n "$tar" ]; then tar -xzf "$tmp/$arq" -C "$tmp" "$tar" && install -m 755 "$tmp/$tar" "$bin/$nome"
-      else install -m 755 "$tmp/$arq" "$bin/$nome"; fi
-      fez "instalou $nome em $bin"
-    else
+    real="$(sha256sum "$tmp/$arq" | cut -d' ' -f1)"
+    if [ -z "$esperado" ] || [ "$real" != "$esperado" ]; then
       falta "$nome: o sha256 do download não bate com as somas da release; não instalei"
+    elif [ "$real" != "$fixo" ]; then
+      falta "$nome: o sha256 do download não bate com a soma fixada no script; não instalei"
+    else
+      mkdir -p "$bin"
+      if [ -n "$tar" ]; then
+        if tar -xzf "$tmp/$arq" -C "$tmp" "$tar" && install -m 755 "$tmp/$tar" "$bin/$nome"; then ok=1; else ok=0; fi
+      elif install -m 755 "$tmp/$arq" "$bin/$nome"; then ok=1; else ok=0; fi
+      if [ "$ok" = 1 ]; then fez "instalou $nome em $bin"; else falta "instalar $nome (a extração ou a cópia falhou; o binário não foi instalado)"; fi
     fi
   else
     falta "instalar $nome (o download falhou; rode de novo com rede)"
   fi
   rm -rf "$tmp"
 }
-instalar_pipx() {
+instalar_pipx() { # nome versão
   if tem "$1"; then fez "$1 já instalado"; return 0; fi
   if ! tem pipx; then
     if tem apt-get; then como_root apt-get install -y -qq pipx >/dev/null 2>&1 || true; fi
     tem pipx || { falta "instalar $1 (sem pipx; rode sudo apt-get install pipx e de novo)"; return 0; }
   fi
-  if fazer pipx install "$1" >/dev/null 2>&1; then fez "instalou $1 (pipx)"; else falta "instalar $1 (o pipx falhou; rode de novo com rede)"; fi
+  if fazer pipx install "$1==$2" >/dev/null 2>&1; then fez "instalou $1 (pipx)"; else falta "instalar $1 (o pipx falhou; rode de novo com rede)"; fi
 }
 garantir_ferramentas() {
   local a="https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT_V" g="https://github.com/gitleaks/gitleaks/releases/download/v$GITLEAKS_V"
   local o="https://github.com/google/osv-scanner/releases/download/$OSV_V"
   case "$(uname -m)" in x86_64) ;; *) falta "ferramentas dos portões: só x86_64 é coberto aqui; instale à mão"; return 0 ;; esac
-  instalar_binario actionlint "$a/actionlint_${ACTIONLINT_V}_linux_amd64.tar.gz" "$a/actionlint_${ACTIONLINT_V}_checksums.txt" "actionlint_${ACTIONLINT_V}_linux_amd64.tar.gz" actionlint
-  instalar_binario gitleaks "$g/gitleaks_${GITLEAKS_V}_linux_x64.tar.gz" "$g/gitleaks_${GITLEAKS_V}_checksums.txt" "gitleaks_${GITLEAKS_V}_linux_x64.tar.gz" gitleaks
-  instalar_binario osv-scanner "$o/osv-scanner_linux_amd64" "$o/osv-scanner_SHA256SUMS" osv-scanner_linux_amd64
-  instalar_pipx zizmor
-  instalar_pipx semgrep
+  instalar_binario actionlint "$a/actionlint_${ACTIONLINT_V}_linux_amd64.tar.gz" "$a/actionlint_${ACTIONLINT_V}_checksums.txt" "actionlint_${ACTIONLINT_V}_linux_amd64.tar.gz" "$ACTIONLINT_SHA" actionlint
+  instalar_binario gitleaks "$g/gitleaks_${GITLEAKS_V}_linux_x64.tar.gz" "$g/gitleaks_${GITLEAKS_V}_checksums.txt" "gitleaks_${GITLEAKS_V}_linux_x64.tar.gz" "$GITLEAKS_SHA" gitleaks
+  instalar_binario osv-scanner "$o/osv-scanner_linux_amd64" "$o/osv-scanner_SHA256SUMS" osv-scanner_linux_amd64 "$OSV_SHA"
+  instalar_pipx zizmor "$ZIZMOR_V"
+  instalar_pipx semgrep "$SEMGREP_V"
 }
 imprimir_resultado() {
   local l
