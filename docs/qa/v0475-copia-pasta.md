@@ -4,10 +4,10 @@ contrato: 1
 pedido: v0474
 branch: melhoria/v0475-copia-pasta
 commit: efe73e1755211bf8d2db0dbbf1fb4e1fc2f808af
-parecer: aprovado
+parecer: reprovado
 escopo: completo
 bugs_criticos: 0
-bugs_altos: 0
+bugs_altos: 1
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-17
@@ -17,6 +17,7 @@ data: 2026-11-17
 Escopo: `bin/forge-copia` (clone e worktree só dentro de `~/.forge-contrib`), `tests/test_forge_copia.py`, spec de mutantes, texto nas duas skills e patch em `docs/propostas/`. Sem especificação de UX nem contrato de API; as obrigações vêm do cabeçalho do script e da linha E3.44 do pedido (cópia só na pasta liberada, `--no-track`).
 
 ## Achados
+- A1 (bloqueante) skills/contribuir-com-o-forge/SKILL.md:22 · texto novo estoura o teto de metricas (6430 > 6270) e o do Jarvis (40702 > 40566): test_metricas_texto e test_orcamento_instrucao caem no head e passam na base (forge-testes --vermelho: regressao=2). Mover detalhe, nao subir teto.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -35,7 +36,7 @@ Escopo: `bin/forge-copia` (clone e worktree só dentro de `~/.forge-contrib`), `
 
 ## Cenários e resultado real
 - Local: `python3 -I -m unittest discover -s tests -p test_forge_copia.py` no head: 13 testes, OK. Skills: `test_skills_v0442.py` 4 OK. A suíte inteira roda no CI do PR (`bateria`); não há PR nem check-run neste head, então não cito run.
-- Vermelho antes do verde: `forge-testes --vermelho 2fa505d7` ficou na fila da trava `R-TETO` (outra sessão pesada) e não deu veredito; não conta como vermelho. Substituí por cópia em `$TMPDIR` com `bin/` da base e o teste do head: `Ran 13 tests ... FAILED (failures=10)`. Os 3 que passam são recusas que dão saída 2 por acaso (python3 sem o arquivo sai 2) e ficam provados pelos mutantes. O autor deve colar o `--vermelho` oficial no PR.
+- `forge-testes --vermelho 2fa505d7` terminou depois do primeiro texto: 10 provas (asserção), 760 não provam, regressao=2 (as duas acima, H=falha B=ok, reproduzidas com `discover -p`), sem veredito=1 (volta ao autor). Antes disso ele ficou na fila da trava `R-TETO` (outra sessão pesada) e não deu veredito; não conta como vermelho. Substituí por cópia em `$TMPDIR` com `bin/` da base e o teste do head: `Ran 13 tests ... FAILED (failures=10)`. Os 3 que passam são recusas que dão saída 2 por acaso (python3 sem o arquivo sai 2) e ficam provados pelos mutantes. O autor deve colar o `--vermelho` oficial no PR.
 - Mutação: `bin/forge-mutante tests/mutantes/v0475-copia-pasta.json`, `rev=efe73e175521`: M1 a M10 todos `morreu` (linhas 28, 31, 32, 34, 36, 54, 56, 62, 63, 65). Sobrevivente: nenhum.
 - `forge-mutante --cobertura --base 2fa505d7` não rodou (fila da trava `R-TETO`). Conferência manual das guardas do diff: `..`, igualdade com a raiz, commonpath, destino ocupado, `-` inicial, ref-format, clone sem origem e os dois retornos 1 têm mutante.
 - Bordas lidas sem teste dedicado, sem defeito: destino com `~` é expandido depois do teste de `..`; link como último componente apontando para dentro é aceito se vazio, comportamento coerente.
