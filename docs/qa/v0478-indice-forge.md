@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-indice-forge
-commit: 7bd4913edcb31af54510071cb86fe53a07087174
+commit: bf97d62a0acbdb143f40c4af560059ab911829c8
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -36,3 +36,20 @@ Passada única no head 7bd4913e, só os testes dos arquivos tocados (`R-QA`); a 
 - `forge-mutante --cobertura --base 4182a6b9`: só linhas `coberta`, nenhuma condição do arquivo novo sem mutante; `base=4182a6b9… mb=4182a6b9…`.
 - Observação: `-I` com `-m unittest tests.test_indice_forge` não importa o pacote `tests` (o módulo usa `from tests.ambiente_git`); é a forma do comando, não defeito (o `bin/forge-testes` e o discover do CI o rodam certo).
 - Acessibilidade e E2E: não se aplicam (ferramenta de linha de comando e documento gerado).
+
+## Revalidação E8.9 (head bf97d62a, delta desde 7bd4913e)
+Delta lido por `forge-check parecer delta`: `bin/forge-testes` (`teste_do_indice` no plano dirigido e no afetados), índice sem coluna de testes nem contagem, `scripts/indice-forge.py`, specs de mutantes (M11 a M14 saem com a coluna; M23 entra), `test_indice_forge` (`SoNomeEDoc` no lugar de `TestesDoArquivo`) e `test_testes_tocados`. Fora disso nada foi relido.
+
+| Critério (obrigação) | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Índice só com arquivo e doc, sem contagem nem coluna de testes | `SoNomeEDoc.test_tabela_so_com_arquivo_e_doc_e_sem_contagem`, `test_teste_novo_nao_muda_o_indice` | módulo de teste a mais não muda o texto | passou |
+| Todo arquivo do 1º nível de bin/, hooks/ e scripts/ leva `test_indice_forge` no plano dirigido (review A2); fora delas não | `SoNomeEDoc.test_o_plano_dirigido_das_pastas_roda_o_indice` | `agents/` fora; `.json` e `.sh` dentro | passou |
+| Raiz sem `tests/test_indice_forge.py` segue dirigida sem pedir o módulo | `SoNomeEDoc.test_raiz_sem_o_teste_do_indice_segue_dirigida_sem_ele` | módulo ausente | passou |
+| Mapa atualizado com o teste do índice | `test_testes_tocados` (162 testes, OK, 1 skip herdado da base) | contagem do `forge-check` fora do índice | passou |
+
+Provas:
+- `python3 -m unittest tests.test_indice_forge`: 19 testes, OK; `scripts/indice-forge.py --conferir`: em dia.
+- Mutação, `bin/forge-mutante` nas 3 specs (`--processos 2`, `rev=bf97d62a0acb`): M1 a M10, M15 a M23 `morreu`, nenhum sobrevivente; M23 (`bin/forge-testes:314`) morreu. M1 morreu por erro do teste declarado, que passa sem o mutante (aceito, como antes). Delta com `--base 7bd4913e`: `base=7bd4913e… mb=7bd4913e… rev=bf97d62a…`, mesmos veredictos.
+- `forge-mutante --cobertura --base 7bd4913e`: `coberta · bin/forge-testes:314 · M23`; as linhas `apagada` são as das condições de `testes_do_arquivo`, removidas junto com a coluna.
+- Vermelho, `bin/forge-testes --vermelho 7bd4913e --modulos test_indice_forge`: `SoNomeEDoc.test_o_plano_dirigido_das_pastas_roda_o_indice`, `test_raiz_sem_o_teste_do_indice_segue_dirigida_sem_ele` e `test_tabela_so_com_arquivo_e_doc_e_sem_contagem` `H=ok B=falha · prova (asserção)`; `test_teste_novo_nao_muda_o_indice` `H=ok B=erro · sem veredito` (na base o teste erra, não falha; o comando sai rc 2 por esse caso). Três provas bastam para o risco do delta (A2 e a coluna removida); o quarto é guarda de regressão, sem bloqueio.
+- Sem skip novo. Sem achado.
