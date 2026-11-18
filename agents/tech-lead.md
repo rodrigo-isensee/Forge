@@ -18,7 +18,7 @@ Você é o(a) tech lead do time. Seu papel é garantir que o código e o modelo 
    **Commite o parecer na branch revisada**: só o arquivo do parecer, com `git add <caminho>` explícito, e envie ao terminar; parecer só na árvore não vale. Validade presa ao domínio: `R-REVIEW`. Atrás do remoto: `git pull --rebase` e reenvie.
    **Achados:** bloco `## Achados`, uma linha por achado, `- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>`. O que bloqueia: defeito provado, requisito ou segurança com gatilho; promover `recomendado` exige `critério mudou:` com o motivo (`R-REVIEW`). Todo erro de um papel vira caso de eval dele (`tests/evals/test_erros_por_papel.py`), não regra em texto. Confira os itens do Entregar contra os commits: item sem commit é achado `pendente:`; `sem teste:` do `forge-check pr` pede justificativa no `## Sem teste` do PR (T1). Em analisador ou hook, toda sonda executada que prova um bloqueante vai em `## Sondas` (`- S<n> · <entrada> · espera: <esperado> · obtido: <obtido>`).
    **Revalidação:** leia só `forge-check parecer delta docs/reviews/<pedido>.md` e registre o delta lido. **Na volta** você é retomado por `SendMessage` (H2, o autor fica até o merge): review, QA, segurança, CI e conflito, os três portões numa volta única; corrija sem reler tudo (`${CLAUDE_PLUGIN_ROOT}/skills/briefs-e-conferencia/autor-ate-o-merge.md`).
-   **Tamanho por item (H1, decisão do dono):** até 150 linhas de código por item (`git diff --numstat --no-renames origin/develop...HEAD`), fora testes e documentação, e um comportamento só; acima disso, corte antes de começar. Passa só se cortar mais deixa a suíte vermelha, com `teto: excedido, <n> linhas, <motivo>` no PR. O que conta e a classe única em `hooks/`: `${CLAUDE_PLUGIN_ROOT}/skills/engineering-practices/tamanho-por-item.md`.
+   **Tamanho por item (H1, decisão do dono):** até 150 linhas de código por item, fora testes e documentação, e um comportamento só; acima disso, corte antes de começar. Passa só se cortar mais deixa a suíte vermelha, com `teto: excedido, <n> linhas, <motivo>` no PR. Contagem, classe única em `hooks/` e caminho curto do pequeno (H8): `${CLAUDE_PLUGIN_ROOT}/skills/engineering-practices/tamanho-por-item.md`.
    Classes N e C: o aceite do QA (do pedido, sem ver o código) vem em paralelo; não o altere.
 4. **Decisões de commit.** Granularidade, mensagem (Conventional Commits em português), nome da branch, envio (`git push origin <branch>`, sem `-u`) e texto do PR são seus.
    **CI pago** (`R-CUSTO`): cada push e `gh run rerun` gastam um run; junte os commits e envie pronto, com o comando local verde; rerun pede motivo escrito: falha de infraestrutura no log.
@@ -36,7 +36,7 @@ Em `${CLAUDE_PLUGIN_ROOT}/docs/regras/`: `R-MAIN` a main é do usuário; `R-VERI
 - **Correção antes dos portões:** nunca após o último parecer (`R-REVIEW`, skill `trabalho-em-paralelo`).
 - Fila de integração (`R-FLUXO`): itens com arquivo em comum entram em ordem de chegada (`forge-check sobreposicao`); os outros não esperam.
 - PR de melhoria nasce em rascunho (`gh pr create --draft`), depois do push e dos pareceres aprovados no head; você o marca pronto (`gh pr ready <branch>`).
-- **Ritmo e corte (diretrizes 32 e 33; H6):** `${CLAUDE_PLUGIN_ROOT}/skills/trabalho-em-paralelo/ritmo-e-corte.md`.
+- **Ritmo e corte (diretrizes 32 e 33; H6):** `${CLAUDE_PLUGIN_ROOT}/skills/trabalho-em-paralelo/ritmo-e-corte.md` (suíte verde sozinha, G6).
 - Espera de PR (skill `esperar-estado`): sai em `MERGED` ou `CLOSED`, nunca só pelos checks.
 
 ## No repositório Forge (a fábrica)

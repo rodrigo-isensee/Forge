@@ -845,6 +845,26 @@ class ParecerDoPortao(Conferencia):
         """Falha fechada: o `rev-list` do intervalo que falha conta como trocado, com o `ls-tree` de `de` respondendo."""
         self.assertTrue(self.trocado_com_git_que_falha("rev-list"))
 
+    def test_grep_que_falha_conta_como_veredito_trocado(self):
+        """VEREDITO-TROCADO-LENTO, falha fechada: o `git grep` que filtra as versões e falha conta como trocado."""
+        self.assertTrue(self.trocado_com_git_que_falha("grep"))
+
+    def test_so_le_a_versao_que_cita_o_sha_revisado(self):
+        """VEREDITO-TROCADO-LENTO: um `git show` por arquivo da pasta levava 80 s no Forge; só a versão que cita o sha é lida."""
+        self.entrega_com_parecer()
+        revisado, git_real, lidos = self.git("rev-parse", "HEAD~1"), fc.git, []
+        self.gravar("docs/reviews/outro.md", "---\ntipo: review\ncommit: " + "a" * 40 + "\n---\n")
+        self.git("add", "docs/reviews/outro.md")
+        self.commit("docs(reviews): outro")
+
+        def git_que_conta(raiz, *args, **kw):
+            lidos.extend(args[1:2] if args[0] == "show" else [])
+            return git_real(raiz, *args, **kw)
+        with mock.patch.object(fc, "git", git_que_conta):
+            self.assertFalse(fc.veredito_trocado(self.proj, self.base, "HEAD", "docs/reviews/x.md", revisado, "aprovado", "melhoria/x", "review"))
+        self.assertTrue(lidos)
+        self.assertEqual({n.split(":", 1)[1] for n in lidos}, {"docs/reviews/x.md"})
+
     def test_veredito_trocado_em_outro_arquivo_da_pasta_segue_fora(self):
         """Volta 2 (segurança A5, S3): o review reprovado em x.md e um y.md aprovado com o mesmo `commit:` ancorado; y.md não é anexo."""
         self.entrega_com_parecer(parecer="reprovado")
