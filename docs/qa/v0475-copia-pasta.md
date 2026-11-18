@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0475-copia-pasta
-commit: d17f94a617c16226b543f5e5b79edaa6d0266120
+commit: 7884b151194706a0e9fcf2a1f216fe37525bac06
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-17
+data: 2026-11-18
 ---
 # QA: v0475-copia-pasta (E3.44, parecer E3.57)
 
@@ -56,3 +56,12 @@ Escopo: `bin/forge-copia` (clone e worktree só dentro de `~/.forge-contrib`), `
 - `python3 -I tests/catraca.py --base origin/develop`: rc 0, sem guarda sem mutante.
 - `python3 -m unittest tests.test_anotar`: 18 testes, OK. `tests.test_metricas_texto`: 2 OK.
 - Check-run `bateria` do sha não citado: sem PR neste head.
+
+## Revalidação (delta d17f94a6..7884b151)
+`forge-check parecer delta` lista no domínio só `skills/trabalho-em-paralelo/SKILL.md`: uma frase ("serializam" vira "não andam em paralelo"). Código, mutantes e testes não mudaram.
+- `python3 -I tests/catraca.py --base origin/develop`: rc 0, sem guarda sem mutante.
+- `python3 -m unittest tests.test_jarvis_nucleo tests.test_metricas_texto`: 45 testes, OK.
+- Check-run `bateria` do sha não citado: sem PR neste head.
+
+## Achados
+Nenhum aberto.
