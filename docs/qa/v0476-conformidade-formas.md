@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0476-conformidade-formas
-commit: eb18768bd45af2addb34c9603b5de85d305837f0
+commit: b4bd700e8eebe148c68b67f6e4465c49ecb7d0bf
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -35,3 +35,11 @@ Sem especificação de UX: as obrigações são os itens do changelog (E3.50) e 
 - Delta de spec editada: `bin/forge-mutante --base 3d8ad440 tests/mutantes/pn5-espera-envio.json`: `base=3d8ad440… rev=eb18768bd45a`; M1 a M5 `morreu`.
 - Cobertura (`--cobertura --base 3d8ad440`): condições de conformidade.py 813, 816 e 1897 `coberta`, rc 0; o resto do diff é texto/shell sem condição Python.
 - A bateria completa roda no CI do PR (check-run `bateria`); não rodada aqui.
+
+## Revalidação (delta eb18768b..b4bd700e)
+`forge-check parecer delta` lista `bin/forge-check` (ref_publicada, documento_sem_parecer, E3.49), `skills/esperar-estado/SKILL.md` e `envio-longo.md` (texto movido, sem regra nova de código).
+- `tests.test_revisar_sha` (4), `tests.test_parecer_delta` (4), `test_esperar_estado` (15), `test_forge_tamanho` (24), `test_metricas_texto` (2), `test_ambiente_git` (20): OK.
+- Vermelho: `forge-testes --vermelho eb18768b --modulos tests.test_revisar_sha,tests.test_parecer_delta`: `contagem: não prova (passa na base)=4; prova (asserção)=4`; os 4 que passam na base são testes de guarda, mortos pelos mutantes.
+- Mutação: `bin/forge-mutante tests/mutantes/v0476-revisar-sha-delta.json --base eb18768b`: `base=eb18768bd45a... rev=b4bd700e8eeb`; M1 a M6 `morreu`.
+- Catraca (`--base origin/develop`): só 3 linhas `R-CONFORMIDADE` (bin/forge-check, hooks/_comum.py, hooks/conformidade.py: rótulo `afrouxa-regra` do dono); nenhuma guarda sem mutante.
+- Bateria completa: check-run `bateria` do CI do PR; não rodada aqui.
