@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0475-ci-custo
 branch: melhoria/v0475-ci-custo
-commit: d8e1b09b050f7455637234be5a9ccbc97c9d0ed5
+commit: 8a4a97077c22308b0a503d4e33f72bb91700e12a
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -45,3 +45,10 @@ Delta no domínio: ci.yml (um workflow só, job `mudanca`, agregador `ci` único
 - Mutação do delta: `bin/forge-mutante tests/mutantes/v0475-ci-custo.json tests/mutantes/v0475-ci-custo-2.json --base f59f7766 --processos 3`: `base=f59f7766bfcecbb1887cce0b6c0aff6ab31880cd`, M1 a M20 todos `morreu`, nenhum sobrevivente. Cada guarda mudada (gatilhos, sem filtro de caminho, `if` da suíte, `case` da detecção, padrão código, agregador, concurrency, timeout, SHA) tem mutante.
 - Não rodei a suíte inteira: vale o check-run `bateria` do CI do PR no mesmo sha.
 - Resíduo (recomendado, não bloqueia): execução real no Actions segue por confirmar no primeiro projeto.
+
+## Revalidação por delta (d8e1b09b..8a4a9707)
+Delta no domínio: `--no-renames` na detecção do ci.yml, skill, `test_modelo_ci.py` (ambiente limpo, sondas S1 e S2 de renomeação), mutantes M21 e M22.
+- `python3 -I -m unittest discover -s tests -p test_modelo_ci.py`: Ran 19 tests, OK.
+- Vermelho: o teste novo sobre `git archive d8e1b09b`: Ran 19, FAILED (failures=3); caem test_renomear_codigo_para_documento_roda_a_suite, test_deteccao_usa_no_renames e a asserção da skill.
+- Mutação: `bin/forge-mutante tests/mutantes/v0475-ci-custo.json tests/mutantes/v0475-ci-custo-2.json --base d8e1b09b --processos 3`: `base=d8e1b09b050f7455637234be5a9ccbc97c9d0ed5`, M1 a M22 todos `morreu`, rc 0; a única guarda mudada (`--no-renames`, M21; texto da skill, M22) tem mutante.
+- Suíte inteira: vale o check-run `bateria` do mesmo sha. Resíduo A1 inalterado (recomendado).
