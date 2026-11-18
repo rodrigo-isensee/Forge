@@ -2803,11 +2803,18 @@ def veredito_trocado(raiz, de, head, nome, revisado, parecer, branch, tipo):
     cod, shas = git(raiz, "rev-list", "--full-history", f"{de}..{head}", "--", pasta)
     if cod:
         return True
-    for sha in [de] + shas.split():
+    versoes = [de] + shas.split()
+    cod, citam = git(raiz, "grep", "-l", "-F", "-e", revisado, *versoes, "--", pasta)  # VEREDITO-TROCADO-LENTO: só lê quem cita o sha
+    if cod > 1:
+        return True
+    citam = set(citam.splitlines())
+    for sha in versoes:
         cod, nomes = git(raiz, "ls-tree", "-r", "--name-only", sha, "--", pasta)
         if cod:
             return True
         for versao in nomes.splitlines():
+            if f"{sha}:{versao}" not in citam:
+                continue
             fm = ler_frontmatter(git(raiz, "show", f"{sha}:{versao}")[1])[0] or {}  # o arquivo sem frontmatter não é parecer
             if fm.get("branch") == branch and fm.get("commit") == revisado and fm.get("parecer") != parecer:
                 return True
