@@ -13,7 +13,9 @@ from unittest import mock
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ / "hooks"))
 sys.path.insert(0, str(RAIZ / "tests"))
+sys.path.insert(0, str(RAIZ / "bin"))
 import _maquina  # noqa: E402
+import forge_dono  # noqa: E402
 import pesado  # noqa: E402
 from test_hooks import ambiente_limpo, lancador, pid_morto, repositorio_vazio  # noqa: E402
 
@@ -398,6 +400,33 @@ class UmProjeto(StatusDaMaquina):
         self.assertIn(" · Forge 0.47.9 · ", self.linhas()[0], "o link não se segue; vale a do plugin")
         (raiz / ".claude-plugin" / "plugin.json").write_text("{}", encoding="utf-8")
         self.assertIn(" · Forge ? · ", self.linhas()[0])
+
+    def test_pasta_da_versao_em_link_nao_se_segue(self):  # sonda S1 da segurança (A1)
+        raiz = self.ativo("alfa", versao=None)
+        (raiz / ".forge").rmdir()
+        alvo = self.tmp / "alvo"
+        alvo.mkdir()
+        (alvo / "versao").write_text("segredo 9.8.7 aqui\n", encoding="utf-8")
+        (alvo / "plugin.json").write_text('{"version": "9.8.6"}', encoding="utf-8")
+        (raiz / ".forge").symlink_to(alvo)
+        (raiz / ".claude-plugin").mkdir()
+        (raiz / ".claude-plugin" / "plugin.json").write_text('{"version": "0.47.9"}', encoding="utf-8")
+        self.assertIn(" · Forge 0.47.9 · ", self.linhas()[0], ".forge por link: vale a fonte seguinte")
+        (raiz / ".claude-plugin" / "plugin.json").unlink()
+        (raiz / ".claude-plugin").rmdir()
+        (raiz / ".claude-plugin").symlink_to(alvo)
+        self.assertIn(" · Forge ? · ", self.linhas()[0], "as duas pastas por link: nada se lê")
+
+    def test_pedido_acima_do_teto_nao_conta(self):  # sonda S2 da segurança (A2)
+        raiz = self.ativo("alfa")
+        (raiz / "docs" / "pedidos").mkdir(parents=True)
+        pergunta = "PERGUNTA AO DONO (2026-11-18 10:00): seguir? 1a) sim [recomendada]\n"
+        (raiz / "docs" / "pedidos" / "p1.md").write_text(pergunta, encoding="utf-8")
+        enorme = raiz / "docs" / "pedidos" / "p2.md"
+        enorme.write_text(pergunta + "x" * forge_dono.TETO_DO_ARQUIVO, encoding="utf-8")
+        self.assertIn(" · decisões pendentes 1 · ", self.linhas()[0], "o pedido acima do teto fica fora")
+        enorme.write_text(pergunta + "x" * (forge_dono.TETO_DO_ARQUIVO - len(pergunta)), encoding="utf-8")
+        self.assertIn(" · decisões pendentes 2 · ", self.linhas()[0], "no teto exato ainda conta")
 
     def test_decisoes_por_link_e_uso_fora_da_forma(self):
         raiz = self.ativo("alfa")

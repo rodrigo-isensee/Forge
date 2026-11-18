@@ -75,9 +75,12 @@ def linhas(raiz, maximo):
 
 
 def versao_do_projeto(pasta):
-    """MP8: `.forge/versao` do projeto ou, no clone do Forge, a do plugin; só o número (X.Y.Z), sem seguir link; senão `?`."""
+    """MP8: `.forge/versao` do projeto ou, no clone do Forge, a do plugin; só o número (X.Y.Z), sem seguir link (nem no
+    arquivo nem na pasta `.forge` ou `.claude-plugin`); senão `?`."""
     import _maquina
     for nome in (".forge/versao", ".claude-plugin/plugin.json"):
+        if (Path(pasta) / nome).parent.is_symlink():  # A1 da segurança: o O_NOFOLLOW só vale no último componente
+            continue
         try:
             bruto = _maquina.ler_regular(Path(pasta) / nome, 4096)
         except (OSError, ValueError):

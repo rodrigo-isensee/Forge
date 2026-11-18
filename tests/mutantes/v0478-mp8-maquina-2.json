@@ -61,6 +61,26 @@
       "testes": [
         "tests.test_maquina.SemProjeto.test_sem_leitura_de_proc_nem_de_nucleos"
       ]
+    },
+    {
+      "id": "MP8-14",
+      "guarda": "MP8 (A1 da segurança): pasta .forge ou .claude-plugin por link não se lê",
+      "arquivo": "bin/forge-status",
+      "de": "        if (Path(pasta) / nome).parent.is_symlink():",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_maquina.UmProjeto.test_pasta_da_versao_em_link_nao_se_segue"
+      ]
+    },
+    {
+      "id": "MP8-15",
+      "guarda": "MP8 (A2 da segurança): pedido ou KANBAN acima do teto vale ilegível",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if len(bruto) > TETO_DO_ARQUIVO:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_maquina.UmProjeto.test_pedido_acima_do_teto_nao_conta"
+      ]
     }
   ]
 }
