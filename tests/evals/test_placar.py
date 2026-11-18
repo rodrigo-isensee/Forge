@@ -339,6 +339,19 @@ class Fases(unittest.TestCase):
         cls.git("switch", "-q", "-c", "melhoria/d")
         cls.commit("2025-03-20T15:00", {"d.py": "1"}, "feat: d")
         cls.mesclar("melhoria/d", "2025-03-20T15:00", "Merge pull request #9 from dono/melhoria/d")
+        # Item E (dia 21): squash como o do forge-fechar (`gh pr merge --squash`: um pai, "<título> (#11)"), com os commits do
+        # PR em refs/pull/11/head; pareceres 20, integração 40. No mesmo dia, um commit direto (fora) e o squash #12 sem a ref.
+        cls.git("switch", "-q", "-c", "melhoria/e")
+        cls.commit("2025-03-21T09:00", {"e.py": "1"}, "feat: e")
+        cls.commit("2025-03-21T09:20", {"docs/reviews/e.md": parecer_md("aprovado")}, "docs(review): aprova")
+        cls.git("update-ref", "refs/pull/11/head", "melhoria/e")
+        cls.git("switch", "-q", "develop")
+        cls.git("merge", "-q", "--squash", "melhoria/e")
+        cls.git("commit", "-q", "-m", "feat: e (#11)", quando="2025-03-21T10:00")
+        cls.commit("2025-03-21T10:30", {"direto.txt": "1"}, "chore: commit direto")
+        cls.commit("2025-03-21T11:00", {"g.py": "1"}, "feat: g (#12)")
+        # Dia 22: só um squash sem a ref do PR
+        cls.commit("2025-03-22T11:00", {"h.py": "1"}, "feat: h (#13)")
 
     @classmethod
     def tearDownClass(cls):
@@ -421,6 +434,28 @@ class Fases(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(len(json.loads(r.stdout)["itens"]), 1)
 
+    def test_squash_mede_pelos_commits_do_pr_e_conta_a_parte_sem_eles(self):  # review A1 do v0479-placar-fases
+        dados = self.json("2025-03-21")
+        (e,) = dados["itens"]
+        self.assertEqual(e["item"], "#11")
+        self.assertEqual(e["fases"], {"desenvolvimento": 0, "pareceres": 20, "voltas": 0, "integração": 40})
+        self.assertEqual((e["total"], e["primeira_rodada"], dados["media_min"], dados["sem_fases"]), (60, True, 60, 1))
+        rc, saida, erro = self.rodar("--dia", "2025-03-21")
+        self.assertEqual(rc, 0, erro)
+        self.assertIn("itens sem fases (squash): 1 (", saida)
+        self.assertIn("total do dia: 1 itens · ", saida)
+
+    def test_dia_so_com_squash_sem_ref_nao_diz_nenhum_mesclado(self):
+        self.assertEqual((self.json("2025-03-22")["itens"], self.json("2025-03-22")["sem_fases"]), ([], 1))
+        rc, saida, erro = self.rodar("--dia", "2025-03-22")
+        self.assertEqual((rc, saida.splitlines()[-2:]), (0, ["itens sem fases (squash): 1 (sem os commits do PR em refs/pull/N/head;"
+                                                            " fora da média)", "total do dia: nenhum item medido"]))
+
+    def test_dia_sem_squash_nao_traz_a_linha(self):
+        rc, saida, _ = self.rodar("--dia", "2025-03-18")
+        self.assertNotIn("itens sem fases", saida)
+        self.assertEqual(self.json("2025-03-18")["sem_fases"], 0)
+
     def test_ref_que_nao_existe_sai_com_2(self):
         r = subprocess.run([sys.executable, "-I", str(PLACAR), "fases", "--git", str(self.repo), "--ref", "nao-existe"],
                            capture_output=True, text=True, env=self.env, cwd=self.repo, timeout=60)
@@ -485,12 +520,15 @@ class SemTeste(unittest.TestCase):
 
     def test_arquivo_ausente_ou_invalido_sai_com_2(self):
         casos = ((str(self.raiz / "nada.json"), "não existe"), (self.prs("{nao json", "a.json"), "não é JSON"),
-                 (self.prs('{"mergedAt": "2026-11-10"}', "b.json"), "não é uma lista"))
+                 (self.prs('{"mergedAt": "2026-11-10"}', "b.json"), "não é uma lista"),
+                 (self.prs('[{"mergedAt": "2026-13-45T10:00:00Z"}]', "c.json"), "mergedAt inválido: 2026-13-45"),  # segurança A1
+                 (self.prs("[" * 100000 + "]" * 100000, "d.json"), "não é JSON legível"))
         for arq, motivo in casos:
             with self.subTest(motivo=motivo):
                 rc, _, erro = self.rodar("--prs", arq)
-                self.assertEqual(rc, 2)
+                self.assertEqual(rc, 2, erro)
                 self.assertIn(motivo, erro)
+                self.assertNotIn("Traceback", erro)
 
 
 if __name__ == "__main__":

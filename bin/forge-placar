@@ -54,8 +54,10 @@ desenvolvimento (do 1.º commit ao último de código antes do 1.º parecer), pa
 um parecer, ou ao último parecer), voltas (daí ao último commit da branch) e integração (daí ao merge). Commit de parecer é o
 que só mexe em docs/reviews, docs/qa, docs/security ou docs/devops; a hora do commit é a do autor (o rebase não a muda).
 Primeira rodada aprovada: a primeira versão gravada de cada parecer da branch diz `parecer: aprovado`; sem parecer, `-`.
-O total do dia soma as fases e põe a média por item ao lado da meta de 85 min. Só merge de dois pais entra (o squash
-apaga as fases).
+O total do dia soma as fases e põe a média por item ao lado da meta de 85 min. Item é o merge de dois pais ou o squash
+do `forge-fechar` (assunto que termina em `(#N)`), medido pelos commits do PR em `refs/pull/N/head` quando o projeto os tem
+(sem rede: `git fetch origin 'refs/pull/*/head:refs/pull/*/head'` fora); sem eles, o squash conta à parte na linha
+`itens sem fases (squash): N` (no `--json`, `sem_fases`), fora da média.
 
 Saída: 0 ok; 1 reprovado (comparar ou propostas); 2 uso errado ou fonte ilegível; 3 inconclusivo."""
 import argparse
@@ -89,6 +91,7 @@ META_MINUTOS = 85  # ordem do dono 18/11 17:00: do 1.º commit ao merge, de 169 
 FASES = ("desenvolvimento", "pareceres", "voltas", "integração")
 PARECER = re.compile(r"^parecer:[ \t]*(\S+)", re.M)
 NOME_DO_ITEM = re.compile(r"(?:from [^/\s]+/|Merge branch ')([^'\s]+)")
+SQUASH = re.compile(r"\(#(\d+)\)$")  # assunto do squash do GitHub: "<título> (#N)"
 
 
 def data(texto, nome):
@@ -195,8 +198,8 @@ def sem_teste_por_semana(arq, janela):
         raise SystemExit(f"forge-placar: --prs {arq} não existe")
     try:
         prs = json.loads(texto)
-    except json.JSONDecodeError:
-        raise SystemExit(f"forge-placar: --prs {arq} não é JSON")
+    except (json.JSONDecodeError, RecursionError):  # aninhado fundo demais estoura a pilha do decodificador
+        raise SystemExit(f"forge-placar: --prs {arq} não é JSON legível")
     if not isinstance(prs, list):
         raise SystemExit(f"forge-placar: --prs {arq} não é uma lista de PRs")
     semanas = {}
@@ -204,7 +207,10 @@ def sem_teste_por_semana(arq, janela):
         quando = str(pr.get("mergedAt")) if isinstance(pr, dict) else ""
         if not DATA.match(quando):
             continue  # PR aberto ou fechado sem merge (mergedAt nulo)
-        dia = datetime.date.fromisoformat(quando[:10])
+        try:
+            dia = datetime.date.fromisoformat(quando[:10])
+        except ValueError:  # forma de data, dia inexistente (2026-13-45)
+            raise SystemExit(f"forge-placar: --prs {arq} tem mergedAt inválido: {quando[:10]}")
         if not dentro(dia, janela):
             continue
         ano, semana, _ = dia.isocalendar()
@@ -575,26 +581,36 @@ def primeira_rodada(pasta, commits):
 
 
 def itens_do_dia(pasta, ref, dia):
-    """Os itens mesclados (dois pais) na linha principal da `ref` no dia, com as fases e a primeira rodada."""
-    itens = []
-    for linha in git(pasta, "log", "--first-parent", "--merges", "--format=%H%x09%P%x09%ct%x09%cs%x09%s", ref).splitlines():
+    """Os itens mesclados na linha principal da `ref` no dia (merge de dois pais ou squash `(#N)`), com as fases e a primeira
+    rodada, e quantos squashes ficaram sem fases por não haver `refs/pull/N/head` no projeto."""
+    itens, sem_fases = [], 0
+    for linha in git(pasta, "log", "--first-parent", "--format=%H%x09%P%x09%ct%x09%cs%x09%s", ref).splitlines():
         sha, pais, quando, cs, assunto = linha.split("\t", 4)
-        commits = commits_do_item(pasta, *pais.split()[:2]) if cs == dia else []
+        pais, pr = pais.split(), SQUASH.search(assunto)
+        if cs != dia or not (len(pais) > 1 or (pais and pr)):
+            continue  # outro dia, commit direto ou a raiz
+        if len(pais) > 1:
+            commits, nome = commits_do_item(pasta, *pais[:2]), NOME_DO_ITEM.search(assunto)
+            item = nome.group(1) if nome else sha[:8]
+        else:
+            ponta = f"refs/pull/{pr.group(1)}/head"
+            tem = subprocess.run(["git", "-C", str(pasta), "rev-parse", "-q", "--verify", ponta + "^{commit}"], capture_output=True)
+            commits, item = (commits_do_item(pasta, pais[0], ponta) if tem.returncode == 0 else []), f"#{pr.group(1)}"
+            sem_fases += not commits
         if commits:
-            nome = NOME_DO_ITEM.search(assunto)
-            itens.append({"item": nome.group(1) if nome else sha[:8], "fases": fases_do_item(commits, int(quando)),
+            itens.append({"item": item, "fases": fases_do_item(commits, int(quando)),
                           "total": round((int(quando) - commits[0][0]) / 60), "primeira_rodada": primeira_rodada(pasta, commits)})
-    return itens
+    return itens, sem_fases
 
 
 def cmd_fases(args):
     dia = data(args.dia, "--dia") if args.dia else datetime.date.today()
-    itens = itens_do_dia(args.git or ".", args.ref, dia.isoformat())
+    itens, sem_fases = itens_do_dia(args.git or ".", args.ref, dia.isoformat())
     soma = {fase: sum(i["fases"][fase] for i in itens) for fase in FASES}
     julgados = [i["primeira_rodada"] for i in itens if i["primeira_rodada"] is not None]
     dados = {"dia": dia.isoformat(), "meta_min": META_MINUTOS, "itens": itens, "soma": soma,
              "media_min": round(sum(i["total"] for i in itens) / len(itens)) if itens else None,
-             "primeira_rodada": [sum(julgados), len(julgados)]}
+             "primeira_rodada": [sum(julgados), len(julgados)], "sem_fases": sem_fases}
     if args.json:
         print(json.dumps(dados, ensure_ascii=False, sort_keys=True))
         return 0
@@ -603,8 +619,10 @@ def cmd_fases(args):
     for i in itens:
         print(f"item {i['item']}: " + " · ".join(f"{f} {i['fases'][f]} min" for f in FASES)
               + f" · total {i['total']} min · primeira rodada aprovada: {sim[i['primeira_rodada']]}")
+    if sem_fases:
+        print(f"itens sem fases (squash): {sem_fases} (sem os commits do PR em refs/pull/N/head; fora da média)")
     if not itens:
-        print("total do dia: nenhum item mesclado")
+        print("total do dia: nenhum item " + ("medido" if sem_fases else "mesclado"))
         return 0
     total = sum(soma.values()) or 1
     print(f"total do dia: {len(itens)} itens · " + " · ".join(f"{f} {soma[f]} min ({soma[f] / total:.0%})" for f in FASES)
