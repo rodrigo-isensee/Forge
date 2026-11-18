@@ -7,7 +7,7 @@
       "guarda": "MP8: arquivo da máquina fora da forma vale vazio",
       "arquivo": "bin/forge-status",
       "de": "lidos.append(dados if isinstance(dados, dict) else {})",
-      "para": "lidos.append(dados)",
+      "para": "lidos.append(dados if True else {})",
       "testes": [
         "tests.test_maquina.UmProjeto.test_decisoes_por_link_e_uso_fora_da_forma"
       ]
@@ -47,7 +47,7 @@
       "guarda": "MP8: carga sem leitura vale ?",
       "arquivo": "bin/forge-status",
       "de": "carga if carga is not None else '?'",
-      "para": "carga",
+      "para": "carga if True else '?'",
       "testes": [
         "tests.test_maquina.SemProjeto.test_sem_leitura_de_proc_nem_de_nucleos"
       ]

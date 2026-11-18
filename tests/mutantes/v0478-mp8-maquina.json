@@ -26,8 +26,8 @@
       "id": "MP8-3",
       "guarda": "MP8: decisões com docs por link valem ?",
       "arquivo": "bin/forge-status",
-      "de": "return \"?\" if codigo else str(",
-      "para": "return str(",
+      "de": "\"?\" if codigo else str(",
+      "para": "\"?\" if False else str(",
       "testes": [
         "tests.test_maquina.UmProjeto.test_decisoes_por_link_e_uso_fora_da_forma"
       ]
@@ -47,7 +47,7 @@
       "guarda": "MP8: uso fora da forma vale uso 0 e peso 1",
       "arquivo": "bin/forge-status",
       "de": "usos[p] if isinstance(usos.get(p), dict) else {}",
-      "para": "usos.get(p, {})",
+      "para": "usos[p] if True else {}",
       "testes": [
         "tests.test_maquina.UmProjeto.test_decisoes_por_link_e_uso_fora_da_forma"
       ]
