@@ -3,25 +3,20 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-indice-forge
-commit: 7bd4913edcb31af54510071cb86fe53a07087174
-parecer: reprovado
+commit: bf97d62a0acbdb143f40c4af560059ab911829c8
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-18
 ---
-# Review: v0478 (E8.3, índice do Forge, H7 primeira parte)
-
-## Achados
-- A1 (bloqueante) scripts/indice-forge.py:84 · A coluna Testes e a contagem (linha 94) mudam com teste novo, texto de teste e mapa de outra trilha: o índice venceria em 5 de 15 merges da develop (S1). Toda trilha teria de regravar o docs/indice-forge.md, arquivo comum: a sobreposição as põe em fila (R-FLUXO, ordem do dono das 13:18).
-- A2 (recomendado) bin/forge-testes:218 · O plano dirigido de bin/, hooks/ e scripts/ não traz o test_indice_forge (--listar bin/forge-check: 0): o índice vencido só aparece no CI pago (R-CUSTO). Ponha o módulo em VARREM_A_PASTA.
+# Review: v0478 (E8.7, revalidação do índice do Forge, H7 primeira parte)
 
 ## Sondas
-- S1 · scripts/indice-forge.py do head gerado em cada um dos 16 últimos commits da develop (first-parent, a1674911..4182a6b9) · espera: índice estável fora da trilha dona do arquivo · obtido: mudou em 5 de 15 merges; sem a coluna Testes e a contagem, em 2, ambos a trilha que criou o arquivo
 
 ## Parecer
-Reprovado por A1. O código lê bem, as guardas têm teste do ramo de falha e mutante declarado, e o teste novo passa no head (`python3 -m unittest tests.test_indice_forge`: 18 testes OK; `--conferir`: em dia). Suíte inteira: fica para o CI do PR.
+Aprovado. Revalidação por delta (H3, `R-REVIEW`): li só `forge-check parecer delta docs/reviews/v0478-indice-forge.md`, intervalo 7bd4913e..bf97d62a, domínio código e testes: `bin/forge-testes`, `changelog.d/v0478-indice-forge.md`, `docs/indice-forge.md`, `scripts/indice-forge.py`, `tests/mutantes/v0478-indice-forge-2.json`, `tests/test_indice_forge.py`, `tests/test_testes_tocados.py`.
 
-Risco apontado pelo autor (primeira linha de doc mudada por outra trilha): é real, mas pequeno; a primeira linha muda quase só na trilha dona do arquivo, e a diretriz 33 já dá uma trilha por arquivo. O risco grande é outro: a coluna Testes vem do plano dirigido, que lê o texto de todo `tests/test_*.py` (convenção, `leitores`, `quem_importa`). Teste novo que cita ou importa um arquivo, arquivo novo em `bin/`, `hooks/` ou `scripts/` e mudança no `MAPA` vencem o índice. Na amostra (S1), mudou em 23928603, 31b29052, 71f280f2, 038249c5 e 9ae3e442, sobretudo pela coluna Testes (`test_forge_fechar`, `test_maquina` e `test_forge_copia` entrando). Com quatro ou mais trilhas abertas, cada merge desses deixa vermelho o CI das outras, porque o PR roda sobre a develop nova, e obriga cada uma a regravar o mesmo arquivo. Duas regravações conflitam no texto (a linha "Os N arquivos" e as linhas vizinhas), e o `forge-check sobreposicao` põe as trilhas em fila. Isso trava as trilhas paralelas, contra a ordem do dono de manter o máximo de trilhas.
+A1 (resolvido): `scripts/indice-forge.py` não carrega mais o `bin/forge-testes`; a tabela tem só arquivo e primeira linha da doc, o cabeçalho não conta os arquivos e cita `bin/forge-testes --listar <arquivo>`. As guardas da coluna de testes saíram com os mutantes M11 a M14. A S1, refeita com o script do head gerado sobre os 16 últimos commits da develop (first-parent, a1674911..4182a6b9), dá 2 mudanças em 15 merges: 31b29052 (`hooks/_maquina.py` novo) e 71f280f2 (`bin/forge_disco.py` novo). As duas são da trilha que criou o arquivo, que é a medida que o remédio pedia. Os testes `test_tabela_so_com_arquivo_e_doc_e_sem_contagem` e `test_teste_novo_nao_muda_o_indice` prendem isso.
 
-Remédio (correção do autor, antes dos portões): o arquivo versionado fica só com o arquivo e a primeira linha da doc, sem a coluna Testes e sem a contagem no cabeçalho. Os testes de um arquivo já têm comando, `bin/forge-testes --listar <arquivo>`, que o cabeçalho cita e que o brief pode citar no lugar da coluna. Com isso, o índice só muda quando um arquivo entra, sai ou muda a primeira linha da doc, e isso cabe à trilha dona do arquivo (S1: 2 de 15, ambos na trilha que criou o arquivo). Junto, A2: o teste no plano dirigido da pasta deixa a trilha ver o índice vencido antes do envio. Se o arquiteto quiser manter a coluna, a alternativa é não versionar o índice e gerá-lo na hora do brief (segunda parte do H7). Isso muda a estrutura e fica com ele e comigo em ADR.
+A2 (resolvido, com desvio do remédio, e o desvio está certo): eu pedi o módulo em `VARREM_A_PASTA`, mas essa tabela só entra em `modulos_da_convencao` (`bin/forge-testes:328`). O arquivo com regra no `MAPA`, como o `bin/forge-check` do meu próprio exemplo, ou o `bin/forge-changelog`, nunca passa por ela. Meu remédio deixaria o caso do achado sem o teste. O `teste_do_indice` entra em `planejar` e em `planejar_afetados` para todo arquivo do primeiro nível das três pastas, seja qual for a regra, e só se a raiz tem `tests/test_indice_forge.py`. Um projeto ou uma raiz de teste sem o módulo segue dirigido sem ele, sem cair na suíte completa por módulo ausente. A guarda tem teste dos dois ramos (`test_o_plano_dirigido_das_pastas_roda_o_indice`, com subprocesso em `-I` e ambiente limpo, e `test_raiz_sem_o_teste_do_indice_segue_dirigida_sem_ele`) e o mutante M23. Os ajustes em `tests/test_testes_tocados.py` só somam o módulo novo aos planos esperados; a contagem de 99 do `forge-check` fica igual, com o módulo afirmado à parte.
 
-Revalidação: na volta, leio o delta de `scripts/indice-forge.py`, `docs/indice-forge.md`, `tests/test_indice_forge.py` e `bin/forge-testes` e a S1 refeita no head novo.
+Provas no head: `python3 -m unittest tests.test_indice_forge` dá 19 testes OK. Os três testes mudados de `test_testes_tocados` (`Mapa` e `MapaCobreOQueOsTestesLeem`) passam. `bin/forge-testes --listar bin/forge-check` traz o `test_indice_forge` (antes, 0), e `scripts/indice-forge.py --conferir` responde em dia. Não rodei o `bin/forge-mutante` do M23: a trava `R-TETO` tinha tarefa pesada de outra sessão na fila. A mutação é verificador do autor (V2), e a suíte inteira fica para o CI do PR.
