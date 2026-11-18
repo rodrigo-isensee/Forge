@@ -14,6 +14,7 @@ sys.path.insert(0, str(RAIZ / "tests"))
 import _maquina  # noqa: E402
 import agentes  # noqa: E402
 import pesado  # noqa: E402
+from ambiente_git import sem_manutencao  # noqa: E402
 from test_agentes_clone import montar_proc  # noqa: E402
 from test_maquina import Maquina  # noqa: E402
 
@@ -202,7 +203,8 @@ class NoHook(Base):
         """Review e segurança A1: o registro (MP2) e o teto (MP3) dão à worktree o nome e a pasta da cópia principal."""
         beta, wt = self.projeto("beta"), self.tmp / "wt-beta"
         for args in (("commit", "-q", "--allow-empty", "-m", "x"), ("worktree", "add", "-q", "--detach", str(wt))):
-            subprocess.run(["git", "-C", str(beta), *args], env=self.env, check=True, capture_output=True, timeout=60)
+            subprocess.run(["git", "-C", str(beta), *args], env=sem_manutencao(self.env), check=True, capture_output=True,
+                           timeout=60)
         (wt / ".forge").mkdir()
         (wt / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
         for raiz, sessao in ((self.alfa, "s1"), (wt, "s2")):
