@@ -34,7 +34,7 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TET
                     LIMITE_MENSAGEM, PLUGIN, PROFUNDIDADE, bloquear, comentarios,
                     construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, formas_que_o_shell_le, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, expandir_home, fora_da_gramatica_com_heredoc,
-                    expandir_heredoc, fora_da_gramatica_de_leitura, heredocs, motivo_da_reavaliacao,
+                    expandir_heredoc, fora_da_gramatica_de_leitura, FORMA_DO_HEREDOC, heredocs, motivo_da_reavaliacao,
                     forge_check, git, leituras, mensagem, nome_da_branch, nome_do_caminho, raiz_declarada, raiz_do_projeto, reavaliacao,
                     sem_atribuicoes, separar_lancadores, SHELLS, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
@@ -806,6 +806,16 @@ def opcoes_sem_exec(args):
         elif a.startswith("+"):
             return False
     return True
+
+
+def forma_aceita(achado):
+    """ADR 0011, item 2 (E3.50): a forma que o hook aceita no lugar da construção recusada, dita na mensagem da recusa."""
+    if achado.startswith("$"):
+        return (f"valor literal no lugar de {achado} (caminho, branch, log); "
+                "texto com $ só entre aspas simples: '${{ x }}'")
+    if achado == "heredoc":
+        return FORMA_DO_HEREDOC
+    return "branch literal, um comando por linha, sem # entre linhas, $, crase, chaves nem case"
 
 
 def so_leitura(linha):
@@ -1794,8 +1804,7 @@ class Guarda:
             if not self.leitura:
                 self.barrar("R-CONFORMIDADE", "aspas sem par na leitura do hook, # que ele não prova ser comentário ou "
                                               "<< que ele não prova ser heredoc: o hook não modela a linha",
-                            "feche as aspas, tire aspas e # do comentário, use heredoc só com <<'FIM' ou separe os "
-                            "comandos")
+                            f"feche as aspas, tire aspas e # do comentário, {FORMA_DO_HEREDOC}, ou separe os comandos")
             return
         if nivel == 0:
             self.ambiente = {}
@@ -1877,19 +1886,19 @@ class Guarda:
     def nao_modelada(self, achado):
         """ADR 0011, item 2: recusa a linha crítica com construção que o analisador não modela (`construcao_nao_modelada`)."""
         if achado is not None:
-            self.barrar("R-CONFORMIDADE", f"`{achado}` com ação crítica: o hook não modela",
-                        "branch literal, um comando por linha, sem # entre linhas, "
-                        "$, crase, chaves nem case; heredoc só <<'FIM'")
+            self.barrar("R-CONFORMIDADE", f"`{achado}` com ação crítica: o hook não modela", forma_aceita(achado))
 
     def gramatica_de_leitura(self, linha):
         """ADR 0011, item 1: antes de qualquer outra checagem, a linha do papel só de leitura precisa caber na gramática
         positiva (`fora_da_gramatica_de_leitura`). O que ela não modela (`$`, crase, `\\`, `#`, chaves, globs,
         redirecionamento, substituição, várias linhas) recusa, e a mensagem diz a forma explícita."""
         sinal = fora_da_gramatica_de_leitura(linha)
+        contorno = "um comando por chamada; sinais só entre aspas simples"
+        if sinal == "$":  # E3.50: a variável sai pelo valor literal, que a gramática aceita (cabe no LIMITE_MENSAGEM)
+            contorno = "caminho literal no lugar da variável (não F=x; cat $F)"
+        contorno += "; no lugar de echo $?: && echo contém || echo não contém"
         if sinal is not None:
-            self.barrar("R-CONFORMIDADE", f"`{sinal}` fora da gramática do papel só de leitura ({self.papel})",
-                        "um comando por chamada; sinais só entre aspas simples; "
-                        "no lugar de echo $?: && echo contém || echo não contém")
+            self.barrar("R-CONFORMIDADE", f"`{sinal}` fora da gramática do papel só de leitura ({self.papel})", contorno)
 
     def sugerir_na_linha(self, linha):
         """F6, lista branca estrita: a única linha com `sugerir` que passa é `forge sugerir --guardar "<texto>"` inteira, ou a
