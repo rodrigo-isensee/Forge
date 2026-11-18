@@ -1,0 +1,66 @@
+{
+ "pedido": "v0478-mutante-pulado",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "P1",
+   "guarda": "o pulo de um subTest (`<id> [<desc>]`) conta como pulo do teste declarado",
+   "arquivo": "bin/forge-mutante",
+   "de": "or e[\"id\"].startswith(d + \" \")",
+   "para": "or False",
+   "testes": [
+    "tests.test_forge_mutante.Veredito.test_teste_declarado_pulado_e_sem_veredito_e_nunca_sobreviveu"
+   ]
+  },
+  {
+   "id": "P2",
+   "guarda": "declarado que só foi pulado é sem veredito, não inválido",
+   "arquivo": "bin/forge-mutante",
+   "de": "return sem_veredito if pulado_de([declarado], registro) else (",
+   "para": "return sem_veredito if False else (",
+   "testes": [
+    "tests.test_forge_mutante.Veredito.test_teste_declarado_pulado_e_sem_veredito_e_nunca_sobreviveu"
+   ]
+  },
+  {
+   "id": "P3",
+   "guarda": "com pulo e sem morte, o veredito é sem veredito, nunca sobreviveu",
+   "arquivo": "bin/forge-mutante",
+   "de": "if pulados:  #",
+   "para": "if False:  #",
+   "testes": [
+    "tests.test_forge_mutante.Veredito.test_teste_declarado_pulado_e_sem_veredito_e_nunca_sobreviveu"
+   ]
+  },
+  {
+   "id": "P4",
+   "guarda": "o controle com teste pulado não é vermelho: o pulo decide-se no mutante",
+   "arquivo": "bin/forge-mutante",
+   "de": "resultado[0] in (\"sobreviveu\", \"sem veredito\")",
+   "para": "resultado[0] in (\"sobreviveu\",)",
+   "testes": [
+    "tests.test_forge_mutante.Execucao.test_teste_pulado_sai_2_sem_veredito_e_o_sobrevivente_segue_1"
+   ]
+  },
+  {
+   "id": "P5",
+   "guarda": "o equivalente declarado com teste pulado não vira equivalente nem inválido",
+   "arquivo": "bin/forge-mutante",
+   "de": "classe not in (\"inválido\", \"sem veredito\")",
+   "para": "classe != \"inválido\"",
+   "testes": [
+    "tests.test_forge_mutante.Execucao.test_teste_pulado_sai_2_sem_veredito_e_o_sobrevivente_segue_1"
+   ]
+  },
+  {
+   "id": "P6",
+   "guarda": "sem veredito sai 2, nunca 0",
+   "arquivo": "bin/forge-mutante",
+   "de": "\"sem veredito\": 2, \"sobreviveu\": 1}",
+   "para": "\"sobreviveu\": 1}",
+   "testes": [
+    "tests.test_forge_mutante.Execucao.test_teste_pulado_sai_2_sem_veredito_e_o_sobrevivente_segue_1"
+   ]
+  }
+ ]
+}
