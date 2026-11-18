@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-guardas-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M15",
+      "guarda": "no clone, o config vem da raiz da sessão, não da worktree",
+      "arquivo": "hooks/agentes.py",
+      "de": "    return declarada if e_clone_do_forge(hook.raiz) and e_clone_do_forge(declarada) else hook.raiz",
+      "para": "    return hook.raiz",
+      "testes": [
+        "tests.test_conformidade_verde.ConfigDaWorktreeNoClone.test_teto_da_worktree_nao_vale_com_a_sessao_no_clone"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "find lido como escritor",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif prog == \"find\":\n            self.find(",
+      "para": "        elif False:\n            self.find(",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "tar lido como escritor",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif prog == \"tar\":\n            destinos, arquivos",
+      "para": "        elif False:\n            destinos, arquivos",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "chmod, chown, chattr lidos como escritores",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif prog in MUDA_ATRIBUTO:",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "operando do chmod é escrita",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if not a.startswith(\"-\"):\n                    self.checar_escrita(a, pasta, parecer_conta=False)\n                    self.checar_remocao(a, pasta, f\"{prog} em\")",
+      "para": "                if a.startswith(\"-\"):\n                    self.checar_escrita(a, pasta, parecer_conta=False)\n                    self.checar_remocao(a, pasta, f\"{prog} em\")",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "opções do find antes dos pontos de partida",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        while i < len(args) and re.fullmatch(r\"-[HLP]|-D|-O\\d*\", args[i]):",
+      "para": "        while False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "pontos de partida do find",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        while i < len(args) and not re.match(r\"[-(!)]\", args[i]):",
+      "para": "        while False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "find -delete apaga os pontos de partida",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if a == \"-delete\":",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    }
+  ]
+}

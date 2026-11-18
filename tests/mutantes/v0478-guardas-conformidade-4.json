@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-guardas-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M23",
+      "guarda": "find -fprint grava no arquivo seguinte",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            elif a in FIND_GRAVA and j + 1 < len(expressao):",
+      "para": "            elif False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "find -exec roda o comando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            elif a in FIND_EXECUTA:",
+      "para": "            elif False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "tar --directory e --file longos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if nome in (\"directory\", \"file\"):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "valor da opção longa na palavra seguinte",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if not igual and i < len(args):",
+      "para": "                if False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "tar com letras sem hífen no primeiro argumento",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif re.fullmatch(r\"-[A-Za-z]+\", a) or (i == 1 and re.fullmatch(r\"[A-Za-z]+\", a)):",
+      "para": "        elif re.fullmatch(r\"-[A-Za-z]+\", a):",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "valores de f e C agrupados",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if i < len(args):\n                    (arquivos if letra",
+      "para": "                if False:\n                    (arquivos if letra",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "tar --extract extrai",
+      "arquivo": "hooks/conformidade.py",
+      "de": "extrai = \"x\" in letras or bool(longas & {\"extract\", \"get\"})",
+      "para": "extrai = \"x\" in letras",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "tar -c grava o arquivo de -f",
+      "arquivo": "hooks/conformidade.py",
+      "de": "grava = bool(letras & set(\"cruA\") or longas & TAR_GRAVA)",
+      "para": "grava = False",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    }
+  ]
+}

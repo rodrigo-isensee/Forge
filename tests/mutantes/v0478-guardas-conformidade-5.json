@@ -1,0 +1,36 @@
+{
+  "pedido": "v0478-guardas-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M31",
+      "guarda": "extração sem -C vai à pasta corrente",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return (pastas or [\".\"]) if extrai else []",
+      "para": "return pastas if extrai else []",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "o arquivo de -f só é escrita nos modos que gravam",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if a != \"-\"] if grava else []",
+      "para": "if a != \"-\"]",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_find_tar_e_chmod_fora_do_estado_seguem_livres"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "a mesma raiz não consulta o clone (C7)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if declarada is None or os.path.realpath(declarada) == os.path.realpath(hook.raiz):\n        return hook.raiz",
+      "para": "    if declarada is None:\n        return hook.raiz",
+      "testes": [
+        "tests.test_conformidade_verde.ConfigDaWorktreeNoClone.test_sessao_e_pasta_corrente_na_mesma_raiz_nao_consultam_o_clone"
+      ]
+    }
+  ]
+}

@@ -896,6 +896,12 @@ UM_ATO_SIMPLES = re.compile(r"\s*git\s+(reset|clean|checkout|restore)(\s+[^\s;&|
 ATO_FORA_DA_COPIA = re.compile(r"(^|\s)(-C|--work-tree|--git-dir|--work-tree=\S*|--git-dir=\S*)(\s|$)|GIT_DIR|GIT_WORK_TREE|\b(cd|pushd)\b")
 REBASE_COM_VALOR = {"--onto", "-s", "--strategy", "-X", "--strategy-option", "-x", "--exec", "-C"}
 REMOCAO = {"rm", "mv", "rmdir", "unlink", "shred"}
+# A2 da segurança (v0478; C9 de docs/security/v047-v2-ameacas.md): comandos que escrevem ou removem por opção. O modo, o dono
+# e os atributos mudam o acesso ao alvo e, com `-R`, ao que há dentro: escrita nos operandos e remoção do ancestral.
+MUDA_ATRIBUTO = {"chmod", "chown", "chgrp", "setfacl", "chattr"}
+FIND_EXECUTA = {"-exec", "-execdir", "-ok", "-okdir"}  # roda o comando até `;` ou `+`, com `{}` trocado pelo achado
+FIND_GRAVA = {"-fprint", "-fprint0", "-fprintf", "-fls"}  # grava no arquivo seguinte
+TAR_GRAVA = {"create", "append", "update", "concatenate", "catenate", "delete"}  # modos que gravam no arquivo de `-f`
 
 # Papel só de leitura: o `git ls-remote` aceita só estas opções (`--upload-pack`, `-u` e `--exec` rodam um programa num
 # shell); nos demais subcomandos da lista, a opção que executa programa ou grava arquivo recusa, mesmo abreviada.
@@ -1029,6 +1035,33 @@ def script_do_sed(arg):
         return arg.split("=", 1)[1]
     colado = re.match(r"-[a-zA-Z]*e(.+)", arg) if not arg.startswith("--") else None
     return colado.group(1) if colado else "" if arg.startswith("-") else arg
+
+
+def alvos_do_tar(args):
+    """A2 da segurança (v0478): (pastas em que o `tar` extrai, arquivos que ele grava). Extração (`-x`, `xf`, `--extract`,
+    `--get`): as pastas de `-C`/`--directory`, ou a corrente. Criação, acréscimo e atualização (`-c`, `-r`, `-u`, `-A`,
+    `--create`, `--delete`...): o arquivo de `-f`/`--file`. Opções curtas agrupadas (`-xzf a.tar`, `xfC a.tar d`) tomam os
+    valores de `f` e `C` na ordem. Na dúvida sobre o modo, não grava (o resto da linha segue as outras regras)."""
+    letras, longas, pastas, arquivos = set(), set(), [], []
+    i = 0
+    while i < len(args):
+        a, i = args[i], i + 1
+        if a.startswith("--"):
+            nome, igual, valor = a[2:].partition("=")
+            longas.add(nome)
+            if nome in ("directory", "file"):
+                if not igual and i < len(args):
+                    valor, i = args[i], i + 1
+                (pastas if nome == "directory" else arquivos).append(valor)
+        elif re.fullmatch(r"-[A-Za-z]+", a) or (i == 1 and re.fullmatch(r"[A-Za-z]+", a)):
+            letras |= set(a.lstrip("-"))
+            for letra in (c for c in a if c in "fC"):
+                if i < len(args):
+                    (arquivos if letra == "f" else pastas).append(args[i])
+                    i += 1
+    extrai = "x" in letras or bool(longas & {"extract", "get"})
+    grava = bool(letras & set("cruA") or longas & TAR_GRAVA)
+    return (pastas or ["."]) if extrai else [], [a for a in arquivos if a != "-"] if grava else []
 
 
 def sed_no_lugar(args):
@@ -1701,7 +1734,31 @@ class Guarda:
                         return False
         return True
 
-    def checar_remocao(self, caminho, pasta):
+    def find(self, args, pasta, nivel, atribuicoes):
+        """A2 da segurança (v0478): o `find` escreve por opção. `-delete` apaga os pontos de partida e o que há dentro (escrita
+        e remoção do ancestral, como o `rm -r`; a raiz fica de fora, como no `rm`); `-exec`, `-execdir`, `-ok` e `-okdir`
+        rodam o comando com `{}` trocado por cada ponto de partida; `-fprint*` e `-fls` gravam no arquivo seguinte."""
+        i = 0
+        while i < len(args) and re.fullmatch(r"-[HLP]|-D|-O\d*", args[i]):
+            i += 2 if args[i] == "-D" else 1
+        partidas = []
+        while i < len(args) and not re.match(r"[-(!)]", args[i]):
+            partidas.append(args[i])
+            i += 1
+        partidas, expressao = partidas or ["."], args[i:]
+        for j, a in enumerate(expressao):
+            if a == "-delete":
+                for p in partidas:
+                    self.checar_escrita(p, pasta, parecer_conta=False)
+                    self.checar_remocao(p, pasta)
+            elif a in FIND_GRAVA and j + 1 < len(expressao):
+                self.checar_escrita(expressao[j + 1], pasta)
+            elif a in FIND_EXECUTA:
+                fim = next((k for k in range(j + 1, len(expressao)) if expressao[k] in (";", "+")), len(expressao))
+                for p in partidas:
+                    self.aninhado(shlex.join(c.replace("{}", p) for c in expressao[j + 1:fim]), pasta, nivel, atribuicoes)
+
+    def checar_remocao(self, caminho, pasta, ato="apagar"):
         """`rm -rf .forge`, `rm -r .githooks`: apagar a pasta que contém um caminho protegido sem dono (a instalação) é
         o mesmo que apagar o arquivo. A raiz do projeto e as pastas acima dela ficam de fora (`rm` de worktree).
         `$PWD` e `$CLAUDE_PROJECT_DIR` são expandidos; outra variável antes de uma pasta protegida (`$X/.forge`) não
@@ -1724,7 +1781,8 @@ class Guarda:
             for dentro in ([home, *fora] if c.startswith("~/") else raizes):
                 protegido = home / c[2:] if c.startswith("~/") else dentro / c
                 if alvo != dentro and dentro in alvo.parents and alvo in Path(os.path.realpath(protegido)).parents:
-                    self.barrar("R-CONFORMIDADE", f"apagar {alvo.name}/ apaga {c}: {e['motivo']}",
+                    self.barrar("R-CONFORMIDADE", f"{ato} {alvo.name}/ {'apaga' if ato == 'apagar' else 'alcança'} {c}: "
+                                f"{e['motivo']}",
                                 f"só o usuário altera; proponha o diff (R-DECISAO); {SUGESTAO}", "instalacao")
 
     def checar_texto(self, texto):
@@ -2167,6 +2225,20 @@ class Guarda:
             for a in args:
                 if a.startswith("of="):
                     self.checar_escrita(a[3:], pasta)
+        elif prog == "find":
+            self.find(args, pasta, nivel, atribuicoes)
+        elif prog == "tar":
+            destinos, arquivos = alvos_do_tar(args)
+            for a in arquivos:
+                self.checar_escrita(a, pasta)
+            for d in destinos:
+                self.checar_escrita(d, pasta, parecer_conta=False)
+                self.checar_remocao(d, pasta, "extrair em")
+        elif prog in MUDA_ATRIBUTO:
+            for a in args:
+                if not a.startswith("-"):
+                    self.checar_escrita(a, pasta, parecer_conta=False)
+                    self.checar_remocao(a, pasta, f"{prog} em")
         elif prog in self.pol["pacotes"]:
             self.pacote(prog, args)
         if prog in ("cp", "mv", "install", "ln"):  # A9, U3: depois das regras do destino e do link
@@ -3574,7 +3646,7 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
 # HOOK-ERRO-LIBERA (C2, C3): a linha que escreve, para o marcador da falha fechada. Lê a mais de propósito: só pesa em erro
 # interno ou prazo vencido, e aí a dúvida recusa. Os verbos do git que gravam arquivo vêm das listas da guarda normal (A1).
 ESCRITORES = (TODOS_OS_ARGUMENTOS | SO_DESTINO | REMOCAO | CAMINHOS_NO_GIT | GIT_GRAVA_ARQUIVO
-              | {"ln", "chmod", "truncate", "touch", "unlink", "shred", "rmdir"})
+              | {"ln", "chmod", "truncate", "touch", "unlink", "shred", "rmdir", "find", "tar"} | MUDA_ATRIBUTO)
 ESCREVE_NA_LINHA = re.compile(ESCRITA_NA_LINHA.pattern + r"|\b(?:" + "|".join(sorted(map(re.escape, ESCRITORES))) + r")\b")
 ALVO_OPACO = re.compile(r"[$`]|<\(")  # C3: substituição, crase, variável ou `<(`: o hook não sabe o destino
 # A2: a troca da pasta de base (`cd`, `pushd`, `popd`, `-C`, `--chdir`, `--git-dir`, `--work-tree`, `GIT_DIR`,

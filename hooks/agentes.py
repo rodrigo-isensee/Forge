@@ -10,7 +10,8 @@ ou as decisões do pedido mudaram, só avisa (`systemMessage` e stderr, código 
 
 O teto é adaptativo (nproc, load de 1 min e memória lidos de /proc; fallback 3) e `teto_agentes` em
 .forge/config.json o fixa; `teto_maximo` limita o adaptativo. No clone do Forge, a conformidade barra a escrita nesse arquivo
-da raiz da sessão para todo papel (CONFIG-TETO-SEM-GUARDA, v0478): o agente não sobe o próprio teto.
+da raiz da sessão para todo papel (CONFIG-TETO-SEM-GUARDA, v0478), e o hook lê o dessa raiz, não o da
+worktree da pasta corrente (A1 da segurança, `pasta_da_config`): o agente não sobe o próprio teto.
 PreToolUse (Agent/Task): bloqueia qualquer disparo com MemAvailable <= o piso de memória (padrão 2 GB; `piso_memoria_gb` em
 .forge/config.json o muda), sem trava por load (R-TETO, decisão do dono R-TETO-DISPONIBILIDADE de 2026-11-06 14:26);
 bloqueia também se já há o teto de agentes ativos ou um ativo com o mesmo tipo e descrição;
@@ -68,7 +69,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from _comum import (LIMITE_LOG, RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check,
-                    gravar_json, ler_json, ler_projetos_ativos, mensagem)
+                    gravar_json, ler_json, ler_projetos_ativos, mensagem, raiz_declarada)
 import _maquina
 from pesado import CASCAS, TRAVA_S, pid_da_sessao, pid_vivo
 
@@ -154,6 +155,24 @@ def ritmo_valido(valor):
     chave = valor.strip().lower()
     chave = APELIDOS_DO_RITMO.get(chave, chave)
     return chave if chave in RITMOS else None
+
+
+def pasta_da_config(hook):
+    """A1 da segurança (v0478): no clone do Forge, a configuração (teto, piso, ritmo, peso) vem da raiz da sessão, o
+    `.forge/config.json` que a conformidade guarda; o da worktree da pasta corrente, que um subagente escreve, não vale."""
+    declarada = raiz_declarada()
+    if declarada is None or os.path.realpath(declarada) == os.path.realpath(hook.raiz):
+        return hook.raiz  # a mesma pasta: nada a decidir (e o erro de `e_clone_do_forge` fica com quem fixa o estado, C7)
+    return declarada if e_clone_do_forge(hook.raiz) and e_clone_do_forge(declarada) else hook.raiz
+
+
+def ler_config(hook):
+    """`hook.config()` lido de `pasta_da_config`; o `hook.raiz` (estado e briefs) não muda."""
+    raiz, hook.raiz = hook.raiz, pasta_da_config(hook)
+    try:
+        return hook.config()
+    finally:
+        hook.raiz = raiz
 
 
 def ritmo_do_projeto(raiz):
@@ -242,7 +261,7 @@ class Maquina:
     def __init__(self, hook, agora):
         (self.nome, self.proprio), self.agora = _maquina.identidade(hook), agora
         try:
-            dados = json.loads((Path(hook.raiz) / ".forge" / "config.json").read_text(encoding="utf-8"))
+            dados = json.loads((Path(pasta_da_config(hook)) / ".forge" / "config.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
             dados = {}
         self.peso = peso_valido(dados.get("peso") if isinstance(dados, dict) else None)
@@ -1089,7 +1108,7 @@ def lancar(hook, agentes, agora, lidos):
                                    "(MP5: só vale com um projeto ativo); feche a sessão de outro projeto ou espere memória liberar.")
             bloquear("R-TETO", f"memória baixa ({memoria:.1f} GB disponíveis; piso {piso:.1f} GB, `piso_memoria_gb` em .forge/config.json): "
                                "nenhum agente novo; espere memória liberar; só o dono: FORGE_CARGA_LIVRE=1.")
-    teto, motivo = calcular_teto(hook.config(), ritmo=ritmo_do_projeto(hook.raiz))
+    teto, motivo = calcular_teto(hook.config(), ritmo=ritmo_do_projeto(pasta_da_config(hook)))
     if len(agentes) >= teto:
         registrar_recusa(hook, "teto", {"mem_gb": memoria, "nproc": nproc, "ativos": len(agentes)})
         bloquear("R-TETO", f"{len(agentes)} agentes ativos, teto {teto} ({motivo}); "
@@ -1140,7 +1159,7 @@ def principal(hook):
     try:  # A3 (R5): a configuração ilegível (o `hooks_desligados` e o teto saem dela) não desliga o teto
         raiz = hook.projeto(hook.cwd(), clone_do_forge=True)
         if raiz is not None:
-            hook.config()
+            ler_config(hook)
     except Exception as erro:  # noqa: BLE001 - HOOK-ESTADO-ILEGIVEL-LIBERA: sem a configuração, o disparo não sai
         hook.registrar_erro(erro)
         recusar_ilegivel(evento, CONFIG_ILEGIVEL)

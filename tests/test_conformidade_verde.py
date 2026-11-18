@@ -308,14 +308,14 @@ class CloneDoForge(unittest.TestCase):
 
 
 class EstadoDoAgentesNoClone(CloneDoForge):
-    def test_escrita_remocao_e_link_no_estado_recusam_para_todo_papel(self):  # J1 a J11, J13 a J15
+    def test_escrita_remocao_e_link_no_estado_recusam_para_todo_papel(self):  # J1 a J15 (C9)
         absoluto = str(self.estado)
         comandos = ("echo '{}' > .git/forge/run/agentes.json", "rm .git/forge/run/agentes.json", "rm -rf .git/forge",
                     "mv .git/forge/run /tmp/r", "python3 -c \"open('.git/forge/run/agentes.json','w')\"",
                     "cd .git/forge/run && : > agentes.json", "ln .git/forge/run/agentes.json h",
                     "ln -sf /dev/null .git/forge/run/agentes.json", "truncate -s0 .git/forge/run/agentes.json",
                     "d=.git/forge/run; echo x > $d/agentes.json", f"echo x > {absoluto}",
-                    "echo a >> .git/forge/run/autoria.jsonl", "rm -rf .git")
+                    "echo a >> .git/forge/run/autoria.jsonl", "rm -rf .git", "chmod 000 .git/forge/run/agentes.json")
         for papel in PAPEIS_DO_CLONE:  # a lista inteira para o tech-lead e o jarvis; para os outros, escrita e remoção
             for c in comandos if papel in ("forge:tech-lead", "forge:jarvis") else comandos[:2]:
                 self.recusa(self.rodar("Bash", {"command": c}, papel), f"{papel}: {c}")
@@ -323,6 +323,27 @@ class EstadoDoAgentesNoClone(CloneDoForge):
             self.recusa(self.rodar("Edit", {"file_path": absoluto, "old_string": "[]", "new_string": "[1]"}, papel),
                         f"{papel}: Edit")
         self.assertEqual(self.estado.read_text(encoding="utf-8"), '{"agentes": []}')
+
+    def test_comando_que_escreve_ou_remove_por_opcao_recusa(self):  # A2 da segurança (v0478): S4 a S8
+        (self.clone / "docs").mkdir()
+        comandos = ("find .git/forge -delete", "find .git -name agentes.json -delete", "find -L .git/forge/run -delete",
+                    "find docs -exec rm .git/forge/run/agentes.json \\;", "find .git/forge/run -exec rm {} +",
+                    "find docs -fprint .git/forge/run/agentes.json", "tar -xf docs/a.tar -C .git/forge/run",
+                    "tar --extract --file docs/a.tar --directory=.git", "tar --extract --file docs/a.tar --directory .git/forge",
+                    "cd .git/forge/run && tar xf ../../../docs/a.tar",
+                    "tar -cf .git/forge/run/agentes.json docs", "chmod 000 .git/forge/run/agentes.json",
+                    "chmod -R 000 .git/forge", "chown nobody .git/forge/run/agentes.json", "chattr +i .git/forge/run")
+        for papel in ("forge:tech-lead", "forge:jarvis"):
+            for c in comandos:
+                self.recusa(self.rodar("Bash", {"command": c}, papel), f"{papel}: {c}")
+        self.assertEqual(self.estado.read_text(encoding="utf-8"), '{"agentes": []}')
+
+    def test_find_tar_e_chmod_fora_do_estado_seguem_livres(self):  # o ato por opção só conta no alvo; a raiz, como no `rm`, fica de fora
+        (self.clone / "docs").mkdir()
+        for c in ("find . -name '*.py'", "find docs -name x -delete", "find . -name x -exec grep y {} +",
+                  "find .git/forge -name '*.json'", "tar -xf docs/a.tar -C docs", "tar -tf docs/a.tar",
+                  "tar -cf docs/a.tar .git/forge", "tar -xf .git/forge/a.tar -C docs", "chmod +x docs/a.sh", "find . -name x -delete"):
+            self.libera(self.rodar("Bash", {"command": c}), c)
 
     def test_de_fora_do_clone_pelo_caminho_absoluto_recusa(self):  # J12: pasta corrente fora do clone
         fora = self.tmp / "fora"
@@ -378,6 +399,11 @@ class ConfigDoTetoNoClone(CloneDoForge):
                         f"{papel}: Edit")
         self.assertEqual(self.config.read_text(encoding="utf-8"), '{"teto_agentes": 2}\n')
 
+    def test_find_tar_e_chmod_no_config_da_raiz_recusam(self):  # A2 da segurança (v0478): S7
+        for c in ("find .forge -delete", "tar -xf docs/a.tar -C .forge", "chmod 000 .forge/config.json"):
+            for papel in ("forge:tech-lead", "forge:jarvis"):
+                self.recusa(self.rodar("Bash", {"command": c}, papel), f"{papel}: {c}")
+
     def test_linha_que_o_hook_nao_le_e_cita_o_config_recusa(self):  # C10 estendido ao config da raiz
         c = ": " + "a " * 5001 + "; echo '{}' > .forge/config.json"
         self.recusa(self.rodar("Bash", {"command": c}), "teto de palavras com o config")
@@ -389,3 +415,55 @@ class ConfigDoTetoNoClone(CloneDoForge):
             self.libera(self.rodar("Write", {"file_path": str(alvo), "content": "{}"}), str(alvo))
             self.libera(self.rodar("Bash", {"command": f"echo '{{}}' > {alvo}"}), f"echo em {alvo}")
         self.libera(self.rodar("Bash", {"command": "cat .forge/config.json"}), "leitura")
+
+
+class ConfigDaWorktreeNoClone(CloneDoForge):
+    """A1 da segurança (v0478, S1 a S3): o hook `agentes` lia o `.forge/config.json` da cópia da pasta corrente, e a
+    worktree do clone (sem guarda) subia o teto. No clone, o hook lê o da raiz da sessão, o mesmo que a conformidade guarda."""
+    LEITOR = ("import sys; sys.path.insert(0, sys.argv[1]); import agentes; from _comum import Hook; h = Hook('agentes'); "
+              "h.projeto(sys.argv[2], clone_do_forge=True); c = agentes.ler_config(h); "
+              "print(c['teto_agentes'], c['piso_memoria_gb'], agentes.ritmo_do_projeto(agentes.pasta_da_config(h)), "
+              "agentes.Maquina(h, 0).peso)")
+
+    def setUp(self):
+        super().setUp()
+        (self.clone / ".forge").mkdir()
+        (self.clone / ".forge" / "config.json").write_text('{"teto_agentes": 2}\n', encoding="utf-8")
+        git = ["git", "-C", str(self.clone), "-c", "user.name=t", "-c", "user.email=t@t"]
+        subprocess.run([*git, "add", ".claude-plugin"], check=True, env=self.env(), capture_output=True, timeout=60)
+        subprocess.run([*git, "commit", "-qm", "x"], check=True, env=self.env(), capture_output=True, timeout=60)
+        self.wt = self.tmp / "wt"
+        subprocess.run([*git, "worktree", "add", "-q", str(self.wt)], check=True, env=self.env(), capture_output=True, timeout=60)
+        (self.wt / ".forge").mkdir()
+        (self.wt / ".forge" / "config.json").write_text(
+            '{"teto_agentes": 99, "piso_memoria_gb": 0.1, "ritmo": "acelerado", "peso": 10}\n', encoding="utf-8")
+
+    def ler(self, sessao):
+        r = subprocess.run([sys.executable, "-I", "-c", self.LEITOR, str(HOOKS_DO_CLONE), str(self.wt)], cwd=self.wt,
+                           capture_output=True, text=True, timeout=60, env={**self.env(), "CLAUDE_PROJECT_DIR": str(sessao)})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout.split()
+
+    def test_teto_da_worktree_nao_vale_com_a_sessao_no_clone(self):
+        self.assertEqual(self.ler(self.clone), ["2", "2.0", "equilibrado", "1.0"])
+
+    def test_sessao_na_worktree_le_o_config_dela(self):  # a raiz da sessão é a worktree: a conformidade guarda esse
+        self.assertEqual(self.ler(self.wt), ["99", "0.1", "acelerado", "10.0"])
+
+    def test_escrita_no_config_da_worktree_com_a_sessao_nela_recusa(self):
+        c = "echo '{\"teto_agentes\": 99}' > .forge/config.json"
+        dados = {"tool_name": "Bash", "tool_input": {"command": c}, "hook_event_name": "PreToolUse", "agent_type": "forge:tech-lead"}
+        r = subprocess.run([sys.executable, "-I", "-c", LANCADOR_DO_CLONE, str(HOOKS_DO_CLONE), str(HOOKS_DO_CLONE / "conformidade.py")],
+                           input=json.dumps(dados), cwd=self.wt, capture_output=True, text=True, timeout=120,
+                           env={**self.env(), "CLAUDE_PROJECT_DIR": str(self.wt)})
+        self.recusa(r, c)
+
+    def test_sessao_e_pasta_corrente_na_mesma_raiz_nao_consultam_o_clone(self):
+        # C7 (HOOK-ERRO-LIBERA): o erro de `e_clone_do_forge` fica com quem fixa o estado, depois do R-BRIEF; a leitura do
+        # config com a mesma raiz não o antecipa como "configuração ilegível".
+        codigo = ("import sys; sys.path.insert(0, sys.argv[1]); import agentes; from _comum import Hook\n"
+                  "def erro(_):\n    raise OSError('erro forcado')\n"
+                  "agentes.e_clone_do_forge = erro; h = Hook('agentes'); h.raiz = sys.argv[2]; print(agentes.pasta_da_config(h))")
+        r = subprocess.run([sys.executable, "-I", "-c", codigo, str(HOOKS_DO_CLONE), str(self.wt)], cwd=self.wt,
+                           capture_output=True, text=True, timeout=60, env={**self.env(), "CLAUDE_PROJECT_DIR": str(self.wt)})
+        self.assertEqual((r.returncode, r.stdout.strip()), (0, str(self.wt)), r.stderr)
