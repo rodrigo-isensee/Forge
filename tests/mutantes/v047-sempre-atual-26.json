@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S121",
+      "guarda": "forge_sempre_atual.py:691 decide por `self.projeto or self.neutro`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "projeto = e[\"projeto\"] if e[\"projeto\"] and os.path.isdir(e[\"projeto\"]) else (self.projeto or self.neutro)",
+      "para": "projeto = e[\"projeto\"] if e[\"projeto\"] and os.path.isdir(e[\"projeto\"]) else (not (self.projeto or self.neutro))",
+      "testes": [
+        "tests.test_sempre_atual.VoltaDentro.test_cada_item_da_checagem_de_inicio_reprova"
+      ]
+    },
+    {
+      "id": "S122",
+      "guarda": "forge_sempre_atual.py:694 decide por `not (ok1 and ok2)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not (ok1 and ok2):",
+      "para": "if (ok1 and ok2):",
+      "testes": [
+        "tests.test_sempre_atual.VoltaDentro.test_cada_item_da_checagem_de_inicio_reprova"
+      ]
+    },
+    {
+      "id": "S123",
+      "guarda": "forge_sempre_atual.py:696 decide por `p not in antes`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "novos = [p for p in depois if p not in antes]",
+      "para": "novos = [p for p in depois if not (p not in antes)]",
+      "testes": [
+        "tests.test_sempre_atual.VoltaDentro.test_cada_item_da_checagem_de_inicio_reprova"
+      ]
+    },
+    {
+      "id": "S124",
+      "guarda": "forge_sempre_atual.py:697 decide por `novos`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if novos:",
+      "para": "if not (novos):",
+      "testes": [
+        "tests.test_sempre_atual.VoltaDentro.test_cada_item_da_checagem_de_inicio_reprova"
+      ]
+    },
+    {
+      "id": "S125",
+      "guarda": "forge_sempre_atual.py:709 decide por `e[\"chave\"] in self.res and not self.res[e[\"chave\"]][\"resultado\"].start`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if e[\"chave\"] in self.res and not self.res[e[\"chave\"]][\"resultado\"].startswith(\"em_dia\"):",
+      "para": "if not (e[\"chave\"] in self.res and not self.res[e[\"chave\"]][\"resultado\"].startswith(\"em_dia\")):",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_adocao_sem_ultima_boa_so_confere_o_local"
+      ]
+    },
+    {
+      "id": "S126",
+      "guarda": "forge_sempre_atual.py:712 decide por `isinstance(bom, dict)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "bom = bom if isinstance(bom, dict) else None",
+      "para": "bom = bom if not (isinstance(bom, dict)) else None",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_fixacao_gravada_antes_de_mexer_no_catalogo"
+      ]
+    },
+    {
+      "id": "S127",
+      "guarda": "forge_sempre_atual.py:713 decide por `bom and bom.get(\"versao\") == e[\"versao\"]`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if bom and bom.get(\"versao\") == e[\"versao\"]:",
+      "para": "if not (bom and bom.get(\"versao\") == e[\"versao\"]):",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_adocao_sem_ultima_boa_so_confere_o_local"
+      ]
+    },
+    {
+      "id": "S128",
+      "guarda": "forge_sempre_atual.py:716 decide por `ok`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "ok, item = self.cini(e, bom, completa=bool(bom))\n            if ok:\n                self.registrar_boa(e)",
+      "para": "ok, item = self.cini(e, bom, completa=bool(bom))\n            if not (ok):\n                self.registrar_boa(e)",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    }
+  ]
+}
