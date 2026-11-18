@@ -1,0 +1,86 @@
+{
+  "pedido": "v0474-merge-checks",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o previo nao consulta o gh nem reprova (E3.45)",
+      "arquivo": "bin/forge-check",
+      "de": "if previo or branch in BASES_DO_FLUXO or not branch:  # o pré-voo",
+      "para": "if branch in BASES_DO_FLUXO or not branch:  # o pré-voo",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_previo_e_branch_do_fluxo_nao_consultam_o_gh"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "rascunho nao confere os checks (E3.45)",
+      "arquivo": "bin/forge-check",
+      "de": "or pr.get(\"isDraft\") is not False:",
+      "para": ":",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_rascunho_nao_confere"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "outro head nao confere os checks (E3.45)",
+      "arquivo": "bin/forge-check",
+      "de": "if pr.get(\"headRefOid\") != sha_do_commit(raiz, ref or \"HEAD\"):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_outro_head_nao_confere"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "sem checks no PR nao e falha de leitura (E3.45)",
+      "arquivo": "bin/forge-check",
+      "de": "if lidos is None and \"no checks reported\" in erro:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_sem_checks_no_projeto_aprova"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "checks nao lidos reprovam (E3.45)",
+      "arquivo": "bin/forge-check",
+      "de": "if not isinstance(lidos, list) or not all(isinstance(c, dict) for c in lidos):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_checks_nao_lidos_reprova"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "pendente reprova (E3.45)",
+      "arquivo": "bin/forge-check",
+      "de": "if c.get(\"bucket\") not in (\"pass\", \"skipping\")]",
+      "para": "if c.get(\"bucket\") not in (\"pass\", \"skipping\", \"pending\")]",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_pendente_reprova_com_a_lista"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "exigido fora de pass reprova (E3.45)",
+      "arquivo": "bin/forge-check",
+      "de": "if not dele or any(c.get(\"bucket\") != \"pass\" for c in dele):",
+      "para": "if not dele:",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_exigido_da_protecao_em_skipping_reprova"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "com a lista vazia aprova (E3.45)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not ruins:\n        return []\n    return [f\"pr: checks do head",
+      "para": "    if ruins:\n        return []\n    return [f\"pr: checks do head",
+      "testes": [
+        "tests.test_forge_check_pr.ChecksDoHead.test_projeto_tudo_verde_e_skipping_aprova"
+      ]
+    }
+  ]
+}
