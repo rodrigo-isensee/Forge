@@ -12,7 +12,6 @@ Medida: 27 de 52 bloqueantes dos pareceres eram defeito provado; 4 escapes (estu
 - A suíte completa roda no CI do PR, obrigatório para o merge; o QA cita o `run` como prova. Local, os cenários do QA, sem rerrodar o SHA.
 - O parecer de QA fica em `docs/qa/<pedido>.md`: cenários, resultado real, bugs abertos. O teste que o QA escreve entra pela volta do autor ou num commit de teste; ele não reabre o review.
 - Documentação não passa por QA, só o código que a verifica.
-- Código mudado sem teste mudado ou novo (T1, classes N e C) barra o PR na catraca do CI, salvo `## Sem teste` no corpo do PR com cada arquivo e o motivo; o review confere o mérito.
 - Guarda mudada em código de controle (classe C) pede mutante em `tests/mutantes/` no próprio diff (catraca do CI).
 - Bug bloqueante, crítico ou alto bloqueia a entrega e nunca segue aberto (ou vai ao usuário como decisão). Médio e baixo viram cartão no quadro, sem aceite do usuário caso a caso (BUR-B4).
 - No máximo 3 voltas por bug; na 3.ª reprovação, o Jarvis leva a decisão ao usuário.
