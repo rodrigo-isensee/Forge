@@ -3,20 +3,28 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-devops-lote
-commit: f9356caf6fe937fd9d16d11e11c3d4588e4433e7
+commit: f00c3da26d6be9051f14ad0b1cfad212b41998b4
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-18
 ---
-# Review: v0478 (E6.7, revalidação do lote de devops)
-
-## Achados
-- A5 (recomendado) scripts/preparar-estacao.sh:98 · as guardas novas das linhas 98 (`elif install` do binário solto) e 99 (`if [ "$ok" = 1 ]`) ficaram sem mutante declarado; o M3 cobre só o ramo do tar. Declare um mutante por linha e um teste da falha do `install` sem tar.
+# Review: v0478 (E6.11, revalidação do lote de devops)
 
 ## Sondas
 
 ## Parecer
-Aprovado. Revalidação por delta (H3, R-REVIEW): li só `forge-check parecer delta docs/reviews/v0478-devops-lote.md`, intervalo d50b9cd0..f9356caf, domínio código e testes: agents/devops-engineer.md, changelog.d/v0478-devops-lote.md, scripts/preparar-estacao.sh, skills/ci-cd/SKILL.md, tests/mutantes/v0478-devops-lote.json, tests/test_ferramentas_portoes.py.
+Aprovado. Revalidação E6.11 por delta (H3, R-REVIEW): li só `forge-check parecer delta docs/reviews/v0478-devops-lote.md`, intervalo f9356caf..f00c3da2, domínio código e testes: tests/mutantes/v0478-devops-lote.json, tests/test_ferramentas_portoes.py.
+
+- A5 corrigido: test_falha_do_install_sem_tar_vira_falta_e_nao_grava_instalou roda o script com `install` falso que sai 1 no binário solto e afirma `falta:`, ausência de "instalou" e de arquivo (teste de comportamento, não lê a fonte); M5 (:98, `else ok=1`) e M6 (:99, `if true`) declarados, um por linha.
+
+Provas rodadas no clone (head f00c3da2):
+- `python3 -m unittest tests.test_ferramentas_portoes.FerramentasDosPortoes.test_falha_do_install_sem_tar_vira_falta_e_nao_grava_instalou`: 1 teste, OK.
+- `bin/forge-mutante --processos 1 tests/mutantes/v0478-devops-lote.json`: M1 (:90), M2 (:92), M3 (:97), M4 (:112), M5 (:98), M6 (:99) morreram.
+
+Suíte inteira: só no CI do PR (ainda sem PR).
+
+### Revalidação anterior (E6.7, head f9356caf)
+Revalidação por delta (H3, R-REVIEW): li só `forge-check parecer delta docs/reviews/v0478-devops-lote.md`, intervalo d50b9cd0..f9356caf, domínio código e testes: agents/devops-engineer.md, changelog.d/v0478-devops-lote.md, scripts/preparar-estacao.sh, skills/ci-cd/SKILL.md, tests/mutantes/v0478-devops-lote.json, tests/test_ferramentas_portoes.py.
 
 Achados do parecer anterior (head d50b9cd0):
 - A1 corrigido: agents/devops-engineer.md:16 volta a ter "junte os commits" e "comando local verde" (R-CUSTO); tests.test_textos_ci_custo passa.
