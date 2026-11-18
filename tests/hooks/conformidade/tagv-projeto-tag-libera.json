@@ -1,0 +1,23 @@
+{
+  "descricao": "V0474-TAG: fora do Forge, o projeto cria e envia a tag dele; a trava é só do repositório do Forge.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git tag v1.0.0 && git push origin v1.0.0"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

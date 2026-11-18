@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Forge: traz um projeto para a versão atual do plugin (ADR 0005). Rode NO projeto, quando quiser.
-Uso: forge-upgrade [--simular] [--ate VERSAO] [--apagar-mesclada] [DIRETORIO]
+Uso: forge-upgrade [--simular] [--ate VERSAO] [--apagar-mesclada] [--base REF] [DIRETORIO]
      forge-upgrade --ligar-sandbox [DIRETORIO]
-Cria a branch forge/upgrade-<versão>, aplica as migrações pendentes (um commit cada) e sugere o PR. Uma versão pode ter vários
+Cria a branch forge/upgrade-<versão> (a partir da develop local, da branch atual ou da --base dada), aplica as migrações pendentes (um commit cada) e sugere o PR. Uma versão pode ter vários
 passos: `migrar` (resumo no LEIA.md) e depois `migrar-<passo>` (resumo no LEIA-<passo>.md), em ordem de nome.
 Nunca faz push nem merge. D1 (0.44.0): com o sandbox do Bash desligado no .claude/settings.json do projeto, só OFERECE o comando
 `--ligar-sandbox`, que grava o bloco `sandbox` do modelo (templates/projeto) sem commitar; nunca o liga sozinho."""
@@ -47,10 +47,10 @@ def sair(msg, codigo=1):
     sys.exit(codigo)
 
 
-def branch_ja_existe(projeto, nova, base, alvo, a):
+def branch_ja_existe(projeto, nova, base, alvo, a, ref_base):
     """A branch do upgrade já existe: mesclada na base só se apaga com --apagar-mesclada; squash e o resto recusam."""
     sha = git(projeto, "rev-parse", f"refs/heads/{nova}")
-    mesclada = subprocess.run(["git", "-C", str(projeto), "merge-base", "--is-ancestor", sha, f"refs/heads/{base}"],
+    mesclada = subprocess.run(["git", "-C", str(projeto), "merge-base", "--is-ancestor", sha, ref_base],
                               capture_output=True).returncode == 0
     if mesclada and not a.apagar_mesclada:
         sair(f"a branch {nova} já foi mesclada na '{base}'; apague-a com `git branch -d {nova}` (estando na '{base}') "
@@ -60,7 +60,7 @@ def branch_ja_existe(projeto, nova, base, alvo, a):
     elif mesclada:
         git(projeto, "update-ref", "-d", f"refs/heads/{nova}", sha)  # só apaga se o head ainda é o conferido
         print(f"apagada a branch {nova} (mesclada na '{base}')")
-    elif git(projeto, "show", f"refs/heads/{base}:.forge/versao", check=False) == alvo:
+    elif git(projeto, "show", f"{ref_base}:.forge/versao", check=False) == alvo:
         sair(f"a branch {nova} parece mesclada por squash (a '{base}' já está na {alvo}); confira com "
              f"`git log {base}..{nova}` e apague com `git branch -D {nova}`; nesta branch, traga a '{base}' "
              "em vez de rodar o upgrade", 2)
@@ -134,6 +134,7 @@ def main():
     ap.add_argument("--ate", help="versão-alvo (padrão: a do plugin)")
     ap.add_argument("--apagar-mesclada", action="store_true",
                     help="apaga a branch forge/upgrade-<versão> que já foi mesclada na base e segue")
+    ap.add_argument("--base", help="commit de onde a branch nasce (ex.: origin/develop); padrão: a develop local ou a branch atual")
     ap.add_argument("--ligar-sandbox", action="store_true",
                     help="só isto: grava o sandbox do modelo no .claude/settings.json do projeto (sem commit)")
     a = ap.parse_args()
@@ -160,13 +161,20 @@ def main():
         oferecer_sandbox(projeto)
         return
 
-    atual_branch = git(projeto, "branch", "--show-current")
-    base = "develop" if git(projeto, "rev-parse", "--verify", "-q", "refs/heads/develop", check=False) else atual_branch
-    if base in ("main", "master", ""):
+    if a.base is not None:  # a base dada (a ferramenta da abertura passa a origin/develop, ADR 0017 item 10): vale em HEAD solto
+        if not git(projeto, "rev-parse", "--verify", "-q", f"{a.base}^{{commit}}", check=False):
+            sair(f"a base '{a.base}' não é um commit deste repositório", 2)
+        base, ref_base = a.base, a.base
+    else:
+        atual_branch = git(projeto, "branch", "--show-current")
+        base = "develop" if git(projeto, "rev-parse", "--verify", "-q", "refs/heads/develop", check=False) else atual_branch
+        ref_base = f"refs/heads/{base}"
+    nome_base = base.removeprefix("origin/")
+    if nome_base in ("main", "master", ""):
         sair(f"branch de integração seria '{base or 'HEAD solto'}'; entre numa branch de trabalho ou crie a develop", 2)
     nova = f"forge/upgrade-{alvo}"
     if git(projeto, "rev-parse", "--verify", "-q", f"refs/heads/{nova}", check=False):
-        branch_ja_existe(projeto, nova, base, alvo, a)
+        branch_ja_existe(projeto, nova, base, alvo, a, ref_base)
 
     print(f"Projeto {projeto}\n  versão atual {atual} -> {alvo}; branch {nova} a partir de {base}")
     for p in pendentes:
@@ -177,7 +185,7 @@ def main():
         print("(--simular: nada foi gravado)")
         return
 
-    git(projeto, "switch", "-c", nova, base)
+    git(projeto, "switch", "--no-track", "-c", nova, ref_base)
     for p in pendentes:
         rotulo = passo(p)[0]
         r = subprocess.run([sys.executable, str(p), str(projeto)], capture_output=True, text=True)
@@ -193,7 +201,7 @@ def main():
     if git(projeto, "status", "--porcelain"):
         git(projeto, "commit", "-q", "-m", f"chore(forge): registra versão {alvo}")
     print(f"\nPronto na branch {nova}. Revise o diff (git log {base}..{nova}) e abra o PR; o merge é seu:")
-    print(f"  gh pr create --base {base} --title 'chore(forge): atualiza para {alvo}'")
+    print(f"  gh pr create --base {nome_base} --title 'chore(forge): atualiza para {alvo}'")
     oferecer_sandbox(projeto)
 
 

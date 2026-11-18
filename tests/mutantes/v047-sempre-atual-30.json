@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S153",
+      "guarda": "forge_sempre_atual.py:814 decide por `rc != 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "rc, saida = self.git_do_projeto([\"worktree\", \"add\", \"--detach\", tmp, \"origin/develop\"])\n            if rc != 0:\n                return self.extra_modelo(\"worktree: \" + saida)",
+      "para": "rc, saida = self.git_do_projeto([\"worktree\", \"add\", \"--detach\", tmp, \"origin/develop\"])\n            if not (rc != 0):\n                return self.extra_modelo(\"worktree: \" + saida)",
+      "testes": [
+        "tests.test_sempre_atual.Estado.test_registro_tem_sete_colunas_e_guarda_so_as_ultimas_500"
+      ]
+    },
+    {
+      "id": "S154",
+      "guarda": "forge_sempre_atual.py:817 decide por `rc != 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "rc, saida = self.rodar([str(Path(install) / \"bin\" / \"forge-upgrade\"), tmp, \"--base\", \"origin/develop\"], tmp, 120, SEM_HOOKS)\n            if rc != 0:\n                falha = \"forge-upgrade: \" + (saida or \"sem saída\")",
+      "para": "rc, saida = self.rodar([str(Path(install) / \"bin\" / \"forge-upgrade\"), tmp, \"--base\", \"origin/develop\"], tmp, 120, SEM_HOOKS)\n            if not (rc != 0):\n                falha = \"forge-upgrade: \" + (saida or \"sem saída\")",
+      "testes": [
+        "tests.test_sempre_atual.Estado.test_registro_tem_sete_colunas_e_guarda_so_as_ultimas_500"
+      ]
+    },
+    {
+      "id": "S155",
+      "guarda": "forge_sempre_atual.py:818 decide por `saida or \"sem saída\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "falha = \"forge-upgrade: \" + (saida or \"sem saída\")",
+      "para": "falha = \"forge-upgrade: \" + (not (saida or \"sem saída\"))",
+      "testes": [
+        "tests.test_sempre_atual.Modelo.test_forge_upgrade_que_falha_nao_deixa_branch_pela_metade"
+      ]
+    },
+    {
+      "id": "S156",
+      "guarda": "forge_sempre_atual.py:827 decide por `falha`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "self.git_do_projeto([\"branch\", \"-D\", ramo], PRAZO_LEITURA)\n        if falha:\n            self.extra_modelo(falha)",
+      "para": "self.git_do_projeto([\"branch\", \"-D\", ramo], PRAZO_LEITURA)\n        if not (falha):\n            self.extra_modelo(falha)",
+      "testes": [
+        "tests.test_sempre_atual.Estado.test_registro_tem_sete_colunas_e_guarda_so_as_ultimas_500"
+      ]
+    },
+    {
+      "id": "S157",
+      "guarda": "forge_sempre_atual.py:836 decide por `self.claude_bin is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if self.claude_bin is None:",
+      "para": "if not (self.claude_bin is None):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S158",
+      "guarda": "forge_sempre_atual.py:841 decide por `not escopos`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not escopos:",
+      "para": "if escopos:",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S159",
+      "guarda": "forge_sempre_atual.py:845 decide por `e[\"escopo\"] in CASCA and not os.path.isdir(e[\"projeto\"])`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if e[\"escopo\"] in CASCA and not os.path.isdir(e[\"projeto\"]):",
+      "para": "if not (e[\"escopo\"] in CASCA and not os.path.isdir(e[\"projeto\"])):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S160",
+      "guarda": "forge_sempre_atual.py:847 decide por `e[\"chave\"] not in self.res`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "ativos = [e for e in escopos if e[\"chave\"] not in self.res]",
+      "para": "ativos = [e for e in escopos if not (e[\"chave\"] not in self.res)]",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    }
+  ]
+}

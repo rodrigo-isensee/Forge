@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S137",
+      "guarda": "forge_sempre_atual.py:756 decide por `k not in {e[\"chave\"] for e in escopos}`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "self.res = {k: v for k, v in self.res.items() if k not in {e[\"chave\"] for e in escopos}}",
+      "para": "self.res = {k: v for k, v in self.res.items() if not (k not in {e[\"chave\"] for e in escopos})}",
+      "testes": [
+        "tests.test_sempre_atual.RamosSemMundo.test_volta_sem_origem_guarda_o_resultado_dos_outros_escopos"
+      ]
+    },
+    {
+      "id": "S138",
+      "guarda": "forge_sempre_atual.py:757 decide por `e not in desceram`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "ficaram = [e for e in escopos if e not in desceram]",
+      "para": "ficaram = [e for e in escopos if not (e not in desceram)]",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_volta_so_de_quem_tem_ultima_boa"
+      ]
+    },
+    {
+      "id": "S139",
+      "guarda": "forge_sempre_atual.py:762 decide por `not ficaram`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not ficaram:",
+      "para": "if ficaram:",
+      "testes": [
+        "tests.test_sempre_atual.VoltaDentro.test_checagem_quebrada_volta_a_ultima_boa"
+      ]
+    },
+    {
+      "id": "S140",
+      "guarda": "forge_sempre_atual.py:767 decide por `self.url or '<url do Forge>'`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "comandos = [f\"claude plugin marketplace add {self.url or '<url do Forge>'}#v{para} --scope user\"]",
+      "para": "comandos = [f\"claude plugin marketplace add {not (self.url or '<url do Forge>')}#v{para} --scope user\"]",
+      "testes": [
+        "tests.test_sempre_atual.VoltaDentro.test_volta_que_falha_registra_e_da_o_comando"
+      ]
+    },
+    {
+      "id": "S141",
+      "guarda": "forge_sempre_atual.py:769 decide por `e[\"escopo\"] == \"user\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "onde = \"\" if e[\"escopo\"] == \"user\" else f\" (na pasta {e['projeto']})\"",
+      "para": "onde = \"\" if not (e[\"escopo\"] == \"user\") else f\" (na pasta {e['projeto']})\"",
+      "testes": [
+        "tests.test_sempre_atual.RamosSemMundo.test_volta_que_falha_diz_a_pasta_so_do_escopo_de_projeto"
+      ]
+    },
+    {
+      "id": "S142",
+      "guarda": "forge_sempre_atual.py:783 decide por `e[\"escopo\"] in CASCA and e[\"projeto\"] and os.path.realpath(e[\"projeto\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "cobre = [e for e in self.escopos if e[\"escopo\"] in CASCA and e[\"projeto\"] and os.path.realpath(e[\"projeto\"]) == self.projeto]",
+      "para": "cobre = [e for e in self.escopos if not (e[\"escopo\"] in CASCA and e[\"projeto\"] and os.path.realpath(e[\"projeto\"]) == self.projeto)]",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_adocao_sem_ultima_boa_so_confere_o_local"
+      ]
+    },
+    {
+      "id": "S143",
+      "guarda": "forge_sempre_atual.py:785 decide por `cobre or usuario or [None]`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "e = (cobre or usuario or [None])[0]",
+      "para": "e = (not (cobre or usuario or [None]))[0]",
+      "testes": [
+        "tests.test_sempre_atual.Modelo.test_escopo_de_usuario_que_subiu_prepara_a_branch"
+      ]
+    },
+    {
+      "id": "S144",
+      "guarda": "forge_sempre_atual.py:786 decide por `e is None or self.res.get(e[\"chave\"], {}).get(\"resultado\") not in (\"em`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if e is None or self.res.get(e[\"chave\"], {}).get(\"resultado\") not in (\"em_dia\", \"atualizado\"):",
+      "para": "if not (e is None or self.res.get(e[\"chave\"], {}).get(\"resultado\") not in (\"em_dia\", \"atualizado\")):",
+      "testes": [
+        "tests.test_sempre_atual.Modelo.test_escopo_de_usuario_que_subiu_prepara_a_branch"
+      ]
+    }
+  ]
+}

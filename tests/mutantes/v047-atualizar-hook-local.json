@@ -1,0 +1,117 @@
+{
+  "pedido": "v047-atualizar-hook-local",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "hooks_sem_chamada: o hook do projeto que não cita o .local é achado",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "if entrada.name not in texto:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_liga_a_chamada_no_hook_de_shell_do_projeto_num_commit_a_parte",
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_hook_que_nao_e_de_shell_so_avisa_e_fica_intacto"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "hooks_sem_chamada: projeto sem o .local não recebe aviso",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "        if not local.is_file():\n            continue",
+      "para": "        if False:\n            continue",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_sem_local_no_projeto_nao_avisa_nada"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "hooks_sem_chamada: o .local sem permissão de execução é avisado",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "elif not os.access(local, os.X_OK):",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_local_sem_permissao_de_execucao_avisa_o_comando"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "hooks_sem_chamada: projeto com o .local e sem o hook é avisado",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "achados.append((hook, entrada.name, \"sem-hook\"))",
+      "para": "pass",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_projeto_com_local_e_sem_hook_avisa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "ligar_hook: só hook de shell é reescrito (python fica intacto)",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "if \"\\r\" in texto or alvo.is_symlink() or not _shell_do_hook(texto):",
+      "para": "if \"\\r\" in texto or alvo.is_symlink():",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_hook_que_nao_e_de_shell_so_avisa_e_fica_intacto"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "ligar_hook: fim de linha do Windows não é reescrito",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "if \"\\r\" in texto or alvo.is_symlink() or not _shell_do_hook(texto):",
+      "para": "if alvo.is_symlink() or not _shell_do_hook(texto):",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_hook_com_fim_de_linha_do_windows_so_avisa"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "ligar_hook: a chamada vai depois do #! e o resto do hook fica",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "alvo.write_bytes((primeira + \"\\n\" + chamada + resto).encode(\"utf-8\"))",
+      "para": "alvo.write_bytes((primeira + \"\\n\" + chamada).encode(\"utf-8\"))",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_liga_a_chamada_no_hook_de_shell_do_projeto_num_commit_a_parte"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "ligar_hook: o erro do .local barra o envio",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "</dev/null || exit 1; fi",
+      "para": "</dev/null || true; fi",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_o_hook_ligado_roda_o_local_e_o_erro_do_local_barra_o_envio"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "forge atualizar: na branch do upgrade a chamada é ligada (não só avisada)",
+      "arquivo": "bin/forge-atualizar",
+      "de": "ligar=criou_ramo)",
+      "para": "ligar=False)",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_liga_a_chamada_no_hook_de_shell_do_projeto_num_commit_a_parte"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "forge atualizar: já na última versão, o aviso também sai",
+      "arquivo": "bin/forge-atualizar",
+      "de": "for frase in conferir_hooks(projeto, RAIZ / \"templates\" / \"projeto\", ligar=False):",
+      "para": "for frase in []:",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_ja_na_ultima_versao_avisa_sem_mudar_nada"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "forge atualizar: fora da branch do upgrade nunca liga (ligar=criou_ramo)",
+      "arquivo": "bin/forge-atualizar",
+      "de": "if ligar and motivo == \"nao-chama\" and fv.ligar_hook(projeto, hook, local):",
+      "para": "if motivo == \"nao-chama\" and fv.ligar_hook(projeto, hook, local):",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_ja_na_ultima_versao_avisa_sem_mudar_nada"
+      ]
+    }
+  ]
+}

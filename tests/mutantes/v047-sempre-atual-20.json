@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S73",
+      "guarda": "forge_sempre_atual.py:496 decide por `fix[\"motivo\"] == \"volta-automatica\" and versao_tupla(fix.get(\"de\")) is`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if fix[\"motivo\"] == \"volta-automatica\" and versao_tupla(fix.get(\"de\")) is None:",
+      "para": "if not (fix[\"motivo\"] == \"volta-automatica\" and versao_tupla(fix.get(\"de\")) is None):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S74",
+      "guarda": "forge_sempre_atual.py:504 decide por `ref or \"\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "versao = versao_tupla((ref or \"\").removeprefix(\"v\"))",
+      "para": "versao = versao_tupla((not (ref or \"\")).removeprefix(\"v\"))",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_legada_so_com_o_log_do_forge_atualizar"
+      ]
+    },
+    {
+      "id": "S75",
+      "guarda": "forge_sempre_atual.py:506 decide por `self.estado_existia or versao is None or not log or not log.strip()`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if self.estado_existia or versao is None or not log or not log.strip():",
+      "para": "if not (self.estado_existia or versao is None or not log or not log.strip()):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_legada_so_com_o_log_do_forge_atualizar"
+      ]
+    },
+    {
+      "id": "S76",
+      "guarda": "forge_sempre_atual.py:508 decide por `l.count(\"\\t\") >= 3`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "depois = {l.split(\"\\t\")[3].strip() for l in log.splitlines() if l.count(\"\\t\") >= 3}",
+      "para": "depois = {l.split(\"\\t\")[3].strip() for l in log.splitlines() if not (l.count(\"\\t\") >= 3)}",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_legada_so_com_o_log_do_forge_atualizar"
+      ]
+    },
+    {
+      "id": "S77",
+      "guarda": "forge_sempre_atual.py:509 decide por `versao_texto(versao) in depois`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if versao_texto(versao) in depois:",
+      "para": "if not (versao_texto(versao) in depois):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_legada_so_com_o_log_do_forge_atualizar"
+      ]
+    },
+    {
+      "id": "S78",
+      "guarda": "forge_sempre_atual.py:516 decide por `rc != 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "rc, saida = self.git_rede([\"ls-remote\", \"--symref\", \"--\", self.url, \"HEAD\"])\n        if rc != 0:\n            self.falhar(livres, \"prazo\" if rc is None else \"rede\", saida)",
+      "para": "rc, saida = self.git_rede([\"ls-remote\", \"--symref\", \"--\", self.url, \"HEAD\"])\n        if not (rc != 0):\n            self.falhar(livres, \"prazo\" if rc is None else \"rede\", saida)",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S79",
+      "guarda": "forge_sempre_atual.py:517 decide por `rc is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "rc, saida = self.git_rede([\"ls-remote\", \"--symref\", \"--\", self.url, \"HEAD\"])\n        if rc != 0:\n            self.falhar(livres, \"prazo\" if rc is None else \"rede\", saida)\n            return None\n        achou = re.search(r\"^ref: (\\S+)\\s+HEAD\", saida, re.M)",
+      "para": "rc, saida = self.git_rede([\"ls-remote\", \"--symref\", \"--\", self.url, \"HEAD\"])\n        if rc != 0:\n            self.falhar(livres, \"prazo\" if not (rc is None) else \"rede\", saida)\n            return None\n        achou = re.search(r\"^ref: (\\S+)\\s+HEAD\", saida, re.M)",
+      "testes": [
+        "tests.test_sempre_atual.RamosDaRodada.test_sem_rede_no_head_simbolico_registra_rede"
+      ]
+    },
+    {
+      "id": "S80",
+      "guarda": "forge_sempre_atual.py:521 decide por `achou`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "self.falhar(livres, \"branch-padrao\", achou.group(1) if achou else \"sem HEAD simbólico\")",
+      "para": "self.falhar(livres, \"branch-padrao\", achou.group(1) if not (achou) else \"sem HEAD simbólico\")",
+      "testes": [
+        "tests.test_sempre_atual.RamosDaRodada.test_branch_padrao_errada_registra_qual_e"
+      ]
+    }
+  ]
+}
