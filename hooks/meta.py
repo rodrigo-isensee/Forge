@@ -241,8 +241,9 @@ PERGUNTA_DO_PROJETO = "isto é para o projeto"
 
 
 def projetos_ativos():
-    """Os nomes de ATIVOS; registro ilegível ou fora da forma conta como um projeto só (nada muda)."""
-    return ler_projetos_ativos(ATIVOS) or []
+    """Os nomes de ATIVOS; registro ilegível ou fora da forma conta como um projeto só (nada muda); nome fora da forma
+    só fica de fora (modo tolerante)."""
+    return ler_projetos_ativos(ATIVOS, tolerante=True) or []
 
 
 def medida_do_projeto(hook, raiz, texto):

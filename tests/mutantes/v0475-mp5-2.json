@@ -6,10 +6,52 @@
       "id": "N9",
       "guarda": "MP1 e MP5: no `meta`, registro ilegível conta como um projeto só (nada muda)",
       "arquivo": "hooks/meta.py",
-      "de": "return ler_projetos_ativos(ATIVOS) or []",
-      "para": "return ler_projetos_ativos(ATIVOS) or [\"x\", \"y\"]",
+      "de": "return ler_projetos_ativos(ATIVOS, tolerante=True) or []",
+      "para": "return ler_projetos_ativos(ATIVOS, tolerante=True) or [\"x\", \"y\"]",
       "testes": [
         "tests.test_meta.VariosProjetos.test_um_projeto_so_registro_ilegivel_ou_sessao_do_forge_nao_mede"
+      ]
+    },
+    {
+      "id": "N10",
+      "guarda": "MP5 volta: erro de leitura (fstat, read) é registro ilegível, não exceção que libera",
+      "arquivo": "hooks/_comum.py",
+      "de": "    except OSError:  # erro de leitura (EIO)",
+      "para": "    except ValueError:  # erro de leitura (EIO)",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_erro_de_leitura_e_registro_ilegivel"
+      ]
+    },
+    {
+      "id": "N11",
+      "guarda": "MP5 volta: nome fora da forma torna o registro fora da forma para o `agentes`",
+      "arquivo": "hooks/_comum.py",
+      "de": "or (len(nomes) < len(lista) and not tolerante):",
+      "para": "or False:",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_nome_fora_da_forma_fecha_o_agentes_e_o_meta_tolera",
+        "tests.test_hooks.Hooks.test_fixtures_do_mp5"
+      ]
+    },
+    {
+      "id": "N12",
+      "guarda": "MP5 volta: nome repetido, sem diferença de maiúsculas, conta uma vez",
+      "arquivo": "hooks/_comum.py",
+      "de": "unicos.setdefault(nome.casefold(), nome)",
+      "para": "unicos.setdefault(nome, nome)",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_nome_repetido_conta_uma_vez",
+        "tests.test_hooks.Hooks.test_fixtures_do_mp5"
+      ]
+    },
+    {
+      "id": "N13",
+      "guarda": "MP5 volta: o `meta` lê em modo tolerante (nome fora da forma só fica de fora)",
+      "arquivo": "hooks/meta.py",
+      "de": "ler_projetos_ativos(ATIVOS, tolerante=True)",
+      "para": "ler_projetos_ativos(ATIVOS, tolerante=False)",
+      "testes": [
+        "tests.test_meta.VariosProjetos.test_nome_fora_da_forma_fecha_o_agentes_e_o_meta_tolera"
       ]
     }
   ]

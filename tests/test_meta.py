@@ -399,6 +399,33 @@ class VariosProjetos(unittest.TestCase):
                 montar()
                 self.assertIsNone(ler(str(ativos)))
 
+    def test_erro_de_leitura_e_registro_ilegivel(self):
+        """MP5, volta (review A1, segurança A2): OSError no fstat ou no read devolve None, nunca exceção que o `executar`
+        libera (falha aberta)."""
+        self.ativos(["loja"])
+        for funcao in ("fstat", "read"):
+            with self.subTest(funcao=funcao), mock.patch.object(os, funcao, side_effect=OSError(5, "EIO")):
+                self.assertIsNone(self.meta.ler_projetos_ativos(self.meta.ATIVOS))
+
+    def test_nome_fora_da_forma_fecha_o_agentes_e_o_meta_tolera(self):
+        """MP5, volta (segurança A1): nome fora da forma não baixa a contagem do `agentes` (None); o `meta` só o deixa de fora."""
+        for ruim in ("x" * 129, 5, "  ", None):
+            with self.subTest(nome=str(ruim)[:10]):
+                self.ativos(["loja", ruim])
+                self.assertIsNone(self.meta.ler_projetos_ativos(self.meta.ATIVOS))
+                self.assertEqual(self.meta.ler_projetos_ativos(self.meta.ATIVOS, tolerante=True), ["loja"])
+        self.ativos(["loja", "x" * 128])
+        self.assertEqual(len(self.meta.ler_projetos_ativos(self.meta.ATIVOS)), 2, "128 caracteres ainda vale")
+        self.ativos(["loja", "estoque", 7])
+        self.assertEqual(self.medir("Recebi.")["projetos_ativos"], 2, "o `meta` segue tolerante")
+
+    def test_nome_repetido_conta_uma_vez(self):
+        """MP5, volta (review A2): repetido, sem diferença de maiúsculas, conta uma vez; vale o primeiro, na ordem."""
+        self.ativos(["Loja", "estoque", "loja", "LOJA"])
+        self.assertEqual(self.meta.ler_projetos_ativos(self.meta.ATIVOS), ["Loja", "estoque"])
+        self.ativos(["loja", "Loja"])
+        self.assertEqual(self.medir("Recebi."), {}, "um projeto só: o `meta` não mede")
+
     def test_proprio_projeto_sem_diferenca_de_maiusculas(self):
         self.ativos(["Loja", "estoque"])
         self.assertFalse(self.medir("Projeto: loja\nFeito.", "mude a loja")["cita_outro_projeto"])

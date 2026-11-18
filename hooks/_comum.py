@@ -107,10 +107,12 @@ MAXIMO_DE_ATIVOS = 64  # nomes; acima, idem
 MAXIMO_DO_NOME = 128  # caracteres; nome maior fica de fora
 
 
-def ler_projetos_ativos(caminho=ARQUIVO_DE_ATIVOS):
-    """Os nomes do registro: [] sem o arquivo; None em link ou fora de arquivo regular (FIFO, dispositivo), acima de
-    TETO_DE_ATIVOS bytes ou de MAXIMO_DE_ATIVOS nomes, ilegível ou fora da forma (quem lê decide: o `meta` conta um projeto
-    só, o `agentes` recusa o escape, MP5). A leitura não espera nem cresce."""
+def ler_projetos_ativos(caminho=ARQUIVO_DE_ATIVOS, tolerante=False):
+    """Os nomes do registro, sem repetição (sem diferença de maiúsculas): [] sem o arquivo; None em link ou fora de arquivo
+    regular (FIFO, dispositivo), em erro de leitura, acima de TETO_DE_ATIVOS bytes ou de MAXIMO_DE_ATIVOS nomes, ilegível
+    ou fora da forma (quem lê decide: o `meta` conta um projeto só, o `agentes` recusa o escape, MP5). Nome fora da forma
+    (não texto, só espaço, acima de MAXIMO_DO_NOME) torna o registro fora da forma; com `tolerante` (o `meta`), só fica de
+    fora. A leitura não espera nem cresce."""
     try:
         fd = os.open(expandir_home(caminho), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except FileNotFoundError:
@@ -121,6 +123,8 @@ def ler_projetos_ativos(caminho=ARQUIVO_DE_ATIVOS):
         if not stat.S_ISREG(os.fstat(fd).st_mode):
             return None
         bruto = os.read(fd, TETO_DE_ATIVOS + 1)  # arquivo regular: a leitura não volta curta antes do fim
+    except OSError:  # erro de leitura (EIO): registro ilegível, nunca exceção que o `executar` libera
+        return None
     finally:
         os.close(fd)
     try:
@@ -131,7 +135,12 @@ def ler_projetos_ativos(caminho=ARQUIVO_DE_ATIVOS):
     if not isinstance(lista, list):
         return None
     nomes = [n for n in lista if isinstance(n, str) and n.strip() and len(n) <= MAXIMO_DO_NOME]
-    return nomes if len(nomes) <= MAXIMO_DE_ATIVOS else None
+    if len(nomes) > MAXIMO_DE_ATIVOS or (len(nomes) < len(lista) and not tolerante):
+        return None
+    unicos = {}
+    for nome in nomes:
+        unicos.setdefault(nome.casefold(), nome)  # nome repetido conta uma vez; vale o primeiro
+    return list(unicos.values())
 
 
 def raiz_declarada():

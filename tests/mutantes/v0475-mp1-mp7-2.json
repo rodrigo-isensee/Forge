@@ -16,8 +16,8 @@
       "id": "M10",
       "guarda": "MP1 (diretriz 35): acima de MAXIMO_DE_ATIVOS nomes conta como um projeto só (segurança A1)",
       "arquivo": "hooks/_comum.py",
-      "de": "nomes if len(nomes) <= MAXIMO_DE_ATIVOS else None",
-      "para": "nomes if len(nomes) <= MAXIMO_DE_ATIVOS + 1 else None",
+      "de": "if len(nomes) > MAXIMO_DE_ATIVOS or",
+      "para": "if len(nomes) > MAXIMO_DE_ATIVOS + 1 or",
       "testes": [
         "tests.test_meta.VariosProjetos.test_ativos_em_link_fifo_grande_ou_com_nomes_demais_nao_mede"
       ]
