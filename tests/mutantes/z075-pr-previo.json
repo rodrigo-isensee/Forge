@@ -57,8 +57,8 @@
       "id": "M6",
       "guarda": "a CLI repassa o --previo a pr_da_cli",
       "arquivo": "bin/forge-check",
-      "de": "previo=getattr(a, \"previo\", False))}[a.cmd]()",
-      "para": "previo=False)}[a.cmd]()",
+      "de": "previo=getattr(a, \"previo\", False), sem_checks=sem_checks)}[a.cmd]()",
+      "para": "previo=False, sem_checks=sem_checks)}[a.cmd]()",
       "testes": [
         "tests.test_revisor_wt.PrPrevio.test_ausente_com_previo_e_aviso_e_sem_previo_e_violacao"
       ]

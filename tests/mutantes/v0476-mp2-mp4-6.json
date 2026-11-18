@@ -1,0 +1,86 @@
+{
+  "pedido": "v0476-mp2-mp4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "N9",
+      "guarda": "review A1: senha que sumiu não tem chave",
+      "arquivo": "hooks/pesado.py",
+      "de": "    if fd is None:\n        return \"\"",
+      "para": "    if False:\n        return \"\"",
+      "testes": [
+        "tests.test_maquina.Leitura.test_fila_em_link_levanta_e_senha_fora_da_forma_nao_conta"
+      ]
+    },
+    {
+      "id": "N10",
+      "guarda": "review A1: senha de projeto com a vez tomada não segura quem tem vaga",
+      "arquivo": "hooks/pesado.py",
+      "de": "return all(vez_viva(vezes.get(chave_da_senha(c)), agora) for c in frente)",
+      "para": "return not frente",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_com_duas_vagas_senha_presa_pela_vez_do_proprio_projeto_nao_prende_outro"
+      ]
+    },
+    {
+      "id": "N11",
+      "guarda": "review A2: sem senha, a frente é a fila toda",
+      "arquivo": "hooks/pesado.py",
+      "de": "if vez_na_fila in vivas else vivas",
+      "para": "if True else vivas",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_senha_a_frente_que_pode_andar_segura_quem_vem_atras"
+      ]
+    },
+    {
+      "id": "N12",
+      "guarda": "MP4: a vez de outro projeto ocupa",
+      "arquivo": "hooks/pesado.py",
+      "de": "and vez_viva(trava, agora, min(hook.expira_s(), TRAVA_S))",
+      "para": "and vez_viva(trava, agora, 0)",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_maquina_cheia_diz_a_pasta_da_maquina_e_os_projetos"
+      ]
+    },
+    {
+      "id": "N13",
+      "guarda": "segurança A2: desde no futuro não ocupa",
+      "arquivo": "hooks/pesado.py",
+      "de": "and 0 <= agora - trava[\"desde\"] < teto",
+      "para": "and agora - trava[\"desde\"] < teto",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_vez_com_desde_no_futuro_nao_ocupa"
+      ]
+    },
+    {
+      "id": "N14",
+      "guarda": "review A3: só a trava do projeto manda apagar .forge/run/pesado.json",
+      "arquivo": "hooks/pesado.py",
+      "de": "    if ocupada(hook, trava, uso, agora):\n        return",
+      "para": "    if True:\n        return",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_senha_a_frente_que_pode_andar_segura_quem_vem_atras"
+      ]
+    },
+    {
+      "id": "N15",
+      "guarda": "review A3: máquina cheia diz a pasta da máquina e os projetos",
+      "arquivo": "hooks/pesado.py",
+      "de": "    if maquina_cheia(hook, uso, agora):\n        nomes",
+      "para": "    if False:\n        nomes",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_maquina_cheia_diz_a_pasta_da_maquina_e_os_projetos"
+      ]
+    },
+    {
+      "id": "N16",
+      "guarda": "segurança A1: nenhum papel grava ~/.forge/maquina/",
+      "arquivo": "hooks/conformidade.json",
+      "de": "{\"caminho\": \"~/.forge/maquina/\", \"quem\": []",
+      "para": "{\"caminho\": \"~/.forge/maquina-x/\", \"quem\": []",
+      "testes": [
+        "tests.test_maquina.Protegida.test_nenhum_papel_escreve_na_pasta_da_maquina"
+      ]
+    }
+  ]
+}
