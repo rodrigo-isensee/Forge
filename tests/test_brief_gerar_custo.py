@@ -69,7 +69,7 @@ class Custo(unittest.TestCase):
             texto, rc, _ = fc.montar_brief(self.tmp, "exemplo", "forge:node-backend", None, "develop", "codigo")
         self.assertEqual(rc, 0)
         ler = texto[texto.index("## Ler"):texto.index("## Decisões")] if isinstance(texto, str) else "\n".join(texto)
-        self.assertIn("comece por `forge-check proximo exemplo`", ler)
+        self.assertIn("comece por `forge-check proximo exemplo --etapa ", ler)  # E3.48: só a etapa, nunca o pedido inteiro
         self.assertIn(fc.LINHA_DO_PROXIMO, ler)
 
 
