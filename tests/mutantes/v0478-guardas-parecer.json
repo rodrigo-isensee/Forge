@@ -82,12 +82,5 @@
         "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
       ]
     }
-  ],
-  "isentas": [
-    {
-      "arquivo": "hooks/parecer.py",
-      "trecho": "raiz_declarada() or pasta",
-      "motivo": "equivalente: o Claude Code sempre define CLAUDE_PROJECT_DIR; sem ela e fora de clone a sessao nao e vigiada (sessao_vigiada) e o hook nem chega aqui"
-    }
   ]
 }

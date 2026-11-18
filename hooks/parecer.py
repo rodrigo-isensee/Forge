@@ -17,7 +17,8 @@ No clone do Forge (`raiz_de_estado`: `~/Forge` e as worktrees de `~/.forge-contr
 `hooks_desligados`, e o PR fica em rascunho até o parecer: `gh pr create --draft` passa sem parecer e `gh pr ready`
 exige o parecer, como o merge (o GitHub não mescla PR em rascunho).
 O `gh pr` rodado fora de cópia de trabalho (com `-R`/`--repo`, `GH_REPO=` ou a URL do PR) é conferido no clone da sessão
-que tem remoto desse repositório; sem ele, recusa (INCIDENTE-HOOK-PARECER-CONTORNADO, `pasta_do_gh`).
+que tem remoto desse repositório; sem ele, recusa (INCIDENTE-HOOK-PARECER-CONTORNADO, `pasta_do_gh`). Fora de clone e
+de projeto, GH_REPO exportado antes na linha recusa: o hook não lê o valor (GH-REPO-EXPORTADO).
 O `gh pr create` fora do rascunho decide pelo resultado que o `forge-check pr` gravou para o mesmo head, branch e base
 (PR-HOOK-PRAZO, `verificar` com `gravado`): sem o aprovado, recusa e diz o comando a rodar antes. O `gh pr ready` e o
 `gh pr merge` usam o mesmo resultado como atalho (E2.117): o aprovado do mesmo head e base decide sem refazer a checagem, o
@@ -109,8 +110,8 @@ LE_VARIAVEL = {"source", ".", "eval", "read", "mapfile", "readarray", "getopts",
 DESVIOS = {"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR"}
 # 0.45.4: as variáveis que mudam o config.yml que o gh lê (e os aliases dele); mexidas antes na linha, o alias fica incerto
 CONFIG_DO_GH = {"GH_CONFIG_DIR", "XDG_CONFIG_HOME", "HOME"}
-SENSIVEIS = DESVIOS | {"HOME", "CDPATH"} | CONFIG_DO_GH  # o bash, o git e o gh os leem sozinhos: mexidos na linha, a pasta
-# (ou o alias do gh) fica desconhecida
+SENSIVEIS = DESVIOS | {"HOME", "CDPATH", "GH_REPO"} | CONFIG_DO_GH  # o bash, o git e o gh os leem sozinhos: mexidos na
+# linha, a pasta (ou o alias do gh, ou o repositório do gh: GH-REPO-EXPORTADO) fica desconhecida
 ATRIBUICAO = re.compile(r"^([A-Za-z_]\w*)\+?=")
 Ambiente = collections.namedtuple("Ambiente", "mexidas desviado")  # mexidas: os SENSIVEIS que a linha mexeu (frozenset)
 SEM_AMBIENTE = Ambiente(frozenset(), bool(DESVIOS & set(os.environ)))
@@ -913,12 +914,22 @@ def sessao_ou(pasta):
     return raiz_declarada() or pasta
 
 
+REPO_INCERTO = "GH_REPO mexido antes na linha"  # GH-REPO-EXPORTADO: repositório indicado que o hook não lê
+
+
+def repo_indicado(repo, mexidas):
+    """GH-REPO-EXPORTADO (A5 da E3.8): sem `-R`, `--repo`, `GH_REPO=` no prefixo nem URL, o GH_REPO que a linha mexeu antes
+    (`export`, `declare -x`, `set -a`, atribuição solta) é o repositório do gh, e o hook não lê o valor: REPO_INCERTO."""
+    return REPO_INCERTO if repo is None and "GH_REPO" in mexidas else repo
+
+
 def pasta_do_gh(hook, pasta, repo):
     """INCIDENTE-HOOK-PARECER-CONTORNADO: a pasta em que o hook confere `gh pr create`, `ready` ou `merge`. Num clone do
     Forge ou num projeto, a do gh, como antes. Noutra pasta (fora de cópia de trabalho ou numa cópia alheia, que qualquer
     um cria com `git init`), o alvo do gh vem do `-R`/`--repo`, de `GH_REPO=`, da URL do PR ou, sem eles, dos remotos da
     cópia: vale o clone da sessão (`CLAUDE_PROJECT_DIR`) com remoto desse repositório. Com repositório indicado e sem
-    esse clone, recusa (falha fechada): sem clone não há branch nem parecer a conferir. A cópia alheia sem repositório
+    esse clone, recusa (falha fechada): sem clone não há branch nem parecer a conferir. GH_REPO mexido antes na linha
+    (`repo_indicado`) é repositório indicado que o hook não lê: recusa (GH-REPO-EXPORTADO). A cópia alheia sem repositório
     indicado e sem remoto do clone da sessão segue como antes, e também a sessão em que o hook não age (projeto com
     `hooks_desligados`, repositório alheio)."""
     copia = copia_de_trabalho(pasta)
@@ -928,6 +939,10 @@ def pasta_do_gh(hook, pasta, repo):
     clone = hook.projeto(sessao, clone_do_forge=True)
     if clone is None and copia_de_trabalho(sessao) is not None:
         return pasta
+    if repo is REPO_INCERTO:  # GH-REPO-EXPORTADO
+        bloquear("R-REVIEW", "gh pr fora de um clone com GH_REPO mexido antes na linha (export, declare -x, set -a): o hook "
+                             "não lê o repositório indicado. Corrigir: use -R <dono/repo> ou rode o gh de dentro do clone "
+                             "(cd <clone>)")
     pedido = slug(repo)
     if copia is not None and pedido is None:  # A2: sem -R, o gh age no repositório dos remotos da cópia
         return clone if clone and remotos(copia) & remotos(clone) else pasta
@@ -1148,11 +1163,11 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE, acompanhado=F
         elif parte[0] == "cd":
             pasta = (depois_do_cd(pasta, sem[1:], mexidas) if sem[1:] else resolver("~", mexidas, pasta)) if solto else None
         elif parte[0] == "pr":
-            pull_request(hook, pasta_do_gh(hook, raiz_gh, parte[5]), parte[2], parte[3], parte[4])
+            pull_request(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[5], mexidas)), parte[2], parte[3], parte[4])
         elif parte[0] == "prready":
-            pronto_de_pr(hook, pasta_do_gh(hook, raiz_gh, parte[3]), parte[1], parte[2])
+            pronto_de_pr(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[3], mexidas)), parte[1], parte[2])
         elif parte[0] == "prmerge":
-            merge_de_pr(hook, pasta_do_gh(hook, raiz_gh, parte[1]), parte[1], parte[2])
+            merge_de_pr(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[1], mexidas)), parte[1], parte[2])
         elif parte[0] == "api":
             merge_por_api(hook, raiz_gh, parte[1])
             arquivo_trocado_na_linha(hook, raiz_gh, parte[1], acompanhado)

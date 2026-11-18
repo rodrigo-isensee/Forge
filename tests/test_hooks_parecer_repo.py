@@ -37,7 +37,7 @@ class ParecerForaDoRepo(unittest.TestCase):
         self.assertEqual(self.executar_em_lote(casos), len(fixtures), "toda fixture é verificada")
 
     def test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao(self):
-        self.rodar("incidente-r-*.json", 19)
+        self.rodar("incidente-r-*.json", 23)
 
     def test_leitura_dos_arquivos_do_gh_api(self):
         self.rodar("leitura-api-*.json", 9)
