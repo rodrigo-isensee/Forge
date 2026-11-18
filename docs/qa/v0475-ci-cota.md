@@ -16,9 +16,6 @@ data: 2026-11-18
 
 Sem especificação de UX nem contrato de API: a obrigação é o item E3.42 (aviso de minutos do Actions acima de 80%, `R-CUSTO`) e o docstring de `bin/forge-cota-ci`. Diff conferido contra a base 2fa505d7: `bin/forge-cota-ci`, `tests/test_cota_ci.py`, `tests/mutantes/v0475-ci-cota.json`, duas skills (texto) e o fragmento de changelog. Só leitura por `gh api`, sem token novo e sem custo.
 
-## Achados
-Nenhum aberto. A1 (ambiente_git) corrigido no head 322798df; A2 (pedido da spec 2) já tratado em 19e7b93f.
-
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
