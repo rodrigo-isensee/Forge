@@ -379,7 +379,7 @@ class EstadoDoAgentesNoClone(CloneDoForge):
                   "tar -czf docs/a.tgz --remove-files docs/x", "unzip docs/a.zip -d docs", "cd docs && unzip a.zip",
                   "cd docs && cpio -id < a.cpio", "cpio -o < docs/l > docs/a.cpio", "7z x docs/a.7z -odocs",
                   "7z l .git/forge/a.7z", "7z a docs/a.7z .git/forge", "busybox ls .git/forge", "busybox --list",
-                  "tar -xf docs/a.tar -C docs -- -C.git/forge"):
+                  "tar -xf docs/a.tar -C docs -- -C.git/forge", "cd .git/forge/run && cpio -o < ../../../docs/l > ../../../docs/a.cpio"):
             self.libera(self.rodar("Bash", {"command": c}), c)
 
     def test_de_fora_do_clone_pelo_caminho_absoluto_recusa(self):  # J12: pasta corrente fora do clone
