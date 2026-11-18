@@ -6,8 +6,8 @@
       "id": "M43",
       "guarda": "diretriz 36 (R-CONTRIB, review A1): git config que troca o destino do envio entra na recusa",
       "arquivo": "hooks/conformidade.py",
-      "de": "if sub == \"config\" and self.config_troca_destino(args):",
-      "para": "if sub == \"config-x\" and self.config_troca_destino(args):",
+      "de": "if sub == \"config\" and self.config_troca_destino(args, pasta):",
+      "para": "if sub == \"config-x\" and self.config_troca_destino(args, pasta):",
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
@@ -36,8 +36,8 @@
       "id": "M47",
       "guarda": "diretriz 36 (R-CONTRIB, review A1): reescrita de URL (insteadOf, pushInsteadOf) falha fechado",
       "arquivo": "hooks/conformidade.py",
-      "de": "return palavras[i].lower().startswith(\"url.\") or",
-      "para": "return palavras[i].lower().startswith(\"url-x.\") or",
+      "de": "return (palavras[i].lower().startswith(\"url.\") or",
+      "para": "return (palavras[i].lower().startswith(\"url-x.\") or",
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]

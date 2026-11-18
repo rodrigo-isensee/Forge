@@ -6,7 +6,7 @@
       "id": "M64",
       "guarda": "diretriz 36 (R-CONTRIB, E3.246, segurança A8: a palavra seguinte a `-f`/`-t` é valor, não opção)",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if pula:",
+      "de": "        if proxima_e_valor:",
       "para": "        if False:",
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_dir36"
@@ -68,6 +68,16 @@
       "arquivo": "hooks/conformidade.py",
       "de": "or self.caminho_do_forge(pasta, palavras[i + 1]))",
       "para": "or False)",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M71",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.246, segurança A8: só a letra com valor no fim do grupo leva a palavra seguinte)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "proxima_e_valor = n == len(a)",
+      "para": "proxima_e_valor = n != len(a)",
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]

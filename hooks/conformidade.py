@@ -1119,10 +1119,10 @@ def opcao_curta_presente(args, letra, com_valor=""):
     """A opção curta `-<letra>` está na linha, sozinha ou agrupada (`-ze`, `-zze`), como o parse-options do git a lê: no
     grupo, a letra de `com_valor` leva o resto como valor (`-fe` é `--file e`) ou, sem resto, a palavra seguinte; `--`
     encerra as opções (segurança A8)."""
-    pula = False
+    proxima_e_valor = False
     for a in args:
-        if pula:
-            pula = False
+        if proxima_e_valor:
+            proxima_e_valor = False
         elif a == "--":  # o fim das opções: o que vem depois é palavra
             return False
         elif re.fullmatch(r"-[^-].*", a, re.S):
@@ -1130,7 +1130,7 @@ def opcao_curta_presente(args, letra, com_valor=""):
                 if c == letra:
                     return True
                 if c in com_valor:
-                    pula = n == len(a)
+                    proxima_e_valor = n == len(a)
                     break
     return False
 

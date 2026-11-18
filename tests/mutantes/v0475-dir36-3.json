@@ -56,8 +56,8 @@
       "id": "M22",
       "guarda": "diretriz 36 (R-CONTRIB): `-c remote.<n>.url=<Forge>` na linha é envio ao Forge",
       "arquivo": "hooks/conformidade.py",
-      "de": "or parecer.aponta_para_o_forge(c.split(\"=\", 1)[1])), None)",
-      "para": "or False), None)",
+      "de": "or parecer.aponta_para_o_forge(c.split(\"=\", 1)[1])",
+      "para": "or False",
       "testes": [
         "tests.test_hooks.HookDir36.test_fixtures_dir36"
       ]
