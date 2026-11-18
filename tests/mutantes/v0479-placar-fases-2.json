@@ -44,22 +44,22 @@
     },
     {
       "id": "M13",
-      "guarda": "so os merges do dia entram",
+      "guarda": "so os itens do dia entram",
       "arquivo": "bin/forge-placar",
-      "de": "if cs == dia else []",
-      "para": "if True else []",
+      "de": "if cs != dia or not (",
+      "para": "if False or not (",
       "testes": [
         "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
       ]
     },
     {
       "id": "M14",
-      "guarda": "merge sem commit da branch fica fora",
+      "guarda": "item sem commit medido fica fora",
       "arquivo": "bin/forge-placar",
-      "de": "        if commits:\n            nome",
-      "para": "        if True:\n            nome",
+      "de": "        if commits:\n            itens.append",
+      "para": "        if True:\n            itens.append",
       "testes": [
-        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+        "tests.evals.test_placar.Fases.test_squash_mede_pelos_commits_do_pr_e_conta_a_parte_sem_eles"
       ]
     },
     {

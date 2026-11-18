@@ -26,7 +26,7 @@
       "id": "M26",
       "guarda": "--prs que nao e JSON sai com 2",
       "arquivo": "bin/forge-placar",
-      "de": "        raise SystemExit(f\"forge-placar: --prs {arq} não é JSON\")",
+      "de": "        raise SystemExit(f\"forge-placar: --prs {arq} não é JSON legível\")",
       "para": "        prs = []",
       "testes": [
         "tests.evals.test_placar.SemTeste.test_arquivo_ausente_ou_invalido_sai_com_2"
