@@ -1,2 +1,3 @@
 ### Alterado
 - Envio: o patch docs/devops/pp1-pre-push.patch ganha o PREPUSH-INDICE-E-PULOS (índice das fixtures em dia e skip novo em tests/ reprovam no envio leve) e vira lote de quatro cartões, com o roteiro de aplicar e testar em docs/devops/pp1-aplicar.md; o teste prova cada um sobre uma cópia, com o hook original falhando (v0478 E14.1).
+- Envio: o patch PP1 lê `FORGE_FILA_INTERVALO` em base 10 (`08` e `09` valem e a espera conta certo) e confere que `bin/forge-check` não é link; o roteiro aplica o patch do commit revisado (`git show <sha>:...`, com `git apply --stat`) e lista `docs/hooks-fixtures.md` entre os gatilhos do índice; os mutantes M3, M11 e M12 viram testes em `tests/mutantes/v0478-prepush-pp1.json` (v0478 E14.6).

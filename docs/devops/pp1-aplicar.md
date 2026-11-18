@@ -6,9 +6,9 @@ O `.githooks/pre-push` é travado para os agentes (decisão do dono). Os consert
 | Cartão | O que muda no envio local |
 |---|---|
 | PRE-PUSH-TEXTO-TRAVA-FD | o texto da trava vem do descritor 9 já conferido, não do caminho (link trocado depois não desvia a leitura) |
-| FILA-INTERVALO-ZERO | `FORGE_FILA_INTERVALO=0` (ou `00`) é recusado como valor inválido |
+| FILA-INTERVALO-ZERO | `FORGE_FILA_INTERVALO=0` (ou `00`) é recusado como valor inválido; o valor é lido em base 10 (`08` e `09` valem) e a espera conta com ele |
 | PREPUSH-LEVE-COBERTURA-CATRACA | condição mudada em Python de controle sem mutante declarado reprova no envio leve, pela mesma lista da catraca |
-| PREPUSH-INDICE-E-PULOS (índice) | tocar `tests/hooks/`, `tests/config.json` ou `scripts/indice-fixtures.py` roda `scripts/indice-fixtures.py --conferir`; `docs/hooks-fixtures.md` desatualizado reprova |
+| PREPUSH-INDICE-E-PULOS (índice) | tocar `tests/hooks/`, `tests/config.json`, `scripts/indice-fixtures.py` ou `docs/hooks-fixtures.md` roda `scripts/indice-fixtures.py --conferir`; `docs/hooks-fixtures.md` desatualizado reprova |
 | PREPUSH-INDICE-E-PULOS (pulos) | `skip`, `skipIf`, `skipUnless`, `expectedFailure` ou `skipTest` novo em `tests/` reprova (R-VERIFY; a mesma conta da catraca, sem a própria `tests/catraca.py`) |
 
 Custo no envio leve: cerca de 0,5 s o índice e 0,7 s a contagem de pulos, só quando o diff toca esses arquivos; nenhum teste roda.
@@ -16,7 +16,11 @@ Custo no envio leve: cerca de 0,5 s o índice e 0,7 s a contagem de pulos, só q
 ## Aplicar (o dono, na raiz do clone, na branch que traz o patch)
 
 ```bash
-git apply --check docs/devops/pp1-pre-push.patch && git apply docs/devops/pp1-pre-push.patch
+# SHA = o commit revisado do patch (o Jarvis o atualiza na volta final): aplica-se o patch desse commit, não o da árvore.
+SHA=0a986ebe9139b0b1182e7764f52c6a74325b9d6e
+git show "$SHA:docs/devops/pp1-pre-push.patch" > "$TMPDIR/pp1.patch"
+git apply --stat "$TMPDIR/pp1.patch"   # tem de listar só .githooks/pre-push; outro arquivo: pare e avise o tech-lead
+git apply --check "$TMPDIR/pp1.patch" && git apply "$TMPDIR/pp1.patch"
 bash -n .githooks/pre-push && git diff --stat -- .githooks/pre-push
 ```
 
