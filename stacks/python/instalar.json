@@ -1,0 +1,1 @@
+{"detecta": ["pyproject.toml"], "comandos": [["python3", "-m", "venv", ".venv"], [".venv/bin/python", "-m", "pip", "install", "-e", "."]]}

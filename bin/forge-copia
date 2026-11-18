@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Forge: cria a cópia de trabalho (clone ou worktree) SÓ dentro da pasta liberada do sandbox (~/.forge-contrib).
-Uso: forge-copia clone    <destino> --branch <nome> --origem <url|caminho> [--base origin/develop]
+Uso: forge-copia clone    <destino> --branch <nome> --origem <url|caminho> [--base origin/develop] [--instalar]
      forge-copia worktree <destino> --branch <nome> [--base origin/develop]   (rode dentro do clone de origem)
 A branch de trabalho sai da base de integração com --no-track (o .git/config é protegido). A pasta liberada é a mesma que o
 `templates/projeto/.claude/settings.json` põe em sandbox.filesystem.allowWrite. Recusa destino fora dela (inclusive por `..` ou
 link simbólico), a própria pasta, destino já ocupado, e nome de branch ou base que pareça opção. Nunca força nada.
-Saída: 0 criou; 1 git falhou; 2 recusou."""
+Com --instalar, depois de criar, roda na cópia os comandos de stacks/<stack>/instalar.json (lista de argv, sem shell) das stacks cujos
+arquivos de `detecta` existem na cópia; sem stack detectada avisa e sai 0; comando ausente ou falho: sai 1 (a cópia fica).
+Saída: 0 criou; 1 git ou instalação falhou; 2 recusou."""
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -42,6 +45,41 @@ def git(*args, cwd=None):
     return subprocess.run(["git", *args], cwd=cwd).returncode
 
 
+def instalar(copia):
+    """Roda os comandos de instalação das stacks detectadas na cópia. Devolve 0 ou 1."""
+    pacotes = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "stacks")
+    achou = False
+    for nome in sorted(os.listdir(pacotes)) if os.path.isdir(pacotes) else []:
+        arq = os.path.join(pacotes, nome, "instalar.json")
+        if not os.path.isfile(arq):
+            continue
+        try:
+            spec = json.load(open(arq, encoding="utf-8"))
+            detecta, comandos = spec["detecta"], spec["comandos"]
+            ok = all(isinstance(c, list) and c and all(isinstance(x, str) for x in c) for c in comandos)
+        except (OSError, ValueError, KeyError, TypeError):
+            ok = False
+        if not ok or not isinstance(detecta, list):
+            print(f"forge-copia: instalar.json inválido na stack {nome}", file=sys.stderr)
+            return 1
+        if not any(os.path.exists(os.path.join(copia, f)) for f in detecta):
+            continue
+        achou = True
+        for cmd in comandos:
+            print(f"forge-copia: instalando ({nome}): {' '.join(cmd)}", file=sys.stderr)
+            try:
+                rc = subprocess.run(cmd, cwd=copia).returncode
+            except OSError as e:
+                print(f"forge-copia: comando de instalação indisponível ({cmd[0]}): {e.strerror}", file=sys.stderr)
+                return 1
+            if rc:
+                print(f"forge-copia: a instalação falhou (rc={rc}): {' '.join(cmd)}", file=sys.stderr)
+                return 1
+    if not achou:
+        print("forge-copia: nenhuma stack detectada na cópia; nada a instalar", file=sys.stderr)
+    return 0
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="forge-copia", description=__doc__.split("\n")[0])
     p.add_argument("modo", choices=("clone", "worktree"))
@@ -49,6 +87,7 @@ def main(argv=None):
     p.add_argument("--branch", required=True)
     p.add_argument("--base", default="origin/develop")
     p.add_argument("--origem")
+    p.add_argument("--instalar", action="store_true", help="instala as dependências da stack na cópia nova")
     a = p.parse_args(argv)
     for nome, valor in (("branch", a.branch), ("base", a.base), ("origem", a.origem or "x")):
         if valor.startswith("-"):
@@ -59,12 +98,14 @@ def main(argv=None):
     if motivo:
         return recusa(motivo)
     if a.modo == "worktree":
-        return 1 if git("worktree", "add", "--no-track", "-b", a.branch, "--", real, a.base) else 0
+        if git("worktree", "add", "--no-track", "-b", a.branch, "--", real, a.base):
+            return 1
+        return instalar(real) if a.instalar else 0
     if not a.origem:
         return recusa("clone pede --origem")
     if git("clone", "--", a.origem, real) or git("switch", "--no-track", "-c", a.branch, a.base, cwd=real):
         return 1
-    return 0
+    return instalar(real) if a.instalar else 0
 
 
 if __name__ == "__main__":

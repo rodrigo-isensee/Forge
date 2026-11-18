@@ -1,0 +1,1 @@
+{"detecta": ["package.json"], "comandos": [["pnpm", "install", "--frozen-lockfile"]]}
