@@ -3,22 +3,21 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v0475-ci-cota
-commit: 19e7b93fe4b59d2883128e17482ce3e1829955f4
-parecer: reprovado
+commit: 322798df5b7bd991ddf6a955c00a92363e13e1b3
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-17
+data: 2026-11-18
 ---
 # QA: v0475-ci-cota (E3.60, cobre E3.42)
 
 Sem especificação de UX nem contrato de API: a obrigação é o item E3.42 (aviso de minutos do Actions acima de 80%, `R-CUSTO`) e o docstring de `bin/forge-cota-ci`. Diff conferido contra a base 2fa505d7: `bin/forge-cota-ci`, `tests/test_cota_ci.py`, `tests/mutantes/v0475-ci-cota.json`, duas skills (texto) e o fragmento de changelog. Só leitura por `gh api`, sem token novo e sem custo.
 
 ## Achados
-- A1 (bloqueante) tests/test_cota_ci.py:38 · test_ambiente_git.LeituraEstatica.test_nenhum_modulo_roda_git_sem_o_ponto_unico falha: `git init` (linha 38) e `git remote add` (linha 40) sem `env=` do ponto único (ambiente_git.sem_manutencao). Passar env=sem_manutencao(env) nos dois.
-- A2 (recomendado) tests/mutantes/v0475-ci-cota-2.json:2 · `pedido` difere do da spec 1 (v0475-ci-cota); `forge-mutante spec1 spec2` sai "spec inválida" (a skill manda uma só rodada, mesmo pedido). Alinhar o campo.
+Nenhum aberto. A1 (ambiente_git) corrigido no head 322798df; A2 (pedido da spec 2) já tratado em 19e7b93f.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -50,3 +49,11 @@ Sem especificação de UX nem contrato de API: a obrigação é o item E3.42 (av
 - Vermelho oficial (`forge-testes --vermelho`): não rerrodado (fila R-TETO ocupada); vale o substituto do parecer anterior e o autor cola o oficial.
 - CI: sem check-run `bateria` consultado para este sha; a suíte inteira fica para o CI do PR.
 - Parecer: reprovado por A1 (única razão).
+
+## Revalidação no head 322798df (delta desde 19e7b93f)
+- Delta (`forge-check parecer delta`): só `tests/test_cota_ci.py`; `git init` e `git remote add` passam `env=sem_manutencao()` (ponto único de `ambiente_git`).
+- `python3 -m unittest tests.test_ambiente_git` -> `Ran 20 tests ... OK` (A1 corrigido).
+- `python3 -m unittest tests.test_cota_ci` -> `Ran 26 tests ... OK`.
+- `python3 -I tests/catraca.py --base origin/develop` -> rc 0 (sem guarda sem mutante).
+- O delta não toca código de `bin/` nem a spec de mutantes; a mutação do head 19e7b93f (M1 a M27 `morreu`) segue valendo. Vermelho oficial e suíte inteira: CI do PR (check-run `bateria` do sha).
+- Parecer: aprovado.
