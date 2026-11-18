@@ -3,12 +3,16 @@
 Reaproveita o ambiente de `test_fechar_checks_exigidos` (o `gh` falso com a sequência de leituras dos checks). O `gh api` falso devolve a
 saída já filtrada pelo `--jq` (sem rede, R-CUSTO): `api_regras` e `api_protecao` no estado, uma linha por contexto; sem o arquivo, sai com 1,
 como o 404 da branch sem regra.
+
+MP6 (v0474 E3.251): o --limpar também acha e apaga os clones da branch em ~/.forge-contrib/wt (classe LimparClones).
 """
+import subprocess
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+import test_fechar as fechar_base  # noqa: E402  (o módulo: a classe seria coletada de novo aqui)
 import test_fechar_checks_exigidos as exig  # noqa: E402
 
 API = '''if [ "$1" = api ]; then  # a chamada já foi registrada no começo do gh falso
@@ -64,6 +68,132 @@ class FecharExigidosDoDestino(unittest.TestCase):
 
     def test_sem_regra_legivel_os_pares_continuam(self):  # o fallback: a leitura que falha não tira nenhum par
         self.para(["bateria\tskipping\t0\turl", *exig.OK[1:]], "bateria", "skipping")
+
+
+RM_FALSO = '#!/usr/bin/env bash\ncase "$*" in *"/.forge-contrib/wt/"*) echo "rm: negado" >&2; exit 1 ;; esac\nexec /bin/rm "$@"\n'
+
+
+class LimparClones(unittest.TestCase):
+    """MP6: o --limpar acha e apaga os clones da branch em ~/.forge-contrib/wt (o HOME do teste é a pasta temporária), só limpos, com tudo
+    na origem e mesclados; o resto fica, com leitura no lugar de comando que apaga. Ambiente de `test_fechar.Fechar` (git e gh falsos)."""
+    F = fechar_base.Fechar
+    setUp, tearDown, git, fechar, resumo = F.setUp, F.tearDown, F.git, F.fechar, F.resumo
+
+    def clone(self, nome="c1", branch="melhoria/x"):
+        d = self.tmp / ".forge-contrib" / "wt" / nome
+        d.parent.mkdir(parents=True, exist_ok=True)
+        self.git("clone", "-q", str(self.remoto), str(d), cwd=self.tmp)
+        self.git("switch", "-q", branch, cwd=d)
+        return d
+
+    def mesclado(self):
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {self.git('rev-parse', 'melhoria/x')}\n")
+
+    def limpar(self, cwd=None):
+        self.mesclado()
+        if cwd is None:
+            return self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        return subprocess.run(["bash", str(fechar_base.SCRIPT), "p1", "--ref", "melhoria/x", "--limpar"], cwd=cwd, env=self.env,
+                              capture_output=True, text=True, timeout=60)
+
+    def fica(self, d, r):
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertTrue(d.is_dir())
+        self.assertTrue(self.resumo(r)[0].endswith(" clone=pendente"), r.stdout)
+        self.assertIn(f"git -C {d} status --short --branch", r.stdout)
+        self.assertNotIn("rm -rf", r.stdout)
+
+    def test_clone_limpo_e_mesclado_e_apagado(self):
+        d = self.clone()
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=ok"])
+        self.assertFalse(d.exists())
+
+    def test_arquivo_novo_fica(self):
+        d = self.clone()
+        (d / "novo").write_text("x\n")
+        self.fica(d, self.limpar())
+
+    def test_stash_fica(self):
+        d = self.clone()
+        (d / "b").write_text("mudado\n")
+        self.git("stash", "-q", cwd=d)
+        self.fica(d, self.limpar())
+
+    def test_commit_nao_enviado_em_outra_branch_fica(self):
+        d = self.clone()
+        self.git("switch", "-q", "develop", cwd=d)
+        self.git("commit", "-q", "--allow-empty", "-m", "local", cwd=d)
+        self.git("switch", "-q", "melhoria/x", cwd=d)
+        self.fica(d, self.limpar())
+
+    def test_commit_enviado_e_nao_mesclado_fica(self):
+        d = self.clone()
+        self.mesclado()
+        self.git("commit", "-q", "--allow-empty", "-m", "depois do merge", cwd=d)
+        self.git("push", "-q", "origin", "melhoria/x", cwd=d)
+        self.fica(d, self.fechar("p1", "--ref", "melhoria/x", "--limpar"))
+
+    def test_clone_com_worktree_ligada_fica(self):  # sonda S1 da segurança: o rm levaria o repositório e o índice da ligada
+        d = self.clone()
+        w = self.tmp / ".forge-contrib" / "wt" / "zz-ligada"
+        self.git("worktree", "add", "-q", "-b", "outra", str(w), "origin/develop", cwd=d)
+        (w / "trabalho.txt").write_text("nao commitado\n")
+        self.git("add", "trabalho.txt", cwd=w)
+        self.fica(d, self.limpar())
+        self.assertEqual(self.git("status", "--short", cwd=w).strip(), "A  trabalho.txt")
+
+    def test_commit_so_em_tag_local_fica(self):
+        d = self.clone()
+        self.git("switch", "-q", "--detach", cwd=d)
+        self.git("commit", "-q", "--allow-empty", "-m", "so na tag", cwd=d)
+        self.git("tag", "t-local", cwd=d)
+        self.git("switch", "-q", "melhoria/x", cwd=d)
+        self.fica(d, self.limpar())
+
+    def test_fsmonitor_do_clone_nao_roda(self):
+        d = self.clone()
+        marca = self.tmp / "marca-fsmonitor"
+        self.git("config", "core.fsmonitor", f"touch {marca}; false #", cwd=d)
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertFalse(marca.exists())
+        self.assertFalse(d.exists())
+
+    def test_clone_de_outra_branch_ou_de_outro_origin_nao_e_tocado(self):
+        outra = self.clone("c1", "develop")
+        alheio = self.clone("c2")
+        self.git("remote", "set-url", "origin", str(self.tmp / "outro.git"), cwd=alheio)
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertTrue(outra.is_dir() and alheio.is_dir())
+
+    def test_worktree_que_ficou_nao_e_apagada_como_clone(self):
+        wt = self.tmp / ".forge-contrib" / "wt" / "w1"
+        wt.parent.mkdir(parents=True)
+        self.git("worktree", "add", "-q", str(wt), "melhoria/x")
+        (self.estado / "wt_busy").write_text("persiste")
+        r = self.limpar()
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertTrue(wt.is_dir())
+        self.assertNotIn("clone=", self.resumo(r)[0])
+
+    def test_o_clone_que_roda_o_fechamento_nao_se_apaga(self):
+        d = self.clone()
+        r = self.limpar(cwd=d)
+        self.assertTrue(d.is_dir(), r.stdout)
+        self.assertNotIn("clone=", self.resumo(r)[0])
+
+    def test_rm_que_falha_fica_pendente_com_o_comando(self):
+        d = self.clone()
+        (self.tmp / "bin" / "rm").write_text(RM_FALSO)
+        (self.tmp / "bin" / "rm").chmod(0o755)
+        r = self.limpar()
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertTrue(self.resumo(r)[0].endswith(" clone=pendente"))
+        self.assertIn(f"rm -rf -- {d}", r.stdout)
 
 
 if __name__ == "__main__":

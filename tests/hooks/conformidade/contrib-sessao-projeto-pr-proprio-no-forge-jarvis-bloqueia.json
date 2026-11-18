@@ -18,6 +18,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "R-CONFORMIDADE: gh pr create é de tech-lead (papel: jarvis)"
+    "stderr": "R-CONTRIB: push"
   }
 }

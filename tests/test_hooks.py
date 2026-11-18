@@ -3321,5 +3321,28 @@ class EscritaPublica(unittest.TestCase):
 from apoio_volta_unica import fator_de_carga, menor_custo, nucleos_do_processo  # noqa: E402
 
 
+class HookDir36(unittest.TestCase):
+    """E3.39 (v0474, diretriz 36, R-CONTRIB): projeto nunca mexe no Forge, só sugere. Só as fixtures `dir36-*` (branch,
+    commit, worktree e PR no Forge vindos de sessão de projeto; o próprio projeto e a sessão do Forge seguem livres) e as
+    `contrib-*`, pela mesma máquina do `Hooks`, para os mutantes de `tests/mutantes/v0475-dir36*.json` rodarem rápido."""
+    executar_em_lote = Hooks.executar_em_lote
+    executar_fixture = Hooks.executar_fixture
+    _pasta_temporaria = Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+
+    def rodar_prefixo(self, prefixo, piso):
+        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / "conformidade").glob(f"{prefixo}-*.json"))], piso,
+                          f"{prefixo}-*")
+        self.assertEqual({f.dados["esperado"]["codigo"] for f in fixtures}, {0, 2}, "o corpus tem os dois lados")
+        casos = [(f"conformidade/{f.caminho.stem}", f) for f in fixtures]
+        self.assertEqual(self.executar_em_lote(casos), len(fixtures), "toda fixture é verificada")
+
+    def test_fixtures_dir36(self):
+        self.rodar_prefixo("dir36", 18)
+
+    def test_fixtures_contrib(self):
+        self.rodar_prefixo("contrib", 140)
+
+
 if __name__ == "__main__":
     unittest.main()

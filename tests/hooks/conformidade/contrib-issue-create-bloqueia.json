@@ -16,6 +16,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "R-CONTRIB"
+    "stderr": "R-CONTRIB: gh issue create no Forge"
   }
 }

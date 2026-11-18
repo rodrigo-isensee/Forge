@@ -1,8 +1,14 @@
 {
-  "descricao": "FILA-22 (review da 0.43.2): abrir PR pelo `gh api` segue a política `pr_criar`; também pelo GraphQL.",
+  "descricao": "FILA-22 (review da 0.43.2): abrir PR pelo GraphQL segue a política `pr_criar`; na sessão do Forge (na de projeto, a diretriz 36 recusa antes).",
   "arquivos": {
     "src/app.js": "v1\n",
-    "docs/pedidos/p1.md": "# Pedido p1\n\n## Histórico\n- 2026-10-30: aberto\n- 2026-11-09 10:00: brief selado docs/briefs/p1-dev-1.md aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+    "docs/pedidos/p1.md": "# Pedido p1\n\n## Histórico\n- 2026-10-30: aberto\n- 2026-11-09 10:00: brief selado docs/briefs/p1-dev-1.md aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
   },
   "entrada": {
     "tool_name": "Bash",

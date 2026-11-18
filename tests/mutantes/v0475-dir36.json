@@ -1,0 +1,86 @@
+{
+  "pedido": "v0475-dir36",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "diretriz 36 (R-CONTRIB): commit, merge, cherry-pick... no Forge vindos de sessão de projeto são recusados",
+      "arquivo": "hooks/conformidade.py",
+      "de": "cria = (sub in GRAVA_NO_REPO or",
+      "para": "cria = (sub in () or",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "diretriz 36 (R-CONTRIB): git worktree add no Forge é recusado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "GRAVA_NO_REPO or sub == \"worktree\" and args[:1] == [\"add\"]",
+      "para": "GRAVA_NO_REPO or sub == \"worktree\" and args[:1] == [\"add-x\"]",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "diretriz 36 (R-CONTRIB): git branch <nome> no Forge é recusado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or sub == \"branch\" and self.branch_grava(args)",
+      "para": "or sub == \"branch-x\" and self.branch_grava(args)",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "diretriz 36 (R-CONTRIB): switch -c e checkout -b no Forge são recusados",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or sub in BRANCH_NOVA and any(",
+      "para": "or sub in () and any(",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "diretriz 36 (R-CONTRIB): só o repositório do Forge é alvo: o próprio projeto segue livre",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if cria and self.alvo_do_forge(pasta):",
+      "para": "if cria:",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "diretriz 36 (R-CONTRIB): git branch que só lista (--list, --contains) libera",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if any(a.split(\"=\", 1)[0] in BRANCH_LISTA for a in args):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "diretriz 36 (R-CONTRIB): git branch --sort <valor> sem nome só lista: o valor não é branch",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return bool(parecer.posicionais(args, BRANCH_COM_VALOR))",
+      "para": "return bool(parecer.posicionais(args, set()))",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "diretriz 36 (R-CONTRIB): push ao Forge, até da branch com o prefixo do projeto, é recusado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self.barrar(\"R-CONTRIB\", f\"push para {', '.join(map(str, destinos))}: {NO_FORGE}\", SO_SUGERE)",
+      "para": "pass",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_contrib"
+      ]
+    }
+  ]
+}

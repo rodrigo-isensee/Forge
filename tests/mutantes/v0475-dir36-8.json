@@ -1,0 +1,86 @@
+{
+  "pedido": "v0475-dir36",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M51",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.231, segurança A7: `branch.<b>.remote` e `pushRemote` entram na chave do destino)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "|branch\\..+\\.(remote|pushremote)\"",
+      "para": "|branch-x\\..+\\.(remote|pushremote)\"",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M52",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.231, segurança A7: `remote.pushDefault` entra na chave do destino)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "r\"|remote\\.pushdefault)\")",
+      "para": "r\"|remote-x\\.pushdefault)\")",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M53",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.231, segurança A9: a URL do remoto que é caminho no ~/.forge-contrib é o Forge)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "parecer.aponta_para_o_forge(url) or self.caminho_do_forge(raiz, url)",
+      "para": "parecer.aponta_para_o_forge(url) or False",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M54",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.231, segurança A9: `host:caminho` é SSH, não caminho local)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "r\"[\\w+.-]+://|[^/]*:\", url)",
+      "para": "r\"[\\w+.-]+://\", url)",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M55",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.231, segurança A9: URL de rede não é lida como caminho)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not local:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M56",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.231, segurança A9: caminho no ~/.forge-contrib recusa)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return em_contrib(alvo) or e_clone_do_forge(self.raiz_git(alvo))",
+      "para": "return e_clone_do_forge(self.raiz_git(alvo))",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M57",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.231, segurança A7: fora de repositório não há configuração a ler)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if (raiz := self.raiz_git(pasta)) is None:",
+      "para": "if (raiz := self.raiz_git(pasta)) is None and False:",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M58",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.231, segurança A7: a configuração ilegível falha fechado)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if cod not in (0, 1):",
+      "para": "if cod not in (0, 1, 128):",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    }
+  ]
+}

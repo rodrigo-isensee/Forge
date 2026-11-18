@@ -230,7 +230,9 @@ class PacotesDeStack(unittest.TestCase):
                 if (pacote / "pesados.json").exists():
                     pesados = json.loads((pacote / "pesados.json").read_text(encoding="utf-8"))
                     self.assertTrue(isinstance(pesados, list) and all(isinstance(x, str) and x.strip() for x in pesados))
-                extras = {p.name for p in pacote.iterdir()} - {"agents", "skills", "seguranca.md", "pronto.md", "pesados.json"}
+                if (pacote / "instalar.json").exists():
+                    json.loads((pacote / "instalar.json").read_text(encoding="utf-8"))
+                extras = {p.name for p in pacote.iterdir()} - {"agents", "skills", "seguranca.md", "pronto.md", "pesados.json", "instalar.json"}
                 self.assertEqual(extras, set(), "arquivo fora da forma do pacote")
 
     def test_nomes_de_agente_nao_colidem(self):
