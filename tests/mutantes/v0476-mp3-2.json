@@ -1,0 +1,88 @@
+{
+  "pedido": "v0476-mp3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "T9",
+      "guarda": "MP3: credor só com espera vigente e abaixo da parte",
+      "arquivo": "hooks/agentes.py",
+      "de": "if espera is not None and 0 <= self.agora - espera < RESERVA_S and uso < parte[p])",
+      "para": "if espera is not None and uso < parte[p])",
+      "testes": [
+        "tests.test_maquina_teto.QuatroCasos.test_a_espera_vence_e_o_emprestimo_volta_a_valer"
+      ]
+    },
+    {
+      "id": "T10",
+      "guarda": "MP3: credor só abaixo da parte",
+      "arquivo": "hooks/agentes.py",
+      "de": "and 0 <= self.agora - espera < RESERVA_S and uso < parte[p])",
+      "para": "and 0 <= self.agora - espera < RESERVA_S)",
+      "testes": [
+        "tests.test_maquina_teto.QuatroCasos.test_so_quem_esta_abaixo_da_parte_cobra_a_vaga"
+      ]
+    },
+    {
+      "id": "T11",
+      "guarda": "MP3: quem fechou ou parou de bater sai do uso da máquina",
+      "arquivo": "hooks/agentes.py",
+      "de": "if p in ativos and p != self.proprio}",
+      "para": "if p != self.proprio}",
+      "testes": [
+        "tests.test_maquina_teto.QuatroCasos.test_um_ativo_usa_o_teto_cheio",
+        "tests.test_maquina_teto.QuatroCasos.test_um_fecha_e_o_outro_recupera_a_parte"
+      ]
+    },
+    {
+      "id": "T12",
+      "guarda": "MP3: o registro ilegível recusa o disparo (falha fechada)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    except Exception as erro:  # noqa: BLE001 - sem ler a máquina, o disparo não sai",
+      "para": "    except KeyError as erro:  # noqa: BLE001 - sem ler a máquina, o disparo não sai",
+      "testes": [
+        "tests.test_maquina_teto.NoHook.test_pasta_da_maquina_aberta_ao_grupo_recusa"
+      ]
+    },
+    {
+      "id": "T13",
+      "guarda": "MP3: a recusa da máquina bloqueia",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if vez:\n        registrar_recusa",
+      "para": "    if None:\n        registrar_recusa",
+      "testes": [
+        "tests.test_maquina_teto.NoHook.test_maquina_cheia_recusa_com_a_parte_e_o_uso",
+        "tests.test_maquina_teto.NoHook.test_registro_ilegivel_recusa"
+      ]
+    },
+    {
+      "id": "T14",
+      "guarda": "MP3: sessão sem pasta de projeto em texto não conta como projeto ativo",
+      "arquivo": "hooks/agentes.py",
+      "de": "return {s[\"pasta\"] for s in vivas if isinstance(s.get(\"pasta\"), str)} | {proprio}",
+      "para": "return {s[\"pasta\"] for s in vivas if isinstance(s.get(\"pasta\"), (str, int))} | {proprio}",
+      "testes": [
+        "tests.test_maquina_teto.QuatroCasos.test_sessao_sem_pasta_de_projeto_e_config_fora_da_forma_nao_contam"
+      ]
+    },
+    {
+      "id": "T15",
+      "guarda": "MP3: config que não é objeto dá peso 1",
+      "arquivo": "hooks/agentes.py",
+      "de": "peso_valido(dados.get(\"peso\") if isinstance(dados, dict) else None)",
+      "para": "peso_valido(dados.get(\"peso\") if isinstance(dados, (dict, list)) else None)",
+      "testes": [
+        "tests.test_maquina_teto.QuatroCasos.test_sessao_sem_pasta_de_projeto_e_config_fora_da_forma_nao_contam"
+      ]
+    },
+    {
+      "id": "T16",
+      "guarda": "MP3: só quem deixa espera ouve que a próxima vaga é sua",
+      "arquivo": "hooks/agentes.py",
+      "de": "(\"; a próxima vaga livre é sua\" if espera else \"\")",
+      "para": "(\"; a próxima vaga livre é sua\" if True else \"\")",
+      "testes": [
+        "tests.test_maquina_teto.QuatroCasos.test_dois_ativos_um_parado_o_outro_usa_quase_tudo"
+      ]
+    }
+  ]
+}
