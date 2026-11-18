@@ -938,13 +938,18 @@ conferir_base_no_merge() {
 
 # promovivel <sha> (passo 1c, FF-1, SP4): a árvore do sha conferido passa no promover-homolog --conferir-ref (só leitura). Script ausente,
 # rc diferente de 0 e o 124 do prazo param (C-1); o recomeço do 2b roda o script de novo, e o 1c com ele, sobre o head novo (C-3).
-# FECHAR-SEM-HOMOLOG-LOCAL: o --conferir-ref lê a origin/homolog local, sem fetch; sem ela no clone, busca só essa ref. Busca que falha só
-# avisa: sem a ref, o --conferir-ref sai com 1 e o 1c para.
+# FECHAR-SEM-HOMOLOG-LOCAL e FECHAR-HOMOLOG-FRESCA (v0478): o --conferir-ref lê a origin/homolog local, sem fetch; o 1c busca só essa ref
+# antes, sempre (a local velha recusava por versão antiga: 0.47.6 contra a 0.47.7 do servidor). Busca que falha só avisa: sem a ref, o
+# --conferir-ref sai com 1 e o 1c para; com a local, ele decide com ela, e o aviso diz o sha dela.
 promovivel() {
-  local saida_1c rc_1c=0
+  local saida_1c rc_1c=0 homolog_local
   [ -f "$promover" ] || die "parou no passo 1c: não achei $promover (nada foi aberto nem mesclado)"
-  if ! git rev-parse -q --verify "refs/remotes/origin/homolog^{commit}" >/dev/null 2>&1; then
-    git fetch -q origin "+refs/heads/homolog:refs/remotes/origin/homolog" || echo "aviso: sem origin/homolog neste clone e a busca falhou (git fetch origin homolog); o promover-homolog decide." >&2
+  if ! git fetch -q origin "+refs/heads/homolog:refs/remotes/origin/homolog"; then
+    if homolog_local="$(git rev-parse -q --verify "refs/remotes/origin/homolog^{commit}" 2>/dev/null)"; then
+      echo "aviso: a busca da origin/homolog falhou (git fetch origin homolog); o promover-homolog decide com a local (${homolog_local:0:12}), que pode estar velha." >&2
+    else
+      echo "aviso: sem origin/homolog neste clone e a busca falhou (git fetch origin homolog); o promover-homolog decide." >&2
+    fi
   fi
   saida_1c="$(timeout 300 python3 -I "$promover" --conferir-ref "$1" 2>&1)" || rc_1c=$?
   [ "$rc_1c" = 0 ] || die "parou no passo 1c: a árvore que entra na $alvo não é promovível (rc $rc_1c; nada foi aberto nem mesclado): $saida_1c

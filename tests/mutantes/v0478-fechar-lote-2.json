@@ -11,6 +11,16 @@
       "testes": [
         "tests.test_fechar.Fechar.test_l5_registrador_de_stderr_lento_ainda_grava_a_parada_antes_do_fim"
       ]
+    },
+    {
+      "id": "FL-M10",
+      "guarda": "busca da homolog que falha com a local presente avisa que ela pode estar velha (FECHAR-HOMOLOG-FRESCA)",
+      "arquivo": "bin/forge-fechar",
+      "de": "    if homolog_local=\"$(git rev-parse -q --verify \"refs/remotes/origin/homolog^{commit}\" 2>/dev/null)\"; then",
+      "para": "    if false; then",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_busca_que_falha_com_a_homolog_local_avisa_que_ela_pode_estar_velha"
+      ]
     }
   ]
 }

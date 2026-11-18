@@ -329,20 +329,39 @@ class Fechar(unittest.TestCase):
         self.assertEqual(self.homolog_local(), sha_h)
         self.assertNotIn("aviso: sem origin/homolog", r.stderr)
 
-    def test_1c_com_origin_homolog_no_clone_nao_busca(self):
+    def test_1c_com_origin_homolog_velha_no_clone_busca_a_do_servidor_antes_do_promover(self):
+        # FECHAR-HOMOLOG-FRESCA (v0478): a local velha recusava por versão antiga (0.47.6 contra a 0.47.7 do servidor); o promover lê a nova
         velho = self.homolog_no_servidor("develop")
         self.git("push", "-q", "origin", "melhoria/x:refs/heads/homolog")
+        novo = self.git("rev-parse", "melhoria/x")
         self.git("update-ref", "refs/remotes/origin/homolog", velho)
+        visto = self.tmp / "homolog_vista"
+        (self.tmp / "promover.py").write_text(
+            "import subprocess, sys\n"
+            "h = subprocess.run(['git', 'rev-parse', 'refs/remotes/origin/homolog'], capture_output=True, text=True).stdout.strip()\n"
+            f"open({str(visto)!r}, 'w').write(h)\nsys.exit(0)\n", encoding="utf-8")
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.homolog_local(), velho)  # o 1c só lê: com a ref no clone, não busca
+        self.assertEqual(visto.read_text(), novo)
+        self.assertEqual(self.homolog_local(), novo)
+        self.assertNotIn("aviso:", r.stderr)
+
+    def test_1c_busca_que_falha_com_a_homolog_local_avisa_que_ela_pode_estar_velha(self):
+        local = self.git("rev-parse", "develop")
+        self.git("update-ref", "refs/remotes/origin/homolog", local)  # o servidor do setUp não tem homolog: a busca falha
+        r = self.fechar("p1", "--ref", "melhoria/x", PROMOVER_RC="1")
+        self.assert_parou_no_1c(r)
+        self.assertIn(f"aviso: a busca da origin/homolog falhou (git fetch origin homolog); o promover-homolog decide com a local "
+                      f"({local[:12]}), que pode estar velha.", r.stderr)
+        self.assertNotIn("aviso: sem origin/homolog neste clone e a busca falhou (git fetch", r.stderr)
+        self.assertEqual(self.homolog_local(), local)
 
     def test_1c_busca_da_homolog_que_falha_avisa_e_o_promover_decide(self):
         for rc in ("1", "0"):  # o 1 primeiro: o 0 mescla e limpa a branch
             with self.subTest(rc=rc):
                 self.registro.write_text("")
                 r = self.fechar("p1", "--ref", "melhoria/x", PROMOVER_RC=rc)  # o servidor do setUp não tem homolog
-                self.assertIn("aviso: sem origin/homolog neste clone e a busca falhou", r.stderr)
+                self.assertIn("aviso: sem origin/homolog neste clone e a busca falhou (git fetch origin homolog); o promover-homolog decide.", r.stderr)  # a do 1c, não a do passo 1
                 self.assertEqual(self.homolog_local(), "")
                 if rc == "1":
                     self.assert_parou_no_1c(r)
