@@ -902,23 +902,37 @@ def slug(texto):
     return f"{achado.group(1)}/{achado.group(2)}".lower() if achado else None
 
 
+def remotos(raiz):
+    """Os `dono/repo` dos remotos da cópia de trabalho `raiz`."""
+    urls = git(raiz, "config", "--get-regexp", r"^remote\..*\.url$")[1].splitlines()
+    return {slug(linha.partition(" ")[2]) for linha in urls} - {None}
+
+
+def sessao_ou(pasta):
+    """A raiz da sessão (`CLAUDE_PROJECT_DIR`); sem ela, a pasta do gh, que não é clone: recusa."""
+    return raiz_declarada() or pasta
+
+
 def pasta_do_gh(hook, pasta, repo):
-    """INCIDENTE-HOOK-PARECER-CONTORNADO: a pasta em que o hook confere `gh pr create`, `ready` ou `merge`. Dentro de uma
-    cópia de trabalho, a do gh, como antes. Fora dela, o gh só age com `-R`/`--repo`, `GH_REPO=` ou a URL do PR: vale o
-    clone da sessão (`CLAUDE_PROJECT_DIR`) com remoto desse repositório; sem ele, recusa (falha fechada), porque sem
-    clone não há branch nem parecer a conferir. A sessão em que o hook não age (projeto com `hooks_desligados`, repositório
-    alheio) segue como antes."""
-    if copia_de_trabalho(pasta) is not None:
+    """INCIDENTE-HOOK-PARECER-CONTORNADO: a pasta em que o hook confere `gh pr create`, `ready` ou `merge`. Num clone do
+    Forge ou num projeto, a do gh, como antes. Noutra pasta (fora de cópia de trabalho ou numa cópia alheia, que qualquer
+    um cria com `git init`), o alvo do gh vem do `-R`/`--repo`, de `GH_REPO=`, da URL do PR ou, sem eles, dos remotos da
+    cópia: vale o clone da sessão (`CLAUDE_PROJECT_DIR`) com remoto desse repositório. Com repositório indicado e sem
+    esse clone, recusa (falha fechada): sem clone não há branch nem parecer a conferir. A cópia alheia sem repositório
+    indicado e sem remoto do clone da sessão segue como antes, e também a sessão em que o hook não age (projeto com
+    `hooks_desligados`, repositório alheio)."""
+    copia = copia_de_trabalho(pasta)
+    if copia is not None and hook.projeto(pasta, clone_do_forge=True) is not None:
         return pasta
-    sessao = raiz_declarada() or pasta  # sem a raiz da sessão, só a pasta do gh, que não é clone: recusa
+    sessao = sessao_ou(pasta)
     clone = hook.projeto(sessao, clone_do_forge=True)
     if clone is None and copia_de_trabalho(sessao) is not None:
         return pasta
     pedido = slug(repo)
-    if pedido and clone:
-        urls = git(clone, "config", "--get-regexp", r"^remote\..*\.url$")[1].splitlines()
-        if pedido in {slug(linha.partition(" ")[2]) for linha in urls}:
-            return clone
+    if copia is not None and pedido is None:  # A2: sem -R, o gh age no repositório dos remotos da cópia
+        return clone if clone and remotos(copia) & remotos(clone) else pasta
+    if pedido and clone and pedido in remotos(clone):
+        return clone
     bloquear("R-REVIEW", f"gh pr fora de um clone do repositório indicado (-R, --repo, GH_REPO ou URL do PR: {repo}) e a "
                          "sessão não é clone dele: sem a branch, não há parecer a conferir. Corrigir: rode o gh de dentro "
                          "do clone (cd <clone>)")
@@ -964,14 +978,33 @@ def merge_por_api(hook, pasta, args):
 PRONTO_NO_GRAPHQL = re.compile(r"markPullRequestReadyForReview", re.I)
 
 
+def graphql_no_clone(hook, pasta, args):
+    """`gh api graphql` com método que muda e o clone do Forge como alvo: a pasta do gh ou, fora de clone e de projeto,
+    a sessão, porque o graphql não usa a pasta e age no mesmo GitHub de qualquer uma (GRAPHQL-FORA-DO-CLONE). Nos
+    projetos, o `conformidade` cuida do PR do Forge (R-CONTRIB)."""
+    if not (ENDPOINT_GRAPHQL.search(endpoint_da_api(args)) and metodo_mutante(args)):
+        return False
+    raiz = hook.projeto(pasta, clone_do_forge=True)
+    if raiz is None:  # GRAPHQL-FORA-DO-CLONE
+        raiz = hook.projeto(sessao_ou(pasta), clone_do_forge=True)
+    return e_clone_do_forge(raiz)
+
+
+def arquivo_trocado_na_linha(hook, pasta, args, acompanhado):
+    """GH-API-ARQUIVO-TROCADO: o hook lê o arquivo da consulta (`=@`, `--input`) antes de a linha rodar; outro comando
+    da mesma linha além do `cd` (`acompanhado`: `cp`, `mv`, `>`, `ln -sf`...) pode trocá-lo antes do gh: recusa."""
+    if acompanhado and any(a.startswith("--input") or "=@" in a for a in args) and graphql_no_clone(hook, pasta, args):
+        bloquear("R-CONTRIB", "gh api graphql que lê arquivo na mesma chamada de outro comando, que pode trocar o arquivo "
+                              "depois da leitura do hook. Corrigir: rode o gh api graphql sozinho na chamada (só o cd "
+                              "pode vir antes).")
+
+
 def pronto_por_graphql(hook, pasta, args, base):
     """FILA-27 A2: no clone do Forge, `markPullRequestReadyForReview` tira o PR do rascunho sem dizer a branch, então não
     há parecer a conferir (`pronto_de_pr`); a consulta que não dá para ler recusa (falha fechada). `pasta`: a do `gh`
     (`raiz_gh`); `base`: a que o hook resolveu na linha (None: desconhecida), onde se leem os arquivos relativos."""
-    if not (ENDPOINT_GRAPHQL.search(endpoint_da_api(args)) and metodo_mutante(args)):
+    if not graphql_no_clone(hook, pasta, args):
         return
-    if not e_clone_do_forge(hook.projeto(pasta, clone_do_forge=True)):
-        return  # nos projetos, o `conformidade` cuida do PR do Forge (R-CONTRIB)
     textos, legivel = textos_do_gh_api(desagrupa_i(args), base)  # GH-API-LEITURA-UNICA: a leitura do hooks/_gh_api.py
     if not legivel or any(PRONTO_NO_GRAPHQL.search(t) for t in textos):
         bloquear("R-CONTRIB", "tirar o rascunho pela API não informa a branch, ou a consulta não dá para ler. Corrigir: "
@@ -999,16 +1032,18 @@ def marcas_da_chamada(original, comando, corpos, leitores):
     return sem({"python", "dado"}), sem({"python", "dado", "shell"})
 
 
-def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corpo_de_heredoc=False, reavaliacoes=None):
+def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corpo_de_heredoc=False, reavaliacoes=None,
+                   acompanhado=False):
     """Confere a linha a partir de cada estado (pasta, branches) e, depois, o que ela roda dentro de uma palavra só: o
     corpo de cada crase (P4: `` echo `gh pr merge …` ``) e a palavra com `$(…)` entre aspas (N2: `echo "$(gh pr merge
     …)"`), esta só pelo conteúdo das substituições. O de dentro roda num subshell, a partir de um dos estados por onde a
     linha passa: é conferido a partir de cada um. `so_substituicoes`: a linha é uma dessas palavras. `corpo_de_heredoc`:
     a linha é o corpo de um heredoc que vai a um programa fora da lista dos que só o leem. `reavaliacoes`: as
-    reavaliações pelo shell (`reavaliacao`) achadas em qualquer nível, recusadas no fim do nível 0 com o marcador."""
+    reavaliações pelo shell (`reavaliacao`) achadas em qualquer nível, recusadas no fim do nível 0 com o marcador.
+    `acompanhado`: algum nível de cima roda outro comando além do `cd` (GH-API-ARQUIVO-TROCADO)."""
     reavaliacoes = [] if reavaliacoes is None else reavaliacoes
     for forma in formas_que_o_shell_le(comando, corpo_de_heredoc):  # HOOK-CONTINUACAO-LINHA: a que o bash roda
-        conferir_linha(hook, forma, estados, nivel, so_substituicoes, corpo_de_heredoc, reavaliacoes)
+        conferir_linha(hook, forma, estados, nivel, so_substituicoes, corpo_de_heredoc, reavaliacoes, acompanhado)
     if nivel > PROFUNDIDADE:
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull aninhada fundo demais para o hook ler. Corrigir: "
                              "rode o comando direto, sem crase nem $( dentro de outro")
@@ -1050,18 +1085,20 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
     internos = [(corpo, False, False) for corpo in conteudos_de_crase(comando, so_os_fechados=True)]
     internos += [(corpo, False, getattr(dono, "rodado", None) or True)  # o dono (ou o programa do texto) pode rodá-lo
                  for (dono, corpo), leitor in zip(corpos, leitores) if leitor not in ("python", "dado") and not corpo_so_lido(dono)]
-    vistos = {}
+    vistos, acompanhado_dentro = {}, acompanhado
     for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
         partes = [(analise_do_comando(palavras), palavras, solto)
                   for (todas, _, sub, _), solto in zip(leitura, soltos(leitura)) if sub or not so_substituicoes
                   for palavras in [sem_chaves(todas)]]
+        aqui = acompanhado or sum(1 for parte, _, _ in partes if not (parte and parte[0] == "cd")) > 1
+        acompanhado_dentro = acompanhado_dentro or aqui
         for pasta, branches, ambiente in estados:
-            for estado in conferir(hook, partes, pasta, branches, ambiente):
+            for estado in conferir(hook, partes, pasta, branches, ambiente, aqui):
                 vistos.setdefault((estado[0], tuple(sorted(estado[1].items())), estado[2]), estado)
         internos += [(p, True, False) for palavras, _, _, _ in leitura for p in palavras
                      if "$(" in p.replace(OPACO["$"], "")]
     for texto, so, de_heredoc in dict.fromkeys(internos):
-        conferir_linha(hook, texto, list(vistos.values()), nivel + 1, so, de_heredoc, reavaliacoes)
+        conferir_linha(hook, texto, list(vistos.values()), nivel + 1, so, de_heredoc, reavaliacoes, acompanhado_dentro)
     if gravado and marcado:  # M3 (ADR 0011, item 2), depois das regras da linha e do corpo
         bloquear("R-REVIEW", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`), com gh pr, gh "
                              f"api, merge ou pull. Corrigir: {GRAVE_E_RODE_NOUTRA}")
@@ -1081,11 +1118,12 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                                  f"Corrigir: {CONTORNO_DA_GRAMATICA}")
 
 
-def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
+def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE, acompanhado=False):
     """Os comandos de uma leitura da linha, em ordem (`cd`, atribuição e checkout/switch valem para os seguintes), a
     partir da pasta (None: desconhecida), das branches e do ambiente dados; devolve os estados (pasta, branches,
     ambiente) por onde a leitura passou. `partes`: (`analisar`, palavras, solto) de cada comando; só o `cd` solto (`soltos`)
-    muda a pasta dos seguintes, o de subshell, pipeline, segundo plano ou condicional a deixa desconhecida."""
+    muda a pasta dos seguintes, o de subshell, pipeline, segundo plano ou condicional a deixa desconhecida.
+    `acompanhado`: a linha roda outro comando além do `cd` (`arquivo_trocado_na_linha`)."""
     branches = dict(branches)  # raiz do projeto -> branch depois de checkout/switch na linha
     mexidas, desviado = ambiente.mexidas, ambiente.desviado
     estados = [(pasta, dict(branches), ambiente)]
@@ -1117,6 +1155,7 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
             merge_de_pr(hook, pasta_do_gh(hook, raiz_gh, parte[1]), parte[1], parte[2])
         elif parte[0] == "api":
             merge_por_api(hook, raiz_gh, parte[1])
+            arquivo_trocado_na_linha(hook, raiz_gh, parte[1], acompanhado)
             pronto_por_graphql(hook, raiz_gh, parte[1], pasta)
         elif parte[0] == "branch":
             onde = pasta_do_git(pasta, pastas_do_git(palavras), mexidas, desviado)

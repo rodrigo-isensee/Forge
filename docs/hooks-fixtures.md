@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3057 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3071 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -13,7 +13,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3057 fixtures) roda em `tests/test
 | `conformidade` | 2265 | 1683 | 582 | 94 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 32 | 13 | 19 | 14 |
-| `parecer` | 549 | 421 | 128 | 26 |
+| `parecer` | 563 | 432 | 131 | 27 |
 | `pesado` | 24 | 9 | 15 | 19 |
 | `quadro` | 7 | 2 | 5 | 7 |
 | `vigia` | 49 | 0 | 49 | 25 |
@@ -198,11 +198,12 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3057 fixtures) roda em `tests/test
 | `pr-*` | 46 | 32 | 14 | `R-REVIEW`, `R-CONTRIB`, `R-SEGURANCA`, `R-QA` e mais 1 | `K-164`, `PR`, `PR-HOOK-RAPIDO` | K-164: base escolhida pelo autor fora de develop, homolog e main (aqui uma branch copiada da develop): não afrouxa; fica o modo estrito e o… |
 | `v0454-*` | 30 | 26 | 4 | `R-REVIEW` | `V0454-GH-ALIAS-PARECER` | V0454-GH-ALIAS-PARECER: alias `gh m` = api de merge com `$1` |
 | `fila27-*` | 22 | 14 | 8 | `R-REVIEW` | `FILA-27` | FILA-27 A1 (S7b): no clone do Forge com .forge/versao, o manifesto vence o hooks_desligados; gh pr merge sem parecer barra. |
+| `incidente-*` | 19 | 14 | 5 | `R-REVIEW` | `INCIDENTE-HOOK-PARECER-CONTORNADO` | INCIDENTE-HOOK-PARECER-CONTORNADO (A1 da E3.3): cd para a cópia alheia e gh pr ready --repo na mesma linha confere no clone (S2). |
 | `continuacao-*` | 16 | 15 | 1 | `R-REVIEW` | `HOOK-CONTINUACAO-LINHA` | HOOK-CONTINUACAO-LINHA (A4 do review, volta 4): $'…' e \ + quebra de linha na mesma linha; as formas compostas até o ponto fixo recusam. |
 | `pn7-*` | 13 | 3 | 10 | `R-REVIEW` | `PN7-DOLAR-INTERROG` | PN7-DOLAR-INTERROG (H1-1, ADR 0011): continua barrado. |
-| `incidente-*` | 11 | 7 | 4 | `R-REVIEW` | `INCIDENTE-HOOK-PARECER-CONTORNADO` | INCIDENTE-HOOK-PARECER-CONTORNADO: GH_REPO= antes de gh pr create fora de repositório git confere no clone. |
 | `leitura-*` | 9 | 7 | 2 | — | `GH-API-LEITURA-UNICA` | GH-API-LEITURA-UNICA: `--input=@q.json` lê o arquivo `@q.json` (o `@` é do `-F`, não do `--input`), e o hook lia q.json. |
 | `atualiza-*` | 6 | 3 | 3 | `R-REVIEW` | `PARECER-BARRA-FETCH` | PARECER-BARRA-FETCH, o que segue barrado: na develop, fetch e merge --ff-only da branch com review reprovado é a entrada na integração. |
+| `graphql-*` | 6 | 4 | 2 | — | `GH-API-ARQUIVO-TROCADO`, `GRAPHQL-FORA-DO-CLONE` | GH-API-ARQUIVO-TROCADO (A4 da E3.4): só o cd antes do gh não troca arquivo: a consulta de leitura passa. |
 | `merge-*` | 6 | 3 | 3 | — | `FURO-HOOK-A` | git merge --abort não mescla nada. |
 | `api-*` | 5 | 3 | 2 | `R-CONTRIB` | — | gh api só lendo o PR: libera. |
 | `checkout-*` | 5 | 2 | 3 | — | — | `git checkout develop --` sem caminho é troca de branch; o merge na develop sem parecer bloqueia. |

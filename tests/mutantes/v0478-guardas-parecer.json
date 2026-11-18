@@ -4,10 +4,10 @@
   "mutantes": [
     {
       "id": "M1",
-      "guarda": "INCIDENTE-HOOK-PARECER-CONTORNADO: dentro de cópia de trabalho a pasta do gh vale; fora dela, o hook resolve pelo -R",
+      "guarda": "INCIDENTE-HOOK-PARECER-CONTORNADO (A1 da E3.3): a pasta do gh só decide num clone do Forge ou num projeto; a cópia alheia não",
       "arquivo": "hooks/parecer.py",
-      "de": "if copia_de_trabalho(pasta) is not None:\n        return pasta",
-      "para": "if True:\n        return pasta",
+      "de": "if copia is not None and hook.projeto(pasta, clone_do_forge=True) is not None:",
+      "para": "if copia is not None:",
       "testes": [
         "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
       ]
@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "INCIDENTE-HOOK-PARECER-CONTORNADO: com -R e clone da sessão, o hook confere nele (o desenho: nunca acha)",
       "arquivo": "hooks/parecer.py",
-      "de": "    if pedido and clone:\n        urls = git(",
-      "para": "    if False:\n        urls = git(",
+      "de": "if pedido and clone and pedido in remotos(clone):",
+      "para": "if False:",
       "testes": [
         "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
       ]
@@ -36,8 +36,8 @@
       "id": "M4",
       "guarda": "INCIDENTE-HOOK-PARECER-CONTORNADO: o clone da sessão só vale se tem remoto do repositório do -R",
       "arquivo": "hooks/parecer.py",
-      "de": "if pedido in {slug(linha.partition(\" \")[2]) for linha in urls}:",
-      "para": "if True:",
+      "de": "if pedido and clone and pedido in remotos(clone):",
+      "para": "if pedido and clone:",
       "testes": [
         "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
       ]

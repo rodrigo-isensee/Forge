@@ -37,10 +37,15 @@ class ParecerForaDoRepo(unittest.TestCase):
         self.assertEqual(self.executar_em_lote(casos), len(fixtures), "toda fixture é verificada")
 
     def test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao(self):
-        self.rodar("incidente-r-*.json", 11)
+        self.rodar("incidente-r-*.json", 19)
 
     def test_leitura_dos_arquivos_do_gh_api(self):
         self.rodar("leitura-api-*.json", 9)
+
+    def test_graphql_fora_do_clone_e_arquivo_trocado_na_linha(self):
+        """GRAPHQL-FORA-DO-CLONE e GH-API-ARQUIVO-TROCADO (A3 e A4 da E3.4): o graphql não usa a pasta, e a linha com
+        outro comando pode trocar o arquivo da consulta depois da leitura do hook."""
+        self.rodar("graphql-*.json", 6)
 
 
 class LeituraDoGhApi(unittest.TestCase):

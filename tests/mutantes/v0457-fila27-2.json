@@ -47,8 +47,8 @@
       "id": "M8",
       "guarda": "FILA-27 A2: só o endpoint GraphQL é conferido (REST que cita o nome passa)",
       "arquivo": "hooks/parecer.py",
-      "de": "    if not (ENDPOINT_GRAPHQL.search(endpoint_da_api(args)) and metodo_mutante(args)):\n        return\n    if not e_clone_do_forge(",
-      "para": "    if not metodo_mutante(args):\n        return\n    if not e_clone_do_forge(",
+      "de": "    if not (ENDPOINT_GRAPHQL.search(endpoint_da_api(args)) and metodo_mutante(args)):\n        return False\n    raiz = hook.projeto(",
+      "para": "    if not metodo_mutante(args):\n        return False\n    raiz = hook.projeto(",
       "testes": [
         "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
       ]
@@ -57,8 +57,8 @@
       "id": "M9",
       "guarda": "FILA-27 A2: nos projetos o parecer não confere a mutação (o conformidade cuida, R-CONTRIB)",
       "arquivo": "hooks/parecer.py",
-      "de": "    if not e_clone_do_forge(hook.projeto(pasta, clone_do_forge=True)):",
-      "para": "    if False:",
+      "de": "    return e_clone_do_forge(raiz)",
+      "para": "    return True",
       "testes": [
         "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
       ]
