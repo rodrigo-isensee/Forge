@@ -1,0 +1,46 @@
+{
+    "pedido": "v0478-testes-prazo",
+    "executor": "unittest",
+    "mutantes": [
+        {
+            "id": "M1",
+            "guarda": "descende_de: a cadeia de pais anda enquanto o pid é válido e ainda não visto",
+            "arquivo": "tests/sem_claude_ancestral.py",
+            "de": "    while pid > 0 and pid not in vistos:",
+            "para": "    while pid > 0 and pid in vistos:",
+            "testes": [
+                "tests.test_sempre_atual.ProcessoDeOutraParteDaSuite.test_descende_de_segue_a_cadeia_de_pais_ate_o_teste"
+            ]
+        },
+        {
+            "id": "M2",
+            "guarda": "descende_de: só o processo do teste (--ate) na cadeia faz o pid contar como do teste",
+            "arquivo": "tests/sem_claude_ancestral.py",
+            "de": "        if pid == ate:",
+            "para": "        if pid != ate:",
+            "testes": [
+                "tests.test_sempre_atual.ProcessoDeOutraParteDaSuite.test_descende_de_segue_a_cadeia_de_pais_ate_o_teste"
+            ]
+        },
+        {
+            "id": "M3",
+            "guarda": "o lançador troca a lista de pids só no forge-sempre-atual; os outros scripts veem o /proc inteiro",
+            "arquivo": "tests/sem_claude_ancestral.py",
+            "de": "        if script.name == \"forge-sempre-atual\":",
+            "para": "        if script.name != \"forge-sempre-atual\":",
+            "testes": [
+                "tests.test_sempre_atual.ProcessoDeOutraParteDaSuite.test_lancador_troca_a_lista_de_pids_so_do_forge_sempre_atual"
+            ]
+        },
+        {
+            "id": "M4",
+            "guarda": "o forge-sempre-atual do teste vê só os pids que descendem do --ate",
+            "arquivo": "tests/sem_claude_ancestral.py",
+            "de": "if descende_de(int(n), ate, original)]",
+            "para": "if not descende_de(int(n), ate, original)]",
+            "testes": [
+                "tests.test_sempre_atual.ProcessoDeOutraParteDaSuite.test_lancador_troca_a_lista_de_pids_so_do_forge_sempre_atual"
+            ]
+        }
+    ]
+}
