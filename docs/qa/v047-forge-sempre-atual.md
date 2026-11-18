@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0474
 branch: melhoria/v047-forge-sempre-atual
-commit: b89aa7ed43a1c96daf2250a0d312e6359717f935
+commit: 008d66c31e331e3bd150cbb487bec5cdcf521c49
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -49,3 +49,9 @@ Ambiente x defeito (o autor viu o mesmo):
 - Oráculo em cópia de `git archive HEAD` com `proc_coerente` neutralizado: Ran 59, 50 passam, 9 falham (classe `Ocupacao` e `NuncaReabre`, só `vivo()` no `comm` de outro namespace), igual à rodada anterior; os 9 só no CI. O oráculo não mudou desde 2bcad385 além do ajuste da volta E1.55 (conferido pelo delta, sem afrouxar).
 - Fixtures `tagv-*` (21, em `tests/hooks/conformidade/`): `tests.test_hooks.Hooks.test_fixtures` (a suíte de fixtures inteira, 350 s): 1 falha, `pesado/mesma-sessao-libera`, `PrazoEstourado` de 120 s numa fixture de trava de outro hook, que não toca o delta; nenhuma fixture `tagv` ou `conformidade` caiu. Ambiente (sessão e `/proc` do sandbox); confira no CI do PR.
 - A1 segue valendo: o CI do PR precisa passar o oráculo inteiro (59) e `test_hooks`.
+
+## Revalidação por delta (E3.91, head 008d66c3, base do delta b89aa7ed)
+`forge-check parecer delta` listou o domínio: forge-check (H1, tamanho do PR), forge-testes, conformidade.py, docs/adr/README.md, docs/hooks-fixtures.md, specs `v047-sempre-atual-11` a `-35` e os testes test_atualizar, test_forge, test_hooks, test_sempre_atual, test_testes_tocados. Aviso do delta: o merge de c7e03a9 não está na origin/develop local; o que ele trouxe contou inteiro. Sem PR, sem check-run `bateria`; a suíte inteira fica com o CI do PR.
+- Specs declaram 200 mutantes novos (287 no conjunto `v047-sempre-atual-*`). Amostra rodada com `--processos 4`: specs 11, 12, 13 (24 mutantes, S1 a S24) e 20, 27, 31, 35 (32 mutantes), todos `morreu`, rc 0, `rev=008d66c31e33`, nenhum sobrevivente; 3 morrem por erro do teste declarado (S3, S20 e semelhante), mesma classe já registrada.
+- Módulos tocados (`python3 -I -m unittest discover`, TMPDIR próprio): test_sempre_atual Ran 139 OK; test_atualizar Ran 111 OK (skipped=3, ambiente); test_testes_tocados Ran 162 OK (skipped=1). test_forge e test_hooks ficam com o CI (suítes longas, A1 segue valendo).
+- Sem achado novo.
