@@ -1,2 +1,2 @@
 ### Adicionado
-- `forge-placar fases`: tempo do 1.º commit ao merge por fase (desenvolvimento, pareceres, voltas, integração) e primeira rodada aprovada, por item e no total do dia, com a meta de 85 min; `forge-placar --prs`: PRs mesclados com a seção `## Sem teste` por semana (v0478 E20.1).
+- `forge-placar fases`: tempo do 1.º commit ao merge por fase (desenvolvimento, pareceres, voltas, integração) e primeira rodada aprovada, por item e no total do dia, com a meta de 85 min (o item por squash é medido pelos commits do PR em `refs/pull/N/head` ou conta à parte em `itens sem fases (squash)`); `forge-placar --prs`: PRs mesclados com a seção `## Sem teste` por semana (v0478 E20.1).
