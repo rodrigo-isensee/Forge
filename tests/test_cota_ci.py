@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
 from gh_falso import com_gh_falso  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -35,9 +36,9 @@ def rodar_em(script, *args, origin=None, endpoint=None):
         env.pop("FORGE_COTA_CI_ENDPOINT", None)
         if endpoint:
             env["FORGE_COTA_CI_ENDPOINT"] = endpoint
-        subprocess.run(["git", "init", "-q", d], check=True)
+        subprocess.run(["git", "init", "-q", d], check=True, env=sem_manutencao())
         if origin:
-            subprocess.run(["git", "-C", d, "remote", "add", "origin", origin], check=True)
+            subprocess.run(["git", "-C", d, "remote", "add", "origin", origin], check=True, env=sem_manutencao())
         r = subprocess.run([sys.executable, "-I", str(FERRAMENTA), *args], env=env, cwd=d, capture_output=True, text=True)
         chamadas = log.read_text().splitlines() if log.exists() else []
         return r.returncode, r.stdout, chamadas
