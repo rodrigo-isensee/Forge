@@ -1,0 +1,26 @@
+{
+ "pedido": "v0475-ci-custo",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M30",
+   "guarda": "o modelo do CI não deixa marcador {{X}} sem trocar",
+   "arquivo": "templates/projeto/.github/workflows/ci.yml",
+   "de": "    name: ci\n",
+   "para": "    name: ci\n    # {{SOBRA}}\n",
+   "testes": [
+    "tests.test_modelo_ci.Entrega.test_forge_init_copia_o_modelo_com_o_comando_da_stack"
+   ]
+  },
+  {
+   "id": "M31",
+   "guarda": "o ambiente dos testes do modelo passa por sem_manutencao",
+   "arquivo": "tests/test_modelo_ci.py",
+   "de": "    return sem_manutencao(env)\n",
+   "para": "    return env\n",
+   "testes": [
+    "tests.test_ambiente_git"
+   ]
+  }
+ ]
+}
