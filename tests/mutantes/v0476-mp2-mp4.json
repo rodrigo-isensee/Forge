@@ -1,0 +1,86 @@
+{
+  "pedido": "v0476-mp2-mp4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "MP2: pasta da máquina em link levanta (o estado não se desvia)",
+      "arquivo": "hooks/_maquina.py",
+      "de": "    if caminho.is_symlink():\n        raise",
+      "para": "    if False:\n        raise",
+      "testes": [
+        "tests.test_maquina.Registro.test_pasta_em_link_nao_grava"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "MP2: registro em link não se lê",
+      "arquivo": "hooks/_maquina.py",
+      "de": "os.open(caminho, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)",
+      "para": "os.open(caminho, os.O_RDONLY | os.O_NONBLOCK)",
+      "testes": [
+        "tests.test_maquina.Registro.test_sessao_fora_da_forma_e_registro_em_link_nao_contam"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "MP2: registro ilegível recomeça vazio",
+      "arquivo": "hooks/_maquina.py",
+      "de": "    except (OSError, ValueError, RecursionError):\n        return {}",
+      "para": "    except (OSError, ValueError, RecursionError):\n        raise",
+      "testes": [
+        "tests.test_maquina.Registro.test_registro_ilegivel_recomeca"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "MP2: registro que não é objeto recomeça vazio",
+      "arquivo": "hooks/_maquina.py",
+      "de": "return dados if isinstance(dados, dict) else {}",
+      "para": "return dados if isinstance(dados, (dict, list)) else {}",
+      "testes": [
+        "tests.test_maquina.Registro.test_registro_ilegivel_recomeca"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "MP2: sessoes que não é objeto vale vazia",
+      "arquivo": "hooks/_maquina.py",
+      "de": "sessoes = sessoes if isinstance(sessoes, dict) else {}",
+      "para": "sessoes = sessoes if isinstance(sessoes, (dict, list)) else {}",
+      "testes": [
+        "tests.test_maquina.Registro.test_registro_ilegivel_recomeca"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "MP2: sessão que não é objeto não conta",
+      "arquivo": "hooks/_maquina.py",
+      "de": "if isinstance(s, dict) and isinstance(s.get(\"batimento\"), (int, float))",
+      "para": "if isinstance(s.get(\"batimento\"), (int, float))",
+      "testes": [
+        "tests.test_maquina.Registro.test_sessao_fora_da_forma_e_registro_em_link_nao_contam"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "MP2: sessão que parou de bater some",
+      "arquivo": "hooks/_maquina.py",
+      "de": "and 0 <= agora - s[\"batimento\"] < BATIMENTO_S and",
+      "para": "and 0 <= agora - s[\"batimento\"] and",
+      "testes": [
+        "tests.test_maquina.Registro.test_sessao_que_para_de_bater_ou_fecha_some"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "MP2: sessão de processo morto some",
+      "arquivo": "hooks/_maquina.py",
+      "de": "and vivo(s.get(\"pid\"), s.get(\"inicio\"))}",
+      "para": "}",
+      "testes": [
+        "tests.test_maquina.Registro.test_sessao_que_para_de_bater_ou_fecha_some"
+      ]
+    }
+  ]
+}

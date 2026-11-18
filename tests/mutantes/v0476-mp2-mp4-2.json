@@ -1,0 +1,86 @@
+{
+  "pedido": "v0476-mp2-mp4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "MP2: só SessionStart e Stop anotam",
+      "arquivo": "hooks/_maquina.py",
+      "de": "if hook.campo(\"hook_event_name\") not in EVENTOS or not isinstance",
+      "para": "if not isinstance",
+      "testes": [
+        "tests.test_maquina.Registro.test_so_a_sessao_de_projeto_no_inicio_e_no_fim_anota"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "MP2: projeto que não é texto fica fora de `projetos`",
+      "arquivo": "hooks/_maquina.py",
+      "de": "for s in sessoes.values() if isinstance(s.get(\"projeto\"), str)}",
+      "para": "for s in sessoes.values() if isinstance(s.get(\"projeto\"), (str, int))}",
+      "testes": [
+        "tests.test_maquina.Registro.test_sessao_fora_da_forma_e_registro_em_link_nao_contam"
+      ]
+    },
+    {
+      "id": "P1",
+      "guarda": "MP4: no mínimo uma vaga",
+      "arquivo": "hooks/pesado.py",
+      "de": "return max(1, (os.cpu_count() or 1) // NUCLEOS_POR_VAGA)",
+      "para": "return max(1, (os.cpu_count() or 12) // NUCLEOS_POR_VAGA)",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_vagas_um_por_seis_nucleos"
+      ]
+    },
+    {
+      "id": "P2",
+      "guarda": "MP4: a vez do próprio projeto não toma vaga",
+      "arquivo": "hooks/pesado.py",
+      "de": "if chave != str(hook.run()) and ocupada(hook, t, uso, agora)]",
+      "para": "if ocupada(hook, t, uso, agora)]",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_a_propria_vez_nao_toma_vaga"
+      ]
+    },
+    {
+      "id": "P3",
+      "guarda": "MP4: máquina cheia com todas as vagas tomadas",
+      "arquivo": "hooks/pesado.py",
+      "de": "return len(outras_vezes(hook, uso, agora)) >= vagas()",
+      "para": "return len(outras_vezes(hook, uso, agora)) > vagas()",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_bateria_de_outro_projeto_espera_a_vaga_da_maquina"
+      ]
+    },
+    {
+      "id": "P4",
+      "guarda": "MP4: a vez de dono morto sai na gravação",
+      "arquivo": "hooks/pesado.py",
+      "de": "if c != chave and isinstance(t, dict) and pid_vivo(t.get(\"pid\"), t.get(\"inicio\"))}",
+      "para": "if c != chave and isinstance(t, dict)}",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_post_de_outro_uso_mantem_e_dono_morto_sai"
+      ]
+    },
+    {
+      "id": "P5",
+      "guarda": "MP4: soltar tira a chave do projeto",
+      "arquivo": "hooks/pesado.py",
+      "de": "{**vezes, chave: trava} if trava else vezes)",
+      "para": "{**vezes, chave: trava} if not trava else vezes)",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_bateria_de_outro_projeto_espera_a_vaga_da_maquina"
+      ]
+    },
+    {
+      "id": "P6",
+      "guarda": "MP4: o Post de outro uso não solta",
+      "arquivo": "hooks/pesado.py",
+      "de": "return isinstance(trava, dict) and (not uso or trava.get(\"tool_use_id\") in (uso, None))",
+      "para": "return isinstance(trava, dict)",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_post_de_outro_uso_mantem_e_dono_morto_sai"
+      ]
+    }
+  ]
+}

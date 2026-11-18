@@ -708,6 +708,10 @@ class RegrasComId(unittest.TestCase):
                     self.assertTrue(rid in validos, f"{rid} não existe em docs/regras/")
 
 
+# Review A5 (v0476-mp2-mp4): as pastas da máquina de cada chamada ficam numa só, apagada na saída do processo.
+MAQUINAS = tempfile.TemporaryDirectory(prefix="forge-maquinas-")
+
+
 def ambiente_limpo():
     """Ambiente sem as variáveis GIT_* herdadas (um hook do git exporta GIT_DIR e afins) e sem config
     global/de sistema: o git dos testes só enxerga o repositório temporário em que roda. Sem `CLAUDE_PROJECT_DIR`
@@ -717,6 +721,7 @@ def ambiente_limpo():
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
     env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+    env["FORGE_MAQUINA"] = tempfile.mkdtemp(prefix="maquina-", dir=MAQUINAS.name)  # MP4: a fila pesada da máquina, uma por chamada
     return sem_manutencao(env)  # sem manutenção automática do git (ver ambiente_git.py)
 
 
