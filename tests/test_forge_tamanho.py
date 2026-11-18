@@ -226,7 +226,7 @@ class NoBriefGerar(ComRepositorio):
         self.assertNotIn("etapas, acima", erro)
 
     def test_brief_perto_do_teto_de_caracteres_avisa(self):
-        self.gravar("docs/pedidos/exemplo.md", pedido_com(["texto longo " * 200] * 5))
+        self.gravar("docs/pedidos/exemplo.md", pedido_com(["texto longo " * 900]))  # E3.48: a coberta vai inteira ao Entregar
         rc, saida, erro = self.gerar()
         self.assertEqual(rc, 0, erro)
         self.assertGreaterEqual(len(saida), 9000)

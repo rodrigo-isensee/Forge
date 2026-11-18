@@ -5146,13 +5146,13 @@ def cmd_conferencia_classes(raiz, dias=JANELA_DE_RECORRENCIA):
     return saida + [proposta_de(g) for g in grupos if g["n"] >= LIMIAR_DA_PROPOSTA]
 
 
-ROTULO_DO_DESTINO = "Erro recorrente deste destino"
-LINHA_DO_DESTINO = re.compile(rf"^- {ROTULO_DO_DESTINO} \(forge-check, {JANELA_DE_RECORRENCIA} dias\): ([a-z]+) em (\d+) entregas · evita: (.+)$")
+ROTULO_DO_DESTINO = "Erro recorrente"
+LINHA_DO_DESTINO = re.compile(rf"^- {ROTULO_DO_DESTINO} \({JANELA_DE_RECORRENCIA} dias\): ([a-z]+) em (\d+) · evita: (.+)$")
 
 
 def linha_do_destino(classe, n):
     """A linha fixa do brief (OK-8 B, E2): só a classe, a contagem e o texto do catálogo; nunca texto do registro."""
-    return f"- {ROTULO_DO_DESTINO} (forge-check, {JANELA_DE_RECORRENCIA} dias): {classe} em {n} entregas · evita: {CLASSES_DE_FALHA[classe]}"
+    return f"- {ROTULO_DO_DESTINO} ({JANELA_DE_RECORRENCIA} dias): {classe} em {n} · evita: {CLASSES_DE_FALHA[classe]}"
 
 
 def erros_do_destino(raiz, destino):
@@ -8604,15 +8604,9 @@ LINHA_DE_PARALELO = "- paralelo na mesma branch: parecer, lê a branch sem escre
 LINHA_DO_PROXIMO = "regra que só ferramenta verifica vale pelo ID: siga o que a ferramenta disser, sem reler o texto dela"
 
 
-ETAPA_FEITA = re.compile(r"·\s*feito\s*$")  # AQR-2 (E15.1): a marca de feita no fim da etapa de `## Etapas`
-
-
-def linha_de_outra_etapa(etapa, papel, texto):
-    """AQR-2 (E15.1): no `Fora do escopo` do brief novo, a etapa com a marca de feita vai numa linha curta (id, papel e a marca), que
-    o `conferir_corte` aceita pelo id; a aberta vai com o texto inteiro. A volta não passa por aqui (`fora_do_escopo_do_pedido`)."""
-    if ETAPA_FEITA.search(texto):
-        return f"- {etapa} ({sem_controle(papel or '')}) · feito · etapa de outra delegação; continua no pedido"
-    return f"- \"{sem_controle(texto)}\" · etapa de outra delegação; continua no pedido"
+# v0474 E3.48: o brief de portão traz o formato do bloco `## Achados` do `_modelo.md` (o `forge-check docs` o confere)
+LINHA_DOS_ACHADOS = (f"- bloco `## Achados`: uma linha por achado, `- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>`, texto até "
+                     f"{TETO_DO_ACHADO} caracteres; sem achado, sem o bloco (nada de \"nenhum\"); não há gravidade \"informativo\"")
 
 
 # PRE-ENVIO-RAPIDO (mp1311, diretriz 23 com a DECISÃO DO DONO de 13/11 17:31): caminho de código no Entregar, que pede os testes afetados
@@ -8631,13 +8625,12 @@ def pqs_de_pre_envio(raiz, etapa, entregar):
     if (etapa or "codigo") not in ("codigo", "pr") or not e_o_forge(Path(raiz)):
         return []
     linhas = [f"- PQ-N (cmd, do autor): `PR_BODY=\"$(cat <corpo do PR>)\" python3 tests/catraca.py --modo pr-texto` · espera: rc=0 · "
-              f"{PREENCHER}: o arquivo com o corpo do PR que vai ao `gh pr create --body-file`",
-              f"- PQ-N (cmd, do autor): `python3 -m unittest {' '.join(TESTES_DE_TEXTO)}` · espera: rc=0 · mapa de testes e tamanho de texto"]
+              f"{PREENCHER}: o corpo do `gh pr create --body-file`",
+              f"- PQ-N (cmd, do autor): `python3 -m unittest {' '.join(TESTES_DE_TEXTO)}` · espera: rc=0 · tamanho de texto"]
     if (etapa or "codigo") == "codigo" and CAMINHO_DE_CODIGO.search(entregar):
-        linhas.append("- PQ-N (cmd, do autor): `FORGE_PREPUSH_SUITE=afetados .githooks/pre-push` · espera: rc=0 · testes afetados, com as refs "
-                      "do envio no stdin e em segundo plano, com log que termina em `rc=` (skill esperar-estado)")
-        linhas.append(f"- PQ-N (cmd, do autor): `python3 -m unittest {TESTE_DOS_ACHADOS}` · espera: rc=0 · autoverificação contra os achados "
-                      "recorrentes antes de entregar (AR-12: spec de mutante alinhada à fonte; H3)")
+        linhas.append("- PQ-N (cmd, do autor): `FORGE_PREPUSH_SUITE=afetados .githooks/pre-push` · espera: rc=0 · refs no stdin, em "
+                      "segundo plano, log até `rc=` (esperar-estado)")
+        linhas.append(f"- PQ-N (cmd, do autor): `python3 -m unittest {TESTE_DOS_ACHADOS}` · espera: rc=0 · achados recorrentes (AR-12, H3)")
     return linhas
 
 
@@ -8750,7 +8743,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
             avisar_dos_achados(problemas_achados)
         if existe_achados:
             saida.append(LINHA_DE_ACHADOS)
-        saida.append(f"- comece por `forge-check proximo {caminho_impresso(pedido_id)}` (passo, dono, bloqueios); {LINHA_DO_PROXIMO}")  # orkastery 6: o agente começa pela ferramenta
+        so_a_etapa = f"--etapa {coberta}" if coberta else "--etapa <a etapa do Cobre>"  # E3.48: o pedido inteiro leva minutos
+        saida.append(f"- comece por `forge-check proximo {caminho_impresso(pedido_id)} {so_a_etapa}` (passo, dono, bloqueios); {LINHA_DO_PROXIMO}")  # orkastery 6: o agente começa pela ferramenta
         saida.append(f"- docs/pedidos/{sem_controle(caminho_pedido.name)}: só `## Escopo`, `## Etapas` e `## Decisões` e, do `## Histórico`, só as linhas que este brief cita; "
                      "nunca o pedido inteiro (docs/economia-de-tokens.md, regra 4)")
         if revalidacao:
@@ -8764,15 +8758,15 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     erros, _ = erros_do_destino(raiz, destino)  # o aviso do registro já saiu em `lembrar_do_jarvis`
     saida += erros
     if etapa in ETAPAS_DE_PARECER:  # Z10: o parecer lê a branch e roda junto da escrita (hook `agentes`, AG-1b)
-        saida.append(LINHA_DE_PARALELO)
+        saida += [LINHA_DE_PARALELO, LINHA_DOS_ACHADOS]
     if citar:
         saida += bloco_de_citacoes(raiz, citar)
     saida += ["", "## Fora do escopo (outras etapas do pedido, sem a marca; R-BRIEF)"]
     if papel_destino is None:
         saida.append(f"- {PREENCHER}: rode com --destino forge:<nome> para listar as outras etapas do pedido")
     else:
-        etapas = [(e, papel, t) for e, (papel, t) in dados["etapas"].items() if e != coberta and (coberta or papel != papel_destino)]
-        saida += [linha_de_outra_etapa(*etapa) for etapa in etapas] or ["- (o pedido não tem outra etapa)"]
+        etapas = [e for e, (papel, _) in dados["etapas"].items() if e != coberta and (coberta or papel != papel_destino)]
+        saida += [linha.rstrip("\n") for linha in linhas_de_ids_do_fora(etapas)] or ["- (o pedido não tem outra etapa)"]
     saida += ["", f"## Marca de corte (só item de `## Escopo` retirado, `R-DECISAO`; copie uma linha por item)",
               f"- {MARCA_DE_CORTE}: \"{PREENCHER}: trecho literal do pedido\" · justificativa: {PREENCHER} · consequência: {PREENCHER} · decisão: {PREENCHER}"]
     saida += ["", "## Pronto quando: formato das provas (`R-PROVA`; numere PQ-1, PQ-2… e apague o que não usar)",
