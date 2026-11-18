@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S185",
+      "guarda": "forge_sempre_atual.py:917 decide por `linha`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if linha:",
+      "para": "if not (linha):",
+      "testes": [
+        "tests.test_sempre_atual.RamosDaRodada.test_linha_da_rodada_sai_no_terminal_e_a_pasta_neutra_some"
+      ]
+    },
+    {
+      "id": "S186",
+      "guarda": "forge_sempre_atual.py:921 decide por `self.neutro or \"\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "shutil.rmtree(self.neutro or \"\", ignore_errors=True)",
+      "para": "shutil.rmtree(not (self.neutro or \"\"), ignore_errors=True)",
+      "testes": [
+        "tests.test_sempre_atual.RamosDaRodada.test_linha_da_rodada_sai_no_terminal_e_a_pasta_neutra_some"
+      ]
+    },
+    {
+      "id": "S187",
+      "guarda": "forge_sempre_atual.py:930 decide por `not rodada.abrir_estado()`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not rodada.abrir_estado():",
+      "para": "if rodada.abrir_estado():",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_gravada_pelo_dono_e_respeitada_na_abertura_seguinte"
+      ]
+    },
+    {
+      "id": "S188",
+      "guarda": "forge_sempre_atual.py:936 decide por `trava is None and time.monotonic() < fim`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "while trava is None and time.monotonic() < fim:",
+      "para": "while not (trava is None and time.monotonic() < fim):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_gravada_pelo_dono_e_respeitada_na_abertura_seguinte"
+      ]
+    },
+    {
+      "id": "S189",
+      "guarda": "forge_sempre_atual.py:939 decide por `trava is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "trava = rodada.travar()\n    if trava is None:\n        return False, \"outra atualização do Forge está rodando agora\"",
+      "para": "trava = rodada.travar()\n    if not (trava is None):\n        return False, \"outra atualização do Forge está rodando agora\"",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_gravada_pelo_dono_e_respeitada_na_abertura_seguinte"
+      ]
+    },
+    {
+      "id": "S190",
+      "guarda": "forge_sempre_atual.py:977 decide por `fv.dentro_do_claude()`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if fv.dentro_do_claude():",
+      "para": "if not (fv.dentro_do_claude()):",
+      "testes": [
+        "tests.test_sempre_atual.Entrada.test_dentro_do_claude_recusa_sem_rodar_nada"
+      ]
+    },
+    {
+      "id": "S191",
+      "guarda": "forge_sempre_atual.py:984 decide por `__name__ == \"__main__\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if __name__ == \"__principal__\":",
+      "testes": [
+        "tests.test_sempre_atual.ModuloComoScript.test_modulo_rodado_como_script_recusa_dentro_do_claude"
+      ]
+    },
+    {
+      "id": "S192",
+      "guarda": "forge_versoes.py:550 decide por `not primeira.startswith(\"#!\")`",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "if not primeira.startswith(\"#!\"):",
+      "para": "if primeira.startswith(\"#!\"):",
+      "testes": [
+        "tests.test_atualizar.HooksDoModeloSemChamada.test_liga_a_chamada_no_hook_de_shell_do_projeto_num_commit_a_parte"
+      ]
+    }
+  ]
+}

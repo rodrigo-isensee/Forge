@@ -13,7 +13,8 @@ L51: texto do Jarvis lido no passo.
 - **Delegação que edita `agents/*.md`:** sem permissão em `agents/**`, o modo auto recusa: avise o dono antes e diga no brief; o recusado relata e para sem contornar (`R-CONFORMIDADE`).
 - **Integração contínua (D2):** o PR abre com os pareceres da classe aprovados no head e a entrega conferida; com CI verde, entra na `develop` por PR próprio, sem juntar frentes (`R-FLUXO`).
 - **Correção antes dos portões:** toda, achado `recomendado` incluso, nunca após o último parecer (`R-REVIEW`).
-- **Lote por arquivo:** itens decididos no mesmo arquivo vão numa branch, um commit por item com seus testes, portões uma vez e um PR que cita os itens; item com defeito sai por revert; item à espera do dono não entra; nenhum portão cai.
+- **Lote por arquivo:** itens do mesmo arquivo numa branch e um PR; regras em `ritmo-e-corte.md`.
+- **CI pago** (`R-CUSTO`): antes de push ou `gh run rerun`, leia `ritmo-e-corte.md` nesta skill.
 - **Lote de até 3 (D3):** sem arquivo comum; integrar e promover: `docs/fechamento-integrador.md`.
 - **H1:** até 150 linhas de código, fora testes e documentação; passa só se cortar mais deixa a suíte vermelha; uma classe de comportamento por PR em `hooks/`, com corpus próprio.
 - **Medidas do pedido:** no fim, cole `forge-check transcricao custo --entregas --entrega <pedido> --pedido <pedido>` e `forge-check esperas --pedido <pedido>` em `docs/kanban/entregas.md`; defeito após o parecer final: `forge-check escape registrar` na hora.

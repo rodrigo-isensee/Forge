@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S113",
+      "guarda": "forge_sempre_atual.py:676 decide por `codigo is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if codigo is None:",
+      "para": "if not (codigo is None):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S114",
+      "guarda": "forge_sempre_atual.py:683 decide por `(Path(novo) / rel).is_file()`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if (Path(novo) / rel).is_file():",
+      "para": "if not ((Path(novo) / rel).is_file()):",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_script_ausente_na_versao_nao_reprova"
+      ]
+    },
+    {
+      "id": "S115",
+      "guarda": "forge_sempre_atual.py:685 decide por `rc is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "rc, _ = self.rodar([bash, \"-n\", str(Path(novo) / rel)], self.neutro, max(fim - time.monotonic(), 1))\n                if rc is None:\n                    return None, \"prazo da checagem\"",
+      "para": "rc, _ = self.rodar([bash, \"-n\", str(Path(novo) / rel)], self.neutro, max(fim - time.monotonic(), 1))\n                if not (rc is None):\n                    return None, \"prazo da checagem\"",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_adocao_sem_ultima_boa_so_confere_o_local"
+      ]
+    },
+    {
+      "id": "S116",
+      "guarda": "forge_sempre_atual.py:687 decide por `rc != 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return None, \"prazo da checagem\"\n                if rc != 0:\n                    return False, f\"{rel} com erro de sintaxe\"",
+      "para": "return None, \"prazo da checagem\"\n                if not (rc != 0):\n                    return False, f\"{rel} com erro de sintaxe\"",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S117",
+      "guarda": "forge_sempre_atual.py:689 decide por `bom or {}`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "base = self.instalacao((bom or {}).get(\"installPath\", \"\")) if completa and bom else None",
+      "para": "base = self.instalacao((not (bom or {})).get(\"installPath\", \"\")) if completa and bom else None",
+      "testes": [
+        "tests.test_sempre_atual.AncoraDentro.test_nunca_work_tree_nem_ref_local"
+      ]
+    },
+    {
+      "id": "S118",
+      "guarda": "forge_sempre_atual.py:689 decide por `completa and bom`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "base = self.instalacao((bom or {}).get(\"installPath\", \"\")) if completa and bom else None",
+      "para": "base = self.instalacao((bom or {}).get(\"installPath\", \"\")) if not (completa and bom) else None",
+      "testes": [
+        "tests.test_sempre_atual.AncoraDentro.test_nunca_work_tree_nem_ref_local"
+      ]
+    },
+    {
+      "id": "S119",
+      "guarda": "forge_sempre_atual.py:690 decide por `base and base != novo`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if base and base != novo:",
+      "para": "if not (base and base != novo):",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_adocao_sem_ultima_boa_so_confere_o_local"
+      ]
+    },
+    {
+      "id": "S120",
+      "guarda": "forge_sempre_atual.py:691 decide por `e[\"projeto\"] and os.path.isdir(e[\"projeto\"])`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "projeto = e[\"projeto\"] if e[\"projeto\"] and os.path.isdir(e[\"projeto\"]) else (self.projeto or self.neutro)",
+      "para": "projeto = e[\"projeto\"] if not (e[\"projeto\"] and os.path.isdir(e[\"projeto\"])) else (self.projeto or self.neutro)",
+      "testes": [
+        "tests.test_sempre_atual.RamosSemMundo.test_doutor_da_comparacao_roda_no_projeto_do_escopo"
+      ]
+    }
+  ]
+}

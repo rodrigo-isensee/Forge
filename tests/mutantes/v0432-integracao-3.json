@@ -24,10 +24,10 @@
     },
     {
       "id": "I35",
-      "guarda": "bin/forge-upgrade:45 git(projeto, 'show', f'refs/heads/{base}:.forge/versao', check=False) == alvo (negada)",
+      "guarda": "bin/forge-upgrade:45 git(projeto, 'show', f'{ref_base}:.forge/versao', check=False) == alvo (negada)",
       "arquivo": "bin/forge-upgrade",
-      "de": "    elif git(projeto, \"show\", f\"refs/heads/{base}:.forge/versao\", check=False) == alvo:",
-      "para": "    elif not (git(projeto, \"show\", f\"refs/heads/{base}:.forge/versao\", check=False) == alvo):",
+      "de": "    elif git(projeto, \"show\", f\"{ref_base}:.forge/versao\", check=False) == alvo:",
+      "para": "    elif not (git(projeto, \"show\", f\"{ref_base}:.forge/versao\", check=False) == alvo):",
       "testes": [
         "tests.test_forge"
       ]

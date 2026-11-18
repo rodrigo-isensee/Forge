@@ -1,0 +1,106 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "forge-upgrade que falha não deixa branch pela metade",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "            if falha:  # com a worktree fora",
+      "para": "            if False:  # com a worktree fora",
+      "testes": [
+        "tests.test_sempre_atual.Modelo.test_forge_upgrade_que_falha_nao_deixa_branch_pela_metade"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "a fixação da volta vai ao disco antes de mexer no catálogo",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        self.salvar_estado()\n        desceram = []",
+      "para": "        desceram = []",
+      "testes": [
+        "tests.test_sempre_atual.Checagem.test_fixacao_gravada_antes_de_mexer_no_catalogo"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "update de projeto roda no projectPath",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "cwd = self.neutro if e[\"escopo\"] == \"user\" else e[\"projeto\"]",
+      "para": "cwd = self.neutro",
+      "testes": [
+        "tests.test_sempre_atual.Catalogo.test_update_de_projeto_roda_no_projectpath_e_o_de_usuario_em_pasta_neutra"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "sessão tmux aberta adia o escopo que cobre o projeto",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "            elif sessao and cobre_o_aberto:",
+      "para": "            elif False:",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_tmux_em_duvida_adia_o_escopo_que_cobre_o_projeto"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "o registro guarda só as últimas 500 linhas",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "texto.splitlines()[-LINHAS_DO_REGISTRO:]",
+      "para": "texto.splitlines()[-LINHAS_DO_REGISTRO - 1:]",
+      "testes": [
+        "tests.test_sempre_atual.Estado.test_registro_tem_sete_colunas_e_guarda_so_as_ultimas_500"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "a pasta de estado é privada (0700)",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "        os.chmod(atual, 0o700)",
+      "para": "        os.chmod(atual, 0o755)",
+      "testes": [
+        "tests.test_sempre_atual.Estado.test_estado_json_privado_e_sem_sobra_de_gravacao"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "rodada em andamento barra a segunda (trava de arquivo)",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "fcntl.LOCK_EX | fcntl.LOCK_NB",
+      "para": "fcntl.LOCK_UN",
+      "testes": [
+        "tests.test_sempre_atual.Estado.test_rodada_em_andamento_barra_a_segunda"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "adiamento seguido é contado e zera quando o escopo deixa de adiar",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "            contagem.pop(escopo, None)",
+      "para": "            pass",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_adiamento_conta_e_zera_quando_deixa_de_adiar"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "passo que passa do próprio prazo não derruba a rodada",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "                if limite >= restante:\n                    raise Prazo()",
+      "para": "                if True:\n                    raise Prazo()",
+      "testes": [
+        "tests.test_sempre_atual.Falhas.test_prazo_do_passo_nao_derruba_a_rodada_e_o_geral_sim"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "versão maior que a quebrada solta a fixação automática",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "ultima > versao_tupla(fix[\"de\"]):",
+      "para": "ultima > (999, 0, 0):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    }
+  ]
+}
