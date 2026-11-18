@@ -25,6 +25,9 @@ class ConferidaDeOutroItem(se.Repositorio):
         self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "-m", "merge do item A", "melhoria/a")
         self.git("push", "-q", "origin", "develop")
         self.git("switch", "-q", "melhoria/x")
+        # FILTROS-L08-G2-ORIGIN-LOCAL: a develop nova ancorada num brief selado depois (sem âncora, o que ela trouxe segue no escopo)
+        se.Conferencia.selar_copia(self, "exemplo-outra-1.md", {"Branch: melhoria/x": "Branch: melhoria/y",
+                                   f"Base-sha: {self.base}": f"Base-sha: {self.git('rev-parse', 'develop')}"}, selar=False)
         return conferida
 
     def entrega_de_b_com_a_develop(self):
@@ -44,7 +47,9 @@ class ConferidaDeOutroItem(se.Repositorio):
         self.assertNotIn('"bin/a"', saida)
         self.assertNotIn(conferida_a[:12], saida)
         self.assertIn("base: Base-sha do brief (sem conferida na branch)", saida)
-        self.assertIn(f"commits: 5 em {self.base[:12]}..{head[:12]}", saida)  # o Desde é o Base-sha: f, A, A depois, 2 merges
+        ancora = self.git("rev-parse", "origin/develop")  # FILTROS-L08-G2-ORIGIN-LOCAL: a develop ancorada vira o merge-base
+        self.assertIn(f"base: merge-base {ancora[:12]} com a", saida)
+        self.assertIn(f"commits: 2 em {ancora[:12]}..{head[:12]}", saida)  # f de B e o merge da develop; A fica na base
 
     def test_forma_antiga_recusa_a_conferida_de_a_como_desde(self):
         """A regra é a mesma no `entrega --desde`: a conferida de A, já na develop, não é conferência anterior de B."""
