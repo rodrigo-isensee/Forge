@@ -3,32 +3,40 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-testes-prazo
-commit: bf3ce6af7420bc86931931866ef462163b5cec3c
-parecer: reprovado
+commit: 318721dbbb87ab4db3db719d6f0207e8def10423
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-18
 ---
-# Review: v0478-testes-prazo (E12.4)
+# Review: v0478-testes-prazo (E12.8, revalidação)
 
-Escopo lido: diff `4182a6b9..bf3ce6af` (7 arquivos; produção só a extração de `pids_do_proc` em `bin/forge_sempre_atual.py`, sem mudança de comportamento). Classe C pelo `forge-check pr` (sensível da catraca). Suíte: não rerrodada (o módulo `test_oraculo_sempre_atual` falha no sandbox também na base, pelo `/proc`; a prova dele é o CI do PR). Rodados os 5 testes novos: `OK`.
+Revalidação (H3, R-REVIEW) do head `318721db`. Li só o delta do `forge-check parecer delta`: `bf3ce6af..318721db`, com 6 arquivos no domínio (`.github/workflows/ci.yml`, `changelog.d/v0478-testes-prazo.md`, `tests/mutantes/v0478-testes-prazo.json`, `tests/mutantes/v0478-testes-prazo-2.json`, `tests/prova_de_carga.py` e `tests/test_hooks.py`). Fora do delta, nada foi relido. Não rodei a suíte; a prova dela é o CI do PR. Rodei os 4 testes novos ou mudados e eles passaram (`Ran 4 tests ... OK`). No `bin/forge-mutante --processos 1` sobre as duas specs, M1 a M10 morreram; M9 e M10 morreram por erro do teste declarado, que é comportamento (divisão por zero).
 
 ## Achados
-- A1 (bloqueante) tests/test_hooks.py:121 · R-REVIEW: o critério só prova que o hook não gastou CPU, não que houve carga. Espera fora da CPU (sleep, I/O, trava) passa como carga: S1, 3,8 s a mais de espera, recusa aceita sem carga. Prove a disputa (ex.: ru_nivcsw dos filhos) ou exija liberar.
-- A2 (recomendado) tests/test_hooks.py:1222 · a linha PRAZO-CARGA afirma "vez na CPU" sem medir isso; na S1 o tempo faltante era sono. Com o A1 resolvido, a frase passa a ser verdadeira; até lá, diga "sem trabalho de CPU do hook".
+- A3 (recomendado) tests/prova_de_carga.py:17 · Registre no comentário o limite do critério: com parcela da referência muito baixa, o sono a mais passa. Medi a S1 com 0,29 de aproveitamento na parcela de 0,07; ela passaria perto de 0,04. A linha PRAZO-CARGA já mostra a parcela no resumo do CI.
 
 ## Sondas
-- S1 · fixture v0455-merge-com-git-lento-decide-no-prazo-longo com `sleep 4; sleep 3.8;` no 1.o git, por liberar_ou_provar_a_carga · espera: AssertionError (merge passou do prazo longo por espera, não por carga) · obtido: ok, PRAZO-CARGA parede=8.39s cpu=0.14s sono=4s prazo=8s
+- S2 · S1 (`sleep 4; sleep 3.8;` no 1.o git) por `liberar_ou_provar_a_carga`, com 60 processos de CPU em 12 núcleos (loadavg 45) · espera: AssertionError, sem PRAZO-CARGA · obtido: AssertionError; parede=9.59 cpu=0.11 parcela=0.07 aprov=0.29 aceita=False
 
 ## Parecer
-Reprovado, por um achado (A1), que responde à pergunta do autor: **sim, afrouxa o que o teste prova.**
+Aprovado. O A1 está resolvido. Antes, o critério só provava que o hook não tinha gastado CPU. Agora ele também prova a disputa pela CPU no mesmo intervalo, por dois sinais:
+- a referência irmã, que só gasta CPU, fica com no máximo 0,5 do relógio;
+- no tempo fora do sono, o hook aproveita ao menos metade da parcela que a referência teve.
 
-Antes, o `test_prazo_do_merge` provava que o merge com o git lento de 4 s decide e libera dentro dos 8 s. Agora a recusa do vigia de 8 s passa quando `cpu + sono <= prazo - 1`. A folga de 1 s não sai de carga provada. Sai do tempo de relógio que nem a CPU dos filhos nem o `sleep` conhecido do fixture explicam, e esse tempo tanto pode ser fila de CPU (carga) como espera fora dela: um segundo comando lento, I/O, trava ou timeout de rede no caminho do merge. Um defeito desse tipo, que em produção faz o merge recusar por prazo, deixa o teste verde e imprime "vez na CPU". A S1 prova isso: 3,8 s de espera que não é CPU, 0,14 s de CPU, e o teste aceitou. Continuam pegos o defeito dos 3 s (pela mensagem) e o hook que trabalha demais (pela CPU). Os testes das duas funções novas cobrem bem cada ramo do critério, mas o critério não separa carga de espera.
+Espera fora da CPU (sono, E/S, trava) não gasta CPU no ritmo da fila e reprova. A sonda S1 agora é recusada por teste de verdade (`test_liberar_ou_provar_a_carga_recusa_a_sonda_s1`), e o caso S1 medido entrou na tabela de recusas. Também a reproduzi com a máquina em carga alta (S2), e ela continuou recusada.
 
-Correção sugerida (a escolha é do autor): medir a disputa de verdade, por exemplo as trocas de contexto involuntárias dos filhos (`ru_nivcsw` do `getrusage(RUSAGE_CHILDREN)`, que o `sleep` não gera) com um mínimo, ou a parcela de CPU de um processo irmão de referência no mesmo intervalo. Outra saída é o dono aceitar o afrouxamento por decisão registrada no pedido, com critério de reversão.
+A escolha da referência no lugar do `ru_nivcsw` é do autor, e o resultado responde à pergunta que fiz: o `ru_nivcsw` dos filhos só existe depois do `wait` e conta trocas, não tempo, enquanto a referência dá uma medida direta da parcela da CPU.
 
-O resto passa na leitura:
-- `descende_de` e a troca de `pids_do_proc` no lançador cobrem só o `forge-sempre-atual`. O ciclo, o órfão e o pid sem leitura têm teste, e M1 a M4 dão um mutante por guarda.
-- O subprocesso usa `-I` e ambiente limpo.
-- O S14 do `v047-sempre-atual-12.json` acompanha a linha movida.
-- A produção não muda de comportamento.
-- O fragmento `changelog.d` existe. Com o A1 resolvido, o texto dele ("vez na CPU, não trabalho do hook") precisa acompanhar a correção.
+O limite com carga muito alta existe e a S2 o mede: o aproveitamento de uma espera falsa sobe quando a parcela cai. Ele basta pelos motivos abaixo, e por isso o A3 é recomendado, não bloqueante.
+- Um defeito de espera reprova em toda execução sem carga extrema, porque com a máquina livre a parcela fica perto de 1.
+- Só passaria numa execução com uns 25 processos por núcleo.
+- Mesmo nesse caso, sairia como linha PRAZO-CARGA com `referencia=` no resumo do CI.
+- Um piso na parcela devolveria a instabilidade que o pedido corrige.
+
+O A2 está resolvido: a linha PRAZO-CARGA ("recusa do vigia com disputa pela CPU medida na referência") e o fragmento do `changelog.d` dizem o que o critério mede.
+
+O resto do delta:
+- `prova_de_carga.py` fica fora do arquivo de teste por causa dos mutantes; os mutantes M5 a M10 cobrem uma guarda cada.
+- O subprocesso da referência usa `-I` e ambiente limpo.
+- O teste da referência cobre a morte cedo: a parcela fica `None` e a recusa é reprovada.
+- O passo novo do CI só conta e lista, sem reprovar (o `${n:-0}` cobre o log ausente). Ele cumpre o A1 da segurança, e o mérito desse achado é do parecer de segurança.
