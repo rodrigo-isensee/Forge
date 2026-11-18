@@ -3490,8 +3490,10 @@ class ForaDaProva(Exception):
 
 # AGENTES-JSON-SEM-GUARDA (v0478; C9 e C10 de docs/security/v047-v2-ameacas.md): no clone do Forge, as recusas destas
 # entradas da política valem também na `GuardaDaProva`, para todo papel (o jarvis incluído); o resto do clone segue livre.
-ESTADO_DOS_HOOKS = (".git/forge/",)
-ESTADO_NO_TEXTO = re.compile(r"\.git/forge|forge/run|agentes\.json")  # C10: linha que o hook não lê e cita o estado
+# CONFIG-TETO-SEM-GUARDA (v0478, parte do hook): o `.forge/config.json` da raiz da sessão, onde o hook `agentes` lê o teto.
+CONFIG_DA_RAIZ = ".forge/config.json"
+ESTADO_DOS_HOOKS = (".git/forge/", CONFIG_DA_RAIZ)
+ESTADO_NO_TEXTO = re.compile(r"\.git/forge|forge/run|agentes\.json|\.forge/config\.json")  # C10: linha que o hook não lê e cita o estado
 
 
 class GuardaDaProva(Guarda):
@@ -3506,6 +3508,16 @@ class GuardaDaProva(Guarda):
         super().__init__(hook, pol, papel)
         self.no_clone = no_clone
         self.motivos_do_estado = tuple(e["motivo"] for e in pol["caminhos"] if e["caminho"] in ESTADO_DOS_HOOKS)
+        self.motivo_do_config = next((e["motivo"] for e in pol["caminhos"] if e["caminho"] == CONFIG_DA_RAIZ), None)
+
+    def caminho_barrado(self, caminho):
+        """CONFIG-TETO-SEM-GUARDA: a recusa de `.forge/config.json` só vale para o da raiz da sessão; o modelo
+        (`templates/projeto/.forge/config.json`) e o de outra pasta seguem livres."""
+        achado = super().caminho_barrado(caminho)
+        if achado and self.motivo_do_config and self.motivo_do_config in achado[1] and (
+                caminho != Path(os.path.realpath(self.h.raiz)) / CONFIG_DA_RAIZ):
+            return None
+        return achado
 
     def barrar(self, rid, o_que, corrigir, simples=None):
         if (rid, o_que, corrigir) == PROVA_DA_SUITE:
@@ -3549,7 +3561,7 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
         if guarda.no_clone and isinstance(alvo, str) and ESTADO_NO_TEXTO.search(juntar_continuacoes(alvo)):
             hook.registrar_erro(erro)
             Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita o estado dos "
-                          "hooks (.git/forge/, forge/run, agentes.json)", f"só o usuário altera; {SUGESTAO}")
+                          "hooks (.git/forge/, forge/run, agentes.json, .forge/config.json)", f"só o usuário altera; {SUGESTAO}")
         pasta = Path(hook.cwd())
         opaco = bool(palavras and VARIAVEL.search(alvo))  # S3: `$(…)` ou variável no alvo
         for t in filter(CURINGA.search, palavras):  # A1 da segurança g1: o curinga que o bash expande no alvo

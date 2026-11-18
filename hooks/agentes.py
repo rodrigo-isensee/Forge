@@ -9,7 +9,8 @@ D3 (0.44.0): com o selo em dia, o hook reconfere os campos calculados do brief (
 ou as decisões do pedido mudaram, só avisa (`systemMessage` e stderr, código 0); nunca barra por isso.
 
 O teto é adaptativo (nproc, load de 1 min e memória lidos de /proc; fallback 3) e `teto_agentes` em
-.forge/config.json o fixa; `teto_maximo` limita o adaptativo.
+.forge/config.json o fixa; `teto_maximo` limita o adaptativo. No clone do Forge, a conformidade barra a escrita nesse arquivo
+da raiz da sessão para todo papel (CONFIG-TETO-SEM-GUARDA, v0478): o agente não sobe o próprio teto.
 PreToolUse (Agent/Task): bloqueia qualquer disparo com MemAvailable <= o piso de memória (padrão 2 GB; `piso_memoria_gb` em
 .forge/config.json o muda), sem trava por load (R-TETO, decisão do dono R-TETO-DISPONIBILIDADE de 2026-11-06 14:26);
 bloqueia também se já há o teto de agentes ativos ou um ativo com o mesmo tipo e descrição;

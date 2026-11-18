@@ -346,3 +346,39 @@ class EstadoDoAgentesNoClone(CloneDoForge):
         (self.clone / ".claude-plugin" / "plugin.json").unlink()
         for c in ("rm .git/forge/run/agentes.json", "echo x > .git/forge/run/agentes.json \\"):
             self.libera(self.rodar("Bash", {"command": c}), c)
+
+
+class ConfigDoTetoNoClone(CloneDoForge):
+    """CONFIG-TETO-SEM-GUARDA, parte do hook (v0478 E1.1): no clone, `teto_agentes` em `.forge/config.json` da raiz da sessão
+    (o que o hook `agentes` lê) subia o próprio teto com rc 0. A recusa da política vale para todo papel; o modelo
+    `templates/projeto/.forge/config.json` e o de outra pasta seguem livres."""
+
+    def setUp(self):
+        super().setUp()
+        (self.clone / ".forge").mkdir()
+        self.config = self.clone / ".forge" / "config.json"
+        self.config.write_text('{"teto_agentes": 2}\n', encoding="utf-8")
+
+    def test_escrita_no_config_da_raiz_recusa_para_todo_papel(self):
+        comandos = ("echo '{\"teto_agentes\": 99}' > .forge/config.json", "rm -rf .forge",
+                    "python3 -c \"open('.forge/config.json','w').write('{}')\"", f"sed -i s/2/99/ {self.config}")
+        for papel in PAPEIS_DO_CLONE:
+            for c in comandos if papel in ("forge:tech-lead", "forge:jarvis") else comandos[:1]:
+                self.recusa(self.rodar("Bash", {"command": c}, papel), f"{papel}: {c}")
+            self.recusa(self.rodar("Write", {"file_path": str(self.config), "content": '{"teto_agentes": 99}'}, papel),
+                        f"{papel}: Write")
+            self.recusa(self.rodar("Edit", {"file_path": str(self.config), "old_string": "2", "new_string": "99"}, papel),
+                        f"{papel}: Edit")
+        self.assertEqual(self.config.read_text(encoding="utf-8"), '{"teto_agentes": 2}\n')
+
+    def test_linha_que_o_hook_nao_le_e_cita_o_config_recusa(self):  # C10 estendido ao config da raiz
+        c = ": " + "a " * 5001 + "; echo '{}' > .forge/config.json"
+        self.recusa(self.rodar("Bash", {"command": c}), "teto de palavras com o config")
+
+    def test_modelo_e_config_de_outra_pasta_seguem_livres(self):
+        modelo = self.clone / "templates" / "projeto" / ".forge" / "config.json"
+        outro = self.tmp / "outro" / ".forge" / "config.json"
+        for alvo in (modelo, outro):
+            self.libera(self.rodar("Write", {"file_path": str(alvo), "content": "{}"}), str(alvo))
+            self.libera(self.rodar("Bash", {"command": f"echo '{{}}' > {alvo}"}), f"echo em {alvo}")
+        self.libera(self.rodar("Bash", {"command": "cat .forge/config.json"}), "leitura")
