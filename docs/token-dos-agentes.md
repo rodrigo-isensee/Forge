@@ -38,7 +38,7 @@ Na janela anônima, com o robô:
 
 O que você vê no fim: na sua lista de acessos, o robô com o papel "Write".
 
-Ainda na sua conta, confira a lista de exceção das travas: "Settings", "Rules", "Rulesets"; abra cada ruleset e olhe o campo "Bypass list". **O robô não pode estar em nenhuma.** Se estiver, tire-o. Não mexa no resto da lista agora: tirar a exceção do administrador é outro cartão (AV1-BYPASS-RULESET), que vem depois desta troca.
+Ainda na sua conta, confira a lista de exceção das travas: "Settings", "Rules", "Rulesets"; abra cada ruleset e olhe o campo "Bypass list". Num repositório da sua conta pessoal, essa lista guarda papéis, não pessoas: você não vai achar o nome do robô ali. Confira que **nem "Write" nem "Maintain" estão na lista**; só o papel de administrador ("Repository admin") pode estar. Se "Write" ou "Maintain" aparecer, tire-o. Não mexa no resto da lista agora: tirar a exceção do administrador é outro cartão (AV1-BYPASS-RULESET), que vem depois desta troca.
 
 ## Passo 3. Gerar a chave de acesso do robô (4 minutos)
 A chave de acesso (o GitHub chama de "token") é uma senha longa que o programa usa no lugar da senha da conta.
@@ -58,7 +58,8 @@ Por que a chave "classic" e não a "Fine-grained", mais nova? A nova só alcanç
 ## Passo 4. Guardar a chave no seu computador (3 minutos)
 Regra: **a chave nunca vai para uma conversa com o Jarvis, nem para um arquivo do repositório, nem para uma mensagem de commit.** Quem a vê age como o robô.
 
-1. Num terminal comum, fora do Claude Code, abra no seu editor de texto o arquivo `~/.claude/settings.json`. É onde está a chave atual.
+1. Abra um terminal novo no mesmo computador (ou contêiner) onde o Claude Code roda, fora da conversa com o Jarvis. No VS Code com contêiner, é o menu "Terminal", "New Terminal". Digite `nano ~/.claude/settings.json` e aperte Enter. A pasta `.claude` é oculta (o nome começa com ponto), por isso o comando leva o caminho inteiro; o `nano` é um editor simples, que abre dentro do próprio terminal. É onde está a chave atual.
+   No `nano`, mova o cursor com as setas do teclado. Para salvar: Ctrl+O e Enter. Para sair: Ctrl+X.
 2. Procure o bloco `"env"` e, dentro dele, a linha `"GH_TOKEN": "..."`.
 3. **Antes de mudar, copie a linha antiga para o aplicativo de senhas.** Ela é o seu caminho de volta.
 4. Troque o valor entre aspas pela chave nova do robô. Mantenha as aspas e a vírgula como estavam.
@@ -79,7 +80,7 @@ Se aparecer o seu nome ou `"admin":true`, a chave antiga ainda está em uso: vol
 Depois, avise o Jarvis que a troca terminou. Ele registra a conclusão no cartão.
 
 ## Como voltar atrás
-1. Abra de novo o `~/.claude/settings.json` e recoloque a linha antiga que você guardou no Passo 4.
+1. Abra de novo o arquivo, como no Passo 4 (`nano ~/.claude/settings.json`), e recoloque a linha antiga que você guardou no Passo 4.
 2. Salve, feche o Claude Code, abra uma sessão nova e repita o Passo 5: deve aparecer o seu nome.
 3. Para desligar o robô de vez: na conta dele, apague a chave em `https://github.com/settings/tokens` ("Delete"); na sua conta, remova o robô em `https://github.com/<seu-usuário>/<repositório>/settings/access`.
 4. Se suspeitar que a chave vazou (apareceu numa conversa, num arquivo ou num commit), apague-a na hora, no mesmo endereço do item 3, e gere outra pelo Passo 3. Não espere a validade acabar.
@@ -92,7 +93,7 @@ O robô **pode**: ler o código, criar branches, enviar commits para as branches
 | Mesclar na `main` (`R-MAIN`) | você |
 | Mesclar por cima de check vermelho | ninguém, sem você mudar a trava |
 | Mudar travas, rulesets, segredos e configurações do repositório | você, pelo site |
-| Enviar mudança em `.github/workflows/` (a chave não tem `workflow`) | você: o time prepara a branch e entrega o comando de envio |
+| Enviar mudança em `.github/workflows/` (a chave não tem `workflow`). Vale também para a branch que só trouxe da `develop` (por merge) um commit que muda essa pasta: o GitHub recusa o envio. É o esperado, não um defeito | você: o time prepara a branch e entrega o comando de envio |
 | Apagar o repositório ou mudar quem tem acesso | você |
 
 Os commits dos agentes seguem com o nome e o e-mail do seu `~/.gitconfig`; só o envio passa a ser do robô. O PR da `homolog` para a `main` continua aberto e mesclado por você.
