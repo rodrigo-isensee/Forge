@@ -1,0 +1,37 @@
+---
+tipo: qa
+contrato: 1
+pedido: v0478
+branch: melhoria/v0479-mp9-guia
+commit: 2054ef3b3ea3a7996b8e9dedbcf71fbb5782a089
+parecer: aprovado
+escopo: completo
+bugs_criticos: 0
+bugs_altos: 0
+bugs_medios: 0
+bugs_baixos: 0
+data: 2026-11-18
+---
+# QA: v0479-mp9-guia (E24.4)
+
+Escopo: o guia "Vários projetos na mesma máquina" (README e `templates/projeto/CLAUDE.md`, MP9, diretriz 35) e o teste novo `tests/test_guia_varios_projetos.py`. Só os testes do diff rodaram (máquina carregada); a suíte inteira fica no check-run `bateria` do CI do PR, sem rerrodar.
+
+## Critério → teste → resultado
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Guia no README traz cada parte do desenho (janela por projeto no modo auto, partes iguais, `peso`, `FORGE_CARGA_LIVRE=1`, `[<projeto>]`, `Projeto: <nome>`, `--maquina`) | `test_readme_tem_a_secao_com_cada_parte` | seção ausente ou menor que 200 caracteres | passou |
+| Modelo de projeto traz o resumo e aponta o guia | `test_modelo_de_projeto_traz_o_resumo_e_aponta_o_guia` | `## Sessão` sem alguma parte | passou |
+| O `peso` do exemplo vale no hook (faixa 0 a 10) | `test_peso_do_guia_cabe_na_faixa_do_hook` | `PESO_MAXIMO` mudar sem atualizar o guia | passou |
+| Seção ausente é acusada | `test_secao_ausente_e_acusada` | título inexistente | passou |
+| Citação do README por teste registrada | `test_reval_delta.py` (10 testes) | nova leitura de README sem registro | passou |
+
+## Vermelho antes do verde
+`forge-testes --vermelho` passou do prazo de 120 s na máquina carregada e foi interrompido (sem veredito, não vale como vermelho). No lugar, feito à mão: cópia da base `0c47762a` em `$TMPDIR` com o teste novo copiado; `python3 -I -m unittest discover -s tests -p test_guia_varios_projetos.py` deu `Ran 4 tests ... FAILED (failures=8)` (README sem a seção; modelo sem 7 partes). No head: `Ran 4 tests ... OK`.
+
+## O comando do guia funciona como dito
+- `peso` em `.forge/config.json`: o hook lê (`hooks/agentes.py:247`, `peso_valido`); 2 vale, e a faixa 0 (exclusivo) a 10 confere com o texto.
+- `forge-status --maquina`, `FORGE_CARGA_LIVRE=1` (só pula a trava de memória) e `[<projeto>]`/`Projeto: <nome>` existem nas fontes e batem com o texto.
+- O `jq ... > config.novo && mv` não pôde ser executado aqui: `jq` não está instalado nesta máquina. `scripts/preparar-estacao.sh:474` o instala na estação do dono. Não é defeito do diff.
+- Não rodei o comando contra um `.forge/config.json` real; a leitura do `peso` pelo hook está coberta por testes existentes, não por este parecer.
+
+Mutação: não se aplica (diff só de texto e teste; sem regra de código).
