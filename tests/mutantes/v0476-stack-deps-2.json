@@ -1,0 +1,126 @@
+{
+  "pedido": "v0476-stack-deps-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "comando roda com ambiente filtrado",
+      "arquivo": "bin/forge-copia",
+      "de": "cwd=copia, env=env_sem_credencial()",
+      "para": "cwd=copia",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_instalacao_roda_sem_credencial_no_ambiente"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "GIT_ASKPASS sai do ambiente",
+      "arquivo": "bin/forge-copia",
+      "de": "\"GIT_ASKPASS\", ",
+      "para": "",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_instalacao_roda_sem_credencial_no_ambiente"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "SSH_AUTH_SOCK sai do ambiente",
+      "arquivo": "bin/forge-copia",
+      "de": "\"SSH_AUTH_SOCK\", ",
+      "para": "",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_instalacao_roda_sem_credencial_no_ambiente"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "GIT_CONFIG_COUNT sai do ambiente",
+      "arquivo": "bin/forge-copia",
+      "de": "\"GIT_CONFIG_COUNT\", ",
+      "para": "",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_instalacao_roda_sem_credencial_no_ambiente"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "GIT_CONFIG_KEY_ sai do ambiente",
+      "arquivo": "bin/forge-copia",
+      "de": "(\"GIT_CONFIG_KEY_\", \"GIT_CONFIG_VALUE_\")",
+      "para": "(\"GIT_CONFIG_VALUE_\",)",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_instalacao_roda_sem_credencial_no_ambiente"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "GIT_CONFIG_VALUE_ sai do ambiente",
+      "arquivo": "bin/forge-copia",
+      "de": "(\"GIT_CONFIG_KEY_\", \"GIT_CONFIG_VALUE_\")",
+      "para": "(\"GIT_CONFIG_KEY_\",)",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_instalacao_roda_sem_credencial_no_ambiente"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o resto do ambiente permanece",
+      "arquivo": "bin/forge-copia",
+      "de": "if k not in fora and not",
+      "para": "if False and not",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_ambiente_da_instalacao_mantem_o_resto"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "detecta do python aponta o lockfile",
+      "arquivo": "stacks/python/instalar.json",
+      "de": "\"detecta\": [\"requirements.lock\"]",
+      "para": "\"detecta\": [\"pyproject.toml\"]",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_todo_instalar_json_usa_modo_congelado_ou_hash_e_detecta_o_lockfile"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "hash exigido na instalação do lockfile",
+      "arquivo": "stacks/python/instalar.json",
+      "de": "\"--require-hashes\", ",
+      "para": "",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_todo_instalar_json_usa_modo_congelado_ou_hash_e_detecta_o_lockfile"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "pacote local sem dependências",
+      "arquivo": "stacks/python/instalar.json",
+      "de": "\"--no-deps\", \"-e\"",
+      "para": "\"-e\"",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_todo_instalar_json_usa_modo_congelado_ou_hash_e_detecta_o_lockfile"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "node congelado",
+      "arquivo": "stacks/node-react/instalar.json",
+      "de": "\"--frozen-lockfile\"",
+      "para": "\"--prefer-offline\"",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_todo_instalar_json_usa_modo_congelado_ou_hash_e_detecta_o_lockfile"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "detecta do node aponta o lockfile",
+      "arquivo": "stacks/node-react/instalar.json",
+      "de": "\"pnpm-lock.yaml\"",
+      "para": "\"package.json\"",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_todo_instalar_json_usa_modo_congelado_ou_hash_e_detecta_o_lockfile"
+      ]
+    }
+  ]
+}
