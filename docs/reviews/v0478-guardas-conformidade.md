@@ -22,8 +22,8 @@ Escopo lido: só o delta de `forge-check parecer delta` (b3312958..848dd5ec): ch
 - S3 · `tar -xf docs/a.tar --one-top-level=.git/forge/run` (jarvis e tech-lead) · espera: rc 2 · obtido: rc 0
 - S4 · `tar -xf docs/a.tar -C docs --one-top-level=../.git/forge` (jarvis e tech-lead) · espera: rc 2 · obtido: rc 0
 - S5 · GNU tar 1.35 real: `tar -cf a.tar src && tar -xf a.tar --one-top-level=dst/alvo` · espera: extrai fora de `dst/alvo` · obtido: cria `dst/alvo/src/f`
-- S6 · controle, recusa: `-xvf … -C.git`, `-x -fdocs/a.tar -C.git/forge`, `-C docs -C.git/forge`, `-rf.git/…`, `--to-c '<rm>'`, `--remove-f`, `gtar … -C.git`, `unzip -qo … -d.git/forge`, `unzip -d .git/forge …`, `cpio -idD.git/forge`, `7z x -o.git/forge …` · espera: rc 2 · obtido: rc 2 (os dois papéis)
-- S7 · recusa a mais, uso legítimo fora do estado (48 linhas, jarvis e tech-lead): tar `-xzf`, `xzf`, `-czf -C docs .`, `-tvf`, `--strip-components`, `--exclude=.git`, `-I zstd`, `-Izstd`, `--use-compress-program='zstd -T0'`, `-T`, `-X`, `--wildcards`, `tar -cf - … | tar -xf - -C docs/b`, `--checkpoint=100 --checkpoint-action=dot`, `-xOf`, `--to-stdout`, `-tf .git/forge/a.tar`, `-cf … -C .git/forge run`, `--format=gnu`, `bsdtar`, `busybox tar`; unzip `-l`, `-t`, `-p`, `-x '*.git*' -d docs`, `-P senha`, `unzip a.zip` na raiz, `-l .git/forge/a.zip`; cpio `-it`, `-o`, `-o -H newc -F`, `-pdm docs/b`, `-idv -D docs`; 7z `x`, `x -odocs -y`, `l`, `t`, `a -mx=9`, `x -aoa -odocs`, `7za a -tzip`, `e -odocs`, `rn`; `busybox unzip -d docs` · espera: rc 0 · obtido: rc 0 em todas; nenhuma recusa a mais.
+- S6 · controle: `tar -xvf docs/a.tar -C.git`, `-rf.git/…`, `--to-c '<rm>'`, `--remove-f`, `gtar`, `unzip -d.git/forge`, `cpio -idD.git/forge`, `7z x -o.git/forge` · espera: rc 2 · obtido: rc 2 (os dois papéis)
+- S7 · 48 usos legítimos fora do estado (tar, bsdtar, busybox tar, unzip, cpio, 7z; lista no relatório da E1.10), jarvis e tech-lead · espera: rc 0 · obtido: rc 0 em todas, nenhuma recusa a mais
 
 ## Revalidação dos achados anteriores
 - A1 (meu, valor colado no tar): fechado; S1 e S2 recusam, `ler_opcoes` toma o resto do grupo e o teste novo cobre as duas formas e vizinhas.
