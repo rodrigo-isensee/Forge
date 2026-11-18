@@ -126,7 +126,7 @@ class ChecksDoHead(unittest.TestCase):
             with self.subTest(erro=erro):
                 self.assertEqual(self.rodar([ck("testes", "pending")], erro_pr=erro), [])
                 self.assertEqual(len(self.nao_conferidos), 1, self.nao_conferidos)
-                self.assertIn('PR de "melhoria/x" não lido (gh pr view: ', self.nao_conferidos[0])
+                self.assertIn(f'PR de "melhoria/x" não lido (gh pr view: {erro.strip() or "saída vazia"}); ', self.nao_conferidos[0])
                 self.assertIn(self.nao_conferidos[0], self.stderr)
                 self.assertNotIn(PR_CHECKS, self.chamadas)
 
