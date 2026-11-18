@@ -1,0 +1,86 @@
+{
+  "pedido": "v0475-dir36",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M64",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.246, segurança A8: a palavra seguinte a `-f`/`-t` é valor, não opção)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if proxima_e_valor:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M65",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.246, segurança A8: depois de `--`, `-e` é palavra)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif a == \"--\":  # o fim das opções",
+      "para": "elif False:  # o fim das opções",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M66",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.246, segurança A8: só a palavra que começa com um `-` é grupo de opção curta)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif re.fullmatch(r\"-[^-].*\", a, re.S):",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M67",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.246, segurança A8: a letra procurada no grupo acha a opção)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if c == letra:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M68",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.246, segurança A8: a letra com valor encerra o grupo (`-fe`))",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if c in com_valor:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M69",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.246, segurança A9: `-c` com caminho no ~/.forge-contrib recusa o envio)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or self.caminho_do_forge(pasta, c.split(\"=\", 1)[1])), None)",
+      "para": "or False), None)",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M70",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.246, segurança A9: `git config <chave do destino>` com caminho no ~/.forge-contrib recusa)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or self.caminho_do_forge(pasta, palavras[i + 1]))",
+      "para": "or False)",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M71",
+      "guarda": "diretriz 36 (R-CONTRIB, E3.246, segurança A8: só a letra com valor no fim do grupo leva a palavra seguinte)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "proxima_e_valor = n == len(a)",
+      "para": "proxima_e_valor = n != len(a)",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    }
+  ]
+}

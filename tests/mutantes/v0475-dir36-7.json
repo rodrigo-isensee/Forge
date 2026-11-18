@@ -1,0 +1,98 @@
+{
+  "pedido": "v0475-dir36",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M43",
+      "guarda": "diretriz 36 (R-CONTRIB, review A1): git config que troca o destino do envio entra na recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if sub == \"config\" and self.config_troca_destino(args, pasta):",
+      "para": "if sub == \"config-x\" and self.config_troca_destino(args, pasta):",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "diretriz 36 (R-CONTRIB, review A1): git config --get com padrão de valor só lê",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if any(a.startswith((\"--get\", \"--show-\")) or a in CONFIG_LEITURA for a in args):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "diretriz 36 (R-CONTRIB, review A1): a chave sem valor é leitura",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if i is None or i + 1 >= len(palavras):",
+      "para": "if i is None or i + 1 > len(palavras):",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M47",
+      "guarda": "diretriz 36 (R-CONTRIB, review A1): reescrita de URL (insteadOf, pushInsteadOf) falha fechado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return (palavras[i].lower().startswith(\"url.\") or",
+      "para": "return (palavras[i].lower().startswith(\"url-x.\") or",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M48",
+      "guarda": "diretriz 36 (R-CONTRIB, review A1): a URL com variável falha fechado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or \"$\" in valor or parecer.aponta_para_o_forge(valor)",
+      "para": "or \"$\" not in valor and parecer.aponta_para_o_forge(valor)",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M49",
+      "guarda": "diretriz 36 (R-CONTRIB, review A1): a opção do git config não é a chave",
+      "arquivo": "hooks/conformidade.py",
+      "de": "palavras = [a for a in args if not a.startswith(\"-\")]",
+      "para": "palavras = [a for a in args if a.startswith(\"-\")]",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M50",
+      "guarda": "diretriz 36 (R-CONTRIB, review A1): a chave do destino é achada entre as palavras",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if re.fullmatch(CHAVE_DO_DESTINO, a, re.I | re.S)), None)",
+      "para": "if re.fullmatch(CHAVE_DO_DESTINO + \"x\", a, re.I | re.S)), None)",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "self.externo is None",
+      "motivo": "sai com a propriedade `projeto`, que ficou sem uso: o prefixo próprio de branch de contribuição deixou de existir (diretriz 36)"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "proibido",
+      "motivo": "a lista de subcomandos proibidos saiu: o gh no Forge agora só lê (GH_SO_LE), coberto por M15, M29 e as fixtures dir36-gh-*"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "self.alvo_do_forge(pasta, repo) or any(parecer.aponta_para_o_forge(a) for a in pos[2:])",
+      "motivo": "a condição do alvo se repetia por ramo; virou um só `if not (alvo)` antes das recusas, coberto pelo mutante M29"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "grupo != 'label'",
+      "motivo": "só o texto da recusa: o gh label saiu da lista própria e cai na recusa geral `gh <grupo> <sub>` do que não só lê"
+    }
+  ]
+}

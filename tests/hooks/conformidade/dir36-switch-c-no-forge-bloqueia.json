@@ -1,0 +1,24 @@
+{
+  "descricao": "Diretriz 36 (R-CONTRIB): criar branch no clone do Forge (`git switch -c`) é recusado, com a forma aceita.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git switch -c melhoria/proj-tema"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/proj",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "forge sugerir --guardar"
+  }
+}
