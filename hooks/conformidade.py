@@ -156,18 +156,35 @@ API_ADMIN = re.compile(r"/(git/refs|contents/|rulesets|branches/[^/]+/protection
                        r"|hooks|keys|transfer)")
 GRAPHQL_PERIGOSO = re.compile(r"mergePullRequest|enablePullRequestAutoMerge|updateRef|createRef|deleteRef|"
                               r"createCommitOnBranch", re.I)
-# R-CONTRIB: o que a sessão de outro projeto não faz no Forge (PR alheio, rótulos), pela API REST e pelo GraphQL.
-CONTRIB_PR_ALHEIO = {"merge", "edit", "close", "ready", "reopen", "review"}
-CONTRIB_ISSUE_ALHEIA = {"edit", "close", "reopen", "delete", "transfer", "lock", "unlock"}  # o PR também é uma issue
+# R-CONTRIB (diretriz 36): a sessão de outro projeto não mexe no Forge (nem o próprio PR), pela API REST e pelo GraphQL.
+# Na sessão de projeto, o `gh` no Forge só lê: todo subcomando fora desta lista mexe e é recusado (falha fechado).
+GH_SO_LE = {"view", "list", "status", "diff", "checks", "download", "watch", "browse"}
 # Opções de `gh pr|issue` que levam valor: o texto delas (corpo, título, rótulo) não é o alvo do comando.
 GH_COM_VALOR = {"-R", "--repo", "-b", "--body", "-F", "--body-file", "-t", "--title", "-l", "--add-label",
                 "--remove-label", "-a", "--add-assignee", "--remove-assignee", "-m", "--milestone", "-B", "--base",
                 "-p", "--add-project", "--remove-project", "-r", "--add-reviewer", "--remove-reviewer", "--subject",
                 "-A", "--author-email", "--match-head-commit", "-c", "--comment", "--reason", "--label", "--assignee"}
-CONTRIB_API = re.compile(r"(^|/)pulls/[^/]+|/issues/[^/]+/labels|/issues/[^/]+$|/issues/?(\?.*)?$|/labels(/|$)")
-CONTRIB_GRAPHQL = re.compile(r"closePullRequest|reopenPullRequest|updatePullRequest|addLabelsToLabelable|"
+GH_DO_REPO = {"pr", "issue", "label", "release", "workflow", "run", "repo", "secret", "variable", "cache", "ruleset"}
+CONTRIB_GRAPHQL = re.compile(r"createPullRequest|closePullRequest|reopenPullRequest|updatePullRequest|addLabelsToLabelable|"
                              r"removeLabelsFromLabelable|createIssue|createLabel|updateLabel|deleteLabel|updateIssue|closeIssue|"
-                             r"markPullRequestReadyForReview|convertPullRequestToDraft", re.I)
+                             r"markPullRequestReadyForReview|convertPullRequestToDraft|addComment|updateIssueComment|addPullRequestReview|"
+                             r"submitPullRequestReview|createRelease|updateRelease", re.I)
+SO_SUGERE = 'guarde a melhoria com `forge sugerir --guardar "<texto>"` e avise o usuário: quem implementa é o Forge'
+NO_FORGE = "a sessão de projeto não cria branch, não commita, não envia nem abre PR no Forge"
+# Opções que criam branch: a curta (também agrupada) e a longa por extenso ou abreviada, com ou sem `=valor`
+BRANCH_NOVA = {"switch": (re.compile(r"-[a-zA-Z]*[cCt][a-zA-Z]*"), ("--create", "--force-create", "--orphan", "--track")),
+               "checkout": (re.compile(r"-[a-zA-Z]*[bBt][a-zA-Z]*"), ("--orphan", "--track"))}
+BRANCH_LISTA = {"-l", "--list", "--show-current", "--contains", "--no-contains", "--merged", "--no-merged", "--points-at"}
+BRANCH_COM_VALOR = {"--sort", "--format"}  # valem no modo de lista, mas não o ligam: com nome, o git cria a branch
+# Gravam commit ou ref no repositório da pasta (R-CONTRIB: no clone do Forge, vindo de sessão de projeto)
+GRAVA_NO_REPO = {"commit", "merge", "cherry-pick", "revert", "am", "rebase", "pull", "commit-tree", "update-ref", "subtree",
+                 "reset", "stash", "notes", "symbolic-ref"}  # na dúvida grava: `stash list` e `notes show` também são recusados
+# A chave que troca para onde o envio vai: a URL do remoto, a reescrita de URL ou o remoto do envio sem remoto na linha,
+# que aceita URL (`git -c <chave>=` e `git config <chave>`; segurança A7)
+CHAVE_DO_DESTINO = (r"(remote\..+\.(url|pushurl)|url\..+\.(insteadof|pushinsteadof)|branch\..+\.(remote|pushremote)"
+                    r"|remote\.pushdefault)")
+CONFIG_DO_DESTINO = re.compile(CHAVE_DO_DESTINO + "=.*", re.I | re.S)
+SUBTREE_COM_VALOR = {"-P", "--prefix", "-m", "--message", "-b", "--branch", "--onto", "--annotate"}
 ROTULO_PROTEGIDO = "afrouxa-regra"  # R-CONTRIB: só a conta do dono do Forge o aplica
 ROTULO_COM_VALOR = ("--add-label", "--label", "-l", "--remove-label")  # a opção que acaba a linha leva o valor do xargs
 # Mutações do GraphQL que aplicam, criam ou renomeiam rótulo: o ID não traz o nome, então toda ocorrência conta
@@ -1108,6 +1125,26 @@ def so_le(args, leitura):
     return any(prefixo_de(a.split("=", 1)[0], leitura) for a in args)
 
 
+def opcao_curta_presente(args, letra, com_valor=""):
+    """A opção curta `-<letra>` está na linha, sozinha ou agrupada (`-ze`, `-zze`), como o parse-options do git a lê: no
+    grupo, a letra de `com_valor` leva o resto como valor (`-fe` é `--file e`) ou, sem resto, a palavra seguinte; `--`
+    encerra as opções (segurança A8)."""
+    proxima_e_valor = False
+    for a in args:
+        if proxima_e_valor:
+            proxima_e_valor = False
+        elif a == "--":  # o fim das opções: o que vem depois é palavra
+            return False
+        elif re.fullmatch(r"-[^-].*", a, re.S):
+            for n, c in enumerate(a[1:], 2):
+                if c == letra:
+                    return True
+                if c in com_valor:
+                    proxima_e_valor = n == len(a)
+                    break
+    return False
+
+
 def abreviacao_de(opcao, longas):
     """A opção longa (sem o `=valor`) é uma das `longas` ou a abreviação dela que o git aceita (`--upload-p`)."""
     nome = opcao.split("=", 1)[0]
@@ -1247,11 +1284,6 @@ class Guarda:
             self._ramo = git(self.h.raiz, "branch", "--show-current")[1]
         return self._ramo
 
-    @property
-    def projeto(self):
-        """Nome do projeto da sessão: o prefixo próprio das branches de contribuição é `melhoria/<nome>-`."""
-        return self.h.raiz.name if self.externo is None else self.externo
-
     def clone_do_forge(self):
         """A raiz em que o hook age é o Forge (dá poder: R-CONTRIB não se aplica). Projeto nunca é o Forge."""
         if self.externo is not None:
@@ -1284,7 +1316,8 @@ class Guarda:
         chave = (raiz, remoto)
         if chave not in self._repos:
             self._repos[chave] = e_clone_do_forge(raiz) or any(
-                parecer.aponta_para_o_forge(url) for url in self.urls_dos_remotos(raiz, remoto))
+                parecer.aponta_para_o_forge(url) or self.caminho_do_forge(raiz, url)
+                for url in self.urls_dos_remotos(raiz, remoto))
         return self._repos[chave]
 
     @staticmethod
@@ -1299,6 +1332,30 @@ class Guarda:
                 cod, saida = git(raiz, "remote", "get-url", "--all", *push, nome)
                 urls += saida.splitlines() if not cod else []
         return urls
+
+    def caminho_do_forge(self, base, url):
+        """Segurança A9: o destino é caminho local (ou `file://`) em `~/.forge-contrib` ou num clone do Forge."""
+        local = url[7:] if url.startswith("file://") else None if re.match(r"[\w+.-]+://|[^/]*:", url) else url
+        if not local:
+            return False
+        alvo = self.caminho(Path(base), local)
+        return em_contrib(alvo) or e_clone_do_forge(self.raiz_git(alvo))
+
+    def destino_na_config(self, pasta):
+        """Segurança A7: sem remoto na linha, `branch.<b>.pushRemote`, `remote.pushDefault` e `branch.<b>.remote`
+        gravados escolhem o destino e aceitam URL. Devolve a chave que aponta ao Forge ou, se a leitura falha, o texto
+        da dúvida (falha fechado; o prazo vencido do git já bloqueia o envio, ADR 0009); senão None. O remoto nomeado já
+        passa pela URL dele (`repositorio_do_forge`)."""
+        if (raiz := self.raiz_git(pasta)) is None:
+            return None
+        cod, saida = git(raiz, "config", "--get-regexp", r"^(branch\..*\.(remote|pushremote)|remote\.pushdefault)$")
+        if cod not in (0, 1):
+            return "a configuração do envio, ilegível"
+        for linha in saida.splitlines():
+            chave, _, valor = linha.partition(" ")
+            if parecer.aponta_para_o_forge(valor) or self.caminho_do_forge(raiz, valor):
+                return chave
+        return None
 
     @staticmethod
     def caminho(pasta, texto):
@@ -2249,18 +2306,23 @@ class Guarda:
 
     def git(self, palavras, parte, pasta, ramos, git_dir=None, atribuicoes=(), alias=0):
         i, pasta_git, opcoes = 1, self.caminho(pasta, git_dir) if git_dir else pasta, self.pathspecs_da_linha(atribuicoes)
+        cwd = pasta  # cada `-C` é relativo ao anterior, como o git faz (`-C ~ -C .forge-contrib/proj`)
+        troca = []  # `-c` que troca o destino do envio (GIT_CONFIG_* já é recusado para todos)
         while i < len(palavras) and palavras[i].startswith("-"):
             if palavras[i].endswith("-pathspecs"):  # `--literal-pathspecs`...: valem também para o `ls-files` do hook
                 opcoes.append(palavras[i])
-            if palavras[i] in ("-C", "--git-dir") and i + 1 < len(palavras):
-                pasta_git = self.caminho(pasta, palavras[i + 1])
+            if palavras[i] == "-C" and i + 1 < len(palavras):
+                cwd = pasta_git = self.caminho(cwd, palavras[i + 1])
+            elif palavras[i] == "--git-dir" and i + 1 < len(palavras):
+                pasta_git = self.caminho(cwd, palavras[i + 1])
             elif palavras[i].startswith("--git-dir="):
-                pasta_git = self.caminho(pasta, palavras[i].split("=", 1)[1])
+                pasta_git = self.caminho(cwd, palavras[i].split("=", 1)[1])
             if palavras[i] == "-c" and i + 1 < len(palavras) and CONFIG_DO_MERGE.match(palavras[i + 1]):
                 self.barrar("R-REVIEW", f"git -c {palavras[i + 1]} muda como o merge mescla o que o review leu",
                             "mescle sem estratégia, --squash nem --no-commit")
             if palavras[i] == "-c" and i + 1 < len(palavras):
                 self.config_da_linha(palavras[i + 1])
+                troca += [palavras[i + 1]] if CONFIG_DO_DESTINO.fullmatch(palavras[i + 1]) else []
             if palavras[i].startswith("--config-env"):
                 self.barrar("R-REVIEW", "git --config-env dá ao git configuração que o hook não lê",
                             "rode o git sem configuração pela variável de ambiente")
@@ -2286,11 +2348,14 @@ class Guarda:
         self.git_integracao(sub, args, pasta_git, ramos)
         if sub in CAMINHOS_NO_GIT:
             self.git_caminhos(sub, args, [pasta, pasta_git], opcoes)
+        self.git_no_forge(sub, args, pasta_git)
         if sub == "tag":
             self.git_tag(args, pasta_git)
         if sub in ("push", "send-pack"):  # o send-pack grava refs no destino como o push
             self.git_tags_no_envio(args, palavras[1:i], pasta_git, sub)
-            self.git_push(args, pasta_git, ramos, sub)
+            self.git_push(args, pasta_git, ramos, sub, troca)
+        elif sub == "subtree" and args[:1] == ["push"]:  # `git subtree push -P <pasta> <repositório> <ref>`
+            self.git_push(parecer.posicionais(args[1:], SUBTREE_COM_VALOR), pasta_git, ramos, "subtree push", troca)
         elif parte and parte[0] == "merge" and parte[2]:
             atual = self.ramo_em(pasta_git, ramos)
             if atual in INTEGRACAO and not all(b == atual for b, _ in parte[2]):
@@ -2334,6 +2399,7 @@ class Guarda:
         if not palavras:
             self.barrar("R-REVIEW", f"git {sub}: alias da configuração que o hook não lê",
                         "rode o subcomando do git por extenso")
+            return []  # a GuardaDaProva não para no barrar: sem palavras não há o que ler (segurança A6)
         if palavras[0] in ALIAS_QUE_MESCLA:
             self.barrar("R-REVIEW", f"git {sub}: alias da configuração que mescla (`{palavras[0]}`); o parecer só lê o merge "
                                     "por extenso", f"rode git {palavras[0]} direto, sem alias")
@@ -2637,14 +2703,17 @@ class Guarda:
             self.barrar("R-FLUXO", f"git {sub} de tag para o Forge: a tag v* é a versão que todos os projetos instalam",
                         "envie só a branch; a tag nasce do release.yml, sobre a main")
 
-    def git_push(self, args, pasta, ramos, sub="push"):
-        refs = []
-        pulo = False
+    def git_push(self, args, pasta, ramos, sub="push", troca=()):
+        refs, repo = [], None
+        pulo = None
         for a in args:
             if pulo:
-                pulo = False
+                repo = a if pulo == "--repo" else repo
+                pulo = None
             elif a in PUSH_COM_VALOR:
-                pulo = True
+                pulo = a
+            elif "=" in a and abreviacao_de(a, ("--repo",)):  # `--repo=<url>` e `--rep=<url>`: o repositório do envio
+                repo = a.split("=", 1)[1]
             elif a.startswith("--force") or re.fullmatch(r"-[a-zA-Z]*f[a-zA-Z]*", a) or a.startswith("+"):
                 self.barrar("R-VERIFY", "git push --force", "nunca force o push; refaça com um commit novo", "forca")
             elif a == "--mirror":  # 0.45.3 (decisão do dono): todas as refs de uma vez, e sobrescreve como o force
@@ -2654,7 +2723,7 @@ class Guarda:
                 self.barrar("R-FLUXO", f"git {sub} --all envia todas as branches de uma vez", UMA_BRANCH_POR_VEZ)
             elif not a.startswith("-"):
                 refs.append(a)
-        remoto, refs = (refs[0] if refs else None), refs[1:]
+        remoto, refs = (refs[0] if refs else repo), refs[1:]
         if not refs and "--tags" in args:
             return
         atual = None
@@ -2674,12 +2743,69 @@ class Guarda:
                 self.barrar("R-CONFORMIDADE", f"push direto para {d}", "abra um PR a partir de uma branch de trabalho",
                             "main")
         # o remoto nomeado (a URL dele, resolvida no repositório da pasta), a URL dada ou, sem remoto, a pasta
-        if self.alvo_do_forge(pasta, remoto=remoto) or (remoto and self.alvo_do_forge(pasta, remoto)):
-            propria = f"melhoria/{self.projeto}-"
-            for d in destinos:
-                if not d.startswith(propria):
-                    self.barrar("R-CONTRIB", f"push para {d}: a sessão de outro projeto só envia a própria "
-                                             f"branch `{propria}<tema>`", "abra o PR da sua branch e espere o Forge integrar")
+        if self.alvo_do_forge(pasta, remoto=remoto) or (remoto and self.alvo_do_forge(pasta, remoto)) or (
+                remoto and self.caminho_do_forge(pasta, remoto)):
+            self.barrar("R-CONTRIB", f"push para {', '.join(map(str, destinos))}: {NO_FORGE}", SO_SUGERE)
+        if remoto is None and (chave := self.destino_na_config(pasta)):
+            self.barrar("R-CONTRIB", f"git {sub} sem remoto: `{chave}` escolhe o destino e o hook não confirma que não "
+                                     f"é o Forge: {NO_FORGE}", SO_SUGERE)
+        duvida = next((c for c in troca if c.lower().startswith("url.") or "$" in c
+                       or parecer.aponta_para_o_forge(c.split("=", 1)[1])
+                       or self.caminho_do_forge(pasta, c.split("=", 1)[1])), None)
+        if duvida:  # na dúvida sobre o alvo, a sessão de projeto falha fechado (a do Forge não passa pela Guarda)
+            self.barrar("R-CONTRIB", f"git {sub} com `{duvida.split('=', 1)[0]}` na linha troca o destino e o hook não "
+                                     f"confirma que não é o Forge: {NO_FORGE}", SO_SUGERE)
+
+    def git_no_forge(self, sub, args, pasta):
+        """R-CONTRIB (diretriz 36): a sessão de outro projeto não cria branch nem grava commit ou ref no repositório do
+        Forge (`GRAVA_NO_REPO`, `worktree add`, `branch <nome>`, `switch -c`, `checkout -b`, `--track`, `fetch` com
+        destino), nem aponta um remoto para o Forge (`remote add|set-url`), o passo antes do envio."""
+        cria = (sub in GRAVA_NO_REPO or sub == "worktree" and args[:1] == ["add"]
+                or sub == "branch" and self.branch_grava(args)
+                or sub in BRANCH_NOVA and any(self.cria_branch(BRANCH_NOVA[sub], a) for a in args)
+                or sub == "fetch" and any(r.partition(":")[2] for r in parecer.posicionais(args, FETCH_COM_VALOR)[1:]))
+        if cria and self.alvo_do_forge(pasta):
+            self.barrar("R-CONTRIB", f"git {sub}{' add' if sub == 'worktree' else ''}: {NO_FORGE}", SO_SUGERE)
+        if sub == "remote" and args[:1] in (["add"], ["set-url"]) and not self.clone_do_forge() and any(
+                map(parecer.aponta_para_o_forge, args[1:])):
+            self.barrar("R-CONTRIB", f"git remote {args[0]} com o Forge: {NO_FORGE}", SO_SUGERE)
+        if sub == "config" and self.config_troca_destino(args, pasta):  # a sessão do Forge não chega à Guarda (E3.106)
+            self.barrar("R-CONTRIB", f"git config que aponta o envio para o Forge (ou que o hook não confirma): {NO_FORGE}",
+                        SO_SUGERE)
+
+    def config_troca_destino(self, args, pasta):
+        """`git config` que grava a URL de um remoto com o Forge ou com `$`, ou qualquer reescrita de URL (`insteadOf`,
+        `pushInsteadOf`, cujo alvo o hook não confirma): o envio da mesma linha iria ao Forge sem o hook ver. O editor
+        (`-e`, também agrupada, `--edit`, `edit`) grava o que o hook não vê: falha fechado (segurança A8). O valor que é
+        caminho em `~/.forge-contrib` ou num clone do Forge também troca o destino (segurança A9)."""
+        if args[:1] == ["edit"] or opcao_curta_presente(args, "e", "ft") or any(
+                abreviacao_de(a, ("--edit",)) for a in args):
+            return True
+        if any(a.startswith(("--get", "--show-")) or a in CONFIG_LEITURA for a in args):
+            return False
+        palavras = [a for a in args if not a.startswith("-")]
+        i = next((n for n, a in enumerate(palavras) if re.fullmatch(CHAVE_DO_DESTINO, a, re.I | re.S)), None)
+        if i is None or i + 1 >= len(palavras):
+            return False
+        valor = " ".join(palavras[i + 1:])
+        return (palavras[i].lower().startswith("url.") or "$" in valor or parecer.aponta_para_o_forge(valor)
+                or self.caminho_do_forge(pasta, palavras[i + 1]))
+
+    @staticmethod
+    def cria_branch(opcoes, a):
+        """A opção de `switch`/`checkout` cria branch: a curta, agrupada ou com o nome colado (`-qc`, `-cnova`), ou a
+        longa por extenso ou abreviada como o git aceita, com ou sem `=valor` (`--cr`, `--create=nova`)."""
+        curta, longas = opcoes
+        nome = a.split("=", 1)[0]
+        return bool(curta.match(a)) or len(nome) > 2 and nome.startswith("--") and any(o.startswith(nome) for o in longas)
+
+    @staticmethod
+    def branch_grava(args):
+        """`git branch` que cria, apaga ou move: um nome posicional fora do modo de lista (na dúvida, grava). `--sort` e
+        `--format` levam valor e não ligam a lista (`git branch --sort=refname nova` cria `nova`)."""
+        if any(a.split("=", 1)[0] in BRANCH_LISTA for a in args):
+            return False
+        return bool(parecer.posicionais(args, BRANCH_COM_VALOR))
 
     # gh ----------------------------------------------------------------------------------------------
     @staticmethod
@@ -2882,39 +3008,48 @@ class Guarda:
                         "avise o dono: só ele aplica, na conta dele")
 
     def gh_contrib(self, palavras, pasta, repo_env):
-        """R-CONTRIB: a sessão de outro projeto abre o PR e para; não mescla, edita, fecha, revisa nem rotula no
-        Forge. O alvo vem de `-R`, de `GH_REPO`, de URL entre os argumentos ou da pasta (clone de contribuição)."""
+        """R-CONTRIB (diretriz 36): na sessão de outro projeto, o `gh` no Forge só lê (`GH_SO_LE`): abrir, comentar,
+        editar, fechar, rotular, criar release ou rodar workflow é recusado. O alvo vem de `-R`, de `GH_REPO`, de URL
+        entre os argumentos ou da pasta; no `gh api`, do endpoint (`gh_api_no_forge`). A sessão do Forge não passa por
+        aqui (fora de projeto, só o rótulo é conferido)."""
         pos = parecer.posicionais(palavras[1:], GH_COM_VALOR)
         grupo, sub = (pos + [None, None])[:2]
+        if grupo == "api":
+            self.gh_api_no_forge(palavras[2:], pasta, repo_env)
+            return
+        if grupo not in GH_DO_REPO or sub is None or sub in GH_SO_LE:
+            return
         repo = parecer.opcao(palavras[1:], "--repo", "-R") or repo_env
-        proibido = (grupo == "pr" and sub in CONTRIB_PR_ALHEIO or grupo == "issue" and sub in CONTRIB_ISSUE_ALHEIA
-                    or grupo == "label")
-        if proibido:
-            alvo = self.alvo_do_forge(pasta, repo) or any(parecer.aponta_para_o_forge(a) for a in pos[2:])
-            if alvo and not self.clone_do_forge():
-                self.barrar("R-CONTRIB", f"gh {grupo}{' ' + sub if grupo != 'label' else ''} no Forge: a sessão de outro "
-                                         "projeto só abre o PR da própria branch", "avise o usuário e espere o Forge integrar")
-        elif grupo == "issue" and sub == "create":
+        if not (self.alvo_do_forge(pasta, repo) or any(parecer.aponta_para_o_forge(a) for a in pos[2:])):
+            return
+        if grupo == "issue" and sub == "create":
             # Issue nova no Forge é da pessoa: `forge sugerir`, no terminal dela, fora do Claude (onde o hook não roda).
-            alvo = self.alvo_do_forge(pasta, repo) or any(parecer.aponta_para_o_forge(a) for a in pos[2:])
-            if alvo and not self.clone_do_forge():
-                self.barrar("R-CONTRIB", "gh issue create no Forge: só a pessoa envia sugestão, no terminal dela, fora do "
-                                         "Claude, com `forge sugerir`", "guarde o texto com `forge sugerir --guardar \"<texto>\"` "
-                                         "e avise a pessoa")
-        elif grupo == "api":
-            args = palavras[2:]
-            endpoint = parecer.endpoint_da_api(args)
-            dono = re.match(r"^/?repos/([^/]+/[^/]+)", endpoint)
-            if not parecer.metodo_mutante(args):
-                return
-            if e_graphql(endpoint):  # `/graphql` e a URL completa também (o ID é global, sem slug)
-                alvo, perigoso = True, self.graphql_perigoso(args, pasta)
+            self.barrar("R-CONTRIB", "gh issue create no Forge: só a pessoa envia sugestão, no terminal dela, fora do "
+                                     "Claude, com `forge sugerir`", "guarde o texto com `forge sugerir --guardar \"<texto>\"` "
+                                     "e avise a pessoa")
+        self.barrar("R-CONTRIB", f"gh {grupo} {sub}: {NO_FORGE}", SO_SUGERE)
+
+    def gh_api_no_forge(self, args, pasta, repo_env):
+        """`gh api` que muda algo no Forge, pelo slug do endpoint (também a URL completa e o `api/v3/`). O ID numérico
+        (`repositories/<n>`), o endpoint com variável e a mutação do GraphQL (ID global) não dizem o repositório: na
+        sessão de projeto, falham fechado."""
+        if not parecer.metodo_mutante(args):
+            return
+        endpoint = parecer.endpoint_da_api(args)
+        if e_graphql(endpoint):
+            alvo = self.graphql_perigoso(args, pasta)
+        else:
+            caminho = endpoint_normalizado(endpoint)
+            dono = re.match(r"repos/([^/]+/[^/]+)", caminho, re.I)
+            if dono and "{" not in dono.group(1):
+                alvo = "$" in dono.group(1) or self.alvo_do_forge(pasta, dono.group(1))
+            elif dono or "{owner}" in caminho:  # `{owner}/{repo}`: o gh usa o GH_REPO ou o repositório da pasta
+                alvo = self.alvo_do_forge(pasta, repo_env)
             else:
-                slug = dono.group(1) if dono and "{" not in dono.group(1) else repo_env  # {owner}/{repo} = GH_REPO
-                alvo, perigoso = self.alvo_do_forge(pasta, slug), bool(CONTRIB_API.search(endpoint))
-            if alvo and perigoso and not self.clone_do_forge():
-                self.barrar("R-CONTRIB", "gh api que cria issue ou edita, fecha, mescla ou rotula PR no Forge: a sessão de outro "
-                                         "projeto só abre o PR da própria branch", "avise o usuário e espere o Forge integrar")
+                alvo = not caminho or "$" in caminho or caminho.lower().startswith("repositories/")
+        if alvo:
+            self.barrar("R-CONTRIB", f"gh api que muda algo no Forge (ou cujo repositório o hook não confirma): {NO_FORGE}",
+                        SO_SUGERE)
 
     def gh_trava(self, palavras, pasta):
         """Atos perigosos do `gh` (2.5): apagar o repositório e torná-lo público são recusados para todos (a pessoa faz

@@ -1,0 +1,26 @@
+{
+  "pedido": "v0475-dir36",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M41",
+      "guarda": "diretriz 36 (R-CONTRIB): git --git-dir <clone do Forge>/.git (valor separado) é recusado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif palavras[i] == \"--git-dir\" and i + 1 < len(palavras):",
+      "para": "elif palavras[i] == \"--git-dir-x\" and i + 1 < len(palavras):",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    },
+    {
+      "id": "M42",
+      "guarda": "diretriz 36 (R-CONTRIB): gh api no próprio projeto (slug que não é o Forge) segue livre",
+      "arquivo": "hooks/conformidade.py",
+      "de": "alvo = \"$\" in dono.group(1) or self.alvo_do_forge(",
+      "para": "alvo = \"$\" not in dono.group(1) or self.alvo_do_forge(",
+      "testes": [
+        "tests.test_hooks.HookDir36.test_fixtures_dir36"
+      ]
+    }
+  ]
+}

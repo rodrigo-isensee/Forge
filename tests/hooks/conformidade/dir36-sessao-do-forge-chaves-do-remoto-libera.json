@@ -1,0 +1,39 @@
+{
+  "descricao": "Diretriz 36 (R-CONTRIB, E3.231, segurança A7 a A9): a sessão de desenvolvimento do Forge edita a configuração, grava e usa `pushRemote` e `pushDefault` com o Forge e envia para caminho em `~/.forge-contrib`: não é afetada.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git config -e && git config branch.melhoria/x.pushRemote https://github.com/rodrigo-isensee/Forge.git && git -c remote.pushDefault=https://github.com/rodrigo-isensee/Forge.git push && git push && git push {tmp}/home/.forge-contrib/proj HEAD:melhoria/y"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "melhoria/x"
+    },
+    {
+      "config": {
+        "remote.origin.url": "https://github.com/rodrigo-isensee/Forge.git",
+        "branch.melhoria/x.pushRemote": "https://github.com/rodrigo-isensee/Forge.git"
+      }
+    }
+  ],
+  "repos": {
+    "home/.forge-contrib/proj": {}
+  }
+}

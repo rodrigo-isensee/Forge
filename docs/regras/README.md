@@ -21,7 +21,7 @@ Decisão: `docs/adr/0002-uma-fonte-por-regra.md`. Agentes, skills e modelos cita
 | [`R-VERIFY`](R-LIMITES.md) | Nunca `--no-verify` nem `--force` |
 | [`R-DECISAO`](R-DECISAO.md) | Decisões do dono uma a uma, com opções e recomendação, sem prazo que decida |
 | [`R-CONFORMIDADE`](R-CONFORMIDADE.md) | Controles não se contornam; o que está em vigor é do usuário |
-| [`R-CONTRIB`](R-LIMITES.md) | Contribuição ao Forge: projeto abre PR, nunca mescla |
+| [`R-CONTRIB`](R-LIMITES.md) | Contribuição ao Forge: projeto só sugere, nunca mexe no Forge |
 | [`R-SEGURANCA`](R-SEGURANCA.md) | Parecer de segurança quando há gatilho |
 | [`R-PROVA`](R-PROVA.md) | Afirmação com prova |
 | [`R-BRIEF`](R-BRIEF.md) | Brief selado pela ferramenta antes da delegação |

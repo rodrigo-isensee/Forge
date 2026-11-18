@@ -1,0 +1,56 @@
+{
+  "pedido": "v0476-stack-deps-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "GIT_CONFIG_PARAMETERS sai do ambiente",
+      "arquivo": "bin/forge-copia",
+      "de": ", \"GIT_CONFIG_PARAMETERS\"}",
+      "para": "}",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_instalacao_tira_config_injetada_e_nomes_de_segredo"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "nome com TOKEN sai do ambiente",
+      "arquivo": "bin/forge-copia",
+      "de": "(\"TOKEN\", \"SECRET\", \"PASSWORD\")",
+      "para": "(\"SECRET\", \"PASSWORD\")",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_instalacao_tira_config_injetada_e_nomes_de_segredo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "nome com SECRET sai do ambiente",
+      "arquivo": "bin/forge-copia",
+      "de": "(\"TOKEN\", \"SECRET\", \"PASSWORD\")",
+      "para": "(\"TOKEN\", \"PASSWORD\")",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_instalacao_tira_config_injetada_e_nomes_de_segredo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "nome com PASSWORD sai do ambiente",
+      "arquivo": "bin/forge-copia",
+      "de": "(\"TOKEN\", \"SECRET\", \"PASSWORD\")",
+      "para": "(\"TOKEN\", \"SECRET\")",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_instalacao_tira_config_injetada_e_nomes_de_segredo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "padrão de nome vale em qualquer caixa",
+      "arquivo": "bin/forge-copia",
+      "de": "x in k.upper()",
+      "para": "x in k",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_instalacao_tira_config_injetada_e_nomes_de_segredo"
+      ]
+    }
+  ]
+}
