@@ -16,10 +16,18 @@ import sys
 LIMITE_PADRAO = 80.0
 
 
+LOGIN = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})")
+
+
 def dono_do_origin():
     r = subprocess.run(["git", "remote", "get-url", "origin"], capture_output=True, text=True)
     m = re.search(r"github\.com[:/]([^/]+)/", r.stdout)
     return m.group(1) if m else ""
+
+
+def login_valido(dono):
+    """O dono entra no comando impresso: só o formato de login do GitHub."""
+    return bool(LOGIN.fullmatch(dono))
 
 
 def consultar(endpoint):
@@ -75,19 +83,24 @@ def main(argv):
             return 2
     dono = dono or dono_do_origin()
     troca = os.environ.get("FORGE_COTA_CI_ENDPOINT")
-    if not dono and not troca:
+    if not troca and not dono:
         print("não verificável: dono do repositório desconhecido; rode `forge-cota-ci --dono <nome>`")
         return 0
+    if not troca and not login_valido(dono):
+        print("não verificável: o dono não tem formato de login do GitHub; rode `forge-cota-ci --dono <nome>`")
+        return 0
     endpoints = [troca] if troca else [f"/users/{dono}/settings/billing/actions", f"/orgs/{dono}/settings/billing/actions"]
-    motivo = ""
+    motivos = []
     for ep in endpoints:
         d, motivo = consultar(ep)
         if d is not None:
             rc, texto = avaliar(d, limite)
             print(texto)
             return rc
-    print(f"não verificável: sem permissão ou sem resposta ({motivo}). Comando para o dono rodar: "
-          f"gh api /users/{dono}/settings/billing/actions (ou /orgs/{dono}/... se for organização; se pedir escopo, `gh auth refresh -s user`)")
+        motivos.append(motivo)
+    onde = "veja os minutos do mês em Settings > Billing and plans (Actions) no navegador, com a conta dona do repositório"
+    print(f"não verificável: sem permissão ou sem resposta ({' | '.join(motivos)}). Para o dono: {onde}"
+          + ("" if troca else f"; ou rode `gh api /users/{dono}/settings/billing/actions` (organização: /orgs/{dono}/...)"))
     return 0
 
 
