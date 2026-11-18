@@ -54,10 +54,10 @@
   },
   {
    "id": "P5",
-   "guarda": "o equivalente declarado com teste pulado não vira equivalente nem inválido",
+   "guarda": "o sem veredito do pulo não passa pelo equivalente nem sai 0",
    "arquivo": "bin/forge-mutante",
-   "de": "classe not in (\"inválido\", \"sem veredito\")",
-   "para": "classe != \"inválido\"",
+   "de": "if classe == \"sem veredito\":  # o teste pulado",
+   "para": "if False:  # o teste pulado",
    "testes": [
     "tests.test_forge_mutante.Execucao.test_teste_pulado_sai_2_sem_veredito_e_o_sobrevivente_segue_1"
    ]
@@ -66,8 +66,8 @@
    "id": "P6",
    "guarda": "sem veredito sai 2, nunca 0",
    "arquivo": "bin/forge-mutante",
-   "de": "\"sem veredito\": 2, \"sobreviveu\": 1}",
-   "para": "\"sobreviveu\": 1}",
+   "de": "{linha} · {motivo}\", 2, True",
+   "para": "{linha} · {motivo}\", 0, True",
    "testes": [
     "tests.test_forge_mutante.Execucao.test_teste_pulado_sai_2_sem_veredito_e_o_sobrevivente_segue_1"
    ]

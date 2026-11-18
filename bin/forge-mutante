@@ -880,11 +880,13 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
     if registro is None:
         return f"{m['id']} · sem veredito · {m['arquivo']}:{linha}", 2, False
     classe, motivo = veredito(m["testes"], registro, erro_mata=True)  # o controle passou: erro agora é do mutante
-    if "equivalente" in m and classe not in ("inválido", "sem veredito"):  # o teste que o mata desmente o equivalente
+    if classe == "sem veredito":  # o teste pulado não confirma o equivalente nem prova a sobrevivência
+        return f"{m['id']} · sem veredito · {m['arquivo']}:{linha} · {motivo}", 2, True
+    if "equivalente" in m and classe != "inválido":  # o teste listado que o mata desmente o equivalente
         classe, motivo = ("equivalente", "") if classe == "sobreviveu" else (
             "inválido", "declarado equivalente, mas os testes listados o matam")
     texto = f"{m['id']} · {classe} · {m['arquivo']}:{linha}" + (f" · {motivo}" if motivo else "")
-    return texto, {"inválido": 2, "sem veredito": 2, "sobreviveu": 1}.get(classe, 0), True
+    return texto, {"inválido": 2, "sobreviveu": 1}.get(classe, 0), True
 
 
 class ArvoreMudou(Exception):
