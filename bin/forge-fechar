@@ -17,6 +17,7 @@
 # 4 (só com --armar) auto-merge armado, o PR mescla quando os checks obrigatórios passarem; se a base andar antes, rode de novo (M3).
 # --limpar: roda só o passo 7, sem forge-check nem merge, e só com prova de PR MERGED na develop para a branch; cada parte é "se existe" (repete sem
 # efeito colateral). Rodado de dentro da worktree da própria branch, sai dela para a principal antes de remover. Só apaga a branch (local e remota) se o sha é o do PR mesclado ou já está na base; nunca usa a opção que força.
+# Clones (MP6): o passo 7 também apaga os clones da branch em ~/.forge-contrib/wt (limpos, sem stash, tudo na origem, sha mesclado); campo `clone=`.
 # --sem-limpar: faz o merge e pula o passo 7: imprime os comandos da limpeza pendente (o `--limpar` primeiro, que confere o sha; worktree, branch local se existe e branch remota) e sai com
 # código 3 (fechado, limpeza pendente). Incompatível com --limpar (erro de uso). Serve a quem prefere limpar depois (ou fora do sandbox).
 # --esperar-rotulo: em vez de parar quando o PR pede o rótulo do dono e ele não está aplicado, repete a leitura dos checks e do rótulo
@@ -557,6 +558,39 @@ podar_orfaos() {
   echo "registro: prune tirou $(grep -c '^Removing ' <<< "$prune_saida") registro(s) de worktree órfã"
   [ "$prune_rc" = 0 ] || echo "aviso: o prune saiu com código $prune_rc; a saída dele está no log: $log" >&2
 }
+# limpar_clones (MP6): as cópias que são clones (o `.git` delas é pasta, não arquivo de worktree) em ~/.forge-contrib/wt, na branch $ref e com o
+# mesmo origin, saem só limpas (sem mudança, arquivo novo nem stash), sem commit fora das refs do origin e com o sha mesclado; as outras ficam
+# pendentes, com leitura no lugar de comando que apaga. Define `copia_st` (vazio: nenhum clone da branch) e acrescenta a `pend_cmds`.
+limpar_clones() {
+  local d url_aqui sha_dela comum
+  copia_st=""
+  url_aqui="$(git remote get-url origin 2>/dev/null || true)"
+  comum="$(cd "$(git rev-parse --git-common-dir)" && pwd -P || true)"
+  for d in "${HOME:-}/.forge-contrib/wt"/*/; do
+    d="${d%/}"
+    [ -d "$d/.git" ] || continue
+    [ "$(cd "$d/.git" && pwd -P)" != "$comum" ] || continue  # o próprio repositório que roda o fechamento
+    [ "$(git -C "$d" symbolic-ref -q HEAD 2>/dev/null || true)" = "refs/heads/$ref" ] || continue
+    [ -n "$url_aqui" ] && [ "$(git -C "$d" remote get-url origin 2>/dev/null || true)" = "$url_aqui" ] || continue
+    sha_dela="$(git -C "$d" rev-parse -q --verify HEAD || true)"
+    if [ -n "$(git -C "$d" status --porcelain 2>/dev/null || echo erro)" ] || git -C "$d" rev-parse -q --verify refs/stash >/dev/null \
+      || [ -n "$(git -C "$d" rev-list --branches --not --remotes 2>/dev/null || echo erro)" ] || ! sha_confere "$sha_dela"; then
+      echo "aviso: o clone $d da branch $ref tem trabalho fora da origem (mudança, stash, commit não enviado ou não mesclado); não o apaguei." >&2
+      copia_st=pendente
+      pend_cmds="$pend_cmds
+# confira; só apague depois de decidir
+git -C $(printf '%q' "$d") status --short --branch"
+    elif rm -rf -- "$d"; then
+      echo "registro: apaguei o clone $d da branch $ref (limpo, tudo na origem, mesclado)"
+      copia_st="${copia_st:-ok}"
+    else
+      echo "aviso: não consegui apagar o clone $d." >&2
+      copia_st=pendente
+      pend_cmds="$pend_cmds
+rm -rf -- $(printf '%q' "$d")"
+    fi
+  done
+}
 # limpar_entrega: a limpeza do passo 7 e do --limpar, só depois da prova de merge (merged_heads). Cada parte é "se existe", então repete sem efeito
 # colateral. Ordem: worktree, branch local, e por último a remota (o pre-push reconhece o push só de remoção, não roda suíte nem espera a fila da trava; PREPUSH-DELETE). Nunca força: worktree suja e branch com commit
 # novo ficam pendentes. Resumo sempre gravado; define `pendencia` (0 ou 1) e deixa a decisão do código de saída a quem chama.
@@ -667,6 +701,7 @@ git branch -D $(printf '%q' "$ref")"
   fi
   # O campo do config vai no fim do estado da branch, a última coisa da linha `limpeza:` (só existe quando o passo acima o definiu).
   [ -z "${cfg_campo:-}" ] || br_st="$br_st$cfg_campo"
+  limpar_clones
   if ! sha_remoto="$(remoto_exato "$ref")"; then
     echo "aviso: não consegui ler a branch remota $ref." >&2
     rem_st=pendente
@@ -702,7 +737,7 @@ $rem_leitura"
   else pend_cmds="$pend_cmds
 git push origin --delete $(printf '%q' "refs/heads/$ref")"
   fi
-  echo "limpeza: remota=$rem_st worktree=$arv_st branch=$br_st"
+  echo "limpeza: remota=$rem_st worktree=$arv_st branch=$br_st${copia_st:+ clone=$copia_st}"
   if [ -n "$pend_cmds" ]; then
     pendencia=1
     printf 'pendente, rode:%s\n' "$pend_cmds"
@@ -1133,7 +1168,7 @@ if [ "$seco" = 1 ]; then
   passo 6 "$gh pr merge $ref --auto $metodo --match-head-commit <head conferido> (auto-merge do GitHub com os checks obrigatórios; base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge; espera o MERGED até --espera; com --armar sai com código 4 se ainda não mesclou)"
   for c in "${cartoes[@]}"; do echo "cartão $c: depois do merge, forge-check movimento $c --de $(coluna_do_cartao "$c") --para Pronto --raiz $quadro"; done
   [ "$sem_limpar" = 0 ] || echo "--sem-limpar: o passo 7 é pulado; imprime os comandos da limpeza e sai com código 3 depois do merge."
-  passo 7 "git worktree remove <worktree de $ref> (prune se o diretório já sumiu); git branch -D $ref (só com o sha mesclado); git push origin --delete $ref (até 3 tentativas, por último); sai com código 3 se algo ficar pendente"
+  passo 7 "git worktree remove <worktree de $ref> (prune se o diretório já sumiu); git branch -D $ref (só com o sha mesclado); clones da branch em ~/.forge-contrib/wt (só limpos, com tudo na origem e mesclados); git push origin --delete $ref (até 3 tentativas, por último); sai com código 3 se algo ficar pendente"
   [ "$item_de_lote" = 1 ] || passo 8 "CI do push na $alvo no commit de merge, até o fim (até ${espera_ci}s); não verde sai com 5 (vermelho imprime a reversão)"
   [ "$limpar" = 0 ] || echo "--limpar: só o passo 7, com prova de PR MERGED em $alvo ($gh pr list --head $ref); sem prova, recusa."
   # Aviso: os caminhos de controle vêm da lista PROTEGIDOS da própria catraca (tests/catraca.py), sem cópia aqui.

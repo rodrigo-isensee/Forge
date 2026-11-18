@@ -37,6 +37,9 @@ os de brief; papel destino: as entregas dos briefs dele; conferente e ferramenta
 `--evals` (padrão tests/evals/ do Forge): travados (teste comum), backlog (`expectedFailure`) e sem ferramenta (`SEM_FERRAMENTA`).
 Linha de 8 colunas (sem autor) fica fora da taxa por papel.
 
+Disco (MP6): a linha `disco:` traz o uso do disco que guarda as cópias de trabalho (`~/.forge-contrib`) e o limiar de
+`forge_disco.py`, acima do qual o `forge-copia` recusa cópia nova; disco ilegível sai `-`. No `--json`, a chave `disco`.
+
 A última linha do placar e do `comparar` é o `resumo:` em linguagem simples, para a pessoa que não programa (ex.: "os erros
 de forma do time caíram 20%; os defeitos que escaparam ficaram iguais; a mudança fica"); no `--json`, a chave `resumo`.
 
@@ -50,6 +53,9 @@ import statistics
 import subprocess
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from forge_disco import LIMIAR_DISCO, uso_do_disco  # noqa: E402
 
 METRICAS = ("taxa_forma", "taxa_reprovacao", "erros_jarvis", "taxa_escape", "voltas_por_item", "pronto_ate_develop")
 GUARDADAS = ("taxa_forma", "taxa_escape")  # nunca podem piorar, qualquer que seja a métrica declarada
@@ -316,6 +322,15 @@ def imprimir_papeis(papeis):
         print(f"papel {papel}: {taxas} · {casos}")
 
 
+def disco():
+    """O uso do disco das cópias de trabalho e o limiar; uso None quando o disco não se deixa ler."""
+    try:
+        uso = uso_do_disco(Path.home() / ".forge-contrib")
+    except OSError:
+        uso = None
+    return {"uso": uso, "limiar": LIMIAR_DISCO}
+
+
 def cmd_placar(args):
     ate = data(args.ate, "--ate") if args.ate else datetime.date.today()
     passo = datetime.timedelta(days=args.dias)
@@ -327,11 +342,13 @@ def cmd_placar(args):
     papeis = {"atual": taxas_por_papel(vereditos, janelas[0], vistos), "anterior": taxas_por_papel(vereditos, janelas[1], vistos),
               "evals": evals_por_papel(args.evals)} if vereditos is not None or Path(args.evals).is_dir() else None
     if args.json:
-        print(json.dumps({"atual": atual, "anterior": anterior, "papeis": papeis, "resumo": resumo(anterior, atual)},
+        print(json.dumps({"atual": atual, "anterior": anterior, "papeis": papeis, "disco": disco(), "resumo": resumo(anterior, atual)},
                          ensure_ascii=False, sort_keys=True))
     else:
         imprimir(("atual", "anterior"), (atual, anterior))
         imprimir_papeis(papeis)
+        d = disco()
+        print(f"disco: {'-' if d['uso'] is None else str(d['uso']) + '%'} de uso em ~/.forge-contrib (limiar {d['limiar']}%)")
         print(resumo(anterior, atual))
     return 0
 

@@ -1,0 +1,66 @@
+{
+  "pedido": "v0474-mp6-disco",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "so o clone do mesmo origin",
+      "arquivo": "bin/forge-fechar",
+      "de": "    [ -n \"$url_aqui\" ] && [ \"$(git -C \"$d\" remote get-url origin 2>/dev/null || true)\" = \"$url_aqui\" ] || continue",
+      "para": "    true || continue",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_clone_de_outra_branch_ou_de_outro_origin_nao_e_tocado"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "clone com mudanca ou arquivo novo fica",
+      "arquivo": "bin/forge-fechar",
+      "de": "    if [ -n \"$(git -C \"$d\" status --porcelain 2>/dev/null || echo erro)\" ] ||",
+      "para": "    if false ||",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_arquivo_novo_fica"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "clone com stash fica",
+      "arquivo": "bin/forge-fechar",
+      "de": "git -C \"$d\" rev-parse -q --verify refs/stash >/dev/null",
+      "para": "false",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_stash_fica"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "clone com commit fora das refs do origin fica",
+      "arquivo": "bin/forge-fechar",
+      "de": "      || [ -n \"$(git -C \"$d\" rev-list --branches --not --remotes 2>/dev/null || echo erro)\" ] ||",
+      "para": "      ||",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_commit_nao_enviado_em_outra_branch_fica"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "clone com sha nao mesclado fica",
+      "arquivo": "bin/forge-fechar",
+      "de": " ! sha_confere \"$sha_dela\"; then",
+      "para": " false; then",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_commit_enviado_e_nao_mesclado_fica"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "rm que falha deixa o clone pendente com o comando",
+      "arquivo": "bin/forge-fechar",
+      "de": "    elif rm -rf -- \"$d\"; then",
+      "para": "    elif rm -rf -- \"$d\" || true; then",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_rm_que_falha_fica_pendente_com_o_comando"
+      ]
+    }
+  ]
+}
