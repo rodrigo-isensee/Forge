@@ -61,7 +61,7 @@
     },
     {
       "arquivo": "hooks/conformidade.py",
-      "trecho": "alvo and (not self.clone_do_forge())",
+      "trecho": "alvo and not self.clone_do_forge()",
       "motivo": "o `not self.clone_do_forge()` repetia o que `alvo_do_forge` já faz (devolve False na sessão do Forge); o gh no Forge passou a só ler (GH_SO_LE), coberto por M15, M29 e as fixtures dir36-gh-*"
     }
   ]
