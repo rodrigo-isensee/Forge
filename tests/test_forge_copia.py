@@ -149,6 +149,20 @@ class Instalar(Base):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(Path((d / "instalado.txt").read_text().strip()).resolve(), d.resolve())
 
+    def test_sem_pasta_de_stacks_avisa_e_sai_0(self):
+        self.pacote({"detecta": ["marca.txt"], "comandos": [["sh", "-c", "touch instalado.txt"]]}, "marca.txt")
+        shutil.rmtree(self.bin.parent.parent / "stacks")
+        r = self.roda(self.pasta / "i9", "--instalar")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("nenhuma stack detectada", r.stderr)
+
+    def test_pacote_sem_instalar_json_e_ignorado(self):
+        self.pacote({"detecta": ["marca.txt"], "comandos": [["sh", "-c", "touch instalado.txt"]]}, "marca.txt")
+        (self.bin.parent.parent / "stacks" / "sem").mkdir()
+        r = self.roda(self.pasta / "i10", "--instalar")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue((self.pasta / "i10" / "instalado.txt").exists())
+
     def test_worktree_tambem_instala(self):
         self.pacote({"detecta": ["marca.txt"], "comandos": [["sh", "-c", "touch instalado.txt"]]}, "marca.txt")
         d = self.pasta / "wt" / "i8"
@@ -187,7 +201,8 @@ class Instalar(Base):
         self.assertFalse((self.pasta / "i6" / "depois.txt").exists())
 
     def test_spec_invalida_sai_1(self):
-        for spec in ("nao e json", {"detecta": ["marca.txt"], "comandos": ["sh -c touch x"]}, {"comandos": []}):
+        for spec in ("nao e json", {"detecta": ["marca.txt"], "comandos": ["sh -c touch x"]}, {"comandos": []},
+                     {"detecta": "marca.txt", "comandos": [["sh", "-c", "true"]]}):
             self.pacote(spec, "marca.txt")
             r = self.roda(self.pasta / "i7", "--instalar")
             self.assertEqual(r.returncode, 1, r.stderr)

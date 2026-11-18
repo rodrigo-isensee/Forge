@@ -6,38 +6,38 @@
       "id": "M1",
       "guarda": "clone so instala quando --instalar e pedida",
       "arquivo": "bin/forge-copia",
-      "de": "return instalar(real) if a.instalar else 0\n\n\nif",
-      "para": "return instalar(real)\n\n\nif",
+      "de": "a.instalar else 0\n\n\nif",
+      "para": "True else 0\n\n\nif",
       "testes": [
         "tests.test_forge_copia.Instalar.test_sem_a_opcao_nao_instala"
       ]
     },
     {
       "id": "M2",
-      "guarda": "worktree instala quando --instalar e pedida",
+      "guarda": "worktree so instala quando --instalar e pedida",
       "arquivo": "bin/forge-copia",
-      "de": "        return instalar(real) if a.instalar else 0\n    if not a.origem",
-      "para": "        return 0\n    if not a.origem",
+      "de": "            return 1\n        return instalar(real) if a.instalar else 0",
+      "para": "            return 1\n        return instalar(real) if False else 0",
       "testes": [
         "tests.test_forge_copia.Instalar.test_worktree_tambem_instala"
       ]
     },
     {
       "id": "M3",
-      "guarda": "comando que falha reprova a copia",
+      "guarda": "sem stack detectada avisa",
       "arquivo": "bin/forge-copia",
-      "de": "                return 1\n    if not achou",
-      "para": "                pass\n    if not achou",
+      "de": "    if not achou:",
+      "para": "    if False:",
       "testes": [
-        "tests.test_forge_copia.Instalar.test_comando_que_falha_sai_1_e_diz_qual"
+        "tests.test_forge_copia.Instalar.test_stack_nao_detectada_avisa_e_sai_0"
       ]
     },
     {
       "id": "M4",
       "guarda": "so instala a stack detectada na copia",
       "arquivo": "bin/forge-copia",
-      "de": "        if not any(os.path.exists(os.path.join(copia, f)) for f in detecta):\n            continue",
-      "para": "        if False:\n            continue",
+      "de": "if not any(os.path.exists(os.path.join(copia, f)) for f in detecta):",
+      "para": "if False:",
       "testes": [
         "tests.test_forge_copia.Instalar.test_stack_nao_detectada_avisa_e_sai_0"
       ]
@@ -54,22 +54,53 @@
     },
     {
       "id": "M6",
-      "guarda": "falha interrompe os comandos seguintes",
+      "guarda": "falha de comando interrompe e reprova",
       "arquivo": "bin/forge-copia",
       "de": "            if rc:\n",
-      "para": "            if rc and False:\n",
+      "para": "            if False:\n",
       "testes": [
+        "tests.test_forge_copia.Instalar.test_comando_que_falha_sai_1_e_diz_qual",
         "tests.test_forge_copia.Instalar.test_falha_interrompe_os_comandos_seguintes"
       ]
     },
     {
       "id": "M7",
-      "guarda": "instalar.json invalido nao e aceito",
+      "guarda": "comando fora do formato argv e invalido",
       "arquivo": "bin/forge-copia",
-      "de": "            ok = all(isinstance(c, list) and c and all(isinstance(x, str) for x in c) for c in comandos)",
-      "para": "            ok = True",
+      "de": "isinstance(c, list) and c and all(isinstance(x, str) for x in c)",
+      "para": "True",
       "testes": [
         "tests.test_forge_copia.Instalar.test_spec_invalida_sai_1"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "detecta que nao e lista e invalido",
+      "arquivo": "bin/forge-copia",
+      "de": "if not ok or not isinstance(detecta, list):",
+      "para": "if not ok:",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_spec_invalida_sai_1"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "pacote sem instalar.json e ignorado",
+      "arquivo": "bin/forge-copia",
+      "de": "if not os.path.isfile(arq):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_pacote_sem_instalar_json_e_ignorado"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "pasta de stacks ausente nao quebra",
+      "arquivo": "bin/forge-copia",
+      "de": "if os.path.isdir(pacotes) else []",
+      "para": "if True else []",
+      "testes": [
+        "tests.test_forge_copia.Instalar.test_sem_pasta_de_stacks_avisa_e_sai_0"
       ]
     }
   ]

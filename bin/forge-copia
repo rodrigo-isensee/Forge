@@ -49,7 +49,7 @@ def instalar(copia):
     """Roda os comandos de instalação das stacks detectadas na cópia. Devolve 0 ou 1."""
     pacotes = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "stacks")
     achou = False
-    for nome in sorted(os.listdir(pacotes)) if os.path.isdir(pacotes) else []:
+    for nome in sorted(os.listdir(pacotes) if os.path.isdir(pacotes) else []):
         arq = os.path.join(pacotes, nome, "instalar.json")
         if not os.path.isfile(arq):
             continue
