@@ -3,32 +3,27 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-mutante-pulado
-commit: 8186cef3fc8174d5303ef9c7f9f668135effd1a2
+commit: c3cbb941c7bbd8967203ab3d7d2b071ba6f29261
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-18
 ---
-# Review de segurança: v0478 (E13.3, melhoria/v0478-mutante-pulado)
+# Review de segurança: v0478 (E13.7, melhoria/v0478-mutante-pulado), revalidação por delta
 
-Diff lido: `4182a6b9..8186cef3` (bin/forge-mutante, tests/test_forge_mutante.py, tests/mutantes/v0478-mutante-pulado.json, changelog.d/v0478-mutante-pulado.md). Sem modelo de ameaças próprio da demanda; a ameaça revisada é a do brief: o autor pular um teste de propósito para fugir do veredito "sobreviveu".
+Rodada anterior: aprovado em `8186cef3` (está no git, não recopiada). Delta lido: `forge-check parecer delta` de `8186cef3..c3cbb941`, no domínio `bin/forge-mutante` e `scripts/placar-mutacao.py`. Fora do domínio (não relido): changelog.d, as specs de `tests/mutantes/` e `tests/test_forge_mutante.py`.
 
-## Gatilhos
-Gatilhos: controle do Forge (bin/forge-mutante, prova de mutação usada como evidência do QA).
+Gatilhos: controle do Forge (bin/forge-mutante, prova de mutação usada como evidência do QA; placar da release).
 
 ## Conclusão
-O pulo não vira atalho. O que o autor ganha ao pular é trocar a saída 1 (sobreviveu) pela 2 (sem veredito), que segue não zero, dita na linha com os IDs pulados e "os que rodaram não o mataram"; a saída 0 (provado) continua exigindo falha por asserção ou erro só sob o mutante. A saída 2 já era alcançável antes por "teste declarado que não rodou", então nada novo se abre.
+A morte provada com outro declarado pulado ao lado não esconde sobrevivente: `bin/forge-mutante:312-315` só deixa passar o declarado pulado quando há `falha` no registro ou erro que já passou pelo filtro de `:306-307` (com `erro_mata`, só o erro de um declarado que rodou). Sem morte, o resultado segue `sem veredito` (saída 2). O declarado que não rodou nem pulou continua `inválido` mesmo com morte, porque o laço não sai cedo. Uma `falha` sob o mutante só conta depois do controle verde (`:867-873`).
 
-Caminhos conferidos:
-- Pulo com os demais verdes: `bin/forge-mutante:316-317` dá `sem veredito` (saída 2, `:889` e o agregado de `:903`), nunca `sobreviveu`. Teste: `test_teste_declarado_pulado_e_sem_veredito_e_nunca_sobreviveu` e `test_teste_pulado_sai_2_sem_veredito_e_o_sobrevivente_segue_1` (ponta a ponta, saída 2 com a linha).
-- Equivalente declarado com pulo: `bin/forge-mutante:883-884` sai antes da conversão em `equivalente`, então o pulo não confirma equivalente (saída 0). Mesmo teste de execução.
-- Pulo não esconde morte nem o teste que não rodou: `:310-315` e `test_pulo_nao_esconde_a_morte_nem_o_teste_que_nao_rodou`.
-- Controle: `:867-869` passa a aceitar `sem veredito` como "ok", e o veredito vai para a rodada do mutante; um teste que pula no controle e falha sob o mutante só "mata" se detectar a mudança de comportamento, o mesmo que uma asserção comum. Não abre saída 0 falsa.
-- Pulo condicionado ao ambiente da cópia (pula só em `$TMPDIR`, fora do CI): escapa da contagem da catraca, mas no `forge-mutante` dá a mesma saída 2 visível; o QA cola a saída e só 0 prova.
+A mudança também fecha um caminho que existia em `8186cef3`: o controle com um declarado falhando e outro pulado saía `sem veredito`, que o controle (`:870`) lê como "ok", e a falha preexistente virava `morreu` (saída 0) sob o mutante. Agora o controle dá `morreu`, que é "vermelho", e o mutante sai `controle vermelho` (saída 2). Ver a sonda S1 abaixo.
 
-Sondas executadas (sem achado, registradas para o QA): carregando `bin/forge-mutante` pelo arquivo e rodando um módulo real pelo `Registro`, o `skipTest` dentro de `subTest` (id `<teste> (i=2)`), o `raise unittest.SkipTest` no corpo e o declarado de classe ou de módulo saem `sem veredito`; o `SkipTest` em `setUpClass` (id `setUpClass (<classe>)`) sai `inválido` (saída 2); `expectedFailure` que falha não é anotado e não muda o veredito. Nenhum caminho deu `sobreviveu` disfarçado em 0.
+Placar (`scripts/placar-mutacao.py:32-34,67-72`): `PULADO` casa um subconjunto das linhas que `LINHA` já conta como `sem veredito` (mesmo prefixo, formato de `bin/forge-mutante:886`). Por isso a subtração não fica negativa e não move nada para `mortos` nem tira de `sobreviveu`. Um caminho com espaço só deixa o pulo em `sem-veredito`, sem escondê-lo. A saída do `forge-mutante` continua sem eco.
 
-## Detalhe dos achados
-Sem achado no diff. Observação fora do diff (não bloqueia, não é deste pedido): a contagem de pulos da catraca (`tests/catraca.py:515`, `PULOS`) conta `skipTest`, `skip*` e `expectedFailure` por nome de chamada ou decorador, e não conta `raise unittest.SkipTest(...)`; um pulo novo assim não sobe o contador de pulos. Do lado do `forge-mutante` o efeito é só saída 2, por isso fica como melhoria, não achado.
+## Sondas
+- S1 · `veredito(["t.m.T.b","t.m.T.a"], [{"id":"t.m.T.a","res":"falha"},{"id":"t.m.T.b","res":"pulado"}])` (controle, sem `erro_mata`) · espera: classe que o controle lê como vermelho · obtido: `8186cef3` `('sem veredito', ...)` (controle "ok"); `c3cbb941` `('morreu', '')` (controle vermelho)
+- S2 · `veredito([A,B], [A ok, B pulado], erro_mata=True)` · espera: sem veredito · obtido: `('sem veredito', 'teste declarado pulado: t.m.T.b')` nas duas versões
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura estática do diff, a sonda acima pela biblioteca padrão e os 3 testes novos do pulo (`python3 -I -m unittest discover -s tests -p test_forge_mutante.py -k pulado -k pulo`: 3 OK). Suíte inteira: só no CI do PR (não rodada aqui). Sem segredo, dependência nem workflow no diff; varredura de segredos e SAST não se aplicam.
+Nenhum risco aceito. Ferramentas: leitura do delta, as sondas acima (biblioteca padrão, `python3 -I`) e os testes novos e os do placar (`python3 -I -m unittest discover -s tests -p test_forge_mutante.py -k test_morte_provada_vale_com_outro_declarado_so_pulado -k placar -k Placar`: 7 OK). Suíte inteira: só no CI do PR (não rodada aqui). Sem segredo, dependência nem workflow no delta.
