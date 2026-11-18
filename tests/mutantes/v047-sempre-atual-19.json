@@ -1,0 +1,86 @@
+{
+  "pedido": "v047-sempre-atual",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S65",
+      "guarda": "forge_sempre_atual.py:469 decide por `atual.get(\"n\", 0) or 0`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "contagem[escopo] = {\"n\": int(atual.get(\"n\", 0) or 0) + 1, \"desde\": atual.get(\"desde\") or hoje()}",
+      "para": "contagem[escopo] = {\"n\": int(not (atual.get(\"n\", 0) or 0)) + 1, \"desde\": atual.get(\"desde\") or hoje()}",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_adiamento_conta_e_zera_quando_deixa_de_adiar"
+      ]
+    },
+    {
+      "id": "S66",
+      "guarda": "forge_sempre_atual.py:469 decide por `atual.get(\"desde\") or hoje()`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "contagem[escopo] = {\"n\": int(atual.get(\"n\", 0) or 0) + 1, \"desde\": atual.get(\"desde\") or hoje()}",
+      "para": "contagem[escopo] = {\"n\": int(atual.get(\"n\", 0) or 0) + 1, \"desde\": not (atual.get(\"desde\") or hoje())}",
+      "testes": [
+        "tests.test_sempre_atual.Ocupacao.test_adiamento_conta_e_zera_quando_deixa_de_adiar"
+      ]
+    },
+    {
+      "id": "S67",
+      "guarda": "forge_sempre_atual.py:476 decide por `e[\"escopo\"] == \"user\"`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "usuario = [e for e in self.escopos if e[\"escopo\"] == \"user\"]",
+      "para": "usuario = [e for e in self.escopos if not (e[\"escopo\"] == \"user\")]",
+      "testes": [
+        "tests.test_sempre_atual.Ancora.test_url_vem_da_ancora_do_usuario_e_nao_da_de_projeto"
+      ]
+    },
+    {
+      "id": "S68",
+      "guarda": "forge_sempre_atual.py:477 decide por `usuario or sorted(self.escopos, key=lambda e: versao_tupla(e[\"versao\"]`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "candidatas = usuario or sorted(self.escopos, key=lambda e: versao_tupla(e[\"versao\"]) or (0,), reverse=True)",
+      "para": "candidatas = not (usuario or sorted(self.escopos, key=lambda e: versao_tupla(e[\"versao\"]) or (0,), reverse=True))",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S69",
+      "guarda": "forge_sempre_atual.py:478 decide por `candidatas`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return self.instalacao(candidatas[0][\"install\"]) if candidatas else None",
+      "para": "return self.instalacao(candidatas[0][\"install\"]) if not (candidatas) else None",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S70",
+      "guarda": "forge_sempre_atual.py:482 decide por `ancora is None`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if ancora is None:",
+      "para": "if not (ancora is None):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S71",
+      "guarda": "forge_sempre_atual.py:489 decide por `fv.url_valida(url)`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "return url if fv.url_valida(url) else None",
+      "para": "return url if not (fv.url_valida(url)) else None",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    },
+    {
+      "id": "S72",
+      "guarda": "forge_sempre_atual.py:493 decide por `not isinstance(fix, dict) or fix.get(\"motivo\") not in (\"volta-automati`",
+      "arquivo": "bin/forge_sempre_atual.py",
+      "de": "if not isinstance(fix, dict) or fix.get(\"motivo\") not in (\"volta-automatica\", \"dono\") or versao_tupla(fix.get(\"para\")) is None:",
+      "para": "if not (not isinstance(fix, dict) or fix.get(\"motivo\") not in (\"volta-automatica\", \"dono\") or versao_tupla(fix.get(\"para\")) is None):",
+      "testes": [
+        "tests.test_sempre_atual.Alvo.test_fixacao_automatica_solta_com_versao_maior_que_a_quebrada"
+      ]
+    }
+  ]
+}

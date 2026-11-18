@@ -2381,10 +2381,20 @@ def so_de_parecer(raiz, sha, pedido=None):
     return bool(nomes) and all(livre(n, LIVRES) for n in nomes)
 
 
+def ref_publicada(raiz, ref):
+    """E3.49: o head remoto (`refs/remotes/origin/<ref>`) quando `ref` é uma branch publicada; a ref local pode ter ficado na base. Senão
+    a própria `ref` (sem ela, HEAD; o `origin/HEAD` é a branch padrão do remoto, nunca o head desta)."""
+    if ref and ref != "HEAD" and sha_do_commit(raiz, f"refs/remotes/origin/{ref}"):
+        return f"refs/remotes/origin/{ref}"
+    return ref or "HEAD"
+
+
 def sha_a_revisar(raiz, ref):
-    """AQ-5: o sha do código que os pareceres paralelos revisam: o primeiro commit da linha de primeiros pais de `ref` que não é só de
-    parecer (os pareceres de review, segurança e QA commitados por cima não o movem). None sem `ref` ou se o git falha."""
-    cod, saida = git(raiz, "rev-list", "--first-parent", f"--max-count={TETO_DE_COMMITS_SO_DE_PARECER}", "--end-of-options", ref or "HEAD")
+    """AQ-5: o sha do código que os pareceres paralelos revisam: o primeiro commit da linha de primeiros pais de `ref` (o head remoto
+    dela, se publicada: E3.49) que não é só de parecer (os pareceres de review, segurança e QA commitados por cima não o movem). None sem
+    `ref` ou se o git falha."""
+    cod, saida = git(raiz, "rev-list", "--first-parent", f"--max-count={TETO_DE_COMMITS_SO_DE_PARECER}", "--end-of-options",
+                     ref_publicada(raiz, ref))
     if cod:
         return None
     for sha in saida.split():
@@ -3239,6 +3249,15 @@ def cmd_parecer_novo(raiz, a):
     return 0
 
 
+def documento_sem_parecer(raiz, commit, nome):
+    """E3.49: `.md` de `docs/devops/` sem frontmatter em `commit` (runbook, postura; PASTAS_LIVRES) é documento, não parecer: fica no
+    delta. O apagado (sem blob) também fica."""
+    if not nome.startswith("docs/devops/"):
+        return False
+    cod, blob = git(raiz, "cat-file", "blob", f"{commit}:{nome}", bruto=True)
+    return bool(cod) or not blob.startswith(b"---")
+
+
 def cmd_parecer_delta(raiz, arquivo, ate=None, base="develop"):
     """PARECER-CONTEUDO: o diff desde o `commit:` do parecer até `ate` (padrão HEAD), só nos arquivos do domínio do tipo dele, para a
     revalidação ler só o que mudou, sem o que veio da `base` por merge na branch (FC-DELTA-APOS-MERGE-BASE). Lista também o que mudou
@@ -3292,7 +3311,7 @@ def parecer_delta(raiz, arquivo, ate, base):
     nomes, escopo = lido
     if escopo:
         print(escopo)
-    nomes = [n for n in nomes if not livre(n, LIVRES + ANEXOS_DO_PORTAO)]
+    nomes = [n for n in nomes if not livre(n, LIVRES + ANEXOS_DO_PORTAO) or documento_sem_parecer(raiz, fim, n)]
     da_base = vindos_da_base(raiz, ref_da_base(raiz, base), inicio, fim, nomes)  # E7: conteúdo igual ao da base, sem mudança da branch
     dentro = [n for n in nomes if no(n) and n not in dispensados and n not in da_base]
     for n in nomes:
@@ -8503,7 +8522,10 @@ def estado_da_branch(raiz, pedido_id, branch, base, etapa):
     else:
         linhas.append(f"estado: PR #{pr['number']} {sem_controle(pr['state'])[:10]} head {sem_controle(pr['head'])[:7]}")
         if pr["state"] == "MERGED" and etapa not in ETAPAS_DE_MERGE:
-            recusas.append(f"brief gerar: recusado: o PR #{pr['number']} já foi mesclado; a etapa {etapa or 'codigo'} não cabe mais (P5)")
+            recusas.append(f"brief gerar: recusado: o PR #{pr['number']} já foi mesclado; a etapa {etapa or 'codigo'} não cabe mais nesta "
+                           f"branch: continue em branch nova a partir da integração (`git switch --no-track -c <branch nova> "
+                           f"origin/{caminho_impresso(base)}`) e gere o brief com `--branch <branch nova>`; não recrie "
+                           f"{caminho_impresso(branch)} (P5, E3.49)")
     sha_base = base_sha_real(raiz, base, branch)
     remota = sha_do_commit(raiz, f"refs/remotes/origin/{base}")
     if sha_base and remota:
@@ -9419,17 +9441,41 @@ def versao(texto):
         return None
 
 
-def migracao_pendente(raiz):
-    """Versões de migração do Forge (ADR 0005) acima da `.forge/versao` do projeto e até a do plugin."""
+def modelo_atras_do_plugin(raiz):
+    """(versão do modelo do projeto, versão do plugin) quando a `.forge/versao` está abaixo do plugin; senão None."""
     try:
         atual = versao((raiz / ".forge" / "versao").read_text(encoding="utf-8"))
         plugin = versao(json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"])
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
-        return []
+        return None
     if not atual or not plugin or atual >= plugin:
+        return None
+    return atual, plugin
+
+
+def migracao_pendente(raiz):
+    """Versões de migração do Forge (ADR 0005) acima da `.forge/versao` do projeto e até a do plugin."""
+    par = modelo_atras_do_plugin(raiz)
+    if par is None:
         return []
+    atual, plugin = par
     return sorted((p.parent.name for p in (PLUGIN / "migrations").glob("*/migrar")
                    if versao(p.parent.name) and atual < versao(p.parent.name) <= plugin), key=versao)
+
+
+def branch_do_modelo_sem_pr(raiz):
+    """ADR 0017 (seção 6 do desenho): a abertura automática prepara `forge/upgrade-<v>` só local, sem envio. Devolve o nome
+    quando o modelo está atrás do plugin, a branch existe local e não tem cópia em `origin` (sem rede nem `gh`); senão None."""
+    par = modelo_atras_do_plugin(raiz)
+    if par is None:
+        return None
+    ramo = "forge/upgrade-" + ".".join(str(n) for n in par[1])
+    try:
+        local = git(raiz, "rev-parse", "--verify", "-q", f"refs/heads/{ramo}")[0]
+        remoto = git(raiz, "rev-parse", "--verify", "-q", f"refs/remotes/origin/{ramo}")[0]
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return ramo if local == 0 and remoto != 0 else None
 
 
 # A ferramenta defasada (versão-defasada, VD-3): a conferência feita por uma cópia do forge-check atrás do repositório não vale -----
@@ -10104,7 +10150,12 @@ def executar(a, raiz):
             print(v)
         return 1 if any(not v.startswith("transcricao: aviso:") for v in violacoes) else 0  # aviso não falha
     pendentes = migracao_pendente(raiz)
-    if pendentes:
+    if ramo := branch_do_modelo_sem_pr(raiz):  # ADR 0017: a abertura já rodou o forge-upgrade; o Jarvis passa ao tech-lead
+        print(f"forge-check: aviso: branch {ramo} pronta, sem PR; o tech-lead a envia (git push origin {ramo}), "
+              "abre o PR na develop e o mescla com os portões da classe verdes, sem perguntar ao dono; o que a catraca pedir ao dono fica "
+              "parado e listado (R-CONFORMIDADE)",
+              file=sys.stderr)
+    elif pendentes:
         print(f"forge-check: aviso: migração do Forge pendente ({', '.join(pendentes)}); rode forge-upgrade",
               file=sys.stderr)
     branch_do_pr = None
