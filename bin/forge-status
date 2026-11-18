@@ -2,6 +2,9 @@
 """Forge: uma linha por pedido em curso, para a statusLine do Claude Code (S3, 0.44.1). Só biblioteca padrão.
 
 Uso: forge-status [--raiz DIR] [--max N]
+     forge-status --maquina
+  --maquina (MP2): uma linha por sessão ativa da máquina, `<projeto> · <pasta> · batimento há <m> min`, do registro que os hooks
+  gravam (`hooks/_maquina.py`); só a sessão viva conta. Sem nenhuma: `forge: nenhum projeto ativo na máquina`.
   Na statusLine, o JSON da entrada traz a pasta (`workspace.current_dir` ou `cwd`); sem ele, vale --raiz ou a pasta atual.
   Por pedido de docs/pedidos/<id>.md: `<id> · <coluna do KANBAN.md> · PR #<n> · <hora> <última linha do ## Histórico>`. A coluna é a
   seção do quadro em que a coluna Pedido do cartão cita o id; o PR é o último `PR #<n>` citado no pedido. Pedido em "Pronto" fica
@@ -13,6 +16,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from pathlib import Path
 
 FECHADAS = frozenset({"Pronto"})
@@ -59,11 +63,30 @@ def linhas(raiz, maximo):
     return saida + [f"+{len(pedidos) - maximo}"] * (len(pedidos) > maximo)
 
 
+def maquina():
+    """MP2: as sessões vivas do registro da máquina (o mesmo filtro dos hooks), sem caractere de controle."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "hooks"))
+    import _maquina
+    from pesado import pid_vivo
+    agora = time.time()
+    try:
+        vivas = _maquina.vivas(json.loads(ler(_maquina.caminho_da_pasta() / _maquina.ATIVOS) or "{}").get("sessoes"), agora, pid_vivo)
+    except (ValueError, AttributeError, OSError):
+        vivas = {}
+    saida = [re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", f"{s.get('projeto')} · {s.get('pasta')} · batimento há "
+                    f"{int((agora - s['batimento']) // 60)} min")[:200] for s in vivas.values()]
+    return sorted(saida) or ["forge: nenhum projeto ativo na máquina"]
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="forge-status", description="uma linha por pedido em curso, para a statusLine")
     ap.add_argument("--raiz", default=".")
     ap.add_argument("--max", type=int, default=3)
+    ap.add_argument("--maquina", action="store_true")
     a = ap.parse_args(argv)
+    if a.maquina:
+        print("\n".join(maquina()))
+        return 0
     try:
         entrada = json.loads(("{}" if sys.stdin.isatty() else sys.stdin.read(TETO_DE_BYTES)) or "{}")
         pasta = entrada.get("workspace", {}).get("current_dir") or entrada.get("cwd") or a.raiz

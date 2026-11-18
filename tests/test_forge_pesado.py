@@ -32,6 +32,7 @@ class ForgePesado(unittest.TestCase):
         (self.raiz / ".forge" / "versao").write_text("0.0.0\n", encoding="utf-8")
         self.run_dir = self.raiz / ".forge" / "run"
         (self.run_dir / "pesado.fila").mkdir(parents=True)
+        self.env["FORGE_MAQUINA"] = str(self.run_dir)  # MP4: a fila é a da máquina; aqui, na mesma pasta do estado
 
     def rodar(self, *args, cwd=None, prazo=30):
         try:

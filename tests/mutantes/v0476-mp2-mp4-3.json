@@ -1,0 +1,66 @@
+{
+  "pedido": "v0476-mp2-mp4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "P7",
+      "guarda": "MP4: o Post solta a vaga da máquina mesmo sem a trava do projeto",
+      "arquivo": "hooks/pesado.py",
+      "de": "if solta(_maquina.ler(\"pesado.json\").get(str(hook.run())), uso):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_post_de_outro_uso_mantem_e_dono_morto_sai"
+      ]
+    },
+    {
+      "id": "P8",
+      "guarda": "MP4: máquina cheia não dá a vez na chegada",
+      "arquivo": "hooks/pesado.py",
+      "de": "if not ocupada(hook, trava, uso, agora) and not maquina_cheia(hook, uso, agora) \\\n",
+      "para": "if not ocupada(hook, trava, uso, agora) \\\n",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_bateria_de_outro_projeto_espera_a_vaga_da_maquina"
+      ]
+    },
+    {
+      "id": "P9",
+      "guarda": "MP4: máquina cheia não dá a vez na fila",
+      "arquivo": "hooks/pesado.py",
+      "de": "and not maquina_cheia(hook, uso, agora) and vivas[:1] == [senha]:",
+      "para": "and vivas[:1] == [senha]:",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_bateria_de_outro_projeto_espera_a_vaga_da_maquina"
+      ]
+    },
+    {
+      "id": "P10",
+      "guarda": "MP4: o Post só apaga a trava do projeto do mesmo uso",
+      "arquivo": "hooks/pesado.py",
+      "de": "            if solta(trava, uso):\n                arquivo.unlink()",
+      "para": "            if True:\n                arquivo.unlink()",
+      "testes": [
+        "tests.test_maquina.FilaPesada.test_post_de_outro_uso_mantem_e_dono_morto_sai"
+      ]
+    },
+    {
+      "id": "S1",
+      "guarda": "MP2: registro ilegível no status vale nenhum",
+      "arquivo": "bin/forge-status",
+      "de": "    except (ValueError, AttributeError, OSError):\n        vivas = {}",
+      "para": "    except (ValueError, AttributeError, OSError):\n        raise",
+      "testes": [
+        "tests.test_maquina.Registro.test_registro_ilegivel_recomeca"
+      ]
+    },
+    {
+      "id": "S2",
+      "guarda": "MP2: --maquina lista os projetos ativos",
+      "arquivo": "bin/forge-status",
+      "de": "    if a.maquina:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_maquina.Registro.test_dois_projetos_ativos_e_o_status_lista"
+      ]
+    }
+  ]
+}

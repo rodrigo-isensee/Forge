@@ -717,6 +717,7 @@ def ambiente_limpo():
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
     env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+    env["FORGE_MAQUINA"] = tempfile.mkdtemp(prefix="forge-maquina-")  # MP4: a fila pesada da máquina, uma por chamada
     return sem_manutencao(env)  # sem manutenção automática do git (ver ambiente_git.py)
 
 

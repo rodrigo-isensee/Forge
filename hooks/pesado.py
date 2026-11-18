@@ -10,6 +10,8 @@ No clone do Forge (cópia principal e worktrees), que não tem `.forge/config.js
 abaixo: duas suítes completas ao mesmo tempo esgotam a memória (R-TETO); os scripts de PELOS_ARGUMENTOS são
 pesados salvo nas formas leves exatas (MAQ-A1b).
 Estado em .forge/run/pesado.json.
+MP4 (diretriz 35): a fila é uma só para a máquina (`_maquina`: `pesado.fila/` e, em `pesado.json`, a vez de cada projeto
+pela pasta do estado dele), com no máximo `vagas()` tarefas pesadas ao mesmo tempo, 1 por NUCLEOS_POR_VAGA núcleos.
 Orkastery 5 (0.44.2): ocupado, o PreToolUse ESPERA a vez numa fila flock (a mesma ideia do .githooks/pre-push: senha presa
 por flock em .forge/run/pesado.fila/, a de processo morto se descarta) até ESPERA_S; a fila anda pela versão da branch (a
 versão em curso, a menor, primeiro) e depois pela chegada. Cartão da branch em "Aguardando o dono" recusa na hora. Passado o
@@ -22,6 +24,7 @@ import subprocess
 import time
 from pathlib import Path
 
+import _maquina
 from _comum import (bloquear, e_clone_do_forge, executar, gravar_json, ler_json, leituras, sem_atribuicoes,
                     separar_lancadores)
 
@@ -47,6 +50,7 @@ PESADOS_DO_FORGE = ["python3 -m unittest discover", "python -m unittest discover
 
 # Orkastery 5: espera na fila em vez de bloquear. O timeout do PreToolUse do pesado em hooks.json fica acima deste teto.
 ESPERA_S = 240
+NUCLEOS_POR_VAGA = 6
 PASSO_S = 0.5
 SEM_VERSAO = 999999
 VERSAO_DA_BRANCH = re.compile(r"(?:^|/)v(\d)(\d{2})(\d{1,2})?(?:\b|-)")
@@ -108,6 +112,30 @@ def fila_viva(pasta):
     return vivas
 
 
+def vagas():
+    """MP4: tarefas pesadas ao mesmo tempo na máquina: 1 por NUCLEOS_POR_VAGA núcleos, no mínimo 1."""
+    return max(1, (os.cpu_count() or 1) // NUCLEOS_POR_VAGA)
+
+
+def maquina_cheia(hook, uso, agora):
+    """MP4: as vezes vivas dos outros projetos (o critério de `ocupada`) já tomam todas as vagas da máquina."""
+    outras = [t for chave, t in _maquina.ler("pesado.json").items() if chave != str(hook.run()) and ocupada(hook, t, uso, agora)]
+    return len(outras) >= vagas()
+
+
+def marcar_na_maquina(hook, trava):
+    """MP4: grava (`trava`) ou solta (None) a vez deste projeto no `pesado.json` da máquina; a de dono morto sai."""
+    chave = str(hook.run())
+    vezes = {c: t for c, t in _maquina.ler("pesado.json").items()
+             if c != chave and isinstance(t, dict) and pid_vivo(t.get("pid"), t.get("inicio"))}
+    _maquina.gravar("pesado.json", {**vezes, chave: trava} if trava else vezes)
+
+
+def solta(trava, uso):
+    """O Post deste uso solta a trava (e a sem `tool_use_id`)."""
+    return isinstance(trava, dict) and (not uso or trava.get("tool_use_id") in (uso, None))
+
+
 def ocupada(hook, trava, uso, agora):
     return isinstance(trava, dict) and trava.get("tool_use_id") != uso and not mesma_sessao(hook, trava) \
         and pid_vivo(trava.get("pid"), trava.get("inicio")) and isinstance(trava.get("desde"), (int, float)) \
@@ -152,8 +180,10 @@ def inicio_de(pid):
 
 
 def gravar_a_vez(hook, arquivo, dono, inicio, comando, agora, uso):
-    gravar_json(arquivo, {"pid": dono, "inicio": inicio, "agente": hook.campo("agent_id"),
-                          "comando": " ".join(comando.split())[:120], "desde": agora, "tool_use_id": uso})
+    trava = {"pid": dono, "inicio": inicio, "agente": hook.campo("agent_id"),
+             "comando": " ".join(comando.split())[:120], "desde": agora, "tool_use_id": uso}
+    gravar_json(arquivo, trava)
+    marcar_na_maquina(hook, trava)
 
 
 def pid_vivo(pid, inicio=None):
@@ -296,15 +326,18 @@ def principal(hook):
     if not raiz or not pesado(comando, pesados_da_raiz(hook, raiz)):
         return
     uso = hook.campo("tool_use_id")
-    with hook.trava():
+    with hook.trava(), _maquina.trava():
         arquivo = hook.run() / "pesado.json"
         trava = ler_json(arquivo, None)
         if evento != "PreToolUse":
-            if isinstance(trava, dict) and (not uso or trava.get("tool_use_id") in (uso, None)):
+            if solta(trava, uso):
                 arquivo.unlink()
+            if solta(_maquina.ler("pesado.json").get(str(hook.run())), uso):
+                marcar_na_maquina(hook, None)
             return
         agora = time.time()
-        if not ocupada(hook, trava, uso, agora) and not fila_viva(hook.run() / "pesado.fila"):
+        if not ocupada(hook, trava, uso, agora) and not maquina_cheia(hook, uso, agora) \
+                and not fila_viva(_maquina.pasta() / "pesado.fila"):
             dono = pid_da_sessao()
             gravar_a_vez(hook, arquivo, dono, inicio_de(dono), comando, agora, uso)
             return
@@ -326,7 +359,7 @@ def esperar_a_vez(hook, raiz, arquivo, comando, uso):
         registrar_a_recusa(hook)
         bloquear("R-TETO", f"o cartão da branch `{branch}` está em \"Aguardando o dono\" no KANBAN.md; tarefa pesada não roda "
                            "enquanto ele não responde (a vez fica com quem pode andar).")
-    pasta = hook.run() / "pesado.fila"
+    pasta = _maquina.pasta() / "pesado.fila"
     senha, preso = entrar_na_fila(pasta, prioridade(branch))
     dono = pid_da_sessao()
     inicio = inicio_de(dono)  # lidos uma vez: a vez grava o dono já checado, não um pid relido depois da checagem
@@ -334,10 +367,10 @@ def esperar_a_vez(hook, raiz, arquivo, comando, uso):
         for _ in range(int(espera_s() / PASSO_S) + 1):
             if pid_da_sessao() != dono:  # PROCESSO-ORFAO (v046): a sessão acabou; a senha sai da fila e a vez não é pega
                 bloquear("R-TETO", "a sessão que pediu a tarefa pesada acabou; a vez fica com a próxima da fila.")
-            with hook.trava():
+            with hook.trava(), _maquina.trava():
                 trava, agora = ler_json(arquivo, None), time.time()
                 vivas = fila_viva(pasta)
-                if not ocupada(hook, trava, uso, agora) and vivas[:1] == [senha]:
+                if not ocupada(hook, trava, uso, agora) and not maquina_cheia(hook, uso, agora) and vivas[:1] == [senha]:
                     gravar_a_vez(hook, arquivo, dono, inicio, comando, agora, uso)
                     return
             time.sleep(PASSO_S)
