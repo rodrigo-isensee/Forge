@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-mutante-pulado
-commit: 8186cef3fc8174d5303ef9c7f9f668135effd1a2
+commit: c3cbb941c7bbd8967203ab3d7d2b071ba6f29261
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -31,3 +31,14 @@ Escopo: `bin/forge-mutante` (teste declarado pulado sai `sem veredito`, saída 2
 
 ## Cenários e resultado real
 Diff lido contra a lista de guardas: a troca do controle (`ok` para `sem veredito`), o ramo do pulo no mutante, o `pulado_de` e o ramo final do `veredito` têm mutante declarado. A remoção da asserção antiga (`pulado` igual a `inválido`) é coerente com o novo contrato. Nenhum bug aberto.
+
+## Revalidação (E13.8, delta 8186cef3..c3cbb941)
+Delta lido por `forge-check parecer delta`: `bin/forge-mutante` (morte provada vale com outro declarado só pulado), `scripts/placar-mutacao.py` (coluna `sem-veredito-pulado`), `tests/test_forge_mutante.py`, as duas specs e o fragmento do changelog. O mutante P2 teve o trecho reescrito para o novo ramo e segue morrendo; Q1, Q2, Q4, Q5 e Q6 cobrem as guardas novas (A1 e A2 do review), uma por linha mudada.
+
+### Provas
+- `bin/forge-mutante tests/mutantes/v0478-mutante-pulado.json tests/mutantes/v0478-mutante-pulado-2.json` (rev=c3cbb941c7bb), saída 0: P1, P2, P3, P7, P4, P5, P6, Q1, Q2, Q4, Q5, Q6, todos `morreu`.
+- Módulo `tests/test_forge_mutante.py` (TMPDIR): `Ran 138 tests`, `OK`.
+- `bin/forge-testes --vermelho 8186cef3 --modulos tests.test_forge_mutante`: `contagem: não prova (passa na base)=136; prova (asserção)=2`; `...Veredito.test_morte_provada_vale_com_outro_declarado_so_pulado · H=ok · B=falha · prova (asserção)`.
+- Não rodei `--cobertura --base` (trava R-TETO tomada por outra sessão); a conferência do diff contra os mutantes foi manual e não achou guarda mudada sem mutante.
+
+Resultado: aprovado, nenhum bug aberto.
