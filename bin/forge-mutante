@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Forge: mutantes declarados do pedido (OK-14 e M-1). Só biblioteca padrão.
 
-Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--prazo SEGUNDOS] [--processos K]
+Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--ids M1,M2] [--prazo SEGUNDOS] [--processos K]
      forge-mutante --cobertura --base SHA [--rev REV]
      forge-mutante --conferir --base SHA [--rev REV]
      forge-mutante --conferir --todas [--rev REV]
@@ -27,6 +27,9 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--prazo SEGUNDOS] [
            nenhum teste do mutante nesses módulos, os testes declarados rodam inteiros. A 1.ª rodada do QA é a spec
            inteira, sem --base; a --base serve só à revalidação, com SHA = o head que o QA já aprovou, e o parecer
            confere a linha `base=` da saída contra esse head.
+  --ids M1,M2  com SPEC, roda só os mutantes destes ids (o resto da spec não roda; a linha `só os ids: ...` diz quais);
+           o id que nenhuma spec declara sai 2, sem rodar nada, com a lista dos ids das specs. Com --base, a escolha vem antes
+           da mutação dirigida.
   --prazo  por execução de testes, em segundos (padrão 600)
   --processos  quantos mutantes rodam de cada vez, de 1 a 4 (padrão 1, em série); cada um na sua cópia, e o veredito é o
            mesmo em série e em paralelo. Um erro ou o sinal encerra todos e apaga as cópias; um processo que falha não conta como morto
@@ -1010,6 +1013,21 @@ def apoio_de_teste(mudados, sha):
     return sorted(a for a in mudados if a.startswith("tests/") and apoio(a))
 
 
+def escolher(specs, ids):
+    """--ids (FORGE-MUTANTE-POR-ID): as specs só com os mutantes pedidos, na ordem delas; o id que nenhuma spec declara
+    (o vazio também) é None (saída 2), com a lista dos ids das specs."""
+    pedidos = ids.split(",")
+    todos = [m["id"] for _, dados in specs for m in dados["mutantes"]]
+    faltam = [i for i in pedidos if i not in todos]
+    if faltam:
+        print(f"forge-mutante: --ids com id que as specs não declaram: {', '.join(map(repr, faltam))}; os ids das specs: "
+              f"{', '.join(todos)}. Nada foi executado.", file=sys.stderr)
+        return None
+    print(f"só os ids: {', '.join(pedidos)}")
+    return [(spec_bytes, {**dados, "mutantes": [m for m in dados["mutantes"] if m["id"] in pedidos]})
+            for spec_bytes, dados in specs]
+
+
 def dirigir(specs, caminhos, base, sha):
     """M-1 dirigida: as specs só com os mutantes no diff `merge-base(base, sha)..sha` (`no_diff`); os outros saem
     `fora do diff`. None (saída 2) com a base que não é commit ou sem nenhum mutante no diff."""
@@ -1083,11 +1101,14 @@ def main(argv=None):
     p.add_argument("--conferir", action="store_true", help="o trecho de cada spec do diff no lugar (exige --base)")
     p.add_argument("--todas", action="store_true", help="com --conferir e sem --base: todas as specs de tests/mutantes/ (AR-12)")
     p.add_argument("--base", help="commit-base do diff da --cobertura (o Base-sha do brief)")
+    p.add_argument("--ids", help="com SPEC: só os mutantes destes ids, separados por vírgula (M22,M32)")
     p.add_argument("--executar", nargs="+", help=argparse.SUPPRESS)  # interno: o leitor de veredito do `unittest`
     p.add_argument("--registro", help=argparse.SUPPRESS)
     args = p.parse_args(argv)
     if args.executar:
         return executar(args.executar, args.registro)
+    if args.ids is not None and not args.spec:
+        p.error("--ids vem com SPEC")
     if args.todas:
         if not args.conferir or args.base or args.spec or args.cobertura:
             p.error("--todas vem com --conferir, sem --base, SPEC nem --cobertura")
@@ -1127,6 +1148,10 @@ def main(argv=None):
         print("forge-mutante: spec inválida; nada foi executado.", file=sys.stderr)
         print("\n".join(f"  - {x}" for x in problemas), file=sys.stderr)
         return 2
+    if args.ids is not None:
+        specs = escolher(specs, args.ids)
+        if specs is None:
+            return 2
     if any("executor" not in dados for _, dados in specs) and not list(Path("tests").glob("test_*.py")):
         print("forge-mutante: sem leitor de veredito para a stack (declare `executor` na spec).", file=sys.stderr)
         return 2

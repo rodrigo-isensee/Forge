@@ -1,0 +1,66 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "--ids sem SPEC é recusado (mutante: passa calado)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if args.ids is not None and not args.spec:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_ids_vem_com_spec_e_aparece_na_ajuda"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "--ids escolhe os mutantes (mutante: a escolha nunca se aplica)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if args.ids is not None:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_ids_roda_so_os_mutantes_pedidos"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "--ids: a recusa sai 2 sem rodar (mutante: segue com None)",
+      "arquivo": "bin/forge-mutante",
+      "de": "specs = escolher(specs, args.ids)\n        if specs is None:",
+      "para": "specs = escolher(specs, args.ids)\n        if False:",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_id_que_a_spec_nao_declara_recusa_com_a_lista_e_nada_roda"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "--ids: a recusa lista o id que falta (mutante: lista os que existem)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if i not in todos]",
+      "para": "if i in todos]",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_id_que_a_spec_nao_declara_recusa_com_a_lista_e_nada_roda"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "--ids: id que a spec não declara recusa (mutante: nunca recusa)",
+      "arquivo": "bin/forge-mutante",
+      "de": "    if faltam:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_id_que_a_spec_nao_declara_recusa_com_a_lista_e_nada_roda"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "--ids: só os pedidos rodam (mutante: todos rodam)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if m[\"id\"] in pedidos]",
+      "para": "if m[\"id\"] in todos]",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_ids_roda_so_os_mutantes_pedidos"
+      ]
+    }
+  ]
+}

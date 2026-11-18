@@ -366,6 +366,32 @@ class Execucao(unittest.TestCase):
         for linha in ("M1 · morreu · lib.py:2", "M2 · morreu · lib.py:2", "M3 · sobreviveu · lib.py:2"):
             self.assertIn(linha, r.stdout)  # a troca de um não vaza para a cópia do seguinte
 
+    def test_ids_roda_so_os_mutantes_pedidos(self):  # v0478 E17.1, FORGE-MUTANTE-POR-ID
+        spec = self.spec(mutante("M1"), mutante("M2", para="x > 99"), mutante("M3", para="x > 9"))
+        r = self.rodar(spec, "--ids", "M2,M1")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("só os ids: M2, M1", r.stdout)
+        self.assertEqual([x.split(" · ")[0] for x in r.stdout.splitlines() if " · " in x], ["M1", "M2"])
+
+    def test_id_que_a_spec_nao_declara_recusa_com_a_lista_e_nada_roda(self):  # v0478 E17.1
+        spec = self.spec(mutante("M1"), mutante("M3", para="x > 9"))
+        for ids, falta in (("M1,M9", "'M9'"), ("", "''"), ("M1,", "''")):
+            with self.subTest(ids=ids):
+                r = self.rodar(spec, "--ids", ids)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn(f"id que as specs não declaram: {falta}; os ids das specs: M1, M3", r.stderr)
+                self.assertNotIn("morreu", r.stdout)
+                self.assertNotIn("sobreviveu", r.stdout)
+                self.assertEqual(list(self.tmp.iterdir()), [], "rodou mutante com id recusado")
+
+    def test_ids_vem_com_spec_e_aparece_na_ajuda(self):  # v0478 E17.1
+        r = self.rodar("--cobertura", "--base", "HEAD", "--ids", "M1")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--ids vem com SPEC", r.stderr)
+        ajuda = self.rodar("--help")
+        self.assertEqual(ajuda.returncode, 0)
+        self.assertIn("--ids", ajuda.stdout)
+
     def test_de_com_zero_ou_duas_ocorrencias_sai_2(self):  # CA-14
         for de in ("x > 11", "return"):
             with self.subTest(de):
