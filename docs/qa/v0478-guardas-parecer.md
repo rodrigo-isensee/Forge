@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: 56bb90b555cc63d4f035dd27d0d35a6541e3647a
+commit: b989773a2ae7276692081441ff72c05d26d0f8da
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -12,24 +12,23 @@ bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-18
 ---
-# QA: v0478 (guardas do hook `parecer`, E3.14, revalidação)
+# QA: v0478 (guardas do hook `parecer`, E3.18, revalidação)
 
-Escopo: delta `c41f7fe5..56bb90b5` lido por `forge-check parecer delta`: `hooks/parecer.py` (`REPO_INCERTO`, `repo_indicado`, `GH_REPO` em `SENSIVEIS`), 4 fixtures `incidente-r-copia-alheia-*gh-repo*`, `tests/test_hooks_parecer_repo.py` (19 para 23), specs de mutantes (`-4.json` com M22 a M26; isenta velha retirada de `v0478-guardas-parecer.json`), `changelog.d`, índice de fixtures. Sem PR nem CI deste head: rodei só os testes dos arquivos tocados (brief). Obrigações: CA-1 (INCIDENTE-HOOK-PARECER-CONTORNADO, A1 anterior), CA-2 (GH-API-LEITURA-UNICA), CA-3 e CA-4 (graphql), CA-5 (GH-REPO-EXPORTADO: `GH_REPO` exportado antes do gh numa cópia alheia não libera o PR do Forge).
+Escopo: delta `56bb90b5..b989773a` lido por `forge-check parecer delta`: `hooks/parecer.py` (remotos lidos como o gh lê, `gh-resolved`, `insteadOf`, `source`/`.`, nome por expansão em `SENSIVEIS`), 15 fixtures novas `incidente-r-copia-alheia-*` e `pasta-barra-home-fixado-...`, `tests/test_hooks.py` (`config` e `config_bruta` nos repos das fixtures), `tests/test_hooks_parecer_repo.py` (contagem 23 para 38), specs de mutantes (`v0478-guardas-parecer-5/6/7`, `hk3-parecer-pasta-11/12`), `changelog.d`, índice de fixtures. O aviso do merge `4a21e7f` (fora da origin/develop local) conta o merge inteiro; as linhas dele só têm apoio de teste. Sem PR nem CI deste head e máquina carregada: rodei só o módulo tocado e os mutantes, sem `tests.test_hooks` inteiro (brief).
+
+Obrigações: CA-1 (INCIDENTE-HOOK-PARECER-CONTORNADO), CA-5 (GH-REPO-EXPORTADO) e, novas, GH-REPO-DE-ARQUIVO e GH-REMOTO-RESOLVIDO: `GH_REPO` carregado de arquivo ou com nome vindo de expansão, e remoto resolvido por `gh-resolved`/`insteadOf`, não deixam o PR do Forge sair do rascunho sem parecer.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| CA-1 cópia alheia: `-R`, `GH_REPO=`, URL, `cd` e sem `-R` conferem no clone da sessão | `test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao` | cópia com remoto outro, do Forge, sem remoto | passou |
-| CA-2 `gh api` lê o mesmo arquivo que o gh | `test_leitura_dos_arquivos_do_gh_api` | `~`, curinga, `--input=@arq` | passou |
-| CA-3/CA-4 graphql fora do clone e arquivo trocado na linha | `test_graphql_fora_do_clone_e_arquivo_trocado_na_linha` | consulta que só lê libera | passou |
-| CA-5 `export`, `declare -x`, atribuição+`export`, `&&` com `GH_REPO` antes do gh recusam fora de clone | mesmo teste do CA-1 (23 fixtures, 4 novas) | `GH_REPO` mexido sem `-R`; `-R` ou prefixo legível seguem valendo | passou |
+| CA-1/CA-5 cópia alheia: `GH_REPO` exportado ou de arquivo (`source`, `.`, `builtin source`, `export $(cat)`, `read`, `printf -v`, `declare -n`) recusa fora de clone | `test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao` (38 fixtures, 15 novas) | nome por expansão recusa; `export` com valor expandido, `read -p` e `for` com expansão liberam (falso positivo) | passou |
+| GH-REMOTO-RESOLVIDO `remote.<n>.gh-resolved`, `insteadOf`, remotos ilegíveis | mesmo teste (`gh-resolved-ready`, `insteadof-ready`, `remotos-ilegiveis`; `gh-resolved-base-libera`) | `gh-resolved=base` libera; remoto ilegível recusa | passou |
+| `cd ~` / `/` depois da negação fixa a pasta | fixture `pasta-barra-home-fixado-depois-da-negacao-e-cd-til` (corpus `tests/test_hooks.py`, não rodado inteiro) | `cd` til após negação | coberta por mutante (M77 a M92) |
+| CA-2 a CA-4 (gh api, graphql) | `test_leitura_dos_arquivos_do_gh_api`, `test_graphql_fora_do_clone_...`, `LeituraDoGhApi.*` | sem mudança no delta | passou |
 
 ## Cenários e resultado real
-- Testes tocados, TMPDIR próprio: `python3 -I -m unittest discover -s tests -p test_hooks_parecer_repo.py` → `Ran 5 tests ... OK`; `-p test_hooks_fila27.py` → `Ran 4 tests ... OK`.
-- Vermelho antes do verde (cópia em `$TMPDIR`, `hooks/parecer.py` de c41f7fe5 com o resto do head): `Ran 5 tests ... FAILED (failures=4)`, as 4 fixtures novas `incidente-r-copia-alheia-{atribui-e-exporta-gh-repo-ready,declare-x-gh-repo-ready,export-gh-repo-e-merge,export-gh-repo-ready}-bloqueia` davam 0 sem a correção.
-- Mutação: `bin/forge-mutante tests/mutantes/v0478-guardas-parecer.json -2 -3 -4 --processos 3 --base c41f7fe58808dfae86c046611c39ee4de9825098` → rc 0, `base=c41f7fe58808dfae86c046611c39ee4de9825098 mb=c41f7fe58808dfae86c046611c39ee4de9825098 rev=56bb90b555cc63d4f035dd27d0d35a6541e3647a`; M1 a M26 todos `morreu` (M22 parecer.py:923, M23:923, M24:942, M25:113, M26:914); nenhum sobrevivente. Cada linha de guarda do delta (`repo_indicado`, `if repo is REPO_INCERTO`, `SENSIVEIS`, `sessao_ou`) tem mutante.
-- Cobertura: `bin/forge-mutante --cobertura --base 4182a6b95a12e085abbd879c5c5010541e1d11f1` → rc 0, 31 linhas `coberta`, as demais `movida`/`spec editada`/`isenta` (a única isenta é `parecer.py:980(base)`, movida para `graphql_no_clone` com M21); nenhuma condição descoberta. O A1 do parecer anterior (isenta velha) está fechado.
-- Acessibilidade e E2E: não se aplicam (hook de linha de comando).
-
-## Resultado
-Aprovado: CA-5 provado com vermelho visto, M22 a M26 morrem, cobertura sem condição descoberta e A1 anterior fechado. Sem bug aberto.
+- `python3 -I -m unittest discover -s tests -p test_hooks_parecer_repo.py` (TMPDIR próprio) → `Ran 5 tests in 14.333s ... OK`.
+- Vermelho antes do verde: `bin/forge-testes --vermelho 56bb90b555cc63d4f035dd27d0d35a6541e3647a --modulos tests.test_hooks_parecer_repo` → `vermelho: base=56bb90b555cc head=b989773a2ae7`, `hooks/parecer.py` revertido à base; `test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=4; prova (asserção)=1` (os 4 outros testes não mudaram), rc 0.
+- Mutação: `bin/forge-mutante tests/mutantes/v0478-guardas-parecer-5.json -6.json -7.json --processos 3 --base 56bb90b5...` → `base=56bb90b555cc63d4f035dd27d0d35a6541e3647a mb=56bb90b555cc63d4f035dd27d0d35a6541e3647a rev=b989773a2ae7276692081441ff72c05d26d0f8da`; M27 a M41 todos `morreu` (parecer.py:607-613, 624-631, 937, 942). Specs `hk3-parecer-pasta-11/12` (pedido outro, rodada à parte, mesma base): M77 a M92 todos `morreu`. Nenhum sobrevivente.
+- Cobertura: `bin/forge-mutante --cobertura --base 56bb90b5...` → rc 0, só a linha `base=`; nenhuma condição descoberta, isenta ou `só equivalente` no delta.
+- Árvore limpa após as rodadas (cópias em `$TMPDIR`).
