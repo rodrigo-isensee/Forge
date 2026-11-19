@@ -1054,14 +1054,19 @@ def pasta_do_gh(hook, pasta, repo, mexidas=frozenset(), resolvida=True):
     esse clone, recusa (falha fechada): sem clone não há branch nem parecer a conferir. GH_REPO mexido antes na linha
     (`repo_indicado`) é repositório indicado que o hook não lê: recusa (GH-REPO-EXPORTADO). A cópia alheia sem repositório
     indicado e sem remoto do clone da sessão segue como antes, e também a sessão em que o hook não age (projeto com
-    `hooks_desligados`, repositório alheio)."""
+    `hooks_desligados`, repositório alheio), salvo o `cd` que o hook não resolve (`resolvida` falso): aí o gh pode estar
+    num clone e a pasta da chamada não vale, e recusa (A12 da E3.32)."""
     copia = copia_de_trabalho(pasta)
     if copia is not None and hook.projeto(pasta, clone_do_forge=True) is not None:
         return pasta
     sessao = sessao_ou(pasta)
     clone = hook.projeto(sessao, clone_do_forge=True)
     if clone is None and copia_de_trabalho(sessao) is not None:
-        return pasta
+        if resolvida:  # A12 da E3.32: sem a pasta do gh, a da chamada não vale (o gh pode estar num clone)
+            return pasta
+        bloquear("R-REVIEW", "gh pr depois de um cd que o hook não resolve (variável, ~ com HOME mexido, crase ou $( )) "
+                             "numa sessão fora de clone: o gh pode estar num clone sem parecer. Corrigir: use o caminho "
+                             "literal no cd ou rode o gh de dentro do clone")
     if repo is REPO_INCERTO:  # GH-REPO-EXPORTADO
         bloquear("R-REVIEW", "gh pr fora de um clone com GH_REPO mexido antes na linha (export, declare -x, set -a, source, "
                              "nome por expansão): o hook não lê o repositório indicado. Corrigir: use -R <dono/repo> ou rode "

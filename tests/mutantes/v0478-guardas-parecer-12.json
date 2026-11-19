@@ -41,6 +41,16 @@
       "testes": [
         "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_aritmetica"
       ]
+    },
+    {
+      "id": "M76",
+      "guarda": "A12 (E3.32): sessão fora de clone e cd sem resolver recusa em vez de cair na pasta da chamada",
+      "arquivo": "hooks/parecer.py",
+      "de": "if resolvida:  # A12",
+      "para": "if True:  # A12",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.SessaoNaCopiaAlheia.test_cd_sem_resolver_recusa_e_o_resolvido_segue"
+      ]
     }
   ]
 }

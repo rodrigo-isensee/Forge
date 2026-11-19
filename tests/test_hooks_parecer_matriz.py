@@ -219,5 +219,32 @@ class RegrasPorClasse(unittest.TestCase):
             self.assertFalse(parecer.linha_mantem_os_remotos(linha), linha)
 
 
+class SessaoNaCopiaAlheia(unittest.TestCase):
+    """A12 da segurança da E3.32: com a sessão numa cópia alheia, o `cd` que o hook não resolve (aqui o `cd ~/…` depois
+    de uma mexida no HOME) não cai na pasta da chamada: o gh pode estar no clone sem parecer, e o hook recusa. Sem `cd`,
+    ou com o `cd ~/…` resolvido, segue como antes."""
+
+    def test_cd_sem_resolver_recusa_e_o_resolvido_segue(self):
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, True)
+        raiz, entrada = Fixture(BASE).montar(tmp, os.getpid())
+        proc = montar_proc(tmp, None)
+        alheio = str(tmp / "alheio")
+        extra = {"CLAUDE_PROJECT_DIR": alheio, "HOME": str(tmp)}
+        casos = [(f"{m}; cd ~/proj && {g}", 2) for g in GH
+                 for m in ("export HOME", ": ${HOME:=/x}", f"HOME={tmp}", "declare HOME")]
+        casos += [(f"cd ~/proj && {g}", 2) for g in GH]  # controle: o clone resolvido confere o parecer
+        casos += [(g, 0) for g in GH]  # legítimo: o gh na cópia alheia, sem cd
+        for linha, codigo in casos:
+            with self.subTest(linha=linha):
+                e = dict(entrada, cwd=alheio, tool_input={"command": linha})
+                r = rodar("parecer", e, alheio, proc, extra)
+                self.assertEqual(r.returncode, codigo, r.stderr)
+                if codigo == 2:
+                    self.assertIn("R-REVIEW", r.stderr)
+                else:
+                    self.assertEqual(r.stderr, "")
+
+
 if __name__ == "__main__":
     unittest.main()
