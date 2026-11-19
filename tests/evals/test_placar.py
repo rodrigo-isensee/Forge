@@ -567,7 +567,7 @@ class SemTeste(unittest.TestCase):
         casos = ((r'["a\\"] ' + "[" * 64, False),      # a barra escapada deixa a aspa fechar a string
                  (r'"\"' + "[" * 100 + '"', False),     # aspa escapada não fecha a string
                  (r'"\\"' + "[" * 65, True),           # barra escapada, a string fecha, 65 abertos
-                 ('[' * 64 + ']' * 64, False), ('{' * 65, True), ('[' * 65 + '"]"', True))
+                 ('[' * 64 + ']' * 64, False), ('{' * 65, True), ('[]' * 65, False), ('[' * 65 + '"]"', True))
         for texto, esperado in casos:
             with self.subTest(texto=texto[:20]):
                 self.assertIs(mod.fundo_demais(texto), esperado)

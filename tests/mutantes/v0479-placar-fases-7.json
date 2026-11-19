@@ -29,7 +29,7 @@
       "de": "        elif c in \"]}\":\n            nivel -= 1",
       "para": "        elif c in \"]}\":\n            nivel += 1",
       "testes": [
-        "tests.evals.test_placar.SemTeste.test_aninhamento_no_teto_e_colchete_em_string_passam"
+        "tests.evals.test_placar.SemTeste.test_varredura_de_aninhamento_e_de_um_passe_e_trata_escape"
       ]
     },
     {
