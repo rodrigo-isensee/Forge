@@ -168,8 +168,8 @@
       "id": "I26",
       "guarda": "bin/forge-check:1522 paralelo (negada)",
       "arquivo": "bin/forge-check",
-      "de": "            if paralelo:  # AQ-5: o `commit:` é o HEAD com os pareceres paralelos, não o código revisado",
-      "para": "            if not (paralelo):  # AQ-5: o `commit:` é o HEAD com os pareceres paralelos, não o código revisado",
+      "de": "if paralelo := commit_de_pareceres_paralelos(raiz, campos[\"commit\"], pedido):",
+      "para": "if not (paralelo := commit_de_pareceres_paralelos(raiz, campos[\"commit\"], pedido)):",
       "testes": [
         "tests.test_t1_codigo_sem_teste",
         "tests.test_aq5_parecer_novo",

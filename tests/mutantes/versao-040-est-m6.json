@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "forge-check pr: o QA aprovado em H fica desatualizado com codigo novo em H2 (C-2)",
       "arquivo": "bin/forge-check",
-      "de": "motivo = commit_vale(raiz, campos[\"commit\"], ref or \"HEAD\", base, livres, estritos=FRAGMENTOS, dominio=tipo,",
-      "para": "motivo = None and commit_vale(raiz, campos[\"commit\"], ref or \"HEAD\", base, livres, estritos=FRAGMENTOS, dominio=tipo,",
+      "de": "motivo = commit_vale(raiz, campos[\"commit\"], ref or \"HEAD\", base, livres_do_pedido(pedido), estritos=FRAGMENTOS, dominio=tipo,",
+      "para": "motivo = None and commit_vale(raiz, campos[\"commit\"], ref or \"HEAD\", base, livres_do_pedido(pedido), estritos=FRAGMENTOS, dominio=tipo,",
       "testes": [
         "tests.test_volta_por_delta.VoltaUnicaComQa.test_qa_aprovado_antes_do_codigo_novo_fica_desatualizado"
       ]

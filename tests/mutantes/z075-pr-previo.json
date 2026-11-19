@@ -37,8 +37,8 @@
       "id": "M4",
       "guarda": "reprovado continua violação com --previo (PP-5/C-2)",
       "arquivo": "bin/forge-check",
-      "de": "        elif campos.get(\"parecer\") not in (\"aprovado\", \"riscos-aceitos\"):",
-      "para": "        elif not previo and campos.get(\"parecer\") not in (\"aprovado\", \"riscos-aceitos\"):",
+      "de": "        if campo == \"parecer\":\n            saida.append(f\"{caminho_impresso(rel)}: parecer: {motivo} ({rid})\")",
+      "para": "        if campo == \"parecer\" and not previo:\n            saida.append(f\"{caminho_impresso(rel)}: parecer: {motivo} ({rid})\")",
       "testes": [
         "tests.test_revisor_wt.PrPrevio.test_reprovado_com_previo_e_rc_1"
       ]
