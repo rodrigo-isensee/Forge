@@ -267,6 +267,46 @@ class Teste(unittest.TestCase):
             self.assertEqual((self.git("rev-parse", ref), self.head_remoto(ref)), (antigo, antigo))
         self.assertEqual((self.criacoes(), self.merges()), ([], []))
 
+    # ---- E30.1: o 1c confere o merge com a base antes do envio do 2b (a base com release não promovida não gasta um run de CI) ----
+    def assert_1c_parou_no_merge_sem_envio(self, r, antigo):
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("parou no passo 1c", r.stderr)
+        self.assertIn("antes do envio do 2b; o merge não subiu e melhoria/x não andou", r.stderr)
+        self.assertNotIn("recomeço a cadeia", r.stdout)
+        self.assertEqual((self.git("rev-parse", "melhoria/x"), self.head_remoto("melhoria/x")), (antigo, antigo))
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def test_e30_1_base_com_release_nao_promovida_recusa_o_merge_sem_envio(self):
+        # o caso real (E15.5, E19.5, E28.5): o head antigo é promovível; a base traz a versão nova sem passar pela homolog;
+        # o promover-homolog de verdade (sem FORGE_PROMOVER) recusa o merge, e nada sobe
+        self.env.pop("FORGE_PROMOVER")
+        self.git("push", "-q", "origin", "develop:refs/heads/homolog")
+        self.git("fetch", "-q", "origin")
+        antigo = self.git("rev-parse", "melhoria/x")
+        self.base_anda({".claude-plugin/plugin.json": '{\n  "name": "forge",\n  "version": "0.0.2"\n}\n',
+                        "CHANGELOG.md": "# Changelog\n\n## [0.0.2] - 2026-11-18\n- release\n"})
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertIn("release-0.0.2", r.stderr)
+        self.assert_1c_parou_no_merge_sem_envio(r, antigo)
+
+    def test_e30_1_merge_nao_promovivel_para_antes_do_envio_e_o_head_antigo_passou(self):
+        antigo = self.git("rev-parse", "melhoria/x")
+        self.base_anda({"outro.md": "x\n"})
+        falso = self.tmp / "promover-merge.py"  # promovível só o head antigo: o merge com a base, não
+        falso.write_text("import os, sys\nopen(os.path.join(os.environ['ESTADO'], 'promover'), 'a').write(sys.argv[2] + '\\n')\n"
+                         f"sys.exit(0 if sys.argv[2] == {antigo!r} else 1)\n", encoding="utf-8")
+        r = self.fechar("p1", "--ref", "melhoria/x", FORGE_PROMOVER=str(falso))
+        self.assert_1c_parou_no_merge_sem_envio(r, antigo)
+        vistos = (self.estado / "promover").read_text().split()
+        self.assertEqual(vistos[0], antigo)
+        self.assertEqual(self.git("rev-list", "--parents", "-n", "1", vistos[1]).split()[1:], [antigo, self.head_remoto("develop")])
+
+    def test_e30_1_dry_run_descreve_o_1c_no_merge_antes_do_envio(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("roda o 1c (python3 -I", r.stdout)
+        self.assertIn("--conferir-ref) no commit do merge antes do envio (não promovível para sem enviar), git push origin melhoria/x", r.stdout)
+
     def test_h4_falha_de_cada_passo_do_merge_para_sem_pr(self):
         for marca, texto in (("merge_tree_lixo", "não devolveu uma árvore"), ("falha_commit-tree", "não consegui criar o commit de merge"),
                              ("falha_update-ref", "não consegui avançar melhoria/x")):

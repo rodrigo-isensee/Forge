@@ -1,0 +1,17 @@
+{
+  "pedido": "v0478-fechar-1c",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o 1c confere o commit do merge com a base antes do envio do 2b (E30.1)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  promovivel \"$novo\" \"no merge de",
+      "para": "  : promovivel \"$novo\" \"no merge de",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_e30_1_base_com_release_nao_promovida_recusa_o_merge_sem_envio",
+        "tests.test_fechar_base_andou.Teste.test_e30_1_merge_nao_promovivel_para_antes_do_envio_e_o_head_antigo_passou"
+      ]
+    }
+  ]
+}

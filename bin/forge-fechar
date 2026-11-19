@@ -6,7 +6,7 @@
 # Roda em ordem e para no primeiro erro: (1) forge-check pr; (1c) a árvore do sha conferido é promovível (scripts/promover-homolog.py
 # --conferir-ref, do diretório deste script; rc diferente de 0, prazo de 300 s ou script ausente param); (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto, também o rascunho do autor, um só e com o head conferido);
 # (2b) se a base andou desde o ponto de partida: com conflito real (`git merge-tree --write-tree`) ou falha de leitura, para e devolve ao agente; sem
-# conflito, em melhoria/* traz a base sozinho (H4: commit de merge com a árvore do merge-tree, `git push origin` de sempre, sem forçar nem pular o
+# conflito, em melhoria/* traz a base sozinho (H4: commit de merge com a árvore do merge-tree, o 1c nele antes do envio (E30.1), `git push origin` de sempre, sem forçar nem pular o
 # pre-push) e recomeça a cadeia no head novo, uma vez por cadeia; fora de melhoria/* ou na cadeia recomeçada, avisa e segue sem trazer (E8);
 # (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido; (7) limpeza.
 # R7 / MERGE-LIBERADO (0.43.3): o passo 6 usa o auto-merge do GitHub (`gh pr merge --auto`, preso ao head): quem mescla é o GitHub, só com os
@@ -839,6 +839,9 @@ trazer_a_base() {
   [[ "$arvore_mt" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] || die "parou no passo 2b: o merge-tree não devolveu uma árvore; nada foi aberto"
   novo="$(git commit-tree "$arvore_mt" -p "$remoto_sha" -p "$1" -m "Merge $base em $ref (forge-fechar, merge-tree limpo)")" \
     || die "parou no passo 2b: não consegui criar o commit de merge; nada foi aberto"
+  # E30.1: o 1c confere a árvore do merge antes do envio (a base pode trazer release não promovida); recusado, nada sobe nem anda.
+  echo "1c no merge de $base em $ref ($novo), antes do envio."
+  promovivel "$novo" "no merge de $base em $ref, antes do envio do 2b; o merge não subiu e $ref não andou"
   if [ "$so_remota" = 1 ]; then
     :  # sem a branch local: só o envio do commit (o recomeço lê o head do servidor)
   elif [ -n "$arvore_lock" ] && test -d "$arvore_lock"; then
@@ -899,7 +902,7 @@ conferir_base_no_merge() {
   echo "a $alvo andou durante os checks sem conflito com $ref; não trago a base (E8); sigo para o merge."
 }
 
-# promovivel <sha> (passo 1c, FF-1, SP4): a árvore do sha conferido passa no promover-homolog --conferir-ref (só leitura). Script ausente,
+# promovivel <sha> [<onde>] (passo 1c, FF-1, SP4; <onde> entra na mensagem de parada, E30.1): a árvore do sha conferido passa no promover-homolog --conferir-ref (só leitura). Script ausente,
 # rc diferente de 0 e o 124 do prazo param (C-1); o recomeço do 2b roda o script de novo, e o 1c com ele, sobre o head novo (C-3).
 # FECHAR-SEM-HOMOLOG-LOCAL: o --conferir-ref lê a origin/homolog local, sem fetch; sem ela no clone, busca só essa ref. Busca que falha só
 # avisa: sem a ref, o --conferir-ref sai com 1 e o 1c para.
@@ -910,7 +913,7 @@ promovivel() {
     git fetch -q origin "+refs/heads/homolog:refs/remotes/origin/homolog" || echo "aviso: sem origin/homolog neste clone e a busca falhou (git fetch origin homolog); o promover-homolog decide." >&2
   fi
   saida_1c="$(timeout 300 python3 -I "$promover" --conferir-ref "$1" 2>&1)" || rc_1c=$?
-  [ "$rc_1c" = 0 ] || die "parou no passo 1c: a árvore que entra na $alvo não é promovível (rc $rc_1c; nada foi aberto nem mesclado): $saida_1c
+  [ "$rc_1c" = 0 ] || die "parou no passo 1c: a árvore que entra na $alvo não é promovível${2:+ ($2)} (rc $rc_1c; nada foi aberto nem mesclado): $saida_1c
 com release na develop ainda não promovida, promova-a (scripts/promover-homolog.py) antes de mesclar outra branch (R-FLUXO)"
 }
 
@@ -1168,7 +1171,7 @@ if [ "$seco" = 1 ]; then
   passo 1 "$check pr $pedido --ref $ref_dry --base $base"
   passo "1c" "python3 -I $promover --conferir-ref $sha_dry (a árvore que entra na $alvo é promovível; rc diferente de 0, prazo de 300 s ou script ausente param; sem origin/homolog no clone, antes busca só ela)"
   passo 2 "git ls-remote origin refs/heads/$ref (igual ao head local de $ref; ausente com o head já em $alvo, PR MERGED ou na base, segue sem pedir push)"
-  passo "2b" "git ls-remote origin refs/heads/$alvo (igual a $base; senão, git fetch origin $alvo); se a base andou, git merge-tree --write-tree do head com ela: com conflito para e lista os arquivos; sem conflito, em melhoria/* faz o merge da base (árvore do merge-tree), git push origin $ref e recomeça a cadeia no head novo (H4), fora dela avisa e segue sem trazer a base (E8) (não roda quando o head já está em $base ou o PR já está MERGED)"
+  passo "2b" "git ls-remote origin refs/heads/$alvo (igual a $base; senão, git fetch origin $alvo); se a base andou, git merge-tree --write-tree do head com ela: com conflito para e lista os arquivos; sem conflito, em melhoria/* faz o merge da base (árvore do merge-tree), roda o 1c (python3 -I $promover --conferir-ref) no commit do merge antes do envio (não promovível para sem enviar), git push origin $ref e recomeça a cadeia no head novo (H4), fora dela avisa e segue sem trazer a base (E8) (não roda quando o head já está em $base ou o PR já está MERGED)"
   passo 3 "$gh pr create --base $alvo --head $ref --title '$titulo' (se não houver PR aberto; não abre se o head já está em $base ou já tem PR MERGED)"
   passo 4 "$gh pr checks <número do PR, lido no passo 3> (espera até ${espera}s; por JSON; os exigidos, pelo par workflow/nome (${CHECKS_EXIGIDOS[*]}) e os do ruleset ou da proteção de $alvo pelo nome, só passam em pass, os demais em pass ou skipping)"
   passo 5 "$gh pr view <número do PR, lido no passo 3> --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
