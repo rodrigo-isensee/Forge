@@ -38,7 +38,7 @@
       "guarda": "E29.6 A2: o pesado.json de 0 byte é erro e o hook libera a trava",
       "arquivo": "hooks/_comum.py",
       "de": "    return json.loads(texto) if texto.strip() else None",
-      "para": "    return json.loads(texto)",
+      "para": "    return json.loads(texto) if True else None",
       "testes": [
         "tests.test_sandbox_controle.ControleVazio.test_agentes_json_de_0_byte_e_o_comeco_legitimo_e_nao_recusa_o_time",
         "tests.test_sandbox_controle.ControleVazio.test_pesado_json_vazio_0444_nao_solta_a_trava_do_proximo"
@@ -92,6 +92,26 @@
       "para": "        \".forge/run/pesado.json\",\n        \".forge/run/pesado.fila\",\n",
       "testes": [
         "tests.test_sandbox_controle.Estrutura.test_modelo_de_projeto_nega_os_quatro_caminhos_de_controle"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "E29.6 A2: trava ausente (ler_trava devolve None) não é objeto e o registro de escrita fica",
+      "arquivo": "hooks/agentes.py",
+      "de": "    trava = {} if trava is None else trava",
+      "para": "    trava = trava",
+      "testes": [
+        "tests.test_trava_agente_morto.C9ParadaSemFilho.test_registro_de_escrita_com_pesado_livre_ou_vencido_sai"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "E29.6 A2: pesado.json ausente levanta no lugar de valer sem trava",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if not caminho.exists():\n        return None\n    texto = caminho.read_text",
+      "para": "    if False:\n        return None\n    texto = caminho.read_text",
+      "testes": [
+        "tests.test_sandbox_controle.ControleVazio.test_a_soltura_grava_null_e_nao_apaga_o_pesado_json"
       ]
     }
   ]
