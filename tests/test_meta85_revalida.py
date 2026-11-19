@@ -82,6 +82,17 @@ class RevalidaSoQuemBarrou(Repositorio):
         linha = self.revalida(rel)
         self.assertTrue(linha.startswith("revalida: sim (desatualizado: src/outro.py mudou depois do parecer"), linha)
 
+    def test_branch_de_trabalho_pelo_sha_simula_a_base_como_o_pr(self):  # A1 E34.10: o código vindo da develop não vence o parecer
+        rel = self.parecer("review", "aprovado")
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"src/outro.py": "y = 1\n"}, "a develop muda o código")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("merge", "-q", "--no-edit", "develop", cwd=self.repo)
+        self.assertNotIn(f"{rel}: commit:", self.check("pr", "p1")[1])  # o `pr` simula a base e o parecer vale
+        rc, saida = self.check("parecer", "delta", rel, "--ate", self.head())  # o sha da branch: a branch sai do `branch_do_sha`
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("revalida: não (não barrou e o domínio não mudou; o parecer segue valendo)", saida.splitlines(), saida)
+
     def test_veredito_com_commit_ilegivel_nao_consulta_o_git(self):  # o `commit:` fora da forma já é violação do `validar_documento`
         campos = {"tipo": "review", "pedido": "p1", "parecer": "aprovado", "commit": "zzz"}
         veredito = getattr(fc, "veredito_do_parecer", None)  # na base, falha (não dá erro)

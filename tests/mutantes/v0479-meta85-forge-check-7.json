@@ -21,6 +21,26 @@
       "testes": [
         "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_fora_da_branch_de_trabalho_revalida_pelo_diff_literal"
       ]
+    },
+    {
+      "id": "M35",
+      "guarda": "base_sem_flag_do_pr: a ref em sha acha a branch de trabalho pelo branch_do_sha (mutante: só pelo nome da ref)",
+      "arquivo": "bin/forge-check",
+      "de": "    branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or \"HEAD\"))\n    if branch and branch not in BASES_DO_FLUXO:\n        return base_do_delta(raiz, nome, ref)[0]",
+      "para": "    branch = branch or branch_da_ref(raiz, ref)\n    if branch and branch not in BASES_DO_FLUXO:\n        return base_do_delta(raiz, nome, ref)[0]",
+      "testes": [
+        "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_branch_de_trabalho_pelo_sha_simula_a_base_como_o_pr"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "pr_da_cli: sem --base, a branch de trabalho ganha a develop (mutante: nunca ganha, diff literal)",
+      "arquivo": "bin/forge-check",
+      "de": "        if base_sem_flag_do_pr(raiz, ref, branch):\n            base = \"develop\"",
+      "para": "        if False:\n            base = \"develop\"",
+      "testes": [
+        "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_branch_de_trabalho_pelo_sha_simula_a_base_como_o_pr"
+      ]
     }
   ]
 }
