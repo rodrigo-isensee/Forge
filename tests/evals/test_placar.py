@@ -603,6 +603,12 @@ class Fases(unittest.TestCase):
             rc, _, erro = self.rodar_tz("UTC", "--dia", "2025-03-18", "--ci", self.ci(conteudo))
             self.assertEqual(rc, 2, (conteudo, erro))
             self.assertNotIn("Traceback", erro)
+        fundo = "[" * 100000  # segurança A2 (sonda S8): o 3.14 não dispara RecursionError; a guarda é o teto do forge-placar
+        rc, _, erro = self.rodar_tz("UTC", "--dia", "2025-03-18", "--ci", self.ci(fundo))
+        self.assertEqual(rc, 2, erro)
+        self.assertIn("aninhado acima de", erro)
+        self.assertNotIn("Traceback", erro)
+        self.assertNotIn("[[[[", erro)
         rc, _, erro = self.rodar_tz("UTC", "--dia", "2025-03-18", "--ci", str(self.raiz / "nao-existe.json"))
         self.assertEqual((rc, "não existe" in erro), (2, True), erro)
 

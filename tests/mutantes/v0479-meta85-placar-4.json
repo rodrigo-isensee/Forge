@@ -71,6 +71,16 @@
       "testes": [
         "tests.evals.test_placar.Fases.test_sem_historico_ou_sem_linha_do_tipo_as_paradas_saem_tracinho"
       ]
+    },
+    {
+      "id": "M32",
+      "guarda": "--ci aninhado acima do teto sai com 2, sem eco",
+      "arquivo": "bin/forge-placar",
+      "de": "    if fundo_demais(texto):\n        raise SystemExit(f\"forge-placar: --ci",
+      "para": "    if False:\n        raise SystemExit(f\"forge-placar: --ci",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_ci_ilegivel_sai_com_2"
+      ]
     }
   ],
   "isentas": [

@@ -709,6 +709,8 @@ def paradas_do_ci(arq, janela):
     texto = ler(arq)
     if texto is None:
         raise SystemExit(f"forge-placar: --ci {arq} não existe")
+    if fundo_demais(texto):
+        raise SystemExit(f"forge-placar: --ci {arq} não é uma lista de runs legível (aninhado acima de {TETO_ANINHAMENTO} níveis)")
     try:
         fins = sorted((momento(str(r.get("updatedAt") or r.get("createdAt")).replace("Z", "+00:00"), "--ci"), r.get("conclusion"))
                       for r in json.loads(texto) if r.get("conclusion") in ("failure", "success"))
