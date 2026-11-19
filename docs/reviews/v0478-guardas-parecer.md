@@ -3,14 +3,18 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: 83a8ce1713df9e363bbd80f93a61ae8e87288579
+commit: 6cfebb4c6c1f43b044ebde24cc0d5e497bd212a7
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
 ---
-# Review: v0478 E3.45 (melhoria/v0478-guardas-parecer), revalidação no head 83a8ce17
+# Review: v0478 E3.45 (melhoria/v0478-guardas-parecer), revalidação no head 6cfebb4c
 
 ## Revalidação
+- Delta lido: `forge-check parecer delta docs/reviews/v0478-guardas-parecer.md`, intervalo 83a8ce17..6cfebb4c; no domínio: só docs/indice-forge.md, 1 linha a mais (`_gh_api.py` na tabela de hooks). Nenhum código nem teste mudou; o aviso do merge d45bf21 fora da develop local não altera o delta.
+- docs/indice-forge.md:58 só documenta o arquivo, em ordem alfabética; o veredito anterior segue.
+
+## Revalidação anterior (head 83a8ce17)
 - Delta lido: `forge-check parecer delta docs/reviews/v0478-guardas-parecer.md`, intervalo 650be460..83a8ce17; no domínio: docs/hooks.md e tests/fixtures/heredoc-volta-unica.json, mais o fragmento changelog.d/v0478-guardas-parecer.md. 3 arquivos, 4 inserções, 3 remoções; nenhum código de hook mudou.
 - tests/fixtures/heredoc-volta-unica.json:235 e :237: só a expectativa do `parecer` de CN2 e VA2 passa de 0 para 2 (e a `origem` explica); o `conformidade` fica (CN2 0, VA2 2). É a recusa da D2 já aprovada chegando ao corpus: falha fechada que recusa a mais, nada afrouxa.
 - docs/hooks.md:39 (D2) descreve o mesmo caso e cita as fixtures; o changelog bate com o diff.
