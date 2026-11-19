@@ -72,5 +72,22 @@
         "tests.evals.test_placar.Fases.test_sem_historico_ou_sem_linha_do_tipo_as_paradas_saem_tracinho"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "tests/evals/test_placar.py",
+      "trecho": "texto in erro",
+      "motivo": "comparação dentro da asserção do teste, não é guarda do código"
+    },
+    {
+      "arquivo": "tests/evals/test_placar.py",
+      "trecho": "isinstance(runs, str)",
+      "motivo": "auxiliar do teste que grava o JSON de exemplo, não é guarda do código"
+    },
+    {
+      "arquivo": "tests/evals/test_placar.py",
+      "trecho": "\"não existe\" in erro",
+      "motivo": "comparação dentro da asserção do teste, não é guarda do código"
+    }
   ]
 }
