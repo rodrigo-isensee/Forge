@@ -3,25 +3,26 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: 6c5d30e56c862c2c300bd412816ded091f786fd7
+commit: 83a8ce1713df9e363bbd80f93a61ae8e87288579
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
 ---
-# Review: v0478 E3.42 (melhoria/v0478-guardas-parecer), revalidação da junção com a develop no head 6c5d30e5
+# Review: v0478 E3.45 (melhoria/v0478-guardas-parecer), revalidação no head 83a8ce17
 
 ## Revalidação
-- Delta lido: `forge-check parecer delta docs/reviews/v0478-guardas-parecer.md`, intervalo 993b6bb3..6c5d30e5. Na primeira linha da branch, 3f7b32bc, 84231068 e 45725837 só trazem pareceres; o código vem do merge 6c5d30e5 (develop em eca1d21b). O aviso do delta sobre 052fb74 é um merge da própria branch (os dois pais estão em origin/melhoria/v0478-guardas-parecer), por isso a ferramenta listou bin/forge-testes, docs/hooks.md, tests/pesos-d4.json e tests/test_hooks.py inteiros.
-- Esses quatro arquivos: `git diff eca1d21b 6c5d30e5` dá o mesmo diff da branch sobre a base de merge (test_hooks_parecer_repo e test_hooks_parecer_matriz em FORGE_CHECK, test_hooks_parecer_repo em REAPROVEITAM_O_LOTE); a junção não mudou o que já estava aprovado.
-- Conflito (`git show --remerge-diff 6c5d30e5`): só tests/test_testes_tocados.py:79. A resolução fica com a forma da develop (assertIn de test_indice_forge, contagem sem ele) e conta 104 = 102 da develop + test_hooks_parecer_matriz e test_hooks_parecer_repo, os dois módulos que só esta branch soma ao FORGE_CHECK. Nada fora do delta relido.
+- Delta lido: `forge-check parecer delta docs/reviews/v0478-guardas-parecer.md`, intervalo 650be460..83a8ce17; no domínio: docs/hooks.md e tests/fixtures/heredoc-volta-unica.json, mais o fragmento changelog.d/v0478-guardas-parecer.md. 3 arquivos, 4 inserções, 3 remoções; nenhum código de hook mudou.
+- tests/fixtures/heredoc-volta-unica.json:235 e :237: só a expectativa do `parecer` de CN2 e VA2 passa de 0 para 2 (e a `origem` explica); o `conformidade` fica (CN2 0, VA2 2). É a recusa da D2 já aprovada chegando ao corpus: falha fechada que recusa a mais, nada afrouxa.
+- docs/hooks.md:39 (D2) descreve o mesmo caso e cita as fixtures; o changelog bate com o diff.
 
 ## Conferências
-- Teste do conflito: `python3 -m unittest tests.test_testes_tocados`: 162 testes, OK (skipped=1), 51 s.
-- Tamanho (H1): a junção não soma código; uma linha de teste resolvida.
+- Sonda (gh falso no PATH, bash chamado do Python): `$(printf bash) -c '<gh pr merge 1 --squash>'` e `"$BASH" -c '<…>'` gravaram as duas `GH-FALSO pr merge 1 --squash`; o corpo roda, a expectativa 2 é a certa.
+- Corpus da volta única: `python3 -m unittest tests.test_hooks_volta_corpus`: 16 testes, OK, 307 s.
+- Tamanho (H1): sem código; duas linhas de fixture.
 - Suíte: sem PR, sem CI a citar; não rerrodada (R-REVIEW).
 
 ## Achados
 - A2 (recomendado) hooks/parecer.py:1162 · herdado da E3.39, sem mudança: a mensagem lista "variável, ~ com HOME mexido, CDPATH, crase ou $( )", mas o `cd` literal em subshell também recusa (S44); incluir "subshell ou condicional" na mensagem e na D6.
 
 ## Parecer
-Aprovado: a junção com a develop preserva o código aprovado no head 993b6bb3 e a contagem 104 do conflito está certa. A2 segue recomendado (cartão), sem volta.
+Aprovado: o delta só alinha CN2 e VA2 do corpus à recusa da D2, provada com gh falso, e o corpus passa no head 83a8ce17. A2 segue recomendado (cartão), sem volta.
