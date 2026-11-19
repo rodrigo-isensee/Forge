@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-guardas-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M50",
+      "guarda": "D5: gh pr só de leitura, ready ou merge",
+      "arquivo": "hooks/parecer.py",
+      "de": "and args[1] in GH_PR_QUE_SO_LE",
+      "para": "and True",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d5_programas_que_mantem_os_remotos"
+      ]
+    },
+    {
+      "id": "M51",
+      "guarda": "D6: pasta do gh que o hook não resolve",
+      "arquivo": "hooks/parecer.py",
+      "de": "if not resolvida:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.MatrizDaCopiaAlheia.test_cada_dimensao_posicao_e_gh_recusa_e_o_legitimo_passa"
+      ]
+    },
+    {
+      "id": "M52",
+      "guarda": "D4: variável do config do git mexida na linha",
+      "arquivo": "hooks/parecer.py",
+      "de": "if mexe_no_config_do_git(mexidas):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.MatrizDaCopiaAlheia.test_cada_dimensao_posicao_e_gh_recusa_e_o_legitimo_passa"
+      ]
+    },
+    {
+      "id": "M53",
+      "guarda": "D5: outro programa na linha",
+      "arquivo": "hooks/parecer.py",
+      "de": "if not linha_mantem_os_remotos(hook.campo(\"tool_input\", \"command\")):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.MatrizDaCopiaAlheia.test_cada_dimensao_posicao_e_gh_recusa_e_o_legitimo_passa"
+      ]
+    },
+    {
+      "id": "M54",
+      "guarda": "sem clone da sessão, a cópia alheia segue como antes",
+      "arquivo": "hooks/parecer.py",
+      "de": "motivo = clone and remotos_incertos(",
+      "para": "motivo = remotos_incertos(",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.MatrizDaCopiaAlheia.test_cada_dimensao_posicao_e_gh_recusa_e_o_legitimo_passa"
+      ]
+    },
+    {
+      "id": "M55",
+      "guarda": "GH-REMOTO-NA-LINHA: o motivo recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "if motivo:  # GH-REMOTO-NA-LINHA",
+      "para": "if False:  # GH-REMOTO-NA-LINHA",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.MatrizDaCopiaAlheia.test_cada_dimensao_posicao_e_gh_recusa_e_o_legitimo_passa"
+      ]
+    },
+    {
+      "id": "M56",
+      "guarda": "D6: a pasta resolvida vai ao pasta_do_gh",
+      "arquivo": "hooks/parecer.py",
+      "de": "gh_na = (mexidas, pasta is not None)",
+      "para": "gh_na = (mexidas, True)",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.MatrizDaCopiaAlheia.test_cada_dimensao_posicao_e_gh_recusa_e_o_legitimo_passa"
+      ]
+    },
+    {
+      "id": "M57",
+      "guarda": "D5: /dev/null não grava",
+      "arquivo": "hooks/parecer.py",
+      "de": "and alvo != \"/dev/null\" and not",
+      "para": "and not",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d5_programas_que_mantem_os_remotos"
+      ]
+    }
+  ]
+}

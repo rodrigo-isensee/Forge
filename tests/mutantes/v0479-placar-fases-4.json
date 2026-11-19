@@ -6,8 +6,8 @@
       "id": "M24",
       "guarda": "sem --prs, a medida e None",
       "arquivo": "bin/forge-placar",
-      "de": "    if not arq:\n        return None\n    texto = ler(arq)\n    if texto is None:\n        raise SystemExit(f\"forge-placar: --prs",
-      "para": "    if False:\n        return None\n    texto = ler(arq)\n    if texto is None:\n        raise SystemExit(f\"forge-placar: --prs",
+      "de": "    if not arq:\n        return None\n    texto = ler(arq)",
+      "para": "    if False:\n        return None\n    texto = ler(arq)",
       "testes": [
         "tests.evals.test_placar.SemTeste.test_sem_dados_sai_tracinho_nunca_zero"
       ]

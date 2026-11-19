@@ -1,0 +1,26 @@
+{
+  "pedido": "v0478-guardas-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M80",
+      "guarda": "FILA-27 A2 (leitura extraída para tira_o_rascunho no A13 da E3.34): no clone, tirar o rascunho pelo graphql recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if tira_o_rascunho(args, base):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    },
+    {
+      "id": "M81",
+      "guarda": "A13 (E3.34): a pasta resolvida na linha é a que o conferir passa à guarda do gh api",
+      "arquivo": "hooks/parecer.py",
+      "de": "parte[1], pasta is not None)  # A13 da E3.34",
+      "para": "parte[1], True)  # A13 da E3.34",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.SessaoNaCopiaAlheia.test_cd_sem_resolver_recusa_e_o_resolvido_segue"
+      ]
+    }
+  ]
+}

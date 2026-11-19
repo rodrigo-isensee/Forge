@@ -194,15 +194,18 @@ class Teste(unittest.TestCase):
         self.assertTrue(log.read_text().splitlines()[-1].endswith(" fim: código 0"))
         self.assertFalse(wt.exists())
 
-    def test_branch_na_worktree_principal_rodado_nela_nao_acha_outra_para_sair_e_fica_pendente(self):
-        # QA A3: sem outra worktree para sair, a limpeza não remove nada e imprime o comando; código 3
+    def test_branch_na_worktree_principal_rodado_nela_fica_pendente_sem_worktree_remove(self):
+        # QA A3: sem outra worktree para sair, a limpeza não remove nada; código 3. FORGE-FECHAR-CLONE-LIMPAR (v0478): a principal não é
+        # worktree ligada, então a pendência é trocar de branch e repetir o --limpar, nunca `git worktree remove`; a remota fica para ele.
         sha_mesclado = self.git("rev-parse", "melhoria/x")
         (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha_mesclado}\n")
         self.git("switch", "-q", "melhoria/x")
         r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertIn("não achei outra para sair", r.stderr)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertIn("é a principal deste repositório", r.stderr)
+        self.assertNotIn("worktree remove", r.stdout + r.stderr)
+        self.assertIn(f"git -C {self.proj.resolve()} switch develop", r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=pendente clone=pendente"])
         self.assertEqual(self.marcas("git worktree remove"), [])
         self.assertEqual(self.marcas("git branch -D"), [])
         self.assertIn("melhoria/x", self.git("branch", "--list", "melhoria/x"))

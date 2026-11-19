@@ -186,6 +186,7 @@
       "critério de reversão"
     ],
     "agents/jarvis.md": [
+      "\\*\\*Recibo antes de acionar o time\\*\\* \\(mensagem no meio da rodada: na fala seguinte, antes de tudo\\)",
       "\\*\\*Autor até o merge \\(H2\\):\\*\\* volta de review, QA, segurança, CI e conflito vai à mesma instância do autor",
       "agente novo apenas se ele travou",
       "skills/briefs-e-conferencia/autor-ate-o-merge\\.md",
@@ -312,7 +313,8 @@
     ],
     "skills/falar-com-o-dono/toda-mensagem.md": [
       "até \"continue\" ou \"ok\", recebe no mesmo turno a resposta e o passo seguinte",
-      "Silêncio, só quando um agente termina sem nada para o dono, e mesmo então o passo seguinte do time anda"
+      "Silêncio, só quando um agente termina sem nada para o dono, e mesmo então o passo seguinte do time anda",
+      "recibo na próxima fala do Jarvis, antes de qualquer outra coisa: o que ele pediu e \"vou fazer\" ou \"não vou fazer\""
     ],
     "skills/falar-com-o-dono/conferir-develop.md": [
       "antes de abrir ou delegar uma etapa, confira na `develop` se o item já foi entregue ou resolvido \\(`git log origin/develop --grep '<cartão>'`\\)",
@@ -375,6 +377,7 @@
       "`sem teste:` do `forge-check pr` pede justificativa no `## Sem teste` do PR",
       "\\*\\*Ritmo e corte \\(diretrizes 32 e 33; H6\\):\\*\\*",
       "skills/trabalho-em-paralelo/ritmo-e-corte\\.md",
+      "ritmo-e-corte\\.md` antes de abrir item novo ou juntar na `develop`",
       "suíte inteira roda só no CI",
       "Commite o parecer na branch revisada",
       "Fila de integração",
@@ -490,7 +493,8 @@
       "\\*\\*Uma passada:\\*\\*",
       "commit fora do domínio não o invalida",
       "Rigor por classe \\(`forge-check classe`\\)",
-      "Estilo, nome, estrutura e preferência são sugestão"
+      "Estilo, nome, estrutura e preferência são sugestão",
+      "a de review e QA vira cartão depois do merge; a de segurança é corrigida antes"
     ],
     "docs/regras/R-FLUXO.md": [
       "Fila de integração na `develop`",
@@ -754,7 +758,8 @@
       "\\*\\*Uma volta por rodada:\\*\\* os bloqueantes dos três portões \\(review, segurança e QA\\) no mesmo head viram um brief único",
       "pare o agente novo e retome o autor por `SendMessage`, salvo se ele travou",
       "`forge-check brief gerar --pedido <p> --volta <brief anterior> --ref <branch> --parecer <arquivo>\\.\\.\\.`",
-      "Recomendação não entra"
+      "Recomendação não entra",
+      "salvo a de segurança, que entra por `--incluir <parecer>:A<n>` e é corrigida antes do merge"
     ]
   },
   "invariantes_motivo": {
@@ -861,6 +866,7 @@
       "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado": {"regra": "R-QA", "porque": "sem o texto, o parecer lê só o git log e aceita o oráculo apagado da história por reset ou rebase (EXT-1, C-2)"}
     },
     "agents/jarvis.md": {
+      "\\*\\*Recibo antes de acionar o time\\*\\* \\(mensagem no meio da rodada: na fala seguinte, antes de tudo\\)": {"regra": "R-DECISAO", "porque": "sem o texto, a mensagem do dono que chega no meio da rodada fica sem recibo e some atrás do andamento (RECIBO-NO-MEIO-DA-RODADA)"},
       "\\*\\*Autor até o merge \\(H2\\):\\*\\* volta de review, QA, segurança, CI e conflito vai à mesma instância do autor": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis manda a volta de review, QA, segurança, CI ou conflito a um agente novo, que relê tudo (H2)"},
       "agente novo apenas se ele travou": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis abre instância nova com o autor ainda retomável e dobra os agentes por item (H2)"},
       "skills/briefs-e-conferencia/autor-ate-o-merge\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o Jarvis perde o detalhe do H2 (quando o autor travou, o aviso do hook e a volta única), movido pelo teto de caracteres (diretriz 25)"},
@@ -895,6 +901,7 @@
       "skills/kanban-scrum/experimentos\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, a skill perde o caminho do formato dos experimentos de melhoria, movido pelo teto de caracteres (diretriz 25)"}
     },
     "agents/tech-lead.md": {
+      "ritmo-e-corte\\.md` antes de abrir item novo ou juntar na `develop`": {"regra": "R-FLUXO", "porque": "sem o texto, o tech-lead abre item ou junta na develop sem ler o ritmo e o corte, que o Jarvis já lê nesse gatilho (TECH-LEAD-GATILHO-RITMO)"},
       "\\(H2, o autor fica até o merge\\): review, QA, segurança, CI e conflito, os três portões numa volta única": {"regra": "R-BRIEF", "porque": "sem o texto, o tech-lead autor deixa a branch na volta de CI ou conflito e os portões voltam em rodadas separadas (H2)"},
       "skills/briefs-e-conferencia/autor-ate-o-merge\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o tech-lead perde o detalhe do H2, movido pelo teto de caracteres (diretriz 25)"},
       "\\*\\*Tamanho por item \\(H1, decisão do dono\\):\\*\\*": {"regra": "R-REVIEW", "porque": "sem o texto, o tech-lead deixa passar item acima de 150 linhas de código sem cortar antes de começar (H1)"},
