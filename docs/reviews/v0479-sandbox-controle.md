@@ -3,33 +3,29 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-sandbox-controle
-commit: 03448b3d8050f9e865791f50b6bd300df51ec001
-parecer: reprovado
+commit: 1aaea973c977ffa0111ca0482ac3e4b353863649
+parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-18
+data: 2026-11-19
 ---
-# Review: v0478 (E29.3, A3 SANDBOX-TRAVA-CONTROLE, head 03448b3d)
+# Review: v0478 (E29.8, revalidação de A1 a A3 de SANDBOX-TRAVA-CONTROLE, head 1aaea973)
 
-Escopo: diff `73842444..03448b3d` (9 arquivos). Classe C pela ferramenta (`forge-check pr v0479-sandbox-controle --previo`: "classe C (sensível da catraca: bin/forge-testes)"). Suíte inteira não rodada (fica no CI do PR); rodei só o teste novo: `python3 -m unittest tests.test_sandbox_controle` deu `Ran 8 tests ... OK (skipped=2)`, os dois do bubblewrap pulados com "Creating new namespace failed: Operation not permitted".
+Revalidação (H3, R-REVIEW): li só `forge-check parecer delta docs/reviews/v0479-sandbox-controle.md`, intervalo `03448b3d..1aaea973`, 22 arquivos no domínio. A4 a A6 (recomendados) não foram relidos. Suíte inteira não rodada (fica no CI do PR); rodei o teste novo: `python3 -m unittest tests.test_sandbox_controle tests.test_apoio_sandbox` deu `Ran 37 tests ... OK (skipped=2)`, os dois do bubblewrap pulados com "Creating new namespace failed: Operation not permitted". Os 11 mutantes estão em `tests/mutantes/v0479-sandbox-controle.json` (M1 e M2 na falta_bwrap, M3 a M11 nas guardas novas); a catraca os confere.
+
+Delta lido dos achados anteriores:
+- A1 resolvido: `tests/test_apoio_sandbox.py` move `ambiente_sem_ci` para depois da classe `Sondas`; o teste de falta_bwrap passa a ser coletado (roda e passa) e M1 e M2 cobrem os dois ramos.
+- A2 resolvido: `bin/forge-init` e `hooks/doutor.py:252` (`preparar_controle`, no SessionStart, fora do sandbox) criam `agentes.json` e `pesado.json` antes do primeiro Bash, só o que falta; o hook `pesado` grava `null` ao soltar em vez de apagar; a fila do projeto saiu do denyWrite.
+- A3 resolvido: `skills/novo-projeto/SKILL.md:27` e `skills/fluxo-do-pedido/SKILL.md:44` passam o `forge ritmo` ao dono, com o comando exato.
 
 ## Achados
-- A1 (bloqueante) tests/test_apoio_sandbox.py:77 · o teste de falta_bwrap está indentado dentro da função ambiente_sem_ci, depois do return: nunca é coletado (S3). Os três ramos de falta_bwrap (sem bwrap, rc diferente de 0, exceção) ficam sem teste e sem mutante declarado (classe C). Mova-o para a classe de Sondas e declare os mutantes.
-- A2 (bloqueante) templates/projeto/.claude/settings.json:39 · denyWrite de caminho inexistente vira arquivo vazio só de leitura no disco (S1); agentes.json de 0 byte é EstadoIlegivel e recusa todo disparo, sem regravar (S2): projeto sem agentes.json na abertura fica sem time. Crie-o antes (forge-init ou hook) ou tire a entrada; idem pesado.fila.
-- A3 (bloqueante) skills/novo-projeto/SKILL.md:27 · a skill manda o agente gravar o ritmo com `forge ritmo`, que grava .forge/config.json, agora negado sem saída fora do sandbox (allowUnsandboxedCommands false). O próprio docs/devops/v0479-sandbox-controle.md:58 diz que o passo passa ao dono; a skill e skills/fluxo-do-pedido/SKILL.md:44 não mudaram.
-- A4 (recomendado) docs/devops/v0479-sandbox-controle.patch:11 · no Forge, negar .git/forge/run inteiro nega também meta.json (forge-check meta --armar grava em Hook.run(), que no clone é essa pasta), ao contrário do que diz docs/devops/v0479-sandbox-controle.md:14. Negue só agentes.json, ou registre a perda.
-- A5 (recomendado) tests/test_sandbox_controle.py:140 · o teste monta o próprio bwrap com o mapeamento de caminho_real: prova o --ro-bind, não o runtime do Claude Code lendo o settings (resolução de relativo, de ~, de pasta). E o ci.yml não instala bubblewrap: se a imagem não o trouxer, o exigir reprova no CI.
-- A6 (recomendado) templates/projeto/.claude/settings.json:42 · ~/.forge/maquina já está fora da área gravável no modelo (sem allowWrite) e no Forge (allowWrite só .forge-contrib): a entrada é redundante. Não faz mal (fora da área gravável o runtime não cria o arquivo, S1), mas o teste a torna gravável com --bind da casa.
+- A7 (recomendado) hooks/agentes.py:392 · 0 byte valer registro vazio muda HOOK-ESTADO-ILEGIVEL-LIBERA sem precisar: forge-init e preparar_controle já criam o arquivo que o hook lê (S4). Reverta a linha e a fixture; se mantida, título afrouxa-regra e OK do dono antes do merge.
 
 ## Sondas
-- S1 · stat de denyWrite inexistentes nesta sessão (/workspaces/Forge/.mcp.json, .gitmodules, .claude/agents; /root/.claude/loop.md) · espera: ausentes · obtido: na área gravável, arquivos vazios -r--r--r-- de 2026-11-04 21:10:58, montados ro; fora dela (loop.md) ausente
-- S2 · agentes.ler_estado num agentes.json de 0 byte · espera: {"agentes": []} (começo legítimo) · obtido: EstadoIlegivel JSONDecodeError Expecting value (recusa o disparo, HOOK-ESTADO-ILEGIVEL-LIBERA)
-- S3 · loadTestsFromModule(test_apoio_sandbox), procurar "bwrap" nos ids · espera: 1 teste de falta_bwrap · obtido: 22 testes, nenhum com bwrap
+- S4 · agentes.ler_estado, arquivo ausente e de 0 byte, no head 1aaea973 · espera: 0 byte só se o preparar_controle falhar · obtido: os dois dão {'agentes': []}; preparar_controle (doutor.py:252) cria o arquivo antes do Bash; gravar_json usa os.replace, nunca deixa 0 byte
 
 ## Parecer
-Reprovado. A estrutura está certa e segue a A3: o modelo ganha o denyWrite, o Forge vai por patch no molde do PP1, os hooks rodam fora do sandbox e seguem gravando, e o limite do PATH (D7, opção b) foi registrado em docs/hooks.md. Três defeitos bloqueiam.
+Aprovado. Os três bloqueantes foram resolvidos como pedido, e a soltura com `null` fecha o buraco que o apagar abriria.
 
-A1 é um teste morto: o código parece testado, mas o teste não roda. A2 responde à dúvida (2) do brief e a confirma: o próprio runtime desta sessão mostra que um denyWrite de caminho inexistente dentro da área gravável vira, no disco, um arquivo vazio só de leitura, que fica lá entre sessões. Para o agentes.json isso é um defeito com gatilho: o hook trata o arquivo vazio como ilegível e recusa todos os disparos, e por desenho não o regrava. Um projeto novo, ou recém ligado com --ligar-sandbox antes do primeiro agente, perde o time. Para o pesado.fila (pasta) e o pesado.json do projeto vale o mesmo. A3: a skill manda o agente fazer o que agora é negado.
+Sobre o afrouxamento (A7), a pergunta do brief: ele não é necessário. A criação antes do primeiro Bash já tira o gatilho do A2. O hook lê `hook.run()`, que é a pasta da cópia principal (`hooks/_comum.py`, `Hook.run`). Nesse caminho o arquivo passa a existir sempre: o forge-init cria-o no projeto novo, o SessionStart no antigo, e a soltura do `pesado` não apaga mais. Na worktree, o vazio que o runtime monta no caminho relativo fica numa pasta que o hook não lê. O 0 byte só chega ao hook se o `preparar_controle` falhar com OSError, e essa falha já vai ao erros.log. Nesse caso, recusar com R-TETO é o lado seguro da regra: o dono apaga o arquivo no terminal e reabre a sessão. O time fica travado só nessa falha registrada.
 
-O que é decisão do dono, sem bloquear:
-- (1) Negar .forge/config.json no modelo. A A3 do dono lista o teto entre os arquivos de controle, e o ritmo e o piso estão no mesmo arquivo. A consequência real: o `forge ritmo` passa a ser só do dono; e git pull, merge ou checkout que mude esse arquivo versionado falha na cópia principal do projeto, sem saída porque allowUnsandboxedCommands é false. As worktrees ficam de fora, já que o caminho é relativo à raiz da sessão. A alternativa é pôr o teto num arquivo próprio fora do git. O dono escolhe; a A3 bloqueante cobre só a documentação que contradiz a escolha atual.
-- (3) A prova da recusa só existe no CI. Mesmo verde, o CI prova o bwrap montado pelo teste, não o runtime (A5). Se o dono quiser a prova do runtime, o caminho sem custo é o sandbox-runtime de código aberto rodando com o settings; isso pede o parecer do devops-engineer sobre o CI.
+Em poder, a mudança quase não afrouxa: arquivo ausente já valia `{"agentes": []}`, e quem consegue truncar o arquivo numa `.forge/run` gravável consegue também apagá-lo. Mesmo assim, ela muda o texto e a fixture de uma regra com ID. Para manter a regra como estava, basta tirar `hooks/agentes.py:392` e a fixture renomeada. O `ler_trava` do `pesado.json` pode ficar: o 0 byte equivale à ausência, que já liberava, e a trava não tem regra de ilegível. Se o autor mantiver o A7, a mudança é afrouxamento listado (o changelog já o declara) e o merge espera o OK do dono.
