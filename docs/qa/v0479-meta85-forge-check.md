@@ -3,21 +3,18 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-forge-check
-commit: 6853e0ee2ac9c19305db2419ddbcfbb3f5dcf1f0
-parecer: reprovado
+commit: 99f474bbcb8619c69a07887081bb703fdd389c34
+parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 1
+bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-19
 ---
 # QA: v0478 META85 em `bin/forge-check` (E34.5)
 
 Head testado `6853e0ee` (o brief); o clone avançou por fast-forward até `f84d9f28` só com os pareceres de review e segurança.
-
-## Achados
-- A1 (bloqueante) tests/test_meta85_item_arquivos.py:50 · `forge-testes --vermelho` sai rc=2: na base o teste lê `json["arquivos_do_item"]` e dá KeyError (erro, não falha), "sem veredito" (R-QA). Troque por asserção que falhe na base, p. ex. `assertEqual(json.loads(saida).get("arquivos_do_item"), 10)`.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -35,3 +32,11 @@ Head testado `6853e0ee` (o brief); o clone avançou por fast-forward até `f84d9
 
 ## Cenários e resultado real
 Caminho feliz, bordas (10/11 arquivos, log vazio, teto de 8 MiB, base ilegível) e erros cobertos acima. Sem permissões nem acessibilidade (CLI). Médio A1 vira cartão se o autor não corrigir antes do reenvio; o código de produção está certo (mutantes e testes verdes).
+
+## Revalidação no head 99f474bb
+Delta (`forge-check parecer delta`): `bin/forge-check`, mutantes -3, -5, -6, `test_meta85_item_arquivos` e `test_meta85_revalida`. O A1 (KeyError na linha 50) está resolvido: o teste usa `.get` e agora prova.
+- Vermelho: `bin/forge-testes --vermelho eca1d21b --modulos test_meta85_entrega,test_meta85_item_arquivos,test_meta85_revalida`: `contagem: não prova (passa na base)=4; prova (asserção)=21`, nenhum erro, rc=0.
+- Mutantes M22 a M32 (specs -5 e -6, `--base 6853e0ee`, `rev=99f474bbcb86`): todos `morreu`, nenhum sobrevivente.
+- Testes novos de `riscos-aceitos` (`test_meta85_revalida`, com e sem aceite do usuário): provam na base (falham lá) e passam no head. Módulos rodados local: entrega 12 OK, item_arquivos 6 OK, revalida 7 OK.
+- O remoto avançou um commit só de parecer de segurança (`c357c6c7`), trazido por fast-forward.
+- Suíte inteira não rodada local; vale o check-run `bateria` do mesmo sha no CI do PR.
