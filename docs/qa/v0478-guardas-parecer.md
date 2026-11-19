@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: deaf35704182bc20c1bcc2e630f044480e1ddb06
+commit: 993b6bb3f3a514753a8f21f0dcceb216f2791d67
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -73,4 +73,16 @@ Escopo: delta `460a8a00..deaf3570` (`forge-check parecer delta`): `hooks/parecer
 
 - Vermelho: `forge-testes --vermelho 460a8a00... --modulos tests.test_hooks_parecer_matriz` → `vermelho: base=460a8a002d27 head=deaf35704182`; `SessaoNaCopiaAlheia.test_cd_sem_resolver_recusa_e_o_resolvido_segue` `H=ok · B=falha · prova (asserção)`; os outros 8 já existiam (não provam, não são novos).
 - Mutação: `forge-mutante tests/mutantes/v0478-guardas-parecer-12.json --processos 3 --base 460a8a00...` → `rev=deaf35704182`; M72 a M76 `morreu` (M76 em `hooks/parecer.py:1065`), sem sobrevivente nem equivalente. `--cobertura --base 460a8a00...`: `coberta · hooks/parecer.py:1065 · M76`.
+- Sem CI deste head, sem suíte inteira (brief). Parecer: aprovado, sem bug aberto.
+
+## Revalidação E3.40 (head 993b6bb3)
+Escopo: delta `deaf3570..993b6bb3` (`forge-check parecer delta`): `hooks/parecer.py` (`api_depois_de_cd_sem_resolver`, `tira_o_rascunho`, chamada em `conferir`), `docs/hooks.md` D6, `changelog.d`, `SessaoNaCopiaAlheia` (gerador pr x api), specs `-12` (M77 a M79) e `-13` (M80, M81). Obrigação: A13 da segurança da E3.34 (GH-REMOTO-NA-LINHA).
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Mexidas (`export HOME`, `${HOME:=}`, `HOME=`, `declare HOME`, `export CDPATH`) x `gh pr` e `gh api` (merge PUT/POST/`-f`, graphql que tira o rascunho ou `--input`) recusam na cópia alheia (R-REVIEW) e, no gh api, fora de cópia de trabalho | `SessaoNaCopiaAlheia.test_cd_sem_resolver_recusa_e_o_resolvido_segue` | GET (também do endpoint de merge) e graphql de leitura legível seguem (rc 0); `cd ~/proj` resolvido cai nas regras do clone (R-CONTRIB); sessão no clone recusa R-CONTRIB; gh sem `cd` libera | passou |
+| A extração `tira_o_rascunho` não afrouxa FILA-27 A2 | `tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone` | graphql que tira o rascunho no clone recusa | passou |
+
+- Vermelho: `forge-testes --vermelho deaf3570... --modulos tests.test_hooks_parecer_matriz,tests.test_hooks_fila27 --prazo 500` → `vermelho: base=deaf35704182 head=993b6bb3f3a5`; `SessaoNaCopiaAlheia.test_cd_sem_resolver_recusa_e_o_resolvido_segue` `H=ok · B=falha · prova (asserção)`; os outros 12 já existiam (não provam, não são novos); rc 0.
+- Mutação: `forge-mutante -12 -13 --processos 3 --base deaf3570...` → `rev=993b6bb3f3a5`, rc 0; M72 a M81 `morreu` (M77 :1156, M78 :1158, M79 :1161, M80 :1181, M81 :1331), sem sobrevivente nem equivalente. `--cobertura --base deaf3570...` rc 0: as cinco condições mudadas `coberta`, `spec editada` na `-12` (M77 a M79 novos).
 - Sem CI deste head, sem suíte inteira (brief). Parecer: aprovado, sem bug aberto.
