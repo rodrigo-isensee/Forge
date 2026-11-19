@@ -21,6 +21,16 @@
       "testes": [
         "tests.evals.test_placar.SemTeste.test_aninhamento_no_teto_e_colchete_em_string_passam"
       ]
+    },
+    {
+      "id": "M44",
+      "guarda": "so [ e { abrem nivel; ] e } fecham",
+      "arquivo": "bin/forge-placar",
+      "de": "nivel += 1 if c in \"[{\" else -1",
+      "para": "nivel += 1 if c in \"[{]}\" else -1",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_aninhamento_no_teto_e_colchete_em_string_passam"
+      ]
     }
   ]
 }
