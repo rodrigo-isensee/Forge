@@ -146,7 +146,8 @@ class Teste(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("[2b]", r.stdout)
-        self.assertIn("sem conflito, em melhoria/* faz o merge da base (árvore do merge-tree), git push origin melhoria/x", r.stdout)
+        self.assertIn("sem conflito, em melhoria/* faz o merge da base (árvore do merge-tree), roda o 1c", r.stdout)
+        self.assertIn("git push origin melhoria/x e recomeça a cadeia no head novo (H4)", r.stdout)
         self.assertEqual(self.chamadas(), [])
 
     # ---- LOTE-FECHAR2: guardas do passo 2b e do passo 2 que a QA mostrou sem teste ----
