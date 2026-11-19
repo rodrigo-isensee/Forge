@@ -1,5 +1,5 @@
 {
-  "descricao": "HOOK-ESTADO-ILEGIVEL-LIBERA (A1, R-TETO): agentes.json vazio recusa o disparo e não é regravado.",
+  "descricao": "SANDBOX-TRAVA-CONTROLE (E29.6, A2 da segurança): agentes.json de 0 byte (o ponto de montagem vazio que o sandbox cria para o caminho negado ausente) vale como sem registro: o disparo passa e o registro é gravado. JSON quebrado segue ilegível (estado-ilegivel-texto-bloqueia).",
   "estado": {
     "agentes.json": ""
   },
@@ -14,14 +14,11 @@
     }
   },
   "esperado": {
-    "codigo": 2,
-    "stderr": "R-TETO: registro de agentes ilegível",
-    "erros_log": "agentes EstadoIlegivel",
+    "codigo": 0,
     "estado": {
       "agentes.json": {
-        "ausente": [
-          "Explore",
-          "agentes"
+        "contem": [
+          "Validar a entrega"
         ]
       }
     }
