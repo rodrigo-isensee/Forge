@@ -88,8 +88,6 @@ RESULTADO = re.compile(r"^(manter|reverter)\b.*\S", re.I)
 PRAZO_MAXIMO = 30  # dias entre o início e a revisão
 SEM_TESTE = re.compile(r"^##[ \t]+Sem teste[ \t]*$", re.M | re.I)
 TETO_ANINHAMENTO = 64  # níveis de [ e { aceitos na entrada JSON; a do `gh pr list` usa 2
-STRING_JSON = re.compile(r'"(?:[^"\\]|\\.)*"')
-ABRE_FECHA = re.compile(r"[\[\]{}]")
 PASTAS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/security/", "docs/devops/")  # as do PASTA_E_REGRA do forge-check
 META_MINUTOS = 85  # ordem do dono 18/11 17:00: do 1.º commit ao merge, de 169 para 85 min
 FASES = ("desenvolvimento", "pareceres", "voltas", "integração")
@@ -194,12 +192,27 @@ def ci_vermelha(arq):
 
 
 def fundo_demais(texto, teto=TETO_ANINHAMENTO):
-    """Aninhamento de [ e { acima do teto, fora das strings; o limite do `json` muda com a versão do Python (o 3.14 aceita)."""
+    """Aninhamento de [ e { acima do teto, fora das strings; o limite do `json` muda com a versão do Python (o 3.14 aceita).
+
+    Um passe só sobre os caracteres (dentro/fora de string, escape, nível): custo linear."""
     nivel = 0
-    for c in ABRE_FECHA.findall(STRING_JSON.sub("", texto)):
-        nivel += 1 if c in "[{" else -1
-        if nivel > teto:
-            return True
+    em_string = escapado = False
+    for c in texto:
+        if em_string:
+            if escapado:
+                escapado = False
+            elif c == "\\":
+                escapado = True
+            elif c == '"':
+                em_string = False
+        elif c == '"':
+            em_string = True
+        elif c in "[{":
+            nivel += 1
+            if nivel > teto:
+                return True
+        elif c in "]}":
+            nivel -= 1
     return False
 
 

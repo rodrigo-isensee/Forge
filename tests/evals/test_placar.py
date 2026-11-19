@@ -543,5 +543,35 @@ class SemTeste(unittest.TestCase):
         self.assertIn("não é JSON legível (aninhado acima de 64 níveis)", erro)
 
 
+    def test_varredura_de_aninhamento_e_de_um_passe_e_trata_escape(self):
+        """Volta da segurança (E20.17): custo linear sem relógio (cada caractere é lido uma vez, de um iterável que conta) e
+        o mesmo resultado nas strings com escape, na sem fecho e no teto."""
+        from importlib.machinery import SourceFileLoader
+        mod = SourceFileLoader("forge_placar_varredura", str(PLACAR)).load_module()
+
+        class Contado:
+            def __init__(self, texto):
+                self.texto, self.lidos = texto, 0
+
+            def __iter__(self):
+                for c in self.texto:
+                    self.lidos += 1
+                    yield c
+
+        sem_fecho = '"' + '\\"' * 40000
+        for texto in (sem_fecho, "[" * 70 + sem_fecho, "[" * 10 + "]" * 10):
+            with self.subTest(texto=texto[:12]):
+                contado = Contado(texto)
+                mod.fundo_demais(contado, teto=1000)
+                self.assertEqual(contado.lidos, len(texto))
+        casos = ((r'["a\\"] ' + "[" * 64, False),      # a barra escapada deixa a aspa fechar a string
+                 (r'"\"' + "[" * 100 + '"', False),     # aspa escapada não fecha a string
+                 (r'"\\"' + "[" * 65, True),           # barra escapada, a string fecha, 65 abertos
+                 ('[' * 64 + ']' * 64, False), ('{' * 65, True), ('[]' * 65, False), ('{}' * 65, False), ('"a"' + '[' * 65, True), ('[' * 65 + '"]"', True))
+        for texto, esperado in casos:
+            with self.subTest(texto=texto[:20]):
+                self.assertIs(mod.fundo_demais(texto), esperado)
+
+
 if __name__ == "__main__":
     unittest.main()
