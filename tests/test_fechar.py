@@ -304,11 +304,39 @@ class Fechar(unittest.TestCase):
         self.assertTrue((self.estado / "da_fabrica").exists())
         self.assertFalse((self.estado / "falso").exists())
 
-    def test_1c_no_dry_run_e_fora_da_base_develop_nao_roda(self):
-        sha = self.git("rev-parse", "melhoria/x")
-        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
-        self.assertIn(f"[1c] python3 -I {self.tmp / 'promover.py'} --conferir-ref {sha}", r.stdout)
+    def test_1c_fora_da_base_develop_nao_roda(self):
         self.assertNotEqual(self.fechar("p1", "--ref", "melhoria/x", "--base", "origin/homolog").returncode, 0)
+        self.assertFalse((self.estado / "promover").exists())
+
+    # ---- FECHAR-DRY-RUN-1C (v0478): o --dry-run roda o --conferir-ref de verdade, sem buscar a homolog ----
+    def test_1c_no_dry_run_roda_o_conferir_ref_contra_a_homolog_local_sem_busca(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        self.git("push", "-q", "origin", "melhoria/x:refs/heads/homolog")
+        local = self.git("rev-parse", "develop")
+        self.git("update-ref", "refs/remotes/origin/homolog", local)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn(f"[1c] python3 -I {self.tmp / 'promover.py'} --conferir-ref {sha}", r.stdout)
+        self.assertEqual((self.estado / "promover").read_text(), f"--conferir-ref {sha}\n")
+        self.assertIn(f"1c: promovível (contra a origin/homolog local {local[:12]}, sem busca).", r.stdout)
+        self.assertEqual(self.homolog_local(), local)  # o --dry-run não fala com o servidor
+        self.assertIn("[7]", r.stdout)
+        self.assertFalse([c for c in self.chamadas() if c.startswith(("gh ", "forge-check "))])
+
+    def test_1c_no_dry_run_que_recusa_para_com_1_e_diz_a_homolog_lida(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", PROMOVER_RC="1", PROMOVER_SAIDA="versão 0.47.6 já na homolog")
+        self.assert_parou_no_1c(r)
+        self.assertIn("versão 0.47.6 já na homolog", r.stderr)
+        self.assertIn("--dry-run: conferido contra a origin/homolog local (ausente), sem busca; se ela estiver velha, rode git fetch "
+                      "origin homolog e repita", r.stderr)
+        self.assertNotIn("[2] ", r.stdout)
+        self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 1"))
+
+    def test_1c_no_dry_run_sem_a_branch_local_nao_roda(self):
+        self.git("branch", "-q", "-D", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("1c: não rodou: sem a branch local melhoria/x.", r.stdout)
         self.assertFalse((self.estado / "promover").exists())
 
     # ---- FECHAR-SEM-HOMOLOG-LOCAL ----
@@ -329,20 +357,39 @@ class Fechar(unittest.TestCase):
         self.assertEqual(self.homolog_local(), sha_h)
         self.assertNotIn("aviso: sem origin/homolog", r.stderr)
 
-    def test_1c_com_origin_homolog_no_clone_nao_busca(self):
+    def test_1c_com_origin_homolog_velha_no_clone_busca_a_do_servidor_antes_do_promover(self):
+        # FECHAR-HOMOLOG-FRESCA (v0478): a local velha recusava por versão antiga (0.47.6 contra a 0.47.7 do servidor); o promover lê a nova
         velho = self.homolog_no_servidor("develop")
         self.git("push", "-q", "origin", "melhoria/x:refs/heads/homolog")
+        novo = self.git("rev-parse", "melhoria/x")
         self.git("update-ref", "refs/remotes/origin/homolog", velho)
+        visto = self.tmp / "homolog_vista"
+        (self.tmp / "promover.py").write_text(
+            "import subprocess, sys\n"
+            "h = subprocess.run(['git', 'rev-parse', 'refs/remotes/origin/homolog'], capture_output=True, text=True).stdout.strip()\n"
+            f"open({str(visto)!r}, 'w').write(h)\nsys.exit(0)\n", encoding="utf-8")
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.homolog_local(), velho)  # o 1c só lê: com a ref no clone, não busca
+        self.assertEqual(visto.read_text(), novo)
+        self.assertEqual(self.homolog_local(), novo)
+        self.assertNotIn("aviso:", r.stderr)
+
+    def test_1c_busca_que_falha_com_a_homolog_local_avisa_que_ela_pode_estar_velha(self):
+        local = self.git("rev-parse", "develop")
+        self.git("update-ref", "refs/remotes/origin/homolog", local)  # o servidor do setUp não tem homolog: a busca falha
+        r = self.fechar("p1", "--ref", "melhoria/x", PROMOVER_RC="1")
+        self.assert_parou_no_1c(r)
+        self.assertIn(f"aviso: a busca da origin/homolog falhou (git fetch origin homolog); o promover-homolog decide com a local "
+                      f"({local[:12]}), que pode estar velha.", r.stderr)
+        self.assertNotIn("aviso: sem origin/homolog neste clone e a busca falhou (git fetch", r.stderr)
+        self.assertEqual(self.homolog_local(), local)
 
     def test_1c_busca_da_homolog_que_falha_avisa_e_o_promover_decide(self):
         for rc in ("1", "0"):  # o 1 primeiro: o 0 mescla e limpa a branch
             with self.subTest(rc=rc):
                 self.registro.write_text("")
                 r = self.fechar("p1", "--ref", "melhoria/x", PROMOVER_RC=rc)  # o servidor do setUp não tem homolog
-                self.assertIn("aviso: sem origin/homolog neste clone e a busca falhou", r.stderr)
+                self.assertIn("aviso: sem origin/homolog neste clone e a busca falhou (git fetch origin homolog); o promover-homolog decide.", r.stderr)  # a do 1c, não a do passo 1
                 self.assertEqual(self.homolog_local(), "")
                 if rc == "1":
                     self.assert_parou_no_1c(r)
@@ -1067,6 +1114,20 @@ class Fechar(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
         self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))
         self.assertIn("fim: código 0", r.stdout)
+
+    def test_l5_registrador_de_stderr_lento_ainda_grava_a_parada_antes_do_fim(self):
+        # TESTE-FECHAR-L5-CORRIDA (v0478): a corrida do L5 com o tempo a favor do defeito. O `sed` do mascarar atrasa 1 s só a linha da
+        # parada; o `fim` espera o registrador de stderr (wait) antes do `fim: código`, então a ordem sai a mesma de qualquer máquina.
+        lento = self.tmp / "bin" / "sed"
+        lento.write_text('#!/usr/bin/env bash\nif [ "${1-}" = -E ]; then\n  e="$(cat)"\n  case "$e" in *"parou no passo"*) sleep 1 ;; esac\n'
+                         f'  printf "%s" "$e" | exec {shutil.which("sed")} "$@"\nfi\nexec {shutil.which("sed")} "$@"\n', encoding="utf-8")
+        lento.chmod(0o755)
+        r = self.fechar("p1", "--ref", "melhoria/x", CHECK_RC="1")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        linhas = self.log_de(r).read_text().splitlines()
+        self.assertTrue(linhas[-1].endswith(" fim: código 1"), linhas)
+        erros = [x for x in linhas if " [err] " in x]
+        self.assertIn("[err] forge-fechar: parou no passo 1", erros[-1], linhas)
 
     def test_l6_stderr_vai_ao_log_com_prefixo_err_e_sem_linha_partida(self):
         (self.estado / "checks").write_text("bateria\tfail\t1m\turl\n")
