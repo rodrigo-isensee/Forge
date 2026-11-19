@@ -2560,7 +2560,12 @@ def so_do_usuario(pasta):
 
 def gravar_json(caminho, dados):
     tmp = caminho.with_name(caminho.name + f".{os.getpid()}.tmp")
-    tmp.write_text(json.dumps(dados, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    # O_EXCL|O_NOFOLLOW: link plantado em `<alvo>.<pid>.tmp` não é seguido (A5 da segurança, E29.11); sobra de pid antigo sai antes
+    if os.path.lexists(tmp):
+        os.unlink(tmp)
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o666)
+    with os.fdopen(fd, "w", encoding="utf-8") as saida:
+        saida.write(json.dumps(dados, ensure_ascii=False, indent=1) + "\n")
     os.replace(tmp, caminho)
 
 

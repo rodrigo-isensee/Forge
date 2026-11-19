@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -161,26 +162,53 @@ class ControleVazio(unittest.TestCase):
         return self.hook("pesado", evento, tool_name="Bash", agent_id=agente, tool_use_id=uso,
                          tool_input={"command": "python3 -m unittest discover"})
 
-    def test_agentes_json_de_0_byte_e_o_comeco_legitimo_e_nao_recusa_o_time(self):
+    def test_agentes_json_de_0_byte_segue_ilegivel_e_o_pesado_json_de_0_byte_vale_sem_trava(self):
         sys.path.insert(0, str(RAIZ / "hooks"))
         try:
             import agentes
             import _comum
         finally:
             sys.path.remove(str(RAIZ / "hooks"))
-        self.assertEqual(agentes.ler_estado(self.vazio_0444("agentes.json")), {"agentes": []})
-        self.assertIsNone(_comum.ler_trava(self.vazio_0444("pesado.json")))
-        (self.run_dir / "agentes.json").chmod(0o644)
-        (self.run_dir / "agentes.json").write_text("{", encoding="utf-8")
-        with self.assertRaises(agentes.EstadoIlegivel):  # o JSON quebrado segue ilegível: só o 0 byte mudou
-            agentes.ler_estado(self.run_dir / "agentes.json")
+        with self.assertRaises(agentes.EstadoIlegivel):  # HOOK-ESTADO-ILEGIVEL-LIBERA: o 0 byte do registro não vale sem registro
+            agentes.ler_estado(self.vazio_0444("agentes.json"))
+        ler_trava = getattr(_comum, "ler_trava", None)
+        self.assertIsNotNone(ler_trava, "a trava de 0 byte vale como ausente: precisa do leitor próprio")
+        self.assertIsNone(ler_trava(self.vazio_0444("pesado.json")))
+        (self.run_dir / "pesado.json").chmod(0o644)
+        (self.run_dir / "pesado.json").write_text("{", encoding="utf-8")
+        with self.assertRaises(ValueError):  # JSON quebrado na trava segue erro
+            ler_trava(self.run_dir / "pesado.json")
 
-    def test_agentes_json_vazio_0444_nao_impede_o_primeiro_disparo(self):
-        self.vazio_0444("agentes.json")
-        r = self.hook("agentes", "SubagentStart", agent_id="a1", agent_type="forge:dev", description="x")
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertNotIn("R-TETO", r.stderr)
-        self.assertEqual([a["id"] for a in json.loads((self.run_dir / "agentes.json").read_text(encoding="utf-8"))["agentes"]], ["a1"])
+    def test_o_gravar_json_nao_segue_nem_reaproveita_o_temporario_plantado(self):
+        """S1 da segurança (A5): o agente planta `pesado.json.<pid>.tmp` como link para um arquivo seu; o hook não escreve nele."""
+        sys.path.insert(0, str(RAIZ / "hooks"))
+        try:
+            import _comum
+        finally:
+            sys.path.remove(str(RAIZ / "hooks"))
+        alvo = self.tmp / "alvo-do-agente"
+        alvo.write_text("null\n", encoding="utf-8")
+        trava = self.run_dir / "pesado.json"
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+        tmp = self.run_dir / f"pesado.json.{os.getpid()}.tmp"
+        os.symlink(alvo, tmp)
+        _comum.gravar_json(trava, {"pid": 1, "desde": 1})  # a sobra sai antes: o link não é seguido
+        self.assertEqual(alvo.read_text(encoding="utf-8"), "null\n")
+        self.assertTrue(trava.is_file() and not trava.is_symlink())
+        self.assertEqual(json.loads(trava.read_text(encoding="utf-8"))["pid"], 1)
+        for planta in ("link", "arquivo"):  # o agente planta depois da checagem: a corrida cai no O_EXCL, que recusa
+            with self.subTest(planta=planta), mock.patch.object(os.path, "lexists", return_value=False):
+                if planta == "link":
+                    os.symlink(alvo, tmp)
+                else:
+                    tmp.write_text("plantado\n", encoding="utf-8")
+                with self.assertRaises(FileExistsError):
+                    _comum.gravar_json(trava, {"pid": 2, "desde": 2})
+                self.assertEqual(alvo.read_text(encoding="utf-8"), "null\n")
+                self.assertEqual(json.loads(trava.read_text(encoding="utf-8"))["pid"], 1)
+                if planta == "arquivo":
+                    self.assertEqual(tmp.read_text(encoding="utf-8"), "plantado\n")
+                tmp.unlink()
 
     def test_pesado_json_vazio_0444_nao_solta_a_trava_do_proximo(self):
         self.vazio_0444("pesado.json")
@@ -200,6 +228,7 @@ class ControleVazio(unittest.TestCase):
     def test_inicio_de_sessao_cria_os_arquivos_de_controle_que_faltam_e_nao_regrava_os_que_existem(self):
         r = self.hook("doutor", "SessionStart")
         self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue((self.run_dir / "agentes.json").is_file() and (self.run_dir / "pesado.json").is_file())
         self.assertEqual(json.loads((self.run_dir / "agentes.json").read_text(encoding="utf-8")), {"agentes": []})
         self.assertIsNone(json.loads((self.run_dir / "pesado.json").read_text(encoding="utf-8")))
         (self.run_dir / "agentes.json").write_text('{"agentes": [{"id": "x"}]}', encoding="utf-8")
@@ -216,6 +245,7 @@ class ControleVazio(unittest.TestCase):
         subprocess.run(["bash", str(RAIZ / "bin" / "forge-init"), "--nome", "Demo", "--pronto", "make pronto", str(destino)],
                        cwd=destino, env=env, check=True, capture_output=True, text=True, timeout=120)
         run = destino / ".forge" / "run"
+        self.assertTrue((run / "agentes.json").is_file() and (run / "pesado.json").is_file())
         self.assertEqual(json.loads((run / "agentes.json").read_text(encoding="utf-8")), {"agentes": []})
         self.assertIsNone(json.loads((run / "pesado.json").read_text(encoding="utf-8")))
         self.assertFalse((run / "pesado.fila").exists(), "a fila do projeto morreu na MP4")
@@ -329,6 +359,18 @@ class SandboxNegaEscrita(unittest.TestCase):
             self.assertEqual(json.loads((maquina / "projetos-ativos.json").read_text(encoding="utf-8"))["projetos"], ["x"])
         finally:
             sandbox.communicate("\n", timeout=30)
+        with self.subTest(limite="renomear a pasta mãe"):
+            self.limite_renomear_a_pasta_mae_escapa_da_trava_por_arquivo()
+
+    def limite_renomear_a_pasta_mae_escapa_da_trava_por_arquivo(self):
+        """A2 da segurança, limite conhecido (docs/hooks.md, docs/devops/v0479-sandbox-controle.md): o `denyWrite` é por arquivo; a
+        pasta mãe (`.forge/run`, que o Bash do time grava) é renomeável, e o agente recria o registro por cima. O teste prova o
+        limite, não o fecha; o fecho é o cartão da identidade da pasta. Se o runtime passar a recusar, este teste cai e o limite sai da doc."""
+        raiz, casa, alvos = self.montar(deny_write(MODELO), clone=False)
+        run = raiz / ".forge" / "run"
+        r = self.rodar(raiz, casa, alvos, f"mv '{run}' '{run}.velho' && mkdir '{run}' && echo '{{\"agentes\": []}}' > '{run}/agentes.json'")
+        self.assertEqual(r.returncode, 0, f"o limite mudou (a pasta mãe agora é recusada): {r.stdout}{r.stderr}")
+        self.assertEqual((run / "agentes.json").read_text(encoding="utf-8"), '{"agentes": []}\n')
 
     def test_forge_com_o_patch_recusa_find_tar_e_chmod(self):
         exigir(self, "bwrap")

@@ -23,24 +23,13 @@
       ]
     },
     {
-      "id": "M3",
-      "guarda": "E29.6 A2: o agentes.json de 0 byte (ponto de montagem do sandbox) é ilegível e recusa o time",
-      "arquivo": "hooks/agentes.py",
-      "de": "        if not dados:  # 0 byte",
-      "para": "        if False:  # 0 byte",
-      "testes": [
-        "tests.test_sandbox_controle.ControleVazio.test_agentes_json_de_0_byte_e_o_comeco_legitimo_e_nao_recusa_o_time",
-        "tests.test_sandbox_controle.ControleVazio.test_agentes_json_vazio_0444_nao_impede_o_primeiro_disparo"
-      ]
-    },
-    {
       "id": "M4",
       "guarda": "E29.6 A2: o pesado.json de 0 byte é erro e o hook libera a trava",
       "arquivo": "hooks/_comum.py",
       "de": "    return json.loads(texto) if texto.strip() else None",
       "para": "    return json.loads(texto) if True else None",
       "testes": [
-        "tests.test_sandbox_controle.ControleVazio.test_agentes_json_de_0_byte_e_o_comeco_legitimo_e_nao_recusa_o_time",
+        "tests.test_sandbox_controle.ControleVazio.test_agentes_json_de_0_byte_segue_ilegivel_e_o_pesado_json_de_0_byte_vale_sem_trava",
         "tests.test_sandbox_controle.ControleVazio.test_pesado_json_vazio_0444_nao_solta_a_trava_do_proximo"
       ]
     },
@@ -112,6 +101,36 @@
       "para": "    if False:\n        return None\n    texto = caminho.read_text",
       "testes": [
         "tests.test_sandbox_controle.ControleVazio.test_a_soltura_grava_null_e_nao_apaga_o_pesado_json"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "E29.11 A5: o gravar_json não tira a sobra do temporário antes de criar (o link plantado derruba o hook)",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if os.path.lexists(tmp):\n        os.unlink(tmp)",
+      "para": "    if False:\n        os.unlink(tmp)",
+      "testes": [
+        "tests.test_sandbox_controle.ControleVazio.test_o_gravar_json_nao_segue_nem_reaproveita_o_temporario_plantado"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "E29.11 A5: o gravar_json segue o link plantado no temporário",
+      "arquivo": "hooks/_comum.py",
+      "de": "os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o666",
+      "para": "os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o666",
+      "testes": [
+        "tests.test_sandbox_controle.ControleVazio.test_o_gravar_json_nao_segue_nem_reaproveita_o_temporario_plantado"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "E29.11 A5: o gravar_json reaproveita o arquivo plantado no temporário (sem O_EXCL)",
+      "arquivo": "hooks/_comum.py",
+      "de": "os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o666",
+      "para": "os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o666",
+      "testes": [
+        "tests.test_sandbox_controle.ControleVazio.test_o_gravar_json_nao_segue_nem_reaproveita_o_temporario_plantado"
       ]
     }
   ]
