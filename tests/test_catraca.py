@@ -917,6 +917,24 @@ class GuardasDosHooks(Base):
         self.repo.commit()
         self.assertFalse(any(v.startswith("R-QA:") for v in self.repo.violacoes()), self.repo.violacoes())
 
+    def test_guarda_movida_de_arquivo_com_mutante_no_destino_passa(self):  # como o forge-mutante --cobertura
+        self.repo.escreve("hooks/x.py", "from hooks.y import decide\n")
+        self.repo.escreve("hooks/y.py", self.HOOK)
+        self.spec([self.mutante(de="if valor > 10:", para="if valor >= 10:") | {"arquivo": "hooks/y.py"}])
+        self.passa()
+
+    def test_guarda_movida_sem_mutante_no_destino_barra(self):
+        self.repo.escreve("hooks/x.py", "from hooks.y import decide\n")
+        self.repo.escreve("hooks/y.py", self.HOOK)
+        self.barra("guarda de hooks/y.py mudada sem mutante declarado: sem mutante · hooks/y.py:2", "R-QA")
+        self.barra("guarda de hooks/x.py mudada sem mutante declarado: apagada · hooks/x.py:2(base)", "R-QA")
+
+    def test_guarda_apagada_de_verdade_barra_com_mutante_de_outra_condicao_ao_lado(self):
+        self.repo.escreve("hooks/x.py", "def decide(valor):\n    return 'passa'\n")
+        self.repo.escreve("hooks/y.py", "def outra(valor):\n    if valor < 3:\n        return 1\n")
+        self.spec([self.mutante(de="if valor < 3:", para="if valor <= 3:") | {"arquivo": "hooks/y.py"}])
+        self.barra("apagada · hooks/x.py:2(base)", "R-QA")
+
     def test_mudanca_sem_guarda_e_arquivo_que_nao_e_python_passam(self):
         self.repo.escreve("hooks/x.py", self.HOOK.replace("'bloqueia'", "'bloqueia agora'"))
         self.repo.escreve("hooks/dados.json", "{\"if\": 1}\n")
@@ -1935,6 +1953,102 @@ class TextoDoPr(unittest.TestCase):
                 self.assertEqual(len(catraca.violacoes_do_texto(corpo)), 1)
         corpo = "## Projeto de origem\n" + "x" * 20 + "\n\n## Como medir\n" + "y" * 20 + "\n"
         self.assertEqual(catraca.violacoes_do_texto(corpo), [])
+
+
+class T1NoTextoDoPr(Base):
+    """T1 (COBERTURA-ESTUDO C1): código sem teste no diff barra o `pr-texto`, salvo `## Sem teste` com cada arquivo e o motivo."""
+    ORIGEM = "## Projeto de origem\nprojeto web de pedidos\n\n## Como medir\nmenos retrabalho nas revisões\n"
+    MOTIVO = "## Sem teste\nbin/app: só troca o texto de uma mensagem impressa\n"
+
+    def setUp(self):
+        super().setUp()
+        self.repo.escreve("bin/app", "#!/bin/sh\necho oi\n")
+
+    def t1(self, corpo=MOTIVO):
+        self.repo.commit()
+        return catraca.violacoes_do_t1(self.repo.dir, "base", "HEAD", corpo)
+
+    def test_codigo_sem_teste_e_sem_secao_barra(self):
+        achadas = self.t1("")
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertRegex(achadas[0], r"^R-QA: código mudado sem teste .+sem citar bin/app \(T1\)\. Por quê: .+\. Corrigir: .+ \(.+\)$")
+
+    def test_secao_com_o_arquivo_e_o_motivo_passa(self):
+        self.assertEqual(self.t1(), [])
+
+    def test_muitos_arquivos_resumem_a_lista(self):
+        for i in range(6):
+            self.repo.escreve(f"bin/app{i}", "#!/bin/sh\necho oi\n")
+        achadas = self.t1("")
+        self.assertTrue(achadas and "sem citar bin/app, bin/app0, bin/app1, bin/app2, bin/app3 e mais 2 (T1)" in achadas[0], achadas)
+
+    def test_motivo_curto_barra(self):
+        achadas = self.t1("## Sem teste\nbin/app: trivial\n")
+        self.assertTrue(achadas and "com motivo de menos de 20" in achadas[0], achadas)
+
+    def test_motivo_vale_por_arquivo(self):
+        """Segurança A2: um motivo genérico na mesma linha não cobre dois arquivos, e o arquivo só citado, sem motivo, barra."""
+        casos = (("bin/app bin/app2: só troca o texto de um aviso", "para bin/app, bin/app2 (T1)"),
+                 ("bin/app: só troca o texto de uma mensagem impressa\nbin/app2", "para bin/app2 (T1)"),
+                 ("bin/app: só troca o texto de uma mensagem impressa\nbin/app2: só troca o texto de outra mensagem", None))
+        for texto, espera in casos:
+            with self.subTest(texto=texto):
+                self.setUp()
+                self.repo.escreve("bin/app2", "#!/bin/sh\necho oi\n")
+                achadas = self.t1(f"## Sem teste\n{texto}\n")
+                if espera is None:
+                    self.assertEqual(achadas, [])
+                else:
+                    self.assertTrue(achadas and "com motivo de menos de 20 caracteres por arquivo" in achadas[0]
+                                    and espera in achadas[0], achadas)
+
+    def test_violacao_aponta_a_regra_nas_praticas(self):
+        """Review A2: o T1 está em docs/engineering/praticas.md, não no R-QA; quem lê o CI precisa achar a regra."""
+        achadas = self.t1("")
+        self.assertTrue(achadas and achadas[0].endswith("(docs/engineering/praticas.md)"), achadas)
+
+    def test_arquivo_nao_citado_ou_so_como_pedaco_de_outro_barra(self):
+        for texto in ("só troca o texto de uma mensagem impressa", "bin/app2 só troca o texto de uma mensagem",
+                      "x/bin/app só troca o texto de uma mensagem", "<!-- bin/app --> só troca o texto de uma mensagem"):
+            with self.subTest(texto=texto):
+                self.setUp()
+                achadas = self.t1(f"## Sem teste\n{texto}\n")
+                self.assertTrue(achadas and "sem citar bin/app" in achadas[0], achadas)
+        self.setUp()
+        self.assertEqual(self.t1("## Sem teste\nO bin/app só troca o texto de uma mensagem impressa, em bin/app.\n"), [])
+
+    def test_teste_mudado_libera_sem_secao(self):
+        self.repo.escreve("tests/test_x.py", TESTE + "    def test_c(self): pass\n")
+        self.assertEqual(self.t1(""), [])
+
+    def test_so_documentacao_nao_pede_secao(self):
+        (self.repo.dir / "bin/app").unlink()
+        self.repo.escreve("docs/notas.md", "texto\n")
+        self.assertEqual(self.t1(""), [])
+
+    def test_classe_t_isenta_e_n_barra(self):
+        fc = catraca.forge_check()
+        for classe, espera in (("T", 0), ("N", 1), ("C", 1)):
+            with self.subTest(classe=classe), mock.patch.object(catraca, "forge_check", lambda: fc), \
+                    mock.patch.object(fc, "classe_para_o_t1", lambda *a, c=classe: c):
+                self.setUp()
+                self.assertEqual(len(self.t1("")), espera)
+
+    def test_diff_dos_testes_ilegivel_barra(self):
+        fc = catraca.forge_check()
+        with mock.patch.object(catraca, "forge_check", lambda: fc), mock.patch.object(fc, "codigo_sem_teste", lambda *a: None):
+            with self.assertRaises(catraca.ErroDeGit) as erro:
+                self.t1()
+        self.assertIn("(T1)", str(erro.exception))
+
+    def test_modo_pr_texto_soma_o_t1(self):
+        self.repo.commit()
+        argv = ["--modo", "pr-texto", "--base", "base", "--raiz", str(self.repo.dir)]
+        for corpo, rc in ((self.ORIGEM, 1), (self.ORIGEM + self.MOTIVO, 0)):
+            with self.subTest(corpo=corpo[-20:]), mock.patch.dict(os.environ, {"PR_BODY": corpo}), \
+                    contextlib.redirect_stdout(io.StringIO()) as saida:
+                self.assertEqual(catraca.main(argv), rc)
+            self.assertEqual("(T1)" in saida.getvalue(), rc == 1, saida.getvalue())
 
 
 class Pareceres(Base):

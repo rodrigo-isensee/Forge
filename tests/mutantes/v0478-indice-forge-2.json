@@ -1,0 +1,57 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "doc: texto longo é cortado",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "    if len(doc) > MAXIMO_DO_TEXTO:",
+      "para": "    if len(doc) >= MAXIMO_DO_TEXTO:",
+      "testes": [
+        "tests.test_indice_forge.PrimeiraLinhaDeDoc.test_texto_longo_e_cortado"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "doc: vazio vira o travessão",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "    return doc or \"—\"",
+      "para": "    return doc or \"\"",
+      "testes": [
+        "tests.test_indice_forge.PrimeiraLinhaDeDoc.test_python_pela_docstring_sem_o_prefixo"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "gerar: a lista dada vale no lugar do git",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "    lista = arquivos(raiz) if lista is None else lista",
+      "para": "    lista = arquivos(raiz) if lista is not None else lista",
+      "testes": [
+        "tests.test_indice_forge.IndiceDoForge.test_lista_dada_entra_uma_vez_na_secao_da_pasta"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "gerar: cada arquivo só na seção da pasta dele",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "for c in lista if c.startswith(pasta + \"/\")):",
+      "para": "for c in lista if not c.startswith(pasta + \"/\")):",
+      "testes": [
+        "tests.test_indice_forge.IndiceDoForge.test_lista_dada_entra_uma_vez_na_secao_da_pasta"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "plano dirigido: arquivo do primeiro nível de bin/, hooks/ e scripts/ leva o teste do índice (review A2)",
+      "arquivo": "bin/forge-testes",
+      "de": "    if INDICE_DAS_PASTAS.fullmatch(caminho) and arquivo_do_modulo(TESTE_DO_INDICE, raiz).is_file():",
+      "para": "    if not INDICE_DAS_PASTAS.fullmatch(caminho) and arquivo_do_modulo(TESTE_DO_INDICE, raiz).is_file():",
+      "testes": [
+        "tests.test_indice_forge.SoNomeEDoc.test_o_plano_dirigido_das_pastas_roda_o_indice",
+        "tests.test_indice_forge.SoNomeEDoc.test_raiz_sem_o_teste_do_indice_segue_dirigida_sem_ele"
+      ]
+    }
+  ]
+}

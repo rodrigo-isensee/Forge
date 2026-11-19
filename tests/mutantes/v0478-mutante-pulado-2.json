@@ -1,0 +1,56 @@
+{
+ "pedido": "v0478-mutante-pulado",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "Q1",
+   "guarda": "a falha de um declarado é morte provada, mesmo com outro declarado só pulado (A1)",
+   "arquivo": "bin/forge-mutante",
+   "de": "if not (erros or any(e[\"res\"] == \"falha\" for e in registro)):",
+   "para": "if not (erros or False):",
+   "testes": [
+    "tests.test_forge_mutante.Veredito.test_morte_provada_vale_com_outro_declarado_so_pulado"
+   ]
+  },
+  {
+   "id": "Q2",
+   "guarda": "o erro que mata é morte provada, mesmo com outro declarado só pulado (A1)",
+   "arquivo": "bin/forge-mutante",
+   "de": "if not (erros or any(",
+   "para": "if not (False or any(",
+   "testes": [
+    "tests.test_forge_mutante.Veredito.test_morte_provada_vale_com_outro_declarado_so_pulado"
+   ]
+  },
+  {
+   "id": "Q4",
+   "guarda": "o declarado que não rodou nem foi pulado é inválido, mesmo com morte (A1)",
+   "arquivo": "bin/forge-mutante",
+   "de": "if not pulado_de([declarado], registro):",
+   "para": "if False:",
+   "testes": [
+    "tests.test_forge_mutante.Veredito.test_morte_provada_vale_com_outro_declarado_so_pulado"
+   ]
+  },
+  {
+   "id": "Q5",
+   "guarda": "o sem veredito por pulo sai da coluna sem-veredito (A2)",
+   "arquivo": "scripts/placar-mutacao.py",
+   "de": "conta[\"sem-veredito\"] -= conta[\"sem-veredito-pulado\"]",
+   "para": "conta[\"sem-veredito\"] -= 0",
+   "testes": [
+    "tests.test_forge_mutante.PlacarDaRelease.test_uma_rodada_por_spec_soma_as_classes_e_sai_0_com_sobrevivente"
+   ]
+  },
+  {
+   "id": "Q6",
+   "guarda": "a linha do sem veredito por teste declarado pulado conta na coluna própria (A2)",
+   "arquivo": "scripts/placar-mutacao.py",
+   "de": "teste declarado pulado: \", re.MULTILINE)",
+   "para": "teste declarado pulado:X\", re.MULTILINE)",
+   "testes": [
+    "tests.test_forge_mutante.PlacarDaRelease.test_uma_rodada_por_spec_soma_as_classes_e_sai_0_com_sobrevivente"
+   ]
+  }
+ ]
+}

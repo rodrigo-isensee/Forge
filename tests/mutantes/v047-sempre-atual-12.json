@@ -54,10 +54,10 @@
     },
     {
       "id": "S14",
-      "guarda": "forge_sempre_atual.py:163 decide por `n.isdigit()`",
+      "guarda": "forge_sempre_atual.py (pids_do_proc) decide por `n.isdigit()`",
       "arquivo": "bin/forge_sempre_atual.py",
-      "de": "nomes = [n for n in os.listdir(PROC) if n.isdigit()]",
-      "para": "nomes = [n for n in os.listdir(PROC) if not (n.isdigit())]",
+      "de": "return [n for n in os.listdir(PROC) if n.isdigit()]",
+      "para": "return [n for n in os.listdir(PROC) if not (n.isdigit())]",
       "testes": [
         "tests.test_sempre_atual.ProcFalso.test_coerente_le_claude_fechar_e_gh_de_merge"
       ]

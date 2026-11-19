@@ -7,8 +7,10 @@ Uso: scripts/placar-mutacao.py --desde TAG [--versao VERSÃO]
   Nome fora de `tests/mutantes/<nome>.json` (sem `-` no início) ou link simbólico sai `recusada: <spec>`.
   Roda `bin/forge-mutante -- <spec>` uma vez por spec (ele recusa specs de pedidos diferentes juntas) e conta as linhas
   de veredito por padrão fechado, sem ecoar a saída dele. Imprime uma linha por spec e o total:
-  `placar: <versão> mortos=<n> sobreviveu=<n> equivalente=<n> invalido=<n> sem-veredito=<n> specs=<n>`; spec com rc
-  diferente de zero acrescenta ` falhas=<n> (<spec>, ...)` (a contagem dela não é confiável).
+  `placar: <versão> mortos=<n> sobreviveu=<n> equivalente=<n> invalido=<n> sem-veredito=<n> sem-veredito-pulado=<n>
+  specs=<n>`; spec com rc diferente de zero acrescenta ` falhas=<n> (<spec>, ...)` (a contagem dela não é confiável).
+  `sem-veredito-pulado` é o sem veredito por teste declarado pulado, fora de `sem-veredito`: o sobrevivente com teste
+  pulado deixou de contar em `sobreviveu` (v0478), e a queda dessa coluna pode vir daí, não de teste mais forte.
   `aviso: ...` quando --desde não é tag neste clone ou não é a tag da release imediatamente anterior à --versao.
 Saída: 0 sempre que mediu (sobrevivente e spec envelhecida são dado do placar); 2 se TAG não é commit.
 Roda dentro da trava da suíte (`R-TETO`, pesado): cada spec é uma rodada do `forge-mutante`.
@@ -27,6 +29,8 @@ LINHA = re.compile(r"^\S+ · (morreu|sobreviveu|equivalente|inválido|sem veredi
                    r"|^(equivalente): \S+ · ", re.MULTILINE)
 CLASSES = {"morreu": "mortos", "sobreviveu": "sobreviveu", "equivalente": "equivalente", "inválido": "invalido",
            "sem veredito": "sem-veredito", "controle vermelho": "sem-veredito"}
+PULADO = re.compile(r"^\S+ · sem veredito · \S+ · teste declarado pulado: ", re.MULTILINE)
+COLUNAS = (*dict.fromkeys(CLASSES.values()), "sem-veredito-pulado")
 
 
 def git(raiz, *args):
@@ -61,9 +65,11 @@ def aviso_do_desde(raiz, desde, versao):
 
 
 def contar(saida):
-    conta = dict.fromkeys(CLASSES.values(), 0)
+    conta = dict.fromkeys(COLUNAS, 0)
     for achado in LINHA.findall(saida):
         conta[CLASSES["".join(achado)]] += 1
+    conta["sem-veredito-pulado"] = len(PULADO.findall(saida))  # conta própria, sem misturar com o outro sem veredito
+    conta["sem-veredito"] -= conta["sem-veredito-pulado"]
     return conta
 
 
@@ -82,7 +88,7 @@ def main(argv=None):
     for linha in [f"recusada: {n!r}" for n in recusadas] + [f"fora da amostra: {n}" for n in novas[TETO_DE_SPECS:]]:
         print(linha)
     amostra = [AMOSTRA, *novas[:TETO_DE_SPECS]]
-    total = dict.fromkeys(CLASSES.values(), 0)
+    total = dict.fromkeys(COLUNAS, 0)
     falhas = []
     for spec in amostra:  # uma rodada por spec, R-1: `--` antes do caminho
         feito = subprocess.run([sys.executable, str(raiz / "bin" / "forge-mutante"), "--", spec], cwd=raiz,

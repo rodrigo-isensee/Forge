@@ -6,6 +6,8 @@ simulam a pessoa no terminal, falhavam (TESTES-SEM-CLAUDE-ANCESTRAL). Este lanç
 ele roda, por uma leitura que para no processo `--ate <pid>` (o do teste): os ancestrais acima dele não contam, os de baixo
 seguem contando (um `claude` entre o teste e o script ainda recusa), e a variável do Claude Code no ambiente também. A troca
 passa aos scripts do mesmo `bin/` que o processo chama com `sys.executable` (o `forge atualizar` chama o `forge-voltar-versao`).
+No `forge-sempre-atual`, a leitura dos processos vivos (`pids_do_proc`) vê só os descendentes do processo `--ate`: o `forge-fechar`
+ou o `claude` de outra parte da suíte, vivo ao mesmo tempo, adiava um escopo do teste (DEFEITO-TESTES-DE-PRAZO-SOB-CARGA).
 
 Não há interruptor em produção: nenhum script do Forge lê este arquivo nem variável nova; a guarda fica como está.
 
@@ -24,6 +26,18 @@ def comando(script, *args, ate):
     return [sys.executable, ESTE, "--ate", str(ate), str(script), *map(str, args)]
 
 
+def descende_de(pid, ate, pai_e_nome):
+    """True se `pid` é `ate` ou descende dele, pela cadeia de pais de `pai_e_nome(pid) -> (pai, nome)`. O processo de outra
+    parte da suíte que roda ao mesmo tempo (um `forge-fechar` de verdade, um `claude` falso) não descende do teste."""
+    vistos = set()
+    while pid > 0 and pid not in vistos:
+        if pid == ate:
+            return True
+        vistos.add(pid)
+        pid = pai_e_nome(pid)[0]
+    return False
+
+
 def main():
     if len(sys.argv) < 4 or sys.argv[1] != "--ate":
         sys.exit("uso: sem_claude_ancestral.py --ate <pid> <script> [argumentos...]")
@@ -35,6 +49,11 @@ def main():
 
         original = forge_versoes._pai_e_nome
         forge_versoes._pai_e_nome = lambda pid: (0, "") if pid == ate else original(pid)
+        if script.name == "forge-sempre-atual":  # DEFEITO-TESTES-DE-PRAZO-SOB-CARGA (v0478): só o mundo do teste
+            import forge_sempre_atual
+
+            todos = forge_sempre_atual.pids_do_proc
+            forge_sempre_atual.pids_do_proc = lambda: [n for n in todos() if descende_de(int(n), ate, original)]
 
     class Popen(subprocess.Popen):
         def __init__(self, args, *resto, **nomeados):
