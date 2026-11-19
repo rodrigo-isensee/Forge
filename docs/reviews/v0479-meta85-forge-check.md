@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-forge-check
-commit: 99f474bbcb8619c69a07887081bb703fdd389c34
+commit: 06abb4fa338746cd5638d37a092675970c258ceb
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
@@ -45,3 +45,17 @@ Provas que rodei no head 99f474bb:
 - `bin/forge-mutante --conferir --base eca1d21b`: trechos no lugar, rc 0.
 - `bin/forge-mutante --cobertura --base 6853e0ee`: toda condição nova coberta; rc 1 só pelas duas linhas `apagada` da base (`tipo == 'review'` e `paralelo`), guardas que mudaram de lugar e têm o M28 e o M26.
 - `python3 -m unittest tests.test_forge.AntiDuplicacao tests.test_metricas_texto tests.test_indice_forge tests.test_indice_fixtures tests.test_testes_tocados tests.test_meta85_revalida tests.test_meta85_item_arquivos`: 205 OK, 1 pulado pelo sandbox (proc de outro namespace).
+
+## Revalidação (E34.11, head 06abb4fa)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-forge-check.md`, intervalo `99f474bb..06abb4fa`, `revalida: sim` (bin/forge-check mudou). No domínio: `bin/forge-check`, `tests/mutantes/v0479-meta85-forge-check-7.json` e `tests/test_meta85_revalida.py`; nada fora dele foi relido.
+
+- **`base_sem_flag_do_pr` (bin/forge-check:1537):** extrai a condição que o `pr_da_cli` tinha em linha (branch de trabalho, fora de `BASES_DO_FLUXO`, e `base_do_delta(...)[0]` verdadeiro) e a entrega ao `pr_da_cli` (1570) e ao `revalida:` do `parecer delta` (3585). Mesma condição, mesmos argumentos: o `pr` sem `--base` dá a mesma resposta.
+- **Equivalência provada:** `forge-check pr v0478` na versão `99f474bb` e na `06abb4fa`, no mesmo clone: stdout e stderr idênticos, rc 1 nos dois.
+- **Testes novos (3):** base que já contém o head, fora da branch de trabalho pelo diff literal, e branch de trabalho achada pelo sha; os dois sentidos da guarda estão cobertos.
+- **Mutantes M33 a M36:** morreram; um por guarda mudada.
+
+Provas que rodei no head 06abb4fa:
+- `python3 -m unittest tests.test_meta85_revalida tests.test_forge.AntiDuplicacao`: 12 OK.
+- `bin/forge-mutante --processos 1` na spec `-7`: M33 a M36 morreram, rc 0.
+- `bin/forge-mutante --cobertura --base 99f474bb`: as três condições novas (1541, 1542, 1570) cobertas por M35, M34 e M36.
+- Tamanho: o `pr` acusa 169 linhas de código no item todo (H1); o teto excedido vai com justificativa no PR, fora desta revalidação.
