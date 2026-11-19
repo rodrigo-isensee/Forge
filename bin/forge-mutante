@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Forge: mutantes declarados do pedido (OK-14 e M-1). Só biblioteca padrão.
 
-Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--prazo SEGUNDOS] [--processos K]
+Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--ids M1,M2] [--prazo SEGUNDOS] [--processos K]
      forge-mutante --cobertura --base SHA [--rev REV]
      forge-mutante --conferir --base SHA [--rev REV]
      forge-mutante --conferir --todas [--rev REV]
@@ -27,6 +27,9 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--prazo SEGUNDOS] [
            nenhum teste do mutante nesses módulos, os testes declarados rodam inteiros. A 1.ª rodada do QA é a spec
            inteira, sem --base; a --base serve só à revalidação, com SHA = o head que o QA já aprovou, e o parecer
            confere a linha `base=` da saída contra esse head.
+  --ids M1,M2  com SPEC, roda só os mutantes destes ids (o resto da spec não roda; a linha `só os ids: ...` diz quais);
+           o id que nenhuma spec declara sai 2, sem rodar nada, com a lista dos ids das specs. Com --base, a escolha vem antes
+           da mutação dirigida.
   --prazo  por execução de testes, em segundos (padrão 600)
   --processos  quantos mutantes rodam de cada vez, de 1 a 4 (padrão 1, em série); cada um na sua cópia, e o veredito é o
            mesmo em série e em paralelo. Um erro ou o sinal encerra todos e apaga as cópias; um processo que falha não conta como morto
@@ -42,14 +45,18 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--prazo SEGUNDOS] [
            entra coberta noutro arquivo do mesmo diff sai `movida · arq:L(base) · destino:L` e não pede isenta; cada
            coberta serve a uma apagada. `isentas` na spec do diff (até 8 somadas):
            [{"arquivo", "trecho" exato com 8+ não brancos e dentro do nó, "motivo" de 20+ caracteres}] libera a
-           condição sem mutante ou apagada que cruzam, impressa `isenta · arq:L · motivo`; isenta que não cruza condição
-           listada ou cujo trecho não casa uma vez é rc 2. A condição nova casa o trecho único no arquivo; a apagada uma
-           vez casa pelo texto (ISENTA-POR-TEXTO): o trecho uma vez dentro do nó, cada isenta cobre uma condição só, e a
+           condição sem mutante ou apagada que cruzam, impressa `isenta · arq:L · motivo`; a isenta que não cruza condição
+           listada (trecho velho, que não casa, ou fora do nó) sai à parte, depois da cobertura inteira, `isenta velha ·
+           <spec>: <arq> · <trecho>` (rc 1); a que a spec já trazia no merge-base (na volta, com --base no head
+           aprovado, a isenta da 1.ª rodada) sai `isenta fora do diff`, fora do rc. A condição nova casa o trecho
+           dentro do nó, e a isenta vale para cada condição nova com o mesmo trecho (cada uma sai na sua linha); a
+           apagada mais de uma vez, o trecho único no arquivo; a apagada uma vez casa pelo texto (ISENTA-POR-TEXTO): o
+           trecho uma vez dentro do nó, cada isenta cobre uma condição só, e a
            base nova que desloca a linha não solta a isenta. `linha_base`, de specs antigas, é aceita e ignorada. Para
            a condição `sem mutante`, cada mutante cujo `de` toca o nó sai `por quê · arq:L · <spec>:<id> · <motivo>`
            (o `de` repetido, curto ou a troca fora do nó). O mutante declarado equivalente não prova a condição: coberta
            só por ele sai `só equivalente · arq:L · <spec>:<id> · …`. Saída: 0 = toda condição mudada tem mutante com
-           teste ou isenta, 1 = alguma sem mutante, só com equivalente ou apagada, 2 = entrada inválida (base que não
+           teste ou isenta, 1 = alguma sem mutante, só com equivalente, apagada ou isenta velha, 2 = entrada inválida (base que não
            é commit, diff vazio, spec inválida, arquivo que não faz parse, mais de 300 arquivos, 1 MiB por arquivo, 4 MiB
            de diff, 5000 condições num arquivo ou spec com mais de 64 KiB). A primeira linha é `base= mb= rev=`, para bater com o Base-sha do brief.
   --conferir --base SHA  em segundos, sem rodar teste nem analisar condição: nas specs que o diff adiciona ou edita, o
@@ -65,8 +72,9 @@ declarados, sem a troca) tem de passar. Aí o `de` tem de aparecer uma vez só n
 testes rodam: falha por asserção = morreu; tudo passa = sobreviveu. Erro (exceção, não asserção) de um teste
 declarado sob o mutante, com o controle verde, também mata: sai `morreu · <arq>:<linha> · (erro) ...`. Erro de carga
 do módulo, erro de fixture de classe, teste que não rodou, sintaxe quebrada, estouro de prazo ou sinal não são
-"morreu": são inválido ou sem veredito (saída 2); o erro também sem o mutante é controle vermelho (saída 2). No executor `unittest`,
-a asserção que falha não monta o diff do `difflib` (o `assertEqual` de texto ou sequência grande estourava o prazo):
+"morreu": são inválido ou sem veredito (saída 2). Teste declarado pulado (o `skipTest`, também num subTest) sem
+morte é `sem veredito · <arq>:<linha> · teste declarado pulado: <ids>` (saída 2), nunca "sobreviveu"; o erro
+também sem o mutante é controle vermelho (saída 2). No executor `unittest`, a asserção que falha não monta o diff do `difflib` (o `assertEqual` de texto ou sequência grande estourava o prazo):
 só o veredito conta, e ele não depende do diff.
 
 Saída: 0 = todos morreram (ou são equivalentes declarados) e algum teste rodou; 1 = algum sobreviveu e nenhum é
@@ -283,6 +291,12 @@ def cobre(declarado, ident):
     return ident == declarado or ident.startswith(declarado + ".")
 
 
+def pulado_de(declarados, registro):
+    """IDs pulados de um teste declarado, inclusive o subTest (`<id> [<descrição>]`, que não anota o teste)."""
+    return [e["id"] for e in registro if e["res"] == "pulado"
+            and any(cobre(d, e["id"]) or e["id"].startswith(d + " ") for d in declarados)]
+
+
 MORREU_POR_ERRO = "(erro) o teste declarado deu erro sob o mutante e passa sem ele"
 
 
@@ -292,16 +306,24 @@ def erro_que_mata(declarados, e):
 
 
 def veredito(declarados, registro, erro_mata=False):
-    """('morreu'|'sobreviveu'|'inválido', motivo) a partir do registro por teste; nunca pelo código de saída.
-    `erro_mata`: o controle (os mesmos testes sem o mutante) passou, e o erro de um teste declarado é morte."""
+    """('morreu'|'sobreviveu'|'inválido'|'sem veredito', motivo) a partir do registro por teste; nunca pelo código de
+    saída. `erro_mata`: o controle (os mesmos testes sem o mutante) passou, e o erro de um teste declarado é morte.
+    Teste declarado pulado sem morte é 'sem veredito', nunca 'sobreviveu' (DEFEITO-MUTANTE-PULADO-SOBREVIVE)."""
     erros = [e for e in registro if e["res"] == "erro"]
     if any(not (erro_mata and erro_que_mata(declarados, e)) for e in erros):
         return "inválido", "erro de carga ou de execução do teste"
+    pulados = pulado_de(declarados, registro)
+    sem_veredito = ("sem veredito", f"teste declarado pulado: {', '.join(pulados)}")
     for declarado in declarados:
         if not any(cobre(declarado, e["id"]) and e["res"] in ("ok", "falha", "erro") for e in registro):
-            return "inválido", f"teste declarado que não rodou: {declarado}"
+            if not pulado_de([declarado], registro):
+                return "inválido", f"teste declarado que não rodou: {declarado}"
+            if not (erros or any(e["res"] == "falha" for e in registro)):  # a morte provada vale com o pulo
+                return sem_veredito
     if any(e["res"] == "falha" for e in registro):
         return "morreu", ""
+    if pulados and not erros:  # os que rodaram passaram: o sobrevivente possível fica dito na linha, não escondido
+        return sem_veredito[0], sem_veredito[1] + "; os que rodaram não o mataram"
     return ("morreu", MORREU_POR_ERRO) if erros else ("sobreviveu", "")
 
 
@@ -560,26 +582,42 @@ def toca(condicao, linhas):
     return any(n in linhas for n in range(condicao[1], condicao[2] + 1))
 
 
-def cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto):
-    """A isenção `i` cruza a condição dos bytes [ini, fim] de `dados`? A condição nova e a apagada mais de uma vez: trecho
-    único no arquivo e dentro do nó. A apagada uma vez (`pelo_texto`, ISENTA-POR-TEXTO): o trecho uma vez na fatia de
-    bytes do nó e a isenção ainda não usada (uma condição por isenta), sem número de linha (`linha_base` é ignorada:
-    a base nova desloca a linha, não o texto)."""
+def cabe(onde, tamanho, ini, fim):
+    """Os `tamanho` bytes a partir de `onde` cabem inteiros em [ini, fim]?"""
+    return ini <= onde and onde + tamanho <= fim
+
+
+def ocorrencias(dados, trecho):
+    """Cada posição de `trecho` em `dados`, sobrepostas inclusive."""
+    return [m.start() for m in re.finditer(b"(?=" + re.escape(trecho) + b")", dados)]
+
+
+def cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto, nova=None):
+    """A isenção `i` cruza a condição dos bytes [ini, fim] de `dados`? A condição nova (`nova`: os nós [de, ate] das
+    condições novas de mesmo texto): o trecho dentro do nó e toda ocorrência dele no arquivo inteira num desses nós; vale
+    para as cópias da mesma condição, nunca para outra condição, cópia fora do hunk ou comentário (E17.5). A apagada
+    mais de uma vez: trecho único no arquivo e dentro do nó. A apagada uma vez (`pelo_texto`, ISENTA-POR-TEXTO): o
+    trecho uma vez na fatia de bytes do nó e a isenção ainda não usada (uma condição por isenta), sem número de linha
+    (`linha_base` é ignorada: a base nova desloca a linha, não o texto)."""
     trecho = i["trecho"].encode("utf-8")
     if i["arquivo"] != arquivo:
         return False
     if pelo_texto:
         return id(i) not in usadas and dados[ini:fim].count(trecho) == 1
+    if nova is not None:
+        todas = ocorrencias(dados, trecho)
+        no_no = any(cabe(p, len(trecho), ini, fim) for p in todas)
+        return no_no and all(any(cabe(p, len(trecho), de, ate) for de, ate in nova) for p in todas)
     onde = dados.find(trecho)
     return dados.count(trecho) == 1 and ini <= onde and onde + len(trecho) <= fim
 
 
-def isenta(isentas, usadas, arquivo, texto, ini, fim, pelo_texto):
+def isenta(isentas, usadas, arquivo, texto, ini, fim, pelo_texto, nova=None):
     """Motivo da isenção que cruza a condição [ini, fim] do `texto` (`cruza`), ou None; marca a isenção como usada: a
-    que não cruza nenhuma condição listada é rc 2."""
+    que não cruza nenhuma condição listada sai `isenta velha` (rc 1)."""
     dados = texto.encode("utf-8")
     for i in isentas:
-        if cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto):
+        if cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto, nova):
             usadas.add(id(i))
             return i["motivo"]
     return None
@@ -616,7 +654,8 @@ def analisar_com_textos(arquivo, hunks, antes, depois, mutantes, isentas, usadas
         casados = [(f"{espec}:{m['id']}", "equivalente" in m) for espec, m in mutantes
                    if casa(m, arquivo, depois, de, ate)]
         cobrem = [nome for nome, equivalente in casados if not equivalente]
-        motivo = None if cobrem else isenta(isentas, usadas, arquivo, depois, de, ate, False)
+        irmas = [(c[3], c[4]) for c in mudadas if c[0] == texto]  # as cópias da mesma condição nova
+        motivo = None if cobrem else isenta(isentas, usadas, arquivo, depois, de, ate, False, nova=irmas)
         if cobrem:
             textos[len(saida)] = (" ".join(texto.split()), 1)
             saida.append(f"coberta · {arquivo}:{ini} · {', '.join(cobrem)} · declarado, não provado")
@@ -788,14 +827,34 @@ def cobertura(base, rev):
             por_arquivo.append(analisar_com_textos(arquivo, hunks, fonte(arquivo, antes), fonte(arquivo, depois),
                                                    mutantes, isentas, usadas))
         saida += movidas(por_arquivo)
-        soltas = [f"{i['spec']}: {i['arquivo']}" for i in isentas if id(i) not in usadas]
-        if soltas:
-            raise ValueError(f"isenta que não cruza condição listada ou cujo trecho não casa uma vez: {'; '.join(soltas)}")
+        linhas = [solta(i, mb) for i in isentas if id(i) not in usadas]
+        soltas = [x for x in linhas if x.startswith("isenta velha")]
+        if soltas:  # à parte, depois da cobertura inteira (E17.1)
+            print(f"forge-mutante: {len(soltas)} isenta(s) velha(s) no fim da lista: tire da spec ou acerte o trecho.",
+                  file=sys.stderr)
+        saida += linhas
     except (RuntimeError, ValueError, OSError, SyntaxError) as erro:
         print(f"forge-mutante: {erro}", file=sys.stderr)
         return 2
     sys.stdout.writelines(f"{x}\n" for x in saida)
-    return 1 if any(x.startswith(("sem mutante", "só equivalente", "apagada")) for x in saida) else 0
+    return 1 if any(x.startswith(("sem mutante", "só equivalente", "apagada", "isenta velha")) for x in saida) else 0
+
+
+def isentas_na_base(spec, mb):
+    """(arquivo, trecho) das isentas da `spec` no merge-base; nenhuma se a base não tem a spec ou não a lê."""
+    try:
+        return {(i["arquivo"], i["trecho"]) for i in json.loads(texto_no_commit(mb, spec)).get("isentas", [])}
+    except (ValueError, TypeError, KeyError, AttributeError):
+        return set()
+
+
+def solta(i, mb):
+    """A linha da isenta que não cruzou nenhuma condição listada. A que a spec já trazia no merge-base é de fora do diff
+    (na volta, com --base no head aprovado, a isenta da 1.ª rodada): `isenta fora do diff`, fora do rc (E17.1). As outras
+    são velhas: o trecho não casa ou fica fora do nó."""
+    if (i["arquivo"], i["trecho"]) in isentas_na_base(i["spec"], mb):
+        return f"isenta fora do diff · {i['spec']}: {i['arquivo']} · já estava na spec da base; ignorada"
+    return f"isenta velha · {i['spec']}: {i['arquivo']} · não cruza condição listada: {i['trecho'][:60]!r}"
 
 
 def anotar(segundos, codigo):
@@ -851,7 +910,9 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
         registro = rodar(copia, m["testes"], trabalho / f"controle-{m['id']}.jsonl", prazo,
                          trabalho / f"pyc-controle-{m['id']}")
         resultado = None if registro is None else veredito(m["testes"], registro)
-        return "sem veredito" if resultado is None else ("ok" if resultado[0] == "sobreviveu" else "vermelho")
+        if resultado is None:
+            return "sem veredito"
+        return "ok" if resultado[0] in ("sobreviveu", "sem veredito") else "vermelho"  # o pulo decide-se no mutante
 
     estado = controles.obter(tuple(m["testes"]), controle)
     if estado != "ok":
@@ -865,6 +926,8 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
     if registro is None:
         return f"{m['id']} · sem veredito · {m['arquivo']}:{linha}", 2, False
     classe, motivo = veredito(m["testes"], registro, erro_mata=True)  # o controle passou: erro agora é do mutante
+    if classe == "sem veredito":  # o teste pulado não confirma o equivalente nem prova a sobrevivência
+        return f"{m['id']} · sem veredito · {m['arquivo']}:{linha} · {motivo}", 2, True
     if "equivalente" in m and classe != "inválido":  # o teste listado que o mata desmente o equivalente
         classe, motivo = ("equivalente", "") if classe == "sobreviveu" else (
             "inválido", "declarado equivalente, mas os testes listados o matam")
@@ -991,6 +1054,21 @@ def apoio_de_teste(mudados, sha):
     return sorted(a for a in mudados if a.startswith("tests/") and apoio(a))
 
 
+def escolher(specs, ids):
+    """--ids (FORGE-MUTANTE-POR-ID): as specs só com os mutantes pedidos, na ordem delas; o id que nenhuma spec declara
+    (o vazio também) é None (saída 2), com a lista dos ids das specs."""
+    pedidos = ids.split(",")
+    todos = [m["id"] for _, dados in specs for m in dados["mutantes"]]
+    faltam = [i for i in pedidos if i not in todos]
+    if faltam:
+        print(f"forge-mutante: --ids com id que as specs não declaram: {', '.join(map(repr, faltam))}; os ids das specs: "
+              f"{', '.join(todos)}. Nada foi executado.", file=sys.stderr)
+        return None
+    print(f"só os ids: {', '.join(pedidos)}")
+    return [(spec_bytes, {**dados, "mutantes": [m for m in dados["mutantes"] if m["id"] in pedidos]})
+            for spec_bytes, dados in specs]
+
+
 def dirigir(specs, caminhos, base, sha):
     """M-1 dirigida: as specs só com os mutantes no diff `merge-base(base, sha)..sha` (`no_diff`); os outros saem
     `fora do diff`. None (saída 2) com a base que não é commit ou sem nenhum mutante no diff."""
@@ -1064,11 +1142,14 @@ def main(argv=None):
     p.add_argument("--conferir", action="store_true", help="o trecho de cada spec do diff no lugar (exige --base)")
     p.add_argument("--todas", action="store_true", help="com --conferir e sem --base: todas as specs de tests/mutantes/ (AR-12)")
     p.add_argument("--base", help="commit-base do diff da --cobertura (o Base-sha do brief)")
+    p.add_argument("--ids", help="com SPEC: só os mutantes destes ids, separados por vírgula (M22,M32)")
     p.add_argument("--executar", nargs="+", help=argparse.SUPPRESS)  # interno: o leitor de veredito do `unittest`
     p.add_argument("--registro", help=argparse.SUPPRESS)
     args = p.parse_args(argv)
     if args.executar:
         return executar(args.executar, args.registro)
+    if args.ids is not None and not args.spec:
+        p.error("--ids vem com SPEC")
     if args.todas:
         if not args.conferir or args.base or args.spec or args.cobertura:
             p.error("--todas vem com --conferir, sem --base, SPEC nem --cobertura")
@@ -1108,6 +1189,10 @@ def main(argv=None):
         print("forge-mutante: spec inválida; nada foi executado.", file=sys.stderr)
         print("\n".join(f"  - {x}" for x in problemas), file=sys.stderr)
         return 2
+    if args.ids is not None:
+        specs = escolher(specs, args.ids)
+        if specs is None:
+            return 2
     if any("executor" not in dados for _, dados in specs) and not list(Path("tests").glob("test_*.py")):
         print("forge-mutante: sem leitor de veredito para a stack (declare `executor` na spec).", file=sys.stderr)
         return 2

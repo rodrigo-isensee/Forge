@@ -49,7 +49,7 @@
       "de": "if soltas:",
       "para": "if not soltas:",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_isenta_para_arquivo_de_shell_e_solta_e_sai_2"
+        "tests.test_forge_mutante.Cobertura.test_isenta_velha_sai_a_parte_depois_da_cobertura_inteira_e_1"
       ]
     }
   ]

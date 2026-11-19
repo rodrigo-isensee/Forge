@@ -180,11 +180,76 @@ class LimparClones(unittest.TestCase):
         self.assertTrue(wt.is_dir())
         self.assertNotIn("clone=", self.resumo(r)[0])
 
-    def test_o_clone_que_roda_o_fechamento_nao_se_apaga(self):
+    # FORGE-FECHAR-CLONE-LIMPAR (v0478 E15.1): o --limpar rodado no clone que está na branch não o trata como worktree.
+    def remota(self):
+        return self.git("ls-remote", "origin", "refs/heads/melhoria/x")
+
+    def no_clone(self, d):
+        return subprocess.run(["bash", str(fechar_base.SCRIPT), "p1", "--ref", "melhoria/x", "--limpar"], cwd=d, env=self.env,
+                              capture_output=True, text=True, timeout=60)
+
+    def test_o_clone_que_roda_o_fechamento_nao_se_apaga_e_diz_o_que_ficou(self):
         d = self.clone()
         r = self.limpar(cwd=d)
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
         self.assertTrue(d.is_dir(), r.stdout)
-        self.assertNotIn("clone=", self.resumo(r)[0])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=pendente clone=pendente"])
+        self.assertIn(f"aviso: a cópia {d.resolve()} é a principal deste repositório", r.stderr)
+        self.assertIn("pendente, rode:\n# de outra cópia do Forge", r.stdout)
+        self.assertIn("forge-fechar p1 --ref melhoria/x --limpar", r.stdout)
+        for nao in ("worktree remove", "branch -D", "push origin --delete", "não apaguei a branch local"):
+            self.assertNotIn(nao, r.stdout + r.stderr)
+        self.assertNotEqual(self.remota(), "")  # o push daqui tiraria a origin/melhoria/x do clone
+
+    def test_clone_por_caminho_com_link_ainda_e_de_wt(self):  # ~/.forge-contrib pode ser link (o do Forge aponta para /workspaces)
+        real = self.tmp / "contrib-real"
+        (real / "wt").mkdir(parents=True)
+        (self.tmp / ".forge-contrib").symlink_to(real)
+        d = self.clone()
+        r = self.limpar(cwd=d)
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn("# de outra cópia do Forge", r.stdout)
+        self.assertNotIn("switch develop", r.stdout)
+
+    def test_o_limpar_de_outra_copia_apaga_o_clone_e_depois_a_remota(self):
+        d = self.clone()
+        self.assertEqual(self.limpar(cwd=d).returncode, 3)
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=ok"])
+        self.assertFalse(d.exists())
+        self.assertEqual(self.remota(), "")
+
+    def test_clone_com_commit_sem_merge_so_da_a_leitura(self):
+        d = self.clone()
+        self.mesclado()
+        self.git("commit", "-q", "--allow-empty", "-m", "depois do merge", cwd=d)
+        r = self.no_clone(d)
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn("git log --oneline origin/develop..refs/heads/melhoria/x", r.stdout)
+        self.assertNotIn("forge-fechar p1", r.stdout)
+        self.assertNotIn("switch develop", r.stdout)
+
+    def test_copia_principal_fora_de_wt_troca_de_branch_e_repete(self):
+        d = self.tmp / "fora"
+        self.git("clone", "-q", str(self.remoto), str(d), cwd=self.tmp)
+        self.git("switch", "-q", "melhoria/x", cwd=d)
+        r = self.limpar(cwd=d)
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        d = d.resolve()
+        self.assertIn(f"git -C {d} switch develop\ngit -C {d} branch -D melhoria/x\nforge-fechar p1 --ref melhoria/x --limpar", r.stdout)
+        self.assertNotIn("# de outra cópia do Forge", r.stdout)
+        self.assertTrue(d.is_dir())
+
+    def test_help_imprime_o_uso_e_sai_0_sem_log(self):
+        for opcao in ("--help", "-h"):
+            with self.subTest(opcao=opcao):
+                r = self.fechar(opcao)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertTrue(r.stdout.startswith("Forge: fecha uma entrega"), r.stdout[:200])
+                self.assertIn("Uso: forge-fechar <pedido> --ref <branch>", r.stdout)
+                self.assertFalse((self.tmp / "logs").exists())  # sai antes da pasta do log
+                self.assertNotIn("set -euo", r.stdout)
 
     def test_rm_que_falha_fica_pendente_com_o_comando(self):
         d = self.clone()

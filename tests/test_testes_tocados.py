@@ -57,8 +57,8 @@ class Mapa(unittest.TestCase):
     def test_caminhos_conhecidos_rodam_so_os_modulos_do_mapa(self):
         casos = {
             "bin/forge-changelog": ["evals.test_erros_por_papel", "evals.test_regressao_forma", "test_changelog", "test_conferir_release", "test_forge",
-                                    "test_pre_push_afetados"],
-            "bin/forge-placar": ["evals.test_placar", "test_forge"],  # 0.43.1, frente I
+                                    "test_indice_forge", "test_pre_push_afetados"],
+            "bin/forge-placar": ["evals.test_placar", "test_forge", "test_indice_forge"],  # 0.43.1, frente I
             ".devcontainer/devcontainer.json": ["test_forge"],  # 0.43.1, frente A
             "bin/forge-doutor": ["test_atualizar", "test_doutor", "test_doutor_branch_atrasada", "test_doutor_custo", "test_doutor_protecao_gh", "test_doutor_relogio",
                                  "test_forge", "test_medidas_m14b", "test_novo_projeto", "test_qa_doutor_f8"],  # v046 E22.1
@@ -67,6 +67,8 @@ class Mapa(unittest.TestCase):
             "bin/forge": ["test_atualizar", "test_doutor", "test_forge", "test_novo_projeto", "test_salvar_desfazer", "test_sempre_atual"],  # v047 E2.532
             "bin/forge-upgrade": ["test_atualizar", "test_doutor", "test_forge", "test_sempre_atual"],  # v0474: review A1
         }
+        # v0478 (review A2): todo arquivo do primeiro nível de bin/, hooks/ e scripts/ leva também o teste do índice
+        casos = {c: e + (["test_indice_forge"] if c.split("/")[0] in ("bin", "scripts") else []) for c, e in casos.items()}
         for caminho, esperado in casos.items():
             with self.subTest(caminho):
                 self.assertEqual(self.plano(caminho), com_oraculos(self.f, esperado))
@@ -74,13 +76,14 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_")]), 99)  # v0474 E3.250: + test_maquina_teto (MP3, desta branch; 99 sobre os 98). junção v0474 E3.233: + test_maquina (MP2, MP4, desta branch; 98 sobre os 97 da develop). junção v0474 E3.208: + test_forge_check_pr (E3.45, da develop; 97 sobre os 96 da develop). junção v0474 E3.118: + test_brief_tamanho (desta branch) com test_parecer_delta e test_revisar_sha (E3.49, da develop): 96 sobre os 93. v0474 E3.48: + test_brief_tamanho (94 sobre os 93 da develop). v0474 E3.49: + test_parecer_delta e test_revisar_sha (95 sobre os 93). v0474 E2.80: + test_hooks_agentes_autor (H2, desta branch; 93 sobre os 92). junção v0474 E2.41: + test_forge_tamanho (H1, desta branch; 92 sobre os 91 da develop). junção v0474 E1.43: + test_conformidade_verde (CF1, desta branch; 91 sobre os 90 da develop). junção v047 E1.32: + test_autorizacao (A5 do review E1.11, desta branch; 90 sobre os 89 da develop). v047 E2.687: + test_estado_ilegivel (89 sobre os 88 da develop). junção v047 E2.421: + test_hook_destino_opaco e test_conformidade_opaco (A9, desta branch; 88 sobre os 86 da develop). v047 E2.222: + test_sessao_automatica (86 sobre os 85 da develop). v047 E2.117: + test_pr_hook_rapido (85 sobre os 84 da develop). v047 E2.81: 84 com #559 (test_conferida_por_branch) e #564 (test_conferencia_dois_pedidos) juntos. v047 E1.277: + test_conferencia_dois_pedidos. v047 E2.55: + test_conferida_por_branch. mp1311 E1.17: + test_pre_envio_brief. v047: + test_estado_ilegivel (HOOK-ESTADO-ILEGIVEL-LIBERA) e test_hook_erro_libera (HOOK-ERRO-LIBERA). v046: + test_pr_hook_prazo (PR-HOOK-PRAZO). v046 E20.29: + test_hook_git_comum. 0.45.7: + test_r_limites (AV5), test_forge_medidas (F6, E5.6), test_forge_dora (TM-16) e test_hooks_fila27 (FILA-27). v046 E12.1: + test_git_rede_config. 0.45.6: + test_forge_check_base_igual, test_forge_check_versao_livre e test_pre_push_link_apoio (junção), test_metricas_portoes (E1.1) e test_metricas_main_vermelha (E5.1). 0.44.2: + test_decisor (orkastery 3), test_forge_run (S5), test_meta (S4), test_pesado_fila (orkastery 5), test_aq1_texto e test_textos_034 (troca dos testes de frase). 0.44.1: + test_v0441_review (review), test_acao_da_reprovacao (O1) e test_forge_dono (O4, S2, S8, X1). 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
+        self.assertIn("test_indice_forge", modulos)  # v0478 (review A2): fora da contagem, que é a dos módulos do forge-check
+        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_") and m != "test_indice_forge"]), 102)  # v0478 E31.1: + test_promocao_por_marca (PROMOCAO-PR-RELEASE); 102 sobre os 101 da develop. v0478 E2.1: + test_fc_pr_parecer_forjado (FC-PR-PARECER-FORJADO) e test_filtros_l08_g2_ancora (FILTROS-L08-G2-ORIGIN-LOCAL); 101 sobre os 99 da develop. v0474 E3.250: + test_maquina_teto (MP3, desta branch; 99 sobre os 98). junção v0474 E3.233: + test_maquina (MP2, MP4, desta branch; 98 sobre os 97 da develop). junção v0474 E3.208: + test_forge_check_pr (E3.45, da develop; 97 sobre os 96 da develop). junção v0474 E3.118: + test_brief_tamanho (desta branch) com test_parecer_delta e test_revisar_sha (E3.49, da develop): 96 sobre os 93. v0474 E3.48: + test_brief_tamanho (94 sobre os 93 da develop). v0474 E3.49: + test_parecer_delta e test_revisar_sha (95 sobre os 93). v0474 E2.80: + test_hooks_agentes_autor (H2, desta branch; 93 sobre os 92). junção v0474 E2.41: + test_forge_tamanho (H1, desta branch; 92 sobre os 91 da develop). junção v0474 E1.43: + test_conformidade_verde (CF1, desta branch; 91 sobre os 90 da develop). junção v047 E1.32: + test_autorizacao (A5 do review E1.11, desta branch; 90 sobre os 89 da develop). v047 E2.687: + test_estado_ilegivel (89 sobre os 88 da develop). junção v047 E2.421: + test_hook_destino_opaco e test_conformidade_opaco (A9, desta branch; 88 sobre os 86 da develop). v047 E2.222: + test_sessao_automatica (86 sobre os 85 da develop). v047 E2.117: + test_pr_hook_rapido (85 sobre os 84 da develop). v047 E2.81: 84 com #559 (test_conferida_por_branch) e #564 (test_conferencia_dois_pedidos) juntos. v047 E1.277: + test_conferencia_dois_pedidos. v047 E2.55: + test_conferida_por_branch. mp1311 E1.17: + test_pre_envio_brief. v047: + test_estado_ilegivel (HOOK-ESTADO-ILEGIVEL-LIBERA) e test_hook_erro_libera (HOOK-ERRO-LIBERA). v046: + test_pr_hook_prazo (PR-HOOK-PRAZO). v046 E20.29: + test_hook_git_comum. 0.45.7: + test_r_limites (AV5), test_forge_medidas (F6, E5.6), test_forge_dora (TM-16) e test_hooks_fila27 (FILA-27). v046 E12.1: + test_git_rede_config. 0.45.6: + test_forge_check_base_igual, test_forge_check_versao_livre e test_pre_push_link_apoio (junção), test_metricas_portoes (E1.1) e test_metricas_main_vermelha (E5.1). 0.44.2: + test_decisor (orkastery 3), test_forge_run (S5), test_meta (S4), test_pesado_fila (orkastery 5), test_aq1_texto e test_textos_034 (troca dos testes de frase). 0.44.1: + test_v0441_review (review), test_acao_da_reprovacao (O1) e test_forge_dono (O4, S2, S8, X1). 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
         for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
                        "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_forge_medidas", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
 
     def test_modulos_do_forge_check_rodam_os_testes_dele(self):  # FILA-31 F6: bin/forge_provas.py entra com os outros módulos
-        esperado = ("dirigido", sorted(set(self.f.FORGE_CHECK) | set(self.f.oraculos(RAIZ))))
+        esperado = ("dirigido", sorted(set(self.f.FORGE_CHECK) | set(self.f.oraculos(RAIZ)) | {"test_indice_forge"}))
         for caminho in ("bin/forge_governanca.py", "bin/forge_decisor.py", "bin/forge_run.py", "bin/forge_meta.py", "bin/forge_provas.py"):
             with self.subTest(caminho):
                 self.assertEqual(self.plano(caminho), esperado)
@@ -505,10 +508,10 @@ class MapaCobreOQueOsTestesLeem(unittest.TestCase):
 
     def test_conferir_reversao_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):  # REVERSAO-MAPA (A5)
         self.assertEqual(self.f.planejar(["scripts/conferir-reversao.py"], RAIZ),
-                         com_oraculos(self.f, ["test_conferir_reversao", "test_forge", "test_testes_tocados"]))
+                         com_oraculos(self.f, ["test_conferir_reversao", "test_forge", "test_indice_forge", "test_testes_tocados"]))
 
     def test_forge_mutante_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):
-        self.assertEqual(self.f.planejar(["bin/forge-mutante"], RAIZ), com_oraculos(self.f, ["test_forge", "test_forge_mutante"]))
+        self.assertEqual(self.f.planejar(["bin/forge-mutante"], RAIZ), com_oraculos(self.f, ["test_forge", "test_forge_mutante", "test_indice_forge"]))
 
 
 class Execucao(unittest.TestCase):
@@ -818,7 +821,8 @@ class NaoEPortao(unittest.TestCase):
 
     # REVERSAO-MAPA (A6): script de aviso chama o forge-testes e não é portão; a lista é fechada. Script novo que o
     # cite sem entrar aqui reprova, e a entrada na lista é a decisão consciente de que ele só avisa.
-    AVISOS = {"scripts/conferir-reversao.py"}
+    # H7 (v0478 E8.1): o índice do Forge só cita o `--listar` no cabeçalho do índice; não roda teste nem decide nada.
+    AVISOS = {"scripts/conferir-reversao.py", "scripts/indice-forge.py"}
 
     def test_so_script_de_aviso_cita_o_script_em_scripts(self):
         citam = set()

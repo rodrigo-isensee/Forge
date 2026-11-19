@@ -18,6 +18,11 @@
 # --limpar: roda só o passo 7, sem forge-check nem merge, e só com prova de PR MERGED na develop para a branch; cada parte é "se existe" (repete sem
 # efeito colateral). Rodado de dentro da worktree da própria branch, sai dela para a principal antes de remover. Só apaga a branch (local e remota) se o sha é o do PR mesclado ou já está na base; nunca usa a opção que força.
 # Clones (MP6): o passo 7 também apaga os clones da branch em ~/.forge-contrib/wt (limpos, sem stash, tudo na origem, sha mesclado); campo `clone=`.
+# FORGE-FECHAR-CLONE-LIMPAR: rodado num clone (ou na cópia principal) que está na própria branch, a árvore dela não é worktree ligada: o passo 7
+# não manda `git worktree remove` nem apaga a branch que ela usa ou a remota; limpa os outros clones e lista o resto como pendente (código 3),
+# com a leitura (commit sem merge) ou o caminho: clone em ~/.forge-contrib/wt, o --limpar de outra cópia (que o apaga só limpo e mesclado, e
+# depois a remota); fora dela, trocar de branch e repetir o --limpar.
+# -h, --help: imprime este cabeçalho e sai com 0, sem log.
 # --sem-limpar: faz o merge e pula o passo 7: imprime os comandos da limpeza pendente (o `--limpar` primeiro, que confere o sha; worktree, branch local se existe e branch remota) e sai com
 # código 3 (fechado, limpeza pendente). Incompatível com --limpar (erro de uso). Serve a quem prefere limpar depois (ou fora do sandbox).
 # --esperar-rotulo: em vez de parar quando o PR pede o rótulo do dono e ele não está aplicado, repete a leitura dos checks e do rótulo
@@ -38,7 +43,8 @@
 # `forge-check movimento ID --de <coluna atual> --para Pronto` no quadro de --quadro (padrão ~/.forge-contrib, o do Forge); a coluna atual é o
 # `Para` da última linha do cartão em docs/kanban/historico.md, senão a seção dele no KANBAN.md, senão `—`. Já em Pronto, nada grava;
 # o movimento que falha vira pendência (código 3) com o comando. ID fora de [A-Za-z0-9._-] ou quadro sem KANBAN.md param antes do passo 1.
-# --dry-run só imprime cada passo (e avisa se o diff toca caminho que a catraca protege); não roda forge-check, git remoto nem gh.
+# --dry-run imprime cada passo (e avisa se o diff toca caminho que a catraca protege) e roda de verdade só o 1c (FECHAR-DRY-RUN-1C: o
+# --conferir-ref, só leitura, contra a origin/homolog local, sem busca; recusa para com código 1); não roda forge-check, git remoto nem gh.
 # Para teste, com FORGE_FECHAR_TESTE=1: FORGE_CHECK, FORGE_GH, FORGE_PROMOVER (substituem os comandos) e FORGE_FECHAR_INTERVALO
 # (segundos entre leituras dos checks). Sem FORGE_FECHAR_TESTE=1 as três primeiras são ignoradas, com aviso.
 # FORGE_FECHAR_TETO_DELETE (segundos, 1 a 75, padrão 75): limite de cada uma das 3 tentativas do `git push --delete` da limpeza (com `timeout`);
@@ -94,6 +100,7 @@ args_originais=("$@")  # H4: o recomeço da cadeia depois do merge da base (pass
 cartoes=() quadro="${HOME:-}/.forge-contrib" motivo_cartao="" cartao_pend=0  # FECHAR-MOVE-CARTAO
 while [ $# -gt 0 ]; do
   case "$1" in
+    -h|--help) sed -n '2,/^set -euo pipefail$/{/^set -euo pipefail$/d;s/^# \{0,1\}//;p;}' "${BASH_SOURCE[0]}"; exit 0 ;;
     --ref) ref="${2-}"; shift 2 || die "--ref pede a branch" ;;
     --base) base="${2-}"; shift 2 || die "--base pede a base" ;;
     --titulo) titulo="${2-}"; shift 2 || die "--titulo pede o texto" ;;
@@ -598,6 +605,29 @@ rm -rf -- $(printf '%q' "$d")"
     fi
   done
 }
+# copia_propria <pasta> (FORGE-FECHAR-CLONE-LIMPAR): a cópia principal deste repositório está na branch $ref (`git worktree list` a dá como árvore
+# de $ref, mas ela é a principal): não sai daqui. Branch e cópia ficam pendentes; com commit sem merge, só a leitura (leitura_sem_merge); sem ele,
+# o clone em ~/.forge-contrib/wt sai pelo --limpar de outra cópia (limpar_clones o confere) e outra cópia troca de branch e repete o --limpar.
+# A remota fica para esse --limpar (limpar_entrega não a apaga daqui). Lê sem_merge e acrescenta a pend_cmds.
+copia_propria() {
+  local raiz_copia="$1"
+  br_st=pendente copia_st=pendente
+  echo "aviso: a cópia $raiz_copia é a principal deste repositório (um clone, não uma worktree) e está na branch $ref: o fechamento não a remove nem apaga a branch que ela usa ou a remota." >&2
+  if [ "$sem_merge" = 1 ]; then
+    echo "aviso: a branch local $ref ($sha_local) tem commit que não foi mesclado; confira (git log) antes de apagar qualquer coisa." >&2
+    pend_cmds="$pend_cmds
+$(leitura_sem_merge "refs/heads/$ref")"
+  elif [ "$(dirname "$raiz_copia")" = "$(cd "${HOME:-}/.forge-contrib/wt" 2>/dev/null && pwd -P)" ]; then  # a pasta que o limpar_clones percorre, resolvida
+    pend_cmds="$pend_cmds
+# de outra cópia do Forge: apaga este clone (só limpo, com tudo na origem e mesclado) e depois a branch remota
+forge-fechar $(printf '%q' "$pedido") --ref $(printf '%q' "$ref") --limpar"
+  else
+    pend_cmds="$pend_cmds
+git -C $(printf '%q' "$raiz_copia") switch develop
+git -C $(printf '%q' "$raiz_copia") branch -D $(printf '%q' "$ref")
+forge-fechar $(printf '%q' "$pedido") --ref $(printf '%q' "$ref") --limpar"
+  fi
+}
 # limpar_entrega: a limpeza do passo 7 e do --limpar, só depois da prova de merge (merged_heads). Cada parte é "se existe", então repete sem efeito
 # colateral. Ordem: worktree, branch local, e por último a remota (o pre-push reconhece o push só de remoção, não roda suíte nem espera a fila da trava; PREPUSH-DELETE). Nunca força: worktree suja e branch com commit
 # novo ficam pendentes. Resumo sempre gravado; define `pendencia` (0 ou 1) e deixa a decisão do código de saída a quem chama.
@@ -612,7 +642,12 @@ limpar_entrega() {
   atual="$(pwd -P)"
   # O caminho é a linha inteira depois de "worktree " (pode ter espaço); o nome da branch não tem.
   arvore="$(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=substr($0,10)} $1=="branch" && $2==b {print w}')"
-  local orfao=0 principal meta=""
+  local orfao=0 principal meta="" propria=""
+  # FORGE-FECHAR-CLONE-LIMPAR: a árvore de $ref é a principal deste repositório (o .git dela é a pasta comum): um clone, não worktree ligada.
+  if [ -n "$arvore" ] && [ -d "$arvore" ] && [ "$(cd "$arvore" && pwd -P)/.git" = "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)" ]; then
+    propria="$(cd "$arvore" && pwd -P)"
+    arvore=""
+  fi
   if [ -n "$arvore" ]; then
     if [ -d "$arvore" ] && [ "$(cd "$arvore" && pwd -P)" = "$atual" ]; then
       # Rodado de dentro da worktree da própria branch: sai dela para a worktree principal (a primeira de `worktree list`) antes de remover.
@@ -665,7 +700,7 @@ git worktree remove $(printf '%q' "$arvore")"
       fi
     fi
   fi
-  if [ -n "$sha_local" ]; then
+  if [ -n "$sha_local" ] && [ -z "$propria" ]; then
     if [ "$arv_st" != ok ]; then
       br_st=pendente
     elif ! sha_confere "$sha_local"; then
@@ -709,7 +744,10 @@ git branch -D $(printf '%q' "$ref")"
   # O campo do config vai no fim do estado da branch, a última coisa da linha `limpeza:` (só existe quando o passo acima o definiu).
   [ -z "${cfg_campo:-}" ] || br_st="$br_st$cfg_campo"
   limpar_clones
-  if ! sha_remoto="$(remoto_exato "$ref")"; then
+  if [ -n "$propria" ]; then
+    copia_propria "$propria"
+    rem_st=pendente  # o push daqui tiraria a origin/$ref do clone, e o limpar_clones da outra cópia o veria com commit fora da origem
+  elif ! sha_remoto="$(remoto_exato "$ref")"; then
     echo "aviso: não consegui ler a branch remota $ref." >&2
     rem_st=pendente
   else
@@ -737,7 +775,7 @@ git branch -D $(printf '%q' "$ref")"
       fi
     fi
   fi
-  if [ "$rem_st" = ok ]; then
+  if [ "$rem_st" = ok ] || [ -n "$propria" ]; then
     :
   elif [ -n "$rem_leitura" ]; then pend_cmds="$pend_cmds
 $rem_leitura"
@@ -777,9 +815,10 @@ mover_cartoes() {
   done
 }
 
-# mesclar_auto <método> <head>: o único `gh pr merge` do script (passo 6 e P6), por nome de branch ($ref, que o hook `parecer` exige),
-# com --auto e preso ao head.
-mesclar_auto() { "$gh" pr merge "$ref" --auto "$1" --match-head-commit "$2"; }
+# mesclar_auto <método> <head> [--subject T --body C]: o único `gh pr merge` do script (passo 6 e P6), por nome de branch ($ref, que o hook
+# `parecer` exige), com --auto e preso ao head. FECHAR-PROMOVER-MENSAGEM-PT: o merge com --merge (P6) leva título e corpo em português; sem
+# eles, o GitHub grava "Merge pull request #N from ..." (merge_commit_title=MERGE_MESSAGE). O --squash do passo 6 usa o título do PR.
+mesclar_auto() { "$gh" pr merge "$ref" --auto "$1" --match-head-commit "$2" "${@:3}"; }
 
 # estado_do_pr: lê o PR de número pr_n (leitura, com repetição) e define pr_estado, pr_head, pr_base e pr_merge ("-" sem commit de merge); vazios se a leitura falhar.
 estado_do_pr() {
@@ -900,17 +939,29 @@ conferir_base_no_merge() {
 
 # promovivel <sha> (passo 1c, FF-1, SP4): a árvore do sha conferido passa no promover-homolog --conferir-ref (só leitura). Script ausente,
 # rc diferente de 0 e o 124 do prazo param (C-1); o recomeço do 2b roda o script de novo, e o 1c com ele, sobre o head novo (C-3).
-# FECHAR-SEM-HOMOLOG-LOCAL: o --conferir-ref lê a origin/homolog local, sem fetch; sem ela no clone, busca só essa ref. Busca que falha só
-# avisa: sem a ref, o --conferir-ref sai com 1 e o 1c para.
+# FECHAR-SEM-HOMOLOG-LOCAL e FECHAR-HOMOLOG-FRESCA (v0478): o --conferir-ref lê a origin/homolog local, sem fetch; o 1c busca só essa ref
+# antes, sempre (a local velha recusava por versão antiga: 0.47.6 contra a 0.47.7 do servidor). Busca que falha só avisa: sem a ref, o
+# --conferir-ref sai com 1 e o 1c para; com a local, ele decide com ela, e o aviso diz o sha dela.
 promovivel() {
+  local homolog_local
+  if ! git fetch -q origin "+refs/heads/homolog:refs/remotes/origin/homolog"; then
+    if homolog_local="$(git rev-parse -q --verify "refs/remotes/origin/homolog^{commit}" 2>/dev/null)"; then
+      echo "aviso: a busca da origin/homolog falhou (git fetch origin homolog); o promover-homolog decide com a local (${homolog_local:0:12}), que pode estar velha." >&2
+    else
+      echo "aviso: sem origin/homolog neste clone e a busca falhou (git fetch origin homolog); o promover-homolog decide." >&2
+    fi
+  fi
+  conferir_1c "$1"
+}
+# conferir_1c <sha> [nota] (FECHAR-DRY-RUN-1C, v0478): o promover-homolog --conferir-ref de verdade (só leitura, contra a origin/homolog
+# local, sem busca); script ausente, rc diferente de 0 e o 124 do prazo param, com a nota no fim da mensagem. O 1c real o chama depois da
+# busca (promovivel); o --dry-run, sem ela.
+conferir_1c() {
   local saida_1c rc_1c=0
   [ -f "$promover" ] || die "parou no passo 1c: não achei $promover (nada foi aberto nem mesclado)"
-  if ! git rev-parse -q --verify "refs/remotes/origin/homolog^{commit}" >/dev/null 2>&1; then
-    git fetch -q origin "+refs/heads/homolog:refs/remotes/origin/homolog" || echo "aviso: sem origin/homolog neste clone e a busca falhou (git fetch origin homolog); o promover-homolog decide." >&2
-  fi
   saida_1c="$(timeout 300 python3 -I "$promover" --conferir-ref "$1" 2>&1)" || rc_1c=$?
   [ "$rc_1c" = 0 ] || die "parou no passo 1c: a árvore que entra na $alvo não é promovível (rc $rc_1c; nada foi aberto nem mesclado): $saida_1c
-com release na develop ainda não promovida, promova-a (scripts/promover-homolog.py) antes de mesclar outra branch (R-FLUXO)"
+com release na develop ainda não promovida, promova-a (scripts/promover-homolog.py) antes de mesclar outra branch (R-FLUXO)${2:-}"
 }
 
 # ja_no_alvo <sha> (FECHAR-SEM-HOMOLOG-LOCAL): o sha já está na base local ou num PR MERGED em $alvo do próprio repositório (o GitHub
@@ -1114,7 +1165,8 @@ Tempo do commit da marca até o PR para a main pronto, por versão (diretriz 27,
     fi
     passo P6 "merge automático preso ao commit da marca (até ${espera}s)"
     ref="$ramo"
-    if ! mesclar_auto --merge "$sha"; then echo "aviso: o gh pr merge devolveu erro; confiro o estado do PR." >&2; fi
+    if ! mesclar_auto --merge "$sha" --subject "chore(promoção): $versao para a homolog (#$pr_n)" \
+      --body "Promoção da versão $versao para a homolog pelo commit da marca $sha (pedido $pedido)."; then echo "aviso: o gh pr merge devolveu erro; confiro o estado do PR." >&2; fi
     inicio=$SECONDS
     estado_do_pr || true
     while [ "$pr_estado" = OPEN ]; do
@@ -1155,16 +1207,25 @@ if [ "$seco" = 1 ] && [ -n "$promover_sha" ]; then
   passo P3 "$gh run list --branch develop --event push --commit $promover_sha: verde (cancelado avisa e segue; o CI do PR decide)"
   passo P4 "git push origin $promover_sha:refs/heads/promocao/<versão> (se já existe no mesmo sha, retoma)"
   passo P5 "$gh pr create --base homolog --head promocao/<versão> (reusa o aberto ou o MERGED)"
-  passo P6 "$gh pr merge promocao/<versão> --auto --merge --match-head-commit $promover_sha; espera o MERGED até ${espera}s; apaga o ramo"
+  passo P6 "$gh pr merge promocao/<versão> --auto --merge --match-head-commit $promover_sha --subject 'chore(promoção): <versão> para a homolog (#<n>)' --body <corpo em português>; espera o MERGED até ${espera}s; apaga o ramo"
   exit 0
 fi
 if [ "$seco" = 1 ]; then
-  echo "forge-fechar --dry-run: nada será executado."
+  echo "forge-fechar --dry-run: nada será executado além do 1c, que só lê."
   # Só leitura local: o passo 1 real passa o nome da branch local (FECHAR-REF-POR-NOME), o número do PR só existe depois do passo 3 (o --dry-run não chama gh nem o servidor).
   ref_dry="refs/heads/$ref"
   sha_dry="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)" || { sha_dry="<sha não lido: a branch local não existe>"; ref_dry="$sha_dry"; }
   passo 1 "$check pr $pedido --ref $ref_dry --base $base"
-  passo "1c" "python3 -I $promover --conferir-ref $sha_dry (a árvore que entra na $alvo é promovível; rc diferente de 0, prazo de 300 s ou script ausente param; sem origin/homolog no clone, antes busca só ela)"
+  passo "1c" "python3 -I $promover --conferir-ref $sha_dry (a árvore que entra na $alvo é promovível; rc diferente de 0, prazo de 300 s ou script ausente param; o passo real antes busca a origin/homolog)"
+  # FECHAR-DRY-RUN-1C (v0478): o --conferir-ref roda de verdade (só leitura), contra a origin/homolog local, sem busca (o --dry-run não fala com o servidor).
+  if [ "$ref_dry" = "refs/heads/$ref" ]; then
+    homolog_dry="$(git rev-parse -q --verify "refs/remotes/origin/homolog^{commit}" 2>/dev/null || echo ausente)"
+    conferir_1c "$sha_dry" "
+--dry-run: conferido contra a origin/homolog local (${homolog_dry:0:12}), sem busca; se ela estiver velha, rode git fetch origin homolog e repita"
+    echo "1c: promovível (contra a origin/homolog local ${homolog_dry:0:12}, sem busca)."
+  else
+    echo "1c: não rodou: sem a branch local $ref."
+  fi
   passo 2 "git ls-remote origin refs/heads/$ref (igual ao head local de $ref; ausente com o head já em $alvo, PR MERGED ou na base, segue sem pedir push)"
   passo "2b" "git ls-remote origin refs/heads/$alvo (igual a $base; senão, git fetch origin $alvo); se a base andou, git merge-tree --write-tree do head com ela: com conflito para e lista os arquivos; sem conflito, em melhoria/* faz o merge da base (árvore do merge-tree), git push origin $ref e recomeça a cadeia no head novo (H4), fora dela avisa e segue sem trazer a base (E8) (não roda quando o head já está em $base ou o PR já está MERGED)"
   passo 3 "$gh pr create --base $alvo --head $ref --title '$titulo' (se não houver PR aberto; não abre se o head já está em $base ou já tem PR MERGED)"
