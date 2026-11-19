@@ -1,0 +1,98 @@
+{
+  "pedido": "v0479-sandbox-controle",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E29.6 A1: falta_bwrap devolve sempre None (o bwrap que não monta não pula)",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    return None if r.returncode == 0 else f\"bwrap não monta o sandbox aqui",
+      "para": "    return None if True else f\"bwrap não monta o sandbox aqui",
+      "testes": [
+        "tests.test_apoio_sandbox.Sondas.test_bwrap_ausente_ou_que_nao_monta_falta_e_o_que_monta_nao"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E29.6 A1: bwrap ausente não é falta",
+      "arquivo": "tests/apoio_sandbox.py",
+      "de": "    if exe is None:\n        return \"sem bwrap no PATH\"",
+      "para": "    if False:\n        return \"sem bwrap no PATH\"",
+      "testes": [
+        "tests.test_apoio_sandbox.Sondas.test_bwrap_ausente_ou_que_nao_monta_falta_e_o_que_monta_nao"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E29.6 A2: o agentes.json de 0 byte (ponto de montagem do sandbox) é ilegível e recusa o time",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if not dados:  # 0 byte",
+      "para": "        if False:  # 0 byte",
+      "testes": [
+        "tests.test_sandbox_controle.ControleVazio.test_agentes_json_de_0_byte_e_o_comeco_legitimo_e_nao_recusa_o_time",
+        "tests.test_sandbox_controle.ControleVazio.test_agentes_json_vazio_0444_nao_impede_o_primeiro_disparo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E29.6 A2: o pesado.json de 0 byte é erro e o hook libera a trava",
+      "arquivo": "hooks/_comum.py",
+      "de": "    return json.loads(texto) if texto.strip() else None",
+      "para": "    return json.loads(texto)",
+      "testes": [
+        "tests.test_sandbox_controle.ControleVazio.test_agentes_json_de_0_byte_e_o_comeco_legitimo_e_nao_recusa_o_time",
+        "tests.test_sandbox_controle.ControleVazio.test_pesado_json_vazio_0444_nao_solta_a_trava_do_proximo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E29.6 A2: a soltura apaga o pesado.json (o runtime o recriaria vazio)",
+      "arquivo": "hooks/pesado.py",
+      "de": "                gravar_json(arquivo, None)  # `null`",
+      "para": "                arquivo.unlink()  # `null`",
+      "testes": [
+        "tests.test_sandbox_controle.ControleVazio.test_a_soltura_grava_null_e_nao_apaga_o_pesado_json"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E29.6 A2: o início de sessão não cria os arquivos de controle",
+      "arquivo": "hooks/doutor.py",
+      "de": "        if not os.path.lexists(run / nome):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_sandbox_controle.ControleVazio.test_inicio_de_sessao_cria_os_arquivos_de_controle_que_faltam_e_nao_regrava_os_que_existem"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "E29.6 A2: o início de sessão regrava o arquivo de controle que já existe",
+      "arquivo": "hooks/doutor.py",
+      "de": "        if not os.path.lexists(run / nome):",
+      "para": "        if True:",
+      "testes": [
+        "tests.test_sandbox_controle.ControleVazio.test_inicio_de_sessao_cria_os_arquivos_de_controle_que_faltam_e_nao_regrava_os_que_existem"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "E29.6 A2: o forge-init não cria o agentes.json",
+      "arquivo": "bin/forge-init",
+      "de": "printf '{\"agentes\": []}\\n' > \"$destino/.forge/run/agentes.json\"",
+      "para": "true",
+      "testes": [
+        "tests.test_sandbox_controle.ControleVazio.test_forge_init_cria_os_arquivos_de_controle_antes_da_primeira_sessao"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "E29.6 A2: a fila morta do projeto volta ao denyWrite do modelo",
+      "arquivo": "templates/projeto/.claude/settings.json",
+      "de": "        \".forge/run/pesado.json\",\n",
+      "para": "        \".forge/run/pesado.json\",\n        \".forge/run/pesado.fila\",\n",
+      "testes": [
+        "tests.test_sandbox_controle.Estrutura.test_modelo_de_projeto_nega_os_quatro_caminhos_de_controle"
+      ]
+    }
+  ]
+}

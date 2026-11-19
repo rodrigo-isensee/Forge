@@ -68,12 +68,6 @@ class Sondas(unittest.TestCase):
             (proc / "self").write_text("1")  # readlink num arquivo comum: EINVAL, não FileNotFoundError
             self.assertIn("sem ", str(self.sem_excecao(apoio_sandbox.falta_proc, proc, 1)))
 
-
-def ambiente_sem_ci(**extra):
-    """`os.environ` sem os sinais de CI, mais `extra`, enquanto o contexto durar."""
-    limpo = {k: v for k, v in os.environ.items() if k not in apoio_sandbox.SINAIS_DE_CI}
-    return mock.patch.dict(os.environ, {**limpo, **extra}, clear=True)
-
     def test_bwrap_ausente_ou_que_nao_monta_falta_e_o_que_monta_nao(self):  # E29.1 (A3)
         def rodar(rc, erro=""):
             return mock.patch.object(apoio_sandbox.subprocess, "run", return_value=subprocess.CompletedProcess([], rc, "", erro))
@@ -90,6 +84,12 @@ def ambiente_sem_ci(**extra):
                 self.assertIn("bwrap não rodou", self.sem_excecao(apoio_sandbox.falta_bwrap))
             with mock.patch.object(apoio_sandbox.subprocess, "run", side_effect=PermissionError("negado")):
                 self.assertIn("bwrap não rodou", self.sem_excecao(apoio_sandbox.falta_bwrap))
+
+
+def ambiente_sem_ci(**extra):
+    """`os.environ` sem os sinais de CI, mais `extra`, enquanto o contexto durar."""
+    limpo = {k: v for k, v in os.environ.items() if k not in apoio_sandbox.SINAIS_DE_CI}
+    return mock.patch.dict(os.environ, {**limpo, **extra}, clear=True)
 
 
 class Exigir(unittest.TestCase):

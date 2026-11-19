@@ -2,12 +2,14 @@
 
 Arquivos de controle (registro de agentes, teto, fila pesada, registro da máquina) e o `denyWrite` que os cobre:
 - modelo de projeto (`templates/projeto/.claude/settings.json`): `.forge/config.json` (teto), `.forge/run/agentes.json`,
-  `.forge/run/pesado.json`, `.forge/run/pesado.fila` e `~/.forge/maquina` (o registro da máquina);
+  `.forge/run/pesado.json` e `~/.forge/maquina` (o registro da máquina); a fila do projeto (`.forge/run/pesado.fila`) não existe
+  mais desde a MP4 e saiu da lista;
 - Forge (`.claude/settings.json`, arquivo travado para os agentes; vai como patch `docs/devops/v0479-sandbox-controle.patch`, que o
-  dono aplica): `.forge/` (no clone é um arquivo), `.git/forge/run` (o estado do clone) e `~/.forge/maquina`.
+  dono aplica): `.forge/` (na cópia do dono é pasta, com `config.json` e `run/`), `.git/forge/run` (o estado do clone) e `~/.forge/maquina`.
 
 As provas estruturais sempre rodam. As do sandbox montam um bubblewrap com o `denyWrite` do arquivo (cada caminho existente vira
-`--ro-bind` sobre ele, o que o runtime do Claude Code faz) e tentam `find -delete`, `tar` por cima e `chmod`; sem bubblewrap
+`--ro-bind` sobre ele, o que o runtime do Claude Code faz) e tentam `find -delete`, `tar` por cima, `chmod`, a escrita direta
+(`>`, `sort -o`), `git init` na pasta e `mv` por cima; sem bubblewrap
 utilizável pulam com o motivo fora do CI (`apoio_sandbox.exigir`) e reprovam no CI.
 """
 import json
@@ -29,8 +31,8 @@ FORGE = RAIZ / ".claude" / "settings.json"
 PATCH = RAIZ / "docs" / "devops" / "v0479-sandbox-controle.patch"
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_"))})
 
-CONTROLE_DO_MODELO = [".forge/config.json", ".forge/run/agentes.json", ".forge/run/pesado.json", ".forge/run/pesado.fila",
-                      "~/.forge/maquina"]
+CONTROLE_DO_MODELO = [".forge/config.json", ".forge/run/agentes.json", ".forge/run/pesado.json", "~/.forge/maquina"]
+CONTEUDO = {".forge/run/agentes.json": '{"agentes": []}\n', ".forge/run/pesado.json": "null\n"}
 CONTROLE_DO_FORGE = [".forge/", ".git/forge/run", "~/.forge/maquina"]
 
 
@@ -51,10 +53,11 @@ def deny_write_do_forge():
 
 
 class Estrutura(unittest.TestCase):
-    def test_modelo_de_projeto_nega_os_cinco_caminhos_de_controle(self):
+    def test_modelo_de_projeto_nega_os_quatro_caminhos_de_controle(self):
         deny = deny_write(MODELO)
         for caminho in CONTROLE_DO_MODELO:
             self.assertIn(caminho, deny)
+        self.assertNotIn(".forge/run/pesado.fila", deny, "a fila do projeto morreu na MP4: negá-la só cria arquivo-lixo")
 
     def test_forge_com_o_patch_nega_o_clone_e_o_registro_da_maquina(self):
         deny, _ = deny_write_do_forge()
@@ -102,6 +105,18 @@ class Estrutura(unittest.TestCase):
             self.assertEqual(cobertos, [], caminho)
 
 
+def produzir_controle(raiz):
+    """Roda o `preparar_controle` do hook `doutor` (SessionStart) numa raiz de projeto com git: cria `agentes.json` e `pesado.json`."""
+    sys.path.insert(0, str(RAIZ / "hooks"))
+    try:
+        import doutor
+        hook = doutor.Hook("doutor")
+        hook.raiz = raiz
+        doutor.preparar_controle(hook)
+    finally:
+        sys.path.remove(str(RAIZ / "hooks"))
+
+
 def caminho_real(entrada, raiz, casa):
     """Como o runtime resolve uma entrada de `denyWrite`: `~` é a casa, relativo é da raiz do projeto."""
     if entrada.startswith("~/"):
@@ -109,22 +124,128 @@ def caminho_real(entrada, raiz, casa):
     return raiz / entrada.rstrip("/")
 
 
+class ControleVazio(unittest.TestCase):
+    """A2 da segurança: o runtime do sandbox cria vazio e 0444 o caminho negado que não existe. Os arquivos de controle passam a
+    existir antes (forge-init, hook de início de sessão) e o vazio não trava o time nem solta a trava de tarefa pesada."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-controle-vazio-")).resolve()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.proj = self.tmp / "proj"
+        (self.proj / ".forge").mkdir(parents=True)
+        (self.proj / ".forge" / "versao").write_text("0.47.7\n", encoding="utf-8")
+        (self.proj / ".forge" / "config.json").write_text(json.dumps({"pesados": ["python3 -m unittest"]}), encoding="utf-8")
+        subprocess.run(["git", "init", "-q", "-b", "trabalho", str(self.proj)], env=AMBIENTE, check=True, capture_output=True)
+        self.run_dir = self.proj / ".forge" / "run"
+
+    def vazio_0444(self, nome):
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+        arquivo = self.run_dir / nome
+        arquivo.write_text("", encoding="utf-8")
+        arquivo.chmod(0o444)
+        return arquivo
+
+    def hook(self, nome, evento, **campos):
+        sys.path.insert(0, str(RAIZ / "tests"))
+        try:
+            from test_agentes_clone import montar_proc, rodar_hook
+        finally:
+            sys.path.remove(str(RAIZ / "tests"))
+        proc = self.tmp / "proc"
+        if not proc.exists():
+            montar_proc(self.tmp)
+        entrada = {"hook_event_name": evento, "session_id": "s", "cwd": str(self.proj), **campos}
+        return rodar_hook(nome, entrada, self.proj, proc, {"FORGE_NPROC": "4", "FORGE_PESADO_ESPERA_S": "0"})
+
+    def pesado(self, agente, uso, evento="PreToolUse"):
+        return self.hook("pesado", evento, tool_name="Bash", agent_id=agente, tool_use_id=uso,
+                         tool_input={"command": "python3 -m unittest discover"})
+
+    def test_agentes_json_de_0_byte_e_o_comeco_legitimo_e_nao_recusa_o_time(self):
+        sys.path.insert(0, str(RAIZ / "hooks"))
+        try:
+            import agentes
+            import _comum
+        finally:
+            sys.path.remove(str(RAIZ / "hooks"))
+        self.assertEqual(agentes.ler_estado(self.vazio_0444("agentes.json")), {"agentes": []})
+        self.assertIsNone(_comum.ler_trava(self.vazio_0444("pesado.json")))
+        (self.run_dir / "agentes.json").chmod(0o644)
+        (self.run_dir / "agentes.json").write_text("{", encoding="utf-8")
+        with self.assertRaises(agentes.EstadoIlegivel):  # o JSON quebrado segue ilegível: só o 0 byte mudou
+            agentes.ler_estado(self.run_dir / "agentes.json")
+
+    def test_agentes_json_vazio_0444_nao_impede_o_primeiro_disparo(self):
+        self.vazio_0444("agentes.json")
+        r = self.hook("agentes", "SubagentStart", agent_id="a1", agent_type="forge:dev", description="x")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("R-TETO", r.stderr)
+        self.assertEqual([a["id"] for a in json.loads((self.run_dir / "agentes.json").read_text(encoding="utf-8"))["agentes"]], ["a1"])
+
+    def test_pesado_json_vazio_0444_nao_solta_a_trava_do_proximo(self):
+        self.vazio_0444("pesado.json")
+        self.assertEqual(self.pesado("a1", "u1").returncode, 0)
+        r = self.pesado("a2", "u2")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("R-TETO", r.stderr)
+
+    def test_a_soltura_grava_null_e_nao_apaga_o_pesado_json(self):
+        self.assertEqual(self.pesado("a1", "u1").returncode, 0)
+        self.assertEqual(self.pesado("a1", "u1", "PostToolUse").returncode, 0)
+        arquivo = self.run_dir / "pesado.json"
+        self.assertTrue(arquivo.is_file(), "apagar deixaria o runtime recriá-lo vazio")
+        self.assertIsNone(json.loads(arquivo.read_text(encoding="utf-8")))
+        self.assertEqual(self.pesado("a2", "u2").returncode, 0, "trava solta: a próxima pega a vez")
+
+    def test_inicio_de_sessao_cria_os_arquivos_de_controle_que_faltam_e_nao_regrava_os_que_existem(self):
+        r = self.hook("doutor", "SessionStart")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.loads((self.run_dir / "agentes.json").read_text(encoding="utf-8")), {"agentes": []})
+        self.assertIsNone(json.loads((self.run_dir / "pesado.json").read_text(encoding="utf-8")))
+        (self.run_dir / "agentes.json").write_text('{"agentes": [{"id": "x"}]}', encoding="utf-8")
+        self.hook("doutor", "SessionStart")
+        self.assertIn('"x"', (self.run_dir / "agentes.json").read_text(encoding="utf-8"))
+
+    def test_forge_init_cria_os_arquivos_de_controle_antes_da_primeira_sessao(self):
+        destino = self.tmp / "novo"
+        destino.mkdir()
+        subprocess.run(["git", "init", "-q", "-b", "trabalho", str(destino)], env=AMBIENTE, check=True, capture_output=True)
+        casa = self.tmp / "casa"
+        casa.mkdir()
+        env = {**AMBIENTE, "HOME": str(casa), "FORGE_MAQUINA": str(self.tmp / "maquina")}
+        subprocess.run(["bash", str(RAIZ / "bin" / "forge-init"), "--nome", "Demo", "--pronto", "make pronto", str(destino)],
+                       cwd=destino, env=env, check=True, capture_output=True, text=True, timeout=120)
+        run = destino / ".forge" / "run"
+        self.assertEqual(json.loads((run / "agentes.json").read_text(encoding="utf-8")), {"agentes": []})
+        self.assertIsNone(json.loads((run / "pesado.json").read_text(encoding="utf-8")))
+        self.assertFalse((run / "pesado.fila").exists(), "a fila do projeto morreu na MP4")
+        ignorados = subprocess.run(["git", "check-ignore", ".forge/run/agentes.json"], cwd=destino, env=AMBIENTE, capture_output=True, text=True)
+        self.assertEqual(ignorados.returncode, 0, "o estado de execução não vai ao git")
+
+
 class SandboxNegaEscrita(unittest.TestCase):
     """O bubblewrap com o `denyWrite` do arquivo recusa o `find -delete`, o `tar` por cima e o `chmod`."""
 
     def montar(self, deny, clone):
-        """Projeto e casa de mentira com cada caminho de controle no lugar; devolve (raiz, casa, alvos existentes)."""
+        """Projeto e casa de mentira com cada caminho de controle no lugar, no estado que o `forge-init` e o hook de início de
+        sessão deixam (`agentes.json` e `pesado.json` já existem; o runtime só cria caminho negado que falta); devolve
+        (raiz, casa, alvos existentes)."""
         tmp = Path(tempfile.mkdtemp(prefix="forge-sandbox-controle-"))
         self.addCleanup(shutil.rmtree, tmp, True)
         raiz, casa = tmp / "projeto", tmp / "casa"
         raiz.mkdir()
         casa.mkdir()
+        subprocess.run(["git", "init", "-q", str(raiz)], env=AMBIENTE, check=True, capture_output=True)
+        if any(e in CONTEUDO for e in deny):
+            produzir_controle(raiz)  # o hook de início de sessão, não a mão do teste, cria os arquivos de controle do projeto
         alvos = []
         for entrada in deny:
             alvo = caminho_real(entrada, raiz, casa)
-            if entrada == ".forge/" and clone:  # no clone do Forge, `.forge` é um arquivo
-                alvo.write_text("proteção\n", encoding="utf-8")
-            elif entrada in (".forge/run/pesado.fila", ".git/forge/run", "~/.forge/maquina"):
+            if entrada in CONTEUDO:
+                self.assertEqual(alvo.read_text(encoding="utf-8"), CONTEUDO[entrada], entrada)
+                alvos.append(alvo)
+                continue
+            if entrada in (".forge/", ".git/forge/run", "~/.forge/maquina"):
                 alvo.mkdir(parents=True)
                 alvo.chmod(0o700)  # o registro da máquina exige a pasta só do usuário (`_maquina.pasta`)
                 (alvo / "1").write_text("original\n", encoding="utf-8")
@@ -132,8 +253,7 @@ class SandboxNegaEscrita(unittest.TestCase):
                 alvo.parent.mkdir(parents=True, exist_ok=True)
                 alvo.write_text("original\n", encoding="utf-8")
             alvos.append(alvo)
-        if not (raiz / ".forge").is_file():
-            (raiz / ".forge" / "run").mkdir(parents=True, exist_ok=True)
+        (raiz / ".forge" / "run").mkdir(parents=True, exist_ok=True)
         return raiz, casa, alvos
 
     def argv(self, raiz, casa, alvos, cmd):
@@ -158,6 +278,8 @@ class SandboxNegaEscrita(unittest.TestCase):
         self.assertEqual(sobra.read_text(encoding="utf-8"), "ok\n")
         for alvo in alvos:
             antes, modo = self.lido(alvo), alvo.stat().st_mode
+            origem = raiz / "mv-origem"
+            origem.write_text("adulterado\n", encoding="utf-8")
             pacote = raiz.parent / f"{alvo.name}.tar"
             troca = raiz.parent / "troca" / alvo.name
             if alvo.is_dir():
@@ -171,8 +293,12 @@ class SandboxNegaEscrita(unittest.TestCase):
                 "find -delete": f"find '{alvo}' -delete",
                 "tar por cima": f"tar -xf '{pacote}' -C '{alvo.parent}'",
                 "chmod": f"chmod 000 '{alvo}'",
+                "escrita direta (>)": f"echo adulterado > '{alvo}'",
+                "escrita direta (sort -o)": f"echo adulterado | sort -o '{alvo}'",
+                "mv por cima": f"mv '{origem}' '{alvo}'",
             }
             if alvo.is_dir():
+                ataques["git init na pasta"] = f"git -C '{alvo}' init"
                 ataques["find -delete (arquivo de dentro)"] = f"find '{alvo}' -type f -delete"
                 ataques["chmod no arquivo de dentro"] = f"chmod 000 '{alvo}'/1"
             for nome, cmd in ataques.items():

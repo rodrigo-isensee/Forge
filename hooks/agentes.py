@@ -39,8 +39,8 @@ por silêncio: agente vivo sem resposta para com o TaskStop e sai pela notifica�
 trava `pesado` livre. Cada liberação vai ao `liberacoes.log` e deixa uma lápide: retomar o id (`SendMessage`) é recusado
 enquanto houver relançamento vigente na mesma branch ou com a mesma descrição.
 HOOK-ESTADO-ILEGIVEL-LIBERA (v047, E1.138): estado ilegível nunca vira lista vazia. O `agentes.json` que existe e não é o registro
-(`ler_estado`: JSON inválido ou vazio, raiz que não é objeto, `agentes` ou `lapides` que não é lista, link, pasta ou outro tipo,
-erro de leitura, mais de 1 MiB), o erro ao fixar a pasta do estado do clone e o `.forge/config.json` ilegível recusam o disparo
+(`ler_estado`: JSON inválido, raiz que não é objeto, `agentes` ou `lapides` que não é lista, link, pasta ou outro tipo,
+erro de leitura, mais de 1 MiB; o arquivo de 0 byte vale como sem registro, o ponto de montagem vazio do sandbox), o erro ao fixar a pasta do estado do clone e o `.forge/config.json` ilegível recusam o disparo
 e a retomada com R-TETO; `SubagentStart` e `SubagentStop` saem com 0. Nenhum evento regrava o arquivo ilegível; o erro vai ao
 erros.log. O R-BRIEF segue antes e independente.
 H2-AUTOR-FICA-ATE-O-MERGE (v047, E2.10): o `SubagentStop` de um agente de escrita grava em `autores` o id dele e as branches que
@@ -67,7 +67,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from _comum import (LIMITE_LOG, RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check,
-                    gravar_json, ler_json, ler_projetos_ativos, mensagem)
+                    gravar_json, ler_json, ler_projetos_ativos, ler_trava, mensagem)
 import _maquina
 from pesado import CASCAS, TRAVA_S, pid_da_sessao, pid_vivo
 
@@ -389,6 +389,8 @@ def ler_estado(arquivo):
             dados = entrada.read(LIMITE_DO_ESTADO + 1)
         if len(dados) > LIMITE_DO_ESTADO:
             raise EstadoIlegivel(f"{arquivo}: passa de {LIMITE_DO_ESTADO} bytes")
+        if not dados:  # 0 byte: o ponto de montagem que o sandbox cria para caminho negado ausente (A2 da segurança); sem registro
+            return {"agentes": []}
         estado = json.loads(dados)
     except EstadoIlegivel:
         raise
@@ -469,7 +471,8 @@ def tool_use_do_meta(real, aid):
 def pesado_livre(hook, agora):
     """C9: a trava `pesado` da pasta do estado está livre: sem arquivo, ou com dono morto ou vencido (o critério do `pesado`).
     Trava que não é objeto levanta AttributeError (`.get`): o registro fica."""
-    trava = ler_json(hook.run() / "pesado.json", {})
+    trava = ler_trava(hook.run() / "pesado.json")
+    trava = {} if trava is None else trava
     desde = trava.get("desde")
     return not (isinstance(desde, (int, float)) and agora - desde < TRAVA_S and pid_vivo(trava.get("pid"), trava.get("inicio")))
 

@@ -38,7 +38,6 @@
         ".forge/config.json",
         ".forge/run/agentes.json",
         ".forge/run/pesado.json",
-        ".forge/run/pesado.fila",
         "~/.forge/maquina"
       ]
     },
