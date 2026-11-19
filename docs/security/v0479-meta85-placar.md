@@ -3,35 +3,25 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-placar
-commit: 87aff761c47ae4aa8bcf2b81c7565c71888cbcbc
+commit: 97ef4fd1e6c99380646ad2f52dbe291f2168d27b
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-19
 ---
-# Review de segurança: v0479-meta85-placar (v0478 E36.3)
+# Review de segurança: v0479-meta85-placar, revalidação (v0478 E36.7)
 
-Escopo: só o que a branch acrescenta sobre `melhoria/v0479-placar-fases` (42c2a906, já aprovada em `docs/security/v0479-placar-fases.md`): `git diff origin/melhoria/v0479-placar-fases...HEAD`, 3 commits (1e9d2cc9, 648c35e5, 87aff761). No domínio, `bin/forge-placar` (subcomando `fases`); o resto é texto (`docs/melhoria-continua.md`, fragmento de changelog), testes e mutantes.
+Volta por delta (R-REVIEW): `forge-check parecer delta docs/security/v0479-meta85-placar.md`, intervalo 87aff761..97ef4fd1. No domínio, só `bin/forge-placar` (`paradas_do_historico`, :658-673); fora, `tests/evals/test_placar.py` e dois mutantes. A rodada anterior (87aff761, aprovado com A1 recomendado) fica no git.
 
 ## Gatilhos
 Gatilhos: nenhum (ferramenta local de leitura; sem autenticação, segredo, dependência, CI, rede nem controle do Forge).
 
-## Achados
-- A1 (recomendado) bin/forge-placar:662 · uma linha `PARADA` com data impossível (ex.: mês 13) em qualquer pedido derruba o `fases` inteiro com "PARADA deve ser ...", sem dizer o arquivo; sem atacante (o pedido é escrito pelo time), mas a métrica some. Pular a linha e citar o arquivo basta.
-
 ## Sondas
-- S1 · `--ci` com `{"a":1}` · espera: saída de erro limpa · obtido: `não é uma lista de runs legível`
-- S2 · `--ci` com 100000 níveis de `[` · espera: saída de erro limpa · obtido: `não é uma lista de runs legível` (RecursionError captado)
-- S3 · `--ci` com `[{"conclusion":"failure","updatedAt":"x"}]` · espera: saída de erro limpa · obtido: `--ci deve ser AAAA-MM-DDTHH:MM`
-- S4 · `--desde 2026-11-19T10:00+99:00` · espera: recusa · obtido: `--desde deve ser AAAA-MM-DDTHH:MM`
-- S5 · pedido com `PARADA sessão 2026-13-19 10:00 até ...` · espera: linha ignorada · obtido: comando aborta (A1)
-- S6 · duas `PARADA sessão` sobrepostas (10:00-11:30 e 11:00-12:00) · espera: 2 h 00 min · obtido: 2 h 00 min
+- S5 · `PARADA sessão` com mês 13, hora 25 e ano 0000, mais uma válida 10:00-10:30 · espera: 3 avisos que citam o arquivo e 30 min · obtido: 3 vezes `PARADA com data impossível em docs/pedidos/p1.md; linha ignorada`, `sessão` = 30, rc 0
+- S7 · pedido só com a linha impossível · espera: `sessão` sai `-` (None), nunca 0 · obtido: `min: None`, rc 0
 
-## Detalhe dos achados
-Leitura do delta:
-- **gh:** o placar não chama o `gh` nem a rede; o `--ci` é um JSON gerado fora (`gh run list ...`) e lido como dado por `ler` + `json.loads` (bin/forge-placar:670-678). Só `conclusion` (comparado a `failure`/`success`) e `updatedAt`/`createdAt` (passados a `fromisoformat`) são usados; nada do run (título, branch, autor) chega à saída. Entrada malformada sai com mensagem fixa (S1-S3). Um JSON forjado só distorce a própria métrica de quem o gerou: sem ganho para atacante.
-- **Histórico do pedido:** `paradas_do_historico` (:658-664) reaproveita `historicos` (já lido), casa `PARADA` ancorado com datas só de dígitos e soma intervalos recortados na janela (`minutos_recortados`, :648-655; intervalo invertido não conta). Nada do texto da linha é ecoado: a saída traz só minutos e as fontes fixas de `FONTES_DE_PARADA` (:103-108). O `--raiz-pedidos` continua valendo sobre o `--raiz` (:775), então a fonte é a área do Jarvis.
-- **git:** o novo `%cI` e o `PR_DO_MERGE` (`#(\d+)`) só viram ISO e `int`; o `git` segue por lista, sem shell (:554).
-- A1: robustez sem caminho de ataque; recomendado ao dono do `bin/forge-placar` (`tech-lead`).
+## Detalhe
+- A1 (anterior, recomendado): **resolvido** em bin/forge-placar:666-672. O `ValueError` de `fromisoformat` é captado por linha; o aviso vai ao stderr com texto fixo e só o nome do pedido (`arq.stem` de `docs/pedidos/*.md`), nada do texto da linha ecoado; as demais linhas seguem (S5). Sem intervalo legível, devolve None em vez de 0 (S7), coerente com "fonte ausente sai -".
+- O resto do delta não muda superfície: a regex `PARADA` (:102) e `minutos_recortados` são os mesmos; `momento` deixa de ser usado nesse caminho, sem perda de validação (a regex já exige só dígitos).
 
 ## Riscos aceitos e ferramentas
 Sem risco aceito. Ferramentas: leitura do delta e sondas locais em `$TMPDIR` com `python3 -I`. Suíte: não rodada localmente (brief: sem suíte local); a suíte inteira fica com o CI do PR. Varredor de segredos e SAST não estão no PATH: lacuna registrada; o delta não traz credencial.
