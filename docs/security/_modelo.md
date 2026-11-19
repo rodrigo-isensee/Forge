@@ -16,7 +16,7 @@ Formato do bloco `## Achados` (lido por máquina em `forge-check brief gerar --v
 
 Formato do bloco `## Sondas` (PAR-P1, conferido por `forge-check docs`): em entrega de analisador ou hook, uma linha por sonda executada que prova um bloqueante, `- S<n> · <comando ou entrada literal> · espera: <resultado esperado> · obtido: <resultado obtido>`, numa linha só, sem caractere de controle, com ` · espera: ` e ` · obtido: ` uma vez cada e até 300 caracteres depois do id; só essas linhas entram no bloco, e sem sonda o bloco fica vazio.
 
-Bloqueio (`R-REVIEW`): `bloqueante` é só defeito provado, requisito ou segurança com gatilho; o resto é `recomendado` e não devolve. Promover recomendação a bloqueante exige `critério mudou:` com o motivo no achado.
+Bloqueio (`R-REVIEW`): `bloqueante` é só defeito provado, requisito ou segurança com gatilho; o resto é `recomendado` e, na segurança, volta ao autor e é corrigido antes do merge (o de review e QA vira cartão; META85). Promover recomendação a bloqueante exige `critério mudou:` com o motivo no achado.
 
 Evidência: a evidência não muda para caber (`reproduzido` não vira `visto`); se o achado não cabe nos 300 caracteres, encurte o texto, nunca a prova.
 
