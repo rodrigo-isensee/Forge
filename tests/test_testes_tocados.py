@@ -76,8 +76,17 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertIn("test_indice_forge", modulos)  # v0478 (review A2): fora da contagem, que é a dos módulos do forge-check
-        self.assertEqual(len([m for m in modulos if not m.startswith("test_oraculo_") and m != "test_indice_forge"]), 102)  # v0478 E31.1: + test_promocao_por_marca (PROMOCAO-PR-RELEASE); 102 sobre os 101 da develop. v0478 E2.1: + test_fc_pr_parecer_forjado (FC-PR-PARECER-FORJADO) e test_filtros_l08_g2_ancora (FILTROS-L08-G2-ORIGIN-LOCAL); 101 sobre os 99 da develop. v0474 E3.250: + test_maquina_teto (MP3, desta branch; 99 sobre os 98). junção v0474 E3.233: + test_maquina (MP2, MP4, desta branch; 98 sobre os 97 da develop). junção v0474 E3.208: + test_forge_check_pr (E3.45, da develop; 97 sobre os 96 da develop). junção v0474 E3.118: + test_brief_tamanho (desta branch) com test_parecer_delta e test_revisar_sha (E3.49, da develop): 96 sobre os 93. v0474 E3.48: + test_brief_tamanho (94 sobre os 93 da develop). v0474 E3.49: + test_parecer_delta e test_revisar_sha (95 sobre os 93). v0474 E2.80: + test_hooks_agentes_autor (H2, desta branch; 93 sobre os 92). junção v0474 E2.41: + test_forge_tamanho (H1, desta branch; 92 sobre os 91 da develop). junção v0474 E1.43: + test_conformidade_verde (CF1, desta branch; 91 sobre os 90 da develop). junção v047 E1.32: + test_autorizacao (A5 do review E1.11, desta branch; 90 sobre os 89 da develop). v047 E2.687: + test_estado_ilegivel (89 sobre os 88 da develop). junção v047 E2.421: + test_hook_destino_opaco e test_conformidade_opaco (A9, desta branch; 88 sobre os 86 da develop). v047 E2.222: + test_sessao_automatica (86 sobre os 85 da develop). v047 E2.117: + test_pr_hook_rapido (85 sobre os 84 da develop). v047 E2.81: 84 com #559 (test_conferida_por_branch) e #564 (test_conferencia_dois_pedidos) juntos. v047 E1.277: + test_conferencia_dois_pedidos. v047 E2.55: + test_conferida_por_branch. mp1311 E1.17: + test_pre_envio_brief. v047: + test_estado_ilegivel (HOOK-ESTADO-ILEGIVEL-LIBERA) e test_hook_erro_libera (HOOK-ERRO-LIBERA). v046: + test_pr_hook_prazo (PR-HOOK-PRAZO). v046 E20.29: + test_hook_git_comum. 0.45.7: + test_r_limites (AV5), test_forge_medidas (F6, E5.6), test_forge_dora (TM-16) e test_hooks_fila27 (FILA-27). v046 E12.1: + test_git_rede_config. 0.45.6: + test_forge_check_base_igual, test_forge_check_versao_livre e test_pre_push_link_apoio (junção), test_metricas_portoes (E1.1) e test_metricas_main_vermelha (E5.1). 0.44.2: + test_decisor (orkastery 3), test_forge_run (S5), test_meta (S4), test_pesado_fila (orkastery 5), test_aq1_texto e test_textos_034 (troca dos testes de frase). 0.44.1: + test_v0441_review (review), test_acao_da_reprovacao (O1) e test_forge_dono (O4, S2, S8, X1). 0.43.3: + test_aq5_parecer_novo, test_brief_gerar_custo, test_t1_codigo_sem_teste e evals.test_erros_por_papel (E23). 0.43.2: test_pre_push_afetados (COBERTURA-P6). 0.43.1: + evals.test_regressao_forma (I), test_governanca (H), test_selo_e_entrega (E), test_classe_risco (G) e test_parecer_conteudo (F)  # L08: test_fechar_forge_check_real e test_qa_lote_l08; L09 e L10: test_qa_lote_l09 e _l10; doutor-034: test_qa_doutor_034; E7: test_brief_forma_aceita; E4 da 0.35: test_conferente_estavel; E5 da versao-035: test_decisao_aprovacao_raiz; 0.37 E1+E2: test_historico_hora; EST-M4: test_reval_delta; ACELERA-P2: test_citacao_p2; VOLTAS-REVISOR-WT: test_revisor_wt
+        self.assertIn("test_indice_forge", modulos)  # v0478 (review A2): o teste do índice entra junto
+        # DEFEITO-CONTAGEM-FIXA-FORGE-CHECK (v0478 E18.1): conjunto mínimo em vez da contagem fixa (99), que dava conflito a
+        # cada duas branches que somavam módulo ao FORGE_CHECK. Prova o mesmo: todo módulo do FORGE_CHECK e dos evals de forma
+        # está no plano (assertIn um a um) e nada além deles, dos oráculos e do teste do índice entra; o piso barra a lista vazia.
+        minimo = set(self.f.FORGE_CHECK) | set(self.f.EVALS_DE_FORMA)
+        self.assertGreaterEqual(len(minimo), 90)
+        for modulo in sorted(minimo):
+            with self.subTest(modulo):
+                self.assertIn(modulo, modulos)
+        extras = set(modulos) - minimo - set(self.f.oraculos(RAIZ)) - {"test_indice_forge"}
+        self.assertEqual(sorted(extras), [], "módulo fora do FORGE_CHECK no plano do forge-check")
         for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
                        "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_forge_medidas", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
@@ -941,7 +950,9 @@ class MapaCobreImportacaoEVarredura(unittest.TestCase):
 class MapaDoForgeCheck(unittest.TestCase):
     """O mapa de `bin/forge-check` lista todo módulo que importa ou executa o script (FORGE-TESTES-MAPA)."""
 
-    CITA = re.compile(r'bin/forge-check|"bin"\s*[,/]\s*"forge-check"|joinpath\("bin",\s*"forge-check"\)')
+    # CITA-BIN-BARRA (v0478 E18.1): também `BIN / "forge-check"`, a constante da pasta bin/ dividida pelo nome do script
+    CITA = re.compile(r'bin/forge-check|"bin"\s*[,/]\s*"forge-check"|joinpath\("bin",\s*"forge-check"\)'
+                      r'|\bBIN\s*/\s*["\']forge-check["\']')
     IMPORTA = re.compile(r"^\s*(?:from|import)\s+(test_[a-z0-9_]+)\b", re.M)
     IMPORTA_APOIO = re.compile(r"^\s*(?:from|import)\s+(apoio_[a-z0-9_]+)\b", re.M)
 
@@ -971,6 +982,15 @@ class MapaDoForgeCheck(unittest.TestCase):
         listados = set(carregar().FORGE_CHECK)
         self.assertEqual(sorted(usam - listados), [], "faltam no mapa FORGE_CHECK")
         self.assertEqual(sorted(listados - usam), [], "sobram no mapa FORGE_CHECK")
+
+    def test_cita_reconhece_as_formas_do_caminho_do_script(self):  # CITA-BIN-BARRA (v0478 E18.1)
+        for texto in ('BIN / "forge-check"', "BIN/'forge-check'", 'RAIZ / "bin/forge-check"', 'RAIZ / "bin" / "forge-check"',
+                      'RAIZ.joinpath("bin", "forge-check")'):
+            with self.subTest(texto):
+                self.assertTrue(self.CITA.search(texto))
+        for texto in ('BIN / "forge-changelog"', 'SBIN / "forge-check"', 'BIN / "forge_check.py"'):
+            with self.subTest(texto):
+                self.assertIsNone(self.CITA.search(texto))
 
     def test_erros_no_brief_roda_quando_so_o_forge_check_muda(self):
         modo, modulos = carregar().planejar(["bin/forge-check"], RAIZ)
@@ -1193,6 +1213,22 @@ class Vermelho(unittest.TestCase):
         modulos, linha = self.modulos_do_vermelho(r)
         self.assertEqual(modulos, ["test_forge", "test_outro", "test_sugerir"], r.stdout + r.stderr)
         self.assertNotIn("restrito", linha)
+
+    # VERMELHO-COM-PROGRESSO (v0478 E18.1): o teto e uma linha por módulo no stderr; os módulos de teste do diff primeiro.
+    def test_vermelho_escreve_progresso_com_o_teto_e_os_modulos_do_diff_primeiro(self):
+        self.com_modulos_do_mapa()
+        self.gravar("bin/forge-sugerir", "x = 2\n")
+        self.gravar("tests/test_sugerir.py", self.TRIVIAL + "# mudou\n")
+        self.salvar("muda")
+        r = self.rodar("--vermelho", "HEAD~1", "--prazo", "30")
+        progresso = [l for l in r.stderr.splitlines() if l.startswith("vermelho: ")]
+        self.assertEqual(progresso[0], "vermelho: 2 módulos em duas cópias, em série; prazo de 30 s por módulo e cópia "
+                                       "(teto 120 s)", r.stderr)
+        self.assertRegex(progresso[1], r"^vermelho: \[1/2\] test_sugerir H \d+\.\d s, B \d+\.\d s; \d+ s no total$")
+        self.assertRegex(progresso[2], r"^vermelho: \[2/2\] test_forge H ")
+        self.assertEqual(len(progresso), 3, r.stderr)
+        modulos, _ = self.modulos_do_vermelho(r)
+        self.assertEqual(modulos, ["test_forge", "test_sugerir"])  # a linha da saída segue em ordem alfabética
 
     # VERMELHO-FILTRO: os dados de teste do diff (a spec de mutantes de todo item) não levam à suíte completa.
     def test_vermelho_com_spec_e_fixture_no_diff_roda_so_o_plano_do_mapa(self):

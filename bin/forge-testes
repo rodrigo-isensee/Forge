@@ -22,6 +22,8 @@ Os módulos do plano dirigido rodam em paralelo por `scripts/suite-partes.py` (o
                 $TMPDIR (o HEAD, e o HEAD com a produção do diff devolvida à base) e classifica cada teste.
                 Nunca escreve na árvore de trabalho, que precisa estar limpa. Saída 0 = há prova e nada cai no HEAD;
                 1 = sem prova ou com falha no HEAD; 2 = uso inválido, erro do git ou sem veredito.
+                Progresso no stderr, na hora: o teto (módulos x 2 cópias x prazo) e uma linha por módulo, com o tempo de
+                cada cópia; os módulos de teste do diff rodam primeiro.
 
 Convenção (O2, 0.44.1): sem regra no mapa, bin/forge-x leva a tests/test_forge_x.py, hooks/x.py e scripts/x.py a
 tests/test_x.py (se o arquivo existe); o mapa fica para as exceções. Sem as duas (E14.1): bin/forge-x leva a tests/test_x.py,
@@ -747,6 +749,11 @@ def estado_da_arvore():
     return git("status", "--porcelain")
 
 
+def progresso(texto):
+    """VERMELHO-COM-PROGRESSO: uma linha no stderr, na hora, enquanto a prova roda; a saída (stdout) não muda."""
+    print(f"vermelho: {texto}", file=sys.stderr, flush=True)
+
+
 def vermelho(base_pedida, modulos_pedidos, prazo):
     raiz = Path.cwd()
     base = resolver(base_pedida)
@@ -803,11 +810,18 @@ def vermelho(base_pedida, modulos_pedidos, prazo):
         montar_copia(raiz, base_dir, cabeca)
         devolver_producao(base_dir, ancora, producao)
         linhas, contagem, sem_veredito, falhou = [], {}, False, False
-        for modulo in modulos:
-            lados = {}
+        progresso(f"{len(modulos)} módulos em duas cópias, em série; prazo de {prazo} s por módulo e cópia "
+                  f"(teto {2 * len(modulos) * prazo} s)")
+        # VERMELHO-COM-PROGRESSO (v0478 E18.1): os módulos de teste do diff, os que provam, rodam primeiro
+        for numero, modulo in enumerate(sorted(modulos, key=lambda m: (m not in modificados, m)), 1):
+            lados, segundos = {}, {}
             for lado, copia in (("H", cabeca_dir), ("B", base_dir)):
                 registro = trabalho / f"{lado}-{modulo}.jsonl"
+                comeco = time.monotonic()
                 lados[lado] = ler_registro(registro) if rodar_modulo(copia, modulo, registro, prazo) else None
+                segundos[lado] = time.monotonic() - comeco
+            progresso(f"[{numero}/{len(modulos)}] {modulo} H {segundos['H']:.1f} s, B {segundos['B']:.1f} s; "
+                      f"{time.monotonic() - inicio:.0f} s no total")
             if lados["H"] is None or lados["B"] is None:
                 quem = ",".join(l for l in lados if lados[l] is None)
                 linhas.append(f"{modulo} · sem veredito (prazo, sinal ou executor sem registro em {quem})")
