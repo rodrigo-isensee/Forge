@@ -44,10 +44,10 @@
     },
     {
       "id": "S1",
-      "guarda": "MP2: registro ilegível no status vale nenhum",
+      "guarda": "MP2/MP8: arquivo da máquina ilegível no status vale vazio",
       "arquivo": "bin/forge-status",
-      "de": "    except (ValueError, AttributeError, OSError):\n        vivas = {}",
-      "para": "    except (ValueError, AttributeError, OSError):\n        raise",
+      "de": "        except (ValueError, OSError, RecursionError):\n            dados = {}",
+      "para": "        except (ValueError, OSError, RecursionError):\n            raise",
       "testes": [
         "tests.test_maquina.Registro.test_registro_ilegivel_recomeca"
       ]

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "o trecho ocorre dentro do nó (mutante: trecho ausente cruza)",
+      "arquivo": "bin/forge-mutante",
+      "de": "return no_no and all(",
+      "para": "return True and all(",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_velha_sai_a_parte_depois_da_cobertura_inteira_e_1"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "a isenta velha dá rc 1 (mutante: rc 0)",
+      "arquivo": "bin/forge-mutante",
+      "de": "\"apagada\", \"isenta velha\"))",
+      "para": "\"apagada\"))",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_para_arquivo_de_shell_e_velha_e_sai_1"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "só as cópias de mesmo texto entram (mutante: toda condição nova do arquivo)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if c[0] == texto]",
+      "para": "if c[0] != texto]",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_vale_para_cada_condicao_nova_com_o_mesmo_trecho"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "a isenta cruza pelo modo da condição nova (mutante: o modo nunca chega a cruza)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto, nova):",
+      "para": "if cruza(i, usadas, arquivo, dados, ini, fim, pelo_texto, None):",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_vale_para_cada_condicao_nova_com_o_mesmo_trecho"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "a isenta velha é avisada em stderr (mutante: o aviso some)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if soltas:  # à parte",
+      "para": "if False:  # à parte",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_velha_sai_a_parte_depois_da_cobertura_inteira_e_1"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "a isenta que a spec da base já trazia fica fora do rc (mutante: sai velha)",
+      "arquivo": "bin/forge-mutante",
+      "de": "if (i[\"arquivo\"], i[\"trecho\"]) in isentas_na_base(i[\"spec\"], mb):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_na_volta_a_isenta_da_spec_da_base_fica_fora_do_rc_e_a_nova_velha_conta"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "só a velha entra no aviso e no rc (mutante: a de fora do diff também)",
+      "arquivo": "bin/forge-mutante",
+      "de": "soltas = [x for x in linhas if x.startswith(\"isenta velha\")]",
+      "para": "soltas = [x for x in linhas if True]",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_na_volta_a_isenta_da_spec_da_base_fica_fora_do_rc_e_a_nova_velha_conta"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "a spec que a base não tem não traz isenta (mutante: a leitura falha e derruba a cobertura)",
+      "arquivo": "bin/forge-mutante",
+      "de": "    except (ValueError, TypeError, KeyError, AttributeError):\n        return set()",
+      "para": "    except (ValueError, TypeError, KeyError, AttributeError):\n        raise",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_para_arquivo_de_shell_e_velha_e_sai_1"
+      ]
+    }
+  ]
+}

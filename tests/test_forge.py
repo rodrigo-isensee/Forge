@@ -7187,7 +7187,7 @@ class PesosDaSuite(unittest.TestCase):
             len(sem_peso) * 5,
             len(modulos),
             f"{len(sem_peso)} de {len(modulos)} módulos sem peso ({', '.join(sem_peso)}); "
-            "regrave com FORGE_SUITE_MEDIR=1 python3 scripts/suite-paralela.py",
+            "meça cada um com python3 scripts/suite-paralela.py --medir <módulo> (ou a suíte inteira com FORGE_SUITE_MEDIR=1)",
         )
 
 

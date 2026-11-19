@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-guardas-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M47",
+      "guarda": "--remove-files apaga os operandos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for d in (\".\", *pastas)] if remove else []",
+      "para": "for d in (\".\", *pastas)] if False else []",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M48",
+      "guarda": "cpio -p extrai também",
+      "arquivo": "hooks/conformidade.py",
+      "de": "extrai = bool(letras & set(\"ip\"))",
+      "para": "extrai = bool(letras & set(\"i\"))",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M49",
+      "guarda": "cpio -o grava o arquivo de -F",
+      "arquivo": "hooks/conformidade.py",
+      "de": "cria = \"o\" in letras or any(",
+      "para": "cria = False or any(",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M50",
+      "guarda": "cpio sem extração, nenhuma pasta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "+ operandos if extrai else []",
+      "para": "+ operandos if True else []",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_find_tar_e_chmod_fora_do_estado_seguem_livres"
+      ]
+    },
+    {
+      "id": "M51",
+      "guarda": "unzip sem -d extrai na pasta corrente",
+      "arquivo": "hooks/conformidade.py",
+      "de": "destinos.pasta) or [\".\"], [], [], [])",
+      "para": "destinos.pasta) or [], [], [], [])",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M52",
+      "guarda": "7z e extrai como x",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if comando in (\"x\", \"e\") else []",
+      "para": "if comando in (\"x\",) else []",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M53",
+      "guarda": "7z -sdel apaga os operandos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "removidos = operandos[2:] if any(c[1:].lower() in destinos.remove for c in chaves) else []",
+      "para": "removidos = operandos[2:] if False else []",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M54",
+      "guarda": "7z a grava o arquivo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "arquivo if comando in (\"a\", \"u\", \"d\", \"rn\") else []",
+      "para": "arquivo if False else []",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    }
+  ]
+}

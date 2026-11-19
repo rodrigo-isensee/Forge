@@ -1,0 +1,26 @@
+{
+  "descricao": "AGENTES-JSON-SEM-GUARDA (R-CONFORMIDADE): no clone do Forge, a sessão principal (sem agent_type, jarvis) grava o agentes.json: recusa, sem exceção por papel (C12).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    ".forge/config.json": "{\"teto_agentes\": 2}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/.git/forge/run/agentes.json",
+      "content": "{}"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "marca de sessão dos hooks (.git/forge/)"
+  }
+}

@@ -797,13 +797,13 @@ class PerguntasAbertas(unittest.TestCase):  # diretriz 29 (FOCO-NAS-DECISOES, v0
     def test_quadro_ilegivel_vira_aviso(self):  # QA A1, bug V047-PA-01
         self.pedido("a", 'PERGUNTA AO DONO (2026-11-03 10:00): → "pode A?"')
         (self.raiz / "KANBAN.md").write_text(self.QUADRO, encoding="utf-8")
-        ler = Path.read_text
+        abrir = Path.open
 
-        def read_text(caminho, *args, **kw):
+        def open_(caminho, *args, **kw):  # a leitura com teto (A2 da segurança, MP8) abre pelo Path.open
             if caminho.name == "KANBAN.md":
                 raise PermissionError(13, "Permission denied")
-            return ler(caminho, *args, **kw)
-        with unittest.mock.patch.object(Path, "read_text", read_text):
+            return abrir(caminho, *args, **kw)
+        with unittest.mock.patch.object(Path, "open", open_):
             linhas = self.abertas()
         self.assertEqual([linhas[0], linhas[-1]], ["abertas: aviso: KANBAN.md ilegível (PermissionError); fora da lista", "abertas: total=1"])
 

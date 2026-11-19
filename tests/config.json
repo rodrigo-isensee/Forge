@@ -493,7 +493,8 @@
       "\\*\\*Uma passada:\\*\\*",
       "commit fora do domínio não o invalida",
       "Rigor por classe \\(`forge-check classe`\\)",
-      "Estilo, nome, estrutura e preferência são sugestão"
+      "Estilo, nome, estrutura e preferência são sugestão",
+      "a de review e QA vira cartão depois do merge; a de segurança é corrigida antes"
     ],
     "docs/regras/R-FLUXO.md": [
       "Fila de integração na `develop`",
@@ -757,7 +758,8 @@
       "\\*\\*Uma volta por rodada:\\*\\* os bloqueantes dos três portões \\(review, segurança e QA\\) no mesmo head viram um brief único",
       "pare o agente novo e retome o autor por `SendMessage`, salvo se ele travou",
       "`forge-check brief gerar --pedido <p> --volta <brief anterior> --ref <branch> --parecer <arquivo>\\.\\.\\.`",
-      "Recomendação não entra"
+      "Recomendação não entra",
+      "salvo a de segurança, que entra por `--incluir <parecer>:A<n>` e é corrigida antes do merge"
     ]
   },
   "invariantes_motivo": {

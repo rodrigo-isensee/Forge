@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "MP8-8",
+      "guarda": "MP8: arquivo da máquina fora da forma vale vazio",
+      "arquivo": "bin/forge-status",
+      "de": "lidos.append(dados if isinstance(dados, dict) else {})",
+      "para": "lidos.append(dados if True else {})",
+      "testes": [
+        "tests.test_maquina.UmProjeto.test_decisoes_por_link_e_uso_fora_da_forma"
+      ]
+    },
+    {
+      "id": "MP8-9",
+      "guarda": "MP8: sem leitura de memória, o texto diz",
+      "arquivo": "bin/forge-status",
+      "de": "if livre is not None else \"memória sem leitura\"",
+      "para": "if True else \"memória sem leitura\"",
+      "testes": [
+        "tests.test_maquina.SemProjeto.test_sem_leitura_de_proc_nem_de_nucleos"
+      ]
+    },
+    {
+      "id": "MP8-10",
+      "guarda": "MP8/MP5: registro de projetos ilegível recusa o escape",
+      "arquivo": "bin/forge-status",
+      "de": "\" if nomes is None",
+      "para": "\" if False",
+      "testes": [
+        "tests.test_maquina.SemProjeto.test_registro_ilegivel_nao_lista_e_recusa_o_escape"
+      ]
+    },
+    {
+      "id": "MP8-11",
+      "guarda": "MP8/MP5: com dois projetos ativos o escape não vale",
+      "arquivo": "bin/forge-status",
+      "de": "if len(nomes) > 1 else",
+      "para": "if len(nomes) > 2 else",
+      "testes": [
+        "tests.test_maquina.VariosProjetos.test_varios_projetos_repartem_o_teto_pelo_peso_e_o_escape_nao_vale"
+      ]
+    },
+    {
+      "id": "MP8-12",
+      "guarda": "MP8: carga sem leitura vale ?",
+      "arquivo": "bin/forge-status",
+      "de": "carga if carga is not None else '?'",
+      "para": "carga if True else '?'",
+      "testes": [
+        "tests.test_maquina.SemProjeto.test_sem_leitura_de_proc_nem_de_nucleos"
+      ]
+    },
+    {
+      "id": "MP8-13",
+      "guarda": "MP8: núcleos sem leitura vale ?",
+      "arquivo": "bin/forge-status",
+      "de": "{nproc or '?'} núcleos",
+      "para": "{nproc} núcleos",
+      "testes": [
+        "tests.test_maquina.SemProjeto.test_sem_leitura_de_proc_nem_de_nucleos"
+      ]
+    },
+    {
+      "id": "MP8-14",
+      "guarda": "MP8 (A1 da segurança): pasta .forge ou .claude-plugin por link não se lê",
+      "arquivo": "bin/forge-status",
+      "de": "        if (Path(pasta) / nome).parent.is_symlink():",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_maquina.UmProjeto.test_pasta_da_versao_em_link_nao_se_segue"
+      ]
+    },
+    {
+      "id": "MP8-15",
+      "guarda": "MP8 (A2 da segurança): pedido ou KANBAN acima do teto vale ilegível",
+      "arquivo": "bin/forge_dono.py",
+      "de": "    if len(bruto) > TETO_DO_ARQUIVO:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_maquina.UmProjeto.test_pedido_acima_do_teto_nao_conta"
+      ]
+    }
+  ]
+}

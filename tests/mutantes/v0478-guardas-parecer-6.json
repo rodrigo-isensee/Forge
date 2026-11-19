@@ -1,0 +1,46 @@
+{
+  "pedido": "v0478-guardas-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M35",
+      "guarda": "GH-REPO-DE-ARQUIVO: `NOME=valor` com expansão só no valor tem o nome literal",
+      "arquivo": "hooks/parecer.py",
+      "de": "return any(expande(p) and not ATRIBUICAO.match(p) for p in args)",
+      "para": "return any(expande(p) for p in args)",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "GH-REMOTO-RESOLVIDO (A6 da E3.13): sem os remotos da cópia, recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if codigo:\n        bloquear(\"R-REVIEW\", \"gh pr numa cópia cujos remotos",
+      "para": "    if False:\n        bloquear(\"R-REVIEW\", \"gh pr numa cópia cujos remotos",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "GH-REPO-DE-ARQUIVO: `declare -n r=GH_REPO`, o lado do valor também é nome",
+      "arquivo": "hooks/parecer.py",
+      "de": "nomes |= {n for p in comando[1:] for n in p.split(\"=\")}",
+      "para": "nomes |= {p.split(\"=\", 1)[0] for p in comando[1:]}",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "GH-REMOTO-RESOLVIDO (A6 da E3.13): o remote.<n>.gh-resolved é repositório do gh",
+      "arquivo": "hooks/parecer.py",
+      "de": "return {slug(v) for v in valores + [linha.partition(\" \")[2] for linha in resolvidos]} - {None}",
+      "para": "return {slug(v) for v in valores} - {None}",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    }
+  ]
+}

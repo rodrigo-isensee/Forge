@@ -1,0 +1,66 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "--medir: módulo que a descoberta não acha sai 2 sem rodar (mutante: segue com o nome)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    if nome not in modulos():",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_medir_modulo_que_nao_existe_sai_2_sem_rodar_nem_gravar"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "--medir: módulo vermelho ou guarda reprovada não regrava os pesos (mutante: regrava sempre)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    if erros:\n        for erro in erros:\n            print(f\"suite-paralela: {erro}\", file=sys.stderr)\n        print(f\"suite-paralela: {nome} vermelho",
+      "para": "    if False:\n        for erro in erros:\n            print(f\"suite-paralela: {erro}\", file=sys.stderr)\n        print(f\"suite-paralela: {nome} vermelho",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_medir_modulo_vermelho_sai_1_sem_regravar"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "--medir: a guarda de completude reprovada não regrava os pesos (mutante: só o resultado dos testes barra)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    erros = da_divisao + erros  #",
+      "para": "    erros = []  #",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_medir_com_guarda_de_completude_reprovada_nao_regrava"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "--medir: o sinal sai com 128 + o número, sem regravar (mutante: sai 0)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    except Interrompido as e:\n        return 128 + e.numero\n    erros = da_divisao",
+      "para": "    except Interrompido as e:\n        return 0\n    erros = da_divisao",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_medir_interrompido_sai_com_o_sinal_sem_regravar"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "--medir: só com exatamente um módulo; sem ele ou com mais, o uso e saída 2 (mutante: aceita qualquer quantidade)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    if len(argv) == 2 and argv[0] == \"--medir\":",
+      "para": "    if len(argv) >= 1 and argv[0] == \"--medir\":",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_medir_sem_modulo_ou_com_mais_argumentos_mostra_o_uso"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "--vermelho: os módulos de teste do diff rodam primeiro (mutante: rodam por último)",
+      "arquivo": "bin/forge-testes",
+      "de": "key=lambda m: (m not in modificados, m)",
+      "para": "key=lambda m: (m in modificados, m)",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_escreve_progresso_com_o_teto_e_os_modulos_do_diff_primeiro"
+      ]
+    }
+  ]
+}

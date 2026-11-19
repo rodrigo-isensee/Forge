@@ -1,0 +1,16 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M18",
+      "guarda": "a ocorrência cabe inteira no nó (mutante: o trecho que passa do fim cruza)",
+      "arquivo": "bin/forge-mutante",
+      "de": "return ini <= onde and onde + tamanho <= fim",
+      "para": "return ini <= onde",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_velha_sai_a_parte_depois_da_cobertura_inteira_e_1"
+      ]
+    }
+  ]
+}

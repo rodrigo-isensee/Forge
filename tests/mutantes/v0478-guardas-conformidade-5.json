@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-guardas-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M31",
+      "guarda": "depois de -- só operandos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if a == \"--\" and not fim:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_find_tar_e_chmod_fora_do_estado_seguem_livres"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "o grupo velho do tar sem - na primeira palavra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "not a.startswith(\"-\") and not (velho and i == 1 and re.fullmatch(r\"[A-Za-z]+\", a)):",
+      "para": "not a.startswith(\"-\"):",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "longa com valor toma a palavra seguinte",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if not igual and longa_do_tar(nome, longas_com_valor) and i < len(args):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "toda letra com valor, não só f e C",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if letra in curtas_com_valor:",
+      "para": "                if letra in \"fC\":",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "valor colado na letra (S1, S2)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "valor = \"\" if velho else grupo[k + 1:]",
+      "para": "valor = \"\" if True else grupo[k + 1:]",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "sem valor colado, a palavra seguinte",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    if not valor and i < len(args):",
+      "para": "                    if False:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "no grupo com -, a letra com valor encerra o grupo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    if not velho:\n                        break",
+      "para": "                    if False:\n                        break",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "as longas saem dos valores",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return [n for n, _ in valores if len(n) > 1]",
+      "para": "    return [n for n, _ in valores if False]",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    }
+  ]
+}

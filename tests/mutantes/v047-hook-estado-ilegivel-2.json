@@ -26,8 +26,8 @@
       "id": "M11",
       "guarda": "R5 (A3): a configuração se lê antes do estado",
       "arquivo": "hooks/agentes.py",
-      "de": "        if raiz is not None:\n            hook.config()",
-      "para": "        if False:\n            hook.config()",
+      "de": "        if raiz is not None:\n            ler_config(hook)",
+      "para": "        if False:\n            ler_config(hook)",
       "testes": [
         "tests.test_agentes_clone.RegistroNoClone.test_config_ilegivel_no_clone_recusa_sem_gravar"
       ]

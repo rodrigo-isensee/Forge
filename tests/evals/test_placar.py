@@ -294,5 +294,284 @@ class Disco(Placar):
             self.assertEqual(mod.disco(), {"uso": 37, "limiar": 90})
 
 
+# META85 (ordem do dono 18/11): `forge-placar fases`, sobre um repositório git temporário com datas fixas em 2025.
+def ambiente_limpo(raiz):
+    """Ambiente limpo: nada herdado de quem roda a suíte (AR-4), sem config global nem de sistema."""
+    return sem_manutencao({"PATH": os.environ.get("PATH", ""), "HOME": str(raiz / "home"), "GIT_CONFIG_GLOBAL": os.devnull,
+                           "GIT_CONFIG_NOSYSTEM": "1", "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+                           "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
+
+
+def parecer_md(resultado):
+    return f"---\ntipo: review\nparecer: {resultado}\n---\n# parecer\n"
+
+
+class Fases(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.raiz = Path(tempfile.mkdtemp(prefix="forge-placar-fases-"))
+        cls.repo = cls.raiz / "repo"
+        cls.repo.mkdir()
+        cls.env = ambiente_limpo(cls.raiz)
+        cls.git("init", "-q", "-b", "develop")
+        cls.commit("2025-03-17T09:00", {"base.txt": "0"}, "chore: base")
+        # Item A (dia 18): desenvolvimento 30, pareceres 30, voltas 30, integração 30; o review reprova na 1.ª rodada
+        cls.git("switch", "-q", "-c", "melhoria/a")
+        cls.commit("2025-03-18T10:00", {"a.py": "1"}, "feat: a")
+        cls.commit("2025-03-18T10:30", {"a.py": "2"}, "feat: a mais")
+        cls.commit("2025-03-18T10:40", {"docs/reviews/a.md": parecer_md("reprovado")}, "docs(review): reprova")
+        cls.commit("2025-03-18T10:45", {"docs/qa/bugs/a-01.md": "# bug sem frontmatter\n"}, "docs(qa): bug")
+        cls.commit("2025-03-18T11:00", {"a.py": "3", "docs/devops/nota.md": "nota\n"}, "fix: a com nota")  # misto: é código
+        cls.commit("2025-03-18T11:20", {"docs/reviews/a.md": parecer_md("aprovado")}, "docs(review): aprova")
+        cls.commit("2025-03-18T11:30", {"docs/qa/a.md": parecer_md("aprovado")}, "docs(qa): aprova")
+        cls.mesclar("melhoria/a", "2025-03-18T12:00", "Merge pull request #7 from dono/melhoria/a")
+        # Item B (dia 18): pareceres 20, integração 30; aprovado na 1.ª rodada
+        cls.git("switch", "-q", "-c", "melhoria/b")
+        cls.commit("2025-03-18T13:00", {"b.py": "1"}, "feat: b")
+        cls.commit("2025-03-18T13:20", {"docs/security/b.md": parecer_md("aprovado")}, "docs(security): aprova")
+        cls.mesclar("melhoria/b", "2025-03-18T13:50", "Merge branch 'melhoria/b' into develop")
+        # Item C (dia 19): sem parecer, assunto fora dos dois formatos
+        cls.git("switch", "-q", "-c", "melhoria/c")
+        cls.commit("2025-03-19T14:00", {"c.py": "1"}, "feat: c")
+        cls.commit("2025-03-19T14:10", {"c.py": "2"}, "feat: c mais")
+        cls.mesclar("melhoria/c", "2025-03-19T14:30", "integra c")
+        # Item D (dia 20): tudo no mesmo minuto, total 0
+        cls.git("switch", "-q", "-c", "melhoria/d")
+        cls.commit("2025-03-20T15:00", {"d.py": "1"}, "feat: d")
+        cls.mesclar("melhoria/d", "2025-03-20T15:00", "Merge pull request #9 from dono/melhoria/d")
+        # Item E (dia 21): squash como o do forge-fechar (`gh pr merge --squash`: um pai, "<título> (#11)"), com os commits do
+        # PR em refs/pull/11/head; pareceres 20, integração 40. No mesmo dia, um commit direto (fora) e o squash #12 sem a ref.
+        cls.git("switch", "-q", "-c", "melhoria/e")
+        cls.commit("2025-03-21T09:00", {"e.py": "1"}, "feat: e")
+        cls.commit("2025-03-21T09:20", {"docs/reviews/e.md": parecer_md("aprovado")}, "docs(review): aprova")
+        cls.git("update-ref", "refs/pull/11/head", "melhoria/e")
+        cls.git("switch", "-q", "develop")
+        cls.git("merge", "-q", "--squash", "melhoria/e")
+        cls.git("commit", "-q", "-m", "feat: e (#11)", quando="2025-03-21T10:00")
+        cls.commit("2025-03-21T10:30", {"direto.txt": "1"}, "chore: commit direto")
+        cls.commit("2025-03-21T11:00", {"g.py": "1"}, "feat: g (#12)")
+        # Dia 22: só um squash sem a ref do PR
+        cls.commit("2025-03-22T11:00", {"h.py": "1"}, "feat: h (#13)")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.raiz, ignore_errors=True)
+
+    @classmethod
+    def git(cls, *args, quando="2025-03-17T08:00"):
+        env = dict(cls.env, GIT_AUTHOR_DATE=f"{quando}:00+0000", GIT_COMMITTER_DATE=f"{quando}:00+0000")
+        subprocess.run(["git", *args], cwd=cls.repo, env=env, check=True, capture_output=True, timeout=30)
+
+    @classmethod
+    def commit(cls, quando, arquivos, msg):
+        for nome, texto in arquivos.items():
+            (cls.repo / nome).parent.mkdir(parents=True, exist_ok=True)
+            (cls.repo / nome).write_text(texto, encoding="utf-8")
+        cls.git("add", "-A")
+        cls.git("commit", "-q", "-m", msg, quando=quando)
+
+    @classmethod
+    def mesclar(cls, branch, quando, msg):
+        cls.git("switch", "-q", "develop")
+        cls.git("merge", "-q", "--no-ff", "-m", msg, branch, quando=quando)
+
+    def rodar(self, *args):
+        r = subprocess.run([sys.executable, "-I", str(PLACAR), "fases", "--git", str(self.repo), "--ref", "develop", *args],
+                           capture_output=True, text=True, env=self.env, cwd=self.raiz, timeout=60)
+        return r.returncode, r.stdout, r.stderr
+
+    def json(self, dia):
+        rc, saida, erro = self.rodar("--dia", dia, "--json")
+        self.assertEqual(rc, 0, erro)
+        return json.loads(saida)
+
+    def test_fases_e_primeira_rodada_por_item_e_total_do_dia(self):
+        dados = self.json("2025-03-18")
+        itens = {i["item"]: i for i in dados["itens"]}
+        self.assertEqual(set(itens), {"melhoria/a", "melhoria/b"})  # o C e o D, de outros dias, ficam fora
+        a, b = itens["melhoria/a"], itens["melhoria/b"]
+        self.assertEqual(a["fases"], {"desenvolvimento": 30, "pareceres": 30, "voltas": 30, "integração": 30})
+        self.assertEqual((a["total"], a["primeira_rodada"]), (120, False))  # a 1.ª versão do review reprovou
+        self.assertEqual(b["fases"], {"desenvolvimento": 0, "pareceres": 20, "voltas": 0, "integração": 30})
+        self.assertEqual((b["total"], b["primeira_rodada"]), (50, True))
+        self.assertEqual((dados["soma"]["integração"], dados["media_min"], dados["meta_min"], dados["primeira_rodada"]), (60, 85, 85, [1, 2]))
+
+    def test_texto_traz_a_meta_e_a_primeira_rodada(self):
+        rc, saida, erro = self.rodar("--dia", "2025-03-18")
+        self.assertEqual(rc, 0, erro)
+        self.assertIn("meta 85 min do 1.º commit ao merge", saida)
+        self.assertIn("item melhoria/a: desenvolvimento 30 min · pareceres 30 min · voltas 30 min · integração 30 min · total 120 min"
+                      " · primeira rodada aprovada: não", saida)
+        self.assertIn("total do dia: 2 itens · desenvolvimento 30 min (18%)", saida)
+        self.assertIn("média 85 min por item (meta 85 min) · primeira rodada aprovada 1/2", saida)
+
+    def test_item_sem_parecer_e_assunto_sem_branch(self):
+        (c,) = self.json("2025-03-19")["itens"]
+        self.assertEqual(len(c["item"]), 8)  # o sha curto do merge
+        self.assertEqual(c["fases"], {"desenvolvimento": 10, "pareceres": 0, "voltas": 0, "integração": 20})
+        self.assertIsNone(c["primeira_rodada"])
+
+    def test_item_de_total_zero_nao_divide_por_zero(self):
+        rc, saida, erro = self.rodar("--dia", "2025-03-20")
+        self.assertEqual(rc, 0, erro)
+        self.assertIn("total do dia: 1 itens · desenvolvimento 0 min (0%)", saida)
+        self.assertIn("primeira rodada aprovada: -", saida)
+
+    def test_dia_sem_item(self):
+        dados = self.json("2025-03-17")
+        self.assertEqual((dados["itens"], dados["media_min"], dados["primeira_rodada"]), ([], None, [0, 0]))
+        rc, saida, _ = self.rodar("--dia", "2025-03-17")
+        self.assertEqual((rc, saida.splitlines()[-1]), (0, "total do dia: nenhum item mesclado"))
+
+    def test_sem_dia_vale_hoje(self):
+        rc, saida, erro = self.rodar("--json")
+        self.assertEqual(rc, 0, erro)
+        self.assertEqual(json.loads(saida)["itens"], [])  # o repositório só tem 2025
+
+    def test_sem_git_vale_a_pasta_atual(self):
+        r = subprocess.run([sys.executable, "-I", str(PLACAR), "fases", "--ref", "develop", "--dia", "2025-03-19", "--json"],
+                           capture_output=True, text=True, env=self.env, cwd=self.repo, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(len(json.loads(r.stdout)["itens"]), 1)
+
+    def test_squash_mede_pelos_commits_do_pr_e_conta_a_parte_sem_eles(self):  # review A1 do v0479-placar-fases
+        dados = self.json("2025-03-21")
+        (e,) = dados["itens"]
+        self.assertEqual(e["item"], "#11")
+        self.assertEqual(e["fases"], {"desenvolvimento": 0, "pareceres": 20, "voltas": 0, "integração": 40})
+        self.assertEqual((e["total"], e["primeira_rodada"], dados["media_min"], dados["sem_fases"]), (60, True, 60, 1))
+        rc, saida, erro = self.rodar("--dia", "2025-03-21")
+        self.assertEqual(rc, 0, erro)
+        self.assertIn("itens sem fases (squash): 1 (", saida)
+        self.assertIn("total do dia: 1 itens · ", saida)
+
+    def test_dia_so_com_squash_sem_ref_nao_diz_nenhum_mesclado(self):
+        self.assertEqual((self.json("2025-03-22")["itens"], self.json("2025-03-22")["sem_fases"]), ([], 1))
+        rc, saida, erro = self.rodar("--dia", "2025-03-22")
+        self.assertEqual((rc, saida.splitlines()[-2:]), (0, ["itens sem fases (squash): 1 (sem os commits do PR em refs/pull/N/head;"
+                                                            " fora da média)", "total do dia: nenhum item medido"]))
+
+    def test_dia_sem_squash_nao_traz_a_linha(self):
+        rc, saida, _ = self.rodar("--dia", "2025-03-18")
+        self.assertNotIn("itens sem fases", saida)
+        self.assertEqual(self.json("2025-03-18")["sem_fases"], 0)
+
+    def test_ref_que_nao_existe_sai_com_2(self):
+        r = subprocess.run([sys.executable, "-I", str(PLACAR), "fases", "--git", str(self.repo), "--ref", "nao-existe"],
+                           capture_output=True, text=True, env=self.env, cwd=self.repo, timeout=60)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("git log falhou", r.stderr)
+
+
+# PLACAR-SEM-TESTE-POR-SEMANA (decisão do dono 18/11 15:10): `--prs` com JSON de exemplo, sem rede nem git.
+EXEMPLO = [
+    {"mergedAt": "2026-11-06T23:00:00Z", "body": "## Sem teste\nantes da janela"},
+    {"mergedAt": "2026-11-07T10:00:00Z", "body": "## Sem teste\nsó texto"},
+    {"mergedAt": "2026-11-10T10:00:00Z", "body": "## Sem teste\nmotivo"},
+    {"mergedAt": "2026-11-10T11:00:00Z", "body": "Sem teste no texto, sem a seção"},
+    {"mergedAt": "2026-11-11T10:00:00Z", "body": "### Sem teste\noutro nível de título"},
+    {"mergedAt": "2026-11-12T10:00:00Z", "body": None},
+    {"mergedAt": "2026-11-16T10:00:00Z", "body": "## O que mudou\nx\n\n## sem teste  \nmotivo"},
+    {"mergedAt": "2026-11-20T10:00:00Z", "body": "## O que mudou\nx"},
+    {"mergedAt": "2026-11-21T00:00:00Z", "body": "## Sem teste\nno fim exclusivo da janela"},
+    {"mergedAt": None, "body": "## Sem teste\nPR aberto"},
+    "não é PR",
+]
+
+
+class SemTeste(unittest.TestCase):
+    def setUp(self):
+        self.raiz = Path(tempfile.mkdtemp(prefix="forge-placar-sem-teste-"))
+        self.addCleanup(shutil.rmtree, self.raiz, ignore_errors=True)
+
+    def rodar(self, *args):
+        """Python com -I e ambiente limpo (AR-4): nada herdado de quem roda a suíte."""
+        env = {"PATH": os.environ.get("PATH", ""), "HOME": str(self.raiz / "home")}
+        r = subprocess.run([sys.executable, "-I", str(PLACAR), "--raiz", str(self.raiz), "--ate", "2026-11-21",
+                            "--evals", str(self.raiz / "sem-evals"), *args], capture_output=True, text=True, env=env, cwd=self.raiz,
+                           timeout=60)
+        return r.returncode, r.stdout, r.stderr
+
+    def prs(self, texto, nome="prs.json"):
+        arq = self.raiz / nome
+        arq.write_text(texto, encoding="utf-8")
+        return str(arq)
+
+    def test_dados_de_exemplo_por_semana(self):
+        arq = self.prs(json.dumps(EXEMPLO))
+        rc, saida, erro = self.rodar("--prs", arq, "--json")
+        self.assertEqual(rc, 0, erro)
+        self.assertEqual(json.loads(saida)["sem_teste"], {"2026-W45": [1, 1], "2026-W46": [1, 4], "2026-W47": [1, 2]})
+        rc, saida, erro = self.rodar("--prs", arq)
+        self.assertIn("sem_teste: 2026-W45 1/1 · 2026-W46 1/4 · 2026-W47 1/2 (PRs com a seção Sem teste / PRs mesclados, por semana)",
+                      saida)
+
+    def test_sem_dados_sai_tracinho_nunca_zero(self):
+        rc, saida, erro = self.rodar("--json")
+        self.assertEqual(rc, 0, erro)
+        self.assertIsNone(json.loads(saida)["sem_teste"])
+        rc, saida, erro = self.rodar()
+        self.assertIn("sem_teste: - (", saida)
+
+    def test_lista_vazia_diz_nenhum_pr(self):
+        rc, saida, erro = self.rodar("--prs", self.prs("[]"))
+        self.assertEqual(rc, 0, erro)
+        self.assertIn("sem_teste: nenhum PR mesclado (", saida)
+
+    def test_arquivo_ausente_ou_invalido_sai_com_2(self):
+        casos = ((str(self.raiz / "nada.json"), "não existe"), (self.prs("{nao json", "a.json"), "não é JSON"),
+                 (self.prs('{"mergedAt": "2026-11-10"}', "b.json"), "não é uma lista"),
+                 (self.prs('[{"mergedAt": "2026-13-45T10:00:00Z"}]', "c.json"), "mergedAt inválido: 2026-13-45"),  # segurança A1
+                 (self.prs("[" * 100000 + "]" * 100000, "d.json"), "não é JSON legível"))
+        for arq, motivo in casos:
+            with self.subTest(motivo=motivo):
+                rc, _, erro = self.rodar("--prs", arq)
+                self.assertEqual(rc, 2, erro)
+                self.assertIn(motivo, erro)
+                self.assertNotIn("Traceback", erro)
+
+    def test_aninhamento_no_teto_e_colchete_em_string_passam(self):
+        """Volta do CI (E20.13): o teto é do forge-placar, igual em toda versão do Python; colchete dentro de string não conta."""
+        no_teto = "[" * 64 + "]" * 64
+        em_string = json.dumps([{"mergedAt": "2026-11-17T10:00:00Z", "body": "[" * 1000 + "{" * 1000 + '\\"'}])
+        for texto in (no_teto, em_string):
+            with self.subTest(texto=texto[:20]):
+                rc, _, erro = self.rodar("--prs", self.prs(texto))
+                self.assertEqual(rc, 0, erro)
+        rc, _, erro = self.rodar("--prs", self.prs("[" * 65 + "]" * 65))
+        self.assertEqual(rc, 2, erro)
+        self.assertIn("não é JSON legível (aninhado acima de 64 níveis)", erro)
+
+
+    def test_varredura_de_aninhamento_e_de_um_passe_e_trata_escape(self):
+        """Volta da segurança (E20.17): custo linear sem relógio (cada caractere é lido uma vez, de um iterável que conta) e
+        o mesmo resultado nas strings com escape, na sem fecho e no teto."""
+        from importlib.machinery import SourceFileLoader
+        mod = SourceFileLoader("forge_placar_varredura", str(PLACAR)).load_module()
+
+        class Contado:
+            def __init__(self, texto):
+                self.texto, self.lidos = texto, 0
+
+            def __iter__(self):
+                for c in self.texto:
+                    self.lidos += 1
+                    yield c
+
+        sem_fecho = '"' + '\\"' * 40000
+        for texto in (sem_fecho, "[" * 70 + sem_fecho, "[" * 10 + "]" * 10):
+            with self.subTest(texto=texto[:12]):
+                contado = Contado(texto)
+                mod.fundo_demais(contado, teto=1000)
+                self.assertEqual(contado.lidos, len(texto))
+        casos = ((r'["a\\"] ' + "[" * 64, False),      # a barra escapada deixa a aspa fechar a string
+                 (r'"\"' + "[" * 100 + '"', False),     # aspa escapada não fecha a string
+                 (r'"\\"' + "[" * 65, True),           # barra escapada, a string fecha, 65 abertos
+                 ('[' * 64 + ']' * 64, False), ('{' * 65, True), ('[]' * 65, False), ('{}' * 65, False), ('"a"' + '[' * 65, True), ('[' * 65 + '"]"', True))
+        for texto, esperado in casos:
+            with self.subTest(texto=texto[:20]):
+                self.assertIs(mod.fundo_demais(texto), esperado)
+
+
 if __name__ == "__main__":
     unittest.main()
