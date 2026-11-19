@@ -26,6 +26,7 @@ Em projeto privado, cada push e cada `gh run rerun` custa um run de CI (num proj
 - Até 20 agentes ao mesmo tempo, dentro do `R-TETO`, e no máximo 12 branches com trabalho aberto.
 - Agente livre termina o que está aberto (revisão, conserto, teste vermelho, CI vermelho) antes de abrir item novo; branch nova só quando uma entra na `develop`.
 - A regra de tocar o máximo de itens ao mesmo tempo continua: o máximo vale dentro desses tetos.
+- Instância extra de um papel, uma por item independente, trabalha numa cópia própria: `forge-copia clone --instalar`.
 
 ## Versão quando ficar pronta (diretriz 34 do dono)
 - O tech-lead marca uma versão sempre que a `develop` tem um conjunto verde que valha uma versão: até 2 por dia, ou mais se couber (diretrizes 21 e 27).
