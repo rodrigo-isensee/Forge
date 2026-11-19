@@ -3,31 +3,32 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: 460a8a002d27be6089f22eb3452c4d9bc69646f1
+commit: deaf35704182bc20c1bcc2e630f044480e1ddb06
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-18
+data: 2026-11-19
 ---
-# Review: v0478 E3.30 (melhoria/v0478-guardas-parecer), revalidação do A9 e do A10 da segurança da E3.27
+# Review: v0478 E3.35 (melhoria/v0478-guardas-parecer), revalidação do A12 da segurança da E3.32
 
 ## Revalidação
-- Delta lido: `forge-check parecer delta docs/reviews/v0478-guardas-parecer.md`, intervalo 415eaa82..460a8a00 (E3.28: 460a8a00; pareceres e merge dfd645ff fora do domínio). No domínio: `hooks/parecer.py` (`ATRIBUICAO_ARITMETICA`, `ABRE_ARITMETICA`, `mexidas_por_aritmetica`, `mexidas_do_texto`, `principal`), a linha D4 e a D7 da matriz em `docs/hooks.md`, o gerador `tests/test_hooks_parecer_matriz.py`, as specs `tests/mutantes/v0478-guardas-parecer-10.json` a `-12.json` e o fragmento `changelog.d/`. Nada fora do delta relido.
+- Delta lido: `forge-check parecer delta docs/reviews/v0478-guardas-parecer.md`, intervalo 460a8a00..deaf3570 (E3.33: deaf3570; pareceres e merge 946926e9 fora do domínio). No domínio: `pasta_do_gh` (hooks/parecer.py:1049 a 1069), a linha D6 da matriz em `docs/hooks.md`, a classe `SessaoNaCopiaAlheia` do gerador `tests/test_hooks_parecer_matriz.py`, o M76 de `tests/mutantes/v0478-guardas-parecer-12.json` e o fragmento `changelog.d/`. Nada fora do delta relido.
 
 ## Sondas
-- S35 · cópia alheia da montagem do gerador, nome entre aspas na aritmética: `: "$(("HOME"=0))"`, `: "$((HO""ME=0))"`, `(( "HOME"=0 ))`, `let "HO"ME=0`, `: "${A["HOME"=0]}"`, antes de `gh pr ready feature/x` (o bash põe HOME=0 nas cinco, conferido) · espera: código 2 · obtido: código 2 nas cinco
-- S36 · mesma montagem, `: $((HO\`⏎`ME=0)); gh pr ready feature/x` (A9 na aritmética) · espera: código 2 · obtido: código 2
-- S37 · mesma montagem, `gh pr ready feature/x` e `export PATH="$HOME/bin:$PATH"; gh pr ready feature/x` (controles) · espera: código 0 · obtido: código 0 nas duas
+- S38 · montagem do gerador, sessão na cópia alheia, `d=proj; cd "$d"`, `cd "$(echo ~/proj)"` e `` cd `echo proj` `` antes de `gh pr ready feature/x` · espera: código 2 · obtido: código 2 nas três, mensagem do A12
+- S39 · mesma montagem, `cd ../proj && gh pr ready feature/x` (resolvido) e `gh pr ready feature/x` (sem cd) · espera: 2 pelo parecer ausente no clone e 0 · obtido: 2 (falta parecer de `feature/x`) e 0
+- S40 · sessão num projeto com `hooks_desligados: ["parecer"]`, `gh pr ready feature/x` e `d=x; cd "$d" && gh pr ready feature/x` · espera: 0 e 0 (hook desligado) · obtido: 0 e 2 (base do A1)
 
 ## Conferências
-- A9 fechado: `principal` (hooks/parecer.py:1164) soma as mexidas de cada texto de `textos_da_linha`, não do comando cru; S30 está no gerador como posição de `POSICOES_DA_EXPANSAO` e em `SONDAS`.
-- A10 fechado: `mexidas_por_aritmetica` (hooks/parecer.py:671) cobre os contextos e operadores que a segurança listou; o `=` simples só conta com contexto aritmético no texto e `==`, `!=`, `<=`, `>=` não contam. Falha fechada declarada na D4 (recusa a mais, como `[ -n x ] && gh pr create --body "HOME=x"`); abertos declarados (nome por expansão e valor avaliado) cobertos pela trava do sandbox.
-- D7 (`PATH`): limite declarado por decisão do dono, sem código no delta; o legítimo segue em 0 (S37).
-- Mutação dirigida (`bin/forge-mutante`, 1 processo): `-10.json` M58 a M65, `-11.json` M66 a M71 e `-12.json` M72 a M75 `morreu`.
-- Cobertura (`bin/forge-mutante --cobertura --base 415eaa82`): guardas de :677 e :678 `coberta`, provadas pela mutação acima.
-- Teste do item: `python3 -m unittest tests.test_hooks_parecer_matriz`: 8 testes, OK.
-- Leitura (checklist 1 a 4, 7, 11): uma regra por classe; vizinhos que não atribuem (`$HOME=x`, `HOMEX=1`, `--title`, `GH_CONFIG_DIR=x gh nova`) testados como não mexidos; legítimo com `$((HOME == 0))` e `$((PAGER = 1))` no gerador; a matriz descreve o código.
-- Tamanho (H1): cerca de 25 linhas de código no delta, um comportamento.
+- A12 fechado: com a sessão numa cópia fora de clone, o `cd` sem resolver não cai mais na pasta da chamada (hooks/parecer.py:1065); o gh sem `cd` segue em 0 (S39).
+- Mutação dirigida (`bin/forge-mutante --processos 1`, `-12.json`): M72 a M76 `morreu`; M76 em hooks/parecer.py:1065.
+- Cobertura (`bin/forge-mutante --cobertura --base 460a8a00`): guarda de :1065 `coberta` pelo M76.
+- Teste do item: `python3 -m unittest tests.test_hooks_parecer_matriz.SessaoNaCopiaAlheia`: 1 teste, OK.
+- Leitura (checklist 1 a 4, 7): o teste exercita o ramo de falha por comportamento (subprocesso com o hook), com controle resolvido e legítimo sem `cd`; a D6 descreve o código.
+- Tamanho (H1): cerca de 5 linhas de código no delta, um comportamento.
 - Suíte: sem PR, sem CI a citar; não rerrodada (R-REVIEW).
 
+## Achados
+- A1 (recomendado) hooks/parecer.py:1065 · o ramo também alcança a sessão num projeto com `parecer` em `hooks_desligados` (S40: 2); a docstring diz, mas a D6 de docs/hooks.md e o changelog.d falam só de cópia alheia. Declarar o caso nos dois.
+
 ## Parecer
-Aprovado: A9 e A10 fechados com S30 a S34 no gerador e S35 e S36 em código 2, controles em 0; mutantes declarados mortos; D7 como limite declarado.
+Aprovado: A12 fechado, S38 em código 2, controles de S39 como esperado, M76 morto e guarda coberta. A1 é recomendado (cartão), sem volta.
