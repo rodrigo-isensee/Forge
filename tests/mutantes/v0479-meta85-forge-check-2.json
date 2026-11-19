@@ -34,10 +34,10 @@
     },
     {
       "id": "M20",
-      "guarda": "entrega: linhas vazias nas pontas do log não contam (mutante: a linha vazia final esconde o rc=0)",
+      "guarda": "entrega: linha só de espaços nas pontas do log não conta (mutante: conta e esconde o head)",
       "arquivo": "bin/forge-check",
-      "de": "for linha in dados.decode(\"utf-8\", \"replace\").splitlines() if linha.strip()]",
-      "para": "for linha in dados.decode(\"utf-8\", \"replace\").splitlines()]",
+      "de": "splitlines() if linha.strip()]",
+      "para": "splitlines() if linha]",
       "testes": [
         "tests.test_meta85_entrega.ProvasDaEntrega.test_linhas_vazias_nas_pontas_nao_contam"
       ]
