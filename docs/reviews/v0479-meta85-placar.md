@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-placar
-commit: 97ef4fd1e6c99380646ad2f52dbe291f2168d27b
+commit: f74d6dd71cdc9ae8c458509cf6ed7674b55bc83f
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
@@ -21,6 +21,13 @@ Escopo: só o que a branch acrescenta à `melhoria/v0479-placar-fases` (42c2a906
 Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-placar.md`, intervalo 87aff761..97ef4fd1, domínio `bin/forge-placar`, `tests/evals/test_placar.py`, `tests/mutantes/v0479-meta85-placar-{2,4}.json`. O A1 de 87aff761 (sem linha `PARADA <tipo>` a parada saía 0) está resolvido: `paradas_do_historico` devolve None sem intervalo do tipo (bin/forge-placar:673) e segue 0 quando há linha do tipo noutro dia; a data impossível vira aviso com o pedido em vez de rc 2, mesma semântica de `momento` (fromisoformat, hora local). Testes do ramo: `test_sem_historico_ou_sem_linha_do_tipo_as_paradas_saem_tracinho` e `test_parada_com_data_impossivel_cita_o_arquivo_e_segue`; mutantes M12, M13 reescritos e M29 a M31 novos. A2 a A4 seguem recomendados e viram cartão depois do merge.
 
 Provas no head 97ef4fd1: `python3 -m unittest tests.evals.test_placar` (ambiente limpo): 48 testes OK. `bin/forge-mutante --processos 1 tests/mutantes/v0479-meta85-placar-2.json tests/mutantes/v0479-meta85-placar-4.json`: todos morreram, M29 (:673), M30 (:671), M31 (:666) inclusive. `bin/forge-mutante --cobertura --base 87aff761`: linhas de guarda do delta cobertas (M13, M29). Sonda S1 repetida: `horas paradas, sessão: -`.
+
+## Revalidação (E36.10, junção com a develop)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-placar.md`, intervalo 97ef4fd1..f74d6dd7, escopo sem o que veio da base. Aviso do delta: o merge 5d6d87a não está na origin/develop; o que ele trouxe conta inteiro, e o delta mostrou só a varredura linear, o teto de 64 e o `--prs`, sem ruído. A junção (12 conflitos) tem a develop como base e a META85 por cima: `origin/develop` (5ae868eb) é ancestral do head e `git diff origin/develop...HEAD -- bin/forge-placar tests/evals/test_placar.py` só remove as linhas da meta de 85 e a função `itens_do_dia` que a META85 substitui; `fundo_demais`, `TETO_ANINHAMENTO` e `--prs` seguem no código e nos dois testes de aninhamento. Nada da develop se perdeu.
+
+Specs: M13, M19 e M24 da placar-fases voltaram ao trecho adaptado (M34, em placar-fases-6, aponta a guarda `fundo_demais`). A guarda `if not itens` do trecho antigo (bin/forge-placar:641 na base) foi para `estatisticas()` como `if not totais` (bin/forge-placar:671), que o M19 muta e o teste `test_dia_sem_item` mata. Por isso o `--cobertura --base origin/develop` sai com rc 1 só por `apagada · bin/forge-placar:641(base) · itens`: aceito, a guarda não sumiu, mudou de lugar e tem mutante que morre. As três isentas (test_placar.py:515, :573, :607) são linhas de asserção e auxiliar do teste, não guarda, com motivo escrito. Os achados A2 a A4 seguem recomendados.
+
+Provas no head f74d6dd7: `python3 -I tests/evals/test_placar.py`: 50 testes OK. `bin/forge-mutante --processos 1 tests/mutantes/v0479-meta85-placar*.json`: 31 mutantes mortos, rc 0. `bin/forge-mutante --processos 1 tests/mutantes/v0479-placar-fases*.json`: 49 mortos, rc 0. Parecer segue aprovado.
 
 ## Sondas
 - S1 · `bin/forge-placar fases --git . --ref origin/develop --dia 2026-11-19 --raiz-pedidos /root/.forge-contrib` (histórico sem PARADA) · espera: `horas paradas, sessão: -` · obtido: 87aff761 `0 h 00 min`; 97ef4fd1 `-`
