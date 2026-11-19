@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-forge-check
-commit: 99f474bbcb8619c69a07887081bb703fdd389c34
+commit: 06abb4fa338746cd5638d37a092675970c258ceb
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -40,3 +40,10 @@ Delta (`forge-check parecer delta`): `bin/forge-check`, mutantes -3, -5, -6, `te
 - Testes novos de `riscos-aceitos` (`test_meta85_revalida`, com e sem aceite do usuário): provam na base (falham lá) e passam no head. Módulos rodados local: entrega 12 OK, item_arquivos 6 OK, revalida 7 OK.
 - O remoto avançou um commit só de parecer de segurança (`c357c6c7`), trazido por fast-forward.
 - Suíte inteira não rodada local; vale o check-run `bateria` do mesmo sha no CI do PR.
+
+## Revalidação no head 06abb4fa
+Delta (`forge-check parecer delta`, intervalo `99f474bb..06abb4fa`): `bin/forge-check` (`base_sem_flag_do_pr`, fonte única do `pr_da_cli` e do `revalida:`), mutantes -7 e `test_meta85_revalida`. O `parecer delta` agora revalida pela mesma base do `pr` sem `--base`.
+- Vermelho: `forge-testes --vermelho 9afb847f --modulos test_meta85_revalida`: `contagem: não prova (passa na base)=8; prova (asserção)=2` (`test_base_que_ja_contem_o_head_revalida_como_o_pr`, `test_fora_da_branch_de_trabalho_revalida_pelo_diff_literal`), nenhum cai no HEAD, rc=0. O 3º teste novo da rodada (`test_branch_de_trabalho_pelo_sha_...`) passa na base por construção (a simulação já era a do `pr`); a proteção dele é o mutante M36.
+- Mutantes M33 a M36 (spec -7, `--base 99f474bb`, `rev=06abb4fa3387`): todos `morreu` (M33 `:3585`, M34 `:1542`, M35 `:1541`, M36 `:1570`), nenhum sobrevivente.
+- Módulo rodado local: `test_meta85_revalida` 10 OK.
+- Sem achado bloqueante. Suíte inteira não rodada local; vale o check-run `bateria` do mesmo sha no CI do PR.
