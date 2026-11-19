@@ -3,14 +3,29 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-forge-check
-commit: 06abb4fa338746cd5638d37a092675970c258ceb
+commit: a281e4a5565d8675b1047c997d727c9a5ab1231c
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-19
 ---
 # Review de segurança: v0478 META85 (bin/forge-check), E34.4, revalidações E34.8 e E34.12
 
-A rodada 1 (E34.4, head 6853e0ee) e a revalidação E34.8 (head 99f474bb) ficam no git. Esta é a revalidação no head 06abb4fa.
+A rodada 1 (E34.4, head 6853e0ee) e a revalidação E34.8 (head 99f474bb) ficam no git. Esta é a revalidação no head a281e4a5 (junção com a develop); a do 06abb4fa (E34.12) segue abaixo.
+
+## Revalidação (E34.16, head a281e4a5)
+Delta lido: `forge-check parecer delta docs/security/v0479-meta85-forge-check.md`, intervalo `06abb4fa..a281e4a5` (junção com a
+develop 5ae868eb; conflitos em `bin/forge-testes`, `tests/test_testes_tocados.py` e `skills/briefs-e-conferencia/autor-ate-o-merge.md`).
+No domínio: `bin/forge-testes` (o que veio da develop: `progresso()` só no stderr, ordem dos módulos, nomes de teste no mapa) e a skill
+(texto). `tests/test_testes_tocados.py` fora do domínio. O delta traz só o que veio da base, sem código do item.
+Resolução dos conflitos conferida contra a base (`git diff 5ae868eb a281e4a5`): `bin/forge-testes` difere da develop só por três nomes
+acrescentados ao mapa `FORGE_CHECK` (`test_meta85_entrega`, `test_meta85_revalida`, `test_meta85_item_arquivos`: o mapa pede mais
+teste, não menos); a skill difere só pela linha da retomada por `revalida: sim` (texto do item). Nenhuma proteção removida.
+`bin/forge-check`: sem diferença entre 06abb4fa e a281e4a5; `base_sem_flag_do_pr`, `pr_da_cli`, `cmd_pr` e `parecer_delta` seguem como
+lidos. Achados anteriores: A1 resolvido (sem mudança). Achado novo: nenhum.
+
+**Rótulo `afrouxa-regra`, reconfirmação depois da junção:** a mudança do item continua só apertando. O `pr` não aceita parecer antes
+recusado (o `bin/forge-check` é byte a byte o do 06abb4fa e a equivalência do `pr_da_cli` vale); a junção não toca `veredito_do_parecer` nem `commit_vale`; a única mexida do item em `bin/forge-testes` aumenta a cobertura do mapa. Sem segredo no delta
+(revisão manual). Sem suíte local (CI do PR, pelo brief).
 
 ## Revalidação (E34.12)
 Delta lido: `forge-check parecer delta docs/security/v0479-meta85-forge-check.md`, intervalo `99f474bb..06abb4fa`. No domínio, só
