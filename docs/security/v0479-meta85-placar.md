@@ -18,7 +18,7 @@ Gatilhos: nenhum (ferramenta local de leitura; sem autenticação, segredo, depe
 - A2 (recomendado) bin/forge-placar:714 · `paradas_do_ci` (META85, `fases --ci`) lê JSON sem `fundo_demais`: só capta `RecursionError`; a guarda da develop vale só para `--prs` (:240)
 
 ## Sondas
-- S8 · `fases --raiz R --ci ARQ` com `[`x100000 e `]`x100000, e com `[{"conclusion":"x","a":[`...`]}]` aninhado igual · espera: sai 2 com mensagem · obtido (py 3.12.3): rc 2, `--ci ... não é uma lista de runs legível`, nos dois
+- S8 · `fases --raiz R --ci ARQ` com `[`x100000 e `]`x100000, e com `[{"conclusion":"x","a":[`...`]}]` aninhado igual · espera: sai 2 com mensagem · obtido: (py 3.12.3) rc 2, `--ci ... não é uma lista de runs legível`, nos dois
 - S9 · `--prs ARQ` com os 100000 `[` · espera: sai 2 pela guarda · obtido: `não é JSON legível (aninhado acima de 64 níveis)`
 - S10 · `--ci ARQ` (caminho da develop, `ci_vermelha` :199) com os 100000 `[` · espera: sai 2 · obtido: traceback `RecursionError`, rc 1; idêntico na develop (fora do delta)
 
