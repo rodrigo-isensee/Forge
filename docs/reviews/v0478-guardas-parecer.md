@@ -3,14 +3,20 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: 6cfebb4c6c1f43b044ebde24cc0d5e497bd212a7
+commit: a96a986cc8712f4e469b596dbb8788b403352590
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
 ---
-# Review: v0478 E3.45 (melhoria/v0478-guardas-parecer), revalidação no head 6cfebb4c
+# Review: v0478 E3.45 (melhoria/v0478-guardas-parecer), revalidação no head a96a986c
 
 ## Revalidação
+- Delta lido: `forge-check parecer delta docs/reviews/v0478-guardas-parecer.md`, intervalo 6cfebb4c..a96a986c (junção com a develop 153c0152, dois conflitos resolvidos); no domínio: bin/forge-testes, docs/hooks-fixtures.md, docs/hooks.md e tests/test_testes_tocados.py, todos vindos da develop (E18, #695 e #697), nenhum da branch.
+- tests/test_testes_tocados.py: a contagem fixa deu lugar ao conjunto mínimo da develop (todo módulo do FORGE_CHECK e dos evals de forma por `assertIn`, sem extras, piso de 90); o diff contra a develop ficou sem diferença nesse teste e o teste passa no head. Cobertura não removida.
+- docs/hooks-fixtures.md: `scripts/indice-fixtures.py --conferir` diz "em dia" (3097 fixtures no índice e no corpus).
+- Código de hook da branch: `git diff 6cfebb4c a96a986c -- hooks/parecer.py hooks/_gh_api.py` vazio; o que mudou em hooks/ (conformidade, agentes) é da develop. O veredito anterior segue.
+
+## Revalidação anterior (head 6cfebb4c)
 - Delta lido: `forge-check parecer delta docs/reviews/v0478-guardas-parecer.md`, intervalo 83a8ce17..6cfebb4c; no domínio: só docs/indice-forge.md, 1 linha a mais (`_gh_api.py` na tabela de hooks). Nenhum código nem teste mudou; o aviso do merge d45bf21 fora da develop local não altera o delta.
 - docs/indice-forge.md:58 só documenta o arquivo, em ordem alfabética; o veredito anterior segue.
 
