@@ -73,6 +73,12 @@ class ProvasDaEntrega(Repositorio):
         self.assertEqual(rc, 1, saida)
         self.assertIn("(--mutantes <log>: a 1.ª linha não é o head entregue", saida)
 
+    def test_linhas_vazias_nas_pontas_nao_contam(self):
+        self.commitar({"src/app.py": "x = 1\n"})
+        com_brancos = self.log("m.log", f"\n  \nhead={self.head()}\nOK\nrc=0\n\n\n")
+        rc, saida = self.entregar("--mutantes", com_brancos, "--pronto", self.verde("p.log"))
+        self.assertEqual(rc, 0, saida)
+
     def test_log_ausente_reprova(self):
         self.commitar({"src/app.py": "x = 1\n"})
         rc, saida = self.entregar("--mutantes", self.tmp / "nao-existe.log", "--pronto", self.verde("p.log"))

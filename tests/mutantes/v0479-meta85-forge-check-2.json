@@ -31,6 +31,16 @@
       "testes": [
         "tests.test_meta85_entrega.ProvasDaEntrega.test_forma_nova_recusa_as_opcoes"
       ]
+    },
+    {
+      "id": "M20",
+      "guarda": "entrega: linhas vazias nas pontas do log não contam (mutante: a linha vazia final esconde o rc=0)",
+      "arquivo": "bin/forge-check",
+      "de": "for linha in dados.decode(\"utf-8\", \"replace\").splitlines() if linha.strip()]",
+      "para": "for linha in dados.decode(\"utf-8\", \"replace\").splitlines()]",
+      "testes": [
+        "tests.test_meta85_entrega.ProvasDaEntrega.test_linhas_vazias_nas_pontas_nao_contam"
+      ]
     }
   ]
 }
