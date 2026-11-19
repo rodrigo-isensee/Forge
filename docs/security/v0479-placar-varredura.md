@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v0479-placar-varredura
+pedido: v0478
 branch: melhoria/v0479-placar-varredura
 commit: 3907f4bb628f8a919a6b756ce8db7c321514f776
 parecer: aprovado
