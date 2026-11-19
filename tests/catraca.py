@@ -3,7 +3,7 @@
 
 Só biblioteca padrão. Lê a base com `git show <base>:<arquivo>` (a base efetiva é o merge-base com o HEAD).
 Exceção estreita: PR de `dependabot[bot]` que só troca SHA de `uses:` em workflows passa sem rótulo e sem parecer.
-Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY), `pareceres` e `degrau` (o "Nada pula degrau" do CI).
+Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY, com o T1: código sem teste), `pareceres` e `degrau` (o "Nada pula degrau" do CI).
 Exceção única das regras (menos `R-CUSTO`, que só tem `custo_permitido`): rótulo `afrouxa-regra` aplicado pelo `dono` (de tests/config.json da base) depois do
 último push, ou cujos arquivos protegidos (VIGIADOS_DO_ROTULO e forma compilada: mesmo blob e modo) e a piora dos testes não
 mudaram desde o rótulo (P9), ou cujo diff efetivo (merge-base, fora dos pareceres dos pedidos desta branch) não mudou desde ele, e
@@ -17,6 +17,7 @@ do head no servidor, vale como sem rótulo. Cada violação: `<R-ID>: <o quê>. 
 import argparse
 import ast
 from collections import Counter
+import functools
 import hashlib
 import http.client
 import importlib.util
@@ -1650,8 +1651,56 @@ def violacoes_do_texto(corpo):
             for t in ("Projeto de origem", "Como medir") if len(secao(corpo, t)) < MINIMO_SECAO]
 
 
+SEM_TESTE = "Sem teste"  # a seção do modelo do PR (.github/pull_request_template.md) que justifica o código sem teste (T1)
+
+
+def citado(caminho, texto):
+    """O caminho inteiro no texto, sem ser pedaço de outro (`bin/app` não vale por `bin/app2` nem por `x/bin/app`)."""
+    return re.search(rf"(?<![\w./-]){re.escape(caminho)}(?!\.?[\w/-])", texto) is not None
+
+
+def violacoes_do_t1(raiz, base, head, corpo):
+    """T1 (COBERTURA-ESTUDO C1): código mudado sem teste mudado nem novo barra o PR, salvo a seção `## Sem teste` que cita cada
+    arquivo com o motivo dele na mesma linha (regra em docs/engineering/praticas.md). A regra de código, teste e classe é a do `forge-check` (T1 da 0.43.3: a classe T fica isenta); a
+    catraca só a torna portão. O git que falha barra (falha fechada)."""
+    fc = forge_check()
+    b = base_efetiva(raiz, base, head)
+    nomes = alterados(raiz, b, head)
+    if fc.classe_para_o_t1(raiz, head, b) == "T":
+        return []
+    achados = fc.codigo_sem_teste(raiz, f"{b}...{head}", nomes)
+    if achados == []:
+        return []
+    if achados is None:
+        raise ErroDeGit(msg_falha_git("o `git diff` dos testes falhou (T1)"))
+    texto = secao(corpo, SEM_TESTE)
+    faltam = [n for n in achados if not citado(n, texto)]
+    curtos = [n for n in achados if n not in faltam and not com_motivo(n, achados, texto)]
+    if not faltam and not curtos:
+        return []
+    lista = faltam or curtos
+    nomes = ", ".join(lista[:5]) + (f" e mais {len(lista) - 5}" if len(lista) > 5 else "")
+    oque = (f"sem citar {nomes}" if faltam
+            else f"com motivo de menos de {MINIMO_SECAO} caracteres por arquivo, além dos caminhos, para {nomes}")
+    return [msg("R-QA", f"código mudado sem teste mudado ou novo e '## {SEM_TESTE}' {oque} (T1)",
+                "código sem teste entra sem prova do comportamento; a exceção só vale escrita, arquivo por arquivo, para o review conferir",
+                f"acrescente o teste ou, em '## {SEM_TESTE}' do corpo do PR, cite cada arquivo e o motivo dele na mesma linha",
+                "docs/engineering/praticas.md")]
+
+
+def com_motivo(caminho, achados, texto):
+    """True se uma linha do texto cita `caminho` e traz MINIMO_SECAO caracteres além dos caminhos por arquivo que cita: o motivo
+    vale por arquivo, e um texto genérico não cobre N arquivos (segurança A2 da cobertura C1)."""
+    for linha in texto.splitlines():
+        nela = [n for n in achados if citado(n, linha)]
+        resto = re.sub(r"\s", "", functools.reduce(lambda t, n: t.replace(n, ""), achados, linha))
+        if caminho in nela and len(resto) >= MINIMO_SECAO * len(nela):
+            return True
+    return False
+
+
 def forge_check():
-    """O `bin/forge-check` ao lado deste script (uma fonte só, ADR 0002): no CI, a versão da base."""
+    """O `bin/forge-check` ao lado deste script (uma fonte só, ADR 0002): no CI, a versão da base, nos passos de regras e de texto do PR."""
     caminho = Path(__file__).resolve().parent.parent / "bin" / "forge-check"
     loader = SourceFileLoader("forge_check", str(caminho))
     modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader("forge_check", loader))
@@ -1889,7 +1938,8 @@ def _main(a):
         resumo(a.modo, ["PR do dependabot que só troca SHA de ações em workflows: passa sem rótulo e sem parecer (ADR 0008)"])
         return 0
     if a.modo == "pr-texto":
-        viol, titulo = violacoes_do_texto(os.environ.get("PR_BODY", "")), "pr-texto"
+        corpo = os.environ.get("PR_BODY", "")
+        viol, titulo = violacoes_do_texto(corpo) + violacoes_do_t1(raiz, a.base, a.head, corpo), "pr-texto"
     elif a.modo == "degrau":
         viol, titulo = violacoes_do_degrau(raiz, a.ramo, a.base_ref, a.head, os.environ.get("HEAD_REPO", ""), os.environ.get("BASE_REPO", "")), "degrau"
     elif a.modo == "pareceres":
