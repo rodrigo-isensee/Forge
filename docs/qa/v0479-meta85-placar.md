@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-placar
-commit: f74d6dd71cdc9ae8c458509cf6ed7674b55bc83f
+commit: d340b213c53fe4e11cbb89dd09938b7d29115599
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -72,3 +72,13 @@ Delta lido por `forge-check parecer delta`: `bin/forge-placar` (`fundo_demais`, 
 - Linha 641 da base: `"media_min": round(sum(...)/len(itens)) if itens else None`, dentro de `dados` do `fases`. No head a média saiu dali e a guarda `if not totais: return {... None}` vive em `estatisticas()` (`bin/forge-placar:671`). Ela tem mutante, `v0479-placar-fases-3.json` M19 (dia sem item tem media None, teste `test_dia_sem_item`), que morreu nesta rodada. A linha apagada não perdeu guarda; a cobertura aponta a linha antiga porque ela deixou de existir. Julgada coberta, sem bloqueio.
 
 Parecer mantido: aprovado, sem achados.
+
+## Revalidação (delta f74d6dd7..d340b213, E36.16)
+Delta lido por `forge-check parecer delta`: `bin/forge-placar` (guarda `fundo_demais` em `paradas_do_ci`, linha 712), `tests/evals/test_placar.py` (caso novo em `test_ci_ilegivel_sai_com_2`: 100000 colchetes abertos, rc 2, mensagem "aninhado acima de", sem Traceback, sem eco) e o mutante M32 na spec `v0479-meta85-placar-4.json`. Nada fora do domínio foi relido.
+
+- Vermelho à mão, em cópia do HEAD com `if fundo_demais(texto):` trocado por `if False:` (o mutante M32): `python3 -I tests/evals/test_placar.py Fases.test_ci_ilegivel_sai_com_2` cai em `test_placar.py:609`, `'aninhado acima de' not found in 'forge-placar: --ci ... não é uma lista de runs legível'`. Com a guarda, o mesmo comando passa (`OK`). A guarda é o que o caso novo protege.
+- `python3 -I tests/evals/test_placar.py`: `Ran 50 tests ... OK`.
+- `bin/forge-mutante tests/mutantes/v0479-meta85-placar-4.json`: M25 a M32 morreram (M32 em `bin/forge-placar:712`), nenhum sobrevivente.
+- Uma linha de guarda mudada no diff (712) e um mutante (M32): cobertura declarada.
+
+Parecer mantido: aprovado, sem achados. Sem suíte local (é do CI do PR, `R-QA`).
