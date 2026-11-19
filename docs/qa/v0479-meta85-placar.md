@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-placar
-commit: d340b213c53fe4e11cbb89dd09938b7d29115599
-parecer: aprovado
+commit: 89936fa3db5777ce9ab913f190fdf2bc767c75a0
+parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
@@ -82,3 +82,20 @@ Delta lido por `forge-check parecer delta`: `bin/forge-placar` (guarda `fundo_de
 - Uma linha de guarda mudada no diff (712) e um mutante (M32): cobertura declarada.
 
 Parecer mantido: aprovado, sem achados. Sem suíte local (é do CI do PR, `R-QA`).
+
+## Revalidação (delta d340b213..89936fa3, E36.21)
+Delta lido por `forge-check parecer delta` (intervalo 57a66ff4..89936fa3 no código): `bin/forge-placar` (guarda `if itens` de volta em `cmd_fases`, `estatisticas` sem a guarda `if not totais`, docstrings e cortes de linha) e o mutante M19 de `v0479-placar-fases-3.json`.
+
+- `python3 -I tests/evals/test_placar.py`: `Ran 50 tests ... OK`.
+- `bin/forge-mutante --processos 2 tests/mutantes/v0479-meta85-placar*.json`: rev=89936fa3db57, rc=0, M1 a M32 todos `morreu`, nenhum sobrevivente.
+- `bin/forge-mutante --processos 2 tests/mutantes/v0479-placar-fases*.json`: rev=89936fa3db57, rc=2. 48 `morreu` (M19 em `bin/forge-placar:744` morreu no `test_dia_sem_item`, com o `de` novo `for i in itens]) if itens else dict.fromkeys(`; M20 morreu por erro do teste sob o mutante, como antes) e M34 `inválido`: `o trecho aparece 2 vezes no arquivo (precisa de exatamente uma)`. Sem veredito de M34.
+- M34 (`v0479-placar-fases-6.json`, vindo da develop no #700) mira `    if fundo_demais(texto):\n        raise SystemExit(`. Desde a guarda do `--ci` (`bin/forge-placar:706`, E36.16) o trecho existe duas vezes (linhas 237 e 706); a rodada de E36.16 só rodou as specs `-4` e não pegou. Fora do delta de E36.21, mas a família `v0479-placar-fases*` pedida não fecha rc 0.
+- Prova de que a guarda da linha 237 continua protegida: em cópia em `$TMPDIR`, `237: if fundo_demais(texto):` trocada por `if False:`, `python3 -I tests/evals/test_placar.py SemTeste.test_arquivo_ausente_ou_invalido_sai_com_2` cai (`FAILED (failures=1)`). O teste mata; falta só a spec apontar uma linha única.
+- `bin/forge-mutante --cobertura --base 57a66ff4`: `spec editada · v0479-placar-fases-3.json`; `coberta · bin/forge-placar:744 · fases-3.json:M19 · declarado, não provado`; `apagada · bin/forge-placar:671(base) · not totais` (a guarda `if not totais` saiu de `estatisticas` e voltou como `if itens` em `cmd_fases:744`, que tem o M19; julgada coberta). Nenhuma condição sem mutante.
+- Catraca local: `python3 -I tests/catraca.py` rc=0, sem violação.
+
+## Parecer da revalidação
+Reprovado no head 89936fa3 por A1 (a spec M34 não dá veredito); o código e o M19 estão aprovados. Sem suíte local (é do CI do PR, `R-QA`).
+
+## Achados
+- A1 (bloqueante) tests/mutantes/v0479-placar-fases-6.json:9 · M34 inválido (trecho `if fundo_demais(texto):\n raise SystemExit(` aparece 2 vezes desde bin/forge-placar:706); forge-mutante sai 2. Tornar o `de` único (incluir `--prs {arq}` na linha 238) e rodar de novo.
