@@ -1,5 +1,6 @@
 """`bin/forge-placar` (0.43.1, frente I): placar por janela, portão `comparar` e checklist `propostas`, sobre fixtures sintéticas
 numa raiz temporária. Só biblioteca padrão, sem rede."""
+import datetime
 import json
 import os
 import shutil
@@ -394,16 +395,16 @@ class Fases(unittest.TestCase):
         self.assertEqual((a["total"], a["primeira_rodada"]), (120, False))  # a 1.ª versão do review reprovou
         self.assertEqual(b["fases"], {"desenvolvimento": 0, "pareceres": 20, "voltas": 0, "integração": 30})
         self.assertEqual((b["total"], b["primeira_rodada"]), (50, True))
-        self.assertEqual((dados["soma"]["integração"], dados["media_min"], dados["meta_min"], dados["primeira_rodada"]), (60, 85, 85, [1, 2]))
+        self.assertEqual((dados["soma"]["integração"], dados["media_min"], dados["meta_min"], dados["primeira_rodada"]), (60, 85, 42, [1, 2]))
 
     def test_texto_traz_a_meta_e_a_primeira_rodada(self):
         rc, saida, erro = self.rodar("--dia", "2025-03-18")
         self.assertEqual(rc, 0, erro)
-        self.assertIn("meta 85 min do 1.º commit ao merge", saida)
+        self.assertIn("meta 42 min do 1.º commit ao merge", saida)
         self.assertIn("item melhoria/a: desenvolvimento 30 min · pareceres 30 min · voltas 30 min · integração 30 min · total 120 min"
                       " · primeira rodada aprovada: não", saida)
         self.assertIn("total do dia: 2 itens · desenvolvimento 30 min (18%)", saida)
-        self.assertIn("média 85 min por item (meta 85 min) · primeira rodada aprovada 1/2", saida)
+        self.assertIn("média 85 min · mediana 85 min · p75 102 min por item (meta 42 min) · primeira rodada aprovada 1/2", saida)
 
     def test_item_sem_parecer_e_assunto_sem_branch(self):
         (c,) = self.json("2025-03-19")["itens"]
@@ -461,6 +462,130 @@ class Fases(unittest.TestCase):
                            capture_output=True, text=True, env=self.env, cwd=self.repo, timeout=60)
         self.assertEqual(r.returncode, 2)
         self.assertIn("git log falhou", r.stderr)
+
+    # META85-PLACAR-RODADA-E-FASE (E36.1, ordens do dono 18/11 17:00 e 19/11 14:52): PR e hora do merge, média, mediana e p75,
+    # corte por hora e as horas paradas com a fonte de cada uma.
+    def rodar_tz(self, tz, *args):
+        r = subprocess.run([sys.executable, "-I", str(PLACAR), "fases", "--git", str(self.repo), "--ref", "develop", *args],
+                           capture_output=True, text=True, env=dict(self.env, TZ=tz), cwd=self.raiz, timeout=60)
+        return r.returncode, r.stdout, r.stderr
+
+    def json_tz(self, *args, tz="UTC"):
+        rc, saida, erro = self.rodar_tz(tz, *args, "--json")
+        self.assertEqual(rc, 0, erro)
+        return json.loads(saida)
+
+    def test_pr_e_hora_do_merge_no_json(self):
+        itens = {i["item"]: i for i in self.json("2025-03-18")["itens"]}
+        self.assertEqual((itens["melhoria/a"]["pr"], itens["melhoria/a"]["merge"]), (7, "2025-03-18T12:00:00+00:00"))
+        self.assertEqual((itens["melhoria/b"]["pr"], itens["melhoria/b"]["merge"]), (None, "2025-03-18T13:50:00+00:00"))
+        self.assertEqual(self.json("2025-03-21")["itens"][0]["pr"], 11)
+
+    def test_media_mediana_e_p75(self):
+        estat = ("media_min", "mediana_min", "p75_min")
+        self.assertEqual([self.json("2025-03-18")[k] for k in estat], [85, 85, 102])  # totais 120 e 50
+        self.assertEqual([self.json("2025-03-19")[k] for k in estat], [30, 30, 30])  # um item só
+        self.assertEqual([self.json("2025-03-17")[k] for k in estat], [None, None, None])
+        tres = self.json_tz("--desde", "2025-03-18T12:00+00:00", "--ate", "2025-03-19T14:31+00:00")  # 120, 50 e 30
+        self.assertEqual([tres[k] for k in estat], [67, 50, 85])
+
+    def test_corte_por_hora_do_merge(self):
+        def itens(*args, tz="UTC"):
+            return sorted(i["item"] for i in self.json_tz(*args, tz=tz)["itens"])
+        self.assertEqual(itens("--desde", "2025-03-18T12:00+00:00", "--ate", "2025-03-19T14:30+00:00"), ["melhoria/a", "melhoria/b"])
+        self.assertEqual(itens("--desde", "2025-03-18T12:01+00:00", "--ate", "2025-03-19T14:31+00:00")[1:], ["melhoria/b"])  # [0]: C
+        self.assertEqual(itens("--dia", "2025-03-18", "--desde", "2025-03-18T13:00+00:00"), ["melhoria/b"])  # até a 0 h seguinte
+        self.assertEqual(itens("--dia", "2025-03-18", "--ate", "2025-03-18T13:00+00:00"), ["melhoria/a"])  # desde a 0 h do dia
+        self.assertEqual(itens("--dia", "2025-03-18", tz="<+14>-14"), ["melhoria/a", "melhoria/b"])  # sem corte: o dia do merge
+        self.assertEqual(itens("--desde", "2025-03-18T10:30", "--ate", "2025-03-18T11:00"), [])  # sem fuso: a hora local (TZ)
+        self.assertEqual(itens("--desde", "2025-03-18T10:30", "--ate", "2025-03-18T11:00", tz="<-03>3"), ["melhoria/b"])
+        dados = self.json_tz("--desde", "2025-03-18T12:00+00:00", "--ate", "2025-03-18T13:00+00:00")
+        self.assertEqual(dados["recorte"], ["2025-03-18T12:00+00:00", "2025-03-18T13:00+00:00"])
+        self.assertIsNone(self.json("2025-03-18")["recorte"])
+        rc, saida, erro = self.rodar_tz("UTC", "--desde", "2025-03-18T12:00+00:00", "--ate", "2025-03-18T13:00+00:00")
+        self.assertEqual(rc, 0, erro)
+        self.assertIn("fases de 2025-03-18T12:00+00:00 até 2025-03-18T13:00+00:00 (meta 42 min", saida)
+
+    def test_corte_invalido_sai_com_2(self):
+        for args, texto in ((("--desde", "2025-03-18T12:00", "--ate", "2025-03-18T12:00"), "--ate tem de ser depois de --desde"),
+                            (("--desde", "2025-03-18T12:00", "--ate", "2025-03-18T11:00"), "--ate tem de ser depois de --desde"),
+                            (("--desde", "ontem"), "--desde deve ser AAAA-MM-DDTHH:MM"),
+                            (("--ate", "2025-02-30T10:00"), "--ate deve ser AAAA-MM-DDTHH:MM")):
+            rc, _, erro = self.rodar_tz("UTC", *args)
+            self.assertEqual((rc, texto in erro), (2, True), (args, erro))
+
+    def raiz_com_historico(self, **pedidos):
+        raiz = Path(tempfile.mkdtemp(prefix="forge-placar-paradas-"))
+        self.addCleanup(shutil.rmtree, raiz, ignore_errors=True)
+        (raiz / "docs" / "pedidos").mkdir(parents=True)
+        for nome, linhas in pedidos.items():
+            (raiz / "docs" / "pedidos" / f"{nome}.md").write_text(
+                "# pedido\n\n## Histórico\n" + "".join(f"- {linha}\n" for linha in linhas) + "\n## Outra\n", encoding="utf-8")
+        return raiz
+
+    def test_horas_paradas_de_sessao_e_promocao_pelo_historico(self):
+        raiz = self.raiz_com_historico(p1=[
+            "2025-03-18 12:00: PARADA sessão 2025-03-18 10:00 até 2025-03-18 11:30 (a VPN caiu)",
+            "2025-03-18 12:01: PARADA sessão 2025-03-18 11:00 até 2025-03-18 12:00",  # sobrepõe: a união dá 120
+            "2025-03-18 12:02: PARADA sessão 2025-03-18 10:15 até 2025-03-18 10:45",  # dentro da anterior
+            "2025-03-19 02:00: PARADA sessão 2025-03-18 23:00 até 2025-03-19 01:00",  # 60 no dia 18
+            "2025-03-18 15:01: a PARADA sessão 2025-03-18 01:00 até 2025-03-18 02:00 no meio do texto",
+            "2025-03-18 15:02: PARADA outra 2025-03-18 01:00 até 2025-03-18 02:00",
+            "2025-03-17 15:03: PARADA sessão 2025-03-17 01:00 até 2025-03-17 02:00",  # outro dia
+        ], p2=["2025-03-18 15:00: PARADA promoção 2025-03-18T14:00 até 2025-03-18T14:45"])
+        paradas = self.json_tz("--dia", "2025-03-18", "--raiz", str(raiz))["paradas"]
+        self.assertEqual({t: p["min"] for t, p in paradas.items()}, {"sessão": 180, "promoção": 45, "develop vermelha": None})
+        self.assertIn("PARADA sessão", paradas["sessão"]["fonte"])
+        rc, saida, erro = self.rodar_tz("UTC", "--dia", "2025-03-18", "--raiz", str(raiz))
+        self.assertEqual(rc, 0, erro)
+        self.assertIn("horas paradas, sessão: 3 h 00 min (fonte: linhas `PARADA sessão <início> até <fim>` do ## Histórico", saida)
+        self.assertIn("horas paradas, promoção: 0 h 45 min (fonte: linhas `PARADA promoção", saida)
+        self.assertIn("horas paradas, develop vermelha: - (fonte: CI da develop pelo gh (--ci:", saida)
+
+    def test_sem_historico_as_paradas_saem_tracinho_e_data_invalida_sai_com_2(self):
+        self.assertIsNone(self.json("2025-03-18")["paradas"]["sessão"]["min"])  # a raiz do teste não tem docs/pedidos
+        raiz = self.raiz_com_historico(p1=["2025-03-18 12:00: PARADA sessão 2025-02-30 10:00 até 2025-03-18 11:30"])
+        rc, _, erro = self.rodar_tz("UTC", "--dia", "2025-03-18", "--raiz", str(raiz))
+        self.assertEqual(rc, 2, erro)
+
+    def ci(self, runs):
+        arq = Path(tempfile.mkdtemp(prefix="forge-placar-ci-")) / "ci.json"
+        self.addCleanup(shutil.rmtree, arq.parent, ignore_errors=True)
+        arq.write_text(runs if isinstance(runs, str) else json.dumps(runs), encoding="utf-8")
+        return str(arq)
+
+    def test_horas_paradas_da_develop_vermelha_pelo_ci(self):
+        runs = [  # como o gh devolve: o mais novo primeiro
+            {"conclusion": None, "createdAt": "2025-03-18T23:00:00Z"},  # em andamento
+            {"conclusion": "cancelled"},  # sem hora: fica fora antes de ler a data
+            {"conclusion": "failure", "createdAt": "2025-03-18T21:50:00Z", "updatedAt": "2025-03-18T22:00:00Z"},  # 120 até a 0 h
+            {"conclusion": "success", "updatedAt": "2025-03-18T12:00:00Z"},  # verde depois de verde: nada
+            {"conclusion": "success", "updatedAt": "2025-03-18T11:00:00Z"},
+            {"conclusion": "cancelled", "updatedAt": "2025-03-18T10:30:00Z"},
+            {"conclusion": "failure", "createdAt": "2025-03-18T09:50:00Z", "updatedAt": "2025-03-18T10:00:00Z"},  # segue vermelha
+            {"conclusion": "failure", "createdAt": "2025-03-18T09:00:00Z"},  # sem updatedAt: vale o createdAt; 120
+            {"conclusion": "success", "updatedAt": "2025-03-18T01:00:00Z"},
+            {"conclusion": "failure", "updatedAt": "2025-03-17T23:00:00Z"},  # 60 no dia 18
+        ]
+        dados = self.json_tz("--dia", "2025-03-18", "--ci", self.ci(runs))
+        self.assertEqual(dados["paradas"]["develop vermelha"]["min"], 300)
+        rc, saida, _ = self.rodar_tz("UTC", "--dia", "2025-03-18", "--ci", self.ci(runs))
+        self.assertIn("horas paradas, develop vermelha: 5 h 00 min (fonte: CI da develop pelo gh", saida)
+
+    def test_develop_ainda_vermelha_conta_ate_agora(self):
+        agora = datetime.datetime.now(datetime.timezone.utc)
+        hora = (agora - datetime.timedelta(hours=1)).isoformat().replace("+00:00", "Z")
+        janela = [(agora + datetime.timedelta(hours=h)).isoformat(timespec="minutes") for h in (-2, 2)]
+        dados = self.json_tz("--desde", janela[0], "--ate", janela[1], "--ci", self.ci([{"conclusion": "failure", "updatedAt": hora}]))
+        self.assertIn(dados["paradas"]["develop vermelha"]["min"], (60, 61))
+
+    def test_ci_ilegivel_sai_com_2(self):
+        for conteudo in ("não é json", '{"a": 1}', '["texto"]', '[{"conclusion": "success"}]'):
+            rc, _, erro = self.rodar_tz("UTC", "--dia", "2025-03-18", "--ci", self.ci(conteudo))
+            self.assertEqual(rc, 2, (conteudo, erro))
+            self.assertNotIn("Traceback", erro)
+        rc, _, erro = self.rodar_tz("UTC", "--dia", "2025-03-18", "--ci", str(self.raiz / "nao-existe.json"))
+        self.assertEqual((rc, "não existe" in erro), (2, True), erro)
 
 
 # PLACAR-SEM-TESTE-POR-SEMANA (decisão do dono 18/11 15:10): `--prs` com JSON de exemplo, sem rede nem git.

@@ -4,7 +4,7 @@
 Uso: forge-placar [--raiz DIR] [--raiz-pedidos DIR] [--erros ARQ] [--git DIR --ref REF] [--ci ARQ.json] [--prs ARQ.json] [--dias N] [--ate AAAA-MM-DD] [--evals DIR] [--json]
      forge-placar comparar --antes AAAA-MM-DD --depois AAAA-MM-DD [--metrica NOME] [--tolerancia F] [--folga F] [--minimo N] [...]
      forge-placar propostas [ARQUIVO] [--hoje AAAA-MM-DD] [--max-abertas N] [--json]
-     forge-placar fases [--git DIR] [--ref REF] [--dia AAAA-MM-DD] [--json]
+     forge-placar fases [--git DIR] [--ref REF] [--dia AAAA-MM-DD] [--desde/--ate AAAA-MM-DDTHH:MM] [--raiz DIR] [--ci ARQ] [--json]
 
 Fontes (na `--raiz`, padrão a pasta atual; no Forge, a área do Jarvis): `docs/kanban/conferencias.md` (vereditos do
 conferente), `docs/kanban/escapes.md` (defeitos achados depois do parecer final), `docs/pedidos/*.md` (linhas do
@@ -54,7 +54,13 @@ desenvolvimento (do 1.º commit ao último de código antes do 1.º parecer), pa
 um parecer, ou ao último parecer), voltas (daí ao último commit da branch) e integração (daí ao merge). Commit de parecer é o
 que só mexe em docs/reviews, docs/qa, docs/security ou docs/devops; a hora do commit é a do autor (o rebase não a muda).
 Primeira rodada aprovada: a primeira versão gravada de cada parecer da branch diz `parecer: aprovado`; sem parecer, `-`.
-O total do dia soma as fases e põe a média por item ao lado da meta de 85 min. Item é o merge de dois pais ou o squash
+O total do dia soma as fases e põe a média, a mediana e o p75 (inclusivo) por item ao lado da meta de 42 min (ordem do dono
+19/11 14:52). `--desde`/`--ate` cortam pela hora do merge, [desde, ate), com fuso opcional (sem ele, a hora local); sem
+eles, vale o dia do merge. No `--json`, cada item traz o `pr` ("Merge pull request #N" ou o squash) e a hora do `merge`.
+Horas paradas, cada uma com a fonte por escrito na saída: queda de sessão e promoção travada pelas linhas
+`PARADA sessão|promoção AAAA-MM-DD HH:MM até AAAA-MM-DD HH:MM` do `## Histórico` dos pedidos (`--raiz`), e develop
+vermelha pelo `--ci` (`gh run list --branch develop --json conclusion,createdAt,updatedAt`, gerado fora), do fim do run
+reprovado ao fim do verde seguinte; intervalos sobrepostos contam uma vez, recortados na janela; sem a fonte, `-`. Item é o merge de dois pais ou o squash
 do `forge-fechar` (assunto que termina em `(#N)`), medido pelos commits do PR em `refs/pull/N/head` quando o projeto os tem
 (sem rede: `git fetch origin 'refs/pull/*/head:refs/pull/*/head'` fora); sem eles, o squash conta à parte na linha
 `itens sem fases (squash): N` (no `--json`, `sem_fases`), fora da média.
@@ -87,11 +93,19 @@ RESULTADO = re.compile(r"^(manter|reverter)\b.*\S", re.I)
 PRAZO_MAXIMO = 30  # dias entre o início e a revisão
 SEM_TESTE = re.compile(r"^##[ \t]+Sem teste[ \t]*$", re.M | re.I)
 PASTAS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/security/", "docs/devops/")  # as do PASTA_E_REGRA do forge-check
-META_MINUTOS = 85  # ordem do dono 18/11 17:00: do 1.º commit ao merge, de 169 para 85 min
+META_MINUTOS = 42  # ordem do dono 19/11 14:52: do 1.º commit ao merge, metade da metade de 169 (a de 18/11 era 85)
 FASES = ("desenvolvimento", "pareceres", "voltas", "integração")
 PARECER = re.compile(r"^parecer:[ \t]*(\S+)", re.M)
 NOME_DO_ITEM = re.compile(r"(?:from [^/\s]+/|Merge branch ')([^'\s]+)")
 SQUASH = re.compile(r"\(#(\d+)\)$")  # assunto do squash do GitHub: "<título> (#N)"
+PR_DO_MERGE = re.compile(r"^Merge pull request #(\d+)\b")
+PARADA = re.compile(r"^PARADA (sessão|promoção) (\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}) até (\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2})")
+FONTES_DE_PARADA = {
+    "sessão": "linhas `PARADA sessão <início> até <fim>` do ## Histórico de docs/pedidos/*.md (--raiz)",
+    "develop vermelha": "CI da develop pelo gh (--ci: gh run list --branch develop --json conclusion,createdAt,updatedAt),"
+                        " do fim do run reprovado ao fim do run verde seguinte",
+    "promoção": "linhas `PARADA promoção <início> até <fim>` do ## Histórico de docs/pedidos/*.md (--raiz)",
+}
 
 
 def data(texto, nome):
@@ -580,45 +594,132 @@ def primeira_rodada(pasta, commits):
     return all(vereditos.values()) if vereditos else None
 
 
-def itens_do_dia(pasta, ref, dia):
-    """Os itens mesclados na linha principal da `ref` no dia (merge de dois pais ou squash `(#N)`), com as fases e a primeira
-    rodada, e quantos squashes ficaram sem fases por não haver `refs/pull/N/head` no projeto."""
+def itens_do_dia(pasta, ref, na_janela):
+    """Os itens mesclados na linha principal da `ref` cujo merge passa em `na_janela(epoch, dia)` (merge de dois pais ou squash
+    `(#N)`), com as fases, a primeira rodada, o PR e a hora do merge, e quantos squashes ficaram sem fases por não haver
+    `refs/pull/N/head` no projeto."""
     itens, sem_fases = [], 0
-    for linha in git(pasta, "log", "--first-parent", "--format=%H%x09%P%x09%ct%x09%cs%x09%s", ref).splitlines():
-        sha, pais, quando, cs, assunto = linha.split("\t", 4)
+    for linha in git(pasta, "log", "--first-parent", "--format=%H%x09%P%x09%ct%x09%cs%x09%cI%x09%s", ref).splitlines():
+        sha, pais, quando, cs, hora, assunto = linha.split("\t", 5)
         pais, pr = pais.split(), SQUASH.search(assunto)
-        if cs != dia or not (len(pais) > 1 or (pais and pr)):
-            continue  # outro dia, commit direto ou a raiz
+        if not na_janela(int(quando), cs) or not (len(pais) > 1 or (pais and pr)):
+            continue  # fora da janela, commit direto ou a raiz
         if len(pais) > 1:
             commits, nome = commits_do_item(pasta, *pais[:2]), NOME_DO_ITEM.search(assunto)
-            item = nome.group(1) if nome else sha[:8]
+            item, pr = nome.group(1) if nome else sha[:8], PR_DO_MERGE.search(assunto)
         else:
             ponta = f"refs/pull/{pr.group(1)}/head"
             tem = subprocess.run(["git", "-C", str(pasta), "rev-parse", "-q", "--verify", ponta + "^{commit}"], capture_output=True)
             commits, item = (commits_do_item(pasta, pais[0], ponta) if tem.returncode == 0 else []), f"#{pr.group(1)}"
             sem_fases += not commits
         if commits:
-            itens.append({"item": item, "fases": fases_do_item(commits, int(quando)),
-                          "total": round((int(quando) - commits[0][0]) / 60), "primeira_rodada": primeira_rodada(pasta, commits)})
+            itens.append({"item": item, "fases": fases_do_item(commits, int(quando)), "pr": int(pr.group(1)) if pr else None,
+                          "merge": hora, "total": round((int(quando) - commits[0][0]) / 60),
+                          "primeira_rodada": primeira_rodada(pasta, commits)})
     return itens, sem_fases
 
 
-def cmd_fases(args):
+def momento(texto, nome):
+    """Epoch de `AAAA-MM-DD[THH:MM[±HH:MM]]`; sem fuso, a hora local (TZ)."""
+    try:
+        return datetime.datetime.fromisoformat(texto).timestamp()
+    except (TypeError, ValueError):
+        raise SystemExit(f"forge-placar: {nome} deve ser AAAA-MM-DDTHH:MM, com fuso opcional")
+
+
+def janela_das_fases(args):
+    """(início, fim, dia, por_hora): o dia vale da 0 h à 0 h seguinte na hora local; `--desde`/`--ate` cortam por hora."""
     dia = data(args.dia, "--dia") if args.dia else datetime.date.today()
-    itens, sem_fases = itens_do_dia(args.git or ".", args.ref, dia.isoformat())
+    inicio = momento(args.desde, "--desde") if args.desde else momento(dia.isoformat(), "--dia")
+    fim = momento(args.ate, "--ate") if args.ate else momento((dia + datetime.timedelta(days=1)).isoformat(), "--dia")
+    if fim <= inicio:
+        raise SystemExit("forge-placar: --ate tem de ser depois de --desde")
+    return inicio, fim, dia.isoformat(), bool(args.desde or args.ate)
+
+
+def estatisticas(totais):
+    """Média, mediana e p75 (método inclusivo) dos minutos do 1.º commit ao merge; None sem item."""
+    if not totais:
+        return {"media_min": None, "mediana_min": None, "p75_min": None}
+    p75 = statistics.quantiles(totais, n=4, method="inclusive")[2] if len(totais) > 1 else totais[0]
+    return {"media_min": round(statistics.mean(totais)), "mediana_min": round(statistics.median(totais)), "p75_min": round(p75)}
+
+
+def minutos_recortados(intervalos, janela):
+    """Minutos da união dos intervalos [a, b) dentro da janela (sobreposição conta uma vez)."""
+    total, ate = 0.0, janela[0]
+    for a, b in sorted(intervalos):
+        a, b = max(a, ate), min(b, janela[1])
+        if b > a:
+            total, ate = total + b - a, b
+    return round(total / 60)
+
+
+def paradas_do_historico(raiz, tipo, janela):
+    hist = historicos(raiz)
+    if hist is None:
+        return None
+    intervalos = [(momento(m.group(2), "PARADA"), momento(m.group(3), "PARADA")) for linhas in hist.values()
+                  for _, texto in linhas if (m := PARADA.match(texto)) and m.group(1) == tipo]
+    return minutos_recortados(intervalos, janela)
+
+
+def paradas_do_ci(arq, janela):
+    """Develop vermelha: do fim de um run `failure` ao fim do run `success` seguinte (cancelado não conta); vermelha até agora."""
+    if not arq:
+        return None
+    texto = ler(arq)
+    if texto is None:
+        raise SystemExit(f"forge-placar: --ci {arq} não existe")
+    try:
+        fins = sorted((momento(str(r.get("updatedAt") or r.get("createdAt")).replace("Z", "+00:00"), "--ci"), r.get("conclusion"))
+                      for r in json.loads(texto) if r.get("conclusion") in ("failure", "success"))
+    except (json.JSONDecodeError, RecursionError, AttributeError, TypeError):
+        raise SystemExit(f"forge-placar: --ci {arq} não é uma lista de runs legível")
+    intervalos, desde = [], None
+    for quando, conclusao in fins:
+        if conclusao == "failure" and desde is None:
+            desde = quando
+        elif conclusao == "success" and desde is not None:
+            intervalos.append((desde, quando))
+            desde = None
+    if desde is not None:
+        intervalos.append((desde, min(janela[1], datetime.datetime.now().timestamp())))
+    return minutos_recortados(intervalos, janela)
+
+
+def paradas(args, janela):
+    """{tipo: {"min": minutos ou None sem a fonte, "fonte": de onde vem}}."""
+    medidas = {"sessão": paradas_do_historico(args.raiz, "sessão", janela), "develop vermelha": paradas_do_ci(args.ci, janela),
+               "promoção": paradas_do_historico(args.raiz, "promoção", janela)}
+    return {tipo: {"min": n, "fonte": FONTES_DE_PARADA[tipo]} for tipo, n in medidas.items()}
+
+
+def horas(minutos):
+    return "-" if minutos is None else f"{minutos // 60} h {minutos % 60:02d} min"
+
+
+def cmd_fases(args):
+    inicio, fim, dia, por_hora = janela_das_fases(args)
+    itens, sem_fases = itens_do_dia(args.git or ".", args.ref,
+                                    (lambda ct, _: inicio <= ct < fim) if por_hora else (lambda _, cs: cs == dia))
     soma = {fase: sum(i["fases"][fase] for i in itens) for fase in FASES}
     julgados = [i["primeira_rodada"] for i in itens if i["primeira_rodada"] is not None]
-    dados = {"dia": dia.isoformat(), "meta_min": META_MINUTOS, "itens": itens, "soma": soma,
-             "media_min": round(sum(i["total"] for i in itens) / len(itens)) if itens else None,
-             "primeira_rodada": [sum(julgados), len(julgados)], "sem_fases": sem_fases}
+    recorte = [datetime.datetime.fromtimestamp(t).astimezone().isoformat(timespec="minutes") for t in (inicio, fim)]
+    dados = {"dia": dia, "recorte": recorte if por_hora else None, "meta_min": META_MINUTOS, "itens": itens, "soma": soma,
+             **estatisticas([i["total"] for i in itens]), "primeira_rodada": [sum(julgados), len(julgados)],
+             "sem_fases": sem_fases, "paradas": paradas(args, (inicio, fim))}
     if args.json:
         print(json.dumps(dados, ensure_ascii=False, sort_keys=True))
         return 0
     sim = {True: "sim", False: "não", None: "-"}
-    print(f"fases do dia {dados['dia']} (meta {META_MINUTOS} min do 1.º commit ao merge, {args.ref}):")
+    titulo = f"de {recorte[0]} até {recorte[1]}" if por_hora else f"do dia {dados['dia']}"
+    print(f"fases {titulo} (meta {META_MINUTOS} min do 1.º commit ao merge, {args.ref}):")
     for i in itens:
         print(f"item {i['item']}: " + " · ".join(f"{f} {i['fases'][f]} min" for f in FASES)
               + f" · total {i['total']} min · primeira rodada aprovada: {sim[i['primeira_rodada']]}")
+    for tipo, p in dados["paradas"].items():
+        print(f"horas paradas, {tipo}: {horas(p['min'])} (fonte: {p['fonte']})")
     if sem_fases:
         print(f"itens sem fases (squash): {sem_fases} (sem os commits do PR em refs/pull/N/head; fora da média)")
     if not itens:
@@ -626,8 +727,8 @@ def cmd_fases(args):
         return 0
     total = sum(soma.values()) or 1
     print(f"total do dia: {len(itens)} itens · " + " · ".join(f"{f} {soma[f]} min ({soma[f] / total:.0%})" for f in FASES)
-          + f" · média {dados['media_min']} min por item (meta {META_MINUTOS} min)"
-          + f" · primeira rodada aprovada {sum(julgados)}/{len(julgados)}")
+          + f" · média {dados['media_min']} min · mediana {dados['mediana_min']} min · p75 {dados['p75_min']} min por item"
+          + f" (meta {META_MINUTOS} min) · primeira rodada aprovada {sum(julgados)}/{len(julgados)}")
     return 0
 
 
@@ -661,6 +762,8 @@ def analisar(argv):
     if argv[:1] == ["fases"]:
         p = argparse.ArgumentParser(prog="forge-placar fases", parents=[comum])
         p.add_argument("--dia")
+        p.add_argument("--desde", help="AAAA-MM-DDTHH:MM[±HH:MM]: corte por hora do merge (sem fuso, a hora local)")
+        p.add_argument("--ate", help="AAAA-MM-DDTHH:MM[±HH:MM], exclusivo")
         return cmd_fases, p.parse_args(argv[1:])
     p = argparse.ArgumentParser(prog="forge-placar", parents=[comum])
     p.add_argument("--ate")

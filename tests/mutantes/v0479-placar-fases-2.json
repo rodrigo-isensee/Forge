@@ -46,7 +46,7 @@
       "id": "M13",
       "guarda": "so os itens do dia entram",
       "arquivo": "bin/forge-placar",
-      "de": "if cs != dia or not (",
+      "de": "if not na_janela(int(quando), cs) or not (",
       "para": "if False or not (",
       "testes": [
         "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
