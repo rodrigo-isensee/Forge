@@ -1,0 +1,36 @@
+{
+  "pedido": "v0479-placar-fases",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M42",
+      "guarda": "aninhamento no teto passa, um acima sai com 2",
+      "arquivo": "bin/forge-placar",
+      "de": "        if nivel > teto:\n            return True",
+      "para": "        if nivel >= teto:\n            return True",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_aninhamento_no_teto_e_colchete_em_string_passam"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "colchete dentro de string nao conta no aninhamento",
+      "arquivo": "bin/forge-placar",
+      "de": "ABRE_FECHA.findall(STRING_JSON.sub(\"\", texto))",
+      "para": "ABRE_FECHA.findall(texto)",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_aninhamento_no_teto_e_colchete_em_string_passam"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "so [ e { abrem nivel; ] e } fecham",
+      "arquivo": "bin/forge-placar",
+      "de": "nivel += 1 if c in \"[{\" else -1",
+      "para": "nivel += 1 if c in \"[{]}\" else -1",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_aninhamento_no_teto_e_colchete_em_string_passam"
+      ]
+    }
+  ]
+}

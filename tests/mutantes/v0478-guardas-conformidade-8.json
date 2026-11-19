@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-guardas-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M55",
+      "guarda": "o cache do config sai antes da troca de raiz (S9)",
+      "arquivo": "hooks/agentes.py",
+      "de": "hook.raiz, hook._config = hook.raiz, pasta_da_config(hook), None",
+      "para": "hook.raiz, hook._config = hook.raiz, pasta_da_config(hook), hook._config",
+      "testes": [
+        "tests.test_conformidade_verde.ConfigDaWorktreeNoClone.test_versao_na_worktree_nao_deixa_o_config_dela_no_cache"
+      ]
+    },
+    {
+      "id": "M56",
+      "guarda": "busybox repassa ao applet",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        por_applet = prog in (\"busybox\", \"toybox\") and bool(args) and not args[0].startswith(\"-\")",
+      "para": "        por_applet = False",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M57",
+      "guarda": "lê as opções até a última palavra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    while i < len(args):\n        a, i = args[i], i + 1\n        if a == \"--\" and not fim:",
+      "para": "    while i < len(args) - 1:\n        a, i = args[i], i + 1\n        if a == \"--\" and not fim:",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M58",
+      "guarda": "-- abre a opção longa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif a.startswith(\"--\"):\n            nome, igual, valor",
+      "para": "        elif False:\n            nome, igual, valor",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M59",
+      "guarda": "a longa com = leva o valor",
+      "arquivo": "hooks/conformidade.py",
+      "de": "valores.append((nome, valor if igual else None))",
+      "para": "valores.append((nome, valor if not igual else None))",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_comando_que_escreve_ou_remove_por_opcao_recusa"
+      ]
+    },
+    {
+      "id": "M60",
+      "guarda": "o grupo sem - é o velho",
+      "arquivo": "hooks/conformidade.py",
+      "de": "velho, grupo = not a.startswith(\"-\"), a.lstrip(\"-\")",
+      "para": "velho, grupo = False, a.lstrip(\"-\")",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M61",
+      "guarda": "cpio sem -D extrai na pasta corrente",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(valores_do(valores, destinos.pasta) or [\".\"])",
+      "para": "(valores_do(valores, destinos.pasta) or [])",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    },
+    {
+      "id": "M62",
+      "guarda": "cpio -o grava o -F",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(valores_do(valores, destinos.arquivo) if cria else [])",
+      "para": "(valores_do(valores, destinos.arquivo) if False else [])",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    }
+  ]
+}
