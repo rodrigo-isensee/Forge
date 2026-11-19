@@ -55,6 +55,12 @@ class ItemAteDezArquivos(Repo):
         self.assertEqual(rc, 1, saida)
         self.assertEqual(json.loads(saida)["arquivos_do_item"], 11)
 
+    def test_base_ilegivel_nao_quebra_e_a_classe_vale_c(self):  # sem diff lido, a classe já exige todos os portões
+        self.commitar(docs(11), "onze")
+        rc, saida = self.classe("--base", "nao-existe")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("classe: C", saida)
+
 
 if __name__ == "__main__":
     import unittest

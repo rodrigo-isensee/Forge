@@ -61,6 +61,16 @@
       "testes": [
         "tests.test_meta85_item_arquivos.ItemAteDezArquivos.test_testes_mutantes_changelog_e_pareceres_nao_contam"
       ]
+    },
+    {
+      "id": "M21",
+      "guarda": "classe: diff ilegível (None) não quebra a contagem (mutante: TypeError)",
+      "arquivo": "bin/forge-check",
+      "de": "    item = arquivos_do_item(nomes or [])",
+      "para": "    item = arquivos_do_item(nomes)",
+      "testes": [
+        "tests.test_meta85_item_arquivos.ItemAteDezArquivos.test_base_ilegivel_nao_quebra_e_a_classe_vale_c"
+      ]
     }
   ]
 }
