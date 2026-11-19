@@ -347,7 +347,7 @@ class NotasEntreFerramentas(unittest.TestCase):
                                  "iniciante": lambda _s: False})()
         self.meta.medir_mensagem(hook, raiz)
         linha = json.loads((run / "mensagens.jsonl").read_text(encoding="utf-8"))
-        return linha["notas_em_outro_idioma"], linha["outro_idioma"]
+        return linha.get("notas_em_outro_idioma"), linha.get("outro_idioma")
 
     def test_nota_em_outro_idioma_na_rodada_acusa(self):
         self.assertEqual(self.medir([self.dono("oi"), self.nota(self.EN), self.nota(self.PT)]), (1, True))
