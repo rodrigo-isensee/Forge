@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-recomendado
-commit: cdea2f3807f456c317365703ce96398ce5cea80d
+commit: eba8b7d01c0dd892615d9846c97c8eeb17dd6f34
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -39,3 +39,9 @@ rc=0
 Os 4 que passam na base são testes antigos (AchadoTetoDoc, ParecerCurto), não novos.
 
 Módulos de orçamento e textos, no head, em segundo plano, `python3 -I -m unittest`, rc=0: test_orcamento_instrucao (8), test_textos_034 (9), test_brief_tamanho (3), test_forge_tamanho (24), test_aq1_texto (6), test_achado_teto_doc (8), test_textos_ci_custo (5), todos OK. Suíte completa: fica no CI do PR (check-run `bateria`), não rodada aqui. Mutação: sem código de produção no diff, não se aplica.
+
+## Revalidação
+- Head aprovado: `eba8b7d0` (descendente de `cdea2f38`). Retestado nesse head: `test_metricas_texto` (2) OK, `test_achado_teto_doc` (8) OK.
+- `test_forge.AntiDuplicacao` falhou na rodada anterior por texto copiado no parecer de segurança (fora do domínio do QA); corrigido em `fc05832a`. Depois do merge de `origin/melhoria/v0479-meta85-recomendado` (head `bd890048`), rodado de novo: Ran 2 tests, OK, rc=0.
+- Diferença `eba8b7d0..bd890048`: só `docs/reviews/` e `docs/security/` (pareceres, fora do domínio do QA); nenhum código, teste ou regra mudou.
+- `forge-check parecer delta` avisou que o merge de `fc05832` não está na `origin/develop` local, então o intervalo conta inteiro; não muda o veredito.
