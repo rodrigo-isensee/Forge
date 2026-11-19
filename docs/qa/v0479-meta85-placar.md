@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-placar
-commit: 97ef4fd1e6c99380646ad2f52dbe291f2168d27b
+commit: f74d6dd71cdc9ae8c458509cf6ed7674b55bc83f
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -61,3 +61,14 @@ Delta lido por `forge-check parecer delta`: `bin/forge-placar`, `tests/evals/tes
 
 ## Parecer
 Aprovado no head 97ef4fd1. Sem achado aberto. Sem suíte local (é do CI do PR, `R-QA`).
+
+## Revalidação (delta 97ef4fd1..f74d6dd7, E36.12)
+Delta lido por `forge-check parecer delta`: `bin/forge-placar` (`fundo_demais`, `TETO_ANINHAMENTO = 64`, JSON mais fundo sai 2), `tests/evals/test_placar.py`, specs `v0479-meta85-placar-4.json` e `v0479-placar-fases-6.json` e o fragmento de changelog. O aviso do merge de 5d6d87a (fora da origin/develop local) só diz que o que veio da base conta inteiro; nada fora do domínio foi relido.
+
+- `python3 -m unittest discover -s tests/evals -p test_placar.py -t .`: `Ran 50 tests ... OK`.
+- `forge-mutante tests/mutantes/v0479-meta85-placar*.json`: 31 morreram, nenhum sobrevivente, rc 0 (uma chamada por pedido; as duas famílias rodam em separado).
+- `forge-mutante tests/mutantes/v0479-placar-fases*.json`: 49 morreram, nenhum sobrevivente, rc 0.
+- `forge-mutante --cobertura --base 5ae868eb`: rc 1 só por `apagada · bin/forge-placar:641(base) · itens` (mais `spec editada` nas fases-2/3/4, que não é falta).
+- Linha 641 da base: `"media_min": round(sum(...)/len(itens)) if itens else None`, dentro de `dados` do `fases`. No head a média saiu dali e a guarda `if not totais: return {... None}` vive em `estatisticas()` (`bin/forge-placar:671`). Ela tem mutante, `v0479-placar-fases-3.json` M19 (dia sem item tem media None, teste `test_dia_sem_item`), que morreu nesta rodada. A linha apagada não perdeu guarda; a cobertura aponta a linha antiga porque ela deixou de existir. Julgada coberta, sem bloqueio.
+
+Parecer mantido: aprovado, sem achados.
