@@ -3,44 +3,38 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: 9b075525eaa2a3cadf408e77bafbe5e1817884ab
-parecer: aprovado
+commit: 9a20739e0d4ff607033690eaa238e6c0342e6d74
+parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-11-18
 ---
-# Review de segurança: v0478 (guardas do hook `parecer`, E3.22, revalidação)
+# Review de segurança: v0478 (guardas do hook `parecer`, E3.27, revalidação)
 
-Volta por delta, volta 3 de 3 do A5. Rodada anterior: `commit b989773a` (E3.17), no git. Delta lido (`forge-check parecer delta`, conteúdo de `014f3e53..9b075525`): no domínio, `hooks/parecer.py` (D1 em `mexidas_na_linha`, `nome_incerto`, `mexe_no_config_do_git`, `linha_mantem_os_remotos`, `remotos_incertos`, a recusa em `pasta_do_gh` e o `gh_na` em `conferir`), `tests/test_hooks_parecer_matriz.py` (o gerador da matriz D1 a D7), `bin/forge-testes` (mapa) e a matriz em `docs/hooks.md`. Fora do domínio, não relido: changelog, `tests/mutantes/*`, `tests/pesos-d4.json`, `tests/test_testes_tocados.py`.
+Volta por delta. Rodada anterior: `commit 9b075525` (E3.22), no git. Delta lido (`forge-check parecer delta`, `9b075525..9a20739e`): no domínio, `hooks/parecer.py` (`EXPANSAO_QUE_ATRIBUI`, `mexidas_por_expansao` e o ambiente inicial em `principal`, commit 415eaa82, A5 do review), `tests/test_hooks_parecer_matriz.py` (D4 por expansão, S28 e S29, legítimos novos) e a linha D4 de `docs/hooks.md`. Fora do domínio, não relido: o fragmento do changelog e `tests/mutantes/v0478-guardas-parecer-10.json`.
 
 Gatilhos: hook de controle (`hooks/parecer.py`) que guarda o portão de parecer de todos os projetos e do Forge.
 
 ## Achados
-- A8 (recomendado) hooks/parecer.py:126 · D7, decisão do dono: `PATH` mexido na linha troca o programa que roda com nome de `SO_LEEM_A_COPIA` (`ls`, `cat`) e o `git` do gh; `export PATH="$PWD/b:$PATH"; ls; gh pr ready` dá 0 (S27). Recusar quebra o legítimo do corpus.
+- A9 (bloqueante) hooks/parecer.py:1140 · D4 por expansão lê o texto cru: com `\`+quebra dentro da chave, `set -a; : ${GH_\<nl>REPO:=dono/forge}; gh pr ready feature/x` dá 0 e o bash exporta GH_REPO (S30). A correção do A5 não cobre a forma que o shell lê.
+- A10 (bloqueante) hooks/parecer.py:127 · D4 sem a atribuição aritmética: `: "$((HOME=0))"`, `: $[HOME=0]`, `: ${A[HOME=0]}`, `: ${PWD:HOME=0:0}` antes do gh dão 0; o bash põe HOME=0 e o git lê `0/.gitconfig` da cópia alheia (S31 a S34). Mesma família do A5, dimensão nova da matriz.
 
 ## Sondas
-- S14 · `command -p . ./env.sh; gh pr ready feature/x` · espera: 2 · obtido: 2 (fechado)
-- S15 · `command -- source ./env.sh; gh pr ready feature/x` · espera: 2 · obtido: 2 (fechado)
-- S16 · `builtin -- source ./env.sh; gh pr ready feature/x` · espera: 2 · obtido: 2 (fechado)
-- S17 · `c=source; $c env.sh; gh pr ready feature/x` · espera: 2 · obtido: 2 (fechado)
-- S18 · `env $(cat vars) gh pr ready feature/x` e `... gh pr merge feature/x` · espera: 2 · obtido: 2 (fechado)
-- S19 · `GIT_CONFIG_GLOBAL=g.cfg gh pr ready feature/x` e `export GIT_CONFIG_GLOBAL=g.cfg;` · espera: 2 · obtido: 2 (fechado)
-- S20 · `GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.gh-resolved GIT_CONFIG_VALUE_0=dono/forge gh pr ready feature/x` · espera: 2 · obtido: 2 (fechado)
-- S21 · `export GIT_CONFIG_PARAMETERS="'remote.origin.gh-resolved'='dono/forge'"; gh pr ready feature/x` · espera: 2 · obtido: 2 (fechado)
-- S22 · `HOME=$PWD/h gh pr ready feature/x` e `export XDG_CONFIG_HOME=$PWD/x;` · espera: 2 · obtido: 2 (fechado)
-- S23 · `git remote add upstream git@github.com:dono/forge.git && gh pr ready feature/x` · espera: 2 · obtido: 2 (fechado)
-- S24 · `git remote set-url origin git@github.com:dono/forge.git; gh pr ready feature/x` · espera: 2 · obtido: 2 (fechado)
-- S25 · `git config remote.origin.gh-resolved dono/forge;` e `git config url.<forge>.insteadOf <outro>;` antes de `gh pr ready feature/x` · espera: 2 · obtido: 2 (fechado)
-- S27 · `export PATH="$PWD/b:$PATH"; ls; gh pr ready feature/x` (b/ls roda `git remote add`) · espera: decisão do dono · obtido: 0
-
-## Estado dos achados anteriores
-- **A5:** fechado. S14 a S18 dão 2, e as vizinhas fora do gerador também: `command -pv ls;`, `s\ource`, `"sou"rce`, `set -a; for GH_REPO in …; do :; done;`, `set -a; read -r GH_REPO < vars;`.
-- **A6:** fechado (D4). S19 a S22 dão 2, e as vizinhas `env GIT_CONFIG_GLOBAL=g.cfg gh`, `set -a; for GIT_CONFIG_GLOBAL in g.cfg; …`.
-- **A7:** fechado (D5, lista positiva). S23 a S25 dão 2, e as vizinhas `./ls;`, `$PWD/ls;`, `"$PWD"/ls;`, `{ echo x; } >> .git/config;`, `echo x >&f;`. O `git -c … status;` do corpus da rodada anterior agora recusa, como a matriz declara (D5); aceito: o `-c` não muda os remotos, mas o `git` numa cópia alheia roda o `core.fsmonitor` e os ganchos dela.
-- **A1 a A4:** fechados antes; sem delta que os toque.
-- Corpus de legítimos, todos 0: `gh pr ready feature/x`, `cd .;`, `export PATH="$HOME/bin:$PATH";` e os oito do gerador com `ready` e `merge`.
+- S30 · `set -a; : ${GH_\` + quebra de linha + `REPO:=dono/forge}; gh pr ready feature/x` · espera: 2 · obtido: 0
+- S31 · `: "$((HOME=0))"; gh pr ready feature/x` · espera: 2 · obtido: 0
+- S32 · `: $[HOME=0]; gh pr ready feature/x` · espera: 2 · obtido: 0
+- S33 · `: ${A[HOME=0]}; gh pr ready feature/x` · espera: 2 · obtido: 0
+- S34 · `: ${PWD:HOME=0:0}; gh pr ready feature/x` · espera: 2 · obtido: 0
 
 ## Detalhe dos achados
-**A8 (média, recomendado; decisão do dono).** Evidência: `hooks/parecer.py:126` (`SO_LEEM_A_COPIA`) e `hooks/parecer.py:660` (`linha_mantem_os_remotos`) confiam no nome do programa, e o nome é resolvido pelo `PATH` que a própria linha pode mudar. A D7 da matriz cita o `git` que o gh roda; a classe é maior: qualquer programa da lista (`ls`, `cat`, `grep`…) sai do `PATH` e pode ser um script que roda `git remote add` antes do gh (S27). Caminho de ataque: na cópia alheia recusada, o agente grava `b/ls` e prefixa o `PATH`; é evasão deliberada, a mesma classe do limite aceito A2 da 0.45.4 (o hook protege contra engano; o CI e o merge do dono são o portão). As duas saídas, para o dono decidir (`R-DECISAO`): (1) recusar, na cópia alheia sem `-R`, a linha que mexe em `PATH` (prefixo, `export`, `declare`, `read`, `printf -v`, nome por expansão), o que recusa o legítimo `export PATH="$HOME/bin:$PATH"; gh pr ready` do corpus; o contorno é `-R <dono/repo>` ou o gh noutra chamada; (2) limite declarado em `docs/hooks.md` (D7 "limite aceito", com S27 como fixture de 0 documentada) e aceite do usuário em `docs/security/aceites/` com `commit:` igual ao deste parecer, que leva este parecer a `riscos-aceitos`. Com a saída (1), esforço P, dono tech-lead. O resto da matriz (D1 a D6) fecha sem depender desta decisão.
+**A9 (média, bloqueante).** Evidência: `hooks/parecer.py:1140` passa `comando` cru a `mexidas_por_expansao` (`hooks/parecer.py:651`); o `\`+quebra de linha some na leitura do bash, também dentro de `${…}`, e a regex de `hooks/parecer.py:127` não casa `${GH_\<nl>REPO:=…}`. Conferido no bash: depois de `set -a; : ${GH_\<nl>REPO:=dono/forge}`, o ambiente traz `GH_REPO=dono/forge`, e o gh age no repositório do Forge a partir da cópia alheia. Caminho de ataque: o do A5 (agente numa cópia alheia sem `-R`, evasão deliberada ou cópia de trecho), com uma quebra a mais. Correção mínima: somar `mexidas_por_expansao` sobre cada texto de `textos_da_linha(comando)` (`hooks/parecer.py:513`, que já traz as formas que o shell lê), não só sobre `comando`; S30 no gerador (posição nova em `POSICOES_DA_EXPANSAO`). Esforço P. Dono: tech-lead.
+
+**A10 (média, bloqueante).** Evidência: `EXPANSAO_QUE_ATRIBUI` (`hooks/parecer.py:127`) só cobre `${N:=v}` e `${N=v}`; a aritmética do bash também dá valor, e `HOME` já vem exportado (sem `set -a`). O `$((HOME=0))` sem aspas recusa (2), mas pelo caminho da dúvida da leitura, não pela D4; entre aspas, e nas outras três formas, dá 0. Conferido: `: "$((HOME=0))"; git config --get remote.origin.gh-resolved` numa cópia com `0/.gitconfig` devolve `dono/forge`. O valor é só numérico, mas basta para `HOME`, `XDG_CONFIG_HOME`, `GH_CONFIG_DIR`, `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `CDPATH` (pasta `0` relativa, gravada antes noutra chamada). Contextos aritméticos que atribuem, lista inteira para cobrir: `$((…))`, `$[…]`, `((…))`, `for ((…))`, `let`, subscrito de vetor indexado (`${A[…]}` e `A[…]=`), deslocamento e tamanho (`${N:…:…}`) e os operandos de `[[ … -eq|-ne|-lt|-le|-gt|-ge … ]]`; operadores: `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `<<=`, `>>=`, `&=`, `^=`, `|=`, `++` e `--` (antes ou depois do nome). Correção mínima, falha fechada: em todo texto de `textos_da_linha`, nome de `SENSIVEIS` ou `GIT_*` seguido de um desses operadores (não `==`, `!=`, `<=`, `>=`), ou precedido de `++` ou `--`, conta como mexido onde quer que esteja (recusa a mais, como a D4 já declara para a expansão); a forma nova na linha D4 de `docs/hooks.md` e S31 a S34 no gerador. Esforço P. Dono: tech-lead.
+
+## Estado dos achados anteriores
+- **A5 (review), S28 e S29:** as formas do gerador recusam (2), conferidas também fora dele: `${GH_REPO:=…}` no corpo de heredoc e em duas linhas físicas dão 2. Incompleto pelo A9 e pelo A10.
+- **A8 (D7, `PATH`):** decidido pelo dono (opção b, limite do hook coberto pela A3 da E29); não reaberto aqui.
+- **A1 a A7:** fechados antes; sem delta que os toque.
+- Corpus de legítimos, todos 0: `gh pr ready feature/x`, `: ${PAGER:=less};`, `set -a; : "${GH_REPO:-dono/forge}";` e os do gerador.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito gravado; a D7 aguarda o dono. Cenário das sondas: o do gerador (`tests/test_hooks_parecer_matriz.py`, base `incidente-r-copia-alheia-source-gh-repo-ready-bloqueia.json`, mais `vars`, `g.cfg`, `h/.gitconfig`, `x/git/config`, `muda.sh` e a cópia `alheio2`), com o lançador da suíte (`Fixture.montar`, `montar_proc`, `rodar`), por um script local fora do repositório. Testes rodados: `python3 -m unittest tests.test_hooks_parecer_matriz tests.test_hooks_parecer_repo` (OK, 10 testes, 27 s). A suíte inteira roda no CI; este head não tem CI citado no brief ("sem suíte local"). Lacuna: `gitleaks` e `semgrep` não estão no PATH. O delta não traz segredo nem dependência.
+Nenhum risco aceito. Cenário das sondas: o do gerador (`tests/test_hooks_parecer_matriz.py`, base `incidente-r-copia-alheia-source-gh-repo-ready-bloqueia.json`), com o lançador da suíte, por um script local fora do repositório; o efeito no bash e no git conferido em pasta temporária. Teste rodado: `python3 -m unittest tests.test_hooks_parecer_matriz` (OK, 6 testes, 17 s). A suíte inteira roda no CI; o brief não cita CI deste head. Lacuna: `gitleaks` e `semgrep` não estão no PATH. O delta não traz segredo nem dependência.
