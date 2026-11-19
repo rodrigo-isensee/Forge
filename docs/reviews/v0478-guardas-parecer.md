@@ -3,32 +3,34 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: deaf35704182bc20c1bcc2e630f044480e1ddb06
+commit: 993b6bb3f3a514753a8f21f0dcceb216f2791d67
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
 ---
-# Review: v0478 E3.35 (melhoria/v0478-guardas-parecer), revalidação do A12 da segurança da E3.32
+# Review: v0478 E3.39 (melhoria/v0478-guardas-parecer), revalidação do A13 da segurança da E3.34
 
 ## Revalidação
-- Delta lido: `forge-check parecer delta docs/reviews/v0478-guardas-parecer.md`, intervalo 460a8a00..deaf3570 (E3.33: deaf3570; pareceres e merge 946926e9 fora do domínio). No domínio: `pasta_do_gh` (hooks/parecer.py:1049 a 1069), a linha D6 da matriz em `docs/hooks.md`, a classe `SessaoNaCopiaAlheia` do gerador `tests/test_hooks_parecer_matriz.py`, o M76 de `tests/mutantes/v0478-guardas-parecer-12.json` e o fragmento `changelog.d/`. Nada fora do delta relido.
+- Delta lido: `forge-check parecer delta docs/reviews/v0478-guardas-parecer.md`, intervalo deaf3570..993b6bb3 (E3.37: 86192822 e 993b6bb3). No domínio: `api_depois_de_cd_sem_resolver` e `tira_o_rascunho` (hooks/parecer.py:1150 a 1175), a chamada em `conferir` (hooks/parecer.py:1331), a linha D6 de `docs/hooks.md`, o gerador `gerar_sessao_alheia` de `tests/test_hooks_parecer_matriz.py`, M77 a M79 em `-12.json`, M80 e M81 em `-13.json` e o fragmento `changelog.d/`. Nada fora do delta relido.
 
 ## Sondas
-- S38 · montagem do gerador, sessão na cópia alheia, `d=proj; cd "$d"`, `cd "$(echo ~/proj)"` e `` cd `echo proj` `` antes de `gh pr ready feature/x` · espera: código 2 · obtido: código 2 nas três, mensagem do A12
-- S39 · mesma montagem, `cd ../proj && gh pr ready feature/x` (resolvido) e `gh pr ready feature/x` (sem cd) · espera: 2 pelo parecer ausente no clone e 0 · obtido: 2 (falta parecer de `feature/x`) e 0
-- S40 · sessão num projeto com `hooks_desligados: ["parecer"]`, `gh pr ready feature/x` e `d=x; cd "$d" && gh pr ready feature/x` · espera: 0 e 0 (hook desligado) · obtido: 0 e 2 (base do A1)
+- S41 · sessão na cópia alheia, `d=proj; cd "$d" && gh api -X PUT repos/dono/forge/pulls/1/merge` · espera: código 2 · obtido: 2, mensagem do A13
+- S42 · mesma sessão, `d=proj; cd "$d" && gh api graphql -f query='query{viewer{login}}'` e `export HOME; cd ~/proj && gh api -X POST repos/outro/x/issues -f title=t` · espera: 0 e 0 (leitura legível; endpoint fora de merge e graphql) · obtido: 0 e 0
+- S43 · sessão na cópia alheia e fora de cópia, `gh api -X PUT repos/dono/forge/pulls/1/merge` sem `cd` · espera: 0 (limite declarado em docs/hooks.md, "Fora:") · obtido: 0 e 0
+- S44 · sessão na cópia alheia, `(cd proj; gh api -X PUT repos/dono/forge/pulls/1/merge)` · espera: 2 (cd de subshell deixa a pasta desconhecida, falha fechada) · obtido: 2, mensagem do A13
 
 ## Conferências
-- A12 fechado: com a sessão numa cópia fora de clone, o `cd` sem resolver não cai mais na pasta da chamada (hooks/parecer.py:1065); o gh sem `cd` segue em 0 (S39).
-- Mutação dirigida (`bin/forge-mutante --processos 1`, `-12.json`): M72 a M76 `morreu`; M76 em hooks/parecer.py:1065.
-- Cobertura (`bin/forge-mutante --cobertura --base 460a8a00`): guarda de :1065 `coberta` pelo M76.
-- Teste do item: `python3 -m unittest tests.test_hooks_parecer_matriz.SessaoNaCopiaAlheia`: 1 teste, OK.
-- Leitura (checklist 1 a 4, 7): o teste exercita o ramo de falha por comportamento (subprocesso com o hook), com controle resolvido e legítimo sem `cd`; a D6 descreve o código.
-- Tamanho (H1): cerca de 5 linhas de código no delta, um comportamento.
+- A13 fechado: com a sessão fora de clone, o `gh api` de merge ou de graphql que muda depois do `cd` sem resolver recusa (S41); o GET e o graphql legível seguem (S42). A precedência em hooks/parecer.py:1161 (`or` com `and`) lê `merge or (graphql and tira_o_rascunho)`, como a docstring diz.
+- Extração de `tira_o_rascunho` não muda `pronto_por_graphql` (M80 morre por `test_a2_ready_por_graphql_no_clone`).
+- Mutação dirigida (`bin/forge-mutante --processos 1`, `-12.json` e `-13.json`): M72 a M81 `morreu`.
+- Cobertura (`bin/forge-mutante --cobertura --base deaf3570`): :1156, :1158, :1161, :1181 e :1331 `coberta` (M77 a M81).
+- Teste do item: `python3 -m unittest tests.test_hooks_parecer_matriz.SessaoNaCopiaAlheia tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone`: OK (52 s); o gerador afirma mínimo de 110 casos.
+- Leitura (checklist 1 a 4, 7, 11): ramo de falha por comportamento (subprocesso com o hook), controles resolvido, no clone e sem `cd`; a D6 e o changelog.d descrevem o código.
+- Tamanho (H1): cerca de 30 linhas de código no delta, um comportamento.
 - Suíte: sem PR, sem CI a citar; não rerrodada (R-REVIEW).
 
 ## Achados
-- A1 (recomendado) hooks/parecer.py:1065 · o ramo também alcança a sessão num projeto com `parecer` em `hooks_desligados` (S40: 2); a docstring diz, mas a D6 de docs/hooks.md e o changelog.d falam só de cópia alheia. Declarar o caso nos dois.
+- A2 (recomendado) hooks/parecer.py:1162 · a mensagem lista "variável, ~ com HOME mexido, CDPATH, crase ou $( )", mas o `cd` literal em subshell também recusa (S44); incluir "subshell ou condicional" na mensagem e na D6.
 
 ## Parecer
-Aprovado: A12 fechado, S38 em código 2, controles de S39 como esperado, M76 morto e guarda coberta. A1 é recomendado (cartão), sem volta.
+Aprovado: A13 fechado, S41 em código 2, controles S42 e S43 como esperado, M77 a M81 mortos e guardas cobertas. A2 é recomendado (cartão), sem volta.
