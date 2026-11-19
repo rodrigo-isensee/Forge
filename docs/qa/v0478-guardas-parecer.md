@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: 993b6bb3f3a514753a8f21f0dcceb216f2791d67
+commit: 6c5d30e56c862c2c300bd412816ded091f786fd7
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -86,3 +86,6 @@ Escopo: delta `deaf3570..993b6bb3` (`forge-check parecer delta`): `hooks/parecer
 - Vermelho: `forge-testes --vermelho deaf3570... --modulos tests.test_hooks_parecer_matriz,tests.test_hooks_fila27 --prazo 500` → `vermelho: base=deaf35704182 head=993b6bb3f3a5`; `SessaoNaCopiaAlheia.test_cd_sem_resolver_recusa_e_o_resolvido_segue` `H=ok · B=falha · prova (asserção)`; os outros 12 já existiam (não provam, não são novos); rc 0.
 - Mutação: `forge-mutante -12 -13 --processos 3 --base deaf3570...` → `rev=993b6bb3f3a5`, rc 0; M72 a M81 `morreu` (M77 :1156, M78 :1158, M79 :1161, M80 :1181, M81 :1331), sem sobrevivente nem equivalente. `--cobertura --base deaf3570...` rc 0: as cinco condições mudadas `coberta`, `spec editada` na `-12` (M77 a M79 novos).
 - Sem CI deste head, sem suíte inteira (brief). Parecer: aprovado, sem bug aberto.
+
+## Revalidação no head 6c5d30e5 (junção com a develop)
+Delta: `993b6bb3..6c5d30e5`, só a junção com a develop (`eca1d21b`) e o conflito em `tests/test_testes_tocados.py` resolvido com a contagem 104 (102 da develop + `test_hooks_parecer_matriz` e `test_hooks_parecer_repo`). Rodei `python3 -I -m unittest discover -s tests -p test_testes_tocados.py`: 162 testes, OK (1 pulado por sandbox, /proc de outro namespace), rc=0. Sem achado novo; parecer anterior segue valendo.
