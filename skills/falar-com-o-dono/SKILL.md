@@ -9,7 +9,7 @@ Texto do Jarvis (L51).
 
 **Perguntas uma a uma (`R-DECISAO`):** uma decisão por mensagem, a mais pesada primeiro; a seguinte, depois da resposta. Cada uma segue "Como perguntar" da skill `forge:modo-iniciante`: contexto, opções, "Afrouxa o processo?", custo de eficiência em tempo e tokens por opção e a recomendação. Sem resposta, fica pendente. Inclua a saída "decidam vocês", que não se oferece nas perguntas que `R-DECISAO` não deixa delegar.
 
-**Toda mensagem (resposta, ação, idioma e rodada):** em
+**Toda mensagem (resposta, ação, idioma, rodada e recibo no meio dela):** em
 `${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/toda-mensagem.md`.
 
 **Resposta curta (O4):** em

@@ -1310,3 +1310,53 @@ class ModuloComoScript(unittest.TestCase):
                            env={"PATH": os.defpath, "HOME": tempfile.gettempdir(), "CLAUDECODE": "1"}, stdin=subprocess.DEVNULL)
         self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("nunca de dentro do Claude", r.stderr)
+
+
+
+class ProcessoDeOutraParteDaSuite(unittest.TestCase):
+    """DEFEITO-TESTES-DE-PRAZO-SOB-CARGA (v0478, run 44333231292 do CI da develop): o oráculo roda a ferramenta pelo lançador
+    `tests/sem_claude_ancestral.py`, e a ferramenta lia o /proc da máquina inteira. Um `forge-fechar` de outra parte da suíte,
+    vivo ao mesmo tempo, adiava o escopo de usuário (`adiado:integracao`) e ele ficava na versão velha. O lançador passa a
+    mostrar à ferramenta só os processos que descendem do teste."""
+
+    def test_descende_de_segue_a_cadeia_de_pais_ate_o_teste(self):
+        """descende_de: o próprio teste e os descendentes dele contam; o órfão, o init, a leitura falha e o ciclo, não"""
+        import sem_claude_ancestral as lancador
+        pais = {50: 40, 40: 10, 10: 1, 1: 0, 60: 1, 70: 71, 71: 70}
+        ler = lambda pid: (pais.get(pid, 0), "")  # noqa: E731
+        self.assertTrue(lancador.descende_de(10, 10, ler), "o próprio processo do teste")
+        self.assertTrue(lancador.descende_de(50, 10, ler), "o neto do teste")
+        self.assertFalse(lancador.descende_de(60, 10, ler), "o órfão, filho do init")
+        self.assertFalse(lancador.descende_de(1, 10, ler), "o init")
+        self.assertFalse(lancador.descende_de(99, 10, ler), "o processo cujo stat não se lê")
+        self.assertFalse(lancador.descende_de(70, 10, ler), "a cadeia em ciclo termina")
+
+    def test_lancador_troca_a_lista_de_pids_so_do_forge_sempre_atual(self):
+        """o lançador entrega ao `forge-sempre-atual` só os pids que descendem do `--ate`; a outro script, a lista inteira"""
+        pasta = Path(tempfile.mkdtemp(prefix="lancador-pids-"))
+        self.addCleanup(shutil.rmtree, pasta, True)
+        (pasta / "forge_versoes.py").write_text(
+            "def _pai_e_nome(pid):\n    return {50: 40, 40: 10, 10: 1, 60: 1}.get(pid, 0), ''\n", encoding="utf-8")
+        (pasta / "forge_sempre_atual.py").write_text("def pids_do_proc():\n    return ['1', '10', '40', '50', '60', '99']\n",
+                                                    encoding="utf-8")
+        corpo = "import json, sys\nsys.path.insert(0, %r)\nimport forge_sempre_atual\nprint(json.dumps(forge_sempre_atual.pids_do_proc()))\n"
+        for nome, esperado in (("forge-sempre-atual", ["10", "40", "50"]), ("forge-outro", ["1", "10", "40", "50", "60", "99"])):
+            with self.subTest(script=nome):
+                (pasta / nome).write_text(corpo % str(pasta), encoding="utf-8")
+                r = subprocess.run([sys.executable, "-I", str(TESTES / "sem_claude_ancestral.py"), "--ate", "10", str(pasta / nome)],
+                                   capture_output=True, text=True, timeout=60, env={"PATH": os.defpath}, stdin=subprocess.DEVNULL)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertEqual(json.loads(r.stdout), esperado)
+
+    def test_processos_de_interesse_le_os_pids_de_pids_do_proc(self):
+        """a varredura só vê os pids que `pids_do_proc` entrega (o ponto que o lançador troca); sem a troca, todos do /proc"""
+        teste = ProcFalso("test_coerente_le_claude_fechar_e_gh_de_merge")
+        teste.setUp()
+        self.addCleanup(teste.doCleanups)
+        teste.processo(10, "claude", "/p/a")
+        teste.processo(11, "forge-fechar", "/p/b")
+        self.assertEqual(sorted(fsa.pids_do_proc()), sorted([str(os.getpid()), "10", "11"]))
+        self.assertEqual(fsa.processos_de_interesse()["fechar"], ["/p/b"])
+        with mock.patch.object(fsa, "pids_do_proc", lambda: [str(os.getpid()), "10"]):
+            achados = fsa.processos_de_interesse()
+        self.assertEqual((achados["claude"], achados["fechar"], achados["duvida"]), (["/p/a"], [], False))
