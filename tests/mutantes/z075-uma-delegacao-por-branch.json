@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "AG-1a G-3 (AG-1/C-1): a leitura roda depois do teto e dentro do try",
       "arquivo": "hooks/agentes.py",
-      "de": "    teto, motivo = calcular_teto(hook.config(), ritmo=ritmo_do_projeto(hook.raiz))",
-      "para": "    branches_dos_briefs(hook, entrada.get(\"prompt\"))\n    teto, motivo = calcular_teto(hook.config(), ritmo=ritmo_do_projeto(hook.raiz))",
+      "de": "    teto, motivo = calcular_teto(hook.config(), ritmo=ritmo_do_projeto(pasta_da_config(hook)))",
+      "para": "    branches_dos_briefs(hook, entrada.get(\"prompt\"))\n    teto, motivo = calcular_teto(hook.config(), ritmo=ritmo_do_projeto(pasta_da_config(hook)))",
       "testes": [
         "tests.test_agentes_hash_brief.BranchesDaReserva.test_g3_erro_na_leitura_nao_pula_o_teto_e_grava_a_reserva_vazia"
       ]

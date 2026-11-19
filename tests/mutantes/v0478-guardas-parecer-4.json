@@ -1,0 +1,56 @@
+{
+  "pedido": "v0478-guardas-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M22",
+      "guarda": "GH-REPO-EXPORTADO (A5 da E3.8): GH_REPO mexido antes na linha, sem -R nem prefixo, é repositório indicado e incerto",
+      "arquivo": "hooks/parecer.py",
+      "de": "return REPO_INCERTO if repo is None and \"GH_REPO\" in mexidas else repo",
+      "para": "return repo",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "GH-REPO-EXPORTADO: o -R ou o GH_REPO= do prefixo, legíveis, valem sobre o GH_REPO mexido antes",
+      "arquivo": "hooks/parecer.py",
+      "de": "return REPO_INCERTO if repo is None and \"GH_REPO\" in mexidas else repo",
+      "para": "return REPO_INCERTO if \"GH_REPO\" in mexidas else repo",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "GH-REPO-EXPORTADO: fora de clone e de projeto, o repositório incerto recusa (falha fechada)",
+      "arquivo": "hooks/parecer.py",
+      "de": "if repo is REPO_INCERTO:  # GH-REPO-EXPORTADO",
+      "para": "if False:  # GH-REPO-EXPORTADO",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "GH-REPO-EXPORTADO: GH_REPO entre os SENSIVEIS, para export, declare -x e atribuição solta o marcarem como mexido",
+      "arquivo": "hooks/parecer.py",
+      "de": "SENSIVEIS = DESVIOS | {\"HOME\", \"CDPATH\", \"GH_REPO\"} | CONFIG_DO_GH",
+      "para": "SENSIVEIS = DESVIOS | {\"HOME\", \"CDPATH\"} | CONFIG_DO_GH",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "INCIDENTE-HOOK-PARECER-CONTORNADO (QA A1 da E3.9, no lugar da isenta velha): fora do clone vale a sessão declarada",
+      "arquivo": "hooks/parecer.py",
+      "de": "return raiz_declarada() or pasta",
+      "para": "return pasta",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    }
+  ]
+}

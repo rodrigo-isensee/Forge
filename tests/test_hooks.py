@@ -539,7 +539,8 @@ class Fixture:
             gravar_resultado_aprovado(raiz, **self.dados["resultado_do_pr"])
 
     def repositorio(self, pasta, conf, mapa):
-        """Outro repositório git do fixture (`repos`): arquivos, um commit e os remotos."""
+        """Outro repositório git do fixture (`repos`): arquivos, um commit, os remotos, a `config` (chave e valor) e a
+        `config_bruta` (texto anexado ao `.git/config`, para a configuração que o `git config` não grava)."""
         pasta.mkdir(parents=True)
         repositorio_vazio(pasta, conf.get("branch", "develop"))
         self.gravar(pasta, {"README.md": "repo\n", **conf.get("arquivos", {})}, mapa)
@@ -547,6 +548,10 @@ class Fixture:
         git("commit", "-q", "-m", "base", cwd=pasta)
         for nome, url in conf.get("remotos", {}).items():
             git("remote", "add", nome, url, cwd=pasta)
+        for chave, valor in conf.get("config", {}).items():
+            git("config", chave, valor, cwd=pasta)
+        with open(pasta / ".git" / "config", "a", encoding="utf-8") as f:
+            f.write(conf.get("config_bruta", ""))
 
     @staticmethod
     def gravar(raiz, arquivos, mapa):
