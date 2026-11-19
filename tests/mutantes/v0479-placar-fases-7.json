@@ -6,8 +6,8 @@
       "id": "M42",
       "guarda": "aninhamento no teto passa, um acima sai com 2",
       "arquivo": "bin/forge-placar",
-      "de": "        if nivel > teto:\n            return True",
-      "para": "        if nivel >= teto:\n            return True",
+      "de": "            if nivel > teto:\n                return True",
+      "para": "            if nivel >= teto:\n                return True",
       "testes": [
         "tests.evals.test_placar.SemTeste.test_aninhamento_no_teto_e_colchete_em_string_passam"
       ]
@@ -16,8 +16,8 @@
       "id": "M43",
       "guarda": "colchete dentro de string nao conta no aninhamento",
       "arquivo": "bin/forge-placar",
-      "de": "ABRE_FECHA.findall(STRING_JSON.sub(\"\", texto))",
-      "para": "ABRE_FECHA.findall(texto)",
+      "de": "        elif c == '\"':\n            em_string = True",
+      "para": "        elif c == '\"':\n            em_string = False",
       "testes": [
         "tests.evals.test_placar.SemTeste.test_aninhamento_no_teto_e_colchete_em_string_passam"
       ]
@@ -26,10 +26,30 @@
       "id": "M44",
       "guarda": "so [ e { abrem nivel; ] e } fecham",
       "arquivo": "bin/forge-placar",
-      "de": "nivel += 1 if c in \"[{\" else -1",
-      "para": "nivel += 1 if c in \"[{]}\" else -1",
+      "de": "        elif c in \"]}\":\n            nivel -= 1",
+      "para": "        elif c in \"]}\":\n            nivel += 1",
       "testes": [
         "tests.evals.test_placar.SemTeste.test_aninhamento_no_teto_e_colchete_em_string_passam"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "aspa escapada nao fecha a string",
+      "arquivo": "bin/forge-placar",
+      "de": "            elif c == \"\\\\\":\n                escapado = True",
+      "para": "            elif c == \"\\\\\":\n                escapado = False",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_varredura_de_aninhamento_e_de_um_passe_e_trata_escape"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "varredura de um passe: o escape vale so para o proximo caractere",
+      "arquivo": "bin/forge-placar",
+      "de": "            if escapado:\n                escapado = False",
+      "para": "            if escapado:\n                escapado = c == \"\\\\\"\n                pass",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_varredura_de_aninhamento_e_de_um_passe_e_trata_escape"
       ]
     }
   ]
