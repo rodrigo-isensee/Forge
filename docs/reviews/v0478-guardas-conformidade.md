@@ -3,36 +3,35 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-conformidade
-commit: 848dd5ecd7bc18a87f957a26aec0e4bd1e88f51c
-parecer: reprovado
+commit: bdbdc257dd492ee2ec6f79af7614b3a5d82e57e2
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-18
 ---
-# Review: v0478 E1.10 (revalidação da volta 2, catálogo de extratores e cache do config)
+# Review: v0478 E1.14 (revalidação da volta 3, catálogo DESTINOS)
 
-Escopo lido: só o delta de `forge-check parecer delta` (b3312958..848dd5ec): changelog.d, docs/hooks.md, hooks/agentes.py, hooks/conformidade.py, specs -3 a -9 dos mutantes, tests/test_conformidade_verde.py. Fora do domínio, nada relido.
+Escopo lido: só o delta de `forge-check parecer delta` (848dd5ec..bdbdc257, mais o parecer de segurança 6a3e3983, fora do domínio): changelog.d, docs/hooks.md, hooks/conformidade.py, specs -6 a -10 dos mutantes, tests/test_conformidade_verde.py. Fora do domínio, nada relido.
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:1102 · `alvos_do_tar` lê a pasta de extração só de `-C`/`--directory`; `--one-top-level=<pasta>`, que o GNU tar usa como pasta de extração (S5), passa com rc 0 (S3, S4). Some o valor dele (relativo a cada `-C`) às pastas e ponha os dois casos no teste.
-- A2 (recomendado) hooks/conformidade.py:1051 · H1: o item soma 236 linhas a mais em hooks/ desde a base 4182a6b9 (agentes.py 29, conformidade.py 207), acima do teto de 150; o PR leva `teto: excedido, <n> linhas, <motivo>`.
+- A1 (recomendado) tests/test_conformidade_verde.py:463 · o pulo sem GNU tar também pula no CI; siga o `tests/apoio_sandbox.py` (com `CI`/`GITHUB_ACTIONS` definido, reprova) para o pulo nunca contar no `teto_pulados`. O +1 estático da catraca (36→37) vai no texto do PR, coberto pelo `afrouxa-regra` que o hook já pede.
+- A2 (recomendado) hooks/conformidade.py:1096 · H1: o item soma 298 linhas a mais em hooks/ desde a base 4182a6b9 (agentes.py 29, conformidade.py 269), acima do teto de 150; o PR leva `teto: excedido, <n> linhas, <motivo>`.
 
 ## Sondas
-- S1 · `tar -xf docs/a.tar -C.git/forge/run` (jarvis e tech-lead, clone temporário) · espera: rc 2 · obtido: rc 2
-- S2 · `tar -cf.git/forge/run/agentes.json docs` (jarvis e tech-lead) · espera: rc 2 · obtido: rc 2
-- S3 · `tar -xf docs/a.tar --one-top-level=.git/forge/run` (jarvis e tech-lead) · espera: rc 2 · obtido: rc 0
-- S4 · `tar -xf docs/a.tar -C docs --one-top-level=../.git/forge` (jarvis e tech-lead) · espera: rc 2 · obtido: rc 0
-- S5 · GNU tar 1.35 real: `tar -cf a.tar src && tar -xf a.tar --one-top-level=dst/alvo` · espera: extrai fora de `dst/alvo` · obtido: cria `dst/alvo/src/f`
-- S6 · controle: `tar -xvf docs/a.tar -C.git`, `-rf.git/…`, `--to-c '<rm>'`, `--remove-f`, `gtar`, `unzip -d.git/forge`, `cpio -idD.git/forge`, `7z x -o.git/forge` · espera: rc 2 · obtido: rc 2 (os dois papéis)
-- S7 · 48 usos legítimos fora do estado (tar, bsdtar, busybox tar, unzip, cpio, 7z; lista no relatório da E1.10), jarvis e tech-lead · espera: rc 0 · obtido: rc 0 em todas, nenhuma recusa a mais
+- S3 · `tar -xf docs/a.tar --one-top-level=.git/forge/run` (jarvis e tech-lead, clone temporário) · espera: rc 2 · obtido: rc 2
+- S4 · `tar -xf docs/a.tar -C docs --one-top-level=../.git/forge` (jarvis e tech-lead) · espera: rc 2 · obtido: rc 2
+- S5 · GNU tar 1.35 real: `tar -cf a.tar src && tar -xf a.tar --one-top-level=dst/alvo` · espera: extrai em `dst/alvo` · obtido: `dst/alvo/src/f` (a opção é pasta de extração; o hook a lê como tal)
+- S8 · vizinhas: `--one-top=`, `gtar`, `--transform` com `flags=r;` e com `\/`, `7z x -O.git/forge` (dois papéis) · espera: rc 2 · obtido: rc 2; `--one-top-level .git/forge/run` sem `=` dá rc 0, correto: no GNU a palavra é operando
+- S9 · 33 usos legítimos fora do estado (tar `--transform`/`--xform`, `-N`, `-T`, `--one-top-level` em `docs`; bsdtar `-s`; 7z `-o`, `-xr!`, `-ir!`, `-scs`; unzip, cpio, busybox, toybox), dois papéis · espera: rc 0 · obtido: rc 0 em todos
 
 ## Revalidação dos achados anteriores
-- A1 (meu, valor colado no tar): fechado; S1 e S2 recusam, `ler_opcoes` toma o resto do grupo e o teste novo cobre as duas formas e vizinhas.
-- A1 da volta 2 (cache do config): fechado no código; `ler_config` zera `hook._config` antes da troca, e `test_versao_na_worktree_nao_deixa_o_config_dela_no_cache` prova teto e piso pelo `h.config()`.
+- A1 (`--one-top-level`): fechado; S3 e S4 recusam, a opção entra em `subpasta` relativa a cada `-C`, e o teste do catálogo confere a ajuda do `tar --help` nos dois sentidos.
+- A2 (H1): segue recomendado, agora com 298 linhas.
 
 ## Verificação
-- Testes do delta: `python3 -m unittest tests.test_conformidade_verde.EstadoDoAgentesNoClone tests.test_conformidade_verde.ConfigDaWorktreeNoClone`: 14 testes, OK.
-- Mutantes: `bin/forge-mutante --cobertura --base b3312958`: toda condição mudada coberta por mutante declarado (specs -3 a -9); execução dos mutantes não rodada (máquina carregada, brief: só os testes do delta).
-- Suíte inteira: não rodada (brief: sem suíte local); sem PR, CI do head não citável.
+- Testes do delta: `python3 -m unittest tests.test_conformidade_verde.CatalogoDosDestinos` e os dois testes novos de `EstadoDoAgentesNoClone`: 5 testes, OK (GNU tar 1.35, sem pulo).
+- Mutantes: `bin/forge-mutante --cobertura --base 848dd5ec`: toda condição mudada coberta por mutante declarado (specs -6 a -10), rc 0; execução não rodada (brief: sem suíte local).
+- Catraca local (`tests/catraca.py --modo regras`, eventos vazios): rc 1 com duas linhas, o pulo 36→37 e a mudança em hooks/conformidade.py; as duas pedem o rótulo `afrouxa-regra` do dono depois do último push, que este PR já precisaria pela segunda. O pulo é aceitável com A1 (no CI não pula) e declarado no PR.
+- Suíte inteira: não rodada (brief); sem PR, CI do head não citável.
 
 ## Parecer
-Reprovado: um bloqueante, A1, com defeito provado (S3 a S5). O catálogo `EXTRATORES` e o leitor à maneira do getopt fecham o valor colado e não recusam a mais em 48 usos legítimos (S7); falta a outra opção do tar que escolhe a pasta de extração. A correção é local em `alvos_do_tar`; a revalidação lê só o delta.
+Aprovado. O catálogo `DESTINOS` fecha o A1 (S3 a S5) sem recusa a mais em 33 usos legítimos (S9); os dois recomendados não bloqueiam.
