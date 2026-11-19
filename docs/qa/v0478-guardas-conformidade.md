@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-conformidade
-commit: 40dc5f4f1c305481e7b7657626aaadac513fd100
+commit: d67b2f4ebf91b8feba0aec94070670ce6e097dbc
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -71,3 +71,9 @@ Delta no domínio: `hooks/conformidade.py` (uma linha, 2293: `self.atualizacao(p
 - Vermelho antes do verde: `forge-testes --vermelho bdbdc257 --modulos test_conformidade_verde` (`base=bdbdc257dd49 head=c771393b6e75`): `test_applet_que_roda_programa_nao_esconde_a_atualizacao` H=ok B=falha, prova (asserção); `test_applet_sem_atualizacao_segue_livre` passa na base, como esperado (teste de "livre"); contagem: não prova (passa na base)=40; prova (asserção)=1; rc 0.
 - Mutação: `forge-mutante tests/mutantes/v0478-guardas-conformidade-10.json --base bdbdc257` (`rev=c771393b6e75`): M66 a M72 `morreu`, rc 0; M72 (`self.atualizacao(palavras)` trocado por `pass`) é a guarda de 2293, nenhum sobrevivente.
 - Sem skip, skipIf nem expectedFailure no delta.
+
+## Revalidação incremental (head d67b2f4e, base aprovada 40dc5f4f)
+Delta no domínio: `hooks/conformidade.py` (`por_applet` na linha 2292 e `and not por_applet` na guarda de `branch`, 2307; A8 da segurança: nem `busybox` nem `toybox` têm applet `git`, então a troca de branch pedida a eles não é registrada), `tests/test_conformidade_verde.py` (classe `TrocaDeBranchAtrasDoBusybox`), specs de mutantes 8 (M56 reescrito), 10 (M73) e 11 (M74), `docs/hooks.md` e changelog.
+- Vermelho antes do verde: `forge-testes --vermelho 40dc5f4f --modulos test_conformidade_verde --prazo 500` (rc 0): `TrocaDeBranchAtrasDoBusybox.test_troca_pelo_applet_nao_libera_a_main` H=ok B=falha, prova (asserção); `test_troca_direta_segue_registrada` passa na base, como esperado (contraprova de "livre"); contagem: não prova (passa na base)=42; prova (asserção)=1. Nenhum teste cai no HEAD.
+- Mutação: `bin/forge-mutante` nas specs 8, 10 e 11 com `--base 40dc5f4f` (`base=40dc5f4f mb=40dc5f4f rev=d67b2f4ebf91`): M55 a M62, M66 a M74 `morreu`, rc 0; M73 (guarda `not por_applet` removida) e M74 (`por_applet` virou `False`) mortos; M56 reescrito segue morto. Um mutante por linha de guarda mudada (2292, 2293, 2307): nenhuma sem mutante.
+- Sem skip, skipIf nem expectedFailure no delta. Suíte inteira no CI do PR.
