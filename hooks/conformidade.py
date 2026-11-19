@@ -906,7 +906,7 @@ TAR_COM_VALOR = "bCfFgHIKLNTVX"  # letras curtas do GNU tar com valor, colado (`
 TAR_EXECUTA = {"to-command", "use-compress-program", "info-script", "new-volume-script", "rsh-command", "rmt-command",
                "checkpoint-action"}  # rodam o valor (o `checkpoint-action`, o que vem depois de `exec=`)
 LONGAS_EXATAS = {"checkpoint"}  # nome exato de opção que é prefixo de outra (`--checkpoint-action`): não a abrevia
-Alvos = collections.namedtuple("Alvos", "pastas arquivos removidos comandos")  # o que um `EXTRATORES` faz por opção
+Alvos = collections.namedtuple("Alvos", "pastas arquivos removidos executados")  # o que um `EXTRATORES` faz por opção
 
 # Papel só de leitura: o `git ls-remote` aceita só estas opções (`--upload-pack`, `-u` e `--exec` rodam um programa num
 # shell); nos demais subcomandos da lista, a opção que executa programa ou grava arquivo recusa, mesmo abreviada.
@@ -1152,12 +1152,12 @@ def alvos_do_tar(args, destinos=DESTINOS["tar"]):
     dentro += [t for e in valores_do(valores, destinos.reescreve) for t in pastas_da_troca(e)]
     arquivos = [a for a in valores_do(valores, destinos.arquivo) if a != "-"] if grava else []
     arquivos += valores_do(valores, destinos.grava)
-    comandos = valores_de(valores, "IF", TAR_EXECUTA - {"checkpoint-action"})
-    comandos += [v[5:] for v in valores_de(valores, "", ("checkpoint-action",)) if v.startswith("exec=")]
+    executados = valores_de(valores, "IF", TAR_EXECUTA - {"checkpoint-action"})
+    executados += [v[5:] for v in valores_de(valores, "", ("checkpoint-action",)) if v.startswith("exec=")]
     remove = any(longa_do_tar(n, destinos.remove) for n in nomes)
     removidos = [f"{d}/{o}" for o in operandos for d in (".", *pastas)] if remove else []
     extracao = [p for d in (pastas or ["."]) for p in (d, *(os.path.join(d, s) for s in dentro))]
-    return Alvos(extracao if extrai else [], arquivos, removidos, comandos)
+    return Alvos(extracao if extrai else [], arquivos, removidos, executados)
 
 
 def alvos_do_cpio(args, destinos=DESTINOS["cpio"]):
@@ -2383,7 +2383,7 @@ class Guarda:
             for d in alvos.pastas:
                 self.checar_escrita(d, pasta, parecer_conta=False)
                 self.checar_remocao(d, pasta, "extrair em")
-            for c in alvos.comandos:
+            for c in alvos.executados:
                 self.aninhado(c, pasta, nivel, atribuicoes)
         elif prog in MUDA_ATRIBUTO:
             for a in args:
