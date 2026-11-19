@@ -3,25 +3,22 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-forge-check
-commit: 6853e0ee2ac9c19305db2419ddbcfbb3f5dcf1f0
+commit: 99f474bbcb8619c69a07887081bb703fdd389c34
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
 ---
-# Review: v0478 (E34.3, META85 na trilha do bin/forge-check)
+# Review: v0478 (E34.3 e E34.7, META85 na trilha do bin/forge-check)
 
 ## Achados
-- A1 (recomendado) bin/forge-check:3575 · parecer `riscos-aceitos` sem o aceite do usuário sai `revalida: não`, mas o `forge-check pr` (linha 2014) o barra: a promessa de as duas respostas nunca divergirem falha nesse caso; o mesmo A1 da segurança.
 - A2 (recomendado) agents/jarvis.md:29 · o passo 5 do Jarvis ainda diz que a revalidação retoma quem deu o parecer, sem o filtro `revalida: sim` que a skill autor-ate-o-merge.md:10 passou a citar como "passo 5 do Jarvis".
 - A3 (recomendado) tests/test_meta85_item_arquivos.py:22 · o subprocesso herda `os.environ` e roda o Python sem `-I`; use `ambiente_limpo()` como em test_meta85_entrega. A sonda com GIT_DIR e GIT_INDEX_FILE ruins ficou verde, então não há defeito provado.
-
-## Sondas
 
 ## Parecer
 Aprovado. Revisei o diff `eca1d21b..6853e0ee`: 18 arquivos, 7 contam no teto do item, e 96 linhas de código em `bin/` (H1, dentro do teto). Os três cartões seguem o desenho em `docs/propostas/meta85-forge-check.md`, e o corte em três cartões na mesma branch veio do dono (E34 no `## Escopo`).
 
 - **Entrega com provas:** só a forma antiga cobra as provas. A conferência (`entrega --pedido`) recusa `--mutantes` e `--pronto`, e o teste cobre isso. A leitura do log é limitada por `TETO_DA_PROVA`, e a ferramenta só lê o log, nunca o roda. O PQ do `brief gerar` e o da volta trazem os dois logs.
-- **Revalida:** chama o `commit_vale` com os mesmos livres, estritos, domínio e dispensados do `cmd_pr`, e a linha sai nos dois ramos de rc 0. Há uma divergência de borda (A1).
+- **Revalida:** chama o `commit_vale` com os mesmos livres, estritos, domínio e dispensados do `cmd_pr`, e a linha sai nos dois ramos de rc 0. Havia uma divergência de borda (A1, fechado na revalidação abaixo).
 - **Classe:** `arquivos_do_item` reusa `e_teste`, `FRAGMENTOS` e `LIVRES`, sem regra nova. Com a base ilegível, a ferramenta não conta os arquivos e a classe já sai C (decisão testada). O `--json` traz a contagem.
 - **ESCOPO+ (`bin/forge-testes`):** só põe os três módulos novos no mapa. O `test_testes_tocados` foi ajustado para 105.
 
@@ -33,4 +30,18 @@ Provas que rodei no head 6853e0ee:
 - `test_etapa_do_brief.PqDoExecutor` e `test_volta_por_delta.BriefDeVolta`: 31 OK.
 - `forge-check classe --base eca1d21b --json`: classe C, `arquivos_do_item` 7, rc 0.
 
-A suíte inteira fica para o CI do PR. Pela regra META85 do recomendado, A1 a A3 viram cartão depois do merge, salvo o A1, que a segurança já mandou corrigir antes.
+A suíte inteira fica para o CI do PR. Pela regra META85 do recomendado, A2 e A3 viram cartão depois do merge.
+
+## Revalidação (E34.7, head 99f474bb)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-forge-check.md`, intervalo `6853e0ee..99f474bb`, `revalida: sim` (bin/forge-check mudou). No domínio: `bin/forge-check`, `tests/mutantes/v0479-meta85-forge-check-3.json`, `-5.json`, `-6.json`, `tests/test_meta85_item_arquivos.py` e `tests/test_meta85_revalida.py`; nada fora dele foi relido.
+
+- **A1 fechado:** `veredito_do_parecer` (bin/forge-check:2043) é a fonte única do `cmd_pr` e do `revalida_do_parecer`; o `riscos-aceitos` sem o aceite agora sai `revalida: sim (este parecer barrou: ...)`, com teste nos dois sentidos (sem e com o aceite).
+- **`cmd_pr` dá o mesmo veredito de antes, caso a caso:** (1) `riscos-aceitos` sem aceite: mesma linha `parecer:`, texto idêntico; (2) parecer que não aprova: mesma linha; (3) `commit:` ausente ou fora de `COMMIT` (`COMMIT.match("")` é falso): nada, como antes; (4) commit só de parecer (AQ-5): o motivo começa pelo sha, nunca por `desatualizado`, então cai direto em `commit: {paralelo}`, a mesma linha que o `continue` antigo emitia (o `continue` era o fim do laço); (5) domínio mudado: `commit_vale` com os mesmos argumentos e o mesmo pós-processamento E16; (6) válido: nada. Os `dispensados` só se calculam no review que aprova com `commit:` legível, o mesmo ramo de antes. A remoção do ramo `paralelo` do `cmd_pr` é equivalente: a checagem foi para o veredito (M26).
+- **Teste da linha 50:** o `.get` faz a base falhar sem erro (KeyError virava erro, não falha); correto.
+- **Mutantes M22 a M32:** um por guarda mudada; o M12 foi reescrito para a nova linha.
+
+Provas que rodei no head 99f474bb:
+- `bin/forge-mutante --processos 1` com as specs `-5` e `-6`: M22 a M32 morreram, rc 0; `--ids M12` na spec `-3`: morreu.
+- `bin/forge-mutante --conferir --base eca1d21b`: trechos no lugar, rc 0.
+- `bin/forge-mutante --cobertura --base 6853e0ee`: toda condição nova coberta; rc 1 só pelas duas linhas `apagada` da base (`tipo == 'review'` e `paralelo`), guardas que mudaram de lugar e têm o M28 e o M26.
+- `python3 -m unittest tests.test_forge.AntiDuplicacao tests.test_metricas_texto tests.test_indice_forge tests.test_indice_fixtures tests.test_testes_tocados tests.test_meta85_revalida tests.test_meta85_item_arquivos`: 205 OK, 1 pulado pelo sandbox (proc de outro namespace).
