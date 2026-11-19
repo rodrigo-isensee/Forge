@@ -23,8 +23,8 @@ do autor) cobra as provas; a conferência do Jarvis (`entrega --pedido`) já rod
 
 - **Autor:** entrega com os dois logs no PQ do `forge-check entrega`; mutante vivo ou pronto vermelho não chega ao parecer.
 - **Revisor:** não refaz mutação nem pronto do autor; cita os logs da entrega e roda só o mutante ou teste novo.
-- **Jarvis:** o `brief gerar` de código já escreve o PQ do autor com `--mutantes .forge/run/mutantes.log --pronto
-  .forge/run/pronto.log`; a entrega recusada volta ao autor sem abrir rodada.
+- **Jarvis:** o `brief gerar` de código já escreve o PQ do autor com `--mutantes ${TMPDIR:-/tmp}/forge-mutantes.log
+  --pronto ${TMPDIR:-/tmp}/forge-pronto.log` (fora da raiz: `.forge/run/` é estado dos hooks e ninguém o grava); a entrega recusada volta ao autor sem abrir rodada.
 
 ## 2. META85-REVALIDA-SO-QUEM-BARROU
 **Regra:** depois da volta, revalida o parecer que barrou e, dos outros, só aquele cujo domínio a correção mexeu. O
