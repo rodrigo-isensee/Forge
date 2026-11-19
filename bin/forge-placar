@@ -55,13 +55,12 @@ desenvolvimento (do 1.º commit ao último de código antes do 1.º parecer), pa
 um parecer, ou ao último parecer), voltas (daí ao último commit da branch) e integração (daí ao merge). Commit de parecer é o
 que só mexe em docs/reviews, docs/qa, docs/security ou docs/devops; a hora do commit é a do autor (o rebase não a muda).
 Primeira rodada aprovada: a primeira versão gravada de cada parecer da branch diz `parecer: aprovado`; sem parecer, `-`.
-O total do dia soma as fases e põe a média, a mediana e o p75 (inclusivo) por item ao lado da meta de 42 min (ordem do dono
-19/11 14:52). `--desde`/`--ate` cortam pela hora do merge, [desde, ate), com fuso opcional (sem ele, a hora local); sem
-eles, vale o dia do merge. No `--json`, cada item traz o `pr` ("Merge pull request #N" ou o squash) e a hora do `merge`.
-Horas paradas, cada uma com a fonte por escrito na saída: queda de sessão e promoção travada pelas linhas
-`PARADA sessão|promoção AAAA-MM-DD HH:MM até AAAA-MM-DD HH:MM` do `## Histórico` dos pedidos (`--raiz`), e develop
-vermelha pelo `--ci` (`gh run list --branch develop --json conclusion,createdAt,updatedAt`, gerado fora), do fim do run
-reprovado ao fim do verde seguinte; intervalos sobrepostos contam uma vez, recortados na janela; sem a fonte, `-`. Item é o merge de dois pais ou o squash
+O total do dia soma as fases e põe a média, a mediana e o p75 (inclusivo) por item ao lado da meta de 42 min (ordem do dono 19/11 14:52).
+`--desde`/`--ate` cortam pela hora do merge, [desde, ate), com fuso opcional (sem ele, a hora local); sem eles, vale o dia do merge. No `--json`,
+cada item traz o `pr` ("Merge pull request #N" ou o squash) e a hora do `merge`. Horas paradas, cada uma com a fonte por escrito na saída: queda
+de sessão e promoção travada pelas linhas `PARADA sessão|promoção AAAA-MM-DD HH:MM até AAAA-MM-DD HH:MM` do `## Histórico` dos pedidos (`--raiz`),
+e develop vermelha pelo `--ci` (`gh run list --branch develop --json conclusion,createdAt,updatedAt`, gerado fora), do fim do run reprovado ao fim
+do verde seguinte; intervalos sobrepostos contam uma vez, recortados na janela; sem a fonte, `-`. Item é o merge de dois pais ou o squash
 do `forge-fechar` (assunto que termina em `(#N)`), medido pelos commits do PR em `refs/pull/N/head` quando o projeto os tem
 (sem rede: `git fetch origin 'refs/pull/*/head:refs/pull/*/head'` fora); sem eles, o squash conta à parte na linha
 `itens sem fases (squash): N` (no `--json`, `sem_fases`), fora da média.
@@ -102,12 +101,10 @@ NOME_DO_ITEM = re.compile(r"(?:from [^/\s]+/|Merge branch ')([^'\s]+)")
 SQUASH = re.compile(r"\(#(\d+)\)$")  # assunto do squash do GitHub: "<título> (#N)"
 PR_DO_MERGE = re.compile(r"^Merge pull request #(\d+)\b")
 PARADA = re.compile(r"^PARADA (sessão|promoção) (\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}) até (\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2})")
-FONTES_DE_PARADA = {
-    "sessão": "linhas `PARADA sessão <início> até <fim>` do ## Histórico de docs/pedidos/*.md (--raiz)",
-    "develop vermelha": "CI da develop pelo gh (--ci: gh run list --branch develop --json conclusion,createdAt,updatedAt),"
-                        " do fim do run reprovado ao fim do run verde seguinte",
-    "promoção": "linhas `PARADA promoção <início> até <fim>` do ## Histórico de docs/pedidos/*.md (--raiz)",
-}
+DO_HISTORICO = "linhas `PARADA {} <início> até <fim>` do ## Histórico de docs/pedidos/*.md (--raiz)"
+FONTES_DE_PARADA = {"sessão": DO_HISTORICO.format("sessão"), "develop vermelha": "CI da develop pelo gh (--ci: gh run list --branch"
+                    " develop --json conclusion,createdAt,updatedAt), do fim do run reprovado ao fim do run verde seguinte",
+                    "promoção": DO_HISTORICO.format("promoção")}
 
 
 def data(texto, nome):
@@ -624,9 +621,8 @@ def primeira_rodada(pasta, commits):
 
 
 def itens_do_dia(pasta, ref, na_janela):
-    """Os itens mesclados na linha principal da `ref` cujo merge passa em `na_janela(epoch, dia)` (merge de dois pais ou squash
-    `(#N)`), com as fases, a primeira rodada, o PR e a hora do merge, e quantos squashes ficaram sem fases por não haver
-    `refs/pull/N/head` no projeto."""
+    """Os itens mesclados na linha principal da `ref` com merge em `na_janela(epoch, dia)` (merge de dois pais ou squash `(#N)`),
+    com fases, primeira rodada, PR e hora do merge, e quantos squashes ficaram sem fases por não haver `refs/pull/N/head`."""
     itens, sem_fases = [], 0
     for linha in git(pasta, "log", "--first-parent", "--format=%H%x09%P%x09%ct%x09%cs%x09%cI%x09%s", ref).splitlines():
         sha, pais, quando, cs, hora, assunto = linha.split("\t", 5)
@@ -667,9 +663,7 @@ def janela_das_fases(args):
 
 
 def estatisticas(totais):
-    """Média, mediana e p75 (método inclusivo) dos minutos do 1.º commit ao merge; None sem item."""
-    if not totais:
-        return {"media_min": None, "mediana_min": None, "p75_min": None}
+    """Média, mediana e p75 (método inclusivo) dos minutos do 1.º commit ao merge; pede ao menos um item."""
     p75 = statistics.quantiles(totais, n=4, method="inclusive")[2] if len(totais) > 1 else totais[0]
     return {"media_min": round(statistics.mean(totais)), "mediana_min": round(statistics.median(totais)), "p75_min": round(p75)}
 
@@ -747,8 +741,8 @@ def cmd_fases(args):
     julgados = [i["primeira_rodada"] for i in itens if i["primeira_rodada"] is not None]
     recorte = [datetime.datetime.fromtimestamp(t).astimezone().isoformat(timespec="minutes") for t in (inicio, fim)]
     dados = {"dia": dia, "recorte": recorte if por_hora else None, "meta_min": META_MINUTOS, "itens": itens, "soma": soma,
-             **estatisticas([i["total"] for i in itens]), "primeira_rodada": [sum(julgados), len(julgados)],
-             "sem_fases": sem_fases, "paradas": paradas(args, (inicio, fim))}
+             **(estatisticas([i["total"] for i in itens]) if itens else dict.fromkeys(("media_min", "mediana_min", "p75_min"))),
+             "primeira_rodada": [sum(julgados), len(julgados)], "sem_fases": sem_fases, "paradas": paradas(args, (inicio, fim))}
     if args.json:
         print(json.dumps(dados, ensure_ascii=False, sort_keys=True))
         return 0
