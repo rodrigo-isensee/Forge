@@ -1,0 +1,46 @@
+{
+  "pedido": "v0478-guardas-forge-check",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "FILTROS-L08-G2-ORIGIN-LOCAL: a conferência passa as âncoras aos filtros",
+      "arquivo": "bin/forge-check",
+      "de": "filtro = None if ancoras is None else",
+      "para": "filtro = None if True else",
+      "testes": [
+        "tests.test_filtros_l08_g2_ancora.FiltrosAncorados.test_l08_commit_na_origin_develop_reescrita_segue_no_escopo"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "FILTROS-L08-G2-ORIGIN-LOCAL: o aviso só sai com merge da base fora das âncoras",
+      "arquivo": "bin/forge-check",
+      "de": "e_ancestral(raiz, p[2], base_ref) and not na_base(raiz, p[2], base_ref, ancoras)",
+      "para": "e_ancestral(raiz, p[2], base_ref)",
+      "testes": [
+        "tests.test_filtros_l08_g2_ancora.FiltrosAncorados.test_merge_da_develop_real_ancorada_sai_do_escopo"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "FILTROS-L08-G2-ORIGIN-LOCAL: o merge da base sem âncora é informado",
+      "arquivo": "bin/forge-check",
+      "de": "if filtro and base_ref and base_sem_ancora(",
+      "para": "if False and base_ref and base_sem_ancora(",
+      "testes": [
+        "tests.test_filtros_l08_g2_ancora.FiltrosAncorados.test_g2_merge_da_origin_develop_reescrita_segue_no_escopo"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "FILTROS-L08-G2-ORIGIN-LOCAL: a junção limpa segue recebendo as âncoras (o padrão virou None)",
+      "arquivo": "bin/forge-check",
+      "de": "juncao_limpa(raiz, valido, head, base_ref, ancoras or ())",
+      "para": "juncao_limpa(raiz, valido, head, base_ref, ())",
+      "testes": [
+        "tests.test_selo_e_entrega.JuncaoLimpa.test_uma_juncao_limpa_cumpre"
+      ]
+    }
+  ]
+}

@@ -46,7 +46,7 @@
       "id": "M5",
       "guarda": "G2: tratar merge de outra branch como da base esconderia o que ele trouxe",
       "arquivo": "bin/forge-check",
-      "de": "        if len(pais) == 2 and e_ancestral(raiz, pais[1], base_ref):\n",
+      "de": "        if len(pais) == 2 and na_base(raiz, pais[1], base_ref, ancoras):\n",
       "para": "        if len(pais) == 2:\n",
       "testes": [
         "tests.test_conferencia_base_dono.IntegracaoNaBranch.test_merge_de_outra_branch_conta_tudo"

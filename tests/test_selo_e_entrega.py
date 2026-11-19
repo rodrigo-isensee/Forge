@@ -332,7 +332,8 @@ class Entrega(Repositorio):
 
     def merge_da_develop(self, arquivos, squash=False):
         """A develop anda no `origin` com `arquivos` (outro lote) e a branch a mescla, como depois de um `git merge origin/develop`;
-        com `squash`, num commit de um pai só (`git merge --squash`), que o git não liga à base."""
+        com `squash`, num commit de um pai só (`git merge --squash`), que o git não liga à base. A ponta fica ancorada num brief
+        selado depois (FILTROS-L08-G2-ORIGIN-LOCAL: sem âncora, o que a develop trouxe segue no escopo)."""
         self.git("switch", "-q", "develop")
         for rel, texto in arquivos.items():
             self.gravar(rel, texto)
@@ -341,6 +342,8 @@ class Entrega(Repositorio):
         self.git("push", "-q", "origin", "develop")
         self.git("switch", "-q", "melhoria/x")
         self.git("fetch", "-q", "origin")
+        Conferencia.selar_copia(self, "exemplo-outra-1.md", {"Branch: melhoria/x": "Branch: melhoria/y",
+                                f"Base-sha: {self.base}": f"Base-sha: {self.git('rev-parse', 'origin/develop')}"}, selar=False)
         if squash:
             self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--squash", "origin/develop")
             self.commit("merge da develop")
@@ -1240,15 +1243,16 @@ class MergeDaBaseDepoisDoBrief(Conferencia):
         self.assertIn(f"base: merge-base {ponto[:12]} com a", saida)
 
     def test_merge_base_sem_ancora_fica_o_base_sha(self):
-        """Volta 1 (segurança A2): sem brief selado depois do da entrega, o merge-base não tem âncora do Jarvis e fica o Base-sha."""
+        """Volta 1 (segurança A2): sem brief selado depois do da entrega, o merge-base não tem âncora do Jarvis e fica o Base-sha;
+        FILTROS-L08-G2-ORIGIN-LOCAL: o filtro G2 também não tira o que a develop sem âncora trouxe."""
         self.entrega_e_merge(ancorar=False)
         rc, saida = self.conferir()
         self.assertNotIn("base: merge-base", saida)
         # v047 E1.185 (CONFERIDA-POR-BRANCH): a conferida trazida, já na develop, não vira Desde; o intervalo é o do Base-sha
         self.assertIn(f"intervalo: {self.base}..", saida)
         self.assertIn("base: Base-sha do brief (sem conferida na branch)", saida)
-        self.assertNotIn("agents/outro.md", saida)
-        self.assertEqual(rc, 0, saida)
+        self.assertIn('escopo: fora do declarado no brief "agents/outro.md"', saida)
+        self.assertEqual(rc, 1, saida)
 
     def test_brief_selado_antes_do_da_entrega_nao_ancora(self):
         """A âncora é o Base-sha de brief selado MAIS NOVO que o da entrega; o selado antes dele, mesmo com a develop adiante, não vale."""
@@ -1334,12 +1338,14 @@ class JuncaoLimpa(Conferencia):
         self.assertIn("escopo: junção limpa da base", saida)
 
     def test_juncao_sem_ancora_segue_pendente(self):
-        """A `origin/develop` é ref local que o autor reescreve: sem Base-sha selado que a cubra, recusa."""
+        """A `origin/develop` é ref local que o autor reescreve: sem Base-sha selado que a cubra, recusa; e o que a develop trouxe
+        segue no escopo (FILTROS-L08-G2-ORIGIN-LOCAL)."""
         self.conferida()
         self.juncao("a\n", ancorar=False)
         rc, saida = self.conferir()
         self.assertEqual(rc, 1, saida)
-        self.assertIn("pendente: a entrega é só a integração da base", saida)
+        self.assertIn('escopo: fora do declarado no brief "agents/outro.md"', saida)
+        self.assertIn("escopo: merge da \"develop\" sem âncora", saida)
 
     def test_conflito_resolvido_a_mao_segue_pendente(self):
         self.conferida()
