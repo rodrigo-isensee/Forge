@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: 6c5d30e56c862c2c300bd412816ded091f786fd7
+commit: 83a8ce1713df9e363bbd80f93a61ae8e87288579
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -89,3 +89,14 @@ Escopo: delta `deaf3570..993b6bb3` (`forge-check parecer delta`): `hooks/parecer
 
 ## Revalidação no head 6c5d30e5 (junção com a develop)
 Delta: `993b6bb3..6c5d30e5`, só a junção com a develop (`eca1d21b`) e o conflito em `tests/test_testes_tocados.py` resolvido com a contagem 104 (102 da develop + `test_hooks_parecer_matriz` e `test_hooks_parecer_repo`). Rodei `python3 -I -m unittest discover -s tests -p test_testes_tocados.py`: 162 testes, OK (1 pulado por sandbox, /proc de outro namespace), rc=0. Sem achado novo; parecer anterior segue valendo.
+
+## Revalidação E3.47 (head 83a8ce17, volta do CI do #698)
+Delta: `6c5d30e5..83a8ce17` (`forge-check parecer delta`): só `tests/fixtures/heredoc-volta-unica.json` (expectativas de CN2 e VA2), `docs/hooks.md` (D2, texto) e `changelog.d`; sem código de hook mudado. Obrigação: GH-REMOTO-NA-LINHA; o shell por expansão (`$(printf bash)` e `"$BASH"` com a ação crítica no `-c`) recusa pela D2 (falha fechada; sonda com `gh` falso: o bash chama o gh).
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| CN2 e VA2: o `parecer` espera 2 (recusa); `conformidade` e as demais fixtures não mudam | corpus da volta única (`tests/apoio_volta_unica.py`, fixture `heredoc-volta-unica.json`) | shell por expansão no nome do comando com a ação crítica no `-c` | passou |
+
+- Corpus da volta única (TMPDIR próprio, rodada da instância anterior no mesmo head, log em `$TMPDIR/corpus.log`): `Ran 16 tests in 330.191s ... OK`, rc=0. Não rerrodei (330 s, delta só de dado).
+- Sem teste novo de regra neste delta (só expectativa de fixture), logo sem vermelho nem mutante novos; os mutantes M27 a M81 do parecer anterior seguem valendo, pois `hooks/parecer.py` não mudou no intervalo.
+- Sem CI deste head, sem suíte inteira (brief). Parecer: aprovado, sem bug aberto.
