@@ -3534,8 +3534,10 @@ def parecer_delta(raiz, arquivo, ate, base):
             print(f"dispensado: {nome_seguro(n)} (teste do QA aprovado em {q[:7]})")
         elif n not in dentro:
             print(f"fora do dominio: {nome_seguro(n)}")
+    revalida = revalida_do_parecer(raiz, campos, tipo, inicio, fim, ref_da_base(raiz, base), dispensados)
     if not dentro:
         print("delta: nenhum arquivo do domínio mudou")
+        print(revalida)
         return 0
     for n in dentro:
         print(f"no dominio: {nome_seguro(n)}")
@@ -3545,7 +3547,23 @@ def parecer_delta(raiz, arquivo, ate, base):
         return 2
     for linha in saida.decode("utf-8", "replace").splitlines():
         print(linha_legivel(linha))
+    print(revalida)
     return 0
+
+
+def revalida_do_parecer(raiz, campos, tipo, inicio, fim, base, dispensados):
+    """META85-REVALIDA-SO-QUEM-BARROU: a linha `revalida:` do `parecer delta`. Revalida o parecer que barrou (não `aprovado` nem
+    `riscos-aceitos`) e o aprovado cujo domínio mudou, pela mesma chamada do `forge-check pr` (`commit_vale` com a base, os livres do
+    pedido e os testes do QA dispensados), para as duas respostas nunca divergirem; o aprovado de domínio intacto segue valendo."""
+    if campos.get("parecer") not in ("aprovado", "riscos-aceitos"):
+        return "revalida: sim (este parecer barrou)"
+    pedido = campos.get("pedido", "")
+    livres = LIVRES + ANEXOS_DO_PORTAO + (f"changelog.d/{pedido}.md", f"{ACEITES_DO_USUARIO[0]}{pedido}.md")  # os do `cmd_pr`
+    motivo = commit_vale(raiz, inicio, fim, base, livres, estritos=FRAGMENTOS, dominio=tipo, mais=dominio_mais(campos),
+                         dispensados=dispensados)
+    if motivo:
+        return f"revalida: sim ({motivo})"
+    return "revalida: não (não barrou e o domínio não mudou; o parecer segue valendo)"
 
 
 def partes_da_juncao(raiz, head, base):

@@ -1,2 +1,3 @@
 ### Adicionado
 - `forge-check entrega` (forma antiga, o PQ do autor) na etapa codigo com código no escopo cobra os logs da mutação (`--mutantes`) e do pronto (`--pronto`) da stack: `head=<sha40>` do head entregue na 1.ª linha e `rc=0` na última; sem eles, `pendente:` e rc 1, antes do parecer (v0478 META85-ENTREGA-COM-MUTANTES; desenho em docs/propostas/meta85-forge-check.md).
+- `forge-check parecer delta` termina com `revalida: sim|não`: na volta revalida só o parecer que barrou e o aprovado cujo domínio a correção mexeu (a mesma regra do `forge-check pr`); o aprovado de domínio intacto segue valendo (v0478 META85-REVALIDA-SO-QUEM-BARROU).
