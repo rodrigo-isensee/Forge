@@ -1,0 +1,26 @@
+{
+  "descricao": "CONFIG-TETO-SEM-GUARDA (R-CONFORMIDADE): no clone do Forge, o agente grava teto_agentes no .forge/config.json da raiz: recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    ".forge/config.json": "{\"teto_agentes\": 2}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo '{\"teto_agentes\": 99}' > .forge/config.json"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:devops-engineer"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "arquivo em vigor (.forge/config.json)"
+  }
+}
