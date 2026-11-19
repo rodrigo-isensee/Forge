@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-placar
-commit: f74d6dd71cdc9ae8c458509cf6ed7674b55bc83f
+commit: d340b213c53fe4e11cbb89dd09938b7d29115599
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
@@ -28,6 +28,11 @@ Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-placar.md`, int
 Specs: M13, M19 e M24 da placar-fases voltaram ao trecho adaptado (M34, em placar-fases-6, aponta a guarda `fundo_demais`). A guarda `if not itens` do trecho antigo (bin/forge-placar:641 na base) foi para `estatisticas()` como `if not totais` (bin/forge-placar:671), que o M19 muta e o teste `test_dia_sem_item` mata. Por isso o `--cobertura --base origin/develop` sai com rc 1 só por `apagada · bin/forge-placar:641(base) · itens`: aceito, a guarda não sumiu, mudou de lugar e tem mutante que morre. As três isentas (test_placar.py:515, :573, :607) são linhas de asserção e auxiliar do teste, não guarda, com motivo escrito. Os achados A2 a A4 seguem recomendados.
 
 Provas no head f74d6dd7: `python3 -I tests/evals/test_placar.py`: 50 testes OK. `bin/forge-mutante --processos 1 tests/mutantes/v0479-meta85-placar*.json`: 31 mutantes mortos, rc 0. `bin/forge-mutante --processos 1 tests/mutantes/v0479-placar-fases*.json`: 49 mortos, rc 0. Parecer segue aprovado.
+
+## Revalidação (E36.13, guarda de aninhamento no --ci)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-placar.md`, intervalo f74d6dd7..d340b213, domínio `bin/forge-placar`, `tests/evals/test_placar.py`, `tests/mutantes/v0479-meta85-placar-4.json`. `paradas_do_ci` chama `fundo_demais(texto)` antes do `json.loads` e sai com rc 2 e mensagem fixa (bin/forge-placar:712), sem eco da entrada; o teste com `[` repetido 100000 vezes confere rc 2, a mensagem "aninhado acima de", ausência de Traceback e de `[[[[` no erro; mutante M32 (`if False:`) declarado em `v0479-meta85-placar-4.json`.
+
+Provas no head d340b213: `python3 -I tests/evals/test_placar.py`: 50 testes OK. `bin/forge-mutante --processos 1 tests/mutantes/v0479-meta85-placar-4.json`: M32 morreu (:712), demais mortos. `bin/forge-mutante --cobertura --base f74d6dd7`: guarda :712 coberta por M32. Sem achado novo; parecer segue aprovado.
 
 ## Sondas
 - S1 · `bin/forge-placar fases --git . --ref origin/develop --dia 2026-11-19 --raiz-pedidos /root/.forge-contrib` (histórico sem PARADA) · espera: `horas paradas, sessão: -` · obtido: 87aff761 `0 h 00 min`; 97ef4fd1 `-`
