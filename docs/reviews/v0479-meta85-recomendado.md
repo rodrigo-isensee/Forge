@@ -13,7 +13,7 @@ data: 2026-11-19
 Lido: `git diff eca1d21b..cdea2f38` (17 arquivos, só texto, `tests/config.json` e um teste). Ordem do dono (pedido v0478, E35): recomendado de review e QA vira cartão depois do merge; o de segurança é corrigido antes.
 
 ## Consistência
-- A regra mora em `R-REVIEW` ("a de review e QA vira cartão depois do merge; a de segurança é corrigida antes", agora invariante) e chega igual ao Jarvis (passo 6), aos três portões, a `R-SEGURANCA`, à skill do brief de volta (`--incluir <parecer>:A<n>` só para a segurança, opção que o `forge-check brief gerar --volta` já tem), ao `trabalho-em-paralelo` e aos modelos de parecer de review, QA e segurança (projeto e Forge).
+- A regra mora em `R-REVIEW` (a frase do recomendado, agora invariante; cito o ID, R-REVIEW e R-SEGURANCA) e chega igual ao Jarvis (passo 6), aos três portões, a `R-SEGURANCA`, à skill do brief de volta (`--incluir <parecer>:A<n>` só para a segurança, opção que o `forge-check brief gerar --volta` já tem), ao `trabalho-em-paralelo` e aos modelos de parecer de review, QA e segurança (projeto e Forge).
 - Lacuna: o parecer de devops (A1) ficou com o texto antigo, sem destino para o recomendado.
 
 ## Cortes para caber no orçamento
