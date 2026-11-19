@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-conformidade
-commit: d67b2f4ebf91b8feba0aec94070670ce6e097dbc
+commit: 5118747e8d0299079713107b6fe233d0e264ff56
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -78,3 +78,9 @@ Delta no domínio: `hooks/conformidade.py` (`por_applet` na linha 2292 e `and no
 - Mutação: `bin/forge-mutante` nas specs 8, 10 e 11 com `--base 40dc5f4f` (`base=40dc5f4f mb=40dc5f4f rev=d67b2f4ebf91`): M55 a M62, M66 a M74 `morreu`, rc 0; M73 (guarda `not por_applet` removida) e M74 (`por_applet` virou `False`) mortos; M56 reescrito segue morto. Um mutante por linha de guarda mudada (2292, 2293, 2307): nenhuma sem mutante.
 - Sem skip, skipIf nem expectedFailure no delta. Suíte inteira no CI do PR.
 - Reexecução na retomada (head local 47395473, merge de portões sem mudança de código; `vermelho: base=40dc5f4f1c30 head=47395473e199`, rc 0): só `test_troca_pelo_applet_nao_libera_a_main` prova (asserção), nenhum teste cai no HEAD. `forge-mutante` nas specs 8, 10 e 11 (`rev=47395473e199`): M55 a M62 e M66 a M74 `morreu`, rc 0; M56 (2292), M73 (2307) e M74 (2293, `if por_applet` virou `if False`) mortos, M74 pelo teste que a spec cita (`EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam`).
+
+## Revalidação no head 5118747e (E1.30)
+Delta do domínio (`forge-check parecer delta`, d67b2f4e..5118747e): `hooks/conformidade.py` (campo `comandos` do `Alvos` renomeado para `executados`, 5 linhas: definição, duas atribuições do `alvos_do_tar`, o retorno e o `for` do consumidor) e `docs/hooks.md` (descrição do `_maquina`, texto). Nenhum outro `.comandos` de `Alvos` resta em `hooks/` e `bin/` (o `lida.comandos` de `tests/apoio_volta_unica.py` é outro objeto). Os `Alvos(...)` posicionais dos demais extratores não mudam. Rodados com TMPDIR, `-I` e `discover`:
+- `test_hooks.py -k test_t4_nenhum_hook_le_a_linha_fora_de_leituras`: 1 teste, OK, rc=0.
+- `test_conformidade_verde.py`: 43 testes, OK, rc=0.
+Sem achado novo; o A1 (recomendado) segue como cartão. Parecer mantido: aprovado.
