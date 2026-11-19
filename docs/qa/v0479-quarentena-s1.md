@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-quarentena-s1
-commit: ba6f6a0366ed1d0c1280bc9f43e402d25d830e57
+commit: 0f7e405b960f0328109a83039e6a806e3ee7bec4
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -39,3 +39,10 @@ Vermelho antes do verde e mutação: não se aplicam (nenhum teste ou regra nova
 - Corpo igual ao da develop: `git diff origin/develop -- tests/` (develop ef186de8) mostra só as 3 linhas do `@unittest.skip` antes do `def`; o corpo não muda.
 - Volta a rodar sem o skip: numa cópia em TMPDIR, com o decorador removido, o mesmo comando deu `... ok`, `Ran 1 test in 8.739s`, `OK`, e o diff da cópia contra a develop em `tests/test_hooks.py` ficou vazio.
 - Teto: `teto_pulados` é 1 no head e na develop (T3 só deixa cair); a quarentena ocupa a vaga, sem subir o teto. Suíte inteira: só o CI do PR (`R-QA`).
+
+## Revalidação (head 0f7e405b, delta)
+`forge-check parecer delta docs/qa/v0479-quarentena-s1.md` (intervalo `ba6f6a03..0f7e405b`) listou só `tests/mutantes/v0478-develop-relogio.json`: o M1 de `tests/prova_de_carga.py:70` (`>= APROVEITAMENTO_MINIMO` para `>= 0`) ganhou o teste `test_carga_explica_a_recusa_so_pelo_vigia_do_prazo_longo_com_disputa_provada`. Parecer segue aprovado; sem achado novo.
+- Mutante: `bin/forge-mutante tests/mutantes/v0478-develop-relogio.json` (rev `0f7e405b960f`), saída `M1 · morreu · tests/prova_de_carga.py:70`, rc 0. M1 morre.
+- Quem mata: o teste novo. A outra entrada da lista (`test_liberar_ou_provar_a_carga_recusa_a_sonda_s1`) está pulada pela quarentena e não pode matar. Prova por cópia do HEAD com o mesmo `para` aplicado: `python3 -I -m unittest discover -s tests -p test_hooks.py -k test_carga_explica_a_recusa_so_pelo_vigia_do_prazo_longo_com_disputa_provada -v` deu `FAILED (failures=2)`, `AssertionError: True is not false`, rc 1.
+- Sem o mutante, no HEAD: o mesmo teste dá `ok`, `OK (skipped=1)` com o outro pulado, rc 0.
+- Os demais itens do domínio (`changelog.d/`, `tests/test_hooks.py`, `tests/config.json`) não mudam neste delta; os critérios da tabela acima seguem valendo.
