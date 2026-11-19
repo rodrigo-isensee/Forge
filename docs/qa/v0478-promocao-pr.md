@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-promocao-pr
-commit: d836c43521f83e02e74c913e2e485a7154b8f50a
+commit: 1e0c50a715ebd00251278c278722b7be3819bb3c
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -66,3 +66,19 @@ M4 · morreu · bin/forge-check:1591
 - `test_testes_tocados.py`: 162 testes, OK (skipped=1), 72 s.
 - `test_forge.py -k ConferenciaPresaAoHead`: 11 testes, OK, 29 s.
 - CI: o check-run `bateria` do sha `d836c435` é a prova da suíte inteira; não o consultei daqui (sem rede à API do GitHub no sandbox).
+
+## Revalidação no head 1e0c50a7 (E31.9, delta sobre d836c435)
+Delta (`forge-check parecer delta`): `bin/forge-check` (nova `ponta_da_integracao`: só a ponta remota usa a cadeia de primeiros pais; sem remoto, igualdade com a ponta local, para o ff não promover o commit intermediário do item; E31.6), o teste `test_avanco_rapido_na_develop_local_sem_remoto_nao_vira_promocao`, specs de mutantes e o fragmento do changelog.
+
+| Obrigação | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| E31.6: com avanço rápido na develop local sem remoto, o commit intermediário do item não é promoção; a ponta atual segue | `test_avanco_rapido_na_develop_local_sem_remoto_nao_vira_promocao` | intermediário na cadeia de primeiros pais × ponta | passou |
+
+Vermelho: `forge-testes --vermelho d836c43521f8 --modulos test_promocao_por_marca --prazo 400`, rc 0: `test_avanco_rapido_na_develop_local_sem_remoto_nao_vira_promocao · H=ok · B=falha · prova (asserção)`; os outros 4 passam na base (guardas, por desenho).
+
+Mutação, `--base d836c435`: `v0478-promocao-pr.json` rc 0 (M1, M5, M6, M2, M3, M4 · morreu). `lote-l08-e7b.json` rc 1: M37, M50, M51, M52 morreram, M36 equivalente, M56 sobreviveu em `bin/forge-check:1552`. M56 está fora do delta (linha não tocada) e sobrevive igual na base `738424449` (pré-existente): vira recomendado, sem bloquear.
+
+Ponta a ponta: `python3 -I scripts/promover-homolog.py --conferir-ref b407f8f7d697b7c118c420ce5b7ae747be410625` rc 0 (`conferir-ref: b407f8f7… promovível para a homolog`). Local: `test_promocao_por_marca.py` OK. CI: `bateria` do sha é a prova da suíte inteira (não consultada daqui, sem rede à API).
+
+## Achados
+- A1 (recomendado) bin/forge-check:1552 · mutante M56 de lote-l08-e7b.json sobrevive (teste test_pr_parecer_da_branch_da_ref_vale_sobre_o_de_outra_branch não pega a perda do fallback branch_do_sha); pré-existente, fora do delta; vira cartão.
