@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: 83a8ce1713df9e363bbd80f93a61ae8e87288579
+commit: 6cfebb4c6c1f43b044ebde24cc0d5e497bd212a7
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -100,3 +100,6 @@ Delta: `6c5d30e5..83a8ce17` (`forge-check parecer delta`): só `tests/fixtures/h
 - Corpus da volta única (TMPDIR próprio, rodada da instância anterior no mesmo head, log em `$TMPDIR/corpus.log`): `Ran 16 tests in 330.191s ... OK`, rc=0. Não rerrodei (330 s, delta só de dado).
 - Sem teste novo de regra neste delta (só expectativa de fixture), logo sem vermelho nem mutante novos; os mutantes M27 a M81 do parecer anterior seguem valendo, pois `hooks/parecer.py` não mudou no intervalo.
 - Sem CI deste head, sem suíte inteira (brief). Parecer: aprovado, sem bug aberto.
+
+## Revalidação E3.51 (head 6cfebb4c, índice do Forge)
+Delta (`forge-check parecer delta`): só `docs/indice-forge.md`, com a linha de `hooks/_gh_api.py`; nenhum código de hook ou teste mudou. `python3 -I scripts/indice-forge.py --conferir`: "docs/indice-forge.md: em dia", rc=0. `python3 -m unittest tests.test_indice_forge`: 19 testes, OK. Sem teste novo de regra, logo sem vermelho nem mutante novos. Sem achado novo; parecer: aprovado, sem bug aberto.
