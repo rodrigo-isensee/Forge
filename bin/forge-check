@@ -1210,18 +1210,26 @@ def portoes_da_classe(classe, infra):
 
 def cmd_classe(raiz, base=None, head=None, como_json=False):
     """`forge-check classe` (P5; só leitura, sem rede): a classe do diff `base...head`, os motivos e os portões e pareceres exigidos
-    pelo diff (o `pr` soma o que o plano técnico do pedido marca). rc 0 com classe; rc 2 se a `--head` não existe."""
+    pelo diff (o `pr` soma o que o plano técnico do pedido marca). rc 0 com classe; rc 1 com o item acima de TETO_DE_ARQUIVOS (META85);
+    rc 2 se a `--head` não existe."""
     ref = head or "HEAD"
     if not sha_do_commit(raiz, ref):
         print(f"classe: --head {nome_seguro(sem_controle(ref))} não existe")
         return 2
     classe, motivos, decisivos = classe_da_entrega(raiz, ref, base)
-    infra, gatilhos_de_seguranca = gatilhos_do_diff(arquivos_da_entrega(raiz, ref, base))
+    nomes = arquivos_da_entrega(raiz, ref, base)
+    infra, gatilhos_de_seguranca = gatilhos_do_diff(nomes)
     portoes, pareceres = portoes_da_classe(classe, infra), pareceres_exigidos(classe, infra, gatilhos_de_seguranca)
+    item = arquivos_do_item(nomes or [])
+    rc = 1 if len(item) > TETO_DE_ARQUIVOS else 0  # META85-ITEM-ATE-10-ARQUIVOS
     if como_json:
         print(json.dumps({"classe": classe, "motivos": motivos, "arquivos": decisivos, "portoes": portoes, "pareceres": pareceres,
-                          "gatilhos_de_seguranca": gatilhos_de_seguranca}, ensure_ascii=False))
-        return 0
+                          "gatilhos_de_seguranca": gatilhos_de_seguranca, "arquivos_do_item": len(item),
+                          "teto_de_arquivos": TETO_DE_ARQUIVOS}, ensure_ascii=False))
+        return rc
+    if rc:
+        print(f"item: {len(item)} arquivos, teto {TETO_DE_ARQUIVOS}: corte o item antes de começar (META85; testes, changelog.d/ e "
+              f"pareceres não contam), entre: {', '.join(map(caminho_impresso, item[:3]))}")
     print(f"classe: {classe}")
     for motivo in motivos[:10]:
         print(f"motivo: {motivo}")
@@ -1229,7 +1237,16 @@ def cmd_classe(raiz, base=None, head=None, como_json=False):
         print(f"motivo: e mais {len(motivos) - 10}")
     print(f"portoes: autor + {' ∥ '.join(portoes[1])} (mesmo head) + CI")
     print(f"pareceres: {', '.join(pareceres)}" + (f" (gatilho: {gatilhos_de_seguranca[0]})" if gatilhos_de_seguranca else ""))
-    return 0
+    return rc
+
+
+TETO_DE_ARQUIVOS = 10  # META85-ITEM-ATE-10-ARQUIVOS (ordem do dono, 2026-11-18): o corte do item antes de começar
+
+
+def arquivos_do_item(nomes):
+    """META85-ITEM-ATE-10-ARQUIVOS: os arquivos do diff que contam no teto do item. Fora: testes (`e_teste`, com `tests/mutantes/`;
+    os módulos do portão em `tests/` contam), fragmentos de `changelog.d/` e pareceres e quadro (LIVRES), que acompanham todo item."""
+    return [n for n in nomes if not e_teste(n) and not n.startswith(FRAGMENTOS) and not livre(n, LIVRES)]
 
 
 # ---- T1 (decisão 20; 0.43.3): código mudado sem teste mudado nem acrescentado, sinalizado nas classes N e C; a T fica isenta ----------
