@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: 9a20739e0d4ff607033690eaa238e6c0342e6d74
+commit: 460a8a002d27be6089f22eb3452c4d9bc69646f1
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -48,3 +48,18 @@ Escopo: delta `9b075525..9a20739e` (`forge-check parecer delta`): `hooks/parecer
 - Mutação: `forge-mutante tests/mutantes/v0478-guardas-parecer-10.json --processos 3 --base 9b075525...` → `base=9b075525eaa2... rev=9a20739e0d4f`; M58 a M62 todos `morreu`. Sem sobrevivente nem equivalente.
 - Cobertura `--cobertura --base 9b075525...`: condições novas (657, 660) `coberta`.
 - Sem CI deste head, sem suíte inteira (brief). Parecer final: sem bug aberto.
+
+## Revalidação E3.31 (head 460a8a00)
+Escopo: delta `9a20739e..460a8a00` (`forge-check parecer delta`): `hooks/parecer.py` (`ATRIBUICAO_ARITMETICA`, `ABRE_ARITMETICA`, `mexidas_por_aritmetica`, `mexidas_do_texto`, chamada em `principal`), `docs/hooks.md` D4 e D7, matriz (A9 na chave, A10 aritmética, S30 a S34), `test_d4_atribuicao_aritmetica`, `test_d4_cada_forma_que_o_shell_le`, specs de mutantes `-10` (M62 a M65), `-11` (M66 a M71) e `-12` (M72 a M75). Obrigação: A9 e A10 da segurança da E3.27 (GH-REMOTO-NA-LINHA).
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| `${GH_\⏎REPO:=v}` e aritmética (`$((N=0))`, `$[N=0]`, `((N++))`, `let`, `${A[N=0]}`, `${P:N=0:0}`) recusam na cópia alheia | `MatrizDaCopiaAlheia.test_cada_dimensao_posicao_e_gh_recusa_e_o_legitimo_passa` (S30 a S34) | `$((HOME == 0))`, `$((PAGER = 1))`, `"$HOME=x"` liberam | passou |
+| Regra da classe aritmética | `RegrasPorClasse.test_d4_atribuicao_aritmetica` | `==`, `!=`, `<=`, `>=`, `$HOME=x`, `HOMEX`, `XHOME`, `--title` fora; `=` simples só com contexto | passou |
+| Cada forma que o shell lê | `RegrasPorClasse.test_d4_cada_forma_que_o_shell_le` | barra+quebra dentro da chave e do nome | passou |
+
+- Local (TMPDIR próprio): `python3 -I -m unittest discover -s tests -p test_hooks_parecer_matriz.py` → `Ran 8 tests ... OK`.
+- Vermelho: `forge-testes --vermelho 9a20739e... --modulos tests.test_hooks_parecer_matriz --prazo 500` → `vermelho: base=9a20739e0d4f head=460a8a002d27`; matriz `H=ok · B=falha · prova (asserção)`; `test_d4_atribuicao_aritmetica` e `test_d4_cada_forma_que_o_shell_le` `H=ok · B=erro · prova (API ausente)`; os outros 5 já existiam (não provam, não são novos).
+- Mutação: `forge-mutante -10 -11 -12 --processos 3 --base 9a20739e...` → `base=9a20739e... rev=460a8a002d27`, rc 0; M58 a M75 todos `morreu`, sem sobrevivente nem equivalente. `--cobertura --base`: condições novas (677, 678) `coberta`; a spec `-10` sai `spec editada` (M62 acompanha a nova chamada, M63 a M65 novos).
+- Sondas minhas, fora do corpus: `$(( HOME = 0 ))`, `$((GIT_DIR=1,2))`, `(( HOME<TAB>=0 ))`, `$((x?HOME=1:2))`, `let "HOME=0"`, `$(( HO""ME=0 ))` contam todas como `HOME`/`GIT_DIR`.
+- D7 (`PATH`) é limite declarado por decisão do dono (docs/hooks.md); o `n=HOME; $(($n=0))` e o valor avaliado são abertos declarados (trava do sandbox, E29). Sem CI deste head, sem suíte inteira (brief). Parecer: aprovado, sem bug aberto.
