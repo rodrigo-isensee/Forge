@@ -530,6 +530,18 @@ class SemTeste(unittest.TestCase):
                 self.assertIn(motivo, erro)
                 self.assertNotIn("Traceback", erro)
 
+    def test_aninhamento_no_teto_e_colchete_em_string_passam(self):
+        """Volta do CI (E20.13): o teto é do forge-placar, igual em toda versão do Python; colchete dentro de string não conta."""
+        no_teto = "[" * 64 + "]" * 64
+        em_string = json.dumps([{"mergedAt": "2026-11-17T10:00:00Z", "body": "[" * 1000 + "{" * 1000 + '\\"'}])
+        for texto in (no_teto, em_string):
+            with self.subTest(texto=texto[:20]):
+                rc, _, erro = self.rodar("--prs", self.prs(texto))
+                self.assertEqual(rc, 0, erro)
+        rc, _, erro = self.rodar("--prs", self.prs("[" * 65 + "]" * 65))
+        self.assertEqual(rc, 2, erro)
+        self.assertIn("não é JSON legível (aninhado acima de 64 níveis)", erro)
+
 
 if __name__ == "__main__":
     unittest.main()

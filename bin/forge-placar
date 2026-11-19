@@ -41,6 +41,7 @@ Linha de 8 colunas (sem autor) fica fora da taxa por papel.
 Sem teste (decisão do dono 18/11 15:10): com `--prs` (JSON de `gh pr list --state merged --json body,mergedAt`, gerado
 fora), a linha `sem_teste:` conta, por semana ISO das duas janelas, os PRs mesclados cujo corpo tem a seção `## Sem teste` (T1)
 sobre os PRs mesclados: `2026-W47 2/9`. Sem `--prs`, `-`; no `--json`, a chave `sem_teste` ({semana: [com a seção, PRs]}).
+JSON com `[` e `{` aninhados acima de 64 níveis (fora das strings) sai com 2, em qualquer versão do Python.
 
 Disco (MP6): a linha `disco:` traz o uso do disco que guarda as cópias de trabalho (`~/.forge-contrib`) e o limiar de
 `forge_disco.py`, acima do qual o `forge-copia` recusa cópia nova; disco ilegível sai `-`. No `--json`, a chave `disco`.
@@ -86,6 +87,9 @@ TIPOS_DE_MUDANCA = ("código:", "codigo:", "texto:")
 RESULTADO = re.compile(r"^(manter|reverter)\b.*\S", re.I)
 PRAZO_MAXIMO = 30  # dias entre o início e a revisão
 SEM_TESTE = re.compile(r"^##[ \t]+Sem teste[ \t]*$", re.M | re.I)
+TETO_ANINHAMENTO = 64  # níveis de [ e { aceitos na entrada JSON; a do `gh pr list` usa 2
+STRING_JSON = re.compile(r'"(?:[^"\\]|\\.)*"')
+ABRE_FECHA = re.compile(r"[\[\]{}]")
 PASTAS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/security/", "docs/devops/")  # as do PASTA_E_REGRA do forge-check
 META_MINUTOS = 85  # ordem do dono 18/11 17:00: do 1.º commit ao merge, de 169 para 85 min
 FASES = ("desenvolvimento", "pareceres", "voltas", "integração")
@@ -189,6 +193,16 @@ def ci_vermelha(arq):
             if isinstance(e, dict) and e.get("conclusion") == "failure" and DATA.match(str(e.get("createdAt", "")))]
 
 
+def fundo_demais(texto, teto=TETO_ANINHAMENTO):
+    """Aninhamento de [ e { acima do teto, fora das strings; o limite do `json` muda com a versão do Python (o 3.14 aceita)."""
+    nivel = 0
+    for c in ABRE_FECHA.findall(STRING_JSON.sub("", texto)):
+        nivel += 1 if c in "[{" else -1
+        if nivel > teto:
+            return True
+    return False
+
+
 def sem_teste_por_semana(arq, janela):
     """{semana ISO: [PRs com a seção `## Sem teste`, PRs]} dos PRs mesclados na janela; None sem `--prs`."""
     if not arq:
@@ -196,9 +210,11 @@ def sem_teste_por_semana(arq, janela):
     texto = ler(arq)
     if texto is None:
         raise SystemExit(f"forge-placar: --prs {arq} não existe")
+    if fundo_demais(texto):
+        raise SystemExit(f"forge-placar: --prs {arq} não é JSON legível (aninhado acima de {TETO_ANINHAMENTO} níveis)")
     try:
         prs = json.loads(texto)
-    except (json.JSONDecodeError, RecursionError):  # aninhado fundo demais estoura a pilha do decodificador
+    except json.JSONDecodeError:
         raise SystemExit(f"forge-placar: --prs {arq} não é JSON legível")
     if not isinstance(prs, list):
         raise SystemExit(f"forge-placar: --prs {arq} não é uma lista de PRs")
