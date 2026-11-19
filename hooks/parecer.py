@@ -125,6 +125,14 @@ CAMINHO_DE_VARIAVEL = re.compile(r"(?:[^$`(){}]|\$[A-Za-z_]\w*|\$\{[A-Za-z_]\w*\
 CONFIG_DO_GIT = {"HOME", "XDG_CONFIG_HOME"}
 # D4 (A5 do review da E3.21): `${N:=v}` e `${N=v}`, também de elemento (`${N[0]:=v}`) e indireta (`${!n:=v}`)
 EXPANSAO_QUE_ATRIBUI = re.compile(r"\$\{(!?)([A-Za-z_]\w*)(?:\[[^]}]*\])?:?=")
+# D4 (A10 da segurança da E3.27): a aritmética também dá valor (`$((N=0))`, `$[N+=1]`, `((N++))`, `let N-=1`, `${A[N=0]}`,
+# `${P:N=0:0}`); o nome seguido de operador de atribuição (não `==`, `!=`, `<=`, `>=`) ou precedido de `++`/`--`.
+# O `=` simples só conta com um contexto aritmético no texto (ABRE_ARITMETICA): sem ele, `N=v` é a atribuição do shell,
+# que `mexidas_na_linha` já lê na ordem (`GH_CONFIG_DIR=x gh <alias>` segue lendo o alias)
+ATRIBUICAO_ARITMETICA = re.compile(r"(?<![\w$])([A-Za-z_]\w*)"
+                                   r"(?=(?:\[[^]]*\])?\s*((?:[-+*/%&^|]|<<|>>)?=(?!=)|\+\+|--))"
+                                   r"|(?:\+\+|--)\s*([A-Za-z_]\w*)")
+ABRE_ARITMETICA = re.compile(r"\(\(|\$\[|\[|\$\{|\b(?:let|declare|typeset|local)\b")  # `[`: subscrito; `declare -i`
 SO_LEEM_A_COPIA = frozenset({"cd", "echo", "printf", "true", "false", ":", "test", "[", "export", "declare", "typeset",
                              "local", "readonly", "read", "set", "unset", "shift", "pwd", "sleep", "for", "done", "fi",
                              "}", "ls", "cat", "wc", "head", "tail", "grep", "stat"})
@@ -660,6 +668,22 @@ def mexidas_por_expansao(texto):
     return frozenset(nome for nome in nomes if nome in SENSIVEIS or nome.startswith("GIT_"))
 
 
+def mexidas_por_aritmetica(texto):
+    """D4 (A10 da segurança da E3.27): o nome de `SENSIVEIS` ou `GIT_*` com operador de atribuição aritmética em qualquer
+    ponto do texto conta como mexido (falha fechada: fora de `$((…))`, `$[…]`, `((…))`, `let`, subscrito e deslocamento
+    também, recusa a mais; o `=` simples, só com um contexto aritmético no texto); `$N=` não atribui (o `$n=` de nome por expansão e o valor avaliado, `v='HOME=0'; $((v))`,
+    ficam fora: docs/hooks.md, D4)."""
+    aritmetica = bool(ABRE_ARITMETICA.search(texto))
+    nomes = {m.group(1) or m.group(3) for m in ATRIBUICAO_ARITMETICA.finditer(texto) if aritmetica or m.group(2) != "="}
+    return frozenset(v for v in nomes if v in SENSIVEIS or v.startswith("GIT_"))
+
+
+def mexidas_do_texto(textos):
+    """D4 (A9 e A10 da segurança da E3.27): as mexidas por expansão e por aritmética de cada forma que o shell lê da
+    linha (`textos_da_linha`: a barra e a quebra de linha dentro da chave somem, `${GH_\\`⏎`REPO:=x}`)."""
+    return frozenset().union(*(mexidas_por_expansao(t) | mexidas_por_aritmetica(t) for t in textos))
+
+
 def nome_incerto(palavra):
     """D2 (GH-REMOTO-NA-LINHA): o nome do comando sai de expansão (`$c`, `${c}`, `$(…)`, crase) e pode ser um builtin
     (`source`) ou outro comando; o caminho de variável com `/` literal (`$F/bin/x`) é arquivo e não conta."""
@@ -1137,7 +1161,7 @@ def principal(hook):
     textos = textos_da_linha(comando)
     if not any(PREFILTRO.search(g) for g in textos) and not alias_na_linha(textos):  # HOOK-CONTINUACAO-LINHA: e `g\h`, `g'h'`
         return
-    ambiente = SEM_AMBIENTE._replace(mexidas=mexidas_por_expansao(comando))  # o `conferir` soma os DESVIOS
+    ambiente = SEM_AMBIENTE._replace(mexidas=mexidas_do_texto(textos))  # o `conferir` soma os DESVIOS
     conferir_linha(hook, SED_LE.sub(r"cat\2", comando), [(hook.cwd(), {}, ambiente)])
 
 

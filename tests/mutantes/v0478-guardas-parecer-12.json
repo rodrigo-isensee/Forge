@@ -1,0 +1,46 @@
+{
+  "pedido": "v0478-guardas-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M72",
+      "guarda": "D4 (A10): com contexto aritmético no texto, o `=` simples atribui",
+      "arquivo": "hooks/parecer.py",
+      "de": "if aritmetica or m.group(2) != \"=\"}",
+      "para": "if m.group(2) != \"=\"}",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_aritmetica"
+      ]
+    },
+    {
+      "id": "M73",
+      "guarda": "D4 (A10): sem contexto aritmético, o `=` simples é do shell (lido na ordem)",
+      "arquivo": "hooks/parecer.py",
+      "de": "if aritmetica or m.group(2) != \"=\"}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_aritmetica"
+      ]
+    },
+    {
+      "id": "M74",
+      "guarda": "D4 (A10): o deslocamento `${N:…}` é contexto aritmético",
+      "arquivo": "hooks/parecer.py",
+      "de": "r\"\\(\\(|\\$\\[|\\[|\\$\\{|",
+      "para": "r\"\\(\\(|\\$\\[|\\[|",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_aritmetica"
+      ]
+    },
+    {
+      "id": "M75",
+      "guarda": "D4 (A10): `let` e `declare -i` são contexto aritmético",
+      "arquivo": "hooks/parecer.py",
+      "de": "\\b(?:let|declare|typeset|local)\\b",
+      "para": "\\b(?:NENHUM)\\b",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_aritmetica"
+      ]
+    }
+  ]
+}

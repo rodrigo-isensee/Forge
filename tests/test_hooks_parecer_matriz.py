@@ -49,7 +49,14 @@ POSICOES_DA_VARIAVEL = ("{v} {gh}", "export {v}; {gh}", "declare -x {v} && {gh}"
 EXPANSOES = ("GH_REPO:=dono/forge", "GH_REPO=dono/forge", "GIT_CONFIG_GLOBAL:=g.cfg", "XDG_CONFIG_HOME:=$PWD/x",
              "HOME=$PWD/h", "GIT_DIR[0]:=../proj/.git")
 POSICOES_DA_EXPANSAO = ("set -a; : ${{{e}}}; {gh}", 'set -a; echo "${{{e}}}" >/dev/null && {gh}',
-                        "set -a; cat <<<${{{e}}}; {gh}")
+                        "set -a; cat <<<${{{e}}}; {gh}", "set -a; : ${{{e0}\\\n{e1}}}; {gh}")  # A9: na chave
+# D4, atribuição aritmética (A10 da segurança da E3.27): cada contexto aritmético que atribui, cruzado com o gh, e cada
+# operador de atribuição num contexto; S31 a S34 vão por extenso
+CONTEXTOS_ARITMETICOS = (': "$(({a}))"', ": $[{a}]", "(({a}))", "for (({a}; 0; )); do :; done", "let '{a}'",
+                         ": ${{A[{a}]}}", "A[{a}]=1", ": ${{PWD:{a}:0}}", "[[ {a} -eq 0 ]]")
+OPERADORES_ARITMETICOS = ("HOME=0", "HOME+=1", "HOME-=1", "HOME*=1", "HOME/=1", "HOME%=1", "HOME<<=1", "HOME>>=1",
+                          "HOME&=1", "HOME^=1", "HOME|=1", "HOME++", "HOME--", "++HOME", "--HOME", "GIT_DIR=0",
+                          "XDG_CONFIG_HOME=0", "A[GIT_CONFIG_COUNT=1]")
 # D3 e D6: a forma inteira, com o gh no lugar
 INTEIRAS = {
     "D3": ("env $(cat vars) {gh}", 'v=GH_REPO=dono/forge; env "$v" {gh}', "env -- $(cat vars) {gh}",
@@ -60,7 +67,7 @@ LEGITIMOS = ("{gh}", 'export PATH="$HOME/bin:$PATH"; {gh}', 'for f in $(ls); do 
              'read -r -p "$pergunta" resposta; {gh}', "{gh} && echo feito", "cd . && {gh} 2>&1",
              "GH_PAGER=cat {gh}", "export LANG=C; {gh} >/dev/null",
              'set -a; : "${{GH_REPO:-dono/forge}}"; {gh}', "echo ${{HOME:+x}} ${{GH_REPO:?}}; {gh}",
-             ": ${{PAGER:=less}}; {gh}")
+             ": ${{PAGER:=less}}; {gh}", 'echo "$((HOME == 0)) $((PAGER = 1))" "$HOME=x"; {gh}')
 SONDAS = {  # por extenso, como nos pareceres
     "S14": "command -p . ./env.sh; gh pr ready feature/x",
     "S15": "command -- source ./env.sh; gh pr ready feature/x",
@@ -86,6 +93,11 @@ SONDAS = {  # por extenso, como nos pareceres
     "S29a": "set -a; : ${XDG_CONFIG_HOME:=$PWD/x}; gh pr merge feature/x",
     "S29b": "set -a; : ${GIT_CONFIG_GLOBAL:=g.cfg}; gh pr ready feature/x",
     "S29c": "n=GH_REPO; set -a; : ${!n:=dono/forge}; gh pr ready feature/x",
+    "S30": "set -a; : ${GH_\\\nREPO:=dono/forge}; gh pr ready feature/x",
+    "S31": ': "$((HOME=0))"; gh pr ready feature/x',
+    "S32": ": $[HOME=0]; gh pr ready feature/x",
+    "S33": ": ${A[HOME=0]}; gh pr ready feature/x",
+    "S34": ": ${PWD:HOME=0:0}; gh pr ready feature/x",
 }
 
 
@@ -95,8 +107,11 @@ def gerar():
              for d, formas in ANTES.items() for i, x in enumerate(formas) for p in POSICOES for g in GH]
     casos += [(f"D4/{p}/{g.split()[2]}/{v}", p.format(v=v, gh=g), 2)
               for v, p, g in itertools.product(VARIAVEIS_DO_GIT, POSICOES_DA_VARIAVEL, GH)]
-    casos += [(f"D4/{p}/{g.split()[2]}/{e}", p.format(e=e, gh=g), 2)
+    casos += [(f"D4/{p}/{g.split()[2]}/{e}", p.format(e=e, e0=e[:3], e1=e[3:], gh=g), 2)
               for e, p, g in itertools.product(EXPANSOES, POSICOES_DA_EXPANSAO, GH)]
+    casos += [(f"D4/{c}/{g.split()[2]}", f"{c.format(a='HOME=0')}; {g}", 2)
+              for c, g in itertools.product(CONTEXTOS_ARITMETICOS, GH)]
+    casos += [(f"D4/$(({a}))", f': "$(({a}))"; {GH[0]}', 2) for a in OPERADORES_ARITMETICOS]
     casos += [(f"{d}/{f}/{g.split()[2]}", f.format(gh=g), 2) for d, formas in INTEIRAS.items() for f in formas for g in GH]
     casos += [(s, linha, 2) for s, linha in SONDAS.items()]
     casos += [(f"legitimo/{f}/{g.split()[2]}", f.format(gh=g), 0) for f in LEGITIMOS for g in GH]
@@ -172,6 +187,26 @@ class RegrasPorClasse(unittest.TestCase):
         for texto in (": ${GH_REPO:-x} ${HOME:+y} ${GIT_DIR:?z} ${#HOME} ${HOME/a=b}", ": ${PAGER:=less}", "HOME=x",
                       ": $GH_REPO=x"):
             self.assertEqual(parecer.mexidas_por_expansao(texto), frozenset(), texto)
+
+    def test_d4_atribuicao_aritmetica(self):
+        for texto, nomes in ((": $((HOME=0))", {"HOME"}), (": $[GIT_DIR+=1]", {"GIT_DIR"}), ("((CDPATH<<=1))", {"CDPATH"}),
+                             ("let XDG_CONFIG_HOME--", {"XDG_CONFIG_HOME"}), ("$((++GH_REPO))", {"GH_REPO"}),
+                             (": ${A[GIT_X|=1]}", {"GIT_X"}), ("$(( HOME[0] ^= 1 ))", {"HOME"}),
+                             (": ${PWD:GH_CONFIG_DIR%=2:0}", {"GH_CONFIG_DIR"})):
+            self.assertEqual(parecer.mexidas_por_aritmetica(texto), frozenset(nomes), texto)
+        for texto in ("$((HOME==0)) $((HOME!=0)) $((HOME<=0)) $((HOME>=0))", "$((PAGER=1))", "echo $HOME=x ${HOME}",
+                      "HOMEX=1 XHOME=1", "--title x", "GH_CONFIG_DIR=x gh nova", 'echo "HOME=x"'):
+            self.assertEqual(parecer.mexidas_por_aritmetica(texto), frozenset(), texto)
+        # sem contexto aritmético, só o operador composto; com contexto, o `=` simples também
+        for texto in ("HOME+=x", "GIT_DIR++", "let HOME=1", ": ${PWD:HOME=0:0}", "declare -i x; x='HOME=0'",
+                      "A[0]=1 HOME=1"):
+            self.assertTrue(parecer.mexidas_por_aritmetica(texto), texto)
+
+    def test_d4_cada_forma_que_o_shell_le(self):
+        """A9 da segurança da E3.27: a barra e a quebra de linha dentro da chave somem na leitura do bash."""
+        textos = parecer.textos_da_linha("set -a; : ${GH_\\\nREPO:=x}; : $((HO\\\nME=0))")
+        self.assertEqual(parecer.mexidas_do_texto(textos), frozenset({"GH_REPO", "HOME"}))
+        self.assertEqual(parecer.mexidas_do_texto(parecer.textos_da_linha(": ${PAGER:=x}")), frozenset())
 
     def test_d5_programas_que_mantem_os_remotos(self):
         for linha in ("gh pr ready x", "export A=1; gh pr ready x", "for f in $(ls); do echo $f; done; gh pr merge x",
