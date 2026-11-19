@@ -1,0 +1,2 @@
+### Corrigido
+- Promoção por marca com item mesclado depois dela (PROMOCAO-PR-RELEASE, v0478 E31): o forge-check pr --base main|homolog trata como promoção o head que foi a ponta da develop ou da homolog (está na cadeia de primeiros pais dela), e não só a ponta atual; a marca da 0.47.8 (b407f8f7, com o #682 mesclado depois) caía no caminho do item e reprovava na conferência E7 e no teto H1. A branch de trabalho, mesclada (segundo pai) ou não, segue item, com E7 e H1 iguais.

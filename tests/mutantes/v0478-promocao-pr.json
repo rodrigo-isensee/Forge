@@ -1,0 +1,46 @@
+{
+  "pedido": "v0478-promocao-pr",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E31: a marca que foi ponta da develop (item mesclado depois dela) é promoção",
+      "arquivo": "bin/forge-check",
+      "de": "return bool(head) and any(foi_ponta_da_integracao(raiz, head, ref_da_base(raiz, b)) for b in anteriores)",
+      "para": "return bool(head) and any(head == ref_da_base(raiz, b) for b in anteriores)",
+      "testes": [
+        "tests.test_promocao_por_marca.PromocaoPorMarca.test_marca_com_item_depois_promove_sem_conferencia_e_sem_teto"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E31: sem a ponta da integração, não é promoção",
+      "arquivo": "bin/forge-check",
+      "de": "    if not ponta:\n        return False\n    cod, saida = git(raiz, \"rev-list\", \"--first-parent\", ponta)",
+      "para": "    if False:\n        return False\n    cod, saida = git(raiz, \"rev-list\", \"--first-parent\", ponta)",
+      "testes": [
+        "tests.test_promocao_por_marca.PromocaoPorMarca.test_sem_ponta_ou_com_o_git_falhando_nao_e_promocao"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E31: o git que falha no rev-list não vira promoção (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "return not cod and head in saida.split()",
+      "para": "return head in saida.split()",
+      "testes": [
+        "tests.test_promocao_por_marca.PromocaoPorMarca.test_sem_ponta_ou_com_o_git_falhando_nao_e_promocao"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E31: só a cadeia de primeiros pais conta; o head de branch mesclada (segundo pai) segue item",
+      "arquivo": "bin/forge-check",
+      "de": "git(raiz, \"rev-list\", \"--first-parent\", ponta)",
+      "para": "git(raiz, \"rev-list\", ponta)",
+      "testes": [
+        "tests.test_promocao_por_marca.PromocaoPorMarca.test_branch_mesclada_na_develop_nao_vira_promocao"
+      ]
+    }
+  ]
+}

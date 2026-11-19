@@ -1574,11 +1574,22 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
 
 def promocao(raiz, ref, base):
     """A9 e A10 do review do L08: True na promoção do fluxo, `develop` -> `homolog` -> `main`: a base é `homolog` ou `main` e o head é,
-    commit a commit, a ponta de uma branch de integração anterior (`origin/develop` ou `origin/homolog`, ou a local sem remoto). Uma branch
-    de trabalho não vira promoção trocando o `--base`: o head dela não é a ponta da integração."""
+    commit a commit, a ponta de uma branch de integração anterior (`origin/develop` ou `origin/homolog`, ou a local sem remoto), agora ou
+    num merge anterior (`foi_ponta_da_integracao`, E31). Uma branch de trabalho não vira promoção trocando o `--base`: o head dela nunca
+    foi a ponta da integração."""
     head = sha_do_commit(raiz, ref or "HEAD")
     anteriores = {"homolog": ("develop",), "main": ("develop", "homolog")}.get(base, ())
-    return bool(head) and any(head == ref_da_base(raiz, b) for b in anteriores)
+    return bool(head) and any(foi_ponta_da_integracao(raiz, head, ref_da_base(raiz, b)) for b in anteriores)
+
+
+def foi_ponta_da_integracao(raiz, head, ponta):
+    """E31 (v0478): o `head` é a `ponta` da integração ou foi, num merge anterior: está na cadeia de primeiros pais dela. É a marca da
+    versão com itens mesclados depois (`forge-fechar --promover <sha>`). O head de uma branch de trabalho mesclada é o segundo pai do merge
+    (ou some no squash), nunca primeiro pai; sem a ponta ou com o git falhando, não é promoção (falha fechada: o caminho do item)."""
+    if not ponta:
+        return False
+    cod, saida = git(raiz, "rev-list", "--first-parent", ponta)  # a própria ponta vem primeiro
+    return not cod and head in saida.split()
 
 
 def etapas_dos_briefs_da_branch(raiz, branch):
