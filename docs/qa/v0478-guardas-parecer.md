@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: 6cfebb4c6c1f43b044ebde24cc0d5e497bd212a7
+commit: a96a986cc8712f4e469b596dbb8788b403352590
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -103,3 +103,10 @@ Delta: `6c5d30e5..83a8ce17` (`forge-check parecer delta`): só `tests/fixtures/h
 
 ## Revalidação E3.51 (head 6cfebb4c, índice do Forge)
 Delta (`forge-check parecer delta`): só `docs/indice-forge.md`, com a linha de `hooks/_gh_api.py`; nenhum código de hook ou teste mudou. `python3 -I scripts/indice-forge.py --conferir`: "docs/indice-forge.md: em dia", rc=0. `python3 -m unittest tests.test_indice_forge`: 19 testes, OK. Sem teste novo de regra, logo sem vermelho nem mutante novos. Sem achado novo; parecer: aprovado, sem bug aberto.
+
+## Revalidação E3.55 (head a96a986c, junção com a develop)
+Delta (`forge-check parecer delta`): intervalo `6cfebb4c..a96a986c`, sem o que veio da base; no domínio `bin/forge-testes`, `docs/hooks-fixtures.md` (regerado), `docs/hooks.md` e `tests/test_testes_tocados.py` (conflitos da junção, resolvidos). Aviso do delta: o merge `7093c0a` não está na origin/develop local (conta inteiro); não muda o veredito. O remoto avançou só com o parecer de review (`d2a8f1ac`, sem código); trazido por fast-forward.
+- `python3 -I -m unittest discover -s tests -p test_testes_tocados.py`: 164 testes, OK (1 skip do sandbox, `/proc` de outro namespace; herdado, não é teste meu).
+- `python3 -I scripts/indice-fixtures.py --conferir`: "docs/hooks-fixtures.md: em dia", rc=0.
+- Corpus da volta única (`tests/test_hooks_volta_corpus.py`): 16 testes, OK.
+- Sem teste novo de regra nem guarda nova na junção, logo sem vermelho nem mutante novos. Sem achado novo; parecer: aprovado, sem bug aberto.
