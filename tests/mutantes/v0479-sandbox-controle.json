@@ -99,7 +99,7 @@
       "guarda": "E29.6 A2: trava ausente (ler_trava devolve None) não é objeto e o registro de escrita fica",
       "arquivo": "hooks/agentes.py",
       "de": "    trava = {} if trava is None else trava",
-      "para": "    trava = trava",
+      "para": "    trava = {} if False else trava",
       "testes": [
         "tests.test_trava_agente_morto.C9ParadaSemFilho.test_registro_de_escrita_com_pesado_livre_ou_vencido_sai"
       ]
