@@ -47,6 +47,7 @@ class PromocaoPorMarca(RepoComOrigem):
         self.enterContext(mock.patch.object(fc, "RAIZES_DE_BRIEF", (self.home / ".forge-contrib",)))
         self.enterContext(mock.patch.object(fc, "checks_do_head", lambda *a, **k: []))
         self.enterContext(mock.patch.object(fc, "pr_da_branch", lambda *a, **k: PR_ABERTO_SEM_TETO))
+        self.enterContext(mock.patch.object(fc, "gh_json", lambda *a, **k: (None, "")))  # sem rede: o repositório não é lido
         return fc
 
     def test_marca_com_item_depois_promove_sem_conferencia_e_sem_teto(self):  # o caso real da 0.47.8 (b407f8f7)
@@ -106,6 +107,18 @@ class PromocaoPorMarca(RepoComOrigem):
         falho = lambda raiz, *args, **kw: (128, marca) if args[:1] == ("rev-list",) else real(raiz, *args, **kw)
         with mock.patch.object(fc, "git", falho):
             self.assertFalse(fc.foi_ponta_da_integracao(self.repo, marca, ponta))
+
+    def test_promocao_avisa_quando_o_repositorio_permite_rebase_merge(self):  # E31.10 (segurança A2, review A1)
+        marca = self.marca_com_item_depois()
+        fc = self.fc()
+        for repo, avisa in (({"allow_rebase_merge": True}, True), ({"allow_rebase_merge": False}, False), ({}, False), (None, False),
+                            (["allow_rebase_merge"], False)):
+            with self.subTest(repo=repo):
+                erro = io.StringIO()
+                with mock.patch.object(fc, "gh_json", lambda *a, **k: (repo, "")), contextlib.redirect_stderr(erro):
+                    self.assertEqual(fc.pr_da_cli(self.repo, "p1", ref=marca, base="main"), [])  # só avisa: o veredito não muda
+                self.assertIn("pr: promoção:", erro.getvalue())
+                self.assertEqual("permite rebase-merge" in erro.getvalue(), avisa, erro.getvalue())
 
 
 if __name__ == "__main__":

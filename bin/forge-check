@@ -1565,6 +1565,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
     avisar_classe(raiz, ref, resolvida)
     if promocao(raiz, ref, nome):  # A9: a conferência do head é portão da branch de trabalho; a leva já passou por ele em cada PR
         print(f"pr: promoção: o head é o da integração e a base é {nome}; a conferência do head ficou nos PRs da leva (TEMPO-B2)", file=sys.stderr)
+        avisar_rebase_merge(raiz)
         return cmd_pr(raiz, pedido, ref, resolvida, branch, previo)  # na leva da promoção valem os pareceres de todos os itens
     branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
     return cmd_pr(raiz, pedido, ref, resolvida, branch, previo) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch)
@@ -1582,10 +1583,22 @@ def promocao(raiz, ref, base):
     return bool(head) and any(ponta_da_integracao(raiz, head, b) for b in anteriores)
 
 
+def avisar_rebase_merge(raiz):
+    """E31.10 (segurança A2): a promoção pela cadeia de primeiros pais presume o merge por squash ou merge commit; com o "Rebase and
+    merge" ligado no repositório, um commit intermediário do item entra na cadeia e passa como promoção. Só avisa (não muda o veredito);
+    leitura grátis do `gh` (R-CUSTO), e sem `gh`, sem rede ou sem o campo, nada."""
+    dados = gh_json(raiz, "api", "repos/{owner}/{repo}")[0]
+    if isinstance(dados, dict) and dados.get("allow_rebase_merge") is True:
+        print("pr: aviso: o repositório permite rebase-merge; a promoção presume squash ou merge commit (um commit intermediário do "
+              "item rebaseado passa como promoção): desligue o \"Allow rebase merging\" nas configurações (E31.10)", file=sys.stderr)
+
+
 def ponta_da_integracao(raiz, head, base):
     """E31.6 (segurança A1): o `head` foi a ponta da integração `base`. Na remota (`origin/<base>`), agora ou num merge anterior
-    (`foi_ponta_da_integracao`): ali o merge é pelo PR (squash ou merge commit) e o envio direto é barrado (R-FLUXO). Sem a remota, só a
-    ponta atual da local: nela um avanço rápido (ff) põe os commits intermediários do item na cadeia de primeiros pais."""
+    (`foi_ponta_da_integracao`): ali o merge é pelo PR e o envio direto é barrado (R-FLUXO). Premissa (E31.10): o merge na remota é
+    por squash ou merge commit e o rebase-merge fica desligado no repositório (configuração do dono); com ele ligado, os commits
+    rebaseados do item entram na cadeia e um intermediário passa como promoção (`avisar_rebase_merge` avisa no `pr`). Sem a remota, só
+    a ponta atual da local: nela um avanço rápido (ff) põe os commits intermediários do item na cadeia de primeiros pais."""
     remota = sha_do_commit(raiz, f"refs/remotes/origin/{base}")
     if remota:
         return foi_ponta_da_integracao(raiz, head, remota)

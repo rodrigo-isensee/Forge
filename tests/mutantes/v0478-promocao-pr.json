@@ -61,6 +61,16 @@
       "testes": [
         "tests.test_promocao_por_marca.PromocaoPorMarca.test_branch_mesclada_na_develop_nao_vira_promocao"
       ]
+    },
+    {
+      "id": "M7",
+      "guarda": "E31.10 (segurança A2): a promoção avisa quando o repositório permite rebase-merge",
+      "arquivo": "bin/forge-check",
+      "de": "    if isinstance(dados, dict) and dados.get(\"allow_rebase_merge\") is True:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_promocao_por_marca.PromocaoPorMarca.test_promocao_avisa_quando_o_repositorio_permite_rebase_merge"
+      ]
     }
   ]
 }
