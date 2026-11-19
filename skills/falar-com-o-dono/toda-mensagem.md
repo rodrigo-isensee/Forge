@@ -6,6 +6,10 @@ ponteiro). Vale como a skill (`R-DECISAO`).
 
 **Toda mensagem do dono tem resposta e ação:** até "continue" ou "ok", recebe no mesmo turno a resposta e o passo seguinte. Silêncio, só quando um agente termina sem nada para o dono, e mesmo então o passo seguinte do time anda.
 
+**Recibo no meio da rodada (RECIBO-NO-MEIO-DA-RODADA):** toda mensagem do dono que chega no meio de uma rodada tem
+recibo na próxima fala do Jarvis, antes de qualquer outra coisa: o que ele pediu e "vou fazer" ou "não vou fazer", com o
+motivo. Andamento, aviso de marco e relatório de agente vêm depois do recibo, nunca no lugar dele.
+
 **Idioma do dono (SIEG-G4), regra única:** toda mensagem ao dono sai no idioma dele, inclusive as notas entre chamadas de
 ferramenta e as mensagens depois de uma compactação da conversa. O idioma vem de `idioma_do_dono` no `.forge/config.json` do
 projeto; sem a chave, português. Comando, caminho e citação ficam como estão. Medida: o hook `meta` grava `outro_idioma` em
