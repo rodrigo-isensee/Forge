@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-placar
-commit: d340b213c53fe4e11cbb89dd09938b7d29115599
+commit: 89936fa3db5777ce9ab913f190fdf2bc767c75a0
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-19
@@ -20,7 +20,17 @@ Gatilhos: nenhum (ferramenta local de leitura; sem autenticação, segredo, depe
 ## Revalidação (head d340b213)
 Delta (`forge-check parecer delta`): só `bin/forge-placar` no domínio, +2 linhas em `paradas_do_ci` (:712-713, `fundo_demais` antes do `json.loads`, mensagem fixa); fora, `tests/evals/test_placar.py` e um mutante. A2 resolvido, sem achado aberto; parecer segue aprovado. S8 repetida abaixo (S11).
 
+## Revalidação (head 89936fa3, v0478 E36.20)
+Delta (`forge-check parecer delta`, 57a66ff4..89936fa3, sem o que veio da base): no domínio, só `bin/forge-placar` (guarda do dia sem item, docstrings, `FONTES_DE_PARADA` montado de um `DO_HISTORICO`); fora, um mutante. Lido: nenhuma mudança em `fundo_demais`, `paradas_do_ci`, `--prs` nem `paradas_do_historico`. Sem achado aberto; A1 e A2 seguem resolvidos; parecer segue aprovado.
+- Fontes de parada: o dicionário `FONTES_DE_PARADA` de 57a66ff4 e o de 89936fa3, executados, são iguais (S12).
+- Aninhamento: `--prs` (:237-238) e `--ci` (:706-707) seguem chamando `fundo_demais` antes do `json.loads` (S13, S14).
+- Data impossível: o `try/except ValueError` por linha de `paradas_do_historico` (:693-696) segue, aviso fixo, demais linhas valem (S15).
+
 ## Sondas
+- S12 · `FONTES_DE_PARADA` executado em 57a66ff4 e em 89936fa3 (`python3 -I`, `git show`) · espera: iguais · obtido: `True`, 3 chaves
+- S13 · `forge-placar --prs ARQ`, ARQ com 100000 `[` · espera: rc 2 pela guarda · obtido: rc 2, `não é JSON legível (aninhado acima de 64 níveis)`
+- S14 · `forge-placar fases --ci ARQ`, ARQ com 100000 `[` e 100000 `]` · espera: rc 2 · obtido: rc 2, `não é uma lista de runs legível (aninhado acima de 64 níveis)`, sem traceback
+- S15 · `fases --raiz R` com `- 2026-11-19 09:00: PARADA sessão 2026-13-45 09:00 até 2026-13-46 10:00` e uma linha válida de 1 h · espera: aviso, linha pulada, 1 h contada · obtido: `PARADA com data impossível em docs/pedidos/v0001.md; linha ignorada` e `1 h 00 min`
 - S11 · fases --raiz R --ci ARQ, ARQ com 100000 colchetes abertos (também fechados; também em objeto) · espera: rc 2, mensagem fixa, sem eco nem traceback · obtido: py 3.12.3, rc 2 nos três, stderr uma linha com o caminho do argumento e teto 64, sem traceback
 - S8 · `fases --raiz R --ci ARQ` com `[`x100000 e `]`x100000, e com `[{"conclusion":"x","a":[`...`]}]` aninhado igual · espera: sai 2 com mensagem · obtido: (py 3.12.3) rc 2, `--ci ... não é uma lista de runs legível`, nos dois
 - S9 · `--prs ARQ` com os 100000 `[` · espera: sai 2 pela guarda · obtido: `não é JSON legível (aninhado acima de 64 níveis)`
