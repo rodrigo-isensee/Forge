@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-promocao-pr
-commit: 1e0c50a715ebd00251278c278722b7be3819bb3c
+commit: 6ab1228acf7d1560b1d43541c59438a9e01ffcac
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-18
@@ -35,8 +35,13 @@ Delta lido: `forge-check parecer delta docs/reviews/v0478-promocao-pr.md`, inter
 - `bin/forge-mutante --cobertura --base d836c435` · linhas 1582, 1590 e 1592 cobertas (M1/M52, M5, M6).
 - Suíte: no CI do PR (R-CUSTO, M8); não rerrodada.
 
-## Achados
-- A1 (recomendado) bin/forge-check:1587 · a docstring diz que o merge na remota é por squash ou merge commit, mas o repositório permite rebase-merge (allow_rebase_merge=true): o GitHub reescreve os shas, o head do item não entra, mas os intermediários reescritos ficam na cadeia; desligar o rebase-merge ou citá-lo.
+## Revalidação E31.12 (head 6ab1228a, A1 deste review)
+Delta lido: `forge-check parecer delta docs/reviews/v0478-promocao-pr.md`, intervalo 1e0c50a7..6ab1228a; no domínio `bin/forge-check`, `changelog.d/v0478-promocao-pr.md`, `docs/fechamento-integrador.md`, `tests/mutantes/v0478-promocao-pr.json`, `tests/test_promocao_por_marca.py`. Fora do domínio nada relido.
+- A1 resolvido: a docstring de `ponta_da_integracao` e o `docs/fechamento-integrador.md` declaram a premissa (squash ou merge commit, rebase-merge desligado), e `avisar_rebase_merge` avisa na promoção quando `allow_rebase_merge` é `true` (`gh api`, só leitura, R-CUSTO), sem mudar o veredito; sem `gh`, sem rede ou resposta que não é dict, nada.
+- Teste novo `test_promocao_avisa_quando_o_repositorio_permite_rebase_merge` (true, false, vazio, None, lista): `python3 -m unittest test_promocao_por_marca` · 6 testes, OK.
+- `bin/forge-mutante --processos 1 tests/mutantes/v0478-promocao-pr.json` · M1, M5, M6, M2, M3, M4, M7 morreram.
+- `bin/forge-mutante --cobertura --base 1e0c50a7` · linha 1591 coberta (M7).
+- Suíte: no CI do PR (R-CUSTO, M8); não rerrodada.
 
 ## Parecer
-Aprovado (revalidado no head 1e0c50a7). A mudança é mínima, resolve o caso real da 0.47.8 (marca b407f8f7 com o #682 depois) e não abre caminho para item escapar de E7/H1: o critério é o sha do head, que só está na cadeia de primeiros pais se entrou na develop pelo caminho integrado. R-REVIEW, R-FLUXO.
+Aprovado (revalidado no head 6ab1228a; A1 resolvido). A mudança é mínima, resolve o caso real da 0.47.8 (marca b407f8f7 com o #682 depois) e não abre caminho para item escapar de E7/H1: o critério é o sha do head, que só está na cadeia de primeiros pais se entrou na develop pelo caminho integrado. R-REVIEW, R-FLUXO.
