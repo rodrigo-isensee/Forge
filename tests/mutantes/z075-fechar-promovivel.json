@@ -139,7 +139,7 @@
       "de": "passo \"1c\" \"python3 -I",
       "para": ": \"1c\" \"python3 -I",
       "testes": [
-        "tests.test_fechar.Fechar.test_1c_no_dry_run_e_fora_da_base_develop_nao_roda"
+        "tests.test_fechar.Fechar.test_1c_no_dry_run_roda_o_conferir_ref_contra_a_homolog_local_sem_busca"
       ]
     }
   ]
