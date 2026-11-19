@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-placar
-commit: f74d6dd71cdc9ae8c458509cf6ed7674b55bc83f
+commit: d340b213c53fe4e11cbb89dd09938b7d29115599
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-19
@@ -15,9 +15,13 @@ Volta por delta (R-REVIEW): `forge-check parecer delta docs/security/v0479-meta8
 Gatilhos: nenhum (ferramenta local de leitura; sem autenticação, segredo, dependência, CI, rede nem controle do Forge).
 
 ## Achados
-- A2 (recomendado) bin/forge-placar:714 · `paradas_do_ci` (META85, `fases --ci`) lê JSON sem `fundo_demais`: só capta `RecursionError`; a guarda da develop vale só para `--prs` (:240)
+- A2 (recomendado) bin/forge-placar:712 · RESOLVIDO em d340b213: `paradas_do_ci` (META85, `fases --ci`) lê JSON agora chama `fundo_demais` antes do `json.loads` (:712-713); antes só captava `RecursionError`
+
+## Revalidação (head d340b213)
+Delta (`forge-check parecer delta`): só `bin/forge-placar` no domínio, +2 linhas em `paradas_do_ci` (:712-713, `fundo_demais` antes do `json.loads`, mensagem fixa); fora, `tests/evals/test_placar.py` e um mutante. A2 resolvido, sem achado aberto; parecer segue aprovado. S8 repetida abaixo (S11).
 
 ## Sondas
+- S11 · fases --raiz R --ci ARQ, ARQ com 100000 colchetes abertos (também fechados; também em objeto) · espera: rc 2, mensagem fixa, sem eco nem traceback · obtido: py 3.12.3, rc 2 nos três, stderr uma linha com o caminho do argumento e teto 64, sem traceback
 - S8 · `fases --raiz R --ci ARQ` com `[`x100000 e `]`x100000, e com `[{"conclusion":"x","a":[`...`]}]` aninhado igual · espera: sai 2 com mensagem · obtido: (py 3.12.3) rc 2, `--ci ... não é uma lista de runs legível`, nos dois
 - S9 · `--prs ARQ` com os 100000 `[` · espera: sai 2 pela guarda · obtido: `não é JSON legível (aninhado acima de 64 níveis)`
 - S10 · `--ci ARQ` (caminho da develop, `ci_vermelha` :199) com os 100000 `[` · espera: sai 2 · obtido: traceback `RecursionError`, rc 1; idêntico na develop (fora do delta)
