@@ -188,6 +188,7 @@ MAPA = [
     (r"templates/projeto/\.githooks/pre-push", PUBLICADO + ("test_prepush_so_docs", "test_caminhos_extra_pre_push", "test_prepush_refs")),
     (r"templates/projeto/\.forge/config\.json", PUBLICADO + ("test_ritmo",)),  # v0457 E3.9: test_ritmo lê o modelo do config
     (r"templates/projeto/(docs/devops/pos-release\.(md|passos)|scripts/pos-release)", PUBLICADO + ("test_pos_release",)),  # v047 E2.394: o teste lê os três
+    (r"templates/projeto/\.claude/settings\.json", PUBLICADO + ("test_sandbox_controle",)),  # v0478 E29.1: o teste lê o denyWrite do modelo
     (r"(migrations|templates)/.*", PUBLICADO),
     (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
     (r"docs/hooks-fixtures\.md", CONTEUDO + ("test_indice_fixtures",)),  # Fase C: o índice gerado confere em dia
@@ -196,6 +197,7 @@ MAPA = [
     (r"skills/esperar-estado/.*|agents/tech-lead\.md", CONTEUDO + ("test_esperar_estado",)),
     (r"skills/(produto-criterios|observabilidade-incidentes|explicar-para-o-leigo|modo-iniciante)/.*|agents/(jarvis|devops-engineer)\.md", CONTEUDO + ("test_skills_v0442",)),
     (r"docs/devops/pp1-pre-push\.patch", CONTEUDO + ("test_pre_push_patch",)),  # v047 E2.567: o teste aplica o patch
+    (r"docs/devops/v0479-sandbox-controle\.patch", CONTEUDO + ("test_sandbox_controle",)),  # v0478 E29.1: o teste aplica o patch
     (r"(agents|skills|docs)/.*", CONTEUDO),
     (r"README\.md", ("test_forge", "test_doutor")),  # PY-MINIMO: test_doutor confere o Python mínimo no README
     (r"CONTRIBUTING\.md", ("test_forge", "test_changelog")),
