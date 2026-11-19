@@ -36,18 +36,18 @@
       "id": "M12",
       "guarda": "sem docs/pedidos a parada sai tracinho",
       "arquivo": "bin/forge-placar",
-      "de": "    if hist is None:\n        return None\n    intervalos",
-      "para": "    if False:\n        return None\n    intervalos",
+      "de": "    if hist is None:\n        return None\n    intervalos = []",
+      "para": "    if False:\n        return None\n    intervalos = []",
       "testes": [
-        "tests.evals.test_placar.Fases.test_sem_historico_as_paradas_saem_tracinho_e_data_invalida_sai_com_2"
+        "tests.evals.test_placar.Fases.test_sem_historico_ou_sem_linha_do_tipo_as_paradas_saem_tracinho"
       ]
     },
     {
       "id": "M13",
       "guarda": "cada tipo de parada so com as suas linhas",
       "arquivo": "bin/forge-placar",
-      "de": "and m.group(1) == tipo]",
-      "para": "and True]",
+      "de": "            if m.group(1) != tipo:\n                continue",
+      "para": "            if False:\n                continue",
       "testes": [
         "tests.evals.test_placar.Fases.test_horas_paradas_de_sessao_e_promocao_pelo_historico"
       ]

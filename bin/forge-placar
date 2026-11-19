@@ -656,12 +656,21 @@ def minutos_recortados(intervalos, janela):
 
 
 def paradas_do_historico(raiz, tipo, janela):
+    """Minutos parados do tipo; None sem docs/pedidos ou sem linha `PARADA <tipo>` legível (fonte ausente sai -, nunca 0).
+    Linha com data impossível é pulada com aviso que cita o pedido, e as outras seguem."""
     hist = historicos(raiz)
     if hist is None:
         return None
-    intervalos = [(momento(m.group(2), "PARADA"), momento(m.group(3), "PARADA")) for linhas in hist.values()
-                  for _, texto in linhas if (m := PARADA.match(texto)) and m.group(1) == tipo]
-    return minutos_recortados(intervalos, janela)
+    intervalos = []
+    for pedido, linhas in hist.items():
+        for m in filter(None, (PARADA.match(texto) for _, texto in linhas)):
+            if m.group(1) != tipo:
+                continue
+            try:
+                intervalos.append(tuple(datetime.datetime.fromisoformat(m.group(i)).timestamp() for i in (2, 3)))
+            except ValueError:
+                print(f"forge-placar: PARADA com data impossível em docs/pedidos/{pedido}.md; linha ignorada", file=sys.stderr)
+    return minutos_recortados(intervalos, janela) if intervalos else None
 
 
 def paradas_do_ci(arq, janela):

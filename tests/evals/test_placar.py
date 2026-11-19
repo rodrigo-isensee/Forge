@@ -542,11 +542,30 @@ class Fases(unittest.TestCase):
         self.assertIn("horas paradas, promoção: 0 h 45 min (fonte: linhas `PARADA promoção", saida)
         self.assertIn("horas paradas, develop vermelha: - (fonte: CI da develop pelo gh (--ci:", saida)
 
-    def test_sem_historico_as_paradas_saem_tracinho_e_data_invalida_sai_com_2(self):
+    def test_sem_historico_ou_sem_linha_do_tipo_as_paradas_saem_tracinho(self):
         self.assertIsNone(self.json("2025-03-18")["paradas"]["sessão"]["min"])  # a raiz do teste não tem docs/pedidos
-        raiz = self.raiz_com_historico(p1=["2025-03-18 12:00: PARADA sessão 2025-02-30 10:00 até 2025-03-18 11:30"])
-        rc, _, erro = self.rodar_tz("UTC", "--dia", "2025-03-18", "--raiz", str(raiz))
-        self.assertEqual(rc, 2, erro)
+        # E36.5 (A1 do review e do QA): histórico existe, sem linha PARADA do tipo: fonte ausente, "-" e nunca 0.
+        raiz = self.raiz_com_historico(p1=["2025-03-18 15:06: Sessão caiu de novo (~15:06 a 15:30)"],
+                                       p2=["2025-03-17 10:00: PARADA promoção 2025-03-17T09:00 até 2025-03-17T09:30"])
+        paradas = self.json_tz("--dia", "2025-03-18", "--raiz", str(raiz))["paradas"]
+        self.assertEqual((paradas["sessão"]["min"], paradas["promoção"]["min"]), (None, 0))  # promoção tem linha, noutro dia
+        rc, saida, erro = self.rodar_tz("UTC", "--dia", "2025-03-18", "--raiz", str(raiz))
+        self.assertEqual(rc, 0, erro)
+        self.assertIn("horas paradas, sessão: - (fonte:", saida)
+        self.assertIn("horas paradas, promoção: 0 h 00 min (fonte:", saida)
+
+    def test_parada_com_data_impossivel_cita_o_arquivo_e_segue(self):
+        # E36.5 (A1 da segurança, sonda S5): mês 13 e 30/02 não derrubam o fases; o aviso cita o pedido e as outras linhas contam.
+        raiz = self.raiz_com_historico(p1=["2025-03-18 12:00: PARADA sessão 2026-13-19 10:00 até 2025-03-18 11:30",
+                                           "2025-03-18 12:01: PARADA sessão 2025-03-18 10:00 até 2025-02-30 11:30"],
+                                       p2=["2025-03-18 12:02: PARADA sessão 2025-03-18 10:00 até 2025-03-18 10:30"])
+        rc, saida, erro = self.rodar_tz("UTC", "--dia", "2025-03-18", "--raiz", str(raiz), "--json")
+        self.assertEqual(rc, 0, erro)
+        self.assertEqual(json.loads(saida)["paradas"]["sessão"]["min"], 30)
+        self.assertEqual(erro.count("forge-placar: PARADA com data impossível em docs/pedidos/p1.md; linha ignorada"), 2, erro)
+        self.assertNotIn("p2.md", erro)
+        so_ruim = self.raiz_com_historico(p1=["2025-03-18 12:00: PARADA sessão 2026-13-19 10:00 até 2025-03-18 11:30"])
+        self.assertIsNone(self.json_tz("--dia", "2025-03-18", "--raiz", str(so_ruim))["paradas"]["sessão"]["min"])
 
     def ci(self, runs):
         arq = Path(tempfile.mkdtemp(prefix="forge-placar-ci-")) / "ci.json"

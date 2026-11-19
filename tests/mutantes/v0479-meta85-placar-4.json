@@ -41,6 +41,36 @@
       "testes": [
         "tests.evals.test_placar.Fases.test_corte_por_hora_do_merge"
       ]
+    },
+    {
+      "id": "M29",
+      "guarda": "histórico sem linha PARADA do tipo sai tracinho, nunca 0",
+      "arquivo": "bin/forge-placar",
+      "de": "return minutos_recortados(intervalos, janela) if intervalos else None",
+      "para": "return minutos_recortados(intervalos, janela) if True else None",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_sem_historico_ou_sem_linha_do_tipo_as_paradas_saem_tracinho"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "PARADA com data impossível é pulada, sem derrubar o fases",
+      "arquivo": "bin/forge-placar",
+      "de": "            except ValueError:\n                print(f\"forge-placar: PARADA",
+      "para": "            except KeyError:\n                print(f\"forge-placar: PARADA",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_parada_com_data_impossivel_cita_o_arquivo_e_segue"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "linha do histórico sem PARADA fica fora",
+      "arquivo": "bin/forge-placar",
+      "de": "for m in filter(None, (PARADA.match(texto) for _, texto in linhas)):",
+      "para": "for m in filter(lambda _: True, (PARADA.match(texto) for _, texto in linhas)):",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_sem_historico_ou_sem_linha_do_tipo_as_paradas_saem_tracinho"
+      ]
     }
   ]
 }
