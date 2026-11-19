@@ -73,14 +73,14 @@ class RevalidaSoQuemBarrou(Repositorio):
     def test_fora_da_branch_de_trabalho_revalida_pelo_diff_literal(self):  # A1 E34.10: sem branch, o `pr` não simula a base
         rel = self.parecer("review", "aprovado")
         git("switch", "-q", "develop", cwd=self.repo)
-        self.commitar({"src/app.py": "x = 5\n"}, "a develop muda o código")
+        self.commitar({"src/outro.py": "y = 1\n"}, "a develop muda o código")
         git("switch", "-q", "melhoria/x", cwd=self.repo)
-        self.commitar({"src/app.py": "x = 5\n"}, "a branch chega ao mesmo conteúdo da develop")
+        git("merge", "-q", "--no-edit", "develop", cwd=self.repo)  # o código novo vem da base
         git("switch", "-q", "--detach", cwd=self.repo)
         self.commitar({"changelog.d/p1.md": "- x\n"}, "HEAD solto, sem branch")
         self.assertIn(f"{rel}: commit: desatualizado", self.check("pr", "p1")[1])  # o `pr` lê o diff literal e barra
         linha = self.revalida(rel)
-        self.assertTrue(linha.startswith("revalida: sim (desatualizado: src/app.py mudou depois do parecer"), linha)
+        self.assertTrue(linha.startswith("revalida: sim (desatualizado: src/outro.py mudou depois do parecer"), linha)
 
     def test_veredito_com_commit_ilegivel_nao_consulta_o_git(self):  # o `commit:` fora da forma já é violação do `validar_documento`
         campos = {"tipo": "review", "pedido": "p1", "parecer": "aprovado", "commit": "zzz"}
