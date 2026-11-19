@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-selecao-testes
-commit: 53f8969816a5d1d2c0f4d2db3a1172ae0322010d
+commit: 95c7fc2ff9f42c6c071f7943b5424dd571f21562
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-18
+data: 2026-11-19
 ---
 # Review: v0478 (E18.3, seleção de testes)
 
@@ -27,3 +27,8 @@ Provas rodadas (máquina carregada: só os testes do diff, sem a suíte, que fic
 - `python3 -m unittest -k medir tests.test_suite_paralela`: `Ran 7 tests ... OK`.
 - `python3 -m unittest tests.test_testes_tocados.MapaDoForgeCheck tests.test_testes_tocados.Mapa.test_forge_check_roda_os_modulos_dele tests.test_testes_tocados.Vermelho.test_vermelho_escreve_progresso_com_o_teto_e_os_modulos_do_diff_primeiro tests.test_forge.PesosDaSuite`: `Ran 6 tests ... OK`.
 - `bin/forge-mutante tests/mutantes/v0478-selecao-testes.json` (rev 53f8969816a5): M1 a M6 morreram.
+
+## Revalidação no head 95c7fc2f (E18.11)
+Aprovado. Delta lido só por `forge-check parecer delta` (intervalo `53f89698..95c7fc2f`, sem o que veio da develop): no domínio só `bin/forge-testes`, cuja mudança é a da develop (`test_promocao_por_marca`, `test_fc_pr_parecer_forjado` e `test_filtros_l08_g2_ancora` no `FORGE_CHECK`); `git diff c720891e 95c7fc2f -- bin/forge-testes` não a traz. `tests/test_suite_paralela.py` fica com o QA.
+- Conflito de `tests/test_testes_tocados.py` pelo lado da branch: a develop só subia a contagem fixa de 99 para 102; o conjunto mínimo da branch cobre os 3 módulos novos sem número. O arquivo no head é igual ao de `8a456181`.
+- Prova: `python3 -m unittest tests.test_testes_tocados.MapaDoForgeCheck tests.test_testes_tocados.Mapa.test_forge_check_roda_os_modulos_dele` no head 95c7fc2f: `Ran 4 tests ... OK`. Suíte inteira: CI do PR.
