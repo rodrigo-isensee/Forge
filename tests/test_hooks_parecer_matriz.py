@@ -44,6 +44,12 @@ VARIAVEIS_DO_GIT = ("GIT_CONFIG_GLOBAL=g.cfg", "GIT_CONFIG_SYSTEM=g.cfg", "GIT_C
                     "GIT_CONFIG_PARAMETERS=\"'remote.origin.gh-resolved'='dono/forge'\"", "GIT_DIR=../proj/.git",
                     "HOME=$PWD/h", "XDG_CONFIG_HOME=$PWD/x")
 POSICOES_DA_VARIAVEL = ("{v} {gh}", "export {v}; {gh}", "declare -x {v} && {gh}")
+# D4, atribuição por expansão (A5 do review da E3.21): `${N:=v}` e `${N=v}` com `set -a`, em argumento, com aspas e em
+# here-string; de elemento (`${N[0]:=v}`)
+EXPANSOES = ("GH_REPO:=dono/forge", "GH_REPO=dono/forge", "GIT_CONFIG_GLOBAL:=g.cfg", "XDG_CONFIG_HOME:=$PWD/x",
+             "HOME=$PWD/h", "GIT_DIR[0]:=../proj/.git")
+POSICOES_DA_EXPANSAO = ("set -a; : ${{{e}}}; {gh}", 'set -a; echo "${{{e}}}" >/dev/null && {gh}',
+                        "set -a; cat <<<${{{e}}}; {gh}")
 # D3 e D6: a forma inteira, com o gh no lugar
 INTEIRAS = {
     "D3": ("env $(cat vars) {gh}", 'v=GH_REPO=dono/forge; env "$v" {gh}', "env -- $(cat vars) {gh}",
@@ -52,7 +58,9 @@ INTEIRAS = {
 }
 LEGITIMOS = ("{gh}", 'export PATH="$HOME/bin:$PATH"; {gh}', 'for f in $(ls); do echo "$f"; done; {gh}',
              'read -r -p "$pergunta" resposta; {gh}', "{gh} && echo feito", "cd . && {gh} 2>&1",
-             "GH_PAGER=cat {gh}", "export LANG=C; {gh} >/dev/null")
+             "GH_PAGER=cat {gh}", "export LANG=C; {gh} >/dev/null",
+             'set -a; : "${{GH_REPO:-dono/forge}}"; {gh}', "echo ${{HOME:+x}} ${{GH_REPO:?}}; {gh}",
+             ": ${{PAGER:=less}}; {gh}")
 SONDAS = {  # por extenso, como nos pareceres
     "S14": "command -p . ./env.sh; gh pr ready feature/x",
     "S15": "command -- source ./env.sh; gh pr ready feature/x",
@@ -72,6 +80,12 @@ SONDAS = {  # por extenso, como nos pareceres
     "S25a": "git config remote.origin.gh-resolved dono/forge; gh pr ready feature/x",
     "S25b": f"git config url.{FORGE}.insteadOf git@github.com:outro/coisa.git; gh pr ready feature/x",
     "S26": "command -- . ./env.sh; gh pr ready feature/x",
+    "S28a": "set -a; : ${GH_REPO:=dono/forge}; gh pr ready feature/x",
+    "S28b": 'set -a; : "${GH_REPO:=dono/forge}"; gh pr ready feature/x',
+    "S28c": "set -a; echo ${GH_REPO:=dono/forge}; gh pr ready feature/x",
+    "S29a": "set -a; : ${XDG_CONFIG_HOME:=$PWD/x}; gh pr merge feature/x",
+    "S29b": "set -a; : ${GIT_CONFIG_GLOBAL:=g.cfg}; gh pr ready feature/x",
+    "S29c": "n=GH_REPO; set -a; : ${!n:=dono/forge}; gh pr ready feature/x",
 }
 
 
@@ -81,6 +95,8 @@ def gerar():
              for d, formas in ANTES.items() for i, x in enumerate(formas) for p in POSICOES for g in GH]
     casos += [(f"D4/{p}/{g.split()[2]}/{v}", p.format(v=v, gh=g), 2)
               for v, p, g in itertools.product(VARIAVEIS_DO_GIT, POSICOES_DA_VARIAVEL, GH)]
+    casos += [(f"D4/{p}/{g.split()[2]}/{e}", p.format(e=e, gh=g), 2)
+              for e, p, g in itertools.product(EXPANSOES, POSICOES_DA_EXPANSAO, GH)]
     casos += [(f"{d}/{f}/{g.split()[2]}", f.format(gh=g), 2) for d, formas in INTEIRAS.items() for f in formas for g in GH]
     casos += [(s, linha, 2) for s, linha in SONDAS.items()]
     casos += [(f"legitimo/{f}/{g.split()[2]}", f.format(gh=g), 0) for f in LEGITIMOS for g in GH]
@@ -146,6 +162,16 @@ class RegrasPorClasse(unittest.TestCase):
             self.assertTrue(parecer.mexe_no_config_do_git(frozenset(mexidas)), mexidas)
         for mexidas in (set(), {"CDPATH"}, {"GH_REPO"}, {"GH_CONFIG_DIR"}):
             self.assertFalse(parecer.mexe_no_config_do_git(frozenset(mexidas)), mexidas)
+
+    def test_d4_atribuicao_por_expansao(self):
+        for texto, nomes in ((": ${GH_REPO:=x}", {"GH_REPO"}), ('echo "${GIT_CONFIG_GLOBAL=g}"', {"GIT_CONFIG_GLOBAL"}),
+                             ("cat <<<${HOME[0]:=h} > ${XDG_CONFIG_HOME:=x}", {"HOME", "XDG_CONFIG_HOME"}),
+                             ("echo ${A:-${GIT_DIR:=d}}", {"GIT_DIR"})):
+            self.assertEqual(parecer.mexidas_por_expansao(texto), frozenset(nomes), texto)
+        self.assertEqual(parecer.mexidas_por_expansao(": ${!n:=x}"), frozenset(parecer.SENSIVEIS))
+        for texto in (": ${GH_REPO:-x} ${HOME:+y} ${GIT_DIR:?z} ${#HOME} ${HOME/a=b}", ": ${PAGER:=less}", "HOME=x",
+                      ": $GH_REPO=x"):
+            self.assertEqual(parecer.mexidas_por_expansao(texto), frozenset(), texto)
 
     def test_d5_programas_que_mantem_os_remotos(self):
         for linha in ("gh pr ready x", "export A=1; gh pr ready x", "for f in $(ls); do echo $f; done; gh pr merge x",

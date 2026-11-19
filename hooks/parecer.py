@@ -123,6 +123,8 @@ ATRIBUICAO = re.compile(r"^([A-Za-z_]\w*)\+?=")
 # programas que não mudam os remotos da cópia e os `gh pr` que só os leem
 CAMINHO_DE_VARIAVEL = re.compile(r"(?:[^$`(){}]|\$[A-Za-z_]\w*|\$\{[A-Za-z_]\w*\})*/[^$`/(){}]+")
 CONFIG_DO_GIT = {"HOME", "XDG_CONFIG_HOME"}
+# D4 (A5 do review da E3.21): `${N:=v}` e `${N=v}`, também de elemento (`${N[0]:=v}`) e indireta (`${!n:=v}`)
+EXPANSAO_QUE_ATRIBUI = re.compile(r"\$\{(!?)([A-Za-z_]\w*)(?:\[[^]}]*\])?:?=")
 SO_LEEM_A_COPIA = frozenset({"cd", "echo", "printf", "true", "false", ":", "test", "[", "export", "declare", "typeset",
                              "local", "readonly", "read", "set", "unset", "shift", "pwd", "sleep", "for", "done", "fi",
                              "}", "ls", "cat", "wc", "head", "tail", "grep", "stat"})
@@ -646,6 +648,18 @@ def mexidas_na_linha(palavras):
     return frozenset(n for n in nomes if n in SENSIVEIS or n.startswith("GIT_"))  # D4: `GIT_CONFIG_GLOBAL=` e afins
 
 
+def mexidas_por_expansao(texto):
+    """D4 (A5 do review da E3.21): `${N:=v}` e `${N=v}` dão valor a N em qualquer ponto do texto (argumento, redireção,
+    here-string, corpo de heredoc), e com `set -a` o bash o exporta; a indireta (`${!n:=v}`) mexe em todos. Vale para a
+    linha inteira, antes do primeiro comando (falha fechada sobre a ordem); `${N:-v}` e `${N:+v}` não dão valor."""
+    nomes = set()
+    for m in EXPANSAO_QUE_ATRIBUI.finditer(texto):
+        if m.group(1):  # `${!n:=v}`: o nome sai de expansão
+            return frozenset(SENSIVEIS)
+        nomes.add(m.group(2))
+    return frozenset(nome for nome in nomes if nome in SENSIVEIS or nome.startswith("GIT_"))
+
+
 def nome_incerto(palavra):
     """D2 (GH-REMOTO-NA-LINHA): o nome do comando sai de expansão (`$c`, `${c}`, `$(…)`, crase) e pode ser um builtin
     (`source`) ou outro comando; o caminho de variável com `/` literal (`$F/bin/x`) é arquivo e não conta."""
@@ -1123,7 +1137,8 @@ def principal(hook):
     textos = textos_da_linha(comando)
     if not any(PREFILTRO.search(g) for g in textos) and not alias_na_linha(textos):  # HOOK-CONTINUACAO-LINHA: e `g\h`, `g'h'`
         return
-    conferir_linha(hook, SED_LE.sub(r"cat\2", comando), [(hook.cwd(), {}, SEM_AMBIENTE)])
+    ambiente = SEM_AMBIENTE._replace(mexidas=mexidas_por_expansao(comando))  # o `conferir` soma os DESVIOS
+    conferir_linha(hook, SED_LE.sub(r"cat\2", comando), [(hook.cwd(), {}, ambiente)])
 
 
 def marcas_da_chamada(original, comando, corpos, leitores):
