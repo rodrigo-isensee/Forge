@@ -3,16 +3,16 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-mp8-maquina
-commit: 6ebd057c42e72eafe3b1033c3685799e9fef951e
+commit: 528cc26744ae2331c46006c638c9670b49928a77
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-18
 ---
-# QA: v0479-mp8-maquina (E23.4)
+# QA: v0479-mp8-maquina (E23.8, revalidação)
 
 Diff 0c47762a..6ebd057c: `bin/forge-status --maquina` (MP8), `tests/test_maquina.py` (10 testes novos), 13 mutantes. Suíte inteira no CI do PR; aqui só os testes do diff.
 
@@ -40,3 +40,17 @@ Diff 0c47762a..6ebd057c: `bin/forge-status --maquina` (MP8), `tests/test_maquina
 - `forge-mutante` v0476-mp2-mp4-3.json (spec editada, S1 reapontado): P7 a P10, S1 a S3, M11 todos `morreu` (P10 com aviso de erro do teste declarado sob o mutante, que passa sem ele; morte válida).
 - `forge-mutante --cobertura --base 0c47762a`: toda condição mudada em `bin/forge-status` coberta (linhas 86 a 146, MP8-2 a MP8-13); sem condição descoberta.
 - Sem bugs. Rede: nenhuma chamada no `--maquina`.
+
+## Revalidação E23.8 (head 528cc267, delta 6ebd057c..528cc267)
+Delta lido por `forge-check parecer delta`: `bin/forge-status` (pasta-mãe em link), `bin/forge_dono.py` (teto de 8 MB), testes e mutantes MP8-14 e MP8-15. Parecer: aprovado; o A1 acima segue recomendado, não bloqueia.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| A1 segurança: `.forge`/`.claude-plugin` por link não se lê | UmProjeto.test_pasta_da_versao_em_link_nao_se_segue | link na pasta-mãe, as duas por link | passou (vermelho: falha na base) |
+| A2 segurança: pedido acima de 8 MB fora da contagem | UmProjeto.test_pedido_acima_do_teto_nao_conta | teto exato conta, teto+1 não | passou (vermelho: erro de API na base) |
+| Regressão: KANBAN ilegível vira aviso | test_forge_dono.PerguntasAbertas.test_quadro_ilegivel_vira_aviso (mock passou a `Path.open`) | arquivo ilegível | passou |
+
+- `test_maquina.py`: 35 testes OK; `test_forge_dono.py`: 79 testes OK (TMPDIR local, sem suíte inteira).
+- `forge-testes --vermelho 6ebd057c --modulos test_maquina`: `base=6ebd057c42e7 head=1b876623ae32`; 2 provam (asserção e API ausente), 33 não provam (já existiam), nenhum cai no HEAD.
+- `forge-mutante` (2 specs, `--base 6ebd057c`, `base=6ebd057c… rev=1b876623…`): MP8-1 a MP8-15 todos `morreu`, rc 0; MP8-14 (forge-status:82) e MP8-15 (forge_dono.py:581) cobrem as duas linhas de guarda mudadas.
+- O head 1b876623 só soma o parecer de segurança sobre 528cc267; código idêntico.
