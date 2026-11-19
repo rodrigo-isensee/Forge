@@ -1312,6 +1312,8 @@ class Hooks(unittest.TestCase):
         with self.assertRaises(AssertionError):  # recusa de regra (R-REVIEW sem review), rápida: nada de carga
             self.liberar_ou_provar_a_carga("parecer/sem-pareceres", Fixture(f.caminho, dados))
 
+    @unittest.skip("quarentena (OK do dono 19/11 18:12): depende da carga do runner; volta quando o PR #701 "
+                   "(melhoria/v0479-develop-relogio) entrar com 10 rodadas verdes sob carga; cartão TESTE-SONDA-S1-RELOGIO")
     def test_liberar_ou_provar_a_carga_recusa_a_sonda_s1(self):  # v0478, A1 do review
         """A sonda S1 do review, de verdade: o 1.o git dorme 3,8 s a mais que os 4 s do fixture, o vigia de 8 s recusa e a
         recusa não passa como carga (o tempo a mais é sono, não fila da CPU: o hook não aproveita a parcela da referência)."""

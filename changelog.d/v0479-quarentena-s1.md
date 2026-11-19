@@ -1,0 +1,2 @@
+### Corrigido
+- Quarentena da sonda S1 (`test_liberar_ou_provar_a_carga_recusa_a_sonda_s1`, em `tests/test_hooks.py`): o teste depende da carga do runner e sai da bateria obrigatória com `@unittest.skip`, com o OK do dono de 19/11 18:12. O teste e o corpo ficam como estão; volta quando o PR #701 (`melhoria/v0479-develop-relogio`) entrar com 10 rodadas verdes sob carga. Cartão `TESTE-SONDA-S1-RELOGIO`; `teto_pulados` não sobe.
