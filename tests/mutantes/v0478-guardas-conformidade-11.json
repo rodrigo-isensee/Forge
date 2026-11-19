@@ -1,0 +1,16 @@
+{
+  "pedido": "v0478-guardas-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M74",
+      "guarda": "A8: o applet do busybox ou do toybox vira o programa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if por_applet:  # A4 da volta 2, A5: o applet é o programa",
+      "para": "        if False:  # A4 da volta 2, A5: o applet é o programa",
+      "testes": [
+        "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
+      ]
+    }
+  ]
+}
