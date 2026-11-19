@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-conformidade
-commit: bdbdc257dd492ee2ec6f79af7614b3a5d82e57e2
+commit: 40dc5f4f1c305481e7b7657626aaadac513fd100
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-18
+data: 2026-11-19
 ---
 # QA: v0478 (E1: AGENTES-JSON-SEM-GUARDA e CONFIG-TETO-SEM-GUARDA, parte do hook)
 
@@ -64,3 +64,10 @@ Delta no domínio: `hooks/conformidade.py` (catálogo `DESTINOS`: `--one-top-lev
 - Mutação: `forge-mutante --processos 3` nas specs 6 a 10 (`rev=bdbdc257dd49`): 33 linhas, M39 a M71 todas `morreu`, nenhum sobrevivente, nenhum inválido, rc 0. `--cobertura --base 848dd5ec`: só `coberta` e `spec editada` (specs 6 a 9, editadas e rerrodadas acima); cada guarda nova (1148 a 1200, 2292) tem mutante.
 - Guarda contra suíte vazia: os testes da ajuda do tar afirmam mínimo (20 opções de caminho, 25 no catálogo). Há um único `skipTest`, condicional à ausência do GNU tar no PATH e com o motivo; aqui o GNU tar 1.35 existe e os 3 testes rodaram (não pularam).
 - O remoto avançou (6a3e3983, só o parecer de segurança); trazido por fast-forward, sem mudança de código.
+
+## Revalidação incremental (head 40dc5f4f, base aprovada bdbdc257)
+Delta no domínio: `hooks/conformidade.py` (uma linha, 2293: `self.atualizacao(palavras)` antes da troca do `busybox`/`toybox` pelo applet; A6 da segurança), `tests/test_conformidade_verde.py` (classe `AtualizacaoAtrasDoBusybox`), spec de mutantes 10 (M72), `docs/hooks.md` e changelog. O remoto avançou (c771393b, só o parecer de review); trazido por fast-forward, sem mudança de código.
+- `python3 -I -m unittest discover -s tests -p test_conformidade_verde.py -k AtualizacaoAtrasDoBusybox`: Ran 2 tests, OK (31 s). Suíte inteira no CI do PR.
+- Vermelho antes do verde: `forge-testes --vermelho bdbdc257 --modulos test_conformidade_verde` (`base=bdbdc257dd49 head=c771393b6e75`): `test_applet_que_roda_programa_nao_esconde_a_atualizacao` H=ok B=falha, prova (asserção); `test_applet_sem_atualizacao_segue_livre` passa na base, como esperado (teste de "livre"); contagem: não prova (passa na base)=40; prova (asserção)=1; rc 0.
+- Mutação: `forge-mutante tests/mutantes/v0478-guardas-conformidade-10.json --base bdbdc257` (`rev=c771393b6e75`): M66 a M72 `morreu`, rc 0; M72 (`self.atualizacao(palavras)` trocado por `pass`) é a guarda de 2293, nenhum sobrevivente.
+- Sem skip, skipIf nem expectedFailure no delta.
