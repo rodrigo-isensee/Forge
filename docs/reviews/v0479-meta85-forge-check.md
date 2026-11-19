@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-forge-check
-commit: 06abb4fa338746cd5638d37a092675970c258ceb
+commit: a281e4a5565d8675b1047c997d727c9a5ab1231c
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
@@ -59,3 +59,16 @@ Provas que rodei no head 06abb4fa:
 - `bin/forge-mutante --processos 1` na spec `-7`: M33 a M36 morreram, rc 0.
 - `bin/forge-mutante --cobertura --base 99f474bb`: as três condições novas (1541, 1542, 1570) cobertas por M35, M34 e M36.
 - Tamanho: o `pr` acusa 169 linhas de código no item todo (H1); o teto excedido vai com justificativa no PR, fora desta revalidação.
+
+## Revalidação (E34.15, head a281e4a5)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-forge-check.md`, intervalo `06abb4fa..a281e4a5`, `revalida: sim` (bin/forge-testes mudou). O delta é a junção com a develop (`5ae868eb`), com três conflitos resolvidos; nada fora do domínio foi relido.
+
+- **`bin/forge-testes`:** a lista `FORGE_CHECK` do head tem 102 módulos: os 99 da develop mais `test_meta85_entrega`, `test_meta85_revalida` e `test_meta85_item_arquivos`; nenhum da develop sumiu, nenhum duplicado. `REAPROVEITAM_O_LOTE`, o `progresso` e o `vermelho` ficaram como na develop.
+- **`tests/test_testes_tocados.py`:** idêntico à versão da develop (diff vazio); o conjunto mínimo substituiu a contagem fixa, e os três módulos meta85 entram no mapa sem contagem a ajustar.
+- **`skills/briefs-e-conferencia/autor-ate-o-merge.md`:** um item de cada lado: "Uma volta por rodada" é o da develop (com a exceção de segurança, META85) e "Na revalidação, só é retomado..." é o desta branch; nenhum se perdeu.
+- **Código do item:** `git diff 06abb4fa..a281e4a5` em `bin/forge-check`, nos três `tests/test_meta85_*.py` e nas specs `v0479-meta85-forge-check*.json` está vazio.
+
+Provas que rodei no head a281e4a5:
+- `python3 -m unittest tests.test_testes_tocados tests.test_meta85_entrega tests.test_meta85_revalida tests.test_meta85_item_arquivos`: 192 OK, 1 pulado pelo sandbox.
+
+O parecer segue aprovado. A suíte inteira fica para o CI do PR.
