@@ -64,6 +64,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RAIZ, ambiente_limpo, git, minimo  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 from modelo_git import copiar_modelo  # noqa: E402
+from prova_de_carga import (APROVEITAMENTO_MINIMO, FOLGA_DA_CPU_NO_PRAZO_S, PARCELA_DE_DISPUTA,  # noqa: E402
+                            aproveitamento_da_cpu, carga_explica_a_recusa, referencia_da_cpu)
 from apoio_sandbox import exigir, sinais_de_ci  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
 
 HOOKS = RAIZ / "hooks"
@@ -84,6 +86,7 @@ def _cpu_dos_filhos():
     return r.ru_utime + r.ru_stime
 
 
+
 # ORCAMENTO-TEMPO-NO-LOG (E1.10): a linha de formato fixo que o teste do orçamento de heredocs põe no stderr, passe ou
 # falhe, para o log do CI dizer o tempo medido e o limite (o `--medir` do `forge-fechar` se cumpre por ela). A forma vai
 # por último porque tem espaços; `medida` diz se o número é CPU ou parede.
@@ -95,6 +98,17 @@ def registrar_orcamento(teste, medido, limite, medida, forma):
     """Escreve no stderr, numa linha só, o tempo medido, o limite e o nome do teste (`FORMATO_DO_ORCAMENTO`)."""
     print(f"ORCAMENTO-TEMPO teste={teste} medido={medido:.2f}s limite={limite:g}s medida={medida} forma={forma}",
           file=sys.stderr, flush=True)
+
+
+# DEFEITO-TESTES-DE-PRAZO-SOB-CARGA (v0478): o critério da recusa aceita como carga mora em `prova_de_carga.py`
+# (fora de arquivo de teste, para os mutantes M5 a M10).
+_relogio = time.monotonic  # os testes da medida trocam o relógio
+
+
+def sono_do_git_lento(dados):
+    """Os segundos do `sleep` do `lento/git` do fixture (0 sem ele)."""
+    achado = re.search(r"\bsleep (\d+(?:\.\d+)?)\b", texto(dados.get("arquivos", {}).get("lento/git", "")))
+    return float(achado.group(1)) if achado else 0.0
 
 
 def pid_morto():
@@ -1160,9 +1174,153 @@ class Hooks(unittest.TestCase):
     def test_prazo_do_merge(self):  # v0455: o `gh pr merge` decide com PRAZO_DO_MERGE_S; o resto, com os 3 s
         """Os fixtures com `prazo_de_producao` (tests/hooks/parecer/v0455-*.json), com o vigia de produção e um `git` lento
         no PATH: o merge com 4 s de git libera; o `gh pr create` e o `git merge` com o mesmo git recusam em 3 s; o merge
-        com 9 s recusa em 8 s, antes do timeout do hooks.json."""
+        com 9 s recusa em 8 s, antes do timeout do hooks.json. Os merges que liberam rodam em série, depois, com a CPU de
+        cada hook medida sozinha (`liberar_ou_provar_a_carga`, DEFEITO-TESTES-DE-PRAZO-SOB-CARGA)."""
         casos = [(f"{f.hook}/{f.caminho.stem}", f) for f in minimo(self.de_prazo, 4, "fixtures de prazo de produção")]
-        self.assertEqual(self.executar_em_lote(casos), len(casos))
+        merges = [c for c in casos if c[1].hook == "parecer" and c[1].dados["esperado"]["codigo"] == 0]
+        minimo(merges, 3, "merges que liberam no prazo longo")
+        verificados = self.executar_em_lote([c for c in casos if c not in merges])
+        for nome, f in merges:
+            with self.subTest(fixture=nome):
+                verificados += 1
+                self.liberar_ou_provar_a_carga(nome, f)
+        self.assertEqual(verificados, len(casos))
+
+    def liberar_ou_provar_a_carga(self, nome, f):
+        """Roda o fixture que libera; a recusa só passa se `carga_explica_a_recusa`, medida na CPU dos filhos deste processo
+        (sem outro fixture rodando junto), no relógio e na parcela da `referencia_da_cpu` no mesmo intervalo, e deixa uma
+        linha `PRAZO-CARGA` no stderr."""
+        medida, original = {}, rodar
+
+        def medido(*args, **kwargs):
+            with referencia_da_cpu() as referencia:
+                cpu, inicio = _cpu_dos_filhos(), _relogio()
+                r = original(*args, **kwargs)
+                depois, parede = _cpu_dos_filhos(), _relogio() - inicio
+            medida.update(r=r, parede=parede, cpu=None if cpu is None or depois is None else depois - cpu,
+                          parcela=referencia["parcela"])
+            return r
+
+        _comum, _, _ = modulos_dos_hooks()
+        with mock.patch(f"{__name__}.rodar", medido):
+            try:
+                self.executar_fixture(f, self._pasta_temporaria(), os.getpid())
+                return
+            except AssertionError:
+                sono = sono_do_git_lento(f.dados)
+                if not carga_explica_a_recusa(medida.get("r"), medida.get("parede"), medida.get("cpu"), sono,
+                                              _comum.PRAZO_DO_MERGE_S, medida.get("parcela")):
+                    raise
+        aproveitamento = aproveitamento_da_cpu(medida["parede"], medida["cpu"], sono, medida["parcela"])
+        print(f"PRAZO-CARGA fixture={nome} parede={medida['parede']:.2f}s cpu={medida['cpu']:.2f}s sono={sono:g}s "
+              f"prazo={_comum.PRAZO_DO_MERGE_S:g}s referencia={medida['parcela']:.2f} aproveitamento={aproveitamento:.2f}: "
+              "recusa do vigia com disputa pela CPU medida na referência",
+              file=sys.stderr, flush=True)
+
+    def test_carga_explica_a_recusa_so_pelo_vigia_do_prazo_longo_com_disputa_provada(self):  # v0478
+        """DEFEITO-TESTES-DE-PRAZO-SOB-CARGA: a recusa vale como carga só com a mensagem e o relógio do prazo longo, a CPU do
+        hook mais o sono do git dentro do prazo menos a folga, a referência com no máximo `PARCELA_DE_DISPUTA` e o hook com
+        ao menos `APROVEITAMENTO_MINIMO`; recusa por outro motivo, pelos 3 s, sem medida ou sem disputa provada, não."""
+        _comum, _, _ = modulos_dos_hooks()
+        prazo = _comum.PRAZO_DO_MERGE_S
+        recusa = lambda codigo, texto: subprocess.CompletedProcess([], codigo, "", texto)  # noqa: E731
+        do_vigia = recusa(2, f"R-REVIEW: o hook não decidiu em {prazo:g} s a chamada com ação crítica")
+        self.assertTrue(carga_explica_a_recusa(do_vigia, prazo + 0.5, 1.0, 4.0, prazo, 0.2))
+        limite = prazo - FOLGA_DA_CPU_NO_PRAZO_S - 4.0
+        self.assertTrue(carga_explica_a_recusa(do_vigia, prazo, limite, 4.0, prazo, PARCELA_DE_DISPUTA),
+                        "na fronteira da folga e da parcela")
+        # na fronteira do aproveitamento: CPU = mínimo × relógio fora do sono × parcela
+        self.assertTrue(carga_explica_a_recusa(do_vigia, prazo, APROVEITAMENTO_MINIMO * (prazo - 4.0) * 0.2, 4.0, prazo, 0.2),
+                        "na fronteira do aproveitamento")
+        for motivo, args in (("sem resultado", (None, prazo + 1, 1.0, 4.0, 0.2)),
+                             ("liberou", (recusa(0, ""), prazo + 1, 1.0, 4.0, 0.2)),
+                             ("outro código", (recusa(1, do_vigia.stderr), prazo + 1, 1.0, 4.0, 0.2)),
+                             ("vigia dos 3 s", (recusa(2, "R-REVIEW: o hook não decidiu em 3 s"), prazo + 1, 1.0, 4.0, 0.2)),
+                             ("recusa por regra", (recusa(2, "R-REVIEW: falta o parecer de QA"), prazo + 1, 1.0, 4.0, 0.2)),
+                             ("relógio abaixo do prazo", (do_vigia, prazo - 0.01, 1.0, 4.0, 0.2)),
+                             ("sem relógio", (do_vigia, None, 1.0, 4.0, 0.2)),
+                             ("sem medida de CPU", (do_vigia, prazo + 1, None, 4.0, 0.2)),
+                             ("sem medida da referência", (do_vigia, prazo + 1, 1.0, 4.0, None)),
+                             ("CPU passa da folga", (do_vigia, prazo + 1, limite + 0.01, 4.0, 0.2)),
+                             ("referência sem disputa", (do_vigia, prazo, 2.9, 4.0, PARCELA_DE_DISPUTA + 0.01)),  # aproveitamento 1,4
+                             ("hook parado na disputa", (do_vigia, prazo, APROVEITAMENTO_MINIMO * (prazo - 4.0) * 0.2 - 0.01,
+                                                         4.0, 0.2)),
+                             # S1 do review: 3,8 s de sono a mais, medidos aqui com a máquina em carga 24
+                             ("S1, sono que não é fila", (do_vigia, 8.34, 0.13, 4.0, 0.36))):
+            with self.subTest(motivo=motivo):
+                self.assertFalse(carga_explica_a_recusa(*args[:4], prazo, args[4]))
+        self.assertEqual(aproveitamento_da_cpu(8.0, 1.0, 8.0, 0.5), 0.0, "sem relógio fora do sono")
+        self.assertEqual(aproveitamento_da_cpu(9.0, 1.0, 4.0, 0.0), 0.0, "referência sem CPU")
+        self.assertEqual(sono_do_git_lento(json.loads((FIXTURES / "parecer/v0455-merge-com-git-lento-decide-no-prazo-longo.json")
+                                                      .read_text(encoding="utf-8"))), 4.0)
+        self.assertEqual(sono_do_git_lento({"arquivos": {}}), 0.0)
+
+    def test_referencia_da_cpu_mede_a_parcela_do_relogio(self):  # v0478
+        """A referência gasta CPU durante o bloco e devolve a parcela do relógio que teve (entre 0 e pouco mais de 1); com o
+        processo da referência morto antes do fim, a parcela fica sem medida."""
+        with referencia_da_cpu() as referencia:
+            time.sleep(0.3)
+        self.assertIsNotNone(referencia["parcela"])
+        self.assertGreater(referencia["parcela"], 0.0)
+        self.assertLessEqual(referencia["parcela"], 1.1)
+        original = subprocess.Popen
+
+        def morre_cedo(*args, **kwargs):
+            p = original(*args, **kwargs)
+            p.stdout.readline()
+            p.kill()
+            p.wait()
+            return p
+        with mock.patch(f"{__name__}.subprocess.Popen", morre_cedo), referencia_da_cpu() as referencia:
+            pass
+        self.assertIsNone(referencia["parcela"])
+
+    def test_liberar_ou_provar_a_carga_aceita_so_a_recusa_explicada_pela_carga(self):  # v0478
+        """O fixture de merge que libera, com o hook trocado por uma recusa: a do vigia de 8 s com CPU folgada e disputa
+        provada passa (linha PRAZO-CARGA); com a CPU acima da folga, pelo vigia dos 3 s ou com a referência livre, reprova;
+        e a recusa de regra de verdade, também."""
+        _comum, _, _ = modulos_dos_hooks()
+        prazo = _comum.PRAZO_DO_MERGE_S
+        f = Fixture(FIXTURES / "parecer/v0455-merge-com-git-lento-decide-no-prazo-longo.json")
+        do_vigia = f"R-REVIEW: o hook não decidiu em {prazo:g} s"
+        for texto_da_recusa, cpu, parcela, passa in ((do_vigia, 2.0, 0.3, True), (do_vigia, 3.5, 0.3, False),
+                                                     ("R-REVIEW: o hook não decidiu em 3 s", 2.0, 0.3, False),
+                                                     (do_vigia, 2.9, 0.9, False)):  # aproveitamento 0,72: só a parcela reprova
+            relogios, cpus = iter([0.0, prazo + 0.5]), iter([0.0, cpu])
+
+            @contextlib.contextmanager
+            def referencia_falsa(valor=parcela):
+                medida = {"parcela": None}
+                yield medida
+                medida["parcela"] = valor
+            falso = lambda *a, **k: subprocess.CompletedProcess([], 2, "", texto_da_recusa)  # noqa: E731
+            with self.subTest(recusa=texto_da_recusa, cpu=cpu, parcela=parcela), mock.patch(f"{__name__}.rodar", falso), \
+                    mock.patch(f"{__name__}._relogio", lambda: next(relogios)), \
+                    mock.patch(f"{__name__}._cpu_dos_filhos", lambda: next(cpus)), \
+                    mock.patch(f"{__name__}.referencia_da_cpu", referencia_falsa), \
+                    contextlib.redirect_stderr(io.StringIO()) as erro:
+                if passa:
+                    self.liberar_ou_provar_a_carga("parecer/caso", f)
+                    self.assertRegex(erro.getvalue(), r"PRAZO-CARGA fixture=parecer/caso .* referencia=0\.30 "
+                                                      r"aproveitamento=\d+\.\d{2}: recusa do vigia com disputa pela CPU")
+                else:
+                    with self.assertRaises(AssertionError):
+                        self.liberar_ou_provar_a_carga("parecer/caso", f)
+        dados = json.loads(json.dumps(f.dados))
+        dados["arquivos"]["lento/git"][1] = dados["arquivos"]["lento/git"][1].replace("sleep 4", "sleep 0")
+        del dados["git"][2]  # sem os pareceres
+        with self.assertRaises(AssertionError):  # recusa de regra (R-REVIEW sem review), rápida: nada de carga
+            self.liberar_ou_provar_a_carga("parecer/sem-pareceres", Fixture(f.caminho, dados))
+
+    def test_liberar_ou_provar_a_carga_recusa_a_sonda_s1(self):  # v0478, A1 do review
+        """A sonda S1 do review, de verdade: o 1.o git dorme 3,8 s a mais que os 4 s do fixture, o vigia de 8 s recusa e a
+        recusa não passa como carga (o tempo a mais é sono, não fila da CPU: o hook não aproveita a parcela da referência)."""
+        f = Fixture(FIXTURES / "parecer/v0455-merge-com-git-lento-decide-no-prazo-longo.json")
+        dados = json.loads(json.dumps(f.dados))
+        dados["arquivos"]["lento/git"][1] = dados["arquivos"]["lento/git"][1].replace("sleep 4;", "sleep 4; sleep 3.8;")
+        with contextlib.redirect_stderr(io.StringIO()) as erro, self.assertRaises(AssertionError):
+            self.liberar_ou_provar_a_carga("parecer/s1", Fixture(f.caminho, dados))
+        self.assertNotIn("PRAZO-CARGA", erro.getvalue())
 
     def test_prazo_do_merge_abaixo_do_timeout_do_hooks_json(self):  # v0455
         """O prazo do `gh pr merge` (`PRAZO_DO_MERGE_S`) passa do prazo comum e fica abaixo do `timeout` do parecer no

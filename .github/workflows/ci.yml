@@ -90,6 +90,12 @@ jobs:
         env:
           ROTULO: checagem rápida (python 3.12), parte ${{ matrix.parte }}/5
         run: python3 -I scripts/falhas-no-resumo.py "$ROTULO" "$RUNNER_TEMP/suite.log"
+      - name: Recusas por carga no resumo (PRAZO-CARGA do test_prazo_do_merge; só conta, não reprova)
+        if: ${{ !cancelled() }}
+        run: |
+          n=$(grep -c 'PRAZO-CARGA fixture=' "$RUNNER_TEMP/suite.log" 2>/dev/null || true)
+          echo "recusas do vigia aceitas como carga (PRAZO-CARGA): ${n:-0}" >> "$GITHUB_STEP_SUMMARY"
+          grep -o 'PRAZO-CARGA fixture=.*' "$RUNNER_TEMP/suite.log" 2>/dev/null | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY" || true
       - name: Pulados da parte para o teto (T3)
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -202,6 +208,12 @@ jobs:
         env:
           ROTULO: checagem rápida (python 3.14), parte ${{ matrix.parte }}/5
         run: python3 -I scripts/falhas-no-resumo.py "$ROTULO" "$RUNNER_TEMP/suite.log"
+      - name: Recusas por carga no resumo (PRAZO-CARGA do test_prazo_do_merge; só conta, não reprova)
+        if: ${{ !cancelled() }}
+        run: |
+          n=$(grep -c 'PRAZO-CARGA fixture=' "$RUNNER_TEMP/suite.log" 2>/dev/null || true)
+          echo "recusas do vigia aceitas como carga (PRAZO-CARGA): ${n:-0}" >> "$GITHUB_STEP_SUMMARY"
+          grep -o 'PRAZO-CARGA fixture=.*' "$RUNNER_TEMP/suite.log" 2>/dev/null | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY" || true
       - name: Pulados da parte para o teto (T3)
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -384,6 +396,12 @@ jobs:
         env:
           ROTULO: suíte, parte ${{ matrix.parte }}/5
         run: python3 -I scripts/falhas-no-resumo.py "$ROTULO" "$RUNNER_TEMP/suite.log"
+      - name: Recusas por carga no resumo (PRAZO-CARGA do test_prazo_do_merge; só conta, não reprova)
+        if: ${{ !cancelled() && needs.arvore.outputs.provada != 'true' }}
+        run: |
+          n=$(grep -c 'PRAZO-CARGA fixture=' "$RUNNER_TEMP/suite.log" 2>/dev/null || true)
+          echo "recusas do vigia aceitas como carga (PRAZO-CARGA): ${n:-0}" >> "$GITHUB_STEP_SUMMARY"
+          grep -o 'PRAZO-CARGA fixture=.*' "$RUNNER_TEMP/suite.log" 2>/dev/null | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY" || true
       - name: Pulados da parte para o agregador (T3)
         if: needs.arvore.outputs.provada != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -455,6 +473,12 @@ jobs:
         env:
           ROTULO: suíte, parte ${{ matrix.parte }}/5
         run: python3 -I scripts/falhas-no-resumo.py "$ROTULO" "$RUNNER_TEMP/suite.log"
+      - name: Recusas por carga no resumo (PRAZO-CARGA do test_prazo_do_merge; só conta, não reprova)
+        if: ${{ !cancelled() && needs.arvore.outputs.provada != 'true' }}
+        run: |
+          n=$(grep -c 'PRAZO-CARGA fixture=' "$RUNNER_TEMP/suite.log" 2>/dev/null || true)
+          echo "recusas do vigia aceitas como carga (PRAZO-CARGA): ${n:-0}" >> "$GITHUB_STEP_SUMMARY"
+          grep -o 'PRAZO-CARGA fixture=.*' "$RUNNER_TEMP/suite.log" 2>/dev/null | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY" || true
       - name: Pulados da parte para o agregador (T3)
         if: needs.arvore.outputs.provada != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
