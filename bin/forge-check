@@ -2011,20 +2011,15 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
                 saida.append(f"{caminho_impresso(rel)}: autoria: sem registro de que o papel `{papel}` gravou esta versão; "
                              f"o {papel} deve escrevê-lo: regrave com a ferramenta Write (o esqueleto sai de `forge-check parecer novo`); "
                              f"parecer gravado pelo Bash (heredoc, `cat >`) fica sem autoria ({rid})")
-        if campos.get("parecer") == "riscos-aceitos" and not aceite_do_usuario(raiz, pedido, campos.get("commit"), ref):
-            saida.append(f"{caminho_impresso(rel)}: parecer: `riscos-aceitos` só vale com o aceite do usuário em "
-                         f"docs/security/aceites/{pedido}.md (`aceite: sim` e `commit:` igual ao do parecer, gravado à mão por ele) ({rid})")
-        elif campos.get("parecer") not in ("aprovado", "riscos-aceitos"):
-            saida.append(f"{caminho_impresso(rel)}: parecer: o último parecer não é aprovado ({rid})")
-        elif campos.get("commit") and COMMIT.match(campos["commit"]):
-            livres = LIVRES + ANEXOS_DO_PORTAO + (f"changelog.d/{pedido}.md", f"{ACEITES_DO_USUARIO[0]}{pedido}.md")  # D4; E1g; E2.252
-            dispensados = testes_do_qa(raiz, pedido, branch if de_trabalho else None, ref or "HEAD", campos["commit"])[1] if tipo == "review" else ()
-            paralelo = commit_de_pareceres_paralelos(raiz, campos["commit"], pedido)
-            if paralelo:  # AQ-5: o `commit:` é o HEAD com os pareceres paralelos, não o código revisado
-                saida.append(f"{caminho_impresso(rel)}: commit: {paralelo} ({rid})")
-                continue
-            motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base, livres, estritos=FRAGMENTOS, dominio=tipo,
-                                 mais=dominio_mais(campos), dispensados=dispensados)  # PARECER-CONTEUDO
+        dispensados = (testes_do_qa(raiz, pedido, branch if de_trabalho else None, ref or "HEAD", campos["commit"])[1]
+                       if tipo == "review" and parecer_que_aprova(campos) and COMMIT.match(campos.get("commit") or "") else ())
+        campo, motivo = veredito_do_parecer(raiz, pedido, campos, tipo, ref, base, dispensados) or (None, None)
+        if campo == "parecer":
+            saida.append(f"{caminho_impresso(rel)}: parecer: {motivo} ({rid})")
+        elif campo == "paralelo":  # AQ-5: o `commit:` é o HEAD com os pareceres paralelos, não o código revisado
+            saida.append(f"{caminho_impresso(rel)}: commit: {motivo} ({rid})")
+        elif motivo:
+            livres = livres_do_pedido(pedido)
             junto = commit_junto_do_parecer(raiz, rel, ref or "HEAD", livres) if motivo and motivo.startswith("desatualizado") else None
             if junto and not e_ancestral(raiz, junto[0], campos["commit"]):  # E16: o parecer veio no mesmo commit do teste, depois do que cita
                 cabeca, sep, dom = motivo.partition(f"; {caminho_impresso(junto[1])} é do domínio")  # E16 logo depois do "peça novo parecer"
@@ -2035,6 +2030,34 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
             if motivo:
                 saida.append(f"{caminho_impresso(rel)}: commit: {motivo} ({rid})")
     return saida + nao_exigidos_que_nao_aprovam(raiz, pedido, ref, branch if de_trabalho else None, exigidos)
+
+
+def parecer_que_aprova(campos):
+    """O valor do `parecer:` que pode valer no `forge-check pr`: `aprovado` ou `riscos-aceitos` (este, com o aceite do usuário)."""
+    return campos.get("parecer") in ("aprovado", "riscos-aceitos")
+
+
+def livres_do_pedido(pedido):
+    """O que muda sem desatualizar o parecer do `pedido` (D4; E1g; E2.252)."""
+    return LIVRES + ANEXOS_DO_PORTAO + (f"changelog.d/{pedido}.md", f"{ACEITES_DO_USUARIO[0]}{pedido}.md")
+
+
+def veredito_do_parecer(raiz, pedido, campos, tipo, ref, base, dispensados):
+    """META85 (uma fonte só do `forge-check pr` e do `revalida:` do `parecer delta`): (campo, motivo) do que barra o parecer em `ref`
+    (None: o HEAD e a árvore), ou None se ele vale. `parecer`: não aprova ou é `riscos-aceitos` sem o aceite do usuário; `paralelo`:
+    o `commit:` é só de parecer (AQ-5); `commit`: o domínio mudou depois dele (`commit_vale`, PARECER-CONTEUDO)."""
+    if campos.get("parecer") == "riscos-aceitos" and not aceite_do_usuario(raiz, pedido, campos.get("commit"), ref):
+        return "parecer", (f"`riscos-aceitos` só vale com o aceite do usuário em docs/security/aceites/{pedido}.md (`aceite: sim` e "
+                           "`commit:` igual ao do parecer, gravado à mão por ele)")
+    if not parecer_que_aprova(campos):
+        return "parecer", "o último parecer não é aprovado"
+    if not COMMIT.match(campos.get("commit") or ""):
+        return None
+    if paralelo := commit_de_pareceres_paralelos(raiz, campos["commit"], pedido):
+        return "paralelo", paralelo
+    motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base, livres_do_pedido(pedido), estritos=FRAGMENTOS, dominio=tipo,
+                         mais=dominio_mais(campos), dispensados=dispensados)
+    return ("commit", motivo) if motivo else None
 
 
 def pareceres_divergentes(achados, vigente):
@@ -3551,7 +3574,7 @@ def parecer_delta(raiz, arquivo, ate, base):
             print(f"dispensado: {nome_seguro(n)} (teste do QA aprovado em {q[:7]})")
         elif n not in dentro:
             print(f"fora do dominio: {nome_seguro(n)}")
-    revalida = revalida_do_parecer(raiz, campos, tipo, inicio, fim, ref_da_base(raiz, base), dispensados)
+    revalida = revalida_do_parecer(raiz, campos, tipo, fim, ref_da_base(raiz, base), dispensados)
     if not dentro:
         print("delta: nenhum arquivo do domínio mudou")
         print(revalida)
@@ -3568,16 +3591,13 @@ def parecer_delta(raiz, arquivo, ate, base):
     return 0
 
 
-def revalida_do_parecer(raiz, campos, tipo, inicio, fim, base, dispensados):
-    """META85-REVALIDA-SO-QUEM-BARROU: a linha `revalida:` do `parecer delta`. Revalida o parecer que barrou (não `aprovado` nem
-    `riscos-aceitos`) e o aprovado cujo domínio mudou, pela mesma chamada do `forge-check pr` (`commit_vale` com a base, os livres do
-    pedido e os testes do QA dispensados), para as duas respostas nunca divergirem; o aprovado de domínio intacto segue valendo."""
-    if campos.get("parecer") not in ("aprovado", "riscos-aceitos"):
-        return "revalida: sim (este parecer barrou)"
-    pedido = campos.get("pedido", "")
-    livres = LIVRES + ANEXOS_DO_PORTAO + (f"changelog.d/{pedido}.md", f"{ACEITES_DO_USUARIO[0]}{pedido}.md")  # os do `cmd_pr`
-    motivo = commit_vale(raiz, inicio, fim, base, livres, estritos=FRAGMENTOS, dominio=tipo, mais=dominio_mais(campos),
-                         dispensados=dispensados)
+def revalida_do_parecer(raiz, campos, tipo, ate, base, dispensados):
+    """META85-REVALIDA-SO-QUEM-BARROU: a linha `revalida:` do `parecer delta`, derivada do `veredito_do_parecer`, o mesmo do
+    `forge-check pr` (uma fonte só, para as duas respostas nunca divergirem): revalida o parecer que barrou (o reprovado e o
+    `riscos-aceitos` sem o aceite do usuário) e o aprovado cujo domínio mudou; o aprovado de domínio intacto segue valendo."""
+    campo, motivo = veredito_do_parecer(raiz, campos.get("pedido", ""), campos, tipo, ate, base, dispensados) or (None, None)
+    if campo == "parecer":
+        return f"revalida: sim (este parecer barrou: {motivo})"
     if motivo:
         return f"revalida: sim ({motivo})"
     return "revalida: não (não barrou e o domínio não mudou; o parecer segue valendo)"

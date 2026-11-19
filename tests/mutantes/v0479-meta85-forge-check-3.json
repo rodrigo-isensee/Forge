@@ -4,10 +4,10 @@
   "mutantes": [
     {
       "id": "M12",
-      "guarda": "parecer delta: o parecer que barrou revalida (mutante: nunca diz que barrou)",
+      "guarda": "parecer delta: o parecer que barrou revalida, pelo veredito do forge-check pr (mutante: nunca diz que barrou)",
       "arquivo": "bin/forge-check",
-      "de": "    if campos.get(\"parecer\") not in (\"aprovado\", \"riscos-aceitos\"):\n        return \"revalida: sim (este parecer barrou)\"",
-      "para": "    if False:\n        return \"revalida: sim (este parecer barrou)\"",
+      "de": "    if campo == \"parecer\":\n        return f\"revalida: sim (este parecer barrou: {motivo})\"",
+      "para": "    if False:\n        return f\"revalida: sim (este parecer barrou: {motivo})\"",
       "testes": [
         "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_parecer_que_barrou_revalida"
       ]

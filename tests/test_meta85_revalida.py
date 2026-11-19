@@ -32,7 +32,7 @@ class RevalidaSoQuemBarrou(Repositorio):
     def test_parecer_que_barrou_revalida(self):
         rel = self.parecer("review", "reprovado")
         self.commitar({"docs/guia.md": "# guia\n"}, "correção fora do domínio")
-        self.assertEqual(self.revalida(rel), "revalida: sim (este parecer barrou)")
+        self.assertEqual(self.revalida(rel), "revalida: sim (este parecer barrou: o último parecer não é aprovado)")
 
     def test_aprovado_com_dominio_intacto_segue_valendo(self):
         rel = self.parecer("revisao-seguranca", "aprovado")
@@ -49,6 +49,16 @@ class RevalidaSoQuemBarrou(Repositorio):
         rel = self.parecer("review", "aprovado")
         self.commitar({"src/app.py": "x = 3\n"}, "correção do QA")
         self.assertTrue(self.revalida(rel).startswith("revalida: sim (desatualizado:"))
+
+    def test_riscos_aceitos_sem_aceite_do_usuario_revalida_como_o_pr(self):  # o `forge-check pr` barra; o delta não diz `não`
+        rel = self.parecer("revisao-seguranca", "riscos-aceitos")
+        linha = self.revalida(rel)
+        self.assertTrue(linha.startswith("revalida: sim (este parecer barrou: `riscos-aceitos` só vale com o aceite do usuário"), linha)
+
+    def test_riscos_aceitos_com_aceite_do_usuario_segue_valendo(self):
+        rel = self.parecer("revisao-seguranca", "riscos-aceitos")
+        self.commitar({"docs/security/aceites/p1.md": f"---\npedido: p1\naceite: sim\ncommit: {self.c1}\n---\n"}, "aceite do usuário")
+        self.assertEqual(self.revalida(rel), "revalida: não (não barrou e o domínio não mudou; o parecer segue valendo)")
 
 
 if __name__ == "__main__":

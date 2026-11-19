@@ -47,13 +47,13 @@ class ItemAteDezArquivos(Repo):
         self.commitar({**docs(10), **extras}, "dez e os acompanhantes")
         rc, saida = self.classe("--json")
         self.assertEqual(rc, 0, saida)
-        self.assertEqual(json.loads(saida)["arquivos_do_item"], 10)
+        self.assertEqual(json.loads(saida).get("arquivos_do_item"), 10)  # .get: na base, falha (não dá erro)
 
     def test_modulo_do_portao_em_tests_conta_e_continua_barrado(self):
         self.commitar({**docs(10), "tests/catraca.py": "x = 1\n"}, "dez e a catraca")
         rc, saida = self.classe("--json")
         self.assertEqual(rc, 1, saida)
-        self.assertEqual(json.loads(saida)["arquivos_do_item"], 11)
+        self.assertEqual(json.loads(saida).get("arquivos_do_item"), 11)
 
     def test_base_ilegivel_nao_quebra_e_a_classe_vale_c(self):  # sem diff lido, a classe já exige todos os portões
         self.commitar(docs(11), "onze")
