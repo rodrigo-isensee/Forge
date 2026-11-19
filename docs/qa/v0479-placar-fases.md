@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-placar-fases
-commit: 2343148728af2cf625c63ac236290daa2344d29b
+commit: 42c2a906363bd12a0fc45fa0aa0a4fc0d5139f09
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-18
+data: 2026-11-19
 ---
 # QA: v0478 (E20.4), forge-placar `fases` e `--prs`
 
@@ -54,3 +54,19 @@ Os 14 testes novos caem sem a implementação; os 21 anteriores seguem verdes.
 `bin/forge-mutante --processos 4 tests/mutantes/v0479-placar-fases*.json` (5 specs, rev 2343148728af): rc 0, M1 a M33 todos `morreu`, nenhum sobrevivente, nenhum equivalente. M20 morreu por erro do teste declarado sob o mutante (passa sem ele), aceito: o mutante não passa.
 
 `bin/forge-mutante --cobertura --base 0c47762a6a9d4453adfe0b8e244604a265c6bde3`: `base=0c47762a... mb=0c47762a... rev=23431487...`; todas as linhas listadas `coberta ... declarado, não provado` (bin/forge-placar:86, 191-208, 399, 536-643), nenhuma `sem mutante`, rc 0. Conferido contra o diff: as condições novas (SEM_TESTE, janela, mergedAt, parsing do git, fases, primeira rodada, divisão) têm mutante.
+
+## Revalidação no head 42c2a906 (delta desde 2343148728af)
+Delta lido (`forge-check parecer delta`): `bin/forge-placar` (squash do `forge-fechar` medido por `refs/pull/N/head`, linha `itens sem fases (squash)`, `--prs` com JSON aninhado fundo e `mergedAt` de dia inexistente saindo 2), `tests/evals/test_placar.py`, specs de mutantes 2, 4 e 6, changelog e `docs/melhoria-continua.md`.
+
+| Critério novo | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Squash `(#N)` mede pelos commits do PR | `test_squash_mede_pelos_commits_do_pr_e_conta_a_parte_sem_eles` | com ref / sem ref no mesmo dia | passou |
+| Dia só com squash sem ref não diz "nenhum mesclado" | `test_dia_so_com_squash_sem_ref_nao_diz_nenhum_mesclado` | vazio medido | passou |
+| Dia sem squash não traz a linha | `test_dia_sem_squash_nao_traz_a_linha` | zero | passou |
+| `--prs` mergedAt inválido e aninhamento fundo: rc 2, sem Traceback | `SemTeste.test_arquivo_ausente_ou_invalido_sai_com_2` (casos c e d) | data 2026-13-45; 100000 colchetes | passou |
+
+- `python3 -I -m unittest discover -s tests/evals -p test_placar.py`: `Ran 38 tests ... OK`.
+- `bin/forge-mutante --processos 4 tests/mutantes/v0479-placar-fases*.json` (rev 42c2a906363b): rc 0, 41 mutantes, todos `morreu`, nenhum sobrevivente.
+- `bin/forge-mutante --cobertura --base 0c47762a...`: rc 0, 36 linhas `coberta`, nenhuma `sem mutante`.
+- `bin/forge-mutante --base 2343148728af2cf625c63ac236290daa2344d29b tests/mutantes/v0479-placar-fases*.json`: `base=2343148728af... rev=42c2a906363b...`, rc 0, 41 `morreu`.
+- Vermelho antes do verde: os novos testes de squash exercem comportamento ausente em 2343148728af (a linha `sem_fases` e a medição por `refs/pull/N/head` não existiam); os mutantes novos (M35 a M41) morrem apenas porque os testes caem sem a guarda. Sem suíte local.
