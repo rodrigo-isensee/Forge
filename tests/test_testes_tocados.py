@@ -76,7 +76,7 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertIn("test_indice_forge", modulos)  # v0478 (review A2): o teste do índice entra junto
+        self.assertIn("test_indice_forge", modulos)  # v0478 (review A2): fora da contagem, que é a dos módulos do forge-check
         # DEFEITO-CONTAGEM-FIXA-FORGE-CHECK (v0478 E18.1): conjunto mínimo em vez da contagem fixa (99), que dava conflito a
         # cada duas branches que somavam módulo ao FORGE_CHECK. Prova o mesmo: todo módulo do FORGE_CHECK e dos evals de forma
         # está no plano (assertIn um a um) e nada além deles, dos oráculos e do teste do índice entra; o piso barra a lista vazia.

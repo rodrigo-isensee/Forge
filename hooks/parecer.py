@@ -16,6 +16,9 @@ PR só por número, `gh api` de merge e merge no Forge a partir de projeto são 
 No clone do Forge (`raiz_de_estado`: `~/Forge` e as worktrees de `~/.forge-contrib/wt/`) age também, sem
 `hooks_desligados`, e o PR fica em rascunho até o parecer: `gh pr create --draft` passa sem parecer e `gh pr ready`
 exige o parecer, como o merge (o GitHub não mescla PR em rascunho).
+O `gh pr` rodado fora de cópia de trabalho (com `-R`/`--repo`, `GH_REPO=` ou a URL do PR) é conferido no clone da sessão
+que tem remoto desse repositório; sem ele, recusa (INCIDENTE-HOOK-PARECER-CONTORNADO, `pasta_do_gh`). Fora de clone e
+de projeto, GH_REPO exportado antes na linha recusa: o hook não lê o valor (GH-REPO-EXPORTADO).
 O `gh pr create` fora do rascunho decide pelo resultado que o `forge-check pr` gravou para o mesmo head, branch e base
 (PR-HOOK-PRAZO, `verificar` com `gravado`): sem o aprovado, recusa e diz o comando a rodar antes. O `gh pr ready` e o
 `gh pr merge` usam o mesmo resultado como atalho (E2.117): o aprovado do mesmo head e base decide sem refazer a checagem, o
@@ -28,17 +31,17 @@ import functools
 import json
 import os
 import re
-import stat
 from pathlib import Path
 from types import SimpleNamespace
 
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, OPCAO_DE_REAVALIACAO, PLUGIN,
                     PROFUNDIDADE, SHELLS_DA_REAVALIACAO, LancadorDemais, TextoDivididoAberto, bloquear,
-                    contorno_da_reavaliacao, conteudos_de_crase, formas_que_o_shell_le, corpo_so_lido, depois_das_atribuicoes, e_clone_do_forge,
+                    contorno_da_reavaliacao, conteudos_de_crase, copia_de_trabalho, formas_que_o_shell_le, corpo_so_lido, depois_das_atribuicoes, e_clone_do_forge,
                     excede_o_teto, executar,
                     fora_da_gramatica_com_heredoc, forge_check, git, nome_da_branch, nome_do_caminho, leituras, motivo_da_reavaliacao,
-                    palavras_do_texto, programas_e_atribuicoes, raiz_de_estado, reavaliacao, reavaliacao_das_palavras, reduzida, sem_atribuicoes,
+                    palavras_do_texto, programas_e_atribuicoes, raiz_declarada, raiz_de_estado, reavaliacao, reavaliacao_das_palavras, reduzida, sem_atribuicoes,
                     separar_lancadores, separar_regra, tirar_heredocs)
+from _gh_api import expande, textos_do_gh_api  # GH-API-LEITURA-UNICA: a palavra que o bash expande e a leitura do gh api
 
 MERGE = r"merge(?!-base\b)"  # `git merge-base` só lê o grafo (HK3-PARECER, E2): não é merge
 PREFILTRO = re.compile(rf"\bgh\b.*\bpr\b.*\b(create|{MERGE}|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b({MERGE}|pull)\b", re.S)
@@ -98,19 +101,42 @@ GIT_COM_VALOR = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-
 # nela recusa, seja qual for a branch da sessão (docs/security/hk3-parecer-ameacas.md). Variável o hook não segue.
 SEGUE = {"", ";", "&&", "\n", "&&\n"}  # liga ao comando seguinte sem pipeline, `||` nem segundo plano
 COMECA = {"", ";", "\n"}  # o comando que vem depois deles roda sempre; depois de `&&` ele pode não rodar
-EXPANSAO = ("$", "`")  # o que o bash expande (`$( )` é `$`): a palavra deixa de ser caminho literal
 CORPO = {"{", "then", "do", "else"}
 CONDICAO = {"if", "elif", "while", "until", "!", "time", "function"}  # abrem a parte; o `cd` depois delas roda
 SUBCOMANDOS = {"merge", "pull", "checkout", "switch"}
 ABRE = {"if", "while", "until", "for", "case", "select", "then", "do", "else", "elif", "{", "function", "coproc"}
 LE_VARIAVEL = {"source", ".", "eval", "read", "mapfile", "readarray", "getopts", "for", "select", "let", "declare",
                "typeset", "local", "readonly", "unset", "set", "printf"}  # mexem em variável sem `NOME=` na palavra
+# GH-REPO-DE-ARQUIVO (A5 da E3.13): `source` e `.` leem um arquivo que pode definir qualquer variável; NOMEIA, os comandos
+# cujas palavras são nomes (o `export` também); LE_COM_VALOR, as opções do `read` cuja palavra seguinte é valor, não nome
+CARREGA_ARQUIVO = {"source", "."}
+NOMEIA = {"export", "declare", "typeset", "local", "readonly", "unset"}
+LE_COM_VALOR = {"-p", "-d", "-t", "-n", "-N", "-u", "-i"}
 DESVIOS = {"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR"}
 # 0.45.4: as variáveis que mudam o config.yml que o gh lê (e os aliases dele); mexidas antes na linha, o alias fica incerto
 CONFIG_DO_GH = {"GH_CONFIG_DIR", "XDG_CONFIG_HOME", "HOME"}
-SENSIVEIS = DESVIOS | {"HOME", "CDPATH"} | CONFIG_DO_GH  # o bash, o git e o gh os leem sozinhos: mexidos na linha, a pasta
-# (ou o alias do gh) fica desconhecida
+SENSIVEIS = DESVIOS | {"HOME", "CDPATH", "GH_REPO"} | CONFIG_DO_GH  # o bash, o git e o gh os leem sozinhos: mexidos na
+# linha, a pasta (ou o alias do gh, ou o repositório do gh: GH-REPO-EXPORTADO) fica desconhecida
 ATRIBUICAO = re.compile(r"^([A-Za-z_]\w*)\+?=")
+# GH-REMOTO-NA-LINHA (E3.19, matriz em docs/hooks.md): D2, o caminho de variável simples com `/` literal antes do nome é
+# arquivo, nunca builtin nem função; D4, o config que o git do gh lê (todo `GIT_*`, HOME, XDG_CONFIG_HOME); D5, os
+# programas que não mudam os remotos da cópia e os `gh pr` que só os leem
+CAMINHO_DE_VARIAVEL = re.compile(r"(?:[^$`(){}]|\$[A-Za-z_]\w*|\$\{[A-Za-z_]\w*\})*/[^$`/(){}]+")
+CONFIG_DO_GIT = {"HOME", "XDG_CONFIG_HOME"}
+# D4 (A5 do review da E3.21): `${N:=v}` e `${N=v}`, também de elemento (`${N[0]:=v}`) e indireta (`${!n:=v}`)
+EXPANSAO_QUE_ATRIBUI = re.compile(r"\$\{(!?)([A-Za-z_]\w*)(?:\[[^]}]*\])?:?=")
+# D4 (A10 da segurança da E3.27): a aritmética também dá valor (`$((N=0))`, `$[N+=1]`, `((N++))`, `let N-=1`, `${A[N=0]}`,
+# `${P:N=0:0}`); o nome seguido de operador de atribuição (não `==`, `!=`, `<=`, `>=`) ou precedido de `++`/`--`.
+# O `=` simples só conta com um contexto aritmético no texto (ABRE_ARITMETICA): sem ele, `N=v` é a atribuição do shell,
+# que `mexidas_na_linha` já lê na ordem (`GH_CONFIG_DIR=x gh <alias>` segue lendo o alias)
+ATRIBUICAO_ARITMETICA = re.compile(r"(?<![\w$])([A-Za-z_]\w*)"
+                                   r"(?=(?:\[[^]]*\])?\s*((?:[-+*/%&^|]|<<|>>)?=(?!=)|\+\+|--))"
+                                   r"|(?:\+\+|--)\s*([A-Za-z_]\w*)")
+ABRE_ARITMETICA = re.compile(r"\(\(|\$\[|\[|\$\{|\b(?:let|declare|typeset|local)\b")  # `[`: subscrito; `declare -i`
+SO_LEEM_A_COPIA = frozenset({"cd", "echo", "printf", "true", "false", ":", "test", "[", "export", "declare", "typeset",
+                             "local", "readonly", "read", "set", "unset", "shift", "pwd", "sleep", "for", "done", "fi",
+                             "}", "ls", "cat", "wc", "head", "tail", "grep", "stat"})
+GH_PR_QUE_SO_LE = frozenset({"ready", "merge", "view", "list", "status", "checks", "diff"})
 Ambiente = collections.namedtuple("Ambiente", "mexidas desviado")  # mexidas: os SENSIVEIS que a linha mexeu (frozenset)
 SEM_AMBIENTE = Ambiente(frozenset(), bool(DESVIOS & set(os.environ)))
 # PARECER-HOOK-DICA-EDIT: o contorno das recusas de corpo de heredoc que a chamada pode rodar; o texto (`.md` e afins)
@@ -342,10 +368,6 @@ def troca_de_branch(args):
     return "" if pos[0] == "-" else pos[0]
 
 
-def expande(palavra):
-    return any(o in palavra for o in EXPANSAO)
-
-
 def globais(toks):
     """Das opções globais de `git ...` (sem atribuições): (posição do subcomando, os `-C` em ordem, as pastas são
     incertas?). Palavra com expansão antes do subcomando pode sumir ou virar várias (`-C $(true) P`, `$(echo -C P)`): as
@@ -365,7 +387,8 @@ def globais(toks):
 
 
 def analisar(toks):
-    """('cd', dir) | ('pr', None, base, head, rascunho) | ('prmerge', repo, alvo) | ('prready', alvo, desfaz) | ('api', args)
+    """('cd', dir) | ('pr', None, base, head, rascunho, repo) | ('prmerge', repo, alvo) | ('prready', alvo, desfaz, repo)
+    | ('api', args)
     | ('merge', dir, [(branch, [refs candidatas])]) | ('branch', dir, nome) | None."""
     sem = sem_atribuicoes(toks)
     atribuicoes, toks = toks[: len(toks) - len(sem)], sem
@@ -387,17 +410,17 @@ def analisar(toks):
             else:
                 repo_pr, j = toks[j].split("=", 1)[-1].removeprefix("-R"), j + 1
         args = toks[j + 1:]
+        repo = repo_pr or opcao(args, "--repo", "-R") or next((a.split("=", 1)[1] for a in atribuicoes
+                                                               if a.startswith("GH_REPO=")), None)
         if toks[j: j + 1] == ["create"]:
             return ("pr", None, opcao(args, "--base", "-B"), opcao(args, "--head", "-H"),
-                    bandeira(args, CREATE_COM_VALOR, {"--draft", "-d"}))
+                    bandeira(args, CREATE_COM_VALOR, {"--draft", "-d"}), repo)
         if toks[j: j + 1] == ["ready"]:
-            return ("prready", (posicionais(args, READY_COM_VALOR) or [None])[0],
-                    bandeira(args, READY_COM_VALOR, {"--undo"}))
+            alvo = (posicionais(args, READY_COM_VALOR) or [None])[0]
+            return ("prready", alvo, bandeira(args, READY_COM_VALOR, {"--undo"}), repo or repo_da_url(alvo))
         if toks[j: j + 1] == ["merge"]:
-            repo = repo_pr or opcao(args, "--repo", "-R") or next((a.split("=", 1)[1] for a in atribuicoes
-                                                                   if a.startswith("GH_REPO=")), None)
             alvo = (posicionais(args, MERGE_PR_COM_VALOR) or [None])[0]
-            return ("prmerge", repo, alvo)
+            return ("prmerge", repo or repo_da_url(alvo), alvo)
         return None
     if toks[0] != "git":
         return None
@@ -433,6 +456,9 @@ def analise_do_comando(palavras):
     except (LancadorDemais, TextoDivididoAberto) as achado:
         bloquear("R-REVIEW", f"`{achado}` antes de gh pr, gh api, merge ou pull: opção de lançador que o hook não lê. "
                              "Corrigir: rode o comando direto, sem lançador")
+    if comando and nome_incerto(comando[0]) and critico_ou_alias(" ".join(comando)):  # D2 e D3: `$c gh`, `env $(…) gh`
+        bloquear("R-REVIEW", f"`{comando[0]}` como nome do comando com gh pr, gh api, merge ou pull: o hook não sabe o "
+                             "que ele roda. Corrigir: escreva o comando por extenso, sem variável nem $( no nome")
     nome = next((Path(c).name for c in comando[:1]), "")
     if nome in OUTROS_LANCADORES or nome == "find" and EXEC_DO_FIND & set(comando):
         bloquear("R-REVIEW", f"`{nome}` na chamada com gh pr, gh api, merge ou pull: o hook não lê o que ele roda. "
@@ -596,16 +622,92 @@ def com_til(palavra, mexidas=frozenset()):
     return None if "HOME" in mexidas else str(Path(os.path.expanduser("~"))) + palavra[1:]
 
 
+def nomes_dinamicos(comando):
+    """GH-REPO-DE-ARQUIVO: o comando dá valor a uma variável cujo nome sai de expansão (`export $(cat .env)`,
+    `export "$k=$v"`, `read "$n"`, `printf -v "$n"`): o hook não o lê, e ele pode ser qualquer um dos SENSIVEIS."""
+    nome, args = comando[0], comando[1:]
+    if nome == "printf":
+        args = [p[2:] for p in args if p.startswith("-v")] + [b for a, b in zip(args, args[1:]) if a == "-v"]  # `-vN`, `-v N`
+    elif nome == "read":
+        args = [b for a, b in zip([""] + args, args) if a not in LE_COM_VALOR]
+    elif nome not in NOMEIA:
+        return False
+    return any(expande(p) and not ATRIBUICAO.match(p) for p in args)
+
+
 def mexidas_na_linha(palavras):
     """Os SENSIVEIS que o comando mexe: por prefixo (`HOME=x cd`), atribuição (`HOME=x`, `export HOME=x`) ou nome em `read`,
-    `printf -v`, `declare`, `unset`... A pasta que depende deles fica desconhecida."""
+    `printf -v`, `declare`, `unset`... A pasta que depende deles fica desconhecida. GH-REPO-DE-ARQUIVO (A5 da E3.13, A2
+    da E3.12): `source` e `.` (também depois de `builtin` ou `command`) e o nome que sai de expansão mexem em todos."""
     k = depois_das_atribuicoes(palavras)
-    comando = palavras[k:]
     nomes = {ATRIBUICAO.match(a).group(1) for a in palavras[:k]}
-    nomes |= {m.group(1) for m in map(ATRIBUICAO.match, comando) if m}
-    if comando and comando[0] in LE_VARIAVEL:
-        nomes |= {p.split("=", 1)[0] for p in comando[1:]}  # `read HOME`, `printf -v GIT_DIR`
-    return SENSIVEIS & nomes
+    nomes |= {m.group(1) for m in map(ATRIBUICAO.match, palavras[k:]) if m}
+    comando = sem_condicao(palavras[k:])
+    while comando[:1] in (["builtin"], ["command"]):
+        comando = comando[1:]
+        while comando[:1] and comando[0].startswith("-"):  # D1: `command -p`, `command --`, `builtin --`
+            comando = comando[1:]
+    if comando and (comando[0] in CARREGA_ARQUIVO or nome_incerto(comando[0])):  # D2: `c=source; $c env.sh`
+        return frozenset(SENSIVEIS)
+    if comando and comando[0] in LE_VARIAVEL | NOMEIA:
+        if nomes_dinamicos(comando):
+            return frozenset(SENSIVEIS)
+        nomes |= {n for p in comando[1:] for n in p.split("=")}  # `read HOME`, `printf -v GIT_DIR`, `declare -n r=HOME`
+    return frozenset(n for n in nomes if n in SENSIVEIS or n.startswith("GIT_"))  # D4: `GIT_CONFIG_GLOBAL=` e afins
+
+
+def mexidas_por_expansao(texto):
+    """D4 (A5 do review da E3.21): `${N:=v}` e `${N=v}` dão valor a N em qualquer ponto do texto (argumento, redireção,
+    here-string, corpo de heredoc), e com `set -a` o bash o exporta; a indireta (`${!n:=v}`) mexe em todos. Vale para a
+    linha inteira, antes do primeiro comando (falha fechada sobre a ordem); `${N:-v}` e `${N:+v}` não dão valor."""
+    nomes = set()
+    for m in EXPANSAO_QUE_ATRIBUI.finditer(texto):
+        if m.group(1):  # `${!n:=v}`: o nome sai de expansão
+            return frozenset(SENSIVEIS)
+        nomes.add(m.group(2))
+    return frozenset(nome for nome in nomes if nome in SENSIVEIS or nome.startswith("GIT_"))
+
+
+def mexidas_por_aritmetica(texto):
+    """D4 (A10 da segurança da E3.27): o nome de `SENSIVEIS` ou `GIT_*` com operador de atribuição aritmética em qualquer
+    ponto do texto conta como mexido (falha fechada: fora de `$((…))`, `$[…]`, `((…))`, `let`, subscrito e deslocamento
+    também, recusa a mais; o `=` simples, só com um contexto aritmético no texto); `$N=` não atribui (o `$n=` de nome por expansão e o valor avaliado, `v='HOME=0'; $((v))`,
+    ficam fora: docs/hooks.md, D4)."""
+    aritmetica = bool(ABRE_ARITMETICA.search(texto))
+    nomes = {m.group(1) or m.group(3) for m in ATRIBUICAO_ARITMETICA.finditer(texto) if aritmetica or m.group(2) != "="}
+    return frozenset(v for v in nomes if v in SENSIVEIS or v.startswith("GIT_"))
+
+
+def mexidas_do_texto(textos):
+    """D4 (A9 e A10 da segurança da E3.27): as mexidas por expansão e por aritmética de cada forma que o shell lê da
+    linha (`textos_da_linha`: a barra e a quebra de linha dentro da chave somem, `${GH_\\`⏎`REPO:=x}`)."""
+    return frozenset().union(*(mexidas_por_expansao(t) | mexidas_por_aritmetica(t) for t in textos))
+
+
+def nome_incerto(palavra):
+    """D2 (GH-REMOTO-NA-LINHA): o nome do comando sai de expansão (`$c`, `${c}`, `$(…)`, crase) e pode ser um builtin
+    (`source`) ou outro comando; o caminho de variável com `/` literal (`$F/bin/x`) é arquivo e não conta."""
+    return expande(palavra) and not CAMINHO_DE_VARIAVEL.fullmatch(palavra)
+
+
+def mexe_no_config_do_git(mexidas):
+    """D4: a linha mexeu numa variável que troca o config ou o repositório que o git do gh lê."""
+    return bool(CONFIG_DO_GIT & mexidas) or any(n.startswith("GIT_") for n in mexidas)
+
+
+def linha_mantem_os_remotos(linha):
+    """D5 (GH-REMOTO-NA-LINHA): todo programa da linha, de qualquer nível, é de `SO_LEEM_A_COPIA` ou `gh pr` de
+    `GH_PR_QUE_SO_LE`, e nenhuma redireção grava arquivo (só `/dev/null` e a cópia de descritor). Qualquer outro, `git`
+    incluído (numa cópia alheia ele roda o `core.fsmonitor` e os ganchos dela), pode mudar os remotos antes do gh."""
+    leitura = palavras_do_texto(linha)
+    for simples in leitura.simples:
+        for r in simples.redirecoes:
+            alvo = getattr(r.alvo, "valor", None)  # sem alvo: None, que grava
+            if ">" in r.operador and alvo != "/dev/null" and not (r.operador == ">&" and alvo and alvo.isdigit()):
+                return False
+    return not leitura.duvida and all(
+        programa in SO_LEEM_A_COPIA or programa == "gh" and args[:1] == ["pr"] and args[1:2] and args[1] in GH_PR_QUE_SO_LE
+        for programa, args, _ in programas_e_atribuicoes(linha))
 
 
 def resolver(palavra, mexidas, base, fisico=False):
@@ -887,6 +989,103 @@ def branch_do_pr(raiz, alvo):
     return None if NUMERO_OU_URL.match(alvo) else nome_da_branch(alvo.split(":")[-1])
 
 
+URL_DO_PR = re.compile(r"^https?://[^/]+/([^/]+/[^/]+)/pull/", re.I)
+FIM_DO_SLUG = re.compile(r"([^/:\s]+)/([^/:\s]+?)(?:\.git)?/*$")
+
+
+def repo_da_url(alvo):
+    """`dono/repo` da URL do PR (`https://github.com/dono/repo/pull/5`), que o `gh` usa no lugar do `-R`; senão None."""
+    achado = URL_DO_PR.match(str(alvo))
+    return achado.group(1) if achado else None
+
+
+def slug(texto):
+    """`dono/repo` minúsculo do fim de `-R` ([HOST/]DONO/REPO) ou da URL de um remoto (https, ssh, `git@host:`); senão
+    None."""
+    achado = FIM_DO_SLUG.search(str(texto))
+    return f"{achado.group(1)}/{achado.group(2)}".lower() if achado else None
+
+
+def remotos(raiz):
+    """Os `dono/repo` em que o gh pode agir pelos remotos da cópia de trabalho `raiz`. GH-REMOTO-RESOLVIDO (A6 da E3.13):
+    as URLs como o `git remote -v` as mostra (com `insteadOf` e `pushInsteadOf` aplicados, as que o gh lê) e o
+    `remote.<nome>.gh-resolved` (o repositório escolhido no gh; `base` não é `dono/repo` e o `slug` o descarta). Sem os
+    remotos, o hook não sabe onde o gh age: recusa."""
+    codigo, linhas = git(raiz, "remote", "-v")
+    if codigo:
+        bloquear("R-REVIEW", "gh pr numa cópia cujos remotos o hook não lê (git remote -v falhou). Corrigir: use "
+                             "-R <dono/repo> ou rode o gh de dentro do clone (cd <clone>)")
+    valores = [url for linha in linhas.splitlines() for url in linha.split()[1:2]]
+    resolvidos = git(raiz, "config", "--get-regexp", r"^remote\..*\.gh-resolved$")[1].splitlines()
+    return {slug(v) for v in valores + [linha.partition(" ")[2] for linha in resolvidos]} - {None}
+
+
+def sessao_ou(pasta):
+    """A raiz da sessão (`CLAUDE_PROJECT_DIR`); sem ela, a pasta do gh, que não é clone: recusa."""
+    return raiz_declarada() or pasta
+
+
+REPO_INCERTO = "GH_REPO mexido antes na linha"  # GH-REPO-EXPORTADO: repositório indicado que o hook não lê
+
+
+def repo_indicado(repo, mexidas):
+    """GH-REPO-EXPORTADO (A5 da E3.8): sem `-R`, `--repo`, `GH_REPO=` no prefixo nem URL, o GH_REPO que a linha mexeu antes
+    (`export`, `declare -x`, `set -a`, atribuição solta) é o repositório do gh, e o hook não lê o valor: REPO_INCERTO."""
+    return REPO_INCERTO if repo is None and "GH_REPO" in mexidas else repo
+
+
+def remotos_incertos(hook, resolvida, mexidas):
+    """GH-REMOTO-NA-LINHA (A6 e A7 da E3.17): o motivo pelo qual os remotos que o gh lê podem não ser os que o hook leu
+    antes de a linha rodar (D4 a D6 da matriz em docs/hooks.md), ou None."""
+    if not resolvida:
+        return "pasta do gh que o hook não resolve (variável, crase ou $( ) no cd)"
+    if mexe_no_config_do_git(mexidas):
+        return "variável que troca o config do git (GIT_*, HOME ou XDG_CONFIG_HOME) mexida na linha"
+    if not linha_mantem_os_remotos(hook.campo("tool_input", "command")):
+        return "outro programa na linha (git, script, gh fora de pr, redireção que grava) que pode mudar os remotos"
+    return None
+
+
+def pasta_do_gh(hook, pasta, repo, mexidas=frozenset(), resolvida=True):
+    """INCIDENTE-HOOK-PARECER-CONTORNADO: a pasta em que o hook confere `gh pr create`, `ready` ou `merge`. Num clone do
+    Forge ou num projeto, a do gh, como antes. Noutra pasta (fora de cópia de trabalho ou numa cópia alheia, que qualquer
+    um cria com `git init`), o alvo do gh vem do `-R`/`--repo`, de `GH_REPO=`, da URL do PR ou, sem eles, dos remotos da
+    cópia: vale o clone da sessão (`CLAUDE_PROJECT_DIR`) com remoto desse repositório. Com repositório indicado e sem
+    esse clone, recusa (falha fechada): sem clone não há branch nem parecer a conferir. GH_REPO mexido antes na linha
+    (`repo_indicado`) é repositório indicado que o hook não lê: recusa (GH-REPO-EXPORTADO). A cópia alheia sem repositório
+    indicado e sem remoto do clone da sessão segue como antes, e também a sessão em que o hook não age (projeto com
+    `hooks_desligados`, repositório alheio), salvo o `cd` que o hook não resolve (`resolvida` falso): aí o gh pode estar
+    num clone e a pasta da chamada não vale, e recusa (A12 da E3.32)."""
+    copia = copia_de_trabalho(pasta)
+    if copia is not None and hook.projeto(pasta, clone_do_forge=True) is not None:
+        return pasta
+    sessao = sessao_ou(pasta)
+    clone = hook.projeto(sessao, clone_do_forge=True)
+    if clone is None and copia_de_trabalho(sessao) is not None:
+        if resolvida:  # A12 da E3.32: sem a pasta do gh, a da chamada não vale (o gh pode estar num clone)
+            return pasta
+        bloquear("R-REVIEW", "gh pr depois de um cd que o hook não resolve (variável, ~ com HOME mexido, crase ou $( )) "
+                             "numa sessão fora de clone: o gh pode estar num clone sem parecer. Corrigir: use o caminho "
+                             "literal no cd ou rode o gh de dentro do clone")
+    if repo is REPO_INCERTO:  # GH-REPO-EXPORTADO
+        bloquear("R-REVIEW", "gh pr fora de um clone com GH_REPO mexido antes na linha (export, declare -x, set -a, source, "
+                             "nome por expansão): o hook não lê o repositório indicado. Corrigir: use -R <dono/repo> ou rode "
+                             "o gh de dentro do clone (cd <clone>)")
+    pedido = slug(repo)
+    if copia is not None and pedido is None:  # A2: sem -R, o gh age no repositório dos remotos da cópia
+        motivo = clone and remotos_incertos(hook, resolvida, mexidas)
+        if motivo:  # GH-REMOTO-NA-LINHA
+            bloquear("R-REVIEW", f"gh pr numa cópia alheia sem -R e com {motivo}: o hook lê os remotos antes de a linha "
+                                 "rodar. Corrigir: rode o gh pr sozinho na chamada (só o cd literal antes) ou use -R "
+                                 "<dono/repo>")
+        return clone if clone and remotos(copia) & remotos(clone) else pasta
+    if pedido and clone and pedido in remotos(clone):
+        return clone
+    bloquear("R-REVIEW", f"gh pr fora de um clone do repositório indicado (-R, --repo, GH_REPO ou URL do PR: {repo}) e a "
+                         "sessão não é clone dele: sem a branch, não há parecer a conferir. Corrigir: rode o gh de dentro "
+                         "do clone (cd <clone>)")
+
+
 def merge_de_pr(hook, pasta, repo, alvo):
     raiz = hook.projeto(pasta, clone_do_forge=True)
     if not raiz:
@@ -925,62 +1124,61 @@ def merge_por_api(hook, pasta, args):
 
 
 PRONTO_NO_GRAPHQL = re.compile(r"markPullRequestReadyForReview", re.I)
-TETO_DA_CONSULTA = 64 * 1024  # bytes de cada arquivo de `-F campo=@arq` ou `--input arq` (FILA-27 A2)
 
 
-def ler_regular(caminho):
-    """Até `TETO_DA_CONSULTA` + 1 bytes do arquivo regular `caminho`. Abre sem bloquear e confere o tipo no descritor: o
-    que não é arquivo regular (FIFO, dispositivo) dá `OSError` sem esperar o escritor (A-F27-1)."""
-    descritor = os.open(caminho, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0))
-    with os.fdopen(descritor, "rb") as f:
-        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
-            raise OSError(f"não é arquivo regular: {caminho}")
-        return f.read(TETO_DA_CONSULTA + 1)
+def graphql_no_clone(hook, pasta, args):
+    """`gh api graphql` com método que muda e o clone do Forge como alvo: a pasta do gh ou, fora de clone e de projeto,
+    a sessão, porque o graphql não usa a pasta e age no mesmo GitHub de qualquer uma (GRAPHQL-FORA-DO-CLONE). Nos
+    projetos, o `conformidade` cuida do PR do Forge (R-CONTRIB)."""
+    if not (ENDPOINT_GRAPHQL.search(endpoint_da_api(args)) and metodo_mutante(args)):
+        return False
+    raiz = hook.projeto(pasta, clone_do_forge=True)
+    if raiz is None:  # GRAPHQL-FORA-DO-CLONE
+        raiz = hook.projeto(sessao_ou(pasta), clone_do_forge=True)
+    return e_clone_do_forge(raiz)
 
 
-def textos_da_consulta(args, pasta):
-    """(textos, legível) do `gh api`: os argumentos e os arquivos de `campo=@arq` e `--input arq`, relativos à pasta e
-    até `TETO_DA_CONSULTA`; `-` (entrada padrão), arquivo ausente ou acima do teto, e o relativo com a pasta None
-    (desconhecida: `cd` que o hook não resolve), não dá para ler. O corpo de `--input`
-    vai ao GitHub como JSON: lido decodificado (escape `\\uXXXX` no nome), e o que não é JSON não dá para ler (AR-11)."""
-    textos = []
-    if any(map(expande, args)):  # A-F27-2: `$( )`, `$VAR` ou crase: o gh recebe outro texto, que o hook não lê
-        return textos, False
-    for i, a in enumerate(args):
-        corpo = a == "--input" or a.startswith("--input=")
-        if corpo or "=@" in a:
-            arq = (args[i + 1] if i + 1 < len(args) else "-") if a == "--input" else a.split("=", 1)[1].removeprefix("@")
-            if arq == "-":
-                return textos, False
-            arq = os.path.expanduser(arq)
-            if pasta is None and not os.path.isabs(arq):  # A-F27-3 (AR-7): o gh o lê numa pasta que o hook não sabe
-                return textos, False
-            try:
-                dados = ler_regular(os.path.join(pasta or "", arq))
-            except OSError:
-                return textos, False
-            if len(dados) > TETO_DA_CONSULTA:
-                return textos, False
-            textos.append(dados.decode("utf-8", "replace"))
-            if corpo:
-                try:
-                    textos.append(json.dumps(json.loads(dados), ensure_ascii=False))
-                except (ValueError, RecursionError):
-                    return textos, False
-        textos.append(a)
-    return textos, True
+def arquivo_trocado_na_linha(hook, pasta, args, acompanhado):
+    """GH-API-ARQUIVO-TROCADO: o hook lê o arquivo da consulta (`=@`, `--input`) antes de a linha rodar; outro comando
+    da mesma linha além do `cd` (`acompanhado`: `cp`, `mv`, `>`, `ln -sf`...) pode trocá-lo antes do gh: recusa."""
+    if acompanhado and any(a.startswith("--input") or "=@" in a for a in args) and graphql_no_clone(hook, pasta, args):
+        bloquear("R-CONTRIB", "gh api graphql que lê arquivo na mesma chamada de outro comando, que pode trocar o arquivo "
+                              "depois da leitura do hook. Corrigir: rode o gh api graphql sozinho na chamada (só o cd "
+                              "pode vir antes).")
+
+
+def api_depois_de_cd_sem_resolver(hook, pasta, args, resolvida):
+    """A13 da E3.34: a guarda do A12 (`pasta_do_gh`) no `gh api`. Com a sessão fora de clone e de projeto (numa cópia
+    alheia ou fora de cópia de trabalho), o `cd` que o hook não resolve deixa a pasta da chamada no lugar da do gh, que
+    pode ser um clone sem parecer: recusa o que as regras do clone recusariam, o merge com método que muda
+    (`merge_por_api`) e o graphql que muda e que tira o rascunho ou não dá para ler (`pronto_por_graphql`). O GET e o
+    graphql de leitura legível seguem."""
+    if resolvida or not metodo_mutante(args):
+        return
+    if hook.projeto(sessao_ou(pasta), clone_do_forge=True) is not None:  # na sessão no clone, valem as regras dele
+        return
+    endpoint = endpoint_da_api(args)
+    if ENDPOINT_MERGE.search(endpoint) or ENDPOINT_GRAPHQL.search(endpoint) and tira_o_rascunho(args, None):
+        bloquear("R-REVIEW", "gh api de merge ou de graphql que muda depois de um cd que o hook não resolve (variável, ~ "
+                             "com HOME mexido, CDPATH, crase ou $( )) numa sessão fora de clone: o gh pode estar num "
+                             "clone sem parecer. Corrigir: use o caminho literal no cd ou rode o gh de dentro do clone")
+
+
+def tira_o_rascunho(args, base):
+    """A consulta do `gh api graphql` tira o PR do rascunho ou não dá para ler (falha fechada; GH-API-LEITURA-UNICA)."""
+    textos, legivel = textos_do_gh_api(desagrupa_i(args), base)  # GH-API-LEITURA-UNICA: a leitura do hooks/_gh_api.py
+    if not legivel or any(PRONTO_NO_GRAPHQL.search(t) for t in textos):
+        return True
+    return False
 
 
 def pronto_por_graphql(hook, pasta, args, base):
     """FILA-27 A2: no clone do Forge, `markPullRequestReadyForReview` tira o PR do rascunho sem dizer a branch, então não
     há parecer a conferir (`pronto_de_pr`); a consulta que não dá para ler recusa (falha fechada). `pasta`: a do `gh`
     (`raiz_gh`); `base`: a que o hook resolveu na linha (None: desconhecida), onde se leem os arquivos relativos."""
-    if not (ENDPOINT_GRAPHQL.search(endpoint_da_api(args)) and metodo_mutante(args)):
+    if not graphql_no_clone(hook, pasta, args):
         return
-    if not e_clone_do_forge(hook.projeto(pasta, clone_do_forge=True)):
-        return  # nos projetos, o `conformidade` cuida do PR do Forge (R-CONTRIB)
-    textos, legivel = textos_da_consulta(desagrupa_i(args), base)
-    if not legivel or any(PRONTO_NO_GRAPHQL.search(t) for t in textos):
+    if tira_o_rascunho(args, base):
         bloquear("R-CONTRIB", "tirar o rascunho pela API não informa a branch, ou a consulta não dá para ler. Corrigir: "
                               "use gh pr ready <branch> (exige os pareceres) ou o forge-fechar.")
 
@@ -992,7 +1190,8 @@ def principal(hook):
     textos = textos_da_linha(comando)
     if not any(PREFILTRO.search(g) for g in textos) and not alias_na_linha(textos):  # HOOK-CONTINUACAO-LINHA: e `g\h`, `g'h'`
         return
-    conferir_linha(hook, SED_LE.sub(r"cat\2", comando), [(hook.cwd(), {}, SEM_AMBIENTE)])
+    ambiente = SEM_AMBIENTE._replace(mexidas=mexidas_do_texto(textos))  # o `conferir` soma os DESVIOS
+    conferir_linha(hook, SED_LE.sub(r"cat\2", comando), [(hook.cwd(), {}, ambiente)])
 
 
 def marcas_da_chamada(original, comando, corpos, leitores):
@@ -1006,16 +1205,18 @@ def marcas_da_chamada(original, comando, corpos, leitores):
     return sem({"python", "dado"}), sem({"python", "dado", "shell"})
 
 
-def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corpo_de_heredoc=False, reavaliacoes=None):
+def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corpo_de_heredoc=False, reavaliacoes=None,
+                   acompanhado=False):
     """Confere a linha a partir de cada estado (pasta, branches) e, depois, o que ela roda dentro de uma palavra só: o
     corpo de cada crase (P4: `` echo `gh pr merge …` ``) e a palavra com `$(…)` entre aspas (N2: `echo "$(gh pr merge
     …)"`), esta só pelo conteúdo das substituições. O de dentro roda num subshell, a partir de um dos estados por onde a
     linha passa: é conferido a partir de cada um. `so_substituicoes`: a linha é uma dessas palavras. `corpo_de_heredoc`:
     a linha é o corpo de um heredoc que vai a um programa fora da lista dos que só o leem. `reavaliacoes`: as
-    reavaliações pelo shell (`reavaliacao`) achadas em qualquer nível, recusadas no fim do nível 0 com o marcador."""
+    reavaliações pelo shell (`reavaliacao`) achadas em qualquer nível, recusadas no fim do nível 0 com o marcador.
+    `acompanhado`: algum nível de cima roda outro comando além do `cd` (GH-API-ARQUIVO-TROCADO)."""
     reavaliacoes = [] if reavaliacoes is None else reavaliacoes
     for forma in formas_que_o_shell_le(comando, corpo_de_heredoc):  # HOOK-CONTINUACAO-LINHA: a que o bash roda
-        conferir_linha(hook, forma, estados, nivel, so_substituicoes, corpo_de_heredoc, reavaliacoes)
+        conferir_linha(hook, forma, estados, nivel, so_substituicoes, corpo_de_heredoc, reavaliacoes, acompanhado)
     if nivel > PROFUNDIDADE:
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull aninhada fundo demais para o hook ler. Corrigir: "
                              "rode o comando direto, sem crase nem $( dentro de outro")
@@ -1057,18 +1258,20 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
     internos = [(corpo, False, False) for corpo in conteudos_de_crase(comando, so_os_fechados=True)]
     internos += [(corpo, False, getattr(dono, "rodado", None) or True)  # o dono (ou o programa do texto) pode rodá-lo
                  for (dono, corpo), leitor in zip(corpos, leitores) if leitor not in ("python", "dado") and not corpo_so_lido(dono)]
-    vistos = {}
+    vistos, acompanhado_dentro = {}, acompanhado
     for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
         partes = [(analise_do_comando(palavras), palavras, solto)
                   for (todas, _, sub, _), solto in zip(leitura, soltos(leitura)) if sub or not so_substituicoes
                   for palavras in [sem_chaves(todas)]]
+        aqui = acompanhado or sum(1 for parte, _, _ in partes if not (parte and parte[0] == "cd")) > 1
+        acompanhado_dentro = acompanhado_dentro or aqui
         for pasta, branches, ambiente in estados:
-            for estado in conferir(hook, partes, pasta, branches, ambiente):
+            for estado in conferir(hook, partes, pasta, branches, ambiente, aqui):
                 vistos.setdefault((estado[0], tuple(sorted(estado[1].items())), estado[2]), estado)
         internos += [(p, True, False) for palavras, _, _, _ in leitura for p in palavras
                      if "$(" in p.replace(OPACO["$"], "")]
     for texto, so, de_heredoc in dict.fromkeys(internos):
-        conferir_linha(hook, texto, list(vistos.values()), nivel + 1, so, de_heredoc, reavaliacoes)
+        conferir_linha(hook, texto, list(vistos.values()), nivel + 1, so, de_heredoc, reavaliacoes, acompanhado_dentro)
     if gravado and marcado:  # M3 (ADR 0011, item 2), depois das regras da linha e do corpo
         bloquear("R-REVIEW", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`), com gh pr, gh "
                              f"api, merge ou pull. Corrigir: {GRAVE_E_RODE_NOUTRA}")
@@ -1088,11 +1291,12 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                                  f"Corrigir: {CONTORNO_DA_GRAMATICA}")
 
 
-def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
+def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE, acompanhado=False):
     """Os comandos de uma leitura da linha, em ordem (`cd`, atribuição e checkout/switch valem para os seguintes), a
     partir da pasta (None: desconhecida), das branches e do ambiente dados; devolve os estados (pasta, branches,
     ambiente) por onde a leitura passou. `partes`: (`analisar`, palavras, solto) de cada comando; só o `cd` solto (`soltos`)
-    muda a pasta dos seguintes, o de subshell, pipeline, segundo plano ou condicional a deixa desconhecida."""
+    muda a pasta dos seguintes, o de subshell, pipeline, segundo plano ou condicional a deixa desconhecida.
+    `acompanhado`: a linha roda outro comando além do `cd` (`arquivo_trocado_na_linha`)."""
     branches = dict(branches)  # raiz do projeto -> branch depois de checkout/switch na linha
     mexidas, desviado = ambiente.mexidas, ambiente.desviado
     estados = [(pasta, dict(branches), ambiente)]
@@ -1109,6 +1313,7 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
         desviado |= bool(DESVIOS & mexidas)
         sem = sem_atribuicoes(palavras)
         raiz_gh = pasta or hook.cwd()  # o `gh` acha o repositório pelo nome da branch: sem pasta resolvida, vale a da sessão
+        gh_na = (mexidas, pasta is not None)  # D4 e D6 da cópia alheia (`remotos_incertos`)
         comando = sem_condicao(sem)
         if comando[:1] in (["pushd"], ["popd"]) or comando[:1] == ["cd"] and len(comando) < len(sem):
             pasta = None  # a pilha o hook não segue; o `cd` de `if`, `while`... roda fora do que ele lê
@@ -1117,13 +1322,15 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
         elif parte[0] == "cd":
             pasta = (depois_do_cd(pasta, sem[1:], mexidas) if sem[1:] else resolver("~", mexidas, pasta)) if solto else None
         elif parte[0] == "pr":
-            pull_request(hook, raiz_gh, parte[2], parte[3], parte[4])
+            pull_request(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[5], mexidas), *gh_na), parte[2], parte[3], parte[4])
         elif parte[0] == "prready":
-            pronto_de_pr(hook, raiz_gh, parte[1], parte[2])
+            pronto_de_pr(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[3], mexidas), *gh_na), parte[1], parte[2])
         elif parte[0] == "prmerge":
-            merge_de_pr(hook, raiz_gh, parte[1], parte[2])
+            merge_de_pr(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[1], mexidas), *gh_na), parte[1], parte[2])
         elif parte[0] == "api":
+            api_depois_de_cd_sem_resolver(hook, raiz_gh, parte[1], pasta is not None)  # A13 da E3.34
             merge_por_api(hook, raiz_gh, parte[1])
+            arquivo_trocado_na_linha(hook, raiz_gh, parte[1], acompanhado)
             pronto_por_graphql(hook, raiz_gh, parte[1], pasta)
         elif parte[0] == "branch":
             onde = pasta_do_git(pasta, pastas_do_git(palavras), mexidas, desviado)

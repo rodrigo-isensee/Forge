@@ -1,0 +1,36 @@
+{
+  "pedido": "v0478-guardas-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M39",
+      "guarda": "GH-REPO-DE-ARQUIVO: no printf, o nome colado ao -v (-v\"$n\")",
+      "arquivo": "hooks/parecer.py",
+      "de": "args = [p[2:] for p in args if p.startswith(\"-v\")] + [b",
+      "para": "args = [p[2:] for p in args if False] + [b",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "GH-REPO-DE-ARQUIVO: no printf, o nome na palavra depois do -v",
+      "arquivo": "hooks/parecer.py",
+      "de": "for a, b in zip(args, args[1:]) if a == \"-v\"]",
+      "para": "for a, b in zip(args, args[1:]) if False]",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    },
+    {
+      "id": "M41",
+      "guarda": "GH-REPO-DE-ARQUIVO: no read, a palavra depois de -p, -d, -t... é valor, não nome",
+      "arquivo": "hooks/parecer.py",
+      "de": "if a not in LE_COM_VALOR]",
+      "para": "if True]",
+      "testes": [
+        "tests.test_hooks_parecer_repo.ParecerForaDoRepo.test_gh_pr_fora_do_repositorio_confere_no_clone_da_sessao"
+      ]
+    }
+  ]
+}

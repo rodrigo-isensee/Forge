@@ -56,7 +56,7 @@
       "id": "M90",
       "guarda": "export e declare com NOME=valor mexem na variavel",
       "arquivo": "hooks/parecer.py",
-      "de": "nomes |= {m.group(1) for m in map(ATRIBUICAO.match, comando) if m}",
+      "de": "nomes |= {m.group(1) for m in map(ATRIBUICAO.match, palavras[k:]) if m}",
       "para": "nomes |= set()",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
@@ -66,7 +66,7 @@
       "id": "M91",
       "guarda": "read, printf -v, declare, unset... mexem na variavel pelo nome",
       "arquivo": "hooks/parecer.py",
-      "de": "if comando and comando[0] in LE_VARIAVEL:",
+      "de": "if comando and comando[0] in LE_VARIAVEL | NOMEIA:",
       "para": "if False:",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"

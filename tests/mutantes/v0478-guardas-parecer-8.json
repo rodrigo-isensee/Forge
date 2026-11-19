@@ -1,0 +1,87 @@
+{
+  "pedido": "v0478-guardas-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M42",
+      "guarda": "D2 e D3: nome do comando por expansão no comando com o marcador",
+      "arquivo": "hooks/parecer.py",
+      "de": "if comando and nome_incerto(comando[0]) and critico_ou_alias(\" \".join(comando)):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.MatrizDaCopiaAlheia.test_cada_dimensao_posicao_e_gh_recusa_e_o_legitimo_passa"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "D1: opções depois de builtin e command",
+      "arquivo": "hooks/parecer.py",
+      "de": "while comando[:1] and comando[0].startswith(\"-\"):",
+      "para": "while False:",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d1_opcoes_depois_de_builtin_e_command"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "D2: nome por expansão no comando à parte mexe em todos",
+      "arquivo": "hooks/parecer.py",
+      "de": "if comando and (comando[0] in CARREGA_ARQUIVO or nome_incerto(comando[0])):",
+      "para": "if comando and (comando[0] in CARREGA_ARQUIVO):",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d2_nome_por_expansao_e_caminho_de_variavel"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "D4: todo nome GIT_* conta como mexido",
+      "arquivo": "hooks/parecer.py",
+      "de": "if n in SENSIVEIS or n.startswith(\"GIT_\"))",
+      "para": "if n in SENSIVEIS)",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_classe_do_config_do_git",
+        "tests.test_hooks_parecer_matriz.MatrizDaCopiaAlheia.test_cada_dimensao_posicao_e_gh_recusa_e_o_legitimo_passa"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "D2: caminho de variável com / literal é arquivo",
+      "arquivo": "hooks/parecer.py",
+      "de": "return expande(palavra) and not CAMINHO_DE_VARIAVEL.fullmatch(palavra)",
+      "para": "return expande(palavra)",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d2_nome_por_expansao_e_caminho_de_variavel"
+      ]
+    },
+    {
+      "id": "M47",
+      "guarda": "D4: HOME e XDG_CONFIG_HOME trocam o config do git",
+      "arquivo": "hooks/parecer.py",
+      "de": "return bool(CONFIG_DO_GIT & mexidas) or any(",
+      "para": "return any(",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_classe_do_config_do_git"
+      ]
+    },
+    {
+      "id": "M48",
+      "guarda": "D5: redireção que grava arquivo",
+      "arquivo": "hooks/parecer.py",
+      "de": "if \">\" in r.operador and alvo != \"/dev/null\"",
+      "para": "if False and alvo != \"/dev/null\"",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d5_programas_que_mantem_os_remotos"
+      ]
+    },
+    {
+      "id": "M49",
+      "guarda": "D5: texto que o leitor não prova (aspa aberta)",
+      "arquivo": "hooks/parecer.py",
+      "de": "return not leitura.duvida and all(",
+      "para": "return all(",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d5_programas_que_mantem_os_remotos"
+      ]
+    }
+  ]
+}
