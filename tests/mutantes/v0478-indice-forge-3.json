@@ -1,0 +1,67 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "main: argumento fora do uso dá rc 2 e não grava",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "    if argv not in ([], [\"--conferir\"]):",
+      "para": "    if argv not in ([], [\"--conferir\"], [\"--gravar\"], [\"--conferir\", \"x\"]):",
+      "testes": [
+        "tests.test_indice_forge.Main.test_argumento_desconhecido_da_rc_2_e_nao_grava"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "main: --conferir não grava",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "    if argv == [\"--conferir\"]:",
+      "para": "    if argv != [\"--conferir\"]:",
+      "testes": [
+        "tests.test_indice_forge.Main.test_conferir_desatualizado_da_rc_1_e_nao_grava",
+        "tests.test_indice_forge.Main.test_sem_argumento_grava"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "conferir: sem o arquivo não está em dia",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "        em_dia = destino.is_file() and destino.read_text(encoding=\"utf-8\") == texto",
+      "para": "        em_dia = not destino.is_file() or destino.read_text(encoding=\"utf-8\") == texto",
+      "testes": [
+        "tests.test_indice_forge.Main.test_conferir_sem_arquivo_da_rc_1"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "conferir: a saída diz desatualizado",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "{'em dia' if em_dia else",
+      "para": "{'em dia' if not em_dia else",
+      "testes": [
+        "tests.test_indice_forge.Main.test_conferir_desatualizado_da_rc_1_e_nao_grava"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "conferir: desatualizado dá rc 1",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "        return 0 if em_dia else 1",
+      "para": "        return 0 if not em_dia else 1",
+      "testes": [
+        "tests.test_indice_forge.Main.test_conferir_desatualizado_da_rc_1_e_nao_grava"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "linha de comando roda o main",
+      "arquivo": "scripts/indice-forge.py",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if __name__ == \"__main__\" and len(sys.argv) > 9:",
+      "testes": [
+        "tests.test_indice_forge.IndiceDoForge.test_conferir_da_rc_0_em_dia"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "T1: a classe T isenta; a N e a C não (mutante: toda classe isenta)",
+      "arquivo": "tests/catraca.py",
+      "de": "if fc.classe_para_o_t1(raiz, head, b) == \"T\":",
+      "para": "if True:",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_codigo_sem_teste_e_sem_secao_barra"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "T1: sem código sem teste, nada a pedir (mutante: nunca pede)",
+      "arquivo": "tests/catraca.py",
+      "de": "if achados == []:",
+      "para": "if True:",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_codigo_sem_teste_e_sem_secao_barra"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "T1: o diff dos testes ilegível barra (mutante: segue como se nada faltasse)",
+      "arquivo": "tests/catraca.py",
+      "de": "raise ErroDeGit(msg_falha_git(\"o `git diff` dos testes falhou (T1)\"))",
+      "para": "return []",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_diff_dos_testes_ilegivel_barra"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "T1: cada arquivo citado precisa do motivo (mutante: basta citar)",
+      "arquivo": "tests/catraca.py",
+      "de": "if not faltam and not curtos:",
+      "para": "if not faltam:",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_motivo_curto_barra"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "T1: a seção precisa citar cada arquivo (mutante: só o motivo)",
+      "arquivo": "tests/catraca.py",
+      "de": "if not faltam and not curtos:",
+      "para": "if not curtos:",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_arquivo_nao_citado_ou_so_como_pedaco_de_outro_barra"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "T1: o caminho citado não é pedaço de outro (mutante: sem a borda da esquerda)",
+      "arquivo": "tests/catraca.py",
+      "de": "(?<![\\w./-]){re.escape(caminho)}",
+      "para": "{re.escape(caminho)}",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_arquivo_nao_citado_ou_so_como_pedaco_de_outro_barra"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "T1: o modo pr-texto soma o T1 (mutante: só o texto)",
+      "arquivo": "tests/catraca.py",
+      "de": "violacoes_do_texto(corpo) + violacoes_do_t1(raiz, a.base, a.head, corpo)",
+      "para": "violacoes_do_texto(corpo)",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_modo_pr_texto_soma_o_t1"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "T1: o arquivo citado sem motivo entra na lista dos curtos (mutante: nunca entra)",
+      "arquivo": "tests/catraca.py",
+      "de": "if n not in faltam and not com_motivo(n, achados, texto)]",
+      "para": "if False]",
+      "testes": [
+        "tests.test_catraca.T1NoTextoDoPr.test_motivo_curto_barra"
+      ]
+    }
+  ]
+}

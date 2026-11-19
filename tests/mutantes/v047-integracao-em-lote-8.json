@@ -66,8 +66,8 @@
       "id": "IL-M63",
       "guarda": "o merge da promoção é por merge commit",
       "arquivo": "bin/forge-fechar",
-      "de": "if ! mesclar_auto --merge \"$sha\"; then",
-      "para": "if ! mesclar_auto --squash \"$sha\"; then",
+      "de": "if ! mesclar_auto --merge \"$sha\" --subject",
+      "para": "if ! mesclar_auto --squash \"$sha\" --subject",
       "testes": [
         "tests.test_fechar_lote.Promover.test_item_mesclado_depois_da_marca_nao_entra_na_promocao"
       ]

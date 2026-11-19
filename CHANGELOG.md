@@ -4,6 +4,23 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.47.8] - 2026-11-18
+### Adicionado
+- Devops (v0478 E6.1): ensaio de roteiro só em alvo provado descartável (conexão conferida antes do primeiro comando; valor padrão recusado), com item no modelo de ameaças; `scripts/preparar-estacao.sh --ferramentas` instala actionlint, gitleaks, osv-scanner (sha256 conferido), zizmor e semgrep sem custo nem credencial, e a ferramenta ausente é achado do parecer de devops. Sem hooks.
+- Devops (v0478 E6.6): as ferramentas dos portões entram com o sha256 fixado no script e zizmor e semgrep com versão fixada; falha do tar vira `falta:`; teste e mutantes prendem a conferência da soma.
+- Índice do Forge gerado pela ferramenta (H7, primeira parte, v0478 E8.1 e E8.6): `scripts/indice-forge.py` grava `docs/indice-forge.md` com cada arquivo de `bin/`, `hooks/` e `scripts/` e a primeira linha da doc, sem coluna de testes nem contagem, para não vencer a cada merge de outra trilha (os testes de um arquivo: `bin/forge-testes --listar <arquivo>`); `--conferir` diz se está em dia, e o `test_indice_forge` entra no plano dirigido de todo arquivo das três pastas.
+- Passo a passo, em linguagem fácil, para o dono trocar o GH_TOKEN dos agentes pela conta do bot sem admin (docs/token-dos-agentes.md, citado na ADR 0009; TOKEN-AGENTES-BOT)
+### Alterado
+- T1 vira portão (COBERTURA-ESTUDO C1, v0478 E9.1): o modo `pr-texto` da catraca, no CI do PR para a develop, barra o código mudado sem teste mudado ou novo (classes N e C; a regra de código, teste e classe é a do `forge-check`), salvo `## Sem teste` no corpo do PR que cita cada arquivo com o motivo dele na mesma linha (20 caracteres por arquivo além dos caminhos: um motivo genérico não cobre vários); o git que falha barra. O passo roda a catraca e o `forge-check` da base, como o passo de regras, e o modelo do PR diz que a seção é obrigatória. Medida: 0 de 11 PRs com código sem teste nos últimos 20 (estudo E1.1); custo do passo `pr-texto`, mediana de 5 nesta estação: de 0,41 s para 0,78 s (carregar o `forge-check` e calcular a classe), num job de cerca de 1 min. Reversão: se a exceção virar rotina (mais de 2 PRs por versão com `## Sem teste`), voltar ao aviso; revisar até 2027-02-18.
+### Corrigido
+- Develop verde: peso medido do test_indice_forge em tests/pesos-d4.json e spec M8 de v047-mapa-testes alinhada à linha nova do plano em bin/forge-testes (v0478 E16.1)
+- `bin/forge-fechar --promover` passa título e corpo em português ao merge da promoção (`--subject 'chore(promoção): <versão> para a homolog (#<n>)'`): com `merge_commit_title=MERGE_MESSAGE` no repositório, o commit na homolog saía 'Merge pull request #N from ...' (prova: 335a2298, a promoção da 0.47.6). O método segue `--merge`; a integração na develop segue `--squash` com o título do PR, já em português, e não muda (v0478 FECHAR-PROMOVER-MENSAGEM-PT).
+- `forge-check pr` recusa mais de um parecer do mesmo tipo, pedido e branch com `parecer`, `revisor` ou `commit` divergentes e diz os arquivos: o aprovado forjado em outro arquivo da pasta do portão não vence mais o parecer emitido pela escolha por (data, nome) (FC-PR-PARECER-FORJADO, v0478 E2.1).
+- Na conferência (`forge-check entrega` com brief selado), os filtros L08, G2 e E2 do escopo só tiram o commit da base que também é ancestral do Base-sha da entrega ou do de um brief selado depois dele: a `origin/<base>` é ref local que o autor reescreve (`git update-ref`), e o arquivo fora do declarado não some mais do escopo; o merge da base sem âncora sai numa linha `escopo: merge da <base> sem âncora` (FILTROS-L08-G2-ORIGIN-LOCAL, v0478 E2.1).
+- `bin/forge-mutante`: o mutante cujo teste declarado é pulado (`skipTest`, também num subTest) sai `sem veredito` (saída 2) com os IDs pulados, nunca `sobreviveu`; com pulo e os outros testes verdes, a linha diz "os que rodaram não o mataram", e o equivalente declarado com pulo não se confirma (DEFEITO-MUTANTE-PULADO-SOBREVIVE, v0478 E13.1).
+- `bin/forge-mutante`: com testes declarados [A, B], A morto (falha, ou erro com o controle verde) e B só pulado, o mutante sai `morreu`: a morte provada vale com outro declarado pulado; sem morte, segue `sem veredito` (v0478 E13.5, A1 do review).
+- `scripts/placar-mutacao.py`: o placar ganha a coluna `sem-veredito-pulado`, o sem veredito por teste declarado pulado, fora de `sem-veredito`; a queda de `sobreviveu` pode vir dela, não de teste mais forte (v0478 E13.5, A2 do review).
+
 ## [0.47.7] - 2026-11-18
 ### Alterado
 - Tech-lead: o item pequeno segue o caminho curto da classe (H8), e no corte da versão e na integração cada item deixa a suíte verde sozinho ou vai junto com quem depende dele (SIEG-G6).
