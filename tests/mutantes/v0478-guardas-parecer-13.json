@@ -1,0 +1,16 @@
+{
+  "pedido": "v0478-guardas-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M80",
+      "guarda": "FILA-27 A2 (leitura extraída para tira_o_rascunho no A13 da E3.34): no clone, tirar o rascunho pelo graphql recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if tira_o_rascunho(args, base):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks_fila27.Fila27.test_a2_ready_por_graphql_no_clone"
+      ]
+    }
+  ]
+}

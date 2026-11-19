@@ -1147,14 +1147,38 @@ def arquivo_trocado_na_linha(hook, pasta, args, acompanhado):
                               "pode vir antes).")
 
 
+def api_depois_de_cd_sem_resolver(hook, pasta, args, resolvida):
+    """A13 da E3.34: a guarda do A12 (`pasta_do_gh`) no `gh api`. Com a sessão fora de clone e de projeto (numa cópia
+    alheia ou fora de cópia de trabalho), o `cd` que o hook não resolve deixa a pasta da chamada no lugar da do gh, que
+    pode ser um clone sem parecer: recusa o que as regras do clone recusariam, o merge com método que muda
+    (`merge_por_api`) e o graphql que muda e que tira o rascunho ou não dá para ler (`pronto_por_graphql`). O GET e o
+    graphql de leitura legível seguem."""
+    if resolvida or not metodo_mutante(args):
+        return
+    if hook.projeto(sessao_ou(pasta), clone_do_forge=True) is not None:  # na sessão no clone, valem as regras dele
+        return
+    endpoint = endpoint_da_api(args)
+    if ENDPOINT_MERGE.search(endpoint) or ENDPOINT_GRAPHQL.search(endpoint) and tira_o_rascunho(args, None):
+        bloquear("R-REVIEW", "gh api de merge ou de graphql que muda depois de um cd que o hook não resolve (variável, ~ "
+                             "com HOME mexido, CDPATH, crase ou $( )) numa sessão fora de clone: o gh pode estar num "
+                             "clone sem parecer. Corrigir: use o caminho literal no cd ou rode o gh de dentro do clone")
+
+
+def tira_o_rascunho(args, base):
+    """A consulta do `gh api graphql` tira o PR do rascunho ou não dá para ler (falha fechada; GH-API-LEITURA-UNICA)."""
+    textos, legivel = textos_do_gh_api(desagrupa_i(args), base)  # GH-API-LEITURA-UNICA: a leitura do hooks/_gh_api.py
+    if not legivel or any(PRONTO_NO_GRAPHQL.search(t) for t in textos):
+        return True
+    return False
+
+
 def pronto_por_graphql(hook, pasta, args, base):
     """FILA-27 A2: no clone do Forge, `markPullRequestReadyForReview` tira o PR do rascunho sem dizer a branch, então não
     há parecer a conferir (`pronto_de_pr`); a consulta que não dá para ler recusa (falha fechada). `pasta`: a do `gh`
     (`raiz_gh`); `base`: a que o hook resolveu na linha (None: desconhecida), onde se leem os arquivos relativos."""
     if not graphql_no_clone(hook, pasta, args):
         return
-    textos, legivel = textos_do_gh_api(desagrupa_i(args), base)  # GH-API-LEITURA-UNICA: a leitura do hooks/_gh_api.py
-    if not legivel or any(PRONTO_NO_GRAPHQL.search(t) for t in textos):
+    if tira_o_rascunho(args, base):
         bloquear("R-CONTRIB", "tirar o rascunho pela API não informa a branch, ou a consulta não dá para ler. Corrigir: "
                               "use gh pr ready <branch> (exige os pareceres) ou o forge-fechar.")
 
@@ -1304,6 +1328,7 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE, acompanhado=F
         elif parte[0] == "prmerge":
             merge_de_pr(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[1], mexidas), *gh_na), parte[1], parte[2])
         elif parte[0] == "api":
+            api_depois_de_cd_sem_resolver(hook, raiz_gh, parte[1], pasta is not None)  # A13 da E3.34
             merge_por_api(hook, raiz_gh, parte[1])
             arquivo_trocado_na_linha(hook, raiz_gh, parte[1], acompanhado)
             pronto_por_graphql(hook, raiz_gh, parte[1], pasta)

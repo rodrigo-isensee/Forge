@@ -219,29 +219,58 @@ class RegrasPorClasse(unittest.TestCase):
             self.assertFalse(parecer.linha_mantem_os_remotos(linha), linha)
 
 
+# D6 com a sessão numa cópia alheia (A12 e A13 da segurança da E3.32 e E3.34): as mexidas que deixam o `cd` sem resolver,
+# cruzadas com o comando do gh (pr × api); o clone `dono/forge` sem parecer fica em `{tmp}/proj`, que o `cd` alcança
+MEXIDAS_DO_CD = ("export HOME; cd ~/proj", ": ${HOME:=/x}; cd ~/proj", "HOME={tmp}; cd ~/proj", "declare HOME; cd ~/proj",
+                 "export CDPATH; cd proj")
+MUTACAO_DE_PRONTO = 'mutation{markPullRequestReadyForReview(input:{pullRequestId:"PR_1"}){clientMutationId}}'
+GH_API = ("gh api -X PUT repos/dono/forge/pulls/1/merge", "gh api -X POST repos/dono/forge/pulls/1/merge",
+          "gh api -X PUT repos/{owner}/{repo}/pulls/1/merge", "gh api repos/dono/forge/pulls/1/merge -f merge_method=squash",
+          f"gh api graphql -f query='{MUTACAO_DE_PRONTO}'", "gh api graphql --input q.json")
+# o que segue com 0 depois do mesmo `cd` sem resolver: o GET (também o do endpoint de merge) e o graphql de leitura legível
+LEITURAS_DA_API = ("gh api repos/dono/forge/pulls", "gh api repos/dono/forge/pulls/1/merge",
+                   "gh api graphql -f query='query{viewer{login}}'")
+
+
+def gerar_sessao_alheia(tmp):
+    """[(sessão, linha, código, regra)]. Sessão na cópia alheia (`alheio`): cada mexida × comando do gh recusa, as
+    leituras da API depois do mesmo `cd` passam, e os controles. Sessão fora de cópia de trabalho (`fora`): o mesmo no
+    `gh api`. Sessão no clone (`clone`): valem as regras do clone (R-CONTRIB)."""
+    mexidas = [m.replace("{tmp}", str(tmp)) for m in MEXIDAS_DO_CD]
+    casos = [("alheio", f"{m} && {g}", 2, "R-REVIEW") for m in mexidas for g in GH + GH_API]
+    casos += [(s, f"{m} && {g}", 0, None) for s in ("alheio", "fora") for m in mexidas for g in LEITURAS_DA_API]
+    casos += [("fora", f"{m} && {g}", 2, "R-REVIEW") for m in mexidas for g in GH_API]
+    casos += [("alheio", f"cd ~/proj && {g}", 2, "R-REVIEW") for g in GH]  # controle: o clone resolvido confere o parecer
+    casos += [("alheio", f"cd ~/proj && {g}", 2, "R-CONTRIB") for g in GH_API]  # e, no gh api, as regras do clone
+    casos += [("clone", f"{mexidas[0]} && {g}", 2, "R-CONTRIB") for g in GH_API]
+    casos += [("alheio", g, 0, None) for g in GH + LEITURAS_DA_API]  # legítimo: o gh na cópia alheia, sem cd
+    return casos
+
+
 class SessaoNaCopiaAlheia(unittest.TestCase):
-    """A12 da segurança da E3.32: com a sessão numa cópia alheia, o `cd` que o hook não resolve (aqui o `cd ~/…` depois
-    de uma mexida no HOME) não cai na pasta da chamada: o gh pode estar no clone sem parecer, e o hook recusa. Sem `cd`,
-    ou com o `cd ~/…` resolvido, segue como antes."""
+    """A12 e A13 da segurança da E3.32 e E3.34: com a sessão numa cópia alheia, o `cd` que o hook não resolve (aqui o
+    `cd ~/…` depois de uma mexida no HOME, ou o `cd proj` com o CDPATH exportado) não cai na pasta da chamada: o gh pode
+    estar no clone sem parecer, e o hook recusa o `gh pr` e o `gh api` que muda (merge ou graphql); no `gh api`, também
+    com a sessão fora de cópia de trabalho. As leituras seguem; sem `cd`, ou com o `cd ~/…` resolvido, segue como antes."""
 
     def test_cd_sem_resolver_recusa_e_o_resolvido_segue(self):
         tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, tmp, True)
-        raiz, entrada = Fixture(BASE).montar(tmp, os.getpid())
+        dados = copy.deepcopy(Fixture(BASE).dados)
+        dados["arquivos"]["q.json"] = '{"query": "%s"}\n' % MUTACAO_DE_PRONTO.replace('"', '\\"')
+        raiz, entrada = Fixture(BASE, dados).montar(tmp, os.getpid())
         proc = montar_proc(tmp, None)
-        alheio = str(tmp / "alheio")
-        extra = {"CLAUDE_PROJECT_DIR": alheio, "HOME": str(tmp)}
-        casos = [(f"{m}; cd ~/proj && {g}", 2) for g in GH
-                 for m in ("export HOME", ": ${HOME:=/x}", f"HOME={tmp}", "declare HOME")]
-        casos += [(f"cd ~/proj && {g}", 2) for g in GH]  # controle: o clone resolvido confere o parecer
-        casos += [(g, 0) for g in GH]  # legítimo: o gh na cópia alheia, sem cd
-        for linha, codigo in casos:
-            with self.subTest(linha=linha):
-                e = dict(entrada, cwd=alheio, tool_input={"command": linha})
-                r = rodar("parecer", e, alheio, proc, extra)
+        (tmp / "fora").mkdir()
+        sessoes = {"alheio": str(tmp / "alheio"), "fora": str(tmp / "fora"), "clone": str(raiz)}
+        casos = minimo(gerar_sessao_alheia(tmp), 110, "D6 da sessão fora de clone")
+        for sessao, linha, codigo, regra in casos:
+            with self.subTest(sessao=sessao, linha=linha):
+                pasta = sessoes[sessao]
+                e = dict(entrada, cwd=pasta, tool_input={"command": linha})
+                r = rodar("parecer", e, pasta, proc, {"CLAUDE_PROJECT_DIR": pasta, "HOME": str(tmp)})
                 self.assertEqual(r.returncode, codigo, r.stderr)
                 if codigo == 2:
-                    self.assertIn("R-REVIEW", r.stderr)
+                    self.assertIn(regra, r.stderr)
                 else:
                     self.assertEqual(r.stderr, "")
 
