@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-placar
-commit: d340b213c53fe4e11cbb89dd09938b7d29115599
+commit: 89936fa3db5777ce9ab913f190fdf2bc767c75a0
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
@@ -33,6 +33,11 @@ Provas no head f74d6dd7: `python3 -I tests/evals/test_placar.py`: 50 testes OK. 
 Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-placar.md`, intervalo f74d6dd7..d340b213, domínio `bin/forge-placar`, `tests/evals/test_placar.py`, `tests/mutantes/v0479-meta85-placar-4.json`. `paradas_do_ci` chama `fundo_demais(texto)` antes do `json.loads` e sai com rc 2 e mensagem fixa (bin/forge-placar:712), sem eco da entrada; o teste com `[` repetido 100000 vezes confere rc 2, a mensagem "aninhado acima de", ausência de Traceback e de `[[[[` no erro; mutante M32 (`if False:`) declarado em `v0479-meta85-placar-4.json`.
 
 Provas no head d340b213: `python3 -I tests/evals/test_placar.py`: 50 testes OK. `bin/forge-mutante --processos 1 tests/mutantes/v0479-meta85-placar-4.json`: M32 morreu (:712), demais mortos. `bin/forge-mutante --cobertura --base f74d6dd7`: guarda :712 coberta por M32. Sem achado novo; parecer segue aprovado.
+
+## Revalidação (E36.19, junção com a develop e corte para 150)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-placar.md`, intervalo 57a66ff4..89936fa3 (d340b213 na saída do delta), domínio `bin/forge-placar` e `tests/mutantes/v0479-placar-fases-3.json`; `tests/evals/` sem mudança no intervalo. Comportamento igual: a guarda do dia sem item voltou ao texto `if itens` em `cmd_fases` (bin/forge-placar:744), com as três chaves em None, e `estatisticas()` passou a exigir ao menos um item (único chamador, :744); `FONTES_DE_PARADA` ganhou `DO_HISTORICO` com os mesmos três textos; o resto são docstrings e reflow da ajuda (6 linhas de corte). O M19 aponta agora `for i in itens]) if itens else dict.fromkeys(` e morre.
+
+Provas no head 89936fa3: `python3 -I tests/evals/test_placar.py`: 50 testes OK. `bin/forge-mutante --processos 1 tests/mutantes/v0479-placar-fases-3.json`: M19 morreu (:744), demais mortos, rc 0. `python3 tests/catraca.py --base origin/develop --head HEAD`: rc 0. Sem achado novo; parecer segue aprovado.
 
 ## Sondas
 - S1 · `bin/forge-placar fases --git . --ref origin/develop --dia 2026-11-19 --raiz-pedidos /root/.forge-contrib` (histórico sem PARADA) · espera: `horas paradas, sessão: -` · obtido: 87aff761 `0 h 00 min`; 97ef4fd1 `-`
