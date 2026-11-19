@@ -1534,6 +1534,16 @@ def checks_do_head(raiz, ref, branch, previo=False):
             "não aprovado para merge (E3.45)"]
 
 
+def base_sem_flag_do_pr(raiz, ref=None, branch=None, nome="develop"):
+    """E2.201 (v047) e A1 da segurança (v0478 E34.10): a base que o `forge-check pr` sem `--base` dá ao `cmd_pr`, uma fonte só do
+    `pr_da_cli` e do `revalida:` do `parecer delta`: numa branch de trabalho (a da ref ou a única cujo head é o sha dela), a `nome`
+    resolvida (`base_do_delta`); fora dela, sem a base ou com o head já nela, None (o diff literal)."""
+    branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))
+    if branch and branch not in BASES_DO_FLUXO:
+        return base_do_delta(raiz, nome, ref)[0]
+    return None
+
+
 def avisar_classe(raiz, ref, base):
     """P5: a classe da entrega e o motivo, no stderr do `pr` (o veredito do stdout não muda de forma), só em T e C, que mudam o que
     se exige; N (review e QA) é o de sempre e não fala."""
@@ -1557,7 +1567,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
     previo_dos_checks = previo or sem_checks
     if base is None:
         branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))
-        if branch and branch not in BASES_DO_FLUXO and base_do_delta(raiz, "develop", ref)[0]:
+        if base_sem_flag_do_pr(raiz, ref, branch):
             base = "develop"
     if conferir:  # T1: código sem teste sinalizado (a classe T isenta), antes do veredito
         aviso_t1_do_pr(raiz, ref, None if base is None else base.removeprefix("origin/"))
@@ -3572,7 +3582,7 @@ def parecer_delta(raiz, arquivo, ate, base):
             print(f"dispensado: {nome_seguro(n)} (teste do QA aprovado em {q[:7]})")
         elif n not in dentro:
             print(f"fora do dominio: {nome_seguro(n)}")
-    revalida = revalida_do_parecer(raiz, campos, tipo, fim, ref_da_base(raiz, base), dispensados)
+    revalida = revalida_do_parecer(raiz, campos, tipo, fim, base_sem_flag_do_pr(raiz, ate, None, base), dispensados)  # A1 E34.10: a base do `pr`
     if not dentro:
         print("delta: nenhum arquivo do domínio mudou")
         print(revalida)

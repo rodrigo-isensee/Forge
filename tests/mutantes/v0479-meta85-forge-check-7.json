@@ -1,0 +1,26 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "parecer delta: o revalida usa a base do forge-check pr sem --base (mutante: a base crua do delta, ref_da_base)",
+      "arquivo": "bin/forge-check",
+      "de": "    revalida = revalida_do_parecer(raiz, campos, tipo, fim, base_sem_flag_do_pr(raiz, ate, None, base), dispensados)",
+      "para": "    revalida = revalida_do_parecer(raiz, campos, tipo, fim, ref_da_base(raiz, base), dispensados)",
+      "testes": [
+        "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_base_que_ja_contem_o_head_revalida_como_o_pr"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "base_sem_flag_do_pr: só a branch de trabalho ganha a base (mutante: qualquer ref ganha a base)",
+      "arquivo": "bin/forge-check",
+      "de": "    if branch and branch not in BASES_DO_FLUXO:\n        return base_do_delta(raiz, nome, ref)[0]",
+      "para": "    if True:\n        return base_do_delta(raiz, nome, ref)[0]",
+      "testes": [
+        "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_fora_da_branch_de_trabalho_revalida_pelo_diff_literal"
+      ]
+    }
+  ]
+}

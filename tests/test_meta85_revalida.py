@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from test_volta_por_delta import Repositorio, carregar_forge_check  # noqa: E402
+from test_volta_por_delta import Repositorio, carregar_forge_check, git  # noqa: E402
 
 fc = carregar_forge_check()
 
@@ -61,6 +61,26 @@ class RevalidaSoQuemBarrou(Repositorio):
         rel = self.parecer("revisao-seguranca", "riscos-aceitos")
         self.commitar({"docs/security/aceites/p1.md": f"---\npedido: p1\naceite: sim\ncommit: {self.c1}\n---\n"}, "aceite do usuário")
         self.assertEqual(self.revalida(rel), "revalida: não (não barrou e o domínio não mudou; o parecer segue valendo)")
+
+    def test_base_que_ja_contem_o_head_revalida_como_o_pr(self):  # A1 E34.10: o `pr` sem `--base` passa None ao `cmd_pr`
+        rel = self.parecer("review", "aprovado")
+        self.commitar({"src/app.py": "x = 4\n"}, "correção que mexe no código")
+        git("branch", "-f", "develop", "HEAD", cwd=self.repo)  # a develop já contém o head: o `pr` lê o diff literal
+        self.assertIn(f"{rel}: commit: desatualizado", self.check("pr", "p1")[1])  # o `pr` barra o parecer
+        linha = self.revalida(rel)
+        self.assertTrue(linha.startswith("revalida: sim (desatualizado: src/app.py mudou depois do parecer"), linha)
+
+    def test_fora_da_branch_de_trabalho_revalida_pelo_diff_literal(self):  # A1 E34.10: sem branch, o `pr` não simula a base
+        rel = self.parecer("review", "aprovado")
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"src/app.py": "x = 5\n"}, "a develop muda o código")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        self.commitar({"src/app.py": "x = 5\n"}, "a branch chega ao mesmo conteúdo da develop")
+        git("switch", "-q", "--detach", cwd=self.repo)
+        self.commitar({"changelog.d/p1.md": "- x\n"}, "HEAD solto, sem branch")
+        self.assertIn(f"{rel}: commit: desatualizado", self.check("pr", "p1")[1])  # o `pr` lê o diff literal e barra
+        linha = self.revalida(rel)
+        self.assertTrue(linha.startswith("revalida: sim (desatualizado: src/app.py mudou depois do parecer"), linha)
 
     def test_veredito_com_commit_ilegivel_nao_consulta_o_git(self):  # o `commit:` fora da forma já é violação do `validar_documento`
         campos = {"tipo": "review", "pedido": "p1", "parecer": "aprovado", "commit": "zzz"}
