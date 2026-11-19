@@ -3,47 +3,40 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-sandbox-controle
-commit: 03448b3d8050f9e865791f50b6bd300df51ec001
-parecer: reprovado
-escopo: completo
+commit: 64fca89083f7549aa5ea97ed4e716bec049f1306
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-18
+data: 2026-11-19
 ---
-# QA: v0478 E29.1 (A3, trava de escrita do sandbox nos arquivos de controle)
+# QA: v0478 E29.14 (trava de escrita do sandbox, revalidação no head 64fca890)
 
 ## Achados
-- A1 (bloqueante) tests/test_apoio_sandbox.py:77 · test_bwrap_ausente_ou_que_nao_monta_falta_e_o_que_monta_nao está recuado dentro de ambiente_sem_ci, depois do return: nenhum teste o coleta (22 rodam, 0 de bwrap). Mutante falta_bwrap sempre None sobrevive. Mova-o para a classe Sondas.
-- A2 (recomendado) tests/test_sandbox_controle.py:178 · o hook grava fora do sandbox; o bwrap vivo ao lado não influi, então "e o hook grava" é verdade trivial. Prove-o pelo denyWrite não cobrir o que o hook grava (já feito na Estrutura) ou tire a alegação do nome.
-- A3 (recomendado) .github/workflows/ci.yml:1 · o CI não instala nem sonda bubblewrap; se o runner não monta namespace, os dois testes de sandbox reprovam (exigir falha com CI). Cite o check-run do PR; sem ele a prova do CI não existe.
+- A1 (bloqueante, resolvido) tests/test_apoio_sandbox.py:77 · o teste de sonda do bwrap agora está na classe Sondas e roda (H=ok no vermelho); mutantes M1 e M2 morrem.
+- A2 (recomendado, aberto) tests/test_sandbox_controle.py:178 · "e o hook grava" no nome do teste de bwrap é verdade trivial; já provado na Estrutura. Não bloqueia.
+- A3 (recomendado, aberto) .github/workflows/ci.yml:1 · o CI não sonda bubblewrap; os 2 testes de sandbox pulam aqui (Operation not permitted) e só valem com o check-run `bateria` do mesmo sha sem pulo (no CI, exigir reprova). Não bloqueia; cite o run no PR.
 
 ## Critério → teste → resultado
-Obrigação: decisão A3 do dono (denyWrite nos arquivos de controle, hooks gravando, teste com find -delete, tar e chmod recusados), Forge e modelo.
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| A3 modelo nega os 5 caminhos | Estrutura.test_modelo_de_projeto_nega_os_cinco_caminhos_de_controle | permissão (denyWrite) | passou; mutante denyWrite vazio morre (3 falhas, 1 erro) |
-| A3 Forge via patch | Estrutura.test_forge_com_o_patch_nega_o_clone_e_o_registro_da_maquina, test_o_patch_so_acrescenta_dois_caminhos_ao_denywrite | permissão | passou |
-| hooks seguem gravando nos mesmos caminhos | Estrutura.test_os_caminhos_negados_sao_os_que_os_hooks_gravam, test_nada_do_time_grava_nos_caminhos_negados_pelo_bash | permissão | passou (H=ok, B=ok: não prova na base) |
-| N6 arquivo versionado | Estrutura.test_o_denywrite_do_forge_nao_cobre_arquivo_versionado | limite | passou; prova (asserção) |
-| recusa por find -delete, tar e chmod | SandboxNegaEscrita (2 testes) | permissão | pulado aqui (bwrap sem namespace); sem veredito |
-| sonda falta_bwrap | test_bwrap_ausente... | vazio, erro, timeout | nunca roda (A1) |
+| A3 modelo nega os caminhos de controle | Estrutura.test_modelo_de_projeto_nega_os_quatro_caminhos_de_controle | permissão (denyWrite) | passou; prova (asserção) |
+| A3 Forge via patch, arquivo versionado fora | Estrutura (3 testes) | permissão, limite | passou |
+| 0 byte não afrouxa; soltura grava null | ControleVazio (6 testes) | vazio, temporário plantado | passou; 6 provas (asserção) |
+| forge-init e início de sessão criam os arquivos | ControleVazio (2 testes) | arquivo ausente | passou; prova |
+| recusa por find -delete, tar e chmod | SandboxNegaEscrita (2) | permissão | pulado (bwrap sem namespace); sem veredito local |
+| sonda falta_bwrap | Sondas.test_bwrap_ausente... | vazio, erro, timeout | passou; roda agora |
 
-## Cenários e resultado real
-Local, `TMPDIR` próprio: `test_sandbox_controle` 8 testes, 6 ok, 2 pulados (bwrap: Operation not permitted); `test_apoio_sandbox` 22 ok (o novo não está entre eles).
-
-Vermelho (`forge-testes --vermelho 738424449cf9... --modulos test_sandbox_controle,test_apoio_sandbox --prazo 120`), saída rc 2:
+## Provas
+Vermelho (`forge-testes --vermelho 03448b3d --modulos test_apoio_sandbox,test_sandbox_controle --prazo 300`), rc=0:
 ```
-vermelho: base=738424449cf9 head=03448b3d8050 módulos=test_sandbox_controle,test_apoio_sandbox (restrito por --modulos)
-...SandboxNegaEscrita.test_forge_com_o_patch_recusa_find_tar_e_chmod · H=pulado · B=falha · pulado
-...SandboxNegaEscrita.test_modelo_de_projeto_recusa_find_tar_e_chmod_e_o_hook_grava · H=pulado · B=falha · pulado
-contagem: não prova (passa na base)=22; prova (API ausente)=1; prova (asserção)=4; pulado=2; sem veredito=1
-sem veredito: volta ao autor; não vale como vermelho nem como já falhava.
+contagem: não prova (passa na base)=28; prova (asserção)=7; pulado=2
 ```
-A rodada sem `--modulos` estourou 550 s sem saída (rc 124), sem veredito.
-
-## Pergunta do dono: a prova no CI basta, e o teste reprovaria sem a trava?
-- Reprovaria, por leitura e não por execução: `ataca` monta o bwrap com um `--ro-bind` por alvo e exige rc diferente de 0, alvo e modo intactos. Sem a trava (denyWrite vazio) não há alvos, e o controle `livre` do mesmo ataque já prova que o ataque funciona sem `--ro-bind`. Aqui só o lado estrutural foi visto cair (mutante denyWrite vazio: 3 falhas e 1 erro). O lado bwrap nunca foi visto vermelho nem verde em máquina alguma.
-- Limite: o teste monta o `--ro-bind` ele mesmo, como o runtime do Claude Code faria; prova que o `--ro-bind` recusa os três ataques, não que o runtime transforma o `denyWrite` em `--ro-bind` nem o que faz com caminho inexistente (o devops admite). Esse elo não tem prova.
-- Suficiente só com condição: o check-run `bateria` do mesmo sha com os dois testes verdes e sem pulo (no CI `exigir` reprova, não pula). Hoje não há run para o sha (`gh run list` vazio para a branch, sem PR); o bwrap do runner não é garantido (A3). Sem esse verde, não basta.
+Mutantes (`forge-mutante tests/mutantes/v0479-sandbox-controle.json --base 03448b3d`), rc=0:
+```
+base=03448b3d8050 mb=03448b3d8050 rev=64fca89083f7
+M1 M2 M4 M5 M6 M7 M8 M9 M10 M11 M12 M13 M14 · morreu (13 de 13; M3 não aparece na saída)
+```
+CI: não há run para o sha (sem PR); a prova da suíte inteira é o check-run `bateria` do PR.
