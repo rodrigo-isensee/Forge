@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-promocao-pr
-commit: d836c43521f83e02e74c913e2e485a7154b8f50a
+commit: 1e0c50a715ebd00251278c278722b7be3819bb3c
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-18
 ---
-# Review: v0478 (E31.3, promoção por marca)
+# Review: v0478 (E31.3 e E31.8, promoção por marca)
 
 Head revisado d836c435 sobre o Base-sha 73842444. Diff: `promocao()` passa a aceitar o head que está na cadeia de primeiros pais de `origin/develop` (base `homolog`) ou de `origin/develop`/`origin/homolog` (base `main`), por `foi_ponta_da_integracao`; teste novo `tests/test_promocao_por_marca.py`, spec `tests/mutantes/v0478-promocao-pr.json`, M52 do lote L08 ajustado ao texto novo.
 
@@ -27,5 +27,16 @@ Não, pelas razões abaixo, conferidas no repositório:
 4. **Branch velha apontada para um commit da develop.** Existe hoje: `origin/melhoria/entrega-push-proxy` aponta para 217a09e9, primeiro pai da develop. Com a mudança, o `forge-check pr --base main` a chamaria de promoção; o conteúdo, porém, é só da develop, e o passo "Nada pula degrau" do CI (`.github/workflows/ci.yml:685`, tabela PROMOCOES) recusa `melhoria/*` para `main`. Defesa em camadas intacta; o `forge-check` é até mais estrito que o CI (primeiro pai contra ancestral).
 5. **Falha fechada.** Sem a ponta ou com o `git rev-list` falhando, não é promoção (M2, M3).
 
+## Revalidação E31.8 (head 1e0c50a7, A1 da segurança)
+Delta lido: `forge-check parecer delta docs/reviews/v0478-promocao-pr.md`, intervalo d836c435..1e0c50a7; no domínio `bin/forge-check`, `changelog.d/v0478-promocao-pr.md`, `tests/mutantes/lote-l08-e7b.json`, `tests/mutantes/v0478-promocao-pr.json`, `tests/test_promocao_por_marca.py`. Fora do domínio nada relido.
+- `ponta_da_integracao`: com `origin/<base>`, a cadeia de primeiros pais (merge pelo PR, envio direto barrado, R-FLUXO); sem a remota, igualdade estrita com a ponta local, e o ff na develop local não torna promoção o commit intermediário do item. Resolve a sonda S1 da segurança.
+- Teste novo `test_avanco_rapido_na_develop_local_sem_remoto_nao_vira_promocao`: `python3 -m unittest tests.test_promocao_por_marca` · 5 testes, OK.
+- `bin/forge-mutante --processos 1 tests/mutantes/v0478-promocao-pr.json` · M1, M5, M6, M2, M3, M4 morreram.
+- `bin/forge-mutante --cobertura --base d836c435` · linhas 1582, 1590 e 1592 cobertas (M1/M52, M5, M6).
+- Suíte: no CI do PR (R-CUSTO, M8); não rerrodada.
+
+## Achados
+- A1 (recomendado) bin/forge-check:1587 · a docstring diz que o merge na remota é por squash ou merge commit, mas o repositório permite rebase-merge (allow_rebase_merge=true): o GitHub reescreve os shas, o head do item não entra, mas os intermediários reescritos ficam na cadeia; desligar o rebase-merge ou citá-lo.
+
 ## Parecer
-Aprovado. A mudança é mínima, resolve o caso real da 0.47.8 (marca b407f8f7 com o #682 depois) e não abre caminho para item escapar de E7/H1: o critério é o sha do head, que só está na cadeia de primeiros pais se entrou na develop pelo caminho integrado. R-REVIEW, R-FLUXO.
+Aprovado (revalidado no head 1e0c50a7). A mudança é mínima, resolve o caso real da 0.47.8 (marca b407f8f7 com o #682 depois) e não abre caminho para item escapar de E7/H1: o critério é o sha do head, que só está na cadeia de primeiros pais se entrou na develop pelo caminho integrado. R-REVIEW, R-FLUXO.
