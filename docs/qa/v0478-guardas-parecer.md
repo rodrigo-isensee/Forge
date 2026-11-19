@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: 9b075525eaa2a3cadf408e77bafbe5e1817884ab
+commit: 9a20739e0d4ff607033690eaa238e6c0342e6d74
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -34,3 +34,17 @@ Obrigação: GH-REMOTO-NA-LINHA (A5 a A7 da segurança, A3 do review): GH_REPO e
 - Mutação: `bin/forge-mutante` specs -5, -8, -9 `--processos 3 --base b989773a2ae7276692081441ff72c05d26d0f8da` → `base=b989773a2ae7276692081441ff72c05d26d0f8da mb=b989773a2ae7276692081441ff72c05d26d0f8da rev=0da1a32bcda6`; M27 a M34 (M28 realinhado em :640) e M42 a M57 todos `morreu`. Nenhum sobrevivente, nenhum equivalente.
 - Cobertura: `forge-mutante --cobertura --base b989773a...` → rc 0; condições novas (449, 638 a 671, 1002 a 1006, 1033, 1034, 1248) todas `coberta`; só `não coberto: tests/pesos-d4.json` (dado, sem condição).
 - Árvore limpa após as rodadas (cópias em `$TMPDIR`).
+
+## Revalidação E3.26 (head 9a20739e, código em 415eaa82)
+Escopo: delta `9b075525..9a20739e` (`forge-check parecer delta`): `hooks/parecer.py` (`mexidas_por_expansao`, `EXPANSAO_QUE_ATRIBUI`, chamada em `principal`), `docs/hooks.md` D4, matriz (`EXPANSOES`, sondas S28 e S29), `test_d4_atribuicao_por_expansao`, spec de mutantes `-10` (M58 a M62). Obrigação: A5 do review da E3.21 (`${N:=v}` e `${N=v}` contam como variável mexida).
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| `${N:=v}`, `${N=v}`, `${N[i]:=v}`, `${!n:=v}` recusam na cópia alheia | `MatrizDaCopiaAlheia.test_cada_dimensao_posicao_e_gh_recusa_e_o_legitimo_passa` | `${N:-v}`, `${N:+v}`, `${N:?}`, `${PAGER:=less}` liberam | passou |
+| Regra da classe | `RegrasPorClasse.test_d4_atribuicao_por_expansao` | vazio, `${#HOME}`, `$GH_REPO=x` | passou |
+
+- `python3 -I -m unittest discover -s tests -p test_hooks_parecer_matriz.py` (TMPDIR próprio): `Ran 6 tests in 15.137s ... OK`.
+- Vermelho: `bin/forge-testes --vermelho 9b075525... --modulos tests.test_hooks_parecer_matriz` → `vermelho: base=9b075525eaa2 head=9a20739e0d4f`; matriz `H=ok · B=falha · prova (asserção)`; `test_d4_atribuicao_por_expansao` `H=ok · B=erro · prova (API ausente)`; os outros 4 não provam (já existiam, não são novos).
+- Mutação: `forge-mutante tests/mutantes/v0478-guardas-parecer-10.json --processos 3 --base 9b075525...` → `base=9b075525eaa2... rev=9a20739e0d4f`; M58 a M62 todos `morreu`. Sem sobrevivente nem equivalente.
+- Cobertura `--cobertura --base 9b075525...`: condições novas (657, 660) `coberta`.
+- Sem CI deste head, sem suíte inteira (brief). Parecer final: sem bug aberto.
