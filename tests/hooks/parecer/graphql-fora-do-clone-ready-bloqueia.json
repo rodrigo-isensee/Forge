@@ -1,0 +1,41 @@
+{
+  "descricao": "GRAPHQL-FORA-DO-CLONE (A3 da E3.4): gh api graphql com markPullRequestReadyForReview fora de cópia de trabalho, sessão no clone do Forge: recusa (o graphql não usa a pasta).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "develop",
+        "remote.origin.url": "git@github.com:dono/forge.git"
+      }
+    }
+  ],
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}",
+    "tool_input": {
+      "command": "gh api graphql -f query='mutation { markPullRequestReadyForReview(input: {pullRequestId: \"PR_1\"}) { clientMutationId } }'"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "tirar o rascunho pela API"
+  }
+}

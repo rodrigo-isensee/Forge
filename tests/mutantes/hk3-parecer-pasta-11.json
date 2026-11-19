@@ -15,7 +15,7 @@
     {
       "id": "M78",
       "guarda": "a palavra com $ ou crase e expandida",
-      "arquivo": "hooks/parecer.py",
+      "arquivo": "hooks/_gh_api.py",
       "de": "any(o in palavra for o in EXPANSAO)",
       "para": "any(o not in palavra for o in EXPANSAO)",
       "testes": [
@@ -56,8 +56,8 @@
       "id": "M82",
       "guarda": "NOME=valor depois do comando mexe na variavel",
       "arquivo": "hooks/parecer.py",
-      "de": "for m in map(ATRIBUICAO.match, comando) if m}",
-      "para": "for m in map(ATRIBUICAO.match, comando) if False}",
+      "de": "for m in map(ATRIBUICAO.match, palavras[k:]) if m}",
+      "para": "for m in map(ATRIBUICAO.match, palavras[k:]) if False}",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
       ]

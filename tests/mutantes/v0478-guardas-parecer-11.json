@@ -1,0 +1,66 @@
+{
+  "pedido": "v0478-guardas-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M66",
+      "guarda": "D4 (A10): `$N=` é expansão, não atribuição; o nome começa a palavra",
+      "arquivo": "hooks/parecer.py",
+      "de": "r\"(?<![\\w$])([A-Za-z_]\\w*)\"",
+      "para": "r\"([A-Za-z_]\\w*)\"",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_aritmetica"
+      ]
+    },
+    {
+      "id": "M67",
+      "guarda": "D4 (A10): `==` compara, não atribui",
+      "arquivo": "hooks/parecer.py",
+      "de": "|<<|>>)?=(?!=)|",
+      "para": "|<<|>>)?=|",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_aritmetica"
+      ]
+    },
+    {
+      "id": "M68",
+      "guarda": "D4 (A10): todo GIT_* da aritmética conta",
+      "arquivo": "hooks/parecer.py",
+      "de": "if v in SENSIVEIS or v.startswith(\"GIT_\"))",
+      "para": "if v in SENSIVEIS)",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_aritmetica"
+      ]
+    },
+    {
+      "id": "M69",
+      "guarda": "D4 (A10): só o nome sensível ou GIT_* da aritmética conta",
+      "arquivo": "hooks/parecer.py",
+      "de": "if v in SENSIVEIS or v.startswith(\"GIT_\"))",
+      "para": "if True)",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_aritmetica"
+      ]
+    },
+    {
+      "id": "M70",
+      "guarda": "D4 (A10): o elemento (`N[0]^=1`) atribui",
+      "arquivo": "hooks/parecer.py",
+      "de": "r\"(?=(?:\\[[^]]*\\])?\\s*",
+      "para": "r\"(?=\\s*",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_aritmetica"
+      ]
+    },
+    {
+      "id": "M71",
+      "guarda": "D4 (A10): o nome de `++N` conta",
+      "arquivo": "hooks/parecer.py",
+      "de": "nomes = {m.group(1) or m.group(3) for m",
+      "para": "nomes = {m.group(1) or \"\" for m",
+      "testes": [
+        "tests.test_hooks_parecer_matriz.RegrasPorClasse.test_d4_atribuicao_aritmetica"
+      ]
+    }
+  ]
+}

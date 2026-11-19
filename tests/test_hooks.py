@@ -103,6 +103,10 @@ def registrar_orcamento(teste, medido, limite, medida, forma):
 # DEFEITO-TESTES-DE-PRAZO-SOB-CARGA (v0478): o critério da recusa aceita como carga mora em `prova_de_carga.py`
 # (fora de arquivo de teste, para os mutantes M5 a M10).
 _relogio = time.monotonic  # os testes da medida trocam o relógio
+# A sonda S1 do review (3,8 s de sono a mais no 1.o git), medida com a máquina em carga 24: relógio e CPU do hook e parcela
+# da referência. O teste da S1 injeta os três (E33.6): a CPU real do hook depende da máquina (bytecode, custo por operação,
+# fila) e, numa CPU cara e livre, passava do mínimo de aproveitamento só com sono.
+PAREDE_DA_S1_S, CPU_DA_S1_S, PARCELA_DA_S1 = 8.34, 0.13, 0.36
 
 
 def sono_do_git_lento(dados):
@@ -539,7 +543,8 @@ class Fixture:
             gravar_resultado_aprovado(raiz, **self.dados["resultado_do_pr"])
 
     def repositorio(self, pasta, conf, mapa):
-        """Outro repositório git do fixture (`repos`): arquivos, um commit e os remotos."""
+        """Outro repositório git do fixture (`repos`): arquivos, um commit, os remotos, a `config` (chave e valor) e a
+        `config_bruta` (texto anexado ao `.git/config`, para a configuração que o `git config` não grava)."""
         pasta.mkdir(parents=True)
         repositorio_vazio(pasta, conf.get("branch", "develop"))
         self.gravar(pasta, {"README.md": "repo\n", **conf.get("arquivos", {})}, mapa)
@@ -547,6 +552,10 @@ class Fixture:
         git("commit", "-q", "-m", "base", cwd=pasta)
         for nome, url in conf.get("remotos", {}).items():
             git("remote", "add", nome, url, cwd=pasta)
+        for chave, valor in conf.get("config", {}).items():
+            git("config", chave, valor, cwd=pasta)
+        with open(pasta / ".git" / "config", "a", encoding="utf-8") as f:
+            f.write(conf.get("config_bruta", ""))
 
     @staticmethod
     def gravar(raiz, arquivos, mapa):
@@ -1246,7 +1255,7 @@ class Hooks(unittest.TestCase):
                              ("hook parado na disputa", (do_vigia, prazo, APROVEITAMENTO_MINIMO * (prazo - 4.0) * 0.2 - 0.01,
                                                          4.0, 0.2)),
                              # S1 do review: 3,8 s de sono a mais, medidos aqui com a máquina em carga 24
-                             ("S1, sono que não é fila", (do_vigia, 8.34, 0.13, 4.0, 0.36))):
+                             ("S1, sono que não é fila", (do_vigia, PAREDE_DA_S1_S, CPU_DA_S1_S, 4.0, PARCELA_DA_S1))):
             with self.subTest(motivo=motivo):
                 self.assertFalse(carga_explica_a_recusa(*args[:4], prazo, args[4]))
         self.assertEqual(aproveitamento_da_cpu(8.0, 1.0, 8.0, 0.5), 0.0, "sem relógio fora do sono")
@@ -1316,13 +1325,37 @@ class Hooks(unittest.TestCase):
                    "(melhoria/v0479-develop-relogio) entrar com 10 rodadas verdes sob carga; cartão TESTE-SONDA-S1-RELOGIO")
     def test_liberar_ou_provar_a_carga_recusa_a_sonda_s1(self):  # v0478, A1 do review
         """A sonda S1 do review, de verdade: o 1.o git dorme 3,8 s a mais que os 4 s do fixture, o vigia de 8 s recusa e a
-        recusa não passa como carga (o tempo a mais é sono, não fila da CPU: o hook não aproveita a parcela da referência)."""
+        recusa não passa como carga (o tempo a mais é sono, não fila da CPU: o hook não aproveita a parcela da referência).
+        O hook e a recusa do vigia são reais; a parcela da referência, a CPU e o relógio do hook são os da S1 medidos no
+        review (`PAREDE_DA_S1_S`, `CPU_DA_S1_S`, `PARCELA_DA_S1`), não os da hora (E33.6): o mínimo de aproveitamento com
+        a parcela 0,36 e o relógio de 8,15 s é 0,75 s de CPU, e o hook gasta de 0,13 s (bytecode pronto) a mais de 1 s
+        (bytecode refeito numa CPU mais cara e livre) com o mesmo sono, então a CPU medida decidia pela máquina."""
+        _comum, _, _ = modulos_dos_hooks()
         f = Fixture(FIXTURES / "parecer/v0455-merge-com-git-lento-decide-no-prazo-longo.json")
         dados = json.loads(json.dumps(f.dados))
         dados["arquivos"]["lento/git"][1] = dados["arquivos"]["lento/git"][1].replace("sleep 4;", "sleep 4; sleep 3.8;")
-        with contextlib.redirect_stderr(io.StringIO()) as erro, self.assertRaises(AssertionError):
+        recusas, original = [], rodar
+
+        def rodar_e_guardar(*args, **kwargs):
+            recusas.append(original(*args, **kwargs))
+            return recusas[-1]
+        relogios, cpus = iter([0.0, PAREDE_DA_S1_S]), iter([0.0, CPU_DA_S1_S])
+
+        @contextlib.contextmanager
+        def referencia_da_s1():
+            medida = {"parcela": None}
+            yield medida
+            medida["parcela"] = PARCELA_DA_S1
+        with contextlib.redirect_stderr(io.StringIO()) as erro, self.assertRaises(AssertionError), \
+                mock.patch(f"{__name__}.rodar", rodar_e_guardar), mock.patch(f"{__name__}._relogio", lambda: next(relogios)), \
+                mock.patch(f"{__name__}._cpu_dos_filhos", lambda: next(cpus)), \
+                mock.patch(f"{__name__}.referencia_da_cpu", referencia_da_s1):
             self.liberar_ou_provar_a_carga("parecer/s1", Fixture(f.caminho, dados))
         self.assertNotIn("PRAZO-CARGA", erro.getvalue())
+        # a recusa que chegou ao critério é a do vigia do prazo longo: só o aproveitamento a separa da carga (mutante M1)
+        self.assertEqual(len(recusas), 1)
+        self.assertEqual(recusas[0].returncode, 2, recusas[0].stderr)
+        self.assertIn(f"não decidiu em {_comum.PRAZO_DO_MERGE_S:g} s", recusas[0].stderr)
 
     def test_prazo_do_merge_abaixo_do_timeout_do_hooks_json(self):  # v0455
         """O prazo do `gh pr merge` (`PRAZO_DO_MERGE_S`) passa do prazo comum e fica abaixo do `timeout` do parecer no

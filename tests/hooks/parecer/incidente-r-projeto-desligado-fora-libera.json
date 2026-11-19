@@ -1,0 +1,44 @@
+{
+  "descricao": "INCIDENTE-HOOK-PARECER-CONTORNADO: sessão de projeto com o parecer em hooks_desligados: fora do clone, como antes.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "forge": true,
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "develop",
+        "remote.origin.url": "git@github.com:dono/forge.git"
+      }
+    }
+  ],
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}",
+    "tool_input": {
+      "command": "gh pr merge -R dono/forge feature/x --squash"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "config": {
+    "hooks_desligados": [
+      "parecer"
+    ]
+  }
+}
