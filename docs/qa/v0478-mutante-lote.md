@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-mutante-lote
-commit: b11631b2e9e536b11b918c470f7e80c9147b83ec
+commit: 5520fd0d156beede30c54efb16227559be919e85
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -38,3 +38,18 @@ Diff `0c47762a..b11631b2`: `bin/forge-mutante` (`--ids`, isenta velha e fora do 
 
 ## Observação (não bloqueia)
 A linha 645 (`nova=True` em `analisar_com_textos`) e o rótulo `--ids` ficam cobertos por M11 e pelos testes de ajuda; sem lacuna vista.
+
+## Revalidação (E17.9, delta `b39110b2..5520fd0d`)
+Delta: `forge-check parecer delta` lista `bin/forge-mutante`, changelog, 5 specs de mutante e `tests/test_forge_mutante.py`. Mudança: a isenta da condição nova vale só para as cópias da mesma condição (`cruza` com `nós`, `cabe`, `ocorrencias`). Obrigação: E17.5 (S1 da segurança) e `R-QA`.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| isenta de trecho comum não libera outra condição, cópia fora do hunk nem comentário | `Cobertura.test_isenta_de_trecho_comum_nao_libera_outra_condicao_copia_fora_do_hunk_nem_comentario` (3 subtestes) | trecho em outra condição, fora do hunk, em comentário | passa; vermelho na base `b39110b2` |
+| isenta vale para cada cópia da mesma condição (E17.1, mantido) | `Cobertura.test_isenta_vale_para_cada_condicao_nova_com_o_mesmo_trecho` | duas ocorrências | passa |
+
+## Provas da revalidação
+- Módulo: `python3 -I -m unittest discover -s tests -p test_forge_mutante.py` com TMPDIR: `Ran 145 tests in 111.352s · OK`. Suíte inteira não rodada (vale o `bateria` do CI).
+- Vermelho: `forge-testes --vermelho b39110b2 --modulos test_forge_mutante` saiu 0: `vermelho: base=b39110b2aa92 head=eb857686a5a1`; `...test_isenta_de_trecho_comum_... · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=144; prova (asserção)=1`. Nenhum cai no HEAD.
+- Mutantes: `forge-mutante tests/mutantes/v0478-mutante-lote.json tests/mutantes/v0478-mutante-lote-2.json tests/mutantes/v0478-mutante-lote-3.json --processos 4` saiu 0, 17 de 17 `morreu` (M1-M11, M13-M18; linhas 1151, 1192, 1193, 1062, 1063, 1068, 607, 610, 610, 840, 657, 620, 832, 855, 831, 847, 587). Nenhum sobrevivente, nenhum equivalente. M18 (`cabe`, linha 587) é novo; M7-M17 foram refeitos nas linhas novas.
+- Cobertura: `forge-mutante --cobertura --base 0c47762a...` rc 0: 14 linhas `coberta` de `bin/forge-mutante` (587, 607, 610, 620, 657, 831, 840, 855, 1062, 1063, 1068, 1151, 1192, 1194), nenhuma `sem mutante` nem `isenta velha`; as linhas `spec editada` são as specs antigas realinhadas (M58 e IL11). `--conferir --base 0c47762a...`: `conferidas: o trecho de cada spec do diff está no lugar`.
+- Merge `eb857686` (documentos de review e segurança) fora do domínio do QA: nada relido.
