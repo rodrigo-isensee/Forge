@@ -648,3 +648,32 @@ class AtualizacaoAtrasDoBusybox(CloneDoForge):
         proj = self.projeto()
         for c in ("busybox ls docs", "busybox chroot / ls", "toybox watch date", "busybox env ls", "busybox --list"):
             self.libera(self.rodar_em(proj, c, "forge:tech-lead"), c)
+
+
+class TrocaDeBranchAtrasDoBusybox(CloneDoForge):  # A8 da segurança (S21): nem busybox nem toybox têm applet git
+    rodar_em = AtualizacaoAtrasDoBusybox.rodar_em
+    ACOES_NA_MAIN = ("git push", "git commit -m x", "git merge develop", "git rebase develop", "git reset --hard HEAD~1",
+                     "git cherry-pick abc123", "git revert HEAD")
+
+    def projeto_na_main(self):
+        proj = self.tmp / "proj"
+        (proj / ".forge").mkdir(parents=True)
+        (proj / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        for args in (["init", "-q", "-b", "main"], ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x"]):
+            subprocess.run(["git", "-C", str(proj), *args], check=True, env=self.env(), capture_output=True, timeout=60)
+        return proj
+
+    def test_troca_pelo_applet_nao_libera_a_main(self):
+        proj = self.projeto_na_main()
+        for troca in ("busybox git switch -c feature/x", "toybox git checkout -b feature/x", "/bin/busybox git switch -c feature/x"):
+            for op in (";", "||", "&&"):
+                for acao in self.ACOES_NA_MAIN:
+                    c = f"{troca} {op} {acao}"
+                    r = self.rodar_em(proj, c, "forge:tech-lead")
+                    self.assertEqual(r.returncode, 2, f"{c}: {r.stderr}")
+
+    def test_troca_direta_segue_registrada(self):  # contraprova: sem applet, a troca vale para o comando seguinte
+        proj = self.projeto_na_main()
+        for op in (";", "&&"):
+            c = f"git switch -c feature/x {op} git commit -m x"
+            self.libera(self.rodar_em(proj, c, "forge:tech-lead"), c)

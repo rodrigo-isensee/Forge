@@ -2289,7 +2289,8 @@ class Guarda:
             return pasta
         prog = Path(palavras[0].lstrip("`")).name
         args = palavras[1:]
-        if prog in ("busybox", "toybox") and args and not args[0].startswith("-"):  # A4 da volta 2, A5: o applet é o programa
+        por_applet = prog in ("busybox", "toybox") and bool(args) and not args[0].startswith("-")
+        if por_applet:  # A4 da volta 2, A5: o applet é o programa
             self.atualizacao(palavras)  # A6: antes da troca, a varredura que o `busybox` tinha em ENVOLVEDORES
             palavras, prog, args = args, Path(args[0]).name, args[1:]
         if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}:
@@ -2303,7 +2304,7 @@ class Guarda:
             return self.caminho(pasta, alvo) if alvo else pasta
         if parte and parte[0] == "cd":
             return self.caminho(pasta, parte[1]) if parte[1] else Path.home()
-        if parte and parte[0] == "branch":
+        if parte and parte[0] == "branch" and not por_applet:  # A8: nem busybox nem toybox têm applet git
             raiz = raiz_do_projeto(pasta / parte[1] if parte[1] else pasta)
             if raiz:
                 ramos[raiz.resolve()] = parte[2]

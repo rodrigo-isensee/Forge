@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_conformidade_verde.AtualizacaoAtrasDoBusybox.test_applet_que_roda_programa_nao_esconde_a_atualizacao"
       ]
+    },
+    {
+      "id": "M73",
+      "guarda": "A8: a troca de branch atrás do busybox ou toybox não é registrada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if parte and parte[0] == \"branch\" and not por_applet:",
+      "para": "        if parte and parte[0] == \"branch\":",
+      "testes": [
+        "tests.test_conformidade_verde.TrocaDeBranchAtrasDoBusybox.test_troca_pelo_applet_nao_libera_a_main"
+      ]
     }
   ]
 }

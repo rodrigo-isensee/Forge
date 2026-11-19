@@ -16,8 +16,8 @@
       "id": "M56",
       "guarda": "busybox repassa ao applet",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if prog in (\"busybox\", \"toybox\") and args and not args[0].startswith(\"-\"):",
-      "para": "        if False:",
+      "de": "        por_applet = prog in (\"busybox\", \"toybox\") and bool(args) and not args[0].startswith(\"-\")",
+      "para": "        por_applet = False",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_extrator_e_tar_por_opcao_recusam"
       ]
