@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-promocao-pr
-commit: 1e0c50a715ebd00251278c278722b7be3819bb3c
+commit: 6ab1228acf7d1560b1d43541c59438a9e01ffcac
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -79,6 +79,25 @@ Vermelho: `forge-testes --vermelho d836c43521f8 --modulos test_promocao_por_marc
 Mutação, `--base d836c435`: `v0478-promocao-pr.json` rc 0 (M1, M5, M6, M2, M3, M4 · morreu). `lote-l08-e7b.json` rc 1: M37, M50, M51, M52 morreram, M36 equivalente, M56 sobreviveu em `bin/forge-check:1552`. M56 está fora do delta (linha não tocada) e sobrevive igual na base `738424449` (pré-existente): vira recomendado, sem bloquear.
 
 Ponta a ponta: `python3 -I scripts/promover-homolog.py --conferir-ref b407f8f7d697b7c118c420ce5b7ae747be410625` rc 0 (`conferir-ref: b407f8f7… promovível para a homolog`). Local: `test_promocao_por_marca.py` OK. CI: `bateria` do sha é a prova da suíte inteira (não consultada daqui, sem rede à API).
+
+## Revalidação no head 6ab1228a (E31.13, delta sobre 1e0c50a7)
+Delta (`forge-check parecer delta`): `bin/forge-check` (nova `avisar_rebase_merge`, chamada só no ramo de promoção do `pr_da_cli`; só avisa quando `gh api repos/{owner}/{repo}` traz `allow_rebase_merge: true`; E31.10), docstring de `ponta_da_integracao`, `docs/fechamento-integrador.md`, fragmento do changelog, mutante M7 e o teste `test_promocao_avisa_quando_o_repositorio_permite_rebase_merge`. O remoto avançou (só pareceres de review e segurança, de3efd3a); trazido por merge.
+
+| Obrigação | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| E31.10: promoção avisa se o repositório permite rebase-merge e não muda o veredito | `test_promocao_avisa_quando_o_repositorio_permite_rebase_merge` | True, False, `{}`, None e lista (5 subTests); retorno `[]` | passou |
+
+Vermelho: `forge-testes --vermelho 1e0c50a715ebd00251278c278722b7be3819bb3c --modulos tests.test_promocao_por_marca --prazo 400`, rc 0:
+```
+vermelho: base=1e0c50a715eb head=6ab1228acf7d módulos=test_promocao_por_marca (restrito por --modulos)
+tests.test_promocao_por_marca.PromocaoPorMarca.test_promocao_avisa_quando_o_repositorio_permite_rebase_merge · H=ok · B=falha · prova (asserção)
+contagem: não prova (passa na base)=5; prova (asserção)=1
+```
+Os 5 que passam na base são os guardas já provados nas rodadas anteriores.
+
+Mutação, `bin/forge-mutante tests/mutantes/v0478-promocao-pr.json --base 1e0c50a715ebd00251278c278722b7be3819bb3c`, rc 0 (`base=1e0c50a7… rev=6ab1228a…`): M1, M5, M6, M2, M3, M4 e M7 · morreu (M7 em `bin/forge-check:1591`, a condição `allow_rebase_merge is True`).
+
+Ponta a ponta: `python3 -I scripts/promover-homolog.py --conferir-ref b407f8f7d697b7c118c420ce5b7ae747be410625` rc 0 (`conferir-ref: b407f8f7… promovível para a homolog`). CI: `bateria` do sha é a prova da suíte inteira (não consultada daqui, sem rede à API). O A1 anterior segue aberto como cartão (fora do delta).
 
 ## Achados
 - A1 (recomendado) bin/forge-check:1552 · mutante M56 de lote-l08-e7b.json sobrevive (teste test_pr_parecer_da_branch_da_ref_vale_sobre_o_de_outra_branch não pega a perda do fallback branch_do_sha); pré-existente, fora do delta; vira cartão.
