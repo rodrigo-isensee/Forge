@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-placar-fases",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "git que falha sai com 2",
+      "arquivo": "bin/forge-placar",
+      "de": "    if r.returncode:\n        raise SystemExit(f\"forge-placar: git {args[0]}",
+      "para": "    if False:\n        raise SystemExit(f\"forge-placar: git {args[0]}",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_ref_que_nao_existe_sai_com_2"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "linha vazia do log nao vira arquivo",
+      "arquivo": "bin/forge-placar",
+      "de": "for linha in bloco.splitlines() if linha]",
+      "para": "for linha in bloco.splitlines() if True]",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "commit misto (codigo e parecer) conta como codigo",
+      "arquivo": "bin/forge-placar",
+      "de": "bool(nomes) and len(pareceres) == len(nomes)",
+      "para": "bool(pareceres)",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "arquivo de parecer e o das pastas de parecer",
+      "arquivo": "bin/forge-placar",
+      "de": "n for n in nomes if n.startswith(PASTAS_DE_PARECER)]",
+      "para": "n for n in nomes if not n.startswith(PASTAS_DE_PARECER)]",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o 1.o parecer abre a fase de pareceres",
+      "arquivo": "bin/forge-placar",
+      "de": "enumerate(commits) if c[1]), None)",
+      "para": "enumerate(commits) if not c[1]), None)",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "sem parecer, tudo e desenvolvimento e integracao",
+      "arquivo": "bin/forge-placar",
+      "de": "    if i is None:\n        marcos",
+      "para": "    if False:\n        marcos",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_item_sem_parecer_e_assunto_sem_branch"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "a volta e o 1.o commit de codigo depois do parecer",
+      "arquivo": "bin/forge-placar",
+      "de": "commits[i:] if not c[1]), None)",
+      "para": "commits[i:] if c[1]), None)",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "sem volta, os pareceres vao ate o ultimo commit",
+      "arquivo": "bin/forge-placar",
+      "de": "volta or ultimo",
+      "para": "ultimo or volta",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    }
+  ]
+}

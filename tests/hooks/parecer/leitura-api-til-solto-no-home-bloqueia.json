@@ -1,0 +1,41 @@
+{
+  "descricao": "GH-API-LEITURA-UNICA: `--input ~/q.json` solto: o bash expande o `~` e o gh lê o HOME (com a mutação), e ./~/q.json é inócuo; o hook que lesse o `~` literal liberaria: o `~` no começo do caminho recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "casa/q.json": "{\"query\": \"mutation { markPullRequestReadyForReview(input: {pullRequestId: \\\"PR_1\\\"}) { clientMutationId } }\\n\"}",
+    "~/q.json": "{\"query\": \"query { viewer { login } }\\n\"}"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "melhoria/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.melhoria/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh api graphql --input ~/q.json"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "tirar o rascunho pela API"
+  },
+  "env": {
+    "HOME": "{tmp}/proj/casa"
+  }
+}

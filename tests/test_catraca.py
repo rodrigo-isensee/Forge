@@ -917,6 +917,24 @@ class GuardasDosHooks(Base):
         self.repo.commit()
         self.assertFalse(any(v.startswith("R-QA:") for v in self.repo.violacoes()), self.repo.violacoes())
 
+    def test_guarda_movida_de_arquivo_com_mutante_no_destino_passa(self):  # como o forge-mutante --cobertura
+        self.repo.escreve("hooks/x.py", "from hooks.y import decide\n")
+        self.repo.escreve("hooks/y.py", self.HOOK)
+        self.spec([self.mutante(de="if valor > 10:", para="if valor >= 10:") | {"arquivo": "hooks/y.py"}])
+        self.passa()
+
+    def test_guarda_movida_sem_mutante_no_destino_barra(self):
+        self.repo.escreve("hooks/x.py", "from hooks.y import decide\n")
+        self.repo.escreve("hooks/y.py", self.HOOK)
+        self.barra("guarda de hooks/y.py mudada sem mutante declarado: sem mutante · hooks/y.py:2", "R-QA")
+        self.barra("guarda de hooks/x.py mudada sem mutante declarado: apagada · hooks/x.py:2(base)", "R-QA")
+
+    def test_guarda_apagada_de_verdade_barra_com_mutante_de_outra_condicao_ao_lado(self):
+        self.repo.escreve("hooks/x.py", "def decide(valor):\n    return 'passa'\n")
+        self.repo.escreve("hooks/y.py", "def outra(valor):\n    if valor < 3:\n        return 1\n")
+        self.spec([self.mutante(de="if valor < 3:", para="if valor <= 3:") | {"arquivo": "hooks/y.py"}])
+        self.barra("apagada · hooks/x.py:2(base)", "R-QA")
+
     def test_mudanca_sem_guarda_e_arquivo_que_nao_e_python_passam(self):
         self.repo.escreve("hooks/x.py", self.HOOK.replace("'bloqueia'", "'bloqueia agora'"))
         self.repo.escreve("hooks/dados.json", "{\"if\": 1}\n")

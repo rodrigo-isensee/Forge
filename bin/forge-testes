@@ -22,6 +22,8 @@ Os módulos do plano dirigido rodam em paralelo por `scripts/suite-partes.py` (o
                 $TMPDIR (o HEAD, e o HEAD com a produção do diff devolvida à base) e classifica cada teste.
                 Nunca escreve na árvore de trabalho, que precisa estar limpa. Saída 0 = há prova e nada cai no HEAD;
                 1 = sem prova ou com falha no HEAD; 2 = uso inválido, erro do git ou sem veredito.
+                Progresso no stderr, na hora: o teto (módulos x 2 cópias x prazo) e uma linha por módulo, com o tempo de
+                cada cópia; os módulos de teste do diff rodam primeiro.
 
 Convenção (O2, 0.44.1): sem regra no mapa, bin/forge-x leva a tests/test_forge_x.py, hooks/x.py e scripts/x.py a
 tests/test_x.py (se o arquivo existe); o mapa fica para as exceções. Sem as duas (E14.1): bin/forge-x leva a tests/test_x.py,
@@ -109,10 +111,10 @@ FORGE_CHECK = ("test_anotar", "test_promocao_por_marca", "test_fc_pr_parecer_for
                "test_testes_tocados", "test_pre_envio_brief", "test_brief_tamanho", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
                "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt", "test_governanca", "test_selo_e_entrega",
                "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados", "test_aq5_parecer_novo", "test_brief_gerar_custo", "test_git_rede_config",
-               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo", "test_hook_destino_opaco", "test_conformidade_opaco", "test_conferencia_dois_pedidos", "test_pr_hook_rapido", "test_sessao_automatica", "test_autorizacao", "test_conformidade_verde", "test_hooks_agentes_autor", "test_parecer_delta", "test_revisar_sha", "test_maquina", "test_maquina_teto") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
+               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_hooks_parecer_repo", "test_hooks_parecer_matriz", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo", "test_hook_destino_opaco", "test_conformidade_opaco", "test_conferencia_dois_pedidos", "test_pr_hook_rapido", "test_sessao_automatica", "test_autorizacao", "test_conformidade_verde", "test_hooks_agentes_autor", "test_parecer_delta", "test_revisar_sha", "test_maquina", "test_maquina_teto") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
 # E1.120 (v047): quem reaproveita `Hooks.executar_em_lote` sem herdar de `Hooks` (git grep; os VOLTA_UNICA pela base de
 # `tests/apoio_volta_unica.py`) quebra quando o test_hooks muda o lote; pedir tests/test_hooks.py pelo caminho os roda junto.
-REAPROVEITAM_O_LOTE = ("test_esperar_estado", "test_hook_ansi_c", "test_hook_git_comum", "test_hooks_fila27",
+REAPROVEITAM_O_LOTE = ("test_esperar_estado", "test_hook_ansi_c", "test_hook_git_comum", "test_hooks_fila27", "test_hooks_parecer_repo",
                        "test_hooks_parecer_pasta", "test_hook_destino_opaco", "test_hook_erro_libera",
                        "test_estado_ilegivel", "test_hooks_agentes_autor") + VOLTA_UNICA
 JUNTO_DO_MODULO = {"test_hooks": REAPROVEITAM_O_LOTE}
@@ -747,6 +749,11 @@ def estado_da_arvore():
     return git("status", "--porcelain")
 
 
+def progresso(texto):
+    """VERMELHO-COM-PROGRESSO: uma linha no stderr, na hora, enquanto a prova roda; a saída (stdout) não muda."""
+    print(f"vermelho: {texto}", file=sys.stderr, flush=True)
+
+
 def vermelho(base_pedida, modulos_pedidos, prazo):
     raiz = Path.cwd()
     base = resolver(base_pedida)
@@ -803,11 +810,18 @@ def vermelho(base_pedida, modulos_pedidos, prazo):
         montar_copia(raiz, base_dir, cabeca)
         devolver_producao(base_dir, ancora, producao)
         linhas, contagem, sem_veredito, falhou = [], {}, False, False
-        for modulo in modulos:
-            lados = {}
+        progresso(f"{len(modulos)} módulos em duas cópias, em série; prazo de {prazo} s por módulo e cópia "
+                  f"(teto {2 * len(modulos) * prazo} s)")
+        # VERMELHO-COM-PROGRESSO (v0478 E18.1): os módulos de teste do diff, os que provam, rodam primeiro
+        for numero, modulo in enumerate(sorted(modulos, key=lambda m: (m not in modificados, m)), 1):
+            lados, segundos = {}, {}
             for lado, copia in (("H", cabeca_dir), ("B", base_dir)):
                 registro = trabalho / f"{lado}-{modulo}.jsonl"
+                comeco = time.monotonic()
                 lados[lado] = ler_registro(registro) if rodar_modulo(copia, modulo, registro, prazo) else None
+                segundos[lado] = time.monotonic() - comeco
+            progresso(f"[{numero}/{len(modulos)}] {modulo} H {segundos['H']:.1f} s, B {segundos['B']:.1f} s; "
+                      f"{time.monotonic() - inicio:.0f} s no total")
             if lados["H"] is None or lados["B"] is None:
                 quem = ",".join(l for l in lados if lados[l] is None)
                 linhas.append(f"{modulo} · sem veredito (prazo, sinal ou executor sem registro em {quem})")
