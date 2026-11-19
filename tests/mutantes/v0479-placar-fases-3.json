@@ -26,8 +26,8 @@
       "id": "M19",
       "guarda": "dia sem item tem media None",
       "arquivo": "bin/forge-placar",
-      "de": "/ len(itens)) if itens else None",
-      "para": "/ len(itens)) if True else None",
+      "de": "    if not totais:\n        return {\"media_min\": None",
+      "para": "    if False:\n        return {\"media_min\": None",
       "testes": [
         "tests.evals.test_placar.Fases.test_dia_sem_item"
       ]
