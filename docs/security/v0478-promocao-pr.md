@@ -3,34 +3,32 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-promocao-pr
-commit: d836c43521f83e02e74c913e2e485a7154b8f50a
+commit: 1e0c50a715ebd00251278c278722b7be3819bb3c
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-18
 ---
 # Review de segurança: v0478-promocao-pr
 
-Rodada única (E31.4) no head d836c435, diff `73842444..d836c435`: `bin/forge-check` (`promocao`, `foi_ponta_da_integracao`), `bin/forge-testes`, `tests/test_promocao_por_marca.py`, `tests/test_testes_tocados.py`, os mapas de mutantes e o fragmento do changelog. Pergunta do brief: um item de trabalho consegue se passar por promoção e escapar da conferência E7 e do teto H1?
+Revalidação (E31.7) no head 1e0c50a7, por delta. A rodada anterior (E31.4, head d836c435) fica no git.
 
 ## Gatilhos
 Gatilhos: controle do Forge (portão do `forge-check pr`: quando a conferência E7 e o teto H1 deixam de valer).
 
 ## Resumo
-- A ampliação (`bin/forge-check:1582`, `:1585-1592`) aceita como promoção o head que está na cadeia de primeiros pais de `origin/develop` ou `origin/homolog`. Isso só abre caminho a um estado que já foi a integração (ou ancestral dela na cadeia), e não muda o resto: `cmd_pr` (pareceres) continua valendo na promoção (`:1568`), e a main segue mesclada pelo usuário (R-MAIN).
-- Branch de trabalho: no fluxo do Forge o item entra na develop por squash (`bin/forge-fechar:167`) ou, com merge commit, como segundo pai; em nenhum dos dois o head da branch fica na cadeia de primeiros pais. O teste `test_branch_mesclada_na_develop_nao_vira_promocao` prova o merge commit; o `test_item_comum_de_366_linhas_segue_medido_e_reprovado` prova E7 e H1 iguais para o item.
-- Falha fechada: sem ponta ou com o git falhando, não é promoção (`:1589-1592`; `test_sem_ponta_ou_com_o_git_falhando_nao_e_promocao`). A ponta vem de `sha_do_commit` (sha40, `--end-of-options`), então não há injeção de opção no `rev-list`. O CI busca a história inteira (`fetch-depth: 0` em `.github/workflows/ci.yml`), então clone raso não abre nem fecha o caminho por acidente.
-- Manipular `refs/remotes/origin/develop` no clone local já dava o mesmo efeito antes (igualdade com a ponta): o risco não muda, e o CI recalcula a partir do remoto.
-- Estado antigo: qualquer commit antigo da cadeia vale como promoção, inclusive um anterior a uma reversão. É o desenho da marca (`forge-fechar --promover <sha>`); o diff contra a main não desfaz o que a main já tem, e o merge na main é do usuário. Sem achado.
+- Delta lido (`forge-check parecer delta`, `d836c435..1e0c50a7`): no domínio, só `bin/forge-check` (`promocao` e a nova `ponta_da_integracao`, `:1575-1593`, e a docstring de `foi_ponta_da_integracao`). Fora do domínio: o fragmento do changelog, os mapas de mutantes e `tests/test_promocao_por_marca.py` (lido só o teste novo de ff, que prova o A1).
+- A1 (recomendado, avanço rápido vira promoção): **resolvido**. Sem a remota, só a ponta atual da develop local vale (`bin/forge-check:1591-1593`); a cadeia de primeiros pais fica só para `origin/<base>` (`:1589-1590`). Segue a correção mínima proposta. A docstring agora diz em quais métodos de merge a garantia vale (`:1597-1600`). O teste `test_avanco_rapido_na_develop_local_sem_remoto_nao_vira_promocao` cobre os dois destinos e a ponta atual. A falha fechada continua igual: `sha_do_commit` devolve None sem a ref, e o git com erro dá False.
+- Resíduo do mesmo raciocínio na remota: o "merge pelo PR" da docstring (`:1587`) não cobre o "Rebase and merge" do GitHub, que deixa os commits do item em linha na cadeia. Vira o A2, recomendado.
 
 ## Achados
-- A1 (recomendado) bin/forge-check:1591 · Com avanço rápido (ff) na integração (a develop local sem remoto, ou um projeto que mescla assim), os commits intermediários de um item entram na cadeia de primeiros pais e viram promoção sem nunca terem sido ponta: escapam de E7 e H1. A docstring diz que isso nunca acontece. Sonda S1.
+- A2 (recomendado) bin/forge-check:1587 · Na remota, o código presume merge por squash ou merge commit. Com "Rebase and merge" ligado num projeto, os commits intermediários rebaseados entram na cadeia de primeiros pais de origin/develop e viram promoção (sonda S2: True). Deixe a premissa documentada no guia de promoção ou confira-a.
 
 ## Sondas
 
 ## Detalhe dos achados
-**A1** · evidência: `bin/forge-check:1585-1592` (a docstring em `:1586-1588` diz "nunca primeiro pai") e `:2433-2435` (`ref_da_base` cai na `develop` local quando não há a remota). Sonda S1, reproduzida num repositório temporário com remoto bare: `base` → item `c1` (estado intermediário) → `c2` (correção); a develop avança por ff até `c2` e é enviada; `promocao(repo, c1, "main")` dá `True` no head d836c435 e `False` no `bin/forge-check` de 73842444. Script em `scratchpad/sonda_e31.sh` da sessão, não versionado.
-Caminho de ataque: quem abre o PR de promoção escolhe como head um commit intermediário do item (por exemplo, o anterior à correção que um portão pediu), que entrou na develop só como ancestral de um estado aprovado. O `forge-check pr --base main|homolog` pula E7 e H1 para ele. Ganho limitado: `cmd_pr` ainda cobra os pareceres, e no Forge a develop é mesclada por squash, então o caminho não existe aqui; aparece num projeto que usa a ferramenta com integração por ff ou sem remoto. Por isso é recomendado.
-Severidade: baixa. Correção mínima (esforço P): estender só para a ponta remota (`refs/remotes/origin/<base>`, onde o merge pelo GitHub nunca é ff) e manter a igualdade estrita no fallback para a branch local. Filtrar a cadeia por `--merges` não serve, porque a própria marca da 0.47.8 (b407f8f7) é um squash. Também: corrigir a docstring de `foi_ponta_da_integracao` para dizer em qual método de merge a garantia vale, e incluir um caso de ff no `tests/test_promocao_por_marca.py`. Dono: o autor da E31.1.
+**A2** · evidência: `bin/forge-check:1585-1590` usa `foi_ponta_da_integracao` com toda ref `origin/<base>` presente. A premissa fica só na docstring (`:1587`, `:1597-1600`). Sonda S2 (`scratchpad/sonda_s2.sh` da sessão, não versionada): remoto bare; item `c1`→`c2` rebaseado sobre a develop, que avança em linha e é enviada (o mesmo resultado do "Rebase and merge"). `promocao(c1', "main")` dá `True` no head 1e0c50a7.
+Caminho de ataque: o mesmo do A1 da E31.4. Quem abre o PR de promoção escolhe como head um intermediário do item e escapa de E7 e H1. Isso só acontece num projeto que liga o rebase-merge na integração. O Forge mescla por squash (`bin/forge-fechar`), e `cmd_pr` continua cobrando os pareceres. Por isso não bloqueia.
+Severidade: baixa. Correção mínima (esforço P): escrever, onde se descreve a promoção para os projetos, que a integração não usa "Rebase and merge" (só squash ou merge commit), ou recusar a cadeia quando o commit da ponta não é um merge nem um squash de PR. Dono: o autor da E31.1 (código) ou o `devops-engineer` (configuração do repositório).
 
 ## Riscos aceitos e ferramentas
-Riscos aceitos: nenhum. Rodado no head d836c435: `tests/test_promocao_por_marca.py`, 4 testes OK em 5,2 s. Suíte inteira: não rodada (brief); nenhum CI no head d836c435 até este parecer (sem PR), então o CI do PR continua como portão. Ferramentas: o varredor de segredos e os linters de workflow não estão no PATH (lacuna); o diff não toca em workflow nem traz segredo, e foi revisto à mão.
+Riscos aceitos: nenhum. Rodado no head 1e0c50a7: `tests/test_promocao_por_marca.py`, 5 testes OK em 2,9 s. Suíte inteira: não rodada (brief). O CI do PR continua como portão. Ferramentas: o varredor de segredos e os linters de workflow não estão no PATH (lacuna). O delta não toca em workflow nem em segredo.
