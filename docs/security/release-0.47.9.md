@@ -1,0 +1,27 @@
+---
+tipo: revisao-seguranca
+contrato: 1
+pedido: release-0.47.9
+branch: melhoria/v0478-release-0479
+commit: e61c4d439fbcc794cec71e6679541d4be413050d
+parecer: aprovado
+revisor: forge:security-engineer
+data: 2026-11-19
+---
+# Review de segurança: release 0.47.9 (versão inteira)
+
+Escopo: `git diff b407f8f7..e61c4d43` (48 arquivos). Não há tag `v0.47.8`; a anterior é `v0.47.7`, e a parte da 0.47.8 (`v0.47.7..b407f8f7`) não é relida: `b407f8f7` difere do `3a621ba0`, aprovado pelo parecer `release-0.47.8`, só nos 8 pareceres de `docs/`. O que a 0.47.9 leva aos projetos: #682 testes de prazo sob carga, #686 forge-fechar (`--limpar` poupa a própria cópia, 1c com homolog fresca e no `--dry-run`), #685 recibo no meio da rodada e gatilho do ritmo no tech-lead, #690 promoção por marca com a develop adiante (afrouxa-regra) e a marca `e61c4d43` (E32.1).
+
+Gatilhos: workflow `.github/workflows/ci.yml` (passo novo de resumo), portão do `bin/forge-check pr` (quando E7 e H1 deixam de valer), remoção de worktree e branch no `bin/forge-fechar`, invariantes de `tests/config.json` e a release usada por todos os projetos.
+
+## Detalhe
+Sem achados novos. Junção conferida item a item: o patch mesclado (fora de `docs/{qa,reviews,security,devops}`, `CHANGELOG.md` e `changelog.d/`) contra o patch revisado desde o merge-base, arquivo a arquivo, por `git patch-id --stable`:
+- #686 `bdf1b998` = `97e0b6e7` (9 de 9 arquivos); #685 `9f2b80ae` = `932c43c7` (5 de 5); #690 `785e0545` = `6ab1228a` (8 de 8). Pareceres de segurança dos três aprovados nesses shas.
+- #682 `73842444` contra `318721db` (parecer de segurança e de devops): 9 de 10 iguais, inclusive `.github/workflows/ci.yml` e `bin/forge_sempre_atual.py`; difere só `tests/mutantes/v047-ci-rapido-3.json`, o `de`/`para` de M33 e M34 alinhados ao passo novo do `ci.yml`, dado de teste revisado no head final `c460102d` (review e QA aprovados). Nenhum código de produção fora do aprovado.
+- Workflow (#682): os quatro passos "Recusas por carga no resumo" só fazem `grep` do `suite.log` para o `$GITHUB_STEP_SUMMARY`, sem `${{ }}` no `run:`, sem segredo, sem `permissions` nova nem ação nova; o texto vem da suíte que o próprio PR já controla, então não abre caminho novo.
+- Marca `e61c4d43`: fora do changelog, só `.claude-plugin/plugin.json` e `dev/.claude-plugin/plugin.json`, 0.47.8 para 0.47.9 nos dois; `CHANGELOG.md` com `[0.47.9] - 2026-11-19` em português e `[Não publicado]` vazio; os 4 fragmentos apagados (`changelog.d/` só com o `README.md`) e as 9 entradas da [0.47.9] são as linhas deles, sem sobra nem falta (conferido por script).
+
+Recomendações abertas, sem recópia e sem bloquear: as listadas em `release-0.47.8` e `release-0.47.7`. As dos itens desta versão (`v0478-testes-prazo` A1, `v0478-promocao-pr` A2) estão resolvidas nos próprios pareceres.
+
+## Riscos aceitos e ferramentas
+Nenhum risco aceito nem pendente de aceite. Rodado em `e61c4d43`: `python3 -m unittest tests.test_changelog tests.test_promocao_por_marca` (95, OK) e `scripts/indice-forge.py --conferir` (em dia). A suíte inteira é do CI do PR (a local falha por ambiente: `/proc` e `gh` no sandbox); `gh run list --commit e61c4d43` vazio nesta estação, e a integração e a promoção exigem o CI verde. Lacuna: gitleaks, osv-scanner, semgrep, zizmor e actionlint não estão no PATH desta estação.
