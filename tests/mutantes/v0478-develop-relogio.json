@@ -4,7 +4,7 @@
     "mutantes": [
         {
             "id": "M1",
-            "guarda": "carga_explica_a_recusa: a S1 real (sono a mais) reprova pelo aproveitamento com a parcela fixa da disputa, em qualquer carga",
+            "guarda": "carga_explica_a_recusa: a recusa real do vigia na S1 (sono a mais), com a CPU, o relógio e a parcela medidos no review, reprova pelo aproveitamento em qualquer máquina",
             "arquivo": "tests/prova_de_carga.py",
             "de": "    return aproveitamento_da_cpu(parede, cpu, sono, parcela) >= APROVEITAMENTO_MINIMO",
             "para": "    return aproveitamento_da_cpu(parede, cpu, sono, parcela) >= 0",
