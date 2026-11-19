@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-selecao-testes
-commit: afcc49b47c0128a8fff6500694110a692b640343
+commit: 95c7fc2ff9f42c6c071f7943b5424dd571f21562
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -48,3 +48,6 @@ Passada única no head 53f89698 (`R-QA`). Máquina carregada: só os testes dos 
 - Mutante M7 (manual, cópia descartável de `scripts/suite-paralela.py`): `--medir` verde chama `gravar_carimbo(RAIZ, hash_calculado_antes)` após `gravar_pesos`: o teste falha com `--medir gravou o carimbo` (morreu). Nota: o mutante ingênuo `gravar_carimbo(RAIZ, hash_da_arvore(RAIZ))` depois de `gravar_pesos` sobrevive, mas é equivalente (a árvore já está suja pelo `pesos-d4.json`, o hash é `None` e `gravar_carimbo` não grava).
 - O teste isola a causa: afirma que não há carimbo e que, sem marcas, a suíte roda `a, b, c` sem reuso. Sem outro achado; o A1 segue recomendado.
 - Execução local: `python3 -I -m unittest discover -s tests -p test_suite_paralela.py -k test_medir_verde_nao_grava`: 1 teste, OK. Suíte inteira: check-run `bateria` do CI do PR.
+
+## Revalidação no head 95c7fc2f (E18.12)
+O delta (`forge-check parecer delta`) é só `bin/forge-testes`: o merge da develop trouxe `test_promocao_por_marca`, `test_fc_pr_parecer_forjado` e `test_filtros_l08_g2_ancora` para a tupla `FORGE_CHECK`, com o conflito de `tests/test_testes_tocados.py` resolvido. Os três módulos existem e rodaram com `TMPDIR`: 7, 4 e 6 testes, `rc=0` nos três. Nada no domínio do QA mudou além disso; o parecer segue aprovado e a suíte inteira fica para o check-run `bateria` do CI do PR.
