@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-quarentena-s1
-commit: ba6f6a0366ed1d0c1280bc9f43e402d25d830e57
+commit: 0f7e405b960f0328109a83039e6a806e3ee7bec4
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
@@ -27,3 +27,9 @@ Head `ba6f6a0366ed1d0c1280bc9f43e402d25d830e57` (de `a2cc7fb2`), pelo `forge-che
 3. Motivo novo do skip: cita o OK do dono (19/11 18:12), a falha no CI sob carga mesmo com o #701, o desenho da BP1, o cartão `TESTE-SONDA-S1-RELOGIO` e o prazo 2026-11-26. O fragmento de changelog diz o mesmo.
 4. Teto de pulados: `teto_pulados` é 1 na develop e no head (`tests/config.json`, sem diff); o único `@unittest.skip` em `tests/` é este. Rodado: `OK (skipped=1)`.
 5. A1 (rótulo `afrouxa-regra` e destaque no título) segue valendo e vai ao PR.
+
+## Revalidação 2 (head 0f7e405b)
+Head `0f7e405b960f0328109a83039e6a806e3ee7bec4` (de `ba6f6a03`), pelo `forge-check parecer delta`. Delta lido, uma linha: em `tests/mutantes/v0478-develop-relogio.json`, a lista `testes` do M1 ganhou `tests.test_hooks.Hooks.test_carga_explica_a_recusa_so_pelo_vigia_do_prazo_longo_com_disputa_provada`. Nada mais foi relido.
+1. Teste novo existe (`tests/test_hooks.py:1229`) e passa no head: `OK (skipped=1)` nos dois testes do M1, o do skip da S1 e o novo.
+2. Mutante M1 (`>= APROVEITAMENTO_MINIMO` trocado por `>= 0` em `tests/prova_de_carga.py`), aplicado numa cópia temporária do head: o teste novo reprova (`AssertionError: True is not false`). O teste mata o mutante, então a lista do M1 está correta.
+3. A1 segue valendo (o delta não toca o skip nem o teto). Aprovado.
