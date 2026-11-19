@@ -1314,11 +1314,22 @@ class Hooks(unittest.TestCase):
 
     def test_liberar_ou_provar_a_carga_recusa_a_sonda_s1(self):  # v0478, A1 do review
         """A sonda S1 do review, de verdade: o 1.o git dorme 3,8 s a mais que os 4 s do fixture, o vigia de 8 s recusa e a
-        recusa não passa como carga (o tempo a mais é sono, não fila da CPU: o hook não aproveita a parcela da referência)."""
+        recusa não passa como carga (o tempo a mais é sono, não fila da CPU: o hook não aproveita a parcela da referência).
+        A parcela da referência é a da S1 medida no review (0,36, disputa provada), e não a da hora (v0479-develop-relogio):
+        com a medida real, a máquina livre recusava pela parcela, sem chegar ao aproveitamento, e a muito carregada (parcela
+        perto de 0,1) aceitava a S1, porque a CPU fixa da subida do hook dividida por uma parcela pequena passa do mínimo. Com a
+        parcela fixa, decidem só a CPU e o relógio reais do hook, e a carga só os afasta do mínimo (menos CPU, mais relógio)."""
         f = Fixture(FIXTURES / "parecer/v0455-merge-com-git-lento-decide-no-prazo-longo.json")
         dados = json.loads(json.dumps(f.dados))
         dados["arquivos"]["lento/git"][1] = dados["arquivos"]["lento/git"][1].replace("sleep 4;", "sleep 4; sleep 3.8;")
-        with contextlib.redirect_stderr(io.StringIO()) as erro, self.assertRaises(AssertionError):
+
+        @contextlib.contextmanager
+        def referencia_da_s1():
+            medida = {"parcela": None}
+            yield medida
+            medida["parcela"] = 0.36
+        with contextlib.redirect_stderr(io.StringIO()) as erro, self.assertRaises(AssertionError), \
+                mock.patch(f"{__name__}.referencia_da_cpu", referencia_da_s1):
             self.liberar_ou_provar_a_carga("parecer/s1", Fixture(f.caminho, dados))
         self.assertNotIn("PRAZO-CARGA", erro.getvalue())
 
