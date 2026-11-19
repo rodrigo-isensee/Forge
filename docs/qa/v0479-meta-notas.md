@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta-notas
-commit: 870159838c177a81663725861816f6c14914b512
-parecer: reprovado
+commit: 7132ac151a5dd9b9fc4026ffdba7b2c182965bdb
+parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
@@ -15,9 +15,6 @@ data: 2026-11-18
 # QA: v0479-meta-notas (v0478 E25.4)
 
 Escopo: só os testes do diff (`tests/test_meta.py`, classe `NotasEntreFerramentas`; `tests/evals/test_erros_por_papel.py` sem o `expectedFailure`; fixture `tests/hooks/meta/notas-entre-ferramentas-em-ingles-acusa.json`) e os 14 mutantes. Sem suíte local: a suíte inteira é o check-run `bateria` do CI do PR.
-
-## Achados
-- A1 (bloqueante) tests/test_meta.py:350 · R-QA: o vermelho sai rc=2 (sem veredito): 8 dos 11 testes novos dão KeyError (erro) na base por `linha["notas_em_outro_idioma"]`, em vez de falhar por asserção. Use `.get(...)` para a base dar falha e o vermelho dar rc 0.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -39,5 +36,8 @@ Escopo: só os testes do diff (`tests/test_meta.py`, classe `NotasEntreFerrament
 - Mutação (`bin/forge-mutante --processos 4 tests/mutantes/v0478-meta-notas.json tests/mutantes/v0478-meta-notas-2.json`): `pedido=v0478 rev=870159838c17`, M1 a M14 `morreu`, rc=0, nenhum sobrevivente (M11 a M14 morrem por erro do teste declarado, o que o `forge-mutante` anota). Condições mudadas em `hooks/meta.py` (linhas 269, 271, 277, 279, 281 a 284, 287, 294, 297, 318): todas `coberta` no `--cobertura --base 0c47762a`; sem condição sem mutante.
 - Guarda de suíte vazia: os testes percorrem listas fixas pequenas e afirmam o conteúdo exato; sem glob.
 
+## Revalidação (head 7132ac15)
+Delta: só `tests/test_meta.py:350` (`.get`). `forge-testes --vermelho 0c47762a --modulos test_meta`, rc=0: `contagem: não prova (passa na base)=32; prova (API ausente)=3; prova (asserção)=8`. A1 resolvido.
+
 ## Resultado
-Reprovado só por A1 (vermelho sem veredito). Os testes e a mutação estão bons; o conserto é de uma linha no teste, do autor.
+Aprovado: vermelho com veredito (rc 0) e A1 fechado; testes e mutação já estavam bons.
