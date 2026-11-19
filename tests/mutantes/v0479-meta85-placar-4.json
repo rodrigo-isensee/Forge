@@ -1,0 +1,46 @@
+{
+  "pedido": "v0479-meta85-placar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "sem updatedAt vale o createdAt",
+      "arquivo": "bin/forge-placar",
+      "de": "str(r.get(\"updatedAt\") or r.get(\"createdAt\"))",
+      "para": "str(r.get(\"createdAt\") or r.get(\"createdAt\"))",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_horas_paradas_da_develop_vermelha_pelo_ci"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "o --ate é exclusivo",
+      "arquivo": "bin/forge-placar",
+      "de": "(lambda ct, _: inicio <= ct < fim)",
+      "para": "(lambda ct, _: inicio <= ct <= fim)",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_corte_por_hora_do_merge"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "sem corte por hora, só o dia do merge",
+      "arquivo": "bin/forge-placar",
+      "de": "(lambda _, cs: cs == dia)",
+      "para": "(lambda _, cs: cs != dia)",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "o título diz o recorte por hora",
+      "arquivo": "bin/forge-placar",
+      "de": "f\"de {recorte[0]} até {recorte[1]}\" if por_hora else",
+      "para": "f\"de {recorte[0]} até {recorte[1]}\" if False else",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_corte_por_hora_do_merge"
+      ]
+    }
+  ]
+}

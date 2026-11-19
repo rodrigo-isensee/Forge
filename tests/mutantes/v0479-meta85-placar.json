@@ -7,7 +7,7 @@
       "guarda": "PR do merge de dois pais vem do assunto",
       "arquivo": "bin/forge-placar",
       "de": "int(pr.group(1)) if pr else None",
-      "para": "None if pr else None",
+      "para": "int(pr.group(1)) if True else None",
       "testes": [
         "tests.evals.test_placar.Fases.test_pr_e_hora_do_merge_no_json"
       ]
