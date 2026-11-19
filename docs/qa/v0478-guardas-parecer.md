@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0478-guardas-parecer
-commit: 460a8a002d27be6089f22eb3452c4d9bc69646f1
+commit: deaf35704182bc20c1bcc2e630f044480e1ddb06
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-18
+data: 2026-11-19
 ---
 # QA: v0478 (guardas do hook `parecer`, E3.23, revalidação)
 
@@ -63,3 +63,14 @@ Escopo: delta `9a20739e..460a8a00` (`forge-check parecer delta`): `hooks/parecer
 - Mutação: `forge-mutante -10 -11 -12 --processos 3 --base 9a20739e...` → `base=9a20739e... rev=460a8a002d27`, rc 0; M58 a M75 todos `morreu`, sem sobrevivente nem equivalente. `--cobertura --base`: condições novas (677, 678) `coberta`; a spec `-10` sai `spec editada` (M62 acompanha a nova chamada, M63 a M65 novos).
 - Sondas minhas, fora do corpus: `$(( HOME = 0 ))`, `$((GIT_DIR=1,2))`, `(( HOME<TAB>=0 ))`, `$((x?HOME=1:2))`, `let "HOME=0"`, `$(( HO""ME=0 ))` contam todas como `HOME`/`GIT_DIR`.
 - D7 (`PATH`) é limite declarado por decisão do dono (docs/hooks.md); o `n=HOME; $(($n=0))` e o valor avaliado são abertos declarados (trava do sandbox, E29). Sem CI deste head, sem suíte inteira (brief). Parecer: aprovado, sem bug aberto.
+
+## Revalidação E3.36 (head deaf3570)
+Escopo: delta `460a8a00..deaf3570` (`forge-check parecer delta`): `hooks/parecer.py` (`pasta_do_gh`: sessão em cópia alheia com `cd` não resolvido recusa), `docs/hooks.md` D6, `changelog.d`, `SessaoNaCopiaAlheia`, spec `-12` (M76). Obrigação: A12 da segurança da E3.32 (GH-REMOTO-NA-LINHA).
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| `export HOME`, `: ${HOME:=/x}`, `HOME=…`, `declare HOME` seguidos de `cd ~/proj && gh` recusam (R-REVIEW) | `SessaoNaCopiaAlheia.test_cd_sem_resolver_recusa_e_o_resolvido_segue` | `cd ~/proj` resolvido confere o parecer (rc 2); gh sem `cd` na cópia alheia libera (rc 0, stderr vazio) | passou |
+
+- Vermelho: `forge-testes --vermelho 460a8a00... --modulos tests.test_hooks_parecer_matriz` → `vermelho: base=460a8a002d27 head=deaf35704182`; `SessaoNaCopiaAlheia.test_cd_sem_resolver_recusa_e_o_resolvido_segue` `H=ok · B=falha · prova (asserção)`; os outros 8 já existiam (não provam, não são novos).
+- Mutação: `forge-mutante tests/mutantes/v0478-guardas-parecer-12.json --processos 3 --base 460a8a00...` → `rev=deaf35704182`; M72 a M76 `morreu` (M76 em `hooks/parecer.py:1065`), sem sobrevivente nem equivalente. `--cobertura --base 460a8a00...`: `coberta · hooks/parecer.py:1065 · M76`.
+- Sem CI deste head, sem suíte inteira (brief). Parecer: aprovado, sem bug aberto.
