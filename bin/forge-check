@@ -1575,17 +1575,29 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
 def promocao(raiz, ref, base):
     """A9 e A10 do review do L08: True na promoção do fluxo, `develop` -> `homolog` -> `main`: a base é `homolog` ou `main` e o head é,
     commit a commit, a ponta de uma branch de integração anterior (`origin/develop` ou `origin/homolog`, ou a local sem remoto), agora ou
-    num merge anterior (`foi_ponta_da_integracao`, E31). Uma branch de trabalho não vira promoção trocando o `--base`: o head dela nunca
-    foi a ponta da integração."""
+    num merge anterior (`ponta_da_integracao`, E31). Uma branch de trabalho não vira promoção trocando o `--base`: o head dela não foi a
+    ponta da integração."""
     head = sha_do_commit(raiz, ref or "HEAD")
     anteriores = {"homolog": ("develop",), "main": ("develop", "homolog")}.get(base, ())
-    return bool(head) and any(foi_ponta_da_integracao(raiz, head, ref_da_base(raiz, b)) for b in anteriores)
+    return bool(head) and any(ponta_da_integracao(raiz, head, b) for b in anteriores)
+
+
+def ponta_da_integracao(raiz, head, base):
+    """E31.6 (segurança A1): o `head` foi a ponta da integração `base`. Na remota (`origin/<base>`), agora ou num merge anterior
+    (`foi_ponta_da_integracao`): ali o merge é pelo PR (squash ou merge commit) e o envio direto é barrado (R-FLUXO). Sem a remota, só a
+    ponta atual da local: nela um avanço rápido (ff) põe os commits intermediários do item na cadeia de primeiros pais."""
+    remota = sha_do_commit(raiz, f"refs/remotes/origin/{base}")
+    if remota:
+        return foi_ponta_da_integracao(raiz, head, remota)
+    return head == sha_do_commit(raiz, f"refs/heads/{base}")
 
 
 def foi_ponta_da_integracao(raiz, head, ponta):
     """E31 (v0478): o `head` é a `ponta` da integração ou foi, num merge anterior: está na cadeia de primeiros pais dela. É a marca da
-    versão com itens mesclados depois (`forge-fechar --promover <sha>`). O head de uma branch de trabalho mesclada é o segundo pai do merge
-    (ou some no squash), nunca primeiro pai; sem a ponta ou com o git falhando, não é promoção (falha fechada: o caminho do item)."""
+    versão com itens mesclados depois (`forge-fechar --promover <sha>`). A garantia vale com o merge por squash ou merge commit: o head da
+    branch de trabalho some no squash ou fica no segundo pai do merge. Com avanço rápido (ff), os commits do item entram na cadeia de
+    primeiros pais; por isso só a ponta remota usa a cadeia (`ponta_da_integracao`). Sem a ponta ou com o git falhando, não é promoção
+    (falha fechada: o caminho do item)."""
     if not ponta:
         return False
     cod, saida = git(raiz, "rev-list", "--first-parent", ponta)  # a própria ponta vem primeiro

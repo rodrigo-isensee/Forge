@@ -83,6 +83,19 @@ class PromocaoPorMarca(RepoComOrigem):
         self.assertFalse(fc.promocao(self.repo, trabalho, "main"))
         self.assertTrue(fc.promocao(self.repo, ponta, "main"))
 
+    def test_avanco_rapido_na_develop_local_sem_remoto_nao_vira_promocao(self):  # E31.6 (segurança A1, sonda S1)
+        intermediario = self.head_da_branch()
+        correcao = self.commitar(self.repo, {"src/x.txt": "x1 corrigido\nx2\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "correção")
+        for remota in ("develop", "homolog", "main"):  # sem remoto: vale a branch local
+            git("update-ref", "-d", f"refs/remotes/origin/{remota}", cwd=self.repo)
+        git("switch", "-q", "develop", cwd=self.repo)
+        git("merge", "-q", "--ff-only", "melhoria/x", cwd=self.repo)  # o item entra por ff: o intermediário vira primeiro pai
+        fc = self.fc()
+        self.assertIn(intermediario, git("rev-list", "--first-parent", "develop", cwd=self.repo).stdout.split())
+        self.assertFalse(fc.promocao(self.repo, intermediario, "main"))
+        self.assertFalse(fc.promocao(self.repo, intermediario, "homolog"))
+        self.assertTrue(fc.promocao(self.repo, correcao, "main"))  # a ponta atual da local segue promoção
+
     def test_sem_ponta_ou_com_o_git_falhando_nao_e_promocao(self):  # falha fechada: o caminho do item
         marca = self.marca_com_item_depois()
         fc = self.fc()
