@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-placar-fases
-commit: 42c2a906363bd12a0fc45fa0aa0a4fc0d5139f09
+commit: c08aee63c9d6161a53a2ead78cf2af20551a1221
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -70,3 +70,15 @@ Delta lido (`forge-check parecer delta`): `bin/forge-placar` (squash do `forge-f
 - `bin/forge-mutante --cobertura --base 0c47762a...`: rc 0, 36 linhas `coberta`, nenhuma `sem mutante`.
 - `bin/forge-mutante --base 2343148728af2cf625c63ac236290daa2344d29b tests/mutantes/v0479-placar-fases*.json`: `base=2343148728af... rev=42c2a906363b...`, rc 0, 41 `morreu`.
 - Vermelho antes do verde: os novos testes de squash exercem comportamento ausente em 2343148728af (a linha `sem_fases` e a medição por `refs/pull/N/head` não existiam); os mutantes novos (M35 a M41) morrem apenas porque os testes caem sem a guarda. Sem suíte local.
+
+## Revalidação no head c08aee63 (delta desde b8fb44f6)
+Delta lido (`forge-check parecer delta`): `bin/forge-placar` (`fundo_demais`, teto próprio de 64 níveis de `[` e `{` fora das strings, saída 2 em qualquer versão do Python, sem o `RecursionError`), `SemTeste.test_aninhamento_no_teto_e_colchete_em_string_passam`, specs de mutantes 6 (M34 reescrito) e 7 (M42 a M44) e changelog.
+
+| Critério novo | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Aninhamento 64 passa, 65 sai 2 com a mensagem do teto | `test_aninhamento_no_teto_e_colchete_em_string_passam` | máximo e logo acima | passou |
+| Colchete e chave dentro de string não contam | mesmo teste | 1000 `[` e `{` em string com `\"` | passou |
+
+- `python3 -I -m unittest discover -s tests/evals -p test_placar.py`: `Ran 39 tests ... OK`.
+- `bin/forge-mutante --base b8fb44f6 tests/mutantes/v0479-placar-fases-6.json tests/mutantes/v0479-placar-fases-7.json`: `base=b8fb44f6f086... rev=c08aee63c9d6...`, rc 0, M34 a M44 todos `morreu` (11), nenhum sobrevivente.
+- Vermelho: `bin/forge-testes --vermelho` estourou o prazo da chamada; vermelho feito à mão em cópia de HEAD com `bin/forge-placar` de b8fb44f6: o teste novo falha (`AssertionError: 0 != 2`, 65 níveis não é recusado), e passa no HEAD.
