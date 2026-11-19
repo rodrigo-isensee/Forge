@@ -32,7 +32,7 @@ Gatilho: nenhum.
 ## Revalidação E35.8 (head eba8b7d0)
 Lido só `forge-check parecer delta` (cdea2f38..eba8b7d0, 6 arquivos no domínio). O detalhe do rigor por classe e de quem acha os gatilhos sai de `R-REVIEW` e `R-SEGURANCA` para `skills/engineering-practices/rigor-por-classe.md`; a cópia de `forge-copia clone --instalar` vai para `ritmo-e-corte.md`; o brief de volta cita a revalidação sem repetir `R-REVIEW`. Nada some: cada trecho tirado está no arquivo de destino citado pela regra.
 - `python3 -m unittest tests.test_metricas_texto`: 2 testes, OK.
-- `python3 -m unittest test_forge.AntiDuplicacao` (em `tests/`): 2 testes, 1 falha, fora do domínio deste parecer: `docs/security/v0479-meta85-recomendado.md:25` copia a frase de `R-REVIEW` ("a de review e QA vira cartão depois do merge; a de segurança é corrigida antes"); conserto é do parecer de segurança (citar o ID). Este parecer, no domínio de código e testes, segue aprovado; o CI fica vermelho até esse conserto.
+- `python3 -m unittest test_forge.AntiDuplicacao` (em `tests/`): 2 testes, 1 falha, fora do domínio deste parecer: `docs/security/v0479-meta85-recomendado.md:25` copia a frase do recomendado de `R-REVIEW` (linha 16); conserto é do parecer de segurança (citar o ID). Este parecer, no domínio de código e testes, segue aprovado; o CI fica vermelho até esse conserto.
 
 ## Achados
 - A1 (recomendado) templates/projeto/docs/devops/_modelo.md:17 · O recomendado do parecer de devops segue "não devolve" sem destino (nem cartão nem correção antes); alinhar ao review e QA (vira cartão) ou dizer o que vale, e citar no agents/devops-engineer.md.
