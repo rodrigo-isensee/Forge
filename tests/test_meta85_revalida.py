@@ -5,7 +5,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from test_volta_por_delta import Repositorio  # noqa: E402
+from test_volta_por_delta import Repositorio, carregar_forge_check  # noqa: E402
+
+fc = carregar_forge_check()
 
 PARECER = ("---\ntipo: {tipo}\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: {p}\n"
            "revisor: forge:{revisor}\ndata: 2026-11-19\n---\n# Parecer\n")
@@ -59,6 +61,12 @@ class RevalidaSoQuemBarrou(Repositorio):
         rel = self.parecer("revisao-seguranca", "riscos-aceitos")
         self.commitar({"docs/security/aceites/p1.md": f"---\npedido: p1\naceite: sim\ncommit: {self.c1}\n---\n"}, "aceite do usuário")
         self.assertEqual(self.revalida(rel), "revalida: não (não barrou e o domínio não mudou; o parecer segue valendo)")
+
+    def test_veredito_com_commit_ilegivel_nao_consulta_o_git(self):  # o `commit:` fora da forma já é violação do `validar_documento`
+        campos = {"tipo": "review", "pedido": "p1", "parecer": "aprovado", "commit": "zzz"}
+        veredito = getattr(fc, "veredito_do_parecer", None)  # na base, falha (não dá erro)
+        self.assertTrue(callable(veredito), "sem a fonte única do veredito")
+        self.assertIsNone(veredito(self.repo, "p1", campos, "review", None, None, ()))
 
 
 if __name__ == "__main__":

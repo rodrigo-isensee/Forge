@@ -2016,8 +2016,6 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
         campo, motivo = veredito_do_parecer(raiz, pedido, campos, tipo, ref, base, dispensados) or (None, None)
         if campo == "parecer":
             saida.append(f"{caminho_impresso(rel)}: parecer: {motivo} ({rid})")
-        elif campo == "paralelo":  # AQ-5: o `commit:` é o HEAD com os pareceres paralelos, não o código revisado
-            saida.append(f"{caminho_impresso(rel)}: commit: {motivo} ({rid})")
         elif motivo:
             livres = livres_do_pedido(pedido)
             junto = commit_junto_do_parecer(raiz, rel, ref or "HEAD", livres) if motivo and motivo.startswith("desatualizado") else None
@@ -2044,8 +2042,8 @@ def livres_do_pedido(pedido):
 
 def veredito_do_parecer(raiz, pedido, campos, tipo, ref, base, dispensados):
     """META85 (uma fonte só do `forge-check pr` e do `revalida:` do `parecer delta`): (campo, motivo) do que barra o parecer em `ref`
-    (None: o HEAD e a árvore), ou None se ele vale. `parecer`: não aprova ou é `riscos-aceitos` sem o aceite do usuário; `paralelo`:
-    o `commit:` é só de parecer (AQ-5); `commit`: o domínio mudou depois dele (`commit_vale`, PARECER-CONTEUDO)."""
+    (None: o HEAD e a árvore), ou None se ele vale. `parecer`: não aprova ou é `riscos-aceitos` sem o aceite do usuário; `commit`:
+    o `commit:` é só de parecer (AQ-5) ou o domínio mudou depois dele (`commit_vale`, PARECER-CONTEUDO)."""
     if campos.get("parecer") == "riscos-aceitos" and not aceite_do_usuario(raiz, pedido, campos.get("commit"), ref):
         return "parecer", (f"`riscos-aceitos` só vale com o aceite do usuário em docs/security/aceites/{pedido}.md (`aceite: sim` e "
                            "`commit:` igual ao do parecer, gravado à mão por ele)")
@@ -2053,8 +2051,8 @@ def veredito_do_parecer(raiz, pedido, campos, tipo, ref, base, dispensados):
         return "parecer", "o último parecer não é aprovado"
     if not COMMIT.match(campos.get("commit") or ""):
         return None
-    if paralelo := commit_de_pareceres_paralelos(raiz, campos["commit"], pedido):
-        return "paralelo", paralelo
+    if paralelo := commit_de_pareceres_paralelos(raiz, campos["commit"], pedido):  # AQ-5: o HEAD com os pareceres paralelos
+        return "commit", paralelo
     motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base, livres_do_pedido(pedido), estritos=FRAGMENTOS, dominio=tipo,
                          mais=dominio_mais(campos), dispensados=dispensados)
     return ("commit", motivo) if motivo else None
