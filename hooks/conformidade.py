@@ -2290,6 +2290,7 @@ class Guarda:
         prog = Path(palavras[0].lstrip("`")).name
         args = palavras[1:]
         if prog in ("busybox", "toybox") and args and not args[0].startswith("-"):  # A4 da volta 2, A5: o applet é o programa
+            self.atualizacao(palavras)  # A6: antes da troca, a varredura que o `busybox` tinha em ENVOLVEDORES
             palavras, prog, args = args, Path(args[0]).name, args[1:]
         if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}:
             self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}).pop()  # recusa no fim da linha

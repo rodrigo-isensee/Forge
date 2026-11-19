@@ -602,3 +602,49 @@ class ConfigDaWorktreeNoClone(CloneDoForge):
         r = subprocess.run([sys.executable, "-I", "-c", codigo, str(HOOKS_DO_CLONE), str(self.wt)], cwd=self.wt,
                            capture_output=True, text=True, timeout=60, env={**self.env(), "CLAUDE_PROJECT_DIR": str(self.wt)})
         self.assertEqual((r.returncode, r.stdout.strip()), (0, str(self.wt)), r.stderr)
+
+
+# A6 da segurança (v0478, E1.18): o `busybox` (e o `toybox`) trocado pelo applet não perde a varredura de `forge atualizar`
+# que o `busybox` tinha em ENVOLVEDORES. Applets que rodam outro programa; `{c}` é a carga recusada.
+APPLETS_QUE_RODAM_PROGRAMA = (
+    "chroot / {c}", "nsenter -t 1 {c}", "setarch x86_64 {c}", "linux32 {c}", "linux64 {c}", "chpst -u x {c}",
+    "su -c '{c}'", "watch {c}", "start-stop-daemon -S -x {c}", "ssd -S -x {c}", "run-parts {c}", "setuidgid x {c}",
+    "envdir d {c}", "envuidgid x {c}", "softlimit -m 1 {c}", "cttyhack {c}", "runuser -u x {c}", "ash -c '{c}'",
+    "hush -c '{c}'", "toybox {c}", "tclsh {c}", "awk -f x {c}", "inotifyd {c} d", "tcpsvd 0 1 {c}", "udpsvd 0 1 {c}",
+    "nc -e {c}", "ftpd {c}", "httpd {c}", "crond {c}", "sv {c}", "runsv {c}", "runsvdir {c}", "sh -c {c}", "bash -c {c}",
+    "env {c}", "nice {c}", "nohup {c}", "timeout 1 {c}", "setsid {c}", "time {c}", "xargs {c}", "taskset 1 {c}",
+    "flock l {c}", "unshare {c}", "ionice {c}", "chrt 1 {c}", "script -c '{c}'", "exec {c}", "stdbuf -o0 {c}",
+    "sh -c '{c}'", "bash -c '{c}'", "ash -c {c}", "su -s /bin/sh -c '{c}'", "sudo {c}")
+CARGAS_DE_ATUALIZACAO = ("forge-atualizar", "forge atualizar", "forge voltar-versao 0.1.0")
+
+
+class AtualizacaoAtrasDoBusybox(CloneDoForge):
+    def rodar_em(self, raiz, c, papel):
+        dados = {"tool_name": "Bash", "tool_input": {"command": c}, "hook_event_name": "PreToolUse", "agent_type": papel}
+        return subprocess.run([sys.executable, "-I", "-c", LANCADOR_DO_CLONE, str(HOOKS_DO_CLONE), str(HOOKS_DO_CLONE / "conformidade.py")],
+                              input=json.dumps(dados), cwd=raiz, capture_output=True, text=True, timeout=120,
+                              env={**self.env(), "CLAUDE_PROJECT_DIR": str(raiz)})
+
+    def projeto(self):
+        proj = self.tmp / "proj"
+        (proj / ".forge").mkdir(parents=True)
+        (proj / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        subprocess.run(["git", "init", "-q", str(proj)], check=True, env=self.env(), capture_output=True, timeout=60)
+        return proj
+
+    def test_applet_que_roda_programa_nao_esconde_a_atualizacao(self):  # S19: rc 2 como na origin/develop
+        self.assertGreaterEqual(len(APPLETS_QUE_RODAM_PROGRAMA), 54)
+        prefixos = ("busybox", "/bin/busybox", "toybox")
+        casos = [(prefixos[i % 3], a.format(c=CARGAS_DE_ATUALIZACAO[i % 3])) for i, a in enumerate(APPLETS_QUE_RODAM_PROGRAMA)]
+        proj = self.projeto()  # no clone do Forge a atualização não é recusada nem direta: a guarda é do projeto
+        for papel in ("forge:tech-lead", "forge:qa-engineer"):
+            for prefixo, applet in casos:
+                c = f"{prefixo} {applet}"
+                r = self.rodar_em(proj, c, papel)
+                self.recusa(r, f"{papel}: {c}")
+                self.assertRegex(r.stderr, "troca o plugin", c)
+
+    def test_applet_sem_atualizacao_segue_livre(self):  # o legítimo atrás do busybox continua passando
+        proj = self.projeto()
+        for c in ("busybox ls docs", "busybox chroot / ls", "toybox watch date", "busybox env ls", "busybox --list"):
+            self.libera(self.rodar_em(proj, c, "forge:tech-lead"), c)

@@ -61,6 +61,16 @@
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_opcoes_do_catalogo_recusam"
       ]
+    },
+    {
+      "id": "M72",
+      "guarda": "A6: o busybox varre a atualização antes de trocar pelo applet",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self.atualizacao(palavras)  # A6",
+      "para": "pass  # A6",
+      "testes": [
+        "tests.test_conformidade_verde.AtualizacaoAtrasDoBusybox.test_applet_que_roda_programa_nao_esconde_a_atualizacao"
+      ]
     }
   ]
 }
