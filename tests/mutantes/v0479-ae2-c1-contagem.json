@@ -1,0 +1,70 @@
+{
+  "pedido": "v0479-ae2-c1-contagem",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "git que sai com erro não vira contagem (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "    if r.returncode:\n        raise ContagemIndisponivel",
+      "para": "    if False:\n        raise ContagemIndisponivel",
+      "testes": ["tests.test_contador.NaoVerificavel.test_git_que_falha_no_meio"]
+    },
+    {
+      "id": "M2",
+      "guarda": "git que trava vira não verificável (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "except (OSError, subprocess.TimeoutExpired) as e:",
+      "para": "except (OSError,) as e:",
+      "testes": ["tests.test_contador.NaoVerificavel.test_git_que_trava"]
+    },
+    {
+      "id": "M3",
+      "guarda": "registro vazio do log não vira commit (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "        if cabeca:",
+      "para": "        if True:",
+      "testes": ["tests.test_contador.Contagem.test_tag_no_topo_sem_prs"]
+    },
+    {
+      "id": "M4",
+      "guarda": "sem tag na forma, a marca é o primeiro commit (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "    if not tags:",
+      "para": "    if False:",
+      "testes": ["tests.test_contador.Contagem.test_sem_tag_conta_desde_o_primeiro_commit"]
+    },
+    {
+      "id": "M5",
+      "guarda": "tag fora da forma v<n>.<n>.<n> é ignorada (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "if (m := TAG_DE_VERSAO.fullmatch(t))]",
+      "para": "if (m := TAG_DE_VERSAO.match(t))]",
+      "testes": ["tests.test_contador.Contagem.test_tag_fora_da_forma_e_ignorada_e_vale_a_maior"]
+    },
+    {
+      "id": "M6",
+      "guarda": "só a linha inteira na forma da citação conta (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "m = LINHA_DE_CARTAO.fullmatch(linha)",
+      "para": "m = LINHA_DE_CARTAO.match(linha)",
+      "testes": ["tests.test_contador.Contagem.test_gatilho_dois_merges_tres_cartoes_depois_da_tag"]
+    },
+    {
+      "id": "M7",
+      "guarda": "ID fora da forma é recusado e nunca segue (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "        if not ID_DO_CARTAO.fullmatch(valor):",
+      "para": "        if False:",
+      "testes": ["tests.test_contador.Citacoes.test_ids_recusados"]
+    },
+    {
+      "id": "M8",
+      "guarda": "cartão repetido no PR conta uma vez (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "        if valor.casefold() in achados[parcial]:",
+      "para": "        if False:",
+      "testes": ["tests.test_contador.Citacoes.test_repetido_conta_uma_vez"]
+    }
+  ]
+}

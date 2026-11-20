@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-ae2-c1-contagem",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "teto de 10 citações por PR (AE2 C1, D9)",
+      "arquivo": "bin/forge_contador.py",
+      "de": ">= TETO_DE_CITACOES:",
+      "para": "> TETO_DE_CITACOES:",
+      "testes": [
+        "tests.test_contador.Citacoes.test_teto_de_dez_por_pr"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "ref começada por - nunca vira opção do git (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "    if not ref or ref.startswith(\"-\"):",
+      "para": "    if not ref:",
+      "testes": [
+        "tests.test_contador.NaoVerificavel.test_ref_com_hifen_e_recusada_sem_chamar_git"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "merge de PR só com dois pais (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "        if len(pais) == 2 and (m := MERGE_DE_PR.fullmatch(assunto)):",
+      "para": "        if (m := MERGE_DE_PR.fullmatch(assunto)):",
+      "testes": [
+        "tests.test_contador.Contagem.test_assunto_de_merge_forjado_fora_da_primeira_linha_nao_e_pr"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "squash de PR só com um pai (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "        elif len(pais) == 1 and (m := SQUASH_DE_PR.fullmatch(assunto)):",
+      "para": "        elif (m := SQUASH_DE_PR.fullmatch(assunto)):",
+      "testes": [
+        "tests.test_contador.Contagem.test_merge_sem_assunto_de_pr_nao_conta"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "sem marca, o intervalo é a ref inteira (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "f\"{tag}..{ref}\" if tag else ref",
+      "para": "f\"{tag}..{ref}\" if True else ref",
+      "testes": [
+        "tests.test_contador.Contagem.test_sem_tag_conta_desde_o_primeiro_commit"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "só a quebra de linha abre linha de citação (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "unicodedata.normalize(\"NFC\", msg).split(\"\\n\")",
+      "para": "unicodedata.normalize(\"NFC\", msg).splitlines()",
+      "testes": [
+        "tests.test_contador.Citacoes.test_separador_unicode_nao_abre_linha"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "só a linha de primeiro pai da develop traz PR (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "*([\"--first-parent\"] if primeira_linha else [])",
+      "para": "*([\"--first-parent\"] if not primeira_linha else [])",
+      "testes": [
+        "tests.test_contador.Contagem.test_assunto_de_merge_forjado_fora_da_primeira_linha_nao_e_pr"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "linha fora da forma da citação é pulada (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "        if not m:\n            continue",
+      "para": "        if False:\n            continue",
+      "testes": [
+        "tests.test_contador.Citacoes.test_linha_que_nao_comeca_pela_chave_nao_conta"
+      ]
+    }
+  ]
+}

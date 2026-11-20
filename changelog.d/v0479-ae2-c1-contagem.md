@@ -1,0 +1,2 @@
+### Adicionado
+- bin/forge_contador.py: núcleo da contagem do contador da versão (AE2 C1): cartões entregues por PR mesclado na develop desde a última tag v<n>.<n>.<n>, lidos das linhas Cartão: e Cartão-parcial: dos commits do PR (merge e squash, só a linha de primeiro pai), com ID na forma do movimento, até 10 citações por PR e falha fechada (não verificável) com git ausente, lento ou ref inválida (v0478 E56.1).

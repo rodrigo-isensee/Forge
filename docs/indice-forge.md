@@ -33,6 +33,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `forge-voltar-versao` | volta para a versão do Forge de antes da última atualização (primeiro uso, F5). Rode no terminal, dentro do projeto. |
 | `forge_apoio_testes.py` | o que `bin/forge-testes` e `bin/forge-mutante` têm em comum: a linha de contexto do log (MAQ-A7), com as outras |
 | `forge_autorizacao.py` | as autorizações do dono gravadas (ADR 0018, G1.1: formato, integridade e estado). Só biblioteca padrão; só leitura. |
+| `forge_contador.py` | a contagem do contador da versão (AE2 C1, v0478 E56.1; desenho v0479-ae2-contador, seção 4.1). |
 | `forge_corrigidos.py` | `forge-check corrigidos` e `forge-check afrouxamentos` (M14b; FILA-31 F6, 0.45.7 E5.3): os PRs `fix` que corrigem PR já |
 | `forge_decisor.py` | decisão óbvia por regra fixa (orkastery 3, 0.44.2). Só biblioteca padrão. |
 | `forge_disco.py` | o uso do disco e o limiar único da cópia de trabalho (MP6, v0474 E3.251). |

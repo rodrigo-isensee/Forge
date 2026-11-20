@@ -1,0 +1,16 @@
+{
+  "pedido": "v0479-ae2-c1-contagem",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "o git da contagem não herda GIT_* de quem chama (AE2 C1)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "env = {k: v for k, v in os.environ.items() if not k.startswith(\"GIT_\")}",
+      "para": "env = {k: v for k, v in os.environ.items() if True}",
+      "testes": [
+        "tests.test_contador.NaoVerificavel.test_git_sem_variaveis_herdadas"
+      ]
+    }
+  ]
+}
