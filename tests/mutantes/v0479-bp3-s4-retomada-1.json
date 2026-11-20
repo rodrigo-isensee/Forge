@@ -66,8 +66,8 @@
       "id": "M7",
       "guarda": "BP3-S4: a entrega conferida só vale se o commit é de depois do desde",
       "arquivo": "bin/forge_retomada.py",
-      "de": "int(hora) >= desde",
-      "para": "int(hora) >= 0",
+      "de": "int(hora[1]) >= desde",
+      "para": "int(hora[1]) >= 0",
       "testes": [
         "tests.test_forge_check_retomada.Matriz.test_entrega_conferida_antes_do_desde_nao_vale"
       ]

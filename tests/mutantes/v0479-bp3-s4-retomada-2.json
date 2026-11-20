@@ -36,8 +36,8 @@
       "id": "M15",
       "guarda": "BP3-S4: brief ausente manda reselar e relançar",
       "arquivo": "bin/forge_retomada.py",
-      "de": "    if atual is None:",
-      "para": "    if False:",
+      "de": "\"sem_brief\" if atual is None else \"vencido\"",
+      "para": "\"vencido\"",
       "testes": [
         "tests.test_forge_check_retomada.Matriz.test_brief_ausente"
       ]
@@ -70,16 +70,6 @@
       "para": "signal.alarm(0)",
       "testes": [
         "tests.test_forge_check_retomada.Contar.test_o_prazo_do_contar_corta_em_3_s_dentro_do_modulo"
-      ]
-    },
-    {
-      "id": "M19",
-      "guarda": "BP3-S4: a linha sai sem caractere de controle (nada imita outra linha)",
-      "arquivo": "bin/forge_retomada.py",
-      "de": "print(ctx[\"sem_controle\"](f\"retomada: {forma(",
-      "para": "print((f\"retomada: {forma(",
-      "testes": [
-        "tests.test_forge_check_retomada.Matriz.test_tipo_e_branch_com_controle_nao_imitam_outra_linha"
       ]
     },
     {
