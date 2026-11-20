@@ -31,6 +31,26 @@
       "testes": [
         "tests.evals.test_placar.CiPrimeira.test_execucao_seguinte_nao_troca_a_primeira_que_nao_foi_cancelada"
       ]
+    },
+    {
+      "id": "M33",
+      "guarda": "dependabot pelo login exato, não por substring (A1 da segurança)",
+      "arquivo": "bin/forge-placar",
+      "de": "if str(autor) in AUTORES_DEPENDABOT or not dentro(dia, janela):",
+      "para": "if \"dependabot\" in str(autor).lower() or not dentro(dia, janela):",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_dependabot_e_o_login_exato_nao_a_substring"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "o login dependabot[bot] também fica fora",
+      "arquivo": "bin/forge-placar",
+      "de": "frozenset({\"app/dependabot\", \"dependabot[bot]\"})",
+      "para": "frozenset({\"app/dependabot\"})",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_dependabot_e_o_login_exato_nao_a_substring"
+      ]
     }
   ],
   "isentas": []

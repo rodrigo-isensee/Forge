@@ -869,6 +869,17 @@ class CiPrimeira(unittest.TestCase):
         rc, saida, erro = self.rodar(runs, [pr(1, ramo="dependabot/x", autor="app/dependabot")])
         self.assertEqual((rc, saida.splitlines()[-1]), (0, "total: nenhum PR aberto na janela"), erro)
 
+    def test_dependabot_e_o_login_exato_nao_a_substring(self):
+        runs = [run("CI", "a", "2026-11-18T10:01:00Z", "failure"), run("Catraca", "a", "2026-11-18T10:01:05Z")]
+        for login in ("app/dependabot", "dependabot[bot]"):
+            with self.subTest(login=login):
+                self.assertIsNone(self.total(runs, [pr(1, autor=login)])[0])
+        for login in ("not-dependabot-fan", "dependabot", "App/Dependabot"):
+            with self.subTest(login=login):  # A1 da segurança: login que só contém a palavra fica na medida
+                total, _ = self.total(runs, [pr(1, autor=login)])
+                self.assertIsNotNone(total, "o PR saiu da medida")
+                self.assertEqual((total["vermelho"], total["falhas"]), (1, {"CI": 1}))
+
     def test_resposta_ilegivel_sai_lacuna_nunca_verde(self):
         bons = [run("CI", "a", "2026-11-18T10:01:00Z"), run("Catraca", "a", "2026-11-18T10:01:05Z")]
         sem_campo = [dict(bons[0]), bons[1]]

@@ -72,7 +72,7 @@ branch depois da abertura do PR, o que vale para PR reaberto e branch reescrita)
 (`--exigidos`, padrão `CI,Catraca`) em `success`. Cancelada não conta como verde nem como vermelha (fica em `cancelados`, fora da
 taxa) quando o envio novo a cancelou; cancelada por rótulo ou edição dá lugar à execução seguinte do mesmo head. Ainda
 rodando, `pendentes`; rerun (`attempt` acima de 1) e qualquer outra conclusão, vermelho; workflow fora da lista, ignorado;
-workflow exigido sem execução no 1.º head, `lacunas`; PR do dependabot, fora. Os vermelhos saem por workflow (e por job, quando
+workflow exigido sem execução no 1.º head, `lacunas`; PR do dependabot (login exato), fora. Os vermelhos saem por workflow (e por job, quando
 o run traz `jobs`), para separar a catraca do resto. Fontes geradas fora, sem rede: `--runs` (`gh run list --event
 pull_request --json workflowName,headBranch,headSha,event,status,conclusion,createdAt,attempt`) e `--pr-lista` (`gh pr list --state
 all --json number,headRefName,createdAt,author`). Fonte ausente ou ilegível (não JSON, não lista, campo faltando, data inválida,
@@ -789,6 +789,7 @@ def cmd_fases(args):
 
 EXIGIDOS = "CI,Catraca"  # D7 do PR-VERDE: os workflows exigidos do Forge; o projeto passa os dele em --exigidos
 META_PRIMEIRA = 0.85  # PR-VERDE-DE-PRIMEIRA: de ~57% para 85%
+AUTORES_DEPENDABOT = frozenset({"app/dependabot", "dependabot[bot]"})  # login exato: substring tiraria qualquer login com a palavra
 CAMPOS_DO_RUN = "workflowName,headBranch,headSha,event,status,conclusion,createdAt,attempt"
 
 
@@ -860,7 +861,7 @@ def cmd_primeira(args):
     for pr in prs:
         dia = datetime.datetime.fromtimestamp(pr["quando"], datetime.timezone.utc).date()
         autor = pr["author"].get("login") if isinstance(pr["author"], dict) else pr["author"]
-        if "dependabot" in str(autor).lower() or not dentro(dia, janela):
+        if str(autor) in AUTORES_DEPENDABOT or not dentro(dia, janela):  # str: login lista ou objeto não quebra o conjunto
             continue
         estado, falhas = primeira_execucao(pr, runs, exigidos)
         itens.append({"pr": pr["number"], "dia": dia.isoformat(), "estado": estado, "falhas": falhas})

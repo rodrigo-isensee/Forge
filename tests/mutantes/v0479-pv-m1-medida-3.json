@@ -26,7 +26,7 @@
       "id": "M19",
       "guarda": "PR do dependabot fica fora",
       "arquivo": "bin/forge-placar",
-      "de": "if \"dependabot\" in str(autor).lower() or not dentro(dia, janela):",
+      "de": "if str(autor) in AUTORES_DEPENDABOT or not dentro(dia, janela):",
       "para": "if not dentro(dia, janela):",
       "testes": [
         "tests.evals.test_placar.CiPrimeira.test_dependabot_e_pr_fora_da_janela_ficam_fora"
