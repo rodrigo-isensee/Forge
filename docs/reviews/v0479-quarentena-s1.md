@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-quarentena-s1
-commit: 04e7293b3c89ea21b6575a2f848b81a540af52f7
+commit: 968bc3ff91e44c220723b0bbb4dbc8a62c1a1516
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
@@ -40,3 +40,10 @@ Head `04e7293b3c89ea21b6575a2f848b81a540af52f7` (de `0f7e405b`), pelo `forge-che
 2. `TetoDaQuarentena` (`tests/test_catraca.py`) e `tests/quarentenas.py`: o teto passa só até 1 mais as quarentenas abertas (skip cujo motivo começa com "quarentena"); o motivo do skip da S1 (`tests/test_hooks.py:1324`) começa assim, então conta 1 e o teto 2 passa. Rodado: 4 testes `OK`.
 3. Guardas: `quarentenas.py` tem 6 linhas de decisão, M1 a M6, um mutante por linha. Rodados numa cópia: M1 (`+ 1` no teto) reprova 2 testes; M6 (sem `startswith("quarentena")`) reprova 3. M2 a M5 vão pelo teste de contagem, que cobre skipIf, skipTest, subpasta, skip sem motivo e motivo não literal.
 4. A1 segue valendo (rótulo `afrouxa-regra` e destaque no título; agora também pelo teto de 1 para 2).
+
+## Revalidação 4 (head 968bc3ff)
+Head `968bc3ff91e44c220723b0bbb4dbc8a62c1a1516` (de `04e7293b`), pelo `forge-check parecer delta`. Domínio lido: `tests/quarentenas.py`, `tests/test_catraca.py` e as specs `tests/mutantes/v0479-quarentena-s1.json`, `-2.json` e `-3.json`. Aprovado.
+1. `quarentenas_abertas` conta só skip vivo: `@unittest.skip` em `test_*` de classe TestCase e `skipTest` no corpo, sem função aninhada, lambda, `if False`/`if 0` nem função solta. Exige data AAAA-MM-DD e "OK do dono" no motivo (ValueError sem eles).
+2. A S1 continua contando 1: `quarentenas_abertas('tests')` no head dá 1; o motivo do skip (`tests/test_hooks.py:1324`) traz "OK do dono 19/11 18:12" e "prazo 2026-11-26". Teto 2 segue passando.
+3. Rodado: `tests.test_catraca.TetoDaQuarentena`, 8 testes `OK`. Mutantes M1 a M22 (`forge-mutante` nas 3 specs): todos morreram; os que morreram por erro (M4 a M7, M14, M15, M19, M21) quebram o teste declarado, que passa sem o mutante.
+4. A1 segue valendo (rótulo `afrouxa-regra` e destaque no título; teto 1 para 2).
