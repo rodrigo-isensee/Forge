@@ -1812,15 +1812,15 @@ class PrepararEstacao(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
 
     @staticmethod
-    def _sem_gh(env, tmp):
-        """PATH sem o gh real: cada pasta que o tem vira uma pasta de links para o resto."""
+    def _sem_gh(env, tmp, nome="gh"):
+        """PATH sem o `nome` real (gh): cada pasta que o tem vira uma pasta de links para o resto."""
         novas = []
         for k, q in enumerate(env["PATH"].split(":")):
-            if (Path(q) / "gh").exists():
-                copia = Path(tmp) / f"sem-gh{k}"
-                copia.mkdir()
+            if (Path(q) / nome).exists():
+                copia = Path(tmp) / f"sem-{nome}{k}"
+                copia.mkdir(exist_ok=True)
                 for item in Path(q).iterdir():
-                    if item.name != "gh":
+                    if item.name != nome and not (copia / item.name).is_symlink():
                         (copia / item.name).symlink_to(item)
                 q = str(copia)
             novas.append(q)
@@ -1993,6 +1993,7 @@ class PrepararEstacao(unittest.TestCase):
                 self.assertNotRegex(cmd, r"refs/remotes|origin/main|\bshow\b")  # nada de ref local
                 self.assertTrue(cmd.rstrip().endswith("; true"), "falha do preparo não pode impedir o container de subir")
                 self.assertNotRegex(texto, r"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|localEnv")
+                self.assertEqual(cfg.get("shutdownAction"), "none", "D2 da BP3: fechar o VS Code não para o container")
         self.assertIn("FORGE_PREPARO_ESSENCIAL=1", self._cfg_devcontainer(".devcontainer/devcontainer.json")[1]["postStartCommand"])
 
     def _poststart(self, tmp, caminho, script, main_script, local_script):
@@ -2097,7 +2098,7 @@ class PrepararEstacao(unittest.TestCase):
             self.assertEqual(r.returncode, 1)
             self.assertIn("falta: gh não instalado: rode bash ", r.stdout)
 
-    def _projeto_ambiente(self, tmp, *args, logado=False, sem_gh=False, extras=None):
+    def _projeto_ambiente(self, tmp, *args, logado=False, sem_gh=False, sem_tmux=False, extras=None):
         """Roda o preparar-ambiente.sh do modelo de projeto com gh falso e home descartável."""
         tmp = Path(tmp)
         home, persist, bin_falso, proj = tmp / "home", tmp / "persist", tmp / "bin", tmp / "proj"
@@ -2108,6 +2109,8 @@ class PrepararEstacao(unittest.TestCase):
         registro = tmp / "chamadas"
         falsos = {} if sem_gh else {"gh": f'echo "gh $*" >> "{registro}"\n[ "$1 $2" = "auth status" ] && exit {0 if logado else 1}\nexit 0\n'}
         falsos.update({n: f'echo "{n} $*" >> "{registro}"\nexit 1\n' for n in ("sudo", "curl", "apt-get")})
+        if not sem_tmux:
+            falsos["tmux"] = "exit 0\n"
         falsos.update(extras or {})
         for nome, corpo in falsos.items():
             (bin_falso / nome).write_text("#!/bin/sh\n" + corpo)
@@ -2117,6 +2120,8 @@ class PrepararEstacao(unittest.TestCase):
                    FORGE_APT_CHAVE=str(tmp / "apt-chave.gpg"), FORGE_APT_LISTA=str(tmp / "apt-gh.list"))
         if sem_gh:
             self._sem_gh(env, tmp)
+        if sem_tmux:
+            self._sem_gh(env, tmp, "tmux")
         r = subprocess.run(["bash", str(RAIZ / "templates/projeto/.devcontainer/preparar-ambiente.sh"), *args], env=env,
                            capture_output=True, text=True, stdin=subprocess.DEVNULL)
         return r, home, persist, proj, (registro.read_text() if registro.exists() else "")
@@ -2148,6 +2153,56 @@ class PrepararEstacao(unittest.TestCase):
             self.assertEqual(r.returncode, 1)
             self.assertIn("falta: login do gh:", r.stdout)
             self.assertIn("fez: core.hooksPath=.githooks", r.stdout)
+
+    def test_modelo_de_projeto_instala_tmux_pelo_apt_e_verificar_lista_a_falta(self):
+        """BP3 S2: sem tmux, o preparo o instala pelo apt do sistema (sem chave nova) e o --verificar diz `falta: tmux`."""
+        with tempfile.TemporaryDirectory() as tmp:
+            r, _, _, proj, _ = self._projeto_ambiente(tmp, "--verificar", logado=True, sem_tmux=True)
+            self.assertEqual(r.returncode, 1)
+            self.assertIn(f"falta: tmux não instalado (a sessão do Jarvis não sobrevive a uma queda do terminal sem ele): rode bash {proj}/", r.stdout)
+            apt = {"sudo": 'exec "$@"\n', "apt-get": f'echo "apt-get $*" >> "{Path(tmp) / "chamadas"}"\nexit 0\n'}
+            r, _, _, _, chamadas = self._projeto_ambiente(tmp, logado=True, sem_tmux=True, extras=apt)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn("fez: instalou tmux", r.stdout)
+            self.assertIn("apt-get install -y -qq tmux", chamadas)
+        with tempfile.TemporaryDirectory() as tmp:
+            r, *_ = self._projeto_ambiente(tmp, logado=True, sem_tmux=True)  # apt falso falha: a falta aparece e sai 1
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("falta: instalar tmux", r.stdout)
+
+    def test_modelo_de_projeto_vscode_so_anexa_ao_jarvis_existente_e_container_nao_para(self):
+        """BP3 S2 (D2, D3 do dono): a tarefa roda ao abrir a pasta, só anexa ao tmux que já existe (nunca `new-session`) e o
+        container do modelo não para ao fechar o VS Code."""
+        tarefas = json.loads((RAIZ / "templates/projeto/.vscode/tasks.json").read_text(encoding="utf-8"))["tasks"]
+        self.assertEqual(len(tarefas), 1)
+        t = tarefas[0]
+        self.assertEqual(t["runOptions"], {"runOn": "folderOpen"})
+        self.assertIn("tmux has-session", t["command"])
+        self.assertIn("tmux attach-session", t["command"])
+        self.assertNotIn("new-session", t["command"])
+        self.assertEqual(self._cfg_devcontainer("templates/projeto/.devcontainer/devcontainer.json")[1]["shutdownAction"], "none")
+
+    def test_tarefa_do_vscode_anexa_a_sessao_existente_e_nao_cria_outra(self):
+        """O comando literal da tarefa, com tmux falso: sessão presente -> attach da sessão exata; ausente -> aviso, sem criar nada."""
+        cmd = json.loads((RAIZ / "templates/projeto/.vscode/tasks.json").read_text(encoding="utf-8"))["tasks"][0]["command"]
+        for existe in (True, False):
+            with self.subTest(existe=existe), tempfile.TemporaryDirectory() as tmp:
+                tmp = Path(tmp)
+                proj, bin_falso, reg = tmp / "meu.proj", tmp / "bin", tmp / "chamadas"
+                proj.mkdir()
+                bin_falso.mkdir()
+                (bin_falso / "tmux").write_text(f'#!/bin/sh\necho "$*" >> "{reg}"\n[ "$1" = has-session ] && exit {0 if existe else 1}\nexit 0\n')
+                (bin_falso / "tmux").chmod(0o755)
+                env = ambiente_limpo()
+                env["PATH"] = f"{bin_falso}:{env['PATH']}"
+                r = subprocess.run(["bash", "-c", cmd], cwd=proj, env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+                chamadas = reg.read_text().splitlines()
+                self.assertEqual(r.returncode, 0, r.stderr)
+                if existe:
+                    self.assertEqual(chamadas, ["has-session -t =jarvis-meu_proj", "attach-session -t =jarvis-meu_proj"])
+                else:
+                    self.assertEqual(chamadas, ["has-session -t =jarvis-meu_proj"])
+                    self.assertIn("Nenhum Jarvis aberto", r.stdout)
 
     def test_modelo_de_projeto_recusa_opcao_desconhecida(self):
         r = subprocess.run(["bash", str(RAIZ / "templates/projeto/.devcontainer/preparar-ambiente.sh"), "--x"], capture_output=True, text=True)
