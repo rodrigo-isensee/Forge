@@ -3,34 +3,34 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pv-m1-medida
-commit: c5c0a232123312a20f5de27be913d57741377a55
+commit: 5221863e2d25308ec35dfae91241e01ea6790ece
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-20
 ---
-# Review de segurança: v0478 (E57.22, PR-VERDE M1 no head c5c0a232)
+# Review de segurança: v0478 (E57.30, revalidação do PR-VERDE M1 no head 5221863e)
 
-Escopo lido, primeira passada completa: `git diff 5ccac0bf..c5c0a232` (`bin/forge-placar` +120, `tests/evals/test_placar.py` +147, 5 specs de mutante, fragmento do changelog, pareceres de review e QA). Suíte não rodada localmente (brief: sem suíte local); a suíte inteira é do CI do PR. Rodei só sondas na ferramenta nova, sem rede.
+Revalidação por delta (`R-REVIEW`): li só `forge-check parecer delta docs/security/v0479-pv-m1-medida.md`, intervalo `c5c0a232..5221863e`. No domínio, só `bin/forge-placar` (+2/-2: o conjunto `AUTORES_DEPENDABOT` em `:792` e a comparação exata em `:864`, mais a frase do docstring em `:75`). Fora do domínio: `tests/evals/test_placar.py` e duas specs de mutante. O aviso do delta sobre o merge `1be9b4b` não muda nada: o único arquivo do domínio no intervalo é o já citado. A rodada anterior (head c5c0a232) está no git e não é recopiada. Não rodei a suíte local (o brief não pede); a suíte inteira é do CI do PR.
 
 ## Gatilhos
-Gatilhos: nenhum (sem `.github/`, `hooks/`, `docs/regras/`, `tests/catraca.py`, `tests/config.json`, segredo, dependência nem endpoint; o subcomando só lê dois arquivos JSON locais gerados fora).
+Gatilhos: nenhum (o delta não toca `.github/`, `hooks/`, `docs/regras/`, controle, segredo, dependência nem rede).
 
 ## Achados
-- A1 (recomendado) bin/forge-placar:863 · o filtro do dependabot é por substring: `"dependabot" in str(autor).lower()` tira da medida o PR de qualquer login que contenha a palavra (provado: `not-dependabot-fan` com CI vermelho some da taxa). Comparar exato com `app/dependabot` e `dependabot[bot]`.
 
 ## Sondas
 
 ## Detalhe dos achados
-**A1.** Evidência: `bin/forge-placar:863`; sonda local: PR com autor `{"login":"not-dependabot-fan"}`, CI `failure` e Catraca `success` no 1.º head, `--ate 2026-11-20 --dias 7` → `total: nenhum PR aberto na janela` (rc 0); o mesmo PR com autor `fulano` → `verde na 1.ª 0.00% (0/1)`. Caminho: quem abre PR com login que contenha `dependabot` tira o vermelho dele da taxa e infla a medida que o critério de reversão do PR-VERDE lê; ganho pequeno, mas a falha é aberta e mais larga que a D7 ("PR do dependabot, fora"). Severidade: baixa. Correção mínima: `autor in ("app/dependabot", "dependabot[bot]")` e um caso no teste `test_dependabot_e_pr_fora_da_janela_ficam_fora` com login que contém a palavra e continua contando. Esforço: P. Dono: tech-lead (autor do item).
+Estado dos achados anteriores:
+- **A1** (recomendado, `bin/forge-placar:863` na rodada anterior) **resolvido** em `bin/forge-placar:792` e `:864`. Refiz a sonda com a mesma entrada: PR com 1.º head `CI failure` e `Catraca success`, `ci-primeira --ate 2026-11-20 --dias 7`. Resultados:
+  - autor `{"login":"not-dependabot-fan"}` → `total: verde na 1.ª 0.00% (0/1)`, rc 0 (antes: `nenhum PR aberto na janela`);
+  - autor `fulano` → mesma saída;
+  - `{"login":"app/dependabot"}` e `"dependabot[bot]"` → `nenhum PR aberto na janela`, ou seja, ficam fora como a D7 manda.
+  - Variantes de borda: `{"login":"Dependabot[bot]"}`, `{"login":"dependabot"}`, `null` e `["app/dependabot"]` (lista) contam na taxa, sem exceção.
 
-Conferido sem achado:
-- Entrada: `lista_do_gh` (`bin/forge-placar:795-813`) falha fechada em `lacuna` rc 2 para não JSON, não lista, item não objeto, campo faltando, `jobs` não lista, data inválida e aninhamento acima do teto (`fundo_demais`, linear). Sondei tipos trocados que passam a validação: `attempt` como texto vira vermelho (nunca verde), `workflowName` como lista vira `lacuna`, `author` nulo conta normalmente; nenhum derruba com exceção.
-- A volta do A1 do review (`primeira_execucao`, `:828-834`): só a cancelada do mesmo `headSha` dá lugar à seguinte; uma seguinte com rerun (`attempt` > 1) sai vermelha, não verde. Não abre caminho para contar verde a mais.
-- Sem rede, sem subprocesso, sem escrita: só `read_text` dos caminhos passados por argumento (`R-CUSTO` respeitado). A saída `--json` escapa caractere de controle; a de texto imprime nome de job vindo da fonte, que hoje o `gh run list` documentado nem traz (A2 do review), sem caminho realista de abuso.
-- Testes rodam com `-I` e ambiente limpo (parecer de QA); sem segredo nos arquivos do diff (leitura manual dos fixtures e specs).
+  O erro possível agora só leva a contar um PR do bot, e isso puxa a taxa para baixo, nunca a infla. Para quem não é o bot, não há mais caminho para tirar o próprio vermelho da medida. O teste `test_dependabot_e_o_login_exato_nao_a_substring` (`tests/evals/test_placar.py:872`) cobre os dois logins exatos e os três casos que devem continuar contando.
 
 ## Riscos aceitos e ferramentas
-Riscos aceitos: nenhum. Ferramentas: leitura do diff e sondas locais com o próprio `bin/forge-placar` (`python3 -I`); `gitleaks`, `semgrep` e `zizmor` ausentes do PATH (lacuna registrada; o diff não toca workflow).
+Riscos aceitos: nenhum. Ferramentas: `forge-check parecer delta`, leitura do diff e sondas locais com o próprio `bin/forge-placar` (`python3 -I`, sem rede). `gitleaks`, `semgrep` e `zizmor` não estão no PATH: lacuna registrada, e o delta não toca workflow nem segredo.
 
 ## Parecer
-Aprovado no head c5c0a232. O A1 é recomendado de segurança: volta ao autor e é corrigido antes do merge (`R-REVIEW`).
+Aprovado no head 5221863e. O A1 da rodada anterior está resolvido e não há achado novo.
