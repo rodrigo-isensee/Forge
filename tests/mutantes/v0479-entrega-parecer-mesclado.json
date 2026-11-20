@@ -36,7 +36,7 @@
       "id": "M4",
       "guarda": "commit que toca o parecer e outro arquivo é do autor; diff-tree que falha também",
       "arquivo": "bin/forge-check",
-      "de": "    return bool(nomes) and all(n.startswith(tuple(f\"{pasta}/\" for pasta in PASTAS_DE_PARECER)) for n in nomes)\n",
+      "de": "    return bool(nomes) and all(n.startswith(f\"{pasta}/\") and not n.startswith(ACEITES_DO_USUARIO) for n in nomes)\n",
       "para": "    return True\n",
       "testes": [
         "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_autor_que_edita_o_parecer_no_commit_do_codigo_segue_fora",
@@ -65,19 +65,21 @@
     },
     {
       "id": "M7",
-      "guarda": "o commit: do parecer é sha40 dentro do intervalo da volta",
+      "guarda": "o commit: do parecer é o Desde da volta, nunca outro commit do intervalo (E50.5, A1)",
       "arquivo": "bin/forge-check",
-      "de": "    if not (re.fullmatch(r\"[0-9a-f]{40}\", revisado) and e_ancestral(raiz, de, revisado) and e_ancestral(raiz, revisado, head)):\n",
-      "para": "    if False:\n",
+      "de": "    if revisado != de:  # E50.5 A1",
+      "para": "    if False:  # E50.5 A1",
       "testes": [
-        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_commit_fora_do_intervalo_ou_abreviado_segue_fora"
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_commit_fora_do_intervalo_ou_abreviado_segue_fora",
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_autor_que_forja_aprovado_citando_o_proprio_codigo_segue_fora",
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_reprovado_do_portao_trocado_por_aprovado_com_outro_commit_segue_fora"
       ]
     },
     {
       "id": "M8",
       "guarda": "todo commit do intervalo que muda o parecer é só de parecer ou merge sem resolução; rev-list que falha recusa",
       "arquivo": "bin/forge-check",
-      "de": "    if cod or not all(commit_so_de_parecer(raiz, sha, nome) for sha in shas.split()):\n",
+      "de": "    if cod or not all(commit_so_de_parecer(raiz, sha, nome, pasta) for sha in shas.split()):\n",
       "para": "    if cod:\n",
       "testes": [
         "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_autor_que_edita_o_parecer_no_commit_do_codigo_segue_fora",

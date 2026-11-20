@@ -31,6 +31,36 @@
       "testes": [
         "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_parecer_sem_frontmatter_segue_fora"
       ]
+    },
+    {
+      "id": "M12",
+      "guarda": "o commit do portão só muda a pasta do tipo do parecer (E50.5, A2)",
+      "arquivo": "bin/forge-check",
+      "de": "all(n.startswith(f\"{pasta}/\") and not n.startswith(ACEITES_DO_USUARIO)",
+      "para": "all(n.startswith(PASTAS_DE_PARECER) and not n.startswith(ACEITES_DO_USUARIO)",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_um_commit_com_pareceres_de_varias_pastas_segue_fora"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "docs/security/aceites/ não entra no commit do portão (E50.5, A2)",
+      "arquivo": "bin/forge-check",
+      "de": "all(n.startswith(f\"{pasta}/\") and not n.startswith(ACEITES_DO_USUARIO)",
+      "para": "all(n.startswith(f\"{pasta}/\")",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_parecer_de_seguranca_com_aceite_no_mesmo_commit_segue_fora"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "rev-list do intervalo que falha recusa (E50.5, A1 do review)",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod or not all(commit_so_de_parecer(raiz, sha, nome, pasta)",
+      "para": "    if False or not all(commit_so_de_parecer(raiz, sha, nome, pasta)",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_rev_list_que_falha_recusa"
+      ]
     }
   ]
 }

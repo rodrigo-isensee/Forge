@@ -1543,15 +1543,72 @@ class ParecerMescladoNaVolta(Conferencia):
         self.volta_com_parecer()
         rel = "docs/reviews/x.md"
         lado = self.git("rev-parse", "lado")
-        self.assertTrue(fc.commit_so_de_parecer(self.proj, lado, rel))
-        self.assertFalse(fc.commit_so_de_parecer(self.proj, "0" * 40, rel))
+        self.assertTrue(fc.commit_so_de_parecer(self.proj, lado, rel, "docs/reviews"))
+        self.assertFalse(fc.commit_so_de_parecer(self.proj, "0" * 40, rel, "docs/reviews"))
         original = fc.git
 
         def sem_diff_tree(raiz, *args, **kw):
             return (128, b"docs/reviews/x.md\0") if args[0] == "diff-tree" else original(raiz, *args, **kw)  # código de erro com saída
         with mock.patch.object(fc, "git", sem_diff_tree):
-            self.assertFalse(fc.commit_so_de_parecer(self.proj, lado, rel))
+            self.assertFalse(fc.commit_so_de_parecer(self.proj, lado, rel, "docs/reviews"))
         self.assertFalse(fc.parecer_mesclado_na_volta(self.proj, self.base, "0" * 40, "HEAD", rel, "review", "melhoria/x", "exemplo", "x"))
+
+    def test_rev_list_que_falha_recusa(self):
+        """E50.5 (A1 do review): o rev-list do intervalo que falha não vira `all([])` (aceite); o mesmo caso com o git certo é anexo."""
+        revisado = self.ate_a_conferida()
+        self.mesclar_parecer(revisado)
+        self.codigo("x\ny\nz\nw\n")
+        rel, original = "docs/reviews/x.md", fc.git
+        argumentos = (self.proj, self.base, revisado, "HEAD", rel, "review", "melhoria/x", "exemplo", "x")
+        self.assertTrue(fc.parecer_mesclado_na_volta(*argumentos))
+
+        def sem_rev_list(raiz, *args, **kw):
+            return (128, "") if args[:2] == ("rev-list", "--full-history") else original(raiz, *args, **kw)
+        with mock.patch.object(fc, "git", sem_rev_list):
+            self.assertFalse(fc.parecer_mesclado_na_volta(*argumentos))
+
+    def test_autor_que_forja_aprovado_citando_o_proprio_codigo_segue_fora(self):
+        """E50.5 (S1 da segurança): o `commit:` é o Desde, nunca outro commit do intervalo."""
+        self.ate_a_conferida()
+        novo = self.codigo("x\ny\nz\nw\n")
+        self.commitar_parecer("reviews", "review", revisado=novo, selar=False)
+        self.assert_fora()
+
+    def test_reprovado_do_portao_trocado_por_aprovado_com_outro_commit_segue_fora(self):
+        """E50.5 (S3 da segurança): o reprovado no Desde não some sob um aprovado que cita o código novo."""
+        revisado = self.ate_a_conferida()
+        self.mesclar_parecer(revisado, parecer="reprovado")
+        novo = self.codigo("x\ny\nz\nw\n")
+        self.commitar_parecer("reviews", "review", revisado=novo, selar=False)
+        self.assert_fora()
+
+    def test_um_commit_com_pareceres_de_varias_pastas_segue_fora(self):
+        """E50.5 (S2 da segurança): cada tipo só vale num commit da própria pasta, mesmo citando o Desde."""
+        revisado = self.ate_a_conferida()
+        self.codigo("x\ny\nz\nw\n")
+        for pasta, tipo in (("reviews", "review"), ("security", "revisao-seguranca"), ("qa", "qa")):
+            rel = f"docs/{pasta}/x.md"
+            self.gravar(rel, f"---\ntipo: {tipo}\ncontrato: 1\npedido: exemplo\nbranch: melhoria/x\ncommit: {revisado}\nparecer: aprovado\n---\n# f\n")
+            self.git("add", rel)
+        self.commit("docs: pareceres")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        for rel in ("docs/reviews/x.md", "docs/security/x.md", "docs/qa/x.md"):
+            self.assertIn(f'escopo: fora do declarado no brief "{rel}"', saida)
+
+    def test_parecer_de_seguranca_com_aceite_no_mesmo_commit_segue_fora(self):
+        """E50.5 (A2 da segurança): `docs/security/aceites/` (do usuário) não entra no commit do portão; o modelo de ameaças, sim."""
+        for extra, anexo in (("docs/security/aceites/exemplo.md", False), ("docs/security/ameacas/x.md", True)):
+            with self.subTest(extra=extra):
+                self.setUp()
+                revisado = self.ate_a_conferida()
+                self.gravar(extra, "# extra\n")
+                self.git("add", extra)
+                self.commitar_parecer("security", "revisao-seguranca", revisado=revisado, selar=False)
+                self.codigo("x\ny\nz\nw\n")
+                rc, saida = self.conferir()
+                ok = 'escopo: ok (anexo do portão: parecer de seguranca commitado na volta só com parecer) "docs/security/x.md"'
+                (self.assertIn if anexo else self.assertNotIn)(ok, saida)
 
 
 if __name__ == "__main__":
