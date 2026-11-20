@@ -8,7 +8,8 @@ Propósito: desenho, antes do código, dos cartões AE1 e AE3 a AE8 do pedido ME
   histórico, os pedidos e as retrospectivas: no Forge, `~/.forge-contrib`; no projeto, a raiz do próprio repositório.
 - O AE2 (o quadro anda com os PRs) e o contador da versão têm desenho próprio (E54.1, branch `melhoria/v0479-ae2-contador`).
   Aqui só aparecem as dependências.
-- Nada custa dinheiro (`R-CUSTO`). Só se lê o GitHub (`gh` com a conta já autenticada) e o git local.
+- Nada custa dinheiro (`R-CUSTO`). Do GitHub só se lê (`gh` com a conta já autenticada), além do git local. A única
+  escrita remota é o push da pasta de controle (D3), feito na sessão num marco, nunca pelo relógio (condição do dono no D7).
 - Afrouxa? Não. Todo item aperta ou mede. Nenhum texto de `docs/regras/`, item de `tests/config.json` ou controle sai ou é
   trocado. O AE8 tira um bypass, e quem tira é o dono (`R-CONFORMIDADE`).
 - Pronto do pedido: a auditoria diária (AE6) dá zero divergências por 3 dias seguidos, contados depois que o AE6.3 entrar
@@ -68,7 +69,10 @@ nova da retro v0478 (EV-V0478-ESTADO-COM-PROVA, absorvida no AE1).
 - (a) Recomendada: `forge-check controle salvar --marco <nome>` faz commit só dos caminhos de controle conhecidos (quadro,
   histórico, pedidos, briefs, retros, pareceres do controle), nunca `add -A`. Ele roda:
   - ao fim dos comandos que são marco (`movimento`, `anotar`, `brief selar`, `conferencia registrar` e a marca de versão);
-  - no relógio (D7), quando o último commit tiver mais de 30 min e a árvore estiver suja.
+  - no relógio (D7), quando o último commit tiver mais de 30 min e a árvore estiver suja; aqui só o commit local, sem push.
+
+  O push (D3) sai só nos marcos, rodado na sessão, dentro do sandbox e sob o hook `conformidade`, e leva junto os commits
+  do relógio. O relógio só lê o GitHub e só grava na pasta de controle (condição do dono no D7).
 
   No projeto, o commit vai para a branch própria `controle`, nunca para `develop` (`R-FLUXO`, `R-MAIN`); ver D3.
 - (b) Hook de PostToolUse em toda escrita. Recusada: um commit por edição, ruído, e corrida entre sessões.
@@ -141,8 +145,8 @@ contam (regra do META85-ITEM-ATE-10-ARQUIVOS).
 | AE1.2 movimento exige `--prova` | backend da stack | `bin/forge-check` (`cmd_movimento`), teste, spec, `skills/` do quadro (uso), changelog | ~110 | AE1.1 | prova de outro cartão (o PR não cita o ID: recusa); PR mesclado em outra base; `rodar:` com slug de outra raiz ou link simbólico; `juntado:` em cartão fechado ou nele mesmo |
 | AE1.3 Pronto sem prova é violação do quadro | backend da stack | `bin/forge-check` (`cmd_kanban`), teste, spec, changelog | ~60 | AE1.2 | linha de prova escrita à mão no histórico (o formato leva o sha conferido; a auditoria confere de novo); edição direta do KANBAN.md sem movimento (o hook `quadro.py` já roda `cmd_kanban`) |
 | AE1.4 medida da afirmação sem prova | tech-lead | `hooks/meta.py` (medida S6), `agents/jarvis.md` (colar a linha do `onde`), teste, changelog | ~50 | AE1.1 | mensagem que esconde "feito" em citação ou código (conta o texto fora dos dois e a lista de palavras é fixa); só mede, nunca bloqueia (ADR 0003) |
-| AE3.1 `forge-check controle salvar` e marcos | backend da stack | `bin/forge_controle.py`, `bin/forge-check` (5 chamadas de marco), teste, spec, changelog | ~140 | — | caminho de controle com link para fora (recusa, O_NOFOLLOW); arquivo grande ou segredo (lista positiva de caminhos e teto de tamanho); `.git/hooks` da pasta de controle (commit com `core.hooksPath` vazio e sem `-c` vindo de fora); dois commits ao mesmo tempo (trava) |
-| AE3.2 relógio de 30 min e branch `controle` no projeto | devops-engineer | `scripts/forge-relogio`, atalho da BP3 (janela no tmux), `hooks/doutor.py` (aviso de relógio parado), modelo de projeto, teste, changelog | ~120 | AE3.1, BP3 S1 | relógio rodando o `forge-check` de uma cópia de trabalho (só o do plugin instalado, pelo caminho do plugin); relógio duplicado (pidfile com trava); push para `develop` no projeto (só a branch `controle`, conferida) |
+| AE3.1 `forge-check controle salvar` e marcos | backend da stack | `bin/forge_controle.py`, `bin/forge-check` (5 chamadas de marco), teste, spec, changelog | ~140 | — | caminho de controle com link para fora (recusa, O_NOFOLLOW); arquivo grande ou segredo (lista positiva de caminhos e teto de tamanho); hook ativo na pasta de controle que não seja da fábrica (`core.hooksPath` ou `.git/hooks`: confere antes do commit e recusa com `nao-verificavel`; nunca troca nem esvazia o `core.hooksPath`, `R-VERIFY`; sem `-c` vindo de fora); push no projeto só da branch `controle`, conferida, nunca da `develop`; dois commits ao mesmo tempo (trava) |
+| AE3.2 relógio de 30 min e branch `controle` no projeto | devops-engineer | `scripts/forge-relogio`, atalho da BP3 (janela no tmux), `hooks/doutor.py` (aviso de relógio parado), modelo de projeto, teste, changelog | ~120 | AE3.1, BP3 S1 | relógio rodando o `forge-check` de uma cópia de trabalho (só o do plugin instalado, pelo caminho do plugin); relógio duplicado (pidfile com trava); relógio que faz push, escreve no GitHub ou grava fora da pasta de controle (lista positiva: o script só chama o `forge-check` do plugin instalado, e este só o `gh` de leitura e o git local da pasta de controle; o teste prova as três condições do D7) |
 | AE4.1 `forge-check ordens` e `anotar --cartao` | backend da stack | `bin/forge-check` (`cmd_decisoes` generalizado, `cmd_anotar`), teste, spec, `agents/jarvis.md` (uso), changelog | ~90 | — | `--cartao` inventado (confere o KANBAN e as etapas do pedido); ID de cartão fechado sem entrega (vale só se a ordem for anterior ao fechamento) |
 | AE5.1 `retro --pendentes` e `Cobre:` | backend da stack | `bin/forge-check` (`cmd_retro`), modelo de retrospectiva (Forge e projeto), teste, spec, changelog | ~80 | — | `Cobre:` com versão que não existe (`aviso:` e não cobre); retro vazia só com o cabeçalho (exige as seções do modelo); tag fora da `main` |
 | AE6.1 auditoria: núcleo, cartões, PRs, branches | backend da stack | `bin/forge_auditoria.py`, `bin/forge-check` (subcomando), teste, spec, changelog | ~150 | AE1.1; AE2 (formato da citação do cartão no PR) | resposta do `gh` com nome de branch hostil (sai por `sem_controle`); `gh` fora do ar (classe `nao-verificavel`: não conta como zero, ver D8) |
@@ -194,6 +198,7 @@ Ordem e paralelismo. Uma trilha por arquivo, como manda a diretriz 33:
    - no projeto: branch própria `controle`.
 
    Recomendo: sim aos dois. O push protege contra perder a máquina (QUADRO-VERSIONADO).
+   Quem faz o push: o `controle salvar` chamado num marco, na sessão; o relógio só faz o commit local (condição do D7).
 4. **D4 (AE3) Absorver DOCS-COMMIT-AUTO, QUADRO-VERSIONADO e QUADRO-E-RETRO-NO-GIT no AE3,** fechando os três como
    "juntado em AE3". Recomendo: sim.
 5. **D5 (AE4) O que conta como apontador:**
@@ -210,6 +215,8 @@ Ordem e paralelismo. Uma trilha por arquivo, como manda a diretriz 33:
    - (c) uma ação agendada do GitHub (não vê a pasta local; custa minutos em repositório privado).
 
    Recomendo (a).
+   Condição do dono (20/11 13:51), parte do aceite: o relógio roda só o plugin instalado, só lê o GitHub e só grava na
+   pasta de controle. A segurança aprova antes de ligar, e o teste do AE3.2 prova. Por isso o relógio não faz push (D3).
 8. **D8 (AE6) Definição de zero:** toda linha `divergencia:` conta, e `nao-verificavel` também. A ferramenta não tem lista
    de isenção; ruído recorrente vira cartão e conserto. A contagem dos 3 dias começa no merge do AE6.3.
    Recomendo: sim.
