@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-pp1-aplicado-dono",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "PP1-APLICADO-PELO-DONO: develop atual sem resolver recusa (A1)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not base_ref:\n        return \"a develop",
+      "para": "    if False:\n        return \"a develop",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_develop_atual_diferente_ou_sem_resolver_recusa"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "PP1-APLICADO-PELO-DONO: git que falha no caminho do patch recusa (A1)",
+      "arquivo": "bin/forge-check",
+      "de": "        if None in entradas:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_develop_atual_diferente_ou_sem_resolver_recusa"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "PP1-APLICADO-PELO-DONO: caminho diferente no pai e no Base-sha recusa (A1, S1)",
+      "arquivo": "bin/forge-check",
+      "de": "        if len(entradas) != 1:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_s1_mudanca_anterior_da_branch_no_arquivo_recusa"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "PP1-APLICADO-PELO-DONO: a develop atual entra na comparação (A1)",
+      "arquivo": "bin/forge-check",
+      "de": "for ref in (f\"{commit}^1\", base_sha, base_ref)}",
+      "para": "for ref in (f\"{commit}^1\", base_sha)}",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_develop_atual_diferente_ou_sem_resolver_recusa"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "PP1-APLICADO-PELO-DONO: lista versionada só na branch não vale, nem pelo disco (A2)",
+      "arquivo": "bin/forge-check",
+      "de": "    if na_base is None or (not na_base and entrada_na_arvore(raiz, head, CONFIG_DO_DONO) != ()):",
+      "para": "    if na_base is None:",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_emails_da_arvore_do_base_sha_e_nao_da_branch"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "PP1-APLICADO-PELO-DONO: lista versionada no Base-sha lida da árvore, não do disco (A2)",
+      "arquivo": "bin/forge-check",
+      "de": "bruto=True)[1] if na_base\n",
+      "para": "bruto=True)[1] if False\n",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_emails_da_arvore_do_base_sha_e_nao_da_branch"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "PP1-APLICADO-PELO-DONO: sem parecer de segurança que cite o sha256 recusa (A3)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not parecer_cita_o_patch(raiz, head, sha256):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_patch_sem_parecer_de_seguranca_aprovado_que_o_cite_recusa"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "PP1-APLICADO-PELO-DONO: o parecer que cita o sha256 é de segurança (A3)",
+      "arquivo": "bin/forge-check",
+      "de": "if campos.get(\"tipo\") == \"revisao-seguranca\" and parecer_que_aprova(campos):",
+      "para": "if parecer_que_aprova(campos):",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_patch_sem_parecer_de_seguranca_aprovado_que_o_cite_recusa"
+      ]
+    }
+  ]
+}

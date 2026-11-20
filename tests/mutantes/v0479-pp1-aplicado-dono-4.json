@@ -1,0 +1,36 @@
+{
+  "pedido": "v0479-pp1-aplicado-dono",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "PP1-APLICADO-PELO-DONO: o parecer que cita o sha256 está aprovado (A3)",
+      "arquivo": "bin/forge-check",
+      "de": "if campos.get(\"tipo\") == \"revisao-seguranca\" and parecer_que_aprova(campos):",
+      "para": "if campos.get(\"tipo\") == \"revisao-seguranca\":",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_patch_sem_parecer_de_seguranca_aprovado_que_o_cite_recusa"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "PP1-APLICADO-PELO-DONO: o sha256 citado como palavra inteira (A3)",
+      "arquivo": "bin/forge-check",
+      "de": "\"grep\", \"-l\", \"-z\", \"-w\", \"-F\"",
+      "para": "\"grep\", \"-l\", \"-z\", \"-F\"",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_patch_sem_parecer_de_seguranca_aprovado_que_o_cite_recusa"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "PP1-APLICADO-PELO-DONO: git grep que falha não lê saída (A3)",
+      "arquivo": "bin/forge-check",
+      "de": "for achado in ([] if cod else nomes_z(achados)):",
+      "para": "for achado in ([] if False else nomes_z(achados)):",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_git_que_falha_ou_politica_ilegivel_recusa"
+      ]
+    }
+  ]
+}

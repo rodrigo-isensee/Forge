@@ -109,7 +109,7 @@ que um portão revisou (o `Revisar-sha:` de brief selado de portão da mesma bra
 vale como a branch inteira (`base: Base-sha do brief`, P-N1; `brief mensagem --entrega` emite esse `Desde:`). Intervalo vazio:
 `pendente:` na etapa `codigo`, `escopo: sem commit (nada a conferir)` nas outras. Parecer do papel certo e com autoria:
 `escopo: ok (parecer de <papel>)`; o resto: `escopo: confira "<arquivo>" +a -r`, para a leitura contra o Entregar.
-`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Com o blob do último `parecer conferido` do Histórico que o altera, ancestral do head, sai `escopo: ok (parecer trazido <sha7> de <papel>)`, mesmo com remoção. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`). O arquivo aplicado pelo dono, declarado no `## Histórico` por `- <data> <hora>: patch do dono aplicado <arquivo> commit <sha40>` e citado (sha40 e caminho) por uma `DECISÃO DO DONO`, sai `escopo: ok (patch do dono <sha7>, DECISÃO DO DONO <pedido>:<linha>)` só com o blob e o modo desse commit no head.
+`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Com o blob do último `parecer conferido` do Histórico que o altera, ancestral do head, sai `escopo: ok (parecer trazido <sha7> de <papel>)`, mesmo com remoção. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`). O arquivo aplicado pelo dono, declarado no `## Histórico` por `- <data> <hora>: patch do dono aplicado <arquivo> commit <sha40>` e citado (sha40 e caminho) por uma `DECISÃO DO DONO`, sai `escopo: ok (patch do dono <sha7>, DECISÃO DO DONO <pedido>:<linha>)` só com o blob e o modo desse commit no head. Arquivo em vigor (PP1-APLICADO-PELO-DONO) pede ainda ` patch <caminho do .patch>` na linha: o commit do dono igual ao `.patch` revisado aplicado sobre a base (cada caminho dele igual no pai, no Base-sha e na develop atual), autor e committer em `emails_do_dono` do .forge/config.json do Base-sha e um parecer de segurança aprovado no head que cite o sha256 do `.patch`; limite: o e-mail é declarável (`git -c user.email`) e não prova autoria, só filtra o erro honesto (decisão do dono 20/11; commit assinado fica para cartão).
 `delta` (VV-2, M12; só leitura, nunca reprova) imprime `delta: <arquivo> +a -r` e `delta: <arquivo>:<ini>-<fim>` (lado novo
 de cada trecho de `git diff -U0`) do que mudou entre o commit (ou o `commit:` do parecer de `--parecer`) e o fim (padrão HEAD),
 fora de docs/reviews, qa, devops, security e do quadro; `delta: nenhum` sem mudança. Com `--classe` (EST-M4), também
@@ -2201,7 +2201,7 @@ def isencao_do_dono(raiz, pedido_id, texto, shas, nome, base_sha, head, base_ref
             motivo = "o modo mudou depois do commit do dono"
         elif not em_vigor(nome):
             return (f"escopo: ok (patch do dono {commit[:7]}, DECISÃO DO DONO {sem_controle(pedido_id)}:{numero}) {mostrado}", False), []
-        elif (revisado := patch_revisado_do_dono(raiz, texto, nome, commit))[0]:
+        elif (revisado := patch_revisado_do_dono(raiz, texto, nome, commit, nomes_z(alterados), base_sha, base_ref, head))[0]:
             motivo = revisado[0]
         else:  # PP1-APLICADO-PELO-DONO: a linha leva o sha40 do commit e o sha256 do .patch, que a conferência grava (c)
             return (f"escopo: ok (patch do dono {commit}, patch {nome_seguro(revisado[1])} sha256 {revisado[2]}, DECISÃO DO DONO "
@@ -2210,9 +2210,12 @@ def isencao_do_dono(raiz, pedido_id, texto, shas, nome, base_sha, head, base_ref
 
 
 # PP1-APLICADO-PELO-DONO (v0478 E52, decisão do dono 18/11): o arquivo em vigor (.githooks/, .claude/ e afins) sai do escopo só se
-# (a) o commit do dono é, byte a byte e na árvore inteira, o `.patch` revisado (o da branch no pai do commit) aplicado sobre o pai;
-# (b) autor e committer têm um dos `emails_do_dono` do .forge/config.json da raiz (arquivo em vigor: só o dono o escreve);
-# (c) a conferência grava no Histórico o sha256 do patch e o sha40 do commit. A linha do Histórico ganha ` patch <caminho>`.
+# (a) o commit do dono é, byte a byte e na árvore inteira, o `.patch` revisado (o da branch no pai do commit) aplicado sobre a base:
+#     cada caminho que o commit muda é igual no pai, no Base-sha e na develop atual (E52.5, A1), e o patch aplicado sobre o pai dá o commit;
+# (b) autor e committer têm um dos `emails_do_dono` do .forge/config.json da árvore do Base-sha (A2); o e-mail é declarável e não
+#     prova autoria: limite aceito pelo dono (20/11, opção a), porque com (a) forjá-lo só produz os bytes revisados;
+# (c) a conferência grava no Histórico o sha256 do patch e o sha40 do commit, e um parecer de segurança aprovado no head cita esse
+#     sha256 (A3: o patch aplicado é o que o parecer leu). A linha do Histórico ganha ` patch <caminho>`.
 PATCH_REVISADO_OK = re.compile(r"^escopo: ok \(patch do dono ([0-9a-f]{40}), patch (\S+) sha256 ([0-9a-f]{64}), DECISÃO DO DONO [^)]*\) (.+)$")
 
 
@@ -2225,10 +2228,18 @@ def em_vigor(nome):
                and (nome == alvo or (alvo.endswith("/") and nome.startswith(alvo))) for c in caminhos)
 
 
-def emails_do_dono(raiz):
-    """(b) Os e-mails do dono (minúsculos) de `emails_do_dono` no .forge/config.json da raiz; vazio sem a chave: nada isenta."""
+CONFIG_DO_DONO = ".forge/config.json"
+
+
+def emails_do_dono(raiz, base_sha, head):
+    """(b) Os e-mails do dono (minúsculos) de `emails_do_dono` no .forge/config.json da árvore do Base-sha (A2: a branch não muda a
+    lista); fora do git no Base-sha (o Forge o ignora), o do disco da raiz, salvo se a branch o versiona. Vazio sem a chave: nada isenta."""
+    na_base = entrada_na_arvore(raiz, base_sha, CONFIG_DO_DONO)
+    if na_base is None or (not na_base and entrada_na_arvore(raiz, head, CONFIG_DO_DONO) != ()):
+        return set()
     try:
-        config = json.loads((Path(raiz) / ".forge" / "config.json").read_text(encoding="utf-8"))
+        config = json.loads(git(raiz, "cat-file", "blob", f"{base_sha}:{CONFIG_DO_DONO}", bruto=True)[1] if na_base
+                            else (Path(raiz) / CONFIG_DO_DONO).read_bytes())
     except (OSError, ValueError):
         return set()
     lista = config.get("emails_do_dono") if isinstance(config, dict) else None
@@ -2245,16 +2256,25 @@ def patch_declarado(texto, nome, commit):
     return achado
 
 
-def patch_revisado_do_dono(raiz, texto, nome, commit):
-    """(a) e (b): (motivo, None, None) se não cumpre (o git que falha também recusa); (None, caminho do .patch, sha256 dele) se cumpre."""
+def patch_revisado_do_dono(raiz, texto, nome, commit, tocados, base_sha, base_ref, head):
+    """(a), (b) e (c): (motivo, None, None) se não cumpre (o git que falha também recusa); (None, caminho do .patch, sha256 dele) se
+    cumpre. `tocados`: os caminhos que o commit do dono muda; `base_ref`: o sha da develop atual (None recusa)."""
     patch = patch_declarado(texto, nome, commit)
     if not patch or com_controle(patch) or any(parte in ("", ".", "..") for parte in patch.split("/")):
         return "sem ` patch <caminho>` válido na linha do Histórico", None, None
-    emails = emails_do_dono(raiz)
+    emails = emails_do_dono(raiz, base_sha, head)
     cod, quem = git(raiz, "log", "-1", "--format=%ae%x00%ce", commit)
     partes = quem.split("\0")
     if cod or not emails or len(partes) != 2 or any(p.strip().lower() not in emails for p in partes):
         return "autor ou committer não é o dono (emails_do_dono do .forge/config.json)", None, None
+    if not base_ref:
+        return "a develop atual não se resolve", None, None
+    for tocado in tocados:  # A1: o patch vale sobre a base; mudança anterior da branch no caminho não sai lavada
+        entradas = {entrada_na_arvore(raiz, ref, tocado) for ref in (f"{commit}^1", base_sha, base_ref)}
+        if None in entradas:
+            return "o git falhou", None, None
+        if len(entradas) != 1:
+            return f"{nome_seguro(tocado)} difere entre o pai do commit do dono, o Base-sha e a develop atual", None, None
     cod, conteudo = git(raiz, "cat-file", "blob", f"{commit}^1:{patch}", bruto=True)
     if cod:
         return "o .patch não está na branch no pai do commit do dono", None, None
@@ -2266,7 +2286,20 @@ def patch_revisado_do_dono(raiz, texto, nome, commit):
                               (("diff-index", "--cached", "--quiet", commit, "--"), "o commit difere do .patch revisado aplicado sobre o pai")):
             if git(raiz, *passo, indice=indice)[0]:
                 return motivo, None, None
-    return None, patch, hashlib.sha256(conteudo).hexdigest()
+    sha256 = hashlib.sha256(conteudo).hexdigest()
+    if not parecer_cita_o_patch(raiz, head, sha256):
+        return "nenhum parecer de segurança aprovado no head cita o sha256 do .patch", None, None
+    return None, patch, sha256
+
+
+def parecer_cita_o_patch(raiz, head, sha256):
+    """(c) A3: um parecer de segurança aprovado (`tipo: revisao-seguranca`), no head, cita o sha256 do .patch como palavra."""
+    cod, achados = git(raiz, "grep", "-l", "-z", "-w", "-F", "-e", sha256, head, "--", "docs/security/", bruto=True)
+    for achado in ([] if cod else nomes_z(achados)):
+        campos = frontmatter_do_parecer(raiz, head, achado.removeprefix(f"{head}:")) or {}
+        if campos.get("tipo") == "revisao-seguranca" and parecer_que_aprova(campos):
+            return True
+    return False
 
 
 def sha_do_commit(raiz, ref):
