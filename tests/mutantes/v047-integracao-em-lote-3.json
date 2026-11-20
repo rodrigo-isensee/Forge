@@ -16,8 +16,8 @@
       "id": "IL-M18",
       "guarda": "topo da develop ilegível para",
       "arquivo": "bin/forge-fechar",
-      "de": "topo=\"$(remoto_exato \"$alvo\")\" || die",
-      "para": "topo=\"$(remoto_exato \"$alvo\")\" || true",
+      "de": "topo=\"$(remoto_exato \"$alvo\")\" || die \"parou no passo $1:",
+      "para": "topo=\"$(remoto_exato \"$alvo\")\" || true \"parou no passo $1:",
       "testes": [
         "tests.test_fechar_lote.EsperaCiDevelop.test_topo_ilegivel_ou_vazio_no_6b_para_sem_mesclar"
       ]
@@ -26,8 +26,8 @@
       "id": "IL-M19",
       "guarda": "topo vazio para",
       "arquivo": "bin/forge-fechar",
-      "de": "[ -n \"$topo\" ] || die",
-      "para": "true || die",
+      "de": "[ -n \"$topo\" ] || die \"parou no passo $1:",
+      "para": "true || die \"parou no passo $1:",
       "testes": [
         "tests.test_fechar_lote.EsperaCiDevelop.test_topo_ilegivel_ou_vazio_no_6b_para_sem_mesclar"
       ]
@@ -56,8 +56,8 @@
       "id": "IL-M22",
       "guarda": "só o vermelho imprime a reversão",
       "arquivo": "bin/forge-fechar",
-      "de": "[ \"$ci_st\" != vermelho ] || echo \"para reverter",
-      "para": "false || echo \"para reverter",
+      "de": "  if [ \"$ci_st\" = vermelho ]; then\n    echo \"para reverter",
+      "para": "  if true; then\n    echo \"para reverter",
       "testes": [
         "tests.test_fechar_lote.EsperaCiDevelop.test_ci_cancelado_no_merge_sai_com_5_sem_reversao"
       ]

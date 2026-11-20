@@ -6,8 +6,8 @@
       "id": "IL-M57",
       "guarda": "--lote liga o modo de lote",
       "arquivo": "bin/forge-fechar",
-      "de": "done\n\nif [ \"$lote\" = 1 ]; then\n  # Só os itens",
-      "para": "done\n\nif false; then\n  # Só os itens",
+      "de": "fi\nif [ \"$lote\" = 1 ]; then\n  # Só os itens",
+      "para": "fi\nif false; then\n  # Só os itens",
       "testes": [
         "tests.test_fechar_lote.Lote.test_lote_recusa_opcao_de_item"
       ]

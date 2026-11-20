@@ -26,8 +26,8 @@
       "id": "IL-M51",
       "guarda": "item de lote não espera o CI do topo",
       "arquivo": "bin/forge-fechar",
-      "de": "  if [ \"$item_de_lote\" = 0 ]; then\n    passo \"6b\"",
-      "para": "  if true; then\n    passo \"6b\"",
+      "de": "  if [ \"$item_de_lote\" = 0 ]; then\n    if [ -n \"$conserto\" ]",
+      "para": "  if true; then\n    if [ -n \"$conserto\" ]",
       "testes": [
         "tests.test_fechar_lote.EsperaCiDevelop.test_item_de_lote_nao_espera_o_ci_da_develop"
       ]
