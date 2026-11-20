@@ -3,43 +3,37 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp3-s2-container
-commit: 14c690101de2a9a0442086d9fdad2c1d8deead31
-parecer: reprovado
+commit: c0087a7a92a4a349b39c9063b321d42b94429653
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-20
 ---
-# Review de segurança: v0479-bp3-s2-container (BP3 S2, v0478 E39.15)
+# Review de segurança: v0479-bp3-s2-container (BP3 S2, v0478 E39.15, revalidação da A3)
 
-Escopo: `git diff 004ce869...14c69010`, 5 arquivos: `templates/projeto/.vscode/tasks.json` (novo), `templates/projeto/.devcontainer/devcontainer.json`, `templates/projeto/.devcontainer/preparar-ambiente.sh`, `tests/test_forge.py`, `changelog.d/v0479-bp3-s2-container.md`. Desenho: `docs/propostas/v0479-bp3-sessao-duravel.md` (branch `melhoria/v0479-bp3-sessao`), tabela de riscos e decisões D2 e D3 do dono (pedido v0478, 2026-11-20 07:47). Revisão estática, com sondas sobre um projeto descartável em `$TMPDIR`; suíte inteira não rodada (fica no CI); rodei os 3 testes novos (OK).
+Volta por delta. As rodadas anteriores estão no git: reprovado no head 14c69010 (`b4f4274d`) e aprovado com A3 recomendado no head ed21f2bd (`6995df56`, nunca enviado sozinho, trazido aqui por merge). Delta lido: `forge-check parecer delta`, intervalo `ed21f2bd..c0087a7a`. No domínio: `docs/engineering/v0479-bp3-s2-container.patch`, `hooks/conformidade.json`, `tests/test_conformidade_vscode_container.py`. Também lidos, por tocarem controle: o mutante M5 em `tests/mutantes/v0479-bp3-s2-container.json` e o texto de aplicação em `docs/engineering/v0479-bp3-s2-container.md`. Rodei só o teste novo de abuso (2 testes, OK). A suíte inteira fica para o CI.
 
 ## Gatilhos
-Gatilhos: execução automática de comando do work tree ao abrir a pasta (tarefa `folderOpen`), ciclo de vida do container (`shutdownAction`), instalação de pacote como root no preparo.
+Gatilhos: execução automática de comando do work tree ao abrir a pasta, arquivo de controle do Forge (`hooks/conformidade.json`), sandbox do modelo de projeto (patch do dono), ciclo de vida do container.
 
 ## Veredito
-**Reprovado**, por um bloqueante (A1, alta). O modelo de projeto já trata o work tree como gravável pelo agente e por isso não executa nada dele automaticamente: o `postStartCommand` roda o preparo de um clone raso novo da `main`, nunca do work tree (`templates/projeto/.devcontainer/devcontainer.json:4`). A tarefa nova quebra esse princípio: o VS Code executa o `command` de `.vscode/tasks.json` do work tree a cada abertura da pasta, fora do sandbox do Claude Code, e esse arquivo não é protegido nem pelo hook `conformidade` nem pelo sandbox do modelo.
+**Aprovado**, sem achado aberto.
 
-O resto está correto: o nome da sessão é o mesmo do atalho (`scripts/jarvis:22-23`, `tr '.:' '__'` equivale a `${projeto//[.:]/_}`), o alvo usa `=` (casamento exato), nome de pasta hostil não é reinterpretado (sonda: pasta `x$(touch PWNED);a b` com tmux falso deu `has-session -t =jarvis-x$(touch PWNED);a b` e nenhum arquivo criado), a tarefa nunca chama `new-session` (D3) e o `tmux` vem do apt do sistema, sem chave nem repositório novo. `shutdownAction: none` (D2) mantém o Jarvis vivo sem a janela; é decisão do dono e não abre fronteira nova.
+A mudança só aperta. Contra a `origin/develop`, `hooks/conformidade.json` só ganha as linhas 33 a 35, todas com `quem: []`; nenhuma entrada anterior sai ou afrouxa. No delta desta volta, só entra a linha 34 (`.vscode/settings.json`). O patch do dono (blob `5ed6008b186ca4ae0f7e70a690b9c7a0484bd018`, um único `diff --git`) só cria `sandbox.filesystem.denyWrite` com três caminhos. Numa cópia descartável do head, `git apply --check` passa. O resultado é `denyWrite: ['.vscode/tasks.json', '.vscode/settings.json', '.devcontainer/devcontainer.json']` e `denyRead` fica intacto. O `templates/projeto/.claude/settings.json` do head é idêntico ao da `origin/develop`, então o patch aplica sobre a base. O dono deve aplicar o patch com o blob acima, idêntico ao revisado (PP1-APLICADO-PELO-DONO). No teste, `.vscode/settings.json` passa de `LIVRES` para `PROTEGIDOS`. O vizinho gravável passa a ser `.vscode/extensions.json`, que o VS Code não executa. O fragmento de changelog muda de seção, fora do domínio.
 
-## Achados
-- A1 (bloqueante) templates/projeto/.vscode/tasks.json:10 · tarefa runOn folderOpen executa o command do work tree fora do sandbox; .vscode/tasks.json não está em hooks/conformidade.json nem no denyWrite do sandbox do modelo: agente (ou injeção de prompt) a reescreve e roda como root com o login do gh na próxima abertura
-- A2 (recomendado) templates/projeto/.devcontainer/devcontainer.json:17 · anterior à entrega: devcontainer.json também é do work tree e gravável pelo agente (postStartCommand e afins rodam fora do sandbox ao iniciar o container); proteger junto com o A1
+Estado dos achados anteriores:
+- A1 (bloqueante): **resolvido** (rodada de ed21f2bd), sem regressão (S1 e S2 abaixo).
+- A2 (recomendado, aceito pelo dono para correção): **resolvido**, sem regressão.
+- A3 (recomendado): **resolvido**, pela correção mínima 1 a 3 da rodada anterior: `hooks/conformidade.json:34`, a linha no patch, e `tests/test_conformidade_vscode_container.py:17-18`. O mutante M5 tira a entrada e é morto pelo teste: 15 falhas, 3 papéis × 5 formas.
 
-## Sondas
-- S1 · Write de .vscode/tasks.json por forge:dev, hooks/conformidade.py, projeto com .forge/versao, CLAUDE_PROJECT_DIR no projeto · espera: rc=2 (R-CONFORMIDADE, como .githooks/pre-push) · obtido: rc=0; controle .githooks/pre-push rc=2
-- S2 · Bash `printf x > .vscode/tasks.json` por forge:dev, mesmo projeto · espera: rc=2 · obtido: rc=0; controle `printf x > .githooks/pre-push` rc=2
+Sondas no head c0087a7a, com `hooks/conformidade.py` sobre um projeto descartável em `$TMPDIR` (com `.forge/versao`, `CLAUDE_PROJECT_DIR` apontando para ele). Provam a correção, não um bloqueante:
+- S1: Write em `.vscode/settings.json` deu rc=2 como `forge:dev` e como `forge:tech-lead`, e Edit deu rc=2 como `forge:devops-engineer`. A mensagem é `R-CONFORMIDADE: arquivo em vigor (.vscode/settings.json)`.
+- S2 (Bash, `forge:dev`): rc=2 para `printf x > .vscode/settings.json`, para `./.vscode/settings.json` e para o caminho absoluto. Também rc=2 para `sed -i`, `mv src/app.js .vscode/settings.json`, `cd .vscode && printf x > settings.json`, `rm -rf .vscode` e `mv .vscode .v2`.
+- Regressão: `tee .vscode/tasks.json` e Write em `.devcontainer/devcontainer.json` seguem em rc=2.
+- Legítimos: Write em `.vscode/extensions.json` e em `src/app.js` deram rc=0.
 
-## Detalhe dos achados
-**A1 (alta).** Evidência: `templates/projeto/.vscode/tasks.json:7` e `:10` (comando e `runOn: folderOpen`); `hooks/conformidade.json:29-83` (lista `caminhos` sem `.vscode/`); `templates/projeto/.claude/settings.json:30-36` (sandbox só com `denyRead`, sem `denyWrite`; o `~/.claude/gh` está negado à leitura justamente para o agente não alcançar o login do dono). Sondas S1 e S2.
-Caminho de ataque: um agente do projeto, sob injeção de prompt (texto de issue, dependência, página lida) ou por engano, grava um `command` novo em `.vscode/tasks.json` (o hook deixa, o sandbox deixa, é uma pasta do work tree). Na próxima vez que o dono abre ou reconecta a pasta, o VS Code roda o comando no terminal integrado, como root, sem o sandbox do Claude Code: lê `~/.claude/gh` (login `repo,workflow`) e sai pela rede sem lista de domínios. A permissão de tarefas automáticas, que o desenho diz ser pedida uma vez, já terá sido dada pelo próprio modelo, então a troca do comando passa sem aviso. O mesmo vale para uma branch de terceiros trazida ao work tree. Ganho: o token do dono com escopo de workflow, ou seja, escrita nos repositórios e no CI.
-Correção mínima (esforço P):
-1. `hooks/conformidade.json`, em `caminhos`, a entrada `{"caminho": ".vscode/tasks.json", "quem": [], "motivo": "arquivo em vigor (.vscode/tasks.json): o VS Code o executa ao abrir a pasta"}`, igual à de `.githooks/`. Dono: `tech-lead` (o arquivo é a política; só `tech-lead` e `doc` o mudam).
-2. `templates/projeto/.claude/settings.json`, `sandbox.filesystem.denyWrite` com `./.vscode/tasks.json`, para a escrita por Bash que o hook não reconhece. Dono: `devops-engineer`.
-3. Teste: `forge:dev` com Write, Edit e Bash (`printf x > .vscode/tasks.json`, `cp`, `tee`) sobre `.vscode/tasks.json` dá rc=2; o `forge-init` segue copiando o arquivo no projeto novo. Dono: `devops-engineer` (com o `qa-engineer`).
-Lista completa dos arquivos do work tree que o VS Code executa sozinho e que a correção deve cobrir: `.vscode/tasks.json` (bloqueante, novo nesta entrega) e `.devcontainer/devcontainer.json` (A2, anterior).
-
-**A2 (média, anterior à entrega).** Evidência: `templates/projeto/.devcontainer/devcontainer.json:17`; o comentário de `:4` mostra que o modelo já considera o work tree gravável pelo agente. Caminho: o agente acrescenta um `postStartCommand` ou `postAttachCommand` próprio; roda fora do sandbox no próximo início do container (com `shutdownAction: none`, mais raro, não impossível). Correção: a mesma entrada em `hooks/conformidade.json` para `.devcontainer/` e o mesmo `denyWrite`, se o dono aceitar que só ele mexe no container do projeto (hoje o `devops-engineer` pode editá-lo; a escolha é do dono, `R-DECISAO`). Esforço P. Dono: `tech-lead` e `devops-engineer`.
-
-Fora do meu domínio, ao `tech-lead`: o desenho lista `.devcontainer/devcontainer.json` do Forge no S2 (D2: "no modelo de projeto e no container do Forge"), e este commit não o toca.
+Lista completa de arquivos do work tree que mudam o que o VS Code ou o container executam sozinhos, todos protegidos agora: `.vscode/tasks.json`, `.vscode/settings.json` e `.devcontainer/devcontainer.json`. `.devcontainer/preparar-ambiente.sh` roda de um clone novo da `main` e fica de fora.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: os hooks rodados localmente sobre projeto descartável e os 3 testes novos de `tests/test_forge.py`. Faltaram no ambiente: `gitleaks`, `zizmor`, `actionlint`, `semgrep`, `shellcheck` (o shellcheck roda no CI); não instalei nada (`R-CUSTO`).
+Nenhum risco aceito. A camada `denyWrite` só vale depois que o dono aplicar o patch revisado (blob acima). Até lá, a proteção é a do hook, provada pelas sondas.
+
+Ferramentas: `hooks/conformidade.py` local, `git apply --check`, o teste novo e o mutante M5 numa cópia descartável. Faltaram no ambiente `gitleaks`, `zizmor`, `actionlint` e `semgrep`. Não instalei nada (`R-CUSTO`).
