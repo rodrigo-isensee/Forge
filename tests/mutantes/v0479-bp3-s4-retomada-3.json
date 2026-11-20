@@ -56,8 +56,8 @@
       "id": "M28",
       "guarda": "BP3-S4: sem arquivo de estado (clone sem diretório comum) conta zero, sem erro",
       "arquivo": "bin/forge_retomada.py",
-      "de": "    if arquivo is None:",
-      "para": "    if False:",
+      "de": "if arquivo else []",
+      "para": "if True else []",
       "testes": [
         "tests.test_forge_check_retomada.Contar.test_sem_arquivo_de_estado_do_clone_conta_zero"
       ]
