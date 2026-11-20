@@ -6,9 +6,10 @@ Alvo: `vX.Y.Z` (tag), `#N` ou `pr:N` (PR, pelo `gh pr view`), sha de 7 a 40 hex 
 mais novo de cada base que o cita). A presença em `develop`, `homolog` e `main` é `git merge-base --is-ancestor` contra
 `origin/<base>`, com o sha lido de cada uma (o clone pode estar atrás: a linha mostra de onde leu).
 Saída: linhas `onde: ...` sem caractere de controle. rc 0 lido; 1 alvo não existe; 2 alvo inválido ou leitura que falhou
-(`nao-verificavel`, nunca `sim`: o `gh` lento sai pelo teto do `gh_json` do forge-check).
+(`nao-verificavel`, nunca `sim`: o `gh` lento sai pelo teto do `gh_json` do forge-check; o `git` lento, pelo `executar`).
 """
 import re
+import subprocess
 
 BASES = ("develop", "homolog", "main")
 VERSAO = re.compile(r"v\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?")
@@ -132,12 +133,18 @@ def onde(alvo, raiz, ctx):
         sha = sha_de(ctx, raiz, f"refs/tags/{valor}" if tipo == "versao" else valor)
         if sha is None:
             return NAO_EXISTE, [f"onde: {tipo} {valor} nao-existe (ausente ou ambíguo no clone)"]
+        if tipo == "commit" and not sha.startswith(valor):  # o git prefere a tag ou branch de nome hexadecimal ao objeto
+            return NAO_VERIFICAVEL, [f"onde: commit {valor} nao-verificavel (sha ambíguo com ref: leu {sha[:12]})"]
         linhas, rc = presenca(ctx, raiz, sha)
         linhas.insert(0, f"onde: {tipo} {valor} @{sha[:12]}")
     return rc, [ctx["seguro"](linha) for linha in linhas]
 
 
 def executar(a, raiz, ctx):
-    rc, linhas = onde(a.alvo, raiz, ctx)
+    try:
+        rc, linhas = onde(a.alvo, raiz, ctx)
+    except subprocess.TimeoutExpired:  # leitura que falhou é rc 2; o rc 1 do forge-check diria "alvo não existe"
+        print("onde: nao-verificavel (git sem resposta)")
+        return NAO_VERIFICAVEL
     print("\n".join(linhas))
     return rc

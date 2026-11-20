@@ -1,5 +1,8 @@
 """AE1.1 (v0478 E58.1): `forge-check onde` (bin/forge_onde.py) diz onde está uma versão, um PR, um commit, uma branch ou um cartão,
 lido do git e do gh; um teste por guarda, com o ramo de falha. O gh é um falso que confere o número e o `--head` exatos."""
+import argparse
+import contextlib
+import io
 import os
 import subprocess
 import sys
@@ -135,6 +138,26 @@ class VersaoECommit(Base):
         self.assertIn("onde: develop sim", saida)
         self.assertIn("onde: homolog nao", saida)
         self.assertIn("onde: main nao", saida)
+
+    def test_sha_curto_com_tag_de_mesmo_nome_e_nao_verificavel(self):
+        curto = self.repo.c1[:9]
+        self.repo.git("tag", curto, self.repo.c3)  # o git prefere a ref ao objeto: lê c3 pedindo c1
+        self.addCleanup(self.repo.git, "tag", "-d", curto)
+        rc, saida = self.onde(curto)
+        self.assertEqual(rc, 2)
+        self.assertIn(f"onde: commit {curto} nao-verificavel (sha ambíguo com ref: leu {self.repo.c3[:12]})", saida)
+        self.assertNotIn(" sim", saida)
+
+    def test_git_sem_resposta_sai_rc_2_nao_1(self):
+        def git(raiz, *args, **kw):
+            raise subprocess.TimeoutExpired(["git", "-C", str(raiz), *args], 5)
+
+        ctx = {"git": git, "gh_json": GhFalso(), "seguro": fc.sem_controle}
+        saida = io.StringIO()
+        with contextlib.redirect_stdout(saida):
+            rc = O.executar(argparse.Namespace(alvo=self.repo.c1), self.repo.pasta, ctx)
+        self.assertEqual(rc, 2)
+        self.assertEqual(saida.getvalue(), "onde: nao-verificavel (git sem resposta)\n")
 
     def test_merge_base_que_falha_e_nao_verificavel_nunca_sim(self):
         def git(raiz, *args, **kw):
