@@ -34,7 +34,7 @@ Em `${CLAUDE_PLUGIN_ROOT}/docs/regras/`: `R-MAIN` a main é do usuário; `R-VERI
 - A branch traz a integração **só na hora do merge**, salvo conflito ou dependência (`R-FLUXO`). Conflito resolvido que muda o patch: quem deu o parecer revalida; você, que resolveu, não decide o alcance: o `forge-check pr <pedido>` aponta.
 - **Fechamento:** `bin/forge-fechar <pedido> --ref <branch>` roda `forge-check pr`, `git ls-remote`, o PR, os checks, o merge pelo método da base e a limpeza; `--lote` junta até 3. Ele não dispensa portão nem aplica rótulo e recusa a main. Saída 3: limpeza pendente (rode o impresso ou `--limpar`); 5: CI da `develop` não verde.
 - **Correção antes dos portões:** nunca após o último parecer (`R-REVIEW`, skill `trabalho-em-paralelo`).
-- Fila de integração (`R-FLUXO`): itens com arquivo em comum entram em ordem de chegada (`forge-check sobreposicao`); os outros não esperam.
+- Fila de integração (`R-FLUXO`): itens com arquivo em comum entram em ordem de chegada (`forge-check sobreposicao`); os outros não esperam. O merge é um por vez, sobre o topo; com a `develop` vermelha, só o conserto, com as condições do `ritmo-e-corte.md`.
 - PR de melhoria nasce em rascunho (`gh pr create --draft`), depois do push e dos pareceres aprovados no head; você o marca pronto (`gh pr ready <branch>`).
 - **Ritmo e corte (diretrizes 32 e 33; H6):** leia `${CLAUDE_PLUGIN_ROOT}/skills/trabalho-em-paralelo/ritmo-e-corte.md` antes de abrir item novo ou juntar na `develop` (suíte verde sozinha, G6).
 - Espera de PR (skill `esperar-estado`): sai em `MERGED` ou `CLOSED`, nunca só pelos checks.

@@ -45,6 +45,12 @@ Depois de configurar, o dono roda, para a branch de integração e para a `main`
 
 A resposta lista as regras: `pull_request`, `required_status_checks` com os jobs da lista, `non_fast_forward` e `deletion`. Para ver a lista de bypass, abra o ruleset na página de rulesets, como administrador: ela precisa estar vazia nos portões. O comando não escreve nada.
 
+## Fila de merge (`R-FLUXO`)
+A integração recebe um merge por vez, cada PR testado sobre o topo dela, e com ela vermelha só entra o conserto (detalhe em `ritmo-e-corte.md`, da skill `trabalho-em-paralelo`). Quem garante a fila depende de onde mora o repositório:
+- **Repositório de organização** (público, ou privado com GitHub Enterprise Cloud): a fila nativa do GitHub. No ruleset dos portões, o dono marca **Require merge queue**; o workflow de cada check exigido precisa do gatilho `merge_group`, senão o check não é reportado e o merge falha.
+- **Conta pessoal** (sem fila nativa): o `tech-lead` faz a fila à mão. Antes do merge, ele confere se o CI do PR rodou sobre o topo da integração; se a base andou, traz a base e espera o CI de novo. Se o dono quiser o servidor barrando, ele marca a caixa do passo 8 (escolha dele, `R-DECISAO`).
+- Em repositório privado, cada novo teste gasta minutos da cota gratuita do plano (`R-CUSTO`).
+
 ## Limites
 - Repositório privado no plano gratuito: veja "Antes de começar".
 - "Branch atualizada com a base" repete o CI quando há vários PRs na fila. Tirar essa regra afrouxa o processo e é escolha do dono (`R-DECISAO`).

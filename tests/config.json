@@ -353,6 +353,7 @@
     ],
     "templates/projeto/docs/engineering/protecao-de-branch.md": [
       "sem ator de bypass",
+      "\\*\\*Require merge queue\\*\\*",
       "`R-CONFORMIDADE`",
       "Enforcement status: \\*\\*Active\\*\\*"
     ],
@@ -513,7 +514,9 @@
       "\\*\\*Nunca\\*\\* apague `develop`, `homolog` nem `main`",
       "`git worktree prune`",
       "\\*\\*Fluxo contínuo:\\*\\*",
-      "a versão é uma tag e release sobre um commit da `develop`"
+      "a versão é uma tag e release sobre um commit da `develop`",
+      "Um merge por vez, testado sobre o topo",
+      "Topo vermelho: só o conserto, preso ao head revisado"
     ],
     "docs/regras/R-NEUTRO.md": [
       "nada específico de um projeto entra em agentes, skills, docs ou modelos"
@@ -602,6 +605,10 @@
       "Por que o existente não basta"
     ],
     "skills/trabalho-em-paralelo/ritmo-e-corte.md": [
+      "\\*\\*Conserto da integração vermelha\\*\\*",
+      "nenhum portão é dispensado",
+      "merge preso ao head revisado",
+      "\\*\\*Lote\\*\\* \\(diretriz 26\\) é exceção declarada",
       "## Ritmo diário \\(diretriz 32 do dono\\)",
       "## Corte do trabalho por arquivo \\(diretriz 33 do dono\\)",
       "## Teto do time \\(decisão do dono, H6\\)",
@@ -832,6 +839,9 @@
     "scripts/jarvis-forge": 2
   },
   "invariantes_motivo_trecho": {
+    "templates/projeto/docs/engineering/protecao-de-branch.md": {
+      "\\*\\*Require merge queue\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto de organização não liga a fila nativa e o PR testado sobre a integração velha entra (BP2 D6)"}
+    },
     "templates/projeto/CLAUDE.md": {
       "\\*\\*Ritmo diário:\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo não recebe o ritmo diário: junção contínua e a versão para a main (diretriz 32)"},
       "a versão sai quando a branch de integração tem um conjunto verde que valha uma versão, até 2 por dia": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo segura a versão para uma vez só de manhã e o que está verde espera (diretriz 34)"},

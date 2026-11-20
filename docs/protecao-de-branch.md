@@ -42,6 +42,6 @@ A resposta lista as regras: `pull_request`, `required_status_checks` com os dois
 
 ## Limites
 - Repositório privado no plano gratuito: veja "Antes de começar".
-- Sem "branch atualizada com a base" (passo 8), quebra semântica sem conflito entre dois PRs só aparece no CI de `push` da `develop`, depois do merge. É o risco que o dono aceitou na E8 da 0.45.6 (`R-DECISAO`) para não repetir a bateria a cada PR da fila.
+- Sem "branch atualizada com a base" (passo 8), o servidor não barra o PR testado sobre uma `develop` velha. Quem barra é a fila da `R-FLUXO`, no `bin/forge-fechar` (decisão D1 do dono para a BP2, 20/11: sem mudar endereço nem ruleset); merge feito fora do script não passa por ela, e a quebra sem conflito só aparece no CI de `push` da `develop`. Reabre quando o Forge for para uma organização: lá, a fila nativa do GitHub (BP9).
 - A interface do GitHub muda; a conferência por `gh api` não depende dela.
 - Com o ruleset ligado e sem desvio, o próprio dono espera a bateria. É o que a decisão pede.
