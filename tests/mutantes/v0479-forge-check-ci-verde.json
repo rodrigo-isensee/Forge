@@ -82,5 +82,12 @@
         "tests.test_parecer_ci_verde.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "base and ft",
+      "motivo": "base None: o git recusaria a ref `None...<commit>` e o `nomes_do_intervalo` estrito já devolve None; a guarda só evita a chamada (mutante equivalente)"
+    }
   ]
 }

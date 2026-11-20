@@ -4,32 +4,84 @@
   "mutantes": [
     {
       "id": "M17",
-      "guarda": "parecer novo: slug só na convenção melhoria/",
+      "guarda": "checks_do_head: checks não lidos reprovam (a leitura mudou para checks_ruins)",
       "arquivo": "bin/forge-check",
-      "de": "slug = branch.removeprefix(\"melhoria/\") if branch.startswith(\"melhoria/\") else \"\"",
-      "para": "slug = branch.removeprefix(\"melhoria/\")",
+      "de": "    if lidos is None:\n        return [f\"pr: checks do PR #",
+      "para": "    if lidos is not None:\n        return [f\"pr: checks do PR #",
       "testes": [
-        "tests.test_aq5_parecer_novo.ParecerNovo.test_grava_no_slug_da_branch_e_nao_no_pedido"
+        "tests.test_forge_check_pr.ChecksDoHead.test_checks_nao_lidos_reprova",
+        "tests.test_forge_check_pr.ChecksDoHead.test_sem_checks_no_projeto_aprova"
       ]
     },
     {
       "id": "M18",
-      "guarda": "parecer novo: slug só com a forma segura de nome",
+      "guarda": "modulos_tocados: o módulo de teste do diff vai ao conjunto, não ao planejar",
       "arquivo": "bin/forge-check",
-      "de": "slug if NOME_SEGURO_DE_BRIEF.fullmatch(slug) else pedido}.md",
-      "para": "slug or pedido}.md",
+      "de": "if not ft.TESTE_DO_DIFF.fullmatch(n) or n in",
+      "para": "if ft.TESTE_DO_DIFF.fullmatch(n) or n in",
       "testes": [
-        "tests.test_aq5_parecer_novo.ParecerNovo.test_grava_no_slug_da_branch_e_nao_no_pedido"
+        "tests.test_parecer_ci_verde.ProvaDaSuite.test_prova_que_cobre_o_plano_vale"
       ]
     },
     {
       "id": "M19",
-      "guarda": "parecer novo: grava no caminho do slug",
+      "guarda": "modulos_tocados: o módulo de teste apagado não entra",
       "arquivo": "bin/forge-check",
-      "de": "    rel = arquivo_do_parecer_novo(tipo, a.pedido, a.branch)\n",
-      "para": "    rel = f\"{CONTRATOS[tipo][0]}/{a.pedido}.md\"\n",
+      "de": "and (Path(raiz) / n).is_file()}",
+      "para": "and True}",
       "testes": [
-        "tests.test_aq5_parecer_novo.ParecerNovo.test_grava_no_slug_da_branch_e_nao_no_pedido"
+        "tests.test_parecer_ci_verde.ProvaDaSuite.test_prova_que_cobre_o_plano_vale"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "falta_na_prova: parecer sem `commit:`",
+      "arquivo": "bin/forge-check",
+      "de": "commit = campos.get(\"commit\") or \"\"\n    provas",
+      "para": "commit = campos.get(\"commit\")\n    provas",
+      "testes": [
+        "tests.test_parecer_ci_verde.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "falta_na_prova: sem a linha da prova",
+      "arquivo": "bin/forge-check",
+      "de": "    if not provas:\n        return f\"sem a linha",
+      "para": "    if provas:\n        return f\"sem a linha",
+      "testes": [
+        "tests.test_parecer_ci_verde.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale",
+        "tests.test_parecer_ci_verde.ProvaDaSuite.test_prova_que_cobre_o_plano_vale"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "falta_na_prova: o que falta diz os módulos",
+      "arquivo": "bin/forge-check",
+      "de": "faltam = \"completa\" if tocados == \"completa\" else",
+      "para": "faltam = \"completa\" if tocados != \"completa\" else",
+      "testes": [
+        "tests.test_parecer_ci_verde.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "suite_do_parecer: o CI é lido uma vez",
+      "arquivo": "bin/forge-check",
+      "de": "    if \"verde\" not in ci:\n",
+      "para": "    if \"verde\" in ci:\n",
+      "testes": [
+        "tests.test_parecer_ci_verde.NoPr.test_sem_prova_e_sem_ci_verde_reprova"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "suite_do_parecer: o CI é o do head da ref",
+      "arquivo": "bin/forge-check",
+      "de": "sha_do_commit(raiz, ref or \"HEAD\"))\n    return [] if ci",
+      "para": "sha_do_commit(raiz, ref))\n    return [] if ci",
+      "testes": [
+        "tests.test_parecer_ci_verde.NoPr.test_sem_prova_e_sem_ci_verde_reprova"
       ]
     }
   ]

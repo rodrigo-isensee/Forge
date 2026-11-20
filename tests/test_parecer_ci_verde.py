@@ -13,7 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_isencoes import Repo, fc, git  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
-FORGE = {".claude-plugin/plugin.json": json.dumps({"name": "forge"}) + "\n", "tests/test_forge.py": "x = 0\n"}
+FORGE = {".claude-plugin/plugin.json": json.dumps({"name": "forge"}) + "\n", "tests/test_forge.py": "x = 0\n",
+         "tests/test_velho.py": "x = 0\n"}
 REVIEW = ("---\ntipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\n"
           "revisor: forge:tech-lead\ndata: 2026-10-12\n---\n# Review\n\n## Achados\n{prova}")
 EXIGIDOS = [{"name": n.split("/", 1)[1], "workflow": n.split("/", 1)[0], "bucket": "pass"} for n in fc.CHECKS_EXIGIDOS_DO_FORGE]
@@ -32,11 +33,13 @@ def gh_falso(head, checks, pr_ok=True):
 
 class Base(Repo):
     def entregar(self):
-        """Base do Forge, depois bin/forge-x e o teste dele na branch: o plano dos módulos tocados é {test_forge, test_forge_x}."""
+        """Base do Forge, depois bin/forge-x e o teste dele na branch, que apaga o tests/test_velho.py: o plano dos módulos tocados é
+        {test_forge, test_forge_x} (o módulo apagado não entra)."""
         git("switch", "-q", "develop", cwd=self.tmp)
         self.base = self.commitar(FORGE, "forge")
         git("switch", "-q", "melhoria/x", cwd=self.tmp)
         git("merge", "-q", "develop", cwd=self.tmp)
+        git("rm", "-q", "tests/test_velho.py", cwd=self.tmp)
         return self.commitar({"bin/forge-x": "print(1)\n", "tests/test_forge_x.py": "x = 1\n"}, "codigo")
 
     def falta(self, commit, prova):
@@ -57,6 +60,8 @@ class ProvaDaSuite(Base):
         self.assertIn("sem a linha", self.falta(head, f"- suíte: {head} rc=1 módulos=test_forge_x\n"))
         self.assertIn("sem a linha", self.falta("", f"- suíte: {head} rc=0 módulos=test_forge,test_forge_x\n"))  # `commit:` vazio é prefixo de tudo
         self.assertIn("falta test_forge_x", self.falta(head, f"- suíte: {head} rc=0 módulos=test_forge\n"))
+        sem_commit = fc.falta_na_prova(self.tmp, self.base, {}, f"- suíte: {head} rc=0 módulos=test_forge,test_forge_x\n")
+        self.assertIn("sem a linha", sem_commit)  # parecer sem `commit:`
 
     def test_plano_completo_pede_a_suite_inteira(self):
         git("switch", "-q", "develop", cwd=self.tmp)
@@ -115,6 +120,7 @@ class NoPr(Base):
         erro = io.StringIO()
         with mock.patch.object(fc, "ci_verde_no_head", return_value=verde) as ci, redirect_stderr(erro):
             linhas = fc.cmd_pr(self.tmp, "p1", None, self.base, "melhoria/x", suite=suite)
+        self.ci = ci
         return [l for l in linhas if "PARECER-SO-COM-CI-VERDE" in l], ci.call_count, erro.getvalue()
 
     def test_sem_prova_e_sem_ci_verde_reprova(self):
@@ -122,6 +128,7 @@ class NoPr(Base):
         self.assertEqual(len(linhas), 1, linhas)
         self.assertTrue(linhas[0].startswith("docs/reviews/p1.md: suíte: o parecer aprovado só conta com o CI verde"), linhas)
         self.assertEqual(chamadas, 1)
+        self.ci.assert_called_once_with(self.tmp, "melhoria/x", git("rev-parse", "HEAD", cwd=self.tmp))  # o head da ref, não o `commit:`
 
     def test_ci_verde_basta(self):
         self.assertEqual(self.violacoes("", verde=True)[0], [])
