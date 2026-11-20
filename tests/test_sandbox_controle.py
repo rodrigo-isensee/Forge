@@ -29,7 +29,7 @@ from ambiente_git import sem_manutencao  # noqa: E402
 RAIZ = Path(__file__).resolve().parent.parent
 MODELO = RAIZ / "templates" / "projeto" / ".claude" / "settings.json"
 FORGE = RAIZ / ".claude" / "settings.json"
-PATCH = RAIZ / "docs" / "devops" / "v0479-sandbox-controle.patch"
+PATCH = RAIZ / "docs" / "engineering" / "v0479-sandbox-controle.patch"
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_"))})
 
 CONTROLE_DO_MODELO = [".forge/config.json", ".forge/run/agentes.json", ".forge/run/pesado.json", "~/.forge/maquina"]
