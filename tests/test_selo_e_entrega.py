@@ -1563,7 +1563,7 @@ class ParecerMescladoNaVolta(Conferencia):
         self.assertTrue(fc.parecer_mesclado_na_volta(*argumentos))
 
         def sem_rev_list(raiz, *args, **kw):
-            return (128, "") if args[:2] == ("rev-list", "--full-history") else original(raiz, *args, **kw)
+            return (128, "") if args[0] == "rev-list" and args[-1] == rel else original(raiz, *args, **kw)  # só o do arquivo, não o da pasta
         with mock.patch.object(fc, "git", sem_rev_list):
             self.assertFalse(fc.parecer_mesclado_na_volta(*argumentos))
 
