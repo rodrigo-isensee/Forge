@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp1-q1-leitor
-commit: d0619ab2ca768b802cc9731ea5792c56447da461
+commit: eec2c1c14cc4de4c1af0d39e3bac4d808ce88b90
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -14,7 +14,7 @@ data: 2026-11-20
 ---
 # QA: v0479-bp1-q1-leitor
 
-Módulos tocados: `bin/forge_quarentena.py`, `tests/quarentena.json` (vazio), `tests/test_forge_quarentena.py`. Sem suíte local; cenários locais com `python3 -I`.
+Módulos tocados: `bin/forge_quarentena.py`, `tests/quarentena.json` (vazio), `tests/test_forge_quarentena.py`. Sem suíte local; cenários locais com `python3 -I`. Revalidação no head eec2c1c1 (delta de `forge-check parecer delta`, base d0619ab2).
 
 ## Achados
 - A1 (recomendado) bin/forge_quarentena.py:15 · `\d` aceita dígitos Unicode: `OK_DO_DONO.fullmatch("A-١")` casa (reproduzido); `DATA` casa, mas `fromisoformat` rejeita (falha fechada). Usar `[0-9]` no OK do dono.
@@ -38,3 +38,11 @@ Módulos tocados: `bin/forge_quarentena.py`, `tests/quarentena.json` (vazio), `t
 - Vermelho antes do verde: na base 004ce869 `bin/forge_quarentena.py` não existe; o módulo de teste copiado para a base falha na carga (`ModuleNotFoundError`; FAILED errors=1, cópia em `$TMPDIR`). O `forge-testes --vermelho` ficou na fila da trava `R-TETO` e não deu veredito neste prazo.
 - Mutação: `forge-mutante` nas 3 specs, 17 mutantes, todos `morreu` (Q7 e Q13 por erro do teste declarado, com controle verde). `--cobertura --base 004ce869`: toda condição Python mudada tem mutante (`coberta`); só `tests/quarentena.json` sai `não coberto` (dado, sem regra).
 - Bordas exploradas à mão: dígitos Unicode (A1); `desde` inteiro, `prorrogacao` nula ou `{}` caem em erro, sem exceção.
+
+## Revalidação no head eec2c1c1 (delta d0619ab2..eec2c1c1)
+Delta no domínio: `bin/forge_quarentena.py` (link, teto de 64 KiB, chave repetida, id de teste, `desde` futuro, repetido, `RecursionError`), 7 testes novos, mutantes Q18-Q23 e M42. A1 segue aberto, recomendado, sem mudança (`\d` nas linhas 20-21).
+- `python3 -I -m unittest discover -s tests -p test_forge_quarentena.py`: Ran 27 tests, OK.
+- Vermelho: `forge-testes --vermelho d0619ab2 --modulos test_forge_quarentena`: 7 provam (asserção=5, API ausente=2: teto, aninhado fundo, link, chave repetida, `desde` futuro, id, repetido); 20 "passa na base" são herdados.
+- Mutação: `forge-mutante --base d0619ab2 tests/mutantes/v0479-bp1-q1-leitor-4.json`: Q18 a Q23 `morreu`; `v0479-quarentena-s1-5.json`: M41 e M42 `morreu` (M42 por erro do teste, controle verde). `--cobertura --base 004ce869`: toda condição Python mudada `coberta`; só `tests/quarentena.json` `não coberto` (dado).
+- Bordas à mão, sem exceção: `teste` lista ou dict, bytes não UTF-8, dict aninhado 20000 níveis (cai no teto), diretório e `/dev/null` como arquivo, prazo igual a `desde`.
+- Contrato dos CA da tabela acima: inalterado; a troca de ids `t.A.tN` por `test_N` nos testes só segue o novo formato.
