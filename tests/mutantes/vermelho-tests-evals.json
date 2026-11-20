@@ -38,7 +38,7 @@
       "id": "M4",
       "guarda": "a lista de modulos conhecidos inclui os de pacote (modulo sem arquivo sai 2, o de pacote existe)",
       "arquivo": "bin/forge-testes",
-      "de": "todos = sorted(n for p in (raiz / \"tests\").rglob(\"test_*.py\") if (n := nome_do_modulo(p.relative_to(raiz).as_posix())))",
+      "de": "todos = sorted(n for n in map(nome_do_modulo, (p.relative_to(raiz).as_posix() for p in (raiz / \"tests\").rglob(\"test_*.py\"))) if n)",
       "para": "todos = sorted(p.stem for p in (raiz / \"tests\").glob(\"test_*.py\") if NOME_DE_MODULO.fullmatch(p.stem))",
       "testes": [
         "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito",
@@ -110,8 +110,8 @@
       "id": "M11",
       "guarda": "a lista de modulos conhecidos so leva arquivo que e nome de modulo (a condicao do filtro)",
       "arquivo": "bin/forge-testes",
-      "de": "(n := nome_do_modulo(p.relative_to(raiz).as_posix()))",
-      "para": "False",
+      "de": "(p.relative_to(raiz).as_posix() for p in (raiz / \"tests\").rglob(\"test_*.py\"))) if n)",
+      "para": "(p.relative_to(raiz).as_posix() for p in (raiz / \"tests\").rglob(\"test_*.py\"))) if False)",
       "testes": [
         "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito"
       ]

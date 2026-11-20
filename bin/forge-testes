@@ -782,7 +782,7 @@ def vermelho(base_pedida, modulos_pedidos, prazo):
     mantidos = [c for c in caminhos if TESTE_DO_DIFF.fullmatch(c)]
     modificados = {nome_do_modulo(c) for c in caminhos if nome_do_modulo(c)}
     removidos = {Path(c).stem for s, c in producao if s == "A"}
-    todos = sorted(n for p in (raiz / "tests").rglob("test_*.py") if (n := nome_do_modulo(p.relative_to(raiz).as_posix())))
+    todos = sorted(n for n in map(nome_do_modulo, (p.relative_to(raiz).as_posix() for p in (raiz / "tests").rglob("test_*.py"))) if n)
     if modulos_pedidos is not None:
         modulos, restrito = modulos_pedidos, " (restrito por --modulos)"
         ausentes = [m for m in modulos if m not in todos]
