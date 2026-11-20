@@ -7,7 +7,7 @@
             "guarda": "E37.24: arquivo com skipTest tem as def lidas",
             "arquivo": "tests/quarentenas.py",
             "de": "            arvore = ast.parse(texto if \"skipTest\" in texto else \"\")",
-            "para": "            arvore = ast.parse(\"\")",
+            "para": "            arvore = ast.parse(texto if \"skipTest\" not in texto else \"\")",
             "testes": [
                 "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
             ]
@@ -77,7 +77,7 @@
             "guarda": "E37.24: motivo do skip que não é texto não conta",
             "arquivo": "tests/quarentenas.py",
             "de": "        yield motivo if isinstance(motivo, str) else \"\"",
-            "para": "        yield motivo",
+            "para": "        yield motivo if True else \"\"",
             "testes": [
                 "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
             ]
