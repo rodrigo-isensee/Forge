@@ -70,12 +70,13 @@ CI verde na 1.ª execução (PR-VERDE M1, definição D7 aceita pelo dono em 20/
 total da janela (`--dias` até `--ate`, pelo dia UTC da abertura do PR), os PRs cujo 1.º head (o do 1.º run `pull_request` da
 branch depois da abertura do PR, o que vale para PR reaberto e branch reescrita) teve a 1.ª execução de cada workflow exigido
 (`--exigidos`, padrão `CI,Catraca`) em `success`. Cancelada não conta como verde nem como vermelha (fica em `cancelados`, fora da
-taxa); ainda rodando, `pendentes`; rerun (`attempt` acima de 1) e qualquer outra conclusão, vermelho; workflow fora da lista,
-ignorado; workflow exigido sem execução no 1.º head, `lacunas`; PR do dependabot, fora. Os vermelhos saem por workflow (e por job,
-quando o run traz `jobs`), para separar a catraca do resto. Fontes geradas fora, sem rede: `--runs` (`gh run list --event
+taxa) quando o envio novo a cancelou; cancelada por rótulo ou edição dá lugar à execução seguinte do mesmo head. Ainda
+rodando, `pendentes`; rerun (`attempt` acima de 1) e qualquer outra conclusão, vermelho; workflow fora da lista, ignorado;
+workflow exigido sem execução no 1.º head, `lacunas`; PR do dependabot, fora. Os vermelhos saem por workflow (e por job, quando
+o run traz `jobs`), para separar a catraca do resto. Fontes geradas fora, sem rede: `--runs` (`gh run list --event
 pull_request --json workflowName,headBranch,headSha,event,status,conclusion,createdAt,attempt`) e `--pr-lista` (`gh pr list --state
-all --json number,headRefName,createdAt,author`). Fonte ausente ou ilegível (não JSON, não lista, campo faltando, data inválida):
-a medida sai `lacuna`, rc 2, nunca verde.
+all --json number,headRefName,createdAt,author`). Fonte ausente ou ilegível (não JSON, não lista, campo faltando, data inválida,
+`jobs` que não é lista): a medida sai `lacuna`, rc 2, nunca verde.
 
 Saída: 0 ok; 1 reprovado (comparar ou propostas); 2 uso errado ou fonte ilegível; 3 inconclusivo."""
 import argparse
@@ -802,6 +803,8 @@ def lista_do_gh(arq, campos):
         return None
     if not isinstance(dados, list) or not all(isinstance(d, dict) and all(c in d for c in campos) for d in dados):
         return None
+    if any(not isinstance(d.get("jobs", []), list) for d in dados):
+        return None  # `jobs` que não é lista: fonte ilegível, lacuna (rc 2), nunca TypeError
     try:
         for d in dados:
             d["quando"] = momento(str(d["createdAt"]).replace("Z", "+00:00"), "createdAt")
@@ -826,7 +829,9 @@ def primeira_execucao(pr, runs, exigidos):
     primeiras = {}
     for r in do_pr:
         if r["headSha"] == do_pr[0]["headSha"]:
-            primeiras.setdefault(r["workflowName"], r)
+            anterior = primeiras.get(r["workflowName"])
+            if anterior is None or estado_da_execucao(anterior) == "cancelado":
+                primeiras[r["workflowName"]] = r  # D7: cancelada sem envio novo (rótulo, edição) dá lugar à seguinte do mesmo head
     if set(primeiras) != set(exigidos):
         return "lacuna", []  # workflow exigido sem execução no 1.º head
     estados = {w: estado_da_execucao(r) for w, r in primeiras.items()}

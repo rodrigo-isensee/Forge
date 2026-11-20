@@ -746,10 +746,6 @@ class SemTeste(unittest.TestCase):
                 self.assertIs(mod.fundo_demais(texto), esperado)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 def run(workflow, sha, quando, conclusao="success", ramo="melhoria/x", evento="pull_request", status="completed", tentativa=1, **extra):
     return {"workflowName": workflow, "headBranch": ramo, "headSha": sha, "event": evento, "status": status,
             "conclusion": conclusao, "createdAt": quando, "attempt": tentativa, **extra}
@@ -799,6 +795,32 @@ class CiPrimeira(unittest.TestCase):
                                  run("CI", "b", "2026-11-18T10:05:00Z"), run("Catraca", "b", "2026-11-18T10:05:05Z")], [pr(1)])
         self.assertEqual((total["verde"], total["vermelho"], total["cancelado"], total["taxa"]), (0, 0, 1, None))
         self.assertEqual(prs[0]["estado"], "cancelado")
+
+    def test_cancelada_sem_envio_novo_da_lugar_a_seguinte_do_mesmo_head(self):
+        # S1 do review: rótulo ou edição cancela a 1.ª Catraca no mesmo head; a seguinte decide
+        total, _ = self.total([run("CI", "a", "2026-11-18T10:01:00Z"), run("Catraca", "a", "2026-11-18T10:01:00Z", "cancelled"),
+                               run("Catraca", "a", "2026-11-18T10:01:20Z")], [pr(1)])
+        self.assertEqual((total["verde"], total["cancelado"], total["taxa"]), (1, 0, 1.0))
+        total, _ = self.total([run("CI", "a", "2026-11-18T10:01:00Z"), run("Catraca", "a", "2026-11-18T10:01:00Z", "cancelled"),
+                               run("Catraca", "a", "2026-11-18T10:01:20Z", "failure")], [pr(1)])
+        self.assertEqual((total["vermelho"], total["cancelado"], total["falhas"]), (1, 0, {"Catraca": 1}))
+        # a seguinte é de outro head (envio novo): continua cancelada, fora da taxa
+        total, _ = self.total([run("CI", "a", "2026-11-18T10:01:00Z"), run("Catraca", "a", "2026-11-18T10:01:00Z", "cancelled"),
+                               run("CI", "b", "2026-11-18T10:05:00Z"), run("Catraca", "b", "2026-11-18T10:05:05Z")], [pr(1)])
+        self.assertEqual((total["verde"], total["cancelado"], total["taxa"]), (0, 1, None))
+
+    def test_execucao_seguinte_nao_troca_a_primeira_que_nao_foi_cancelada(self):
+        total, _ = self.total([run("CI", "a", "2026-11-18T10:01:00Z", "failure"), run("Catraca", "a", "2026-11-18T10:01:05Z"),
+                               run("CI", "a", "2026-11-18T10:03:00Z")], [pr(1)])
+        self.assertEqual((total["verde"], total["vermelho"]), (0, 1))
+
+    def test_jobs_que_nao_e_lista_sai_lacuna(self):
+        bons = [run("CI", "a", "2026-11-18T10:01:00Z"), run("Catraca", "a", "2026-11-18T10:01:05Z", "failure")]
+        for jobs in (7, "catraca", {"name": "catraca"}):
+            with self.subTest(jobs=jobs):
+                rc, saida, erro = self.rodar(None, [pr(1)], cru=json.dumps([bons[0], dict(bons[1], jobs=jobs)]))
+                self.assertEqual((rc, saida.strip()), (2, "ci-primeira: lacuna (--runs ausente ou ilegível)"), erro)
+                self.assertNotIn("Traceback", erro)
 
     def test_vermelho_ganha_da_cancelada_e_da_pendente(self):
         total, _ = self.total([run("CI", "a", "2026-11-18T10:01:00Z", "failure"),
@@ -869,3 +891,7 @@ class CiPrimeira(unittest.TestCase):
         rc, _, erro = self.rodar([], [pr(1)], "--exigidos", " , ")
         self.assertEqual(rc, 2)
         self.assertIn("--exigidos sem workflow", erro)
+
+
+if __name__ == "__main__":
+    unittest.main()
