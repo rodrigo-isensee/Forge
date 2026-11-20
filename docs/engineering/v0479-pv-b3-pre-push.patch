@@ -1,8 +1,8 @@
 diff --git a/.githooks/pre-push b/.githooks/pre-push
-index f9443600..07796167 100755
+index f944360..f54dabe 100755
 --- a/.githooks/pre-push
 +++ b/.githooks/pre-push
-@@ -389,6 +389,41 @@ checagens_baratas() {
+@@ -389,6 +389,44 @@ checagens_baratas() {
        break
      done
    fi
@@ -14,13 +14,16 @@ index f9443600..07796167 100755
 +  # nunca verde por defeito da conferência. Roda depois das checagens de cima, sem substituir nenhuma, e soma falhas.
 +  if [ -n "$base_dev" ] && [ "${#envios[@]}" -gt 0 ]; then
 +    if [ -f bin/forge-testes ] && [ ! -L bin/forge-testes ] && [ ! -L bin/forge_apoio_testes.py ]; then
-+      for envio in "${envios[@]}"; do
++      prazo="${FORGE_REGISTROS_PRAZO:-180}"
++      envios_reg=("${envios[@]}")
++      case "$prazo" in ''|*[!0-9]*) echo "pre-push: FORGE_REGISTROS_PRAZO deve ser um número de segundos inteiro (veio '${prazo}'); recusado, a conferência dos registros não rodou." >&2; falhas=1; envios_reg=() ;; esac
++      for envio in "${envios_reg[@]}"; do
 +        read -r ponta _ ref <<< "$envio"
 +        case "$ref" in refs/heads/?*) ;; *) continue ;; esac
 +        [ "$ponta" = "$(git rev-parse HEAD 2>/dev/null)" ] || continue
 +        rc=0
 +        if command -v timeout >/dev/null 2>&1; then
-+          saida="$(env -u BASH_ENV -u ENV timeout "${FORGE_REGISTROS_PRAZO:-180}" python3 -I bin/forge-testes --registros --base origin/develop 2>&1 </dev/null)" || rc=$?
++          saida="$(env -u BASH_ENV -u ENV timeout -- "$prazo" python3 -I bin/forge-testes --registros --base origin/develop 2>&1 </dev/null)" || rc=$?
 +        else
 +          saida="$(env -u BASH_ENV -u ENV python3 -I bin/forge-testes --registros --base origin/develop 2>&1 </dev/null)" || rc=$?
 +        fi
