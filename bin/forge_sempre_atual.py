@@ -74,7 +74,9 @@ else:
     pasta = hook.copia_principal() / ".forge" / "run"
 trava = {}
 if pasta is not None and (pasta / "pesado.json").exists():
-    trava = json.loads((pasta / "pesado.json").read_text(encoding="utf-8"))
+    texto = (pasta / "pesado.json").read_text(encoding="utf-8")
+    trava = json.loads(texto) if texto.strip() else None
+    trava = {} if trava is None else trava
 desde = trava.get("desde")
 pesado = isinstance(desde, (int, float)) and agora - desde < agentes.TRAVA_S and bool(agentes.pid_vivo(trava.get("pid"), trava.get("inicio")))
 print(json.dumps({"n": n, "pesado": pesado}))

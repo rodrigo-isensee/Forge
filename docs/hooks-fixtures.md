@@ -233,13 +233,13 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3097 fixtures) roda em `tests/test
 | `comando-*` | 1 | 0 | 1 | — | — | Comando fora da lista de pesados: não lê nem grava estado. |
 | `erro-*` | 1 | 0 | 1 | — | — | Trava corrompida: libera e registra em erros.log. |
 | `expirado-*` | 1 | 0 | 1 | — | — | Trava com mais de 2 h (expiracao_horas) expira. |
-| `falha-*` | 1 | 0 | 1 | — | — | PostToolUseFailure do mesmo comando também solta a trava. |
+| `falha-*` | 1 | 0 | 1 | — | — | PostToolUseFailure do mesmo comando também solta a trava. A soltura grava null e não apaga o arquivo (E29.6: o sandbox recriaria o arquivo n… |
 | `lancador-*` | 1 | 1 | 0 | `R-TETO` | — | — |
 | `lista-*` | 1 | 1 | 0 | `R-TETO` | — | pesados do .forge/config.json substituem os padrões. |
 | `livre-*` | 1 | 0 | 1 | — | — | Nenhuma tarefa pesada ativa: libera e grava a trava. |
 | `mesma-*` | 1 | 0 | 1 | — | — | Trava da própria sessão (permissão negada, Post que não chegou): não bloqueia e é renovada. |
 | `outro-*` | 1 | 1 | 0 | — | — | Mesma sessão, mas a trava é de um subagente (agent_id): bloqueia. |
-| `permissao-*` | 1 | 0 | 1 | — | — | PermissionDenied (modo auto) do mesmo comando solta a trava. |
+| `permissao-*` | 1 | 0 | 1 | — | — | PermissionDenied (modo auto) do mesmo comando solta a trava. A soltura grava null e não apaga o arquivo (E29.6: o sandbox recriaria o arquiv… |
 | `pid-*` | 1 | 0 | 1 | — | — | Trava de sessão encerrada (PID morto) não vale. |
 | `teste-*` | 1 | 1 | 0 | `R-TETO` | `TM-25` | TM-25: teste de banco de outra sessão ativo; o Stryker da lista da stack espera (um por vez). |
 | `teto-*` | 1 | 1 | 0 | — | — | Orkastery 5: ocupado, espera na fila até o teto e recusa dizendo a posição. |

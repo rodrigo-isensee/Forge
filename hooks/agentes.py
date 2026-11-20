@@ -69,7 +69,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from _comum import (LIMITE_LOG, RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check,
-                    gravar_json, ler_json, ler_projetos_ativos, mensagem, raiz_declarada)
+                    gravar_json, ler_json, ler_projetos_ativos, ler_trava, mensagem, raiz_declarada)
 import _maquina
 from _json_raso import TETO_ANINHAMENTO, fundo_demais
 from pesado import CASCAS, TRAVA_S, pid_da_sessao, pid_vivo
@@ -501,7 +501,8 @@ def tool_use_do_meta(real, aid):
 def pesado_livre(hook, agora):
     """C9: a trava `pesado` da pasta do estado está livre: sem arquivo, ou com dono morto ou vencido (o critério do `pesado`).
     Trava que não é objeto levanta AttributeError (`.get`): o registro fica."""
-    trava = ler_json(hook.run() / "pesado.json", {})
+    trava = ler_trava(hook.run() / "pesado.json")
+    trava = {} if trava is None else trava
     desde = trava.get("desde")
     return not (isinstance(desde, (int, float)) and agora - desde < TRAVA_S and pid_vivo(trava.get("pid"), trava.get("inicio")))
 
