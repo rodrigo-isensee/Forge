@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-quarentena-s1
-commit: 968bc3ff91e44c220723b0bbb4dbc8a62c1a1516
+commit: 1c0c1e9e81d306e5745a9a6c54ed92946a53b2dd
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-20
@@ -34,7 +34,7 @@ Pode valer nas condições do dono. A catraca barra a mudança: `regra_testes_en
 - A3 (recomendado) tests/mutantes/v0478-develop-relogio.json:12 · O M1 dessa spec só nomeia a S1 e agora dá "sem veredito" (teste pulado). A mesma mutação (`prova_de_carga.py:70`) morre na tabela do critério (M8 de v0478-testes-prazo.json); listar a tabela em `testes` do M1 ou retirar a spec.
 
 - A4 (recomendado) tests/quarentenas.py:22 · Resolvido no head 968bc3ff para as três formas da S1 (função solta, `if False`, classe sem TestCase): contagem só de skip vivo, com prazo e OK do dono no motivo. Sobra o A5.
-- A5 (recomendado) tests/quarentenas.py:23 · A contagem estática ainda conta skip morto fora das formas óbvias (código após `return`/`raise`, `while False`, `if not True`, `else` de `if True`, método sombreado, classe aninhada); cruzar com o pulado real no CI.
+- A5 (recomendado) tests/quarentenas.py:70 · Resto aceito: o decorador, método sombreado, classe aninhada e fora do carregador agora contam pelo `unittest`; só o `skipTest` morto no corpo (após `return`/`raise`, `while False`, `if not True`, `else` de `if True`) ainda conta a mais; o teto continua pedindo o rótulo do dono.
 
 ## Detalhe dos achados
 A1: evidência acima; caminho de ataque não há (higiene do registro); severidade baixa; correção: duas linhas no corpo do PR; esforço P; dono: `tech-lead`. A2: a quarentena sem prazo vira esquecimento; severidade baixa; correção: data no cartão; esforço P; dono: autor do pedido. A3: severidade baixa; a spec fica sem veredito até a S1 voltar; correção: uma linha em `testes`; esforço P; dono: autor do pedido.
@@ -84,6 +84,25 @@ Não bloqueia: nenhuma análise estática fecha todas as formas, e a subida do `
 
 ### Nenhum controle fica sem teste
 Reconfirmo por escrito: o controle novo (a contagem viva, a exigência de prazo e OK do dono, `teto_passa_da_quarentena`) tem testes (`TetoDaQuarentena`, 12 verdes com `TetoDePulados`) e 22 mutantes mortos; a S1 pulada segue coberta como nas rodadas anteriores (tabela do critério, M8, ligação medida, fixture de 8 s); `teto_pulados` 2 está coberto pela catraca e por `TetoDaQuarentena`. Lacuna residual igual (combinação ao vivo da S1 até 2026-11-26) mais o A5, sem caminho de ataque fora de PR revisado.
+
+Parecer mantido: aprovado.
+
+## Revalidação no head 1c0c1e9e (delta 968bc3ff..1c0c1e9e)
+Lido: `forge-check parecer delta` (no domínio, só `tests/test_catraca.py`; `tests/quarentenas.py` e as cinco specs de mutante ficam fora do domínio e `tests/quarentenas.py`, que é o controle, foi relido inteiro). A1 a A4 sem mudança de estado; A5 reduzido (acima).
+- Contagem nova (`tests/quarentenas.py:60-108`): o decorador, a classe e o método sombreado passam a ser o que o `unittest` carrega (`discover`, `__unittest_skip__`); `skipTest` segue lido no texto do corpo do método real. Prazo vencido é recusado (`:93`); pasta que não carrega é recusada (`:80`); `sys.path` e módulos voltam (`:83-86`).
+- Rodei `TetoDaQuarentena` e `TetoDePulados`: 19 testes, OK. `bin/forge-mutante` nas cinco specs `v0479-quarentena-s1*.json`: 41 mutantes listados (M1, M4 a M7, M9 a M12, M16 a M19, M21, M23 a M41), todos morreram, nenhum sobreviveu, rodados com a árvore parada.
+
+### Julgamento do resto do A5
+Aceitável como recomendação. O que sobra é só contar a mais (nunca a menos) o `skipTest` literal em código morto do corpo. Ganho do atacante: 1 vaga de teto por skip morto. Para usá-la ele precisa (1) pôr o `skipTest` morto num PR revisado, onde o `tech-lead` e este parecer o leem, e (2) subir `teto_pulados` em `tests/config.json`, o que a catraca (`regra_teto_pulados`) barra sem o rótulo `afrouxa-regra` do dono (`R-DECISAO`); o motivo ainda exige prazo futuro e "OK do dono" (`:89-94`). A vaga a mais gasta nada no CI e só afrouxa o teto em 1 até o prazo. Sem caminho de ataque fora de PR revisado e aceito pelo dono: não bloqueia. Correção que fecharia: contar `skipTest` pelo pulado real do CI.
+
+### Sondas refeitas
+- S1 · pasta com seis `def` com `skipTest("quarentena (OK do dono): x; prazo 2099-01-01")` literal: `return` antes, `while False`, `if not True`, `else` de `if True`, `raise` antes, e um vivo · espera: 1 (só o vivo pula) · obtido: 6 (o `unittest` real pulou 1). Resto do A5, aceito.
+- S2 · decorador `@unittest.skip` com motivo em variável (`skip(M)`) e `skipTest(M)` com variável · espera: não conta ou conta pelo valor · obtido: o decorador conta pelo valor real (3 contados na pasta de sondas), o `skipTest` com variável não conta (subconta, seguro).
+- S3 · quarentena com prazo `2000-01-01` · espera: `ValueError` · obtido: `ValueError` "quarentena vencida em 2000-01-01".
+- S4 · método sombreado (`test_9 = None`) e classe aninhada, em `if False` ou repetida · espera: 0 · obtido: 0 (cobertos por `test_formas_da_sonda_a5_que_o_unittest_nao_pula_nao_contam`).
+
+### Nenhum controle fica sem teste
+Reconfirmo por escrito: cada controle do head tem teste que roda e mutante morto. A contagem pelo carregador (`TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo`, `test_skip_de_classe_conta_um_por_teste_sem_somar_o_corpo`, `test_subpasta_conta_so_se_o_unittest_a_descobre`, `test_formas_da_sonda_a5_que_o_unittest_nao_pula_nao_contam`); a recusa de prazo vencido (`test_quarentena_vencida_e_recusada_e_a_do_dia_passa`, `test_sem_data_dada_o_prazo_e_comparado_com_hoje`); a recusa sem prazo ou OK do dono (`test_quarentena_sem_prazo_ou_sem_ok_do_dono_e_recusada`); a pasta que não carrega (`test_pasta_que_o_unittest_nao_carrega_e_recusada`); a restauração de `sys.path` e módulos (`test_a_contagem_devolve_o_caminho_e_os_modulos`); `teto_passa_da_quarentena` e `teto_pulados` 2 (`TetoDaQuarentena`, `TetoDePulados`, catraca). A S1 pulada segue coberta como nas rodadas anteriores. Lacuna residual: a combinação ao vivo da S1 até 2026-11-26, mais o resto do A5, sem caminho de ataque fora de PR revisado.
 
 Parecer mantido: aprovado.
 
