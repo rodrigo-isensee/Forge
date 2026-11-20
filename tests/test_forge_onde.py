@@ -234,7 +234,7 @@ class Branch(Base):
         self.assertNotIn("#1", saida)
 
     def test_resposta_do_gh_com_outra_branch_fica_fora(self):
-        alheio = [{"number": 1, "state": "MERGED", "baseRefName": "develop", "headRefName": "melhoria/x-outra", "mergedAt": "x"}]
+        alheio = ["lixo", {"number": 1, "state": "MERGED", "baseRefName": "develop", "headRefName": "melhoria/x-outra", "mergedAt": "x"}]
         rc, saida = self.onde("melhoria/x", gh=lambda raiz, *a: (alheio, ""))
         self.assertEqual(rc, 0)
         self.assertIn("onde: pr nenhum", saida)
