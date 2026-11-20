@@ -45,6 +45,24 @@ Depois de configurar, o dono roda, para a branch de integração e para a `main`
 
 A resposta lista as regras: `pull_request`, `required_status_checks` com os jobs da lista, `non_fast_forward` e `deletion`. Para ver a lista de bypass, abra o ruleset na página de rulesets, como administrador: ela precisa estar vazia nos portões. O comando não escreve nada.
 
+## Tirar o bypass de um ruleset que já existe
+Se o ruleset da branch de integração foi criado com um ator na lista de bypass (papel de administrador, o dono, app, bot) no modo **Always**, o merge de PR com check pendente ou vermelho continua possível, inclusive para o dono. Só o dono tira, uma vez, pela interface:
+1. Repositório > Settings > Rules > Rulesets. Anote cada ruleset cujo alvo inclui a branch de integração.
+2. Abra cada um, como administrador, e em **Bypass list** remova cada ator. A lista tem de ficar **vazia**; trocar Always por "For pull requests only" não basta nos portões.
+3. Confirme **Enforcement status: Active** (Evaluate não barra) e a branch de integração entre os alvos. Salve.
+4. Se um segundo ruleset alcança a branch de integração com bypass próprio, repita nele. O ruleset da `main` não a alcança.
+5. Confira pela leitura abaixo e anote a data e o resultado no histórico do pedido.
+
+## Conferência de bypass (só leitura)
+`gh api repos/<dono>/<repo>/rulesets` lista os rulesets. Para cada um que atinge a branch de integração:
+
+`gh api repos/<dono>/<repo>/rulesets/<id>`
+
+Na resposta, `bypass_actors` tem de ser `[]` nos portões, `enforcement` tem de ser `active` e `conditions.ref_name.include` tem de citar a branch de integração. Se vier `current_user_can_bypass`, o esperado para a conta que mescla é `never`. Campo ausente é "não verificado", nunca "sem bypass".
+
+## Integração vermelha sem bypass
+Sem bypass, a integração vermelha não se conserta por merge por fora. A saída é o conserto da fila (`R-FLUXO`; "Conserto da integração vermelha" em `ritmo-e-corte.md`, da skill `trabalho-em-paralelo`): PR de conserto em branch própria, diff ligado ao vermelho, CI completo do PR com cada teste que falhou rodando e passando, merge preso ao head revisado, um conserto por vez e o CI da integração acompanhado até o verde. Nenhum portão é dispensado; o custo é o tempo de uma rodada. Se a integração ficar vermelha por mais de 4 h, em dois episódios, sem saída por esse caminho, o dono decide de novo sobre o bypass (`R-DECISAO`).
+
 ## Fila de merge (`R-FLUXO`)
 A integração recebe um merge por vez, cada PR testado sobre o topo dela, e com ela vermelha só entra o conserto (detalhe em `ritmo-e-corte.md`, da skill `trabalho-em-paralelo`). Quem garante a fila depende de onde mora o repositório:
 - **Repositório de organização** (público, ou privado com GitHub Enterprise Cloud): a fila nativa do GitHub. No ruleset dos portões, o dono marca **Require merge queue**; o workflow de cada check exigido precisa do gatilho `merge_group`, senão o check não é reportado e o merge falha.
