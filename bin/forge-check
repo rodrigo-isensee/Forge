@@ -10124,6 +10124,9 @@ def main():
     ju.add_argument("pedido", help="slug do pedido")
     ju.add_argument("--ref", required=True, help="branch ou commit da versão")
     ju.add_argument("--base", default="develop", choices=BASES_DO_FLUXO, help="a base em origin/ (padrão: develop)")
+    on = sub.add_parser("onde", parents=[comum], help="onde está uma versão, um PR, um commit, uma branch ou um cartão em develop, homolog "
+                        "e main, lido do git e do gh; lido rc 0, não existe rc 1, inválido ou não verificável rc 2; só leitura (AE1.1)")
+    on.add_argument("alvo", help="vX.Y.Z, #N ou pr:N, sha, branch:<nome> (ou nome com /) ou ID de cartão")
     va = sub.add_parser("vazio", parents=[comum], help="a base já tem o conteúdo da branch? (ACELERA-E2b) sim rc 0, não rc 1, não verificável rc 2; só leitura")
     va.add_argument("--ref", required=True, help="branch ou commit da entrega")
     va.add_argument("--base", default="origin/develop", help="origin/develop (padrão) ou develop")
@@ -10432,6 +10435,8 @@ def executar(a, raiz):
         return cmd_delta(raiz, a.refs, a.parecer, a.classe, a.base)
     if a.cmd == "juncao":
         return cmd_juncao(raiz, a.pedido, a.ref, a.base)
+    if a.cmd == "onde":  # AE1.1: em bin/forge_onde.py
+        return modulo_do_bin("forge_onde").executar(a, raiz, {"git": git, "gh_json": gh_json, "seguro": sem_controle})
     if a.cmd == "vazio":
         rc, linha = diff_vazio(raiz, a.base, a.ref)
         print(linha)
