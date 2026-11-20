@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-corpus-custo
-commit: 41db435f92eeadb4d16f641857538e77a1ca9657
+commit: 618af3034626baf06e90b26a51da716400eb46b2
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
@@ -59,3 +59,14 @@ Li o delta de `forge-check parecer delta docs/reviews/v0479-corpus-custo.md`, de
 
 ### Parecer na revalidação
 Aprovado no head 41db435f. Os bloqueantes A1 e A2 estão resolvidos, com sonda virada mutante que morre. A3, A5 e A6 não bloqueiam.
+
+## Revalidação no head 618af303 (v0478 E41.6)
+Li só o delta de `forge-check parecer delta docs/reviews/v0479-corpus-custo.md`, de 41db435f a 618af303, com a base origin/develop de a99c67b para cf097822. No domínio: `tests/apoio_volta_unica.py`, `tests/provas/v0479-corpus-custo.md` e `tests/test_hooks_volta_corpus.py`.
+
+- **Da develop, não da branch.** As funções `nomes_do_executar`, `chamadas_do_executar` e `referencias_ao_executar_fora_de_chamada` e os testes de `relogio`/`armar` no `test_hooks_volta_corpus.py` já estão em origin/develop cf097822 e entraram pelo merge 686a6e9e, sem conflito na branch. Não os revi aqui: são da revisão do seu próprio pedido.
+- **Da branch: 618af303.** Só a `MEDIDA_DO_CORPUS["interpretador"]` passa de 5860121 para 5893967, com o comentário e a seção nova da prova. Execuções (557), subprocessos (4631), ruído (0), Python e ambiente seguem iguais. A prova separa a subida: 2331 passos do `hooks/_comum.py` e do `forge-check` da primeira integração e 31515 do `hooks/agentes.py` da segunda. Isso bate com o comentário: hook mudado pede medida nova. O teto segue exato, sem folga nova. Os mutantes M23 e M25 (CPU no hook) somam bem mais que a diferença de 33846 passos, então seguem morrendo.
+- **Teste rodado:** `python3 -m unittest tests.test_hooks_volta_corpus` no head 618af303, com Python 3.12.3, git 2.43.0, 336 variáveis e TMPDIR `/tmp/claude-0`. Deu OK, rc=0, em 3 min 35 s. A medida por variável e por nível bate exato também fora do ambiente do autor. A suíte inteira fica para o CI do PR.
+- **A5 segue recomendado e agora pesa mais.** A medida mudou 0,6 % numa integração. Isso confirma que cada mudança da develop no `_comum.py`, no `agentes.py` ou no `forge-check` força uma medida nova nesta branch e nas outras que tocam o corpus. Até o primeiro CI verde do PR, o teto de passos não foi provado no 3.12 do CI.
+
+### Parecer na revalidação
+Aprovado no head 618af303. O delta da branch é só a medida, que reproduzi exata. A3, A5 e A6 seguem como recomendados.
