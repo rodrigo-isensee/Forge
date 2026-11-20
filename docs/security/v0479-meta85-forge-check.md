@@ -3,14 +3,29 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-forge-check
-commit: 19e81adc611e1f17f6a2f1fab2c4bb6162726217
+commit: dd6e111021f53ee783e47dc4649767d8f35289f8
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-19
+data: 2026-11-20
 ---
 # Review de segurança: v0478 META85 (bin/forge-check), E34.4, revalidações E34.8 e E34.12
 
-A rodada 1 (E34.4, head 6853e0ee) e a revalidação E34.8 (head 99f474bb) ficam no git. A revalidação mais recente é a do head 19e81adc (E34.20), abaixo; a do a281e4a5 (junção, E34.16) e a do 06abb4fa (E34.12) seguem.
+A rodada 1 (E34.4, head 6853e0ee) e a revalidação E34.8 (head 99f474bb) ficam no git. A revalidação mais recente é a do head dd6e1110 (E34.24), abaixo; a do 19e81adc (E34.20) segue; a do a281e4a5 (junção, E34.16) e a do 06abb4fa (E34.12) seguem.
+
+## Revalidação (E34.24, head dd6e1110)
+Delta lido: `forge-check parecer delta docs/security/v0479-meta85-forge-check.md`, intervalo `19e81adc..dd6e1110`: "nenhum arquivo do domínio
+mudou". `git diff --stat` confirma `bin/`, `hooks/`, `scripts/`, `.githooks/`, `.github/` sem diferença. Fora do domínio, lidos só como
+conferência: `tests/test_revisor_wt.py` (teste novo `test_ausente_sem_base_e_sem_develop_o_diff_literal_leva_o_previo`, que mata o M7 do
+`pr --previo` sem `--base`), `tests/mutantes/z075-pr-previo.json` (M7 passa a apontar para esse teste) e `tests/mutantes/v0433-integracao-2.json`
+(I26 lista só `tests.test_aq5_parecer_novo`); docs de QA e review. Estado dos achados anteriores: A1 resolvido (sem mudança). Achado novo: nenhum.
+
+**Só aperta, reconfirmação (`afrouxa-regra`):** a mudança do item continua só apertando. O código de decisão (`pr_da_cli`, `cmd_pr`,
+`veredito_do_parecer`, `commit_vale`) é byte a byte o já confirmado; o delta só acrescenta teste e reaponta specs de mutante, que cobram mais
+(um mutante antes sem teste que o mate agora tem) e não afrouxam guarda nenhuma. O teste novo exige o comportamento seguro: sem develop e sem
+`--base`, `pr --previo` sai 0 com aviso e `pr` sem `--previo` sai 1 com a violação de "sem parecer", ou seja, o `--previo` só rebaixa a aviso
+quando pedido e o `pr` de verdade segue recusando. O encolhimento da lista do I26 para um teste só não remove proteção do produto; vale
+enquanto o `aq5` mata o mutante (conferência de QA e CI do PR). Sem segredo no delta (revisão manual). Sem suíte local (CI do PR, pelo brief);
+`python3 -m unittest tests.test_revisor_wt` (39 testes, OK) rodado como conferência.
 
 ## Revalidação (E34.20, head 19e81adc)
 Delta lido: `forge-check parecer delta docs/security/v0479-meta85-forge-check.md`, intervalo `a281e4a5..19e81adc`. No domínio, só
