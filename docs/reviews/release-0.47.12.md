@@ -1,0 +1,24 @@
+---
+tipo: review
+contrato: 1
+pedido: release-0.47.12
+branch: melhoria/v0479-release-04712
+commit: 61cda6b8e4a79f0f236803e0faa758e3a1ab335d
+parecer: aprovado
+revisor: forge:tech-lead
+data: 2026-11-20
+---
+# Review: release-0.47.12
+
+Code review da marca da versão 0.47.12 no head 61cda6b8 (branch melhoria/v0479-release-04712, corte e base develop 09491a3b), v0478 E59.2.
+
+## Parecer
+Aprovado.
+
+- Marca (61cda6b8, 25 arquivos, 38+/57-): `git diff --stat 09491a3b 61cda6b8` mostra só os dois `plugin.json`, o `CHANGELOG.md`, o `docs/engineering/placar-mutacao.md` e os 21 fragmentos apagados de `changelog.d/`.
+- Versão: `.claude-plugin/plugin.json` e `dev/.claude-plugin/plugin.json` em `"version": "0.47.12"` (antes 0.47.11); `CHANGELOG.md` com `[Não publicado]` vazio e `[0.47.12] - 2026-11-20` (linha 7) acima de `[0.47.11]` (linha 40), com Adicionado, Alterado e Corrigido. Segunda versão do dia (0.47.11 e 0.47.12), dentro do teto de 2 da diretriz 34.
+- Fragmentos: as 28 linhas dos 21 fragmentos lidos em 09491a3b aparecem idênticas na seção `[0.47.12]` (28 linhas na seção; nenhuma faltando nem a mais); `changelog.d/` só traz o `README.md`.
+- SemVer: há Adicionado e Alterado compatíveis; o único afrouxamento (R-FLUXO, decisão D5 do dono) já está declarado no próprio fragmento; nada quebra os projetos; patch como as 0.47.x anteriores.
+- Placar (`R-TETO`, M-5, medida e não portão): a linha registra a saída crua (`falhas=1`, spec `placar.json` com rc=2) e a nota explica a rodada isolada no mesmo commit (mortos=62, falhas=0). Saída crua mais nota é o formato que o doc prevê.
+- Ferramentas no head: `bin/forge-changelog conferir --base 09491a3b`: "PR de release (versão mudou)" (rc 0); `bin/forge-changelog conferir-release`: "ok: changelog.d/ sem fragmentos pendentes" (rc 0); `scripts/conferir-release.py --base 09491a3b`: "versão base: 0.47.11 | versão da release: 0.47.12" (rc 0); `scripts/validar-plugin.sh`: "Validation passed" (rc 0; o sandbox nega só api.anthropic.com); `git diff --check`: limpo.
+- Suíte: não rerrodada (brief: sem suíte local); a prova é o CI do PR para a develop, obrigatório para o integrar (`R-REVIEW`).
