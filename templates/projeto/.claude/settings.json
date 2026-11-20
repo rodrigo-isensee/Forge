@@ -33,6 +33,12 @@
         "~/.config/gh",
         "~/.claude/gh",
         "~/.git-credentials"
+      ],
+      "denyWrite": [
+        ".forge/config.json",
+        ".forge/run/agentes.json",
+        ".forge/run/pesado.json",
+        "~/.forge/maquina"
       ]
     },
     "network": {

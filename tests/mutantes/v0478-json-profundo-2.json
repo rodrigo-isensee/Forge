@@ -1,0 +1,66 @@
+{
+  "pedido": "v0478-json-profundo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M7",
+      "guarda": "a barra abre o escape dentro da string",
+      "arquivo": "hooks/_json_raso.py",
+      "de": "            elif c == \"\\\\\":\n                escapado = True",
+      "para": "            elif False:\n                escapado = True",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "a aspa fecha a string",
+      "arquivo": "hooks/_json_raso.py",
+      "de": "            elif c == '\"':\n                em_string = False",
+      "para": "            elif False:\n                em_string = False",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "a aspa abre a string",
+      "arquivo": "hooks/_json_raso.py",
+      "de": "        elif c == '\"':\n            em_string = True",
+      "para": "        elif False:\n            em_string = True",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "chave e colchete abrem nivel",
+      "arquivo": "hooks/_json_raso.py",
+      "de": "        elif c in \"[{\":\n            nivel += 1",
+      "para": "        elif c in \"[\":\n            nivel += 1",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o teto aceita exatamente 64 niveis",
+      "arquivo": "hooks/_json_raso.py",
+      "de": "            if nivel > teto:",
+      "para": "            if nivel >= teto:",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "chave e colchete fecham nivel",
+      "arquivo": "hooks/_json_raso.py",
+      "de": "        elif c in \"]}\":\n            nivel -= 1",
+      "para": "        elif c in \"]\":\n            nivel -= 1",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    }
+  ]
+}

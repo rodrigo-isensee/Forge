@@ -5,13 +5,19 @@ Num projeto, um PR foi mesclado com o CI rodando e a integração ficou vermelha
 """
 import contextlib
 import io
+import json
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 from unittest import mock
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (o Repo roda git num repositório temporário)
+from test_isencoes import Repo, git  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 fc = SourceFileLoader("forge_check_e345", str(RAIZ / "bin" / "forge-check")).load_module()
@@ -210,6 +216,196 @@ class ParesIguaisAoFechar(unittest.TestCase):
         texto = (RAIZ / "bin" / "forge-fechar").read_text(encoding="utf-8")
         linha = next(l for l in texto.splitlines() if l.startswith("readonly CHECKS_EXIGIDOS=("))
         self.assertEqual(linha, "readonly CHECKS_EXIGIDOS=(" + " ".join(f'"{p}"' for p in fc.CHECKS_EXIGIDOS_DO_FORGE) + ")")
+
+
+
+# ---- PARECER-SO-COM-CI-VERDE (v0478 E47.1) ------------------------------------------------------------------------------------------
+# No Forge, o `forge-check pr` só conta o review e o QA aprovados com o CI verde no head ou com a prova da suíte no `commit:` do parecer
+# (`- suíte: <sha40> rc=0 módulos=<...>`, cobrindo os módulos de teste do diff). O gh falso casa o comando inteiro, como o de cima.
+FORGE = {".claude-plugin/plugin.json": json.dumps({"name": "forge"}) + "\n", "tests/test_velho.py": "x = 0\n"}
+REVIEW = ("---\ntipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\n"
+          "revisor: forge:tech-lead\ndata: 2026-10-12\n---\n# Review\n\n## Achados\n{prova}")
+PR_VIEW_CI = ("pr", "view", "melhoria/x", "--json", "number,headRefOid,baseRefName")
+
+
+def gh_do_ci(head, checks, pr_ok=True):
+    """O `gh_json` com o PR de melhoria/x no `head` e os `checks`; `pr_ok=False` imita o gh sem rede; o resto, sem resposta."""
+    respostas = {PR_VIEW_CI: ({"number": 7, "headRefOid": head, "baseRefName": "develop"}, "") if pr_ok else (None, "error connecting"),
+                 PR_CHECKS: (checks, "")}
+    return lambda _raiz, *args: respostas.get(args, (None, "sem rede"))
+
+
+class ProvaDaSuiteBase(Repo):
+    def entregar(self):
+        """Base do Forge; na branch, bin/forge-x, um teste no topo e um num pacote, e o tests/test_velho.py apagado: os módulos de
+        teste do diff são {test_forge_x, evals.test_y} (o apagado não roda)."""
+        git("switch", "-q", "develop", cwd=self.tmp)
+        self.base = self.commitar(FORGE, "forge")
+        git("switch", "-q", "melhoria/x", cwd=self.tmp)
+        git("merge", "-q", "develop", cwd=self.tmp)
+        git("rm", "-q", "tests/test_velho.py", cwd=self.tmp)
+        return self.commitar({"bin/forge-x": "print(1)\n", "tests/test_forge_x.py": "x = 1\n", "tests/evals/test_y.py": "y = 1\n"}, "codigo")
+
+    def falta(self, commit, prova, campos=None):
+        texto = REVIEW.format(c=commit, prova=prova)
+        return fc.falta_na_prova(self.tmp, self.base, {"commit": commit} if campos is None else campos, texto)
+
+
+class ProvaDaSuite(ProvaDaSuiteBase):
+    def test_prova_que_cobre_os_modulos_do_diff_vale(self):
+        head = self.entregar()
+        self.assertEqual(fc.modulos_tocados(self.tmp, self.base, head), {"test_forge_x", "evals.test_y"})
+        self.assertIsNone(self.falta(head, f"- suíte: {head} rc=0 módulos=test_forge_x,test_forge,evals.test_y\n"))
+        self.assertIsNone(self.falta(head[:12], f"- suíte: {head} rc=0 módulos=evals.test_y,test_forge_x\n"))  # `commit:` curto
+
+    def test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale(self):
+        head = self.entregar()
+        todos = "módulos=test_forge_x,evals.test_y\n"
+        self.assertIn("sem a linha `- suíte:", self.falta(head, ""))
+        self.assertIn("sem a linha", self.falta(head, f"- suíte: {self.base} rc=0 {todos}"))
+        self.assertIn("sem a linha", self.falta(head, f"- suíte: {head} rc=1 {todos}"))
+        self.assertIn("sem a linha", self.falta("", f"- suíte: {head} rc=0 {todos}"))  # `commit:` vazio é prefixo de tudo
+        self.assertIn("sem a linha", self.falta(head, f"- suíte: {head} rc=0 {todos}", campos={}))  # parecer sem `commit:`
+        self.assertIn("falta evals.test_y", self.falta(head, f"- suíte: {head} rc=0 módulos=test_forge_x\n"))
+
+    def test_diff_sem_modulo_de_teste_aceita_a_lista_rodada(self):
+        git("switch", "-q", "develop", cwd=self.tmp)
+        self.base = self.commitar(FORGE, "forge")
+        git("switch", "-q", "melhoria/x", cwd=self.tmp)
+        head = self.commitar({"src/so_producao.py": "y = 2\n"}, "codigo")
+        self.assertEqual(fc.modulos_tocados(self.tmp, self.base, head), set())
+        self.assertIsNone(self.falta(head, f"- suíte: {head} rc=0 módulos=test_forge\n"))
+
+    def test_base_ou_git_ilegivel_falha_fechado(self):
+        head = self.entregar()
+        git("branch", "None", "develop", cwd=self.tmp)  # sem base, nada se lê: nem a ref de nome `None`
+        self.assertIsNone(fc.modulos_tocados(self.tmp, None, head))
+        self.assertIsNone(fc.modulos_tocados(self.tmp, "nao-existe", head))
+        self.base = "nao-existe"
+        self.assertIn("não foram lidos", self.falta(head, f"- suíte: {head} rc=0 módulos=test_forge_x,evals.test_y\n"))
+
+
+class CiVerdeNoHead(ProvaDaSuiteBase):
+    def verde(self, head, checks, pr_ok=True, ref_head=None):
+        with mock.patch.object(fc, "gh_json", gh_do_ci(head, checks, pr_ok)):
+            return fc.ci_verde_no_head(self.tmp, "melhoria/x", ref_head or head)
+
+    def test_verde_so_com_o_mesmo_head_e_tudo_em_pass(self):
+        head = self.entregar()
+        self.assertTrue(self.verde(head, FORGE_OK))
+        self.assertTrue(self.verde(head, FORGE_OK + [ck("x", "skipping", "W")]))
+
+    def test_pendente_vermelho_ausente_outro_head_ou_sem_rede_nao_e_verde(self):
+        head = self.entregar()
+        self.assertFalse(self.verde(head, FORGE_OK + [ck("x", "pending", "W")]))
+        self.assertFalse(self.verde(head, FORGE_OK[1:]))  # exigido ausente
+        self.assertFalse(self.verde(head, []))  # nenhum check: CI que não rodou não é verde
+        self.assertFalse(self.verde(head, None))  # checks ilegíveis
+        self.assertFalse(self.verde(self.base, FORGE_OK, ref_head=head))  # o PR está em outro head
+        self.assertFalse(self.verde(head, FORGE_OK, pr_ok=False))  # sem rede
+        with mock.patch.object(fc, "gh_json", gh_do_ci(head, FORGE_OK)):  # o gh acharia um PR verde: a guarda vem antes
+            self.assertFalse(fc.ci_verde_no_head(self.tmp, None, head))
+        with mock.patch.object(fc, "gh_json", gh_do_ci(None, FORGE_OK)):
+            self.assertFalse(fc.ci_verde_no_head(self.tmp, "melhoria/x", None))
+
+
+class SuiteNoCmdPr(ProvaDaSuiteBase):
+    def violacoes(self, prova, suite=False, verde=False, forge=True):
+        head = self.entregar()
+        if not forge:
+            git("rm", "-q", ".claude-plugin/plugin.json", cwd=self.tmp)
+            git("commit", "-q", "-m", "sem forge", cwd=self.tmp)
+            head = git("rev-parse", "HEAD", cwd=self.tmp)
+        self.commitar({"docs/reviews/p1.md": REVIEW.format(c=head, prova=prova.format(h=head))}, "review")
+        erro = io.StringIO()
+        with mock.patch.object(fc, "ci_verde_no_head", return_value=verde) as ci, contextlib.redirect_stderr(erro):
+            linhas = fc.cmd_pr(self.tmp, "p1", None, self.base, "melhoria/x", suite=suite)
+        self.ci = ci
+        return [l for l in linhas if "PARECER-SO-COM-CI-VERDE" in l], ci.call_count, erro.getvalue()
+
+    def test_sem_prova_e_sem_ci_verde_reprova(self):
+        linhas, chamadas, _ = self.violacoes("")
+        self.assertEqual(len(linhas), 1, linhas)
+        self.assertTrue(linhas[0].startswith("docs/reviews/p1.md: suíte: o parecer aprovado só conta com o CI verde"), linhas)
+        self.assertEqual(chamadas, 1)
+        self.ci.assert_called_once_with(self.tmp, "melhoria/x", git("rev-parse", "HEAD", cwd=self.tmp))  # o head da ref, não o `commit:`
+
+    def test_ci_verde_basta(self):
+        self.assertEqual(self.violacoes("", verde=True)[0], [])
+
+    def test_prova_basta_sem_ler_o_gh(self):
+        linhas, chamadas, _ = self.violacoes("- suíte: {h} rc=0 módulos=test_forge_x,evals.test_y\n")
+        self.assertEqual((linhas, chamadas), ([], 0))  # a prova local dispensa a leitura do gh
+
+    def test_adiar_so_avisa_sem_ler_o_gh(self):
+        linhas, chamadas, erro = self.violacoes("", suite=True)
+        self.assertEqual((linhas, chamadas), ([], 0))
+        self.assertIn("aviso: docs/reviews/p1.md: suíte:", erro)
+
+    def test_sem_suite_a_catraca_nada_muda(self):
+        self.assertEqual(self.violacoes("", suite=None)[0], [])  # a catraca: o próprio CI
+
+    def test_fora_do_forge_nada_muda(self):
+        self.assertEqual(self.violacoes("", forge=False)[0], [])
+
+
+class SuitePeloPrDaCli(ProvaDaSuiteBase):
+    """O `pr_da_cli` (o `forge-check pr`, o `brief gerar` e o passo 1 do `forge-fechar`) liga a guarda; o `--previo` e o passo 1 só
+    avisam; `conferir=False` (o escopo da merge-integracao) não a liga."""
+
+    def linhas(self, **kw):
+        head = self.entregar()
+        self.commitar({"docs/reviews/p1.md": REVIEW.format(c=head, prova="")}, "review")
+        sem_gh = mock.patch.object(fc, "gh_json", return_value=(None, "no git remotes found"))
+        with sem_gh, mock.patch.object(fc, "ci_verde_no_head", return_value=False), contextlib.redirect_stderr(io.StringIO()):
+            saida = fc.pr_da_cli(self.tmp, "p1", base="develop", **kw)
+        return [l for l in saida if "PARECER-SO-COM-CI-VERDE" in l]
+
+    def test_o_pr_reprova(self):
+        self.assertEqual(len(self.linhas()), 1)
+
+    def test_previo_so_avisa(self):
+        self.assertEqual(self.linhas(previo=True), [])
+
+    def test_passo_1_do_fechar_so_avisa(self):
+        self.assertEqual(self.linhas(sem_checks=True), [])
+
+    def test_sem_conferir_nao_liga(self):
+        self.assertEqual(self.linhas(conferir=False), [])
+
+
+class SuiteNoBriefSemPr(ProvaDaSuiteBase):
+    """A1 do review (E47.5, sonda S1): o `brief gerar` de `pr` e de merge roda antes de o PR nascer (passo 3 do `forge-fechar`); sem
+    PR, o review aprovado sem a prova não trava o brief: só o aviso, como no `--previo`. O `pr` direto segue reprovando."""
+
+    def rodar(self, chamada):
+        head = self.entregar()
+        self.commitar({"docs/reviews/p1.md": REVIEW.format(c=head, prova="")}, "review")
+        sem_pr = mock.patch.object(fc, "gh_json", return_value=(None, "no pull requests found for branch \"melhoria/x\""))
+        erro = io.StringIO()
+        with sem_pr, contextlib.redirect_stderr(erro):
+            saida = chamada()
+        return [l for l in saida if "PARECER-SO-COM-CI-VERDE" in l], erro.getvalue()
+
+    def test_etapas_que_recusam_nao_travam_sem_pr(self):
+        for etapa in fc.ETAPAS_QUE_RECUSAM:
+            with self.subTest(etapa=etapa):
+                self.setUp()
+                linhas, erro = self.rodar(lambda: fc.pareceres_da_etapa(self.tmp, "p1", etapa, "melhoria/x", "develop"))
+                self.assertEqual(linhas, [])
+                self.assertIn("aviso: docs/reviews/p1.md: suíte:", erro)
+
+    def test_o_pr_direto_sem_pr_segue_reprovando(self):
+        linhas, _ = self.rodar(lambda: fc.pr_da_cli(self.tmp, "p1", base="develop"))
+        self.assertEqual(len(linhas), 1, linhas)
+
+
+class EsqueletoComAProva(unittest.TestCase):
+    def test_review_e_qa_trazem_a_linha_da_prova_para_preencher(self):
+        for tipo in ("review", "qa"):
+            with self.subTest(tipo=tipo):
+                texto = fc.esqueleto_do_parecer(tipo, "p1", "melhoria/x", "a" * 40, "aprovado", "2026-01-01")
+                self.assertIn(f"- suíte: {fc.PREENCHER} rc=0 módulos={fc.PREENCHER}\n", texto)
 
 
 if __name__ == "__main__":

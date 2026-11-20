@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-corpus-custo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M13",
+      "guarda": "o contador do interpretador liga com a variável do código e o sys.monitoring (mutante: nunca liga)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if _codigo and _monitor:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_contador_anota_os_passos_do_interpretador_do_codigo_do_hook"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "a chamada feita fora do código do hook não conta (mutante: conta)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if not codigo.co_filename.startswith(_prefixo):  # chamada de fora do hook",
+      "para": "if False:  # chamada de fora do hook",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_contador_anota_os_passos_do_interpretador_do_codigo_do_hook"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "a função de fora do código do hook não conta (mutante: conta)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if not codigo.co_filename.startswith(_prefixo):  # função de fora do hook",
+      "para": "if False:  # função de fora do hook",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_contador_anota_os_passos_do_interpretador_do_codigo_do_hook"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "o salto para a frente não é volta de laço (mutante: conta)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if destino > origem or not codigo.co_filename.startswith(_prefixo):",
+      "para": "if not codigo.co_filename.startswith(_prefixo):",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_contador_anota_os_passos_do_interpretador_do_codigo_do_hook"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "o salto fora do código do hook não conta (mutante: conta)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if destino > origem or not codigo.co_filename.startswith(_prefixo):",
+      "para": "if destino > origem:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_contador_anota_os_passos_do_interpretador_do_codigo_do_hook"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "o corpus diferente do medido reprova até a medida nova (mutante: a condição nunca vale)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if execucoes != MEDIDA_DO_CORPUS[\"execucoes\"]:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_corpus_diferente_do_medido_reprova"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "os passos do interpretador só se conferem no Python da medida (mutante: em todo Python)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "if nome == \"interpretador\" and python != MEDIDA_DO_CORPUS[\"python\"]:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_passos_do_interpretador_valem_so_no_python_da_medida"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "a leitura soma só as linhas do interpretador (mutante: nenhuma)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "for linha in linhas if linha.startswith(\"interpretador \")",
+      "para": "for linha in linhas if False",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_contador_anota_os_passos_do_interpretador_do_codigo_do_hook"
+      ]
+    }
+  ]
+}

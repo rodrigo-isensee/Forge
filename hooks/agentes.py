@@ -41,7 +41,7 @@ por silêncio: agente vivo sem resposta para com o TaskStop e sai pela notifica�
 trava `pesado` livre. Cada liberação vai ao `liberacoes.log` e deixa uma lápide: retomar o id (`SendMessage`) é recusado
 enquanto houver relançamento vigente na mesma branch ou com a mesma descrição.
 HOOK-ESTADO-ILEGIVEL-LIBERA (v047, E1.138): estado ilegível nunca vira lista vazia. O `agentes.json` que existe e não é o registro
-(`ler_estado`: JSON inválido ou vazio, raiz que não é objeto, `agentes` ou `lapides` que não é lista, link, pasta ou outro tipo,
+(`ler_estado`: JSON inválido ou vazio, raiz que não é objeto, `agentes`, `lapides` ou `interrompidos` que não é lista, link, pasta ou outro tipo,
 erro de leitura, mais de 1 MiB), o erro ao fixar a pasta do estado do clone e o `.forge/config.json` ilegível recusam o disparo
 e a retomada com R-TETO; `SubagentStart` e `SubagentStop` saem com 0. Nenhum evento regrava o arquivo ilegível; o erro vai ao
 erros.log. O R-BRIEF segue antes e independente.
@@ -69,8 +69,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from _comum import (LIMITE_LOG, RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check,
-                    gravar_json, ler_json, ler_projetos_ativos, mensagem, raiz_declarada)
+                    gravar_json, ler_json, ler_projetos_ativos, ler_trava, mensagem, raiz_declarada)
 import _maquina
+from _json_raso import TETO_ANINHAMENTO, fundo_demais
 from pesado import CASCAS, TRAVA_S, pid_da_sessao, pid_vivo
 
 FERRAMENTAS = {"Agent", "Task"}
@@ -357,6 +358,13 @@ def nenhum_morto(_registro):
     return False
 
 
+def dentro_do_prazo(registro, agora, expira_s):
+    """O registro é um objeto com `desde` numérico dentro do prazo (a reserva sem início, o de `RETOMADA`: RESERVA_S)."""
+    return (isinstance(registro, dict) and isinstance(registro.get("desde"), (int, float))
+            and agora - registro["desde"] < (expira_s if registro.get("id") and registro.get("tipo") != RETOMADA
+                                             else min(RESERVA_S, expira_s)))
+
+
 def vigentes(agentes, agora, expira_s, morto=nenhum_morto):
     """Registros dentro do prazo e de sessão que não está provadamente morta. Cada registro é avaliado à parte: o erro
     num deles mantém o registro e nunca derruba o hook (a exceção liberaria o lançamento sem reserva). `morto` (C5,
@@ -364,9 +372,7 @@ def vigentes(agentes, agora, expira_s, morto=nenhum_morto):
     saida = []
     for a in agentes:
         try:
-            if not (isinstance(a, dict) and isinstance(a.get("desde"), (int, float))
-                    and agora - a["desde"] < (expira_s if a.get("id") and a.get("tipo") != RETOMADA
-                                              else min(RESERVA_S, expira_s))):
+            if not dentro_do_prazo(a, agora, expira_s):
                 continue
             if sessao_morta(a) or morto(a):
                 continue
@@ -399,8 +405,8 @@ class EstadoIlegivel(Exception):
 def ler_estado(arquivo):
     """O registro de `arquivo`, ou `{"agentes": []}` se ele não existe (o começo legítimo). Lança `EstadoIlegivel` se não é arquivo
     regular (aberto sem seguir link nem esperar FIFO), não abre, passa de LIMITE_DO_ESTADO, não é JSON, a raiz não é objeto ou
-    `agentes` ou `lapides` (quando existem) não são listas, ou se o leitor falha de qualquer outro jeito (o RecursionError do JSON
-    aninhado fundo). Nunca devolve estado vazio no lugar do ilegível."""
+    `agentes` ou `lapides` (quando existem) não são listas, se aninha acima de TETO_ANINHAMENTO níveis (o 3.14 aceita o que o
+    3.12 recusava com RecursionError) ou se o leitor falha de qualquer outro jeito. Nunca devolve estado vazio no lugar do ilegível."""
     if not os.path.lexists(arquivo):
         return {"agentes": []}
     try:
@@ -411,6 +417,8 @@ def ler_estado(arquivo):
             dados = entrada.read(LIMITE_DO_ESTADO + 1)
         if len(dados) > LIMITE_DO_ESTADO:
             raise EstadoIlegivel(f"{arquivo}: passa de {LIMITE_DO_ESTADO} bytes")
+        if fundo_demais(dados):
+            raise EstadoIlegivel(f"{arquivo}: aninhado acima de {TETO_ANINHAMENTO} níveis")
         estado = json.loads(dados)
     except EstadoIlegivel:
         raise
@@ -422,6 +430,8 @@ def ler_estado(arquivo):
         raise EstadoIlegivel(f"{arquivo}: `agentes` não é lista")
     if not isinstance(estado.get("lapides", []), list):
         raise EstadoIlegivel(f"{arquivo}: `lapides` não é lista")
+    if not isinstance(estado.get("interrompidos", []), list):
+        raise EstadoIlegivel(f"{arquivo}: `interrompidos` não é lista")
     return estado
 
 
@@ -491,7 +501,8 @@ def tool_use_do_meta(real, aid):
 def pesado_livre(hook, agora):
     """C9: a trava `pesado` da pasta do estado está livre: sem arquivo, ou com dono morto ou vencido (o critério do `pesado`).
     Trava que não é objeto levanta AttributeError (`.get`): o registro fica."""
-    trava = ler_json(hook.run() / "pesado.json", {})
+    trava = ler_trava(hook.run() / "pesado.json")
+    trava = {} if trava is None else trava
     desde = trava.get("desde")
     return not (isinstance(desde, (int, float)) and agora - desde < TRAVA_S and pid_vivo(trava.get("pid"), trava.get("inicio")))
 
@@ -552,8 +563,14 @@ def lapide(registro, agora):
 def lapides_vigentes(estado, agora, expira_s):
     """C8: as lápides gravadas, dentro do prazo do registro (expiracao_horas)."""
     lista = estado.get("lapides")
-    return [l for l in (lista if isinstance(lista, list) else [])
-            if isinstance(l, dict) and isinstance(l.get("desde"), (int, float)) and agora - l["desde"] < expira_s]
+    validas = []
+    for l in (lista if isinstance(lista, list) else []):
+        if not isinstance(l, dict) or not isinstance(l.get("desde"), (int, float)):
+            continue
+        if not caiu_em_finito(l["desde"]):
+            raise EstadoIlegivel("`lapides`: `desde` não é número finito")
+        validas.append(l)
+    return [l for l in validas if agora - l["desde"] < expira_s]
 
 
 def relancado(morto, agentes):
@@ -564,13 +581,110 @@ def relancado(morto, agentes):
                for a in agentes)
 
 
+INTERROMPIDOS_MAX = 64  # BP3-S3: teto da lista `interrompidos`, como o das lápides
+BRIEF_GRAVAVEL = re.compile(r"docs/briefs/[A-Za-z0-9][A-Za-z0-9._-]{0,150}\.md")
+HASH_GRAVAVEL = re.compile(r"[0-9a-f]{64}")
+
+
+def briefs_da_reserva(lidos):
+    """BP3-S3: `[{"caminho", "sha256"}]` dos briefs selados lidos (`lidos`: citado, real, bytes). Só o caminho de `docs/briefs/`
+    em diante, de caracteres seguros (sem `..`, sem controle) e o hash dos bytes lidos; o que não tem essa forma fica fora. Nunca
+    texto do prompt."""
+    saida = []
+    for _citado, real, dados in lidos:
+        achado = BRIEF_GRAVAVEL.fullmatch("docs/briefs/" + str(real).rpartition("/docs/briefs/")[2])
+        if achado and ".." not in achado.group(0):
+            item = {"caminho": achado.group(0), "sha256": hashlib.sha256(dados).hexdigest()}
+            if item not in saida:
+                saida.append(item)
+    return saida
+
+
+def briefs_validos(registro):
+    """Os itens de `briefs` de um registro que têm a forma gravada: caminho de `docs/briefs/` e sha256 de 64 hex."""
+    lista = registro.get("briefs")
+    return [b for b in (lista if isinstance(lista, list) else [])
+            if isinstance(b, dict) and isinstance(b.get("caminho"), str) and BRIEF_GRAVAVEL.fullmatch(b["caminho"])
+            and isinstance(b.get("sha256"), str) and HASH_GRAVAVEL.fullmatch(b["sha256"])]
+
+
+def caminhos_dos_briefs(registro):
+    """Os caminhos de `briefs_validos`."""
+    return [b["caminho"] for b in briefs_validos(registro)]
+
+
+def interrompido(registro, agora):
+    """BP3-S3: o que fica do registro de sessão morta: tipo, descrição, branches, escrita, briefs, sessão, `desde` e `caiu_em`; o
+    PID não (a sessão morreu). Só campos de forma conhecida: o resto do registro não passa."""
+    aid = registro.get("id")
+    sessao = registro.get("sessao")
+    return {"id": aid if isinstance(aid, str) and ID_DE_AGENTE.fullmatch(aid) else None, "tipo": str(registro.get("tipo") or ""),
+            "descricao": str(registro.get("descricao") or ""), "branches": sorted(set(textos(registro.get("branches")))),
+            "escrita": sorted(set(textos(escritas_do_registro(registro)))), "briefs": [{"caminho": b["caminho"], "sha256": b["sha256"]} for b in briefs_validos(registro)],
+            "sessao": sessao if isinstance(sessao, str) else None, "desde": registro["desde"], "caiu_em": agora}
+
+
+def caidos_da_sessao(agentes, agora, expira_s):
+    """BP3-S3: os registros dentro do prazo, de sessão provadamente morta (`sessao_morta`, a mesma prova do `vigentes`) e com
+    `briefs`, prontos para `interrompidos`. Cada registro à parte: o erro num deles o deixa fora (o `vigentes` o trata como sempre)."""
+    saida = []
+    for a in agentes:
+        try:
+            if dentro_do_prazo(a, agora, expira_s) and sessao_morta(a) and caminhos_dos_briefs(a):
+                saida.append(interrompido(a, agora))
+        except Exception:  # noqa: BLE001 - sem prova, nada vira interrompido; o registro segue o caminho de sempre
+            pass
+    return saida
+
+
+def caiu_em_finito(valor):
+    """BP3-S3 (segurança A1): `valor` é número finito. O inteiro enorme (10**400) não vira float: OverflowError conta como não finito."""
+    try:
+        return isinstance(valor, (int, float)) and math.isfinite(float(valor))
+    except OverflowError:
+        return False
+
+
+def interrompidos_vigentes(estado, agora, expira_s):
+    """BP3-S3: (os interrompidos gravados dentro do prazo, os vencidos). O item que não é registro de `caiu_em` numérico some;
+    o `caiu_em` numérico e não finito (inf, nan, inteiro enorme) deixa o estado ilegível (`EstadoIlegivel`, o disparo recusa): a
+    subtração nunca levanta fora da recusa."""
+    lista = estado.get("interrompidos")
+    validos = []
+    for i in (lista if isinstance(lista, list) else []):
+        if not isinstance(i, dict) or not isinstance(i.get("caiu_em"), (int, float)):
+            continue
+        if not caiu_em_finito(i["caiu_em"]):
+            raise EstadoIlegivel("`interrompidos`: `caiu_em` não é número finito")
+        validos.append(i)
+    return [i for i in validos if agora - i["caiu_em"] < expira_s], [i for i in validos if agora - i["caiu_em"] >= expira_s]
+
+
+def fechar_por_relancamento(interrompidos, reserva):
+    """BP3-S3: o relançamento do mesmo `tipo` com um brief de mesmo caminho (o hash pode ter mudado) tira o item."""
+    caminhos = set(caminhos_dos_briefs(reserva))
+    return [i for i in interrompidos if not (caminhos and i.get("tipo") == reserva.get("tipo") and caminhos & set(caminhos_dos_briefs(i)))]
+
+
+def fechar_por_retomada(interrompidos, alvo):
+    """BP3-S3: a retomada por `SendMessage` do mesmo `id` tira o item."""
+    return [i for i in interrompidos if not (isinstance(alvo, str) and alvo and i.get("id") == alvo)]
+
+
 def autores_vigentes(estado, agora, expira_s):
     """H2: os autores gravados no `SubagentStop`, com id de agente e dentro do prazo do registro (expiracao_horas). Só alimenta
-    um aviso: o que não é lista ou registro vale vazio, sem recusa."""
+    um aviso: o que não é lista ou registro vale vazio, sem recusa; o `desde` numérico e não finito (inf, nan, inteiro enorme)
+    deixa o estado ilegível (`EstadoIlegivel`, o disparo recusa): a subtração nunca levanta fora da recusa."""
     lista = estado.get("autores")
-    return [a for a in (lista if isinstance(lista, list) else [])
-            if isinstance(a, dict) and isinstance(a.get("id"), str) and ID_DE_AGENTE.fullmatch(a["id"])
-            and isinstance(a.get("desde"), (int, float)) and agora - a["desde"] < expira_s]
+    validos = []
+    for a in (lista if isinstance(lista, list) else []):
+        if not (isinstance(a, dict) and isinstance(a.get("id"), str) and ID_DE_AGENTE.fullmatch(a["id"])
+                and isinstance(a.get("desde"), (int, float))):
+            continue
+        if not caiu_em_finito(a["desde"]):
+            raise EstadoIlegivel("`autores`: `desde` não é número finito")
+        validos.append(a)
+    return [a for a in validos if agora - a["desde"] < expira_s]
 
 
 def guardar_autores(autores, parados, agora):
@@ -989,13 +1103,22 @@ def anexar_ao_log(hook, nome, linha):
         os.close(fd)
 
 
-def registrar_liberacao(hook, aid, status):
+def registrar_liberacao(hook, aid, status, motivo="notificacao"):
     """C11: a liberação vira uma linha em `liberacoes.log`: hora, id, status e motivo, nunca a descrição. Cala a falha."""
     try:
         anexar_ao_log(hook, "liberacoes.log", f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {hook.nome} R-TETO id={aid} "
-                                              f"status={status} motivo=notificacao\n")
+                                              f"status={status} motivo={motivo}\n")
     except Exception:  # noqa: BLE001 - o log nunca devolve o registro nem barra o hook
         pass
+
+
+def registrar_vencidos(hook, vencidos):
+    """BP3-S3: cada interrompido que passou de expiracao_horas sem retomada vira uma linha no `liberacoes.log` (id só se tem a
+    forma de agente, senão `-`; nunca a descrição)."""
+    for item in vencidos:
+        ident = item.get("id")
+        registrar_liberacao(hook, ident if isinstance(ident, str) and ID_DE_AGENTE.fullmatch(ident) else "-", "interrompido",
+                            "interrompido_vencido")
 
 
 def registrar_recusa(hook, motivo, campos=None):
@@ -1124,7 +1247,7 @@ def lancar(hook, agentes, agora, lidos):
     recusar_branch_ocupada(hook, agentes, sorted(a_conferir))  # Z10: fora do try, sobre a lista pronta
     recusar_pela_maquina(hook, agentes, agora, (carga, memoria, total, nproc))  # depois da branch: a vaga só conta se sai
     agentes.append({"id": None, "tipo": tipo, "descricao": descricao, "desde": agora, "branches": branches,
-                    "escrita": sorted(escrita), **da_sessao(hook)})
+                    "escrita": sorted(escrita), "briefs": briefs_da_reserva(lidos), **da_sessao(hook)})
     return vencido, escrita
 
 
@@ -1205,25 +1328,33 @@ def atualizar_estado(hook, evento, ferramenta, lidos, recusa=None):
         agentes = vigentes(estado.get("agentes", []), agora, hook.expira_s(), liberacao)
         lapides = (lapides_vigentes(estado, agora, hook.expira_s()) + [lapide(r, agora) for r, _ in liberacao.soltos])[-LAPIDES_MAX:]
         autores = autores_vigentes(estado, agora, hook.expira_s())  # H2
+        interrompidos, vencidos = interrompidos_vigentes(estado, agora, hook.expira_s())  # BP3-S3
+        interrompidos = (interrompidos + caidos_da_sessao(estado.get("agentes", []), agora, hook.expira_s()))[-INTERROMPIDOS_MAX:]
         pendente = None
         if liberacao.soltos:  # C5: a liberação se grava antes de qualquer recusa abaixo
-            gravar_json(arquivo, {"agentes": agentes, "lapides": lapides, "autores": autores})
+            gravar_json(arquivo, {"agentes": agentes, "lapides": lapides, "autores": autores, "interrompidos": interrompidos})
             for registro, status in liberacao.soltos:
                 registrar_liberacao(hook, registro["id"], status)
+            registrar_vencidos(hook, vencidos)
+            vencidos = []
         if recusa:
             bloquear("R-BRIEF", recusa)
         if evento == "PreToolUse" and ferramenta == RETOMADA:
             recusar_retomada(hook, agentes, lapides)
             reservar_retomada(hook, agentes, autores, agora)
+            entrada = hook.campo("tool_input")
+            interrompidos = fechar_por_retomada(interrompidos, entrada.get("to") if isinstance(entrada, dict) else None)
         elif evento == "PreToolUse":
             pendente = lancar(hook, agentes, agora, lidos)
+            interrompidos = fechar_por_relancamento(interrompidos, agentes[-1])  # só chega aqui com a reserva feita
         elif evento == "SubagentStart":
             iniciar(hook, agentes, agora)
         else:
             aid = hook.campo("agent_id")
             autores = guardar_autores(autores, [a for a in agentes if aid and a.get("id") == aid], agora)
             agentes = [a for a in agentes if not aid or a.get("id") != aid]
-        gravar_json(arquivo, {"agentes": agentes, "lapides": lapides, "autores": autores})
+        gravar_json(arquivo, {"agentes": agentes, "lapides": lapides, "autores": autores, "interrompidos": interrompidos})
+        registrar_vencidos(hook, vencidos)  # BP3-S3: depois do estado gravado
         try:  # MP3: o uso deste projeto na máquina depois do evento; o erro não muda o evento
             Maquina(hook, agora).anotar(len(agentes))
         except Exception as erro:  # noqa: BLE001 - o ilegível segue recusando o próximo disparo

@@ -1,0 +1,66 @@
+{
+  "pedido": "v0478-json-profundo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "ci_vermelha recusa o JSON de --ci aninhado acima do teto, com 2 e sem traceback",
+      "arquivo": "bin/forge-placar",
+      "de": "    if fundo_demais(texto):  # JSON-PROFUNDO-PY314",
+      "para": "    if False:  # JSON-PROFUNDO-PY314",
+      "testes": [
+        "tests.evals.test_placar.Medir.test_ci_aninhado_acima_do_teto_sai_com_2_sem_traceback"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o estado dos hooks aninhado acima do teto e ilegivel antes do json.loads",
+      "arquivo": "hooks/agentes.py",
+      "de": "        if fundo_demais(dados):\n            raise EstadoIlegivel",
+      "para": "        if False:\n            raise EstadoIlegivel",
+      "testes": [
+        "tests.test_estado_ilegivel.LerEstado.test_json_aninhado_fundo_e_ilegivel"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a catraca recusa o JSON aninhado acima do teto como ilegivel",
+      "arquivo": "tests/catraca.py",
+      "de": "    if fundo_demais(texto):\n        raise ValueError",
+      "para": "    if False:\n        raise ValueError",
+      "testes": [
+        "tests.test_catraca.Hooks.test_json_aninhado_acima_do_teto_e_ilegivel"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "bytes sao decodificados antes da contagem",
+      "arquivo": "hooks/_json_raso.py",
+      "de": "    if isinstance(texto, (bytes, bytearray)):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_bytes_contam_como_o_json_os_decodifica"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "dentro de string o colchete nao conta",
+      "arquivo": "hooks/_json_raso.py",
+      "de": "        if em_string:\n            if escapado:",
+      "para": "        if False:\n            if escapado:",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o caractere escapado e consumido",
+      "arquivo": "hooks/_json_raso.py",
+      "de": "            if escapado:\n                escapado = False",
+      "para": "            if False:\n                escapado = False",
+      "testes": [
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
+      ]
+    }
+  ]
+}

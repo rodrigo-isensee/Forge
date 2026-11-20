@@ -249,6 +249,15 @@ def linha(problemas):
     return texto[: LIMITE_LINHA - len(cauda) - 1] + "…" + cauda if len(texto) + len(cauda) > LIMITE_LINHA else texto + cauda
 
 
+def preparar_controle(hook):
+    """SANDBOX-TRAVA-CONTROLE (A2 da segurança): `agentes.json` e `pesado.json` negados ao Bash existem antes do primeiro comando
+    da sessão. Ausente, o runtime do sandbox o criaria vazio e 0444 no disco. Só cria o que falta, nunca regrava o que existe."""
+    run = hook.run()
+    for nome, conteudo in (("agentes.json", {"agentes": []}), ("pesado.json", None)):
+        if not os.path.lexists(run / nome):
+            gravar_json(run / nome, conteudo)
+
+
 def principal(hook):
     evento = hook.campo("hook_event_name")
     if evento not in ("SessionStart", "Stop"):
@@ -258,6 +267,10 @@ def principal(hook):
         return
     if evento == "SessionStart":  # inclusive resume e compact: reexamina sem reabrir o aviso de hoje
         caminhos_na_sessao(hook, raiz)
+        try:
+            preparar_controle(hook)
+        except OSError as erro:  # o aviso do doutor não cai por isso; o erro vai ao erros.log
+            hook.registrar_erro(erro)
         registrar(hook, diagnosticar(raiz), avisar=False)
         return
     with hook.trava():  # cache de hoje: decide e marca "avisado" na mesma trava

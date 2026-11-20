@@ -2499,6 +2499,16 @@ def ler_json(caminho, padrao):
     return json.loads(caminho.read_text(encoding="utf-8"))
 
 
+def ler_trava(caminho):
+    """A trava `pesado.json` (SANDBOX-TRAVA-CONTROLE, A2 da segurança): None quando não há trava, isto é, arquivo ausente, de 0
+    byte (o ponto de montagem vazio 0444 que o runtime do sandbox cria para caminho negado que não existia) ou `null` (o que o
+    hook grava ao soltar, no lugar de apagar). Conteúdo que é JSON inválido continua levantando, como `ler_json`."""
+    if not caminho.exists():
+        return None
+    texto = caminho.read_text(encoding="utf-8")
+    return json.loads(texto) if texto.strip() else None
+
+
 def caminhos_extra(raiz):
     """0.45.4: (pastas, avisos) da chave opcional `caminhos_extra` do `.forge/config.json` da raiz, a mesma leitura do
     `.githooks/pre-push` do modelo de projeto: as pastas que o hook soma ao fim do PATH de quem ele roda (as ferramentas da
@@ -2550,7 +2560,12 @@ def so_do_usuario(pasta):
 
 def gravar_json(caminho, dados):
     tmp = caminho.with_name(caminho.name + f".{os.getpid()}.tmp")
-    tmp.write_text(json.dumps(dados, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    # O_EXCL|O_NOFOLLOW: link plantado em `<alvo>.<pid>.tmp` não é seguido (A5 da segurança, E29.11); sobra de pid antigo sai antes
+    if os.path.lexists(tmp):
+        os.unlink(tmp)
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o666)
+    with os.fdopen(fd, "w", encoding="utf-8") as saida:
+        saida.write(json.dumps(dados, ensure_ascii=False, indent=1) + "\n")
     os.replace(tmp, caminho)
 
 

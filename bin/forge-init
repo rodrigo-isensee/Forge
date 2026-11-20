@@ -193,6 +193,12 @@ PY
   echo "  pesados  .forge/config.json (padrão da stack $stack)"
 fi
 
+# Arquivos de controle negados ao Bash pelo sandbox (SANDBOX-TRAVA-CONTROLE, A2 da segurança): existem antes da primeira sessão,
+# porque o runtime cria vazio e 0444 o caminho negado que não existe. Só cria o que falta (`.forge/run/` não vai ao git).
+mkdir -p "$destino/.forge/run"
+[ -e "$destino/.forge/run/agentes.json" ] || [ -L "$destino/.forge/run/agentes.json" ] || printf '{"agentes": []}\n' > "$destino/.forge/run/agentes.json"
+[ -e "$destino/.forge/run/pesado.json" ] || [ -L "$destino/.forge/run/pesado.json" ] || printf 'null\n' > "$destino/.forge/run/pesado.json"
+
 # Versão do Forge usada (ADR 0005): só grava se ausente, para não esconder migração pendente de projeto antigo;
 # no projeto antigo grava 0.0.0, e o forge-upgrade aplica as migrações.
 versao_forge="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$raiz_forge/.claude-plugin/plugin.json")"

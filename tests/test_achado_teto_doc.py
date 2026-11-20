@@ -52,6 +52,8 @@ CARTAO = {
     "templates/projeto/docs/reviews/_modelo.md": "não devolve e vira cartão depois do merge",
     "templates/projeto/docs/qa/_modelo.md": "não devolve e vira cartão depois do merge",
     "templates/projeto/docs/security/_modelo.md": "na segurança, volta ao autor e é corrigido antes do merge",
+    "templates/projeto/docs/devops/_modelo.md": "não devolve e vira cartão depois do merge",
+    "agents/devops-engineer.md": "o `recomendado` vira cartão depois do merge",
     "docs/security/_modelo.md": "na segurança, volta ao autor e é corrigido antes do merge",
 }
 
@@ -63,7 +65,7 @@ class RecomendadoViraCartao(unittest.TestCase):
     os modelos de parecer. Neutro: vale para todos os projetos (os modelos vão para cada um pelo `forge-init`)."""
 
     def test_cada_texto_que_decide_a_volta_traz_a_regra(self):
-        self.assertGreaterEqual(len(CARTAO), 12)
+        self.assertGreaterEqual(len(CARTAO), 14)
         for rel, frase in CARTAO.items():
             with self.subTest(arquivo=rel):
                 self.assertIn(frase, ler(rel))
