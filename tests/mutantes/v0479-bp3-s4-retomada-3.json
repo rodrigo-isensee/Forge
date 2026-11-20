@@ -1,0 +1,126 @@
+{
+  "pedido": "v0479-bp3-s4-retomada",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M23",
+      "guarda": "BP3-S4: o subcomando retomada está registrado no despacho do forge-check",
+      "arquivo": "bin/forge-check",
+      "de": "if a.cmd == \"retomada\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_brief_com_selo_valido_manda_relancar"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "BP3-S4: pedido ausente não derruba a conferência da entrega",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "LIMITE_PEDIDO) or b\"\"",
+      "para": "LIMITE_PEDIDO)",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_entrega_com_desde_invalido_linha_fora_da_forma_ou_sem_pedido_nao_vale"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "BP3-S4: linha do `worktree list` sem valor (destacada) não derruba a leitura",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "if \" \" in l)",
+      "para": "if True)",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_worktree_destacada_na_lista_nao_derruba_a_leitura"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "BP3-S4: transcript existente manda continuar pelo SendMessage",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "    if com_transcript(item):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_com_transcript_manda_send_message_ao_id"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "BP3-S4: arquivo não commitado manda relançar na mesma worktree",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "return \"suja\" if suja(raiz, item[\"branches\"]) else \"relancar\"",
+      "para": "return \"suja\" if False else \"relancar\"",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_worktree_com_arquivo_nao_commitado_nunca_descarta"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "BP3-S4: sem arquivo de estado (clone sem diretório comum) conta zero, sem erro",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "    if arquivo is None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_check_retomada.Contar.test_sem_arquivo_de_estado_do_clone_conta_zero"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "BP3-S4: o alarme de 3 s só arma no --contar",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "if a.contar and hasattr(signal, \"SIGALRM\"):",
+      "para": "if hasattr(signal, \"SIGALRM\"):",
+      "testes": [
+        "tests.test_forge_check_retomada.Contar.test_alarme_so_no_contar"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "BP3-S4: sem --contar a saída é a lista, não o número",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "    if a.contar:\n        print(len(itens))",
+      "para": "    if True:\n        print(len(itens))",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_sem_itens_nao_pergunta_nada"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "BP3-S4: a pergunta da remoção só sai quando há interrompidos",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "(f\"; {REMOCAO}\" if itens else \"\")",
+      "para": "(f\"; {REMOCAO}\" if True else \"\")",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_sem_itens_nao_pergunta_nada"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "BP3-S4: item sem id sai como `sem id`",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "{item.get('id') or 'sem id'}",
+      "para": "{item.get('id')}",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_item_sem_id_tipo_ou_branch_sai_com_o_marcador_de_ausencia"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "BP3-S4: item sem tipo sai com `?`",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "{item.get('tipo') or '?'}",
+      "para": "{item.get('tipo')}",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_item_sem_id_tipo_ou_branch_sai_com_o_marcador_de_ausencia"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "BP3-S4: item sem branch sai com o travessão",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "{', '.join(item['branches']) or '—'}",
+      "para": "{', '.join(item['branches'])}",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_item_sem_id_tipo_ou_branch_sai_com_o_marcador_de_ausencia"
+      ]
+    }
+  ]
+}

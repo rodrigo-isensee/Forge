@@ -93,16 +93,6 @@
       ]
     },
     {
-      "id": "M21",
-      "guarda": "BP3-S4: a remoção fica com o dono (a linha final pergunta)",
-      "arquivo": "bin/forge_retomada.py",
-      "de": "(f\"; {REMOCAO}\" if itens else \"\")",
-      "para": "\"\"",
-      "testes": [
-        "tests.test_forge_check_retomada.Matriz.test_fecha_sempre_com_a_pergunta_da_remocao"
-      ]
-    },
-    {
       "id": "M22",
       "guarda": "BP3-S4: a ref de origin/ só entra depois da local (a local vence)",
       "arquivo": "bin/forge_retomada.py",

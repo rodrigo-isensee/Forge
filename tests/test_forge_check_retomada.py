@@ -16,6 +16,8 @@ from pathlib import Path
 from unittest import mock
 
 RAIZ = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RAIZ / "hooks"))
+import agentes  # noqa: E402
 FORGE_CHECK = RAIZ / "bin" / "forge-check"
 AID, SESSAO = "a0123456789abcdef", "0b6c1e2a-1111-4222-8333-944455556666"
 BRIEF = "Agente destino: forge:python-backend\nPedido: p1\nBranch: melhoria/x\nEtapa: codigo\n\n## Objetivo\nfazer\n"
@@ -127,6 +129,20 @@ class Contar(Base):
         rc, saida, erro = self.rodar("--contar", path=falso)
         self.assertEqual((rc, saida), (4, ""))
         self.assertIn("prazo estourado", erro)
+
+    def test_alarme_so_no_contar(self):
+        modulo = carregar()
+        for contar, esperado in ((True, [3, 0]), (False, [0])):
+            with self.subTest(contar=contar), mock.patch.object(modulo.signal, "alarm") as alarme, mock.patch.object(modulo.signal, "signal"):
+                with mock.patch("builtins.print"):
+                    self.assertEqual(modulo.executar(mock.Mock(contar=contar), self.proj, {"sem_controle": str}), 0)
+                self.assertEqual([c.args[0] for c in alarme.call_args_list], esperado)
+
+    def test_sem_arquivo_de_estado_do_clone_conta_zero(self):
+        modulo = carregar()
+        with mock.patch.object(agentes, "arquivo_de_estado", return_value=None), mock.patch("builtins.print") as imprimir:
+            self.assertEqual(modulo.executar(mock.Mock(contar=True), self.proj, {"sem_controle": str}), 0)
+        imprimir.assert_called_once_with(0)
 
     def test_o_prazo_do_contar_corta_em_3_s_dentro_do_modulo(self):
         modulo, falso = carregar(), self.git_falso(f"exec {shutil.which('sleep')} 30\n")
@@ -246,6 +262,18 @@ class Matriz(Base):
         self.assertNotIn("nada a relançar", self.acao(desde=0))
         self.pedido.unlink()
         self.assertNotIn("nada a relançar", self.acao(desde=0))
+
+    def test_worktree_destacada_na_lista_nao_derruba_a_leitura(self):
+        self.git("worktree", "add", "-q", "--detach", str(self.tmp / "solta"))
+        wt = self.tmp / "wt"
+        self.git("worktree", "add", "-q", str(wt), "melhoria/x")
+        (wt / "novo.txt").write_text("sem commit", encoding="utf-8")
+        self.assertIn("nunca descartar", self.acao())
+
+    def test_item_sem_id_tipo_ou_branch_sai_com_o_marcador_de_ausencia(self):
+        self.semear(self.item(id=None, tipo="", branches=[]))
+        linha = self.rodar()[1].splitlines()[0]
+        self.assertTrue(linha.startswith("retomada: ? · id sem id · branch — · brief "), linha)
 
     def test_branch_inexistente_nao_e_entregue(self):
         self.entrega(self.git("rev-parse", "main"))
