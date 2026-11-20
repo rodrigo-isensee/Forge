@@ -7,15 +7,18 @@ from unittest import mock
 import ast
 import collections
 import concurrent.futures
+import inspect
 import json
 import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 import types
 import unittest
 
@@ -30,6 +33,8 @@ from apoio_volta_unica import (  # noqa: E402
     IDS_DA_VOLTA_UNICA,
     MedidaDeCpu,
     MINIMO_POR_CLASSE,
+    chamadas_do_executar,
+    referencias_ao_executar_fora_de_chamada,
     NAO_PROMETE,
     RAIZ,
     REGRAS_DA_VOLTA_UNICA,
@@ -124,6 +129,90 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
                                  nomes.get(hook, {}))
                 self.assertEqual(modulos[hook], hook)
         self.assertIn('os.chdir(dados["raizes"][hook])', self.DRIVER_DOS_HOOKS)  # a pasta de cada hook, não a do conformidade
+
+    def test_hooks_reais_e_driver_nao_passam_relogio_nem_armar(self):  # BP1, E37.16
+        """`relogio` e `armar` do `_comum.executar` são só por palavra-chave, com o relógio e o alarme reais por padrão, e
+        só um teste em processo os troca: nenhuma chamada a `executar` dos hooks os passa, nem por `**`, e o driver do lote
+        (`DRIVER_DOS_HOOKS`) não os tem nos argumentos que repassa."""
+        _comum, _, _ = modulos_dos_hooks()
+        assinatura = inspect.signature(_comum.executar).parameters
+        self.assertEqual([(assinatura[n].kind, assinatura[n].default) for n in ("relogio", "armar")],
+                         [(inspect.Parameter.KEYWORD_ONLY, time.monotonic), (inspect.Parameter.KEYWORD_ONLY, signal.setitimer)])
+        chamadas = []
+        for script in sorted(HOOKS.glob("*.py")):
+            arvore = ast.parse(script.read_text(encoding="utf-8"))
+            for n in chamadas_do_executar(arvore):
+                chamadas.append(script.name)
+                with self.subTest(hook=script.name):
+                    self.assertEqual([k.arg for k in n.keywords if k.arg is None or k.arg in ("relogio", "armar")], [])
+        self.assertGreaterEqual(len(chamadas), 10, "chamadas a `executar` nos hooks")
+        self.assertEqual(len(chamadas), len(set(chamadas)), "uma chamada por hook")
+        driver = ast.parse(self.DRIVER_DOS_HOOKS)
+        repassados = {ast.literal_eval(k) for n in ast.walk(driver) if isinstance(n, ast.Dict) for k in n.keys
+                      if isinstance(k, ast.Constant)}
+        self.assertTrue({"regra_do_prazo", "prazo_longo"} <= repassados, repassados)
+        self.assertEqual(repassados & {"relogio", "armar"}, set())
+
+    def test_chamada_com_apelido_do_import_e_pega_com_relogio(self):  # BP1, A1 da segurança (E37.31)
+        """Um hook de exemplo que importa `executar` com apelido, ou chama `c.executar` pelo módulo, e passa `relogio=` ou
+        `armar=` é achado pela mesma resolução de nomes que confere os hooks reais."""
+        exemplos = {
+            "apelido": "from _comum import executar as rodar\nrodar('x', f, g, relogio=r)\n",
+            "modulo com apelido": "import _comum as c\nc.executar('x', f, g, armar=a)\n",
+            "modulo": "import _comum\n_comum.executar('x', f, g, **k)\n",
+        }
+        for nome, fonte in exemplos.items():
+            with self.subTest(exemplo=nome):
+                achadas = chamadas_do_executar(ast.parse(fonte))
+                self.assertEqual(len(achadas), 1)
+                self.assertTrue([k.arg for k in achadas[0].keywords if k.arg is None or k.arg in ("relogio", "armar")])
+        self.assertEqual(chamadas_do_executar(ast.parse("from outro import executar as rodar\nc.executar(1)\nrodar(2)\n")), [])
+
+    def test_chamada_de_outro_nome_do_comum_nao_e_do_executar(self):  # BP1, E37.36: as guardas do import e da chamada
+        """Só o `executar` de `_comum` conta: outro nome importado de `_comum`, outro módulo com apelido e outra função do
+        módulo `_comum` não são chamadas a ele."""
+        for nome, fonte in {
+            "outro nome de _comum": "from _comum import bloquear as b\nb(1)\n",
+            "outro módulo com apelido": "import os as o\no.executar(1)\n",
+            "outra função de _comum": "import _comum\n_comum.bloquear(1)\n",
+        }.items():
+            with self.subTest(exemplo=nome):
+                self.assertEqual(chamadas_do_executar(ast.parse(fonte)), [])
+
+    def test_referencia_ao_executar_fora_de_chamada_e_achada(self):  # BP1, A2 da segurança (E37.36)
+        """Reatribuição, `getattr`, `importlib.import_module(...).executar` e `functools.partial(executar, ...)` levam o
+        `relogio=` e o `armar=` sem uma chamada direta: o teste de AST os acha, pelo nome, pelo apelido e pelo atributo."""
+        formas = {
+            "reatribuição": "from _comum import executar\nx = executar\nx('h', p, m, relogio=r)\n",
+            "reatribuição pelo apelido": "from _comum import executar as rodar\nx = rodar\n",
+            "getattr": "import _comum\ngetattr(_comum, 'executar')('h', p, m, armar=a)\n",
+            "import_module": "import importlib\nimportlib.import_module('_comum').executar('h', p, m, relogio=r)\n",
+            "atributo sem chamada": "import _comum as c\nx = c.executar\n",
+            "partial": "import functools\nfrom _comum import executar\nfunctools.partial(executar, relogio=r)('h', p, m)\n",
+        }
+        for nome, fonte in formas.items():
+            with self.subTest(forma=nome):
+                self.assertTrue(referencias_ao_executar_fora_de_chamada(ast.parse(fonte)))
+        diretas = {
+            "nome": "from _comum import executar\nexecutar('h', p, m)\n",
+            "apelido": "from _comum import executar as rodar\nrodar('h', p, m)\n",
+            "módulo": "import _comum as c\nc.executar('h', p, m)\n",
+            "outro nome": "from _comum import bloquear\nx = bloquear\n",
+            "outro atributo": "import _comum\nx = _comum.bloquear\n",
+            "outra cadeia": "x = 'bloquear'\n",
+        }
+        for nome, fonte in diretas.items():
+            with self.subTest(direta=nome):
+                self.assertEqual(referencias_ao_executar_fora_de_chamada(ast.parse(fonte)), [])
+
+    def test_hooks_reais_e_driver_so_chamam_o_executar_direto(self):  # BP1, A2 da segurança (E37.36)
+        """Nos hooks reais e no driver do lote, toda menção ao `executar` de `_comum` é a chamada direta."""
+        fontes = {script.name: script.read_text(encoding="utf-8") for script in sorted(HOOKS.glob("*.py"))}
+        self.assertGreaterEqual(len(fontes), 10, "hooks lidos")
+        fontes["driver"] = self.DRIVER_DOS_HOOKS
+        for nome, fonte in fontes.items():
+            with self.subTest(hook=nome):
+                self.assertEqual([ast.unparse(n) for n in referencias_ao_executar_fora_de_chamada(ast.parse(fonte))], [])
 
     def test_corpus_nos_dois_hooks(self):
         """O corpus nos dois hooks cabe no teto de trabalho (CORPUS-CUSTO-CONTADOR): cada caso roda o hook uma vez por

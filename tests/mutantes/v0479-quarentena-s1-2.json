@@ -1,0 +1,86 @@
+{
+    "pedido": "v0479-quarentena-s1",
+    "executor": "unittest",
+    "mutantes": [
+        {
+            "id": "M12",
+            "guarda": "E37.20: ramo vivo (if True) conta",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        if isinstance(no, ast.If) and isinstance(no.test, ast.Constant) and not no.test.value:",
+            "para": "        if isinstance(no, ast.If) and isinstance(no.test, ast.Constant):",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_skiptest_no_else_de_ramo_morto_e_em_ramo_vivo_conta"
+            ]
+        },
+        {
+            "id": "M16",
+            "guarda": "E37.20: quarentena exige prazo E OK do dono (basta um não aceita)",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    if not (prazo and \"OK do dono\" in motivo):",
+            "para": "    if not (prazo or \"OK do dono\" in motivo):",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_quarentena_sem_prazo_ou_sem_ok_do_dono_e_recusada"
+            ]
+        },
+        {
+            "id": "M17",
+            "guarda": "E37.20: quarentena sem prazo ou sem OK é recusada",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    if not (prazo and \"OK do dono\" in motivo):",
+            "para": "    if False:",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_quarentena_sem_prazo_ou_sem_ok_do_dono_e_recusada"
+            ]
+        },
+        {
+            "id": "M18",
+            "guarda": "E37.20: o prazo é uma data AAAA-MM-DD inteira",
+            "arquivo": "tests/quarentenas.py",
+            "de": "_PRAZO = re.compile(r\"\\b\\d{4}-\\d{2}-\\d{2}\\b\")",
+            "para": "_PRAZO = re.compile(r\"\\d{4}\")",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_quarentena_sem_prazo_ou_sem_ok_do_dono_e_recusada"
+            ]
+        },
+        {
+            "id": "M19",
+            "guarda": "E37.20: motivo que não é quarentena não exige prazo",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        if motivo.startswith(\"quarentena\"):\n            _confere_quarentena(motivo, onde, hoje)",
+            "para": "        if True:\n            _confere_quarentena(motivo, onde, hoje)",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_motivo_que_nao_e_quarentena_nao_exige_prazo"
+            ]
+        },
+        {
+            "id": "M21",
+            "guarda": "E37.20: só a chamada (ast.Call) do corpo é lida",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        if isinstance(no, ast.Call):",
+            "para": "        if isinstance(no, ast.Name):",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        },
+        {
+            "id": "M23",
+            "guarda": "E37.24: a suíte do carregador é aberta até o teste",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        if isinstance(item, unittest.TestSuite):",
+            "para": "        if False:",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_teto_2_com_uma_quarentena_passa_e_com_teto_3_reprova"
+            ]
+        },
+        {
+            "id": "M24",
+            "guarda": "E37.24: cada arquivo é lido uma vez e guardado",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    if arquivo not in lidos:",
+            "para": "    if False:",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        }
+    ]
+}

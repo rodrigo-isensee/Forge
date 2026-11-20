@@ -1210,18 +1210,26 @@ def portoes_da_classe(classe, infra):
 
 def cmd_classe(raiz, base=None, head=None, como_json=False):
     """`forge-check classe` (P5; só leitura, sem rede): a classe do diff `base...head`, os motivos e os portões e pareceres exigidos
-    pelo diff (o `pr` soma o que o plano técnico do pedido marca). rc 0 com classe; rc 2 se a `--head` não existe."""
+    pelo diff (o `pr` soma o que o plano técnico do pedido marca). rc 0 com classe; rc 1 com o item acima de TETO_DE_ARQUIVOS (META85);
+    rc 2 se a `--head` não existe."""
     ref = head or "HEAD"
     if not sha_do_commit(raiz, ref):
         print(f"classe: --head {nome_seguro(sem_controle(ref))} não existe")
         return 2
     classe, motivos, decisivos = classe_da_entrega(raiz, ref, base)
-    infra, gatilhos_de_seguranca = gatilhos_do_diff(arquivos_da_entrega(raiz, ref, base))
+    nomes = arquivos_da_entrega(raiz, ref, base)
+    infra, gatilhos_de_seguranca = gatilhos_do_diff(nomes)
     portoes, pareceres = portoes_da_classe(classe, infra), pareceres_exigidos(classe, infra, gatilhos_de_seguranca)
+    item = arquivos_do_item(nomes or [])
+    rc = 1 if len(item) > TETO_DE_ARQUIVOS else 0  # META85-ITEM-ATE-10-ARQUIVOS
     if como_json:
         print(json.dumps({"classe": classe, "motivos": motivos, "arquivos": decisivos, "portoes": portoes, "pareceres": pareceres,
-                          "gatilhos_de_seguranca": gatilhos_de_seguranca}, ensure_ascii=False))
-        return 0
+                          "gatilhos_de_seguranca": gatilhos_de_seguranca, "arquivos_do_item": len(item),
+                          "teto_de_arquivos": TETO_DE_ARQUIVOS}, ensure_ascii=False))
+        return rc
+    if rc:
+        print(f"item: {len(item)} arquivos, teto {TETO_DE_ARQUIVOS}: corte o item antes de começar (META85; testes, changelog.d/ e "
+              f"pareceres não contam), entre: {', '.join(map(caminho_impresso, item[:3]))}")
     print(f"classe: {classe}")
     for motivo in motivos[:10]:
         print(f"motivo: {motivo}")
@@ -1229,7 +1237,16 @@ def cmd_classe(raiz, base=None, head=None, como_json=False):
         print(f"motivo: e mais {len(motivos) - 10}")
     print(f"portoes: autor + {' ∥ '.join(portoes[1])} (mesmo head) + CI")
     print(f"pareceres: {', '.join(pareceres)}" + (f" (gatilho: {gatilhos_de_seguranca[0]})" if gatilhos_de_seguranca else ""))
-    return 0
+    return rc
+
+
+TETO_DE_ARQUIVOS = 10  # META85-ITEM-ATE-10-ARQUIVOS (ordem do dono, 2026-11-18): o corte do item antes de começar
+
+
+def arquivos_do_item(nomes):
+    """META85-ITEM-ATE-10-ARQUIVOS: os arquivos do diff que contam no teto do item. Fora: testes (`e_teste`, com `tests/mutantes/`;
+    os módulos do portão em `tests/` contam), fragmentos de `changelog.d/` e pareceres e quadro (LIVRES), que acompanham todo item."""
+    return [n for n in nomes if not e_teste(n) and not n.startswith(FRAGMENTOS) and not livre(n, LIVRES)]
 
 
 # ---- T1 (decisão 20; 0.43.3): código mudado sem teste mudado nem acrescentado, sinalizado nas classes N e C; a T fica isenta ----------
@@ -1517,6 +1534,16 @@ def checks_do_head(raiz, ref, branch, previo=False):
             "não aprovado para merge (E3.45)"]
 
 
+def base_sem_flag_do_pr(raiz, ref=None, branch=None, nome="develop"):
+    """E2.201 (v047) e A1 da segurança (v0478 E34.10): a base que o `forge-check pr` sem `--base` dá ao `cmd_pr`, uma fonte só do
+    `pr_da_cli` e do `revalida:` do `parecer delta`: numa branch de trabalho (a da ref ou a única cujo head é o sha dela), a `nome`
+    resolvida (`base_do_delta`); fora dela, sem a base ou com o head já nela, None (o diff literal)."""
+    branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))
+    if branch and branch not in BASES_DO_FLUXO:
+        return base_do_delta(raiz, nome, ref)[0]
+    return None
+
+
 def avisar_classe(raiz, ref, base):
     """P5: a classe da entrega e o motivo, no stderr do `pr` (o veredito do stdout não muda de forma), só em T e C, que mudam o que
     se exige; N (review e QA) é o de sempre e não fala."""
@@ -1540,7 +1567,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
     previo_dos_checks = previo or sem_checks
     if base is None:
         branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))
-        if branch and branch not in BASES_DO_FLUXO and base_do_delta(raiz, "develop", ref)[0]:
+        if base_sem_flag_do_pr(raiz, ref, branch):
             base = "develop"
     if conferir:  # T1: código sem teste sinalizado (a classe T isenta), antes do veredito
         aviso_t1_do_pr(raiz, ref, None if base is None else base.removeprefix("origin/"))
@@ -1994,20 +2021,13 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
                 saida.append(f"{caminho_impresso(rel)}: autoria: sem registro de que o papel `{papel}` gravou esta versão; "
                              f"o {papel} deve escrevê-lo: regrave com a ferramenta Write (o esqueleto sai de `forge-check parecer novo`); "
                              f"parecer gravado pelo Bash (heredoc, `cat >`) fica sem autoria ({rid})")
-        if campos.get("parecer") == "riscos-aceitos" and not aceite_do_usuario(raiz, pedido, campos.get("commit"), ref):
-            saida.append(f"{caminho_impresso(rel)}: parecer: `riscos-aceitos` só vale com o aceite do usuário em "
-                         f"docs/security/aceites/{pedido}.md (`aceite: sim` e `commit:` igual ao do parecer, gravado à mão por ele) ({rid})")
-        elif campos.get("parecer") not in ("aprovado", "riscos-aceitos"):
-            saida.append(f"{caminho_impresso(rel)}: parecer: o último parecer não é aprovado ({rid})")
-        elif campos.get("commit") and COMMIT.match(campos["commit"]):
-            livres = LIVRES + ANEXOS_DO_PORTAO + (f"changelog.d/{pedido}.md", f"{ACEITES_DO_USUARIO[0]}{pedido}.md")  # D4; E1g; E2.252
-            dispensados = testes_do_qa(raiz, pedido, branch if de_trabalho else None, ref or "HEAD", campos["commit"])[1] if tipo == "review" else ()
-            paralelo = commit_de_pareceres_paralelos(raiz, campos["commit"], pedido)
-            if paralelo:  # AQ-5: o `commit:` é o HEAD com os pareceres paralelos, não o código revisado
-                saida.append(f"{caminho_impresso(rel)}: commit: {paralelo} ({rid})")
-                continue
-            motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base, livres, estritos=FRAGMENTOS, dominio=tipo,
-                                 mais=dominio_mais(campos), dispensados=dispensados)  # PARECER-CONTEUDO
+        dispensados = (testes_do_qa(raiz, pedido, branch if de_trabalho else None, ref or "HEAD", campos["commit"])[1]
+                       if tipo == "review" and parecer_que_aprova(campos) and COMMIT.match(campos.get("commit") or "") else ())
+        campo, motivo = veredito_do_parecer(raiz, pedido, campos, tipo, ref, base, dispensados) or (None, None)
+        if campo == "parecer":
+            saida.append(f"{caminho_impresso(rel)}: parecer: {motivo} ({rid})")
+        elif motivo:
+            livres = livres_do_pedido(pedido)
             junto = commit_junto_do_parecer(raiz, rel, ref or "HEAD", livres) if motivo and motivo.startswith("desatualizado") else None
             if junto and not e_ancestral(raiz, junto[0], campos["commit"]):  # E16: o parecer veio no mesmo commit do teste, depois do que cita
                 cabeca, sep, dom = motivo.partition(f"; {caminho_impresso(junto[1])} é do domínio")  # E16 logo depois do "peça novo parecer"
@@ -2018,6 +2038,34 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
             if motivo:
                 saida.append(f"{caminho_impresso(rel)}: commit: {motivo} ({rid})")
     return saida + nao_exigidos_que_nao_aprovam(raiz, pedido, ref, branch if de_trabalho else None, exigidos)
+
+
+def parecer_que_aprova(campos):
+    """O valor do `parecer:` que pode valer no `forge-check pr`: `aprovado` ou `riscos-aceitos` (este, com o aceite do usuário)."""
+    return campos.get("parecer") in ("aprovado", "riscos-aceitos")
+
+
+def livres_do_pedido(pedido):
+    """O que muda sem desatualizar o parecer do `pedido` (D4; E1g; E2.252)."""
+    return LIVRES + ANEXOS_DO_PORTAO + (f"changelog.d/{pedido}.md", f"{ACEITES_DO_USUARIO[0]}{pedido}.md")
+
+
+def veredito_do_parecer(raiz, pedido, campos, tipo, ref, base, dispensados):
+    """META85 (uma fonte só do `forge-check pr` e do `revalida:` do `parecer delta`): (campo, motivo) do que barra o parecer em `ref`
+    (None: o HEAD e a árvore), ou None se ele vale. `parecer`: não aprova ou é `riscos-aceitos` sem o aceite do usuário; `commit`:
+    o `commit:` é só de parecer (AQ-5) ou o domínio mudou depois dele (`commit_vale`, PARECER-CONTEUDO)."""
+    if campos.get("parecer") == "riscos-aceitos" and not aceite_do_usuario(raiz, pedido, campos.get("commit"), ref):
+        return "parecer", (f"`riscos-aceitos` só vale com o aceite do usuário em docs/security/aceites/{pedido}.md (`aceite: sim` e "
+                           "`commit:` igual ao do parecer, gravado à mão por ele)")
+    if not parecer_que_aprova(campos):
+        return "parecer", "o último parecer não é aprovado"
+    if not COMMIT.match(campos.get("commit") or ""):
+        return None
+    if paralelo := commit_de_pareceres_paralelos(raiz, campos["commit"], pedido):  # AQ-5: o HEAD com os pareceres paralelos
+        return "commit", paralelo
+    motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base, livres_do_pedido(pedido), estritos=FRAGMENTOS, dominio=tipo,
+                         mais=dominio_mais(campos), dispensados=dispensados)
+    return ("commit", motivo) if motivo else None
 
 
 def pareceres_divergentes(achados, vigente):
@@ -2995,15 +3043,16 @@ BASE_INFORMADA = {"dono": "base: fixada pelo dono (linha do Histórico)",
                   "revisado": "base: commit do autor revisado pelo portão (Revisar-sha de brief selado)"}
 
 
-def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
-    """Escopo da entrega (VV-2, M9): `intervalo:` e uma linha `escopo:` por arquivo; só leitura. rc 0, 1 com reprovação, 2 entrada ilegível."""
-    rc, saida = linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs)
+def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=(), provas=(None, None)):
+    """Escopo da entrega (VV-2, M9): `intervalo:` e uma linha `escopo:` por arquivo; só leitura. rc 0, 1 com reprovação, 2 entrada ilegível.
+    `provas` (META85-ENTREGA-COM-MUTANTES): os logs `--mutantes` e `--pronto` do autor, cobrados na etapa codigo com código no escopo."""
+    rc, saida = linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs, provas=provas)
     for linha, _ in saida:
         print(linha)
     return rc
 
 
-def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=(), declarado=None, ancoras=None):
+def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=(), declarado=None, ancoras=None, provas=None):
     """(rc, [(linha, reprova)]) do `cmd_entrega`, sem imprimir. Com `declarado` (0.43.1, P2: função nome -> rótulo ou None, o escopo
     declarado no brief selado), cada `escopo: confira` vira `ok (declarado no brief)` ou `fora do declarado no brief` (reprova).
     `ancoras` (E2.302, só a conferência): os Base-sha selados que deixam a junção limpa da base passar sem commit novo; com eles, os
@@ -3151,12 +3200,56 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
             isencao, avisos = isencao_do_dono(raiz, pedido_id, texto, do_dono.get(nome), nome, base_sha, head, base_ref)
             linhas += avisos
             linhas.append(isencao or escopo_resolvido(declarado, nome, mostrado) or (f"escopo: confira {mostrado} +{acrescidas} -{removidas}", False))
+    if provas is not None:  # META85-ENTREGA-COM-MUTANTES: só a forma antiga (o PQ do autor); a conferência roda os PQ do brief
+        linhas += provas_da_entrega(head, etapa, arquivos, provas)
     if briefs:
         linhas = uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs, caminho) + sondas_no_corpus(raiz, head, briefs) + linhas
     saida += [(f"intervalo: {de}..{head}", False)] + linhas
     if not any(r for _, r in linhas) and branch.startswith(PREFIXO_DE_PARECER):  # M5, T-4: só com rc 0 e o sha do `rev-parse` (o head)
         saida.append((f"linha-final: parecer-conferido {head}", False))
     return (1 if any(r for _, r in linhas) else 0), saida
+
+
+PROVAS_DA_ENTREGA = (("mutantes", "mutação"), ("pronto", "pronto"))  # META85-ENTREGA-COM-MUTANTES: (opção, nome na linha)
+TETO_DA_PROVA = 8 * 1024 * 1024
+# o PQ do autor que o `brief gerar` escreve. E34.18: os logs ficam no temporário, fora da raiz; `.forge/run/` é estado dos hooks, que
+# ninguém grava (hooks/conformidade.json), e o `brief selar` recusava todo brief de código gerado (escrita barrada e G1, R-PROVA)
+PROVAS_DO_PQ = " --mutantes ${TMPDIR:-/tmp}/forge-mutantes.log --pronto ${TMPDIR:-/tmp}/forge-pronto.log"
+
+
+def provas_da_entrega(head, etapa, arquivos, logs):
+    """META85-ENTREGA-COM-MUTANTES: na etapa codigo com código no escopo (`e_codigo`, a regra do T1), a mutação e o pronto da stack
+    (`stacks/<nome>/pronto.md`) provados por log do autor; sem prova válida, `pendente:` que reprova antes do parecer. Lista de (linha, reprova)."""
+    if etapa != "codigo" or not any(e_codigo(n) for n in arquivos):
+        return []
+    linhas = []
+    for (opcao, nome), log in zip(PROVAS_DA_ENTREGA, logs):
+        motivo = motivo_da_prova(log, head)
+        if motivo:
+            linhas.append((f"pendente: entrega de código sem a prova de {nome} (--{opcao} <log>: {motivo}); rode o comando de {nome} da "
+                           "stack (stacks/<nome>/pronto.md) com o log `head=<sha40>` na 1.ª linha e `rc=0` na última", True))
+        else:
+            linhas.append((f"prova: {nome} verde no head {head[:7]} ({caminho_impresso(log)})", False))
+    return linhas
+
+
+def motivo_da_prova(log, head):
+    """None se o log tem `head=<head>` na 1.ª linha não vazia e `rc=0` na última; senão o motivo (o forge-check só lê, nunca roda)."""
+    if not log:
+        return "sem log"
+    try:
+        with open(log, "rb") as f:
+            dados = f.read(TETO_DA_PROVA + 1)
+    except OSError:
+        return "log ilegível"
+    if len(dados) > TETO_DA_PROVA:
+        return "log maior que o teto"
+    linhas = [linha.strip() for linha in dados.decode("utf-8", "replace").splitlines() if linha.strip()]
+    if not linhas or linhas[0] != f"head={head}":
+        return "a 1.ª linha não é o head entregue (head=<sha40>)"
+    if linhas[-1] != "rc=0":
+        return "a última linha não é rc=0"
+    return None
 
 
 def escopo_resolvido(declarado, nome, mostrado):
@@ -3491,8 +3584,10 @@ def parecer_delta(raiz, arquivo, ate, base):
             print(f"dispensado: {nome_seguro(n)} (teste do QA aprovado em {q[:7]})")
         elif n not in dentro:
             print(f"fora do dominio: {nome_seguro(n)}")
+    revalida = revalida_do_parecer(raiz, campos, tipo, fim, base_sem_flag_do_pr(raiz, ate, None, base), dispensados)  # A1 E34.10: a base do `pr`
     if not dentro:
         print("delta: nenhum arquivo do domínio mudou")
+        print(revalida)
         return 0
     for n in dentro:
         print(f"no dominio: {nome_seguro(n)}")
@@ -3502,7 +3597,20 @@ def parecer_delta(raiz, arquivo, ate, base):
         return 2
     for linha in saida.decode("utf-8", "replace").splitlines():
         print(linha_legivel(linha))
+    print(revalida)
     return 0
+
+
+def revalida_do_parecer(raiz, campos, tipo, ate, base, dispensados):
+    """META85-REVALIDA-SO-QUEM-BARROU: a linha `revalida:` do `parecer delta`, derivada do `veredito_do_parecer`, o mesmo do
+    `forge-check pr` (uma fonte só, para as duas respostas nunca divergirem): revalida o parecer que barrou (o reprovado e o
+    `riscos-aceitos` sem o aceite do usuário) e o aprovado cujo domínio mudou; o aprovado de domínio intacto segue valendo."""
+    campo, motivo = veredito_do_parecer(raiz, campos.get("pedido", ""), campos, tipo, ate, base, dispensados) or (None, None)
+    if campo == "parecer":
+        return f"revalida: sim (este parecer barrou: {motivo})"
+    if motivo:
+        return f"revalida: sim ({motivo})"
+    return "revalida: não (não barrou e o domínio não mudou; o parecer segue valendo)"
 
 
 def partes_da_juncao(raiz, head, base):
@@ -4044,7 +4152,7 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     bases = bases_do_pedido(pedido_txt)  # a `conferida` e a base do dono, como o `entrega`
     proximo = max([int(x) for x in re.findall(r"\bPQ-(\d+)", "".join(blocos.get("Pronto quando", [])))] or [0]) + 1
     seguro = interpolacao_segura(pedido=pedido_id, branch=branch, base=a.base, sha=sha_base)  # G-5: a Branch do anterior é `\S+`
-    pronto = [f"- PQ-{proximo} (cmd, do autor): `forge-check entrega {caminho_impresso(pedido_id)} --branch {caminho_impresso(branch)} --base {caminho_impresso(a.base)} --base-sha {sha_base} "
+    pronto = [f"- PQ-{proximo} (cmd, do autor): `forge-check entrega {caminho_impresso(pedido_id)} --branch {caminho_impresso(branch)} --base {caminho_impresso(a.base)} --base-sha {sha_base}{PROVAS_DO_PQ} "
               f"--etapa codigo --desde {desde_da_branch(raiz, pedido_txt, ref, sha_base, ref_da_base(raiz, a.base))[0] if bases else PREENCHER}` · espera: rc=0"] if seguro else []
     if a.etapa in ETAPAS_DE_MERGE:
         pronto.append(pq_de_merge(a.base).replace("PQ-N", f"PQ-{proximo + len(pronto)}"))
@@ -8953,7 +9061,7 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
         pasta = pasta_fora_do_clone(raiz, caminho_pedido)
         if interpolacao_segura(pedido=pedido_id, branch=branch, base=base, sha=sha_base, **({"raiz": pasta} if pasta else {})):
             saida.append(f"- PQ-N (cmd, do autor): `forge-check entrega {caminho_impresso(pedido_id)}{f' --raiz-pedidos {caminho_impresso(pasta)}' if pasta else ''} "
-                         f"--branch {branch} --base {base} --base-sha {sha_base} --etapa codigo` · espera: rc=0")
+                         f"--branch {branch} --base {base} --base-sha {sha_base}{PROVAS_DO_PQ} --etapa codigo` · espera: rc=0")
     if etapa in ("review", "seguranca", "qa"):  # o bloco ## Achados e o teto em caracteres saem do `forge-check docs` (P3)
         saida.append("- PQ-N (cmd): `forge-check docs` · espera: rc=0")
     if etapa in ETAPAS_DE_MERGE:
@@ -10127,6 +10235,8 @@ def main():
     en.add_argument("--etapa", required=True, choices=ETAPAS_DE_CODIGO + ETAPAS_DE_BRANCH_INTEIRA + (ATO_GITHUB,),
                     help="etapa conferida; `--desde` vale em todas as etapas (C1)")
     en.add_argument("--brief", action="append", default=[], help="entregas paralelas conferidas juntas: um brief (em docs/briefs/) por entrega, de mesma Branch, Base, Base-sha e pedido; repita a opção; sem ela, a saída é a de sempre")
+    en.add_argument("--mutantes", help="forma antiga, etapa codigo com código: o log da mutação da stack (`head=<sha40>` na 1.ª linha, `rc=0` na última; META85)")
+    en.add_argument("--pronto", help="forma antiga, etapa codigo com código: o log do comando de pronto, na mesma forma do --mutantes (META85)")
     en.add_argument("--desde", help="sha40 da última entrega conferida (linha `conferida <sha40>` do Histórico do pedido); o escopo passa a ser só o que veio depois")
     tr = sub.add_parser("transcricao", help="anonimiza e verifica sessões gravadas (ADR 0007)")
     tsub = tr.add_subparsers(dest="acao", required=True)
@@ -10174,8 +10284,9 @@ def main():
             ap.error("argument --gravar: só vale em `brief gerar`")
         a.destino = a.destinos[0] if a.destinos else None
     if a.cmd == "entrega" and a.pedido_conferir is not None:
-        if a.pedido is not None or a.base is not None or a.base_sha is not None or a.desde is not None or a.brief:
-            ap.error("entrega --pedido: Base, Base-sha e Desde são calculados e o brief é o selado; sem pedido posicional, --base, --base-sha, --desde e --brief")
+        if a.pedido is not None or a.base is not None or a.base_sha is not None or a.desde is not None or a.brief or a.mutantes or a.pronto:
+            ap.error("entrega --pedido: Base, Base-sha e Desde são calculados, o brief é o selado e os PQ dele provam; sem pedido posicional, "
+                     "--base, --base-sha, --desde, --brief, --mutantes e --pronto")
     elif a.cmd == "entrega":
         faltam = [nome for nome, valor in (("pedido", a.pedido), ("--base", a.base), ("--base-sha", a.base_sha)) if valor is None]
         if faltam:
@@ -10243,7 +10354,7 @@ def executar(a, raiz):
     if a.cmd == "entrega" and a.pedido_conferir is not None:
         return cmd_entrega_conferir(raiz, a.pedido_conferir, a.branch, a.etapa, a.worktree, not (a.sem_gravar or a.so_leitura), a.so_leitura)
     if a.cmd == "entrega":
-        return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
+        return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief, (a.mutantes, a.pronto))
     if a.cmd == "voltas":  # RAIZ-PEDIDOS-PERDE-DADOS: o quadro, os briefs e os pedidos vêm do --raiz-pedidos, como no dora
         return cmd_voltas(Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz, a.pedido, a.tempo)
     if a.cmd == "dora":

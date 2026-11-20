@@ -9,7 +9,8 @@
             "de": "    return aproveitamento_da_cpu(parede, cpu, sono, parcela) >= APROVEITAMENTO_MINIMO",
             "para": "    return aproveitamento_da_cpu(parede, cpu, sono, parcela) >= 0",
             "testes": [
-                "tests.test_hooks.Hooks.test_liberar_ou_provar_a_carga_recusa_a_sonda_s1"
+                "tests.test_hooks.Hooks.test_liberar_ou_provar_a_carga_recusa_a_sonda_s1",
+                "tests.test_hooks.Hooks.test_carga_explica_a_recusa_so_pelo_vigia_do_prazo_longo_com_disputa_provada"
             ]
         }
     ]
