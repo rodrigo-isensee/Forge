@@ -27,8 +27,8 @@
       "id": "M19",
       "guarda": "pr_da_cli: sem conferir, a guarda não liga",
       "arquivo": "bin/forge-check",
-      "de": "    suite = previo_dos_checks if conferir else None",
-      "para": "    suite = previo_dos_checks if True else None",
+      "de": "    suite = (previo_dos_checks or adiar_suite) if conferir else None",
+      "para": "    suite = (previo_dos_checks or adiar_suite) if True else None",
       "testes": [
         "tests.test_forge_check_pr.SuitePeloPrDaCli.test_sem_conferir_nao_liga"
       ]
@@ -37,7 +37,7 @@
       "id": "M20",
       "guarda": "pr_da_cli: o previo e o passo 1 do fechar adiam",
       "arquivo": "bin/forge-check",
-      "de": "    suite = previo_dos_checks if conferir else None",
+      "de": "    suite = (previo_dos_checks or adiar_suite) if conferir else None",
       "para": "    suite = False if conferir else None",
       "testes": [
         "tests.test_forge_check_pr.SuitePeloPrDaCli.test_previo_so_avisa",
