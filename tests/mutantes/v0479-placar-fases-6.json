@@ -6,8 +6,8 @@
       "id": "M34",
       "guarda": "JSON aninhado fundo sai com 2, sem traceback",
       "arquivo": "bin/forge-placar",
-      "de": "    if fundo_demais(texto):\n        raise SystemExit(",
-      "para": "    if False:\n        raise SystemExit(",
+      "de": "    if fundo_demais(texto):\n        raise SystemExit(f\"forge-placar: --prs {arq} não é JSON",
+      "para": "    if False:\n        raise SystemExit(f\"forge-placar: --prs {arq} não é JSON",
       "testes": [
         "tests.evals.test_placar.SemTeste.test_arquivo_ausente_ou_invalido_sai_com_2"
       ]

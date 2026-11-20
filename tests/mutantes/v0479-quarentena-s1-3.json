@@ -1,0 +1,86 @@
+{
+    "pedido": "v0479-quarentena-s1",
+    "executor": "unittest",
+    "mutantes": [
+        {
+            "id": "M25",
+            "guarda": "E37.24: arquivo com skipTest tem as def lidas",
+            "arquivo": "tests/quarentenas.py",
+            "de": "            arvore = ast.parse(texto if \"skipTest\" in texto else \"\")",
+            "para": "            arvore = ast.parse(texto if \"skipTest\" not in texto else \"\")",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        },
+        {
+            "id": "M26",
+            "guarda": "E37.24: método sem arquivo de fonte (exec) não quebra a contagem",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        except (OSError, SyntaxError, ValueError):",
+            "para": "        except (SyntaxError, ValueError):",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        },
+        {
+            "id": "M27",
+            "guarda": "E37.24: só def entra no índice do arquivo",
+            "arquivo": "tests/quarentenas.py",
+            "de": "            if isinstance(no, (ast.FunctionDef, ast.AsyncFunctionDef))",
+            "para": "            if True",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        },
+        {
+            "id": "M28",
+            "guarda": "E37.24: def que cita skipTest entra no índice",
+            "arquivo": "tests/quarentenas.py",
+            "de": "            and \"skipTest\" in \"\\n\".join(linhas[no.lineno - 1:no.end_lineno])}",
+            "para": "            and False}",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        },
+        {
+            "id": "M29",
+            "guarda": "E37.24: a def decorada é achada pela linha do 1.o decorador",
+            "arquivo": "tests/quarentenas.py",
+            "de": "            min([no.lineno] + [deco.lineno for deco in no.decorator_list]): no for no in ast.walk(arvore)",
+            "para": "            no.lineno: no for no in ast.walk(arvore)",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        },
+        {
+            "id": "M30",
+            "guarda": "E37.24: skip de classe conta pelo pulo, sem o corpo",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    if getattr(type(teste), \"__unittest_skip__\", False) or getattr(metodo, \"__unittest_skip__\", False):",
+            "para": "    if getattr(metodo, \"__unittest_skip__\", False):",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_skip_de_classe_conta_um_por_teste_sem_somar_o_corpo"
+            ]
+        },
+        {
+            "id": "M31",
+            "guarda": "E37.24: método marcado pelo unittest conta pelo motivo real",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    if getattr(type(teste), \"__unittest_skip__\", False) or getattr(metodo, \"__unittest_skip__\", False):",
+            "para": "    if getattr(type(teste), \"__unittest_skip__\", False):",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        },
+        {
+            "id": "M32",
+            "guarda": "E37.24: motivo do skip que não é texto não conta",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        yield motivo if isinstance(motivo, str) else \"\"",
+            "para": "        yield motivo if True else \"\"",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        }
+    ]
+}
