@@ -3,22 +3,23 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-entrega-parecer-mesclado
-commit: cdf62e0a29a1dabf34c600bb0b802e9fd65bcf55
+commit: aebace7125b5873038e1c4ffefbb512cd7e111b2
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
 ---
-# Review: v0478 E50.2 (ENTREGA-PARECER-MESCLADO-ANTES-DO-AUTOR)
+# Review: v0478 E50.12 (ENTREGA-PARECER-MESCLADO, volta E50.11)
 
-Primeira rodada: `git diff 8a503799..48153733` aprovado com A1 (ramo `cod` do rev-list sem teste) e A2 (`commit:` sem âncora no registro do Jarvis). Revalidação na volta E50.5 pelo delta (`forge-check parecer delta`, intervalo `48153733..cdf62e0a`): bin/forge-check, changelog.d, tests/test_selo_e_entrega.py e as specs `tests/mutantes/v0457-escopo-ponto-2.json`, `v0479-entrega-parecer-mesclado.json` e `-2.json`. Código da volta: cerca de 10 linhas, dentro do teto (H1).
+Revalidação pelo delta (`forge-check parecer delta`, intervalo `8cff35a0..aebace71`, com o merge do parecer reprovado a2a7505e; H3, `R-REVIEW`): hooks/conformidade.py, docs/hooks.md, changelog.d, tests/test_hooks.py, tests/test_selo_e_entrega.py, a fixture `pp-sessao-forge-outro-repo-dev-write-reviews-libera`, as 12 fixtures novas `pp-sessao-forge-wt-*` e as specs `v0478-guardas-conformidade`, `v0479-entrega-parecer-mesclado`, `-5` e `-6`. Código da volta: 19 linhas em hooks/conformidade.py, dentro do teto (H1). Rodadas anteriores: aprovado em 48153733 e cdf62e0a; reprovado em 8cff35a0 só por A1 (caminho pessoal na fixture).
 
 ## Sondas
+- S1 · `scripts/verificar-contribuicao.sh 8a503799299d189c8c35eb8bcf4bf850d9f7d5a0` no head aebace71 · espera: `ok: nenhum segredo nem caminho pessoal` · obtido: `ok: nenhum segredo nem caminho pessoal no diff contra 8a503799...`
 
 ## Parecer
-Aprovado no head cdf62e0a.
+Aprovado no head aebace71.
 
-A1 resolvido: `test_rev_list_que_falha_recusa` prova o caso aceito com o git certo e recusado com o `rev-list` do arquivo devolvendo erro; o falso só troca a chamada cujo último argumento é o nome exato do parecer (checklist 12). Mutante M14 (`if False or`) morre.
+A1 da rodada anterior resolvido: a fixture saiu de `{tmp}/home/outro` para `{tmp}/outro` (S1), sem mudar o que ela prova (repositório que não é do Forge segue livre).
 
-A2 resolvido: o `commit:` agora tem de ser igual ao `de`, que vem de `desde_valido` (sha40 de conferida do `## Histórico`, registro do Jarvis), e não mais qualquer commit do intervalo; o autor que cita o próprio código ou troca um reprovado por aprovado fica fora (testes novos, M7 morre). `commit_so_de_parecer` passou a aceitar só a pasta do tipo do parecer, fora de `docs/security/aceites/` (M12 e M13 morrem; o modelo de ameaças em `docs/security/` segue aceito, como o subteste mostra). `PASTA_E_REGRA[tipo]` é seguro: o chamador só chega com `tipo` da pasta. A ajuda do comando e o fragmento do changelog acompanham a regra nova. O M12 de v0457 ganhou trecho único depois da cópia do E50.1, sem mudar a guarda.
+E50.11 (A5 da segurança): `PARECER_NO_TEXTO` casa a pasta de parecer citada no texto com borda dos dois lados (o vizinho `docs/reviewsx/` fica fora, M30) e com `docs/security/aceites` antes de `docs/security` (M31). `parecer_alheio_no_texto` procura a entrada da própria pasta na política (a ordem de `conformidade.json` põe `aceites/` antes de `security/`, M32) e recusa só o papel que não é dono (M26, M27). Entra nos dois caminhos que faltavam: a construção que o hook não modela (`recusa_do_estado`, M25, com M4 e M5 de v0478 ajustados ao trecho novo) e a linha sem leitura ou erro interno em `prova_fora_de_projeto` (M28), em que só o erro interno vai ao registro (M29, M33). A1 do QA: `test_sem_conferida_o_parecer_com_commit_no_base_sha_segue_fora` mata o M1 na 1.a entrega. Os mínimos de `test_fixtures_do_parecer_pelo_papel` subiram para 13 liberam e 19 bloqueiam (checklist 11). docs/hooks.md e o fragmento acompanham.
 
-Rodei com ambiente limpo: `ParecerMescladoNaVolta` 14 testes OK; `test_forge_mutante.ConferirTodas` 4 testes OK; `forge-mutante` M12, M13, M14 (spec -2) e M4, M7, M8 (spec 1) morreram; `forge-mutante --conferir --base 48153733` acusa os trechos de cada spec no lugar. A suíte inteira fica com o CI do PR (`R-REVIEW`).
+Rodei com ambiente limpo: `ParecerMescladoNaVolta` (15) e `test_fixtures_do_parecer_pelo_papel` OK; `forge-mutante` M25 a M33, M4 e M5 de v0478 e M1 da spec 1 morreram; `--cobertura --base 8cff35a0` cobre toda guarda mudada e `--conferir` acusa os trechos no lugar. A suíte inteira fica com o CI do PR (`R-REVIEW`).
