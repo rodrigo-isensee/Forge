@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-quarentena-s1
-commit: 0f7e405b960f0328109a83039e6a806e3ee7bec4
+commit: 04e7293b3c89ea21b6575a2f848b81a540af52f7
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -46,3 +46,10 @@ Vermelho antes do verde e mutação: não se aplicam (nenhum teste ou regra nova
 - Quem mata: o teste novo. A outra entrada da lista (`test_liberar_ou_provar_a_carga_recusa_a_sonda_s1`) está pulada pela quarentena e não pode matar. Prova por cópia do HEAD com o mesmo `para` aplicado: `python3 -I -m unittest discover -s tests -p test_hooks.py -k test_carga_explica_a_recusa_so_pelo_vigia_do_prazo_longo_com_disputa_provada -v` deu `FAILED (failures=2)`, `AssertionError: True is not false`, rc 1.
 - Sem o mutante, no HEAD: o mesmo teste dá `ok`, `OK (skipped=1)` com o outro pulado, rc 0.
 - Os demais itens do domínio (`changelog.d/`, `tests/test_hooks.py`, `tests/config.json`) não mudam neste delta; os critérios da tabela acima seguem valendo.
+
+## Revalidação (head 04e7293b, delta)
+`forge-check parecer delta docs/qa/v0479-quarentena-s1.md` (intervalo `0f7e405b..04e7293b`) listou `changelog.d/v0479-quarentena-s1.md`, `tests/config.json` (`teto_pulados` 1 para 2), `tests/mutantes/v0479-quarentena-s1.json`, `tests/quarentenas.py` e `tests/test_catraca.py`. Parecer segue aprovado; sem achado novo. Obrigação: E37.15 (teto 1 mais as quarentenas abertas; o mesmo PR que tira a quarentena devolve o teto a 1).
+- Verde no HEAD: `python3 -I -m unittest discover -s tests -p test_catraca.py -k TetoDaQuarentena`, `Ran 4 tests`, `OK`.
+- Vermelho: cópia do HEAD em `$TMPDIR` (`git archive`) com `teto_pulados` 2 e sem nenhuma quarentena (as 3 linhas do `@unittest.skip` da S1 apagadas), mesmo comando: `FAIL: test_o_forge_nao_passa_do_teto_da_quarentena`, `AssertionError: True is not false : teto_pulados=2 > 1 + 0 quarentena(s) aberta(s): devolva o teto no PR que tira a quarentena`, `FAILED (failures=1)`. O teto volta a ser exigido quando a quarentena sai.
+- Mutantes: `bin/forge-mutante tests/mutantes/v0479-quarentena-s1.json` (rev `04e7293b3c89`), rc 0: M1 morreu (`quarentenas.py:28`), M2 (`:15`), M3 (`:15`), M4 (`:16`), M5 (`:17`), M6 (`:22`) morreram. M4 e M5 morrem por erro do teste sob o mutante, que passa sem ele (a ferramenta marca `(erro)`): valem como mortos.
+- Fronteira protegida: teto acima de 1 mais as quarentenas abertas (teto 2 sem quarentena reprova; teto 2 com uma passa; teto 3 reprova). Suíte inteira: só o CI do PR (`R-QA`).
