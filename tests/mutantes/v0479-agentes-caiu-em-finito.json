@@ -51,6 +51,16 @@
       "testes": [
         "tests.test_agentes_interrompidos.Interrupcao.test_lapide_e_autor_finitos_seguem_o_prazo"
       ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E53.1: item que nao e registro de `desde` numerico some da lapide",
+      "arquivo": "hooks/agentes.py",
+      "de": "if not isinstance(l, dict) or not isinstance(l.get(\"desde\"), (int, float)):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_lapide_e_autor_finitos_seguem_o_prazo"
+      ]
     }
   ]
 }
