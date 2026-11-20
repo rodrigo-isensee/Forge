@@ -146,8 +146,8 @@
       "id": "M15",
       "guarda": "S3: item sem `caiu_em` numérico some",
       "arquivo": "hooks/agentes.py",
-      "de": "isinstance(i, dict) and isinstance(i.get(\"caiu_em\"), (int, float))]",
-      "para": "isinstance(i, dict)]",
+      "de": "if not isinstance(i, dict) or not isinstance(i.get(\"caiu_em\"), (int, float)):",
+      "para": "if not isinstance(i, dict):",
       "testes": [
         "tests.test_agentes_interrompidos.Interrupcao.test_item_sem_caiu_em_numerico_some"
       ]
