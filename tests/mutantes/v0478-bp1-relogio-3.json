@@ -16,8 +16,8 @@
       "id": "N5",
       "guarda": "só o nome `executar` importado de `_comum` vira apelido",
       "arquivo": "tests/apoio_volta_unica.py",
-      "de": "for a in no.names if a.name == \"executar\"}",
-      "para": "for a in no.names}",
+      "de": "if a.name == \"executar\"}",
+      "para": "if True}",
       "testes": [
         "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_chamada_de_outro_nome_do_comum_nao_e_do_executar"
       ]
@@ -36,8 +36,8 @@
       "id": "N7",
       "guarda": "só o módulo `_comum` importado vira nome de módulo",
       "arquivo": "tests/apoio_volta_unica.py",
-      "de": "for a in no.names if a.name == \"_comum\"}",
-      "para": "for a in no.names}",
+      "de": "if a.name == \"_comum\"}",
+      "para": "if True}",
       "testes": [
         "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_chamada_de_outro_nome_do_comum_nao_e_do_executar"
       ]
