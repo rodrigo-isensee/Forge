@@ -21,7 +21,7 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "pasta de parecer de outro papel"
+    "stderr": "pasta de parecer"
   },
   "repos": {
     "home/.forge-contrib/wt/x": {
