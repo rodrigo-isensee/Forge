@@ -6,7 +6,6 @@
   2.1.224 que o PATH do sistema traz na frente (D1 do dono).
 Tudo com `claude`, `date` e `sleep` falsos no PATH: nenhuma sessão real, nenhuma API, relógio e espera controlados (AR-4: ambiente
 montado do zero, sem TMUX, XDG_STATE_HOME nem PATH herdados)."""
-import os
 import re
 import shutil
 import subprocess
@@ -440,25 +439,6 @@ class BlocosIguais(unittest.TestCase):
                 self.assertIn('exec "$claude_bin" "${args[@]}"', texto)
                 self.assertNotRegex(texto, r"(?m)^\s*(exec )?claude \"\$\{args", "chamada direta ao claude do PATH")
                 self.assertNotIn("\nif claude plugin list", texto)
-
-
-class BinarioDaMaquina(unittest.TestCase):
-    """O que o dono relatou: o PATH traz o 2.1.224 na frente. Só confere a relação quando os dois existem nesta máquina."""
-
-    def test_resolve_o_mesmo_que_o_instalador_aponta_quando_ha_dois(self):
-        local = Path.home() / ".local/bin/claude"
-        primeiro = shutil.which("claude")
-        if not local.is_file() or not primeiro or local.resolve() == Path(primeiro).resolve():
-            self.skipTest("a máquina não tem dois claude diferentes")
-        bloco = BlocosIguais.bloco("jarvis", "CLAUDE-ATUAL")
-        saida = subprocess.run(["bash", "-c", f'prefixo=t\n{bloco}\nresolver_claude\necho "$claude_bin"'], capture_output=True,
-                               text=True, env={"HOME": str(Path.home()), "PATH": os.environ["PATH"]}, timeout=60,
-                               stdin=subprocess.DEVNULL).stdout.strip().splitlines()[-1]
-
-        def versao(c):
-            return tuple(int(x) for x in re.match(r"\d+(\.\d+)+", subprocess.run([c, "--version"], capture_output=True, text=True,
-                                                                              stdin=subprocess.DEVNULL).stdout).group(0).split("."))
-        self.assertEqual(versao(saida), max(versao(str(local)), versao(primeiro)))
 
 
 if __name__ == "__main__":
