@@ -3,31 +3,36 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-sessao-forge
-commit: fe8607dfc22953432cf43dbf4ea4fbf2158292d2
+commit: d2358465fafc56c42b396ef7e1efe2c4d0e6e854
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-20
 ---
-# Review: v0478 (E51.3, CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE)
+# Review: v0478 (E51.7, revalidação de CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE)
 
-Escopo lido: `git diff 0f6034ea...fe8607df` (2 commits: e8fb3404 e fe8607df), `hooks/conformidade.py`, `hooks/vigia.py`, `docs/hooks.md`, `changelog.d/`, `tests/test_hooks.py` (classe `HookSessaoDoForge`), fixtures `e51-*` e `tests/mutantes/v0479-conformidade-sessao-forge.json`. Contra o cartão do brief da E51.1: (1) as travas valem na sessão do Forge fora de projeto (clone e `wt/*`) para todo papel; (2) o `vigia` trata o clone como projeto e grava `violacoes.jsonl`.
+Delta lido (H3, `R-REVIEW`): `forge-check parecer delta docs/reviews/v0479-conformidade-sessao-forge.md`, intervalo `fe8607df..d2358465`; no domínio, `changelog.d/v0479-conformidade-sessao-forge.md`, `docs/hooks.md`, `hooks/conformidade.py`, `tests/test_hooks.py`, `tests/mutantes/v0479-conformidade-sessao-forge{,-2,-3}.json` e as fixtures `e51-*` novas. O aviso do delta sobre o merge 4e768cb fora da `origin/develop` só alarga a lista; o código do intervalo é o da E51.6.
 
 ## Achados
-- A1 (recomendado) docs/hooks.md:68 · "Ainda não coberto" segue listando "a ativação no próprio Forge (ADR 0008, 4.4)", mas a linha 63 e o parágrafo do vigia agora a ligam em parte: dizer o que já vale (travas e vigia) e o que falta.
-- A2 (recomendado) hooks/conformidade.py:3784 · a trava é reconhecida pelo texto da recusa (prefixo `PUSH_DIRETO`, trecho `TAG_E_VERSAO`): um `barrar` novo com a mesma frase entra calado no conjunto e um que mude a frase sai; preferir marca explícita no `barrar` (argumento ou categoria).
-- A3 (bloqueante) hooks/conformidade.py:3784 · a recusa de alvo opaco com ação crítica (R-CONFORMIDADE, `o hook não modela`) não entra no predicado: `B=develop; git push origin $B` e `F=--force; git push $F origin melhoria/x` saem 0 na wt real (S1, S2); no projeto recusam. Mesmo defeito do A1 da segurança.
+- A1 (bloqueante) hooks/conformidade.py:2751 · a recusa do alias da linha (`git -c alias.p=push p origin develop`, R-REVIEW) não é marcada trava: sai 0 na wt real (S7) e 2 no projeto; docs/hooks.md:63 diz que "o alias e o `-c` são trava". Mesma classe do A3 anterior; irmãs sem marca em 2629, 2636, 2639, 2645.
+- A2 (recomendado) hooks/conformidade.py:3805 · `X=$(echo push); git $X origin develop` sai 0 na wt e também no projeto (S8): lacuna da guarda base, fora deste item; cartão para a guarda ver a substituição no lugar do subcomando do git.
 
 ## Sondas
-- S1 · hook desta cópia, CLAUDE_PROJECT_DIR=/workspaces/Forge, cwd nesta wt, forge:tech-lead, Bash `B=develop; git push origin $B` · espera: código 2, como no projeto · obtido: código 0
-- S2 · mesmo leiaute, Bash `F=--force; git push $F origin melhoria/x` · espera: código 2, como no projeto · obtido: código 0
+- S1 · hook desta cópia, CLAUDE_PROJECT_DIR=/workspaces/Forge, cwd nesta wt, forge:tech-lead, `B=develop; git push origin $B` · espera: 2 · obtido: 2 (`$B` com ação crítica)
+- S2 · mesmo leiaute, `F=--force; git push $F origin melhoria/x` · espera: 2 · obtido: 2
+- S3 · mesmo leiaute, `git push origin ${B:-develop}`, `G=git; $G push origin develop` e `command git push origin $B` · espera: 2 · obtido: 2 nos três
+- S4 · mesmo leiaute, `eval "git push origin develop"` e `bash -c "git push origin develop"` · espera: 2 · obtido: 2 (push direto para develop)
+- S5 · mesmo leiaute, `gh pr merge $N --admin` e `gh api -X PUT repos/o/r/pulls/$N/merge` · espera: 2 · obtido: 2 (R-MAIN)
+- S6 · mesmo leiaute, `git log $REF`, `gh pr view $N`, `cat $F`, `git stash push $X` e `git push origin melhoria/x` · espera: 0 · obtido: 0 nos cinco
+- S7 · mesmo leiaute, `git -c alias.p=push p origin develop` · espera: 2, como no projeto (R-REVIEW `git -c alias.p`) · obtido: 0
+- S8 · mesmo leiaute e projeto em $TMPDIR com `.forge/versao`, `X=$(echo push); git $X origin develop` · espera: 2 · obtido: 0 nos dois
 
 ## Parecer
-Reprovado, por um bloqueante (A3): a trava pedida pelo cartão da E51.1 se anula com o ramo ou a flag numa variável, forma que o projeto já recusa. O A3 é o A1 do parecer de segurança (`docs/security/v0479-conformidade-sessao-forge.md`, sondas S1 a S3 dela), lido depois do meu exame e reproduzido aqui no leiaute real pelas sondas S1 e S2. A causa é a do A2: o predicado escolhe a trava pelo texto da recusa e deixa de fora a recusa do alvo opaco com ação crítica (`conformidade.py:2159`, e as irmãs em 2017, 2119 e 2127). Correção sugerida: o predicado aceita também essas recusas (de preferência por marca explícita no `barrar`, o que resolve o A2 junto), com uma fixture `e51-*` por forma (`$B` no refspec, `$F` na flag, `${B:-develop}`) e mutante por guarda nova.
+Reprovado, por um bloqueante (A1). A correção do A3 anterior está certa: a marca vai no `barrar` (`trava=`: `TRAVA`, `TRAVA_OPACA`, `TRAVA_NO_TETO`), o predicado deixa de ler o texto da recusa (resolve o A2 anterior) e a `TRAVA_OPACA` só pesa quando `toca_uma_trava` acha um comando que pode ser trava (programa opaco, `git` fora da lista positiva, `gh` fora da lista de leitura, texto do `eval` ou `sh -c` num nível). S1 a S6 provam as formas do A3 recusadas e a linha de leitura livre (ADR 0009, seção 6). O A1 anterior (`docs/hooks.md`, "Ainda não coberto") está resolvido.
 
-O resto está certo e fica: a `GuardaDaProva` ganha `travas`, ligada só por `na_sessao_do_forge` (raiz da sessão no clone, fora de `PostToolUse`), e passa adiante as recusas com `R-MAIN`, `R-VERIFY`, push direto para a integração e tag `v*`; o resto da linha segue livre (ADR 0009, seção 6), o que a fixture `e51-wt-escrita-dev-libera` e o mutante M5 (`return True`) provam. Nenhuma trava existente afrouxa: a mudança só acrescenta recusa ao caminho fora de projeto, e o caminho do papel com lista segue igual. O `vigia` passa `clone_do_forge=True`, como os outros hooks, com o estado em `Hook.run`. As duas constantes trocam só o texto por referência, com a mensagem idêntica.
+O A1 novo: o alias da linha (`-c alias.*`) chega ao push direto para a integração sem passar por `git_push`; a recusa dele é R-REVIEW sem marca, e a `GuardaDaProva` a engole. Correção sugerida: `trava=TRAVA_OPACA` nas recusas de alias do git (2629, 2636, 2639, 2645, 2751), que `toca_uma_trava` já decide pelo `-c` e pelo subcomando fora da lista, com a fixture `e51-wt-push-alias-c-bloqueia` e um mutante por marca; ou, se o dono preferir o alias fora da trava (`R-DECISAO`), corrigir o texto da `docs/hooks.md:63`.
 
-Tamanho (H1): cerca de 35 linhas de código em `hooks/`, um comportamento. Guardas do diff: as 3 linhas de decisão novas (`if self.travas ...`, o `return` do predicado, o argumento na chamada) e a do `vigia` têm mutante declarado (M1 a M7), com fixtures do ramo de falha (`-bloqueia`) e do livre (`-libera`). O M7 do `fix-037-uniao-seg.json` só acompanha a assinatura nova da chamada.
+Tamanho (H1): cerca de 75 linhas de código em `hooks/` no delta, um comportamento. Guardas do delta: M1 a M8 reescritos e M9 a M24 novos (`-2.json`, `-3.json`), um por linha de guarda ou marca, com fixtures `-bloqueia` e `-libera` (27 na classe).
 
-Execução: `python3 -m unittest tests.test_hooks.HookSessaoDoForge -v` com ambiente limpo: 2 testes, OK. `bin/forge-mutante --processos 1 --ids M5,M7`: `M5 · morreu · hooks/conformidade.py:3784` e `M7 · morreu · hooks/vigia.py:509`. Sonda no leiaute real (hook com `CLAUDE_PROJECT_DIR=/workspaces/Forge`, `cwd` nesta worktree, papel `forge:tech-lead`): `git push origin HEAD:develop` sai 2 (`R-CONFORMIDADE: push direto para develop`), `git tag v9.9.9` sai 2 (`R-FLUXO`), `gh pr merge 1 --admin` sai 2 (`R-MAIN`), `git push origin <branch de trabalho>` sai 0. Suíte completa: fica para o CI do PR (brief; o módulo `test_hooks` inteiro passa de 600 s).
+Execução: `python3 -m unittest tests.test_hooks.HookSessaoDoForge -v`, ambiente limpo: 2 testes, OK (6,6 s). Mutação: PQ do autor (V2), sem rerrodar. Suíte completa: CI do PR.
 
-Na volta, revalido pelo `forge-check parecer delta`. A1 e A2 viram cartão depois do merge, salvo se a correção do A3 já resolver o A2 (`R-REVIEW`).
+Na volta, revalido pelo `forge-check parecer delta`. O A2 vira cartão depois do merge (`R-REVIEW`).
