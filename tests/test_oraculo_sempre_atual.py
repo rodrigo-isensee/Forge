@@ -525,7 +525,6 @@ class Mundo(unittest.TestCase):
         self.publicar("0.47.1")
         shutil.copyfile(RAIZ / "scripts" / "jarvis", ativo / "scripts" / "jarvis")
         (ativo / "scripts" / "jarvis").chmod(0o755)
-        shutil.copyfile(RAIZ / "scripts" / "jarvis-comum.sh", ativo / "scripts" / "jarvis-comum.sh")
         (ativo / "bin" / "forge-doutor").write_text("#!/bin/sh\nexit 0\n")
         if ferramenta:
             self._script(ativo / "bin" / "forge-sempre-atual", STUB_DA_FERRAMENTA.replace("@COMPORTAMENTO@", comportamento))
