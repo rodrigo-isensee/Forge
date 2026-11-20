@@ -104,3 +104,5 @@ O CI do PR #734 (run 44820187609, parte 2/5, Python 3.12) reprovou o teto: `inte
 variáveis, head 42d380a1:
 - `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5895051, 'ambiente': 234}` · FAILED contra o teto de 5893967 (os mesmos 1084 passos do CI)
 - medida nova: 5895051, ruído 0; subprocessos e execuções iguais
+- autorização (v0478 E50.27): o teto subiu +1084 passos (0,02%), autorizado pelo dono em 20/11 19:09 só para este item
+  (DECISÃO DO DONO no pedido v0478), não precedente; o índice `docs/hooks-fixtures.md` já confere

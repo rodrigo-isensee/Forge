@@ -190,7 +190,9 @@ if _pasta:
 # custo pedem medida nova (a mensagem do teste traz a contagem). Medida nova (v0478 E41.10): a develop em cf097822
 # mudou o `hooks/_comum.py`, o `hooks/agentes.py` e o `forge-check`, e os passos foram de 5860121 a 5893967, nas mesmas
 # condições (registro em tests/provas/v0479-corpus-custo.md). Medida nova (v0478 E50.25): o `hooks/conformidade.py` e o
-# `forge-check` do v0479-entrega-parecer-mesclado levaram os passos de 5893967 a 5895051, nas mesmas condições.
+# `forge-check` do v0479-entrega-parecer-mesclado levaram os passos de 5893967 a 5895051, nas mesmas condições. O
+# teto subiu +1084 passos (0,02%) com autorização do dono em 20/11 19:09 só para este item (DECISÃO DO DONO no pedido
+# v0478), não precedente: outro aumento pede medida nova e autorização própria.
 MEDIDA_DO_CORPUS = {"python": "3.12", "profundidade_do_tmp": 2, "variaveis_do_ambiente": 234,
                     "execucoes": 557, "subprocessos": 4631, "interpretador": 5895051}
 PASSOS_POR_NIVEL_DO_TMP = 460
