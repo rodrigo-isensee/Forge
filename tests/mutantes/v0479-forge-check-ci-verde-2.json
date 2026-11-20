@@ -1,0 +1,90 @@
+{
+  "pedido": "v0479-forge-check-ci-verde-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "falta_na_prova: plano ilegível não aprova a prova",
+      "arquivo": "bin/forge-check",
+      "de": "    if tocados is None:\n        return \"o plano",
+      "para": "    if tocados is None:\n        return None\n        return \"o plano",
+      "testes": [
+        "tests.test_parecer_ci_verde.ProvaDaSuite.test_base_ou_ferramenta_ilegivel_falha_fechado"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "falta_na_prova: a prova cobre todos os módulos tocados",
+      "arquivo": "bin/forge-check",
+      "de": "else tocados <= set(rodados) for rodados in provas):",
+      "para": "else bool(tocados & set(rodados)) for rodados in provas):",
+      "testes": [
+        "tests.test_parecer_ci_verde.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "suite_do_parecer: só no Forge",
+      "arquivo": "bin/forge-check",
+      "de": "    if not e_o_forge(Path(raiz)) or (falta := falta_na_prova(",
+      "para": "    if (falta := falta_na_prova(",
+      "testes": [
+        "tests.test_parecer_ci_verde.NoPr.test_fora_do_forge_nada_muda"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "suite_do_parecer: adiar só avisa, sem ler o gh",
+      "arquivo": "bin/forge-check",
+      "de": "    if adiar:\n        print(f\"aviso: {linha}",
+      "para": "    if False:\n        print(f\"aviso: {linha}",
+      "testes": [
+        "tests.test_parecer_ci_verde.NoPr.test_adiar_so_avisa_sem_ler_o_gh",
+        "tests.test_parecer_ci_verde.PeloPrDaCli.test_previo_so_avisa",
+        "tests.test_parecer_ci_verde.PeloPrDaCli.test_passo_1_do_fechar_so_avisa"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "suite_do_parecer: sem prova e sem CI verde reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    return [] if ci[\"verde\"] else [linha]\n",
+      "para": "    return []\n",
+      "testes": [
+        "tests.test_parecer_ci_verde.NoPr.test_sem_prova_e_sem_ci_verde_reprova",
+        "tests.test_parecer_ci_verde.PeloPrDaCli.test_o_pr_reprova"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "cmd_pr: a guarda só com o `suite` do pr_da_cli (a catraca é o CI)",
+      "arquivo": "bin/forge-check",
+      "de": "if suite is not None and tipo in (\"review\", \"qa\") and campo is None and de_trabalho:",
+      "para": "if tipo in (\"review\", \"qa\") and campo is None and de_trabalho:",
+      "testes": [
+        "tests.test_parecer_ci_verde.NoPr.test_sem_suite_a_catraca_nada_muda"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "pr_da_cli: sem conferir, a guarda não liga",
+      "arquivo": "bin/forge-check",
+      "de": "    suite = previo_dos_checks if conferir else None",
+      "para": "    suite = previo_dos_checks",
+      "testes": [
+        "tests.test_parecer_ci_verde.PeloPrDaCli.test_sem_conferir_nao_liga"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "pr_da_cli: o previo e o passo 1 do fechar adiam",
+      "arquivo": "bin/forge-check",
+      "de": "    suite = previo_dos_checks if conferir else None",
+      "para": "    suite = False if conferir else None",
+      "testes": [
+        "tests.test_parecer_ci_verde.PeloPrDaCli.test_previo_so_avisa",
+        "tests.test_parecer_ci_verde.PeloPrDaCli.test_passo_1_do_fechar_so_avisa"
+      ]
+    }
+  ]
+}

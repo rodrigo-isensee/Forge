@@ -6465,6 +6465,7 @@ class LerDirigidoDoBrief(RepoComOrigem):
         self.assertEqual(rc, 0, saida + erro)
         ler = self.ler(saida)
         self.assertIn("bin/forge-fechar p1 --ref melhoria/x --dry-run", ler)
+        self.assertIn("a base entra só por `git merge origin/develop` (nunca a cópia local nem outra branch", ler)  # E47.1
         self.assertNotIn("docs/pedidos/p1.md", ler)
         self.assertIn("modelo: haiku", erro)
         self.assertIn("git merge-base --is-ancestor <mergeCommit> origin/develop", saida)  # o PQ do merge segue no brief (C-09)

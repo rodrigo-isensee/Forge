@@ -1517,21 +1517,43 @@ def checks_do_head(raiz, ref, branch, previo=False):
         return []
     if pr.get("headRefOid") != sha_do_commit(raiz, ref or "HEAD"):
         return []
+    lidos, ruins = checks_ruins(raiz, pr)
+    if lidos is None:
+        return [f"pr: checks do PR #{pr.get('number')} não lidos (gh pr checks); não aprovado para merge (E3.45)"]
+    if not ruins:
+        return []
+    return [f"pr: checks do head no PR #{pr.get('number')} não concluídos e verdes: {sem_controle(', '.join(ruins))}; "
+            "não aprovado para merge (E3.45)"]
+
+
+def checks_ruins(raiz, pr):
+    """(checks lidos, os fora de pass ou skipping mais os exigidos do destino ausentes ou fora de pass) do PR `pr` (o dict do
+    `gh pr view`); (None, None) se o `gh pr checks` não os lê. Uma fonte do `checks_do_head` e do `ci_verde_no_head`."""
     lidos, erro = gh_json(raiz, "pr", "checks", str(pr.get("number")), "--json", "name,bucket,workflow")
     if lidos is None and "no checks reported" in erro:
         lidos = []
     if not isinstance(lidos, list) or not all(isinstance(c, dict) for c in lidos):
-        return [f"pr: checks do PR #{pr.get('number')} não lidos (gh pr checks); não aprovado para merge (E3.45)"]
+        return None, None
     ruins = [f"{c.get('workflow')}/{c.get('name')} ({c.get('bucket')})" for c in lidos if c.get("bucket") not in ("pass", "skipping")]
     for par in checks_exigidos(raiz, str(pr.get("baseRefName") or "")):
         wf, nome = par.split("/", 1)
         dele = [c for c in lidos if c.get("name") == nome and wf in ("*", c.get("workflow"))]
         if not dele or any(c.get("bucket") != "pass" for c in dele):
             ruins.append(f"{par} (exigido, {'ausente' if not dele else 'fora de pass'})")
-    if not ruins:
-        return []
-    return [f"pr: checks do head no PR #{pr.get('number')} não concluídos e verdes: {sem_controle(', '.join(ruins))}; "
-            "não aprovado para merge (E3.45)"]
+    return lidos, ruins
+
+
+def ci_verde_no_head(raiz, branch, head):
+    """PARECER-SO-COM-CI-VERDE: True só com o PR da `branch` (aberto, rascunho ou não) no `head` e cada check dele lido em pass ou
+    skipping, com os exigidos presentes. Sem gh, sem rede, sem PR, outro head, nenhum check ou check pendente: False (falha fechada;
+    sobra a prova da suíte no parecer)."""
+    if not branch or not head:
+        return False
+    pr, _ = gh_json(raiz, "pr", "view", branch, "--json", "number,headRefOid,baseRefName")
+    if not isinstance(pr, dict) or pr.get("headRefOid") != head:
+        return False
+    lidos, ruins = checks_ruins(raiz, pr)
+    return bool(lidos) and not ruins
 
 
 def base_sem_flag_do_pr(raiz, ref=None, branch=None, nome="develop"):
@@ -1565,6 +1587,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
     `sem_checks` (A1 do review, E3.80; só do SEM_CHECKS_DO_FECHAR no ambiente, que o `forge-fechar` põe no passo 1): dispensa só o
     `checks_do_head`, porque os passos 4 e 6 do fechar exigem os checks verdes; o `main` não grava esse resultado para o hook."""
     previo_dos_checks = previo or sem_checks
+    suite = previo_dos_checks if conferir else None  # PARECER-SO-COM-CI-VERDE: o adiar do `suite_do_parecer`
     if base is None:
         branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))
         if base_sem_flag_do_pr(raiz, ref, branch):
@@ -1577,7 +1600,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
                   file=sys.stderr)
         avisar_classe(raiz, ref, None)
         branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
-        return cmd_pr(raiz, pedido, ref, None, branch, previo) + (conferencia_do_head(raiz, pedido, ref, None, branch)
+        return cmd_pr(raiz, pedido, ref, None, branch, previo, suite) + (conferencia_do_head(raiz, pedido, ref, None, branch)
                                                                   + tamanho_do_pr(raiz, ref, None, branch, previo)
                                                                   + checks_do_head(raiz, ref, branch, previo_dos_checks) if conferir else [])
     nome = base.removeprefix("origin/")
@@ -1595,7 +1618,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
         avisar_rebase_merge(raiz)
         return cmd_pr(raiz, pedido, ref, resolvida, branch, previo)  # na leva da promoção valem os pareceres de todos os itens
     branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
-    return cmd_pr(raiz, pedido, ref, resolvida, branch, previo) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch)
+    return cmd_pr(raiz, pedido, ref, resolvida, branch, previo, suite) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch)
                                                                    + tamanho_do_pr(raiz, ref, nome, branch, previo)
                                                                    + checks_do_head(raiz, ref, branch, previo_dos_checks) if conferir else [])
 
@@ -1960,13 +1983,14 @@ def commit_junto_do_parecer(raiz, rel, ate, livres):
     return (sha, fora[0]) if fora else None
 
 
-def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
+def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False, suite=None):
     """`branch`: a branch do parecer quando a ref é um sha (o `headRefName` do PR mesclado, `--pr`, E10); sem ela, `branch_da_ref`.
     Numa branch de trabalho (fora de BASES_DO_FLUXO), só contam os pareceres com `branch:` igual a ela: o de outro item do mesmo pedido,
     trazido pelo merge da base, não vale nem reprova; sem nenhum da branch, reprova (falha fechada). Sem branch (o sha da catraca do CI)
     ou numa branch de integração (a promoção), vale o mais recente do pedido, como antes. `previo` (FC-6, PP-5/C-2): só as duas linhas
-    de parecer ausente saem como `aviso:` no stderr; desatualizado, reprovado, autoria, aceite, forma e blob seguem violação."""
-    saida = []
+    de parecer ausente saem como `aviso:` no stderr; desatualizado, reprovado, autoria, aceite, forma e blob seguem violação.
+    `suite` (só do `pr_da_cli`; a catraca é o próprio CI): None, ou o `adiar` do `suite_do_parecer` (PARECER-SO-COM-CI-VERDE)."""
+    saida, ci = [], {}
 
     def ausente(linha):
         if previo:  # FC-6: o pré-voo do pre-push; o merge, o CI e o hook `parecer` nunca passam `previo`
@@ -2024,6 +2048,8 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False):
         dispensados = (testes_do_qa(raiz, pedido, branch if de_trabalho else None, ref or "HEAD", campos["commit"])[1]
                        if tipo == "review" and parecer_que_aprova(campos) and COMMIT.match(campos.get("commit") or "") else ())
         campo, motivo = veredito_do_parecer(raiz, pedido, campos, tipo, ref, base, dispensados) or (None, None)
+        if suite is not None and tipo in ("review", "qa") and campo is None and de_trabalho:
+            saida += suite_do_parecer(raiz, ref, base, branch, rel, campos, texto, rid, suite, ci)
         if campo == "parecer":
             saida.append(f"{caminho_impresso(rel)}: parecer: {motivo} ({rid})")
         elif motivo:
@@ -2066,6 +2092,72 @@ def veredito_do_parecer(raiz, pedido, campos, tipo, ref, base, dispensados):
     motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base, livres_do_pedido(pedido), estritos=FRAGMENTOS, dominio=tipo,
                          mais=dominio_mais(campos), dispensados=dispensados)
     return ("commit", motivo) if motivo else None
+
+
+# PARECER-SO-COM-CI-VERDE (v0478 E47.1): no Forge, o review e o QA aprovados só contam com o CI verde no head ou com a prova da suíte
+# dos módulos tocados no `commit:` do parecer, numa linha dele: `- suíte: <sha40> rc=0 módulos=<test_a,test_b>` (ou `módulos=completa`).
+PROVA_DA_SUITE = re.compile(r"^- suíte: ([0-9a-f]{40}) rc=0 módulos=([A-Za-z0-9_.,]+)[ \t]*$", re.M)
+
+
+def carregar_forge_testes():
+    """O `bin/forge-testes` da cópia em uso, como módulo (o plano dos módulos tocados é o dele); None se não carrega."""
+    import importlib.machinery
+    import importlib.util
+    try:
+        carregador = importlib.machinery.SourceFileLoader("forge_testes_do_check", str(PLUGIN / "bin" / "forge-testes"))
+        modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader("forge_testes_do_check", carregador))
+        carregador.exec_module(modulo)
+        return modulo
+    except (OSError, ImportError, SyntaxError):
+        return None
+
+
+def modulos_tocados(raiz, base, commit):
+    """O plano do `forge-testes --vermelho` sem `--modulos` para base...`commit`: os módulos de teste do diff mais o `planejar` dos
+    outros caminhos (lido na árvore de `raiz`, igual ao `commit:` no domínio pelo `commit_vale`); "completa" se o plano é a suíte
+    inteira; None se a base, o git ou a ferramenta falham (falha fechada: sobra o CI)."""
+    ft = carregar_forge_testes()
+    nomes = nomes_do_intervalo(raiz, base, commit, tres_pontos=True, estrito=True) if base and ft else None
+    if nomes is None:
+        return None
+    try:
+        modo, plano = ft.planejar([n for n in nomes if not ft.TESTE_DO_DIFF.fullmatch(n) or n in ft.ALTERA_O_MAPA], Path(raiz))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if modo == "completo":
+        return "completa"
+    return {m.group(1) for n in nomes if (m := ft.MODULO_DE_TESTE.fullmatch(n)) and (Path(raiz) / n).is_file()} | set(plano)
+
+
+def falta_na_prova(raiz, base, campos, texto):
+    """None se o `texto` do parecer traz a prova da suíte que vale para o `commit:` dele; senão o que falta, em uma linha."""
+    commit = campos.get("commit") or ""
+    provas = [m.group(2).split(",") for m in PROVA_DA_SUITE.finditer(texto) if COMMIT.match(commit) and m.group(1).startswith(commit)]
+    if not provas:
+        return f"sem a linha `- suíte: <sha40 de {commit[:12]}> rc=0 módulos=<test_a,test_b>`"
+    tocados = modulos_tocados(raiz, base, commit)
+    if tocados is None:
+        return "o plano dos módulos tocados não foi lido (base, git ou bin/forge-testes)"
+    if any(("completa" in rodados) if tocados == "completa" else tocados <= set(rodados) for rodados in provas):
+        return None
+    faltam = "completa" if tocados == "completa" else ",".join(sorted(tocados - set(provas[-1])))
+    return f"a prova não cobre os módulos tocados: falta {faltam}"
+
+
+def suite_do_parecer(raiz, ref, base, branch, rel, campos, texto, rid, adiar, ci):
+    """PARECER-SO-COM-CI-VERDE: [] se o parecer aprovado traz a prova da suíte (`falta_na_prova`) ou, sem ela, o CI do head está verde
+    (lido uma vez por `cmd_pr`, em `ci`); senão a linha de violação. Fora do Forge, nada. `adiar` (o `--previo` e o passo 1 do
+    `forge-fechar`, cujos passos 4 e 6 exigem o CI verde): sem a prova, só o aviso no stderr, sem ler o gh."""
+    if not e_o_forge(Path(raiz)) or (falta := falta_na_prova(raiz, base, campos, texto)) is None:
+        return []
+    linha = (f"{caminho_impresso(rel)}: suíte: o parecer aprovado só conta com o CI verde no head ou com a prova da suíte dos "
+             f"módulos tocados no `commit:` ({falta}) (PARECER-SO-COM-CI-VERDE, {rid})")
+    if adiar:
+        print(f"aviso: {linha}; o CI do head fica para os passos seguintes", file=sys.stderr)
+        return []
+    if "verde" not in ci:
+        ci["verde"] = ci_verde_no_head(raiz, branch, sha_do_commit(raiz, ref or "HEAD"))
+    return [] if ci["verde"] else [linha]
 
 
 def pareceres_divergentes(achados, vigente):
@@ -3444,12 +3536,15 @@ TIPO_DO_PARECER_NOVO = {"review": ("review", "forge:tech-lead", "Review"), "qa":
                         "devops": ("revisao-devops", "forge:devops-engineer", "Review de devops")}
 
 
+PROVA_NO_ESQUELETO = "- suíte: {0} rc=0 módulos={0}"  # PARECER-SO-COM-CI-VERDE: sem o CI verde no head, o sha40 do `commit:` e os módulos
+
+
 def secoes_do_parecer_novo(tipo, marca):
     """As seções do modelo de cada tipo, depois do `## Achados` (Z7)."""
     return {
-        "review": ["## Sondas", "", "## Parecer", f"{marca}: a síntese; cada ajuste em `## Achados`"],
+        "review": ["## Sondas", "", "## Parecer", f"{marca}: a síntese; cada ajuste em `## Achados`", PROVA_NO_ESQUELETO.format(marca)],
         "qa": ["## Critério → teste → resultado", "| Critério | Teste | Fronteira protegida | Resultado |", "|---|---|---|---|",
-               f"| {marca} | {marca} | {marca} | {marca} |", "", "## Cenários e resultado real", f"{marca}"],
+               f"| {marca} | {marca} | {marca} | {marca} |", "", "## Cenários e resultado real", f"{marca}", PROVA_NO_ESQUELETO.format(marca)],
         "revisao-seguranca": ["## Sondas", "", "## Gatilhos", f"{marca}: os gatilhos da `R-SEGURANCA` que a entrega toca", "",
                               "## Detalhe dos achados", f"{marca}", "", "## Riscos aceitos e ferramentas", f"{marca}"],
         "revisao-devops": ["## Detalhes", f"{marca}: a síntese e as ferramentas usadas", "", "## Custo e rollback", f"{marca}"],
@@ -9014,6 +9109,7 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     if etapa == "merge-integracao":  # L09 (P3): o integrador só roda o comando; o `modelo:` é texto para o Jarvis, sem efeito sobre o portão
         print("brief gerar: modelo: haiku (merge-integracao é mecânico; docs/economia-de-tokens.md, regra 2)", file=sys.stderr)
         saida.append(f"- `bin/forge-fechar {sem_controle(pedido_id)} --ref {branch or PREENCHER} --dry-run` e as paradas de `docs/fechamento-integrador.md`; o pedido não precisa ser lido")
+        saida.append(f"- a base entra só por `git merge origin/{base}` (nunca a cópia local nem outra branch; R-FLUXO, PARECER-SO-COM-CI-VERDE)")
     else:
         existe_achados = False
         if tipo == "codigo":  # PA-7: o arquivo vivo de achados entra pelo ## Ler, a única leitura garantida do autor
