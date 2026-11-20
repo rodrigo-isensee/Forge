@@ -14,6 +14,7 @@ Diff revisado: `5ccac0bf..15d0b7fd` (2 commits; `tests/test_estado_da_branch.py`
 
 ## Ferramenta (citada, sem refazer)
 - `bin/forge-mutante tests/mutantes/v0479-testes-prazo.json --processos 1` (rev 15d0b7fde78e): M1 morreu (`bin/forge-check:8852`), M2 morreu (`bin/forge-check:8865`), M3 morreu (`bin/forge_versoes.py:225`).
+- suíte: 15d0b7fde78e496c9b6d1cfaa2dd29f46f691fb4 rc=0 módulos=test_estado_da_branch,test_doutor_relogio
 - Módulos tocados: `python3 -m unittest tests.test_estado_da_branch tests.test_doutor_relogio`: 33 testes, OK. Suíte inteira: fica com o CI do PR (`R-REVIEW`).
 
 ## Leitura
