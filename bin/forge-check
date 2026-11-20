@@ -10198,8 +10198,7 @@ def main():
     do.add_argument("--fuso", type=lambda t: datetime.datetime.strptime(t, "%z").tzinfo,
                     help="fuso das horas de escapes.md e da janela, ±HHMM ou ±HH:MM (padrão: o da máquina)")
     do.add_argument("--json", action="store_true", help="saída em JSON")
-    rm = sub.add_parser("retomada", parents=[comum], help="agentes interrompidos pela queda da sessão e a ação da matriz para cada um (BP3 S4); "
-                        "só leitura, sem rede; rc 0, 4 registro ilegível")
+    rm = sub.add_parser("retomada", parents=[comum], help="agentes interrompidos pela queda da sessão e a ação da matriz (BP3 S4); só leitura, rc 4 se ilegível")
     rm.add_argument("--contar", action="store_true", help="só o número de interrompidos (sem git; para o atalho)")
     co = sub.add_parser("corrigidos", parents=[comum], help="PRs `fix` que corrigem PR já mesclado, lidos do histórico do git; só leitura (M14b)")
     co.add_argument("--ref", help="branch ou commit onde ler a linha de PRs (padrão: origin/develop, develop ou HEAD)")

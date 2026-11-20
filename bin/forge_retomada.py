@@ -1,9 +1,7 @@
 """Forge: `forge-check retomada` (BP3 S4, v0479; E39.33): os agentes interrompidos pela queda da sessão (lista `interrompidos` do
-`agentes.json`, S3) e a ação da matriz para cada um. Só leitura, sem rede, só biblioteca padrão; cada git local até 3 s.
-`--contar` imprime só o número, no prazo de 3 s no total (para o atalho da S5). Saída 0 leu; 4 registro ilegível ou prazo estourado
-(o atalho conta zero e avisa). Remover worktree, branch ou mudança não é com o Forge: pergunta ao dono (P2 de 2026-10-12).
-Importado pelo `bin/forge-check`; `ctx` traz dele `caminho_do_pedido`, `PedidoFora`, `entregas_conferidas`, `raizes_de_pedidos` e
-`sem_controle`."""
+`agentes.json`, S3, lida por `hooks/agentes.py`) e a ação da matriz para cada um. Só leitura, sem rede, biblioteca padrão; `--contar`
+só o número, em 3 s no total, sem git. Saída 0 leu; 4 registro ilegível ou prazo estourado. Remover worktree, branch ou mudança é do
+dono (P2 de 2026-10-12). Importado pelo `bin/forge-check`, que passa em `ctx` o que usa dele."""
 import hashlib
 import os
 import re
@@ -30,8 +28,7 @@ ACOES = {
 REMOCAO = "qualquer remoção (worktree, branch, mudança não commitada) o Forge não faz; pergunte ao dono"
 
 
-def git(raiz, *args):
-    """(rc, stdout) de um git local sem as variáveis GIT_*; falha ou prazo estourado devolvem (1, '')."""
+def git(raiz, *args):  # (rc, stdout) de um git local sem GIT_*; falha ou prazo estourado dão (1, '')
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     try:
         r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=True, env=env, timeout=PRAZO_S)
@@ -83,7 +80,6 @@ def entregue(raiz, item, texto_brief, ctx):
 
 
 def suja(raiz, branches):
-    """True se a worktree de alguma das `branches` tem arquivo não commitado."""
     rc, lista = git(raiz, "worktree", "list", "--porcelain")
     for bloco in (lista.split("\n\n") if rc == 0 else ()):
         campos = dict(l.split(" ", 1) for l in bloco.splitlines() if " " in l)
@@ -92,36 +88,19 @@ def suja(raiz, branches):
     return False
 
 
-def com_transcript(item):
-    """True se há `subagents/agent-<id>.jsonl` da sessão do item em `~/.claude/projects/` (o `SendMessage` ainda acha o contexto)."""
-    sessao, aid = item.get("sessao"), item.get("id")
-    if not (isinstance(sessao, str) and NOME.fullmatch(sessao) and isinstance(aid, str) and NOME.fullmatch(aid)):
-        return False
-    return any(Path.home().glob(f".claude/projects/*/{sessao}/subagents/agent-{aid}.jsonl"))
-
-
 def acao(raiz, item, atual, texto, ctx):
-    """A chave de `ACOES` do item: entregue, continua, sem_brief, vencido, suja ou relancar (nessa ordem)."""
+    """A chave de `ACOES` do item (nessa ordem); `continua` se há o `subagents/agent-<id>.jsonl` da sessão em `~/.claude/projects/`."""
+    sessao, aid = item.get("sessao"), item.get("id")
     if entregue(raiz, item, texto, ctx):
         return "entregue"
-    if com_transcript(item):
+    if isinstance(sessao, str) and NOME.fullmatch(sessao) and isinstance(aid, str) and NOME.fullmatch(aid) \
+            and any(Path.home().glob(f".claude/projects/*/{sessao}/subagents/agent-{aid}.jsonl")):
         return "continua"
     if atual is None:
         return "sem_brief"
     if atual != item["briefs"][0]["sha256"]:
         return "vencido"
     return "suja" if suja(raiz, item["branches"]) else "relancar"
-
-
-def interrompidos(raiz, agentes, agora):
-    """Os itens de `interrompidos` dentro do prazo e com brief de forma válida; sem arquivo, nenhum. Levanta `EstadoIlegivel`."""
-    arquivo = agentes.arquivo_de_estado(raiz)
-    if arquivo is None:
-        return []
-    hook = agentes.Hook("agentes")
-    hook.raiz = Path(raiz)
-    vivos, _ = agentes.interrompidos_vigentes(agentes.ler_estado(arquivo), agora, hook.expira_s())
-    return [dict(i, briefs=agentes.briefs_validos(i), branches=agentes.textos(i.get("branches"))) for i in vivos if agentes.briefs_validos(i)]
 
 
 def estourou(*_):
@@ -138,7 +117,11 @@ def executar(a, raiz, ctx):
         signal.signal(signal.SIGALRM, estourou)
         signal.alarm(PRAZO_S)
     try:
-        itens = interrompidos(raiz, agentes, time.time())
+        arquivo = agentes.arquivo_de_estado(raiz)
+        hook = agentes.Hook("agentes")
+        hook.raiz = Path(raiz)
+        vivos = agentes.interrompidos_vigentes(agentes.ler_estado(arquivo), time.time(), hook.expira_s())[0] if arquivo else []
+        itens = [dict(i, briefs=agentes.briefs_validos(i), branches=agentes.textos(i.get("branches"))) for i in vivos if agentes.briefs_validos(i)]
     except (agentes.EstadoIlegivel, ValueError, OSError) as erro:  # OSError inclui o TimeoutError do prazo do --contar
         print(f"retomada: registro de agentes ilegível ou prazo estourado ({ctx['sem_controle'](erro)}); nada lido", file=sys.stderr)
         return 4

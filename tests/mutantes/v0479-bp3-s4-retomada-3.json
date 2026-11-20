@@ -36,8 +36,8 @@
       "id": "M26",
       "guarda": "BP3-S4: transcript existente manda continuar pelo SendMessage",
       "arquivo": "bin/forge_retomada.py",
-      "de": "    if com_transcript(item):",
-      "para": "    if False:",
+      "de": "    if isinstance(sessao, str) and NOME.fullmatch(sessao)",
+      "para": "    if False and NOME.fullmatch(sessao)",
       "testes": [
         "tests.test_forge_check_retomada.Matriz.test_com_transcript_manda_send_message_ao_id"
       ]
