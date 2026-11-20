@@ -3,38 +3,36 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp2-i2-regra
-commit: 0ce5173bf504d028f1a49eeb94491c9d22cdedae
+commit: 80f4bd1f2912d3222559b954eafde362e9e1a5dc
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-20
 ---
-# Review de segurança: v0479-bp2-i2-regra (BP2 I2 e I5, texto da fila e do conserto, E38.10)
+# Review de segurança: v0479-bp2-i2-regra (BP2 I2 e I5, revalidação no head 80f4bd1f, E38.10)
 
-Escopo lido: `git diff 004ce869..0ce5173b` (`docs/regras/R-FLUXO.md`, `skills/trabalho-em-paralelo/ritmo-e-corte.md`, `agents/tech-lead.md`, `docs/protecao-de-branch.md`, `templates/projeto/docs/engineering/protecao-de-branch.md`, `tests/config.json`, `changelog.d/`), comparado com as condições C1 a C7 do desenho (`docs/propostas/v0479-bp2-fila-de-merge.md` em 9786d4ab, linhas 43-49) e com a D2 e a D5 do dono. Só texto e invariantes: sem suíte local (brief); o CI do PR é o portão dela.
+Volta por delta: a rodada anterior (head 0ce5173b, aprovado com A1 e A2 recomendados) fica no git. Delta lido: `forge-check parecer delta` de 0ce5173b..80f4bd1f, no domínio `docs/protecao-de-branch.md`, `skills/trabalho-em-paralelo/ritmo-e-corte.md` e `templates/projeto/docs/engineering/protecao-de-branch.md`; fora, `changelog.d/`. A base andou (004ce869 para 8a50379) e o merge 95ed14d6 só trouxe pareceres da própria branch, sem byte de domínio. Só texto: sem suíte local (brief); o CI do PR é o portão dela.
 
 ## Gatilhos
 Gatilhos: controle do Forge (portão de merge da integração), afrouxa-regra (R-FLUXO, D5 do dono), fluxo de branches.
 
 ## Confirmação pedida pela D5 (por escrito)
-**Preso ao commit revisado: confirmado.** O item 3 (`skills/trabalho-em-paralelo/ritmo-e-corte.md:26`) prende o merge ao head revisado e só aceita o head novo como o merge do revisado com o topo; o item 2 (`:25`) mantém a cadeia de sempre, e nela o `forge-check pr --base` recusa qualquer byte a mais no commit de merge além do que a base trouxe (`bin/forge-check:153`). Um merge com edição à mão não passa pelo item 2 mesmo que alguém o leia como "o merge do revisado com o topo". O A1 pede que o item 3 diga isso sozinho, para quem confere à mão até o I1 entrar.
+**Preso ao commit revisado: confirmado.** O item 3 (`skills/trabalho-em-paralelo/ritmo-e-corte.md:26`) agora diz sozinho o que antes dependia do item 2: merge com `--match-head-commit` no head revisado e, com a base trazida, head novo só com pais (revisado, topo) e a árvore do `git merge-tree` dos dois, sem resolução nem edição à mão. O item 2 (`:25`) segue mantendo a cadeia de sempre, com o `forge-check pr --base` recusando byte a mais no merge.
 
-**Com a mesma falha declarada: confirmado.** O item 1 (`:24`) prende o vermelho ao CI de `push` do topo, lido na hora, concluído com falha, e para se o topo andar; o item 4 (`:27`) exige que cada teste que falhou nesse run tenha passado no PR; o item 7 (`:30`) registra run, topo, PR e head; o item 5 (`:28`) é a C5 da D2. "Passou" exclui, ao pé da letra, o teste pulado e o apagado. O A2 pede que o texto nomeie as duas armadilhas que a segurança provou no I1 (`docs/security/v0479-bp2-i1-conserto.md`, A1 e A2) e a falha de passo que não é teste.
+**Com a mesma falha declarada: confirmado.** O item 1 (`:24`) prende o vermelho ao CI de `push` do topo, concluído com falha, e para se o topo andar; o item 4 (`:27`) exige que cada teste que falhou tenha rodado e passado, sem valer o pulado pelo id, pela classe ou pelo módulo nem o apagado, e que o passo vermelho que não é teste fique verde; o item 7 (`:30`) registra run, topo, PR e head.
 
-Texto avaliado como está: até o I1 e o I4 entrarem, o `tech-lead` confere à mão (`:31`). Isso não abre caminho novo, porque a confirmação acima vale pelo texto e pelo `forge-check pr`, não pelo script.
+## Estado dos achados anteriores
+- A1 (recomendado, rodada 0ce5173b): corrigido em `ritmo-e-corte.md:26`, com o texto da correção mínima pedida.
+- A2 (recomendado, rodada 0ce5173b): corrigido em `ritmo-e-corte.md:27`, com as armadilhas do I1 e o passo que não é teste.
 
-Conferido sem achado: o trecho tirado da `R-FLUXO` ("bateria completa no CI do PR, obrigatória para o merge; mescla com tudo verde") não era invariante e foi para `ritmo-e-corte.md:20`; o "Fluxo contínuo" da regra segue exigindo CI verde. Os invariantes novos só acrescentam (`tests/config.json`). O texto da fila nativa no modelo de projeto não mexe em workflow nem em ruleset; quem marca a caixa é o dono (`R-CONFORMIDADE`). O lote continua exceção declarada, com a integração verde antes (`:21`, D4).
+Conferido no delta sem achado: `docs/protecao-de-branch.md:21` e `:45` deixam de dizer que o `bin/forge-fechar` já faz a fila e declaram a conferência à mão do `tech-lead` até a I4, com o limite (o passo 6a só para no conflito); isso tira uma garantia que o texto prometia e o script não dava, o que reduz o risco de confiança indevida. `ritmo-e-corte.md:22` acompanha. O passo 8 do modelo de projeto (`templates/projeto/docs/engineering/protecao-de-branch.md:30`) passa a apontar a fila da `R-FLUXO` e deixa ao dono marcar a caixa do servidor; não mexe em workflow nem em ruleset (`R-CONFORMIDADE`).
 
 ## Achados
-- A1 (recomendado) skills/trabalho-em-paralelo/ritmo-e-corte.md:26 · Item 3 sem o C3 inteiro: diga que o merge sai com `--match-head-commit` no head revisado e que o head novo tem pais (revisado, topo) e a árvore do merge automático (`git merge-tree`), sem resolução nem edição à mão.
-- A2 (recomendado) skills/trabalho-em-paralelo/ritmo-e-corte.md:27 · Item 4: "passou" quer dizer rodou e passou; pulado por classe ou por módulo (setUpClass, ModuleSkipped) ou apagado não conta, e passo vermelho que não é teste (teto de pulados) também tem de ficar verde no PR. São as armadilhas A1 e A2 do I1.
 
 ## Sondas
 
 ## Detalhe dos achados
-**A1.** Evidência: `skills/trabalho-em-paralelo/ritmo-e-corte.md:26` contra a C3 do desenho (linha 45 em 9786d4ab), que a D2 aceitou "como está". Caminho de ataque: o agente que confere à mão traz a base, resolve ou edita no commit de merge e lê o item 3 ao pé da letra ("é o merge do revisado com o topo"). Hoje o item 2 barra, porque o `forge-check pr --base` recusa byte a mais no merge (`bin/forge-check:153`), por isso é recomendado. Severidade: baixa. Correção mínima: no item 3, "o merge sai com `--match-head-commit <head revisado>`; com a base trazida, o head novo só vale com pais (revisado, topo) e árvore igual à do `git merge-tree` dos dois, sem resolução nem edição à mão". Esforço: P. Dono: tech-lead.
-
-**A2.** Evidência: `skills/trabalho-em-paralelo/ritmo-e-corte.md:27`, e no I1 as sondas da segurança (`docs/security/v0479-bp2-i1-conserto.md`, S1) mostraram que o pulado por classe ou módulo não aparece pelo id do teste. O CI de `push` também tem passos vermelhos que não são teste, como o teto de pulados (`.github/workflows/ci.yml:107-130`). Caminho de ataque: quem confere à mão procura o id do teste vermelho só na lista de pulados, não o acha porque a classe ou o módulo foi pulado ou o teste foi apagado, e o conserto entra com a falha escondida. Os pareceres do item 2 veriam o pulo ou a remoção no diff, por isso é recomendado. Severidade: baixa. Correção mínima: no item 4, "cada teste que falhou no vermelho rodou e passou no PR: não vale pulado pelo id, pela classe (`setUpClass`, `tearDownClass`), pelo módulo (`setUpModule`, `tearDownModule`, `ModuleSkipped`), nem apagado; passo vermelho que não é teste fica verde no PR". Esforço: P. Dono: tech-lead.
+Sem achado novo nesta rodada.
 
 ## Riscos aceitos e ferramentas
-Sem risco aceito. O item 5 aceita qualquer arquivo mudado desde o último verde: é a D2 do dono ("C1 a C7 como estão, inclusive C5"), não achado. Até o I1 e o I4 entrarem, a fila e o conserto ficam na conferência à mão do `tech-lead`, como o texto diz; o risco residual é o de leitura errada, coberto pelo item 2.
-Ferramentas: leitura estática; nada a varrer (só texto e JSON de invariantes). Analisador de segredos, de workflows e lint de shell fora do PATH desta estação (lacuna registrada, sem instalação, `R-CUSTO`). Suíte: não rodada aqui (brief); o CI do PR é o portão dela.
+Sem risco aceito. O item 5 aceitar qualquer arquivo mudado desde o último verde segue sendo a D2 do dono, não achado. Até o I1 e o I4 entrarem, a fila e o conserto ficam na conferência à mão do `tech-lead`, como o texto agora diz nos três arquivos.
+Ferramentas: leitura estática do delta; nada a varrer (só texto). Analisador de segredos, de workflows e lint de shell fora do PATH desta estação (lacuna registrada, sem instalação, `R-CUSTO`). Suíte: não rodada aqui (brief); o CI do PR é o portão dela.
