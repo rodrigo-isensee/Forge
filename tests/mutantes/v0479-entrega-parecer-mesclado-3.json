@@ -1,0 +1,26 @@
+{
+  "pedido": "v0479-entrega-parecer-mesclado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "só os briefs de codigo deste pedido dizem o autor da volta (E50.6, A4)",
+      "arquivo": "bin/forge-check",
+      "de": "            if mesmo_pedido(grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Pedido\"], cabecalho_do_brief(brief)), pedido_id, caminho)} - {None}\n",
+      "para": "            if True} - {None}\n",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoMesmoPapelDoAutor.test_brief_de_outro_pedido_nao_e_autor_da_volta"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "a conferência passa os autores da volta lidos dos briefs selados (E50.6, A4)",
+      "arquivo": "bin/forge-check",
+      "de": "parecer_mesclado_na_volta(  # E50.1\n                raiz, base_sha, valido, head, nome, tipo, branch, pedido_id, slug, autores_da_volta(raiz, caminho, texto, branch, pedido_id), ultimos):\n",
+      "para": "parecer_mesclado_na_volta(  # E50.1\n                raiz, base_sha, valido, head, nome, tipo, branch, pedido_id, slug, {\"node-backend\"}, ultimos):\n",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoMesmoPapelDoAutor.test_mesmo_papel_sem_linha_do_jarvis_segue_fora"
+      ]
+    }
+  ]
+}
