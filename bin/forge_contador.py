@@ -5,9 +5,12 @@ versão em curso é a marca com o patch + 1). Os PRs são, na linha de primeiro 
 (cartões lidos no intervalo `pai1..pai2`) e os squash `... (#N)` (cartões lidos na própria mensagem); os cartões, as linhas
 `Cartão: <ID>` (entrega) e `Cartão-parcial: <ID>` (cita, não entrega; D3). Uma função só para o contador, o `quadro
 sincronizar`, a citação e a medida: a mesma contagem por construção. Só leitura do git local, sem rede, só biblioteca padrão.
+O teto da versão (C3) vem do `teto_da_versao` da configuração do projeto, com o parâmetro `padrao` (20) quando falta ou não vale.
 """
+import json
 import os
 import re
+import stat
 import subprocess
 import unicodedata
 
@@ -20,6 +23,10 @@ SQUASH_DE_PR = re.compile(r".*\(#(\d{1,9})\)")
 LINHA_DE_CARTAO = re.compile(r"(cartão(-parcial)?):[ \t]*(.*?)[ \t\r]*", re.I)
 ID_DO_CARTAO = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")  # a forma do atributo de pedido do `movimento`
 TETO_DE_CITACOES = 10  # D9: por PR; acima, só as 10 primeiras, com aviso
+TETO_DA_VERSAO = 20  # cartões por versão (diretriz 37): o padrão quando a configuração não traz um valor que vale
+FAIXA_DO_TETO = range(1, 201)
+TETO_DA_CONFIG = 65536  # bytes lidos da configuração
+CONFIG = (".forge", "config.json")
 
 
 class ContagemIndisponivel(Exception):
@@ -108,3 +115,31 @@ def contar(raiz, ref=REF_PADRAO):
         for cartao in cartoes:
             entregues.setdefault(cartao.casefold(), cartao)
     return {"marca": tag, "versao": versao, "prs": prs, "entregues": list(entregues.values()), "avisos": avisos}
+
+
+def ler_teto(raiz, padrao=TETO_DA_VERSAO):
+    """(teto, aviso): o `teto_da_versao` da configuração de `raiz` (CONFIG) se é inteiro de 1 a 200; senão o `padrao`. Sem o
+    arquivo ou sem a chave, aviso None; configuração que não abre, por link, grande, fora de objeto JSON ou valor que não vale
+    (booleano, texto, fora da faixa) dão o aviso que quem chama manda ao stderr (CONFIG-TETO-SEM-GUARDA), nunca traceback."""
+    try:
+        fd = os.open(os.path.join(raiz, *CONFIG), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
+        return padrao, None
+    except OSError as e:
+        return padrao, f"contador: {'/'.join(CONFIG)} não abre ({e.strerror}); teto {padrao}"
+    try:  # pasta ou fifo não são lidas: o tipo é conferido no fd aberto, antes da leitura
+        dados = os.read(fd, TETO_DA_CONFIG + 1) if stat.S_ISREG(os.fstat(fd).st_mode) else b""
+    finally:
+        os.close(fd)
+    try:
+        config = json.loads(dados.decode("utf-8")) if len(dados) <= TETO_DA_CONFIG else None
+    except (ValueError, RecursionError):
+        config = None
+    if not isinstance(config, dict):
+        return padrao, f"contador: {'/'.join(CONFIG)} não é objeto JSON regular de até {TETO_DA_CONFIG} bytes; teto {padrao}"
+    if "teto_da_versao" not in config:
+        return padrao, None
+    valor = config["teto_da_versao"]
+    if type(valor) is not int or valor not in FAIXA_DO_TETO:
+        return padrao, f"contador: teto_da_versao {ascii(valor)[:30]} fora de inteiro de 1 a 200; teto {padrao}"
+    return valor, None

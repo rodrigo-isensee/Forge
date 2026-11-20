@@ -1,2 +1,3 @@
 ### Adicionado
 - bin/forge_contador.py: núcleo da contagem do contador da versão (AE2 C1): cartões entregues por PR mesclado na develop desde a última tag v<n>.<n>.<n>, lidos das linhas Cartão: e Cartão-parcial: dos commits do PR (merge e squash, só a linha de primeiro pai), com ID na forma do movimento, até 10 citações por PR e falha fechada (não verificável) com git ausente, lento ou ref inválida (v0478 E56.1).
+- bin/forge_contador.py: teto da versão (AE2 C3) pela chave teto_da_versao da configuração do projeto, com padrão 20 por parâmetro; valor fora de inteiro de 1 a 200, booleano, configuração por link, grande, fora de objeto JSON ou ilegível usam o padrão com aviso, sem traceback (v0478 E56.1).

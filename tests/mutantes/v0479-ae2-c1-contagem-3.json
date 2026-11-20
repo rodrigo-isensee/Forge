@@ -11,6 +11,76 @@
       "testes": [
         "tests.test_contador.NaoVerificavel.test_git_sem_variaveis_herdadas"
       ]
+    },
+    {
+      "id": "M18",
+      "guarda": "configuracao por link nao e seguida (AE2 C3)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "    except OSError as e:\n        return padrao, f\"contador:",
+      "para": "    except KeyError as e:\n        return padrao, f\"contador:",
+      "testes": [
+        "tests.test_contador.Teto.test_config_por_link_nao_e_seguida"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "so arquivo regular e lido (AE2 C3)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "if stat.S_ISREG(os.fstat(fd).st_mode) else b\"\"",
+      "para": "if True else b\"\"",
+      "testes": [
+        "tests.test_contador.Teto.test_config_que_nao_e_arquivo_regular"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "configuracao acima do teto de bytes nao vale (AE2 C3)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "if len(dados) <= TETO_DA_CONFIG else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_contador.Teto.test_config_que_nao_e_objeto_json"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "JSON fundo nao da traceback (AE2 C3)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "except (ValueError, RecursionError):",
+      "para": "except (ValueError,):",
+      "testes": [
+        "tests.test_contador.Teto.test_config_que_nao_e_objeto_json"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "configuracao fora de objeto JSON usa o padrao com aviso (AE2 C3)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "    if not isinstance(config, dict):",
+      "para": "    if config is None:",
+      "testes": [
+        "tests.test_contador.Teto.test_config_que_nao_e_objeto_json"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "sem a chave, o padrao sem aviso (AE2 C3)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "    if \"teto_da_versao\" not in config:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_contador.Teto.test_sem_arquivo_e_sem_chave_vale_o_padrao_calado"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "teto so inteiro de verdade, sem booleano (AE2 C3)",
+      "arquivo": "bin/forge_contador.py",
+      "de": "if type(valor) is not int or valor not in FAIXA_DO_TETO:",
+      "para": "if not isinstance(valor, int) or valor not in FAIXA_DO_TETO:",
+      "testes": [
+        "tests.test_contador.Teto.test_valor_que_nao_vale_usa_o_padrao_com_aviso"
+      ]
     }
   ]
 }

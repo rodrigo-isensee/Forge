@@ -2,6 +2,7 @@
 `origin/develop` é uma ref remota gravada com `update-ref`; os merges imitam os do GitHub (`--no-ff` com o assunto `Merge pull
 request #N from ...`) e os squash, o assunto com `(#N)`."""
 import functools
+import json
 import os
 import shutil
 import subprocess
@@ -231,6 +232,64 @@ class NaoVerificavel(ComRepo):
         self.repo.publicar()
         with mock.patch.dict(os.environ, {"GIT_DIR": "/nao/existe"}):
             self.assertEqual(cont().contar(self.repo.dir)["marca"], None)
+
+
+class Teto(unittest.TestCase):
+    """AE2 C3: o teto da versão vem da configuração do projeto, com o padrão 20 e aviso quando o valor não vale."""
+
+    def setUp(self):
+        self.raiz = Path(tempfile.mkdtemp(prefix="contador-teto-"))
+        self.addCleanup(shutil.rmtree, self.raiz, True)
+        (self.raiz / ".forge").mkdir()
+        self.arq = self.raiz.joinpath(*cont().CONFIG)
+
+    def gravar(self, texto):
+        self.arq.write_bytes(texto if isinstance(texto, bytes) else texto.encode())
+        return cont().ler_teto(self.raiz)
+
+    def test_sem_arquivo_e_sem_chave_vale_o_padrao_calado(self):
+        self.assertEqual(cont().ler_teto(self.raiz), (20, None))
+        self.assertEqual(cont().ler_teto(self.raiz, padrao=7), (7, None))
+        self.assertEqual(self.gravar('{"outra": 1}'), (20, None))
+
+    def test_valor_que_vale(self):
+        for valor in (1, 20, 35, 200):
+            with self.subTest(valor=valor):
+                self.assertEqual(self.gravar(json.dumps({"teto_da_versao": valor})), (valor, None))
+
+    def test_valor_que_nao_vale_usa_o_padrao_com_aviso(self):
+        for valor in ("true", "false", "-1", "0", "201", "1000000000", '"20"', "20.0", "null", "[20]"):
+            with self.subTest(valor=valor):
+                teto, aviso = self.gravar(f'{{"teto_da_versao": {valor}}}')
+                self.assertEqual(teto, 20)
+                self.assertIn("fora de inteiro de 1 a 200; teto 20", aviso)
+
+    def test_config_que_nao_e_objeto_json(self):
+        for texto in ("[1]", "20", "nao e json", "", b"\xff\xfe", "[" * 5000 + "]" * 5000,
+                      "[" * 32000 + "]" * 32000,  # no python 3.12, RecursionError; no 3.14, lista: aviso nos dois
+                      '{"teto_da_versao": 30}' + " " * cont().TETO_DA_CONFIG):  # acima do teto de bytes, mesmo válido
+            with self.subTest(texto=ascii(texto)[:30]):
+                teto, aviso = self.gravar(texto)
+                self.assertEqual(teto, 20)
+                self.assertIn("não é objeto JSON", aviso)
+
+    def test_config_por_link_nao_e_seguida(self):
+        alvo = self.raiz / "alvo.json"
+        alvo.write_text('{"teto_da_versao": 30}')
+        self.arq.symlink_to(alvo)
+        teto, aviso = cont().ler_teto(self.raiz)
+        self.assertEqual(teto, 20)
+        self.assertIn("não abre", aviso)
+
+    def test_config_que_nao_e_arquivo_regular(self):
+        self.arq.mkdir()  # pasta: o read daria IsADirectoryError sem a conferência do tipo
+        self.assertEqual(cont().ler_teto(self.raiz)[0], 20)
+        self.assertIn("não é objeto JSON", cont().ler_teto(self.raiz)[1])
+        self.arq.rmdir()
+        os.mkfifo(self.arq)  # O_NONBLOCK: a fifo sem escritor não trava a leitura
+        teto, aviso = cont().ler_teto(self.raiz)
+        self.assertEqual(teto, 20)
+        self.assertIn("não é objeto JSON", aviso)
 
 
 if __name__ == "__main__":
