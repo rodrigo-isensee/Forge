@@ -4,6 +4,48 @@
   "mutantes": [
     {
       "id": "M17",
+      "guarda": "suite_do_parecer: sem prova e sem CI verde reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    return [] if ci[\"verde\"] else [linha]\n",
+      "para": "    return [] if True else [linha]\n",
+      "testes": [
+        "tests.test_forge_check_pr.SuiteNoCmdPr.test_sem_prova_e_sem_ci_verde_reprova",
+        "tests.test_forge_check_pr.SuitePeloPrDaCli.test_o_pr_reprova"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "cmd_pr: a guarda só com o `suite` do pr_da_cli (a catraca é o CI)",
+      "arquivo": "bin/forge-check",
+      "de": "if suite is not None and tipo in (\"review\", \"qa\") and campo is None and de_trabalho:",
+      "para": "if tipo in (\"review\", \"qa\") and campo is None and de_trabalho:",
+      "testes": [
+        "tests.test_forge_check_pr.SuiteNoCmdPr.test_sem_suite_a_catraca_nada_muda"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "pr_da_cli: sem conferir, a guarda não liga",
+      "arquivo": "bin/forge-check",
+      "de": "    suite = previo_dos_checks if conferir else None",
+      "para": "    suite = previo_dos_checks if True else None",
+      "testes": [
+        "tests.test_forge_check_pr.SuitePeloPrDaCli.test_sem_conferir_nao_liga"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "pr_da_cli: o previo e o passo 1 do fechar adiam",
+      "arquivo": "bin/forge-check",
+      "de": "    suite = previo_dos_checks if conferir else None",
+      "para": "    suite = False if conferir else None",
+      "testes": [
+        "tests.test_forge_check_pr.SuitePeloPrDaCli.test_previo_so_avisa",
+        "tests.test_forge_check_pr.SuitePeloPrDaCli.test_passo_1_do_fechar_so_avisa"
+      ]
+    },
+    {
+      "id": "M21",
       "guarda": "checks_do_head: checks não lidos reprovam (a leitura mudou para checks_ruins)",
       "arquivo": "bin/forge-check",
       "de": "    if lidos is None:\n        return [f\"pr: checks do PR #",
@@ -11,77 +53,6 @@
       "testes": [
         "tests.test_forge_check_pr.ChecksDoHead.test_checks_nao_lidos_reprova",
         "tests.test_forge_check_pr.ChecksDoHead.test_sem_checks_no_projeto_aprova"
-      ]
-    },
-    {
-      "id": "M18",
-      "guarda": "modulos_tocados: o módulo de teste do diff vai ao conjunto, não ao planejar",
-      "arquivo": "bin/forge-check",
-      "de": "if not ft.TESTE_DO_DIFF.fullmatch(n) or n in",
-      "para": "if ft.TESTE_DO_DIFF.fullmatch(n) or n in",
-      "testes": [
-        "tests.test_parecer_ci_verde.ProvaDaSuite.test_prova_que_cobre_o_plano_vale"
-      ]
-    },
-    {
-      "id": "M19",
-      "guarda": "modulos_tocados: o módulo de teste apagado não entra",
-      "arquivo": "bin/forge-check",
-      "de": "and (Path(raiz) / n).is_file()}",
-      "para": "and True}",
-      "testes": [
-        "tests.test_parecer_ci_verde.ProvaDaSuite.test_prova_que_cobre_o_plano_vale"
-      ]
-    },
-    {
-      "id": "M20",
-      "guarda": "falta_na_prova: parecer sem `commit:`",
-      "arquivo": "bin/forge-check",
-      "de": "commit = campos.get(\"commit\") or \"\"\n    provas",
-      "para": "commit = campos.get(\"commit\")\n    provas",
-      "testes": [
-        "tests.test_parecer_ci_verde.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
-      ]
-    },
-    {
-      "id": "M21",
-      "guarda": "falta_na_prova: sem a linha da prova",
-      "arquivo": "bin/forge-check",
-      "de": "    if not provas:\n        return f\"sem a linha",
-      "para": "    if provas:\n        return f\"sem a linha",
-      "testes": [
-        "tests.test_parecer_ci_verde.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale",
-        "tests.test_parecer_ci_verde.ProvaDaSuite.test_prova_que_cobre_o_plano_vale"
-      ]
-    },
-    {
-      "id": "M22",
-      "guarda": "falta_na_prova: o que falta diz os módulos",
-      "arquivo": "bin/forge-check",
-      "de": "faltam = \"completa\" if tocados == \"completa\" else",
-      "para": "faltam = \"completa\" if tocados != \"completa\" else",
-      "testes": [
-        "tests.test_parecer_ci_verde.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
-      ]
-    },
-    {
-      "id": "M23",
-      "guarda": "suite_do_parecer: o CI é lido uma vez",
-      "arquivo": "bin/forge-check",
-      "de": "    if \"verde\" not in ci:\n",
-      "para": "    if \"verde\" in ci:\n",
-      "testes": [
-        "tests.test_parecer_ci_verde.NoPr.test_sem_prova_e_sem_ci_verde_reprova"
-      ]
-    },
-    {
-      "id": "M24",
-      "guarda": "suite_do_parecer: o CI é o do head da ref",
-      "arquivo": "bin/forge-check",
-      "de": "sha_do_commit(raiz, ref or \"HEAD\"))\n    return [] if ci",
-      "para": "sha_do_commit(raiz, ref))\n    return [] if ci",
-      "testes": [
-        "tests.test_parecer_ci_verde.NoPr.test_sem_prova_e_sem_ci_verde_reprova"
       ]
     }
   ]

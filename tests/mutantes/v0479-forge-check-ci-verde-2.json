@@ -4,86 +4,86 @@
   "mutantes": [
     {
       "id": "M9",
-      "guarda": "falta_na_prova: plano ilegível não aprova a prova",
+      "guarda": "falta_na_prova: parecer sem `commit:`",
       "arquivo": "bin/forge-check",
-      "de": "    if tocados is None:\n        return \"o plano",
-      "para": "    if tocados is not None:\n        return \"o plano",
+      "de": "commit = campos.get(\"commit\") or \"\"\n    provas",
+      "para": "commit = campos.get(\"commit\")\n    provas",
       "testes": [
-        "tests.test_parecer_ci_verde.ProvaDaSuite.test_prova_que_cobre_o_plano_vale"
+        "tests.test_forge_check_pr.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
       ]
     },
     {
       "id": "M10",
-      "guarda": "falta_na_prova: a prova cobre todos os módulos tocados",
+      "guarda": "falta_na_prova: sem a linha da prova",
       "arquivo": "bin/forge-check",
-      "de": "else tocados <= set(rodados) for rodados in provas):",
-      "para": "else bool(tocados & set(rodados)) for rodados in provas):",
+      "de": "    if not provas:\n        return f\"sem a linha",
+      "para": "    if provas:\n        return f\"sem a linha",
       "testes": [
-        "tests.test_parecer_ci_verde.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
+        "tests.test_forge_check_pr.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale",
+        "tests.test_forge_check_pr.ProvaDaSuite.test_prova_que_cobre_os_modulos_do_diff_vale"
       ]
     },
     {
       "id": "M11",
+      "guarda": "falta_na_prova: módulos ilegíveis não aprovam a prova",
+      "arquivo": "bin/forge-check",
+      "de": "    if tocados is None:\n        return \"os módulos",
+      "para": "    if tocados is not None:\n        return \"os módulos",
+      "testes": [
+        "tests.test_forge_check_pr.ProvaDaSuite.test_prova_que_cobre_os_modulos_do_diff_vale",
+        "tests.test_forge_check_pr.ProvaDaSuite.test_base_ou_git_ilegivel_falha_fechado"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "falta_na_prova: a prova cobre todos os módulos de teste do diff",
+      "arquivo": "bin/forge-check",
+      "de": "    if any(tocados <= set(rodados) for rodados in provas):",
+      "para": "    if any(bool(tocados & set(rodados)) for rodados in provas):",
+      "testes": [
+        "tests.test_forge_check_pr.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
+      ]
+    },
+    {
+      "id": "M13",
       "guarda": "suite_do_parecer: só no Forge",
       "arquivo": "bin/forge-check",
       "de": "    if not e_o_forge(Path(raiz)) or (falta := falta_na_prova(",
       "para": "    if (falta := falta_na_prova(",
       "testes": [
-        "tests.test_parecer_ci_verde.NoPr.test_fora_do_forge_nada_muda"
+        "tests.test_forge_check_pr.SuiteNoCmdPr.test_fora_do_forge_nada_muda"
       ]
     },
     {
-      "id": "M12",
+      "id": "M14",
       "guarda": "suite_do_parecer: adiar só avisa, sem ler o gh",
       "arquivo": "bin/forge-check",
       "de": "    if adiar:\n        print(f\"aviso: {linha}",
       "para": "    if False:\n        print(f\"aviso: {linha}",
       "testes": [
-        "tests.test_parecer_ci_verde.NoPr.test_adiar_so_avisa_sem_ler_o_gh",
-        "tests.test_parecer_ci_verde.PeloPrDaCli.test_previo_so_avisa",
-        "tests.test_parecer_ci_verde.PeloPrDaCli.test_passo_1_do_fechar_so_avisa"
-      ]
-    },
-    {
-      "id": "M13",
-      "guarda": "suite_do_parecer: sem prova e sem CI verde reprova",
-      "arquivo": "bin/forge-check",
-      "de": "    return [] if ci[\"verde\"] else [linha]\n",
-      "para": "    return [] if True else [linha]\n",
-      "testes": [
-        "tests.test_parecer_ci_verde.NoPr.test_sem_prova_e_sem_ci_verde_reprova",
-        "tests.test_parecer_ci_verde.PeloPrDaCli.test_o_pr_reprova"
-      ]
-    },
-    {
-      "id": "M14",
-      "guarda": "cmd_pr: a guarda só com o `suite` do pr_da_cli (a catraca é o CI)",
-      "arquivo": "bin/forge-check",
-      "de": "if suite is not None and tipo in (\"review\", \"qa\") and campo is None and de_trabalho:",
-      "para": "if tipo in (\"review\", \"qa\") and campo is None and de_trabalho:",
-      "testes": [
-        "tests.test_parecer_ci_verde.NoPr.test_sem_suite_a_catraca_nada_muda"
+        "tests.test_forge_check_pr.SuiteNoCmdPr.test_adiar_so_avisa_sem_ler_o_gh",
+        "tests.test_forge_check_pr.SuitePeloPrDaCli.test_previo_so_avisa",
+        "tests.test_forge_check_pr.SuitePeloPrDaCli.test_passo_1_do_fechar_so_avisa"
       ]
     },
     {
       "id": "M15",
-      "guarda": "pr_da_cli: sem conferir, a guarda não liga",
+      "guarda": "suite_do_parecer: o CI é lido uma vez",
       "arquivo": "bin/forge-check",
-      "de": "    suite = previo_dos_checks if conferir else None",
-      "para": "    suite = previo_dos_checks if True else None",
+      "de": "    if \"verde\" not in ci:\n",
+      "para": "    if \"verde\" in ci:\n",
       "testes": [
-        "tests.test_parecer_ci_verde.PeloPrDaCli.test_sem_conferir_nao_liga"
+        "tests.test_forge_check_pr.SuiteNoCmdPr.test_sem_prova_e_sem_ci_verde_reprova"
       ]
     },
     {
       "id": "M16",
-      "guarda": "pr_da_cli: o previo e o passo 1 do fechar adiam",
+      "guarda": "suite_do_parecer: o CI é o do head da ref",
       "arquivo": "bin/forge-check",
-      "de": "    suite = previo_dos_checks if conferir else None",
-      "para": "    suite = False if conferir else None",
+      "de": "sha_do_commit(raiz, ref or \"HEAD\"))\n    return [] if ci",
+      "para": "sha_do_commit(raiz, ref))\n    return [] if ci",
       "testes": [
-        "tests.test_parecer_ci_verde.PeloPrDaCli.test_previo_so_avisa",
-        "tests.test_parecer_ci_verde.PeloPrDaCli.test_passo_1_do_fechar_so_avisa"
+        "tests.test_forge_check_pr.SuiteNoCmdPr.test_sem_prova_e_sem_ci_verde_reprova"
       ]
     }
   ]

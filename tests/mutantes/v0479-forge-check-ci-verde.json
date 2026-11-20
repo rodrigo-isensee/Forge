@@ -9,7 +9,7 @@
       "de": "    if not branch or not head:\n        return False\n    pr, _ = gh_json(",
       "para": "    if False:\n        return False\n    pr, _ = gh_json(",
       "testes": [
-        "tests.test_parecer_ci_verde.CiVerde.test_pendente_vermelho_ausente_outro_head_ou_sem_rede_nao_e_verde"
+        "tests.test_forge_check_pr.CiVerdeNoHead.test_pendente_vermelho_ausente_outro_head_ou_sem_rede_nao_e_verde"
       ]
     },
     {
@@ -19,7 +19,7 @@
       "de": "if not isinstance(pr, dict) or pr.get(\"headRefOid\") != head:",
       "para": "if not isinstance(pr, dict):",
       "testes": [
-        "tests.test_parecer_ci_verde.CiVerde.test_pendente_vermelho_ausente_outro_head_ou_sem_rede_nao_e_verde"
+        "tests.test_forge_check_pr.CiVerdeNoHead.test_pendente_vermelho_ausente_outro_head_ou_sem_rede_nao_e_verde"
       ]
     },
     {
@@ -29,37 +29,38 @@
       "de": "    return bool(lidos) and not ruins\n",
       "para": "    return not ruins\n",
       "testes": [
-        "tests.test_parecer_ci_verde.CiVerde.test_pendente_vermelho_ausente_outro_head_ou_sem_rede_nao_e_verde"
+        "tests.test_forge_check_pr.CiVerdeNoHead.test_pendente_vermelho_ausente_outro_head_ou_sem_rede_nao_e_verde"
       ]
     },
     {
       "id": "M4",
-      "guarda": "modulos_tocados: base, git ou ferramenta ilegível falha fechado",
+      "guarda": "modulos_tocados: sem base, nada se lê (a ref `None` não vale)",
       "arquivo": "bin/forge-check",
-      "de": "    if nomes is None:\n        return None\n    try:\n        modo, plano = ft.planejar(",
-      "para": "    if False:\n        return None\n    try:\n        modo, plano = ft.planejar(",
+      "de": "tres_pontos=True, estrito=True) if base else None",
+      "para": "tres_pontos=True, estrito=True) if True else None",
       "testes": [
-        "tests.test_parecer_ci_verde.ProvaDaSuite.test_base_ou_ferramenta_ilegivel_falha_fechado"
+        "tests.test_forge_check_pr.ProvaDaSuite.test_base_ou_git_ilegivel_falha_fechado"
       ]
     },
     {
       "id": "M5",
-      "guarda": "modulos_tocados: o plano completo pede a suíte inteira",
+      "guarda": "modulos_tocados: base ou git ilegível falha fechado",
       "arquivo": "bin/forge-check",
-      "de": "    if modo == \"completo\":\n        return \"completa\"\n",
-      "para": "    if False:\n        return \"completa\"\n",
+      "de": "    if nomes is None:\n        return None\n    return {m.group(1)",
+      "para": "    if nomes is not None:\n        return None\n    return {m.group(1)",
       "testes": [
-        "tests.test_parecer_ci_verde.ProvaDaSuite.test_plano_completo_pede_a_suite_inteira"
+        "tests.test_forge_check_pr.ProvaDaSuite.test_prova_que_cobre_os_modulos_do_diff_vale",
+        "tests.test_forge_check_pr.ProvaDaSuite.test_base_ou_git_ilegivel_falha_fechado"
       ]
     },
     {
       "id": "M6",
-      "guarda": "modulos_tocados: o planejar que levanta ValueError falha fechado",
+      "guarda": "modulos_tocados: o módulo de teste apagado não entra",
       "arquivo": "bin/forge-check",
-      "de": "Path(raiz))\n    except (OSError, ValueError, RuntimeError):\n        return None\n",
-      "para": "Path(raiz))\n    except (OSError, RuntimeError):\n        return None\n",
+      "de": "and (Path(raiz) / n).is_file()}",
+      "para": "and True}",
       "testes": [
-        "tests.test_parecer_ci_verde.ProvaDaSuite.test_base_ou_ferramenta_ilegivel_falha_fechado"
+        "tests.test_forge_check_pr.ProvaDaSuite.test_prova_que_cobre_os_modulos_do_diff_vale"
       ]
     },
     {
@@ -69,7 +70,7 @@
       "de": "if COMMIT.match(commit) and m.group(1).startswith(commit)]",
       "para": "if COMMIT.match(commit)]",
       "testes": [
-        "tests.test_parecer_ci_verde.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
+        "tests.test_forge_check_pr.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
       ]
     },
     {
@@ -79,15 +80,8 @@
       "de": "if COMMIT.match(commit) and m.group(1).startswith(commit)]",
       "para": "if m.group(1).startswith(commit)]",
       "testes": [
-        "tests.test_parecer_ci_verde.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
+        "tests.test_forge_check_pr.ProvaDaSuite.test_sem_linha_outro_sha_rc_ou_modulo_faltando_nao_vale"
       ]
-    }
-  ],
-  "isentas": [
-    {
-      "arquivo": "bin/forge-check",
-      "trecho": "base and ft",
-      "motivo": "base None: o git recusaria a ref `None...<commit>` e o `nomes_do_intervalo` estrito já devolve None; a guarda só evita a chamada (mutante equivalente)"
     }
   ]
 }

@@ -3,7 +3,7 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M25",
+      "id": "M22",
       "guarda": "parecer novo: slug só na convenção melhoria/",
       "arquivo": "bin/forge-check",
       "de": "slug = branch.removeprefix(\"melhoria/\") if branch.startswith(\"melhoria/\") else \"\"",
@@ -13,7 +13,7 @@
       ]
     },
     {
-      "id": "M26",
+      "id": "M23",
       "guarda": "parecer novo: slug só com a forma segura de nome",
       "arquivo": "bin/forge-check",
       "de": "slug if NOME_SEGURO_DE_BRIEF.fullmatch(slug) else pedido}.md",
@@ -23,7 +23,7 @@
       ]
     },
     {
-      "id": "M27",
+      "id": "M24",
       "guarda": "parecer novo: grava no caminho do slug",
       "arquivo": "bin/forge-check",
       "de": "    rel = arquivo_do_parecer_novo(tipo, a.pedido, a.branch)\n",

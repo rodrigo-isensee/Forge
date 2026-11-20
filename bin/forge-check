@@ -2095,38 +2095,19 @@ def veredito_do_parecer(raiz, pedido, campos, tipo, ref, base, dispensados):
 
 
 # PARECER-SO-COM-CI-VERDE (v0478 E47.1): no Forge, o review e o QA aprovados só contam com o CI verde no head ou com a prova da suíte
-# dos módulos tocados no `commit:` do parecer, numa linha dele: `- suíte: <sha40> rc=0 módulos=<test_a,test_b>` (ou `módulos=completa`).
+# dos módulos tocados no `commit:` do parecer, numa linha dele: `- suíte: <sha40> rc=0 módulos=<test_a,test_b>`. A ferramenta de teste
+# dirigido não é portão (NaoEPortao): o `pr` confere a forma, o sha, o rc e que a lista cobre os módulos de teste do diff.
 PROVA_DA_SUITE = re.compile(r"^- suíte: ([0-9a-f]{40}) rc=0 módulos=([A-Za-z0-9_.,]+)[ \t]*$", re.M)
-
-
-def carregar_forge_testes():
-    """O `bin/forge-testes` da cópia em uso, como módulo (o plano dos módulos tocados é o dele); None se não carrega."""
-    import importlib.machinery
-    import importlib.util
-    try:
-        carregador = importlib.machinery.SourceFileLoader("forge_testes_do_check", str(PLUGIN / "bin" / "forge-testes"))
-        modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader("forge_testes_do_check", carregador))
-        carregador.exec_module(modulo)
-        return modulo
-    except (OSError, ImportError, SyntaxError):
-        return None
+MODULO_DE_TESTE_DO_DIFF = re.compile(r"tests/((?:[a-z0-9_]+/)*test_[a-z0-9_]+)\.py")
 
 
 def modulos_tocados(raiz, base, commit):
-    """O plano do `forge-testes --vermelho` sem `--modulos` para base...`commit`: os módulos de teste do diff mais o `planejar` dos
-    outros caminhos (lido na árvore de `raiz`, igual ao `commit:` no domínio pelo `commit_vale`); "completa" se o plano é a suíte
-    inteira; None se a base, o git ou a ferramenta falham (falha fechada: sobra o CI)."""
-    ft = carregar_forge_testes()
-    nomes = nomes_do_intervalo(raiz, base, commit, tres_pontos=True, estrito=True) if base and ft else None
+    """Os módulos de teste (`test_x`, `pacote.test_x`) que o diff base...`commit` acrescenta ou muda e que existem na árvore de `raiz`
+    (o apagado não roda); None se a base ou o git falham (falha fechada: sobra o CI)."""
+    nomes = nomes_do_intervalo(raiz, base, commit, tres_pontos=True, estrito=True) if base else None
     if nomes is None:
         return None
-    try:
-        modo, plano = ft.planejar([n for n in nomes if not ft.TESTE_DO_DIFF.fullmatch(n) or n in ft.ALTERA_O_MAPA], Path(raiz))
-    except (OSError, ValueError, RuntimeError):
-        return None
-    if modo == "completo":
-        return "completa"
-    return {m.group(1) for n in nomes if (m := ft.MODULO_DE_TESTE.fullmatch(n)) and (Path(raiz) / n).is_file()} | set(plano)
+    return {m.group(1).replace("/", ".") for n in nomes if (m := MODULO_DE_TESTE_DO_DIFF.fullmatch(n)) and (Path(raiz) / n).is_file()}
 
 
 def falta_na_prova(raiz, base, campos, texto):
@@ -2137,11 +2118,10 @@ def falta_na_prova(raiz, base, campos, texto):
         return f"sem a linha `- suíte: <sha40 de {commit[:12]}> rc=0 módulos=<test_a,test_b>`"
     tocados = modulos_tocados(raiz, base, commit)
     if tocados is None:
-        return "o plano dos módulos tocados não foi lido (base, git ou bin/forge-testes)"
-    if any(("completa" in rodados) if tocados == "completa" else tocados <= set(rodados) for rodados in provas):
+        return "os módulos de teste do diff não foram lidos (base ou git)"
+    if any(tocados <= set(rodados) for rodados in provas):
         return None
-    faltam = "completa" if tocados == "completa" else ",".join(sorted(tocados - set(provas[-1])))
-    return f"a prova não cobre os módulos tocados: falta {faltam}"
+    return f"a prova não cobre os módulos de teste do diff: falta {','.join(sorted(tocados - set(provas[-1])))}"
 
 
 def suite_do_parecer(raiz, ref, base, branch, rel, campos, texto, rid, adiar, ci):
