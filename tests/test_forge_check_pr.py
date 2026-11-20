@@ -374,6 +374,32 @@ class SuitePeloPrDaCli(ProvaDaSuiteBase):
         self.assertEqual(self.linhas(conferir=False), [])
 
 
+class SuiteNoBriefSemPr(ProvaDaSuiteBase):
+    """A1 do review (E47.5, sonda S1): o `brief gerar` de `pr` e de merge roda antes de o PR nascer (passo 3 do `forge-fechar`); sem
+    PR, o review aprovado sem a prova não trava o brief: só o aviso, como no `--previo`. O `pr` direto segue reprovando."""
+
+    def rodar(self, chamada):
+        head = self.entregar()
+        self.commitar({"docs/reviews/p1.md": REVIEW.format(c=head, prova="")}, "review")
+        sem_pr = mock.patch.object(fc, "gh_json", return_value=(None, "no pull requests found for branch \"melhoria/x\""))
+        erro = io.StringIO()
+        with sem_pr, contextlib.redirect_stderr(erro):
+            saida = chamada()
+        return [l for l in saida if "PARECER-SO-COM-CI-VERDE" in l], erro.getvalue()
+
+    def test_etapas_que_recusam_nao_travam_sem_pr(self):
+        for etapa in fc.ETAPAS_QUE_RECUSAM:
+            with self.subTest(etapa=etapa):
+                self.setUp()
+                linhas, erro = self.rodar(lambda: fc.pareceres_da_etapa(self.tmp, "p1", etapa, "melhoria/x", "develop"))
+                self.assertEqual(linhas, [])
+                self.assertIn("aviso: docs/reviews/p1.md: suíte:", erro)
+
+    def test_o_pr_direto_sem_pr_segue_reprovando(self):
+        linhas, _ = self.rodar(lambda: fc.pr_da_cli(self.tmp, "p1", base="develop"))
+        self.assertEqual(len(linhas), 1, linhas)
+
+
 class EsqueletoComAProva(unittest.TestCase):
     def test_review_e_qa_trazem_a_linha_da_prova_para_preencher(self):
         for tipo in ("review", "qa"):

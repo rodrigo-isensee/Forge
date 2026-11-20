@@ -1575,7 +1575,7 @@ def avisar_classe(raiz, ref, base):
               file=sys.stderr)
 
 
-def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, previo=False, sem_checks=False):
+def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, previo=False, sem_checks=False, adiar_suite=False):
     """`forge-check pr` como o Jarvis e o conferente o chamam (E4, M4.2 e M4.3): `--base` só aceita as bases do fluxo (`develop`, `homolog`,
     `main`, ou `origin/<essas>`) e a base vale lida de `refs/remotes/origin/<base>` (a local só sem remoto, nunca adiante dele). Uma
     base que já contém o head não rescinde nada: o parecer vale só pelo diff literal. A biblioteca (`cmd_pr`) segue aceitando
@@ -1585,9 +1585,11 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
     E2.201 (v047): sem `--base`, numa branch de trabalho, a base é a `develop` (R-FLUXO), como no `forge-fechar` e no `parecer delta`:
     trazer a develop não vence parecer por arquivo que a branch não mudou (E7). Sem develop, ou com o head já nela, segue o diff literal.
     `sem_checks` (A1 do review, E3.80; só do SEM_CHECKS_DO_FECHAR no ambiente, que o `forge-fechar` põe no passo 1): dispensa só o
-    `checks_do_head`, porque os passos 4 e 6 do fechar exigem os checks verdes; o `main` não grava esse resultado para o hook."""
+    `checks_do_head`, porque os passos 4 e 6 do fechar exigem os checks verdes; o `main` não grava esse resultado para o hook.
+    `adiar_suite` (A1 do review, E47.5; só do `pareceres_da_etapa`): o `brief gerar` de `pr` e de merge roda antes de o PR nascer
+    (passo 3 do `forge-fechar`), então a prova da suíte sem CI só avisa, como no `--previo`; os passos 4 e 6 exigem o CI verde."""
     previo_dos_checks = previo or sem_checks
-    suite = previo_dos_checks if conferir else None  # PARECER-SO-COM-CI-VERDE: o adiar do `suite_do_parecer`
+    suite = (previo_dos_checks or adiar_suite) if conferir else None  # PARECER-SO-COM-CI-VERDE: o adiar do `suite_do_parecer`
     if base is None:
         branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))
         if base_sem_flag_do_pr(raiz, ref, branch):
@@ -8783,7 +8785,7 @@ def pareceres_da_etapa(raiz, pedido_id, etapa, branch, base):
     do review; em `pr` e nas de merge, todas. [] nas outras etapas ou sem branch."""
     if etapa not in ("qa",) + ETAPAS_QUE_RECUSAM or not branch:
         return []
-    linhas = pr_da_cli(raiz, pedido_id, ref=branch, base=f"origin/{base.removeprefix('origin/')}" if base else None)
+    linhas = pr_da_cli(raiz, pedido_id, ref=branch, base=f"origin/{base.removeprefix('origin/')}" if base else None, adiar_suite=True)
     return [l for l in linhas if l.startswith("docs/reviews")] if etapa == "qa" else linhas
 
 
