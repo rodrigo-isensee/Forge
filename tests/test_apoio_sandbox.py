@@ -68,6 +68,23 @@ class Sondas(unittest.TestCase):
             (proc / "self").write_text("1")  # readlink num arquivo comum: EINVAL, não FileNotFoundError
             self.assertIn("sem ", str(self.sem_excecao(apoio_sandbox.falta_proc, proc, 1)))
 
+    def test_bwrap_ausente_ou_que_nao_monta_falta_e_o_que_monta_nao(self):  # E29.1 (A3)
+        def rodar(rc, erro=""):
+            return mock.patch.object(apoio_sandbox.subprocess, "run", return_value=subprocess.CompletedProcess([], rc, "", erro))
+        with mock.patch.object(apoio_sandbox.shutil, "which", return_value=None):
+            self.assertIn("sem bwrap", self.sem_excecao(apoio_sandbox.falta_bwrap))
+        with mock.patch.object(apoio_sandbox.shutil, "which", return_value="/usr/bin/bwrap"):
+            with rodar(0):
+                self.assertIsNone(self.sem_excecao(apoio_sandbox.falta_bwrap))
+            with rodar(1, "sem namespace"):
+                motivo = self.sem_excecao(apoio_sandbox.falta_bwrap)
+                self.assertIn("rc 1", motivo)
+                self.assertIn("sem namespace", motivo)
+            with mock.patch.object(apoio_sandbox.subprocess, "run", side_effect=subprocess.TimeoutExpired("bwrap", 20)):
+                self.assertIn("bwrap não rodou", self.sem_excecao(apoio_sandbox.falta_bwrap))
+            with mock.patch.object(apoio_sandbox.subprocess, "run", side_effect=PermissionError("negado")):
+                self.assertIn("bwrap não rodou", self.sem_excecao(apoio_sandbox.falta_bwrap))
+
 
 def ambiente_sem_ci(**extra):
     """`os.environ` sem os sinais de CI, mais `extra`, enquanto o contexto durar."""
@@ -296,8 +313,8 @@ class ListaFechada(unittest.TestCase):
                    for linha, q in apoio_sandbox.usos_fora_da_lista(f.read_text(encoding="utf-8"), f.stem, lista)]
         self.assertEqual(queixas, [])
 
-    def test_a_lista_tem_os_18_testes_e_nenhum_orfao(self):
-        self.assertEqual(len(apoio_sandbox.PODEM_PULAR), 18)
+    def test_a_lista_tem_os_20_testes_e_nenhum_orfao(self):
+        self.assertEqual(len(apoio_sandbox.PODEM_PULAR), 20)
         self.assertEqual(apoio_sandbox.orfaos(apoio_sandbox.PODEM_PULAR, AQUI), [])
 
 

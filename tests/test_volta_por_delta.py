@@ -890,7 +890,7 @@ class BriefDeVolta(Repositorio):
         self.assertRegex(entregar, r"\(review \w{7} A2\) nome pouco claro \[src/app.txt:7\] · PREENCHER: entra ou corta")
         self.assertIn("esta volta só corrige os achados abaixo (E1, E1.1, E2)", saida)  # o escopo original e a etapa seguem cobertos no corte por IDs
         self.assertRegex(saida.split("## Decisões e restrições")[1], r"\n- decisões: pedido pedido-sintetico até [0-9a-f]{64} \(2 linhas")  # P4
-        self.assertIn(f"- PQ-4 (cmd, do autor): `forge-check entrega pedido-sintetico --branch melhoria/x --base develop --base-sha {self.base} --etapa codigo --desde PREENCHER` · espera: rc=0", saida)
+        self.assertIn(f"- PQ-4 (cmd, do autor): `forge-check entrega pedido-sintetico --branch melhoria/x --base develop --base-sha {self.base} --mutantes ${{TMPDIR:-/tmp}}/forge-mutantes.log --pronto ${{TMPDIR:-/tmp}}/forge-pronto.log --etapa codigo --desde PREENCHER` · espera: rc=0", saida)
         self.assertIn("- PQ-1 (sha): `git log -1 --format=%h` da branch", saida)  # os PQs do anterior continuam
         self.assertIn(f"- PQ-5 (cmd, do autor): `bin/forge-mutante --cobertura --base {self.base}` · espera: rc=0", saida)
 

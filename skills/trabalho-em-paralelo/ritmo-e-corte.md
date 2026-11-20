@@ -16,6 +16,20 @@ Detalhe da skill `trabalho-em-paralelo` (diretriz 25: o Jarvis traz o resumo e m
 - **Suíte verde sozinha (SIEG-G6):** no corte da versão e na integração (`R-FLUXO`), cada item deixa a suíte verde sozinho; o que depende de outro (uma interface e quem a usa) vai junto com ele, na mesma branch ou no mesmo lote.
 - Lote por arquivo: itens decididos no mesmo arquivo vão numa branch, um commit por item com seus testes, portões uma vez e um PR que cita os itens; item com defeito sai por revert; item à espera do dono não entra; nenhum portão cai.
 
+## Fila e conserto da integração (`R-FLUXO`; BP2, decisões do dono de 20/11)
+- **Fila em série:** antes de cada merge, confira sobre qual topo da integração o CI do PR rodou. Se a base andou depois, traga-a pelo merge de sempre (sem forçar nem pular hook) e espere o CI de novo, mesmo sem arquivo em comum (D3). Check e parecer seguem: no Forge, a bateria completa roda no CI do PR, obrigatória para o merge, e o `tech-lead` mescla com tudo verde.
+- **Lote** (diretriz 26) é exceção declarada (D4): já exige a integração verde antes, itens sem arquivo em comum e o CI acompanhado no fim; os itens dele não repetem o teste sobre o topo.
+- **Onde mora a fila** (D1): no Forge, no `bin/forge-fechar` (até a I4, à mão; última linha), com o servidor como está; reabre quando o Forge for para uma organização (BP9). No projeto de organização, a fila nativa do GitHub (`docs/engineering/protecao-de-branch.md` do projeto); em conta pessoal, o passo à mão acima.
+- **Conserto da integração vermelha** (D2): com o CI de `push` da integração vermelho, o PR que conserta entra só se todas valem; leitura que falha para o merge:
+  1. o vermelho é o do topo, lido na hora, e terminou com falha (nem pendente nem cancelado); topo que andou, pare;
+  2. pareceres da classe aprovados no head e a cadeia de sempre: nenhum portão é dispensado;
+  3. merge preso ao head revisado (`--match-head-commit <head revisado>`); com a base trazida, o head novo só vale com pais (revisado, topo) e a árvore do `git merge-tree` dos dois, sem resolução nem edição à mão;
+  4. cada teste que falhou no vermelho rodou e passou no PR: não vale pulado pelo id, pela classe (`setUpClass`, `tearDownClass`) ou pelo módulo (`setUpModule`, `tearDownModule`, `ModuleSkipped`), nem apagado; passo vermelho que não é teste (como o teto de pulados) fica verde no PR;
+  5. o diff tem relação com o vermelho: toca o arquivo de um teste que falhou ou um arquivo mudado desde o último verde, ou reverte um merge desse intervalo;
+  6. um conserto por vez; o CI do merge é acompanhado e, sem verde, a integração segue fechada para o resto;
+  7. o `## Histórico` do pedido registra run, topo, PR e head.
+- No Forge, o `bin/forge-fechar` passa a conferir o conserto e a fila (BP2 I1 e I4); até lá, e no projeto, o `tech-lead` confere à mão.
+
 ## CI pago (`R-CUSTO`, E3.43)
 Em projeto privado, cada push e cada `gh run rerun` custa um run de CI (num projeto de origem, 163 rodadas de push contra 33 de PR num dia esgotaram a cota grátis).
 - Junte os commits e envie uma vez, com a entrega pronta e o comando local verde; push de cada commit ou de trabalho pela metade é run gasto.
@@ -32,4 +46,4 @@ Em projeto privado, cada push e cada `gh run rerun` custa um run de CI (num proj
 - O tech-lead marca uma versão sempre que a `develop` tem um conjunto verde que valha uma versão: até 2 por dia, ou mais se couber (diretrizes 21 e 27).
 - O PR `homolog` → `main` continua mesclado pelo dono (`R-MAIN`); o Jarvis avisa o dono numa linha quando ele fica verde.
 - O time usa o teto de agentes cheio, com os cartões em lotes por arquivo (diretriz 33).
-- No Forge, antes do `bin/forge-changelog release <versão> <data>`, o tech-lead roda `scripts/placar-mutacao.py --desde <tag anterior> --versao <versão>` e o bench (BENCH-POR-RELEASE), medidas, não portão, e `forge-check decisoes --sem-cartao`, e leva tudo ao Jarvis.
+- No Forge, antes do `bin/forge-changelog release <versão> <data>`, o tech-lead roda `scripts/placar-mutacao.py --desde <tag anterior> --versao <versão>` e o bench (BENCH-POR-RELEASE), medidas, não portão, e `forge-check decisoes --sem-cartao`, e leva tudo ao Jarvis; na mesma marca, regera `tests/pesos-d4.json` com `python3 -I scripts/pesos-do-ci.py --repo <dono/repo> --saida tests/pesos-d4.json` e o commita (PR-VERDE C1).

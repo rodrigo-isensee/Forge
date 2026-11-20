@@ -4,7 +4,7 @@ erro ao fixar a pasta do estado do clone e o `.forge/config.json` ilegível recu
 
 Os casos de ponta a ponta são os fixtures de tests/hooks/agentes/ (o hook roda como o Claude Code o roda); aqui, a leitura estrita
 `ler_estado` nos ramos que o fixture não alcança para qualquer usuário: FIFO com JSON válido (o `S_ISREG`), o teto de tamanho e o
-`PermissionError` (forçado no módulo, porque `chmod 000` não vale como root, AR-4) e o JSON aninhado fundo (RecursionError)."""
+`PermissionError` (forçado no módulo, porque `chmod 000` não vale como root, AR-4) e o JSON aninhado acima do teto."""
 import json
 import os
 import shutil
@@ -80,13 +80,18 @@ class LerEstado(unittest.TestCase):
         self.assertIn("passa de", str(erro.exception))
 
     def test_json_aninhado_fundo_e_ilegivel(self):
-        """Volta do A1 (sondas S1 e S2): o `[` aninhado fundo, abaixo do teto, lança RecursionError no `json.loads`; é ilegível."""
-        for corpo in ("[" * 200000, '{"agentes":' + "[" * 200000):
-            with self.subTest(inicio=corpo[:12]):
+        """Volta do A1 (sondas S1 e S2) e JSON-PROFUNDO-PY314: acima de TETO_ANINHAMENTO níveis é ilegível antes do `json.loads`,
+        com mensagem fixa. O fechado de 65 e de 5000 níveis o `json` do 3.12 aceita (o 3.14 aceita a qualquer fundo): sem o teto,
+        o estado com `agentes` aninhado passaria; no teto (64), passa."""
+        fechado = lambda n: '{"agentes": ' + "[" * (n - 1) + "]" * (n - 1) + "}"  # noqa: E731
+        for corpo in ("[" * 200000, '{"agentes":' + "[" * 200000, fechado(65), fechado(5000)):
+            with self.subTest(inicio=corpo[:12], tamanho=len(corpo)):
                 self.arquivo.write_text(corpo, encoding="utf-8")
                 with self.assertRaises(agentes.EstadoIlegivel) as erro:
                     agentes.ler_estado(self.arquivo)
-                self.assertIn("RecursionError", str(erro.exception))
+                self.assertTrue(str(erro.exception).endswith("aninhado acima de 64 níveis"), erro.exception)
+        self.arquivo.write_text(fechado(64), encoding="utf-8")
+        self.assertEqual(agentes.ler_estado(self.arquivo)["agentes"], json.loads(fechado(64))["agentes"])
 
     def test_erro_de_permissao_e_ilegivel(self):
         """O `OSError` da abertura (modo 000 de outro usuário) é ilegível, forçado no módulo (AR-4)."""
