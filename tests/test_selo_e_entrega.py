@@ -1551,7 +1551,7 @@ class ParecerMescladoNaVolta(Conferencia):
             return (128, b"docs/reviews/x.md\0") if args[0] == "diff-tree" else original(raiz, *args, **kw)  # código de erro com saída
         with mock.patch.object(fc, "git", sem_diff_tree):
             self.assertFalse(fc.commit_so_de_parecer(self.proj, lado, rel, "docs/reviews"))
-        self.assertFalse(fc.parecer_mesclado_na_volta(self.proj, self.base, "0" * 40, "HEAD", rel, "review", "melhoria/x", "exemplo", "x"))
+        self.assertFalse(fc.parecer_mesclado_na_volta(self.proj, self.base, "0" * 40, "HEAD", rel, "review", "melhoria/x", "exemplo", "x", {"node-backend"}, {}))
 
     def test_rev_list_que_falha_recusa(self):
         """E50.5 (A1 do review): o rev-list do intervalo que falha não vira `all([])` (aceite); o mesmo caso com o git certo é anexo."""
@@ -1559,7 +1559,7 @@ class ParecerMescladoNaVolta(Conferencia):
         self.mesclar_parecer(revisado)
         self.codigo("x\ny\nz\nw\n")
         rel, original = "docs/reviews/x.md", fc.git
-        argumentos = (self.proj, self.base, revisado, "HEAD", rel, "review", "melhoria/x", "exemplo", "x")
+        argumentos = (self.proj, self.base, revisado, "HEAD", rel, "review", "melhoria/x", "exemplo", "x", {"node-backend"}, {})
         self.assertTrue(fc.parecer_mesclado_na_volta(*argumentos))
 
         def sem_rev_list(raiz, *args, **kw):
@@ -1609,6 +1609,64 @@ class ParecerMescladoNaVolta(Conferencia):
                 rc, saida = self.conferir()
                 ok = 'escopo: ok (anexo do portão: parecer de seguranca commitado na volta só com parecer) "docs/security/x.md"'
                 (self.assertIn if anexo else self.assertNotIn)(ok, saida)
+
+
+class ParecerDoMesmoPapelDoAutor(Conferencia):
+    """E50.6 (A4 da segurança, S12): o tech-lead autor da volta é o dono de docs/reviews/; o review mesclado na volta só vale com o
+    `parecer conferido` do Jarvis no Histórico com o blob do head, nunca pela forma do git. O portão de outro papel segue como antes."""
+
+    ETAPA, PAPEL, OK_REVIEW = ParecerDoPortao.ETAPA, ParecerDoPortao.PAPEL, ParecerMescladoNaVolta.OK_REVIEW
+    selar_portao, commitar_parecer, assert_fora = ParecerDoPortao.selar_portao, ParecerDoPortao.commitar_parecer, ParecerDoPortao.assert_fora
+    codigo, ate_a_conferida, mesclar_parecer = (ParecerMescladoNaVolta.codigo, ParecerMescladoNaVolta.ate_a_conferida,
+                                                ParecerMescladoNaVolta.mesclar_parecer)
+    REL = "docs/reviews/x.md"
+
+    def volta_do_tech_lead(self, conferido=False):
+        """A volta selada para o tech-lead; o review mesclado de `lado`; com `conferido`, a linha do Jarvis cita o commit de `lado` (o P)
+        e a segurança não grava (com linha no Histórico, todo parecer do intervalo precisa ser conferido, M2)."""
+        revisado = self.ate_a_conferida()
+        self.selar_copia("exemplo-tech-lead-2.md", {"Agente destino: forge:node-backend": "Agente destino: forge:tech-lead"}, selar=False)
+        self.mesclar_parecer(revisado)
+        if conferido:
+            pedido = self.proj / "docs/pedidos/exemplo.md"
+            pedido.write_text(self.pedido() + f"- 2026-01-01 13:00: parecer conferido {self.git('rev-parse', 'lado')}\n", encoding="utf-8")
+        else:
+            self.commitar_parecer("security", "revisao-seguranca", revisado=revisado, selar=False)
+        self.codigo("x\ny\nz\nw\n")
+        return revisado
+
+    def test_mesmo_papel_sem_linha_do_jarvis_segue_fora(self):
+        self.volta_do_tech_lead()
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f'escopo: fora do declarado no brief "{self.REL}"', saida)
+        self.assertIn('escopo: ok (anexo do portão: parecer de seguranca commitado na volta só com parecer) "docs/security/x.md"', saida)
+
+    def test_mesmo_papel_com_parecer_conferido_do_jarvis_e_anexo(self):
+        self.volta_do_tech_lead(conferido=True)
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(self.OK_REVIEW, saida)
+
+    def test_parecer_conferido_de_outra_versao_nao_ancora(self):
+        """A linha do Jarvis vale para o blob que ele conferiu: um P com outra versão do parecer (o reprovado) não ancora o aprovado."""
+        revisado = self.volta_do_tech_lead()
+        argumentos = (self.proj, self.base, revisado, "HEAD", self.REL, "review", "melhoria/x", "exemplo", "x", {"tech-lead"})
+        self.assertTrue(fc.parecer_mesclado_na_volta(*argumentos, {self.REL: self.git("rev-parse", "lado")}))
+        self.assertFalse(fc.parecer_mesclado_na_volta(*argumentos, {self.REL: revisado}))
+        self.assertFalse(fc.parecer_mesclado_na_volta(*argumentos, {}))
+
+    def test_sem_autor_conhecido_falha_fechada(self):
+        """Sem brief selado de codigo (nenhum autor lido), o parecer mesclado precisa da linha do Jarvis, como o do mesmo papel."""
+        revisado = self.ate_a_conferida()
+        self.mesclar_parecer(revisado)
+        self.codigo("x\ny\nz\nw\n")
+        argumentos = (self.proj, self.base, revisado, "HEAD", self.REL, "review", "melhoria/x", "exemplo", "x")
+        self.assertTrue(fc.parecer_mesclado_na_volta(*argumentos, {"node-backend"}, {}))
+        self.assertFalse(fc.parecer_mesclado_na_volta(*argumentos, set(), {}))
+        self.assertFalse(fc.parecer_mesclado_na_volta(*argumentos, {"node-backend", "tech-lead"}, {}))
+        self.assertEqual(fc.autores_da_volta(self.proj, self.proj / "docs/pedidos/exemplo.md", self.pedido(), "melhoria/x", "exemplo"),
+                         {"node-backend"})
 
 
 if __name__ == "__main__":

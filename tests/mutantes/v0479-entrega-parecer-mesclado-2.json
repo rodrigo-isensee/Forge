@@ -61,6 +61,27 @@
       "testes": [
         "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_rev_list_que_falha_recusa"
       ]
+    },
+    {
+      "id": "M15",
+      "guarda": "parecer do mesmo papel do autor da volta só com o parecer conferido do Jarvis (E50.6, A4)",
+      "arquivo": "bin/forge-check",
+      "de": "    if (not autores or PAPEL_DO_BRIEF_DO_PARECER[tipo] in autores) and not parecer_trazido(raiz, ultimos, head, nome):\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoMesmoPapelDoAutor.test_mesmo_papel_sem_linha_do_jarvis_segue_fora",
+        "tests.test_selo_e_entrega.ParecerDoMesmoPapelDoAutor.test_parecer_conferido_de_outra_versao_nao_ancora"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "sem autor lido nos briefs de codigo, falha fechada (E50.6, A4)",
+      "arquivo": "bin/forge-check",
+      "de": "    if (not autores or PAPEL_DO_BRIEF_DO_PARECER[tipo] in autores) and not parecer_trazido(raiz, ultimos, head, nome):\n",
+      "para": "    if PAPEL_DO_BRIEF_DO_PARECER[tipo] in autores and not parecer_trazido(raiz, ultimos, head, nome):\n",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoMesmoPapelDoAutor.test_sem_autor_conhecido_falha_fechada"
+      ]
     }
   ]
 }
