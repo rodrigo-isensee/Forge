@@ -110,8 +110,9 @@ def produzir_controle(raiz):
     """Roda o `preparar_controle` do hook `doutor` (SessionStart) numa raiz de projeto com git: cria `agentes.json` e `pesado.json`."""
     sys.path.insert(0, str(RAIZ / "hooks"))
     try:
+        import _comum
         import doutor
-        hook = doutor.Hook("doutor")
+        hook = _comum.Hook("doutor")
         hook.raiz = raiz
         doutor.preparar_controle(hook)
     finally:
@@ -272,7 +273,8 @@ class SandboxNegaEscrita(unittest.TestCase):
         for entrada in deny:
             alvo = caminho_real(entrada, raiz, casa)
             if entrada in CONTEUDO:
-                self.assertEqual(alvo.read_text(encoding="utf-8"), CONTEUDO[entrada], entrada)
+                # o hook grava com `indent=1` e o `forge-init`, compacto: vale o JSON, não o texto
+                self.assertEqual(json.loads(alvo.read_text(encoding="utf-8")), json.loads(CONTEUDO[entrada]), entrada)
                 alvos.append(alvo)
                 continue
             if entrada in (".forge/", ".git/forge/run", "~/.forge/maquina"):
@@ -296,8 +298,8 @@ class SandboxNegaEscrita(unittest.TestCase):
         return subprocess.run(self.argv(raiz, casa, alvos, cmd), capture_output=True, text=True, timeout=60)
 
     def lido(self, alvo):
-        if alvo.is_dir():
-            return sorted((p.name, p.read_text(encoding="utf-8")) for p in alvo.iterdir())
+        if alvo.is_dir():  # `.forge/` guarda a pasta `run`: lê os arquivos de toda a árvore
+            return sorted((str(p.relative_to(alvo)), p.read_text(encoding="utf-8")) for p in alvo.rglob("*") if p.is_file())
         return alvo.read_text(encoding="utf-8")
 
     def ataca(self, raiz, casa, alvos):
