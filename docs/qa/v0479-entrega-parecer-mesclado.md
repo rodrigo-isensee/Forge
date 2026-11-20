@@ -18,6 +18,7 @@ Head testado: `8cff35a0`. Delta lido por `forge-check parecer delta` (de `cdf62e
 
 ## Achados
 - A1 (bloqueante) tests/mutantes/v0479-entrega-parecer-mesclado.json:M1 · o mutante M1 (tirar `and valido` da guarda da volta, `bin/forge-check:3245`) sobrevive; a spec o declara morto por `test_sem_conferida_a_regra_nao_vale`. Sobrevive também no `cdf62e0a` (`:3234`): falha do meu parecer anterior, que cortou a linha no `tail`. Sem teste, a regra vale na 1ª entrega com `commit:` = Base-sha. Teste novo ou equivalente justificado.
+- A2 (bloqueante) tests/hooks/conformidade/pp-sessao-forge-outro-repo-dev-write-reviews-libera.json:15 · `scripts/verificar-contribuicao.sh` reprova o delta contra a base por `caminho pessoal`; o pre-push recusa o envio do head (o CI reprova igual). Troque o caminho ou marque `forge:exemplo`.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
