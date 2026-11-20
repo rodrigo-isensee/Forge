@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-placar
-commit: 7e20ac8b8b61245135cd495a06aaa8795bfee4d4
+commit: 6f6aab30715d2ae7cd6136c37cc35ed10bb59f81
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-19
+data: 2026-11-20
 ---
 # QA: v0478 (E36.4), forge-placar `fases`: meta de 42 min, mediana, p75, corte por hora e horas paradas
 
@@ -106,3 +106,16 @@ Delta lido por `forge-check parecer delta` (intervalo 89936fa3..7e20ac8b): só `
 
 ## Parecer da revalidação
 Aprovado no head 7e20ac8b: A1 resolvido, nenhum achado aberto.
+
+## Revalidação (delta 7e20ac8b..6f6aab30, E36.28)
+Delta lido por `forge-check parecer delta`: `bin/forge-placar` (`hora_numerica`: o `merge` do `--json` sempre com `+00:00`), `tests/evals/test_placar.py` (teste com git falso que escreve `Z`) e a spec `v0479-meta85-placar-5.json` (M50).
+
+- Vermelho, em cópia em `$TMPDIR` com `"merge": hora_numerica(hora)` trocado por `"merge": hora`: `python3 -I tests/evals/test_placar.py Fases.test_merge_em_utc_sai_com_deslocamento_numerico_mesmo_com_git_que_escreve_z` dá `FAILED (failures=1)`. No head: `Ran 1 test ... OK`.
+- `python3 -I tests/evals/test_placar.py`: `Ran 51 tests in 17.517s`, `OK`.
+- `bin/forge-mutante --processos 4 tests/mutantes/v0479-meta85-placar*.json`: rev=6f6aab30715d, rc=0, 33 `morreu`, nenhum sobrevivente.
+- `bin/forge-mutante --processos 4 tests/mutantes/v0479-placar-fases*.json`: rev=6f6aab30715d, rc=0, 49 `morreu`, nenhum sobrevivente.
+- Delta do M50: `base=7e20ac8b8b61245135cd495a06aaa8795bfee4d4 mb=7e20ac8b8b61245135cd495a06aaa8795bfee4d4 rev=6f6aab30715d2ae7cd6136c37cc35ed10bb59f81`, `M50 · morreu · bin/forge-placar:625`.
+- Uma linha de guarda mudada (625) e um mutante (M50). Sem suíte local (é do CI do PR, `R-QA`).
+
+## Parecer da revalidação
+Aprovado no head 6f6aab30: nenhum achado aberto.
