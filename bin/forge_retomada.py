@@ -25,6 +25,7 @@ ACOES = {
     "suja": f"worktree com arquivo não commitado: nunca descartar; relançar na mesma worktree com o mesmo brief, {NOTA}",
     "relancar": f"relançar com o mesmo brief, {NOTA}",
 }
+TIPO, ID, REF = re.compile(r"[A-Za-z0-9:_-]{1,64}"), re.compile(r"a[0-9a-f]{16}"), re.compile(r"[A-Za-z0-9._/-]{1,200}")
 REMOCAO = "qualquer remoção (worktree, branch, mudança não commitada) o Forge não faz; pergunte ao dono"
 
 
@@ -35,6 +36,12 @@ def git(raiz, *args):  # (rc, stdout) de um git local sem GIT_*; falha ou prazo 
     except (OSError, subprocess.TimeoutExpired, ValueError):
         return 1, ""
     return r.returncode, r.stdout.strip()
+
+
+def forma(valor, padrao, vazio="?"):  # campo do registro é dado: o que não casa a forma (ou falta) sai `?`, e o teto vem da forma
+    if valor is None or valor == "":
+        return vazio
+    return valor if isinstance(valor, str) and padrao.fullmatch(valor) and ".." not in valor else "?"
 
 
 def ler(caminho, limite):
@@ -83,7 +90,7 @@ def suja(raiz, branches):
     rc, lista = git(raiz, "worktree", "list", "--porcelain")
     for bloco in (lista.split("\n\n") if rc == 0 else ()):
         campos = dict(l.split(" ", 1) for l in bloco.splitlines() if " " in l)
-        if campos.get("branch", "").removeprefix("refs/heads/") in branches and git(campos.get("worktree", ""), "status", "--porcelain")[1]:
+        if campos.get("branch", "").removeprefix("refs/heads/") in branches and git(campos.get("worktree", ""), "--no-optional-locks", "status", "--porcelain")[1]:
             return True
     return False
 
@@ -133,7 +140,8 @@ def executar(a, raiz, ctx):
     for item in itens:
         brief = item["briefs"][0]
         atual, texto = brief_atual(raiz, brief["caminho"], ctx)
-        print(ctx["sem_controle"](f"retomada: {item.get('tipo') or '?'} · id {item.get('id') or 'sem id'} · branch {', '.join(item['branches']) or '—'} · "
+        refs = ", ".join(forma(b, REF) for b in item["branches"][:8]) or "—"
+        print(ctx["sem_controle"](f"retomada: {forma(item.get('tipo'), TIPO)} · id {forma(item.get('id'), ID, 'sem id')} · branch {refs} · "
                                   f"brief {brief['caminho']} sha256 {brief['sha256']} · ação: {ACOES[acao(raiz, item, atual, texto, ctx)]}"))
     print(f"retomada: {len(itens)} interrompido(s)" + (f"; {REMOCAO}" if itens else ""))
     return 0

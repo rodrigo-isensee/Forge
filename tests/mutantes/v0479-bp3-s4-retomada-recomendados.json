@@ -1,0 +1,38 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o tipo do registro que nao casa a forma sai ?",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "forma(item.get('tipo'), TIPO)",
+      "para": "(item.get('tipo') or '?')",
+      "testes": ["tests.test_forge_check_retomada.Matriz.test_campo_do_registro_fora_da_forma_sai_interrogacao_e_com_teto"]
+    },
+    {
+      "id": "M2",
+      "guarda": "a branch com .. sai ?",
+      "arquivo": "bin/forge_retomada.py",
+      "de": " and \"..\" not in valor",
+      "para": "",
+      "testes": ["tests.test_forge_check_retomada.Matriz.test_campo_do_registro_fora_da_forma_sai_interrogacao_e_com_teto"]
+    },
+    {
+      "id": "M3",
+      "guarda": "campo gigante nao vai ao contexto",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "forma(item.get('id'), ID, 'sem id')",
+      "para": "(item.get('id') or 'sem id')",
+      "testes": ["tests.test_forge_check_retomada.Matriz.test_campo_de_900_kb_nao_vai_ao_contexto"]
+    },
+    {
+      "id": "M4",
+      "guarda": "status da worktree sem lock opcional",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "\"--no-optional-locks\", ",
+      "para": "",
+      "testes": ["tests.test_forge_check_retomada.Matriz.test_status_da_worktree_nao_regrava_o_index"]
+    }
+  ]
+}
