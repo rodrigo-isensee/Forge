@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-sessao-forge
-commit: a554e34536490ff7af78000f76b67a1652f6e840
+commit: bc385524277c69f47a6cb0f7ed5d37cee5706626
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -40,6 +40,23 @@ Delta por `forge-check parecer delta`: `hooks/conformidade.py` (E51.14: shell ou
 | Piso de fixtures sobe com as novas | mesmo teste (`rodar("conformidade", 48, {0, 2})`) | pasta vazia ou renomeada | passou |
 
 Provas: `python3 -I -m unittest discover -s tests -p test_hooks.py -k HookSessaoDoForge`: `Ran 2 tests in 12.786s`, `OK`. Mutantes do delta: `bin/forge-mutante --base 29cbd24dc696ec318b4a53eb9322f46f149ae713 tests/mutantes/v0479-conformidade-sessao-forge-5.json`, linha `base=29cbd24d... rev=a554e3453649`, M37 e M38 `morreu` em `hooks/conformidade.py:3842` (linha de guarda única do diff, dois mutantes), nenhum sobrevivente; M33 a M36 da mesma spec também `morreu`.
+
+## Revalidação E51.21 (head bc385524, delta a554e345..bc385524)
+Delta por `forge-check parecer delta`: `hooks/conformidade.py` (E51.18: `source` e ponto com here-string e shell que lê a entrada por pipe dentro do texto reavaliado são trava), 7 fixtures `e51-wt-*` novas (4 bloqueiam, 3 liberam: `find .` aninhado, `source` com here-string de leitura, `eval` aninhado), mutantes M39 a M41 (spec `-6`) e M32, M37, M38 reescritos, `tests/test_hooks.py` (piso 48 para 55, igual às 55 fixtures), `docs/hooks.md`, fragmento do changelog. Remoto sem avanço (`git fetch`: igual ao head local). Suíte inteira: só no CI do PR, não rodada aqui.
+
+| Critério (obrigação) | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| `source`/ponto com here-string de push recusa na sessão do Forge (E51.18) | `HookSessaoDoForge.test_travas_do_conformidade` (`e51-wt-push-source-here-string`, `-ponto-here-string`, `-source-aninhado`) | `source /dev/stdin <<<`, um nível | passou |
+| Shell que lê a entrada por pipe dentro do texto reavaliado fecha na dúvida | mesmo teste (`e51-wt-push-pipe-para-shell-aninhado`) | `bash -c 'echo … \| bash'` | passou |
+| Leitura com `source <<<` e `find .` aninhado segue livre (ADR 0009, seção 6) | mesmo teste (`e51-wt-source-here-string-libera`, `-ponto-aninhado-libera`) | ponto como argumento, não como fonte | passou |
+| Piso de fixtures sobe com as novas | mesmo teste (`rodar("conformidade", 55, {0, 2})`) | pasta vazia ou renomeada | passou |
+| O que passava na base segue passando (A2 anterior) | 5 testes de `Hooks`, um a um | `$R`, crase, `${`, R-VERIFY | passou |
+
+Provas: `python3 -I -m unittest discover -s tests -p test_hooks.py -k HookSessaoDoForge`: `Ran 2 tests ... OK`. Os 5 testes de `Hooks` (`test_fixtures_da_trilha_034`, `test_fixtures_do_lote_furo_hook_a`, `test_fixtures_do_rverify_falso_positivo`, `test_rotulo_so_dono_formas_alternativas`, `test_rotulo_so_dono_volta_2_crase_escapada_comentario_clone_e_remocao`), cada um `Ran 1 test ... OK`.
+
+Vermelho: `forge-testes --vermelho` do `test_hooks` inteiro não termina em prazo útil (A3 anterior, 2200 s por cópia); feito por cópia em `$TMPDIR` com `hooks/conformidade.py` da base a554e345 e o resto do head: `-k test_travas_do_conformidade` dá `FAILED (failures=4)`, nas fixtures `e51-wt-push-pipe-para-shell-aninhado-bloqueia`, `-push-ponto-here-string-bloqueia`, `-push-source-aninhado-bloqueia` e `-push-source-here-string-bloqueia`; no head, passa. As 3 fixtures `-libera` e a de `eval` aninhado já passavam na base (regressão, não correção).
+
+Mutantes do delta: `bin/forge-mutante --base a554e34536490ff7af78000f76b67a1652f6e840` nas specs `-4`, `-5` e `-6`, linha `base=a554e345... mb=a554e345... rev=bc385524277c69f47a6cb0f7ed5d37cee5706626`: 17 de 17 `morreu` (M25 a M41), nenhum sobrevivente; M39 `:3851`, M40 `:3856`, M41 `:3810`, M37 `:3849`, M38 `:3847`, M32 `:3857`. Linhas de guarda mudadas no diff (FONTES, `nivel and SHELLS`, `nivel and eval`, `nivel and FONTES and aqui`, `le_o_here_string`): todas com mutante.
 
 ## Achados
 - A3 (recomendado) bin/forge-testes:1 · `--vermelho` do `test_hooks` leva 2200 s por cópia e não aceita `-k` nem classe; `test_vigia_registra` fica sem veredito por erro da base. Cartão: veredito por classe.
