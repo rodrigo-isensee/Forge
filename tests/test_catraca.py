@@ -916,13 +916,18 @@ class TetoDaQuarentena(unittest.TestCase):
         self.assertFalse(self.confere(self.pasta(2, corpo))[0])
         self.assertTrue(self.confere(self.pasta(3, corpo))[0])
 
-    def test_conta_skipif_skiptest_e_subpasta(self):
+    def test_conta_skipif_skiptest_e_subpasta(self):  # e não conta skip sem motivo, motivo que não é texto nem outra chamada
         d = self.pasta(1, """\
             import unittest
             class T(unittest.TestCase):
                 @unittest.skipUnless(False, "quarentena: a")
                 def test_a(self):
                     self.skipTest("quarentena: b")
+                @unittest.skipIf(True)
+                def test_b(self, motivo="quarentena: nome, não texto"):
+                    self.skipTest(motivo)
+                    self.skipTest(1)
+                    print("quarentena: não é skip")
             """)
         (d / "sub").mkdir()
         (d / "sub" / "test_y.py").write_text('import unittest\n@unittest.skip("quarentena: c")\nclass T: pass\n', encoding="utf-8")
