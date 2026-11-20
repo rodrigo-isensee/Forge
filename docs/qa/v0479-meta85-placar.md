@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-placar
-commit: 89936fa3db5777ce9ab913f190fdf2bc767c75a0
-parecer: reprovado
+commit: 7e20ac8b8b61245135cd495a06aaa8795bfee4d4
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
@@ -97,5 +97,12 @@ Delta lido por `forge-check parecer delta` (intervalo 57a66ff4..89936fa3 no cód
 ## Parecer da revalidação
 Reprovado no head 89936fa3 por A1 (a spec M34 não dá veredito); o código e o M19 estão aprovados. Sem suíte local (é do CI do PR, `R-QA`).
 
-## Achados
-- A1 (bloqueante) tests/mutantes/v0479-placar-fases-6.json:9 · M34 inválido (trecho `if fundo_demais(texto):\n raise SystemExit(` aparece 2 vezes desde bin/forge-placar:706); forge-mutante sai 2. Tornar o `de` único (incluir `--prs {arq}` na linha 238) e rodar de novo.
+## Revalidação (delta 89936fa3..7e20ac8b, E36.24)
+Delta lido por `forge-check parecer delta` (intervalo 89936fa3..7e20ac8b): só `tests/mutantes/v0479-placar-fases-6.json`, M34 com `de` único (`raise SystemExit(f"forge-placar: --prs {arq} não é JSON`, aponta `bin/forge-placar:237`). Resolve o A1.
+
+- `bin/forge-mutante` nas 6 specs `tests/mutantes/v0479-placar-fases-*.json` (uma chamada, caminhos completos): rev=7e20ac8b8b61, rc=0, M9 a M49 todos `morreu` (M20 por erro do teste sob o mutante, como antes), M34 `morreu · bin/forge-placar:237`.
+- `bin/forge-mutante` nas 3 specs `tests/mutantes/v0479-meta85-placar-*.json`: rev=7e20ac8b8b61, rc=0, M9 a M32 todos `morreu`, nenhum sobrevivente.
+- Código de produção sem mudança no delta; sem suíte local (é do CI do PR, `R-QA`).
+
+## Parecer da revalidação
+Aprovado no head 7e20ac8b: A1 resolvido, nenhum achado aberto.
