@@ -47,7 +47,7 @@
       "guarda": "AE1.1 tipo_do_alvo: só o formato válido vira branch",
       "arquivo": "bin/forge_onde.py",
       "de": "        return (\"branch\", nome) if ok else (None, None)",
-      "para": "        return (\"branch\", nome)",
+      "para": "        return (\"branch\", nome) if True else (None, None)",
       "testes": [
         "tests.test_forge_onde.Alvo.test_entrada_invalida_nao_chega_ao_git"
       ]

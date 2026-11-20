@@ -187,7 +187,15 @@ class Pr(Base):
         falso.prs[0]["number"] = 8
         rc, saida = self.onde("#7", gh=lambda raiz, *a: (falso.prs[0], ""))
         self.assertEqual(rc, 2)
+        self.assertIn("onde: pr #7 nao-verificavel (resposta sem o PR)", saida)
         self.assertNotIn(" sim", saida)
+
+    def test_pr_mesclado_sem_commit_do_merge_e_nao_verificavel(self):
+        rc, saida = self.onde("#7", gh=self.pr(mergeCommit=None))
+        self.assertEqual(rc, 2)
+        self.assertIn("onde: commit - nao-verificavel (ausente no clone; rode git fetch)", saida)
+        rc, saida = self.onde("#7", gh=self.pr(mergeCommit={"oid": None}))
+        self.assertIn("onde: commit - nao-verificavel", saida)
 
     def test_commit_do_merge_que_nao_e_sha_nao_vira_ref(self):
         rc, saida = self.onde("#7", gh=self.pr(mergeCommit={"oid": "main"}))
@@ -197,7 +205,7 @@ class Pr(Base):
     def test_pr_aberto_nao_le_as_bases(self):
         rc, saida = self.onde("#7", gh=self.pr(state="OPEN", mergedAt=None, mergedBy=None, mergeCommit=None))
         self.assertEqual(rc, 0)
-        self.assertIn("estado=OPEN", saida)
+        self.assertIn("estado=OPEN base=develop head=melhoria/x mesclado=- por=-", saida)
         self.assertNotIn("onde: develop", saida)
 
     def test_commit_do_merge_fora_do_clone_e_nao_verificavel(self):
@@ -240,6 +248,9 @@ class Branch(Base):
         rc, saida = self.onde("melhoria/x", gh=GhFalso(None, "gh não encontrado"))
         self.assertEqual(rc, 2)
         self.assertIn("onde: pr nao-verificavel (gh não encontrado)", saida)
+        rc, saida = self.onde("melhoria/x", gh=GhFalso(None, ""))
+        self.assertEqual(rc, 2)
+        self.assertIn("onde: pr nao-verificavel (resposta ilegível)", saida)
 
     def test_branch_inexistente(self):
         rc, saida = self.onde("melhoria/nao-ha")

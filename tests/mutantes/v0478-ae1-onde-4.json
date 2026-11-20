@@ -77,7 +77,7 @@
       "guarda": "AE1.1 onde_do_cartao: nenhum commit dá rc 1",
       "arquivo": "bin/forge_onde.py",
       "de": "    return linhas, rc if achou or rc else NAO_EXISTE",
-      "para": "    return linhas, rc",
+      "para": "    return linhas, rc if True else NAO_EXISTE",
       "testes": [
         "tests.test_forge_onde.Cartao.test_cartao_sem_commit_nao_existe"
       ]

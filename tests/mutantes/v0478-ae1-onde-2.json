@@ -27,7 +27,7 @@
       "guarda": "AE1.1 presenca: nenhuma base no clone dá rc 2",
       "arquivo": "bin/forge_onde.py",
       "de": "return linhas, (rc if achadas else NAO_VERIFICAVEL)",
-      "para": "return linhas, rc",
+      "para": "return linhas, (rc if True else NAO_VERIFICAVEL)",
       "testes": [
         "tests.test_forge_onde.VersaoECommit.test_sem_nenhuma_base_no_clone_e_nao_verificavel"
       ]
@@ -67,7 +67,7 @@
       "guarda": "AE1.1 onde_do_pr: oid que não é sha não vira ref",
       "arquivo": "bin/forge_onde.py",
       "de": "    sha = sha_de(ctx, raiz, oid) if SHA.fullmatch(oid) else None",
-      "para": "    sha = sha_de(ctx, raiz, oid)",
+      "para": "    sha = sha_de(ctx, raiz, oid) if True else None",
       "testes": [
         "tests.test_forge_onde.Pr.test_commit_do_merge_que_nao_e_sha_nao_vira_ref"
       ]

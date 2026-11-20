@@ -1,0 +1,16 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M49",
+      "guarda": "AE1.1 onde_do_cartao: achado numa base vale para todas",
+      "arquivo": "bin/forge_onde.py",
+      "de": "achou = achou or bool(shas)",
+      "para": "achou = bool(shas)",
+      "testes": [
+        "tests.test_forge_onde.Cartao.test_id_inteiro_e_o_commit_mais_novo_de_cada_base"
+      ]
+    }
+  ]
+}

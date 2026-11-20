@@ -27,7 +27,7 @@
       "guarda": "AE1.1 onde_da_branch: contagem do git que falha não sai",
       "arquivo": "bin/forge_onde.py",
       "de": "    frente_atras = contas.split() if cod == 0 else []",
-      "para": "    frente_atras = contas.split()",
+      "para": "    frente_atras = contas.split() if True else []",
       "testes": [
         "tests.test_forge_onde.Branch.test_contagem_ilegivel_ou_que_falha_nao_imprime_frente"
       ]
