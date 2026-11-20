@@ -1,0 +1,3 @@
+### Adicionado
+- Hook agentes (BP3 S3, v0478 E39.3): a reserva guarda o caminho e o hash do brief selado (`briefs`) e, com a sessão provadamente morta, o registro vai para `interrompidos` (teto 64) em vez de sumir; sai no relançamento do mesmo tipo com brief de mesmo caminho, na retomada por `SendMessage` do mesmo id ou no prazo de `expiracao_horas` (linha no `liberacoes.log`). Só registro: nenhuma trava de recusa muda.
+- Hook agentes (BP3 S3, v0478 E39.18): o `interrompidos` aceita só `caiu_em` finito; o inteiro enorme (10**400), `inf` e `nan` deixam o estado ilegível e o disparo recusa, em vez de sair com 0 sem reserva.

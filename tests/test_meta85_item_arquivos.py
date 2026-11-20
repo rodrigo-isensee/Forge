@@ -8,8 +8,16 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
 from test_isencoes import FORGE_CHECK, Repo  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+
+
+def ambiente_limpo(home):
+    """META85-FC-RESTOS A3: só o PATH, o TMPDIR e a HOME do teste, sem o ambiente herdado (GIT_*, FORGE_*, PYTHON*), e o git sem
+    config global nem de sistema e sem manutenção automática."""
+    base = {k: os.environ[k] for k in ("PATH", "TMPDIR") if k in os.environ}
+    return sem_manutencao({**base, "HOME": str(home), "LANG": "C.UTF-8", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull})
 
 
 def docs(n, pasta="docs/guias"):
@@ -18,8 +26,8 @@ def docs(n, pasta="docs/guias"):
 
 class ItemAteDezArquivos(Repo):
     def classe(self, *args):
-        r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), "classe", "--base", "develop", *args],
-                           capture_output=True, text=True, timeout=60, env=dict(os.environ, HOME=str(self.tmp / "home")))
+        r = subprocess.run([sys.executable, "-I", str(FORGE_CHECK), "--raiz", str(self.tmp), "classe", "--base", "develop", *args],
+                           capture_output=True, text=True, timeout=60, env=ambiente_limpo(self.tmp / "home"))
         return r.returncode, r.stdout + r.stderr
 
     def test_dez_arquivos_passam(self):

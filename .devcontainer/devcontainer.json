@@ -13,10 +13,12 @@
 // workflow, a todo processo, inclusive a sessão do agente). Login do dono: gh auth login -s repo,workflow --web (escopo
 // mínimo repo e workflow, que o push de .github/ pede); o token do bot (ADR 0009) não leva workflow.
 // A imagem é a base Ubuntu 24.04 dos dev containers; o volume nomeado guarda ~/.claude.
+// shutdownAction none (D2 da BP3): fechar o VS Code não para o container, e o tmux com o Jarvis segue vivo.
 {
   "name": "Forge",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "remoteUser": "root",
+  "shutdownAction": "none",
   "workspaceFolder": "/workspaces/Forge",
   "mounts": [
     "source=forge-claude,target=/root/.claude,type=volume"
