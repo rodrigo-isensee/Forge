@@ -27,7 +27,8 @@ Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO .
   --regerar    o regerador (PR-VERDE B2), rodado pelo autor antes da entrega: busca a base como o --registros e chama os
                 geradores que já existem só para o derivado cuja fonte o diff tocou, numa lista fechada (`DERIVADOS`): o
                 índice do Forge (`scripts/indice-forge.py`, quando bin/, hooks/ ou scripts/ mudou) e o peso de todo módulo de
-                teste novo (`scripts/suite-paralela.py --medir`). Não segue link e nunca escreve arquivo de controle; mostra
+                teste novo (`scripts/suite-paralela.py --medir`). Não segue link e nunca escreve arquivo de controle (a
+                escrita fora da lista, versionada, nova ou ignorada pelo git, sai 2; só o __pycache__ fica de fora); mostra
                 o diff para o autor commitar. Saída 0 = regerado ou nada a regerar, 1 = gerador vermelho, 2 = sem veredito,
                 link no derivado ou escrita fora da lista; não combina com nada além de --base
 Os módulos do plano dirigido rodam em paralelo por `scripts/suite-partes.py` (o mecanismo do `suite-paralela`, em até
@@ -986,6 +987,7 @@ GERA_O_INDICE = ("scripts/indice-forge.py",)
 MEDE_O_PESO = ("scripts/suite-paralela.py", "--medir")
 DERIVADOS = (INDICE_DO_FORGE, PESOS)
 LIMPO = "limpo"  # o caminho fora do `git status`
+SEM_BYTECODE = ":(exclude,glob)**/__pycache__/**"  # pathspec: o bytecode não entra na fotografia
 
 
 def link_no_caminho(caminho):
@@ -997,8 +999,11 @@ def link_no_caminho(caminho):
 
 
 def fotografia():
-    """{caminho: conteúdo ou None} de todo caminho que o `git status` mostra; o que não aparece vale `LIMPO`."""
-    nomes = git("status", "--porcelain", "-z", "--untracked-files=all", "--no-renames").split("\0")[:-1]  # termina em \0
+    """{caminho: conteúdo ou None} de todo caminho que o `git status` mostra, inclusive o ignorado arquivo a arquivo
+    (`.forge/`, `.claude/hooks`: o `matching` listaria só a pasta), fora o cache de bytecode, que o teste filho com
+    ambiente limpo regrava; o que não aparece vale `LIMPO`."""
+    nomes = git("status", "--porcelain", "-z", "--untracked-files=all", "--no-renames", "--ignored=traditional",
+                "--", SEM_BYTECODE).split("\0")[:-1]  # termina em \0
     return {n[3:]: Path(n[3:]).read_bytes() if Path(n[3:]).is_file() else None for n in nomes}
 
 

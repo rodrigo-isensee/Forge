@@ -2107,6 +2107,28 @@ class Regerar(unittest.TestCase):
                 self.git("checkout", "-q", "--", "tests/config.json", "docs/regras/r.md")
                 self.escrever("bin/forge-x", "#!/bin/sh\n")
 
+    def test_escrita_em_caminho_ignorado_sai_2_e_o_bytecode_nao(self):
+        """A1 da segurança: o ignorado (`.forge/`), já existente ou novo, sai 2; o `__pycache__` não conta."""
+        self.escrever(".gitignore", "/.forge\n__pycache__/\n")
+        self.git("add", ".gitignore")
+        self.git("commit", "-qm", "ignorados")
+        (self.dir / ".forge").mkdir()
+        self.escrever(".forge/agentes.json", "{}")
+        self.escrever("bin/forge-x", "#!/bin/sh\n")
+        for alvo in (".forge/agentes.json", ".forge/novo.json"):
+            with self.subTest(alvo=alvo):
+                self.escrever("scripts/indice-forge.py", INDICE_FALSO + f"pathlib.Path({alvo!r}).write_text('mexido')\n")
+                r = self.rodar()
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn(f"forge-testes: regerar escreveu fora da lista fechada ({alvo})", r.stderr)
+                self.assertNotIn("regerar rc=", r.stdout)
+                self.escrever(".forge/agentes.json", "{}")
+        self.escrever("scripts/indice-forge.py", INDICE_FALSO + "pathlib.Path('bin/__pycache__').mkdir()\n"
+                      "pathlib.Path('bin/__pycache__/x.pyc').write_bytes(b'x')\n")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("forge-testes: regerar rc=0 (índice do Forge)", r.stdout)
+
     def test_link_no_derivado_ou_na_pasta_recusa_sem_rodar_o_gerador(self):
         self.escrever("bin/forge-x", "#!/bin/sh\n")
         fora = Path(self._t.name) / "fora"
