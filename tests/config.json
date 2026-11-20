@@ -229,6 +229,7 @@
       "toca sempre o máximo de itens ao mesmo tempo",
       "skills/briefs-e-conferencia/SKILL\\.md",
       "skills/trabalho-em-paralelo/SKILL\\.md",
+      "Na abertura e antes de disparar, esperar ou mover cartão, leia",
       "skills/falar-com-o-dono/SKILL\\.md",
       "skills/fluxo-do-pedido/SKILL\\.md",
       "\\*\\*Falar só no marco:\\*\\*",
@@ -277,7 +278,17 @@
       "\\*\\*Lote por arquivo:\\*\\*",
       "`R-DECISAO` painel \"Aguardando o dono\"",
       "\\*\\*Integração contínua \\(D2\\):\\*\\*",
-      "\\*\\*H1:\\*\\* até 150 linhas de código, fora testes e documentação; passa só se cortar mais deixa a suíte vermelha"
+      "\\*\\*H1:\\*\\* até 150 linhas de código, fora testes e documentação; passa só se cortar mais deixa a suíte vermelha",
+      "\\*\\*Abertura e queda:\\*\\* leia `sessao-duravel\\.md` nesta skill"
+    ],
+    "skills/trabalho-em-paralelo/sessao-duravel.md": [
+      "\\*\\*Segundo Jarvis no mesmo projeto \\(D4, regra do dono\\):\\*\\*",
+      "esta sessão recusa virar outro Jarvis",
+      "Não dispara agente, não\\s+anota no pedido",
+      "antes de qualquer disparo novo",
+      "O relançamento é um disparo como os outros",
+      "O destrutivo \\(remover worktree ou branch, descartar mudança não commitada\\) não se faz",
+      "O registro de agentes não se edita à mão"
     ],
     "skills/falar-com-o-dono/SKILL.md": [
       "que não se oferece nas perguntas que `R-DECISAO` não deixa delegar",
@@ -785,6 +796,7 @@
     "docs/regras/R-CONFORMIDADE.md": {"regra": "R-CONFORMIDADE", "porque": "sem o texto, um bloqueio de hook ou de regra pode ser contornado pelo agente, e o que está em vigor deixa de ser do usuário"},
     "skills/briefs-e-conferencia/SKILL.md": {"regra": "R-BRIEF", "porque": "sem o texto, o Jarvis delega sem brief gravado e aceita a entrega sem a conferência do conferente"},
     "skills/trabalho-em-paralelo/SKILL.md": {"regra": "R-TETO", "porque": "sem o texto, o Jarvis dispara tarefas pesadas em paralelo sem a série por arquivo e sem o quadro com hora real"},
+    "skills/trabalho-em-paralelo/sessao-duravel.md": {"regra": "R-TETO", "porque": "sem o texto, o painel do VS Code vira um segundo Jarvis do mesmo projeto, sem histórico, e a abertura depois de uma queda dispara trabalho novo antes de retomar os agentes interrompidos (BP3, decisões D1 e D4 do dono de 20/11)"},
     "skills/esperar-estado/SKILL.md": {"regra": "R-TETO", "porque": "sem o texto, o agente espera a trava pesada por kill -0 num pid de outro namespace e solta a espera antes da hora"},
     "skills/falar-com-o-dono/SKILL.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis pergunta ao dono fora do formato e trata ordem ampla como confirmação"},
     "skills/fluxo-do-pedido/SKILL.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis aciona o time sem recibo, registra o pedido sem as marcas e perde o trecho movido do núcleo (diretriz 25)"},
@@ -878,6 +890,7 @@
       "skills/trabalho-em-paralelo/ritmo-e-corte\\.md": {"regra": "R-FLUXO", "porque": "sem o apontamento, o Jarvis perde o detalhe do ritmo diário e do corte por arquivo (diretrizes 32 e 33 do dono)"},
       "skills/briefs-e-conferencia/SKILL\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o texto de briefs e conferência"},
       "skills/trabalho-em-paralelo/SKILL\\.md": {"regra": "R-TETO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda a série por arquivo e o teto"},
+      "Na abertura e antes de disparar, esperar ou mover cartão, leia": {"regra": "R-TETO", "porque": "sem o texto, o Jarvis não lê a skill na abertura e perde o caminho da sessão durável: segundo Jarvis no mesmo projeto e retomada dos agentes interrompidos (BP3, D1 e D4)"},
       "skills/falar-com-o-dono/SKILL\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o formato da pergunta ao dono"},
       "skills/fluxo-do-pedido/SKILL\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o recibo, o registro do pedido e a tabela do time"},
       "\\*\\*Falar só no marco:\\*\\*": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis volta a relatar cada etapa ao dono (40 mensagens por hora medidas em 13/11; diretriz 24)"},

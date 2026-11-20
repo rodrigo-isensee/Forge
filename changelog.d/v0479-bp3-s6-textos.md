@@ -1,0 +1,2 @@
+### Alterado
+- Sessão durável (BP3 S6): o Jarvis lê na abertura a nova `skills/trabalho-em-paralelo/sessao-duravel.md`, que manda retomar os agentes interrompidos por `forge-check retomada` antes de qualquer disparo novo e faz o painel recusar virar um segundo Jarvis quando o mesmo projeto já tem um rodando no tmux (decisões D1 e D4 do dono); a especificação do diário (`docs/retomada-de-sessao.md`) fica substituída em parte (D5); invariantes novos em `tests/config.json`.

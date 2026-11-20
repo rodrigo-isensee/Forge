@@ -1,8 +1,8 @@
 # Como a fábrica registra e retoma o trabalho em voo? (especificação v1)
 
-Propósito: especificar o diário de retomada (contrato do evento, CLIs, hooks, skill `retomada`, segurança e critérios de aceite) para os cartões R-3 a R-7. Público: desenvolvedores da stack, `qa-engineer`, `software-architect`, `agile-coach`, `tech-lead`. Revisão: 2026-10-12.
+Propósito: especificar o diário de retomada (contrato do evento, CLIs, hooks, skill `retomada`, segurança e critérios de aceite) para os cartões R-3 a R-7. Público: desenvolvedores da stack, `qa-engineer`, `software-architect`, `agile-coach`, `tech-lead`. Revisão: 2026-11-20.
 
-Estado: vigente. A justificativa, as alternativas e as respostas P1 a P5 estão em [a proposta](propostas/retomada-de-sessao.md); em caso de conflito, vale este documento. Marcas: **[DOC]** confirmado na documentação do Claude Code ou no código do Forge; **[INF]** inferência a verificar na implementação (cada uma tem critério de aceite que a verifica).
+Estado: substituída em parte (decisão D5 do dono, 2026-11-20). A parte "delegação em voo" (agentes que uma queda da sessão interrompe) passa ao registro por item da BP3, sessão durável (proposta `docs/propostas/v0479-bp3-sessao-duravel.md`; procedimento do Jarvis em `skills/trabalho-em-paralelo/sessao-duravel.md`): para ela, o diário, o `forge-diario`, o `forge-retomada`, o `forge_estado.py`, os hooks de diário e a skill `retomada` desta especificação não serão feitos. Seguem válidos e não implementados: operação transitória interrompida (mutação de teste, rebase), decisões pendentes no diário e eventos de PR e CI. Em conflito com a proposta da BP3 sobre delegação em voo, vale a proposta. A justificativa, as alternativas e as respostas P1 a P5 estão em [a proposta](propostas/retomada-de-sessao.md); em caso de conflito, vale este documento. Marcas: **[DOC]** confirmado na documentação do Claude Code ou no código do Forge; **[INF]** inferência a verificar na implementação (cada uma tem critério de aceite que a verifica).
 
 ## 1. Decisões herdadas (P1 a P5)
 
