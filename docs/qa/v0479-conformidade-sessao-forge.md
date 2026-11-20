@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-sessao-forge
-commit: fe8607dfc22953432cf43dbf4ea4fbf2158292d2
+commit: d2358465fafc56c42b396ef7e1efe2c4d0e6e854
 parecer: reprovado
 escopo: completo
 bugs_criticos: 0
@@ -12,45 +12,44 @@ bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-20
 ---
-# QA: v0479-conformidade-sessao-forge (E51.5)
+# QA: v0479-conformidade-sessao-forge (E51.9, revalidação)
 
-Diff 0f6034ea..fe8607df: `hooks/conformidade.py` (travas na `GuardaDaProva`), `hooks/vigia.py` (clone do Forge como projeto), 13 fixtures `e51-*` (11 em `conformidade`, 2 em `vigia`), classe `HookSessaoDoForge`, spec de 7 mutantes. Pedido de controle. Suíte inteira: só no CI do PR, não rodada aqui. O remoto avançou só com pareceres de review e segurança (código segue em fe8607df); trazido por merge.
+Revalidação no head d2358465 (antes: fe8607df). Delta: `hooks/conformidade.py` (marca `trava=` no `barrar`, `toca_uma_trava`, listas positivas do git e do gh), 16 fixtures `e51-*` novas, 2 specs de mutantes novas, `tests/test_hooks.py` (piso 11 para 27). O remoto avançou só com pareceres de review e segurança (código segue em d2358465); trazido por merge. Suíte inteira: só no CI do PR, não rodada aqui.
 
 ## Critério → teste → resultado
 | Critério (obrigação) | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| Na sessão do Forge (wt/* e clone) as travas valem para todo papel: R-MAIN, R-VERIFY, push para integração, tag v* | `HookSessaoDoForge.test_travas_do_conformidade` (11 fixtures) | papel sem lista, wt/* e clone; mínimo 11 | passou no head; 8 recusas caem na base |
-| O resto da linha segue livre (ADR 0009, seção 6) | mesmo teste: `escrita-dev-libera`, `push-branch-tech-lead-libera`, `tag-lista-libera` | push de branch de trabalho, `git tag -l`, escrita | passou |
-| O `vigia` grava `violacoes.jsonl` na sessão do Forge | `HookSessaoDoForge.test_vigia_registra` (2 fixtures) | mínimo 2; contorno e arquivo em vigor | passou; erra na base |
-| Alvo opaco com ação crítica (variável no push) | caso de abuso do QA, sem teste no branch | `B=develop; git push origin $B`, `F=--force; git push $F origin melhoria/x` | FALHA: saída 0, esperado 2 (A1) |
+| Na sessão do Forge as travas valem para todo papel: R-MAIN, R-VERIFY, push para integração, tag v* | `HookSessaoDoForge.test_travas_do_conformidade` (27 fixtures) | papel sem lista, wt/* e clone; piso 27 | passou |
+| O resto da linha segue livre (ADR 0009, seção 6) | mesmo teste (`-libera`: escrita, branch de trabalho, `tag -l`, `git log $B`, `gh pr view $N`, atribuição opaca) | leitura e branch de trabalho com variável | passou |
+| Alvo opaco com ação crítica (variável, eval, bash -c, heredoc, substituição, teto) recusa | mesmo teste, `-bloqueia` do E51.6 | `B=develop; git push origin $B`, `F=--force; git push $F ...` | passou (A1 e A2 do parecer anterior fechados) |
+| O `vigia` grava `violacoes.jsonl` | `HookSessaoDoForge.test_vigia_registra` | piso 2 | passou; erra na base |
+| Here-string com push direto (`bash <<< 'git push origin develop'`) | sonda do QA, sem teste no branch | `<<<` em wt/* | FALHA: saída 0, esperado 2 (A1) |
+| O que passava na base segue passando | `test_hooks` inteiro, vermelho e verde | 5 testes de `Hooks` | FALHA: 5 regressões (A2) |
 
 ## Provas
 Classe no head: `python3 -I -m unittest discover -s tests -p test_hooks.py -k HookSessaoDoForge`: 2 testes, OK.
 
-Mutantes (`bin/forge-mutante tests/mutantes/v0479-conformidade-sessao-forge.json`, saída 0, 19 s):
-```
-forge-mutante: pedido=v0479-conformidade-sessao-forge rev=fe8607dfc229 spec=81bf549b656c5bb636c72c71853311c40e07d096a3029a23bf97fa537fbb8548
-M1 · morreu · hooks/conformidade.py:3762
-M2 · morreu · hooks/conformidade.py:3784
-M3 · morreu · hooks/conformidade.py:3784
-M4 · morreu · hooks/conformidade.py:3784
-M5 · morreu · hooks/conformidade.py:3784
-M6 · morreu · hooks/conformidade.py:3915
-M7 · morreu · hooks/vigia.py:509 · (erro) o teste declarado deu erro sob o mutante e passa sem ele
-```
-Cobertura (`--cobertura --base 0f6034ea`): linhas 3762 (M1) e 3784 (M2-M5) cobertas; nenhuma condição mudada sem mutante. Os mutantes passam, mas a spec não inclui o alvo opaco (A1): o conjunto morto não cobre o defeito.
+Mutantes: `bin/forge-mutante` sobre as 3 specs (`tests/mutantes/v0479-conformidade-sessao-forge.json`, `-2`, `-3`), saída 0, 24 de 24 `morreu` (M1 a M24; M7 morreu por erro com controle verde). Cobertura (`--cobertura --base 0f6034ea`): todas as linhas de decisão mudadas (3778, 3801 a 3805, 3816 a 3828) têm mutante declarado; `fix-037-uniao-seg.json` sai `isenta fora do diff`. Os mutantes não cobrem o here-string nem as 5 regressões.
 
-Vermelho: `bin/forge-testes --vermelho 0f6034ea5aaaab5f0aab8acb593523497cdc3b6f --modulos test_hooks --prazo 1500` deu rc=2, sem veredito (módulo inteiro: H 1153 s, B estourou 1500 s; `-k` não combina com `--vermelho`):
+Vermelho (`bin/forge-testes --vermelho 0f6034ea5aaaab5f0aab8acb593523497cdc3b6f --modulos test_hooks --prazo 3000`, rc=2, H 2218 s, B 2212 s):
 ```
-vermelho: base=0f6034ea5aaa head=fe8607dfc229 módulos=test_hooks (restrito por --modulos)
-revertidos à base: changelog.d/v0479-conformidade-sessao-forge.md, docs/hooks.md, hooks/conformidade.py, hooks/vigia.py
-test_hooks · sem veredito (prazo, sinal ou executor sem registro em B)
+vermelho: base=0f6034ea5aaa head=d2358465fafc módulos=test_hooks (restrito por --modulos)
+tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade · H=ok · B=falha · prova (asserção)
+tests.test_hooks.HookSessaoDoForge.test_vigia_registra · H=ok · B=erro · sem veredito
+tests.test_hooks.Hooks.test_fixtures_da_trilha_034 · H=falha · B=ok · regressão
+tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a · H=falha · B=ok · regressão
+tests.test_hooks.Hooks.test_fixtures_do_rverify_falso_positivo · H=falha · B=ok · regressão
+tests.test_hooks.Hooks.test_rotulo_so_dono_formas_alternativas · H=falha · B=ok · regressão
+tests.test_hooks.Hooks.test_rotulo_so_dono_volta_2_crase_escapada_comentario_clone_e_remocao · H=falha · B=ok · regressão
+tests.test_hooks.Hooks.test_fixtures · H=falha · B=erro · falha da entrega (regressão ou sem veredito)
+contagem: falha da entrega (regressão ou sem veredito)=1; não prova (passa na base)=139; prova (asserção)=1; pulado=11; regressão=5; sem veredito=1
+sem veredito: volta ao autor; não vale como vermelho nem como já falhava.
 ```
-Vermelho manual, só a classe (cópia do head com `hooks/conformidade.py` e `hooks/vigia.py` da base): `FAILED (failures=8, errors=2)`; caem os 8 `bloqueia` de conformidade (clone-push-force, wt-commit-no-verify, wt-pr-merge-admin, wt-push-develop, wt-push-force, wt-push-main, wt-push-tag, wt-tag-tech-lead) e erram as 2 de vigia; os 3 `libera` passam, como devem. Não substitui o veredito da ferramenta.
+Os 5 casos de regressão, rodados um a um no head (`-k <teste>`), falham: `2 != 0 : R-CONFORMIDADE: $R com ação crítica: o hook não modela` (`conformidade/rotulo-variavel-outro-argumento-libera`) e `'R-VERIFY: ...' not found in 'R-CONFORMIDADE: crase com ação crítica...'` (`rverify-fp-verdadeiro-linha-ilegivel-heredoc-na-crase-bloqueia`). O `test_vigia_registra` erra na base (hook sem o clone como projeto), o esperado. Vermelho manual da classe (cópia do head com `conformidade.py` e `vigia.py` da base): `FAILED (failures=19, errors=2)`; os `-libera` passam.
 
-Abuso (cópia do head com 2 fixtures extras, esperado 2): `B=develop; git push origin $B` e `F=--force; git push $F origin melhoria/x`, como `forge:tech-lead` em `wt/x`, saem 0. Confirma o A3 do review e o A1 da segurança.
+Abuso (cópia do head, fixtures extras, como `forge:dev` em `wt/x`): `B=develop; git push origin $B` com `export` e aspas, `git push origin HEAD:refs/heads/develop`, `$G push` com `G=git`, `--force-with-lease`, `for b in develop; do git push origin $b; done`, `gh pr merge 5 --admin`, `git commit --no-verify` (direto e por variável) saem 2; `git push origin melhoria/x`, `git log $B`, `echo $B > x` e `R=$(git rev-parse HEAD); git push origin melhoria/x` saem 0. `bash <<< 'git push origin develop'` sai 0 em wt/* e 2 no projeto. `cmd=push; git $cmd origin develop` e `git push origin $(echo develop)` saem 0 também no projeto (sem diferença entre as sessões; fora desta trava).
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:3784 · `trava_da_sessao_do_forge` não reconhece a recusa "ação crítica: o hook não modela" (alvo opaco): `B=develop; git push origin $B` e `F=--force; git push $F origin melhoria/x` saem 0 em wt/*; no projeto recusam. Incluir essa recusa no predicado.
-- A2 (bloqueante) tests/mutantes/v0479-conformidade-sessao-forge.json:1 · sem fixture nem mutante do alvo opaco com ação crítica; ao corrigir o A1, somar fixture `e51-*` e mutante que a mate.
-- A3 (recomendado) bin/forge-testes:1 · `--vermelho` não combina com `-k` e o módulo `test_hooks` passa de 1500 s só na base: sem veredito para pedido que mexe numa classe. Cartão: aceitar `--vermelho` com `-k` ou classe.
+- A1 (bloqueante) hooks/conformidade.py:3808 · `bash <<< 'git push origin develop'` sai 0 em wt/* (no projeto recusa: heredoc com ação crítica): `toca_uma_trava` não lê o corpo do here-string. Somar fixture `e51-*` e mutante.
+- A2 (bloqueante) hooks/conformidade.py:3801 · a trava opaca recusa na sessão do Forge o que a base liberava: 5 testes de `Hooks` regridem (`$R`, crase, `${`, `$PWD`; R-VERIFY virou R-CONFORMIDADE). Ajustar a lista positiva (`gh pr edit`) ou as fixtures, com o motivo.
+- A3 (recomendado) bin/forge-testes:1 · `--vermelho` do `test_hooks` leva 2200 s por cópia e não aceita `-k` nem classe; `test_vigia_registra` fica sem veredito por erro da base. Cartão: veredito por classe.
