@@ -136,7 +136,7 @@
       "id": "M28",
       "guarda": "o atalho carrega o arquivo comum (sem ele não há resolver nem supervisor)",
       "arquivo": "scripts/jarvis",
-      "de": "source \"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)/jarvis-comum.sh\"",
+      "de": "source \"$aqui/jarvis-comum.sh\"",
       "para": ": \"jarvis-comum.sh\"",
       "testes": [
         "tests.test_atalho_duravel.Supervisor.test_saida_anormal_reabre_com_continue"

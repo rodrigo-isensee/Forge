@@ -10,6 +10,9 @@
 # Antes de abrir o Claude, uma vez por abertura, atualiza o plugin do Forge (bin/forge-sempre-atual, ADR 0017): não
 # pergunta, não barra e nunca roda com a sessão do tmux do projeto já aberta (aí só reanexa). Instale com: scripts/instalar-atalho.sh
 set -euo pipefail
+# A pasta deste script, guardada ANTES do cd para o projeto: com o script chamado por caminho relativo, calcular depois do cd
+# apontaria para <projeto>/scripts e carregaria código do projeto (BP3 S1, A3).
+aqui="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 sem_tmux=0
 posicionais=()
 for a in "$@"; do
@@ -39,7 +42,7 @@ fi
 # não decide nada, e a sessão tmux já aberta só é reanexada (a ferramenta nunca roda sob ela).
 atualizar_plugin() {
   local raiz ferramenta
-  raiz="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  raiz="$(cd "$aqui/.." && pwd)"
   ferramenta="$raiz/bin/forge-sempre-atual"
   if [ ! -x "$ferramenta" ] || [ -e "$raiz/.git" ]; then return 0; fi
   if command -v timeout >/dev/null 2>&1; then
@@ -52,11 +55,11 @@ if [ -z "${FORGE_ABERTURA_FEITA:-}" ]; then
   if [ "$usa_tmux" = 1 ] && tmux has-session -t "$sessao" 2>/dev/null; then :; else atualizar_plugin; fi
 fi
 if [ "$usa_tmux" = 1 ]; then
-  eu="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+  eu="$aqui/$(basename "${BASH_SOURCE[0]}")"
   exec tmux new-session -A -s "$sessao" -c "$PWD" "$(printf '%q ' env FORGE_ABERTURA_FEITA=1 "$eu" ${posicionais[@]+"${posicionais[@]}"})"
 fi
 # shellcheck source=jarvis-comum.sh
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/jarvis-comum.sh"  # resolver_claude e supervisionar (CLAUDE-ATUAL, SUPERVISOR)
+source "$aqui/jarvis-comum.sh"  # resolver_claude e supervisionar (CLAUDE-ATUAL, SUPERVISOR)
 # SESSAO-AUTOMATICA (diretriz 28): a sessão abre sempre em --permission-mode auto; o Jarvis confere o sandbox no primeiro comando.
 args=(--continue --permission-mode auto --remote-control "Jarvis - $projeto")
 # SANDBOX-AVISO (v047 E1.222): o modo automático segue, mas sem sandbox ligado no projeto o classificador é a única barreira; avisa numa linha.
@@ -88,7 +91,7 @@ if "$claude_bin" plugin list 2>/dev/null | grep -q 'telegram@claude-plugins-offi
 fi
 # Antes de abrir o Jarvis: o doutor rápido (local, sem rede, custo zero de tokens). Silencioso se está tudo bem; se
 # listou algo, espera um Enter para a pessoa ler antes de o Claude ocupar a tela. Sem o plugin instalado, pula.
-doutor="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/bin/forge-doutor"
+doutor="$(cd "$aqui/.." && pwd)/bin/forge-doutor"
 [ -x "$doutor" ] || doutor="$(command -v forge-doutor || true)"
 if [ -n "$doutor" ] && ! "$doutor" --rapido && [ -t 0 ]; then
   read -r -p "Enter para abrir o Jarvis assim mesmo (ou Ctrl+C para consertar antes com: forge doutor) " _

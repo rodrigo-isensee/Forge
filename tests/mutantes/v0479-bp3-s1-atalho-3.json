@@ -1,0 +1,76 @@
+{
+  "pedido": "v0479-bp3-s1-atalho",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M29",
+      "guarda": "jarvis: o source usa a pasta do script guardada antes do cd",
+      "arquivo": "scripts/jarvis",
+      "de": "source \"$aqui/jarvis-comum.sh\"",
+      "para": "source \"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)/jarvis-comum.sh\"",
+      "testes": [
+        "tests.test_atalho_duravel.ChamadaPorCaminhoRelativo.test_projeto_com_arquivo_comum_falso_nao_e_carregado"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "jarvis-forge: o source usa a pasta do script guardada antes do cd",
+      "arquivo": "scripts/jarvis-forge",
+      "de": "source \"$aqui/jarvis-comum.sh\"",
+      "para": "source \"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)/jarvis-comum.sh\"",
+      "testes": [
+        "tests.test_atalho_duravel.ChamadaPorCaminhoRelativoForge.test_projeto_com_arquivo_comum_falso_nao_e_carregado"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "jarvis: a raiz da atualização do plugin vem da pasta guardada",
+      "arquivo": "scripts/jarvis",
+      "de": "raiz=\"$(cd \"$aqui/..\" && pwd)\"",
+      "para": "raiz=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")/..\" && pwd)\"",
+      "testes": [
+        "tests.test_atalho_duravel.ChamadaPorCaminhoRelativo.test_atualizacao_do_plugin_nao_roda_ferramenta_do_projeto"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "jarvis-forge: a raiz da atualização do plugin vem da pasta guardada",
+      "arquivo": "scripts/jarvis-forge",
+      "de": "raiz=\"$(cd \"$aqui/..\" && pwd)\"",
+      "para": "raiz=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")/..\" && pwd)\"",
+      "testes": [
+        "tests.test_atalho_duravel.ChamadaPorCaminhoRelativoForge.test_atualizacao_do_plugin_nao_roda_ferramenta_do_projeto"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "jarvis: o eu= da reabertura no tmux vem da pasta guardada",
+      "arquivo": "scripts/jarvis",
+      "de": "eu=\"$aqui/$(basename \"${BASH_SOURCE[0]}\")\"",
+      "para": "eu=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)/$(basename \"${BASH_SOURCE[0]}\")\"",
+      "testes": [
+        "tests.test_atalho_duravel.ChamadaPorCaminhoRelativo.test_reabertura_no_tmux_usa_o_caminho_absoluto_do_script"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "jarvis-forge: o eu= da reabertura no tmux vem da pasta guardada",
+      "arquivo": "scripts/jarvis-forge",
+      "de": "eu=\"$aqui/$(basename \"${BASH_SOURCE[0]}\")\"",
+      "para": "eu=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)/$(basename \"${BASH_SOURCE[0]}\")\"",
+      "testes": [
+        "tests.test_atalho_duravel.ChamadaPorCaminhoRelativoForge.test_reabertura_no_tmux_usa_o_caminho_absoluto_do_script"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "janela só de 1 a 6 dígitos sem zero à esquerda",
+      "arquivo": "scripts/jarvis-comum.sh",
+      "de": "[1-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9]|[1-9][0-9][0-9][0-9][0-9]|[1-9][0-9][0-9][0-9][0-9][0-9]) ;;",
+      "para": "''|*[!0-9]*) janela=1800 ;; *[1-9]*) ;;",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_janela_so_aceita_de_um_a_seis_digitos_sem_zero_a_esquerda"
+      ]
+    }
+  ]
+}

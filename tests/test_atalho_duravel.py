@@ -323,6 +323,24 @@ class Supervisor(Base):
                 self.rodar(tmux_dentro=True, FORGE_QUEDA_ESPERA="0", FORGE_QUEDA_JANELA="abc")
                 self.assertEqual(len(self.execucoes()), corridas)
 
+    def test_janela_so_aceita_de_um_a_seis_digitos_sem_zero_a_esquerda(self):
+        """A4: 20 dígitos estouram o inteiro e tiram o teto; 08 e 09 viram octal e derrubam a conta; 010 valeria 8. Tudo volta a 1800."""
+        for valor in ("99999999999999999999", "1234567", "08", "09", "010", "-5", "1.5", " 5"):
+            with self.subTest(valor=valor):
+                self.log.unlink(missing_ok=True)
+                self.relogio.write_text("1000000 500\n", encoding="utf-8")  # 500 s entre quedas: com 1800 há o teto, com janela enorme não
+                self.saidas(*[137] * 10)
+                r = self.rodar(tmux_dentro=True, FORGE_QUEDA_ESPERA="0", FORGE_QUEDA_JANELA=valor)
+                self.assertEqual(len(self.execucoes()), 4, r.stderr)
+                self.assertNotIn("value too great", r.stderr)
+        for valor, corridas in (("1", 11), ("999999", 4)):  # limites válidos: 1 s nunca junta 3 quedas; 999999 s junta
+            with self.subTest(valido=valor):
+                self.log.unlink(missing_ok=True)
+                self.relogio.write_text("1000000 500\n", encoding="utf-8")
+                self.saidas(*[137] * 10)
+                self.rodar(tmux_dentro=True, FORGE_QUEDA_ESPERA="0", FORGE_QUEDA_JANELA=valor)
+                self.assertEqual(len(self.execucoes()), corridas)
+
     def test_janela_zero_nao_tira_o_teto_de_reaberturas(self):
         """Janela 0 (ou só zeros) deixaria nenhuma queda na conta: reabriria sem fim. Vale o padrão e o teto de 3 segura."""
         for valor in ("0", "00", "000"):
@@ -423,6 +441,61 @@ class ForgeSupervisor(Supervisor):
         self.assertNotIn("--continue", primeira.split())
         self.assertIn("--continue", segunda.split())
         self.assertIn("projeto=Forge-dev", self.quedas()[0])
+
+
+class ChamadaPorCaminhoRelativo(Base):
+    """A3 (BP3 S1): com o script chamado por caminho relativo, a pasta do arquivo comum, do `eu=` da reabertura no tmux e da raiz
+    da atualização do plugin vem da pasta do próprio script, guardada antes do cd; nunca de uma pasta do projeto."""
+
+    FALSO = 'echo MARCA-DO-PROJETO >&2; exit 42\n'
+
+    def setUp(self):
+        super().setUp()
+        self.novo()
+        self.destino = self.projeto if self.script == "jarvis" else self.home / "Forge"
+        (self.destino / "scripts").mkdir()
+        (self.destino / "bin").mkdir()
+
+    def rodar_relativo(self, *args, abertura=True, sem_tmux=True, **extra):
+        env = {"HOME": str(self.home), "PATH": f"{self.fakes}:{self.path_velho}:{self.uteis}", "LOG": str(self.log),
+               "VERSOES": str(self.versoes), "CODIGOS": str(self.codigos), "XDG_STATE_HOME": str(self.estado), "LANG": "C.UTF-8"}
+        if abertura:
+            env["FORGE_ABERTURA_FEITA"] = "1"
+        env.update(extra)
+        argv = ["bash", f"scripts/{self.script}", *args]  # relativo, de dentro da cópia do Forge (uso de quem mantém a fábrica)
+        argv += ["--dev"] if self.script == "jarvis-forge" else (["--sem-tmux", "proj"] if sem_tmux else ["proj"])
+        return subprocess.run(argv, env=env, cwd=self.raiz, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=60)
+
+    def test_projeto_com_arquivo_comum_falso_nao_e_carregado(self):
+        self.escrever(self.destino / "scripts/jarvis-comum.sh", self.FALSO)
+        r = self.rodar_relativo()
+        self.assertNotIn("MARCA-DO-PROJETO", r.stderr)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(len(self.execucoes()), 1)
+
+    def test_projeto_sem_arquivo_comum_abre_normalmente(self):
+        r = self.rodar_relativo()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("No such file", r.stderr)
+        self.assertEqual(len(self.execucoes()), 1)
+
+    def test_atualizacao_do_plugin_nao_roda_ferramenta_do_projeto(self):
+        marca = self.tmp / "marca"
+        self.escrever(self.destino / "bin/forge-sempre-atual", f'#!/usr/bin/env bash\necho rodou > "{marca}"\n')
+        self.rodar_relativo(abertura=False)
+        self.assertFalse(marca.exists(), "rodou a ferramenta que está dentro do projeto")
+
+    def test_reabertura_no_tmux_usa_o_caminho_absoluto_do_script(self):
+        self.escrever(self.fakes / "tmux", f'#!/usr/bin/env bash\ncase "$1" in has-session) exit 1 ;; esac\necho "$*" >> "{self.tmp / "tmux.log"}"\n')
+        r = self.rodar_relativo(abertura=False, sem_tmux=False)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        chamada = (self.tmp / "tmux.log").read_text(encoding="utf-8")
+        self.assertIn(f"FORGE_ABERTURA_FEITA=1 {self.raiz}/scripts/{self.script}", chamada)
+
+
+class ChamadaPorCaminhoRelativoForge(ChamadaPorCaminhoRelativo):
+    script = "jarvis-forge"
+    rotulo = "Forge-dev"
 
 
 class ArquivoComum(unittest.TestCase):

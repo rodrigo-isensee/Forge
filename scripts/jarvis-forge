@@ -15,6 +15,8 @@
 #   --dev                teste manual do dono: usa a cópia de trabalho (--plugin-dir . e ./dev), sem a proteção da cópia vigente
 #   -h, --help           mostra esta ajuda
 set -euo pipefail
+# A pasta deste script, guardada antes de qualquer cd (mesma razão do jarvis: nada de recalcular pela BASH_SOURCE relativa depois do cd).
+aqui="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 sem_tmux=0
 dev=0
 atualizar=0
@@ -184,7 +186,7 @@ atualizar_ao_abrir() {
 # Sem pergunta, sem barrar: o resultado fica no registro da ferramenta, que nunca roda com a sessão do tmux aberta.
 atualizar_plugin() {
   local raiz ferramenta
-  raiz="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  raiz="$(cd "$aqui/.." && pwd)"
   ferramenta="$raiz/bin/forge-sempre-atual"
   if [ ! -x "$ferramenta" ] || [ -e "$raiz/.git" ]; then return 0; fi
   if command -v timeout >/dev/null 2>&1; then
@@ -220,7 +222,7 @@ fi
 cd "$HOME/Forge"
 prefixo=jarvis-forge; rotulo=Forge; [ "$dev" = 1 ] && rotulo=Forge-dev
 # shellcheck source=jarvis-comum.sh
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/jarvis-comum.sh"  # resolver_claude e supervisionar (CLAUDE-ATUAL, SUPERVISOR)
+source "$aqui/jarvis-comum.sh"  # resolver_claude e supervisionar (CLAUDE-ATUAL, SUPERVISOR)
 # SESSAO-DURAVEL-AVISO (BP3 S1, D4 do dono): fora do tmux só avisa, numa linha, e abre assim mesmo; nunca bloqueia.
 if [ -z "${TMUX:-}" ] && { [ "$sem_tmux" = 1 ] || ! command -v tmux >/dev/null 2>&1; }; then
   if [ "$sem_tmux" = 1 ]; then
@@ -232,7 +234,7 @@ fi
 if [ "$sem_tmux" = 0 ] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1; then
   repasse=(); [ "$dev" = 1 ] && repasse=(--dev)
   sessao=jarvis-Forge; [ "$dev" = 1 ] && sessao=jarvis-Forge-dev  # um nome por modo: -A não reaproveita a sessão do outro modo
-  eu="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+  eu="$aqui/$(basename "${BASH_SOURCE[0]}")"
   exec tmux new-session -A -s "$sessao" -c "$PWD" "$(printf '%q ' env FORGE_ABERTURA_FEITA=1 "$eu" ${repasse[@]+"${repasse[@]}"})"
 fi
 plugin_dir="$vigente"; [ "$dev" = 1 ] && plugin_dir=.

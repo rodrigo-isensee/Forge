@@ -65,8 +65,8 @@ supervisionar() {
   local -a recentes=() mantidas=()
   espera="${FORGE_QUEDA_ESPERA:-10}"; janela="${FORGE_QUEDA_JANELA:-1800}"
   case "$espera" in ''|*[!0-9]*) espera=10 ;; esac
-  case "$janela" in ''|*[!0-9]*) janela=1800 ;; esac
-  case "$janela" in *[1-9]*) ;; *) janela=1800 ;; esac  # 0 tiraria o teto de reaberturas
+  # janela: de 1 a 6 dígitos, sem zero à esquerda (0 tiraria o teto; 20 dígitos estouram o inteiro; 08 e 09 viram octal)
+  case "$janela" in [1-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9]|[1-9][0-9][0-9][0-9][0-9]|[1-9][0-9][0-9][0-9][0-9][0-9]) ;; *) janela=1800 ;; esac
   while :; do
     resolver_claude
     if [ -z "$claude_bin" ]; then echo "$prefixo: claude não encontrado no PATH." >&2; return 127; fi
