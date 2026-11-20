@@ -16,7 +16,8 @@ frequentes de PALAVRAS_DO_IDIOMA, fora de código e citação) e `outro_idioma`,
 (`idioma_do_dono` no .forge/config.json do projeto; ausente: IDIOMA_PADRAO; código sem lista: sem medida). A medida roda depois da decisão do objetivo e lê só TETO_DA_MEDIDA caracteres
 (`cortado` na linha): o tempo dela não cresce com a mensagem. MP1 (diretriz 35, 0.47.5): com mais de um projeto ativo
 (nomes em ATIVOS), fora da sessão do próprio Forge, a linha leva também se a mensagem não começa por `Projeto:` e se a
-última fala do dono cita outro projeto ativo sem a pergunta "isto é para o projeto" (só contagens, nunca o nome).
+última fala do dono cita outro projeto ativo sem a pergunta "isto é para o projeto" (só contagens, nunca o nome). AE1.4
+(v0478): `afirmacao_sem_prova`, verdadeiro quando a mensagem diz feito, mesclado ou integrado sem a linha `onde:` colada.
 Erro interno: libera e vai ao erros.log.
 """
 import datetime
@@ -234,6 +235,17 @@ def idioma_do_dono(raiz):
     return valor if isinstance(valor, str) and valor in PALAVRAS_DO_IDIOMA else None
 
 
+# AE1.4 (v0478 E58.20): afirmação de estado sem a prova colada. Lista fixa; o texto inteiro conta (citação e bloco de código
+# não escondem a afirmação), e a prova é uma linha `onde:` da saída do `forge-check onde`, em qualquer lugar da mensagem.
+AFIRMACAO = re.compile(r"(?<!\w)(?:feit|mesclad|integrad)[oa]s?(?!\w)", re.I)
+LINHA_DO_ONDE = re.compile(r"^[ \t>`]*onde: \S", re.M)
+
+
+def afirmacao_sem_prova(texto):
+    """A mensagem afirma feito, mesclado ou integrado sem uma linha `onde:` (só mede, nunca bloqueia: ADR 0003)."""
+    return bool(AFIRMACAO.search(texto)) and not LINHA_DO_ONDE.search(texto)
+
+
 # MP1 (diretriz 35): o sinal de vários projetos ativos é o arquivo ATIVOS (leitor em `_comum.ler_projetos_ativos`).
 ATIVOS = ARQUIVO_DE_ATIVOS
 PREFIXO_DO_PROJETO = re.compile(r"\s*Projeto: \S")
@@ -278,6 +290,7 @@ def medir_mensagem(hook, raiz=None):
                  "jargao": achados, "classes": classes_de_jargao(medido), "cortado": len(texto) > TETO_DA_MEDIDA,
                  "idioma": idioma, "idioma_do_dono": dono,
                  "outro_idioma": idioma is not None and dono is not None and idioma != dono, "iniciante": hook.iniciante(),
+                 "afirmacao_sem_prova": afirmacao_sem_prova(medido),
                  **medida_do_projeto(hook, raiz, medido)}
         with open(hook.run() / "mensagens.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(linha, ensure_ascii=False) + "\n")

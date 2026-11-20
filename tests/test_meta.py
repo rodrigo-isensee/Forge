@@ -486,5 +486,42 @@ class VariosProjetos(unittest.TestCase):
         self.assertIn("`false` (rc=1)", r.stderr)
 
 
+class AfirmacaoSemProva(unittest.TestCase):
+    """AE1.4 (v0478 E58.20): a linha de mensagens.jsonl marca feito, mesclado ou integrado sem a linha `onde:` colada; só mede."""
+
+    ONDE = "onde: pr #729 estado=MERGED base=develop head=melhoria/x mesclado=2026-11-20T16:17:00Z"
+
+    def setUp(self):
+        self.meta = importar_meta()
+
+    def medir(self, texto):
+        with tempfile.TemporaryDirectory() as pasta:
+            hook = type("Hook", (), {"campo": lambda self, chave: {"last_assistant_message": texto}.get(chave),
+                                     "run": lambda self: Path(pasta), "iniciante": lambda self: False})()
+            self.meta.medir_mensagem(hook)
+            return json.loads((Path(pasta) / "mensagens.jsonl").read_text(encoding="utf-8"))["afirmacao_sem_prova"]
+
+    def test_afirmacao_sem_a_linha_do_onde_conta(self):
+        for texto in ("Feito.", "O PR foi mesclado na develop.", "Item integrado hoje.", "As duas ficaram feitas e INTEGRADAS."):
+            with self.subTest(texto=texto):
+                self.assertIs(self.medir(texto), True)
+
+    def test_afirmacao_escondida_em_citacao_ou_codigo_tambem_conta(self):
+        for texto in ("> mesclado", "```\nintegrado\n```", "Está `feito`."):
+            with self.subTest(texto=texto):
+                self.assertIs(self.medir(texto), True)
+
+    def test_a_linha_do_onde_colada_e_a_prova_em_texto_citacao_ou_codigo(self):
+        for prova in (self.ONDE, "> " + self.ONDE, "```\n" + self.ONDE + "\n```", "  `onde: develop sim (commit c219c86b)`"):
+            with self.subTest(prova=prova):
+                self.assertIs(self.medir("O PR foi mesclado.\n" + prova), False)
+
+    def test_sem_afirmacao_ou_com_onde_fora_do_inicio_da_linha_nao_prova(self):
+        self.assertIs(self.medir("Disparei o review; o defeito ficou perfeito na reprodução."), False)
+        for falsa in ("Mesclado (rodei forge-check onde: deu certo).", "Mesclado; onde:", "Mesclado.\nonde:"):
+            with self.subTest(falsa=falsa):
+                self.assertIs(self.medir(falsa), True)
+
+
 if __name__ == "__main__":
     unittest.main()

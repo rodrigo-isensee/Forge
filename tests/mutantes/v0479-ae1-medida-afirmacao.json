@@ -1,0 +1,66 @@
+{
+ "pedido": "v0479-ae1-medida-afirmacao",
+ "executor": "unittest",
+ "mutantes": [
+  {
+   "id": "M1",
+   "guarda": "a linha onde: colada é a prova (tirar o not)",
+   "arquivo": "hooks/meta.py",
+   "de": "    return bool(AFIRMACAO.search(texto)) and not LINHA_DO_ONDE.search(texto)",
+   "para": "    return bool(AFIRMACAO.search(texto)) and LINHA_DO_ONDE.search(texto)",
+   "testes": [
+    "tests.test_meta.AfirmacaoSemProva"
+   ]
+  },
+  {
+   "id": "M2",
+   "guarda": "só conta com afirmação e sem prova (and vira or)",
+   "arquivo": "hooks/meta.py",
+   "de": "    return bool(AFIRMACAO.search(texto)) and not LINHA_DO_ONDE.search(texto)",
+   "para": "    return bool(AFIRMACAO.search(texto)) or not LINHA_DO_ONDE.search(texto)",
+   "testes": [
+    "tests.test_meta.AfirmacaoSemProva"
+   ]
+  },
+  {
+   "id": "M3",
+   "guarda": "a linha do onde começa a linha (tirar a âncora)",
+   "arquivo": "hooks/meta.py",
+   "de": "LINHA_DO_ONDE = re.compile(r\"^[ \\t>`]*onde: \\S\", re.M)",
+   "para": "LINHA_DO_ONDE = re.compile(r\"onde: \\S\", re.M)",
+   "testes": [
+    "tests.test_meta.AfirmacaoSemProva"
+   ]
+  },
+  {
+   "id": "M4",
+   "guarda": "a prova vale em qualquer linha da mensagem (tirar re.M)",
+   "arquivo": "hooks/meta.py",
+   "de": "LINHA_DO_ONDE = re.compile(r\"^[ \\t>`]*onde: \\S\", re.M)",
+   "para": "LINHA_DO_ONDE = re.compile(r\"^[ \\t>`]*onde: \\S\")",
+   "testes": [
+    "tests.test_meta.AfirmacaoSemProva"
+   ]
+  },
+  {
+   "id": "M5",
+   "guarda": "a palavra fica inteira (tirar o limite da esquerda)",
+   "arquivo": "hooks/meta.py",
+   "de": "AFIRMACAO = re.compile(r\"(?<!\\w)(?:feit|mesclad|integrad)[oa]s?(?!\\w)\", re.I)",
+   "para": "AFIRMACAO = re.compile(r\"(?:feit|mesclad|integrad)[oa]s?(?!\\w)\", re.I)",
+   "testes": [
+    "tests.test_meta.AfirmacaoSemProva"
+   ]
+  },
+  {
+   "id": "M6",
+   "guarda": "maiúsculas também contam (tirar re.I)",
+   "arquivo": "hooks/meta.py",
+   "de": "AFIRMACAO = re.compile(r\"(?<!\\w)(?:feit|mesclad|integrad)[oa]s?(?!\\w)\", re.I)",
+   "para": "AFIRMACAO = re.compile(r\"(?<!\\w)(?:feit|mesclad|integrad)[oa]s?(?!\\w)\")",
+   "testes": [
+    "tests.test_meta.AfirmacaoSemProva"
+   ]
+  }
+ ]
+}
