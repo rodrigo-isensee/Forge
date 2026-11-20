@@ -11,6 +11,37 @@
             "testes": [
                 "tests.test_catraca.TetoDaQuarentena.test_motivo_que_nao_e_quarentena_nao_exige_prazo"
             ]
+        },
+        {
+            "id": "M20",
+            "guarda": "E37.20: só base chamada TestCase torna a classe um TestCase",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    return any(getattr(base, \"attr\", getattr(base, \"id\", None)) == \"TestCase\" for base in classe.bases)",
+            "para": "    return any(getattr(base, \"attr\", getattr(base, \"id\", None)) != \"TestCase\" for base in classe.bases)",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_skip_morto_da_sonda_s1_nao_conta",
+                "tests.test_catraca.TetoDaQuarentena.test_conta_skiptest_vivo_e_subpasta"
+            ]
+        },
+        {
+            "id": "M21",
+            "guarda": "E37.20: só a chamada (ast.Call) do corpo é lida",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        if isinstance(no, ast.Call):",
+            "para": "        if isinstance(no, ast.Name):",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_skiptest_vivo_e_subpasta"
+            ]
+        },
+        {
+            "id": "M22",
+            "guarda": "E37.20: só decorador em forma de chamada tem motivo",
+            "arquivo": "tests/quarentenas.py",
+            "de": "                yield _motivo_do_skip(deco, {\"skip\"}) if isinstance(deco, ast.Call) else \"\"",
+            "para": "                yield _motivo_do_skip(deco, {\"skip\"}) if isinstance(deco, ast.Name) else \"\"",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_skiptest_vivo_e_subpasta"
+            ]
         }
     ]
 }
