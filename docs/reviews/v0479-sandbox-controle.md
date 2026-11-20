@@ -3,19 +3,19 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-sandbox-controle
-commit: 64fca89083f7549aa5ea97ed4e716bec049f1306
+commit: 32c3528eaa65c8c85367465c506856befdd33818
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-19
+data: 2026-11-20
 ---
-# Review: v0478 (E29.12, revalidação do A7 de SANDBOX-TRAVA-CONTROLE, head 64fca890)
+# Review: v0478 (E29.18, revalidação da A3 de SANDBOX-TRAVA-CONTROLE, head 32c3528e)
 
-Revalidação (H3, R-REVIEW): li só `forge-check parecer delta docs/reviews/v0479-sandbox-controle.md`, intervalo `1aaea973..64fca890`, 8 arquivos no domínio. Suíte inteira não rodada (fica no CI do PR). Rodei o teste do item, `python3 -m unittest tests.test_sandbox_controle`: `Ran 14 tests ... OK (skipped=2)`, os dois do bubblewrap pulados aqui. Rodei `bin/forge-mutante --processos 1 tests/mutantes/v0479-sandbox-controle.json` no rev 64fca89083f7: os 13 mutantes declarados morreram (M1, M2, M4 a M14; o M3 saiu junto com a guarda que ele cobria).
+Revalidação (H3, R-REVIEW): li só `forge-check parecer delta docs/reviews/v0479-sandbox-controle.md`, intervalo `64fca890..32c3528e`. A ferramenta avisou que o merge `f493e002` não está na `origin/develop` e por isso contou inteiro o que ele trouxe. Esse merge é da própria branch (`origin/melhoria/v0479-sandbox-controle`) e só traz pareceres. Por isso `bin/forge-testes`, `hooks/_comum.py` e `docs/hooks.md` aparecem no domínio, mas vieram da `develop` pelo `32c3528e`. Eu os separei com `git diff --stat 64fca890 0eedfdea` (código: só `.claude/settings.json`) e `git show --remerge-diff 32c3528e` (um único conflito resolvido, em `hooks/agentes.py`). A suíte inteira não rodou aqui, fica no CI do PR #713. Rodei os testes do item com o ambiente limpo, `python3 -m unittest tests.test_sandbox_controle tests.test_hooks_agentes_autor`: `Ran 24 tests ... OK (skipped=2)`, os dois do bubblewrap pulados aqui. O delta não muda nenhuma guarda, então não há mutante novo a declarar.
 
 Delta lido:
-- A7 resolvido: `hooks/agentes.py` volta a ser igual ao da base em `ler_estado`. `git diff 73842444..64fca890 -- hooks/agentes.py` mostra só a troca do `ler_trava` em `pesado_livre`. A fixture original `tests/hooks/agentes/estado-ilegivel-vazio-bloqueia.json` voltou, e `git diff 73842444..64fca890 -- tests/hooks/agentes/` sai vazio. A docstring de HOOK-ESTADO-ILEGIVEL-LIBERA, `docs/hooks.md` e o fragmento do changelog dizem que o `agentes.json` de 0 byte segue ilegível. O teste de `ControleVazio` agora afirma `EstadoIlegivel` no 0 byte. A regra com ID fica como estava, sem afrouxamento.
-- `hooks/_comum.py:2561` (`gravar_json`, A5 da segurança): tira a sobra do temporário e abre com `O_CREAT|O_EXCL|O_NOFOLLOW`. Um link plantado não é seguido, e a corrida depois da checagem cai em `FileExistsError` sem escrever no alvo. M12 a M14 cobrem as três guardas pelo comportamento. O mérito de segurança é do parecer da segurança.
-- O teste do limite de renomear a pasta mãe documenta o limite que está registrado em `docs/hooks.md`. Ele não o fecha.
+- `.claude/settings.json` (`0eedfdea`): o `denyWrite` ganha `.git/forge/run` e `~/.forge/maquina`. É idêntico ao patch de `docs/devops/v0479-sandbox-controle.md:25-29` e só aperta o controle. Foi aplicado pelo dono e está coberto pela DECISÃO DO DONO de 2026-11-19 08:28 (OK do rótulo `afrouxa-regra` só neste PR). O mérito da sandbox é do parecer do devops.
+- `hooks/agentes.py:71-72` (`32c3528e`): o conflito do import foi resolvido pela união `ler_trava, mensagem, raiz_declarada`. Os dois nomes são usados: `raiz_declarada` em `:164`, vindo da `develop`, e `ler_trava` em `:494`, vindo da A3. O arquivo compila. Fora essa linha, o merge não muda nada além das duas pontas.
+- `docs/devops/v0479-sandbox-controle.md`: fora do meu domínio (parecer do devops).
 
 ## Parecer
-Aprovado. O A7 foi desfeito como pedido: o 0 byte do registro de agentes segue recusando com R-TETO, e a fixture original está de volta. O resto do delta não traz achado novo.
+Aprovado. O patch aplicado pelo dono bate com o que foi revisado, e a resolução do conflito apenas une os dois imports, sem mudar comportamento.
