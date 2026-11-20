@@ -9,6 +9,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 - `forge-placar fases`: média, mediana e p75 do 1.º commit ao merge com a meta de 42 min à vista, corte por hora do merge (`--desde`/`--ate`), PR e hora do merge de cada item no `--json` e as horas paradas por queda de sessão, develop vermelha e promoção travada, cada uma com a fonte por escrito (v0478 E36.1).
 ### Corrigido
 - Testes: a sonda S1 do prazo do merge usa a parcela de disputa, a CPU e o relógio do hook medidos no review, e não os da hora (E33.6), e o limite de CPU do corpus nos dois hooks vale pela menor de até 3 medidas; a carga do runner deixa de reprovar a develop sem perder o que os testes provam (v0478 E33.1).
+- Quarentena da sonda S1 (`test_liberar_ou_provar_a_carga_recusa_a_sonda_s1`, em `tests/test_hooks.py`), com o OK do dono de 19/11 18:12: o teste falha no CI sob carga mesmo com o conserto do #701 (o CI da `develop` caiu nele no merge do #701) e sai da bateria obrigatória com `@unittest.skip`. O corpo fica idêntico ao da `develop`. Volta quando o desenho da BP1 (relógio injetado no hook) entrar com 10 rodadas verdes sob carga no CI; cartão `TESTE-SONDA-S1-RELOGIO`; prazo 2026-11-26.
+- `teto_pulados` de `tests/config.json` sobe de 1 para 2 só enquanto durar a quarentena da S1 (decisão do dono de 19/11, v0478 E37.15): o CI do #708 tem 2 pulados, a S1 e `test_pre_push_trava.test_duracoes_de_outro_dono_nao_e_tocado` (pula sem root). O teste `tests.test_catraca.TetoDaQuarentena` conta as quarentenas abertas em `tests/` (`skip` cujo motivo começa com "quarentena") e reprova se o teto passar de 1 mais esse número. **O mesmo PR que tirar a quarentena da S1 devolve `teto_pulados` a 1.**
 
 ## [0.47.10] - 2026-11-19
 ### Adicionado
