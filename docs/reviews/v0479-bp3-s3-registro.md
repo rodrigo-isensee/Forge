@@ -3,12 +3,20 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp3-s3-registro
-commit: b3cd1ee41cde185fe7445bb3596c051e2e887f04
+commit: 1f31729169cd2163c883a4891ba761d0da9c1830
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
 ---
 # Review: v0478 E39.7 (BP3 S3, registro de interrompidos no hook agentes)
+
+## Revalidação no head 1f317291
+Delta lido por `forge-check parecer delta` (intervalo `b3cd1ee4..1f317291`, sem o que veio da `develop` pelo merge `4f5028df` do `forge-fechar`): no domínio só `tests/mutantes/v047-h2-autor-fica-3.json`, o M23 com `de`/`para` trocando `a.get` por `registro.get`, o nome atual em `hooks/agentes.py:363`.
+
+- O trecho `de` existe uma vez só em `hooks/agentes.py` (linha 363); o `para` tira a condição do tipo da retomada, a mesma guarda de antes.
+- `bin/forge-mutante --processos 1 --ids M23 tests/mutantes/v047-h2-autor-fica-3.json`: `M23 · morreu · hooks/agentes.py:363`.
+- `bin/forge-mutante --conferir --base b3cd1ee4`: `conferidas: o trecho de cada spec do diff está no lugar`.
+- Nada de código muda no delta; o parecer abaixo e a A1 seguem.
 
 ## Revalidação no head b3cd1ee4
 Delta lido por `forge-check parecer delta` (intervalo `d03cc57f..1a86b815`; `1a86b815` só traz o parecer da segurança, fora do domínio): `hooks/agentes.py` +20 −4 (A1 da segurança), `tests/test_agentes_interrompidos.py` +28, specs de mutante (M15 e M29 com o trecho no lugar novo, `-3.json` com M30 a M32) e o fragmento do changelog.
