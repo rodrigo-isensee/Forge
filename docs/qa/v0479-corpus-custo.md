@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-corpus-custo
-commit: 41db435f92eeadb4d16f641857538e77a1ca9657
+commit: 618af3034626baf06e90b26a51da716400eb46b2
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -52,3 +52,16 @@ Código testado: 41db435f (o remoto está em 17cb7616, só pareceres de review e
 - `forge-mutante` (5 specs, `--ids M23,M24,M25,M26,M27,M28,M29 --processos 2`, rev=17cb76168c2c): M23, M24, M25 (`hooks/_comum.py:2872`), M26 (`tests/apoio_volta_unica.py:240`), M27 (`:241`, morreu por erro com o controle verde), M28 (`:252`), M29 (`:220`), todos `morreu`, rc=0. Nenhum sobrevivente.
 - Delta de domínio lido por `forge-check parecer delta`: `tests/apoio_volta_unica.py`, `tests/test_hooks_volta_corpus.py`, as cinco specs de mutantes, `tests/provas/v0479-corpus-custo.md` e o changelog; nenhum arquivo de produção mudou além do que as sondas tocam em cópia.
 - Limite: o teto vale para o Python 3.12 da medida (declarado pelo autor); outra versão fica fora desta prova.
+
+## Revalidação (head 618af303, delta de 41db435f; v0478 E41.8)
+Código testado: 618af303 (o remoto está nele). Entraram a develop por merge e a medida nova do corpus. Suíte inteira não rodada (CI do PR). Delta lido por `forge-check parecer delta` (base atualizada, sem o que veio da develop): `tests/apoio_volta_unica.py`, `tests/provas/v0479-corpus-custo.md`, `tests/test_hooks_volta_corpus.py`.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| E41-d: teto exato, sem folga | `MEDIDA_DO_CORPUS` nova (interpretador 5893967, subprocessos 4631, execuções 557, ruído 0) | passo a mais reprova | passou |
+| Medida determinística | módulo inteiro, 2 rodadas | mesma medida nas duas | passou, 2 de 2 |
+
+- `python3 -I -m unittest discover -s tests -p test_hooks_volta_corpus.py` (cópia em 618af303, árvore limpa): rodada 1 `Ran 33 tests in 213.283s OK`; rodada 2 `Ran 33 tests in 111.367s OK`. Sem skip. O teto é exato (ruído 0): duas rodadas verdes com tempos bem diferentes mostram que a medida não depende de tempo nem de carga.
+- A diferença da medida (5860121 para 5893967) vem do código da develop (`hooks/_comum.py`, `hooks/agentes.py`, `forge-check`), explicada em `tests/provas/v0479-corpus-custo.md`; não foi regressão do pedido.
+- Não rodei de novo os mutantes M23 a M29: o delta não muda guarda, só a constante da medida e testes de AST do `executar`; as sondas S1 e S2 do parecer anterior seguem válidas porque o teto exato fica ainda mais apertado.
+- Limite mantido: o teto vale para o Python 3.12 da medida.
