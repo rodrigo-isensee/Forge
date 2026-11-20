@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-forge-check-ci-verde
-commit: 0b2e8d6f8ca3671cdba187ec985a5b15afe65b0b
+commit: cb1d5ed7d506a409e05807f30b664ae1ee84f1da
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -31,3 +31,15 @@ Máquina com carga e sem suíte local, por ordem do brief. Rodados só os módul
 - Mutação: `bin/forge-mutante` nas 4 specs (`--processos 2`): rc=0, M1 a M24 todos `morreu`, nenhum sobrevivente, nenhum equivalente.
 - `forge-mutante --cobertura --base 004ce869`: toda condição mudada de `bin/forge-check` sai `coberta` por mutante declarado; nenhuma `não coberto`.
 - Revisão do diff: `ci_verde_no_head` falha fechada (sem branch, head, PR, checks); `checks_ruins` é a mesma fonte do `checks_do_head`, sem divergência.
+
+## Revalidação no head cb1d5ed7 (E47.4, volta do review)
+`forge-check parecer delta` (0b2e8d6f..b8d940bb, só o domínio de código e testes): `bin/forge-check` (`adiar_suite` em `pr_da_cli` e `pareceres_da_etapa`), `tests/test_forge_check_pr.py` (`SuiteNoBriefSemPr`), `tests/mutantes/v0479-forge-check-ci-verde-5.json`, o changelog. O resto do intervalo é review e segurança, fora do meu domínio.
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| `brief gerar` de `pr` e de merge roda antes de o PR existir: a suíte sem CI só avisa | `SuiteNoBriefSemPr.test_etapas_que_recusam_nao_travam_sem_pr` | sem PR, nas 3 etapas de `ETAPAS_QUE_RECUSAM` | passa (M25, M26 mortos) |
+| O `pr` direto sem PR segue reprovando (catraca não afrouxa) | `SuiteNoBriefSemPr.test_o_pr_direto_sem_pr_segue_reprovando` | `adiar_suite` só entra pelo `pareceres_da_etapa` | passa |
+- `tests.test_forge_check_pr` (`-I`, discover): Ran 47, OK (eram 45).
+- `forge-mutante tests/mutantes/v0479-forge-check-ci-verde-5.json`: `rev=b8d940bb8951`; M25 `morreu · bin/forge-check:1592`; M26 `morreu · bin/forge-check:8788`; rc=0. Os M1-M24 não têm linha mudada no delta.
+- Vermelho: `bin/forge-check` de `cb1d5ed7~1` com os testes do head, em cópia em `$TMPDIR`: Ran 47, FAILED (failures=3, as 3 etapas do subTest de `test_etapas_que_recusam_nao_travam_sem_pr`); o teste do `pr` direto passa nos dois lados, como deve (guarda de não afrouxamento). `forge-testes --vermelho cb1d5ed7~1` estourou o prazo da carga da máquina (sem veredito), então a prova foi por substituição manual.
+- Mudanças de texto (spec -5, changelog) conferidas contra o código: dizem que o `brief gerar` só avisa, a catraca não muda.
+- Suíte inteira: fica para o CI do PR (sem PR no head ainda); sem linha `- suíte:`.
