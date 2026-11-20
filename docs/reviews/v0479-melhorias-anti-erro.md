@@ -3,24 +3,22 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-melhorias-anti-erro
-commit: 57beff2a66ab13048540f90dcdffdc689e359aad
-parecer: reprovado
+commit: 9032b50d622c196c292109a8390e6f0fa720dd07
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
 ---
 # Review: v0479-melhorias-anti-erro
 
-Code review do desenho das AE1 e AE3 a AE8 (v0478 E54.9) no head 57beff2a, base develop 5ccac0bf. O diff é só texto: `docs/propostas/v0479-melhorias-anti-erro.md` (244 linhas) e o fragmento `changelog.d/v0479-melhorias-anti-erro.md`. Classe T; sem código, sem guarda, sem mutante.
+Revalidação (v0478 E54.13) no head 9032b50d, depois da volta única (E54.12). O parecer anterior, no head 57beff2a, reprovou pelo A1. Classe T; só texto, sem código, sem guarda, sem mutante.
 
-## Achados
-- A1 (bloqueante) docs/propostas/v0479-melhorias-anti-erro.md:144 · O AE3.1 manda o commit automático rodar com `core.hooksPath` vazio. Isso troca o caminho dos hooks, o que `R-VERIFY` proíbe (`hooks/conformidade.py:2563` barra o mesmo). Fora do sandbox o relógio nem passa pelo hook. Troque por recusa quando a pasta de controle tiver hook ativo.
-- A2 (recomendado) docs/propostas/v0479-melhorias-anti-erro.md:145 · O AE3.2 e o D3 (linha 196) dão push ao relógio, e a linha 11 diz que só se lê o GitHub. A condição do dono no D7 (20/11 13:51) é: só lê o GitHub e só grava na pasta de controle. Registre a condição e diga quem faz o push.
+## Delta lido
+`forge-check parecer delta`, intervalo 57beff2a..9032b50d, domínio código e testes: `changelog.d/v0479-melhorias-anti-erro.md` e `docs/propostas/v0479-melhorias-anti-erro.md`. Nada fora do domínio foi relido.
+
+- A1 resolvido (`docs/propostas/v0479-melhorias-anti-erro.md:148`): o AE3.1 confere `core.hooksPath` e `.git/hooks` antes do commit e recusa com `nao-verificavel` se houver hook ativo que não seja da fábrica; nunca troca nem esvazia o `core.hooksPath` (`R-VERIFY`). Não resta menção a `core.hooksPath` vazio no texto.
+- A2 resolvido (linhas 11-12, 72-75, 149, 201, 218-219): a condição do dono no D7 está registrada; o relógio faz só o commit local, sem push, e o push sai no marco, na sessão, sob o hook `conformidade`. O AE3.2 ganhou o caso de abuso das três condições do D7 com teste. O fragmento do changelog acompanha.
 
 ## Parecer
-Reprovado pelo A1. O desenho está bem fundamentado. A seção 1 traz medida com fonte. A seção 2 explica por que o existente não basta, com evidência (conferi `bin/forge-check:7771`: é o `linhas_de_decisao` dentro do `cmd_decisoes`, só DECISÃO). O corte respeita o teto de 150 linhas (H1) e uma trilha por arquivo (diretriz 33). A seção 7 tem critério de reversão observável por risco, e a seção 5 traz oráculos por classe (PAR-P2). Neutro (`R-NEUTRO`): a pasta de controle está definida para o Forge e para o projeto. Sem custo (`R-CUSTO`): a opção (c) do D7 foi recusada pelo custo.
-
-A1: o caso de abuso "`.git/hooks` da pasta de controle" é real, mas a defesa escolhida contorna um controle (`R-VERIFY`, `R-CONFORMIDADE`). Isso piora porque o relógio roda fora do sandbox (D7), onde o hook `conformidade` não vê o comando. Uma defesa que aperta em vez de contornar: o `controle salvar` confere `core.hooksPath` e `.git/hooks` antes do commit e recusa, com `nao-verificavel`, se houver hook ativo que não seja da fábrica. A correção é de uma célula da tabela e não muda nenhuma decisão do dono.
-
-A2 não bloqueia. As decisões do dono chegam ao brief por referência (`R-BRIEF`), mas quem implementar o AE3.2 lendo só o desenho vai achar push no relógio. Isso esbarra na condição do D7.
+Aprovado. A correção ficou no escopo dos dois achados e não muda decisão do dono. Sem custo (`R-CUSTO`) e neutro (`R-NEUTRO`), como antes.
 
 Suíte: não rodada (brief: sem suíte local; texto só). Sem PR, sem CI para citar.
