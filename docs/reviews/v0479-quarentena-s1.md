@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-quarentena-s1
-commit: 0f7e405b960f0328109a83039e6a806e3ee7bec4
+commit: 04e7293b3c89ea21b6575a2f848b81a540af52f7
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
@@ -33,3 +33,10 @@ Head `0f7e405b960f0328109a83039e6a806e3ee7bec4` (de `ba6f6a03`), pelo `forge-che
 1. Teste novo existe (`tests/test_hooks.py:1229`) e passa no head: `OK (skipped=1)` nos dois testes do M1, o do skip da S1 e o novo.
 2. Mutante M1 (`>= APROVEITAMENTO_MINIMO` trocado por `>= 0` em `tests/prova_de_carga.py`), aplicado numa cópia temporária do head: o teste novo reprova (`AssertionError: True is not false`). O teste mata o mutante, então a lista do M1 está correta.
 3. A1 segue valendo (o delta não toca o skip nem o teto). Aprovado.
+
+## Revalidação 3 (head 04e7293b)
+Head `04e7293b3c89ea21b6575a2f848b81a540af52f7` (de `0f7e405b`), pelo `forge-check parecer delta`. Domínio lido: `changelog.d/v0479-quarentena-s1.md`, `tests/config.json`, `tests/quarentenas.py`, `tests/test_catraca.py` e `tests/mutantes/v0479-quarentena-s1.json`. Aprovado.
+1. `teto_pulados` de 1 para 2 (`tests/config.json:930`), com o OK do dono de 19/11; o fragmento de changelog registra a devolução a 1 no PR que tirar a quarentena.
+2. `TetoDaQuarentena` (`tests/test_catraca.py`) e `tests/quarentenas.py`: o teto passa só até 1 mais as quarentenas abertas (skip cujo motivo começa com "quarentena"); o motivo do skip da S1 (`tests/test_hooks.py:1324`) começa assim, então conta 1 e o teto 2 passa. Rodado: 4 testes `OK`.
+3. Guardas: `quarentenas.py` tem 6 linhas de decisão, M1 a M6, um mutante por linha. Rodados numa cópia: M1 (`+ 1` no teto) reprova 2 testes; M6 (sem `startswith("quarentena")`) reprova 3. M2 a M5 vão pelo teste de contagem, que cobre skipIf, skipTest, subpasta, skip sem motivo e motivo não literal.
+4. A1 segue valendo (rótulo `afrouxa-regra` e destaque no título; agora também pelo teto de 1 para 2).
