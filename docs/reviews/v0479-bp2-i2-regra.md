@@ -3,21 +3,20 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp2-i2-regra
-commit: 0ce5173bf504d028f1a49eeb94491c9d22cdedae
-parecer: reprovado
+commit: 80f4bd1f2912d3222559b954eafde362e9e1a5dc
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
 ---
-# Review: v0478 E38.9 (BP2 I2 e I5, fila e conserto na R-FLUXO)
+# Review: v0478 E38.9 (BP2 I2 e I5, fila e conserto na R-FLUXO), revalidação
 
-Diff 004ce869..0ce5173b: 7 arquivos, só texto e `tests/config.json` (0 linha de código, H1 ok). Escopo confere com o desenho (I2, I5 e a ampliação da E38.8 para o `ritmo-e-corte.md`); C1 a C7 (D2) estão nos 7 itens do conserto; D3, D4, D1 e D6 aparecem no texto; o fragmento do changelog declara o afrouxamento (D5, `afrouxa-regra`). Invariantes novos casam com o texto: módulos tocados rodados (`tests.test_modelos_projeto` 20 OK; `test_forge` Neutralidade, NeutralidadeDoNucleo, RegrasInviolaveis, RegrasComId, TextosDoAgenteEDaRegra: 15 OK). Suíte inteira: no CI do PR (sem run na branch).
+Delta lido: `forge-check parecer delta docs/reviews/v0479-bp2-i2-regra.md`, intervalo 0ce5173b..80f4bd1f (base origin/develop 004ce86 → 8a50379), 4 arquivos no domínio: `changelog.d/v0479-bp2-i2-regra.md`, `docs/protecao-de-branch.md`, `skills/trabalho-em-paralelo/ritmo-e-corte.md`, `templates/projeto/docs/engineering/protecao-de-branch.md`; o resto do intervalo é parecer (QA, segurança e o meu). Só texto, 0 linha de código (H1 ok).
 
-## Achados
-- A1 (bloqueante) docs/protecao-de-branch.md:45 · Diz que o `bin/forge-fechar` já barra o PR testado sobre `develop` velha; hoje o 6a segue sem retestar (bin/forge-fechar:937, E8) e a I4 não entrou. Escreva que, até a I4, a fila é à mão (como o `ritmo-e-corte.md`), senão quem lê pula a conferência (`R-FLUXO`, D3).
-- A2 (recomendado) templates/projeto/docs/engineering/protecao-de-branch.md:30 · O passo 8 ainda diz que a branch traz a base uma vez; a seção nova (linha 51) e a D3 pedem novo teste sempre que a base anda. Alinhe o passo 8 aqui e em docs/protecao-de-branch.md:21.
+- A1 (reprovado em 0ce5173b) resolvido: `docs/protecao-de-branch.md:45` diz agora que, até a I4 entrar no `bin/forge-fechar`, a fila é à mão pelo `tech-lead` e que o passo 6a só para no conflito, sem retestar (casa com `bin/forge-fechar:937`, S1 do parecer anterior); `ritmo-e-corte.md:24` e o fragmento do changelog dizem o mesmo.
+- A2 resolvido: o passo 8 dos dois documentos de proteção (`docs/protecao-de-branch.md:21`, `templates/projeto/docs/engineering/protecao-de-branch.md:30`) remete o novo teste sobre o topo à fila da `R-FLUXO` (D3) e não diz mais que a base entra uma vez; a seção "Fila de merge" citada existe (linha 48 do modelo).
+- C3 e C4 do conserto ficaram mais completos (achados da segurança; o mérito é dela).
 
-## Sondas
-- S1 · grep -n "sigo para o merge" bin/forge-fechar · espera: o 6a recusa ou retesta quando a base andou · obtido: 937 echo "... sem conflito com $ref; não trago a base (E8); sigo para o merge."
+Módulos de texto rodados no head 80f4bd1f: `tests.test_modelos_projeto` e `test_forge` Neutralidade, NeutralidadeDoNucleo, RegrasInviolaveis, RegrasComId, TextosDoAgenteEDaRegra: 35 testes OK. Suíte inteira: no CI do PR.
 
 ## Parecer
-Reprovado por A1: documento de proteção afirma um controle que a ferramenta ainda não tem (prova em S1); a correção é de uma frase. A2 não devolve e vira cartão. Os A1 do QA (linha da `develop` sem invariante) e da segurança (C3 e C4 mais completos) são deles; não repito.
+Aprovado no head 80f4bd1f: A1 e A2 corrigidos, sem achado novo no delta.
