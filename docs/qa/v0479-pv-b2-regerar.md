@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pv-b2-regerar
-commit: c5815650ef8c81b24ca7d466b7a23f04239458b6
+commit: 8e4888290286ba9a46948d19583ba90e9fc90363
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -44,3 +44,15 @@ contagem: não prova (passa na base)=174; prova (API ausente)=1; prova (asserç�
 - Mutação: `bin/forge-mutante tests/mutantes/v0479-pv-b2-regerar.json tests/mutantes/v0479-pv-b2-regerar-2.json` -> G1 a G16 todos `morreu`, rc=0.
 - Cobertura: `forge-mutante --cobertura --base ed5bfa0284c3bbf2ac006d546daf96b1346886ff` -> `base=ed5bfa02… mb=ed5bfa02… rev=c5815650…`; só linhas `coberta`, nenhuma condição sem mutante.
 - Diff conferido: sem mudança de escopo; AR-12 (`except` do R6 do B1 intacto) atendido.
+
+## Revalidação (delta c5815650..8e488829)
+Domínio: `bin/forge-testes` (fotografia com `--ignored=traditional` e `SEM_BYTECODE`), o teste de caminho ignorado e a spec `-3` (G17, G18). Aviso do `forge-check parecer delta`: o merge 8a5c17a não está na origin/develop local; o que ele trouxe contou inteiro e nada fora do domínio foi relido.
+
+| Critério (obrigação) | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Escrita em caminho ignorado (`.forge/`, existente ou novo) sai 2; `__pycache__` não conta (A1 da segurança) | `test_escrita_em_caminho_ignorado_sai_2_e_o_bytecode_nao` | ignorado arquivo a arquivo; bytecode fora | passou |
+
+- Local: `python3 -I -m unittest discover -s tests -p test_testes_tocados.py -k Regerar` -> Ran 12 tests, OK.
+- Vermelho (`--modulos test_testes_tocados`): `vermelho: base=c5815650ef8c head=8e4888290286 módulos=test_testes_tocados (restrito por --modulos)`; `test_escrita_em_caminho_ignorado_sai_2_e_o_bytecode_nao · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=185; prova (asserção)=1; pulado=1`; rc=0.
+- Mutação do delta: `base=c5815650ef8c81b24ca7d466b7a23f04239458b6 mb=c5815650… rev=8e4888290286…`; G1 a G18 todos `morreu` (G17 bin/forge-testes:1005, G18 bin/forge-testes:990), rc=0.
+- Cobertura (`--cobertura --base ed5bfa02…`): 14 linhas, todas `coberta`; nenhuma condição sem mutante; as duas linhas novas (argumentos e constante do pathspec) não são condição e têm G17 e G18.
