@@ -4,6 +4,12 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.47.11] - 2026-11-20
+### Adicionado
+- `forge-placar fases`: média, mediana e p75 do 1.º commit ao merge com a meta de 42 min à vista, corte por hora do merge (`--desde`/`--ate`), PR e hora do merge de cada item no `--json` e as horas paradas por queda de sessão, develop vermelha e promoção travada, cada uma com a fonte por escrito (v0478 E36.1).
+### Corrigido
+- Testes: a sonda S1 do prazo do merge usa a parcela de disputa, a CPU e o relógio do hook medidos no review, e não os da hora (E33.6), e o limite de CPU do corpus nos dois hooks vale pela menor de até 3 medidas; a carga do runner deixa de reprovar a develop sem perder o que os testes provam (v0478 E33.1).
+
 ## [0.47.10] - 2026-11-19
 ### Adicionado
 - `bin/forge-mutante SPEC --ids M22,M32` roda só esses mutantes da spec; o id que nenhuma spec declara (ou o vazio) sai 2 sem rodar nada, com a lista dos ids; `--ids` sem SPEC é recusado (v0478 FORGE-MUTANTE-POR-ID).
