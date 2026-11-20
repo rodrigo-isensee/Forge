@@ -4,6 +4,7 @@
 Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO ...] [CAMINHO ...]
      forge-testes --vermelho [BASE] [--modulos M[,M...]] [--prazo SEGUNDOS]   (M: test_<nome> ou tests.test_<nome>)
      forge-testes --texto
+     forge-testes --registros [--base REF]
   (sem opção)   lê o que mudou desde o ancestral comum com REF (padrão origin/develop), mais os arquivos
                 não commitados e os novos, e roda só os módulos de teste que cobrem esses caminhos
   CAMINHO       planeja só para estes caminhos (relativos ao diretório atual ou absolutos, dentro do repositório) e
@@ -16,6 +17,12 @@ Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO .
                 os arquivos de controle), nunca a suíte completa; o que nenhum teste lê fica para o CI, com aviso
   --texto      o pré-envio de texto (PRE-ENVIO-RAPIDO, mp1311): o mapa de testes e os testes de tamanho de texto
                 (`TESTES_DE_TEXTO`), num `unittest` só, com o código de saída dele e uma linha de resumo; não combina com nada
+  --registros  a conferência de registros (PR-VERDE B1), só leitura e em segundos: roda, em paralelo, os mesmos testes do CI
+                para o teto dos agentes, o índice do Forge, as specs de mutante (AR-12), o mapa deste script e os pesos da
+                suíte (`REGISTROS`), mais o `forge-changelog conferir --base REF` e o peso de todo módulo de teste novo em
+                tests/pesos-d4.json. Busca a `origin/<ramo>` de REF antes (sem rede, aviso: o CI confere). Saída 0 = em dia,
+                1 = algum registro desatualizado (uma linha `registro desatualizado:` por item), 2 = sem veredito (git ou
+                pesos ilegíveis); não combina com nada além de --base
 Os módulos do plano dirigido rodam em paralelo por `scripts/suite-partes.py` (o mecanismo do `suite-paralela`, em até
 4 processos, com a guarda de completude); com `-k`, ou sem os dois scripts, em série no `unittest`.
   --vermelho    prova que algum teste do diff derruba o defeito: roda os módulos em duas cópias commitadas em
@@ -63,6 +70,7 @@ import sys
 import tempfile
 import time
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -84,6 +92,29 @@ PRAZO_PADRAO = 600
 TESTES_DE_TEXTO = ("tests.test_testes_tocados", "tests.test_forge.Orcamento", "tests.test_jarvis_nucleo",
                    "tests.test_metricas_texto", "tests.test_orcamento_instrucao")
 PRAZO_MAXIMO = 3600
+# PR-VERDE B1 (v0478 E57.2, decisão do dono de 20/11): os registros que o CI reprova e o envio esquecia. Cada grupo é um
+# `unittest` dos testes do próprio CI (nunca cópia da regra), para a conferência não aprovar o que o CI reprova.
+# Os grupos rodam em paralelo, em até `PROCESSOS_DOS_REGISTROS`, do mais lento ao mais rápido (medida do item: o mapa
+# inteiro num processo passava de 40 s; separado, o envio espera o mais lento).
+_MAPA = "tests.test_testes_tocados."
+REGISTROS = (
+    ("mapa do forge-testes: importação e varredura", (_MAPA + "MapaCobreImportacaoEVarredura",)),
+    ("specs de mutante (AR-12)",
+     ("tests.test_forge_mutante.ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes",)),
+    ("mapa do forge-testes: o que os testes leem", (_MAPA + "MapaCobreOQueOsTestesLeem.test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo",)),
+    ("mapa do forge-testes: quem importa o hook",
+     (_MAPA + "QuemImporta.test_no_repositorio_o_plano_do_hook_traz_todo_teste_que_importa_um_modulo_do_plano",)),
+    ("índice do Forge", ("tests.test_indice_forge",)),
+    ("mapa do forge-testes: módulos e forge-check", (_MAPA + "Mapa.test_todo_modulo_do_mapa_existe",
+                                                     _MAPA + "Convencao.test_o_mapa_nao_repete_o_que_a_convencao_ja_acha",
+                                                     _MAPA + "MapaDoForgeCheck.test_mapa_lista_todo_modulo_que_usa_o_forge_check")),
+    ("teto dos agentes e orçamentos", ("tests.test_orcamento_instrucao", "tests.test_forge.Orcamento")),
+    ("pesos da suíte", ("tests.test_forge.PesosDaSuite",)),
+)
+CHANGELOG = ("bin/forge-changelog", "conferir", "--base")
+PESOS = Path("tests/pesos-d4.json")
+PROCESSOS_DOS_REGISTROS = 4
+RAMO_BUSCAVEL = re.compile(r"[A-Za-z0-9._/-]+")  # o ramo de `--base` que vai ao `git fetch` (nunca opção nem refspec)
 # O que o `--vermelho` mantém no HEAD nas duas cópias: módulos de teste e dados de teste. Falha fechada: todo o
 # resto (inclusive `tests/catraca.py`, `tests/neutralidade.py` e os apoios de `tests/`) é produção e volta à base.
 # `tests/config.json` fica no HEAD porque guarda os invariantes que provam o texto (a saída lista os mantidos).
@@ -877,6 +908,69 @@ def texto():
     return codigo
 
 
+# --- `--registros` (PR-VERDE B1): só leitura; nada grava na árvore (sem bytecode, sem log); sem `GIT_*` herdado nos
+# testes dos grupos e no changelog; a busca e o `git()` usam o ambiente da sessão ------------------------------------
+def buscar_base(base):
+    """Atualiza a `origin/<ramo>` de `base` antes de comparar: a base local velha esconde o que o CI vê. Devolve o aviso
+    quando a busca falha (sem rede: o CI confere), ou None. Com o ambiente da sessão, como o `git()` que compara: o
+    `GIT_CONFIG_*` herdado traz o proxy e a credencial da busca."""
+    remoto, _, ramo = base.partition("/")
+    if remoto != "origin" or not ramo:
+        return None
+    if not RAMO_BUSCAVEL.fullmatch(ramo) or ramo.startswith("-") or ".." in ramo:
+        return f"ramo inválido em {base} (só [A-Za-z0-9._/-], sem - no início nem ..); não busquei"
+    try:
+        r = subprocess.run(["git", "fetch", "-q", "--end-of-options", "origin", ramo], capture_output=True, text=True,
+                           timeout=60)
+    except subprocess.TimeoutExpired:
+        return f"não busquei {base} em 60 s; conferi contra a base local (o CI confere)"
+    if r.returncode:
+        return f"não busquei {base} ({r.stderr.strip()[:200]}); conferi contra a base local (o CI confere)"
+    return None
+
+
+def modulos_sem_peso(base):
+    """Módulo de teste novo (adicionado desde o ancestral comum com `base`, ou não versionado) sem peso em `PESOS`.
+    Levanta RuntimeError (git), OSError ou ValueError (pesos ilegíveis): sem veredito, nunca verde."""
+    ancora = git("merge-base", base, "HEAD").strip()
+    novos = set(git("diff", "--name-only", "--no-renames", "--diff-filter=A", ancora).splitlines())
+    novos |= set(git("ls-files", "--others", "--exclude-standard").splitlines())
+    pesos = json.loads(PESOS.read_text(encoding="utf-8"))
+    if not isinstance(pesos, dict):
+        raise ValueError(f"{PESOS} não é um objeto JSON")
+    return sorted(a.group(1) for a in map(MODULO_DE_TESTE.fullmatch, novos) if a and a.group(1) not in pesos)
+
+
+def registros(base):
+    """`--registros`: 0 em dia, 1 registro desatualizado, 2 sem veredito."""
+    inicio = time.monotonic()
+    aviso = buscar_base(base)
+    if aviso:
+        print(f"forge-testes: aviso: {aviso}", file=sys.stderr)
+    try:
+        sem_peso = modulos_sem_peso(base)
+    except (RuntimeError, OSError, ValueError) as erro:
+        print(f"forge-testes: registros sem veredito ({erro})", file=sys.stderr)
+        return 2
+    env = ambiente_da_copia()
+    comandos = [(nome, [sys.executable, "-m", "unittest", "-q", *testes]) for nome, testes in REGISTROS]
+    comandos.append(("changelog", [sys.executable, "-I", *CHANGELOG, base]))
+    with ThreadPoolExecutor(PROCESSOS_DOS_REGISTROS) as fila:
+        feitos = list(fila.map(lambda c: (c[0], subprocess.run(c[1], env=env, stdin=subprocess.DEVNULL,
+                                                               capture_output=True, text=True)), comandos))
+    falhas = [(nome, r) for nome, r in feitos if r.returncode]
+    for nome, r in falhas:
+        print(f"forge-testes: registro desatualizado: {nome} (rc={r.returncode})", file=sys.stderr)
+        print("\n".join((r.stdout + r.stderr).strip().splitlines()[-15:]), file=sys.stderr)
+    for modulo in sem_peso:
+        print(f"forge-testes: registro desatualizado: {modulo} sem peso em {PESOS}; meça com "
+              f"python3 scripts/suite-paralela.py --medir {modulo}", file=sys.stderr)
+    codigo = 1 if falhas or sem_peso else 0
+    print(f"forge-testes: registros rc={codigo} em {time.monotonic() - inicio:.0f} s "
+          f"({len(comandos)} conferências e o peso dos módulos de teste novos)")
+    return codigo
+
+
 def suite_na_trava(raiz, pedida):
     """`execv` de `pre-push --suite`; sem recuo para o `discover`. A completa que vem do plano só com o `--status` em 1
     (livre): com a suíte rodando, sai 2 na hora em vez de entrar na fila; a pedida (`--completa`) entra na fila."""
@@ -909,6 +1003,7 @@ def main(argv=None):
                    help="só os testes cujo nome contém PADRAO (como `unittest -k`; repita para somar)")
     p.add_argument("--vermelho", nargs="?", const=True, default=None, metavar="BASE")
     p.add_argument("--texto", action="store_true", help="o mapa de testes e os testes de tamanho de texto (pré-envio)")
+    p.add_argument("--registros", action="store_true", help="a conferência de registros do envio (PR-VERDE B1), só leitura")
     p.add_argument("--modulos", metavar="M[,M...]")
     p.add_argument("--prazo", type=int, metavar="SEGUNDOS", help=f"por módulo, em segundos (padrão {PRAZO_PADRAO})")
     p.add_argument("--executar", help=argparse.SUPPRESS)  # interno: o executor por teste do `--vermelho`
@@ -919,6 +1014,9 @@ def main(argv=None):
     if args.texto and (args.caminhos or args.completa or args.listar or args.afetados or args.filtros or args.vermelho is not None
                        or args.modulos is not None or args.prazo is not None):
         p.error("--texto não combina com outras opções")
+    if args.registros and (args.texto or args.caminhos or args.completa or args.listar or args.afetados or args.filtros
+                           or args.vermelho is not None or args.prazo is not None or args.modulos is not None):
+        p.error("--registros só combina com --base")
     if args.vermelho is None and args.modulos is not None:
         p.error("--modulos só vale com --vermelho")
     if args.vermelho is not None and (args.completa or args.listar or args.afetados):
@@ -950,6 +1048,8 @@ def main(argv=None):
         sys.exit(f"forge-testes: fora de um repositório git ({erro})")
     if args.texto:
         return texto()
+    if args.registros:
+        return registros(args.base)
     try:
         oraculos()
         pedidos = caminhos_pedidos(args.caminhos, origem, raiz) if args.caminhos else []
