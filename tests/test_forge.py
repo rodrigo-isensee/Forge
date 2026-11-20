@@ -7231,20 +7231,81 @@ class BloqueanteSoComDefeitoProvado(unittest.TestCase):
                     self.assertIn(frase, texto)
 
 
-class PesosDaSuite(unittest.TestCase):
-    """C5: o peso só equilibra a divisão, mas sem peso a mediana chuta; avisa quando passa de 20% sem peso."""
+MEDIR_PESO = "python3 scripts/suite-paralela.py --medir <módulo>"
 
-    def test_no_maximo_20_por_cento_dos_modulos_sem_peso(self):
-        modulos = sorted(p.stem for p in (RAIZ / "tests").glob("test*.py") if p.stem.isidentifier())
+
+def modulos_de_teste(caminhos):
+    """Os módulos de teste entre os `caminhos` (relativos à raiz, com `/`), como o `modulos()` do suite-paralela: os
+    `tests/test*.py` da raiz e os dos pacotes (pasta com `__init__.py` em todo nível), estes pelo nome com ponto."""
+    caminhos = set(caminhos)
+    nomes = set()
+    for c in caminhos:
+        partes = c.split("/")
+        if partes[0] != "tests" or len(partes) < 2 or not partes[-1].startswith("test") or not partes[-1].endswith(".py"):
+            continue
+        partes = [*partes[1:-1], partes[-1][:-3]]
+        if all(x.isidentifier() for x in partes) and all(
+                "/".join(["tests", *partes[:i + 1], "__init__.py"]) in caminhos for i in range(len(partes) - 1)):
+            nomes.add(".".join(partes))
+    return nomes
+
+
+def violacoes_de_peso(modulos_base, pesos_base, modulos_head, pesos_head):
+    """PR-VERDE C1 (D4): a regra é por PR. Devolve (novos sem peso, os que perderam o peso): módulo que o PR cria
+    precisa do peso medido; módulo da base que tinha peso não o perde. O sem peso que já vinha da base passa: a marca
+    de versão regera os pesos pelo CI (`scripts/pesos-do-ci.py`)."""
+    novos = sorted(m for m in modulos_head - modulos_base if m not in pesos_head)
+    perdidos = sorted(m for m in modulos_head & modulos_base if m in pesos_base and m not in pesos_head)
+    return novos, perdidos
+
+
+def base_do_pr():
+    """O merge-base do HEAD com a `origin/develop` (no CI do PR, a ponta da base; na develop, o próprio HEAD)."""
+    r = subprocess.run(["git", "-C", str(RAIZ), "merge-base", "HEAD", "refs/remotes/origin/develop"],
+                       capture_output=True, text=True, env=ambiente_limpo())
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+class PesosDaSuite(unittest.TestCase):
+    """PR-VERDE C1 (D4 do desenho v0479-pr-verde-de-primeira): o peso só equilibra a divisão; a regra global de 20% sem
+    peso vira regra por PR: o PR não aumenta os módulos sem peso além dos que já vinham da base."""
+
+    def test_pr_nao_aumenta_os_modulos_sem_peso(self):
+        base = base_do_pr()
+        self.assertTrue(base, "sem merge-base do HEAD com a origin/develop: a regra de pesos por PR não se confere "
+                              "(busque a develop: git fetch origin develop)")
+        arvore = subprocess.run(["git", "-C", str(RAIZ), "ls-tree", "-r", "--name-only", base, "--", "tests"],
+                                capture_output=True, text=True, env=ambiente_limpo(), check=True).stdout.split()
+        lido = subprocess.run(["git", "-C", str(RAIZ), "show", f"{base}:tests/pesos-d4.json"],
+                              capture_output=True, text=True, env=ambiente_limpo())
+        pesos_base = json.loads(lido.stdout) if lido.returncode == 0 else {}
+        # `(RAIZ / "tests").rglob` em linha: variável local não conta como quem varre tests/ (test_testes_tocados C.2)
+        arquivos = [*(RAIZ / "tests").rglob("test*.py"), *(RAIZ / "tests").rglob("__init__.py")]
+        head = modulos_de_teste(p.relative_to(RAIZ).as_posix() for p in arquivos)
+        minimo(head, 100, "módulos de teste")
         pesos = json.loads((RAIZ / "tests" / "pesos-d4.json").read_text(encoding="utf-8"))
-        sem_peso = [m for m in modulos if m not in pesos]
-        self.assertGreaterEqual(len(modulos), 1)
-        self.assertLessEqual(
-            len(sem_peso) * 5,
-            len(modulos),
-            f"{len(sem_peso)} de {len(modulos)} módulos sem peso ({', '.join(sem_peso)}); "
-            "meça cada um com python3 scripts/suite-paralela.py --medir <módulo> (ou a suíte inteira com FORGE_SUITE_MEDIR=1)",
+        novos, perdidos = violacoes_de_peso(modulos_de_teste(arvore), pesos_base, head, pesos)
+        self.assertEqual(novos, [], f"módulo de teste novo sem peso em tests/pesos-d4.json; meça cada um com {MEDIR_PESO}")
+        self.assertEqual(perdidos, [], "módulo que tinha peso na base o perdeu em tests/pesos-d4.json; devolva o peso "
+                                       f"ou meça de novo com {MEDIR_PESO}")
+
+    def test_regra_por_pr(self):
+        base, pesos_base = {"test_a", "test_b"}, {"test_a": 1.0}
+        casos = (
+            ({"test_a", "test_b"}, {"test_a": 1.0}, [], []),  # o sem peso da base passa
+            ({"test_a", "test_b", "test_c"}, {"test_a": 1.0}, ["test_c"], []),  # novo sem medida reprova
+            ({"test_a", "test_b", "test_c"}, {"test_a": 1.0, "test_c": 0.4}, [], []),  # novo medido passa
+            ({"test_a", "test_b"}, {}, [], ["test_a"]),  # tirar o peso de módulo existente reprova
+            ({"test_b"}, {}, [], []),  # módulo apagado com o peso dele passa
         )
+        for head, pesos, novos, perdidos in casos:
+            with self.subTest(head=sorted(head), pesos=pesos):
+                self.assertEqual(violacoes_de_peso(base, pesos_base, head, pesos), (novos, perdidos))
+
+    def test_modulos_de_pacote_e_da_raiz(self):
+        caminhos = ["tests/test_a.py", "tests/apoio.py", "tests/p/__init__.py", "tests/p/test_b.py",
+                    "tests/sem_init/test_c.py", "tests/test-d.py", "bin/test_e.py"]
+        self.assertEqual(modulos_de_teste(caminhos), {"test_a", "p.test_b"})
 
 
 class EsperaDoPushEVerificadores(unittest.TestCase):

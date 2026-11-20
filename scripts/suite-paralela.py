@@ -668,6 +668,7 @@ def montar_resumo(veredito, linhas, partes, relatorios, duracoes, pesos, total, 
     sem_peso = sorted(nomes - set(pesos))
     if sem_peso:
         texto.append(f"- sem peso em {PESOS.relative_to(RAIZ)}: {lista_curta(sem_peso, LIMITE_SEM_PESO)}")
+        texto.append("- módulo novo do PR: meça com `python3 scripts/suite-paralela.py --medir <módulo>`; o resto, a marca de versão regera")
     return "\n".join(texto) + "\n"
 
 
