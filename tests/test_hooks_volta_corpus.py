@@ -31,6 +31,7 @@ from apoio_volta_unica import (  # noqa: E402
     IDS_DA_VOLTA_UNICA,
     MedidaDeCpu,
     MINIMO_POR_CLASSE,
+    chamadas_do_executar,
     NAO_PROMETE,
     RAIZ,
     REGRAS_DA_VOLTA_UNICA,
@@ -132,11 +133,11 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
                          [(inspect.Parameter.KEYWORD_ONLY, time.monotonic), (inspect.Parameter.KEYWORD_ONLY, signal.setitimer)])
         chamadas = []
         for script in sorted(HOOKS.glob("*.py")):
-            for n in ast.walk(ast.parse(script.read_text(encoding="utf-8"))):
-                if isinstance(n, ast.Call) and getattr(n.func, "id", getattr(n.func, "attr", None)) == "executar":
-                    chamadas.append(script.name)
-                    with self.subTest(hook=script.name):
-                        self.assertEqual([k.arg for k in n.keywords if k.arg is None or k.arg in ("relogio", "armar")], [])
+            arvore = ast.parse(script.read_text(encoding="utf-8"))
+            for n in chamadas_do_executar(arvore):
+                chamadas.append(script.name)
+                with self.subTest(hook=script.name):
+                    self.assertEqual([k.arg for k in n.keywords if k.arg is None or k.arg in ("relogio", "armar")], [])
         self.assertGreaterEqual(len(chamadas), 10, "chamadas a `executar` nos hooks")
         self.assertEqual(len(chamadas), len(set(chamadas)), "uma chamada por hook")
         driver = ast.parse(self.DRIVER_DOS_HOOKS)
@@ -144,6 +145,21 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
                       if isinstance(k, ast.Constant)}
         self.assertTrue({"regra_do_prazo", "prazo_longo"} <= repassados, repassados)
         self.assertEqual(repassados & {"relogio", "armar"}, set())
+
+    def test_chamada_com_apelido_do_import_e_pega_com_relogio(self):  # BP1, A1 da segurança (E37.31)
+        """Um hook de exemplo que importa `executar` com apelido, ou chama `c.executar` pelo módulo, e passa `relogio=` ou
+        `armar=` é achado pela mesma resolução de nomes que confere os hooks reais."""
+        exemplos = {
+            "apelido": "from _comum import executar as rodar\nrodar('x', f, g, relogio=r)\n",
+            "modulo com apelido": "import _comum as c\nc.executar('x', f, g, armar=a)\n",
+            "modulo": "import _comum\n_comum.executar('x', f, g, **k)\n",
+        }
+        for nome, fonte in exemplos.items():
+            with self.subTest(exemplo=nome):
+                achadas = chamadas_do_executar(ast.parse(fonte))
+                self.assertEqual(len(achadas), 1)
+                self.assertTrue([k.arg for k in achadas[0].keywords if k.arg is None or k.arg in ("relogio", "armar")])
+        self.assertEqual(chamadas_do_executar(ast.parse("from outro import executar as rodar\nc.executar(1)\nrodar(2)\n")), [])
 
     def test_corpus_nos_dois_hooks(self):
         """O corpus nos dois hooks cabe no limite de CPU. A CPU gasta cresce com a disputa da máquina (cache e SMT: 127 s
