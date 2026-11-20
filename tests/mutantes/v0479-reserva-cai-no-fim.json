@@ -112,6 +112,56 @@
       "testes": [
         "tests.test_agentes_interrompidos.FimDoAgente.test_fim_sem_agent_id_nao_solta_reserva_nenhuma"
       ]
+    },
+    {
+      "id": "M13",
+      "guarda": "o toolUseId do meta só vale com a forma de id de uso (isinstance)",
+      "arquivo": "hooks/agentes.py",
+      "de": "return uso if isinstance(uso, str) and USO_DE_AGENTE.fullmatch(uso) else None",
+      "para": "return uso if USO_DE_AGENTE.fullmatch(uso) else None",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_tool_use_id_do_meta_fora_da_forma_deixa_o_casamento_pela_ordem"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "o toolUseId do meta só vale com a forma de id de uso (fullmatch)",
+      "arquivo": "hooks/agentes.py",
+      "de": "return uso if isinstance(uso, str) and USO_DE_AGENTE.fullmatch(uso) else None",
+      "para": "return uso if isinstance(uso, str) else None",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_tool_use_id_do_meta_fora_da_forma_deixa_o_casamento_pela_ordem"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "com os dois tool_use_id, o registro é do agente só se for igual ao do uso",
+      "arquivo": "hooks/agentes.py",
+      "de": "return registro[\"tool_use_id\"] == uso",
+      "para": "return registro[\"tool_use_id\"] != uso",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_o_fim_de_um_solta_a_branch_dele_e_nao_a_do_outro_vivo"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "o fim só lê o meta com agent_id",
+      "arquivo": "hooks/agentes.py",
+      "de": "uso = uso_do_agente(hook, aid) if aid else None",
+      "para": "uso = uso_do_agente(hook, aid) if not aid else None",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_o_fim_de_um_solta_a_branch_dele_e_nao_a_do_outro_vivo"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "o fim tira dos agentes só os parados",
+      "arquivo": "hooks/agentes.py",
+      "de": "agentes = [a for a in agentes if not any(a is p for p in parados)]",
+      "para": "agentes = [a for a in agentes if any(a is p for p in parados)]",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_o_fim_de_um_solta_a_branch_dele_e_nao_a_do_outro_vivo"
+      ]
     }
   ]
 }
