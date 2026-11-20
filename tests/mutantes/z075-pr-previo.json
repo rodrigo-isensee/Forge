@@ -70,7 +70,7 @@
       "de": "return cmd_pr(raiz, pedido, ref, None, branch, previo) + (",
       "para": "return cmd_pr(raiz, pedido, ref, None, branch) + (",
       "testes": [
-        "tests.test_revisor_wt.PrPrevio.test_ausente_com_previo_e_aviso_e_sem_previo_e_violacao"
+        "tests.test_revisor_wt.PrPrevio.test_ausente_sem_base_e_sem_develop_o_diff_literal_leva_o_previo"
       ]
     },
     {
