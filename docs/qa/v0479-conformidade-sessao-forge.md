@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-sessao-forge
-commit: b22efaae57691ca4bc95d62eda389f75b60e6869
+commit: c792b567222a828209c6435b71f571cc925c1dd0
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -76,3 +76,14 @@ Mutantes do delta: `bin/forge-mutante --base bc385524277c69f47a6cb0f7ed5d37cee57
 ## Achados
 - A3 (recomendado) bin/forge-testes:1 · `--vermelho` do `test_hooks` leva 2200 s por cópia e não aceita `-k` nem classe; `test_vigia_registra` fica sem veredito por erro da base. Cartão: veredito por classe.
 - A4 (recomendado) tests/test_hooks.py:3638 · piso de `e51-*` segue 55 e a pasta tem 59 fixtures (4 novas do E51.22); pasta que perca até 4 fixtures ainda passa. Subir o piso para 59.
+
+## Revalidação E51.29 (head c792b567, antes b22efaae)
+
+Delta por `forge-check parecer delta` (sem o que veio da `develop`): `docs/hooks-fixtures.md`, `docs/hooks.md`, `tests/apoio_volta_unica.py`, `tests/provas/v0479-corpus-custo.md`. Nenhum código de hook mudou no delta próprio; escopo funcional dos `CA` inalterado, aprovação anterior vale. Remoto sem avanço (`git fetch`: igual ao head local).
+
+| Obrigação | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Teto do interpretador sobe só +2168 passos (DECISÃO DO DONO 20/11 19:55, só E51) | `tests.test_hooks_volta_corpus` (teto é a medida exata) | 5893967 para 5896135 = +2168; um passo a mais reprova | passou |
+| Índice das fixtures igual ao gerado pelo script | `tests.test_indice_fixtures` | 3158 fixtures | passou |
+
+Prova: `python3 -m unittest tests.test_hooks_volta_corpus tests.test_indice_fixtures` (sem `-I`): `Ran 40 tests in 170.991s · OK`. Registro em `tests/provas/v0479-corpus-custo.md` confere com o código e com a decisão. Suíte inteira: só no CI do PR, não rodada aqui. Teste novo de regra: nenhum no delta (só constante e índice gerado), sem vermelho antes do verde aplicável.
