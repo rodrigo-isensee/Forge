@@ -1199,7 +1199,9 @@ class Vermelho(unittest.TestCase):
         self.salvar("apoio")
 
     def modulos_do_vermelho(self, r):
-        linha = next(l for l in r.stdout.splitlines() if l.startswith("vermelho: base="))
+        linhas = [l for l in r.stdout.splitlines() if l.startswith("vermelho: base=")]
+        self.assertTrue(linhas, f"sem a linha do plano (rc={r.returncode}):\n{r.stdout}{r.stderr}")
+        linha = linhas[0]
         return linha.split("módulos=")[1].split(" ")[0].split(","), linha
 
     # M8, opção C (critério de fim, item 4): o `--vermelho` sem `--modulos` não manda módulo de teste ao `planejar`.
@@ -1317,7 +1319,9 @@ class Vermelho(unittest.TestCase):
                 self.assertEqual(self.modulos_do_vermelho(r)[0], ["evals.test_novo"], r.stdout)
                 self.assertIn("tests.evals.test_novo.T.test_um · H=ok · B=falha · prova (asserção)", r.stdout)
                 self.assertIn("tests.evals.test_novo.T.test_dois · H=ok · B=ok · não prova (passa na base)", r.stdout)
-        self.assertNotIn("tests/evals/test_novo.py", r.stdout.split("revertidos à base:")[1].split("\n")[0])
+        revertidos = [l for l in r.stdout.splitlines() if l.startswith("revertidos à base:")]
+        self.assertEqual(len(revertidos), 1, r.stdout + r.stderr)
+        self.assertNotIn("tests/evals/test_novo.py", revertidos[0])
 
     def test_vermelho_de_modulo_de_pacote_marca_herdada_o_teste_que_a_base_ja_tinha(self):  # VERMELHO-TESTS-EVALS
         self.gravar("tests/evals/__init__.py", "")
