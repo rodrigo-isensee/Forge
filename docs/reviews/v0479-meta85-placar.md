@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-placar
-commit: 7e20ac8b8b61245135cd495a06aaa8795bfee4d4
+commit: 6f6aab30715d2ae7cd6136c37cc35ed10bb59f81
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
@@ -43,6 +43,11 @@ Provas no head 89936fa3: `python3 -I tests/evals/test_placar.py`: 50 testes OK. 
 Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-placar.md`, intervalo 89936fa3..7e20ac8b, domínio `tests/mutantes/v0479-placar-fases-6.json` (único arquivo no domínio). O `de` e o `para` do M34 passaram a incluir a linha do `raise` (`--prs {arq} não é JSON`), e o trecho `if fundo_demais(texto):` aparece uma vez em `bin/forge-placar` (ocorrências: 1), com a guarda em :237. Sem mudança de código nem de teste: o mutante não é mais ambíguo e o parecer segue aprovado.
 
 Provas no head 7e20ac8b: `bin/forge-mutante --processos 1 tests/mutantes/v0479-placar-fases-6.json`: rc 0, M34 morreu (bin/forge-placar:237), demais mortos. Sem achado novo.
+
+## Revalidação (E36.26, hora do merge sempre com +00:00)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-placar.md`, intervalo 7e20ac8b..6f6aab30, domínio `bin/forge-placar`, `tests/evals/test_placar.py`, `tests/mutantes/v0479-meta85-placar-5.json`. `hora_numerica` (bin/forge-placar:623) troca o `Z` final do `%cI` por `+00:00` e é aplicada só ao campo `merge` do item (:647); `total` e fases seguem pelo epoch. O teste usa um `git` falso no PATH que reescreve `+00:00` em `Z` só no fim do campo ou antes de espaço, o que imita o git novo e confere a mesma forma que o código corrige; o esperado é a hora com `+00:00`. Mutante M50 (`endswith("X")`) declarado em `v0479-meta85-placar-5.json`.
+
+Provas no head 6f6aab30: `python3 -I tests/evals/test_placar.py`: 51 testes OK. `bin/forge-mutante --processos 1 tests/mutantes/v0479-meta85-placar-5.json`: M50 morreu (bin/forge-placar:625), rc 0. `bin/forge-mutante --cobertura --base 7e20ac8b`: `coberta · bin/forge-placar:625 · M50`. Sem achado novo; parecer segue aprovado.
 
 ## Sondas
 - S1 · `bin/forge-placar fases --git . --ref origin/develop --dia 2026-11-19 --raiz-pedidos /root/.forge-contrib` (histórico sem PARADA) · espera: `horas paradas, sessão: -` · obtido: 87aff761 `0 h 00 min`; 97ef4fd1 `-`
