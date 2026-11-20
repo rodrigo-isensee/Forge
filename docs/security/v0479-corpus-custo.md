@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-corpus-custo
-commit: 41db435f92eeadb4d16f641857538e77a1ca9657
+commit: 618af3034626baf06e90b26a51da716400eb46b2
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-20
@@ -27,9 +27,9 @@ Rodei `ContadorDeTrabalhoDoCorpus` (6 testes, OK) e `test_corpus_nos_dois_hooks`
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito.
 
-## Revalidação (b953cd45..41db435f)
-Lido: `forge-check parecer delta` (único arquivo no domínio: `tests/test_hooks_volta_corpus.py`) e, por pedido, o `sitecustomize` do contador em `tests/apoio_volta_unica.py` (fora do domínio da ferramenta). Nenhum arquivo de `hooks/`, `bin/`, `scripts/`, `.githooks/` nem `.github/` mudou no intervalo (`git diff --name-only`); sem achado novo.
-- Fora de produção: o `sitecustomize` é só a string `SITE_DO_CONTADOR`, gravada por `ContadorDeTrabalho.__init__` numa pasta `site/` do tmp do teste e posta no `PYTHONPATH` só do ambiente passado ao hook pelo teste. Não existe `sitecustomize.py` versionado para ele; `grep` de `FORGE_TESTE_TRABALHO` em `hooks/`, `bin/`, `scripts/`, `.githooks/` e `ci.yml` não acha nada. Só liga com `FORGE_TESTE_TRABALHO` no ambiente (`if _pasta:`); o de passos do interpretador também exige `FORGE_TESTE_TRABALHO_CODIGO` e `sys.monitoring`.
-- Não muda a decisão: os callbacks só incrementam um contador ou devolvem `DISABLE`; o `time.sleep` embrulhado chama o original; o audit hook só anota. As variáveis do teste só entram no `extra` do fixture; o `HOME` vazio e a entrada de `prazo_de_producao` sem o interpretador mudam o custo, e a decisão segue conferida pelo `esperado` (código e saída) de cada fixture, que o diff não tocou.
-- Nada saiu: os fixtures do corpus e os arquivos de recusa não aparecem no diff (só `tests/mutantes/*.json` ganharam mutantes, sem remoção de fixture). No `test_hooks_volta_corpus.py` as quatro asserções retiradas são as do teto antigo de subprocessos, trocadas por asserções mais estritas (teto medida mais ruído 0, execuções a mais ou a menos, um acima do teto, sono); `executar_em_lote(casos) == len(casos)` e o `esperado` por caso ficam.
-Não rodei o teste do corpus nesta volta; a suíte inteira fica para o CI. Parecer segue `aprovado`.
+## Revalidação (41db435f..618af303, E41.7)
+Lido: `forge-check parecer delta` (intervalo 41db435f..674847bf, sem o que veio da develop em cf097822). Do domínio, só `tests/test_hooks_volta_corpus.py`, e o trecho listado (BP1, `chamadas_do_executar`) já está em cf097822: é da develop, fora desta volta. Leitura anterior: o resto do parecer acima, no head 41db435f.
+- Delta próprio da branch: 618af303 troca só `MEDIDA_DO_CORPUS["interpretador"]` de 5860121 para 5893967 (`tests/apoio_volta_unica.py:194`) e registra a medida em `tests/provas/v0479-corpus-custo.md`. Execuções (557), subprocessos (4631), ambiente (234) e profundidade (2) seguem iguais.
+- A subida tem origem fora da branch: `git diff cf097822 618af303 -- hooks bin scripts .githooks .github` é vazio; o código de controle que o hook roda é o da develop, e o registro atribui os 33846 passos a `hooks/_comum.py`, `hooks/agentes.py` e `forge-check` da develop. Nenhuma fixture nem asserção de recusa mudou.
+- Teto exato continua fechando: `RUIDO_DO_CORPUS` segue 0 nos dois, `teto = medida + ruido` e reprova com `trabalho[nome] > teto` (`tests/apoio_volta_unica.py:261-263`); `test_um_acima_do_teto_reprova` prova que um passo acima reprova. Rodei `ContadorDeTrabalhoDoCorpus` (12 testes, OK). A medida determinística em duas rodadas é prova do QA (E41.8); o corpus inteiro e a suíte ficam para o CI.
+Sem achado. Parecer segue `aprovado`.
