@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_forge_quarentena.AtivasEVencidas.test_com_erro_nao_exclui_nada_de_ativas_nem_de_vencidas"
       ]
+    },
+    {
+      "id": "Q16",
+      "guarda": "ativa vale até o prazo, inclusive",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "hoje <= prazo_efetivo(e)]",
+      "para": "hoje < prazo_efetivo(e)]",
+      "testes": [
+        "tests.test_forge_quarentena.AtivasEVencidas.test_vale_ate_o_prazo_inclusive"
+      ]
     }
   ]
 }
