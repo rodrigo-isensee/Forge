@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-meta85-placar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "so run reprovado ou verde entra",
+      "arquivo": "bin/forge-placar",
+      "de": "if r.get(\"conclusion\") in (\"failure\", \"success\"))",
+      "para": "if True)",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_horas_paradas_da_develop_vermelha_pelo_ci"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "vermelha segue do primeiro reprovado",
+      "arquivo": "bin/forge-placar",
+      "de": "if conclusao == \"failure\" and desde is None:",
+      "para": "if conclusao == \"failure\":",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_horas_paradas_da_develop_vermelha_pelo_ci"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "verde depois de verde nao abre intervalo",
+      "arquivo": "bin/forge-placar",
+      "de": "elif conclusao == \"success\" and desde is not None:",
+      "para": "elif conclusao == \"success\":",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_horas_paradas_da_develop_vermelha_pelo_ci"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "vermelha sem verde depois conta ate o fim",
+      "arquivo": "bin/forge-placar",
+      "de": "    if desde is not None:\n        intervalos.append((desde, min(",
+      "para": "    if False:\n        intervalos.append((desde, min(",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_horas_paradas_da_develop_vermelha_pelo_ci"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "vermelha em curso conta so ate agora",
+      "arquivo": "bin/forge-placar",
+      "de": "min(janela[1], datetime.datetime.now().timestamp())",
+      "para": "max(janela[1], datetime.datetime.now().timestamp())",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_develop_ainda_vermelha_conta_ate_agora"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "parada sem fonte sai tracinho no texto",
+      "arquivo": "bin/forge-placar",
+      "de": "\"-\" if minutos is None else",
+      "para": "\"-\" if False else",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_horas_paradas_de_sessao_e_promocao_pelo_historico"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "sem corte vale o dia do merge",
+      "arquivo": "bin/forge-placar",
+      "de": "if por_hora else (lambda _, cs: cs == dia)",
+      "para": "if True else (lambda _, cs: cs == dia)",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_corte_por_hora_do_merge"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "recorte so com corte por hora",
+      "arquivo": "bin/forge-placar",
+      "de": "\"recorte\": recorte if por_hora else None",
+      "para": "\"recorte\": recorte if True else None",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_corte_por_hora_do_merge"
+      ]
+    }
+  ]
+}
