@@ -264,7 +264,7 @@ class Supervisor(Base):
         self.rodar(tmux_dentro=True)
         primeira, segunda = self.execucoes()
         self.assertEqual(primeira.replace(" --continue", ""), segunda.replace(" --continue", ""))
-        self.assertIn("--continue", segunda.split())
+        self.assertEqual(segunda.split().count("--continue"), 1, segunda)
         self.assertIn("--permission-mode auto", segunda)
 
     def test_reabertura_registra_em_quedas_log(self):
@@ -316,10 +316,13 @@ class Supervisor(Base):
         self.saidas(*[137] * 10)
         self.rodar(tmux_dentro=True, FORGE_QUEDA_ESPERA="0", FORGE_QUEDA_JANELA="150")  # 2 quedas por janela: nunca chega a 3
         self.assertEqual(len(self.execucoes()), 11)
-        self.log.unlink()
-        self.saidas(*[137] * 10)
-        self.rodar(tmux_dentro=True, FORGE_QUEDA_ESPERA="0", FORGE_QUEDA_JANELA="abc")  # inválido: volta a 1800
-        self.assertEqual(len(self.execucoes()), 4)
+        for passo, corridas in (("500", 4), ("1000", 11)):  # inválido: volta a 1800 s (nem menor nem maior)
+            with self.subTest(passo=passo):
+                self.log.unlink()
+                self.relogio.write_text(f"1000000 {passo}\n", encoding="utf-8")
+                self.saidas(*[137] * 10)
+                self.rodar(tmux_dentro=True, FORGE_QUEDA_ESPERA="0", FORGE_QUEDA_JANELA="abc")
+                self.assertEqual(len(self.execucoes()), corridas)
 
     def test_espera_padrao_dez_segundos_e_configuravel(self):
         self.saidas(137, 0)
