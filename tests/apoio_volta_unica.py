@@ -1190,16 +1190,41 @@ print(json.dumps(saida))
             signal.signal(signal.SIGALRM, anterior)
 
 
-def chamadas_do_executar(arvore):
-    """As chamadas a `_comum.executar` num módulo, também pelos nomes que o import dá a ela: `from _comum import executar
-    as rodar` (apelido) e `import _comum as c` com `c.executar(...)` (atributo do módulo); o nome `executar` solto vale."""
+def nomes_do_executar(arvore):
+    """Os nomes que o import dá a `_comum.executar` num módulo: (apelidos da função, nomes do módulo `_comum`)."""
     apelidos, modulos = {"executar"}, {"_comum"}
     for no in ast.walk(arvore):
         if isinstance(no, ast.ImportFrom) and no.module == "_comum":
             apelidos |= {a.asname or a.name for a in no.names if a.name == "executar"}
         elif isinstance(no, ast.Import):
             modulos |= {a.asname or a.name for a in no.names if a.name == "_comum"}
+    return apelidos, modulos
+
+
+def chamadas_do_executar(arvore):
+    """As chamadas a `_comum.executar` num módulo, também pelos nomes que o import dá a ela: `from _comum import executar
+    as rodar` (apelido) e `import _comum as c` com `c.executar(...)` (atributo do módulo); o nome `executar` solto vale."""
+    apelidos, modulos = nomes_do_executar(arvore)
     return [n for n in ast.walk(arvore) if isinstance(n, ast.Call)
             and (isinstance(n.func, ast.Name) and n.func.id in apelidos
                  or isinstance(n.func, ast.Attribute) and n.func.attr == "executar"
                  and isinstance(n.func.value, ast.Name) and n.func.value.id in modulos)]
+
+
+def referencias_ao_executar_fora_de_chamada(arvore):
+    """Os nós que citam o `executar` de `_comum` sem ser a chamada direta: o nome ou o apelido solto (`x = executar`,
+    `partial(executar, ...)`), qualquer atributo `.executar` (`importlib.import_module("_comum").executar`) e a cadeia
+    `"executar"` (`getattr(c, "executar")`). Por essas formas o `relogio=` e o `armar=` passariam sem aparecer numa chamada."""
+    apelidos, _ = nomes_do_executar(arvore)
+    diretas = {id(n.func) for n in chamadas_do_executar(arvore)}
+    achadas = []
+    for no in ast.walk(arvore):
+        if id(no) in diretas:
+            continue
+        if isinstance(no, ast.Name) and no.id in apelidos:
+            achadas.append(no)
+        elif isinstance(no, ast.Attribute) and no.attr == "executar":
+            achadas.append(no)
+        elif isinstance(no, ast.Constant) and no.value == "executar":
+            achadas.append(no)
+    return achadas
