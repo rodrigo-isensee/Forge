@@ -3,26 +3,25 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-sessao-forge
-commit: 29cbd24dc696ec318b4a53eb9322f46f149ae713
+commit: a554e34536490ff7af78000f76b67a1652f6e840
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
 ---
-# Review: v0478 (E51.11, revalidação de CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE)
+# Review: v0478 (E51.15, revalidação de CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE)
 
-Delta lido (H3, `R-REVIEW`): `forge-check parecer delta docs/reviews/v0479-conformidade-sessao-forge.md`, intervalo `d2358465..29cbd24d`; no domínio, `changelog.d/v0479-conformidade-sessao-forge.md`, `docs/hooks.md`, `hooks/conformidade.py`, `tests/test_hooks.py`, `tests/mutantes/v0479-conformidade-sessao-forge-{3,4,5}.json` e as fixtures `e51-*` novas ou mudadas. O aviso do delta sobre o merge 7d7fda5 fora da `origin/develop` só alarga a lista; o código do intervalo é o da E51.10.
+Delta lido (H3, `R-REVIEW`): `forge-check parecer delta docs/reviews/v0479-conformidade-sessao-forge.md`, intervalo `29cbd24d..a554e345`; no domínio, `changelog.d/v0479-conformidade-sessao-forge.md`, `docs/hooks.md`, `hooks/conformidade.py`, `tests/test_hooks.py`, `tests/mutantes/v0479-conformidade-sessao-forge-5.json` e oito fixtures `e51-wt-*` novas. O aviso do delta sobre o merge 39013d7 fora da `origin/develop` só alarga a lista; o código do intervalo é o da E51.14.
 
 ## Sondas
-- S1 · hook desta cópia, CLAUDE_PROJECT_DIR=/workspaces/Forge, cwd nesta wt, forge:tech-lead, `git -c alias.p=push p origin develop` · espera: 2 · obtido: 2 (R-REVIEW `git -c alias.p`; A1 anterior)
-- S2 · mesmo leiaute, `bash <<< 'git push origin develop'`, `bash <<EOF` com push para develop, `sh <<'X'` com `B=develop; git push origin $B`, `cat <<EOF | bash` com push e `bash -c "$(echo git) push origin develop"` · espera: 2 · obtido: 2 nos cinco
-- S3 · mesmo leiaute, `python3 - <<EOF` que só imprime o push, `gh pr edit 12 --body "$B"`, `` bash -c "echo \`git log -1\`" ``, `git log --oneline -3` e `git push origin melhoria/x` · espera: 0 · obtido: 0 nos cinco
-- S4 · projeto em $TMPDIR com `.forge/versao`, `gh pr edit 12 --base main` · espera: o mesmo da wt · obtido: 0 nos dois (pôr `gh pr edit` fora das travas não abre o que o projeto fecha)
+- S1 · hook desta cópia, CLAUDE_PROJECT_DIR=/workspaces/Forge, cwd nesta wt, forge:tech-lead, `eval 'eval "B=develop; git push origin \$B"'` e `sh -c 'eval "git push origin \$B"'` · espera: 2 · obtido: 2 nos dois
+- S2 · mesmo leiaute, `bash -c` com `bash <<EOF` cujo corpo faz `B=main; git push origin $B` · espera: 2 · obtido: 2 (heredoc no 2.º nível segue lido)
+- S3 · mesmo leiaute, `bash -c 'bash -c "git log -1"'`, `bash -c 'sh scripts/x.sh'` e `git push origin melhoria/x` · espera: 0 · obtido: 0 nos três (o fecho do 2.º nível só pesa com recusa opaca na linha)
 
 ## Parecer
-Aprovado. O A1 anterior está corrigido: as cinco recusas de alias (`hooks/conformidade.py:2630`, `2637`, `2640`, `2647`, `2753`) levam `trava=TRAVA_OPACA`, e `docs/hooks.md:63` diz agora que o alias da configuração e o da linha são trava (S1). As correções do QA E51.9 cabem no mesmo predicado: o corpo de heredoc só vira comando quando o dono o roda (`corpo_so_lido`, o mesmo da conferência da linha), o here-string de shell é relido como o `sh -c`, e `texto_reavaliado` deixa opaca a palavra com substituição do bash de fora e lê a crase escapada como a do bash de dentro (S2, S3). `gh pr edit` entrou na lista fora das travas sem divergir do projeto (S4).
+Aprovado. O A1 da segurança E51.12 está corrigido por uma guarda só (`hooks/conformidade.py:3842`): no texto reavaliado (nível 1), o `eval` ou o shell com argumento ou here-string é trava e fecha na dúvida, em vez de reler um terceiro nível; o heredoc do 2.º nível continua lido pelo corpo (S2). As quatro formas S1 a S4 da segurança têm fixture `-bloqueia`, e as formas legítimas citadas no parecer dela têm fixture `-libera`. O docstring e `docs/hooks.md:63` dizem o limite ("um nível só"); o fragmento do changelog acompanha.
 
-Tamanho (H1): cerca de 30 linhas de código em `hooks/` no delta, um comportamento. Guardas do delta: M25 a M36 (`-4.json`, `-5.json`, até 8 por arquivo), um por marca ou linha de guarda, com M21 e M22 reapontados no `-3.json`; fixtures `-bloqueia` e `-libera` para cada forma.
+Tamanho (H1): 2 linhas de código em `hooks/` no delta, um comportamento. Guarda do delta: uma linha, com M37 (a guarda inteira) e M38 (o ramo do here-string) em `-5.json`.
 
-Execução: `python3 -I -m unittest discover -s tests -p test_hooks.py -k HookSessaoDoForge`, ambiente limpo: 2 testes, OK (7,7 s). Mutante M29 (alias da linha, o A1): `forge-mutante --ids M29`, morreu em `hooks/conformidade.py:2753`. O resto da mutação: PQ do autor (V2), sem rerrodar. Suíte completa: CI do PR.
+Execução: `python3 -I -m unittest discover -s tests -p test_hooks.py -k test_travas_do_conformidade`, ambiente limpo: 1 teste, OK (12,6 s), 48 fixtures. Mutantes: `forge-mutante --processos 1 --ids M37,M38`, os dois morreram em `hooks/conformidade.py:3842`. O resto da mutação: PQ do autor (V2), sem rerrodar. Suíte completa: CI do PR.
 
-O A2 anterior (recomendado, `X=$(echo push); git $X origin develop`, também no projeto) segue como cartão depois do merge (`R-REVIEW`).
+O A2 do review anterior (recomendado, `X=$(echo push); git $X origin develop`, também no projeto) segue como cartão depois do merge (`R-REVIEW`).
