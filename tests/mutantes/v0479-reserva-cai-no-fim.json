@@ -1,0 +1,56 @@
+{
+  "pedido": "v0479-reserva-cai-no-fim",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o fim solta pelo tool_use_id do agente e não só pelo id (o id trocado volta a soltar a branch do outro)",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if uso and registro.get(\"tool_use_id\"):\n        return registro[\"tool_use_id\"] == uso",
+      "para": "    if False and registro.get(\"tool_use_id\"):\n        return registro[\"tool_use_id\"] == uso",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_sem_meta_no_inicio_o_fim_ainda_solta_a_reserva_do_proprio_agente"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o início casa a reserva pelo tool_use_id do próprio disparo, antes do tipo e da ordem",
+      "arquivo": "hooks/agentes.py",
+      "de": "par = next((a for a in reservas if a.get(\"tool_use_id\") == uso and uso), None) \\\n        or next(",
+      "para": "par = next((a for a in reservas if False), None) \\\n        or next(",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_o_fim_de_um_solta_a_branch_dele_e_nao_a_do_outro_vivo"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o disparo grava o tool_use_id na reserva",
+      "arquivo": "hooks/agentes.py",
+      "de": ", **uso_do_disparo(hook)})",
+      "para": "})",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_o_fim_de_um_solta_a_branch_dele_e_nao_a_do_outro_vivo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o início não leva a reserva de outro tool_use_id quando o agente prova o dele",
+      "arquivo": "hooks/agentes.py",
+      "de": "reservas = [a for a in reservas if a.get(\"tool_use_id\") in (uso, None)]",
+      "para": "reservas = [a for a in reservas]",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_agente_sem_reserva_propria_nao_leva_a_de_outro_disparo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "sem tool_use_id nos dois lados vale o id de antes",
+      "arquivo": "hooks/agentes.py",
+      "de": "    return registro.get(\"id\") == aid\n\n\ndef iniciar",
+      "para": "    return False\n\n\ndef iniciar",
+      "testes": [
+        "tests.test_agentes_interrompidos.FimDoAgente.test_sem_tool_use_id_vale_o_id_de_antes"
+      ]
+    }
+  ]
+}

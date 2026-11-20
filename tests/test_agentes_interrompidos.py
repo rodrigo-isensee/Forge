@@ -325,5 +325,74 @@ class Fechamento(Base):
         self.assertIn("id=- status=interrompido", log)
 
 
+class FimDoAgente(Base):
+    """RESERVA-NAO-CAI-NO-FIM: agentes do mesmo tipo disparados juntos trocavam o id na reserva (o `SubagentStart` casava pelo tipo e
+    pela ordem); o `SubagentStop` de um soltava a branch do outro e prendia a própria até a expiração (~80 min). O disparo guarda o
+    `tool_use_id`; o início e o fim casam com o `toolUseId` do meta do agente."""
+    IDS = {"A": "a1111111111111111", "B": "a2222222222222222", "C": "a3333333333333333"}
+    USOS = {"A": "toolu_AAAA", "B": "toolu_BBBB", "C": "toolu_CCCC"}
+
+    def setUp(self):
+        super().setUp()
+        projetos = self.tmp / "home" / ".claude" / "projects" / "p"
+        self.transcript = projetos / f"{SESSAO}.jsonl"
+        (projetos / SESSAO / "subagents").mkdir(parents=True)
+        self.transcript.write_text("", encoding="utf-8")
+
+    def meta(self, quem):
+        pasta = self.transcript.with_suffix("") / "subagents"
+        (pasta / f"agent-{self.IDS[quem]}.meta.json").write_text(json.dumps({"toolUseId": self.USOS[quem]}), encoding="utf-8")
+
+    def lancar(self, quem):
+        entrada = {"subagent_type": "forge:tech-lead", "description": f"agente {quem}", "prompt": "sem brief"}
+        h = self.hook(tool_name="Agent", tool_input=entrada, tool_use_id=self.USOS[quem])
+        agentes.atualizar_estado(h, "PreToolUse", "Agent", [])
+        estado = self.gravado()
+        estado["agentes"][-1]["branches"] = estado["agentes"][-1]["escrita"] = [f"melhoria/{quem}"]
+        self.arquivo.write_text(json.dumps(estado), encoding="utf-8")
+
+    def evento(self, nome, quem):
+        super().evento(nome, agent_id=self.IDS[quem], agent_type="forge:tech-lead", transcript_path=str(self.transcript))
+
+    def presas(self):
+        return sorted(b for a in self.gravado()["agentes"] for b in a["escrita"])
+
+    def test_o_fim_de_um_solta_a_branch_dele_e_nao_a_do_outro_vivo(self):
+        for quem in "AB":
+            self.lancar(quem)
+            self.meta(quem)
+        self.evento("SubagentStart", "B")  # B inicia primeiro: pelo tipo e pela ordem levaria a reserva de A
+        self.evento("SubagentStart", "A")
+        self.evento("SubagentStop", "A")
+        self.assertEqual(self.presas(), ["melhoria/B"])
+        self.evento("SubagentStop", "B")
+        self.assertEqual(self.presas(), [])
+
+    def test_agente_sem_reserva_propria_nao_leva_a_de_outro_disparo(self):
+        for quem in "AB":
+            self.lancar(quem)
+        self.meta("C")
+        self.evento("SubagentStart", "C")
+        agentes_ = {a["descricao"]: a["id"] for a in self.gravado()["agentes"]}
+        self.assertEqual(agentes_, {"agente A": None, "agente B": None, "": self.IDS["C"]})
+
+    def test_sem_meta_no_inicio_o_fim_ainda_solta_a_reserva_do_proprio_agente(self):
+        for quem in "AB":
+            self.lancar(quem)
+        self.evento("SubagentStart", "B")  # sem meta: casa pela ordem e troca os ids
+        self.evento("SubagentStart", "A")
+        for quem in "AB":
+            self.meta(quem)
+        self.evento("SubagentStop", "A")
+        self.assertEqual(self.presas(), ["melhoria/B"])
+
+    def test_sem_tool_use_id_vale_o_id_de_antes(self):
+        self.semear([self.registro(id=AID, pid=os.getpid(), escrita=["melhoria/a"]), self.registro(id=OUTRO, pid=os.getpid(), escrita=["melhoria/b"])])
+        self.evento("SubagentStop", "A")  # id que nenhum registro tem: nada cai
+        self.assertEqual(self.presas(), ["melhoria/a", "melhoria/b"])
+        super().evento("SubagentStop", agent_id=AID)
+        self.assertEqual(self.presas(), ["melhoria/b"])
+
+
 if __name__ == "__main__":
     unittest.main()
