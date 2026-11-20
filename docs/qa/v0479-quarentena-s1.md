@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-quarentena-s1
-commit: 04e7293b3c89ea21b6575a2f848b81a540af52f7
+commit: 968bc3ff91e44c220723b0bbb4dbc8a62c1a1516
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-19
+data: 2026-11-20
 ---
 # QA: v0478 (E37.6), quarentena da sonda S1
 
@@ -53,3 +53,11 @@ Vermelho antes do verde e mutação: não se aplicam (nenhum teste ou regra nova
 - Vermelho: cópia do HEAD em `$TMPDIR` (`git archive`) com `teto_pulados` 2 e sem nenhuma quarentena (as 3 linhas do `@unittest.skip` da S1 apagadas), mesmo comando: `FAIL: test_o_forge_nao_passa_do_teto_da_quarentena`, `AssertionError: True is not false : teto_pulados=2 > 1 + 0 quarentena(s) aberta(s): devolva o teto no PR que tira a quarentena`, `FAILED (failures=1)`. O teto volta a ser exigido quando a quarentena sai.
 - Mutantes: `bin/forge-mutante tests/mutantes/v0479-quarentena-s1.json` (rev `04e7293b3c89`), rc 0: M1 morreu (`quarentenas.py:28`), M2 (`:15`), M3 (`:15`), M4 (`:16`), M5 (`:17`), M6 (`:22`) morreram. M4 e M5 morrem por erro do teste sob o mutante, que passa sem ele (a ferramenta marca `(erro)`): valem como mortos.
 - Fronteira protegida: teto acima de 1 mais as quarentenas abertas (teto 2 sem quarentena reprova; teto 2 com uma passa; teto 3 reprova). Suíte inteira: só o CI do PR (`R-QA`).
+
+## Revalidação (head 968bc3ff, delta)
+`forge-check parecer delta docs/qa/v0479-quarentena-s1.md` (intervalo `04e7293b..968bc3ff`) listou `tests/quarentenas.py`, `tests/test_catraca.py` e as três specs de mutantes (`v0479-quarentena-s1.json`, `-2.json`, `-3.json`). A contagem passa a aceitar só skip vivo (`test_*` de TestCase; sem função aninhada, `if False` ou classe que não é TestCase) e exige prazo AAAA-MM-DD e "OK do dono" no motivo. Parecer segue aprovado; sem achado novo.
+- Verde no HEAD: `python3 -I -m unittest discover -s tests -p test_catraca.py -k TetoDaQuarentena`, `Ran 8 tests`, `OK`; `-k TetoDePulados`, `Ran 4 tests`, `OK`.
+- Vermelho: cópia do HEAD em `$TMPDIR` (`git archive`) com `tests/quarentenas.py` da base `04e7293b` (função antiga), mesmo comando: `Ran 8 tests`, `FAILED (failures=12)`. Caem `test_conta_skiptest_vivo_e_subpasta`, `test_skip_morto_da_sonda_s1_nao_conta` e 10 subcasos de `test_quarentena_sem_prazo_ou_sem_ok_do_dono_e_recusada` (sem prazo, sem OK, prazo `26/11`, `2026`, `ok do dono` em minúscula, em decorador e em `skipTest`). Os testes novos provam a mudança.
+- Mutantes: `bin/forge-mutante` nas três specs (`--processos 3`), rev `968bc3ff91e4`, rc 0: M1 e M4 a M22 morreram (20 de 20; nenhum sobrevivente nem sem veredito). M4, M5, M6, M7, M14, M15, M19 e M21 morrem por erro do teste sob o mutante, que passa sem ele (`(erro)`): valem como mortos.
+- Cobertura: `bin/forge-mutante --cobertura --base 04e7293b3c89` lista todas as condições mudadas de `tests/quarentenas.py` (linhas 15, 20, 26, 28, 30, 38, 41, 44, 50, 61) como `coberta`; nenhuma sem mutante. "Declarado, não provado" é lido junto da rodada acima, que provou.
+- Fronteira protegida: skip morto não conta; quarentena sem prazo em data ou sem "OK do dono" é recusada (ValueError); `teto_pulados` segue limitado a 1 mais as quarentenas vivas. Suíte inteira: só o CI do PR (`R-QA`).
