@@ -385,6 +385,7 @@ def vigentes(agentes, agora, expira_s, morto=nenhum_morto):
 # TRAVA-AGENTE-MORTO (E23.60): a notificação terminal do Claude Code no transcript da sessão-mãe (C1 a C4, C9).
 ID_DE_AGENTE = re.compile(r"a[0-9a-f]{16}")
 ID_CITADO = re.compile(r"(?<![0-9A-Za-z])a[0-9a-f]{16}(?![0-9A-Za-z])")
+USO_DE_AGENTE = re.compile(r"toolu_[0-9A-Za-z]{1,64}")
 SESSAO_UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 # C1: só o cabeçalho, do início; nada depois do status (o `<result>` traz texto do agente).
 NOTIFICACAO = re.compile(r"<task-notification>\n<task-id>(a[0-9a-f]{16})</task-id>\n<tool-use-id>(toolu_[0-9A-Za-z]{1,64})"
@@ -1203,6 +1204,12 @@ def recusar_pela_maquina(hook, agentes, agora, medida):
         bloquear("R-TETO", f"{vez}; {cauda}.")
 
 
+def uso_do_disparo(hook):
+    """RESERVA-NAO-CAI-NO-FIM: o `tool_use_id` do PreToolUse, que o `SubagentStart` e o `SubagentStop` casam com o meta do agente."""
+    uso = hook.campo("tool_use_id")
+    return {"tool_use_id": uso} if isinstance(uso, str) and USO_DE_AGENTE.fullmatch(uso) else {}
+
+
 def lancar(hook, agentes, agora, lidos):
     """Recusa (duplicado, memória, teto, branch ocupada) ou reserva o disparo; devolve o que os avisos pedem (brief vencido e
     branches de escrita), emitidos só depois do estado gravado (o erro do aviso não leva a reserva)."""
@@ -1247,8 +1254,27 @@ def lancar(hook, agentes, agora, lidos):
     recusar_branch_ocupada(hook, agentes, sorted(a_conferir))  # Z10: fora do try, sobre a lista pronta
     recusar_pela_maquina(hook, agentes, agora, (carga, memoria, total, nproc))  # depois da branch: a vaga só conta se sai
     agentes.append({"id": None, "tipo": tipo, "descricao": descricao, "desde": agora, "branches": branches,
-                    "escrita": sorted(escrita), "briefs": briefs_da_reserva(lidos), **da_sessao(hook)})
+                    "escrita": sorted(escrita), "briefs": briefs_da_reserva(lidos), **da_sessao(hook), **uso_do_disparo(hook)})
     return vencido, escrita
+
+
+def uso_do_agente(hook, aid):
+    """RESERVA-NAO-CAI-NO-FIM: o `toolUseId` que lançou o agente `aid` (o meta do subagente, ao lado do transcript da sessão); None
+    quando não se prova (sem transcript, sem meta, id fora da forma): aí vale o casamento por id de antes."""
+    try:
+        real = transcript_da_sessao(hook)
+        uso = tool_use_do_meta(real, aid) if real and isinstance(aid, str) and ID_DE_AGENTE.fullmatch(aid) else None
+    except Exception:  # noqa: BLE001 - sem prova, o casamento por id de antes (nunca derruba o evento)
+        return None
+    return uso if isinstance(uso, str) and USO_DE_AGENTE.fullmatch(uso) else None
+
+
+def e_do_agente(registro, aid, uso):
+    """O registro foi gravado pelo agente `aid`? O `tool_use_id` do disparo, quando os dois lados o têm, vale mais que o id:
+    agentes do mesmo tipo disparados juntos podem ter trocado o id na reserva; sem ele, o id."""
+    if uso and registro.get("tool_use_id"):
+        return registro["tool_use_id"] == uso
+    return registro.get("id") == aid
 
 
 def iniciar(hook, agentes, agora):
@@ -1264,6 +1290,9 @@ def iniciar(hook, agentes, agora):
     # pid dela. Sem sessão provada, casa como antes, mas o registro perde o pid (abaixo).
     reservas = sorted((a for a in agentes if not a.get("id") and (not dono or not a.get("sessao") or a["sessao"] == dono["sessao"])),
                       key=lambda a: a["desde"])
+    uso = uso_do_agente(hook, aid)
+    if uso:  # primeiro a reserva do próprio disparo; só sem ela, a antiga (sem `tool_use_id`); a de outro `tool_use_id` não casa por tipo
+        reservas = [a for a in reservas if a.get("tool_use_id") == uso] or [a for a in reservas if not a.get("tool_use_id")]
     # O tipo informado pode vir com ou sem o prefixo do plugin; na dúvida, a reserva mais antiga.
     par = next((a for a in reservas if str(a.get("tipo")) == tipo), None) \
         or next((a for a in reservas if str(a.get("tipo")).split(":")[-1] == tipo.split(":")[-1]), None) \
@@ -1351,8 +1380,10 @@ def atualizar_estado(hook, evento, ferramenta, lidos, recusa=None):
             iniciar(hook, agentes, agora)
         else:
             aid = hook.campo("agent_id")
-            autores = guardar_autores(autores, [a for a in agentes if aid and a.get("id") == aid], agora)
-            agentes = [a for a in agentes if not aid or a.get("id") != aid]
+            uso = uso_do_agente(hook, aid) if aid else None  # RESERVA-NAO-CAI-NO-FIM: cai a reserva que este agente gravou
+            parados = [a for a in agentes if aid and e_do_agente(a, aid, uso)]
+            autores = guardar_autores(autores, parados, agora)
+            agentes = [a for a in agentes if not any(a is p for p in parados)]
         gravar_json(arquivo, {"agentes": agentes, "lapides": lapides, "autores": autores, "interrompidos": interrompidos})
         registrar_vencidos(hook, vencidos)  # BP3-S3: depois do estado gravado
         try:  # MP3: o uso deste projeto na máquina depois do evento; o erro não muda o evento
