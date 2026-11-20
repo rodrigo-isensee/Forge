@@ -46,7 +46,7 @@
       "id": "M21",
       "guarda": "E51.6: o texto que o eval ou o sh -c reavalia é lido um nível",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if (nome == \"eval\" or nome in SHELLS) and not nivel and any(toca_uma_trava(p, 1) for p in resto):",
+      "de": "            if (nome == \"eval\" or nome in SHELLS) and not nivel and any(toca_uma_trava(t, 1) for t in relidos):",
       "para": "            if False:",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
@@ -56,8 +56,8 @@
       "id": "M22",
       "guarda": "E51.6: a palavra que o bash expande, também a substituição que o leitor troca por _, é opaca pelo texto cru",
       "arquivo": "hooks/conformidade.py",
-      "de": "        palavras = [\"$\" if OPACA_NA_PALAVRA.search(p.cru) else p.valor for p in comando.palavras[k:]]",
-      "para": "        palavras = [\"$\" if False else p.valor for p in comando.palavras[k:]]",
+      "de": "        palavras = [\"$\" if OPACA_NA_PALAVRA.search(p.cru) else p.valor for p in originais]",
+      "para": "        palavras = [\"$\" if False else p.valor for p in originais]",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
       ]
