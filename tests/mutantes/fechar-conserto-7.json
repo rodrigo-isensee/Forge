@@ -1,0 +1,57 @@
+{
+  "pedido": "fechar-conserto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CS45",
+      "guarda": "C4: o id da anotação vai até o primeiro espaço ou \":\" (subteste com parêntese)",
+      "arquivo": "bin/forge-fechar",
+      "de": "(\\.[A-Za-z_][A-Za-z0-9_]*)+)[ :].*/",
+      "para": "(\\.[A-Za-z_][A-Za-z0-9_]*)+)( \\([^)]*\\))?: .*/",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_subteste_com_parentese_no_parametro_e_conferido"
+      ]
+    },
+    {
+      "id": "CS46",
+      "guarda": "C4: pulado pela classe (setUpClass, tearDownClass) para",
+      "arquivo": "bin/forge-fechar",
+      "de": "-e \"\\\"setUpClass ($cls)\\\"\" -e \"\\\"tearDownClass ($cls)\\\"\" \\",
+      "para": " \\",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_teste_pulado_pela_classe_ou_pelo_modulo_para"
+      ]
+    },
+    {
+      "id": "CS47",
+      "guarda": "C4: pulado pelo módulo (setUpModule, tearDownModule, ModuleSkipped) para",
+      "arquivo": "bin/forge-fechar",
+      "de": "-e \"\\\"setUpModule ($mod)\\\"\" -e \"\\\"tearDownModule ($mod)\\\"\" -e \".ModuleSkipped.$mod\\\"\" \"$pasta\"",
+      "para": "\"$pasta\"",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_teste_pulado_pela_classe_ou_pelo_modulo_para"
+      ]
+    },
+    {
+      "id": "CS48",
+      "guarda": "C4: teste apagado no PR (método fora do arquivo do módulo no head) para",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! git grep -qwF \"def ${id##*.}\" \"$remoto_sha\" -- \"$arq\" 2>/dev/null; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_teste_apagado_no_pr_para"
+      ]
+    },
+    {
+      "id": "CS49",
+      "guarda": "C4: o arquivo do módulo do teste no head é o de tests/",
+      "arquivo": "bin/forge-fechar",
+      "de": "arq=\"tests/${mod#tests.}\"; arq=\"${arq//.//}.py\"",
+      "para": "arq=\"tests/x.py\"",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_teste_apagado_no_pr_para",
+        "tests.test_fechar.Conserto.test_conserto_mescla_com_a_develop_vermelha_preso_ao_head_e_registra"
+      ]
+    }
+  ]
+}

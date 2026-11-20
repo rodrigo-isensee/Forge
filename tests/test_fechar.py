@@ -1378,6 +1378,7 @@ class Conserto(unittest.TestCase):
             caminho.write_text(texto, encoding="utf-8")
             caminho.chmod(0o755)
         self.env.update(GH_BASE=self.env["FORGE_GH"], FORGE_GH=str(self.tmp / "gh_conserto"))
+        self.base_com_os_testes()
         self.verde = self.topo = self.git("rev-parse", "develop")
         self.run_do_topo()
         (self.estado / "c_jobs").write_text("71\n")
@@ -1386,6 +1387,23 @@ class Conserto(unittest.TestCase):
         (self.estado / "c_verde").write_text(self.verde + "\n")
         for herdada in ("FORGE_FECHAR_LOTE_PAI", "FORGE_FECHAR_CONSERTO_H"):  # a marca e o head do pai nunca vêm do ambiente (AR-4)
             self.env.pop(herdada, None)
+
+    def base_com_os_testes(self):
+        """Os testes anotados (tests/test_b.py e tests/test_z.py) existem na develop e no head: o C4 exige o método no head."""
+        self.git("switch", "-q", "develop")
+        (self.proj / "tests").mkdir()
+        metodos = "".join(f"    def test_{n}(self):\n        pass\n" for n in ["um", *range(10)])
+        for nome in ("test_b", "test_z"):
+            (self.proj / "tests" / f"{nome}.py").write_text(f"class Caso:\n{metodos}")
+        self.git("add", "tests")
+        self.git("commit", "-q", "-m", "test: base")
+        self.git("push", "-q", "origin", "develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("rebase", "-q", "develop")
+        self.git("push", "-q", "origin", "--delete", "melhoria/x")
+        self.git("push", "-q", "origin", "melhoria/x")
+        self.git("switch", "-q", "develop")
+        self.registro.write_text("")
 
     def run_do_topo(self, linha=None):
         (self.estado / "c_run_44").write_text((linha or f"push develop {self.topo} completed failure") + "\n")
@@ -1605,6 +1623,32 @@ class Conserto(unittest.TestCase):
                 self.pulados([id_])
                 self.assert_parou(self.conserto(), "o teste test_b.Caso.test_um, que falhou no run 44, foi pulado no CI do PR")
 
+    def test_c4_subteste_com_parentese_no_parametro_e_conferido(self):
+        self.anotar("b\ttest_b.Caso.test_um (entrada='f()'): AssertionError\nb\ttest_b.Caso.test_0: AssertionError\n")
+        self.pulados(["test_b.Caso.test_um (entrada='f()')"])
+        self.assert_parou(self.conserto(), "o teste test_b.Caso.test_um, que falhou no run 44, foi pulado no CI do PR")
+
+    def test_c4_teste_pulado_pela_classe_ou_pelo_modulo_para(self):
+        for pulado in ("setUpClass (test_b.Caso)", "tearDownClass (test_b.Caso)", "setUpModule (test_b)",
+                       "tearDownModule (test_b)", "unittest.loader.ModuleSkipped.test_b"):
+            with self.subTest(pulado=pulado):
+                self.registro.write_text("")
+                self.pulados([pulado])
+                self.assert_parou(self.conserto(), "o teste test_b.Caso.test_um, que falhou no run 44, foi pulado no CI do PR")
+
+    def test_c4_pulado_de_outra_classe_ou_modulo_segue(self):
+        self.pulados(["setUpClass (test_b.Outra)", "unittest.loader.ModuleSkipped.test_bb", "setUpModule (test_b2)"])
+        r = self.conserto()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+
+    def test_c4_teste_apagado_no_pr_para(self):
+        self.git("switch", "-q", "melhoria/x")
+        (self.proj / "tests" / "test_b.py").write_text("class Caso:\n    def test_umdois(self):\n        pass\n")
+        self.git("commit", "-q", "-am", "fix: apaga o teste")
+        self.git("push", "-q", "origin", "melhoria/x")
+        self.git("switch", "-q", "develop")
+        self.assert_parou(self.conserto(), "o teste test_b.Caso.test_um, que falhou no run 44, não está em tests/test_b.py no head")
+
     # ---- C5: o diff tem relação com o vermelho ----
     def sem_teste_tocado(self):
         self.anotar("tests/test_z.py\ttest_z.Caso.test_um: AssertionError\n")
@@ -1615,7 +1659,7 @@ class Conserto(unittest.TestCase):
 
     def test_c5_arquivo_do_modulo_do_teste_conta(self):
         self.anotar(".github\ttest_b2.Caso.test_um: erro\n")
-        self.ramo_da_develop("melhoria/y", "tests/test_b2.py", "x = 1\n")
+        self.ramo_da_develop("melhoria/y", "tests/test_b2.py", "class Caso:\n    def test_um(self):\n        pass\n")
         r = self.conserto(ref="melhoria/y")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertIn("C5: o PR toca o arquivo de um teste que falhou.", r.stdout)

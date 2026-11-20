@@ -1079,14 +1079,15 @@ conserto_c3() {
 # conserto_c4: os testes das anotações ::error (scripts/falhas-no-resumo.py) dos jobs vermelhos do run não constam nos pulados do CI verde
 # do PR no head (artefatos pulados-*); árvore provada na develop (SP4, a suíte não rodou) conta como passou. 10 anotações num job: leia o log.
 conserto_c4() {
-  local jobs j anot ids="" n run_pr passos pasta id
+  local jobs j anot ids="" n run_pr passos pasta id cls mod arq
   jobs="$(ler "$gh" run view "$conserto" --json jobs --jq '.jobs[] | select(.conclusion == "failure") | .databaseId')" \
     || die "parou no passo 6b (C4): não consegui ler os jobs do run $conserto; nada foi mesclado"
   for j in $jobs; do
     [[ "$j" =~ ^[0-9]{1,20}$ ]] || die "parou no passo 6b (C4): job fora da forma no run $conserto; nada foi mesclado"
     anot="$(ler "$gh" api "repos/{owner}/{repo}/check-runs/$j/annotations" \
       --jq '.[] | select(.annotation_level == "failure") | [.path, .message] | @tsv')" || die "parou no passo 6b (C4): não consegui ler as anotações do job $j; nada foi mesclado"
-    anot="$(printf '%s\n' "$anot" | sed -nE 's/^([^\t]*)\t([A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+)( \([^)]*\))?: .*/\2\t\1/p')"
+    # o id vai até o primeiro espaço ou ":" (o subteste "(entrada='f()')" pode ter parêntese dentro)
+    anot="$(printf '%s\n' "$anot" | sed -nE 's/^([^\t]*)\t([A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+)[ :].*/\2\t\1/p')"
     n="$(printf '%s' "$anot" | grep -c . || true)"
     [ "$n" -lt 10 ] || die "parou no passo 6b (C4): o job $j tem $n testes anotados (o GitHub mostra só 10 por passo); leia o log (gh run view $conserto --log-failed); nada foi mesclado"
     ids="$ids$anot"$'\n'
@@ -1106,7 +1107,15 @@ conserto_c4() {
   if ! "$gh" run download "$run_pr" --pattern 'pulados-*' --dir "$pasta" >/dev/null 2>&1 || [ -z "$(find "$pasta" -name '*.json' -print -quit)" ]; then
     rm -rf "$pasta"; die "parou no passo 6b (C4): sem os pulados do CI do PR (run $run_pr); nada foi mesclado"; fi
   while IFS=$'\t' read -r id _; do
-    if grep -rqF -e "\"$id\"" -e "\"$id (" "$pasta"; then rm -rf "$pasta"; die "parou no passo 6b (C4): o teste $id, que falhou no run $conserto, foi pulado no CI do PR (run $run_pr); nada foi mesclado"; fi
+    cls="${id%.*}"; mod="$(printf '%s\n' "$cls" | awk -F. '{m = $1; for (i = 2; i <= NF && $i !~ /^[A-Z]/; i++) m = m "." $i; print m}')"
+    arq="tests/${mod#tests.}"; arq="${arq//.//}.py"
+    # pulado pelo próprio id, pela classe (setUpClass) ou pelo módulo (setUpModule, ModuleSkipped): o CI do PR não o rodou
+    if grep -rqF -e "\"$id\"" -e "\"$id (" -e "\"setUpClass ($cls)\"" -e "\"tearDownClass ($cls)\"" \
+      -e "\"setUpModule ($mod)\"" -e "\"tearDownModule ($mod)\"" -e ".ModuleSkipped.$mod\"" "$pasta"; then
+      rm -rf "$pasta"; die "parou no passo 6b (C4): o teste $id, que falhou no run $conserto, foi pulado no CI do PR (run $run_pr); nada foi mesclado"; fi
+    # apagado no PR não conta como passado: o método segue no arquivo do módulo no head
+    if ! git grep -qwF "def ${id##*.}" "$remoto_sha" -- "$arq" 2>/dev/null; then
+      rm -rf "$pasta"; die "parou no passo 6b (C4): o teste $id, que falhou no run $conserto, não está em $arq no head ${remoto_sha:0:7}; nada foi mesclado"; fi
   done <<<"$ids"
   rm -rf "$pasta"
 }
