@@ -1,0 +1,37 @@
+{
+  "pedido": "v0478-pv-b1-registros",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "R9",
+      "guarda": "--registros só combina com --base",
+      "arquivo": "bin/forge-testes",
+      "de": "if args.registros and (",
+      "para": "if False and (",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_registros_so_combina_com_base"
+      ]
+    },
+    {
+      "id": "R10",
+      "guarda": "--registros chega à conferência",
+      "arquivo": "bin/forge-testes",
+      "de": "if args.registros:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_em_dia_sai_0_sem_gravar_nada_e_sem_o_ambiente_herdado"
+      ]
+    },
+    {
+      "id": "R11",
+      "guarda": "grupo do CI vermelho reprova a conferência",
+      "arquivo": "bin/forge-testes",
+      "de": "falhas = [(nome, r) for nome, r in feitos if r.returncode]",
+      "para": "falhas = [(nome, r) for nome, r in feitos if r.returncode > 1]",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_grupo_do_ci_vermelho_sai_1_com_o_nome_do_registro",
+        "tests.test_testes_tocados.Registros.test_changelog_reprovado_sai_1"
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 import ast
 import importlib.machinery
 import importlib.util
+import json
 import os
 import re
 import shutil
@@ -1810,6 +1811,171 @@ class TravaDoForgeTestes(unittest.TestCase):
         self.registro.unlink(missing_ok=True)
         self.assertEqual(self.rodar("--base", "develop").returncode, 7)
         self.assertEqual(self.chamadas(), ["1|--status", "1|--suite"])
+
+
+class Registros(unittest.TestCase):
+    """PR-VERDE B1 (v0478 E57.2): `--registros` roda os testes do CI dos registros, o changelog e o peso do módulo novo, só
+    lendo. Repositório de brinquedo com um teste que passa para cada nome de `REGISTROS`; ambiente limpo e `python3 -I`."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+
+    def setUp(self):
+        self._t = tempfile.TemporaryDirectory()
+        self.addCleanup(self._t.cleanup)
+        self.dir = Path(self._t.name) / "repo"
+        self.env = sem_manutencao({"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": self._t.name, "LANG": "C.UTF-8",
+                                   "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null",
+                                   "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
+                                   "GIT_COMMITTER_EMAIL": "t@t", "FORGE_HERDADO": "1"})
+        (self.dir / "tests").mkdir(parents=True)
+        self.git("init", "-q", "-b", "develop")
+        self.modulos = {}
+        for _, testes in self.f.REGISTROS:
+            for nome in testes:
+                modulo, *resto = nome.split(".")[1:]
+                metodos = self.modulos.setdefault(modulo, {}).setdefault(resto[0] if resto else "T", set())
+                metodos.add(resto[1] if len(resto) > 1 else "test_ok")
+        for modulo in self.modulos:
+            self.escrever_modulo(modulo)
+        self.changelog("sys.exit(0 if sys.argv[1:] == ['conferir', '--base', 'develop'] else 3)")
+        self.pesos({m: 1.0 for m in self.modulos})
+        self.git("add", "-A")
+        self.git("commit", "-qm", "base")
+        self.git("switch", "-q", "-c", "melhoria/x")
+
+    def git(self, *args):
+        return subprocess.run(["git", *args], cwd=self.dir, env=self.env, capture_output=True, text=True, check=True).stdout
+
+    def escrever_modulo(self, modulo, corpo=None):
+        # todo teste do brinquedo reprova se o ambiente herdado chega a ele (AR-4: o `GIT_*` de um hook, o `FORGE_*` da sessão)
+        corpo = corpo or 'self.assertEqual([k for k in os.environ if k.startswith(("GIT_", "FORGE_"))], [])'
+        texto = "import os\nimport unittest\n"
+        for classe, metodos in self.modulos[modulo].items():
+            texto += f"class {classe}(unittest.TestCase):\n" + "".join(f"    def {m}(self):\n        {corpo}\n" for m in sorted(metodos))
+        (self.dir / "tests" / f"{modulo}.py").write_text(texto, encoding="utf-8")
+
+    def changelog(self, linha):
+        (self.dir / "bin").mkdir(exist_ok=True)
+        (self.dir / "bin" / "forge-changelog").write_text(f"import sys\n{linha}\n", encoding="utf-8")
+
+    def pesos(self, dados):
+        (self.dir / "tests" / "pesos-d4.json").write_text(json.dumps(dados), encoding="utf-8")
+
+    def rodar(self, *args, base="develop"):
+        return subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--registros", "--base", base, *args], cwd=self.dir,
+                              env=self.env, capture_output=True, text=True, timeout=300)
+
+    def test_em_dia_sai_0_sem_gravar_nada_e_sem_o_ambiente_herdado(self):
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("forge-testes: registros rc=0 em ", r.stdout)
+        self.assertIn(f"({len(self.f.REGISTROS) + 1} conferências e o peso dos módulos de teste novos)", r.stdout)
+        self.assertEqual(self.git("status", "--porcelain", "--ignored"), "")  # nem bytecode, nem log em .forge/run
+
+    def test_grupo_do_ci_vermelho_sai_1_com_o_nome_do_registro(self):
+        for nome, testes in self.f.REGISTROS:
+            modulo = testes[0].split(".")[1]
+            with self.subTest(nome=nome):
+                self.escrever_modulo(modulo, corpo="self.fail('registro velho')")
+                r = self.rodar()
+                self.escrever_modulo(modulo)
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn(f"forge-testes: registro desatualizado: {nome} (rc=1)", r.stderr)
+                self.assertIn("forge-testes: registros rc=1", r.stdout)
+
+    def test_changelog_reprovado_sai_1(self):
+        self.changelog("sys.exit(1)")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("forge-testes: registro desatualizado: changelog (rc=1)", r.stderr)
+
+    def test_modulo_de_teste_novo_sem_peso_sai_1_e_com_peso_sai_0(self):
+        (self.dir / "tests" / "test_novo.py").write_text("import unittest\n", encoding="utf-8")
+        r = self.rodar()  # não versionado
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("registro desatualizado: test_novo sem peso em tests/pesos-d4.json; meça com "
+                      "python3 scripts/suite-paralela.py --medir test_novo", r.stderr)
+        self.git("add", "-A")
+        self.git("commit", "-qm", "novo")
+        self.assertEqual(self.rodar().returncode, 1)  # commitado na branch
+        self.pesos({**{m: 1.0 for m in self.modulos}, "test_novo": 0.1})
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_modulo_antigo_sem_peso_nao_e_do_pr(self):
+        self.pesos({})
+        self.git("commit", "-qam", "pesos vazios")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_pesos_ilegiveis_ou_base_que_nao_resolve_saem_2(self):
+        for texto in ("[]", "{"):
+            with self.subTest(pesos=texto):
+                (self.dir / "tests" / "pesos-d4.json").write_text(texto, encoding="utf-8")
+                r = self.rodar()
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("forge-testes: registros sem veredito", r.stderr)
+        self.pesos({m: 1.0 for m in self.modulos})
+        r = self.rodar(base="nao-existe")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("registros sem veredito (git merge-base", r.stderr)
+
+    def test_busca_a_origin_antes_e_sem_rede_avisa_e_confere_a_local(self):
+        remoto, outro = Path(self._t.name) / "remoto.git", Path(self._t.name) / "outro"
+        subprocess.run(["git", "clone", "-q", "--bare", str(self.dir), str(remoto)], env=self.env, check=True, capture_output=True)
+        self.git("remote", "add", "origin", str(remoto))
+        self.git("fetch", "-q", "origin")
+        subprocess.run(["git", "clone", "-q", "-b", "develop", str(remoto), str(outro)], env=self.env, check=True, capture_output=True)
+        for args in (("commit", "-q", "--allow-empty", "-m", "a develop andou"), ("push", "-q", "origin", "develop")):
+            subprocess.run(["git", *args], cwd=outro, env=self.env, check=True, capture_output=True)
+        andou = subprocess.run(["git", "rev-parse", "HEAD"], cwd=outro, env=self.env, capture_output=True, text=True).stdout
+        self.changelog("sys.exit(0)")
+        r = self.rodar(base="origin/develop")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("aviso", r.stderr)
+        self.assertEqual(self.git("rev-parse", "origin/develop"), andou)
+        shutil.rmtree(remoto)
+        r = self.rodar(base="origin/develop")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("forge-testes: aviso: não busquei origin/develop (", r.stderr)
+        self.assertIn("conferi contra a base local (o CI confere)", r.stderr)
+
+    def test_a_busca_usa_o_git_config_da_sessao(self):
+        """O proxy e a credencial da sessão chegam ao git por `GIT_CONFIG_*`: a busca que os tira nunca acha a origin."""
+        remoto = Path(self._t.name) / "remoto.git"
+        subprocess.run(["git", "clone", "-q", "--bare", str(self.dir), str(remoto)], env=self.env, check=True, capture_output=True)
+        self.git("remote", "add", "origin", "falso:remoto")
+        self.changelog("sys.exit(0)")
+        self.env.update({"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": f"url.{remoto}.insteadOf",
+                         "GIT_CONFIG_VALUE_0": "falso:remoto"})
+        r = self.rodar(base="origin/develop")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("aviso", r.stderr)
+
+    def test_registros_so_combina_com_base(self):
+        for extra in (["--texto"], ["--listar"], ["--afetados"], ["--completa"], ["-k", "x"], ["--vermelho"],
+                      ["--modulos", "test_x"], ["--prazo", "5"], ["bin/x"]):
+            with self.subTest(extra=extra):
+                r = self.rodar(*extra)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("--registros só combina com --base", r.stderr)
+
+    def test_todo_registro_do_forge_e_um_teste_que_existe(self):
+        """Nome que some do CI reprovaria o `unittest` do grupo; aqui sai antes, com o nome."""
+        self.assertGreaterEqual(len(self.f.REGISTROS), 8)
+        self.assertTrue((RAIZ / self.f.CHANGELOG[0]).is_file())
+        for _, testes in self.f.REGISTROS:
+            for nome in testes:
+                modulo, *resto = nome.split(".")[1:]
+                with self.subTest(teste=nome):
+                    arvore = ast.parse((RAIZ / "tests" / f"{modulo}.py").read_text(encoding="utf-8"))
+                    classes = {n.name: n for n in arvore.body if isinstance(n, ast.ClassDef)}
+                    if resto:
+                        self.assertIn(resto[0], classes)
+                    if len(resto) > 1:
+                        self.assertIn(resto[1], {n.name for n in classes[resto[0]].body if isinstance(n, ast.FunctionDef)})
 
 
 if __name__ == "__main__":
