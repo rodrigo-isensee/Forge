@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-quarentena-s1
-commit: 968bc3ff91e44c220723b0bbb4dbc8a62c1a1516
+commit: 1c0c1e9e81d306e5745a9a6c54ed92946a53b2dd
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-19
+data: 2026-11-20
 ---
 # Review: v0478 (E37.4, quarentena da sonda S1)
 
@@ -47,3 +47,12 @@ Head `968bc3ff91e44c220723b0bbb4dbc8a62c1a1516` (de `04e7293b`), pelo `forge-che
 2. A S1 continua contando 1: `quarentenas_abertas('tests')` no head dá 1; o motivo do skip (`tests/test_hooks.py:1324`) traz "OK do dono 19/11 18:12" e "prazo 2026-11-26". Teto 2 segue passando.
 3. Rodado: `tests.test_catraca.TetoDaQuarentena`, 8 testes `OK`. Mutantes M1 a M22 (`forge-mutante` nas 3 specs): todos morreram; os que morreram por erro (M4 a M7, M14, M15, M19, M21) quebram o teste declarado, que passa sem o mutante.
 4. A1 segue valendo (rótulo `afrouxa-regra` e destaque no título; teto 1 para 2).
+
+## Revalidação 5 (head 1c0c1e9e)
+Head `1c0c1e9e81d306e5745a9a6c54ed92946a53b2dd` (de `968bc3ff`), pelo `forge-check parecer delta`. Domínio lido: `tests/quarentenas.py`, `tests/test_catraca.py` e as 5 specs `tests/mutantes/v0479-quarentena-s1*.json`. Aprovado.
+1. Contagem pelo carregador: `_motivos_carregados` usa `unittest.TestLoader().discover` e lê o `__unittest_skip__`/`__unittest_skip_why__` da classe ou do método real; pasta que o unittest não carrega vira ValueError, e `sys.path` e os módulos voltam (testes `..._nao_carrega_e_recusada` e `a_contagem_devolve_o_caminho_e_os_modulos`).
+2. `skipTest` no corpo: lido no texto só dos métodos que o carregador devolveu (`_definicoes`, pela primeira linha do código); função solta, método sombreado, classe aninhada ou em `if False` não contam (`test_formas_da_sonda_a5...`).
+3. Prazo vencido recusado (`_confere_quarentena`, `prazo < hoje`); o do dia passa; sem data dada compara com hoje. O prazo da S1 é 2026-11-26: depois dele a suíte recusa a quarentena, de propósito.
+4. A S1 continua contando 1: `quarentenas_abertas('tests')` no head dá `1`. Rodado: `tests.test_catraca.TetoDaQuarentena`, 15 testes `OK`.
+5. Mutantes: `forge-mutante --processos 1` nas 5 specs, 33 declarados (M1 a M41, 8+8+8+8+1), 33 `morreu`; os marcados `(erro)` quebram o teste declarado, que passa sem o mutante. Guardas novas com mutante (M23 a M41) e mais de 8 por arquivo repartidos em `-2` a `-5`.
+6. A1 segue valendo (rótulo `afrouxa-regra` e destaque no título; teto 1 para 2).
