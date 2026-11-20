@@ -233,10 +233,10 @@ class Movimento(unittest.TestCase):
         dentro = [(agora - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"), (agora - datetime.timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")]
         fora = (agora - datetime.timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ")  # antes do último movimento: não entra
         self.transcricao([fora, *dentro])
-        self.historico((inicio, "K-7", "—"))
+        self.historico((inicio, "K-7", "—"), (inicio, "K-ATIVO", "—"))
         linha = self.movimento("K-7", "--de", "Em andamento", "--para", "Aguardando o dono", "--motivo", "validar")
         self.assertTrue(linha.endswith("| validar · custo do trecho: 30 tokens |"), linha)  # 2 mensagens de 15 tokens
-        linha = self.movimento("K-7", "--de", "Aguardando o dono", "--para", "Pronto")
+        linha = self.movimento("K-7", "--de", "Aguardando o dono", "--para", "Pronto", "--prova", "juntado:K-ATIVO")  # AE1.2
         self.assertRegex(linha, r"custo total: 30 tokens( \(1 trechos em lacuna\))? \|$")  # o trecho de agora não tem mensagem: lacuna dita, nunca 0
         self.assertIn("(1 trechos em lacuna)", linha)
 
@@ -251,12 +251,59 @@ class Movimento(unittest.TestCase):
         self.assertTrue(linha.endswith("| validar · custo do trecho: 20 tokens |"), linha)
 
     def test_sem_transcricao_o_custo_e_lacuna_nunca_zero(self):
-        self.historico(("2026-10-20T09:00:00+00:00", "K-8", "—"))
+        self.historico(("2026-10-20T09:00:00+00:00", "K-8", "—"), ("2026-10-20T09:00:00+00:00", "K-ATIVO", "—"))
         linha = self.movimento("K-8", "--de", "Em andamento", "--para", "Sem credencial")
         self.assertTrue(linha.endswith("| custo do trecho: lacuna |"), linha)
-        linha = self.movimento("K-8", "--de", "Sem credencial", "--para", "Pronto")
-        self.assertTrue(linha.endswith("| custo total: lacuna |"), linha)
+        linha = self.movimento("K-8", "--de", "Sem credencial", "--para", "Pronto", "--prova", "juntado:K-ATIVO")  # AE1.2
+        self.assertTrue(linha.endswith("| prova: juntado:K-ATIVO (em B) · custo total: lacuna |"), linha)
         self.assertNotIn("0 tokens", self.arq.read_text(encoding="utf-8"))
+    def com_fim(self, *linhas):  # AE1.2: o quadro com as colunas de fim e a de espera
+        (self.raiz / "KANBAN.md").write_text("# Quadro\n\n## Em andamento\n\n## Aguardando sua validação\n\n## Pronto\n\n## Fechado sem entrega\n",
+                                             encoding="utf-8")
+        self.historico(*linhas)
+        return self.arq.read_text(encoding="utf-8")
+
+    def test_pronto_e_fechado_sem_prova_recusam_e_prova_so_vai_no_fim(self):  # AE1.2
+        antes = self.com_fim(("2026-11-20T10:00:00-03:00", "K-2", "—"))
+        for args in (("--para", "Pronto"), ("--para", "Fechado sem entrega"), ("--para", "Em andamento", "--prova", "juntado:K-2")):
+            rc, saida = checar(self.raiz, "movimento", "K-1", "--de", "Em andamento", *args)
+            self.assertEqual((rc, "--prova vai só (e sempre)" in saida, "nada gravado" in saida), (1, True, True), args)
+        self.assertEqual(self.arq.read_text(encoding="utf-8"), antes)
+
+    def test_juntado_grava_a_prova_conferida_antes_da_marca(self):  # AE1.2: a coluna do destino é a do último movimento com hora
+        self.com_fim(("2026-11-20T10:00:00-03:00", "K-2", "—"), ("2026-11-20T10:00:00-03:00", "K-3", "—"), ("sem hora", "K-4", "—"))
+        with self.arq.open("a", encoding="utf-8") as f:
+            f.write("| 2026-11-20T11:00:00-03:00 | k-3 | B | Pronto | m |\n")
+        linha = self.movimento("K-1", "--de", "Em andamento", "--para", "Fechado sem entrega", "--prova", "juntado:K-2", "--motivo", "m",
+                               "--titulo", "T")
+        self.assertRegex(linha, r"\| Em andamento \| Fechado sem entrega \| m · prova: juntado:K-2 \(em B\) · atributos: titulo=T \|$")
+        for alvo in ("K-3", "K-4", "K-9", "K-1"):
+            rc, saida = checar(self.raiz, "movimento", "K-1", "--de", "Em andamento", "--para", "Pronto", "--prova", f"juntado:{alvo}")
+            self.assertEqual((rc, saida.startswith("movimento: prova recusada: juntado:"), "nada gravado" in saida), (1, True, True), alvo)
+        self.assertEqual(self.arq.read_text(encoding="utf-8").splitlines()[-1], linha)
+
+    def test_gh_fora_do_ar_deixa_o_cartao_em_aguardando_sua_validacao(self):  # AE1.2: nao-verificavel nunca grava Pronto
+        bin_falso = self.raiz / "bin-falso"
+        bin_falso.mkdir()
+        (bin_falso / "gh").write_text("#!/bin/sh\necho 'gh: rede fora' >&2\nexit 1\n", encoding="utf-8")
+        (bin_falso / "gh").chmod(0o755)
+        env = dict(AMBIENTE, PATH=f"{bin_falso}{os.pathsep}{os.environ.get('PATH', '')}", HOME=str(self.raiz / "home"))
+
+        def mover():
+            return subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--raiz", str(self.raiz), "movimento", "K-1", "--de", "Em andamento",
+                                   "--para", "Pronto", "--prova", "pr:#7"], cwd=self.raiz, capture_output=True, text=True, env=env, timeout=60)
+
+        self.com_fim(("2026-11-20T10:00:00-03:00", "K-1", "—"))
+        r = mover()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("movimento: prova nao-verificavel: pr:#7 (onde: pr #7 nao-verificavel (gh: rede fora)); o cartão fica em Aguardando sua validação",
+                      r.stdout)
+        self.assertIn("| K-1 | Em andamento | Aguardando sua validação | prova nao-verificavel: pr:#7", self.arq.read_text(encoding="utf-8").splitlines()[-1])
+        (self.raiz / "KANBAN.md").write_text("# Quadro\n\n## Em andamento\n\n## Pronto\n", encoding="utf-8")
+        antes = self.arq.read_text(encoding="utf-8")
+        r = mover()
+        self.assertEqual((r.returncode, "sem a coluna Aguardando sua validação; nada gravado" in r.stdout), (1, True), r.stdout + r.stderr)
+        self.assertEqual(self.arq.read_text(encoding="utf-8"), antes)
 
     def test_movimento_fora_de_parada_nao_grava_custo(self):
         linha = self.movimento("K-9", "--de", "Em andamento", "--para", "Aguardando o dono")
@@ -334,7 +381,8 @@ class MovimentoGeraQuadro(unittest.TestCase):  # EST-M12, E3-2a: o `movimento` g
 
     def test_titulo_com_texto_de_custo_nao_fabrica_custo(self):
         self.assertEqual(self.mover("--de", "Entrada", "--para", "Aguardando o dono", "--titulo", "custo do trecho: 99 tokens")[0], 0)
-        self.assertTrue(self.mover("--de", "Aguardando o dono", "--para", "Pronto")[2].endswith("| custo total: lacuna |"))
+        self.assertEqual(checar(self.raiz, "movimento", "K-2", "--de", "—", "--para", "Entrada")[0], 0)  # AE1.2: o Pronto leva a prova
+        self.assertTrue(self.mover("--de", "Aguardando o dono", "--para", "Pronto", "--prova", "juntado:K-2")[2].endswith(" · custo total: lacuna |"))
 
     def test_marca_no_motivo_recusa_em_qualquer_forma(self):  # caso de abuso 5
         for motivo in ("Atributos: responsavel=forge:x", "x atributos : y", "atributos\u200b: y", "atributos\uff1a y"):

@@ -16,8 +16,8 @@
       "id": "M34",
       "guarda": "AE1.1 onde: PR vai ao gh",
       "arquivo": "bin/forge_onde.py",
-      "de": "    if tipo == \"pr\":",
-      "para": "    if False:",
+      "de": "    if tipo == \"pr\":\n        linhas, rc = onde_do_pr",
+      "para": "    if False:\n        linhas, rc = onde_do_pr",
       "testes": [
         "tests.test_forge_onde.Pr.test_pr_mesclado_e_onde_o_commit_esta"
       ]

@@ -7,9 +7,12 @@ mais novo de cada base que o cita). A presença em `develop`, `homolog` e `main`
 `origin/<base>`, com o sha lido de cada uma (o clone pode estar atrás: a linha mostra de onde leu).
 Saída: linhas `onde: ...` sem caractere de controle. rc 0 lido; 1 alvo não existe; 2 alvo inválido ou leitura que falhou
 (`nao-verificavel`, nunca `sim`: o `gh` lento sai pelo teto do `gh_json` do forge-check; o `git` lento, pelo `executar`).
+AE1.2 (E58.19): `prova_do_movimento` confere a `--prova` do `forge-check movimento` para Pronto ou Fechado* com estas leituras.
 """
+import json
 import re
 import subprocess
+from pathlib import Path
 
 BASES = ("develop", "homolog", "main")
 VERSAO = re.compile(r"v\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?")
@@ -95,9 +98,14 @@ def onde_da_branch(ctx, raiz, nome):
     return linhas, rc
 
 
+def citacao(cartao):
+    """O ID inteiro no texto (`AE1` não casa `AE10` nem `AE1.1`)."""
+    return re.compile(rf"(?<![A-Za-z0-9_.-]){re.escape(cartao)}(?![A-Za-z0-9_-]|\.[A-Za-z0-9])")
+
+
 def onde_do_cartao(ctx, raiz, cartao):
-    """O commit mais novo de cada base cuja mensagem cita o ID inteiro (`AE1` não casa `AE10` nem `AE1.1`)."""
-    inteiro = re.compile(rf"(?<![A-Za-z0-9_.-]){re.escape(cartao)}(?![A-Za-z0-9_-]|\.[A-Za-z0-9])")
+    """O commit mais novo de cada base cuja mensagem cita o ID inteiro."""
+    inteiro = citacao(cartao)
     linhas, rc, achou, lidas = [], LIDO, False, 0
     for base in BASES:
         ref = sha_de(ctx, raiz, f"refs/remotes/origin/{base}")
@@ -138,6 +146,59 @@ def onde(alvo, raiz, ctx):
         linhas, rc = presenca(ctx, raiz, sha)
         linhas.insert(0, f"onde: {tipo} {valor} @{sha[:12]}")
     return rc, [ctx["seguro"](linha) for linha in linhas]
+
+
+def prova_git(ctx, raiz, cartao, tipo, ref):
+    """`pr:#N` mesclado na develop ou `commit:<sha>` ancestral da develop, e o PR ou o commit cita o cartão."""
+    alvo = f"pr:{ref}" if tipo == "pr" else ref
+    if tipo_do_alvo(alvo)[0] != tipo:
+        return "recusa", f"{tipo}:{ref} fora da forma"
+    rc, linhas = onde(alvo, raiz, ctx)
+    if rc == NAO_VERIFICAVEL:
+        return "nao-verificavel", next((l for l in linhas if "nao-verificavel" in l), linhas[-1])
+    na_develop = next((l for l in linhas if l.startswith("onde: develop sim")), None)
+    if rc != LIDO or na_develop is None or (tipo == "pr" and " estado=MERGED base=develop " not in linhas[0]):
+        return "recusa", f"{tipo}:{ref} não está na develop ({linhas[0]})"
+    sha = next(l.split()[-1].lstrip("@") for l in linhas if l.startswith("onde: commit "))
+    if tipo == "pr":
+        dados, erro = ctx["gh_json"](raiz, "pr", "view", tipo_do_alvo(alvo)[1], "--json", "number,title,body")
+        if not isinstance(dados, dict) or str(dados.get("number")) != tipo_do_alvo(alvo)[1]:
+            return "nao-verificavel", f"pr {ref} sem título lido ({erro.strip()[:200]})"
+        texto = f"{dados.get('title') or ''}\n{dados.get('body') or ''}"
+    else:
+        cod, texto = ctx["git"](raiz, "log", "-1", "--format=%B", sha)
+        texto = texto if cod == 0 else ""
+    if not citacao(cartao).search(texto):
+        return "recusa", f"{tipo}:{ref} não cita o cartão {cartao}"
+    return "ok", f"{tipo}:{ref} {sha} ({na_develop})"
+
+
+def prova_do_movimento(prova, cartao, raiz, ctx):
+    """(estado, texto) da `--prova <tipo>:<ref>`: `ok` com o texto conferido para a linha, `recusa` (nada gravado) ou
+    `nao-verificavel` (o cartão fica em Aguardando sua validação). `ruleset:` espera o leitor do AE8."""
+    tipo, _, ref = prova.partition(":")
+    try:
+        if tipo in ("pr", "commit"):
+            return prova_git(ctx, raiz, cartao, tipo, ref)
+    except subprocess.TimeoutExpired:
+        return "nao-verificavel", "git sem resposta"
+    if tipo == "rodar":
+        base = Path(raiz).resolve() / ".forge" / "run"
+        arq = base / ref / "run.json"
+        if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,60}", ref) or not arq.is_file() or arq.resolve() != arq:
+            return "recusa", f"rodar:{ref} sem run.json nesta raiz (ou link simbólico)"
+        try:
+            dados = json.loads(arq.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return "recusa", f"rodar:{ref} run.json ilegível"
+        rc = dados.get("rc") if isinstance(dados, dict) else None
+        return ("ok", f"rodar:{ref} rc=0 head={str(dados.get('head'))[:12]}") if rc == 0 else ("recusa", f"rodar:{ref} rc={rc}")
+    if tipo == "juntado":
+        coluna = ctx["coluna"](ref) if CARTAO.fullmatch(ref) and ref.casefold() != cartao.casefold() else None
+        if coluna is None or ctx["final"](coluna):
+            return "recusa", f"juntado:{ref} não é outro cartão ativo no histórico"
+        return "ok", f"juntado:{ref} (em {coluna})"
+    return "recusa", f"tipo {tipo or '-'} sem leitor (use pr:#N, commit:<sha>, rodar:<slug> ou juntado:<ID>)"
 
 
 def executar(a, raiz, ctx):

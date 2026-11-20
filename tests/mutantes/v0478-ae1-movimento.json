@@ -1,0 +1,87 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "MV1",
+      "guarda": "AE1.2 movimento: Pronto e Fechado só com prova, prova só no fim",
+      "arquivo": "bin/forge-check",
+      "de": "    if bool(prova) != coluna_final(campos[2]):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.Movimento.test_pronto_e_fechado_sem_prova_recusam_e_prova_so_vai_no_fim"
+      ]
+    },
+    {
+      "id": "MV2",
+      "guarda": "AE1.2 coluna_final: Fechado* também exige prova",
+      "arquivo": "bin/forge-check",
+      "de": "return _sem_acento(coluna) == \"pronto\" or _sem_acento(coluna).startswith(\"fechado\")",
+      "para": "return _sem_acento(coluna) == \"pronto\"",
+      "testes": [
+        "tests.test_sobreposicao_quadro.Movimento.test_pronto_e_fechado_sem_prova_recusam_e_prova_so_vai_no_fim"
+      ]
+    },
+    {
+      "id": "MV3",
+      "guarda": "AE1.2 movimento: com prova, ela é conferida",
+      "arquivo": "bin/forge-check",
+      "de": "    if prova:\n        def coluna(c):",
+      "para": "    if False:\n        def coluna(c):",
+      "testes": [
+        "tests.test_sobreposicao_quadro.Movimento.test_juntado_grava_a_prova_conferida_antes_da_marca"
+      ]
+    },
+    {
+      "id": "MV4",
+      "guarda": "AE1.2 movimento: coluna do destino só de linha com hora",
+      "arquivo": "bin/forge-check",
+      "de": "if len(m) >= 5 and ISO8601.match(m[0]) and chave_do_cartao(m[1]) == chave_do_cartao(c)",
+      "para": "if len(m) >= 5 and chave_do_cartao(m[1]) == chave_do_cartao(c)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.Movimento.test_juntado_grava_a_prova_conferida_antes_da_marca"
+      ]
+    },
+    {
+      "id": "MV5",
+      "guarda": "AE1.2 movimento: prova recusada não grava",
+      "arquivo": "bin/forge-check",
+      "de": "        if estado == \"recusa\":",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.Movimento.test_juntado_grava_a_prova_conferida_antes_da_marca"
+      ]
+    },
+    {
+      "id": "MV6",
+      "guarda": "AE1.2 movimento: prova sem leitura não vai a Pronto",
+      "arquivo": "bin/forge-check",
+      "de": "        if estado != \"ok\":",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.Movimento.test_gh_fora_do_ar_deixa_o_cartao_em_aguardando_sua_validacao"
+      ]
+    },
+    {
+      "id": "MV7",
+      "guarda": "AE1.2 movimento: sem a coluna de espera, nada gravado",
+      "arquivo": "bin/forge-check",
+      "de": "            if espera is None:",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.Movimento.test_gh_fora_do_ar_deixa_o_cartao_em_aguardando_sua_validacao"
+      ]
+    },
+    {
+      "id": "MV8",
+      "guarda": "AE1.2 prova_do_movimento: pr e commit vão ao git",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        if tipo in (\"pr\", \"commit\"):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_pr_mesclado_na_develop_que_cita_o_cartao_vale_com_o_sha",
+        "tests.test_forge_onde.ProvaDoMovimento.test_commit_na_develop_que_cita_o_cartao_vale"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "MV25",
+      "guarda": "AE1.2 movimento: a espera é a coluna Aguardando sua validação",
+      "arquivo": "bin/forge-check",
+      "de": "if _sem_acento(c) == \"aguardando sua validacao\"), None)",
+      "para": "if _sem_acento(c) != \"aguardando sua validacao\"), None)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.Movimento.test_gh_fora_do_ar_deixa_o_cartao_em_aguardando_sua_validacao"
+      ]
+    },
+    {
+      "id": "MV26",
+      "guarda": "AE1.2 prova_git: pr:N vira o alvo do PR",
+      "arquivo": "bin/forge_onde.py",
+      "de": "alvo = f\"pr:{ref}\" if tipo == \"pr\" else ref",
+      "para": "alvo = f\"pr:{ref}\" if False else ref",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_pr_nao_mesclado_recusa"
+      ]
+    },
+    {
+      "id": "MV27",
+      "guarda": "AE1.2 prova_git: nao-verificavel traz a linha que falhou",
+      "arquivo": "bin/forge_onde.py",
+      "de": "next((l for l in linhas if \"nao-verificavel\" in l), linhas[-1])",
+      "para": "next((l for l in linhas if False), linhas[-1])",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_nao_verificavel_traz_a_linha_que_falhou"
+      ]
+    },
+    {
+      "id": "MV28",
+      "guarda": "AE1.2 prova_git: só a develop com sim vale",
+      "arquivo": "bin/forge_onde.py",
+      "de": "na_develop = next((l for l in linhas if l.startswith(\"onde: develop sim\")), None)",
+      "para": "na_develop = next((l for l in linhas if l.startswith(\"onde: \")), None)",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_pr_cujo_merge_nao_esta_na_develop_recusa"
+      ]
+    },
+    {
+      "id": "MV29",
+      "guarda": "AE1.2 prova_git: o sha gravado é o do commit lido",
+      "arquivo": "bin/forge_onde.py",
+      "de": "for l in linhas if l.startswith(\"onde: commit \"))",
+      "para": "for l in linhas if l.startswith(\"onde: \"))",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_pr_mesclado_na_develop_que_cita_o_cartao_vale_com_o_sha"
+      ]
+    },
+    {
+      "id": "MV30",
+      "guarda": "AE1.2 prova_git: no PR, a citação vem do título e do corpo",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if tipo == \"pr\":\n        dados, erro",
+      "para": "    if False:\n        dados, erro",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_pr_de_outro_cartao_recusa"
+      ]
+    },
+    {
+      "id": "MV31",
+      "guarda": "AE1.2 movimento: trecho vazio do motivo não entra",
+      "arquivo": "bin/forge-check",
+      "de": "\" · \".join(t for t in (limpo(motivo), conferida, custo) if t)",
+      "para": "\" · \".join(t for t in (limpo(motivo), conferida, custo) if True)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.Movimento.test_parada_grava_o_custo_do_trecho_e_o_pronto_soma"
+      ]
+    }
+  ]
+}

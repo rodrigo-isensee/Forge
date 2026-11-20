@@ -46,8 +46,8 @@
       "id": "M13",
       "guarda": "AE1.1 onde_do_pr: gh que falha é nao-verificavel",
       "arquivo": "bin/forge_onde.py",
-      "de": "    if not isinstance(dados, dict) or str",
-      "para": "    if dados is not None and not isinstance(dados, dict) or str",
+      "de": "    if not isinstance(dados, dict) or str(dados.get(\"number\")) != numero:",
+      "para": "    if dados is not None and not isinstance(dados, dict) or str(dados.get(\"number\")) != numero:",
       "testes": [
         "tests.test_forge_onde.Pr.test_gh_lento_e_nao_verificavel_nunca_sim"
       ]

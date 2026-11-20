@@ -28,7 +28,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs [ARQUIVO...] | kanban [-
      forge-check classe [--base REF] [--head REF] [--json]
      forge-check fontes   (bin/forge_fontes.py)
      forge-check sobreposicao [--base REF] [--ref BRANCH]
-     forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
+     forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO] [--prova TIPO:REF]   (Pronto e Fechado* exigem --prova; AE1.2)
      forge-check voltas [--pedido ID]
      forge-check decisoes [--pedido ID] [--sem-cartao [--desde AAAA-MM-DD]]
      forge-check proximo <pedido> [--item E<n>] [--etapa E<n>.<m>]
@@ -4873,10 +4873,17 @@ def erro_dos_atributos(motivo, atributos):
     return None
 
 
-def cmd_movimento(raiz, cartao, de, para, motivo, atributos):
+def coluna_final(coluna):
+    """AE1.2: Pronto e Fechado* só com prova conferida."""
+    return _sem_acento(coluna) == "pronto" or _sem_acento(coluna).startswith("fechado")
+
+
+def cmd_movimento(raiz, cartao, de, para, motivo, atributos, prova=None):
     """Anota um movimento do quadro em docs/kanban/historico.md (PA-9): hora real ISO 8601 com fuso, cartão,
     coluna de origem e de destino. Só acrescenta; cria o arquivo com o cabeçalho se não existir. Ao parar o cartão (EXT-3), o motivo leva
-    `custo do trecho: N tokens` (ou `lacuna`); no Pronto, `custo total`. Os atributos (EST-M12) vão por último, na marca `· atributos:`."""
+    `custo do trecho: N tokens` (ou `lacuna`); no Pronto, `custo total`. Os atributos (EST-M12) vão por último, na marca `· atributos:`.
+    AE1.2: Pronto ou Fechado* exige `prova` (bin/forge_onde.py, lida no git e no gh do diretório atual); a linha leva a prova
+    conferida; a prova que não se lê põe o cartão em "Aguardando sua validação" (rc 1)."""
     def limpo(t):
         return re.sub(r"[\x00-\x1f\x7f]", "", re.sub(r"\s+", " ", t.replace("|", "/"))).strip()
     campos = [limpo(x) for x in (cartao, de, para)]
@@ -4894,14 +4901,30 @@ def cmd_movimento(raiz, cartao, de, para, motivo, atributos):
     arq = raiz / "docs" / "kanban" / "historico.md"
     if arq.is_symlink():
         return ["movimento: docs/kanban/historico.md é link simbólico; não escrevo através dele"]
+    aviso, conferida = [], ""
+    if bool(prova) != coluna_final(campos[2]):
+        return [f"movimento: --prova vai só (e sempre) com --para Pronto ou Fechado (pr:#N, commit:<sha>, rodar:<slug>, juntado:<ID>; AE1.2); nada gravado"]
+    if prova:
+        def coluna(c):
+            return next((m[3] for m in reversed(_ler_tabela(arq)) if len(m) >= 5 and ISO8601.match(m[0]) and chave_do_cartao(m[1]) == chave_do_cartao(c)), None)
+        ctx = {"git": git, "gh_json": gh_json, "seguro": sem_controle, "coluna": coluna, "final": coluna_final}
+        estado, texto = modulo_do_bin("forge_onde").prova_do_movimento(prova, campos[0], Path.cwd(), ctx)
+        if estado == "recusa":
+            return [f"movimento: prova recusada: {limpo(texto)}; nada gravado"]
+        conferida = f"prova: {limpo(texto)}" if estado == "ok" else f"prova nao-verificavel: {limpo(prova)} ({limpo(texto)})"
+        if estado != "ok":
+            espera = next((c for c in colunas_do_quadro(raiz) if _sem_acento(c) == "aguardando sua validacao"), None)
+            if espera is None:
+                return [f"movimento: {conferida}; sem a coluna Aguardando sua validação; nada gravado"]
+            aviso, campos[2] = [f"movimento: {conferida}; o cartão fica em {espera}"], espera
     agora = datetime.datetime.now().astimezone()
     hora = agora.isoformat(timespec="seconds")
     custo = custo_do_movimento(raiz, campos[0], campos[2], arq, agora)  # L16: só no `movimento`, só acrescentando (C-16a)
-    motivo = (" · ".join(t for t in (limpo(motivo), custo) if t) or "—") + (
+    motivo = (" · ".join(t for t in (limpo(motivo), conferida, custo) if t) or "—") + (
         MARCA_DE_ATRIBUTOS + "; ".join(f"{k}={limpo(v)}" for k, v in atributos.items()) if atributos else "")  # a marca sempre por último
     linha = f"| {hora} | {campos[0]} | {campos[1]} | {campos[2]} | {motivo} |\n"
     acrescentar_ao_arquivo(arq, linha, "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n")
-    return [linha.rstrip("\n")]
+    return aviso + [linha.rstrip("\n")]
 
 
 FRASES_DO_ANOTAR = {"decisao": "DECISÃO DO DONO", "pergunta": "PERGUNTA AO DONO", "ordem": "ORDEM DO DONO"}
@@ -10264,6 +10287,8 @@ def main():
     mv.add_argument("--de", required=True, help="coluna de origem")
     mv.add_argument("--para", required=True, help="coluna de destino")
     mv.add_argument("--motivo", default="", help="motivo do movimento (padrão: —; até 500 caracteres, sem `atributos:`)")
+    mv.add_argument("--prova", help="só e sempre com --para Pronto ou Fechado*: pr:#N, commit:<sha>, rodar:<slug> ou juntado:<ID>, conferida "
+                    "no git e no gh do diretório atual (AE1.2; sem leitura, o cartão fica em Aguardando sua validação)")
     for nome, ajuda in (("--titulo", "título do cartão (até 120 caracteres)"), ("--pedido", "id do pedido do cartão"),
                         ("--responsavel", "forge:<agente> ou usuário")):
         mv.add_argument(nome, help=f"{ajuda}; vai à marca `· atributos:` do motivo (EST-M12)")
@@ -10502,7 +10527,7 @@ def executar(a, raiz):
     if a.cmd in ("sobreposicao", "movimento"):
         linhas = (cmd_sobreposicao(raiz, a.base) if a.cmd == "sobreposicao"
                   else cmd_movimento(raiz, a.cartao, a.de, a.para, a.motivo,
-                                     {"titulo": a.titulo, "pedido": a.pedido, "responsavel": a.responsavel}))
+                                     {"titulo": a.titulo, "pedido": a.pedido, "responsavel": a.responsavel}, a.prova))
         extra, rc = release_em_curso(raiz, a.ref) if a.cmd == "sobreposicao" and a.ref else ([], 0)
         for linha in linhas + extra:
             print(linha)

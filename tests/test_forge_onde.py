@@ -332,6 +332,115 @@ class Cartao(Base):
         rc, _ = self.onde("AE7", git=git)
         self.assertEqual(rc, 2)
 
+class ProvaDoMovimento(Base):
+    """AE1.2 (E58.19): a `--prova` do movimento para Pronto ou Fechado*; um teste por guarda de `prova_do_movimento` e `prova_git`."""
+
+    def prova(self, prova, cartao="AE1.1", gh=None, git=None, colunas=None, raiz=None):
+        colunas = colunas or {}
+        ctx = {"git": git or fc.git, "gh_json": gh if gh is not None else GhFalso(), "seguro": fc.sem_controle,
+               "coluna": colunas.get, "final": fc.coluna_final}
+        return O.prova_do_movimento(prova, cartao, raiz or self.repo.pasta, ctx)
+
+    def gh(self, **extra):
+        dados = {"number": 7, "state": "MERGED", "baseRefName": "develop", "headRefName": "melhoria/x", "mergedAt": "2026-11-20T10:00:00Z",
+                 "mergedBy": {"login": "dono"}, "mergeCommit": {"oid": self.repo.c3}, "title": "feat: AE1.1 movimento", "body": ""}
+        dados.update(extra)
+        return GhFalso([dados])
+
+    def test_pr_mesclado_na_develop_que_cita_o_cartao_vale_com_o_sha(self):
+        estado, texto = self.prova("pr:#7", gh=self.gh())
+        self.assertEqual(estado, "ok", texto)
+        self.assertIn(f"pr:#7 {self.repo.c3[:12]} (onde: develop sim", texto)
+
+    def test_pr_de_outro_cartao_recusa(self):
+        estado, texto = self.prova("pr:#7", gh=self.gh(title="feat: AE10 e AE1.1x", body="XAE1.1"))
+        self.assertEqual((estado, "não cita o cartão AE1.1" in texto), ("recusa", True), texto)
+
+    def test_pr_nao_mesclado_recusa(self):
+        estado, texto = self.prova("pr:7", gh=self.gh(state="OPEN", mergedAt=None, mergeCommit=None))
+        self.assertEqual((estado, "não está na develop" in texto), ("recusa", True), texto)
+
+    def test_pr_mesclado_em_outra_base_recusa_mesmo_com_o_commit_na_develop(self):
+        estado, texto = self.prova("pr:#7", gh=self.gh(baseRefName="homolog", mergeCommit={"oid": self.repo.c2}))
+        self.assertEqual(estado, "recusa", texto)
+
+    def test_pr_cujo_merge_nao_esta_na_develop_recusa(self):
+        estado, texto = self.prova("pr:#7", gh=self.gh(mergeCommit={"oid": self.repo.c4}))
+        self.assertEqual((estado, "não está na develop" in texto), ("recusa", True), texto)
+
+    def test_gh_fora_do_ar_e_nao_verificavel(self):
+        estado, texto = self.prova("pr:#7", gh=GhFalso(None))
+        self.assertEqual((estado, "sem resposta em 10 s" in texto), ("nao-verificavel", True), texto)
+
+    def test_titulo_do_pr_sem_leitura_e_nao_verificavel(self):
+        falso = self.gh()
+
+        def gh(raiz, *args):
+            if "number,title,body" in args:
+                return {"number": 8, "title": "AE1.1"}, "outro PR"
+            return falso(raiz, *args)
+
+        estado, texto = self.prova("pr:#7", gh=gh)
+        self.assertEqual((estado, "sem título lido" in texto), ("nao-verificavel", True), texto)
+
+    def test_commit_na_develop_que_cita_o_cartao_vale(self):
+        estado, texto = self.prova(f"commit:{self.repo.c3[:10]}")
+        self.assertEqual(estado, "ok", texto)
+        self.assertIn(self.repo.c3[:12], texto)
+
+    def test_commit_que_nao_cita_o_cartao_recusa(self):
+        self.assertEqual(self.prova(f"commit:{self.repo.c3}", cartao="AE1")[0], "recusa")  # c3 cita AE10, AE1.1 e XAE1, nunca AE1
+
+    def test_commit_cujo_log_falha_recusa(self):
+        def git(raiz, *args, **kw):
+            return (128, "AE1.1") if args[0] == "log" else fc.git(raiz, *args, **kw)
+
+        self.assertEqual(self.prova(f"commit:{self.repo.c3}", git=git)[0], "recusa")
+
+    def test_commit_fora_da_develop_inexistente_ou_fora_da_forma_recusa(self):
+        for prova in (f"commit:{self.repo.c4}", "commit:" + "e" * 40, "commit:-x", "commit:AE1.1", "pr:-1", "pr:#7 x"):
+            with self.subTest(prova=prova):
+                self.assertEqual(self.prova(prova, gh=self.gh())[0], "recusa")
+
+    def test_nao_verificavel_traz_a_linha_que_falhou(self):
+        def git(raiz, *args, **kw):
+            return (128, "") if args[0] == "merge-base" and args[-1] == self.repo.c3 else fc.git(raiz, *args, **kw)
+
+        estado, texto = self.prova(f"commit:{self.repo.c3}", git=git)
+        self.assertEqual(estado, "nao-verificavel")
+        self.assertTrue(texto.startswith("onde: develop nao-verificavel"), texto)
+
+    def test_git_sem_resposta_e_nao_verificavel(self):
+        def git(raiz, *args, **kw):
+            raise subprocess.TimeoutExpired("git", 1)
+
+        self.assertEqual(self.prova(f"commit:{self.repo.c3}", git=git), ("nao-verificavel", "git sem resposta"))
+
+    def test_rodar_com_rc_0_vale_e_o_resto_recusa(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            raiz, fora = Path(tmp) / "r", Path(tmp) / "fora"
+            for pasta, slug, conteudo in ((raiz, "ok", '{"rc": 0, "head": "abc"}'), (raiz, "falhou", '{"rc": 1}'), (raiz, "lixo", "{"),
+                                          (raiz, "lista", "[0]"), (fora, "alheio", '{"rc": 0}')):
+                (pasta / ".forge" / "run" / slug).mkdir(parents=True)
+                (pasta / ".forge" / "run" / slug / "run.json").write_text(conteudo, encoding="utf-8")
+            (raiz / ".forge" / "run" / "link").symlink_to(fora / ".forge" / "run" / "alheio")
+            self.assertEqual(self.prova("rodar:ok", raiz=raiz), ("ok", "rodar:ok rc=0 head=abc"))
+            for slug in ("falhou", "lixo", "lista", "link", "nada", "../../fora/.forge/run/alheio", "Ok"):
+                with self.subTest(slug=slug):
+                    self.assertEqual(self.prova(f"rodar:{slug}", raiz=raiz)[0], "recusa")
+
+    def test_juntado_so_em_outro_cartao_ativo(self):
+        colunas = {"AE9": "Em andamento", "AE8": "Pronto", "AE7": "Fechado sem entrega", "AE1.1": "Em andamento"}
+        self.assertEqual(self.prova("juntado:AE9", colunas=colunas), ("ok", "juntado:AE9 (em Em andamento)"))
+        for alvo in ("AE8", "AE7", "AE1.1", "ae1.1", "AE6", "-x"):
+            with self.subTest(alvo=alvo):
+                self.assertEqual(self.prova(f"juntado:{alvo}", colunas=colunas)[0], "recusa")
+
+    def test_tipo_sem_leitor_recusa(self):
+        for prova in ("ruleset:develop", "dono-disse:10h", "", "#7"):
+            with self.subTest(prova=prova):
+                self.assertEqual(self.prova(prova, gh=self.gh())[0], "recusa")
+
 
 class PeloForgeCheck(Base):
     def test_subcomando_onde_imprime_e_sai_com_o_rc(self):

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "MV17",
+      "guarda": "AE1.2 rodar: link simbólico ou outra raiz recusa",
+      "arquivo": "bin/forge_onde.py",
+      "de": "or not arq.is_file() or arq.resolve() != arq:",
+      "para": "or not arq.is_file():",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_com_rc_0_vale_e_o_resto_recusa"
+      ]
+    },
+    {
+      "id": "MV18",
+      "guarda": "AE1.2 rodar: run.json ilegível recusa",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        except (OSError, ValueError):\n            return \"recusa\"",
+      "para": "        except OSError:\n            return \"recusa\"",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_com_rc_0_vale_e_o_resto_recusa"
+      ]
+    },
+    {
+      "id": "MV19",
+      "guarda": "AE1.2 rodar: run.json que não é objeto recusa",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        rc = dados.get(\"rc\") if isinstance(dados, dict) else None",
+      "para": "        rc = dados.get(\"rc\") if True else None",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_com_rc_0_vale_e_o_resto_recusa"
+      ]
+    },
+    {
+      "id": "MV20",
+      "guarda": "AE1.2 rodar: só rc 0 vale",
+      "arquivo": "bin/forge_onde.py",
+      "de": "if rc == 0 else (\"recusa\", f\"rodar:{ref} rc={rc}\")",
+      "para": "if rc in (0, 1) else (\"recusa\", f\"rodar:{ref} rc={rc}\")",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_com_rc_0_vale_e_o_resto_recusa"
+      ]
+    },
+    {
+      "id": "MV21",
+      "guarda": "AE1.2 prova_do_movimento: juntado é lido",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if tipo == \"juntado\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_juntado_so_em_outro_cartao_ativo"
+      ]
+    },
+    {
+      "id": "MV22",
+      "guarda": "AE1.2 juntado: o próprio cartão não vale",
+      "arquivo": "bin/forge_onde.py",
+      "de": "if CARTAO.fullmatch(ref) and ref.casefold() != cartao.casefold() else None",
+      "para": "if CARTAO.fullmatch(ref) else None",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_juntado_so_em_outro_cartao_ativo"
+      ]
+    },
+    {
+      "id": "MV23",
+      "guarda": "AE1.2 juntado: cartão em Pronto ou Fechado não vale",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        if coluna is None or ctx[\"final\"](coluna):",
+      "para": "        if coluna is None:",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_juntado_so_em_outro_cartao_ativo"
+      ]
+    },
+    {
+      "id": "MV24",
+      "guarda": "AE1.2 movimento: só a prova conferida se grava como `prova:`",
+      "arquivo": "bin/forge-check",
+      "de": "conferida = f\"prova: {limpo(texto)}\" if estado == \"ok\" else",
+      "para": "conferida = f\"prova: {limpo(texto)}\" if True else",
+      "testes": [
+        "tests.test_sobreposicao_quadro.Movimento.test_gh_fora_do_ar_deixa_o_cartao_em_aguardando_sua_validacao"
+      ]
+    }
+  ]
+}

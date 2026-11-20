@@ -1,0 +1,87 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "MV9",
+      "guarda": "AE1.2 prova_do_movimento: git sem resposta é nao-verificavel",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    except subprocess.TimeoutExpired:\n        return \"nao-verificavel\", \"git sem resposta\"",
+      "para": "    except ZeroDivisionError:\n        return \"nao-verificavel\", \"git sem resposta\"",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_git_sem_resposta_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "MV10",
+      "guarda": "AE1.2 prova_git: alvo fora da forma recusa",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if tipo_do_alvo(alvo)[0] != tipo:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_commit_fora_da_develop_inexistente_ou_fora_da_forma_recusa"
+      ]
+    },
+    {
+      "id": "MV11",
+      "guarda": "AE1.2 prova_git: onde sem leitura é nao-verificavel",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if rc == NAO_VERIFICAVEL:\n        return \"nao-verificavel\"",
+      "para": "    if False:\n        return \"nao-verificavel\"",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_gh_fora_do_ar_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "MV12",
+      "guarda": "AE1.2 prova_git: PR mesclado em outra base recusa",
+      "arquivo": "bin/forge_onde.py",
+      "de": "if rc != LIDO or na_develop is None or (tipo == \"pr\" and \" estado=MERGED base=develop \" not in linhas[0]):",
+      "para": "if rc != LIDO or na_develop is None:",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_pr_mesclado_em_outra_base_recusa_mesmo_com_o_commit_na_develop"
+      ]
+    },
+    {
+      "id": "MV13",
+      "guarda": "AE1.2 prova_git: resposta de outro PR não vale",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        if not isinstance(dados, dict) or str(dados.get(\"number\")) != tipo_do_alvo(alvo)[1]:",
+      "para": "        if not isinstance(dados, dict):",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_titulo_do_pr_sem_leitura_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "MV14",
+      "guarda": "AE1.2 prova_git: log que falha não cita",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        texto = texto if cod == 0 else \"\"",
+      "para": "        texto = texto if True else \"\"",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_commit_cujo_log_falha_recusa"
+      ]
+    },
+    {
+      "id": "MV15",
+      "guarda": "AE1.2 prova_git: prova de outro cartão recusa",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if not citacao(cartao).search(texto):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_pr_de_outro_cartao_recusa",
+        "tests.test_forge_onde.ProvaDoMovimento.test_commit_que_nao_cita_o_cartao_recusa"
+      ]
+    },
+    {
+      "id": "MV16",
+      "guarda": "AE1.2 prova_do_movimento: rodar é lido",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if tipo == \"rodar\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_com_rc_0_vale_e_o_resto_recusa"
+      ]
+    }
+  ]
+}
