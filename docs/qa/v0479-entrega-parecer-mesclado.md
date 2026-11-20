@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-entrega-parecer-mesclado
-commit: aebace7125b5873038e1c4ffefbb512cd7e111b2
+commit: 5376b86d2b441a17f4aba8b05c37d94e8a5e94a4
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -32,3 +32,26 @@ Head testado: `aebace71` (revalidação do reprovado em `8cff35a0`; A1 e A2 ante
 - Mutantes, rc 0 em todas: spec 1 `M1` a `M8 · morreu` (M1 `bin/forge-check:3245` agora morre); spec 5 `M25` a `M32 · morreu`; spec 6 `M33 · morreu` (`hooks/conformidade.py:3822`); spec editada `v0478-guardas-conformidade.json` `M1` a `M7` e `M12 · morreu`. Specs 2, 3 e 4 sem mudança no delta, não rerrodadas.
 - Vermelho: cada mutante morto prova teste que cai sem a guarda; `forge-testes --vermelho` não rodado (estourou o prazo antes; não vale como vermelho).
 - Pre-push: roda no envio (barato, sem suíte); resultado no relatório.
+
+---
+# Revalidação no head `5376b86d` (A6 da segurança, E50.15)
+
+Delta lido por `forge-check parecer delta` (de `aebace71`): `hooks/conformidade.py` (`PARECER_NO_TEXTO` sem a isenção do dono, `re.I`, `docs/security` cobre `aceites`; `parecer_alheio_no_texto` virou `parecer_no_texto`), 11 fixtures `pp-sessao-forge-wt-*`, specs `v0478-guardas-conformidade.json` e `v0479-entrega-parecer-mesclado-5.json`, `tests/test_hooks.py` (piso de recusas de 19 para 25), `docs/hooks.md`, fragmento do changelog.
+
+## Critério → teste → resultado
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| A6: o dono que guarda a pasta numa variável não alcança a vizinha (`d=docs/reviews; echo x > $d/../qa/n.md`) | fixtures `…-tech-lead-variavel-vizinha-qa-bloqueia`, `…-qa-variavel-vizinha-aceites-bloqueia`, `…-seguranca-variavel-mae-aceites-bloqueia`, `…-seguranca-variavel-security-bloqueia` em `test_fixtures_do_parecer_pelo_papel` | variável no alvo; dono; `..` até a vizinha e até `aceites/` | passou |
+| A6: a caixa não conta (`${d,,}`) | `…-tech-lead-variavel-caixa-qa-bloqueia` | caixa | passou |
+| A6: teto e linha ilegível, dono incluído | `…-tech-lead-teto-reviews-bloqueia`, `…-dev-teto-reviews-bloqueia` | acima do teto; papel sem dono | passou |
+| O dono grava a própria pasta pelo caminho literal | `…-tech-lead-redireciona-reviews-libera`, `…-seguranca-redireciona-security-libera`, `…-tech-lead-teto-reviews-libera` | caminho literal; dono livre | passou |
+| Piso do lote de fixtures | `assertGreaterEqual(recusas, 25)` | suíte vazia | passou |
+
+## Execução (TMPDIR da sessão, sem suíte local)
+- `python3 -I -m unittest discover -s tests -p test_hooks.py -k test_fixtures_do_parecer_pelo_papel` → `Ran 1 test in 25.509s · OK`.
+- Fixtures novas conferidas: cada `bloqueia` recusa pela construção da `descricao` e cada `libera` usa caminho literal; a fixture `…-seguranca-variavel-security-libera` (dono livre por variável) agora é do lote de recusa, coerente com A6.
+- `forge-mutante --cobertura --base aebace71`: `coberta` em `conformidade.py:3787` (M4, M5, M25) e `:3820` (M28), ambas `declarado, não provado`; `isenta` nas duas linhas apagadas (`3794(base)`, `3793(base)`); nenhuma `isenta velha`; rc 0.
+- Isentas conferidas: `self.papel not in e["quem"]` e a busca `e["caminho"] in CAMINHOS_DE_PARECER and casa(...)` não existem no head; os motivos apontam M26, M31 e as fixtures, que existem e morrem. Aceitas.
+- `forge-mutante --base aebace71 tests/mutantes/v0479-entrega-parecer-mesclado-5.json`: `base=aebace7125b5873038e1c4ffefbb512cd7e111b2 … rev=5376b86d2b44`; `M25`, `M26`, `M27`, `M28`, `M29`, `M30`, `M31 · morreu`; rc 0.
+- `forge-mutante --base aebace71 tests/mutantes/v0478-guardas-conformidade.json`: `M3`, `M4`, `M5`, `M6`, `M7`, `M12 · morreu`; rc 0.
+- Vermelho: cada mutante morto prova teste que cai sem a guarda (M26 sem a recusa, M27 sem `re.I`, M31 sem `security` cobrir `aceites`). `forge-testes --vermelho aebace71` varre 109 módulos em duas cópias (passou de 9000 s no módulo 118 de 222) e foi interrompido: sem veredito, não vale como vermelho; a suíte inteira fica com o CI do PR.
