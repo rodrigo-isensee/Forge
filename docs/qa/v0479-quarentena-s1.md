@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-quarentena-s1
-commit: 968bc3ff91e44c220723b0bbb4dbc8a62c1a1516
+commit: 1c0c1e9e81d306e5745a9a6c54ed92946a53b2dd
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -61,3 +61,10 @@ Vermelho antes do verde e mutação: não se aplicam (nenhum teste ou regra nova
 - Mutantes: `bin/forge-mutante` nas três specs (`--processos 3`), rev `968bc3ff91e4`, rc 0: M1 e M4 a M22 morreram (20 de 20; nenhum sobrevivente nem sem veredito). M4, M5, M6, M7, M14, M15, M19 e M21 morrem por erro do teste sob o mutante, que passa sem ele (`(erro)`): valem como mortos.
 - Cobertura: `bin/forge-mutante --cobertura --base 04e7293b3c89` lista todas as condições mudadas de `tests/quarentenas.py` (linhas 15, 20, 26, 28, 30, 38, 41, 44, 50, 61) como `coberta`; nenhuma sem mutante. "Declarado, não provado" é lido junto da rodada acima, que provou.
 - Fronteira protegida: skip morto não conta; quarentena sem prazo em data ou sem "OK do dono" é recusada (ValueError); `teto_pulados` segue limitado a 1 mais as quarentenas vivas. Suíte inteira: só o CI do PR (`R-QA`).
+
+## Revalidação (head 1c0c1e9e, delta)
+`forge-check parecer delta docs/qa/v0479-quarentena-s1.md` (intervalo `968bc3ff..1c0c1e9e`) listou `tests/quarentenas.py`, `tests/test_catraca.py` e as cinco specs `tests/mutantes/v0479-quarentena-s1*.json`. A contagem passa a usar o carregador do unittest e prazo vencido é recusado. Parecer segue aprovado; sem achado novo.
+- Verde no HEAD: `python3 -I -m unittest discover -s tests -p test_catraca.py -k TetoDaQuarentena`, `Ran 15 tests`, `OK`; `-k TetoDePulados`, `Ran 4 tests`, `OK`.
+- Vermelho contra `1277477e`: `forge-testes --vermelho 1277477e` passou dos 550 s que dei e foi morto (rc 143), sem veredito; não vale como prova. Prova por cópia (`git archive HEAD` em `$TMPDIR`, com `tests/quarentenas.py` de `1277477e`), `-k TetoDaQuarentena`: `Ran 15 tests`, `FAILED (failures=1, errors=24)`. Caem 25 casos: 24 por erro de API ausente na versão anterior, incluindo `test_quarentena_vencida_e_recusada_e_a_do_dia_passa`, `test_pasta_que_o_unittest_nao_carrega_e_recusada`, `test_subpasta_conta_so_se_o_unittest_a_descobre` e os 10 subcasos de prazo/OK do dono, e 1 por asserção (`test_sem_data_dada_o_prazo_e_comparado_com_hoje`). O vermelho por erro (e não por asserção) vale pela mudança de interface; a asserção de prazo vencido só se prova pelo mutante.
+- Mutantes: `bin/forge-mutante --processos 3` nas cinco specs, rev `1c0c1e9e81d3`, rc 0: 33 mutantes (M1, M4 a M7, M9 a M12, M16 a M19, M21, M23 a M41), todos `morreu`; nenhum sobrevivente nem sem veredito. Os marcados `(erro)` (M4, M5, M6, M7, M19, M21, M23, M24, M26, M27, M32, M33, M34, M38) morrem por erro do teste sob o mutante, que passa sem ele: valem como mortos.
+- Fronteira protegida: skip morto não conta; subpasta só conta se o unittest a descobre; quarentena sem prazo, sem "OK do dono" ou com prazo vencido é recusada; o dia do prazo passa. Suíte inteira: só o CI do PR (`R-QA`).
