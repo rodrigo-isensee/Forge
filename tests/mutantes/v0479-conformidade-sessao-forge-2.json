@@ -4,9 +4,9 @@
   "mutantes": [
     {
       "id": "M9",
-      "guarda": "E51.6: a recusa do teto da chamada com ação crítica é marcada TRAVA_OPACA",
+      "guarda": "E51.6: a recusa do teto da chamada com ação crítica é marcada TRAVA_NO_TETO",
       "arquivo": "hooks/conformidade.py",
-      "de": "                                              \"prazo\", CONTORNO_DO_TETO, trava=TRAVA_OPACA)",
+      "de": "                                              \"prazo\", CONTORNO_DO_TETO, trava=TRAVA_NO_TETO)",
       "para": "                                              \"prazo\", CONTORNO_DO_TETO)",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
@@ -71,13 +71,16 @@
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
       ]
-    }
-  ],
-  "isentas": [
+    },
     {
+      "id": "M16",
+      "guarda": "E51.6: a recusa marcada TRAVA_NO_TETO é lida pelo texto da linha",
       "arquivo": "hooks/conformidade.py",
-      "trecho": "o_que.startswith(PUSH_DIRETO)",
-      "motivo": "E51.6: o reconhecimento pelo texto da recusa sai; a marca trava=TRAVA no barrar o troca (M3 na linha nova, M13 a M15 nos sítios)"
+      "de": "    if trava == TRAVA_NO_TETO:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
     }
   ]
 }

@@ -44,9 +44,9 @@
     },
     {
       "id": "M5",
-      "guarda": "E51.6: a TRAVA_OPACA só vale na linha com git, gh ou flag de trava; a outra segue livre",
+      "guarda": "E51.6: a TRAVA_OPACA só vale quando um comando da linha pode ser uma trava; a outra segue livre",
       "arquivo": "hooks/conformidade.py",
-      "de": "        return isinstance(linha, str) and bool(LINHA_DA_TRAVA.search(linha))",
+      "de": "        return isinstance(linha, str) and toca_uma_trava(linha)",
       "para": "        return True",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"

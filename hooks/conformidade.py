@@ -37,7 +37,7 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TET
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, expandir_home, fora_da_gramatica_com_heredoc,
                     expandir_heredoc, fora_da_gramatica_de_leitura, FORMA_DO_HEREDOC, heredocs, motivo_da_reavaliacao,
                     forge_check, git, leituras, mensagem, nome_da_branch, nome_do_caminho, raiz_declarada, raiz_do_projeto, reavaliacao,
-                    sem_atribuicoes, separar_lancadores, SHELLS, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
+                    ANTES_DO_PROGRAMA, palavras_do_texto, sem_atribuicoes, separar_lancadores, SHELLS, subcomando_do_git, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
 # custo de uma conferência cresce com o tamanho do texto, então o número delas não basta (A1 do review): conta também os
 # caracteres somados e o tempo, com folga para o timeout do hooks.json (10 s), que o Claude Code trata como liberado.
@@ -342,13 +342,18 @@ PROFUNDIDADE_EXCEDIDA = ("R-CONFORMIDADE", f"comando aninhado (bash -c, eval, $(
 # clone, `wt/*`), as travas valem para todo papel na `GuardaDaProva`: R-MAIN, R-VERIFY, o push direto para a integração
 # e a tag v* (`trava_da_sessao_do_forge`). O resto da linha segue livre (ADR 0009, seção 6).
 # E51.6: a marca vai no `barrar` (`trava=`), não no texto da recusa. `TRAVA`: vale sempre (o push direto para a integração,
-# a tag v*; R-MAIN e R-VERIFY valem pelo ID). `TRAVA_OPACA`: o alvo opaco com ação crítica (variável, reavaliação, teto,
-# heredoc fora da gramática), que pode esconder uma trava (`F=--force; git push $F`, `B=develop; git push origin $B`); vale
-# quando a linha cita o git, o gh ou a flag de uma trava (`LINHA_DA_TRAVA`); a que só cita um caminho crítico segue livre.
+# a tag v*; R-MAIN e R-VERIFY valem pelo ID). `TRAVA_OPACA`: o alvo opaco com ação crítica (variável, reavaliação, heredoc
+# fora da gramática), que pode esconder uma trava (`F=--force; git push $F`, `B=develop; git push origin $B`); vale quando
+# um comando da linha pode ser uma trava (`toca_uma_trava`); a que só cita um caminho crítico segue livre. `TRAVA_NO_TETO`:
+# a linha acima do teto, que o hook não lê, pelo texto (`GIT_NO_TEXTO`).
 TAG_E_VERSAO = "a tag v* é a versão que todos os projetos instalam"
 PUSH_DIRETO = "push direto para"
-TRAVA, TRAVA_OPACA = "trava", "trava-opaca"
-LINHA_DA_TRAVA = re.compile(r"\b(?:git|gh)\b|--no-verify|--force|hookspath", re.I)
+TRAVA, TRAVA_OPACA, TRAVA_NO_TETO = "trava", "trava-opaca", "trava-no-teto"
+GIT_DAS_TRAVAS = {"push", "merge", "pull", "commit", "tag", "config", "rebase", "reset", "branch", "update-ref",
+                  "filter-branch", "filter-repo"}
+GH_DAS_TRAVAS = {"merge", "api"}
+OPACA_NA_PALAVRA = re.compile(r"[$`]")  # a palavra que o bash expande: o hook não sabe o valor
+GIT_NO_TEXTO = re.compile(r"(?<![\w./-])(?:git|gh)(?=\s)")  # o git ou o gh como palavra, não `.git/` nem `x-git`
 COLCHETE_DE_DIGITO = re.compile(r"\[[0-9-]+\]")  # o bash e o glob do Python o leem igual: sem caixa, negação nem classe
 CURINGA = re.compile(r"[*?\[]")  # o bash expande no alvo antes de gravar (A1 e A2 da segurança g1 da 0.45)
 MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
@@ -2022,7 +2027,7 @@ class Guarda:
             if excesso:
                 self.sem_leitura = True
                 self.barrar("R-CONFORMIDADE", f"chamada com ação crítica e {excesso}: o hook não a decide dentro do "
-                                              "prazo", CONTORNO_DO_TETO, trava=TRAVA_OPACA)
+                                              "prazo", CONTORNO_DO_TETO, trava=TRAVA_NO_TETO)
 
     def conferir_linha(self, comando, pasta, nivel, so_substituicoes, corpo_de_heredoc=False):
         if nivel - self.releituras > PROFUNDIDADE:
@@ -3788,11 +3793,39 @@ class GuardaDaProva(Guarda):
 
 def trava_da_sessao_do_forge(rid, trava, linha):
     """A recusa é uma trava que vale na sessão do Forge para todo papel: R-MAIN, R-VERIFY, a marcada `TRAVA` (o push
-    direto para a develop ou homolog, a tag v*) e a `TRAVA_OPACA` numa linha que cita o git, o gh ou a flag de uma trava
-    (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE, E51.6)."""
+    direto para a develop ou homolog, a tag v*), a `TRAVA_OPACA` numa linha com um comando que pode ser uma trava
+    (`toca_uma_trava`) e a `TRAVA_NO_TETO` com o git ou o gh no texto (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE, E51.6)."""
+    if trava == TRAVA_NO_TETO:
+        return isinstance(linha, str) and bool(GIT_NO_TEXTO.search(linha))
     if trava == TRAVA_OPACA:
-        return isinstance(linha, str) and bool(LINHA_DA_TRAVA.search(linha))
+        return isinstance(linha, str) and toca_uma_trava(linha)
     return rid in ("R-MAIN", "R-VERIFY") or trava == TRAVA
+
+
+def toca_uma_trava(linha, nivel=0):
+    """E51.6: algum comando simples da linha pode ser uma trava com o alvo opaco: o programa opaco (`$G push`), o git
+    com subcomando de `GIT_DAS_TRAVAS`, opaco ou com `-c`, o gh com `pr merge` ou `api` (ou opaco) nas duas primeiras
+    palavras, e o texto que o `eval` ou o `sh -c` reavalia (um nível). O git ou o gh valem em qualquer posição do comando
+    (`env git push $F`). A palavra vem do leitor (`palavras_do_texto`, sem aspas nem escapes); a que o bash expande,
+    pelo texto cru, vira `$`: a substituição (`$(echo git) push`, `git $(echo push)`) também é opaca."""
+    for comando in palavras_do_texto(linha).simples:
+        k = 0
+        while k < len(comando.palavras) and (comando.palavras[k].cru in ANTES_DO_PROGRAMA
+                                             or ATRIBUICAO.match(comando.palavras[k].cru)):
+            k += 1
+        palavras = ["$" if OPACA_NA_PALAVRA.search(p.cru) else p.valor for p in comando.palavras[k:]]
+        if palavras and OPACA_NA_PALAVRA.search(palavras[0]):
+            return True
+        for k, palavra in enumerate(palavras):
+            nome, resto = nome_do_caminho(palavra), palavras[k + 1:]
+            sub = subcomando_do_git(resto)
+            if nome == "git" and resto and (sub is None or sub in GIT_DAS_TRAVAS or OPACA_NA_PALAVRA.search(sub)):
+                return True
+            if nome == "gh" and (GH_DAS_TRAVAS & set(resto[:2]) or any(OPACA_NA_PALAVRA.search(p) for p in resto[:2])):
+                return True
+            if (nome == "eval" or nome in SHELLS) and not nivel and any(toca_uma_trava(p, 1) for p in resto):
+                return True
+    return False
 
 
 def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, travas=False):
