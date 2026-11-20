@@ -258,7 +258,10 @@ class Interrupcao(Base):
                         mock.patch.object(h, "projeto", return_value=self.tmp), mock.patch.object(agentes, "ler_config"), \
                         mock.patch.object(agentes, "e_clone_do_forge", return_value=False), \
                         mock.patch.object(agentes, "conferir_brief", return_value=([(citado, str(self.tmp / citado), BRIEF.encode())], None)):
-                    agentes.principal(h)
+                    try:
+                        agentes.principal(h)
+                    except OverflowError:
+                        self.fail("OverflowError escapou de principal: o disparo deveria ser recusado")
                 self.assertNotEqual(saida.exception.code, 0)
                 self.assertEqual(self.arquivo.read_text(encoding="utf-8"), semeado)
 
