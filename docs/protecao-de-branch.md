@@ -41,21 +41,27 @@ Depois de configurar, o dono roda, para cada `<b>` entre `develop`, `homolog` e 
 A resposta lista as regras: `pull_request`, `required_status_checks` com os dois checks, `non_fast_forward` e `deletion`. Para ver a lista de bypass, abra o ruleset na página de rulesets, como administrador: ela precisa estar vazia no `portoes`. O comando não escreve nada. O `forge doutor` não lê a lista de bypass: uma regra de PR com desvio de administrador parece protegida e não está.
 
 ## Tirar o bypass de um ruleset que já existe (a `develop` está com exceção)
-Estado medido em 15/11 (AV1-BYPASS-RULESET): o ruleset que atinge a `develop` tem um ator na lista de bypass com o modo **Always**, e o dono mesclou PRs direto nela, sem esperar o CI (sete em três dias, dois com a `develop` quebrada). Texto pedindo lista vazia não tirou o ator; só o dono tira, uma vez, pela interface:
-1. Repositório > Settings > Rules > Rulesets. Anote cada ruleset cujo alvo inclui `develop` (o `portoes` e qualquer outro que a lista mostre).
+Estado registrado no quadro de 15/11 (AV1-BYPASS-RULESET): o ruleset `checks-obrigatorios-develop-main`, que atinge a `develop`, tem um ator na lista de bypass com o modo **Always**. Depois desse registro, o dono mesclou PRs direto nela, sem esperar o CI (sete merges, #680 a #715, em três dias, dois com a `develop` quebrada); a data dos merges é posterior a 15/11. Texto pedindo lista vazia não tirou o ator; só o dono tira, uma vez, pela interface:
+1. Repositório > Settings > Rules > Rulesets. Anote cada ruleset que alcança a `develop`: o `checks-obrigatorios-develop-main` (o do bypass Always), o `portoes` e qualquer outro. Não escolha à mão pelo nome nem pelo alvo que cita `develop`: pegue a lista pela leitura abaixo (`rules/branches/develop`), que traz os rulesets que alcançam a branch, inclusive por `~ALL`, `~DEFAULT_BRANCH` ou curinga.
 2. Abra cada um, como administrador, e olhe **Bypass list**. Remova cada ator listado (papel de administrador, o dono, app, bot). A lista tem de ficar **vazia**; trocar Always por "For pull requests only" **não basta** no `portoes`, porque o merge do PR com check vermelho é justamente o desvio.
 3. Confirme **Enforcement status: Active** (Evaluate não barra) e `develop` entre os alvos. Salve.
-4. Se um segundo ruleset alcança a `develop` com bypass próprio, repita nele. O `main-do-dono` não alcança a `develop` e mantém o bypass "For pull requests only" só para a `main`.
+4. Se outro ruleset alcança a `develop` com bypass próprio (o `checks-obrigatorios-develop-main` ou um terceiro, inclusive de alvo `~ALL`, `~DEFAULT_BRANCH` ou curinga), repita nele. O `main-do-dono` não alcança a `develop` e mantém o bypass "For pull requests only" só para a `main`.
 5. Confira pela leitura abaixo e anote a data e o resultado no histórico do pedido.
 
 Efeito esperado: nenhum merge na `develop` sem `bateria` e `catraca` verdes, inclusive o do dono; o botão de merge fica desabilitado com check pendente ou vermelho.
 
 ## Conferência de bypass (só leitura)
-`gh api repos/<dono>/<repo>/rulesets` lista os rulesets (id e nome). Para cada um que atinge a `develop`:
+1. Ache os rulesets que alcançam a `develop`, pelo endpoint que já aplica include e exclude:
+
+`gh api repos/<dono>/<repo>/rules/branches/develop`
+
+Cada regra da resposta traz `ruleset_id`; a lista de ids vem daí, não de `rulesets` filtrado à mão. É só leitura (GET, sem método nem campo). Cobre o ruleset do bypass Always (`checks-obrigatorios-develop-main`), o `portoes` e qualquer outro, mesmo de alvo `~ALL`, `~DEFAULT_BRANCH` ou curinga.
+
+2. Para cada `ruleset_id`:
 
 `gh api repos/<dono>/<repo>/rulesets/<id>`
 
-Na resposta, `bypass_actors` tem de ser `[]` no `portoes`, `enforcement` tem de ser `active` e `conditions.ref_name.include` tem de citar `develop`. Se vier `current_user_can_bypass`, o esperado para a conta que mescla é `never`. A auditoria diária (AE8.2 do pedido MELHORIAS-ANTI-ERRO) passa a ler esses campos; até ela entrar, a conferência é do dono. Campo ausente é "não verificado", nunca "sem bypass".
+Na resposta, `bypass_actors` tem de ser `[]` em todos os que alcançam a `develop` (o `checks-obrigatorios-develop-main` e o `portoes`; só o `main-do-dono` pode ter bypass, e só na `main`), `enforcement` tem de ser `active`, e `conditions.ref_name` tem de alcançar a `develop`: o `include` cita `develop`, `~ALL`, `~DEFAULT_BRANCH` ou um padrão que a case, **e o `exclude` não a tira**. Confira o `exclude` também: ruleset que a exclui não a alcança, e o que a inclui por curinga com bypass não escapa. Se vier `current_user_can_bypass`, o esperado para a conta que mescla é `never`. A auditoria diária (AE8.2 do pedido MELHORIAS-ANTI-ERRO) passa a ler esses campos; até ela entrar, a conferência é do dono. Campo ausente é "não verificado", nunca "sem bypass".
 
 ## Develop vermelha sem bypass (saída pelo conserto)
 Sem bypass, a `develop` vermelha não se conserta empurrando nem mesclando por fora. A saída é o modo conserto da BP2 (`R-FLUXO`; "Conserto da integração vermelha" em `skills/trabalho-em-paralelo/ritmo-e-corte.md`, decisão D2 do dono):
