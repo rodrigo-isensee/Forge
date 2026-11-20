@@ -481,7 +481,7 @@ class ChamadaPorCaminhoRelativo(Base):
 
     def test_atualizacao_do_plugin_nao_roda_ferramenta_do_projeto(self):
         marca = self.tmp / "marca"
-        self.escrever(self.destino / "bin/forge-sempre-atual", f'#!/usr/bin/env bash\necho rodou > "{marca}"\n')
+        self.escrever(self.destino / "bin" / "forge-sempre-atual", f'#!/usr/bin/env bash\necho rodou > "{marca}"\n')
         self.rodar_relativo(abertura=False)
         self.assertFalse(marca.exists(), "rodou a ferramenta que está dentro do projeto")
 
