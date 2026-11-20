@@ -9,7 +9,8 @@
       "de": "and valido and tipo and not com_controle(nome) and parecer_mesclado_na_volta(  # E50.1\n                raiz, base_sha, valido,",
       "para": "and tipo and not com_controle(nome) and parecer_mesclado_na_volta(  # E50.1\n                raiz, base_sha, valido or base_sha,",
       "testes": [
-        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_sem_conferida_a_regra_nao_vale"
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_sem_conferida_a_regra_nao_vale",
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_sem_conferida_o_parecer_com_commit_no_base_sha_segue_fora"
       ]
     },
     {
