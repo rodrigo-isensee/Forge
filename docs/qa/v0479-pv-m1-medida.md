@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pv-m1-medida
-commit: 580fea97a00363ac78560eae7a875e80cad7159b
+commit: c5c0a232123312a20f5de27be913d57741377a55
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -16,9 +16,10 @@ data: 2026-11-20
 
 Obrigações: a definição D7 (aceita pelo dono em 20/11) como está no docstring de `bin/forge-placar`; sem especificação de UX nem contrato de API (ferramenta de linha de comando). Sem suíte local (E57.8): rodei só `tests/evals/test_placar.py`, as specs de mutantes e o vermelho do teste novo.
 
-## Achados
-- A1 (recomendado) tests/evals/test_placar.py:748 · a classe CiPrimeira (12 testes) ficou depois do `unittest.main()`: rodar o arquivo direto executa 52 de 64 testes. Pelo discover (CI) roda tudo; mover o bloco para antes do `if __name__`.
-- A2 (recomendado) bin/forge-testes:785 · `--vermelho` só enxerga tests/test_*.py e recusa `--modulos evals.test_placar`; teste novo em tests/evals não tem vermelho pela ferramenta (feito à mão abaixo). Ampliar o glob.
+## Revalidação (head c5c0a232)
+A1 e A2 do parecer anterior: A1 corrigido (`__main__` no fim; direto roda 67, discover 67, OK). A2 (ampliar o glob do `forge-testes --vermelho`) não bloqueia nem pertence a este diff; fica como estava, sem achado novo. Delta lido por `forge-check parecer delta`: `bin/forge-placar` (jobs não lista = lacuna; cancelada sem envio novo dá lugar à seguinte do mesmo head), changelog, testes e spec `-5`.
+- Vermelho à mão (A2): cópia do HEAD com `bin/forge-placar` de 580fea97: `FAILED (failures=4)`: `test_cancelada_sem_envio_novo_...` e `test_jobs_que_nao_e_lista_sai_lacuna` (3 subtestes); `test_execucao_seguinte_nao_troca_...` é guarda de regressão, morta pelo M32.
+- `bin/forge-mutante --base 580fea97... --processos 2 tests/mutantes/v0479-pv-m1-medida-5.json`: `base=580fea97... rev=c5c0a232...`; M30, M31, M32 `morreu`; rc=0.
 
 ## Critério → teste → resultado
 | Critério (D7) | Teste | Fronteira protegida | Resultado |
