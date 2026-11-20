@@ -1,0 +1,36 @@
+{
+  "descricao": "PARECER-PELO-PAPEL (v0478 E50.7, A3 da segurança; R-CONFORMIDADE): sessão do Forge, worktree em wt/*, o tech-lead grava a própria pasta docs/reviews/.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/.forge-contrib/wt/x/docs/reviews/x.md",
+      "content": "x\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "repos": {
+    "home/.forge-contrib/wt/x": {
+      "arquivos": {
+        "a.txt": "v\n",
+        "docs/reviews/x.md": "v\n",
+        ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+      },
+      "branch": "melhoria/x"
+    }
+  }
+}

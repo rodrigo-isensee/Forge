@@ -2793,6 +2793,14 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 14, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_parecer_pelo_papel(self):  # PARECER-PELO-PAPEL (v0478 E50.7): pastas de parecer na sessão do Forge
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("PARECER-PELO-PAPEL (")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 9, "o papel dono, o vizinho, outra regra e o repositório que não é do Forge")
+        self.assertGreaterEqual(len(lote) - len(liberam), 11, "papel × pasta × forma, no clone e em wt/*")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_do_n3(self):  # IMPL-FURO-HOOK-N, N3 (0.45.1): link com caminho protegido
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N3 (")]
         self.assertGreaterEqual(len(lote), 12, "as fixtures do item")
