@@ -19,12 +19,12 @@ Detalhe da skill `trabalho-em-paralelo` (diretriz 25: o Jarvis traz o resumo e m
 ## Fila e conserto da integração (`R-FLUXO`; BP2, decisões do dono de 20/11)
 - **Fila em série:** antes de cada merge, confira sobre qual topo da integração o CI do PR rodou. Se a base andou depois, traga-a pelo merge de sempre (sem forçar nem pular hook) e espere o CI de novo, mesmo sem arquivo em comum (D3). Check e parecer seguem: no Forge, a bateria completa roda no CI do PR, obrigatória para o merge, e o `tech-lead` mescla com tudo verde.
 - **Lote** (diretriz 26) é exceção declarada (D4): já exige a integração verde antes, itens sem arquivo em comum e o CI acompanhado no fim; os itens dele não repetem o teste sobre o topo.
-- **Onde mora a fila** (D1): no Forge, no `bin/forge-fechar`, com o servidor como está; reabre quando o Forge for para uma organização (BP9). No projeto de organização, a fila nativa do GitHub (`docs/engineering/protecao-de-branch.md` do projeto); em conta pessoal, o passo à mão acima.
+- **Onde mora a fila** (D1): no Forge, no `bin/forge-fechar` (até a I4, à mão; última linha), com o servidor como está; reabre quando o Forge for para uma organização (BP9). No projeto de organização, a fila nativa do GitHub (`docs/engineering/protecao-de-branch.md` do projeto); em conta pessoal, o passo à mão acima.
 - **Conserto da integração vermelha** (D2): com o CI de `push` da integração vermelho, o PR que conserta entra só se todas valem; leitura que falha para o merge:
   1. o vermelho é o do topo, lido na hora, e terminou com falha (nem pendente nem cancelado); topo que andou, pare;
   2. pareceres da classe aprovados no head e a cadeia de sempre: nenhum portão é dispensado;
-  3. merge preso ao head revisado; com a base trazida, o head novo só vale como o merge do revisado com o topo;
-  4. cada teste que falhou no vermelho passou no PR, fora da lista de pulados;
+  3. merge preso ao head revisado (`--match-head-commit <head revisado>`); com a base trazida, o head novo só vale com pais (revisado, topo) e a árvore do `git merge-tree` dos dois, sem resolução nem edição à mão;
+  4. cada teste que falhou no vermelho rodou e passou no PR: não vale pulado pelo id, pela classe (`setUpClass`, `tearDownClass`) ou pelo módulo (`setUpModule`, `tearDownModule`, `ModuleSkipped`), nem apagado; passo vermelho que não é teste (como o teto de pulados) fica verde no PR;
   5. o diff tem relação com o vermelho: toca o arquivo de um teste que falhou ou um arquivo mudado desde o último verde, ou reverte um merge desse intervalo;
   6. um conserto por vez; o CI do merge é acompanhado e, sem verde, a integração segue fechada para o resto;
   7. o `## Histórico` do pedido registra run, topo, PR e head.

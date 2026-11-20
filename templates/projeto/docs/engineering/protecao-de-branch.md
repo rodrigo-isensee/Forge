@@ -27,7 +27,7 @@ Repositório > Settings > Rules > Rulesets > New ruleset > New branch ruleset. U
 5. Marque **Restrict deletions** (bloqueio de deleção).
 6. Marque **Block force pushes** (bloqueio de force push).
 7. Marque **Require a pull request before merging**. Não marque aprovação obrigatória de revisor: a decisão é "checks verdes", e o bot não aprova o próprio PR.
-8. Marque **Require status checks to pass**. Deixe **Require branches to be up to date before merging** desmarcado: ele obriga cada PR a trazer a base de novo sempre que outro entra antes, e a branch traz a base uma vez, antes do pedido de merge (`R-FLUXO`). A garantia é o CI contra a base real: o do PR roda sobre o merge com a base, e o da branch de integração (gatilho de `push` nela) confere cada merge.
+8. Marque **Require status checks to pass**. Deixe **Require branches to be up to date before merging** desmarcado: o novo teste sobre o topo sempre que a base anda é da fila da `R-FLUXO` (seção "Fila de merge"), e marcar a caixa para o servidor barrar é escolha do dono. A garantia é o CI contra a base real: o do PR roda sobre o merge com a base, e o da branch de integração (gatilho de `push` nela) confere cada merge.
 9. Em "Add checks", acrescente cada job da lista do `devops-engineer` e, em cada um, deixe a fonte (Source) fixada em **GitHub Actions**. Sem a fonte fixada, um status gravado por token com o mesmo nome vale como verde.
 10. Create.
 
