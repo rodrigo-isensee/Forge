@@ -10,7 +10,7 @@ data: 2026-11-20
 ---
 # Review de segurança: v0479-pp1-aplicado-dono (v0478 E52.3, revalidação)
 
-Volta por delta sobre o parecer aprovado em `58da41ec` com A4 recomendado (a rodada anterior fica no git). Delta lido (`forge-check parecer delta`, `58da41ec..4d60adf4`): no domínio, só `bin/forge-check` (`isencao_do_dono`, `patch_revisado_do_dono`, `parecer_cita_o_patch`, chamada em `linhas_de_entrega`). Fora do domínio: `tests/test_conf_escopo.py`, os mutantes e o fragmento do changelog; do teste, li só o `aprovar` da classe `PatchRevisadoDoDono`, para as sondas. A base subiu de `cf09782` para `5ccac0b` por merge, sem mudança no domínio desta entrega. Suíte: não rodada (brief). Rodadas: as sondas S3 e S4, com as variantes abaixo, sobre a classe `PatchRevisadoDoDono` (31 testes, sem falha).
+Volta por delta sobre o parecer aprovado em `58da41ec` com A4 recomendado (a rodada anterior fica no git). Delta lido (`forge-check parecer delta`, `58da41ec..4d60adf4`): no domínio, só `bin/forge-check` (`isencao_do_dono`, `patch_revisado_do_dono`, `parecer_cita_o_patch`, chamada em `linhas_de_entrega`). Fora do domínio: `tests/test_conf_escopo.py`, os mutantes e o fragmento do changelog; do teste, li só o `aprovar` da classe `PatchRevisadoDoDono`, para as sondas. A base subiu de `cf09782` para `5ccac0b` por merge, sem mudança no domínio desta entrega. Suíte: não rodada (brief). Rodadas: as sondas S3 e S4 e as variantes S0 e S5 a S10, sobre a classe `PatchRevisadoDoDono` (31 testes, sem falha).
 
 Gatilhos: guarda da conferência de entrega, arquivo em vigor (.githooks/, .claude/, .forge/config.json, .forge/versao), identidade do autor do commit.
 
@@ -28,10 +28,10 @@ Este parecer leu o `forge-check`, não um `.patch` aplicado pelo dono. Por isso 
 ## Sondas
 - S0 · controle: parecer aprovado com `pedido: exemplo` e `branch: melhoria/x` (os da entrega), que cita o sha256 · espera: isenta · obtido: `escopo: ok (patch do dono 7685800…, patch "docs/notas/pp1.patch" sha256 9cc62fef…)`
 - S3 · parecer aprovado com `pedido: outro` e `branch: melhoria/outra`, que cita o sha256 · espera: não isenta · obtido: não isenta ("nenhum parecer de segurança aprovado da branch e do pedido, no head, cita o sha256 do .patch")
-- S3b · igual a S3, mas só a `branch:` difere · espera: não isenta · obtido: não isenta
-- S3c · igual a S3, mas só o `pedido:` difere · espera: não isenta · obtido: não isenta
+- S7 · igual a S3, mas só a `branch:` difere · espera: não isenta · obtido: não isenta
+- S8 · igual a S3, mas só o `pedido:` difere · espera: não isenta · obtido: não isenta
 - S4 · `docs/security/aceites/y.md` com `parecer: riscos-aceitos` e o sha256 · espera: não isenta · obtido: não isenta
-- S4b · `docs/security/aceites/y.md` com frontmatter completo e aprovado da entrega · espera: não isenta · obtido: não isenta
-- S4c · `docs/security/ameacas/y.md` com frontmatter completo e aprovado da entrega · espera: não isenta · obtido: não isenta
+- S9 · `docs/security/aceites/y.md` com frontmatter completo e aprovado da entrega · espera: não isenta · obtido: não isenta
+- S10 · `docs/security/ameacas/y.md` com frontmatter completo e aprovado da entrega · espera: não isenta · obtido: não isenta
 - S5 · `riscos-aceitos` da própria branch e pedido · espera: não isenta · obtido: não isenta
 - S6 · `tipo: revisao-codigo` da própria branch e pedido · espera: não isenta · obtido: não isenta
