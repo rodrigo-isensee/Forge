@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pv-b1-registros
-commit: 1aed3a743d433c903454422acad73859c12b67b9
+commit: f7baaa533910b7af1777ad406f7bc940f8df669c
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -42,3 +42,18 @@ Pedido de controle (`bin/`): diff de `5ccac0bf` a `1aed3a74` em `bin/forge-teste
 
 ## Prova de execução do CI
 Não há check-run `bateria` citado: o brief manda parecer sem suíte local e o PR não foi aberto neste head; a bateria do PR é a prova da suíte inteira.
+
+## Revalidação no head f7baaa53 (delta de 1aed3a74)
+`forge-check parecer delta` listou 4 arquivos do domínio: `bin/forge-testes` (constante `RAMO_BUSCAVEL`, recusa do ramo inválido antes do `git fetch`, `--end-of-options`), o fragmento de changelog, a spec de mutantes `-2` (R12 a R15) e `tests/test_testes_tocados.py` (1 teste novo, abuso da segurança A1/E57.19).
+
+| Obrigação | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Ramo de `--base` que seria opção (`--upload-pack=...`, `-x`), refspec (`+x:refs/heads/y`) ou `..` é recusado antes do fetch, com aviso e saída 2; nada executa, nada é gravado | `Registros.test_ramo_que_seria_opcao_ou_refspec_e_recusado_sem_buscar` (4 subTests) | início com `-`, caractere fora de `[A-Za-z0-9._/-]`, `..` | passou |
+
+- Teste novo, local: `python3 -I -m unittest discover -s tests -p test_testes_tocados.py -k test_ramo_que_seria`: `Ran 1 test · OK`.
+- Vermelho antes do verde (`bin/forge-testes --vermelho 1aed3a743d433c903454422acad73859c12b67b9 --modulos test_testes_tocados`, rc=0): `vermelho: base=1aed3a743d43 head=f7baaa533910 módulos=test_testes_tocados (restrito por --modulos)`; `Registros.test_ramo_que_seria_opcao_ou_refspec_e_recusado_sem_buscar · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=173; prova (asserção)=1; pulado=1`.
+- Mutação do delta (`bin/forge-mutante --base 1aed3a743d433c903454422acad73859c12b67b9 tests/mutantes/v0478-pv-b1-registros.json tests/mutantes/v0478-pv-b1-registros-2.json`, rc=0, `base=1aed3a743d43… rev=f7baaa533910`): R1 a R15 todos `morreu`; R12 a R15 em `bin/forge-testes:920`, um por condição da guarda. Nenhum sobrevivente.
+- Cobertura contra o diff inteiro (`--cobertura --base 5ccac0bf`): ver saída da rodada; sem condição Python mudada sem mutante.
+- A troca por `--end-of-options` é argumento, não condição: sem mutante próprio; a recusa antes do fetch já impede opção (defesa em profundidade).
+- Processo: uma primeira rodada com `TMPDIR` inexistente sujou a árvore e as ferramentas a descartaram, como projetado; refeita com o `TMPDIR` da sessão.
+- Suíte inteira: só no CI do PR; sem check-run `bateria` neste head (PR não aberto), conforme o brief.
