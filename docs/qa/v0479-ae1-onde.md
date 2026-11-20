@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae1-onde
-commit: bef021c1cf681e4ca46590b0bc01eafcc3194025
+commit: b11db7154c0b4eb2d91b50a15242e46ed7aa297b
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -35,6 +35,13 @@ Código testado: `bef021c1`, clone `~/.forge-contrib/wt/v0479-ae1-onde-E588`, á
 - `forge-mutante --cobertura --base 5ccac0bf`: rc 0; 41 linhas `coberta`; `não coberto: tests/pesos-d4.json` é dado (JSON), sem condição de guarda. Nenhuma condição Python mudada sem mutante.
 - `forge-mutante --processos 2` sobre as 7 specs `tests/mutantes/v0478-ae1-onde*.json`: 49 mutantes (M1 a M49), 49 `morreu`, zero sobrevivente, zero sem veredito, rc 0. Os `(erro)` morreram com o controle verde.
 - Vermelho: `forge-testes --vermelho 5ccac0bf... --modulos test_forge_onde`: `vermelho: base=5ccac0bf616c head=bef021c1cf68`; `contagem: não prova (passa na base)=29; prova (asserção)=1`, rc 0. Os 29 "passam na base" são falso negativo da ferramenta (A1): numa cópia da base com o teste novo, `python3 -I -m unittest discover -s tests -p test_forge_onde.py` dá `ModuleNotFoundError: No module named 'forge_onde'`, ou seja, todos os testes caem na base.
+
+## Revalidação (delta bef021c1..b11db715, A1 e A2 da segurança)
+- Delta lido por `forge-check parecer delta`: `bin/forge_onde.py` (sha curto ambíguo com ref sai `nao-verificavel` rc 2; `TimeoutExpired` do git sai rc 2), 2 testes novos, mutantes M50 e M51, fragmento de changelog.
+- `python3 -I -m unittest discover -s tests -p test_forge_onde.py`: `Ran 32 tests ... OK`.
+- `forge-mutante tests/mutantes/v0478-ae1-onde-7.json --base bef021c1...`: `base=bef021c1cf681e4ca46590b0bc01eafcc3194025 mb=bef021c1... rev=b11db7154c0b`; M49, M50, M51 `morreu` (M51 com `(erro)` e controle verde); zero sobrevivente.
+- Vermelho: `forge-testes --vermelho bef021c1... --modulos test_forge_onde`: `vermelho: base=bef021c1cf68 head=b11db7154c0b`; `test_sha_curto_com_tag_de_mesmo_nome_e_nao_verificavel` H=ok B=falha (prova, asserção); `test_git_sem_resposta_sai_rc_2_nao_1` H=ok B=erro (TimeoutExpired sem tratamento na base; a ferramenta o chama "sem veredito" por não ser asserção, e M51 o mata, então prova). Restantes 30 passam na base, como esperado (herdados).
+- Sem PR e sem `bateria` neste head: suíte inteira fica para o CI do PR. O A1 anterior (recomendado, `forge-testes`) segue como cartão.
 
 ## Bugs
 Nenhum aberto.
