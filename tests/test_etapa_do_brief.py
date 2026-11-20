@@ -929,7 +929,7 @@ class PqDoExecutor(eb.Repo):
 
     def entrega_do(self, base, pedido="exemplo", fora=""):
         return (f"- PQ-N (cmd, do autor): `forge-check entrega {pedido}{fora} --branch melhoria/x --base develop --base-sha {base} "
-                "--etapa codigo` · espera: rc=0\n")
+                "--mutantes ${TMPDIR:-/tmp}/forge-mutantes.log --pronto ${TMPDIR:-/tmp}/forge-pronto.log --etapa codigo` · espera: rc=0\n")
 
     def test_codigo_traz_o_pq_com_o_sha40_da_base(self):
         rc, saida, erro = self.gerar("--etapa", "codigo")
