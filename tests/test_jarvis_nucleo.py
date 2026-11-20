@@ -146,6 +146,7 @@ class RevalidaMesmaInstancia(unittest.TestCase):
         passo5 = next(l for l in nucleo.splitlines() if l.startswith("5. **Conferência da entrega e code review:**"))
         self.assertRegex(passo5, r"revalidação de um parecer.*retoma a instância que o deu \(`SendMessage`")
         self.assertIn("sem a instância (sessão reiniciada), abra uma nova com o mesmo brief", passo5)
+        self.assertIn("só com `revalida: sim` no `forge-check parecer delta <parecer>`", passo5)  # META85-FC-RESTOS A2
 
     def test_o_nucleo_segue_no_teto(self):
         nucleo, teto = ler(JARVIS), ORCAMENTO["agentes"]["jarvis"]["teto"]["agente_caracteres"]

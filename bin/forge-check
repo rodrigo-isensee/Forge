@@ -3583,6 +3583,13 @@ def esqueleto_do_parecer(tipo_cli, pedido, branch, commit, parecer, data):
     return "\n".join(linhas) + "\n"
 
 
+def arquivo_do_parecer_novo(tipo, pedido, branch):
+    """META85-FC-RESTOS: o caminho que o brief pede, `<pasta>/<slug>.md` na branch `melhoria/<slug>` (convenção do Forge, slug de nome
+    seguro, sem barra); fora dela, `<pasta>/<pedido>.md`."""
+    slug = branch.removeprefix("melhoria/") if branch.startswith("melhoria/") else ""
+    return f"{CONTRATOS[tipo][0]}/{slug if NOME_SEGURO_DE_BRIEF.fullmatch(slug) else pedido}.md"
+
+
 def cmd_parecer_novo(raiz, a):
     """`forge-check parecer novo` (Z7): imprime o esqueleto válido do parecer (só leitura; quem grava é o papel do parecer, com a
     própria ferramenta de escrita, para o hook registrar a autoria). O `commit:` é o sha a revisar (AQ-5), nunca o HEAD. rc 0 impresso,
@@ -3596,7 +3603,7 @@ def cmd_parecer_novo(raiz, a):
         print(f"parecer novo: sem o sha a revisar: {fonte}")
         return 2
     tipo = TIPO_DO_PARECER_NOVO[a.tipo][0]
-    rel = f"{CONTRATOS[tipo][0]}/{a.pedido}.md"
+    rel = arquivo_do_parecer_novo(tipo, a.pedido, a.branch)
     texto = esqueleto_do_parecer(a.tipo, a.pedido, a.branch, commit, a.parecer, datetime.date.today().isoformat())
     _, violacoes = validar_documento(rel, texto, estrito=True)
     if violacoes:  # a ferramenta nunca entrega forma que ela mesma reprova
