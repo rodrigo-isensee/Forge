@@ -23,6 +23,8 @@ comando inteiro; `barrado` é a regra do hook que recusou a chamada, ou null. O 
 Cada violação nova vai para `.forge/run/violacoes.jsonl`; havendo alguma, a saída é só
 `{"systemMessage": "Forge: <n> violação(ões) - ..."}` com código 0 (nunca `additionalContext`: ADR 0003).
 Sem violação não escreve nada. Erro interno: sai 0 e registra em `erros.log`. Só biblioteca padrão.
+Age no projeto e também na sessão do Forge (clone sem `.forge/versao`, `wt/*`), com o estado no `.forge/run/` da cópia
+principal do clone (`Hook.run`), como os outros hooks (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE).
 """
 import hashlib
 import json
@@ -504,7 +506,7 @@ def principal(hook):
     evento = hook.campo("hook_event_name")
     if evento == "SessionStart" and raiz_declarada() is not None:
         marcar_projeto(raiz_declarada())
-    raiz = hook.projeto(hook.cwd())
+    raiz = hook.projeto(hook.cwd(), clone_do_forge=True)  # a sessão do Forge também (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE)
     if versao_sumiu() and evento in ("Stop", "SubagentStop"):
         novas = avisar_versao_sumiu(hook)
     elif raiz is None or evento not in ("SessionStart", "Stop", "SubagentStop"):

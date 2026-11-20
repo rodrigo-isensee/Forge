@@ -7,7 +7,8 @@ flags proibidas (`--no-verify`, `--force`, `core.hooksPath`). Write/Edit decidem
 (garantido); o Bash é lido como texto (barrado em regra: um script ou ofuscação passa, e o sandbox é a garantia).
 PostToolUse registra a autoria dos pareceres em `.forge/run/autoria.jsonl`.
 Falha fechado nas ações críticas (seção 7); `FORGE_GUARDA_ABERTA=1` no ambiente do processo abre a guarda.
-Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB).
+Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB). Na
+sessão do Forge, fora de projeto, valem as travas (R-MAIN, R-VERIFY, push para a integração, tag v*) para todo papel.
 """
 import collections
 import contextlib
@@ -337,6 +338,11 @@ PROVA_DA_SUITE = ("R-VERIFY", "a prova da suíte só é gravada pelo pre-push e 
 # também fora de projeto (a `GuardaDaProva` a deixa passar), e não só quando ela aponta para o Forge.
 PROFUNDIDADE_EXCEDIDA = ("R-CONFORMIDADE", f"comando aninhado (bash -c, eval, $(, crase, heredoc) em mais de {PROFUNDIDADE} "
                          "níveis: o hook não o lê", f"rode o comando direto, com no máximo {PROFUNDIDADE} níveis aninhados")
+# CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE (v0478 E51.1): na sessão do Forge com a pasta corrente fora de projeto (o
+# clone, `wt/*`), as travas valem para todo papel na `GuardaDaProva`: R-MAIN, R-VERIFY, o push direto para a integração
+# e a tag v* (`trava_da_sessao_do_forge`). O resto da linha segue livre (ADR 0009, seção 6).
+TAG_E_VERSAO = "a tag v* é a versão que todos os projetos instalam"
+PUSH_DIRETO = "push direto para"
 COLCHETE_DE_DIGITO = re.compile(r"\[[0-9-]+\]")  # o bash e o glob do Python o leem igual: sem caixa, negação nem classe
 CURINGA = re.compile(r"[*?\[]")  # o bash expande no alvo antes de gravar (A1 e A2 da segurança g1 da 0.45)
 MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
@@ -2908,7 +2914,7 @@ class Guarda:
                                                     "--merged", "--no-merged"}
         so_opcoes_de_leitura = curtas <= TAG_SO_LEITURA_CURTAS and longas <= TAG_SO_LEITURA_LONGAS
         if args and not (leitura and so_opcoes_de_leitura):
-            self.barrar("R-FLUXO", "git tag no repositório do Forge: a tag v* é a versão que todos os projetos instalam",
+            self.barrar("R-FLUXO", f"git tag no repositório do Forge: {TAG_E_VERSAO}",
                         "só o release.yml cria a tag, sobre a main; para ler, use git tag -l")
 
     def git_tags_no_envio(self, args, globais, pasta, sub="push"):
@@ -2923,7 +2929,7 @@ class Guarda:
                      or any(TAG_NO_ENVIO.match(parte) for r in refs for parte in r.split(":"))
                      or any(TAG_NA_CONFIG.search(g) for g in globais))
         if envia_tag:
-            self.barrar("R-FLUXO", f"git {sub} de tag para o Forge: a tag v* é a versão que todos os projetos instalam",
+            self.barrar("R-FLUXO", f"git {sub} de tag para o Forge: {TAG_E_VERSAO}",
                         "envie só a branch; a tag nasce do release.yml, sobre a main")
 
     def git_push(self, args, pasta, ramos, sub="push", troca=()):
@@ -2961,9 +2967,9 @@ class Guarda:
             destinos.append(nome_da_branch(re.sub(r"^heads/", "refs/heads/", destino)))
         for d in destinos:
             if d in ("main", "master"):
-                self.barrar("R-MAIN", f"push direto para {d}", "abra um PR; a main é do usuário", "main")
+                self.barrar("R-MAIN", f"{PUSH_DIRETO} {d}", "abra um PR; a main é do usuário", "main")
             if d in INTEGRACAO:
-                self.barrar("R-CONFORMIDADE", f"push direto para {d}", "abra um PR a partir de uma branch de trabalho",
+                self.barrar("R-CONFORMIDADE", f"{PUSH_DIRETO} {d}", "abra um PR a partir de uma branch de trabalho",
                             "main")
         # o remoto nomeado (a URL dele, resolvida no repositório da pasta), a URL dada ou, sem remoto, a pasta
         if self.alvo_do_forge(pasta, remoto=remoto) or (remoto and self.alvo_do_forge(pasta, remoto)) or (
@@ -3674,8 +3680,9 @@ def identificar_sessao(hook):
       Forge escrito no projeto não muda nada): as regras dele e as de contribuição valem em qualquer pasta (o
       próprio projeto, o clone, `wt/*`, `~`, outra pasta), no Bash, no Write e no Edit; a raiz fica em
       `hook.raiz`, ou a do projeto onde a pasta está, se houver.
-    - Raiz no Forge (clone do próprio Forge, sem `.forge/versao`): regras da sessão do Forge; o hook só age dentro
-      de um projeto, pela pasta corrente, como sempre.
+    - Raiz no Forge (clone do próprio Forge, sem `.forge/versao`): regras da sessão do Forge; o hook age por inteiro
+      dentro de um projeto, pela pasta corrente; fora dele (o clone, `wt/*`) valem as travas para todo papel
+      (`GuardaDaProva` com `travas`, CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE).
     - Sem raiz (ou raiz fora do Forge): pela pasta corrente; em `~/.forge-contrib` falha fechado, como sessão de
       outro projeto de nome igual ao do clone (`wt/*` e a própria pasta: nome vazio).
     Devolve False se o hook não age; None se age pela raiz do repositório; o nome da sessão de outro projeto."""
@@ -3727,10 +3734,12 @@ class GuardaDaProva(Guarda):
     recusada pelo destino da escrita, resolvido pela Guarda, e não pelo texto. Só a linha que o hook não lê (teto,
     ilegível: `sem_leitura`) volta ao texto em `prova_fora_de_projeto`, falhando fechado.
     AGENTES-JSON-SEM-GUARDA: com a sessão no clone do Forge (`no_clone`), vale também a recusa que cita o motivo de uma
-    entrada de `ESTADO_DOS_HOOKS` (escrita, remoção do ancestral, link)."""
-    def __init__(self, hook, pol, papel, no_clone=False):
+    entrada de `ESTADO_DOS_HOOKS` (escrita, remoção do ancestral, link).
+    CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE: com `travas` (raiz da sessão no clone do Forge), valem também as travas
+    (`trava_da_sessao_do_forge`)."""
+    def __init__(self, hook, pol, papel, no_clone=False, travas=False):
         super().__init__(hook, pol, papel)
-        self.no_clone = no_clone
+        self.no_clone, self.travas = no_clone, travas
         self.motivos_do_estado = tuple(e["motivo"] for e in pol["caminhos"] if e["caminho"] in ESTADO_DOS_HOOKS)
         self.motivo_do_config = next((e["motivo"] for e in pol["caminhos"] if e["caminho"] == CONFIG_DA_RAIZ), None)
 
@@ -3750,6 +3759,8 @@ class GuardaDaProva(Guarda):
             super().barrar(rid, o_que, corrigir)
         if self.recusa_do_estado(o_que):
             super().barrar(rid, o_que, corrigir)
+        if self.travas and trava_da_sessao_do_forge(rid, o_que):
+            super().barrar(rid, o_que, corrigir, simples)
         if self.sem_leitura:
             raise ForaDaProva(rid)
 
@@ -3767,14 +3778,21 @@ class GuardaDaProva(Guarda):
         """Fora de projeto não há confirmação a pedir."""
 
 
-def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
+def trava_da_sessao_do_forge(rid, o_que):
+    """A recusa é uma trava que vale na sessão do Forge para todo papel: R-MAIN, R-VERIFY, o push direto para a main,
+    develop ou homolog e a tag v* (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE)."""
+    return rid in ("R-MAIN", "R-VERIFY") or o_que.startswith(PUSH_DIRETO) or TAG_E_VERSAO in o_que
+
+
+def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, travas=False):
     """S8 (C-1, A2 da segurança g3): a prova da suíte é por uid, então vale também fora de projeto, em toda sessão e
     para todo papel. A outra recusa não vale e a leitura segue (`GuardaDaProva`); linha que o hook não lê ou erro
-    interno: falha fechado só se o alvo cita o nome da prova ou, no clone do Forge, o estado dos hooks (C10)."""
+    interno: falha fechado só se o alvo cita o nome da prova ou, no clone do Forge, o estado dos hooks (C10).
+    `travas`: na sessão do Forge valem também as travas (`trava_da_sessao_do_forge`)."""
     if hook.campo("hook_event_name") == "PostToolUse":
         return
     hook.raiz = raiz or Path(hook.cwd())
-    guarda = GuardaDaProva(hook, pol, papel, bool(raiz and e_clone_do_forge(raiz)))
+    guarda = GuardaDaProva(hook, pol, papel, bool(raiz and e_clone_do_forge(raiz)), travas)
     try:
         decidir(hook, guarda, ferramenta, entrada)
     except Exception as erro:  # noqa: BLE001 - ForaDaProva ou erro interno; a decisão vem do texto do alvo
@@ -3894,7 +3912,7 @@ def principal(hook):
                 bloquear("R-CONTRIB", "erro interno ao conferir o rótulo afrouxa-regra; o hook não pôde decidir. "
                                       "Corrigir: veja .forge/run/erros.log e leve ao dono do Forge (R-DECISAO)")
         if not (com_lista and na_sessao_do_forge):
-            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz)
+            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, na_sessao_do_forge)
             return
         externo, hook.raiz = None, raiz
     try:

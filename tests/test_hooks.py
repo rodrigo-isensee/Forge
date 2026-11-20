@@ -3619,5 +3619,27 @@ class HookDir36(unittest.TestCase):
         self.rodar_prefixo("contrib", 140)
 
 
+class HookSessaoDoForge(unittest.TestCase):
+    """CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE (v0478 E51.1): na sessão do Forge (raiz sem `.forge/versao`), as travas
+    do `conformidade` valem para todo papel em `wt/*` e no clone, e o `vigia` grava `violacoes.jsonl`. Só as fixtures
+    `e51-*`, pela máquina do `Hooks`, para os mutantes de `tests/mutantes/v0479-conformidade-sessao-forge.json`."""
+    executar_em_lote = Hooks.executar_em_lote
+    executar_fixture = Hooks.executar_fixture
+    _pasta_temporaria = Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+
+    def rodar(self, hook, piso, codigos):
+        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / hook).glob("e51-*.json"))], piso, f"{hook}/e51-*")
+        self.assertEqual({f.dados["esperado"]["codigo"] for f in fixtures}, codigos)
+        self.assertEqual(self.executar_em_lote([(f"{hook}/{f.caminho.stem}", f) for f in fixtures]), len(fixtures),
+                         "toda fixture é verificada")
+
+    def test_travas_do_conformidade(self):
+        self.rodar("conformidade", 11, {0, 2})
+
+    def test_vigia_registra(self):
+        self.rodar("vigia", 2, {0})
+
+
 if __name__ == "__main__":
     unittest.main()
