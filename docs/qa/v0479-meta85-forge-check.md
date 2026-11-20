@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-forge-check
-commit: 19e81adc611e1f17f6a2f1fab2c4bb6162726217
-parecer: reprovado
+commit: dd6e111021f53ee783e47dc4649767d8f35289f8
+parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
@@ -63,5 +63,9 @@ Delta (`forge-check parecer delta`, intervalo `a281e4a5..19e81adc`, E34.18): `bi
 - M7 (`bin/forge-check:1580`, `return cmd_pr(raiz, pedido, ref, None, branch, previo) + (` trocado por `... branch) + (`): o teste da spec (`tests.test_revisor_wt.PrPrevio.test_ausente_com_previo_e_aviso_e_sem_previo_e_violacao`) continua passando com o mutante. Sobrevive igual no `a281e4a5` (aprovado) e no `5ae868eb` (a base do pedido): a linha não é do delta e o mutante nunca foi rodado porque a spec só entra na rodada por causa do apoio de teste do E34.18. Não é regressão do item, mas a regra do QA bloqueia mutante vivo até virar teste ou equivalente aceito.
 - Suíte inteira não rodada local; vale o check-run `bateria` do mesmo sha no CI do PR.
 
-## Achados
-- A1 (bloqueante) tests/mutantes/z075-pr-previo.json:67 · M7 sobrevive (`pr_da_cli` sem `--base` repassando `previo` ao `cmd_pr`, bin/forge-check:1580), igual na base 5ae868eb; falta teste que chame `pr --previo` sem `--base`, ou o autor declara equivalente com a justificativa.
+## Revalidação no head dd6e1110
+Delta (`forge-check parecer delta`, intervalo `19e81adc..dd6e1110`): `tests/mutantes/z075-pr-previo.json` (M7 passa a apontar `test_ausente_sem_base_e_sem_develop_o_diff_literal_leva_o_previo`), `tests/mutantes/v0433-integracao-2.json` (I26 reduzido a `tests.test_aq5_parecer_novo`) e `tests/test_revisor_wt.py` (teste novo).
+- `bin/forge-mutante tests/mutantes/z075-pr-previo.json`: M1 a M11 `morreu`, rc=0, `rev=dd6e111021f5`; o M7 (`bin/forge-check:1580`) morreu.
+- `bin/forge-mutante tests/mutantes/v0433-integracao-2.json --ids I26`: `I26 · morreu · bin/forge-check:2064`, rc=0 (com o I26 enxuto cabe no prazo).
+- Teste novo: `python3 -I -m unittest discover -s tests -p test_revisor_wt.py -k test_ausente_sem_base_e_sem_develop_o_diff_literal_leva_o_previo` OK (1).
+- A1 resolvido: o M7 não sobrevive mais. Nenhum achado aberto.
