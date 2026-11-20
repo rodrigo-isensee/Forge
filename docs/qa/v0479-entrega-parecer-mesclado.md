@@ -3,39 +3,34 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-entrega-parecer-mesclado
-commit: cdf62e0a29a1dabf34c600bb0b802e9fd65bcf55
-parecer: aprovado
-escopo: completo
+commit: 8cff35a0a8a65134b83fbd3841c4f3bb290269bc
+parecer: reprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-20
 ---
-# QA: v0478 E50.4 (ENTREGA-PARECER-MESCLADO-ANTES-DO-AUTOR), volta E50.5
+# QA: v0478 E50.10 (ENTREGA-PARECER-MESCLADO-ANTES-DO-AUTOR), E50.6 (A4) e E50.7 (A3)
 
-Head testado: `cdf62e0a` (E50.5 sobre o `48153733` do brief selado; a volta da segurança fechou A1 e A2 e o review A1). Sem suíte local: a suíte inteira fica com o CI do PR.
+Head testado: `8cff35a0`. Delta lido por `forge-check parecer delta` (de `cdf62e0a`): `bin/forge-check` (A4), `hooks/conformidade.py` (barreira de papel), 21 fixtures, specs de mutante 3 e 4, `tests/test_hooks.py`, `tests/test_selo_e_entrega.py`. Sem suíte local: a suíte inteira fica com o CI do PR.
 
 ## Achados
-- A1 (recomendado) bin/forge-check:3017 · com `commit:` igual ao Desde, o parecer de QA que revalida o código novo do autor (`commit:` = head da correção) sai `fora do declarado`: `melhoria/v0479-vermelho-evals`, `commit: bdc7eb53`, Desde `8b5d4a5f`. Efeito da decisão do dono; revalidar com brief novo (Desde = head corrigido).
+- A1 (bloqueante) tests/mutantes/v0479-entrega-parecer-mesclado.json:M1 · o mutante M1 (tirar `and valido` da guarda da volta, `bin/forge-check:3245`) sobrevive; a spec o declara morto por `test_sem_conferida_a_regra_nao_vale`. Sobrevive também no `cdf62e0a` (`:3234`): falha do meu parecer anterior, que cortou a linha no `tail`. Sem teste, a regra vale na 1ª entrega com `commit:` = Base-sha. Teste novo ou equivalente justificado.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| E50.1: parecer mesclado e commitado antes da volta é anexo do portão (caso real `bp1-q1-leitor`) | `ParecerMescladoNaVolta.test_caso_real_parecer_mesclado_e_commitado_antes_da_volta_e_anexo`; `forge-check entrega --so-leitura` real | `commit:` = Desde | passou (14 de 14; real: `cumpriu`) |
-| E50.1: autor que toca o parecer junto do código, merge resolvido à mão, sem conferida, frontmatter de outra branch/pedido/tipo, `commit:` abreviado ou fora, sem frontmatter, veredito trocado, git que falha | `test_autor_que_edita...`, `test_merge_com_o_parecer_resolvido_a_mao...`, `test_sem_conferida...`, `test_frontmatter_de_outra_branch...`, `test_commit_fora_do_intervalo_ou_abreviado...`, `test_parecer_sem_frontmatter...`, `test_veredito_trocado...`, `test_git_que_falha...` | recusas do autor | passou |
-| E50.5 A1: `commit:` igual ao Desde; autor que forja aprovado citando o próprio código, ou troca o reprovado do portão | `test_autor_que_forja_aprovado_citando_o_proprio_codigo...`, `test_reprovado_do_portao_trocado_por_aprovado_com_outro_commit...` (S1, S3) | `commit:` entre o Desde e o head | passou |
-| E50.5 A2: um commit com pareceres de várias pastas, ou com `docs/security/aceites/`, fica fora | `test_um_commit_com_pareceres_de_varias_pastas...`, `test_parecer_de_seguranca_com_aceite_no_mesmo_commit...` (S2) | pasta do tipo; aceites do usuário | passou |
-| Review A1: ramo `cod` do rev-list recusa | `test_rev_list_que_falha_recusa` | git que falha, `all([])` | passou |
+| E50.1/E50.5: parecer mesclado na volta preso ao Desde e à pasta (regressão) | `ParecerMescladoNaVolta` | `commit:` = Desde; pasta do tipo | passou (junto com a classe do A4: 19 de 19) |
+| E50.6 A4: parecer do papel do autor da volta só vale com `parecer conferido` do Jarvis, no blob do head | `ParecerDoMesmoPapelDoAutor` (sem linha, com linha, outra versão, sem autor conhecido, brief de outro pedido) | autor vazio (falha fechada); mesmo papel; outro pedido | passou |
+| E50.7 A3: pastas de parecer só do papel dono na sessão do Forge (clone, `wt/*`, outro repositório, vizinho `reviewsx`, MultiEdit, Notebook, redirecionamento, `cp`, `git show`) | `test_hooks.test_fixtures_do_parecer_pelo_papel` (21 fixtures: bloqueios e liberações) | papel × pasta × forma; vizinho de nome; fora do Forge | passou |
+| E50.1: guarda da volta só com conferida (`and valido`) | `test_sem_conferida_a_regra_nao_vale` | 1ª entrega | M1 sobrevive (A1) |
 
 ## Cenários e resultado real
-- Classe: `python3 -I -m unittest discover -s tests -p test_selo_e_entrega.py -k ParecerMescladoNaVolta` → `Ran 14 tests ... OK`.
-- `python3 -I -m unittest discover -s tests -p test_forge_mutante.py -k ConferirTodas` → `Ran 4 tests ... OK`.
-- Mutantes de `tests/mutantes/v0479-entrega-parecer-mesclado-2.json`: `M9 · morreu · bin/forge-check:3024`, `M10 · morreu · :3001`, `M11 · morreu · :3012`, `M12 · morreu · :3002`, `M13 · morreu · :3002`, `M14 · morreu · :3022`. Spec 1: `M2` a `M8 · morreu` (`:2997` a `:3022`), rc 0 (a linha de M1 saiu do corte do `tail`; não relida). Spec `v0457-escopo-ponto-2.json` (trecho do M12 reescrito): `M12 · morreu · bin/forge-check:2951`.
-- Vermelho: cada mutante M9-M14 morto prova teste que cai sem a guarda; `forge-testes --vermelho 48153733` estourou o prazo de 580 s sem veredito (não vale como vermelho).
-- Casos reais, `forge-check entrega --so-leitura --pedido v0478 --etapa codigo`:
-  - `melhoria/v0479-bp1-q1-leitor` (`df0251ca..eec2c1c1`): `escopo: ok (anexo do portão: parecer de tech-lead commitado na volta só com parecer)` e o de `seguranca`; `resultado: cumpriu`.
-  - `melhoria/v0479-vermelho-evals` (`8b5d4a5f..f913faea`): `escopo: fora do declarado no brief "docs/qa/v0479-vermelho-evals.md"`; `resultado: não cumpriu`. Com o `forge-check` do `48153733` o mesmo caso dá `cumpriu`: o aperto A1 o tira (parecer de QA com `commit: bdc7eb53`, o código novo do autor, não o Desde). É o efeito pedido pelo dono, não defeito; vira o A1 recomendado.
-
-## Cópia
-`/root/.forge-contrib/wt/v0479-entrega-parecer-mesclado-E504` trazida por fast-forward até `cdf62e0a`. Criei só as refs locais `melhoria/v0479-bp1-q1-leitor` e `melhoria/v0479-vermelho-evals` nessa cópia para a conferência.
+- `python3 -I -m unittest discover -s tests -p test_selo_e_entrega.py -k ParecerDoMesmoPapelDoAutor -k ParecerMescladoNaVolta` → `Ran 19 tests ... OK`.
+- `python3 -I -m unittest discover -s tests -p test_hooks.py -k fixtures_do_parecer_pelo_papel` → `Ran 1 test ... OK`.
+- `forge-mutante --cobertura --base 8a503799…`: toda condição mudada em `bin/forge-check` e `hooks/conformidade.py` tem mutante declarado (só `declarado, não provado` e `coberta`; nenhuma linha sem mutante); `spec editada · tests/mutantes/v0457-escopo-ponto-2.json` (trecho do M12 reescrito).
+- Mutantes, saída colada: spec 3 e 4 (`--processos 2`): `M17 · morreu · bin/forge-check:3035`, `M18 · :3245`, `M19 · hooks/conformidade.py:3748`, `M20 · :3755`, `M21 · :3757`, `M22 · :3758`, `M23 · :3778`, `M24 · :3779`, rc 0. Spec 2: `M9` a `M16 · morreu` (`:3028`, `:3001`, `:3014`, `:3002` ×2, `:3026`, `:3022` ×2), rc 0. Spec 1: `M2` a `M8 · morreu`, e `M1 · sobreviveu · bin/forge-check:3245`. Spec `v0457-escopo-ponto-2.json`: `M14`, `M15`, `M16 · morreu` no fim da saída; `M12` morreu no parecer anterior e a linha não foi relida.
+- Vermelho: cada mutante morto nos itens do delta (M15 a M24) prova teste que cai sem a guarda; `forge-testes --vermelho` não rodado (estourou o prazo no head anterior; não vale como vermelho).
+- Barreira A3 (E50.7): bloqueio para todo papel fora do dono, inclusive pela forma relativa ao topo da cópia (`wt/*`); o papel dono segue livre. A confirmação escrita da barreira é da segurança (E50.9), não minha.
