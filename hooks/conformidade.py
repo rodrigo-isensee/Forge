@@ -3722,6 +3722,8 @@ ESTADO_NO_TEXTO = re.compile(r"\.git/forge(?![\w.-])|forge/run|agentes\.json|\.f
 # das pastas de parecer valem também na `GuardaDaProva`, para todo papel, e também pela forma relativa ao topo da cópia
 # do Forge que contém o alvo (o clone ou `wt/*` com a raiz da sessão em outra cópia). O papel dono segue livre na pasta.
 CAMINHOS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/aceites/", "docs/security/")
+# A5 da segurança: a pasta de parecer citada no texto da linha (a variável no alvo, `d=docs/qa; echo x > $d/n.md`).
+PARECER_NO_TEXTO = re.compile(r"(?<![\w.-])docs/(?:reviews|qa|devops|security(?:/aceites)?)(?![\w.-])")
 
 
 class GuardaDaProva(Guarda):
@@ -3781,7 +3783,17 @@ class GuardaDaProva(Guarda):
         if any(m in o_que for m in self.motivos_do_estado):
             return True
         linha = self.h.campo("tool_input").get("command")
-        return "o hook não modela" in o_que and isinstance(linha, str) and bool(ESTADO_NO_TEXTO.search(linha))
+        return "o hook não modela" in o_que and isinstance(linha, str) and (
+            bool(ESTADO_NO_TEXTO.search(linha)) or self.parecer_alheio_no_texto(linha))
+
+    def parecer_alheio_no_texto(self, linha):
+        """A5 da segurança: a linha (com as continuações juntadas) cita uma pasta de parecer de que o papel não é dono; o
+        dono segue livre na própria pasta, como no projeto (a `Guarda` recusa ali a construção que o hook não modela)."""
+        for m in PARECER_NO_TEXTO.finditer(juntar_continuacoes(linha)):
+            e = next(e for e in self.pol["caminhos"] if e["caminho"] in CAMINHOS_DE_PARECER and casa(m.group(0) + "/", e["caminho"]))
+            if self.papel not in e["quem"]:
+                return True
+        return False
 
     def perguntar(self, texto):
         """Fora de projeto não há confirmação a pedir."""
@@ -3806,6 +3818,12 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
             hook.registrar_erro(erro)
             Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita o estado dos "
                           "hooks (.git/forge/, forge/run, agentes.json, .forge/config.json)", f"só o usuário altera; {SUGESTAO}")
+        if guarda.no_clone and isinstance(alvo, str) and guarda.parecer_alheio_no_texto(alvo):  # A5 da segurança
+            erro_interno = not isinstance(erro, ForaDaProva)  # a linha sem leitura é a recusa; só o erro interno vai ao registro
+            if erro_interno:
+                hook.registrar_erro(erro)
+            Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita uma pasta de parecer "
+                          f"de outro papel (papel: {papel})", "peça ao papel dono da pasta")
         pasta = Path(hook.cwd())
         opaco = bool(palavras and VARIAVEL.search(alvo))  # S3: `$(…)` ou variável no alvo
         for t in filter(CURINGA.search, palavras):  # A1 da segurança g1: o curinga que o bash expande no alvo
