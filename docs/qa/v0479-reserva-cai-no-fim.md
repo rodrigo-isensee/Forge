@@ -1,7 +1,7 @@
 ---
 tipo: qa
 contrato: 1
-pedido: v0479-reserva-cai-no-fim
+pedido: v0478
 branch: melhoria/v0479-reserva-cai-no-fim
 commit: 50e06ac60ee54707c6a089a2b6e9a261fd649150
 parecer: reprovado
