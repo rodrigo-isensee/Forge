@@ -74,9 +74,9 @@
     },
     {
       "id": "M32",
-      "guarda": "E51.10: o here-string de um shell é texto reavaliado (A1 do QA E51.9)",
+      "guarda": "E51.10/E51.18: o here-string de um shell, do source ou do ponto é texto reavaliado (A1 do QA E51.9)",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if nome in SHELLS and not nivel and any(toca_uma_trava(texto_reavaliado(a), 1) for a in aqui):",
+      "de": "            if le_o_here_string and not nivel and any(toca_uma_trava(texto_reavaliado(a), 1) for a in aqui):",
       "para": "            if False:",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"

@@ -44,20 +44,20 @@
     },
     {
       "id": "M37",
-      "guarda": "E51.14: o eval ou o shell com texto a reavaliar dentro do texto reavaliado é trava (A1 da segurança E51.12)",
+      "guarda": "E51.14/E51.18: o eval com texto a reavaliar dentro do texto reavaliado é trava (A1 da segurança E51.12)",
       "arquivo": "hooks/conformidade.py",
-      "de": "nivel and (originais[j + 1:] or aqui)",
-      "para": "nivel and False",
+      "de": "if nivel and nome == \"eval\" and originais[j + 1:]:",
+      "para": "if nivel and False:",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
       ]
     },
     {
       "id": "M38",
-      "guarda": "E51.14: o here-string do shell aninhado também é texto a reavaliar (S3 da segurança E51.12)",
+      "guarda": "E51.14/E51.18: o shell dentro do texto reavaliado é trava, com texto, here-string ou lendo a entrada (A1 da segurança E51.12 e E51.16)",
       "arquivo": "hooks/conformidade.py",
-      "de": "nivel and (originais[j + 1:] or aqui)",
-      "para": "nivel and originais[j + 1:]",
+      "de": "if nivel and nome in SHELLS:",
+      "para": "if nivel and False:",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
       ]

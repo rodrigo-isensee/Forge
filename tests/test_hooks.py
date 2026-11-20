@@ -3635,7 +3635,7 @@ class HookSessaoDoForge(unittest.TestCase):
                          "toda fixture é verificada")
 
     def test_travas_do_conformidade(self):
-        self.rodar("conformidade", 48, {0, 2})
+        self.rodar("conformidade", 55, {0, 2})
 
     def test_vigia_registra(self):
         self.rodar("vigia", 2, {0})

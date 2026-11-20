@@ -3806,16 +3806,21 @@ def trava_da_sessao_do_forge(rid, trava, linha):
     return rid in ("R-MAIN", "R-VERIFY") or trava == TRAVA
 
 
+# E51.18 (A1 da segurança E51.16): o `source` e o ponto executam o here-string (`source /dev/stdin <<< '…'`).
+FONTES = frozenset({"source", "."})
+
+
 def toca_uma_trava(linha, nivel=0):
     """E51.6: algum comando simples da linha pode ser uma trava com o alvo opaco: o programa opaco (`$G push`), o git
     com subcomando fora de `GIT_FORA_DAS_TRAVAS` (opaco, alias, com `-c`), o gh com as duas primeiras palavras fora de
-    `GH_FORA_DAS_TRAVAS`, e o texto que o `eval` ou o `sh -c` reavalia (um nível; o `eval` ou o shell com texto a
-    reavaliar dentro dele é trava, fecha na dúvida: A1 da segurança E51.12). O git ou o gh valem em qualquer
-    posição do comando (`env git push $F`). A palavra vem do leitor (`palavras_do_texto`, sem aspas nem escapes); a que o bash expande,
+    `GH_FORA_DAS_TRAVAS`, e o texto que o `eval` ou o `sh -c` reavalia (um nível; o `eval` com texto a reavaliar, o
+    shell (com texto ou lendo a entrada, `echo … | bash`) e o `source` ou o ponto com here-string dentro dele são trava,
+    fecha na dúvida: A1 da segurança E51.12 e E51.16). O git ou o gh valem em qualquer posição do comando
+    (`env git push $F`). A palavra vem do leitor (`palavras_do_texto`, sem aspas nem escapes); a que o bash expande,
     pelo texto cru, vira `$`: a substituição (`$(echo git) push`, `git $(echo push)`) também é opaca. O corpo de heredoc
     é comando só quando o dono o roda (`bash <<'X'`; `corpo_so_lido`, como na conferência da linha), e o here-string de
-    um shell (`bash <<< '…'`) é texto reavaliado como o do `sh -c` (`texto_reavaliado`); o heredoc em dúvida deixa a
-    linha inteira como comando."""
+    um shell, do `source` ou do ponto (`bash <<< '…'`, `source /dev/stdin <<< '…'`) é texto reavaliado como o do
+    `sh -c` (`texto_reavaliado`); o heredoc em dúvida deixa a linha inteira como comando."""
     try:
         linha, corpos = tirar_heredocs(linha)
     except ValueError:
@@ -3839,12 +3844,17 @@ def toca_uma_trava(linha, nivel=0):
                 return True
             if nome == "gh" and " ".join(resto[:2]) not in GH_FORA_DAS_TRAVAS:
                 return True
-            if (nome == "eval" or nome in SHELLS) and nivel and (originais[j + 1:] or aqui):
+            if nivel and nome in SHELLS:  # E51.18: o shell aninhado relê o argumento, o here-string ou a entrada (pipe)
+                return True
+            if nivel and nome == "eval" and originais[j + 1:]:  # o eval não lê a entrada
+                return True
+            if nivel and palavra in FONTES and aqui:
                 return True
             relidos = map(texto_reavaliado, originais[j + 1:])
             if (nome == "eval" or nome in SHELLS) and not nivel and any(toca_uma_trava(t, 1) for t in relidos):
                 return True
-            if nome in SHELLS and not nivel and any(toca_uma_trava(texto_reavaliado(a), 1) for a in aqui):
+            le_o_here_string = nome in SHELLS or palavra in FONTES
+            if le_o_here_string and not nivel and any(toca_uma_trava(texto_reavaliado(a), 1) for a in aqui):
                 return True
     return False
 
