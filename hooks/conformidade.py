@@ -3809,7 +3809,8 @@ def trava_da_sessao_do_forge(rid, trava, linha):
 def toca_uma_trava(linha, nivel=0):
     """E51.6: algum comando simples da linha pode ser uma trava com o alvo opaco: o programa opaco (`$G push`), o git
     com subcomando fora de `GIT_FORA_DAS_TRAVAS` (opaco, alias, com `-c`), o gh com as duas primeiras palavras fora de
-    `GH_FORA_DAS_TRAVAS`, e o texto que o `eval` ou o `sh -c` reavalia (um nível). O git ou o gh valem em qualquer
+    `GH_FORA_DAS_TRAVAS`, e o texto que o `eval` ou o `sh -c` reavalia (um nível; o `eval` ou o shell com texto a
+    reavaliar dentro dele é trava, fecha na dúvida: A1 da segurança E51.12). O git ou o gh valem em qualquer
     posição do comando (`env git push $F`). A palavra vem do leitor (`palavras_do_texto`, sem aspas nem escapes); a que o bash expande,
     pelo texto cru, vira `$`: a substituição (`$(echo git) push`, `git $(echo push)`) também é opaca. O corpo de heredoc
     é comando só quando o dono o roda (`bash <<'X'`; `corpo_so_lido`, como na conferência da linha), e o here-string de
@@ -3837,6 +3838,8 @@ def toca_uma_trava(linha, nivel=0):
             if nome == "git" and resto and subcomando_do_git(resto) not in GIT_FORA_DAS_TRAVAS:
                 return True
             if nome == "gh" and " ".join(resto[:2]) not in GH_FORA_DAS_TRAVAS:
+                return True
+            if (nome == "eval" or nome in SHELLS) and nivel and (originais[j + 1:] or aqui):
                 return True
             relidos = map(texto_reavaliado, originais[j + 1:])
             if (nome == "eval" or nome in SHELLS) and not nivel and any(toca_uma_trava(t, 1) for t in relidos):
