@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp2-i2-regra
-commit: 0ce5173bf504d028f1a49eeb94491c9d22cdedae
+commit: 80f4bd1f2912d3222559b954eafde362e9e1a5dc
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -29,6 +29,16 @@ Diff contra a base 004ce869: 7 arquivos, só texto e `tests/config.json` (sem c�
 - Leitura do diff: o texto "bateria completa roda no CI do PR" saiu da `R-FLUXO` e passou para `ritmo-e-corte.md`; nenhum invariante apontava para ele (0 ausentes).
 - Pedido de texto, sem regra de código nova: sem mutante nem vermelho-antes-do-verde aplicáveis (nenhum teste novo; só trechos de invariante).
 - CI pago: nenhum rerun feito.
+
+## Revalidação (head 80f4bd1f, delta desde 0ce5173b)
+Delta lido por `forge-check parecer delta`: `changelog.d/v0479-bp2-i2-regra.md`, `docs/protecao-de-branch.md`, `skills/trabalho-em-paralelo/ritmo-e-corte.md`, `templates/projeto/docs/engineering/protecao-de-branch.md` (só texto; o 4c53dc9c é merge com pareceres de review e segurança). Mudanças: fila "à mão até a I4" no Forge, passo 8 e Limites sem prometer o `bin/forge-fechar`, condições 3 e 4 do conserto completas (`--match-head-commit`, pais e árvore do `merge-tree`, pulado por id, classe ou módulo).
+| Módulo | Resultado |
+|---|---|
+| `test_forge.py -k invariante -k regra -k neutr -k caminho` | 31 testes OK (37 no parecer anterior: a seleção `-k` muda com os nomes do head atual; nenhum falhou) |
+| `test_modelos_projeto.py` | 20 OK |
+| `test_invariante_gatilho.py` | 1 OK |
+| `tests/config.json` | `json.load` ok |
+Os invariantes de `ritmo-e-corte.md` e do modelo `protecao-de-branch.md` seguem presentes após a reescrita. Sem código, sem vermelho/mutante aplicáveis; nenhum rerun de CI.
 
 ## Achados
 - A1 (recomendado) docs/regras/R-FLUXO.md:14 · a linha de `develop` (bateria no CI do PR, tech-lead mescla) saiu da regra e só vive no `ritmo-e-corte.md`; sem invariante que a proteja na fonte, ela pode sumir sem teste cair.
