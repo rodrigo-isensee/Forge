@@ -1009,7 +1009,7 @@ def regerar(base):
         print(f"forge-testes: aviso: {falha_da_busca}", file=sys.stderr)
     try:
         alterados, sem_peso, antes = caminhos_alterados(base), modulos_sem_peso(base), fotografia()
-    except (RuntimeError, OSError, ValueError) as erro:
+    except (OSError, RuntimeError, ValueError) as erro:  # outra ordem: o `de` do R6 do B1 segue único (AR-12)
         print(f"forge-testes: regerar sem veredito ({erro})", file=sys.stderr)
         return 2
     tarefas = [("índice do Forge", INDICE_DO_FORGE, GERA_O_INDICE)] if any(map(INDICE_DAS_PASTAS.fullmatch, alterados)) else []
