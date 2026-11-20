@@ -17,7 +17,7 @@
       "guarda": "diff-tree que falha não lê a saída (falha fechada)",
       "arquivo": "bin/forge-check",
       "de": "    nomes = [] if cod else nomes_z(saida)\n    return bool(nomes) and all(",
-      "para": "    nomes = nomes_z(saida)\n    return bool(nomes) and all(",
+      "para": "    nomes = [] if False else nomes_z(saida)\n    return bool(nomes) and all(",
       "testes": [
         "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_git_que_falha_conta_como_commit_do_autor"
       ]
