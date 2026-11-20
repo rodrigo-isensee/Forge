@@ -11,6 +11,9 @@ orientação do M14 (150 linhas de código e teste, sem trava por volume).
   Fora: testes, documentação e texto `.md`, pareceres, fragmentos de changelog, corpus e fixtures.
 - **No Forge** contam `bin/`, `hooks/`, `scripts/`, `.github/` e `.githooks/`; ficam fora `tests/` inteira (com
   `tests/config.json` e `tests/mutantes/`), `changelog.d/`, corpus, fixtures e o texto `.md`.
+- **Até 10 arquivos por item** (META85, ordem do dono 18/11): o `forge-check classe` sai com rc 1 e `item: <n> arquivos`
+  acima disso; o corte vem no desenho, antes de começar. Contam código, documentação, agente e skill; ficam fora testes
+  (com `tests/mutantes/`; os módulos do portão em `tests/` contam), fragmentos de `changelog.d/` e pareceres e quadro.
 - **Um comportamento só** por item; vale uma classe de comportamento por PR em `hooks/`, com corpus próprio.
 - **Antes de começar:** item acima do teto é cortado pelo tech-lead em partes que ficam verdes sozinhas; partes que mexem
   nos mesmos arquivos seguem no mesmo agente, uma depois da outra (diretriz 33).

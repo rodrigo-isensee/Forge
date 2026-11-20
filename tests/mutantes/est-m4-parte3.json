@@ -112,8 +112,8 @@
       "id": "M19",
       "guarda": "cmd_pr passa FRAGMENTOS como estritos",
       "arquivo": "bin/forge-check",
-      "de": "base, livres, estritos=FRAGMENTOS, dominio=tipo,",
-      "para": "base, livres, dominio=tipo,",
+      "de": "base, livres_do_pedido(pedido), estritos=FRAGMENTOS, dominio=tipo,",
+      "para": "base, livres_do_pedido(pedido), dominio=tipo,",
       "testes": [
         "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_so_o_caminho_exato_do_fragmento_sai_do_hash"
       ]
