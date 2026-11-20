@@ -88,3 +88,11 @@ subprocessos de 4631 a 4633, por isso as duas exclusões.
 
 M23 é a sonda S1, M24 a S2 e M25 um laço de 1000 voltas por decisão. Cobertura (`--cobertura --base ef186de8`):
 nenhuma condição sem mutante, rc=0.
+
+## Medida nova depois da develop (v0478 E41.10)
+
+A integração da develop (004ce869 em 8dee4328 e cf097822 em 686a6e9e) mudou código que o hook roda; mesma máquina,
+Python 3.12.3, tmp a 2 níveis, 234 variáveis, subprocessos e execuções iguais:
+- head 686a6e9e: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5893967, 'ambiente': 234}` · FAILED contra o teto de 5860121
+- o mesmo head com `hooks/agentes.py`, `hooks/conformidade.json` e sem `hooks/_json_raso.py` (como em 8dee4328): `interpretador 5862452` (2331 do `hooks/_comum.py` e do `forge-check` da primeira integração; 31515 do `hooks/agentes.py` da segunda)
+- medida nova: 5893967, ruído 0; com ela, `python3 -m unittest tests.test_hooks_volta_corpus` deu 33 testes OK, rc=0 (o teto é a medida exata: um passo a mais reprova)
