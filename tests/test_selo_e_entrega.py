@@ -1521,6 +1521,17 @@ class ParecerMescladoNaVolta(Conferencia):
                 self.codigo("x\ny\nz\nw\n")
                 self.assert_fora()
 
+    def test_parecer_sem_frontmatter_segue_fora(self):
+        self.ate_a_conferida()
+        self.git("switch", "-q", "-c", "lado")
+        self.gravar("docs/reviews/x.md", "# parecer sem frontmatter\n")
+        self.git("add", "docs/reviews/x.md")
+        self.commit("docs(reviews): parecer")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "--no-edit", "lado")
+        self.codigo("x\ny\nz\nw\n")
+        self.assert_fora()
+
     def test_veredito_trocado_no_mesmo_commit_segue_fora(self):
         revisado = self.ate_a_conferida()
         self.mesclar_parecer(revisado, parecer="reprovado")
@@ -1537,7 +1548,7 @@ class ParecerMescladoNaVolta(Conferencia):
         original = fc.git
 
         def sem_diff_tree(raiz, *args, **kw):
-            return (128, b"") if args[0] == "diff-tree" else original(raiz, *args, **kw)
+            return (128, b"docs/reviews/x.md\0") if args[0] == "diff-tree" else original(raiz, *args, **kw)  # código de erro com saída
         with mock.patch.object(fc, "git", sem_diff_tree):
             self.assertFalse(fc.commit_so_de_parecer(self.proj, lado, rel))
         self.assertFalse(fc.parecer_mesclado_na_volta(self.proj, self.base, "0" * 40, "HEAD", rel, "review", "melhoria/x", "exemplo", "x"))

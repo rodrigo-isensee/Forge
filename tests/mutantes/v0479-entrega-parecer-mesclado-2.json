@@ -11,6 +11,26 @@
       "testes": [
         "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_veredito_trocado_no_mesmo_commit_segue_fora"
       ]
+    },
+    {
+      "id": "M10",
+      "guarda": "diff-tree que falha não lê a saída (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "    nomes = [] if cod else nomes_z(saida)\n    return bool(nomes) and all(",
+      "para": "    nomes = nomes_z(saida)\n    return bool(nomes) and all(",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_git_que_falha_conta_como_commit_do_autor"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "parecer sem frontmatter não é anexo (nem quebra a conferência)",
+      "arquivo": "bin/forge-check",
+      "de": "    fm = ler_frontmatter(git(raiz, \"show\", f\"{head}:{nome}\")[1])[0] or {}\n    if fm.get(\"tipo\") != tipo or fm.get(\"branch\") != branch or fm.get(\"parecer\") not in (\"aprovado\", \"reprovado\"):\n        return False\n    if fm.get(\"pedido\") not in (pedido_id, slug):\n",
+      "para": "    fm = ler_frontmatter(git(raiz, \"show\", f\"{head}:{nome}\")[1])[0]\n    if fm.get(\"tipo\") != tipo or fm.get(\"branch\") != branch or fm.get(\"parecer\") not in (\"aprovado\", \"reprovado\"):\n        return False\n    if fm.get(\"pedido\") not in (pedido_id, slug):\n",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_parecer_sem_frontmatter_segue_fora"
+      ]
     }
   ]
 }
