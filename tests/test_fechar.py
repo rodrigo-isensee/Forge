@@ -1384,6 +1384,8 @@ class Conserto(unittest.TestCase):
         self.anotar("b\ttest_b.Caso.test_um: AssertionError: 1 != 2\n.github\tProcess completed with exit code 1.\n")
         self.pulados([])
         (self.estado / "c_verde").write_text(self.verde + "\n")
+        for herdada in ("FORGE_FECHAR_LOTE_PAI", "FORGE_FECHAR_CONSERTO_H"):  # a marca e o head do pai nunca vêm do ambiente (AR-4)
+            self.env.pop(herdada, None)
 
     def run_do_topo(self, linha=None):
         (self.estado / "c_run_44").write_text((linha or f"push develop {self.topo} completed failure") + "\n")
