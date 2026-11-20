@@ -1,0 +1,2 @@
+### Alterado
+- Pesos da suíte por PR (PR-VERDE C1, v0478 E57.3): o teste `PesosDaSuite` troca o limite global de 20% de módulos sem peso pela regra por PR (módulo de teste novo precisa do peso medido com `python3 scripts/suite-paralela.py --medir <módulo>`; módulo com peso na base não o perde); o resumo do CI diz o comando e a marca de versão regera `tests/pesos-d4.json` com `scripts/pesos-do-ci.py`.
