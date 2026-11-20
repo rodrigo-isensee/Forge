@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp3-s2-container
-commit: c0087a7a92a4a349b39c9063b321d42b94429653
+commit: 1a7d0044c2c06149febad637179499ed729c2438
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
 ---
-# Review: v0478 (E39.14, BP3 S2 no head 14c69010, revalidado em ed21f2bd e c0087a7a)
+# Review: v0478 (E39.14, BP3 S2 no head 14c69010, revalidado em ed21f2bd, c0087a7a e 1a7d0044)
 
 Escopo: diff `004ce869..14c69010` (5 arquivos, cerca de 28 linhas de código fora testes; H1 dentro do teto). Classe pelo `forge-check classe`: C (review, qa, revisao-seguranca). Suíte inteira fica no CI do PR (sem PR nesta etapa); rodei só os 3 testes novos de `tests/test_forge.py` (`PrepararEstacao`): OK. `bin/forge-mutante --cobertura --base 004ce869`: os três arquivos aparecem como "não coberto", e a regra MUTANTES-SPEC-HOOKS da catraca só alcança Python (`.sh` e `.json` fora), então não há spec exigida. O `shellcheck` não está instalado aqui: fica com o CI.
 
@@ -39,8 +39,14 @@ Delta lido: `forge-check parecer delta docs/reviews/v0479-bp3-s2-container.md`, 
 
 Rodei: `tests/test_conformidade_vscode_container` (2 testes OK); `bin/forge-mutante tests/mutantes/v0479-bp3-s2-container.json --base ed21f2bd`: M1 a M5 morreram. Nenhum shell tocado no delta. Código no delta: 1 linha (H1 dentro do teto). Suíte inteira fica no CI do PR.
 
+## Revalidação (head 1a7d0044)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-bp3-s2-container.md`, intervalo `c0087a7a..1a7d0044`, base `origin/develop` atualizada para 0f6034e e o que veio dela fora do escopo (merge do `forge-fechar`); 1 arquivo no domínio:
+- `bin/forge-testes`: `test_conformidade_vscode_container` entra em `FORGE_CHECK` e em `REAPROVEITAM_O_LOTE`. As duas entradas batem com o módulo: ele importa `test_hooks` e reaproveita `Hooks.executar_em_lote` (`tests/test_conformidade_vscode_container.py:46`), que é o critério do comentário de E1.120; `forge-testes --listar tests/test_hooks.py` e `--listar bin/forge-check` passam a listá-lo.
+
+Rodei: `tests.test_testes_tocados`: 164 testes OK (1 pulado), com `TMPDIR` herdado; sem ele, 2 testes de `ExecucaoAfetados` caem porque o `tempfile` grava na árvore e a guarda de `git status` reprova (ambiente, não o delta). Nenhum shell tocado; nenhuma guarda mudada (só tupla de nomes), sem mutante novo. Código no delta: 2 linhas (H1 dentro do teto). Suíte inteira fica no CI do PR.
+
 ## Achados
 - A1 (recomendado) templates/projeto/.vscode/tasks.json:7 · A tarefa usa o shell padrão do terminal, mas o teste a roda com `bash -c`; num shell não POSIX (fish) o `if ...; then` quebra. Fixar `options.shell` em bash alinha a tarefa ao teste; sem tmux instalado a mensagem diz "Nenhum Jarvis aberto", vale citar a falta do tmux.
 
 ## Parecer
-Aprovado no head c0087a7a. A A2 (seção do changelog) está fechada; a guarda nova do `.vscode/settings.json` (A3 da segurança) tem teste de comportamento e mutante morto. O `denyWrite` do modelo depende do patch que o dono aplica. A A1 não bloqueia (`R-REVIEW`) e vira cartão depois do merge.
+Aprovado no head 1a7d0044 (revalidado sobre c0087a7a pelo delta). A A2 (seção do changelog) está fechada; a guarda nova do `.vscode/settings.json` (A3 da segurança) tem teste de comportamento e mutante morto. O `denyWrite` do modelo depende do patch que o dono aplica. A A1 não bloqueia (`R-REVIEW`) e vira cartão depois do merge.
