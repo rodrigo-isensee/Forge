@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-json-profundo
-commit: fbf2c6f7936daf77344088b10dc39bc31f63a560
+commit: fbab4dede7912d7650c8787b4edbbaed2e73e1fb
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -57,3 +57,6 @@ rc=0
 Sonda minha em `ler_estado` (não é teste do autor): bytes inválidos `\xff\xfe\xfd[` saem ilegíveis (JSONDecodeError); `{"agentes":[]}` e o mesmo com BOM UTF-8 leem; 80000 bytes de `[\x00` saem "aninhado acima de 64 níveis". Sem achado.
 
 Fora do diff, anotado: `hooks/` ainda tem `json.loads` de `plugin.json`, `config.json`, `_maquina.py` e `vigia.py` sem o teto; são arquivos do próprio projeto ou linhas curtas, fora do pedido (E44.1 cita estado, catraca e placar).
+
+## Revalidação (head fbab4ded, E44.5)
+`forge-check parecer delta`: intervalo fbf2c6f7..fbab4ded, só `docs/indice-forge.md` no domínio (uma linha nova de `hooks/_json_raso.py`, sem código nem teste). Merge da develop fora do escopo. `python3 -I -m unittest discover -s tests -p test_indice_forge.py`: 19 testes OK. O resto do parecer anterior segue valendo; a suíte inteira é o check-run `bateria` do CI.
