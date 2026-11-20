@@ -3,7 +3,8 @@
 Formato de `tests/quarentena.json`: `{"entradas": [...]}`, uma entrada por teste com `teste`, `classe`, `cartao`, `prova`, `desde`,
 `prazo` (AAAA-MM-DD, no máximo `desde` + 7 dias) e `autorizacao` (`A-<n>` do OK do dono). Uma prorrogação, opcional: `prorrogacao`
 com `prazo` (no máximo mais 7 dias) e `autorizacao` nova. A data (`hoje`) é sempre argumento: nada aqui lê o relógio.
-Falha fechada: arquivo ilegível, link simbólico, acima de `TETO_BYTES`, com chave repetida ou qualquer erro de validação vale
+Falha fechada: arquivo ilegível, link simbólico, acima de `TETO_BYTES`, com chave repetida, aninhado fundo demais para o `json` ou
+qualquer erro de validação vale
 como "não há entrada ativa", e o teste roda no portão.
 """
 import datetime
@@ -39,7 +40,7 @@ def carregar(caminho):
             return [], [f"quarentena: arquivo acima de {TETO_BYTES} bytes"]
         dados = json.loads(bruto.decode("utf-8"), object_pairs_hook=_sem_chave_repetida)
         entradas = dados["entradas"]
-    except (OSError, ValueError, KeyError, TypeError) as e:
+    except (OSError, ValueError, KeyError, TypeError, RecursionError) as e:
         return [], [f"quarentena ilegível: {e}"]
     if not isinstance(entradas, list) or not all(isinstance(e, dict) for e in entradas):
         return [], ["quarentena: `entradas` não é uma lista de objetos"]

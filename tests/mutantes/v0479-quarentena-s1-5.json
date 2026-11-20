@@ -11,6 +11,16 @@
             "testes": [
                 "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
             ]
+        },
+        {
+            "id": "M42",
+            "guarda": "E37.51: JSON aninhado fundo (RecursionError) vale como quarentena ilegível",
+            "arquivo": "bin/forge_quarentena.py",
+            "de": "    except (OSError, ValueError, KeyError, TypeError, RecursionError) as e:",
+            "para": "    except (OSError, ValueError, KeyError, TypeError) as e:",
+            "testes": [
+                "tests.test_forge_quarentena.Carregar.test_json_aninhado_fundo_devolve_erro_sem_quebrar"
+            ]
         }
     ]
 }

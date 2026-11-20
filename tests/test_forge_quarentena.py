@@ -61,6 +61,16 @@ class Carregar(unittest.TestCase):
         self.assertEqual(entradas, [])
         self.assertEqual(len(erros), 1)
 
+    def test_json_aninhado_fundo_devolve_erro_sem_quebrar(self):
+        fundo = "[" * 30000 + "]" * 30000
+        self.assertLess(len(fundo), q.TETO_BYTES)
+        for texto in (fundo, '{"entradas": ' + fundo + "}"):
+            with self.subTest(tamanho=len(texto)):
+                entradas, erros = self.ler(texto)
+                self.assertEqual(entradas, [])
+                self.assertEqual(len(erros), 1)
+                self.assertIn("ilegível", erros[0])
+
     def test_arquivo_acima_do_teto_nao_e_lido(self):
         vazio = '{"entradas": []}'
         no_teto = vazio + " " * (q.TETO_BYTES - len(vazio))
