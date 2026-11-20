@@ -3,11 +3,11 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-corpus-custo
-commit: b953cd459e87c06d6d0a049130505de8b9c8502d
-parecer: reprovado
+commit: 41db435f92eeadb4d16f641857538e77a1ca9657
+parecer: aprovado
 escopo: completo
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-20
@@ -15,10 +15,6 @@ data: 2026-11-20
 # QA: v0478 (E41.4, conserto do teste de custo do corpus da volta única)
 
 Código testado: b953cd45 (um commit sobre ef186de8). Sem especificação de UX: o critério é o pedido E41 (o teste de custo do corpus não depende da máquina e uma regressão real de custo o derruba). Suíte inteira não rodada (fica para o CI); rodei o módulo `tests.test_hooks_volta_corpus` e mutantes em cópias descartáveis.
-
-## Achados
-- A1 (bloqueante) hooks/_comum.py:2872 · Reproduzido: o hook com `sum(range(20000000))` a cada decisão (CPU a mais por execução, centenas de segundos no lote) passa no `test_corpus_nos_dois_hooks` (OK em 727 s). O contador não vê CPU do Python do hook; o teste antigo via. Regressão real escapa do portão.
-- A2 (bloqueante) tests/apoio_volta_unica.py:146 · Reproduzido: `excessos_de_trabalho({'execucoes':557,'subprocessos':4631+557,'sono':0.0},557)` devolve `[]`. O teto 10 por execução tem folga de 20% sobre a medida (8,31); um git a mais por decisão (+12%) passa, e o dono pediu limite sem folga (E41).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -39,3 +35,20 @@ Código testado: b953cd45 (um commit sobre ef186de8). Sem especificação de UX:
 
 ## Bugs
 Sem arquivo em `docs/qa/bugs/`: os dois achados acima são o defeito (alta, perda de cobertura do portão de custo). Quem corrige é o agente da stack de testes do Forge: contar trabalho do interpretador (por exemplo `sys.setprofile` ou `sys.monitoring`) com teto da medida mais o ruído, e apertar o teto de subprocessos.
+
+## Revalidação (head 41db435f, delta de b953cd45)
+Código testado: 41db435f (o remoto está em 17cb7616, só pareceres de review e segurança sobre ele). Suíte inteira não rodada (CI do PR). O parecer anterior (b953cd45) reprovava por A1 (CPU do hook invisível) e A2 (teto com folga); o autor trocou o teto por medida mais ruído, contou passos do interpretador (`sys.monitoring`) e adicionou os mutantes M23 a M29.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| E41-b: trabalho a mais derruba | `test_corpus_nos_dois_hooks` | execuções = declaradas (557) | passou (M1 anterior, mutantes do autor) |
+| E41-c: CPU dentro do hook derruba (A1) | sonda S1 `sum(range(20000000))` por decisão | passos do interpretador no hook | passou: o teste caiu, `5862147 interpretador, acima do teto de 5861041` |
+| E41-d: teto sem folga (A2) | sonda S2 `git --version` a mais por decisão | subprocessos | passou: o teste caiu, `5188 subprocessos, acima do teto de 4631 (medida 4631 mais o ruído 0)` |
+| E41-a: passa sob carga | módulo inteiro (28 testes), 3 rodadas | 12 laços de CPU, carga de 1 min entre 11 e 14 | passou, 3 de 3 |
+| Mutantes M23 a M29 | `forge-mutante` | cada linha de guarda mudada | todos morreram |
+
+- Sondas (cópias descartáveis do head 41db435f, inserção após `hook = Hook(nome)` em `hooks/_comum.py`, `python3 -I -m unittest discover -s tests -p test_hooks_volta_corpus.py -k test_corpus_nos_dois_hooks`): S1 `FAILED (failures=1)`, rc=1, 95,7 s, `trabalho do corpus: {'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5862147, ...}`; S2 `FAILED (failures=1)`, rc=1, 67,6 s, excessos de subprocessos (5188 > 4631) e de interpretador. Os dois achados antigos estão fechados: a classe que escapava agora reprova.
+- Módulo inteiro sob carga de 12 laços de CPU (TMPDIR próprio): rodada 1 `Ran 28 tests in 647.303s OK`; rodada 2 `494.901s OK`; rodada 3 `502.207s OK`; cada uma rc=0, sem skip. Não rodei as 10 rodadas do autor.
+- `forge-mutante` (5 specs, `--ids M23,M24,M25,M26,M27,M28,M29 --processos 2`, rev=17cb76168c2c): M23, M24, M25 (`hooks/_comum.py:2872`), M26 (`tests/apoio_volta_unica.py:240`), M27 (`:241`, morreu por erro com o controle verde), M28 (`:252`), M29 (`:220`), todos `morreu`, rc=0. Nenhum sobrevivente.
+- Delta de domínio lido por `forge-check parecer delta`: `tests/apoio_volta_unica.py`, `tests/test_hooks_volta_corpus.py`, as cinco specs de mutantes, `tests/provas/v0479-corpus-custo.md` e o changelog; nenhum arquivo de produção mudou além do que as sondas tocam em cópia.
+- Limite: o teto vale para o Python 3.12 da medida (declarado pelo autor); outra versão fica fora desta prova.
