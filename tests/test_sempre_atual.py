@@ -953,6 +953,7 @@ class Entradas(Mundo):
         """installPath ativo com o `scripts/jarvis-forge` de verdade e o stub da ferramenta; ~/Forge e a cópia vigente clonados de uma origem local."""
         ativo = self.instalar("0.47.1", "user")
         shutil.copyfile(RAIZ / "scripts" / "jarvis-forge", ativo / "scripts" / "jarvis-forge")
+        shutil.copyfile(RAIZ / "scripts" / "jarvis-comum.sh", ativo / "scripts" / "jarvis-comum.sh")
         (ativo / "scripts" / "jarvis-forge").chmod(0o755)
         self._script(ativo / "bin" / "forge-sempre-atual", STUB_DA_FERRAMENTA.replace("@COMPORTAMENTO@", ""))
         origem = self.tmp / "origem.git"

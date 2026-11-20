@@ -57,7 +57,7 @@ class Base(unittest.TestCase):
         # cópia do script sem `.git` e sem `bin/` ao lado: nada de atualização de plugin nem de doutor no teste
         self.raiz = self.tmp / "raiz"
         (self.raiz / "scripts").mkdir(parents=True)
-        for nome in ("jarvis", "jarvis-forge"):
+        for nome in ("jarvis", "jarvis-forge", "jarvis-comum.sh"):
             shutil.copy(RAIZ / "scripts" / nome, self.raiz / "scripts" / nome)
         # PATH do teste: fakes (date e sleep sempre) + as ferramentas comuns, sem tmux
         self.fakes = self.tmp / "fakes"
@@ -237,7 +237,7 @@ class Supervisor(Base):
         self.assertEqual(self.quedas(), [])
 
     def test_interrupcao_da_pessoa_e_terminal_fechado_nao_reabrem(self):
-        for codigo in (129, 130):
+        for codigo in (129, 130, 143):  # 143: kill de propósito é parada, não queda (a parada de emergência tem de parar)
             with self.subTest(codigo=codigo):
                 self.log.unlink(missing_ok=True)
                 self.saidas(codigo)
@@ -247,7 +247,7 @@ class Supervisor(Base):
         self.assertEqual(self.quedas(), [])
 
     def test_saida_anormal_reabre_com_continue(self):
-        for codigo in (128, 131, 137, 139, 143, 255):
+        for codigo in (128, 131, 137, 139, 255):
             with self.subTest(codigo=codigo):
                 self.log.unlink(missing_ok=True)
                 self.saidas(codigo, 0)
@@ -322,6 +322,15 @@ class Supervisor(Base):
                 self.saidas(*[137] * 10)
                 self.rodar(tmux_dentro=True, FORGE_QUEDA_ESPERA="0", FORGE_QUEDA_JANELA="abc")
                 self.assertEqual(len(self.execucoes()), corridas)
+
+    def test_janela_zero_nao_tira_o_teto_de_reaberturas(self):
+        """Janela 0 (ou só zeros) deixaria nenhuma queda na conta: reabriria sem fim. Vale o padrão e o teto de 3 segura."""
+        for valor in ("0", "00", "000"):
+            with self.subTest(valor=valor):
+                self.log.unlink(missing_ok=True)
+                self.saidas(*[137] * 10)
+                self.rodar(tmux_dentro=True, FORGE_QUEDA_ESPERA="0", FORGE_QUEDA_JANELA=valor)
+                self.assertEqual(len(self.execucoes()), 4)
 
     def test_espera_padrao_dez_segundos_e_configuravel(self):
         self.saidas(137, 0)
@@ -416,20 +425,21 @@ class ForgeSupervisor(Supervisor):
         self.assertIn("projeto=Forge-dev", self.quedas()[0])
 
 
-class BlocosIguais(unittest.TestCase):
-    """Os dois atalhos carregam o mesmo bloco (não há arquivo de apoio comum: o atalho é um script solto no PATH)."""
+class ArquivoComum(unittest.TestCase):
+    """O resolver e o supervisor vivem num arquivo só (scripts/jarvis-comum.sh); os dois atalhos o carregam e não o copiam."""
 
-    @staticmethod
-    def bloco(nome, marca):
-        texto = (RAIZ / "scripts" / nome).read_text(encoding="utf-8")
-        m = re.search(rf"^# {marca}-INICIO.*?^# {marca}-FIM$", texto, re.S | re.M)
-        assert m, (nome, marca)
-        return m.group(0)
+    FUNCOES = ("resolver_claude()", "registrar_queda()", "supervisionar()")
 
-    def test_resolucao_e_supervisor_identicos(self):
-        for marca in ("CLAUDE-ATUAL", "SUPERVISOR"):
-            with self.subTest(marca=marca):
-                self.assertEqual(self.bloco("jarvis", marca), self.bloco("jarvis-forge", marca))
+    def test_funcoes_so_no_arquivo_comum(self):
+        comum = (RAIZ / "scripts" / "jarvis-comum.sh").read_text(encoding="utf-8")
+        for f in self.FUNCOES:
+            self.assertEqual(comum.count(f + " {"), 1, f)
+        for nome in ("jarvis", "jarvis-forge"):
+            texto = (RAIZ / "scripts" / nome).read_text(encoding="utf-8")
+            with self.subTest(nome=nome):
+                self.assertIn("jarvis-comum.sh", texto)
+                for f in self.FUNCOES:
+                    self.assertNotIn(f, texto, f"{nome} copia {f}")
 
     def test_os_dois_scripts_passam_pelo_supervisor_e_pelo_binario_resolvido(self):
         for nome in ("jarvis", "jarvis-forge"):
@@ -439,6 +449,11 @@ class BlocosIguais(unittest.TestCase):
                 self.assertIn('exec "$claude_bin" "${args[@]}"', texto)
                 self.assertNotRegex(texto, r"(?m)^\s*(exec )?claude \"\$\{args", "chamada direta ao claude do PATH")
                 self.assertNotIn("\nif claude plugin list", texto)
+
+    def test_readme_diz_como_encerrar_de_vez(self):
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        self.assertIn("tmux kill-session -t jarvis-<projeto>", readme)
+        self.assertIn("143", readme)
 
 
 if __name__ == "__main__":

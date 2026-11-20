@@ -770,6 +770,7 @@ class Frequencia(Base):
         (raiz / "bin").mkdir(parents=True)
         (raiz / "scripts").mkdir()
         shutil.copy(RAIZ / "scripts/jarvis", raiz / "scripts/jarvis")
+        shutil.copy(RAIZ / "scripts/jarvis-comum.sh", raiz / "scripts/jarvis-comum.sh")
         (raiz / "bin/forge-doutor").write_text(f'#!/usr/bin/env bash\necho doutor >> {self.tmp}/ordem\n', encoding="utf-8")
         (raiz / "bin/forge-doutor").chmod(0o755)
         (self.bin / "claude").write_text(f'#!/usr/bin/env bash\n[ "$1" = plugin ] || echo claude >> {self.tmp}/ordem\n', encoding="utf-8")

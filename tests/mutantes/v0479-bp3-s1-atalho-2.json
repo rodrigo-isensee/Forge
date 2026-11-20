@@ -3,49 +3,9 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M11",
-      "guarda": "a janela padrão é 30 min",
-      "arquivo": "scripts/jarvis",
-      "de": "${FORGE_QUEDA_JANELA:-1800}",
-      "para": "${FORGE_QUEDA_JANELA:-3600}",
-      "testes": [
-        "tests.test_atalho_duravel.Supervisor.test_fora_da_janela_a_queda_velha_nao_conta"
-      ]
-    },
-    {
-      "id": "M12",
-      "guarda": "versão compara como número",
-      "arquivo": "scripts/jarvis",
-      "de": "sort -V | tail",
-      "para": "sort | tail",
-      "testes": [
-        "tests.test_atalho_duravel.Resolucao.test_compara_como_numero_de_versao_nao_como_texto"
-      ]
-    },
-    {
-      "id": "M13",
-      "guarda": "o maior vence, não o menor",
-      "arquivo": "scripts/jarvis",
-      "de": "tail -n 1)\" != \"$maior\"",
-      "para": "head -n 1)\" != \"$maior\"",
-      "testes": [
-        "tests.test_atalho_duravel.Resolucao.test_o_mais_novo_vence_mesmo_sendo_o_do_path"
-      ]
-    },
-    {
-      "id": "M14",
-      "guarda": "PATH sem --version fica como sempre",
-      "arquivo": "scripts/jarvis",
-      "de": "|| [ -z \"$v_primeiro\" ]",
-      "para": "|| false",
-      "testes": [
-        "tests.test_atalho_duravel.Resolucao.test_path_que_nao_responde_version_fica_como_sempre"
-      ]
-    },
-    {
       "id": "M15",
       "guarda": "mesmo arquivo conta uma vez",
-      "arquivo": "scripts/jarvis",
+      "arquivo": "scripts/jarvis-comum.sh",
       "de": "case \"$vistos\" in",
       "para": "case \"x\" in",
       "testes": [
@@ -100,6 +60,86 @@
       "para": "if [ \"$usa_tmux\" = 0 ]; then",
       "testes": [
         "tests.test_atalho_duravel.AvisoForaDoTmux.test_dentro_do_tmux_nao_avisa"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "--sem-tmux não supervisiona",
+      "arquivo": "scripts/jarvis-forge",
+      "de": "[ \"$sem_tmux\" = 0 ]; then\n  rc=0; supervisionar",
+      "para": "[ \"$sem_tmux\" != 9 ]; then\n  rc=0; supervisionar",
+      "testes": [
+        "tests.test_atalho_duravel.ForgeSupervisor.test_sem_tmux_nao_supervisiona"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "o aviso diferencia --sem-tmux de tmux ausente",
+      "arquivo": "scripts/jarvis-forge",
+      "de": "{ [ \"$sem_tmux\" = 1 ] || ! command -v tmux >/dev/null 2>&1; }; then\n  if [ \"$sem_tmux\" = 1 ]; then",
+      "para": "{ [ \"$sem_tmux\" = 1 ] || ! command -v tmux >/dev/null 2>&1; }; then\n  if [ \"$sem_tmux\" = 9 ]; then",
+      "testes": [
+        "tests.test_atalho_duravel.ForgeAviso.test_com_sem_tmux_avisa_e_abre"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "dentro do tmux não avisa",
+      "arquivo": "scripts/jarvis-forge",
+      "de": "if [ -z \"${TMUX:-}\" ] && { [ \"$sem_tmux\" = 1 ]",
+      "para": "if { [ \"$sem_tmux\" = 1 ]",
+      "testes": [
+        "tests.test_atalho_duravel.ForgeAviso.test_dentro_do_tmux_nao_avisa"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "143 (kill de propósito) é parada, não queda",
+      "arquivo": "scripts/jarvis-comum.sh",
+      "de": "|| [ \"$rc\" = 143 ]",
+      "para": "|| [ \"$rc\" = 1430 ]",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_interrupcao_da_pessoa_e_terminal_fechado_nao_reabrem"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "janela 0 não tira o teto de reaberturas",
+      "arquivo": "scripts/jarvis-comum.sh",
+      "de": "*[1-9]*) ;; *) janela=1800 ;; esac",
+      "para": "*) ;; esac",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_janela_zero_nao_tira_o_teto_de_reaberturas"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "README diz como encerrar de vez",
+      "arquivo": "README.md",
+      "de": "tmux kill-session -t jarvis-<projeto>",
+      "para": "tmux kill-session",
+      "testes": [
+        "tests.test_atalho_duravel.ArquivoComum.test_readme_diz_como_encerrar_de_vez"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "README não manda abrir o claude solto, sem o modo",
+      "arquivo": "README.md",
+      "de": "um executável velho num diretório do sistema",
+      "para": "um `claude` velho num diretório do sistema",
+      "testes": [
+        "tests.test_sessao_automatica.AtalhosAbremNoAutomatico.test_nenhuma_instrucao_manda_abrir_o_claude_sem_o_modo"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "o atalho carrega o arquivo comum (sem ele não há resolver nem supervisor)",
+      "arquivo": "scripts/jarvis",
+      "de": "source \"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)/jarvis-comum.sh\"",
+      "para": ": \"jarvis-comum.sh\"",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_saida_anormal_reabre_com_continue"
       ]
     }
   ]
