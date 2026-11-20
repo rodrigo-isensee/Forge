@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-placar
-commit: 89936fa3db5777ce9ab913f190fdf2bc767c75a0
+commit: 7e20ac8b8b61245135cd495a06aaa8795bfee4d4
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
@@ -38,6 +38,11 @@ Provas no head d340b213: `python3 -I tests/evals/test_placar.py`: 50 testes OK. 
 Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-placar.md`, intervalo 57a66ff4..89936fa3 (d340b213 na saída do delta), domínio `bin/forge-placar` e `tests/mutantes/v0479-placar-fases-3.json`; `tests/evals/` sem mudança no intervalo. Comportamento igual: a guarda do dia sem item voltou ao texto `if itens` em `cmd_fases` (bin/forge-placar:744), com as três chaves em None, e `estatisticas()` passou a exigir ao menos um item (único chamador, :744); `FONTES_DE_PARADA` ganhou `DO_HISTORICO` com os mesmos três textos; o resto são docstrings e reflow da ajuda (6 linhas de corte). O M19 aponta agora `for i in itens]) if itens else dict.fromkeys(` e morre.
 
 Provas no head 89936fa3: `python3 -I tests/evals/test_placar.py`: 50 testes OK. `bin/forge-mutante --processos 1 tests/mutantes/v0479-placar-fases-3.json`: M19 morreu (:744), demais mortos, rc 0. `python3 tests/catraca.py --base origin/develop --head HEAD`: rc 0. Sem achado novo; parecer segue aprovado.
+
+## Revalidação (E36.23, M34 com trecho único)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-placar.md`, intervalo 89936fa3..7e20ac8b, domínio `tests/mutantes/v0479-placar-fases-6.json` (único arquivo no domínio). O `de` e o `para` do M34 passaram a incluir a linha do `raise` (`--prs {arq} não é JSON`), e o trecho `if fundo_demais(texto):` aparece uma vez em `bin/forge-placar` (ocorrências: 1), com a guarda em :237. Sem mudança de código nem de teste: o mutante não é mais ambíguo e o parecer segue aprovado.
+
+Provas no head 7e20ac8b: `bin/forge-mutante --processos 1 tests/mutantes/v0479-placar-fases-6.json`: rc 0, M34 morreu (bin/forge-placar:237), demais mortos. Sem achado novo.
 
 ## Sondas
 - S1 · `bin/forge-placar fases --git . --ref origin/develop --dia 2026-11-19 --raiz-pedidos /root/.forge-contrib` (histórico sem PARADA) · espera: `horas paradas, sessão: -` · obtido: 87aff761 `0 h 00 min`; 97ef4fd1 `-`
