@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp3-s2-container
-commit: ed21f2bd663c730ab23446ac2554504ad2e91319
-parecer: reprovado
+commit: c0087a7a92a4a349b39c9063b321d42b94429653
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
 ---
-# Review: v0478 (E39.14, BP3 S2 no head 14c69010, revalidado em ed21f2bd)
+# Review: v0478 (E39.14, BP3 S2 no head 14c69010, revalidado em ed21f2bd e c0087a7a)
 
 Escopo: diff `004ce869..14c69010` (5 arquivos, cerca de 28 linhas de código fora testes; H1 dentro do teto). Classe pelo `forge-check classe`: C (review, qa, revisao-seguranca). Suíte inteira fica no CI do PR (sem PR nesta etapa); rodei só os 3 testes novos de `tests/test_forge.py` (`PrepararEstacao`): OK. `bin/forge-mutante --cobertura --base 004ce869`: os três arquivos aparecem como "não coberto", e a regra MUTANTES-SPEC-HOOKS da catraca só alcança Python (`.sh` e `.json` fora), então não há spec exigida. O `shellcheck` não está instalado aqui: fica com o CI.
 
@@ -29,9 +29,18 @@ Delta lido: `forge-check parecer delta docs/reviews/v0479-bp3-s2-container.md`, 
 
 Rodei: `tests.test_conformidade_vscode_container` e `PrepararEstacao.test_devcontainer_prepara_sozinho_sem_rodar_o_work_tree`, 3 testes OK; `bin/forge-mutante tests/mutantes/v0479-bp3-s2-container.json --base 14c69010`: M1, M2, M3 e M4 morreram. Nenhum shell tocado no delta (sem `shellcheck`). Código no delta: 4 linhas (H1 dentro do teto). Suíte inteira fica no CI do PR.
 
+## Revalidação (head c0087a7a)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-bp3-s2-container.md`, intervalo `ed21f2bd..c0087a7a` (volta da A2 deste parecer e da A3 da segurança, E39.21), 6 arquivos no domínio:
+- `changelog.d/v0479-bp3-s2-container.md`: a entrada saiu de `### Segurança` para `### Alterado`, tipo aceito; `bin/forge-changelog conferir --base origin/develop`: "ok: 1 fragmento(s) novo(s) em changelog.d/". Fecha a A2, que sai da lista.
+- `hooks/conformidade.json`: entrada `.vscode/settings.json` com `quem: []` e o arquivo exato, na forma das vizinhas; o controle do teste passa a `.vscode/extensions.json`, que segue gravável.
+- `tests/test_conformidade_vscode_container.py`: o arquivo entra em `PROTEGIDOS`, então Write, Edit e as três formas de Bash nele passam pelo mesmo executor de fixtures (ramo de falha por comportamento).
+- `tests/mutantes/v0479-bp3-s2-container.json`: M5 para a guarda nova (um mutante por linha).
+- `docs/engineering/v0479-bp3-s2-container.{md,patch}`: o `denyWrite` do modelo ganha a terceira linha; `git apply --check` limpo neste head.
+
+Rodei: `tests/test_conformidade_vscode_container` (2 testes OK); `bin/forge-mutante tests/mutantes/v0479-bp3-s2-container.json --base ed21f2bd`: M1 a M5 morreram. Nenhum shell tocado no delta. Código no delta: 1 linha (H1 dentro do teto). Suíte inteira fica no CI do PR.
+
 ## Achados
-- A2 (bloqueante) changelog.d/v0479-bp3-s2-container.md:4 · Seção `### Segurança` não é tipo aceito: o pre-push (checagem barata, a mesma do CI) recusa o envio da branch com "tipo 'Segurança' inválido (use Adicionado, Alterado, Corrigido)". Mover a entrada para `### Corrigido` (`R-FLUXO`).
 - A1 (recomendado) templates/projeto/.vscode/tasks.json:7 · A tarefa usa o shell padrão do terminal, mas o teste a roda com `bash -c`; num shell não POSIX (fish) o `if ...; then` quebra. Fixar `options.shell` em bash alinha a tarefa ao teste; sem tmux instalado a mensagem diz "Nenhum Jarvis aberto", vale citar a falta do tmux.
 
 ## Parecer
-Reprovado no head ed21f2bd só pela A2: o fragmento do changelog trava o envio da branch e o CI do PR. O resto do delta está aprovado: a volta da segurança fecha a antiga A2 (container do Forge) e acrescenta a trava do hook com teste de comportamento e mutantes mortos; o `denyWrite` do modelo depende do patch que o dono aplica. A1 não bloqueia (`R-REVIEW`) e vira cartão. Na volta, o delta esperado é só o fragmento.
+Aprovado no head c0087a7a. A A2 (seção do changelog) está fechada; a guarda nova do `.vscode/settings.json` (A3 da segurança) tem teste de comportamento e mutante morto. O `denyWrite` do modelo depende do patch que o dono aplica. A A1 não bloqueia (`R-REVIEW`) e vira cartão depois do merge.
