@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-recomendado-restos
-commit: 985cf4e3dba073c6c6eaca14195a4ac94f4575da
+commit: 8d9f2b959719c61ea66e182f5e3720514e82d539
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -35,3 +35,7 @@ mantidos no HEAD: tests/test_achado_teto_doc.py
 contagem: não prova (passa na base)=6; prova (asserção)=2
 ```
 Os 6 que passam na base são testes antigos do módulo, não novos.
+
+## Revalidação (head 8d9f2b95)
+Delta 985cf4e3..8d9f2b95 no domínio do QA: só `agents/devops-engineer.md:17` (encurtado: "quando houver" vira "com", "na passada do" vira "no", "promover ... exige" vira "promovê-lo pede"). A regra "o `recomendado` vira cartão depois do merge" e `critério mudou:` seguem no texto. Sem código nem guarda; sem mutante.
+Rodados: `python3 -I -m unittest discover -s tests -p test_orcamento_instrucao.py` (8 testes, OK) e `-p test_achado_teto_doc.py` (8 testes, OK). Suíte inteira: check-run `bateria` do CI do PR. Vermelho do head anterior segue válido (teste inalterado).
