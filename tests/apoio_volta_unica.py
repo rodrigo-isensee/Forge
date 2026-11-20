@@ -16,6 +16,7 @@ import signal
 import string
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -120,6 +121,17 @@ class MedidaDeCpu:
 # número de chamadas não. Cada processo Python do hook carrega este `sitecustomize` (pelo `PYTHONPATH` do fixture) e
 # anota no seu registro a própria execução, cada subprocesso que abre (pelos eventos de auditoria) e cada `time.sleep`
 # do código do hook (a espera do `Popen.wait` da biblioteca padrão, que varia com a máquina, fica fora).
+# Volta única (v0478 E41.5): também os passos do interpretador no código do repositório (o do hook e o do
+# `bin/forge-check` que ele carrega), por `sys.monitoring` (Python 3.12+): cada chamada que esse código faz (a função
+# Python ou C), cada função dele que começa e cada volta de laço (o salto para trás). A CPU gasta no Python do hook vira
+# passo contado: a chamada a mais (o `sum(range(20000000))` da sonda S1 do review) e a volta de laço a mais. Não vira
+# passo o trabalho de dentro de uma chamada C que já existia (a regex que ficou catastrófica no motor `re`, o mesmo
+# `sum` sobre um iterável maior). Só liga com as duas variáveis do contador no ambiente do teste: em produção não há
+# `sitecustomize` nem variável, e o contador só conta (as funções devolvem `None` ou `DISABLE`, nada da decisão muda).
+# A contagem é a mesma de uma rodada para outra só com duas coisas fora dela: o `HOME` do hook é uma pasta vazia do
+# contador (com o `HOME` de quem roda, o `forge-check` lia os briefs de `~/.forge-contrib`, que mudam com a máquina e com
+# o tempo, e o CI não tem), e a entrada que vai até o prazo de produção roda sem os passos do interpretador (ela anda
+# até o prazo tanto quanto a máquina deixa).
 SITE_DO_CONTADOR = """\
 import os, sys, time
 _pasta = os.environ.get("FORGE_TESTE_TRABALHO")
@@ -142,27 +154,70 @@ if _pasta:
     _anotar("execucao")
     sys.addaudithook(_contar)
     time.sleep = _sono
+    _codigo, _monitor = os.environ.get("FORGE_TESTE_TRABALHO_CODIGO"), getattr(sys, "monitoring", None)
+    if _codigo and _monitor:  # o trabalho do interpretador: só o código do repositório, que é o do hook
+        import atexit
+        _prefixo, _fora, _passos = os.path.join(_codigo, ""), _monitor.DISABLE, [0]
+        def _chamada(codigo, deslocamento, chamado, primeiro):  # cada chamada feita pelo hook, Python ou C
+            if not codigo.co_filename.startswith(_prefixo):  # chamada de fora do hook: o lugar deixa de avisar
+                return _fora
+            _passos[0] += 1
+        def _inicio(codigo, deslocamento):  # cada função do hook que começa, também quando a biblioteca a chama
+            if not codigo.co_filename.startswith(_prefixo):  # função de fora do hook
+                return _fora
+            _passos[0] += 1
+        def _salto(codigo, origem, destino):  # cada volta de laço do hook (o salto para trás)
+            if destino > origem or not codigo.co_filename.startswith(_prefixo):
+                return _fora
+            _passos[0] += 1
+        _eventos, _ferramenta = _monitor.events, _monitor.PROFILER_ID
+        _monitor.use_tool_id(_ferramenta, "forge-contador")
+        _monitor.register_callback(_ferramenta, _eventos.CALL, _chamada)
+        _monitor.register_callback(_ferramenta, _eventos.PY_START, _inicio)
+        _monitor.register_callback(_ferramenta, _eventos.JUMP, _salto)
+        _monitor.set_events(_ferramenta, _eventos.CALL | _eventos.PY_START | _eventos.JUMP)
+        _anotar(f"ambiente {len(os.environ)}")
+        atexit.register(lambda: _anotar(f"interpretador {_passos[0]}"))
 """
-TETO_DE_SUBPROCESSOS_POR_EXECUCAO = 10  # o corpus abre 8,3 por execução (4631 em 557): o dobro de git passa do teto
+# A medida (v0478 E41.5): 10 rodadas do lote sob carga de 12 laços, no Python 3.12, com o tmp a 2 níveis da raiz
+# (`/tmp/claude-0`) e 234 variáveis no ambiente do hook, deram 557 execuções, 4631 subprocessos e 5860121 passos do
+# interpretador em todas (ruído 0; com o `HOME` de quem roda, os subprocessos variavam de 4631 a 4633; o
+# registro das rodadas está em tests/provas/v0479-corpus-custo.md). Os passos crescem 460 por nível a mais do tmp (o
+# hook sobe as pastas-mãe do caminho do caso): 1 e 4 níveis a mais deram 5860581 e 5861961. E crescem 2 por variável
+# do ambiente do hook a cada subprocesso (o `git` do `forge-check` copia o ambiente, variável por variável): 1 variável a
+# mais deu 5869383, 9262 a mais (2 x 4631). O teto é a medida mais o ruído, sem folga: corpus novo, hook mudado ou outro
+# custo pedem medida nova (a mensagem do teste traz a contagem).
+MEDIDA_DO_CORPUS = {"python": "3.12", "profundidade_do_tmp": 2, "variaveis_do_ambiente": 234,
+                    "execucoes": 557, "subprocessos": 4631, "interpretador": 5860121}
+PASSOS_POR_NIVEL_DO_TMP = 460
+PASSOS_POR_VARIAVEL_POR_SUBPROCESSO = 2
+RUIDO_DO_CORPUS = {"subprocessos": 0, "interpretador": 0}
 
 
 class ContadorDeTrabalho:
-    """O trabalho dos processos Python lançados com `ambiente()`: execuções, subprocessos abertos e segundos de sono
-    pedidos. Conta, e não cronometra: o número é o mesmo em qualquer máquina e com qualquer carga."""
+    """O trabalho dos processos Python lançados com `ambiente()`: execuções, subprocessos abertos, segundos de sono
+    pedidos e passos do interpretador no código do repositório. Conta, e não cronometra: a carga da máquina não muda o
+    número (o ruído que sobra está medido em `RUIDO_DO_CORPUS`)."""
 
     def __init__(self, pasta):
-        self.site, self.registros = Path(pasta) / "site", Path(pasta) / "registros"
+        self.site, self.registros, self.casa = Path(pasta) / "site", Path(pasta) / "registros", Path(pasta) / "casa"
         self.site.mkdir()
         self.registros.mkdir()
+        self.casa.mkdir()
         (self.site / "sitecustomize.py").write_text(SITE_DO_CONTADOR, encoding="utf-8")
 
-    def ambiente(self):
-        return {"PYTHONPATH": str(self.site), "FORGE_TESTE_TRABALHO": str(self.registros)}
+    def ambiente(self, interpretador=True):
+        """`interpretador=False`: sem os passos do interpretador, para a decisão que vai até o prazo de produção (o
+        quanto ela anda antes do prazo depende da velocidade da máquina; o prazo é o teto dela, conferido no caso)."""
+        ambiente = {"PYTHONPATH": str(self.site), "FORGE_TESTE_TRABALHO": str(self.registros), "HOME": str(self.casa)}
+        return {**ambiente, "FORGE_TESTE_TRABALHO_CODIGO": str(RAIZ)} if interpretador else ambiente
 
     def ler(self):
         linhas = [linha for registro in self.registros.iterdir() for linha in registro.read_text(encoding="utf-8").splitlines()]
         return {"execucoes": linhas.count("execucao"), "subprocessos": linhas.count("subprocesso"),
-                "sono": sum(float(linha.split()[1]) for linha in linhas if linha.startswith("sono "))}
+                "sono": sum(float(linha.split()[1]) for linha in linhas if linha.startswith("sono ")),
+                "interpretador": sum(int(linha.split()[1]) for linha in linhas if linha.startswith("interpretador ")),
+                "ambiente": max((int(linha.split()[1]) for linha in linhas if linha.startswith("ambiente ")), default=0)}
 
 
 def execucoes_do_corpus(casos):
@@ -170,16 +225,37 @@ def execucoes_do_corpus(casos):
     return sum(len(f.dados.get("passos", [])) + 1 for _, f in casos)
 
 
-def excessos_de_trabalho(trabalho, execucoes):
-    """O que passa do teto fixo do corpus em `trabalho` (de `ContadorDeTrabalho.ler`): execuções diferentes das
-    declaradas (o driver que roda um caso duas vezes, ou pula um), subprocessos acima de
-    `TETO_DE_SUBPROCESSOS_POR_EXECUCAO` por execução e qualquer sono pedido. Lista vazia: dentro do custo."""
+def profundidade_do_tmp():
+    """Os níveis da pasta temporária abaixo da raiz do disco (`/tmp` é 1), pelo caminho real."""
+    return len(Path(os.path.realpath(tempfile.gettempdir())).parts) - 1
+
+
+def excessos_de_trabalho(trabalho, execucoes, python=None, profundidade=None):
+    """O que passa do teto do corpus em `trabalho` (de `ContadorDeTrabalho.ler`): execuções diferentes das declaradas
+    (o driver que roda um caso duas vezes, ou pula um), corpus diferente do medido, subprocessos e passos do
+    interpretador acima da medida mais o ruído (`MEDIDA_DO_CORPUS`, `RUIDO_DO_CORPUS`) e qualquer sono pedido. Os passos
+    do interpretador só se conferem no Python da medida (`python`, por padrão o que roda), com a medida acertada pela
+    `profundidade` do tmp (por padrão a de quem roda) e pelo número de variáveis do ambiente que o hook viu
+    (`trabalho["ambiente"]`). Lista vazia: dentro do custo."""
+    python = python or "{}.{}".format(*sys.version_info[:2])
+    profundidade = profundidade_do_tmp() if profundidade is None else profundidade
     excessos = []
     if trabalho["execucoes"] != execucoes:
         excessos.append(f"{trabalho['execucoes']} execuções do hook, e o corpus declara {execucoes}")
-    teto = TETO_DE_SUBPROCESSOS_POR_EXECUCAO * execucoes
-    if trabalho["subprocessos"] > teto:
-        excessos.append(f"{trabalho['subprocessos']} subprocessos, acima do teto de {teto}")
+    if execucoes != MEDIDA_DO_CORPUS["execucoes"]:
+        excessos.append(f"o corpus declara {execucoes} execuções, e a medida do teto é de {MEDIDA_DO_CORPUS['execucoes']}:"
+                        " meça de novo (CORPUS-CUSTO-CONTADOR) e troque MEDIDA_DO_CORPUS e RUIDO_DO_CORPUS")
+    for nome, ruido in RUIDO_DO_CORPUS.items():
+        if nome == "interpretador" and python != MEDIDA_DO_CORPUS["python"]:
+            continue
+        medida = MEDIDA_DO_CORPUS[nome]
+        if nome == "interpretador":
+            medida += PASSOS_POR_NIVEL_DO_TMP * (profundidade - MEDIDA_DO_CORPUS["profundidade_do_tmp"])
+            medida += (PASSOS_POR_VARIAVEL_POR_SUBPROCESSO * MEDIDA_DO_CORPUS["subprocessos"]
+                       * (trabalho["ambiente"] - MEDIDA_DO_CORPUS["variaveis_do_ambiente"]))
+        teto = medida + ruido
+        if trabalho[nome] > teto:
+            excessos.append(f"{trabalho[nome]} {nome}, acima do teto de {teto} (medida {medida} mais o ruído {ruido})")
     if trabalho["sono"] > 0:
         excessos.append(f"{trabalho['sono']:.3f} s de sono pedidos pelo hook")
     return excessos
@@ -248,6 +324,8 @@ class BaseVoltaUnica:
         proc = montar_proc(tmp, None)
         extra = {"FORGE_NPROC": "8", **(self.contador_de_trabalho.ambiente() if self.contador_de_trabalho else {})}
         f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra))
+        if f.dados.get("prazo_de_producao") and self.contador_de_trabalho:
+            extra = {"FORGE_NPROC": "8", **self.contador_de_trabalho.ambiente(interpretador=False)}
         r = rodar(f.hook, entrada, raiz, proc, extra, como_o_claude_code=bool(f.dados.get("prazo_de_producao")))
         codigo = f.dados["esperado"]["codigo"]
         if codigo == 0:

@@ -34,12 +34,12 @@
     },
     {
       "id": "M4",
-      "guarda": "subprocessos acima do teto reprovam (mutante: a condição nunca vale)",
+      "guarda": "subprocessos ou passos do interpretador acima da medida mais o ruído reprovam (mutante: a condição nunca vale)",
       "arquivo": "tests/apoio_volta_unica.py",
-      "de": "if trabalho[\"subprocessos\"] > teto:",
+      "de": "if trabalho[nome] > teto:",
       "para": "if False:",
       "testes": [
-        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_subprocessos_acima_do_teto_reprovam"
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_um_acima_do_teto_reprova"
       ]
     },
     {

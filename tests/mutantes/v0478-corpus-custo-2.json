@@ -34,12 +34,12 @@
     },
     {
       "id": "M12",
-      "guarda": "o teto de subprocessos é inclusivo: o corpus no teto passa (mutante: >= reprova no teto)",
+      "guarda": "o teto é inclusivo: o trabalho na medida mais o ruído passa (mutante: >= reprova no teto)",
       "arquivo": "tests/apoio_volta_unica.py",
-      "de": "if trabalho[\"subprocessos\"] > teto:",
-      "para": "if trabalho[\"subprocessos\"] >= teto:",
+      "de": "if trabalho[nome] > teto:",
+      "para": "if trabalho[nome] >= teto:",
       "testes": [
-        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_dentro_do_teto_nao_ha_excesso"
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_no_teto_nao_ha_excesso"
       ]
     }
   ]
