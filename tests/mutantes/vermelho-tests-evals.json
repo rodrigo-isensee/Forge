@@ -116,5 +116,17 @@
         "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-testes",
+      "trecho": "NOME_DE_MODULO.fullmatch(p.stem)",
+      "motivo": "o filtro por nome saiu: nome_do_modulo (SUBMODULO_DE_TESTE) já valida o caminho, e o mutante M11 cobre o filtro novo"
+    },
+    {
+      "arquivo": "bin/forge-testes",
+      "trecho": "len(partes) > 1",
+      "motivo": "a guarda de índice saiu: partes[1:-2] é fatia e não indexa, sem erro de limite; o mutante M10 cobre a chave"
+    }
   ]
 }
