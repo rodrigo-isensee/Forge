@@ -40,6 +40,37 @@ Depois de configurar, o dono roda, para cada `<b>` entre `develop`, `homolog` e 
 
 A resposta lista as regras: `pull_request`, `required_status_checks` com os dois checks, `non_fast_forward` e `deletion`. Para ver a lista de bypass, abra o ruleset na página de rulesets, como administrador: ela precisa estar vazia no `portoes`. O comando não escreve nada. O `forge doutor` não lê a lista de bypass: uma regra de PR com desvio de administrador parece protegida e não está.
 
+## Tirar o bypass de um ruleset que já existe (a `develop` está com exceção)
+Estado registrado no quadro de 15/11 (AV1-BYPASS-RULESET): o ruleset `checks-obrigatorios-develop-main`, que atinge a `develop`, tem um ator na lista de bypass com o modo **Always**. Depois desse registro, o dono mesclou PRs direto nela, sem esperar o CI (sete merges, #680 a #715, em três dias, dois com a `develop` quebrada); a data dos merges é posterior a 15/11. Texto pedindo lista vazia não tirou o ator; só o dono tira, uma vez, pela interface:
+1. Repositório > Settings > Rules > Rulesets. Anote cada ruleset que alcança a `develop`: o `checks-obrigatorios-develop-main` (o do bypass Always), o `portoes` e qualquer outro. Não escolha à mão pelo nome nem pelo alvo que cita `develop`: pegue a lista pela leitura abaixo (`rules/branches/develop`), que traz os rulesets que alcançam a branch, inclusive por `~ALL`, `~DEFAULT_BRANCH` ou curinga.
+2. Abra cada um, como administrador, e olhe **Bypass list**. Remova cada ator listado (papel de administrador, o dono, app, bot). A lista tem de ficar **vazia**; trocar Always por "For pull requests only" **não basta** no `portoes`, porque o merge do PR com check vermelho é justamente o desvio.
+3. Confirme **Enforcement status: Active** (Evaluate não barra) e `develop` entre os alvos. Salve.
+4. Se outro ruleset alcança a `develop` com bypass próprio (o `checks-obrigatorios-develop-main` ou um terceiro, inclusive de alvo `~ALL`, `~DEFAULT_BRANCH` ou curinga), repita nele. O `main-do-dono` não alcança a `develop` e mantém o bypass "For pull requests only" só para a `main`.
+5. Confira pela leitura abaixo e anote a data e o resultado no histórico do pedido.
+
+Efeito esperado: nenhum merge na `develop` sem `bateria` e `catraca` verdes, inclusive o do dono; o botão de merge fica desabilitado com check pendente ou vermelho.
+
+## Conferência de bypass (só leitura)
+1. Ache os rulesets que alcançam a `develop`, pelo endpoint que já aplica include e exclude:
+
+`gh api repos/<dono>/<repo>/rules/branches/develop`
+
+Cada regra da resposta traz `ruleset_id`; a lista de ids vem daí, não de `rulesets` filtrado à mão. É só leitura (GET, sem método nem campo). Cobre o ruleset do bypass Always (`checks-obrigatorios-develop-main`), o `portoes` e qualquer outro, mesmo de alvo `~ALL`, `~DEFAULT_BRANCH` ou curinga.
+
+2. Para cada `ruleset_id`:
+
+`gh api repos/<dono>/<repo>/rulesets/<id>`
+
+Na resposta, `bypass_actors` tem de ser `[]` em todos os que alcançam a `develop` (o `checks-obrigatorios-develop-main` e o `portoes`; só o `main-do-dono` pode ter bypass, e só na `main`), `enforcement` tem de ser `active`, e `conditions.ref_name` tem de alcançar a `develop`: o `include` cita `develop`, `~ALL`, `~DEFAULT_BRANCH` ou um padrão que a case, **e o `exclude` não a tira**. Confira o `exclude` também: ruleset que a exclui não a alcança, e o que a inclui por curinga com bypass não escapa. Se vier `current_user_can_bypass`, o esperado para a conta que mescla é `never`. A auditoria diária (AE8.2 do pedido MELHORIAS-ANTI-ERRO) passa a ler esses campos; até ela entrar, a conferência é do dono. Campo ausente é "não verificado", nunca "sem bypass".
+
+## Develop vermelha sem bypass (saída pelo conserto)
+Sem bypass, a `develop` vermelha não se conserta empurrando nem mesclando por fora. A saída é o modo conserto da BP2 (`R-FLUXO`; "Conserto da integração vermelha" em `skills/trabalho-em-paralelo/ritmo-e-corte.md`, decisão D2 do dono):
+1. PR de conserto numa branch `melhoria/*`, com o diff ligado ao vermelho (toca o arquivo do teste que falhou, um arquivo mudado desde o último verde, ou reverte o merge do intervalo).
+2. O CI do PR roda a bateria e a catraca inteiras, e cada teste que falhou no vermelho roda e passa nele. Nada é pulado nem dispensado.
+3. O `tech-lead` confere as condições do conserto, mescla preso ao head revisado e acompanha o CI de `push` da `develop` até o verde; sem verde, a `develop` segue fechada para o resto.
+4. No Forge, o `bin/forge-fechar` passa a conferir o conserto (BP2 I1 e I4); até lá o `tech-lead` confere à mão. O dono espera a bateria como em qualquer PR: o custo é o tempo de uma rodada.
+5. Se a `develop` ficar vermelha por mais de 4 h, em dois episódios, sem saída por esse caminho, o dono decide de novo sobre o bypass (`R-DECISAO`); antes disso o time não propõe atalho.
+
 ## Limites
 - Repositório privado no plano gratuito: veja "Antes de começar".
 - Sem "branch atualizada com a base" (passo 8), o servidor não barra o PR testado sobre uma `develop` velha. Quem barra é a fila da `R-FLUXO` (decisão D1 do dono para a BP2, 20/11: sem mudar endereço nem ruleset). Até a I4 entrar no `bin/forge-fechar`, ela é à mão, pelo `tech-lead` (`skills/trabalho-em-paralelo/ritmo-e-corte.md`): hoje o passo 6a só para no conflito e não retesta sobre a base que andou; merge sem essa conferência não passa pela fila, e a quebra sem conflito só aparece no CI de `push` da `develop`. Reabre quando o Forge for para uma organização: lá, a fila nativa do GitHub (BP9).
