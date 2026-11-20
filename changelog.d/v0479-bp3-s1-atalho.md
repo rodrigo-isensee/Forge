@@ -1,0 +1,2 @@
+### Adicionado
+- Atalhos `jarvis` e `jarvis-forge`: dentro do tmux um laço supervisor reabre o Jarvis (`--continue`) só em saída anormal, no máximo 3 reaberturas em 30 min, com registro das quedas em `quedas.log`; fora do tmux só avisa (não bloqueia); e abre sempre o Claude Code mais novo entre o do instalador e o primeiro do PATH, nunca o velho que o PATH do sistema traz na frente (BP3 S1, v0478 E39.4).

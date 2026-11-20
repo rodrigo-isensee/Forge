@@ -1,0 +1,106 @@
+{
+  "pedido": "v0479-bp3-s1-atalho",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a saída 128 a 137 reabre",
+      "arquivo": "scripts/jarvis",
+      "de": "[ \"$rc\" -lt 128 ]",
+      "para": "[ \"$rc\" -lt 138 ]",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_saida_anormal_reabre_com_continue"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "129 (terminal fechado) não reabre",
+      "arquivo": "scripts/jarvis",
+      "de": "[ \"$rc\" = 129 ]",
+      "para": "[ \"$rc\" = 1290 ]",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_interrupcao_da_pessoa_e_terminal_fechado_nao_reabrem"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "130 (Ctrl+C) não reabre",
+      "arquivo": "scripts/jarvis",
+      "de": "[ \"$rc\" = 130 ]",
+      "para": "[ \"$rc\" = 1300 ]",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_interrupcao_da_pessoa_e_terminal_fechado_nao_reabrem"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a 4.ª queda na janela para",
+      "arquivo": "scripts/jarvis",
+      "de": "-ge \"$quedas_teto\" ]",
+      "para": "-gt \"$quedas_teto\" ]",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_teto_tres_reaberturas_a_quarta_queda_para"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "30 min exatos já saíram da janela",
+      "arquivo": "scripts/jarvis",
+      "de": "if [ $((agora - t)) -lt \"$janela\" ]",
+      "para": "if [ $((agora - t)) -le \"$janela\" ]",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_trinta_minutos_exatos_ja_passaram"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "a reabertura sempre leva --continue, uma vez só",
+      "arquivo": "scripts/jarvis",
+      "de": "[ \"${1:-}\" != --continue ]",
+      "para": "[ \"${1:-}\" = --continue ]",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_reabertura_mantem_o_modo_automatico_e_o_resto_dos_argumentos"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "espera inválida volta a 10 s",
+      "arquivo": "scripts/jarvis",
+      "de": "*[!0-9]*) espera=10 ;;",
+      "para": "*[!0-9]*) espera=99 ;;",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_espera_padrao_dez_segundos_e_configuravel"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "janela inválida volta a 30 min",
+      "arquivo": "scripts/jarvis",
+      "de": "*[!0-9]*) janela=1800 ;;",
+      "para": "*[!0-9]*) janela=900 ;;",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_janela_configuravel_so_com_numero"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o teto é 3 reaberturas",
+      "arquivo": "scripts/jarvis",
+      "de": "quedas_teto=3",
+      "para": "quedas_teto=4",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_teto_tres_reaberturas_a_quarta_queda_para"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "a espera padrão é 10 s",
+      "arquivo": "scripts/jarvis",
+      "de": "${FORGE_QUEDA_ESPERA:-10}",
+      "para": "${FORGE_QUEDA_ESPERA:-11}",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_espera_padrao_dez_segundos_e_configuravel"
+      ]
+    }
+  ]
+}

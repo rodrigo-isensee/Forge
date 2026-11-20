@@ -1,0 +1,106 @@
+{
+  "pedido": "v0479-bp3-s1-atalho",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M11",
+      "guarda": "a janela padrão é 30 min",
+      "arquivo": "scripts/jarvis",
+      "de": "${FORGE_QUEDA_JANELA:-1800}",
+      "para": "${FORGE_QUEDA_JANELA:-3600}",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_fora_da_janela_a_queda_velha_nao_conta"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "versão compara como número",
+      "arquivo": "scripts/jarvis",
+      "de": "sort -V | tail",
+      "para": "sort | tail",
+      "testes": [
+        "tests.test_atalho_duravel.Resolucao.test_compara_como_numero_de_versao_nao_como_texto"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "o maior vence, não o menor",
+      "arquivo": "scripts/jarvis",
+      "de": "tail -n 1)\" != \"$maior\"",
+      "para": "head -n 1)\" != \"$maior\"",
+      "testes": [
+        "tests.test_atalho_duravel.Resolucao.test_o_mais_novo_vence_mesmo_sendo_o_do_path"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "PATH sem --version fica como sempre",
+      "arquivo": "scripts/jarvis",
+      "de": "|| [ -z \"$v_primeiro\" ]",
+      "para": "|| false",
+      "testes": [
+        "tests.test_atalho_duravel.Resolucao.test_path_que_nao_responde_version_fica_como_sempre"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "mesmo arquivo conta uma vez",
+      "arquivo": "scripts/jarvis",
+      "de": "case \"$vistos\" in",
+      "para": "case \"x\" in",
+      "testes": [
+        "tests.test_atalho_duravel.Resolucao.test_mesmo_arquivo_pelo_caminho_real_conta_uma_vez"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "o código de saída final é o do claude",
+      "arquivo": "scripts/jarvis",
+      "de": "|| rc=$?; exit \"$rc\"",
+      "para": "|| rc=$?; exit 0",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_teto_tres_reaberturas_a_quarta_queda_para"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "--sem-tmux não supervisiona",
+      "arquivo": "scripts/jarvis",
+      "de": "[ \"$sem_tmux\" = 0 ]; then\n  rc=0; supervisionar",
+      "para": "[ \"$sem_tmux\" != 9 ]; then\n  rc=0; supervisionar",
+      "testes": [
+        "tests.test_atalho_duravel.Supervisor.test_sem_tmux_nao_supervisiona"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "abre o binário resolvido",
+      "arquivo": "scripts/jarvis",
+      "de": "exec \"$claude_bin\" \"${args[@]}\"",
+      "para": "exec claude \"${args[@]}\"",
+      "testes": [
+        "tests.test_atalho_duravel.Resolucao.test_abre_o_do_instalador_e_nunca_o_velho_do_path"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "o aviso diferencia --sem-tmux de tmux ausente",
+      "arquivo": "scripts/jarvis",
+      "de": "if [ \"$usa_tmux\" = 0 ] && [ -z \"${TMUX:-}\" ]; then\n  if [ \"$sem_tmux\" = 1 ]; then",
+      "para": "if [ \"$usa_tmux\" = 0 ] && [ -z \"${TMUX:-}\" ]; then\n  if [ \"$sem_tmux\" = 9 ]; then",
+      "testes": [
+        "tests.test_atalho_duravel.AvisoForaDoTmux.test_com_sem_tmux_avisa_e_abre"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "dentro do tmux não avisa",
+      "arquivo": "scripts/jarvis",
+      "de": "if [ \"$usa_tmux\" = 0 ] && [ -z \"${TMUX:-}\" ]; then",
+      "para": "if [ \"$usa_tmux\" = 0 ]; then",
+      "testes": [
+        "tests.test_atalho_duravel.AvisoForaDoTmux.test_dentro_do_tmux_nao_avisa"
+      ]
+    }
+  ]
+}

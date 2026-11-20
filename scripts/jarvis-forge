@@ -6,9 +6,11 @@
 # commit local, ou se estiver sem rede; sessão tmux já aberta não é tocada). Uma vez por dia consulta, com
 # `forge-check fontes`, a fonte de harness e mostra uma linha se houver versão nova. Retoma a última conversa, com
 # chat remoto e, se instalado, o canal do Telegram. Carrega também o plugin de desenvolvimento `forge-dev` (a pasta
-# `dev/` da mesma cópia, com o agente AQ), só nesta sessão. Dentro do tmux (criado/anexado automaticamente) a sessão sobrevive ao fechamento do terminal.
+# `dev/` da mesma cópia, com o agente AQ), só nesta sessão. Dentro do tmux (criado/anexado automaticamente) a sessão sobrevive ao fechamento do terminal
+# e, se o claude cair (saída anormal), o Jarvis reabre sozinho (--continue), no máximo 3 vezes em 30 min, sempre com o Claude Code mais novo
+# instalado; cada queda vai para ${XDG_STATE_HOME:-~/.local/state}/forge/quedas.log. Fora do tmux só avisa que a sessão não é durável.
 # Uso: jarvis-forge [--sem-tmux] [--dev] | jarvis-forge --atualizar-vigente
-#   --sem-tmux           abre direto no terminal, sem criar ou anexar a sessão do tmux
+#   --sem-tmux           abre direto no terminal, sem criar ou anexar a sessão do tmux (avisa que a sessão não é durável)
 #   --atualizar-vigente  atualiza a cópia vigente para a origin/develop (recusa se tiver mudanças ou commits locais) e sai
 #   --dev                teste manual do dono: usa a cópia de trabalho (--plugin-dir . e ./dev), sem a proteção da cópia vigente
 #   -h, --help           mostra esta ajuda
@@ -21,7 +23,7 @@ for a in "$@"; do
     --sem-tmux) sem_tmux=1 ;;
     --dev) dev=1 ;;
     --atualizar-vigente) atualizar=1 ;;
-    -h|--help) sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "jarvis-forge: argumento desconhecido: $a (veja jarvis-forge --help)" >&2; exit 2 ;;
   esac
 done
@@ -216,6 +218,108 @@ if [ -z "${FORGE_ABERTURA_FEITA:-}" ]; then
   if [ "$avisou_defasagem" = 1 ] && [ -t 2 ]; then sleep 3; fi
 fi
 cd "$HOME/Forge"
+prefixo=jarvis-forge; rotulo=Forge; [ "$dev" = 1 ] && rotulo=Forge-dev
+# CLAUDE-ATUAL-INICIO (BP3 S1, D1 do dono): o atalho abre sempre o Claude Code mais novo entre o do instalador oficial
+# ($HOME/.local/bin/claude, que a atualização automática mantém) e o primeiro do PATH, nunca o do PATH só por ser o primeiro:
+# um binário velho num diretório do sistema (por exemplo /usr/local/bin) vem antes e abriria uma versão atrasada.
+# Só caminho absoluto de arquivo executável (nunca o diretório atual); iguais pelo caminho real contam uma vez; com um só
+# candidato não roda nada; com dois, `--version` de cada um (10 s) e vence o maior número, o empate fica com o do instalador.
+# Sem versão legível em nenhum, ou se o primeiro do PATH não responde `--version`, fica o `command -v claude` de sempre (nada
+# que não se possa comparar o troca). Roda a cada abertura e a cada reabertura.
+# Resultado em claude_bin (e claude_versao, quando conhecida); sem nenhum claude, claude_bin fica vazio.
+resolver_claude() {
+  local c real dir v vistos="
+" maior="" primeiro primeiro_real v_primeiro=""
+  local -a candidatos=() unicos=()
+  claude_bin=""; claude_versao=""
+  primeiro="$(command -v claude 2>/dev/null || true)"
+  primeiro_real="$(readlink -f "$primeiro" 2>/dev/null || true)"
+  [ -x "$HOME/.local/bin/claude" ] && [ -f "$HOME/.local/bin/claude" ] && candidatos+=("$HOME/.local/bin/claude")
+  case "$primeiro" in /*) [ -x "$primeiro" ] && [ -f "$primeiro" ] && candidatos+=("$primeiro") ;; esac
+  for c in ${candidatos[@]+"${candidatos[@]}"}; do
+    real="$(readlink -f "$c" 2>/dev/null || printf '%s' "$c")"
+    case "$vistos" in *"
+$real
+"*) continue ;; esac
+    vistos="$vistos$real
+"
+    unicos+=("$c")
+  done
+  if [ "${#unicos[@]}" -eq 1 ]; then claude_bin="${unicos[0]}"; return 0; fi
+  for c in ${unicos[@]+"${unicos[@]}"}; do
+    if command -v timeout >/dev/null 2>&1; then
+      v="$(timeout 10 "$c" --version </dev/null 2>/dev/null | grep -oE '^[0-9]+(\.[0-9]+)+' | head -n 1 || true)"
+    else
+      v="$("$c" --version </dev/null 2>/dev/null | grep -oE '^[0-9]+(\.[0-9]+)+' | head -n 1 || true)"
+    fi
+    [ -n "$v" ] || continue
+    if [ -n "$primeiro_real" ] && [ "$(readlink -f "$c" 2>/dev/null || true)" = "$primeiro_real" ]; then v_primeiro="$v"; fi
+    if [ -z "$maior" ] || [ "$(printf '%s\n%s\n' "$maior" "$v" | sort -V | tail -n 1)" != "$maior" ]; then
+      maior="$v"; claude_bin="$c"; claude_versao="$v"
+    fi
+  done
+  if [ -z "$claude_bin" ] || [ -z "$v_primeiro" ]; then claude_bin="$primeiro"; claude_versao=""; fi
+  if [ -n "$claude_versao" ] && [ "$claude_bin" != "$primeiro" ]; then
+    echo "$prefixo: usando o Claude Code $claude_versao ($claude_bin); o primeiro do PATH é outro e mais antigo." >&2
+  fi
+  return 0
+}
+# CLAUDE-ATUAL-FIM
+# SUPERVISOR-INICIO (BP3 S1, D1 do dono): dentro do tmux o atalho não entrega o processo ao claude: roda-o e olha como saiu.
+# Reabre (`--continue`, sempre com o Claude Code atual, resolvido de novo) só em saída anormal: código 128 ou mais, fora 129
+# (terminal fechado) e 130 (Ctrl+C); 0 (/exit) e qualquer código abaixo de 128 (erro de uso) encerram como antes. Espera
+# FORGE_QUEDA_ESPERA s (padrão 10) e conta as reaberturas na janela de FORGE_QUEDA_JANELA s (padrão 1800, 30 min): a 4.ª queda
+# na janela, depois de 3 reaberturas, não reabre mais, avisa e deixa a janela esperando um Enter. O modo de permissão não muda
+# (`--permission-mode auto`): a ação destrutiva segue perguntando. Cada queda vira uma linha em quedas.log, só com data,
+# projeto, código de saída e número da tentativa (nunca texto do claude).
+quedas_teto=3
+registrar_queda() {
+  local base dir
+  case "${XDG_STATE_HOME:-}" in /*) base="$XDG_STATE_HOME" ;; *) base="$HOME/.local/state" ;; esac
+  dir="$base/forge"
+  mkdir -p "$dir" 2>/dev/null || return 0
+  printf '%s projeto=%s saida=%s tentativa=%s acao=%s\n' "$(date +%Y-%m-%dT%H:%M:%S%z)" "$rotulo" "$1" "$2" "$3" >> "$dir/quedas.log" 2>/dev/null || true
+}
+supervisionar() {
+  local rc espera janela agora t
+  local -a recentes=() mantidas=()
+  espera="${FORGE_QUEDA_ESPERA:-10}"; janela="${FORGE_QUEDA_JANELA:-1800}"
+  case "$espera" in ''|*[!0-9]*) espera=10 ;; esac
+  case "$janela" in ''|*[!0-9]*) janela=1800 ;; esac
+  while :; do
+    resolver_claude
+    if [ -z "$claude_bin" ]; then echo "$prefixo: claude não encontrado no PATH." >&2; return 127; fi
+    rc=0
+    "$claude_bin" "$@" || rc=$?
+    if [ "$rc" -lt 128 ] || [ "$rc" = 129 ] || [ "$rc" = 130 ]; then return "$rc"; fi
+    agora="$(date +%s)"
+    mantidas=()
+    for t in ${recentes[@]+"${recentes[@]}"}; do
+      if [ $((agora - t)) -lt "$janela" ]; then mantidas+=("$t"); fi
+    done
+    recentes=(${mantidas[@]+"${mantidas[@]}"})
+    if [ "${#recentes[@]}" -ge "$quedas_teto" ]; then
+      registrar_queda "$rc" "$quedas_teto" desiste
+      echo "$prefixo: o Jarvis caiu de novo (saída $rc) depois de $quedas_teto reaberturas em $((janela / 60)) min; não reabro mais. Veja o registro em ${XDG_STATE_HOME:-~/.local/state}/forge/quedas.log." >&2
+      if [ -t 0 ]; then read -r -p "Enter para fechar esta janela " _ || true; fi
+      return "$rc"
+    fi
+    recentes+=("$agora")
+    registrar_queda "$rc" "${#recentes[@]}" reabre
+    echo "$prefixo: o Jarvis caiu (saída $rc); reabrindo em ${espera}s (reabertura ${#recentes[@]} de $quedas_teto em $((janela / 60)) min)." >&2
+    sleep "$espera"
+    if [ "${1:-}" != --continue ]; then set -- --continue "$@"; fi
+  done
+}
+# SUPERVISOR-FIM
+# SESSAO-DURAVEL-AVISO (BP3 S1, D4 do dono): fora do tmux só avisa, numa linha, e abre assim mesmo; nunca bloqueia.
+if [ -z "${TMUX:-}" ] && { [ "$sem_tmux" = 1 ] || ! command -v tmux >/dev/null 2>&1; }; then
+  if [ "$sem_tmux" = 1 ]; then
+    echo "jarvis-forge: sessão não durável (--sem-tmux): uma queda do terminal derruba os agentes." >&2
+  else
+    echo "jarvis-forge: tmux não instalado: sessão não durável, uma queda do terminal derruba os agentes; instale com 'sudo apt-get install tmux' (ou o gerenciador do seu sistema). Abrindo assim mesmo." >&2
+  fi
+fi
 if [ "$sem_tmux" = 0 ] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1; then
   repasse=(); [ "$dev" = 1 ] && repasse=(--dev)
   sessao=jarvis-Forge; [ "$dev" = 1 ] && sessao=jarvis-Forge-dev  # um nome por modo: -A não reaproveita a sessão do outro modo
@@ -232,11 +336,16 @@ args=(--plugin-dir "$plugin_dir")
 args+=(--agent forge:jarvis --permission-mode auto --remote-control "$nome_remoto")
 # retoma a conversa do Forge se já existir uma (o diretório do projeto é o caminho com "/" trocado por "-")
 if [ -d "$HOME/.claude/projects/${PWD//\//-}" ]; then args=(--continue "${args[@]}"); fi
-if claude plugin list 2>/dev/null | grep -q 'telegram@claude-plugins-official'; then
+resolver_claude
+if [ -z "$claude_bin" ]; then echo "jarvis-forge: claude não encontrado no PATH." >&2; exit 127; fi
+if "$claude_bin" plugin list 2>/dev/null | grep -q 'telegram@claude-plugins-official'; then
   if pgrep -f "bun server.ts" >/dev/null; then
     echo "jarvis-forge: outra sessão já usa o bot do Telegram; abrindo sem o canal." >&2
   else
     args+=(--channels plugin:telegram@claude-plugins-official)
   fi
 fi
-exec claude "${args[@]}"
+if [ -n "${TMUX:-}" ] && [ "$sem_tmux" = 0 ]; then
+  rc=0; supervisionar "${args[@]}" || rc=$?; exit "$rc"
+fi
+exec "$claude_bin" "${args[@]}"
