@@ -1,0 +1,86 @@
+{
+  "pedido": "fechar-conserto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CS33",
+      "guarda": "C5: o arquivo de teste que falhou conta",
+      "arquivo": "bin/forge-fechar",
+      "de": "if em_comum \"$dif\" \"$conserto_arqs\"; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_fechar.Conserto.test_conserto_mescla_com_a_develop_vermelha_preso_ao_head_e_registra"
+      ]
+    },
+    {
+      "id": "CS34",
+      "guarda": "C5: a leitura do último verde que falha para",
+      "arquivo": "bin/forge-fechar",
+      "de": "    || die \"parou no passo 6b (C5): não consegui ler o último push verde",
+      "para": "    || true \"parou no passo 6b (C5): não consegui ler o último push verde",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_e_c5_leituras_que_falham_param"
+      ]
+    },
+    {
+      "id": "CS35",
+      "guarda": "C5: o último verde é um sha antes do topo",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! { [[ \"$verde\" =~ ^[0-9a-f]{40}$ ]]",
+      "para": "if false && ! { [[ \"$verde\" =~ ^[0-9a-f]{40}$ ]]",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c5_sem_o_ultimo_verde_antes_do_topo_para"
+      ]
+    },
+    {
+      "id": "CS36",
+      "guarda": "C5: a leitura do que mudou desde o verde que falha para",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo 6b (C5): não consegui ler o que mudou",
+      "para": "|| true \"parou no passo 6b (C5): não consegui ler o que mudou",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c5_leitura_do_que_mudou_desde_o_verde_que_falha_para"
+      ]
+    },
+    {
+      "id": "CS37",
+      "guarda": "C5: arquivo mudado desde o último verde conta",
+      "arquivo": "bin/forge-fechar",
+      "de": "if em_comum \"$dif\" \"$mudados\"; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c5_arquivo_mudado_desde_o_ultimo_verde_conta"
+      ]
+    },
+    {
+      "id": "CS38",
+      "guarda": "C5: reversão de commit do intervalo conta",
+      "arquivo": "bin/forge-fechar",
+      "de": "if git merge-base --is-ancestor \"$s\" \"$conserto_topo\"",
+      "para": "if false && git merge-base --is-ancestor \"$s\" \"$conserto_topo\"",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c5_reversao_de_commit_do_intervalo_conta"
+      ]
+    },
+    {
+      "id": "CS39",
+      "guarda": "C5: sem relação com o vermelho para",
+      "arquivo": "bin/forge-fechar",
+      "de": "  die \"parou no passo 6b (C5): o PR não toca",
+      "para": "  return 0; die \"parou no passo 6b (C5): o PR não toca",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c5_diff_sem_relacao_para"
+      ]
+    },
+    {
+      "id": "CS40",
+      "guarda": "o --dry-run mostra o conserto no 6b",
+      "arquivo": "bin/forge-fechar",
+      "de": "${conserto:+conserto do run $conserto (C1, C3, C4 e C5) no lugar de: }",
+      "para": "",
+      "testes": [
+        "tests.test_fechar.Conserto.test_dry_run_mostra_o_conserto_no_6b"
+      ]
+    }
+  ]
+}

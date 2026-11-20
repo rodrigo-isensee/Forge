@@ -1,0 +1,86 @@
+{
+  "pedido": "fechar-conserto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CS9",
+      "guarda": "C1: o run é do topo",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$sha\" = \"$topo\" ] || die",
+      "para": "true || die",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c1_run_de_outro_commit_para"
+      ]
+    },
+    {
+      "id": "CS10",
+      "guarda": "C1: o run terminou com falha",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$st $co\" = \"completed failure\" ] || die",
+      "para": "true || die",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c1_run_pendente_ou_verde_para"
+      ]
+    },
+    {
+      "id": "CS11",
+      "guarda": "C3: com --trazida as condições do merge valem",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$trazida\" = 1 ] || return 0",
+      "para": "return 0",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c3_head_que_nao_e_merge_do_revisado_com_o_topo_para"
+      ]
+    },
+    {
+      "id": "CS12",
+      "guarda": "C3: --trazida exige a marca do pai",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"${FORGE_FECHAR_LOTE_PAI:-}\" = \"$PPID\" ] || die \"parou no passo 6b (C3)",
+      "para": "true || die \"parou no passo 6b (C3)",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c3_trazida_sem_a_marca_do_pai_para"
+      ]
+    },
+    {
+      "id": "CS13",
+      "guarda": "C3: os pais do head são o revisado e o topo",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -n \"$resto\" ] || [ \"$p1\" != \"${FORGE_FECHAR_CONSERTO_H:-}\" ] || [ \"$p2\" != \"$conserto_topo\" ]; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c3_head_que_nao_e_merge_do_revisado_com_o_topo_para"
+      ]
+    },
+    {
+      "id": "CS14",
+      "guarda": "C3: a árvore do head é a do merge-tree",
+      "arquivo": "bin/forge-fechar",
+      "de": "  [ \"$(git merge-tree --write-tree --no-messages \"$p1\" \"$p2\" 2>/dev/null)\"",
+      "para": "  true || [ \"$(git merge-tree --write-tree --no-messages \"$p1\" \"$p2\" 2>/dev/null)\"",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c3_merge_com_arvore_diferente_da_do_merge_tree_para"
+      ]
+    },
+    {
+      "id": "CS15",
+      "guarda": "C3: o pai passa o head revisado ao recomeço",
+      "arquivo": "bin/forge-fechar",
+      "de": "FORGE_FECHAR_CONSERTO_H=\"$remoto_sha\" bash",
+      "para": "bash",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c3_base_trazida_pelo_2b_mescla_o_merge_do_head_revisado_com_o_topo"
+      ]
+    },
+    {
+      "id": "CS16",
+      "guarda": "C6: o vermelho do passo 8 imprime a reversão e o fechamento dela",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$ci_st\" = vermelho ]; then\n    echo \"para reverter",
+      "para": "if false; then\n    echo \"para reverter",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c6_ci_vermelho_no_merge_imprime_o_fechamento_da_reversao_com_conserto"
+      ]
+    }
+  ]
+}

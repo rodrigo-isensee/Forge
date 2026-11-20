@@ -1,0 +1,86 @@
+{
+  "pedido": "fechar-conserto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CS1",
+      "guarda": "o --conserto sem valor para",
+      "arquivo": "bin/forge-fechar",
+      "de": "--conserto) conserto=\"${2-}\"; shift 2 || die",
+      "para": "--conserto) conserto=\"${2-}\"; shift 2 || true",
+      "testes": [
+        "tests.test_fechar.Conserto.test_conserto_sem_valor_para_antes_do_passo_1"
+      ]
+    },
+    {
+      "id": "CS2",
+      "guarda": "o bloco de validação do --conserto roda",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -n \"$conserto\" ]; then  # BP2 I1: só dígitos",
+      "para": "if false; then  # BP2 I1: só dígitos",
+      "testes": [
+        "tests.test_fechar.Conserto.test_run_fora_da_forma_para_antes_do_passo_1"
+      ]
+    },
+    {
+      "id": "CS3",
+      "guarda": "o run do --conserto é só dígitos",
+      "arquivo": "bin/forge-fechar",
+      "de": "[[ \"$conserto\" =~ ^[0-9]{1,20}$ ]] || die",
+      "para": "true || die",
+      "testes": [
+        "tests.test_fechar.Conserto.test_run_fora_da_forma_para_antes_do_passo_1"
+      ]
+    },
+    {
+      "id": "CS4",
+      "guarda": "--conserto recusa --lote e --armar (C6)",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$lote$armar\" = 00 ] || die",
+      "para": "true || die",
+      "testes": [
+        "tests.test_fechar.Conserto.test_conserto_recusa_lote_e_armar"
+      ]
+    },
+    {
+      "id": "CS5",
+      "guarda": "C1: a leitura do topo que falha para",
+      "arquivo": "bin/forge-fechar",
+      "de": "topo=\"$(remoto_exato \"$alvo\")\" || die \"parou no passo 6b (C1)",
+      "para": "topo=\"$(remoto_exato \"$alvo\")\" || true \"parou no passo 6b (C1)",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c1_topo_ilegivel_ou_vazio_para"
+      ]
+    },
+    {
+      "id": "CS6",
+      "guarda": "C1: o topo vazio para",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -n \"$topo\" ] || die \"parou no passo 6b (C1)",
+      "para": "true || die \"parou no passo 6b (C1)",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c1_topo_ilegivel_ou_vazio_para"
+      ]
+    },
+    {
+      "id": "CS7",
+      "guarda": "C1: a leitura do run que falha para",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo 6b (C1): não consegui ler o run",
+      "para": "|| true \"parou no passo 6b (C1): não consegui ler o run",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c1_run_ilegivel_para"
+      ]
+    },
+    {
+      "id": "CS8",
+      "guarda": "C1: o run é do push na develop",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$ev $br\" = \"push $alvo\" ] || die",
+      "para": "true || die",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c1_run_de_outro_evento_ou_branch_para"
+      ]
+    }
+  ]
+}

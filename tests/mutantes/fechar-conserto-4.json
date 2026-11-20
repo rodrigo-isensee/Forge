@@ -1,0 +1,86 @@
+{
+  "pedido": "fechar-conserto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CS25",
+      "guarda": "C4: a leitura do CI do PR que falha para",
+      "arquivo": "bin/forge-fechar",
+      "de": "    || die \"parou no passo 6b (C4): não consegui ler o CI do PR",
+      "para": "    || true \"parou no passo 6b (C4): não consegui ler o CI do PR",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_e_c5_leituras_que_falham_param"
+      ]
+    },
+    {
+      "id": "CS26",
+      "guarda": "C4: sem o CI verde do PR para",
+      "arquivo": "bin/forge-fechar",
+      "de": "[[ \"$run_pr\" =~ ^[0-9]{1,20}$ ]] || die",
+      "para": "true || die",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_sem_ci_verde_do_pr_para"
+      ]
+    },
+    {
+      "id": "CS27",
+      "guarda": "C4: a leitura dos passos do CI do PR que falha para",
+      "arquivo": "bin/forge-fechar",
+      "de": "    || die \"parou no passo 6b (C4): não consegui ler os passos",
+      "para": "    || true \"parou no passo 6b (C4): não consegui ler os passos",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_e_c5_leituras_que_falham_param"
+      ]
+    },
+    {
+      "id": "CS28",
+      "guarda": "C4: árvore provada na develop conta como passou",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -n \"$passos\" ] && ! printf",
+      "para": "if false && ! printf",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_arvore_provada_na_develop_conta_como_passou"
+      ]
+    },
+    {
+      "id": "CS29",
+      "guarda": "C4: sem pasta temporária para",
+      "arquivo": "bin/forge-fechar",
+      "de": "pasta=\"$(mktemp -d)\" || die",
+      "para": "pasta=\"$(mktemp -d)\" || true",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_sem_pasta_temporaria_para"
+      ]
+    },
+    {
+      "id": "CS30",
+      "guarda": "C4: sem os pulados do CI do PR para",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! \"$gh\" run download",
+      "para": "if false && ! \"$gh\" run download",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_sem_os_pulados_do_pr_para"
+      ]
+    },
+    {
+      "id": "CS31",
+      "guarda": "C4: teste que falhou e foi pulado no PR para",
+      "arquivo": "bin/forge-fechar",
+      "de": "if grep -rqF -e",
+      "para": "if false && grep -rqF -e",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_teste_que_falhou_pulado_no_pr_para"
+      ]
+    },
+    {
+      "id": "CS32",
+      "guarda": "C5: a leitura do diff do PR que falha para",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo 6b (C5): não consegui ler o diff do PR",
+      "para": "|| true \"parou no passo 6b (C5): não consegui ler o diff do PR",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c5_diff_ilegivel_para"
+      ]
+    }
+  ]
+}

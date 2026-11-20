@@ -62,6 +62,9 @@
 # promocao/<versão> nasce nesse sha (o par promocao/<versão> -> homolog tem de estar em PROMOCOES de tests/catraca.py, a tabela do CI) e o PR
 # para a homolog (só os do próprio repositório; o de fork não conta) mescla com --auto --merge preso a ele. Rodar de novo retoma (ramo, PR e MERGED
 # reusados). Item mesclado depois da marca fica para a versão seguinte. Nunca toca a main: imprime o PR homolog -> main para o tech-lead.
+# --conserto <run> (BP2 I1): com a develop vermelha, o 6b libera só o conserto: o run é o push vermelho do topo (C1), o head é o revisado
+# ou o merge dele com o topo que o 2b gerou (C3), os testes que falharam no run passaram no CI do PR (C4) e o diff tem relação com o
+# vermelho (C5); o registro vai ao log e ao Histórico do pedido (C7). Recusa --lote e --armar (C6: acompanhado até o fim).
 # FORGE_FECHAR_PAUSA (segundos, padrão 3) é a espera entre as tentativas de leitura repetida.
 # Faixas (recusadas antes do passo 1, com a faixa na mensagem): FORGE_FECHAR_PAUSA 1 a 30; FORGE_FECHAR_INTERVALO 5 a 120 (o piso cai
 # para 0 só com FORGE_FECHAR_TESTE=1); --espera 0 a 7200. Só inteiro decimal, no máximo 3 dígitos (5 em --espera).
@@ -98,6 +101,7 @@ armar=0 estado_lido=0  # --armar (R7): arma o auto-merge sem esperar os checks
 lote=0 item_de_lote=0 promover_sha="" espera_ci=3600 ci_falhou=0 ci_st="" ci_ruins="" ja_mesclado=1 posicionais=()  # lote, promoção pela marca e espera do CI da develop
 args_originais=("$@")  # H4: o recomeço da cadeia depois do merge da base (passo 2b) roda o mesmo comando com `--trazida`
 cartoes=() quadro="${HOME:-}/.forge-contrib" motivo_cartao="" cartao_pend=0  # FECHAR-MOVE-CARTAO
+conserto="" conserto_topo="" conserto_arqs=""  # --conserto (BP2 I1)
 while [ $# -gt 0 ]; do
   case "$1" in
     -h|--help) sed -n '2,/^set -euo pipefail$/{/^set -euo pipefail$/d;s/^# \{0,1\}//;p;}' "${BASH_SOURCE[0]}"; exit 0 ;;
@@ -120,11 +124,16 @@ while [ $# -gt 0 ]; do
     --item-de-lote) item_de_lote=1; shift ;;
     --promover) promover_sha="${2-}"; shift 2 || die "--promover pede o sha do commit da marca" ;;
     --espera-ci) espera_ci="${2-}"; shift 2 || die "--espera-ci pede os segundos" ;;
+    --conserto) conserto="${2-}"; shift 2 || die "--conserto pede o número do run vermelho do push na develop" ;;
     -*) die "opção desconhecida: $1" ;;
     *) posicionais+=("$1"); shift ;;
   esac
 done
 
+if [ -n "$conserto" ]; then  # BP2 I1: só dígitos; recusa --lote e --armar
+  [[ "$conserto" =~ ^[0-9]{1,20}$ ]] || die "--conserto pede o número do run (só dígitos; recebi: $conserto)"
+  [ "$lote$armar" = 00 ] || die "--conserto não combina com --lote nem com --armar: o conserto é acompanhado até o fim (C6)"
+fi
 if [ "$lote" = 1 ]; then
   # Só os itens, --base, --espera, --espera-ci e --dry-run: o resto é de cada item, que o lote não repassa.
   if [ -n "$ref$promover_sha$titulo$origem$muda$medir" ] || [ "$limpar$sem_limpar$armar$esperar$item_de_lote" != 00000 ] || [ "${#cartoes[@]}" != 0 ]; then
@@ -888,7 +897,7 @@ trazer_a_base() {
   echo "merge limpo de $base em $ref: $novo (árvore do merge-tree); envio com o pre-push de sempre."
   git push origin "$novo:$ramo" || die "parou no passo 2b: o envio do merge foi recusado; o commit $novo não subiu (nada foi aberto); confira e envie com git push origin $ref"
   echo "recomeço a cadeia no head novo $novo."
-  FORGE_FECHAR_LOTE_PAI="$$" bash "$eu" "${args_originais[@]}" --trazida || rc=$?
+  FORGE_FECHAR_LOTE_PAI="$$" FORGE_FECHAR_CONSERTO_H="$remoto_sha" bash "$eu" "${args_originais[@]}" --trazida || rc=$?
   exit "$rc"
 }
 
@@ -1028,8 +1037,98 @@ ci_no_merge() {
   if [ "$ci_st" = verde ]; then echo "CI do push na $alvo verde no ${1:0:7}."; return 0; fi
   echo "aviso: $(msg_ci "$alvo" "$1")" >&2
   shift
-  [ "$ci_st" != vermelho ] || echo "para reverter: $(reversao "$@")" >&2
+  if [ "$ci_st" = vermelho ]; then
+    echo "para reverter: $(reversao "$@")" >&2
+    local ult="${*: -1}" run_v
+    run_v="$(printf '%s\n' "$ci_ruins" | awk '$3 != "cancelled" {print $2; exit}')"
+    echo "e feche a reversão com: forge-fechar <pedido> --ref melhoria/reverte-${ult:0:7} --conserto $run_v" >&2
+  fi
   ci_falhou=1
+}
+
+# conserto_6b (BP2 I1, docs/fechamento-integrador.md, "Conserto da develop vermelha"): no lugar do 6b, libera o merge com a develop
+# vermelha só com C1, C3, C4 e C5; qualquer leitura que falha para sem mesclar (falha fechada).
+conserto_6b() {
+  local topo linha ev br sha st co
+  topo="$(remoto_exato "$alvo")" || die "parou no passo 6b (C1): não consegui ler a $alvo no servidor; nada foi mesclado"
+  [ -n "$topo" ] || die "parou no passo 6b (C1): não consegui ler a $alvo no servidor (resposta vazia); nada foi mesclado"
+  linha="$(ler "$gh" run view "$conserto" --json event,headBranch,headSha,status,conclusion \
+    --jq '"\(.event) \(.headBranch) \(.headSha) \(.status) \(.conclusion)"')" || die "parou no passo 6b (C1): não consegui ler o run $conserto; nada foi mesclado"
+  read -r ev br sha st co <<<"$linha"
+  [ "$ev $br" = "push $alvo" ] || die "parou no passo 6b (C1): o run $conserto não é do push na $alvo ($ev $br); nada foi mesclado"
+  [ "$sha" = "$topo" ] || die "parou no passo 6b (C1): o run $conserto é do ${sha:0:7}, não do topo da $alvo (${topo:0:7}); nada foi mesclado"
+  [ "$st $co" = "completed failure" ] || die "parou no passo 6b (C1): o run $conserto não terminou com falha ($st $co); nada foi mesclado"
+  conserto_topo="$topo"
+  conserto_c3
+  conserto_c4
+  conserto_c5
+  echo "conserto da $alvo: run $conserto, topo ${topo:0:7}; C1, C3, C4 e C5 conferidas."
+}
+# conserto_c3: o passo 6 prende o merge ao head conferido. Com a base trazida pelo 2b (--trazida), o head M só vale com M^1 = H (o head que o
+# pai conferiu, passado só com a marca do pai), M^2 = o topo e a árvore do merge-tree dos dois: o commit que o próprio script gera.
+conserto_c3() {
+  local p1="" p2="" resto=""
+  [ "$trazida" = 1 ] || return 0
+  [ "${FORGE_FECHAR_LOTE_PAI:-}" = "$PPID" ] || die "parou no passo 6b (C3): --trazida sem a marca do processo pai; nada foi mesclado"
+  read -r _ p1 p2 resto <<<"$(git rev-list --parents -n 1 "$remoto_sha" 2>/dev/null)"
+  if [ -n "$resto" ] || [ "$p1" != "${FORGE_FECHAR_CONSERTO_H:-}" ] || [ "$p2" != "$conserto_topo" ]; then
+    die "parou no passo 6b (C3): o head ${remoto_sha:0:7} não é o merge do head revisado com o topo da $alvo; nada foi mesclado"; fi
+  [ "$(git merge-tree --write-tree --no-messages "$p1" "$p2" 2>/dev/null)" = "$(git rev-parse -q --verify "$remoto_sha^{tree}")" ] \
+    || die "parou no passo 6b (C3): a árvore do head ${remoto_sha:0:7} não é a do merge-tree do head revisado com o topo; nada foi mesclado"
+}
+# conserto_c4: os testes das anotações ::error (scripts/falhas-no-resumo.py) dos jobs vermelhos do run não constam nos pulados do CI verde
+# do PR no head (artefatos pulados-*); árvore provada na develop (SP4, a suíte não rodou) conta como passou. 10 anotações num job: leia o log.
+conserto_c4() {
+  local jobs j anot ids="" n run_pr passos pasta id
+  jobs="$(ler "$gh" run view "$conserto" --json jobs --jq '.jobs[] | select(.conclusion == "failure") | .databaseId')" \
+    || die "parou no passo 6b (C4): não consegui ler os jobs do run $conserto; nada foi mesclado"
+  for j in $jobs; do
+    [[ "$j" =~ ^[0-9]{1,20}$ ]] || die "parou no passo 6b (C4): job fora da forma no run $conserto; nada foi mesclado"
+    anot="$(ler "$gh" api "repos/{owner}/{repo}/check-runs/$j/annotations" \
+      --jq '.[] | select(.annotation_level == "failure") | [.path, .message] | @tsv')" || die "parou no passo 6b (C4): não consegui ler as anotações do job $j; nada foi mesclado"
+    anot="$(printf '%s\n' "$anot" | sed -nE 's/^([^\t]*)\t([A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+)( \([^)]*\))?: .*/\2\t\1/p')"
+    n="$(printf '%s' "$anot" | grep -c . || true)"
+    [ "$n" -lt 10 ] || die "parou no passo 6b (C4): o job $j tem $n testes anotados (o GitHub mostra só 10 por passo); leia o log (gh run view $conserto --log-failed); nada foi mesclado"
+    ids="$ids$anot"$'\n'
+  done
+  ids="$(printf '%s' "$ids" | awk 'NF')"
+  [ -n "$ids" ] || die "parou no passo 6b (C4): nenhum teste nas anotações dos jobs vermelhos do run $conserto; leia o log; nada foi mesclado"
+  # o arquivo de cada teste (C5): o da anotação e o do módulo do id (o que vem antes da classe), em tests/
+  conserto_arqs="$(printf '%s\n' "$ids" | awk -F'\t' '{print $2; n = split($1, p, "."); m = ""
+    for (i = 1; i <= n && p[i] !~ /^[A-Z]/; i++) m = m (m == "" ? "" : "/") p[i]; print (m ~ /^tests\//) ? m ".py" : "tests/" m ".py"}')"
+  run_pr="$(ler "$gh" run list --commit "$remoto_sha" --event pull_request --workflow CI --status success --limit 1 --json databaseId --jq '.[0].databaseId')" \
+    || die "parou no passo 6b (C4): não consegui ler o CI do PR no head ${remoto_sha:0:7}; nada foi mesclado"
+  [[ "$run_pr" =~ ^[0-9]{1,20}$ ]] || die "parou no passo 6b (C4): sem o CI verde do PR no head ${remoto_sha:0:7}; nada foi mesclado"
+  passos="$(ler "$gh" run view "$run_pr" --json jobs --jq '.jobs[].steps[] | select(.name == "Testes do Forge (parte)") | .conclusion')" \
+    || die "parou no passo 6b (C4): não consegui ler os passos do CI do PR (run $run_pr); nada foi mesclado"
+  if [ -n "$passos" ] && ! printf '%s\n' "$passos" | grep -qvx skipped; then echo "C4: árvore provada na $alvo (SP4) no CI do PR: conta como passou."; return 0; fi
+  pasta="$(mktemp -d)" || die "parou no passo 6b (C4): sem pasta temporária para os pulados; nada foi mesclado"
+  if ! "$gh" run download "$run_pr" --pattern 'pulados-*' --dir "$pasta" >/dev/null 2>&1 || [ -z "$(find "$pasta" -name '*.json' -print -quit)" ]; then
+    rm -rf "$pasta"; die "parou no passo 6b (C4): sem os pulados do CI do PR (run $run_pr); nada foi mesclado"; fi
+  while IFS=$'\t' read -r id _; do
+    if grep -rqF -e "\"$id\"" -e "\"$id (" "$pasta"; then rm -rf "$pasta"; die "parou no passo 6b (C4): o teste $id, que falhou no run $conserto, foi pulado no CI do PR (run $run_pr); nada foi mesclado"; fi
+  done <<<"$ids"
+  rm -rf "$pasta"
+}
+# em_comum <lista> <lista>: alguma linha (não vazia) nas duas.
+em_comum() { printf '%s\n' "$1" | awk 'NF' | grep -qxF -f <(printf '%s\n' "$2" | awk 'NF'); }
+# conserto_c5 (D2): o diff do PR toca o arquivo de um teste que falhou, um arquivo mudado entre o último push verde da develop e o topo, ou
+# reverte (git revert) um commit desse intervalo; sem relação, para.
+conserto_c5() {
+  local dif verde mudados s
+  dif="$(git diff --name-only --no-renames "$conserto_topo...$remoto_sha")" || die "parou no passo 6b (C5): não consegui ler o diff do PR; nada foi mesclado"
+  if em_comum "$dif" "$conserto_arqs"; then echo "C5: o PR toca o arquivo de um teste que falhou."; return 0; fi
+  verde="$(ler "$gh" run list --branch "$alvo" --event push --workflow CI --status success --limit 1 --json headSha --jq '.[0].headSha')" \
+    || die "parou no passo 6b (C5): não consegui ler o último push verde da $alvo; nada foi mesclado"
+  if ! { [[ "$verde" =~ ^[0-9a-f]{40}$ ]] && git merge-base --is-ancestor "$verde" "$conserto_topo" 2>/dev/null; }; then
+    die "parou no passo 6b (C5): não achei o último push verde da $alvo antes do topo; nada foi mesclado"; fi
+  mudados="$(git diff --name-only --no-renames "$verde" "$conserto_topo")" || die "parou no passo 6b (C5): não consegui ler o que mudou desde o último verde; nada foi mesclado"
+  if em_comum "$dif" "$mudados"; then echo "C5: o PR toca arquivo mudado entre o último verde (${verde:0:7}) e o topo."; return 0; fi
+  for s in $(git log --format=%B "$conserto_topo..$remoto_sha" | sed -nE 's/^This reverts commit ([0-9a-f]{40})\.?$/\1/p'); do
+    if git merge-base --is-ancestor "$s" "$conserto_topo" 2>/dev/null && ! git merge-base --is-ancestor "$s" "$verde" 2>/dev/null; then
+      echo "C5: o PR reverte o ${s:0:7}, do intervalo vermelho."; return 0; fi
+  done
+  die "parou no passo 6b (C5): o PR não toca arquivo de teste que falhou nem arquivo mudado desde o último verde (${verde:0:7}), nem reverte commit desse intervalo; nada foi mesclado (D2)"
 }
 
 # fechar_lote (INTEGRACAO-EM-LOTE, diretriz 26): recusa arquivo em comum, exige o CI da base verde, fecha cada item com --item-de-lote e
@@ -1232,7 +1331,7 @@ if [ "$seco" = 1 ]; then
   passo 4 "$gh pr checks <número do PR, lido no passo 3> (espera até ${espera}s; por JSON; os exigidos, pelo par workflow/nome (${CHECKS_EXIGIDOS[*]}) e os do ruleset ou da proteção de $alvo pelo nome, só passam em pass, os demais em pass ou skipping)"
   passo 5 "$gh pr view <número do PR, lido no passo 3> --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
   passo "6a" "git ls-remote origin refs/heads/$alvo (a base que o passo 2b leu? se andou durante os checks: com conflito no git merge-tree --write-tree para sem mesclar; sem conflito segue, sem trazer a base (E8); base local velha pede git fetch)"
-  [ "$item_de_lote" = 1 ] || passo "6b" "$gh run list --branch $alvo --event push --commit <topo da $alvo>: verde antes do merge (pendente espera até ${espera_ci}s; vermelho para)"
+  [ "$item_de_lote" = 1 ] || passo "6b" "${conserto:+conserto do run $conserto (C1, C3, C4 e C5) no lugar de: }$gh run list --branch $alvo --event push --commit <topo da $alvo>: verde antes do merge (pendente espera até ${espera_ci}s; vermelho para)"
   passo 6 "$gh pr merge $ref --auto $metodo --match-head-commit <head conferido> (auto-merge do GitHub com os checks obrigatórios; base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge; espera o MERGED até --espera; com --armar sai com código 4 se ainda não mesclou)"
   for c in "${cartoes[@]}"; do echo "cartão $c: depois do merge, forge-check movimento $c --de $(coluna_do_cartao "$c") --para Pronto --raiz $quadro"; done
   [ "$sem_limpar" = 0 ] || echo "--sem-limpar: o passo 7 é pulado; imprime os comandos da limpeza e sai com código 3 depois do merge."
@@ -1489,8 +1588,13 @@ if [ "$ja_mesclado" = 0 ]; then
   passo "6a" "base de $alvo antes do merge"
   conferir_base_no_merge
   if [ "$item_de_lote" = 0 ]; then
-    passo "6b" "CI do push na $alvo verde antes do merge (um item por vez, até ${espera_ci}s)"
-    ci_antes_do_merge 6b
+    if [ -n "$conserto" ]; then  # BP2 I1: o conserto troca a espera do verde pelas condições
+      passo "6b" "conserto da $alvo vermelha: run $conserto (C1, C3, C4 e C5)"
+      conserto_6b
+    else
+      passo "6b" "CI do push na $alvo verde antes do merge (um item por vez, até ${espera_ci}s)"
+      ci_antes_do_merge 6b
+    fi
   fi
   passo 6 "merge ($metodo) em $alvo"
   # As leituras do passo 6 vão pelo número do PR (lido no passo 3); o merge continua por nome de branch (o hook `parecer` o exige) e preso ao head.
@@ -1512,6 +1616,9 @@ if [ "$ja_mesclado" = 0 ]; then
     fi
     # O merge muda o PR: não se repete sozinho. Se falhou, só se lê o estado: um 502 após o merge feito já deixou o PR MERGED.
     # R7: `--auto` entrega o merge ao GitHub, que só mescla com os checks obrigatórios verdes (nunca --admin; o hook o recusa).
+    # C1: o topo relido logo antes do merge; se andou depois do 6b, o run declarado já não é o do topo.
+    [ -z "$conserto" ] || [ "$(remoto_exato "$alvo" || true)" = "$conserto_topo" ] \
+      || die "parou no passo 6 (C1): a $alvo andou depois do 6b; o run $conserto já não é o do topo; nada foi mesclado"
     if ! mesclar_auto "$metodo" "$remoto_sha"; then
       estado_do_pr || true
       [ "$pr_estado" = MERGED ] || die "parou no passo 6: o merge falhou (ou o head do PR mudou desde o passo 2)"
@@ -1527,6 +1634,12 @@ if [ "$ja_mesclado" = 0 ]; then
   if ! { [ -n "$pr_merge" ] && [ "$pr_merge" != "-" ]; }; then die "parou no passo 6: o PR #$pr_n consta MERGED sem commit de merge; confira no GitHub"; fi
   echo "merge: $pr_merge"
   subida_extra="MERGED ${pr_merge:0:7} ${remoto_sha:0:7}"
+  if [ -n "$conserto" ]; then  # C7: no log (esta saída) e no Histórico do pedido; falha de gravação vira pendência (código 3)
+    linha_c7="conserto da $alvo: run $conserto, topo ${conserto_topo:0:7}, PR #$pr_n, head ${remoto_sha:0:7}"
+    echo "$linha_c7"
+    "$check" anotar --raiz-pedidos "$quadro" --pedido "$pedido" --tipo historico --literal "$linha_c7" >/dev/null 2>&1 || {
+      cartao_pend=1; printf 'pendente, rode: forge-check anotar --raiz-pedidos %q --pedido %q --tipo historico --literal %q\n' "$quadro" "$pedido" "$linha_c7" >&2; }
+  fi
 fi
 
 if [ "$ja_mesclado" = 0 ]; then motivo_cartao="mesclado em $alvo: PR #$pr_n, merge ${pr_merge:0:7}"; else motivo_cartao="mesclado em $alvo: head ${remoto_sha:0:7}"; fi

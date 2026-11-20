@@ -1,0 +1,46 @@
+{
+  "pedido": "fechar-conserto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CS41",
+      "guarda": "o 6b do conserto troca a espera do verde",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -n \"$conserto\" ]; then  # BP2 I1: o conserto troca",
+      "para": "if false; then  # BP2 I1: o conserto troca",
+      "testes": [
+        "tests.test_fechar.Conserto.test_conserto_mescla_com_a_develop_vermelha_preso_ao_head_e_registra"
+      ]
+    },
+    {
+      "id": "CS42",
+      "guarda": "C1: o topo relido antes do merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -z \"$conserto\" ] || [ \"$(remoto_exato \"$alvo\" || true)\" = \"$conserto_topo\" ]",
+      "para": "true",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c1_topo_que_anda_depois_do_6b_para_sem_mesclar"
+      ]
+    },
+    {
+      "id": "CS43",
+      "guarda": "C7: o conserto mesclado é registrado",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -n \"$conserto\" ]; then  # C7",
+      "para": "if false; then  # C7",
+      "testes": [
+        "tests.test_fechar.Conserto.test_conserto_mescla_com_a_develop_vermelha_preso_ao_head_e_registra"
+      ]
+    },
+    {
+      "id": "CS44",
+      "guarda": "C7: o registro que falha vira pendência (código 3)",
+      "arquivo": "bin/forge-fechar",
+      "de": "cartao_pend=1; printf 'pendente, rode: forge-check anotar",
+      "para": "printf 'pendente, rode: forge-check anotar",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c7_historico_que_falha_vira_pendencia"
+      ]
+    }
+  ]
+}

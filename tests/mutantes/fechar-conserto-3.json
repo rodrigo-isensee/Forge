@@ -1,0 +1,86 @@
+{
+  "pedido": "fechar-conserto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CS17",
+      "guarda": "C6: o run do fechamento da reversão é o vermelho, não o cancelado",
+      "arquivo": "bin/forge-fechar",
+      "de": "awk '$3 != \"cancelled\" {print $2; exit}'",
+      "para": "awk '{print $2; exit}'",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c6_ci_vermelho_no_merge_imprime_o_fechamento_da_reversao_com_conserto"
+      ]
+    },
+    {
+      "id": "CS18",
+      "guarda": "C4: a leitura dos jobs que falha para",
+      "arquivo": "bin/forge-fechar",
+      "de": "    || die \"parou no passo 6b (C4): não consegui ler os jobs",
+      "para": "    || true \"parou no passo 6b (C4): não consegui ler os jobs",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_jobs_ilegiveis_para"
+      ]
+    },
+    {
+      "id": "CS19",
+      "guarda": "C4: o job é só dígitos",
+      "arquivo": "bin/forge-fechar",
+      "de": "[[ \"$j\" =~ ^[0-9]{1,20}$ ]] || die",
+      "para": "true || die",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_job_fora_da_forma_para"
+      ]
+    },
+    {
+      "id": "CS20",
+      "guarda": "C4: a leitura das anotações que falha para",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo 6b (C4): não consegui ler as anotações",
+      "para": "|| true \"parou no passo 6b (C4): não consegui ler as anotações",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_anotacoes_ilegiveis_para"
+      ]
+    },
+    {
+      "id": "CS21",
+      "guarda": "C4: a contagem sem teste anotado não derruba o script",
+      "arquivo": "bin/forge-fechar",
+      "de": "grep -c . || true)\"",
+      "para": "grep -c .)\"",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_sem_teste_nas_anotacoes_para"
+      ]
+    },
+    {
+      "id": "CS22",
+      "guarda": "C4: 10 testes anotados num job pedem o log",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$n\" -lt 10 ] || die",
+      "para": "true || die",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_dez_testes_anotados_num_job_pede_o_log"
+      ]
+    },
+    {
+      "id": "CS23",
+      "guarda": "C4: sem teste nas anotações para",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -n \"$ids\" ] || die",
+      "para": "true || die",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c4_sem_teste_nas_anotacoes_para"
+      ]
+    },
+    {
+      "id": "CS24",
+      "guarda": "C5: o arquivo do módulo do teste fica em tests/",
+      "arquivo": "bin/forge-fechar",
+      "de": "print (m ~ /^tests\\//) ? m \".py\" : \"tests/\" m \".py\"}",
+      "para": "print m \".py\"}",
+      "testes": [
+        "tests.test_fechar.Conserto.test_c5_arquivo_do_modulo_do_teste_conta"
+      ]
+    }
+  ]
+}

@@ -3,6 +3,7 @@
 `gh` e `forge-check` são falsos (FORGE_GH e FORGE_CHECK); cada chamada vai para um registro, para provar o que rodou.
 """
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
@@ -1326,6 +1327,363 @@ class Fechar(unittest.TestCase):
         self.assertEqual(codigo.count("git branch -D \"$ref\""), 1)
         self.assertEqual(codigo.count('git push origin --delete "refs/heads/$ref"'), 1)
         self.assertGreaterEqual(codigo.count("limpar_entrega"), 3)
+
+
+# BP2 I1 (--conserto): o gh das leituras do conserto, só nas formas exatas que o script pede (outra forma cai no gh falso de sempre,
+# que sai com 64); o resto vai ao gh falso de sempre (GH_BASE). Arquivos em $ESTADO: c_run_<R> (a linha do run: evento, branch, sha,
+# status, conclusão), c_jobs, c_anot_<job> (caminho<TAB>mensagem), c_run_pr, c_passos, a pasta c_pulados e c_verde; c_falha_<x>: falha.
+GH_CONSERTO = r'''#!/usr/bin/env bash
+[ "$1" = "--version" ] && exec "$GH_BASE" "$@"
+saida() { echo "gh $*" >> "$REGISTRO"; [ -f "$ESTADO/c_falha_$1" ] && exit 1; }
+case "$*" in
+  "run view "*" --json event,headBranch,headSha,status,conclusion --jq \"\(.event) \(.headBranch) \(.headSha) \(.status) \(.conclusion)\"")
+    [[ "$3" =~ ^[0-9]+$ ]] || exit 64; saida run "$@"; cat "$ESTADO/c_run_$3" 2>/dev/null || exit 1; exit 0 ;;
+  "run view "*" --json jobs --jq .jobs[] | select(.conclusion == \"failure\") | .databaseId")
+    saida jobs "$@"; cat "$ESTADO/c_jobs"; exit 0 ;;
+  "api repos/{owner}/{repo}/check-runs/"*"/annotations --jq .[] | select(.annotation_level == \"failure\") | [.path, .message] | @tsv")
+    j="${2#repos/\{owner\}/\{repo\}/check-runs/}"; j="${j%/annotations}"; saida anot "$@"; cat "$ESTADO/c_anot_$j" 2>/dev/null || exit 1; exit 0 ;;
+  "run list --commit "*" --event pull_request --workflow CI --status success --limit 1 --json databaseId --jq .[0].databaseId")
+    saida run_pr "$@"; cat "$ESTADO/c_run_pr" 2>/dev/null || echo 500; exit 0 ;;
+  "run view "*" --json jobs --jq .jobs[].steps[] | select(.name == \"Testes do Forge (parte)\") | .conclusion")
+    saida passos "$@"; cat "$ESTADO/c_passos" 2>/dev/null || printf 'success\nsuccess\n'; exit 0 ;;
+  "run download "*" --pattern pulados-* --dir "*)
+    saida download "$@"; [ -d "$ESTADO/c_pulados" ] || exit 1; cp -r "$ESTADO/c_pulados/." "${@: -1}/"; exit 0 ;;
+  "run list --branch develop --event push --workflow CI --status success --limit 1 --json headSha --jq .[0].headSha")
+    saida verde "$@"; cat "$ESTADO/c_verde"; exit 0 ;;
+esac
+exec "$GH_BASE" "$@"
+'''
+# $ESTADO/c_falha_diff: o `git diff` cujos argumentos contêm esse texto falha; o resto vai ao git falso de sempre (git-base).
+GIT_CONSERTO = r'''#!/usr/bin/env bash
+if [ "$1" = diff ] && [ -f "$ESTADO/c_falha_diff" ] && [[ "$*" == *"$(cat "$ESTADO/c_falha_diff")"* ]]; then exit 1; fi
+exec "$(dirname "$0")/git-base" "$@"
+'''
+# forge-check falso do conserto: o `anotar` sai com CHECK_ANOTAR_RC (padrão 0); o resto, como o de sempre.
+CHECK_CONSERTO = ('#!/usr/bin/env bash\necho "forge-check $*" >> "$REGISTRO"\n'
+                  '[ "$1" = anotar ] && exit "${CHECK_ANOTAR_RC:-0}"\nexit "${CHECK_RC:-0}"\n')
+
+
+class Conserto(unittest.TestCase):
+    """BP2 I1: `--conserto <run>` libera o 6b com a develop vermelha só com C1, C3, C4 e C5; C7 registra; recusa --lote e --armar."""
+    tearDown = Fechar.tearDown
+    git = Fechar.git
+    fechar = Fechar.fechar
+    chamadas = Fechar.chamadas
+
+    def setUp(self):
+        Fechar.setUp(self)
+        bin_ = self.tmp / "bin"
+        (bin_ / "git").rename(bin_ / "git-base")
+        for caminho, texto in ((bin_ / "git", GIT_CONSERTO), (self.tmp / "gh_conserto", GH_CONSERTO), (self.tmp / "check", CHECK_CONSERTO)):
+            caminho.write_text(texto, encoding="utf-8")
+            caminho.chmod(0o755)
+        self.env.update(GH_BASE=self.env["FORGE_GH"], FORGE_GH=str(self.tmp / "gh_conserto"))
+        self.verde = self.topo = self.git("rev-parse", "develop")
+        self.run_do_topo()
+        (self.estado / "c_jobs").write_text("71\n")
+        self.anotar("b\ttest_b.Caso.test_um: AssertionError: 1 != 2\n.github\tProcess completed with exit code 1.\n")
+        self.pulados([])
+        (self.estado / "c_verde").write_text(self.verde + "\n")
+
+    def run_do_topo(self, linha=None):
+        (self.estado / "c_run_44").write_text((linha or f"push develop {self.topo} completed failure") + "\n")
+
+    def anotar(self, texto, job="71"):
+        (self.estado / f"c_anot_{job}").write_text(texto)
+
+    def pulados(self, ids):
+        pasta = self.estado / "c_pulados" / "pulados-doze-1"
+        pasta.mkdir(parents=True, exist_ok=True)
+        (pasta / "parte-1.json").write_text(json.dumps({"parte": "1/5", "pulados": len(ids), "pulados_ids": ids}))
+
+    def merges(self):
+        return [c for c in self.chamadas() if c.startswith("gh pr merge")]
+
+    def conserto(self, *extra, ref="melhoria/x", **env):
+        return self.fechar("p1", "--ref", ref, "--conserto", "44", *extra, **env)
+
+    def assert_parou(self, r, texto):
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn(texto, r.stderr)
+        self.assertEqual(self.merges(), [])
+
+    def develop_anda(self, arquivo, texto=None, msg="feat: develop"):
+        """Um commit na develop (e no origin) que grava `arquivo` (texto None: apaga); o topo e o run vermelho passam a ele."""
+        self.git("switch", "-q", "develop")
+        if texto is None:
+            self.git("rm", "-q", arquivo)
+        else:
+            (self.proj / arquivo).write_text(texto)
+            self.git("add", arquivo)
+        self.git("commit", "-q", "-m", msg)
+        self.git("push", "-q", "origin", "develop")
+        self.topo = self.git("rev-parse", "develop")
+        self.run_do_topo()
+        return self.topo
+
+    def ramo_da_develop(self, nome, arquivo, texto):
+        self.git("switch", "-q", "-c", nome, "develop")
+        (self.proj / arquivo).parent.mkdir(parents=True, exist_ok=True)
+        (self.proj / arquivo).write_text(texto)
+        self.git("add", arquivo)
+        self.git("commit", "-q", "-m", "fix: conserto")
+        self.git("push", "-q", "origin", nome)
+        self.git("switch", "-q", "develop")
+
+    def test_conserto_mescla_com_a_develop_vermelha_preso_ao_head_e_registra(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        r = self.conserto()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.merges(), [f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha}"])
+        self.assertFalse([c for c in self.chamadas() if c.startswith(f"gh run list --branch develop --event push --commit {self.topo}")])
+        linha = f"conserto da develop: run 44, topo {self.topo[:7]}, PR #7, head {sha[:7]}"
+        self.assertIn(linha, r.stdout)
+        self.assertIn(f"forge-check anotar --raiz-pedidos {self.tmp / '.forge-contrib'} --pedido p1 --tipo historico --literal {linha}",
+                      self.chamadas())
+        self.assertIn("C5: o PR toca o arquivo de um teste que falhou.", r.stdout)
+
+    def test_sem_conserto_a_develop_vermelha_para_no_6b(self):
+        (self.estado / f"runs_{self.topo}").write_text("44\tcompleted\tfailure\n")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assert_parou(r, "parou no passo 6b: a develop está vermelha")
+
+    def test_run_fora_da_forma_para_antes_do_passo_1(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--conserto", "44a")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("--conserto pede o número do run (só dígitos; recebi: 44a)", r.stderr)
+        self.assertEqual(self.chamadas(), [])
+
+    def test_conserto_sem_valor_para_antes_do_passo_1(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--conserto")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("--conserto pede o número do run vermelho do push na develop", r.stderr)
+        self.assertEqual(self.chamadas(), [])
+
+    def test_conserto_recusa_lote_e_armar(self):
+        for args in (("--lote", "p1:melhoria/x", "p2:melhoria/y"), ("p1", "--ref", "melhoria/x", "--armar")):
+            with self.subTest(args=args):
+                r = self.fechar(*args, "--conserto", "44")
+                self.assertEqual(r.returncode, 1)
+                self.assertIn("--conserto não combina com --lote nem com --armar", r.stderr)
+                self.assertEqual(self.chamadas(), [])
+
+    # ---- C1: o run é o push vermelho do topo, relido antes do merge ----
+    def test_c1_topo_ilegivel_ou_vazio_para(self):
+        # o 2b e o 6a leem a develop no servidor antes; a terceira leitura, a do C1, falha ou volta sem a ref
+        for modo, msg in (("falha", "servidor; nada foi mesclado"), ("vazio", "servidor (resposta vazia)")):
+            with self.subTest(modo=modo):
+                self.registro.write_text("")
+                (self.estado / "lsremote_develop_ok").write_text("2")
+                (self.estado / "lsremote_develop_modo").write_text(modo)
+                self.assert_parou(self.conserto(), "parou no passo 6b (C1): não consegui ler a develop no " + msg)
+
+    def test_c1_run_ilegivel_para(self):
+        (self.estado / "c_falha_run").touch()
+        self.assert_parou(self.conserto(), "parou no passo 6b (C1): não consegui ler o run 44")
+
+    def test_c1_run_de_outro_evento_ou_branch_para(self):
+        for linha in (f"pull_request develop {self.topo} completed failure", f"push melhoria/x {self.topo} completed failure"):
+            with self.subTest(linha=linha):
+                self.registro.write_text("")
+                self.run_do_topo(linha)
+                self.assert_parou(self.conserto(), "parou no passo 6b (C1): o run 44 não é do push na develop")
+
+    def test_c1_run_de_outro_commit_para(self):
+        self.run_do_topo(f"push develop {'a' * 40} completed failure")
+        self.assert_parou(self.conserto(), f"o run 44 é do aaaaaaa, não do topo da develop ({self.topo[:7]})")
+
+    def test_c1_run_pendente_ou_verde_para(self):
+        for fim in ("in_progress ", "completed success", "completed cancelled"):
+            with self.subTest(fim=fim):
+                self.registro.write_text("")
+                self.run_do_topo(f"push develop {self.topo} {fim}")
+                self.assert_parou(self.conserto(), "parou no passo 6b (C1): o run 44 não terminou com falha")
+
+    def test_c1_topo_que_anda_depois_do_6b_para_sem_mesclar(self):
+        (self.estado / "lsremote_develop_ok").write_text("3")
+        (self.estado / "lsremote_develop_modo").write_text("vazio")
+        self.assert_parou(self.conserto(), "parou no passo 6 (C1): a develop andou depois do 6b")
+
+    # ---- C3: o head é o revisado ou o merge dele com o topo gerado pelo 2b ----
+    def test_c3_base_trazida_pelo_2b_mescla_o_merge_do_head_revisado_com_o_topo(self):
+        h = self.git("rev-parse", "melhoria/x")
+        topo = self.develop_anda("c", "3\n")
+        r = self.conserto()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(len(self.merges()), 1)
+        m = self.merges()[0].rsplit(" ", 1)[1]  # a branch já foi limpa: o head mesclado vem do --match-head-commit
+        self.assertEqual(self.git("rev-list", "--parents", "-n", "1", m).split(), [m, h, topo])
+
+    def trazida(self, **env):
+        return self.fechar("p1", "--ref", "melhoria/x", "--conserto", "44", "--trazida", **env)
+
+    def test_c3_trazida_sem_a_marca_do_pai_para(self):
+        self.assert_parou(self.trazida(), "parou no passo 6b (C3): --trazida sem a marca do processo pai")
+
+    def test_c3_head_que_nao_e_merge_do_revisado_com_o_topo_para(self):
+        h = self.git("rev-parse", "melhoria/x")
+        r = self.trazida(FORGE_FECHAR_LOTE_PAI=str(os.getpid()), FORGE_FECHAR_CONSERTO_H=h)
+        self.assert_parou(r, "não é o merge do head revisado com o topo da develop")
+
+    def test_c3_merge_com_arvore_diferente_da_do_merge_tree_para(self):
+        h = self.git("rev-parse", "melhoria/x")
+        topo = self.develop_anda("c", "3\n")
+        self.git("switch", "-q", "melhoria/x")
+        (self.proj / "intruso").write_text("x\n")
+        self.git("add", "intruso")
+        arvore = self.git("write-tree")
+        self.git("reset", "-q", "--hard", h)
+        m = self.git("commit-tree", arvore, "-p", h, "-p", topo, "-m", "merge forjado")
+        self.git("update-ref", "refs/heads/melhoria/x", m)
+        self.git("push", "-q", "origin", "melhoria/x")
+        self.git("switch", "-q", "develop")
+        r = self.trazida(FORGE_FECHAR_LOTE_PAI=str(os.getpid()), FORGE_FECHAR_CONSERTO_H=h)
+        self.assert_parou(r, "parou no passo 6b (C3): a árvore do head")
+
+    # ---- C4: os testes que falharam no run passaram no CI do PR ----
+    def test_c4_jobs_ilegiveis_para(self):
+        (self.estado / "c_falha_jobs").touch()
+        self.assert_parou(self.conserto(), "parou no passo 6b (C4): não consegui ler os jobs do run 44")
+
+    def test_c4_job_fora_da_forma_para(self):
+        (self.estado / "c_jobs").write_text("71/../x\n")
+        self.assert_parou(self.conserto(), "parou no passo 6b (C4): job fora da forma")
+
+    def test_c4_anotacoes_ilegiveis_para(self):
+        (self.estado / "c_anot_71").unlink()
+        self.assert_parou(self.conserto(), "parou no passo 6b (C4): não consegui ler as anotações do job 71")
+
+    def test_c4_dez_testes_anotados_num_job_pede_o_log(self):
+        self.anotar("".join(f"b\ttest_b.Caso.test_{i}: erro\n" for i in range(10)))
+        self.assert_parou(self.conserto(), "o job 71 tem 10 testes anotados (o GitHub mostra só 10 por passo)")
+
+    def test_c4_nove_testes_anotados_seguem(self):
+        self.anotar("".join(f"b\ttest_b.Caso.test_{i}: erro\n" for i in range(9)))
+        r = self.conserto()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+
+    def test_c4_sem_teste_nas_anotacoes_para(self):
+        self.anotar(".github\tProcess completed with exit code 1.\n")
+        self.assert_parou(self.conserto(), "parou no passo 6b (C4): nenhum teste nas anotações")
+
+    def test_c4_e_c5_leituras_que_falham_param(self):
+        for falha, msg in (("run_pr", "(C4): não consegui ler o CI do PR no head"),
+                           ("passos", "(C4): não consegui ler os passos do CI do PR (run 500)"),
+                           ("verde", "(C5): não consegui ler o último push verde da develop")):
+            with self.subTest(falha=falha):
+                self.registro.write_text("")
+                for f in self.estado.glob("c_falha_*"):
+                    f.unlink()
+                (self.estado / f"c_falha_{falha}").touch()
+                self.sem_teste_tocado()
+                self.assert_parou(self.conserto(), "parou no passo 6b " + msg)
+
+    def test_c4_sem_pasta_temporaria_para(self):
+        self.assert_parou(self.conserto(TMPDIR=str(self.tmp / "nao-existe")), "parou no passo 6b (C4): sem pasta temporária")
+
+    def test_c4_sem_ci_verde_do_pr_para(self):
+        (self.estado / "c_run_pr").write_text("null\n")
+        self.assert_parou(self.conserto(), "parou no passo 6b (C4): sem o CI verde do PR no head")
+
+    def test_c4_arvore_provada_na_develop_conta_como_passou(self):
+        shutil.rmtree(self.estado / "c_pulados")
+        (self.estado / "c_passos").write_text("skipped\nskipped\n")
+        r = self.conserto()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("C4: árvore provada na develop (SP4)", r.stdout)
+
+    def test_c4_sem_os_pulados_do_pr_para(self):
+        shutil.rmtree(self.estado / "c_pulados")
+        self.assert_parou(self.conserto(), "parou no passo 6b (C4): sem os pulados do CI do PR (run 500)")
+
+    def test_c4_teste_que_falhou_pulado_no_pr_para(self):
+        for id_ in ("test_b.Caso.test_um", "test_b.Caso.test_um (sub=1)"):
+            with self.subTest(id_=id_):
+                self.registro.write_text("")
+                self.pulados([id_])
+                self.assert_parou(self.conserto(), "o teste test_b.Caso.test_um, que falhou no run 44, foi pulado no CI do PR")
+
+    # ---- C5: o diff tem relação com o vermelho ----
+    def sem_teste_tocado(self):
+        self.anotar("tests/test_z.py\ttest_z.Caso.test_um: AssertionError\n")
+
+    def test_c5_diff_ilegivel_para(self):
+        (self.estado / "c_falha_diff").write_text("...")
+        self.assert_parou(self.conserto(), "parou no passo 6b (C5): não consegui ler o diff do PR")
+
+    def test_c5_arquivo_do_modulo_do_teste_conta(self):
+        self.anotar(".github\ttest_b2.Caso.test_um: erro\n")
+        self.ramo_da_develop("melhoria/y", "tests/test_b2.py", "x = 1\n")
+        r = self.conserto(ref="melhoria/y")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("C5: o PR toca o arquivo de um teste que falhou.", r.stdout)
+
+    def test_c5_arquivo_mudado_desde_o_ultimo_verde_conta(self):
+        self.sem_teste_tocado()
+        self.develop_anda("c", "3\n")
+        self.ramo_da_develop("melhoria/y", "c", "4\n")
+        r = self.conserto(ref="melhoria/y")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn(f"C5: o PR toca arquivo mudado entre o último verde ({self.verde[:7]}) e o topo.", r.stdout)
+
+    def test_c5_sem_o_ultimo_verde_antes_do_topo_para(self):
+        self.sem_teste_tocado()
+        for verde in ("", "b" * 40):
+            with self.subTest(verde=verde):
+                self.registro.write_text("")
+                (self.estado / "c_verde").write_text(verde + "\n")
+                self.assert_parou(self.conserto(), "parou no passo 6b (C5): não achei o último push verde da develop antes do topo")
+
+    def test_c5_leitura_do_que_mudou_desde_o_verde_que_falha_para(self):
+        self.sem_teste_tocado()
+        (self.estado / "c_falha_diff").write_text(f"{self.verde} {self.topo}")
+        self.assert_parou(self.conserto(), "parou no passo 6b (C5): não consegui ler o que mudou desde o último verde")
+
+    def test_c5_reversao_de_commit_do_intervalo_conta(self):
+        self.sem_teste_tocado()
+        self.develop_anda("c", "3\n", msg="feat: c")
+        d2 = self.develop_anda("c", None, msg="feat: sem c")
+        self.git("switch", "-q", "-c", "melhoria/y", "develop")
+        self.git("revert", "--no-edit", d2)
+        self.git("push", "-q", "origin", "melhoria/y")
+        self.git("switch", "-q", "develop")
+        r = self.conserto(ref="melhoria/y")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn(f"C5: o PR reverte o {d2[:7]}, do intervalo vermelho.", r.stdout)
+
+    def test_c5_reversao_de_commit_anterior_ao_verde_nao_conta(self):
+        self.sem_teste_tocado()
+        self.develop_anda("c", "3\n", msg="feat: c")
+        d2 = self.develop_anda("c", None, msg="feat: sem c")
+        (self.estado / "c_verde").write_text(d2 + "\n")
+        self.develop_anda("d", "5\n")
+        self.git("switch", "-q", "-c", "melhoria/y", "develop")
+        self.git("revert", "--no-edit", d2)
+        self.git("push", "-q", "origin", "melhoria/y")
+        self.git("switch", "-q", "develop")
+        self.assert_parou(self.conserto(ref="melhoria/y"), "parou no passo 6b (C5): o PR não toca arquivo de teste que falhou")
+
+    def test_c5_diff_sem_relacao_para(self):
+        self.sem_teste_tocado()
+        self.assert_parou(self.conserto(), "nem reverte commit desse intervalo; nada foi mesclado (D2)")
+
+    # ---- C6 e C7 ----
+    def test_c7_historico_que_falha_vira_pendencia(self):
+        r = self.conserto(CHECK_ANOTAR_RC="1")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn("pendente, rode: forge-check anotar", r.stderr)
+        self.assertEqual(len(self.merges()), 1)
+
+    def test_c6_ci_vermelho_no_merge_imprime_o_fechamento_da_reversao_com_conserto(self):
+        (self.estado / "runs_0123456789abcdef0123456789abcdef01234567").write_text("92\tcompleted\tcancelled\n93\tcompleted\tfailure\n")
+        r = self.conserto()
+        self.assertEqual(r.returncode, 5, r.stderr + r.stdout)
+        self.assertIn("e feche a reversão com: forge-fechar <pedido> --ref melhoria/reverte-0123456 --conserto 93", r.stderr)
+
+    def test_dry_run_mostra_o_conserto_no_6b(self):
+        r = self.conserto("--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("[6b] conserto do run 44 (C1, C3, C4 e C5) no lugar de:", r.stdout)
 
 
 if __name__ == "__main__":
