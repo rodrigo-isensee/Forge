@@ -2820,17 +2820,18 @@ def _vencer(signo, quadro):
 
 
 @contextmanager
-def vigia_de_prazo(segundos):
-    """Arma o alarme de `segundos` s (None: não arma) e o desarma na saída, por qualquer caminho."""
+def vigia_de_prazo(segundos, armar):
+    """Arma o alarme de `segundos` s (None: não arma) e o desarma na saída, por qualquer caminho; entrega se armou.
+    `armar` (BP1): o `signal.setitimer`, ou o vigia falso de um teste em processo (`executar`)."""
     if not segundos or not hasattr(signal, "setitimer") or threading.current_thread() is not threading.main_thread():
-        yield
+        yield False
         return
     anterior = signal.signal(signal.SIGALRM, _vencer)
-    signal.setitimer(signal.ITIMER_REAL, segundos)
+    armar(signal.ITIMER_REAL, segundos)
     try:
-        yield
+        yield True
     finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
+        armar(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, anterior)
 
 
@@ -2850,38 +2851,39 @@ def prazo_vencido(hook, critico, bruto, clone_do_forge, regra):
                     f"lento): recusa, em vez de deixar o timeout liberá-la. Corrigir: {como}")
 
 
-def estender_prazo(hook, prazo_longo, inicio):
-    """Com o vigia armado e a linha da entrada casando `prazo_longo` (regex), troca o prazo por `PRAZO_DO_MERGE_S` contado
-    de `inicio`; nunca o encurta. Lê a entrada direto, sem `Hook.campo` (o marcador é a 1.a leitura do hook)."""
+def estender_prazo(hook, prazo_longo, inicio, relogio, armar):
+    """Com o vigia armado (quem chama confere) e a linha da entrada casando `prazo_longo` (regex), troca o prazo por
+    `PRAZO_DO_MERGE_S` contado de `inicio` no `relogio`, rearmando por `armar`; nunca o encurta. Lê a entrada direto, sem
+    `Hook.campo` (o marcador é a 1.a leitura do hook)."""
     entrada = hook.entrada.get("tool_input")
     comando = entrada.get("command") if isinstance(entrada, dict) else None
     if not isinstance(comando, str) or not prazo_longo.search(comando) or PRAZO_DO_MERGE_S <= hook.prazo_s:
         return
-    if not hasattr(signal, "getitimer") or signal.getitimer(signal.ITIMER_REAL)[0] <= 0:
-        return
     hook.prazo_s = PRAZO_DO_MERGE_S
-    signal.setitimer(signal.ITIMER_REAL, max(PRAZO_DO_MERGE_S - (time.monotonic() - inicio), 0.001))
+    armar(signal.ITIMER_REAL, max(PRAZO_DO_MERGE_S - (relogio() - inicio), 0.001))
 
 
-def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None, prazo_longo=None):
+def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None, prazo_longo=None, *,
+             relogio=time.monotonic, armar=getattr(signal, "setitimer", None)):
     """Lê o JSON do stdin, chama `funcao(hook)` e sai com 0; `bloquear` sai com 2. `critico` (regex) liga a falha
     fechada seletiva (`clone_do_forge`: também no clone do Forge); `FORGE_GUARDA_ABERTA=1` no ambiente do processo
     (só o dono) abre a guarda desses hooks. `regra_do_prazo` (a regra que o hook cita ao recusar) liga o vigia de prazo:
     o marcador se calcula primeiro, e a decisão toda roda sob `PRAZO_DA_DECISAO_S`; com a linha casando `prazo_longo`
-    (regex), sob `PRAZO_DO_MERGE_S` (`estender_prazo`)."""
+    (regex), sob `PRAZO_DO_MERGE_S` (`estender_prazo`). `relogio` e `armar` (BP1, só por palavra-chave): o relógio e o
+    alarme do vigia; só um teste em processo os troca (relógio falso), e nenhum hook nem o driver do lote os passa."""
     hook = Hook(nome)
     bruto = sys.stdin.read()
     if critico is not None and os.environ.get("FORGE_GUARDA_ABERTA") == "1":
         sys.exit(0)
     try:
         hook.prazo_s = PRAZO_DA_DECISAO_S if regra_do_prazo and critico is not None else None
-        inicio = time.monotonic()
-        with vigia_de_prazo(hook.prazo_s):
+        inicio = relogio()
+        with vigia_de_prazo(hook.prazo_s, armar) as armado:
             entrada = json.loads(bruto or "{}")
             if isinstance(entrada, dict):
                 hook.entrada = entrada
-                if hook.prazo_s and prazo_longo is not None:
-                    estender_prazo(hook, prazo_longo, inicio)
+                if armado and prazo_longo is not None:
+                    estender_prazo(hook, prazo_longo, inicio, relogio, armar)
                 if critico is not None:
                     marcado(hook, critico, bruto)
                     barrar_sem_versao(hook, critico, bruto)

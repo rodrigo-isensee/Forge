@@ -38,8 +38,8 @@
       "id": "M4",
       "guarda": "o alarme do vigia arma no prazo, sem alongá-lo",
       "arquivo": "hooks/_comum.py",
-      "de": "signal.setitimer(signal.ITIMER_REAL, segundos)\n    try:",
-      "para": "signal.setitimer(signal.ITIMER_REAL, segundos * 4)\n    try:",
+      "de": "armar(signal.ITIMER_REAL, segundos)\n    try:",
+      "para": "armar(signal.ITIMER_REAL, segundos * 4)\n    try:",
       "testes": [
         "tests.test_hooks_volta_propriedades.PropriedadesDaVoltaUnica.test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem",
         "tests.test_hooks_volta_propriedades.PropriedadesDaVoltaUnica.test_t_vigia_cobre_a_busca_do_proprio_marcador"
