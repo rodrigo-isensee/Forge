@@ -1,7 +1,7 @@
 ---
 tipo: qa
 contrato: 1
-pedido: v0479-bp1-q1-leitor
+pedido: v0478
 branch: melhoria/v0479-bp1-q1-leitor
 commit: d0619ab2ca768b802cc9731ea5792c56447da461
 parecer: aprovado
