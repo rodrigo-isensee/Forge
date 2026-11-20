@@ -30,6 +30,8 @@
     {"caminho": ".claude/", "quem": [], "motivo": "arquivo em vigor (.claude/**)"},
     {"caminho": "CLAUDE.md", "quem": ["jarvis"], "motivo": "CLAUDE.md do projeto: só o jarvis (iniciar-projeto e exceções locais aprovadas pelo usuário)"},
     {"caminho": ".githooks/", "quem": [], "motivo": "arquivo em vigor (.githooks/)"},
+    {"caminho": ".vscode/tasks.json", "quem": [], "motivo": "arquivo em vigor (.vscode/tasks.json): o VS Code o executa ao abrir a pasta, fora do sandbox"},
+    {"caminho": ".devcontainer/devcontainer.json", "quem": [], "motivo": "arquivo em vigor (.devcontainer/devcontainer.json): os comandos do container rodam como root, fora do sandbox"},
     {"caminho": ".forge/versao", "quem": [], "motivo": "arquivo em vigor (.forge/versao)"},
     {"caminho": ".forge/config.json", "quem": [], "motivo": "arquivo em vigor (.forge/config.json)"},
     {"caminho": ".forge/run/", "quem": [], "motivo": "estado dos hooks (.forge/run/)"},

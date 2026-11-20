@@ -1993,6 +1993,7 @@ class PrepararEstacao(unittest.TestCase):
                 self.assertNotRegex(cmd, r"refs/remotes|origin/main|\bshow\b")  # nada de ref local
                 self.assertTrue(cmd.rstrip().endswith("; true"), "falha do preparo não pode impedir o container de subir")
                 self.assertNotRegex(texto, r"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|localEnv")
+                self.assertEqual(cfg.get("shutdownAction"), "none", "D2 da BP3: fechar o VS Code não para o container")
         self.assertIn("FORGE_PREPARO_ESSENCIAL=1", self._cfg_devcontainer(".devcontainer/devcontainer.json")[1]["postStartCommand"])
 
     def _poststart(self, tmp, caminho, script, main_script, local_script):
