@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-entrega-parecer-mesclado
-commit: 9f4c3ca37024789b7994296fc3f9716021b098af
+commit: 39351c755290a37abf829fedb17fe65744183491
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -72,4 +72,20 @@ Delta lido por `forge-check parecer delta` (de `5376b86d`): do que é da branch,
 - `python3 -I -m unittest discover -s tests -p 'test_*.py' -k ParecerMescladoNaVolta` → `Ran 60 tests in 114.764s · OK`.
 - Vermelho: a asserção antiga (`5376b86d:tests/test_revisor_wt.py`) contra o `bin/forge-check` do head cai (`FAILED (failures=1)`, esperava `escopo: confira …`); a nova passa. O teste só alinha a expectativa ao comportamento do E50.1 (autoria ausente, parecer commitado na volta só com parecer: `ok`, anexo do portão); não afrouxa guarda.
 - Mutantes: nenhuma linha de guarda mudada pela branch neste delta (só teste); specs não rerrodadas. Sem `skip` novo.
+- Suíte inteira: com o CI do PR, no check-run `bateria` do mesmo sha.
+
+---
+# Revalidação no head `39351c75` (E50.30)
+
+Delta lido por `forge-check parecer delta` (de `9f4c3ca3`): `docs/hooks-fixtures.md` (índice gerado, 3097 para 3135 fixtures), `tests/apoio_volta_unica.py` (teto `interpretador` 5893967 para 5895051, +1084 passos) e `tests/provas/v0479-corpus-custo.md` (medida nova). Nenhum código de produção nem linha de guarda mudou; sem mutante novo. O aviso do delta sobre o merge de `8ddfe18` é de merge de outra branch.
+
+## Critério → teste → resultado
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Teto do corpus é a medida exata, com a autorização do dono (DECISÃO 20/11 19:09, só este item) | `tests.test_hooks_volta_corpus` | teto sem folga: um passo a mais reprova | passou |
+| Índice das fixtures confere com o corpus (3135) | `tests.test_indice_fixtures` | índice gerado igual ao corpus | passou |
+
+## Execução (TMPDIR da sessão, sem `-I`, como o pre-push)
+- `python3 -m unittest tests.test_hooks_volta_corpus tests.test_indice_fixtures` → `Ran 40 tests in 276.807s · OK`.
+- O aumento é de +1084 passos (0,02%), igual ao reprovado no CI do PR #734; o registro em `tests/provas/v0479-corpus-custo.md` traz a medida e a autorização. Sem `skip` novo.
 - Suíte inteira: com o CI do PR, no check-run `bateria` do mesmo sha.
