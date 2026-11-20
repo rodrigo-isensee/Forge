@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-pp1-aplicado-dono",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "PP1-APLICADO-PELO-DONO: git usa o índice temporário, nunca o do repositório",
+      "arquivo": "bin/forge-check",
+      "de": "    if indice:\n        env[\"GIT_INDEX_FILE\"]",
+      "para": "    if False:\n        env[\"GIT_INDEX_FILE\"]",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_indice_do_repositorio_intacto"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "PP1-APLICADO-PELO-DONO: arquivo fora de vigor segue a regra antiga; em vigor pede o patch",
+      "arquivo": "bin/forge-check",
+      "de": "        elif not em_vigor(nome):",
+      "para": "        elif True:",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_quatro_condicoes_cumprem_e_a_conferencia_grava_os_shas"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "PP1-APLICADO-PELO-DONO: o patch revisado que não cumpre não isenta",
+      "arquivo": "bin/forge-check",
+      "de": "        elif (revisado := patch_revisado_do_dono(raiz, texto, nome, commit))[0]:",
+      "para": "        elif (revisado := patch_revisado_do_dono(raiz, texto, nome, commit))[0] and False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_patch_adulterado_ou_aplicado_diferente_recusa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "PP1-APLICADO-PELO-DONO: sem a política legível, todo arquivo pede o patch",
+      "arquivo": "bin/forge-check",
+      "de": "    if not isinstance(caminhos, list):\n        return True",
+      "para": "    if False:\n        return True",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_git_que_falha_ou_politica_ilegivel_recusa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "PP1-APLICADO-PELO-DONO: só o motivo `arquivo em vigor` conta",
+      "arquivo": "bin/forge-check",
+      "de": "and str(c.get(\"motivo\")).startswith(\"arquivo em vigor\")",
+      "para": "and True",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_git_que_falha_ou_politica_ilegivel_recusa"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "PP1-APLICADO-PELO-DONO: prefixo de pasta a partir da raiz",
+      "arquivo": "bin/forge-check",
+      "de": "(alvo.endswith(\"/\") and nome.startswith(alvo))",
+      "para": "(alvo.endswith(\"/\") and alvo in nome)",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_git_que_falha_ou_politica_ilegivel_recusa"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "PP1-APLICADO-PELO-DONO: sem a configuração, nenhum e-mail é do dono",
+      "arquivo": "bin/forge-check",
+      "de": "    except (OSError, ValueError):\n        return set()\n    lista = config.get(\"emails_do_dono\")",
+      "para": "    except (OSError, ValueError):\n        return {\"dono@exemplo\"}\n    lista = config.get(\"emails_do_dono\")",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_commit_que_nao_e_do_dono_recusa"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "PP1-APLICADO-PELO-DONO: emails_do_dono que não é lista não vale",
+      "arquivo": "bin/forge-check",
+      "de": "if isinstance(lista, list) else set()",
+      "para": "if isinstance(lista, list) else {\"dono@exemplo\"}",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_commit_que_nao_e_do_dono_recusa"
+      ]
+    }
+  ]
+}

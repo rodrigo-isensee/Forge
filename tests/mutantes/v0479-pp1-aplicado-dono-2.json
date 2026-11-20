@@ -1,0 +1,56 @@
+{
+  "pedido": "v0479-pp1-aplicado-dono",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "PP1-APLICADO-PELO-DONO: o patch é o da linha do mesmo arquivo e commit",
+      "arquivo": "bin/forge-check",
+      "de": "if (m := PATCH_DO_DONO.match(linha)) and m.groups() == (nome, commit):\n            p = re",
+      "para": "if (m := PATCH_DO_DONO.match(linha)):\n            p = re",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_linha_sem_patch_ou_patch_fora_da_branch_recusa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "PP1-APLICADO-PELO-DONO: caminho do patch sem `..`, vazio ou controle",
+      "arquivo": "bin/forge-check",
+      "de": "    if not patch or com_controle(patch) or any(parte in (\"\", \".\", \"..\") for parte in patch.split(\"/\")):",
+      "para": "    if not patch or com_controle(patch):",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_linha_sem_patch_ou_patch_fora_da_branch_recusa"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "PP1-APLICADO-PELO-DONO: autor e committer, os dois, do dono",
+      "arquivo": "bin/forge-check",
+      "de": "or any(p.strip().lower() not in emails for p in partes):",
+      "para": "or False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_commit_que_nao_e_do_dono_recusa"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "PP1-APLICADO-PELO-DONO: o patch precisa estar no pai do commit do dono",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod:\n        return \"o .patch não está",
+      "para": "    if False:\n        return \"o .patch não está",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_linha_sem_patch_ou_patch_fora_da_branch_recusa"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "PP1-APLICADO-PELO-DONO: passo do git que falha ou difere recusa (read-tree, apply, diff-index)",
+      "arquivo": "bin/forge-check",
+      "de": "            if git(raiz, *passo, indice=indice)[0]:",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_patch_adulterado_ou_aplicado_diferente_recusa"
+      ]
+    }
+  ]
+}

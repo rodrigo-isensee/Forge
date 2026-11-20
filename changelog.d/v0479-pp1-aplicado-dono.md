@@ -1,0 +1,2 @@
+### Alterado
+- forge-check entrega: o arquivo em vigor (.githooks/, .claude/ e afins) aplicado pelo dono sai do escopo só com o commit do dono (autor e committer em `emails_do_dono` da configuração da raiz) idêntico, na árvore inteira, ao `.patch` revisado da branch aplicado sobre o pai (` patch <caminho>` na linha `patch do dono aplicado` do Histórico); a conferência grava o sha256 do patch e o sha40 do commit (PP1-APLICADO-PELO-DONO, v0478 E52.1)

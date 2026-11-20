@@ -1,4 +1,6 @@
 """T1-CONF-ESCOPO: `forge-check entrega` na etapa merge-integracao (E1) e os anexos implícitos por acréscimo (E2). Repositório temporário."""
+import hashlib
+import json
 import sys
 from unittest import mock
 from pathlib import Path
@@ -331,3 +333,138 @@ class PareceresPeloPedido(Repositorio):
         rc, saida = self.entrega(etapa="merge-integracao")
         self.assertNotIn("Traceback", saida)
         self.assertIn(OK_INTEGRACAO, saida)
+
+
+HOOK, PATCH, DONO = ".githooks/pre-push", "docs/notas/pp1.patch", "dono@exemplo"
+HOOK_NOVO = "#!/bin/sh\nexit 0\n"
+
+
+class PatchRevisadoDoDono(ProjetoSelado):
+    """PP1-APLICADO-PELO-DONO (v0478 E52, decisão do dono 18/11): o arquivo em vigor aplicado pelo dono sai do escopo só com (a) o
+    commit idêntico, na árvore inteira e no modo, ao `.patch` revisado da branch aplicado sobre o pai, (b) autor e committer do dono
+    (`emails_do_dono` da configuração da raiz), (c) o sha256 do patch e o sha40 do commit gravados no Histórico e (d) o patch
+    adulterado recusado. Casos reais: o PP1 (`.githooks/pre-push`) e a A3 (#713, `.claude/settings.json`)."""
+
+    declarar, conferir, fora = PatchDoDono.declarar, PatchDoDono.conferir, PatchDoDono.fora
+
+    def setUp(self):
+        super().setUp()
+        self.brief()
+        rc, saida = self.selar()
+        self.assertEqual(rc, 0, saida)
+        (self.proj / ".git/info/exclude").write_text(".forge/\n", encoding="utf-8")
+        self.configurar([DONO.upper()])  # o e-mail vale sem caixa
+        self.gravar(PATCH, self.patch_de(HOOK_NOVO))
+        self.entregar()
+        self.original = self.pedido()
+
+    def configurar(self, emails):
+        pasta = self.proj / ".forge"
+        pasta.mkdir(exist_ok=True)
+        if emails is None:
+            (pasta / "config.json").unlink(missing_ok=True)
+        else:
+            (pasta / "config.json").write_text(json.dumps({"emails_do_dono": emails}), encoding="utf-8")
+
+    def patch_de(self, conteudo, modo=0o755):
+        """O `.patch` que o `git diff` gera para criar o HOOK com `conteudo` e `modo` (o arquivo de correção do autor)."""
+        arq = self.gravar(HOOK, conteudo)
+        arq.chmod(modo)
+        self.git("add", HOOK)
+        texto = self.git_em(self.proj, "diff", "--cached", "--no-color") + "\n"
+        self.git("rm", "-q", "--cached", HOOK)
+        arq.unlink()
+        return texto
+
+    def aplicar(self, conteudo=None, autor=DONO, committer=DONO, modo=0o755):
+        """O commit do dono: `git apply` do PATCH (ou o HOOK com `conteudo`, à mão) e o commit com autor e committer dados."""
+        if conteudo is None:
+            self.git("apply", PATCH)
+        else:
+            self.gravar(HOOK, conteudo)
+        (self.proj / HOOK).chmod(modo)
+        self.git("add", HOOK)
+        self.git("-c", f"user.email={committer}", "-c", "user.name=Dono", "commit", "-q", f"--author=Dono <{autor}>", "-m", "chore: PP1")
+        return self.git("rev-parse", "HEAD")
+
+    def declarar_patch(self, sha, patch=PATCH):
+        return self.declarar(nome=HOOK, sha=sha, linha=f"- 2026-11-20 10:00: patch do dono aplicado `{HOOK}` commit {sha} patch {patch}\n")
+
+    def test_quatro_condicoes_cumprem_e_a_conferencia_grava_os_shas(self):
+        x = self.aplicar()
+        self.declarar_patch(x)
+        sha_patch = hashlib.sha256((self.proj / PATCH).read_bytes()).hexdigest()
+        rc, saida = self.rodar("entrega", "--pedido", "exemplo", "--branch", "melhoria/x", "--etapa", "codigo")
+        self.assertEqual(rc, 0, saida)
+        self.assertRegex(saida, rf'escopo: ok \(patch do dono {x}, patch "{PATCH}" sha256 {sha_patch}, DECISÃO DO DONO exemplo:\d+\) "{HOOK}"')
+        self.assertRegex(self.pedido(), rf'\n- [0-9-]+ [0-9:]+: aplicado pelo dono conferido "{HOOK}" patch "{PATCH}" sha256 {sha_patch} commit {x}\n'
+                                        rf'- [0-9-]+ [0-9:]+: entrega conferida {x}\n')
+
+    def test_patch_adulterado_ou_aplicado_diferente_recusa(self):
+        difere = "o commit difere do .patch revisado aplicado sobre o pai"
+        casos = (("d: o commit com uma linha a mais", dict(conteudo=HOOK_NOVO + "echo a mais\n"), None, difere),
+                 ("d: o patch com uma linha a mais", dict(conteudo=HOOK_NOVO), HOOK_NOVO + "echo a mais\n", difere),
+                 ("a: o modo diferente do patch", dict(modo=0o644), None, difere),
+                 ("a: o patch que não se aplica", {}, "corrompido\n", "o .patch revisado não se aplica sobre o pai"))
+        for caso, aplicar, adulterado, motivo in casos:
+            with self.subTest(caso):
+                if adulterado:
+                    self.gravar(PATCH, adulterado if adulterado == "corrompido\n" else self.patch_de(adulterado))
+                    self.git("add", PATCH)
+                    self.commit("docs: patch adulterado")
+                if "conteudo" not in aplicar and adulterado == "corrompido\n":
+                    aplicar = dict(conteudo=HOOK_NOVO)
+                self.declarar_patch(self.aplicar(**aplicar))
+                self.fora(nome=HOOK, motivo=motivo)
+                self.git("reset", "-q", "--hard", "HEAD^" if not adulterado else "HEAD~2")
+
+    def test_commit_que_nao_e_do_dono_recusa(self):
+        motivo = "autor ou committer não é o dono"
+        for caso, kw, emails in (("b: committer de outro", dict(committer="a@b"), [DONO]),
+                                 ("b: autor de outro", dict(autor="a@b"), [DONO]),
+                                 ("b: sem emails_do_dono", {}, []),
+                                 ("b: sem a configuração", {}, None),
+                                 ("b: emails_do_dono que não é lista", {}, DONO),
+                                 ("b: e-mail que só contém o do dono", {}, ["ono@exemplo"])):
+            with self.subTest(caso):
+                self.configurar(emails)
+                self.declarar_patch(self.aplicar(**kw))
+                self.fora(nome=HOOK, motivo=motivo)
+                self.git("reset", "-q", "--hard", "HEAD^")
+
+    def test_linha_sem_patch_ou_patch_fora_da_branch_recusa(self):
+        x = self.aplicar()
+        sem = "sem ` patch <caminho>` válido"
+        for caso, linha, motivo in (("sem patch", f"- 2026-11-20 10:00: patch do dono aplicado `{HOOK}` commit {x}\n", sem),
+                                    ("patch com ..", f"- 2026-11-20 10:00: patch do dono aplicado `{HOOK}` commit {x} patch ../pp1.patch\n", sem),
+                                    ("patch de outra linha", f"- 2026-11-20 10:00: patch do dono aplicado `{HOOK}` commit {x}\n"
+                                     f"- 2026-11-20 10:01: patch do dono aplicado `bin/app` commit {x} patch {PATCH}\n", sem),
+                                    ("patch ausente no pai", None, "o .patch não está na branch no pai do commit do dono")):
+            with self.subTest(caso):
+                if linha:
+                    self.declarar(nome=HOOK, sha=x, linha=linha)
+                else:
+                    self.declarar_patch(x, patch="docs/notas/outro.patch")
+                self.fora(nome=HOOK, motivo=motivo)
+
+    def test_git_que_falha_ou_politica_ilegivel_recusa(self):
+        texto, real = self.declarar_patch(self.aplicar()), fc.git
+        head = self.git("rev-parse", "HEAD")
+        for passo in ("read-tree", "log"):
+            with self.subTest(passo), mock.patch.object(fc, "git", lambda raiz, *a, **kw: (1, "") if passo in a else real(raiz, *a, **kw)):
+                linha, avisos = fc.isencao_do_dono(self.proj, "exemplo", texto, [head], HOOK, self.base, head, None)
+                self.assertIsNone(linha)
+                self.assertIn("não isenta", avisos[0][0])
+        with mock.patch.object(fc, "carregar_politica", lambda: {}):  # sem a lista dos arquivos em vigor, todo arquivo pede o patch
+            self.assertTrue(fc.em_vigor("templates/projeto/LEIAME.md"))
+        self.assertFalse(fc.em_vigor("templates/projeto/.githooks/pre-push"))
+        self.assertFalse(fc.em_vigor("CLAUDE.md"))  # na lista da conformidade, mas não é `arquivo em vigor`
+        self.assertTrue(fc.em_vigor(".claude/settings.json"))
+
+    def test_indice_do_repositorio_intacto(self):
+        texto, head = self.declarar_patch(self.aplicar()), self.git("rev-parse", "HEAD")
+        self.gravar("docs/notas/b.md", "b\n")
+        self.git("add", "docs/notas/b.md")
+        linha, _ = fc.isencao_do_dono(self.proj, "exemplo", texto, [head], HOOK, self.base, head, None)
+        self.assertIn("escopo: ok (patch do dono", linha[0])
+        self.assertEqual(self.git("diff", "--cached", "--name-only"), "docs/notas/b.md")  # o patch se aplica num índice temporário
