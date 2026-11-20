@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-forge-check
-commit: a281e4a5565d8675b1047c997d727c9a5ab1231c
+commit: 19e81adc611e1f17f6a2f1fab2c4bb6162726217
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-19
@@ -70,5 +70,20 @@ Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-forge-check.md`
 
 Provas que rodei no head a281e4a5:
 - `python3 -m unittest tests.test_testes_tocados tests.test_meta85_entrega tests.test_meta85_revalida tests.test_meta85_item_arquivos`: 192 OK, 1 pulado pelo sandbox.
+
+O parecer segue aprovado. A suíte inteira fica para o CI do PR.
+
+## Revalidação (E34.19, head 19e81adc)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-forge-check.md`, intervalo `a281e4a5..19e81adc`, `revalida: sim` (bin/forge-check mudou). No domínio: `bin/forge-check`, `docs/propostas/meta85-forge-check.md`, `tests/pesos-d4.json`, três testes que citam o PQ e oito specs de mutante; nada fora dele foi relido.
+
+- **`PROVAS_DO_PQ` (bin/forge-check:3217):** só troca o destino dos logs de `.forge/run/` para `${TMPDIR:-/tmp}/forge-mutantes.log` e `forge-pronto.log`; a lógica de `provas_da_entrega` não mudou, e a proposta foi alinhada ao texto novo.
+- **Pesos:** `tests/pesos-d4.json` ganhou os três módulos `test_meta85_*`; `PesosDaSuite` confere.
+- **Specs antigas:** só os trechos `de`/`para` mudaram, para o texto atual do `bin/forge-check`; nenhum mutante saiu (`ConferirTodas` verde).
+
+Provas que rodei no head 19e81adc (`python3 -m unittest`):
+- `tests.test_selo_e_entrega`: 119 OK.
+- `tests.test_forge_dono`: 79 OK.
+- `tests.test_forge.PesosDaSuite`: 1 OK.
+- `tests.test_forge_mutante.ConferirTodas`: 4 OK.
 
 O parecer segue aprovado. A suíte inteira fica para o CI do PR.
