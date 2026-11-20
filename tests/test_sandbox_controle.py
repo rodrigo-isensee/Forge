@@ -4,7 +4,7 @@ Arquivos de controle (registro de agentes, teto, fila pesada, registro da máqui
 - modelo de projeto (`templates/projeto/.claude/settings.json`): `.forge/config.json` (teto), `.forge/run/agentes.json`,
   `.forge/run/pesado.json` e `~/.forge/maquina` (o registro da máquina); a fila do projeto (`.forge/run/pesado.fila`) não existe
   mais desde a MP4 e saiu da lista;
-- Forge (`.claude/settings.json`, arquivo travado para os agentes; vai como patch `docs/devops/v0479-sandbox-controle.patch`, que o
+- Forge (`.claude/settings.json`, arquivo travado para os agentes; vai como patch `docs/engineering/v0479-sandbox-controle.patch`, que o
   dono aplica): `.forge/` (na cópia do dono é pasta, com `config.json` e `run/`), `.git/forge/run` (o estado do clone) e `~/.forge/maquina`.
 
 As provas estruturais sempre rodam. As do sandbox montam um bubblewrap com o `denyWrite` do arquivo (cada caminho existente vira
@@ -365,7 +365,7 @@ class SandboxNegaEscrita(unittest.TestCase):
             self.limite_renomear_a_pasta_mae_escapa_da_trava_por_arquivo()
 
     def limite_renomear_a_pasta_mae_escapa_da_trava_por_arquivo(self):
-        """A2 da segurança, limite conhecido (docs/hooks.md, docs/devops/v0479-sandbox-controle.md): o `denyWrite` é por arquivo; a
+        """A2 da segurança, limite conhecido (docs/hooks.md, docs/engineering/v0479-sandbox-controle.md): o `denyWrite` é por arquivo; a
         pasta mãe (`.forge/run`, que o Bash do time grava) é renomeável, e o agente recria o registro por cima. O teste prova o
         limite, não o fecha; o fecho é o cartão da identidade da pasta. Se o runtime passar a recusar, este teste cai e o limite sai da doc."""
         raiz, casa, alvos = self.montar(deny_write(MODELO), clone=False)
