@@ -51,6 +51,36 @@
       "testes": [
         "tests.test_conf_escopo.PatchRevisadoDoDono.test_patch_adulterado_ou_aplicado_diferente_recusa"
       ]
+    },
+    {
+      "id": "M14",
+      "guarda": "PP1-APLICADO-PELO-DONO: configuração que não é objeto não vale",
+      "arquivo": "bin/forge-check",
+      "de": "config.get(\"emails_do_dono\") if isinstance(config, dict) else None",
+      "para": "config.get(\"emails_do_dono\") if True else None",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_commit_que_nao_e_do_dono_recusa"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "PP1-APLICADO-PELO-DONO: e-mail que não é texto ou vazio não vale",
+      "arquivo": "bin/forge-check",
+      "de": "for e in lista if isinstance(e, str) and e.strip()}",
+      "para": "for e in lista if True}",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_commit_que_nao_e_do_dono_recusa"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "PP1-APLICADO-PELO-DONO: linha sem ` patch <caminho>` não acha patch",
+      "arquivo": "bin/forge-check",
+      "de": "achado = p.group(1) if p else None",
+      "para": "achado = p.group(1) if True else None",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_linha_sem_patch_ou_patch_fora_da_branch_recusa"
+      ]
     }
   ]
 }

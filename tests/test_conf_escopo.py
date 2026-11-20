@@ -359,12 +359,13 @@ class PatchRevisadoDoDono(ProjetoSelado):
         self.original = self.pedido()
 
     def configurar(self, emails):
+        """`emails_do_dono` na configuração da raiz; None apaga o arquivo; `(texto,)` grava o texto cru."""
         pasta = self.proj / ".forge"
         pasta.mkdir(exist_ok=True)
         if emails is None:
             (pasta / "config.json").unlink(missing_ok=True)
         else:
-            (pasta / "config.json").write_text(json.dumps({"emails_do_dono": emails}), encoding="utf-8")
+            (pasta / "config.json").write_text(emails[0] if isinstance(emails, tuple) else json.dumps({"emails_do_dono": emails}), encoding="utf-8")
 
     def patch_de(self, conteudo, modo=0o755):
         """O `.patch` que o `git diff` gera para criar o HOOK com `conteudo` e `modo` (o arquivo de correção do autor)."""
@@ -425,6 +426,9 @@ class PatchRevisadoDoDono(ProjetoSelado):
                                  ("b: sem emails_do_dono", {}, []),
                                  ("b: sem a configuração", {}, None),
                                  ("b: emails_do_dono que não é lista", {}, DONO),
+                                 ("b: emails_do_dono nulo", {}, ('{"emails_do_dono": null}',)),
+                                 ("b: configuração que não é objeto", {}, (f'["{DONO}"]',)),
+                                 ("b: e-mail que não é texto", {}, [1]),
                                  ("b: e-mail que só contém o do dono", {}, ["ono@exemplo"])):
             with self.subTest(caso):
                 self.configurar(emails)

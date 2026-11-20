@@ -77,7 +77,7 @@
       "guarda": "PP1-APLICADO-PELO-DONO: emails_do_dono que não é lista não vale",
       "arquivo": "bin/forge-check",
       "de": "if isinstance(lista, list) else set()",
-      "para": "if isinstance(lista, list) else {\"dono@exemplo\"}",
+      "para": "if True else set()",
       "testes": [
         "tests.test_conf_escopo.PatchRevisadoDoDono.test_commit_que_nao_e_do_dono_recusa"
       ]
