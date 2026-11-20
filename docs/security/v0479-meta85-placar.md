@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-placar
-commit: 89936fa3db5777ce9ab913f190fdf2bc767c75a0
+commit: 6f6aab30715d2ae7cd6136c37cc35ed10bb59f81
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-19
@@ -16,6 +16,11 @@ Gatilhos: nenhum (ferramenta local de leitura; sem autenticação, segredo, depe
 
 ## Achados
 - A2 (recomendado) bin/forge-placar:712 · RESOLVIDO em d340b213: `paradas_do_ci` (META85, `fases --ci`) lê JSON agora chama `fundo_demais` antes do `json.loads` (:712-713); antes só captava `RecursionError`
+
+## Revalidação (head 6f6aab30, v0478 E36.27)
+Delta (`forge-check parecer delta`, 89936fa3..6f6aab30): no domínio, só `bin/forge-placar`, nova `hora_numerica` (:623-625) aplicada ao campo `merge` de `itens_do_dia` (:647); fora, `tests/evals/test_placar.py` (teste com `git` falso) e dois mutantes. A função só troca um `Z` final por `+00:00` em string vinda do `%cI` do git local: sem execução, sem arquivo, sem rede, sem regex. Sem achado aberto; A1 e A2 seguem resolvidos; parecer segue aprovado.
+- S16 · `hora_numerica` executada (`python3 -I`) com `...12:00:00Z`, `...12:00:00+00:00`, `...09:00:00-03:00` e `""` · espera: só o `Z` muda, vazio não quebra · obtido: `+00:00`, `+00:00`, `-03:00` intacto, `''`.
+- S17 · `python3 tests/evals/test_placar.py -k test_merge_em_utc` (teste novo, com `git` falso em `$TMPDIR` que reescreve `+00:00` em `Z` via `sed`) · espera: passa · obtido: `Ran 1 test ... OK`. O `git` falso fica no PATH só do subprocesso do teste; não toca o repositório nem o PATH real.
 
 ## Revalidação (head d340b213)
 Delta (`forge-check parecer delta`): só `bin/forge-placar` no domínio, +2 linhas em `paradas_do_ci` (:712-713, `fundo_demais` antes do `json.loads`, mensagem fixa); fora, `tests/evals/test_placar.py` e um mutante. A2 resolvido, sem achado aberto; parecer segue aprovado. S8 repetida abaixo (S11).
