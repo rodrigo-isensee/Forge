@@ -461,6 +461,19 @@ class Hooks(Base):
                 with self.subTest(texto=texto):
                     self.assertEqual(catraca.erros_de_forma(texto), [f"JSON ilegível ({constante} não é JSON)"])
 
+    def test_json_aninhado_acima_do_teto_e_ilegivel(self):
+        """JSON-PROFUNDO-PY314: o `json` do 3.12 dava RecursionError (traceback na catraca) e o 3.14 aceita; acima do teto
+        (64) o leitor recusa antes do `json.loads`, com mensagem fixa. O fechado de 65 e 5000 níveis o 3.12 aceita (simula o 3.14)."""
+        fechado = lambda n: '{"hooks": ' + "[" * (n - 1) + "]" * (n - 1) + "}"  # noqa: E731
+        for texto in ("[" * 200000, fechado(65), fechado(5000)):
+            with self.subTest(tamanho=len(texto)):
+                self.assertEqual(catraca.erros_de_forma(texto), ["JSON ilegível (aninhado acima de 64 níveis)"])
+                self.assertEqual(catraca.hooks_contados(texto), catraca.Counter())
+                with self.assertRaisesRegex(ValueError, "^aninhado acima de 64 níveis$"):
+                    catraca.json_raso(texto)
+        self.assertEqual(catraca.erros_de_forma(fechado(64)), ["`hooks` não é objeto"])  # no teto, lê e segue para o esquema
+        self.assertEqual(catraca.json_raso('{"a": "' + "[" * 100 + '"}'), {"a": "[" * 100})  # dentro de string não conta
+
     def test_arquivo_de_hooks_apagado_barra(self):
         (self.repo.dir / "hooks/hooks.json").unlink()
         self.barra("hook removido")

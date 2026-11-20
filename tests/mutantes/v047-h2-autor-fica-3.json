@@ -66,8 +66,8 @@
       "id": "M23",
       "guarda": "H2-AUTOR-FICA-ATE-O-MERGE (review A5): a reserva da retomada vale o prazo curto (RESERVA_S)",
       "arquivo": "hooks/agentes.py",
-      "de": "(expira_s if a.get(\"id\") and a.get(\"tipo\") != RETOMADA\n",
-      "para": "(expira_s if a.get(\"id\")\n",
+      "de": "(expira_s if registro.get(\"id\") and registro.get(\"tipo\") != RETOMADA\n",
+      "para": "(expira_s if registro.get(\"id\")\n",
       "testes": [
         "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
       ]

@@ -1,0 +1,13 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Jarvis",
+      "type": "shell",
+      "command": "s=\"jarvis-$(basename \"$PWD\" | tr '.:' '__')\"; if tmux has-session -t \"=$s\" 2>/dev/null; then exec tmux attach-session -t \"=$s\"; else echo \"Nenhum Jarvis aberto neste projeto: rode jarvis no terminal (esta tarefa só anexa, nunca abre outro).\"; fi",
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": false, "clear": true },
+      "problemMatcher": [],
+      "runOptions": { "runOn": "folderOpen" }
+    }
+  ]
+}

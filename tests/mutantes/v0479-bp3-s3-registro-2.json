@@ -1,0 +1,147 @@
+{
+  "pedido": "v0479-bp3-s3-registro",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M16",
+      "guarda": "S3: o vencido deixa linha no log depois do estado gravado",
+      "arquivo": "hooks/agentes.py",
+      "de": "registrar_vencidos(hook, vencidos)  # BP3-S3: depois do estado gravado",
+      "para": "pass",
+      "testes": [
+        "tests.test_agentes_interrompidos.Fechamento.test_prazo_vencido_fecha_e_deixa_linha_no_log"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "S3: o item vencido sai e vai ao log",
+      "arquivo": "hooks/agentes.py",
+      "de": "if agora - i[\"caiu_em\"] >= expira_s]",
+      "para": "if False]",
+      "testes": [
+        "tests.test_agentes_interrompidos.Fechamento.test_prazo_vencido_fecha_e_deixa_linha_no_log"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "S3: brief repetido na reserva entra uma vez",
+      "arquivo": "hooks/agentes.py",
+      "de": "if item not in saida:",
+      "para": "if True:",
+      "testes": [
+        "tests.test_agentes_interrompidos.Reserva.test_so_o_caminho_seguro_de_docs_briefs_e_gravado"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "S3: o hash gravado tem 64 hex",
+      "arquivo": "hooks/agentes.py",
+      "de": "and isinstance(b.get(\"sha256\"), str) and HASH_GRAVAVEL.fullmatch(b[\"sha256\"])]",
+      "para": "]",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_sem_briefs_o_registro_sai_como_sempre"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "S3: o caminho gravado tem a forma segura",
+      "arquivo": "hooks/agentes.py",
+      "de": "isinstance(b.get(\"caminho\"), str) and BRIEF_GRAVAVEL.fullmatch(b[\"caminho\"])",
+      "para": "isinstance(b.get(\"caminho\"), str)",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_sem_briefs_o_registro_sai_como_sempre"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "S3: o id do item só tem a forma de agente",
+      "arquivo": "hooks/agentes.py",
+      "de": "\"id\": aid if isinstance(aid, str) and ID_DE_AGENTE.fullmatch(aid) else None",
+      "para": "\"id\": aid if True else None",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_so_campos_de_forma_conhecida_passam_para_o_item"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "S3: a sessão do item é texto",
+      "arquivo": "hooks/agentes.py",
+      "de": "\"sessao\": sessao if isinstance(sessao, str) else None",
+      "para": "\"sessao\": sessao if True else None",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_so_campos_de_forma_conhecida_passam_para_o_item"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "S3: o tipo do item vira texto",
+      "arquivo": "hooks/agentes.py",
+      "de": "registro.get(\"tipo\") or \"\"",
+      "para": "registro.get(\"tipo\")",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_so_campos_de_forma_conhecida_passam_para_o_item"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "S3: a descrição do item vira texto",
+      "arquivo": "hooks/agentes.py",
+      "de": "registro.get(\"descricao\") or \"\"",
+      "para": "registro.get(\"descricao\")",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_so_campos_de_forma_conhecida_passam_para_o_item"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "S3: o prazo do registro sai do vigentes só com `desde` numérico",
+      "arquivo": "hooks/agentes.py",
+      "de": "isinstance(registro, dict) and isinstance(registro.get(\"desde\"), (int, float))",
+      "para": "isinstance(registro, dict)",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_vigentes_tira_o_vencido_e_o_que_nao_e_registro"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "S3: o registro vencido sai do vigentes",
+      "arquivo": "hooks/agentes.py",
+      "de": "if not dentro_do_prazo(a, agora, expira_s):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_vigentes_tira_o_vencido_e_o_que_nao_e_registro"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "S3: a lista de briefs é lista",
+      "arquivo": "hooks/agentes.py",
+      "de": "isinstance(lista, list) else [])\n            if isinstance(b, dict)",
+      "para": "True else [])\n            if isinstance(b, dict)",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_briefs_que_nao_e_lista_vale_vazio"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "S3: a retomada com entrada fora da forma não fecha nem derruba",
+      "arquivo": "hooks/agentes.py",
+      "de": "fechar_por_retomada(interrompidos, entrada.get(\"to\") if isinstance(entrada, dict) else None)",
+      "para": "fechar_por_retomada(interrompidos, entrada.get(\"to\") if True else None)",
+      "testes": [
+        "tests.test_agentes_interrompidos.Fechamento.test_send_message_sem_id_ou_para_outro_nao_fecha"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "S3: `interrompidos` ausente ou fora da forma vale vazio",
+      "arquivo": "hooks/agentes.py",
+      "de": "isinstance(lista, list) else []):\n        if not isinstance(i, dict)",
+      "para": "True else []):\n        if not isinstance(i, dict)",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_item_sem_caiu_em_numerico_some",
+        "tests.test_agentes_interrompidos.Interrupcao.test_sessao_morta_com_brief_vai_para_interrompidos"
+      ]
+    }
+  ]
+}
