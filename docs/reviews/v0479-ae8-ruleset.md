@@ -3,30 +3,24 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae8-ruleset
-commit: a298cdbcdccf035d91769e2beb5707e22ec162cd
+commit: c2f75cacdf29be4eea6ffb8bd96a263f89399021
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
 ---
-# Review: v0478 (E58.3, AE8.1 no head a298cdbc)
+# Review: v0478 (E58.10, AE8.1 no head c2f75cac, revalidação)
 
 ## Escopo lido
-Diff `5ccac0bf..a298cdbc`: `docs/protecao-de-branch.md` (+25), `templates/projeto/docs/engineering/protecao-de-branch.md` (+18) e `changelog.d/v0479-ae8-ruleset.md`. Só texto, 0 linha de código (H1 fora de questão); sem guarda nova, sem mutante a declarar. Suíte não rodada (brief: sem suíte local); `docs/engineering/praticas.md` não tem regra "decidida por", nada a citar de ferramenta.
+Revalidação (H3, `R-REVIEW`): só o delta de `forge-check parecer delta docs/reviews/v0479-ae8-ruleset.md`, intervalo `a298cdbc..c2f75cac`, domínio código e testes: `docs/protecao-de-branch.md`, `templates/projeto/docs/engineering/protecao-de-branch.md` e `changelog.d/v0479-ae8-ruleset.md` (+22 −9, só texto, 0 linha de código; sem guarda nova nem mutante a declarar). Suíte não rodada (brief: sem suíte local); `docs/engineering/praticas.md` sem regra "decidida por" que alcance o diff.
 
-## Conferência contra o desenho
-- Cobre o AE8.1 do desenho (`docs/propostas/v0479-melhorias-anti-erro.md`, seção AE8 (a), texto): achar o ruleset com bypass, tirar o ator, conferir; emergência pelo modo conserto da BP2, nunca por bypass. D10 (o `main-do-dono` mantém "só por PR" e não alcança a `develop`) e o gatilho de reabertura (2 episódios de mais de 4 h) batem com a seção 7 do desenho.
-- `R-CONFORMIDADE`: a escrita fica só com o dono, pela interface; a conferência é `gh api` de leitura. Nenhum agente recebe token nem chama API de escrita.
-- Referências conferidas na árvore: "Conserto da integração vermelha" (D2) existe em `skills/trabalho-em-paralelo/ritmo-e-corte.md:23`, com as condições que o texto resume; "BP2 I1 e I4" bate com a última linha da mesma seção; AE8.2 existe no corte do desenho (auditoria, `nao-verificavel` para campo ausente), o que o texto repete.
-- Medida citada (7 merges fora do fluxo, 2 com a `develop` quebrada; bypass Always no registro do quadro de 15/11 20:51) vem do quadro e do desenho.
-- Neutralidade (`R-NEUTRO`): o modelo de projeto fala em "branch de integração" e "portões", sem nome do Forge.
-- Changelog em fragmento, sem tocar o `CHANGELOG.md`.
+## Delta lido
+- A1 anterior (datas): resolvido em `docs/protecao-de-branch.md:44`; o quadro de 15/11 fica separado dos sete merges (#680 a #715), posteriores.
+- A2 anterior (nome do ruleset): resolvido; `checks-obrigatorios-develop-main` citado no passo 1, no passo 4 e na conferência; só o `main-do-dono` pode ter bypass, e só na `main` (D10).
+- A3 anterior (alvo por curinga): resolvido nos dois arquivos; `~ALL`, `~DEFAULT_BRANCH` e curinga citados, e o `exclude` passa a ser conferido.
+- Novo: a lista de rulesets vem de `rules/branches/<branch>` (GET, só leitura, `R-CONFORMIDADE`), que já aplica include e exclude; cada regra traz `ruleset_id`. Neutralidade (`R-NEUTRO`) mantida no modelo de projeto ("branch de integração"). Changelog só em fragmento.
 
 ## Achados
-- A1 (recomendado) docs/protecao-de-branch.md:43 · "Estado medido em 15/11" junta duas medidas: o bypass Always é do registro de 15/11; os 7 merges (#680 a #715) são posteriores. Separar a data de cada uma evita ler os merges como de 15/11.
-- A2 (recomendado) docs/protecao-de-branch.md:58 · A conferência exige `[]` só no `portoes`, mas o quadro (15/11) nomeia o ruleset com bypass como `checks-obrigatorios-develop-main`; citar esse nome no passo 1 e na conferência, para o dono não conferir só o `portoes`.
-- A3 (recomendado) templates/projeto/docs/engineering/protecao-de-branch.md:59 · "`conditions.ref_name.include` tem de citar a branch" não cobre alvo por `~DEFAULT_BRANCH` ou `~ALL`, comum quando a integração é a branch padrão do projeto; dizer que esses valores também a alcançam.
-
-## Sondas
+- A1 (recomendado) docs/protecao-de-branch.md:56 · `rules/branches/<b>` devolve só regras ativas: ruleset em Evaluate ou Disabled some da lista, e o "enforcement active" do passo 2 fica vazio de sentido. Dizer que o `portoes` e o `checks-obrigatorios-develop-main` têm de aparecer na lista; ausência é achado. Mesmo no modelo, linha 59.
 
 ## Parecer
-Aprovado. O texto cumpre o AE8.1 do desenho, mantém a escrita do ruleset com o dono (`R-CONFORMIDADE`) e a saída da integração vermelha pelo conserto da BP2 (`R-FLUXO`), sem afrouxar portão. Os três achados são de precisão do texto, sem defeito provado: viram cartão depois do merge (`R-REVIEW`).
+Aprovado. Os três achados anteriores foram resolvidos no texto, sem afrouxar portão nem dar escrita a agente (`R-CONFORMIDADE`, `R-FLUXO`). O achado novo é de precisão, sem defeito provado: vira cartão depois do merge (`R-REVIEW`).
