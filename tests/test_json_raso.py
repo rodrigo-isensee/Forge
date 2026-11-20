@@ -15,7 +15,7 @@ placar = SourceFileLoader("forge_placar_json_raso", str(RAIZ / "bin" / "forge-pl
 CASOS = (("", False), ("[]", False), ("[" * 64 + "]" * 64, False), ("[" * 65, True), ("{" * 65, True),
          ("[]" * 100, False), ('"' + "[" * 100 + '"', False), (r'"\"' + "[" * 100 + '"', False),
          (r'"\\"' + "[" * 65, True), ('{"a": ' * 64 + "1" + "}" * 64, False), ('{"a": ' * 65 + "1" + "}" * 65, True),
-         ("[" * 64 + "]" + "[", False), ("[" * 200000, True))
+         ("[" * 64 + "]" + "[", False), ("{}" * 65, False), ("[" * 200000, True))
 
 
 class TetoComum(unittest.TestCase):
