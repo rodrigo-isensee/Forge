@@ -170,7 +170,7 @@ MAPA = [
                            "test_pre_push_afetados", "test_qa_lote_l08", "test_revisor_wt")),
     # E14.1: o módulo comum é carregado pelo forge-testes e pelo forge-mutante, e os testes do forge-mutante não o citam
     (r"bin/forge_apoio_testes\.py", ("test_testes_tocados", "test_forge_mutante", "test_pre_push_afetados",
-                                     "test_pre_push_parecer_curto", "test_forge", "test_pre_push_link_apoio")),
+                                     "test_pre_push_parecer_curto", "test_forge", "test_pre_push_link_apoio", "test_pre_push_indice")),
     # v047 E6.4: o núcleo do FORGE-SEMPRE-ATUAL; o oráculo do QA o roda como processo e lê o código dele (RD11)
     (r"bin/(forge-sempre-atual|forge_sempre_atual\.py)", ("test_sempre_atual", "test_oraculo_sempre_atual", "test_forge")),
     (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge", "test_atualizar", "test_sempre_atual")),  # v047 E2.532: test_sempre_atual roda o trampolim ~/.local/bin/forge
@@ -198,6 +198,9 @@ MAPA = [
     (r"skills/esperar-estado/.*|agents/tech-lead\.md", CONTEUDO + ("test_esperar_estado",)),
     (r"skills/(produto-criterios|observabilidade-incidentes|explicar-para-o-leigo|modo-iniciante)/.*|agents/(jarvis|devops-engineer)\.md", CONTEUDO + ("test_skills_v0442",)),
     (r"docs/devops/pp1-pre-push\.patch", CONTEUDO + ("test_pre_push_patch",)),  # v047 E2.567: o teste aplica o patch
+    (r"docs/devops/v0479-indice-pre-push\.patch", CONTEUDO + ("test_pre_push_indice",)),  # v0478 E45.1: o teste aplica o patch
+    (r"scripts/indice-(forge|fixtures)\.py", ("test_forge", "test_testes_tocados", "test_indice_forge", "test_indice_fixtures",
+                                              "test_pre_push_indice")),  # v0478 E45.1: o teste roda as duas ferramentas
     (r"(agents|skills|docs)/.*", CONTEUDO),
     (r"README\.md", ("test_forge", "test_doutor")),  # PY-MINIMO: test_doutor confere o Python mínimo no README
     (r"CONTRIBUTING\.md", ("test_forge", "test_changelog")),
