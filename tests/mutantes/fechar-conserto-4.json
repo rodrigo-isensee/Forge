@@ -56,8 +56,8 @@
       "id": "CS30",
       "guarda": "C4: sem os pulados do CI do PR para",
       "arquivo": "bin/forge-fechar",
-      "de": "if ! \"$gh\" run download",
-      "para": "if false && ! \"$gh\" run download",
+      "de": "if ! \"$gh\" run download \"$run_pr\" --pattern 'pulados-*' --dir \"$pasta\" >/dev/null 2>&1 || [ -z \"$(find \"$pasta\" -name '*.json' -print -quit)\" ]; then",
+      "para": "if false; then",
       "testes": [
         "tests.test_fechar.Conserto.test_c4_sem_os_pulados_do_pr_para"
       ]
