@@ -353,8 +353,8 @@ TRAVA, TRAVA_OPACA, TRAVA_NO_TETO = "trava", "trava-opaca", "trava-no-teto"
 # ou mexem na árvore; o resto (alias, `send-pack`, `am`, `fetch` para uma branch, `release create`) é trava.
 GIT_FORA_DAS_TRAVAS = {"add", "blame", "cat-file", "describe", "diff", "grep", "log", "ls-files", "ls-remote", "ls-tree",
                        "restore", "rev-list", "rev-parse", "shortlog", "show", "stash", "status", "worktree"}
-GH_FORA_DAS_TRAVAS = {"pr view", "pr list", "pr checks", "pr diff", "pr status", "run view", "run list", "issue view",
-                      "issue list", "repo view", "release view", "release list"}
+GH_FORA_DAS_TRAVAS = {"pr view", "pr list", "pr checks", "pr diff", "pr status", "pr edit", "run view", "run list",
+                      "issue view", "issue list", "repo view", "release view", "release list"}
 OPACA_NA_PALAVRA = re.compile(r"[$`]")  # a palavra que o bash expande: o hook não sabe o valor
 GIT_NO_TEXTO = re.compile(r"(?<![\w./-])(?:git|gh)(?=\s)")  # o git ou o gh como palavra, não `.git/` nem `x-git`
 COLCHETE_DE_DIGITO = re.compile(r"\[[0-9-]+\]")  # o bash e o glob do Python o leem igual: sem caixa, negação nem classe
@@ -2627,23 +2627,24 @@ class Guarda:
             return None
         if cod != 0:
             self.barrar("R-REVIEW", f"git {sub}: o hook não conseguiu ler se é alias da configuração",
-                        "rode o subcomando do git por extenso")
+                        "rode o subcomando do git por extenso", trava=TRAVA_OPACA)
         return saida
 
     def expansao_do_alias(self, sub, expansao, alias):
         """As palavras da expansão do alias `sub`; recusa o alias de shell, o que mescla, o encadeado demais e o ilegível."""
         if expansao.startswith("!"):
             self.barrar("R-REVIEW", f"git {sub}: alias de shell (`!`) da configuração roda o que o hook não lê",
-                        "rode o comando direto, sem alias")
+                        "rode o comando direto, sem alias", trava=TRAVA_OPACA)
         if alias >= PROFUNDIDADE_DO_ALIAS:
-            self.barrar("R-REVIEW", f"git {sub}: alias encadeado demais", "rode o subcomando do git por extenso")
+            self.barrar("R-REVIEW", f"git {sub}: alias encadeado demais",
+                        "rode o subcomando do git por extenso", trava=TRAVA_OPACA)
         try:
             palavras = shlex.split(expansao)
         except ValueError:
             palavras = None
         if not palavras:
             self.barrar("R-REVIEW", f"git {sub}: alias da configuração que o hook não lê",
-                        "rode o subcomando do git por extenso")
+                        "rode o subcomando do git por extenso", trava=TRAVA_OPACA)
             return []  # a GuardaDaProva não para no barrar: sem palavras não há o que ler (segurança A6)
         if palavras[0] in ALIAS_QUE_MESCLA:
             self.barrar("R-REVIEW", f"git {sub}: alias da configuração que mescla (`{palavras[0]}`); o parecer só lê o merge "
@@ -2749,7 +2750,7 @@ class Guarda:
         chave, _, refspec = valor.partition("=")
         if chave.lower().startswith("alias."):
             self.barrar("R-REVIEW", f"git -c {chave}: o alias da linha troca o subcomando que o hook leu",
-                        "rode o subcomando do git direto, sem alias")
+                        "rode o subcomando do git direto, sem alias", trava=TRAVA_OPACA)
         if REFSPEC_NA_CONFIG.fullmatch(chave) and ":" in refspec and self.ref_local_da_integracao(refspec.split(":", 1)[1]):
             self.integracao_movida(f"git -c {chave}")
 
@@ -3810,13 +3811,25 @@ def toca_uma_trava(linha, nivel=0):
     com subcomando fora de `GIT_FORA_DAS_TRAVAS` (opaco, alias, com `-c`), o gh com as duas primeiras palavras fora de
     `GH_FORA_DAS_TRAVAS`, e o texto que o `eval` ou o `sh -c` reavalia (um nível). O git ou o gh valem em qualquer
     posição do comando (`env git push $F`). A palavra vem do leitor (`palavras_do_texto`, sem aspas nem escapes); a que o bash expande,
-    pelo texto cru, vira `$`: a substituição (`$(echo git) push`, `git $(echo push)`) também é opaca."""
+    pelo texto cru, vira `$`: a substituição (`$(echo git) push`, `git $(echo push)`) também é opaca. O corpo de heredoc
+    é comando só quando o dono o roda (`bash <<'X'`; `corpo_so_lido`, como na conferência da linha), e o here-string de
+    um shell (`bash <<< '…'`) é texto reavaliado como o do `sh -c` (`texto_reavaliado`); o heredoc em dúvida deixa a
+    linha inteira como comando."""
+    try:
+        linha, corpos = tirar_heredocs(linha)
+    except ValueError:
+        corpos = []
+    for dono, corpo in corpos:
+        if not corpo_so_lido(dono, interprete) and toca_uma_trava(corpo, nivel):
+            return True
     for comando in palavras_do_texto(linha).simples:
         k = 0
         while k < len(comando.palavras) and (comando.palavras[k].cru in ANTES_DO_PROGRAMA
                                              or ATRIBUICAO.match(comando.palavras[k].cru)):
             k += 1
-        palavras = ["$" if OPACA_NA_PALAVRA.search(p.cru) else p.valor for p in comando.palavras[k:]]
+        originais = comando.palavras[k:]
+        palavras = ["$" if OPACA_NA_PALAVRA.search(p.cru) else p.valor for p in originais]
+        aqui = [r.alvo for r in comando.redirecoes if r.operador == "<<<" and r.alvo is not None]
         if palavras and OPACA_NA_PALAVRA.search(palavras[0]):
             return True
         for j, palavra in enumerate(palavras):
@@ -3825,9 +3838,19 @@ def toca_uma_trava(linha, nivel=0):
                 return True
             if nome == "gh" and " ".join(resto[:2]) not in GH_FORA_DAS_TRAVAS:
                 return True
-            if (nome == "eval" or nome in SHELLS) and not nivel and any(toca_uma_trava(p, 1) for p in resto):
+            relidos = map(texto_reavaliado, originais[j + 1:])
+            if (nome == "eval" or nome in SHELLS) and not nivel and any(toca_uma_trava(t, 1) for t in relidos):
+                return True
+            if nome in SHELLS and not nivel and any(toca_uma_trava(texto_reavaliado(a), 1) for a in aqui):
                 return True
     return False
+
+
+def texto_reavaliado(palavra):
+    """O texto que o `eval` ou o shell relê numa palavra: o valor dela (aspas e escapes tirados, a crase escapada vira
+    crase e a variável fica no texto, opaca na releitura), ou `$` (opaco) se o bash de fora substitui um comando nela
+    (`"$(echo git) push"`: o leitor a troca por `_` e devolve o corpo como outro comando simples)."""
+    return "$" if len(palavras_do_texto(palavra.cru).simples) > 1 else palavra.valor
 
 
 def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, travas=False):

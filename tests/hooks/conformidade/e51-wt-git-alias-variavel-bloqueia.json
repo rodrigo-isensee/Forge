@@ -1,9 +1,15 @@
 {
-  "descricao": "E51.6 (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE): sessão do Forge em wt/*: o subcomando do git fora da lista dos que não chegam a uma trava (um alias, `git p $F`) recusa.",
+  "descricao": "E51.6 (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE): sessão do Forge em wt/*: o subcomando do git fora da lista dos que não chegam a uma trava (um alias, `git p $F`) recusa. A wt é uma worktree de verdade: o git diz que `p` não é alias (E51.10).",
   "arquivos": {
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
   },
+  "git": [
+    {
+      "worktree": "home/.forge-contrib/wt/x",
+      "branch": "melhoria/x"
+    }
+  ],
   "forge": false,
   "env": {
     "HOME": "{tmp}/home",
