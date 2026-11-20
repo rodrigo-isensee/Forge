@@ -355,7 +355,7 @@ class FimDoAgente(Base):
         super().evento(nome, agent_id=self.IDS[quem], agent_type="forge:tech-lead", transcript_path=str(self.transcript))
 
     def presas(self):
-        return sorted(b for a in self.gravado()["agentes"] for b in a["escrita"])
+        return sorted(b for a in self.gravado()["agentes"] for b in a.get("escrita", []))
 
     def test_o_fim_de_um_solta_a_branch_dele_e_nao_a_do_outro_vivo(self):
         for quem in "AB":
