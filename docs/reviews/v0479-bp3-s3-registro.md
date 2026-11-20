@@ -3,12 +3,22 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp3-s3-registro
-commit: d03cc57f22b83532dccb1a96acb43cb76ed6578a
+commit: b3cd1ee41cde185fe7445bb3596c051e2e887f04
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
 ---
 # Review: v0478 E39.7 (BP3 S3, registro de interrompidos no hook agentes)
+
+## Revalidação no head b3cd1ee4
+Delta lido por `forge-check parecer delta` (intervalo `d03cc57f..1a86b815`; `1a86b815` só traz o parecer da segurança, fora do domínio): `hooks/agentes.py` +20 −4 (A1 da segurança), `tests/test_agentes_interrompidos.py` +28, specs de mutante (M15 e M29 com o trecho no lugar novo, `-3.json` com M30 a M32) e o fragmento do changelog.
+
+- `caiu_em_finito` aceita int ou float finito; o `OverflowError` do inteiro enorme conta como não finito. Em `interrompidos_vigentes`, o `caiu_em` numérico e não finito lança `EstadoIlegivel`, que o `principal` já converte em recusa (linha 1292) ou, com recusa do R-BRIEF, registra e recusa pelo R-BRIEF; o item não numérico segue sumindo. Coerente com HOOK-ESTADO-ILEGIVEL-LIBERA; nenhuma trava afrouxa.
+- O teste de disparo prova a recusa com o arquivo intacto (sem regravação), e o de função cobre 10**400, ±inf e nan.
+- Verificadores no head `b3cd1ee4`: `python3 -m unittest test_agentes_interrompidos`: `Ran 26 tests … OK`; `bin/forge-mutante` em `-3.json`: M30, M31, M32 `morreu`; M15 e M29 `morreu`; `--cobertura --base d03cc57f`: linhas 633, 645 e 647 `coberta`, nenhuma descoberta.
+- A1 abaixo segue como estava (recomendado, fora do delta).
+
+## Review original (head d03cc57f)
 
 Base `004ce869`, head revisado `d03cc57f`, um commit (`feat(agentes)`, E39.3). Diff de código: `hooks/agentes.py` (+116 −9, abaixo do teto H1), um comportamento: a reserva guarda `briefs` (caminho e sha256) e o registro de sessão provadamente morta vai para `interrompidos` em vez de sumir.
 
