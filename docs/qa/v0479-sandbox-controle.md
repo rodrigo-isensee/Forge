@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-sandbox-controle
-commit: 0f55b08af4c05c01bd03e02b0deecbbc4550b3db
+commit: 8d9989d5973bde437b0a13f0252269c77bd15c3c
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -60,3 +60,9 @@ Rodados no head 0f55b08a (`python3 -I -m unittest discover -s tests -p <m>.py`):
 - `forge-mutante tests/mutantes/v0475-ci-custo-2.json --ids M19`: `M19 · morreu · bin/forge-testes:155`
 - A asserção nova de `test_maquina` cobre a soltura que grava null no lugar de apagar; o P10 mata o mutante de soltura indevida.
 Sem bug novo; A3 (CI sem sonda de bwrap) segue recomendado. Parecer segue aprovado.
+
+## Revalidação (delta 0f55b08a até 8d9989d5, E29.20)
+Lido com `forge-check parecer delta` (sem o que veio da base; aviso de base atrasada: o merge 3acd2ad9 não está na develop local). Além do merge da develop, o que é da A3 é uma linha em `tests/pesos-d4.json`: `test_sandbox_controle: 1.7` (ordem alfabética mantida, JSON válido).
+- `python3 -I -m unittest discover -s tests -p test_forge.py -k PesosDaSuite`: 1 teste, OK.
+- `test_sandbox_controle` no head: 14 OK (skipped=2: bwrap sem namespace; vale só o `bateria` do mesmo sha, A3 acima).
+- Sem bug novo; parecer segue aprovado.
