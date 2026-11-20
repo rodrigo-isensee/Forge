@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-forge-check
-commit: a281e4a5565d8675b1047c997d727c9a5ab1231c
-parecer: aprovado
+commit: 19e81adc611e1f17f6a2f1fab2c4bb6162726217
+parecer: reprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
@@ -53,3 +53,15 @@ Delta (`forge-check parecer delta`, intervalo `06abb4fa..a281e4a5`, sem o que ve
 - Módulos rodados local (`python3 -I -m unittest discover -s tests -p <módulo>.py`): `test_testes_tocados` 164 OK (1 pulado pelo sandbox), `test_meta85_entrega` 12 OK, `test_meta85_revalida` 10 OK, `test_meta85_item_arquivos` 6 OK.
 - Vermelho com a lista de módulos: `forge-testes --vermelho 5ae868eb87e5 --modulos test_meta85_entrega`, rc=0: `vermelho: base=5ae868eb87e5 head=a281e4a5565d módulos=test_meta85_entrega (restrito por --modulos)` · `contagem: não prova (passa na base)=2; prova (asserção)=10`. O `--modulos` restringiu a um módulo e o progresso saiu no stderr (`[1/1] test_meta85_entrega H 7.5 s, B 6.3 s; 16 s no total`).
 - Sem achado bloqueante. Suíte inteira não rodada local; vale o check-run `bateria` do mesmo sha no CI do PR.
+
+## Revalidação no head 19e81adc
+Delta (`forge-check parecer delta`, intervalo `a281e4a5..19e81adc`, E34.18): `bin/forge-check` (`PROVAS_DO_PQ` passa a `${TMPDIR:-/tmp}/forge-mutantes.log` e `forge-pronto.log`, fora do `.forge/run/`), `tests/pesos-d4.json` (peso dos três `test_meta85_*`), três testes com o texto novo (`test_etapa_do_brief`, `test_selo_e_entrega`, `test_volta_por_delta`) e oito specs de mutante antigas realinhadas ao texto do `forge-check` (est-m4-parte3, pr-verde-lote-check, v0433-integracao-2, v047-achados-fora-dominio, v047-juncao-sem-vencer, versao-040-est-m6, z075-autoconfere-brief, z075-pr-previo). Em `v0433-integracao-2` só o I26 mudou; em `z075-pr-previo` só o M4.
+- Módulos inteiros, local, `python3 -I -m unittest discover -s tests -p <módulo>.py`: `test_selo_e_entrega` 119 OK (1778 s sob carga 38), `test_forge_dono` 79 OK, `test_meta85_entrega` 12 OK, `test_meta85_revalida` 10 OK, `test_meta85_item_arquivos` 6 OK; `-k PesosDaSuite` 1 OK; `test_forge_mutante -k ConferirTodas` 4 OK.
+- `forge-mutante --conferir --base a281e4a5`: `conferidas: o trecho de cada spec do diff está no lugar`.
+- Mutantes (`--processos 4`, `--base a281e4a5565d8675b1047c997d727c9a5ab1231c`, `rev=19e81adc611e`; uma chamada por pedido): META85 (as 7 specs `v0479-meta85-forge-check*`, 36 mutantes) todos `morreu`, rc=0; est-m4-parte3, pr-verde-lote-check, v047-achados-fora-dominio, v047-juncao-sem-vencer, versao-040-est-m6, z075-autoconfere-brief: rc=0; z075-pr-previo: M1 a M6 e M8 a M11 `morreu`, **M7 `sobreviveu`**, rc=1.
+- `v0433-integracao-2`: o `forge-mutante` deu `sem veredito` (prazo) para o I17 a I32 mesmo com `--ids I26 --prazo 580`, porque as nove suítes do I26 passam de 30 min. Prova à mão do único mutante do delta, o I26, numa cópia do head com o `de`/`para` da spec: `test_aq5_parecer_novo` cai (FAILED failures=1) e passa no head. Os outros mutantes dessa spec têm o trecho intacto no delta (`--conferir` confere) e não foram reexecutados.
+- M7 (`bin/forge-check:1580`, `return cmd_pr(raiz, pedido, ref, None, branch, previo) + (` trocado por `... branch) + (`): o teste da spec (`tests.test_revisor_wt.PrPrevio.test_ausente_com_previo_e_aviso_e_sem_previo_e_violacao`) continua passando com o mutante. Sobrevive igual no `a281e4a5` (aprovado) e no `5ae868eb` (a base do pedido): a linha não é do delta e o mutante nunca foi rodado porque a spec só entra na rodada por causa do apoio de teste do E34.18. Não é regressão do item, mas a regra do QA bloqueia mutante vivo até virar teste ou equivalente aceito.
+- Suíte inteira não rodada local; vale o check-run `bateria` do mesmo sha no CI do PR.
+
+## Achados
+- A1 (bloqueante) tests/mutantes/z075-pr-previo.json:67 · M7 sobrevive (`pr_da_cli` sem `--base` repassando `previo` ao `cmd_pr`, bin/forge-check:1580), igual na base 5ae868eb; falta teste que chame `pr --previo` sem `--base`, ou o autor declara equivalente com a justificativa.
