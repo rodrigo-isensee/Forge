@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp1-relogio-hook
-commit: ac4d6dc7325b437958cbf61505259b20d90bfe1a
+commit: b7e2f6b565bd80f60f7df8f7cdcb0509417c3adc
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-20
@@ -15,7 +15,8 @@ Escopo: `git diff ef186de8..ac4d6dc7` (8 arquivos). Controle tocado: `hooks/_com
 Gatilhos: hook (controle do Forge, vigia de prazo dos hooks `parecer` e `conformidade`), rótulo `afrouxa-regra` pedido sob a condição do dono de que a mudança só aperta.
 
 ## Achados
-- A1 (recomendado) tests/test_hooks_volta_corpus.py:136 · O teste por AST reconhece só a chamada com o nome `executar`; `from _comum import executar as x`, `functools.partial(executar, relogio=...)` ou `getattr` escapariam. Hoje nenhum hook faz isso (10 de 10 chamadas diretas); barrar também o import com alias de `executar` nos hooks.
+- A1 (recomendado) tests/test_hooks_volta_corpus.py:136 · Resolvido em b7e2f6b5: `chamadas_do_executar` (tests/apoio_volta_unica.py:1193) resolve `from _comum import executar as X` e `import _comum [as c]` com `c.executar(...)`.
+- A2 (recomendado) tests/apoio_volta_unica.py:1202 · Sem caminho realista hoje: o AST ainda não pega reatribuição (`x = executar`), `getattr`, `importlib.import_module(...).executar` e `functools.partial(executar, relogio=...)`; opcional barrar referência a `executar` fora de posição de chamada.
 
 ## Sondas
 
@@ -30,3 +31,14 @@ Sondas e provas rodadas aqui (no head `ac4d6dc7`): `SondaS1ComRelogioFalso` (2 t
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Lacuna: gitleaks, osv-scanner, semgrep, zizmor e actionlint fora do PATH; o item não toca workflow nem dependência.
+
+## Revalidação no head b7e2f6b5
+Delta lido (`forge-check parecer delta`): só `tests/test_hooks_volta_corpus.py` está no domínio (o helper em `tests/apoio_volta_unica.py` e o mutante ficam fora do domínio e li o helper por ser o que o teste chama); nenhum arquivo de `hooks/`, `bin/`, `scripts/` mudou desde `ac4d6dc7`. O aviso do delta sobre o merge de 2c4af41 fora da develop é só de um merge de outra branch (documentação e parecer).
+
+A1 corrigido: o teste agora resolve o apelido de `from _comum import executar as X` e o módulo importado, com ou sem apelido; o teste novo cobre os três casos e o negativo (`from outro import executar`).
+
+Outras formas de escapar, sondadas com o próprio `chamadas_do_executar` (a saída é o número de chamadas achadas; o certo seria 1): reatribuição `x = r; x('a', relogio=1)` dá 0; `getattr(_comum, 'executar')(...)` dá 0; `importlib.import_module('_comum').executar(...)` dá 0; `functools.partial(executar, relogio=1)('a')` dá 0; `from _comum import *` com `executar(...)` dá 1 (pego). Nenhuma tem caminho realista: o AST é uma trava contra descuido em código de hook do Forge, que passa por review e por este portão, e nenhum hook usa `getattr`, `importlib` (só `_comum.py:2479-2491`, carregando `forge-check` e `forge-doutor`), `partial` de `executar` ou reatribuição (`grep` em `hooks/*.py`). Quem escreve hook já podia trocar o relógio no processo. Registrado como A2 recomendado, sem bloquear.
+
+Condição do dono para o rótulo `afrouxa-regra`, reconfirmada: **a mudança só aperta ou mantém.** Desde o parecer anterior o delta é só teste que torna a trava mais estrita (reconhece mais formas de chamada); código de controle idêntico ao já revisado, relógio e `armar` seguem só por palavra-chave, sem origem em ambiente, argumento ou arquivo, e o vigia segue falhando fechado. Nenhum hook passa a aceitar o que recusava.
+
+Prova rodada: `chamadas_do_executar` nas cinco sondas acima (saídas 0, 0, 0, 0, 1). Teste novo `test_chamada_com_apelido_do_import_e_pega_com_relogio` e o de AST dos hooks reais: OK os dois (1 teste cada, sem `-I` por causa do caminho de importação do teste). A suíte inteira é do CI do PR.
