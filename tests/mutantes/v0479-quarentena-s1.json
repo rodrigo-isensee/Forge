@@ -1,0 +1,86 @@
+{
+    "pedido": "v0479-quarentena-s1",
+    "executor": "unittest",
+    "mutantes": [
+        {
+            "id": "M1",
+            "guarda": "E37.15: teto_pulados acima de TETO_PULADOS_ORIGINAL mais as quarentenas abertas reprova (teto 2 sem quarentena)",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    return teto > TETO_PULADOS_ORIGINAL + abertas",
+            "para": "    return teto > TETO_PULADOS_ORIGINAL + abertas + 1",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_teto_2_sem_quarentena_reprova"
+            ]
+        },
+        {
+            "id": "M4",
+            "guarda": "E37.15: skipTest sem o argumento do motivo não quebra a contagem",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    arg = chamada.args[0] if nome in nomes and chamada.args else None",
+            "para": "    arg = chamada.args[0] if nome in nomes else None",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        },
+        {
+            "id": "M5",
+            "guarda": "E37.15: motivo que não é texto literal não conta",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    return arg.value if isinstance(arg, ast.Constant) and isinstance(arg.value, str) else \"\"",
+            "para": "    return arg.value if isinstance(arg, ast.Constant) else \"\"",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        },
+        {
+            "id": "M6",
+            "guarda": "E37.15: só a chamada de skip com motivo 'quarentena' conta",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        if motivo.startswith(\"quarentena\"):",
+            "para": "        if True:",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        },
+        {
+            "id": "M7",
+            "guarda": "E37.20: o decorador conta só pelo nome skip",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    arg = chamada.args[0] if nome in nomes and chamada.args else None",
+            "para": "    arg = chamada.args[0] if chamada.args else None",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        },
+        {
+            "id": "M9",
+            "guarda": "E37.20: função aninhada e lambda não contam",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        if isinstance(no, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):",
+            "para": "        if False:",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_skip_morto_da_sonda_s1_nao_conta"
+            ]
+        },
+        {
+            "id": "M10",
+            "guarda": "E37.20: ramo if False/0 não conta",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        if isinstance(no, ast.If) and isinstance(no.test, ast.Constant) and not no.test.value:",
+            "para": "        if False:",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_skip_morto_da_sonda_s1_nao_conta"
+            ]
+        },
+        {
+            "id": "M11",
+            "guarda": "E37.20: o else de ramo morto conta",
+            "arquivo": "tests/quarentenas.py",
+            "de": "            yield from _chamadas_vivas(no.orelse)",
+            "para": "            pass",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_skiptest_no_else_de_ramo_morto_e_em_ramo_vivo_conta"
+            ]
+        }
+    ]
+}
