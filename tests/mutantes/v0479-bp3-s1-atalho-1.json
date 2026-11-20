@@ -76,8 +76,8 @@
       "id": "M8",
       "guarda": "janela inválida volta a 30 min",
       "arquivo": "scripts/jarvis-comum.sh",
-      "de": "*[!0-9]*) janela=1800 ;;",
-      "para": "*[!0-9]*) janela=900 ;;",
+      "de": "*) janela=1800 ;; esac",
+      "para": "*) janela=900 ;; esac",
       "testes": [
         "tests.test_atalho_duravel.Supervisor.test_janela_configuravel_so_com_numero"
       ]

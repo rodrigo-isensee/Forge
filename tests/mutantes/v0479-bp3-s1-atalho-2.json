@@ -106,8 +106,8 @@
       "id": "M25",
       "guarda": "janela 0 não tira o teto de reaberturas",
       "arquivo": "scripts/jarvis-comum.sh",
-      "de": "*[1-9]*) ;; *) janela=1800 ;; esac",
-      "para": "*) ;; esac",
+      "de": "case \"$janela\" in [1-9]|",
+      "para": "case \"$janela\" in [0-9]*|",
       "testes": [
         "tests.test_atalho_duravel.Supervisor.test_janela_zero_nao_tira_o_teto_de_reaberturas"
       ]
