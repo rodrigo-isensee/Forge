@@ -13,33 +13,13 @@
             ]
         },
         {
-            "id": "M2",
-            "guarda": "E37.15: skip e skipTest levam o motivo no 1.o argumento",
-            "arquivo": "tests/quarentenas.py",
-            "de": "    pos = 0 if nome in _SKIP_MOTIVO_NO_1O else 1 if nome in _SKIP_MOTIVO_NO_2O else None",
-            "para": "    pos = 0 if False else 1 if nome in _SKIP_MOTIVO_NO_2O else None",
-            "testes": [
-                "tests.test_catraca.TetoDaQuarentena.test_conta_skipif_skiptest_e_subpasta"
-            ]
-        },
-        {
-            "id": "M3",
-            "guarda": "E37.15: skipIf e skipUnless levam o motivo no 2.o argumento",
-            "arquivo": "tests/quarentenas.py",
-            "de": "    pos = 0 if nome in _SKIP_MOTIVO_NO_1O else 1 if nome in _SKIP_MOTIVO_NO_2O else None",
-            "para": "    pos = 0 if nome in _SKIP_MOTIVO_NO_1O else 1 if False else None",
-            "testes": [
-                "tests.test_catraca.TetoDaQuarentena.test_conta_skipif_skiptest_e_subpasta"
-            ]
-        },
-        {
             "id": "M4",
-            "guarda": "E37.15: skip sem o argumento do motivo não quebra a contagem",
+            "guarda": "E37.15: skipTest sem o argumento do motivo não quebra a contagem",
             "arquivo": "tests/quarentenas.py",
-            "de": "    arg = chamada.args[pos] if pos is not None and len(chamada.args) > pos else None",
-            "para": "    arg = chamada.args[pos] if pos is not None else None",
+            "de": "    arg = chamada.args[0] if nome in nomes and chamada.args else None",
+            "para": "    arg = chamada.args[0] if nome in nomes else None",
             "testes": [
-                "tests.test_catraca.TetoDaQuarentena.test_conta_skipif_skiptest_e_subpasta"
+                "tests.test_catraca.TetoDaQuarentena.test_conta_skiptest_vivo_e_subpasta"
             ]
         },
         {
@@ -49,17 +29,57 @@
             "de": "    return arg.value if isinstance(arg, ast.Constant) and isinstance(arg.value, str) else \"\"",
             "para": "    return arg.value if isinstance(arg, ast.Constant) else \"\"",
             "testes": [
-                "tests.test_catraca.TetoDaQuarentena.test_conta_skipif_skiptest_e_subpasta"
+                "tests.test_catraca.TetoDaQuarentena.test_conta_skiptest_vivo_e_subpasta"
             ]
         },
         {
             "id": "M6",
             "guarda": "E37.15: só a chamada de skip com motivo 'quarentena' conta",
             "arquivo": "tests/quarentenas.py",
-            "de": "    return sum(isinstance(no, ast.Call) and _motivo_do_skip(no).startswith(\"quarentena\")",
-            "para": "    return sum(isinstance(no, ast.Call)",
+            "de": "            if motivo.startswith(\"quarentena\"):",
+            "para": "            if True:",
             "testes": [
-                "tests.test_catraca.TetoDaQuarentena.test_conta_skipif_skiptest_e_subpasta"
+                "tests.test_catraca.TetoDaQuarentena.test_conta_skiptest_vivo_e_subpasta"
+            ]
+        },
+        {
+            "id": "M7",
+            "guarda": "E37.20: o decorador conta só pelo nome skip",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    arg = chamada.args[0] if nome in nomes and chamada.args else None",
+            "para": "    arg = chamada.args[0] if chamada.args else None",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_skiptest_vivo_e_subpasta"
+            ]
+        },
+        {
+            "id": "M8",
+            "guarda": "E37.20: classe que não herda de TestCase não conta",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    return any(getattr(base, \"attr\", getattr(base, \"id\", None)) == \"TestCase\" for base in classe.bases)",
+            "para": "    return True",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_skip_morto_da_sonda_s1_nao_conta"
+            ]
+        },
+        {
+            "id": "M9",
+            "guarda": "E37.20: função aninhada e lambda não contam",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        if isinstance(no, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):",
+            "para": "        if False:",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_skip_morto_da_sonda_s1_nao_conta"
+            ]
+        },
+        {
+            "id": "M10",
+            "guarda": "E37.20: ramo if False/0 não conta",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        if isinstance(no, ast.If) and isinstance(no.test, ast.Constant) and not no.test.value:",
+            "para": "        if False:",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_skip_morto_da_sonda_s1_nao_conta"
             ]
         }
     ]

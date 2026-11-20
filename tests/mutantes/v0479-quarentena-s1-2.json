@@ -1,0 +1,86 @@
+{
+    "pedido": "v0479-quarentena-s1",
+    "executor": "unittest",
+    "mutantes": [
+        {
+            "id": "M11",
+            "guarda": "E37.20: o else de ramo morto conta",
+            "arquivo": "tests/quarentenas.py",
+            "de": "            yield from _chamadas_vivas(no.orelse)",
+            "para": "            pass",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_skiptest_no_else_de_ramo_morto_e_em_ramo_vivo_conta"
+            ]
+        },
+        {
+            "id": "M12",
+            "guarda": "E37.20: ramo vivo (if True) conta",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        if isinstance(no, ast.If) and isinstance(no.test, ast.Constant) and not no.test.value:",
+            "para": "        if isinstance(no, ast.If) and isinstance(no.test, ast.Constant):",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_skiptest_no_else_de_ramo_morto_e_em_ramo_vivo_conta"
+            ]
+        },
+        {
+            "id": "M13",
+            "guarda": "E37.20: só método test_* conta",
+            "arquivo": "tests/quarentenas.py",
+            "de": "            if not (isinstance(metodo, ast.FunctionDef) and metodo.name.startswith(\"test_\")):",
+            "para": "            if not isinstance(metodo, ast.FunctionDef):",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_skip_morto_da_sonda_s1_nao_conta"
+            ]
+        },
+        {
+            "id": "M14",
+            "guarda": "E37.20: só classe conta (função solta não)",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        if not (isinstance(classe, ast.ClassDef) and _e_testcase(classe)):",
+            "para": "        if not _e_testcase(classe):",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_skip_morto_da_sonda_s1_nao_conta"
+            ]
+        },
+        {
+            "id": "M15",
+            "guarda": "E37.20: decorador que não é chamada não quebra",
+            "arquivo": "tests/quarentenas.py",
+            "de": "                yield _motivo_do_skip(deco, {\"skip\"}) if isinstance(deco, ast.Call) else \"\"",
+            "para": "                yield _motivo_do_skip(deco, {\"skip\"})",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_skiptest_vivo_e_subpasta"
+            ]
+        },
+        {
+            "id": "M16",
+            "guarda": "E37.20: quarentena exige prazo E OK do dono (basta um não aceita)",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    if not (_PRAZO.search(motivo) and \"OK do dono\" in motivo):",
+            "para": "    if not (_PRAZO.search(motivo) or \"OK do dono\" in motivo):",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_quarentena_sem_prazo_ou_sem_ok_do_dono_e_recusada"
+            ]
+        },
+        {
+            "id": "M17",
+            "guarda": "E37.20: quarentena sem prazo ou sem OK é recusada",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    if not (_PRAZO.search(motivo) and \"OK do dono\" in motivo):",
+            "para": "    if False:",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_quarentena_sem_prazo_ou_sem_ok_do_dono_e_recusada"
+            ]
+        },
+        {
+            "id": "M18",
+            "guarda": "E37.20: o prazo é uma data AAAA-MM-DD inteira",
+            "arquivo": "tests/quarentenas.py",
+            "de": "_PRAZO = re.compile(r\"\\b\\d{4}-\\d{2}-\\d{2}\\b\")",
+            "para": "_PRAZO = re.compile(r\"\\d{4}\")",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_quarentena_sem_prazo_ou_sem_ok_do_dono_e_recusada"
+            ]
+        }
+    ]
+}

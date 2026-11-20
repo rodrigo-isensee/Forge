@@ -1,0 +1,16 @@
+{
+    "pedido": "v0479-quarentena-s1",
+    "executor": "unittest",
+    "mutantes": [
+        {
+            "id": "M19",
+            "guarda": "E37.20: motivo que não é quarentena não exige prazo",
+            "arquivo": "tests/quarentenas.py",
+            "de": "            if motivo.startswith(\"quarentena\"):\n                _confere_quarentena(motivo, arq.name)",
+            "para": "            if True:\n                _confere_quarentena(motivo, arq.name)",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_motivo_que_nao_e_quarentena_nao_exige_prazo"
+            ]
+        }
+    ]
+}

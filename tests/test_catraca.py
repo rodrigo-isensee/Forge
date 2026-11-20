@@ -901,11 +901,13 @@ class TetoDaQuarentena(unittest.TestCase):
         self.assertEqual(quarentenas_abertas(d), 0)
         self.assertTrue(self.confere(d)[0])
 
+    MOTIVO = "quarentena (OK do dono 19/11): x; prazo 2026-11-26"
+
     def test_teto_2_com_uma_quarentena_passa_e_com_teto_3_reprova(self):
-        corpo = """\
+        corpo = f"""\
             import unittest
             class T(unittest.TestCase):
-                @unittest.skip("quarentena (OK do dono): " "motivo")
+                @unittest.skip("{self.MOTIVO}")
                 def test_a(self):
                     pass
                 @unittest.skipIf(True, "sem root")
@@ -916,22 +918,89 @@ class TetoDaQuarentena(unittest.TestCase):
         self.assertFalse(self.confere(self.pasta(2, corpo))[0])
         self.assertTrue(self.confere(self.pasta(3, corpo))[0])
 
-    def test_conta_skipif_skiptest_e_subpasta(self):  # e não conta skip sem motivo, motivo que não é texto nem outra chamada
-        d = self.pasta(1, """\
+    def test_conta_skiptest_vivo_e_subpasta(self):  # e não conta skip sem motivo, motivo que não é texto nem outra chamada
+        d = self.pasta(1, f"""\
             import unittest
             class T(unittest.TestCase):
-                @unittest.skipUnless(False, "quarentena: a")
+                @unittest.skipUnless(False, "{self.MOTIVO}")
+                @unittest.skipTest("{self.MOTIVO}")
+                @marca("{self.MOTIVO}")
                 def test_a(self):
-                    self.skipTest("quarentena: b")
-                @unittest.skipIf(True)
+                    self.skipTest("{self.MOTIVO}")
+                    self.skip("{self.MOTIVO}")
+                @unittest.skip
                 def test_b(self, motivo="quarentena: nome, não texto"):
+                    self.skipTest()
                     self.skipTest(motivo)
                     self.skipTest(1)
                     print("quarentena: não é skip")
+                @unittest.skip(1)
+                def test_c(self):
+                    pass
             """)
         (d / "sub").mkdir()
-        (d / "sub" / "test_y.py").write_text('import unittest\n@unittest.skip("quarentena: c")\nclass T: pass\n', encoding="utf-8")
+        (d / "sub" / "test_y.py").write_text(
+            f'import unittest\nclass T(unittest.TestCase):\n    @unittest.skip("{self.MOTIVO}")\n    def test_c(self): pass\n',
+            encoding="utf-8")
+        self.assertEqual(quarentenas_abertas(d), 2)
+
+    def test_skip_morto_da_sonda_s1_nao_conta(self):
+        d = self.pasta(4, f"""\
+            import unittest
+            @unittest.skip("{self.MOTIVO}")
+            def test_funcao_solta(self):
+                pass
+            class SemBase:
+                @unittest.skip("{self.MOTIVO}")
+                def test_a(self):
+                    self.skipTest("{self.MOTIVO}")
+            class T(unittest.TestCase):
+                def test_ramo_morto(self):
+                    if False:
+                        self.skipTest("{self.MOTIVO}")
+                    elif 0:
+                        self.skipTest("{self.MOTIVO}")
+                def test_aninhada(self):
+                    def nunca():
+                        self.skipTest("{self.MOTIVO}")
+                    return lambda: self.skipTest("{self.MOTIVO}")
+                @unittest.skip("{self.MOTIVO}")
+                def auxiliar(self):
+                    pass
+            """)
+        self.assertEqual(quarentenas_abertas(d), 0)
+        self.assertTrue(self.confere(d)[0])
+
+    def test_skiptest_no_else_de_ramo_morto_e_em_ramo_vivo_conta(self):
+        d = self.pasta(3, f"""\
+            import unittest
+            class T(unittest.TestCase):
+                def test_a(self):
+                    if False:
+                        pass
+                    else:
+                        self.skipTest("{self.MOTIVO}")
+                def test_b(self):
+                    if True:
+                        self.skipTest("{self.MOTIVO}")
+                def test_c(self):
+                    if self.x:
+                        self.skipTest("{self.MOTIVO}")
+            """)
         self.assertEqual(quarentenas_abertas(d), 3)
+
+    def test_quarentena_sem_prazo_ou_sem_ok_do_dono_e_recusada(self):
+        for motivo in ("quarentena (OK do dono): sem prazo", "quarentena: prazo 2026-11-26", "quarentena (OK do dono): prazo 26/11", "quarentena (OK do dono): prazo 2026",
+                       "quarentena (ok do dono): prazo 2026-11-26"):
+            for uso in ('@unittest.skip("%s")\n    def test_a(self): pass', 'def test_a(self): self.skipTest("%s")'):
+                with self.subTest(motivo=motivo, uso=uso):
+                    d = self.pasta(2, "import unittest\nclass T(unittest.TestCase):\n    " + uso % motivo + "\n")
+                    with self.assertRaises(ValueError):
+                        quarentenas_abertas(d)
+
+    def test_motivo_que_nao_e_quarentena_nao_exige_prazo(self):
+        d = self.pasta(2, 'import unittest\nclass T(unittest.TestCase):\n    @unittest.skip("sem root")\n    def test_a(self): pass\n')
+        self.assertEqual(quarentenas_abertas(d), 0)
 
 
 class GuardasDosHooks(Base):
