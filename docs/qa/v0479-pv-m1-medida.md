@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pv-m1-medida
-commit: c5c0a232123312a20f5de27be913d57741377a55
+commit: 5221863e2d25308ec35dfae91241e01ea6790ece
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -16,7 +16,14 @@ data: 2026-11-20
 
 Obrigações: a definição D7 (aceita pelo dono em 20/11) como está no docstring de `bin/forge-placar`; sem especificação de UX nem contrato de API (ferramenta de linha de comando). Sem suíte local (E57.8): rodei só `tests/evals/test_placar.py`, as specs de mutantes e o vermelho do teste novo.
 
-## Revalidação (head c5c0a232)
+## Revalidação (head 5221863e)
+Delta lido por `forge-check parecer delta` (c5c0a232..5221863e): `bin/forge-placar` (dependabot por login exato, `AUTORES_DEPENDABOT`, no lugar da substring), `tests/evals/test_placar.py` (teste novo) e specs de mutantes `-3` e `-5`.
+- Teste novo `test_dependabot_e_o_login_exato_nao_a_substring` (fronteira: `app/dependabot` e `dependabot[bot]` saem; `not-dependabot-fan`, `dependabot`, `App/Dependabot` ficam na medida).
+- Vermelho: cópia do HEAD com `bin/forge-placar` de c5c0a232, `-k test_dependabot_e_o_login_exato`: `FAILED (failures=3)` ("o PR saiu da medida"). No HEAD: `python3 -I -m unittest discover -s tests/evals -p test_placar.py`: Ran 68, OK.
+- `bin/forge-mutante --base c5c0a232... specs -3 e -5`: `base=c5c0a232... rev=5221863e...`; M17 a M24, M30 a M34 `morreu` (M33 e M34 guardam a linha nova), rc=0, nenhum sobrevivente.
+- CI do mesmo sha (`bateria`): não citado; suíte inteira é do CI do PR.
+
+## Revalidação anterior (head c5c0a232)
 A1 e A2 do parecer anterior: A1 corrigido (`__main__` no fim; direto roda 67, discover 67, OK). A2 (ampliar o glob do `forge-testes --vermelho`) não bloqueia nem pertence a este diff; fica como estava, sem achado novo. Delta lido por `forge-check parecer delta`: `bin/forge-placar` (jobs não lista = lacuna; cancelada sem envio novo dá lugar à seguinte do mesmo head), changelog, testes e spec `-5`.
 - Vermelho à mão (A2): cópia do HEAD com `bin/forge-placar` de 580fea97: `FAILED (failures=4)`: `test_cancelada_sem_envio_novo_...` e `test_jobs_que_nao_e_lista_sai_lacuna` (3 subtestes); `test_execucao_seguinte_nao_troca_...` é guarda de regressão, morta pelo M32.
 - `bin/forge-mutante --base 580fea97... --processos 2 tests/mutantes/v0479-pv-m1-medida-5.json`: `base=580fea97... rev=c5c0a232...`; M30, M31, M32 `morreu`; rc=0.
