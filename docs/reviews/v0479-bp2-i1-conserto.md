@@ -3,12 +3,14 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp2-i1-conserto
-commit: b96357e9cdaa807422be47d586676cbbcf7e0612
+commit: 971c60537d114c95b5b5918b5202669aaf9b8b9b
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
 ---
 # Code review: `forge-fechar --conserto` (BP2 I1, E38.5, revalidação)
+
+Revalidação no head 971c6053. Delta lido: `forge-check parecer delta docs/reviews/v0479-bp2-i1-conserto.md`, intervalo `b96357e9..971c6053`, sem o que veio da develop (merge 04ca0e72, base 0f6034e); no domínio só `tests/mutantes/v047-integracao-em-lote-3.json`, `-7.json` e `-8.json`. O commit 971c6053 só realinha o `de`/`para` de IL-M18, IL-M19, IL-M22, IL-M51 e IL-M57 ao `bin/forge-fechar` do `--conserto`; a guarda, o teste e o sentido de cada mutante seguem os mesmos. `bin/forge-mutante --processos 1 --ids IL-M18,IL-M19,IL-M22,IL-M51,IL-M57` nas três specs, no 971c6053: os cinco morrem (bin/forge-fechar:1027, 1028, 1040, 1599, 136). `--conferir --todas` não aponta nenhuma das três specs. Nada muda no parecer anterior, que segue abaixo.
 
 Revalidação do parecer reprovado em d816262d. Delta lido: `forge-check parecer delta docs/reviews/v0479-bp2-i1-conserto.md`, intervalo `d816262d..b96357e9`, no domínio `bin/forge-fechar`, `changelog.d/v0479-bp2-i1-conserto.md`, `tests/mutantes/fechar-conserto-7.json` e `tests/test_fechar.py`; só esse delta foi relido.
 
