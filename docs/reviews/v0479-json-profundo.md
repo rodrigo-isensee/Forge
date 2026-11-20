@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-json-profundo
-commit: fbf2c6f7936daf77344088b10dc39bc31f63a560
+commit: fbab4dede7912d7650c8787b4edbbaed2e73e1fb
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
@@ -26,3 +26,6 @@ Tamanho (H1): cerca de 95 linhas de código fora testes e docs, um comportamento
 Ferramentas, sem refazer: `bin/forge-mutante` nas três specs, 1 processo, no head: M1 a M20 morreram (M4 por erro do teste declarado); `--cobertura --base 004ce869` sem guarda descoberta; `--conferir` com os trechos no lugar. Testes novos rodados da raiz (`tests.test_json_raso`, `test_estado_ilegivel...test_json_aninhado_fundo_e_ilegivel`, `test_catraca...test_json_aninhado_acima_do_teto_e_ilegivel`, `evals.test_placar...test_ci_aninhado_acima_do_teto_sai_com_2_sem_traceback`): 5 OK no python 3.12.3. Suíte completa: no CI do PR, ainda não aberto (brief sem PR); o merge espera o CI verde.
 
 Os dois recomendados não devolvem e viram cartão depois do merge (META85).
+
+## Revalidação
+Delta lido (`forge-check parecer delta`, intervalo `fbf2c6f7..fbab4ded`, sem o que veio da develop `ef7739a` pelo merge do `forge-fechar`): no domínio só `docs/indice-forge.md`, uma linha nova na tabela de `hooks/` para `_json_raso.py`, com o texto da primeira linha da docstring do módulo. `tests.test_indice_forge` rodado da raiz no head: 19 OK. Sem achado novo; o parecer segue aprovado no head `fbab4ded`.
