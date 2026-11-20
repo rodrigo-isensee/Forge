@@ -3,14 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-quarentena-s1
-commit: ba6f6a0366ed1d0c1280bc9f43e402d25d830e57
+commit: 04e7293b3c89ea21b6575a2f848b81a540af52f7
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-19
 ---
 # Review de segurança: v0479-quarentena-s1
 
-Gatilhos: teste que prova controle de hook pulado (afrouxa a proteção de teste, `R-CONFORMIDADE`), `teto_pulados`.
+Gatilhos: teste que prova controle de hook pulado (afrouxa a proteção de teste, `R-CONFORMIDADE`), `teto_pulados` (sobe de 1 para 2 na revalidação 04e7293b).
 
 Escopo: o diff `aa16e1a7..a2cc7fb2` (um `@unittest.skip` em `tests/test_hooks.py:1315` e o fragmento do changelog). Nenhum hook, fixture, spec de mutante nem `tests/config.json` muda.
 
@@ -33,6 +33,8 @@ Pode valer nas condições do dono. A catraca barra a mudança: `regra_testes_en
 - A2 (recomendado) changelog.d/v0479-quarentena-s1.md:2 · Resolvido no repositório: prazo 2026-11-26 no skip e no fragmento. Falta só o mesmo prazo e o dono no cartão `TESTE-SONDA-S1-RELOGIO` (fora do repositório, não verificável aqui).
 - A3 (recomendado) tests/mutantes/v0478-develop-relogio.json:12 · O M1 dessa spec só nomeia a S1 e agora dá "sem veredito" (teste pulado). A mesma mutação (`prova_de_carga.py:70`) morre na tabela do critério (M8 de v0478-testes-prazo.json); listar a tabela em `testes` do M1 ou retirar a spec.
 
+- A4 (recomendado) tests/quarentenas.py:22 · A contagem aceita `skip`/`skipTest` com motivo "quarentena" mesmo morto (função não chamada, ramo `if False`, classe não coletada): sobe o teto em 1 sem gastar vaga real de pulado. Contar só decorador de teste e `skipTest` no corpo de teste.
+
 ## Detalhe dos achados
 A1: evidência acima; caminho de ataque não há (higiene do registro); severidade baixa; correção: duas linhas no corpo do PR; esforço P; dono: `tech-lead`. A2: a quarentena sem prazo vira esquecimento; severidade baixa; correção: data no cartão; esforço P; dono: autor do pedido. A3: severidade baixa; a spec fica sem veredito até a S1 voltar; correção: uma linha em `testes`; esforço P; dono: autor do pedido.
 
@@ -45,6 +47,23 @@ Lido: `forge-check parecer delta` (no domínio, só `tests/test_hooks.py`; o cha
 
 ### Reconfirmação por escrito: nenhum controle fica sem teste durante a quarentena
 Reconfirmo, com a versão do #701 do teste e da tabela. No head, os 4 testes do critério dão `OK (skipped=1)`, só a S1 pulada: a tabela com a linha S1 (`test_carga_explica_a_recusa_so_pelo_vigia_do_prazo_longo_com_disputa_provada`), `test_liberar_ou_provar_a_carga_aceita_so_a_recusa_explicada_pela_carga` e `test_referencia_da_cpu_mede_a_parcela_do_relogio`, todos verdes. `bin/forge-mutante tests/mutantes/v0478-testes-prazo.json`: M1 a M8 morreram, inclusive M8 (`prova_de_carga.py:70`, a guarda da S1), morta pela tabela e não pela sonda. Como a S1 já injetava relógio e CPU, ela só testava a ligação do hook real com o critério; essa ligação tem o teste da recusa explicada pela carga e a fixture `v0455-merge-com-git-muito-lento-recusa-em-8s` (`test_prazo_do_merge`). Ressalva nova (A3): a spec `v0478-develop-relogio.json` dá "sem veredito" no M1, porque o teste declarado está pulado; o controle segue provado pela outra spec. Lacuna residual igual à anterior: a combinação ao vivo, sem caminho de ataque, temporária (até 2026-11-26).
+
+Parecer mantido: aprovado.
+
+## Revalidação no head 04e7293b (delta ba6f6a03..04e7293b)
+Lido: `forge-check parecer delta` (no domínio: `tests/config.json` e `tests/test_catraca.py`; `tests/quarentenas.py`, as specs de mutante e o changelog ficam fora do domínio e foram lidos como evidência). A rodada anterior fica no git; achados A1 a A3 sem mudança de estado.
+- `teto_pulados` de 1 para 2 (`tests/config.json:930`), com o OK do dono, só enquanto durar a quarentena da S1. A catraca (`regra_teto_pulados`, `TetoDePulados.test_teto_que_sobe_barra_e_que_cai_passa`) continua barrando a subida sem o rótulo `afrouxa-regra` do dono: é a trava principal e não muda.
+- Novo `TetoDaQuarentena` (`tests/test_catraca.py:873`): no Forge `quarentenas_abertas(tests)` dá 1 (o skip real de `tests/test_hooks.py:1324`) e o teto 2 não passa de 1+1; sem quarentena o teto 2 reprova; teto 3 com uma quarentena reprova. Rodei `TetoDaQuarentena` e `TetoDePulados`: 8 testes, OK.
+- Mutantes: `bin/forge-mutante tests/mutantes/v0479-quarentena-s1.json` no head: M1 a M6 morreram (M4 e M5 por erro do teste declarado sob o mutante, que passa sem ele; vale como morte).
+
+### A contagem pode ser enganada?
+Sondas em pasta de `$TMPDIR` (apagada), `quarentenas_abertas` sobre ela:
+- S1 · três quarentenas mortas: `unittest.skip("quarentena")` numa função auxiliar nunca chamada, `self.skipTest("quarentena: falso")` em `if False`, `@unittest.skip("quarentena: ...")` em classe que não é `TestCase` · espera: 0 (nada pulado de verdade) · obtido: 3. Cada uma sobe o teto permitido sem gastar vaga de pulado no CI: é a brecha (A4).
+- Não enganam: motivo em variável (`@unittest.skip(X)`), skip em arquivo que não é `test_*.py` e `print("quarentena: ...")`; a contagem fica abaixo, o que é seguro. Skip falso que de fato roda (decorador de teste coletado) gasta uma vaga no CI, então não ganha teto líquido.
+- Não bloqueia: quem sobe o teto de verdade ainda passa pela catraca e pelo rótulo do dono; o skip morto precisa entrar num PR revisado, e o `TetoDaQuarentena` só vale como segunda trava. Nem o prazo nem o "OK do dono" são exigidos no motivo: o prazo 2026-11-26 só vive no texto do skip. Severidade baixa; correção mínima: contar só decorador de função `test_*` e `skipTest` dentro de método `test_*` de classe `TestCase`; esforço P; dono: autor do pedido.
+
+### Nenhum controle fica sem teste
+Confirmo por escrito: o controle novo (`quarentenas_abertas`, `teto_passa_da_quarentena`) tem testes e mutantes (acima); a S1 pulada segue coberta como na rodada anterior (tabela do critério, M8, ligação medida e fixture de 8 s); `teto_pulados` 2 está coberto pela catraca e pelo `TetoDaQuarentena`. Lacuna residual igual (combinação ao vivo da S1 até 2026-11-26). Devolução: o PR que tira a quarentena zera as abertas e o teste reprova teto 2, então o teto volta a 1.
 
 Parecer mantido: aprovado.
 
