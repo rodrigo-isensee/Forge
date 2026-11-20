@@ -15,7 +15,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
-from ambiente_git import sem_manutencao  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 from apoio_sandbox import exigir  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 
@@ -1925,6 +1925,7 @@ class Registros(unittest.TestCase):
     def test_busca_a_origin_antes_e_sem_rede_avisa_e_confere_a_local(self):
         remoto, outro = Path(self._t.name) / "remoto.git", Path(self._t.name) / "outro"
         subprocess.run(["git", "clone", "-q", "--bare", str(self.dir), str(remoto)], env=self.env, check=True, capture_output=True)
+        remoto_sem_manutencao(remoto)
         self.git("remote", "add", "origin", str(remoto))
         self.git("fetch", "-q", "origin")
         subprocess.run(["git", "clone", "-q", "-b", "develop", str(remoto), str(outro)], env=self.env, check=True, capture_output=True)
@@ -1946,6 +1947,7 @@ class Registros(unittest.TestCase):
         """O proxy e a credencial da sessão chegam ao git por `GIT_CONFIG_*`: a busca que os tira nunca acha a origin."""
         remoto = Path(self._t.name) / "remoto.git"
         subprocess.run(["git", "clone", "-q", "--bare", str(self.dir), str(remoto)], env=self.env, check=True, capture_output=True)
+        remoto_sem_manutencao(remoto)
         self.git("remote", "add", "origin", "falso:remoto")
         self.changelog("sys.exit(0)")
         self.env.update({"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": f"url.{remoto}.insteadOf",
@@ -1959,6 +1961,7 @@ class Registros(unittest.TestCase):
         (`+x:refs/heads/y` grava ramo local) são recusados antes da busca, com o aviso, e a base que não resolve sai 2."""
         remoto = Path(self._t.name) / "remoto.git"
         subprocess.run(["git", "clone", "-q", "--bare", str(self.dir), str(remoto)], env=self.env, check=True, capture_output=True)
+        remoto_sem_manutencao(remoto)
         self.git("remote", "add", "origin", str(remoto))
         self.changelog("sys.exit(0)")
         prova = Path(self._t.name) / "PWNED"
