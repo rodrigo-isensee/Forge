@@ -1,6 +1,6 @@
 # A3: aplicar a trava de escrita do sandbox no Forge (`.claude/settings.json`)
 
-O `.claude/settings.json` do Forge é travado para os agentes (decisão do dono, como o `.githooks/pre-push` do PP1). A decisão A3 do pedido v0478 (dono, 2026-11-18 22:15) pede que o sandbox negue aos agentes a escrita nos arquivos de controle, no Forge e no modelo de projeto, com os hooks seguindo a gravar. O modelo de projeto entrou direto na branch (`templates/projeto/.claude/settings.json`); o Forge vai como patch, `docs/devops/v0479-sandbox-controle.patch`, provado por `tests/test_sandbox_controle.py` numa cópia temporária. Só o dono aplica.
+O `.claude/settings.json` do Forge é travado para os agentes (decisão do dono, como o `.githooks/pre-push` do PP1). A decisão A3 do pedido v0478 (dono, 2026-11-18 22:15) pede que o sandbox negue aos agentes a escrita nos arquivos de controle, no Forge e no modelo de projeto, com os hooks seguindo a gravar. O modelo de projeto entrou direto na branch (`templates/projeto/.claude/settings.json`); o Forge vai como patch, `docs/engineering/v0479-sandbox-controle.patch`, provado por `tests/test_sandbox_controle.py` numa cópia temporária. Só o dono aplica.
 
 ## Os arquivos de controle (levantamento)
 
@@ -32,14 +32,14 @@ diff --git a/.claude/settings.json b/.claude/settings.json
      "network": {
 ```
 
-(O patch aplicável, com o índice do git, é `docs/devops/v0479-sandbox-controle.patch`; o trecho acima só o mostra para revisão.)
+(O patch aplicável, com o índice do git, é `docs/engineering/v0479-sandbox-controle.patch`; o trecho acima só o mostra para revisão.)
 
 No modelo de projeto (já na branch), o `denyWrite` ganha `.forge/config.json`, `.forge/run/agentes.json`, `.forge/run/pesado.json` e `~/.forge/maquina`. A lista do patch do Forge não mudou na volta E29.6 (continua `.forge/`, `.git/forge/run` e `~/.forge/maquina`); o comando de aplicar e o de testar abaixo seguem os mesmos. O `forge-upgrade --ligar-sandbox` une a lista à do projeto.
 
 ## Aplicar (o dono, na raiz do clone, na branch que traz o patch)
 
 ```bash
-git apply --check docs/devops/v0479-sandbox-controle.patch && git apply docs/devops/v0479-sandbox-controle.patch
+git apply --check docs/engineering/v0479-sandbox-controle.patch && git apply docs/engineering/v0479-sandbox-controle.patch
 python3 -c "import json; print(json.load(open('.claude/settings.json'))['sandbox']['filesystem']['denyWrite'])"
 ```
 
