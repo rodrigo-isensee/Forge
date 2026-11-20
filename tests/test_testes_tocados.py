@@ -1998,5 +1998,166 @@ class Registros(unittest.TestCase):
                         self.assertIn(resto[1], {n.name for n in classes[resto[0]].body if isinstance(n, ast.FunctionDef)})
 
 
+# Geradores falsos do brinquedo: reprovam o ambiente herdado (AR-4) e só aceitam os argumentos exatos do script real.
+INDICE_FALSO = ("import os, pathlib, sys\n"
+                "sys.exit(9) if sys.argv[1:] or [k for k in os.environ if k.startswith(('GIT_', 'FORGE_'))] else None\n"
+                "pathlib.Path('docs/indice-forge.md').write_text('regerado\\n')\n")
+MEDIDOR_FALSO = ("import json, os, pathlib, sys\n"
+                 "sys.exit(9) if len(sys.argv) != 3 or sys.argv[1] != '--medir' or "
+                 "[k for k in os.environ if k.startswith(('GIT_', 'FORGE_'))] else None\n"
+                 "p = pathlib.Path('tests/pesos-d4.json')\n"
+                 "p.write_text(json.dumps({**json.loads(p.read_text()), sys.argv[2]: 0.5}))\n")
+
+
+class Regerar(unittest.TestCase):
+    """PR-VERDE B2 (v0478 E57.38): `--regerar` chama o gerador só do derivado cuja fonte o diff tocou, na lista fechada
+    (índice do Forge, peso de módulo de teste novo); não segue link e sai 2 se algo fora da lista mudou."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+
+    def setUp(self):
+        self._t = tempfile.TemporaryDirectory()
+        self.addCleanup(self._t.cleanup)
+        self.dir = Path(self._t.name) / "repo"
+        self.env = sem_manutencao({"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": self._t.name, "LANG": "C.UTF-8",
+                                   "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null",
+                                   "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
+                                   "GIT_COMMITTER_EMAIL": "t@t", "FORGE_HERDADO": "1"})
+        for pasta in ("tests", "scripts", "docs/regras", "bin"):
+            (self.dir / pasta).mkdir(parents=True)
+        self.git("init", "-q", "-b", "develop")
+        self.escrever("scripts/indice-forge.py", INDICE_FALSO)
+        self.escrever("scripts/suite-paralela.py", MEDIDOR_FALSO)
+        self.escrever("docs/indice-forge.md", "antigo\n")
+        self.escrever("docs/regras/r.md", "regra\n")
+        self.escrever("tests/config.json", "{}")
+        self.escrever("tests/test_a.py", "import unittest\n")
+        self.escrever("tests/pesos-d4.json", json.dumps({"test_a": 1.0}))
+        self.git("add", "-A")
+        self.git("commit", "-qm", "base")
+        self.git("switch", "-q", "-c", "melhoria/x")
+
+    def git(self, *args):
+        return subprocess.run(["git", *args], cwd=self.dir, env=self.env, capture_output=True, text=True, check=True).stdout
+
+    def escrever(self, relativo, texto):
+        (self.dir / relativo).write_text(texto, encoding="utf-8")
+
+    def ler(self, relativo):
+        return (self.dir / relativo).read_text(encoding="utf-8")
+
+    def rodar(self, *args, base="develop"):
+        return subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--regerar", "--base", base, *args], cwd=self.dir,
+                              env=self.env, capture_output=True, text=True, timeout=300)
+
+    def mudados(self):
+        return sorted(linha[3:] for linha in self.git("status", "--porcelain", "-uall").splitlines())
+
+    def test_nada_tocado_nada_a_regerar(self):
+        self.escrever("docs/nota.md", "fora das fontes\n")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("forge-testes: regerar rc=0 (nada a regerar)", r.stdout)
+        self.assertEqual(self.mudados(), ["docs/nota.md"])
+
+    def test_bin_tocado_regera_so_o_indice(self):
+        self.escrever("bin/forge-x", "#!/bin/sh\n")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("forge-testes: regerar rc=0 (índice do Forge)", r.stdout)
+        self.assertEqual(self.ler("docs/indice-forge.md"), "regerado\n")
+        self.assertEqual(self.mudados(), ["bin/forge-x", "docs/indice-forge.md"])
+
+    def test_pasta_funda_de_bin_nao_e_fonte_do_indice(self):
+        (self.dir / "bin" / "sub").mkdir()
+        self.escrever("bin/sub/x", "x\n")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.ler("docs/indice-forge.md"), "antigo\n")
+
+    def test_modulo_novo_sem_peso_e_medido_e_o_indice_fica(self):
+        self.escrever("tests/test_novo.py", "import unittest\n")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("forge-testes: regerar rc=0 (peso de test_novo)", r.stdout)
+        self.assertEqual(json.loads(self.ler("tests/pesos-d4.json")), {"test_a": 1.0, "test_novo": 0.5})
+        self.assertEqual(self.ler("docs/indice-forge.md"), "antigo\n")
+
+    def test_gerador_vermelho_sai_1(self):
+        self.escrever("tests/test_novo.py", "import unittest\n")
+        self.escrever("scripts/suite-paralela.py", "import sys\nsys.exit(1)\n")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("forge-testes: gerador vermelho: peso de test_novo", r.stderr)
+        self.assertIn("forge-testes: regerar rc=1", r.stdout)
+
+    def test_escrita_fora_da_lista_fechada_sai_2(self):
+        """Arquivo de controle limpo, ou arquivo já alterado na árvore que o gerador muda de novo: os dois saem 2."""
+        self.escrever("bin/forge-x", "#!/bin/sh\n")
+        for alvo in ("tests/config.json", "docs/regras/r.md", "bin/forge-x"):
+            with self.subTest(alvo=alvo):
+                self.escrever("scripts/indice-forge.py", INDICE_FALSO + f"pathlib.Path({alvo!r}).write_text('mexido')\n")
+                r = self.rodar()
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn(f"forge-testes: regerar escreveu fora da lista fechada ({alvo}", r.stderr)
+                self.assertNotIn("regerar rc=", r.stdout)
+                self.git("checkout", "-q", "--", "tests/config.json", "docs/regras/r.md")
+                self.escrever("bin/forge-x", "#!/bin/sh\n")
+
+    def test_link_no_derivado_ou_na_pasta_recusa_sem_rodar_o_gerador(self):
+        self.escrever("bin/forge-x", "#!/bin/sh\n")
+        fora = Path(self._t.name) / "fora"
+        fora.mkdir()
+        (fora / "indice-forge.md").write_text("de fora\n", encoding="utf-8")
+        for link, alvo in (("docs/indice-forge.md", fora / "indice-forge.md"), ("docs", fora)):
+            with self.subTest(link=link):
+                caminho = self.dir / link
+                original = Path(self._t.name) / "guardado"
+                caminho.rename(original)
+                caminho.symlink_to(alvo)
+                r = self.rodar()
+                caminho.unlink()
+                original.rename(caminho)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn(f"forge-testes: regerar recusado: link simbólico em {link} (não sigo link)", r.stderr)
+                self.assertEqual((fora / "indice-forge.md").read_text(encoding="utf-8"), "de fora\n")
+
+    def test_sem_veredito_sai_2_e_a_busca_que_falha_avisa(self):
+        r = self.rodar(base="origin/develop")  # sem remoto: a busca falha e a base não resolve
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("forge-testes: aviso: não busquei origin/develop (", r.stderr)
+        self.assertIn("forge-testes: regerar sem veredito (git merge-base", r.stderr)
+        self.escrever("tests/pesos-d4.json", "[]")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("forge-testes: regerar sem veredito (tests/pesos-d4.json não é um objeto JSON)", r.stderr)
+
+    def test_git_ilegivel_depois_do_gerador_sai_2(self):
+        self.escrever("bin/forge-x", "#!/bin/sh\n")
+        self.escrever("scripts/indice-forge.py", INDICE_FALSO + "os.rename('.git', 'sem-git')\n")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("forge-testes: regerar sem veredito depois dos geradores (git status", r.stderr)
+        self.assertNotIn("regerar rc=", r.stdout)
+
+    def test_regerar_so_combina_com_base(self):
+        for extra in (["--registros"], ["--texto"], ["--listar"], ["--afetados"], ["--completa"], ["-k", "x"],
+                      ["--vermelho"], ["--modulos", "test_x"], ["--prazo", "5"], ["bin/x"]):
+            with self.subTest(extra=extra):
+                r = self.rodar(*extra)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("--regerar só combina com --base", r.stderr)
+
+    def test_lista_fechada_sem_arquivo_de_controle_e_geradores_que_existem(self):
+        self.assertEqual([str(d) for d in self.f.DERIVADOS], ["docs/indice-forge.md", "tests/pesos-d4.json"])
+        for derivado in self.f.DERIVADOS:
+            self.assertNotEqual(str(derivado), "tests/config.json")
+            self.assertFalse(str(derivado).startswith(("docs/regras/", "hooks/", ".githooks/", ".github/")))
+        for gerador in (self.f.GERA_O_INDICE[0], self.f.MEDE_O_PESO[0]):
+            self.assertTrue((RAIZ / gerador).is_file(), gerador)
+
+
 if __name__ == "__main__":
     unittest.main()

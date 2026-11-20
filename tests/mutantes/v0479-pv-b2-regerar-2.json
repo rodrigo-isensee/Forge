@@ -1,0 +1,46 @@
+{
+  "pedido": "v0479-pv-b2-regerar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G9",
+      "guarda": "o derivado da lista fechada não conta como escrita de fora",
+      "arquivo": "bin/forge-testes",
+      "de": "if Path(c) not in DERIVADOS)",
+      "para": "if True)",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_bin_tocado_regera_so_o_indice"
+      ]
+    },
+    {
+      "id": "G10",
+      "guarda": "escrita fora da lista fechada sai 2",
+      "arquivo": "bin/forge-testes",
+      "de": "if fora:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_escrita_fora_da_lista_fechada_sai_2"
+      ]
+    },
+    {
+      "id": "G11",
+      "guarda": "gerador vermelho sai 1",
+      "arquivo": "bin/forge-testes",
+      "de": "codigo = 1 if vermelhos else 0",
+      "para": "codigo = 0",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_gerador_vermelho_sai_1"
+      ]
+    },
+    {
+      "id": "G12",
+      "guarda": "--regerar só combina com --base",
+      "arquivo": "bin/forge-testes",
+      "de": "if args.regerar and (args.registros",
+      "para": "if False and (args.registros",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_regerar_so_combina_com_base"
+      ]
+    }
+  ]
+}

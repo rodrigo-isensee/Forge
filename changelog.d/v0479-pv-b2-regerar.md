@@ -1,0 +1,2 @@
+### Adicionado
+- `bin/forge-testes --regerar`: regerador dos derivados (PR-VERDE B2): chama os geradores que já existem só para o derivado cuja fonte o diff tocou, numa lista fechada (o índice do Forge e o peso de módulo de teste novo, por `scripts/suite-paralela.py --medir`), sem seguir link e sem escrever arquivo de controle (sai 2 se algo fora da lista mudou), e mostra o diff para o autor commitar (v0478 E57.38).
