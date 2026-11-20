@@ -31,6 +31,16 @@
       "testes": [
         "tests.test_conf_escopo.PatchRevisadoDoDono.test_git_que_falha_ou_politica_ilegivel_recusa"
       ]
+    },
+    {
+      "id": "M28",
+      "guarda": "PP1-APLICADO-PELO-DONO: arquivo sem frontmatter que cita o sha256 não vale nem quebra (A3)",
+      "arquivo": "bin/forge-check",
+      "de": "achado.removeprefix(f\"{head}:\")) or {}",
+      "para": "achado.removeprefix(f\"{head}:\"))",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_patch_sem_parecer_de_seguranca_aprovado_que_o_cite_recusa"
+      ]
     }
   ]
 }

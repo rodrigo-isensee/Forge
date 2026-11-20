@@ -367,9 +367,11 @@ class PatchRevisadoDoDono(ProjetoSelado):
         self.entregar()
         self.original = self.pedido()
 
-    def aprovar(self, parecer="aprovado", tipo="revisao-seguranca", sha256=None):
-        """O parecer em docs/security/x.md que cita o sha256 do PATCH (ou `sha256`), sem commit."""
+    def aprovar(self, parecer="aprovado", tipo="revisao-seguranca", sha256=None, cru=False):
+        """O parecer em docs/security/x.md que cita o sha256 do PATCH (ou `sha256`), sem commit; `cru`: só o sha256, sem frontmatter."""
         sha256 = sha256 or hashlib.sha256((self.proj / PATCH).read_bytes()).hexdigest()
+        if cru:
+            return self.gravar("docs/security/x.md", f"sha256 {sha256}\n")
         self.gravar("docs/security/x.md", PARECER.format(t=tipo, c=self.base, p=parecer, extra="revisor: forge:security-engineer\n",
                                                          achados=f"\nPatch lido: `{PATCH}` sha256 {sha256}\n"))
 
@@ -535,7 +537,7 @@ class PatchRevisadoDoDono(ProjetoSelado):
     def test_patch_sem_parecer_de_seguranca_aprovado_que_o_cite_recusa(self):
         """A3: o sha256 do .patch aplicado tem de estar num parecer de segurança aprovado no head."""
         motivo = "nenhum parecer de segurança aprovado no head cita o sha256 do .patch"
-        for caso, kw in (("reprovado", dict(parecer="reprovado")), ("parecer de review", dict(tipo="review")),
+        for caso, kw in (("reprovado", dict(parecer="reprovado")), ("parecer de review", dict(tipo="review")), ("sem frontmatter", dict(cru=True)),
                          ("outro sha256", dict(sha256="0" * 64)), ("sha256 como parte de palavra", dict(sha256="a" + hashlib.sha256(
                              (self.proj / PATCH).read_bytes()).hexdigest()))):
             with self.subTest(caso):
