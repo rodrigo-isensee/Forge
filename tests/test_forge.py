@@ -7279,8 +7279,8 @@ class PesosDaSuite(unittest.TestCase):
         lido = subprocess.run(["git", "-C", str(RAIZ), "show", f"{base}:tests/pesos-d4.json"],
                               capture_output=True, text=True, env=ambiente_limpo())
         pesos_base = json.loads(lido.stdout) if lido.returncode == 0 else {}
-        testes = RAIZ / "tests"  # o glob dos módulos é o que o `bin/forge-testes` reconhece como quem varre tests/
-        arquivos = [*testes.rglob("test*.py"), *testes.rglob("__init__.py")]
+        # `(RAIZ / "tests").rglob` em linha: variável local não conta como quem varre tests/ (test_testes_tocados C.2)
+        arquivos = [*(RAIZ / "tests").rglob("test*.py"), *(RAIZ / "tests").rglob("__init__.py")]
         head = modulos_de_teste(p.relative_to(RAIZ).as_posix() for p in arquivos)
         minimo(head, 100, "módulos de teste")
         pesos = json.loads((RAIZ / "tests" / "pesos-d4.json").read_text(encoding="utf-8"))
