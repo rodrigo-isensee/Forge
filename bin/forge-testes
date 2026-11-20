@@ -114,6 +114,7 @@ REGISTROS = (
 CHANGELOG = ("bin/forge-changelog", "conferir", "--base")
 PESOS = Path("tests/pesos-d4.json")
 PROCESSOS_DOS_REGISTROS = 4
+RAMO_BUSCAVEL = re.compile(r"[A-Za-z0-9._/-]+")  # o ramo de `--base` que vai ao `git fetch` (nunca opção nem refspec)
 # O que o `--vermelho` mantém no HEAD nas duas cópias: módulos de teste e dados de teste. Falha fechada: todo o
 # resto (inclusive `tests/catraca.py`, `tests/neutralidade.py` e os apoios de `tests/`) é produção e volta à base.
 # `tests/config.json` fica no HEAD porque guarda os invariantes que provam o texto (a saída lista os mantidos).
@@ -907,7 +908,8 @@ def texto():
     return codigo
 
 
-# --- `--registros` (PR-VERDE B1): só leitura; nada grava na árvore (sem bytecode, sem log, sem `GIT_*` herdado) -----
+# --- `--registros` (PR-VERDE B1): só leitura; nada grava na árvore (sem bytecode, sem log); sem `GIT_*` herdado nos
+# testes dos grupos e no changelog; a busca e o `git()` usam o ambiente da sessão ------------------------------------
 def buscar_base(base):
     """Atualiza a `origin/<ramo>` de `base` antes de comparar: a base local velha esconde o que o CI vê. Devolve o aviso
     quando a busca falha (sem rede: o CI confere), ou None. Com o ambiente da sessão, como o `git()` que compara: o
@@ -915,8 +917,11 @@ def buscar_base(base):
     remoto, _, ramo = base.partition("/")
     if remoto != "origin" or not ramo:
         return None
+    if not RAMO_BUSCAVEL.fullmatch(ramo) or ramo.startswith("-") or ".." in ramo:
+        return f"ramo inválido em {base} (só [A-Za-z0-9._/-], sem - no início nem ..); não busquei"
     try:
-        r = subprocess.run(["git", "fetch", "-q", "origin", ramo], capture_output=True, text=True, timeout=60)
+        r = subprocess.run(["git", "fetch", "-q", "--end-of-options", "origin", ramo], capture_output=True, text=True,
+                           timeout=60)
     except subprocess.TimeoutExpired:
         return f"não busquei {base} em 60 s; conferi contra a base local (o CI confere)"
     if r.returncode:

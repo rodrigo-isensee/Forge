@@ -1954,6 +1954,23 @@ class Registros(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertNotIn("aviso", r.stderr)
 
+    def test_ramo_que_seria_opcao_ou_refspec_e_recusado_sem_buscar(self):
+        """Segurança A1 (E57.19): o ramo de `--base` vai ao `git fetch`; opção (`--upload-pack` executa comando) e refspec
+        (`+x:refs/heads/y` grava ramo local) são recusados antes da busca, com o aviso, e a base que não resolve sai 2."""
+        remoto = Path(self._t.name) / "remoto.git"
+        subprocess.run(["git", "clone", "-q", "--bare", str(self.dir), str(remoto)], env=self.env, check=True, capture_output=True)
+        self.git("remote", "add", "origin", str(remoto))
+        self.changelog("sys.exit(0)")
+        prova = Path(self._t.name) / "PWNED"
+        for ramo in (f"--upload-pack=touch {prova};git-upload-pack", "+develop:refs/heads/sobrescrita", "-x", "a..b"):
+            with self.subTest(ramo=ramo):
+                r = self.rodar(base=f"origin/{ramo}")
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn(f"forge-testes: aviso: ramo inválido em origin/{ramo} (", r.stderr)
+                self.assertFalse(prova.exists())
+                self.assertEqual(self.git("branch", "--list", "sobrescrita"), "")
+                self.assertEqual(self.git("for-each-ref", "refs/remotes"), "")  # nada foi buscado
+
     def test_registros_so_combina_com_base(self):
         for extra in (["--texto"], ["--listar"], ["--afetados"], ["--completa"], ["-k", "x"], ["--vermelho"],
                       ["--modulos", "test_x"], ["--prazo", "5"], ["bin/x"]):
