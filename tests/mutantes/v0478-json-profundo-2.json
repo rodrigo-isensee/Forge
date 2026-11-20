@@ -9,7 +9,7 @@
       "de": "            elif c == \"\\\\\":\n                escapado = True",
       "para": "            elif False:\n                escapado = True",
       "testes": [
-        "tests.test_json_raso.TetoComum.test_as_duas_copias_respondem_igual"
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
       ]
     },
     {
@@ -19,7 +19,7 @@
       "de": "            elif c == '\"':\n                em_string = False",
       "para": "            elif False:\n                em_string = False",
       "testes": [
-        "tests.test_json_raso.TetoComum.test_as_duas_copias_respondem_igual"
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "de": "        elif c == '\"':\n            em_string = True",
       "para": "        elif False:\n            em_string = True",
       "testes": [
-        "tests.test_json_raso.TetoComum.test_as_duas_copias_respondem_igual"
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
       ]
     },
     {
@@ -39,7 +39,7 @@
       "de": "        elif c in \"[{\":\n            nivel += 1",
       "para": "        elif c in \"[\":\n            nivel += 1",
       "testes": [
-        "tests.test_json_raso.TetoComum.test_as_duas_copias_respondem_igual"
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
       ]
     },
     {
@@ -49,7 +49,7 @@
       "de": "            if nivel > teto:",
       "para": "            if nivel >= teto:",
       "testes": [
-        "tests.test_json_raso.TetoComum.test_as_duas_copias_respondem_igual"
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
       ]
     },
     {
@@ -59,7 +59,7 @@
       "de": "        elif c in \"]}\":\n            nivel -= 1",
       "para": "        elif c in \"]\":\n            nivel -= 1",
       "testes": [
-        "tests.test_json_raso.TetoComum.test_as_duas_copias_respondem_igual"
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
       ]
     }
   ]

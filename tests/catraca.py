@@ -92,25 +92,41 @@ def existe(raiz, ref, caminho):
 
 # --- Teto de aninhamento dos JSON que a catraca lê (JSON-PROFUNDO-PY314) ----------------------------------------------
 # O `json` do 3.12 recusava o aninhamento fundo com RecursionError (contador fixo em C) e o 3.14 o aceita: a catraca não
-# conta mais com essa recusa. `fundo_demais` vem de hooks/_json_raso.py, a fonte única do teto, carregada do lado deste
-# script como o `bin/forge-mutante` e o `bin/forge-check` dos outros carregadores (no CI, a cópia da base).
+# conta mais com essa recusa. Cópia de hooks/_json_raso.py (a fonte do teto) e não carga dele: as funções do I7 não
+# importam nem executam nada (TestesNoCi); tests/test_json_raso.py prova as cópias iguais, caractere a caractere.
 # Ficam fora as chaves que a própria catraca serializou com `json.dumps` (fundo já conferido) e a resposta da API do GitHub.
-@functools.cache
-def modulo_do_teto():
-    caminho = Path(__file__).resolve().parent.parent / "hooks" / "_json_raso.py"
-    loader = SourceFileLoader("_json_raso", str(caminho))
-    modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader("_json_raso", loader))
-    loader.exec_module(modulo)
-    return modulo
+TETO_ANINHAMENTO = 64  # níveis de [ e { aceitos; os JSON do Forge usam até 8 (hooks/hooks.json)
+
+
+def fundo_demais(texto, teto=TETO_ANINHAMENTO):
+    """Aninhamento de [ e { acima do teto, fora das strings. Um passe só sobre os caracteres, sem recursão: custo linear."""
+    nivel = 0
+    em_string = escapado = False
+    for c in texto:
+        if em_string:
+            if escapado:
+                escapado = False
+            elif c == "\\":
+                escapado = True
+            elif c == '"':
+                em_string = False
+        elif c == '"':
+            em_string = True
+        elif c in "[{":
+            nivel += 1
+            if nivel > teto:
+                return True
+        elif c in "]}":
+            nivel -= 1
+    return False
 
 
 def json_raso(texto, **extras):
     """`json.loads` com teto de aninhamento: acima do teto, `ValueError`, como todo JSON ilegível (quem chama já o trata).
 
     Mensagem fixa, sem eco da entrada, igual em toda versão do python."""
-    teto = modulo_do_teto()
-    if teto.fundo_demais(texto):
-        raise ValueError(f"aninhado acima de {teto.TETO_ANINHAMENTO} níveis")
+    if fundo_demais(texto):
+        raise ValueError(f"aninhado acima de {TETO_ANINHAMENTO} níveis")
     return json.loads(texto, **extras)
 
 

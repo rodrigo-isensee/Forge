@@ -26,7 +26,7 @@
       "id": "M3",
       "guarda": "a catraca recusa o JSON aninhado acima do teto como ilegivel",
       "arquivo": "tests/catraca.py",
-      "de": "    if teto.fundo_demais(texto):\n        raise ValueError",
+      "de": "    if fundo_demais(texto):\n        raise ValueError",
       "para": "    if False:\n        raise ValueError",
       "testes": [
         "tests.test_catraca.Hooks.test_json_aninhado_acima_do_teto_e_ilegivel"
@@ -49,7 +49,7 @@
       "de": "        if em_string:\n            if escapado:",
       "para": "        if False:\n            if escapado:",
       "testes": [
-        "tests.test_json_raso.TetoComum.test_as_duas_copias_respondem_igual"
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
       ]
     },
     {
@@ -59,7 +59,7 @@
       "de": "            if escapado:\n                escapado = False",
       "para": "            if False:\n                escapado = False",
       "testes": [
-        "tests.test_json_raso.TetoComum.test_as_duas_copias_respondem_igual"
+        "tests.test_json_raso.TetoComum.test_as_copias_respondem_igual"
       ]
     }
   ]

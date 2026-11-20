@@ -5,8 +5,8 @@ Medido no 3.12.3: o `json` só recusa o aninhamento acima de um contador fixo em
 dos hooks, a catraca e o `forge-placar`) passa o texto por `fundo_demais` antes do `json.loads` e recusa por conta própria,
 com mensagem fixa, igual em toda versão do python.
 
-O `bin/forge-placar` tem a mesma função (script solto, sem acesso a hooks/); `tests/test_json_raso.py` prova que as duas
-cópias respondem igual, caractere a caractere, e qualquer uma que mude sozinha deixa a suíte vermelha.
+A catraca (que não carrega código de fora) e o `bin/forge-placar` (script solto) têm cópias; `tests/test_json_raso.py`
+prova que as três respondem igual, caractere a caractere, e qualquer uma que mude sozinha deixa a suíte vermelha.
 """
 
 import json
