@@ -96,3 +96,13 @@ Python 3.12.3, tmp a 2 níveis, 234 variáveis, subprocessos e execuções iguai
 - head 686a6e9e: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5893967, 'ambiente': 234}` · FAILED contra o teto de 5860121
 - o mesmo head com `hooks/agentes.py`, `hooks/conformidade.json` e sem `hooks/_json_raso.py` (como em 8dee4328): `interpretador 5862452` (2331 do `hooks/_comum.py` e do `forge-check` da primeira integração; 31515 do `hooks/agentes.py` da segunda)
 - medida nova: 5893967, ruído 0; com ela, `python3 -m unittest tests.test_hooks_volta_corpus` deu 33 testes OK, rc=0 (o teto é a medida exata: um passo a mais reprova)
+
+## Medida nova do v0479-entrega-parecer-mesclado (v0478 E50.25)
+
+O CI do PR #734 (run 44820187609, parte 2/5, Python 3.12) reprovou o teto: `interpretador 4960049` contra 4958965 (tmp a
+3 níveis, 133 variáveis), 1084 passos acima. Mesma máquina da medida anterior, Python 3.12.3, tmp a 2 níveis, 234
+variáveis, head 42d380a1:
+- `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5895051, 'ambiente': 234}` · FAILED contra o teto de 5893967 (os mesmos 1084 passos do CI)
+- medida nova: 5895051, ruído 0; subprocessos e execuções iguais
+- autorização (v0478 E50.27): o teto subiu +1084 passos (0,02%), autorizado pelo dono em 20/11 19:09 só para este item
+  (DECISÃO DO DONO no pedido v0478), não precedente; o índice `docs/hooks-fixtures.md` já confere
