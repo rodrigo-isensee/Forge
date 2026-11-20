@@ -86,6 +86,25 @@ class Contagem(ComRepo):
                          [(2, ["A-1", "B.2"], ["P1"]), (3, ["C_3", "a-1"], [])])
         self.assertEqual(r["avisos"], [])
 
+    def test_tag_no_merge_da_main_fora_da_linha_da_develop(self):
+        """O fluxo do Forge: a develop chega à main por merge `--no-ff` e a tag fica nesse merge, que a develop não alcança. A
+        marca é essa tag (não a menor, alcançável), e os PRs que a main recebeu ficam fora da contagem (review A1)."""
+        self.repo.pr(1, "feat: a\n\nCartão: VELHO-1")
+        self.repo.git("tag", "v0.47.10")
+        self.repo.pr(2, "feat: b\n\nCartão: VELHO-2")
+        self.repo.git("switch", "-q", "-c", "main", "develop~1")
+        self.repo.git("merge", "-q", "--no-ff", "-m", "Merge pull request #3 from dono/homolog", "develop")
+        self.repo.git("tag", "v0.47.11")
+        self.repo.git("switch", "-q", "develop")
+        self.repo.pr(4, "feat: c\n\nCartão: NOVO")
+        fora = subprocess.run(["git", "-C", str(self.repo.dir), "merge-base", "--is-ancestor", "v0.47.11", "develop"],
+                              env=self.repo.env, capture_output=True, timeout=30)
+        self.assertEqual(fora.returncode, 1)  # a tag fica fora da linha da develop
+        r = self.repo.contar()
+        self.assertEqual((r["marca"], r["versao"]), ("v0.47.11", "0.47.12"))
+        self.assertEqual([p["numero"] for p in r["prs"]], [4])
+        self.assertEqual(r["entregues"], ["NOVO"])
+
     def test_squash_conta_pela_mensagem(self):
         self.repo.git("tag", "v1.0.0")
         self.repo.commit("feat: junto (#7)\n\n* um\n\nCartão: S1\n\n* dois\n\nCartão: S2")

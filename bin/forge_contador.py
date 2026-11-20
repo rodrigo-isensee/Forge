@@ -1,6 +1,6 @@
 """Forge: a contagem do contador da versão (AE2 C1, v0478 E56.1; desenho v0479-ae2-contador, seção 4.1).
 
-Quais cartões foram entregues por PR mesclado na develop desde a marca, a maior tag `v<n>.<n>.<n>` alcançável da ref (D4: a
+Quais cartões foram entregues por PR mesclado na develop desde a marca, a maior tag `v<n>.<n>.<n>` do repositório (D4: a
 versão em curso é a marca com o patch + 1). Os PRs são, na linha de primeiro pai, os merges `Merge pull request #N from ...`
 (cartões lidos no intervalo `pai1..pai2`) e os squash `... (#N)` (cartões lidos na própria mensagem); os cartões, as linhas
 `Cartão: <ID>` (entrega) e `Cartão-parcial: <ID>` (cita, não entrega; D3). Uma função só para o contador, o `quadro
@@ -60,9 +60,11 @@ def _commits(raiz, intervalo, primeira_linha=False):
     return commits
 
 
-def marca(raiz, ref):
-    """(tag, versão em curso) da maior tag `v<n>.<n>.<n>` alcançável de `ref`; (None, SEM_MARCA) sem tag na forma."""
-    tags = [m for t in _git(raiz, "tag", "--list", f"--merged={ref}", "v*").split() if (m := TAG_DE_VERSAO.fullmatch(t))]
+def marca(raiz):
+    """(tag, versão em curso) da maior tag `v<n>.<n>.<n>` do repositório; (None, SEM_MARCA) sem tag na forma. Entre todas, não
+    só as alcançáveis da develop: no fluxo develop → homolog → main a tag fica no merge da main, fora da linha da develop, e o
+    intervalo `<tag>..<ref>` já tira da contagem o que a main recebeu."""
+    tags = [m for t in _git(raiz, "tag", "--list", "v*").split() if (m := TAG_DE_VERSAO.fullmatch(t))]
     if not tags:
         return None, SEM_MARCA
     m = max(tags, key=lambda t: tuple(map(int, t.groups())))
@@ -100,7 +102,7 @@ def contar(raiz, ref=REF_PADRAO):
         _git(raiz, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref}^{{commit}}")
     except ContagemIndisponivel as e:
         raise ContagemIndisponivel(f"ref ausente: {ref} ({e})") from e
-    tag, versao = marca(raiz, ref)
+    tag, versao = marca(raiz)
     avisos, prs, entregues = [], [], {}
     for sha, pais, mensagem in _commits(raiz, f"{tag}..{ref}" if tag else ref, primeira_linha=True):
         assunto = mensagem.split("\n", 1)[0]
