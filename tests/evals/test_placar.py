@@ -104,6 +104,19 @@ class Medir(Placar):
         atual = dados["atual"]
         self.assertEqual((atual["erros_jarvis_n"], atual["ci_vermelha_n"], atual["reversoes_n"], atual["taxa_escape"]), (1, 1, 1, 1.0))
 
+    def test_ci_aninhado_acima_do_teto_sai_com_2_sem_traceback(self):
+        """JSON-PROFUNDO-PY314: o `--ci` da medida (`ci_vermelha`) dava traceback de RecursionError no 3.12 e, no fechado que o
+        `json` aceita (5000 níveis no 3.12, qualquer fundo no 3.14), media em silêncio; acima do teto, sai com 2 e mensagem fixa."""
+        for nome, texto in (("aberto", "[" * 100000), ("fechado", "[" * 65 + "]" * 65), ("fundo", "[" * 5000 + "]" * 5000)):
+            with self.subTest(nome):
+                ci = self.gravar(f"ci-{nome}.json", texto)
+                rc, saida, erro = self.rodar("--ate", "2026-11-14", "--ci", str(ci))
+                self.assertEqual((rc, saida), (2, ""), erro)
+                self.assertEqual(erro, f"forge-placar: JSON de --ci {ci} aninhado acima de 64 níveis\n")
+        ci = self.gravar("ci-teto.json", "[" * 64 + "]" * 64)
+        rc, _, erro = self.rodar("--ate", "2026-11-14", "--ci", str(ci))
+        self.assertNotIn("aninhado", erro)
+
     def test_raiz_pedidos_fora_do_clone_vale_sobre_o_raiz(self):  # RAIZ-PEDIDOS-PERDE-DADOS: o dado do pedido fora do clone não some
         contrib = self.raiz / "contrib"
         (contrib / "docs" / "kanban").mkdir(parents=True)

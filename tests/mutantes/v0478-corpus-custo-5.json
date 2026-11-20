@@ -1,0 +1,16 @@
+{
+  "pedido": "v0478-corpus-custo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M29",
+      "guarda": "a leitura toma o tamanho do ambiente das linhas dele (mutante: nenhuma, e o acerto some)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "for linha in linhas if linha.startswith(\"ambiente \")",
+      "para": "for linha in linhas if False",
+      "testes": [
+        "tests.test_hooks_volta_corpus.ContadorDeTrabalhoDoCorpus.test_contador_anota_os_passos_do_interpretador_do_codigo_do_hook"
+      ]
+    }
+  ]
+}

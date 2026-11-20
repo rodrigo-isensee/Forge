@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-pv-b1-registros",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "R1",
+      "guarda": "a base `origin/<ramo>` é buscada antes de conferir",
+      "arquivo": "bin/forge-testes",
+      "de": "if remoto != \"origin\" or not ramo:",
+      "para": "if True:",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_busca_a_origin_antes_e_sem_rede_avisa_e_confere_a_local"
+      ]
+    },
+    {
+      "id": "R2",
+      "guarda": "a busca que falha vira aviso",
+      "arquivo": "bin/forge-testes",
+      "de": "    if r.returncode:\n        return f\"não busquei",
+      "para": "    if False:\n        return f\"não busquei",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_busca_a_origin_antes_e_sem_rede_avisa_e_confere_a_local"
+      ]
+    },
+    {
+      "id": "R3",
+      "guarda": "o aviso da busca sai no stderr",
+      "arquivo": "bin/forge-testes",
+      "de": "if aviso:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_busca_a_origin_antes_e_sem_rede_avisa_e_confere_a_local"
+      ]
+    },
+    {
+      "id": "R4",
+      "guarda": "pesos que não são objeto JSON: sem veredito",
+      "arquivo": "bin/forge-testes",
+      "de": "if not isinstance(pesos, dict):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_pesos_ilegiveis_ou_base_que_nao_resolve_saem_2"
+      ]
+    },
+    {
+      "id": "R5",
+      "guarda": "só o módulo novo sem peso reprova",
+      "arquivo": "bin/forge-testes",
+      "de": "if a and a.group(1) not in pesos)",
+      "para": "if a)",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_modulo_de_teste_novo_sem_peso_sai_1_e_com_peso_sai_0"
+      ]
+    },
+    {
+      "id": "R6",
+      "guarda": "git ilegível é sem veredito (saída 2), nunca verde nem 1",
+      "arquivo": "bin/forge-testes",
+      "de": "except (RuntimeError, OSError, ValueError) as erro:",
+      "para": "except (OSError, ValueError) as erro:",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_pesos_ilegiveis_ou_base_que_nao_resolve_saem_2"
+      ]
+    },
+    {
+      "id": "R7",
+      "guarda": "módulo novo sem peso reprova a conferência",
+      "arquivo": "bin/forge-testes",
+      "de": "codigo = 1 if falhas or sem_peso else 0",
+      "para": "codigo = 1 if falhas else 0",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_modulo_de_teste_novo_sem_peso_sai_1_e_com_peso_sai_0"
+      ]
+    },
+    {
+      "id": "R8",
+      "guarda": "o ambiente herdado (GIT_*, FORGE_*) não chega aos testes dos registros (AR-4)",
+      "arquivo": "bin/forge-testes",
+      "de": "    env = ambiente_da_copia()\n    comandos",
+      "para": "    env = dict(os.environ)\n    comandos",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_em_dia_sai_0_sem_gravar_nada_e_sem_o_ambiente_herdado"
+      ]
+    }
+  ]
+}

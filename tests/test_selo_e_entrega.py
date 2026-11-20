@@ -201,7 +201,7 @@ class Selar(Repositorio):
         self.assertIn(f"corrigido: Base-sha {'1' * 40} -> {self.base}", saida)
         texto = arq.read_text(encoding="utf-8")
         self.assertIn(f"Base-sha: {self.base}", texto)
-        self.assertIn(f"--base-sha {self.base} --etapa codigo", texto)
+        self.assertIn(f"--base-sha {self.base} --mutantes ${{TMPDIR:-/tmp}}/forge-mutantes.log --pronto ${{TMPDIR:-/tmp}}/forge-pronto.log --etapa codigo", texto)  # META85
         self.assertNotIn("1" * 40, texto)
 
     def test_referencia_desatualizada_e_corrigida_pela_decisao_nova(self):

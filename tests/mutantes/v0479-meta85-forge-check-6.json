@@ -1,0 +1,37 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M30",
+      "guarda": "cmd_pr: o veredito no campo parecer sai como `parecer:` (mutante: sai como `commit:`)",
+      "arquivo": "bin/forge-check",
+      "de": "        if campo == \"parecer\":\n            saida.append(f\"{caminho_impresso(rel)}: parecer: {motivo} ({rid})\")",
+      "para": "        if False:\n            saida.append(f\"{caminho_impresso(rel)}: parecer: {motivo} ({rid})\")",
+      "testes": [
+        "tests.test_revisor_wt.PrPrevio.test_reprovado_com_previo_e_rc_1"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "cmd_pr: o veredito no campo commit reprova (mutante: nunca reprova)",
+      "arquivo": "bin/forge-check",
+      "de": "        elif motivo:\n            livres = livres_do_pedido(pedido)",
+      "para": "        elif False:\n            livres = livres_do_pedido(pedido)",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_pr_commit_desatualizado"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "parecer delta: o revalida vem do veredito do forge-check pr (mutante: ignora o veredito)",
+      "arquivo": "bin/forge-check",
+      "de": "    campo, motivo = veredito_do_parecer(raiz, campos.get(\"pedido\", \"\"), campos, tipo, ate, base, dispensados) or (None, None)",
+      "para": "    campo, motivo = (None, None)",
+      "testes": [
+        "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_parecer_que_barrou_revalida",
+        "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_riscos_aceitos_sem_aceite_do_usuario_revalida_como_o_pr"
+      ]
+    }
+  ]
+}

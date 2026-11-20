@@ -446,6 +446,15 @@ class PrPrevio(ComParecer):
         self.assertIn("aviso: docs/reviews: review: sem parecer para o pedido `x`", erro)  # P5: a entrega pequena é T (só review)
         self.assertEqual(self.pr("--base", "origin/develop")[0], 1)
 
+    def test_ausente_sem_base_e_sem_develop_o_diff_literal_leva_o_previo(self):  # M7: `pr_da_cli` sem `--base` repassa o previo ao `cmd_pr`
+        git("branch", "-q", "-D", "develop", cwd=self.repo)  # sem develop, a base é None (o diff literal)
+        rc, saida, erro = self.pr("--previo")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn("aviso: docs/reviews: review: sem parecer para o pedido `x`", erro)
+        rc, saida, _ = self.pr()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("docs/reviews: review: sem parecer para o pedido `x`", saida)
+
     def test_parecer_so_de_outra_branch_tambem_e_ausente(self):
         self.commitar({"docs/reviews/x.md": PARECER.format(branch="melhoria/y", commit=self.c1, parecer="aprovado", data="2026-11-06")})
         self.gravar_pedido(conferidas=(self.head(),))
