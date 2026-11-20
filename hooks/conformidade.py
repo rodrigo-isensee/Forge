@@ -341,8 +341,14 @@ PROFUNDIDADE_EXCEDIDA = ("R-CONFORMIDADE", f"comando aninhado (bash -c, eval, $(
 # CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE (v0478 E51.1): na sessão do Forge com a pasta corrente fora de projeto (o
 # clone, `wt/*`), as travas valem para todo papel na `GuardaDaProva`: R-MAIN, R-VERIFY, o push direto para a integração
 # e a tag v* (`trava_da_sessao_do_forge`). O resto da linha segue livre (ADR 0009, seção 6).
+# E51.6: a marca vai no `barrar` (`trava=`), não no texto da recusa. `TRAVA`: vale sempre (o push direto para a integração,
+# a tag v*; R-MAIN e R-VERIFY valem pelo ID). `TRAVA_OPACA`: o alvo opaco com ação crítica (variável, reavaliação, teto,
+# heredoc fora da gramática), que pode esconder uma trava (`F=--force; git push $F`, `B=develop; git push origin $B`); vale
+# quando a linha cita o git, o gh ou a flag de uma trava (`LINHA_DA_TRAVA`); a que só cita um caminho crítico segue livre.
 TAG_E_VERSAO = "a tag v* é a versão que todos os projetos instalam"
 PUSH_DIRETO = "push direto para"
+TRAVA, TRAVA_OPACA = "trava", "trava-opaca"
+LINHA_DA_TRAVA = re.compile(r"\b(?:git|gh)\b|--no-verify|--force|hookspath", re.I)
 COLCHETE_DE_DIGITO = re.compile(r"\[[0-9-]+\]")  # o bash e o glob do Python o leem igual: sem caixa, negação nem classe
 CURINGA = re.compile(r"[*?\[]")  # o bash expande no alvo antes de gravar (A1 e A2 da segurança g1 da 0.45)
 MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
@@ -1426,8 +1432,9 @@ class Guarda:
     def pode(self, acao):
         return self.papel in self.pol["acoes"].get(acao, [])
 
-    def barrar(self, rid, o_que, corrigir, simples=None):
-        """Recusa (saída 2). No perfil iniciante, `simples` (SIMPLES) troca o texto técnico pela consequência."""
+    def barrar(self, rid, o_que, corrigir, simples=None, trava=None):
+        """Recusa (saída 2). No perfil iniciante, `simples` (SIMPLES) troca o texto técnico pela consequência. `trava`
+        (`TRAVA`, `TRAVA_OPACA`) só pesa na `GuardaDaProva` (`trava_da_sessao_do_forge`)."""
         if simples and self.h.iniciante():
             bloquear(rid, SIMPLES[simples])
         bloquear(rid, com_trecho(rid, o_que, corrigir, self.trecho))
@@ -2015,7 +2022,7 @@ class Guarda:
             if excesso:
                 self.sem_leitura = True
                 self.barrar("R-CONFORMIDADE", f"chamada com ação crítica e {excesso}: o hook não a decide dentro do "
-                                              "prazo", CONTORNO_DO_TETO)
+                                              "prazo", CONTORNO_DO_TETO, trava=TRAVA_OPACA)
 
     def conferir_linha(self, comando, pasta, nivel, so_substituicoes, corpo_de_heredoc=False):
         if nivel - self.releituras > PROFUNDIDADE:
@@ -2118,14 +2125,14 @@ class Guarda:
         if nivel == 0 and not self.leitura and self.reavaliacao and CRITICO.search(original):
             self.barrar("R-CONFORMIDADE", f"`{self.reavaliacao}` na chamada com ação crítica: "
                                           f"{motivo_da_reavaliacao(self.reavaliacao)}",
-                        contorno_da_reavaliacao(self.reavaliacao))
+                        contorno_da_reavaliacao(self.reavaliacao), trava=TRAVA_OPACA)
         # ADR 0011, item 2 (opções D e A), por último: sobre o texto do nível 0, com o `<<` que o bash pode formar nele
         # ou num nível de cima (`tem_heredoc_no_texto`)
         if nivel == 0 and not self.leitura and CRITICO.search(original):
             sinal = fora_da_gramatica_com_heredoc(original)
             if sinal is not None:
                 self.barrar("R-CONFORMIDADE", f"`{sinal}` na chamada com heredoc e ação crítica: o hook não modela",
-                            CONTORNO_DA_GRAMATICA)
+                            CONTORNO_DA_GRAMATICA, trava=TRAVA_OPACA)
 
     def conferir_partes(self, partes, pasta, nivel, so_substituicoes):
         """As checagens de cada comando simples de uma leitura da linha (`leituras`); devolve a pasta depois dela e as
@@ -2156,7 +2163,8 @@ class Guarda:
     def nao_modelada(self, achado):
         """ADR 0011, item 2: recusa a linha crítica com construção que o analisador não modela (`construcao_nao_modelada`)."""
         if achado is not None:
-            self.barrar("R-CONFORMIDADE", f"`{achado}` com ação crítica: o hook não modela", forma_aceita(achado))
+            self.barrar("R-CONFORMIDADE", f"`{achado}` com ação crítica: o hook não modela", forma_aceita(achado),
+                        trava=TRAVA_OPACA)
 
     def gramatica_de_leitura(self, linha):
         """ADR 0011, item 1: antes de qualquer outra checagem, a linha do papel só de leitura precisa caber na gramática
@@ -2915,7 +2923,7 @@ class Guarda:
         so_opcoes_de_leitura = curtas <= TAG_SO_LEITURA_CURTAS and longas <= TAG_SO_LEITURA_LONGAS
         if args and not (leitura and so_opcoes_de_leitura):
             self.barrar("R-FLUXO", f"git tag no repositório do Forge: {TAG_E_VERSAO}",
-                        "só o release.yml cria a tag, sobre a main; para ler, use git tag -l")
+                        "só o release.yml cria a tag, sobre a main; para ler, use git tag -l", trava=TRAVA)
 
     def git_tags_no_envio(self, args, globais, pasta, sub="push"):
         """No Forge, nenhum envio leva tag: `--tags`, `--follow-tags`, `tag <nome>`, refspec com `refs/tags/` ou `v<número>`
@@ -2930,7 +2938,7 @@ class Guarda:
                      or any(TAG_NA_CONFIG.search(g) for g in globais))
         if envia_tag:
             self.barrar("R-FLUXO", f"git {sub} de tag para o Forge: {TAG_E_VERSAO}",
-                        "envie só a branch; a tag nasce do release.yml, sobre a main")
+                        "envie só a branch; a tag nasce do release.yml, sobre a main", trava=TRAVA)
 
     def git_push(self, args, pasta, ramos, sub="push", troca=()):
         refs, repo = [], None
@@ -2970,7 +2978,7 @@ class Guarda:
                 self.barrar("R-MAIN", f"{PUSH_DIRETO} {d}", "abra um PR; a main é do usuário", "main")
             if d in INTEGRACAO:
                 self.barrar("R-CONFORMIDADE", f"{PUSH_DIRETO} {d}", "abra um PR a partir de uma branch de trabalho",
-                            "main")
+                            "main", trava=TRAVA)
         # o remoto nomeado (a URL dele, resolvida no repositório da pasta), a URL dada ou, sem remoto, a pasta
         if self.alvo_do_forge(pasta, remoto=remoto) or (remoto and self.alvo_do_forge(pasta, remoto)) or (
                 remoto and self.caminho_do_forge(pasta, remoto)):
@@ -3752,14 +3760,14 @@ class GuardaDaProva(Guarda):
             return None
         return achado
 
-    def barrar(self, rid, o_que, corrigir, simples=None):
+    def barrar(self, rid, o_que, corrigir, simples=None, trava=None):
         if (rid, o_que, corrigir) == PROVA_DA_SUITE:
             super().barrar(rid, o_que, corrigir)
         if (rid, o_que, corrigir) == PROFUNDIDADE_EXCEDIDA:
             super().barrar(rid, o_que, corrigir)
         if self.recusa_do_estado(o_que):
             super().barrar(rid, o_que, corrigir)
-        if self.travas and trava_da_sessao_do_forge(rid, o_que):
+        if self.travas and trava_da_sessao_do_forge(rid, trava, self.h.campo("tool_input").get("command")):
             super().barrar(rid, o_que, corrigir, simples)
         if self.sem_leitura:
             raise ForaDaProva(rid)
@@ -3778,10 +3786,13 @@ class GuardaDaProva(Guarda):
         """Fora de projeto não há confirmação a pedir."""
 
 
-def trava_da_sessao_do_forge(rid, o_que):
-    """A recusa é uma trava que vale na sessão do Forge para todo papel: R-MAIN, R-VERIFY, o push direto para a main,
-    develop ou homolog e a tag v* (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE)."""
-    return rid in ("R-MAIN", "R-VERIFY") or o_que.startswith(PUSH_DIRETO) or TAG_E_VERSAO in o_que
+def trava_da_sessao_do_forge(rid, trava, linha):
+    """A recusa é uma trava que vale na sessão do Forge para todo papel: R-MAIN, R-VERIFY, a marcada `TRAVA` (o push
+    direto para a develop ou homolog, a tag v*) e a `TRAVA_OPACA` numa linha que cita o git, o gh ou a flag de uma trava
+    (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE, E51.6)."""
+    if trava == TRAVA_OPACA:
+        return isinstance(linha, str) and bool(LINHA_DA_TRAVA.search(linha))
+    return rid in ("R-MAIN", "R-VERIFY") or trava == TRAVA
 
 
 def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, travas=False):

@@ -6,7 +6,7 @@
       "id": "M1",
       "guarda": "E51.1: na GuardaDaProva com travas, a recusa que é trava vale",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if self.travas and trava_da_sessao_do_forge(rid, o_que):",
+      "de": "        if self.travas and trava_da_sessao_do_forge(rid, trava, self.h.campo(\"tool_input\").get(\"command\")):",
       "para": "        if False:",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
@@ -16,38 +16,38 @@
       "id": "M2",
       "guarda": "E51.1: R-MAIN e R-VERIFY são travas da sessão do Forge",
       "arquivo": "hooks/conformidade.py",
-      "de": "    return rid in (\"R-MAIN\", \"R-VERIFY\") or o_que.startswith(PUSH_DIRETO) or TAG_E_VERSAO in o_que",
-      "para": "    return o_que.startswith(PUSH_DIRETO) or TAG_E_VERSAO in o_que",
+      "de": "    return rid in (\"R-MAIN\", \"R-VERIFY\") or trava == TRAVA",
+      "para": "    return trava == TRAVA",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
       ]
     },
     {
       "id": "M3",
-      "guarda": "E51.1: o push direto para develop e homolog é trava da sessão do Forge",
+      "guarda": "E51.6: a recusa marcada TRAVA (push direto para a integração, tag v*) é trava da sessão do Forge",
       "arquivo": "hooks/conformidade.py",
-      "de": "    return rid in (\"R-MAIN\", \"R-VERIFY\") or o_que.startswith(PUSH_DIRETO) or TAG_E_VERSAO in o_que",
-      "para": "    return rid in (\"R-MAIN\", \"R-VERIFY\") or TAG_E_VERSAO in o_que",
+      "de": "    return rid in (\"R-MAIN\", \"R-VERIFY\") or trava == TRAVA",
+      "para": "    return rid in (\"R-MAIN\", \"R-VERIFY\")",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
       ]
     },
     {
       "id": "M4",
-      "guarda": "E51.1: a tag v* é trava da sessão do Forge",
+      "guarda": "E51.6: a recusa marcada TRAVA_OPACA (alvo opaco com ação crítica) é lida pela linha",
       "arquivo": "hooks/conformidade.py",
-      "de": "    return rid in (\"R-MAIN\", \"R-VERIFY\") or o_que.startswith(PUSH_DIRETO) or TAG_E_VERSAO in o_que",
-      "para": "    return rid in (\"R-MAIN\", \"R-VERIFY\") or o_que.startswith(PUSH_DIRETO)",
+      "de": "    if trava == TRAVA_OPACA:",
+      "para": "    if False:",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
       ]
     },
     {
       "id": "M5",
-      "guarda": "E51.1: só as travas valem; a outra recusa segue livre na sessão do Forge (ADR 0009, seção 6)",
+      "guarda": "E51.6: a TRAVA_OPACA só vale na linha com git, gh ou flag de trava; a outra segue livre",
       "arquivo": "hooks/conformidade.py",
-      "de": "    return rid in (\"R-MAIN\", \"R-VERIFY\") or o_que.startswith(PUSH_DIRETO) or TAG_E_VERSAO in o_que",
-      "para": "    return True",
+      "de": "        return isinstance(linha, str) and bool(LINHA_DA_TRAVA.search(linha))",
+      "para": "        return True",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
       ]
@@ -70,6 +70,16 @@
       "para": "    raiz = hook.projeto(hook.cwd())",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_vigia_registra"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "E51.1: só as travas valem; a outra recusa segue livre na sessão do Forge (ADR 0009, seção 6)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return rid in (\"R-MAIN\", \"R-VERIFY\") or trava == TRAVA",
+      "para": "    return True",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
       ]
     }
   ]
