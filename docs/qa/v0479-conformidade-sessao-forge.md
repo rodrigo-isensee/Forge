@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-sessao-forge
-commit: bc385524277c69f47a6cb0f7ed5d37cee5706626
+commit: b22efaae57691ca4bc95d62eda389f75b60e6869
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -58,5 +58,21 @@ Vermelho: `forge-testes --vermelho` do `test_hooks` inteiro não termina em praz
 
 Mutantes do delta: `bin/forge-mutante --base a554e34536490ff7af78000f76b67a1652f6e840` nas specs `-4`, `-5` e `-6`, linha `base=a554e345... mb=a554e345... rev=bc385524277c69f47a6cb0f7ed5d37cee5706626`: 17 de 17 `morreu` (M25 a M41), nenhum sobrevivente; M39 `:3851`, M40 `:3856`, M41 `:3810`, M37 `:3849`, M38 `:3847`, M32 `:3857`. Linhas de guarda mudadas no diff (FONTES, `nivel and SHELLS`, `nivel and eval`, `nivel and FONTES and aqui`, `le_o_here_string`): todas com mutante.
 
+## Revalidação E51.25 (head b22efaae, delta bc385524..b22efaae)
+Delta por `forge-check parecer delta`: `hooks/conformidade.py` (E51.22: `source` ou ponto como programa, também depois de `builtin`/`command -p`, dentro do texto reavaliado é trava sem here-string; `find .` não é), 4 fixtures `e51-wt-*` novas (3 bloqueiam: `builtin .`, `command -p .`, `source /dev/stdin` por pipe; 1 libera: `find .` depois de pipe), mutantes M42 a M45 (spec `-7`) e M39 reescrito (spec `-6`), `docs/hooks.md`, fragmento do changelog. Remoto sem avanço (`git fetch`: igual ao head local).
+
+| Critério (obrigação) | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| `source`/ponto como programa lendo o pipe, no texto reavaliado, recusa (A2 da segurança E51.20) | `HookSessaoDoForge.test_travas_do_conformidade` (`e51-wt-push-pipe-para-source-aninhado`, `-ponto-builtin-aninhado`, `-ponto-command-aninhado`: bloqueiam) | prefixo `builtin`, `command -p`, sem here-string | passou |
+| Ponto como argumento segue livre (ADR 0009, seção 6) | mesmo teste (`e51-wt-ponto-argumento-pipe-aninhado-libera`) | `find .` depois de pipe | passou |
+| Piso de fixtures | mesmo teste (`rodar("conformidade", 55, ...)`) | pasta vazia ou renomeada | passou, piso não subiu (A4) |
+
+Provas: `python3 -I -m unittest discover -s tests -p test_hooks.py -k HookSessaoDoForge`: `Ran 2 tests in 10.166s`, `OK`.
+
+Vermelho: por cópia em `$TMPDIR` com `hooks/conformidade.py` da base bc385524 e o resto do head, `-k test_travas_do_conformidade`: `FAILED (failures=3)`, nas fixtures `e51-wt-push-pipe-para-ponto-builtin-aninhado-bloqueia`, `-ponto-command-aninhado-bloqueia` e `-source-aninhado-bloqueia`; no head, `OK`. A fixture `-libera` passa nas duas (guarda de não regressão).
+
+Mutantes do delta: `bin/forge-mutante --base bc385524277c69f47a6cb0f7ed5d37cee5706626 tests/mutantes/v0479-conformidade-sessao-forge-6.json tests/mutantes/v0479-conformidade-sessao-forge-7.json`, linha `base=bc385524... mb=bc385524... rev=b22efaae5769`: M39 a M45, 7 de 7 `morreu` (3810, 3811, 3817, 3858, 3863), nenhum sobrevivente. `--cobertura --base bc385524`: 3817 (M45) e 3858 (M39, M42) cobertas, rc 0.
+
 ## Achados
 - A3 (recomendado) bin/forge-testes:1 · `--vermelho` do `test_hooks` leva 2200 s por cópia e não aceita `-k` nem classe; `test_vigia_registra` fica sem veredito por erro da base. Cartão: veredito por classe.
+- A4 (recomendado) tests/test_hooks.py:3638 · piso de `e51-*` segue 55 e a pasta tem 59 fixtures (4 novas do E51.22); pasta que perca até 4 fixtures ainda passa. Subir o piso para 59.
