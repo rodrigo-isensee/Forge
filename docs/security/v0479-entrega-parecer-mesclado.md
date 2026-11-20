@@ -18,7 +18,7 @@ Gatilhos: controle do Forge (hook `conformidade`), afrouxa-regra com condições
 - A6 (bloqueante) hooks/conformidade.py:3794 · na sessão do Forge, o dono de uma pasta de parecer passa livre na variável no alvo e alcança a pasta vizinha: `d=docs/security; echo x > $d/aceites/n.md` (seguranca) e `d=docs/reviews; echo x > $d/../qa/n.md` (tech-lead) liberam. Em projeto, as duas linhas são recusadas.
 
 ## Sondas
-- S13 · hook conformidade, CLAUDE_PROJECT_DIR = clone do Forge, cwd = ~/.forge-contrib/wt/x, agent_type forge-python:python-backend, Bash `d=docs/reviews; printf x > "$d/n.md"` · espera: rc 2 · obtido: rc 2
+- S13 · hook conformidade, CLAUDE_PROJECT_DIR = clone do Forge, cwd = ~/.forge-contrib/wt/x, agent_type de agente de stack (papel dev), Bash `d=docs/reviews; printf x > "$d/n.md"` · espera: rc 2 · obtido: rc 2
 - S15 · contexto da S13, agent_type forge:dev, Bash `f=docs/qa/n.md; echo x > $f` · espera: rc 2 · obtido: rc 2
 - S16 · contexto da S13, agent_type forge:jarvis, Bash `d=docs/security/aceites; printf x > "$d/n.md"` · espera: rc 2 · obtido: rc 2
 - S17 · contexto da S13, agent_type forge:security-engineer, Bash `d=docs/security; echo x > $d/aceites/n.md` · espera: rc 2 · obtido: rc 0 (em projeto: rc 2)
