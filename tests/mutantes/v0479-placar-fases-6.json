@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-placar-fases",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M34",
+      "guarda": "JSON aninhado fundo sai com 2, sem traceback",
+      "arquivo": "bin/forge-placar",
+      "de": "    if fundo_demais(texto):\n        raise SystemExit(f\"forge-placar: --prs {arq} não é JSON",
+      "para": "    if False:\n        raise SystemExit(f\"forge-placar: --prs {arq} não é JSON",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_arquivo_ausente_ou_invalido_sai_com_2"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "mergedAt de forma valida e dia inexistente sai com 2",
+      "arquivo": "bin/forge-placar",
+      "de": "        except ValueError:  # forma de data, dia inexistente",
+      "para": "        except KeyError:  # forma de data, dia inexistente",
+      "testes": [
+        "tests.evals.test_placar.SemTeste.test_arquivo_ausente_ou_invalido_sai_com_2"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "commit direto de um pai sem (#N) fica fora",
+      "arquivo": "bin/forge-placar",
+      "de": "not (len(pais) > 1 or (pais and pr)):",
+      "para": "not (len(pais) > 1 or (pais and True)):",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_squash_mede_pelos_commits_do_pr_e_conta_a_parte_sem_eles"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "squash de um pai nao vai pelo caminho do merge",
+      "arquivo": "bin/forge-placar",
+      "de": "        if len(pais) > 1:\n            commits, nome",
+      "para": "        if len(pais) > 0:\n            commits, nome",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_squash_mede_pelos_commits_do_pr_e_conta_a_parte_sem_eles"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "squash sem refs/pull/N/head nao chama o git log",
+      "arquivo": "bin/forge-placar",
+      "de": "if tem.returncode == 0 else []",
+      "para": "if True else []",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_squash_mede_pelos_commits_do_pr_e_conta_a_parte_sem_eles"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "squash sem commits conta em sem_fases",
+      "arquivo": "bin/forge-placar",
+      "de": "sem_fases += not commits",
+      "para": "sem_fases += 0",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_squash_mede_pelos_commits_do_pr_e_conta_a_parte_sem_eles"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "a linha itens sem fases so com squash sem fases",
+      "arquivo": "bin/forge-placar",
+      "de": "    if sem_fases:\n        print(",
+      "para": "    if True:\n        print(",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_dia_sem_squash_nao_traz_a_linha"
+      ]
+    },
+    {
+      "id": "M41",
+      "guarda": "dia so com squash sem fases diz nenhum item medido",
+      "arquivo": "bin/forge-placar",
+      "de": "(\"medido\" if sem_fases else \"mesclado\")",
+      "para": "(\"medido\" if False else \"mesclado\")",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_dia_so_com_squash_sem_ref_nao_diz_nenhum_mesclado"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "pedido": "v0478-promocao-pr",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E31: a marca que foi ponta da develop (item mesclado depois dela) é promoção",
+      "arquivo": "bin/forge-check",
+      "de": "return bool(head) and any(ponta_da_integracao(raiz, head, b) for b in anteriores)",
+      "para": "return bool(head) and any(head == ref_da_base(raiz, b) for b in anteriores)",
+      "testes": [
+        "tests.test_promocao_por_marca.PromocaoPorMarca.test_marca_com_item_depois_promove_sem_conferencia_e_sem_teto"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E31.6 (segurança A1): só a ponta remota usa a cadeia de primeiros pais",
+      "arquivo": "bin/forge-check",
+      "de": "    if remota:\n        return foi_ponta_da_integracao(raiz, head, remota)",
+      "para": "    if False:\n        return foi_ponta_da_integracao(raiz, head, remota)",
+      "testes": [
+        "tests.test_promocao_por_marca.PromocaoPorMarca.test_marca_com_item_depois_promove_sem_conferencia_e_sem_teto"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E31.6 (segurança A1): sem a remota, igualdade estrita com a ponta local (o ff não vira promoção)",
+      "arquivo": "bin/forge-check",
+      "de": "return head == sha_do_commit(raiz, f\"refs/heads/{base}\")",
+      "para": "return foi_ponta_da_integracao(raiz, head, sha_do_commit(raiz, f\"refs/heads/{base}\"))",
+      "testes": [
+        "tests.test_promocao_por_marca.PromocaoPorMarca.test_avanco_rapido_na_develop_local_sem_remoto_nao_vira_promocao"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E31: sem a ponta da integração, não é promoção",
+      "arquivo": "bin/forge-check",
+      "de": "    if not ponta:\n        return False\n    cod, saida = git(raiz, \"rev-list\", \"--first-parent\", ponta)",
+      "para": "    if False:\n        return False\n    cod, saida = git(raiz, \"rev-list\", \"--first-parent\", ponta)",
+      "testes": [
+        "tests.test_promocao_por_marca.PromocaoPorMarca.test_sem_ponta_ou_com_o_git_falhando_nao_e_promocao"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E31: o git que falha no rev-list não vira promoção (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "return not cod and head in saida.split()",
+      "para": "return head in saida.split()",
+      "testes": [
+        "tests.test_promocao_por_marca.PromocaoPorMarca.test_sem_ponta_ou_com_o_git_falhando_nao_e_promocao"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E31: só a cadeia de primeiros pais conta; o head de branch mesclada (segundo pai) segue item",
+      "arquivo": "bin/forge-check",
+      "de": "git(raiz, \"rev-list\", \"--first-parent\", ponta)",
+      "para": "git(raiz, \"rev-list\", ponta)",
+      "testes": [
+        "tests.test_promocao_por_marca.PromocaoPorMarca.test_branch_mesclada_na_develop_nao_vira_promocao"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "E31.10 (segurança A2): a promoção avisa quando o repositório permite rebase-merge",
+      "arquivo": "bin/forge-check",
+      "de": "    if isinstance(dados, dict) and dados.get(\"allow_rebase_merge\") is True:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_promocao_por_marca.PromocaoPorMarca.test_promocao_avisa_quando_o_repositorio_permite_rebase_merge"
+      ]
+    }
+  ]
+}

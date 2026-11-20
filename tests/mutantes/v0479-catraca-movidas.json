@@ -1,0 +1,26 @@
+{
+  "pedido": "v0479-catraca-movidas",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E28.1: a catraca passa as saídas por fm.movidas antes de filtrar as faltas (a condição movida de arquivo não é apagada)",
+      "arquivo": "tests/catraca.py",
+      "de": "linhas = iter(fm.movidas(por_arquivo))",
+      "para": "linhas = iter([x for s, _ in por_arquivo for x in s])",
+      "testes": [
+        "tests.test_catraca.GuardasDosHooks.test_guarda_movida_de_arquivo_com_mutante_no_destino_passa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E28.1: cada arquivo recebe de volta as suas linhas, na ordem, depois das movidas",
+      "arquivo": "tests/catraca.py",
+      "de": "saida = [next(linhas) for _ in saida]",
+      "para": "saida = [next(linhas) for _ in saida[1:]]",
+      "testes": [
+        "tests.test_catraca.GuardasDosHooks.test_guarda_movida_sem_mutante_no_destino_barra"
+      ]
+    }
+  ]
+}

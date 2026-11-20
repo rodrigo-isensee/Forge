@@ -30,6 +30,7 @@ CODIGO = re.compile(r"(\d{1,2})([a-z])")
 OPCAO = re.compile(r"(?<!\w)(\d{1,2})([a-z])\)")
 PERGUNTA = re.compile(r"^PERGUNTA AO DONO \(([^)]*)\): (?:.*?→ )?\"(.*)\"\s*$", re.M)
 TETO_DO_TEXTO = 64 * 1024  # bytes da fala e do recado
+TETO_DO_ARQUIVO = 8_000_000  # bytes de cada pedido e do KANBAN.md no `cmd_abertas`; acima, ilegível (A2 da segurança, MP8)
 CABECALHO = re.compile(r"^([A-Za-z0-9-]+): (.*)$", re.M)
 ESPERA_MAXIMA = datetime.timedelta(hours=24)  # X1: a cota renova em horas; mais que isso é engano no --retoma-em
 
@@ -573,11 +574,20 @@ def pendencias_do_quadro(quadro):
     return abertas
 
 
+def _ler_com_teto(arq, erros="strict"):
+    """O texto de `arq` até TETO_DO_ARQUIVO bytes; acima, levanta OSError (o chamador o trata como ilegível)."""
+    with arq.open("rb") as f:
+        bruto = f.read(TETO_DO_ARQUIVO + 1)
+    if len(bruto) > TETO_DO_ARQUIVO:
+        raise OSError(f"{arq.name} passa de {TETO_DO_ARQUIVO} bytes")
+    return bruto.decode("utf-8", errors=erros)
+
+
 def cmd_abertas(raiz):
     """Diretriz 29: ([linhas], 0) com as perguntas abertas ao dono de `<raiz>/docs/pedidos/*.md` e do painel `Aguardando o dono`
     de `<raiz>/KANBAN.md`, da de maior peso (irreversível, dinheiro, escopo) para a menor e, no mesmo peso, da mais antiga; sem
     nenhuma, a linha única `SEM_PENDENCIA`. Só leitura; link simbólico não é lido (pasta `docs` ou `docs/pedidos` por link: rc 1);
-    arquivo ilegível vira aviso e fica fora da lista."""
+    arquivo ilegível ou acima de TETO_DO_ARQUIVO bytes vira aviso e fica fora da lista."""
     abertas, avisos = [], []
     pasta = Path(raiz) / "docs" / "pedidos"
     if pasta.is_symlink() or pasta.parent.is_symlink():  # A1 da segurança: como `_gravar_novo`, pasta por link não é lida
@@ -586,13 +596,13 @@ def cmd_abertas(raiz):
         if arq.is_symlink():
             continue
         try:
-            abertas += perguntas_do_pedido(arq.stem, arq.read_text(encoding="utf-8"))
+            abertas += perguntas_do_pedido(arq.stem, _ler_com_teto(arq))
         except (OSError, UnicodeDecodeError) as erro:
             avisos.append(f"abertas: aviso: {_limpo(arq.name)} ilegível ({type(erro).__name__}); fora da lista")
     quadro = Path(raiz) / "KANBAN.md"
     if quadro.is_file() and not quadro.is_symlink():
         try:
-            abertas += pendencias_do_quadro(quadro.read_text(encoding="utf-8", errors="replace"))
+            abertas += pendencias_do_quadro(_ler_com_teto(quadro, "replace"))
         except OSError as erro:
             avisos.append(f"abertas: aviso: KANBAN.md ilegível ({type(erro).__name__}); fora da lista")
     if not abertas:

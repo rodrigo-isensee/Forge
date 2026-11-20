@@ -4,20 +4,20 @@
   "mutantes": [
     {
       "id": "FH-M1",
-      "guarda": "1c só busca a homolog quando falta no clone",
+      "guarda": "1c busca a homolog do servidor antes do promover, sempre (FECHAR-HOMOLOG-FRESCA, v0478)",
       "arquivo": "bin/forge-fechar",
-      "de": "  if ! git rev-parse -q --verify \"refs/remotes/origin/homolog^{commit}\" >/dev/null 2>&1; then",
-      "para": "  if true; then",
+      "de": "  if ! git fetch -q origin \"+refs/heads/homolog:refs/remotes/origin/homolog\"; then",
+      "para": "  if false; then",
       "testes": [
-        "tests.test_fechar.Fechar.test_1c_com_origin_homolog_no_clone_nao_busca"
+        "tests.test_fechar.Fechar.test_1c_com_origin_homolog_velha_no_clone_busca_a_do_servidor_antes_do_promover"
       ]
     },
     {
       "id": "FH-M2",
       "guarda": "busca da homolog que falha avisa",
       "arquivo": "bin/forge-fechar",
-      "de": "origin/homolog\" || echo \"aviso: sem origin/homolog",
-      "para": "origin/homolog\" || true || echo \"aviso: sem origin/homolog",
+      "de": "      echo \"aviso: sem origin/homolog neste clone e a busca falhou (git fetch",
+      "para": "      true || echo \"aviso: sem origin/homolog neste clone e a busca falhou (git fetch",
       "testes": [
         "tests.test_fechar.Fechar.test_1c_busca_da_homolog_que_falha_avisa_e_o_promover_decide"
       ]

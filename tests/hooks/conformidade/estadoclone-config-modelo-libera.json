@@ -1,0 +1,26 @@
+{
+  "descricao": "CONFIG-TETO-SEM-GUARDA: no clone do Forge, o modelo templates/projeto/.forge/config.json segue livre.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    ".forge/config.json": "{\"teto_agentes\": 2}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/templates/projeto/.forge/config.json",
+      "content": "{}"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

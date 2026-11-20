@@ -1,0 +1,16 @@
+{
+    "pedido": "v0479-quarentena-s1",
+    "executor": "unittest",
+    "mutantes": [
+        {
+            "id": "M41",
+            "guarda": "E37.24: o motivo é o da classe ou, sem ela, o do método",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        motivo = getattr(type(teste), \"__unittest_skip_why__\", \"\") or getattr(metodo, \"__unittest_skip_why__\", \"\")",
+            "para": "        motivo = getattr(type(teste), \"__unittest_skip_why__\", \"\") and getattr(metodo, \"__unittest_skip_why__\", \"\")",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        }
+    ]
+}

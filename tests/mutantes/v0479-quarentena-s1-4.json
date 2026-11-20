@@ -1,0 +1,86 @@
+{
+    "pedido": "v0479-quarentena-s1",
+    "executor": "unittest",
+    "mutantes": [
+        {
+            "id": "M33",
+            "guarda": "E37.24: método sem código Python (builtin) não quebra",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    definicao = codigo and _definicoes(codigo.co_filename, lidos).get(codigo.co_firstlineno)",
+            "para": "    definicao = _definicoes(codigo.co_filename, lidos).get(codigo.co_firstlineno)",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        },
+        {
+            "id": "M34",
+            "guarda": "E37.24: método sem def com skipTest não tem corpo a ler",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    for chamada in _chamadas_vivas(definicao.body if definicao else []):",
+            "para": "    for chamada in _chamadas_vivas(definicao.body if True else []):",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
+            ]
+        },
+        {
+            "id": "M35",
+            "guarda": "E37.24: pasta que o unittest não carrega é recusada",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        if carregador.errors:",
+            "para": "        if False:",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_pasta_que_o_unittest_nao_carrega_e_recusada"
+            ]
+        },
+        {
+            "id": "M36",
+            "guarda": "E37.24: o sys.path volta como estava",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        sys.path[:] = caminho",
+            "para": "        pass",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_a_contagem_devolve_o_caminho_e_os_modulos"
+            ]
+        },
+        {
+            "id": "M37",
+            "guarda": "E37.24: os módulos carregados pela contagem saem de sys.modules",
+            "arquivo": "tests/quarentenas.py",
+            "de": "        for nome in set(sys.modules) - modulos:\n            del sys.modules[nome]",
+            "para": "        pass",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_a_contagem_devolve_o_caminho_e_os_modulos"
+            ]
+        },
+        {
+            "id": "M38",
+            "guarda": "E37.24: prazo de hoje ainda vale",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    if datetime.date.fromisoformat(prazo.group()) < hoje:",
+            "para": "    if datetime.date.fromisoformat(prazo.group()) <= hoje:",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_quarentena_vencida_e_recusada_e_a_do_dia_passa"
+            ]
+        },
+        {
+            "id": "M39",
+            "guarda": "E37.24: quarentena vencida é recusada",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    if datetime.date.fromisoformat(prazo.group()) < hoje:",
+            "para": "    if False:",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_quarentena_vencida_e_recusada_e_a_do_dia_passa"
+            ]
+        },
+        {
+            "id": "M40",
+            "guarda": "E37.24: sem data dada, o prazo é comparado com hoje",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    hoje = hoje or datetime.date.today()",
+            "para": "    hoje = hoje or datetime.date.min",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_sem_data_dada_o_prazo_e_comparado_com_hoje"
+            ]
+        }
+    ]
+}
