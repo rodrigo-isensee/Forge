@@ -3,23 +3,21 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp3-s2-container
-commit: ed21f2bd663c730ab23446ac2554504ad2e91319
-parecer: reprovado
+commit: c0087a7a92a4a349b39c9063b321d42b94429653
+parecer: aprovado
 escopo: completo
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-20
 ---
 # QA: BP3 S2, modelo de projeto e container (E39.5)
 
-Base 004ce869; head testado ed21f2bd (revalidação do aprovado em 14c69010; escopo completo regravado). Obrigações: decisões do dono D2 (container que não para) e D3 (tarefa do VS Code só anexa) da BP3 e o item de ambiente (tmux instalado pelo preparo).
+Base 004ce869; head testado c0087a7a (revalidação; escopo completo regravado). Obrigações: decisões do dono D2 (container que não para) e D3 (tarefa do VS Code só anexa) da BP3 e o item de ambiente (tmux instalado pelo preparo).
 
 ## Achados
 - A1 (recomendado) tests/test_forge.py:2166 · O teste confere `apt-get install -y -qq tmux` por substring (`assertIn`): o mutante `tmuxx` no apt sobrevive. Comparar a linha inteira ou por token.
-
-- A2 (bloqueante) changelog.d/v0479-bp3-s2-container.md:4 · Tipo `### Segurança` inválido (só Adicionado, Alterado, Corrigido): o pre-push reprova (`tipo 'Segurança' inválido`) e o CI reprova igual; mover a entrada para `### Alterado`.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -32,6 +30,8 @@ Base 004ce869; head testado ed21f2bd (revalidação do aprovado em 14c69010; esc
 | E39.17: a proteção é por arquivo, não por pasta | test_vizinho_na_mesma_pasta_segue_gravavel | `.vscode/` vizinho segue gravável | passou |
 | D2 no container do Forge (`shutdownAction: none`) | test_devcontainer_prepara_sozinho_sem_rodar_o_work_tree (asserção nova) | n/a | passou |
 | Preparo instala tmux pelo apt; `--verificar` lista `falta: tmux`; apt que falha vira `falta:` rc 1 | test_modelo_de_projeto_instala_tmux_pelo_apt_e_verificar_lista_a_falta | tmux presente (idempotência, `tmux já instalado`), ausente, apt falho | passou |
+| E39.21 (A3 da segurança): `.vscode/settings.json` (PATH e shell da tarefa) fora do alcance de Write, Edit e Bash | test_write_edit_e_bash_no_arquivo_em_vigor_saem_2 (agora com três protegidos) | os 3 caminhos de escrita saem 2 nos 3 arquivos | passou |
+| E39.21: `.vscode/extensions.json` e `preparar-ambiente.sh` seguem graváveis | test_vizinho_na_mesma_pasta_segue_gravavel | vizinho na mesma pasta | passou |
 
 ## Cenários e resultado real
 - Vermelho antes do verde (`R-QA`): em cópia com os 3 arquivos do modelo revertidos à base e o teste mantido, os 3 testes novos caem (1 falha, 2 erros). `forge-testes --vermelho 004ce869...` rodou os 34 módulos, listou `revertidos à base: changelog.d/..., devcontainer.json, preparar-ambiente.sh, tasks.json` e `mantidos no HEAD: tests/test_forge.py`; a saída não trouxe o veredito por teste, então o vermelho acima é o manual.
@@ -49,3 +49,11 @@ Base 004ce869; head testado ed21f2bd (revalidação do aprovado em 14c69010; esc
 - A1 (recomendado, `tmuxx`) segue aberto, sem mudança no delta.
 - Remoto igual ao head local (`ls-remote` = ed21f2bd). Suíte inteira e shellcheck: só no CI do PR.
 - Defeito novo no delta: ver A2. Prova: `git push origin melhoria/v0479-bp3-s2-container` no head ed21f2bd: `changelog.d/v0479-bp3-s2-container.md: tipo 'Segurança' inválido (use Adicionado, Alterado, Corrigido)`, rc 1. Este parecer só sobe depois da correção do fragmento.
+
+## Revalidação no head c0087a7a (E39.16)
+Remoto trazido por merge sobre os commits locais de parecer. `forge-check parecer delta` listou o domínio: changelog.d, docs/engineering (md e patch, não executável), hooks/conformidade.json, spec de mutantes e test_conformidade_vscode_container.py; lido só isso.
+- A2 resolvido: o fragmento agora tem só `### Adicionado` e `### Alterado` (o hook e `settings.json` entram em Alterado).
+- Teste: `python3 -I -m unittest discover -s tests -p test_conformidade_vscode_container.py`: 2 testes, OK.
+- Vermelho: `forge-testes --vermelho ed21f2bd --modulos test_conformidade_vscode_container` rc 0: `base=ed21f2bd663c head=b99afae910a2`; `test_write_edit_e_bash_no_arquivo_em_vigor_saem_2 · H=ok · B=falha · prova (asserção)`; `test_vizinho_na_mesma_pasta_segue_gravavel · H=ok · B=ok · não prova (passa na base)` (guarda de regressão contra proteção larga).
+- Mutantes: `forge-mutante tests/mutantes/v0479-bp3-s2-container.json` rc 0: M1 a M5 morreram (M5 = entrada `.vscode/settings.json` em conformidade.json:34). Delta `--base ed21f2bd`: `base=ed21f2bd663c...`, mesmos 5 mortos. Cada linha de guarda mudada tem mutante.
+- A1 (recomendado, `tmuxx`) segue aberto, sem mudança no delta. Suíte inteira e shellcheck: só no CI do PR.
