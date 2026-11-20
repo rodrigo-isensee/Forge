@@ -46,4 +46,4 @@ Em projeto privado, cada push e cada `gh run rerun` custa um run de CI (num proj
 - O tech-lead marca uma versão sempre que a `develop` tem um conjunto verde que valha uma versão: até 2 por dia, ou mais se couber (diretrizes 21 e 27).
 - O PR `homolog` → `main` continua mesclado pelo dono (`R-MAIN`); o Jarvis avisa o dono numa linha quando ele fica verde.
 - O time usa o teto de agentes cheio, com os cartões em lotes por arquivo (diretriz 33).
-- No Forge, antes do `bin/forge-changelog release <versão> <data>`, o tech-lead roda `scripts/placar-mutacao.py --desde <tag anterior> --versao <versão>` e o bench (BENCH-POR-RELEASE), medidas, não portão, e `forge-check decisoes --sem-cartao`, e leva tudo ao Jarvis.
+- No Forge, antes do `bin/forge-changelog release <versão> <data>`, o tech-lead roda `scripts/placar-mutacao.py --desde <tag anterior> --versao <versão>` e o bench (BENCH-POR-RELEASE), medidas, não portão, e `forge-check decisoes --sem-cartao`, e leva tudo ao Jarvis; na mesma marca, regera `tests/pesos-d4.json` com `python3 -I scripts/pesos-do-ci.py --repo <dono/repo> --saida tests/pesos-d4.json` e o commita (PR-VERDE C1).
