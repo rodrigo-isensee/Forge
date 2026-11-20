@@ -393,6 +393,70 @@ class FimDoAgente(Base):
         super().evento("SubagentStop", agent_id=AID)
         self.assertEqual(self.presas(), ["melhoria/b"])
 
+    def sem_tool_use_id(self, quem):
+        """A reserva de antes da versão que grava o `tool_use_id`."""
+        estado = self.gravado()
+        for a in estado["agentes"]:
+            if a["descricao"] == f"agente {quem}":
+                a.pop("tool_use_id", None)
+        self.arquivo.write_text(json.dumps(estado), encoding="utf-8")
+
+    def donos(self):
+        return {a["descricao"] or "(sem reserva)": a["id"] for a in self.gravado()["agentes"]}
+
+    def test_tool_use_id_do_disparo_fora_da_forma_nao_entra_na_reserva(self):
+        for valor in ("toolu_../x", "sem-forma", 123, ""):
+            with self.subTest(valor=valor):
+                self.arquivo.unlink(missing_ok=True)
+                entrada = {"subagent_type": "forge:tech-lead", "description": "agente X", "prompt": "sem brief"}
+                agentes.atualizar_estado(self.hook(tool_name="Agent", tool_input=entrada, tool_use_id=valor), "PreToolUse", "Agent", [])
+                self.assertNotIn("tool_use_id", self.gravado()["agentes"][-1])
+
+    def test_agent_id_fora_da_forma_nao_le_o_meta(self):
+        for quem in "AB":
+            self.lancar(quem)
+        ruim = "zzzzzzzzzzzzzzzzz"
+        pasta = self.transcript.with_suffix("") / "subagents"
+        (pasta / f"agent-{ruim}.meta.json").write_text(json.dumps({"toolUseId": self.USOS["B"]}), encoding="utf-8")
+        super().evento("SubagentStart", agent_id=ruim, agent_type="forge:tech-lead", transcript_path=str(self.transcript))
+        self.assertEqual(self.donos(), {"agente A": ruim, "agente B": None})  # sem prova, a ordem de antes: a mais antiga
+
+    def test_tool_use_id_do_meta_fora_da_forma_deixa_o_casamento_pela_ordem(self):
+        for valor in ("sem-forma", 123, None):
+            with self.subTest(valor=valor):
+                self.arquivo.unlink(missing_ok=True)
+                self.lancar("A")
+                pasta = self.transcript.with_suffix("") / "subagents"
+                (pasta / f"agent-{self.IDS['A']}.meta.json").write_text(json.dumps({"toolUseId": valor}), encoding="utf-8")
+                self.evento("SubagentStart", "A")
+                self.assertEqual(self.donos(), {"agente A": self.IDS["A"]})
+
+    def test_reserva_antiga_sem_tool_use_id_casa_no_inicio(self):
+        self.lancar("A")
+        self.sem_tool_use_id("A")
+        self.meta("A")
+        self.evento("SubagentStart", "A")
+        self.assertEqual(self.donos(), {"agente A": self.IDS["A"]})
+        self.assertEqual(self.presas(), ["melhoria/A"])
+
+    def test_reserva_do_proprio_disparo_vem_antes_da_antiga_sem_tool_use_id(self):
+        self.lancar("B")  # a antiga, mais velha: grava o tool_use_id e depois o perde
+        self.sem_tool_use_id("B")
+        self.lancar("A")
+        for quem in "AB":
+            self.meta(quem)
+        self.evento("SubagentStart", "A")
+        self.evento("SubagentStart", "B")
+        self.evento("SubagentStop", "A")
+        self.assertEqual(self.presas(), ["melhoria/B"])  # o fim de A não solta a branch de B, ainda vivo
+        self.evento("SubagentStop", "B")
+        self.assertEqual(self.presas(), [])
+
+    def test_fim_sem_agent_id_nao_solta_reserva_nenhuma(self):
+        self.lancar("A")
+        super().evento("SubagentStop", transcript_path=str(self.transcript))
+        self.assertEqual(self.presas(), ["melhoria/A"])
+
 
 if __name__ == "__main__":
     unittest.main()
