@@ -43,6 +43,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `forge_medidas.py` | `forge-check medida` (D12, E3a e E3b) e `forge-check escape registrar\|resumo` (M14b) (FILA-31 F6, 0.45.7 E5.5): a medida de um |
 | `forge_meta.py` | arma o objetivo que o hook de Stop (hooks/meta.py) confere (S4, 0.44.2). Só biblioteca padrão. |
 | `forge_provas.py` | o arquivo de provas da branch, gerado do brief pela lista do script que o CI roda (M15 E5a1; FILA-31 F6, 0.45.5). |
+| `forge_retomada.py` | `forge-check retomada` (BP3 S4, v0479; E39.33): os agentes interrompidos pela queda da sessão (lista `interrompidos` do |
 | `forge_run.py` | execução capturada como prova (S5, 0.44.2). Só biblioteca padrão. |
 | `forge_sempre_atual.py` | FORGE-SEMPRE-ATUAL (v047, diretriz 30, ADR 0017): o núcleo que mantém o plugin do Forge na última versão publicada. |
 | `forge_tamanho.py` | os avisos de tamanho do `forge-check pr` e do `brief gerar` (H1-TETO-DE-TAMANHO-POR-ITEM e PEDIDO-TETO-BRIEF, v0474 E2.13). |

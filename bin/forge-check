@@ -37,6 +37,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs [ARQUIVO...] | kanban [-
      forge-check escape registrar --pedido ID --parecer-final P --achado-por COMO --gravidade G --controle-que-faltou C --nota TEXTO
      forge-check escape resumo [--dias N]
      forge-check corrigidos [--ref REF] [--dias N]
+     forge-check retomada [--contar]
      forge-check fila
      forge-check provas medida [--desde AAAA-MM-DD]
      forge-check metricas [--pedido ID]... [--desde D --ate D] [--por dia|semana] [--json] [--gh] [--log-prepush LOG]... [--transcritos PASTA]...   (0.43.1 H; bin/forge_governanca.py)
@@ -10197,6 +10198,9 @@ def main():
     do.add_argument("--fuso", type=lambda t: datetime.datetime.strptime(t, "%z").tzinfo,
                     help="fuso das horas de escapes.md e da janela, ±HHMM ou ±HH:MM (padrão: o da máquina)")
     do.add_argument("--json", action="store_true", help="saída em JSON")
+    rm = sub.add_parser("retomada", parents=[comum], help="agentes interrompidos pela queda da sessão e a ação da matriz para cada um (BP3 S4); "
+                        "só leitura, sem rede; rc 0, 4 registro ilegível")
+    rm.add_argument("--contar", action="store_true", help="só o número de interrompidos (sem git; para o atalho)")
     co = sub.add_parser("corrigidos", parents=[comum], help="PRs `fix` que corrigem PR já mesclado, lidos do histórico do git; só leitura (M14b)")
     co.add_argument("--ref", help="branch ou commit onde ler a linha de PRs (padrão: origin/develop, develop ou HEAD)")
     co.add_argument("--dias", type=int, default=DIAS_DO_CORRIGIDO, help=f"janela, em dias, do indício por arquivo em comum (padrão {DIAS_DO_CORRIGIDO})")
@@ -10459,6 +10463,10 @@ def executar(a, raiz):
         for linha in linhas:
             print(linha)
         return 1 if linhas[0].startswith("escape:") else 0
+    if a.cmd == "retomada":  # BP3 S4 (v0479, E39.33): a lógica fica em bin/forge_retomada.py
+        ctx = {"caminho_do_pedido": caminho_do_pedido, "PedidoFora": PedidoFora, "entregas_conferidas": entregas_conferidas,
+               "raizes_de_pedidos": raizes_de_pedidos, "sem_controle": sem_controle}
+        return modulo_do_bin("forge_retomada").executar(a, raiz, ctx)
     if a.cmd in ("afrouxamentos", "corrigidos"):  # FILA-31 F6 (0.45.7 E5.3): a lógica fica em bin/forge_corrigidos.py
         ctx = {"git": git, "sha_do_commit": sha_do_commit, "nome_seguro": nome_seguro, "sem_controle": sem_controle,
                "carregar_catraca": carregar_catraca}

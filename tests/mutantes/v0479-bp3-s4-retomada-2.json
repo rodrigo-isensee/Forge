@@ -1,0 +1,116 @@
+{
+  "pedido": "v0479-bp3-s4-retomada",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M12",
+      "guarda": "BP3-S4 (segurança): a sessão do item não vira curinga no glob do transcript",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "NOME.fullmatch(sessao)",
+      "para": "True",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_sessao_ou_id_com_curinga_nao_acha_transcript"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "BP3-S4 (segurança): o id do item não vira curinga no glob do transcript",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "NOME.fullmatch(aid)",
+      "para": "True",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_sessao_ou_id_com_curinga_nao_acha_transcript"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "BP3-S4: entrega já conferida é a primeira linha da matriz",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "    if entregue(raiz, item, texto, ctx):\n        return \"entregue\"",
+      "para": "    if False:\n        return \"entregue\"",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_entregue_vale_mais_que_transcript"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "BP3-S4: brief ausente manda reselar e relançar",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "    if atual is None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_brief_ausente"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "BP3-S4: selo vencido (hash diferente do gravado) manda reselar",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "    if atual != item[\"briefs\"][0][\"sha256\"]:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_brief_mudado_e_selo_vencido"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "BP3-S4: item sem brief de forma válida fica fora da lista e da contagem",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "for i in vivos if agentes.briefs_validos(i)]",
+      "para": "for i in vivos if True]",
+      "testes": [
+        "tests.test_forge_check_retomada.Contar.test_item_sem_brief_de_forma_valida_nao_conta"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "BP3-S4: --contar corta em 3 s no total",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "signal.alarm(PRAZO_S)",
+      "para": "signal.alarm(0)",
+      "testes": [
+        "tests.test_forge_check_retomada.Contar.test_o_prazo_do_contar_corta_em_3_s_dentro_do_modulo"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "BP3-S4: a linha sai sem caractere de controle (nada imita outra linha)",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "print(ctx[\"sem_controle\"](f\"retomada: {item.get(",
+      "para": "print((f\"retomada: {item.get(",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_tipo_e_branch_com_controle_nao_imitam_outra_linha"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "BP3-S4: registro ilegível sai com 4, nunca com 0",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "        return 4\n",
+      "para": "        return 0\n",
+      "testes": [
+        "tests.test_forge_check_retomada.RegistroIlegivel.test_json_invalido_e_rc_4_sem_stdout_nos_dois_modos"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "BP3-S4: a remoção fica com o dono (a linha final pergunta)",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "(f\"; {REMOCAO}\" if itens else \"\")",
+      "para": "\"\"",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_fecha_sempre_com_a_pergunta_da_remocao"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "BP3-S4: a ref de origin/ só entra depois da local (a local vence)",
+      "arquivo": "bin/forge_retomada.py",
+      "de": "if git(raiz, \"rev-parse\", \"--verify\", \"--quiet\", r)[0] == 0)",
+      "para": "if git(raiz, \"rev-parse\", \"--verify\", \"--quiet\", r)[0] != 0)",
+      "testes": [
+        "tests.test_forge_check_retomada.Matriz.test_entrega_conferida_na_branch_depois_do_desde_nada_a_relancar"
+      ]
+    }
+  ]
+}
