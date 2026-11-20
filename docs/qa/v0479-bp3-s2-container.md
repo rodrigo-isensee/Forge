@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp3-s2-container
-commit: c0087a7a92a4a349b39c9063b321d42b94429653
+commit: 1a7d0044c2c06149febad637179499ed729c2438
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -57,3 +57,10 @@ Remoto trazido por merge sobre os commits locais de parecer. `forge-check parece
 - Vermelho: `forge-testes --vermelho ed21f2bd --modulos test_conformidade_vscode_container` rc 0: `base=ed21f2bd663c head=b99afae910a2`; `test_write_edit_e_bash_no_arquivo_em_vigor_saem_2 · H=ok · B=falha · prova (asserção)`; `test_vizinho_na_mesma_pasta_segue_gravavel · H=ok · B=ok · não prova (passa na base)` (guarda de regressão contra proteção larga).
 - Mutantes: `forge-mutante tests/mutantes/v0479-bp3-s2-container.json` rc 0: M1 a M5 morreram (M5 = entrada `.vscode/settings.json` em conformidade.json:34). Delta `--base ed21f2bd`: `base=ed21f2bd663c...`, mesmos 5 mortos. Cada linha de guarda mudada tem mutante.
 - A1 (recomendado, `tmuxx`) segue aberto, sem mudança no delta. Suíte inteira e shellcheck: só no CI do PR.
+
+## Revalidação no head 1a7d0044 (E39.16)
+Remoto trazido por fast-forward (7188c58d..1a7d0044). `forge-check parecer delta` (intervalo c0087a7a..1a7d0044, sem o que veio da develop) listou no domínio só `bin/forge-testes`: duas linhas, `test_conformidade_vscode_container` somado às tuplas `FORGE_CHECK` e `REAPROVEITAM_O_LOTE` (mapas de teste, nenhuma guarda de decisão). Lido só esse delta.
+- `python3 -I -m unittest discover -s tests -p test_testes_tocados.py`: 164 testes, OK (skipped=1: `MedidaDaVagaPesada.test_conta_a_pesada_viva...`, sandbox com /proc de outro namespace de pid; o CI roda).
+- `python3 -I -m unittest discover -s tests -p test_conformidade_vscode_container.py`: 2 testes, OK (o módulo agora citado nos mapas).
+- Mutantes: o delta não muda linha de guarda (só nomes de módulo em tuplas); os 5 mutantes anteriores seguem válidos, sem alteração em conformidade.json nem devcontainer.json. Sem teste novo, sem vermelho novo.
+- A1 (recomendado, `tmuxx`) segue aberto. Suíte inteira e shellcheck: só no CI do PR.
