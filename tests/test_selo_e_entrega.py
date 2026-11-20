@@ -1668,6 +1668,15 @@ class ParecerDoMesmoPapelDoAutor(Conferencia):
         self.assertEqual(fc.autores_da_volta(self.proj, self.proj / "docs/pedidos/exemplo.md", self.pedido(), "melhoria/x", "exemplo"),
                          {"node-backend"})
 
+    def test_brief_de_outro_pedido_nao_e_autor_da_volta(self):
+        """Só os briefs de codigo deste pedido dizem quem é o autor; o tech-lead de outro pedido na mesma branch não entra."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.selar_copia("outro-tech-lead-1.md", {"Pedido: exemplo": "Pedido: outro",
+                                                  "Agente destino: forge:node-backend": "Agente destino: forge:tech-lead"}, selar=False)
+        self.assertEqual(fc.autores_da_volta(self.proj, self.proj / "docs/pedidos/exemplo.md", self.pedido(), "melhoria/x", "exemplo"),
+                         {"node-backend"})
+
 
 if __name__ == "__main__":
     unittest.main()
