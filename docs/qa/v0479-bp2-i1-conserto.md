@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp2-i1-conserto
-commit: b96357e9cdaa807422be47d586676cbbcf7e0612
+commit: 971c60537d114c95b5b5918b5202669aaf9b8b9b
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -45,3 +45,9 @@ rc=0
 
 ## Parecer
 Aprovado no head b96357e9: A1 e A2 resolvidos com teste que prova (vermelho) e mutante que morre; sem achado novo, sem bug aberto.
+
+## Revalidação no head 971c6053 (E38.7)
+Delta (`forge-check parecer delta`, `b96357e9..971c6053`, sem o que veio da develop): só `tests/mutantes/v047-integracao-em-lote-3.json`, `-7.json` e `-8.json`; o commit 971c6053 alinhou IL-M18, M19, M22, M51 e M57 ao texto atual de `bin/forge-fechar` (o `de`/`para` ganhou o prefixo da mensagem do `die`). Código de produção e testes do pedido não mudaram no domínio; o parecer de b96357e9 segue valendo.
+- `bin/forge-mutante tests/mutantes/v047-integracao-em-lote-3.json tests/mutantes/v047-integracao-em-lote-7.json tests/mutantes/v047-integracao-em-lote-8.json --ids IL-M18,IL-M19,IL-M22,IL-M51,IL-M57 --processos 2`, rev=971c60537d11: IL-M18 `morreu` (1027), IL-M19 `morreu` (1028), IL-M22 `morreu` (1040), IL-M51 `morreu` (1599), IL-M57 `morreu` (136); rc=0.
+- `python3 -I -m unittest discover -s tests -p test_forge_mutante.py -k ConferirTodas`: `Ran 4 tests in 10.487s OK` (a forma `-m unittest tests.test_forge_mutante...` com `-I` não importa `tests`, como o skill já avisa).
+- Parecer: aprovado no head 971c6053; sem achado, sem bug.
