@@ -3,37 +3,27 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae1-onde
-commit: bef021c1cf681e4ca46590b0bc01eafcc3194025
+commit: b11db7154c0b4eb2d91b50a15242e46ed7aa297b
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-20
 ---
 # Review de segurança: v0479-ae1-onde
 
-Etapa E58.7 do pedido v0478 (AE1.1, `forge-check onde`). Escopo lido: `5ccac0bf..bef021c1` (`bin/forge_onde.py`, `bin/forge-check` nos pontos de registro e despacho, `bin/forge-testes`, `tests/test_forge_onde.py`, mutantes, `changelog.d/`, `docs/indice-forge.md`, `tests/pesos-d4.json`).
+Etapa E58.16 do pedido v0478, revalidação depois da volta (E58.13). A rodada anterior (head `bef021c1`, A1 e A2 recomendados) fica no git.
 
-## Gatilhos
 Gatilhos: controle do Forge (ferramenta que produz prova de estado), entrada livre repassada a processo externo (git e gh).
 
 ## Resumo
-Subcomando só de leitura, sem `fetch`, sem escrita e sem segredo. As fronteiras estão cobertas:
-- Injeção de argumento: `tipo_do_alvo` (`bin/forge_onde.py:24`) só deixa passar formatos fechados; nada que comece com `-`, tenha `..`, `@{`, `~`, `^`, `:`, espaço ou quebra de linha chega ao git (`fullmatch` não aceita `\n` final; conferido por sonda local). `sha_de` usa `--verify --quiet --end-of-options`; o cartão vai ao `git log` com `--fixed-strings`; o número do PR é só dígitos. Teste: `tests/test_forge_onde.py:95` e o ponta a ponta em `:320`.
-- Forja de linha na saída: toda linha passa por `sem_controle` (`bin/forge_onde.py:137`); o texto do gh é cortado em 200 caracteres antes. Teste: `tests/test_forge_onde.py:217`.
-- Falha fechada: gh ausente, lento (teto do `gh_json`) ou com resposta ilegível sai `nao-verificavel` e rc 2, nunca `sim`. Testes: `tests/test_forge_onde.py:182`, `:190`, `:250`.
-- Custo (`R-CUSTO`): só git local e `gh` de leitura.
+Delta lido (`forge-check parecer delta`, `bef021c1..b11db715`): no domínio, só `bin/forge_onde.py`; fora dele, `tests/test_forge_onde.py`, `tests/mutantes/v0478-ae1-onde-7.json`, `changelog.d/v0479-ae1-onde.md` e os pareceres de review e QA. Os merges `db6da3a2` e `5d42f3e5` só trouxeram pareceres da própria branch.
 
-Suíte: a inteira não foi rodada aqui (brief: sem suíte local; não há PR nem CI na branch, o CI do PR é o portão). Rodei o teste novo: `python3 -m unittest tests.test_forge_onde`, 30 testes, OK.
+Estado dos achados anteriores:
+- A1 corrigido. `bin/forge_onde.py:136-137`: no tipo `commit`, o sha lido que não começa pelo alvo sai `nao-verificavel` e rc 2. O alvo só passa pelo `SHA` (`:17`, minúsculo), então a comparação com a saída do `rev-parse` (sempre minúscula) não recusa alvo legítimo. O `mergeCommit` do PR (`:68`) já exige 40 hex, que o git resolve pelo objeto. Teste: `tests/test_forge_onde.py:142`. Sonda ponta a ponta em repositório descartável em `$TMPDIR` (tag de 7 hex de A apontando para B): `forge-check onde <7hex>` devolveu `nao-verificavel (sha ambíguo com ref ...)` rc 2; com o sha de 40 hex leu A.
+- A2 corrigido. `bin/forge_onde.py:145-149`: `executar` captura `subprocess.TimeoutExpired` e devolve 2; o despacho (`bin/forge-check:10439`) chama esse `executar`, então o `return 1` genérico do forge-check não é alcançado pelo `onde`. Teste: `tests/test_forge_onde.py:151`.
 
-## Achados
-- A1 (recomendado) bin/forge_onde.py:132 · sha curto resolve para tag ou branch local de mesmo nome antes do objeto (git prefere a ref; `--quiet` cala o aviso): `onde abc1234` responde sobre outro commit. Conferir que o sha lido começa pelo alvo; se não, nao-verificavel e rc 2.
-- A2 (recomendado) bin/forge-check:10391 · git que estoura o GIT_TIMEOUT_S no `onde` sai rc 1, que o contrato do `onde` reserva a "alvo não existe" (docstring de bin/forge_onde.py:8); a leitura que falhou deve sair rc 2. Capturar TimeoutExpired no `executar` do onde e devolver 2.
+Nada novo no delta: sem escrita, sem rede além do que já havia, sem segredo, saída ainda passa por `seguro`.
 
-## Sondas
-
-## Detalhe dos achados
-**A1.** Evidência: `bin/forge_onde.py:132` passa o alvo hexadecimal cru a `sha_de` (`:35`). Sonda local em repositório descartável em `$TMPDIR`: commit A, commit B, tag com os 7 primeiros hex de A apontando para B; `git rev-parse --verify --quiet --end-of-options <7hex>^{commit}` devolveu o sha de B, rc 0. Com o sha de 40 hex o git usa o objeto (conferido). Caminho de ataque: quem pode criar tag no remoto (ou ref local) com nome hexadecimal faz o `onde <sha curto>` responder `sim`/`nao` sobre outro commit, e a prova colada afirma estado falso. Exige escrita no repositório; severidade baixa. Correção mínima: no tipo `commit`, se `sha` não começa por `valor`, devolver `nao-verificavel (sha ambíguo com ref)` e rc 2; o mesmo vale no `mergeCommit` do PR (`:68`), onde o oid já é de 40 hex e a conferência é barata. Esforço P. Dono: tech-lead.
-
-**A2.** Evidência: `bin/forge-check:10389-10391` trata `subprocess.TimeoutExpired` de qualquer subcomando com `return 1`; o `onde` chama o `git` com `GIT_TIMEOUT_S` de 5 s (`bin/forge-check:184`) em `rev-parse`, `merge-base`, `rev-list` e `log`. Caminho: clone grande ou disco lento, o `log --grep` estoura e quem lê o rc conclui "não existe" (falso negativo, não falso `sim`). Severidade baixa; o texto impresso diz "tempo esgotado", mas o rc contradiz o contrato. Correção mínima: em `bin/forge_onde.py`, `executar` captura `subprocess.TimeoutExpired`, imprime `onde: nao-verificavel (git sem resposta)` e devolve 2; um teste com `git` falso que levanta o timeout. Esforço P. Dono: tech-lead.
+Suíte: a inteira não foi rodada aqui (brief: sem suíte local; o CI do PR é o portão). Rodei o teste do subcomando: `python3 -m unittest tests.test_forge_onde`, 32 testes, OK.
 
 ## Riscos aceitos e ferramentas
-Riscos aceitos: nenhum. Ferramentas: leitura estática e sondas locais com git e o interpretador da stack em `$TMPDIR`. Ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, zizmor, actionlint, osv-scanner; nenhum segredo, workflow ou dependência nova no diff.
+Riscos aceitos: nenhum. Ferramentas: leitura estática e sondas locais com git e o interpretador da stack em `$TMPDIR`. Ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, zizmor, actionlint, osv-scanner; nenhum segredo, workflow ou dependência nova no delta.
