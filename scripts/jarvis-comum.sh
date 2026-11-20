@@ -1,7 +1,5 @@
-#!/usr/bin/env bash
 # shellcheck shell=bash disable=SC2154
-# Forge: trecho comum dos atalhos `jarvis` e `jarvis-forge` (BP3 S1): resolve o Claude Code mais novo e supervisiona a sessão.
-# Não roda sozinho: os atalhos o carregam com `source` (arquivo ao lado do script) e definem antes `prefixo` e `rotulo`.
+# Forge (BP3 S1): trecho comum de `jarvis` e `jarvis-forge`, carregado por `source` depois de definir `prefixo` e `rotulo`; não roda sozinho.
 # CLAUDE-ATUAL-INICIO (BP3 S1, D1 do dono): o atalho abre sempre o Claude Code mais novo entre o do instalador oficial
 # ($HOME/.local/bin/claude, que a atualização automática mantém) e o primeiro do PATH, nunca o do PATH só por ser o primeiro:
 # um binário velho num diretório do sistema (por exemplo /usr/local/bin) vem antes e abriria uma versão atrasada.
@@ -47,7 +45,6 @@ $real
   fi
   return 0
 }
-# CLAUDE-ATUAL-FIM
 # SUPERVISOR-INICIO (BP3 S1, D1 do dono): dentro do tmux o atalho não entrega o processo ao claude: roda-o e olha como saiu.
 # Reabre (`--continue`, sempre com o Claude Code atual, resolvido de novo) só em saída anormal: código 128 ou mais, fora 129
 # (terminal fechado), 130 (Ctrl+C) e 143 (kill de propósito: a parada de emergência tem de parar); 0 (/exit) e qualquer código abaixo de 128 (erro de uso) encerram como antes. Espera
@@ -95,4 +92,3 @@ supervisionar() {
     if [ "${1:-}" != --continue ]; then set -- --continue "$@"; fi
   done
 }
-# SUPERVISOR-FIM
