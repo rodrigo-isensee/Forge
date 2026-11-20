@@ -1429,5 +1429,119 @@ class JuncaoLimpa(Conferencia):
         self.assertFalse(fc.juncao_limpa(self.proj, feito, head, ponta, [ponta]))
 
 
+class ParecerMescladoNaVolta(Conferencia):
+    """E50.1 (ENTREGA-PARECER-MESCLADO-ANTES-DO-AUTOR): o caso real (melhoria/v0479-bp1-q1-leitor, df0251ca..eec2c1c1): o portão
+    revalida sem brief novo (SendMessage), commita ou mescla o parecer na branch depois da conferida e antes do commit da volta; o
+    parecer é anexo do portão. O autor que toca o parecer (no commit do código ou numa resolução de merge à mão) segue fora."""
+
+    ETAPA, PAPEL = ParecerDoPortao.ETAPA, ParecerDoPortao.PAPEL
+    selar_portao, commitar_parecer, assert_fora = ParecerDoPortao.selar_portao, ParecerDoPortao.commitar_parecer, ParecerDoPortao.assert_fora
+    OK_REVIEW = 'escopo: ok (anexo do portão: parecer de tech-lead commitado na volta só com parecer) "docs/reviews/x.md"'
+
+    def codigo(self, texto, *extra):
+        self.gravar("bin/app", texto)
+        self.git("add", "bin/app", *extra)
+        return self.commit("fix: volta")
+
+    def ate_a_conferida(self, conferida=True):
+        """A 1.a entrega, o reprovado do review ancorado no brief selado do portão e a correção do autor, conferida (o Desde)."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.entregar()
+        self.commitar_parecer("reviews", "review", parecer="reprovado")
+        revisado = self.codigo("x\ny\nz\n")
+        if conferida:
+            pedido = self.proj / "docs/pedidos/exemplo.md"
+            pedido.write_text(self.pedido() + f"- 2026-01-01 12:00: entrega conferida {revisado}\n", encoding="utf-8")
+        return revisado
+
+    def mesclar_parecer(self, revisado, pasta="reviews", tipo="review", **kw):
+        """O portão grava o parecer numa branch ao lado e o mescla na branch (o `Merge remote-tracking branch` do caso real)."""
+        self.git("switch", "-q", "-c", "lado")
+        self.commitar_parecer(pasta, tipo, revisado=revisado, selar=False, **kw)
+        self.git("switch", "-q", "melhoria/x")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "--no-edit", "lado")
+
+    def volta_com_parecer(self, **kw):
+        revisado = self.ate_a_conferida()
+        self.mesclar_parecer(kw.pop("revisado", revisado), **kw)
+        self.codigo("x\ny\nz\nw\n")
+
+    def test_caso_real_parecer_mesclado_e_commitado_antes_da_volta_e_anexo(self):
+        revisado = self.ate_a_conferida()
+        self.mesclar_parecer(revisado)
+        self.commitar_parecer("security", "revisao-seguranca", revisado=revisado, selar=False)
+        self.codigo("x\ny\nz\nw\n")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"intervalo: {revisado}..", saida)
+        self.assertIn(self.OK_REVIEW, saida)
+        self.assertIn('escopo: ok (anexo do portão: parecer de seguranca commitado na volta só com parecer) "docs/security/x.md"', saida)
+
+    def test_autor_que_edita_o_parecer_no_commit_do_codigo_segue_fora(self):
+        revisado = self.ate_a_conferida()
+        rel = "docs/reviews/x.md"
+        self.gravar(rel, f"---\ntipo: review\ncontrato: 1\npedido: exemplo\nbranch: melhoria/x\ncommit: {revisado}\nparecer: aprovado\n---\n# eu\n")
+        self.codigo("x\ny\nz\nw\n", rel)
+        self.assert_fora()
+
+    def test_merge_com_o_parecer_resolvido_a_mao_segue_fora(self):
+        revisado = self.ate_a_conferida()
+        self.git("switch", "-q", "-c", "lado")
+        self.commitar_parecer("reviews", "review", revisado=revisado, selar=False)
+        self.git("switch", "-q", "melhoria/x")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "--no-commit", "lado")
+        self.gravar("docs/reviews/x.md", f"---\ntipo: review\ncontrato: 1\npedido: exemplo\nbranch: melhoria/x\ncommit: {revisado}\n"
+                                         "parecer: aprovado\n---\n# resolvido à mão\n")
+        self.git("add", "docs/reviews/x.md")
+        self.commit("Merge branch 'lado'")
+        self.codigo("x\ny\nz\nw\n")
+        self.assert_fora()
+
+    def test_sem_conferida_a_regra_nao_vale(self):
+        """Sem Desde (a 1.a entrega), o parecer sem brief selado do portão segue fora, como antes (ParecerDoPortao)."""
+        revisado = self.ate_a_conferida(conferida=False)
+        self.mesclar_parecer(revisado)
+        self.codigo("x\ny\nz\nw\n")
+        self.assert_fora()
+
+    def test_frontmatter_de_outra_branch_pedido_tipo_ou_sem_veredito_segue_fora(self):
+        for kw in ({"branch": "melhoria/y"}, {"pedido": "outro"}, {"parecer": "pendente"}, {"tipo": "qa"}):
+            with self.subTest(**kw):
+                self.setUp()
+                self.volta_com_parecer(**kw)
+                self.assert_fora()
+
+    def test_commit_fora_do_intervalo_ou_abreviado_segue_fora(self):
+        for abreviado in (False, True):
+            with self.subTest(abreviado=abreviado):
+                self.setUp()
+                revisado = self.ate_a_conferida()
+                self.mesclar_parecer(revisado[:12] if abreviado else self.base)
+                self.codigo("x\ny\nz\nw\n")
+                self.assert_fora()
+
+    def test_veredito_trocado_no_mesmo_commit_segue_fora(self):
+        revisado = self.ate_a_conferida()
+        self.mesclar_parecer(revisado, parecer="reprovado")
+        self.commitar_parecer("reviews", "review", revisado=revisado, selar=False)
+        self.codigo("x\ny\nz\nw\n")
+        self.assert_fora()
+
+    def test_git_que_falha_conta_como_commit_do_autor(self):
+        self.volta_com_parecer()
+        rel = "docs/reviews/x.md"
+        lado = self.git("rev-parse", "lado")
+        self.assertTrue(fc.commit_so_de_parecer(self.proj, lado, rel))
+        self.assertFalse(fc.commit_so_de_parecer(self.proj, "0" * 40, rel))
+        original = fc.git
+
+        def sem_diff_tree(raiz, *args, **kw):
+            return (128, b"") if args[0] == "diff-tree" else original(raiz, *args, **kw)
+        with mock.patch.object(fc, "git", sem_diff_tree):
+            self.assertFalse(fc.commit_so_de_parecer(self.proj, lado, rel))
+        self.assertFalse(fc.parecer_mesclado_na_volta(self.proj, self.base, "0" * 40, "HEAD", rel, "review", "melhoria/x", "exemplo", "x"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,16 @@
+{
+  "pedido": "v0479-entrega-parecer-mesclado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "veredito trocado no mesmo commit: segue fora",
+      "arquivo": "bin/forge-check",
+      "de": "    return not veredito_trocado(raiz, base_sha, head, nome, revisado, fm[\"parecer\"], branch, tipo)\n",
+      "para": "    return True\n",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_veredito_trocado_no_mesmo_commit_segue_fora"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+### Corrigido
+- `forge-check entrega` na volta (Desde de conferida ou Revisar-sha) aceita como anexo do portão o parecer (docs/reviews/, docs/qa/, docs/security/, docs/devops/) que o portão commitou ou mesclou na branch em qualquer ponto do intervalo, antes ou depois do commit do autor: frontmatter da pasta, da branch e do pedido, `commit:` no intervalo e todo commit que muda o arquivo só de parecer ou merge sem resolução à mão; o autor que toca o parecer segue fora (v0478 E50.1, ENTREGA-PARECER-MESCLADO-ANTES-DO-AUTOR).
