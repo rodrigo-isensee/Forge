@@ -12,8 +12,7 @@ import sys
 import time
 from pathlib import Path
 
-PRAZO_S = 3
-LIMITE_BRIEF, LIMITE_PEDIDO = 256 * 1024, 4 * 1024 * 1024
+PRAZO_S, LIMITE_BRIEF, LIMITE_PEDIDO = 3, 256 * 1024, 4 * 1024 * 1024
 NOME = re.compile(r"[A-Za-z0-9-]{1,64}")
 PEDIDO = re.compile(r"^Pedido:[ \t]*([A-Za-z0-9][A-Za-z0-9._-]{0,80})[ \t]*$", re.M)
 NOTA = "com a nota `continue do estado atual da branch (git log, git status), confira antes de seguir`"
@@ -38,10 +37,8 @@ def git(raiz, *args):  # (rc, stdout) de um git local sem GIT_*; falha ou prazo 
     return r.returncode, r.stdout.strip()
 
 
-def forma(valor, padrao, vazio="?"):  # campo do registro é dado: o que não casa a forma (ou falta) sai `?`, e o teto vem da forma
-    if valor is None or valor == "":
-        return vazio
-    return valor if isinstance(valor, str) and padrao.fullmatch(valor) and ".." not in valor else "?"
+def forma(valor, padrao, vazio="?"):  # campo do registro é dado: o que não casa a forma (ou falta) sai `?`; o teto vem da forma
+    return vazio if valor in (None, "") else valor if isinstance(valor, str) and padrao.fullmatch(valor) and ".." not in valor else "?"
 
 
 def ler(caminho, limite):
@@ -78,12 +75,8 @@ def entregue(raiz, item, texto_brief, ctx):
     except (ctx["PedidoFora"], OSError, ValueError):
         return False
     shas = ctx["entregas_conferidas"](dados.decode("utf-8", "replace"))
-    for ref in filter(None, (ref_da_branch(raiz, b) for b in item["branches"])):
-        for sha in shas:
-            rc, hora = git(raiz, "show", "-s", "--format=%ct", sha)
-            if git(raiz, "merge-base", "--is-ancestor", sha, ref)[0] == 0 and rc == 0 and hora.isdigit() and int(hora) >= desde:
-                return True
-    return False
+    return any(git(raiz, "merge-base", "--is-ancestor", sha, ref)[0] == 0 and (hora := git(raiz, "show", "-s", "--format=%ct", sha))[0] == 0
+               and hora[1].isdigit() and int(hora[1]) >= desde for ref in filter(None, (ref_da_branch(raiz, b) for b in item["branches"])) for sha in shas)
 
 
 def suja(raiz, branches):
@@ -103,10 +96,8 @@ def acao(raiz, item, atual, texto, ctx):
     if isinstance(sessao, str) and NOME.fullmatch(sessao) and isinstance(aid, str) and NOME.fullmatch(aid) \
             and any(Path.home().glob(f".claude/projects/*/{sessao}/subagents/agent-{aid}.jsonl")):
         return "continua"
-    if atual is None:
-        return "sem_brief"
     if atual != item["briefs"][0]["sha256"]:
-        return "vencido"
+        return "sem_brief" if atual is None else "vencido"
     return "suja" if suja(raiz, item["branches"]) else "relancar"
 
 
@@ -140,8 +131,7 @@ def executar(a, raiz, ctx):
     for item in itens:
         brief = item["briefs"][0]
         atual, texto = brief_atual(raiz, brief["caminho"], ctx)
-        refs = ", ".join(forma(b, REF) for b in item["branches"][:8]) or "—"
-        print(ctx["sem_controle"](f"retomada: {forma(item.get('tipo'), TIPO)} · id {forma(item.get('id'), ID, 'sem id')} · branch {refs} · "
+        print(ctx["sem_controle"](f"retomada: {forma(item.get('tipo'), TIPO)} · id {forma(item.get('id'), ID, 'sem id')} · branch {', '.join(forma(b, REF) for b in item['branches'][:8]) or '—'} · "
                                   f"brief {brief['caminho']} sha256 {brief['sha256']} · ação: {ACOES[acao(raiz, item, atual, texto, ctx)]}"))
     print(f"retomada: {len(itens)} interrompido(s)" + (f"; {REMOCAO}" if itens else ""))
     return 0

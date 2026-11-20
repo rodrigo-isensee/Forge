@@ -96,8 +96,8 @@
       "id": "M32",
       "guarda": "BP3-S4: item sem id sai como `sem id`",
       "arquivo": "bin/forge_retomada.py",
-      "de": "{item.get('id') or 'sem id'}",
-      "para": "{item.get('id')}",
+      "de": "forma(item.get('id'), ID, 'sem id')",
+      "para": "item.get('id')",
       "testes": [
         "tests.test_forge_check_retomada.Matriz.test_item_sem_id_tipo_ou_branch_sai_com_o_marcador_de_ausencia"
       ]
@@ -106,8 +106,8 @@
       "id": "M33",
       "guarda": "BP3-S4: item sem tipo sai com `?`",
       "arquivo": "bin/forge_retomada.py",
-      "de": "{item.get('tipo') or '?'}",
-      "para": "{item.get('tipo')}",
+      "de": "forma(item.get('tipo'), TIPO)",
+      "para": "item.get('tipo')",
       "testes": [
         "tests.test_forge_check_retomada.Matriz.test_item_sem_id_tipo_ou_branch_sai_com_o_marcador_de_ausencia"
       ]
@@ -116,7 +116,7 @@
       "id": "M34",
       "guarda": "BP3-S4: item sem branch sai com o travessão",
       "arquivo": "bin/forge_retomada.py",
-      "de": "{', '.join(item['branches']) or '—'}",
+      "de": "{', '.join(forma(b, REF) for b in item['branches'][:8]) or '—'}",
       "para": "{', '.join(item['branches'])}",
       "testes": [
         "tests.test_forge_check_retomada.Matriz.test_item_sem_id_tipo_ou_branch_sai_com_o_marcador_de_ausencia"

@@ -76,8 +76,8 @@
       "id": "M19",
       "guarda": "BP3-S4: a linha sai sem caractere de controle (nada imita outra linha)",
       "arquivo": "bin/forge_retomada.py",
-      "de": "print(ctx[\"sem_controle\"](f\"retomada: {item.get(",
-      "para": "print((f\"retomada: {item.get(",
+      "de": "print(ctx[\"sem_controle\"](f\"retomada: {forma(",
+      "para": "print((f\"retomada: {forma(",
       "testes": [
         "tests.test_forge_check_retomada.Matriz.test_tipo_e_branch_com_controle_nao_imitam_outra_linha"
       ]
