@@ -1,0 +1,76 @@
+{
+  "pedido": "v0479-pv-m1-medida",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "só a branch do PR",
+      "arquivo": "bin/forge-placar",
+      "de": "r[\"headBranch\"] == pr[\"headRefName\"]",
+      "para": "True",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_run_de_push_e_de_outra_branch_nao_e_do_pr"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "run de antes da abertura do PR (PR antigo da mesma branch) fica fora",
+      "arquivo": "bin/forge-placar",
+      "de": "r[\"quando\"] >= pr[\"quando\"]",
+      "para": "True",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_primeiro_head_e_o_do_primeiro_run_depois_de_aberto"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "workflow fora da lista dos exigidos não conta",
+      "arquivo": "bin/forge-placar",
+      "de": "and r[\"workflowName\"] in exigidos",
+      "para": "and True",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_workflow_fora_da_lista_nao_conta"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "só o 1.º head conta",
+      "arquivo": "bin/forge-placar",
+      "de": "if r[\"headSha\"] == do_pr[0][\"headSha\"]:",
+      "para": "if True:",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_exigido_sem_execucao_no_primeiro_head_e_lacuna"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "workflow exigido sem execução no 1.º head sai lacuna",
+      "arquivo": "bin/forge-placar",
+      "de": "if set(primeiras) != set(exigidos):",
+      "para": "if False:",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_exigido_sem_execucao_no_primeiro_head_e_lacuna"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "job reprovado entra nas falhas por job",
+      "arquivo": "bin/forge-placar",
+      "de": "j.get(\"conclusion\") not in (\"success\", \"skipped\", None)",
+      "para": "j.get(\"conclusion\") not in (\"success\", \"skipped\", None, \"failure\")",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_catraca_vermelha_separada_por_workflow_e_job"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "vermelho ganha da pendente e da cancelada",
+      "arquivo": "bin/forge-placar",
+      "de": "for estado in (\"vermelho\", \"pendente\", \"cancelado\"):",
+      "para": "for estado in (\"cancelado\", \"pendente\", \"vermelho\"):",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_vermelho_ganha_da_cancelada_e_da_pendente"
+      ]
+    }
+  ]
+}
