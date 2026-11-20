@@ -36,10 +36,10 @@
     },
     {
       "id": "M4",
-      "guarda": "modulo pedido sem arquivo (inclusive em pacote) sai 2",
+      "guarda": "a lista de modulos conhecidos inclui os de pacote (modulo sem arquivo sai 2, o de pacote existe)",
       "arquivo": "bin/forge-testes",
-      "de": "ausentes = [m for m in modulos if not arquivo_do_modulo(m, raiz).is_file()]",
-      "para": "ausentes = [m for m in modulos if m not in todos]",
+      "de": "todos = sorted(n for p in (raiz / \"tests\").rglob(\"test_*.py\") if (n := nome_do_modulo(p.relative_to(raiz).as_posix())))",
+      "para": "todos = sorted(p.stem for p in (raiz / \"tests\").glob(\"test_*.py\") if NOME_DE_MODULO.fullmatch(p.stem))",
       "testes": [
         "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito",
         "tests.test_testes_tocados.Vermelho.test_vermelho_recusa_modulo_de_pacote_sem_arquivo_e_grafia_torta"
@@ -67,10 +67,10 @@
     },
     {
       "id": "M7",
-      "guarda": "sem --modulos, o modulo de pacote do diff roda",
+      "guarda": "sem --modulos, a suite completa inclui o modulo de pacote",
       "arquivo": "bin/forge-testes",
-      "de": "sorted({m for m in modificados if arquivo_do_modulo(m, raiz).is_file()} | set(plano))",
-      "para": "sorted({m for m in modificados if m in todos} | set(plano))",
+      "de": "sorted({m for m in modificados if m in todos} | set(plano))",
+      "para": "sorted({m for m in modificados if m in todos and \".\" not in m} | set(plano))",
       "testes": [
         "tests.test_testes_tocados.Vermelho.test_vermelho_sem_modulos_roda_o_modulo_de_pacote_do_diff"
       ]
@@ -82,7 +82,27 @@
       "de": "caminho = arquivo_do_modulo(modulo).as_posix()",
       "para": "caminho = f\"tests/{modulo}.py\"",
       "testes": [
-        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito"
+        "tests.test_testes_tocados.Vermelho.test_vermelho_de_modulo_de_pacote_marca_herdada_o_teste_que_a_base_ja_tinha"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "a entrada herdada da base vale para Classe.teste de modulo de pacote",
+      "arquivo": "bin/forge-testes",
+      "de": "\".\".join(partes[-2:]) in existiam",
+      "para": "\".\".join(partes[2:]) in existiam",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_de_modulo_de_pacote_marca_herdada_o_teste_que_a_base_ja_tinha"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "a falha de setUpClass da base acha a chave de modulo de pacote",
+      "arquivo": "bin/forge-testes",
+      "de": "f\"setUpClass ({'.'.join(partes[:-1])})\", f\"setUpModule ({modulo})\"):",
+      "para": "f\"setUpClass ({'.'.join(partes[:-1])})-x\", f\"setUpModule ({modulo})\"):",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_de_modulo_de_pacote_marca_herdada_o_teste_que_a_base_ja_tinha"
       ]
     }
   ]

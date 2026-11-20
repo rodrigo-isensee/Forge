@@ -1319,6 +1319,18 @@ class Vermelho(unittest.TestCase):
                 self.assertIn("tests.evals.test_novo.T.test_dois · H=ok · B=ok · não prova (passa na base)", r.stdout)
         self.assertNotIn("tests/evals/test_novo.py", r.stdout.split("revertidos à base:")[1].split("\n")[0])
 
+    def test_vermelho_de_modulo_de_pacote_marca_herdada_o_teste_que_a_base_ja_tinha(self):  # VERMELHO-TESTS-EVALS
+        self.gravar("tests/evals/__init__.py", "")
+        self.gravar("tests/evals/test_novo.py", "import unittest\nimport lib\n\n\nclass T(unittest.TestCase):\n"
+                    "    @classmethod\n    def setUpClass(cls):\n        cls.v = lib.ALVO\n\n"
+                    "    def test_um(self):\n        self.assertTrue(self.v)\n")
+        self.salvar("pacote")
+        self.gravar("lib.py", self.LIB + "ALVO = 1\n")
+        self.salvar("alvo")
+        r = self.rodar("--vermelho", "HEAD~1", "--modulos", "evals.test_novo")
+        self.assertIn("tests.evals.test_novo.T.test_um · H=ok · B=erro · não prova (herdada da base)", r.stdout,
+                      r.stdout + r.stderr)
+
     def test_vermelho_recusa_modulo_de_pacote_sem_arquivo_e_grafia_torta(self):  # VERMELHO-TESTS-EVALS
         self.com_teste_em_pacote()
         r = self.rodar("--vermelho", "HEAD~1", "--modulos", "evals.test_falta")

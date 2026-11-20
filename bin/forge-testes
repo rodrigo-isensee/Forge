@@ -739,10 +739,11 @@ def da_base(registro_b, ident, existiam=()):
     if ident in registro_b:
         return registro_b[ident]
     partes = ident.split(".")
-    for chave in (".".join(partes[:2]), partes[1] if len(partes) > 1 else "", f"setUpClass ({'.'.join(partes[:-1])})", f"setUpModule ({'.'.join(partes[:2])})"):
+    modulo = ".".join(partes[:-2])  # `tests.test_x` ou, de pacote, `tests.evals.test_x`
+    for chave in (modulo, ".".join(partes[1:-2]), f"setUpClass ({'.'.join(partes[:-1])})", f"setUpModule ({modulo})"):
         if chave in registro_b:
             entrada = registro_b[chave]
-            return {**entrada, "herdada": True} if ".".join(partes[2:]) in existiam else entrada
+            return {**entrada, "herdada": True} if ".".join(partes[-2:]) in existiam else entrada
     return None
 
 
@@ -781,10 +782,10 @@ def vermelho(base_pedida, modulos_pedidos, prazo):
     mantidos = [c for c in caminhos if TESTE_DO_DIFF.fullmatch(c)]
     modificados = {nome_do_modulo(c) for c in caminhos if nome_do_modulo(c)}
     removidos = {Path(c).stem for s, c in producao if s == "A"}
-    todos = sorted(p.stem for p in (raiz / "tests").glob("test_*.py") if NOME_DE_MODULO.fullmatch(p.stem))
+    todos = sorted(n for p in (raiz / "tests").rglob("test_*.py") if (n := nome_do_modulo(p.relative_to(raiz).as_posix())))
     if modulos_pedidos is not None:
         modulos, restrito = modulos_pedidos, " (restrito por --modulos)"
-        ausentes = [m for m in modulos if not arquivo_do_modulo(m, raiz).is_file()]
+        ausentes = [m for m in modulos if m not in todos]
         if ausentes:
             print(f"forge-testes --vermelho: módulo sem arquivo em tests/: {', '.join(ausentes)}", file=sys.stderr)
             return 2
@@ -796,7 +797,7 @@ def vermelho(base_pedida, modulos_pedidos, prazo):
         modo, plano = planejar([c for c in caminhos if not TESTE_DO_DIFF.fullmatch(c) or c in ALTERA_O_MAPA], raiz)
         if modo == "completo":
             print(f"vermelho: o mapa não sabe ({'; '.join(plano)}); suíte completa.")
-        modulos = todos if modo == "completo" else sorted({m for m in modificados if arquivo_do_modulo(m, raiz).is_file()} | set(plano))
+        modulos = todos if modo == "completo" else sorted({m for m in modificados if m in todos} | set(plano))
         restrito = ""
     print(f"vermelho: base={ancora[:12]} head={cabeca[:12]} módulos={','.join(modulos)}{restrito}")
     print(f"revertidos à base: {', '.join(c for _, c in producao) or '-'}")
