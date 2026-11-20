@@ -118,7 +118,7 @@
       "guarda": "o toolUseId do meta só vale com a forma de id de uso (isinstance)",
       "arquivo": "hooks/agentes.py",
       "de": "return uso if isinstance(uso, str) and USO_DE_AGENTE.fullmatch(uso) else None",
-      "para": "return uso if USO_DE_AGENTE.fullmatch(uso) else None",
+      "para": "return uso if not isinstance(uso, str) or USO_DE_AGENTE.fullmatch(str(uso)) else None",
       "testes": [
         "tests.test_agentes_interrompidos.FimDoAgente.test_tool_use_id_do_meta_fora_da_forma_deixa_o_casamento_pela_ordem"
       ]
@@ -150,7 +150,7 @@
       "de": "uso = uso_do_agente(hook, aid) if aid else None",
       "para": "uso = uso_do_agente(hook, aid) if not aid else None",
       "testes": [
-        "tests.test_agentes_interrompidos.FimDoAgente.test_o_fim_de_um_solta_a_branch_dele_e_nao_a_do_outro_vivo"
+        "tests.test_agentes_interrompidos.FimDoAgente.test_sem_meta_no_inicio_o_fim_ainda_solta_a_reserva_do_proprio_agente"
       ]
     },
     {
