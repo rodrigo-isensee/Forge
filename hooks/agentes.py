@@ -627,10 +627,26 @@ def caidos_da_sessao(agentes, agora, expira_s):
     return saida
 
 
+def caiu_em_finito(valor):
+    """BP3-S3 (segurança A1): `valor` é número finito. O inteiro enorme (10**400) não vira float: OverflowError conta como não finito."""
+    try:
+        return isinstance(valor, (int, float)) and math.isfinite(float(valor))
+    except OverflowError:
+        return False
+
+
 def interrompidos_vigentes(estado, agora, expira_s):
-    """BP3-S3: (os interrompidos gravados dentro do prazo, os vencidos). O item que não é registro de `caiu_em` numérico some."""
+    """BP3-S3: (os interrompidos gravados dentro do prazo, os vencidos). O item que não é registro de `caiu_em` numérico some;
+    o `caiu_em` numérico e não finito (inf, nan, inteiro enorme) deixa o estado ilegível (`EstadoIlegivel`, o disparo recusa): a
+    subtração nunca levanta fora da recusa."""
     lista = estado.get("interrompidos")
-    validos = [i for i in (lista if isinstance(lista, list) else []) if isinstance(i, dict) and isinstance(i.get("caiu_em"), (int, float))]
+    validos = []
+    for i in (lista if isinstance(lista, list) else []):
+        if not isinstance(i, dict) or not isinstance(i.get("caiu_em"), (int, float)):
+            continue
+        if not caiu_em_finito(i["caiu_em"]):
+            raise EstadoIlegivel("`interrompidos`: `caiu_em` não é número finito")
+        validos.append(i)
     return [i for i in validos if agora - i["caiu_em"] < expira_s], [i for i in validos if agora - i["caiu_em"] >= expira_s]
 
 

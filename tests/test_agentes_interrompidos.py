@@ -200,6 +200,34 @@ class Interrupcao(Base):
         self.evento()
         self.assertEqual(len(self.gravado()["interrompidos"]), 1)
 
+    def test_caiu_em_nao_finito_deixa_o_estado_ilegivel(self):
+        # segurança A1: 10**400 estoura a subtração; inf e nan nunca vencem nem ficam; todos recusam em vez de passar sem reserva
+        for valor in (10**400, -(10**400), float("inf"), float("-inf"), float("nan")):
+            with self.subTest(valor=str(valor)[:12]):
+                estado = {"interrompidos": [self.interrompido(caiu_em=valor)]}
+                with self.assertRaises(agentes.EstadoIlegivel):
+                    agentes.interrompidos_vigentes(estado, self.agora, 2 * 3600)
+
+    def test_caiu_em_finito_e_aceito_mesmo_enorme(self):
+        for valor in (self.agora - 30, int(self.agora) - 30, 10**300):
+            self.assertTrue(agentes.caiu_em_finito(valor), valor)
+        for valor in ("x", None, [1], 10**400, float("nan")):
+            self.assertFalse(agentes.caiu_em_finito(valor), valor)
+
+    def test_disparo_com_caiu_em_enorme_e_recusado_sem_regravar_o_estado(self):
+        semeado = json.dumps({"agentes": [], "interrompidos": [{**self.interrompido(), "caiu_em": 10**400}]})
+        self.arquivo.write_text(semeado, encoding="utf-8")
+        citado = "docs/briefs/x-python-backend-1.md"
+        entrada = {"subagent_type": "forge:python-backend", "description": "novo", "prompt": f"leia {citado}"}
+        h = self.hook(tool_name="Agent", hook_event_name="PreToolUse", tool_input=entrada)
+        with self.assertRaises(SystemExit) as saida, mock.patch.object(sys, "stderr"), \
+                mock.patch.object(h, "projeto", return_value=self.tmp), mock.patch.object(agentes, "ler_config"), \
+                mock.patch.object(agentes, "e_clone_do_forge", return_value=False), \
+                mock.patch.object(agentes, "conferir_brief", return_value=([(citado, str(self.tmp / citado), BRIEF.encode())], None)):
+            agentes.principal(h)
+        self.assertNotEqual(saida.exception.code, 0)
+        self.assertEqual(self.arquivo.read_text(encoding="utf-8"), semeado)
+
 
 class Fechamento(Base):
     def lancar(self, tipo="forge:python-backend", nome="x-python-backend-1.md"):
