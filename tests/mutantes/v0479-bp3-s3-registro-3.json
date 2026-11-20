@@ -1,0 +1,38 @@
+{
+  "pedido": "v0479-bp3-s3-registro",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M30",
+      "guarda": "S3 A1: caiu_em numerico e nao finito deixa o estado ilegivel",
+      "arquivo": "hooks/agentes.py",
+      "de": "if not caiu_em_finito(i[\"caiu_em\"]):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_caiu_em_nao_finito_deixa_o_estado_ilegivel",
+        "tests.test_agentes_interrompidos.Interrupcao.test_disparo_com_caiu_em_enorme_e_recusado_sem_regravar_o_estado"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "S3 A1: o inteiro enorme (OverflowError no float) conta como nao finito",
+      "arquivo": "hooks/agentes.py",
+      "de": "    except OverflowError:\n        return False",
+      "para": "    except OverflowError:\n        return True",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_caiu_em_nao_finito_deixa_o_estado_ilegivel",
+        "tests.test_agentes_interrompidos.Interrupcao.test_caiu_em_finito_e_aceito_mesmo_enorme"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "S3 A1: inf e nan nao sao finitos",
+      "arquivo": "hooks/agentes.py",
+      "de": "math.isfinite(float(valor))",
+      "para": "True",
+      "testes": [
+        "tests.test_agentes_interrompidos.Interrupcao.test_caiu_em_nao_finito_deixa_o_estado_ilegivel"
+      ]
+    }
+  ]
+}

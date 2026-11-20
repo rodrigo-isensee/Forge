@@ -56,6 +56,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | --- | --- |
 | `_comum.py` | base comum dos hooks do plugin (ADR 0003). |
 | `_gh_api.py` | leitura única dos arquivos que o `gh api` envia (GH-API-LEITURA-UNICA, 0.47.8 E3.1). |
+| `_json_raso.py` | Teto de aninhamento comum aos leitores de JSON de controle (JSON-PROFUNDO-PY314). |
 | `_maquina.py` | estado da máquina (diretriz 35), fora dos repositórios, em PASTA (0700), gravado só pelos hooks. |
 | `agentes.py` | teto de agentes, relançamento duplicado (ADR 0003, R-TETO), brief selado do especialista e forma da mensagem ao conferente (R-BRIEF). |
 | `ambiente.py` | ambiente (E2.54, ordem do dono) - ao abrir a sessão no container, confere o ambiente e põe as linhas `falta:` no contexto. |
