@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Preparo do container do projeto (E2.54). Idempotente, nunca apaga dados. Uso: preparar-ambiente.sh [--verificar]
-#   (sem opção)  faz o que falta: gh (apt oficial), link ~/.forge-contrib para
+#   (sem opção)  faz o que falta: gh (apt oficial), tmux (apt do sistema), link ~/.forge-contrib para
 #                /workspaces/.forge-contrib, core.hooksPath=.githooks. Linhas "fez:" e "falta:".
 #   --verificar  só confere (nada é alterado); "ambiente: ok" ou uma linha "falta:" por item com o comando exato; sai 1 se faltar.
 # Variáveis: FORGE_PROJETO (pasta do projeto; padrão a pasta acima deste script) e FORGE_PERSISTENTE (padrão /workspaces).
@@ -42,6 +42,7 @@ if [ "$verificar" = 1 ]; then
   if tem gh && ! gh auth status >/dev/null 2>&1; then
     faltas+=("gh sem login (o login mora em ~/.claude/gh e sobrevive à recriação; falta fazê-lo uma vez): gh auth login -s repo,workflow --web e depois $preparo")
   fi
+  tem tmux || faltas+=("tmux não instalado (a sessão do Jarvis não sobrevive a uma queda do terminal sem ele): rode $preparo")
   link_ok || faltas+=("link $link -> $real ausente ou sem destino: rode $preparo")
   if [ -e "$projeto/.git" ]; then hooks_ok || faltas+=("core.hooksPath de $projeto não é .githooks: rode $preparo"); fi
   if [ ${#faltas[@]} -eq 0 ]; then echo "ambiente: ok"; exit 0; fi
@@ -74,6 +75,14 @@ if tem gh && gh auth status >/dev/null 2>&1; then
   feitos+=("gh com login")
 else
   faltas+=("login do gh: gh auth login -s repo,workflow --web e depois $preparo")
+fi
+
+if tem tmux; then
+  feitos+=("tmux já instalado")
+elif tem apt-get && como_root apt-get update -qq && como_root apt-get install -y -qq tmux; then
+  feitos+=("instalou tmux")
+else
+  faltas+=("instalar tmux (o apt falhou ou não existe aqui; rode de novo com rede)")
 fi
 
 if link_ok; then
