@@ -2057,10 +2057,11 @@ class Regerar(unittest.TestCase):
 
     def test_nada_tocado_nada_a_regerar(self):
         self.escrever("docs/nota.md", "fora das fontes\n")
+        (self.dir / "docs" / "regras" / "r.md").unlink()  # o apagado entra na fotografia sem ser lido
         r = self.rodar()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("forge-testes: regerar rc=0 (nada a regerar)", r.stdout)
-        self.assertEqual(self.mudados(), ["docs/nota.md"])
+        self.assertEqual(self.mudados(), ["docs/nota.md", "docs/regras/r.md"])
 
     def test_bin_tocado_regera_so_o_indice(self):
         self.escrever("bin/forge-x", "#!/bin/sh\n")

@@ -998,8 +998,8 @@ def link_no_caminho(caminho):
 
 def fotografia():
     """{caminho: conteúdo ou None} de todo caminho que o `git status` mostra; o que não aparece vale `LIMPO`."""
-    nomes = git("status", "--porcelain", "-z", "--untracked-files=all", "--no-renames").split("\0")
-    return {n[3:]: Path(n[3:]).read_bytes() if Path(n[3:]).is_file() else None for n in nomes if n}
+    nomes = git("status", "--porcelain", "-z", "--untracked-files=all", "--no-renames").split("\0")[:-1]  # termina em \0
+    return {n[3:]: Path(n[3:]).read_bytes() if Path(n[3:]).is_file() else None for n in nomes}
 
 
 def regerar(base):
