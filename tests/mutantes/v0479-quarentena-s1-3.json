@@ -69,7 +69,7 @@
             "de": "    if getattr(type(teste), \"__unittest_skip__\", False) or getattr(metodo, \"__unittest_skip__\", False):",
             "para": "    if getattr(type(teste), \"__unittest_skip__\", False):",
             "testes": [
-                "tests.test_catraca.TetoDaQuarentena.test_teto_2_com_uma_quarentena_passa_e_com_teto_3_reprova"
+                "tests.test_catraca.TetoDaQuarentena.test_conta_o_pulo_real_e_o_skiptest_vivo"
             ]
         },
         {

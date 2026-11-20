@@ -1064,7 +1064,7 @@ class TetoDaQuarentena(unittest.TestCase):
             for uso in ('@unittest.skip("%s")\n    def test_a(self): pass', 'def test_a(self): self.skipTest("%s")'):
                 with self.subTest(motivo=motivo, uso=uso):
                     d = self.pasta(2, "import unittest\nclass T(unittest.TestCase):\n    " + uso % motivo + "\n")
-                    with self.assertRaises(ValueError):
+                    with self.assertRaisesRegex(ValueError, r"o prazo \(AAAA-MM-DD\) e o 'OK do dono'"):
                         self.abertas(d)
 
     def test_quarentena_vencida_e_recusada_e_a_do_dia_passa(self):
