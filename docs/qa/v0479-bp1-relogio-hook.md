@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp1-relogio-hook
-commit: b7e2f6b565bd80f60f7df8f7cdcb0509417c3adc
+commit: b0ab26a0675cf77ba75749ca319243cc56624e9c
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -73,3 +73,37 @@ N2 · morreu · tests/apoio_volta_unica.py:1201
 N3 · morreu · tests/apoio_volta_unica.py:1205
 ```
 Um mutante por linha de guarda do helper (apelido do `from`, apelido do `import`, restrição ao módulo). Parecer mantido: aprovado, sem achado, sem bug aberto. Suíte inteira: check-run `bateria` do mesmo sha.
+
+## Revalidação (delta b7e2f6b5..b0ab26a0, E37.39)
+Domínio do delta (`forge-check parecer delta`): `tests/apoio_volta_unica.py` (`nomes_do_executar` extraído e `referencias_ao_executar_fora_de_chamada`), `tests/test_hooks_volta_corpus.py` (3 testes novos) e `tests/mutantes/v0478-bp1-relogio-3.json` (N4 a N17). Sem mudança em código de produção.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Só o `executar` de `_comum` conta como chamada | `CorpusDaVoltaUnica.test_chamada_de_outro_nome_do_comum_nao_e_do_executar` | outro nome de `_comum`, outro módulo com apelido, outra função de `_comum` | passou |
+| Referência fora de chamada (reatribuição, `getattr`, `import_module`, `partial`, atributo solto) é achada; chamada direta e outros nomes não | `CorpusDaVoltaUnica.test_referencia_ao_executar_fora_de_chamada_e_achada` | 6 formas achadas, 6 diretas/outras vazias | passou |
+| Hooks reais e driver só chamam o `executar` direto | `CorpusDaVoltaUnica.test_hooks_reais_e_driver_so_chamam_o_executar_direto` | mínimo de 10 hooks lidos | passou |
+
+Os 5 testes do módulo (3 novos, apelido do import e hooks reais sem `relogio`/`armar`) passaram no head: `Ran 5 tests in 5.490s OK`.
+
+Vermelho: cópia do head em `$TMPDIR` com `tests/apoio_volta_unica.py` trocado pelo de b7e2f6b5 (helper anterior): `ImportError: cannot import name 'referencias_ao_executar_fora_de_chamada' from 'apoio_volta_unica'`, `FAILED (errors=1)` no módulo. Com o helper do head: `OK`.
+
+Mutantes do delta, `forge-mutante tests/mutantes/v0478-bp1-relogio-3.json --base b7e2f6b5` (rc=0):
+```
+base=b7e2f6b565bd80f60f7df8f7cdcb0509417c3adc mb=b7e2f6b565bd80f60f7df8f7cdcb0509417c3adc rev=b0ab26a0675cf77ba75749ca319243cc56624e9c
+apoio de teste no diff: tests/apoio_volta_unica.py · todos os mutantes entram
+N4 · morreu · tests/apoio_volta_unica.py:1197
+N5 · morreu · tests/apoio_volta_unica.py:1198
+N6 · morreu · tests/apoio_volta_unica.py:1199
+N7 · morreu · tests/apoio_volta_unica.py:1200
+N8 · morreu · tests/apoio_volta_unica.py:1209
+N9 · morreu · tests/apoio_volta_unica.py:1210
+N10 · morreu · tests/apoio_volta_unica.py:1208 · (erro) o teste declarado deu erro sob o mutante e passa sem ele
+N11 · morreu · tests/apoio_volta_unica.py:1222
+N12 · morreu · tests/apoio_volta_unica.py:1224
+N13 · morreu · tests/apoio_volta_unica.py:1226
+N14 · morreu · tests/apoio_volta_unica.py:1228
+N15 · morreu · tests/apoio_volta_unica.py:1224
+N16 · morreu · tests/apoio_volta_unica.py:1226
+N17 · morreu · tests/apoio_volta_unica.py:1228
+```
+Cobertura: `forge-mutante --cobertura --base ef186de8` rc=0, todas as linhas de guarda do helper `coberta`. N10 morre por erro do teste (não por falha de asserção), mas o erro some sem o mutante: veredito válido. Parecer mantido: aprovado, sem achado, sem bug aberto. Suíte inteira: check-run `bateria` do mesmo sha.
