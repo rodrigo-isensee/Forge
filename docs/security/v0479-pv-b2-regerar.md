@@ -3,31 +3,34 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pv-b2-regerar
-commit: c5815650ef8c81b24ca7d466b7a23f04239458b6
+commit: 8e4888290286ba9a46948d19583ba90e9fc90363
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-20
 ---
-# Review de segurança: v0479-pv-b2-regerar (PR-VERDE B2, v0478 E57.45)
+# Review de segurança: v0479-pv-b2-regerar (PR-VERDE B2, v0478 E57.53)
 
-Primeira rodada. Lido o diff `ed5bfa02..c5815650`: no domínio, `bin/forge-testes` (`--regerar`: `link_no_caminho`, `fotografia`, `regerar`, validação de opções); fora do domínio, só lidos por alto: `tests/test_testes_tocados.py` (classe `Regerar`), `tests/mutantes/v0479-pv-b2-regerar*.json`, `changelog.d/v0479-pv-b2-regerar.md`. Riscos do desenho (`docs/propostas/v0479-pr-verde-de-primeira.md:66`): escrita fora da lista fechada, seguir link, regerar arquivo de controle.
+Revalidação por delta (`R-REVIEW`). Lido: `forge-check parecer delta` de `c5815650..8e488829`; no domínio, só `bin/forge-testes` (`SEM_BYTECODE` em `:990`, `fotografia` em `:1001-1007`, a ajuda em `:30-31`); fora do domínio, lido por alto o teste novo `Regerar.test_escrita_em_caminho_ignorado_sai_2_e_o_bytecode_nao`. A rodada anterior (head `c5815650`) fica no git.
 
-## Gatilhos
 Gatilhos: ferramenta do envio do Forge (`bin/forge-testes`), execução de geradores por subprocesso, escrita em arquivo versionado.
 
-## Conferência dos riscos do desenho
-- Lista fechada: `DERIVADOS` em `bin/forge-testes:987` (índice do Forge e `tests/pesos-d4.json`); o que mudou fora dela no `git status` sai 2 (`:1030`). `tests/config.json` e `docs/regras/` são versionados, logo cobertos. Teste: `Regerar.test_escrita_fora_da_lista_fechada_sai_2`, `test_lista_fechada_sem_arquivo_de_controle_e_geradores_que_existem`.
-- Link: o destino e as pastas dele são conferidos antes de qualquer gerador (`:991-996`, `:1017`), recusa com 2 sem rodar. Teste: `test_link_no_derivado_ou_na_pasta_recusa_sem_rodar_o_gerador`.
-- Geradores: argv fixo, sem shell, `python -I`, ambiente sem `GIT_*`/`FORGE_*` (`:1022-1023`); o nome do módulo medido casa `tests/(test_[a-z0-9_]+)\.py` (`:286`), não vira opção. A busca da base reaproveita `buscar_base` do B1, já aprovada (`docs/security/v0479-pv-b1-registros.md`).
-- Sem veredito (git ou pesos ilegíveis, antes e depois) sai 2, nunca verde (`:1012-1015`, `:1024-1028`).
+## Estado dos achados anteriores
+- A1 (recomendado, `bin/forge-testes:1001`): corrigido. `fotografia` passou a `--ignored=traditional` com `--untracked-files=all` (arquivo a arquivo dentro da pasta ignorada) e a ajuda diz o que fica de fora (`:30-31`). Sondas S1 a S4: escrita nova ou alteração em `.forge/`, `.claude/hooks/` e `.env` aparece na diferença, logo sai 2. Teste: `test_escrita_em_caminho_ignorado_sai_2_e_o_bytecode_nao`.
 
-## Achados
-- A1 (recomendado) bin/forge-testes:1001 · `fotografia` usa `git status` sem `--ignored`: escrita do gerador em caminho ignorado (`.forge/`, `.claude/hooks` etc.) não é vista e sai 0; o texto de ajuda (`:30`) promete "nunca escreve arquivo de controle". Incluir ignorados ou limitar a promessa.
+## A exclusão do bytecode
+O pathspec `:(exclude,glob)**/__pycache__/**` tira da fotografia tudo sob qualquer pasta `__pycache__`, na raiz ou funda (S5, S6), inclusive arquivo que não é bytecode (S7); `.pyc` fora de `__pycache__` segue visto (S8), e pasta de nome parecido não é afetada (S9). O caminho que isso abre: um gerador que grave `.pyc` envenenado em `<pasta>/__pycache__/` de um módulo importado depois por outro script. Quem escreve é o gerador ou módulo de teste medido do próprio autor, a mesma confiança da suíte (o raciocínio do A1 anterior); os arquivos de controle da sessão (`.claude/hooks`, `.claude/settings*`, `.forge/`) não ficam sob `__pycache__` e seguem vistos; a ajuda declara a exceção ("só o __pycache__ fica de fora"). Sem atacante realista e sem promessa quebrada: não é achado. Pasta vazia nova não aparece (S10), sem efeito, porque não há conteúdo a executar.
 
 ## Sondas
-
-## Detalhe dos achados
-A1. Evidência: `bin/forge-testes:1001` (o `git status --porcelain` sem `--ignored`) e `:30` (a ajuda). Sonda local: repositório de brinquedo com `/.forge` no `.gitignore`, `fotografia()` antes e depois de gravar `.forge/agentes.json` devolve `{}` nas duas, sem diferença. Caminho de ataque: só com um gerador ou módulo de teste medido que grave fora da lista em caminho ignorado; quem roda é o autor sobre o próprio código, a mesma confiança da suíte, e a trava de escrita do sandbox (A3) e o hook `conformidade` seguem protegendo os arquivos de controle da sessão. Sem atacante realista, por isso recomendado, não bloqueante. Severidade: baixa. Correção mínima (uma das duas): somar `--ignored=matching` à chamada de `fotografia` (com `PYTHONDONTWRITEBYTECODE` já no ambiente dos geradores, o ruído de `__pycache__` fica pequeno; conferir o teste), ou trocar a ajuda e o fragmento do changelog para "sai 2 se mudou caminho versionado ou novo fora da lista". Esforço: P. Dono: tech-lead (autor do B2).
+- S1 · `fotografia()` antes e depois de gravar `.forge/agentes.json` novo (repositório de brinquedo com o `.gitignore` da branch) · espera: `['.forge/agentes.json']` · obtido: `['.forge/agentes.json']`
+- S2 · idem, alterar `.forge/agentes.json` existente · espera: o caminho · obtido: `['.forge/agentes.json']`
+- S3 · idem, `.claude/hooks/h.sh` novo · espera: o caminho · obtido: `['.claude/hooks/h.sh']`
+- S4 · idem, `.env` novo · espera: o caminho · obtido: `['.env']`
+- S5 · idem, `scripts/__pycache__/m.cpython-312.pyc` · espera: `[]` (exceção declarada) · obtido: `[]`
+- S6 · idem, `__pycache__/raiz.pyc` na raiz · espera: `[]` · obtido: `[]`
+- S7 · idem, `.claude/hooks/__pycache__/h.sh` · espera: `[]` (tudo sob `__pycache__`) · obtido: `[]`
+- S8 · idem, `scripts/m.pyc` fora do cache · espera: o caminho · obtido: `['scripts/m.pyc']`
+- S9 · idem, `.forge/__pycache__x/a` · espera: o caminho · obtido: `['.forge/__pycache__x/a']`
+- S10 · idem, pasta vazia `.forge/vazia/` · espera: `[]` · obtido: `[]`
 
 ## Riscos aceitos e ferramentas
-Sem risco aceito. Suíte: não rodada aqui (brief: sem suíte local); a branch ainda não tem PR nem CI, e o portão de merge confere o CI verde no head. Rodei só a classe nova: `python3 -m unittest tests.test_testes_tocados.Regerar`, 11 testes, OK, árvore limpa. Ferramentas ausentes no PATH: varredor de segredos, SAST e linter de workflow (lacuna registrada, `R-CUSTO`); o diff não traz segredo nem workflow.
+Sem risco aceito. Suíte: não rodada aqui; a branch ainda não tem PR nem CI, e o portão de merge confere o CI verde no head. Rodei só a classe tocada: `python3 -m unittest tests.test_testes_tocados.Regerar`, 12 testes, OK. Ferramentas ausentes no PATH: varredor de segredos, SAST e linter de workflow (lacuna registrada, `R-CUSTO`); o delta não traz segredo nem workflow.
