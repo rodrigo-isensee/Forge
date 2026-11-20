@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-forge-check
-commit: 19e81adc611e1f17f6a2f1fab2c4bb6162726217
+commit: dd6e111021f53ee783e47dc4649767d8f35289f8
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-19
+data: 2026-11-20
 ---
 # Review: v0478 (E34.3 e E34.7, META85 na trilha do bin/forge-check)
 
@@ -85,5 +85,18 @@ Provas que rodei no head 19e81adc (`python3 -m unittest`):
 - `tests.test_forge_dono`: 79 OK.
 - `tests.test_forge.PesosDaSuite`: 1 OK.
 - `tests.test_forge_mutante.ConferirTodas`: 4 OK.
+
+O parecer segue aprovado. A suíte inteira fica para o CI do PR.
+
+## Revalidação (E34.23, head dd6e1110)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-meta85-forge-check.md`, intervalo `19e81adc..dd6e1110`. No domínio: `tests/test_revisor_wt.py`, `tests/mutantes/z075-pr-previo.json` e `tests/mutantes/v0433-integracao-2.json`; `bin/` não mudou, então não há `revalida: sim` e nada fora dele foi relido.
+
+- **Teste novo:** `PrPrevio.test_ausente_sem_base_e_sem_develop_o_diff_literal_leva_o_previo` apaga a `develop` (base None) e confere os dois sentidos: com `--previo` sai o aviso e rc 0; sem ele, a violação e rc 1. Cobre o ramo de falha do M7.
+- **Specs:** o M7 de z075-pr-previo aponta para o teste novo; o I26 de v0433-integracao-2 lista só o `test_aq5_parecer_novo`.
+
+Provas que rodei no head dd6e1110:
+- `unittest tests.test_revisor_wt.PrPrevio tests.test_aq5_parecer_novo`: 16 OK.
+- `bin/forge-mutante --processos 1 --ids M7 tests/mutantes/z075-pr-previo.json`: M7 morreu, rc 0.
+- `bin/forge-mutante --processos 1 --ids I26 tests/mutantes/v0433-integracao-2.json`: I26 morreu.
 
 O parecer segue aprovado. A suíte inteira fica para o CI do PR.
