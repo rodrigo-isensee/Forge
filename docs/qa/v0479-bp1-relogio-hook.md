@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp1-relogio-hook
-commit: ac4d6dc7325b437958cbf61505259b20d90bfe1a
+commit: b7e2f6b565bd80f60f7df8f7cdcb0509417c3adc
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -54,3 +54,22 @@ Ela estoura na suíte por causa da fila real da máquina (`pesado.fila/`, compar
 
 ## Cenários e resultado real
 Execução local em 2026-11-20, `python3 -I -m unittest discover -s tests -p <módulo> -k <teste>`, com `TMPDIR`. Suíte inteira: check-run `bateria` do mesmo sha no CI do PR (não rerrodada aqui). Sem bug aberto.
+
+## Revalidação (delta ac4d6dc7..b7e2f6b5, E37.35)
+Domínio do delta (`forge-check parecer delta`): `tests/apoio_volta_unica.py` (`chamadas_do_executar` resolve o apelido do import e o módulo importado de `_comum`), `tests/test_hooks_volta_corpus.py` (teste novo e uso do helper) e `tests/mutantes/v0478-bp1-relogio-2.json` (N1 a N3). Sem mudança em código de produção.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Hook que importa `executar` com apelido, ou chama `c.executar`, e passa `relogio=`/`armar=` é achado | `CorpusDaVoltaUnica.test_chamada_com_apelido_do_import_e_pega_com_relogio` | apelido, módulo com apelido, módulo sem apelido, `**k`; `outro.executar` e `rodar` de outro módulo não contam | passou |
+| Hooks reais e driver sem `relogio`/`armar` (agora pelo helper novo) | `CorpusDaVoltaUnica.test_hooks_reais_e_driver_nao_passam_relogio_nem_armar` | mínimo de 10 chamadas | passou |
+
+Vermelho: cópia do head em `$TMPDIR` com `chamadas_do_executar` trocado pelo helper antigo (só o nome `executar`, por `id` ou `attr`): o teste novo falha (`failures=2`, subtestes), por exemplo `AssertionError: Lists differ: [<ast.Call ...>] != []` na linha do `from outro import executar as rodar`. Com o helper do head: `OK`.
+
+Mutantes do delta, `forge-mutante tests/mutantes/v0478-bp1-relogio-2.json --base ac4d6dc7...` (rc=0):
+```
+base=ac4d6dc7325b437958cbf61505259b20d90bfe1a mb=ac4d6dc7325b437958cbf61505259b20d90bfe1a rev=b7e2f6b565bd80f60f7df8f7cdcb0509417c3adc
+N1 · morreu · tests/apoio_volta_unica.py:1199
+N2 · morreu · tests/apoio_volta_unica.py:1201
+N3 · morreu · tests/apoio_volta_unica.py:1205
+```
+Um mutante por linha de guarda do helper (apelido do `from`, apelido do `import`, restrição ao módulo). Parecer mantido: aprovado, sem achado, sem bug aberto. Suíte inteira: check-run `bateria` do mesmo sha.
