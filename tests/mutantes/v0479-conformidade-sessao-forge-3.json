@@ -24,9 +24,9 @@
     },
     {
       "id": "M19",
-      "guarda": "E51.6: o git com alvo opaco é trava só com subcomando de trava, opaco ou com -c",
+      "guarda": "E51.6: o git com alvo opaco é trava só com subcomando fora da lista dos que não chegam a uma trava",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if nome == \"git\" and resto and (sub is None or sub in GIT_DAS_TRAVAS or OPACA_NA_PALAVRA.search(sub)):",
+      "de": "            if nome == \"git\" and resto and subcomando_do_git(resto) not in GIT_FORA_DAS_TRAVAS:",
       "para": "            if nome == \"git\" and resto:",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
@@ -34,9 +34,9 @@
     },
     {
       "id": "M20",
-      "guarda": "E51.6: o gh com pr merge ou api e alvo opaco é trava",
+      "guarda": "E51.6: o gh com alvo opaco e as duas primeiras palavras fora da lista de leitura é trava",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if nome == \"gh\" and (GH_DAS_TRAVAS & set(resto[:2]) or any(OPACA_NA_PALAVRA.search(p) for p in resto[:2])):",
+      "de": "            if nome == \"gh\" and \" \".join(resto[:2]) not in GH_FORA_DAS_TRAVAS:",
       "para": "            if False:",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
@@ -68,6 +68,16 @@
       "arquivo": "hooks/conformidade.py",
       "de": "        while k < len(comando.palavras) and (comando.palavras[k].cru in ANTES_DO_PROGRAMA",
       "para": "        while False and (comando.palavras[k].cru in ANTES_DO_PROGRAMA",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "E51.6: o gh que só lê (pr view, run list...) com alvo opaco segue livre",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if nome == \"gh\" and \" \".join(resto[:2]) not in GH_FORA_DAS_TRAVAS:",
+      "para": "            if nome == \"gh\":",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
       ]

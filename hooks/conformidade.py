@@ -349,9 +349,12 @@ PROFUNDIDADE_EXCEDIDA = ("R-CONFORMIDADE", f"comando aninhado (bash -c, eval, $(
 TAG_E_VERSAO = "a tag v* é a versão que todos os projetos instalam"
 PUSH_DIRETO = "push direto para"
 TRAVA, TRAVA_OPACA, TRAVA_NO_TETO = "trava", "trava-opaca", "trava-no-teto"
-GIT_DAS_TRAVAS = {"push", "merge", "pull", "commit", "tag", "config", "rebase", "reset", "branch", "update-ref",
-                  "filter-branch", "filter-repo"}
-GH_DAS_TRAVAS = {"merge", "api"}
+# Lista positiva do que não chega a uma trava (AR-15): o subcomando do git e as duas primeiras palavras do gh que só leem
+# ou mexem na árvore; o resto (alias, `send-pack`, `am`, `fetch` para uma branch, `release create`) é trava.
+GIT_FORA_DAS_TRAVAS = {"add", "blame", "cat-file", "describe", "diff", "grep", "log", "ls-files", "ls-remote", "ls-tree",
+                       "restore", "rev-list", "rev-parse", "shortlog", "show", "stash", "status", "worktree"}
+GH_FORA_DAS_TRAVAS = {"pr view", "pr list", "pr checks", "pr diff", "pr status", "run view", "run list", "issue view",
+                      "issue list", "repo view", "release view", "release list"}
 OPACA_NA_PALAVRA = re.compile(r"[$`]")  # a palavra que o bash expande: o hook não sabe o valor
 GIT_NO_TEXTO = re.compile(r"(?<![\w./-])(?:git|gh)(?=\s)")  # o git ou o gh como palavra, não `.git/` nem `x-git`
 COLCHETE_DE_DIGITO = re.compile(r"\[[0-9-]+\]")  # o bash e o glob do Python o leem igual: sem caixa, negação nem classe
@@ -3804,9 +3807,9 @@ def trava_da_sessao_do_forge(rid, trava, linha):
 
 def toca_uma_trava(linha, nivel=0):
     """E51.6: algum comando simples da linha pode ser uma trava com o alvo opaco: o programa opaco (`$G push`), o git
-    com subcomando de `GIT_DAS_TRAVAS`, opaco ou com `-c`, o gh com `pr merge` ou `api` (ou opaco) nas duas primeiras
-    palavras, e o texto que o `eval` ou o `sh -c` reavalia (um nível). O git ou o gh valem em qualquer posição do comando
-    (`env git push $F`). A palavra vem do leitor (`palavras_do_texto`, sem aspas nem escapes); a que o bash expande,
+    com subcomando fora de `GIT_FORA_DAS_TRAVAS` (opaco, alias, com `-c`), o gh com as duas primeiras palavras fora de
+    `GH_FORA_DAS_TRAVAS`, e o texto que o `eval` ou o `sh -c` reavalia (um nível). O git ou o gh valem em qualquer
+    posição do comando (`env git push $F`). A palavra vem do leitor (`palavras_do_texto`, sem aspas nem escapes); a que o bash expande,
     pelo texto cru, vira `$`: a substituição (`$(echo git) push`, `git $(echo push)`) também é opaca."""
     for comando in palavras_do_texto(linha).simples:
         k = 0
@@ -3816,12 +3819,11 @@ def toca_uma_trava(linha, nivel=0):
         palavras = ["$" if OPACA_NA_PALAVRA.search(p.cru) else p.valor for p in comando.palavras[k:]]
         if palavras and OPACA_NA_PALAVRA.search(palavras[0]):
             return True
-        for k, palavra in enumerate(palavras):
-            nome, resto = nome_do_caminho(palavra), palavras[k + 1:]
-            sub = subcomando_do_git(resto)
-            if nome == "git" and resto and (sub is None or sub in GIT_DAS_TRAVAS or OPACA_NA_PALAVRA.search(sub)):
+        for j, palavra in enumerate(palavras):
+            nome, resto = nome_do_caminho(palavra), palavras[j + 1:]
+            if nome == "git" and resto and subcomando_do_git(resto) not in GIT_FORA_DAS_TRAVAS:
                 return True
-            if nome == "gh" and (GH_DAS_TRAVAS & set(resto[:2]) or any(OPACA_NA_PALAVRA.search(p) for p in resto[:2])):
+            if nome == "gh" and " ".join(resto[:2]) not in GH_FORA_DAS_TRAVAS:
                 return True
             if (nome == "eval" or nome in SHELLS) and not nivel and any(toca_uma_trava(p, 1) for p in resto):
                 return True
