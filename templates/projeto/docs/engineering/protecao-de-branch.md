@@ -27,7 +27,7 @@ Repositório > Settings > Rules > Rulesets > New ruleset > New branch ruleset. U
 5. Marque **Restrict deletions** (bloqueio de deleção).
 6. Marque **Block force pushes** (bloqueio de force push).
 7. Marque **Require a pull request before merging**. Não marque aprovação obrigatória de revisor: a decisão é "checks verdes", e o bot não aprova o próprio PR.
-8. Marque **Require status checks to pass**. Deixe **Require branches to be up to date before merging** desmarcado: ele obriga cada PR a trazer a base de novo sempre que outro entra antes, e a branch traz a base uma vez, antes do pedido de merge (`R-FLUXO`). A garantia é o CI contra a base real: o do PR roda sobre o merge com a base, e o da branch de integração (gatilho de `push` nela) confere cada merge.
+8. Marque **Require status checks to pass**. Deixe **Require branches to be up to date before merging** desmarcado: o novo teste sobre o topo sempre que a base anda é da fila da `R-FLUXO` (seção "Fila de merge"), e marcar a caixa para o servidor barrar é escolha do dono. A garantia é o CI contra a base real: o do PR roda sobre o merge com a base, e o da branch de integração (gatilho de `push` nela) confere cada merge.
 9. Em "Add checks", acrescente cada job da lista do `devops-engineer` e, em cada um, deixe a fonte (Source) fixada em **GitHub Actions**. Sem a fonte fixada, um status gravado por token com o mesmo nome vale como verde.
 10. Create.
 
@@ -44,6 +44,12 @@ Depois de configurar, o dono roda, para a branch de integração e para a `main`
 `gh api repos/<dono>/<repo>/rules/branches/<b>`
 
 A resposta lista as regras: `pull_request`, `required_status_checks` com os jobs da lista, `non_fast_forward` e `deletion`. Para ver a lista de bypass, abra o ruleset na página de rulesets, como administrador: ela precisa estar vazia nos portões. O comando não escreve nada.
+
+## Fila de merge (`R-FLUXO`)
+A integração recebe um merge por vez, cada PR testado sobre o topo dela, e com ela vermelha só entra o conserto (detalhe em `ritmo-e-corte.md`, da skill `trabalho-em-paralelo`). Quem garante a fila depende de onde mora o repositório:
+- **Repositório de organização** (público, ou privado com GitHub Enterprise Cloud): a fila nativa do GitHub. No ruleset dos portões, o dono marca **Require merge queue**; o workflow de cada check exigido precisa do gatilho `merge_group`, senão o check não é reportado e o merge falha.
+- **Conta pessoal** (sem fila nativa): o `tech-lead` faz a fila à mão. Antes do merge, ele confere se o CI do PR rodou sobre o topo da integração; se a base andou, traz a base e espera o CI de novo. Se o dono quiser o servidor barrando, ele marca a caixa do passo 8 (escolha dele, `R-DECISAO`).
+- Em repositório privado, cada novo teste gasta minutos da cota gratuita do plano (`R-CUSTO`).
 
 ## Limites
 - Repositório privado no plano gratuito: veja "Antes de começar".
