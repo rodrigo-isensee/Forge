@@ -3,75 +3,59 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-entrega-parecer-mesclado
-commit: cdf62e0a29a1dabf34c600bb0b802e9fd65bcf55
+commit: 8cff35a0a8a65134b83fbd3841c4f3bb290269bc
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-11-20
 ---
-# Review de segurança: E50.5, volta do parecer mesclado (v0478 E50.3, revalidação)
+# Review de segurança: E50.6 e E50.7, barreira de papel e âncora do Jarvis (v0478 E50.9, revalidação)
 
-Delta lido (`forge-check parecer delta`, `48153733..cdf62e0a`): no domínio só `bin/forge-check` (`commit_so_de_parecer`, `parecer_mesclado_na_volta` e a frase da ajuda). Fora do domínio, lidos para a conferência: `tests/test_selo_e_entrega.py` (4 testes novos de abuso e o do rev-list), três specs de mutante e o fragmento do changelog. Por causa da DECISÃO DO DONO de 2026-11-20 10:59, li também a política e o caminho de decisão do hook `conformidade` (`hooks/conformidade.json:69-73`, `hooks/conformidade.py:3870-3900`), que ficam fora do delta.
+Delta lido (`forge-check parecer delta`, `cdf62e0a..8cff35a0`): no domínio, `bin/forge-check` (`autores_da_volta` e a âncora em `parecer_mesclado_na_volta`), `hooks/conformidade.py` (`CAMINHOS_DE_PARECER`, `GuardaDaProva.parecer_no_topo`, `recusa_do_estado`), `docs/hooks.md` e as 20 fixtures `pp-sessao-forge-*` com o teste delas em `tests/test_hooks.py`. Fora do domínio, lidos para a conferência: os 5 testes novos de `ParecerMescladoNaVolta`, os três specs de mutante e o fragmento do changelog. Também li `prova_fora_de_projeto` e `principal` (`hooks/conformidade.py:3790-3925`), que decidem quando a `GuardaDaProva` vale.
 
-Gatilhos: controle do Forge (`forge-check entrega`), afrouxa-regra com condições do dono (DECISÃO DO DONO 2026-11-20 10:59).
+Gatilhos: controle do Forge (hook `conformidade` e `forge-check entrega`), afrouxa-regra com condições do dono (DECISÃO DO DONO 2026-11-20 10:59 e 13:21).
 
 ## Achados
-- A3 (bloqueante) hooks/conformidade.py:3896 · na sessão do Forge (raiz no clone, pasta em ~/.forge-contrib/wt/*) o hook só avalia papel com lista: tech-lead, devops e dev gravam docs/reviews/, docs/qa/, docs/security/ por Write, Edit e Bash (72 de 72 liberadas). A condição (2) do dono falha.
-- A4 (bloqueante) hooks/conformidade.json:69 · o autor do E50 é o tech-lead, dono de docs/reviews/: mesmo em projeto, a barreira por papel não separa o autor do revisor, e o review forjado com commit: = Desde sai anexo do portão (S12).
+- A5 (bloqueante) hooks/conformidade.py:3784 · na sessão do Forge, a recusa "o hook não modela" (variável no alvo com ação crítica) só vale se a linha cita o estado dos hooks; em projeto vale sempre. Todo papel grava qualquer pasta de parecer por `f=docs/qa/x.md; echo x > $f` (41 de 41 células).
 
 ## Sondas
-- S6 · volta: código N, depois um commit só de docs/security/x.md, aprovado, `commit:` = Desde, sem parecer anterior do portão; `forge-check entrega --etapa codigo` · espera: rc 1, fora do declarado · obtido: rc 0, `escopo: ok (anexo do portão: parecer de seguranca ...)`
-- S12 · igual à S6 em docs/reviews/x.md (tipo review), depois do reprovado do portão sobre a 1.a entrega · espera: rc 1, fora do declarado · obtido: rc 0, `escopo: ok (anexo do portão: parecer de tech-lead commitado na volta só com parecer)`
-- S9 · hook conformidade, CLAUDE_PROJECT_DIR = clone do Forge, cwd = ~/.forge-contrib/wt/x, agent_type forge:tech-lead, Write docs/qa/x.md · espera: rc 2 (barra) · obtido: rc 0 (libera)
-- S10 · mesmo contexto, agent_type de agente de stack (papel dev), Bash `printf x > docs/reviews/x.md` · espera: barra · obtido: libera
-- S11 · mesmo contexto, agent_type forge:devops-engineer, Edit docs/security/x.md · espera: barra · obtido: libera
+- S13 · hook conformidade, CLAUDE_PROJECT_DIR = clone do Forge, cwd = ~/.forge-contrib/wt/x, agent_type de agente de stack (papel dev), Bash `d=docs/reviews; printf x > "$d/n.md"` · espera: rc 2 (barra) · obtido: rc 0 (libera)
+- S14 · mesma linha da S13 numa sessão de projeto (raiz com `.forge/versao`), agent_type forge:dev · espera: rc 2 · obtido: rc 2, a referência que a sessão do Forge não alcança
+- S15 · contexto da S13, agent_type forge:dev, Bash `f=docs/qa/n.md; echo x > $f` · espera: rc 2 · obtido: rc 0
+- S16 · contexto da S13, agent_type forge:jarvis, Bash `d=docs/security/aceites; printf x > "$d/n.md"` · espera: rc 2 · obtido: rc 0
 
 ## Detalhe dos achados
 **Achados anteriores.**
-- A1 (bloqueante, `commit:` aceitava qualquer sha do intervalo): corrigido em `bin/forge-check:3018` (`revisado != de` recusa). Refiz S1 e S3: rc 1, `fora do declarado no brief "docs/reviews/x.md"`. Testes: `test_autor_que_forja_aprovado_citando_o_proprio_codigo_segue_fora` e `test_reprovado_do_portao_trocado_por_aprovado_com_outro_commit_segue_fora`.
-- A2 (recomendado, um commit forjava várias pastas e o aceite): corrigido em `bin/forge-check:3002` e `:3020` (só a pasta do tipo, fora de `docs/security/aceites/`). Sondas: S2 rc 1 (as três pastas fora), S7 (aceite junto) rc 1, S8 (parecer de tipo `review` gravado em `docs/security/`) rc 1. Testes: `test_um_commit_com_pareceres_de_varias_pastas_segue_fora` e `test_parecer_de_seguranca_com_aceite_no_mesmo_commit_segue_fora`.
-- Outras conferências: o rev-list que falha recusa (`bin/forge-check:3022`, `test_rev_list_que_falha_recusa`). S4 (veredito trocado no mesmo `commit:`) rc 1. S5 (caso real, `commit:` = Desde, gravado pelo portão) rc 0: o conserto se mantém.
+- A1 e A2 (rodada de `48153733`): seguem no head, `bin/forge-check:3020` (`revisado != de`) e `bin/forge-check:3002` (só a pasta do tipo, fora de `docs/security/aceites/`). Os testes deles seguem verdes (`ParecerMescladoNaVolta`, 14 de 14, rodados aqui).
+- A3 (barreira de papel na sessão do Forge): corrigido para as formas que o hook lê, com uma lacuna (A5). `GuardaDaProva` agora recusa as pastas de parecer para todo papel não dono (`hooks/conformidade.py:3748-3761`, `:3778-3780`), pela forma da raiz da sessão e pela do topo da cópia do Forge que contém o alvo. S9, S10 e S11 da rodada anterior: rc 2. Fixtures: `test_fixtures_do_parecer_pelo_papel` verde (20 de 20).
+- A4 (mesmo papel do autor): corrigido em `bin/forge-check:3022`. O parecer do papel de um autor da volta (o `Agente destino` dos briefs selados de codigo; sem nenhum, falha fechada) só vale com o blob do último `parecer conferido`. S12 refeita pelos testes `test_mesmo_papel_sem_linha_do_jarvis_segue_fora`, `test_parecer_conferido_de_outra_versao_nao_ancora`, `test_sem_autor_conhecido_falha_fechada` e `test_brief_de_outro_pedido_nao_e_autor_da_volta`: rc 1. O caso legítimo, `test_mesmo_papel_com_parecer_conferido_do_jarvis_e_anexo`, passa. Ressalva de contexto na condição (3).
 
-**Condição (1) do dono, os dois apertos entraram.** Sim, os dois, com testes de abuso (acima).
+**Condição (1) do dono, os dois apertos entraram.** Sim. O `commit:` do parecer tem de ser exatamente a versão revisada que abre a volta (`bin/forge-check:3020`), e cada tipo só vale na própria pasta, fora dos aceites (`bin/forge-check:3002`). Os testes de abuso das duas regras estão verdes no head.
 
-**Condição (2) do dono, o hook barra o autor pelo papel nas pastas de parecer.** Não se cumpre. Sondei o hook real da branch (`hooks/conformidade.py` pelo lançador de `tests/test_hooks.py`). Combinações: 4 papéis de autor (`forge:tech-lead`, `forge:devops-engineer`, um agente de stack (papel `dev`), `forge:dev`) × 3 pastas (`docs/reviews/`, `docs/qa/`, `docs/security/`) × 6 formas de escrita (Write, Edit, Bash `>`, Bash `cp`, Bash `git show >`, Bash `python3 -c open(...)`). Rodei em dois contextos:
-- Projeto (raiz com `.forge/versao`): 69 de 72 barradas. As 3 liberadas são do tech-lead em `docs/reviews/` (Write, Edit e `python3 -c`); a política faz dele o dono dessa pasta.
-- Sessão do Forge (raiz = clone do Forge sem `.forge/versao`, pasta em `~/.forge-contrib/wt/*`, o contexto deste pedido): 0 de 72 barradas. `identificar_sessao` devolve False, e `principal` só leva à guarda completa os papéis com lista (`aq`, `conferente`, `leitura`). Os demais caem em `prova_fora_de_projeto`, que só confere a prova da suíte (`hooks/conformidade.py:3896`); a ADR 0009, seção 6, desenha isso assim. O registro de autoria (PostToolUse) também não roda nesse contexto.
+**Condição (2) do dono, o autor não grava nas pastas de parecer na sessão do Forge.** Ainda não posso confirmar por escrito, por causa do A5. Prova da matriz, rodada no hook real da branch pelo lançador de `tests/test_hooks.py` (sessão do Forge, worktree em `~/.forge-contrib/wt/x`):
+- 9 papéis (`tech-lead`, `devops`, `qa`, `seguranca`, `jarvis`, `doc`, `dev` do núcleo, `dev` de stack e a sessão principal sem `agent_type`) × 5 pastas (`docs/reviews/`, `docs/qa/`, `docs/devops/`, `docs/security/`, `docs/security/aceites/`) × 14 formas: Write, Edit, Bash `>`, `cp`, `tee`, interpretador com `-c`, variável no alvo, `cd` antes, caminho absoluto, `..`, `git checkout -- <arq>`, `mv`, `sed -i` e `sh -c`.
+- Resultado: 630 casos. Nas 4 células do dono (56 casos), tudo libera, como deve. Nas 41 células de papel não dono (574 casos), 533 barram e 41 liberam, todos na forma da variável no alvo (A5).
+- Corpus de legítimos na mesma sessão, 18 de 18 liberados: `git merge`, `pull --rebase`, `switch`, `checkout <branch>`, `stash pop`, `cherry-pick`, leitura (`cat`, `grep`, `git log`, `git diff`), cópia de parecer para `$TMPDIR`, `git add` e `commit` do parecer, `forge-check docs`, `git worktree add`, o push da segurança e a variável no alvo do próprio dono (`f=docs/security/x.md; printf x > $f`, papel `seguranca`).
+- Fora do escopo da condição, e igual em projeto: o hook não modela `$(echo docs/reviews)` no alvo, curinga no redirecionamento, laço que monta o caminho (`for p in reviews qa; do echo x > docs/$p/n.md; done`) nem caminho montado em tempo de execução dentro do interpretador. Esses casos passam nos dois contextos, ficam com a BP-5 (`docs/hooks.md`) e não são achado deste delta.
 
-Isso corrige o parecer anterior, que citava o hook como "a barreira principal": no Forge essa barreira não existe.
-
-**A3, caminho de ataque.** Quem: o agente autor da volta (alucinação ou atalho). De onde: a worktree em `~/.forge-contrib/wt/`. O que ganha: grava e commita sozinho `docs/<pasta>/<pedido>.md` aprovado, com `commit:` = Desde, e a conferência o aceita como anexo do portão (S6).
+**A5, caminho de ataque.**
+- Quem: o agente autor da volta, por atalho ou por alucinação. De onde: a worktree em `~/.forge-contrib/wt/`. O que ganha: grava `docs/<pasta>/<pedido>.md` de outro papel com `f=...; echo ... > $f`, a forma mais comum de shell, e o `forge-check entrega` o aceita como anexo do portão (S6 da rodada anterior), porque para outro papel a conferência confia na barreira do hook.
+- Evidência: em `GuardaDaProva.recusa_do_estado` (`hooks/conformidade.py:3784`), a recusa da construção que o hook não modela só vale quando a linha cita `ESTADO_NO_TEXTO`. O mesmo acontece no ramo de linha ilegível ou erro interno de `prova_fora_de_projeto` (`hooks/conformidade.py:3805`). Em projeto, a `Guarda` recusa essa construção sempre (S14).
 - Severidade: média (controle de processo interno, sem segredo nem dado pessoal).
-- Correção mínima, no mesmo PR e antes do rótulo (condição do dono): na sessão do Forge, com a pasta corrente num clone ou worktree do Forge (`~/Forge`, `/workspaces/Forge` e `~/.forge-contrib/wt/*`), aplicar às pastas de parecer, para todo papel, a regra de caminhos protegidos por papel, nas ferramentas Write, Edit, MultiEdit, NotebookEdit e Bash. A lista inteira: `docs/reviews/` (só `tech-lead`), `docs/qa/` (só `qa`), `docs/devops/` (só `devops`), `docs/security/aceites/` (nenhum agente), `docs/security/` (só `seguranca`).
-- Teste de abuso: S9, S10, S11 e a matriz acima (4 papéis × 4 pastas × Write, Edit e Bash) com rc 2. Corpus de legítimos: cada portão gravando a própria pasta, com rc 0.
-- Esforço: M. Dono: tech-lead (política e hook; `hooks/conformidade.json` só muda em `melhoria/*`).
+- Correção mínima: nas duas linhas, além de `ESTADO_NO_TEXTO`, recusar quando a linha (já com as continuações juntadas) cita uma pasta de parecer de que o papel não é dono. A lista inteira: `docs/reviews/` (só `tech-lead`), `docs/qa/` (só `qa`), `docs/devops/` (só `devops`), `docs/security/aceites/` (nenhum agente), `docs/security/` (só `seguranca`). O papel dono segue livre na própria pasta.
+- Teste de abuso: S13, S15 e S16 como fixtures `pp-sessao-forge-*` com rc 2, e a variável no alvo de um papel não dono em cada uma das 5 pastas. Legítimos que seguem com rc 0: a variável do dono na própria pasta e uma variável que não cita pasta de parecer (`f=src/x; echo x > $f`).
+- Esforço: P. Dono: tech-lead (hook; `tests/hooks/` só em `melhoria/*`).
 
-**A4, caminho de ataque.** Mesmo com a barreira de A3, o tech-lead é autor do E50.1 e do E50.5 e é o dono de `docs/reviews/`, e uma barreira por papel não distingue a instância autora da revisora. Um review forjado gravado só em `docs/reviews/`, com `commit:` = Desde, passa mesmo depois do reprovado do portão sobre a 1.a entrega (S12), porque a regra só olha a forma do git.
-- Severidade: média.
-- Correção mínima: em `parecer_mesclado_na_volta`, quando o papel do parecer (`PAPEL_DO_PARECER[tipo]`) for o papel do autor da entrega (o `Agente destino` do brief da volta), não aceitar pela forma do git. Exigir uma âncora que o autor não grava: uma linha do Jarvis no `## Histórico` com papel e sha do parecer, como o `parecer conferido`.
-- Teste de abuso: S12 com autor tech-lead, rc 1; o caso real (portão de outro papel) segue com rc 0.
-- Esforço: P. Dono: tech-lead.
-
-**Condição (3) do dono, o afrouxamento que sobra, medido.** Com A1 e A2 corrigidos, a conferência aceita sem âncora uma forma só, que precisa de todos estes pontos:
-- um commit (ou merge sem resolução à mão) que muda só a pasta do tipo, fora de `docs/security/aceites/`;
-- frontmatter da pasta, da branch e do pedido, com veredito;
-- `commit:` igual ao Desde;
-- nenhum veredito diferente para o mesmo `commit:` desde o Base-sha.
-
-Medida: das 9 sondas de `forge-check entrega` desta rodada, 8 são forjadas e 1 legítima. Das forjadas, 2 passam (S6 e S12, a mesma forma em duas pastas) e 6 são recusadas (S1, S2, S3, S4, S7, S8). A legítima (S5) passa.
-
-Quem consegue produzir S6 e S12 hoje: no Forge, qualquer papel em qualquer pasta (A3); em projeto, só o tech-lead em `docs/reviews/` (A4).
-
-O que fica fora do afrouxamento:
-- o `forge-check pr` vê o aprovado forjado no Desde como desatualizado quando a volta muda código do domínio depois dele (conferido na rodada anterior);
-- `veredito_trocado` e `pareceres_divergentes` pegam o forjado quando o portão já gravou um veredito para o mesmo Desde.
-
-Com A3 e A4 corrigidos, S6 e S12 passam a exigir o papel dono da pasta numa instância diferente da autora, que é o que o dono pediu.
+**Condição (3) do dono: o que a mudança aceita a mais, e por quê.**
+- As peças novas deste delta só apertam. `caminho_barrado` devolve `achado or parecer_no_topo(...)` e `recusa_do_estado` ganha um `True` antes dos outros testes, então o hook só soma recusas. Em `bin/forge-check:3022` entra um `return False` a mais. O corpus de 18 legítimos segue livre.
+- O afrouxamento do item é o que o rótulo declara: na volta, o parecer de outro papel commitado só com a pasta dele, com `commit:` igual ao Desde e sem veredito trocado, sai como anexo do portão pela forma do git. Isso destrava o caso real (S5) e depende da barreira de papel do hook. Com o A5 aberto, essa barreira tem uma brecha.
+- O parecer do mesmo papel do autor só vale com o `parecer conferido` do Jarvis. Em projeto, o `## Histórico` fica em `docs/pedidos/`, que o hook guarda (só `jarvis`). Na sessão do Forge, a cópia do pedido em `~/.forge-contrib/docs/pedidos/` não tem guarda de papel: sondei Write, Edit e Bash `>>` de `forge:tech-lead` e Write de `forge:dev` ali, e os 4 liberam (rc 0). O mesmo vale para `docs/briefs/`.
+- Por isso, na sessão do Forge, o tech-lead autor ainda consegue forjar o próprio review se gravar duas coisas de propósito: o parecer e a linha do Jarvis. Isso não vem deste delta: é a mesma ausência de guarda que já vale para as linhas `conferida`, `patch do dono` e `DECISÃO DO DONO` na sessão do Forge. Também não está na condição (2), que fala só das pastas de parecer. Fica como resíduo declarado e vai ao Jarvis como item próprio (guarda de papel de `docs/pedidos/` e `docs/briefs/` na sessão do Forge, `R-DECISAO`).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. O rótulo `afrouxa-regra` segue condicionado ao A3 e ao A4 no mesmo PR (DECISÃO DO DONO 2026-11-20 10:59).
+Nenhum risco aceito. O rótulo `afrouxa-regra` segue condicionado ao A5 neste PR (condição (2), DECISÃO DO DONO 2026-11-20 10:59 e 13:21).
 
-Sondas: rodei `ParecerMescladoNaVolta` estendido fora da branch (22 testes verdes, entre eles os 5 novos do E50.5) e o hook pelo lançador de `tests/test_hooks.py`, em repositórios temporários com HOME temporário.
+Sondas: o hook rodou pelo lançador de `tests/test_hooks.py` (`Fixture.montar` e `rodar`), em pastas temporárias com HOME temporário; o `forge-check` rodou pela classe `ParecerMescladoNaVolta` (14 testes verdes).
 
-Suíte inteira: fica com o CI do PR. Não conferi o estado do CI em `cdf62e0a` (o `gh` não lê credenciais no sandbox).
+Suíte inteira: fica com o CI do PR. Não conferi o estado do CI em `8cff35a0`, porque o `gh` não lê credenciais no sandbox.
 
-Lacuna: gitleaks, semgrep, zizmor e actionlint fora do PATH; o delta não toca workflow nem dependência.
+Lacuna: gitleaks, semgrep, zizmor e actionlint fora do PATH. O delta não toca workflow nem dependência.
