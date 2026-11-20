@@ -110,8 +110,8 @@
       "id": "M11",
       "guarda": "a lista de modulos conhecidos so leva arquivo que e nome de modulo (a condicao do filtro)",
       "arquivo": "bin/forge-testes",
-      "de": "if (n := nome_do_modulo(p.relative_to(raiz).as_posix())))",
-      "para": "if False)",
+      "de": "(n := nome_do_modulo(p.relative_to(raiz).as_posix()))",
+      "para": "False",
       "testes": [
         "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito"
       ]
