@@ -24,8 +24,9 @@ Caminho de ataque: um agente na sessão do Forge (clone ou `wt/*`), por erro ou 
 
 Correção mínima: no nível 1, o `eval` ou um shell (`SHELLS`) com texto a reavaliar (argumento depois do programa ou here-string) devolve `True`, fechando na dúvida. Outra saída é a recursão seguir até o limite de profundidade que a guarda já usa. Somar fixtures `e51-*` com as quatro sondas abaixo e um mutante que tira a condição. Dono: `dev`.
 
+As sondas rodam o hook desta cópia pela `Fixture`/`rodar` de `tests/test_hooks.py`. Sessão do Forge: `forge: false`, `plugin.json` do Forge, `CLAUDE_PROJECT_DIR` na raiz, papel `forge:dev`, cwd em `~/.forge-contrib/wt/x`. "Projeto" é a mesma fixture com `.forge/versao`.
+
 ## Sondas
-Hook desta cópia, pela `Fixture`/`rodar` de `tests/test_hooks.py`. Sessão do Forge: `forge: false`, `plugin.json` do Forge, `CLAUDE_PROJECT_DIR` na raiz, papel `forge:dev`, cwd em `~/.forge-contrib/wt/x`. "Projeto" é a mesma fixture com `.forge/versao`.
 - S1 · `bash -c 'bash -c "B=develop; git push origin \$B"'` · espera: 2 (era 2 em d235846; projeto 2) · obtido: 0
 - S2 · `eval 'bash <<< "git push origin main"'` · espera: 2 (projeto 2) · obtido: 0
 - S3 · `bash <<< 'bash <<< "git push origin develop"'` · espera: 2 (projeto 2) · obtido: 0
