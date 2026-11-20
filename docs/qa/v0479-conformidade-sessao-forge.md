@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-sessao-forge
-commit: c792b567222a828209c6435b71f571cc925c1dd0
+commit: 96c0215fff321bb1192c84fc712987b59496e8bc
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -87,3 +87,15 @@ Delta por `forge-check parecer delta` (sem o que veio da `develop`): `docs/hooks
 | Índice das fixtures igual ao gerado pelo script | `tests.test_indice_fixtures` | 3158 fixtures | passou |
 
 Prova: `python3 -m unittest tests.test_hooks_volta_corpus tests.test_indice_fixtures` (sem `-I`): `Ran 40 tests in 170.991s · OK`. Registro em `tests/provas/v0479-corpus-custo.md` confere com o código e com a decisão. Suíte inteira: só no CI do PR, não rodada aqui. Teste novo de regra: nenhum no delta (só constante e índice gerado), sem vermelho antes do verde aplicável.
+
+## Revalidação E51.32 (head 96c0215f, antes c792b567)
+
+Delta por `forge-check parecer delta` (sem o que veio da `develop`): `docs/hooks-fixtures.md`, `docs/hooks.md`, `hooks/conformidade.py`, `tests/apoio_volta_unica.py`, `tests/provas/v0479-corpus-custo.md`, `tests/test_hooks.py` e as fixtures `pp-*`. O hook e as fixtures vêm do E50 (#734, f96ede50), já aprovado no pedido próprio; o ganho próprio do E51 no delta é a constante da soma. Remoto sem avanço (`git fetch`: igual ao head local).
+
+| Obrigação | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Teto da soma E50 + E51 = 5897219, +3252 sobre 5893967 (1084 + 2168; abaixo do aviso de +3300, DECISÃO DO DONO 20/11 19:09 e 19:55) | `tests.test_hooks_volta_corpus` (teto é a medida exata) | um passo a mais reprova; 5897219 igual à medida registrada | passou |
+| Índice das fixtures igual ao gerado (3196 fixtures, com as `pp-*`) | `tests.test_indice_fixtures` | pasta de fixtures renomeada ou índice velho | passou |
+| Barreira de papel nas pastas de parecer (E50, `test_fixtures_do_parecer_pelo_papel`, pisos 13 e 25) | check-run `bateria` do PR | papel x pasta x forma | herdado do parecer do E50 |
+
+Prova: `python3 -m unittest tests.test_hooks_volta_corpus tests.test_indice_fixtures` (sem `-I`): `Ran 40 tests in 159.608s · OK`. A aritmética do registro em `tests/provas/v0479-corpus-custo.md` ("Soma do E50 e do E51") confere com a constante e com as duas decisões. Sem teste novo de regra do E51 no delta (vermelho antes do verde não se aplica). Suíte inteira: só no CI do PR, não rodada aqui.
