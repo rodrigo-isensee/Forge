@@ -748,3 +748,124 @@ class SemTeste(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def run(workflow, sha, quando, conclusao="success", ramo="melhoria/x", evento="pull_request", status="completed", tentativa=1, **extra):
+    return {"workflowName": workflow, "headBranch": ramo, "headSha": sha, "event": evento, "status": status,
+            "conclusion": conclusao, "createdAt": quando, "attempt": tentativa, **extra}
+
+
+def pr(numero, quando="2026-11-18T10:00:00Z", ramo="melhoria/x", autor="tech-lead"):
+    return {"number": numero, "headRefName": ramo, "createdAt": quando, "author": {"login": autor}}
+
+
+class CiPrimeira(unittest.TestCase):
+    """PR-VERDE M1 (D7): CI verde na 1.ª execução por PR; ambiente limpo e Python com -I (AR-4, AR-5)."""
+
+    def setUp(self):
+        self.raiz = Path(tempfile.mkdtemp(prefix="forge-placar-ci1-"))
+        self.addCleanup(shutil.rmtree, self.raiz, ignore_errors=True)
+
+    def rodar(self, runs, prs, *args, cru=None):
+        (self.raiz / "runs.json").write_text(cru if cru is not None else json.dumps(runs), encoding="utf-8")
+        (self.raiz / "prs.json").write_text(json.dumps(prs), encoding="utf-8")
+        r = subprocess.run([sys.executable, "-I", str(PLACAR), "ci-primeira", "--runs", str(self.raiz / "runs.json"),
+                            "--pr-lista", str(self.raiz / "prs.json"), "--ate", "2026-11-21", "--raiz", str(self.raiz), *args],
+                           capture_output=True, text=True, timeout=60, cwd=self.raiz,
+                           env={"PATH": "/usr/bin:/bin", "HOME": str(self.raiz), "LANG": "C.UTF-8", "TZ": "UTC"})
+        return r.returncode, r.stdout, r.stderr
+
+    def total(self, runs, prs, *args):
+        rc, saida, erro = self.rodar(runs, prs, "--json", *args)
+        self.assertEqual(rc, 0, erro)
+        dados = json.loads(saida)
+        return dados["grupos"].get("total"), dados["prs"]
+
+    def test_verde_nos_dois_exigidos(self):
+        total, _ = self.total([run("CI", "a", "2026-11-18T10:01:00Z"), run("Catraca", "a", "2026-11-18T10:01:05Z")], [pr(1)])
+        self.assertEqual((total["verde"], total["vermelho"], total["taxa"]), (1, 0, 1.0))
+
+    def test_catraca_vermelha_separada_por_workflow_e_job(self):
+        jobs = [{"name": "catraca", "conclusion": "failure"}, {"name": "aviso", "conclusion": "skipped"}]
+        rc, saida, erro = self.rodar([run("CI", "a", "2026-11-18T10:01:00Z"),
+                                      run("Catraca", "a", "2026-11-18T10:01:05Z", "failure", jobs=jobs)], [pr(1)])
+        self.assertEqual(rc, 0, erro)
+        self.assertIn("total: verde na 1.ª 0.00% (0/1) · vermelhos por workflow: Catraca 1, Catraca/catraca 1", saida)
+        self.assertIn("dia 2026-11-18:", saida)
+        self.assertIn("semana 2026-W47:", saida)
+
+    def test_cancelada_nao_conta_como_verde_nem_vermelha(self):
+        total, prs = self.total([run("CI", "a", "2026-11-18T10:01:00Z", "cancelled"), run("Catraca", "a", "2026-11-18T10:01:05Z"),
+                                 run("CI", "b", "2026-11-18T10:05:00Z"), run("Catraca", "b", "2026-11-18T10:05:05Z")], [pr(1)])
+        self.assertEqual((total["verde"], total["vermelho"], total["cancelado"], total["taxa"]), (0, 0, 1, None))
+        self.assertEqual(prs[0]["estado"], "cancelado")
+
+    def test_vermelho_ganha_da_cancelada_e_da_pendente(self):
+        total, _ = self.total([run("CI", "a", "2026-11-18T10:01:00Z", "failure"),
+                               run("Catraca", "a", "2026-11-18T10:01:05Z", "cancelled")], [pr(1)])
+        self.assertEqual((total["vermelho"], total["cancelado"], total["falhas"]), (1, 0, {"CI": 1}))
+        total, _ = self.total([run("CI", "a", "2026-11-18T10:01:00Z", "", status="in_progress"),
+                               run("Catraca", "a", "2026-11-18T10:01:05Z", "cancelled")], [pr(1)])
+        self.assertEqual((total["pendente"], total["cancelado"], total["verde"]), (1, 0, 0))
+
+    def test_primeiro_head_e_o_do_primeiro_run_depois_de_aberto(self):
+        runs = [run("CI", "velho", "2026-11-17T09:00:00Z"), run("Catraca", "velho", "2026-11-17T09:00:05Z"),  # PR antigo, mesma branch
+                run("CI", "a", "2026-11-18T10:01:00Z", "failure"), run("Catraca", "a", "2026-11-18T10:01:05Z"),
+                run("CI", "b", "2026-11-18T11:00:00Z"), run("Catraca", "b", "2026-11-18T11:00:05Z"),  # branch reescrita, verde
+                run("CI", "a", "2026-11-18T12:00:00Z"), run("Catraca", "a", "2026-11-18T12:00:05Z")]  # reaberto no mesmo head
+        total, _ = self.total(runs, [pr(1)])
+        self.assertEqual((total["verde"], total["vermelho"]), (0, 1))
+
+    def test_run_de_push_e_de_outra_branch_nao_e_do_pr(self):
+        runs = [run("CI", "z", "2026-11-18T10:00:30Z", evento="push"), run("CI", "y", "2026-11-18T10:00:40Z", ramo="melhoria/y"),
+                run("CI", "a", "2026-11-18T10:01:00Z"), run("Catraca", "a", "2026-11-18T10:01:05Z")]
+        total, _ = self.total(runs, [pr(1)])
+        self.assertEqual((total["verde"], total["lacuna"]), (1, 0))
+
+    def test_rerun_verde_nao_conta_como_verde(self):
+        total, _ = self.total([run("CI", "a", "2026-11-18T10:01:00Z", tentativa=2), run("Catraca", "a", "2026-11-18T10:01:05Z")], [pr(1)])
+        self.assertEqual((total["verde"], total["vermelho"]), (0, 1))
+
+    def test_workflow_fora_da_lista_nao_conta(self):
+        total, _ = self.total([run("Release", "a", "2026-11-18T10:00:30Z", "failure"), run("CI", "a", "2026-11-18T10:01:00Z"),
+                               run("Catraca", "a", "2026-11-18T10:01:05Z")], [pr(1)])
+        self.assertEqual((total["verde"], total["vermelho"]), (1, 0))
+        total, _ = self.total([run("CI", "a", "2026-11-18T10:01:00Z", "failure")], [pr(1)], "--exigidos", "Catraca")
+        self.assertEqual(total["lacuna"], 1)
+
+    def test_exigido_sem_execucao_no_primeiro_head_e_lacuna(self):
+        total, _ = self.total([run("CI", "a", "2026-11-18T10:01:00Z"), run("Catraca", "b", "2026-11-18T10:05:00Z")], [pr(1)])
+        self.assertEqual((total["verde"], total["lacuna"]), (0, 1))
+        total, _ = self.total([], [pr(1)])
+        self.assertEqual((total["verde"], total["lacuna"]), (0, 1))
+
+    def test_dependabot_e_pr_fora_da_janela_ficam_fora(self):
+        runs = [run("CI", "a", "2026-11-18T10:01:00Z", "failure", ramo="dependabot/x"), run("Catraca", "a", "2026-11-18T10:01:05Z")]
+        total, _ = self.total(runs, [pr(1, ramo="dependabot/x", autor="app/dependabot"), pr(2, "2026-11-01T10:00:00Z"),
+                                     pr(3, "2026-11-21T00:00:00Z")])
+        self.assertIsNone(total)
+        rc, saida, erro = self.rodar(runs, [pr(1, ramo="dependabot/x", autor="app/dependabot")])
+        self.assertEqual((rc, saida.splitlines()[-1]), (0, "total: nenhum PR aberto na janela"), erro)
+
+    def test_resposta_ilegivel_sai_lacuna_nunca_verde(self):
+        bons = [run("CI", "a", "2026-11-18T10:01:00Z"), run("Catraca", "a", "2026-11-18T10:01:05Z")]
+        sem_campo = [dict(bons[0]), bons[1]]
+        del sem_campo[0]["attempt"]
+        data_ruim = [dict(bons[0], createdAt="2026-13-45T10:00:00Z"), bons[1]]
+        for nome, cru in (("não JSON", "{"), ("não lista", json.dumps({"runs": bons})), ("campo faltando", json.dumps(sem_campo)),
+                          ("data inválida", json.dumps(data_ruim)), ("item não objeto", json.dumps(bons + [1])),
+                          ("aninhado", json.dumps([dict(bons[0], jobs="FUNDO"), bons[1]]).replace('"FUNDO"', "[" * 200 + "]" * 200))):
+            with self.subTest(nome):
+                rc, saida, _ = self.rodar(None, [pr(1)], cru=cru)
+                self.assertEqual(rc, 2)
+                self.assertIn("ci-primeira: lacuna (--runs ausente ou ilegível)", saida)
+                self.assertNotIn("verde", saida)
+        rc, saida, _ = self.rodar(bons, [pr(1)], "--pr-lista", str(self.raiz / "nao-existe.json"))
+        self.assertEqual((rc, saida.strip()), (2, "ci-primeira: lacuna (--pr-lista ausente ou ilegível)"))
+        rc, saida, _ = self.rodar(None, [pr(1)], "--json", cru="{")
+        self.assertEqual((rc, json.loads(saida)), (2, {"lacuna": "--runs ausente ou ilegível"}))
+
+    def test_exigidos_vazio_e_uso_errado(self):
+        rc, _, erro = self.rodar([], [pr(1)], "--exigidos", " , ")
+        self.assertEqual(rc, 2)
+        self.assertIn("--exigidos sem workflow", erro)
