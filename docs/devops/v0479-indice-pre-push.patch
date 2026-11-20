@@ -1,0 +1,36 @@
+diff --git a/.githooks/pre-push b/.githooks/pre-push
+index f944360..c624145 100755
+--- a/.githooks/pre-push
++++ b/.githooks/pre-push
+@@ -336,7 +336,7 @@ tipo_de_script() {
+   case "$primeira" in '#!'*python*) echo python ;; '#!'*bash*|'#!'*/sh|'#!'*' sh') echo shell ;; esac
+ }
+ checagens_baratas() {
+-  local arquivo falhas=0 shell=() ancora branch envio ponta ref saida rc
++  local arquivo falhas=0 shell=() ancora branch envio ponta ref saida rc ferramenta
+   for arquivo in "${alterados[@]}"; do
+     if [ ! -f "$arquivo" ] || [ -L "$arquivo" ]; then continue; fi
+     n_baratas=$((n_baratas + 1))
+@@ -389,6 +389,22 @@ checagens_baratas() {
+       break
+     done
+   fi
++  # INDICE-NO-PRE-PUSH: o índice de bin/, hooks/ e scripts/ (docs/indice-forge.md) e o dos fixtures dos hooks
++  # (docs/hooks-fixtures.md) em dia, em segundos, para um arquivo novo sem linha no índice não esperar o CI. Só confere (--conferir,
++  # nunca grava); roda quando o envio altera algo e a ferramenta existe na árvore (repositório mínimo: nada a conferir).
++  if [ "${#alterados[@]}" -gt 0 ]; then
++    for ferramenta in indice-forge indice-fixtures; do
++      if [ ! -f "scripts/${ferramenta}.py" ] || [ -L "scripts/${ferramenta}.py" ]; then continue; fi
++      rc=0; saida="$(python3 -I "scripts/${ferramenta}.py" --conferir 2>&1)" || rc=$?
++      if [ "$rc" -eq 1 ]; then
++        printf '%s\n' "$saida" | LC_ALL=C tr -d '\000-\011\013-\037\177' >&2
++        echo "pre-push: índice fora de dia (scripts/${ferramenta}.py; o CI reprova igual); regenere com 'python3 scripts/${ferramenta}.py', confira o diff e inclua no commit." >&2
++        falhas=1
++      elif [ "$rc" -ne 0 ]; then
++        echo "pre-push: aviso: scripts/${ferramenta}.py --conferir não conseguiu conferir (saída ${rc}); o CI confere." >&2
++      fi
++    done
++  fi
+   return "$falhas"
+ }
+ n_baratas=0
