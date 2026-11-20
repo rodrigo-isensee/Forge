@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-entrega-parecer-mesclado
-commit: 5376b86d2b441a17f4aba8b05c37d94e8a5e94a4
+commit: 9f4c3ca37024789b7994296fc3f9716021b098af
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -55,3 +55,21 @@ Delta lido por `forge-check parecer delta` (de `aebace71`): `hooks/conformidade.
 - `forge-mutante --base aebace71 tests/mutantes/v0479-entrega-parecer-mesclado-5.json`: `base=aebace7125b5873038e1c4ffefbb512cd7e111b2 … rev=5376b86d2b44`; `M25`, `M26`, `M27`, `M28`, `M29`, `M30`, `M31 · morreu`; rc 0.
 - `forge-mutante --base aebace71 tests/mutantes/v0478-guardas-conformidade.json`: `M3`, `M4`, `M5`, `M6`, `M7`, `M12 · morreu`; rc 0.
 - Vermelho: cada mutante morto prova teste que cai sem a guarda (M26 sem a recusa, M27 sem `re.I`, M31 sem `security` cobrir `aceites`). `forge-testes --vermelho aebace71` varre 109 módulos em duas cópias (passou de 9000 s no módulo 118 de 222) e foi interrompido: sem veredito, não vale como vermelho; a suíte inteira fica com o CI do PR.
+
+---
+# Revalidação no head `9f4c3ca3` (E50.23)
+
+Delta lido por `forge-check parecer delta` (de `5376b86d`): do que é da branch, só `tests/test_revisor_wt.py` (commit `9f4c3ca3`, E50.20). O resto do domínio (`bin/forge-check`, `tests/test_hooks.py`, `docs/hooks.md`) veio da develop pelos merges (`c2cec75e`, `cf097822`, `c219c86b`), fora do que o parecer cobre; o aviso do delta sobre o merge de `bbdd9b0` foi conferido: merge de branch, sem efeito.
+
+## Critério → teste → resultado
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| E50.1: sem autoria registrada, o parecer commitado na volta só com parecer sai como anexo do portão, não "confira" | `test_revisor_wt.ParecerTrazido.test_o_ultimo_p_trazido_com_remocao_e_ok_em_qualquer_etapa` | sem `autoria.jsonl`; parecer de outro papel | passou |
+| E50.1/E50.5/E50.6 (regressão) | `ParecerMescladoNaVolta` | `commit:` = Desde | 60 de 60 |
+
+## Execução (TMPDIR da sessão, sem suíte local)
+- `python3 -I -m unittest discover -s tests -p test_revisor_wt.py` → `Ran 39 tests in 68.414s · OK`.
+- `python3 -I -m unittest discover -s tests -p 'test_*.py' -k ParecerMescladoNaVolta` → `Ran 60 tests in 114.764s · OK`.
+- Vermelho: a asserção antiga (`5376b86d:tests/test_revisor_wt.py`) contra o `bin/forge-check` do head cai (`FAILED (failures=1)`, esperava `escopo: confira …`); a nova passa. O teste só alinha a expectativa ao comportamento do E50.1 (autoria ausente, parecer commitado na volta só com parecer: `ok`, anexo do portão); não afrouxa guarda.
+- Mutantes: nenhuma linha de guarda mudada pela branch neste delta (só teste); specs não rerrodadas. Sem `skip` novo.
+- Suíte inteira: com o CI do PR, no check-run `bateria` do mesmo sha.
