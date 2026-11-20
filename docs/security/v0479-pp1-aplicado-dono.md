@@ -3,44 +3,62 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pp1-aplicado-dono
-commit: 4aadad19d27ec28ce467a05a61bd070e3497b003
-parecer: reprovado
+commit: 58da41ec48c1d6fc8f05e9b41788d44a7ec6d4d0
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-20
 ---
-# Review de segurança: v0479-pp1-aplicado-dono (v0478 E52.3)
+# Review de segurança: v0479-pp1-aplicado-dono (v0478 E52.3, revalidação)
 
-Escopo lido: `0f6034ea..4aadad19` (`bin/forge-check`, `tests/test_conf_escopo.py`, os dois arquivos de mutantes, o fragmento do changelog), contra as quatro condições da DECISÃO DO DONO de 18/11 15:03 (pedido v0478) e a de 20/11 09:43. Suíte: não rodada (brief: sem suíte local); o CI do head não foi conferido aqui. Rodados: a classe nova `PatchRevisadoDoDono` contra o código da base, para medir o afrouxamento, e as sondas S1 e S2 abaixo.
+Volta por delta sobre o parecer reprovado em `4aadad19` (a rodada anterior fica no git). Delta lido (`forge-check parecer delta`, `4aadad19..58da41ec`): no domínio, só `bin/forge-check` (`isencao_do_dono`, `emails_do_dono`, `patch_revisado_do_dono`, `parecer_cita_o_patch` e o texto de ajuda). Fora do domínio, lidos para as sondas: `tests/test_conf_escopo.py` (classe `PatchRevisadoDoDono`) e o fragmento do changelog. Já lido e sem mudança: o resto de `0f6034ea..4aadad19`. Decisão do dono de 20/11 12:33 (pedido v0478:753): limite do e-mail aceito, opção (a). Suíte: não rodada (brief). Rodadas: a classe `PatchRevisadoDoDono` (sem falha) e as sondas S1 a S4.
 
-## Gatilhos
-Gatilhos: guarda da conferência de entrega (portão do escopo), arquivo em vigor (.githooks/, .claude/, .forge/config.json, .forge/versao), identidade do autor do commit.
+Gatilhos: guarda da conferência de entrega, arquivo em vigor (.githooks/, .claude/, .forge/config.json, .forge/versao), identidade do autor do commit.
 
-## Tamanho do afrouxamento e o que aperta
-- **No código, o afrouxamento é zero.** Na base `0f6034ea`, `isencao_do_dono` já isentava qualquer arquivo em vigor com a linha `patch do dono aplicado` e a `DECISÃO DO DONO` que cita o sha40 e o caminho (`caminho_isentavel` não exclui `.githooks/` nem `.claude/`). Prova: os testes novos rodados contra a base dão `escopo: ok (patch do dono f59aab5, DECISÃO DO DONO exemplo:16) ".githooks/pre-push"` sem patch nem e-mail; os casos de recusa falham na base (19 falhas).
-- **O que aperta** (só no arquivo em vigor, `bin/forge-check:2202`): além do que já valia, (a) o commit do dono tem de ser, na árvore inteira e no modo, o `.patch` da branch aplicado sobre o pai (`bin/forge-check:2258-2268`, índice temporário; o índice do repositório fica intacto); (b) autor e committer em `emails_do_dono`; (c) a conferência grava sha256 do patch e sha40 do commit. Arquivo fora da lista em vigor segue a regra antiga, sem mudança. Política ilegível conta todo arquivo como em vigor (falha fechada).
-- **O que aceita a mais, no processo:** o caminho em vigor passa a ser usado de propósito (PP1, A3); o portão real continua a `DECISÃO DO DONO` com o sha40 em `docs/pedidos/` (só o Jarvis grava, e a entrega que mexe nessa pasta é recusada).
+## Achados anteriores
+- A1 (bloqueante): **resolvido.** `bin/forge-check:2272-2277` exige que cada caminho do commit do dono seja igual no pai, no Base-sha e na develop atual. A develop que não se resolve e o git que falha recusam. S1 refeita: recusada.
+- A2 (recomendado): **resolvido.** `bin/forge-check:2234-2246` lê a lista da árvore do Base-sha. Se a lista está versionada só na branch, nada isenta. Se ela falta no Base-sha e na branch (caso do Forge), vale o disco da raiz. O limite (o e-mail é declarável e não prova autoria) está no comentário (`bin/forge-check:2215-2216`), na ajuda e no changelog, como decidiu o dono em 20/11. S2 refeita: recusada.
+- A3 (recomendado): **resolvido em parte.** `bin/forge-check:2289-2301` exige um parecer de segurança aprovado no head que cite o sha256 do `.patch` como palavra. O acoplamento é bom, mas largo demais: ver A4.
 
-## Ameaças avaliadas
-- **Forja de autor/committer:** o e-mail é declarável (`git -c user.email=... commit --author=...`, como o próprio teste faz). A condição (b) não autentica ninguém; filtra só o erro honesto. O `.mailmap` não ajuda o forjador: `%ae` não o aplica (S2: `%ae=agente@x`, `%aE=dono@exemplo`, recusado). Com (a) correto, a forja só produz os bytes revisados; por isso fica recomendação (A2), não bloqueio.
-- **Origem de `emails_do_dono`:** lido do disco da raiz (`bin/forge-check:2231`). No Forge, `.forge/` não é versionado (lista local do dono). No projeto, `templates/projeto/.forge/config.json` é versionado: conferida na worktree da branch, a lista vem da própria branch revisada (A2).
-- **Patch adulterado:** linha a mais, modo diferente e patch que não se aplica são recusados (testes da classe nova). Só que o patch é lido de `<commit>^1:<caminho>`, sem amarrar ao blob que os pareceres leram; quem amarra hoje é a releitura por delta e a DECISÃO com o sha40 (A3).
-- **Patch aplicado sobre o pai e não sobre a develop atual:** a decisão de 18/11 diz "aplicado sobre a develop atual". Aplicado sobre o pai, um commit anterior da branch que altera o arquivo em vigor fica lavado pelo commit do dono (A1, S1).
+## Tamanho do afrouxamento que sobra
+Contra a base `0f6034ea`, o afrouxamento no código continua zero: a base já isentava o arquivo em vigor só com a `DECISÃO DO DONO`, e esta branch só aperta. Contra uma política sem exceção para arquivo em vigor, sobra isto, e só isto. Sai do escopo um arquivo em vigor quando todas estas condições valem:
+- o conteúdo é exatamente o de um `.patch` versionado na branch, aplicado sobre caminhos intocados desde o Base-sha e iguais na develop atual;
+- o commit não é merge e a `DECISÃO DO DONO` o cita pelo sha40;
+- autor e committer declaram um e-mail da lista do Base-sha;
+- algum arquivo de `docs/security/` do head, com frontmatter `tipo: revisao-seguranca` e `parecer:` aprovado ou riscos-aceitos, cita o sha256 do `.patch`.
+
+Ficam dois furos medidos:
+1. O e-mail não prova autoria. O dono aceitou esse limite. Com (a), forjar o e-mail só produz os bytes revisados, e quem decide é a DECISÃO com o sha40, que só o Jarvis grava.
+2. A citação do sha256 não precisa vir do parecer desta branch nem de um parecer válido (A4, S3 e S4).
+
+Nenhum dos dois deixa passar byte que não esteja no `.patch` da branch.
+
+## Acoplamento ao sha256 do `.patch`
+A ideia é boa: amarra os bytes aplicados ao que a segurança leu, sem custo e sem rede, e um `.patch` trocado depois do parecer deixa de isentar. O defeito é a largura. Vale qualquer parecer aprovado no head, de qualquer branch ou pedido, inclusive o que chega da develop por merge. Vale também qualquer arquivo sob `docs/security/` (até em `aceites/`) com o frontmatter mínimo, e `riscos-aceitos` vale sem o aceite do usuário.
+
+Por isso este parecer **não** cita como palavra o sha256 do caso real (`docs/devops/v0479-sandbox-controle.patch`, sha256 que começa por `28d1a534`, conferido no `origin/melhoria/v0479-sandbox-controle`). Este review leu o `forge-check`, não aquele patch. Depois do merge na develop, essa citação isentaria o patch na outra branch sem que ninguém o tivesse lido (é a sonda S3). A citação cabe no parecer de segurança da branch `melhoria/v0479-sandbox-controle`, depois de ler o patch.
 
 ## Achados
-- A1 (bloqueante) bin/forge-check:2264 · (a) aplica o patch sobre `<commit>^1`, não sobre a develop atual (decisão de 18/11): commit anterior de outro autor que cria ou muda o arquivo em vigor passa lavado pelo commit do dono (S1, rc=0). Exigir cada caminho do patch igual no pai, no Base-sha e na develop atual; git que falha recusa.
-- A2 (recomendado) bin/forge-check:2231 · (b) não autentica: o e-mail é declarável e a lista vem do disco da raiz (no projeto, versionada na branch revisada). Ler `emails_do_dono` da árvore do Base-sha, não do disco, e registrar no comentário e no changelog que (b) não prova autoria; prova real seria commit assinado.
-- A3 (recomendado) bin/forge-check:2258 · o .patch vem de `<commit>^1` sem amarrar ao blob revisado: troca do patch depois dos pareceres só é pega pela releitura por delta. Comparar o blob do patch no pai com o do head revisado (Revisar-sha do parecer de segurança aprovado) ou com sha256 citado na DECISÃO.
+- A4 (recomendado) bin/forge-check:2297 · (c) aceita qualquer arquivo de docs/security/ no head com frontmatter aprovado: parecer de outra branch ou pedido (S3), arquivo em aceites/ (S4), riscos-aceitos sem aceite. Exigir `branch:` igual à conferida, fora de aceites/ e ameacas/, e o veredito do parecer válido.
 
 ### Detalhe
-**A1.** Caminho: um agente (ou qualquer commit da branch, inclusive merge trazido) põe no arquivo em vigor uma linha que nenhum revisor vê, porque o `.patch` revisado é o diff a partir desse estado; o dono aplica o patch revisado, o commit dele confere com o pai e o head mantém a linha. Ganho: código arbitrário no `.githooks/pre-push` ou no `.claude/settings.json` (roda na máquina de todos os projetos depois do merge). Severidade alta. Correção mínima, em `patch_revisado_do_dono`: para cada caminho de `git diff --name-only -z --no-renames <commit>^1 <commit>`, a entrada (modo e blob, ou ausência) em `<commit>^1` igual à do Base-sha e à da develop atual (`base_ref` resolvido; sem resolver, recusa); senão, motivo "o arquivo em vigor mudou na branch antes do commit do dono". Teste: o caso S1 recusado. Dono: tech-lead.
-**A2.** Esforço P. Dono: tech-lead.
-**A3.** Esforço P. Dono: tech-lead.
+**A4.** Caminho de ataque: um parecer aprovado de outra entrega cita o sha256 como exemplo ou referência e chega ao head pela develop. Assim, um `.patch` que nenhum revisor de segurança leu passa pela condição (c). Sem adversário, é erro honesto. Com adversário, ainda são precisas a DECISÃO com o sha40 e a escrita de um arquivo em `docs/security/` (escrita do papel, conferida no escopo). Severidade baixa, esforço P.
+
+Correção mínima em `parecer_cita_o_patch`:
+- descartar o que estiver sob `docs/security/aceites/` e `docs/security/ameacas/`;
+- exigir `campos["branch"]` igual à branch conferida;
+- para `riscos-aceitos`, exigir `aceite_do_usuario` (ou aceitar só `aprovado`).
+
+Teste: S3 e S4 recusados. Dono: tech-lead.
 
 ## Sondas
-- S1 · commit de agente@x cria .githooks/pre-push com `echo NAO-REVISADO`; .patch revisado só acrescenta `# revisado`; dono aplica e declara ` patch docs/notas/pp1.patch` · espera: rc=1, não isenta · obtido: rc=0, escopo: ok (patch do dono b87edef) e head com NAO-REVISADO
+- S1 · commit de outro autor cria .githooks/pre-push com `echo NAO-REVISADO`; o .patch revisado só acrescenta `# revisado`; o dono o aplica · espera: não isenta · obtido: não isenta ("difere entre o pai do commit do dono, o Base-sha e a develop atual")
+- S2 · `.mailmap` `Dono <dono@exemplo> <agente@x>` e commit com autor e committer agente@x · espera: não isenta · obtido: não isenta ("autor ou committer não é o dono")
+- S3 · parecer aprovado com `pedido: outro`, `branch: melhoria/outra` e `commit:` zerado, que só cita o sha256 do .patch · espera: não isenta · obtido: `escopo: ok (patch do dono 1f6b2bd…)` (A4)
+- S4 · só `docs/security/aceites/y.md` com `tipo: revisao-seguranca`, `parecer: riscos-aceitos` e o sha256 · espera: não isenta · obtido: `escopo: ok (patch do dono e171bc8…)` (A4)
 
 ## Plano em cartões
-- A1, A2 e A3: tech-lead, em `bin/forge-check` e `tests/test_conf_escopo.py`, nesta branch; volta por delta a este parecer.
+- A4: tech-lead, em `bin/forge-check` e `tests/test_conf_escopo.py`; volta por delta a este parecer.
+- Commit assinado no lugar do e-mail: cartão aberto pela decisão do dono de 20/11.
 
 ## Riscos aceitos
-Nenhum.
+Nenhum neste parecer. O limite do e-mail é decisão do dono de 20/11 12:33 (pedido v0478:753), não risco aceito por este review.
