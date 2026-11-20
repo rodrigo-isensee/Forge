@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp3-s3-registro
-commit: b3cd1ee41cde185fe7445bb3596c051e2e887f04
+commit: 1f31729169cd2163c883a4891ba761d0da9c1830
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -51,4 +51,10 @@ Delta (`forge-check parecer delta`, base d03cc57f): `hooks/agentes.py` (`caiu_em
 - `forge-mutante --cobertura --base d03cc57f`: linhas 633, 634, 647 `coberta` pelos M32, M31, M30; nenhuma `não coberta` nem `isenta velha`.
 - Suíte inteira: no CI do PR (check-run `bateria` do mesmo sha), não rodada local.
 
-Parecer: aprovado no head b3cd1ee4. A A1 da segurança está coberta por teste e mutante.
+## Revalidação no head 1f317291 (E39.9)
+Delta (`forge-check parecer delta`, intervalo b3cd1ee4..1f317291, sem o que veio da develop): só `tests/mutantes/v047-h2-autor-fica-3.json`, M23 alinhado ao nome `registro` em `hooks/agentes.py:363` (E39.22). Nenhum código de produção mudou; o trecho `de` casa com a linha.
+- `bin/forge-mutante --ids M23 tests/mutantes/v047-h2-autor-fica-3.json`: `M23 · morreu · hooks/agentes.py:363`, rc 0.
+- `python3 -I -m unittest discover -s tests -p test_forge_mutante.py -k ConferirTodas`: 4 testes, OK.
+- Suíte inteira: check-run `bateria` do CI do PR no mesmo sha, não rodada local.
+
+Parecer: aprovado no head 1f317291.
