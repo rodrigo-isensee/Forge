@@ -14,8 +14,8 @@ data: 2026-11-20
 ---
 # QA: v0478 E39.13 (atalho durável, BP3 S1)
 
-## Achados
-- A1 (resolvido) README.md:43 · o `claude` solto saiu: o parágrafo diz "executável"/"Claude Code"; `test_sessao_automatica.py` passa (13 testes).
+## Resolvido
+A1 (README.md:43, `claude` solto): o parágrafo diz "executável" e "Claude Code"; `test_sessao_automatica.py` passa (13 testes).
 
 ## Revalidação (head 7bd41f53 + commit de teste 45f429a4)
 `forge-check parecer delta` (3e53ae72..45f429a4): README, changelog, índice, `scripts/jarvis`, `scripts/jarvis-forge`, `scripts/jarvis-comum.sh` (novo, resolvedor e supervisor comuns), specs de mutantes (-1 e -2 reescritas, -3 e -4 removidas), `test_atalho_duravel.py`, `test_doutor.py`, `test_sempre_atual.py` e o oráculo. Mudança de comportamento: janela zero ou texto volta a 1800 (teto de 3 nunca some); 143 (kill de propósito) é parada, não queda.
