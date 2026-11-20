@@ -3,14 +3,38 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-meta85-forge-check
-commit: a281e4a5565d8675b1047c997d727c9a5ab1231c
+commit: 19e81adc611e1f17f6a2f1fab2c4bb6162726217
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-19
 ---
 # Review de segurança: v0478 META85 (bin/forge-check), E34.4, revalidações E34.8 e E34.12
 
-A rodada 1 (E34.4, head 6853e0ee) e a revalidação E34.8 (head 99f474bb) ficam no git. Esta é a revalidação no head a281e4a5 (junção com a develop); a do 06abb4fa (E34.12) segue abaixo.
+A rodada 1 (E34.4, head 6853e0ee) e a revalidação E34.8 (head 99f474bb) ficam no git. A revalidação mais recente é a do head 19e81adc (E34.20), abaixo; a do a281e4a5 (junção, E34.16) e a do 06abb4fa (E34.12) seguem.
+
+## Revalidação (E34.20, head 19e81adc)
+Delta lido: `forge-check parecer delta docs/security/v0479-meta85-forge-check.md`, intervalo `a281e4a5..19e81adc`. No domínio, só
+`bin/forge-check:3215-3217`: a constante `PROVAS_DO_PQ` passa de `.forge/run/{mutantes,pronto}.log` para
+`${TMPDIR:-/tmp}/forge-{mutantes,pronto}.log`. Fora do domínio (não relidas): specs de mutante, `tests/pesos-d4.json`, três testes, docs.
+Estado dos achados anteriores: A1 resolvido (sem mudança). Achado novo: nenhum.
+
+**Só aperta, reconfirmação (`afrouxa-regra`):** a constante só entra no texto do PQ que o `brief gerar` escreve (:4155, :9064); nenhuma
+decisão a lê. O que aceita ou recusa a prova é `motivo_da_prova` (:3234-3252) e `provas_da_entrega` (:3220), intactos: exigem `head=<sha40>`
+na 1.ª linha, `rc=0` na última, teto de 8 MiB, e só para etapa `codigo` com código no escopo. O caminho do log vem de `--mutantes/--pronto`
+e nunca foi restringido, então o local do arquivo não muda o que passa. `cmd_pr`, `veredito_do_parecer`, `commit_vale`, `pr_da_cli`: sem
+diferença desde a a281e4a5. O `forge-check pr` e o selo não aceitam nada que antes recusavam; o único efeito é o `brief selar` deixar de
+recusar o PQ que o próprio gerador escrevia (`.forge/run/` é estado dos hooks, escrita barrada em `hooks/conformidade.json:35`), ou seja,
+corrige recusa por defeito do gerador, sem afrouxar guarda: o brief continua selado pelo mesmo conferente.
+
+**Gravar no temporário não abre falsificação:** (1) a prova nunca foi assinatura: o `forge-check` só lê, e quem escreve o log podia
+escrever `head=<sha>`/`rc=0` à mão em `.forge/run/` igualmente (nesse diretório a barreira era só do hook, para o agente; o autor não
+ganha poder novo aqui). (2) O log é preso ao head pelo sha40 da 1.ª linha; log velho ou de outro commit é recusado. (3) A prova do autor
+é só uma das camadas: a mutação e o pronto rodam de novo no CI do PR e o parecer de QA e o review conferem o mesmo head; a linha do
+`entrega` é pré-parecer (`pendente:` que reprova), não portão final. (4) Com `TMPDIR` não definido o nome em `/tmp` é previsível, e em
+máquina compartilhada outro usuário poderia criar o arquivo antes; o ambiente do Forge é de usuário único (sandbox com `$TMPDIR` próprio da
+sessão) e o ganho seria o mesmo de forjar o log, sem caminho realista acima do que o autor já podia: recomendação, não achado.
+Sem segredo no delta (revisão manual). Sem suíte local (CI do PR, pelo brief); `tests.test_meta85_entrega` (12 testes, OK)
+rodado como conferência.
 
 ## Revalidação (E34.16, head a281e4a5)
 Delta lido: `forge-check parecer delta docs/security/v0479-meta85-forge-check.md`, intervalo `06abb4fa..a281e4a5` (junção com a
