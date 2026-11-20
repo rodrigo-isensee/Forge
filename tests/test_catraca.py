@@ -24,6 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+from quarentenas import TETO_PULADOS_ORIGINAL, quarentenas_abertas, teto_passa_da_quarentena  # noqa: E402
 
 AQUI = Path(__file__).resolve().parent
 _EM_CI = os.environ.pop("GITHUB_ACTIONS", None)  # a suíte roda como execução local; os testes de CI definem a variável
@@ -867,6 +868,65 @@ class TetoDePulados(Base):
         teto = json.loads((AQUI / "config.json").read_text(encoding="utf-8")).get("teto_pulados")
         self.assertIs(type(teto), int)
         self.assertGreaterEqual(teto, 0)
+
+
+class TetoDaQuarentena(unittest.TestCase):
+    """E37.15: `teto_pulados` só passa de TETO_PULADOS_ORIGINAL por quarentena aberta; sem ela, o teto volta."""
+
+    def pasta(self, teto, corpo):
+        d = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, d)
+        (d / "config.json").write_text(json.dumps({"teto_pulados": teto}), encoding="utf-8")
+        (d / "test_x.py").write_text(textwrap.dedent(corpo), encoding="utf-8")
+        return d
+
+    def confere(self, pasta):
+        teto = json.loads((pasta / "config.json").read_text(encoding="utf-8"))["teto_pulados"]
+        abertas = quarentenas_abertas(pasta)
+        return teto_passa_da_quarentena(teto, abertas), f"teto_pulados={teto} > {TETO_PULADOS_ORIGINAL} + {abertas} " \
+            "quarentena(s) aberta(s): devolva o teto no PR que tira a quarentena"
+
+    def test_o_forge_nao_passa_do_teto_da_quarentena(self):
+        passou, msg = self.confere(AQUI)
+        self.assertFalse(passou, msg)
+
+    def test_teto_2_sem_quarentena_reprova(self):
+        d = self.pasta(2, """\
+            import unittest
+            class T(unittest.TestCase):
+                @unittest.skip("sem root")
+                def test_a(self):
+                    pass
+            """)
+        self.assertEqual(quarentenas_abertas(d), 0)
+        self.assertTrue(self.confere(d)[0])
+
+    def test_teto_2_com_uma_quarentena_passa_e_com_teto_3_reprova(self):
+        corpo = """\
+            import unittest
+            class T(unittest.TestCase):
+                @unittest.skip("quarentena (OK do dono): " "motivo")
+                def test_a(self):
+                    pass
+                @unittest.skipIf(True, "sem root")
+                def test_b(self):
+                    self.skipTest("depois da quarentena")
+            """
+        self.assertEqual(quarentenas_abertas(self.pasta(2, corpo)), 1)
+        self.assertFalse(self.confere(self.pasta(2, corpo))[0])
+        self.assertTrue(self.confere(self.pasta(3, corpo))[0])
+
+    def test_conta_skipif_skiptest_e_subpasta(self):
+        d = self.pasta(1, """\
+            import unittest
+            class T(unittest.TestCase):
+                @unittest.skipUnless(False, "quarentena: a")
+                def test_a(self):
+                    self.skipTest("quarentena: b")
+            """)
+        (d / "sub").mkdir()
+        (d / "sub" / "test_y.py").write_text('import unittest\n@unittest.skip("quarentena: c")\nclass T: pass\n', encoding="utf-8")
+        self.assertEqual(quarentenas_abertas(d), 3)
 
 
 class GuardasDosHooks(Base):

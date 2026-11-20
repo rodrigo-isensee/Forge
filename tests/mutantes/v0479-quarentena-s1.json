@@ -1,0 +1,16 @@
+{
+    "pedido": "v0479-quarentena-s1",
+    "executor": "unittest",
+    "mutantes": [
+        {
+            "id": "M1",
+            "guarda": "E37.15: teto_pulados acima de TETO_PULADOS_ORIGINAL mais as quarentenas abertas reprova (teto 2 sem quarentena)",
+            "arquivo": "tests/quarentenas.py",
+            "de": "    return teto > TETO_PULADOS_ORIGINAL + abertas",
+            "para": "    return teto > TETO_PULADOS_ORIGINAL + abertas + 1",
+            "testes": [
+                "tests.test_catraca.TetoDaQuarentena.test_teto_2_sem_quarentena_reprova"
+            ]
+        }
+    ]
+}
