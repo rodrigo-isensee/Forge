@@ -1,0 +1,89 @@
+{
+  "pedido": "vermelho-tests-evals",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o pacote do modulo entra no nome (evals.test_x)",
+      "arquivo": "bin/forge-testes",
+      "de": "r\"(?!tests\\.)(?:[a-z0-9_]+\\.)*test_[a-z0-9_]+\")",
+      "para": "r\"(?!tests\\.)test_[a-z0-9_]+\")",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito",
+        "tests.test_testes_tocados.Vermelho.test_vermelho_recusa_modulo_de_pacote_sem_arquivo_e_grafia_torta"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "tests.tests.test_x segue recusado (um corte so)",
+      "arquivo": "bin/forge-testes",
+      "de": "r\"(?!tests\\.)(?:",
+      "para": "r\"(?:",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_o_modulo_pelo_nome_com_o_pacote"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o caminho do arquivo vira nome de modulo",
+      "arquivo": "bin/forge-testes",
+      "de": "nome_do_modulo(m) or m.removeprefix(\"tests.\")",
+      "para": "m.removeprefix(\"tests.\")",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito",
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_o_caminho_de_teste_da_raiz"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "modulo pedido sem arquivo (inclusive em pacote) sai 2",
+      "arquivo": "bin/forge-testes",
+      "de": "ausentes = [m for m in modulos if not arquivo_do_modulo(m, raiz).is_file()]",
+      "para": "ausentes = [m for m in modulos if m not in todos]",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito",
+        "tests.test_testes_tocados.Vermelho.test_vermelho_recusa_modulo_de_pacote_sem_arquivo_e_grafia_torta"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o teste de pacote do diff fica no HEAD nas duas copias",
+      "arquivo": "bin/forge-testes",
+      "de": "TESTE_DO_DIFF = re.compile(r\"tests/((?:[a-z0-9_]+/)*test_[a-z0-9_]+\\.py|",
+      "para": "TESTE_DO_DIFF = re.compile(r\"tests/(test_[a-z0-9_]+\\.py|",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o modulo de pacote do diff conta como modificado",
+      "arquivo": "bin/forge-testes",
+      "de": "modificados = {nome_do_modulo(c) for c in caminhos if nome_do_modulo(c)}",
+      "para": "modificados = {MODULO_DE_TESTE.fullmatch(c).group(1) for c in caminhos if MODULO_DE_TESTE.fullmatch(c)}",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "sem --modulos, o modulo de pacote do diff roda",
+      "arquivo": "bin/forge-testes",
+      "de": "sorted({m for m in modificados if arquivo_do_modulo(m, raiz).is_file()} | set(plano))",
+      "para": "sorted({m for m in modificados if m in todos} | set(plano))",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_sem_modulos_roda_o_modulo_de_pacote_do_diff"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "a base do modulo de pacote e lida pelo caminho do pacote",
+      "arquivo": "bin/forge-testes",
+      "de": "caminho = arquivo_do_modulo(modulo).as_posix()",
+      "para": "caminho = f\"tests/{modulo}.py\"",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito"
+      ]
+    }
+  ]
+}
