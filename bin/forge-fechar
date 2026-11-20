@@ -40,7 +40,7 @@
 # --medir RUN|ARQUIVO (FECHAR-MEDIR-DO-LOG): lê as linhas ORCAMENTO-TEMPO do log do CI (número da execução: `gh run view RUN --log`, só
 # leitura; ou o log salvo num arquivo), no formato FORMATO_DO_ORCAMENTO; vão ao "Como medir" do PR criado e à saída. Sem elas, para antes do passo 1.
 # --cartao ID (repetível; FECHAR-MOVE-CARTAO): com o merge provado (passo 6, PR já MERGED ou --limpar), move o cartão para Pronto por
-# `forge-check movimento ID --de <coluna atual> --para Pronto` no quadro de --quadro (padrão ~/.forge-contrib, o do Forge); a coluna atual é o
+# `forge-check movimento ID --de <coluna atual> --para Pronto --prova pr:#<PR mesclado>` no quadro de --quadro (padrão ~/.forge-contrib, o do Forge); a coluna atual é o
 # `Para` da última linha do cartão em docs/kanban/historico.md, senão a seção dele no KANBAN.md, senão `—`. Já em Pronto, nada grava;
 # o movimento que falha vira pendência (código 3) com o comando. ID fora de [A-Za-z0-9._-] ou quadro sem KANBAN.md param antes do passo 1.
 # --dry-run imprime cada passo (e avisa se o diff toca caminho que a catraca protege) e roda de verdade só o 1c (FECHAR-DRY-RUN-1C: o
@@ -97,7 +97,7 @@ pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espe
 armar=0 estado_lido=0  # --armar (R7): arma o auto-merge sem esperar os checks
 lote=0 item_de_lote=0 promover_sha="" espera_ci=3600 ci_falhou=0 ci_st="" ci_ruins="" ja_mesclado=1 posicionais=()  # lote, promoção pela marca e espera do CI da develop
 args_originais=("$@")  # H4: o recomeço da cadeia depois do merge da base (passo 2b) roda o mesmo comando com `--trazida`
-cartoes=() quadro="${HOME:-}/.forge-contrib" motivo_cartao="" cartao_pend=0  # FECHAR-MOVE-CARTAO
+cartoes=() quadro="${HOME:-}/.forge-contrib" motivo_cartao="" prova_cartao="" cartao_pend=0 pr_n=""  # FECHAR-MOVE-CARTAO (prova: AE1.2)
 while [ $# -gt 0 ]; do
   case "$1" in
     -h|--help) sed -n '2,/^set -euo pipefail$/{/^set -euo pipefail$/d;s/^# \{0,1\}//;p;}' "${BASH_SOURCE[0]}"; exit 0 ;;
@@ -799,17 +799,18 @@ coluna_do_cartao() {
     "$quadro/KANBAN.md" 2>/dev/null || true)"
   printf '%s' "${col:-—}"
 }
-# mover_cartoes: só depois do merge provado; cada --cartao vai a Pronto pelo `forge-check movimento` (a hora real, o custo e a forma do
-# histórico ficam com ele). Já em Pronto não grava de novo (repetir não duplica). Falha não desfaz nada: vira `cartao_pend=1` e o comando.
+# mover_cartoes: só depois do merge provado; cada --cartao vai a Pronto pelo `forge-check movimento` com a prova do merge em
+# prova_cartao (`pr:#N` do PR mesclado; `commit:<head>` quando o head já estava na base sem PR lido; AE1.2): a hora real, o custo, a
+# conferência da prova e a forma do histórico ficam com ele. Já em Pronto não grava de novo (repetir não duplica). Falha não desfaz nada: vira `cartao_pend=1` e o comando.
 mover_cartoes() {
   local id de
   for id in "${cartoes[@]}"; do
     de="$(coluna_do_cartao "$id")"
     if [ "$de" = Pronto ]; then echo "cartão $id: já em Pronto; nada gravado"; continue; fi
-    if "$check" movimento "$id" --de "$de" --para Pronto --motivo "$motivo_cartao" --raiz "$quadro" >/dev/null; then
+    if "$check" movimento "$id" --de "$de" --para Pronto --motivo "$motivo_cartao" --prova "$prova_cartao" --raiz "$quadro" >/dev/null; then
       echo "cartão $id: $de -> Pronto ($motivo_cartao)"
     else
-      echo "aviso: não movi o cartão $id para Pronto; rode: forge-check movimento $(printf '%q' "$id") --de $(printf '%q' "$de") --para Pronto --motivo $(printf '%q' "$motivo_cartao") --raiz $(printf '%q' "$quadro")" >&2
+      echo "aviso: não movi o cartão $id para Pronto; rode: forge-check movimento $(printf '%q' "$id") --de $(printf '%q' "$de") --para Pronto --motivo $(printf '%q' "$motivo_cartao") --prova $(printf '%q' "$prova_cartao") --raiz $(printf '%q' "$quadro")" >&2
       cartao_pend=1
     fi
   done
@@ -1234,7 +1235,7 @@ if [ "$seco" = 1 ]; then
   passo "6a" "git ls-remote origin refs/heads/$alvo (a base que o passo 2b leu? se andou durante os checks: com conflito no git merge-tree --write-tree para sem mesclar; sem conflito segue, sem trazer a base (E8); base local velha pede git fetch)"
   [ "$item_de_lote" = 1 ] || passo "6b" "$gh run list --branch $alvo --event push --commit <topo da $alvo>: verde antes do merge (pendente espera até ${espera_ci}s; vermelho para)"
   passo 6 "$gh pr merge $ref --auto $metodo --match-head-commit <head conferido> (auto-merge do GitHub com os checks obrigatórios; base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge; espera o MERGED até --espera; com --armar sai com código 4 se ainda não mesclou)"
-  for c in "${cartoes[@]}"; do echo "cartão $c: depois do merge, forge-check movimento $c --de $(coluna_do_cartao "$c") --para Pronto --raiz $quadro"; done
+  for c in "${cartoes[@]}"; do echo "cartão $c: depois do merge, forge-check movimento $c --de $(coluna_do_cartao "$c") --para Pronto --prova pr:#<número do PR> --raiz $quadro"; done
   [ "$sem_limpar" = 0 ] || echo "--sem-limpar: o passo 7 é pulado; imprime os comandos da limpeza e sai com código 3 depois do merge."
   passo 7 "git worktree remove <worktree de $ref> (prune se o diretório já sumiu); git branch -D $ref (só com o sha mesclado); clones da branch em ~/.forge-contrib/wt (só limpos, com tudo na origem e mesclados); git push origin --delete $ref (até 3 tentativas, por último); sai com código 3 se algo ficar pendente"
   [ "$item_de_lote" = 1 ] || passo 8 "CI do push na $alvo no commit de merge, até o fim (até ${espera_ci}s); não verde sai com 5 (vermelho imprime a reversão)"
@@ -1269,6 +1270,7 @@ if [ "$limpar" = 1 ]; then
   merged_heads="$(printf '%s\n' "$lista" | awk -v b="$alvo" '$2=="MERGED" && $3==b {print $4}')"
   [ -n "$merged_heads" ] || die "parou no --limpar: sem prova de merge: nenhum PR MERGED em $alvo para $ref; nada foi apagado"
   motivo_cartao="mesclado em $alvo (forge-fechar --limpar)"
+  prova_cartao="pr:#$(printf '%s\n' "$lista" | awk -v b="$alvo" '$2=="MERGED" && $3==b {print $1; exit}')"
   mover_cartoes
   limpar_entrega
   if [ "$pendencia" = 0 ] && [ "$cartao_pend" = 0 ]; then echo "Limpeza de $ref concluída."; else exit 3; fi
@@ -1347,7 +1349,8 @@ if git merge-base --is-ancestor "$remoto_sha" "$base" 2>/dev/null; then
 else
   lista="$(ler "$gh" pr list --head "$ref" --state all --limit 30 --json number,state,baseRefName,headRefOid,isCrossRepository \
     --jq '.[] | "\(.number) \(.state) \(.baseRefName) \(.headRefOid) \(.isCrossRepository)"')" || die "parou no passo 3: não consegui ler os PRs de $ref"
-  if printf '%s\n' "$lista" | awk -v s="$remoto_sha" -v b="$alvo" '$2=="MERGED" && $3==b && $4==s {f=1} END {exit !f}'; then
+  pr_n="$(printf '%s\n' "$lista" | awk -v s="$remoto_sha" -v b="$alvo" '$2=="MERGED" && $3==b && $4==s {print $1; exit}')"
+  if [ -n "$pr_n" ]; then
     ja_mesclado=1
     echo "já existe PR MERGED em $alvo com o head de $ref; nada a abrir nem a mesclar."
   else
@@ -1530,6 +1533,7 @@ if [ "$ja_mesclado" = 0 ]; then
 fi
 
 if [ "$ja_mesclado" = 0 ]; then motivo_cartao="mesclado em $alvo: PR #$pr_n, merge ${pr_merge:0:7}"; else motivo_cartao="mesclado em $alvo: head ${remoto_sha:0:7}"; fi
+if [ -n "$pr_n" ]; then prova_cartao="pr:#$pr_n"; else prova_cartao="commit:$remoto_sha"; fi
 mover_cartoes
 passo 7 "limpeza (R-FLUXO, Depois do merge)"
 merged_heads="$remoto_sha"

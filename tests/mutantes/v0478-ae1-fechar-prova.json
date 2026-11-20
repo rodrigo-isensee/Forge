@@ -1,0 +1,46 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "FP1",
+      "guarda": "AE1.2 forge-fechar: o movimento para Pronto leva a prova do merge (o forge-check recusa Pronto sem --prova)",
+      "arquivo": "bin/forge-fechar",
+      "de": "--motivo \"$motivo_cartao\" --prova \"$prova_cartao\" --raiz \"$quadro\" >/dev/null; then",
+      "para": "--motivo \"$motivo_cartao\" --raiz \"$quadro\" >/dev/null; then",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_merge_move_o_cartao_da_coluna_do_historico_para_pronto_depois_do_merge"
+      ]
+    },
+    {
+      "id": "FP2",
+      "guarda": "AE1.2 forge-fechar: o PR já MERGED no head é reconhecido pelo número lido (sem ele, abre e mescla de novo)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ -n \"$pr_n\" ]; then\n    ja_mesclado=1",
+      "para": "  if false; then\n    ja_mesclado=1",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_pr_ja_mesclado_no_head_prova_o_movimento_com_o_numero_desse_pr"
+      ]
+    },
+    {
+      "id": "FP3",
+      "guarda": "AE1.2 forge-fechar: com PR lido, a prova é pr:#N (não o commit)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -n \"$pr_n\" ]; then prova_cartao=\"pr:#$pr_n\"; else",
+      "para": "if false; then prova_cartao=\"pr:#$pr_n\"; else",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_pr_ja_mesclado_no_head_prova_o_movimento_com_o_numero_desse_pr"
+      ]
+    },
+    {
+      "id": "FP4",
+      "guarda": "AE1.2 forge-fechar: sem PR lido (head já na base), a prova é o commit do head",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -n \"$pr_n\" ]; then prova_cartao=\"pr:#$pr_n\"; else",
+      "para": "if true; then prova_cartao=\"pr:#$pr_n\"; else",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_head_ja_na_base_sem_pr_lido_prova_o_movimento_pelo_commit"
+      ]
+    }
+  ]
+}

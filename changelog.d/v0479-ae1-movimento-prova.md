@@ -1,2 +1,3 @@
 ### Alterado
 - forge-check movimento para Pronto ou Fechado* exige --prova pr:#N, commit:<sha>, rodar:<slug> ou juntado:<ID>, conferida no git e no gh (bin/forge_onde.py) e gravada na linha; prova de outro cartão, PR não mesclado na develop ou tipo sem leitor não movem; a prova que não se lê (gh fora do ar) deixa o cartão em Aguardando sua validação (AE1.2, v0478 E58.19).
+- forge-fechar --cartao passa ao forge-check movimento a prova do merge (--prova pr:#N do PR mesclado; commit:<head> quando o head já estava na base sem PR lido); sem ela, com a trava do AE1.2, todo fechamento com --cartao terminava com o cartão pendente (código 3) (v0478 E58.24).

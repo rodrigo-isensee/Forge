@@ -1,7 +1,7 @@
 """FECHAR-MOVE-CARTAO: com o merge provado, o `forge-fechar --cartao ID` move o cartão para Pronto pelo `forge-check movimento`.
 
 Reaproveita o ambiente de `test_fechar.Fechar` (repositório temporário, `gh` falso) sem herdar os testes dele. O `forge-check` falso
-anota cada chamada; com $ESTADO/mov_falha, o `movimento` falha. O `movimento` do `forge-check` real fica em `test_fechar_forge_check_real`
+anota cada chamada; com $ESTADO/mov_falha, o `movimento` falha; como o real (AE1.2), recusa `--para Pronto` sem `--prova`. O `movimento` do `forge-check` real fica em `test_fechar_forge_check_real`
 (o módulo que o MAPA FORGE_CHECK do `forge-testes` lista).
 """
 import sys
@@ -14,6 +14,10 @@ import test_fechar as base  # noqa: E402  (o módulo, não a classe: a classe se
 CHECK = '''#!/usr/bin/env bash
 echo "forge-check $*" >> "$REGISTRO"
 if [ "$1" = movimento ] && [ -f "$ESTADO/mov_falha" ]; then echo "movimento: coluna fora do KANBAN.md; nada gravado"; exit 1; fi
+if [ "$1" = movimento ]; then
+  para="" prova=""; while [ $# -gt 0 ]; do case "$1" in --para) para="$2"; shift ;; --prova) prova="$2"; shift ;; esac; shift; done
+  if [ "$para" = Pronto ] && [ -z "$prova" ]; then echo "movimento: --prova vai só (e sempre) com --para Pronto ou Fechado; nada gravado"; exit 1; fi
+fi
 exit 0
 '''
 KANBAN = ("# Quadro\n\n## Em andamento (WIP 1 por agente)\n| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n"
@@ -46,7 +50,8 @@ class Teste(unittest.TestCase):
                            "lixo | K-1 | Code review | Pronto | —")  # linha sem hora ISO não é movimento (como no montar_quadro)
         r = self.fechar("p1", "--ref", "melhoria/x", "--cartao", "K-1")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        esperado = f"forge-check movimento K-1 --de Code review --para Pronto --motivo mesclado em develop: PR #7, merge 0123456 --raiz {self.quadro}"
+        esperado = (f"forge-check movimento K-1 --de Code review --para Pronto --motivo mesclado em develop: PR #7, merge 0123456 "
+                    f"--prova pr:#7 --raiz {self.quadro}")
         self.assertEqual(self.movimentos(), [esperado])
         chamadas = self.chamadas()
         self.assertLess(chamadas.index(next(c for c in chamadas if c.startswith("gh pr merge"))), chamadas.index(esperado))
@@ -75,9 +80,30 @@ class Teste(unittest.TestCase):
         (self.estado / "mov_falha").write_text("1")
         r = self.fechar("p1", "--ref", "melhoria/x", "--cartao", "K-1")
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertIn("aviso: não movi o cartão K-1 para Pronto; rode: forge-check movimento K-1 --de Em\\ andamento --para Pronto", r.stderr)
+        self.assertIn("aviso: não movi o cartão K-1 para Pronto; rode: forge-check movimento K-1 --de Em\\ andamento --para Pronto --motivo ", r.stderr)
+        self.assertIn(" --prova pr:#7 --raiz ", r.stderr)
         self.assertIn("limpeza: remota=ok worktree=ok branch=ok", r.stdout)  # a limpeza segue: o cartão não a prende
         self.assertIn("Entrega p1 fechada em develop; com pendência (código 3)", r.stdout)
+
+    def test_pr_ja_mesclado_no_head_prova_o_movimento_com_o_numero_desse_pr(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha}\n")
+        (self.estado / "estado").write_text("MERGED")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--cartao", "K-1")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("já existe PR MERGED em develop com o head", r.stdout)
+        self.assertEqual(len(self.movimentos()), 1)
+        self.assertIn(" --prova pr:#234 --raiz ", self.movimentos()[0])
+
+    def test_head_ja_na_base_sem_pr_lido_prova_o_movimento_pelo_commit(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        self.git("merge", "-q", "--no-ff", "melhoria/x", "-m", "merge x")
+        self.git("push", "-q", "origin", "develop")
+        self.git("fetch", "-q", "origin")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--cartao", "K-1")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(len(self.movimentos()), 1)
+        self.assertIn(f" --prova commit:{sha} --raiz ", self.movimentos()[0])
 
     def test_sem_cartao_nao_move_nada_nem_pede_quadro(self):
         (self.quadro / "KANBAN.md").unlink()
@@ -101,7 +127,7 @@ class Teste(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", "--limpar", "--cartao", "K-1")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual(len(self.movimentos()), 1)
-        self.assertIn("--motivo mesclado em develop (forge-fechar --limpar)", self.movimentos()[0])
+        self.assertIn("--motivo mesclado em develop (forge-fechar --limpar) --prova pr:#7 --raiz ", self.movimentos()[0])
 
     def test_limpar_com_movimento_que_falha_sai_com_3(self):
         sha = self.git("rev-parse", "melhoria/x")
@@ -120,7 +146,8 @@ class Teste(unittest.TestCase):
     def test_dry_run_descreve_o_movimento_sem_gravar(self):
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", "--cartao", "K-1")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertIn(f"cartão K-1: depois do merge, forge-check movimento K-1 --de Em andamento --para Pronto --raiz {self.quadro}", r.stdout)
+        self.assertIn(f"cartão K-1: depois do merge, forge-check movimento K-1 --de Em andamento --para Pronto --prova pr:#<número do PR> "
+                      f"--raiz {self.quadro}", r.stdout)
         self.assertEqual(self.movimentos(), [])
 
     def test_armar_manda_o_limpar_com_o_cartao_e_o_quadro(self):
