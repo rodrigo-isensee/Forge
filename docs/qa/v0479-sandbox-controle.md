@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-sandbox-controle
-commit: 32c3528eaa65c8c85367465c506856befdd33818
+commit: 0f55b08af4c05c01bd03e02b0deecbbc4550b3db
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -12,7 +12,7 @@ bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-20
 ---
-# QA: v0478 E29.14 (trava de escrita do sandbox, revalidação por delta no head 32c3528e)
+# QA: v0478 E29.20 (trava de escrita do sandbox, revalidação por delta no head 0f55b08a)
 
 ## Achados
 - A1 (bloqueante) tests/test_apoio_sandbox.py:77 · o teste de sonda do bwrap agora está na classe Sondas e roda (H=ok no vermelho); mutantes M1 e M2 morrem. (resolvido)
@@ -49,3 +49,14 @@ Lido com `forge-check parecer delta docs/qa/v0479-sandbox-controle.md` (interval
 - Da instância anterior, não rerrodado: `test_apoio_sandbox` 23 OK, `test_maquina` 35 OK, mutantes da spec com `--base 64fca890` todos mortos.
 - Pendência (A3 acima): os 2 testes de bwrap só valem com o check-run `bateria` do CI no mesmo sha, sem pulo.
 - Sem bug novo; parecer segue aprovado.
+
+## Revalidação (delta 32c3528e até 0f55b08a, E29.20)
+Lido com `forge-check parecer delta` (base: develop atualizada de 004ce86 para cf09782; sem o que veio da base). No domínio: `tests/test_sandbox_controle.py` (import de `_comum.Hook`; comparação por JSON, já que o hook grava `indent=1` e o `forge-init`, compacto; `lido` com `rglob`), `tests/test_maquina.py` (asserção P10: o Post de outro uso não grava null na trava), specs `v0475-ci-custo-2` (M19) e `v0476-mp2-mp4-3` (P10, agora `gravar_json(arquivo, None)`), e texto de `docs/hooks-fixtures.md` e das skills `fluxo-do-pedido` e `novo-projeto`.
+Rodados no head 0f55b08a (`python3 -I -m unittest discover -s tests -p <m>.py`):
+- `test_sandbox_controle` 14 OK (skipped=2: bwrap sem namespace aqui; vale só o `bateria` do mesmo sha)
+- `test_maquina` 35 OK; `test_metricas_texto` 2 OK; `test_indice_fixtures` 7 OK
+- `test_forge_mutante` ConferirTodas 4 OK
+- `forge-mutante tests/mutantes/v0476-mp2-mp4-3.json --ids P10`: `P10 · morreu · hooks/pesado.py:386`
+- `forge-mutante tests/mutantes/v0475-ci-custo-2.json --ids M19`: `M19 · morreu · bin/forge-testes:155`
+- A asserção nova de `test_maquina` cobre a soltura que grava null no lugar de apagar; o P10 mata o mutante de soltura indevida.
+Sem bug novo; A3 (CI sem sonda de bwrap) segue recomendado. Parecer segue aprovado.
