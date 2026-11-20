@@ -4,10 +4,10 @@ contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp3-s2-container
 commit: ed21f2bd663c730ab23446ac2554504ad2e91319
-parecer: aprovado
+parecer: reprovado
 escopo: completo
 bugs_criticos: 0
-bugs_altos: 0
+bugs_altos: 1
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-20
@@ -18,6 +18,8 @@ Base 004ce869; head testado ed21f2bd (revalidação do aprovado em 14c69010; esc
 
 ## Achados
 - A1 (recomendado) tests/test_forge.py:2166 · O teste confere `apt-get install -y -qq tmux` por substring (`assertIn`): o mutante `tmuxx` no apt sobrevive. Comparar a linha inteira ou por token.
+
+- A2 (bloqueante) changelog.d/v0479-bp3-s2-container.md:4 · Tipo `### Segurança` inválido (só Adicionado, Alterado, Corrigido): o pre-push reprova (`tipo 'Segurança' inválido`) e o CI reprova igual; mover a entrada para `### Alterado`.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -46,3 +48,4 @@ Base 004ce869; head testado ed21f2bd (revalidação do aprovado em 14c69010; esc
 - Patch do dono (`denyWrite`): não aplicado; a segunda camada fica pendente do dono, sem bloquear.
 - A1 (recomendado, `tmuxx`) segue aberto, sem mudança no delta.
 - Remoto igual ao head local (`ls-remote` = ed21f2bd). Suíte inteira e shellcheck: só no CI do PR.
+- Defeito novo no delta: ver A2. Prova: `git push origin melhoria/v0479-bp3-s2-container` no head ed21f2bd: `changelog.d/v0479-bp3-s2-container.md: tipo 'Segurança' inválido (use Adicionado, Alterado, Corrigido)`, rc 1. Este parecer só sobe depois da correção do fragmento.
