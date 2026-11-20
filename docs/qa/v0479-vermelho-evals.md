@@ -16,10 +16,6 @@ data: 2026-11-20
 
 Escopo: `bin/forge-testes --vermelho` aceita módulo de pacote de `tests/` (`evals.test_x`) e caminho de arquivo (`tests/evals/test_x.py`); a suíte do `--vermelho` inclui os módulos de pacote.
 
-## Achados
-
-A1 da rodada anterior (rc=2, dois testes sem veredito) fechado no delta `8b5d4a5f..bdc7eb53` (só `tests/test_testes_tocados.py`): `modulos_do_vermelho` afirma a linha do plano e `returncode` antes de ler; o teste de revertidos afirma a linha única. Na base a falha agora é de asserção.
-
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
@@ -36,6 +32,9 @@ A1 da rodada anterior (rc=2, dois testes sem veredito) fechado no delta `8b5d4a5
 - `forge-testes --vermelho 004ce869d641ca62394d705c4453d8a014002f15 --modulos test_testes_tocados --prazo 900` (rc=0, 155 s): `vermelho: base=004ce869d641 head=bdc7eb53e638 módulos=test_testes_tocados (restrito por --modulos)`; `mantidos no HEAD: tests/mutantes/vermelho-tests-evals.json, tests/test_testes_tocados.py`; `contagem: não prova (passa na base)=163; prova (asserção)=5; pulado=1`, sem sem-veredito nem falha no HEAD. Os cinco testes novos, incluindo os dois do A1, saem `H=ok · B=falha · prova (asserção)`.
 - Delta: `forge-check parecer delta` lista só `tests/test_testes_tocados.py` (aviso de merge 7adf831 fora da origin/develop local, sem rede de fetch aqui). Mutantes M1 a M11 da rodada anterior seguem válidos: o delta não toca `bin/` nem a spec.
 - Suíte inteira: não rodada (máquina carregada, ordem do brief); vale o check-run `bateria` do CI do PR.
+
+## Revalidação
+A1 da rodada anterior (rc=2, dois testes sem veredito) fechado no delta `8b5d4a5f..bdc7eb53` (só `tests/test_testes_tocados.py`): `modulos_do_vermelho` afirma a linha do plano e `returncode` antes de ler; o teste de revertidos afirma a linha única. Na base a falha agora é de asserção.
 
 ## Achados fora do domínio
 Nenhum.
