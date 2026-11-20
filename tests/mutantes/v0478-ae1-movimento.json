@@ -26,8 +26,8 @@
       "id": "MV3",
       "guarda": "AE1.2 movimento: com prova, ela é conferida",
       "arquivo": "bin/forge-check",
-      "de": "    if prova:\n        def coluna(c):",
-      "para": "    if False:\n        def coluna(c):",
+      "de": "    if prova:\n        def do_cartao(c):",
+      "para": "    if False:\n        def do_cartao(c):",
       "testes": [
         "tests.test_sobreposicao_quadro.Movimento.test_juntado_grava_a_prova_conferida_antes_da_marca"
       ]

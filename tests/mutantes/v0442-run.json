@@ -16,8 +16,8 @@
    "id": "M2",
    "guarda": "slug valido",
    "arquivo": "bin/forge_run.py",
-   "de": "    if not SLUG.fullmatch(slug or \"\") or not passos:",
-   "para": "    if not passos:",
+   "de": "    if not SLUG.fullmatch(slug or \"\") or not passos or (cartao",
+   "para": "    if not passos or (cartao",
    "testes": [
     "tests.test_forge_run.Rodar.test_slug_repetido_ou_invalido_recusa"
    ]
