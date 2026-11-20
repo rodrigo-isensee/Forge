@@ -3,35 +3,45 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-sessao-forge
-commit: a554e34536490ff7af78000f76b67a1652f6e840
+commit: bc385524277c69f47a6cb0f7ed5d37cee5706626
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-20
 ---
-# Review de segurança: travas do conformidade na sessão do Forge, revalidação (v0478 E51.14, parecer E51.16)
+# Review de segurança: travas do conformidade na sessão do Forge, revalidação (v0478 E51.18, parecer E51.20)
 
-Volta por delta (`R-REVIEW`): a rodada anterior (E51.12, `commit: 29cbd24`, reprovado com A1) está no git. Delta lido: `forge-check parecer delta` de `29cbd24..a554e34`. No domínio: `hooks/conformidade.py` (`toca_uma_trava`, nova condição em 3842 e docstring), `docs/hooks.md` (item "Travas na sessão do Forge", "um nível só"), 8 fixtures `e51-*` novas e `tests/test_hooks.py` (piso 48). Fora do domínio: o fragmento do changelog e `tests/mutantes/v0479-conformidade-sessao-forge-5.json`.
+Volta por delta (`R-REVIEW`): a rodada anterior (E51.16, `commit: a554e34`, aprovado com A1 recomendado) está no git. Delta lido: `forge-check parecer delta` de `a554e34..bc38552`. No domínio: `hooks/conformidade.py` (`FONTES` em 3810, `toca_uma_trava` 3847-3857 e docstring), `docs/hooks.md` (item "Travas na sessão do Forge"), 7 fixtures `e51-*` novas e `tests/test_hooks.py`. Fora do domínio: o fragmento do changelog e `tests/mutantes/v0479-conformidade-sessao-forge-{4,5,6}.json`.
 
 Gatilhos: hook de conformidade (controle que analisa comando), R-MAIN, R-VERIFY, R-FLUXO (push para a integração, tag v*).
 
 ## Achados
-- A1 (recomendado) hooks/conformidade.py:3847 · `source /dev/stdin <<< 'git push origin develop'` (e `.`) sai 0 na sessão e 2 no projeto: só `SHELLS` relê o here-string. `bash -c 'echo "B=develop; git push origin \$B" | bash'` sai 0 (era 2 em d235846); `echo … | bash` puro já sai 0 nos dois.
+- A2 (recomendado) hooks/conformidade.py:3851 · No nível 1, `source`/`.` só é trava com here-string: `bash -c 'echo "git push origin main" | source /dev/stdin'` (também `. /dev/stdin`, `builtin source` e dentro de `eval '…'`) sai 0 na sessão e 2 no projeto; o `source /dev/stdin` lê o pipe.
+
+## Estado dos achados anteriores
+- **A1 (E51.16): corrigido em parte; o que resta é o A2.** `source`/`.` com here-string no nível 0 e no 1 e o shell que lê um pipe dentro do texto reavaliado agora recusam (saída 2) no clone, em `wt/*` e no projeto: S1, S2 e S3 abaixo, mais `--force`/`--no-verify` por `source`, `builtin source`, `command source`, `. /dev/fd/0 <<<`, `<<<"…"` sem espaço, `| sh`, `| bash -s`, `source <<<` dentro de `bash -c`, de `eval` e de `bash <<<`. Ficou de fora o `source`/`.` lendo o pipe no nível 1 (A2), que a correção mínima do A1 cobria ("tratar `source` e `.` como `SHELLS` no nível 1").
 
 ## Detalhe dos achados
-**A1.** Evidência: `toca_uma_trava` (hooks/conformidade.py:3842 e 3847) só trata como texto reavaliado o argumento e o here-string de `eval` e de `SHELLS` (hooks/_comum.py:2137). O `source` e o `.` com `/dev/stdin` e here-string executam o texto, mas caem fora; a guarda base recusa a linha como opaca (`heredoc` com ação crítica) e a sessão a solta porque `toca_uma_trava` devolve `False`. Também o shell sem argumento que lê de um pipe dentro do texto reavaliado (`… | bash`) não é lido no nível 1: em d235846 a palavra com `$` virava opaca e recusava.
+**A2.** Evidência: `hooks/conformidade.py:3851` exige `aqui` (here-string) para o `source`/`.` no nível 1, mas o `source /dev/stdin` (e `/dev/fd/0`) executa também o que chega por pipe; a guarda base recusa a linha como opaca (`bash -c` com ação crítica) e a sessão a solta porque `toca_uma_trava` devolve `False`. Prova de que o pipe é lido: `echo 'echo LEU2' | bash -c 'source /dev/stdin'` imprime `LEU2`.
 
-Caminho de ataque: agente na sessão do Forge envia direto para `develop`, `main` ou com `--force`/`--no-verify` por `source /dev/stdin <<< '…'`. Severidade baixa: não há ganho novo, porque `echo 'git push origin main' | bash` sai 0 no projeto e na sessão (lacuna da guarda base, abaixo), e o `pre-push` local e a proteção do GitHub seguem como outra camada. Por isso é `recomendado`, não bloqueante; volta ao autor e é corrigido antes do merge.
+Caminho de ataque: agente na sessão do Forge envia direto para `main`/`develop`, ou com `--force`/`--no-verify`, por `bash -c 'echo "…" | source /dev/stdin'`. Severidade baixa: `echo 'git push origin main' | source /dev/stdin` no nível 0 já sai 0 no projeto e na sessão (lacuna da guarda base, abaixo), e o `pre-push` local e a proteção do GitHub seguem como outra camada. Por isso é `recomendado`; volta ao autor e é corrigido antes do merge.
 
-Correção mínima: em `toca_uma_trava`, tratar `source` e `.` como `SHELLS` no here-string (linha 3847) e no nível 1 (linha 3842); e, no nível 1, um shell de `SHELLS` sem argumento (lê a entrada) também fecha na dúvida. Fixtures `e51-*` com as entradas do A1 e com `source /dev/stdin <<< 'git log -1'` (livre). Esforço P. Dono: `dev`.
+Correção mínima: no nível 1, `source`/`.` na posição de programa (a 1.ª palavra depois de `ANTES_DO_PROGRAMA`, ou depois de `builtin`/`command`) é trava com ou sem here-string, como o shell em 3847 (fecha na dúvida); o `.` como argumento (`find .`) segue fora. Fixture `e51-wt-push-pipe-para-source-aninhado-bloqueia` com `bash -c 'echo "git push origin main" | source /dev/stdin'`; a `e51-wt-ponto-aninhado-libera` continua livre. Esforço P. Dono: `dev`.
+
+## Sondas
+- S1 · `source /dev/stdin <<< 'git push origin develop'` (wt) · espera: 2 · obtido: 2 (era 0 em a554e34)
+- S2 · `. /dev/stdin <<< 'git push origin develop'` (wt) · espera: 2 · obtido: 2 (era 0)
+- S3 · `bash -c 'echo "B=develop; git push origin \$B" | bash'` (wt) · espera: 2 · obtido: 2 (era 0)
+- S4 · `bash -c 'echo "git push origin main" | source /dev/stdin'` (wt) · espera: 2 · obtido: 0 (projeto: 2)
+- S5 · `bash -c 'eval <<< "git push origin main"'` (wt) · espera: 0 (o eval não lê a entrada) · obtido: 0 (era 2 em a554e34)
 
 ## O que foi conferido
-- **A1 anterior (shell ou `eval` aninhado):** corrigido. As quatro sondas da rodada E51.12 recusam no clone, em `wt/*` e no projeto (saída 2): S1 `bash -c 'bash -c "B=develop; git push origin \$B"'`, S2 `eval 'bash <<< "git push origin main"'`, S3 `bash <<< 'bash <<< "git push origin develop"'`, S4 `bash -c 'bash <<< "git push --force origin x"'`. Viraram as fixtures `e51-wt-push-*-aninhado-*` e `e51-wt-push-force-bash-c-here-string-bloqueia`.
-- **Outras formas de aninhamento, todas 2 nos três lugares:** `eval` em `eval`, `eval` em `bash -c`, `zsh -c` em `sh -c`, shell aninhado por `env`, `timeout`, `command`, `exec`, `/bin/bash` e `busybox sh`, três níveis de `bash -c`, heredoc de shell dentro de `bash -c` e o inverso, here-string dentro de heredoc, `bash /dev/stdin <<<` dentro de `bash -c`, `xargs … bash -c`, função, `F=--force` aninhado, alias aninhado e `git tag` aninhado.
-- **Corpus legítimo, livre na sessão:** `bash -c 'bash -c "git log -1"'`, `bash -c 'bash -c "git status"'`, `bash -c 'git log -1'`, `bash <<< 'git status'`, `cat <<< 'git push origin develop'`, `git push origin melhoria/x`, `bash -c 'for f in a b; do bash -c "echo $f"; done'`, `eval 'echo oi'`, `git commit -m "$(cat <<'EOF' …)"`. O fecho do 2.º nível só age quando a guarda base já deu recusa opaca, então a leitura aninhada não vira falso positivo.
-- **Teste novo:** `python3 -m unittest tests.test_hooks.HookSessaoDoForge` nesta cópia: OK (2 testes, 48 fixtures de conformidade). A suíte inteira roda só no CI; a branch não tem PR nem execução de CI (`gh run list` e `gh pr list` vazios): quem mescla confere o CI verde.
+- **Eval com here-string fora do nível 1 (3849):** não afrouxa. O `eval` sem argumento não lê a entrada: `bash -c 'eval <<< "echo LEU"; echo fim'` imprime só `fim`. As três entradas que passaram de 2 para 0 (`bash -c 'eval <<< "…"'`, com `\$B`, e `eval 'eval <<< "…"'`) não executam nada. O `eval` com argumento (`eval "$(cat)" <<< …`, `eval $(echo git push …)`) segue trava; `bash -c 'echo … | eval'` sai 0 na sessão e também não executa.
+- **O item só aperta, no total** (para o rótulo da catraca): comparei a sessão (`wt/*`) em a554e34 e em bc38552 sobre 54 entradas (as do A1, as do A2, o corpus legítimo e os casos de `eval`). Todas as mudanças são 0→2 em entradas que executam uma trava, exceto as três de `eval <<< …` acima, 2→0 em entradas inócuas. As condições novas em 3847 e 3851 só somam recusas no nível 1, que só é lido quando a guarda base já deu recusa opaca; a 3849 tira só o caso que não executa. Nenhuma recusa de `R-MAIN`, `R-VERIFY` ou do alvo opaco que proteja um ato some.
+- **Corpus legítimo, livre na sessão e no projeto:** `source /dev/stdin <<< 'git log -1'`, `. /dev/stdin <<< 'git status'`, `bash -c 'find . -name "*.md" | head -1'`, `bash -c 'source ~/.bashrc; git log -1'`, `bash -c '. ./x.sh; git status'`, `bash -c 'git log | head'`, `bash -c 'ls | bash'`, `bash -c 'cat x | sh'`, `bash -c 'eval'`, `git push origin melhoria/x`, `bash -c 'echo x | . ~/.bashrc'`.
+- **Teste novo:** `python3 -m unittest tests.test_hooks.HookSessaoDoForge` nesta cópia: OK (2 testes; 55 fixtures `e51-*`). A suíte inteira roda só no CI; a branch não tem PR nem execução de CI (`gh pr list` e `gh run list` vazios): quem mescla confere o CI verde.
 
 ## Fora do achado (lacuna da guarda base, também no projeto)
-- O shell que lê o comando de um pipe ou de substituição de processo não é lido: `echo 'git push origin develop' | bash`, `bash <(echo git push origin develop)`, `bash < <(…)` e `source <(…)` saem 0 no projeto e na sessão. Não é deste delta nem da sessão do Forge; vai como melhoria ao Jarvis (dimensão nova da matriz: "entrada do shell por pipe ou por `<(…)`").
+- Sem mudança desde E51.16, agora registrada em `docs/hooks.md` (cartão CONFORMIDADE-SUBSTITUICAO-NO-PROJETO): o shell ou o `source` que lê o comando de um pipe, de arquivo ou de `<(…)` no nível 0 não é lido (`echo 'git push origin main' | source /dev/stdin` e `| bash` saem 0 no projeto e na sessão).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura estática do delta e sondas locais pela `Fixture`/`rodar` de `tests/test_hooks.py` (`sonda_e5116.py`, e `sonda_d235.py` sobre o `git archive` de d235846 para a comparação). Faltaram no PATH: gitleaks, semgrep e zizmor (o delta não toca segredo nem workflow).
+Nenhum risco aceito. Ferramentas: leitura estática do delta e sondas locais pela `Fixture`/`rodar` de `tests/test_hooks.py` (`sonda_e5120.py`, e `sonda_old.py` sobre o `git archive` de a554e34 para a comparação). Faltaram no PATH: gitleaks, semgrep e zizmor (o delta não toca segredo nem workflow).
