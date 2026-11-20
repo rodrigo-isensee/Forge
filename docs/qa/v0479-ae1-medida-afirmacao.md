@@ -18,7 +18,7 @@ Diff conferido contra a base ed5bfa02: `hooks/meta.py` (campo `afirmacao_sem_pro
 
 ## Achados
 - A1 (bloqueante) hooks/meta.py:240 · conta feito/mesclado/integrado dentro de citação e código; o desenho (propostas:147, ERRO-JARVIS 18:02 do pedido) manda contar fora dos dois. `afirmacao_sem_prova("> mesclado")` dá True. Bug em docs/qa/bugs/.
-- A2 (bloqueante) tests/test_meta.py:508 · os 4 testes novos caem na base por KeyError, não por asserção; `forge-testes --vermelho` sai 2 (sem veredito), que não vale como vermelho (R-QA). Ler com `.get("afirmacao_sem_prova")` para falhar por asserção.
+- A2 (bloqueante) tests/test_meta.py:502 · os 4 testes novos caem na base por KeyError, não por asserção; `forge-testes --vermelho` sai 2 (sem veredito), que não vale como vermelho (R-QA). Ler com `.get("afirmacao_sem_prova")` para falhar por asserção.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
