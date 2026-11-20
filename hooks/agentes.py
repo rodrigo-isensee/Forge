@@ -71,6 +71,7 @@ from pathlib import Path
 from _comum import (LIMITE_LOG, RESERVA, Aviso, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, forge_check,
                     gravar_json, ler_json, ler_projetos_ativos, mensagem, raiz_declarada)
 import _maquina
+from _json_raso import TETO_ANINHAMENTO, fundo_demais
 from pesado import CASCAS, TRAVA_S, pid_da_sessao, pid_vivo
 
 FERRAMENTAS = {"Agent", "Task"}
@@ -404,8 +405,8 @@ class EstadoIlegivel(Exception):
 def ler_estado(arquivo):
     """O registro de `arquivo`, ou `{"agentes": []}` se ele não existe (o começo legítimo). Lança `EstadoIlegivel` se não é arquivo
     regular (aberto sem seguir link nem esperar FIFO), não abre, passa de LIMITE_DO_ESTADO, não é JSON, a raiz não é objeto ou
-    `agentes` ou `lapides` (quando existem) não são listas, ou se o leitor falha de qualquer outro jeito (o RecursionError do JSON
-    aninhado fundo). Nunca devolve estado vazio no lugar do ilegível."""
+    `agentes` ou `lapides` (quando existem) não são listas, se aninha acima de TETO_ANINHAMENTO níveis (o 3.14 aceita o que o
+    3.12 recusava com RecursionError) ou se o leitor falha de qualquer outro jeito. Nunca devolve estado vazio no lugar do ilegível."""
     if not os.path.lexists(arquivo):
         return {"agentes": []}
     try:
@@ -416,6 +417,8 @@ def ler_estado(arquivo):
             dados = entrada.read(LIMITE_DO_ESTADO + 1)
         if len(dados) > LIMITE_DO_ESTADO:
             raise EstadoIlegivel(f"{arquivo}: passa de {LIMITE_DO_ESTADO} bytes")
+        if fundo_demais(dados):
+            raise EstadoIlegivel(f"{arquivo}: aninhado acima de {TETO_ANINHAMENTO} níveis")
         estado = json.loads(dados)
     except EstadoIlegivel:
         raise

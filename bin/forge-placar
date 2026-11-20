@@ -194,8 +194,11 @@ def reversoes(pasta, ref):
 def ci_vermelha(arq):
     if not arq:
         return None
+    texto = ler(arq) or "[]"
+    if fundo_demais(texto):  # JSON-PROFUNDO-PY314: o 3.14 não recusa o aninhamento fundo que o 3.12 recusava
+        raise SystemExit(f"forge-placar: JSON de --ci {arq} aninhado acima de {TETO_ANINHAMENTO} níveis")
     try:
-        execucoes = json.loads(ler(arq) or "[]")
+        execucoes = json.loads(texto)
     except json.JSONDecodeError:
         raise SystemExit(f"forge-placar: --ci {arq} não é JSON")
     return [datetime.date.fromisoformat(e["createdAt"][:10]) for e in execucoes

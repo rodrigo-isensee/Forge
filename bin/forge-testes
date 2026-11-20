@@ -147,7 +147,7 @@ MAPA = [
     (r"bin/forge-check", FORGE_CHECK + EVALS_DE_FORMA),
     (r"bin/forge_(governanca|decisor|run|meta|provas|dora)\.py", FORGE_CHECK),  # o forge-check importa o módulo ao montar os subcomandos (0.43.1 H)
     (r"bin/forge_medidas\.py", ("test_forge_medidas", "test_medidas_m14b", "test_forge")),  # E5.6: o módulo da medida e do escape
-    (r"bin/forge-placar", ("evals.test_placar", "test_forge")),  # 0.43.1, frente I
+    (r"bin/forge-placar", ("evals.test_placar", "test_forge", "test_json_raso")),  # 0.43.1, frente I; v0478 E44.1: a cópia do teto
     # MAPA-FORGE-DOUTOR (v046 E22.1): + os módulos que rodam o script pela base de test_doutor (test_qa_doutor_034 roda o hook)
     (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge", "test_novo_projeto", "test_medidas_m14b",
                            "test_doutor_custo", "test_doutor_protecao_gh", "test_doutor_relogio", "test_qa_doutor_f8", "test_doutor_branch_atrasada")),
