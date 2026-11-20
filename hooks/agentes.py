@@ -563,8 +563,14 @@ def lapide(registro, agora):
 def lapides_vigentes(estado, agora, expira_s):
     """C8: as lápides gravadas, dentro do prazo do registro (expiracao_horas)."""
     lista = estado.get("lapides")
-    return [l for l in (lista if isinstance(lista, list) else [])
-            if isinstance(l, dict) and isinstance(l.get("desde"), (int, float)) and agora - l["desde"] < expira_s]
+    validas = []
+    for l in (lista if isinstance(lista, list) else []):
+        if not isinstance(l, dict) or not isinstance(l.get("desde"), (int, float)):
+            continue
+        if not caiu_em_finito(l["desde"]):
+            raise EstadoIlegivel("`lapides`: `desde` não é número finito")
+        validas.append(l)
+    return [l for l in validas if agora - l["desde"] < expira_s]
 
 
 def relancado(morto, agentes):
@@ -667,11 +673,18 @@ def fechar_por_retomada(interrompidos, alvo):
 
 def autores_vigentes(estado, agora, expira_s):
     """H2: os autores gravados no `SubagentStop`, com id de agente e dentro do prazo do registro (expiracao_horas). Só alimenta
-    um aviso: o que não é lista ou registro vale vazio, sem recusa."""
+    um aviso: o que não é lista ou registro vale vazio, sem recusa; o `desde` numérico e não finito (inf, nan, inteiro enorme)
+    deixa o estado ilegível (`EstadoIlegivel`, o disparo recusa): a subtração nunca levanta fora da recusa."""
     lista = estado.get("autores")
-    return [a for a in (lista if isinstance(lista, list) else [])
-            if isinstance(a, dict) and isinstance(a.get("id"), str) and ID_DE_AGENTE.fullmatch(a["id"])
-            and isinstance(a.get("desde"), (int, float)) and agora - a["desde"] < expira_s]
+    validos = []
+    for a in (lista if isinstance(lista, list) else []):
+        if not (isinstance(a, dict) and isinstance(a.get("id"), str) and ID_DE_AGENTE.fullmatch(a["id"])
+                and isinstance(a.get("desde"), (int, float))):
+            continue
+        if not caiu_em_finito(a["desde"]):
+            raise EstadoIlegivel("`autores`: `desde` não é número finito")
+        validos.append(a)
+    return [a for a in validos if agora - a["desde"] < expira_s]
 
 
 def guardar_autores(autores, parados, agora):
