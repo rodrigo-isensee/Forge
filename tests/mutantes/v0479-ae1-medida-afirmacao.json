@@ -6,8 +6,8 @@
    "id": "M1",
    "guarda": "a linha onde: colada é a prova (tirar o not)",
    "arquivo": "hooks/meta.py",
-   "de": "    return bool(AFIRMACAO.search(texto)) and not LINHA_DO_ONDE.search(texto)",
-   "para": "    return bool(AFIRMACAO.search(texto)) and LINHA_DO_ONDE.search(texto)",
+   "de": "    return bool(AFIRMACAO.search(fora_de_codigo_e_citacao(texto))) and not LINHA_DO_ONDE.search(texto)",
+   "para": "    return bool(AFIRMACAO.search(fora_de_codigo_e_citacao(texto))) and LINHA_DO_ONDE.search(texto)",
    "testes": [
     "tests.test_meta.AfirmacaoSemProva"
    ]
@@ -16,8 +16,8 @@
    "id": "M2",
    "guarda": "só conta com afirmação e sem prova (and vira or)",
    "arquivo": "hooks/meta.py",
-   "de": "    return bool(AFIRMACAO.search(texto)) and not LINHA_DO_ONDE.search(texto)",
-   "para": "    return bool(AFIRMACAO.search(texto)) or not LINHA_DO_ONDE.search(texto)",
+   "de": "    return bool(AFIRMACAO.search(fora_de_codigo_e_citacao(texto))) and not LINHA_DO_ONDE.search(texto)",
+   "para": "    return bool(AFIRMACAO.search(fora_de_codigo_e_citacao(texto))) or not LINHA_DO_ONDE.search(texto)",
    "testes": [
     "tests.test_meta.AfirmacaoSemProva"
    ]
@@ -58,6 +58,16 @@
    "arquivo": "hooks/meta.py",
    "de": "AFIRMACAO = re.compile(r\"(?<!\\w)(?:feit|mesclad|integrad)[oa]s?(?!\\w)\", re.I)",
    "para": "AFIRMACAO = re.compile(r\"(?<!\\w)(?:feit|mesclad|integrad)[oa]s?(?!\\w)\")",
+   "testes": [
+    "tests.test_meta.AfirmacaoSemProva"
+   ]
+  },
+  {
+   "id": "M7",
+   "guarda": "a afirmação conta só fora de citação e código (a chamada vira o texto inteiro)",
+   "arquivo": "hooks/meta.py",
+   "de": "    return bool(AFIRMACAO.search(fora_de_codigo_e_citacao(texto))) and not LINHA_DO_ONDE.search(texto)",
+   "para": "    return bool(AFIRMACAO.search(texto)) and not LINHA_DO_ONDE.search(texto)",
    "testes": [
     "tests.test_meta.AfirmacaoSemProva"
    ]

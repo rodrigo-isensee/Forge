@@ -499,17 +499,25 @@ class AfirmacaoSemProva(unittest.TestCase):
             hook = type("Hook", (), {"campo": lambda self, chave: {"last_assistant_message": texto}.get(chave),
                                      "run": lambda self: Path(pasta), "iniciante": lambda self: False})()
             self.meta.medir_mensagem(hook)
-            return json.loads((Path(pasta) / "mensagens.jsonl").read_text(encoding="utf-8"))["afirmacao_sem_prova"]
+            return json.loads((Path(pasta) / "mensagens.jsonl").read_text(encoding="utf-8")).get("afirmacao_sem_prova")
 
     def test_afirmacao_sem_a_linha_do_onde_conta(self):
         for texto in ("Feito.", "O PR foi mesclado na develop.", "Item integrado hoje.", "As duas ficaram feitas e INTEGRADAS."):
             with self.subTest(texto=texto):
                 self.assertIs(self.medir(texto), True)
 
-    def test_afirmacao_escondida_em_citacao_ou_codigo_tambem_conta(self):
-        for texto in ("> mesclado", "```\nintegrado\n```", "Está `feito`."):
+    def test_afirmacao_so_em_citacao_ou_bloco_de_codigo_nao_conta(self):
+        for texto in ("> mesclado", "```\nintegrado\n```", "~~~\nfeito\n~~~"):
+            with self.subTest(texto=texto):
+                self.assertIs(self.medir(texto), False)
+
+    def test_afirmacao_fora_da_citacao_conta_mesmo_com_outra_dentro(self):
+        for texto in ("O PR foi mesclado.\n> integrado", "```\nfeito\n```\nItem integrado."):
             with self.subTest(texto=texto):
                 self.assertIs(self.medir(texto), True)
+
+    def test_codigo_em_linha_segue_o_leitor_e_conta(self):
+        self.assertIs(self.medir("Está `feito`."), True)
 
     def test_a_linha_do_onde_colada_e_a_prova_em_texto_citacao_ou_codigo(self):
         for prova in (self.ONDE, "> " + self.ONDE, "```\n" + self.ONDE + "\n```", "  `onde: develop sim (commit c219c86b)`"):

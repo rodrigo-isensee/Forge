@@ -235,15 +235,16 @@ def idioma_do_dono(raiz):
     return valor if isinstance(valor, str) and valor in PALAVRAS_DO_IDIOMA else None
 
 
-# AE1.4 (v0478 E58.20): afirmação de estado sem a prova colada. Lista fixa; o texto inteiro conta (citação e bloco de código
-# não escondem a afirmação), e a prova é uma linha `onde:` da saída do `forge-check onde`, em qualquer lugar da mensagem.
+# AE1.4 (v0478 E58.20): afirmação de estado sem a prova colada. Lista fixa; a afirmação conta só no texto fora de citação e
+# de bloco de código cercado (desenho AE1.4), e a prova é uma linha `onde:` da saída do `forge-check onde`, em qualquer
+# lugar da mensagem (a saída colada vem em citação ou bloco de código).
 AFIRMACAO = re.compile(r"(?<!\w)(?:feit|mesclad|integrad)[oa]s?(?!\w)", re.I)
 LINHA_DO_ONDE = re.compile(r"^[ \t>`]*onde: \S", re.M)
 
 
 def afirmacao_sem_prova(texto):
     """A mensagem afirma feito, mesclado ou integrado sem uma linha `onde:` (só mede, nunca bloqueia: ADR 0003)."""
-    return bool(AFIRMACAO.search(texto)) and not LINHA_DO_ONDE.search(texto)
+    return bool(AFIRMACAO.search(fora_de_codigo_e_citacao(texto))) and not LINHA_DO_ONDE.search(texto)
 
 
 # MP1 (diretriz 35): o sinal de vários projetos ativos é o arquivo ATIVOS (leitor em `_comum.ler_projetos_ativos`).
