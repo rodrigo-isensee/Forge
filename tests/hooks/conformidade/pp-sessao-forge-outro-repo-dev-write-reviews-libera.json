@@ -12,19 +12,19 @@
   "entrada": {
     "tool_name": "Write",
     "tool_input": {
-      "file_path": "{tmp}/home/outro/docs/reviews/x.md",
+      "file_path": "{tmp}/outro/docs/reviews/x.md",
       "content": "x\n"
     },
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9",
-    "cwd": "{tmp}/home/outro",
+    "cwd": "{tmp}/outro",
     "agent_type": "forge-python:python-backend"
   },
   "esperado": {
     "codigo": 0
   },
   "repos": {
-    "home/outro": {
+    "outro": {
       "arquivos": {
         "a.txt": "v\n",
         "docs/reviews/x.md": "v\n"

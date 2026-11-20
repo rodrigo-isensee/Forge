@@ -1505,6 +1505,14 @@ class ParecerMescladoNaVolta(Conferencia):
         self.codigo("x\ny\nz\nw\n")
         self.assert_fora()
 
+    def test_sem_conferida_o_parecer_com_commit_no_base_sha_segue_fora(self):
+        """A1 do QA (E50.11): na 1.a entrega, o parecer de outro papel com `commit:` igual ao Base-sha, commitado só com a
+        pasta dele, segue fora: a regra só vale com o Desde de conferida ou Revisar-sha (`and valido`)."""
+        self.ate_a_conferida(conferida=False)
+        self.mesclar_parecer(self.base, pasta="security", tipo="revisao-seguranca")
+        self.codigo("x\ny\nz\nw\n")
+        self.assert_fora("docs/security/x.md")
+
     def test_frontmatter_de_outra_branch_pedido_tipo_ou_sem_veredito_segue_fora(self):
         for kw in ({"branch": "melhoria/y"}, {"pedido": "outro"}, {"parecer": "pendente"}, {"tipo": "qa"}):
             with self.subTest(**kw):
