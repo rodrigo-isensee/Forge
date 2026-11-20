@@ -3,18 +3,20 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-entrega-parecer-mesclado
-commit: 9f4c3ca37024789b7994296fc3f9716021b098af
+commit: 39351c755290a37abf829fedb17fe65744183491
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
 ---
-# Review: v0478 E50.21 (ENTREGA-PARECER-MESCLADO, merge da develop e expectativa do teste antigo)
+# Review: v0478 E50.28 (ENTREGA-PARECER-MESCLADO, índice das fixtures e teto do corpus)
 
-Revalidação pelo delta (`forge-check parecer delta`, intervalo `5376b86d..9f4c3ca3`; H3, `R-REVIEW`). No domínio: `bin/forge-check`, `docs/hooks.md`, `tests/test_hooks.py` e `tests/test_revisor_wt.py`. O delta avisa que o merge `bbdd9b0` (a branch com a própria cópia remota) não está na develop e conta inteiro; conferi pelo patch da branch: `git diff 8a503799 5376b86d` contra `git diff 20bbbd8d 9f4c3ca3`, sem as linhas `index` e `@@`, só difere nos pareceres (fora do domínio) e em `tests/test_revisor_wt.py`. Os trechos de `bin/forge-check`, `docs/hooks.md` e `tests/test_hooks.py` no delta vieram da develop (#713, #716, #718, #720, #723, #729), e o merge `6f41c645` não resolveu nada à mão.
+Revalidação pelo delta (`forge-check parecer delta`, intervalo `9f4c3ca3..39351c75`; H3, `R-REVIEW`). No domínio: `docs/hooks-fixtures.md`, `tests/apoio_volta_unica.py` e `tests/provas/v0479-corpus-custo.md`. Os pareceres de QA e segurança do delta ficam fora do domínio.
 
 ## Parecer
-Aprovado no head 9f4c3ca3.
+Aprovado no head 39351c75.
 
-`9f4c3ca3` muda só a expectativa de `ParecerTrazido` em tests/test_revisor_wt.py:314: sem `autoria.jsonl`, o parecer mesclado na volta deixa de sair `confira` e sai `ok (anexo do portão: parecer de tech-lead commitado na volta só com parecer)`. É o comportamento do E50.1, já aprovado nas rodadas anteriores (a mensagem está em bin/forge-check:3321 e em `docs/hooks.md`); o teste veio da develop e só ganhou a expectativa nova, sem afrouxar outra asserção. Nenhuma guarda mudou no delta, então não há mutante novo a declarar.
+- `docs/hooks-fixtures.md`: regerado pelo script; `python3 -I scripts/indice-fixtures.py --conferir` → `docs/hooks-fixtures.md: em dia`, rc=0. A contagem bate com a árvore: 3135 fixtures, 2309 em `conformidade` (o grupo novo `pp-*`, 38 casos, é o corpus do PARECER-PELO-PAPEL).
+- `tests/apoio_volta_unica.py`: só o `interpretador` de `MEDIDA_DO_CORPUS` muda, de 5893967 para 5895051 (+1084, os mesmos passos que o CI do #734 reprovou); ruído segue 0, subprocessos e execuções iguais. O comentário traz a autorização do dono de 20/11 19:09 ("+1.084 passos, só para este item") e diz que não é precedente. Nenhuma guarda mudou, então não há mutante a declarar.
+- `tests/provas/v0479-corpus-custo.md`: registra a medida e a autorização no formato das medidas anteriores.
 
-Rodei com ambiente limpo: `python3 -I -m unittest discover -s tests -p test_revisor_wt.py -k ParecerTrazido` → `Ran 4 tests · OK`. A suíte inteira fica com o CI do PR #734 (`R-REVIEW`); a `bateria (pareceres)` dele estava vermelha porque os pareceres apontavam para 5376b86d.
+Rodei o teste do item: `python3 -m unittest tests.test_hooks_volta_corpus` → `Ran 33 tests · OK`, rc=0. A suíte inteira fica com o CI do PR #734; no head 39351c75 a `bateria (pareceres)` estava vermelha porque os pareceres ainda apontavam para o head anterior. Falta ainda o motivo do teto escrito no PR, que a decisão do dono pede; isso fica com quem integra.
