@@ -22,7 +22,7 @@ Escopo: diff `004ce869..d816262d` (`bin/forge-fechar`, `docs/fechamento-integrad
 
 ## Sondas
 - S1 · anotações `tests/test_b.py<TAB>test_b.Caso.test_um (entrada='f()'): AssertionError` e `tests/test_c.py<TAB>test_c.K.test_dois: AssertionError` no sed da linha 1089 · espera: os dois ids · obtido: só `test_c.K.test_dois` (reproduzido por mim, igual ao A1 do review)
-- S2 · A2 aceito pela evidência do parecer de segurança (S1 de `docs/security/v0479-bp2-i1-conserto.md`), não reexecutada aqui; o grep da linha 1109 só procura `"<id>"` e `"<id> ("`.
+- S2 · pulados `setUpClass (test_m.C)` e `unittest.loader.ModuleSkipped.test_n` contra o grep da linha 1109, que só procura `"<id>"` e `"<id> ("` (sonda da segurança em `docs/security/v0479-bp2-i1-conserto.md`, lida, não reexecutada) · espera: pulado (para) · obtido: não achado (segue como passou)
 
 ## Critério → teste → resultado
 Sem especificação de UX; as obrigações são C1 a C7 e D2/D5 (`docs/fechamento-integrador.md`, "Conserto da develop vermelha").
