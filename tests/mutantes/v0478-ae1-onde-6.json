@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M41",
+      "guarda": "AE1.1 tipo_do_alvo: o grupo do número do PR",
+      "arquivo": "bin/forge_onde.py",
+      "de": "achado.group(achado.lastindex or 0)",
+      "para": "achado.group(achado.lastindex or 1)",
+      "testes": [
+        "tests.test_forge_onde.Alvo.test_branch_com_prefixo_e_sem_barra"
+      ]
+    },
+    {
+      "id": "M42",
+      "guarda": "AE1.1 onde_do_pr: motivo quando o gh não diz",
+      "arquivo": "bin/forge_onde.py",
+      "de": "erro.strip()[:200] or 'resposta sem o PR'",
+      "para": "erro.strip()[:200]",
+      "testes": [
+        "tests.test_forge_onde.Pr.test_resposta_de_outro_pr_nao_vale"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "AE1.1 onde_do_pr: PR sem mergedBy",
+      "arquivo": "bin/forge_onde.py",
+      "de": "(dados.get(\"mergedBy\") or {})",
+      "para": "dados.get(\"mergedBy\")",
+      "testes": [
+        "tests.test_forge_onde.Pr.test_pr_aberto_nao_le_as_bases"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "AE1.1 onde_do_pr: PR sem mergedAt",
+      "arquivo": "bin/forge_onde.py",
+      "de": "mesclado={dados.get('mergedAt') or '-'} por",
+      "para": "mesclado={dados.get('mergedAt')} por",
+      "testes": [
+        "tests.test_forge_onde.Pr.test_pr_aberto_nao_le_as_bases"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "AE1.1 onde_do_pr: PR sem mergeCommit",
+      "arquivo": "bin/forge_onde.py",
+      "de": "(dados.get(\"mergeCommit\") or {})",
+      "para": "dados.get(\"mergeCommit\")",
+      "testes": [
+        "tests.test_forge_onde.Pr.test_pr_mesclado_sem_commit_do_merge_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "AE1.1 onde_do_pr: mergeCommit sem oid",
+      "arquivo": "bin/forge_onde.py",
+      "de": ".get(\"oid\") or \"\")",
+      "para": ".get(\"oid\"))",
+      "testes": [
+        "tests.test_forge_onde.Pr.test_pr_mesclado_sem_commit_do_merge_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "M47",
+      "guarda": "AE1.1 onde_do_pr: oid vazio sai como -",
+      "arquivo": "bin/forge_onde.py",
+      "de": "{oid[:12] or '-'}",
+      "para": "{oid[:12]}",
+      "testes": [
+        "tests.test_forge_onde.Pr.test_pr_mesclado_sem_commit_do_merge_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "M48",
+      "guarda": "AE1.1 onde_da_branch: motivo quando o gh não diz",
+      "arquivo": "bin/forge_onde.py",
+      "de": "erro.strip()[:200] or 'resposta ilegível'",
+      "para": "erro.strip()[:200]",
+      "testes": [
+        "tests.test_forge_onde.Branch.test_gh_fora_do_ar_e_nao_verificavel"
+      ]
+    }
+  ]
+}

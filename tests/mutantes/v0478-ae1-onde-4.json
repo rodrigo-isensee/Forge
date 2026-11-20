@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "AE1.1 onde_do_cartao: ID seguido de .N é outro cartão",
+      "arquivo": "bin/forge_onde.py",
+      "de": "(?![A-Za-z0-9_-]|\\.[A-Za-z0-9])\")",
+      "para": "(?![A-Za-z0-9_-])\")",
+      "testes": [
+        "tests.test_forge_onde.Cartao.test_id_inteiro_e_o_commit_mais_novo_de_cada_base"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "AE1.1 onde_do_cartao: ID precedido de letra é outro cartão",
+      "arquivo": "bin/forge_onde.py",
+      "de": "rf\"(?<![A-Za-z0-9_.-]){re.escape",
+      "para": "rf\"{re.escape",
+      "testes": [
+        "tests.test_forge_onde.Cartao.test_id_inteiro_e_o_commit_mais_novo_de_cada_base"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "AE1.1 onde_do_cartao: base ausente sai sem-branch",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        if ref is None:\n            linhas.append(f\"onde: {base} sem-branch (sem origin/{base} no clone)\")\n            continue\n        lidas += 1",
+      "para": "        if False:\n            linhas.append(f\"onde: {base} sem-branch (sem origin/{base} no clone)\")\n            continue\n        lidas += 1",
+      "testes": [
+        "tests.test_forge_onde.Cartao.test_sem_base_no_clone_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "AE1.1 onde_do_cartao: git log que falha é nao-verificavel",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        if cod != 0:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_onde.Cartao.test_git_log_que_falha_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "AE1.1 onde_do_cartao: trecho sem separador fica fora",
+      "arquivo": "bin/forge_onde.py",
+      "de": "if \"\\x1f\" in c and inteiro",
+      "para": "if inteiro",
+      "testes": [
+        "tests.test_forge_onde.Cartao.test_id_inteiro_e_o_commit_mais_novo_de_cada_base"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "AE1.1 onde_do_cartao: sem commit, diz nao",
+      "arquivo": "bin/forge_onde.py",
+      "de": "if shas else f\"onde: {base} nao",
+      "para": "if True else f\"onde: {base} nao",
+      "testes": [
+        "tests.test_forge_onde.Cartao.test_id_inteiro_e_o_commit_mais_novo_de_cada_base"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "AE1.1 onde_do_cartao: nenhuma base lida dá rc 2",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if not lidas:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_onde.Cartao.test_sem_base_no_clone_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "AE1.1 onde_do_cartao: nenhum commit dá rc 1",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    return linhas, rc if achou or rc else NAO_EXISTE",
+      "para": "    return linhas, rc if True else NAO_EXISTE",
+      "testes": [
+        "tests.test_forge_onde.Cartao.test_cartao_sem_commit_nao_existe"
+      ]
+    }
+  ]
+}

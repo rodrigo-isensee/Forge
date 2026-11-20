@@ -5,9 +5,12 @@ import os
 import shutil
 import subprocess
 import sys
+import importlib.machinery
+import importlib.util
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -38,6 +41,13 @@ PARECER = ("---\ntipo: {tipo}\ncontrato: 1\npedido: exemplo\nbranch: melhoria/x\
 EXTRA = {"review": "revisor: forge:tech-lead\n",
          "qa": "escopo: completo\nbugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0\n"}
 GH_MERGED = 'echo \'{"number": 7, "state": "MERGED", "headRefOid": "abcdef0123456789abcdef0123456789abcdef01"}\'\n'
+
+
+def carregar_forge_check():
+    carregador = importlib.machinery.SourceFileLoader("forge_check_estado", str(FORGE_CHECK))
+    modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader(carregador.name, carregador))
+    carregador.exec_module(modulo)
+    return modulo
 
 
 def ambiente_do_git():
@@ -143,10 +153,22 @@ class Estado(Repo):
         self.assertRegex(erro, r"estado: parecer review desatualizado \(")
 
     def test_gh_lento_respeita_o_teto(self):
-        rc, saida, erro = self.gerar("--etapa", "codigo", env=com_gh_falso(script="sleep 30\n"))
-        self.assertEqual(rc, 0, saida + erro)
-        self.assertIn("não verificável (gh passou de 10 s)", erro)
-        self.assertLess(self.duracao, 25)
+        """E43.1: o `gh` que passa do teto vira `não verificável`, sem barrar. O relógio é o do `subprocess` falso, que levanta
+        `TimeoutExpired` ao ser chamado com o teto: o que se prova é o teto passado ao `gh` e a linha que sai, não a duração."""
+        fc, gh_chamadas, real = carregar_forge_check(), [], subprocess.run
+
+        def gh_estoura(comando, *args, **kwargs):
+            if comando[0] != "gh":
+                return real(comando, *args, **kwargs)
+            gh_chamadas.append(kwargs.get("timeout"))
+            raise subprocess.TimeoutExpired(comando, kwargs["timeout"])
+
+        with mock.patch.object(fc.subprocess, "run", gh_estoura):
+            linhas, recusas = fc.estado_da_branch(self.repo, "exemplo", "melhoria/x", "develop", "codigo")
+        self.assertEqual(set(gh_chamadas), {10}, "todo gh recebe o teto de 10 s (P5: o `gerar` nunca espera mais que isto)")
+        self.assertEqual(fc.TETO_DO_GH_S, 10)
+        self.assertIn("estado: PR de melhoria/x não verificável (gh passou de 10 s)", linhas)
+        self.assertEqual(recusas, [])
 
 
 class Volta(Repo):
