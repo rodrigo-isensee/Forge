@@ -85,6 +85,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `indice-forge.py` | índice do Forge (arquivo e o que faz), para o brief citar em vez de colar trechos (H7). |
 | `instalar-atalho.sh` | instala os comandos `jarvis`, `jarvis-forge` e `forge` em ~/.local/bin e garante esse diretório no PATH do bash. |
 | `jarvis` | abre o Jarvis num projeto, retomando a última conversa, com o chat remoto (claude.ai/code) |
+| `jarvis-comum.sh` | — |
 | `jarvis-forge` | abre o Jarvis dentro do repositório ~/Forge (onde se edita), usando como plugin uma CÓPIA VIGENTE do Forge |
 | `pesos-do-ci.py` | refaz `tests/pesos-d4.json` com os tempos por unidade que as pernas do CI gravaram em anotação de check run |
 | `placar-mutacao.py` | placar de mutação da release (M-5). Medida, não portão. Só biblioteca padrão. |
