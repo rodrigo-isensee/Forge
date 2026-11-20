@@ -42,6 +42,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `forge_governanca.py` | as medidas de governança do processo (0.43.1, frente H): `forge-check metricas` e `forge-check regras`. |
 | `forge_medidas.py` | `forge-check medida` (D12, E3a e E3b) e `forge-check escape registrar\|resumo` (M14b) (FILA-31 F6, 0.45.7 E5.5): a medida de um |
 | `forge_meta.py` | arma o objetivo que o hook de Stop (hooks/meta.py) confere (S4, 0.44.2). Só biblioteca padrão. |
+| `forge_onde.py` | `forge-check onde <alvo>` (AE1.1, v0478 E58.1): onde está uma versão, um PR, um commit, uma branch ou um cartão, lido |
 | `forge_provas.py` | o arquivo de provas da branch, gerado do brief pela lista do script que o CI roda (M15 E5a1; FILA-31 F6, 0.45.5). |
 | `forge_run.py` | execução capturada como prova (S5, 0.44.2). Só biblioteca padrão. |
 | `forge_sempre_atual.py` | FORGE-SEMPRE-ATUAL (v047, diretriz 30, ADR 0017): o núcleo que mantém o plugin do Forge na última versão publicada. |
@@ -56,6 +57,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | --- | --- |
 | `_comum.py` | base comum dos hooks do plugin (ADR 0003). |
 | `_gh_api.py` | leitura única dos arquivos que o `gh api` envia (GH-API-LEITURA-UNICA, 0.47.8 E3.1). |
+| `_json_raso.py` | Teto de aninhamento comum aos leitores de JSON de controle (JSON-PROFUNDO-PY314). |
 | `_maquina.py` | estado da máquina (diretriz 35), fora dos repositórios, em PASTA (0700), gravado só pelos hooks. |
 | `agentes.py` | teto de agentes, relançamento duplicado (ADR 0003, R-TETO), brief selado do especialista e forma da mensagem ao conferente (R-BRIEF). |
 | `ambiente.py` | ambiente (E2.54, ordem do dono) - ao abrir a sessão no container, confere o ambiente e põe as linhas `falta:` no contexto. |

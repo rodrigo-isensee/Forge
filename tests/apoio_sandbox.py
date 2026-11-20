@@ -17,6 +17,8 @@ import ast
 import errno
 import functools
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -43,6 +45,8 @@ PODEM_PULAR = frozenset({  # IDs sem o prefixo `tests.`
     "test_prepush_so_docs.TravaDaChecagem.test_pasta_de_outro_dono_recua_ou_e_recusada",
     "test_prepush_so_docs.TravaDaChecagem.test_trava_link_pasta_ou_alheia_recusada",
     "test_testes_tocados.MedidaDaVagaPesada.test_conta_a_pesada_viva_sem_gravar_a_linha_de_comando_dela",
+    "test_sandbox_controle.SandboxNegaEscrita.test_modelo_de_projeto_recusa_find_tar_e_chmod_e_o_hook_grava",  # E29.1 (A3)
+    "test_sandbox_controle.SandboxNegaEscrita.test_forge_com_o_patch_recusa_find_tar_e_chmod",  # E29.1 (A3)
 })
 pulados = 0
 
@@ -75,7 +79,19 @@ def falta_proc(proc=Path("/proc"), pid=None):
     return None
 
 
-SONDAS = {"chown": falta_chown, "proc": falta_proc}
+def falta_bwrap():
+    """Motivo se o bubblewrap não monta um sandbox aqui (E29.1, A3: o teste da trava de escrita monta o dele); None se monta."""
+    exe = shutil.which("bwrap")
+    if exe is None:
+        return "sem bwrap no PATH"
+    try:
+        r = subprocess.run([exe, "--ro-bind", "/", "/", "--dev", "/dev", "true"], capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError) as erro:
+        return f"bwrap não rodou ({erro})"
+    return None if r.returncode == 0 else f"bwrap não monta o sandbox aqui (rc {r.returncode}: {r.stderr.strip()[:120]})"
+
+
+SONDAS = {"chown": falta_chown, "proc": falta_proc, "bwrap": falta_bwrap}
 
 
 @functools.lru_cache(maxsize=None)

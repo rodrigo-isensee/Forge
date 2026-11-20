@@ -1,5 +1,5 @@
 {
-  "descricao": "PostToolUse do mesmo comando solta a trava.",
+  "descricao": "PostToolUse do mesmo comando solta a trava. A soltura grava null e não apaga o arquivo (E29.6: o sandbox recriaria o arquivo negado vazio).",
   "estado": {
     "pesado.json": {
       "pid": "{pid_vivo}",
@@ -18,8 +18,16 @@
   },
   "esperado": {
     "codigo": 0,
-    "sem_arquivo": [
-      "pesado.json"
-    ]
+    "estado": {
+      "pesado.json": {
+        "contem": [
+          "null"
+        ],
+        "ausente": [
+          "pid",
+          "tool_use_id"
+        ]
+      }
+    }
   }
 }

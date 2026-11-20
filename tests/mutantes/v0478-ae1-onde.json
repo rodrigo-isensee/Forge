@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "AE1.1 tipo_do_alvo: o prefixo branch: escolhe a branch",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if alvo.startswith(\"branch:\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_onde.Alvo.test_branch_com_prefixo_e_sem_barra"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "AE1.1 tipo_do_alvo: ref com .. não chega ao git",
+      "arquivo": "bin/forge_onde.py",
+      "de": " and \"..\" not in nome and \"//\" not in nome",
+      "para": " and \"//\" not in nome",
+      "testes": [
+        "tests.test_forge_onde.Alvo.test_entrada_invalida_nao_chega_ao_git"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "AE1.1 tipo_do_alvo: nome com // recusado",
+      "arquivo": "bin/forge_onde.py",
+      "de": " and \"//\" not in nome and not nome",
+      "para": " and not nome",
+      "testes": [
+        "tests.test_forge_onde.Alvo.test_entrada_invalida_nao_chega_ao_git"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "AE1.1 tipo_do_alvo: nome terminado em / ou .lock recusado",
+      "arquivo": "bin/forge_onde.py",
+      "de": "and not nome.endswith((\"/\", \".lock\"))",
+      "para": "and True",
+      "testes": [
+        "tests.test_forge_onde.Alvo.test_entrada_invalida_nao_chega_ao_git"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "AE1.1 tipo_do_alvo: só o formato válido vira branch",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        return (\"branch\", nome) if ok else (None, None)",
+      "para": "        return (\"branch\", nome) if True else (None, None)",
+      "testes": [
+        "tests.test_forge_onde.Alvo.test_entrada_invalida_nao_chega_ao_git"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "AE1.1 tipo_do_alvo: só o formato que casa decide o tipo",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        if achado:\n",
+      "para": "        if True:\n",
+      "testes": [
+        "tests.test_forge_onde.Alvo.test_branch_com_prefixo_e_sem_barra"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "AE1.1 tipo_do_alvo: sem / e sem formato é inválido",
+      "arquivo": "bin/forge_onde.py",
+      "de": "if \"/\" in alvo else (None, None)",
+      "para": "if True else (None, None)",
+      "testes": [
+        "tests.test_forge_onde.Alvo.test_entrada_invalida_nao_chega_ao_git"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "AE1.1 sha_de: saída que não é sha não vale",
+      "arquivo": "bin/forge_onde.py",
+      "de": "return saida if cod == 0 and SHA.fullmatch(saida) else None",
+      "para": "return saida if cod == 0 else None",
+      "testes": [
+        "tests.test_forge_onde.VersaoECommit.test_rev_parse_com_saida_que_nao_e_sha_nao_vale"
+      ]
+    }
+  ]
+}
