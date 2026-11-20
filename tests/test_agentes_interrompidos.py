@@ -228,6 +228,40 @@ class Interrupcao(Base):
         self.assertNotEqual(saida.exception.code, 0)
         self.assertEqual(self.arquivo.read_text(encoding="utf-8"), semeado)
 
+    def test_lapide_e_autor_com_numero_nao_finito_deixam_o_estado_ilegivel(self):
+        # E53.1 (A1): 10**400 estoura a subtração; inf e nan nunca vencem; cada função recusa em vez de passar sem reserva
+        lapide = {"id": AID, "desde": self.agora - 30, "descricao": "d", "branches": []}
+        autor = {"id": AID, "desde": self.agora - 30, "escrita": ["melhoria/x"]}
+        for nome, funcao, item in (("lapides", agentes.lapides_vigentes, lapide), ("autores", agentes.autores_vigentes, autor)):
+            for valor in (10**400, -(10**400), float("inf"), float("-inf"), float("nan")):
+                with self.subTest(lista=nome, valor=str(valor)[:12]):
+                    with self.assertRaises(agentes.EstadoIlegivel):
+                        funcao({nome: [{**item, "desde": valor}]}, self.agora, 2 * 3600)
+
+    def test_lapide_e_autor_finitos_seguem_o_prazo(self):
+        lapide = {"id": AID, "desde": self.agora - 30}
+        autor = {"id": AID, "desde": self.agora - 30, "escrita": []}
+        velho = {"desde": self.agora - 3 * 3600}
+        self.assertEqual(agentes.lapides_vigentes({"lapides": [lapide, {**lapide, **velho}, "x", {"desde": "x"}]}, self.agora, 2 * 3600), [lapide])
+        self.assertEqual(agentes.autores_vigentes({"autores": [autor, {**autor, **velho}, "x", {"id": "?", "desde": float("inf")}]},
+                                                  self.agora, 2 * 3600), [autor])
+
+    def test_disparo_com_lapide_ou_autor_enorme_e_recusado_sem_regravar_o_estado(self):
+        for nome, item in (("lapides", {"id": AID, "desde": 10**400}), ("autores", {"id": AID, "desde": 10**400, "escrita": []})):
+            with self.subTest(lista=nome):
+                semeado = json.dumps({"agentes": [], nome: [item]})
+                self.arquivo.write_text(semeado, encoding="utf-8")
+                citado = "docs/briefs/x-python-backend-1.md"
+                entrada = {"subagent_type": "forge:python-backend", "description": "novo", "prompt": f"leia {citado}"}
+                h = self.hook(tool_name="Agent", hook_event_name="PreToolUse", tool_input=entrada)
+                with self.assertRaises(SystemExit) as saida, mock.patch.object(sys, "stderr"), \
+                        mock.patch.object(h, "projeto", return_value=self.tmp), mock.patch.object(agentes, "ler_config"), \
+                        mock.patch.object(agentes, "e_clone_do_forge", return_value=False), \
+                        mock.patch.object(agentes, "conferir_brief", return_value=([(citado, str(self.tmp / citado), BRIEF.encode())], None)):
+                    agentes.principal(h)
+                self.assertNotEqual(saida.exception.code, 0)
+                self.assertEqual(self.arquivo.read_text(encoding="utf-8"), semeado)
+
 
 class Fechamento(Base):
     def lancar(self, tipo="forge:python-backend", nome="x-python-backend-1.md"):
