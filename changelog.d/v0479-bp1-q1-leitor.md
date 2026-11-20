@@ -1,0 +1,2 @@
+### Adicionado
+- `bin/forge_quarentena.py` e `tests/quarentena.json` (vazio): o formato e o leitor puro da quarentena de teste instável, com no máximo 3 entradas ativas, prazo de 7 dias, uma prorrogação que pede novo OK do dono e entrada vencida que sai sozinha das ativas; a data é sempre argumento e erro na lista vale como "nenhuma entrada ativa" (v0479 BP1 Q1, D2 e D3; desenho em docs/propostas/v0479-bp1-quarentena.md).
