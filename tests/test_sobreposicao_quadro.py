@@ -255,7 +255,7 @@ class Movimento(unittest.TestCase):
         linha = self.movimento("K-8", "--de", "Em andamento", "--para", "Sem credencial")
         self.assertTrue(linha.endswith("| custo do trecho: lacuna |"), linha)
         linha = self.movimento("K-8", "--de", "Sem credencial", "--para", "Pronto", "--prova", "juntado:K-ATIVO")  # AE1.2
-        self.assertTrue(linha.endswith("| prova: juntado:K-ATIVO (em B) · custo total: lacuna |"), linha)
+        self.assertTrue(linha.endswith("| prova: juntado:K-ATIVO (em B, no quadro desde 2026-10-20T09:00:00+00:00) · custo total: lacuna |"), linha)
         self.assertNotIn("0 tokens", self.arq.read_text(encoding="utf-8"))
     def com_fim(self, *linhas):  # AE1.2: o quadro com as colunas de fim e a de espera
         (self.raiz / "KANBAN.md").write_text("# Quadro\n\n## Em andamento\n\n## Aguardando sua validação\n\n## Pronto\n\n## Fechado sem entrega\n",
@@ -271,12 +271,16 @@ class Movimento(unittest.TestCase):
         self.assertEqual(self.arq.read_text(encoding="utf-8"), antes)
 
     def test_juntado_grava_a_prova_conferida_antes_da_marca(self):  # AE1.2: a coluna do destino é a do último movimento com hora
-        self.com_fim(("2026-11-20T10:00:00-03:00", "K-2", "—"), ("2026-11-20T10:00:00-03:00", "K-3", "—"), ("sem hora", "K-4", "—"))
+        self.com_fim(("sem hora", "K-2", "—"), ("2026-11-20T10:00:00-03:00", "K-2", "—"), ("2026-11-20T10:00:00-03:00", "K-3", "—"),
+                     ("sem hora", "K-4", "—"))
+        with self.arq.open("a", encoding="utf-8") as f:
+            f.write("| 2026-11-20T10:30:00-03:00 | K-2 | B | Em andamento | m |\n")
         with self.arq.open("a", encoding="utf-8") as f:
             f.write("| 2026-11-20T11:00:00-03:00 | k-3 | B | Pronto | m |\n")
         linha = self.movimento("K-1", "--de", "Em andamento", "--para", "Fechado sem entrega", "--prova", "juntado:K-2", "--motivo", "m",
                                "--titulo", "T")
-        self.assertRegex(linha, r"\| Em andamento \| Fechado sem entrega \| m · prova: juntado:K-2 \(em B\) · atributos: titulo=T \|$")
+        self.assertRegex(linha, r"\| Em andamento \| Fechado sem entrega \| m · prova: juntado:K-2 \(em Em andamento, no quadro desde "
+                                r"2026-11-20T10:00:00-03:00\) · atributos: titulo=T \|$")  # E58.29: a coluna da última linha, a hora da primeira
         for alvo in ("K-3", "K-4", "K-9", "K-1"):
             rc, saida = checar(self.raiz, "movimento", "K-1", "--de", "Em andamento", "--para", "Pronto", "--prova", f"juntado:{alvo}")
             self.assertEqual((rc, saida.startswith("movimento: prova recusada: juntado:"), "nada gravado" in saida), (1, True, True), alvo)
@@ -288,6 +292,8 @@ class Movimento(unittest.TestCase):
         (bin_falso / "gh").write_text("#!/bin/sh\necho 'gh: rede fora' >&2\nexit 1\n", encoding="utf-8")
         (bin_falso / "gh").chmod(0o755)
         env = dict(AMBIENTE, PATH=f"{bin_falso}{os.pathsep}{os.environ.get('PATH', '')}", HOME=str(self.raiz / "home"))
+        git(self.raiz, "init", "-q")  # E58.29: o pr: só se lê no clone de origin https ou ssh
+        git(self.raiz, "remote", "add", "origin", "https://github.com/teste/forge.git")
 
         def mover():
             return subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--raiz", str(self.raiz), "movimento", "K-1", "--de", "Em andamento",

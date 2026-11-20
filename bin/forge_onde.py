@@ -7,7 +7,9 @@ mais novo de cada base que o cita). A presença em `develop`, `homolog` e `main`
 `origin/<base>`, com o sha lido de cada uma (o clone pode estar atrás: a linha mostra de onde leu).
 Saída: linhas `onde: ...` sem caractere de controle. rc 0 lido; 1 alvo não existe; 2 alvo inválido ou leitura que falhou
 (`nao-verificavel`, nunca `sim`: o `gh` lento sai pelo teto do `gh_json` do forge-check; o `git` lento, pelo `executar`).
-AE1.2 (E58.19): `prova_do_movimento` confere a `--prova` do `forge-check movimento` para Pronto ou Fechado* com estas leituras.
+AE1.2 (E58.19): `prova_do_movimento` confere a `--prova` do `forge-check movimento` para Pronto ou Fechado* com estas leituras;
+`pr:` e `commit:` só no clone cujo origin é https ou ssh, com o gh preso a esse repositório (`--repo`), e `rodar:` só com o run.json
+do mesmo cartão e da mesma raiz (E58.29).
 """
 import json
 import re
@@ -20,6 +22,7 @@ PR = re.compile(r"(?:#|pr:#?)(\d{1,7})")
 SHA = re.compile(r"[0-9a-f]{7,40}")
 CARTAO = re.compile(r"[A-Z][A-Z0-9]*(?:[-.][A-Z0-9]+)*")
 BRANCH = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._/-]{0,199}")
+ORIGEM = re.compile(r"(?:https://(?:[^@/\s]+@)?|ssh://git@|git@)([A-Za-z0-9.-]+)[/:]([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?")
 LIDO, NAO_EXISTE, NAO_VERIFICAVEL = 0, 1, 2
 
 
@@ -59,8 +62,9 @@ def presenca(ctx, raiz, sha):
     return linhas, (rc if achadas else NAO_VERIFICAVEL)
 
 
-def onde_do_pr(ctx, raiz, numero):
-    dados, erro = ctx["gh_json"](raiz, "pr", "view", numero, "--json", "number,state,baseRefName,headRefName,mergedAt,mergedBy,mergeCommit")
+def onde_do_pr(ctx, raiz, numero, repo=()):
+    dados, erro = ctx["gh_json"](raiz, "pr", "view", numero, "--json", "number,state,baseRefName,headRefName,mergedAt,mergedBy,mergeCommit",
+                                 *repo)
     if not isinstance(dados, dict) or str(dados.get("number")) != numero:
         return [f"onde: pr #{numero} nao-verificavel ({erro.strip()[:200] or 'resposta sem o PR'})"], NAO_VERIFICAVEL
     por = (dados.get("mergedBy") or {}).get("login") or "-"
@@ -126,13 +130,13 @@ def onde_do_cartao(ctx, raiz, cartao):
     return linhas, rc if achou or rc else NAO_EXISTE
 
 
-def onde(alvo, raiz, ctx):
-    """(rc, linhas) para `alvo`; ctx traz `git`, `gh_json` e `seguro` do forge-check."""
+def onde(alvo, raiz, ctx, repo=()):
+    """(rc, linhas) para `alvo`; ctx traz `git`, `gh_json` e `seguro` do forge-check; `repo` (`--repo X`) prende o gh do PR."""
     tipo, valor = tipo_do_alvo(alvo)
     if tipo is None:
         return NAO_VERIFICAVEL, ["onde: alvo inválido (use vX.Y.Z, #N, pr:N, sha, branch:<nome> ou ID de cartão)"]
     if tipo == "pr":
-        linhas, rc = onde_do_pr(ctx, raiz, valor)
+        linhas, rc = onde_do_pr(ctx, raiz, valor, repo)
     elif tipo == "branch":
         linhas, rc = onde_da_branch(ctx, raiz, valor)
     elif tipo == "cartao":
@@ -148,12 +152,23 @@ def onde(alvo, raiz, ctx):
     return rc, [ctx["seguro"](linha) for linha in linhas]
 
 
+def origem(ctx, raiz):
+    """`host/dono/repo` do origin do clone (https ou ssh); None sem origin, com caminho local ou `file://` (segurança A2 do AE1.2)."""
+    cod, url = ctx["git"](raiz, "remote", "get-url", "origin")
+    achado = ORIGEM.fullmatch(url) if cod == 0 else None
+    return "/".join(achado.groups()) if achado else None
+
+
 def prova_git(ctx, raiz, cartao, tipo, ref):
-    """`pr:#N` mesclado na develop ou `commit:<sha>` ancestral da develop, e o PR ou o commit cita o cartão."""
+    """`pr:#N` mesclado na develop ou `commit:<sha>` ancestral da develop, e o PR ou o commit cita o cartão; lidos no clone de origin
+    https ou ssh, com o gh no mesmo repositório (`--repo`), e a linha leva a origem."""
     alvo = f"pr:{ref}" if tipo == "pr" else ref
     if tipo_do_alvo(alvo)[0] != tipo:
         return "recusa", f"{tipo}:{ref} fora da forma"
-    rc, linhas = onde(alvo, raiz, ctx)
+    repo = origem(ctx, raiz)
+    if repo is None:
+        return "recusa", f"{tipo}:{ref} lido em clone sem origin https ou ssh (caminho local ou file:// não prova)"
+    rc, linhas = onde(alvo, raiz, ctx, ("--repo", repo))
     if rc == NAO_VERIFICAVEL:
         return "nao-verificavel", next((l for l in linhas if "nao-verificavel" in l), linhas[-1])
     na_develop = next((l for l in linhas if l.startswith("onde: develop sim")), None)
@@ -161,7 +176,7 @@ def prova_git(ctx, raiz, cartao, tipo, ref):
         return "recusa", f"{tipo}:{ref} não está na develop ({linhas[0]})"
     sha = next(l.split()[-1].lstrip("@") for l in linhas if l.startswith("onde: commit "))
     if tipo == "pr":
-        dados, erro = ctx["gh_json"](raiz, "pr", "view", tipo_do_alvo(alvo)[1], "--json", "number,title,body")
+        dados, erro = ctx["gh_json"](raiz, "pr", "view", tipo_do_alvo(alvo)[1], "--json", "number,title,body", "--repo", repo)
         if not isinstance(dados, dict) or str(dados.get("number")) != tipo_do_alvo(alvo)[1]:
             return "nao-verificavel", f"pr {ref} sem título lido ({erro.strip()[:200]})"
         texto = f"{dados.get('title') or ''}\n{dados.get('body') or ''}"
@@ -170,7 +185,7 @@ def prova_git(ctx, raiz, cartao, tipo, ref):
         texto = texto if cod == 0 else ""
     if not citacao(cartao).search(texto):
         return "recusa", f"{tipo}:{ref} não cita o cartão {cartao}"
-    return "ok", f"{tipo}:{ref} {sha} ({na_develop})"
+    return "ok", f"{tipo}:{ref} {sha} origem={repo} ({na_develop})"
 
 
 def prova_do_movimento(prova, cartao, raiz, ctx):
@@ -183,21 +198,27 @@ def prova_do_movimento(prova, cartao, raiz, ctx):
     except subprocess.TimeoutExpired:
         return "nao-verificavel", "git sem resposta"
     if tipo == "rodar":
-        base = Path(raiz).resolve() / ".forge" / "run"
-        arq = base / ref / "run.json"
+        lida = Path(raiz).resolve()
+        arq = lida / ".forge" / "run" / ref / "run.json"
         if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,60}", ref) or not arq.is_file() or arq.resolve() != arq:
             return "recusa", f"rodar:{ref} sem run.json nesta raiz (ou link simbólico)"
         try:
             dados = json.loads(arq.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return "recusa", f"rodar:{ref} run.json ilegível"
-        rc = dados.get("rc") if isinstance(dados, dict) else None
-        return ("ok", f"rodar:{ref} rc=0 head={str(dados.get('head'))[:12]}") if rc == 0 else ("recusa", f"rodar:{ref} rc={rc}")
+        if not isinstance(dados, dict):
+            return "recusa", f"rodar:{ref} run.json fora da forma"
+        if dados.get("cartao") != cartao:  # E58.29 (segurança A1): o run é do cartão (`forge-check rodar <slug> --cartao <ID>`)
+            return "recusa", f"rodar:{ref} não é do cartão {cartao} (grave com forge-check rodar --cartao {cartao} <slug> -- ...)"
+        if dados.get("raiz") != str(lida):  # e desta raiz: o slug de outro clone não prova
+            return "recusa", f"rodar:{ref} gravado em outra raiz, não em {lida}"
+        rc = dados.get("rc")
+        return ("ok", f"rodar:{ref} rc=0 head={str(dados.get('head'))[:40]} raiz={lida}") if rc == 0 else ("recusa", f"rodar:{ref} rc={rc}")
     if tipo == "juntado":
         coluna = ctx["coluna"](ref) if CARTAO.fullmatch(ref) and ref.casefold() != cartao.casefold() else None
         if coluna is None or ctx["final"](coluna):
             return "recusa", f"juntado:{ref} não é outro cartão ativo no histórico"
-        return "ok", f"juntado:{ref} (em {coluna})"
+        return "ok", f"juntado:{ref} (em {coluna}, no quadro desde {ctx['desde'](ref)})"  # segurança A3: o destino e a entrada dele, para a auditoria
     return "recusa", f"tipo {tipo or '-'} sem leitor (use pr:#N, commit:<sha>, rodar:<slug> ou juntado:<ID>)"
 
 

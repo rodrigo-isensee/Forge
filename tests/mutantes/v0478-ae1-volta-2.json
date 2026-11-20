@@ -1,0 +1,56 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AV9",
+      "guarda": "AE1.2 volta (segurança A1): forge-check rodar recusa --cartao fora da forma",
+      "arquivo": "bin/forge_run.py",
+      "de": " or (cartao is not None and not CARTAO.fullmatch(cartao)):",
+      "para": ":",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_do_forge_check_grava_o_cartao_e_a_raiz_que_a_prova_confere"
+      ]
+    },
+    {
+      "id": "AV10",
+      "guarda": "AE1.2 volta (segurança A1): o run.json grava o cartão",
+      "arquivo": "bin/forge_run.py",
+      "de": "\"cartao\": cartao}",
+      "para": "\"cartao\": None}",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_do_forge_check_grava_o_cartao_e_a_raiz_que_a_prova_confere"
+      ]
+    },
+    {
+      "id": "AV11",
+      "guarda": "AE1.2 volta (segurança A1): o run.json grava a raiz",
+      "arquivo": "bin/forge_run.py",
+      "de": "\"raiz\": str(Path(raiz).resolve()),",
+      "para": "\"raiz\": \"\",",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_do_forge_check_grava_o_cartao_e_a_raiz_que_a_prova_confere"
+      ]
+    },
+    {
+      "id": "AV12",
+      "guarda": "AE1.2 volta (segurança A3): juntado: grava a entrada do destino no quadro",
+      "arquivo": "bin/forge-check",
+      "de": "\"desde\": lambda c: do_cartao(c)[0][0]}",
+      "para": "\"desde\": lambda c: do_cartao(c)[-1][0]}",
+      "testes": [
+        "tests.test_sobreposicao_quadro.Movimento.test_juntado_grava_a_prova_conferida_antes_da_marca"
+      ]
+    },
+    {
+      "id": "AV13",
+      "guarda": "AE1.2 volta (segurança A2): onde_do_pr repassa o --repo ao gh",
+      "arquivo": "bin/forge_onde.py",
+      "de": "mergedAt,mergedBy,mergeCommit\",\n                                 *repo)",
+      "para": "mergedAt,mergedBy,mergeCommit\",\n                                 )",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_pr_lido_no_repositorio_do_origin"
+      ]
+    }
+  ]
+}

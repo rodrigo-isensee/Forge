@@ -2,7 +2,8 @@
 
 Importado pelo `bin/forge-check` só quando roda:
 - `rodar <slug> -- <cmd> [args] [; <cmd2> args]`: roda cada passo SEM shell (o `;` sozinho separa passos), na raiz, e grava
-  `.forge/run/<slug>/run.json` (rc, tempo por passo, argv, head do git) e o log completo de cada passo (`passo-N.log`, stdout e
+  `.forge/run/<slug>/run.json` (rc, tempo por passo, argv, head do git, a raiz e o `--cartao`, que o `movimento --prova rodar:`
+  confere) e o log completo de cada passo (`passo-N.log`, stdout e
   stderr juntos). Para no primeiro passo que falha. Slug já usado recusa (rc 2): a prova não se sobrescreve.
 - `ler(pasta, argv, head)`: o PQ `cmd` que é `forge-check rodar <slug> -- ...` não roda de novo na conferência; o forge-check lê o
   run.json da pasta e confere argv, head e a espera contra o rc e o log gravados.
@@ -17,6 +18,7 @@ from pathlib import Path
 
 PASTA = Path(".forge") / "run"
 SLUG = re.compile(r"[a-z0-9][a-z0-9._-]{0,60}")
+CARTAO = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")  # a forma do --cartao do forge-fechar
 SEPARADOR = ";"
 TEMPO_PADRAO_S = 1800
 
@@ -38,12 +40,13 @@ def _head(raiz):
     return subprocess.run(["git", "-C", str(raiz), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
 
 
-def rodar(raiz, slug, argv, tempo=TEMPO_PADRAO_S):
+def rodar(raiz, slug, argv, tempo=TEMPO_PADRAO_S, cartao=None):
     """rc do comando gravado (0 se todos os passos passaram); 2 se a entrada é inválida ou o slug já existe."""
     argv = argv[1:] if argv[:1] == ["--"] else argv
     passos = passos_de(argv)
-    if not SLUG.fullmatch(slug or "") or not passos:
-        print("rodar: uso `forge-check rodar <slug> -- <cmd> [args] [; <cmd2> ...]` (slug: [a-z0-9._-], até 61)")
+    if not SLUG.fullmatch(slug or "") or not passos or (cartao is not None and not CARTAO.fullmatch(cartao)):
+        print("rodar: uso `forge-check rodar [--cartao ID] <slug> -- <cmd> [args] [; <cmd2> ...]` (slug: [a-z0-9._-], até 61; "
+              "ID: [A-Za-z0-9._-], até 80)")
         return 2
     base = raiz / PASTA
     if base.is_symlink() or base.parent.is_symlink():
@@ -75,7 +78,7 @@ def rodar(raiz, slug, argv, tempo=TEMPO_PADRAO_S):
             rc = rc_passo
             break
     dados = {"slug": slug, "inicio": inicio, "fim": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
-             "head": _head(raiz), "argv": argv, "rc": rc, "passos": registros}
+             "head": _head(raiz), "argv": argv, "rc": rc, "passos": registros, "raiz": str(Path(raiz).resolve()), "cartao": cartao}
     (pasta / "run.json").write_text(json.dumps(dados, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     for r in registros:
         print(f"rodar: passo {r['passo']} rc={r['rc']} {r['segundos']}s log={PASTA / slug / r['log']}")
@@ -134,4 +137,4 @@ def prova_do_pq(resto, pasta, head, script, espera_do_script):
 
 
 def executar(a, raiz):
-    return rodar(raiz, a.slug, list(a.comando), a.tempo)
+    return rodar(raiz, a.slug, list(a.comando), a.tempo, getattr(a, "cartao", None))

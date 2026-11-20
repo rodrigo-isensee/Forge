@@ -9,7 +9,7 @@
       "de": "or not arq.is_file() or arq.resolve() != arq:",
       "para": "or not arq.is_file():",
       "testes": [
-        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_com_rc_0_vale_e_o_resto_recusa"
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_so_do_mesmo_cartao_e_da_mesma_raiz"
       ]
     },
     {
@@ -19,17 +19,17 @@
       "de": "        except (OSError, ValueError):\n            return \"recusa\"",
       "para": "        except OSError:\n            return \"recusa\"",
       "testes": [
-        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_com_rc_0_vale_e_o_resto_recusa"
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_so_do_mesmo_cartao_e_da_mesma_raiz"
       ]
     },
     {
       "id": "MV19",
       "guarda": "AE1.2 rodar: run.json que não é objeto recusa",
       "arquivo": "bin/forge_onde.py",
-      "de": "        rc = dados.get(\"rc\") if isinstance(dados, dict) else None",
-      "para": "        rc = dados.get(\"rc\") if True else None",
+      "de": "        if not isinstance(dados, dict):\n            return \"recusa\"",
+      "para": "        if False:\n            return \"recusa\"",
       "testes": [
-        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_com_rc_0_vale_e_o_resto_recusa"
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_so_do_mesmo_cartao_e_da_mesma_raiz"
       ]
     },
     {
@@ -39,7 +39,7 @@
       "de": "if rc == 0 else (\"recusa\", f\"rodar:{ref} rc={rc}\")",
       "para": "if rc in (0, 1) else (\"recusa\", f\"rodar:{ref} rc={rc}\")",
       "testes": [
-        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_com_rc_0_vale_e_o_resto_recusa"
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_so_do_mesmo_cartao_e_da_mesma_raiz"
       ]
     },
     {

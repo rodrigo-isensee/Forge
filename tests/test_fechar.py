@@ -81,6 +81,7 @@ case "$1 $2" in
     fi
     n="$(cat "$ESTADO/numero_criado" 2>/dev/null || echo 7)"
     echo "$n develop" > "$ESTADO/aberto"
+    while [ $# -gt 0 ]; do [ "$1" = --body ] && printf '%s' "$2" > "$ESTADO/corpo_criado"; shift; done  # o corpo, para quem o confere (AE1.2)
     if [ -f "$ESTADO/saida_create" ]; then cat "$ESTADO/saida_create"; else echo "https://github.com/o/r/pull/$n"; fi
     exit 0 ;;
   "pr ready") exit 0 ;;

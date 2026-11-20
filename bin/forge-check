@@ -4905,9 +4905,13 @@ def cmd_movimento(raiz, cartao, de, para, motivo, atributos, prova=None):
     if bool(prova) != coluna_final(campos[2]):
         return [f"movimento: --prova vai só (e sempre) com --para Pronto ou Fechado (pr:#N, commit:<sha>, rodar:<slug>, juntado:<ID>; AE1.2); nada gravado"]
     if prova:
+        def do_cartao(c):
+            return [m for m in _ler_tabela(arq) if len(m) >= 5 and ISO8601.match(m[0]) and chave_do_cartao(m[1]) == chave_do_cartao(c)]
+
         def coluna(c):
-            return next((m[3] for m in reversed(_ler_tabela(arq)) if len(m) >= 5 and ISO8601.match(m[0]) and chave_do_cartao(m[1]) == chave_do_cartao(c)), None)
-        ctx = {"git": git, "gh_json": gh_json, "seguro": sem_controle, "coluna": coluna, "final": coluna_final}
+            return next((m[3] for m in reversed(do_cartao(c))), None)
+        ctx = {"git": git, "gh_json": gh_json, "seguro": sem_controle, "coluna": coluna, "final": coluna_final,
+               "desde": lambda c: do_cartao(c)[0][0]}
         estado, texto = modulo_do_bin("forge_onde").prova_do_movimento(prova, campos[0], Path.cwd(), ctx)
         if estado == "recusa":
             return [f"movimento: prova recusada: {limpo(texto)}; nada gravado"]
@@ -10197,6 +10201,8 @@ def main():
                         "(rc, tempo por passo, log completo); `;` sozinho separa passos; slug repetido recusa (rc 2)")
     ro.add_argument("slug")
     ro.add_argument("--tempo", type=int, default=1800, help="teto por passo, em segundos (padrão 1800)")
+    ro.add_argument("--cartao", help="ID do cartão que a execução prova, antes do slug (vai ao run.json com a raiz; o "
+                    "`movimento --prova rodar:<slug>` confere os dois)")
     ro.add_argument("comando", nargs=argparse.REMAINDER)
     mt = sub.add_parser("meta", parents=[comum], help="objetivo armado que o hook de Stop confere (S4): entregue e provado, espera o dono "
                         "ou ainda não (bloqueia o Stop); 4 \"ainda não\" iguais seguidos pausam sozinho")

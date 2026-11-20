@@ -40,7 +40,8 @@
 # --medir RUN|ARQUIVO (FECHAR-MEDIR-DO-LOG): lê as linhas ORCAMENTO-TEMPO do log do CI (número da execução: `gh run view RUN --log`, só
 # leitura; ou o log salvo num arquivo), no formato FORMATO_DO_ORCAMENTO; vão ao "Como medir" do PR criado e à saída. Sem elas, para antes do passo 1.
 # --cartao ID (repetível; FECHAR-MOVE-CARTAO): com o merge provado (passo 6, PR já MERGED ou --limpar), move o cartão para Pronto por
-# `forge-check movimento ID --de <coluna atual> --para Pronto --prova pr:#<PR mesclado>` no quadro de --quadro (padrão ~/.forge-contrib, o do Forge); a coluna atual é o
+# `forge-check movimento ID --de <coluna atual> --para Pronto --prova pr:#<PR mesclado>` no quadro de --quadro (padrão ~/.forge-contrib, o do Forge);
+# o PR aberto pelo passo 3 leva `Cartão: ID` no corpo (o PR reusado precisa citá-lo, senão a prova é recusada e vira pendência); a coluna atual é o
 # `Para` da última linha do cartão em docs/kanban/historico.md, senão a seção dele no KANBAN.md, senão `—`. Já em Pronto, nada grava;
 # o movimento que falha vira pendência (código 3) com o comando. ID fora de [A-Za-z0-9._-] ou quadro sem KANBAN.md param antes do passo 1.
 # --dry-run imprime cada passo (e avisa se o diff toca caminho que a catraca protege) e roda de verdade só o 1c (FECHAR-DRY-RUN-1C: o
@@ -295,6 +296,10 @@ ${medida:-Ver a seção de medição do pedido $pedido.}
 
 ## Checklist
 - [ ] Rótulo \`afrouxa-regra\` pedido ao dono (marque só se a mudança afrouxa regra protegida; o dono aplica o rótulo)"
+# AE1.2 (E58.29): o PR aberto aqui cita cada --cartao, que o `movimento --prova pr:#N` exige no título ou no corpo.
+for c in "${cartoes[@]}"; do corpo="$corpo
+
+Cartão: $c"; done
 
 catraca="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)/tests/catraca.py"
 # FF-1/C-2: o promover-homolog do diretório deste script, nunca o scripts/ da worktree da branch (o cwd vira o dela logo abaixo).

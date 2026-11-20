@@ -3,6 +3,7 @@ lido do git e do gh; um teste por guarda, com o ramo de falha. O gh é um falso 
 import argparse
 import contextlib
 import io
+import json
 import os
 import subprocess
 import sys
@@ -55,13 +56,15 @@ class Repo:
 class GhFalso:
     """Responde só ao número exato (`pr view`) e ao `--head` exato (`pr list`), como o gh; `None` imita a falha (teto ou rede)."""
 
-    def __init__(self, prs=(), erro="sem resposta em 10 s"):
-        self.prs, self.erro, self.chamadas = (None if prs is None else list(prs)), erro, []
+    def __init__(self, prs=(), erro="sem resposta em 10 s", repo=None):
+        self.prs, self.erro, self.chamadas, self.repo = (None if prs is None else list(prs)), erro, [], repo
 
     def __call__(self, raiz, *args):
         self.chamadas.append(args)
         if self.prs is None:
             return None, self.erro
+        if self.repo is not None and args[-2:] != ("--repo", self.repo):  # com `repo`, só responde preso a ele, como o gh com --repo
+            return None, f"could not resolve to a Repository ({args[-1]})"
         if args[:2] == ("pr", "view"):
             achado = [p for p in self.prs if str(p["number"]) == args[2]]
             return (achado[0], "") if achado else (None, f"no pull requests found for {args[2]}")
@@ -333,24 +336,61 @@ class Cartao(Base):
         self.assertEqual(rc, 2)
 
 class ProvaDoMovimento(Base):
-    """AE1.2 (E58.19): a `--prova` do movimento para Pronto ou Fechado*; um teste por guarda de `prova_do_movimento` e `prova_git`."""
+    """AE1.2 (E58.19): a `--prova` do movimento para Pronto ou Fechado*; um teste por guarda de `prova_do_movimento` e `prova_git`.
+    O clone tem origin no GitHub (E58.29: caminho local não prova) e o gh falso só responde preso a ele."""
+
+    REPO = "github.com/teste/forge"
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.repo.git("remote", "add", "origin", "https://github.com/teste/forge.git")
 
     def prova(self, prova, cartao="AE1.1", gh=None, git=None, colunas=None, raiz=None):
         colunas = colunas or {}
         ctx = {"git": git or fc.git, "gh_json": gh if gh is not None else GhFalso(), "seguro": fc.sem_controle,
-               "coluna": colunas.get, "final": fc.coluna_final}
+               "coluna": colunas.get, "final": fc.coluna_final, "desde": lambda c: "2026-11-20T09:00:00-03:00"}
         return O.prova_do_movimento(prova, cartao, raiz or self.repo.pasta, ctx)
 
     def gh(self, **extra):
         dados = {"number": 7, "state": "MERGED", "baseRefName": "develop", "headRefName": "melhoria/x", "mergedAt": "2026-11-20T10:00:00Z",
                  "mergedBy": {"login": "dono"}, "mergeCommit": {"oid": self.repo.c3}, "title": "feat: AE1.1 movimento", "body": ""}
         dados.update(extra)
-        return GhFalso([dados])
+        return GhFalso([dados], repo=self.REPO)
+
+    def com_origin(self, cod, url):
+        def git(raiz, *args, **kw):
+            return (cod, url) if args == ("remote", "get-url", "origin") else fc.git(raiz, *args, **kw)
+        return git
 
     def test_pr_mesclado_na_develop_que_cita_o_cartao_vale_com_o_sha(self):
         estado, texto = self.prova("pr:#7", gh=self.gh())
         self.assertEqual(estado, "ok", texto)
-        self.assertIn(f"pr:#7 {self.repo.c3[:12]} (onde: develop sim", texto)
+        self.assertIn(f"pr:#7 {self.repo.c3[:12]} origem={self.REPO} (onde: develop sim", texto)
+
+    def test_origin_local_ou_ausente_recusa(self):  # E58.29 (segurança A2): o clone de caminho local ou file:// não prova
+        for cod, url in ((0, "/tmp/remoto.git"), (0, "file:///tmp/remoto.git"), (2, "https://github.com/teste/forge.git"), (0, "http://exemplo.test/o/r.git"),
+                         (0, "https://github.com/so-dono")):
+            for prova in (f"commit:{self.repo.c3}", "pr:#7"):
+                with self.subTest(url=url, prova=prova):
+                    estado, texto = self.prova(prova, gh=self.gh(), git=self.com_origin(cod, url))
+                    self.assertEqual((estado, "sem origin https ou ssh" in texto), ("recusa", True), texto)
+
+    def test_origin_ssh_ou_com_credencial_vale_e_a_linha_leva_so_o_repositorio(self):
+        for url, repo in (("git@github.com:teste/forge.git", self.REPO), ("https://x-token:segredo@github.com/teste/forge", self.REPO),
+                          ("ssh://git@github.com/teste/forge.git", self.REPO)):
+            with self.subTest(url=url):
+                estado, texto = self.prova(f"commit:{self.repo.c3}", git=self.com_origin(0, url))
+                self.assertEqual(estado, "ok", texto)
+                self.assertIn(f" origem={repo} ", texto)
+                self.assertNotIn("segredo", texto)
+
+    def test_pr_lido_no_repositorio_do_origin(self):  # o gh preso ao origin: o PR 7 de outro repositório não prova
+        estado, texto = self.prova("pr:#7", gh=self.gh(), git=self.com_origin(0, "https://github.com/outro/repo.git"))
+        self.assertEqual((estado, "github.com/outro/repo" in texto), ("nao-verificavel", True), texto)
+        falso = self.gh()
+        self.assertEqual(self.prova("pr:#7", gh=falso)[0], "ok")
+        self.assertEqual([a[-2:] for a in falso.chamadas], [("--repo", self.REPO)] * 2)
 
     def test_pr_de_outro_cartao_recusa(self):
         estado, texto = self.prova("pr:#7", gh=self.gh(title="feat: AE10 e AE1.1x", body="XAE1.1"))
@@ -416,22 +456,43 @@ class ProvaDoMovimento(Base):
 
         self.assertEqual(self.prova(f"commit:{self.repo.c3}", git=git), ("nao-verificavel", "git sem resposta"))
 
-    def test_rodar_com_rc_0_vale_e_o_resto_recusa(self):
+    def test_rodar_so_do_mesmo_cartao_e_da_mesma_raiz(self):  # E58.29 (segurança A1): o run.json grava o cartão e a raiz
         with tempfile.TemporaryDirectory() as tmp:
             raiz, fora = Path(tmp) / "r", Path(tmp) / "fora"
-            for pasta, slug, conteudo in ((raiz, "ok", '{"rc": 0, "head": "abc"}'), (raiz, "falhou", '{"rc": 1}'), (raiz, "lixo", "{"),
-                                          (raiz, "lista", "[0]"), (fora, "alheio", '{"rc": 0}')):
+            r, f = str(raiz.resolve()), str(fora.resolve())
+            for pasta, slug, dados in ((raiz, "ok", {"rc": 0, "head": "abc", "cartao": "AE1.1", "raiz": r}),
+                                       (raiz, "falhou", {"rc": 1, "cartao": "AE1.1", "raiz": r}),
+                                       (raiz, "outro", {"rc": 0, "cartao": "AE1", "raiz": r}), (raiz, "sem", {"rc": 0, "raiz": r}),
+                                       (raiz, "clone", {"rc": 0, "cartao": "AE1.1", "raiz": f}), (raiz, "lixo", "{"), (raiz, "lista", [0]),
+                                       (fora, "alheio", {"rc": 0, "cartao": "AE1.1", "raiz": f})):
                 (pasta / ".forge" / "run" / slug).mkdir(parents=True)
-                (pasta / ".forge" / "run" / slug / "run.json").write_text(conteudo, encoding="utf-8")
+                (pasta / ".forge" / "run" / slug / "run.json").write_text(dados if isinstance(dados, str) else json.dumps(dados),
+                                                                          encoding="utf-8")
             (raiz / ".forge" / "run" / "link").symlink_to(fora / ".forge" / "run" / "alheio")
-            self.assertEqual(self.prova("rodar:ok", raiz=raiz), ("ok", "rodar:ok rc=0 head=abc"))
-            for slug in ("falhou", "lixo", "lista", "link", "nada", "../../fora/.forge/run/alheio", "Ok"):
+            self.assertEqual(self.prova("rodar:ok", raiz=raiz), ("ok", f"rodar:ok rc=0 head=abc raiz={r}"))  # a linha leva a raiz lida
+            for slug, motivo in (("outro", "não é do cartão AE1.1"), ("sem", "não é do cartão AE1.1"), ("clone", "gravado em outra raiz"),
+                                 ("lista", "fora da forma"), ("falhou", "rc=1"), ("lixo", "ilegível"), ("link", "link simbólico"),
+                                 ("nada", "sem run.json"), ("../../fora/.forge/run/alheio", "sem run.json"), ("Ok", "sem run.json")):
                 with self.subTest(slug=slug):
-                    self.assertEqual(self.prova(f"rodar:{slug}", raiz=raiz)[0], "recusa")
+                    estado, texto = self.prova(f"rodar:{slug}", raiz=raiz)
+                    self.assertEqual((estado, motivo in texto), ("recusa", True), texto)
+
+    def test_rodar_do_forge_check_grava_o_cartao_e_a_raiz_que_a_prova_confere(self):  # E58.29: o caminho real, sem run.json à mão
+        env = sem_git_herdado({k: v for k, v in os.environ.items() if not k.startswith(("FORGE_", "PYTHON"))})
+        with tempfile.TemporaryDirectory() as tmp:
+            for args in (["--cartao", "AE1.1", "com"], ["sem"], ["--cartao", "a;b", "torto"]):
+                r = subprocess.run([sys.executable, "-I", str(FORGE_CHECK), "rodar", *args, "--", sys.executable, "-I", "-c", "pass"],
+                                   cwd=tmp, capture_output=True, text=True, env=env, timeout=60, stdin=subprocess.DEVNULL)
+                self.assertEqual(r.returncode, 2 if args[-1] == "torto" else 0, r.stdout + r.stderr)
+            self.assertFalse((Path(tmp) / ".forge" / "run" / "torto").exists())
+            self.assertEqual(self.prova("rodar:com", raiz=tmp)[0], "ok")
+            self.assertEqual(self.prova("rodar:com", cartao="AE1", raiz=tmp)[0], "recusa")
+            self.assertEqual(self.prova("rodar:sem", raiz=tmp)[0], "recusa")
 
     def test_juntado_so_em_outro_cartao_ativo(self):
         colunas = {"AE9": "Em andamento", "AE8": "Pronto", "AE7": "Fechado sem entrega", "AE1.1": "Em andamento"}
-        self.assertEqual(self.prova("juntado:AE9", colunas=colunas), ("ok", "juntado:AE9 (em Em andamento)"))
+        self.assertEqual(self.prova("juntado:AE9", colunas=colunas),
+                         ("ok", "juntado:AE9 (em Em andamento, no quadro desde 2026-11-20T09:00:00-03:00)"))  # E58.29: o destino para a auditoria
         for alvo in ("AE8", "AE7", "AE1.1", "ae1.1", "AE6", "-x"):
             with self.subTest(alvo=alvo):
                 self.assertEqual(self.prova(f"juntado:{alvo}", colunas=colunas)[0], "recusa")

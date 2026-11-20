@@ -80,7 +80,7 @@
       "de": "    if tipo == \"rodar\":",
       "para": "    if False:",
       "testes": [
-        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_com_rc_0_vale_e_o_resto_recusa"
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_so_do_mesmo_cartao_e_da_mesma_raiz"
       ]
     }
   ]

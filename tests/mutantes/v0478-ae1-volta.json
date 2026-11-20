@@ -1,0 +1,88 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AV1",
+      "guarda": "AE1.2 volta (segurança A2): pr: e commit: só no clone de origin https ou ssh",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if repo is None:\n        return \"recusa\"",
+      "para": "    if False:\n        return \"recusa\"",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_origin_local_ou_ausente_recusa"
+      ]
+    },
+    {
+      "id": "AV2",
+      "guarda": "AE1.2 volta (segurança A2): o origin só vale se o git remote get-url saiu com 0",
+      "arquivo": "bin/forge_onde.py",
+      "de": "achado = ORIGEM.fullmatch(url) if cod == 0 else None",
+      "para": "achado = ORIGEM.fullmatch(url) if True else None",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_origin_local_ou_ausente_recusa"
+      ]
+    },
+    {
+      "id": "AV3",
+      "guarda": "AE1.2 volta (segurança A2): só https ou ssh, nunca http, file:// nem caminho",
+      "arquivo": "bin/forge_onde.py",
+      "de": "ORIGEM = re.compile(r\"(?:https://(?:",
+      "para": "ORIGEM = re.compile(r\"(?:[a-z]+://(?:",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_origin_local_ou_ausente_recusa"
+      ]
+    },
+    {
+      "id": "AV4",
+      "guarda": "AE1.2 volta (segurança A2): o estado do PR é lido no repositório do origin",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    rc, linhas = onde(alvo, raiz, ctx, (\"--repo\", repo))",
+      "para": "    rc, linhas = onde(alvo, raiz, ctx)",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_pr_lido_no_repositorio_do_origin"
+      ]
+    },
+    {
+      "id": "AV5",
+      "guarda": "AE1.2 volta (segurança A2): o título e o corpo do PR são lidos no repositório do origin",
+      "arquivo": "bin/forge_onde.py",
+      "de": "\"--json\", \"number,title,body\", \"--repo\", repo)",
+      "para": "\"--json\", \"number,title,body\")",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_pr_lido_no_repositorio_do_origin"
+      ]
+    },
+    {
+      "id": "AV6",
+      "guarda": "AE1.2 volta (segurança A1): rodar: só do mesmo cartão",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        if dados.get(\"cartao\") != cartao:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_so_do_mesmo_cartao_e_da_mesma_raiz",
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_do_forge_check_grava_o_cartao_e_a_raiz_que_a_prova_confere"
+      ]
+    },
+    {
+      "id": "AV7",
+      "guarda": "AE1.2 volta (segurança A1): rodar: só da mesma raiz",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        if dados.get(\"raiz\") != str(lida):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_onde.ProvaDoMovimento.test_rodar_so_do_mesmo_cartao_e_da_mesma_raiz"
+      ]
+    },
+    {
+      "id": "AV8",
+      "guarda": "AE1.2 volta (review A2): o PR aberto pelo forge-fechar cita cada --cartao",
+      "arquivo": "bin/forge-fechar",
+      "de": "\nCartão: $c\"; done",
+      "para": "\"; done",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_o_pr_aberto_cita_cada_cartao_no_corpo",
+        "tests.test_fechar_forge_check_real.MoverCartaoComOForgeCheckReal.test_a_linha_do_cartao_vai_ao_historico"
+      ]
+    }
+  ]
+}

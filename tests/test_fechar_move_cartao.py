@@ -58,6 +58,17 @@ class Teste(unittest.TestCase):
         self.assertIn("cartão K-1: Code review -> Pronto (mesclado em develop: PR #7, merge 0123456)", r.stdout)
         self.assertIn("Entrega p1 fechada em develop.", r.stdout)
 
+    def test_o_pr_aberto_cita_cada_cartao_no_corpo(self):  # AE1.2 (E58.29, review A2): o `movimento --prova pr:#N` exige a citação
+        r = self.fechar("p1", "--ref", "melhoria/x", "--cartao", "K-1", "--cartao", "K-2")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        corpo = (self.estado / "corpo_criado").read_text(encoding="utf-8")
+        self.assertTrue(corpo.endswith("\n\nCartão: K-1\n\nCartão: K-2"), corpo)
+
+    def test_sem_cartao_o_corpo_nao_cita_cartao(self):
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertNotIn("Cartão:", (self.estado / "corpo_criado").read_text(encoding="utf-8"))
+
     def test_sem_linha_no_historico_a_coluna_vem_da_secao_do_quadro(self):
         r = self.fechar("p1", "--ref", "melhoria/x", "--cartao", "K-1")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)

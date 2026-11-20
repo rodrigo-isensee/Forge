@@ -106,8 +106,31 @@ class FecharComChecksPendentes(unittest.TestCase):
 
 
 
+# AE1.2 (E58.29): o `gh` e o `git` que o `forge-check movimento` real acha no PATH. O clone do teste tem origin local; o git responde
+# o origin do GitHub (o forge-check recusa caminho local) e repassa o resto. O gh só responde preso a esse repositório (`--repo`): o PR 7
+# MERGED na develop, com o merge na origin/develop do clone e o corpo que o `gh pr create` do forge-fechar gravou. A variável do próximo
+# git não começa com GIT_: o git() do forge-check tira as GIT_* do ambiente.
+GIT_DO_MOVIMENTO = """#!/usr/bin/env bash
+if [ "$1" = -C ] && [ "$3 $4 $5" = "remote get-url origin" ]; then echo https://github.com/teste/forge.git; exit 0; fi
+exec "$PROXIMO_GIT" "$@"
+"""
+GH_DO_MOVIMENTO = """#!/usr/bin/env bash
+echo "gh-do-movimento $*" >> "$REGISTRO"
+case "$*" in
+  "pr view 7 --json number,state,baseRefName,headRefName,mergedAt,mergedBy,mergeCommit --repo github.com/teste/forge")
+    printf '{"number": 7, "state": "MERGED", "baseRefName": "develop", "headRefName": "melhoria/x", "mergedAt": "2026-11-20T10:00:00Z", "mergeCommit": {"oid": "%s"}}\\n' \\
+      "$(git rev-parse refs/remotes/origin/develop)" ;;
+  "pr view 7 --json number,title,body --repo github.com/teste/forge")
+    python3 -I -c 'import json, sys; print(json.dumps({"number": 7, "title": "melhoria/x", "body": open(sys.argv[1], encoding="utf-8").read()}))' \\
+      "$ESTADO/corpo_criado" ;;
+  *) exit 64 ;;
+esac
+"""
+
+
 class MoverCartaoComOForgeCheckReal(unittest.TestCase):
-    """FECHAR-MOVE-CARTAO: com o `forge-check movimento` real, o merge provado grava a linha do cartão no histórico do quadro."""
+    """FECHAR-MOVE-CARTAO: com o `forge-check movimento` real, o merge provado grava a linha do cartão no histórico do quadro; a prova
+    pr:#7 se confere no corpo do PR que o forge-fechar abriu (AE1.2)."""
 
     git, fechar, chamadas, tearDown = base.Fechar.git, base.Fechar.fechar, base.Fechar.chamadas, base.Fechar.tearDown
     com_historico = mc.Teste.com_historico
@@ -116,6 +139,12 @@ class MoverCartaoComOForgeCheckReal(unittest.TestCase):
         mc.Teste.setUp(self)
         (self.tmp / "check").write_text(f'#!/usr/bin/env bash\necho "forge-check $*" >> "$REGISTRO"\n[ "$1" = movimento ] || exit 0\n'
                                         f'exec "{sys.executable}" -I "{base.RAIZ / "bin" / "forge-check"}" "$@"\n', encoding="utf-8")
+        pasta = self.tmp / "do-movimento"
+        pasta.mkdir()
+        for nome, texto in (("gh", GH_DO_MOVIMENTO), ("git", GIT_DO_MOVIMENTO)):
+            (pasta / nome).write_text(texto, encoding="utf-8")
+            (pasta / nome).chmod(0o755)
+        self.env.update(PROXIMO_GIT=str(self.tmp / "bin" / "git"), PATH=f"{pasta}:{self.env['PATH']}")
 
     def test_a_linha_do_cartao_vai_ao_historico(self):
         self.com_historico("2026-11-01T10:00:00-03:00 | K-1 | Em andamento | Code review | —")
@@ -123,7 +152,8 @@ class MoverCartaoComOForgeCheckReal(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         ultima = [c.strip() for c in self.historico.read_text(encoding="utf-8").splitlines()[-1].strip("|").split("|")]
         self.assertEqual(ultima[1:4], ["K-1", "Code review", "Pronto"])
-        self.assertTrue(ultima[4].startswith("mesclado em develop: PR #7, merge 0123456"), ultima)
+        self.assertTrue(ultima[4].startswith("mesclado em develop: PR #7, merge 0123456 · prova: pr:#7 "), ultima)
+        self.assertIn(" origem=github.com/teste/forge (onde: develop sim", ultima[4])
 
 
 if __name__ == "__main__":
