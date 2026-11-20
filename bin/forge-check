@@ -2163,7 +2163,7 @@ def entrada_na_arvore(raiz, commit, nome):
     return (campos[0], campos[2]) if len(campos) == 3 and campos[1] == b"blob" else ()
 
 
-def isencao_do_dono(raiz, pedido_id, texto, shas, nome, base_sha, head, base_ref):
+def isencao_do_dono(raiz, pedido_id, texto, shas, nome, base_sha, head, base_ref, branch):
     """(linha `escopo:` ou None, [avisos]) do arquivo `nome` declarado como patch do dono. Isenta só com o commit do dono de um pai,
     da branch (ancestral do head, fora do Base-sha), que altera o arquivo, citado por `DECISÃO DO DONO`, e o head com o mesmo blob e
     modo (P4, P5, P10); a entrega não mexe em `docs/pedidos/` (P2). Muda só a linha `escopo:` (P8); o git que falha reprova (P11)."""
@@ -2201,7 +2201,8 @@ def isencao_do_dono(raiz, pedido_id, texto, shas, nome, base_sha, head, base_ref
             motivo = "o modo mudou depois do commit do dono"
         elif not em_vigor(nome):
             return (f"escopo: ok (patch do dono {commit[:7]}, DECISÃO DO DONO {sem_controle(pedido_id)}:{numero}) {mostrado}", False), []
-        elif (revisado := patch_revisado_do_dono(raiz, texto, nome, commit, nomes_z(alterados), base_sha, base_ref, head))[0]:
+        elif (revisado := patch_revisado_do_dono(raiz, texto, nome, commit, nomes_z(alterados), base_sha, base_ref, head,
+                                                       (pedido_id, branch)))[0]:
             motivo = revisado[0]
         else:  # PP1-APLICADO-PELO-DONO: a linha leva o sha40 do commit e o sha256 do .patch, que a conferência grava (c)
             return (f"escopo: ok (patch do dono {commit}, patch {nome_seguro(revisado[1])} sha256 {revisado[2]}, DECISÃO DO DONO "
@@ -2215,7 +2216,8 @@ def isencao_do_dono(raiz, pedido_id, texto, shas, nome, base_sha, head, base_ref
 # (b) autor e committer têm um dos `emails_do_dono` do .forge/config.json da árvore do Base-sha (A2); o e-mail é declarável e não
 #     prova autoria: limite aceito pelo dono (20/11, opção a), porque com (a) forjá-lo só produz os bytes revisados;
 # (c) a conferência grava no Histórico o sha256 do patch e o sha40 do commit, e um parecer de segurança aprovado no head cita esse
-#     sha256 (A3: o patch aplicado é o que o parecer leu). A linha do Histórico ganha ` patch <caminho>`.
+#     sha256 (A3: o patch aplicado é o que o parecer leu; A4: só o parecer da própria branch e pedido, fora de aceites/ e
+#     ameacas/, `aprovado`). A linha do Histórico ganha ` patch <caminho>`.
 PATCH_REVISADO_OK = re.compile(r"^escopo: ok \(patch do dono ([0-9a-f]{40}), patch (\S+) sha256 ([0-9a-f]{64}), DECISÃO DO DONO [^)]*\) (.+)$")
 
 
@@ -2256,9 +2258,9 @@ def patch_declarado(texto, nome, commit):
     return achado
 
 
-def patch_revisado_do_dono(raiz, texto, nome, commit, tocados, base_sha, base_ref, head):
+def patch_revisado_do_dono(raiz, texto, nome, commit, tocados, base_sha, base_ref, head, conferida):
     """(a), (b) e (c): (motivo, None, None) se não cumpre (o git que falha também recusa); (None, caminho do .patch, sha256 dele) se
-    cumpre. `tocados`: os caminhos que o commit do dono muda; `base_ref`: o sha da develop atual (None recusa)."""
+    cumpre. `tocados`: os caminhos que o commit do dono muda; `base_ref`: o sha da develop atual (None recusa); `conferida`: (pedido, branch)."""
     patch = patch_declarado(texto, nome, commit)
     if not patch or com_controle(patch) or any(parte in ("", ".", "..") for parte in patch.split("/")):
         return "sem ` patch <caminho>` válido na linha do Histórico", None, None
@@ -2287,17 +2289,23 @@ def patch_revisado_do_dono(raiz, texto, nome, commit, tocados, base_sha, base_re
             if git(raiz, *passo, indice=indice)[0]:
                 return motivo, None, None
     sha256 = hashlib.sha256(conteudo).hexdigest()
-    if not parecer_cita_o_patch(raiz, head, sha256):
-        return "nenhum parecer de segurança aprovado no head cita o sha256 do .patch", None, None
+    if not parecer_cita_o_patch(raiz, head, sha256, *conferida):
+        return "nenhum parecer de segurança aprovado da branch e do pedido, no head, cita o sha256 do .patch", None, None
     return None, patch, sha256
 
 
-def parecer_cita_o_patch(raiz, head, sha256):
-    """(c) A3: um parecer de segurança aprovado (`tipo: revisao-seguranca`), no head, cita o sha256 do .patch como palavra."""
+def parecer_cita_o_patch(raiz, head, sha256, pedido, branch):
+    """(c) A3: um parecer de segurança aprovado (`tipo: revisao-seguranca`), no head, cita o sha256 do .patch como palavra. A4 (E52.6):
+    só o da própria entrega (`pedido:` e `branch:` iguais aos conferidos; o de outra branch, trazido da develop, não vale), fora de
+    aceites/ e ameacas/, e só `aprovado` (o `riscos-aceitos` não vale aqui, nem com aceite)."""
     cod, achados = git(raiz, "grep", "-l", "-z", "-w", "-F", "-e", sha256, head, "--", "docs/security/", bruto=True)
     for achado in ([] if cod else nomes_z(achados)):
-        campos = frontmatter_do_parecer(raiz, head, achado.removeprefix(f"{head}:")) or {}
-        if campos.get("tipo") == "revisao-seguranca" and parecer_que_aprova(campos):
+        caminho = achado.removeprefix(f"{head}:")
+        if caminho.startswith(PASTAS_RECUSADAS_DE_PARECER):
+            continue
+        campos = frontmatter_do_parecer(raiz, head, caminho) or {}
+        if (campos.get("tipo") == "revisao-seguranca" and campos.get("parecer") == "aprovado" and campos.get("pedido") == pedido
+                and campos.get("branch") == branch):
             return True
     return False
 
@@ -3298,7 +3306,7 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
                 raiz, base_sha, head, nome, tipo, branch, pedido_id):
             linhas.append((f"escopo: ok (anexo do portão: parecer de {PAPEL_DO_PARECER[tipo]} mandado por brief selado do portão da branch) {mostrado}", False))
         else:  # CONFERENCIA-PATCH-DO-DONO: o arquivo aplicado pelo dono, declarado no pedido, sai do escopo só com o commit dele
-            isencao, avisos = isencao_do_dono(raiz, pedido_id, texto, do_dono.get(nome), nome, base_sha, head, base_ref)
+            isencao, avisos = isencao_do_dono(raiz, pedido_id, texto, do_dono.get(nome), nome, base_sha, head, base_ref, branch)
             linhas += avisos
             linhas.append(isencao or escopo_resolvido(declarado, nome, mostrado) or (f"escopo: confira {mostrado} +{acrescidas} -{removidas}", False))
     if provas is not None:  # META85-ENTREGA-COM-MUTANTES: só a forma antiga (o PQ do autor); a conferência roda os PQ do brief

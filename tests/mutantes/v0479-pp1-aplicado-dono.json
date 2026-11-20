@@ -26,7 +26,7 @@
       "id": "M3",
       "guarda": "PP1-APLICADO-PELO-DONO: o patch revisado que não cumpre não isenta",
       "arquivo": "bin/forge-check",
-      "de": "        elif (revisado := patch_revisado_do_dono(raiz, texto, nome, commit, nomes_z(alterados), base_sha, base_ref, head))[0]:",
+      "de": "        elif (revisado := patch_revisado_do_dono(raiz, texto, nome, commit, nomes_z(alterados), base_sha, base_ref, head,\n                                                       (pedido_id, branch)))[0]:",
       "para": "        elif (revisado := patch_revisado_do_dono(raiz, texto, nome, commit))[0] and False:",
       "testes": [
         "tests.test_conf_escopo.PatchRevisadoDoDono.test_patch_adulterado_ou_aplicado_diferente_recusa"

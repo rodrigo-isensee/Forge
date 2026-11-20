@@ -66,7 +66,7 @@
       "id": "M23",
       "guarda": "PP1-APLICADO-PELO-DONO: sem parecer de segurança que cite o sha256 recusa (A3)",
       "arquivo": "bin/forge-check",
-      "de": "    if not parecer_cita_o_patch(raiz, head, sha256):",
+      "de": "    if not parecer_cita_o_patch(raiz, head, sha256, *conferida):",
       "para": "    if False:",
       "testes": [
         "tests.test_conf_escopo.PatchRevisadoDoDono.test_patch_sem_parecer_de_seguranca_aprovado_que_o_cite_recusa"
@@ -76,8 +76,8 @@
       "id": "M24",
       "guarda": "PP1-APLICADO-PELO-DONO: o parecer que cita o sha256 é de segurança (A3)",
       "arquivo": "bin/forge-check",
-      "de": "if campos.get(\"tipo\") == \"revisao-seguranca\" and parecer_que_aprova(campos):",
-      "para": "if parecer_que_aprova(campos):",
+      "de": "if (campos.get(\"tipo\") == \"revisao-seguranca\" and campos.get(\"parecer\")",
+      "para": "if (True and campos.get(\"parecer\")",
       "testes": [
         "tests.test_conf_escopo.PatchRevisadoDoDono.test_patch_sem_parecer_de_seguranca_aprovado_que_o_cite_recusa"
       ]

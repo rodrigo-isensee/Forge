@@ -4,12 +4,12 @@
   "mutantes": [
     {
       "id": "M25",
-      "guarda": "PP1-APLICADO-PELO-DONO: o parecer que cita o sha256 está aprovado (A3)",
+      "guarda": "PP1-APLICADO-PELO-DONO: só `parecer: aprovado`, nem reprovado nem riscos-aceitos (A3, A4)",
       "arquivo": "bin/forge-check",
-      "de": "if campos.get(\"tipo\") == \"revisao-seguranca\" and parecer_que_aprova(campos):",
-      "para": "if campos.get(\"tipo\") == \"revisao-seguranca\":",
+      "de": "campos.get(\"parecer\") == \"aprovado\" and campos.get(\"pedido\") == pedido",
+      "para": "parecer_que_aprova(campos) and campos.get(\"pedido\") == pedido",
       "testes": [
-        "tests.test_conf_escopo.PatchRevisadoDoDono.test_patch_sem_parecer_de_seguranca_aprovado_que_o_cite_recusa"
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_a4_so_o_parecer_aprovado_da_propria_branch_e_pedido_vale"
       ]
     },
     {
@@ -36,10 +36,40 @@
       "id": "M28",
       "guarda": "PP1-APLICADO-PELO-DONO: arquivo sem frontmatter que cita o sha256 não vale nem quebra (A3)",
       "arquivo": "bin/forge-check",
-      "de": "achado.removeprefix(f\"{head}:\")) or {}",
-      "para": "achado.removeprefix(f\"{head}:\"))",
+      "de": "frontmatter_do_parecer(raiz, head, caminho) or {}",
+      "para": "frontmatter_do_parecer(raiz, head, caminho)",
       "testes": [
         "tests.test_conf_escopo.PatchRevisadoDoDono.test_patch_sem_parecer_de_seguranca_aprovado_que_o_cite_recusa"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "PP1-APLICADO-PELO-DONO: o parecer do pedido conferido (A4)",
+      "arquivo": "bin/forge-check",
+      "de": "and campos.get(\"pedido\") == pedido\n                and campos.get(\"branch\") == branch):",
+      "para": "and True\n                and campos.get(\"branch\") == branch):",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_a4_so_o_parecer_aprovado_da_propria_branch_e_pedido_vale"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "PP1-APLICADO-PELO-DONO: o parecer da branch conferida, não o trazido de outra (A4, S3)",
+      "arquivo": "bin/forge-check",
+      "de": "\n                and campos.get(\"branch\") == branch):\n            return True",
+      "para": "\n                and True):\n            return True",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_a4_so_o_parecer_aprovado_da_propria_branch_e_pedido_vale"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "PP1-APLICADO-PELO-DONO: aceites/ e ameacas/ não são parecer (A4, S4)",
+      "arquivo": "bin/forge-check",
+      "de": "        if caminho.startswith(PASTAS_RECUSADAS_DE_PARECER):\n            continue",
+      "para": "        if False:\n            continue",
+      "testes": [
+        "tests.test_conf_escopo.PatchRevisadoDoDono.test_a4_so_o_parecer_aprovado_da_propria_branch_e_pedido_vale"
       ]
     }
   ]

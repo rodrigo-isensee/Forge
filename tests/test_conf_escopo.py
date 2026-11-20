@@ -186,7 +186,8 @@ class PatchDoDono(ProjetoSelado):
         return saida
 
     def isencao(self, texto, sha, base_sha=None, nome=CONFIG):
-        return fc.isencao_do_dono(self.proj, "exemplo", texto, [sha], nome, base_sha or self.base, self.git("rev-parse", "HEAD"), None)
+        return fc.isencao_do_dono(self.proj, "exemplo", texto, [sha], nome, base_sha or self.base, self.git("rev-parse", "HEAD"), None,
+                                  "melhoria/x")
 
     def test_c_leg_nome_commit_e_decisao_cumprem(self):
         self.fora()  # sem a declaração, o arquivo do dono reprova (a 3a)
@@ -367,13 +368,16 @@ class PatchRevisadoDoDono(ProjetoSelado):
         self.entregar()
         self.original = self.pedido()
 
-    def aprovar(self, parecer="aprovado", tipo="revisao-seguranca", sha256=None, cru=False):
-        """O parecer em docs/security/x.md que cita o sha256 do PATCH (ou `sha256`), sem commit; `cru`: só o sha256, sem frontmatter."""
+    def aprovar(self, parecer="aprovado", tipo="revisao-seguranca", sha256=None, cru=False, pedido="exemplo", branch="melhoria/x",
+                caminho="docs/security/x.md"):
+        """O parecer em `caminho` que cita o sha256 do PATCH (ou `sha256`), sem commit; `cru`: só o sha256, sem frontmatter. O
+        `pedido:` e a `branch:` são os da entrega conferida, salvo pedido em contrário (A4)."""
         sha256 = sha256 or hashlib.sha256((self.proj / PATCH).read_bytes()).hexdigest()
         if cru:
-            return self.gravar("docs/security/x.md", f"sha256 {sha256}\n")
-        self.gravar("docs/security/x.md", PARECER.format(t=tipo, c=self.base, p=parecer, extra="revisor: forge:security-engineer\n",
-                                                         achados=f"\nPatch lido: `{PATCH}` sha256 {sha256}\n"))
+            return self.gravar(caminho, f"sha256 {sha256}\n")
+        texto = PARECER.format(t=tipo, c=self.base, p=parecer, extra="revisor: forge:security-engineer\n",
+                               achados=f"\nPatch lido: `{PATCH}` sha256 {sha256}\n")
+        self.gravar(caminho, texto.replace("pedido: x\n", f"pedido: {pedido}\n").replace("branch: melhoria/x\n", f"branch: {branch}\n"))
 
     def configurar(self, emails):
         """`emails_do_dono` na configuração da raiz; None apaga o arquivo; `(texto,)` grava o texto cru."""
@@ -473,7 +477,7 @@ class PatchRevisadoDoDono(ProjetoSelado):
         head = self.git("rev-parse", "HEAD")
         for passo in ("read-tree", "log", "grep"):
             with self.subTest(passo), mock.patch.object(fc, "git", lambda raiz, *a, **kw: (1, "") if passo in a else real(raiz, *a, **kw)):
-                linha, avisos = fc.isencao_do_dono(self.proj, "exemplo", texto, [head], HOOK, self.base, head, self.base)
+                linha, avisos = fc.isencao_do_dono(self.proj, "exemplo", texto, [head], HOOK, self.base, head, self.base, "melhoria/x")
                 self.assertIsNone(linha)
                 self.assertIn("não isenta", avisos[0][0])
         with mock.patch.object(fc, "carregar_politica", lambda: {}):  # sem a lista dos arquivos em vigor, todo arquivo pede o patch
@@ -486,7 +490,7 @@ class PatchRevisadoDoDono(ProjetoSelado):
         texto, head = self.declarar_patch(self.aplicar()), self.git("rev-parse", "HEAD")
         self.gravar("docs/notas/b.md", "b\n")
         self.git("add", "docs/notas/b.md")
-        linha, _ = fc.isencao_do_dono(self.proj, "exemplo", texto, [head], HOOK, self.base, head, self.base)
+        linha, _ = fc.isencao_do_dono(self.proj, "exemplo", texto, [head], HOOK, self.base, head, self.base, "melhoria/x")
         self.assertIn("escopo: ok (patch do dono", linha[0])
         self.assertEqual(self.git("diff", "--cached", "--name-only"), "docs/notas/b.md")  # o patch se aplica num índice temporário
 
@@ -513,12 +517,12 @@ class PatchRevisadoDoDono(ProjetoSelado):
         for caso, base_ref, motivo in (("develop com o hook", outra, "difere entre o pai do commit do dono"),
                                        ("develop sem resolver", None, "a develop atual não se resolve")):
             with self.subTest(caso):
-                linha, avisos = fc.isencao_do_dono(self.proj, "exemplo", texto, [head], HOOK, self.base, head, base_ref)
+                linha, avisos = fc.isencao_do_dono(self.proj, "exemplo", texto, [head], HOOK, self.base, head, base_ref, "melhoria/x")
                 self.assertIsNone(linha)
                 self.assertIn(motivo, avisos[0][0])
         real = fc.entrada_na_arvore
         with mock.patch.object(fc, "entrada_na_arvore", lambda raiz, ref, nome: None if ref == f"{head}^1" else real(raiz, ref, nome)):
-            linha, avisos = fc.isencao_do_dono(self.proj, "exemplo", texto, [head], HOOK, self.base, head, self.base)
+            linha, avisos = fc.isencao_do_dono(self.proj, "exemplo", texto, [head], HOOK, self.base, head, self.base, "melhoria/x")
         self.assertIsNone(linha)
         self.assertIn("(o git falhou)", avisos[0][0])
 
@@ -536,7 +540,7 @@ class PatchRevisadoDoDono(ProjetoSelado):
 
     def test_patch_sem_parecer_de_seguranca_aprovado_que_o_cite_recusa(self):
         """A3: o sha256 do .patch aplicado tem de estar num parecer de segurança aprovado no head."""
-        motivo = "nenhum parecer de segurança aprovado no head cita o sha256 do .patch"
+        motivo = "nenhum parecer de segurança aprovado da branch e do pedido, no head, cita o sha256 do .patch"
         for caso, kw in (("reprovado", dict(parecer="reprovado")), ("parecer de review", dict(tipo="review")), ("sem frontmatter", dict(cru=True)),
                          ("outro sha256", dict(sha256="0" * 64)), ("sha256 como parte de palavra", dict(sha256="a" + hashlib.sha256(
                              (self.proj / PATCH).read_bytes()).hexdigest()))):
@@ -547,3 +551,28 @@ class PatchRevisadoDoDono(ProjetoSelado):
                 self.declarar_patch(self.aplicar())
                 self.fora(nome=HOOK, motivo=motivo)
                 self.git("reset", "-q", "--hard", "HEAD~2")
+
+    def test_a4_so_o_parecer_aprovado_da_propria_branch_e_pedido_vale(self):
+        """A4 (E52.6; sondas S3 e S4 da segurança): o parecer que cita o sha256 vale só com `branch:` e `pedido:` da entrega conferida,
+        `parecer: aprovado` e fora de docs/security/aceites/ e ameacas/; o parecer do setUp, que valia, sai do caso."""
+        motivo = "nenhum parecer de segurança aprovado da branch e do pedido, no head, cita o sha256 do .patch"
+        for caso, kw in (("S3: parecer de outra branch", dict(branch="melhoria/outra")),
+                         ("parecer de outro pedido", dict(pedido="outro")),
+                         ("riscos-aceitos", dict(parecer="riscos-aceitos")),
+                         ("S4: em aceites/", dict(caminho="docs/security/aceites/exemplo.md")),
+                         ("em ameacas/", dict(caminho="docs/security/ameacas/exemplo.md"))):
+            with self.subTest(caso):
+                self.git("rm", "-q", "docs/security/x.md")
+                self.aprovar(**kw)
+                self.git("add", "docs/security")
+                self.commit("docs: parecer")
+                self.declarar_patch(self.aplicar())
+                self.fora(nome=HOOK, motivo=motivo)
+                self.git("reset", "-q", "--hard", "HEAD~2")
+        self.aprovar(caminho="docs/security/outro.md")  # o mesmo parecer, válido, fora das pastas recusadas: isenta
+        self.git("rm", "-q", "docs/security/x.md")
+        self.git("add", "docs/security")
+        self.commit("docs: parecer")
+        texto, head = self.declarar_patch(self.aplicar()), self.git("rev-parse", "HEAD")
+        linha, _ = fc.isencao_do_dono(self.proj, "exemplo", texto, [head], HOOK, self.base, head, self.base, "melhoria/x")
+        self.assertIn("escopo: ok (patch do dono", linha[0])
