@@ -41,6 +41,34 @@ class Carregar(unittest.TestCase):
                 self.assertEqual(entradas, [])
                 self.assertEqual(len(erros), 1)
 
+    def test_chave_repetida_em_qualquer_nivel_nao_deixa_entrada(self):
+        base = json.dumps({"entradas": [entrada()]})
+        repetida_na_entrada = base.replace('"autorizacao": "A-10"', '"autorizacao": "A-10", "autorizacao": "A-99"')
+        repetida_no_topo = base[:-1] + ', "entradas": []}'
+        for texto in (repetida_na_entrada, repetida_no_topo):
+            with self.subTest(texto=texto):
+                entradas, erros = self.ler(texto)
+                self.assertEqual(entradas, [])
+                self.assertTrue(any("chave repetida" in m for m in erros))
+
+    def test_link_simbolico_nao_e_seguido(self):
+        with tempfile.TemporaryDirectory() as d:
+            alvo, link = Path(d) / "outro.json", Path(d) / "q.json"
+            alvo.write_text(json.dumps({"entradas": [entrada()]}), encoding="utf-8")
+            link.symlink_to(alvo)
+            self.assertEqual(q.carregar(alvo), ([entrada()], []))
+            entradas, erros = q.carregar(link)
+        self.assertEqual(entradas, [])
+        self.assertEqual(len(erros), 1)
+
+    def test_arquivo_acima_do_teto_nao_e_lido(self):
+        vazio = '{"entradas": []}'
+        no_teto = vazio + " " * (q.TETO_BYTES - len(vazio))
+        self.assertEqual(self.ler(no_teto), ([], []))
+        entradas, erros = self.ler(no_teto + " ")
+        self.assertEqual(entradas, [])
+        self.assertTrue(any("acima de" in m for m in erros))
+
 
 class Validar(unittest.TestCase):
     hoje = D(2026, 11, 21)
@@ -72,6 +100,27 @@ class Validar(unittest.TestCase):
         self.assertTrue(any("7 dias" in m for m in self.erros(entrada(prazo="2026-11-28"))))
         self.assertTrue(any("7 dias" in m for m in self.erros(entrada(prazo="2026-11-19"))))
 
+    def test_desde_no_futuro_e_erro(self):
+        self.assertEqual(self.erros(entrada(desde="2026-11-21", prazo="2026-11-28")), [])
+        futura = entrada(desde="2026-11-22", prazo="2026-11-29")
+        self.assertTrue(any("no futuro" in m for m in self.erros(futura)))
+        self.assertEqual(q.ativas([futura], self.hoje), [])
+
+    def test_teste_e_o_id_de_um_teste_so(self):
+        for bom in ("tests.test_a.A.test_x", "t.A.test", "tests.sub.test_a.TestA.test_x_1"):
+            with self.subTest(bom=bom):
+                self.assertEqual(self.erros(entrada(bom)), [])
+        ruins = ("tests.*", "tests", "tests.test_a", "tests.test_a.A", ["tests.test_a.A.test_x"], 1,
+                 "tests.test_a.A.test_x tests.test_b", "tests/test_a.A.test_x", "tests.test_a.A.test_x*", "tests.a.A.test_١")
+        for ruim in ruins:
+            with self.subTest(ruim=ruim):
+                self.assertTrue(any("id de um teste" in m for m in self.erros(entrada(ruim))))
+
+    def test_teste_repetido_e_erro(self):
+        outra = entrada(desde="2026-11-21", prazo="2026-11-28")
+        self.assertEqual(self.erros(entrada(), entrada("t.A.test_y")), [])
+        self.assertTrue(any("repetido" in m for m in self.erros(entrada(), outra)))
+
     def test_autorizacao_so_a_n(self):
         for ok in ("OK do dono", "A-", "C-A-3", "A-1x"):
             with self.subTest(ok=ok):
@@ -96,13 +145,13 @@ class Validar(unittest.TestCase):
         self.assertTrue(any("objeto" in m for m in self.erros(entrada(prorrogacao="2026-12-04"))))
 
     def test_no_maximo_tres_entradas_ativas(self):
-        tres = [entrada(f"t.A.t{i}") for i in range(3)]
+        tres = [entrada(f"t.A.test_{i}") for i in range(3)]
         self.assertEqual(q.validar(tres, self.hoje), [])
-        self.assertTrue(any("mais de 3" in m for m in q.validar(tres + [entrada("t.A.t3")], self.hoje)))
+        self.assertTrue(any("mais de 3" in m for m in q.validar(tres + [entrada("t.A.test_3")], self.hoje)))
 
     def test_vencida_nao_conta_no_teto(self):
-        vencida = entrada("t.A.velha", desde="2026-11-01", prazo="2026-11-08")
-        tres = [entrada(f"t.A.t{i}") for i in range(3)]
+        vencida = entrada("t.A.test_velha", desde="2026-11-01", prazo="2026-11-08")
+        tres = [entrada(f"t.A.test_{i}") for i in range(3)]
         self.assertEqual(q.validar(tres + [vencida], self.hoje), [])
 
 
@@ -124,7 +173,7 @@ class AtivasEVencidas(unittest.TestCase):
         self.assertEqual(q.vencidas([e], D(2026, 12, 5)), [e])
 
     def test_com_erro_nao_exclui_nada_de_ativas_nem_de_vencidas(self):
-        boa, ruim = entrada(), entrada("t.A.ruim", cartao="")
+        boa, ruim = entrada(), entrada("t.A.test_ruim", cartao="")
         self.assertEqual(q.ativas([boa, ruim], D(2026, 11, 21)), [])
         self.assertEqual(q.vencidas([boa, ruim], D(2026, 12, 21)), [])
 
