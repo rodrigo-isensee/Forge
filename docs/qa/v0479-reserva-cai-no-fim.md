@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-reserva-cai-no-fim
-commit: 0998e8ab569bf2d5eff92324dc3811365d179ba6
+commit: f61799dd400216033de34e16c09c2c17890e5818
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -14,7 +14,7 @@ data: 2026-11-20
 ---
 # QA: v0479-reserva-cai-no-fim
 
-Revalidação pelo delta 50e06ac6..0998e8ab (hooks/agentes.py, tests/test_agentes_interrompidos.py, tests/mutantes/v0479-reserva-cai-no-fim.json). A1 e A2 da rodada anterior estão fechados: M6 cobre a reserva antiga sem tool_use_id; M8, M9 e M10 cobrem a validação de forma.
+Revalidação pelo delta 0998e8ab..f61799dd: no domínio do QA só tests/mutantes/v0479-reserva-cai-no-fim.json (M13 a M17 novos); hooks/agentes.py não mudou. Rodada anterior: delta 50e06ac6..0998e8ab. A1 e A2 da rodada anterior estão fechados: M6 cobre a reserva antiga sem tool_use_id; M8, M9 e M10 cobrem a validação de forma.
 
 ## Critério → teste → resultado
 Sem especificação de UX; critério = comportamento do brief E60.1 (RESERVA-NAO-CAI-NO-FIM).
@@ -35,3 +35,9 @@ Sem especificação de UX; critério = comportamento do brief E60.1 (RESERVA-NAO
 - test_agentes_interrompidos (39) e test_hooks_agentes* (10): OK, local; sem suíte inteira (vale o check-run `bateria` do CI).
 - Vermelho: `forge-testes --vermelho ed5bfa02 --modulos test_agentes_interrompidos`: `vermelho: base=ed5bfa0284c3 head=0998e8ab569b módulos=test_agentes_interrompidos (restrito por --modulos)`; `prova (asserção)=4`, `não prova (passa na base)=35`. Os testes de forma (M8, M9, M10), M6 e M12 passam na base porque as guardas já existiam ou são de regressão; a prova deles é o mutante, que morre (abaixo).
 - `forge-mutante tests/mutantes/v0479-reserva-cai-no-fim.json --base 50e06ac6`: `base=50e06ac60ee54707c6a089a2b6e9a261fd649150 mb=50e06ac60ee54707c6a089a2b6e9a261fd649150 rev=0998e8ab569bf2d5eff92324dc3811365d179ba6`; M1, M3, M4, M5, M6, M7, M8, M9, M10, M11, M12 morreram, rc 0.
+
+## Revalidação 0998e8ab..f61799dd
+- Mutantes novos conferidos contra as guardas de hooks/agentes.py:1269 (isinstance e fullmatch, M13, M14), :1276 (igualdade dos dois tool_use_id, M15), :1383 (fim só lê o meta com agent_id, M16) e :1386 (tira só os parados, M17): um por condição, sem guarda sem mutante.
+- `bin/forge-mutante tests/mutantes/v0479-reserva-cai-no-fim.json --base 0998e8ab`: `base=0998e8ab569bf2d5eff92324dc3811365d179ba6 mb=0998e8ab569bf2d5eff92324dc3811365d179ba6 rev=f61799dd400216033de34e16c09c2c17890e5818`; M1, M3 a M17 morreram, rc 0, sem sobrevivente.
+- test_agentes_interrompidos (39), `python3 -I -m unittest discover -s tests -p test_agentes_interrompidos.py`: OK.
+- Catraca local, `python3 tests/catraca.py`: rc 0, sem violação. Suíte inteira: check-run `bateria` do CI.
