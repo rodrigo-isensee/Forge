@@ -3,21 +3,21 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-sandbox-controle
-commit: 64fca89083f7549aa5ea97ed4e716bec049f1306
+commit: 32c3528eaa65c8c85367465c506856befdd33818
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-19
+data: 2026-11-20
 ---
-# QA: v0478 E29.14 (trava de escrita do sandbox, revalidação no head 64fca890)
+# QA: v0478 E29.14 (trava de escrita do sandbox, revalidação por delta no head 32c3528e)
 
 ## Achados
-- A1 (bloqueante, resolvido) tests/test_apoio_sandbox.py:77 · o teste de sonda do bwrap agora está na classe Sondas e roda (H=ok no vermelho); mutantes M1 e M2 morrem.
-- A2 (recomendado, aberto) tests/test_sandbox_controle.py:178 · "e o hook grava" no nome do teste de bwrap é verdade trivial; já provado na Estrutura. Não bloqueia.
-- A3 (recomendado, aberto) .github/workflows/ci.yml:1 · o CI não sonda bubblewrap; os 2 testes de sandbox pulam aqui (Operation not permitted) e só valem com o check-run `bateria` do mesmo sha sem pulo (no CI, exigir reprova). Não bloqueia; cite o run no PR.
+- A1 (bloqueante) tests/test_apoio_sandbox.py:77 · o teste de sonda do bwrap agora está na classe Sondas e roda (H=ok no vermelho); mutantes M1 e M2 morrem. (resolvido)
+- A2 (recomendado) tests/test_sandbox_controle.py:178 · "e o hook grava" no nome do teste de bwrap é verdade trivial; já provado na Estrutura. Não bloqueia.
+- A3 (recomendado) .github/workflows/ci.yml:1 · o CI não sonda bubblewrap; os 2 testes de sandbox pulam aqui (Operation not permitted) e só valem com o check-run `bateria` do mesmo sha sem pulo (no CI, exigir reprova). Não bloqueia; cite o run no PR.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -40,3 +40,12 @@ base=03448b3d8050 mb=03448b3d8050 rev=64fca89083f7
 M1 M2 M4 M5 M6 M7 M8 M9 M10 M11 M12 M13 M14 · morreu (13 de 13; M3 não aparece na saída)
 ```
 CI: não há run para o sha (sem PR); a prova da suíte inteira é o check-run `bateria` do PR.
+
+## Revalidação (delta 64fca890 até 32c3528e, E29.20)
+Lido com `forge-check parecer delta docs/qa/v0479-sandbox-controle.md` (intervalo até 8ec67fe8; depois de 32c3528e só mudaram pareceres de review e segurança, sem código). Conferido por mim:
+- `.claude/settings.json` com `denyWrite` = `.forge/`, `.git/forge/run`, `~/.forge/maquina`, igual à `CONTROLE_DO_FORGE` de `tests/test_sandbox_controle.py:37`.
+- Conflito de `hooks/agentes.py` resolvido pela união dos imports (sem marcador de conflito).
+- Rodados de novo: `test_sandbox_controle` 14 testes, OK (skipped=2, bwrap sem namespace); `test_hooks_agentes_autor` 10 testes, OK.
+- Da instância anterior, não rerrodado: `test_apoio_sandbox` 23 OK, `test_maquina` 35 OK, mutantes da spec com `--base 64fca890` todos mortos.
+- Pendência (A3 acima): os 2 testes de bwrap só valem com o check-run `bateria` do CI no mesmo sha, sem pulo.
+- Sem bug novo; parecer segue aprovado.
