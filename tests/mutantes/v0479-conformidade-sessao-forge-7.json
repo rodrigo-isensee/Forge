@@ -1,0 +1,46 @@
+{
+  "pedido": "v0479-conformidade-sessao-forge",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M42",
+      "guarda": "E51.22: no texto reavaliado, o source ou o ponto como programa é trava sem here-string, porque lê o pipe (A2 da segurança E51.20)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if nivel and palavra in FONTES and (aqui or na_posicao_de_programa(palavras, j)):",
+      "para": "if nivel and palavra in FONTES and aqui:",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "E51.22: o ponto como argumento (`find .`) não é programa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return all(p in PREFIXOS_DA_FONTE or (k and p.startswith(\"-\")) for k, p in enumerate(palavras[:j]))",
+      "para": "return True",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "E51.22: depois de `builtin` ou `command` a palavra ainda é o programa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "PREFIXOS_DA_FONTE = frozenset({\"builtin\", \"command\"})",
+      "para": "PREFIXOS_DA_FONTE = frozenset()",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "E51.22: as opções do `command` (`command -p .`) não tiram o ponto da posição de programa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or (k and p.startswith(\"-\")) for k, p",
+      "para": "or False for k, p",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    }
+  ]
+}

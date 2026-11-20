@@ -6,7 +6,7 @@
       "id": "M39",
       "guarda": "E51.18: o source ou o ponto com here-string dentro do texto reavaliado é trava (A1 da segurança E51.16)",
       "arquivo": "hooks/conformidade.py",
-      "de": "if nivel and palavra in FONTES and aqui:",
+      "de": "if nivel and palavra in FONTES and (aqui or na_posicao_de_programa(palavras, j)):",
       "para": "if nivel and False:",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"

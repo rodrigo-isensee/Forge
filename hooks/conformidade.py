@@ -3808,14 +3808,21 @@ def trava_da_sessao_do_forge(rid, trava, linha):
 
 # E51.18 (A1 da segurança E51.16): o `source` e o ponto executam o here-string (`source /dev/stdin <<< '…'`).
 FONTES = frozenset({"source", "."})
+PREFIXOS_DA_FONTE = frozenset({"builtin", "command"})  # E51.22: `builtin source`, `command -p .`
+
+
+def na_posicao_de_programa(palavras, j):
+    """E51.22 (A2 da segurança E51.20): a palavra `j` é o programa do comando simples: a primeira, ou depois só de
+    `builtin`/`command` e das opções deles (`command -p .`). O `.` argumento (`find .`) não é."""
+    return all(p in PREFIXOS_DA_FONTE or (k and p.startswith("-")) for k, p in enumerate(palavras[:j]))
 
 
 def toca_uma_trava(linha, nivel=0):
     """E51.6: algum comando simples da linha pode ser uma trava com o alvo opaco: o programa opaco (`$G push`), o git
     com subcomando fora de `GIT_FORA_DAS_TRAVAS` (opaco, alias, com `-c`), o gh com as duas primeiras palavras fora de
     `GH_FORA_DAS_TRAVAS`, e o texto que o `eval` ou o `sh -c` reavalia (um nível; o `eval` com texto a reavaliar, o
-    shell (com texto ou lendo a entrada, `echo … | bash`) e o `source` ou o ponto com here-string dentro dele são trava,
-    fecha na dúvida: A1 da segurança E51.12 e E51.16). O git ou o gh valem em qualquer posição do comando
+    shell (com texto ou lendo a entrada, `echo … | bash`) e o `source` ou o ponto como programa dentro dele são trava,
+    fecha na dúvida: A1 da segurança E51.12, E51.16 e A2 E51.20). O git ou o gh valem em qualquer posição do comando
     (`env git push $F`). A palavra vem do leitor (`palavras_do_texto`, sem aspas nem escapes); a que o bash expande,
     pelo texto cru, vira `$`: a substituição (`$(echo git) push`, `git $(echo push)`) também é opaca. O corpo de heredoc
     é comando só quando o dono o roda (`bash <<'X'`; `corpo_so_lido`, como na conferência da linha), e o here-string de
@@ -3848,7 +3855,7 @@ def toca_uma_trava(linha, nivel=0):
                 return True
             if nivel and nome == "eval" and originais[j + 1:]:  # o eval não lê a entrada
                 return True
-            if nivel and palavra in FONTES and aqui:
+            if nivel and palavra in FONTES and (aqui or na_posicao_de_programa(palavras, j)):  # lê o pipe também
                 return True
             relidos = map(texto_reavaliado, originais[j + 1:])
             if (nome == "eval" or nome in SHELLS) and not nivel and any(toca_uma_trava(t, 1) for t in relidos):
