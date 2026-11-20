@@ -1,0 +1,2 @@
+### Corrigido
+- Testes: o custo do corpus da volta única nos dois hooks deixa de ser medido em segundos de CPU, que variavam com a carga da máquina (127 s a 185 s no CI), e passa a um contador de trabalho: as execuções do hook iguais às declaradas pelo corpus, até 10 subprocessos por execução e nenhum sono do hook; o driver que roda cada caso duas vezes ou o hook que dorme reprovam, com mutante (v0478 E41.1).

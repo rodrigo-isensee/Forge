@@ -16,12 +16,14 @@ import subprocess
 import sys
 import tempfile
 import threading
+import types
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from apoio_volta_unica import (  # noqa: E402
     BaseVoltaUnica,
     CARTOES_DO_NAO_PROMETE,
+    ContadorDeTrabalho,
     EXIGE_NENHUMA_MARCA,
     FIXTURES,
     HOOKS,
@@ -31,13 +33,13 @@ from apoio_volta_unica import (  # noqa: E402
     NAO_PROMETE,
     RAIZ,
     REGRAS_DA_VOLTA_UNICA,
+    TETO_DE_SUBPROCESSOS_POR_EXECUCAO,
     corpus_da_volta_unica,
+    excessos_de_trabalho,
+    execucoes_do_corpus,
     modulos_dos_hooks,
     rodar,
-    limite_de_cpu_do_corpus_sob_carga,
-    menor_custo,
     nucleos_do_processo,
-    trabalhadores_do_limite_de_cpu,
     trabalhadores_do_pool,
     texto)
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
@@ -120,22 +122,17 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         self.assertIn('os.chdir(dados["raizes"][hook])', self.DRIVER_DOS_HOOKS)  # a pasta de cada hook, não a do conformidade
 
     def test_corpus_nos_dois_hooks(self):
-        """O corpus nos dois hooks cabe no limite de CPU. A CPU gasta cresce com a disputa da máquina (cache e SMT: 127 s
-        livre e 144 s com carga 30 em 12 núcleos, medidos na v0479-develop-relogio), e a carga de 1 min lida antes do lote
-        não a vê quando a disputa começa junto com ele (o CI reprovou com 180,79 s e 181,40 s contra 180 s). Acima do limite,
-        o lote roda de novo e vale a menor medida (`menor_custo`): a carga só soma ao custo, e a regressão real passa do
-        limite em toda medida."""
-        limite = limite_de_cpu_do_corpus_sob_carga()  # lido antes do lote: o lote não infla a própria medida de carga
-
-        def medir():
-            with MedidaDeCpu() as medida:
-                casos = self.fixtures_do_corpus()
-                self.assertEqual(self.executar_em_lote(casos), len(casos))
-            return medida.cpu, medida.texto()
-        custo, texto_da_medida = menor_custo(medir, limite)
-        trabalhadores = trabalhadores_do_limite_de_cpu()
-        self.assertLess(custo, limite,
-                        f"o corpus gastou {texto_da_medida} na menor de até 3 medidas, com {trabalhadores} trabalhadores (limite: {limite:.0f} s = 90 s por trabalhador vezes o fator de carga)")
+        """O corpus nos dois hooks cabe no teto fixo de trabalho (CORPUS-CUSTO-CONTADOR): cada caso roda o hook uma vez
+        por passo declarado, com até `TETO_DE_SUBPROCESSOS_POR_EXECUCAO` subprocessos por execução e sem sono. Conta, e
+        não cronometra: a CPU do mesmo lote variou de 127 s a 185 s no CI com a disputa da máquina, e o número de
+        execuções e de subprocessos não varia. A CPU segue na mensagem, só como informação."""
+        casos = self.fixtures_do_corpus()
+        self.contador_de_trabalho = ContadorDeTrabalho(self._pasta_temporaria())
+        with MedidaDeCpu() as medida:
+            self.assertEqual(self.executar_em_lote(casos), len(casos))
+        trabalho = self.contador_de_trabalho.ler()
+        self.assertEqual(excessos_de_trabalho(trabalho, execucoes_do_corpus(casos)), [],
+                         f"trabalho do corpus: {trabalho}, em {len(casos)} casos (informativo: {medida.texto()})")
 
     def test_oraculo_das_redirecoes(self):  # T6
         """Para cada redireção das classes R e N e cada prefixo (P0 a P4), o bash roda `<P>cat <redireção> <<'EOF'⏎x⏎EOF`
@@ -483,6 +480,47 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
             if "nao_promete" in caso:
                 self.assertIn(caso["nao_promete"], CARTOES_DO_NAO_PROMETE, caso["id"])
                 self.assertNotIn("fecha", caso, f"{caso['id']}: não promete e fecha ao mesmo tempo")
+
+
+class ContadorDeTrabalhoDoCorpus(unittest.TestCase):
+    """CORPUS-CUSTO-CONTADOR (v0478 E41.1): o contador e o teto do custo do corpus, sem rodar o corpus."""
+
+    def test_contador_anota_execucao_subprocesso_e_sono_de_cada_filho(self):
+        with tempfile.TemporaryDirectory(prefix="forge-contador-") as tmp:
+            contador = ContadorDeTrabalho(tmp)
+            # Sem `-I`: ele ignora o PYTHONPATH, que é por onde o hook carrega o contador (como no `rodar`). O ambiente
+            # herdado sai inteiro (só o PATH e o do contador) e a pasta de trabalho é a temporária.
+            env = {"PATH": "/usr/bin:/bin", **contador.ambiente()}
+            codigo = "import subprocess, time; subprocess.run(['true']); subprocess.run(['true']); time.sleep(0.01)"
+            for _ in range(2):
+                subprocess.run([sys.executable, "-c", codigo], env=env, cwd=tmp, check=True, timeout=60,
+                               stdin=subprocess.DEVNULL, capture_output=True)
+            trabalho = contador.ler()
+        self.assertEqual((trabalho["execucoes"], trabalho["subprocessos"]), (2, 4))
+        self.assertAlmostEqual(trabalho["sono"], 0.02)
+
+    def test_execucoes_do_corpus_contam_cada_passo_e_a_entrada(self):
+        casos = [("a", types.SimpleNamespace(dados={})), ("b", types.SimpleNamespace(dados={"passos": [{}, {}]}))]
+        self.assertEqual(execucoes_do_corpus(casos), 4)
+
+    def test_dentro_do_teto_nao_ha_excesso(self):
+        teto = TETO_DE_SUBPROCESSOS_POR_EXECUCAO * 557
+        self.assertEqual(excessos_de_trabalho({"execucoes": 557, "subprocessos": teto, "sono": 0.0}, 557), [])
+
+    def test_execucoes_a_mais_ou_a_menos_reprovam(self):  # o driver que roda cada caso duas vezes, ou pula um
+        for execucoes in (1114, 556):
+            with self.subTest(execucoes=execucoes):
+                excessos = excessos_de_trabalho({"execucoes": execucoes, "subprocessos": 0, "sono": 0.0}, 557)
+                self.assertEqual(excessos, [f"{execucoes} execuções do hook, e o corpus declara 557"])
+
+    def test_subprocessos_acima_do_teto_reprovam(self):
+        teto = TETO_DE_SUBPROCESSOS_POR_EXECUCAO * 557
+        excessos = excessos_de_trabalho({"execucoes": 557, "subprocessos": teto + 1, "sono": 0.0}, 557)
+        self.assertEqual(excessos, [f"{teto + 1} subprocessos, acima do teto de {teto}"])
+
+    def test_sono_do_hook_reprova(self):
+        excessos = excessos_de_trabalho({"execucoes": 557, "subprocessos": 0, "sono": 0.001}, 557)
+        self.assertEqual(excessos, ["0.001 s de sono pedidos pelo hook"])
 
 
 if __name__ == "__main__":

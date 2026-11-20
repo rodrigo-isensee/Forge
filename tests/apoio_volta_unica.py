@@ -114,6 +114,77 @@ class MedidaDeCpu:
         return f"CPU {self.cpu:.2f} s, relógio {self.relogio:.2f} s"
 
 
+# CORPUS-CUSTO-CONTADOR (v0478 E41.1): o portão de custo do corpus conta trabalho, e não segundos de CPU. O mesmo lote
+# (557 execuções do hook, 4631 chamadas de subprocesso) gastou 125,5 s de CPU com a máquina livre e 142,1 s sob carga
+# na máquina do autor, e 127 s e 185 s no CI: a CPU de cada chamada cresce com a disputa de cache e de núcleo, e o
+# número de chamadas não. Cada processo Python do hook carrega este `sitecustomize` (pelo `PYTHONPATH` do fixture) e
+# anota no seu registro a própria execução, cada subprocesso que abre (pelos eventos de auditoria) e cada `time.sleep`
+# do código do hook (a espera do `Popen.wait` da biblioteca padrão, que varia com a máquina, fica fora).
+SITE_DO_CONTADOR = """\
+import os, sys, time
+_pasta = os.environ.get("FORGE_TESTE_TRABALHO")
+if _pasta:
+    _registro, _dormir = os.path.join(_pasta, str(os.getpid())), time.sleep
+    def _anotar(linha):
+        fd = os.open(_registro, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        try:
+            os.write(fd, (linha + "\\n").encode())
+        finally:
+            os.close(fd)
+    def _contar(evento, argumentos):
+        if evento in ("subprocess.Popen", "os.system", "os.posix_spawn", "os.exec", "os.fork", "os.forkpty"):
+            _anotar("subprocesso")
+    _biblioteca = os.path.dirname(os.__file__) + os.sep
+    def _sono(segundos):  # o evento `time.sleep` da auditoria só existe do Python 3.13 em diante
+        if not sys._getframe(1).f_code.co_filename.startswith(_biblioteca):  # a espera do `subprocess` não é do hook
+            _anotar(f"sono {float(segundos)!r}")
+        _dormir(segundos)
+    _anotar("execucao")
+    sys.addaudithook(_contar)
+    time.sleep = _sono
+"""
+TETO_DE_SUBPROCESSOS_POR_EXECUCAO = 10  # o corpus abre 8,3 por execução (4631 em 557): o dobro de git passa do teto
+
+
+class ContadorDeTrabalho:
+    """O trabalho dos processos Python lançados com `ambiente()`: execuções, subprocessos abertos e segundos de sono
+    pedidos. Conta, e não cronometra: o número é o mesmo em qualquer máquina e com qualquer carga."""
+
+    def __init__(self, pasta):
+        self.site, self.registros = Path(pasta) / "site", Path(pasta) / "registros"
+        self.site.mkdir()
+        self.registros.mkdir()
+        (self.site / "sitecustomize.py").write_text(SITE_DO_CONTADOR, encoding="utf-8")
+
+    def ambiente(self):
+        return {"PYTHONPATH": str(self.site), "FORGE_TESTE_TRABALHO": str(self.registros)}
+
+    def ler(self):
+        linhas = [linha for registro in self.registros.iterdir() for linha in registro.read_text(encoding="utf-8").splitlines()]
+        return {"execucoes": linhas.count("execucao"), "subprocessos": linhas.count("subprocesso"),
+                "sono": sum(float(linha.split()[1]) for linha in linhas if linha.startswith("sono "))}
+
+
+def execucoes_do_corpus(casos):
+    """As execuções do hook que os casos (nome, Fixture) declaram: cada passo e a entrada principal, uma vez cada."""
+    return sum(len(f.dados.get("passos", [])) + 1 for _, f in casos)
+
+
+def excessos_de_trabalho(trabalho, execucoes):
+    """O que passa do teto fixo do corpus em `trabalho` (de `ContadorDeTrabalho.ler`): execuções diferentes das
+    declaradas (o driver que roda um caso duas vezes, ou pula um), subprocessos acima de
+    `TETO_DE_SUBPROCESSOS_POR_EXECUCAO` por execução e qualquer sono pedido. Lista vazia: dentro do custo."""
+    excessos = []
+    if trabalho["execucoes"] != execucoes:
+        excessos.append(f"{trabalho['execucoes']} execuções do hook, e o corpus declara {execucoes}")
+    teto = TETO_DE_SUBPROCESSOS_POR_EXECUCAO * execucoes
+    if trabalho["subprocessos"] > teto:
+        excessos.append(f"{trabalho['subprocessos']} subprocessos, acima do teto de {teto}")
+    if trabalho["sono"] > 0:
+        excessos.append(f"{trabalho['sono']:.3f} s de sono pedidos pelo hook")
+    return excessos
+
+
 # LOTE-LEITURA-HOOK, volta única (docs/propostas/lote-leitura-hook-volta-unica.md, seções 3 a 5): o corpus das classes
 # R, N, S, H, V, L e F nos dois hooks, o oráculo das redireções (T6) e o enumerador de programas (T7). A marca `fecha`
 # de um caso é a regra (M1 a M5) em cujo commit ele passa a dar o resultado esperado: até lá o teste exige o resultado
@@ -162,6 +233,7 @@ class BaseVoltaUnica:
     executar_em_lote = Hooks.executar_em_lote
     _pasta_temporaria = Hooks._pasta_temporaria
     depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+    contador_de_trabalho = None  # `ContadorDeTrabalho` do teste de custo do corpus; sem ele, o hook roda sem contar
 
     def conferir_marca(self, fecha, passou, saida):
         """Sem marca, o caso tem de passar; com marca, tem de falhar (a regra da marca ainda não entrou)."""
@@ -174,7 +246,7 @@ class BaseVoltaUnica:
     def executar_fixture(self, f, tmp, outro_pid, montado=None):
         raiz, entrada = montado or f.montar(tmp, outro_pid)
         proc = montar_proc(tmp, None)
-        extra = {"FORGE_NPROC": "8"}
+        extra = {"FORGE_NPROC": "8", **(self.contador_de_trabalho.ambiente() if self.contador_de_trabalho else {})}
         f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra))
         r = rodar(f.hook, entrada, raiz, proc, extra, como_o_claude_code=bool(f.dados.get("prazo_de_producao")))
         codigo = f.dados["esperado"]["codigo"]
