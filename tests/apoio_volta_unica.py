@@ -189,9 +189,10 @@ if _pasta:
 # mais deu 5869383, 9262 a mais (2 x 4631). O teto é a medida mais o ruído, sem folga: corpus novo, hook mudado ou outro
 # custo pedem medida nova (a mensagem do teste traz a contagem). Medida nova (v0478 E41.10): a develop em cf097822
 # mudou o `hooks/_comum.py`, o `hooks/agentes.py` e o `forge-check`, e os passos foram de 5860121 a 5893967, nas mesmas
-# condições (registro em tests/provas/v0479-corpus-custo.md).
+# condições (registro em tests/provas/v0479-corpus-custo.md). Medida nova (v0478 E50.25): o `hooks/conformidade.py` e o
+# `forge-check` do v0479-entrega-parecer-mesclado levaram os passos de 5893967 a 5895051, nas mesmas condições.
 MEDIDA_DO_CORPUS = {"python": "3.12", "profundidade_do_tmp": 2, "variaveis_do_ambiente": 234,
-                    "execucoes": 557, "subprocessos": 4631, "interpretador": 5893967}
+                    "execucoes": 557, "subprocessos": 4631, "interpretador": 5895051}
 PASSOS_POR_NIVEL_DO_TMP = 460
 PASSOS_POR_VARIAVEL_POR_SUBPROCESSO = 2
 RUIDO_DO_CORPUS = {"subprocessos": 0, "interpretador": 0}
