@@ -72,5 +72,17 @@
         "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "self.papel not in e[\"quem\"]",
+      "motivo": "apagada de propósito pelo A6 da segurança: a isenção do dono era a brecha (S17 a S19); a recusa sem papel é provada por M26 e pelas fixtures pp-sessao-forge-wt-*-variavel-*"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "e[\"caminho\"] in CAMINHOS_DE_PARECER and casa(m.group(0) + \"/\", e[\"caminho\"])",
+      "motivo": "apagada com a isenção do dono (A6): sem papel a conferir, a busca da entrada da política não tem mais uso; a recusa é provada por M26 e M31"
+    }
   ]
 }
