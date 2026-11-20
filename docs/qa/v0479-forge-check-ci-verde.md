@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-forge-check-ci-verde
-commit: cb1d5ed7d506a409e05807f30b664ae1ee84f1da
+commit: 5c998a57f1f7126a1c0f4427865136ede7829f4f
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -43,3 +43,10 @@ Máquina com carga e sem suíte local, por ordem do brief. Rodados só os módul
 - Vermelho: `bin/forge-check` de `cb1d5ed7~1` com os testes do head, em cópia em `$TMPDIR`: Ran 47, FAILED (failures=3, as 3 etapas do subTest de `test_etapas_que_recusam_nao_travam_sem_pr`); o teste do `pr` direto passa nos dois lados, como deve (guarda de não afrouxamento). `forge-testes --vermelho cb1d5ed7~1` estourou o prazo da carga da máquina (sem veredito), então a prova foi por substituição manual.
 - Mudanças de texto (spec -5, changelog) conferidas contra o código: dizem que o `brief gerar` só avisa, a catraca não muda.
 - Suíte inteira: fica para o CI do PR (sem PR no head ainda); sem linha `- suíte:`.
+
+## Revalidação no head 5c998a57 (E47.4, alinhamento das specs)
+`forge-check parecer delta` (cb1d5ed7..5c998a57, sem o que veio da develop): no domínio só `tests/mutantes/lote-l08-escopo.json` (M61) e `tests/mutantes/v0479-forge-check-ci-verde-3.json` (M19, M20). Mudança só no trecho `de`/`para`, que passa a casar com a assinatura e a linha atuais do `bin/forge-check` (`adiar_suite`); nenhuma guarda de código mudou.
+- `forge-mutante --ids M61 tests/mutantes/lote-l08-escopo.json`: `rev=5c998a57f1f7`; `M61 · morreu · bin/forge-check:1578`; rc=0.
+- `forge-mutante --ids M19,M20 tests/mutantes/v0479-forge-check-ci-verde-3.json`: `rev=5c998a57f1f7`; `M19 · morreu · bin/forge-check:1592`; `M20 · morreu · bin/forge-check:1592`; rc=0. (As duas specs são de pedidos diferentes: uma chamada por pedido.)
+- `python3 -I -m unittest discover -s tests -p test_forge_mutante.py -k ConferirTodas`: Ran 4, OK (13,6 s). A forma `-m unittest tests.test_forge_mutante.ConferirTodas` não importa sob `-I` (ModuleNotFoundError), como a skill já avisa.
+- Suíte inteira: fica para o CI do PR; sem linha `- suíte:`.
