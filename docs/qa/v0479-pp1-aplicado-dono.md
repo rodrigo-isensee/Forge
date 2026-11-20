@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pp1-aplicado-dono
-commit: 58da41ec48c1d6fc8f05e9b41788d44a7ec6d4d0
+commit: 4d60adf4f5d43fc8f55c8a7f27727e0823b18674
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -55,5 +55,21 @@ Cobertura (`--cobertura --base 0f6034ea5aaaab5f0aab8acb593523497cdc3b6f`, rc 0):
 - Limite aceito, não defeito: o e-mail é declarável (decisão do dono de 20/11, comentário e changelog registram); commit assinado fica para cartão.
 - Observação: `parecer_cita_o_patch` aceita qualquer parecer de segurança aprovado em `docs/security/` do head que cite o sha256 (não amarra ao pedido ou à branch). O sha256 de 64 hex só aparece em parecer que leu aquele patch, e `docs/security/` é do portão; sem caminho de abuso provado, fica no recomendado.
 
-## Achados
-- A1 (recomendado) bin/forge-check:2299 · `parecer_cita_o_patch` não exige que o parecer seja da branch ou do pedido: qualquer `docs/security/*.md` aprovado no head que cite o sha256 vale. Apertar com `branch:` e `pedido:` do frontmatter se o dono quiser; sem abuso provado.
+## Revalidação no head 4d60adf4 (delta de `forge-check parecer delta`, base 58da41ec)
+Delta no domínio: `bin/forge-check` (`parecer_cita_o_patch` e `patch_revisado_do_dono` passam a receber `(pedido, branch)`; só vale parecer `aprovado`, com `pedido:` e `branch:` iguais, fora de `docs/security/aceites/` e `ameacas/`), `tests/test_conf_escopo.py`, três specs de mutantes, changelog. Fecha o A1 recomendado da rodada anterior (mesmo achado, agora com teste).
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| A1/A4 (S3, S4): parecer só da própria branch e pedido, `aprovado`, fora de `aceites/` e `ameacas/` | `test_a4_so_o_parecer_aprovado_da_propria_branch_e_pedido_vale` | outra branch, outro pedido, `riscos-aceitos`, `aceites/`, `ameacas/`; o mesmo parecer em `docs/security/outro.md` isenta | passou |
+| (c) A3 com a nova mensagem | `test_patch_sem_parecer_de_seguranca_aprovado_que_o_cite_recusa` | reprovado, review, sem frontmatter, outro sha256, sha256 colado | passou |
+| assinatura nova de `isencao_do_dono` (branch) | `PatchDoDono` (8 testes), demais de `PatchRevisadoDoDono` | n/a | passou |
+
+Provas (TMPDIR próprio, cópia `4d60adf4`):
+- `python3 -I -m unittest discover -s tests -p test_conf_escopo.py -k PatchRevisadoDoDono` → `Ran 11 tests in 53.614s`, `OK`.
+- `-k PatchDoDono` → `Ran 8 tests`, `OK`; `python3 -I -m unittest discover -s tests -p test_forge_mutante.py -k ConferirTodas` → `Ran 4 tests in 8.704s`, `OK`.
+- Mutantes do delta: `bin/forge-mutante --processos 3 --base 58da41ec48c1d6fc8f05e9b41788d44a7ec6d4d0` nas 3 specs tocadas (rc 0): `base=58da41ec… mb=58da41ec… rev=4d60adf4…`; M1 a M8, M17 a M31 (M3, M23, M24 realinhados; M25, M29, M30, M31 novos) · morreu (M4, M17 e M27 por erro do teste declarado, controle verde).
+- Cobertura `--cobertura --base 0f6034ea…` → rc 0, sem linha `não coberta`.
+- Vermelho: `bin/forge-testes --vermelho 58da41ec48c1d6fc8f05e9b41788d44a7ec6d4d0 --modulos test_conf_escopo` → rc 2 (sem veredito). Linha que importa: `test_a4_so_o_parecer_aprovado_da_propria_branch_e_pedido_vale · H=ok · B=falha · prova (asserção)`. O rc 2 vem de 5 testes antigos (`PatchDoDono.test_c15`, `test_c8`, `PatchRevisadoDoDono.test_develop_atual…`, `test_git_que_falha…`, `test_indice…`) que dão erro na base por chamarem `isencao_do_dono` com o parâmetro `branch` que a base não tem; são testes realinhados, não de regra nova, e passam no head. O teste novo prova.
+- Suíte inteira: CI do PR (`R-QA`), não rerrodada aqui.
+
+Limite aceito, não defeito: o e-mail do dono é declarável (decisão de 20/11). Sem achado novo.
