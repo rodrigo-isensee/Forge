@@ -3,10 +3,10 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-quarentena-s1
-commit: 04e7293b3c89ea21b6575a2f848b81a540af52f7
+commit: 968bc3ff91e44c220723b0bbb4dbc8a62c1a1516
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-19
+data: 2026-11-20
 ---
 # Review de segurança: v0479-quarentena-s1
 
@@ -33,7 +33,8 @@ Pode valer nas condições do dono. A catraca barra a mudança: `regra_testes_en
 - A2 (recomendado) changelog.d/v0479-quarentena-s1.md:2 · Resolvido no repositório: prazo 2026-11-26 no skip e no fragmento. Falta só o mesmo prazo e o dono no cartão `TESTE-SONDA-S1-RELOGIO` (fora do repositório, não verificável aqui).
 - A3 (recomendado) tests/mutantes/v0478-develop-relogio.json:12 · O M1 dessa spec só nomeia a S1 e agora dá "sem veredito" (teste pulado). A mesma mutação (`prova_de_carga.py:70`) morre na tabela do critério (M8 de v0478-testes-prazo.json); listar a tabela em `testes` do M1 ou retirar a spec.
 
-- A4 (recomendado) tests/quarentenas.py:22 · A contagem aceita `skip`/`skipTest` com motivo "quarentena" mesmo morto (função não chamada, ramo `if False`, classe não coletada): sobe o teto em 1 sem gastar vaga real de pulado. Contar só decorador de teste e `skipTest` no corpo de teste.
+- A4 (recomendado) tests/quarentenas.py:22 · Resolvido no head 968bc3ff para as três formas da S1 (função solta, `if False`, classe sem TestCase): contagem só de skip vivo, com prazo e OK do dono no motivo. Sobra o A5.
+- A5 (recomendado) tests/quarentenas.py:23 · A contagem estática ainda conta skip morto fora das formas óbvias (código após `return`/`raise`, `while False`, `if not True`, `else` de `if True`, método sombreado, classe aninhada); cruzar com o pulado real no CI.
 
 ## Detalhe dos achados
 A1: evidência acima; caminho de ataque não há (higiene do registro); severidade baixa; correção: duas linhas no corpo do PR; esforço P; dono: `tech-lead`. A2: a quarentena sem prazo vira esquecimento; severidade baixa; correção: data no cartão; esforço P; dono: autor do pedido. A3: severidade baixa; a spec fica sem veredito até a S1 voltar; correção: uma linha em `testes`; esforço P; dono: autor do pedido.
@@ -64,6 +65,25 @@ Sondas em pasta de `$TMPDIR` (apagada), `quarentenas_abertas` sobre ela:
 
 ### Nenhum controle fica sem teste
 Confirmo por escrito: o controle novo (`quarentenas_abertas`, `teto_passa_da_quarentena`) tem testes e mutantes (acima); a S1 pulada segue coberta como na rodada anterior (tabela do critério, M8, ligação medida e fixture de 8 s); `teto_pulados` 2 está coberto pela catraca e pelo `TetoDaQuarentena`. Lacuna residual igual (combinação ao vivo da S1 até 2026-11-26). Devolução: o PR que tira a quarentena zera as abertas e o teste reprova teto 2, então o teto volta a 1.
+
+Parecer mantido: aprovado.
+
+## Revalidação no head 968bc3ff (delta 04e7293b..968bc3ff)
+Lido: `forge-check parecer delta` (no domínio, só `tests/test_catraca.py`; `tests/quarentenas.py` e as três specs de mutante ficam fora do domínio e foram lidos como evidência). A1 a A3 sem mudança de estado; A4 resolvido (acima); A5 novo.
+- Contagem nova (`tests/quarentenas.py:36-64`): só `@unittest.skip(...)` em `test_*` de classe `TestCase` e `skipTest(...)` vivo no corpo de `test_*`; motivo que começa com "quarentena" exige data AAAA-MM-DD e "OK do dono", senão `ValueError`. Motivo que não é quarentena não exige nada.
+- Rodei `TetoDaQuarentena` e `TetoDePulados`: 12 testes, OK. No Forge `quarentenas_abertas(tests)` dá 1 e `teto_pulados` é 2 (`tests/config.json:930`), igual a 1+1. `bin/forge-mutante` nas três specs `v0479-quarentena-s1*.json`: M1, M4 a M22 morreram, nenhum sobreviveu.
+
+### Sondas refeitas
+- S1 (as três formas mortas) · `@unittest.skip("quarentena...")` em função solta e em método de classe sem base, `skipTest` em `if False`/`elif 0`, skip em método `auxiliar` · espera: 0 · obtido: 0. Confere com `test_skip_morto_da_sonda_s1_nao_conta`.
+- Quarentena sem prazo, sem "OK do dono", data 26/11 ou "ok do dono" minúsculo · espera: `ValueError` · obtido: `ValueError` (teste `test_quarentena_sem_prazo_ou_sem_ok_do_dono_e_recusada`).
+- Não enganam (subcontam, seguro): motivo em variável, f-string, `reason=` por palavra-chave, `skipIf`, skip de classe, `async def`.
+
+### Outras formas de enganar a contagem (A5)
+Em pasta de `$TMPDIR` (apagada), skip com motivo válido, em código que nunca roda, conta como aberto: `return` ou `raise` antes do `skipTest`, `assert False`, `while False`, `if not True`, `if 1 > 2`, `if None`, `else` de `if True`, `except` que não dispara: 8 contados onde o esperado era 0. Método sombreado (`test_a = None`, ou segundo `def test_b`), classe aninhada em função, classe em `if False` e classe repetida: 4 contados onde o esperado era 0. Arquivo `test_*.py` em pasta que o `unittest` não descobre também conta. Cada um sobe o teto permitido em 1 sem gastar vaga real de pulado.
+Não bloqueia: nenhuma análise estática fecha todas as formas, e a subida do `teto_pulados` continua barrada pela catraca (`regra_teto_pulados`) até o rótulo do dono (`R-DECISAO`); o skip morto precisa entrar em PR revisado. O prazo vencido também não é conferido (só o formato). Severidade baixa; correção mínima: no CI, exigir que o número de pulados reais da suíte seja igual a `quarentenas_abertas` ou, no mínimo, que `teto_pulados` não passe do pulado real; esforço P; dono: autor do pedido.
+
+### Nenhum controle fica sem teste
+Reconfirmo por escrito: o controle novo (a contagem viva, a exigência de prazo e OK do dono, `teto_passa_da_quarentena`) tem testes (`TetoDaQuarentena`, 12 verdes com `TetoDePulados`) e 22 mutantes mortos; a S1 pulada segue coberta como nas rodadas anteriores (tabela do critério, M8, ligação medida, fixture de 8 s); `teto_pulados` 2 está coberto pela catraca e por `TetoDaQuarentena`. Lacuna residual igual (combinação ao vivo da S1 até 2026-11-26) mais o A5, sem caminho de ataque fora de PR revisado.
 
 Parecer mantido: aprovado.
 
