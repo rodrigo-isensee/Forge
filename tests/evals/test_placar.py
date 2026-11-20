@@ -481,6 +481,16 @@ class Fases(unittest.TestCase):
         self.assertEqual((itens["melhoria/b"]["pr"], itens["melhoria/b"]["merge"]), (None, "2025-03-18T13:50:00+00:00"))
         self.assertEqual(self.json("2025-03-21")["itens"][0]["pr"], 11)
 
+    def test_merge_em_utc_sai_com_deslocamento_numerico_mesmo_com_git_que_escreve_z(self):
+        falso = self.raiz / "falso"
+        falso.mkdir(exist_ok=True)
+        (falso / "git").write_text(f'#!/bin/sh\n{shutil.which("git")} "$@" | sed \'s/+00:00\\([[:space:]]\\|$\\)/Z\\1/\'\n')
+        (falso / "git").chmod(0o755)
+        r = subprocess.run([sys.executable, "-I", str(PLACAR), "fases", "--git", str(self.repo), "--ref", "develop", "--dia", "2025-03-18", "--json"],
+                           capture_output=True, text=True, env=dict(self.env, PATH=f"{falso}:{self.env['PATH']}"), cwd=self.raiz, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(sorted(i["merge"] for i in json.loads(r.stdout)["itens"]), ["2025-03-18T12:00:00+00:00", "2025-03-18T13:50:00+00:00"])
+
     def test_media_mediana_e_p75(self):
         estat = ("media_min", "mediana_min", "p75_min")
         self.assertEqual([self.json("2025-03-18")[k] for k in estat], [85, 85, 102])  # totais 120 e 50

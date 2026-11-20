@@ -620,6 +620,11 @@ def primeira_rodada(pasta, commits):
     return all(vereditos.values()) if vereditos else None
 
 
+def hora_numerica(hora):
+    """A hora do merge sempre com deslocamento numérico (`+00:00`): o git novo escreve UTC como `Z` no `%cI`, o antigo como `+00:00`."""
+    return hora[:-1] + "+00:00" if hora.endswith("Z") else hora
+
+
 def itens_do_dia(pasta, ref, na_janela):
     """Os itens mesclados na linha principal da `ref` com merge em `na_janela(epoch, dia)` (merge de dois pais ou squash `(#N)`),
     com fases, primeira rodada, PR e hora do merge, e quantos squashes ficaram sem fases por não haver `refs/pull/N/head`."""
@@ -639,7 +644,7 @@ def itens_do_dia(pasta, ref, na_janela):
             sem_fases += not commits
         if commits:
             itens.append({"item": item, "fases": fases_do_item(commits, int(quando)), "pr": int(pr.group(1)) if pr else None,
-                          "merge": hora, "total": round((int(quando) - commits[0][0]) / 60),
+                          "merge": hora_numerica(hora), "total": round((int(quando) - commits[0][0]) / 60),
                           "primeira_rodada": primeira_rodada(pasta, commits)})
     return itens, sem_fases
 
