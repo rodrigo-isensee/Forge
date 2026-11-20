@@ -13,16 +13,6 @@
       ]
     },
     {
-      "id": "M2",
-      "guarda": "o início casa a reserva pelo tool_use_id do próprio disparo, antes do tipo e da ordem",
-      "arquivo": "hooks/agentes.py",
-      "de": "par = next((a for a in reservas if a.get(\"tool_use_id\") == uso and uso), None) \\\n        or next(",
-      "para": "par = next((a for a in reservas if False), None) \\\n        or next(",
-      "testes": [
-        "tests.test_agentes_interrompidos.FimDoAgente.test_o_fim_de_um_solta_a_branch_dele_e_nao_a_do_outro_vivo"
-      ]
-    },
-    {
       "id": "M3",
       "guarda": "o disparo grava o tool_use_id na reserva",
       "arquivo": "hooks/agentes.py",
@@ -34,12 +24,13 @@
     },
     {
       "id": "M4",
-      "guarda": "o início não leva a reserva de outro tool_use_id quando o agente prova o dele",
+      "guarda": "o início leva a reserva de outro tool_use_id quando o agente prova o dele (a troca de ids volta)",
       "arquivo": "hooks/agentes.py",
       "de": "reservas = [a for a in reservas if a.get(\"tool_use_id\") in (uso, None)]",
       "para": "reservas = [a for a in reservas]",
       "testes": [
-        "tests.test_agentes_interrompidos.FimDoAgente.test_agente_sem_reserva_propria_nao_leva_a_de_outro_disparo"
+        "tests.test_agentes_interrompidos.FimDoAgente.test_agente_sem_reserva_propria_nao_leva_a_de_outro_disparo",
+        "tests.test_agentes_interrompidos.FimDoAgente.test_o_fim_de_um_solta_a_branch_dele_e_nao_a_do_outro_vivo"
       ]
     },
     {

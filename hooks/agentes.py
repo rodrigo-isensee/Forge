@@ -1291,11 +1291,10 @@ def iniciar(hook, agentes, agora):
     reservas = sorted((a for a in agentes if not a.get("id") and (not dono or not a.get("sessao") or a["sessao"] == dono["sessao"])),
                       key=lambda a: a["desde"])
     uso = uso_do_agente(hook, aid)
-    if uso:  # a reserva do próprio disparo; a de outro `tool_use_id` é de outro agente e não casa por tipo
+    if uso:  # só a reserva do próprio disparo (ou a antiga, sem `tool_use_id`) casa; a de outro `tool_use_id` é de outro agente e não casa por tipo
         reservas = [a for a in reservas if a.get("tool_use_id") in (uso, None)]
     # O tipo informado pode vir com ou sem o prefixo do plugin; na dúvida, a reserva mais antiga.
-    par = next((a for a in reservas if a.get("tool_use_id") == uso and uso), None) \
-        or next((a for a in reservas if str(a.get("tipo")) == tipo), None) \
+    par = next((a for a in reservas if str(a.get("tipo")) == tipo), None) \
         or next((a for a in reservas if str(a.get("tipo")).split(":")[-1] == tipo.split(":")[-1]), None) \
         or (reservas[0] if reservas else None)
     if par is None:
