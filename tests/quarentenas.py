@@ -1,7 +1,11 @@
 """Teto de pulados da quarentena (v0478 E37.15): conta as quarentenas abertas em tests/ e diz se `teto_pulados` passa
 de TETO_PULADOS_ORIGINAL mais elas. Testes em tests/test_catraca.py (TetoDaQuarentena)."""
 import ast
+import datetime
+import inspect
 import re
+import sys
+import unittest
 from pathlib import Path
 
 # Teto antes da quarentena da S1. O dono autorizou subir `teto_pulados` 1 por quarentena aberta, só enquanto ela durar
@@ -14,10 +18,6 @@ def _motivo_do_skip(chamada, nomes):
     nome = getattr(chamada.func, "attr", getattr(chamada.func, "id", None))
     arg = chamada.args[0] if nome in nomes and chamada.args else None
     return arg.value if isinstance(arg, ast.Constant) and isinstance(arg.value, str) else ""
-
-
-def _e_testcase(classe):
-    return any(getattr(base, "attr", getattr(base, "id", None)) == "TestCase" for base in classe.bases)
 
 
 def _chamadas_vivas(filhos):
@@ -33,34 +33,78 @@ def _chamadas_vivas(filhos):
             yield from _chamadas_vivas(ast.iter_child_nodes(no))
 
 
-def _motivos_vivos(arvore):
-    for classe in ast.walk(arvore):
-        if not (isinstance(classe, ast.ClassDef) and _e_testcase(classe)):
-            continue
-        for metodo in classe.body:
-            if not (isinstance(metodo, ast.FunctionDef) and metodo.name.startswith("test_")):
-                continue
-            for deco in metodo.decorator_list:
-                yield _motivo_do_skip(deco, {"skip"}) if isinstance(deco, ast.Call) else ""
-            for chamada in _chamadas_vivas(metodo.body):
-                yield _motivo_do_skip(chamada, {"skipTest"})
+def _testes(suite):
+    for item in suite:
+        if isinstance(item, unittest.TestSuite):
+            yield from _testes(item)
+        else:
+            yield item
 
 
-def _confere_quarentena(motivo, onde):
-    if not (_PRAZO.search(motivo) and "OK do dono" in motivo):
+def _definicoes(arquivo, lidos):
+    """As `def` do arquivo que citam `skipTest`, pela primeira linha do código (a do 1.o decorador); lido uma vez só."""
+    if arquivo not in lidos:
+        try:
+            texto = Path(arquivo).read_text(encoding="utf-8")
+            arvore = ast.parse(texto if "skipTest" in texto else "")  # sem skipTest no arquivo, nada a ler
+        except (OSError, SyntaxError, ValueError):
+            texto, arvore = "", ast.Module(body=[], type_ignores=[])
+        linhas = texto.splitlines()
+        lidos[arquivo] = {
+            min([no.lineno] + [deco.lineno for deco in no.decorator_list]): no for no in ast.walk(arvore)
+            if isinstance(no, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and "skipTest" in "\n".join(linhas[no.lineno - 1:no.end_lineno])}
+    return lidos[arquivo]
+
+
+def _motivos(teste, lidos):
+    """O motivo do pulo que o unittest dá ao teste (classe ou método marcado), ou os `skipTest` vivos no texto do corpo
+    do método real (o código que o unittest roda; sem fonte legível, nenhum)."""
+    metodo = getattr(teste, teste._testMethodName)
+    if getattr(type(teste), "__unittest_skip__", False) or getattr(metodo, "__unittest_skip__", False):
+        motivo = getattr(type(teste), "__unittest_skip_why__", "") or getattr(metodo, "__unittest_skip_why__", "")
+        yield motivo if isinstance(motivo, str) else ""
+        return
+    codigo = getattr(inspect.unwrap(metodo), "__code__", None)
+    definicao = codigo and _definicoes(codigo.co_filename, lidos).get(codigo.co_firstlineno)
+    for chamada in _chamadas_vivas(definicao.body if definicao else []):
+        yield _motivo_do_skip(chamada, {"skipTest"})
+
+
+def _motivos_carregados(pasta):
+    """Os motivos de pulo dos testes que `unittest.TestLoader().discover(pasta)` carrega; sys.path e os módulos voltam."""
+    caminho, modulos, lidos = list(sys.path), set(sys.modules), {}
+    try:
+        carregador = unittest.TestLoader()
+        testes = list(_testes(carregador.discover(str(pasta), top_level_dir=str(pasta))))
+        if carregador.errors:
+            raise ValueError(f"{pasta}: o unittest não carregou a pasta, a contagem não vale: {carregador.errors[0][:300]}")
+        return [(teste.id(), motivo) for teste in testes for motivo in _motivos(teste, lidos)]
+    finally:
+        sys.path[:] = caminho
+        for nome in set(sys.modules) - modulos:
+            del sys.modules[nome]
+
+
+def _confere_quarentena(motivo, onde, hoje):
+    prazo = _PRAZO.search(motivo)
+    if not (prazo and "OK do dono" in motivo):
         raise ValueError(f"{onde}: a quarentena pede no motivo o prazo (AAAA-MM-DD) e o 'OK do dono': {motivo!r}")
+    if datetime.date.fromisoformat(prazo.group()) < hoje:
+        raise ValueError(f"{onde}: quarentena vencida em {prazo.group()}: tire o skip ou peça ao dono um prazo novo")
 
 
-def quarentenas_abertas(pasta):
-    """Os `@unittest.skip` em `test_*` de TestCase e os `skipTest` no corpo de `test_*` cujo motivo começa com 'quarentena',
-    nos test_*.py da pasta e subpastas. Skip morto (função nunca chamada, `if False`, classe que não é TestCase) não conta.
-    Quarentena sem prazo em data ou sem 'OK do dono' no motivo é recusada (ValueError)."""
+def quarentenas_abertas(pasta, hoje=None):
+    """Os pulos cujo motivo começa com 'quarentena' nos testes que o unittest carrega da pasta (`discover`): o
+    `__unittest_skip_why__` da classe ou do método real e os `skipTest` vivos no corpo do método real. Skip que o
+    unittest não aplica (função solta, classe fora do carregador, método sombreado) não conta. Quarentena sem prazo em
+    data, sem 'OK do dono' no motivo ou com o prazo antes de `hoje` (padrão: a data de hoje) é recusada (ValueError)."""
+    hoje = hoje or datetime.date.today()
     abertas = 0
-    for arq in sorted(Path(pasta).rglob("test_*.py")):
-        for motivo in _motivos_vivos(ast.parse(arq.read_text(encoding="utf-8"))):
-            if motivo.startswith("quarentena"):
-                _confere_quarentena(motivo, arq.name)
-                abertas += 1
+    for onde, motivo in _motivos_carregados(pasta):
+        if motivo.startswith("quarentena"):
+            _confere_quarentena(motivo, onde, hoje)
+            abertas += 1
     return abertas
 
 
