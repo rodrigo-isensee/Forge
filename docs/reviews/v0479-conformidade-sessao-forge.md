@@ -3,18 +3,18 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-sessao-forge
-commit: c792b567222a828209c6435b71f571cc925c1dd0
+commit: 96c0215fff321bb1192c84fc712987b59496e8bc
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
 ---
-# Review: v0478 (E51.28, revalidação de CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE)
+# Review: v0478 (E51.31, revalidação de CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE)
 
-Delta lido (H3, `R-REVIEW`): `forge-check parecer delta docs/reviews/v0479-conformidade-sessao-forge.md`, intervalo `b22efaae..c792b567`, sem o que veio da `develop`; no domínio, `docs/hooks-fixtures.md`, `docs/hooks.md`, `tests/apoio_volta_unica.py` e `tests/provas/v0479-corpus-custo.md`. O aviso sobre o merge 741e235 fora da `origin/develop` é o merge da própria branch remota (pareceres E51.24 e E51.25), sem código.
+Delta lido (H3, `R-REVIEW`): `forge-check parecer delta docs/reviews/v0479-conformidade-sessao-forge.md`, intervalo `c792b567..96c0215f`; no domínio, `docs/hooks-fixtures.md`, `docs/hooks.md`, `hooks/conformidade.py`, `tests/apoio_volta_unica.py`, `tests/provas/v0479-corpus-custo.md` e `tests/test_hooks.py`. O aviso sobre o merge 835f39d fora da `origin/develop` é o merge do parecer de QA E51.29 (só `docs/qa/`); os trechos de `hooks/conformidade.py`, `docs/hooks.md` e `tests/test_hooks.py` são o E50 já na `develop` (f96ede50, #734, com pareceres próprios), sem mudança do merge.
 
 ## Parecer
-Aprovado. O merge da `develop` (0f1aec8a) teve conflito só em `docs/hooks.md`: a linha "Falha fechada" ficou com o texto da `develop` (a branch não a mudava desde a base comum, sha igual), e as três linhas da E51 (travas, "Ainda não coberto", `vigia`) ficaram com o texto já aprovado; contra a `develop`, `tests/apoio_volta_unica.py` e a prova são só o commit c792b567. O índice das fixtures (12e3b7bc) está em dia: `scripts/indice-fixtures.py --conferir` deu "em dia", rc 0.
+Aprovado. O merge 96c0215f (develop f96ede50 na branch) mudou, além das duas pontas, só três arquivos (`git show --remerge-diff`): `docs/hooks-fixtures.md` (conflito, regerado: 3196 fixtures; `scripts/indice-fixtures.py --conferir` deu "em dia", rc 0; `ls tests/hooks/*/*.json` conta 3196), `tests/apoio_volta_unica.py` (conflito: a medida vai a 5897219 e o comentário traz as duas autorizações) e a prova, seção "Soma do E50 e do E51".
 
-Teto do corpus (c792b567): `interpretador` 5893967 para 5896135, exatamente os +2168 passos autorizados pelo dono em 20/11 às 19:55 só para o E51; o motivo está no código (`tests/apoio_volta_unica.py:193-194`) e na prova (`tests/provas/v0479-corpus-custo.md`, "Teto do E51"); falta escrevê-lo no PR #742, como a decisão pede, antes do merge. A soma com o E50 (+1084) fica para quem integrar o segundo, como a decisão manda.
+Teto da soma: 5893967 + 1084 (E50, autorização de 20/11 às 19:09) + 2168 (E51, 20/11 às 19:55) = 5897219, sem passo a mais da junção; +3252 fica abaixo de +3300, o limite do aviso da decisão de 19:55, e as duas autorizações estão no código (`tests/apoio_volta_unica.py:192-198`), na prova e no corpo do PR #742.
 
-Execução: `python3 -m unittest tests.test_hooks_volta_corpus` no head: 33 testes, OK (171,9 s; o teto é a medida exata). Tamanho (H1): 1 linha de código, nenhuma guarda mudada. Suíte completa: CI do PR #742 (em andamento no head; a "bateria (pareceres)" espera os pareceres deste head).
+Execução: `python3 -m unittest tests.test_hooks_volta_corpus` no head 96c0215f: 33 testes, OK (149,9 s; o teto é a medida exata). Nenhuma guarda mudada pelo merge. Suíte completa: CI do PR #742 (em andamento no head); a Catraca deste head reprovou só pelo rótulo `afrouxa-regra`, que vale aplicado depois do último push (ADR 0008).
