@@ -2,7 +2,8 @@
 
 O VS Code executa `.vscode/tasks.json` ao abrir a pasta (tarefa `runOn: folderOpen`) e o container roda os comandos de
 `.devcontainer/devcontainer.json` como root, os dois fora do sandbox do Claude Code. A1 e A2 do parecer de segurança
-(docs/security/v0479-bp3-s2-container.md, sondas S1 e S2): nenhum agente os grava, por Write, Edit ou Bash. O controle
+(docs/security/v0479-bp3-s2-container.md, sondas S1 e S2): nenhum agente os grava, por Write, Edit ou Bash.
+A3 (E39.21): `.vscode/settings.json` muda o PATH e o shell da tarefa e também é protegido. O controle
 mostra que a entrada é o arquivo exato, não a pasta inteira."""
 import sys
 import unittest
@@ -13,8 +14,8 @@ import test_hooks  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 from test_hooks import Fixture  # noqa: E402
 
-PROTEGIDOS = (".vscode/tasks.json", ".devcontainer/devcontainer.json")
-LIVRES = (".vscode/settings.json", ".devcontainer/preparar-ambiente.sh")
+PROTEGIDOS = (".vscode/tasks.json", ".vscode/settings.json", ".devcontainer/devcontainer.json")
+LIVRES = (".vscode/extensions.json", ".devcontainer/preparar-ambiente.sh")
 PAPEIS = ("forge:dev", "forge:devops-engineer", "forge:tech-lead")
 
 

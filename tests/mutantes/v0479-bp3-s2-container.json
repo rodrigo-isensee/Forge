@@ -41,6 +41,16 @@
       "testes": [
         "tests.test_forge.PrepararEstacao.test_devcontainer_prepara_sozinho_sem_rodar_o_work_tree"
       ]
+    },
+    {
+      "id": "M5",
+      "guarda": "tirar a entrada .vscode/settings.json (Write, Edit e Bash no arquivo voltam a rc 0; A3 da segurança)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"caminho\": \".vscode/settings.json\", \"quem\": []",
+      "para": "\"caminho\": \".vscode/settings-x.json\", \"quem\": []",
+      "testes": [
+        "tests.test_conformidade_vscode_container.ArquivosQueOVsCodeExecuta.test_write_edit_e_bash_no_arquivo_em_vigor_saem_2"
+      ]
     }
   ]
 }
