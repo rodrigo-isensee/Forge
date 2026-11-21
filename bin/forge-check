@@ -3109,7 +3109,9 @@ def bug_do_qa_na_volta(raiz, de, head, nome, autores, ultimos):
     """E62.1 (DECISÃO DO DONO v0478, 2026-11-20 17:29, item 2): na volta (`de`, a conferida ou o Revisar-sha), o registro de bug em
     `docs/qa/bugs/` que o QA commitou ou mesclou na branch é anexo do portão de QA, como o parecer (E50.1): todo commit do intervalo
     que muda o arquivo só muda `docs/qa/` ou é merge sem resolução à mão (`commit_so_de_parecer`). Sem frontmatter, nada além do git
-    ancora o papel: a barreira é a do hook (só o qa grava em `docs/qa/`). Com o qa-engineer autor da volta, ou sem autor lido (falha
+    ancora o papel: a barreira é a do hook (só o qa grava em `docs/qa/`), que confere só o caminho escrito no comando; `git apply` de patch
+    de fora, `git update-index --cacheinfo` e `git cherry-pick` levam o arquivo ao commit sem o caminho na linha, como nas pastas de
+    parecer (A1 da segurança; correção no cartão CONFORMIDADE-ESCRITA-NO-INDICE, trilha E63). Com o qa-engineer autor da volta, ou sem autor lido (falha
     fechada, E50.6), só vale com o blob do último `parecer conferido` do Histórico."""
     if (not autores or PAPEL_DO_BRIEF_DO_PARECER["qa"] in autores) and not parecer_trazido(raiz, ultimos, head, nome):
         return False
