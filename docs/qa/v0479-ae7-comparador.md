@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae7-comparador
-commit: 2d1fa4faf827fbe077af623b60c21ca05882dec4
+commit: caae27c42db773f7984803f27b62ae3da7b4053e
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -120,3 +120,20 @@ Delta lido por `forge-check parecer delta` (intervalo 757355b4..2d1fa4fa): `bin/
 - Árvore do autor limpa após as rodadas.
 
 Resultado: aprovado no head 2d1fa4fa; sem bug aberto.
+
+## Revalidação no head caae27c4 (E58.60, escopo incremental)
+Delta lido por `forge-check parecer delta` (intervalo 2d1fa4fa..caae27c4): F3 passa a recusar `monitors` e `workflows` na raiz (A18), F6 passa a quebrar linha em toda quebra do `splitlines`, o CR sozinho incluso (A17), em `bin/forge_comparar.py` e na ajuda de `bin/forge-check`; `tests/test_comparar.py` (65 testes) e specs `-12`, `-13`, `-17` (nova); `changelog.d`, proposta. Saídas em `/root/.forge-contrib/wt/qa-E5860-out/`; TMPDIR próprio; `timeout 1500` em primeiro plano.
+
+- `python3 -I -m unittest discover -s tests -p test_comparar.py`: 65 testes, OK.
+- Mutantes, uma chamada por spec, todas rc 0, `rev=caae27c42db7`: -17 5, -12 8, -13 8 = 21 mutantes, 21 morreram, 0 sobreviventes, 0 sem veredito (CMP109 com `(erro)`: teste declarado dá erro sob o mutante e passa sem ele).
+- `bin/forge-mutante --cobertura --base 821db42e` (rc 0): `rev=caae27c42db7…`; todas as condições `coberta`; uma `isenta` (`bin/forge_comparar.py:297`, teto do pool); `não coberto` só em dados (`tests/comparar/corpus.jsonl`, `tests/pesos-d4.json`). Nenhuma `isenta velha`, nenhuma sem mutante.
+- Sondas por CLI em repositório meu (`qa-E5860-out/s`, corpus de 1 caso), base contra um commit que viola só o item:
+  - controle `comparar HEAD HEAD`: rc 0, `aceites-novos=0`.
+  - `.md` com CR sozinho antes de `hooks:`: rc 2, `nao-verificavel (F6 cabeçalho de .md fora da forma simples)`.
+  - `.md` com NEL (U+0085) antes de `hooks:`: rc 2, mesma saída F6.
+  - `.md` com U+2028 antes de `allowed-tools:`: rc 2, mesma saída F6.
+  - `monitors/monitors.json` na raiz: rc 2, `nao-verificavel (F3 monitors/monitors.json na raiz)`.
+  - CRLF legítimo no cabeçalho: rc 0 (sem falso positivo).
+- Árvore do autor limpa após as rodadas.
+
+Resultado: aprovado no head caae27c4; sem bug aberto.
