@@ -218,6 +218,7 @@ class IntervaloDaFila(Base):
                 codigo, erro = self.roda(self.remendado, valor)
                 self.assertEqual(codigo, esperado, erro)
                 self.assertEqual("FORGE_FILA_INTERVALO deve ser um número de segundos inteiro" in erro, esperado == 1, erro)
+                self.assertNotIn("error token", erro)  # recusado pelo case, antes da conta (sem erro do bash)
 
 
 class CoberturaDaCatraca(Base):
