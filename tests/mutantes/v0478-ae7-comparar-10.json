@@ -56,8 +56,8 @@
       "id": "CMP65",
       "guarda": "AE7.1 fora_da_medida: os .md da árvore são lidos (A13)",
       "arquivo": "bin/forge_comparar.py",
-      "de": "    if mds:\n",
-      "para": "    if False:\n",
+      "de": "    if mds:\n        cod, lote",
+      "para": "    if False:\n        cod, lote",
       "testes": [
         "tests.test_comparar.CabecalhoDoMd.test_hooks_em_qualquer_forma_no_cabecalho_e_nao_verificavel"
       ]

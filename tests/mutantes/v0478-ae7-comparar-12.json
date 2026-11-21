@@ -6,10 +6,10 @@
       "id": "CMP75",
       "guarda": "AE7.1 cabecalho: sem fecho, o texto inteiro (A13)",
       "arquivo": "bin/forge_comparar.py",
-      "de": "linha.rstrip(\"\\r\") == \"---\"), len(linhas))",
-      "para": "linha.rstrip(\"\\r\") == \"---\"), 1)",
+      "de": "linha.rstrip(\"\\r\") == \"---\"),",
+      "para": "linha.rstrip(\"\\r\") == \"--- \"),",
       "testes": [
-        "tests.test_comparar.CabecalhoDoMd.test_hooks_em_qualquer_forma_no_cabecalho_e_nao_verificavel"
+        "tests.test_comparar.CabecalhoDoMd.test_hooks_no_corpo_ou_como_texto_no_cabecalho_mede"
       ]
     },
     {
@@ -36,8 +36,8 @@
       "id": "CMP78",
       "guarda": "AE7.1 blobs_do_lote: resposta truncada (A13)",
       "arquivo": "bin/forge_comparar.py",
-      "de": "    return blobs if pos == len(lote) else None",
-      "para": "    return blobs",
+      "de": "blobs if pos == len(lote) else None",
+      "para": "blobs if pos >= len(lote) else None",
       "testes": [
         "tests.test_comparar.HooksForaDoHooksJson.test_leitura_dos_md_que_falha_e_nao_verificavel"
       ]
@@ -60,6 +60,26 @@
       "para": "any(None and CABECALHO_SUSPEITO.search(cabecalho(",
       "testes": [
         "tests.test_comparar.CabecalhoDoMd.test_hooks_em_qualquer_forma_no_cabecalho_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP81",
+      "guarda": "AE7.1 fora_da_medida: o fim da lista do ls-tree não é entrada (A11)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "for e in lista.split(b\"\\0\") if e]",
+      "para": "for e in lista.split(b\"\\0\") if True]",
+      "testes": [
+        "tests.test_comparar.Medida.test_mesma_arvore_mede_zero"
+      ]
+    },
+    {
+      "id": "CMP82",
+      "guarda": "AE7.1 fora_da_medida: .md sem diferença de caixa (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "n.lower().endswith(b\".md\")",
+      "para": "n.endswith(b\".md\")",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_hooks_no_cabecalho_de_agente_ou_skill_e_nao_verificavel"
       ]
     }
   ]
