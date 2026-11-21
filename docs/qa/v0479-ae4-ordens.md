@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae4-ordens
-commit: 916ccb02ece58f2a21179aebdf25e6e40a894d6c
+commit: b1cd22ec7933e02b3e45af9a67d8ec25afc1dda1
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -39,6 +39,14 @@ Delta: `bin/forge-check` (`recusa_do_apontador` abre o KANBAN.md uma vez por `_l
 - Vermelho: `vermelho: base=821db42ed97e head=916ccb02ece5 módulos=test_ordens`; contagem: não prova (passa na base)=1 (guarda de regressão de decisões); prova (asserção)=16; rc 0.
 - Mutantes, uma chamada por spec, todas rc 0, 24 de 24 mortos (M22 outro pedido, M23 coluna Pedido, M24 FIFO `(erro)` sob o mutante com o controle verde, vale como morto; M6-M8 reescritos para a nova forma).
 - `forge-mutante --cobertura --base 821db42e` rc 0: `base=821db42ed97e83e2108e1b88cace186eed89da6a mb=821db42ed97e83e2108e1b88cace186eed89da6a rev=916ccb02ece58f2a21179aebdf25e6e40a894d6c`; 22 linhas `coberta`, e só `não coberto: tests/pesos-d4.json` (dados, sem guarda).
+
+## Revalidação (head b1cd22ec)
+Delta de 916ccb02 a b1cd22ec no meu domínio: `bin/forge-check` (`_ler_regular` confere `S_ISREG` por `fstat` antes do `fdopen`, e pasta no lugar do quadro recusa em vez de cair com IsADirectoryError; `recusa_do_apontador` recusa quadro com U+FFFD, fora de UTF-8), `tests/test_ordens.py` (+2 testes: `test_quadro_pasta_recusa_com_rc_2`, `test_quadro_fora_de_utf8_recusa`), spec nova `v0479-ae4-ordens-4.json` e fragmento do changelog. Cada linha de guarda nova tem mutante: M25 (bin/forge-check:4847, fstat/S_ISREG) e M26 (bin/forge-check:5043, U+FFFD).
+
+- `test_ordens` 19 testes OK; `test_anotar` 18 OK; `test_decisoes` 10 OK (forma discover, TMPDIR fora do repositório; o `/dev/shm` do sandbox só vale dentro de cada chamada, e foi criado na própria chamada).
+- Mutantes, uma chamada por spec, todas rc 0, 26 de 26 mortos: spec 1 (M1-M8), spec 2 (M9-M16), spec 3 (M17-M24, M24 `(erro)` sob o mutante com o controle verde), spec 4 (M25 morreu 4847, M26 morreu 5043).
+- `forge-mutante --cobertura --base 821db42e` rc 0: `base=821db42ed97e83e2108e1b88cace186eed89da6a mb=821db42ed97e83e2108e1b88cace186eed89da6a rev=b1cd22ec7933e02b3e45af9a67d8ec25afc1dda1`; 22 linhas `coberta`, e só `não coberto: tests/pesos-d4.json` (dados, sem guarda).
+- Sem bug novo. Parecer mantido: aprovado.
 
 ## Cenários e resultado real
 Vermelho antes do verde (`TMPDIR` fora de repositório git; ver A1):
