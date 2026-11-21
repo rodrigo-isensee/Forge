@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-h2-reserva-retomada
-commit: 610ba4ce1568a305a58e9cebf7e4bb289695dd8a
+commit: 768c27efebe14607a881fd4f60b3395fc7444bf5
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
@@ -28,3 +28,10 @@ Comandos (rodados nesta cópia, TMPDIR de `mktemp -d`, ambiente limpo):
 - todas as 127 fixtures de `tests/hooks/agentes/` pelo `executar_em_lote` do módulo: OK (4 subcasos de pid pulados pelo próprio harness).
 - mutantes M1 a M4 (`v0479-h2-reserva-retomada.json`), M22, M23 (`v047-h2-autor-fica-3.json`) e I55 (`v0432-integracao-4.json`), aplicados um a um com os testes declarados: 7 de 7 mortos.
 - Suíte inteira: fica no CI do PR (R-CUSTO, M8), não rerrodada.
+
+## Revalidação (E87.7, head 768c27ef)
+Delta lido (`forge-check parecer delta`, `610ba4ce..768c27ef`): só `tests/mutantes/v0479-h2-reserva-retomada.json`, bloco `isentas` com as duas guardas apagadas que a catraca do PR #774 apontou.
+- `a.get("id")` (base 982): a ternária saiu de `recusar_branch_ocupada` para `prazo_do_registro` (hooks/agentes.py:366), coberta por M23 e I55; a chamada nova (994) tem M2. Motivo verdadeiro.
+- `a["id"] == alvo` (base 745): virou `a["id"] == aid` em `escrita_do_autor` (hooks/agentes.py:746), coberta por M22. Motivo verdadeiro.
+- `bin/forge-mutante --cobertura --base origin/develop`: rc=0; 366, 371, 746 e 1302 cobertas; 982(base) e 745(base) isentas.
+- `bin/forge-mutante --processos 1 --ids`: M22, M23, I55 e M2 mortos no head 768c27ef.
