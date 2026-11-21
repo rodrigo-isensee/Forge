@@ -9,6 +9,7 @@ Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, http
 
 ## Sessão
 - Abra e retome o Jarvis sempre no automático: `jarvis` ou `claude --agent forge:jarvis --permission-mode auto`. No primeiro comando o Jarvis confere o sandbox do Bash; se falhar, para e avisa o dono com o comando para reabrir a sessão (o dono nunca aprova comando a comando).
+- **Vários projetos na máquina:** uma janela e um Jarvis por projeto, cada um na sua pasta, no modo auto. Com dois ou mais ativos, o teto de agentes da máquina é dividido em partes iguais; para dar mais a este projeto, `jq '.peso = 2' .forge/config.json > .forge/config.novo && mv .forge/config.novo .forge/config.json` (acima de 0 e até 10; padrão 1), por branch e PR. O escape `FORGE_CARGA_LIVRE=1` só vale com um projeto ativo; no Telegram, um bot só, com `[<projeto>]` em cada resposta. Ver a máquina: `forge-status --maquina`. Guia: README do Forge, seção "Vários projetos na mesma máquina".
 
 ## Ritmo do time
 - **Ritmo diário:** o time desenvolve em paralelo, dia e noite, e junta cada item verde na branch de integração em lotes de até 3, nunca sem os testes verdes; a versão sai quando a branch de integração tem um conjunto verde que valha uma versão, até 2 por dia, num PR para a `main`. À noite o Jarvis não escreve ao dono, salvo algo grave que mude prazo ou risco.

@@ -60,7 +60,8 @@ class Base(unittest.TestCase):
         original = fc.datetime
         fc.datetime = RelogioFixo
         try:
-            return fc.cmd_anotar(self.tmp, "exemplo", tipo, literal, contexto, confere="mede" if tipo == "decisao" else None)
+            return fc.cmd_anotar(self.tmp, "exemplo", tipo, literal, contexto, confere="mede" if tipo == "decisao" else None,
+                                 cartao="E1.1" if tipo == "ordem" else None)  # AE4.1: a ordem aponta para a etapa
         finally:
             fc.datetime = original
 

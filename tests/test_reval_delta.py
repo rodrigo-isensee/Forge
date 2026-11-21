@@ -131,12 +131,15 @@ CITACOES_CONHECIDAS = {**{(a, "README.md"): (n, "nome") for a, n in _NOME.items(
                        ("tests/apoio_volta_unica.py", "docs/propostas/"): (1, "prosa"),
                        ("tests/test_forge.py", "README.md"): (16, "teste-le"), ("tests/test_conferir_reversao.py", "README.md"): (14, "teste-le"), ("tests/test_doutor.py", "README.md"): (1, "teste-le"),
                        ("tests/test_forge.py", "docs/propostas/"): (2, "teste-le"),
+                       ("tests/test_retro_pendentes.py", "docs/retrospectivas/"): (1, "teste-le"),  # v0478 AE5.1: confere que os dois modelos da retro são iguais
                        # 0.45.7 E1: o texto da R-WIP mora em docs/regras/README.md; o invariante, o teste e o apoio o leem
                        ("tests/test_jarvis_nucleo.py", "README.md"): (1, "teste-le"),  # lê a linha da R-WIP em docs/regras/README.md
                        ("tests/config.json", "README.md"): (2, "teste-le"), ("tests/apoio_regra_id.py", "README.md"): (1, "teste-le"),
                        ("tests/apoio_jarvis.py", "README.md"): (1, "teste-le"),  # v047 P4: o índice das regras (IDs e a linha da R-WIP)
                        ("tests/test_ambiente_sem_auto_update.py", "README.md"): (1, "teste-le"),  # v047: o teste lê o texto do README
-                       ("tests/test_sessao_automatica.py", "README.md"): (1, "teste-le")}  # v047 E2.222: o teste lê o README para conferir que nenhuma instrução abre o claude sem o modo
+                       ("tests/test_sessao_automatica.py", "README.md"): (1, "teste-le"),  # v047 E2.222: o teste lê o README para conferir que nenhuma instrução abre o claude sem o modo
+                       ("tests/test_guia_varios_projetos.py", "README.md"): (1, "teste-le"),  # v0478 E24.1 (MP9): o teste lê o guia no README
+                       ("bin/forge_comparar.py", "README.md"): (1, "nome")}  # v0478 AE7: arquivo do projeto sintético de cada caso, só escrito
 MOTIVOS = ("nome", "destino", "prosa", "teste-le")
 LE_CONTEUDO = ("read_text(", "open(", '"show"', "cat ")  # (d): leitura de conteúdo não se esconde atrás de `nome`
 

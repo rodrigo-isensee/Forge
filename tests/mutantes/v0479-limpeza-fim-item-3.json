@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-limpeza-fim-item",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: sem MERGED, só as cópias",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ -z \"$merged_heads\" ]; then",
+      "para": "  if false; then",
+      "testes": [
+        "tests.test_forge_fechar.LimparSemMerge.test_pr_fechado_apaga_o_clone_limpo_e_a_branch_fica"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: PR aberto para sem apagar",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no --limpar: sem prova de merge e com PR aberto",
+      "para": "|| true \"parou no --limpar: sem prova de merge e com PR aberto",
+      "testes": [
+        "tests.test_forge_fechar.LimparSemMerge.test_pr_aberto_para_sem_apagar"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: a principal não é cópia do item",
+      "arquivo": "bin/forge-fechar",
+      "de": "    [ \"$(cd \"$d\" 2>/dev/null && pwd -P)/.git\" = \"$comum\" ] || copias+=(\"$d\")",
+      "para": "    copias+=(\"$d\")",
+      "testes": [
+        "tests.test_forge_fechar.LimparSemMerge.test_a_copia_principal_na_branch_nao_e_copia_do_item"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: só clone (pasta .git) de wt",
+      "arquivo": "bin/forge-fechar",
+      "de": "    if [ ! -d \"$d/.git\" ] || [ \"$(cd \"$d/.git\" && pwd -P)\" = \"$comum\" ] || [ -z \"$url_aqui\" ]; then continue; fi",
+      "para": "    :",
+      "testes": [
+        "tests.test_forge_fechar.LimparSemMerge.test_pr_fechado_apaga_a_worktree_limpa"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: só clone da branch",
+      "arquivo": "bin/forge-fechar",
+      "de": "    if [ \"$(\"${g[@]}\" symbolic-ref -q HEAD 2>/dev/null || true)\" = \"refs/heads/$ref\" ] \\",
+      "para": "    if true \\",
+      "testes": [
+        "tests.test_forge_fechar.LimparSemMerge.test_clone_de_outra_branch_nao_e_tocado"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: sem cópia para como antes",
+      "arquivo": "bin/forge-fechar",
+      "de": "  [ \"${#copias[@]}\" != 0 ] || die \"parou no --limpar: sem prova de merge: nenhum",
+      "para": "  [ \"${#copias[@]}\" != 0 ] || true \"parou no --limpar: sem prova de merge: nenhum",
+      "testes": [
+        "tests.test_forge_fechar.LimparSemMerge.test_sem_copia_para_como_antes"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: recusa do forge-copia vira pendência",
+      "arquivo": "bin/forge-fechar",
+      "de": "\" limpar \"$d\" --base \"$base\"; then",
+      "para": "\" limpar \"$d\" --base \"$base\" || true; then",
+      "testes": [
+        "tests.test_forge_fechar.LimparSemMerge.test_copia_suja_fica_com_codigo_3"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: pendência sai com 3",
+      "arquivo": "bin/forge-fechar",
+      "de": "  [ -z \"$pend\" ] || {",
+      "para": "  true || {",
+      "testes": [
+        "tests.test_forge_fechar.LimparSemMerge.test_copia_suja_fica_com_codigo_3"
+      ]
+    }
+  ]
+}

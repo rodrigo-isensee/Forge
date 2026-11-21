@@ -1,0 +1,66 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP68",
+      "guarda": "AE7.1 fora_da_medida: ls-tree que falha (A11)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if cod != 0 or not all(itens):\n        return \"árvore ilegível\"",
+      "para": "    if not all(itens):\n        return \"árvore ilegível\"",
+      "testes": [
+        "tests.test_comparar.LinksESource.test_arvore_que_nao_se_lista_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP69",
+      "guarda": "AE7.1 fora_da_medida: F1, link e submódulo saem (A11, A14)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if fora:\n        return f\"F1 modo",
+      "para": "    if False:\n        return f\"F1 modo",
+      "testes": [
+        "tests.test_comparar.LinksESource.test_link_simbolico_em_qualquer_pasta_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP71",
+      "guarda": "AE7.1 marketplace_fora_da_lista: uma entrada só (F5, A12)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "len(plugins) == 1 and",
+      "para": "len(plugins) >= 1 and",
+      "testes": [
+        "tests.test_comparar.LinksESource.test_source_fora_da_raiz_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP72",
+      "guarda": "AE7.1 marketplace_fora_da_lista: source só . ou ./ (F5, A12)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "plugins[0].get(\"source\") in (\".\", \"./\")",
+      "para": "plugins[0].get(\"source\") is not None",
+      "testes": [
+        "tests.test_comparar.LinksESource.test_source_fora_da_raiz_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP73",
+      "guarda": "AE7.1 marketplace_fora_da_lista: marketplace que não se lê (F5)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    except (TypeError, KeyError):\n        return True",
+      "para": "    except (TypeError, KeyError):\n        return False",
+      "testes": [
+        "tests.test_comparar.LinksESource.test_source_fora_da_raiz_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP74",
+      "guarda": "AE7.1 cabecalho: .md sem --- no começo não tem cabeçalho (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if not linhas[0].startswith(\"---\"):",
+      "para": "    if True:",
+      "testes": [
+        "tests.test_comparar.CabecalhoDoMd.test_hooks_em_qualquer_forma_no_cabecalho_e_nao_verificavel"
+      ]
+    }
+  ]
+}
