@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae5-retro-pendentes
-commit: 2d378b98dfa98a5f3be4879335985a04c4093b7e
+commit: 8d2efa1fdc94a5962a2323c38592a079a23c1612
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -40,3 +40,10 @@ Sem especificação de UX; as obrigações são as de AE5.1 (pendente = tag da m
 - `python3 -I -m unittest discover -s tests -p test_retro_pendentes.py` (TMPDIR do sandbox): 20 testes, OK.
 - `... -p test_reval_delta.py`: 10 testes, OK (a contagem 1 da entrada confere com a citação real do teste).
 - Vermelho e mutantes: a lógica não mudou desde e375c67a; as provas anteriores seguem. Sem suíte local; bateria do CI não consultada.
+
+## Revalidação no head 8d2efa1f
+- Delta (`forge-check parecer delta`, intervalo 2d378b98..8d2efa1f, sem o que veio da develop): `bin/forge-check` (COBRE_DA_RETRO, VERSAO_DA_TAG, REF_DA_MAIN viram texto e compilam no uso via `re.match`/cache do `re`), 3 specs de mutantes ajustadas, uma contagem em tests/test_reval_delta.py (README.md 15 para 16, citação de teste).
+- `test_retro_pendentes.py`: 20 testes, OK. `test_hooks_volta_corpus.py`: 33 testes, OK.
+- `forge-mutante` nas specs `v0478-ae5-retro-pendentes`, `-2`, `-3` (uma chamada por spec; `rev=8d2efa1fdc94`): M1 a M8, M9 a M16, M17 a M24, todos `morreu`, nenhum sobrevivente.
+- Vermelho (`bin/forge-testes --vermelho 821db42e --modulos test_retro_pendentes --prazo 1100`): `vermelho: base=821db42ed97e head=8d2efa1fdc94`; contagem: não prova (passa na base)=2; prova (API ausente)=2; prova (asserção)=16; rc=0. O delta não traz teste novo.
+- Sem suíte local; bateria do CI não consultada por esta passada.
