@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
       ]
+    },
+    {
+      "id": "L8",
+      "guarda": "só o erro interno vai ao registro, na linha que cita o controle (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if interno:\n",
+      "para": "            if not interno:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
     }
   ]
 }
