@@ -3,29 +3,27 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-til-link
-commit: 9451e78c19bbbe44b640c04ff1f6a135e0b41767
-parecer: aprovado
+commit: 2acfe2102f93ac66e2c86d572df67347e0963dca
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-21
 ---
-# Review: v0478 E80.7 (revalidação da CONFORMIDADE-TIL-EM-SUBSTITUICAO e da CONFORMIDADE-LINK-POR-COPIA)
+# Review: v0478 E80.11 (revalidação da CONFORMIDADE-TIL-EM-SUBSTITUICAO e da CONFORMIDADE-LINK-POR-COPIA)
 
-Base `adc52def`, head `9451e78c`. Delta lido (`forge-check parecer delta`): `481d2855..9451e78c`, com `hooks/conformidade.py`, `docs/hooks.md`, `tests/test_hooks.py`, o fragmento, o índice das fixtures, 47 fixtures e 7 specs de mutantes. Código do item em `hooks/conformidade.py`: 101 linhas a mais e 9 a menos desde a base (H1 dentro do teto).
+Base `adc52def`, head `2acfe210`. Delta lido (`forge-check parecer delta`): `9451e78c..2acfe210`, com `hooks/conformidade.py`, `docs/hooks.md`, o fragmento, o índice das fixtures, 11 fixtures e as specs `-3`, `-4` e `-5`. Código do item em `hooks/conformidade.py`: 103 linhas a mais e 9 a menos desde a base (H1 dentro do teto).
 
 ## Achados
-- A1 (recomendado) hooks/conformidade.py:3893 · O comentário e docs/hooks.md:56 dizem que listar o pacote segue livre, mas `unzip -l` e `dpkg -l` numa linha com o `.claude` recusam (S1). O fechamento está certo; corrija o texto (só o `tar -t` lista livre).
-- A2 (recomendado) hooks/conformidade.py:2432 · O interpretador com o texto em heredoc passa e não aparece como limite: `d=~/.claude; python3 - <<EOF` com `open("$d/settings.json","a")` dá 0, e sem o `-` também (S2). A decisão de fechar ou declarar o limite é da segurança (`R-SEGURANCA`); o sandbox já nega a escrita no `.claude`.
-- A3 (recomendado) hooks/conformidade.py:3894 · `LONGA_DO_LINK` e `EXTRAI_DO_TAR` escrevem os prefixos à mão em grupos aninhados, de leitura difícil; gere-os por função (`prefixos("archive")`), montada no carregamento, sem custo. Na linha 3971, use `normalizada` no lugar do `re.sub` copiado.
+- A1 (bloqueante) hooks/conformidade.py:3904 · O `-m tarfile` com o `-e` colado ao arquivo (`-el.tar`, que o argparse aceita e extrai no diretório corrente) escapa pelo `(?![\w-])`: `cd ~/.claude && python3 -m tarfile -el.tar` dá 0 (S1, S2). Aceite o `-e` com o valor colado e ponha fixture.
+- A2 (recomendado) hooks/conformidade.py:3909 · O `.git` no fim de uma URL também conta como arquivo em vigor: `git clone https://h/x/y.git && tar -xf a.tar -C src` recusa (S3). É falso positivo que só fecha, mas mostra a mensagem errada. Avalie `\.git(?![\w-])(?!$|\s)` ou declare o limite em docs/hooks.md.
 
 ## Sondas
-- S1 · tech-lead, `unzip -l ~/l.zip > ~/w/a.txt; cat ~/.claude/settings.json` e `dpkg -l > ~/w/a.txt; ls ~/.claude` · espera: 0 (o texto diz que listar segue livre) · obtido: 2
-- S2 · tech-lead, `d=~/.claude; python3 - <<EOF` + `open("$d/settings.json","a")` + `EOF` · espera: 2 (interpretador com texto numa linha que cita o `.claude`) · obtido: 0
+- S1 · tech-lead, `cd ~/.claude && python3 -m tarfile -el.tar` · espera: 2 (A5: `-m tarfile -e` numa linha que cita arquivo em vigor) · obtido: 0
+- S2 · tech-lead, `cd ~/.forge-contrib/wt/q/docs/pedidos && python3 -m tarfile -el.tar` (base `linkcopia-python-m-tarfile-bloqueia`) · espera: 2 · obtido: 0; com `-e l.tar` e com `--extract=l.tar` dá 2
+- S3 · tech-lead, `git clone https://h/x/y.git && tar -xf a.tar -C src` · espera: 0 (nenhum arquivo em vigor) · obtido: 2
 
 ## Parecer
-Aprovado. A mudança só aperta (`R-CONFORMIDADE`): `normalizada` só tira caracteres antes da busca e não muda a leitura da linha; `fechado_em_vigor` e `OPACO_EM_VIGOR` só acrescentam `barrar`, e o segundo fala no fim, depois do valor calculado. A sequência das reatribuições vale só no ramo `sequencia=True`, que acrescenta alvos a `calculados`. Fora dele, a regra de antes continua: mais de uma atribuição dá None. O A1 do review anterior (docs/hooks.md:56) foi atendido.
+Reprovado pelo A1. A regra nova do A5 da segurança cobre `-e l.tar` e `--extract`, mas deixa passar a forma com o argumento colado, que o `tarfile` aceita. Prova: `python3 -I -m tarfile -el.tar` num diretório vazio extraiu `a.txt` com rc 0. No `zipfile` a forma colada não funciona, porque o `-e` exige 2 argumentos.
 
-Specs realinhadas, sem enfraquecer: CF1-D1 tira só o `atribui_como_argumento` e mantém o `and not sequencia`, então continua mirando o `declare -n`. O60 (`if False or …`) desliga a regra das várias atribuições nos dois ramos. O88 (`if True`) força o `SEM_VALOR` antes da sequência. W8 só acompanha a linha nova da regex e continua tirando o ponto como programa.
+Realinhamentos conferidos, sem enfraquecer nada. O F6 continua desligando só o `.claude` (`claudeQ|forge|git`), e o V1 e o V2 cobrem `.forge` e `.git`, um mutante por alternativa. O S4 continua no `if False` da linha nova. O F5 só acompanha a linha da regex, que passou a começar por `(?![\w-])|php`, e continua mirando o `php`. O V3 restaura a condição antiga, ou seja, o mutante é a regressão exata. O V4 e o V5 desligam o ramo `-m tarfile|zipfile` e o `--extract`. As outras sondas deram o esperado: `cd .git && python3 -m zipfile -e l.zip .` dá 2, `d=~/.claude; python3 -m tarfile -e l.tar "$d"` dá 2 e `cd ~/.claude && tar -xf l.tar` dá 2.
 
-Custo do corpus: `test_corpus_nos_dois_hooks` passa sem mudar `MEDIDA_DO_CORPUS` nem `RUIDO_DO_CORPUS` (`tests/apoio_volta_unica.py` fica fora do delta). A regra nova cabe no teto. `fechado_em_vigor` só roda no ramo do interpretador com opção antes do script e no dos extratores. A regex é compilada no uso, pelo cache do `re`. O que pesa na leitura é o A3, não o custo.
-
-Testes rodados no head, em segundo plano com log e `rc=0` e TMPDIR próprio: `test_fixtures_do_til_em_substituicao` (fixtures `tilsubst-*`), `test_fixtures_do_link_por_copia` (`linkcopia-*`), `tests.test_conformidade_verde` e `tests.test_hooks_volta_corpus`. Foram 79 testes, OK, em 311 s. As outras sondas, todas como esperado: `env python3 -c` e `python3 -I -c` com `$d` do `.claude` dão 2; `tar -tf` numa linha com o `.claude` e `python3 -c` sem arquivo em vigor dão 0. A suíte inteira fica para o CI do PR (`R-REVIEW`); este brief não tem PR.
+Testes rodados no head, em segundo plano, com log, `rc=` e TMPDIR próprio: `test_fixtures_do_til_em_substituicao` (`tilsubst-*`), `test_fixtures_do_link_por_copia` (`linkcopia-*`), `tests.test_conformidade_verde` e `tests.test_hooks_volta_corpus`. Foram 79 testes em 335 s. Na primeira rodada, com o TMPDIR dentro de `~/.forge-contrib`, 4 falharam: 3 do `test_conformidade_verde` e o `test_corpus_nos_dois_hooks`. Na segunda, com o TMPDIR do `mktemp -d` fora da pasta de controle, os 4 passaram (36 testes, OK, `rc=0`). As falhas vinham do ambiente, não do head. A suíte inteira fica para o CI do PR (`R-REVIEW`).
