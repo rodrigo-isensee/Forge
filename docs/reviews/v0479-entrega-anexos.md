@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-entrega-anexos
-commit: 0fc3623eb2aa597b6829350aa07266a3ae1c8a00
+commit: 260e39c72536dc858766cccc6c8417173166cdc2
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
@@ -49,13 +49,22 @@ Delta lido: `forge-check parecer delta docs/reviews/v0479-entrega-anexos.md`, in
 
 Os achados A1 e A2 seguem, com as linhas atualizadas.
 
+## Revalidação E62.30 (head 260e39c7)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-entrega-anexos.md`, intervalo `0fc3623e..260e39c7`. No domínio entram `bin/forge-check`, `docs/hooks.md` e `docs/hooks-fixtures.md`. O head mudou só pelo merge `260e39c7` da develop (`8caa7f3d`, com o #758, o #762 e o #763), com conflito resolvido em `docs/hooks.md` e o índice regenerado. Separei a branch com `git diff origin/develop HEAD` (origin/develop = `8caa7f3d`) e comparei as linhas `+`/`-` com `git diff c8e8a08d 0fc3623e` (a parte aprovada): iguais em `bin/forge-check`, `docs/hooks.md`, `tests/test_selo_e_entrega.py`, `tests/mutantes/v0479-entrega-anexos.json` e no fragmento do changelog; as quatro fixtures `pp-sessao-forge-*-qa-bugs-*` são as mesmas.
+- `bin/forge-check`: o subcomando `comparar` do delta é do #763 (some no diff contra a develop) e fica fora deste parecer.
+- `docs/hooks.md`: a resolução manteve a linha PARECER-PELO-PAPEL da branch (a subpasta `docs/qa/bugs/` e o limite do A1 da segurança) e as linhas CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS, escrita no índice e substituição da develop intactas.
+- Índice: 3368 da develop mais as 4 da branch, 3372. `scripts/indice-fixtures.py --conferir`: `em dia`. `unittest discover -s tests -p test_indice_fixtures.py`: `Ran 7 tests ... OK`; `-p test_reval_delta.py`: `Ran 10 tests ... OK`.
+- CI do PR #745 no head `260e39c7`: `catraca` falha por `R-CONFORMIDADE: mudança em bin/forge-check`, que pede o rótulo `afrouxa-regra` do dono depois do último push (ADR 0008), não por defeito; `bateria (pareceres)` falha com o run em andamento (pareceres no head anterior, que os portões renovam); suíte pendente. O merge depende do CI verde e do rótulo.
+
 ## Achados
 - A1 (recomendado) bin/forge-check:3160 · Remoção do registro num commit só de docs/qa/ sai como anexo com o rótulo "commitado", sem teste. A barreira do hook segura o autor: sonda S1 abaixo. Sugestão: teste do caso e rótulo próprio para a remoção.
 - A2 (recomendado) tests/mutantes/v0479-entrega-anexos.json:10 · M1 troca startswith por tipo=="qa" e valido por valido or base_sha num mutante só; nem cada condição sozinha nem o not com_controle(nome) da linha 3385 têm prova própria. Sugestão: um mutante por condição.
 
 ## Sondas
+- S1 · `bug_do_qa_na_volta` num repositório temporário, commit só com `git rm docs/qa/bugs/x.md`, autor `node-backend` · espera: remoção com prova própria · obtido: `True`, com o rótulo "commitado"
+- S2 · fixture `pp-sessao-forge-wt-dev-redireciona-qa-bugs-bloqueia` com `rm docs/qa/bugs/x-01.md` e com `git rm -q docs/qa/bugs/x-01.md` · espera: código 2 · obtido: código 2 nas duas (`parecer de QA é do qa: docs/qa/`)
 
 ## Parecer
-Aprovado no head `0fc3623e`, revalidado pelo delta do merge da develop sobre o aprovado em `de63ff10` (que já tinha sido revalidado pelo delta de texto sobre `df0aef74`). O item faz o que o item 2 da decisão do dono pede: espelha o E50.1 e o E50.6 sem o frontmatter, que o registro de bug não tem. A barreira de papel é a do hook, e as fixtures a provam na sessão do Forge.
+Aprovado no head `260e39c7`, revalidado pelo delta do merge da develop sobre o aprovado em `0fc3623e`, que revalidou o merge anterior sobre `de63ff10` (que já tinha sido revalidado pelo delta de texto sobre `df0aef74`). O item faz o que o item 2 da decisão do dono pede: espelha o E50.1 e o E50.6 sem o frontmatter, que o registro de bug não tem. A barreira de papel é a do hook, e as fixtures a provam na sessão do Forge.
 
 Sonda de A1, que não bloqueia: com um repositório temporário, `fc.bug_do_qa_na_volta(r, de, "HEAD", "docs/qa/bugs/x.md", {"node-backend"}, {})` devolveu `True` depois de um commit só com `git rm docs/qa/bugs/x.md`. No hook, a fixture `pp-sessao-forge-wt-dev-redireciona-qa-bugs-bloqueia` com o comando trocado por `rm docs/qa/bugs/x-01.md` e depois por `git rm -q docs/qa/bugs/x-01.md` deu as duas vezes código 2 (`parecer de QA é do qa: docs/qa/`). A remoção tem, então, a mesma barreira da escrita, como a decisão manda. Os dois achados são recomendados e viram cartão depois do merge.
