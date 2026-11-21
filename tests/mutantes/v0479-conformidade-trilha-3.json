@@ -47,7 +47,7 @@
       "guarda": "o shell que lê o pipe numa linha que cita o envio (E63.1)",
       "arquivo": "hooks/conformidade.py",
       "de": "        if cita_o_envio and programa and shell_que_le_a_entrada(nomes, valores, opacas, comando.redirecoes):  # o `in` antes\n",
-      "para": "        if False:\n",
+      "para": "        if False:  # o `in` antes\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
       ]

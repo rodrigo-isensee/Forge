@@ -27,7 +27,7 @@
       "guarda": "o caminho da política com * é procurado no texto do interpretador (E63.5, A9)",
       "arquivo": "hooks/conformidade.py",
       "de": "            if \"*\" in c:  # A9 da E63.3: o `*` da política casa um trecho sem barra no texto\n",
-      "para": "            if False:\n",
+      "para": "            if False:  # A9 da E63.3: o `*` da política casa um trecho sem barra no texto\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
       ]
@@ -37,7 +37,7 @@
       "guarda": "o filtro barato do caminho com * só pula o texto sem o fim do caminho (E63.5, A9)",
       "arquivo": "hooks/conformidade.py",
       "de": "                if c.rsplit(\"*\", 1)[1] not in texto:  # o fim depois do `*` antes da busca: custo do corpus\n",
-      "para": "                if True:\n",
+      "para": "                if True:  # o fim depois do `*` antes da busca: custo do corpus\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
       ]
@@ -48,6 +48,16 @@
       "arquivo": "hooks/conformidade.py",
       "de": "        if achado:\n            return achado.group(0)\n",
       "para": "        if False:\n            return achado.group(0)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "V8",
+      "guarda": "o caminho da política com ~/ casa também pelo home real (E63.5, A9)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    for forma in ((caminho, caminho.replace(\"~\", home, 1)) if caminho.startswith(\"~/\") else (caminho,)):\n",
+      "para": "    for forma in ((caminho, caminho.replace(\"~\", home, 1)) if False else (caminho,)):\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
       ]

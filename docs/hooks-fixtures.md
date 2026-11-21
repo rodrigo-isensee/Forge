@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3326 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3327 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,7 +10,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3326 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 125 | 66 | 59 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2498 | 1843 | 655 | 100 |
+| `conformidade` | 2499 | 1844 | 655 | 100 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 32 | 13 | 19 | 14 |
 | `parecer` | 583 | 448 | 135 | 27 |
@@ -76,7 +76,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3326 fixtures) roda em `tests/test
 | `v0453-*` | 81 | 57 | 24 | `R-FLUXO`, `R-CONFORMIDADE` | `V0453-GH-ALIAS`, `V0453-AQ-LEITURA`, `V0453-PARECER-BASH`, `V0453-PUSH-TODAS` | V0453-AQ-LEITURA: aq não prepara commit |
 | `heredoc-*` | 68 | 59 | 9 | `R-CONFORMIDADE`, `R-MAIN`, `R-REVIEW`, `R-VERIFY` | `HEREDOC-FURO-HOOK`, `C-8`, `HEREDOC-COMENTARIO`, `HEREDOC-DONOS` e mais 1 | A1 do review (volta 3): o mkdir e o cd antes do && não leem o corpo: o dono é o cat > n.md, que só o grava. |
 | `e51-*` | 59 | 40 | 19 | `R-CONFORMIDADE`, `R-VERIFY`, `R-MAIN`, `R-FLUXO` | `E51.6`, `E51.10`, `E51.1`, `E51.18` e mais 2 | E51.10 (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE): sessão do Forge com a pasta corrente no clone: o alias encadeado demais é trava. |
-| `cpb-*` | 53 | 35 | 18 | `R-CONFORMIDADE` | `CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS` | CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.1; R-CONFORMIDADE): sessão do Forge, o papel dev grava docs/briefs/ da pasta de controle (cp)… |
+| `cpb-*` | 54 | 36 | 18 | `R-CONFORMIDADE` | `CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS` | CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.1; R-CONFORMIDADE): sessão do Forge, o papel dev grava docs/briefs/ da pasta de controle (cp)… |
 | `merge-*` | 47 | 40 | 7 | `R-CONFORMIDADE`, `R-REVIEW`, `R-MAIN`, `R-DECISAO` | `FURO-HOOK-A`, `FILA-22`, `QA` | git merge main numa branch de trabalho (atualização): qualquer papel. |
 | `sub-*` | 41 | 29 | 12 | — | `CONFORMIDADE-SUBSTITUICAO-NO-PROJETO` | CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (v0478 E63.1, alvo opaco por lista positiva do E51.6; R-VERIFY, R-FLUXO): no projeto, o dev envia à dev… |
 | `lancador-*` | 40 | 36 | 4 | `R-CONFORMIDADE`, `R-VERIFY` | — | Prefixo desembrulhado antes de classificar: command git commit --no-verify -m x |
