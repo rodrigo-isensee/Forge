@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-entrega-anexos
-commit: de63ff10d81d574f47bfa12365fcde7e2df9d319
+commit: 0fc3623eb2aa597b6829350aa07266a3ae1c8a00
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-20
+data: 2026-11-21
 ---
 # Review: v0478 E62.2 (melhoria/v0479-entrega-anexos)
 
@@ -37,13 +37,25 @@ DECISÃO DO DONO (2026-11-20 17:29), item 2: na conferência da entrega, `docs/q
 ## Revalidação E62.6 (head de63ff10)
 Delta lido: `forge-check parecer delta docs/reviews/v0479-entrega-anexos.md`, intervalo `df0aef74..de63ff10`, no domínio só `bin/forge-check` (docstring de `bug_do_qa_na_volta`, 2 linhas), `changelog.d/v0479-entrega-anexos.md` e `docs/hooks.md`. Volta só de texto: registra o limite do hook (só o caminho escrito no comando; `git apply`, `git update-index --cacheinfo`, `git cherry-pick`) apontado no A1 da segurança e o cartão CONFORMIDADE-ESCRITA-NO-INDICE. Nenhuma guarda nem comportamento muda; `ast.parse` do `bin/forge-check` sem erro. O texto bate com o A1 da segurança e não amplia o escopo. Os achados A1 e A2 abaixo seguem como estavam.
 
+## Revalidação E62.26 (head 0fc3623e)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-entrega-anexos.md`, intervalo `de63ff10..582e800a`. No domínio entram `bin/forge-check`, `docs/hooks-fixtures.md`, `docs/hooks.md` e `tests/test_selo_e_entrega.py`. O head mudou só pelo merge `0fc3623e` da develop (`c8e8a08d`, com o #752). Separei o que é da branch pelo `git diff c8e8a08d HEAD` e comparei linha a linha com o diff aprovado `d4f0b10a..de63ff10`: a parte da branch é igual à aprovada, salvo o contexto.
+- A ajuda da `entrega` é a linha da develop (ENTREGA-MERGE-DA-DEVELOP e ENTREGA-MERGE-DE-PARECER-ANINHADO, do #752) com a frase do E62.1 no fim: os dois textos ficam.
+- `bug_do_qa_na_volta` e o ramo em `linhas_de_entrega` não mudaram, só de lugar: agora `bin/forge-check:3149-3160` e `:3385`.
+- `tests/test_selo_e_entrega.py`: +116/-0 sobre a develop. A classe `BugDoQaNaVolta` está intacta, e as classes do #752 vêm da base sem resolução à mão.
+- Índice de fixtures: de 3199 para 3203 (+4, as mesmas quatro `pp-sessao-forge-*`). `scripts/indice-fixtures.py --conferir` dá `em dia`.
+- O resto do delta (`vale_pelo_conferido`, `conferido_mais_novo`, `vindos_do_remoto_da_base`) é do #752. Já foi revisado no PR dele e fica fora deste parecer.
+- `unittest discover -s tests -p test_selo_e_entrega.py -k BugDoQaNaVolta`: `Ran 10 tests ... OK` no head.
+- CI do PR #745 no head `582e800a`: bateria e instalação `pass`, partes da suíte em andamento. O merge depende dele.
+
+Os achados A1 e A2 seguem, com as linhas atualizadas.
+
 ## Achados
-- A1 (recomendado) bin/forge-check:3117 · Remoção do registro num commit só de docs/qa/ sai como anexo com o rótulo "commitado", sem teste. A barreira do hook segura o autor: sonda S1 abaixo. Sugestão: teste do caso e rótulo próprio para a remoção.
-- A2 (recomendado) tests/mutantes/v0479-entrega-anexos.json:10 · M1 troca startswith por tipo=="qa" e valido por valido or base_sha num mutante só; nem cada condição sozinha nem o not com_controle(nome) da linha 3337 têm prova própria. Sugestão: um mutante por condição.
+- A1 (recomendado) bin/forge-check:3160 · Remoção do registro num commit só de docs/qa/ sai como anexo com o rótulo "commitado", sem teste. A barreira do hook segura o autor: sonda S1 abaixo. Sugestão: teste do caso e rótulo próprio para a remoção.
+- A2 (recomendado) tests/mutantes/v0479-entrega-anexos.json:10 · M1 troca startswith por tipo=="qa" e valido por valido or base_sha num mutante só; nem cada condição sozinha nem o not com_controle(nome) da linha 3385 têm prova própria. Sugestão: um mutante por condição.
 
 ## Sondas
 
 ## Parecer
-Aprovado no head `de63ff10` (revalidado pelo delta de texto sobre o aprovado em `df0aef74`). O item faz o que o item 2 da decisão do dono pede: espelha o E50.1 e o E50.6 sem o frontmatter, que o registro de bug não tem. A barreira de papel é a do hook, e as fixtures a provam na sessão do Forge.
+Aprovado no head `0fc3623e`, revalidado pelo delta do merge da develop sobre o aprovado em `de63ff10` (que já tinha sido revalidado pelo delta de texto sobre `df0aef74`). O item faz o que o item 2 da decisão do dono pede: espelha o E50.1 e o E50.6 sem o frontmatter, que o registro de bug não tem. A barreira de papel é a do hook, e as fixtures a provam na sessão do Forge.
 
 Sonda de A1, que não bloqueia: com um repositório temporário, `fc.bug_do_qa_na_volta(r, de, "HEAD", "docs/qa/bugs/x.md", {"node-backend"}, {})` devolveu `True` depois de um commit só com `git rm docs/qa/bugs/x.md`. No hook, a fixture `pp-sessao-forge-wt-dev-redireciona-qa-bugs-bloqueia` com o comando trocado por `rm docs/qa/bugs/x-01.md` e depois por `git rm -q docs/qa/bugs/x-01.md` deu as duas vezes código 2 (`parecer de QA é do qa: docs/qa/`). A remoção tem, então, a mesma barreira da escrita, como a decisão manda. Os dois achados são recomendados e viram cartão depois do merge.
