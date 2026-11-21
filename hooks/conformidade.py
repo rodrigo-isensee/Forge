@@ -194,7 +194,7 @@ CITA_ROTULO = re.compile(rf"{ROTULO_PROTEGIDO}|{GRAPHQL_DE_ROTULO.pattern}", re.
 TIMEOUT_DA_CONTA = 5  # s; abaixo do timeout do hook em hooks.json (10 s), senão o Claude Code o mata e o comando segue
 # FURO-HOOK-A, A3: a configuração que troca a estratégia ou o resultado do merge (R-REVIEW): a chave vale em `git config` e em `-c`
 CONFIG_DO_MERGE = re.compile(r"^(branch\..+\.mergeoptions|pull\.(twohead|octopus)|merge\..+\.driver)(=|$)", re.I)
-CONFIG_PROTEGIDA = re.compile(r"^(user\.|core\.|commit\.gpgsign$|include|alias\.)|" + CONFIG_DO_MERGE.pattern[1:], re.I)
+CONFIG_PROTEGIDA = re.compile(r"^(user\.|core\.|commit\.gpgsign$|include|alias\.|help\.autocorrect)|" + CONFIG_DO_MERGE.pattern[1:], re.I)
 MERGE_OPCOES_QUE_MUDAM_O_RESULTADO = ("--strategy", "--strategy-option", "--squash", "--no-commit")  # e `-s`, `-X`
 CONFIG_LEITURA = {"--get", "--get-all", "--get-regexp", "--get-urlmatch", "--list", "-l", "--show-origin", "--show-scope",
                   "--show-names", "--name-only", "--help", "-h"}
@@ -2798,8 +2798,8 @@ class Guarda:
         """`git -c <chave>=<valor>`: alias troca o subcomando que o hook leu; refspec de `remote.*.fetch|push` que
         escreve na integração vale como o da linha."""
         chave, _, refspec = valor.partition("=")
-        if chave.lower().startswith("alias."):
-            self.barrar("R-REVIEW", f"git -c {chave}: o alias da linha troca o subcomando que o hook leu",
+        if chave.lower().startswith(("alias.", "help.autocorrect")):  # A13 da segurança E63.7: `stge` vira `stage`
+            self.barrar("R-REVIEW", f"git -c {chave}: o alias ou a correção do nome troca o subcomando que o hook leu",
                         "rode o subcomando do git direto, sem alias", trava=TRAVA_OPACA)
         if REFSPEC_NA_CONFIG.fullmatch(chave) and ":" in refspec and self.ref_local_da_integracao(refspec.split(":", 1)[1]):
             self.integracao_movida(f"git -c {chave}")
@@ -2941,8 +2941,9 @@ class Guarda:
         return None
 
     def git_config(self, args):
-        """`git config` que grava identidade, `core.*`, assinatura, `include*` ou alias: fora do papel de todos. Numa
-        worktree, sem `--worktree` ele grava no `.git/config` comum a todas as cópias (R-CONFORMIDADE)."""
+        """`git config` que grava identidade, `core.*`, assinatura, `include*`, alias ou `help.autocorrect` (A13): fora
+        do papel de todos. Numa worktree, sem `--worktree` ele grava no `.git/config` comum a todas as cópias
+        (R-CONFORMIDADE); o `help.autocorrect` e as chaves do merge, também com `--worktree`."""
         if any(a in CONFIG_LEITURA or a.startswith(("--get", "--show-")) for a in args):
             return
         chaves, pulo, subcomando = [], False, False
@@ -2964,7 +2965,7 @@ class Guarda:
                                     "ler outro parecer", "não troque objetos do repositório")
         if not (grava and chaves[:1] and CONFIG_PROTEGIDA.match(chaves[0])):
             return
-        do_merge = bool(CONFIG_DO_MERGE.match(chaves[0]))
+        do_merge = bool(CONFIG_DO_MERGE.match(chaves[0])) or chaves[0].lower().startswith("help.autocorrect")  # A13
         if "--worktree" in args and not do_merge:  # as chaves do merge valem em toda worktree
             return
         dica = "deixe ao usuário (R-DECISAO)" if do_merge else "use --worktree ou deixe ao usuário (R-DECISAO)"
