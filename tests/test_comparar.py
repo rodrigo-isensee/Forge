@@ -581,7 +581,7 @@ class ListaDeForma(Base):
         for nome, texto in fora.items():
             with self.subTest(nome):
                 self.nos_dois_lados({"agents/a.md": texto}, motivo)
-        dentro = ("---\n# comentário\nname: a\ndescription: |\n  hooks: no valor recuado\n  ? e & * ! não contam\n"
+        dentro = ("---\n# comentário\n\nname: a\ndescription: |\n  hooks: no valor recuado\n  ? e & * ! não contam\n"
                   "tools: Read, Grep\nmodel-x_1: v\n---\nhooks:\n")
         self.assertEqual(self.comparar(self.base, self.repo.commit(extra={"agents/a.md": dentro}))[0], 0)
 
