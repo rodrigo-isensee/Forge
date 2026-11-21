@@ -1,0 +1,36 @@
+{
+  "descricao": "PARECER-PELO-PAPEL (v0478 E62.1, registro de bug do QA; R-CONFORMIDADE): sessão do Forge, worktree em wt/*, agente de stack (dev) grava docs/qa/bugs/ pelo Bash `>`; a regra de docs/qa/ cobre a subpasta pelo prefixo.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "printf x > docs/qa/bugs/x-01.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x",
+    "agent_type": "forge-python:python-backend"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "parecer de QA é do qa: docs/qa/"
+  },
+  "repos": {
+    "home/.forge-contrib/wt/x": {
+      "arquivos": {
+        "a.txt": "v\n",
+        "docs/qa/bugs/x-01.md": "v\n",
+        ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+      },
+      "branch": "melhoria/x"
+    }
+  }
+}
