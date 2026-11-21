@@ -2258,6 +2258,17 @@ class Versoes(unittest.TestCase):
                 self.assertTrue(self.rodou(versao))
         self.assertLess(r.stdout.index("python9.1 rc=0"), r.stdout.index("python9.2 rc=0"))  # em série, em ordem
 
+    def test_sem_afetado_grava_nada_a_rodar_sem_chamar_o_interprete(self):
+        (self.dir / "novo.txt").write_text("x\n", encoding="utf-8")
+        self.git("add", "novo.txt")
+        self.git("commit", "-qm", "novo")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        for versao in ("9.1", "9.2"):
+            with self.subTest(versao):
+                self.assertEqual(self.log(versao)[1:], ["nada a rodar (nenhum teste afetado)", "rc=0"])
+                self.assertFalse(self.rodou(versao))
+
     def test_interprete_ausente_e_aviso_e_nao_verde(self):
         (self.falsos / "python9.2").unlink()
         self.commitar("bin/forge-sugerir", "x = 2\n")

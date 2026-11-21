@@ -46,8 +46,8 @@
       "id": "G5",
       "guarda": "o intérprete só vale se ele se diz da versão da configuração",
       "arquivo": "bin/forge-testes",
-      "de": "return caminho if r.returncode == 0 and r.stdout.strip() == versao else None",
-      "para": "return caminho",
+      "de": "if r.returncode == 0 and r.stdout.strip() == versao else",
+      "para": "if r.returncode == 0 else",
       "testes": [
         "tests.test_testes_tocados.Versoes.test_interprete_que_se_diz_de_outra_versao_nao_vale"
       ]
