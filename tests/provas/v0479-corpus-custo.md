@@ -134,3 +134,13 @@ variáveis, `python3 -I -m unittest discover -s tests -p test_hooks_volta_corpus
 - com os filtros baratos (o `ls-files` só para pasta, curinga ou magia; o `in` do texto antes das chamadas; o marcador crítico numa chamada só): `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5902634, 'ambiente': 234}`
 - por cartão, cada um desligado sobre a versão final: escrita no índice +320, envio com substituição +4630 (medidas de uma rodada intermediária), o resto no pedido e brief da pasta de controle
 - medida nova: 5902634 (+5415 passos, 0,092%), ruído 0 em duas rodadas; abaixo de 0,1%: o time decide com a confirmação escrita da segurança (brief v0478-tech-lead-481)
+
+## E63.5 (v0478, volta única dos portões da trilha)
+
+Os achados A1 a A9 da segurança (E63.3) e A1 a A4 do QA (E63.4) no head 6c0b0f03. Mesma máquina, Python 3.12.3, tmp a
+2 níveis, 234 variáveis, o mesmo comando, só o `hooks/conformidade.py` trocado em cada rodada:
+- base (o da d4f0b10a): `interpretador` 5897219; head 6c0b0f03: 5902634 (os dois iguais às medidas anteriores)
+- primeira versão da volta: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5906031, 'ambiente': 234}` (+8812 sobre a base, 0,149%): acima de 0,1%, refeita
+- por parte, desligada sobre a primeira versão: conjuntos e regex novos no carregamento do módulo cerca de +2800 (uma chamada por execução: 557 execuções), o shell que lê a entrada +335, o filtro barato +304, o `*` da política no texto +78, o `xargs git` +18; a pasta do controle, o `reset` e o `--git-dir` 0 no corpus
+- com os conjuntos literais (sem chamada no carregamento), a regex da pasta do controle compilada só quando a pasta corrente é o controle, o `in` do programa antes de chamar a função do shell, o `stdin` no filtro no lugar de `/dev/` (o `2>/dev/null` passava o filtro) e o fim do caminho com `*` antes da busca: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5902697, 'ambiente': 234}`
+- medida nova: 5902697, ruído 0 em três rodadas; +63 sobre o head 6c0b0f03; total sobre 5897219: +5478 passos (0,093%), abaixo de 0,1%

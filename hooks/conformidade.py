@@ -329,7 +329,7 @@ VISIBILIDADE_PUBLICA = re.compile(r"\bprivate[\"']?\s*[=:]\s*[\"']?false\b|\bvis
 CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem em arquivos do projeto
 # CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1; S1-S4 de docs/security/v0479-pv-a1-adr.md): gravam no índice o caminho
 # nomeado, com conteúdo que nunca esteve na árvore (`-c filter.*.clean`, `--chmod`, `--cacheinfo`).
-INDICE_NO_GIT = {"add", "update-index"}
+INDICE_NO_GIT = {"add", "stage", "update-index", "reset"}  # E63.5: `stage` é o `add` (A2); o `reset` com caminho (A7)
 INDICE_PELA_ENTRADA = ("--pathspec-from-file", "--stdin", "--index-info")  # a lista de caminhos que o hook não lê
 PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
 # S8: a prova da suíte (`.verde`, `.dirigida`, o `.novo` do `mv`) só o pre-push grava, fora deste hook; todo papel e pasta. Limites
@@ -1408,6 +1408,17 @@ def emenda(args):
     return any(len(a) >= 4 and "--amend".startswith(a) for a in args)
 
 
+def caminho_com_curinga_no_texto(caminho, texto):
+    """A9 da E63.3: o caminho da política com `*` (`~/.forge-contrib/*/docs/pedidos/`) como o texto o cita, com o `~/`
+    também pelo home real, ou None; o `*` casa um trecho sem barra, espaço nem aspas."""
+    home = str(Path.home())
+    for forma in ((caminho, caminho.replace("~", home, 1)) if caminho.startswith("~/") else (caminho,)):
+        achado = re.search(re.escape(forma).replace(r"\*", r"[^/\s'\"]+"), texto)
+        if achado:
+            return achado.group(0)
+    return None
+
+
 class Guarda:
     def __init__(self, hook, politica, papel):
         self.h, self.pol, self.papel = hook, politica, papel
@@ -1961,6 +1972,10 @@ class Guarda:
         raiz = Path(os.path.realpath(self.h.raiz))
         for e in self.pol["caminhos"]:
             c = e["caminho"]
+            if "*" in c:  # A9 da E63.3: o `*` da política casa um trecho sem barra no texto
+                if c.rsplit("*", 1)[1] not in texto:  # o fim depois do `*` antes da busca: custo do corpus
+                    continue
+                c = caminho_com_curinga_no_texto(c, texto) or c  # sem o trecho, o `*` literal não casa abaixo
             literais = (c.replace("~", str(Path.home()), 1), c) if c.startswith("~/") else (c,)
             if any(lit in texto for lit in literais):
                 achado = self.caminho_barrado(self.resolver(c.replace("~", str(Path.home()), 1) if c.startswith("~/")
@@ -2129,7 +2144,7 @@ class Guarda:
         if nivel == 0 and not self.leitura and envio_com_substituicao(comando):  # CONFORMIDADE-SUBSTITUICAO-NO-PROJETO
             self.barrar("R-CONFORMIDADE", "envio do git com o programa, o subcomando, a flag ou o destino vindos de "
                                           "substituição ($(…), crase, <(…)) ou da entrada (xargs, pipe para o shell): o hook não "
-                                          "sabe o valor", "escreva o envio literal: git push origin <branch>", trava=TRAVA_OPACA)
+                                          "sabe o valor", "escreva o envio literal: git push origin <branch>", trava=TRAVA)  # A6 da E63.3
         if gravado and not self.leitura and CRITICO.search(original):  # M3, depois das regras da linha e do corpo
             self.barrar("R-CONFORMIDADE", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`)",
                         "grave o arquivo pelo Write ou numa chamada do Bash e rode o programa noutra")
@@ -3788,8 +3803,11 @@ PARECER_NO_TEXTO = re.compile(r"(?<![\w.-])docs/(?:reviews|qa|devops|security)(?
 # jarvis, como as pastas de parecer: as linhas `entrega conferida`, `parecer conferido` e `DECISÃO DO DONO` vivem neles.
 CAMINHOS_DO_CONTROLE = ("~/.forge-contrib/docs/pedidos/", "~/.forge-contrib/*/docs/pedidos/",
                         "~/.forge-contrib/docs/briefs/", "~/.forge-contrib/*/docs/briefs/")
-CONTROLE_NO_TEXTO = re.compile(r"\.forge-contrib(?:/[^/\s]+)?/docs/(?:pedidos|briefs)(?![\w.-])", re.I)
+# A1 da E63.3: a pasta mãe numa variável (`d=~/.forge-contrib; echo x > $d/docs/pedidos/v1.md`) separa os dois nomes;
+# basta a linha citar os dois, em qualquer ordem e posição. Com a pasta corrente no controle, basta `pedidos` ou `briefs`.
+CONTROLE_NO_TEXTO = re.compile(r"forge-contrib[\s\S]*(?:pedidos|briefs)|(?:pedidos|briefs)[\s\S]*forge-contrib", re.I)
 CRITICO_COM_CONTROLE = re.compile(f"{CRITICO.pattern}|{CONTROLE_NO_TEXTO.pattern}", re.I)
+PEDIDO_OU_BRIEF = r"pedidos|briefs"  # compilado só na pasta do controle (`GuardaDaProva`): custo do corpus
 
 
 class GuardaDaProva(Guarda):
@@ -3805,8 +3823,12 @@ class GuardaDaProva(Guarda):
     def __init__(self, hook, pol, papel, no_clone=False, travas=False):
         super().__init__(hook, pol, papel)
         # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS: a linha que cita o pedido ou o brief da pasta de controle é crítica para o
-        # papel que não é o jarvis, e a construção que o hook não modela nela recusa.
-        self.critico = CRITICO_COM_CONTROLE.search if papel != "jarvis" else CRITICO.search
+        # papel que não é o jarvis, e a construção que o hook não modela nela recusa (`controle`: o texto que conta).
+        self.controle, self.critico = ((None, CRITICO.search) if papel == "jarvis"
+                                       else (CONTROLE_NO_TEXTO, CRITICO_COM_CONTROLE.search))
+        if self.controle and self.na_pasta_do_controle():
+            self.controle = re.compile(PEDIDO_OU_BRIEF, re.I)
+            self.critico = re.compile(f"{CRITICO.pattern}|{PEDIDO_OU_BRIEF}", re.I).search
         self.no_clone, self.travas = no_clone, travas
         self.motivos_do_estado = tuple(e["motivo"] for e in pol["caminhos"] if e["caminho"] in ESTADO_DOS_HOOKS)
         self.motivo_do_config = next((e["motivo"] for e in pol["caminhos"] if e["caminho"] == CONFIG_DA_RAIZ), None)
@@ -3867,8 +3889,14 @@ class GuardaDaProva(Guarda):
     def controle_no_texto(self, linha):
         """CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS: a linha que o hook não lê cita o pedido ou o brief da pasta de controle, e
         o papel não é o jarvis (o dono grava pelo caminho literal ou pelo `forge-check`)."""
-        return self.papel != "jarvis" and ("forge-contrib" in linha.lower() or "\\\n" in linha) and bool(
-            CONTROLE_NO_TEXTO.search(juntar_continuacoes(linha)))  # o `in` antes: custo do corpus
+        return self.controle is not None and bool(
+            self.controle.search(juntar_continuacoes(linha) if "\\\n" in linha else linha))
+
+    def na_pasta_do_controle(self):
+        """A1 da E63.3: a pasta corrente fica em `~/.forge-contrib` (pelo caminho real) fora de uma cópia de `wt/`, e
+        `docs/pedidos` relativo alcança o controle (`d=docs/pedidos; echo x >> $d/v1.md`)."""
+        rel = relativo_ao_pai(os.path.realpath(self.h.cwd()), contrib())
+        return rel is not None and not rel.startswith("wt/")
 
     @staticmethod
     def parecer_no_texto(linha):
@@ -3967,7 +3995,8 @@ def envio_com_substituicao(linha):
     (`echo 'git push …' | bash`)."""
     marcador = "$(" in linha or "`" in linha or "<(" in linha
     envio = "push" in linha or "send-pack" in linha or "\\" in linha  # o escape pode esconder o nome (`pu\sh`)
-    if not (marcador and (envio or "git" in linha) or envio and ("xargs" in linha or "sh" in linha.replace("push", ""))):
+    xargs = "xargs" in linha and "git" in linha  # A5 da E63.3: o subcomando pode vir todo do pipe
+    if not (marcador and (envio or "git" in linha) or xargs or envio and ("sh" in linha.replace("push", "") or "stdin" in linha or "/fd/" in linha)):
         return False  # custo do corpus (o `in` não é chamada): nenhum caso abaixo casa sem esses textos
     cita_o_envio = bool(GIT_NO_TEXTO.search(linha) and CITA_O_ENVIO.search(linha))
     for comando in palavras_do_texto(linha).simples:
@@ -3986,16 +4015,45 @@ def envio_com_substituicao(linha):
             envio = k < len(valores) and valores[k] in ENVIO_DO_GIT or k >= len(valores) and ENVIO_DO_GIT & set(valores)
             if envio and (any(opacas[j + 1:]) or "xargs" in nomes[:j]):
                 return True
-        if nomes and nomes[0] in SHELLS and all(v.startswith("-") for v in valores[1:]) and cita_o_envio:
+            if k >= len(valores) and "xargs" in nomes[:j]:  # A5 da E63.3: `echo push … | xargs git`
+                return True
+        programa = nomes and (nomes[0] in SHELLS or nomes[0] in ENVOLVEDORES or valores[0] in FONTES
+                              or valores[0] == "builtin")
+        if cita_o_envio and programa and shell_que_le_a_entrada(nomes, valores, opacas):  # o `in` antes: custo do corpus
             return True
     return False
+
+
+# Conjuntos literais, sem chamada no carregamento do módulo (custo do corpus: cada chamada conta em toda execução).
+ENTRADA_DO_SHELL = {"-", "-s", "/dev/stdin", "/dev/fd/0", "/proc/self/fd/0"}
+SHELL_OPCAO_COM_VALOR = {"-o", "+o", "-O", "+O", "--rcfile", "--init-file"}
+
+
+def shell_que_le_a_entrada(nomes, valores, opacas):
+    """A4 da E63.3: o comando simples roda um shell que lê a entrada (o pipe) ou um texto opaco: o shell como programa
+    ou atrás de um envolvedor (`env bash`, `sudo bash`, `timeout 5 bash`), e o `source` ou o ponto como programa, sem
+    script, com `-s`, `-` ou `/dev/stdin`, ou com o script vindo de substituição (`. <(…)`, `bash <(…)`)."""
+    for j, nome in enumerate(nomes):
+        shell = nome in SHELLS and (j == 0 or nomes[0] in ENVOLVEDORES)
+        if not (shell or valores[j] in FONTES and na_posicao_de_programa(valores, j)):
+            continue
+        i = j + 1
+        while i < len(valores) and valores[i][:1] in ("-", "+") and valores[i] not in ENTRADA_DO_SHELL:
+            i += 2 if valores[i] in SHELL_OPCAO_COM_VALOR else 1
+        if i >= len(valores) and shell or i < len(valores) and (valores[i] in ENTRADA_DO_SHELL or opacas[i]):
+            return True
+    return False
+
+
+# A opção global do git com o valor na palavra seguinte (`git --git-dir .git push`): o valor não é o subcomando.
+GIT_GLOBAIS_COM_VALOR = {"-C", "--git-dir", "--work-tree", "--namespace", "--attr-source", "--config-env"}  # literal: custo
 
 
 def resto_do_subcomando(argumentos):
     """Os argumentos do git a partir do subcomando, como `subcomando_do_git` os pula (o `-c` para: o resto todo)."""
     resto = list(argumentos)
     while resto and resto[0].startswith("-") and resto[0] != "-c":
-        resto = resto[2:] if resto[0] == "-C" else resto[1:]
+        resto = resto[2:] if resto[0] in GIT_GLOBAIS_COM_VALOR else resto[1:]  # E63.5 (A3): `--git-dir .git push`
     return resto if not resto or resto[0] != "-c" else []
 
 
