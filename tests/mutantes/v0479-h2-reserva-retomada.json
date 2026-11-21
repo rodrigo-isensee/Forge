@@ -1,0 +1,58 @@
+{
+  "pedido": "v0479-h2-reserva-retomada",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "H2-RESERVA-DA-RETOMADA-PRAZO: o retomado tardio reserva de novo as branches do id em `autores`",
+      "arquivo": "hooks/agentes.py",
+      "de": "    if escrita:  # H2-RESERVA-DA-RETOMADA-PRAZO",
+      "para": "    if False:  # H2-RESERVA-DA-RETOMADA-PRAZO",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "H2-RESERVA-DA-RETOMADA-PRAZO: a hora da recusa usa o prazo do registro",
+      "arquivo": "hooks/agentes.py",
+      "de": "prazo = prazo_do_registro(a, hook.expira_s())",
+      "para": "prazo = hook.expira_s()",
+      "testes": [
+        "tests.test_hooks_agentes_autor.Autores.test_hora_da_recusa_da_retomada_usa_o_prazo_curto"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "H2-RESERVA-DA-RETOMADA-PRAZO: a expiração usa o prazo do registro",
+      "arquivo": "hooks/agentes.py",
+      "de": "and agora - registro[\"desde\"] < prazo_do_registro(registro, expira_s))",
+      "para": "and agora - registro[\"desde\"] < expira_s)",
+      "testes": [
+        "tests.test_hooks_agentes_autor.PeloHook.test_fixtures_do_pedido"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "H2-RESERVA-DA-RETOMADA-PRAZO: a reserva sem início vale o prazo curto",
+      "arquivo": "hooks/agentes.py",
+      "de": "else min(RESERVA_S, expira_s)",
+      "para": "else expira_s",
+      "testes": [
+        "tests.test_hooks_agentes_autor.Autores.test_prazo_unico_por_registro"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/agentes.py",
+      "trecho": "a.get(\"id\")",
+      "motivo": "a guarda do prazo da recusa em recusar_branch_ocupada virou prazo_do_registro (hooks/agentes.py:366, coberta por M23 de v047-h2-autor-fica-3 e I55 de v0432-integracao-4); a chamada nova tem o mutante M2"
+    },
+    {
+      "arquivo": "hooks/agentes.py",
+      "trecho": "a[\"id\"] == alvo",
+      "motivo": "a compreensão de reservar_retomada virou escrita_do_autor (hooks/agentes.py:746, a[\"id\"] == aid, coberta por M22 de v047-h2-autor-fica-3); o comportamento é o mesmo com o alvo como argumento"
+    }
+  ]
+}

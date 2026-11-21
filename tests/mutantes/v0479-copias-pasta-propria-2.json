@@ -1,0 +1,26 @@
+{
+  "pedido": "v0479-copias-pasta-propria",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "MODELO-COPIAS-EM-PASTA-PROPRIA: a recusa do .gitignore para a criação da cópia (S2)",
+      "arquivo": "bin/forge-copia",
+      "de": "    if falha:\n        return recusa(falha)",
+      "para": "    if False:\n        return recusa(falha)",
+      "testes": [
+        "tests.test_forge_copia.Projeto.test_s2_gitignore_link_solto_e_recusado_sem_gravar_fora"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "MODELO-COPIAS-EM-PASTA-PROPRIA: a pasta do projeto não é resolvida, .forge/wt como link para ~/.forge-contrib/wt é recusado (S1)",
+      "arquivo": "bin/forge-copia",
+      "de": "        return os.path.join(projeto, MARCA.strip(os.sep))",
+      "para": "        return os.path.realpath(os.path.join(projeto, MARCA.strip(os.sep)))",
+      "testes": [
+        "tests.test_forge_copia.Projeto.test_s1_forge_wt_como_link_para_a_pasta_do_forge_e_recusado"
+      ]
+    }
+  ]
+}

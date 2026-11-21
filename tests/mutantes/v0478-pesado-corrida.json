@@ -1,0 +1,27 @@
+{
+  "pedido": "v0478-pesado-corrida",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E89.1: só a trava que some (FileNotFoundError) vira livre; permissão e JSON quebrado seguem levantando",
+      "arquivo": "bin/forge-pesado",
+      "de": "    except FileNotFoundError:\n        return None",
+      "para": "    except (OSError, ValueError):\n        return None",
+      "testes": [
+        "tests.test_forge_pesado.TravaQueSomeNaLeitura.test_trava_que_existe_e_nao_se_le_segue_levantando",
+        "tests.test_forge_pesado.ForgePesado.test_json_ilegivel_sai_2"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E89.1: a trava que some entre o exists e a leitura é livre e a espera pega a vez",
+      "arquivo": "bin/forge-pesado",
+      "de": "    except FileNotFoundError:\n        return None",
+      "para": "    except FileNotFoundError:\n        raise",
+      "testes": [
+        "tests.test_forge_pesado.TravaQueSomeNaLeitura.test_trava_que_some_entre_o_exists_e_a_leitura_pega_a_vez"
+      ]
+    }
+  ]
+}

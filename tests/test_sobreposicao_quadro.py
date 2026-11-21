@@ -312,6 +312,57 @@ class Movimento(unittest.TestCase):
         self.assertFalse(self.arq.exists())
 
 
+class MovimentoDeBloqueado(unittest.TestCase):  # K170: --de Bloqueado sem a linha de entrada em Bloqueado recusa (rc 2, sem gravar)
+    CABECALHO = "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.raiz = Path(self._tmp.name)
+        (self.raiz / "KANBAN.md").write_text("# Q\n\n## Em andamento (WIP 1 por agente)\n\n## Bloqueado\n\n## Pronto\n", encoding="utf-8")
+        self.arq = self.raiz / "docs" / "kanban" / "historico.md"
+
+    def mover(self, cartao, de, para):  # ambiente limpo e Python isolado (AR-4, AR-5)
+        env = {"PATH": "/usr/bin:/bin", "HOME": str(self.raiz / "home"), "LANG": "C.UTF-8"}
+        r = subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--raiz", str(self.raiz), "movimento", cartao, "--de", de, "--para", para],
+                           capture_output=True, text=True, env=env)
+        return r.returncode, r.stdout + r.stderr
+
+    def historico(self, *linhas):
+        self.arq.parent.mkdir(parents=True, exist_ok=True)
+        self.arq.write_text(self.CABECALHO + "".join(f"| 2026-10-20T09:0{i}:00+00:00 | {c} | {d} | {p} | — |\n"
+                                                     for i, (c, d, p) in enumerate(linhas)), encoding="utf-8")
+
+    def recusa(self, cartao="K-1", de="Bloqueado"):
+        antes = self.arq.read_bytes() if self.arq.exists() else None
+        rc, saida = self.mover(cartao, de, "Em andamento")
+        self.assertEqual(rc, 2, saida)
+        self.assertIn("sem a linha de entrada em Bloqueado", saida)
+        self.assertIn(f'forge-check movimento "{cartao}" --de <coluna atual> --para Bloqueado', saida)  # diz como registrar
+        self.assertEqual(self.arq.read_bytes() if self.arq.exists() else None, antes)  # nada gravado
+        return saida
+
+    def test_sem_historico_recusa_e_nao_cria_o_arquivo(self):
+        self.assertIn("o cartão não tem movimento", self.recusa())
+        self.assertFalse(self.arq.exists())
+
+    def test_ultimo_movimento_fora_de_bloqueado_recusa(self):
+        self.historico(("K-1", "—", "Em andamento"), ("K-2", "Em andamento", "Bloqueado"))  # outro cartão em Bloqueado não vale
+        self.assertIn('o último é "—" -> "Em andamento"', self.recusa())
+        self.historico(("K-1", "Em andamento", "Bloqueado"), ("k-1", "Bloqueado", "Em andamento"))  # já saiu: a entrada não está aberta
+        self.recusa(de="bloqueado")
+
+    def test_com_a_entrada_registrada_aceita(self):
+        self.historico(("K-1", "—", "Em andamento"), ("k-1", "Em andamento", "bloqueado"))  # caixa e acento não contam
+        rc, saida = self.mover("K-1", "Bloqueado", "Em andamento")
+        self.assertEqual(rc, 0, saida)
+        self.assertRegex(self.arq.read_text(encoding="utf-8").splitlines()[-1], r"\| K-1 \| Bloqueado \| Em andamento \|")
+
+    def test_outra_origem_nao_confere_a_ultima_coluna(self):  # só Bloqueado: o desenho do movimento não tem a regra geral
+        rc, saida = self.mover("K-3", "Em andamento", "Pronto")
+        self.assertEqual(rc, 0, saida)
+
+
 class MovimentoGeraQuadro(unittest.TestCase):  # EST-M12, E3-2a: o `movimento` grava a marca de atributos (C-7, C-8)
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()

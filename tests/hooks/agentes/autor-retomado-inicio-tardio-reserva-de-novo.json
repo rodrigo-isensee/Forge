@@ -1,0 +1,43 @@
+{
+  "descricao": "H2-RESERVA-DA-RETOMADA-PRAZO (R-TETO): o SubagentStart do retomado que chega depois do prazo curto (a reserva da retomada já caiu) reserva de novo as branches do id em `autores`; o disparo de escrita na branch dele é recusado.",
+  "arquivos": {
+    "docs/briefs/x.md": "Agente destino: forge:tech-lead\nPedido: p1\nBranch: melhoria/a   Base: develop\n\n## Objetivo\nFazer.\n"
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [],
+      "autores": [
+        {
+          "id": "a0123456789abcdef",
+          "desde": "{agora-400}",
+          "escrita": [
+            "melhoria/a"
+          ]
+        }
+      ]
+    }
+  },
+  "passos": [
+    {
+      "entrada": {
+        "hook_event_name": "SubagentStart",
+        "agent_id": "a0123456789abcdef",
+        "agent_type": "forge:software-engineer"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_2",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Corrigir o CI",
+      "prompt": "Execute docs/briefs/x.md"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO: melhoria/a ocupada por forge:software-engineer"
+  }
+}
