@@ -3,14 +3,16 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-vigia-resumo-compactado
-commit: 9ec21d93d609fc49aa696f796236f59586529572
+commit: 8b7f670d5aa188ec3be78ff7c4e5d4cb63349396
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
 ---
 # Review: v0479-vigia-resumo-compactado
 
-Etapa E93.7 (revalidação, H3), cartão FALA-DO-DONO-RESUMO-COMPACTADO. Delta lido: `forge-check parecer delta` no intervalo `06a0220a..9ec21d93`, 7 arquivos no domínio (`hooks/vigia.py`, `tests/test_vigia.py`, 2 fixtures novas de `vigia`, `tests/mutantes/v0479-vigia-resumo-compactado.json`, `docs/hooks-fixtures.md`, fragmento em `changelog.d/`). Código: `hooks/vigia.py`, +5 −2, dentro do teto H1.
+Etapa E93.11 (revalidação, H3): `forge-check parecer delta` em `9ec21d93..8b7f670d`, sem o que veio da base; no domínio só `docs/hooks-fixtures.md` (3379 → 3382, as 3 fixtures `autor-*` do #775) e `docs/hooks.md`, cujo trecho do item é o mesmo. O head é o merge da `develop` 9d5dcb6e; o patch do item, sem pareceres e índice, tem o mesmo `git patch-id` (5adf7b4c) antes e depois; `scripts/indice-fixtures.py --conferir`: `docs/hooks-fixtures.md: em dia`; `python3 -I tests/test_vigia.py`: `Ran 12 tests ... OK`. Parecer mantido.
+
+Antes, etapa E93.7 (revalidação, H3), cartão FALA-DO-DONO-RESUMO-COMPACTADO. Delta lido: `forge-check parecer delta` no intervalo `06a0220a..9ec21d93`, 7 arquivos no domínio (`hooks/vigia.py`, `tests/test_vigia.py`, 2 fixtures novas de `vigia`, `tests/mutantes/v0479-vigia-resumo-compactado.json`, `docs/hooks-fixtures.md`, fragmento em `changelog.d/`). Código: `hooks/vigia.py`, +5 −2, dentro do teto H1.
 
 ## Parecer
 Aprovado.
