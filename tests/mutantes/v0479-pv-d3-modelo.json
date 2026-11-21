@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-pv-d3-modelo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "registros: só o envio com branch roda a conferência (remoção pura não)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if [ \"$refs_branches\" -gt 0 ]; then",
+      "para": "if true; then",
+      "testes": [
+        "tests.test_prepush_so_docs.ConferenciaDeRegistros.test_envio_so_de_remocao_nao_roda"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "registros: config que é link não é lido",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if [ ! -f \"$cfg_reg\" ] || [ -L \"$cfg_reg\" ]; then return 0; fi",
+      "para": "if [ ! -f \"$cfg_reg\" ]; then return 0; fi",
+      "testes": [
+        "tests.test_prepush_so_docs.ConferenciaDeRegistros.test_config_que_e_link_nao_e_lido"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "registros: com python3 no PATH, a chave é lida",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "command -v python3 >/dev/null 2>&1 || { echo \"pre-push: aviso: sem python3; registros",
+      "para": "false || { echo \"pre-push: aviso: sem python3; registros",
+      "testes": [
+        "tests.test_prepush_so_docs.ConferenciaDeRegistros.test_comando_verde_roda_tambem_no_envio_so_de_texto"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "registros: chave que não é comando de uma linha barra o envio sem rodar",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if not isinstance(valor, str) or not valor.isprintable(): sys.exit(",
+      "para": "if False: sys.exit(",
+      "testes": [
+        "tests.test_prepush_so_docs.ConferenciaDeRegistros.test_chave_que_nao_e_comando_de_uma_linha_barra_sem_rodar"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "registros: a leitura reprovada da chave barra o envio",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "registros=\"$(comando_de_registros)\" || exit 1",
+      "para": "registros=\"$(comando_de_registros)\" || true",
+      "testes": [
+        "tests.test_prepush_so_docs.ConferenciaDeRegistros.test_chave_que_nao_e_comando_de_uma_linha_barra_sem_rodar"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "registros: sem a chave, nada roda",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if [ -n \"$registros\" ]; then",
+      "para": "if true; then",
+      "testes": [
+        "tests.test_prepush_so_docs.ConferenciaDeRegistros.test_sem_a_chave_ou_sem_o_config_nada_roda"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "registros: prazo que não é inteiro de 1 a 999999 barra o envio sem rodar",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "case \"$prazo_reg\" in ''|*[!0-9]*|0*|???????*)",
+      "para": "case \"$prazo_reg\" in __nunca__)",
+      "testes": [
+        "tests.test_prepush_so_docs.ConferenciaDeRegistros.test_prazo_invalido_barra_sem_rodar"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "registros: saída fora de 0 barra o envio",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "[ \"$rc_reg\" -eq 0 ] || {",
+      "para": "true || {",
+      "testes": [
+        "tests.test_prepush_so_docs.ConferenciaDeRegistros.test_saida_fora_de_zero_barra_o_envio"
+      ]
+    }
+  ]
+}
