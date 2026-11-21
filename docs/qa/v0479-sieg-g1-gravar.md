@@ -4,10 +4,10 @@ contrato: 1
 pedido: v0478
 branch: melhoria/v0479-sieg-g1-gravar
 commit: 2a0e46204eb6e731fec268e2d01fa32d142479eb
-parecer: aprovado
+parecer: reprovado
 escopo: completo
 bugs_criticos: 0
-bugs_altos: 0
+bugs_altos: 1
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-21
@@ -16,11 +16,14 @@ data: 2026-11-21
 
 Escopo: `forge-check autorizacao gravar` (G1.2a, ADR 0018) e a concessão solta de alvo `item:` (PV-A2), no head 2a0e4620, contra a base 15936278. Sem suíte local; a suíte inteira é o check-run `bateria` do PR.
 
+## Achados
+- A1 (bloqueante) bin/forge_autorizacao.py:291 · Reproduzido: registro com isCompactSummary e isVisibleInTranscriptOnly, sem isMeta, gravou A-1 ativa (rc 0) pelo CLI; a ADR 0018 item 4 o exclui. Mesmo achado A1 do review; falta teste que o recuse (os 12 casos de origem não o cobrem)
+
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
 | Corpo = mensagem inteira do dono, byte a byte | `MensagemInteira.test_corpo_e_a_mensagem_inteira_...` | mensagem única, sem opção de texto | passou |
-| Só a fala digitada na sessão principal | `test_so_a_mensagem_digitada_pelo_dono_...` | 12 origens inválidas, uuid ausente/repetido, link, teto | passou |
+| Só a fala digitada na sessão principal | `test_so_a_mensagem_digitada_pelo_dono_...` | 12 origens inválidas, uuid ausente/repetido, link, teto; falta resumo de compactação | falhou (A1) |
 | Uma concessão por mensagem | `test_a_mesma_mensagem_so_gera_uma_concessao` | repetição | passou |
 | Escopo e pendência pelo texto todo | `EscopoPeloTextoTodo.*` | marcas de negação, recorte, ato diferente | passou |
 | Validade e conflito | `Validade.*` | mapa fechado, fim mais cedo | passou |
