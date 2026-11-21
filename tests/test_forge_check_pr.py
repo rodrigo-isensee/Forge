@@ -400,6 +400,23 @@ class SuiteNoBriefSemPr(ProvaDaSuiteBase):
         self.assertEqual(len(linhas), 1, linhas)
 
 
+class BaseDaEtapa(unittest.TestCase):
+    """GUARDAS-SEM-MUTANTE-0.47.12 (v0478 E62.11): a etapa passa ao `pr` a base do brief lida do remoto (`origin/<base>`); sem base,
+    nenhuma, e o `pr` escolhe a do fluxo."""
+
+    def base_passada(self, base):
+        with mock.patch.object(fc, "pr_da_cli", return_value=[]) as pr:
+            fc.pareceres_da_etapa("raiz", "p1", "pr", "melhoria/x", base)
+        return pr.call_args.kwargs["base"]
+
+    def test_base_do_brief_vai_ao_pr_pelo_remoto(self):
+        self.assertEqual(self.base_passada("homolog"), "origin/homolog")
+        self.assertEqual(self.base_passada("origin/develop"), "origin/develop")
+
+    def test_sem_base_o_pr_escolhe(self):
+        self.assertIsNone(self.base_passada(None))
+
+
 class EsqueletoComAProva(unittest.TestCase):
     def test_review_e_qa_trazem_a_linha_da_prova_para_preencher(self):
         for tipo in ("review", "qa"):
