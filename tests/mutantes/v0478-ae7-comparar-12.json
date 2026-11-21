@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP75",
+      "guarda": "AE7.1 cabecalho: sem fecho, o texto inteiro (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "linha == \"---\"), len(linhas))",
+      "para": "linha == \"--- \"), len(linhas))",
+      "testes": [
+        "tests.test_comparar.CabecalhoDoMd.test_hooks_no_corpo_ou_como_texto_no_cabecalho_mede"
+      ]
+    },
+    {
+      "id": "CMP76",
+      "guarda": "AE7.1 cabecalho: BOM e linhas em branco antes do --- (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "texto.lstrip(\"\\ufeff \\t\\r\\n\")",
+      "para": "texto",
+      "testes": [
+        "tests.test_comparar.CabecalhoDoMd.test_hooks_em_qualquer_forma_no_cabecalho_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP77",
+      "guarda": "AE7.1 fora_da_medida: lote dos .md que falha (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if cod != 0 or textos is None or not all(",
+      "para": "if textos is None or not all(",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_leitura_dos_md_que_falha_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP78",
+      "guarda": "AE7.1 blobs_do_lote: resposta truncada (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "blobs if pos == len(lote) else None",
+      "para": "blobs if pos >= len(lote) else None",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_leitura_dos_md_que_falha_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP79",
+      "guarda": "AE7.1 blobs_do_lote: resposta que não se lê (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    except (ValueError, IndexError):\n        return None\n    return blobs if",
+      "para": "    except (ValueError, IndexError):\n        return []\n    return blobs if",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_leitura_dos_md_que_falha_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP80",
+      "guarda": "AE7.1 fora_da_medida: cabeçalho de .md fora da forma simples (F6)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "not all(cabecalho_simples(",
+      "para": "not all(True or cabecalho_simples(",
+      "testes": [
+        "tests.test_comparar.CabecalhoDoMd.test_hooks_em_qualquer_forma_no_cabecalho_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP81",
+      "guarda": "AE7.1 fora_da_medida: o fim da lista do ls-tree não é entrada (A11)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "e, re.S) for e in lista.split(b\"\\0\") if e]",
+      "para": "e, re.S) for e in lista.split(b\"\\0\") if True]",
+      "testes": [
+        "tests.test_comparar.Medida.test_mesma_arvore_mede_zero"
+      ]
+    },
+    {
+      "id": "CMP82",
+      "guarda": "AE7.1 fora_da_medida: .md sem diferença de caixa (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "n.lower().endswith(b\".md\")",
+      "para": "n.endswith(b\".md\")",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_hooks_no_cabecalho_de_agente_ou_skill_e_nao_verificavel"
+      ]
+    }
+  ]
+}

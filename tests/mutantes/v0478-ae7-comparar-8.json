@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP50",
+      "guarda": "AE7.1 veredito: a decisão antiga approve vale allow (A1)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "== \"approve\" else None)",
+      "para": "== \"nunca\" else None)",
+      "testes": [
+        "tests.test_comparar.DecisaoInteira.test_decisao_antiga_approve_e_allow"
+      ]
+    },
+    {
+      "id": "CMP51",
+      "guarda": "AE7.1 fora_da_medida: .gitattributes e .gitmodules em qualquer pasta (F2)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if any(os.path.basename(n).lower() in NOMES_FORA for _, _, n in itens):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_comparar.ComoOClone.test_gitattributes_em_qualquer_lado_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP52",
+      "guarda": "AE7.1 fora_da_medida: .gitattributes sem diferença de caixa (A2)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "os.path.basename(n).lower()",
+      "para": "os.path.basename(n)",
+      "testes": [
+        "tests.test_comparar.ComoOClone.test_gitattributes_em_qualquer_lado_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP53",
+      "guarda": "AE7.1 fora_da_medida: matcher fora da forma simples (A7)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if not all(isinstance(g, dict)",
+      "para": "    if False and all(isinstance(g, dict)",
+      "testes": [
+        "tests.test_comparar.ComoOClone.test_matcher_fora_da_forma_simples_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP54",
+      "guarda": "AE7.1 fora_da_medida: matcher que não é texto (A7)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "isinstance(g.get(\"matcher\", \"\"), str) and MATCHER",
+      "para": "MATCHER",
+      "testes": [
+        "tests.test_comparar.ComoOClone.test_matcher_fora_da_forma_simples_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP55",
+      "guarda": "AE7.1 fora_da_medida: hooks.json ilegível é medido como nenhum hook",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "medido assim\n        return None",
+      "para": "medido assim\n        return \"ilegivel\"",
+      "testes": [
+        "tests.test_comparar.Medida.test_hooks_json_ilegivel_no_head_e_nenhum_hook"
+      ]
+    },
+    {
+      "id": "CMP56",
+      "guarda": "AE7.1 executar: motivo fora da medida é nao-verificavel",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if motivo:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_comparar.ComoOClone.test_gitattributes_em_qualquer_lado_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP57",
+      "guarda": "AE7.1 executar: a base também passa por fora_da_medida",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "fora_da_medida(ctx, raiz, base) or ",
+      "para": "",
+      "testes": [
+        "tests.test_comparar.ComoOClone.test_gitattributes_em_qualquer_lado_e_nao_verificavel"
+      ]
+    }
+  ]
+}
