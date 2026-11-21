@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-copias-pasta-propria
-commit: 48a6e19b88bac450f1b749c1351d6396db35632e
+commit: 38182111f20ad008e7db51910ef24e80f4d988c3
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
@@ -23,3 +23,8 @@ Limpeza: `limpar()` usa a mesma `raiz()` e o mesmo critério (`sujeira` antes e 
 `.gitignore` `*` criado uma vez, depois da validação do destino, e não tocado se existe; o `git status` do projeto fica limpo (teste).
 
 Verificadores: `test_forge_copia` (64), `test_forge_fechar` (34) e `test_modelos_projeto` (20) verdes no 48a6e19b; `forge-mutante` na spec: M1 a M7 mortos; `--cobertura --base 5e3ca873`: toda guarda do diff coberta. Suíte inteira: fica no CI do PR.
+
+## Revalidação no 38182111 (E78.7)
+Delta lido com `forge-check parecer delta` (`48a6e19b..38182111`): `bin/forge-copia`, teste, as duas specs de mutantes e o changelog. O `.gitignore` é aberto com `O_CREAT|O_EXCL|O_NOFOLLOW` (link criado depois também falha) e o link versionado é recusado antes, com rc 2 pela `recusa()` em `main()`; a `raiz()` do projeto não é resolvida, e `.forge/wt` como link para `~/.forge-contrib/wt` cai na recusa "fica fora de" (S1). Os testes S1 e S2 provam o ramo de falha pelo comportamento (rc 2, nada gravado no alvo nem na cópia). A1 segue recomendado, fora deste delta.
+
+Verificadores: `test_forge_copia` 66 OK no 38182111; `forge-testes --registros --base origin/develop` rc=0; `forge-mutante` nas duas specs: M1 a M10 mortos; `--cobertura --base 48a6e19b`: linhas 59 e 248 cobertas por M8 e M9. Suíte inteira: fica no CI do PR.
