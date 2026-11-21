@@ -1,6 +1,6 @@
 ---
 name: fluxo-do-pedido
-description: Texto do Jarvis lido pelo caminho antes de responder a um pedido - recibo, andamento e decisão gravada, quem acionar no time, registro do pedido, desenvolvimento, retrospectiva e onde vai cada melhoria (Forge ou projeto). Use antes de responder a um pedido, de delegar e de abrir cartão de melhoria.
+description: Texto do Jarvis sobre o pedido: recibo, andamento e decisão gravada, quem acionar no time, registro, desenvolvimento, retrospectiva e onde vai cada melhoria (Forge ou projeto). Use antes de responder a um pedido, de delegar e de abrir cartão de melhoria.
 ---
 
 # Fluxo do pedido
@@ -10,7 +10,7 @@ Texto do Jarvis lido no passo, movido inteiro e sem mudar palavra (diretriz 25: 
 ## Com a pessoa
 - **Entender em linguagem simples.** **Recibo antes de acionar o time**, em todo pedido: "vou fazer: ...; não vou fazer: ...; é isso?"; palavra que inverte o sentido ("sem", "só", "não") ou erro de ditado vai como frase literal entre aspas com as duas leituras.
 - **Contar o andamento sem jargão**, curto, ao fim de cada etapa: estado em uma linha, o que precisa dela, suposições, o que foi feito, riscos. Na entrega, a tabela **pedido × entregue** (a prova, ou "Retira do escopo original" e a decisão). **A pessoa valida e faz o merge na `main`.**
-- Pedido, lista ou decisão do dono só vale gravada no pedido ou no quadro, no mesmo turno (`forge-check anotar`). Telegram, se ativo: `reply` curto, sem segredo; não mude a allowlist.
+- Pedido, lista ou decisão do dono só vale gravada no pedido ou no quadro, no mesmo turno (`forge-check anotar --pedido <p> --tipo <tipo> --literal <fala>`). Telegram, se ativo: `reply` curto, sem segredo; não mude a allowlist.
 
 ## Time
 | Agente | Quando acionar |
@@ -27,7 +27,7 @@ Texto do Jarvis lido no passo, movido inteiro e sem mudar palavra (diretriz 25: 
 
 ## Como o pedido anda
 1. **Registrar** (critérios: `produto-criterios`): em `docs/pedidos/`, o modo (nunca sobe sozinho), o escopo `E1`…, as `## Etapas`, o **Fora do escopo** e suposições. Marque cada item de escopo, fora do escopo e critério de pronto (`confirmado`, `delegado`, `suposição`, `técnico`, `no-protótipo`), com "Clareza" e as tags `PERGUNTA:`, `NAO-ENTENDI:`, `ESCOPO+:`/`ESCOPO-:`, `DEVOLVIDA:`. Abra os cartões. Na abertura de cada pedido, confira com o time se ele cabe num lote.
-4. **Desenvolvimento:** crie a worktree na sua sessão antes de delegar. Delegue com o brief da skill `${CLAUDE_PLUGIN_ROOT}/skills/briefs-e-conferencia/SKILL.md` (em `docs/briefs/`, selado por `forge-check brief selar`, `R-BRIEF`; selo no genérico, uma escrita por branch); o relatório traz o bloco `Provas:` (`PQ-1`…, `R-PROVA`; o comando de pronto do projeto verde, rodado da raiz do repositório). Última linha: `Melhoria vista:`.
+4. **Desenvolvimento:** crie a worktree na sua sessão antes de delegar. Delegue com o brief da skill `${CLAUDE_PLUGIN_ROOT}/skills/briefs-e-conferencia/SKILL.md` (em `docs/briefs/`, selado pelo passo 3 dela, `R-BRIEF`; selo no genérico, uma escrita por branch). O relatório traz o bloco `Provas:` (`PQ-1`…, `R-PROVA`; o comando de pronto do projeto verde, rodado da raiz do repositório). Última linha: `Melhoria vista:`.
 9. **Retrospectiva** com o `agile-coach` ao fim de todo pedido; o pedido só fecha com ela gravada. Aprender com os erros é do time (placar, eval, manter ou reverter: `R-DECISAO`), não da pessoa: seus `ERRO-JARVIS` e as `Melhoria vista:` entram nela só como dado e candidatas, sem regra nova na linha, e à pessoa você repassa a linha `resumo:` do `forge-placar` como está.
 
 ## Pergunta ao dono
