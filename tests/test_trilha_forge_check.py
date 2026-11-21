@@ -102,5 +102,32 @@ class ModeloDePedidoNoGerar(Base):
         self.assertNotIn("`forge-check pr ", saida)
 
 
+class DocsNoFluxoDeEntrega(Base):
+    """FC-DOCS-CAMINHO: o PQ do portão confere só os documentos do diff (`--base`); a cópia do parecer de segurança fora da pasta
+    acusa o `- Nenhum.` do ## Achados como a da pasta."""
+
+    def test_pq_do_portao_passa_a_base_do_fluxo(self):
+        self.assertIn("- PQ-N (cmd): `forge-check docs --base develop` · espera: rc=0\n", self.gerar("review", "E1.2", "forge:revisor-exemplo"))
+
+    def test_base_fora_do_fluxo_fica_sem_a_opcao(self):
+        with mock.patch.object(fc, "e_o_forge", return_value=True), mock.patch.object(fc, "pareceres_da_etapa", return_value=[]), \
+                mock.patch.object(fc, "portao_na_branch", return_value=(None, None)), redirect_stderr(io.StringIO()):
+            saida, _, _ = fc.montar_brief(self.tmp, "trilha", "forge:revisor-exemplo", None, "outra", etapa="qa", cobre="E1.2")
+        self.assertIn("- PQ-N (cmd): `forge-check docs` · espera: rc=0\n", saida)
+
+    def test_copia_do_parecer_de_seguranca_acusa_o_nenhum(self):
+        fora = Path(tempfile.mkdtemp(prefix="forge-trilha-fora-")).resolve()
+        self.addCleanup(shutil.rmtree, fora, True)
+        texto = ("---\ntipo: revisao-seguranca\ncontrato: 1\npedido: trilha\nbranch: melhoria/x\ncommit: abc1234\nparecer: aprovado\n"
+                 "revisor: forge:security-engineer\ndata: 2026-11-21\n---\n# S\n\n## Achados\n- Nenhum.\n")
+        (self.tmp / "docs" / "security").mkdir(parents=True)
+        for arq in (self.tmp / "docs" / "security" / "trilha.md", fora / "copia.md"):
+            arq.write_text(texto, encoding="utf-8")
+            with self.subTest(arq.name), mock.patch.object(fc, "RAIZES_DE_BRIEF", ()), redirect_stderr(io.StringIO()):
+                self.assertEqual(fc.cmd_docs(self.tmp, [str(arq)]), [
+                    f'{arq}: achados: linha do bloco ## Achados fora do formato (uma linha, sem caractere de controle; sem achados, '
+                    'omita o bloco): "- Nenhum." (R-SEGURANCA)'])
+
+
 if __name__ == "__main__":
     unittest.main()

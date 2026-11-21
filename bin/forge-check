@@ -401,11 +401,11 @@ def documentos(raiz, tipo=None, ref=None):
             yield rel, texto
 
 
-def documentos_do_delta(raiz):
-    """Arquivos mudados desde o merge-base(origin/develop, HEAD), commitados ou não, mais os novos fora do índice (B12).
+def documentos_do_delta(raiz, base="origin/develop"):
+    """Arquivos mudados desde o merge-base(`base`, HEAD), commitados ou não, mais os novos fora do índice (B12).
     None se o git falhar: o `docs` segue no modo de hoje e o estrito fica com o `forge-check pr`."""
     cod, mudados = git(raiz, "diff", "--name-only", "-z", "--relative", "--no-renames", "--no-ext-diff", "--no-textconv",
-                       "--merge-base", "origin/develop", "--", bruto=True)
+                       "--merge-base", base, "--", bruto=True)
     cod_novos, novos = git(raiz, "ls-files", "-z", "--others", "--exclude-standard", bruto=True)
     return None if cod or cod_novos else set(nomes_z(mudados) + nomes_z(novos))
 
@@ -455,14 +455,18 @@ def documentos_dados(raiz, arquivos):
     return lidos, saida
 
 
-def cmd_docs(raiz, arquivos=()):
+def cmd_docs(raiz, arquivos=(), base=None):
     """Valida os documentos do contrato. Sem `arquivos`, todos, e o modo estrito só nos do delta (B12); com eles (FC-DOCS-CAMINHO),
-    só os dados, todos no modo estrito. No estrito, o parecer também tem o `pedido:` conferido (`problema_do_pedido`)."""
+    só os dados, todos no modo estrito. Com `base` (o fluxo de entrega), só os do diff da branch contra a `origin/<base>`, todos no
+    estrito; diff ilegível reprova. No estrito, o parecer também tem o `pedido:` conferido (`problema_do_pedido`)."""
     if arquivos:
         lidos, saida = documentos_dados(raiz, arquivos)
         delta = {rel for rel, _, _ in lidos}
     else:
-        lidos, saida, delta = [(rel, texto, rel) for rel, texto in documentos(raiz)], [], documentos_do_delta(raiz)
+        delta = documentos_do_delta(raiz, f"origin/{base or 'develop'}")
+        if base and delta is None:  # FC-DOCS-CAMINHO: sem o diff, nada se afirma (falha fechada)
+            return [f"docs: o diff contra origin/{sem_controle(base)} não se lê; nada conferido (FC-DOCS-CAMINHO)"]
+        lidos, saida = [(rel, texto, rel) for rel, texto in documentos(raiz) if not base or rel in delta], []
         if delta is None:
             print("aviso: docs: base ilegível; estrito só no forge-check pr", file=sys.stderr)
     for rel, texto, nome in lidos:
@@ -9445,7 +9449,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
             saida.append(f"- PQ-N (cmd, do autor): `forge-check entrega {caminho_impresso(pedido_id)}{f' --raiz-pedidos {caminho_impresso(pasta)}' if pasta else ''} "
                          f"--branch {branch} --base {base} --base-sha {sha_base}{PROVAS_DO_PQ} --etapa codigo` · espera: rc=0")
     if etapa in ("review", "seguranca", "qa"):  # o bloco ## Achados e o teto em caracteres saem do `forge-check docs` (P3)
-        saida.append("- PQ-N (cmd): `forge-check docs` · espera: rc=0")
+        nome = base.removeprefix("origin/")  # FC-DOCS-CAMINHO: no fluxo de entrega, só os documentos do diff da branch
+        saida.append(f"- PQ-N (cmd): `forge-check docs{f' --base {nome}' if nome in BASES_DO_FLUXO else ''}` · espera: rc=0")
         if interpolacao_segura(pedido=pedido_id, base=base.removeprefix("origin/")):  # K-156: a validade do parecer antes do QA
             saida.append(f"- PQ-N (cmd): `forge-check pr {caminho_impresso(pedido_id)} --previo --base {sem_controle(base.removeprefix('origin/'))}` "
                          "· espera: rc=0, rodado depois do commit do parecer")
@@ -10393,6 +10398,8 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("docs", parents=[comum]).add_argument("arquivos", nargs="*", metavar="ARQUIVO",
                                                         help="só estes pareceres, no modo estrito; fora da raiz, com o critério da pasta do tipo (FC-DOCS-CAMINHO)")
+    sub.choices["docs"].add_argument("--base", choices=BASES_DO_FLUXO, help="sem ARQUIVO: só os documentos do diff da branch contra a "
+                                     "origin/<base>, no modo estrito; diff ilegível reprova (FC-DOCS-CAMINHO, o fluxo de entrega)")
     sub.add_parser("kanban", parents=[comum]).add_argument("--gerar", action="store_true", help="refaz o KANBAN.md de docs/kanban/historico.md (EST-M12)")
     sub.add_parser("fontes", help="confere se as fontes de boas práticas do registro local têm versão nova")
     br = sub.add_parser("brief", parents=[comum], help="forma, corte e decisões de um brief (C2, C4); `brief gerar` monta os blocos fixos; `brief mensagem` imprime a mensagem ao conferente")
@@ -10884,7 +10891,7 @@ def executar(a, raiz):
     if sem_checks:
         print(f"pr: checks do head não conferidos ({SEM_CHECKS_DO_FECHAR}=1, passo 1 do forge-fechar: os passos 4 e 6 os exigem verdes); "
               "resultado não gravado para o hook (E3.80)", file=sys.stderr)
-    violacoes = {"docs": lambda: cmd_docs(raiz, a.arquivos), "kanban": lambda: cmd_kanban(raiz),
+    violacoes = {"docs": lambda: cmd_docs(raiz, a.arquivos, a.base), "kanban": lambda: cmd_kanban(raiz),
                  "pr": lambda: pr_da_cli(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None), branch_do_pr,
                                           previo=getattr(a, "previo", False), sem_checks=sem_checks)}[a.cmd]()
     for v in violacoes:

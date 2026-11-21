@@ -26,7 +26,7 @@
       "id": "M3",
       "guarda": "delta pelo HEAD~1 no lugar do merge-base com a origin/develop",
       "arquivo": "bin/forge-check",
-      "de": "\"--merge-base\", \"origin/develop\", \"--\", bruto=True)",
+      "de": "\"--merge-base\", base, \"--\", bruto=True)",
       "para": "\"HEAD~1\", \"--\", bruto=True)",
       "testes": [
         "tests.test_volta_por_delta.DocsEstritoNoDelta.test_parecer_novo_commitado_ou_nao_reprova_com_achado_acima_do_teto"
