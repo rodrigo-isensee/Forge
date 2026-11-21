@@ -18,6 +18,10 @@ GIT_BASE_ANDOU = r'''#!/usr/bin/env bash
 for f in commit-tree update-ref; do if [ "$1" = "$f" ] && [ -f "$ESTADO/falha_$f" ]; then exit 1; fi; done
 # FECHAR-6A-DEVELOP-ANDOU: $ESTADO/falha_fetch_develop: a busca da develop (refspec exato do passo 6a) falha
 if [ "$1 $2 $3 $4" = "fetch -q origin +refs/heads/develop:refs/remotes/origin/develop" ] && [ -f "$ESTADO/falha_fetch_develop" ]; then exit 1; fi
+# $ESTADO/antes_do_fetch: roda (uma vez) antes da busca da develop do passo 6a; a develop do servidor anda de novo depois do ls-remote
+if [ "$1 $2 $3 $4" = "fetch -q origin +refs/heads/develop:refs/remotes/origin/develop" ] && [ -f "$ESTADO/antes_do_fetch" ]; then
+  mv "$ESTADO/antes_do_fetch" "$ESTADO/antes_do_fetch.rodou"; sh "$ESTADO/antes_do_fetch.rodou" >&2
+fi
 case "$*" in *"merge --ff-only"*) if [ -f "$ESTADO/falha_ff" ]; then exit 1; fi ;; esac
 if [ "$1 $2" = "push origin" ] && [ -f "$ESTADO/falha_apos_envio" ]; then touch "$ESTADO/ls_ref_falha"; fi
 case "$1 $2" in
@@ -404,6 +408,20 @@ class Teste(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
         self.assert_parou_no_6a(r, "o merge dela em melhoria/x tem conflito")
         self.assertIn("  b", r.stderr.splitlines())
+
+    def test_6a_busca_que_traz_outra_base_alem_da_lida_para(self):
+        # E75.6 (A2 da segurança): a base buscada tem de ser a lida no servidor (ls-remote); a que andou de novo não foi conferida
+        antigo = self.git("rev-parse", "melhoria/x")
+        self.base_anda_nos_checks("docs/nota.txt", local=False)
+        outra = self.tmp / "outra"
+        (self.estado / "antes_do_fetch").write_text(
+            f'cd "{outra}" && echo mais > docs/mais.txt && git add -- docs/mais.txt && git commit -q -m "feat: mais um PR"'
+            ' && git push -q origin develop\n', encoding="utf-8")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assert_parou_no_6a(r, "e origin/develop não a tem")
+        self.assertTrue((self.estado / "antes_do_fetch.rodou").exists())
+        self.assertEqual(self.git("rev-parse", "origin/develop"), self.head_remoto("develop"))
+        self.assertEqual(self.head_remoto("melhoria/x"), antigo)
 
     def test_6a_busca_da_base_que_falha_para_e_pede_o_fetch(self):
         self.base_anda_nos_checks("docs/nota.txt", local=False)

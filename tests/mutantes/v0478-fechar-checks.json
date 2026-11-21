@@ -14,55 +14,66 @@
     },
     {
       "id": "FCK-M2",
-      "guarda": "check-run obrigatório fora de completed/success recusa o merge (FECHAR-CHECKS-ANTES-DO-MERGE)",
+      "guarda": "execução mais recente terminada fora de success recusa, no merge direto e com --armar (FECHAR-CHECKS-ANTES-DO-MERGE, E75.6)",
       "arquivo": "bin/forge-fechar",
-      "de": "      || die \"parou no passo 6: o check obrigatório $nome do head",
-      "para": "      || true \"parou no passo 6: o check obrigatório $nome do head",
+      "de": "      completed/*) die \"parou no passo 6: o check obrigatório",
+      "para": "      completed/*) true \"parou no passo 6: o check obrigatório",
       "testes": [
-        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_exigido_vermelho_rodando_ou_ausente_recusa_o_merge"
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_exigido_vermelho_rodando_ou_ausente_recusa_o_merge",
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_com_armar_e_check_terminado_com_falha_recusa"
       ]
     },
     {
       "id": "FCK-M3",
       "guarda": "o passo 6 confere os check-runs do head antes do ready e do merge (FECHAR-CHECKS-ANTES-DO-MERGE)",
       "arquivo": "bin/forge-fechar",
-      "de": "    [ \"$armar\" = 1 ] || checks_do_head_verdes\n    if [ \"$pre_rascunho\" = true ]; then",
-      "para": "    [ \"$armar\" = 1 ] || : checks_do_head_verdes\n    if [ \"$pre_rascunho\" = true ]; then",
+      "de": "    checks_do_head_verdes \"$armar\"\n    if [ \"$pre_rascunho\" = true ]; then",
+      "para": "    : checks_do_head_verdes \"$armar\"\n    if [ \"$pre_rascunho\" = true ]; then",
       "testes": [
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_check_runs_verdes_leem_o_head_conferido_e_mesclam",
-        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_duplicata_do_exigido_precisa_de_todas_verdes"
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_execucao_mais_nova_com_falha_recusa_mesmo_com_a_velha_verde"
       ]
     },
     {
       "id": "FCK-M4",
-      "guarda": "completed sem success (failure, cancelled) não conta como verde (FECHAR-CHECKS-ANTES-DO-MERGE)",
+      "guarda": "por nome, só a execução de id maior vale, em qualquer ordem da resposta (FECHAR-CHECKS-ANTES-DO-MERGE, E75.6)",
       "arquivo": "bin/forge-fechar",
-      "de": "if ($2 != \"completed\" || $3 != \"success\") ruim = 1",
-      "para": "if ($2 != \"completed\") ruim = 1",
+      "de": "$1 == n && (!achou || $2 + 0 > id)",
+      "para": "$1 == n && (!achou || 1)",
       "testes": [
-        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_exigido_vermelho_rodando_ou_ausente_recusa_o_merge",
-        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_duplicata_do_exigido_precisa_de_todas_verdes"
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_rotulo_aplicado_catraca_velha_cancelled_e_nova_verde_mescla",
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_execucao_mais_nova_com_falha_recusa_mesmo_com_a_velha_verde"
       ]
     },
     {
       "id": "FCK-M5",
-      "guarda": "exigido ausente dos check-runs recusa o merge (FECHAR-CHECKS-ANTES-DO-MERGE)",
+      "guarda": "com --armar, check rodando ou ausente arma (FECHAR-CHECKS-ANTES-DO-MERGE, E75.2)",
       "arquivo": "bin/forge-fechar",
-      "de": "END {exit !(achou && !ruim)}",
-      "para": "END {exit !(!ruim)}",
+      "de": "      *) [ \"${1:-0}\" = 1 ] \\",
+      "para": "      *) false \\",
       "testes": [
-        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_nome_mais_longo_verde_nao_vale_pelo_exigido",
-        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_exigido_vermelho_rodando_ou_ausente_recusa_o_merge"
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_com_armar_e_check_rodando_ou_ausente_arma"
       ]
     },
     {
       "id": "FCK-M6",
-      "guarda": "a recusa por check do head vale só no merge direto; com --armar arma como antes (FECHAR-CHECKS-ANTES-DO-MERGE, E75.2)",
+      "guarda": "no merge direto, execução mais recente rodando ou ausente recusa (FECHAR-CHECKS-ANTES-DO-MERGE)",
       "arquivo": "bin/forge-fechar",
-      "de": "    [ \"$armar\" = 1 ] || checks_do_head_verdes",
-      "para": "    [ \"$armar\" = 9 ] || checks_do_head_verdes",
+      "de": "           || die \"parou no passo 6: o check obrigatório $nome do head ${remoto_sha:0:12} não está verde",
+      "para": "           || true \"parou no passo 6: o check obrigatório $nome do head ${remoto_sha:0:12} não está verde",
       "testes": [
-        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_com_armar_e_check_rodando_arma"
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_exigido_vermelho_rodando_ou_ausente_recusa_o_merge",
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_nome_mais_longo_verde_nao_vale_pelo_exigido"
+      ]
+    },
+    {
+      "id": "FCK-M7",
+      "guarda": "o passo 6 passa o --armar à conferência dos check-runs (FECHAR-CHECKS-ANTES-DO-MERGE, E75.6)",
+      "arquivo": "bin/forge-fechar",
+      "de": "    checks_do_head_verdes \"$armar\"\n",
+      "para": "    checks_do_head_verdes 0\n",
+      "testes": [
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_com_armar_e_check_rodando_ou_ausente_arma"
       ]
     }
   ]

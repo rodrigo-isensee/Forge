@@ -31,6 +31,16 @@
       "testes": [
         "tests.test_fechar_base_andou.Teste.test_6a_base_local_velha_busca_a_base_e_segue_sem_conflito"
       ]
+    },
+    {
+      "id": "F6A-M4",
+      "guarda": "depois da busca, a base local tem de ser a lida no servidor; a que andou de novo para (FECHAR-6A-DEVELOP-ANDOU, E75.6)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ \"$local_base\" != \"$srv\" ] || ! git merge-base --is-ancestor \"$base_2b\" \"$srv\" 2>/dev/null; then",
+      "para": "  if ! git merge-base --is-ancestor \"$base_2b\" \"$srv\" 2>/dev/null; then",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_6a_busca_que_traz_outra_base_alem_da_lida_para"
+      ]
     }
   ]
 }

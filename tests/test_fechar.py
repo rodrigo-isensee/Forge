@@ -107,12 +107,13 @@ case "$1 $2" in
     echo MERGED > "$ESTADO/estado"; exit 0 ;;
   "api repos/{owner}/{repo}/commits/"*)
     # FECHAR-CHECKS-ANTES-DO-MERGE: só a forma que o script pede (sha de 40 hex, os mais recentes, 100 por página, o --jq dele); a saída é a do
-    # --jq (nome, status, conclusão): check_runs_<sha>, senão check_runs, senão os três exigidos verdes
+    # --jq (nome, id, status, conclusão): check_runs_<sha>, senão check_runs, senão os três exigidos verdes. Como o GitHub real (PR 745), o
+    # filter=latest devolve uma linha por suíte: a catraca do rótulo traz a execução velha cancelled (id menor) ao lado da nova verde (E75.6)
     [[ "$2" =~ ^repos/\{owner\}/\{repo\}/commits/([0-9a-f]{40})/check-runs\?filter=latest\&per_page=100$ ]] || exit 64
-    [ "${*:3}" = '--jq .check_runs[] | [.name, .status, (.conclusion // "-")] | @tsv' ] || exit 64
+    [ "${*:3}" = '--jq .check_runs[] | [.name, .id, .status, (.conclusion // "-")] | @tsv' ] || exit 64
     falha_n falha_check_runs && { echo "HTTP 502" >&2; exit 1; }
     cat "$ESTADO/check_runs_${BASH_REMATCH[1]}" 2>/dev/null || cat "$ESTADO/check_runs" 2>/dev/null \
-      || printf 'bateria\tcompleted\tsuccess\nbateria (python 3.14)\tcompleted\tsuccess\ncatraca\tcompleted\tsuccess\n'
+      || printf 'catraca\t900\tcompleted\tcancelled\nbateria\t901\tcompleted\tsuccess\nbateria (python 3.14)\t902\tcompleted\tsuccess\ncatraca\t903\tcompleted\tsuccess\n'
     exit 0 ;;
   "run list")
     # FECHAR-ESPERA-CI-DEVELOP: só a forma que o script pede (evento push, commit e o --jq dele); a saída é a do --jq: id, status e conclusão.
