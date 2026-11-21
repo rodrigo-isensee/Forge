@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-limpeza-fim-item
-commit: 71996730a3e485db4410e9e4a824fe4e113d4ace
+commit: 9aa1e723f310c9cb3607ceddeb8864f1ac5b87b4
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -32,3 +32,9 @@ Escopo: `forge-copia limpar` (apaga clone ou worktree de item acabado) e `forge-
   `contagem: não prova (passa na base)=59; prova (API ausente)=1; prova (asserção)=24` (nenhum teste cai no HEAD).
 - Mutação: `bin/forge-mutante` nas 3 specs (24 mutantes: 16 em `forge-copia`, 8 em `forge-fechar`), saída 0, M1 a M24 todos `morreu`.
 - `forge-mutante --cobertura --base bead3e53`: condições Python de `forge-copia` cobertas por mutante declarado (provado acima); `forge-fechar` é shell (`não coberto`), com 8 mutantes declarados à mão (linhas 803 a 818, 1300 e 1301), todos mortos.
+
+## Revalidação (E68.10, head 9aa1e723, delta desde 71996730)
+Delta lido por `forge-check parecer delta`: `bin/forge-copia` (A1: PR de fork, `isCrossRepository`, não encerra o item; A2: limpeza conferida de novo antes de apagar, função `sujeira`), 2 módulos de teste, spec `-4` e fragmento. Escopo e critérios iguais; sem achado novo.
+- Local, só os arquivos tocados: `test_forge_copia.py` 57 testes OK; `test_forge_fechar.py` 29 testes OK. Suíte completa no CI do PR (`bateria` do mesmo sha).
+- Vermelho: `forge-testes --vermelho 71996730… --modulos test_forge_copia,test_forge_fechar`: `contagem: não prova (passa na base)=78; prova (asserção)=8`; nenhum teste cai no HEAD.
+- Mutação do delta: `bin/forge-mutante tests/mutantes/v0479-limpeza-fim-item-4.json --base 71996730…`: `base=71996730… rev=8767adfe3aff`; M25 (fork), M26 (reconferência), M27 (suja antes do gh) todos `morreu`, saída 0.
