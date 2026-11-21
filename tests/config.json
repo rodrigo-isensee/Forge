@@ -576,7 +576,7 @@
       "no mesmo head do review",
       "## Mutantes declarados nos pedidos de controle",
       "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado",
-      "grave o JSON de cada caso ao terminar, em `relatorios/<rodada>/` no projeto \\(no `\\.gitignore`\\), nunca em `/tmp`"
+      "grave o JSON de cada caso ao terminar, em `relatorios/<rodada>/` no projeto, nunca em `/tmp`, que some; acrescente `relatorios/` ao `\\.gitignore` antes da rodada"
     ],
     "skills/cyber-security/SKILL.md": [
       "suíte inteira roda só no CI",
@@ -875,7 +875,7 @@
     },
     "skills/qa-testing/SKILL.md": {
       "`git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado": {"regra": "R-QA", "porque": "sem o texto, o parecer lê só o git log e aceita o oráculo apagado da história por reset ou rebase (EXT-1, C-2)"},
-      "grave o JSON de cada caso ao terminar, em `relatorios/<rodada>/` no projeto \\(no `\\.gitignore`\\), nunca em `/tmp`": {"regra": "R-QA", "porque": "sem o texto, a rodada longa de suíte ou E2E grava o resultado em /tmp ou só no fim e perde o que já rodou quando a sessão cai (K165)"}
+      "grave o JSON de cada caso ao terminar, em `relatorios/<rodada>/` no projeto, nunca em `/tmp`, que some; acrescente `relatorios/` ao `\\.gitignore` antes da rodada": {"regra": "R-QA", "porque": "sem o texto, a rodada longa de suíte ou E2E grava o resultado em /tmp ou só no fim e perde o que já rodou quando a sessão cai (K165)"}
     },
     "agents/jarvis.md": {
       "\\*\\*Recibo antes de acionar o time\\*\\* \\(mensagem no meio da rodada: na fala seguinte, antes de tudo\\)": {"regra": "R-DECISAO", "porque": "sem o texto, a mensagem do dono que chega no meio da rodada fica sem recibo e some atrás do andamento (RECIBO-NO-MEIO-DA-RODADA)"},

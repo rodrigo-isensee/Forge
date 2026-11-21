@@ -58,7 +58,7 @@ Para cada critério de aceite da especificação, pelo menos um cenário. A tabe
 - Nada de espera fixa; use as esperas automáticas da ferramenta.
 - Cada teste cria e limpa os próprios dados, sem depender de ordem.
 - Navegador padrão no desenvolvimento; os demais no CI.
-- **Rodada de mais de 10 min (suíte ou E2E):** grave o JSON de cada caso ao terminar, em `relatorios/<rodada>/` no projeto (no `.gitignore`), nunca em `/tmp`, que some; se a sessão cair, o que rodou fica. Exemplo: `<executor-e2e> <caso> --reporter json > relatorios/<rodada>/<caso>.json`.
+- **Rodada de mais de 10 min (suíte ou E2E):** grave o JSON de cada caso ao terminar, em `relatorios/<rodada>/` no projeto, nunca em `/tmp`, que some; acrescente `relatorios/` ao `.gitignore` antes da rodada. Exemplo: `<executor-e2e> <caso> --reporter json > relatorios/<rodada>/<caso>.json`.
 
 ## Acessibilidade
 - Verificação automática em todas as telas dos fluxos principais, com as tags WCAG 2.2 AA.
