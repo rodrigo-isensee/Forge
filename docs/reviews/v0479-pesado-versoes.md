@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pesado-versoes
-commit: f8210fe5ab1eecfebab8b1692aa41b135e7df284
+commit: 4d3f76d441f1c276b554497e69c4330556dc3433
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
@@ -23,3 +23,10 @@ Aprovado.
 - Guardas do diff (classe C): três linhas de guarda (`pesado.py:299`, `:301`, `:309`), um mutante cada (M1 a M3), cada um com teste do ramo de falha por comportamento (chama `pesado.pesado`), não por leitura da fonte. Rodei `bin/forge-mutante tests/mutantes/v0478-pesado-versoes.json --processos 1`: M1, M2 e M3 morreram, rc=0.
 - Teste novo: `python3 -m unittest tests.test_forge_pesado.FormasLevesDoForgeTestes tests.test_hooks.PesadoClassePelosArgumentos`: 8 testes, OK. Suíte inteira: só no CI do PR (R-REVIEW); a branch não tem PR nem run, então o verde do CI fica para o merge.
 - Tamanho (H1): 18 linhas de código, um comportamento. Docs (`docs/hooks.md`) e índice de fixtures atualizados na mesma entrega; fragmento do changelog presente. Commit único em Conventional Commits.
+
+## Revalidação no head 4d3f76d4 (E64.8)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-pesado-versoes.md`, intervalo `f8210fe5..4d3f76d4`; no domínio só `tests/mutantes/v0451-a1b.json` (os outros três arquivos do intervalo são pareceres). Aprovado.
+
+- M5 passa a mirar `all(opcao_leve(a) for a in argumentos if` (`hooks/pesado.py:309`), a linha que lê os argumentos em qualquer posição; A1-separador passa à tupla `("--", "-k")` de `opcao_leve` (`pesado.py:299`), quem segura o `--` desde a E64.1. A1-prefixo, A1-igual e A1-separador ganham `test_formas_da_lista_seguem_leves` (`--list`, `--base=...`, `-- tests/a.py`), teste que já existia em f8210fe5: o delta não toca teste.
+- `bin/forge-mutante tests/mutantes/v0451-a1b.json --processos 1`: M1 a M7 e os três A1 morreram, rc=0. `bin/forge-mutante tests/mutantes/v0478-pesado-versoes.json --processos 1`: M1 a M3 morreram, rc=0.
+- Nota do revisor: em f8210fe5 rodei só a spec do pedido; a `v0451-a1b`, que mira o mesmo `hooks/pesado.py`, tinha três mutantes sobreviventes e passou sem ser rodada. Suíte inteira: só no CI do PR (R-REVIEW).
