@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae4-ordens
-commit: df0cf4d96cdf642b624c1468245010619410d9d1
+commit: 768ddb9017fda505bfe54164e1b962eaffecc943
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -55,6 +55,14 @@ Delta de b1cd22ec a df0cf4d9 no meu domínio, sem a develop (`git diff c9d69234 
 - `bin/forge-mutante tests/mutantes/est-m12-gerar.json`: M1-M6 morreram (M3 em `bin/forge-check:4893`).
 - Mutantes das 4 specs v0479-ae4-ordens: 26 de 26 mortos (M24 `(erro)` sob o mutante com o controle verde, vale como morto); `--cobertura --base c9d69234` sem condição descoberta; só `tests/pesos-d4.json` sai `não coberto` (dado, não guarda).
 - Sem vermelho novo: nenhum teste novo no delta. Sem bug novo. Parecer mantido: aprovado.
+
+## Revalidação (head 768ddb90)
+Delta de df0cf4d9 a 768ddb90 no meu domínio (`forge-check parecer delta`, sem a develop): `agents/jarvis.md` (texto encurtado, linha "Linguagem fácil"), `bin/forge-check` (`sem_controle(alvo)` nas 4 recusas de `recusa_do_apontador`; expressões compiladas no uso), `tests/test_ordens.py`, `tests/test_decisoes.py` (`sem_manutencao`) e as 4 specs de mutantes ajustadas.
+
+- `test_ordens` 19 OK; `test_anotar` 18 OK; `test_hooks_volta_corpus` 33 OK (discover, TMPDIR fora do repositório).
+- Vermelho (`--modulos test_ordens`, base a6baf239): `vermelho: base=a6baf2390934 head=768ddb9017fd módulos=test_ordens`; `contagem: não prova (passa na base)=1; prova (asserção)=18`; rc 0. Com `test_anotar` junto sai rc 2: 7 testes erram na base porque ela não conhece o argumento `cartao` (herdados, passam no HEAD); por isso o vermelho vale só para test_ordens.
+- Mutantes, uma chamada por spec, `--base df0cf4d9`: 26 de 26 mortos (M1-M8, M9-M16, M17-M24 com M24 `(erro)` sob o mutante e controle verde, M25-M26), incluindo os M4-M8 e M22-M24 na nova forma `sem_controle`.
+- Sem bug novo. Parecer mantido: aprovado.
 
 ## Cenários e resultado real
 Vermelho antes do verde (`TMPDIR` fora de repositório git; ver A1):
