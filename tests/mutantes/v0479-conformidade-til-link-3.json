@@ -47,8 +47,8 @@
       "id": "F5",
       "guarda": "o `php -r` falha fechado na linha (A2, S11 da segurança E80.3, E80.5)",
       "arquivo": "hooks/conformidade.py",
-      "de": "                    r\"|php\\s(?:[^;&|\\n]*\\s)?-[a-zA-Z]*r|deno\\s+eval)\")\n",
-      "para": "                    r\"|phpQ\\s(?:[^;&|\\n]*\\s)?-[a-zA-Z]*r|deno\\s+eval)\")\n",
+      "de": "                    r\"(?![\\w-])|php\\s(?:[^;&|\\n]*\\s)?-[a-zA-Z]*r|deno\\s+eval)\")\n",
+      "para": "                    r\"(?![\\w-])|phpQ\\s(?:[^;&|\\n]*\\s)?-[a-zA-Z]*r|deno\\s+eval)\")\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
       ]
