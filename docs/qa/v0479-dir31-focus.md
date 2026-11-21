@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-dir31-focus
-commit: 0d5826f9ce401e259e888080149cef3d4ed37218
+commit: 0b933f1d9d842824a4ec05d9457e1df645a17d15
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -34,3 +34,6 @@ Escopo: `scripts/jarvis` (função `visao_de_foco`), modelo de projeto, README, 
 - Vermelho antes do verde (manual, cópia da base `bead3e53` em `$TMPDIR` com os dois arquivos de teste do head, porque `forge-testes --vermelho` ficou na fila da trava R-TETO): `FAILED (failures=8)` de 22 em `test_sessao_automatica.py` (os 8 são testes novos de foco, linguagem e modelo; os 14 anteriores seguem verdes) e `FAILED (failures=1)` em `ReadmeVisaoDeFoco`.
 - Mutação: `bin/forge-mutante tests/mutantes/v0478-dir31-focus.json tests/mutantes/v0478-dir31-focus-2.json`: F1 a F11 todos `morreu` (scripts/jarvis:72,80,84,85,86,87,89,93,94 e settings.json:3); nenhum sobrevivente. Conferi a lista contra o diff: cada ramo de guarda de `visao_de_foco` (arquivo ilegível, `viewMode` presente, `tui` por arquivo e por duas variáveis, `modo in (None, "focus")`, `--settings` condicional) tem mutante.
 - `forge-mutante --cobertura --base bead3e53`: `não coberto: scripts/jarvis` e `settings.json` (shell e JSON saem assim por desenho; a cobertura é a lista declarada, conferida à mão acima).
+
+## Revalidação (head 0b933f1d, E67.9)
+`forge-check parecer delta` (base 0d5826f9): no domínio só `tests/test_reval_delta.py`, uma linha: contagem de `tests/test_forge.py` citando `README.md` de 15 para 16 (a guarda C-2 passa a contar o teste `ReadmeVisaoDeFoco` já aprovado). O merge da develop fica fora do domínio. Rodados só `test_reval_delta.py` (10 testes, OK) e `test_sessao_automatica.py` (22 testes, OK). Sem suíte local nem vermelho (linha de contagem de teste existente; carga da máquina, pedido do brief). Parecer segue aprovado.
