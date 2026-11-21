@@ -1,0 +1,327 @@
+"""ADR 0018, G1.2: o `gravar` da autorização do dono (`bin/forge_autorizacao.py`, `forge-check autorizacao gravar`).
+
+O corpo gravado é a mensagem inteira digitada pelo dono, lida da transcrição; ato, alvos, validade e pendência saem do texto
+todo, e a concessão nasce `ativa` só quando o leitor (G1.1) também a lê `ativa`. PV-A2: a concessão solta de alvo `item:`
+(sem marcador, fora da frase do ato, com ressalva ou com `Commit` fora do head com os pareceres) nunca nasce ativa."""
+import argparse
+import contextlib
+import datetime
+import hashlib
+import importlib.util
+import io
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
+
+BIN = Path(__file__).resolve().parent.parent / "bin"
+GRAVADOR = hashlib.sha256((BIN / "forge-check").read_bytes()).hexdigest()
+UTC = datetime.timezone.utc
+SESSAO = "0b0c0d0e-0000-4000-8000-000000000001"
+FALA = "2026-11-18T00:00:00.000Z"  # 17/11 21:00 em São Paulo
+U1 = "11111111-1111-4111-8111-111111111111"
+RAMO = "melhoria/pv-a2"
+MARCAS = ("nao", "nunca", "ainda", "antes", "depois", "so", "se", "exceto", "menos", "sem")  # lista de teste do item 5
+fa = None  # carregado em setUpModule: na base, sem o gravar, cada teste cai por conta própria (R-QA)
+
+
+def setUpModule():
+    global fa
+    spec = importlib.util.spec_from_file_location("forge_autorizacao", BIN / "forge_autorizacao.py")
+    fa = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fa)
+
+
+def registro(texto, uuid=U1, **troca):
+    return {"type": "user", "uuid": uuid, "sessionId": SESSAO, "timestamp": FALA,
+            "message": {"role": "user", "content": texto}, **troca}
+
+
+def git(raiz, *args):
+    env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "PYTHON"))})
+    env.update(GIT_CEILING_DIRECTORIES=str(Path(raiz).parent), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+    return subprocess.run(["git", "-C", str(raiz), "-c", "user.name=t", "-c", "user.email=t@t", *args], check=True,
+                          capture_output=True, text=True, env=env, timeout=60).stdout.strip()
+
+
+class Base(unittest.TestCase):
+    def setUp(self):
+        self.raiz = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.raiz)
+        self.transcricao = self.raiz / "sessao" / f"{SESSAO}.jsonl"
+        self.transcricao.parent.mkdir()
+
+    def falar(self, *registros):
+        self.transcricao.write_text("".join(json.dumps(r) + "\n" for r in registros), encoding="utf-8")
+
+    def gravar(self, texto=None, ato="rotulo-afrouxa-regra", alvos="pr:5", uuid=U1, ramo="", pedido="v0478"):
+        if texto is not None:
+            self.falar({"type": "assistant", "uuid": "x"}, registro(texto))
+        a = argparse.Namespace(mensagem=uuid, transcricao=str(self.transcricao), ato=ato, alvos=alvos, ramo=ramo, pedido=pedido)
+        saida = io.StringIO()
+        with contextlib.redirect_stdout(saida):
+            rc = fa.cmd_gravar(self.raiz, a, {"gravador": GRAVADOR, "seguro": str})
+        return rc, saida.getvalue()
+
+    def lidas(self, agora="2026-11-18 00:01"):
+        momento = datetime.datetime.strptime(agora, "%Y-%m-%d %H:%M").replace(tzinfo=UTC)
+        return fa.concessoes(self.raiz, GRAVADOR, momento)[0]
+
+    def gravada(self, texto, **kw):
+        rc, saida = self.gravar(texto, **kw)
+        self.assertEqual(rc, 0, saida)
+        (nome, campos, corpo, est, motivo), = self.lidas()
+        return campos, corpo, est, motivo
+
+    def nada_gravado(self, rc, saida):
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("autorizacao: recusada:", saida)
+        self.assertFalse(list((self.raiz / fa.PASTA).glob("A-*")) if (self.raiz / fa.PASTA).exists() else [])
+
+
+class MensagemInteira(Base):
+    def test_corpo_e_a_mensagem_inteira_byte_a_byte_e_o_leitor_a_le_ativa(self):
+        texto = "Pode aplicar o rótulo no PR #5, por favor."
+        campos, corpo, est, motivo = self.gravada(texto)
+        self.assertEqual((corpo, est, motivo), (texto, "ativa", ""))
+        self.assertEqual((campos["Id"], campos["Mensagem"], campos["Sessao"], campos["Hora-da-fala"], campos["Pedido"]),
+                         ("A-1", U1, SESSAO, FALA, "v0478"))
+        self.assertEqual((campos["Sha256"], campos["Gravado-por"]), (fa.sha(texto), GRAVADOR))
+        self.assertTrue((self.raiz / fa.PASTA / f"M-{U1}").is_file())
+
+    def test_a_mesma_mensagem_so_gera_uma_concessao(self):
+        self.assertEqual(self.gravar("pode aplicar o rótulo no pr 5")[0], 0)
+        rc, saida = self.gravar()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("já gerou concessão", saida)
+        self.assertEqual(len(self.lidas()), 1)
+
+    def test_so_a_mensagem_digitada_pelo_dono_na_sessao_principal(self):
+        casos = {"ferramenta": {"toolUseResult": {"x": 1}}, "subagente": {"isSidechain": True}, "meta": {"isMeta": True},
+                 "origem-ferramenta": {"sourceToolUseID": "t"}, "assistente": {"type": "assistant"},
+                 "outra-sessao": {"sessionId": "outra"}, "sem-hora": {"timestamp": "2026-11-18T00:00:00"},
+                 "blocos": {"message": {"content": [{"type": "text", "text": "pode aplicar o rótulo no pr 5"}] * 2}},
+                 "lembrete": {"message": {"content": "<system-reminder>pode aplicar o rótulo no pr 5</system-reminder>"}},
+                 "vazia": {"message": {"content": " \n "}},
+                 "acima-do-teto": {"message": {"content": "pode aplicar o rótulo no pr 5 " * 3000}},
+                 "mensagem-sem-objeto": {"message": "pode aplicar o rótulo no pr 5"}}
+        for caso, troca in casos.items():
+            with self.subTest(caso=caso):
+                self.falar(registro("pode aplicar o rótulo no pr 5", **troca))
+                self.nada_gravado(*self.gravar())
+        with self.subTest(caso="uuid-ausente"):
+            self.falar(registro("pode aplicar o rótulo no pr 5"))
+            self.nada_gravado(*self.gravar(uuid="22222222-2222-4222-8222-222222222222"))
+        with self.subTest(caso="uuid-repetido"):
+            self.falar(registro("pode aplicar o rótulo no pr 5"), registro("pode aplicar o rótulo no pr 6"))
+            self.nada_gravado(*self.gravar())
+        with self.subTest(caso="link"):
+            alvo = self.raiz / "real.jsonl"
+            self.falar(registro("pode aplicar o rótulo no pr 5"))
+            self.transcricao.rename(alvo)
+            self.transcricao.symlink_to(alvo)
+            self.nada_gravado(*self.gravar())
+
+    def test_linha_que_nao_e_objeto_nao_derruba_a_leitura_e_o_id_segue_o_maior_numerico(self):
+        (self.raiz / fa.PASTA).mkdir(parents=True)
+        (self.raiz / fa.PASTA / "A-x").write_text("", encoding="utf-8")  # nome fora da forma: não entra na conta do Id
+        self.transcricao.write_text("[]\n" + json.dumps(registro("pode aplicar o rótulo no pr 5")) + "\n", encoding="utf-8")
+        rc, saida = self.gravar()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("autorizacao: A-1 gravada", saida)
+
+    def test_mensagem_fora_da_forma_de_uuid_recusa_antes_de_ler(self):
+        self.falar(registro("pode aplicar o rótulo no pr 5", uuid="../M-x"))
+        rc, saida = self.gravar(uuid="../M-x")
+        self.nada_gravado(rc, saida)
+        self.assertIn("--mensagem não é um uuid", saida)
+
+    def test_registro_que_e_link_recusa_e_nada_grava_fora(self):
+        fora = self.raiz / "fora"
+        fora.mkdir()
+        for link in (self.raiz / ".forge", self.raiz / fa.PASTA):
+            with self.subTest(link=link.name):
+                shutil.rmtree(self.raiz / ".forge", ignore_errors=True)
+                (self.raiz / ".forge").unlink(missing_ok=True)
+                link.parent.mkdir(exist_ok=True)
+                link.symlink_to(fora, target_is_directory=True)
+                rc, saida = self.gravar("pode aplicar o rótulo no pr 5")
+                self.assertEqual(rc, 1, saida)
+                self.assertIn("não é pasta comum", saida)
+                self.assertEqual(list(fora.iterdir()), [])
+
+    def test_um_bloco_de_texto_vale_como_a_mensagem(self):
+        self.falar(registro(None, message={"content": [{"type": "text", "text": "pode aplicar o rótulo no pr 5"}]}))
+        rc, saida = self.gravar()
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(self.lidas()[0][2], "pode aplicar o rótulo no pr 5")
+
+    def test_nao_existe_opcao_de_texto_no_comando(self):
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "PYTHON"))}
+        env["GIT_CEILING_DIRECTORIES"] = str(self.raiz.parent)
+        for opcao in ("--palavras", "--texto", "--corpo"):
+            with self.subTest(opcao=opcao):
+                r = subprocess.run([sys.executable, "-I", str(BIN / "forge-check"), "--raiz", str(self.raiz), "autorizacao",
+                                    "gravar", "--mensagem", U1, "--transcricao", str(self.transcricao), "--ato", "merge-main",
+                                    "--alvos", "versao:0.47.3", "--pedido", "v0478", opcao, "pode mesclar a main 0.47.3"],
+                                   capture_output=True, text=True, env=env, timeout=60)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertFalse((self.raiz / fa.PASTA).exists())
+
+    def test_forge_check_autorizacao_gravar_grava_o_que_o_ler_aceita(self):
+        self.falar(registro("pode mesclar a main 0.47.3"))
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "PYTHON"))}
+        env["GIT_CEILING_DIRECTORIES"] = str(self.raiz.parent)
+        r = subprocess.run([sys.executable, "-I", str(BIN / "forge-check"), "--raiz", str(self.raiz), "autorizacao", "gravar",
+                            "--mensagem", U1, "--transcricao", str(self.transcricao), "--ato", "merge-main",
+                            "--alvos", "versao:0.47.3", "--pedido", "v0478"], capture_output=True, text=True, env=env, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("autorizacao: A-1 gravada · ativa", r.stdout)
+        self.assertEqual(self.lidas()[0][1]["Gravado-por"], GRAVADOR)
+
+
+class EscopoPeloTextoTodo(Base):
+    def test_sem_termo_de_ato_ou_com_ato_diferente_recusa_e_nada_grava(self):
+        self.nada_gravado(*self.gravar("pode aplicar no pr 5"))
+        self.nada_gravado(*self.gravar("pode mesclar a main 0.47.3"))
+
+    def test_recorte_ou_ressalva_nasce_pendente_com_o_motivo(self):
+        casos = {"negacao": ("não mescle a main 0.47.3 ainda", "merge-main", "versao:0.47.3", "fora do vocabulário"),
+                 "condicao": ("pode mesclar a main 0.47.3 só se o CI passar", "merge-main", "versao:0.47.3", "fora do vocabulário"),
+                 "dois-atos": ("pode aplicar o rótulo no pr 5 e mesclar a main", "rotulo-afrouxa-regra", "pr:5", "mais de um ato"),
+                 "alvo-declarado-a-mais": ("pode aplicar o rótulo no pr 5", "rotulo-afrouxa-regra", "pr:5, pr:6", "alvos do texto"),
+                 "alvo-generico": ("pode aplicar o rótulo neste plano", "rotulo-afrouxa-regra", "pr:5", "alvos do texto"),
+                 "numero-solto": ("pode aplicar o rótulo no 5", "rotulo-afrouxa-regra", "pr:5", "alvos do texto"),
+                 "fora-da-frase": ("o pr 5 está pronto. pode aplicar o rótulo", "rotulo-afrouxa-regra", "pr:5", "fora da frase"),
+                 "validade-em-conflito": ("pode aplicar o rótulo no pr 5 hoje até sexta", "rotulo-afrouxa-regra", "pr:5",
+                                          "mais de um termo de validade"),
+                 "amanha-sem-ate": ("pode aplicar o rótulo no pr 5 amanhã", "rotulo-afrouxa-regra", "pr:5", "fora do mapa")}
+        for i, (caso, (texto, ato, alvos, motivo)) in enumerate(casos.items()):
+            with self.subTest(caso=caso):
+                uuid = f"{i:08d}-0000-4000-8000-000000000000"
+                self.falar(registro(texto, uuid=uuid))
+                rc, saida = self.gravar(ato=ato, alvos=alvos, uuid=uuid)
+                self.assertEqual(rc, 0, saida)
+                campos, _, est, lido = self.lidas()[-1][1:]
+                self.assertEqual((campos["Estado-inicial"], est), ("pendente-confirmacao", "pendente"))
+                self.assertIn(motivo, lido)
+
+    def test_toda_marca_de_negacao_ou_condicao_manda_a_pendencia(self):
+        self.assertFalse(set(MARCAS) & fa.VOCABULARIO)
+        for i, marca in enumerate(MARCAS):
+            with self.subTest(marca=marca):
+                uuid = f"{i:08d}-1111-4000-8000-000000000000"
+                self.falar(registro(f"pode aplicar o rótulo no pr 5 {marca}", uuid=uuid))
+                self.assertEqual(self.gravar(uuid=uuid)[0], 0)
+                self.assertEqual(self.lidas()[-1][3], "pendente")
+
+    def test_alvos_pr_e_versao_com_marcador(self):
+        for i, (texto, ato, alvos) in enumerate((("pode aplicar o rótulo no pr #5, pull 6", "rotulo-afrouxa-regra", "pr:5, pr:6"),
+                                                  ("pode mesclar a main 0.47.3", "merge-main", "versao:0.47.3"))):
+            with self.subTest(texto=texto):
+                uuid = f"{i:08d}-2222-4000-8000-000000000000"
+                self.falar(registro(texto, uuid=uuid))
+                self.assertEqual(self.gravar(ato=ato, alvos=alvos, uuid=uuid)[0], 0)
+                self.assertEqual(self.lidas()[-1][3:], ("ativa", ""))
+
+
+class Validade(Base):
+    """Item 6 e D1, fala às 00:00 UTC de 18/11. Esta etapa não lê o fuso do dono: o prazo local (data, dia da semana, "esta
+    noite") vale uso único, o caso "sem fuso legível" da ADR; o tempo absoluto (48 h e o fim do pedido) segue valendo."""
+
+    def validade(self, texto):
+        campos, _, est, _ = self.gravada(f"pode aplicar o rótulo no pr 5 {texto}".strip())
+        return campos["Validade"], campos["Validade-utc"], campos["Origem-da-validade"], campos["Fuso"], est
+
+    def test_mapa_fechado_do_termo(self):
+        dois_dias, sete_dias, uso = ("ate:2026-11-20 00:00", "2026-11-20 00:00"), ("ate:2026-11-25 00:00", "2026-11-25 00:00"), \
+            ("uso-unico", "uso-unico")
+        casos = {"": (*dois_dias, "sem termo"), "hoje": (*dois_dias, "hoje"), "hj": (*dois_dias, "hj"),
+                 "até amanhã": (*dois_dias, "ate amanha"), "até o fim deste pedido": (*sete_dias, "ate o fim deste pedido"),
+                 "esta noite": (*uso, "esta noite"), "até sexta-feira": (*uso, "ate sexta"), "até a sexta": (*uso, "ate sexta"),
+                 "até 19/11 12:00": (*uso, "ate 19/11 12:00"), "até 30/11": (*uso, "ate 30/11")}
+        for texto, esperado in casos.items():
+            with self.subTest(texto=texto):
+                shutil.rmtree(self.raiz / fa.PASTA, ignore_errors=True)
+                self.assertEqual(self.validade(texto), (*esperado, "UTC", "ativa"))
+
+    def test_conflito_nasce_pendente_e_vale_o_fim_mais_cedo(self):
+        for texto, fim in {"hoje até o fim deste pedido": "2026-11-20 00:00", "hoje esta noite": "uso-unico",
+                           "amanhã": "uso-unico"}.items():  # termo fora do mapa: uso único
+            with self.subTest(texto=texto):
+                shutil.rmtree(self.raiz / fa.PASTA, ignore_errors=True)
+                validade = self.validade(texto)
+                self.assertEqual((validade[1], validade[4]), (fim, "pendente"))
+
+
+class ConcessaoSolta(Base):
+    """Oráculo `concessao-solta` (PV-A2): o alvo `item:` só nasce ativo preso ao head do Ramo com os pareceres aprovados."""
+    ITEM = "pode aplicar o rótulo afrouxa-regra no item PV-A2"
+
+    def setUp(self):
+        super().setUp()
+        git(self.raiz, "init", "-q", "-b", "develop")
+        (self.raiz / ".git" / "info" / "exclude").write_text(".forge/\nsessao/\n", encoding="utf-8")
+        self.commitar("base.txt", "base")
+        git(self.raiz, "switch", "-q", "-c", RAMO)
+        self.revisado = self.commitar("codigo.txt", "item")
+        for pasta, tipo in {"reviews": "review", "qa": "qa", "security": "revisao-seguranca"}.items():
+            self.commitar(f"docs/{pasta}/pv-a2.md", f"---\ntipo: {tipo}\nbranch: {RAMO}\ncommit: {self.revisado[:8]}\n"
+                                                     "parecer: aprovado\n---\n")
+
+    def commitar(self, nome, texto):
+        (self.raiz / nome).parent.mkdir(parents=True, exist_ok=True)
+        (self.raiz / nome).write_text(texto, encoding="utf-8")
+        git(self.raiz, "add", "-A")
+        git(self.raiz, "commit", "-q", "-m", nome)
+        return git(self.raiz, "rev-parse", "HEAD")
+
+    def item(self, texto=ITEM, uuid=U1):
+        self.falar(registro(texto, uuid=uuid))
+        return self.gravar(alvos="item:PV-A2", ramo=RAMO, uuid=uuid)
+
+    def test_head_com_os_pareceres_grava_o_commit_inteiro_e_nasce_ativa(self):
+        self.assertEqual(self.item()[0], 0)
+        (_, campos, _, est, motivo), = self.lidas()
+        self.assertEqual((campos["Commit"], campos["Ramo"], est, motivo), (self.revisado, RAMO, "ativa", ""))
+
+    def test_sem_marcador_fora_da_frase_ou_com_ressalva_nunca_nasce_ativa(self):
+        casos = ("pode aplicar o rótulo no PV-A2", "o item PV-A2 está pronto. Pode aplicar o rótulo",
+                 "pode aplicar o rótulo no item PV-A2 se o CI passar", "não aplique o rótulo no item PV-A2",
+                 "pode aplicar o rótulo no item PV-A2X")
+        for i, texto in enumerate(casos):
+            with self.subTest(texto=texto):
+                uuid = f"{i:08d}-3333-4000-8000-000000000000"
+                rc, saida = self.item(texto, uuid)
+                self.assertEqual(rc, 0, saida)
+                self.assertEqual(self.lidas()[-1][3], "pendente")
+
+    def test_commit_fora_do_head_com_os_pareceres_recusa_e_nada_grava(self):
+        self.commitar("codigo.txt", "mudou depois dos pareceres")
+        rc, saida = self.item()
+        self.nada_gravado(rc, saida)
+        self.assertIn("Commit não é o head", saida)
+
+    def test_commit_do_parecer_que_nao_e_sha_ou_nao_existe_nao_vira_ref(self):
+        for i, commit in enumerate(("HEAD", "deadbeef0")):
+            with self.subTest(commit=commit):
+                self.commitar("docs/reviews/pv-a2.md", f"---\ntipo: review\nbranch: {RAMO}\ncommit: {commit}\nparecer: aprovado\n---\n")
+                rc, saida = self.item(uuid=f"{i:08d}-4444-4000-8000-000000000000")
+                self.nada_gravado(rc, saida)
+                self.assertIn("Commit não é sha de 40 caracteres", saida)
+
+    def test_ramo_sem_pareceres_ou_sem_ramo_recusa(self):
+        self.nada_gravado(*self.gravar(self.ITEM, alvos="item:PV-A2", ramo="melhoria/outro"))
+        self.nada_gravado(*self.gravar(alvos="item:PV-A2", ramo=""))
+        self.nada_gravado(*self.gravar(alvos="item:PV-A2", ramo="-c"))
+
+
+if __name__ == "__main__":
+    unittest.main()
