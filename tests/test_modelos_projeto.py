@@ -115,6 +115,39 @@ class ChecagemDoBrief(unittest.TestCase):
                       ler("skills/briefs-e-conferencia/SKILL.md"))
 
 
+class ModeloPedidoEBrief(unittest.TestCase):
+    """MODELO-PEDIDO-E-BRIEF (v0478 E86.1): o modelo de pedido e a checagem do brief trazem o que as entregas esqueciam."""
+
+    def etapas(self):
+        return ler("templates/projeto/docs/pedidos/_modelo.md").split("## Etapas\n", 1)[1].split("\n## ", 1)[0]
+
+    def test_modelo_de_pedido_ja_traz_a_retrospectiva_em_etapas(self):
+        self.assertRegex(self.etapas(), r"(?m)^- E1\.\d+ \(agile-coach\): retrospectiva do pedido")
+
+    def test_modelo_de_pedido_pede_uma_etapa_numerada_por_delegacao(self):
+        self.assertIn("Uma etapa numerada por delegação", self.etapas())
+
+    def test_pedido_com_dois_repositorios_usa_a_marca_que_a_ferramenta_le(self):
+        marca = re.search(r'^OUTRO_REPOSITORIO, NOVO = "([^"]+)"', ler("bin/forge-check"), re.M).group(1)
+        self.assertRegex(self.etapas(), "dois repositórios: uma etapa e uma branch por repositório.*`" + re.escape(marca) + "`")
+
+    def test_checagem_manda_ler_o_por_tema_e_ele_traz_cada_tema(self):
+        self.assertIn("`por-tema.md`", ler(SKILL_CHECAGEM))
+        tema = ler("skills/checagem-do-brief/por-tema.md")
+        for trecho in ("git worktree add --no-track", "status -sb", "**`.githooks/`:** o arquivo é do usuário",
+                       "pede o diff como proposta", "o PQ `forge-check pr <pedido>` com `rc=0`",
+                       "tira o número de um comando rodado na entrega", "com a data e o commit; nunca de uma rodada anterior"):
+            self.assertIn(trecho, tema, trecho)
+        for termo in SO_DO_FORGE:
+            self.assertNotIn(termo, tema, termo)
+
+    def test_onde_se_cria_a_worktree_se_confere_a_branch_logo_depois(self):
+        jarvis = next(l for l in ler("agents/jarvis.md").splitlines() if l.startswith("4. **Desenvolvimento:**"))
+        fluxo = next(l for l in ler("skills/fluxo-do-pedido/SKILL.md").splitlines() if l.startswith("4. **Desenvolvimento:**"))
+        for passo in (jarvis, fluxo):
+            self.assertRegex(passo, r"crie a worktree na sua sessão antes de delegar.{0,20}confira `git status -sb`")
+
+
 if __name__ == "__main__":
     unittest.main()
 
