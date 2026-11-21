@@ -3,18 +3,19 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-mp9-guia
-commit: a8d4dce419e55c32c4d3fcf37e02b13db7ea8a18
+commit: abb581a5b7e513cafa3cb5d391ccd4b516c19f73
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
 ---
-# Review: v0478 (E24.6, MP9 guia "vários projetos", revalidação)
+# Review: v0478 (E24.11, MP9 guia "vários projetos", revalidação)
 
-Revalidação (H3, R-REVIEW) do parecer aprovado no head 2054ef3b. Delta lido: `forge-check parecer delta docs/reviews/v0479-mp9-guia.md`, intervalo `2054ef3b..a8d4dce4`; no domínio só `tests/test_reval_delta.py`, 1 linha: apaga a cópia colada do comentário "v047 E2.222" na entrada `test_guia_varios_projetos.py` de `CITACOES_CONHECIDAS`. Resolve o A1 do parecer anterior; a chave e o motivo `teste-le` ficam iguais. O resto do intervalo são os pareceres de QA, segurança e review (fora do domínio) e o merge `f36f349d` da própria branch remota, que só trouxe pareceres.
+Revalidação (H3, R-REVIEW) do parecer aprovado no head a8d4dce4. Delta lido: `forge-check parecer delta docs/reviews/v0479-mp9-guia.md`, intervalo `a8d4dce4..abb581a5`; no domínio `templates/projeto/CLAUDE.md` e `tests/pesos-d4.json`.
 
-Item inteiro (`0c47762a..a8d4dce4`): README (8 linhas), `templates/projeto/CLAUDE.md` (1 linha), fragmento `changelog.d/v0479-mp9-guia.md`, `tests/test_guia_varios_projetos.py` e a citação em `tests/test_reval_delta.py`. Só documentação e teste: sem guarda mudada, teto H1 não se aplica. O conteúdo do guia não mudou desde o parecer anterior, que conferiu cada afirmação contra o código.
+- Merge `3efc67aa` da `develop`: limpo (`git show --cc` sem trecho de conflito). As 2 linhas de `templates/projeto/CLAUDE.md` ("Conferência de registros" e "Versões do intérprete") vêm iguais da `develop` (presentes em `3efc67aa^2`); o resto do diff de `tests/pesos-d4.json` também é da base. Patch do item intacto.
+- `abb581a5`: 1 linha, `"test_guia_varios_projetos": 0.1` em `tests/pesos-d4.json`, o peso do módulo de teste do item. JSON válido, 197 chaves em ordem alfabética. Sem guarda mudada; teto H1 não se aplica.
 
-`docs/engineering/praticas.md` sem regra "decidida por: leitura" que alcance o diff. Suíte: só no CI do PR (R-REVIEW); rodado o teste do diff: `python3 -m unittest test_guia_varios_projetos test_reval_delta` (em `tests/`), 14 testes, OK.
+`docs/engineering/praticas.md` sem regra "decidida por: leitura" que alcance o delta. Suíte: só no CI do PR (R-REVIEW); rodado o teste do delta: `python3 -m unittest test_pesos_teto test_guia_varios_projetos` (em `tests/`), 6 testes, OK.
 
 ## Parecer
-Aprovado no head a8d4dce4. O A1 recomendado da rodada anterior foi corrigido; nada novo.
+Aprovado no head abb581a5. Nada novo.
