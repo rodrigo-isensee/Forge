@@ -14,6 +14,9 @@ import unittest
 import unittest.mock
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
+
 BIN = Path(__file__).resolve().parent.parent / "bin"
 fa = None  # carregado em setUpModule: na base, sem o módulo, cada teste cai por conta própria (R-QA)
 
@@ -194,7 +197,7 @@ MARCAS = ("nao", "nunca", "ainda", "antes", "depois", "so", "se", "exceto", "men
 
 
 def git(raiz, *args):
-    env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "PYTHON"))}
+    env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "PYTHON"))})
     env.update(GIT_CEILING_DIRECTORIES=str(Path(raiz).parent), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
     return subprocess.run(["git", "-C", str(raiz), "-c", "user.name=t", "-c", "user.email=t@t", *args], check=True,
                           capture_output=True, text=True, env=env, timeout=60).stdout.strip()
