@@ -4019,7 +4019,7 @@ def envio_com_substituicao(linha):
                 return True
         programa = nomes and (nomes[0] in SHELLS or nomes[0] in ENVOLVEDORES or valores[0] in FONTES
                               or valores[0] == "builtin")
-        if cita_o_envio and programa and shell_que_le_a_entrada(nomes, valores, opacas):  # o `in` antes: custo do corpus
+        if cita_o_envio and programa and shell_que_le_a_entrada(nomes, valores, opacas, comando.redirecoes):  # o `in` antes
             return True
     return False
 
@@ -4029,10 +4029,14 @@ ENTRADA_DO_SHELL = {"-", "-s", "/dev/stdin", "/dev/fd/0", "/proc/self/fd/0"}
 SHELL_OPCAO_COM_VALOR = {"-o", "+o", "-O", "+O", "--rcfile", "--init-file"}
 
 
-def shell_que_le_a_entrada(nomes, valores, opacas):
+def shell_que_le_a_entrada(nomes, valores, opacas, redirecoes=()):
     """A4 da E63.3: o comando simples roda um shell que lê a entrada (o pipe) ou um texto opaco: o shell como programa
     ou atrás de um envolvedor (`env bash`, `sudo bash`, `timeout 5 bash`), e o `source` ou o ponto como programa, sem
-    script, com `-s`, `-` ou `/dev/stdin`, ou com o script vindo de substituição (`. <(…)`, `bash <(…)`)."""
+    script, com `-s`, `-` ou `/dev/stdin`, ou com o script vindo de substituição (`. <(…)`, `bash <(…)`). A entrada
+    tirada de um arquivo (`bash < x.sh`) não é o pipe: o shell lê o arquivo, como o `bash x.sh` (E51.10); a de `<(…)`
+    (`bash < <(…)`) é texto opaco."""
+    if redirecoes and any(r.operador == "<" and r.alvo and not SUBSTITUICAO_NA_PALAVRA.search(r.alvo.cru) for r in redirecoes):
+        return False
     for j, nome in enumerate(nomes):
         shell = nome in SHELLS and (j == 0 or nomes[0] in ENVOLVEDORES)
         if not (shell or valores[j] in FONTES and na_posicao_de_programa(valores, j)):
