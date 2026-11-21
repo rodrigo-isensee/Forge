@@ -327,6 +327,10 @@ REPO_APAGAR = re.compile(r"^/?repos/[^/]+/[^/]+/?$")
 GRAPHQL_APAGAR = re.compile(r"mutation[^}]*deleteRepository", re.I)
 VISIBILIDADE_PUBLICA = re.compile(r"\bprivate[\"']?\s*[=:]\s*[\"']?false\b|\bvisibility[\"']?\s*[=:]\s*[\"']?public\b", re.I)
 CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem em arquivos do projeto
+# CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1; S1-S4 de docs/security/v0479-pv-a1-adr.md): gravam no índice o caminho
+# nomeado, com conteúdo que nunca esteve na árvore (`-c filter.*.clean`, `--chmod`, `--cacheinfo`).
+INDICE_NO_GIT = {"add", "update-index"}
+INDICE_PELA_ENTRADA = ("--pathspec-from-file", "--stdin", "--index-info")  # a lista de caminhos que o hook não lê
 PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
 # S8: a prova da suíte (`.verde`, `.dirigida`, o `.novo` do `mv`) só o pre-push grava, fora deste hook; todo papel e pasta. Limites
 # aceitos (o hook protege contra engano; o CI é o portão): nome inteiro numa variável, script em arquivo, `curl -o`, `tar -x`.
@@ -2598,6 +2602,8 @@ class Guarda:
         self.git_integracao(sub, args, pasta_git, ramos)
         if sub in CAMINHOS_NO_GIT:
             self.git_caminhos(sub, args, [pasta, pasta_git], opcoes)
+        if sub in INDICE_NO_GIT:
+            self.git_indice(sub, args, [pasta, pasta_git], opcoes)
         self.git_no_forge(sub, args, pasta_git)
         if sub == "tag":
             self.git_tag(args, pasta_git)
@@ -2677,6 +2683,28 @@ class Guarda:
                         self.checar_escrita(alvo, pasta, parecer_conta=False)
                         self.checar_remocao(alvo, pasta)
 
+    def git_indice(self, sub, args, pastas, opcoes=()):
+        """CONFORMIDADE-ESCRITA-NO-INDICE: `git add` (toda opção) e `git update-index` (também `--cacheinfo`, nas duas
+        formas) que nomeiam um caminho `quem: []` da política recusam, como a escrita na árvore. Toda palavra que não é
+        opção conta como caminho (o modo e o sha do `--cacheinfo` não casam regra), e o pathspec que não é varredura
+        vale também pelo que alcança no índice e fora dele (`git ls-files -c -o`). A lista pela entrada (`--stdin`,
+        `--index-info`, `--pathspec-from-file`) recusa: o hook não a lê. Limite: o comando sem o caminho (`git add -A`,
+        `git add .`, `git commit -a`) segue fora."""
+        if any(abreviacao_de(a, INDICE_PELA_ENTRADA) for a in args):
+            self.barrar("R-CONFORMIDADE", f"git {sub} com a lista de caminhos pela entrada: o hook não a lê",
+                        "passe os caminhos na linha de comando; o que for protegido é do usuário (R-DECISAO)")
+        palavras = [a for a in args if not a.startswith("-")]
+        caminhos = palavras + [a.split(",", 2)[2] for a in palavras if a.count(",") >= 2]
+        for pasta in dict.fromkeys(pastas):
+            for c in caminhos:
+                alvos = self.alvos_da_escrita(c, pasta)
+                if not self.varredura(c):
+                    alvos += filter(self.pode_ser_protegido, self.tracked_do_pathspec(c, pasta, opcoes, ("-c", "-o")))
+                for alvo in alvos:
+                    achado = self.caminho_barrado(Path(alvo))
+                    if achado and achado[3:4] == ("instalacao",):
+                        self.barrar(achado[0], f"git {sub} grava no índice {achado[1]}", achado[2])
+
     def pode_ser_protegido(self, caminho):
         """Filtro barato para `git rm -r <pasta grande>`: só confere um por um o arquivo cujo caminho cita algum caminho
         da política (mais o perfil e o manifesto), ou todos se o papel só escreve numa lista (`escrita_permitida`).
@@ -2718,13 +2746,14 @@ class Guarda:
                 positivas = caminhos
         return positivas + depois, com_origem
 
-    def tracked_do_pathspec(self, pathspec, pasta, opcoes):
-        """Os arquivos do índice que o git alcança com o pathspec (`git ls-files`, só leitura). Se o git não responde
-        (fora de repositório, limite de tempo), vale o pathspec literal: o `git rm` também não teria o que fazer."""
+    def tracked_do_pathspec(self, pathspec, pasta, opcoes, quais=()):
+        """Os arquivos do índice que o git alcança com o pathspec (`git ls-files`, só leitura; `quais` (`-c`, `-o`) soma
+        os de fora do índice). Se o git não responde (fora de repositório, limite de tempo), vale o pathspec literal:
+        o `git rm` também não teria o que fazer."""
         if not Path(pasta).is_dir():
             return []
         try:
-            cod, saida = forge_check().git(pasta, *opcoes, "ls-files", "-z", "--", pathspec, bruto=True)
+            cod, saida = forge_check().git(pasta, *opcoes, "ls-files", "-z", *quais, "--", pathspec, bruto=True)
         except (OSError, subprocess.SubprocessError):
             cod, saida = 1, b""
         if cod:
