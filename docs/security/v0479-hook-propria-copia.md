@@ -42,7 +42,7 @@ Saída de `forge-check parecer delta`, intervalo `4ee59dfc..bde062d7`. No domín
 - S9 · cwd `wt`: `cd -P <raiz> && git commit`, `cd -- <raiz> && git commit`, `pushd <raiz> && git commit`, `env -C <raiz> git commit`, `export GIT_DIR=<raiz>/.git; git commit`, `git -c core.worktree=<raiz> checkout -f HEAD -- .` · espera: recusa (2) · obtido: libera em todas
 - S10 · cwd raiz: `git stash push -- list`, `git worktree remove list` · espera: recusa (2) · obtido: libera
 - S11 · cwd `wt`: `git push origin HEAD:melhoria/outra`, `git switch -c outra && git commit -m x` · espera: limite declarado · obtido: libera, sem menção no docs/hooks.md
-- S12 · corpus de legítimos: Write em `wt/x`; `cd wt && git commit -m "$(cat <<'EOF' … EOF)" && git push`; `git log`, `git -C <raiz> show`, `git status`, `git diff`, `git branch -a`, `git worktree list` na raiz; clone próprio em `~/.forge-contrib/wt/` e em `<raiz>/.forge/wt/item`; Write em `~/.forge-contrib/docs/` · espera: libera · obtido: libera em todas
+- S12 · corpus de legítimos: Write em `wt/x`; `cd wt && git commit -m "$(cat <<'EOF' … EOF)" && git push`; leitura na raiz (`log`, `show`, `status`, `diff`, `branch -a`, `worktree list`); Write nos clones próprios e em `~/.forge-contrib/docs/` · espera: libera · obtido: libera em todas
 - S13 · `.forge/wt/`: Write em `.forge/wt/outro` (HEAD `melhoria/y`), em `.forge/wt/novo` (não existe), na base `.forge/wt/a`, por symlink `.forge/wt/link -> <raiz>`, e `git clone -b melhoria/x <raiz> <raiz>/.forge/wt/novo` · espera: recusa (2) · obtido: recusa (2) em todas
 
 ## Detalhe dos achados
