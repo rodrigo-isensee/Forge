@@ -18,7 +18,7 @@ O patch do `pre-push.local` do modelo é proposta (`docs/propostas/k152-pre-push
 
 ## Achados
 - A1 (bloqueante) docs/propostas/k152-pre-push.md:47 · `trechos//||/;` e `trechos//|/;` (guardas mudadas) sem mutante e sem teste: apagadas, 8 testes seguem verdes. Programa após `||` ou `|` nunca é checado. Declare 2 mutantes e teste com `a || b` e `a | b`.
-- A2 (recomendado) tests/test_prepush_k152.py:177 · `EnvioDaCopiaNova` faz skipTest se ruff/mypy estiverem no PATH da máquina: o ambiente decide o que testa; falta fixar o PATH do envio num diretório sem as ferramentas.
+- A2 (recomendado) tests/test_prepush_k152.py:169 · `EnvioDaCopiaNova` faz skipTest se ruff/mypy estiverem no PATH da máquina: o ambiente decide o que testa; falta fixar o PATH do envio num diretório sem as ferramentas.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
