@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-entrega-anexos
-commit: 0fc3623eb2aa597b6829350aa07266a3ae1c8a00
+commit: 260e39c72536dc858766cccc6c8417173166cdc2
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -73,4 +73,12 @@ Remoto avançou com os pareceres de review e de segurança (`371406b8`, só `doc
 - Vermelho: `forge-testes --vermelho c8e8a08d --modulos test_selo_e_entrega` deu "sem veredito" (a base estourou os 600 s do módulo inteiro; não vale como vermelho). Substituído por cópia em `$TMPDIR` com o HEAD e só o `bin/forge-check` da base `c8e8a08d`, mesmas 2 classes: `Ran 20, FAILED (failures=2, errors=2)`. Erro (API ausente): `test_autores_e_linha_do_jarvis`, `test_rev_list_que_falha_ou_vazio_recusa`. Falha: `test_bug_commitado_na_branch_depois_da_volta_e_anexo`, `test_caso_real_bug_mesclado_antes_da_volta_e_anexo`. Os outros 16 passam na base por construção (recusas ou código do #752).
 - Mutantes (`bin/forge-mutante tests/mutantes/v0479-entrega-anexos.json`, rc 0, rev `582e800a`): M1 `:3385`, M2 `:3386`, M3 `:3157`, M4 `:3160`, M5 `:3160`, todos `morreu`.
 - Suíte inteira: check-run `bateria` do CI do PR, não rodada local.
+- Resultado: parecer segue **aprovado**, sem achados.
+
+## Revalidação incremental (head `260e39c7`, E62.31; merge da develop com conflito em `docs/hooks.md` e `docs/hooks-fixtures.md`)
+`forge-check parecer delta` sobre `0fc3623e..260e39c7` lista no domínio `bin/forge-check`, `docs/hooks.md` e `docs/hooks-fixtures.md`. O que traz é da develop (`8caa7f3d`, #763 e #758: subcomando `comparar`, linhas novas de hooks, contagem de fixtures); contra a base, o diff da branch nesses três arquivos é de 25 linhas e não toca `bug_do_qa_na_volta`. Sem marca de conflito nos dois `.md`; `ast.parse` de `bin/forge-check`: ok.
+- `scripts/indice-fixtures.py --conferir`: `docs/hooks-fixtures.md: em dia`, rc 0.
+- Classes `BugDoQaNaVolta` e `MergeDeParecerAninhado` (`python3 -I -m unittest discover -s tests -p test_selo_e_entrega.py -k BugDoQaNaVolta -k MergeDeParecerAninhado`): `Ran 20 tests ... OK`.
+- Fixtures `*qa-bugs*` (4, `test_hooks -k fixtures_do_parecer_pelo_papel`): `Ran 1 test ... OK`.
+- Sem código de guarda novo: vermelho e mutantes M1 a M5 anteriores seguem valendo. Suíte inteira: check-run `bateria` do CI do PR, não rodada local.
 - Resultado: parecer segue **aprovado**, sem achados.
