@@ -10176,7 +10176,7 @@ def main():
     on = sub.add_parser("onde", parents=[comum], help="onde está uma versão, um PR, um commit, uma branch ou um cartão em develop, homolog "
                         "e main, lido do git e do gh; lido rc 0, não existe rc 1, inválido ou não verificável rc 2; só leitura (AE1.1)")
     on.add_argument("alvo", help="vX.Y.Z, #N ou pr:N, sha, branch:<nome> (ou nome com /) ou ID de cartão")
-    cm = sub.add_parser("comparar", parents=[comum], help="'só aperta' medido nos hooks sobre tests/comparar/corpus.jsonl: rc 0 nada liberado a mais, 1 aceite novo ou caso removido, 2 inválido; só leitura (AE7.1)")
+    cm = sub.add_parser("comparar", parents=[comum], help="'só aperta' medido nos hooks sobre tests/comparar/corpus.jsonl: rc 0 nada liberado a mais, 1 aceite novo ou caso removido, 2 inválido; executa os hooks da base e do head (só head deste repositório, sob o sandbox); quem consome exige a linha `so-aperta: medido base=<sha> head=<sha>`, não só o rc (AE7.1)")
     cm.add_argument("base", help="commit ou branch da base")
     cm.add_argument("head", help="commit ou branch do head")
     va = sub.add_parser("vazio", parents=[comum], help="a base já tem o conteúdo da branch? (ACELERA-E2b) sim rc 0, não rc 1, não verificável rc 2; só leitura")

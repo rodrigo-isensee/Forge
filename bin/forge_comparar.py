@@ -1,14 +1,17 @@
 """`forge-check comparar <base> <head>` (AE7.1, v0478 E58.30): o "só aperta" medido nos hooks da base e do head, extraídos
-por `git archive` deste repositório e rodados como o Claude Code os roda (hooks.json da árvore, matcher, argv, prazo, stdin,
-ambiente por lista positiva), um projeto git novo por caso, sobre o corpus da base mais os casos novos do head. rc 0 nada
-liberado a mais; 1 `aceite-novo` ou `corpus-removido`; 2 `nao-verificavel`. Só leitura, sem rede. Limite: o corpus é finito."""
+blob a blob deste repositório como o clone do plugin os instala (sem o export-subst nem o export-ignore do `git archive`) e
+rodados como o Claude Code os roda (hooks.json da árvore, matcher, argv, prazo, stdin, ambiente por lista positiva), um
+projeto git novo por caso, sobre o corpus da base mais os casos novos do head. Cada lado roda inteiro e sozinho, em
+temporário e HOME próprios: a base antes, o head depois. O veredito tem 4 níveis (recusa < pergunta < sem decisão < allow) e
+o `updatedInput` que muda também conta. rc 0 nada liberado a mais; 1 `aceite-novo` ou `corpus-removido`; 2
+`nao-verificavel`; quem consome exige a linha `so-aperta: medido base=<sha> head=<sha>`, não só o rc. Executa o código da
+base e do head: só com head deste repositório e sob o sandbox. Limites: o corpus é finito, e a medida pega o afrouxamento
+honesto; hook que detecta o ambiente sintético (autor do commit, `.forge/versao`) é assunto do code review."""
 import hashlib
-import io
 import json
 import os
 import re
 import subprocess
-import tarfile
 import tempfile
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -16,9 +19,9 @@ from pathlib import Path
 
 CORPUS = "tests/comparar/corpus.jsonl"
 REF = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._/-]{0,199}")
-AMBIENTE = ("PATH", "HOME", "LANG", "LC_ALL", "LC_CTYPE", "USER", "LOGNAME", "SHELL", "TERM", "TMPDIR")
-RECUSA, PERGUNTA, ACEITE = 0, 1, 2
-NOMES = ("recusa", "pergunta", "aceite")
+AMBIENTE = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "USER", "LOGNAME", "SHELL", "TERM", "TMPDIR")
+RECUSA, PERGUNTA, ACEITE, ALLOW = 0, 1, 2, 3  # A1: `allow` pula a pergunta ao usuário, libera mais que o silêncio
+NOMES = ("recusa", "pergunta", "aceite", "allow")
 SEM_HOOKS_DO_USUARIO = "-c core.hooksPath=/dev/null -c commit.gpgsign=false -c user.name=forge -c user.email=forge@localhost -c gc.auto=0".split()
 
 
@@ -57,13 +60,33 @@ def corpus_de(ctx, raiz, sha):
 
 
 def extrair(ctx, raiz, sha, destino):
-    cod, tar = ctx["git"](raiz, "archive", "--format=tar", sha, bruto=True)
+    """A árvore de `sha` como o clone a instala (A2): `ls-tree` e `cat-file --batch`, sem atributo de exportação. Nome ou
+    link que sai da pasta, resposta truncada ou git que falha: False."""
+    cod, lista = ctx["git"](raiz, "ls-tree", "-r", "-z", "--full-tree", sha, bruto=True)
     try:
-        with tarfile.open(fileobj=io.BytesIO(tar)) as arquivo:
-            arquivo.extractall(destino, filter="data")  # sem link nem caminho para fora da pasta
-    except (tarfile.TarError, OSError):
+        itens = [re.fullmatch(rb"(\d{6}) blob ([0-9a-f]+)\t(.+)", e, re.S).groups() for e in lista.split(b"\0")
+                 if e and not e.startswith(b"160000 ")]  # submódulo: o clone sem --recursive deixa a pasta vazia
+        lido, lote = ctx["git"](raiz, "cat-file", "--batch", bruto=True, entrada=b"".join(o + b"\n" for _, o, _ in itens))
+        dentro, pos, links = Path(os.path.realpath(destino)), 0, []
+        for modo, _, nome in itens:
+            alvo, fim = destino / os.fsdecode(nome), lote.index(b"\n", pos)
+            tamanho = int(lote[pos:fim].split()[2])
+            dados, pos = lote[fim + 1:fim + 1 + tamanho], fim + 2 + tamanho
+            if len(dados) != tamanho or not Path(os.path.realpath(alvo)).is_relative_to(dentro):
+                return False
+            alvo.parent.mkdir(parents=True, exist_ok=True)
+            if modo == b"120000":
+                links.append((alvo, os.fsdecode(dados)))
+            else:
+                alvo.write_bytes(dados)
+                alvo.chmod(0o755 if modo == b"100755" else 0o644)
+        for alvo, texto in links:  # os links por último: nenhum arquivo é gravado através de um deles
+            os.symlink(texto, alvo)
+        if not all(Path(os.path.realpath(alvo)).is_relative_to(dentro) for alvo, _ in links):
+            return False
+    except (AttributeError, ValueError, IndexError, OSError):
         return False
-    return cod == 0
+    return cod == 0 and lido == 0
 
 
 def hooks_de(arvore, evento, ferramenta):
@@ -84,36 +107,58 @@ def hooks_de(arvore, evento, ferramenta):
 
 
 def veredito(argv, prazo, entrada, projeto, ambiente):
-    """Como o Claude Code lê o hook: 2 recusa; 0 com `deny`/`block` recusa, com `ask` pergunta; prazo, erro e o resto liberam."""
+    """Como o Claude Code lê o hook: 2 recusa; 0 com `deny`/`block` recusa, com `ask` pergunta, com `allow` libera sem
+    perguntar; prazo, erro e o resto: sem decisão. Devolve (nível, `updatedInput` em JSON canônico ou None)."""
     try:
         r = subprocess.run(argv, input=json.dumps(entrada), cwd=projeto, env=ambiente, capture_output=True, text=True, timeout=prazo)
     except (subprocess.TimeoutExpired, OSError):
-        return ACEITE
+        return ACEITE, None
     if r.returncode == 2:
-        return RECUSA
+        return RECUSA, None
     try:
         saida = json.loads(r.stdout) if r.returncode == 0 and r.stdout.strip() else {}
-        decisao = (saida.get("hookSpecificOutput") or {}).get("permissionDecision")
+        especifico = (saida.get("hookSpecificOutput") or {})
+        decisao, reescrita = especifico.get("permissionDecision"), especifico.get("updatedInput")
     except (ValueError, AttributeError):
-        return ACEITE
+        return ACEITE, None
     if decisao == "deny" or saida.get("decision") == "block" or saida.get("continue") is False:
-        return RECUSA
-    return PERGUNTA if decisao == "ask" else ACEITE
+        return RECUSA, None
+    nivel = PERGUNTA if decisao == "ask" else ALLOW if decisao == "allow" else ACEITE
+    return nivel, None if reescrita is None else json.dumps(reescrita, sort_keys=True)
 
 
 def rodar_caso(ctx, arvore, caso, sessao):
-    projeto = Path(tempfile.mkdtemp(dir=arvore.parent))
+    """(nível, reescritas) do caso: recusa vence pergunta, que vence allow, que vence o silêncio; nas reescritas, a raiz do
+    projeto vira `{raiz}` (cada lado tem o seu projeto)."""
+    projeto, home = Path(tempfile.mkdtemp(dir=arvore.parent)), arvore.parent / "home"
     arquivos = {"README.md": "projeto\n", ".forge/versao": "0.5.0\n", ".gitignore": ".forge/run/\n", **caso.get("arquivos", {})}
     for rel, texto in arquivos.items():
         (projeto / rel).parent.mkdir(parents=True, exist_ok=True)
         (projeto / rel).write_text(texto, encoding="utf-8")
     for passo in (("init", "-q", "-b", "develop"), ("add", "-A"), (*SEM_HOOKS_DO_USUARIO, "commit", "-q", "-m", "base")):
         ctx["git"](projeto, *passo)
-    entrada = json.loads(json.dumps(caso["entrada"]).replace("{raiz}", json.dumps(str(projeto))[1:-1]))
-    entrada = {"session_id": sessao, "cwd": str(projeto), "hook_event_name": "PreToolUse", **entrada}
-    ambiente = dict({k: os.environ[k] for k in AMBIENTE if k in os.environ}, CLAUDE_PROJECT_DIR=str(projeto), CLAUDE_PLUGIN_ROOT=str(arvore))
+    raiz_json = json.dumps(str(projeto))[1:-1]
+    entrada = json.loads(json.dumps(caso["entrada"]).replace("{raiz}", raiz_json))
+    entrada = {"session_id": sessao, "transcript_path": str(home / ".claude" / "projects" / f"{sessao}.jsonl"),
+               "cwd": str(projeto), "permission_mode": "default", "hook_event_name": "PreToolUse", **entrada}
+    ambiente = dict({k: os.environ[k] for k in AMBIENTE if k in os.environ}, HOME=str(home),
+                    CLAUDE_PROJECT_DIR=str(projeto), CLAUDE_PLUGIN_ROOT=str(arvore))
     hooks = hooks_de(arvore, entrada["hook_event_name"], str(entrada.get("tool_name", "")))
-    return min((veredito(argv, prazo, entrada, projeto, ambiente) for argv, prazo in hooks), default=ACEITE)
+    lidos = [veredito(argv, prazo, entrada, projeto, ambiente) for argv, prazo in hooks]
+    nivel = min((n for n, _ in lidos), key=lambda n: (n == ACEITE, n), default=ACEITE)
+    return nivel, sorted(r.replace(raiz_json, "{raiz}") for _, r in lidos if r is not None)
+
+
+def medir(ctx, raiz, sha, casos, sessao):
+    """{id: (nível, reescritas)} de um lado (A3, A5): extraído e rodado inteiro num temporário próprio, com HOME próprio,
+    apagado antes de o outro lado começar; None se a extração falha."""
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        arvore = Path(tmp) / "plugin"
+        if not extrair(ctx, raiz, sha, arvore):
+            return None
+        (Path(tmp) / "home").mkdir()
+        with ThreadPoolExecutor(min(4, os.cpu_count() or 1)) as fila:  # R-TETO: até 4 hooks por vez
+            return dict(zip(sorted(casos), fila.map(lambda i: rodar_caso(ctx, arvore, json.loads(casos[i]), sessao), sorted(casos))))
 
 
 def executar(a, raiz, ctx):
@@ -129,15 +174,17 @@ def executar(a, raiz, ctx):
     casos = {**corpus_head, **corpus_base}
     resumo = hashlib.sha256("\n".join(casos[i] for i in sorted(casos)).encode()).hexdigest()
     sessao = str(uuid.uuid4())
-    with tempfile.TemporaryDirectory() as tmp:
-        arvores = [Path(tempfile.mkdtemp(dir=tmp)) / "plugin" for _ in range(2)]
-        if not all(extrair(ctx, raiz, sha, arvore) for sha, arvore in zip((base, head), arvores)):
-            print("so-aperta: nao-verificavel (git archive ou extração falhou)")
-            return 2
-        lados = lambda i: [rodar_caso(ctx, arvore, json.loads(casos[i]), sessao) for arvore in arvores]
-        with ThreadPoolExecutor(min(4, os.cpu_count() or 1)) as fila:  # R-TETO: até 4 hooks por vez
-            vereditos = zip(sorted(casos), fila.map(lados, sorted(casos)))
-            novos = [f"aceite-novo: {ctx['seguro'](i)} base={NOMES[b]} head={NOMES[h]}" for i, (b, h) in vereditos if h > b]
+    lado_base = medir(ctx, raiz, base, casos, sessao)
+    lado_head = None if lado_base is None else medir(ctx, raiz, head, casos, sessao)
+    if lado_head is None:
+        print("so-aperta: nao-verificavel (extração da árvore falhou)")
+        return 2
+    novos = []
+    for i in sorted(casos):
+        (b, reescrita_b), (h, reescrita_h) = lado_base[i], lado_head[i]
+        if h > b or reescrita_h != reescrita_b:
+            novos.append(f"aceite-novo: {ctx['seguro'](i)} base={NOMES[b]} head={NOMES[h]}"
+                         + (" entrada-reescrita" if reescrita_h != reescrita_b else ""))
     print("\n".join([f"so-aperta: medido base={base} head={head} corpus={resumo} casos={len(casos)} aceites-novos={len(novos)}",
                      *novos, *(f"corpus-removido: {ctx['seguro'](i)}" for i in removidos)]))
     return 1 if novos or removidos else 0

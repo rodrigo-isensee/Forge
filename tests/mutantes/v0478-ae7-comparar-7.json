@@ -1,0 +1,16 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP48",
+      "guarda": "AE7.1 extrair: link gravado como link",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "            if modo == b\"120000\":",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_comparar.ComoOClone.test_executavel_e_link_interno_chegam_como_no_clone"
+      ]
+    }
+  ]
+}

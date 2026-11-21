@@ -16,8 +16,8 @@
       "id": "CMP26",
       "guarda": "AE7.1 executar: extração que falha",
       "arquivo": "bin/forge_comparar.py",
-      "de": "        if not all(extrair(ctx, raiz, sha, arvore) for sha, arvore in zip((base, head), arvores)):",
-      "para": "        if False:",
+      "de": "    if lado_head is None:",
+      "para": "    if False:",
       "testes": [
         "tests.test_comparar.Refs.test_archive_que_falha_e_nao_verificavel"
       ]
@@ -26,8 +26,8 @@
       "id": "CMP27",
       "guarda": "AE7.1 executar: só o head que libera mais conta",
       "arquivo": "bin/forge_comparar.py",
-      "de": "for i, (b, h) in vereditos if h > b]",
-      "para": "for i, (b, h) in vereditos if h != b]",
+      "de": "        if h > b or reescrita_h",
+      "para": "        if h != b or reescrita_h",
       "testes": [
         "tests.test_comparar.Medida.test_head_que_aperta_nao_conta"
       ]
@@ -74,7 +74,10 @@
     }
   ],
   "isentas": [
-    {"arquivo": "bin/forge_comparar.py", "trecho": "os.cpu_count() or 1",
-     "motivo": "teto do pool (R-TETO): o número de trabalhadores muda só o tempo, nunca o veredito de um caso; o mutante seria equivalente"}
+    {
+      "arquivo": "bin/forge_comparar.py",
+      "trecho": "os.cpu_count() or 1",
+      "motivo": "teto do pool (R-TETO): o número de trabalhadores muda só o tempo, nunca o veredito de um caso; o mutante seria equivalente"
+    }
   ]
 }

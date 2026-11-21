@@ -26,8 +26,8 @@
       "id": "CMP19",
       "guarda": "AE7.1 veredito: saída que não é JSON libera",
       "arquivo": "bin/forge_comparar.py",
-      "de": "    except (ValueError, AttributeError):\n        return ACEITE",
-      "para": "    except (ValueError, AttributeError):\n        return RECUSA",
+      "de": "    except (ValueError, AttributeError):\n        return ACEITE, None",
+      "para": "    except (ValueError, AttributeError):\n        return RECUSA, None",
       "testes": [
         "tests.test_comparar.Medida.test_saida_que_nao_e_json_libera"
       ]
@@ -46,8 +46,8 @@
       "id": "CMP21",
       "guarda": "AE7.1 veredito: ask é pergunta",
       "arquivo": "bin/forge_comparar.py",
-      "de": "    return PERGUNTA if decisao == \"ask\" else ACEITE",
-      "para": "    return PERGUNTA if decisao == \"nunca\" else ACEITE",
+      "de": "PERGUNTA if decisao == \"ask\"",
+      "para": "PERGUNTA if decisao == \"nunca\"",
       "testes": [
         "tests.test_comparar.Medida.test_pergunta_no_lugar_da_recusa_e_aceite_novo"
       ]

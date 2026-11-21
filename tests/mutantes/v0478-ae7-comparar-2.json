@@ -24,20 +24,20 @@
     },
     {
       "id": "CMP11",
-      "guarda": "AE7.1 extrair: link para fora da árvore não extrai",
+      "guarda": "AE7.1 extrair: lista ou lote que não se lê",
       "arquivo": "bin/forge_comparar.py",
-      "de": "    except (tarfile.TarError, OSError):\n        return False",
-      "para": "    except (tarfile.TarError, OSError):\n        return True",
+      "de": "    except (AttributeError, ValueError, IndexError, OSError):\n        return False",
+      "para": "    except (AttributeError, ValueError, IndexError, OSError):\n        return True",
       "testes": [
-        "tests.test_comparar.Refs.test_link_para_fora_da_arvore_nao_e_extraido"
+        "tests.test_comparar.ComoOClone.test_resposta_que_nao_se_extrai_e_nao_verificavel"
       ]
     },
     {
       "id": "CMP12",
-      "guarda": "AE7.1 extrair: git archive que falha",
+      "guarda": "AE7.1 extrair: ls-tree que falha",
       "arquivo": "bin/forge_comparar.py",
-      "de": "    return cod == 0",
-      "para": "    return True",
+      "de": "    return cod == 0 and lido == 0",
+      "para": "    return lido == 0",
       "testes": [
         "tests.test_comparar.Refs.test_archive_que_falha_e_nao_verificavel"
       ]
@@ -76,8 +76,8 @@
       "id": "CMP16",
       "guarda": "AE7.1 veredito: hook que passa do prazo libera",
       "arquivo": "bin/forge_comparar.py",
-      "de": "    except (subprocess.TimeoutExpired, OSError):\n        return ACEITE",
-      "para": "    except (subprocess.TimeoutExpired, OSError):\n        return RECUSA",
+      "de": "    except (subprocess.TimeoutExpired, OSError):\n        return ACEITE, None",
+      "para": "    except (subprocess.TimeoutExpired, OSError):\n        return RECUSA, None",
       "testes": [
         "tests.test_comparar.Medida.test_hook_que_passa_do_prazo_libera"
       ]
