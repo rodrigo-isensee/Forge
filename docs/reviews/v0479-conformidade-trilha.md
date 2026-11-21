@@ -3,67 +3,65 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-trilha
-commit: e48a2e60a11d97a36ab936fedacb1e93477ff940
-parecer: reprovado
+commit: 0f4facab2db2b2aa60107dfdfac9cad6f9814560
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
 ---
-# Review: v0478 (E63.6, revalidação da trilha CONFORMIDADE-SEGURANCA do `hooks/conformidade.py`, head e48a2e60)
+# Review: v0478 (E63.10, revalidação da trilha CONFORMIDADE-SEGURANCA do `hooks/conformidade.py`, head 0f4facab)
 
-Revalidação (H3, `R-REVIEW`) do parecer aprovado no head 6c0b0f03. Li só o delta de
-`forge-check parecer delta docs/reviews/v0479-conformidade-trilha.md`: intervalo `6c0b0f03..e48a2e60`, domínio "código e
-testes", `hooks/conformidade.py` (+72/-10), `docs/hooks.md`, `tests/apoio_volta_unica.py`, `tests/fixtures/heredoc-volta-unica.json`,
-31 fixtures novas, a troca `oraculo-limite-python-c-libera` → `oraculo-python-c-tech-lead-bloqueia`, os mutantes `-3` a `-9`
-e a prova do custo do corpus. Fora desse domínio nada foi relido.
+Revalidação (H3, `R-REVIEW`) do parecer reprovado no head e48a2e60 (A1 bloqueante, A2 recomendado). Li só o delta de
+`forge-check parecer delta docs/reviews/v0479-conformidade-trilha.md`: intervalo `e48a2e60..0f4facab`, domínio "código e
+testes", `hooks/conformidade.py`, `docs/hooks.md`, `docs/hooks-fixtures.md`, o fragmento do changelog, 27 fixtures novas
+(`cpb-*`, `idx-autocorrect-*`, `sub-pipe-bash-*`, `sub-sessao-forge-pipe-bash-*`, `sub-shell-entrada-de-arquivo-*`), os
+mutantes `-10` a `-12` (e ajustes nos `-3`, `-6`, `-8` e no principal) e a prova do custo do corpus. Fora desse domínio
+nada foi relido.
 
 ## O que li no delta
-- `INDICE_NO_GIT` ganha `stage` e `reset` (A2, A7); `resto_do_subcomando` pula a opção global com valor
-  (`GIT_GLOBAIS_COM_VALOR`, A3); `envio_com_substituicao` pega o `xargs git` sem subcomando (A5) e o shell que lê a entrada
-  por `shell_que_le_a_entrada` (A4), com a entrada de arquivo (`bash < x.sh`) livre; a recusa vira `TRAVA` (A6). Legível,
-  conjuntos literais por custo, comentário com a origem de cada guarda.
-- A troca da fixture do oráculo é legítima: a antiga dizia "quem fechar o furo troca o rc esperado", e o A9 fecha o furo.
-  O `*` da política casa no texto do interpretador só quando ele cita o caminho; rodar e ler o oráculo seguem livres (sondas abaixo).
-- `CONTROLE_NO_TEXTO` (`hooks/conformidade.py:3808`) passa a casar a linha que cita `forge-contrib` e `pedidos`/`briefs` em
-  qualquer posição (A1), e `na_pasta_do_controle` (`:3895`) basta `pedidos`/`briefs` com a pasta corrente no controle.
-  É aqui o achado A1.
-- Os recomendados do parecer anterior: o A2 (S9 no `-6`) foi feito; o A1 (`esperar-estado`) segue como cartão.
+- A1 (meu): `sem_copia_de_wt` (`hooks/conformidade.py:3821`) troca por NUL cada caminho literal e absoluto (`~`, `$HOME`
+  ou `/`) de uma cópia de `wt/`, pelo caminho real, antes do `CONTROLE_NO_TEXTO`; é lista positiva: qualquer sinal de subida
+  ou montagem (`..` também partido por aspas, crase, chave, escape, `cd -`, `dirname`...) ou `$` fora de `TMPDIR`, `HOME`
+  e do nome só atribuído a uma cópia devolve o texto intacto. `controle_no_texto` (`:3921`) aplica isso só ao padrão largo.
+  Contraprovas no corpus: `cpb-dev-wt-subida-ponto-ponto`, `-nome-de-fora`, `-read-reatribui`, `-substituicao`,
+  `-fora-do-contrib` e `cpb-dev-continuacao-pedidos` recusam.
+- A2 (meu): resolvido por limite declarado em `docs/hooks.md:56` ("rode a leitura fora daquela pasta ou com a saída num
+  caminho literal") com a contraprova `cpb-tech-lead-pasta-do-controle-ls-briefs-tmpdir-bloqueia`.
+- A12 da segurança: `entrada_de_arquivo` (`:4075`) só libera o shell com a última redireção da entrada para um arquivo
+  comum (nenhum segmento `dev`, `proc`, `fd`, `..`, `stdin`, último não numérico); A13: `help.autocorrect` em `-c` e no
+  `git config` (também com `--worktree`) entra como o alias. Legível, comentário com a origem de cada guarda.
 
-## Sondas de caso legítimo (hook do head novo contra o do 6c0b0f03, mesmas fixtures montadas)
-Base `cpb-tech-lead-wt-variavel-pedidos-libera` (tech-lead, sessão do Forge, pasta corrente em `~/.forge-contrib/wt/x`) e
-`oraculo-python-c-tech-lead-bloqueia` (tech-lead no clone):
-- seguem livres nos dois: `python3 -I tests/test_oraculo_x.py`, `python3 -m unittest tests.test_oraculo_x`,
-  `python3 -c "print(open('tests/test_oraculo_x.py').read())"`, `sed -n … docs/pedidos/v1.md > $TMPDIR/e.txt` (sem citar
-  `forge-contrib`), `grep … docs/pedidos/v1.md ~/.forge-contrib/docs/briefs/b1.md`, `git reset --hard HEAD`,
-  `git reset HEAD -- src/app.js`, `git stage src/app.js`, `git diff --name-only | xargs git diff --stat`,
-  `ls -d . | xargs -I{} git -C {} status --short`, `bash -n scripts/x.sh && git push origin melhoria/x`,
-  `env FOO=1 bash scripts/x.sh && git push …`, `timeout 600 bash -O extglob scripts/x.sh; git push …`,
-  `. venv/bin/activate && git push …`, o envio com log e `rc=` da `esperar-estado`, `git --git-dir .git log`,
-  `printf 'git status' | bash`, `git pull --rebase origin melhoria/x && git push origin melhoria/x`;
-- **passaram a recusar** (rc 0 no 6c0b0f03, rc 2 no e48a2e60): S1, S2 e S3 abaixo. Os três leem o pedido ou o brief e gravam
-  num caminho livre por variável. O S1 é o caminho de todo subagente: a pasta corrente volta à raiz entre chamadas, então ele
-  começa com `cd ~/.forge-contrib/wt/<x> &&`, e o sandbox manda usar o `$TMPDIR`. O `docs/hooks.md:56` diz que o
-  `docs/pedidos/` do clone "segue livre ali, como antes", e o S1 contradiz isso.
+## Sondas de caso legítimo (hook do 0f4facab contra o do e48a2e60, mesma fixture montada)
+Roteiro `~/.forge-contrib/wt/tl-e6310/sondas.py`, saída em `~/.forge-contrib/wt/tl-e6310/sondas.txt`: 44 linhas, tech-lead,
+clone do Forge com `HOME` e `~/.forge-contrib` montados, pasta corrente no projeto, em `wt/x` ou na pasta de controle.
+- **passaram a liberar** (rc 2 → 0): S1, S1 com caminho absoluto, S2, `cd $HOME/.forge-contrib/wt/x && sed … > $TMPDIR/e.txt`,
+  `cd ~/.forge-contrib/wt/x && cat docs/pedidos/v1.md | head -40 > $TMPDIR/e.txt`,
+  `cd ~/.forge-contrib/wt/x && git diff --stat > $TMPDIR/s.txt; ls docs/pedidos docs/briefs`;
+- **nenhuma passou a recusar**. Iguais (rc 0 nos dois): leitura do pedido e do brief do clone e de `~/.forge-contrib/docs/`,
+  `forge-check parecer delta`/`proximo` com saída em `wt/`, `git pull --rebase … && git push …`, o envio com log e `rc=` e a
+  espera da `esperar-estado`, a suíte por nome com saída em `wt/`, rodar e ler o oráculo, `git reset --hard`, `git stage`,
+  `xargs git diff`, `bash -n`/`env bash`/`. venv/bin/activate` antes do push, `printf … | bash`, `git --git-dir`,
+  `bash < scripts/x.sh` (com e sem push), `bash < ~/x.sh` e `< /root/x.sh` com push, `git config --get help.autocorrect`,
+  `git -c color.ui=never log`, `git config --worktree user.name`;
+- iguais (rc 2 nos dois, já recusavam no e48a2e60, mensagem "`$X` com ação crítica"): S3 (agora limite declarado) e o
+  shell com a entrada por variável antes do push (`bash < $TMPDIR/x.sh`, `< "$HOME/x.sh"`, `s=…; bash < $s`,
+  `bash scripts/x.sh < $TMPDIR/in.txt`).
 
 ## Ferramentas (citadas, não refeitas)
-- Testes novos no head e48a2e60: `test_fixtures_do_controle_so_jarvis`, `test_fixtures_da_escrita_no_indice`,
-  `test_fixtures_da_substituicao_no_projeto` → `Ran 3 tests in 16.023s OK`.
-- `bin/forge-mutante --processos 1 --ids U1 tests/mutantes/v0479-conformidade-trilha-7.json` → `U1 · morreu · hooks/conformidade.py:4041`.
+- Testes do domínio, por nome, no head 0f4facab: `HookSessaoDoForge.test_travas_do_conformidade`,
+  `Hooks.test_fixtures_da_substituicao_no_projeto`, `test_fixtures_do_controle_so_jarvis`,
+  `test_fixtures_da_escrita_no_indice` → `Ran 4 tests in 17.264s OK`.
+- `bin/forge-mutante --processos 1 --ids X1,X3 tests/mutantes/v0479-conformidade-trilha-10.json` →
+  `X1 · morreu · hooks/conformidade.py:3827`, `X3 · morreu · hooks/conformidade.py:3833`.
 - Suíte inteira: sem PR, sem run de CI na branch (`gh run list` vazio); não rerrodada aqui.
 
-## Achados
-- A1 (bloqueante) hooks/conformidade.py:3808 · caso legítimo passou a recusar (S1, S2): `cd ~/.forge-contrib/wt/x &&` mais leitura de docs/pedidos/ com saída em `$TMPDIR` ou variável; contradiz docs/hooks.md:56 ("segue livre, como antes"). Não contar `forge-contrib/wt/<pasta>` sem `..` como pasta mãe; fixtures S1 e S2.
-- A2 (recomendado) hooks/conformidade.py:3895 · com a pasta corrente em ~/.forge-contrib fora de wt/, `ls docs/briefs > $TMPDIR/b.txt` recusa (S3): a leitura do brief com saída por variável; declarar como limite em docs/hooks.md com a contraprova literal, ou estreitar.
-
 ## Sondas
-- S1 · tech-lead, sessão do Forge, cwd ~/.forge-contrib/wt/x: `cd ~/.forge-contrib/wt/x && sed -n 1,5p docs/pedidos/v1.md > $TMPDIR/e.txt` · espera: rc 0 (como no 6c0b0f03) · obtido: rc 2, "R-CONFORMIDADE: `$TMPDIR` com ação crítica: o hook não modela"
-- S2 · tech-lead, cwd ~/.forge-contrib/wt/x: `f=~/.forge-contrib/wt/r.txt; grep -c x docs/pedidos/v1.md > $f` · espera: rc 0 (como no 6c0b0f03) · obtido: rc 2, "R-CONFORMIDADE: `$f` com ação crítica: o hook não modela"
-- S3 · tech-lead, cwd ~/.forge-contrib: `ls docs/briefs > $TMPDIR/b.txt` · espera: rc 0 (como no 6c0b0f03) · obtido: rc 2, "R-CONFORMIDADE: `$TMPDIR` com ação crítica: o hook não modela"
+- S1 · tech-lead, cwd do projeto: `cd ~/.forge-contrib/wt/x && sed -n 1,5p docs/pedidos/v1.md > $TMPDIR/e.txt` · espera: rc 0 · obtido: rc 0 (e48a2e60: rc 2)
+- S2 · tech-lead, cwd ~/.forge-contrib/wt/x: `f=~/.forge-contrib/wt/r.txt; grep -c x docs/pedidos/v1.md > $f` · espera: rc 0 · obtido: rc 0 (e48a2e60: rc 2)
+- S3 · tech-lead, cwd ~/.forge-contrib: `ls docs/briefs > $TMPDIR/b.txt` · espera: rc 2, limite declarado em docs/hooks.md:56 · obtido: rc 2
 
 ## Parecer
-Reprovado no head e48a2e60. As guardas novas do índice, do envio e do oráculo fazem o que os achados da segurança e do QA
-pedem, não recusam nenhum dos casos legítimos que sondei, e o mutante declarado morre. A exceção é o alargamento do
-`CONTROLE_NO_TEXTO` (A1 da segurança): ele recusa a leitura do pedido do próprio clone quando a linha começa com o `cd` para a
-cópia em `wt/` e grava a saída por variável. Essa construção é a de rotina dos subagentes, e o `docs/hooks.md` promete que ela
-segue livre (A1, bloqueante, defeito provado pelas sondas S1 e S2). O A2 (S3) é recomendado: com a pasta corrente no controle,
-a recusa ao citar `briefs` está escrita no `docs/hooks.md`, mas falta a contraprova. Na volta, a correção do A1 reabre a
-revalidação só do `CONTROLE_NO_TEXTO` e das fixtures novas.
+Aprovado no head 0f4facab. O A1 está fechado: a leitura de rotina do pedido do clone a partir do `cd` para a cópia de `wt/`
+volta a passar (S1, S2 e mais três variantes), por lista positiva que mantém recusadas as subidas e montagens do caminho
+(fixtures `cpb-dev-wt-*`), e os mutantes das duas guardas centrais morrem. O A2 virou limite declarado com contraprova. Nas 44
+linhas de rotina comparadas com o hook do e48a2e60, nenhum caso legítimo passou a recusar; as guardas novas do A12 e do A13
+não mudam o resultado de nenhuma linha de rotina sondada.
