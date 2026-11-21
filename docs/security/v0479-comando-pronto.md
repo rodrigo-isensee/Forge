@@ -3,25 +3,26 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-comando-pronto
-commit: 34b6bf7bf5732b299a39d22c59dbf86950536286
+commit: 4b75cbd1359d2af46c95a40a546cb453f4cf4b1f
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-21
 ---
-# Review de segurança: v0479-comando-pronto (v0478 E66.4)
+# Review de segurança: v0479-comando-pronto, revalidação (v0478 E66.9)
 
-Escopo lido: `git diff bead3e53..34b6bf7b` (9 arquivos: três skills e um detalhe de skill, fragmento de changelog, `bin/forge-testes` só no mapa e na tupla `FORGE_CHECK`, `tests/pesos-d4.json`, `tests/test_anotar.py`, `tests/test_comando_pronto.py` novo).
+Volta por delta sobre o parecer aprovado no `34b6bf7b` (rodada anterior no git).
 
 ## Gatilhos
-Gatilhos: teste novo que executa as ferramentas da fábrica (`bin/forge-*`) em subprocesso; texto do Jarvis sobre comandos de controle (`anotar`, `brief selar`, `forge-fechar`).
+Gatilhos: teste que executa as ferramentas da fábrica (`bin/forge-*`) em subprocesso; texto do Jarvis sobre comandos de controle.
+
+## Delta lido
+- `forge-check parecer delta`: intervalo `34b6bf7b..925e9671`, sem o que veio da develop; fora do domínio só `tests/test_qa_lote_l09.py`; "nenhum arquivo do domínio mudou".
+- `c6984fb3`: merge da `origin/develop` (`c8e8a08d`, já revisada na develop), sem conflito.
+- `4b75cbd1`: `tests/test_qa_lote_l09.py`, uma linha: a asserção passa a exigir o comando completo `forge-check brief mensagem --arquivo <brief> --pedido <p>` no texto da skill. Só aperta a cobrança; sem subprocesso, sem I/O novo.
+- Já lido e sem mudança desde o `34b6bf7b`: `tests/test_comando_pronto.py`, `bin/forge-testes`, as skills e o fragmento de changelog.
 
 ## Detalhe dos achados
-Sem achado bloqueante nem recomendado.
-
-- Execução em subprocesso (`tests/test_comando_pronto.py:30-36`): argv em lista, sem shell; o interpretador roda com `-I`; ambiente reduzido a `PATH`, `LANG` e `TMPDIR`; `timeout=60`; só `--help`. As palavras vêm do texto das skills versionadas (mesma fronteira de confiança do código revisado), não de entrada externa. `bin/forge-fechar` trata `-h/--help` imprimindo o cabeçalho e saindo com 0 sem log (`bin/forge-fechar:25`): sem efeito colateral. Rodado: 3 testes OK, árvore limpa depois.
-- Exceção `SEM_OBRIGATORIAS` (`tests/test_comando_pronto.py:22-25`): afrouxa só a cobrança de opção obrigatória de uma citação (`escape registrar`), o subcomando segue cobrado e o teste falha se a exceção ficar sem uso. Não afrouxa controle de segurança.
-- Skills: as mudanças completam comandos com as opções obrigatórias e encurtam frases; nenhuma regra com ID, bloqueio ou passo de portão sai do texto (`R-BRIEF`, `R-PROVA`, `R-CUSTO`, `R-FLUXO`, `R-DECISAO` seguem citados). A conferência dos invariantes e da neutralidade fica com o CI.
-- `bin/forge-testes:153,246`: só inclusão do módulo novo na tupla e no mapa de seleção; o seletor não perde cobertura (a regra nova soma módulos).
+Sem achado bloqueante nem recomendado; o parecer anterior não tinha achado pendente.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Suíte inteira: só no CI (brief E66.4: sem suíte local); rodado localmente só o teste novo. `gitleaks` ausente no PATH (lacuna); o diff não contém credencial nem configuração sensível, lido à mão.
+Nenhum risco aceito. Suíte inteira: só no CI (PR #757, em execução no `925e9671` na hora deste parecer); rodado localmente só `tests.test_qa_lote_l09` (4 testes OK). `gitleaks` ausente no PATH (lacuna); o delta não contém credencial, lido à mão.
