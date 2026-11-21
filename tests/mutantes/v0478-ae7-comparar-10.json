@@ -1,0 +1,76 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP61",
+      "guarda": "AE7.1 fora_da_medida: manifesto presente é lido (A10)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "f\"{sha}:{manifesto}\")[0] == 0:",
+      "para": "f\"{sha}:{manifesto}\")[0] != 0:",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_chave_hooks_no_manifesto_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP62",
+      "guarda": "AE7.1 fora_da_medida: manifesto que não se lê é nao-verificavel (F4, F5)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if cod != 0 or fora_da_lista(texto):",
+      "para": "if fora_da_lista(texto):",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_manifesto_que_nao_se_le_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP63",
+      "guarda": "AE7.1 objeto_na_lista: JSON ilegível fica fora da lista (F4)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    except ValueError:\n        return None\n    return objeto if",
+      "para": "    except ValueError:\n        return {}\n    return objeto if",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_chave_hooks_no_manifesto_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP67",
+      "guarda": "AE7.1 objeto_na_lista: as chaves de cada objeto são guardadas (F4)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "chaves.extend(k for k, _ in pares) or dict(pares)",
+      "para": "chaves.extend(k for k, _ in pares[:0]) or dict(pares)",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_chave_hooks_no_manifesto_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP64",
+      "guarda": "AE7.1 objeto_na_lista: chave hooks em qualquer nível (F4, F5)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "and \"hooks\" not in chaves else None",
+      "para": "and True else None",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_chave_hooks_no_manifesto_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP65",
+      "guarda": "AE7.1 fora_da_medida: os .md da árvore são lidos (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if mds:\n        cod, lote",
+      "para": "    if False:\n        cod, lote",
+      "testes": [
+        "tests.test_comparar.CabecalhoDoMd.test_hooks_em_qualquer_forma_no_cabecalho_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP66",
+      "guarda": "AE7.1 executar: caso recusado no head não conta reescrita (A9)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "reescreve = h != RECUSA and",
+      "para": "reescreve = True and",
+      "testes": [
+        "tests.test_comparar.DecisaoInteira.test_reescrita_da_base_contra_recusa_do_head_nao_conta"
+      ]
+    }
+  ]
+}
