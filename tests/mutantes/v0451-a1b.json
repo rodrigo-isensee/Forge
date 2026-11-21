@@ -54,8 +54,8 @@
       "id": "M5",
       "guarda": "--completa e --vermelho em qualquer posicao: classificar pelo primeiro argumento (A3)",
       "arquivo": "hooks/pesado.py",
-      "de": "for a in argumentos for o in",
-      "para": "for a in argumentos[:1] for o in",
+      "de": "all(opcao_leve(a) for a in argumentos if",
+      "para": "all(opcao_leve(a) for a in argumentos[:1] if",
       "testes": [
         "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_completa_ou_vermelho_em_qualquer_posicao_e_pesado"
       ]
