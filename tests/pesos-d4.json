@@ -162,6 +162,7 @@
   "test_pre_push_segredo": 5.1,
   "test_pre_push_shellcheck": 0.0,
   "test_pre_push_trava": 18.5,
+  "test_prepush_falha_fechada": 3.0,
   "test_prepush_refs": 1.2,
   "test_prepush_so_docs": 4.5,
   "test_promocao_por_marca": 6.0,

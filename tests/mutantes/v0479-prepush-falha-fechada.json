@@ -1,0 +1,87 @@
+{
+  "pedido": "v0479-prepush-falha-fechada",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "pre-push (patch): lider_vivo só com builtins; com o tr de volta, sem ele o limite de tempo desliga",
+      "arquivo": "docs/propostas/prepush-modelo-falha-aberta.md",
+      "de": "for p in $(jobs -rp); do",
+      "para": "for p in $(jobs -rp | tr '\\n' ' '); do",
+      "testes": [
+        "tests.test_prepush_falha_fechada.LimiteSemTr.test_sem_tr_o_limite_encerra_a_checagem_longa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "pre-push (patch): o dirname que sai com erro barra o envio, mesmo imprimindo uma pasta",
+      "arquivo": "docs/propostas/prepush-modelo-falha-aberta.md",
+      "de": "+if ! pasta_hook=\"$(dirname -- \"$0\" 2>/dev/null)\" || [ -z",
+      "para": "+pasta_hook=\"$(dirname -- \"$0\" 2>/dev/null)\"; if [ -z",
+      "testes": [
+        "tests.test_prepush_falha_fechada.DirnameAusente.test_dirname_com_erro_barra_mesmo_com_a_pasta_certa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "pre-push (patch): o dirname com saída vazia barra o envio (o caminho viraria /pre-push.local)",
+      "arquivo": "docs/propostas/prepush-modelo-falha-aberta.md",
+      "de": " || [ -z \"$pasta_hook\" ]; then",
+      "para": "; then",
+      "testes": [
+        "tests.test_prepush_falha_fechada.DirnameAusente.test_dirname_com_saida_vazia_barra"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "pre-push (patch): o exit 1 da guarda do dirname",
+      "arquivo": "docs/propostas/prepush-modelo-falha-aberta.md",
+      "de": "não acha o pre-push.local; envio barrado. Corrija o PATH e envie de novo.\" >&2; exit 1",
+      "para": "não acha o pre-push.local; envio barrado. Corrija o PATH e envie de novo.\" >&2",
+      "testes": [
+        "tests.test_prepush_falha_fechada.DirnameAusente.test_sem_dirname_barra_o_envio"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "pre-push (patch): registros sem python3 entram no ramo próprio (mensagem do que falta)",
+      "arquivo": "docs/propostas/prepush-modelo-falha-aberta.md",
+      "de": "+  if ! command -v python3 >/dev/null 2>&1; then",
+      "para": "+  if false; then",
+      "testes": [
+        "tests.test_prepush_falha_fechada.RegistrosSemPython.test_sem_python3_com_a_chave_barra",
+        "tests.test_prepush_falha_fechada.RegistrosSemPython.test_sem_python3_sem_a_chave_segue_com_aviso"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "pre-push (patch): sem python3 e com a chave registros, o return 1 barra o envio",
+      "arquivo": "docs/propostas/prepush-modelo-falha-aberta.md",
+      "de": "Instale o python3 ou corrija o PATH e envie de novo.\" >&2; return 1 ;; esac",
+      "para": "Instale o python3 ou corrija o PATH e envie de novo.\" >&2; return 0 ;; esac",
+      "testes": [
+        "tests.test_prepush_falha_fechada.RegistrosSemPython.test_sem_python3_com_a_chave_barra"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "pre-push (patch): o case reconhece a chave registros no texto do config",
+      "arquivo": "docs/propostas/prepush-modelo-falha-aberta.md",
+      "de": "in *'\"registros\"'*) echo",
+      "para": "in *'\"nunca-casa\"'*) echo",
+      "testes": [
+        "tests.test_prepush_falha_fechada.RegistrosSemPython.test_sem_python3_com_a_chave_barra"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "pre-push (patch): sem python3 e sem a chave, o envio segue (return 0, nada a conferir)",
+      "arquivo": "docs/propostas/prepush-modelo-falha-aberta.md",
+      "de": "sem a chave registros, nada a conferir\" >&2; return 0",
+      "para": "sem a chave registros, nada a conferir\" >&2; return 1",
+      "testes": [
+        "tests.test_prepush_falha_fechada.RegistrosSemPython.test_sem_python3_sem_a_chave_segue_com_aviso"
+      ]
+    }
+  ]
+}
