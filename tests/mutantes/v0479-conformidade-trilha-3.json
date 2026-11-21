@@ -46,7 +46,7 @@
       "id": "S5",
       "guarda": "o shell que lê o pipe numa linha que cita o envio (E63.1)",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if nomes and nomes[0] in SHELLS and all(v.startswith(\"-\") for v in valores[1:]) and cita_o_envio:\n",
+      "de": "        if cita_o_envio and programa and shell_que_le_a_entrada(nomes, valores, opacas):  # o `in` antes: custo do corpus\n",
       "para": "        if False:\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
@@ -78,16 +78,6 @@
       "arquivo": "hooks/conformidade.py",
       "de": "            no_programa = j == 0 or nomes[j - 1] in ENVOLVEDORES\n",
       "para": "            no_programa = j == 0\n",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
-      ]
-    },
-    {
-      "id": "S9",
-      "guarda": "o filtro barato só pula a linha sem substituição, xargs nem envio citado (E63.1)",
-      "arquivo": "hooks/conformidade.py",
-      "de": "    if not (marcador and (envio or \"git\" in linha) or envio and (\"xargs\" in linha or \"sh\" in linha.replace(\"push\", \"\"))):\n",
-      "para": "    if True:\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
       ]

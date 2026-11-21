@@ -46,8 +46,8 @@
       "id": "L5",
       "guarda": "o -C do git leva o valor na palavra seguinte (E63.1)",
       "arquivo": "hooks/conformidade.py",
-      "de": "        resto = resto[2:] if resto[0] == \"-C\" else resto[1:]\n    return resto if not resto or resto[0] != \"-c\" else []\n",
-      "para": "        resto = resto[2:] if resto[0] != \"-C\" else resto[1:]\n    return resto if not resto or resto[0] != \"-c\" else []\n",
+      "de": "        resto = resto[2:] if resto[0] in GIT_GLOBAIS_COM_VALOR else resto[1:]  # E63.5 (A3): `--git-dir .git push`\n    return resto if not resto or resto[0] != \"-c\" else []\n",
+      "para": "        resto = resto[2:] if resto[0] not in GIT_GLOBAIS_COM_VALOR else resto[1:]  # E63.5 (A3): `--git-dir .git push`\n    return resto if not resto or resto[0] != \"-c\" else []\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
       ]

@@ -26,8 +26,8 @@
       "id": "C3",
       "guarda": "a linha que cita o controle é crítica na GuardaDaProva (E63.1)",
       "arquivo": "hooks/conformidade.py",
-      "de": "        self.critico = CRITICO_COM_CONTROLE.search if papel != \"jarvis\" else CRITICO.search\n",
-      "para": "        self.critico = CRITICO.search\n",
+      "de": "        self.controle, self.critico = ((None, CRITICO.search) if papel == \"jarvis\"\n",
+      "para": "        self.controle, self.critico = ((None, CRITICO.search) if True\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
       ]
@@ -36,8 +36,8 @@
       "id": "C4",
       "guarda": "o jarvis, dono, segue livre no texto do controle (E63.1)",
       "arquivo": "hooks/conformidade.py",
-      "de": "        return self.papel != \"jarvis\" and (\"forge-contrib\" in linha.lower() or \"\\\\\\n\" in linha) and bool(\n",
-      "para": "        return (\"forge-contrib\" in linha.lower() or \"\\\\\\n\" in linha) and bool(\n",
+      "de": "        return self.controle is not None and bool(\n",
+      "para": "        return self.controle is None or bool(\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
       ]
