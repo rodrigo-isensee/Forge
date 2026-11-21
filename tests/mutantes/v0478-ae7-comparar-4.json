@@ -26,8 +26,8 @@
       "id": "CMP27",
       "guarda": "AE7.1 executar: só o head que libera mais conta",
       "arquivo": "bin/forge_comparar.py",
-      "de": "        if h > b or reescrita_h",
-      "para": "        if h != b or reescrita_h",
+      "de": "        if h > b or reescreve:",
+      "para": "        if h != b or reescreve:",
       "testes": [
         "tests.test_comparar.Medida.test_head_que_aperta_nao_conta"
       ]

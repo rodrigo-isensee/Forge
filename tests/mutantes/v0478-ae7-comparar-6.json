@@ -66,7 +66,7 @@
       "id": "CMP46",
       "guarda": "AE7.1 executar: reescrita que muda é aceite novo",
       "arquivo": "bin/forge_comparar.py",
-      "de": "        if h > b or reescrita_h != reescrita_b:",
+      "de": "        if h > b or reescreve:",
       "para": "        if h > b:",
       "testes": [
         "tests.test_comparar.DecisaoInteira.test_reescrita_que_muda_e_aceite_novo"
@@ -76,7 +76,7 @@
       "id": "CMP47",
       "guarda": "AE7.1 executar: marca entrada-reescrita",
       "arquivo": "bin/forge_comparar.py",
-      "de": "(\" entrada-reescrita\" if reescrita_h != reescrita_b else \"\")",
+      "de": "(\" entrada-reescrita\" if reescreve else \"\")",
       "para": "(\" entrada-reescrita\" if False else \"\")",
       "testes": [
         "tests.test_comparar.DecisaoInteira.test_hook_novo_que_aprova_e_reescreve_e_aceite_novo"

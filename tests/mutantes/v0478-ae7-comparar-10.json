@@ -61,16 +61,6 @@
       "testes": [
         "tests.test_comparar.DecisaoInteira.test_reescrita_da_base_contra_recusa_do_head_nao_conta"
       ]
-    },
-    {
-      "id": "CMP67",
-      "guarda": "AE7.1 executar: reescrita que muda é aceite novo",
-      "arquivo": "bin/forge_comparar.py",
-      "de": "if h > b or reescreve:",
-      "para": "if h > b:",
-      "testes": [
-        "tests.test_comparar.DecisaoInteira.test_reescrita_que_muda_e_aceite_novo"
-      ]
     }
   ]
 }
