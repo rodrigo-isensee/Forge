@@ -55,3 +55,10 @@ Sondas diretas de `pesado.pesado(comando, PESADOS_DO_FORGE)` (50 formas): pesam 
 Mudança de comportamento notada e coberta por teste: `--listar --modulos a` agora pesa (antes era leve); declarado em `test_versoes_e_opcao_fora_da_lista_pesam`.
 
 Simulação de merge: não feita; o remoto da branch estava em edaa2466 (à frente do head testado) e o parecer segue sobre o `commit:` acima.
+
+## Revalidação no head 4d3f76d4 (E64.10, escopo incremental sobre f8210fe5)
+Delta (`forge-check parecer delta`): só `tests/mutantes/v0451-a1b.json` no domínio (M5 alinhado a `all(opcao_leve(a) for a in argumentos if`; A1-prefixo, A1-igual e A1-separador apontados também a `FormasLevesDoForgeTestes.test_formas_da_lista_seguem_leves`); o teste citado já constava neste parecer e não mudou.
+- `bin/forge-mutante tests/mutantes/v0451-a1b.json` (rc=0): M1 a M7, A1-prefixo, A1-igual, A1-separador, todos `morreu` (10 de 10), `rev=4d3f76d441f1`.
+- `bin/forge-mutante tests/mutantes/v0478-pesado-versoes.json` (rc=0): M1, M2, M3 `morreu`. As duas specs juntas saem 2 (pedidos diferentes); rodadas uma por spec.
+- `python3 -m unittest tests.test_forge_mutante.ConferirTodas`: 4 testes OK. `python3 -m unittest tests.test_forge_pesado`: 18 testes OK (TMPDIR no clone).
+Parecer mantido: aprovado.
