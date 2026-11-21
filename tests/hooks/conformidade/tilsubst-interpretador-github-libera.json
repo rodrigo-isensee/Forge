@@ -1,0 +1,22 @@
+{
+  "descricao": "CONFORMIDADE-TIL-EM-SUBSTITUICAO (v0478 E80.9, A4 da segurança E80.6): o `.github` não é o `.git`: o interpretador com texto segue livre.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "d=.github; python3 -c \"print('$d/workflows')\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "stderr": ""
+  }
+}

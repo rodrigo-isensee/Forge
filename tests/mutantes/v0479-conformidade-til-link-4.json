@@ -36,8 +36,8 @@
       "id": "S4",
       "guarda": "o interpretador com opção antes do script passa pela linha que cita arquivo em vigor (A3 da segurança E80.3, E80.5)",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if args[:1] and args[0][:1] == \"-\" and args[0] != \"-m\":  # E80.5: depois do caminho literal; só a opção antes\n",
-      "para": "            if False:  # E80.5: depois do caminho literal; só a opção antes\n",
+      "de": "            if args[:1] and args[0][:1] == \"-\" and (args[0] != \"-m\" or args[1:2] in ([\"tarfile\"], [\"zipfile\"])):  # E80.5\n",
+      "para": "            if False:  # E80.5\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
       ]

@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3438 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3449 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,7 +10,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3438 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 125 | 66 | 59 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2607 | 1929 | 678 | 102 |
+| `conformidade` | 2618 | 1936 | 682 | 102 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 32 | 13 | 19 | 14 |
 | `parecer` | 583 | 448 | 135 | 27 |
@@ -83,15 +83,15 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3438 fixtures) roda em `tests/test
 | `idx-*` | 41 | 30 | 11 | `R-REVIEW` | `CONFORMIDADE-ESCRITA-NO-INDICE` | CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1, S1-S4 de docs/security/v0479-pv-a1-adr.md; R-CONFORMIDADE): `git add --chmod=+x` fora da políti… |
 | `lancador-*` | 40 | 36 | 4 | `R-CONFORMIDADE`, `R-VERIFY` | — | Prefixo desembrulhado antes de classificar: command git commit --no-verify -m x |
 | `rotulo-*` | 40 | 31 | 9 | `R-CONTRIB` | `FURO-HOOK-A`, `ROTULO-VARIAVEL`, `HOOK-COMENTARIO-SHLEX` | Sessão do Forge: gh api em issues/N/labels, conta do dono. |
+| `tilsubst-*` | 39 | 27 | 12 | — | `CONFORMIDADE-TIL-EM-SUBSTITUICAO` | CONFORMIDADE-TIL-EM-SUBSTITUICAO (v0478 E80.1, sonda zy-1 da E63.1): sessão do Forge, o tech-lead grava o pedido da pasta de controle pelo v… |
+| `linkcopia-*` | 38 | 32 | 6 | — | `CONFORMIDADE-LINK-POR-COPIA` | CONFORMIDADE-LINK-POR-COPIA (v0478 E80.5, S9 da segurança E80.3; R-CONFORMIDADE): o extrator de pacote falha fechado (`7z`). |
 | `git-*` | 37 | 32 | 5 | `R-CONFORMIDADE` | — | `git checkout -- <arquivo comum>` e `git rm` de arquivo comum seguem livres: só o caminho protegido barra. |
 | `oraculo-*` | 36 | 20 | 16 | — | `EXT-1` | EXT-1 (C-7): `cat > tests/test_oraculo_x.py <<'F'` do tech-lead no oráculo bloqueia. |
-| `linkcopia-*` | 35 | 30 | 5 | — | `CONFORMIDADE-LINK-POR-COPIA` | CONFORMIDADE-LINK-POR-COPIA (v0478 E80.5, S9 da segurança E80.3; R-CONFORMIDADE): o extrator de pacote falha fechado (`7z`). |
 | `n5r-*` | 35 | 25 | 10 | `R-REVIEW`, `R-VERIFY`, `R-CONFORMIDADE` | — | N5 (review da 0.43.5): alias na linha troca o subcomando (commit na develop) |
 | `n5-*` | 34 | 21 | 13 | `R-REVIEW` | — | N5 (L22, IMPL-FURO-HOOK-N): am na develop |
 | `nao-*` | 34 | 21 | 13 | `R-MAIN` | `ADR`, `AA2-01` | ADR 0011 (item 2): $' que o shlex lê como aspas abertas. |
 | `pn7-*` | 32 | 24 | 8 | `R-MAIN` | `PN7-DOLAR-INTERROG` | PN7-DOLAR-INTERROG (H1-1, ADR 0011): continua barrado. |
 | `errointerno-*` | 31 | 23 | 8 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA (E5, C3): erro interno com alvo opaco (`$(...)`) numa linha que escreve recusa, sem depender do nome do caminho. |
-| `tilsubst-*` | 31 | 22 | 9 | — | `CONFORMIDADE-TIL-EM-SUBSTITUICAO` | CONFORMIDADE-TIL-EM-SUBSTITUICAO (v0478 E80.1, sonda zy-1 da E63.1): sessão do Forge, o tech-lead grava o pedido da pasta de controle pelo v… |
 | `rverify-*` | 29 | 22 | 7 | `R-VERIFY` | `HOOK-RVERIFY-FALSO-POSITIVO` | HOOK-RVERIFY-FALSO-POSITIVO: cat > $TMPDIR/x.py <<'EOF' com `*` e .githooks/pre-push só no corpo (dado, não destino); sessão do Forge, pasta… |
 | `n2-*` | 28 | 22 | 6 | `R-REVIEW` | — | N2 (L20b, IMPL-FURO-HOOK-N): GIT_OBJECT_DIRECTORY por declare -x |
 | `shell-*` | 28 | 20 | 8 | `R-CONFORMIDADE` | — | Contorno pelo shell: echo 9.9.9 >> .forge/versao |

@@ -2429,8 +2429,8 @@ class Guarda:
         elif INTERPRETES.match(prog):
             for a in args:
                 self.checar_texto(a)
-            if args[:1] and args[0][:1] == "-" and args[0] != "-m":  # E80.5: depois do caminho literal; só a opção antes
-                self.fechado_em_vigor()  # do script (custo do corpus)
+            if args[:1] and args[0][:1] == "-" and (args[0] != "-m" or args[1:2] in (["tarfile"], ["zipfile"])):  # E80.5
+                self.fechado_em_vigor()  # depois do caminho literal; a opção antes do script e o `-m` que extrai (E80.9, A5)
             if no_lugar:  # edição no lugar (`-i`, `-pi`, `-0777pi`, `-i.bak`): os arquivos-alvo também são escrita
                 for i, a in enumerate(args):
                     if not a.startswith("-") and not (i and args[i - 1] in ("-e", "-E")):
@@ -3889,7 +3889,8 @@ SUBIDA_NO_TEXTO = (r"\.\.|`|\\|[{}]|(?:^|[\s/=])\.[*?[]|~[-+\d]|\bcd\s+-|pushd|p
 # `cp -\a` e `ta\r` como o bash os passa); a opção longa vale por qualquer prefixo do nome, como no GNU (`--arch`,
 # `--recur`, `--no-deref`, `--sym`, `--ext`); e, em vez da lista das formas, a linha com extrator de pacote no modo que
 # extrai (`FECHADO_NA_LINHA`: `tar`, `bsdtar` e `gtar` com `x`, `unzip`, `dpkg`, `7z x|e`, `cpio -i|-p`, `pax -r`; o
-# `busybox` cai pelo applet) ou interpretador com texto (`python -c`, `perl -e`, `node -e|-p`, `php -r`, `deno eval`)
+# `busybox` cai pelo applet; E80.9, A5: `python -m tarfile|zipfile -e`) ou interpretador com texto (`python -c`,
+# `perl -e`, `node -e|-p`, `php -r`, `deno eval`)
 # falha fechada; listar ou criar o pacote segue livre. Textos: compilados só no uso (custo do corpus).
 LONGA_DO_LINK = (r"a(?:r(?:c(?:h(?:i(?:v(?:e)?)?)?)?)?)?|r(?:e(?:c(?:u(?:r(?:s(?:i(?:v(?:e)?)?)?)?)?)?)?)?"
                  r"|n(?:o(?:-(?:d(?:e(?:r(?:e(?:f(?:e(?:r(?:e(?:n(?:c(?:e)?)?)?)?)?)?)?)?)?)?)?)?)?|l(?:i(?:n(?:k(?:s)?)?)?)?"
@@ -3900,11 +3901,12 @@ FECHADO_NA_LINHA = (r"\b(?:bsd|g)?tar\s+-?[a-zA-Z]*x[a-zA-Z]*(?![\w.-])|\b(?:bsd
                     rf"(?![\w.-])|(?<![\w.-])cpio\b[^;&|\n]*\s(?:-[a-zA-Z]*[ip]|--(?:{EXTRAI_DO_TAR}|p[\w-]*))|(?<![\w.-])pax\b[^;&|\n]*\s-[a-zA-Z]*r"
                     r"|(?<![\w.-])(?:(?:python|pypy)[\w.-]*\s(?:[^;&|\n]*\s)?-[a-zA-Z]*c|(?:perl|ruby)[\w.-]*\s"
                     r"(?:[^;&|\n]*\s)?-[a-zA-Z]*[eE]|(?:node|nodejs|bun)\s(?:[^;&|\n]*\s)?-(?:[a-zA-Z]*[ep]|-eval|-print)"
-                    r"|php\s(?:[^;&|\n]*\s)?-[a-zA-Z]*r|deno\s+eval)")
+                    rf"|(?:python|pypy)[\w.-]*\s(?:[^;&|\n]*\s)?-[a-zA-Z]*m\s*(?:tar|zip)file\s(?:[^;&|\n]*\s)?-(?:[a-zA-Z]*e|-(?:{EXTRAI_DO_TAR}))"
+                    r"(?![\w-])|php\s(?:[^;&|\n]*\s)?-[a-zA-Z]*r|deno\s+eval)")
 # A1 e A3 da segurança E80.3: o arquivo em vigor do Claude Code citado no texto normalizado da linha (`.claude/`,
-# `~/.claude/`, `~/.claude.json`); `.claude-plugin` e `.claude-notas` não contam. Só o `.claude`: a leitura de rotina
-# do `.githooks/` pelo interpretador segue livre (R10 do review, `r10-perl-mstrict-leitura-libera`).
-EM_VIGOR_NO_TEXTO = r"\.claude(?![\w-])"
+# `~/.claude/`, `~/.claude.json`); `.claude-plugin` e `.claude-notas` não contam; desde a E80.9 (A4), também `.forge` e
+# `.git`. O `.githooks/` fica fora: a leitura de rotina pelo interpretador segue livre (R10 do review).
+EM_VIGOR_NO_TEXTO = r"\.(?:claude|forge|git)(?![\w-])"
 CAMINHO_TROCADO_NA_LINHA = (r"(?<![\w$])(?<!\$\{)(?:HOME|BASH_ENV|ENV)(?!\w)|(?<![\w.-])(?:source|ln|link|mv|install|rename)"
                             r"(?![\w.-])|(?:^|[;&|(])\s*\.\s|\bcp\b[^;&|\n]*\s-[a-zA-Z]*[slaPdrR][a-zA-Z]*(?![\w-])"
                             r"|\brsync\b[^;&|\n]*\s-[a-zA-Z]*[al][a-zA-Z]*(?![\w-])|\bsymlink(?:_to)?\s*\("

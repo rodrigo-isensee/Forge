@@ -1,0 +1,58 @@
+{
+  "pedido": "v0479-conformidade-til-link",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "V1",
+      "guarda": "o `.forge` citado na linha é arquivo em vigor (A4, S1 e S2 da segurança E80.6, E80.9)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "EM_VIGOR_NO_TEXTO = r\"\\.(?:claude|forge|git)(?![\\w-])\"\n",
+      "para": "EM_VIGOR_NO_TEXTO = r\"\\.(?:claude|forgeQ|git)(?![\\w-])\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "V2",
+      "guarda": "o `.git` citado na linha é arquivo em vigor (A4, S3 da segurança E80.6, E80.9)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "EM_VIGOR_NO_TEXTO = r\"\\.(?:claude|forge|git)(?![\\w-])\"\n",
+      "para": "EM_VIGOR_NO_TEXTO = r\"\\.(?:claude|forge|gitQ)(?![\\w-])\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "V3",
+      "guarda": "o `-m tarfile|zipfile` passa pela linha que cita arquivo em vigor (A5, S5 da segurança E80.6, E80.9)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if args[:1] and args[0][:1] == \"-\" and (args[0] != \"-m\" or args[1:2] in ([\"tarfile\"], [\"zipfile\"])):  # E80.5\n",
+      "para": "            if args[:1] and args[0][:1] == \"-\" and args[0] != \"-m\":  # E80.5\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "V4",
+      "guarda": "o `python -m tarfile|zipfile -e|--extract` falha fechado na linha (A5, S4 e S5 da segurança E80.6, E80.9)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    rf\"|(?:python|pypy)[\\w.-]*\\s(?:[^;&|\\n]*\\s)?-[a-zA-Z]*m\\s*(?:tar|zip)file\\s(?:[^;&|\\n]*\\s)?-(?:[a-zA-Z]*e|-(?:{EXTRAI_DO_TAR}))\"\n",
+      "para": "                    rf\"|(?:python|pypy)[\\w.-]*\\s(?:[^;&|\\n]*\\s)?-[a-zA-Z]*m\\s*(?:tar|zip)fileQ\\s(?:[^;&|\\n]*\\s)?-(?:[a-zA-Z]*e|-(?:{EXTRAI_DO_TAR}))\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao",
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
+      ]
+    },
+    {
+      "id": "V5",
+      "guarda": "o `--extract` do `-m tarfile|zipfile` falha fechado como o `-e` (A5, S4 da segurança E80.6, E80.9)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    rf\"|(?:python|pypy)[\\w.-]*\\s(?:[^;&|\\n]*\\s)?-[a-zA-Z]*m\\s*(?:tar|zip)file\\s(?:[^;&|\\n]*\\s)?-(?:[a-zA-Z]*e|-(?:{EXTRAI_DO_TAR}))\"\n",
+      "para": "                    rf\"|(?:python|pypy)[\\w.-]*\\s(?:[^;&|\\n]*\\s)?-[a-zA-Z]*m\\s*(?:tar|zip)file\\s(?:[^;&|\\n]*\\s)?-(?:[a-zA-Z]*e)\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao",
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
+      ]
+    }
+  ]
+}

@@ -57,8 +57,8 @@
       "id": "F6",
       "guarda": "a linha que cita arquivo em vigor é a que falha fechada no projeto (A1 e A3 da segurança E80.3, E80.5)",
       "arquivo": "hooks/conformidade.py",
-      "de": "EM_VIGOR_NO_TEXTO = r\"\\.claude(?![\\w-])\"\n",
-      "para": "EM_VIGOR_NO_TEXTO = r\"\\.claudeQ\"\n",
+      "de": "EM_VIGOR_NO_TEXTO = r\"\\.(?:claude|forge|git)(?![\\w-])\"\n",
+      "para": "EM_VIGOR_NO_TEXTO = r\"\\.(?:claudeQ|forge|git)(?![\\w-])\"\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
       ]
