@@ -3,20 +3,22 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-trilha-forge-check
-commit: 95994eec3b874dff23e39f68a6b4e7181d4205d5
+commit: d2f79996cc41129fab309d802639e83228d981c8
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
 ---
-# Review: v0478 E91.6 (TRILHA-FORGE-CHECK, revalidação)
+# Review: v0478 E91.11 (TRILHA-FORGE-CHECK, revalidação)
 
-Escopo: delta a318e97d..95994eec lido por `forge-check parecer delta` (bin/forge-check, changelog.d, specs -2 e -3, test_revisor_wt, test_trilha_forge_check); 14 linhas de código em `bin/forge-check`, dentro do H1.
+Escopo: delta 95994eec..d2f79996 lido por `forge-check parecer delta` (bin/forge-check, changelog.d, specs revisor-wt-e6a-1, revisor-wt-e6a-4 e -3, test_revisor_wt). H1: o item soma 79 linhas de código desde o Base-sha 15936278 (`bin/forge-check` 62+15, `bin/forge-testes` 1+1); a volta tem 25+13. Dentro do teto.
 
 ## Parecer
-Aprovado. Os dois recomendados da rodada anterior estão resolvidos e o resto do delta se sustenta.
+Aprovado. O A1 da segurança foi atacado na causa: `de_outra_branch` não decide mais pelo nome do arquivo.
 
-- A1 anterior (ids repetidos): a spec -2 vai de M7 a M12 e a -3 de M13 a M15. `forge-mutante` com a spec 1 e a -2 juntas aceita (`--ids M7`: "M7 · morreu · bin/forge-check:466"), sem a recusa de id repetido.
-- A2 anterior (PQ do K-156): `ultimos_do_historico` recebe a branch nos dois chamadores (`pareceres_conferidos`, `conferidos_fora_da_ref`). `de_outra_branch` só pula o sha ilegível quando a linha cita parecer e nenhum tem o slug da branch; a linha da própria branch, ou sem parecer citado, segue ilegível (falha fechada). O teste cobre os cinco ramos, incluindo a linha mista e o nome vizinho (`x-2`). Medido neste clone, `forge-check pr v0478 --previo --base develop`: com o forge-check de 48839de0 (antes da correção), 34 linhas "o git não lê"; com o de 95994eec, 0. O rc=1 que sobra vem só dos portões desta volta, ainda pendentes (review e segurança desatualizados, QA reprovado).
-- Teste do portão (EnvioDoParecer): o `next()` virou `assertEqual(len(linhas), 1)`, então na base o vermelho é uma falha de asserção e não um StopIteration.
+- `de_outra_branch` (bin/forge-check:2428): só pula a linha quando cada parecer citado existe na `ref` ou numa base do fluxo e, em todas onde existe, tem `branch:` diferente. Ausente, sem frontmatter, `branch:` igual em qualquer ref, subpasta ou prefixo forjado (contagem de citações contra ocorrências da pasta) mantêm a falha fechada. `blob_de` usa `--end-of-options`; o `cat-file` só roda nas refs onde o blob existe.
+- A ref chega aos três chamadores: `pr` (`ref or "HEAD"`, :2012), `entrega` (`head`, :3372) e a volta (`conferidos_fora_da_ref`, :2466).
+- Teste: o caso final troca o HEAD para outra branch com `p1.md` de `branch: melhoria/outra` e o `pr --ref melhoria/x` segue acusando; é o que mata o M20. Os casos S1 a S4 estão cobertos um a um.
+- Realinhamentos: M6 (e6a-1) e M3 (e6a-4) trocam só o texto do `de`/`para` para a nova assinatura; a mutação é a mesma e o teste apontado é o mesmo. Os dois morreram. As specs da -3 passaram de classe inteira para o teste exato, o que estreita sem enfraquecer: todos morrem com ele.
+- `forge-mutante --conferir`: a única recusa é revisor-wt-e6a-1 M2 ("o trecho aparece 2 vezes"). O trecho já aparece 2 vezes no Base-sha 15936278, na origin/develop e em 95994eec (vem de a59e1539 e a95cd2d0); o código novo usa `(raiz, r, nome)`, outro texto. Não é deste item.
 
-Verificação: `PrLeParecerConferido` e `test_trilha_forge_check`: 20 OK. Mutantes da spec -3: M13, M14 e M15 morreram. `forge-mutante --cobertura --base a318e97d`: as duas guardas do diff (linhas 2431 e 2442) estão cobertas; `--conferir`: os trechos estão no lugar. Suíte completa: CI do PR.
+Verificação: `PrLeParecerConferido`: 9 OK. Spec -3: M13 a M20 morreram; M6 (e6a-1) e M3 (e6a-4) morreram. `--cobertura --base 95994eec`: as guardas 2434, 2438, 2439, 2441 e 2454 estão cobertas. Suíte completa: CI do PR.
