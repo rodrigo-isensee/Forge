@@ -1,17 +1,24 @@
-"""Forge: a quarentena de teste instável (BP1 Q1; desenho em docs/propostas/v0479-bp1-quarentena.md). Só biblioteca padrão; só leitura.
+"""Forge: a quarentena de teste instável (BP1 Q1, pedido v0478). Só biblioteca padrão; só leitura.
 
 Formato de `tests/quarentena.json`: `{"entradas": [...]}`, uma entrada por teste com `teste`, `classe`, `cartao`, `prova`, `desde`,
 `prazo` (AAAA-MM-DD, no máximo `desde` + 7 dias) e `autorizacao` (`A-<n>` do OK do dono). Uma prorrogação, opcional: `prorrogacao`
 com `prazo` (no máximo mais 7 dias) e `autorizacao` nova. A data (`hoje`) é sempre argumento: nada aqui lê o relógio.
-Falha fechada: arquivo ilegível, link simbólico, acima de `TETO_BYTES`, com chave repetida, aninhado fundo demais para o `json` ou
-qualquer erro de validação vale
-como "não há entrada ativa", e o teste roda no portão.
+Falha fechada: arquivo ilegível, link simbólico, acima de `TETO_BYTES`, com chave repetida, aninhado acima do teto de
+`hooks/_json_raso.py` (medido aqui, igual no 3.12 e no 3.14) ou qualquer erro de validação vale como "não há entrada ativa", e o
+teste roda no portão.
 """
 import datetime
 import json
 import os
 import re
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "hooks"))
+try:
+    from _json_raso import fundo_demais  # o teto de aninhamento único dos leitores de JSON de controle
+finally:
+    sys.path.pop(0)
 
 CAMPOS = ("teste", "classe", "cartao", "prova", "desde", "prazo", "autorizacao")
 CLASSES = ("relogio", "carga", "ordem", "rede-local", "desconhecida")
@@ -38,9 +45,12 @@ def carregar(caminho):
             bruto = arq.read(TETO_BYTES + 1)
         if len(bruto) > TETO_BYTES:
             return [], [f"quarentena: arquivo acima de {TETO_BYTES} bytes"]
-        dados = json.loads(bruto.decode("utf-8"), object_pairs_hook=_sem_chave_repetida)
+        texto = bruto.decode("utf-8")
+        if fundo_demais(texto):
+            return [], ["quarentena ilegível: aninhamento acima do teto"]
+        dados = json.loads(texto, object_pairs_hook=_sem_chave_repetida)
         entradas = dados["entradas"]
-    except (OSError, ValueError, KeyError, TypeError, RecursionError) as e:
+    except (OSError, ValueError, KeyError, TypeError) as e:
         return [], [f"quarentena ilegível: {e}"]
     if not isinstance(entradas, list) or not all(isinstance(e, dict) for e in entradas):
         return [], ["quarentena: `entradas` não é uma lista de objetos"]

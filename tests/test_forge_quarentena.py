@@ -71,6 +71,16 @@ class Carregar(unittest.TestCase):
                 self.assertEqual(len(erros), 1)
                 self.assertIn("ilegível", erros[0])
 
+    def test_aninhamento_medido_pelo_leitor_no_teto_de_json_raso(self):
+        # 64 níveis ({ e [) passam ao formato; 65 são ilegíveis por conta do leitor, sem depender do RecursionError do python
+        def aninhado(niveis):
+            return '{"entradas": ' + "[" * (niveis - 1) + "]" * (niveis - 1) + "}"
+        self.assertEqual(self.ler(aninhado(64)), ([], ["quarentena: `entradas` não é uma lista de objetos"]))
+        entradas, erros = self.ler(aninhado(65))
+        self.assertEqual(entradas, [])
+        self.assertEqual(len(erros), 1)
+        self.assertIn("ilegível", erros[0])
+
     def test_arquivo_acima_do_teto_nao_e_lido(self):
         vazio = '{"entradas": []}'
         no_teto = vazio + " " * (q.TETO_BYTES - len(vazio))

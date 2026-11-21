@@ -14,12 +14,13 @@
         },
         {
             "id": "M42",
-            "guarda": "E37.51: JSON aninhado fundo (RecursionError) vale como quarentena ilegível",
+            "guarda": "E37.51 e E61.7: JSON aninhado acima do teto de hooks/_json_raso.py vale como quarentena ilegível, medido pelo leitor (3.12 e 3.14)",
             "arquivo": "bin/forge_quarentena.py",
-            "de": "    except (OSError, ValueError, KeyError, TypeError, RecursionError) as e:",
-            "para": "    except (OSError, ValueError, KeyError, TypeError) as e:",
+            "de": "        if fundo_demais(texto):",
+            "para": "        if False and fundo_demais(texto):",
             "testes": [
-                "tests.test_forge_quarentena.Carregar.test_json_aninhado_fundo_devolve_erro_sem_quebrar"
+                "tests.test_forge_quarentena.Carregar.test_json_aninhado_fundo_devolve_erro_sem_quebrar",
+                "tests.test_forge_quarentena.Carregar.test_aninhamento_medido_pelo_leitor_no_teto_de_json_raso"
             ]
         }
     ]
