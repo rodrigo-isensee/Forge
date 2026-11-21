@@ -1,14 +1,14 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v0479-aviso-versao-parada
+pedido: v0478
 branch: melhoria/v0479-aviso-versao-parada
 commit: 1d47aa8ec5d32e91308dd65d5793279634024106
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-21
 ---
-# Review de segurança: v0479-aviso-versao-parada
+# Review de segurança: v0478 (aviso de versão parada)
 
 Etapa E69.4 do pedido v0478. Diff `bead3e53..1d47aa8e`: `hooks/doutor.py`, `bin/forge_versoes.py`, `README.md`, fragmento do changelog, desenho em `docs/propostas/`, testes e mutantes.
 
