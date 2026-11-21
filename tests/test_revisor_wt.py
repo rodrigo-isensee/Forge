@@ -86,6 +86,14 @@ class PrLeParecerConferido(ComParecer):
                                         "rode git fetch (VOLTAS-REVISOR-WT)"])
         self.assertEqual(self.novas(ref="develop", pedido="p1"), [])  # integração: fora do `de_trabalho`
 
+    def test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim(self):  # K-156: o squash de outro item apaga o P dele
+        erro = f"docs/pedidos: parecer conferido {SHA_FALSO[:7]}: o git não lê o commit nem o pai dele; rode git fetch (VOLTAS-REVISOR-WT)"
+        for cita, esperado in (("docs/reviews/outra.md=aprovado; docs/security/outra.md", []), ("docs/qa/x.md", [erro]),
+                               ("docs/reviews/outra.md; docs/security/x.md", [erro]), ("docs/reviews/x-2.md", []), ("nenhum", [erro])):
+            with self.subTest(cita):
+                self.gravar_pedido(extra=f"- 2026-11-06 18:00: {cita}=aprovado conferido: parecer conferido {SHA_FALSO} (review)\n")
+                self.assertEqual(self.novas(), esperado)
+
     def test_regex_nao_se_cruzam(self):  # t14 (M5): `conferida` não é `parecer conferido`, e vice-versa
         p1 = self.parecer("r1")
         self.historico(p1, forma="entrega conferida")

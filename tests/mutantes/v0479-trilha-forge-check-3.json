@@ -1,0 +1,36 @@
+{
+  "pedido": "v0479-trilha-forge-check",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M13",
+      "guarda": "K-156: o P ilegível de linha de outra branch não entra na conta",
+      "arquivo": "bin/forge-check",
+      "de": "            if cod and de_outra_branch(linha, branch):  # K-156",
+      "para": "            if cod and False:  # K-156",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "K-156: a linha que cita o parecer da própria branch segue ilegível",
+      "arquivo": "bin/forge-check",
+      "de": "    return bool(branch and nomes) and branch.rsplit(\"/\", 1)[-1] not in nomes",
+      "para": "    return bool(branch and nomes)",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "K-156: a linha sem parecer citado segue ilegível (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "    return bool(branch and nomes) and branch.rsplit(\"/\", 1)[-1] not in nomes",
+      "para": "    return bool(branch) and branch.rsplit(\"/\", 1)[-1] not in nomes",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido"
+      ]
+    }
+  ]
+}

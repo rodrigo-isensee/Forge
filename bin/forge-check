@@ -2420,16 +2420,27 @@ def pareceres_conferidos(raiz, pedido, branch):
     lê]); o pedido é o da conferência do head (`pedido_da_conferencia`, A1) e o arquivo sai de `git diff --name-only P^1 P`, nunca do
     texto da linha. Sem o pedido, nada (como hoje: a conferência do head já recusa)."""
     texto = pedido_da_conferencia(raiz, pedido, branch)[1]
-    return ({}, []) if texto is None else ultimos_do_historico(raiz, texto)
+    return ({}, []) if texto is None else ultimos_do_historico(raiz, texto, branch)
 
 
-def ultimos_do_historico(raiz, texto):
-    """O par de `pareceres_conferidos` lido do texto de um pedido já resolvido (a volta tem o dela, E6b-1)."""
+def de_outra_branch(linha, branch):
+    """K-156: True se a linha cita parecer (`docs/<pasta>/<nome>.md`) e nenhum é o da `branch` (o nome é o slug dela, como no
+    `docs/reviews/<pedido>.md`); sem branch ou sem parecer citado, False (falha fechada: a linha conta)."""
+    pastas = "|".join(re.escape(p) for p in PASTAS_DE_PARECER)
+    nomes = set(re.findall(rf"(?:{pastas})/([^\s/=;:,`]+)\.md", linha))
+    return bool(branch and nomes) and branch.rsplit("/", 1)[-1] not in nomes
+
+
+def ultimos_do_historico(raiz, texto, branch=None):
+    """O par de `pareceres_conferidos` lido do texto de um pedido já resolvido (a volta tem o dela, E6b-1). Com `branch`, o P que o
+    git não lê só é ilegível se a linha é da branch (`de_outra_branch`, K-156: o squash de outro item apaga o commit dele)."""
     ultimos, ilegiveis = {}, []
     for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", []):
         if m := PARECER_CONFERIDO.match(linha):
             p = m.group(1)
             cod, saida = git(raiz, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "--no-textconv", f"{p}^1", p, "--", bruto=True)
+            if cod and de_outra_branch(linha, branch):  # K-156
+                continue
             if cod:
                 ilegiveis.append(p)
                 continue
@@ -2440,7 +2451,7 @@ def ultimos_do_historico(raiz, texto):
 def conferidos_fora_da_ref(raiz, pedido_txt, ref, branch):
     """VOLTAS-REVISOR-WT (E6b-1, T-2): ({arquivo: P} do último `parecer conferido` de cada arquivo que não é ancestral da `ref` e cujo
     parecer é da `branch` da volta, como no `pr` (E11), erro). P que o git não lê é erro (falha fechada)."""
-    ultimos, ilegiveis = ultimos_do_historico(raiz, pedido_txt)
+    ultimos, ilegiveis = ultimos_do_historico(raiz, pedido_txt, branch)
     if ilegiveis:
         return None, f"parecer conferido {ilegiveis[0][:7]}: o git não lê o commit nem o pai dele; rode git fetch (VOLTAS-REVISOR-WT)"
     return {n: p for n, p in ultimos.items()
