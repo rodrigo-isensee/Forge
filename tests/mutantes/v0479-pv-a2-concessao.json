@@ -54,9 +54,9 @@
     },
     {
       "id": "M6",
-      "guarda": "PV-A2 (ADR 0018 item 5): mensagem com ressalva não nasce ativa",
+      "guarda": "PV-A2 (item 5): palavra fora do vocabulário fechado não nasce ativa",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "(ativa and RESSALVA.search(normal(corpo)) is not None,",
+      "de": "(ativa and bool(fora),",
       "para": "(False,",
       "testes": [
         "tests.test_autorizacao.ItemPresoAoCommit.test_alvo_sem_marcador_fora_da_frase_ou_com_ressalva_nao_nasce_ativa"

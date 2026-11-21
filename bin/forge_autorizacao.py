@@ -25,8 +25,16 @@ ALVOS = re.compile(rf"pr:[1-9]\d*(, pr:[1-9]\d*)*|versao:\d+\.\d+\.\d+|item:{CAR
 SHA40 = re.compile(r"[0-9a-f]{40}")
 RAMO = re.compile(r"[A-Za-z0-9_]+(?:[./-][A-Za-z0-9_]+)*")  # sem `-` no início (opção do git) nem `..`
 FRASE = re.compile(r"[;!?\n]|\.(?=\s|$)")  # o ponto dentro do cartão (`E57.57`) não separa frase
-TERMOS_DO_ITEM = ("rotulo", "afrouxa")  # termos do ato `rotulo-afrouxa-regra`, o único do alvo `item:` (E1)
-RESSALVA = re.compile(r"\b(nao|nunca|jamais|se|caso|exceto|salvo|desde que|a menos|ainda)\b")  # negação ou condição
+TERMOS_DO_ITEM = frozenset(("rotulo", "afrouxa"))  # termos do ato `rotulo-afrouxa-regra`, o único do alvo `item:` (E1)
+# Vocabulário fechado da concessão (item 5 da ADR 0018): só cresce por ADR, e nenhuma marca de negação ou condição entra nele.
+VOCABULARIO = frozenset((
+    "rotulo afrouxa regra main item pr versao "  # termos de ato e marcadores de alvo (o alvo marcado sai antes)
+    "ate hoje hj amanha esta noite fim deste pedido segunda terca quarta quinta sexta sabado domingo feira "  # validade (item 6)
+    "pode podem autorizo autorizado autorizada liberado liberada libero aplicar aplique aplica mesclar mescle "  # permissão
+    "o a os as um uma de do da dos das no na nos nas em para pra pelo pela ao aos com "  # artigos e preposições
+    "por favor obrigado obrigada ok sim").split())  # cortesia
+DATA_OU_HORA = re.compile(r"\b\d{1,2}(?:/\d{1,2}(?:/\d{2,4})?|:\d{2}|h\d{0,2})\b")  # "18/11", "12:00", "18h" (item 6)
+EXIGIDOS = ("review", "qa", "revisao-seguranca")  # o rótulo afrouxa-regra só cabe em mudança de controle: classe C (P5)
 PARECERES = tuple(f"docs/{p}/" for p in ("reviews", "qa", "security", "devops"))
 ESTADOS_INICIAIS = ("ativa", "pendente-confirmacao")
 PEDIDO = r"[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*"
@@ -139,18 +147,28 @@ def problemas(campos, corpo, gravador):
     return achados
 
 
+def fora_do_vocabulario(texto, alvo=None):
+    """Palavras do texto normalizado fora do VOCABULARIO (item 5 da ADR 0018), sem o trecho do `alvo` (regex do alvo com
+    marcador) nem data ou hora; [] se toda palavra pertence a ele. Uma regra só para o leitor e o `gravar` da G1.2."""
+    limpo = DATA_OU_HORA.sub(" ", alvo.sub(" ", normal(texto)) if alvo else normal(texto))
+    return sorted(set(re.findall(r"[a-z0-9]+", limpo)) - VOCABULARIO)
+
+
 def do_item(campos, corpo):
     """Por que a concessão de alvo `item:` não é íntegra (E1): ato do rótulo, `Commit` sha40, `Ramo` na forma; nasce `ativa` só
-    com `item <CARTAO>` na mesma frase de um termo do ato e sem ressalva na mensagem (item 5 e A2 da ADR 0018)."""
+    com `item <CARTAO>` na mesma frase de um termo do ato (palavra inteira, fora do nome do cartão) e com toda palavra da
+    mensagem no vocabulário fechado (item 5 e A2 da ADR 0018)."""
     marcado = re.compile(rf"(?<![a-z0-9])item ?{re.escape(normal(campos['Alvos'][5:]))}(?![a-z0-9]|[.-][a-z0-9])")
-    no_ato = any(marcado.search(f) and any(t in f for t in TERMOS_DO_ITEM) for f in FRASE.split(normal(corpo)))
+    no_ato = any(marcado.search(f) and TERMOS_DO_ITEM & set(re.findall(r"[a-z0-9]+", marcado.sub(" ", f)))
+                 for f in FRASE.split(normal(corpo)))
+    fora = fora_do_vocabulario(corpo, marcado)
     ativa, ramo = campos["Estado-inicial"] == "ativa", campos.get("Ramo", "")
     return [texto for falha, texto in (
         (campos["Ato"] != "rotulo-afrouxa-regra", "Ato do alvo item: não é rotulo-afrouxa-regra"),
         (not SHA40.fullmatch(campos.get("Commit", "")), "Commit não é sha de 40 caracteres"),
         (not RAMO.fullmatch(ramo), "Ramo fora da forma"),
         (ativa and not no_ato, "ativa sem item <CARTAO> na frase do ato"),
-        (ativa and RESSALVA.search(normal(corpo)) is not None, "ativa com ressalva na mensagem")) if falha]
+        (ativa and bool(fora), f"ativa com ressalva ou palavra fora do vocabulário: {', '.join(fora)}")) if falha]
 
 
 def git(raiz, *args):
@@ -165,7 +183,8 @@ def git(raiz, *args):
 
 def fora_do_revisado(raiz, campos):
     """Por que o `Commit` não é o head do `Ramo` com os pareceres aprovados nele (E1); "" se é. Depois dele o `Ramo` só traz
-    pareceres, e todo parecer do `Ramo` (ao menos um) aprova o `Commit`."""
+    pareceres do próprio `Ramo` (renomeação conta como saída e entrada), os EXIGIDOS estão entre eles, e todo parecer do `Ramo`
+    aprova o `Commit`. Parecer de devops, se houver, também tem de aprovar; a classe do diff segue conferida no merge."""
     ramo, commit = campos["Ramo"], campos["Commit"]
     ponta = (git(raiz, "rev-parse", "-q", "--verify", f"refs/remotes/origin/{ramo}^{{commit}}")
              or git(raiz, "rev-parse", "-q", "--verify", f"refs/heads/{ramo}^{{commit}}") or "").strip()
@@ -173,12 +192,13 @@ def fora_do_revisado(raiz, campos):
         return "Ramo sem ref no clone"
     if git(raiz, "merge-base", "--is-ancestor", commit, ponta) is None:
         return "Commit fora do Ramo"
-    depois = git(raiz, "diff", "--name-only", commit, ponta)
-    if depois is None or any(not a.startswith(PARECERES) for a in depois.splitlines()):
+    depois = git(raiz, "diff", "--no-renames", "--name-only", commit, ponta)
+    if depois is None or any(not a.startswith(PARECERES) or frente(git(raiz, "show", f"{ponta}:{a}") or "").get("branch") != ramo
+                             for a in depois.splitlines()):
         return "Commit não é o head: o Ramo muda depois dele"
     achados = git(raiz, "grep", "-l", "-F", "-e", f"branch: {ramo}", ponta, "--", *PARECERES) or ""
     pareceres = [p for p in (frente(git(raiz, "show", a) or "") for a in achados.splitlines()) if p.get("branch") == ramo]
-    if not pareceres or any(p.get("parecer") != "aprovado" or len(p.get("commit", "")) < 7
+    if not set(EXIGIDOS) <= {p.get("tipo") for p in pareceres} or any(p.get("parecer") != "aprovado" or len(p.get("commit", "")) < 7
                             or not commit.startswith(p.get("commit", "")) for p in pareceres):
         return "Commit sem os pareceres aprovados nele"
     return ""

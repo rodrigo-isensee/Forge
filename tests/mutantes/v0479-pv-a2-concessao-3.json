@@ -24,10 +24,10 @@
     },
     {
       "id": "M19",
-      "guarda": "PV-A2 (ADR 0018 A2): sem o marcador item, o termo do ato sozinho não basta",
+      "guarda": "PV-A2 (E1): o termo do ato está na frase do alvo marcado",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "marcado.search(f) and any(t in f",
-      "para": "any(t in f",
+      "de": "marcado.search(f) and TERMOS_DO_ITEM",
+      "para": "TERMOS_DO_ITEM",
       "testes": [
         "tests.test_autorizacao.ItemPresoAoCommit.test_alvo_sem_marcador_fora_da_frase_ou_com_ressalva_nao_nasce_ativa"
       ]
@@ -46,8 +46,8 @@
       "id": "M21",
       "guarda": "PV-A2 (E1): só a falha vira achado do item",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "\"ativa com ressalva na mensagem\")) if falha]",
-      "para": "\"ativa com ressalva na mensagem\")) if True]",
+      "de": "f\"ativa com ressalva ou palavra fora do vocabulário: {', '.join(fora)}\")) if falha]",
+      "para": "f\"ativa com ressalva ou palavra fora do vocabulário: {', '.join(fora)}\")) if True]",
       "testes": [
         "tests.test_autorizacao.ItemPresoAoCommit.test_head_com_os_pareceres_aprovados_fica_ativa_e_o_parecer_pode_citar_o_sha_curto"
       ]

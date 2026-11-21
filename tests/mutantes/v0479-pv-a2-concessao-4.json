@@ -41,6 +41,46 @@
       "testes": [
         "tests.test_autorizacao.Ler.test_integra_mostra_a_mensagem_inteira_validade_no_fuso_e_em_utc"
       ]
+    },
+    {
+      "id": "M29",
+      "guarda": "PV-A2 (E1): renomeação depois do Commit conta como saída do arquivo antigo",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "\"diff\", \"--no-renames\", \"--name-only\"",
+      "para": "\"diff\", \"--name-only\"",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_so_o_parecer_de_review_ou_codigo_renomeado_para_a_pasta_de_parecer_fica_inativa"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "PV-A2 (review A2): depois do Commit só pareceres do próprio Ramo",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "or frente(git(raiz, \"show\", f\"{ponta}:{a}\") or \"\").get(\"branch\") != ramo",
+      "para": "or False",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_ramo_sem_parecer_dele_fica_inativo_e_a_ref_do_origin_vale_antes_da_local"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "PV-A2 (segurança A3): o termo do ato é procurado fora do nome do cartão",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "set(re.findall(r\"[a-z0-9]+\", marcado.sub(\" \", f)))",
+      "para": "set(re.findall(r\"[a-z0-9]+\", f))",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_vocabulario_fechado_sem_marca_aceita_data_e_hora_e_o_termo_do_ato_fora_do_nome_do_cartao"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "PV-A2 (item 5): o alvo marcado sai antes da conferência do vocabulário",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "normal(texto)) if alvo else normal(texto)",
+      "para": "normal(texto)) if None else normal(texto)",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_head_com_os_pareceres_aprovados_fica_ativa_e_o_parecer_pode_citar_o_sha_curto"
+      ]
     }
   ]
 }

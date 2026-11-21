@@ -14,12 +14,12 @@
     },
     {
       "id": "M10",
-      "guarda": "PV-A2 (E1): Commit que não é o head (o Ramo muda depois dele fora dos pareceres) não ativa",
+      "guarda": "PV-A2 (E1): depois do Commit só pareceres",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "    if depois is None or any(not a.startswith(PARECERES) for a in depois.splitlines()):",
-      "para": "    if depois is None:",
+      "de": "    if depois is None or any(not a.startswith(PARECERES) or",
+      "para": "    if depois is None or any(",
       "testes": [
-        "tests.test_autorizacao.ItemPresoAoCommit.test_commit_que_nao_e_o_head_com_os_pareceres_aprovados_fica_inativa"
+        "tests.test_autorizacao.ItemPresoAoCommit.test_so_o_parecer_de_review_ou_codigo_renomeado_para_a_pasta_de_parecer_fica_inativa"
       ]
     },
     {
@@ -34,12 +34,12 @@
     },
     {
       "id": "M12",
-      "guarda": "PV-A2 (E1): Ramo sem parecer não ativa",
+      "guarda": "PV-A2 (E1): os pareceres exigidos (review, QA, segurança) estão no Ramo, não basta um",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "    if not pareceres or any(",
-      "para": "    if any(",
+      "de": "    if not set(EXIGIDOS) <= {p.get(\"tipo\") for p in pareceres} or any(",
+      "para": "    if not pareceres or any(",
       "testes": [
-        "tests.test_autorizacao.ItemPresoAoCommit.test_ramo_sem_parecer_dele_fica_inativo_e_a_ref_do_origin_vale_antes_da_local"
+        "tests.test_autorizacao.ItemPresoAoCommit.test_so_o_parecer_de_review_ou_codigo_renomeado_para_a_pasta_de_parecer_fica_inativa"
       ]
     },
     {
