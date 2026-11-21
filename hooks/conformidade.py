@@ -3808,6 +3808,36 @@ CAMINHOS_DO_CONTROLE = ("~/.forge-contrib/docs/pedidos/", "~/.forge-contrib/*/do
 CONTROLE_NO_TEXTO = re.compile(r"forge-contrib[\s\S]*(?:pedidos|briefs)|(?:pedidos|briefs)[\s\S]*forge-contrib", re.I)
 CRITICO_COM_CONTROLE = re.compile(f"{CRITICO.pattern}|{CONTROLE_NO_TEXTO.pattern}", re.I)
 PEDIDO_OU_BRIEF = r"pedidos|briefs"  # compilado só na pasta do controle (`GuardaDaProva`): custo do corpus
+# A1 do review E63.6: a cópia de `wt/` pelo caminho literal (`cd ~/.forge-contrib/wt/x &&`, `f=~/.forge-contrib/wt/r.txt`)
+# não é a pasta mãe. Lista positiva em `sem_copia_de_wt`; textos, e não compilados no carregamento (custo do corpus).
+COPIA_DE_WT = (r"(?<![^\s;&|<>=])(~|\$HOME|/[^\s;&|<>'\"()=]*|)/\.forge-contrib/wt/(\w[\w.-]*(?:/\w[\w.-]*)*)/?"
+               r"(?=[\s;&|<>)'\"]|$)")  # só o caminho absoluto: `~`, `$HOME` ou `/`
+SUBIDA_NO_TEXTO = (r"\.\.|`|\\|[{}]|(?:^|[\s/=])\.[*?[]|~[-+\d]|\bcd\s+-|pushd|popd|OLDPWD|CDPATH|dirname|realpath|"
+                   r"readlink")
+
+
+def sem_copia_de_wt(texto):
+    """A1 do review E63.6: o texto com cada caminho literal e absoluto de uma cópia de `wt/` (pelo caminho real, dentro
+    de `~/.forge-contrib/wt/`) trocado por um NUL (o bash não o recebe na linha), para que só a pasta mãe conte em
+    `CONTROLE_NO_TEXTO`. Volta o texto intacto se algo nele pode subir ou montar o caminho (`..`, também partido por
+    aspas, `$(`, crase, chave, escape, curinga no ponto, `~-`, `cd -`, `dirname`...) ou se um `$` não é TMPDIR, HOME
+    ou um nome que a linha só atribui a uma cópia (`f=<cópia>`)."""
+    if "forge-contrib/wt/" not in texto or re.search(SUBIDA_NO_TEXTO, texto.replace("'", "").replace('"', "")):
+        return texto
+    wt, casa = (contrib() / "wt").as_posix() + "/", str(Path.home())
+
+    def copia(m):
+        base = casa if m.group(1) in ("~", "$HOME") else m.group(1)
+        return "\0" if os.path.realpath(f"{base}/.forge-contrib/wt/{m.group(2)}").startswith(wt) else m.group(0)
+    novo = re.sub(COPIA_DE_WT, copia, texto)
+    for ref in re.finditer(r"\$([A-Za-z_]\w*)?", novo):
+        nome = ref.group(1)
+        if not nome:
+            return texto  # `$(`, `$'`, `$1`, `$?`: fora da lista
+        usos = [u.start() for u in re.finditer(rf"(?<![\w$]){nome}\b", novo)]  # o nome fora do `$nome`
+        if (not usos) != (nome in ("TMPDIR", "HOME")) or any(not novo.startswith(f"{nome}=\0", u) for u in usos):
+            return texto
+    return novo
 
 
 class GuardaDaProva(Guarda):
@@ -3888,9 +3918,12 @@ class GuardaDaProva(Guarda):
 
     def controle_no_texto(self, linha):
         """CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS: a linha que o hook não lê cita o pedido ou o brief da pasta de controle, e
-        o papel não é o jarvis (o dono grava pelo caminho literal ou pelo `forge-check`)."""
-        return self.controle is not None and bool(
-            self.controle.search(juntar_continuacoes(linha) if "\\\n" in linha else linha))
+        o papel não é o jarvis (o dono grava pelo caminho literal ou pelo `forge-check`). A cópia de `wt/` pelo caminho
+        literal não conta como a pasta mãe (A1 do review E63.6, `sem_copia_de_wt`)."""
+        if self.controle is None:
+            return False
+        texto = juntar_continuacoes(linha) if "\\\n" in linha else linha
+        return bool(self.controle.search(sem_copia_de_wt(texto) if self.controle is CONTROLE_NO_TEXTO else texto))
 
     def na_pasta_do_controle(self):
         """A1 da E63.3: a pasta corrente fica em `~/.forge-contrib` (pelo caminho real) fora de uma cópia de `wt/`, e
