@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v0479-k152-sem-skip
+pedido: v0478
 branch: melhoria/v0479-k152-sem-skip
 commit: 1600898d0c5dbf16b3ea1ab3bc88f7fc63b6a291
 parecer: aprovado
