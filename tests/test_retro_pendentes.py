@@ -76,7 +76,8 @@ class RetroPendentes(unittest.TestCase):
         self.assertEqual(self.rodar(), (1, PENDENTES_12 + ["retro: pendentes=2"], []))
 
     def test_24h_exatas_nao_e_pendente_e_25h_e(self):
-        self.assertEqual(self.rodar(agora="2026-11-13T10:00:00-03:00")[1][-1], "retro: pendentes=2")
+        cod, linhas, _ = self.rodar(agora="2026-11-13T10:00:00-03:00")  # a tupla inteira: a base, de saída vazia, falha por asserção
+        self.assertEqual((cod, linhas), (1, [l.replace("=71", "=72").replace("=47", "=48") for l in PENDENTES_12] + ["retro: pendentes=2"]))
         cod, linhas, _ = self.rodar(agora="2026-11-13T11:00:00-03:00")
         self.assertEqual((cod, linhas[-2:]), (1, ["retro: pendente v0.3.0 tag=2026-11-12T10:00-03:00 horas=25", "retro: pendentes=3"]))
 
