@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-prepush-falha-fechada
-commit: 99a4fc3037f5a34958b83c474e6c1cc6c7e7ba56
-parecer: reprovado
+commit: 653b44116a942dc9c8d7bfd8d7895472ce12930a
+parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
@@ -16,8 +16,10 @@ data: 2026-11-21
 
 Proposta `docs/propostas/prepush-modelo-falha-aberta.md` (patch do `templates/projeto/.githooks/pre-push`, que só o dono aplica) e `tests/test_prepush_falha_fechada.py`. Patch testado em cópias em `$TMPDIR`, sem gravar em `.githooks`. Só o módulo do recorte rodou; suíte inteira fica para o CI do PR.
 
-## Achados
-- A1 (bloqueante) tests/test_prepush_falha_fechada.py:150 · `@unittest.skipUnless(shutil.which("python3"), ...)` na classe RegistrosSemPython sobe os pulos de tests/ de 37 para 38 e a catraca (R-CONFORMIDADE) barra o PR. Remova o decorator (o teste não precisa dele) ou peça o rótulo ao dono.
+## Revalidação (delta 99a4fc30..653b4411)
+- A1 fechado: o decorator saiu e o teste injeta um python3 falso; `catraca.regra_testes_enfraquecidos(., origin/develop, HEAD)` devolve `[]`.
+- Os 8 testes de `tests/test_prepush_falha_fechada.py` passam.
+- `bin/forge-mutante tests/mutantes/v0479-prepush-falha-fechada.json`: M1 a M8 morreram (rev=653b44116a94).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
