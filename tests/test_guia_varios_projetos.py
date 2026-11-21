@@ -39,6 +39,7 @@ class GuiaVariosProjetos(unittest.TestCase):
         import sys
         sys.path.insert(0, str(RAIZ / "hooks"))
         try:
+            import agentes  # noqa: F401  o mapa do forge-testes liga hooks/agentes.py a quem o importa
             spec = importlib.util.spec_from_file_location("agentes_mp9", RAIZ / "hooks" / "agentes.py")
             agentes = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(agentes)
