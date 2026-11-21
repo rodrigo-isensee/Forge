@@ -3,22 +3,19 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-trilha
-commit: 6c0b0f039a3ad89220cf328244e8df66da31c7d9
-parecer: reprovado
-escopo: completo
+commit: e48a2e60a11d97a36ab936fedacb1e93477ff940
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
-bugs_altos: 2
-bugs_medios: 2
+bugs_altos: 0
+bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-21
 ---
-# QA: v0478 E63.4 (hooks/conformidade.py: controle só do jarvis, escrita no índice, substituição no envio do git; head 6c0b0f03)
+# QA: v0478 E63.4 (hooks/conformidade.py: controle só do jarvis, escrita no índice, substituição no envio do git; head e48a2e60, revalidação)
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:332 · `git stage` é sinônimo de `git add` e fica fora de INDICE_NO_GIT: `git stage .githooks/pre-push` sai 0 (dev, projeto), enquanto `git add` do mesmo caminho recusa. Reproduzido; sem fixture. Incluir `stage`.
-- A2 (bloqueante) hooks/conformidade.py:3989 · na sessão do Forge `echo 'git push origin develop' | bash` (aspas) sai 0 (tech-lead, dev, jarvis); sem aspas recusa. changelog e docs/hooks.md dizem que o pipe para o shell recusa na sessão do Forge; as fixtures só cobrem o projeto.
-- A3 (recomendado) hooks/conformidade.py:3989 · shell atrás de envolvedor no pipe passa também no projeto: `echo "git push origin feature/x" | env bash`, `| sudo bash`, `| timeout 5 bash` saem 0; só nomes[0] é testado contra SHELLS (ENVOLVEDORES, linha 908, não entra).
-- A4 (recomendado) hooks/conformidade.py:332 · `git apply --cached p.patch`, `git apply --index p.patch` e `git read-tree` gravam no índice conteúdo que nunca esteve na árvore (a classe S1-S4) e saem 0; o caminho está dentro do patch. Declarar o limite em docs/hooks.md ou recusar.
+- A4 (recomendado) hooks/conformidade.py:332 · `git apply --cached p.patch` e `git read-tree` gravam no índice conteúdo que nunca esteve na árvore e saem 0 no head e48a2e60; declarar o limite em docs/hooks.md ou recusar.
 
 ## Critério → teste → resultado
 O pedido não tem especificação de UX nem contrato de API; as obrigações são as três regras do E63.1 (nome da regra no changelog e em docs/hooks.md).
@@ -46,4 +43,18 @@ Provas de reprovação (reproduzíveis com a sonda, base `sub-sessao-forge-commi
 - A1: `git stage .githooks/pre-push` rc=0; `git add .githooks/pre-push` rc=2.
 - A2: `echo "git push origin develop" | sh` rc=0; `echo git push origin develop | sh` rc=2; `$(echo git) push origin develop` rc=2. Causa: na sessão do Forge a recusa passa por `trava_da_sessao_do_forge` → `toca_uma_trava`, que só marca shell no nível aninhado.
 
-Bugs: não gravei `docs/qa/bugs/` (o brief manda commit só do parecer); A1 e A2 vão ao autor pelo bloco Achados.
+Bugs: não gravei `docs/qa/bugs/` (o brief manda commit só do parecer); A1 e A2 foram ao autor pelo bloco Achados e estão fechados na revalidação abaixo.
+
+## Revalidação no head e48a2e60 (escopo incremental)
+`forge-check parecer delta`: intervalo 6c0b0f03..e48a2e60; hooks/conformidade.py, fixtures idx-/sub-/cpb-/oraculo-, specs de mutante -6 a -9, docs e corpus.
+
+Achados do parecer anterior, todos fechados (sonda `qa-e638-sonda.py`, saída em `/root/.forge-contrib/wt/qa-e638-sonda-*.txt`):
+- A1 (bloqueante, era `git stage`): `git stage .githooks/pre-push` rc=2 (dev); `git reset .githooks/pre-push` rc=2; `git reset HEAD -- caminho` rc=2; `git stage src/x.py` e `git add src/x.py` rc=0. Fechado.
+- A2 (bloqueante, pipe com aspas na sessão do Forge): `echo "git push origin develop" | sh`/`| bash`, com aspas simples e sem aspas, rc=2 para tech-lead, dev e jarvis. Fechado.
+- A3 (recomendado, envolvedor): `| env bash`, `| sudo bash`, `| timeout 5 bash` rc=2 nos três papéis; `source /dev/stdin`, `. /dev/stdin`, `bash <(…)`, `source <(…)`, `. <(…)` rc=2; `git push --git-dir=x origin develop` e `git --git-dir x push origin develop` rc=2; `xargs git` sem subcomando rc=2. Livres: `echo oi | cat`, `git push origin melhoria/x 2>&1 | tail`, `git push origin melhoria/x`. Fechado.
+- A4 (recomendado, `git apply --cached`, `git read-tree`): continuam rc=0; o limite segue aberto e o changelog diz que os limites abertos estão em docs/hooks.md. Fica como cartão, não bloqueia.
+
+Mutantes novos, uma chamada por spec, `timeout 1500`, rc=0 em todas, nenhum sobrevivente nem sem veredito: -6 (S9, T1-T7) 8 mortos; -7 (U1-U8) 8 mortos; -8 (V1-V8) 8 mortos; -9 (W1) 1 morto. Total 25 mortos. Saídas em `qa-e638-mut6.txt` a `qa-e638-mut9.txt`.
+`forge-mutante --cobertura --base d4f0b10a`: rc=0, cabeçalho `base=d4f0b10aead7 mb=d4f0b10aead7 rev=e48a2e60a11d`, 48 linhas `coberta · … · declarado, não provado`, nenhuma `não coberto`, `isenta velha` ou `só equivalente`.
+
+Fixtures `pesado/mesma-sessao-libera`: não rodada por mim (falha no sandbox também na base, conforme o brief). A suíte inteira roda só no CI do PR; o head ainda não tem PR, sem check-run `bateria` a citar.
