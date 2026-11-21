@@ -805,7 +805,7 @@ limpar_copias_sem_merge() {
   for d in "${HOME:-}/.forge-contrib/wt"/*/; do
     d="${d%/}"
     if [ ! -d "$d/.git" ] || [ "$(cd "$d/.git" && pwd -P)" = "$comum" ] || [ -z "$url_aqui" ]; then continue; fi
-    g=(git --no-optional-locks -c core.fsmonitor= -C "$d")
+    g=(git -c core.fsmonitor= --no-optional-locks -C "$d")  # sem fsmonitor e sem trava opcional, como o limpar_clones
     if [ "$("${g[@]}" symbolic-ref -q HEAD 2>/dev/null || true)" = "refs/heads/$ref" ] \
       && [ "$("${g[@]}" remote get-url origin 2>/dev/null || true)" = "$url_aqui" ]; then copias+=("$d"); fi
   done

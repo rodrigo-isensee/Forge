@@ -126,7 +126,7 @@ def fim_do_item(copia, branch, base):
 
 def limpar(destino, base):
     """Apaga a cópia do item que acabou, só limpa e com tudo na origem (LIMPEZA-AO-FIM-DO-ITEM). Devolve 0, 1 ou 2."""
-    real, b = os.path.realpath(os.path.expanduser(destino)), raiz()
+    real, b = str(Path(destino).expanduser().resolve()), raiz()
     if real == b or os.path.commonpath([b, real]) != b:
         return recusa(f"a cópia fica fora de {b} ou é a própria pasta")
     g = ["git", "--no-optional-locks", "-c", "core.fsmonitor=", "-C", real]
