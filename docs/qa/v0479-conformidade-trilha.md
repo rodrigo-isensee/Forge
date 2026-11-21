@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-trilha
-commit: a247ae11fac6c9ce96b3d56abe8b4f18763173a6
+commit: dd1fc980fa57547c88dbf3d98fe35577b05fe522
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -94,3 +94,11 @@ Fixture `pesado/mesma-sessao-libera`: não rodada por mim. A suíte inteira roda
 - `python3 -I -m unittest discover -s tests -p test_hooks.py -k test_formas_leves_e_citacoes`: `Ran 1 test ... OK`.
 - `bin/forge-mutante tests/mutantes/v0435-review.json --base 7a739fca`: rc=0, `base=7a739fca7bed… rev=9f91054bda85…`, R1 a R14 todos `morreu`, nenhum sobrevivente nem sem veredito; o R6 morre em `hooks/conformidade.py:2801`.
 - Sem vermelho-antes-do-verde novo: o delta não traz teste de regra nova (as fixtures `forgetestes-*` vieram da develop). Suíte inteira não rodada local; o head ainda não tem PR, sem check-run `bateria` a citar. Máquina com carga 23 durante a rodada.
+
+## Revalidação no head dd1fc980 (E63.26, escopo incremental)
+`forge-check parecer delta`: intervalo a247ae11..dd1fc980; no domínio só `docs/hooks.md` (a linha 56 ganha a frase "Limite: o link criado por cópia na mesma linha não recusa…", A18 da segurança). Sem código nem teste no delta.
+
+- `test_sandbox_controle.py` e `test_hooks_parecer_matriz.py` (os módulos que leem `docs/hooks.md`), `python3 -I -m unittest discover -s tests -p <módulo>`: 14 testes `OK (skipped=2)` (skips já existentes no módulo, não meus) e 9 testes `OK`.
+- `scripts/indice-fixtures.py --conferir`: `docs/hooks-fixtures.md: em dia`, rc=0.
+- O cartão CONFORMIDADE-LINK-POR-COPIA que a frase cita existe em `docs/kanban/historico.md` e em `docs/pedidos/v0478.md`; a frase confere com o comportamento já sondado (a forma por cópia não recusa).
+- Sem vermelho novo (delta só de texto), sem mutante novo; suíte inteira não rodada local.
