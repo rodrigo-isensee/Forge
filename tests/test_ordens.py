@@ -10,6 +10,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parent.parent
 TETO_DA_TABELA = 1024 * 1024  # o do bin/forge-check
 FORGE_CHECK = str(RAIZ / "bin" / "forge-check")
@@ -57,7 +60,7 @@ class Base(unittest.TestCase):
         subprocess.run(["git", "init", "-q", str(self.tmp)], env=self.ambiente(), check=True, capture_output=True, timeout=60)
 
     def ambiente(self):
-        return {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.tmp / "home"), "LANG": "C.UTF-8"}
+        return sem_manutencao({"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.tmp / "home"), "LANG": "C.UTF-8"})
 
     def rodar(self, *args, timeout=60):
         r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.tmp), *args], capture_output=True, text=True,
