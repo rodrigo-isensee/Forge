@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: release-0.47.13
 branch: melhoria/v0479-release-04713
-commit: 7f5713a41b37c7b4272b4c90007a129601b7207c
+commit: 7574a975ae83e350de7fd605b800fe30d63fb0a5
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -12,7 +12,7 @@ bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-21
 ---
-# QA: release 0.47.13 (E65.4) (marca da versão 0.47.13, head 7f5713a4)
+# QA: release 0.47.13 (E65.4) (marca da versão 0.47.13, head 7574a975)
 
 Marca sobre o corte 178e2601 (base develop). Diff do commit da marca: `.claude-plugin/plugin.json`, `dev/.claude-plugin/plugin.json`, `CHANGELOG.md`, `docs/engineering/placar-mutacao.md` e a remoção de 11 fragmentos de `changelog.d/`. Sem código executável novo na marca; sem mutação nem vermelho-antes-do-verde (nenhum teste novo no commit da marca; cada item trouxe os seus nos PRs).
 
@@ -27,3 +27,15 @@ Marca sobre o corte 178e2601 (base develop). Diff do commit da marca: `.claude-p
 | Nota do placar coerente | leitura de `docs/engineering/placar-mutacao.md`: linha da 0.47.13 (mortos=58, sobreviveu=0) e nota do corte 178e2601 | sem sobrevivente | passou |
 
 Sem suíte local; a bateria inteira vale pelo check-run `bateria` do mesmo sha no CI do PR.
+
+## Revalidação no head 7574a975 (E65.10)
+Delta desde 7f5713a4 (`forge-check parecer delta`): merge da develop com o #746 (b14f2e19, PR-VERDE A2, com os próprios pareceres), a entrada dele em `### Alterado` do `[0.47.13]` do `CHANGELOG.md` (por `--anexar`) e a nota do placar refeita (as 5 specs do #746 ficam fora pelo teto; amostra e linha mortos=58 não mudam). O aviso sobre `changelog.d/v0479-pv-a2-v2.md` vem do merge da base: o fragmento do #746 foi consumido na entrada do CHANGELOG, e a pasta tem só `README.md`.
+
+| Critério | Teste | Resultado |
+|---|---|---|
+| Changelog fechado | `bin/forge-changelog conferir-release`: `ok: changelog.d/ sem fragmentos pendentes`, rc=0 | passou |
+| Módulo do changelog | `TMPDIR=… python3 -I -m unittest discover -s tests -p test_changelog.py`: 89 testes, OK, rc=0 | passou |
+| Versão nos dois manifestos | `.claude-plugin/plugin.json` e `dev/.claude-plugin/plugin.json` = 0.47.13; `## [0.47.13] - 2026-11-21` em português, com a entrada do #746 dentro | passou |
+| Placar | nota da 0.47.13 coerente, sem sobrevivente | passou |
+
+Mesmo veredito: aprovado, sem achados.
