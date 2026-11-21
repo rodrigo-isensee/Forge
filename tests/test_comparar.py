@@ -272,7 +272,7 @@ class Refs(Base):
     def test_archive_que_falha_e_nao_verificavel(self):
         def git(raiz, *args, **kw):  # a lista sai inteira, mas o código do git é de falha: não vale
             cod, saida = fc.git(raiz, *args, **kw)
-            return (128 if args[:1] == ("ls-tree",) else cod), saida
+            return (128 if args[:1] == ("ls-tree",) and "-l" not in args else cod), saida
         rc, linhas = self.comparar(self.base, self.base, {**CTX, "git": git})
         self.assertEqual((rc, linhas), (2, ["so-aperta: nao-verificavel (extração da árvore falhou)"]))
 
@@ -281,7 +281,7 @@ class Refs(Base):
         os.symlink("/etc/passwd", self.repo.pasta / "hooks" / "fora")
         head = self.repo.commit()
         rc, linhas = self.comparar(self.base, head)
-        self.assertEqual((rc, linhas), (2, ["so-aperta: nao-verificavel (extração da árvore falhou)"]))
+        self.assertEqual((rc, linhas), (2, ["so-aperta: nao-verificavel (link simbólico na árvore)"]))
 
 
 class Subcomando(Base):
@@ -408,11 +408,123 @@ class HooksForaDoHooksJson(Base):
         extra = {"docs/exemplo.md": '```json\n  "hooks": {}\n```\n  hooks:\n', "notas.txt": "hooks:\n"}
         self.assertEqual(self.comparar(self.base, self.repo.commit(extra=extra))[0], 0)
 
-    def test_busca_que_falha_e_nao_verificavel(self):
-        def git(raiz, *args, **kw):
-            return (128, "") if args[:1] == ("grep",) else fc.git(raiz, *args, **kw)
-        self.assertEqual(self.comparar(self.base, self.base, {**CTX, "git": git}),
-                         (2, ["so-aperta: nao-verificavel (hooks declarados no cabeçalho de agente ou skill)"]))
+    def test_leitura_dos_md_que_falha_e_nao_verificavel(self):
+        head = self.repo.commit(extra={"agents/a.md": "---\nname: a\n---\ncorpo\n"})
+        falhas = {"git que falha": lambda s: (128, s), "lote truncado": lambda s: (0, s[:-2]), "lote vazio": lambda s: (0, b"")}
+        for nome, troca in falhas.items():
+            with self.subTest(nome):
+                def git(raiz, *args, **kw):  # só o lote dos .md (fora_da_medida roda antes da extração)
+                    cod, saida = fc.git(raiz, *args, **kw)
+                    return troca(saida) if args[:2] == ("cat-file", "--batch") and b"\n" in kw["entrada"] else (cod, saida)
+                self.assertEqual(self.comparar(head, head, {**CTX, "git": git}),
+                                 (2, ["so-aperta: nao-verificavel (hooks declarados no cabeçalho de agente ou skill)"]))
+        self.assertEqual(self.comparar(head, head)[0], 0)
+
+
+class LinksESource(Base):
+    """A11 (sondas S15, S16, S17): o clone e o Claude Code atravessam link simbólico, a leitura pelo git não; A12 (S18): o
+    Claude Code instala a pasta de `source` do marketplace, e a medida roda a raiz. Em qualquer lado: nao-verificavel."""
+
+    def nos_dois_lados(self, monta, motivo):
+        monta()
+        com = self.repo.commit()
+        self.repo.git("reset", "-q", "--hard", self.base)
+        esperado = (2, [f"so-aperta: nao-verificavel ({motivo})"])
+        self.assertEqual(self.comparar(self.base, com), esperado)  # no head
+        self.assertEqual(self.comparar(com, self.base), esperado)  # na base
+
+    def test_link_simbolico_em_qualquer_pasta_e_nao_verificavel(self):
+        pasta = self.repo.pasta
+
+        def manifesto_por_link():  # S15: .claude-plugin é link para a pasta com o manifesto
+            (pasta / "cp2").mkdir()
+            (pasta / "cp2" / "plugin.json").write_text(json.dumps({"name": "p", "hooks": "./outro.json"}))
+            os.symlink("cp2", pasta / ".claude-plugin")
+
+        def hooks_json_por_link():  # S16: hooks/hooks.json é link
+            (pasta / "hooks" / "h2.json").write_text(hooks_json(matcher="Bas."))
+            (pasta / "hooks" / "hooks.json").unlink()
+            os.symlink("h2.json", pasta / "hooks" / "hooks.json")
+
+        def md_por_link():  # S17: agente que é link para texto com hooks no cabeçalho
+            (pasta / "notas.txt").write_text(AGENTE_COM_HOOK)
+            (pasta / "agents").mkdir()
+            os.symlink("../notas.txt", pasta / "agents" / "s17.md")
+        for monta in (manifesto_por_link, hooks_json_por_link, md_por_link):
+            with self.subTest(monta.__name__):
+                self.nos_dois_lados(monta, "link simbólico na árvore")
+
+    def test_extrair_nao_grava_link(self):
+        os.symlink("h.py", self.repo.pasta / "hooks" / "atalho.py")
+        com = self.repo.commit()
+        with tempfile.TemporaryDirectory() as destino:
+            self.assertFalse(C.extrair(CTX, self.repo.pasta, com, Path(destino) / "plugin"))
+            self.assertFalse((Path(destino) / "plugin" / "hooks" / "atalho.py").is_symlink())
+        with tempfile.TemporaryDirectory() as destino:
+            self.assertTrue(C.extrair(CTX, self.repo.pasta, self.base, Path(destino) / "plugin"))
+
+    def test_arvore_que_nao_se_lista_e_nao_verificavel(self):
+        falhas = {"git que falha": lambda s: (128, s), "lista ilegível": lambda s: (0, b"lixo\0" + s)}
+        for nome, troca in falhas.items():
+            with self.subTest(nome):
+                def git(raiz, *args, **kw):
+                    cod, saida = fc.git(raiz, *args, **kw)
+                    return troca(saida) if args[:1] == ("ls-tree",) and "-l" in args else (cod, saida)
+                self.assertEqual(self.comparar(self.base, self.base, {**CTX, "git": git}),
+                                 (2, ["so-aperta: nao-verificavel (árvore ilegível)"]))
+
+    def test_source_fora_da_raiz_e_nao_verificavel(self):
+        rel = ".claude-plugin/marketplace.json"
+        plugins = {"pasta": [{"name": "p", "source": "./outro"}],
+                   "repositório de fora": [{"name": "p", "source": {"source": "github", "repo": "x/y"}}],
+                   "sem source": [{"name": "p"}],
+                   "dois plugins": [{"name": "p", "source": "./"}, {"name": "q", "source": "./"}],
+                   "entrada que não é objeto": ["p"],
+                   "plugins que não é lista": {"name": "p", "source": "./"}}
+        for nome, lista in plugins.items():
+            with self.subTest(nome):
+                def monta(lista=lista):
+                    (self.repo.pasta / ".claude-plugin").mkdir()
+                    (self.repo.pasta / rel).write_text(json.dumps({"name": "m", "plugins": lista}))
+                self.nos_dois_lados(monta, "plugin fora da raiz: source no marketplace.json")
+        with self.subTest("marketplace que não é objeto"):
+            self.assertTrue(C.plugin_fora_da_raiz("[]"))
+        for source in (".", "./"):
+            with self.subTest(source):
+                head = self.repo.commit(extra={rel: json.dumps({"name": "m", "plugins": [{"name": "p", "source": source}]})})
+                self.assertEqual(self.comparar(self.base, head)[0], 0)
+
+
+class CabecalhoDoMd(Base):
+    """A13 (sondas S14b a S14d) e A6: no cabeçalho YAML de qualquer `.md`, leitura conservadora; o corpo não conta."""
+
+    MOTIVO = "hooks declarados no cabeçalho de agente ou skill"
+
+    def test_hooks_em_qualquer_forma_no_cabecalho_e_nao_verificavel(self):
+        cabecalhos = {"recuado": "---\n  name: a\n  hooks:\n    PreToolUse: []\n---\n",
+                      "em fluxo": "---\n{name: a, hooks: {PreToolUse: []}}\n---\n",
+                      "chave escapada": '---\nname: a\n"hoo\\x6bs": {}\n---\n',
+                      "chave explícita": "---\nname: a\n? hooks\n: {}\n---\n",
+                      "comentário antes dos dois pontos": "---\nhooks # x\n  : {}\n---\n",
+                      "alias": "---\nk: &k hooks\n*k : {}\n---\n",
+                      "tag": "---\n!!str chave: {}\n---\n",
+                      "sem fecho": "---\nname: a\nhooks: {}\n",
+                      "BOM e linha em branco antes": "\ufeff\n---\nhooks: {}\n---\n"}
+        for nome, texto in cabecalhos.items():
+            with self.subTest(nome):
+                com = self.repo.commit(extra={"docs/x.md": texto})
+                self.repo.git("reset", "-q", "--hard", self.base)
+                esperado = (2, [f"so-aperta: nao-verificavel ({self.MOTIVO})"])
+                self.assertEqual(self.comparar(self.base, com), esperado)
+                self.assertEqual(self.comparar(com, self.base), esperado)
+
+    def test_hooks_no_corpo_ou_como_texto_no_cabecalho_mede(self):  # A6: só o cabeçalho, e só como chave
+        textos = {"corpo": "---\nname: a\n---\nHooks: nenhum\nhooks:\n",
+                  "sem cabeçalho": "Hooks: nenhum\n",
+                  "texto no cabeçalho": "---\nverificada_por: hooks/conformidade.py e hooks `agentes`; main, hooks, custo\n---\n"}
+        for nome, texto in textos.items():
+            with self.subTest(nome):
+                self.assertEqual(self.comparar(self.base, self.repo.commit(extra={"docs/y.md": texto}))[0], 0)
 
 
 class ComoOClone(Base):
@@ -440,11 +552,10 @@ class ComoOClone(Base):
                 head = self.repo.commit(config=hooks_json(matcher=matcher))
                 self.assertEqual(self.comparar(self.base, head)[0], 0)
 
-    def test_executavel_e_link_interno_chegam_como_no_clone(self):
+    def test_executavel_chega_como_no_clone(self):
         (self.repo.pasta / "hooks" / "h.py").chmod(0o755)
-        os.symlink("h.py", self.repo.pasta / "hooks" / "atalho.py")
         config = hooks_json().replace('"command": "python3", "args": ["-s", "-E", "${CLAUDE_PLUGIN_ROOT}/hooks/h.py"]',
-                                      '"command": "${CLAUDE_PLUGIN_ROOT}/hooks/atalho.py", "args": []')
+                                      '"command": "${CLAUDE_PLUGIN_ROOT}/hooks/h.py", "args": []')
         base = self.repo.commit(hook="#!/usr/bin/env python3\n" + RECUSA, config=config)
         rc, linhas = self.comparar(base, self.repo.commit(hook="#!/usr/bin/env python3\n" + LIBERA, config=config))
         self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: proibido base=recusa head=aceite"]))
@@ -466,7 +577,7 @@ class ComoOClone(Base):
             "cat-file que falha": lambda a, c, s: (128 if a[:2] == ("cat-file", "--batch") else c, s),
             "lote truncado": lambda a, c, s: (c, s[:-2] if a[:2] == ("cat-file", "--batch") else s),
             "nome para fora": lambda a, c, s: (c, s.replace(b"\thooks/h.py", b"\t../fora.py") if a[:1] == ("ls-tree",) else s),
-            "lista ilegível": lambda a, c, s: (c, b"lixo\0" + s if a[:1] == ("ls-tree",) else s)}
+            "lista ilegível": lambda a, c, s: (c, b"lixo\0" + s if a[:1] == ("ls-tree",) and "-l" not in a else s)}
         for nome, troca in falhas.items():
             with self.subTest(nome):
                 rc, linhas = self._com_git(troca)
@@ -476,7 +587,7 @@ class ComoOClone(Base):
         listas = []
 
         def troca(args, cod, saida):
-            if args[:1] == ("ls-tree",) and "--name-only" not in args:  # a lista da extração, não a dos atributos
+            if args[:1] == ("ls-tree",) and "-l" not in args:  # a lista da extração, não a de fora_da_medida
                 listas.append(args)
                 return 128, saida
             return cod, saida

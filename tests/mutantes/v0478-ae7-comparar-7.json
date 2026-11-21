@@ -4,12 +4,12 @@
   "mutantes": [
     {
       "id": "CMP48",
-      "guarda": "AE7.1 extrair: link gravado como link",
+      "guarda": "AE7.1 extrair: link não se grava (A11)",
       "arquivo": "bin/forge_comparar.py",
       "de": "            if modo == b\"120000\":",
       "para": "            if False:",
       "testes": [
-        "tests.test_comparar.ComoOClone.test_executavel_e_link_interno_chegam_como_no_clone"
+        "tests.test_comparar.LinksESource.test_extrair_nao_grava_link"
       ]
     },
     {

@@ -1,0 +1,76 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP68",
+      "guarda": "AE7.1 fora_da_medida: ls-tree que falha (A11)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if cod != 0 or not all(itens):\n        return \"árvore ilegível\"",
+      "para": "    if not all(itens):\n        return \"árvore ilegível\"",
+      "testes": [
+        "tests.test_comparar.LinksESource.test_arvore_que_nao_se_lista_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP69",
+      "guarda": "AE7.1 fora_da_medida: link simbólico em qualquer pasta (A11)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if any(modo == b\"120000\" for modo, _, _ in itens):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_comparar.LinksESource.test_link_simbolico_em_qualquer_pasta_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP70",
+      "guarda": "AE7.1 fora_da_medida: source do marketplace (A12)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "            if manifesto.endswith(\"marketplace.json\") and plugin_fora_da_raiz(texto):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_comparar.LinksESource.test_source_fora_da_raiz_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP71",
+      "guarda": "AE7.1 plugin_fora_da_raiz: uma entrada só (A12)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "len(plugins) == 1\n",
+      "para": "len(plugins) >= 1\n",
+      "testes": [
+        "tests.test_comparar.LinksESource.test_source_fora_da_raiz_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP72",
+      "guarda": "AE7.1 plugin_fora_da_raiz: source só . ou ./ (A12)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": ".get(\"source\") in (\".\", \"./\"))",
+      "para": ".get(\"source\") is not None)",
+      "testes": [
+        "tests.test_comparar.LinksESource.test_source_fora_da_raiz_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP73",
+      "guarda": "AE7.1 plugin_fora_da_raiz: marketplace que não se lê (A12)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    except (ValueError, AttributeError):\n        return True\n\n\ndef blobs_do_lote",
+      "para": "    except (ValueError, AttributeError):\n        return False\n\n\ndef blobs_do_lote",
+      "testes": [
+        "tests.test_comparar.LinksESource.test_source_fora_da_raiz_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP74",
+      "guarda": "AE7.1 cabecalho: .md sem --- no começo não tem cabeçalho (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if not linhas[0].startswith(\"---\"):",
+      "para": "    if True:",
+      "testes": [
+        "tests.test_comparar.CabecalhoDoMd.test_hooks_em_qualquer_forma_no_cabecalho_e_nao_verificavel"
+      ]
+    }
+  ]
+}

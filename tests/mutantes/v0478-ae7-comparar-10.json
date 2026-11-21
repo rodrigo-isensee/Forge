@@ -54,12 +54,12 @@
     },
     {
       "id": "CMP65",
-      "guarda": "AE7.1 fora_da_medida: hooks no cabeçalho de agente ou skill, ou busca que falha (A10)",
+      "guarda": "AE7.1 fora_da_medida: os .md da árvore são lidos (A13)",
       "arquivo": "bin/forge_comparar.py",
-      "de": "\":(icase)*.md\")[0] != 1:",
-      "para": "\":(icase)*.md\")[0] > 1:",
+      "de": "    if mds:\n",
+      "para": "    if False:\n",
       "testes": [
-        "tests.test_comparar.HooksForaDoHooksJson.test_hooks_no_cabecalho_de_agente_ou_skill_e_nao_verificavel"
+        "tests.test_comparar.CabecalhoDoMd.test_hooks_em_qualquer_forma_no_cabecalho_e_nao_verificavel"
       ]
     },
     {

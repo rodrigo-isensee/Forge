@@ -1,0 +1,66 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP75",
+      "guarda": "AE7.1 cabecalho: sem fecho, o texto inteiro (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "linha.rstrip(\"\\r\") == \"---\"), len(linhas))",
+      "para": "linha.rstrip(\"\\r\") == \"---\"), 1)",
+      "testes": [
+        "tests.test_comparar.CabecalhoDoMd.test_hooks_em_qualquer_forma_no_cabecalho_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP76",
+      "guarda": "AE7.1 cabecalho: BOM e linhas em branco antes do --- (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "texto.lstrip(\"\\ufeff \\t\\r\\n\")",
+      "para": "texto",
+      "testes": [
+        "tests.test_comparar.CabecalhoDoMd.test_hooks_em_qualquer_forma_no_cabecalho_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP77",
+      "guarda": "AE7.1 fora_da_medida: lote dos .md que falha (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if cod != 0 or textos is None or any(",
+      "para": "if textos is None or any(",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_leitura_dos_md_que_falha_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP78",
+      "guarda": "AE7.1 blobs_do_lote: resposta truncada (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    return blobs if pos == len(lote) else None",
+      "para": "    return blobs",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_leitura_dos_md_que_falha_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP79",
+      "guarda": "AE7.1 blobs_do_lote: resposta que não se lê (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    except (ValueError, IndexError):\n        return None\n    return blobs if",
+      "para": "    except (ValueError, IndexError):\n        return []\n    return blobs if",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_leitura_dos_md_que_falha_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP80",
+      "guarda": "AE7.1 fora_da_medida: hooks no cabeçalho de .md (A13)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "any(CABECALHO_SUSPEITO.search(cabecalho(",
+      "para": "any(None and CABECALHO_SUSPEITO.search(cabecalho(",
+      "testes": [
+        "tests.test_comparar.CabecalhoDoMd.test_hooks_em_qualquer_forma_no_cabecalho_e_nao_verificavel"
+      ]
+    }
+  ]
+}

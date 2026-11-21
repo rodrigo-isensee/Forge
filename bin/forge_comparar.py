@@ -1,15 +1,25 @@
-"""`forge-check comparar <base> <head>` (AE7.1, v0478 E58.30): o "só aperta" medido nos hooks da base e do head, extraídos
-blob a blob deste repositório como o clone do plugin os instala (sem o export-subst nem o export-ignore do `git archive`) e
-rodados como o Claude Code os roda (hooks.json da árvore, matcher, argv, prazo, stdin, ambiente por lista positiva), um
-projeto git novo por caso, sobre o corpus da base mais os casos novos do head. Cada lado roda inteiro e sozinho, em
-temporário, HOME e TMPDIR próprios: a base antes, o head depois. O veredito tem 4 níveis (recusa < pergunta < sem decisão < allow) e
-o `updatedInput` que muda também conta, salvo no caso recusado. rc 0 nada liberado a mais; 1 `aceite-novo` ou
-`corpus-removido`; 2 `nao-verificavel`, também com `.gitattributes` em qualquer pasta de um lado (o checkout do clone aplica
-atributos que a extração não aplica) ou matcher fora da forma simples (premissa: só nela o `re` do Python casa como o Claude
-Code), ou hook declarado fora do `hooks/hooks.json` (A10: chave `hooks` em qualquer nível dos JSON de `.claude-plugin/`,
-ou `hooks:` no começo de linha de um `.md`, o cabeçalho de agente e skill); quem consome exige a linha
-`so-aperta: medido base=<sha> head=<sha>`, não só o rc. Executa o código da base e do head: só com head deste
-repositório e sob o sandbox. Limites: o corpus é finito, e a medida pega o afrouxamento honesto; hook que detecta o ambiente sintético (autor do commit, `.forge/versao`) é assunto do code review."""
+"""`forge-check comparar <base> <head>` (AE7.1, v0478 E58.30): o "só aperta" medido nos hooks da base e do head.
+
+Mede: os hooks do `hooks/hooks.json` da raiz, extraídos blob a blob deste repositório como o clone do plugin os instala e
+rodados como o Claude Code os roda (matcher, argv, prazo, stdin, ambiente por lista positiva), um projeto git novo por caso,
+sobre o corpus da base mais os casos novos do head; cada lado inteiro e sozinho, em temporário, HOME e TMPDIR próprios, a
+base antes. Veredito em 4 níveis (recusa < pergunta < sem decisão < allow); o `updatedInput` que muda também conta, salvo no
+caso recusado. rc 0 nada liberado a mais; 1 `aceite-novo` ou `corpus-removido`.
+
+Dá rc 2 `nao-verificavel` (em qualquer lado): ref que não é commit deste repositório; corpus ilegível ou vazio; árvore que o
+git não lista; `.gitattributes` em qualquer pasta (o checkout aplica atributos que a extração não aplica); link simbólico em
+qualquer pasta (A11: o clone e o Claude Code o atravessam, a leitura pelo git não); chave `hooks` em qualquer nível de
+`.claude-plugin/plugin.json` ou `marketplace.json`, ou manifesto ilegível (A10); marketplace com mais de um plugin ou com
+`source` que não é `.` nem `./` (A12: o Claude Code instala a pasta de `source`, e a medida roda a raiz); no cabeçalho YAML de
+qualquer `.md`, `hooks` seguido de `:` em qualquer recuo ou em fluxo, `? hooks`, barra invertida, âncora, alias ou tag (A13,
+leitura conservadora sem YAML; o corpo do `.md` não conta, A6); matcher fora da forma simples (premissa: só nela o `re` do
+Python casa como o Claude Code, A7); extração que falha.
+
+Quem consome exige a linha `so-aperta: medido base=<sha> head=<sha>`, não só o rc. Executa o código da base e do head: só
+com head deste repositório e sob o sandbox. Limites: o corpus é finito, a medida pega o afrouxamento honesto (hook que
+detecta o ambiente sintético, como o autor do commit ou `.forge/versao`, é assunto do code review), e hook declarado por
+outro caminho que o Claude Code venha a ler (fora de `hooks/hooks.json`, dos dois manifestos e do cabeçalho de `.md`) não é
+visto."""
 import hashlib
 import json
 import os
@@ -27,7 +37,10 @@ RECUSA, PERGUNTA, ACEITE, ALLOW = 0, 1, 2, 3  # A1: `allow` pula a pergunta ao u
 NOMES = ("recusa", "pergunta", "aceite", "allow")
 MATCHER_SIMPLES = re.compile(r"[A-Za-z0-9_|]*|\*")
 MANIFESTOS = (".claude-plugin/plugin.json", ".claude-plugin/marketplace.json")  # A10: o campo `hooks` também declara hook
-CABECALHO_HOOKS = r"^['\"]?hooks['\"]?[[:space:]]*:"  # A10: chave `hooks:` sem recuo, como no cabeçalho YAML
+# A13: no cabeçalho YAML, `hooks` seguido de `:` em qualquer recuo ou em fluxo, chave explícita `? hooks`, barra invertida
+# (escape entre aspas) e âncora, alias ou tag (`&`, `*`, `!`: a chave sai de outro lugar). Leitura conservadora, sem YAML.
+CABECALHO_SUSPEITO = re.compile(r"""hooks['"]?\s*(?:#[^\n]*\n\s*)?:|\?\s*['"]?hooks|\\|(?:^|[\s\[{,:?-])[&*!][^\s,\[\]{}]""",
+                                re.I | re.M)
 SEM_HOOKS_DO_USUARIO = "-c core.hooksPath=/dev/null -c commit.gpgsign=false -c user.name=forge -c user.email=forge@localhost -c gc.auto=0".split()
 
 
@@ -75,20 +88,69 @@ def declara_hooks(texto):
     return "hooks" in chaves
 
 
+def plugin_fora_da_raiz(texto):
+    """True se o marketplace.json instala outra pasta que não a raiz (A12): `plugins` que não é uma lista de uma entrada só,
+    ou `source` que não é a string `.` nem `./` (pasta, repositório de fora, objeto); JSON ilegível também."""
+    try:
+        plugins = json.loads(texto).get("plugins")
+        return not (isinstance(plugins, list) and len(plugins) == 1
+                    and plugins[0].get("source") in (".", "./"))
+    except (ValueError, AttributeError):
+        return True
+
+
+def blobs_do_lote(lote, quantos):
+    """Os `quantos` blobs da saída do `cat-file --batch`, lidos pelo tamanho do cabeçalho; None se ela não fecha."""
+    blobs, pos = [], 0
+    try:
+        for _ in range(quantos):
+            fim = lote.index(b"\n", pos)
+            tamanho = int(lote[pos:fim].split()[2])
+            blobs.append(lote[fim + 1:fim + 1 + tamanho])
+            pos = fim + 2 + tamanho
+    except (ValueError, IndexError):
+        return None
+    return blobs if pos == len(lote) else None
+
+
+def cabecalho(texto):
+    """O cabeçalho YAML do `.md`: do `---` do começo até a próxima linha só `---`; sem fecho, o texto inteiro; sem `---` no
+    começo (fora o BOM e linhas em branco), vazio."""
+    linhas = texto.lstrip("\ufeff \t\r\n").split("\n")
+    if not linhas[0].startswith("---"):
+        return ""
+    fecho = next((i for i, linha in enumerate(linhas[1:], 1) if linha.rstrip("\r") == "---"), len(linhas))
+    return "\n".join(linhas[1:fecho])
+
+
 def fora_da_medida(ctx, raiz, sha):
     """Motivo de `nao-verificavel` na árvore de `sha`, ou None. A2: `.gitattributes` em qualquer pasta (ident, eol, filter,
-    working-tree-encoding mudam o que o clone instala; a extração grava o blob cru). A7: matcher de hooks.json fora da forma
-    simples (nome, `|`, `*` ou vazio): fora dela, o motor de regex do Claude Code pode casar diferente do `re` do Python."""
-    nomes = ctx["git"](raiz, "ls-tree", "-r", "-z", "--name-only", "--full-tree", sha, bruto=True)[1]
-    if any(os.path.basename(n).lower() == b".gitattributes" for n in nomes.split(b"\0")):
+    working-tree-encoding mudam o que o clone instala; a extração grava o blob cru). A11: link simbólico em qualquer pasta (o
+    clone e o Claude Code o atravessam; a leitura pelo git, não). A10, A12, A13: hook declarado fora do `hooks/hooks.json` da
+    raiz. A7: matcher de hooks.json fora da forma simples (nome, `|`, `*` ou vazio): fora dela, o motor de regex do Claude
+    Code pode casar diferente do `re` do Python."""
+    cod, lista = ctx["git"](raiz, "ls-tree", "-r", "-z", "-l", "--full-tree", sha, bruto=True)
+    itens = [re.fullmatch(rb"(\d{6}) \w+ ([0-9a-f]+) +\S+\t(.+)", e, re.S) for e in lista.split(b"\0") if e]
+    if cod != 0 or not all(itens):
+        return "árvore ilegível"
+    itens = [i.groups() for i in itens]
+    if any(os.path.basename(n).lower() == b".gitattributes" for _, _, n in itens):
         return "atributos de checkout: .gitattributes na árvore"
+    if any(modo == b"120000" for modo, _, _ in itens):
+        return "link simbólico na árvore"
     for manifesto in MANIFESTOS:
         if ctx["git"](raiz, "cat-file", "-e", f"{sha}:{manifesto}")[0] == 0:
             cod, texto = ctx["git"](raiz, "cat-file", "blob", f"{sha}:{manifesto}")
             if cod != 0 or declara_hooks(texto):
                 return f"hooks declarados em {manifesto}"
-    if ctx["git"](raiz, "grep", "-l", "-i", "-E", "-e", CABECALHO_HOOKS, sha, "--", ":(icase)*.md")[0] != 1:
-        return "hooks declarados no cabeçalho de agente ou skill"
+            if manifesto.endswith("marketplace.json") and plugin_fora_da_raiz(texto):
+                return "plugin fora da raiz: source no marketplace.json"
+    mds = [o for _, o, n in itens if n.lower().endswith(b".md")]
+    if mds:
+        cod, lote = ctx["git"](raiz, "cat-file", "--batch", bruto=True, entrada=b"".join(o + b"\n" for o in mds))
+        textos = blobs_do_lote(lote, len(mds))
+        if cod != 0 or textos is None or any(CABECALHO_SUSPEITO.search(cabecalho(t.decode("utf-8", "replace"))) for t in textos):
+            return "hooks declarados no cabeçalho de agente ou skill"
     try:
         grupos = [g for gs in json.loads(ctx["git"](raiz, "cat-file", "blob", f"{sha}:hooks/hooks.json")[1])["hooks"].values() for g in gs]
     except (ValueError, KeyError, TypeError, AttributeError):  # hooks.json ilegível ou ausente: nenhum hook, medido assim
@@ -100,30 +162,25 @@ def fora_da_medida(ctx, raiz, sha):
 
 
 def extrair(ctx, raiz, sha, destino):
-    """A árvore de `sha` como o clone a instala (A2): `ls-tree` e `cat-file --batch`, sem atributo (quem tem `.gitattributes`
-    nem chega aqui). Nome ou link que sai da pasta, resposta truncada ou git que falha: False."""
+    """A árvore de `sha` como o clone a instala (A2): `ls-tree` e `cat-file --batch`, sem atributo nem link (quem os tem nem
+    chega aqui). Nome que sai da pasta, link, resposta truncada ou git que falha: False."""
     cod, lista = ctx["git"](raiz, "ls-tree", "-r", "-z", "--full-tree", sha, bruto=True)
     try:
         itens = [re.fullmatch(rb"(\d{6}) blob ([0-9a-f]+)\t(.+)", e, re.S).groups() for e in lista.split(b"\0")
                  if e and not e.startswith(b"160000 ")]  # submódulo: o clone sem --recursive deixa a pasta vazia
         lido, lote = ctx["git"](raiz, "cat-file", "--batch", bruto=True, entrada=b"".join(o + b"\n" for _, o, _ in itens))
-        dentro, pos, links = Path(os.path.realpath(destino)), 0, []
+        dentro, pos = Path(os.path.realpath(destino)), 0
         for modo, _, nome in itens:
             alvo, fim = destino / os.fsdecode(nome), lote.index(b"\n", pos)
             tamanho = int(lote[pos:fim].split()[2])
             dados, pos = lote[fim + 1:fim + 1 + tamanho], fim + 2 + tamanho
             if len(dados) != tamanho or not Path(os.path.realpath(alvo)).is_relative_to(dentro):
                 return False
+            if modo == b"120000":  # A11: a árvore com link nem chega aqui (fora_da_medida); nada se grava por um link
+                return False
             alvo.parent.mkdir(parents=True, exist_ok=True)
-            if modo == b"120000":
-                links.append((alvo, os.fsdecode(dados)))
-            else:
-                alvo.write_bytes(dados)
-                alvo.chmod(0o755 if modo == b"100755" else 0o644)
-        for alvo, texto in links:  # os links por último: nenhum arquivo é gravado através de um deles
-            os.symlink(texto, alvo)
-        if not all(Path(os.path.realpath(alvo)).is_relative_to(dentro) for alvo, _ in links):
-            return False
+            alvo.write_bytes(dados)
+            alvo.chmod(0o755 if modo == b"100755" else 0o644)
     except (AttributeError, ValueError, IndexError, OSError):
         return False
     return cod == 0 and lido == 0

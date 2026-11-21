@@ -23,16 +23,6 @@
       ]
     },
     {
-      "id": "CMP34",
-      "guarda": "AE7.1 extrair: link que resolve para fora da árvore",
-      "arquivo": "bin/forge_comparar.py",
-      "de": "        if not all(Path(os.path.realpath(alvo)).is_relative_to(dentro) for alvo, _ in links):",
-      "para": "        if False:",
-      "testes": [
-        "tests.test_comparar.Refs.test_link_para_fora_da_arvore_nao_e_extraido"
-      ]
-    },
-    {
       "id": "CMP35",
       "guarda": "AE7.1 extrair: cat-file que falha",
       "arquivo": "bin/forge_comparar.py",
@@ -49,7 +39,7 @@
       "de": "modo == b\"100755\"",
       "para": "False",
       "testes": [
-        "tests.test_comparar.ComoOClone.test_executavel_e_link_interno_chegam_como_no_clone"
+        "tests.test_comparar.ComoOClone.test_executavel_chega_como_no_clone"
       ]
     },
     {
