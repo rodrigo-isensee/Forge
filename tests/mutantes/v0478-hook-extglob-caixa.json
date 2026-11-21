@@ -1,0 +1,56 @@
+{
+  "pedido": "v0478-hook-extglob-caixa",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "HOOK-HEREDOC-EXTGLOB-E-CAIXA (A4 E2.38): alvo com curinga estendido não deixa o corpo ser dado",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if any(alvo.cru.endswith((\"+\", \"@\", \"!\")) for alvo in lidos):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hook_parecer_extglob.AlvoDoHeredocDeDado.test_curinga_estendido_no_alvo_recusa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "HOOK-HEREDOC-EXTGLOB-E-CAIXA (A4 E2.38): `+(` no alvo (bin/+(ls)) recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if any(alvo.cru.endswith((\"+\", \"@\", \"!\")) for alvo in lidos):",
+      "para": "    if any(alvo.cru.endswith((\"@\", \"!\")) for alvo in lidos):",
+      "testes": [
+        "tests.test_hook_parecer_extglob.AlvoDoHeredocDeDado.test_curinga_estendido_no_alvo_recusa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "HOOK-HEREDOC-EXTGLOB-E-CAIXA (A4 E2.38): `@(` no alvo (bin/@(ls)) recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if any(alvo.cru.endswith((\"+\", \"@\", \"!\")) for alvo in lidos):",
+      "para": "    if any(alvo.cru.endswith((\"+\", \"!\")) for alvo in lidos):",
+      "testes": [
+        "tests.test_hook_parecer_extglob.AlvoDoHeredocDeDado.test_curinga_estendido_no_alvo_recusa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "HOOK-HEREDOC-EXTGLOB-E-CAIXA (A4 E2.38): `!(` no alvo (bin/!(cat)) recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if any(alvo.cru.endswith((\"+\", \"@\", \"!\")) for alvo in lidos):",
+      "para": "    if any(alvo.cru.endswith((\"+\", \"@\")) for alvo in lidos):",
+      "testes": [
+        "tests.test_hook_parecer_extglob.AlvoDoHeredocDeDado.test_curinga_estendido_no_alvo_recusa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "HOOK-HEREDOC-EXTGLOB-E-CAIXA (A5 E2.38): o nome do alvo se compara sem caixa (bin/LS com ls)",
+      "arquivo": "hooks/parecer.py",
+      "de": "    alvos = {Path(alvo.valor).name.casefold() for alvo in lidos}",
+      "para": "    alvos = {Path(alvo.valor).name for alvo in lidos}",
+      "testes": [
+        "tests.test_hook_parecer_extglob.AlvoDoHeredocDeDado.test_nome_do_alvo_sem_caixa_recusa"
+      ]
+    }
+  ]
+}

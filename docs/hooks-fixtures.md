@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3199 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3203 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -13,7 +13,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3199 fixtures) roda em `tests/test
 | `conformidade` | 2368 | 1752 | 616 | 97 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 32 | 13 | 19 | 14 |
-| `parecer` | 583 | 448 | 135 | 27 |
+| `parecer` | 587 | 452 | 135 | 27 |
 | `pesado` | 27 | 11 | 16 | 20 |
 | `quadro` | 7 | 2 | 5 | 7 |
 | `vigia` | 51 | 0 | 51 | 26 |
@@ -196,7 +196,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3199 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | `pasta-*` | 141 | 124 | 17 | `R-REVIEW` | `HK3-PARECER` | HK3-PARECER, PR A, volta 1: a pasta do git é a do bash e a do git; a partir de a integração, barra. |
 | `texto-*` | 84 | 65 | 19 | `R-REVIEW` | `HK3-PARECER`, `HOOK-TEXTO-COM-MERGE`, `PARECER-HOOK-DICA-EDIT` | HK3-PARECER, PR B (E2): o eval continua recusado, até com texto inofensivo. |
-| `heredoc-*` | 71 | 52 | 19 | `R-REVIEW`, `R-CONTRIB` | `HOOK-CONTRIB-HEREDOC-FP`, `HOOK-HEREDOC-PALAVRA-FP`, `HOOK-PARECER-HEREDOC-FALSO-POSITIVO`, `HOOK-REVIEW-HEREDOC-TIMEOUT` | HOOK-HEREDOC-PALAVRA-FP, caso verdadeiro (A3 da segurança E2.15): a chave de sequência no meio do nome (bin/g{r..r}ep) o bash expande para b… |
+| `heredoc-*` | 75 | 56 | 19 | `R-REVIEW`, `R-CONTRIB` | `HOOK-CONTRIB-HEREDOC-FP`, `HOOK-HEREDOC-PALAVRA-FP`, `HOOK-PARECER-HEREDOC-FALSO-POSITIVO`, `HOOK-HEREDOC-EXTGLOB-E-CAIXA` e mais 1 | HOOK-HEREDOC-EXTGLOB-E-CAIXA (A5 da segurança E2.38 do v0474): em disco sem caixa, bin/LS é o bin/ls que o ls da mesma chamada roda; o nome… |
 | `forge-*` | 61 | 50 | 11 | `R-REVIEW`, `R-CONTRIB` | `FURO-HOOK-A`, `HOOK-COMENTARIO-SHLEX`, `CRASE-ASPA-HOOK`, `FD1` e mais 1 | A1 do review: git commit -m com heredoc que cita merge e tem apóstrofo no corpo. |
 | `pr-*` | 46 | 32 | 14 | `R-REVIEW`, `R-CONTRIB`, `R-SEGURANCA`, `R-QA` e mais 1 | `K-164`, `PR`, `PR-HOOK-RAPIDO` | K-164: base escolhida pelo autor fora de develop, homolog e main (aqui uma branch copiada da develop): não afrouxa; fica o modo estrito e o… |
 | `incidente-*` | 38 | 29 | 9 | `R-REVIEW` | `INCIDENTE-HOOK-PARECER-CONTORNADO`, `GH-REPO-DE-ARQUIVO`, `GH-REMOTO-RESOLVIDO`, `GH-REPO-EXPORTADO` | GH-REPO-EXPORTADO (A5 da E3.8, sonda S9): numa cópia alheia, GH_REPO mexido antes na linha é repositório indicado que o hook não lê: recusa. |

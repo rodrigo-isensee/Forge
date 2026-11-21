@@ -1,0 +1,30 @@
+{
+  "descricao": "HOOK-HEREDOC-EXTGLOB-E-CAIXA (A5 da segurança E2.38 do v0474): em disco sem caixa, bin/LS é o bin/ls que o ls da mesma chamada roda; o nome do alvo se compara com casefold; recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cat > bin/LS <<'FIM'\n#!/bin/sh\ngit merge melhoria/x\nFIM\nls"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW"
+  }
+}

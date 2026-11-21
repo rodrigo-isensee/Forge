@@ -291,7 +291,7 @@ PROGRAMAS_DE_DADO = frozenset({"cat", "cd", "mkdir", "echo", "true", "ls", "wc",
 def corpos_de_dado(original, comando):
     """True se nenhum corpo de heredoc da chamada roda: todo programa de `comando` (a linha sem os corpos) é de
     `PROGRAMAS_DE_DADO`, a linha não tem crase, todo alvo de redireção tem valor literal e nenhum grava arquivo com o
-    nome de um programa da chamada (nem com curinga ou chave no nome)."""
+    nome de um programa da chamada (nem com curinga, chave ou curinga estendido no nome, sem caixa)."""
     if not heredocs_simples(original):
         return False
     if chamada_muda_o_corpo(comando):
@@ -303,7 +303,10 @@ def corpos_de_dado(original, comando):
     lidos = [r.alvo for simples in leitura.simples for r in simples.redirecoes]
     if any(alvo is None or not alvo.valor for alvo in lidos):  # alvo sem valor literal: o nome gravado não se prova
         return False
-    alvos = {Path(alvo.valor).name for alvo in lidos}
+    # extglob: `bin/@(ls)` grava `bin/ls`; o leitor corta a palavra no `(` e o alvo lido termina em `@`, `+` ou `!`
+    if any(alvo.cru.endswith(("+", "@", "!")) for alvo in lidos):
+        return False
+    alvos = {Path(alvo.valor).name.casefold() for alvo in lidos}  # disco sem caixa: `bin/LS` é o `bin/ls`
     if any(c in alvo for alvo in alvos for c in "*?[{"):  # o bash expande o curinga e a chave (`bin/l{s..s}` grava `bin/ls`)
         return False
     return nomes <= PROGRAMAS_DE_DADO and not alvos & nomes
