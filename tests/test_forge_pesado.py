@@ -153,5 +153,41 @@ class ForgePesado(unittest.TestCase):
         self.assertEqual((r.returncode, r.stdout.splitlines()[-1:]), (0, ["fim=livre"]), r.stderr)
 
 
+class FormasLevesDoForgeTestes(unittest.TestCase):
+    """PESADO-VERSOES-FORA-DA-FILA (v0478 E64.1): o `bin/forge-testes` só é leve pelas opções da lista fechada; o
+    `--versoes` (os afetados uma vez por versão do Python) e a opção desconhecida entram na fila pesada (R-TETO)."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(RAIZ / "hooks"))
+        import pesado
+        cls.pesado = pesado
+
+    def classe(self, comando):
+        return self.pesado.pesado(comando, self.pesado.PESADOS_DO_FORGE)
+
+    def test_versoes_e_opcao_fora_da_lista_pesam(self):
+        for comando in ("bin/forge-testes --versoes", "./bin/forge-testes --base origin/develop --versoes",
+                        "bin/forge-testes --versoes --base=x", "bin/forge-testes --vers", "timeout 600 bin/forge-testes --versoes",
+                        "bin/forge-testes --dirigida", "bin/forge-testes --executar test_x --registro r", "bin/forge-testes -kx",
+                        "bin/forge-testes -h", "bin/forge-testes -- --completa", "bin/forge-testes --listar --modulos a"):
+            with self.subTest(comando=comando):
+                self.assertTrue(self.classe(comando))
+
+    def test_formas_da_lista_seguem_leves(self):
+        for comando in ("bin/forge-testes", "bin/forge-testes tests/test_a.py", "bin/forge-testes --listar x.py",
+                        "bin/forge-testes --afetados --base origin/develop", "bin/forge-testes --base=origin/develop -k y",
+                        "bin/forge-testes -k=y", "bin/forge-testes --texto", "bin/forge-testes --registros --base x",
+                        "./bin/forge-testes --regerar", "bin/forge-testes --list", "bin/forge-testes -- tests/a.py"):
+            with self.subTest(comando=comando):
+                self.assertFalse(self.classe(comando))
+
+    def test_nenhuma_opcao_leve_abrevia_completa_vermelho_nem_versoes(self):
+        self.assertGreaterEqual(len(self.pesado.LEVES_DO_FORGE_TESTES), 6)
+        for opcao in self.pesado.LEVES_DO_FORGE_TESTES:
+            with self.subTest(opcao=opcao):
+                self.assertFalse(opcao.startswith(("--c", "--v")))
+
+
 if __name__ == "__main__":
     unittest.main()
