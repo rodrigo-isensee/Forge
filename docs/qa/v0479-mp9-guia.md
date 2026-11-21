@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-mp9-guia
-commit: a8d4dce419e55c32c4d3fcf37e02b13db7ea8a18
+commit: abb581a5b7e513cafa3cb5d391ccd4b516c19f73
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -38,3 +38,6 @@ Mutação: não se aplica (diff só de texto e teste; sem regra de código).
 
 ## Revalidação (head a8d4dce4, escopo incremental)
 `forge-check parecer delta` (2054ef3b..a8d4dce4): no domínio do QA só `tests/test_reval_delta.py`, 1 linha, remoção de comentário duplicado em `CITACOES_CONHECIDAS`; sem mudança de comportamento. Rodados com TMPDIR: `test_reval_delta.py` (10 testes, OK) e `test_guia_varios_projetos.py` (4 testes, OK). Suíte inteira: check-run `bateria` do CI do PR, sem rerrodar. Aprovado mantido.
+
+## Revalidação (E24.13, head abb581a5)
+Delta desde a8d4dce4: merge da develop (duas linhas em `templates/projeto/CLAUDE.md`, fora da seção do guia) e a linha `test_guia_varios_projetos: 0.1` em `tests/pesos-d4.json`. Rodados: `python3 -I -m unittest discover -s tests -p test_guia_varios_projetos.py` (4 testes, OK) e `python3 -m unittest tests.test_forge.PesosDaSuite` (3 testes, OK). Suíte inteira não rodou (check-run `bateria` do CI). Parecer: aprovado.
