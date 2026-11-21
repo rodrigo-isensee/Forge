@@ -6,8 +6,8 @@
       "id": "D1",
       "guarda": "o que o merge da develop trouxe sai do escopo, fora o que a branch mudou e o merge devolveu (segurança A1)",
       "arquivo": "bin/forge-check",
-      "de": "vindos_da_base(raiz, base, base_sha, head, set(arquivos) - desfeitos)",
-      "para": "vindos_da_base(raiz, base, base_sha, head, set(arquivos))",
+      "de": "vindos_do_remoto_da_base(raiz, base, base_sha, head, set(arquivos) - desfeitos)",
+      "para": "vindos_do_remoto_da_base(raiz, base, base_sha, head, set(arquivos))",
       "testes": [
         "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_o_que_a_branch_mudou_e_o_merge_devolveu_a_develop_segue_a_vista"
       ]
@@ -26,28 +26,28 @@
       "id": "D3",
       "guarda": "só a develop lida pelo git ls-remote vale; sem rede, a ref local não tira nada",
       "arquivo": "bin/forge-check",
-      "de": "    if not (conferido and remoto):\n        return set()\n    ponto",
-      "para": "    if not remoto:\n        return set()\n    ponto",
+      "de": "    if not (conferido and remoto):\n        return set()\n    pontos",
+      "para": "    if not remoto:\n        return set()\n    pontos",
       "testes": [
         "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_sem_rede_o_que_a_develop_trouxe_segue_no_escopo"
       ]
     },
     {
       "id": "D4",
-      "guarda": "sem merge-base com o commit remoto (não buscado) nada sai",
+      "guarda": "com mais de um merge-base (merge cruzado) nada sai (segurança A2)",
       "arquivo": "bin/forge-check",
-      "de": "    if not ponto:  # o commit remoto",
-      "para": "    if False:  # o commit remoto",
+      "de": "if len(pontos) != 1:",
+      "para": "if len(pontos) == 0:",
       "testes": [
-        "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_develop_remota_sem_fetch_nao_tira_nada"
+        "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_merge_cruzado_com_dois_merge_bases_nao_tira_nada"
       ]
     },
     {
       "id": "D5",
       "guarda": "o aceite do usuário vindo da develop nunca sai do escopo",
       "arquivo": "bin/forge-check",
-      "de": "return {n for n in nomes if not n.startswith(ACEITES_DO_USUARIO) and blob_de(raiz, head, n)",
-      "para": "return {n for n in nomes if blob_de(raiz, head, n)",
+      "de": "if not n.startswith(ACEITES_DO_USUARIO) and \"\" != blob_de",
+      "para": "if \"\" != blob_de",
       "testes": [
         "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_aceite_do_usuario_vindo_da_develop_segue_no_escopo"
       ]
@@ -56,8 +56,8 @@
       "id": "D6",
       "guarda": "o que o autor mudou por cima do que a develop trouxe segue dele (blob igual ao do merge-base remoto)",
       "arquivo": "bin/forge-check",
-      "de": "return {n for n in nomes if not n.startswith(ACEITES_DO_USUARIO) and blob_de(raiz, head, n) == blob_de(raiz, ponto, n)}",
-      "para": "return {n for n in nomes if not n.startswith(ACEITES_DO_USUARIO)}",
+      "de": "\"\" != blob_de(raiz, head, n) == blob_de(raiz, ponto, n)}",
+      "para": "\"\" != blob_de(raiz, head, n)}",
       "testes": [
         "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_o_que_o_autor_mudou_por_cima_da_develop_segue_dele"
       ]
@@ -70,6 +70,16 @@
       "para": "arquivos = [n for n in arquivos if n in da_base]",
       "testes": [
         "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_merge_base_sem_ancora_fica_o_base_sha"
+      ]
+    },
+    {
+      "id": "D8",
+      "guarda": "o merge-base fora da 1.a linha de pais da develop remota (commit de PR lateral) não tira nada (segurança A2)",
+      "arquivo": "bin/forge-check",
+      "de": "if cod or ponto not in linha.split():",
+      "para": "if cod:",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_merge_base_fora_da_primeira_linha_de_pais_nao_tira_nada"
       ]
     }
   ]

@@ -86,8 +86,8 @@
       "id": "M9",
       "guarda": "arquivo de P não conferido conta como trazido de parecer conferido",
       "arquivo": "bin/forge-check",
-      "de": "dos_p = conferidos_ancestrais(raiz, shas, [q for q in outros if q in shas])",
-      "para": "dos_p = conferidos_ancestrais(raiz, shas, [q for q in outros if True])",
+      "de": "dos_p = [q for q in outros if q in shas]",
+      "para": "dos_p = [q for q in outros if True]",
       "testes": [
         "tests.test_revisor_wt.EntregaConfereOMerge.test_merge_de_sha_nao_conferido_reprova"
       ]
