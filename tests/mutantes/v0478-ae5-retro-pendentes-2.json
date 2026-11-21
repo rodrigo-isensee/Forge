@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "retro sem Cobre: não é conferida nem avisa",
+      "arquivo": "bin/forge-check",
+      "de": "    if not declaradas:\n        return set(), []",
+      "para": "    if False:\n        return set(), []",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_retro_sem_cobre_nao_avisa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "seção sem corpo não cobre",
+      "arquivo": "bin/forge-check",
+      "de": "if not any(t.startswith(s) and cheio for t, cheio",
+      "para": "if not any(t.startswith(s) for t, cheio",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_secao_sem_corpo_nao_cobre"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "versão fora das tags da main avisa",
+      "arquivo": "bin/forge-check",
+      "de": "nao e tag vX.Y.Z da main; nao cobre\" for v in declaradas if v not in tags]",
+      "para": "nao e tag vX.Y.Z da main; nao cobre\" for v in declaradas if v in tags]",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_cobre_com_versao_que_nao_existe_avisa_e_nao_cobre"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "sem --agora dá 2, não exceção",
+      "arquivo": "bin/forge-check",
+      "de": "    hora = _hora(agora or \"\")",
+      "para": "    hora = _hora(agora)",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_entrada_ilegivel_da_2"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "--agora ilegível dá 2",
+      "arquivo": "bin/forge-check",
+      "de": "    if hora is None or not re.fullmatch(REF_DA_MAIN",
+      "para": "    if not re.fullmatch(REF_DA_MAIN",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_entrada_ilegivel_da_2"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "--main fora de REF_DA_MAIN dá 2",
+      "arquivo": "bin/forge-check",
+      "de": "or not re.fullmatch(REF_DA_MAIN, main) or (desde",
+      "para": "or (desde",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_entrada_ilegivel_da_2"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "--desde fora de vX.Y.Z dá 2",
+      "arquivo": "bin/forge-check",
+      "de": "(desde is not None and not re.fullmatch(VERSAO_DA_TAG, desde)):",
+      "para": "(desde is not None and False):",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_entrada_ilegivel_da_2"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "git que não lê as tags dá 2",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod != 0:\n        print(f\"retro: git nao leu",
+      "para": "    if False:\n        print(f\"retro: git nao leu",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_entrada_ilegivel_da_2"
+      ]
+    }
+  ]
+}
