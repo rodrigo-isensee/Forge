@@ -412,7 +412,8 @@ class IndiceEPulos(Base):
 
     def test_skip_novo_fora_de_tests_nao_barra(self):
         fora = SUITE_VERDE.replace("        pass\n", '        self.skipTest("depois")\n')
-        codigo, erro = self.roda(self.remendado, {"x.py": fora, "bin/y.py": fora})
+        # um teste tocado (sem pulo) faz a conta rodar; o x.py e o bin/y.py com pulo, fora de tests/, não somam
+        codigo, erro = self.roda(self.remendado, {"x.py": fora, "bin/y.py": fora, "tests/test_a.py": SUITE_VERDE + "# nota\n"})
         self.assertEqual(codigo, 0, erro)
         self.assertNotIn("teste pulado", erro)
 
