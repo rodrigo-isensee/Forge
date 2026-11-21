@@ -2105,6 +2105,48 @@ class MergeDeParecerAninhado(Repositorio):
         self.git("switch", "-q", "melhoria/x")
         self.assertIsNone(fc.conferido_mais_novo(self.proj, {pa, pb, q}, q, self.N))
 
+    def na_branch(self, rel, texto):
+        self.gravar(rel, texto)
+        self.git("add", rel)
+        return self.commit(f"docs: {rel} na branch")
+
+    def outro_pai_sobre_conferido(self):
+        """CONFERENCIA-MERGE-DE-PARECERES (caso real: merge 3bd82d6, outro pai d5816e86): o QA commita na branch; a segurança commita
+        sobre a review no remoto; a branch mescla a segurança, e o parecer da review vem do conferido ancestral do outro pai."""
+        self.autor = self.entregar()
+        self.na_branch("docs/qa/x.md", "q\n")
+        self.rev = self.parecer("rev", {self.N: "r\n"}, self.autor)
+        self.seg = self.parecer("seg", {"docs/security/x.md": "s\n"}, self.rev)
+        return self.mesclar(self.seg)
+
+    def test_caso_real_outro_pai_sobre_conferido_vale(self):
+        self.outro_pai_sobre_conferido()
+        self.assertEqual(self.recusas(self.rev, self.seg), [])
+
+    def test_caso_real_ancestral_sem_linha_reprova(self):
+        m = self.outro_pai_sobre_conferido()
+        self.assertEqual(self.recusas(self.seg), self.fora(m))
+
+    def merge_do_merge_de_pareceres(self):
+        """Caso real (merge bca3bf42, outro pai 151bdda5): três portões em paralelo; a review mescla a segurança, o QA também, e a
+        review mescla o merge do QA, que traz o parecer do QA do primeiro pai do outro pai."""
+        self.autor = self.entregar()
+        self.na_branch(self.N, "r\n")
+        self.seg = self.parecer("seg", {"docs/security/x.md": "s\n"}, self.autor)
+        self.mesclar(self.seg)
+        self.qa = self.parecer("qa", {"docs/qa/x.md": "q\n"}, self.autor)
+        self.q = self.mesclar(self.seg, "qa")
+        return self.mesclar(self.q)
+
+    def test_caso_real_merge_de_merge_de_pareceres_vale(self):
+        self.merge_do_merge_de_pareceres()
+        self.assertEqual(self.recusas(self.seg, self.qa, self.q), [])
+
+    def test_caso_real_merge_de_merge_com_o_qa_sem_linha_reprova(self):
+        m = self.merge_do_merge_de_pareceres()
+        self.assertEqual(self.recusas(self.seg, self.q),
+                         [(f'escopo: fora (o merge {m[:7]} traz "docs/qa/x.md" fora dos pareceres conferidos)', True)])
+
 
 if __name__ == "__main__":
     unittest.main()
