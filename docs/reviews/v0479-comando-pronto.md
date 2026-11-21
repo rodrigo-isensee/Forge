@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-comando-pronto
-commit: 34b6bf7bf5732b299a39d22c59dbf86950536286
+commit: 4b75cbd1359d2af46c95a40a546cb453f4cf4b1f
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
@@ -21,6 +21,9 @@ Aprovado.
 - `bin/forge-testes:153,246`: só a tupla `FORGE_CHECK` e uma linha do mapa; nenhuma guarda mudada, sem mutante a declarar. Peso em `tests/pesos-d4.json` presente (PR-VERDE C1). H1: 2 linhas de código fora testes e documentação.
 - Rodado no head: `test_comando_pronto` (3 testes OK) e `test_anotar` (18 OK, o único teste existente alterado). `forge-testes --listar --base bead3e53`: "suíte completa (bin/forge-testes altera o mapa ou a configuração)"; a suíte inteira fica no CI do PR, obrigatório para o merge (`R-REVIEW`); não rerrodada aqui (brief: sem suíte local).
 - Segurança: parecer aprovado no mesmo head (`docs/security/v0479-comando-pronto.md`, 7f0633a4), citado sem refazer.
+
+## Revalidação no head 4b75cbd1 (v0478 E66.8)
+Delta lido só por `forge-check parecer delta` (intervalo 34b6bf7b..4b75cbd1, sem o que veio da develop): no domínio, uma linha de `tests/test_qa_lote_l09.py:80`. O `assertIn` passa a cobrar `forge-check brief mensagem --arquivo <brief> --pedido <p>`, que contém a frase antiga como prefixo: o teste ficou mais estrito, não mais frouxo. Sonda: voltar `skills/briefs-e-conferencia/SKILL.md:16` ao comando sem opções reprova `TextoDaSkill` (1 falha); restaurado, o módulo passa (4 testes OK). O merge da develop (c6984fb3) fica fora do domínio. Suíte inteira no CI do PR #757 (`R-REVIEW`), não rerrodada. Parecer mantido: aprovado; A1 e A2 seguem recomendados.
 
 ## Achados
 - A1 (recomendado) tests/test_comando_pronto.py:24 · a exceção SEM_OBRIGATORIAS deixa `forge-check escape registrar` (skills/trabalho-em-paralelo/SKILL.md:20) sem as opções obrigatórias, contra o objetivo do item; abrir cartão para caber o comando completo (ou remeter a um detalhe da skill) e tirar a exceção.
