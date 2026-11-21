@@ -193,8 +193,11 @@ if _pasta:
 # `forge-check` do v0479-entrega-parecer-mesclado levaram os passos de 5893967 a 5895051, nas mesmas condições. O
 # teto subiu +1084 passos (0,02%) com autorização do dono em 20/11 19:09 só para este item (DECISÃO DO DONO no pedido
 # v0478), não precedente: outro aumento pede medida nova e autorização própria.
+# Soma do E50 e do E51 (v0478 E51.30): interpretador 5893967 -> 5897219 (+3252). Autorizações do dono, cada uma só para o seu
+# item e não precedente (DECISÃO DO DONO no pedido v0478): E50 +1084 em 20/11 às 19:09; E51 +2168 em 20/11 às 19:55. O
+# dono pediu aviso só se o total passar de +3300; prova em tests/provas/v0479-corpus-custo.md, "Soma do E50 e do E51".
 MEDIDA_DO_CORPUS = {"python": "3.12", "profundidade_do_tmp": 2, "variaveis_do_ambiente": 234,
-                    "execucoes": 557, "subprocessos": 4631, "interpretador": 5895051}
+                    "execucoes": 557, "subprocessos": 4631, "interpretador": 5897219}
 PASSOS_POR_NIVEL_DO_TMP = 460
 PASSOS_POR_VARIAVEL_POR_SUBPROCESSO = 2
 RUIDO_DO_CORPUS = {"subprocessos": 0, "interpretador": 0}

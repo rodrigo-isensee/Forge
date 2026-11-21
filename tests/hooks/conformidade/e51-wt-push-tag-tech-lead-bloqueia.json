@@ -1,0 +1,26 @@
+{
+  "descricao": "E51.1 (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE): sessão do Forge em wt/*: enviar a tag v* recusa (R-FLUXO).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin v9.9.9"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "de tag para o Forge"
+  }
+}

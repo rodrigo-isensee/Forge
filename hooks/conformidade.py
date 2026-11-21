@@ -7,7 +7,8 @@ flags proibidas (`--no-verify`, `--force`, `core.hooksPath`). Write/Edit decidem
 (garantido); o Bash é lido como texto (barrado em regra: um script ou ofuscação passa, e o sandbox é a garantia).
 PostToolUse registra a autoria dos pareceres em `.forge/run/autoria.jsonl`.
 Falha fechado nas ações críticas (seção 7); `FORGE_GUARDA_ABERTA=1` no ambiente do processo abre a guarda.
-Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB).
+Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB). Na
+sessão do Forge, fora de projeto, valem as travas (R-MAIN, R-VERIFY, push para a integração, tag v*) para todo papel.
 """
 import collections
 import contextlib
@@ -36,7 +37,7 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TET
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, expandir_home, fora_da_gramatica_com_heredoc,
                     expandir_heredoc, fora_da_gramatica_de_leitura, FORMA_DO_HEREDOC, heredocs, motivo_da_reavaliacao,
                     forge_check, git, leituras, mensagem, nome_da_branch, nome_do_caminho, raiz_declarada, raiz_do_projeto, reavaliacao,
-                    sem_atribuicoes, separar_lancadores, SHELLS, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
+                    ANTES_DO_PROGRAMA, palavras_do_texto, sem_atribuicoes, separar_lancadores, SHELLS, subcomando_do_git, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
 # custo de uma conferência cresce com o tamanho do texto, então o número delas não basta (A1 do review): conta também os
 # caracteres somados e o tempo, com folga para o timeout do hooks.json (10 s), que o Claude Code trata como liberado.
@@ -337,6 +338,25 @@ PROVA_DA_SUITE = ("R-VERIFY", "a prova da suíte só é gravada pelo pre-push e 
 # também fora de projeto (a `GuardaDaProva` a deixa passar), e não só quando ela aponta para o Forge.
 PROFUNDIDADE_EXCEDIDA = ("R-CONFORMIDADE", f"comando aninhado (bash -c, eval, $(, crase, heredoc) em mais de {PROFUNDIDADE} "
                          "níveis: o hook não o lê", f"rode o comando direto, com no máximo {PROFUNDIDADE} níveis aninhados")
+# CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE (v0478 E51.1): na sessão do Forge com a pasta corrente fora de projeto (o
+# clone, `wt/*`), as travas valem para todo papel na `GuardaDaProva`: R-MAIN, R-VERIFY, o push direto para a integração
+# e a tag v* (`trava_da_sessao_do_forge`). O resto da linha segue livre (ADR 0009, seção 6).
+# E51.6: a marca vai no `barrar` (`trava=`), não no texto da recusa. `TRAVA`: vale sempre (o push direto para a integração,
+# a tag v*; R-MAIN e R-VERIFY valem pelo ID). `TRAVA_OPACA`: o alvo opaco com ação crítica (variável, reavaliação, heredoc
+# fora da gramática), que pode esconder uma trava (`F=--force; git push $F`, `B=develop; git push origin $B`); vale quando
+# um comando da linha pode ser uma trava (`toca_uma_trava`); a que só cita um caminho crítico segue livre. `TRAVA_NO_TETO`:
+# a linha acima do teto, que o hook não lê, pelo texto (`GIT_NO_TEXTO`).
+TAG_E_VERSAO = "a tag v* é a versão que todos os projetos instalam"
+PUSH_DIRETO = "push direto para"
+TRAVA, TRAVA_OPACA, TRAVA_NO_TETO = "trava", "trava-opaca", "trava-no-teto"
+# Lista positiva do que não chega a uma trava (AR-15): o subcomando do git e as duas primeiras palavras do gh que só leem
+# ou mexem na árvore; o resto (alias, `send-pack`, `am`, `fetch` para uma branch, `release create`) é trava.
+GIT_FORA_DAS_TRAVAS = {"add", "blame", "cat-file", "describe", "diff", "grep", "log", "ls-files", "ls-remote", "ls-tree",
+                       "restore", "rev-list", "rev-parse", "shortlog", "show", "stash", "status", "worktree"}
+GH_FORA_DAS_TRAVAS = {"pr view", "pr list", "pr checks", "pr diff", "pr status", "pr edit", "run view", "run list",
+                      "issue view", "issue list", "repo view", "release view", "release list"}
+OPACA_NA_PALAVRA = re.compile(r"[$`]")  # a palavra que o bash expande: o hook não sabe o valor
+GIT_NO_TEXTO = re.compile(r"(?<![\w./-])(?:git|gh)(?=\s)")  # o git ou o gh como palavra, não `.git/` nem `x-git`
 COLCHETE_DE_DIGITO = re.compile(r"\[[0-9-]+\]")  # o bash e o glob do Python o leem igual: sem caixa, negação nem classe
 CURINGA = re.compile(r"[*?\[]")  # o bash expande no alvo antes de gravar (A1 e A2 da segurança g1 da 0.45)
 MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
@@ -1420,8 +1440,9 @@ class Guarda:
     def pode(self, acao):
         return self.papel in self.pol["acoes"].get(acao, [])
 
-    def barrar(self, rid, o_que, corrigir, simples=None):
-        """Recusa (saída 2). No perfil iniciante, `simples` (SIMPLES) troca o texto técnico pela consequência."""
+    def barrar(self, rid, o_que, corrigir, simples=None, trava=None):
+        """Recusa (saída 2). No perfil iniciante, `simples` (SIMPLES) troca o texto técnico pela consequência. `trava`
+        (`TRAVA`, `TRAVA_OPACA`) só pesa na `GuardaDaProva` (`trava_da_sessao_do_forge`)."""
         if simples and self.h.iniciante():
             bloquear(rid, SIMPLES[simples])
         bloquear(rid, com_trecho(rid, o_que, corrigir, self.trecho))
@@ -2009,7 +2030,7 @@ class Guarda:
             if excesso:
                 self.sem_leitura = True
                 self.barrar("R-CONFORMIDADE", f"chamada com ação crítica e {excesso}: o hook não a decide dentro do "
-                                              "prazo", CONTORNO_DO_TETO)
+                                              "prazo", CONTORNO_DO_TETO, trava=TRAVA_NO_TETO)
 
     def conferir_linha(self, comando, pasta, nivel, so_substituicoes, corpo_de_heredoc=False):
         if nivel - self.releituras > PROFUNDIDADE:
@@ -2112,14 +2133,14 @@ class Guarda:
         if nivel == 0 and not self.leitura and self.reavaliacao and CRITICO.search(original):
             self.barrar("R-CONFORMIDADE", f"`{self.reavaliacao}` na chamada com ação crítica: "
                                           f"{motivo_da_reavaliacao(self.reavaliacao)}",
-                        contorno_da_reavaliacao(self.reavaliacao))
+                        contorno_da_reavaliacao(self.reavaliacao), trava=TRAVA_OPACA)
         # ADR 0011, item 2 (opções D e A), por último: sobre o texto do nível 0, com o `<<` que o bash pode formar nele
         # ou num nível de cima (`tem_heredoc_no_texto`)
         if nivel == 0 and not self.leitura and CRITICO.search(original):
             sinal = fora_da_gramatica_com_heredoc(original)
             if sinal is not None:
                 self.barrar("R-CONFORMIDADE", f"`{sinal}` na chamada com heredoc e ação crítica: o hook não modela",
-                            CONTORNO_DA_GRAMATICA)
+                            CONTORNO_DA_GRAMATICA, trava=TRAVA_OPACA)
 
     def conferir_partes(self, partes, pasta, nivel, so_substituicoes):
         """As checagens de cada comando simples de uma leitura da linha (`leituras`); devolve a pasta depois dela e as
@@ -2150,7 +2171,8 @@ class Guarda:
     def nao_modelada(self, achado):
         """ADR 0011, item 2: recusa a linha crítica com construção que o analisador não modela (`construcao_nao_modelada`)."""
         if achado is not None:
-            self.barrar("R-CONFORMIDADE", f"`{achado}` com ação crítica: o hook não modela", forma_aceita(achado))
+            self.barrar("R-CONFORMIDADE", f"`{achado}` com ação crítica: o hook não modela", forma_aceita(achado),
+                        trava=TRAVA_OPACA)
 
     def gramatica_de_leitura(self, linha):
         """ADR 0011, item 1: antes de qualquer outra checagem, a linha do papel só de leitura precisa caber na gramática
@@ -2605,23 +2627,24 @@ class Guarda:
             return None
         if cod != 0:
             self.barrar("R-REVIEW", f"git {sub}: o hook não conseguiu ler se é alias da configuração",
-                        "rode o subcomando do git por extenso")
+                        "rode o subcomando do git por extenso", trava=TRAVA_OPACA)
         return saida
 
     def expansao_do_alias(self, sub, expansao, alias):
         """As palavras da expansão do alias `sub`; recusa o alias de shell, o que mescla, o encadeado demais e o ilegível."""
         if expansao.startswith("!"):
             self.barrar("R-REVIEW", f"git {sub}: alias de shell (`!`) da configuração roda o que o hook não lê",
-                        "rode o comando direto, sem alias")
+                        "rode o comando direto, sem alias", trava=TRAVA_OPACA)
         if alias >= PROFUNDIDADE_DO_ALIAS:
-            self.barrar("R-REVIEW", f"git {sub}: alias encadeado demais", "rode o subcomando do git por extenso")
+            self.barrar("R-REVIEW", f"git {sub}: alias encadeado demais",
+                        "rode o subcomando do git por extenso", trava=TRAVA_OPACA)
         try:
             palavras = shlex.split(expansao)
         except ValueError:
             palavras = None
         if not palavras:
             self.barrar("R-REVIEW", f"git {sub}: alias da configuração que o hook não lê",
-                        "rode o subcomando do git por extenso")
+                        "rode o subcomando do git por extenso", trava=TRAVA_OPACA)
             return []  # a GuardaDaProva não para no barrar: sem palavras não há o que ler (segurança A6)
         if palavras[0] in ALIAS_QUE_MESCLA:
             self.barrar("R-REVIEW", f"git {sub}: alias da configuração que mescla (`{palavras[0]}`); o parecer só lê o merge "
@@ -2727,7 +2750,7 @@ class Guarda:
         chave, _, refspec = valor.partition("=")
         if chave.lower().startswith("alias."):
             self.barrar("R-REVIEW", f"git -c {chave}: o alias da linha troca o subcomando que o hook leu",
-                        "rode o subcomando do git direto, sem alias")
+                        "rode o subcomando do git direto, sem alias", trava=TRAVA_OPACA)
         if REFSPEC_NA_CONFIG.fullmatch(chave) and ":" in refspec and self.ref_local_da_integracao(refspec.split(":", 1)[1]):
             self.integracao_movida(f"git -c {chave}")
 
@@ -2908,8 +2931,8 @@ class Guarda:
                                                     "--merged", "--no-merged"}
         so_opcoes_de_leitura = curtas <= TAG_SO_LEITURA_CURTAS and longas <= TAG_SO_LEITURA_LONGAS
         if args and not (leitura and so_opcoes_de_leitura):
-            self.barrar("R-FLUXO", "git tag no repositório do Forge: a tag v* é a versão que todos os projetos instalam",
-                        "só o release.yml cria a tag, sobre a main; para ler, use git tag -l")
+            self.barrar("R-FLUXO", f"git tag no repositório do Forge: {TAG_E_VERSAO}",
+                        "só o release.yml cria a tag, sobre a main; para ler, use git tag -l", trava=TRAVA)
 
     def git_tags_no_envio(self, args, globais, pasta, sub="push"):
         """No Forge, nenhum envio leva tag: `--tags`, `--follow-tags`, `tag <nome>`, refspec com `refs/tags/` ou `v<número>`
@@ -2923,8 +2946,8 @@ class Guarda:
                      or any(TAG_NO_ENVIO.match(parte) for r in refs for parte in r.split(":"))
                      or any(TAG_NA_CONFIG.search(g) for g in globais))
         if envia_tag:
-            self.barrar("R-FLUXO", f"git {sub} de tag para o Forge: a tag v* é a versão que todos os projetos instalam",
-                        "envie só a branch; a tag nasce do release.yml, sobre a main")
+            self.barrar("R-FLUXO", f"git {sub} de tag para o Forge: {TAG_E_VERSAO}",
+                        "envie só a branch; a tag nasce do release.yml, sobre a main", trava=TRAVA)
 
     def git_push(self, args, pasta, ramos, sub="push", troca=()):
         refs, repo = [], None
@@ -2961,10 +2984,10 @@ class Guarda:
             destinos.append(nome_da_branch(re.sub(r"^heads/", "refs/heads/", destino)))
         for d in destinos:
             if d in ("main", "master"):
-                self.barrar("R-MAIN", f"push direto para {d}", "abra um PR; a main é do usuário", "main")
+                self.barrar("R-MAIN", f"{PUSH_DIRETO} {d}", "abra um PR; a main é do usuário", "main")
             if d in INTEGRACAO:
-                self.barrar("R-CONFORMIDADE", f"push direto para {d}", "abra um PR a partir de uma branch de trabalho",
-                            "main")
+                self.barrar("R-CONFORMIDADE", f"{PUSH_DIRETO} {d}", "abra um PR a partir de uma branch de trabalho",
+                            "main", trava=TRAVA)
         # o remoto nomeado (a URL dele, resolvida no repositório da pasta), a URL dada ou, sem remoto, a pasta
         if self.alvo_do_forge(pasta, remoto=remoto) or (remoto and self.alvo_do_forge(pasta, remoto)) or (
                 remoto and self.caminho_do_forge(pasta, remoto)):
@@ -3674,8 +3697,9 @@ def identificar_sessao(hook):
       Forge escrito no projeto não muda nada): as regras dele e as de contribuição valem em qualquer pasta (o
       próprio projeto, o clone, `wt/*`, `~`, outra pasta), no Bash, no Write e no Edit; a raiz fica em
       `hook.raiz`, ou a do projeto onde a pasta está, se houver.
-    - Raiz no Forge (clone do próprio Forge, sem `.forge/versao`): regras da sessão do Forge; o hook só age dentro
-      de um projeto, pela pasta corrente, como sempre.
+    - Raiz no Forge (clone do próprio Forge, sem `.forge/versao`): regras da sessão do Forge; o hook age por inteiro
+      dentro de um projeto, pela pasta corrente; fora dele (o clone, `wt/*`) valem as travas para todo papel
+      (`GuardaDaProva` com `travas`, CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE).
     - Sem raiz (ou raiz fora do Forge): pela pasta corrente; em `~/.forge-contrib` falha fechado, como sessão de
       outro projeto de nome igual ao do clone (`wt/*` e a própria pasta: nome vazio).
     Devolve False se o hook não age; None se age pela raiz do repositório; o nome da sessão de outro projeto."""
@@ -3734,10 +3758,12 @@ class GuardaDaProva(Guarda):
     recusada pelo destino da escrita, resolvido pela Guarda, e não pelo texto. Só a linha que o hook não lê (teto,
     ilegível: `sem_leitura`) volta ao texto em `prova_fora_de_projeto`, falhando fechado.
     AGENTES-JSON-SEM-GUARDA: com a sessão no clone do Forge (`no_clone`), vale também a recusa que cita o motivo de uma
-    entrada de `ESTADO_DOS_HOOKS` (escrita, remoção do ancestral, link)."""
-    def __init__(self, hook, pol, papel, no_clone=False):
+    entrada de `ESTADO_DOS_HOOKS` (escrita, remoção do ancestral, link).
+    CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE: com `travas` (raiz da sessão no clone do Forge), valem também as travas
+    (`trava_da_sessao_do_forge`)."""
+    def __init__(self, hook, pol, papel, no_clone=False, travas=False):
         super().__init__(hook, pol, papel)
-        self.no_clone = no_clone
+        self.no_clone, self.travas = no_clone, travas
         self.motivos_do_estado = tuple(e["motivo"] for e in pol["caminhos"] if e["caminho"] in ESTADO_DOS_HOOKS)
         self.motivo_do_config = next((e["motivo"] for e in pol["caminhos"] if e["caminho"] == CONFIG_DA_RAIZ), None)
 
@@ -3763,13 +3789,15 @@ class GuardaDaProva(Guarda):
                     f"peça a {'/'.join(e['quem'])}")
         return None
 
-    def barrar(self, rid, o_que, corrigir, simples=None):
+    def barrar(self, rid, o_que, corrigir, simples=None, trava=None):
         if (rid, o_que, corrigir) == PROVA_DA_SUITE:
             super().barrar(rid, o_que, corrigir)
         if (rid, o_que, corrigir) == PROFUNDIDADE_EXCEDIDA:
             super().barrar(rid, o_que, corrigir)
         if self.recusa_do_estado(o_que):
             super().barrar(rid, o_que, corrigir)
+        if self.travas and trava_da_sessao_do_forge(rid, trava, self.h.campo("tool_input").get("command")):
+            super().barrar(rid, o_que, corrigir, simples)
         if self.sem_leitura:
             raise ForaDaProva(rid)
 
@@ -3798,14 +3826,93 @@ class GuardaDaProva(Guarda):
         """Fora de projeto não há confirmação a pedir."""
 
 
-def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
+def trava_da_sessao_do_forge(rid, trava, linha):
+    """A recusa é uma trava que vale na sessão do Forge para todo papel: R-MAIN, R-VERIFY, a marcada `TRAVA` (o push
+    direto para a develop ou homolog, a tag v*), a `TRAVA_OPACA` numa linha com um comando que pode ser uma trava
+    (`toca_uma_trava`) e a `TRAVA_NO_TETO` com o git ou o gh no texto (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE, E51.6)."""
+    if trava == TRAVA_NO_TETO:
+        return isinstance(linha, str) and bool(GIT_NO_TEXTO.search(linha))
+    if trava == TRAVA_OPACA:
+        return isinstance(linha, str) and toca_uma_trava(linha)
+    return rid in ("R-MAIN", "R-VERIFY") or trava == TRAVA
+
+
+# E51.18 (A1 da segurança E51.16): o `source` e o ponto executam o here-string (`source /dev/stdin <<< '…'`).
+FONTES = frozenset({"source", "."})
+PREFIXOS_DA_FONTE = frozenset({"builtin", "command"})  # E51.22: `builtin source`, `command -p .`
+
+
+def na_posicao_de_programa(palavras, j):
+    """E51.22 (A2 da segurança E51.20): a palavra `j` é o programa do comando simples: a primeira, ou depois só de
+    `builtin`/`command` e das opções deles (`command -p .`). O `.` argumento (`find .`) não é."""
+    return all(p in PREFIXOS_DA_FONTE or (k and p.startswith("-")) for k, p in enumerate(palavras[:j]))
+
+
+def toca_uma_trava(linha, nivel=0):
+    """E51.6: algum comando simples da linha pode ser uma trava com o alvo opaco: o programa opaco (`$G push`), o git
+    com subcomando fora de `GIT_FORA_DAS_TRAVAS` (opaco, alias, com `-c`), o gh com as duas primeiras palavras fora de
+    `GH_FORA_DAS_TRAVAS`, e o texto que o `eval` ou o `sh -c` reavalia (um nível; o `eval` com texto a reavaliar, o
+    shell (com texto ou lendo a entrada, `echo … | bash`) e o `source` ou o ponto como programa dentro dele são trava,
+    fecha na dúvida: A1 da segurança E51.12, E51.16 e A2 E51.20). O git ou o gh valem em qualquer posição do comando
+    (`env git push $F`). A palavra vem do leitor (`palavras_do_texto`, sem aspas nem escapes); a que o bash expande,
+    pelo texto cru, vira `$`: a substituição (`$(echo git) push`, `git $(echo push)`) também é opaca. O corpo de heredoc
+    é comando só quando o dono o roda (`bash <<'X'`; `corpo_so_lido`, como na conferência da linha), e o here-string de
+    um shell, do `source` ou do ponto (`bash <<< '…'`, `source /dev/stdin <<< '…'`) é texto reavaliado como o do
+    `sh -c` (`texto_reavaliado`); o heredoc em dúvida deixa a linha inteira como comando."""
+    try:
+        linha, corpos = tirar_heredocs(linha)
+    except ValueError:
+        corpos = []
+    for dono, corpo in corpos:
+        if not corpo_so_lido(dono, interprete) and toca_uma_trava(corpo, nivel):
+            return True
+    for comando in palavras_do_texto(linha).simples:
+        k = 0
+        while k < len(comando.palavras) and (comando.palavras[k].cru in ANTES_DO_PROGRAMA
+                                             or ATRIBUICAO.match(comando.palavras[k].cru)):
+            k += 1
+        originais = comando.palavras[k:]
+        palavras = ["$" if OPACA_NA_PALAVRA.search(p.cru) else p.valor for p in originais]
+        aqui = [r.alvo for r in comando.redirecoes if r.operador == "<<<" and r.alvo is not None]
+        if palavras and OPACA_NA_PALAVRA.search(palavras[0]):
+            return True
+        for j, palavra in enumerate(palavras):
+            nome, resto = nome_do_caminho(palavra), palavras[j + 1:]
+            if nome == "git" and resto and subcomando_do_git(resto) not in GIT_FORA_DAS_TRAVAS:
+                return True
+            if nome == "gh" and " ".join(resto[:2]) not in GH_FORA_DAS_TRAVAS:
+                return True
+            if nivel and nome in SHELLS:  # E51.18: o shell aninhado relê o argumento, o here-string ou a entrada (pipe)
+                return True
+            if nivel and nome == "eval" and originais[j + 1:]:  # o eval não lê a entrada
+                return True
+            if nivel and palavra in FONTES and (aqui or na_posicao_de_programa(palavras, j)):  # lê o pipe também
+                return True
+            relidos = map(texto_reavaliado, originais[j + 1:])
+            if (nome == "eval" or nome in SHELLS) and not nivel and any(toca_uma_trava(t, 1) for t in relidos):
+                return True
+            le_o_here_string = nome in SHELLS or palavra in FONTES
+            if le_o_here_string and not nivel and any(toca_uma_trava(texto_reavaliado(a), 1) for a in aqui):
+                return True
+    return False
+
+
+def texto_reavaliado(palavra):
+    """O texto que o `eval` ou o shell relê numa palavra: o valor dela (aspas e escapes tirados, a crase escapada vira
+    crase e a variável fica no texto, opaca na releitura), ou `$` (opaco) se o bash de fora substitui um comando nela
+    (`"$(echo git) push"`: o leitor a troca por `_` e devolve o corpo como outro comando simples)."""
+    return "$" if len(palavras_do_texto(palavra.cru).simples) > 1 else palavra.valor
+
+
+def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, travas=False):
     """S8 (C-1, A2 da segurança g3): a prova da suíte é por uid, então vale também fora de projeto, em toda sessão e
     para todo papel. A outra recusa não vale e a leitura segue (`GuardaDaProva`); linha que o hook não lê ou erro
-    interno: falha fechado só se o alvo cita o nome da prova ou, no clone do Forge, o estado dos hooks (C10)."""
+    interno: falha fechado só se o alvo cita o nome da prova ou, no clone do Forge, o estado dos hooks (C10).
+    `travas`: na sessão do Forge valem também as travas (`trava_da_sessao_do_forge`)."""
     if hook.campo("hook_event_name") == "PostToolUse":
         return
     hook.raiz = raiz or Path(hook.cwd())
-    guarda = GuardaDaProva(hook, pol, papel, bool(raiz and e_clone_do_forge(raiz)))
+    guarda = GuardaDaProva(hook, pol, papel, bool(raiz and e_clone_do_forge(raiz)), travas)
     try:
         decidir(hook, guarda, ferramenta, entrada)
     except Exception as erro:  # noqa: BLE001 - ForaDaProva ou erro interno; a decisão vem do texto do alvo
@@ -3931,7 +4038,7 @@ def principal(hook):
                 bloquear("R-CONTRIB", "erro interno ao conferir o rótulo afrouxa-regra; o hook não pôde decidir. "
                                       "Corrigir: veja .forge/run/erros.log e leve ao dono do Forge (R-DECISAO)")
         if not (com_lista and na_sessao_do_forge):
-            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz)
+            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, na_sessao_do_forge)
             return
         externo, hook.raiz = None, raiz
     try:
