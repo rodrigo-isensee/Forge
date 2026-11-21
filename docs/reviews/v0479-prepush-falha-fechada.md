@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-prepush-falha-fechada
-commit: 99a4fc3037f5a34958b83c474e6c1cc6c7e7ba56
+commit: 653b44116a942dc9c8d7bfd8d7895472ce12930a
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
@@ -35,3 +35,6 @@ Verificações rodadas neste review (sem a suíte, que é do CI, `R-REVIEW`):
 - `shellcheck` não está instalado nesta máquina; o hook com o patch não está na árvore, então o CI também não o passa pelo shellcheck até o dono aplicar.
 
 Testes leem comportamento (rc, mensagem e o arquivo `rodou`), com o ambiente limpo por `sem_git_herdado` e PATH só na pasta de links; nenhum lê o texto da fonte do hook.
+
+## Revalidação (E82.6, head 653b4411)
+Delta lido: `forge-check parecer delta` sobre 99a4fc30..653b4411, no domínio só `tests/test_prepush_falha_fechada.py`. A classe `RegistrosSemPython` perdeu o `skipUnless(python3)`; o caso de controle passa o `python3` como falso que faz `exec` do `sys.executable`, então roda sem python3 no PATH da máquina e continua só com a pasta de links no PATH. Os casos "sem python3" já tiravam o link e não mudaram. Rodados: o módulo, 8 testes OK em 2,8 s com ambiente limpo; `bin/forge-mutante --processos 1` na spec, M1 a M8 morreram. Os achados A1 e A2 seguem recomendados, sem mudança. Aprovado no head.
