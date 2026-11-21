@@ -1430,12 +1430,14 @@ class JuncaoLimpa(Conferencia):
 
     def test_juncao_sem_ancora_segue_pendente(self):
         """A `origin/develop` é ref local que o autor reescreve: sem Base-sha selado que a cubra, recusa; e o que a develop trouxe
-        segue no escopo (FILTROS-L08-G2-ORIGIN-LOCAL)."""
+        segue no escopo (FILTROS-L08-G2-ORIGIN-LOCAL), salvo o igual ao merge-base com a develop do `git ls-remote`
+        (ENTREGA-MERGE-DA-DEVELOP): sem nada do autor, o intervalo fica pendente."""
         self.conferida()
         self.juncao("a\n", ancorar=False)
         rc, saida = self.conferir()
         self.assertEqual(rc, 1, saida)
-        self.assertIn('escopo: fora do declarado no brief "agents/outro.md"', saida)
+        self.assertIn("pendente: intervalo vazio na etapa codigo", saida)
+        self.assertNotIn("agents/outro.md", saida)
         self.assertIn("escopo: merge da \"develop\" sem âncora", saida)
 
     def test_conflito_resolvido_a_mao_segue_pendente(self):
