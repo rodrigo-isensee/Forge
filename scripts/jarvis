@@ -7,13 +7,14 @@
 #   -h, --help   mostra esta ajuda
 # Antes de abrir o Claude, uma vez por abertura, atualiza o plugin do Forge (bin/forge-sempre-atual, ADR 0017): não
 # pergunta, não barra e nunca roda com a sessão do tmux do projeto já aberta (aí só reanexa). Instale com: scripts/instalar-atalho.sh
+# Abre na visão de foco (Focus view) se nenhum settings.json a decide; para desligar: "viewMode": "default" no ~/.claude/settings.json.
 set -euo pipefail
 sem_tmux=0
 posicionais=()
 for a in "$@"; do
   case "$a" in
     --sem-tmux) sem_tmux=1 ;;
-    -h|--help) sed -n '2,9p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) echo "jarvis: opção desconhecida: $a (veja jarvis --help)" >&2; exit 2 ;;
     *) posicionais+=("$a") ;;
   esac
@@ -64,6 +65,33 @@ PY
 if ! sandbox_ligado; then
   echo "jarvis: sandbox desligado neste projeto: a sessão automática roda sem sandbox; rode 'forge adotar' para ligá-lo." >&2
 fi
+# VISAO-DE-FOCO (diretriz 31): "viewMode": "focus" só nesta sessão, por --settings, quando nenhum arquivo (local > projeto >
+# usuário) define viewMode; com a visão valendo e sem tui decidido (arquivo ou variável), também a tela cheia, que ela exige.
+# Arquivo ilegível: não decide pelo dono. Lê só duas chaves; nada do arquivo é impresso.
+visao_de_foco() {
+  python3 -I - "$PWD/.claude/settings.local.json" "$PWD/.claude/settings.json" "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json" <<'PY'
+import json, os, sys
+dados = []
+for caminho in sys.argv[1:]:
+    if os.path.exists(caminho):
+        try:
+            with open(caminho, encoding="utf-8") as f:
+                dado = json.load(f)
+        except Exception:
+            sys.exit(0)
+        dados.append(dado if isinstance(dado, dict) else {})
+modo = next((d["viewMode"] for d in dados if "viewMode" in d), None)
+extra = {} if modo is not None else {"viewMode": "focus"}
+sem_tui = not any("tui" in d for d in dados) and not os.environ.get("CLAUDE_CODE_NO_FLICKER") \
+    and not os.environ.get("CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN")
+if modo in (None, "focus") and sem_tui:
+    extra["tui"] = "fullscreen"
+if extra:
+    print(json.dumps(extra, separators=(",", ":")))
+PY
+}
+foco="$(visao_de_foco 2>/dev/null)" || foco=""
+if [ -n "$foco" ]; then args+=(--settings "$foco"); fi
 if claude plugin list 2>/dev/null | grep -q 'telegram@claude-plugins-official'; then
   if pgrep -f "bun server.ts" >/dev/null; then
     echo "jarvis: outra sessão já usa o bot do Telegram; abrindo sem o canal." >&2
