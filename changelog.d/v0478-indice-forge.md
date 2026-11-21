@@ -1,2 +1,0 @@
-### Adicionado
-- Índice do Forge gerado pela ferramenta (H7, primeira parte, v0478 E8.1 e E8.6): `scripts/indice-forge.py` grava `docs/indice-forge.md` com cada arquivo de `bin/`, `hooks/` e `scripts/` e a primeira linha da doc, sem coluna de testes nem contagem, para não vencer a cada merge de outra trilha (os testes de um arquivo: `bin/forge-testes --listar <arquivo>`); `--conferir` diz se está em dia, e o `test_indice_forge` entra no plano dirigido de todo arquivo das três pastas.

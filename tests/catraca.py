@@ -90,10 +90,50 @@ def existe(raiz, ref, caminho):
     return bool(saida.strip())
 
 
+# --- Teto de aninhamento dos JSON que a catraca lê (JSON-PROFUNDO-PY314) ----------------------------------------------
+# O `json` do 3.12 recusava o aninhamento fundo com RecursionError (contador fixo em C) e o 3.14 o aceita: a catraca não
+# conta mais com essa recusa. Cópia de hooks/_json_raso.py (a fonte do teto) e não carga dele: as funções do I7 não
+# importam nem executam nada (TestesNoCi); tests/test_json_raso.py prova as cópias iguais, caractere a caractere.
+# Ficam fora as chaves que a própria catraca serializou com `json.dumps` (fundo já conferido) e a resposta da API do GitHub.
+TETO_ANINHAMENTO = 64  # níveis de [ e { aceitos; os JSON do Forge usam até 8 (hooks/hooks.json)
+
+
+def fundo_demais(texto, teto=TETO_ANINHAMENTO):
+    """Aninhamento de [ e { acima do teto, fora das strings. Um passe só sobre os caracteres, sem recursão: custo linear."""
+    nivel = 0
+    em_string = escapado = False
+    for c in texto:
+        if em_string:
+            if escapado:
+                escapado = False
+            elif c == "\\":
+                escapado = True
+            elif c == '"':
+                em_string = False
+        elif c == '"':
+            em_string = True
+        elif c in "[{":
+            nivel += 1
+            if nivel > teto:
+                return True
+        elif c in "]}":
+            nivel -= 1
+    return False
+
+
+def json_raso(texto, **extras):
+    """`json.loads` com teto de aninhamento: acima do teto, `ValueError`, como todo JSON ilegível (quem chama já o trata).
+
+    Mensagem fixa, sem eco da entrada, igual em toda versão do python."""
+    if fundo_demais(texto):
+        raise ValueError(f"aninhado acima de {TETO_ANINHAMENTO} níveis")
+    return json.loads(texto, **extras)
+
+
 def json_de(raiz, ref, caminho):
     texto = ler(raiz, ref, caminho)
     try:
-        return None if texto is None else json.loads(texto)
+        return None if texto is None else json_raso(texto)
     except ValueError:
         return {}
 
@@ -326,7 +366,7 @@ def script_do_hook(hk):
 def hooks_contados(texto):
     """Cada hook como (evento, matcher, tipo, interpretador, script, timeout, campos extras), contado: dois hooks com a mesma chave são dois."""
     try:
-        dados = json.loads(texto) if texto else {}
+        dados = json_raso(texto) if texto else {}
     except ValueError:
         return Counter()
     return Counter((evento, g.get("matcher", ""), *script_do_hook(hk))
@@ -376,7 +416,7 @@ def erros_de_forma(texto):
     """A10 da segurança: a carga do plugin valida o hooks.json inteiro, e uma entrada fora do esquema descarta todos os hooks.
     Lista fechada de eventos e dos tipos de cada campo; o que não reconheço é erro (falha fechada)."""
     try:
-        dados = json.loads(texto, parse_constant=_constante_fora_do_json)
+        dados = json_raso(texto, parse_constant=_constante_fora_do_json)
     except ValueError as e:
         return [f"JSON ilegível ({e})"]
     if not isinstance(dados, dict) or not isinstance(dados.get("hooks"), dict):
@@ -801,7 +841,7 @@ def _specs_do_diff(raiz, h, fm, mudados):
         if not texto:
             continue
         try:
-            dados = json.loads(texto)
+            dados = json_raso(texto)
             problemas = fm.validar_spec(dados)
         except (ValueError, TypeError, AttributeError, KeyError) as e:
             problemas = [type(e).__name__]
@@ -859,12 +899,18 @@ def regra_guardas_dos_hooks(raiz, b, h):
     except (OSError, SyntaxError, ImportError) as e:
         return [msg_guarda(f"não consegui carregar bin/forge-mutante para conferir as guardas de {', '.join(hooks)} ({type(e).__name__})")]
     mutantes, isentas, v = _specs_do_diff(raiz, h, fm, mudados)
+    lidos, por_arquivo = [], []
     for arq in hooks:
         try:
-            saida = fm.analisar(arq, _hunks(raiz, b, h, arq, fm), _texto_no(raiz, b, arq), _texto_no(raiz, h, arq), mutantes, isentas, set())
+            por_arquivo.append(fm.analisar_com_textos(arq, _hunks(raiz, b, h, arq, fm), _texto_no(raiz, b, arq),
+                                                      _texto_no(raiz, h, arq), mutantes, isentas, set()))
         except ILEGIVEL as e:
             v.append(msg_guarda(f"não consegui analisar as guardas de {arq} ({neutralizar(str(e))[:CORTE_DA_DECISAO]})"))
             continue
+        lidos.append(arq)
+    linhas = iter(fm.movidas(por_arquivo))  # como o `forge-mutante --cobertura`: a apagada coberta noutro arquivo é movida
+    for arq, (saida, _textos) in zip(lidos, por_arquivo):
+        saida = [next(linhas) for _ in saida]
         faltas = [neutralizar(x) for x in saida if x.startswith(FALTAS_DE_MUTANTE)]
         if faltas:
             mais = f" e mais {len(faltas) - MOSTRADAS_POR_ARQUIVO}" if len(faltas) > MOSTRADAS_POR_ARQUIVO else ""
@@ -1894,7 +1940,7 @@ def modo_rotulados(a):
 
 
 def fonte_json(a):
-    return FonteJson(json.loads(Path(a.mesclados).read_text(encoding="utf-8")))
+    return FonteJson(json_raso(Path(a.mesclados).read_text(encoding="utf-8")))
 
 
 def main(argv=None):
@@ -1949,7 +1995,7 @@ def _main(a):
         viol, titulo = violacoes_das_regras(raiz, a.base, a.head), "catraca"
         if viol:
             if a.eventos:
-                eventos, push = json.loads(Path(a.eventos).read_text(encoding="utf-8")), a.ultimo_push
+                eventos, push = json_raso(Path(a.eventos).read_text(encoding="utf-8")), a.ultimo_push
             else:
                 eventos, push = eventos_do_github()
             cfg = json_de(raiz, base_efetiva(raiz, a.base, a.head), "tests/config.json")  # só a base: o head é do autor
@@ -1960,12 +2006,12 @@ def _main(a):
                 if push and rotulo_liberado(eventos, dono, push):
                     liberado = "aplicado depois do último push"
                 else:
-                    execucoes = json.loads(Path(a.execucoes).read_text(encoding="utf-8")) if a.execucoes else ([] if a.eventos else execucoes_do_pr())
+                    execucoes = json_raso(Path(a.execucoes).read_text(encoding="utf-8")) if a.execucoes else ([] if a.eventos else execucoes_do_pr())
                     ramo = a.ramo or ("" if a.eventos else ramo_do_pr())
                     if execucoes is not None and rotulo_vale_pelo_conteudo(raiz, a.base, a.head, eventos, execucoes, a.pr, dono, ramo, viol):
                         liberado = "arquivos protegidos ou diff efetivo iguais aos do instante do rótulo"
             if not custo and not liberado:
-                fonte = FonteJson(json.loads(Path(a.mesclados).read_text(encoding="utf-8"))) if a.mesclados else (
+                fonte = FonteJson(json_raso(Path(a.mesclados).read_text(encoding="utf-8"))) if a.mesclados else (
                     None if a.eventos else fonte_do_github())
                 prs = liberado_por_pr_mesclado_ou_none(raiz, a.base, a.head, viol, fonte, dono)
                 if prs:

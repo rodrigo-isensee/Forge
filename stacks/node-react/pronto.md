@@ -10,6 +10,8 @@ Pronto completo: o comando sugerido, que o autor roda antes de entregar e o CI r
 
 Detecção: `package.json`
 
+Versões: as de Node da matriz `node-version` do CI do projeto; sem matriz, a do `engines` do `package.json` (ou do `.nvmrc`). A stack não roda Python. O autor roda os testes rápidos em cada uma antes de entregar, um log por versão com `head=` e `rc=`; sem o intérprete, a versão não é verde.
+
 Instalação na cópia (`forge-copia --instalar`, `instalar.json`): só com `pnpm-lock.yaml` (`pnpm install --frozen-lockfile`); sem o lockfile não instala e avisa, em vez de falhar. A instalação roda sem as variáveis de ambiente com `TOKEN`, `SECRET` ou `PASSWORD` no nome (como `NPM_TOKEN`), então registro privado que dependa delas não autentica na cópia.
 
 Pronto existente: `package.json` com `"pronto":` → `pnpm run pronto`; `package.json` com `"test":` → `npm test`
@@ -33,6 +35,7 @@ Ele precisa rodar, e falhar se algo falhar: lint (ESLint) e formatação (Pretti
 ## Vermelho antes do verde, mutação e contrato
 - Vermelho: `git stash push -- <arquivos de produção>` e `pnpm vitest run <teste>` precisa falhar; depois `git stash pop`.
 - Mutação (Stryker, gratuito): só nos arquivos do diff, `pnpm stryker run --incremental --mutate "$(git diff --name-only origin/develop -- '*.ts' '*.tsx' | grep -v '\.test\.' | paste -sd,)"`; a meta fica em `docs/engineering/praticas.md`, começa pela pontuação da primeira rodada e só sobe.
+- Prova da entrega (META85, `forge-check entrega --mutantes <log> --pronto <log>`, etapa codigo com código): cada comando acima (mutação e pronto) roda com log que abre com o head e fecha com o rc, `{ echo head=$(git rev-parse HEAD); <comando>; } > <log> 2>&1 && echo rc=0 >> <log> || echo rc=1 >> <log>`; sem os dois logs verdes no head entregue, a entrega volta antes do parecer.
 - Fila de pesadas (`R-TETO`): o Stryker e o teste de banco (script `test:db` do `package.json`, repositório e migrações contra um banco descartável local) estão no `pesados.json` da stack e rodam um por vez; projeto criado antes disso mantém a lista dele e acrescenta esses comandos à lista `pesados` do `.forge/config.json`.
 - Contrato back-front: o esquema (zod em `packages/shared`, ou o OpenAPI gerado dele) é a fonte única; um teste no `server/` valida as respostas reais da rota contra ele e outro no `web/` valida os mocks do MSW contra o mesmo esquema. Sem serviço pago: Pact só com os arquivos de contrato versionados no repositório, sem broker.
 

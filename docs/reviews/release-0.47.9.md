@@ -1,0 +1,29 @@
+---
+tipo: review
+contrato: 1
+pedido: release-0.47.9
+branch: melhoria/v0478-release-0479
+commit: e61c4d439fbcc794cec71e6679541d4be413050d
+parecer: aprovado
+revisor: forge:tech-lead
+data: 2026-11-19
+---
+# Review: release-0.47.9
+
+Code review da versão 0.47.9 inteira no head e61c4d43 (marca da release na branch melhoria/v0478-release-0479, base develop 785e0545), para integrar na develop e promover à homolog (v0478 E32.2). Os dois pareceres, `docs/reviews/v0478-release-0479.md` e `docs/reviews/release-0.47.9.md`, têm o mesmo veredito e o mesmo conteúdo.
+
+## Achados
+- A1 (recomendado) bin/forge-fechar:820 · o squash na develop usa o título do PR, e o #682 entrou como `melhoria/v0478-testes-prazo (#682)` (73842444), fora de Conventional Commits em português. Recusar no passo 6 (ou no forge-check pr) título que não casa `tipo(escopo): `.
+
+## Parecer
+Aprovado.
+
+- Ponto de partida: a última tag é `v0.47.7`; a 0.47.8 ainda não foi publicada na main e foi revisada inteira em `docs/reviews/release-0.47.8.md`. O intervalo desta versão é a marca da 0.47.8 na develop, b407f8f7 (#684), até e61c4d43.
+- Leva: `git log --first-parent b407f8f7..e61c4d43` traz 5 entradas: testes de prazo #682 (73842444), forge-fechar --limpar e 1c #686 (bdf1b998), textos do time #685 (9f2b80ae), promoção por marca #690 (785e0545) e a marca (e61c4d43). `git diff --stat b407f8f7 e61c4d43`: 48 arquivos, 1618+/62-.
+- Pareceres dos itens (não refeitos, `R-REVIEW`): `parecer: aprovado` em review, QA e segurança para v0478-testes-prazo (mais devops, por tocar `.github/workflows/ci.yml`), v0478-fechar-lote, v0478-textos-time e v0478-promocao-pr.
+- Junção: os quatro itens não têm arquivo em comum (`git diff-tree --name-only` de cada merge, `uniq -d` vazio); a junção não pede acerto.
+- CI da develop na base 785e0545: run 44505567198 (push), `completed/success`. A prova da marca é o CI do PR para a develop, obrigatório para o merge; a suíte local falha por ambiente (sandbox: /proc e gh) e não foi rerrodada. `python3 -m unittest tests.test_changelog` no head: 89 testes, OK.
+- Marca (e61c4d43, 7 arquivos, 15+/15-): `.claude-plugin/plugin.json` e `dev/.claude-plugin/plugin.json` em `"version": "0.47.9"`; `CHANGELOG.md` com `[Não publicado]` vazio (linha 5) e `[0.47.9] - 2026-11-19` (linha 7) acima de `[0.47.8]` (linha 20), em português, com Alterado e Corrigido; `git diff --stat 785e0545 e61c4d43` mostra só a marca.
+- Fragmentos: os 4 fragmentos apagados na marca (lidos em e61c4d43^) têm 9 linhas `- `, e cada uma aparece uma vez no `CHANGELOG.md` (`grep -cxF`: 1 nas 9); `changelog.d/` só traz o `README.md`; `bin/forge-changelog conferir-release`: "ok: changelog.d/ sem fragmentos pendentes".
+- SemVer: só Alterado e Corrigido, sem quebra para os projetos; patch é coerente.
+- CI do head: `gh run list --commit e61c4d43` vazio (sem PR ainda); a suíte inteira fica no CI do PR da marca.

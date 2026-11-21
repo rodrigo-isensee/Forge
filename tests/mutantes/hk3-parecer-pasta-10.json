@@ -5,7 +5,7 @@
     {
       "id": "M69",
       "guarda": "crase na palavra a torna expandida",
-      "arquivo": "hooks/parecer.py",
+      "arquivo": "hooks/_gh_api.py",
       "de": "EXPANSAO = (\"$\", \"`\")",
       "para": "EXPANSAO = (\"$\",)",
       "testes": [
@@ -15,7 +15,7 @@
     {
       "id": "M70",
       "guarda": "o dolar (variavel, $( )) na palavra a torna expandida",
-      "arquivo": "hooks/parecer.py",
+      "arquivo": "hooks/_gh_api.py",
       "de": "EXPANSAO = (\"$\", \"`\")",
       "para": "EXPANSAO = (\"`\",)",
       "testes": [

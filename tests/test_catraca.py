@@ -24,6 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+from quarentenas import TETO_PULADOS_ORIGINAL, quarentenas_abertas, teto_passa_da_quarentena  # noqa: E402
 
 AQUI = Path(__file__).resolve().parent
 _EM_CI = os.environ.pop("GITHUB_ACTIONS", None)  # a suíte roda como execução local; os testes de CI definem a variável
@@ -460,6 +461,19 @@ class Hooks(Base):
                 with self.subTest(texto=texto):
                     self.assertEqual(catraca.erros_de_forma(texto), [f"JSON ilegível ({constante} não é JSON)"])
 
+    def test_json_aninhado_acima_do_teto_e_ilegivel(self):
+        """JSON-PROFUNDO-PY314: o `json` do 3.12 dava RecursionError (traceback na catraca) e o 3.14 aceita; acima do teto
+        (64) o leitor recusa antes do `json.loads`, com mensagem fixa. O fechado de 65 e 5000 níveis o 3.12 aceita (simula o 3.14)."""
+        fechado = lambda n: '{"hooks": ' + "[" * (n - 1) + "]" * (n - 1) + "}"  # noqa: E731
+        for texto in ("[" * 200000, fechado(65), fechado(5000)):
+            with self.subTest(tamanho=len(texto)):
+                self.assertEqual(catraca.erros_de_forma(texto), ["JSON ilegível (aninhado acima de 64 níveis)"])
+                self.assertEqual(catraca.hooks_contados(texto), catraca.Counter())
+                with self.assertRaisesRegex(ValueError, "^aninhado acima de 64 níveis$"):
+                    catraca.json_raso(texto)
+        self.assertEqual(catraca.erros_de_forma(fechado(64)), ["`hooks` não é objeto"])  # no teto, lê e segue para o esquema
+        self.assertEqual(catraca.json_raso('{"a": "' + "[" * 100 + '"}'), {"a": "[" * 100})  # dentro de string não conta
+
     def test_arquivo_de_hooks_apagado_barra(self):
         (self.repo.dir / "hooks/hooks.json").unlink()
         self.barra("hook removido")
@@ -869,6 +883,236 @@ class TetoDePulados(Base):
         self.assertGreaterEqual(teto, 0)
 
 
+class TetoDaQuarentena(unittest.TestCase):
+    """E37.15: `teto_pulados` só passa de TETO_PULADOS_ORIGINAL por quarentena aberta; sem ela, o teto volta. E37.24: a
+    quarentena conta pelo que o `unittest` carrega e pula de verdade, e o prazo vencido é recusado."""
+    MOTIVO = "quarentena (OK do dono 19/11): x; prazo 2026-11-26"
+    HOJE = datetime.date(2026, 11, 20)
+
+    def pasta(self, teto, corpo):
+        d = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, d)
+        (d / "config.json").write_text(json.dumps({"teto_pulados": teto}), encoding="utf-8")
+        (d / "test_x.py").write_text(textwrap.dedent(corpo), encoding="utf-8")
+        return d
+
+    def abertas(self, pasta):
+        return quarentenas_abertas(pasta, self.HOJE)
+
+    def confere(self, pasta, hoje=None):
+        teto = json.loads((pasta / "config.json").read_text(encoding="utf-8"))["teto_pulados"]
+        abertas = quarentenas_abertas(pasta, hoje)
+        return teto_passa_da_quarentena(teto, abertas), f"teto_pulados={teto} > {TETO_PULADOS_ORIGINAL} + {abertas} " \
+            "quarentena(s) aberta(s): devolva o teto no PR que tira a quarentena"
+
+    def test_o_forge_nao_passa_do_teto_da_quarentena(self):
+        passou, msg = self.confere(AQUI)
+        self.assertFalse(passou, msg)
+
+    def test_teto_2_sem_quarentena_reprova(self):
+        d = self.pasta(2, """\
+            import unittest
+            class T(unittest.TestCase):
+                @unittest.skip("sem root")
+                def test_a(self):
+                    pass
+            """)
+        self.assertEqual(self.abertas(d), 0)
+        self.assertTrue(self.confere(d, self.HOJE)[0])
+
+    def test_teto_2_com_uma_quarentena_passa_e_com_teto_3_reprova(self):
+        corpo = f"""\
+            import unittest
+            class T(unittest.TestCase):
+                @unittest.skip("{self.MOTIVO}")
+                def test_a(self):
+                    pass
+                @unittest.skipIf(True, "sem root")
+                def test_b(self):
+                    self.skipTest("{self.MOTIVO}")
+            """
+        self.assertEqual(self.abertas(self.pasta(2, corpo)), 1)
+        self.assertFalse(self.confere(self.pasta(2, corpo), self.HOJE)[0])
+        self.assertTrue(self.confere(self.pasta(3, corpo), self.HOJE)[0])
+
+    def test_conta_o_pulo_real_e_o_skiptest_vivo(self):  # e não conta skip sem motivo, motivo que não é texto, outra chamada
+        d = self.pasta(1, f"""\
+            import unittest
+            def marca(motivo):
+                return lambda f: f
+            class T(unittest.TestCase):
+                @marca("{self.MOTIVO}")
+                def test_a(self):
+                    self.skipTest("{self.MOTIVO}")
+                    self.skip("{self.MOTIVO}")
+                @unittest.skipUnless(False, "{self.MOTIVO}")
+                def test_b(self):
+                    pass
+                @unittest.skip("sem root")
+                @unittest.skip("{self.MOTIVO}")
+                def test_c(self):
+                    pass
+                @unittest.skip
+                def test_d(self, motivo="quarentena: nome, não texto"):
+                    pass
+                def test_e(self, motivo="quarentena: nome, não texto"):
+                    self.skipTest()
+                    self.skipTest(motivo)
+                    self.skipTest(1)
+                    print("quarentena: não é skip")
+                @unittest.skip(1)
+                def test_f(self):
+                    pass
+                test_g = lambda self: self.skipTest("{self.MOTIVO}")
+                exec('def test_h(self): self.skipTest("{self.MOTIVO}")')
+                test_i = print
+            """)
+        self.assertEqual(self.abertas(d), 2)
+
+    def test_skip_de_classe_conta_um_por_teste_sem_somar_o_corpo(self):
+        d = self.pasta(1, f"""\
+            import unittest
+            @unittest.skip("{self.MOTIVO}")
+            class T(unittest.TestCase):
+                def test_a(self):
+                    self.skipTest("{self.MOTIVO}")
+                def test_b(self):
+                    pass
+            """)
+        self.assertEqual(self.abertas(d), 2)
+
+    def test_subpasta_conta_so_se_o_unittest_a_descobre(self):
+        d = self.pasta(1, "import unittest\n")
+        corpo = f'import unittest\nclass T(unittest.TestCase):\n    @unittest.skip("{self.MOTIVO}")\n    def test_c(self): pass\n'
+        for sub, pacote in (("pacote", True), ("solta", False)):
+            (d / sub).mkdir()
+            (d / sub / f"test_{sub}.py").write_text(corpo, encoding="utf-8")
+            if pacote:
+                (d / sub / "__init__.py").write_text("", encoding="utf-8")
+        self.assertEqual(self.abertas(d), 1)
+
+    def test_skip_morto_da_sonda_s1_nao_conta(self):
+        d = self.pasta(4, f"""\
+            import unittest
+            @unittest.skip("{self.MOTIVO}")
+            def test_funcao_solta(self):
+                pass
+            class SemBase:
+                @unittest.skip("{self.MOTIVO}")
+                def test_a(self):
+                    self.skipTest("{self.MOTIVO}")
+            class T(unittest.TestCase):
+                def test_ramo_morto(self):
+                    if False:
+                        self.skipTest("{self.MOTIVO}")
+                    elif 0:
+                        self.skipTest("{self.MOTIVO}")
+                def test_aninhada(self):
+                    def nunca():
+                        self.skipTest("{self.MOTIVO}")
+                    return lambda: self.skipTest("{self.MOTIVO}")
+                @unittest.skip("{self.MOTIVO}")
+                def auxiliar(self):
+                    pass
+            """)
+        self.assertEqual(self.abertas(d), 0)
+        self.assertTrue(self.confere(d, self.HOJE)[0])
+
+    def test_formas_da_sonda_a5_que_o_unittest_nao_pula_nao_contam(self):
+        d = self.pasta(5, f"""\
+            import unittest
+            class T(unittest.TestCase):
+                @unittest.skip("{self.MOTIVO}")
+                def test_a(self):
+                    pass
+                test_a = None
+                @unittest.skip("{self.MOTIVO}")
+                def test_b(self):
+                    self.skipTest("{self.MOTIVO}")
+                def test_b(self):
+                    pass
+            def fabrica():
+                class Aninhada(unittest.TestCase):
+                    @unittest.skip("{self.MOTIVO}")
+                    def test_c(self):
+                        self.skipTest("{self.MOTIVO}")
+                return Aninhada
+            if False:
+                class Morta(unittest.TestCase):
+                    @unittest.skip("{self.MOTIVO}")
+                    def test_d(self):
+                        self.skipTest("{self.MOTIVO}")
+            class R(unittest.TestCase):
+                @unittest.skip("{self.MOTIVO}")
+                def test_e(self):
+                    self.skipTest("{self.MOTIVO}")
+            class R(unittest.TestCase):
+                def test_e(self):
+                    pass
+            """)
+        self.assertEqual(self.abertas(d), 0)
+        self.assertTrue(self.confere(d, self.HOJE)[0])
+
+    def test_skiptest_no_else_de_ramo_morto_e_em_ramo_vivo_conta(self):
+        d = self.pasta(3, f"""\
+            import unittest
+            class T(unittest.TestCase):
+                def test_a(self):
+                    if False:
+                        pass
+                    else:
+                        self.skipTest("{self.MOTIVO}")
+                def test_b(self):
+                    if True:
+                        self.skipTest("{self.MOTIVO}")
+                def test_c(self):
+                    if self.x:
+                        self.skipTest("{self.MOTIVO}")
+            """)
+        self.assertEqual(self.abertas(d), 3)
+
+    def test_quarentena_sem_prazo_ou_sem_ok_do_dono_e_recusada(self):
+        for motivo in ("quarentena (OK do dono): sem prazo", "quarentena: prazo 2026-11-26", "quarentena (OK do dono): prazo 26/11", "quarentena (OK do dono): prazo 2026",
+                       "quarentena (ok do dono): prazo 2026-11-26"):
+            for uso in ('@unittest.skip("%s")\n    def test_a(self): pass', 'def test_a(self): self.skipTest("%s")'):
+                with self.subTest(motivo=motivo, uso=uso):
+                    d = self.pasta(2, "import unittest\nclass T(unittest.TestCase):\n    " + uso % motivo + "\n")
+                    with self.assertRaisesRegex(ValueError, r"o prazo \(AAAA-MM-DD\) e o 'OK do dono'"):
+                        self.abertas(d)
+
+    def test_quarentena_vencida_e_recusada_e_a_do_dia_passa(self):
+        for uso in ('@unittest.skip("%s")\n    def test_a(self): pass', 'def test_a(self): self.skipTest("%s")'):
+            with self.subTest(uso=uso):
+                vencida = self.pasta(2, "import unittest\nclass T(unittest.TestCase):\n    " + uso % "quarentena (OK do dono): prazo 2026-11-19" + "\n")
+                with self.assertRaisesRegex(ValueError, "quarentena vencida"):
+                    self.abertas(vencida)
+                do_dia = self.pasta(2, "import unittest\nclass T(unittest.TestCase):\n    " + uso % "quarentena (OK do dono): prazo 2026-11-20" + "\n")
+                self.assertEqual(self.abertas(do_dia), 1)
+
+    def test_sem_data_dada_o_prazo_e_comparado_com_hoje(self):
+        d = self.pasta(2, 'import unittest\nclass T(unittest.TestCase):\n    @unittest.skip("quarentena (OK do dono): prazo 2000-01-01")\n    def test_a(self): pass\n')
+        with self.assertRaisesRegex(ValueError, "quarentena vencida"):
+            quarentenas_abertas(d)
+
+    def test_pasta_que_o_unittest_nao_carrega_e_recusada(self):
+        d = self.pasta(2, f'import unittest\nimport modulo_que_nao_existe\nclass T(unittest.TestCase):\n    @unittest.skip("{self.MOTIVO}")\n    def test_a(self): pass\n')
+        with self.assertRaisesRegex(ValueError, "não carregou"):
+            self.abertas(d)
+
+    def test_a_contagem_devolve_o_caminho_e_os_modulos(self):
+        corpo = f'import unittest\nclass T(unittest.TestCase):\n    @unittest.skip("{self.MOTIVO}")\n    def test_a(self): pass\n'
+        caminho = list(sys.path)
+        primeira, segunda = self.pasta(2, corpo), self.pasta(2, corpo.replace("@unittest.skip", "@unittest.skipIf(False, 'x')\n    @unittest.skip"))
+        self.assertEqual(self.abertas(primeira), 1)
+        self.assertEqual(sys.path, caminho)
+        self.assertNotIn("test_x", sys.modules)
+        self.assertEqual(self.abertas(segunda), 1)  # o mesmo nome de módulo, de outra pasta, carrega de novo
+
+    def test_motivo_que_nao_e_quarentena_nao_exige_prazo(self):
+        d = self.pasta(2, 'import unittest\nclass T(unittest.TestCase):\n    @unittest.skip("sem root")\n    def test_a(self): pass\n')
+        self.assertEqual(self.abertas(d), 0)
+
+
 class GuardasDosHooks(Base):
     """MUTANTES-SPEC-HOOKS: condição mudada ou apagada em hooks/*.py sem mutante declarado numa spec do diff barra."""
     HOOK = "def decide(valor):\n    if valor > 10:\n        return 'bloqueia'\n    return 'passa'\n"
@@ -916,6 +1160,24 @@ class GuardasDosHooks(Base):
                   [{"arquivo": "hooks/x.py", "trecho": "valor > 10", "motivo": "a guarda saiu com o comportamento que ela protegia"}])
         self.repo.commit()
         self.assertFalse(any(v.startswith("R-QA:") for v in self.repo.violacoes()), self.repo.violacoes())
+
+    def test_guarda_movida_de_arquivo_com_mutante_no_destino_passa(self):  # como o forge-mutante --cobertura
+        self.repo.escreve("hooks/x.py", "from hooks.y import decide\n")
+        self.repo.escreve("hooks/y.py", self.HOOK)
+        self.spec([self.mutante(de="if valor > 10:", para="if valor >= 10:") | {"arquivo": "hooks/y.py"}])
+        self.passa()
+
+    def test_guarda_movida_sem_mutante_no_destino_barra(self):
+        self.repo.escreve("hooks/x.py", "from hooks.y import decide\n")
+        self.repo.escreve("hooks/y.py", self.HOOK)
+        self.barra("guarda de hooks/y.py mudada sem mutante declarado: sem mutante · hooks/y.py:2", "R-QA")
+        self.barra("guarda de hooks/x.py mudada sem mutante declarado: apagada · hooks/x.py:2(base)", "R-QA")
+
+    def test_guarda_apagada_de_verdade_barra_com_mutante_de_outra_condicao_ao_lado(self):
+        self.repo.escreve("hooks/x.py", "def decide(valor):\n    return 'passa'\n")
+        self.repo.escreve("hooks/y.py", "def outra(valor):\n    if valor < 3:\n        return 1\n")
+        self.spec([self.mutante(de="if valor < 3:", para="if valor <= 3:") | {"arquivo": "hooks/y.py"}])
+        self.barra("apagada · hooks/x.py:2(base)", "R-QA")
 
     def test_mudanca_sem_guarda_e_arquivo_que_nao_e_python_passam(self):
         self.repo.escreve("hooks/x.py", self.HOOK.replace("'bloqueia'", "'bloqueia agora'"))

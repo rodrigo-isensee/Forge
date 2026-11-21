@@ -1,0 +1,87 @@
+{
+  "pedido": "v0479-pv-d1-versoes",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G1",
+      "guarda": "sem versão na configuração: sem veredito, nada roda",
+      "arquivo": "bin/forge-testes",
+      "de": "if not lista:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_testes_tocados.Versoes.test_sem_versao_na_configuracao_sai_2_sem_log"
+      ]
+    },
+    {
+      "id": "G2",
+      "guarda": "mudança não commitada: o log não prenderia o head",
+      "arquivo": "bin/forge-testes",
+      "de": "if git(\"status\", \"--porcelain\", \"--untracked-files=all\").strip():",
+      "para": "if False:",
+      "testes": [
+        "tests.test_testes_tocados.Versoes.test_mudanca_nao_commitada_sai_2_sem_log"
+      ]
+    },
+    {
+      "id": "G3",
+      "guarda": "git ilegível: sem veredito, sem traceback",
+      "arquivo": "bin/forge-testes",
+      "de": "except (RuntimeError, ValueError) as erro:\n        print(f\"forge-testes: sem veredito ({erro})\", file=sys.stderr)",
+      "para": "except (ValueError,) as erro:\n        print(f\"forge-testes: sem veredito ({erro})\", file=sys.stderr)",
+      "testes": [
+        "tests.test_testes_tocados.Versoes.test_git_ilegivel_sai_2_sem_log"
+      ]
+    },
+    {
+      "id": "G4",
+      "guarda": "intérprete fora do PATH: ausente",
+      "arquivo": "bin/forge-testes",
+      "de": "if not caminho:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_testes_tocados.Versoes.test_interprete_ausente_e_aviso_e_nao_verde"
+      ]
+    },
+    {
+      "id": "G5",
+      "guarda": "o intérprete só vale se ele se diz da versão da configuração",
+      "arquivo": "bin/forge-testes",
+      "de": "if r.returncode == 0 and r.stdout.strip() == versao else",
+      "para": "if r.returncode == 0 else",
+      "testes": [
+        "tests.test_testes_tocados.Versoes.test_interprete_que_se_diz_de_outra_versao_nao_vale"
+      ]
+    },
+    {
+      "id": "G6",
+      "guarda": "intérprete ausente grava rc=ausente e não roda",
+      "arquivo": "bin/forge-testes",
+      "de": "if caminho is None:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_testes_tocados.Versoes.test_interprete_ausente_e_aviso_e_nao_verde"
+      ]
+    },
+    {
+      "id": "G7",
+      "guarda": "versão vermelha ou ausente: saída 1, nunca verde",
+      "arquivo": "bin/forge-testes",
+      "de": "if rc != 0:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_testes_tocados.Versoes.test_vermelho_em_uma_versao_sai_1",
+        "tests.test_testes_tocados.Versoes.test_interprete_ausente_e_aviso_e_nao_verde"
+      ]
+    },
+    {
+      "id": "G8",
+      "guarda": "--versoes só combina com --base",
+      "arquivo": "bin/forge-testes",
+      "de": "if args.versoes and (args.registros",
+      "para": "if False and (args.registros",
+      "testes": [
+        "tests.test_testes_tocados.Versoes.test_so_combina_com_base"
+      ]
+    }
+  ]
+}

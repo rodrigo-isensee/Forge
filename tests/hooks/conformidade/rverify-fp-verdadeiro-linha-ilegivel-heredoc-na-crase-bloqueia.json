@@ -1,5 +1,5 @@
 {
-  "descricao": "HOOK-RVERIFY-FALSO-POSITIVO: linha que o hook não lê (heredoc dentro de crase): volta ao texto; sessão do Forge, pasta fora de projeto: grava a prova da suíte, recusa.",
+  "descricao": "HOOK-RVERIFY-FALSO-POSITIVO: linha que o hook não lê (heredoc dentro de crase): volta ao texto; sessão do Forge, pasta fora de projeto: grava a prova da suíte, recusa. Sem o `git push` do fim (E51.10): na sessão do Forge ele é trava e a recusa da crase viria antes; o `.git/` do alvo já faz a linha crítica, e a linha com o push está em `e51-clone-prova-e-push-na-crase-bloqueia`.",
   "arquivos": {
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
@@ -16,7 +16,7 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "echo x > {raiz}/.git/forge-suite-verde; echo `cat <<X\nX\n`; git push"
+      "command": "echo x > {raiz}/.git/forge-suite-verde; echo `cat <<X\nX\n`"
     },
     "agent_type": "forge:tech-lead",
     "hook_event_name": "PreToolUse",

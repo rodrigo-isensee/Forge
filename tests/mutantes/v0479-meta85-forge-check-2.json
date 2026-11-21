@@ -1,0 +1,46 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "entrega: a última linha tem de ser rc=0 (mutante: qualquer rc)",
+      "arquivo": "bin/forge-check",
+      "de": "    if linhas[-1] != \"rc=0\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_meta85_entrega.ProvasDaEntrega.test_mutante_vivo_rc_1_reprova"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "entrega: log vazio reprova (mutante: o vazio quebra no índice)",
+      "arquivo": "bin/forge-check",
+      "de": "if not linhas or linhas[0] != f\"head={head}\":",
+      "para": "if linhas[0] != f\"head={head}\":",
+      "testes": [
+        "tests.test_meta85_entrega.ProvasDaEntrega.test_log_vazio_reprova"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "entrega --pedido: recusa --mutantes e --pronto (mutante: aceita e ignora)",
+      "arquivo": "bin/forge-check",
+      "de": "a.desde is not None or a.brief or a.mutantes or a.pronto:",
+      "para": "a.desde is not None or a.brief:",
+      "testes": [
+        "tests.test_meta85_entrega.ProvasDaEntrega.test_forma_nova_recusa_as_opcoes"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "entrega: linha só de espaços nas pontas do log não conta (mutante: conta e esconde o head)",
+      "arquivo": "bin/forge-check",
+      "de": "splitlines() if linha.strip()]",
+      "para": "splitlines() if linha]",
+      "testes": [
+        "tests.test_meta85_entrega.ProvasDaEntrega.test_linhas_vazias_nas_pontas_nao_contam"
+      ]
+    }
+  ]
+}

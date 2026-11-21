@@ -1,0 +1,31 @@
+{
+  "descricao": "PESADO-VERSOES-FORA-DA-FILA: opção fora da lista fechada das formas leves do forge-testes pesa.",
+  "config": {
+    "pesados": [
+      "bin/forge-testes"
+    ]
+  },
+  "estado": {
+    "pesado.json": {
+      "pid": "{pid_outro}",
+      "comando": "bin/forge-testes --completa",
+      "desde": "{agora-120}",
+      "tool_use_id": "toolu_1"
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "bin/forge-testes --dirigida tests/test_a.py"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO"
+  },
+  "env": {
+    "FORGE_PESADO_ESPERA_S": "0"
+  }
+}

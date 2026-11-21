@@ -1,0 +1,26 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M12",
+      "guarda": "parecer delta: o parecer que barrou revalida, pelo veredito do forge-check pr (mutante: nunca diz que barrou)",
+      "arquivo": "bin/forge-check",
+      "de": "    if campo == \"parecer\":\n        return f\"revalida: sim (este parecer barrou: {motivo})\"",
+      "para": "    if False:\n        return f\"revalida: sim (este parecer barrou: {motivo})\"",
+      "testes": [
+        "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_parecer_que_barrou_revalida"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "parecer delta: o aprovado de domínio mudado revalida (mutante: o aprovado nunca revalida, afrouxa)",
+      "arquivo": "bin/forge-check",
+      "de": "    if motivo:\n        return f\"revalida: sim ({motivo})\"",
+      "para": "    if False:\n        return f\"revalida: sim ({motivo})\"",
+      "testes": [
+        "tests.test_meta85_revalida.RevalidaSoQuemBarrou.test_aprovado_com_dominio_mudado_continua_revalidando"
+      ]
+    }
+  ]
+}

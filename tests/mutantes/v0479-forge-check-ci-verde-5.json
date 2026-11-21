@@ -1,0 +1,26 @@
+{
+  "pedido": "v0479-forge-check-ci-verde",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "brief gerar sem PR: a suíte sem CI só avisa (A1 do review, E47.5)",
+      "arquivo": "bin/forge-check",
+      "de": "suite = (previo_dos_checks or adiar_suite) if conferir else None",
+      "para": "suite = (previo_dos_checks) if conferir else None",
+      "testes": [
+        "tests.test_forge_check_pr.SuiteNoBriefSemPr.test_etapas_que_recusam_nao_travam_sem_pr"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "pareceres_da_etapa adia a suíte (A1 do review, E47.5)",
+      "arquivo": "bin/forge-check",
+      "de": "if base else None, adiar_suite=True)",
+      "para": "if base else None, adiar_suite=False)",
+      "testes": [
+        "tests.test_forge_check_pr.SuiteNoBriefSemPr.test_etapas_que_recusam_nao_travam_sem_pr"
+      ]
+    }
+  ]
+}

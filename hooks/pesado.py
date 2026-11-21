@@ -27,7 +27,7 @@ import time
 from pathlib import Path
 
 import _maquina
-from _comum import (bloquear, e_clone_do_forge, executar, gravar_json, ler_json, leituras, sem_atribuicoes,
+from _comum import (bloquear, e_clone_do_forge, executar, gravar_json, ler_json, ler_trava, leituras, sem_atribuicoes,
                     separar_lancadores)
 
 CASCAS = {"sh", "bash", "dash", "zsh"}
@@ -289,12 +289,24 @@ def pede_opcao(argumento, opcao):
     return len(nome) > 2 and opcao.startswith(nome)
 
 
+# PESADO-VERSOES-FORA-DA-FILA (v0478 E64.1): lista fechada das opções do teste dirigido; qualquer outra (`--completa`,
+# `--vermelho`, `--versoes`, a desconhecida e a interna `--executar`) pesa. Nenhuma começa por `--c` nem `--v`.
+LEVES_DO_FORGE_TESTES = ("--base", "--listar", "--afetados", "--texto", "--registros", "--regerar")
+
+
+def opcao_leve(argumento):
+    """O separador `--`, o `-k` (inteiro ou `-k=x`) ou uma opção de LEVES_DO_FORGE_TESTES, inteira, prefixo ou `=`."""
+    if argumento.split("=", 1)[0] in ("--", "-k"):
+        return True
+    return any(pede_opcao(argumento, o) for o in LEVES_DO_FORGE_TESTES)
+
+
 def leve_pelos_argumentos(inicio, padrao):
-    """O teste dirigido (os dois primeiros de PELOS_ARGUMENTOS) sem `--completa` nem `--vermelho` em posição nenhuma; o
-    mutante só com `--listar` sozinho."""
+    """O teste dirigido (os dois primeiros de PELOS_ARGUMENTOS) só com opções leves em qualquer posição (o que vem
+    depois do `--` também é lido, para só apertar); o mutante só com `--listar` sozinho."""
     _, *argumentos = inicio.split()
     if padrao in PELOS_ARGUMENTOS[:2]:
-        return not any(pede_opcao(a, o) for a in argumentos for o in ("--completa", "--vermelho"))
+        return all(opcao_leve(a) for a in argumentos if a.startswith("-"))
     return argumentos == ["--listar"]
 
 
@@ -381,10 +393,10 @@ def principal(hook):
     uso = hook.campo("tool_use_id")
     with hook.trava(), _maquina.trava():
         arquivo = hook.run() / "pesado.json"
-        trava = ler_json(arquivo, None)
+        trava = ler_trava(arquivo)
         if evento != "PreToolUse":
             if solta(trava, uso):
-                arquivo.unlink()
+                gravar_json(arquivo, None)  # `null`, não apaga: o arquivo negado ao Bash precisa existir (o runtime o criaria vazio)
             if solta(_maquina.ler("pesado.json").get(str(hook.run())), uso):
                 marcar_na_maquina(hook, None)
             return
@@ -431,7 +443,7 @@ def esperar_a_vez(hook, raiz, arquivo, comando, uso):
             if pid_da_sessao() != dono:  # PROCESSO-ORFAO (v046): a sessão acabou; a senha sai da fila e a vez não é pega
                 bloquear("R-TETO", "a sessão que pediu a tarefa pesada acabou; a vez fica com a próxima da fila.")
             with hook.trava(), _maquina.trava():
-                trava, agora = ler_json(arquivo, None), time.time()
+                trava, agora = ler_trava(arquivo), time.time()
                 vivas = fila_viva(pasta)
                 if not ocupada(hook, trava, uso, agora) and not maquina_cheia(hook, uso, agora) \
                         and frente_parada(vivas, agora, senha):

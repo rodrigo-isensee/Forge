@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-placar-fases",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "vale a primeira versao de cada parecer",
+      "arquivo": "bin/forge-placar",
+      "de": "            if nome not in vereditos:",
+      "para": "            if True:",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "arquivo sem linha parecer nao conta",
+      "arquivo": "bin/forge-placar",
+      "de": "                if m:\n                    vereditos",
+      "para": "                if True:\n                    vereditos",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "so o aprovado conta como primeira rodada",
+      "arquivo": "bin/forge-placar",
+      "de": "lower() == \"aprovado\"",
+      "para": "lower() != \"aprovado\"",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "sem parecer, a primeira rodada e None",
+      "arquivo": "bin/forge-placar",
+      "de": "all(vereditos.values()) if vereditos else None",
+      "para": "all(vereditos.values()) if True else None",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_item_sem_parecer_e_assunto_sem_branch"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "so os itens do dia entram",
+      "arquivo": "bin/forge-placar",
+      "de": "if not na_janela(int(quando), cs) or not (",
+      "para": "if False or not (",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "item sem commit medido fica fora",
+      "arquivo": "bin/forge-placar",
+      "de": "        if commits:\n            itens.append",
+      "para": "        if True:\n            itens.append",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_squash_mede_pelos_commits_do_pr_e_conta_a_parte_sem_eles"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "assunto sem branch usa o sha curto",
+      "arquivo": "bin/forge-placar",
+      "de": "nome.group(1) if nome else sha[:8]",
+      "para": "nome.group(1) if True else sha[:8]",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_item_sem_parecer_e_assunto_sem_branch"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "o --dia vale sobre hoje",
+      "arquivo": "bin/forge-placar",
+      "de": "data(args.dia, \"--dia\") if args.dia else",
+      "para": "data(args.dia, \"--dia\") if False else",
+      "testes": [
+        "tests.evals.test_placar.Fases.test_fases_e_primeira_rodada_por_item_e_total_do_dia"
+      ]
+    }
+  ]
+}

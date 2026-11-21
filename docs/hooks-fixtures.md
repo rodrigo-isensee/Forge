@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3037 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3199 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,13 +10,13 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3037 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 125 | 66 | 59 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2265 | 1683 | 582 | 94 |
+| `conformidade` | 2368 | 1752 | 616 | 97 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 32 | 13 | 19 | 14 |
-| `parecer` | 529 | 407 | 122 | 24 |
-| `pesado` | 24 | 9 | 15 | 19 |
+| `parecer` | 583 | 448 | 135 | 27 |
+| `pesado` | 27 | 11 | 16 | 20 |
 | `quadro` | 7 | 2 | 5 | 7 |
-| `vigia` | 49 | 0 | 49 | 25 |
+| `vigia` | 51 | 0 | 51 | 26 |
 
 ## `agentes`
 
@@ -75,9 +75,11 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3037 fixtures) roda em `tests/test
 | `gitcomum-*` | 84 | 61 | 23 | `R-CONFORMIDADE` | `E20.6` | Volta 1 da E20.6 (v046, segurança E20.8 A5, sem falso positivo): `--target-directory=docs` segue livre. |
 | `v0453-*` | 81 | 57 | 24 | `R-FLUXO`, `R-CONFORMIDADE` | `V0453-GH-ALIAS`, `V0453-AQ-LEITURA`, `V0453-PARECER-BASH`, `V0453-PUSH-TODAS` | V0453-AQ-LEITURA: aq não prepara commit |
 | `heredoc-*` | 68 | 59 | 9 | `R-CONFORMIDADE`, `R-MAIN`, `R-REVIEW`, `R-VERIFY` | `HEREDOC-FURO-HOOK`, `C-8`, `HEREDOC-COMENTARIO`, `HEREDOC-DONOS` e mais 1 | A1 do review (volta 3): o mkdir e o cd antes do && não leem o corpo: o dono é o cat > n.md, que só o grava. |
+| `e51-*` | 59 | 40 | 19 | `R-CONFORMIDADE`, `R-VERIFY`, `R-MAIN`, `R-FLUXO` | `E51.6`, `E51.10`, `E51.1`, `E51.18` e mais 2 | E51.10 (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE): sessão do Forge com a pasta corrente no clone: o alias encadeado demais é trava. |
 | `merge-*` | 47 | 40 | 7 | `R-CONFORMIDADE`, `R-REVIEW`, `R-MAIN`, `R-DECISAO` | `FURO-HOOK-A`, `FILA-22`, `QA` | git merge main numa branch de trabalho (atualização): qualquer papel. |
 | `lancador-*` | 40 | 36 | 4 | `R-CONFORMIDADE`, `R-VERIFY` | — | Prefixo desembrulhado antes de classificar: command git commit --no-verify -m x |
 | `rotulo-*` | 40 | 31 | 9 | `R-CONTRIB` | `FURO-HOOK-A`, `ROTULO-VARIAVEL`, `HOOK-COMENTARIO-SHLEX` | Sessão do Forge: gh api em issues/N/labels, conta do dono. |
+| `pp-*` | 38 | 25 | 13 | — | `PARECER-PELO-PAPEL` | PARECER-PELO-PAPEL (v0478 E50.7, A3 da segurança; R-CONFORMIDADE): sessão do Forge, pasta corrente no clone, a regra de docs/pedidos/ (outra… |
 | `git-*` | 37 | 32 | 5 | `R-CONFORMIDADE` | — | `git checkout -- <arquivo comum>` e `git rm` de arquivo comum seguem livres: só o caminho protegido barra. |
 | `oraculo-*` | 36 | 19 | 17 | — | `EXT-1` | EXT-1 (C-7): `cat > tests/test_oraculo_x.py <<'F'` do tech-lead no oráculo bloqueia. |
 | `n5r-*` | 35 | 25 | 10 | `R-REVIEW`, `R-VERIFY`, `R-CONFORMIDADE` | — | N5 (review da 0.43.5): alias na linha troca o subcomando (commit na develop) |
@@ -113,6 +115,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3037 fixtures) roda em `tests/test
 | `m1-*` | 10 | 7 | 3 | — | — | M1 (review da 0.43.2): a linha de selo ou de conferência é da ferramenta; `cd docs/pedidos && cat >> p1.md <<'FIM'` com a conferência no cor… |
 | `crase-*` | 9 | 7 | 2 | `R-CONFORMIDADE` | `CRASE-ASPA-HOOK`, `CRASE-SESSAO-PROJETO` | Orçamento: 60 cd e 60 crases aninhadas terminando em push com --no-verify: o hook recusa sem estourar o timeout (a base recusava em 0,34 s). |
 | `erro-*` | 7 | 5 | 2 | — | — | Config corrompida e comando sem marcador: libera e registra. |
+| `estadoclone-*` | 6 | 4 | 2 | — | `AGENTES-JSON-SEM-GUARDA`, `CONFIG-TETO-SEM-GUARDA` | AGENTES-JSON-SEM-GUARDA: no clone do Forge, ler o agentes.json segue livre. |
 | `pedido-*` | 6 | 4 | 2 | — | `VV-2` | VV-2, A1: o dev não grava no pedido. |
 | `push-*` | 6 | 4 | 2 | `R-CONFORMIDADE`, `R-MAIN`, `R-VERIFY` | `AGENTE-NAO-EMENDA-ENVIADO` | git push -u origin <branch de trabalho>: livre. |
 | `api-*` | 5 | 3 | 2 | — | — | Comentário em PR por gh api: não é crítico. |
@@ -191,16 +194,19 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3037 fixtures) roda em `tests/test
 
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
-| `pasta-*` | 140 | 123 | 17 | `R-REVIEW` | `HK3-PARECER` | HK3-PARECER, PR A, volta 1: a pasta do git é a do bash e a do git; a partir de a integração, barra. |
+| `pasta-*` | 141 | 124 | 17 | `R-REVIEW` | `HK3-PARECER` | HK3-PARECER, PR A, volta 1: a pasta do git é a do bash e a do git; a partir de a integração, barra. |
 | `texto-*` | 84 | 65 | 19 | `R-REVIEW` | `HK3-PARECER`, `HOOK-TEXTO-COM-MERGE`, `PARECER-HOOK-DICA-EDIT` | HK3-PARECER, PR B (E2): o eval continua recusado, até com texto inofensivo. |
 | `heredoc-*` | 71 | 52 | 19 | `R-REVIEW`, `R-CONTRIB` | `HOOK-CONTRIB-HEREDOC-FP`, `HOOK-HEREDOC-PALAVRA-FP`, `HOOK-PARECER-HEREDOC-FALSO-POSITIVO`, `HOOK-REVIEW-HEREDOC-TIMEOUT` | HOOK-HEREDOC-PALAVRA-FP, caso verdadeiro (A3 da segurança E2.15): a chave de sequência no meio do nome (bin/g{r..r}ep) o bash expande para b… |
 | `forge-*` | 61 | 50 | 11 | `R-REVIEW`, `R-CONTRIB` | `FURO-HOOK-A`, `HOOK-COMENTARIO-SHLEX`, `CRASE-ASPA-HOOK`, `FD1` e mais 1 | A1 do review: git commit -m com heredoc que cita merge e tem apóstrofo no corpo. |
 | `pr-*` | 46 | 32 | 14 | `R-REVIEW`, `R-CONTRIB`, `R-SEGURANCA`, `R-QA` e mais 1 | `K-164`, `PR`, `PR-HOOK-RAPIDO` | K-164: base escolhida pelo autor fora de develop, homolog e main (aqui uma branch copiada da develop): não afrouxa; fica o modo estrito e o… |
+| `incidente-*` | 38 | 29 | 9 | `R-REVIEW` | `INCIDENTE-HOOK-PARECER-CONTORNADO`, `GH-REPO-DE-ARQUIVO`, `GH-REMOTO-RESOLVIDO`, `GH-REPO-EXPORTADO` | GH-REPO-EXPORTADO (A5 da E3.8, sonda S9): numa cópia alheia, GH_REPO mexido antes na linha é repositório indicado que o hook não lê: recusa. |
 | `v0454-*` | 30 | 26 | 4 | `R-REVIEW` | `V0454-GH-ALIAS-PARECER` | V0454-GH-ALIAS-PARECER: alias `gh m` = api de merge com `$1` |
 | `fila27-*` | 22 | 14 | 8 | `R-REVIEW` | `FILA-27` | FILA-27 A1 (S7b): no clone do Forge com .forge/versao, o manifesto vence o hooks_desligados; gh pr merge sem parecer barra. |
 | `continuacao-*` | 16 | 15 | 1 | `R-REVIEW` | `HOOK-CONTINUACAO-LINHA` | HOOK-CONTINUACAO-LINHA (A4 do review, volta 4): $'…' e \ + quebra de linha na mesma linha; as formas compostas até o ponto fixo recusam. |
 | `pn7-*` | 13 | 3 | 10 | `R-REVIEW` | `PN7-DOLAR-INTERROG` | PN7-DOLAR-INTERROG (H1-1, ADR 0011): continua barrado. |
+| `leitura-*` | 9 | 7 | 2 | — | `GH-API-LEITURA-UNICA` | GH-API-LEITURA-UNICA: `--input=@q.json` lê o arquivo `@q.json` (o `@` é do `-F`, não do `--input`), e o hook lia q.json. |
 | `atualiza-*` | 6 | 3 | 3 | `R-REVIEW` | `PARECER-BARRA-FETCH` | PARECER-BARRA-FETCH, o que segue barrado: na develop, fetch e merge --ff-only da branch com review reprovado é a entrada na integração. |
+| `graphql-*` | 6 | 4 | 2 | — | `GH-API-ARQUIVO-TROCADO`, `GRAPHQL-FORA-DO-CLONE` | GH-API-ARQUIVO-TROCADO (A4 da E3.4): só o cd antes do gh não troca arquivo: a consulta de leitura passa. |
 | `merge-*` | 6 | 3 | 3 | — | `FURO-HOOK-A` | git merge --abort não mescla nada. |
 | `api-*` | 5 | 3 | 2 | `R-CONTRIB` | — | gh api só lendo o PR: libera. |
 | `checkout-*` | 5 | 2 | 3 | — | — | `git checkout develop --` sem caminho é troca de branch; o merge na develop sem parecer bloqueia. |
@@ -220,6 +226,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3037 fixtures) roda em `tests/test
 
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
+| `forgetestes-*` | 3 | 2 | 1 | `R-TETO` | `PESADO-VERSOES-FORA-DA-FILA` | PESADO-VERSOES-FORA-DA-FILA: o teste dirigido pelas opções da lista fechada segue leve com a trava ocupada. |
 | `sem-*` | 3 | 0 | 3 | — | — | Projeto sem .forge/versao: o hook não age. |
 | `mutacao-*` | 2 | 1 | 1 | `R-TETO` | `TM-25` | TM-25: Stryker de outra sessão ativo; o teste de banco da lista da stack espera (um por vez). |
 | `outra-*` | 2 | 2 | 0 | — | `HOOK-COMENTARIO-SHLEX` | HOOK-COMENTARIO-SHLEX (ADR 0013): a linha que a leitura fiel não lê é lida pela antiga: o pesado continua visto. |
@@ -229,13 +236,13 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3037 fixtures) roda em `tests/test
 | `comando-*` | 1 | 0 | 1 | — | — | Comando fora da lista de pesados: não lê nem grava estado. |
 | `erro-*` | 1 | 0 | 1 | — | — | Trava corrompida: libera e registra em erros.log. |
 | `expirado-*` | 1 | 0 | 1 | — | — | Trava com mais de 2 h (expiracao_horas) expira. |
-| `falha-*` | 1 | 0 | 1 | — | — | PostToolUseFailure do mesmo comando também solta a trava. |
+| `falha-*` | 1 | 0 | 1 | — | — | PostToolUseFailure do mesmo comando também solta a trava. A soltura grava null e não apaga o arquivo (E29.6: o sandbox recriaria o arquivo n… |
 | `lancador-*` | 1 | 1 | 0 | `R-TETO` | — | — |
 | `lista-*` | 1 | 1 | 0 | `R-TETO` | — | pesados do .forge/config.json substituem os padrões. |
 | `livre-*` | 1 | 0 | 1 | — | — | Nenhuma tarefa pesada ativa: libera e grava a trava. |
 | `mesma-*` | 1 | 0 | 1 | — | — | Trava da própria sessão (permissão negada, Post que não chegou): não bloqueia e é renovada. |
 | `outro-*` | 1 | 1 | 0 | — | — | Mesma sessão, mas a trava é de um subagente (agent_id): bloqueia. |
-| `permissao-*` | 1 | 0 | 1 | — | — | PermissionDenied (modo auto) do mesmo comando solta a trava. |
+| `permissao-*` | 1 | 0 | 1 | — | — | PermissionDenied (modo auto) do mesmo comando solta a trava. A soltura grava null e não apaga o arquivo (E29.6: o sandbox recriaria o arquiv… |
 | `pid-*` | 1 | 0 | 1 | — | — | Trava de sessão encerrada (PID morto) não vale. |
 | `teste-*` | 1 | 1 | 0 | `R-TETO` | `TM-25` | TM-25: teste de banco de outra sessão ativo; o Stryker da lista da stack espera (um por vez). |
 | `teto-*` | 1 | 1 | 0 | — | — | Orkastery 5: ocupado, espera na fila até o teto e recusa dizendo a posição. |
@@ -261,6 +268,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3037 fixtures) roda em `tests/test
 | `bloqueio-*` | 3 | 0 | 3 | — | — | Bloqueio de outra sessão não vale nesta. |
 | `contorno-*` | 3 | 0 | 3 | — | — | O bloqueio fica no estado: a nova tentativa em outro turno (outro Stop) também é contorno. |
 | `medida-*` | 3 | 0 | 3 | — | `AV3` | AV3 etapa 1: o SubagentStop grava em comandos.jsonl a forma de cada comando crítico com o papel (do agent_type no subagente; da sessão sem a… |
+| `e51-*` | 2 | 0 | 2 | — | `E51.1` | E51.1 (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE): sessão do Forge (clone sem .forge/versao): o contorno do R-MAIN é avisado e gravado em .f… |
 | `em-*` | 2 | 0 | 2 | — | — | Arquivo em vigor muda depois do SessionStart: aviso ao usuário e registro. |
 | `f-*` | 2 | 0 | 2 | — | — | Achado F: o `commondir` escrito fora dos hooks no clone principal, com o `.forge/versao` fora: a marca não se consulta, falha fechado e o vi… |
 | `leitura-*` | 2 | 0 | 2 | — | — | Push em main barrado (R-MAIN) e depois `git log main`: leitura, não contorno. |

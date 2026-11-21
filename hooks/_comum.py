@@ -2499,6 +2499,16 @@ def ler_json(caminho, padrao):
     return json.loads(caminho.read_text(encoding="utf-8"))
 
 
+def ler_trava(caminho):
+    """A trava `pesado.json` (SANDBOX-TRAVA-CONTROLE, A2 da segurança): None quando não há trava, isto é, arquivo ausente, de 0
+    byte (o ponto de montagem vazio 0444 que o runtime do sandbox cria para caminho negado que não existia) ou `null` (o que o
+    hook grava ao soltar, no lugar de apagar). Conteúdo que é JSON inválido continua levantando, como `ler_json`."""
+    if not caminho.exists():
+        return None
+    texto = caminho.read_text(encoding="utf-8")
+    return json.loads(texto) if texto.strip() else None
+
+
 def caminhos_extra(raiz):
     """0.45.4: (pastas, avisos) da chave opcional `caminhos_extra` do `.forge/config.json` da raiz, a mesma leitura do
     `.githooks/pre-push` do modelo de projeto: as pastas que o hook soma ao fim do PATH de quem ele roda (as ferramentas da
@@ -2550,7 +2560,12 @@ def so_do_usuario(pasta):
 
 def gravar_json(caminho, dados):
     tmp = caminho.with_name(caminho.name + f".{os.getpid()}.tmp")
-    tmp.write_text(json.dumps(dados, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    # O_EXCL|O_NOFOLLOW: link plantado em `<alvo>.<pid>.tmp` não é seguido (A5 da segurança, E29.11); sobra de pid antigo sai antes
+    if os.path.lexists(tmp):
+        os.unlink(tmp)
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o666)
+    with os.fdopen(fd, "w", encoding="utf-8") as saida:
+        saida.write(json.dumps(dados, ensure_ascii=False, indent=1) + "\n")
     os.replace(tmp, caminho)
 
 
@@ -2820,17 +2835,18 @@ def _vencer(signo, quadro):
 
 
 @contextmanager
-def vigia_de_prazo(segundos):
-    """Arma o alarme de `segundos` s (None: não arma) e o desarma na saída, por qualquer caminho."""
+def vigia_de_prazo(segundos, armar):
+    """Arma o alarme de `segundos` s (None: não arma) e o desarma na saída, por qualquer caminho; entrega se armou.
+    `armar` (BP1): o `signal.setitimer`, ou o vigia falso de um teste em processo (`executar`)."""
     if not segundos or not hasattr(signal, "setitimer") or threading.current_thread() is not threading.main_thread():
-        yield
+        yield False
         return
     anterior = signal.signal(signal.SIGALRM, _vencer)
-    signal.setitimer(signal.ITIMER_REAL, segundos)
+    armar(signal.ITIMER_REAL, segundos)
     try:
-        yield
+        yield True
     finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
+        armar(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, anterior)
 
 
@@ -2850,38 +2866,39 @@ def prazo_vencido(hook, critico, bruto, clone_do_forge, regra):
                     f"lento): recusa, em vez de deixar o timeout liberá-la. Corrigir: {como}")
 
 
-def estender_prazo(hook, prazo_longo, inicio):
-    """Com o vigia armado e a linha da entrada casando `prazo_longo` (regex), troca o prazo por `PRAZO_DO_MERGE_S` contado
-    de `inicio`; nunca o encurta. Lê a entrada direto, sem `Hook.campo` (o marcador é a 1.a leitura do hook)."""
+def estender_prazo(hook, prazo_longo, inicio, relogio, armar):
+    """Com o vigia armado (quem chama confere) e a linha da entrada casando `prazo_longo` (regex), troca o prazo por
+    `PRAZO_DO_MERGE_S` contado de `inicio` no `relogio`, rearmando por `armar`; nunca o encurta. Lê a entrada direto, sem
+    `Hook.campo` (o marcador é a 1.a leitura do hook)."""
     entrada = hook.entrada.get("tool_input")
     comando = entrada.get("command") if isinstance(entrada, dict) else None
     if not isinstance(comando, str) or not prazo_longo.search(comando) or PRAZO_DO_MERGE_S <= hook.prazo_s:
         return
-    if not hasattr(signal, "getitimer") or signal.getitimer(signal.ITIMER_REAL)[0] <= 0:
-        return
     hook.prazo_s = PRAZO_DO_MERGE_S
-    signal.setitimer(signal.ITIMER_REAL, max(PRAZO_DO_MERGE_S - (time.monotonic() - inicio), 0.001))
+    armar(signal.ITIMER_REAL, max(PRAZO_DO_MERGE_S - (relogio() - inicio), 0.001))
 
 
-def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None, prazo_longo=None):
+def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None, prazo_longo=None, *,
+             relogio=time.monotonic, armar=getattr(signal, "setitimer", None)):
     """Lê o JSON do stdin, chama `funcao(hook)` e sai com 0; `bloquear` sai com 2. `critico` (regex) liga a falha
     fechada seletiva (`clone_do_forge`: também no clone do Forge); `FORGE_GUARDA_ABERTA=1` no ambiente do processo
     (só o dono) abre a guarda desses hooks. `regra_do_prazo` (a regra que o hook cita ao recusar) liga o vigia de prazo:
     o marcador se calcula primeiro, e a decisão toda roda sob `PRAZO_DA_DECISAO_S`; com a linha casando `prazo_longo`
-    (regex), sob `PRAZO_DO_MERGE_S` (`estender_prazo`)."""
+    (regex), sob `PRAZO_DO_MERGE_S` (`estender_prazo`). `relogio` e `armar` (BP1, só por palavra-chave): o relógio e o
+    alarme do vigia; só um teste em processo os troca (relógio falso), e nenhum hook nem o driver do lote os passa."""
     hook = Hook(nome)
     bruto = sys.stdin.read()
     if critico is not None and os.environ.get("FORGE_GUARDA_ABERTA") == "1":
         sys.exit(0)
     try:
         hook.prazo_s = PRAZO_DA_DECISAO_S if regra_do_prazo and critico is not None else None
-        inicio = time.monotonic()
-        with vigia_de_prazo(hook.prazo_s):
+        inicio = relogio()
+        with vigia_de_prazo(hook.prazo_s, armar) as armado:
             entrada = json.loads(bruto or "{}")
             if isinstance(entrada, dict):
                 hook.entrada = entrada
-                if hook.prazo_s and prazo_longo is not None:
-                    estender_prazo(hook, prazo_longo, inicio)
+                if armado and prazo_longo is not None:
+                    estender_prazo(hook, prazo_longo, inicio, relogio, armar)
                 if critico is not None:
                     marcado(hook, critico, bruto)
                     barrar_sem_versao(hook, critico, bruto)

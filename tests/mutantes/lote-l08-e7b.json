@@ -48,7 +48,7 @@
       "id": "M52",
       "guarda": "o head precisa ser a ponta da integração (A9)",
       "arquivo": "bin/forge-check",
-      "de": "return bool(head) and any(head == ref_da_base(raiz, b) for b in anteriores)",
+      "de": "return bool(head) and any(ponta_da_integracao(raiz, head, b) for b in anteriores)",
       "para": "return bool(head)",
       "testes": [
         "tests.test_forge.ConferenciaPresaAoHead.test_promocao_nao_cobra_a_conferencia_e_branch_de_trabalho_segue_cobrada"

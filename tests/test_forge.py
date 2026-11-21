@@ -1812,15 +1812,15 @@ class PrepararEstacao(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
 
     @staticmethod
-    def _sem_gh(env, tmp):
-        """PATH sem o gh real: cada pasta que o tem vira uma pasta de links para o resto."""
+    def _sem_gh(env, tmp, nome="gh"):
+        """PATH sem o `nome` real (gh): cada pasta que o tem vira uma pasta de links para o resto."""
         novas = []
         for k, q in enumerate(env["PATH"].split(":")):
-            if (Path(q) / "gh").exists():
-                copia = Path(tmp) / f"sem-gh{k}"
-                copia.mkdir()
+            if (Path(q) / nome).exists():
+                copia = Path(tmp) / f"sem-{nome}{k}"
+                copia.mkdir(exist_ok=True)
                 for item in Path(q).iterdir():
-                    if item.name != "gh":
+                    if item.name != nome and not (copia / item.name).is_symlink():
                         (copia / item.name).symlink_to(item)
                 q = str(copia)
             novas.append(q)
@@ -1993,6 +1993,7 @@ class PrepararEstacao(unittest.TestCase):
                 self.assertNotRegex(cmd, r"refs/remotes|origin/main|\bshow\b")  # nada de ref local
                 self.assertTrue(cmd.rstrip().endswith("; true"), "falha do preparo não pode impedir o container de subir")
                 self.assertNotRegex(texto, r"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|localEnv")
+                self.assertEqual(cfg.get("shutdownAction"), "none", "D2 da BP3: fechar o VS Code não para o container")
         self.assertIn("FORGE_PREPARO_ESSENCIAL=1", self._cfg_devcontainer(".devcontainer/devcontainer.json")[1]["postStartCommand"])
 
     def _poststart(self, tmp, caminho, script, main_script, local_script):
@@ -2097,7 +2098,7 @@ class PrepararEstacao(unittest.TestCase):
             self.assertEqual(r.returncode, 1)
             self.assertIn("falta: gh não instalado: rode bash ", r.stdout)
 
-    def _projeto_ambiente(self, tmp, *args, logado=False, sem_gh=False, extras=None):
+    def _projeto_ambiente(self, tmp, *args, logado=False, sem_gh=False, sem_tmux=False, extras=None):
         """Roda o preparar-ambiente.sh do modelo de projeto com gh falso e home descartável."""
         tmp = Path(tmp)
         home, persist, bin_falso, proj = tmp / "home", tmp / "persist", tmp / "bin", tmp / "proj"
@@ -2108,6 +2109,8 @@ class PrepararEstacao(unittest.TestCase):
         registro = tmp / "chamadas"
         falsos = {} if sem_gh else {"gh": f'echo "gh $*" >> "{registro}"\n[ "$1 $2" = "auth status" ] && exit {0 if logado else 1}\nexit 0\n'}
         falsos.update({n: f'echo "{n} $*" >> "{registro}"\nexit 1\n' for n in ("sudo", "curl", "apt-get")})
+        if not sem_tmux:
+            falsos["tmux"] = "exit 0\n"
         falsos.update(extras or {})
         for nome, corpo in falsos.items():
             (bin_falso / nome).write_text("#!/bin/sh\n" + corpo)
@@ -2117,6 +2120,8 @@ class PrepararEstacao(unittest.TestCase):
                    FORGE_APT_CHAVE=str(tmp / "apt-chave.gpg"), FORGE_APT_LISTA=str(tmp / "apt-gh.list"))
         if sem_gh:
             self._sem_gh(env, tmp)
+        if sem_tmux:
+            self._sem_gh(env, tmp, "tmux")
         r = subprocess.run(["bash", str(RAIZ / "templates/projeto/.devcontainer/preparar-ambiente.sh"), *args], env=env,
                            capture_output=True, text=True, stdin=subprocess.DEVNULL)
         return r, home, persist, proj, (registro.read_text() if registro.exists() else "")
@@ -2148,6 +2153,56 @@ class PrepararEstacao(unittest.TestCase):
             self.assertEqual(r.returncode, 1)
             self.assertIn("falta: login do gh:", r.stdout)
             self.assertIn("fez: core.hooksPath=.githooks", r.stdout)
+
+    def test_modelo_de_projeto_instala_tmux_pelo_apt_e_verificar_lista_a_falta(self):
+        """BP3 S2: sem tmux, o preparo o instala pelo apt do sistema (sem chave nova) e o --verificar diz `falta: tmux`."""
+        with tempfile.TemporaryDirectory() as tmp:
+            r, _, _, proj, _ = self._projeto_ambiente(tmp, "--verificar", logado=True, sem_tmux=True)
+            self.assertEqual(r.returncode, 1)
+            self.assertIn(f"falta: tmux não instalado (a sessão do Jarvis não sobrevive a uma queda do terminal sem ele): rode bash {proj}/", r.stdout)
+            apt = {"sudo": 'exec "$@"\n', "apt-get": f'echo "apt-get $*" >> "{Path(tmp) / "chamadas"}"\nexit 0\n'}
+            r, _, _, _, chamadas = self._projeto_ambiente(tmp, logado=True, sem_tmux=True, extras=apt)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn("fez: instalou tmux", r.stdout)
+            self.assertIn("apt-get install -y -qq tmux", chamadas)
+        with tempfile.TemporaryDirectory() as tmp:
+            r, *_ = self._projeto_ambiente(tmp, logado=True, sem_tmux=True)  # apt falso falha: a falta aparece e sai 1
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("falta: instalar tmux", r.stdout)
+
+    def test_modelo_de_projeto_vscode_so_anexa_ao_jarvis_existente_e_container_nao_para(self):
+        """BP3 S2 (D2, D3 do dono): a tarefa roda ao abrir a pasta, só anexa ao tmux que já existe (nunca `new-session`) e o
+        container do modelo não para ao fechar o VS Code."""
+        tarefas = json.loads((RAIZ / "templates/projeto/.vscode/tasks.json").read_text(encoding="utf-8"))["tasks"]
+        self.assertEqual(len(tarefas), 1)
+        t = tarefas[0]
+        self.assertEqual(t["runOptions"], {"runOn": "folderOpen"})
+        self.assertIn("tmux has-session", t["command"])
+        self.assertIn("tmux attach-session", t["command"])
+        self.assertNotIn("new-session", t["command"])
+        self.assertEqual(self._cfg_devcontainer("templates/projeto/.devcontainer/devcontainer.json")[1]["shutdownAction"], "none")
+
+    def test_tarefa_do_vscode_anexa_a_sessao_existente_e_nao_cria_outra(self):
+        """O comando literal da tarefa, com tmux falso: sessão presente -> attach da sessão exata; ausente -> aviso, sem criar nada."""
+        cmd = json.loads((RAIZ / "templates/projeto/.vscode/tasks.json").read_text(encoding="utf-8"))["tasks"][0]["command"]
+        for existe in (True, False):
+            with self.subTest(existe=existe), tempfile.TemporaryDirectory() as tmp:
+                tmp = Path(tmp)
+                proj, bin_falso, reg = tmp / "meu.proj", tmp / "bin", tmp / "chamadas"
+                proj.mkdir()
+                bin_falso.mkdir()
+                (bin_falso / "tmux").write_text(f'#!/bin/sh\necho "$*" >> "{reg}"\n[ "$1" = has-session ] && exit {0 if existe else 1}\nexit 0\n')
+                (bin_falso / "tmux").chmod(0o755)
+                env = ambiente_limpo()
+                env["PATH"] = f"{bin_falso}:{env['PATH']}"
+                r = subprocess.run(["bash", "-c", cmd], cwd=proj, env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+                chamadas = reg.read_text().splitlines()
+                self.assertEqual(r.returncode, 0, r.stderr)
+                if existe:
+                    self.assertEqual(chamadas, ["has-session -t =jarvis-meu_proj", "attach-session -t =jarvis-meu_proj"])
+                else:
+                    self.assertEqual(chamadas, ["has-session -t =jarvis-meu_proj"])
+                    self.assertIn("Nenhum Jarvis aberto", r.stdout)
 
     def test_modelo_de_projeto_recusa_opcao_desconhecida(self):
         r = subprocess.run(["bash", str(RAIZ / "templates/projeto/.devcontainer/preparar-ambiente.sh"), "--x"], capture_output=True, text=True)
@@ -6465,6 +6520,7 @@ class LerDirigidoDoBrief(RepoComOrigem):
         self.assertEqual(rc, 0, saida + erro)
         ler = self.ler(saida)
         self.assertIn("bin/forge-fechar p1 --ref melhoria/x --dry-run", ler)
+        self.assertIn("a base entra só por `git merge origin/develop` (nunca a cópia local nem outra branch", ler)  # E47.1
         self.assertNotIn("docs/pedidos/p1.md", ler)
         self.assertIn("modelo: haiku", erro)
         self.assertIn("git merge-base --is-ancestor <mergeCommit> origin/develop", saida)  # o PQ do merge segue no brief (C-09)
@@ -7175,20 +7231,81 @@ class BloqueanteSoComDefeitoProvado(unittest.TestCase):
                     self.assertIn(frase, texto)
 
 
-class PesosDaSuite(unittest.TestCase):
-    """C5: o peso só equilibra a divisão, mas sem peso a mediana chuta; avisa quando passa de 20% sem peso."""
+MEDIR_PESO = "python3 scripts/suite-paralela.py --medir <módulo>"
 
-    def test_no_maximo_20_por_cento_dos_modulos_sem_peso(self):
-        modulos = sorted(p.stem for p in (RAIZ / "tests").glob("test*.py") if p.stem.isidentifier())
+
+def modulos_de_teste(caminhos):
+    """Os módulos de teste entre os `caminhos` (relativos à raiz, com `/`), como o `modulos()` do suite-paralela: os
+    `tests/test*.py` da raiz e os dos pacotes (pasta com `__init__.py` em todo nível), estes pelo nome com ponto."""
+    caminhos = set(caminhos)
+    nomes = set()
+    for c in caminhos:
+        partes = c.split("/")
+        if partes[0] != "tests" or len(partes) < 2 or not partes[-1].startswith("test") or not partes[-1].endswith(".py"):
+            continue
+        partes = [*partes[1:-1], partes[-1][:-3]]
+        if all(x.isidentifier() for x in partes) and all(
+                "/".join(["tests", *partes[:i + 1], "__init__.py"]) in caminhos for i in range(len(partes) - 1)):
+            nomes.add(".".join(partes))
+    return nomes
+
+
+def violacoes_de_peso(modulos_base, pesos_base, modulos_head, pesos_head):
+    """PR-VERDE C1 (D4): a regra é por PR. Devolve (novos sem peso, os que perderam o peso): módulo que o PR cria
+    precisa do peso medido; módulo da base que tinha peso não o perde. O sem peso que já vinha da base passa: a marca
+    de versão regera os pesos pelo CI (`scripts/pesos-do-ci.py`)."""
+    novos = sorted(m for m in modulos_head - modulos_base if m not in pesos_head)
+    perdidos = sorted(m for m in modulos_head & modulos_base if m in pesos_base and m not in pesos_head)
+    return novos, perdidos
+
+
+def base_do_pr():
+    """O merge-base do HEAD com a `origin/develop` (no CI do PR, a ponta da base; na develop, o próprio HEAD)."""
+    r = subprocess.run(["git", "-C", str(RAIZ), "merge-base", "HEAD", "refs/remotes/origin/develop"],
+                       capture_output=True, text=True, env=ambiente_limpo())
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+class PesosDaSuite(unittest.TestCase):
+    """PR-VERDE C1 (D4 do desenho v0479-pr-verde-de-primeira): o peso só equilibra a divisão; a regra global de 20% sem
+    peso vira regra por PR: o PR não aumenta os módulos sem peso além dos que já vinham da base."""
+
+    def test_pr_nao_aumenta_os_modulos_sem_peso(self):
+        base = base_do_pr()
+        self.assertTrue(base, "sem merge-base do HEAD com a origin/develop: a regra de pesos por PR não se confere "
+                              "(busque a develop: git fetch origin develop)")
+        arvore = subprocess.run(["git", "-C", str(RAIZ), "ls-tree", "-r", "--name-only", base, "--", "tests"],
+                                capture_output=True, text=True, env=ambiente_limpo(), check=True).stdout.split()
+        lido = subprocess.run(["git", "-C", str(RAIZ), "show", f"{base}:tests/pesos-d4.json"],
+                              capture_output=True, text=True, env=ambiente_limpo())
+        pesos_base = json.loads(lido.stdout) if lido.returncode == 0 else {}
+        # `(RAIZ / "tests").rglob` em linha: variável local não conta como quem varre tests/ (test_testes_tocados C.2)
+        arquivos = [*(RAIZ / "tests").rglob("test*.py"), *(RAIZ / "tests").rglob("__init__.py")]
+        head = modulos_de_teste(p.relative_to(RAIZ).as_posix() for p in arquivos)
+        minimo(head, 100, "módulos de teste")
         pesos = json.loads((RAIZ / "tests" / "pesos-d4.json").read_text(encoding="utf-8"))
-        sem_peso = [m for m in modulos if m not in pesos]
-        self.assertGreaterEqual(len(modulos), 1)
-        self.assertLessEqual(
-            len(sem_peso) * 5,
-            len(modulos),
-            f"{len(sem_peso)} de {len(modulos)} módulos sem peso ({', '.join(sem_peso)}); "
-            "regrave com FORGE_SUITE_MEDIR=1 python3 scripts/suite-paralela.py",
+        novos, perdidos = violacoes_de_peso(modulos_de_teste(arvore), pesos_base, head, pesos)
+        self.assertEqual(novos, [], f"módulo de teste novo sem peso em tests/pesos-d4.json; meça cada um com {MEDIR_PESO}")
+        self.assertEqual(perdidos, [], "módulo que tinha peso na base o perdeu em tests/pesos-d4.json; devolva o peso "
+                                       f"ou meça de novo com {MEDIR_PESO}")
+
+    def test_regra_por_pr(self):
+        base, pesos_base = {"test_a", "test_b"}, {"test_a": 1.0}
+        casos = (
+            ({"test_a", "test_b"}, {"test_a": 1.0}, [], []),  # o sem peso da base passa
+            ({"test_a", "test_b", "test_c"}, {"test_a": 1.0}, ["test_c"], []),  # novo sem medida reprova
+            ({"test_a", "test_b", "test_c"}, {"test_a": 1.0, "test_c": 0.4}, [], []),  # novo medido passa
+            ({"test_a", "test_b"}, {}, [], ["test_a"]),  # tirar o peso de módulo existente reprova
+            ({"test_b"}, {}, [], []),  # módulo apagado com o peso dele passa
         )
+        for head, pesos, novos, perdidos in casos:
+            with self.subTest(head=sorted(head), pesos=pesos):
+                self.assertEqual(violacoes_de_peso(base, pesos_base, head, pesos), (novos, perdidos))
+
+    def test_modulos_de_pacote_e_da_raiz(self):
+        caminhos = ["tests/test_a.py", "tests/apoio.py", "tests/p/__init__.py", "tests/p/test_b.py",
+                    "tests/sem_init/test_c.py", "tests/test-d.py", "bin/test_e.py"]
+        self.assertEqual(modulos_de_teste(caminhos), {"test_a", "p.test_b"})
 
 
 class EsperaDoPushEVerificadores(unittest.TestCase):

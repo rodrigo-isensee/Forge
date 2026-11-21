@@ -7,7 +7,8 @@ flags proibidas (`--no-verify`, `--force`, `core.hooksPath`). Write/Edit decidem
 (garantido); o Bash é lido como texto (barrado em regra: um script ou ofuscação passa, e o sandbox é a garantia).
 PostToolUse registra a autoria dos pareceres em `.forge/run/autoria.jsonl`.
 Falha fechado nas ações críticas (seção 7); `FORGE_GUARDA_ABERTA=1` no ambiente do processo abre a guarda.
-Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB).
+Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB). Na
+sessão do Forge, fora de projeto, valem as travas (R-MAIN, R-VERIFY, push para a integração, tag v*) para todo papel.
 """
 import collections
 import contextlib
@@ -36,7 +37,7 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TET
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, expandir_home, fora_da_gramatica_com_heredoc,
                     expandir_heredoc, fora_da_gramatica_de_leitura, FORMA_DO_HEREDOC, heredocs, motivo_da_reavaliacao,
                     forge_check, git, leituras, mensagem, nome_da_branch, nome_do_caminho, raiz_declarada, raiz_do_projeto, reavaliacao,
-                    sem_atribuicoes, separar_lancadores, SHELLS, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
+                    ANTES_DO_PROGRAMA, palavras_do_texto, sem_atribuicoes, separar_lancadores, SHELLS, subcomando_do_git, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
 # custo de uma conferência cresce com o tamanho do texto, então o número delas não basta (A1 do review): conta também os
 # caracteres somados e o tempo, com folga para o timeout do hooks.json (10 s), que o Claude Code trata como liberado.
@@ -337,6 +338,25 @@ PROVA_DA_SUITE = ("R-VERIFY", "a prova da suíte só é gravada pelo pre-push e 
 # também fora de projeto (a `GuardaDaProva` a deixa passar), e não só quando ela aponta para o Forge.
 PROFUNDIDADE_EXCEDIDA = ("R-CONFORMIDADE", f"comando aninhado (bash -c, eval, $(, crase, heredoc) em mais de {PROFUNDIDADE} "
                          "níveis: o hook não o lê", f"rode o comando direto, com no máximo {PROFUNDIDADE} níveis aninhados")
+# CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE (v0478 E51.1): na sessão do Forge com a pasta corrente fora de projeto (o
+# clone, `wt/*`), as travas valem para todo papel na `GuardaDaProva`: R-MAIN, R-VERIFY, o push direto para a integração
+# e a tag v* (`trava_da_sessao_do_forge`). O resto da linha segue livre (ADR 0009, seção 6).
+# E51.6: a marca vai no `barrar` (`trava=`), não no texto da recusa. `TRAVA`: vale sempre (o push direto para a integração,
+# a tag v*; R-MAIN e R-VERIFY valem pelo ID). `TRAVA_OPACA`: o alvo opaco com ação crítica (variável, reavaliação, heredoc
+# fora da gramática), que pode esconder uma trava (`F=--force; git push $F`, `B=develop; git push origin $B`); vale quando
+# um comando da linha pode ser uma trava (`toca_uma_trava`); a que só cita um caminho crítico segue livre. `TRAVA_NO_TETO`:
+# a linha acima do teto, que o hook não lê, pelo texto (`GIT_NO_TEXTO`).
+TAG_E_VERSAO = "a tag v* é a versão que todos os projetos instalam"
+PUSH_DIRETO = "push direto para"
+TRAVA, TRAVA_OPACA, TRAVA_NO_TETO = "trava", "trava-opaca", "trava-no-teto"
+# Lista positiva do que não chega a uma trava (AR-15): o subcomando do git e as duas primeiras palavras do gh que só leem
+# ou mexem na árvore; o resto (alias, `send-pack`, `am`, `fetch` para uma branch, `release create`) é trava.
+GIT_FORA_DAS_TRAVAS = {"add", "blame", "cat-file", "describe", "diff", "grep", "log", "ls-files", "ls-remote", "ls-tree",
+                       "restore", "rev-list", "rev-parse", "shortlog", "show", "stash", "status", "worktree"}
+GH_FORA_DAS_TRAVAS = {"pr view", "pr list", "pr checks", "pr diff", "pr status", "pr edit", "run view", "run list",
+                      "issue view", "issue list", "repo view", "release view", "release list"}
+OPACA_NA_PALAVRA = re.compile(r"[$`]")  # a palavra que o bash expande: o hook não sabe o valor
+GIT_NO_TEXTO = re.compile(r"(?<![\w./-])(?:git|gh)(?=\s)")  # o git ou o gh como palavra, não `.git/` nem `x-git`
 COLCHETE_DE_DIGITO = re.compile(r"\[[0-9-]+\]")  # o bash e o glob do Python o leem igual: sem caixa, negação nem classe
 CURINGA = re.compile(r"[*?\[]")  # o bash expande no alvo antes de gravar (A1 e A2 da segurança g1 da 0.45)
 MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
@@ -896,6 +916,17 @@ UM_ATO_SIMPLES = re.compile(r"\s*git\s+(reset|clean|checkout|restore)(\s+[^\s;&|
 ATO_FORA_DA_COPIA = re.compile(r"(^|\s)(-C|--work-tree|--git-dir|--work-tree=\S*|--git-dir=\S*)(\s|$)|GIT_DIR|GIT_WORK_TREE|\b(cd|pushd)\b")
 REBASE_COM_VALOR = {"--onto", "-s", "--strategy", "-X", "--strategy-option", "-x", "--exec", "-C"}
 REMOCAO = {"rm", "mv", "rmdir", "unlink", "shred"}
+# A2 da segurança (v0478; C9 de docs/security/v047-v2-ameacas.md): comandos que escrevem ou removem por opção. O modo, o dono
+# e os atributos mudam o acesso ao alvo e, com `-R`, ao que há dentro: escrita nos operandos e remoção do ancestral.
+MUDA_ATRIBUTO = {"chmod", "chown", "chgrp", "setfacl", "chattr"}
+FIND_EXECUTA = {"-exec", "-execdir", "-ok", "-okdir"}  # roda o comando até `;` ou `+`, com `{}` trocado pelo achado
+FIND_GRAVA = {"-fprint", "-fprint0", "-fprintf", "-fls"}  # grava no arquivo seguinte
+TAR_GRAVA = {"create", "append", "update", "concatenate", "catenate", "delete"}  # modos que gravam no arquivo de `-f`
+TAR_COM_VALOR = "bCfFgHIKLNTVX"  # letras curtas do GNU tar com valor, colado (`-C.git`) ou na palavra seguinte
+TAR_EXECUTA = {"to-command", "use-compress-program", "info-script", "new-volume-script", "rsh-command", "rmt-command",
+               "checkpoint-action"}  # rodam o valor (o `checkpoint-action`, o que vem depois de `exec=`)
+LONGAS_EXATAS = {"checkpoint"}  # nome exato de opção que é prefixo de outra (`--checkpoint-action`): não a abrevia
+Alvos = collections.namedtuple("Alvos", "pastas arquivos removidos executados")  # o que um `EXTRATORES` faz por opção
 
 # Papel só de leitura: o `git ls-remote` aceita só estas opções (`--upload-pack`, `-u` e `--exec` rodam um programa num
 # shell); nos demais subcomandos da lista, a opção que executa programa ou grava arquivo recusa, mesmo abreviada.
@@ -1029,6 +1060,170 @@ def script_do_sed(arg):
         return arg.split("=", 1)[1]
     colado = re.match(r"-[a-zA-Z]*e(.+)", arg) if not arg.startswith("--") else None
     return colado.group(1) if colado else "" if arg.startswith("-") else arg
+
+
+def longa_do_tar(nome, opcoes):
+    """O nome da opção longa (do `tar`, do `cpio`) é uma das `opcoes` ou abreviação dela (o getopt do GNU aceita o prefixo;
+    o ambíguo o programa recusa, então contar a mais só recusa a mais); o nome exato de outra opção (`--checkpoint`) não."""
+    return nome in opcoes or len(nome) >= 2 and nome not in LONGAS_EXATAS and any(o.startswith(nome) for o in opcoes)
+
+
+def ler_opcoes(args, curtas_com_valor, longas_com_valor, velho=False):
+    """As opções de um extrator à maneira do getopt (volta 2, review A1): (letras, [(opção, valor)], operandos). A letra de
+    `curtas_com_valor` toma o resto do grupo (`-C.git/forge`, `-cf.git/a`) ou a palavra seguinte; com `velho` (o `tar`), o
+    grupo sem `-` na primeira palavra (`xfC a.tar d`) toma as palavras seguintes na ordem. A longa de `longas_com_valor` sem
+    `=` toma a palavra seguinte; as outras ficam com valor None. Depois de `--`, só operandos."""
+    letras, valores, operandos, i, fim = set(), [], [], 0, False
+    while i < len(args):
+        a, i = args[i], i + 1
+        if a == "--" and not fim:
+            fim = True
+        elif fim or a == "-" or not a.startswith("-") and not (velho and i == 1 and re.fullmatch(r"[A-Za-z]+", a)):
+            operandos.append(a)
+        elif a.startswith("--"):
+            nome, igual, valor = a[2:].partition("=")
+            if not igual and longa_do_tar(nome, longas_com_valor) and i < len(args):
+                valor, i, igual = args[i], i + 1, "="
+            valores.append((nome, valor if igual else None))
+        else:
+            velho, grupo = not a.startswith("-"), a.lstrip("-")
+            for k, letra in enumerate(grupo):
+                letras.add(letra)
+                if letra in curtas_com_valor:
+                    valor = "" if velho else grupo[k + 1:]
+                    if not valor and i < len(args):
+                        valor, i = args[i], i + 1
+                    valores.append((letra, valor))
+                    if not velho:
+                        break
+    return letras, valores, operandos
+
+
+def valores_de(valores, curtas, longas):
+    """Os valores da opção curta de `curtas` ou da longa de `longas` (também abreviada)."""
+    return [v for n, v in valores if v is not None and (n in curtas if len(n) == 1 else longa_do_tar(n, longas))]
+
+
+def longas_de(valores):
+    return [n for n, _ in valores if len(n) > 1]
+
+
+# Volta 3 (E1.13): por programa, as opções que escolhem a pasta de destino ou o arquivo gravado, tiradas da ajuda do
+# próprio programa (`tar --help` do GNU tar 1.35, `bsdtar --help` 3.7, `cpio --help` 2.15, `unzip -h` 6.0, `7z --help`
+# 23.01); `le` é o que a ajuda dá como arquivo só lido, para o teste conferir a do tar contra o `tar --help` da máquina.
+# `pasta`: onde extrai; `subpasta`: dentro de cada `pasta` (`--one-top-level=`); `reescreve`: expressão sed que manda o
+# nome a outra pasta; `arquivo`: gravado nos modos que gravam; `grava`: gravado sempre; `remove`: apaga os operandos.
+Destinos = collections.namedtuple("Destinos", "pasta subpasta reescreve arquivo grava remove le")
+DESTINOS = {
+    "tar": Destinos(("C", "directory"), ("one-top-level",), ("transform", "xform"), ("f", "file"),
+                    ("g", "listed-incremental", "index-file", "volno-file"), ("remove-files",),
+                    ("T", "files-from", "X", "exclude-from", "N", "newer", "after-date", "add-file", "exclude-ignore",
+                     "exclude-ignore-recursive", "exclude-tag", "exclude-tag-all", "exclude-tag-under", "group-map",
+                     "owner-map", "mtime")),
+    "bsdtar": Destinos(("C", "cd", "directory"), (), ("s",), ("f", "file"), (), (),
+                       ("T", "files-from", "X", "exclude-from", "newer-than", "newer-mtime-than", "older-than",
+                        "older-mtime-than")),
+    "cpio": Destinos(("D", "directory"), (), (), ("F", "file"), ("O",), (), ("E", "pattern-file", "I")),
+    "unzip": Destinos(("d",), (), (), (), (), (), ()),
+    "7z": Destinos(("o",), (), (), (), ("w", "u"), ("sdel",), ("i", "x", "ai", "ax")),  # chaves sem caixa, valor colado
+}
+
+
+def com_valor(destinos):
+    """As letras e as longas do catálogo que tomam valor (a `subpasta` do tar é opcional, só com `=`; `remove` não tem)."""
+    return separar([n for campo in destinos._fields if campo not in ("subpasta", "remove") for n in getattr(destinos, campo)])
+
+
+def separar(nomes):
+    """As letras (juntas, como no getopt) e as longas de `nomes`, misturadas no catálogo."""
+    return "".join(n for n in nomes if len(n) == 1), tuple(n for n in nomes if len(n) > 1)
+
+
+def valores_do(valores, nomes):
+    """Os valores das opções de `nomes` (letras e longas misturadas, como no catálogo)."""
+    return valores_de(valores, *separar(nomes))
+
+
+def pastas_da_troca(expressao):
+    """A pasta para onde a expressão sed do `--transform` (`s,^,pasta/,`; várias com `;`) ou do `-s` do bsdtar
+    (`/^/pasta//`) manda o nome: o começo literal da troca, antes de `&` ou `\\` (troca sem pasta dá a própria pasta)."""
+    pastas = []
+    for e in expressao.split(";"):
+        e = re.sub(r"^s(?=\W)", "", e)  # o `s` do GNU; o bsdtar começa no delimitador
+        partes = re.split(r"(?<!\\)" + re.escape(e[:1]), e[1:])
+        pastas.append(re.split(r"[&\\]", "".join(partes[1:2]))[0])
+    return pastas
+
+
+def alvos_do_tar(args, destinos=DESTINOS["tar"]):
+    """A2 da segurança (v0478), pelo catálogo `DESTINOS`: o que o `tar` (e `bsdtar`, `gtar`, o do `busybox` e do
+    `toybox`) faz por opção. Extração (`-x`, `--extract`, `--get`): as pastas de `pasta`, ou a corrente, e dentro de
+    cada uma a `subpasta` e a pasta da `reescreve`. Criação, acréscimo e atualização (`-c`, `-r`, `-u`, `-A`,
+    `--create`, `--delete`...): o `arquivo`; `grava`, sempre. `TAR_EXECUTA` (`-I`, `-F`, `--to-command`,
+    `--checkpoint-action=exec=`...) roda o valor; `remove` apaga os operandos, também a partir de cada pasta. Na dúvida
+    sobre o modo, não grava (o resto da linha segue as outras regras)."""
+    curtas, longas = com_valor(destinos)
+    letras, valores, operandos = ler_opcoes(args, TAR_COM_VALOR + curtas, (*longas, *TAR_EXECUTA), velho=True)
+    nomes = longas_de(valores)
+    extrai = "x" in letras or any(longa_do_tar(n, ("extract", "get")) for n in nomes)
+    grava = bool(letras & set("cruA")) or any(longa_do_tar(n, TAR_GRAVA) for n in nomes)
+    pastas = valores_do(valores, destinos.pasta)
+    dentro = valores_do(valores, destinos.subpasta)
+    dentro += [t for e in valores_do(valores, destinos.reescreve) for t in pastas_da_troca(e)]
+    arquivos = [a for a in valores_do(valores, destinos.arquivo) if a != "-"] if grava else []
+    arquivos += valores_do(valores, destinos.grava)
+    executados = valores_de(valores, "IF", TAR_EXECUTA - {"checkpoint-action"})
+    executados += [v[5:] for v in valores_de(valores, "", ("checkpoint-action",)) if v.startswith("exec=")]
+    remove = any(longa_do_tar(n, destinos.remove) for n in nomes)
+    removidos = [f"{d}/{o}" for o in operandos for d in (".", *pastas)] if remove else []
+    extracao = [p for d in (pastas or ["."]) for p in (d, *(os.path.join(d, s) for s in dentro))]
+    return Alvos(extracao if extrai else [], arquivos, removidos, executados)
+
+
+def alvos_do_cpio(args, destinos=DESTINOS["cpio"]):
+    """A2 da volta 2: `cpio -i`/`--extract` extrai na `pasta` (`-D`), ou na corrente; `-p`/`--pass-through`, também
+    nos operandos (o destino); `-o`/`--create` grava o `arquivo` (`-F`), e `grava` (`-O`) grava sempre;
+    `--rsh-command` roda o valor."""
+    curtas, longas = com_valor(destinos)
+    letras, valores, operandos = ler_opcoes(args, "CHMR" + curtas, (*longas, "rsh-command", "format", "message",
+                                                                     "owner", "io-size"))
+    nomes = longas_de(valores)
+    extrai = bool(letras & set("ip")) or any(longa_do_tar(n, ("extract", "pass-through")) for n in nomes)
+    cria = "o" in letras or any(longa_do_tar(n, ("create",)) for n in nomes)
+    pastas = (valores_do(valores, destinos.pasta) or ["."]) + operandos if extrai else []
+    arquivos = valores_do(valores, destinos.grava) + (valores_do(valores, destinos.arquivo) if cria else [])
+    return Alvos(pastas, arquivos, [], valores_de(valores, "", ("rsh-command",)))
+
+
+def alvos_do_unzip(args, destinos=DESTINOS["unzip"]):
+    """A2 da volta 2: o `unzip` extrai na `pasta` (`-d`, colada ou na palavra seguinte), ou na corrente."""
+    return Alvos(valores_do(ler_opcoes(args, com_valor(destinos)[0], ())[1], destinos.pasta) or ["."], [], [], [])
+
+
+def alvos_do_7z(args, destinos=DESTINOS["7z"]):
+    """A4 da volta 2 e A5 da segurança: o 7-Zip lê as chaves sem caixa (`-o`, `-O`, `-SDEL`) e com o valor colado.
+    `x`/`e` extraem na `pasta` (`-o<pasta>`), ou na corrente; `a`, `u`, `d` e `rn` gravam o arquivo (o primeiro operando
+    depois do comando); `grava`: a pasta de trabalho de `-w<pasta>` e o arquivo novo de `-u...!<arquivo>`; `remove`
+    (`-sdel`) apaga os outros operandos. O `--` não é lido: o nome que começa com `-` depois dele conta como chave
+    (recusa a mais, nunca a menos); `-w` vazio (pasta temporária) e `-u` sem `!` contam como a pasta corrente."""
+    chaves, operandos = [], []
+    for a in args:
+        (chaves if a.startswith("-") else operandos).append(a)
+    comando, arquivo = (operandos[0].lower() if operandos else ""), operandos[1:2]
+
+    def valores(nomes):
+        return [(n, c[len(n) + 1:]) for c in chaves for n in nomes if c[1:].lower().startswith(n)]
+
+    pastas = ([v for _, v in valores(destinos.pasta)] or ["."]) if comando in ("x", "e") else []
+    gravados = [v.partition("!")[2] if n == "u" else v for n, v in valores(destinos.grava)]
+    removidos = operandos[2:] if any(c[1:].lower() in destinos.remove for c in chaves) else []
+    return Alvos(pastas, (arquivo if comando in ("a", "u", "d", "rn") else []) + gravados, removidos, [])
+
+
+# A2 e A4 da segurança, volta 2 (v0478): catálogo único dos programas que extraem, gravam ou rodam comando por opção;
+# o `busybox` e o `toybox` repassam ao applet (`leitura_do_segmento`), e o `tar` deles cai aqui pelo nome.
+EXTRATORES = {"tar": alvos_do_tar, "gtar": alvos_do_tar, "bsdtar": functools.partial(alvos_do_tar, destinos=DESTINOS["bsdtar"]),
+              "cpio": alvos_do_cpio, "unzip": alvos_do_unzip, **dict.fromkeys(("7z", "7za", "7zr", "7zz"), alvos_do_7z)}
 
 
 def sed_no_lugar(args):
@@ -1245,8 +1440,9 @@ class Guarda:
     def pode(self, acao):
         return self.papel in self.pol["acoes"].get(acao, [])
 
-    def barrar(self, rid, o_que, corrigir, simples=None):
-        """Recusa (saída 2). No perfil iniciante, `simples` (SIMPLES) troca o texto técnico pela consequência."""
+    def barrar(self, rid, o_que, corrigir, simples=None, trava=None):
+        """Recusa (saída 2). No perfil iniciante, `simples` (SIMPLES) troca o texto técnico pela consequência. `trava`
+        (`TRAVA`, `TRAVA_OPACA`) só pesa na `GuardaDaProva` (`trava_da_sessao_do_forge`)."""
         if simples and self.h.iniciante():
             bloquear(rid, SIMPLES[simples])
         bloquear(rid, com_trecho(rid, o_que, corrigir, self.trecho))
@@ -1701,7 +1897,31 @@ class Guarda:
                         return False
         return True
 
-    def checar_remocao(self, caminho, pasta):
+    def find(self, args, pasta, nivel, atribuicoes):
+        """A2 da segurança (v0478): o `find` escreve por opção. `-delete` apaga os pontos de partida e o que há dentro (escrita
+        e remoção do ancestral, como o `rm -r`; a raiz fica de fora, como no `rm`); `-exec`, `-execdir`, `-ok` e `-okdir`
+        rodam o comando com `{}` trocado por cada ponto de partida; `-fprint*` e `-fls` gravam no arquivo seguinte."""
+        i = 0
+        while i < len(args) and re.fullmatch(r"-[HLP]|-D|-O\d*", args[i]):
+            i += 2 if args[i] == "-D" else 1
+        partidas = []
+        while i < len(args) and not re.match(r"[-(!)]", args[i]):
+            partidas.append(args[i])
+            i += 1
+        partidas, expressao = partidas or ["."], args[i:]
+        for j, a in enumerate(expressao):
+            if a == "-delete":
+                for p in partidas:
+                    self.checar_escrita(p, pasta, parecer_conta=False)
+                    self.checar_remocao(p, pasta)
+            elif a in FIND_GRAVA and j + 1 < len(expressao):
+                self.checar_escrita(expressao[j + 1], pasta)
+            elif a in FIND_EXECUTA:
+                fim = next((k for k in range(j + 1, len(expressao)) if expressao[k] in (";", "+")), len(expressao))
+                for p in partidas:
+                    self.aninhado(shlex.join(c.replace("{}", p) for c in expressao[j + 1:fim]), pasta, nivel, atribuicoes)
+
+    def checar_remocao(self, caminho, pasta, ato="apagar"):
         """`rm -rf .forge`, `rm -r .githooks`: apagar a pasta que contém um caminho protegido sem dono (a instalação) é
         o mesmo que apagar o arquivo. A raiz do projeto e as pastas acima dela ficam de fora (`rm` de worktree).
         `$PWD` e `$CLAUDE_PROJECT_DIR` são expandidos; outra variável antes de uma pasta protegida (`$X/.forge`) não
@@ -1724,7 +1944,8 @@ class Guarda:
             for dentro in ([home, *fora] if c.startswith("~/") else raizes):
                 protegido = home / c[2:] if c.startswith("~/") else dentro / c
                 if alvo != dentro and dentro in alvo.parents and alvo in Path(os.path.realpath(protegido)).parents:
-                    self.barrar("R-CONFORMIDADE", f"apagar {alvo.name}/ apaga {c}: {e['motivo']}",
+                    self.barrar("R-CONFORMIDADE", f"{ato} {alvo.name}/ {'apaga' if ato == 'apagar' else 'alcança'} {c}: "
+                                f"{e['motivo']}",
                                 f"só o usuário altera; proponha o diff (R-DECISAO); {SUGESTAO}", "instalacao")
 
     def checar_texto(self, texto):
@@ -1809,7 +2030,7 @@ class Guarda:
             if excesso:
                 self.sem_leitura = True
                 self.barrar("R-CONFORMIDADE", f"chamada com ação crítica e {excesso}: o hook não a decide dentro do "
-                                              "prazo", CONTORNO_DO_TETO)
+                                              "prazo", CONTORNO_DO_TETO, trava=TRAVA_NO_TETO)
 
     def conferir_linha(self, comando, pasta, nivel, so_substituicoes, corpo_de_heredoc=False):
         if nivel - self.releituras > PROFUNDIDADE:
@@ -1912,14 +2133,14 @@ class Guarda:
         if nivel == 0 and not self.leitura and self.reavaliacao and CRITICO.search(original):
             self.barrar("R-CONFORMIDADE", f"`{self.reavaliacao}` na chamada com ação crítica: "
                                           f"{motivo_da_reavaliacao(self.reavaliacao)}",
-                        contorno_da_reavaliacao(self.reavaliacao))
+                        contorno_da_reavaliacao(self.reavaliacao), trava=TRAVA_OPACA)
         # ADR 0011, item 2 (opções D e A), por último: sobre o texto do nível 0, com o `<<` que o bash pode formar nele
         # ou num nível de cima (`tem_heredoc_no_texto`)
         if nivel == 0 and not self.leitura and CRITICO.search(original):
             sinal = fora_da_gramatica_com_heredoc(original)
             if sinal is not None:
                 self.barrar("R-CONFORMIDADE", f"`{sinal}` na chamada com heredoc e ação crítica: o hook não modela",
-                            CONTORNO_DA_GRAMATICA)
+                            CONTORNO_DA_GRAMATICA, trava=TRAVA_OPACA)
 
     def conferir_partes(self, partes, pasta, nivel, so_substituicoes):
         """As checagens de cada comando simples de uma leitura da linha (`leituras`); devolve a pasta depois dela e as
@@ -1950,7 +2171,8 @@ class Guarda:
     def nao_modelada(self, achado):
         """ADR 0011, item 2: recusa a linha crítica com construção que o analisador não modela (`construcao_nao_modelada`)."""
         if achado is not None:
-            self.barrar("R-CONFORMIDADE", f"`{achado}` com ação crítica: o hook não modela", forma_aceita(achado))
+            self.barrar("R-CONFORMIDADE", f"`{achado}` com ação crítica: o hook não modela", forma_aceita(achado),
+                        trava=TRAVA_OPACA)
 
     def gramatica_de_leitura(self, linha):
         """ADR 0011, item 1: antes de qualquer outra checagem, a linha do papel só de leitura precisa caber na gramática
@@ -2089,6 +2311,10 @@ class Guarda:
             return pasta
         prog = Path(palavras[0].lstrip("`")).name
         args = palavras[1:]
+        por_applet = prog in ("busybox", "toybox") and bool(args) and not args[0].startswith("-")
+        if por_applet:  # A4 da volta 2, A5: o applet é o programa
+            self.atualizacao(palavras)  # A6: antes da troca, a varredura que o `busybox` tinha em ENVOLVEDORES
+            palavras, prog, args = args, Path(args[0]).name, args[1:]
         if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}:
             self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, nome_do_caminho(originais[0])}).pop()  # recusa no fim da linha
         parte = parecer.analisar(palavras)
@@ -2100,7 +2326,7 @@ class Guarda:
             return self.caminho(pasta, alvo) if alvo else pasta
         if parte and parte[0] == "cd":
             return self.caminho(pasta, parte[1]) if parte[1] else Path.home()
-        if parte and parte[0] == "branch":
+        if parte and parte[0] == "branch" and not por_applet:  # A8: nem busybox nem toybox têm applet git
             raiz = raiz_do_projeto(pasta / parte[1] if parte[1] else pasta)
             if raiz:
                 ramos[raiz.resolve()] = parte[2]
@@ -2167,6 +2393,25 @@ class Guarda:
             for a in args:
                 if a.startswith("of="):
                     self.checar_escrita(a[3:], pasta)
+        elif prog == "find":
+            self.find(args, pasta, nivel, atribuicoes)
+        elif prog in EXTRATORES:
+            alvos = EXTRATORES[prog](args)
+            for a in alvos.arquivos:
+                self.checar_escrita(a, pasta)
+            for a in alvos.removidos:
+                self.checar_escrita(a, pasta, parecer_conta=False)
+                self.checar_remocao(a, pasta)
+            for d in alvos.pastas:
+                self.checar_escrita(d, pasta, parecer_conta=False)
+                self.checar_remocao(d, pasta, "extrair em")
+            for c in alvos.executados:
+                self.aninhado(c, pasta, nivel, atribuicoes)
+        elif prog in MUDA_ATRIBUTO:
+            for a in args:
+                if not a.startswith("-"):
+                    self.checar_escrita(a, pasta, parecer_conta=False)
+                    self.checar_remocao(a, pasta, f"{prog} em")
         elif prog in self.pol["pacotes"]:
             self.pacote(prog, args)
         if prog in ("cp", "mv", "install", "ln"):  # A9, U3: depois das regras do destino e do link
@@ -2382,23 +2627,24 @@ class Guarda:
             return None
         if cod != 0:
             self.barrar("R-REVIEW", f"git {sub}: o hook não conseguiu ler se é alias da configuração",
-                        "rode o subcomando do git por extenso")
+                        "rode o subcomando do git por extenso", trava=TRAVA_OPACA)
         return saida
 
     def expansao_do_alias(self, sub, expansao, alias):
         """As palavras da expansão do alias `sub`; recusa o alias de shell, o que mescla, o encadeado demais e o ilegível."""
         if expansao.startswith("!"):
             self.barrar("R-REVIEW", f"git {sub}: alias de shell (`!`) da configuração roda o que o hook não lê",
-                        "rode o comando direto, sem alias")
+                        "rode o comando direto, sem alias", trava=TRAVA_OPACA)
         if alias >= PROFUNDIDADE_DO_ALIAS:
-            self.barrar("R-REVIEW", f"git {sub}: alias encadeado demais", "rode o subcomando do git por extenso")
+            self.barrar("R-REVIEW", f"git {sub}: alias encadeado demais",
+                        "rode o subcomando do git por extenso", trava=TRAVA_OPACA)
         try:
             palavras = shlex.split(expansao)
         except ValueError:
             palavras = None
         if not palavras:
             self.barrar("R-REVIEW", f"git {sub}: alias da configuração que o hook não lê",
-                        "rode o subcomando do git por extenso")
+                        "rode o subcomando do git por extenso", trava=TRAVA_OPACA)
             return []  # a GuardaDaProva não para no barrar: sem palavras não há o que ler (segurança A6)
         if palavras[0] in ALIAS_QUE_MESCLA:
             self.barrar("R-REVIEW", f"git {sub}: alias da configuração que mescla (`{palavras[0]}`); o parecer só lê o merge "
@@ -2504,7 +2750,7 @@ class Guarda:
         chave, _, refspec = valor.partition("=")
         if chave.lower().startswith("alias."):
             self.barrar("R-REVIEW", f"git -c {chave}: o alias da linha troca o subcomando que o hook leu",
-                        "rode o subcomando do git direto, sem alias")
+                        "rode o subcomando do git direto, sem alias", trava=TRAVA_OPACA)
         if REFSPEC_NA_CONFIG.fullmatch(chave) and ":" in refspec and self.ref_local_da_integracao(refspec.split(":", 1)[1]):
             self.integracao_movida(f"git -c {chave}")
 
@@ -2685,8 +2931,8 @@ class Guarda:
                                                     "--merged", "--no-merged"}
         so_opcoes_de_leitura = curtas <= TAG_SO_LEITURA_CURTAS and longas <= TAG_SO_LEITURA_LONGAS
         if args and not (leitura and so_opcoes_de_leitura):
-            self.barrar("R-FLUXO", "git tag no repositório do Forge: a tag v* é a versão que todos os projetos instalam",
-                        "só o release.yml cria a tag, sobre a main; para ler, use git tag -l")
+            self.barrar("R-FLUXO", f"git tag no repositório do Forge: {TAG_E_VERSAO}",
+                        "só o release.yml cria a tag, sobre a main; para ler, use git tag -l", trava=TRAVA)
 
     def git_tags_no_envio(self, args, globais, pasta, sub="push"):
         """No Forge, nenhum envio leva tag: `--tags`, `--follow-tags`, `tag <nome>`, refspec com `refs/tags/` ou `v<número>`
@@ -2700,8 +2946,8 @@ class Guarda:
                      or any(TAG_NO_ENVIO.match(parte) for r in refs for parte in r.split(":"))
                      or any(TAG_NA_CONFIG.search(g) for g in globais))
         if envia_tag:
-            self.barrar("R-FLUXO", f"git {sub} de tag para o Forge: a tag v* é a versão que todos os projetos instalam",
-                        "envie só a branch; a tag nasce do release.yml, sobre a main")
+            self.barrar("R-FLUXO", f"git {sub} de tag para o Forge: {TAG_E_VERSAO}",
+                        "envie só a branch; a tag nasce do release.yml, sobre a main", trava=TRAVA)
 
     def git_push(self, args, pasta, ramos, sub="push", troca=()):
         refs, repo = [], None
@@ -2738,10 +2984,10 @@ class Guarda:
             destinos.append(nome_da_branch(re.sub(r"^heads/", "refs/heads/", destino)))
         for d in destinos:
             if d in ("main", "master"):
-                self.barrar("R-MAIN", f"push direto para {d}", "abra um PR; a main é do usuário", "main")
+                self.barrar("R-MAIN", f"{PUSH_DIRETO} {d}", "abra um PR; a main é do usuário", "main")
             if d in INTEGRACAO:
-                self.barrar("R-CONFORMIDADE", f"push direto para {d}", "abra um PR a partir de uma branch de trabalho",
-                            "main")
+                self.barrar("R-CONFORMIDADE", f"{PUSH_DIRETO} {d}", "abra um PR a partir de uma branch de trabalho",
+                            "main", trava=TRAVA)
         # o remoto nomeado (a URL dele, resolvida no repositório da pasta), a URL dada ou, sem remoto, a pasta
         if self.alvo_do_forge(pasta, remoto=remoto) or (remoto and self.alvo_do_forge(pasta, remoto)) or (
                 remoto and self.caminho_do_forge(pasta, remoto)):
@@ -3451,8 +3697,9 @@ def identificar_sessao(hook):
       Forge escrito no projeto não muda nada): as regras dele e as de contribuição valem em qualquer pasta (o
       próprio projeto, o clone, `wt/*`, `~`, outra pasta), no Bash, no Write e no Edit; a raiz fica em
       `hook.raiz`, ou a do projeto onde a pasta está, se houver.
-    - Raiz no Forge (clone do próprio Forge, sem `.forge/versao`): regras da sessão do Forge; o hook só age dentro
-      de um projeto, pela pasta corrente, como sempre.
+    - Raiz no Forge (clone do próprio Forge, sem `.forge/versao`): regras da sessão do Forge; o hook age por inteiro
+      dentro de um projeto, pela pasta corrente; fora dele (o clone, `wt/*`) valem as travas para todo papel
+      (`GuardaDaProva` com `travas`, CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE).
     - Sem raiz (ou raiz fora do Forge): pela pasta corrente; em `~/.forge-contrib` falha fechado, como sessão de
       outro projeto de nome igual ao do clone (`wt/*` e a própria pasta: nome vazio).
     Devolve False se o hook não age; None se age pela raiz do repositório; o nome da sessão de outro projeto."""
@@ -3488,32 +3735,184 @@ class ForaDaProva(Exception):
     """A `GuardaDaProva` achou outra recusa, que fora de projeto não vale (ADR 0009, seção 6)."""
 
 
+# AGENTES-JSON-SEM-GUARDA (v0478; C9 e C10 de docs/security/v047-v2-ameacas.md): no clone do Forge, as recusas destas
+# entradas da política valem também na `GuardaDaProva`, para todo papel (o jarvis incluído); o resto do clone segue livre.
+# CONFIG-TETO-SEM-GUARDA (v0478, parte do hook): o `.forge/config.json` da raiz da sessão, onde o hook `agentes` lê o teto.
+CONFIG_DA_RAIZ = ".forge/config.json"
+ESTADO_DOS_HOOKS = (".git/forge/", CONFIG_DA_RAIZ)
+# `.git/forge` só como nome inteiro: `.git/forge-suite-verde` é a prova da suíte, com a recusa própria (R-VERIFY).
+ESTADO_NO_TEXTO = re.compile(r"\.git/forge(?![\w.-])|forge/run|agentes\.json|\.forge/config\.json")  # C10: linha que o hook não lê e cita o estado
+# PARECER-PELO-PAPEL (v0478 E50.7, A3 de docs/security/v0479-entrega-parecer-mesclado.md): no clone do Forge, as recusas
+# das pastas de parecer valem também na `GuardaDaProva`, para todo papel, e também pela forma relativa ao topo da cópia
+# do Forge que contém o alvo (o clone ou `wt/*` com a raiz da sessão em outra cópia). O papel dono segue livre na pasta.
+CAMINHOS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/aceites/", "docs/security/")
+# A5 e A6 da segurança: a pasta de parecer citada no texto da linha (a variável no alvo, `d=docs/qa; echo x > $d/n.md`);
+# `docs/security` cobre `docs/security/aceites`; a caixa não conta (`d=DOCS/QA; echo x > ${d,,}/n.md`).
+PARECER_NO_TEXTO = re.compile(r"(?<![\w.-])docs/(?:reviews|qa|devops|security)(?![\w.-])", re.I)  # `${d,,}` baixa a caixa
+
+
 class GuardaDaProva(Guarda):
     """S8 (C-1) com a pasta corrente fora de projeto: a Guarda lê a escrita, mas só a recusa da prova da suíte vale, e a
     da linha que o hook não lê por passar de `PROFUNDIDADE` (PROFUNDIDADE-BASH-C).
     E16.1 (HOOK-RVERIFY-FALSO-POSITIVO): a outra recusa não para a leitura, que segue até o fim da linha; a prova é
     recusada pelo destino da escrita, resolvido pela Guarda, e não pelo texto. Só a linha que o hook não lê (teto,
-    ilegível: `sem_leitura`) volta ao texto em `prova_fora_de_projeto`, falhando fechado."""
-    def barrar(self, rid, o_que, corrigir, simples=None):
+    ilegível: `sem_leitura`) volta ao texto em `prova_fora_de_projeto`, falhando fechado.
+    AGENTES-JSON-SEM-GUARDA: com a sessão no clone do Forge (`no_clone`), vale também a recusa que cita o motivo de uma
+    entrada de `ESTADO_DOS_HOOKS` (escrita, remoção do ancestral, link).
+    CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE: com `travas` (raiz da sessão no clone do Forge), valem também as travas
+    (`trava_da_sessao_do_forge`)."""
+    def __init__(self, hook, pol, papel, no_clone=False, travas=False):
+        super().__init__(hook, pol, papel)
+        self.no_clone, self.travas = no_clone, travas
+        self.motivos_do_estado = tuple(e["motivo"] for e in pol["caminhos"] if e["caminho"] in ESTADO_DOS_HOOKS)
+        self.motivo_do_config = next((e["motivo"] for e in pol["caminhos"] if e["caminho"] == CONFIG_DA_RAIZ), None)
+
+    def caminho_barrado(self, caminho):
+        """CONFIG-TETO-SEM-GUARDA: a recusa de `.forge/config.json` só vale para o da raiz da sessão; o modelo
+        (`templates/projeto/.forge/config.json`) e o de outra pasta seguem livres."""
+        achado = super().caminho_barrado(caminho)
+        if achado and self.motivo_do_config and self.motivo_do_config in achado[1] and (
+                caminho != Path(os.path.realpath(self.h.raiz)) / CONFIG_DA_RAIZ):
+            return None
+        return achado or self.parecer_no_topo(caminho)
+
+    def parecer_no_topo(self, caminho):
+        """PARECER-PELO-PAPEL: a recusa da pasta de parecer pela forma relativa ao topo da cópia do Forge que contém o alvo
+        (a forma da raiz da sessão já vem da `Guarda`); fora de uma cópia do Forge, None. Só vale no clone
+        (`recusa_do_estado`)."""
+        topo = self.raiz_git(caminho.parent)
+        rel = (relativo_ao_pai(caminho.as_posix(), topo) if e_clone_do_forge(topo) else None) or ""
+        for e in self.pol["caminhos"]:
+            if e["caminho"] in CAMINHOS_DE_PARECER and casa(rel, e["caminho"]):
+                return None if self.papel in e["quem"] else (
+                    "R-CONFORMIDADE", f"{e['motivo']}: {e['caminho']} (papel: {self.papel})",
+                    f"peça a {'/'.join(e['quem'])}")
+        return None
+
+    def barrar(self, rid, o_que, corrigir, simples=None, trava=None):
         if (rid, o_que, corrigir) == PROVA_DA_SUITE:
             super().barrar(rid, o_que, corrigir)
         if (rid, o_que, corrigir) == PROFUNDIDADE_EXCEDIDA:
             super().barrar(rid, o_que, corrigir)
+        if self.recusa_do_estado(o_que):
+            super().barrar(rid, o_que, corrigir)
+        if self.travas and trava_da_sessao_do_forge(rid, trava, self.h.campo("tool_input").get("command")):
+            super().barrar(rid, o_que, corrigir, simples)
         if self.sem_leitura:
             raise ForaDaProva(rid)
+
+    def recusa_do_estado(self, o_que):
+        """No clone: a recusa cita o motivo de uma entrada do estado, ou é a da construção que o hook não modela (`$d`,
+        J13) numa linha que cita o estado (`ESTADO_NO_TEXTO`)."""
+        if not self.no_clone:
+            return False
+        if any(f"{e['motivo']}: {e['caminho']}" in o_que
+               for e in self.pol["caminhos"] if e["caminho"] in CAMINHOS_DE_PARECER):
+            return True  # PARECER-PELO-PAPEL
+        if any(m in o_que for m in self.motivos_do_estado):
+            return True
+        linha = self.h.campo("tool_input").get("command")
+        return "o hook não modela" in o_que and isinstance(linha, str) and (
+            bool(ESTADO_NO_TEXTO.search(linha)) or self.parecer_no_texto(linha))
+
+    @staticmethod
+    def parecer_no_texto(linha):
+        """A5 e A6 da segurança: a linha (com as continuações juntadas) cita uma das cinco pastas de parecer, dono incluído,
+        como no projeto: a variável que guarda a pasta do dono alcança a vizinha (`d=docs/reviews; echo x > $d/../qa/n.md`);
+        o dono grava a própria pasta pelo caminho literal."""
+        return bool(PARECER_NO_TEXTO.search(juntar_continuacoes(linha)))
 
     def perguntar(self, texto):
         """Fora de projeto não há confirmação a pedir."""
 
 
-def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
+def trava_da_sessao_do_forge(rid, trava, linha):
+    """A recusa é uma trava que vale na sessão do Forge para todo papel: R-MAIN, R-VERIFY, a marcada `TRAVA` (o push
+    direto para a develop ou homolog, a tag v*), a `TRAVA_OPACA` numa linha com um comando que pode ser uma trava
+    (`toca_uma_trava`) e a `TRAVA_NO_TETO` com o git ou o gh no texto (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE, E51.6)."""
+    if trava == TRAVA_NO_TETO:
+        return isinstance(linha, str) and bool(GIT_NO_TEXTO.search(linha))
+    if trava == TRAVA_OPACA:
+        return isinstance(linha, str) and toca_uma_trava(linha)
+    return rid in ("R-MAIN", "R-VERIFY") or trava == TRAVA
+
+
+# E51.18 (A1 da segurança E51.16): o `source` e o ponto executam o here-string (`source /dev/stdin <<< '…'`).
+FONTES = frozenset({"source", "."})
+PREFIXOS_DA_FONTE = frozenset({"builtin", "command"})  # E51.22: `builtin source`, `command -p .`
+
+
+def na_posicao_de_programa(palavras, j):
+    """E51.22 (A2 da segurança E51.20): a palavra `j` é o programa do comando simples: a primeira, ou depois só de
+    `builtin`/`command` e das opções deles (`command -p .`). O `.` argumento (`find .`) não é."""
+    return all(p in PREFIXOS_DA_FONTE or (k and p.startswith("-")) for k, p in enumerate(palavras[:j]))
+
+
+def toca_uma_trava(linha, nivel=0):
+    """E51.6: algum comando simples da linha pode ser uma trava com o alvo opaco: o programa opaco (`$G push`), o git
+    com subcomando fora de `GIT_FORA_DAS_TRAVAS` (opaco, alias, com `-c`), o gh com as duas primeiras palavras fora de
+    `GH_FORA_DAS_TRAVAS`, e o texto que o `eval` ou o `sh -c` reavalia (um nível; o `eval` com texto a reavaliar, o
+    shell (com texto ou lendo a entrada, `echo … | bash`) e o `source` ou o ponto como programa dentro dele são trava,
+    fecha na dúvida: A1 da segurança E51.12, E51.16 e A2 E51.20). O git ou o gh valem em qualquer posição do comando
+    (`env git push $F`). A palavra vem do leitor (`palavras_do_texto`, sem aspas nem escapes); a que o bash expande,
+    pelo texto cru, vira `$`: a substituição (`$(echo git) push`, `git $(echo push)`) também é opaca. O corpo de heredoc
+    é comando só quando o dono o roda (`bash <<'X'`; `corpo_so_lido`, como na conferência da linha), e o here-string de
+    um shell, do `source` ou do ponto (`bash <<< '…'`, `source /dev/stdin <<< '…'`) é texto reavaliado como o do
+    `sh -c` (`texto_reavaliado`); o heredoc em dúvida deixa a linha inteira como comando."""
+    try:
+        linha, corpos = tirar_heredocs(linha)
+    except ValueError:
+        corpos = []
+    for dono, corpo in corpos:
+        if not corpo_so_lido(dono, interprete) and toca_uma_trava(corpo, nivel):
+            return True
+    for comando in palavras_do_texto(linha).simples:
+        k = 0
+        while k < len(comando.palavras) and (comando.palavras[k].cru in ANTES_DO_PROGRAMA
+                                             or ATRIBUICAO.match(comando.palavras[k].cru)):
+            k += 1
+        originais = comando.palavras[k:]
+        palavras = ["$" if OPACA_NA_PALAVRA.search(p.cru) else p.valor for p in originais]
+        aqui = [r.alvo for r in comando.redirecoes if r.operador == "<<<" and r.alvo is not None]
+        if palavras and OPACA_NA_PALAVRA.search(palavras[0]):
+            return True
+        for j, palavra in enumerate(palavras):
+            nome, resto = nome_do_caminho(palavra), palavras[j + 1:]
+            if nome == "git" and resto and subcomando_do_git(resto) not in GIT_FORA_DAS_TRAVAS:
+                return True
+            if nome == "gh" and " ".join(resto[:2]) not in GH_FORA_DAS_TRAVAS:
+                return True
+            if nivel and nome in SHELLS:  # E51.18: o shell aninhado relê o argumento, o here-string ou a entrada (pipe)
+                return True
+            if nivel and nome == "eval" and originais[j + 1:]:  # o eval não lê a entrada
+                return True
+            if nivel and palavra in FONTES and (aqui or na_posicao_de_programa(palavras, j)):  # lê o pipe também
+                return True
+            relidos = map(texto_reavaliado, originais[j + 1:])
+            if (nome == "eval" or nome in SHELLS) and not nivel and any(toca_uma_trava(t, 1) for t in relidos):
+                return True
+            le_o_here_string = nome in SHELLS or palavra in FONTES
+            if le_o_here_string and not nivel and any(toca_uma_trava(texto_reavaliado(a), 1) for a in aqui):
+                return True
+    return False
+
+
+def texto_reavaliado(palavra):
+    """O texto que o `eval` ou o shell relê numa palavra: o valor dela (aspas e escapes tirados, a crase escapada vira
+    crase e a variável fica no texto, opaca na releitura), ou `$` (opaco) se o bash de fora substitui um comando nela
+    (`"$(echo git) push"`: o leitor a troca por `_` e devolve o corpo como outro comando simples)."""
+    return "$" if len(palavras_do_texto(palavra.cru).simples) > 1 else palavra.valor
+
+
+def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, travas=False):
     """S8 (C-1, A2 da segurança g3): a prova da suíte é por uid, então vale também fora de projeto, em toda sessão e
     para todo papel. A outra recusa não vale e a leitura segue (`GuardaDaProva`); linha que o hook não lê ou erro
-    interno: falha fechado só se o alvo cita o nome da prova."""
+    interno: falha fechado só se o alvo cita o nome da prova ou, no clone do Forge, o estado dos hooks (C10).
+    `travas`: na sessão do Forge valem também as travas (`trava_da_sessao_do_forge`)."""
     if hook.campo("hook_event_name") == "PostToolUse":
         return
     hook.raiz = raiz or Path(hook.cwd())
-    guarda = GuardaDaProva(hook, pol, papel)
+    guarda = GuardaDaProva(hook, pol, papel, bool(raiz and e_clone_do_forge(raiz)), travas)
     try:
         decidir(hook, guarda, ferramenta, entrada)
     except Exception as erro:  # noqa: BLE001 - ForaDaProva ou erro interno; a decisão vem do texto do alvo
@@ -3521,6 +3920,16 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
         palavras = re.split(r"[\s'\"(),;=<>|&]+", alvo) if isinstance(alvo, str) else []
         if any(MARCA_DA_SUITE.fullmatch(Path(t).name) for t in palavras):
             Guarda.barrar(guarda, *PROVA_DA_SUITE)
+        if guarda.no_clone and isinstance(alvo, str) and ESTADO_NO_TEXTO.search(juntar_continuacoes(alvo)):
+            hook.registrar_erro(erro)
+            Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita o estado dos "
+                          "hooks (.git/forge/, forge/run, agentes.json, .forge/config.json)", f"só o usuário altera; {SUGESTAO}")
+        if guarda.no_clone and isinstance(alvo, str) and guarda.parecer_no_texto(alvo):  # A5 e A6 da segurança
+            erro_interno = not isinstance(erro, ForaDaProva)  # a linha sem leitura é a recusa; só o erro interno vai ao registro
+            if erro_interno:
+                hook.registrar_erro(erro)
+            Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita uma pasta de parecer "
+                          f"(papel: {papel})", "o dono grava a própria pasta pelo caminho literal; os outros papéis pedem ao dono")
         pasta = Path(hook.cwd())
         opaco = bool(palavras and VARIAVEL.search(alvo))  # S3: `$(…)` ou variável no alvo
         for t in filter(CURINGA.search, palavras):  # A1 da segurança g1: o curinga que o bash expande no alvo
@@ -3532,7 +3941,7 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz):
 # HOOK-ERRO-LIBERA (C2, C3): a linha que escreve, para o marcador da falha fechada. Lê a mais de propósito: só pesa em erro
 # interno ou prazo vencido, e aí a dúvida recusa. Os verbos do git que gravam arquivo vêm das listas da guarda normal (A1).
 ESCRITORES = (TODOS_OS_ARGUMENTOS | SO_DESTINO | REMOCAO | CAMINHOS_NO_GIT | GIT_GRAVA_ARQUIVO
-              | {"ln", "chmod", "truncate", "touch", "unlink", "shred", "rmdir"})
+              | {"ln", "chmod", "truncate", "touch", "unlink", "shred", "rmdir", "find", "tar"} | MUDA_ATRIBUTO)
 ESCREVE_NA_LINHA = re.compile(ESCRITA_NA_LINHA.pattern + r"|\b(?:" + "|".join(sorted(map(re.escape, ESCRITORES))) + r")\b")
 ALVO_OPACO = re.compile(r"[$`]|<\(")  # C3: substituição, crase, variável ou `<(`: o hook não sabe o destino
 # A2: a troca da pasta de base (`cd`, `pushd`, `popd`, `-C`, `--chdir`, `--git-dir`, `--work-tree`, `GIT_DIR`,
@@ -3629,7 +4038,7 @@ def principal(hook):
                 bloquear("R-CONTRIB", "erro interno ao conferir o rótulo afrouxa-regra; o hook não pôde decidir. "
                                       "Corrigir: veja .forge/run/erros.log e leve ao dono do Forge (R-DECISAO)")
         if not (com_lista and na_sessao_do_forge):
-            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz)
+            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, na_sessao_do_forge)
             return
         externo, hook.raiz = None, raiz
     try:

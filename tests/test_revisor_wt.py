@@ -311,8 +311,9 @@ class ParecerTrazido(ComParecer):
         self.autoria(p2)
         for etapa in ("qa", "codigo", "review"):
             self.assertEqual(self.conferir(p1, p2, etapa=etapa), (0, [f'escopo: ok (parecer trazido {p2[:7]} de tech-lead) "docs/reviews/x.md"']))
-        (self.repo / ".forge" / "run" / "autoria.jsonl").unlink()  # sem autoria, a regra de hoje
-        self.assertEqual(self.conferir(p1, p2)[1], ['escopo: confira "docs/reviews/x.md" +12 -2'])
+        (self.repo / ".forge" / "run" / "autoria.jsonl").unlink()  # sem autoria, não é trazido: vale o anexo do portão (E50.1)
+        self.assertEqual(self.conferir(p1, p2)[1], [
+            'escopo: ok (anexo do portão: parecer de tech-lead commitado na volta só com parecer) "docs/reviews/x.md"'])
 
     def test_bytes_do_p_antigo_com_o_ultimo_ancestral_nao_sao_trazidos(self):  # t13, A10, T-3, A1
         p1, p2 = self.parecer("r1"), self.parecer("r2", parecer="reprovado")
@@ -445,6 +446,15 @@ class PrPrevio(ComParecer):
         self.assertEqual(rc, 0, saida + erro)
         self.assertIn("aviso: docs/reviews: review: sem parecer para o pedido `x`", erro)  # P5: a entrega pequena é T (só review)
         self.assertEqual(self.pr("--base", "origin/develop")[0], 1)
+
+    def test_ausente_sem_base_e_sem_develop_o_diff_literal_leva_o_previo(self):  # M7: `pr_da_cli` sem `--base` repassa o previo ao `cmd_pr`
+        git("branch", "-q", "-D", "develop", cwd=self.repo)  # sem develop, a base é None (o diff literal)
+        rc, saida, erro = self.pr("--previo")
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn("aviso: docs/reviews: review: sem parecer para o pedido `x`", erro)
+        rc, saida, _ = self.pr()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("docs/reviews: review: sem parecer para o pedido `x`", saida)
 
     def test_parecer_so_de_outra_branch_tambem_e_ausente(self):
         self.commitar({"docs/reviews/x.md": PARECER.format(branch="melhoria/y", commit=self.c1, parecer="aprovado", data="2026-11-06")})

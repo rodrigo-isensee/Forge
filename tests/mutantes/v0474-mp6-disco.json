@@ -69,7 +69,7 @@
       "de": "    [ \"$(cd \"$d/.git\" && pwd -P)\" != \"$comum\" ] || continue",
       "para": "    true || continue",
       "testes": [
-        "tests.test_forge_fechar.LimparClones.test_o_clone_que_roda_o_fechamento_nao_se_apaga"
+        "tests.test_forge_fechar.LimparClones.test_o_clone_que_roda_o_fechamento_nao_se_apaga_e_diz_o_que_ficou"
       ]
     },
     {

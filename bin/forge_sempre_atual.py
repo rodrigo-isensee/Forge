@@ -74,7 +74,9 @@ else:
     pasta = hook.copia_principal() / ".forge" / "run"
 trava = {}
 if pasta is not None and (pasta / "pesado.json").exists():
-    trava = json.loads((pasta / "pesado.json").read_text(encoding="utf-8"))
+    texto = (pasta / "pesado.json").read_text(encoding="utf-8")
+    trava = json.loads(texto) if texto.strip() else None
+    trava = {} if trava is None else trava
 desde = trava.get("desde")
 pesado = isinstance(desde, (int, float)) and agora - desde < agentes.TRAVA_S and bool(agentes.pid_vivo(trava.get("pid"), trava.get("inicio")))
 print(json.dumps({"n": n, "pesado": pesado}))
@@ -152,6 +154,13 @@ def proc_coerente():
         return False
 
 
+def pids_do_proc():
+    """Os pids listados no /proc. Função à parte só para o lançador dos testes (`tests/sem_claude_ancestral.py`) a trocar
+    pela leitura que vê só os descendentes do teste: as outras partes da suíte rodam ao mesmo tempo e têm `forge-fechar`
+    e `claude` falsos vivos, que não são do mundo do teste."""
+    return [n for n in os.listdir(PROC) if n.isdigit()]
+
+
 def processos_de_interesse():
     """{"claude": [cwd...], "fechar": [cwd...], "duvida": bool}: os processos do mesmo usuário que importam. `duvida` quando o
     /proc é incoerente ou o `cwd` de um desses processos não se lê (um que sumiu no meio da leitura não conta como dúvida)."""
@@ -160,7 +169,7 @@ def processos_de_interesse():
         achados["duvida"] = True
         return achados
     try:
-        nomes = [n for n in os.listdir(PROC) if n.isdigit()]
+        nomes = pids_do_proc()
     except OSError:
         achados["duvida"] = True
         return achados

@@ -28,6 +28,8 @@ Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, http
 ## Comandos do projeto
 - **Pronto** (critério de entrega dos agentes): `{{COMANDO_PRONTO}}`
 - **Testes rápidos**: <!-- comando de testes da stack -->
+- **Conferência de registros** (índices, mapas e contagens derivados que o CI reprova; só leitura, em segundos): o comando da chave `registros` do `.forge/config.json`, que o `.githooks/pre-push` roda em todo envio de branch; saída fora de 0 barra o envio, e sem a chave nada roda. <!-- o que o comando confere -->
+- **Versões do intérprete** (as do CI do projeto; o padrão é o campo `Versões` do `pronto.md` da stack): <!-- ex.: as da matriz do CI --> O autor roda os testes rápidos em cada uma antes de entregar, um log por versão com `head=` na 1.ª linha e `rc=` na última; versão sem o intérprete na máquina não é verde.
 - **Linha de status (opcional)**: `forge-status` mostra uma linha por pedido em curso; para ligar, ponha `"statusLine": {"type": "command", "command": "forge-status"}` em `.claude/settings.local.json`.
 
 - **Ambiente:** durante o trabalho, desligue a atualização automática da extensão do Claude Code (ela reinicia a sessão e leva os agentes em curso); o nome da opção muda entre versões, procure por atualização automática nas configurações da extensão.

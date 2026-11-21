@@ -34,20 +34,20 @@
     },
     {
       "id": "P10",
-      "guarda": "MP4: o Post só apaga a trava do projeto do mesmo uso",
+      "guarda": "MP4: o Post só solta (grava null) a trava do projeto do mesmo uso",
       "arquivo": "hooks/pesado.py",
-      "de": "            if solta(trava, uso):\n                arquivo.unlink()",
-      "para": "            if True:\n                arquivo.unlink()",
+      "de": "            if solta(trava, uso):\n                gravar_json(arquivo, None)",
+      "para": "            if True:\n                gravar_json(arquivo, None)",
       "testes": [
         "tests.test_maquina.FilaPesada.test_post_de_outro_uso_mantem_e_dono_morto_sai"
       ]
     },
     {
       "id": "S1",
-      "guarda": "MP2: registro ilegível no status vale nenhum",
+      "guarda": "MP2/MP8: arquivo da máquina ilegível no status vale vazio",
       "arquivo": "bin/forge-status",
-      "de": "    except (ValueError, AttributeError, OSError):\n        vivas = {}",
-      "para": "    except (ValueError, AttributeError, OSError):\n        raise",
+      "de": "        except (ValueError, OSError, RecursionError):\n            dados = {}",
+      "para": "        except (ValueError, OSError, RecursionError):\n            raise",
       "testes": [
         "tests.test_maquina.Registro.test_registro_ilegivel_recomeca"
       ]

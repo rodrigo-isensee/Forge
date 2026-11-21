@@ -50,7 +50,7 @@ def esperando(pasta):
 
 def estado(run, validade):
     """(a trava em vigor ou None, quantos esperam na fila)."""
-    trava = _comum.ler_json(run / "pesado.json", None)
+    trava = _comum.ler_trava(run / "pesado.json")
     desde = trava.get("desde") if isinstance(trava, dict) else None
     if not isinstance(desde, (int, float)) or time.time() - desde >= validade:
         trava = None

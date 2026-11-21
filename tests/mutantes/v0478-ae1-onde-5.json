@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "AE1.1 onde: alvo inválido sai rc 2 sem git",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if tipo is None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_onde.Alvo.test_entrada_invalida_nao_chega_ao_git"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "AE1.1 onde: PR vai ao gh",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    if tipo == \"pr\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_onde.Pr.test_pr_mesclado_e_onde_o_commit_esta"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "AE1.1 onde: branch lê frente, atrás e PR",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    elif tipo == \"branch\":",
+      "para": "    elif False:",
+      "testes": [
+        "tests.test_forge_onde.Branch.test_branch_sem_pr"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "AE1.1 onde: cartão lê as mensagens",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    elif tipo == \"cartao\":",
+      "para": "    elif False:",
+      "testes": [
+        "tests.test_forge_onde.Cartao.test_id_inteiro_e_o_commit_mais_novo_de_cada_base"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "AE1.1 onde: versão lê a tag",
+      "arquivo": "bin/forge_onde.py",
+      "de": "f\"refs/tags/{valor}\" if tipo == \"versao\" else valor",
+      "para": "f\"refs/tags/{valor}\" if True else valor",
+      "testes": [
+        "tests.test_forge_onde.VersaoECommit.test_commit_curto_so_na_develop"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "AE1.1 onde: alvo ausente não existe",
+      "arquivo": "bin/forge_onde.py",
+      "de": "        if sha is None:\n            return NAO_EXISTE",
+      "para": "        if False:\n            return NAO_EXISTE",
+      "testes": [
+        "tests.test_forge_onde.VersaoECommit.test_versao_sem_tag_nao_existe"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "AE1.1 onde: saída sem caractere de controle",
+      "arquivo": "bin/forge_onde.py",
+      "de": "    return rc, [ctx[\"seguro\"](linha) for linha in linhas]",
+      "para": "    return rc, linhas",
+      "testes": [
+        "tests.test_forge_onde.Pr.test_texto_do_gh_sai_sem_controle"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "AE1.1 forge-check: o subcomando onde chama o módulo",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"onde\":  # AE1.1",
+      "para": "    if False:  # AE1.1",
+      "testes": [
+        "tests.test_forge_onde.PeloForgeCheck.test_subcomando_onde_imprime_e_sai_com_o_rc"
+      ]
+    }
+  ]
+}

@@ -64,7 +64,7 @@
       "id": "M7",
       "guarda": "conformidade.py:2054 (A2): o ramo externo is False confere a prova antes de sair",
       "arquivo": "hooks/conformidade.py",
-      "de": "            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz)\n",
+      "de": "            prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, na_sessao_do_forge)\n",
       "para": "            pass\n",
       "testes": [
         "tests.test_conformidade_verde.ProvaDaSuite.test_pasta_fora_de_projeto_tambem_recusa"
