@@ -4033,7 +4033,8 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, travas=Fa
             Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita uma pasta de parecer "
                           f"(papel: {papel})", "o dono grava a própria pasta pelo caminho literal; os outros papéis pedem ao dono")
         if guarda.no_clone and isinstance(alvo, str) and guarda.controle_no_texto(alvo):
-            if not isinstance(erro, ForaDaProva):
+            interno = not isinstance(erro, ForaDaProva)  # a linha sem leitura é a recusa; só o erro interno vai ao registro
+            if interno:
                 hook.registrar_erro(erro)
             Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita o pedido ou o "
                           f"brief da pasta de controle (papel: {papel})", "peça ao jarvis")
