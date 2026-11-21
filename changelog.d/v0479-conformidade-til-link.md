@@ -1,2 +1,3 @@
 ### Corrigido
 - Hook `conformidade`: o destino com `$(…)`, crase ou variável vale também pelo valor que o hook calcula por inteiro, com o `~` do começo como o do bash; `echo x >> "$(echo ~/.claude)/settings.json"` e `d=~/.claude; echo x >> "$d/settings.json"` passam a recusar (CONFORMIDADE-TIL-EM-SUBSTITUICAO, v0478 E80.1).
+- Hook `conformidade`: o link criado por cópia na mesma linha (`cp -a`, `-P`, `-d`, `-r`, `--no-dereference`, `rsync -a`, `tar -x` e `os.symlink` no `python3 -c`) conta como caminho trocado, como o `ln`: a linha do papel que não é o jarvis que cita o pedido ou o brief da pasta de controle recusa, e a cópia de `wt/` perde a exceção (CONFORMIDADE-LINK-POR-COPIA, v0478 E80.1).

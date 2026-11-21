@@ -409,14 +409,19 @@ class EstadoDoAgentesNoClone(CloneDoForge):
         (self.clone / "docs").mkdir()
         for c in ("find . -name '*.py'", "find docs -name x -delete", "find . -name x -exec grep y {} +",
                   "find .git/forge -name '*.json'", "tar -xf docs/a.tar -C docs", "tar -tf docs/a.tar",
-                  "tar -cf docs/a.tar .git/forge", "tar -xf .git/forge/a.tar -C docs", "tar -tf docs/a.tar -- .git/forge",
+                  "tar -cf docs/a.tar .git/forge", "tar -tf docs/a.tar -- .git/forge",
                   "tar -cf docs/a.tar -C .git/forge run", "chmod +x docs/a.sh", "find . -name x -delete",
                   "tar --checkpoint -xf docs/a.tar -C docs", "tar --to-command=cat -xf docs/a.tar -C docs",
                   "tar -czf docs/a.tgz --remove-files docs/x", "unzip docs/a.zip -d docs", "cd docs && unzip a.zip",
                   "cd docs && cpio -id < a.cpio", "cpio -o < docs/l > docs/a.cpio", "7z x docs/a.7z -odocs",
                   "7z l .git/forge/a.7z", "7z a docs/a.7z .git/forge", "busybox ls .git/forge", "busybox --list",
-                  "tar -xf docs/a.tar -C docs -- -C.git/forge", "cd .git/forge/run && cpio -o < ../../../docs/l > ../../../docs/a.cpio"):
+                  "cd .git/forge/run && cpio -o < ../../../docs/l > ../../../docs/a.cpio"):
             self.libera(self.rodar("Bash", {"command": c}), c)
+
+    def test_tar_x_na_linha_que_cita_o_estado_recusa(self):  # CONFORMIDADE-LINK-POR-COPIA (v0478 E80.1): o `tar -x` cria link
+        (self.clone / "docs").mkdir()  # na linha, como o `ln`: o caminho que o hook resolve não é o do bash (antes, livre)
+        for c in ("tar -xf .git/forge/a.tar -C docs", "tar -xf docs/a.tar -C docs -- -C.git/forge"):
+            self.recusa(self.rodar("Bash", {"command": c}), c)
 
     def test_de_fora_do_clone_pelo_caminho_absoluto_recusa(self):  # J12: pasta corrente fora do clone
         fora = self.tmp / "fora"

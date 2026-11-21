@@ -66,8 +66,8 @@
       "id": "W8",
       "guarda": "o ponto como programa conta como arquivo lido pelo shell (E63.13, A16)",
       "arquivo": "hooks/conformidade.py",
-      "de": "                            r\"(?![\\w.-])|(?:^|[;&|(])\\s*\\.\\s|\\bcp\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[sl][a-zA-Z]*|-(?:symbolic-)?link)\"\n",
-      "para": "                            r\"(?![\\w.-])|\\bcp\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[sl][a-zA-Z]*|-(?:symbolic-)?link)\"\n",
+      "de": "                            r\"(?![\\w.-])|(?:^|[;&|(])\\s*\\.\\s|\\bcp\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[slaPdrR][a-zA-Z]*|-(?:symbolic-)?link\"\n",
+      "para": "                            r\"(?![\\w.-])|\\bcp\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[slaPdrR][a-zA-Z]*|-(?:symbolic-)?link\"\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
       ]

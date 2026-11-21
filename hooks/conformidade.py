@@ -3828,9 +3828,14 @@ SUBIDA_NO_TEXTO = (r"\.\.|`|\\|[{}]|(?:^|[\s/=])\.[*?[]|~[-+\d]|\bcd\s+-|pushd|p
 # `HOME` fora do `$HOME` e do `${HOME}` (`HOME=`, `export`, `read`, `printf -v`, `env HOME=`, `unset`), o arquivo que o
 # shell lê e pode trocá-lo (`source`, o ponto, `BASH_ENV`, `ENV`) e a entrada criada ou movida (`ln`, `link`, `mv`,
 # `install`, `rename`, `cp -s|-l`): o `~`, o `$HOME` e o caminho real do hook deixam de ser os do bash.
+# CONFORMIDADE-LINK-POR-COPIA (A18 da segurança E63.15): também o link criado por cópia, que o copia como link (`cp -a`,
+# `-P`, `-d`, `-r`, `-R`, `--no-dereference`, `--archive`, `--recursive`; `rsync -a`, `-l`, `--archive`, `--links`;
+# `tar -x`, `tar x`, `--extract`, `--get`; `os.symlink(` e `symlink_to(` no texto do interpretador).
 CAMINHO_TROCADO_NA_LINHA = (r"(?<![\w$])(?<!\$\{)(?:HOME|BASH_ENV|ENV)(?!\w)|(?<![\w.-])(?:source|ln|link|mv|install|rename)"
-                            r"(?![\w.-])|(?:^|[;&|(])\s*\.\s|\bcp\b[^;&|\n]*\s-(?:[a-zA-Z]*[sl][a-zA-Z]*|-(?:symbolic-)?link)"
-                            r"(?![\w-])")
+                            r"(?![\w.-])|(?:^|[;&|(])\s*\.\s|\bcp\b[^;&|\n]*\s-(?:[a-zA-Z]*[slaPdrR][a-zA-Z]*|-(?:symbolic-)?link"
+                            r"|-no-dereference|-archive|-recursive)(?![\w-])|\brsync\b[^;&|\n]*\s-(?:[a-zA-Z]*[al][a-zA-Z]*"
+                            r"|-archive|-links)(?![\w-])|\btar\s+-?[a-zA-Z]*x[a-zA-Z]*(?![\w.-])|\btar\b[^;&|\n]*\s(?:-[a-zA-Z]*x"
+                            r"[a-zA-Z]*|--extract|--get)(?![\w.-])|\bsymlink(?:_to)?\s*\(")
 
 
 def sem_copia_de_wt(texto):

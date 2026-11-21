@@ -1,0 +1,66 @@
+{
+  "pedido": "v0479-conformidade-til-link",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "L1",
+      "guarda": "o `cp -a`, `-P`, `-d`, `-r` e `-R` contam como link na linha (CONFORMIDADE-LINK-POR-COPIA, E80.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                            r\"(?![\\w.-])|(?:^|[;&|(])\\s*\\.\\s|\\bcp\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[slaPdrR][a-zA-Z]*|-(?:symbolic-)?link\"\n",
+      "para": "                            r\"(?![\\w.-])|(?:^|[;&|(])\\s*\\.\\s|\\bcp\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[sl][a-zA-Z]*|-(?:symbolic-)?link\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
+      ]
+    },
+    {
+      "id": "L2",
+      "guarda": "o `cp --no-dereference` conta como link na linha (CONFORMIDADE-LINK-POR-COPIA, E80.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                            r\"|-no-dereference|-archive|-recursive)(?![\\w-])|\\brsync\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[al][a-zA-Z]*\"\n",
+      "para": "                            r\"|-archive|-recursive)(?![\\w-])|\\brsync\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[al][a-zA-Z]*\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
+      ]
+    },
+    {
+      "id": "L3",
+      "guarda": "o `rsync -a` e `-l` contam como link na linha (CONFORMIDADE-LINK-POR-COPIA, E80.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                            r\"|-no-dereference|-archive|-recursive)(?![\\w-])|\\brsync\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[al][a-zA-Z]*\"\n",
+      "para": "                            r\"|-no-dereference|-archive|-recursive)(?![\\w-])|\\brsyncQ\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[al][a-zA-Z]*\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
+      ]
+    },
+    {
+      "id": "L4",
+      "guarda": "o `tar x` sem traço conta como extração (CONFORMIDADE-LINK-POR-COPIA, E80.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                            r\"|-archive|-links)(?![\\w-])|\\btar\\s+-?[a-zA-Z]*x[a-zA-Z]*(?![\\w.-])|\\btar\\b[^;&|\\n]*\\s(?:-[a-zA-Z]*x\"\n",
+      "para": "                            r\"|-archive|-links)(?![\\w-])|\\btarQ\\s+-?[a-zA-Z]*x[a-zA-Z]*(?![\\w.-])|\\btar\\b[^;&|\\n]*\\s(?:-[a-zA-Z]*x\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
+      ]
+    },
+    {
+      "id": "L5",
+      "guarda": "o `tar … -x` depois de outra opção conta como extração (CONFORMIDADE-LINK-POR-COPIA, E80.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                            r\"|-archive|-links)(?![\\w-])|\\btar\\s+-?[a-zA-Z]*x[a-zA-Z]*(?![\\w.-])|\\btar\\b[^;&|\\n]*\\s(?:-[a-zA-Z]*x\"\n",
+      "para": "                            r\"|-archive|-links)(?![\\w-])|\\btar\\s+-?[a-zA-Z]*x[a-zA-Z]*(?![\\w.-])|\\btar\\b[^;&|\\n]*\\s(?:-[a-zA-Z]*Q\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
+      ]
+    },
+    {
+      "id": "L6",
+      "guarda": "o `os.symlink(` no texto do interpretador conta como link na linha (CONFORMIDADE-LINK-POR-COPIA, E80.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                            r\"[a-zA-Z]*|--extract|--get)(?![\\w.-])|\\bsymlink(?:_to)?\\s*\\(\")\n",
+      "para": "                            r\"[a-zA-Z]*|--extract|--get)(?![\\w.-])|\\bsymlinkQ(?:_to)?\\s*\\(\")\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
+      ]
+    }
+  ]
+}
