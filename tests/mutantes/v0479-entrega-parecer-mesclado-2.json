@@ -1,0 +1,87 @@
+{
+  "pedido": "v0479-entrega-parecer-mesclado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "veredito trocado no mesmo commit: segue fora",
+      "arquivo": "bin/forge-check",
+      "de": "    return not veredito_trocado(raiz, base_sha, head, nome, revisado, fm[\"parecer\"], branch, tipo)\n",
+      "para": "    return True\n",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_veredito_trocado_no_mesmo_commit_segue_fora"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "diff-tree que falha não lê a saída (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "    nomes = [] if cod else nomes_z(saida)\n    return bool(nomes) and all(",
+      "para": "    nomes = [] if False else nomes_z(saida)\n    return bool(nomes) and all(",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_git_que_falha_conta_como_commit_do_autor"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "parecer sem frontmatter não é anexo (nem quebra a conferência)",
+      "arquivo": "bin/forge-check",
+      "de": "    fm = ler_frontmatter(git(raiz, \"show\", f\"{head}:{nome}\")[1])[0] or {}\n    if fm.get(\"tipo\") != tipo or fm.get(\"branch\") != branch or fm.get(\"parecer\") not in (\"aprovado\", \"reprovado\"):\n        return False\n    if fm.get(\"pedido\") not in (pedido_id, slug):\n",
+      "para": "    fm = ler_frontmatter(git(raiz, \"show\", f\"{head}:{nome}\")[1])[0]\n    if fm.get(\"tipo\") != tipo or fm.get(\"branch\") != branch or fm.get(\"parecer\") not in (\"aprovado\", \"reprovado\"):\n        return False\n    if fm.get(\"pedido\") not in (pedido_id, slug):\n",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_parecer_sem_frontmatter_segue_fora"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "o commit do portão só muda a pasta do tipo do parecer (E50.5, A2)",
+      "arquivo": "bin/forge-check",
+      "de": "all(n.startswith(f\"{pasta}/\") and not n.startswith(ACEITES_DO_USUARIO)",
+      "para": "all(n.startswith(PASTAS_DE_PARECER) and not n.startswith(ACEITES_DO_USUARIO)",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_um_commit_com_pareceres_de_varias_pastas_segue_fora"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "docs/security/aceites/ não entra no commit do portão (E50.5, A2)",
+      "arquivo": "bin/forge-check",
+      "de": "all(n.startswith(f\"{pasta}/\") and not n.startswith(ACEITES_DO_USUARIO)",
+      "para": "all(n.startswith(f\"{pasta}/\")",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_parecer_de_seguranca_com_aceite_no_mesmo_commit_segue_fora"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "rev-list do intervalo que falha recusa (E50.5, A1 do review)",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod or not all(commit_so_de_parecer(raiz, sha, nome, pasta)",
+      "para": "    if False or not all(commit_so_de_parecer(raiz, sha, nome, pasta)",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerMescladoNaVolta.test_rev_list_que_falha_recusa"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "parecer do mesmo papel do autor da volta só com o parecer conferido do Jarvis (E50.6, A4)",
+      "arquivo": "bin/forge-check",
+      "de": "    if (not autores or PAPEL_DO_BRIEF_DO_PARECER[tipo] in autores) and not parecer_trazido(raiz, ultimos, head, nome):\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoMesmoPapelDoAutor.test_mesmo_papel_sem_linha_do_jarvis_segue_fora",
+        "tests.test_selo_e_entrega.ParecerDoMesmoPapelDoAutor.test_parecer_conferido_de_outra_versao_nao_ancora"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "sem autor lido nos briefs de codigo, falha fechada (E50.6, A4)",
+      "arquivo": "bin/forge-check",
+      "de": "    if (not autores or PAPEL_DO_BRIEF_DO_PARECER[tipo] in autores) and not parecer_trazido(raiz, ultimos, head, nome):\n",
+      "para": "    if PAPEL_DO_BRIEF_DO_PARECER[tipo] in autores and not parecer_trazido(raiz, ultimos, head, nome):\n",
+      "testes": [
+        "tests.test_selo_e_entrega.ParecerDoMesmoPapelDoAutor.test_sem_autor_conhecido_falha_fechada"
+      ]
+    }
+  ]
+}

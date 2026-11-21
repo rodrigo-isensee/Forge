@@ -189,9 +189,15 @@ if _pasta:
 # mais deu 5869383, 9262 a mais (2 x 4631). O teto é a medida mais o ruído, sem folga: corpus novo, hook mudado ou outro
 # custo pedem medida nova (a mensagem do teste traz a contagem). Medida nova (v0478 E41.10): a develop em cf097822
 # mudou o `hooks/_comum.py`, o `hooks/agentes.py` e o `forge-check`, e os passos foram de 5860121 a 5893967, nas mesmas
-# condições (registro em tests/provas/v0479-corpus-custo.md).
+# condições (registro em tests/provas/v0479-corpus-custo.md). Medida nova (v0478 E50.25): o `hooks/conformidade.py` e o
+# `forge-check` do v0479-entrega-parecer-mesclado levaram os passos de 5893967 a 5895051, nas mesmas condições. O
+# teto subiu +1084 passos (0,02%) com autorização do dono em 20/11 19:09 só para este item (DECISÃO DO DONO no pedido
+# v0478), não precedente: outro aumento pede medida nova e autorização própria.
+# Soma do E50 e do E51 (v0478 E51.30): interpretador 5893967 -> 5897219 (+3252). Autorizações do dono, cada uma só para o seu
+# item e não precedente (DECISÃO DO DONO no pedido v0478): E50 +1084 em 20/11 às 19:09; E51 +2168 em 20/11 às 19:55. O
+# dono pediu aviso só se o total passar de +3300; prova em tests/provas/v0479-corpus-custo.md, "Soma do E50 e do E51".
 MEDIDA_DO_CORPUS = {"python": "3.12", "profundidade_do_tmp": 2, "variaveis_do_ambiente": 234,
-                    "execucoes": 557, "subprocessos": 4631, "interpretador": 5893967}
+                    "execucoes": 557, "subprocessos": 4631, "interpretador": 5897219}
 PASSOS_POR_NIVEL_DO_TMP = 460
 PASSOS_POR_VARIAVEL_POR_SUBPROCESSO = 2
 RUIDO_DO_CORPUS = {"subprocessos": 0, "interpretador": 0}

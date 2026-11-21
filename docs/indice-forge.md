@@ -44,6 +44,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `forge_meta.py` | arma o objetivo que o hook de Stop (hooks/meta.py) confere (S4, 0.44.2). Só biblioteca padrão. |
 | `forge_onde.py` | `forge-check onde <alvo>` (AE1.1, v0478 E58.1): onde está uma versão, um PR, um commit, uma branch ou um cartão, lido |
 | `forge_provas.py` | o arquivo de provas da branch, gerado do brief pela lista do script que o CI roda (M15 E5a1; FILA-31 F6, 0.45.5). |
+| `forge_quarentena.py` | a quarentena de teste instável (BP1 Q1, pedido v0478). Só biblioteca padrão; só leitura. |
 | `forge_run.py` | execução capturada como prova (S5, 0.44.2). Só biblioteca padrão. |
 | `forge_sempre_atual.py` | FORGE-SEMPRE-ATUAL (v047, diretriz 30, ADR 0017): o núcleo que mantém o plugin do Forge na última versão publicada. |
 | `forge_tamanho.py` | os avisos de tamanho do `forge-check pr` e do `brief gerar` (H1-TETO-DE-TAMANHO-POR-ITEM e PEDIDO-TETO-BRIEF, v0474 E2.13). |

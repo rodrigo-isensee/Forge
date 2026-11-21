@@ -1,0 +1,66 @@
+{
+  "pedido": "v0479-conformidade-sessao-forge",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "E51.10: a palavra em que o bash de fora substitui um comando é opaca na releitura",
+      "arquivo": "hooks/conformidade.py",
+      "de": "len(palavras_do_texto(palavra.cru).simples) > 1",
+      "para": "False",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "E51.10: a palavra sem substituição é relida pelo valor (a crase escapada é a do bash de dentro; A2 do QA E51.9)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "len(palavras_do_texto(palavra.cru).simples) > 1",
+      "para": "True",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "E51.10: `gh pr edit` não chega a uma trava (A2 do QA E51.9)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"pr status\", \"pr edit\", \"run view\"",
+      "para": "\"pr status\", \"run view\"",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "E51.10: só o here-string é texto reavaliado pelo shell, não a outra redireção",
+      "arquivo": "hooks/conformidade.py",
+      "de": "aqui = [r.alvo for r in comando.redirecoes if r.operador == \"<<<\" and r.alvo is not None]",
+      "para": "aqui = [r.alvo for r in comando.redirecoes if r.alvo is not None]",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "E51.14/E51.18: o eval com texto a reavaliar dentro do texto reavaliado é trava (A1 da segurança E51.12)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if nivel and nome == \"eval\" and originais[j + 1:]:",
+      "para": "if nivel and False:",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "E51.14/E51.18: o shell dentro do texto reavaliado é trava, com texto, here-string ou lendo a entrada (A1 da segurança E51.12 e E51.16)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if nivel and nome in SHELLS:",
+      "para": "if nivel and False:",
+      "testes": [
+        "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
+      ]
+    }
+  ]
+}

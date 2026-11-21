@@ -109,7 +109,7 @@ que um portão revisou (o `Revisar-sha:` de brief selado de portão da mesma bra
 vale como a branch inteira (`base: Base-sha do brief`, P-N1; `brief mensagem --entrega` emite esse `Desde:`). Intervalo vazio:
 `pendente:` na etapa `codigo`, `escopo: sem commit (nada a conferir)` nas outras. Parecer do papel certo e com autoria:
 `escopo: ok (parecer de <papel>)`; o resto: `escopo: confira "<arquivo>" +a -r`, para a leitura contra o Entregar.
-`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Com o blob do último `parecer conferido` do Histórico que o altera, ancestral do head, sai `escopo: ok (parecer trazido <sha7> de <papel>)`, mesmo com remoção. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`). O arquivo aplicado pelo dono, declarado no `## Histórico` por `- <data> <hora>: patch do dono aplicado <arquivo> commit <sha40>` e citado (sha40 e caminho) por uma `DECISÃO DO DONO`, sai `escopo: ok (patch do dono <sha7>, DECISÃO DO DONO <pedido>:<linha>)` só com o blob e o modo desse commit no head.
+`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Com o blob do último `parecer conferido` do Histórico que o altera, ancestral do head, sai `escopo: ok (parecer trazido <sha7> de <papel>)`, mesmo com remoção. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`). O arquivo aplicado pelo dono, declarado no `## Histórico` por `- <data> <hora>: patch do dono aplicado <arquivo> commit <sha40>` e citado (sha40 e caminho) por uma `DECISÃO DO DONO`, sai `escopo: ok (patch do dono <sha7>, DECISÃO DO DONO <pedido>:<linha>)` só com o blob e o modo desse commit no head. Na volta (Desde de conferida ou Revisar-sha), o parecer que o portão commitou ou mesclou na branch em qualquer ponto do intervalo sai `escopo: ok (anexo do portão: parecer de <papel> commitado na volta só com parecer)` com o frontmatter da pasta, da branch e do pedido, o `commit:` igual ao Desde (E50.5) e todo commit que muda o arquivo só da pasta do tipo (fora de `docs/security/aceites/`) ou merge sem resolução à mão (E50.1); o autor que o toca segue fora. O parecer do papel de um autor da volta (`Agente destino` de brief selado de codigo; sem nenhum, falha fechada) só vale com o blob do último `parecer conferido` do Histórico (E50.6).
 `delta` (VV-2, M12; só leitura, nunca reprova) imprime `delta: <arquivo> +a -r` e `delta: <arquivo>:<ini>-<fim>` (lado novo
 de cada trecho de `git diff -U0`) do que mudou entre o commit (ou o `commit:` do parecer de `--parecer`) e o fim (padrão HEAD),
 fora de docs/reviews, qa, devops, security e do quadro; `delta: nenhum` sem mudança. Com `--classe` (EST-M4), também
@@ -3063,6 +3063,52 @@ def parecer_mandado_pelo_portao(raiz, base_sha, head, nome, tipo, branch, pedido
     return False
 
 
+def commit_so_de_parecer(raiz, sha, nome, pasta):
+    """E50.1: o commit `sha`, que muda `nome` no intervalo, é do portão: sem merge, só muda arquivos da `pasta` do tipo do parecer, fora
+    de `docs/security/aceites/` (E50.5, A2); merge, fica com a versão de `nome` de um dos pais (sem resolução à mão). O git que falha
+    conta como do autor (falha fechada)."""
+    pais = git(raiz, "rev-list", "--parents", "-n", "1", sha)[1].split()[1:]  # o git que falha: sem pais, cai no diff-tree, que falha também
+    if len(pais) > 1:
+        blob = blob_de(raiz, sha, nome)
+        return bool(blob) and blob in {blob_de(raiz, pai, nome) for pai in pais}
+    cod, saida = git(raiz, "diff-tree", "--root", "--no-commit-id", "--name-only", "-z", "-r", "--no-renames", sha, bruto=True)
+    nomes = [] if cod else nomes_z(saida)
+    return bool(nomes) and all(n.startswith(f"{pasta}/") and not n.startswith(ACEITES_DO_USUARIO) for n in nomes)
+
+
+def parecer_mesclado_na_volta(raiz, base_sha, de, head, nome, tipo, branch, pedido_id, slug, autores, ultimos):
+    """E50.1 (ENTREGA-PARECER-MESCLADO-ANTES-DO-AUTOR): na volta (o intervalo começa numa conferida ou num Revisar-sha, `de`), o
+    parecer que o portão commitou ou mesclou na branch em qualquer ponto do intervalo, antes ou depois do commit do autor, é anexo do
+    portão: o frontmatter no head é o da pasta, desta branch e deste pedido, com veredito; o `commit:` é o próprio `de`, a versão
+    revisada que abre a volta (E50.5, A1: nunca outro commit do intervalo, que o autor escolheria); todo commit do intervalo que muda o
+    arquivo é só da pasta do tipo ou merge sem resolução à mão (`commit_so_de_parecer`); e nenhuma versão da pasta desde o Base-sha
+    troca o veredito do mesmo `commit:`. O commit do autor que toca o parecer, mesmo junto do código, segue fora. E50.6 (A4 da
+    segurança): o parecer do papel de um autor da volta (`autores`, os `Agente destino` dos briefs selados de codigo; sem nenhum,
+    falha fechada) só vale com o blob do último `parecer conferido` do Histórico (`ultimos`, registro do Jarvis), nunca pela forma do git."""
+    fm = ler_frontmatter(git(raiz, "show", f"{head}:{nome}")[1])[0] or {}
+    if fm.get("tipo") != tipo or fm.get("branch") != branch or fm.get("parecer") not in ("aprovado", "reprovado"):
+        return False
+    if fm.get("pedido") not in (pedido_id, slug):
+        return False
+    revisado = str(fm.get("commit", ""))
+    if revisado != de:  # E50.5 A1: o `de` é sha40 (conferida ou Revisar-sha, registro do Jarvis)
+        return False
+    if (not autores or PAPEL_DO_BRIEF_DO_PARECER[tipo] in autores) and not parecer_trazido(raiz, ultimos, head, nome):
+        return False  # E50.6 (A4): a barreira por papel não separa a instância autora da revisora
+    pasta = PASTA_E_REGRA[tipo][0]
+    cod, shas = git(raiz, "rev-list", "--full-history", f"{de}..{head}", "--", nome)
+    if cod or not all(commit_so_de_parecer(raiz, sha, nome, pasta) for sha in shas.split()):
+        return False
+    return not veredito_trocado(raiz, base_sha, head, nome, revisado, fm["parecer"], branch, tipo)
+
+
+def autores_da_volta(raiz, caminho, texto, branch, pedido_id):
+    """E50.6 (A4 da segurança): os papéis (`Agente destino`) dos briefs selados de codigo desta branch e deste pedido."""
+    return {nome_do_papel(grupo(r"^\s*Agente destino:\s*(\S+)", cabecalho_do_brief(brief)))
+            for _, brief, _ in briefs_selados_da_entrega(raiz, caminho, texto, branch, "codigo")
+            if mesmo_pedido(grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho_do_brief(brief)), pedido_id, caminho)} - {None}
+
+
 def provas_do_brief(texto):
     """[(n, tipo)] das linhas `PQ-n (<tipo>[, ...])` do `Pronto quando` do brief, na ordem."""
     provas = []
@@ -3270,6 +3316,9 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
         elif etapa in ETAPAS_DE_CODIGO and tipo and not com_controle(nome) and parecer_mandado_pelo_portao(
                 raiz, base_sha, head, nome, tipo, branch, pedido_id):
             linhas.append((f"escopo: ok (anexo do portão: parecer de {PAPEL_DO_PARECER[tipo]} mandado por brief selado do portão da branch) {mostrado}", False))
+        elif etapa in ETAPAS_DE_CODIGO and valido and tipo and not com_controle(nome) and parecer_mesclado_na_volta(  # E50.1
+                raiz, base_sha, valido, head, nome, tipo, branch, pedido_id, slug, autores_da_volta(raiz, caminho, texto, branch, pedido_id), ultimos):
+            linhas.append((f"escopo: ok (anexo do portão: parecer de {PAPEL_DO_PARECER[tipo]} commitado na volta só com parecer) {mostrado}", False))
         else:  # CONFERENCIA-PATCH-DO-DONO: o arquivo aplicado pelo dono, declarado no pedido, sai do escopo só com o commit dele
             isencao, avisos = isencao_do_dono(raiz, pedido_id, texto, do_dono.get(nome), nome, base_sha, head, base_ref)
             linhas += avisos
