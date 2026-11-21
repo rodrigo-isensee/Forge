@@ -2126,6 +2126,10 @@ class Guarda:
                 self.checar_texto(corpo)
             self.h.corpos_pendentes -= 1
         self.nao_modelada(achado)
+        if nivel == 0 and not self.leitura and envio_com_substituicao(original):  # CONFORMIDADE-SUBSTITUICAO-NO-PROJETO
+            self.barrar("R-CONFORMIDADE", "envio do git com o programa, o subcomando, a flag ou o destino vindos de "
+                                          "substituição ($(…), crase, <(…)) ou da entrada (xargs, pipe para o shell): o hook não "
+                                          "sabe o valor", "escreva o envio literal: git push origin <branch>", trava=TRAVA_OPACA)
         if gravado and not self.leitura and self.critico(original):  # M3, depois das regras da linha e do corpo
             self.barrar("R-CONFORMIDADE", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`)",
                         "grave o arquivo pelo Write ou numa chamada do Bash e rode o programa noutra")
@@ -3949,6 +3953,53 @@ def toca_uma_trava(linha, nivel=0):
             if le_o_here_string and not nivel and any(toca_uma_trava(texto_reavaliado(a), 1) for a in aqui):
                 return True
     return False
+
+
+# CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (v0478 E63.1): o envio do git com parte vinda de substituição de comando ou da
+# entrada, lido pelo texto cru como na `toca_uma_trava` (E51.6). Vale no projeto e, pela `TRAVA_OPACA`, na sessão do Forge.
+ENVIO_DO_GIT = frozenset({"push", "send-pack"})
+SUBSTITUICAO_NA_PALAVRA = re.compile(r"\$\(|`|<\(")
+CITA_O_ENVIO = re.compile(r"(?<![\w./-])(?:push|send-pack)(?![\w.-])")
+
+
+def envio_com_substituicao(linha):
+    """Algum comando simples da linha (sem os corpos de heredoc) é um envio do git, ou pode ser, com parte que o hook não
+    sabe: o programa por substituição seguido de `push` ou de outra substituição (`$(echo git) push`), o subcomando por
+    substituição (`git $(echo push)`), uma flag ou o destino do envio por substituição (`git push $(echo --force)`), o
+    envio atrás do `xargs` (os argumentos vêm do pipe), ou o shell que lê a entrada numa linha que cita o git e o envio
+    (`echo 'git push …' | bash`)."""
+    try:
+        linha, _ = tirar_heredocs(linha)
+    except ValueError:
+        pass
+    cita_o_envio = bool(GIT_NO_TEXTO.search(linha) and CITA_O_ENVIO.search(linha))
+    for comando in palavras_do_texto(linha).simples:
+        originais = [p for p in comando.palavras if p.cru not in ANTES_DO_PROGRAMA and not ATRIBUICAO.match(p.cru)]
+        valores, nomes = [p.valor for p in originais], [nome_do_caminho(p.valor) for p in originais]
+        opacas = [bool(SUBSTITUICAO_NA_PALAVRA.search(p.cru)) for p in originais]
+        for j in range(len(valores)):
+            no_programa = j == 0 or nomes[j - 1] in ENVOLVEDORES
+            if opacas[j] and no_programa and (ENVIO_DO_GIT & set(valores[j + 1:]) or opacas[j + 1:j + 2] == [True]):
+                return True
+            if nomes[j] != "git" or opacas[j]:
+                continue
+            k = j + 1 + len(valores[j + 1:]) - len(resto_do_subcomando(valores[j + 1:]))
+            if k < len(valores) and opacas[k]:
+                return True
+            envio = k < len(valores) and valores[k] in ENVIO_DO_GIT or k >= len(valores) and ENVIO_DO_GIT & set(valores)
+            if envio and (any(opacas[j + 1:]) or "xargs" in nomes[:j]):
+                return True
+        if nomes and nomes[0] in SHELLS and all(v.startswith("-") for v in valores[1:]) and cita_o_envio:
+            return True
+    return False
+
+
+def resto_do_subcomando(argumentos):
+    """Os argumentos do git a partir do subcomando, como `subcomando_do_git` os pula (o `-c` para: o resto todo)."""
+    resto = list(argumentos)
+    while resto and resto[0].startswith("-") and resto[0] != "-c":
+        resto = resto[2:] if resto[0] == "-C" else resto[1:]
+    return resto if not resto or resto[0] != "-c" else []
 
 
 def texto_reavaliado(palavra):

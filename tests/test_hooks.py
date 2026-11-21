@@ -2814,6 +2814,14 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote) - len(liberam), 21, "as sondas S1-S4 e cada forma do add e do update-index")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_da_substituicao_no_projeto(self):  # CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (v0478 E63.1): envio com parte opaca
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 5, "o envio literal, a leitura com $(…) e o commit em heredoc")
+        self.assertGreaterEqual(len(lote) - len(liberam), 14, "programa, subcomando, flag e destino por $(…), crase, <(…) e pipe")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_do_n3(self):  # IMPL-FURO-HOOK-N, N3 (0.45.1): link com caminho protegido
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N3 (")]
         self.assertGreaterEqual(len(lote), 12, "as fixtures do item")
