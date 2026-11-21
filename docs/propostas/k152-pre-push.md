@@ -62,7 +62,7 @@ index 046c02a..58a82ef 100755
 ```
 
 ## 4. Sondas (2026-11-21, git 2.43.0, Forge na `develop` adc52def)
-A sonda cria um projeto pelo `bin/forge-init` da cópia do Forge dada, com o arquivo de detecção e código da stack, um remoto nu, uma cópia nova por `git worktree add` e envia a branch com código com `env -i` e o PATH do sistema (sem `ruff`, `mypy` nem `pnpm`). Uso: `bash sonda.sh <raiz do Forge> <python|node-react> <pasta vazia>`; o "depois" usa uma cópia do Forge com o patch aplicado.
+A sonda cria um projeto pelo `bin/forge-init` da cópia do Forge dada, com o arquivo de detecção e código da stack, um remoto nu, uma cópia nova por `git worktree add` e envia a branch com código com `env -i` e o PATH do sistema (sem as ferramentas do pronto rápido de nenhuma stack). Uso: `bash sonda.sh <raiz do Forge> <python|node-react> <pasta vazia>`; o "depois" usa uma cópia do Forge com o patch aplicado. Pela neutralidade do núcleo (`R-NEUTRO`), nas saídas abaixo o nome de cada ferramenta da stack aparece como `<lint>` (o primeiro programa do pronto rápido) ou `<pacotes>` (o gerenciador de pacotes); o resto é a saída real.
 
 ```bash
 set -u
@@ -91,14 +91,14 @@ Saída real, modelo de hoje (barra, sem dizer o que instalar):
 
 ```text
 --- envio da cópia nova (python)
-pre-push.local: pronto rápido: ruff check . && ruff format --check . && mypy src
-bash: line 1: ruff: command not found
+pre-push.local: pronto rápido: <lint> check . && <lint> format --check . && mypy src
+bash: line 1: <lint>: command not found
 pre-push.local: o pronto rápido reprovou (ou falta a ferramenta no PATH); corrija e envie de novo, ou ajuste `rapido` neste arquivo se o projeto usa outras ferramentas
 error: failed to push some refs to '<pasta>/remoto.git'
 rc_envio=1
 --- envio da cópia nova (node-react)
-pre-push.local: pronto rápido: pnpm exec eslint . && pnpm exec prettier --check . && pnpm exec tsc --noEmit
-bash: line 1: pnpm: command not found
+pre-push.local: pronto rápido: <pacotes> exec <lint> . && <pacotes> exec <formatador> --check . && <pacotes> exec <tipos> --noEmit
+bash: line 1: <pacotes>: command not found
 pre-push.local: o pronto rápido reprovou (ou falta a ferramenta no PATH); corrija e envie de novo, ou ajuste `rapido` neste arquivo se o projeto usa outras ferramentas
 error: failed to push some refs to '<pasta>/remoto.git'
 rc_envio=1
@@ -108,10 +108,10 @@ Saída real, com o `bin/forge-init` da branch e o patch aplicado (barra, diz o q
 
 ```text
 --- envio da cópia nova (python)
-pre-push.local: falta no PATH: ruff mypy (cópia nova, sem as dependências instaladas?); o envio foi barrado. Instale e envie de novo: python3 -m venv .venv && .venv/bin/python -m pip install --require-hashes --no-deps -r requirements.lock && .venv/bin/python -m pip install --no-deps -e .; já instaladas fora do PATH, some a pasta delas em caminhos_extra
+pre-push.local: falta no PATH: <lint> mypy (cópia nova, sem as dependências instaladas?); o envio foi barrado. Instale e envie de novo: python3 -m venv .venv && .venv/bin/python -m pip install --require-hashes --no-deps -r requirements.lock && .venv/bin/python -m pip install --no-deps -e .; já instaladas fora do PATH, some a pasta delas em caminhos_extra
 rc_envio=1
 --- envio da cópia nova (node-react)
-pre-push.local: falta no PATH: pnpm (cópia nova, sem as dependências instaladas?); o envio foi barrado. Instale e envie de novo: pnpm install --frozen-lockfile; já instaladas fora do PATH, some a pasta delas em caminhos_extra
+pre-push.local: falta no PATH: <pacotes> (cópia nova, sem as dependências instaladas?); o envio foi barrado. Instale e envie de novo: <pacotes> install --frozen-lockfile; já instaladas fora do PATH, some a pasta delas em caminhos_extra
 rc_envio=1
 ```
 
@@ -125,7 +125,7 @@ rc_envio=0
 ```
 
 ## 5. Testes e mutantes
-- `tests/test_prepush_k152.py` aplica o bloco `diff` acima numa cópia temporária do Forge (`bin/forge-init`, `templates/projeto`, `stacks`, o manifesto) e roda o `forge-init` e o `pre-push.local` gerado. Com o patch já aplicado no modelo, usa a cópia como está. Classes: `ForgeInitGravaOComandoDeInstalar` (o comando de cada stack, a stack sem `instalar.json`, o comando com aspa simples), `PrePushLocalSemDependencias` (nada instalado, só uma ferramenta faltando, tudo instalado, pronto reprovado) e `EnvioDaCopiaNova` (ponta a ponta com `git worktree add` e `git push`; pula se a máquina tem `ruff` ou `mypy`).
+- `tests/test_prepush_k152.py` aplica o bloco `diff` acima numa cópia temporária do Forge (`bin/forge-init`, `templates/projeto`, `stacks`, o manifesto) e roda o `forge-init` e o `pre-push.local` gerado. Com o patch já aplicado no modelo, usa a cópia como está. Classes: `ForgeInitGravaOComandoDeInstalar` (o comando de cada stack, a stack sem `instalar.json`, o comando com aspa simples), `PrePushLocalSemDependencias` (nada instalado, só uma ferramenta faltando, tudo instalado, pronto reprovado) e `EnvioDaCopiaNova` (ponta a ponta com `git worktree add` e `git push`; pula se a máquina tem as ferramentas da stack python).
 - `tests/mutantes/v0479-k152-prepush-sem-deps.json`: um mutante por guarda mudada, no `bin/forge-init` e nas linhas `+` deste arquivo (o teste lê o patch daqui, então mutar a linha do patch muta o hook aplicado).
 
 ## Critério de reversão

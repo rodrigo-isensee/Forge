@@ -131,6 +131,9 @@ CITACOES_CONHECIDAS = {**{(a, "README.md"): (n, "nome") for a, n in _NOME.items(
                        ("tests/apoio_volta_unica.py", "docs/propostas/"): (1, "prosa"),
                        ("tests/test_forge.py", "README.md"): (16, "teste-le"), ("tests/test_conferir_reversao.py", "README.md"): (14, "teste-le"), ("tests/test_doutor.py", "README.md"): (1, "teste-le"),
                        ("tests/test_forge.py", "docs/propostas/"): (2, "teste-le"),
+                       # v0478 E81.1 (K152): o teste aplica o diff da proposta do modelo travado numa cópia temporária; o mapa
+                       # do forge-testes só compara o caminho do diff com a regra
+                       ("tests/test_prepush_k152.py", "docs/propostas/"): (1, "teste-le"), ("bin/forge-testes", "docs/propostas/"): (1, "nome"),
                        ("tests/test_retro_pendentes.py", "docs/retrospectivas/"): (1, "teste-le"),  # v0478 AE5.1: confere que os dois modelos da retro são iguais
                        # 0.45.7 E1: o texto da R-WIP mora em docs/regras/README.md; o invariante, o teste e o apoio o leem
                        ("tests/test_jarvis_nucleo.py", "README.md"): (1, "teste-le"),  # lê a linha da R-WIP em docs/regras/README.md
