@@ -1,0 +1,16 @@
+{
+  "pedido": "v0478-fechar-checks-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "FCK-M9",
+      "guarda": "com --armar, o passo 4 não espera os checks; o passo 6 recusa só o que já terminou com falha (FECHAR-CHECKS-ANTES-DO-MERGE, E75.6)",
+      "arquivo": "bin/forge-fechar",
+      "de": "    [ \"$armar\" = 0 ] || { echo \"--armar: os checks não são esperados aqui;",
+      "para": "    false || { echo \"--armar: os checks não são esperados aqui;",
+      "testes": [
+        "tests.test_fechar_auto_merge.AutoMerge.test_armar_nao_espera_os_checks_e_sai_com_codigo_4"
+      ]
+    }
+  ]
+}
