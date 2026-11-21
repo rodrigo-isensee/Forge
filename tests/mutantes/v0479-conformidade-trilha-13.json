@@ -7,7 +7,7 @@
       "guarda": "a linha que troca o caminho do bash fica intacta na exceção da cópia de wt/ (E63.13, A16 e A17)",
       "arquivo": "hooks/conformidade.py",
       "de": "    if re.search(CAMINHO_TROCADO_NA_LINHA, plano):  # A16 e A17: o caminho que o bash usa não é o que o hook resolve\n",
-      "para": "    if False:\n",
+      "para": "    if False:  # A16 e A17: o caminho que o bash usa não é o que o hook resolve\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
       ]
