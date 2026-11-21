@@ -16,7 +16,7 @@
       "id": "M10",
       "guarda": "PV-A2 (E1): Commit que não é o head (o Ramo muda depois dele fora dos pareceres) não ativa",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "    if depois is None or any(not a.startswith(PARECERES) for a in depois.split(\"\\n\") if a):",
+      "de": "    if depois is None or any(not a.startswith(PARECERES) for a in depois.splitlines()):",
       "para": "    if depois is None:",
       "testes": [
         "tests.test_autorizacao.ItemPresoAoCommit.test_commit_que_nao_e_o_head_com_os_pareceres_aprovados_fica_inativa"

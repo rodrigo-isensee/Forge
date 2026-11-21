@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 BIN = Path(__file__).resolve().parent.parent / "bin"
@@ -220,7 +221,7 @@ class ItemPresoAoCommit(unittest.TestCase):
 
     def parecer(self, commit, veredito="aprovado", tipo="reviews", ramo=RAMO):
         return self.commitar(f"docs/{tipo}/pv-a2.md", f"---\ntipo: x\npedido: v0\nbranch: {ramo}\ncommit: {commit}\n"
-                                                     f"parecer: {veredito}\n---\n# parecer\n")
+                                                     f"escopo:\nparecer: {veredito}\n---\n# parecer\n")  # campo vazio
 
     def estado(self, corpo=ITEM, **troca):
         troca = {"Alvos": "item:PV-A2", "Commit": self.revisado, "Ramo": RAMO, "Sha256": fa.sha(corpo), **troca}
@@ -232,6 +233,10 @@ class ItemPresoAoCommit(unittest.TestCase):
         self.assertEqual(self.estado(), ("ativa", ""))
         self.parecer(self.revisado[:7], tipo="qa")
         self.assertEqual(self.estado("pode aplicar o rótulo no itemPV-A2"), ("ativa", ""))
+
+    def test_git_herdado_do_ambiente_nao_desvia_a_leitura(self):
+        with unittest.mock.patch.dict(os.environ, {"GIT_DIR": str(self.raiz / "nada")}):
+            self.assertEqual(self.estado(), ("ativa", ""))
 
     def test_alvo_sem_marcador_fora_da_frase_ou_com_ressalva_nao_nasce_ativa(self):
         casos = {"sem-marcador": "pode aplicar o rótulo no PV-A2", "outro-cartao": "pode aplicar o rótulo no item PV-A2X",

@@ -21,6 +21,66 @@
       "testes": [
         "tests.test_autorizacao.ItemPresoAoCommit.test_ramo_sem_parecer_dele_fica_inativo_e_a_ref_do_origin_vale_antes_da_local"
       ]
+    },
+    {
+      "id": "M19",
+      "guarda": "PV-A2 (ADR 0018 A2): sem o marcador item, o termo do ato sozinho não basta",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "marcado.search(f) and any(t in f",
+      "para": "any(t in f",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_alvo_sem_marcador_fora_da_frase_ou_com_ressalva_nao_nasce_ativa"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "PV-A2 (ADR 0018 item 5): a pendente sem marcador ou com ressalva segue pendente, não adulterada",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "ativa, ramo = campos[\"Estado-inicial\"] == \"ativa\", campos.get",
+      "para": "ativa, ramo = True, campos.get",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_alvo_sem_marcador_fora_da_frase_ou_com_ressalva_nao_nasce_ativa"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "PV-A2 (E1): só a falha vira achado do item",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "\"ativa com ressalva na mensagem\")) if falha]",
+      "para": "\"ativa com ressalva na mensagem\")) if True]",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_head_com_os_pareceres_aprovados_fica_ativa_e_o_parecer_pode_citar_o_sha_curto"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "PV-A2: as variáveis GIT_* herdadas não desviam o git da raiz",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if not k.startswith(\"GIT_\")}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_git_herdado_do_ambiente_nao_desvia_a_leitura"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "PV-A2: o código de saída do git decide (falha fechada)",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    return r.stdout if r.returncode == 0 else None",
+      "para": "    return r.stdout if True else None",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_commit_que_nao_e_o_head_com_os_pareceres_aprovados_fica_inativa"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "PV-A2 (E1): a ref do origin vale antes da local",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    ponta = (git(raiz, \"rev-parse\", \"-q\", \"--verify\", f\"refs/remotes/origin/{ramo}^{{commit}}\")",
+      "para": "    ponta = (None",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_ramo_sem_parecer_dele_fica_inativo_e_a_ref_do_origin_vale_antes_da_local"
+      ]
     }
   ]
 }

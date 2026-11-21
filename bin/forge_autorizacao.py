@@ -174,10 +174,10 @@ def fora_do_revisado(raiz, campos):
     if git(raiz, "merge-base", "--is-ancestor", commit, ponta) is None:
         return "Commit fora do Ramo"
     depois = git(raiz, "diff", "--name-only", commit, ponta)
-    if depois is None or any(not a.startswith(PARECERES) for a in depois.split("\n") if a):
+    if depois is None or any(not a.startswith(PARECERES) for a in depois.splitlines()):
         return "Commit não é o head: o Ramo muda depois dele"
     achados = git(raiz, "grep", "-l", "-F", "-e", f"branch: {ramo}", ponta, "--", *PARECERES) or ""
-    pareceres = [p for p in (frente(git(raiz, "show", a) or "") for a in achados.split("\n") if a) if p.get("branch") == ramo]
+    pareceres = [p for p in (frente(git(raiz, "show", a) or "") for a in achados.splitlines()) if p.get("branch") == ramo]
     if not pareceres or any(p.get("parecer") != "aprovado" or len(p.get("commit", "")) < 7
                             or not commit.startswith(p.get("commit", "")) for p in pareceres):
         return "Commit sem os pareceres aprovados nele"
