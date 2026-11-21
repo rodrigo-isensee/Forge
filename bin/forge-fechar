@@ -8,7 +8,8 @@
 # (2b) se a base andou desde o ponto de partida: com conflito real (`git merge-tree --write-tree`) ou falha de leitura, para e devolve ao agente; sem
 # conflito, em melhoria/* traz a base sozinho (H4: commit de merge com a árvore do merge-tree, `git push origin` de sempre, sem forçar nem pular o
 # pre-push) e recomeça a cadeia no head novo, uma vez por cadeia; fora de melhoria/* ou na cadeia recomeçada, avisa e segue sem trazer (E8);
-# (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido; (7) limpeza.
+# (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido
+# (os check-runs obrigatórios do head lidos antes têm de estar verdes, também com --armar: FECHAR-CHECKS-ANTES-DO-MERGE); (7) limpeza.
 # R7 / MERGE-LIBERADO (0.43.3): o passo 6 usa o auto-merge do GitHub (`gh pr merge --auto`, preso ao head): quem mescla é o GitHub, só com os
 # checks obrigatórios do ruleset verdes; com eles já verdes, o gh mescla na hora. Depois o script espera o MERGED até o fim de --espera.
 # --armar: pula a espera do passo 4, arma o auto-merge logo depois do passo 5 e sai com código 4 se o PR ainda não mesclou (o tech-lead
@@ -856,6 +857,21 @@ mover_cartoes() {
   done
 }
 
+# checks_do_head_verdes (passo 6, FECHAR-CHECKS-ANTES-DO-MERGE, v0478): a conta do dono passa pelo bypass do ruleset, e o --auto dela mescla
+# na hora mesmo com check obrigatório vermelho ou rodando. Antes do merge, lê os check-runs do head conferido (gh api, só leitura, os mais
+# recentes de cada nome) e para se algum nome de CHECKS_EXIGIDOS não tem execução ou tem uma fora de completed/success; sem exceção (também
+# com --armar). Leitura que falha para.
+checks_do_head_verdes() {
+  local runs par nome
+  runs="$(ler "$gh" api "repos/{owner}/{repo}/commits/$remoto_sha/check-runs?filter=latest&per_page=100" --jq '.check_runs[] | [.name, .status, (.conclusion // "-")] | @tsv')" \
+    || die "parou no passo 6: não consegui ler os check-runs do head $remoto_sha; nada foi mesclado"
+  for par in "${CHECKS_EXIGIDOS[@]}"; do
+    nome="${par#*/}"
+    printf '%s\n' "$runs" | awk -F'\t' -v n="$nome" '$1 == n {achou = 1; if ($2 != "completed" || $3 != "success") ruim = 1} END {exit !(achou && !ruim)}' \
+      || die "parou no passo 6: o check obrigatório $nome do head ${remoto_sha:0:12} não está verde (completed/success) nos check-runs; nada foi mesclado (o bypass do ruleset deixaria a conta do dono mesclar)"
+  done
+  echo "check-runs obrigatórios do head ${remoto_sha:0:12} verdes: ${CHECKS_EXIGIDOS[*]}."
+}
 # mesclar_auto <método> <head> [--subject T --body C]: o único `gh pr merge` do script (passo 6 e P6), por nome de branch ($ref, que o hook
 # `parecer` exige), com --auto e preso ao head. FECHAR-PROMOVER-MENSAGEM-PT: o merge com --merge (P6) leva título e corpo em português; sem
 # eles, o GitHub grava "Merge pull request #N from ..." (merge_commit_title=MERGE_MESSAGE). O --squash do passo 6 usa o título do PR.
@@ -1571,6 +1587,7 @@ if [ "$ja_mesclado" = 0 ]; then
     # Sobra só a janela entre esta leitura e o merge (um PR novo do mesmo head aberto nesse intervalo); o --match-head-commit prende o head, não o PR.
     por_nome="$(ler "$gh" pr view "$ref" --json number --jq '.number')" || die "parou no passo 6: não consegui reler o PR pelo nome da branch"
     [ "$por_nome" = "$pr_n" ] || die "parou no passo 6: o nome da branch $ref resolve para o PR #${por_nome:-desconhecido}, não para o #$pr_n guardado; há mais de um PR aberto desse head; feche o outro e rode de novo"
+    checks_do_head_verdes
     if [ "$pre_rascunho" = true ]; then
       "$gh" pr ready "$ref" || die "parou no passo 6: não consegui marcar o PR como pronto"
     fi
