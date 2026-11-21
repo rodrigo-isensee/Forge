@@ -57,8 +57,8 @@
       "id": "M6",
       "guarda": "pedido ausente não volta vazio",
       "arquivo": "bin/forge-check",
-      "de": "return ({}, []) if texto is None else ultimos_do_historico(raiz, texto)",
-      "para": "return ({}, []) if False else ultimos_do_historico(raiz, texto)",
+      "de": "return ({}, []) if texto is None else ultimos_do_historico(raiz, texto, branch, ref)",
+      "para": "return ({}, []) if False else ultimos_do_historico(raiz, texto, branch, ref)",
       "testes": [
         "tests.test_revisor_wt.PrLeParecerConferido.test_sem_pedido_e_fora_do_historico_nada_muda"
       ]

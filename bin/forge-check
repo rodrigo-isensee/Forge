@@ -2009,7 +2009,7 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False, suite=N
     de_trabalho = bool(branch) and branch not in BASES_DO_FLUXO
     registros = autorias(raiz)
     exigidos, gatilhos_de_seguranca = exigidos_do_pr(raiz, pedido, ref, base)
-    conferidos, ilegiveis = pareceres_conferidos(raiz, pedido, branch) if de_trabalho else ({}, [])
+    conferidos, ilegiveis = pareceres_conferidos(raiz, pedido, branch, ref or "HEAD") if de_trabalho else ({}, [])
     saida += [f"docs/pedidos: parecer conferido {p[:7]}: o git não lê o commit nem o pai dele; rode git fetch (VOLTAS-REVISOR-WT)"
               for p in ilegiveis]
     for tipo in exigidos:
@@ -2415,31 +2415,43 @@ def linha_de_origem(arquivo):
     return None
 
 
-def pareceres_conferidos(raiz, pedido, branch):
+def pareceres_conferidos(raiz, pedido, branch, ref="HEAD"):
     """VOLTAS-REVISOR-WT (M1, T-2): ({arquivo: sha40 do último `parecer conferido` do `## Histórico` que o altera}, [sha que o git não
     lê]); o pedido é o da conferência do head (`pedido_da_conferencia`, A1) e o arquivo sai de `git diff --name-only P^1 P`, nunca do
     texto da linha. Sem o pedido, nada (como hoje: a conferência do head já recusa)."""
     texto = pedido_da_conferencia(raiz, pedido, branch)[1]
-    return ({}, []) if texto is None else ultimos_do_historico(raiz, texto, branch)
+    return ({}, []) if texto is None else ultimos_do_historico(raiz, texto, branch, ref)
 
 
-def de_outra_branch(linha, branch):
-    """K-156: True se a linha cita parecer (`docs/<pasta>/<nome>.md`) e nenhum é o da `branch` (o nome é o slug dela, como no
-    `docs/reviews/<pedido>.md`); sem branch ou sem parecer citado, False (falha fechada: a linha conta)."""
+def de_outra_branch(raiz, linha, branch, ref):
+    """K-156 (A1 da segurança, pela ref e nunca pelo nome do arquivo): True se cada parecer citado (`docs/<pasta>/<nome>.md`, sem
+    subpasta) existe na `ref` ou numa base do fluxo e, em todas onde existe, tem `branch:` diferente da `branch`. Sem branch, sem
+    parecer citado, citação fora dessa forma, parecer ausente, `branch:` igual ou sem frontmatter legível: False (a linha conta)."""
     pastas = "|".join(re.escape(p) for p in PASTAS_DE_PARECER)
-    nomes = set(re.findall(rf"(?:{pastas})/([^\s/=;:,`]+)\.md", linha))
-    return bool(branch and nomes) and branch.rsplit("/", 1)[-1] not in nomes
+    citados = re.findall(rf"(?<![\w/])((?:{pastas})/[^\s/=;:,`]+\.md)(?![^\s=;:,`])", linha)
+    if not branch or not citados:
+        return False
+    if len(citados) != len(re.findall(rf"(?:{pastas})/", linha)):  # subpasta, prefixo forjado ou forma solta: falha fechada
+        return False
+    refs = [r for r in (ref, *(ref_da_base(raiz, b) for b in BASES_DO_FLUXO)) if r]
+    for nome in set(citados):
+        onde = [r for r in refs if blob_de(raiz, r, nome)]
+        if not onde:
+            return False
+        if any((frontmatter_do_parecer(raiz, r, nome) or {}).get("branch") in (None, "", branch) for r in onde):
+            return False
+    return True
 
 
-def ultimos_do_historico(raiz, texto, branch=None):
+def ultimos_do_historico(raiz, texto, branch=None, ref="HEAD"):
     """O par de `pareceres_conferidos` lido do texto de um pedido já resolvido (a volta tem o dela, E6b-1). Com `branch`, o P que o
-    git não lê só é ilegível se a linha é da branch (`de_outra_branch`, K-156: o squash de outro item apaga o commit dele)."""
+    git não lê só é ilegível se a linha é da branch (`de_outra_branch` lido na `ref`, K-156: o squash de outro item apaga o P dele)."""
     ultimos, ilegiveis = {}, []
     for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", []):
         if m := PARECER_CONFERIDO.match(linha):
             p = m.group(1)
             cod, saida = git(raiz, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "--no-textconv", f"{p}^1", p, "--", bruto=True)
-            if cod and de_outra_branch(linha, branch):  # K-156
+            if cod and de_outra_branch(raiz, linha, branch, ref):  # K-156
                 continue
             if cod:
                 ilegiveis.append(p)
@@ -2451,7 +2463,7 @@ def ultimos_do_historico(raiz, texto, branch=None):
 def conferidos_fora_da_ref(raiz, pedido_txt, ref, branch):
     """VOLTAS-REVISOR-WT (E6b-1, T-2): ({arquivo: P} do último `parecer conferido` de cada arquivo que não é ancestral da `ref` e cujo
     parecer é da `branch` da volta, como no `pr` (E11), erro). P que o git não lê é erro (falha fechada)."""
-    ultimos, ilegiveis = ultimos_do_historico(raiz, pedido_txt, branch)
+    ultimos, ilegiveis = ultimos_do_historico(raiz, pedido_txt, branch, ref)
     if ilegiveis:
         return None, f"parecer conferido {ilegiveis[0][:7]}: o git não lê o commit nem o pai dele; rode git fetch (VOLTAS-REVISOR-WT)"
     return {n: p for n, p in ultimos.items()
@@ -3357,7 +3369,7 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
     linhas += informativas + [(f"escopo: o git falhou ({passo}); o escopo não foi lido", True) for passo in falhas]
     recusas, shas = merges_nao_conferidos(raiz, texto, de, head, base_ref) if etapa in ("qa", "codigo") else ([], set())
     linhas += recusas
-    ultimos = pareceres_conferidos(raiz, pedido, branch)[0]  # E6a-4: o "trazido" vale em qualquer etapa; o M2, só em qa/codigo
+    ultimos = pareceres_conferidos(raiz, pedido, branch, head)[0]  # E6a-4: o "trazido" vale em qualquer etapa; o M2, só em qa/codigo
     do_dono, fora_da_forma = patches_do_dono(texto)
     linhas += [(f"patch do dono: linha fora da forma `- <data> <hora>: patch do dono aplicado <arquivo> commit <sha40>`, ignorada (P3): "
                 f"{linha_legivel(linha.strip())[:160]}", False) for linha in fora_da_forma]

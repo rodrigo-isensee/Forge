@@ -6,30 +6,60 @@
       "id": "M13",
       "guarda": "K-156: o P ilegível de linha de outra branch não entra na conta",
       "arquivo": "bin/forge-check",
-      "de": "            if cod and de_outra_branch(linha, branch):  # K-156",
+      "de": "            if cod and de_outra_branch(raiz, linha, branch, ref):  # K-156",
       "para": "            if cod and False:  # K-156",
       "testes": [
-        "tests.test_revisor_wt.PrLeParecerConferido"
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim"
       ]
     },
     {
       "id": "M14",
-      "guarda": "K-156: a linha que cita o parecer da própria branch segue ilegível",
+      "guarda": "K-156: a linha sem parecer citado segue ilegível (falha fechada)",
       "arquivo": "bin/forge-check",
-      "de": "    return bool(branch and nomes) and branch.rsplit(\"/\", 1)[-1] not in nomes",
-      "para": "    return bool(branch and nomes)",
+      "de": "    if not branch or not citados:",
+      "para": "    if not branch:",
       "testes": [
-        "tests.test_revisor_wt.PrLeParecerConferido"
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim"
       ]
     },
     {
       "id": "M15",
-      "guarda": "K-156: a linha sem parecer citado segue ilegível (falha fechada)",
+      "guarda": "A1/S3: citação em subpasta ou com prefixo forjado mantém a linha ilegível",
       "arquivo": "bin/forge-check",
-      "de": "    return bool(branch and nomes) and branch.rsplit(\"/\", 1)[-1] not in nomes",
-      "para": "    return bool(branch) and branch.rsplit(\"/\", 1)[-1] not in nomes",
+      "de": "    if len(citados) != len(re.findall(rf\"(?:{pastas})/\", linha)):",
+      "para": "    if False:",
       "testes": [
-        "tests.test_revisor_wt.PrLeParecerConferido"
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "A1/S2: parecer citado que não existe na ref nem na base mantém a linha ilegível",
+      "arquivo": "bin/forge-check",
+      "de": "        if not onde:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "A1/S1/S4: parecer com a branch: da própria branch mantém a linha ilegível, qualquer que seja o nome",
+      "arquivo": "bin/forge-check",
+      "de": ".get(\"branch\") in (None, \"\", branch) for r in onde):",
+      "para": ".get(\"branch\") in (None, \"\") for r in onde):",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "A1: parecer sem frontmatter legível mantém a linha ilegível",
+      "arquivo": "bin/forge-check",
+      "de": ".get(\"branch\") in (None, \"\", branch) for r in onde):",
+      "para": ".get(\"branch\") in (branch,) for r in onde):",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim"
       ]
     }
   ]
