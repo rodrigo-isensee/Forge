@@ -32,7 +32,7 @@ Produto e escopo (o que fazer e o que não fazer), prioridade, **custo** (`R-CUS
 Vale nos dois perfis (no `experiente` só o vocabulário pode ser técnico). Antes das perguntas vem o recibo do pedido ("vou fazer / não vou fazer; é isso?"); depois, as perguntas **uma a uma** (`R-DECISAO`), cada uma neste formato:
 1. Contexto em uma frase, sem jargão.
 2. Exemplo concreto da situação.
-3. Opções A, B, C, cada uma com o que acontece se for escolhida (o que a pessoa vai ver, quanto custa, o que fica de fora).
+3. Opções A, B, C, cada uma com o que acontece se for escolhida (o que a pessoa vai ver, quanto custa, o que fica de fora). Ato do dono: merge na `main`, rótulo de PR da `main`, arquivo travado, configuração do GitHub. Nele, a opção diz que quem aplica é o dono, com o comando ou a tela exata. Nenhuma opção põe o agente para aplicá-lo (`R-MAIN`, `R-CONFORMIDADE`).
 4. **Afrouxa o processo?** (sim ou não, por opção) e o **custo de eficiência** de cada opção, em dois números: **tempo** e **tokens** a mais ou a menos por demanda, cada um em faixa e média, marcado `medido` (com a fonte), `estimado` (com a base) ou `não medido`. Diga também, em palavras, se o custo da opção fica **maior ou menor** que o das outras ("a mais barata", "a mais cara", "igual"). De onde sai o número: "Números da pergunta", abaixo.
 5. Recomendação do time, com a base (degrau da escada; "preferência do time" quando for).
 6. Sem prazo: sem resposta, a pergunta fica pendente; "Faltam N perguntas." quando outras esperam a vez; e a saída: "Se preferir, diga 'decidam vocês' e seguimos com a recomendação" (vira item `delegado`, `R-DECISAO`). A saída não se oferece nas perguntas que `R-DECISAO` não deixa delegar: ficam com o usuário.

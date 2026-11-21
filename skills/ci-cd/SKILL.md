@@ -5,7 +5,7 @@ description: Boas práticas de CI/CD e de entrega (pipeline, containers, infraes
 
 # CI/CD e entrega
 
-Princípios genéricos e o padrão da fábrica (GitHub Actions). O que depende de linguagem (toolchain, chave de cache, comandos de pronto, imagem base) fica em `${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`, seção "CI"; provedor de nuvem e ferramenta de IaC ficam na ADR do projeto. Segurança em profundidade está na skill `cyber-security`: aqui só o que é da mecânica da entrega.
+O que depende de linguagem (toolchain, chave de cache, comandos de pronto, imagem base) fica em `${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`, seção "CI"; provedor de nuvem e ferramenta de IaC ficam na ADR do projeto. Segurança em profundidade: skill `cyber-security`.
 
 ## Princípios
 - **O pipeline é código:** versionado, revisado e com a mesma barra do código de produto. Mudança nele passa por review (`R-REVIEW`).
@@ -29,7 +29,7 @@ Checklist de workflow:
 9. Nenhum workflow escreve na `main`, faz auto-merge para ela nem publica release antes do merge do dono (`R-MAIN`).
 10. Valide com `actionlint` e `shellcheck`; ausente é achado do parecer, e quem instala é `scripts/preparar-estacao.sh`.
 
-Checks exigidos, proteção de branch, rulesets, segredos e `environments` são do dono (`R-CONFORMIDADE`): proponha, não altere por `gh api`. O token do bot não tem o escopo `workflow`: a mudança de workflow é preparada em branch local e enviada pelo dono.
+Checks exigidos, proteção de branch, rulesets, segredos e `environments` são do dono (`R-CONFORMIDADE`): proponha, não altere por `gh api`. Ler a proteção inclui os rulesets (`gh api repos/<dono>/<repo>/rulesets` e `rules/branches/<b>`), além de `branches/<b>/protection`. O token do bot não tem o escopo `workflow`: a mudança de workflow é preparada em branch local e enviada pelo dono.
 
 ## Containers
 `Dockerfile`: base fixada por digest, multi-stage, usuário não root, `HEALTHCHECK`, `.dockerignore`, segredo nunca na imagem nem em `ARG`/`ENV`. Compose: portas publicadas em `127.0.0.1`, segredos fora da imagem, volumes só do necessário.
