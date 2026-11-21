@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-trilha
-commit: 7a739fca7bed5df9a09bba96ce6b8fca799f906e
+commit: a247ae11fac6c9ce96b3d56abe8b4f18763173a6
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -86,3 +86,11 @@ Mutantes, uma chamada por spec, `timeout 1500`, rc=0, nenhum sobrevivente nem se
 Sonda (`qa-e6316/sonda.py`, a de E63.12 apontada para este clone; 20 formas; papéis tech-lead, dev, jarvis; saída em `sonda-novo.txt`): tech-lead e dev rc=2 para `HOME=…;`, `export HOME=`, `HOME=… sh -c`, `env HOME=`, `ln -s …;`, `mv a <pedido>`, `cp -s a <brief>`, `source`, `. x.sh`, `BASH_ENV=` e `wt/$X/docs/pedidos`, todos citando o pedido ou o brief; rc=0 para a leitura pela cópia (`cd wt/x && sed -n … > $TMPDIR/e.txt`, `ls`, `cat`), `mv a b`, `git mv a b`, `ln -s a b`, `cp -r a b`, `git commit -m 'HOME fix'` e `echo HOME > $TMPDIR/e.txt` (sem falso positivo). Jarvis rc=0 nas 20.
 
 Fixture `pesado/mesma-sessao-libera`: não rodada por mim. A suíte inteira roda só no CI do PR; o head ainda não tem PR, sem check-run `bateria` a citar.
+
+## Revalidação no head a247ae11 (E63.22, escopo incremental)
+`forge-check parecer delta`: intervalo 7a739fca..9f91054b, sem o que veio da develop. No domínio: `docs/hooks.md`, `docs/hooks-fixtures.md` (índice regerado), `tests/mutantes/v0435-review.json` (R6 alinhado à tupla `("alias.", "help.autocorrect")`, que é o texto em `hooks/conformidade.py:2801`) e `tests/test_hooks.py` (um exemplo leve trocado de `--dirigida` para `--afetados`). Achado aberto: só o A4 (cartão, inalterado).
+
+- `python3 scripts/indice-fixtures.py --conferir`: `docs/hooks-fixtures.md: em dia`, rc=0 (3368 fixtures, 3 novas `pesado/forgetestes-*`).
+- `python3 -I -m unittest discover -s tests -p test_hooks.py -k test_formas_leves_e_citacoes`: `Ran 1 test ... OK`.
+- `bin/forge-mutante tests/mutantes/v0435-review.json --base 7a739fca`: rc=0, `base=7a739fca7bed… rev=9f91054bda85…`, R1 a R14 todos `morreu`, nenhum sobrevivente nem sem veredito; o R6 morre em `hooks/conformidade.py:2801`.
+- Sem vermelho-antes-do-verde novo: o delta não traz teste de regra nova (as fixtures `forgetestes-*` vieram da develop). Suíte inteira não rodada local; o head ainda não tem PR, sem check-run `bateria` a citar. Máquina com carga 23 durante a rodada.
