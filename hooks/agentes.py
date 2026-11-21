@@ -51,6 +51,7 @@ retomado por `SendMessage`; o aviso some se o id tem lápide (liberado como mort
 passou do prazo. Nunca recusa: `autores` ilegível vale vazio.
 H2-RESERVA-DA-RETOMADA-PRAZO (v0478, E87.1): o prazo de cada registro sai de `prazo_do_registro` (expiração e hora da recusa);
 o retomado cujo `SubagentStart` chega depois de RESERVA_S reserva de novo as branches do id dele em `autores`.
+H2-RETOMADO-CONFLITO (v0478, E92.1): ele mantém todas as branches, mesmo a que outra reserva de escrita viva tomou; o conflito vai ao erros.log.
 MP3 (diretriz 35, dono 17/11 21:11): com um projeto ativo na máquina (registro do MP2, `_maquina`), o teto de sempre. Com dois ou
 mais, depois do teto do projeto (`teto_agentes` fixo vira só o máximo dele), a parte garantida de cada um sai do teto adaptativo
 da máquina dividido pelos pesos (`peso` em .forge/config.json, padrão 1); a vaga parada de um vai a outro, e o dono da vaga que
@@ -1300,6 +1301,11 @@ def iniciar(hook, agentes, autores, agora):
     dono = da_sessao(hook)
     escrita = escrita_do_autor(autores, aid)
     if escrita:  # H2-RESERVA-DA-RETOMADA-PRAZO: o retomado que começa depois do prazo curto reserva de novo as branches dele
+        ocupadas = {b for a in agentes for b in escritas_do_registro(a)}
+        tomadas = [b for b in escrita if b in ocupadas]
+        if tomadas:  # H2-RETOMADO-CONFLITO: o retomado roda de qualquer jeito; o conflito vai ao erros.log, que o vigia mostra no Stop
+            hook.registrar_erro(RuntimeError(f"H2-RETOMADO-CONFLITO R-TETO: retomado {aid} segue com "
+                                             f"{sem_controle(', '.join(tomadas))[:CORTE_DO_NOME]} (outra reserva de escrita viva)"))
         agentes.append({"id": aid, "tipo": tipo, "descricao": "", "desde": agora, "branches": escrita, "escrita": escrita, **dono})
         return
     # Com sessão provada, só a reserva da mesma sessão (ou a antiga, sem sessão) casa: o agente de outra sessão não herda o

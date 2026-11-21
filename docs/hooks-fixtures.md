@@ -2,13 +2,13 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3379 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3382 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
-| `agentes` | 127 | 67 | 60 | 30 |
+| `agentes` | 130 | 70 | 60 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
 | `conformidade` | 2541 | 1877 | 664 | 100 |
 | `doutor` | 3 | 0 | 3 | 3 |
@@ -22,7 +22,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3379 fixtures) roda em `tests/test
 
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
-| `autor-*` | 25 | 4 | 21 | `R-TETO` | `H2-AUTOR-FICA-ATE-O-MERGE`, `H2-RESERVA-DA-RETOMADA-PRAZO` | H2-AUTOR-FICA-ATE-O-MERGE (R-TETO): só a reserva da retomada (tipo SendMessage) se converte no SubagentStart; o agente já ativo com o mesmo… |
+| `autor-*` | 28 | 7 | 21 | `R-TETO` | `H2-AUTOR-FICA-ATE-O-MERGE`, `H2-RETOMADO-CONFLITO`, `H2-RESERVA-DA-RETOMADA-PRAZO` | H2-AUTOR-FICA-ATE-O-MERGE (R-TETO): só a reserva da retomada (tipo SendMessage) se converte no SubagentStart; o agente já ativo com o mesmo… |
 | `estado-*` | 15 | 12 | 3 | `R-TETO` | `HOOK-ESTADO-ILEGIVEL-LIBERA` | HOOK-ESTADO-ILEGIVEL-LIBERA (A1, R-TETO): `agentes` que não é lista (número) recusa o disparo. |
 | `carga-*` | 12 | 8 | 4 | `R-TETO` | `MP5` | Load 5 está abaixo de 80% de 8 núcleos (6,4): um ativo libera. |
 | `errointerno-*` | 8 | 7 | 1 | `R-BRIEF`, `R-TETO` | `HOOK-ERRO-LIBERA`, `HOOK-ESTADO-ILEGIVEL-LIBERA` | HOOK-ERRO-LIBERA (C7): erro ao fixar a pasta do estado não leva o R-BRIEF junto: o especialista sem brief segue recusado. |
