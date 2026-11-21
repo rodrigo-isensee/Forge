@@ -1,0 +1,76 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP61",
+      "guarda": "AE7.1 fora_da_medida: manifesto presente é lido (A10)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "f\"{sha}:{manifesto}\")[0] == 0:",
+      "para": "f\"{sha}:{manifesto}\")[0] != 0:",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_chave_hooks_no_manifesto_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP62",
+      "guarda": "AE7.1 fora_da_medida: manifesto que não se lê é nao-verificavel (A10)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if cod != 0 or declara_hooks(texto):",
+      "para": "if declara_hooks(texto):",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_manifesto_que_nao_se_le_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP63",
+      "guarda": "AE7.1 declara_hooks: JSON ilegível conta como hook declarado (A10)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "        return True\n    return \"hooks\" in chaves",
+      "para": "        return False\n    return \"hooks\" in chaves",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_chave_hooks_no_manifesto_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP64",
+      "guarda": "AE7.1 declara_hooks: chave hooks em qualquer nível (A10)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "return \"hooks\" in chaves",
+      "para": "return False",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_chave_hooks_no_manifesto_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP65",
+      "guarda": "AE7.1 fora_da_medida: hooks no cabeçalho de agente ou skill, ou busca que falha (A10)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "\":(icase)*.md\")[0] != 1:",
+      "para": "\":(icase)*.md\")[0] > 1:",
+      "testes": [
+        "tests.test_comparar.HooksForaDoHooksJson.test_hooks_no_cabecalho_de_agente_ou_skill_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP66",
+      "guarda": "AE7.1 executar: caso recusado no head não conta reescrita (A9)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "reescreve = h != RECUSA and",
+      "para": "reescreve = True and",
+      "testes": [
+        "tests.test_comparar.DecisaoInteira.test_reescrita_da_base_contra_recusa_do_head_nao_conta"
+      ]
+    },
+    {
+      "id": "CMP67",
+      "guarda": "AE7.1 executar: reescrita que muda é aceite novo",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if h > b or reescreve:",
+      "para": "if h > b:",
+      "testes": [
+        "tests.test_comparar.DecisaoInteira.test_reescrita_que_muda_e_aceite_novo"
+      ]
+    }
+  ]
+}

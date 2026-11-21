@@ -348,6 +348,72 @@ class DecisaoInteira(Base):
         self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: livre base=pergunta head=pergunta entrada-reescrita",
                                                 "aceite-novo: proibido base=pergunta head=pergunta entrada-reescrita"]))
 
+    def test_reescrita_da_base_contra_recusa_do_head_nao_conta(self):  # A9: o head aperta, nada roda no caso recusado
+        base = self.repo.commit(hook=responde(REESCREVE, "proibido"))
+        rc, linhas = self.comparar(base, self.repo.commit(hook=RECUSA))
+        self.assertEqual(rc, 0, linhas)
+
+
+AGENTE_COM_HOOK = "---\nname: a\nhooks:\n  PreToolUse:\n    - matcher: Bash\n---\ncorpo\n"
+
+
+class HooksForaDoHooksJson(Base):
+    """A10 (sondas S12, S13): o Claude Code também lê hooks do campo `hooks` do manifesto e do cabeçalho de agente e skill;
+    declarado ali, em qualquer lado, a medida não os roda: nao-verificavel."""
+
+    def assert_nos_dois_lados(self, extra, motivo):
+        com = self.repo.commit(extra=extra)
+        for rel in extra:
+            (self.repo.pasta / rel).unlink()
+        esperado = (2, [f"so-aperta: nao-verificavel ({motivo})"])
+        self.assertEqual(self.comparar(self.base, com), esperado)  # no head
+        self.assertEqual(self.comparar(com, self.base), esperado)  # na base
+
+    def test_chave_hooks_no_manifesto_e_nao_verificavel(self):
+        hook = {"PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "true"}]}]}
+        manifestos = {
+            "objeto no plugin.json": (".claude-plugin/plugin.json", json.dumps({"name": "p", "hooks": hook})),
+            "caminho no plugin.json": (".claude-plugin/plugin.json", json.dumps({"name": "p", "hooks": "./outro.json"})),
+            "chave escapada": (".claude-plugin/plugin.json", '{"name": "p", "\\u0068ooks": "./outro.json"}'),
+            "plugin.json ilegível": (".claude-plugin/plugin.json", '{"name": "p", '),
+            "entrada do marketplace": (".claude-plugin/marketplace.json",
+                                       json.dumps({"name": "m", "plugins": [{"name": "p", "source": "./", "hooks": hook}]}))}
+        for nome, (rel, texto) in manifestos.items():
+            with self.subTest(nome):
+                self.assert_nos_dois_lados({rel: texto}, f"hooks declarados em {rel}")
+
+    def test_manifesto_sem_hooks_mede(self):
+        extra = {".claude-plugin/plugin.json": json.dumps({"name": "p", "description": "hooks: nenhum"}),
+                 ".claude-plugin/marketplace.json": json.dumps({"name": "m", "plugins": [{"name": "p", "source": "./"}]})}
+        self.assertEqual(self.comparar(self.base, self.repo.commit(extra=extra))[0], 0)
+
+    def test_manifesto_que_nao_se_le_e_nao_verificavel(self):
+        head = self.repo.commit(extra={".claude-plugin/plugin.json": json.dumps({"name": "p"})})
+
+        def git(raiz, *args, **kw):  # o blob existe, mas a leitura falha: não vale
+            cod, saida = fc.git(raiz, *args, **kw)
+            return (128, saida) if args[:2] == ("cat-file", "blob") and args[2].endswith("plugin.json") else (cod, saida)
+        self.assertEqual(self.comparar(self.base, head, {**CTX, "git": git}),
+                         (2, ["so-aperta: nao-verificavel (hooks declarados em .claude-plugin/plugin.json)"]))
+
+    def test_hooks_no_cabecalho_de_agente_ou_skill_e_nao_verificavel(self):
+        motivo = "hooks declarados no cabeçalho de agente ou skill"
+        for rel in ("agents/a.md", "skills/s/SKILL.md", "stacks/x/agents/b.md", "stacks/x/skills/t/SKILL.MD"):
+            with self.subTest(rel):
+                self.assert_nos_dois_lados({rel: AGENTE_COM_HOOK}, motivo)
+        with self.subTest("chave entre aspas e maiúscula"):
+            self.assert_nos_dois_lados({"agents/c.md": AGENTE_COM_HOOK.replace("hooks:", '"Hooks" :')}, motivo)
+
+    def test_hooks_com_recuo_ou_fora_do_md_mede(self):
+        extra = {"docs/exemplo.md": '```json\n  "hooks": {}\n```\n  hooks:\n', "notas.txt": "hooks:\n"}
+        self.assertEqual(self.comparar(self.base, self.repo.commit(extra=extra))[0], 0)
+
+    def test_busca_que_falha_e_nao_verificavel(self):
+        def git(raiz, *args, **kw):
+            return (128, "") if args[:1] == ("grep",) else fc.git(raiz, *args, **kw)
+        self.assertEqual(self.comparar(self.base, self.base, {**CTX, "git": git}),
+                         (2, ["so-aperta: nao-verificavel (hooks declarados no cabeçalho de agente ou skill)"]))
+
 
 class ComoOClone(Base):
     """A2: a árvore extraída é a do clone; `.gitattributes` em qualquer pasta de um lado é nao-verificavel."""

@@ -6,9 +6,10 @@ temporário, HOME e TMPDIR próprios: a base antes, o head depois. O veredito te
 o `updatedInput` que muda também conta, salvo no caso recusado. rc 0 nada liberado a mais; 1 `aceite-novo` ou
 `corpus-removido`; 2 `nao-verificavel`, também com `.gitattributes` em qualquer pasta de um lado (o checkout do clone aplica
 atributos que a extração não aplica) ou matcher fora da forma simples (premissa: só nela o `re` do Python casa como o Claude
-Code); quem consome exige a linha `so-aperta: medido base=<sha> head=<sha>`, não só o rc. Executa o código da
-base e do head: só com head deste repositório e sob o sandbox. Limites: o corpus é finito, e a medida pega o afrouxamento
-honesto; hook que detecta o ambiente sintético (autor do commit, `.forge/versao`) é assunto do code review."""
+Code), ou hook declarado fora do `hooks/hooks.json` (A10: chave `hooks` em qualquer nível dos JSON de `.claude-plugin/`,
+ou `hooks:` no começo de linha de um `.md`, o cabeçalho de agente e skill); quem consome exige a linha
+`so-aperta: medido base=<sha> head=<sha>`, não só o rc. Executa o código da base e do head: só com head deste
+repositório e sob o sandbox. Limites: o corpus é finito, e a medida pega o afrouxamento honesto; hook que detecta o ambiente sintético (autor do commit, `.forge/versao`) é assunto do code review."""
 import hashlib
 import json
 import os
@@ -25,6 +26,8 @@ AMBIENTE = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "USER", "LOGNAME", "SHELL", "T
 RECUSA, PERGUNTA, ACEITE, ALLOW = 0, 1, 2, 3  # A1: `allow` pula a pergunta ao usuário, libera mais que o silêncio
 NOMES = ("recusa", "pergunta", "aceite", "allow")
 MATCHER_SIMPLES = re.compile(r"[A-Za-z0-9_|]*|\*")
+MANIFESTOS = (".claude-plugin/plugin.json", ".claude-plugin/marketplace.json")  # A10: o campo `hooks` também declara hook
+CABECALHO_HOOKS = r"^['\"]?hooks['\"]?[[:space:]]*:"  # A10: chave `hooks:` sem recuo, como no cabeçalho YAML
 SEM_HOOKS_DO_USUARIO = "-c core.hooksPath=/dev/null -c commit.gpgsign=false -c user.name=forge -c user.email=forge@localhost -c gc.auto=0".split()
 
 
@@ -62,6 +65,16 @@ def corpus_de(ctx, raiz, sha):
     return casos
 
 
+def declara_hooks(texto):
+    """True se o JSON tem a chave `hooks` em qualquer nível ou não se lê (A10: na dúvida, fora da medida)."""
+    chaves = []
+    try:
+        json.loads(texto, object_pairs_hook=lambda pares: chaves.extend(k for k, _ in pares) or dict(pares))
+    except ValueError:
+        return True
+    return "hooks" in chaves
+
+
 def fora_da_medida(ctx, raiz, sha):
     """Motivo de `nao-verificavel` na árvore de `sha`, ou None. A2: `.gitattributes` em qualquer pasta (ident, eol, filter,
     working-tree-encoding mudam o que o clone instala; a extração grava o blob cru). A7: matcher de hooks.json fora da forma
@@ -69,6 +82,13 @@ def fora_da_medida(ctx, raiz, sha):
     nomes = ctx["git"](raiz, "ls-tree", "-r", "-z", "--name-only", "--full-tree", sha, bruto=True)[1]
     if any(os.path.basename(n).lower() == b".gitattributes" for n in nomes.split(b"\0")):
         return "atributos de checkout: .gitattributes na árvore"
+    for manifesto in MANIFESTOS:
+        if ctx["git"](raiz, "cat-file", "-e", f"{sha}:{manifesto}")[0] == 0:
+            cod, texto = ctx["git"](raiz, "cat-file", "blob", f"{sha}:{manifesto}")
+            if cod != 0 or declara_hooks(texto):
+                return f"hooks declarados em {manifesto}"
+    if ctx["git"](raiz, "grep", "-l", "-i", "-E", "-e", CABECALHO_HOOKS, sha, "--", ":(icase)*.md")[0] != 1:
+        return "hooks declarados no cabeçalho de agente ou skill"
     try:
         grupos = [g for gs in json.loads(ctx["git"](raiz, "cat-file", "blob", f"{sha}:hooks/hooks.json")[1])["hooks"].values() for g in gs]
     except (ValueError, KeyError, TypeError, AttributeError):  # hooks.json ilegível ou ausente: nenhum hook, medido assim
@@ -209,9 +229,10 @@ def executar(a, raiz, ctx):
     novos = []
     for i in sorted(casos):
         (b, reescrita_b), (h, reescrita_h) = lado_base[i], lado_head[i]
-        if h > b or reescrita_h != reescrita_b:
+        reescreve = h != RECUSA and reescrita_h != reescrita_b  # A9: o caso recusado no head não roda, nada reescreve
+        if h > b or reescreve:
             novos.append(f"aceite-novo: {ctx['seguro'](i)} base={NOMES[b]} head={NOMES[h]}"
-                         + (" entrada-reescrita" if reescrita_h != reescrita_b else ""))
+                         + (" entrada-reescrita" if reescreve else ""))
     print("\n".join([f"so-aperta: medido base={base} head={head} corpus={resumo} casos={len(casos)} aceites-novos={len(novos)}",
                      *novos, *(f"corpus-removido: {ctx['seguro'](i)}" for i in removidos)]))
     return 1 if novos or removidos else 0
