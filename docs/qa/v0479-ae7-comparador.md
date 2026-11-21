@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae7-comparador
-commit: f50171d232c95fa4562422bcda5f92a144a8a586
+commit: 757355b43bd7f4bb2b3b5dd109270cdb1d426f80
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -87,3 +87,17 @@ Delta lido por `forge-check parecer delta` (intervalo 3d0bdaf9..f50171d2): `bin/
 - Árvore do autor limpa após as rodadas.
 
 Resultado: aprovado no head f50171d2; sem bug aberto. O reprovado anterior (bddae43f, comentário com nome de stack) está sanado.
+
+## Revalidação no head 757355b4 (E58.51, escopo incremental)
+Delta lido por `forge-check parecer delta` (intervalo f50171d2..757355b4): `bin/forge_comparar.py` (A11 link simbólico em qualquer pasta, A12 `source` do marketplace, A13 cabeçalho YAML de `.md`), a ajuda do subcomando em `bin/forge-check`, `tests/test_comparar.py`, specs `-5`, `-7`, `-8`, `-10` e as novas `-11` e `-12`, `changelog.d`. Saídas em `/root/.forge-contrib/wt/qa-E5851-out/`; TMPDIR próprio; `timeout 1500` em primeiro plano.
+
+- `python3 -I -m unittest discover -s tests -p test_comparar.py`: 59 testes, OK (rc 0).
+- Mutantes, uma chamada por spec, todas rc 0, `rev=757355b43bd7`: -5 7, -7 2, -8 8, -10 7, -11 7, -12 8 = 39 mutantes, 39 morreram, 0 sobreviventes, 0 sem veredito (CMP49 e CMP54 com `(erro)`: teste declarado dá erro sob o mutante e passa sem ele). A -11 cobre as linhas de A13 (96-98, 120, 134-146) e a -12 as de A11/A12 (111-152).
+- `bin/forge-mutante --cobertura --base 821db42e` (rc 0): `base=821db42ed97e… rev=757355b43bd7…`; 56 condições `coberta`; uma `isenta` (`bin/forge_comparar.py:260`, teto do pool, só muda o tempo); `não coberto` só em dados (`tests/comparar/corpus.jsonl`, `tests/pesos-d4.json`). Nenhuma `isenta velha`.
+- Sondas em clone descartável `/root/.forge-contrib/wt/qa-E5851-clone` sobre 757355b4:
+  - controle `comparar 757355b4 757355b4`: rc 0, `casos=215 aceites-novos=0`, com a linha `so-aperta: medido base=… head=…`.
+  - link simbólico para `/etc/passwd` na raiz: rc 2, `nao-verificavel (link simbólico na árvore)`; link relativo em `agents/sub/`: rc 2, igual.
+  - `source` do marketplace em `./dev`, `../outro` e `/tmp/x`: rc 2, `nao-verificavel (plugin fora da raiz: source no marketplace.json)`; segundo plugin no marketplace: rc 2, igual.
+- Árvore do autor limpa após as rodadas.
+
+Resultado: aprovado no head 757355b4; sem bug aberto.
