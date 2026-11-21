@@ -16,6 +16,8 @@ SCRIPT = base.SCRIPT
 GIT_BASE_ANDOU = r'''#!/usr/bin/env bash
 # H4: $ESTADO/falha_<commit-tree|update-ref|ff>: o passo falha; $ESTADO/falha_apos_envio: depois do envio, o ls-remote da branch falha
 for f in commit-tree update-ref; do if [ "$1" = "$f" ] && [ -f "$ESTADO/falha_$f" ]; then exit 1; fi; done
+# FECHAR-6A-DEVELOP-ANDOU: $ESTADO/falha_fetch_develop: a busca da develop (refspec exato do passo 6a) falha
+if [ "$1 $2 $3 $4" = "fetch -q origin +refs/heads/develop:refs/remotes/origin/develop" ] && [ -f "$ESTADO/falha_fetch_develop" ]; then exit 1; fi
 case "$*" in *"merge --ff-only"*) if [ -f "$ESTADO/falha_ff" ]; then exit 1; fi ;; esac
 if [ "$1 $2" = "push origin" ] && [ -f "$ESTADO/falha_apos_envio" ]; then touch "$ESTADO/ls_ref_falha"; fi
 case "$1 $2" in
@@ -385,9 +387,30 @@ class Teste(unittest.TestCase):
         self.assertIn(texto, r.stderr)
         self.assertEqual(self.merges(), [])
 
-    def test_6a_base_local_velha_para_e_pede_o_fetch(self):
+    def test_6a_base_local_velha_busca_a_base_e_segue_sem_conflito(self):  # FECHAR-6A-DEVELOP-ANDOU
+        antigo = self.git("rev-parse", "melhoria/x")
         self.base_anda_nos_checks("docs/nota.txt", local=False)
-        self.assert_parou_no_6a(self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar"), "git fetch origin develop")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn("busco a develop (git fetch, só leitura) e confiro o merge com ela", r.stdout)
+        self.assertIn("a develop andou durante os checks sem conflito com melhoria/x; não trago a base (E8)", r.stdout)
+        self.assertEqual(self.git("rev-parse", "origin/develop"), self.head_remoto("develop"))
+        self.assertEqual((self.git("rev-parse", "melhoria/x"), self.head_remoto("melhoria/x")), (antigo, antigo))
+        self.assertEqual(len(self.merges()), 1)
+        self.assertIn(antigo, self.merges()[0])
+
+    def test_6a_base_local_velha_com_conflito_na_base_buscada_para(self):
+        self.base_anda_nos_checks("b", local=False)  # a branch criou `b` com outro conteúdo
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assert_parou_no_6a(r, "o merge dela em melhoria/x tem conflito")
+        self.assertIn("  b", r.stderr.splitlines())
+
+    def test_6a_busca_da_base_que_falha_para_e_pede_o_fetch(self):
+        self.base_anda_nos_checks("docs/nota.txt", local=False)
+        (self.estado / "falha_fetch_develop").write_text("1")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assert_parou_no_6a(r, "a busca dela falhou")
+        self.assertIn("git fetch origin develop", r.stderr)
 
     def test_6a_base_que_conflita_nos_checks_para_sem_mesclar(self):
         antigo = self.git("rev-parse", "melhoria/x")

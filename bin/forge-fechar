@@ -33,7 +33,8 @@
 # mudar durante a espera para. Prazo esgotado para como sem a opção. O script nunca aplica rótulo nem marca item do checklist.
 # Sem a branch local, --ref vale com a branch só no origin (FECHAR-BRANCH-LOCAL): o sha conferido vem do servidor (ls-remote), o commit
 # tem de existir aqui (senão pede git fetch origin <branch>).
-# Antes do merge (6a), a base é relida: se andou durante os checks, para só com conflito real; sem ele segue (E8).
+# Antes do merge (6a), a base é relida: se andou durante os checks, para só com conflito real; sem ele segue (E8). Base local velha:
+# busca a base uma vez (só leitura) e confere o merge com a nova (FECHAR-6A-DEVELOP-ANDOU); a busca que falha para.
 # Idempotente: head já mesclado na base ou PR já MERGED com este head não abre PR nem mescla de novo (vai direto à limpeza).
 # Erro passageiro do GitHub (502): só as operações que não mudam o PR repetem, até 3 vezes (leituras de estado, de PR e de checks; `push --delete`
 # da limpeza). Push de código, criação de PR, `pr ready` e merge nunca se repetem sozinhos.
@@ -968,6 +969,12 @@ conferir_base_no_merge() {
   [ -n "$srv" ] || die "parou no passo 6a: não consegui ler a $alvo no servidor (resposta vazia); nada foi mesclado"
   [ "$srv" != "$base_2b" ] || return 0
   local_base="$(git rev-parse --verify --quiet "$base^{commit}")" || local_base=""
+  if [ "$local_base" != "$srv" ]; then  # FECHAR-6A-DEVELOP-ANDOU: busca a base sozinho, uma vez (só leitura), e segue a conferência
+    echo "a $alvo andou durante os checks ($base_2b -> $srv); busco a $alvo (git fetch, só leitura) e confiro o merge com ela."
+    git fetch -q origin "+refs/heads/$alvo:refs/remotes/origin/$alvo" \
+      || die "parou no passo 6a: a $alvo andou durante os checks ($base_2b -> $srv) e a busca dela falhou; nada foi mesclado; rode: git fetch origin $alvo, e rode de novo"
+    local_base="$(git rev-parse --verify --quiet "$base^{commit}")" || local_base=""
+  fi
   if [ "$local_base" != "$srv" ] || ! git merge-base --is-ancestor "$base_2b" "$srv" 2>/dev/null; then
     die "parou no passo 6a: a $alvo andou durante os checks ($base_2b -> $srv) e $base não a tem; nada foi mesclado; rode: git fetch origin $alvo, e rode de novo"
   fi
@@ -1282,7 +1289,7 @@ if [ "$seco" = 1 ]; then
   passo 3 "$gh pr create --base $alvo --head $ref --title '$titulo' (se não houver PR aberto; não abre se o head já está em $base ou já tem PR MERGED)"
   passo 4 "$gh pr checks <número do PR, lido no passo 3> (espera até ${espera}s; por JSON; os exigidos, pelo par workflow/nome (${CHECKS_EXIGIDOS[*]}) e os do ruleset ou da proteção de $alvo pelo nome, só passam em pass, os demais em pass ou skipping)"
   passo 5 "$gh pr view <número do PR, lido no passo 3> --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
-  passo "6a" "git ls-remote origin refs/heads/$alvo (a base que o passo 2b leu? se andou durante os checks: com conflito no git merge-tree --write-tree para sem mesclar; sem conflito segue, sem trazer a base (E8); base local velha pede git fetch)"
+  passo "6a" "git ls-remote origin refs/heads/$alvo (a base que o passo 2b leu? se andou durante os checks: com conflito no git merge-tree --write-tree para sem mesclar; sem conflito segue, sem trazer a base (E8); base local velha: busca a base uma vez, só leitura, e confere o merge com ela)"
   [ "$item_de_lote" = 1 ] || passo "6b" "$gh run list --branch $alvo --event push --commit <topo da $alvo>: verde antes do merge (pendente espera até ${espera_ci}s; vermelho para)"
   passo 6 "$gh pr merge $ref --auto $metodo --match-head-commit <head conferido> (auto-merge do GitHub com os checks obrigatórios; base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge; espera o MERGED até --espera; com --armar sai com código 4 se ainda não mesclou)"
   for c in "${cartoes[@]}"; do echo "cartão $c: depois do merge, forge-check movimento $c --de $(coluna_do_cartao "$c") --para Pronto --raiz $quadro"; done
