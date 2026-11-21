@@ -66,8 +66,8 @@
       "id": "L7",
       "guarda": "a linha sem leitura não vai ao registro de erro interno (E63.1)",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if interno:\n",
-      "para": "            if not interno:\n",
+      "de": "            interno = not isinstance(erro, ForaDaProva)  # a linha sem leitura é a recusa; só o erro interno vai ao registro\n",
+      "para": "            interno = isinstance(erro, ForaDaProva)  # a linha sem leitura é a recusa; só o erro interno vai ao registro\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
       ]
