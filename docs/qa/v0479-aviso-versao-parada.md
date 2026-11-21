@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-aviso-versao-parada
-commit: 1d47aa8ec5d32e91308dd65d5793279634024106
+commit: 063a2d567e8500d6fcaa23d1ec4cae15adcb1c98
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -44,3 +44,6 @@ contagem: não prova (passa na base)=108; prova (asserção)=19; regressão=1
 tests.test_doutor.HookDoutor.test_abrir_em_menos_de_cem_ms_em_media · H=falha · B=ok · regressão
 ```
 Os 19 testes novos da classe `VersaoParada` caem na base e passam no HEAD. A regressão é o teste de CPU do hook, sensível à carga da máquina (load average 18 a 19 durante a prova, com outras sessões pesadas): no HEAD ele passou 3 de 3 isolado (`-k test_abrir_em_menos_de_cem`, load 10) e a classe inteira passou, 128 testes OK, na rodada anterior. Tratado como teste instável (reportado), não como defeito do diff; o CI diz a última palavra pelo check-run `bateria` do mesmo sha.
+
+## Revalidação (v0478 E69.11, escopo incremental)
+Delta `1d47aa8e..063a2d56` lido por `forge-check parecer delta`: só texto. `bin/forge_versoes.py` (docstring sem o caminho de `docs/propostas/`), `docs/hooks.md:16` (descrição do aviso de versão parada) e um comentário em `tests/test_doutor.py`. Nenhuma linha de lógica mudou. Rodados com `python3 -I`: `test_reval_delta.py` (10 testes, OK) e `test_doutor.py -k VersaoParada` (23 testes, OK). Sem suíte inteira e sem vermelho (não há teste novo). A1 (recomendado) segue como no parecer anterior. Parecer mantido: aprovado.
