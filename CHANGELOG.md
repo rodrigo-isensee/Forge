@@ -40,6 +40,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 - K152: o teste ponta a ponta do envio da cópia nova (tests/test_prepush_k152.py) monta um PATH controlado sem ruff nem mypy e deixa de se pular conforme a máquina.
 - `forge-check movimento --de Bloqueado` recusa (rc 2, sem gravar) quando a última linha do cartão em `docs/kanban/historico.md` não o pôs em Bloqueado, e diz como registrar a entrada; as outras origens seguem sem conferir a última coluna (K170, E77.1, v0478).
 - forge-pesado esperar: a trava que some entre a checagem e a leitura vale como livre e a espera pega a vez, em vez de sair 2 com estado ilegível; arquivo que existe e não se lê segue saindo 2 (PESADO-CORRIDA-TRAVA-SOME).
+- Hook `agentes` (H2-RETOMADO-CONFLITO, R-TETO): o retomado cujo `SubagentStart` chega depois da reserva curta e acha a branch dele tomada por outra reserva de escrita viva registra o conflito no `erros.log`, que o vigia mostra no Stop; ele mantém todas as branches no registro, como antes, e segura a branch quando a outra reserva cai.
 
 ## [0.47.13] - 2026-11-21
 ### Adicionado
