@@ -123,3 +123,14 @@ O E50 entrou na develop (#734, f96ede50) com o teto em 5895051 (+1084); o E51 me
 - medida nova: 5897219, ruído 0; total sobre 5893967: +3252 passos (1084 + 2168, sem passo a mais da junção)
 - autorizações do dono, cada uma só para o seu item e não precedente (DECISÃO DO DONO no pedido v0478): E50 +1084 em
   20/11 às 19:09; E51 +2168 em 20/11 às 19:55. O total fica abaixo de +3300, o limite do aviso pedido pelo dono
+
+## E63.1 (v0478, CONFORMIDADE-SEGURANCA)
+
+Os três cartões do `hooks/conformidade.py` (pedido e brief da pasta de controle só do jarvis, escrita no índice,
+envio com parte vinda de substituição), sobre a develop d4f0b10a. Mesma máquina, Python 3.12.3, tmp a 2 níveis, 234
+variáveis, `python3 -I -m unittest discover -s tests -p test_hooks_volta_corpus.py -k test_corpus_nos_dois_hooks`:
+- base (o `hooks/conformidade.py` da d4f0b10a): `interpretador` 5897219, igual ao teto
+- primeira versão dos cartões: `{'execucoes': 557, 'subprocessos': 4637, 'sono': 0, 'interpretador': 5975100, 'ambiente': 234}` (+77881, 1,32%; +6 subprocessos): acima de 0,1%, refeita
+- com os filtros baratos (o `ls-files` só para pasta, curinga ou magia; o `in` do texto antes das chamadas; o marcador crítico numa chamada só): `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5902634, 'ambiente': 234}`
+- por cartão, cada um desligado sobre a versão final: escrita no índice +320, envio com substituição +4630 (medidas de uma rodada intermediária), o resto no pedido e brief da pasta de controle
+- medida nova: 5902634 (+5415 passos, 0,092%), ruído 0 em duas rodadas; abaixo de 0,1%: o time decide com a confirmação escrita da segurança (brief v0478-tech-lead-481)
