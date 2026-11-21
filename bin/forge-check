@@ -5909,7 +5909,7 @@ def chave_da_versao(versao):
 
 def cmd_retro_pendentes(raiz, raiz_retros, agora, main="origin/main", desde=None):
     """AE5.1: as tags vX.Y.Z alcançáveis de `main` com mais de `HORAS_ATE_A_RETRO` horas em `agora` (argumento: nada lê o relógio) que
-    nenhuma retro de `raiz_retros`/docs/retrospectivas/ cobre; `_*.md` (o modelo) fica fora. Só leitura; rc 0 sem pendente, 1 com
+    nenhuma retro da pasta de retrospectivas de `raiz_retros` cobre; `_*.md` (o modelo) fica fora. Só leitura; rc 0 sem pendente, 1 com
     pendente, 2 com `agora`, `main`, `desde` ou git ilegível."""
     hora = _hora(agora or "")
     if hora is None or not REF_DA_MAIN.fullmatch(main) or (desde is not None and not VERSAO_DA_TAG.fullmatch(desde)):
