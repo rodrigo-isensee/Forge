@@ -1,0 +1,2 @@
+### Alterado
+- Testes dos dois casos reais de merge de pareceres em paralelo (outro pai sobre um conferido ancestral; merge de um merge de pareceres): a entrega aceita o parecer com o blob do conferido mais novo da história do outro pai e recusa o que vem de commit sem linha (CONFERENCIA-MERGE-DE-PARECERES, E83.1, v0478). A recusa vista na integração vinha do plugin instalado 0.47.11, anterior ao conserto do E62.19 na develop.
