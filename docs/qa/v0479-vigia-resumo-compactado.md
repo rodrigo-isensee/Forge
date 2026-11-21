@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-vigia-resumo-compactado
-commit: 9ec21d93d609fc49aa696f796236f59586529572
+commit: 8b7f670d5aa188ec3be78ff7c4e5d4cb63349396
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -63,3 +63,6 @@ M5 · morreu · hooks/vigia.py:315
 M6 · morreu · hooks/vigia.py:322
 ```
 - Suíte inteira não rodada (CI do PR).
+
+## Revalidação no head 8b7f670d
+Delta (`forge-check parecer delta`): só `docs/hooks-fixtures.md` (índice regenerado) e `docs/hooks.md`, vindos do merge da develop (#775); nenhum código mudou. `scripts/indice-fixtures.py --conferir`: em dia. `tests/test_vigia.py`: 12 testes, OK. Fixtures de `vigia` e `meta`: 88 casos, OK. `bin/forge-mutante tests/mutantes/v0479-vigia-resumo-compactado.json`: M1 a M7 morreram (hooks/vigia.py:308,310,311,313,315,316,322). Parecer mantido.
