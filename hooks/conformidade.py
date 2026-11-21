@@ -3879,10 +3879,10 @@ class GuardaDaProva(Guarda):
     def bash(self, comando, pasta, nivel=0, so_substituicoes=False, corpo_de_heredoc=False):
         """A16 e A17 da segurança E63.11: para o papel que não é o jarvis, a linha que troca o caminho que o hook resolve
         (`CAMINHO_TROCADO_NA_LINHA`: `HOME=`, `ln`, `mv`...) é construção que ele não modela; recusa se cita o pedido ou o
-        brief da pasta de controle (`recusa_do_estado`), também pela cópia de `wt/` (`HOME=~/.forge-contrib/wt/g; …`)."""
+        brief da pasta de controle (`recusa_do_estado`), também pela cópia de `wt/` (`HOME=~/.forge-contrib/wt/g; …`). O
+        nome partido por continuação (`HO\\` + quebra) já recusa como construção que o hook não modela."""
         if not nivel and self.controle is not None:
-            texto = juntar_continuacoes(comando) if "\\\n" in comando else comando
-            trocado = re.search(CAMINHO_TROCADO_NA_LINHA, texto.replace("'", "").replace('"', ""))
+            trocado = re.search(CAMINHO_TROCADO_NA_LINHA, comando.replace("'", "").replace('"', ""))
             if trocado:
                 self.barrar("R-CONFORMIDADE", f"`{trocado.group().strip()}` na linha: o hook não modela o caminho que ela "
                             "troca (o HOME, o link, o arquivo lido pelo shell)",
