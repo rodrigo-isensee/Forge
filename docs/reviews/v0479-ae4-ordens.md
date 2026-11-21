@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae4-ordens
-commit: df0cf4d96cdf642b624c1468245010619410d9d1
+commit: 768ddb9017fda505bfe54164e1b962eaffecc943
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
@@ -14,9 +14,20 @@ Code review do AE4.1 no head 18d6d2f4 (branch melhoria/v0479-ae4-ordens, base de
 
 ## Achados
 - A1 (recomendado) bin/forge-check:10260 · o subparser `ordens` (3 linhas) entrou no meio dos argumentos do `decisoes`: o `de.add_argument("--resposta", ...)` da linha 10263 ficou depois dele; mova o bloco `od` para depois do `--resposta`, sem mudar comportamento.
+- A2 (recomendado) bin/forge-check:7567 · `DECISAO_DO_REGISTRO` voltou a repetir à mão o padrão que `registro_da_frase` (7562-7564) monta: duas cópias da mesma expressão podem divergir; ou um teste afirma `DECISAO_DO_REGISTRO.pattern == registro_da_frase(FRASE_DO_DONO).pattern`, ou um comentário cita a outra cópia.
 
 ## Parecer
-Aprovado (revalidação no head df0cf4d9, v0478 E58.91; o A1 recomendado segue para cartão).
+Aprovado (revalidação no head 768ddb90, v0478 E58.108; A1 e A2 recomendados seguem para cartão).
+
+## Revalidação (head 768ddb90)
+- Delta lido: `forge-check parecer delta docs/reviews/v0479-ae4-ordens.md`, intervalo df0cf4d9..768ddb90, sem o que veio da develop (merge a6baf239); no domínio: `agents/jarvis.md`, `bin/forge-check`, as 3 specs de mutantes, `tests/test_decisoes.py`, `tests/test_ordens.py`. Nada fora disso relido.
+- `agents/jarvis.md:13-16`: o `--cartao <ID|E<n>>` vira `--cartao` (o formato fica na mensagem do `anotar`) e "1ª pessoa, português" sai da abertura para a linha nova "Linguagem fácil", que já trazia a regra de não citar branch nem pasta; mesmo sentido, `test_orcamento_instrucao` verde.
+- `recusa_do_apontador` (bin/forge-check:5085-5099): as quatro recusas passam o `alvo` por `sem_controle` (SaidaSanitizada); só a mensagem muda, as guardas não.
+- `APONTADOR` e `CARTAO_DA_ORDEM` (7588-7589) viram texto, compilado no uso pelo cache do `re` (`re.fullmatch` em 5118, `re.search` em 7946): mesma expressão, sem compilação no import (custo do corpus dos hooks, E58.102). O `de` do M1 acompanha a guarda; M9 e M22 acompanham as mensagens.
+- `test_ordens.py` e `test_decisoes.py`: o ambiente do `git init` passa por `sem_manutencao` (tests/ambiente_git.py:25), que só junta chaves `GIT_CONFIG_*` ao ambiente limpo; o subprocesso segue com `-I` no `test_ordens`.
+- Testes: `python3 -m unittest tests.test_ordens tests.test_decisoes tests.test_anotar tests.test_orcamento_instrucao tests.test_ambiente_git tests.test_hooks_volta_corpus`: `Ran 108 tests in 290.884s OK`; `python3 -m unittest tests.test_forge -k SaidaSanitizada`: `Ran 10 tests OK`.
+- Mutantes: `bin/forge-mutante --processos 1 --rev 768ddb90 --ids <id> <spec>`: M1 `morreu` (5118), M9 `morreu` (5093), M22 `morreu` (5096). `--cobertura --base df0cf4d9`: a guarda 5118 coberta (M1); as demais linhas do item em `bin/forge-check` não são guarda.
+- Suíte inteira: fica com o CI do PR (`R-REVIEW`).
 
 ## Revalidação (head df0cf4d9)
 - Delta lido: `forge-check parecer delta docs/reviews/v0479-ae4-ordens.md`, intervalo b1cd22ec..df0cf4d9, no domínio: `agents/jarvis.md`, `bin/forge-check`, `bin/forge-testes`, `tests/mutantes/est-m12-gerar.json`, `tests/pesos-d4.json`, `tests/test_anotar.py`. Separado da develop por `git diff c9d69234 HEAD`: `bin/forge-check`, `bin/forge-testes`, `tests/pesos-d4.json` e o trecho novo de `test_anotar.py` vieram do merge da develop (27596e7d), sem resolução à mão no domínio; do item, só `agents/jarvis.md` e `est-m12-gerar.json` (df0cf4d9). Nada fora disso relido.
