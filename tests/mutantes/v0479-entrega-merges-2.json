@@ -46,8 +46,8 @@
       "id": "N5",
       "guarda": "só o conferido que muda o arquivo conta para o mais novo (o commit sem linha por cima não vira o parecer)",
       "arquivo": "bin/forge-check",
-      "de": " if nome in (nomes_do_intervalo(raiz, f\"{p}^1\", p, estrito=True) or ())]",
-      "para": "]",
+      "de": "nome in (nomes_do_intervalo(raiz, f\"{p}^1\", p, estrito=True) or ())",
+      "para": "nome in (nomes_do_intervalo(raiz, f\"{p}^1\", p, estrito=True) or ()) or True",
       "testes": [
         "tests.test_selo_e_entrega.MergeDeParecerAninhado.test_mudanca_fora_do_portao_depois_do_conferido_reprova"
       ]
@@ -56,8 +56,8 @@
       "id": "N6",
       "guarda": "só o conferido mais novo que muda o arquivo vale (review A2)",
       "arquivo": "bin/forge-check",
-      "de": "novos = [p for p in mudam if not any(c != p and e_ancestral(raiz, p, c) for c in mudam)]",
-      "para": "novos = mudam",
+      "de": "not any(c != p and e_ancestral(raiz, p, c) for c in mudam)",
+      "para": "True",
       "testes": [
         "tests.test_selo_e_entrega.MergeDeParecerAninhado.test_o_conferido_mais_novo_vale"
       ]
