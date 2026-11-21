@@ -24,11 +24,12 @@
     },
     {
       "id": "M3",
-      "guarda": "K-345: a ponta local diferente da origin/<branch> não se grava",
+      "guarda": "K-345: a branch sem a ponta no origin (ausente ou noutro commit) não se grava",
       "arquivo": "bin/forge-check",
-      "de": "    if gravar and remoto and remoto != head:",
+      "de": "    if gravar and (not lido or remoto != head):",
       "para": "    if False:",
       "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_k345_branch_nunca_enviada_nao_grava",
         "tests.test_selo_e_entrega.Entrega.test_k345_ponta_local_diferente_da_enviada_nao_grava"
       ]
     },
@@ -36,10 +37,50 @@
       "id": "M4",
       "guarda": "K-345: só a gravação recusa; o --sem-gravar segue conferindo",
       "arquivo": "bin/forge-check",
-      "de": "    if gravar and remoto and remoto != head:",
-      "para": "    if remoto and remoto != head:",
+      "de": "    if gravar and (not lido or remoto != head):",
+      "para": "    if not lido or remoto != head:",
       "testes": [
         "tests.test_selo_e_entrega.Entrega.test_k345_ponta_local_diferente_da_enviada_nao_grava"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "K-345 (A2): sem resposta do ls-remote, nada se grava (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if gravar and (not lido or remoto != head):",
+      "para": "    if gravar and remoto != head:",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_k345_origin_sem_resposta_nao_grava"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "K-345 (A2): a ponta é a do git ls-remote, não a ref de rastreio local",
+      "arquivo": "bin/forge-check",
+      "de": "    remoto, lido = remoto_da_branch(raiz, branch)  # K-345 (A1 e A2 da segurança): a linha gravada é a ponta no origin, pelo ls-remote",
+      "para": "    remoto, lido = sha_do_commit(raiz, f\"refs/remotes/origin/{branch}\"), True",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_k345_ref_de_rastreio_apagada_ou_forjada_nao_grava"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "K-345 (A2): o motivo diz que o remoto não respondeu",
+      "arquivo": "bin/forge-check",
+      "de": "    if not lido:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_k345_origin_sem_resposta_nao_grava"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "K-345 (A1): o motivo diz que a branch não está no remoto",
+      "arquivo": "bin/forge-check",
+      "de": "    if remoto is None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_k345_branch_nunca_enviada_nao_grava"
       ]
     }
   ]

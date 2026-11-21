@@ -1602,7 +1602,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
         aviso_t1_do_pr(raiz, ref, None if base is None else base.removeprefix("origin/"))
     if base is None:
         if isencoes_da_entrega(raiz, ref, None):
-            print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
+            print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE e os caminhos de controle da classe C: .github/, hooks/, .claude/...) (R-QA); o review continua exigido (R-REVIEW)",
                   file=sys.stderr)
         avisar_classe(raiz, ref, None)
         branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
@@ -1616,7 +1616,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
     if aviso:
         print(aviso, file=sys.stderr)
     if isencoes_da_entrega(raiz, ref, resolvida):
-        print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
+        print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE e os caminhos de controle da classe C: .github/, hooks/, .claude/...) (R-QA); o review continua exigido (R-REVIEW)",
               file=sys.stderr)
     avisar_classe(raiz, ref, resolvida)
     if promocao(raiz, ref, nome):  # A9: a conferência do head é portão da branch de trabalho; a leva já passou por ele em cada PR
@@ -10017,6 +10017,17 @@ def ponto_da_integracao(raiz, base, base_sha, head, ancoras):
     return ponto
 
 
+def recusa_da_gravacao(branch, head, remoto, lido):
+    """K-345: por que a entrega não grava o head. A ponta vale só lida no `origin` pelo `git ls-remote` (`remoto_da_branch`): a ref de
+    rastreio local não conta (um `update-ref` a iguala sem envio), e sem resposta do remoto, ou sem a branch nele, nada se grava."""
+    alvo = nome_seguro("origin/" + branch)
+    if not lido:
+        return f"head: não li a {alvo} no remoto (git ls-remote sem resposta); grave com o origin ao alcance (ou confira com --sem-gravar)"
+    if remoto is None:
+        return f"head: a {alvo} não existe no remoto (git ls-remote); envie a branch antes de gravar (ou confira com --sem-gravar)"
+    return f"head: o local {head[:12]} não é a {alvo} {remoto[:12]}; envie ou traga a branch antes de gravar (ou confira com --sem-gravar)"
+
+
 def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True, so_leitura=False):
     """P2 (0.43.1): a conferência de entrega por ferramenta. Acha o brief selado da branch e da etapa, calcula Base, Base-sha e Desde
     (nada digitado), roda o escopo do `entrega` com o escopo declarado no brief, as provas e a contagem de commits; sem reprovação, grava
@@ -10077,10 +10088,9 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
     cod, contagem = git(raiz, "rev-list", "--count", f"{inicio}..{head}")
     linhas.append((f"commits: {contagem if not cod else '?'} em {inicio[:12]}..{head[:12]}", bool(cod)))
     linhas += conferir_provas(raiz, brief, branch, head, pasta, so_leitura)
-    remoto = sha_do_commit(raiz, f"refs/remotes/origin/{branch}")  # K-345: a linha gravada é a ponta enviada, não a só local
-    if gravar and remoto and remoto != head:
-        linhas.append((f"head: o local {head[:12]} não é a {nome_seguro("origin/" + branch)} {remoto[:12]}; envie ou traga a branch antes "
-                       "de gravar (ou confira com --sem-gravar)", True))
+    remoto, lido = remoto_da_branch(raiz, branch)  # K-345 (A1 e A2 da segurança): a linha gravada é a ponta no origin, pelo ls-remote
+    if gravar and (not lido or remoto != head):
+        linhas.append((recusa_da_gravacao(branch, head, remoto, lido), True))
     if etapa == "codigo" and not cod:  # T1: código sem teste no intervalo da delegação, sinalizado sem reprovar (a classe T isenta)
         aviso = aviso_de_codigo_sem_teste(raiz, f"{inicio}..{head}", nomes_do_intervalo(raiz, inicio, head),
                                           classe_para_o_t1(raiz, head, base))

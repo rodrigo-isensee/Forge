@@ -126,6 +126,14 @@ class Repositorio(unittest.TestCase):
         return self.rodar("brief", "selar", "--arquivo", f"docs/briefs/{(arq or self.proj / 'docs/briefs/exemplo-node-backend-1.md').name}",
                           "--pedido", "exemplo")
 
+    def enviar(self):
+        """K-345: a entrega só grava a ponta que o `git ls-remote origin` vê; o teste que grava envia antes."""
+        self.git("push", "-q", "origin", "melhoria/x")
+
+    def entrega_gravando(self):
+        self.enviar()
+        return self.rodar("entrega", "--pedido", "exemplo", "--branch", "melhoria/x", "--etapa", "codigo")
+
     def entregar(self, *extra):
         self.gravar("docs/notas/a.md", "nota\n")
         self.gravar("bin/app", "x\ny\n")
@@ -279,7 +287,9 @@ class Entrega(Repositorio):
         rc, saida = self.selar()
         self.assertEqual(rc, 0, saida)
 
-    def conferir(self, *extra):
+    def conferir(self, *extra, enviar=True):
+        if enviar:
+            self.enviar()
         return self.rodar("entrega", "--pedido", "exemplo", "--branch", "melhoria/x", "--etapa", "codigo", *extra)
 
     def test_cumpriu_grava_uma_vez(self):
@@ -311,16 +321,55 @@ class Entrega(Repositorio):
         self.gravar("bin/app", "x\ny\nz\n")
         self.git("add", "bin/app")
         local = self.commit("feat: só local")
-        rc, saida = self.conferir()
+        rc, saida = self.conferir(enviar=False)
         self.assertEqual(rc, 1, saida)
         self.assertIn(f'head: o local {local[:12]} não é a "origin/melhoria/x"', saida)
         self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
-        rc, saida = self.conferir("--sem-gravar")
+        rc, saida = self.conferir("--sem-gravar", enviar=False)
         self.assertEqual(rc, 0, saida)
-        self.git("push", "-q", "origin", "melhoria/x")
         rc, saida = self.conferir()
         self.assertEqual(rc, 0, saida)
         self.assertEqual(fc.entregas_conferidas(self.pedido()), [local])
+
+    def test_k345_branch_nunca_enviada_nao_grava(self):
+        """K-345 (A1 da segurança, S1): sem a branch no `origin`, nada se grava; o --sem-gravar segue conferindo."""
+        self.selado()
+        self.entregar()
+        rc, saida = self.conferir(enviar=False)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('head: a "origin/melhoria/x" não existe no remoto (git ls-remote)', saida)
+        self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
+        rc, saida = self.conferir("--sem-gravar", enviar=False)
+        self.assertEqual(rc, 0, saida)
+
+    def test_k345_ref_de_rastreio_apagada_ou_forjada_nao_grava(self):
+        """K-345 (A1 e A2 da segurança, S2 e S3): a ponta vale pelo `git ls-remote`, não pela ref de rastreio local, apagada ou
+        igualada ao head por `update-ref` sem envio."""
+        self.selado()
+        self.entregar()
+        self.enviar()
+        self.gravar("bin/app", "x\ny\nz\n")
+        self.git("add", "bin/app")
+        local = self.commit("feat: só local")
+        for forja in (("-d", "refs/remotes/origin/melhoria/x"), ("refs/remotes/origin/melhoria/x", local)):
+            self.git("update-ref", *forja)
+            rc, saida = self.conferir(enviar=False)
+            self.assertEqual(rc, 1, saida)
+            self.assertIn(f'head: o local {local[:12]} não é a "origin/melhoria/x"', saida)
+            self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
+
+    def test_k345_origin_sem_resposta_nao_grava(self):
+        """K-345 (A2 da segurança): sem resposta do `git ls-remote`, a ref de rastreio igual ao head não basta (falha fechada)."""
+        self.selado()
+        head = self.entregar()
+        self.enviar()
+        self.git("fetch", "-q", "origin")
+        self.assertEqual(self.git("rev-parse", "refs/remotes/origin/melhoria/x"), head)
+        self.git("remote", "set-url", "origin", str(self.tmp / "nao-existe.git"))
+        rc, saida = self.conferir(enviar=False)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('head: não li a "origin/melhoria/x" no remoto (git ls-remote sem resposta)', saida)
+        self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
 
     def test_so_leitura_nao_roda_prova_cmd_nem_grava(self):
         """D4 (0.44.0, L2 do review de segurança da 0.43.1): a forma do conferente lê só git e disco; o PQ cmd fica com o autor e o CI."""
@@ -1003,7 +1052,7 @@ class JanelaDaEntrega(Conferencia):
         self.brief()
         self.assertEqual(self.selar()[0], 0)
         head = self.entregar()
-        rc, saida = self.rodar("entrega", "--pedido", "exemplo", "--branch", "melhoria/x", "--etapa", "codigo")
+        rc, saida = self.entrega_gravando()
         self.assertEqual(rc, 0, saida)
         self.commitar_parecer("reviews", "review", revisado=head)
         return head
@@ -1507,7 +1556,7 @@ class JuncaoLimpa(Conferencia):
         self.brief()
         self.assertEqual(self.selar()[0], 0)
         feito = self.entregar()
-        rc, saida = self.rodar("entrega", "--pedido", "exemplo", "--branch", "melhoria/x", "--etapa", "codigo")
+        rc, saida = self.entrega_gravando()
         self.assertEqual(rc, 0, saida)
         return feito
 
@@ -1523,7 +1572,7 @@ class JuncaoLimpa(Conferencia):
     def test_caso_real_duas_juncoes_limpas_cumprem_e_gravam(self):
         feito = self.conferida()
         head = self.juncao("a\n", "a\nb\n")
-        rc, saida = self.rodar("entrega", "--pedido", "exemplo", "--branch", "melhoria/x", "--etapa", "codigo")
+        rc, saida = self.entrega_gravando()
         self.assertEqual(rc, 0, saida)
         self.assertIn(f"escopo: junção limpa da base (só merge da \"develop\" sem resolução à mão; a entrega conferida {feito[:12]}", saida)
         self.assertNotIn("pendente:", saida)
