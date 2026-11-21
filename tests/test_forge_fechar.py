@@ -261,5 +261,62 @@ class LimparClones(unittest.TestCase):
         self.assertIn(f"rm -rf -- {d}", r.stdout)
 
 
+class LimparSemMerge(unittest.TestCase):
+    """LIMPEZA-AO-FIM-DO-ITEM: o --limpar sem PR MERGED nem aberto passa as cópias de $ref ao `forge-copia limpar` (PR fechado sem merge);
+    só a cópia limpa sai, e a branch local e a remota ficam. O `gh` do forge-copia é o falso do PATH (sem rede, R-CUSTO)."""
+    F = fechar_base.Fechar
+    setUp_f, tearDown, git, fechar = F.setUp, F.tearDown, F.git, F.fechar
+    clone = LimparClones.clone
+
+    def setUp(self):
+        self.setUp_f()
+        (self.tmp / "bin" / "gh").write_text('#!/bin/sh\ncat "$ESTADO/estados_copia"\n')
+        (self.tmp / "bin" / "gh").chmod(0o755)
+        (self.estado / "estados_copia").write_text("CLOSED\n")
+        (self.estado / "lista_extra").write_text(f"234 CLOSED develop {self.git('rev-parse', 'melhoria/x')}\n")
+
+    def limpar(self):
+        return self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+
+    def test_pr_fechado_apaga_o_clone_limpo_e_a_branch_fica(self):
+        d = self.clone()
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertFalse(d.exists())
+        self.assertIn("limpeza: sem merge, cópias apagadas=1", r.stdout)
+        self.assertIn("refs/heads/melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "melhoria/x")
+
+    def test_pr_fechado_apaga_a_worktree_limpa(self):
+        wt = self.tmp / ".forge-contrib" / "wt" / "w1"
+        wt.parent.mkdir(parents=True)
+        self.git("worktree", "add", "-q", str(wt), "melhoria/x")
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertFalse(wt.exists())
+
+    def test_copia_suja_fica_com_codigo_3(self):
+        d = self.clone()
+        (d / "novo").write_text("x\n")
+        r = self.limpar()
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertTrue(d.is_dir())
+        self.assertIn(f"git -C {d} status --short --branch", r.stdout)
+
+    def test_pr_aberto_para_sem_apagar(self):
+        d = self.clone()
+        (self.estado / "lista_extra").write_text(f"235 OPEN develop {self.git('rev-parse', 'melhoria/x')}\n")
+        r = self.limpar()
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("com PR aberto", r.stderr)
+        self.assertTrue(d.is_dir())
+
+    def test_sem_copia_para_como_antes(self):
+        r = self.limpar()
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("sem prova de merge", r.stderr)
+        self.assertIn("refs/heads/melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+
+
 if __name__ == "__main__":
     unittest.main()
