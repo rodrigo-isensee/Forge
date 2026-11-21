@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-dir31-focus
-commit: 0d5826f9ce401e259e888080149cef3d4ed37218
+commit: 0b933f1d9d842824a4ec05d9457e1df645a17d15
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
@@ -27,3 +27,8 @@ Etapa E67.2 do pedido v0478 (DIR-31, entrega E67.1), base `develop` em bead3e53,
 
 ## Parecer
 Aprovado. Faz o que a E67.1 pede, sem mais: visão de foco por padrão sem sobrepor a escolha gravada do dono, a tela cheia só com a visão valendo e sem `tui` decidido, e a regra de linguagem fácil no Jarvis. Os ramos de falha (arquivo ilegível, Python que falha, precedência local > projeto, variáveis de ambiente) têm teste de comportamento e mutante morto.
+
+## Revalidação (E67.8, head 0b933f1d)
+- Delta lido (`forge-check parecer delta`, 0d5826f9..0b933f1d, sem o que veio da `develop`): no domínio só `tests/test_reval_delta.py`, uma linha: a contagem de citações de `README.md` em `tests/test_forge.py` passa de 15 para 16, a citação que o merge da `develop` (c8e8a08d, guarda C-2) trouxe.
+- Conferido: `grep -c README.md tests/test_forge.py` dá 16; `test_reval_delta` roda 10 testes, OK, no head.
+- Nada do escopo de E67.1 mudou; o parecer segue aprovado no head 0b933f1d.
