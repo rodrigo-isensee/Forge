@@ -3,12 +3,15 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-k152-prepush-sem-deps
-commit: ce1d79bd030ae0c1d33b4443d91bd311ad043155
+commit: adde580693eac70bf44579bae529b20efa39a508
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-21
 ---
-# Review de segurança: K152 (cópia nova sem dependências no pre-push do projeto), head ce1d79bd
+# Review de segurança: K152 (cópia nova sem dependências no pre-push do projeto), head adde5806
+
+## Revalidação por delta (E81.8, head adde5806)
+Delta lido (`forge-check parecer delta`, `ce1d79bd..adde5806`): no domínio só `tests/test_prepush_k152.py` (+24 linhas: o auxiliar `com_pronto` e os testes `test_programa_depois_de_ou_logico_tambem_e_checado` e `test_programa_depois_de_pipe_tambem_e_checado`); fora do domínio, `tests/mutantes/v0479-k152-prepush-sem-deps-2.json` (M9, M10). A proposta, o `bin/forge-init` e o `bin/forge-testes` não mudaram. Os dois testes só apertam: provam que o programa depois de `||` e de `|` no pronto rápido também é conferido e que a falta dele barra o envio sem rodar o pronto (`chamadas == []`); nada novo executa na máquina do projeto. Rodados no head: os 2 testes, OK (1,1 s). Veredito mantido: aprovado, só aperta. A 1ª rodada (abaixo) segue valendo, sem achados anteriores a revalidar.
 
 Etapa E81.3, 1ª rodada, diff `adc52def..ce1d79bd` (8 arquivos). Veredito: a mudança só aperta; nenhum caminho novo libera envio.
 
