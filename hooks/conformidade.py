@@ -2799,7 +2799,8 @@ class Guarda:
         escreve na integração vale como o da linha."""
         chave, _, refspec = valor.partition("=")
         if chave.lower().startswith(("alias.", "help.autocorrect")):  # A13 da segurança E63.7: `stge` vira `stage`
-            self.barrar("R-REVIEW", f"git -c {chave}: o alias ou a correção do nome troca o subcomando que o hook leu",
+            self.barrar("R-REVIEW", f"git -c {chave}: o alias da linha troca o subcomando que o hook leu (e o "
+                                    "help.autocorrect, a correção do nome)",
                         "rode o subcomando do git direto, sem alias", trava=TRAVA_OPACA)
         if REFSPEC_NA_CONFIG.fullmatch(chave) and ":" in refspec and self.ref_local_da_integracao(refspec.split(":", 1)[1]):
             self.integracao_movida(f"git -c {chave}")
@@ -4053,7 +4054,7 @@ def envio_com_substituicao(linha):
                 return True
         programa = nomes and (nomes[0] in SHELLS or nomes[0] in ENVOLVEDORES or valores[0] in FONTES
                               or valores[0] == "builtin")
-        if cita_o_envio and programa and shell_que_le_a_entrada(nomes, valores, opacas, comando.redirecoes):  # o `in` antes
+        if cita_o_envio and programa and shell_que_le_a_entrada(nomes, valores, opacas, comando.redirecoes, linha):
             return True
     return False
 
@@ -4064,29 +4065,38 @@ SHELL_OPCAO_COM_VALOR = {"-o", "+o", "-O", "+O", "--rcfile", "--init-file"}
 NAO_E_ARQUIVO = {"dev", "proc", "fd", "..", "stdin"}  # segmento do alvo que pode nomear a própria entrada (A12)
 
 
-def entrada_de_arquivo(redirecoes):
+def literal_atribuido(nome, linha):
+    """O valor literal (sem `/` nem `.`) que a linha dá a `nome` em toda ocorrência dele fora do `$nome` (`B=x`); None se
+    a linha não o atribui, o atribui a outro texto ou o usa de outro jeito (`read B`)."""
+    usos = re.findall(rf"(?<![\w$]){nome}\b(=[\w+-]*(?=[\s;&|)]|$))?", linha)
+    return usos[0][1:] if usos and len(set(usos)) == 1 and usos[0] else None
+
+
+def entrada_de_arquivo(redirecoes, linha=""):
     """A12 da segurança E63.7, por lista positiva: a última redireção da entrada padrão (sem número ou `0`, de qualquer
-    operador) é `<` com alvo literal (sem `$`, crase, `<(`, curinga nem chave) que não pode nomear a própria entrada:
-    nenhum segmento `dev`, `proc`, `fd`, `..` ou `stdin` e o último não só de dígitos (`< /dev/stdin`, `0< /dev/fd/0`,
-    `< /proc/self/fd/0`, `cd /dev && bash < stdin`; a `bash 3< x 0< /dev/stdin` vale pela última)."""
+    operador) é `<` com alvo sem crase, `<(`, curinga nem chave, e com `$` só num nome que a linha atribui a um valor
+    literal (`B=x; bash < "a $B"`, E51.10), que não pode nomear a própria entrada: nenhum segmento `dev`, `proc`, `fd`,
+    `..` ou `stdin` e o último não só de dígitos (`< /dev/stdin`, `0< /dev/fd/0`, `< /proc/self/fd/0`,
+    `cd /dev && bash < stdin`; a `bash 3< x 0< /dev/stdin` vale pela última)."""
     ultima = None
     for r in redirecoes:
         if r.prefixo.strip("0") == "" and (r.prefixo or r.operador[0] == "<"):
             ultima = r
     alvo = ultima.alvo if ultima and ultima.operador == "<" else None  # `<<<`, `<&`, `<>` e `0>&` não são arquivo
-    if alvo is None or re.search(r"[$`*?[{]|<\(", alvo.cru):
+    if alvo is None or re.search(r"[`*?[{]|<\(", alvo.cru):
         return False
-    partes = alvo.valor.split("/")  # o último vazio (`0/`) não abre: o bash falha com ENOTDIR
-    return not NAO_E_ARQUIVO.intersection(partes) and not partes[-1].isdigit()
+    nome = re.sub(r"\$([A-Za-z_]\w*)", lambda m: literal_atribuido(m.group(1), linha) or "/dev/", alvo.valor)
+    partes = nome.split("/")  # o último vazio (`0/`) não abre: o bash falha com ENOTDIR
+    return "$" not in nome and not NAO_E_ARQUIVO.intersection(partes) and not partes[-1].isdigit()
 
 
-def shell_que_le_a_entrada(nomes, valores, opacas, redirecoes=()):
+def shell_que_le_a_entrada(nomes, valores, opacas, redirecoes=(), linha=""):
     """A4 da E63.3: o comando simples roda um shell que lê a entrada (o pipe) ou um texto opaco: o shell como programa
     ou atrás de um envolvedor (`env bash`, `sudo bash`, `timeout 5 bash`), e o `source` ou o ponto como programa, sem
     script, com `-s`, `-` ou `/dev/stdin`, ou com o script vindo de substituição (`. <(…)`, `bash <(…)`). A entrada
     tirada de um arquivo (`bash < x.sh`) não é o pipe: o shell lê o arquivo, como o `bash x.sh` (E51.10); a de `<(…)`
     (`bash < <(…)`) é texto opaco."""
-    if redirecoes and entrada_de_arquivo(redirecoes):
+    if redirecoes and entrada_de_arquivo(redirecoes, linha):
         return False
     for j, nome in enumerate(nomes):
         shell = nome in SHELLS and (j == 0 or nomes[0] in ENVOLVEDORES)
