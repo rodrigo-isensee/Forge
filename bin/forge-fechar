@@ -3,7 +3,7 @@
 # Uso: forge-fechar <pedido> --ref <branch> [--base origin/develop] [--titulo T] [--origem T] [--muda T]
 #                  [--medir RUN|ARQUIVO] [--espera SEGUNDOS] [--esperar-rotulo] [--armar] [--limpar] [--sem-limpar] [--dry-run]
 #                  [--cartao ID ...] [--quadro PASTA]
-# Roda em ordem e para no primeiro erro: (1) forge-check pr; (1c) a árvore do sha conferido é promovível (scripts/promover-homolog.py
+# Roda em ordem e para no primeiro erro: (1) forge-check pr; (1c) a árvore do sha conferido (base andou sem conflito: a do merge com ela) é promovível (scripts/promover-homolog.py
 # --conferir-ref, do diretório deste script; rc diferente de 0, prazo de 300 s ou script ausente param); (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto, também o rascunho do autor, um só e com o head conferido);
 # (2b) se a base andou desde o ponto de partida: com conflito real (`git merge-tree --write-tree`) ou falha de leitura, para e devolve ao agente; sem
 # conflito, em melhoria/* traz a base sozinho (H4: commit de merge com a árvore do merge-tree, `git push origin` de sempre, sem forçar nem pular o
@@ -98,6 +98,7 @@ exigidos=("${CHECKS_EXIGIDOS[@]}")  # E3.45: mais os do ruleset e da proteção 
 pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 trazida=0 so_remota=0 base_2b="" arvore_mt="" dorme_pid="" promover_teste="" subida_n="" subida_ini="" subida_extra=""  # nascem vazios: o fim nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
 armar=0 estado_lido=0  # --armar (R7): arma o auto-merge sem esperar os checks
 lote=0 item_de_lote=0 promover_sha="" espera_ci=3600 ci_falhou=0 ci_st="" ci_ruins="" ja_mesclado=1 posicionais=()  # lote, promoção pela marca e espera do CI da develop
+sha_1c="" arvore_1c=""  # FECHAR-1C-ANTES-DO-2B: o sha e o texto do 1c nascem vazios (nada herdado do ambiente)
 args_originais=("$@")  # H4: o recomeço da cadeia depois do merge da base (passo 2b) roda o mesmo comando com `--trazida`
 cartoes=() quadro="${HOME:-}/.forge-contrib" motivo_cartao="" cartao_pend=0  # FECHAR-MOVE-CARTAO
 while [ $# -gt 0 ]; do
@@ -999,8 +1000,19 @@ conferir_1c() {
   local saida_1c rc_1c=0
   [ -f "$promover" ] || die "parou no passo 1c: não achei $promover (nada foi aberto nem mesclado)"
   saida_1c="$(timeout 300 python3 -I "$promover" --conferir-ref "$1" 2>&1)" || rc_1c=$?
-  [ "$rc_1c" = 0 ] || die "parou no passo 1c: a árvore que entra na $alvo não é promovível (rc $rc_1c; nada foi aberto nem mesclado): $saida_1c
+  [ "$rc_1c" = 0 ] || die "parou no passo 1c: ${arvore_1c:-a árvore que entra na $alvo} não é promovível (rc $rc_1c; nada foi aberto nem mesclado): $saida_1c
 com release na develop ainda não promovida, promova-a (scripts/promover-homolog.py) antes de mesclar outra branch (R-FLUXO)${2:-}"
+}
+# merge_para_o_1c <sha> (FECHAR-1C-ANTES-DO-2B, v0478): define sha_1c, o sha que o 1c do fechamento confere, e arvore_1c, o texto dele. Com a
+# base fora do head e o merge-tree limpo, um commit solto (sem ref; pais: o head e a base local) com a árvore do merge, a que o 2b traria; assim
+# a branch criada antes de uma release promovida não para pela versão velha da própria árvore. Base já no head, conflito ou falha: o head.
+merge_para_o_1c() {
+  local mt m
+  sha_1c="$1" arvore_1c="a árvore de $ref (head ${1:0:12})"
+  if git merge-base --is-ancestor "$base" "$1" 2>/dev/null; then return 0; fi
+  mt="$(git merge-tree --write-tree --no-messages "$1" "$base" 2>/dev/null)" || return 0
+  m="$(git commit-tree "${mt%%$'\n'*}" -p "$1" -p "$base" -m "forge-fechar 1c: merge de $base em $ref (só leitura)" 2>/dev/null)" || return 0
+  sha_1c="$m" arvore_1c="a árvore do merge de $base em $ref (${m:0:12}, merge-tree limpo)"
 }
 
 # ja_no_alvo <sha> (FECHAR-SEM-HOMOLOG-LOCAL): o sha já está na base local ou num PR MERGED em $alvo do próprio repositório (o GitHub
@@ -1368,8 +1380,10 @@ fi
 FORGE_FECHAR_PASSO_1=1 "$check" pr "$pedido" --ref "$ref_check" --base "$base" || die "parou no passo 1: forge-check pr acusou violação (nada foi aberto nem mesclado)"
 local_sha="$(head_atual || true)"
 [ "$local_sha" = "$sha_conferido" ] || die "parou no passo 1: o head de $ref mudou durante a conferência dos pareceres (conferido $sha_conferido, agora ${local_sha:-ausente}); os pareceres valem para o sha conferido; confira e rode de novo"
-passo "1c" "promovível: $promover --conferir-ref $sha_conferido"
-promovivel "$sha_conferido"
+passo "1c" "promovível: $promover --conferir-ref $sha_conferido (ou o merge dele com $base, se ela não está no head)"
+merge_para_o_1c "$sha_conferido"
+echo "1c: confiro $arvore_1c."
+promovivel "$sha_1c"
 
 passo 2 "head no servidor"
 local_sha="$(head_atual)" || die "parou no passo 2: a branch $ref não existe ou não foi lida (local ou, no modo só remota, no origin)"

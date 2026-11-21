@@ -484,5 +484,56 @@ class Teste(unittest.TestCase):
 
 
 
+    # ---- FECHAR-1C-ANTES-DO-2B (v0478): o 1c confere a árvore do merge com a base, a que o 2b traria ----
+    def conferidos_no_1c(self):
+        return [l.split()[1] for l in (self.estado / "promover").read_text().splitlines()]
+
+    def test_1c_base_andou_sem_conflito_confere_o_merge_da_base_com_o_head(self):
+        antigo = self.git("rev-parse", "melhoria/x")
+        self.base_anda({"outro.md": "x\n"})
+        base_sha = self.git("rev-parse", "develop")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        primeiro = self.conferidos_no_1c()[0]
+        self.assertEqual(self.git("rev-list", "--parents", "-n", "1", primeiro).split(), [primeiro, antigo, base_sha])
+        self.assertEqual(self.git("rev-parse", f"{primeiro}^{{tree}}"), self.git("merge-tree", "--write-tree", antigo, base_sha))
+        self.assertIn(f"1c: confiro a árvore do merge de origin/develop em melhoria/x ({primeiro[:12]}, merge-tree limpo).", r.stdout)
+
+    def test_1c_branch_com_versao_velha_e_base_com_a_nova_passa_pelo_merge(self):
+        # o defeito: a branch nasceu antes da release (versão velha na árvore dela); o 1c recusava a árvore da branch
+        (self.tmp / "promover.py").write_text(
+            "import json, subprocess, sys\n"
+            "v = json.loads(subprocess.run(['git', 'show', sys.argv[2] + ':.claude-plugin/plugin.json'], capture_output=True, text=True).stdout)\n"
+            "sys.exit(0 if v.get('version') == '0.2.0' else 1)\n", encoding="utf-8")
+        self.base_anda({".claude-plugin/plugin.json": '{\n  "name": "forge",\n  "version": "0.2.0"\n}\n'})
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertNotIn("parou no passo 1c", r.stderr)
+
+    def test_1c_que_recusa_diz_que_e_a_arvore_da_branch_e_nao_a_develop(self):
+        antigo = self.git("rev-parse", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x", PROMOVER_RC="1")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn(f"parou no passo 1c: a árvore de melhoria/x (head {antigo[:12]}) não é promovível", r.stderr)
+        self.base_anda({"outro.md": "x\n"})
+        r = self.fechar("p1", "--ref", "melhoria/x", PROMOVER_RC="1")
+        self.assertIn("parou no passo 1c: a árvore do merge de origin/develop em melhoria/x (", r.stderr)
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def test_1c_com_conflito_ou_falha_do_merge_confere_o_head(self):
+        for marca, arquivos in (("", {"b": "da base\n"}), ("merge_tree_falha", {"outro.md": "x\n"}),
+                                ("falha_commit-tree", {"outro.md": "x\n"})):
+            with self.subTest(marca=marca or "conflito"):
+                self.setUp()
+                antigo = self.git("rev-parse", "melhoria/x")
+                self.base_anda(arquivos)
+                if marca:
+                    (self.estado / marca).write_text("1")
+                r = self.fechar("p1", "--ref", "melhoria/x")
+                self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+                self.assertIn("parou no passo 2b", r.stderr)
+                self.assertEqual(self.conferidos_no_1c(), [antigo])
+
+
 if __name__ == "__main__":
     unittest.main()
