@@ -1,0 +1,174 @@
+"""VARREDURA-SEMANAL-DIVIDA (v0478 E95.1): `scripts/varredura-divida.py` só lê e lista a dívida, uma linha por achado.
+
+Classe do defeito: achado que some (branch mesclada ou parada, módulo lento, trecho de mutante fora do lugar, regra sem
+teste, cópias pesando no disco), achado falso (branch fixa, branch nova, módulo por teste, regra citada, cópias de
+projeto) e a varredura gravando no repositório. Fixtures em pasta temporária; o script roda com `python3 -I` e sem o
+git herdado (AR-4).
+"""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import time
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_git_herdado  # noqa: E402
+from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+
+RAIZ = Path(__file__).resolve().parent.parent
+SCRIPT = RAIZ / "scripts" / "varredura-divida.py"
+DIA = 86400
+
+
+def ambiente(**extra):
+    return sem_git_herdado(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, GIT_AUTHOR_NAME="t",
+                           GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t", **extra)
+
+
+def git(pasta, *args, dias=0):
+    data = f"@{int(time.time()) - dias * DIA} +0000"
+    r = subprocess.run(["git", "-C", str(pasta), *args], capture_output=True, text=True, check=True, timeout=60,
+                       env=ambiente(GIT_AUTHOR_DATE=data, GIT_COMMITTER_DATE=data))
+    return r.stdout.strip()
+
+
+def commit(pasta, pai, dias):
+    arvore = git(pasta, "write-tree")
+    return git(pasta, "commit-tree", arvore, *(["-p", pai] if pai else []), "-m", f"c{dias}", dias=dias)
+
+
+def gravar(raiz, caminho, texto):
+    alvo = raiz / caminho
+    alvo.parent.mkdir(parents=True, exist_ok=True)
+    alvo.write_text(texto, encoding="utf-8")
+
+
+def rodar(*args):
+    return subprocess.run([sys.executable, "-I", str(SCRIPT), *args], capture_output=True, text=True, timeout=120,
+                          env=ambiente(), cwd=tempfile.gettempdir())
+
+
+def fotografia(pasta):
+    return {p.relative_to(pasta).as_posix(): p.read_bytes() for p in sorted(pasta.rglob("*")) if p.is_file()}
+
+
+class Varredura(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.raiz, self.wt = self.tmp / "repo", self.tmp / "wt"
+        self.raiz.mkdir()
+        gravar(self.raiz, "tests/pesos-d4.json", json.dumps({"test_a": 5, "test_b": 50, "test_c": 20, "test_b.K.t": 900}))
+        gravar(self.raiz, "codigo.py", "if x > 1:\n    dobro\n    dobro\n")
+        gravar(self.raiz, "tests/mutantes/ok.json", json.dumps({"mutantes": [
+            {"id": "M1", "arquivo": "codigo.py", "de": "if x > 1:"},
+            {"id": "M2", "arquivo": "codigo.py", "de": "sumiu"},
+            {"id": "M3", "arquivo": "codigo.py", "de": "dobro"},
+            {"id": "M4", "arquivo": "nao-existe.py", "de": "if x > 1:"},
+            {"id": "M5", "arquivo": "codigo.py", "de": ""}]}))
+        gravar(self.raiz, "tests/mutantes/ruim.json", "{")
+        gravar(self.raiz, "docs/regras/R-COBERTA.md", "x")
+        gravar(self.raiz, "docs/regras/R-SOLTA.md", "x")
+        gravar(self.raiz, "tests/test_x.py", "# R-COBERTA e R-SOLTA2\n")
+        gravar(self.raiz, ".claude-plugin/plugin.json", json.dumps({"name": "forge"}))
+        gravar(self.wt, "um/grande.bin", "0" * (3 * 1024 * 1024))
+        (self.wt / "dois").mkdir()
+        gravar(self.wt, "solta.txt", "não é cópia")
+        git(self.raiz, "init", "-q")
+        git(self.raiz, "add", "-A")
+        antiga = commit(self.raiz, None, 100)
+        refs = {"main": antiga, "develop": commit(self.raiz, antiga, 0), "melhoria/mesclada": antiga,
+                "melhoria/parada": commit(self.raiz, antiga, 60), "melhoria/nova": commit(self.raiz, antiga, 5)}
+        for nome, sha in refs.items():
+            git(self.raiz, "update-ref", f"refs/remotes/origin/{nome}", sha)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def varrer(self, *extra):
+        r = rodar("--raiz", str(self.raiz), "--copias", str(self.wt), "--lentos", "2", "--mb", "2", *extra)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout.splitlines()
+
+    def test_lista_cada_achado_em_ordem_estavel(self):
+        self.assertEqual(self.varrer(), [
+            "branch-mesclada · melhoria/mesclada · contida na origin/develop · cartão: apagar a branch remota melhoria/mesclada",
+            "branch-parada · melhoria/parada · 60 dias sem commit · cartão: retomar ou fechar a branch melhoria/parada",
+            "teste-lento · test_b · 50.0 s · cartão: acelerar test_b (50.0 s por rodada)",
+            "teste-lento · test_c · 20.0 s · cartão: acelerar test_c (20.0 s por rodada)",
+            "mutante-velho · tests/mutantes/ok.json M2 · codigo.py: trecho 0 vez(es) · cartão: atualizar o trecho do M2 em tests/mutantes/ok.json",
+            "mutante-velho · tests/mutantes/ok.json M3 · codigo.py: trecho 2 vez(es) · cartão: atualizar o trecho do M3 em tests/mutantes/ok.json",
+            "mutante-velho · tests/mutantes/ok.json M4 · nao-existe.py: trecho 0 vez(es) · cartão: atualizar o trecho do M4 em tests/mutantes/ok.json",
+            "mutante-velho · tests/mutantes/ok.json M5 · codigo.py: trecho 0 vez(es) · cartão: atualizar o trecho do M5 em tests/mutantes/ok.json",
+            "mutante-velho · tests/mutantes/ruim.json · spec ilegível · cartão: refazer tests/mutantes/ruim.json",
+            "regra-sem-teste · R-SOLTA · nenhum teste em tests/ cita o ID · cartão: teste que cubra R-SOLTA",
+            f"copias · {self.wt} · 2 cópias, 3 MB · cartão: limpar as cópias sem branch aberta (git worktree remove)",
+            "varredura: 11 achado(s)"])
+
+    def test_so_le(self):
+        antes = (fotografia(self.tmp), git(self.raiz, "for-each-ref"), git(self.raiz, "status", "--porcelain"))
+        self.varrer()
+        self.assertEqual((fotografia(self.tmp), git(self.raiz, "for-each-ref"), git(self.raiz, "status", "--porcelain")), antes)
+
+    def test_sem_develop_a_base_e_a_main(self):
+        nova_main = git(self.raiz, "rev-parse", "origin/develop")
+        git(self.raiz, "update-ref", "-d", "refs/remotes/origin/develop")
+        git(self.raiz, "update-ref", "refs/remotes/origin/main", nova_main)
+        branches = [linha for linha in self.varrer() if linha.startswith("branch-")]
+        self.assertEqual([linha.split(" · ")[:3] for linha in branches],
+                         [["branch-mesclada", "melhoria/mesclada", "contida na origin/main"],
+                          ["branch-parada", "melhoria/parada", "60 dias sem commit"]])
+
+    def test_base_dada_nao_se_lista(self):
+        branches = [linha.split(" · ")[:3] for linha in self.varrer("--base", "origin/melhoria/nova") if linha.startswith("branch-")]
+        self.assertEqual(branches, [["branch-mesclada", "melhoria/mesclada", "contida na origin/melhoria/nova"],
+                                    ["branch-parada", "melhoria/parada", "60 dias sem commit"]])
+
+    def test_pesos_ilegiveis_nao_geram_achado(self):
+        gravar(self.raiz, "tests/pesos-d4.json", "[1, 2]")
+        self.assertFalse([linha for linha in self.varrer() if linha.startswith("teste-lento")])
+
+    def test_copias_abaixo_do_limite_ou_fora_do_forge_nao_se_listam(self):
+        self.assertFalse([linha for linha in self.varrer("--mb", "3") if linha.startswith("copias")])
+        self.assertEqual(self.varrer("--copias", str(self.tmp / "nada"), "--mb", "0")[-1], "varredura: 10 achado(s)")
+        gravar(self.raiz, ".forge/versao", "0.0.0")
+        self.assertFalse([linha for linha in self.varrer("--mb", "0") if linha.startswith("copias")])
+        (self.raiz / ".forge" / "versao").unlink()
+        gravar(self.raiz, ".claude-plugin/plugin.json", json.dumps({"name": "outro"}))
+        self.assertFalse([linha for linha in self.varrer("--mb", "0") if linha.startswith("copias")])
+
+    def test_subpasta_varre_o_repositorio_inteiro(self):
+        self.assertEqual(rodar("--raiz", str(self.raiz / "docs"), "--copias", str(self.wt), "--lentos", "2", "--mb", "2").stdout,
+                         "\n".join(self.varrer()) + "\n")
+
+    def test_pasta_fora_do_git_varre_o_que_tem(self):
+        sem_git = Path(self._tmp.name) / "solto"
+        gravar(sem_git, "docs/regras/R-SOLTA.md", "x")
+        r = rodar("--raiz", str(sem_git))
+        self.assertEqual((r.returncode, r.stdout.splitlines()), (0, [
+            "regra-sem-teste · R-SOLTA · nenhum teste em tests/ cita o ID · cartão: teste que cubra R-SOLTA",
+            "varredura: 1 achado(s)"]), r.stderr)
+
+    def test_raiz_que_nao_existe_e_erro_de_uso(self):
+        r = rodar("--raiz", str(self.tmp / "nada"))
+        self.assertEqual((r.returncode, r.stdout), (2, ""))
+        self.assertIn("não é pasta", r.stderr)
+
+
+class ProjetoDoForgeInit(unittest.TestCase):
+    def test_projeto_novo_roda_sem_achado(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            projeto = Path(tmp) / "proj"
+            projeto.mkdir()
+            git(projeto, "init", "-q")
+            subprocess.run(["bash", str(RAIZ / "bin" / "forge-init"), "--nome", "Demo", str(projeto)], check=True,
+                           capture_output=True, text=True, timeout=120, env=ambiente())
+            r = rodar("--raiz", str(projeto), "--copias", tmp, "--mb", "0")
+            self.assertEqual((r.returncode, r.stdout.splitlines()), (0, ["varredura: 0 achado(s)"]), r.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()
