@@ -244,7 +244,7 @@ class Convencao(unittest.TestCase):
             if convencao is not None and sorted(convencao) == sorted(destino):
                 repetidas.append(padrao)
         self.assertEqual(repetidas, [])
-        for caminho in ("bin/forge-mutante", "scripts/arvore-testada.py", "scripts/ci-local", "scripts/conferir-reversao.py"):
+        for caminho in ("scripts/arvore-testada.py", "scripts/ci-local", "scripts/conferir-reversao.py"):
             with self.subTest(caminho):
                 self.assertFalse(any(re.fullmatch(p, caminho) for p, _ in self.f.MAPA))
                 self.assertEqual(self.f.planejar([caminho], RAIZ)[0], "dirigido")
@@ -521,7 +521,8 @@ class MapaCobreOQueOsTestesLeem(unittest.TestCase):
                          com_oraculos(self.f, ["test_conferir_reversao", "test_forge", "test_indice_forge", "test_testes_tocados"]))
 
     def test_forge_mutante_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):
-        self.assertEqual(self.f.planejar(["bin/forge-mutante"], RAIZ), com_oraculos(self.f, ["test_forge", "test_forge_mutante", "test_indice_forge"]))
+        self.assertEqual(self.f.planejar(["bin/forge-mutante"], RAIZ), com_oraculos(self.f, ["test_forge", "test_forge_mutante", "test_indice_forge",
+                                                                                     "test_pre_push_patch", "test_prepush_lote_pp1"]))
 
 
 class Execucao(unittest.TestCase):

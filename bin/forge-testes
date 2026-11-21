@@ -204,6 +204,7 @@ MAPA = [
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
     (r"bin/forge-sugerir", ("test_sugerir", "test_forge")),
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
+    (r"bin/forge-mutante", ("test_forge_mutante", "test_forge", "test_prepush_lote_pp1", "test_pre_push_patch")),  # v0478 E94.5: os dois rodam a cópia
     (r"bin/forge-status", ("test_forge_status", "test_maquina", "test_forge")),  # MP2: o --maquina
     # MAPA-FORGE-FECHAR (mp1311 E1.38): todos os test_fechar_* (a convenção só achava os que citam forge-fechar pelo nome; ficavam de fora
     # sha_conferido, ref_por_nome, log_check, aviso_rotulo, corrida_rotulo, espera_catraca, pr_numero, tmp e vars_vazias) e os outros módulos que rodam o script
