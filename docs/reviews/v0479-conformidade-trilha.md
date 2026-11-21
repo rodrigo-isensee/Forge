@@ -3,27 +3,29 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-trilha
-commit: a247ae11fac6c9ce96b3d56abe8b4f18763173a6
+commit: dd1fc980fa57547c88dbf3d98fe35577b05fe522
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
 ---
-# Review: v0478 (E63.21, revalidação da trilha CONFORMIDADE-SEGURANCA no head a247ae11)
+# Review: v0478 (E63.25, revalidação da trilha CONFORMIDADE-SEGURANCA no head dd1fc980)
 
-Revalidação (H3, `R-REVIEW`) do parecer aprovado no head 7a739fca. Li só o delta de
-`forge-check parecer delta docs/reviews/v0479-conformidade-trilha.md`: intervalo `7a739fca..a247ae11`, domínio "código e
-testes", escopo sem o que veio da base (`develop` em c8e8a08d). Fora desse domínio nada foi relido.
+Revalidação (H3, `R-REVIEW`) do parecer aprovado no head a247ae11. Li só o delta de
+`forge-check parecer delta docs/reviews/v0479-conformidade-trilha.md`: intervalo `a247ae11..dd1fc980`, domínio "código e
+testes"; no domínio, só `docs/hooks.md`. Os pareceres de QA e segurança do intervalo ficam fora do domínio e não foram relidos.
 
 ## Delta lido
-- `docs/hooks-fixtures.md`: índice regerado (3368 fixtures, `pesado` 27, prefixo `forgetestes-*`). `scripts/indice-fixtures.py --conferir` no a247ae11: `docs/hooks-fixtures.md: em dia`, rc 0.
-- `docs/hooks.md` (linha de `pesados`) e `tests/test_hooks.py:3236` (`--dirigida` vira `--afetados`): idênticos à base c8e8a08d (vêm do #747, PESADO-VERSOES-FORA-DA-FILA); `git diff c8e8a08d a247ae11` não toca esses trechos. `--afetados` está em `LEVES_DO_FORGE_TESTES` (`hooks/pesado.py:294`); o teste roda verde.
-- `tests/mutantes/v0435-review.json` R6: o `de` agora casa a guarda real `hooks/conformidade.py:2801` (tupla com `help.autocorrect`, A13 da segurança E63.7); o `para` troca só `alias.` por `aliasx.` e mantém o ramo `help.autocorrect`. Rodado: `R6 · morreu · hooks/conformidade.py:2801`.
+- `docs/hooks.md:56` (A18 da segurança E63.20): uma frase nova declara o limite do link criado por cópia na mesma linha
+  (`cp -a`, `cp -P`, `cp -d`, `cp -r`, `cp --no-dereference`, `rsync -a`, `tar -x`, `os.symlink` no `python3 -c`) e o
+  remete ao cartão CONFORMIDADE-LINK-POR-COPIA (registrado no Histórico do pedido, 03:59 e 08:33).
+- Conferido contra o código: a recusa do link na mesma linha casa só `ln` e `cp` com `-[^-]*[ls]\w*|--(link|symbolic-link)`
+  (`hooks/conformidade.py:2403` e `:2415`); nenhuma das formas listadas casa esse padrão, então o texto agora diz o que o
+  hook faz, nem mais nem menos. A frase final do item ("o link criado na mesma linha recusa (A17)") segue válida para as
+  formas do A17 (`ln`, `cp -s`, `cp -l`).
+- Só documentação: sem guarda nova, sem mutante a declarar, sem teste a rodar.
 
 ## Ferramentas (citadas, não refeitas)
 - Suíte inteira: fica com o CI do PR (sem PR nesta etapa; o brief pede revisão sem suíte local).
-- `bin/forge-mutante tests/mutantes/v0435-review.json --ids R6 --processos 1`: R6 morreu.
-- `python3 -m unittest tests.test_hooks.PesadoClassePelosArgumentos.test_formas_leves_e_citacoes_nao_sao_pesadas`: OK.
 
 ## Parecer
-Aprovado no head a247ae11. O delta é a entrada da base, o índice regerado e o mutante R6 realinhado à guarda já aprovada no
-7a739fca; nenhum comportamento novo além do que a base trouxe.
+Aprovado no head dd1fc980. O delta é a declaração do limite pedida pelo A18; nenhum comportamento muda.
