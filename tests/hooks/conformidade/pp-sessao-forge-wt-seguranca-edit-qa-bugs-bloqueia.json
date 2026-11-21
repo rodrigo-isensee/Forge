@@ -1,0 +1,38 @@
+{
+  "descricao": "PARECER-PELO-PAPEL (v0478 E62.1, registro de bug do QA; R-CONFORMIDADE): sessão do Forge, worktree em wt/*, seguranca edita docs/qa/bugs/ pelo Edit; a regra de docs/qa/ cobre a subpasta pelo prefixo.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "{tmp}/home/.forge-contrib/wt/x/docs/qa/bugs/x-01.md",
+      "old_string": "v",
+      "new_string": "x"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x",
+    "agent_type": "forge:security-engineer"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "parecer de QA é do qa: docs/qa/"
+  },
+  "repos": {
+    "home/.forge-contrib/wt/x": {
+      "arquivos": {
+        "a.txt": "v\n",
+        "docs/qa/bugs/x-01.md": "v\n",
+        ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+      },
+      "branch": "melhoria/x"
+    }
+  }
+}

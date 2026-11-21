@@ -1,0 +1,58 @@
+{
+  "pedido": "v0479-entrega-anexos",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o registro de bug só é anexo na volta (Desde de conferida ou Revisar-sha) e só em docs/qa/bugs/ (E62.1)",
+      "arquivo": "bin/forge-check",
+      "de": "        elif etapa in ETAPAS_DE_CODIGO and valido and nome.startswith(BUGS_DO_QA) and not com_controle(nome) and bug_do_qa_na_volta(  # E62.1\n                raiz, valido,",
+      "para": "        elif etapa in ETAPAS_DE_CODIGO and tipo == \"qa\" and not com_controle(nome) and bug_do_qa_na_volta(  # E62.1\n                raiz, valido or base_sha,",
+      "testes": [
+        "tests.test_selo_e_entrega.BugDoQaNaVolta.test_sem_conferida_a_regra_nao_vale",
+        "tests.test_selo_e_entrega.BugDoQaNaVolta.test_arquivo_de_docs_qa_fora_de_bugs_sem_frontmatter_segue_fora"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a conferência passa os autores da volta lidos dos briefs selados (E62.1, como o E50.6)",
+      "arquivo": "bin/forge-check",
+      "de": "                raiz, valido, head, nome, autores_da_volta(raiz, caminho, texto, branch, pedido_id), ultimos):\n            linhas.append((f\"escopo: ok (anexo do portão: registro de bug",
+      "para": "                raiz, valido, head, nome, {\"node-backend\"}, ultimos):\n            linhas.append((f\"escopo: ok (anexo do portão: registro de bug",
+      "testes": [
+        "tests.test_selo_e_entrega.BugDoQaNaVolta.test_qa_autor_da_volta_sem_linha_do_jarvis_segue_fora"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "qa-engineer autor da volta, ou nenhum autor lido, só com o blob do último parecer conferido (E62.1, como o E50.6)",
+      "arquivo": "bin/forge-check",
+      "de": "    if (not autores or PAPEL_DO_BRIEF_DO_PARECER[\"qa\"] in autores) and not parecer_trazido(raiz, ultimos, head, nome):\n        return False\n    cod, shas = git(raiz, \"rev-list\", \"--full-history\", f\"{de}..{head}\", \"--\", nome)\n    return not cod and bool(shas.split())",
+      "para": "    if False:\n        return False\n    cod, shas = git(raiz, \"rev-list\", \"--full-history\", f\"{de}..{head}\", \"--\", nome)\n    return not cod and bool(shas.split())",
+      "testes": [
+        "tests.test_selo_e_entrega.BugDoQaNaVolta.test_qa_autor_da_volta_sem_linha_do_jarvis_segue_fora",
+        "tests.test_selo_e_entrega.BugDoQaNaVolta.test_autores_e_linha_do_jarvis"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "rev-list do arquivo que falha ou vem vazio recusa (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "    return not cod and bool(shas.split()) and all(commit_so_de_parecer(raiz, sha, nome, PASTA_E_REGRA[\"qa\"][0]) for sha in shas.split())\n",
+      "para": "    return all(commit_so_de_parecer(raiz, sha, nome, PASTA_E_REGRA[\"qa\"][0]) for sha in shas.split())\n",
+      "testes": [
+        "tests.test_selo_e_entrega.BugDoQaNaVolta.test_rev_list_que_falha_ou_vazio_recusa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "todo commit que muda o bug é só de docs/qa/ (o autor ou outro arquivo no commit segue fora)",
+      "arquivo": "bin/forge-check",
+      "de": "    return not cod and bool(shas.split()) and all(commit_so_de_parecer(raiz, sha, nome, PASTA_E_REGRA[\"qa\"][0]) for sha in shas.split())\n",
+      "para": "    return not cod and bool(shas.split()) and all(commit_so_de_parecer(raiz, sha, nome, \"docs\") for sha in shas.split())\n",
+      "testes": [
+        "tests.test_selo_e_entrega.BugDoQaNaVolta.test_commit_do_bug_com_arquivo_fora_de_docs_qa_segue_fora"
+      ]
+    }
+  ]
+}
