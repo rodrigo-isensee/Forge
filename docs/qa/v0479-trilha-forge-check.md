@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-trilha-forge-check
-commit: 95994eec3b874dff23e39f68a6b4e7181d4205d5
+commit: d2f79996cc41129fab309d802639e83228d981c8
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -37,3 +37,11 @@ Escopo: BRIEF-PORTAO-REBASE, FC-DOCS-CAMINHO e MODELO-PEDIDO-E-BRIEF (K-166, K-2
 - A3 resolvido: M7..M11 cobrem bin/forge-check:466-469. `--cobertura --base 159362786f` lista só `não coberto: tests/pesos-d4.json` (dado, sem guarda).
 - `de_outra_branch` (K-156): `test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim` (tests/test_revisor_wt.py) cobre 5 casos, com a fronteira slug `x` vs `x-2` e linha sem parecer citado (falha fechada); M13..M15 o matam. `test_revisor_wt.py`: 40 testes, OK.
 - Sem skip, skipIf ou expectedFailure nos dois módulos.
+
+## Revalidação (head d2f79996, delta de 95994eec; E91.12)
+- Vermelho antes do verde, `forge-testes --vermelho 95994eec --modulos test_revisor_wt`: `vermelho: base=95994eec3b87 head=d2f79996cc41`; `PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim · H=ok · B=falha · prova (asserção)`; contagem: prova=1, não prova (passa na base)=39 (herdados); nenhum cai no HEAD.
+- Mutantes, `--base 95994eec`: v0479-trilha-forge-check-3.json M13..M20 mortos; revisor-wt-e6a-4.json M1..M4 mortos (M3 realinhado, bin/forge-check:3372); revisor-wt-e6a-1.json M1, M3..M8 mortos (M6 realinhado, :2423), mas M2 `inválido` (trecho aparece 2 vezes) e a spec sai 2 (A1; já era assim no 95994eec, fora do delta do M6).
+- Sem skip, skipIf ou expectedFailure em tests/test_revisor_wt.py (grep: 0).
+
+## Achados
+- A1 (recomendado) tests/mutantes/revisor-wt-e6a-1.json:1 · M2 `inválido` (o trecho `de` aparece 2 vezes em bin/forge-check, linhas 2018 e 2470): a spec sai 2 e a guarda do filtro por branch fica sem mutante rodando; desambiguar o trecho (cartão).
