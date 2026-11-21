@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pv-d3-modelo
-commit: 146b40503055203b10961594b7845fbbc7d55518
+commit: 60be3dffce7a93a6d1ee0434efb632ecbcc54eba
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-20
+data: 2026-11-21
 ---
 # Review: v0478 E57.77 (PR-VERDE D3, modelo de projeto)
 
@@ -30,10 +30,17 @@ Diff revisado: `8ee73d15..146b4050` (2 commits; `templates/projeto/.githooks/pre
 - Testes: cada guarda tem teste do ramo de falha por comportamento (envio real ao remoto falso), sem ler o texto da fonte; o `FORGE_REGISTROS_PRAZO` herdado é limpo no `setUp`.
 - Commits: Conventional Commits em português, um comportamento por commit.
 
+## Revalidação no head 60be3dff (E57.85)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-pv-d3-modelo.md`, intervalo `146b4050..60be3dff`, 4 arquivos no domínio (`templates/projeto/.githooks/pre-push`, `tests/test_prepush_so_docs.py`, `tests/mutantes/v0479-pv-d3-modelo-2.json`, `changelog.d/v0479-pv-d3-modelo.md`); nada fora dele relido.
+- Hook: `9>&-` nas duas chamadas do comando de registros (`pre-push:347` e `:349`), como a etapa já faz (`:154`). O descritor 8 da fila já fecha em `fila_sair` (`:223`) antes, então só o 9 chegava ao comando.
+- Teste `TravaDaChecagem.test_trava_nao_passa_para_os_registros`: por comportamento, com e sem `timeout` no PATH; o comando deixa um `setsid sleep` vivo e o segundo envio com `FORGE_PREPUSH_ESPERA=1` sai 0; os pids são mortos no `finally`. Rodado: 1 teste, OK.
+- `bin/forge-mutante --processos 1 tests/mutantes/v0479-pv-d3-modelo-2.json` (rev 60be3dffce7a): M9, M10 e M11 morreram (`pre-push:346,347,349`). Um mutante por guarda mudada.
+- Changelog: o fragmento cita o comportamento novo (E57.83). Suíte inteira: CI do PR (`R-REVIEW`).
+
 ## Achados
 - A1 (recomendado) templates/projeto/.githooks/pre-push:332 · config.json ilegível (JSON quebrado ou raiz que não é objeto) só avisa e o envio segue sem a conferência; o desenho (B3) admite aviso só para ferramenta ausente. Avaliar barrar quando a chave não se lê, num cartão depois do merge.
 
 ## Sondas
 
 ## Parecer
-Aprovado no head 146b4050. Os três desvios cabem no desenho (seção 4 e linha D3); o único achado é recomendado e vira cartão depois do merge. Pendência: shellcheck no CI do PR.
+Aprovado no head 146b4050 e revalidado no head 60be3dff (delta sem achado novo). Os três desvios cabem no desenho (seção 4 e linha D3); o único achado é recomendado e vira cartão depois do merge. Pendência: shellcheck no CI do PR.
