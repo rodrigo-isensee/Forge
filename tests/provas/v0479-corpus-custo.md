@@ -145,3 +145,14 @@ Os achados A1 a A9 da segurança (E63.3) e A1 a A4 do QA (E63.4) no head 6c0b0f0
 - com os conjuntos literais (sem chamada no carregamento), a regex da pasta do controle compilada só quando a pasta corrente é o controle, o `in` do programa antes de chamar a função do shell, o `stdin` no filtro no lugar de `/dev/` (o `2>/dev/null` passava o filtro) e o fim do caminho com `*` antes da busca: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5902697, 'ambiente': 234}`
 - o conserto do `bash < arquivo` (a fixture `e51-wt-bash-entrada-de-arquivo-libera`, com o `any` só quando há redireção) mediu de novo 5902697 em duas rodadas
 - medida nova: 5902697, ruído 0 em cinco rodadas; +63 sobre o head 6c0b0f03; total sobre 5897219: +5478 passos (0,093%), abaixo de 0,1%
+
+## E63.9 (v0478, segunda volta única da trilha)
+
+Os achados A1 do review (E63.6) e A12 e A13 da segurança (E63.7) no head e48a2e60. Mesma máquina, Python 3.12.3, tmp a
+2 níveis, 234 variáveis, `test_corpus_nos_dois_hooks` instrumentado só para imprimir a contagem, cada árvore por
+`git archive`:
+- base d4f0b10a: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5897219, 'ambiente': 234}`
+- head 37fccab8: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5902697, 'ambiente': 234}`
+- igual ao e48a2e60 (+0): a exceção da cópia de `wt/` só roda no `controle_no_texto` da `GuardaDaProva` (o corpus não
+  chega lá), as regex novas são textos compilados só no uso, e o `help.autocorrect` entrou na tupla do `startswith` que já
+  existia; total sobre 5897219: +5478 passos (0,093%), abaixo de 0,1%, e `MEDIDA_DO_CORPUS` segue a mesma
