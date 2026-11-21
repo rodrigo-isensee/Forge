@@ -164,6 +164,34 @@ def texto_de_versao_nova(atual, nova, superficie="projeto"):
     return f"Saiu a versão {nova} do Forge (você usa a {atual}); {SUPERFICIES[superficie]}. Nada a fazer."
 
 
+def texto_de_versao_parada(causa, dias, carregada, main, extra="", superficie="projeto"):
+    """Versão parada (v0478 E69.3, seção 4 do desenho aviso-versao-parada): a causa e o comando que a PESSOA roda, nunca
+    "Nada a fazer". `extra`: a instalada (`sessao-antiga`), as vezes (`adiada`) ou a etapa (`falhou`)."""
+    atalho, fora = ("jarvis-forge" if superficie == "forge" else "jarvis"), "num terminal fora do Claude: forge atualizar"
+    inicio, onde = f"Forge parado há {dias} dias", f"na {carregada} (main na {main})"
+    if causa == "sessao-antiga":
+        return f"{inicio}: esta sessão usa a {carregada} e a instalada já é a {extra}. Para atualizar: digite /exit e rode {atalho} no terminal."
+    if causa == "adiada":
+        return (f"{inicio} {onde}: a atualização foi adiada {extra} vezes por trabalho em curso. Para atualizar: quando o trabalho "
+                f"parar, digite /exit e rode {atalho}.")
+    if causa == "falhou":
+        return f"{inicio} {onde}: a atualização automática falhou ({extra}). Para atualizar, {fora}"
+    return f"{inicio}: você usa a {carregada} e a main está na {main}. Para atualizar: feche esta sessão e abra pelo {atalho}; ou, {fora}"
+
+
+def versao_instalada(casa_, projeto):
+    """A maior versão do `forge@forge` no escopo do usuário ou no do `projeto` (installed_plugins.json, só leitura), ou None."""
+    texto = _ler_limitado(Path(casa_) / ".claude" / "plugins" / "installed_plugins.json", LIMITE_INSTALADOS)
+    try:
+        entradas = json.loads(texto)["plugins"][PLUGIN]  # ausente: json.loads(None) levanta TypeError
+    except (ValueError, TypeError, KeyError):
+        return None
+    versoes = [versao_de(e.get("version", "")) for e in (entradas if isinstance(entradas, list) else [])
+               if isinstance(e, dict) and (e.get("scope") == "user" or e.get("projectPath") == str(projeto))]
+    versoes = [v for v in versoes if v]
+    return ".".join(map(str, max(versoes))) if versoes else None
+
+
 def aviso_de_versao_nova(limite, superficie="projeto"):
     """Uma frase avisando que saiu versão nova do Forge, ou "" (em dia, sem rede, consulta desligada ou endereço inválido)."""
     r = consultar_versao(limite)
