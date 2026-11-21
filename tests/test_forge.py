@@ -314,6 +314,15 @@ class Agentes(unittest.TestCase):
         self.assertIn("stacks/<stack>/agents/", tabela)
 
 
+class ReadmeVisaoDeFoco(unittest.TestCase):
+    """DIR-31 (v0478 E67.1): o README diz por que a visão de foco vem ligada, onde desligar e como ligar na extensão do VS Code."""
+
+    def test_readme_diz_onde_desligar_e_a_extensao_do_vs_code(self):
+        texto = (RAIZ / "README.md").read_text(encoding="utf-8")
+        self.assertIn('Para desligar: `"viewMode": "default"`', texto)
+        self.assertIn("Ctrl+Alt+F", texto)
+
+
 class PrePushSoOsAfetados(unittest.TestCase):
     """M8 (decisão do dono, 2026-10-24): os textos não dizem mais que o pre-push roda a suíte inteira."""
 
