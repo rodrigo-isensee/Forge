@@ -1,0 +1,36 @@
+{
+  "pedido": "v0479-pv-d3-modelo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "registros: com o timeout na máquina, o prazo vale",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if command -v timeout >/dev/null 2>&1; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_prepush_so_docs.ConferenciaDeRegistros.test_prazo_estourado_barra_o_envio"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "registros com timeout: o comando roda sem o descritor da trava (A1 da segurança)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "\"$prazo_reg\" bash -c \"$registros\" </dev/null 9>&-)",
+      "para": "\"$prazo_reg\" bash -c \"$registros\" </dev/null)",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_trava_nao_passa_para_os_registros"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "registros sem timeout: o comando roda sem o descritor da trava (A1 da segurança)",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "&& bash -c \"$registros\" </dev/null 9>&-)",
+      "para": "&& bash -c \"$registros\" </dev/null)",
+      "testes": [
+        "tests.test_prepush_so_docs.TravaDaChecagem.test_trava_nao_passa_para_os_registros"
+      ]
+    }
+  ]
+}
