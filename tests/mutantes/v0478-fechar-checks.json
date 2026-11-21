@@ -19,16 +19,15 @@
       "de": "      || die \"parou no passo 6: o check obrigatório $nome do head",
       "para": "      || true \"parou no passo 6: o check obrigatório $nome do head",
       "testes": [
-        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_exigido_vermelho_rodando_ou_ausente_recusa_o_merge",
-        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_com_armar_tambem_recusa"
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_exigido_vermelho_rodando_ou_ausente_recusa_o_merge"
       ]
     },
     {
       "id": "FCK-M3",
       "guarda": "o passo 6 confere os check-runs do head antes do ready e do merge (FECHAR-CHECKS-ANTES-DO-MERGE)",
       "arquivo": "bin/forge-fechar",
-      "de": "    checks_do_head_verdes\n    if [ \"$pre_rascunho\" = true ]; then",
-      "para": "    : checks_do_head_verdes\n    if [ \"$pre_rascunho\" = true ]; then",
+      "de": "    [ \"$armar\" = 1 ] || checks_do_head_verdes\n    if [ \"$pre_rascunho\" = true ]; then",
+      "para": "    [ \"$armar\" = 1 ] || : checks_do_head_verdes\n    if [ \"$pre_rascunho\" = true ]; then",
       "testes": [
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_check_runs_verdes_leem_o_head_conferido_e_mesclam",
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_duplicata_do_exigido_precisa_de_todas_verdes"
@@ -54,6 +53,16 @@
       "testes": [
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_nome_mais_longo_verde_nao_vale_pelo_exigido",
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_exigido_vermelho_rodando_ou_ausente_recusa_o_merge"
+      ]
+    },
+    {
+      "id": "FCK-M6",
+      "guarda": "a recusa por check do head vale só no merge direto; com --armar arma como antes (FECHAR-CHECKS-ANTES-DO-MERGE, E75.2)",
+      "arquivo": "bin/forge-fechar",
+      "de": "    [ \"$armar\" = 1 ] || checks_do_head_verdes",
+      "para": "    [ \"$armar\" = 9 ] || checks_do_head_verdes",
+      "testes": [
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_com_armar_e_check_rodando_arma"
       ]
     }
   ]

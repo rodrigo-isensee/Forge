@@ -9,7 +9,7 @@
 # conflito, em melhoria/* traz a base sozinho (H4: commit de merge com a árvore do merge-tree, `git push origin` de sempre, sem forçar nem pular o
 # pre-push) e recomeça a cadeia no head novo, uma vez por cadeia; fora de melhoria/* ou na cadeia recomeçada, avisa e segue sem trazer (E8);
 # (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido
-# (os check-runs obrigatórios do head lidos antes têm de estar verdes, também com --armar: FECHAR-CHECKS-ANTES-DO-MERGE); (7) limpeza.
+# (no merge direto, sem --armar, os check-runs obrigatórios do head lidos antes têm de estar verdes: FECHAR-CHECKS-ANTES-DO-MERGE); (7) limpeza.
 # R7 / MERGE-LIBERADO (0.43.3): o passo 6 usa o auto-merge do GitHub (`gh pr merge --auto`, preso ao head): quem mescla é o GitHub, só com os
 # checks obrigatórios do ruleset verdes; com eles já verdes, o gh mescla na hora. Depois o script espera o MERGED até o fim de --espera.
 # --armar: pula a espera do passo 4, arma o auto-merge logo depois do passo 5 e sai com código 4 se o PR ainda não mesclou (o tech-lead
@@ -859,8 +859,8 @@ mover_cartoes() {
 
 # checks_do_head_verdes (passo 6, FECHAR-CHECKS-ANTES-DO-MERGE, v0478): a conta do dono passa pelo bypass do ruleset, e o --auto dela mescla
 # na hora mesmo com check obrigatório vermelho ou rodando. Antes do merge, lê os check-runs do head conferido (gh api, só leitura, os mais
-# recentes de cada nome) e para se algum nome de CHECKS_EXIGIDOS não tem execução ou tem uma fora de completed/success; sem exceção (também
-# com --armar). Leitura que falha para.
+# recentes de cada nome) e para se algum nome de CHECKS_EXIGIDOS não tem execução ou tem uma fora de completed/success. Só no merge direto:
+# o --armar existe para armar antes do CI terminar, e o auto-merge armado espera os checks obrigatórios (E75.2). Leitura que falha para.
 checks_do_head_verdes() {
   local runs par nome
   runs="$(ler "$gh" api "repos/{owner}/{repo}/commits/$remoto_sha/check-runs?filter=latest&per_page=100" --jq '.check_runs[] | [.name, .status, (.conclusion // "-")] | @tsv')" \
@@ -1587,7 +1587,7 @@ if [ "$ja_mesclado" = 0 ]; then
     # Sobra só a janela entre esta leitura e o merge (um PR novo do mesmo head aberto nesse intervalo); o --match-head-commit prende o head, não o PR.
     por_nome="$(ler "$gh" pr view "$ref" --json number --jq '.number')" || die "parou no passo 6: não consegui reler o PR pelo nome da branch"
     [ "$por_nome" = "$pr_n" ] || die "parou no passo 6: o nome da branch $ref resolve para o PR #${por_nome:-desconhecido}, não para o #$pr_n guardado; há mais de um PR aberto desse head; feche o outro e rode de novo"
-    checks_do_head_verdes
+    [ "$armar" = 1 ] || checks_do_head_verdes
     if [ "$pre_rascunho" = true ]; then
       "$gh" pr ready "$ref" || die "parou no passo 6: não consegui marcar o PR como pronto"
     fi

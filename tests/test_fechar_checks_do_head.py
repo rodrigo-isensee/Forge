@@ -1,5 +1,6 @@
 """FECHAR-CHECKS-ANTES-DO-MERGE (v0478): antes do merge, o `bin/forge-fechar` lê os check-runs do head conferido e recusa se `bateria`,
-`bateria (python 3.14)` ou `catraca` não estiver em completed/success (a conta do dono passaria pelo bypass do ruleset), também com --armar.
+`bateria (python 3.14)` ou `catraca` não estiver em completed/success (a conta do dono passaria pelo bypass do ruleset); só no merge
+direto: com --armar, arma como antes (E75.2).
 
 Reaproveita o ambiente de `test_fechar.Fechar` (repositório temporário, `gh` e `forge-check` falsos) sem herdar os testes dele.
 """
@@ -56,10 +57,17 @@ class FecharChecksDoHead(unittest.TestCase):
         self.runs([*VERDES, "catraca\tcompleted\tcancelled"])
         self.assert_recusou(self.fechar("p1", "--ref", "melhoria/x"), "o check obrigatório catraca do head")
 
-    def test_com_armar_tambem_recusa(self):
+    def test_com_armar_e_check_rodando_arma(self):
+        # E75.2: o --armar arma antes do CI terminar (o auto-merge espera os obrigatórios); a recusa por check vale só no merge direto
         (self.estado / "auto_arma").write_text("")
         self.runs([*VERDES[:2], "catraca\tqueued\t-"])
-        self.assert_recusou(self.fechar("p1", "--ref", "melhoria/x", "--armar"), "o check obrigatório catraca do head")
+        sha = self.git("rev-parse", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--armar")
+        self.assertEqual(r.returncode, 4, r.stderr + r.stdout)
+        self.assertIn("auto-merge armado no PR #7", r.stdout)
+        self.assertNotIn("o check obrigatório", r.stderr)
+        self.assertFalse([c for c in self.chamadas() if c.startswith("gh api repos/{owner}/{repo}/commits/")])
+        self.assertEqual(self.merges(), [f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha}"])
 
     def test_leitura_dos_check_runs_que_falha_para(self):
         (self.estado / "falha_check_runs").write_text("3")
