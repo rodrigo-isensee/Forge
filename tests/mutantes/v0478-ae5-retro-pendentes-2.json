@@ -46,8 +46,8 @@
       "id": "M13",
       "guarda": "--agora ilegível dá 2",
       "arquivo": "bin/forge-check",
-      "de": "    if hora is None or not REF_DA_MAIN",
-      "para": "    if not REF_DA_MAIN",
+      "de": "    if hora is None or not re.fullmatch(REF_DA_MAIN",
+      "para": "    if not re.fullmatch(REF_DA_MAIN",
       "testes": [
         "tests.test_retro_pendentes.RetroPendentes.test_entrada_ilegivel_da_2"
       ]
@@ -56,7 +56,7 @@
       "id": "M14",
       "guarda": "--main fora de REF_DA_MAIN dá 2",
       "arquivo": "bin/forge-check",
-      "de": "or not REF_DA_MAIN.fullmatch(main) or (desde",
+      "de": "or not re.fullmatch(REF_DA_MAIN, main) or (desde",
       "para": "or (desde",
       "testes": [
         "tests.test_retro_pendentes.RetroPendentes.test_entrada_ilegivel_da_2"
@@ -66,7 +66,7 @@
       "id": "M15",
       "guarda": "--desde fora de vX.Y.Z dá 2",
       "arquivo": "bin/forge-check",
-      "de": "(desde is not None and not VERSAO_DA_TAG.fullmatch(desde)):",
+      "de": "(desde is not None and not re.fullmatch(VERSAO_DA_TAG, desde)):",
       "para": "(desde is not None and False):",
       "testes": [
         "tests.test_retro_pendentes.RetroPendentes.test_entrada_ilegivel_da_2"

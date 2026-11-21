@@ -6,7 +6,7 @@
       "id": "M17",
       "guarda": "só tag vX.Y.Z conta",
       "arquivo": "bin/forge-check",
-      "de": "        if VERSAO_DA_TAG.fullmatch(nome) and (quando := _hora(data)):",
+      "de": "        if re.fullmatch(VERSAO_DA_TAG, nome) and (quando := _hora(data)):",
       "para": "        if (quando := _hora(data)):",
       "testes": [
         "tests.test_retro_pendentes.RetroPendentes.test_sem_retro_lista_so_as_tags_vxyz_da_main_com_mais_de_24h"
