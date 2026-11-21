@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-limpeza-fim-item
-commit: 9aa1e723f310c9cb3607ceddeb8864f1ac5b87b4
+commit: 70115210cd8bb0d1d0579f11b651ffe536a06ed6
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -38,3 +38,9 @@ Delta lido por `forge-check parecer delta`: `bin/forge-copia` (A1: PR de fork, `
 - Local, só os arquivos tocados: `test_forge_copia.py` 57 testes OK; `test_forge_fechar.py` 29 testes OK. Suíte completa no CI do PR (`bateria` do mesmo sha).
 - Vermelho: `forge-testes --vermelho 71996730… --modulos test_forge_copia,test_forge_fechar`: `contagem: não prova (passa na base)=78; prova (asserção)=8`; nenhum teste cai no HEAD.
 - Mutação do delta: `bin/forge-mutante tests/mutantes/v0479-limpeza-fim-item-4.json --base 71996730…`: `base=71996730… rev=8767adfe3aff`; M25 (fork), M26 (reconferência), M27 (suja antes do gh) todos `morreu`, saída 0.
+
+## Revalidação (E68.15, head 70115210, delta desde 9aa1e723)
+Delta lido por `forge-check parecer delta`: `bin/forge-fechar` (função `fim_sem_merge`: só PR CLOSED do próprio repositório ou `vazio: sim` libera a limpeza sem merge; o contrato antigo do `--limpar` fica quando não há prova), `tests/test_forge_fechar.py`, spec `-5` e fragmento. Escopo e critérios iguais; sem achado novo.
+- Local, só os arquivos tocados: `test_fechar.py` 111 testes OK (1 skip já existente, não introduzido pelo delta); `test_forge_fechar.py` 34 testes OK; `test_forge_copia.py` 57 testes OK. Suíte completa no CI do PR (`bateria` do mesmo sha).
+- Vermelho: `forge-testes --vermelho 9aa1e723… --modulos test_forge_fechar`: `contagem: não prova (passa na base)=30; prova (asserção)=4`; nenhum teste cai no HEAD.
+- Mutação do delta: `bin/forge-mutante tests/mutantes/v0479-limpeza-fim-item-5.json --base 9aa1e723…`: `base=9aa1e723… mb=9aa1e723… rev=8c3538ed…`; M28, M29, M30, M31 todos `morreu`, saída 0. Um mutante por linha de guarda mudada (linhas 798 a 800 e 1311).
