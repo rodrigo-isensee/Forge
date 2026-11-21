@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pv-d3-modelo
-commit: 146b40503055203b10961594b7845fbbc7d55518
+commit: 60be3dffce7a93a6d1ee0434efb632ecbcc54eba
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -67,3 +67,23 @@ Nove de nove mortos, nenhum sobrevivente nem equivalente. `forge-mutante --cober
 | config que é link | rc 0, comando não rodou |
 
 Nenhum defeito encontrado. Sem bug aberto em `docs/qa/bugs/`.
+
+## Revalidação no head 60be3dff (E57.87, escopo incremental)
+Delta lido por `forge-check parecer delta` (146b4050..60be3dff): `9>&-` nas duas chamadas do comando de registros no `pre-push` do modelo, o teste espelho `test_trava_nao_passa_para_os_registros` (com e sem `timeout`), os mutantes M10 e M11 e o fragmento do changelog. Nada do 1º parecer mudou de resultado; o A1 recomendado segue como estava.
+
+### Vermelho (`bin/forge-testes --vermelho 8ee73d15 --modulos test_prepush_so_docs`, rc=0)
+```
+vermelho: base=8ee73d156db5 head=60be3dffce7a módulos=test_prepush_so_docs (restrito por --modulos)
+tests.test_prepush_so_docs.TravaDaChecagem.test_trava_nao_passa_para_os_registros · H=ok · B=falha · prova (asserção)
+contagem: não prova (passa na base)=58; prova (asserção)=7; pulado=9
+```
+O 7º que prova é o espelho novo; nenhum cai no HEAD.
+
+### Mutantes (`bin/forge-mutante tests/mutantes/v0479-pv-d3-modelo.json tests/mutantes/v0479-pv-d3-modelo-2.json`, rc=0)
+```
+forge-mutante: pedido=v0479-pv-d3-modelo rev=60be3dffce7a spec=29ba446a... spec=44c4f540...
+M1..M9 · morreu
+M10 · morreu · templates/projeto/.githooks/pre-push:347
+M11 · morreu · templates/projeto/.githooks/pre-push:349
+```
+Onze de onze mortos. As duas linhas de guarda mudadas (`9>&-` com e sem `timeout`) têm um mutante cada. Parecer segue aprovado.
