@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-mp9-guia
-commit: 862d9ecb792c30e0b66e82d30f3794a19828cc65
+commit: e266490b885f01366dfd6abb80ef65950ffa90e5
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -44,3 +44,6 @@ Delta desde a8d4dce4: merge da develop (duas linhas em `templates/projeto/CLAUDE
 
 ## Revalidação (E24.19, head 862d9ecb)
 `forge-check parecer delta` (abb581a5..862d9ecb): no domínio do QA só `bin/forge-testes` (`test_guia_varios_projetos` entra em `LEITORES_DE_TEXTO` e no mapa do `README.md`) e `tests/test_guia_varios_projetos.py` (import de `agentes`, que liga `hooks/agentes.py` ao teste no mapa). Rodados com TMPDIR: `test_testes_tocados.py` (196 testes, OK; 1 pulado pelo próprio sandbox, `/proc` de outro namespace) e `test_guia_varios_projetos.py` (4 testes, OK). Suíte inteira: check-run `bateria` do CI do PR, sem rerrodar. Parecer: aprovado.
+
+## Revalidação (E24.24, head e266490b)
+`forge-check parecer delta` (862d9ecb..e266490b, sem o que veio da base): no domínio do QA `README.md`, `bin/forge-testes`, `tests/pesos-d4.json` e `tests/test_reval_delta.py`; o delta é o merge da develop com dois conflitos de lista resolvidos com os dois itens: `FORGE_CHECK` e `LEITORES_DE_TEXTO` em `bin/forge-testes` (`test_comando_pronto`, `test_retro_pendentes`, `test_comparar` junto de `test_guia_varios_projetos`; os módulos existem) e `CITACOES_CONHECIDAS` em `tests/test_reval_delta.py` (entradas da develop e a do guia presentes); `pesos-d4.json` segue JSON válido. Rodados com TMPDIR: `test_guia_varios_projetos.py` (4 testes, OK), `test_testes_tocados.py` (196 testes, OK; 1 pulado pelo sandbox) e `test_reval_delta.py` (10 testes, OK). Suíte inteira: check-run `bateria` do CI do PR, sem rerrodar. Parecer: aprovado.
