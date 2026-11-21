@@ -3,30 +3,25 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pv-a2-concessao
-commit: 4c325c557ee7cf5544a28488eb06346ae9bfbc1f
-parecer: reprovado
+commit: 9b6dca25db319a73277a5bc2bfaf151af8cd53a6
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-20
 ---
-# Review: v0478 (E57.61, PR-VERDE A2, concessão presa ao commit)
-
-## Achados
-- A1 (bloqueante) bin/forge_autorizacao.py:29 · a ressalva é lista negativa (AR-3), e o item 5 da ADR 0018 faz da lista só teste: a regra é o vocabulário positivo. "depois", "antes", "sem", "só com" saem ativa (S1, igual ao S2 da segurança). Corrija pelo vocabulário positivo numa função que o gravar da G1.2 reuse.
-- A2 (recomendado) bin/forge_autorizacao.py:30 · "depois do Commit só pareceres" aceita qualquer arquivo de docs/devops/ (patch, documento) e de qualquer branch nas quatro pastas. Restrinja aos arquivos cujo frontmatter tem `branch:` igual ao Ramo; isso fecha junto o A1 da segurança (rename para docs/qa/).
-- A3 (recomendado) docs/propostas/v0479-pr-verde-de-primeira.md:61 · o A2 do desenho é do gravar (E1: "o gravar lê o sha dos pareceres... recusa"; oráculo concessao-solta em tests.test_autorizacao_gravar, :103). Esta branch entrega só a metade do leitor: o PR diz "A2 parcial" e a metade do gravar vira cartão preso à G1.2.
+# Review: v0478 (E57.66, PR-VERDE A2 parcial, concessão presa ao commit), volta sobre 1f07bb3d
 
 ## Sondas
-- S1 · corpo "pode aplicar o rótulo afrouxa-regra no item PV-A2 depois do CI verde" (idem "antes da release", "sem a segurança", "só com o QA"), Estado-inicial ativa, fixture ItemPresoAoCommit · espera: ('adulterada', 'ativa com ressalva na mensagem') · obtido: ('ativa', '')
+- S1 · corpo da S1 anterior ("... depois do CI verde", idem "antes da release", "sem a segurança", "só com o QA"), Estado-inicial ativa · espera: adulterada com ressalva · obtido: adulterada (caso `ressalva-0..3` do teste, verde)
+- S2 · `fora_do_vocabulario("... item PV-A2 a menos que o QA reprove")` · espera: palavras fora · obtido: ['menos', 'qa', 'que', 'reprove']
+- S3 · `fora_do_vocabulario("... item PV-A2 so amanha")` · espera: ['so'] · obtido: ['so']
 
 ## Parecer
-Reprovado pelo A1. O resto do diff está correto e simples: o `git` sem as `GIT_*` herdadas e com falha fechada, `Commit` sha40 e `Ramo` sem `-` inicial nem `..` (sem injeção de opção), o nome exato do ramo conferido de novo no frontmatter depois do `git grep -F`, e o leitor só aperta, porque hoje nenhum consumidor lê o `ativa` além do `autorizacao ler`. Tamanho dentro do H1 (73 linhas em `bin/`).
+Aprovado. Delta lido: `forge-check parecer delta` de 4c325c55 a 9b6dca25, domínio código e testes (`bin/forge_autorizacao.py`, `tests/test_autorizacao.py`, quatro specs de mutante e o fragmento do changelog). Os pareceres do QA e da segurança no intervalo ficam com eles.
 
-**Pergunta do autor (a regra no leitor cumpre o A2?).** Em parte. O leitor conferir na leitura é necessário de todo jeito, porque o PV-A4 vai ler o arquivo no head. Mas a E1 da ADR 0018 põe a derivação e a recusa no `gravar`, e o desenho (`:61`, `:103`) diz que o A2 depende da G1.2 e tem o oráculo `concessao-solta` em `tests.test_autorizacao_gravar`, que ainda não existe. Com a G1.2 fora da `develop`, o certo é entregar o leitor agora e declarar o resto (A3). Mesclar como A2 completo fecharia o item sem a barreira de gravação.
+- **A1 (fechado).** `RESSALVA` saiu. Entrou `VOCABULARIO` (`:30`), um conjunto fechado de termos de ato, validade do item 6, permissão, artigos, preposições e cortesia, e entrou `fora_do_vocabulario` (`:150`), função única que o `gravar` da G1.2 pode importar. Concessão `ativa` com palavra fora dele fica `adulterada`. O teste confere que nenhuma marca do item 5 da ADR 0018 está no vocabulário, e as quatro ressalvas da S1 antiga viraram casos. O termo do ato agora é palavra inteira, fora do nome do cartão, e isso fecha o caso `item ROTULO-1`.
+- **A2 (fechado).** O diff depois do `Commit` usa `--no-renames`, e cada arquivo precisa estar numa pasta de parecer e ter `branch:` igual ao `Ramo` no frontmatter. Arquivo apagado lê vazio e recusa, então a renomeação de código para `docs/qa/` fica `inativa` (teste novo). Os EXIGIDOS (`review`, `qa`, `revisao-seguranca`) fecham também o A4 da segurança.
+- **A3 (fechado).** O fragmento do changelog diz "PR-VERDE A2, parcial" e deixa a recusa no `gravar` para o cartão preso à G1.2.
 
-**A1, detalhe.** `bin/forge_autorizacao.py:29` e `:153`: a `RESSALVA` lista marcas proibidas. Faltam quatro das que a própria ADR cita (`antes`, `depois`, `sem`, `menos` sozinho), e mesmo completa ela continua sendo a forma do AR-3, que o item 5 recusa de propósito. Correção: uma função única com o vocabulário fechado do item 5 (termos de ato, `item <CARTAO>`, termos de validade do item 6, verbos de permissão, artigos, preposições e cortesia). Concessão `ativa` com palavra fora dele fica `adulterada`. Um teste confere que nenhuma marca da ADR entra no vocabulário. A G1.2 depois importa a mesma função, e as duas leituras não divergem. Corrigir só o A2 da segurança (as quatro palavras) fecha a sonda, mas mantém a classe AR-3.
+Tamanho: 89 linhas em `bin/` contra a base `d4f0b10a`, dentro do H1.
 
-**Limite registrado, sem achado.** O `ler` roda o `git` na raiz principal e usa `refs/remotes/origin/<Ramo>` sem buscar. Se a ref local estiver velha, o leitor não vê um envio novo de código depois do `Commit`. A conferência contra o head é do PV-A4 (catraca no próprio head), e isso cabe no desenho.
-
-**A4 da segurança (pareceres exigidos × ao menos um).** Concordo com o recomendado. A classe exigida é conferida no merge (`forge-check classe` pelo `bin/forge-fechar`), e a docstring de `:168` já declara "ao menos um".
-
-**Ferramentas citadas, sem refazer.** A classe nova `tests.test_autorizacao.ItemPresoAoCommit` passou (6 testes, OK, 3,5 s). `bin/forge-mutante --cobertura --base d4f0b10a` deu rc 0, com todas as guardas do diff cobertas por mutante declarado (M1 a M28 em quatro specs). Não rodei a suíte inteira, que fica no CI do PR (o brief diz sem suíte local). A execução dos mutantes fica com o QA (E57.63).
+**Ferramentas citadas, sem refazer.** `tests.test_autorizacao.ItemPresoAoCommit`: 8 testes, OK (2,8 s, ambiente limpo). `bin/forge-mutante --cobertura --base 4c325c55`: rc 0, e toda guarda do delta tem mutante declarado (`:153`, `:162`, `:171`, `:196`, `:201`, M30 a M32 na spec `-4`). A execução dos mutantes fica com o QA. A suíte inteira fica no CI do PR.
