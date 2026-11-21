@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae5-retro-pendentes
-commit: 2d378b98dfa98a5f3be4879335985a04c4093b7e
+commit: 8d2efa1fdc94a5962a2323c38592a079a23c1612
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
@@ -49,6 +49,17 @@ Delta lido só por `forge-check parecer delta docs/reviews/v0479-ae5-retro-pende
 - `git diff c9d69234 HEAD -- bin/forge-check` tem as mesmas linhas mudadas do patch aprovado contra a base antiga `821db42e`, salvo a docstring de `cmd_retro_pendentes`, que troca o caminho `docs/retrospectivas/` por prosa (sem efeito no comportamento).
 - `tests/test_reval_delta.py` ganha a entrada `("tests/test_retro_pendentes.py", "docs/retrospectivas/"): (1, "teste-le")` na guarda C-2: o teste cita o caminho uma vez (`test_retro_pendentes.py:115`, a igualdade dos dois modelos), contagem e classe batem.
 - `python3 -m unittest tests.test_reval_delta tests.test_retro_pendentes` (ambiente limpo): 30 testes, OK.
+- Suíte completa: fica no CI do PR (`R-REVIEW`).
+
+Segue aprovado; A1 continua recomendado, sem mudança no delta.
+
+## Revalidação no head 8d2efa1f (E58.104)
+Delta lido só por `forge-check parecer delta docs/reviews/v0479-ae5-retro-pendentes.md`: intervalo `2d378b98..8d2efa1f`, sem a base; no domínio `bin/forge-check`, `tests/mutantes/v0478-ae5-retro-pendentes{,-2,-3}.json` e `tests/test_reval_delta.py`; saída `revalida: sim`.
+
+- Os merges da develop `1fb80933` e `26b75512` não têm resolução à mão (`git show --remerge-diff` vazio nos dois). A contagem 15 para 16 de `tests/test_forge.py` × `README.md` em `tests/test_reval_delta.py` vem da develop (`origin/develop` b18d3ea já traz 16), fora deste parecer.
+- `8d2efa1f`: `COBRE_DA_RETRO`, `VERSAO_DA_TAG` e `REF_DA_MAIN` passam a texto e os quatro usos (`bin/forge-check:5896`, `5909`, `5917`, `5927`) chamam `re.match`/`re.fullmatch` com o padrão; nenhum uso de método (`.match`, `.fullmatch`) sobra nas três constantes. Mesmas expressões, mesmo comportamento; o cache do `re` cobre o uso repetido no laço das tags.
+- Mutantes M7, M13, M14 e M15 (de `-2`) e M17 (de `-3`) ganham o `de` nas linhas novas; `bin/forge-mutante --processos 1 --ids M7,M13,M14,M15,M17` nos três arquivos: 5 de 5 morreram (5896, 5917 três vezes, 5927).
+- `python3 -m unittest tests.test_retro_pendentes tests.test_hooks_volta_corpus tests.test_reval_delta`: 63 testes; com `env -i` o `test_corpus_nos_dois_hooks` falha por 2 subprocessos acima do teto (4633 contra 4631), e falha igual na `origin/develop` b18d3ea com o mesmo `env -i`, logo não vem do delta; no ambiente da sessão o teste passa.
 - Suíte completa: fica no CI do PR (`R-REVIEW`).
 
 Segue aprovado; A1 continua recomendado, sem mudança no delta.
