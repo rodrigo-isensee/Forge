@@ -47,7 +47,9 @@ class EnvioDoParecer(Base):
         for etapa in ("review", "seguranca", "qa"):
             with self.subTest(etapa):
                 saida = self.gerar(etapa, "E1.2", "forge:revisor-exemplo")
-                linha = next(l for l in saida.splitlines() if l.startswith("- envio: "))
+                linhas = [l for l in saida.splitlines() if l.startswith("- envio: ")]
+                self.assertEqual(len(linhas), 1, saida)  # sem a linha, falha por asserção (vermelho conclusivo na base)
+                linha = linhas[0]
                 self.assertIn("`pedido: trilha`", linha)
                 self.assertIn("`git push origin melhoria/x`", linha)
                 self.assertIn("`git pull --rebase`", linha)

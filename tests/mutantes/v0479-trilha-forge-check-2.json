@@ -3,7 +3,7 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M1",
+      "id": "M7",
       "guarda": "FC-DOCS-CAMINHO: --base lê o diff contra a origin/<base> dada",
       "arquivo": "bin/forge-check",
       "de": "        delta = documentos_do_delta(raiz, f\"origin/{base or 'develop'}\")",
@@ -13,7 +13,7 @@
       ]
     },
     {
-      "id": "M2",
+      "id": "M8",
       "guarda": "FC-DOCS-CAMINHO: com --base, diff ilegível reprova",
       "arquivo": "bin/forge-check",
       "de": "        if base and delta is None:  # FC-DOCS-CAMINHO",
@@ -23,7 +23,7 @@
       ]
     },
     {
-      "id": "M3",
+      "id": "M9",
       "guarda": "FC-DOCS-CAMINHO: sem --base, diff ilegível segue só com o aviso",
       "arquivo": "bin/forge-check",
       "de": "        if base and delta is None:  # FC-DOCS-CAMINHO",
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "id": "M4",
+      "id": "M10",
       "guarda": "FC-DOCS-CAMINHO: com --base, só os documentos do diff",
       "arquivo": "bin/forge-check",
       "de": "documentos(raiz) if not base or rel in delta], []",
@@ -43,7 +43,7 @@
       ]
     },
     {
-      "id": "M5",
+      "id": "M11",
       "guarda": "FC-DOCS-CAMINHO: sem --base, a pasta inteira, como antes",
       "arquivo": "bin/forge-check",
       "de": "documentos(raiz) if not base or rel in delta], []",
@@ -53,7 +53,7 @@
       ]
     },
     {
-      "id": "M6",
+      "id": "M12",
       "guarda": "FC-DOCS-CAMINHO: o PQ do portão leva --base só com base do fluxo",
       "arquivo": "bin/forge-check",
       "de": "' if nome in BASES_DO_FLUXO else ''}` · espera: rc=0\")",
