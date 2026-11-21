@@ -1,0 +1,76 @@
+{
+  "pedido": "v0479-modelo-pedido-brief",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o modelo de pedido já traz a etapa da retrospectiva em ## Etapas",
+      "arquivo": "templates/projeto/docs/pedidos/_modelo.md",
+      "de": "- E1.4 (agile-coach): retrospectiva do pedido; o pedido só fecha com ela gravada\n",
+      "para": "",
+      "testes": [
+        "tests.test_modelos_projeto.ModeloPedidoEBrief"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o modelo de pedido pede uma etapa numerada por delegação",
+      "arquivo": "templates/projeto/docs/pedidos/_modelo.md",
+      "de": "Uma etapa numerada por delegação",
+      "para": "Etapas por papel",
+      "testes": [
+        "tests.test_modelos_projeto.ModeloPedidoEBrief"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o pedido com dois repositórios cita o sha do outro com a marca que o forge-check lê",
+      "arquivo": "templates/projeto/docs/pedidos/_modelo.md",
+      "de": "`(outro repositório)`",
+      "para": "`(outro repo)`",
+      "testes": [
+        "tests.test_modelos_projeto.ModeloPedidoEBrief"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a checagem do brief manda ler o por-tema.md",
+      "arquivo": "skills/checagem-do-brief/SKILL.md",
+      "de": ": `por-tema.md`.",
+      "para": ".",
+      "testes": [
+        "tests.test_modelos_projeto.ModeloPedidoEBrief"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "brief que toca .githooks/ diz que o arquivo é do usuário e pede o diff como proposta",
+      "arquivo": "skills/checagem-do-brief/por-tema.md",
+      "de": "pede o diff como proposta",
+      "para": "manda editar o arquivo",
+      "testes": [
+        "tests.test_modelos_projeto.ModeloPedidoEBrief"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "brief que grava parecer traz o PQ forge-check pr com rc=0",
+      "arquivo": "skills/checagem-do-brief/por-tema.md",
+      "de": "o PQ `forge-check pr <pedido>` com `rc=0`",
+      "para": "o PQ do autor",
+      "testes": [
+        "tests.test_modelos_projeto.ModeloPedidoEBrief"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "número de testes só de comando rodado na entrega, com data e commit, nunca de rodada anterior",
+      "arquivo": "skills/checagem-do-brief/por-tema.md",
+      "de": "com a data e o commit; nunca de uma rodada anterior",
+      "para": "ou de uma rodada anterior",
+      "testes": [
+        "tests.test_modelos_projeto.ModeloPedidoEBrief"
+      ]
+    }
+  ]
+}
