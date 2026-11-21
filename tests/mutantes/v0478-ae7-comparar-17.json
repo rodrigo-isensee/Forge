@@ -1,0 +1,56 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP108",
+      "guarda": "AE7.1 cabecalho: toda quebra de linha, também o CR sozinho (F6, A17)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": ".lstrip(\"\\ufeff \\t\\r\\n\").splitlines() or [\"\"]",
+      "para": ".lstrip(\"\\ufeff \\t\\r\\n\").split(\"\\n\") or [\"\"]",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f6_toda_quebra_de_linha_conta"
+      ]
+    },
+    {
+      "id": "CMP109",
+      "guarda": "AE7.1 cabecalho: .md vazio não derruba (F6)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": ".splitlines() or [\"\"]",
+      "para": ".splitlines()",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f6_toda_quebra_de_linha_conta"
+      ]
+    },
+    {
+      "id": "CMP110",
+      "guarda": "AE7.1 fora_da_medida: o 1º nome do caminho conta, pasta da raiz também (F3, A18)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "n.lower().split(b\"/\")[0] in RAIZ_FORA",
+      "para": "n.lower() in RAIZ_FORA",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f3_pasta_de_convencao_na_raiz"
+      ]
+    },
+    {
+      "id": "CMP111",
+      "guarda": "AE7.1 RAIZ_FORA: monitors (F3, A18)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "b\"settings.json\", b\"monitors\", b\"workflows\")",
+      "para": "b\"settings.json\", b\"workflows\")",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f3_pasta_de_convencao_na_raiz"
+      ]
+    },
+    {
+      "id": "CMP112",
+      "guarda": "AE7.1 RAIZ_FORA: workflows (F3, A18)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "b\"monitors\", b\"workflows\")",
+      "para": "b\"monitors\")",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f3_pasta_de_convencao_na_raiz"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-conformidade-trilha",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S9",
+      "guarda": "o filtro barato só pula a linha sem substituição, xargs com git, envio citado nem shell (E63.1, E63.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not (marcador and (envio or \"git\" in linha) or xargs or envio and (\"sh\" in linha.replace(\"push\", \"\") or \"stdin\" in linha or \"/fd/\" in linha)):\n",
+      "para": "    if True:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "T1",
+      "guarda": "o xargs com o git passa o filtro barato: o subcomando pode vir todo do pipe (E63.5, A5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    xargs = \"xargs\" in linha and \"git\" in linha  # A5 da E63.3: o subcomando pode vir todo do pipe\n",
+      "para": "    xargs = False  # A5 da E63.3: o subcomando pode vir todo do pipe\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "T2",
+      "guarda": "o /dev/stdin passa o filtro barato: o source lê o pipe (E63.5, A4)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not (marcador and (envio or \"git\" in linha) or xargs or envio and (\"sh\" in linha.replace(\"push\", \"\") or \"stdin\" in linha or \"/fd/\" in linha)):\n",
+      "para": "    if not (marcador and (envio or \"git\" in linha) or xargs or envio and (\"sh\" in linha.replace(\"push\", \"\") or \"/fd/\" in linha)):\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "T3",
+      "guarda": "o git atrás do xargs sem subcomando na linha recusa (E63.5, A5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if k >= len(valores) and \"xargs\" in nomes[:j]:  # A5 da E63.3: `echo push … | xargs git`\n",
+      "para": "            if False:  # A5 da E63.3: `echo push … | xargs git`\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "T4",
+      "guarda": "a opção global com valor separado (--git-dir) não é o subcomando (E63.5, A3)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        resto = resto[2:] if resto[0] in GIT_GLOBAIS_COM_VALOR else resto[1:]  # E63.5 (A3): `--git-dir .git push`\n",
+      "para": "        resto = resto[2:] if resto[0] == \"-C\" else resto[1:]  # E63.5 (A3): `--git-dir .git push`\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "T5",
+      "guarda": "o shell atrás de um envolvedor passa o filtro do programa (E63.5, A4)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        programa = nomes and (nomes[0] in SHELLS or nomes[0] in ENVOLVEDORES or valores[0] in FONTES\n",
+      "para": "        programa = nomes and (nomes[0] in SHELLS or valores[0] in FONTES\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "T6",
+      "guarda": "o shell que lê a entrada só conta numa linha que cita o git e o envio (E63.5, A4)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if cita_o_envio and programa and shell_que_le_a_entrada(nomes, valores, opacas, comando.redirecoes, linha):\n",
+      "para": "        if programa and shell_que_le_a_entrada(nomes, valores, opacas, comando.redirecoes, linha):\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "T7",
+      "guarda": "na sessão do Forge o envio com parte opaca é trava (E63.5, A6)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"escreva o envio literal: git push origin <branch>\", trava=TRAVA)  # A6 da E63.3\n",
+      "para": "\"escreva o envio literal: git push origin <branch>\", trava=TRAVA_OPACA)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    }
+  ]
+}

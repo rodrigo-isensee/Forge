@@ -1,0 +1,76 @@
+{
+  "pedido": "v0479-conformidade-trilha",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "W1",
+      "guarda": "a linha que troca o caminho do bash fica intacta na exceção da cópia de wt/ (E63.13, A16 e A17)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if re.search(CAMINHO_TROCADO_NA_LINHA, plano):  # A16 e A17: o caminho que o bash usa não é o que o hook resolve\n",
+      "para": "    if False:  # A16 e A17: o caminho que o bash usa não é o que o hook resolve\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "W2",
+      "guarda": "a conferência dos `$` lê o texto de antes da troca por NUL (E63.13, A16)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    for ref in re.finditer(r\"\\$([A-Za-z_]\\w*)?\", texto):  # A16: antes da troca, o `$` dentro da cópia também conta\n",
+      "para": "    for ref in re.finditer(r\"\\$([A-Za-z_]\\w*)?\", novo):\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "W3",
+      "guarda": "o papel que não é o jarvis tem a linha que troca o caminho como construção que o hook não modela (E63.13, A16 e A17)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not nivel and self.controle is not None:\n",
+      "para": "        if not nivel and self.controle is None:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "W5",
+      "guarda": "o achado recusa (E63.13, A16 e A17)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if trocado:\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "W6",
+      "guarda": "o `ln` conta como entrada criada na linha (E63.13, A17)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "CAMINHO_TROCADO_NA_LINHA = (r\"(?<![\\w$])(?<!\\$\\{)(?:HOME|BASH_ENV|ENV)(?!\\w)|(?<![\\w.-])(?:source|ln|link|mv|install|rename)\"\n",
+      "para": "CAMINHO_TROCADO_NA_LINHA = (r\"(?<![\\w$])(?<!\\$\\{)(?:HOME|BASH_ENV|ENV)(?!\\w)|(?<![\\w.-])(?:source|link|mv|install|rename)\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "W7",
+      "guarda": "o nome HOME fora do `$HOME` conta (E63.13, A16)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "CAMINHO_TROCADO_NA_LINHA = (r\"(?<![\\w$])(?<!\\$\\{)(?:HOME|BASH_ENV|ENV)(?!\\w)|(?<![\\w.-])(?:source|ln|link|mv|install|rename)\"\n",
+      "para": "CAMINHO_TROCADO_NA_LINHA = (r\"(?<![\\w$])(?<!\\$\\{)(?:BASH_ENV|ENV)(?!\\w)|(?<![\\w.-])(?:source|ln|link|mv|install|rename)\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "W8",
+      "guarda": "o ponto como programa conta como arquivo lido pelo shell (E63.13, A16)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                            r\"(?![\\w.-])|(?:^|[;&|(])\\s*\\.\\s|\\bcp\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[sl][a-zA-Z]*|-(?:symbolic-)?link)\"\n",
+      "para": "                            r\"(?![\\w.-])|\\bcp\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[sl][a-zA-Z]*|-(?:symbolic-)?link)\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    }
+  ]
+}
