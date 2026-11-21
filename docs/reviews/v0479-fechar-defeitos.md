@@ -3,27 +3,25 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-fechar-defeitos
-commit: 5d383ebfa624c7eabd7ea02fdd2909091c50d29e
-parecer: reprovado
+commit: e6c1fe8a2e054a09261612232fcb6fd4bb97f780
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
 ---
-# Review: v0478 (E75.3, melhoria/v0479-fechar-defeitos)
+# Review: v0478 (E75.7, melhoria/v0479-fechar-defeitos)
 
-Diff `65de25ce..5d383ebf`: `bin/forge-fechar` (passos 1c, 6a e 6), testes dos três cartões, mutantes declarados, fragmento do changelog.
-
-## Achados
-- A1 (bloqueante) bin/forge-fechar:870 · a recusa conta toda execução de mesmo nome; com o rótulo de exceção a catraca velha fica cancelled ao lado da nova verde (filter=latest devolve as duas, S1) e o merge direto para; o cartão FECHAR-CHECKS-ANTES-DO-MERGE manda ressalvar o rótulo (R-REVIEW).
-- A2 (bloqueante) tests/test_fechar_checks_do_head.py:56 · o teste da duplicata fixa como recusa justamente o caso do rótulo (catraca cancelled ao lado da verde); falta o teste do rótulo aplicado mesclando no merge direto (R-REVIEW).
+Revalidação (H3, R-REVIEW) do parecer 06ac3ef8 (reprovado no 5d383ebf por A1 e A2). Delta lido: `forge-check parecer delta`, intervalo `5d383ebf..e6c1fe8a`, no domínio `bin/forge-fechar`, `changelog.d/v0479-fechar-defeitos.md`, `tests/mutantes/v0478-fechar-6a.json`, `tests/mutantes/v0478-fechar-checks.json`, `tests/mutantes/v0478-fechar-checks-2.json`, `tests/test_fechar.py`, `tests/test_fechar_base_andou.py`, `tests/test_fechar_checks_do_head.py`. Nada fora do delta foi relido.
 
 ## Sondas
-- S1 · check-runs do head 9441c447 (PR 745, MERGED, rótulo afrouxa-regra) com filter=latest, passados ao awk da linha 870 · espera: catraca verde (rótulo aplicado, PR mesclado) · obtido: duas linhas catraca (success e cancelled, suítes distintas), awk rc=1 para catraca
+- S1 · check-runs filter=latest do head 9441c447 (PR 745) no awk da linha 872 · espera: os três exigidos completed/success · obtido: os três completed/success (catraca id 136879394213 success vence id 136879303871 cancelled)
 
 ## Parecer
-Reprovado, só pelo passo 6 (FECHAR-CHECKS-ANTES-DO-MERGE).
+Aprovado.
 
-- 1c (FECHAR-1C-ANTES-DO-2B): confere o commit solto com a árvore do merge-tree com a base; com conflito ou falha confere o head, e a mensagem diz qual árvore foi conferida. Atende o cartão.
-- 6a (FECHAR-6A-DEVELOP-ANDOU): com a base local velha busca a base uma vez e segue pela conferência do merge-tree de sempre; a busca que falha para. Atende o cartão.
-- 6 (FECHAR-CHECKS-ANTES-DO-MERGE): a leitura dos check-runs do head e a ressalva do `--armar` estão certas, mas a regra "toda execução de mesmo nome verde" recusa o caminho do rótulo já previsto. Sugestão: por nome, julgar a execução mais recente (maior `started_at`/`completed_at`, ou a da suíte mais nova), ou ignorar `cancelled` quando há outra execução do mesmo nome em `completed/success` mais nova; teste com a forma real da S1 (catraca cancelled e success) passando e catraca failure mais nova recusando.
+- A1 (resolvido): `checks_do_head_verdes` julga, por nome exato de `CHECKS_EXIGIDOS`, só a execução de id maior; a forma real do PR 745 passa (S1) e a execução mais nova com falha recusa mesmo com a velha verde, nas duas ordens da resposta.
+- A2 (resolvido): `test_rotulo_aplicado_catraca_velha_cancelled_e_nova_verde_mescla` fixa a forma real nas duas ordens; o falso de `gh api` em `test_fechar.py` confere o caminho e o `--jq` exatos do script e, por padrão, devolve a catraca cancelled ao lado da verde.
+- `--armar` (A1 da segurança): recusa a execução mais recente já terminada fora de success (failure, cancelled, timed_out) e arma com ela rodando ou ausente; mensagem própria nos dois ramos.
+- 6a (A2 da segurança): a guarda `local_base != srv` depois da busca tem mutante (F6A-M4) e teste do ramo de falha com a develop andando de novo.
+- Guardas mudadas com um mutante por linha (FCK-M2 a FCK-M9, F6A-M4); changelog coerente com o comportamento.
 
-Verificações: `bash -n bin/forge-fechar` ok; `bin/forge-testes` com test_fechar, test_forge_fechar, test_fechar_base_andou e test_fechar_checks_do_head: 194 testes, OK (1 pulado). Suíte inteira fica no CI do PR.
+Verificações: `bash -n bin/forge-fechar` ok; `bin/forge-testes` com test_fechar, test_forge_fechar, test_fechar_base_andou, test_fechar_checks_do_head e test_fechar_auto_merge: 205 testes, OK (1 pulado); `bin/forge-mutante --ids FCK-M2,FCK-M4,FCK-M5`: os três morreram. Suíte inteira fica no CI do PR.
