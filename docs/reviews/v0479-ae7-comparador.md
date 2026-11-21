@@ -3,47 +3,51 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae7-comparador
-commit: f50171d232c95fa4562422bcda5f92a144a8a586
+commit: 757355b43bd7f4bb2b3b5dd109270cdb1d426f80
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
 ---
-# Review: v0478 (E58.45, AE7.1 `forge-check comparar`, revalidação no head f50171d2)
+# Review: v0478 (E58.49, AE7.1 `forge-check comparar`, revalidação no head 757355b4)
 
-Revalidação (H3, R-REVIEW) do parecer aprovado em 3d0bdaf9 (E58.36) e da rodada reprovada em bddae43f (E58.40, só pelo A5 de
-neutralidade; parecer que ficou fora do remoto). Delta lido por `forge-check parecer delta docs/reviews/v0479-ae7-comparador.md`:
-intervalo `3d0bdaf9..f50171d2`, no domínio `bin/forge_comparar.py`, `changelog.d/v0479-ae7-comparador.md`,
-`tests/mutantes/v0478-ae7-comparar-{4,6,8,9,10}.json` e `tests/test_comparar.py`; o trecho `3d0bdaf9..bddae43f` já foi julgado na
-rodada E58.40, e aqui foi lido o `bddae43f..f50171d2`. Fora do delta nada foi relido.
+Revalidação (H3, R-REVIEW) do parecer aprovado em f133eb07 (E58.45, head f50171d2). Delta lido por
+`forge-check parecer delta docs/reviews/v0479-ae7-comparador.md`: intervalo `f50171d2..757355b4`, no domínio
+`bin/forge-check`, `bin/forge_comparar.py`, `changelog.d/v0479-ae7-comparador.md`,
+`tests/mutantes/v0478-ae7-comparar-{5,7,8,10,11,12}.json` e `tests/test_comparar.py`. Fora do delta nada foi relido.
 
 ## Conferido
-- A5 da rodada E58.40 (R-NEUTRO): o comentário da linha 154 diz "como o Claude Code lê a saída", sem nome de stack (339cf138).
-  `python3 -I tests/test_forge.py Neutralidade NeutralidadeDoNucleo`, com ambiente limpo: 6 testes OK.
-- A10 da segurança (hook fora do `hooks/hooks.json`): `fora_da_medida` dá `nao-verificavel` com a chave `hooks` em qualquer
-  nível de `.claude-plugin/plugin.json` ou `marketplace.json` (chave escapada incluída, pelo `object_pairs_hook`), com
-  manifesto que não se lê e com `hooks:` sem recuo num `.md` de qualquer pasta e caixa; `git grep` que falha (rc fora de 0 e 1)
-  também sai `nao-verificavel`. Na árvore real (`origin/develop` e este head) a busca dá rc 1 e os dois manifestos não têm
-  a chave, então a medida segue útil no Forge. Testes `HooksForaDoHooksJson` (sondas S12, S13), nos dois lados.
-- A9 da segurança (reescrita contra recusa): `reescreve = h != RECUSA and ...`; reescrita da base contra recusa do head não
-  conta. Teste `test_reescrita_da_base_contra_recusa_do_head_nao_conta`. Specs 4 e 6 (CMP27, CMP46, CMP47) seguem a guarda nova.
-- Teste do item: `python3 -I tests/test_comparar.py` com ambiente limpo, 53 testes OK em 13,2 s.
-- Mutantes (V2): `bin/forge-mutante --processos 1` nas specs 10, 4 e 6: 22 de 22 morreram (CMP26 e CMP31 por erro do teste sob
-  o mutante); `--cobertura --base bddae43f`: guardas novas cobertas (linhas 86, 88, 90, 232, 233, 235; a 214 da base apagada);
-  `--conferir --base 821db42e`: trechos no lugar.
-- Tamanho (H1): `git diff --numstat --no-renames origin/develop...HEAD -- bin/` dá 244 adições e 1 remoção (245 linhas:
-  `bin/forge_comparar.py` 238, `bin/forge-check` 5, `bin/forge-testes` 1+1); o delta desde bddae43f somou 21. **Excesso
-  justificado:** segue um comportamento só (a medida "só aperta"); as linhas novas fecham A9 e A10 da segurança, cada guarda
-  com teste de comportamento que fica vermelho sem ela (CMP61 a CMP67 mortos), o critério do H1. Sem A10, um head que declara
-  hook no manifesto ou no cabeçalho de agente sairia `so-aperta: medido` sem rodar esse hook, pior que não ter a medida.
-  O PR deve dizer `teto: excedido, 245 linhas, ...`.
+- A11 (link simbólico): `fora_da_medida` lê o `ls-tree -r -z -l`; modo 120000 em qualquer pasta dá `nao-verificavel`
+  (link simbólico na árvore), lista que falha ou não casa dá "árvore ilegível"; `extrair` deixa de gravar link (devolve
+  False). Testes `LinksESource` (S15 a S17) nos dois lados. Na árvore real (`HEAD`, `origin/develop`, `origin/main`): 0 links.
+- A12 (source do marketplace): `plugin_fora_da_raiz` exige uma entrada só com `source` `.` ou `./`; JSON ilegível, objeto,
+  repositório de fora e dois plugins dão rc 2. O marketplace real tem `['.']`, então a medida segue útil.
+- A13 (cabeçalho YAML): só o bloco entre os `---` iniciais (BOM e linhas em branco antes; sem fecho, o texto todo), lido em
+  lote com `blobs_do_lote`, que recusa resposta truncada; `CABECALHO_SUSPEITO` pega `hooks` + `:` em qualquer recuo e em
+  fluxo, `? hooks`, barra invertida, âncora, alias e tag. Sonda na árvore real: 0 dos `.md` do head casam, sem falso
+  `nao-verificavel`. Isso também fecha o A6 da rodada anterior (o corpo do `.md` não conta mais).
+- Lista do que mede: o docstring do módulo e o `help`/`description` do subcomando dizem o que dá rc 2 e o limite (hook
+  declarado por outro caminho não é visto). O changelog acompanha.
+- Testes trocados: o teste do `git grep` saiu junto com a busca; os falsos de `ls-tree` separam a lista com `-l`
+  (`fora_da_medida`) da sem `-l` (extração) pelo argumento exato, a mesma regra do código (checklist, item 12). O CMP34 saiu
+  com o código que ele guardava.
+- Neutralidade (R-NEUTRO): `python3 -I tests/test_forge.py Neutralidade NeutralidadeDoNucleo`, ambiente limpo: 6 testes OK.
+- Teste do item: `python3 -I tests/test_comparar.py LinksESource CabecalhoDoMd HooksForaDoHooksJson`, ambiente limpo: 12 OK.
+- Mutantes (V2): `bin/forge-mutante --processos 1` nas specs 10, 11 e 12: CMP61 a CMP82 (22) morreram.
+- Tamanho (H1): `git diff --numstat --no-renames origin/develop...HEAD` em `bin/`, `hooks/`, `scripts/`, `.github/` e
+  `.githooks/` dá 303 linhas (`bin/forge_comparar.py` 295, `bin/forge-check` 6, `bin/forge-testes` 1+1); o delta somou 119
+  em `bin/forge_comparar.py` (88 adições, 31 remoções) e 3 em `bin/forge-check`. **Excesso justificado:** segue um
+  comportamento só (a medida "só aperta"); as linhas novas fecham A11, A12 e A13 da segurança, sem os quais o comparador
+  diria `so-aperta: medido` sem rodar o hook que o Claude Code roda, pior que não ter a medida; cada guarda tem teste de
+  comportamento e mutante morto. O PR deve dizer `teto: excedido, 303 linhas, guardas A9 a A13 da segurança, sem elas a
+  medida afirma o falso`.
 - `praticas.md` sem regra "decidida por: leitura"; suíte inteira fica com o CI (R-CUSTO), não rerrodada aqui.
 
 ## Achados
-- A4 (recomendado) bin/forge_comparar.py:191 · só a raiz do projeto é normalizada nas reescritas; `HOME` e `transcript_path` são diferentes em cada lado, então um hook que os cite no `updatedInput` dá `entrada-reescrita` falso. Erro do lado seguro (falso aceite-novo); normalizar o HOME como `{home}`.
-- A6 (recomendado) bin/forge_comparar.py:90 · a busca `-i` de `hooks:` sem recuo vale para o `.md` inteiro, não só o cabeçalho YAML; um doc com linha "Hooks: ..." deixa o comparador sempre `nao-verificavel`. Erro do lado seguro (hoje rc 1 na árvore); limitar ao bloco entre os `---` iniciais.
+- A4 (recomendado) bin/forge_comparar.py:191 · só a raiz do projeto é normalizada nas reescritas; `HOME` e `transcript_path` diferem em cada lado, então um hook que os cite no `updatedInput` dá `entrada-reescrita` falso. Erro do lado seguro; normalizar o HOME como `{home}`.
+- A14 (recomendado) bin/forge_comparar.py:42 · chave explícita por bloco literal com dois comentários antes do `:` (`? |-`, `  hooks`, `# a`, `# b`, `: {}`) escapa do `CABECALHO_SUSPEITO` (sonda local); o parse como chave `hooks` não foi provado (sem YAML aqui). Tratar `?` no começo de linha e `|`/`>` como suspeitos.
 
 ## Parecer
-Aprovado no head f50171d2. O delta desde bddae43f fecha o A5 (neutralidade) e os achados A9 e A10 da segurança com teste de
-comportamento e mutante morto em cada guarda nova; o excesso do teto (245 linhas) é justificado pelo critério do H1. A4 e A6
-são recomendados (R-REVIEW): viram cartão depois do merge. A decisão sobre os bloqueantes da segurança é do
+Aprovado no head 757355b4. O delta fecha A11, A12 e A13 da segurança e o A6 desta revisão, com teste de comportamento e
+mutante morto em cada guarda nova; o excesso do teto (303 linhas) é justificado pelo critério do H1. A4 e A14 são
+recomendados (R-REVIEW): viram cartão depois do merge. A decisão sobre os bloqueantes da segurança é do
 `security-engineer` (R-SEGURANCA), na revalidação dele.
