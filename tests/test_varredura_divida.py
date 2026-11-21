@@ -164,7 +164,7 @@ class Varredura(unittest.TestCase):
     def test_pasta_fora_do_git_varre_o_que_tem(self):
         sem_git = Path(self._tmp.name) / "solto"
         gravar(sem_git, "docs/regras/R-SOLTA.md", "x")
-        r = rodar("--raiz", str(sem_git))
+        r = rodar("--raiz", str(sem_git), "--copias", str(self.wt), "--mb", "-1")
         self.assertEqual((r.returncode, r.stdout.splitlines()), (0, [
             "regra-sem-teste · R-SOLTA · nenhum teste em tests/ cita o ID · cartão: teste que cubra R-SOLTA",
             "varredura: 1 achado(s)"]), r.stderr)
@@ -183,7 +183,7 @@ class ProjetoDoForgeInit(unittest.TestCase):
             git(projeto, "init", "-q")
             subprocess.run(["bash", str(RAIZ / "bin" / "forge-init"), "--nome", "Demo", str(projeto)], check=True,
                            capture_output=True, text=True, timeout=120, env=ambiente())
-            r = rodar("--raiz", str(projeto), "--copias", tmp, "--mb", "0")
+            r = rodar("--raiz", str(projeto), "--copias", tmp, "--mb", "-1")
             self.assertEqual((r.returncode, r.stdout.splitlines()), (0, ["varredura: 0 achado(s)"]), r.stderr)
 
 

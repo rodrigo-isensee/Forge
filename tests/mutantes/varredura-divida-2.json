@@ -69,7 +69,8 @@
       "de": "    except (OSError, ValueError, AttributeError):\n        return False",
       "para": "    except (ValueError, AttributeError):\n        return False",
       "testes": [
-        "tests.test_varredura_divida.ProjetoDoForgeInit.test_projeto_novo_roda_sem_achado"
+        "tests.test_varredura_divida.ProjetoDoForgeInit.test_projeto_novo_roda_sem_achado",
+        "tests.test_varredura_divida.Varredura.test_pasta_fora_do_git_varre_o_que_tem"
       ]
     }
   ]

@@ -57,8 +57,8 @@
       "id": "M6",
       "guarda": "só módulo (chave sem ponto) é teste lento",
       "arquivo": "scripts/varredura-divida.py",
-      "de": " for m, s in pesos.items() if \".\" not in m)",
-      "para": " for m, s in pesos.items())",
+      "de": "\".\" not in m",
+      "para": "\"#\" not in m",
       "testes": [
         "tests.test_varredura_divida.Varredura.test_lista_cada_achado_em_ordem_estavel"
       ]
