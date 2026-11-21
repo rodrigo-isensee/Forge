@@ -1,0 +1,27 @@
+{
+  "pedido": "v0479-entrega-merges",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D9",
+      "guarda": "o arquivo ausente no head e no merge-base remoto não conta como igual (segurança A3, falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "\"\" != blob_de(raiz, head, n) == blob_de(raiz, ponto, n)}",
+      "para": "blob_de(raiz, head, n) == blob_de(raiz, ponto, n)}",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_arquivo_ausente_nos_dois_lados_segue_no_escopo"
+      ]
+    },
+    {
+      "id": "R1",
+      "guarda": "só a linha de nome exato do git ls-remote vale, não a que casa pela cauda (segurança A1)",
+      "arquivo": "bin/forge-check",
+      "de": "if ref == f\"refs/heads/{branch}\"",
+      "para": "if ref.endswith(f\"refs/heads/{branch}\")",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_ref_homonima_por_cauda_no_remoto_nao_e_a_develop",
+        "tests.test_selo_e_entrega.MergeDaBaseDepoisDoBrief.test_remoto_da_branch_so_aceita_o_nome_exato"
+      ]
+    }
+  ]
+}

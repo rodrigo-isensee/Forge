@@ -66,8 +66,8 @@
       "id": "M7",
       "guarda": "Segurança A8, review A6: o commit lê o remoto por git ls-remote, não só o ref de rastreio",
       "arquivo": "bin/forge-check",
-      "de": "    if cod == 0:\n        sha = saida.split(\"\\t\")[0]\n",
-      "para": "    if False:\n        sha = saida.split(\"\\t\")[0]\n",
+      "de": "    if cod == 0:\n        sha = next((s for s, _, ref",
+      "para": "    if False:\n        sha = next((s for s, _, ref",
       "testes": [
         "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_o_commit_le_o_remoto_e_nao_so_o_ref_de_rastreio_velho"
       ]

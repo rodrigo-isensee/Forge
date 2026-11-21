@@ -1,0 +1,27 @@
+---
+tipo: revisao-seguranca
+contrato: 1
+pedido: release-0.47.13
+branch: melhoria/v0479-release-04713
+commit: 7574a975ae83e350de7fd605b800fe30d63fb0a5
+parecer: aprovado
+revisor: forge:security-engineer
+data: 2026-11-21
+---
+# Review de segurança: release 0.47.13 (versão inteira), revalidação no head 7574a975
+
+Revalidação (E65.9) do parecer aprovado em `7f5713a4` (E65.3; a rodada anterior fica no git). A marca foi refeita com o #746 (PR-VERDE A2, parcial) mesclado da `develop`.
+
+Gatilhos: hooks (`conformidade`, `pesado`, `agentes`, `vigia`), execução de comando (`bin/forge-testes`, `bin/forge-check`, `bin/forge-placar`, `bin/forge_quarentena.py`, `bin/forge_autorizacao.py`), pre-push do modelo de projeto, regra afrouxada (`[afrouxa-regra]` do #734; concessão `item:` do #746), release usada por todos os projetos.
+
+## Detalhe dos achados
+Sem achados.
+- Delta lido: `forge-check parecer delta docs/security/release-0.47.13.md`, intervalo `7f5713a4..7574a975` sem a base: nenhum arquivo do domínio; fora do domínio, `CHANGELOG.md` e `docs/engineering/placar-mutacao.md`. Da base veio o #746 (`b14f2e19`, um pai, `178e2601`), pelo merge `d84f1344`.
+- Revisado × mesclado do #746: `git patch-id --stable` de `178e2601..b14f2e19` e de `merge-base(54af7f08, 178e2601)..54af7f08`, fora de `docs/{qa,reviews,security,devops}`, `CHANGELOG.md` e `changelog.d/`, iguais (`5d903fc5`); `54af7f08` é o `commit:` do meu parecer `docs/security/v0479-pv-a2-v2.md` (aprovado), e os de review e QA do item estão aprovados no mesmo commit. Arquivos: `bin/forge_autorizacao.py`, `tests/test_autorizacao.py` e as 5 specs `tests/mutantes/v0479-pv-a2-concessao*.json`.
+- Merge `d84f1344`: o diff pelo 1º pai é o do #746 inteiro (11 arquivos, +754 −4), sem resolução à mão.
+- Marca `7574a975`: só `CHANGELOG.md` (entrada do #746 em `### Alterado` da `[0.47.13]`, em português), a saída do fragmento `changelog.d/v0479-pv-a2-v2.md` e a nota do placar (amostra igual). Os dois `plugin.json` seguem em 0.47.13, igual a `## [0.47.13] - 2026-11-21`; `[Não publicado]` vazio; `changelog.d/` só com o `README.md`. Nenhum código, hook nem workflow na marca.
+- Segredo: nas linhas acrescidas de `7f5713a4..7574a975` (fora de `docs/security/`), nenhum casamento de padrão de token, chave de acesso nem chave privada.
+- O resto da versão (11 itens de `27661b9e..178e2601`, base `v0.47.12`) segue como conferido em `7f5713a4`.
+
+## Riscos aceitos e ferramentas
+Nenhum risco aceito nem pendente de aceite. A suíte inteira é do CI do PR; a promoção exige o CI verde. Lacuna: gitleaks, osv-scanner, semgrep, zizmor e actionlint não estão no PATH; a versão não toca workflow nem dependência.

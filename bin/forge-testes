@@ -6,6 +6,7 @@ Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO .
      forge-testes --texto
      forge-testes --registros [--base REF]
      forge-testes --regerar [--base REF]
+     forge-testes --versoes [--base REF]
   (sem opção)   lê o que mudou desde o ancestral comum com REF (padrão origin/develop), mais os arquivos
                 não commitados e os novos, e roda só os módulos de teste que cobrem esses caminhos
   CAMINHO       planeja só para estes caminhos (relativos ao diretório atual ou absolutos, dentro do repositório) e
@@ -31,6 +32,12 @@ Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO .
                 escrita fora da lista, versionada, nova ou ignorada pelo git, sai 2; só o __pycache__ fica de fora); mostra
                 o diff para o autor commitar. Saída 0 = regerado ou nada a regerar, 1 = gerador vermelho, 2 = sem veredito,
                 link no derivado ou escrita fora da lista; não combina com nada além de --base
+  --versoes    os afetados (PR-VERDE D1), rodado pelo autor antes da entrega com a árvore commitada: o plano do --afetados
+                roda uma vez por versão de Python do CI (`python-version` de .github/workflows/ci.yml, nunca a do
+                ambiente), em série, cada uma com o `python<X.Y>` do PATH que se diz dessa versão, e grava
+                .forge/run/afetados-<X.Y>.log (`head=<sha40>` na 1.ª linha, `rc=` na última). Saída 0 = verde em todas,
+                1 = alguma vermelha ou sem o intérprete (aviso, `rc=ausente`: não é verde), 2 = sem veredito (sem versão
+                na configuração, mudança não commitada ou git ilegível); não combina com nada além de --base
 Os módulos do plano dirigido rodam em paralelo por `scripts/suite-partes.py` (o mecanismo do `suite-paralela`, em até
 4 processos, com a guarda de completude); com `-k`, ou sem os dois scripts, em série no `unittest`.
   --vermelho    prova que algum teste do diff derruba o defeito: roda os módulos em duas cópias commitadas em
@@ -1046,6 +1053,71 @@ def regerar(base):
     return codigo
 
 
+# --- `--versoes` (PR-VERDE D1): os afetados em cada versão de Python que o CI roda, em série, um log por versão ---
+# A versão vem da configuração (o `python-version` do ci.yml, a mesma fonte do CI), nunca do ambiente; o intérprete do
+# PATH só vale se ele se diz da versão pedida. Intérprete ausente é aviso e não é verde (`rc=ausente` no log, saída 1).
+# O log, na forma META85 (`head=<sha40>` na 1.ª linha, `rc=` na última), é o que a entrega cobra (D2).
+CONFIG_DAS_VERSOES = Path(".github/workflows/ci.yml")
+VERSAO_DO_CI = re.compile(r'^\s*python-version:\s*"(\d+\.\d+)"\s*$', re.M)
+DIZ_A_VERSAO = "import sys; print('%d.%d' % sys.version_info[:2])"
+
+
+def versoes_da_configuracao(raiz=Path(".")):
+    """As versões de Python do CI, sem repetição, em ordem numérica; [] se o arquivo não se lê."""
+    try:
+        texto = (raiz / CONFIG_DAS_VERSOES).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []
+    return sorted(set(VERSAO_DO_CI.findall(texto)), key=lambda v: tuple(map(int, v.split("."))))
+
+
+def interprete(versao):
+    """O `python<versao>` do PATH, se ele se diz dessa versão; senão None."""
+    caminho = shutil.which(f"python{versao}")
+    if not caminho:
+        return None
+    r = subprocess.run([caminho, "-I", "-c", DIZ_A_VERSAO], capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    return caminho if r.returncode == 0 and r.stdout.strip() == versao else None
+
+
+def versoes(base):
+    """`--versoes`: 0 = afetados verdes em todas as versões; 1 = vermelho ou intérprete ausente; 2 = sem veredito."""
+    lista = versoes_da_configuracao()
+    if not lista:
+        print(f"forge-testes: nenhuma `python-version` em {CONFIG_DAS_VERSOES}; sem veredito.", file=sys.stderr)
+        return 2
+    try:
+        if git("status", "--porcelain", "--untracked-files=all").strip():
+            print("forge-testes: há mudança não commitada; commite antes (o log prende o head).", file=sys.stderr)
+            return 2
+        head = git("rev-parse", "HEAD").strip()
+        modulos, notas = planejar_afetados(caminhos_alterados(base))
+    except (RuntimeError, ValueError) as erro:
+        print(f"forge-testes: sem veredito ({erro})", file=sys.stderr)
+        return 2
+    for nota in notas:
+        print(f"forge-testes: {nota}", file=sys.stderr)
+    codigo = 0
+    for versao in lista:
+        caminho = interprete(versao)
+        if caminho is None:
+            print(f"forge-testes: aviso: sem o intérprete python{versao}; a versão fica sem verde.", file=sys.stderr)
+            rc, saida = "ausente", f"sem o intérprete python{versao}\n"
+        elif not modulos:
+            rc, saida = 0, "nada a rodar (nenhum teste afetado)\n"
+        else:
+            comando = [caminho, *comando_dirigido(modulos, [])[1:]]
+            r = subprocess.run(comando, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+            rc, saida = r.returncode, r.stdout + r.stderr
+        registro = LOG.parent / f"afetados-{versao}.log"
+        registro.parent.mkdir(parents=True, exist_ok=True)
+        registro.write_text(f"head={head}\n{saida.rstrip()}\nrc={rc}\n", encoding="utf-8")
+        print(f"forge-testes: python{versao} rc={rc} ({registro})")
+        if rc != 0:
+            codigo = 1
+    return codigo
+
+
 def suite_na_trava(raiz, pedida):
     """`execv` de `pre-push --suite`; sem recuo para o `discover`. A completa que vem do plano só com o `--status` em 1
     (livre): com a suíte rodando, sai 2 na hora em vez de entrar na fila; a pedida (`--completa`) entra na fila."""
@@ -1080,6 +1152,7 @@ def main(argv=None):
     p.add_argument("--texto", action="store_true", help="o mapa de testes e os testes de tamanho de texto (pré-envio)")
     p.add_argument("--registros", action="store_true", help="a conferência de registros do envio (PR-VERDE B1), só leitura")
     p.add_argument("--regerar", action="store_true", help="regera os derivados que o diff desatualizou (PR-VERDE B2)")
+    p.add_argument("--versoes", action="store_true", help="os afetados em cada versão de Python do CI (PR-VERDE D1)")
     p.add_argument("--modulos", metavar="M[,M...]")
     p.add_argument("--prazo", type=int, metavar="SEGUNDOS", help=f"por módulo, em segundos (padrão {PRAZO_PADRAO})")
     p.add_argument("--executar", help=argparse.SUPPRESS)  # interno: o executor por teste do `--vermelho`
@@ -1096,6 +1169,10 @@ def main(argv=None):
     if args.registros and (args.texto or args.caminhos or args.completa or args.listar or args.afetados or args.filtros
                            or args.vermelho is not None or args.prazo is not None or args.modulos is not None):
         p.error("--registros só combina com --base")
+    if args.versoes and (args.registros or args.regerar or args.texto or args.caminhos or args.completa or args.listar
+                         or args.afetados or args.filtros or args.vermelho is not None or args.prazo is not None
+                         or args.modulos is not None):
+        p.error("--versoes só combina com --base")
     if args.vermelho is None and args.modulos is not None:
         p.error("--modulos só vale com --vermelho")
     if args.vermelho is not None and (args.completa or args.listar or args.afetados):
@@ -1131,6 +1208,8 @@ def main(argv=None):
         return registros(args.base)
     if args.regerar:
         return regerar(args.base)
+    if args.versoes:
+        return versoes(args.base)
     try:
         oraculos()
         pedidos = caminhos_pedidos(args.caminhos, origem, raiz) if args.caminhos else []

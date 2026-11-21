@@ -3233,7 +3233,7 @@ class PesadoClassePelosArgumentos(unittest.TestCase):
                 self.assertTrue(self.classe(comando))
 
     def test_formas_leves_e_citacoes_nao_sao_pesadas(self):
-        for comando in ("bin/forge-testes --listar", "./bin/forge-testes --dirigida", "bin/forge-testes",
+        for comando in ("bin/forge-testes --listar", "./bin/forge-testes --afetados", "bin/forge-testes",
                         "bin/forge-mutante --listar", "./bin/forge-mutante --listar", "cat bin/forge-mutante",
                         "echo bin/forge-testes --completa", "grep -n x bin/forge-testes", "'' ; bin/forge-testes --listar"):
             with self.subTest(comando=comando):

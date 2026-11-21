@@ -289,12 +289,24 @@ def pede_opcao(argumento, opcao):
     return len(nome) > 2 and opcao.startswith(nome)
 
 
+# PESADO-VERSOES-FORA-DA-FILA (v0478 E64.1): lista fechada das opções do teste dirigido; qualquer outra (`--completa`,
+# `--vermelho`, `--versoes`, a desconhecida e a interna `--executar`) pesa. Nenhuma começa por `--c` nem `--v`.
+LEVES_DO_FORGE_TESTES = ("--base", "--listar", "--afetados", "--texto", "--registros", "--regerar")
+
+
+def opcao_leve(argumento):
+    """O separador `--`, o `-k` (inteiro ou `-k=x`) ou uma opção de LEVES_DO_FORGE_TESTES, inteira, prefixo ou `=`."""
+    if argumento.split("=", 1)[0] in ("--", "-k"):
+        return True
+    return any(pede_opcao(argumento, o) for o in LEVES_DO_FORGE_TESTES)
+
+
 def leve_pelos_argumentos(inicio, padrao):
-    """O teste dirigido (os dois primeiros de PELOS_ARGUMENTOS) sem `--completa` nem `--vermelho` em posição nenhuma; o
-    mutante só com `--listar` sozinho."""
+    """O teste dirigido (os dois primeiros de PELOS_ARGUMENTOS) só com opções leves em qualquer posição (o que vem
+    depois do `--` também é lido, para só apertar); o mutante só com `--listar` sozinho."""
     _, *argumentos = inicio.split()
     if padrao in PELOS_ARGUMENTOS[:2]:
-        return not any(pede_opcao(a, o) for a in argumentos for o in ("--completa", "--vermelho"))
+        return all(opcao_leve(a) for a in argumentos if a.startswith("-"))
     return argumentos == ["--listar"]
 
 
