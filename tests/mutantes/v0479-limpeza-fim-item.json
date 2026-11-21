@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-limpeza-fim-item",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: gh pr list que falha: a cópia fica",
+      "arquivo": "bin/forge-copia",
+      "de": "    if rc:\n        return \"não li",
+      "para": "    if False:\n        return \"não li",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_gh_que_falha_fica"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: PR aberto: a cópia fica",
+      "arquivo": "bin/forge-copia",
+      "de": "    if \"OPEN\" in estados:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_pr_aberto_fica"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: PR fechado ou mesclado encerra o item",
+      "arquivo": "bin/forge-copia",
+      "de": "    if estados:\n        return None",
+      "para": "    if False:\n        return None",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_clone_de_pr_fechado_sem_merge_e_apagado"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: sem PR, só vazio: sim encerra",
+      "arquivo": "bin/forge-copia",
+      "de": "rc == 0 and saida.startswith(\"vazio: sim\")",
+      "para": "rc in (0, 1)",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_sem_pr_e_sem_vazio_sim_fica"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: cópia fora da pasta liberada fica",
+      "arquivo": "bin/forge-copia",
+      "de": "    if real == b or os.path.commonpath([b, real]) != b:",
+      "para": "    if real == b:",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_fora_da_pasta_ou_a_propria_pasta"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: só a raiz de uma cópia git",
+      "arquivo": "bin/forge-copia",
+      "de": "    if rc or os.path.realpath(topo.strip()) != real:",
+      "para": "    if rc:",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_pasta_que_nao_e_raiz_de_copia_fica"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: HEAD solto fica",
+      "arquivo": "bin/forge-copia",
+      "de": "    if rc or not ref.startswith(\"refs/heads/\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_head_solto_fica"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "LIMPEZA-AO-FIM-DO-ITEM: clone confere stash e todas as refs",
+      "arquivo": "bin/forge-copia",
+      "de": "    if worktree:\n        conferir.append",
+      "para": "    if not worktree:\n        conferir.append",
+      "testes": [
+        "tests.test_forge_copia.Limpar.test_stash_fica"
+      ]
+    }
+  ]
+}
