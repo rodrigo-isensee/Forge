@@ -124,6 +124,57 @@ nova da retro v0478 (EV-V0478-ESTADO-COM-PROVA, absorvida no AE1).
 - Limite declarado: o corpus é finito. `aceites-novos=0` prova "nenhum caso conhecido passou a ser aceito", não "nada
   afrouxou". A segurança continua revisando, e a saída mostra a cobertura por família.
 
+#### Emenda AE7.1: limite declarado por lista positiva de forma (E58.52, software-architect)
+Motivo: cinco rodadas da segurança, cada uma com uma classe nova de porta (A1 a A14). A guarda cresceu por lista negativa;
+cada forma não listada era porta. Decisão: o comparador só mede a árvore que cumpre uma **lista positiva** de forma, nos
+dois lados, antes de extrair. Fora dela: `nao-verificavel` com o item que falhou. A lista é do código do comparador, nunca
+da árvore medida.
+- F1 modos: só blob `100644`, `100755` e pasta. Link `120000` (A11) e submódulo `160000` (A14) saem.
+- F2 nomes, em qualquer pasta: nenhum `.gitattributes` (A2) nem `.gitmodules` (A14, também sem gitlink).
+- F3 raiz: nenhum arquivo que o Claude Code lê por convenção além de `hooks/hooks.json` (`.mcp.json`, `.lsp.json`,
+  `settings.json`); o autor confere a lista na documentação de plugins da versão sondada e a cita no docstring.
+- F4 `plugin.json`: só as chaves `name`, `version`, `description`, `author`, `repository`, `homepage`, `license`,
+  `keywords`, `agents`, `skills`, `commands`. Qualquer outra (`hooks`, `mcpServers`, `lspServers`, `monitors`,
+  `outputStyles`, chave futura) sai (A10, A16).
+- F5 `marketplace.json`: só `$schema`, `name`, `owner`, `metadata` (só `description` e `version`; `pluginRoot` sai, A15) e
+  `plugins` com uma entrada só, `source` `.` ou `./` (A12) e chaves da F4 menos `agents`, `skills`, `commands`.
+- F6 cabeçalho de `.md`, forma simples: a 1ª linha de conteúdo na coluna 0; toda linha na coluna 0 que não é comentário é
+  `chave:` com a chave em `[A-Za-z0-9_-]` (sem aspas, `?`, `&`, `*`, `!`, `{`, `[`, `%`, `<<`); a chave não é `hooks` nem
+  `allowed-tools` (A16). Linha recuada é valor da chave de cima. Substitui o `CABECALHO_SUSPEITO` (A13 e o A14 do review
+  deixam de ser lista de truques).
+- F7 `hooks/hooks.json`: matcher na forma simples (A7), como hoje.
+
+O que ele promete medir: o veredito dos hooks de `hooks/hooks.json` sobre o corpus, numa árvore que cumpre F1 a F7.
+Fora do que ele promete (limite declarado, escrito no docstring e na ajuda, não reprova):
+- liberação que não passa por hook (A16): código de `bin/` e `scripts/`, instrução de agente, permissão do projeto ou do
+  usuário. `so-aperta: medido` fala dos hooks, não do plugin inteiro; o code review e a segurança seguem lendo o resto;
+- o que o instalador ou o Claude Code passarem a ler depois da versão sondada (arquivo de convenção novo na raiz, campo
+  novo fora dos manifestos). Campo novo nos manifestos já sai pela F4/F5;
+- o `metadata.pluginRoot` (A15) não precisa de prova de leitura: sai pela F5 por não estar na lista;
+- hook que detecta o ambiente sintético e o corpus finito (limite original acima).
+
+Critério de parada das rodadas da segurança (vale para o AE7.1 e o AE7.2):
+- bloqueante: árvore que cumpre F1 a F7, mede rc 0 ou 1, e o Claude Code instalado roda nela um hook, um argv, um ambiente
+  ou um conteúdo diferente do que o comparador rodou. A prova é a sonda nessa árvore, com o item da lista que ela cumpre;
+- bloqueante: item da lista implementado diferente do texto acima (teste que deveria dar rc 2 e dá rc 0);
+- limite declarado (cartão, não reprova): porta que exige forma fora de F1 a F7 (já sai `nao-verificavel` por construção) e
+  tudo da lista "fora do que ele promete". Quem achar caso nessa classe propõe item novo na lista por cartão.
+- A revalidação lê o delta e a lista; achado novo cita o item F que a árvore da sonda cumpre, ou é limite declarado.
+
+Efeito no Forge hoje (árvore do head 3fb6761c, lida neste clone): F2 e F3 cumprem (nenhum `.gitattributes`, `.gitmodules`,
+`.mcp.json`, `.lsp.json` nem `settings.json`); F4 cumpre (`name`, `version`, `description`, `author`, `repository`,
+`license`, `keywords`, `agents`, `skills`); F5 cumpre (`name`, `owner`, `metadata.description`, um plugin com `source` `.`,
+`name`, `description`); F1 cumpre pelos pareceres (0 links no review, 0 gitlinks na segurança); `allowed-tools` em 0 `.md`.
+F6 não foi provada sobre os 1535 cabeçalhos: o oráculo é o C0 (`forge-check comparar HEAD HEAD`, e o mesmo em
+`origin/develop` e `origin/main`) dar rc 0. Se um `.md` do Forge cair na F6, corrige-se o `.md`, não a regra.
+
+Afrouxa: não. Toda forma que hoje dá rc 2 continua dando; a lista só acrescenta saídas rc 2 (o corpo do `.md` já não
+contava desde o A13). O critério de parada muda o que reprova na revisão da segurança, não uma regra de `docs/regras/`; se
+o `security-engineer` divergir, vira ADR com as duas posições. Tamanho: F4 a F6 trocam código que existe
+(`declara_hooks`, `plugin_fora_da_raiz`, `CABECALHO_SUSPEITO`); o teto já excedido (303 linhas) não deve crescer mais de 30.
+Reversão: um afrouxamento real, num PR da `develop`, que passe F1 a F7 com rc 0 e só a revisão humana pegue reabre a
+decisão (a lista positiva não fecha a classe e volta a lista de truques com sonda por rodada).
+
 ### AE8: ruleset da develop sem exceção
 - (a) Recomendada, em duas partes:
   - Texto: o `devops-engineer` atualiza o passo a passo, no Forge e no modelo de projeto, para o estado real: achar o
