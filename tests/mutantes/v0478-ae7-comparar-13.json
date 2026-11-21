@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP83",
+      "guarda": "AE7.1 fora_da_medida: submódulo sai pela F1 (A14)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if modo not in MODOS), None)",
+      "para": "if modo not in MODOS + (b\"160000\",)), None)",
+      "testes": [
+        "tests.test_comparar.ComoOClone.test_submodulo_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP84",
+      "guarda": "AE7.1 fora_da_medida: .gitmodules em qualquer pasta (F2)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "in NOMES_FORA for",
+      "para": "in NOMES_FORA[:1] for",
+      "testes": [
+        "tests.test_comparar.ComoOClone.test_gitattributes_em_qualquer_lado_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP85",
+      "guarda": "AE7.1 fora_da_medida: nome da raiz sem diferença de caixa (F3)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if n.lower().split(b\"/\")[0] in RAIZ_FORA), None)",
+      "para": "if n.split(b\"/\")[0] in RAIZ_FORA), None)",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f3_arquivo_de_convencao_na_raiz"
+      ]
+    },
+    {
+      "id": "CMP86",
+      "guarda": "AE7.1 fora_da_medida: arquivo de convenção na raiz (F3)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if fora:\n        return f\"F3",
+      "para": "    if False:\n        return f\"F3",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f3_arquivo_de_convencao_na_raiz"
+      ]
+    },
+    {
+      "id": "CMP87",
+      "guarda": "AE7.1 objeto_na_lista: chave da raiz fora da lista (F4, F5)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "set(objeto) <= chaves_da_raiz",
+      "para": "set(objeto) >= set()",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f4_chave_fora_da_lista_no_plugin_json"
+      ]
+    },
+    {
+      "id": "CMP88",
+      "guarda": "AE7.1 objeto_na_lista: JSON que não é objeto (F4)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "isinstance(objeto, dict) and set(objeto)",
+      "para": "True and set(objeto)",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f4_chave_fora_da_lista_no_plugin_json"
+      ]
+    },
+    {
+      "id": "CMP89",
+      "guarda": "AE7.1 marketplace_fora_da_lista: chaves da entrada (F5)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "set(plugins[0]) <= CHAVES_ENTRADA",
+      "para": "set(plugins[0]) >= set()",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f5_marketplace_fora_da_lista"
+      ]
+    },
+    {
+      "id": "CMP90",
+      "guarda": "AE7.1 marketplace_fora_da_lista: metadata sem pluginRoot (F5, A15)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "set(metadata) <= {\"description\", \"version\"}",
+      "para": "set(metadata) >= set()",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f5_marketplace_fora_da_lista"
+      ]
+    }
+  ]
+}

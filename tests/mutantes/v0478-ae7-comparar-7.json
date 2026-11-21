@@ -1,0 +1,26 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP48",
+      "guarda": "AE7.1 extrair: modo fora da F1 não se grava (A11)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "            if modo not in MODOS:",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_comparar.LinksESource.test_extrair_nao_grava_link"
+      ]
+    },
+    {
+      "id": "CMP49",
+      "guarda": "AE7.1 rodar_caso: hook sem updatedInput não entra nas reescritas",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "for _, r in lidos if r is not None)",
+      "para": "for _, r in lidos if True)",
+      "testes": [
+        "tests.test_comparar.Medida.test_mesma_arvore_mede_zero"
+      ]
+    }
+  ]
+}
