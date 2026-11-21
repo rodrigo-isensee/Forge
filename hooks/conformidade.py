@@ -2126,7 +2126,7 @@ class Guarda:
                 self.checar_texto(corpo)
             self.h.corpos_pendentes -= 1
         self.nao_modelada(achado)
-        if nivel == 0 and not self.leitura and envio_com_substituicao(original):  # CONFORMIDADE-SUBSTITUICAO-NO-PROJETO
+        if nivel == 0 and not self.leitura and envio_com_substituicao(comando):  # CONFORMIDADE-SUBSTITUICAO-NO-PROJETO
             self.barrar("R-CONFORMIDADE", "envio do git com o programa, o subcomando, a flag ou o destino vindos de "
                                           "substituição ($(…), crase, <(…)) ou da entrada (xargs, pipe para o shell): o hook não "
                                           "sabe o valor", "escreva o envio literal: git push origin <branch>", trava=TRAVA_OPACA)
@@ -2176,10 +2176,7 @@ class Guarda:
             vistas.add(contextos[sub][0])
         return contextos[()][0], vistas
 
-    @staticmethod
-    def critico(texto):
-        """O marcador da ação crítica (`CRITICO`); a `GuardaDaProva` soma o pedido e o brief da pasta de controle."""
-        return bool(CRITICO.search(texto))
+    critico = CRITICO.search  # o marcador da ação crítica; a `GuardaDaProva` soma o controle (custo: uma chamada só)
 
     def nao_modelada(self, achado):
         """ADR 0011, item 2: recusa a linha crítica com construção que o analisador não modela (`construcao_nao_modelada`)."""
@@ -2690,22 +2687,22 @@ class Guarda:
     def git_indice(self, sub, args, pastas, opcoes=()):
         """CONFORMIDADE-ESCRITA-NO-INDICE: `git add` (toda opção) e `git update-index` (também `--cacheinfo`, nas duas
         formas) que nomeiam um caminho `quem: []` da política recusam, como a escrita na árvore. Toda palavra que não é
-        opção conta como caminho (o modo e o sha do `--cacheinfo` não casam regra), e o pathspec que não é varredura
-        vale também pelo que alcança no índice e fora dele (`git ls-files -c -o`). A lista pela entrada (`--stdin`,
+        opção conta como caminho (o modo e o sha do `--cacheinfo` não casam regra), e o pathspec que não é varredura (pasta,
+        curinga ou magia) vale também pelo que alcança no índice e fora dele (`git ls-files -c -o`). A lista pela entrada (`--stdin`,
         `--index-info`, `--pathspec-from-file`) recusa: o hook não a lê. Limite: o comando sem o caminho (`git add -A`,
         `git add .`, `git commit -a`) segue fora."""
         if any(abreviacao_de(a, INDICE_PELA_ENTRADA) for a in args):
             self.barrar("R-CONFORMIDADE", f"git {sub} com a lista de caminhos pela entrada: o hook não a lê",
                         "passe os caminhos na linha de comando; o que for protegido é do usuário (R-DECISAO)")
-        palavras = [a for a in args if not a.startswith("-")]
+        palavras, termos = [a for a in args if not a.startswith("-")], MARCADOR.termos()
         caminhos = palavras + [a.split(",", 2)[2] for a in palavras if a.count(",") >= 2]
         for pasta in dict.fromkeys(pastas):
             for c in caminhos:
                 alvos = self.alvos_da_escrita(c, pasta)
-                if not self.varredura(c):
+                if not self.varredura(c) and (GLOB_DE_PATHSPEC.search(c) or c.startswith(":") or alvos[0].is_dir()):
                     alvos += filter(self.pode_ser_protegido, self.tracked_do_pathspec(c, pasta, opcoes, ("-c", "-o")))
                 for alvo in alvos:
-                    achado = self.caminho_barrado(Path(alvo))
+                    achado = self.caminho_barrado(Path(alvo)) if termos is False or termos.search(str(alvo)) else None
                     if achado and achado[3:4] == ("instalacao",):
                         self.barrar(achado[0], f"git {sub} grava no índice {achado[1]}", achado[2])
 
@@ -3792,6 +3789,7 @@ PARECER_NO_TEXTO = re.compile(r"(?<![\w.-])docs/(?:reviews|qa|devops|security)(?
 CAMINHOS_DO_CONTROLE = ("~/.forge-contrib/docs/pedidos/", "~/.forge-contrib/*/docs/pedidos/",
                         "~/.forge-contrib/docs/briefs/", "~/.forge-contrib/*/docs/briefs/")
 CONTROLE_NO_TEXTO = re.compile(r"\.forge-contrib(?:/[^/\s]+)?/docs/(?:pedidos|briefs)(?![\w.-])", re.I)
+CRITICO_COM_CONTROLE = re.compile(f"{CRITICO.pattern}|{CONTROLE_NO_TEXTO.pattern}", re.I)
 
 
 class GuardaDaProva(Guarda):
@@ -3806,6 +3804,9 @@ class GuardaDaProva(Guarda):
     (`trava_da_sessao_do_forge`)."""
     def __init__(self, hook, pol, papel, no_clone=False, travas=False):
         super().__init__(hook, pol, papel)
+        # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS: a linha que cita o pedido ou o brief da pasta de controle é crítica para o
+        # papel que não é o jarvis, e a construção que o hook não modela nela recusa.
+        self.critico = CRITICO_COM_CONTROLE.search if papel != "jarvis" else CRITICO.search
         self.no_clone, self.travas = no_clone, travas
         self.motivos_do_estado = tuple(e["motivo"] for e in pol["caminhos"] if e["caminho"] in ESTADO_DOS_HOOKS)
         self.motivo_do_config = next((e["motivo"] for e in pol["caminhos"] if e["caminho"] == CONFIG_DA_RAIZ), None)
@@ -3852,8 +3853,8 @@ class GuardaDaProva(Guarda):
         if any(f"{e['motivo']}: {e['caminho']}" in o_que
                for e in self.pol["caminhos"] if e["caminho"] in CAMINHOS_DE_PARECER):
             return True  # PARECER-PELO-PAPEL
-        if any(f"{e['motivo']}: {e['caminho']}" in o_que
-               for e in self.pol["caminhos"] if e["caminho"] in CAMINHOS_DO_CONTROLE):
+        if ".forge-contrib/" in o_que and any(f"{e['motivo']}: {e['caminho']}" in o_que
+                                              for e in self.pol["caminhos"] if e["caminho"] in CAMINHOS_DO_CONTROLE):
             return True  # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS
         if any(m in o_que for m in self.motivos_do_estado):
             return True
@@ -3863,15 +3864,11 @@ class GuardaDaProva(Guarda):
         return "o hook não modela" in o_que and isinstance(linha, str) and (
             bool(ESTADO_NO_TEXTO.search(linha)) or self.parecer_no_texto(linha))
 
-    def critico(self, texto):
-        """CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS: a linha que cita o pedido ou o brief da pasta de controle conta como
-        crítica para o papel que não é o jarvis, e a construção que o hook não modela nela recusa."""
-        return super().critico(texto) or self.controle_no_texto(texto)
-
     def controle_no_texto(self, linha):
         """CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS: a linha que o hook não lê cita o pedido ou o brief da pasta de controle, e
         o papel não é o jarvis (o dono grava pelo caminho literal ou pelo `forge-check`)."""
-        return self.papel != "jarvis" and bool(CONTROLE_NO_TEXTO.search(juntar_continuacoes(linha)))
+        return self.papel != "jarvis" and ("forge-contrib" in linha.lower() or "\\\n" in linha) and bool(
+            CONTROLE_NO_TEXTO.search(juntar_continuacoes(linha)))  # o `in` antes: custo do corpus
 
     @staticmethod
     def parecer_no_texto(linha):
@@ -3963,15 +3960,15 @@ CITA_O_ENVIO = re.compile(r"(?<![\w./-])(?:push|send-pack)(?![\w.-])")
 
 
 def envio_com_substituicao(linha):
-    """Algum comando simples da linha (sem os corpos de heredoc) é um envio do git, ou pode ser, com parte que o hook não
-    sabe: o programa por substituição seguido de `push` ou de outra substituição (`$(echo git) push`), o subcomando por
+    """Algum comando simples da linha (já sem os corpos de heredoc: a mesma que `leituras` lê, e a leitura dela vem do
+    cache de `palavras_do_texto`) é um envio do git, ou pode ser, com parte que o hook não sabe: o programa por substituição seguido de `push` ou de outra substituição (`$(echo git) push`), o subcomando por
     substituição (`git $(echo push)`), uma flag ou o destino do envio por substituição (`git push $(echo --force)`), o
     envio atrás do `xargs` (os argumentos vêm do pipe), ou o shell que lê a entrada numa linha que cita o git e o envio
     (`echo 'git push …' | bash`)."""
-    try:
-        linha, _ = tirar_heredocs(linha)
-    except ValueError:
-        pass
+    marcador = "$(" in linha or "`" in linha or "<(" in linha
+    envio = "push" in linha or "send-pack" in linha or "\\" in linha  # o escape pode esconder o nome (`pu\sh`)
+    if not (marcador and (envio or "git" in linha) or envio and ("xargs" in linha or "sh" in linha.replace("push", ""))):
+        return False  # custo do corpus (o `in` não é chamada): nenhum caso abaixo casa sem esses textos
     cita_o_envio = bool(GIT_NO_TEXTO.search(linha) and CITA_O_ENVIO.search(linha))
     for comando in palavras_do_texto(linha).simples:
         originais = [p for p in comando.palavras if p.cru not in ANTES_DO_PROGRAMA and not ATRIBUICAO.match(p.cru)]

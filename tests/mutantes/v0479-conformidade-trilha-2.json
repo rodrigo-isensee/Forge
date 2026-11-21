@@ -34,9 +34,9 @@
     },
     {
       "id": "I4",
-      "guarda": "o pathspec que não é varredura vale pelo que alcança (E63.1)",
+      "guarda": "o pathspec de pasta, curinga ou magia, que não é varredura, vale pelo que alcança (E63.1)",
       "arquivo": "hooks/conformidade.py",
-      "de": "                if not self.varredura(c):\n",
+      "de": "                if not self.varredura(c) and (GLOB_DE_PATHSPEC.search(c) or c.startswith(\":\") or alvos[0].is_dir()):\n",
       "para": "                if False:\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
@@ -58,6 +58,16 @@
       "arquivo": "hooks/conformidade.py",
       "de": "                    if achado and achado[3:4] == (\"instalacao\",):\n",
       "para": "                    if achado:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
+      ]
+    },
+    {
+      "id": "I8",
+      "guarda": "o alvo que casa um termo da política passa pela regra inteira (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    achado = self.caminho_barrado(Path(alvo)) if termos is False or termos.search(str(alvo)) else None\n",
+      "para": "                    achado = None\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
       ]

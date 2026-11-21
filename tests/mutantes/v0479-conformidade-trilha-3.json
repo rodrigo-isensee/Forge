@@ -6,7 +6,7 @@
       "id": "S1",
       "guarda": "a linha com envio de parte opaca recusa no nível 0 (E63.1)",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if nivel == 0 and not self.leitura and envio_com_substituicao(original):  # CONFORMIDADE-SUBSTITUICAO-NO-PROJETO\n",
+      "de": "        if nivel == 0 and not self.leitura and envio_com_substituicao(comando):  # CONFORMIDADE-SUBSTITUICAO-NO-PROJETO\n",
       "para": "        if False:  # CONFORMIDADE-SUBSTITUICAO-NO-PROJETO\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
@@ -78,6 +78,16 @@
       "arquivo": "hooks/conformidade.py",
       "de": "            no_programa = j == 0 or nomes[j - 1] in ENVOLVEDORES\n",
       "para": "            no_programa = j == 0\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "S9",
+      "guarda": "o filtro barato só pula a linha sem substituição, xargs nem envio citado (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not (marcador and (envio or \"git\" in linha) or envio and (\"xargs\" in linha or \"sh\" in linha.replace(\"push\", \"\"))):\n",
+      "para": "    if True:\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
       ]
