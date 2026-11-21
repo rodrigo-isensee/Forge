@@ -36,8 +36,8 @@
       "id": "C4",
       "guarda": "o jarvis, dono, segue livre no texto do controle (E63.1)",
       "arquivo": "hooks/conformidade.py",
-      "de": "        return self.controle is not None and bool(\n",
-      "para": "        return self.controle is None or bool(\n",
+      "de": "        if self.controle is None:\n            return False\n",
+      "para": "        if self.controle is None:\n            return True\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
       ]

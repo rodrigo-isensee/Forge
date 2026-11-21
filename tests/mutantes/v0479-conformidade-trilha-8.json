@@ -66,7 +66,7 @@
       "id": "V6",
       "guarda": "o shell com a entrada tirada de um arquivo não lê o pipe (E63.5, E51.10)",
       "arquivo": "hooks/conformidade.py",
-      "de": "    if redirecoes and any(r.operador == \"<\" and r.alvo and not SUBSTITUICAO_NA_PALAVRA.search(r.alvo.cru) for r in redirecoes):\n",
+      "de": "    if redirecoes and entrada_de_arquivo(redirecoes, linha):\n",
       "para": "    if False:\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
@@ -76,8 +76,8 @@
       "id": "V7",
       "guarda": "a entrada tirada de <(…) é texto opaco (E63.5, A4)",
       "arquivo": "hooks/conformidade.py",
-      "de": "    if redirecoes and any(r.operador == \"<\" and r.alvo and not SUBSTITUICAO_NA_PALAVRA.search(r.alvo.cru) for r in redirecoes):\n",
-      "para": "    if any(r.operador == \"<\" and r.alvo for r in redirecoes):\n",
+      "de": "    if alvo is None or re.search(r\"[`*?[{]|<\\(\", alvo.cru):\n",
+      "para": "    if alvo is None or re.search(r\"[`*?[{]\", alvo.cru):\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
       ]
