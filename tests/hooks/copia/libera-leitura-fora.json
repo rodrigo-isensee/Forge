@@ -1,0 +1,8 @@
+{
+  "descricao": "HOOK-AGENTE-FORA-DA-PROPRIA-COPIA (R-CONFORMIDADE): leitura fora da cópia (git log, git show, cat) segue livre.",
+  "git": [{"worktree": "wt", "branch": "melhoria/x"}],
+  "estado": {"agentes.json": {"agentes": [{"id": "a0123456789abcdef", "tipo": "forge:tech-lead", "desde": "{agora-60}", "escrita": ["melhoria/x"]}]}},
+  "entrada": {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_use_id": "toolu_1", "agent_id": "a0123456789abcdef",
+    "agent_type": "forge:tech-lead", "tool_input": {"command": "git log --oneline -3 && git -C {raiz} show HEAD && cat {raiz}/README.md"}},
+  "esperado": {"codigo": 0}
+}

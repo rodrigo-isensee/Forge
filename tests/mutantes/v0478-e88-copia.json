@@ -1,0 +1,70 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CP1",
+      "guarda": "E88.1 resolver: variável que sobra ou substituição deixa o alvo incerto",
+      "arquivo": "hooks/copia.py",
+      "de": "if pasta is None or \"$\" in p or \"`\" in p:",
+      "para": "if pasta is None:",
+      "testes": ["tests.test_copia.Leitura.test_resolver"]
+    },
+    {
+      "id": "CP2",
+      "guarda": "E88.1 destino de redireção é alvo",
+      "arquivo": "hooks/copia.py",
+      "de": "if segmento[i] in REDIRECOES]",
+      "para": "if segmento[i] not in REDIRECOES]",
+      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
+    },
+    {
+      "id": "CP3",
+      "guarda": "E88.1 o cd muda a pasta dos comandos seguintes",
+      "arquivo": "hooks/copia.py",
+      "de": "if nome == \"cd\":",
+      "para": "if nome == \"xx\":",
+      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
+    },
+    {
+      "id": "CP4",
+      "guarda": "E88.1 o git de escrita tem a pasta como alvo",
+      "arquivo": "hooks/copia.py",
+      "de": "if nome == \"git\":",
+      "para": "if nome == \"xx\":",
+      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
+    },
+    {
+      "id": "CP5",
+      "guarda": "E88.1 o -C depois do subcomando é dele, não muda a pasta",
+      "arquivo": "hooks/copia.py",
+      "de": "if anterior == \"-C\" and not sub:",
+      "para": "if anterior == \"-C\":",
+      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
+    },
+    {
+      "id": "CP6",
+      "guarda": "E88.1 o valor de -c e -C não é o subcomando",
+      "arquivo": "hooks/copia.py",
+      "de": "elif not (sub or token.startswith(\"-\") or anterior in VALOR_DO_GIT):",
+      "para": "elif not (sub or token.startswith(\"-\")):",
+      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
+    },
+    {
+      "id": "CP7",
+      "guarda": "E88.1 git de leitura não é alvo",
+      "arquivo": "hooks/copia.py",
+      "de": "pasta_git if sub in GIT_DE_ESCRITA else None",
+      "para": "pasta_git if True else None",
+      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
+    },
+    {
+      "id": "CP8",
+      "guarda": "E88.1 a linha se lê comando a comando",
+      "arquivo": "hooks/copia.py",
+      "de": "if token in SEPARADORES:",
+      "para": "if token in ():",
+      "testes": ["tests.test_copia.Leitura.test_linha_inteira"]
+    }
+  ]
+}

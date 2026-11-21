@@ -1,0 +1,70 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CP9",
+      "guarda": "E88.1 o Bash se lê pelo comando",
+      "arquivo": "hooks/copia.py",
+      "de": "hook.campo(\"tool_name\") == \"Bash\", hook.cwd()",
+      "para": "hook.campo(\"tool_name\") != \"Bash\", hook.cwd()",
+      "testes": ["tests.test_copia.Leitura.test_alvos_por_ferramenta"]
+    },
+    {
+      "id": "CP10",
+      "guarda": "E88.1 Write, Edit e NotebookEdit se leem pelo caminho",
+      "arquivo": "hooks/copia.py",
+      "de": "\"command\" if bash else CAMPO_DO_CAMINHO",
+      "para": "\"command\" if True else CAMPO_DO_CAMINHO",
+      "testes": ["tests.test_copia.Leitura.test_alvos_por_ferramenta"]
+    },
+    {
+      "id": "CP11",
+      "guarda": "E88.1 tool_input que não é objeto não tem alvo",
+      "arquivo": "hooks/copia.py",
+      "de": "entrada.get(chave) if isinstance(entrada, dict) else None",
+      "para": "entrada.get(chave) if True else None",
+      "testes": ["tests.test_copia.Leitura.test_alvos_por_ferramenta"]
+    },
+    {
+      "id": "CP12",
+      "guarda": "E88.1 caminho vazio não vira a pasta atual",
+      "arquivo": "hooks/copia.py",
+      "de": "if not isinstance(valor, str) or not valor:",
+      "para": "if not isinstance(valor, str):",
+      "testes": ["tests.test_copia.Leitura.test_alvos_por_ferramenta"]
+    },
+    {
+      "id": "CP13",
+      "guarda": "E88.1 o comando do Bash vai à leitura da linha",
+      "arquivo": "hooks/copia.py",
+      "de": "alvos_do_bash(valor, cwd) if bash else",
+      "para": "alvos_do_bash(valor, cwd) if False else",
+      "testes": ["tests.test_copia.Leitura.test_alvos_por_ferramenta"]
+    },
+    {
+      "id": "CP14",
+      "guarda": "E88.1 a própria pasta conta como dentro",
+      "arquivo": "hooks/copia.py",
+      "de": "return caminho == pasta or caminho.startswith(",
+      "para": "return caminho.startswith(",
+      "testes": ["tests.test_copia.Leitura.test_dentro"]
+    },
+    {
+      "id": "CP15",
+      "guarda": "E88.1 worktree: o .git é arquivo com o gitdir",
+      "arquivo": "hooks/copia.py",
+      "de": "if marca.is_file():",
+      "para": "if False:",
+      "testes": ["tests.test_copia.Copias.test_head_de"]
+    },
+    {
+      "id": "CP16",
+      "guarda": "E88.1 HEAD solto não é cópia de branch",
+      "arquivo": "hooks/copia.py",
+      "de": "if texto.startswith(\"ref: refs/heads/\") else None",
+      "para": "if True else None",
+      "testes": ["tests.test_copia.Copias.test_head_de"]
+    }
+  ]
+}

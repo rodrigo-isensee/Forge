@@ -1,0 +1,61 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CP25",
+      "guarda": "E88.1 fora de projeto do Forge o hook não age",
+      "arquivo": "hooks/copia.py",
+      "de": "    if raiz is None:\n        return\n    todas",
+      "para": "    if False:\n        return\n    todas",
+      "testes": ["tests.test_copia.Copias.test_sem_projeto_nao_le_as_copias"]
+    },
+    {
+      "id": "CP26",
+      "guarda": "E88.1 a cópia é a que está numa branch do agente",
+      "arquivo": "hooks/copia.py",
+      "de": "if ref in refs]",
+      "para": "if ref not in refs]",
+      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+    },
+    {
+      "id": "CP27",
+      "guarda": "E88.1 sem cópia no registro, libera e anota no erros.log",
+      "arquivo": "hooks/copia.py",
+      "de": "    if not proprias:\n",
+      "para": "    if False:\n",
+      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+    },
+    {
+      "id": "CP28",
+      "guarda": "E88.1 dentro da própria cópia libera",
+      "arquivo": "hooks/copia.py",
+      "de": "fora = not any(",
+      "para": "fora = any(",
+      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+    },
+    {
+      "id": "CP29",
+      "guarda": "E88.1 outra cópia do projeto recusa mesmo em pasta temporária",
+      "arquivo": "hooks/copia.py",
+      "de": "if fora and (any(dentro(alvo, p) for p in outras) or not livre(alvo)):",
+      "para": "if fora and not livre(alvo):",
+      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+    },
+    {
+      "id": "CP30",
+      "guarda": "E88.1 o hook está registrado no hooks.json",
+      "arquivo": "hooks/hooks.json",
+      "de": "\"${CLAUDE_PLUGIN_ROOT}/hooks/copia.py\"",
+      "para": "\"${CLAUDE_PLUGIN_ROOT}/hooks/nada.py\"",
+      "testes": ["tests.test_hooks.Hooks.test_hooks_json"]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/copia.py",
+      "trecho": "__name__ == \"__main__\"",
+      "motivo": "a entrada do script, a mesma de todos os hooks; as fixtures rodam o arquivo como programa e a provam"
+    }
+  ]
+}

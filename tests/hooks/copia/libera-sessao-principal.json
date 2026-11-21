@@ -1,0 +1,7 @@
+{
+  "descricao": "HOOK-AGENTE-FORA-DA-PROPRIA-COPIA (R-CONFORMIDADE): sem agent_id (a sessão principal, o Jarvis) o hook não confere.",
+  "git": [{"worktree": "wt", "branch": "melhoria/x"}],
+  "estado": {"agentes.json": {"agentes": [{"id": "a0123456789abcdef", "tipo": "forge:tech-lead", "desde": "{agora-60}", "escrita": ["melhoria/x"]}]}},
+  "entrada": {"hook_event_name": "PreToolUse", "tool_name": "Write", "tool_use_id": "toolu_1", "tool_input": {"file_path": "{raiz}/x.txt", "content": "x\n"}},
+  "esperado": {"codigo": 0}
+}

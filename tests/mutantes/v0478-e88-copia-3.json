@@ -1,0 +1,70 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CP17",
+      "guarda": "E88.1 o git das worktrees não herda GIT_*",
+      "arquivo": "hooks/copia.py",
+      "de": "if not k.startswith(\"GIT_\")}",
+      "para": "if True}",
+      "testes": ["tests.test_copia.Copias.test_copias"]
+    },
+    {
+      "id": "CP18",
+      "guarda": "E88.1 cada worktree da lista é uma cópia",
+      "arquivo": "hooks/copia.py",
+      "de": "if linha.startswith(\"worktree \"):",
+      "para": "if False:",
+      "testes": ["tests.test_copia.Copias.test_copias"]
+    },
+    {
+      "id": "CP19",
+      "guarda": "E88.1 a branch da worktree vem da lista",
+      "arquivo": "hooks/copia.py",
+      "de": "elif linha.startswith(\"branch refs/heads/\"):",
+      "para": "elif False:",
+      "testes": ["tests.test_copia.Copias.test_copias"]
+    },
+    {
+      "id": "CP20",
+      "guarda": "E88.1 os clones de ~/.forge-contrib/wt/ são cópias",
+      "arquivo": "hooks/copia.py",
+      "de": "if wt.is_dir() else []",
+      "para": "if False else []",
+      "testes": ["tests.test_copia.Copias.test_copias"]
+    },
+    {
+      "id": "CP21",
+      "guarda": "E88.1 só a reserva do próprio agente dá a branch",
+      "arquivo": "hooks/copia.py",
+      "de": "if isinstance(a, dict) and a.get(\"id\") == aid",
+      "para": "if isinstance(a, dict)",
+      "testes": ["tests.test_copia.Copias.test_branches_do_agente"]
+    },
+    {
+      "id": "CP22",
+      "guarda": "E88.1 ~/.forge-contrib/wt/ não é pasta de controle",
+      "arquivo": "hooks/copia.py",
+      "de": "if dentro(caminho, controle) and not dentro(caminho, os.path.join(controle, \"wt\")):",
+      "para": "if dentro(caminho, controle):",
+      "testes": ["tests.test_copia.Leitura.test_livre"]
+    },
+    {
+      "id": "CP23",
+      "guarda": "E88.1 sem agent_id (a sessão principal) o hook não confere",
+      "arquivo": "hooks/copia.py",
+      "de": "if hook.campo(\"hook_event_name\") == \"PreToolUse\" and isinstance(aid, str) and aid else []",
+      "para": "if hook.campo(\"hook_event_name\") == \"PreToolUse\" else []",
+      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+    },
+    {
+      "id": "CP24",
+      "guarda": "E88.1 sem alvo de escrita o hook não lê o registro",
+      "arquivo": "hooks/copia.py",
+      "de": "clone_do_forge=True) if lista else None",
+      "para": "clone_do_forge=True) if True else None",
+      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+    }
+  ]
+}

@@ -186,7 +186,7 @@ RODAM_OS_HOOKS = (("test_hooks", "test_catraca", "test_sugerir", "test_forge", "
                    "test_hooks_parecer_pasta", "test_esperar_estado", "test_brief_forma_aceita", "test_conformidade_verde", "test_reval_delta", "test_selo_e_entrega",
                    "test_classe_risco", "test_pesado_fila", "test_meta", "test_vigia", "test_trava_agente_morto", "test_pr_hook_prazo",
                    "test_hook_destino_opaco", "test_conformidade_opaco", "test_pr_hook_rapido",
-                   "test_pre_push_patch", "test_ambiente_hook", "test_estado_ilegivel", "test_maquina") + VOLTA_UNICA  # v047 E2.567: test_pre_push_patch lê hooks/_comum.py
+                   "test_pre_push_patch", "test_ambiente_hook", "test_estado_ilegivel", "test_maquina", "test_copia") + VOLTA_UNICA  # v047 E2.567: test_pre_push_patch lê hooks/_comum.py
                   + EVALS_DE_FORMA)
 MAPA = [
     (r"bin/forge-changelog", ("test_changelog", "test_conferir_release", "test_forge", "test_pre_push_afetados") + EVALS_DE_FORMA),  # PREPUSH-BARATAS

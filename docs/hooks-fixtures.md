@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3372 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3390 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -11,6 +11,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3372 fixtures) roda em `tests/test
 | `agentes` | 125 | 66 | 59 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
 | `conformidade` | 2541 | 1877 | 664 | 100 |
+| `copia` | 18 | 8 | 10 | 4 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 32 | 13 | 19 | 14 |
 | `parecer` | 583 | 448 | 135 | 27 |
@@ -165,6 +166,15 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3372 fixtures) roda em `tests/test
 | `rm-*` | 1 | 1 | 0 | `R-CONFORMIDADE` | — | A marca da sessão (`.git/forge/projeto-<hash da raiz>`) é protegida contra escrita e remoção pelos agentes. |
 | `so-*` | 1 | 0 | 1 | — | — | Sessão de projeto (externo) com plugin.json forjado na raiz: os caminhos so_forge não valem (C-5 c). |
 | `sparse-*` | 1 | 1 | 0 | — | — | A marca da sessão fica dentro do `.git/`: `git sparse-checkout set src` apaga o `.forge/versao` da árvore de trabalho e não a marca, então a… |
+
+## `copia`
+
+| Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| `libera-*` | 8 | 0 | 8 | — | `HOOK-AGENTE-FORA-DA-PROPRIA-COPIA` | HOOK-AGENTE-FORA-DA-PROPRIA-COPIA (R-CONFORMIDADE): cd para a cópia e git commit com a mensagem em heredoc. |
+| `recusa-*` | 8 | 8 | 0 | `R-CONFORMIDADE` | `HOOK-AGENTE-FORA-DA-PROPRIA-COPIA` | HOOK-AGENTE-FORA-DA-PROPRIA-COPIA (R-CONFORMIDADE): status na cópia, depois cd para a raiz e git switch. |
+| `erro-*` | 1 | 0 | 1 | — | `HOOK-AGENTE-FORA-DA-PROPRIA-COPIA` | HOOK-AGENTE-FORA-DA-PROPRIA-COPIA (R-CONFORMIDADE): registro ilegível libera e registra em erros.log. |
+| `sem-*` | 1 | 0 | 1 | — | — | Projeto sem .forge/versao: o hook não age. |
 
 ## `doutor`
 

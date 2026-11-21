@@ -1,0 +1,9 @@
+{
+  "descricao": "HOOK-AGENTE-FORA-DA-PROPRIA-COPIA (R-CONFORMIDADE): a pasta de controle (~/.forge-contrib fora de wt/) segue livre.",
+  "git": [{"worktree": "wt", "branch": "melhoria/x"}],
+  "env": {"HOME": "/var/forge-copia-home"},
+  "estado": {"agentes.json": {"agentes": [{"id": "a0123456789abcdef", "tipo": "forge:tech-lead", "desde": "{agora-60}", "escrita": ["melhoria/x"]}]}},
+  "entrada": {"hook_event_name": "PreToolUse", "tool_name": "Write", "tool_use_id": "toolu_1", "agent_id": "a0123456789abcdef",
+    "agent_type": "forge:tech-lead", "tool_input": {"file_path": "/var/forge-copia-home/.forge-contrib/docs/briefs/x.md", "content": "x\n"}},
+  "esperado": {"codigo": 0}
+}
