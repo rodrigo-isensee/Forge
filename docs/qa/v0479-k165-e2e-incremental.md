@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-k165-e2e-incremental
-commit: f700354c98e71c6d50ecb54ff47d8677c672fb9a
+commit: b4a5764717bf5d03815bf9071b9bf93aeabe47ad
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -32,3 +32,6 @@ Mutação à mão no trecho da skill (`nunca em /tmp, que some` → `nunca em ou
 
 ## Execução
 Local, só os módulos acima, com TMPDIR; sem suíte inteira (a bateria roda no CI do PR).
+
+## Revalidação (E73.8, head b4a57647)
+Delta desde f700354c (`forge-check parecer delta`): `skills/qa-testing/SKILL.md` (ordem de acrescentar `relatorios/` ao `.gitignore` antes da rodada) e `tests/config.json` (invariante e motivo mais estritos, regex alinhada ao texto). Rodados com TMPDIR: `test_metricas_texto` (2 OK), `test_invariante_gatilho` (1 OK), `test_forge -k RegrasInviolaveis` (3 OK). Mutação à mão no trecho novo (`ao .gitignore antes` por `depois`): `RegrasInviolaveis` falha (failures=1); desfeita com `git checkout`. A1 segue recomendado. Parecer: aprovado.
