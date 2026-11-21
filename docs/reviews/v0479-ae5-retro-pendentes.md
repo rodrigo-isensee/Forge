@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae5-retro-pendentes
-commit: 8d2efa1fdc94a5962a2323c38592a079a23c1612
+commit: c38abefad5b1b87c04628b6524c579f87b6bd529
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
@@ -60,6 +60,17 @@ Delta lido só por `forge-check parecer delta docs/reviews/v0479-ae5-retro-pende
 - `8d2efa1f`: `COBRE_DA_RETRO`, `VERSAO_DA_TAG` e `REF_DA_MAIN` passam a texto e os quatro usos (`bin/forge-check:5896`, `5909`, `5917`, `5927`) chamam `re.match`/`re.fullmatch` com o padrão; nenhum uso de método (`.match`, `.fullmatch`) sobra nas três constantes. Mesmas expressões, mesmo comportamento; o cache do `re` cobre o uso repetido no laço das tags.
 - Mutantes M7, M13, M14 e M15 (de `-2`) e M17 (de `-3`) ganham o `de` nas linhas novas; `bin/forge-mutante --processos 1 --ids M7,M13,M14,M15,M17` nos três arquivos: 5 de 5 morreram (5896, 5917 três vezes, 5927).
 - `python3 -m unittest tests.test_retro_pendentes tests.test_hooks_volta_corpus tests.test_reval_delta`: 63 testes; com `env -i` o `test_corpus_nos_dois_hooks` falha por 2 subprocessos acima do teto (4633 contra 4631), e falha igual na `origin/develop` b18d3ea com o mesmo `env -i`, logo não vem do delta; no ambiente da sessão o teste passa.
+- Suíte completa: fica no CI do PR (`R-REVIEW`).
+
+Segue aprovado; A1 continua recomendado, sem mudança no delta.
+
+## Revalidação no head c38abefa (E58.113)
+Delta lido só por `forge-check parecer delta docs/reviews/v0479-ae5-retro-pendentes.md`: intervalo `8d2efa1f..c38abefa`, sem a base; no domínio `bin/forge-check`, `bin/forge-testes`, `tests/pesos-d4.json` e `tests/test_reval_delta.py`.
+
+- O merge `c38abefa` (pais `568daf8a`, `8caa7f3d`, a develop com o PR #763) tem uma resolução à mão só: `git show --remerge-diff c38abefa` mostra o conflito em `bin/forge-testes`, e a tupla `FORGE_CHECK` resolvida é a união dos dois lados (`test_retro_pendentes` desta branch e `test_comparar` da develop), sem outra mudança na linha.
+- O subcomando `comparar` do `bin/forge-check`, o peso `test_comparar` em `tests/pesos-d4.json` e a citação de `bin/forge_comparar.py` em `tests/test_reval_delta.py` vêm da develop (#763) por fusão automática, fora deste parecer.
+- `bin/forge-testes --registros --base origin/develop`: rc=0 (9 conferências e o peso dos módulos novos).
+- `tests.test_testes_tocados` (ambiente limpo, `python3 -I`): 196 testes, OK (1 pulado).
 - Suíte completa: fica no CI do PR (`R-REVIEW`).
 
 Segue aprovado; A1 continua recomendado, sem mudança no delta.
