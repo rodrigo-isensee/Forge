@@ -872,8 +872,7 @@ class ConferenciaDeRegistros(Repo):
                 self.assertIn("FORGE_REGISTROS_PRAZO precisa ser um inteiro", r.stderr)
                 self.assertFalse(marca)
 
-    @unittest.skipUnless(shutil.which("timeout"), "sem o timeout na máquina")
-    def test_prazo_estourado_barra_o_envio(self):
+    def test_prazo_estourado_barra_o_envio(self):  # o timeout é do coreutils, presente no CI e no container do time
         self.configura({"registros": "sleep 5"})
         r, _ = self.envia_texto(dict(self.amb, FORGE_REGISTROS_PRAZO="1"))
         self.assertEqual(r.returncode, 1, r.stdout)
