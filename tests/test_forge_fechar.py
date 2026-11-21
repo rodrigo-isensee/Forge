@@ -273,7 +273,7 @@ class LimparSemMerge(unittest.TestCase):
         (self.tmp / "bin" / "gh").write_text('#!/bin/sh\ncat "$ESTADO/estados_copia"\n')
         (self.tmp / "bin" / "gh").chmod(0o755)
         (self.estado / "estados_copia").write_text("CLOSED false\n")
-        (self.estado / "lista_extra").write_text(f"234 CLOSED develop {self.git('rev-parse', 'melhoria/x')}\n")
+        (self.estado / "lista_extra").write_text(f"234 CLOSED develop {self.git('rev-parse', 'melhoria/x')} false\n")
 
     def limpar(self):
         return self.fechar("p1", "--ref", "melhoria/x", "--limpar")
@@ -323,6 +323,44 @@ class LimparSemMerge(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("nenhuma cópia dela", r.stderr)
         self.assertTrue(self.proj.is_dir())
+
+    def checa_vazio(self, linha, rc=0):
+        """O forge-check falso do forge-fechar imprime `linha` (a do `vazio`) e sai `rc`; a do forge-copia segue pelo gh falso."""
+        (self.tmp / "check").write_text(f'#!/usr/bin/env bash\necho "forge-check $*" >> "$REGISTRO"\necho "{linha}"\nexit {rc}\n')
+
+    def recusa_sem_prova(self, d):
+        r = self.limpar()
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("parou no --limpar: sem prova de merge: nenhum PR MERGED em develop para melhoria/x; nada foi apagado", r.stderr)
+        self.assertNotIn("limpeza: sem merge", r.stdout)
+        self.assertTrue(d.is_dir())
+
+    def test_sem_pr_e_sem_vazio_sim_recusa_como_antes_e_a_copia_fica(self):
+        (self.estado / "lista_extra").write_text("")
+        self.recusa_sem_prova(self.clone())
+
+    def test_pr_fechado_de_fork_nao_e_prova_e_a_copia_fica(self):
+        (self.estado / "lista_extra").write_text(f"234 CLOSED develop {self.git('rev-parse', 'melhoria/x')} true\n")
+        self.recusa_sem_prova(self.clone())
+
+    def test_vazio_nao_recusa_como_antes_e_a_copia_fica(self):
+        (self.estado / "lista_extra").write_text("")
+        self.checa_vazio("vazio: não (1 arquivos)")
+        self.recusa_sem_prova(self.clone())
+
+    def test_forge_check_vazio_que_falha_nao_e_prova(self):
+        (self.estado / "lista_extra").write_text("")
+        self.checa_vazio("vazio: sim ref a base b árvore c", rc=2)
+        self.recusa_sem_prova(self.clone())
+
+    def test_sem_pr_com_vazio_sim_entra_na_limpeza_das_copias(self):
+        (self.estado / "lista_extra").write_text("")
+        self.checa_vazio("vazio: sim ref a base b árvore c")
+        d = self.clone()
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("limpeza: sem merge, cópias apagadas=1", r.stdout)
+        self.assertFalse(d.exists())
 
     def test_clone_de_outra_branch_nao_e_tocado(self):
         outra, d = self.clone("c1", "develop"), self.clone("c2")

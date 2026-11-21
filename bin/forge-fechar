@@ -791,6 +791,15 @@ git push origin --delete $(printf '%q' "refs/heads/$ref")"
   fi
 }
 
+# fim_sem_merge: 0 só com prova de fim do item sem merge: PR CLOSED do próprio repositório (o de fork com o mesmo nome não conta) ou
+# `forge-check vazio` com `vazio: sim`. Sem prova, o --limpar recusa como antes, sem apagar nada.
+fim_sem_merge() {
+  local v
+  printf '%s\n' "$lista" | awk '$2=="CLOSED" && $5=="false" {f=1} END {exit !f}' && return 0
+  v="$("$check" vazio --ref "$ref" --base "$base" 2>/dev/null)" || return 1
+  [ "${v#vazio: sim}" != "$v" ]
+}
+
 # limpar_copias_sem_merge (LIMPEZA-AO-FIM-DO-ITEM): sem PR MERGED nem aberto, a worktree ligada e os clones de $ref em ~/.forge-contrib/wt
 # (mesmo origin) passam ao `forge-copia limpar` deste diretório, que relê o fim do item (PR CLOSED ou `vazio: sim`) e só apaga a cópia limpa,
 # sem stash e com tudo na origem. Branch local e remota ficam: o trabalho sem merge vive nelas. Sem cópia nenhuma, para como antes.
@@ -1294,11 +1303,12 @@ fi
 
 if [ "$limpar" = 1 ]; then
   passo 7 "limpeza por --limpar (R-FLUXO, Depois do merge): só com prova de PR MERGED em $alvo"
-  lista="$(ler "$gh" pr list --head "$ref" --state all --limit 30 --json number,state,baseRefName,headRefOid \
-    --jq '.[] | "\(.number) \(.state) \(.baseRefName) \(.headRefOid)"')" || die "parou no --limpar: não consegui ler os PRs de $ref (nada foi apagado)"
+  lista="$(ler "$gh" pr list --head "$ref" --state all --limit 30 --json number,state,baseRefName,headRefOid,isCrossRepository \
+    --jq '.[] | "\(.number) \(.state) \(.baseRefName) \(.headRefOid) \(.isCrossRepository)"')" || die "parou no --limpar: não consegui ler os PRs de $ref (nada foi apagado)"
   merged_heads="$(printf '%s\n' "$lista" | awk -v b="$alvo" '$2=="MERGED" && $3==b {print $4}')"
   if [ -z "$merged_heads" ]; then
     printf '%s\n' "$lista" | awk '$2=="OPEN" {f=1} END {exit f}' || die "parou no --limpar: sem prova de merge e com PR aberto de $ref; nada foi apagado"
+    fim_sem_merge || die "parou no --limpar: sem prova de merge: nenhum PR MERGED em $alvo para $ref; nada foi apagado"
     limpar_copias_sem_merge
   fi
   motivo_cartao="mesclado em $alvo (forge-fechar --limpar)"
