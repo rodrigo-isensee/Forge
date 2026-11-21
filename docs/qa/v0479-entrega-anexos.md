@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-entrega-anexos
-commit: df0aef74d183d9b89d108ac9dadc0352bf2b870e
+commit: de63ff10d81d574f47bfa12365fcde7e2df9d319
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -58,3 +58,10 @@ M5 · morreu · bin/forge-check:3117
 Hook: `python3 -I -m unittest discover -s tests -p test_hooks.py -k fixtures_do_parecer_pelo_papel` → `Ran 1 test ... OK`.
 
 Remoto avançou com os pareceres de review e de segurança (`371406b8`, só `docs/reviews/` e `docs/security/`); trazido por merge, sem tocar o código revisado.
+
+## Revalidação incremental (head `de63ff10`, E62.8)
+`forge-check parecer delta` sobre `df0aef74..de63ff10` lista no domínio: `bin/forge-check`, `changelog.d/v0479-entrega-anexos.md`, `docs/hooks.md`. Lido o diff inteiro:
+- `bin/forge-check`: só linhas dentro da docstring de `bug_do_qa_na_volta` (+4 −2, todas texto; nenhuma linha de código, guarda ou literal fora da docstring). `ast.parse` do arquivo: ok.
+- `docs/hooks.md` e fragmento do changelog: só texto (limite do hook: `git apply`, `update-index --cacheinfo`, `cherry-pick`; cartão CONFORMIDADE-ESCRITA-NO-INDICE).
+- Sem código novo: vermelho e mutantes M1 a M5 de `df0aef74` seguem valendo (as linhas citadas deslocam 2 pela docstring, sem mudar a guarda). Suíte inteira: check-run `bateria` do CI do PR.
+- Resultado: parecer segue **aprovado**, sem achados novos.
