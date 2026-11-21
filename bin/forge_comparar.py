@@ -131,7 +131,7 @@ def veredito(argv, prazo, entrada, projeto, ambiente):
     perguntar; prazo, erro e o resto: sem decisão. Devolve (nível, `updatedInput` em JSON canônico ou None)."""
     try:
         r = subprocess.run(argv, input=json.dumps(entrada), cwd=projeto, env=ambiente, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", timeout=prazo)  # A8: byte inválido vira U+FFFD, como no Node
+                           encoding="utf-8", errors="replace", timeout=prazo)  # A8: byte inválido vira U+FFFD, como o Claude Code lê a saída
     except (subprocess.TimeoutExpired, OSError):
         return ACEITE, None
     if r.returncode == 2:
