@@ -344,9 +344,9 @@ if [ "$refs_branches" -gt 0 ]; then
     echo "pre-push: registros: ${registros}"
     rc_reg=0
     if command -v timeout >/dev/null 2>&1; then
-      (cd "$(git rev-parse --show-toplevel)" && timeout -- "$prazo_reg" bash -c "$registros" </dev/null) || rc_reg=$?
+      (cd "$(git rev-parse --show-toplevel)" && timeout -- "$prazo_reg" bash -c "$registros" </dev/null 9>&-) || rc_reg=$?  # sem o descritor da trava, como a etapa
     else
-      (cd "$(git rev-parse --show-toplevel)" && bash -c "$registros" </dev/null) || rc_reg=$?
+      (cd "$(git rev-parse --show-toplevel)" && bash -c "$registros" </dev/null 9>&-) || rc_reg=$?
     fi
     [ "$rc_reg" -eq 0 ] || { echo "pre-push: a conferência de registros saiu ${rc_reg} (registro desatualizado, sem veredito ou prazo de ${prazo_reg} s); corrija e envie de novo. Nunca --no-verify." >&2; exit 1; }
   fi

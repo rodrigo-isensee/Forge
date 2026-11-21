@@ -438,6 +438,35 @@ class TravaDaChecagem(Repo):
         self.assertTrue(fila.is_dir(), "a fila não nasceu")
         self.assertEqual(list(fila.iterdir()), [])
 
+    def path_sem(self, nome):
+        """PATH com os mesmos programas do ambiente, menos `nome` (links numa pasta só; o primeiro do PATH vence)."""
+        pasta = self.fora / f"sem-{nome}"
+        pasta.mkdir()
+        for d in AMBIENTE["PATH"].split(os.pathsep):
+            if not os.path.isdir(d):
+                continue
+            for n in os.listdir(d):
+                if n != nome and not (pasta / n).exists() and os.access(os.path.join(d, n), os.X_OK):
+                    (pasta / n).symlink_to(os.path.join(d, n))
+        return str(pasta)
+
+    def test_trava_nao_passa_para_os_registros(self):  # espelho do anterior para a chave registros (A1 da segurança, E57.83)
+        (self.dir / ".forge").mkdir()
+        pids = self.fora / "pids"
+        (self.dir / ".forge" / "config.json").write_text(json.dumps({"registros": f"setsid sleep 300 >/dev/null 2>&1 & echo $! >> {pids}"}))
+        for nome, path in (("com timeout", AMBIENTE["PATH"]), ("sem timeout", self.path_sem("timeout"))):
+            with self.subTest(nome):
+                amb = dict(self.amb, PATH=path)
+                try:
+                    self.assertEqual(self.fim(self.lanca(amb))[0], 0)
+                    self.assertTrue(pids.exists(), "o comando de registros não rodou")
+                    rc, err, _ = self.fim(self.lanca(dict(amb, FORGE_PREPUSH_ESPERA="1")))
+                    self.assertEqual(rc, 0, err)
+                finally:
+                    for pid in (pids.read_text().split() if pids.exists() else []):
+                        matar_se_vivo(int(pid))
+                    pids.unlink(missing_ok=True)
+
     def test_xdg_com_escrita_alheia_recua_para_o_home(self):
         self.fora.chmod(0o777)
         self.assertEqual(self.fim(self.lanca())[0:3:2], (0, True))
