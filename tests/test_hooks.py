@@ -2806,6 +2806,14 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote) - len(liberam), 30, "papel × pasta × forma (Write, Edit, >>, cp), a variável, o opaco e o teto")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_til_em_substituicao(self):  # CONFORMIDADE-TIL-EM-SUBSTITUICAO (v0478 E80.1): o valor calculado é alvo
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("CONFORMIDADE-TIL-EM-SUBSTITUICAO (")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 4, "outra pasta, o vizinho do protegido e o valor que o hook não sabe (pwd, ambiente)")
+        self.assertGreaterEqual(len(lote) - len(liberam), 6, "echo, printf, crase, variável, cp e o arquivo inteiro")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_da_escrita_no_indice(self):  # CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1): git add e update-index em quem: []
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith("CONFORMIDADE-ESCRITA-NO-INDICE (")]

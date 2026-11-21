@@ -1,0 +1,22 @@
+{
+  "descricao": "CONFORMIDADE-TIL-EM-SUBSTITUICAO (v0478 E80.1, sonda zy-1 da E63.1): o destino do `cp` com `~` na substituição recusa como o redirecionamento.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp src/app.js \"$(echo ~/.claude)/settings.json\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "~/.claude/settings.json"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "pedido": "v0479-conformidade-til-link",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "T1",
+      "guarda": "a palavra com `$` ou crase na linha do Bash tem o valor calculado (CONFORMIDADE-TIL-EM-SUBSTITUICAO, E80.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        linha = None if self.texto_da_linha is None or self.corpo_desconhecido or \"$\" not in caminho and \"`\" not in caminho \\\n",
+      "para": "        linha = None if True \\\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "T2",
+      "guarda": "a crase sem `$` também tem o valor calculado (CONFORMIDADE-TIL-EM-SUBSTITUICAO, E80.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        linha = None if self.texto_da_linha is None or self.corpo_desconhecido or \"$\" not in caminho and \"`\" not in caminho \\\n",
+      "para": "        linha = None if self.texto_da_linha is None or self.corpo_desconhecido or \"$\" not in caminho \\\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "T3",
+      "guarda": "o valor que o hook não sabe (`SEM_VALOR`) não vira alvo calculado (CONFORMIDADE-TIL-EM-SUBSTITUICAO, E80.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        self.calculados += [self.resolver(v, pasta) for v in valores if SEM_VALOR not in v]\n",
+      "para": "        self.calculados += [self.resolver(v, pasta) for v in valores if SEM_VALOR in v]\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "T5",
+      "guarda": "só a linha lida dá o valor calculado (CONFORMIDADE-TIL-EM-SUBSTITUICAO, E80.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        valores = linha and valores_da_palavra(self.expandir(caminho, pasta), linha) or ()\n",
+      "para": "        valores = linha or valores_da_palavra(self.expandir(caminho, pasta), linha) or ()\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "T4",
+      "guarda": "o alvo calculado que cai num caminho protegido recusa no fim da linha (CONFORMIDADE-TIL-EM-SUBSTITUICAO, E80.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                achado = guarda.caminho_barrado(alvo)\n                if achado:\n",
+      "para": "                achado = guarda.caminho_barrado(alvo)\n                if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    }
+  ]
+}

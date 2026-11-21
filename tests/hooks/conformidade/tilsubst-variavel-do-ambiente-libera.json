@@ -1,0 +1,22 @@
+{
+  "descricao": "CONFORMIDADE-TIL-EM-SUBSTITUICAO (v0478 E80.1, sonda zy-1 da E63.1): a variável do ambiente (`SEM_VALOR`) não vira alvo calculado: segue a regra de antes.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo x >> \"$PASTA_DE_SAIDA/a.txt\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "stderr": ""
+  }
+}
