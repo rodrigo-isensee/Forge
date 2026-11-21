@@ -3,54 +3,40 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pv-a2-concessao
-commit: 4c325c557ee7cf5544a28488eb06346ae9bfbc1f
-parecer: reprovado
-escopo: completo
+commit: 9b6dca25db319a73277a5bc2bfaf151af8cd53a6
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
-bugs_altos: 2
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-20
 ---
-# QA: v0479-pv-a2-concessao (E57.63)
+# QA: v0479-pv-a2-concessao (E57.68)
 
-Alvo `item:<CARTAO>` da concessão presa ao `Commit` revisado (PR-VERDE E1, PV-A2, ADR 0018). Passada única no head 4c325c55; suíte inteira fica no CI do PR (check-run `bateria` do mesmo sha, não rodado aqui).
-
-## Achados
-- A1 (bloqueante) bin/forge_autorizacao.py:29 · RESSALVA é lista negativa (AR-3): "depois do CI", "antes da release", "sem a segurança", "só com o QA" saem `ativa` (reproduzido, sonda do QA); o item 5 da ADR 0018 pede ressalva barrada.
-- A2 (bloqueante) bin/forge_autorizacao.py:176 · `git diff --name-only` sem `--no-renames`: `git mv codigo.txt docs/qa/codigo.txt` depois do Commit deixa a concessão `ativa` com o código removido do Ramo (reproduzido, sonda do QA).
+Revalidação única no head 9b6dca25 sobre o parecer reprovado 32c201ec (A1 ressalva e A2 renomeação). Delta lido por `forge-check parecer delta` (intervalo 4c325c55..9b6dca25: `bin/forge_autorizacao.py`, `tests/test_autorizacao.py`, 4 specs de mutantes, changelog). Suíte inteira fica no CI do PR (check-run `bateria` do mesmo sha, não rodado aqui).
 
 ## Critério → teste → resultado
-Critérios: a especificação é a E1 da ADR 0018 e o A2 do desenho (`docs/propostas/v0479-pr-verde-de-primeira.md`).
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| Commit é o head do Ramo com pareceres aprovados; sha curto do parecer aceito | test_head_com_os_pareceres_aprovados_fica_ativa_e_o_parecer_pode_citar_o_sha_curto | prefixo de 7 caracteres | passou |
-| Commit fora do Ramo, ramo sem ref, Ramo muda depois, parecer reprovado, de outro commit ou curto demais | test_commit_que_nao_e_o_head_com_os_pareceres_aprovados_fica_inativa | head exato, sha de 6 caracteres, sem commit | passou |
-| Commit sha40, Ramo sem `-` inicial nem `..`, ato único | test_commit_abreviado_ausente_ramo_fora_da_forma_ou_ato_errado_e_adulterada | 12 caracteres, maiúsculo, ausente, `-x`, `a..b` | passou |
-| `item <CARTAO>` na frase do ato; sem ressalva (negação, condição) | test_alvo_sem_marcador_fora_da_frase_ou_com_ressalva_nao_nasce_ativa | cartão vizinho `PV-A2X`/`PV-A2.1`, frase vizinha | passou (cobre só "não" e "se"; ressalva positiva não coberta, A1) |
-| Parecer só do Ramo exato, ref `origin` vale antes da local | test_ramo_sem_parecer_dele_fica_inativo_e_a_ref_do_origin_vale_antes_da_local | `branch: <ramo>-x`, sem frontmatter | passou |
-| `GIT_*` herdado não desvia | test_git_herdado_do_ambiente_nao_desvia_a_leitura | GIT_DIR inválido | passou |
-| Depois do Commit só pareceres (sem renomeação) | nenhum | rename para docs/ | não coberto (A2, bug alto) |
+| Sem ressalva: vocabulário fechado, sem marca de negação ou condição (item 5, A1 anterior) | test_alvo_sem_marcador_fora_da_frase_ou_com_ressalva_nao_nasce_ativa | "depois do CI", "antes da release", "sem a segurança", "só com o QA" | passou |
+| Data e hora na validade aceitas; termo do ato dentro do nome do cartão não vale | test_vocabulario_fechado_sem_marca_aceita_data_e_hora_e_o_termo_do_ato_fora_do_nome_do_cartao | `18h`, `18/11`, `12:00`; cartão vizinho | passou |
+| Depois do Commit só pareceres do próprio Ramo, renomeação conta (A2 anterior) | test_so_o_parecer_de_review_ou_codigo_renomeado_para_a_pasta_de_parecer_fica_inativa | `git mv codigo.txt docs/qa/codigo.txt`; faltar review, qa ou segurança | passou |
+| Demais (head exato, ref origin, GIT_*, forma do Commit/Ramo) | 5 testes de ItemPresoAoCommit | sha curto, ramo `-x`/`a..b` | passaram |
 
 ## Cenários e resultado real
-Vermelho (`R-QA`), módulo do diff, saída 0:
+Vermelho (`R-QA`), `timeout 900 bin/forge-testes --vermelho d4f0b10a --modulos test_autorizacao`, rc=0:
 ```
-vermelho: base=d4f0b10aead7 head=4c325c557ee7 módulos=test_autorizacao (restrito por --modulos)
-revertidos à base: bin/forge_autorizacao.py, changelog.d/v0479-pv-a2-concessao.md
-tests.test_autorizacao.ItemPresoAoCommit.* (6 testes) · H=ok · B=falha · prova (asserção)
-tests.test_autorizacao.Ler.* (8 testes) · H=ok · B=ok · não prova (passa na base)
-contagem: não prova (passa na base)=8; prova (asserção)=6
+vermelho: base=d4f0b10aead7 head=9b6dca25db31 módulos=test_autorizacao (restrito por --modulos)
+ItemPresoAoCommit.* (8 testes): 7 prova (asserção), 1 prova (API ausente: fora_do_vocabulario)
+Ler.* (8 testes): H=ok B=ok · não prova (passa na base)
+contagem: não prova (passa na base)=8; prova (API ausente)=1; prova (asserção)=7
 ```
-A primeira tentativa, sem `--modulos`, rodou os 6 módulos e estourou o `timeout 900` (rc=124, sem veredito); não vale como prova.
+Mutantes (4 specs, `--processos 2`, `timeout 900`): rc=0, M1 a M32 todos `morreu` (32 linhas), sem sobrevivente nem sem veredito.
+Cobertura (`--cobertura --base d4f0b10a`): rc=0; zero `não coberto`, zero `isenta velha`.
 
-Mutantes (`bin/forge-mutante` das 4 specs, `--processos 2`): rc=0, M1 a M28 todos `morreu` (M3, M4, M27, M28 por erro do teste sob o mutante com controle verde). Sem sobrevivente.
-Cobertura (`--cobertura --base d4f0b10a`): rc=0; toda condição Python mudada tem mutante declarado, sem `não coberto`, sem `isenta velha`.
-Os mutantes são declarados para as linhas que existem; as duas lacunas dos achados são de linhas que a spec não atinge (a RESSALVA sem vocabulário positivo e o `diff` com renomeação), então o rc=0 não as prova.
+Sondas do QA refeitas, estado do head:
+- A1: `fora_do_vocabulario` devolve palavras barradas para "depois do CI verde", "antes da release", "sem a segurança", "só com o QA", "quando o CI passar", "mas só até sexta"; devolve [] para "hoje 18h" e "até 18/11". Corrigido.
+- A2, repositório git real: base com 3 pareceres aprovados = ""; `git mv codigo.txt docs/qa/codigo.txt` = "Commit não é o head"; parecer de segurança removido = "sem os pareceres aprovados"; parecer de outra branch adicionado depois = "não é o head"; renomear parecer dentro de docs/qa = "" (legítimo). Corrigido.
 
-Sondas do QA (`ItemPresoAoCommit`, estado da concessão `ativa` obtido onde se espera `adulterada`/`inativa`):
-- corpo `pode aplicar o rótulo afrouxa-regra no item PV-A2` + "depois do CI verde" / "antes da release" / "sem a segurança" / "só com o QA": `('ativa', '')` nos quatro.
-- `git mv codigo.txt docs/qa/codigo.txt` e commit depois do parecer: `('ativa', '')`.
-
-Os pareceres de review (A1) e segurança (A1, A2) no mesmo head, já na branch, trazem os mesmos dois defeitos; A3/A4 da segurança e A2/A3 do review ficam com seus pareceres.
-
-Bugs: A1 e A2 são os dois bugs altos (rótulo que afrouxa regra liberado fora da fronteira que a ADR 0018 fixa). Responsável: autor da branch (dev do Forge). Retestar por `forge-check parecer delta docs/qa/v0479-pv-a2-concessao.md`.
+Bugs: nenhum aberto (A1 e A2 do parecer anterior fechados). Residual sem bloqueio: o vocabulário é lista fechada, então frase legítima com palavra nova (ex.: "depois") vira `adulterada` e o dono reescreve; é o comportamento pedido pelo item 5.
