@@ -2818,8 +2818,8 @@ class Hooks(unittest.TestCase):
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith("CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (")]
         liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
-        self.assertGreaterEqual(len(liberam), 5, "o envio literal, a leitura com $(…) e o commit em heredoc")
-        self.assertGreaterEqual(len(lote) - len(liberam), 14, "programa, subcomando, flag e destino por $(…), crase, <(…) e pipe")
+        self.assertGreaterEqual(len(liberam), 7, "o envio literal, a leitura com $(…), o commit em heredoc e o shell sem envio")
+        self.assertGreaterEqual(len(lote) - len(liberam), 18, "programa, subcomando, flag e destino por $(…), crase, <(…) e pipe")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
     def test_fixtures_do_n3(self):  # IMPL-FURO-HOOK-N, N3 (0.45.1): link com caminho protegido

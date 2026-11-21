@@ -2130,7 +2130,7 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", "envio do git com o programa, o subcomando, a flag ou o destino vindos de "
                                           "substituição ($(…), crase, <(…)) ou da entrada (xargs, pipe para o shell): o hook não "
                                           "sabe o valor", "escreva o envio literal: git push origin <branch>", trava=TRAVA_OPACA)
-        if gravado and not self.leitura and self.critico(original):  # M3, depois das regras da linha e do corpo
+        if gravado and not self.leitura and CRITICO.search(original):  # M3, depois das regras da linha e do corpo
             self.barrar("R-CONFORMIDADE", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`)",
                         "grave o arquivo pelo Write ou numa chamada do Bash e rode o programa noutra")
         if self.lancador_recusado:  # depois das regras específicas da linha (R-MAIN, R-VERIFY, atualizar...)
@@ -2138,13 +2138,13 @@ class Guarda:
                                           "numa sessão de projeto", f"rode o comando direto, sem o lançador; {SUGESTAO}")
         # ADR 0011, item 2 (opção B da revalidação 8), depois das regras específicas, também as do texto reavaliado (o
         # `aninhado` já o conferiu): com o marcador crítico no nível 0, a reavaliação pelo shell em qualquer nível recusa
-        if nivel == 0 and not self.leitura and self.reavaliacao and self.critico(original):
+        if nivel == 0 and not self.leitura and self.reavaliacao and CRITICO.search(original):
             self.barrar("R-CONFORMIDADE", f"`{self.reavaliacao}` na chamada com ação crítica: "
                                           f"{motivo_da_reavaliacao(self.reavaliacao)}",
                         contorno_da_reavaliacao(self.reavaliacao), trava=TRAVA_OPACA)
         # ADR 0011, item 2 (opções D e A), por último: sobre o texto do nível 0, com o `<<` que o bash pode formar nele
         # ou num nível de cima (`tem_heredoc_no_texto`)
-        if nivel == 0 and not self.leitura and self.critico(original):
+        if nivel == 0 and not self.leitura and CRITICO.search(original):
             sinal = fora_da_gramatica_com_heredoc(original)
             if sinal is not None:
                 self.barrar("R-CONFORMIDADE", f"`{sinal}` na chamada com heredoc e ação crítica: o hook não modela",
@@ -3978,7 +3978,7 @@ def envio_com_substituicao(linha):
             no_programa = j == 0 or nomes[j - 1] in ENVOLVEDORES
             if opacas[j] and no_programa and (ENVIO_DO_GIT & set(valores[j + 1:]) or opacas[j + 1:j + 2] == [True]):
                 return True
-            if nomes[j] != "git" or opacas[j]:
+            if nomes[j] != "git":
                 continue
             k = j + 1 + len(valores[j + 1:]) - len(resto_do_subcomando(valores[j + 1:]))
             if k < len(valores) and opacas[k]:
