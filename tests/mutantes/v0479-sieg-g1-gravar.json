@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "G1.2 (ADR 0018 item 3): transcrição que é link ou não é .jsonl recusa",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "    if arq.is_symlink() or not arq.is_file() or arq.suffix != \".jsonl\":",
-      "para": "    if False:",
+      "de": "    if (arq.is_symlink() or not arq.is_file() or arq.suffix != \".jsonl\" or",
+      "para": "    if (False or",
       "testes": [
         "tests.test_autorizacao_gravar.MensagemInteira.test_so_a_mensagem_digitada_pelo_dono_na_sessao_principal"
       ]
@@ -36,8 +36,8 @@
       "id": "M4",
       "guarda": "G1.2 (item 3): registro que não é do usuário recusa",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "    if (r.get(\"type\") != \"user\" or any(",
-      "para": "    if (False or any(",
+      "de": "    if (r.get(\"type\") != \"user\" or r.get(",
+      "para": "    if (False or r.get(",
       "testes": [
         "tests.test_autorizacao_gravar.MensagemInteira.test_so_a_mensagem_digitada_pelo_dono_na_sessao_principal"
       ]
@@ -46,8 +46,8 @@
       "id": "M5",
       "guarda": "G1.2 (item 3): meta, subagente e resultado de ferramenta recusam",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "(\"isMeta\", \"isSidechain\", \"toolUseResult\", \"sourceToolUseID\")",
-      "para": "()",
+      "de": "any(r.get(c) for c in (\"isMeta\", \"isSidechain\",",
+      "para": "any(False for c in (\"isMeta\", \"isSidechain\",",
       "testes": [
         "tests.test_autorizacao_gravar.MensagemInteira.test_so_a_mensagem_digitada_pelo_dono_na_sessao_principal"
       ]

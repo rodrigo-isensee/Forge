@@ -277,18 +277,20 @@ class Recusa(Exception):
 
 
 def mensagem_do_dono(transcricao, uuid):
-    """(texto, Hora-da-fala, sessão) da mensagem `uuid` digitada pelo dono na sessão principal, inteira. A transcrição é arquivo
-    comum `<sessão>.jsonl`, sem link; o registro é único e da própria sessão; ferramenta, subagente, meta e lembrete recusam."""
+    """(texto, Hora-da-fala, sessão) da mensagem `uuid` digitada pelo dono, inteira, lida da transcrição da sessão em curso onde o
+    Claude Code a grava, sem link; registro único, da sessão, com `origin` humano (positivo: resumo de compactação recusa)."""
     arq = Path(transcricao)
-    if arq.is_symlink() or not arq.is_file() or arq.suffix != ".jsonl":
-        raise Recusa("transcrição não é arquivo comum .jsonl")
+    if (arq.is_symlink() or not arq.is_file() or arq.suffix != ".jsonl" or arq.stem != os.environ.get("CLAUDE_CODE_SESSION_ID")
+            or arq.resolve().parent.parent != (Path.home() / ".claude" / "projects").resolve()):
+        raise Recusa("transcrição não é o .jsonl comum da sessão em curso em ~/.claude/projects")
     achados = [r for r in map(json.loads, filter(str.strip, arq.read_text(encoding="utf-8").splitlines()))
                if isinstance(r, dict) and r.get("uuid") == uuid]
     r = achados[0] if len(achados) == 1 else {}
     conteudo = r["message"].get("content") if isinstance(r.get("message"), dict) else None
     if isinstance(conteudo, list) and len(conteudo) == 1 and isinstance(conteudo[0], dict) and conteudo[0].get("type") == "text":
         conteudo = conteudo[0].get("text")
-    if (r.get("type") != "user" or any(r.get(c) for c in ("isMeta", "isSidechain", "toolUseResult", "sourceToolUseID"))
+    if (r.get("type") != "user" or r.get("origin") != {"kind": "human"} or any(r.get(c) for c in ("isMeta", "isSidechain",
+            "isCompactSummary", "isVisibleInTranscriptOnly", "toolUseResult", "sourceToolUseID"))
             or r.get("sessionId") != arq.stem or not isinstance(conteudo, str) or conteudo.lstrip().startswith("<")
             or not conteudo.strip() or len(conteudo.encode("utf-8")) > TETO_DA_MENSAGEM):
         raise Recusa("a mensagem não é uma só, digitada pelo dono nesta sessão")
@@ -297,7 +299,7 @@ def mensagem_do_dono(transcricao, uuid):
 
 def fim_do_termo(termo, fala):
     """Fim (UTC) do termo do item 6: 48 h sem prazo escrito, 7 dias no fim do pedido (que para também no `F-<Pedido>`). Data,
-    dia da semana e "esta noite" valem uso único (None), o caso "sem fuso legível": esta etapa não lê o fuso do dono."""
+    dia da semana e "esta noite" dão None: esta etapa não lê o fuso do dono, e o prazo local nasce pendente (uso único)."""
     if termo in SEM_PRAZO_ESCRITO:
         return fala + datetime.timedelta(hours=48)
     return fala + datetime.timedelta(days=7) if "pedido" in termo else None
@@ -323,6 +325,7 @@ def leitura(texto, ato, alvos, fala):
     motivos = [m for falha, m in (
         (len(atos) > 1, "mais de um ato"), (do_texto != {normal(a) for a in alvos.split(", ")}, "alvos do texto diferentes dos declarados"),
         (fora_do_ato, "alvo fora da frase do ato"), (len(termos) > 1, "mais de um termo de validade"),
+        (None in fins, "prazo local sem fuso nesta etapa"),
         (bool(DATA_OU_HORA.search(resto) or {"amanha", "noite", "fim", *DIAS} & set(re.findall(r"[a-z]+", resto))),
          "termo de validade fora do mapa"),
         (bool(fora_do_vocabulario(texto, marcado)), f"palavra fora do vocabulário: {', '.join(fora_do_vocabulario(texto, marcado))}"))
@@ -366,12 +369,14 @@ def gravar_novo(arq, conteudo):
         f.write(conteudo)
 
 
-def concessao_lida(raiz, a, gravador):
+def concessao_lida(raiz, a, gravador, agora):
     """(campos, corpo) da concessão da mensagem `a.mensagem`, ou Recusa com o que o leitor (G1.1) recusaria."""
     if not re.fullmatch(r"[0-9a-f]+(?:-[0-9a-f]+)*", a.mensagem):
         raise Recusa("--mensagem não é um uuid")
     texto, carimbo, sessao = mensagem_do_dono(a.transcricao, a.mensagem)
-    campos = {"Id": "A-0", "Ato": a.ato, "Alvos": a.alvos, **leitura(texto, a.ato, a.alvos, instante(carimbo)),
+    if not agora - datetime.timedelta(hours=48) <= (fala := instante(carimbo)) <= agora:
+        raise Recusa("Hora-da-fala no futuro ou fora da sessão (mais de 48 h)")
+    campos = {"Id": "A-0", "Ato": a.ato, "Alvos": a.alvos, **leitura(texto, a.ato, a.alvos, fala),
               "Mensagem": a.mensagem, "Hora-da-fala": carimbo, "Sessao": sessao, "Pedido": a.pedido, "Sha256": sha(texto),
               "Gravado-por": gravador, "Autoriza": AUTORIZA}
     item = campos["Alvos"].startswith("item:")
@@ -383,11 +388,11 @@ def concessao_lida(raiz, a, gravador):
     return campos, texto
 
 
-def cmd_gravar(raiz, a, ctx):
+def cmd_gravar(raiz, a, ctx, agora=None):
     """Grava `A-<n>` com a mensagem inteira do dono (itens 1 a 6); `M-<uuid>` com `x` antes: uma concessão por mensagem."""
     pasta = Path(raiz) / PASTA
     try:
-        campos, texto = concessao_lida(raiz, a, ctx["gravador"])
+        campos, texto = concessao_lida(raiz, a, ctx["gravador"], agora or datetime.datetime.now(UTC))
         if pasta.parent.is_symlink() or pasta.is_symlink():
             raise Recusa(f"{PASTA}: não é pasta comum")
         pasta.mkdir(parents=True, exist_ok=True, mode=0o700)

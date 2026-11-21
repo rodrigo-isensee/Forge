@@ -43,10 +43,15 @@ A primeira versão deste desenho gravava um "trecho contíguo" da mensagem escol
 
 **G1.2a (v0478 E90.1), primeiro corte da G1.2, pelo teto de 150 linhas (H1):** entra o `gravar` no `forge-check`
 (`--mensagem --transcricao --ato --alvos --pedido`, e `--ramo` no alvo `item:`; nenhuma opção traz texto). O corpo é a mensagem lida da
-transcrição (registro único `type: user` da sessão do arquivo `<sessão>.jsonl`, sem meta, subagente, ferramenta nem lembrete, até 64 KiB);
+transcrição da sessão em curso, onde o Claude Code a grava (`~/.claude/projects/<pasta>/<CLAUDE_CODE_SESSION_ID>.jsonl`, sem link no
+caminho), num registro único `type: user` da sessão, com `origin` humano (classificador positivo: o resumo de compactação, `isCompactSummary`
+e `isVisibleInTranscriptOnly`, sem `origin`, recusa), sem meta, subagente, ferramenta nem lembrete, até 64 KiB, e com `Hora-da-fala` no
+máximo 48 h antes de agora e nunca no futuro;
 ato, alvos, validade e pendência saem do texto todo (item 5, com o `fora_do_vocabulario` do leitor); o `Commit` do alvo `item:` sai do
 parecer de review do `Ramo` e passa pelo `fora_do_revisado` (PV-A2); o que o leitor recusaria não é gravado. Prazo no fuso do dono (data,
-dia da semana, "esta noite") vale uso único, o caso "sem fuso legível" do item 6, e `Fuso` grava `UTC`. Ficam para os cortes seguintes da
+dia da semana, "esta noite") vale uso único e nasce `pendente-confirmacao` ("prazo local sem fuso nesta etapa"), para que data já passada
+nunca nasça ativa, e `Fuso` grava `UTC`. A volta dos portões (E90.6) fechou esses quatro pontos (A1 a A4 da segurança); a cópia do
+classificador em `hooks/vigia.py` tem a mesma falta do resumo e é corrigida noutro item. Ficam para os cortes seguintes da
 G1.2: a leitura do fuso em `/etc/localtime` e o prazo local; `confirmar` e `retirar`; e, no hook (`hooks/conformidade.py`, em curso noutro
 item), a forma literal do comando, a conferência do `transcript_path` do evento e a proteção das três grafias de `.forge/autorizacoes/`.
 
