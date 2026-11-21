@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-prepush-falha-fechada
-commit: 99a4fc3037f5a34958b83c474e6c1cc6c7e7ba56
+commit: 653b44116a942dc9c8d7bfd8d7895472ce12930a
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-21
@@ -40,6 +40,9 @@ Gatilhos: hook de controle do envio (pre-push do modelo, via proposta), lista C-
 **Seção 5 da proposta (`.githooks/pre-push` do Forge):** reproduzido por leitura: sem `sort` (linha 291, `mapfile … < <(sort -zu …)`) a lista fica vazia com `sem_caminhos=0`; sem `mktemp` (linha 281) vai a `sem_caminhos=1`, mas as checagens baratas iteram só `alterados`, vazio. Gravidade **baixa**: as checagens baratas são adiantamento do CI (ENVIO-LEVE, decisão do dono; o próprio hook diz "ferramenta ausente: aviso e segue"), o CI do PR roda as mesmas e é portão obrigatório do merge, e os bloqueios de política (refs, main/develop/homolog, R-VERIFY, segredo no delta) não dependem de `sort` nem de `mktemp`. O defeito real é o silêncio: correção mínima é aviso quando `sem_caminhos=1` ou a lista sai vazia com envio de código. Fora do escopo deste item (arquivo travado, outro cartão; não bloqueia).
 
 Verificação: `python3 -m unittest tests.test_prepush_falha_fechada` no head 99a4fc30: 8 testes, OK (4,2 s). Suíte inteira: no CI do PR (`R-SEGURANCA`, sem suíte local por brief).
+
+## Revalidação (E82.7, head 653b4411)
+Delta lido: `forge-check parecer delta` de `99a4fc30..653b4411`; no domínio, só `tests/test_prepush_falha_fechada.py` (hunk `@@ -147`): sai o `skipUnless(shutil.which("python3"))` de `RegistrosSemPython` e o `python3` chega ao hook por um shim no PATH montado (`falsos`, linha 153, `exec "<sys.executable>" "$@"`). O teste deixa de pular em máquina sem `python3` no PATH e passa a provar sempre o ramo "controle com python3 roda os registros"; só aperta. Shim em pasta temporária do teste, sem efeito fora dele. Proposta inalterada: blob `3354881f06f29a5dcdcc2bb6efba5b44dde30be2` conferido no head; o resto do parecer vale como lido em 99a4fc30 (no git). Achados anteriores: nenhum. Verificação: `python3 -m unittest tests.test_prepush_falha_fechada` no head 653b4411: 8 testes, OK (2,5 s).
 
 ## Riscos aceitos e ferramentas
 Riscos aceitos: nenhum. Ferramentas: leitura e sondas locais no hook com o patch, em diretório temporário; sem varredura externa.
