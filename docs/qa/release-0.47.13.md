@@ -1,0 +1,29 @@
+---
+tipo: qa
+contrato: 1
+pedido: release-0.47.13
+branch: melhoria/v0479-release-04713
+commit: 7f5713a41b37c7b4272b4c90007a129601b7207c
+parecer: aprovado
+escopo: completo
+bugs_criticos: 0
+bugs_altos: 0
+bugs_medios: 0
+bugs_baixos: 0
+data: 2026-11-21
+---
+# QA: release 0.47.13 (E65.4) (marca da versão 0.47.13, head 7f5713a4)
+
+Marca sobre o corte 178e2601 (base develop). Diff do commit da marca: `.claude-plugin/plugin.json`, `dev/.claude-plugin/plugin.json`, `CHANGELOG.md`, `docs/engineering/placar-mutacao.md` e a remoção de 11 fragmentos de `changelog.d/`. Sem código executável novo na marca; sem mutação nem vermelho-antes-do-verde (nenhum teste novo no commit da marca; cada item trouxe os seus nos PRs).
+
+## Critério → teste → resultado
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Versão nos dois manifestos igual ao CHANGELOG | `.claude-plugin/plugin.json` e `dev/.claude-plugin/plugin.json` = 0.47.13; `## [0.47.13] - 2026-11-21` em português, `[Não publicado]` vazio acima | manifestos iguais (base v0.47.12) | passou |
+| `changelog.d/` sem fragmentos | `ls changelog.d`: só `README.md`; `git diff --name-only v0.47.12..HEAD` sem entrada nova na pasta | nenhum fragmento sobra | passou |
+| Changelog confere | `bin/forge-changelog conferir --base origin/develop`: versão base 0.47.12, PR 0.47.13, rc=0 (conferência fechada fica na promoção) | release | passou |
+| Módulos de teste do assunto | `python3 -I -m unittest discover -s tests -p test_changelog.py` (89), `test_conferir_release.py` (17), `test_pos_release.py` (20) | n/a | OK nos três |
+| Junção | `git diff v0.47.12..7f5713a4`: 208 arquivos, 12 commits (11 PRs #738 a #749 mais a marca), 0 merges; cada item já entrou na develop com os próprios pareceres (docs/qa, docs/reviews, docs/security presentes no diff); `origin/develop` = 178e2601 = corte | corte igual à base | passou |
+| Nota do placar coerente | leitura de `docs/engineering/placar-mutacao.md`: linha da 0.47.13 (mortos=58, sobreviveu=0) e nota do corte 178e2601 | sem sobrevivente | passou |
+
+Sem suíte local; a bateria inteira vale pelo check-run `bateria` do mesmo sha no CI do PR.
