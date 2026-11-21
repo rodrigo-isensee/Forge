@@ -1,0 +1,36 @@
+{
+  "pedido": "v0479-entrega-merges",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "N1",
+      "guarda": "o parecer trazido por merge de pareceres vale pelo blob de um parecer conferido ancestral do outro pai",
+      "arquivo": "bin/forge-check",
+      "de": "dos_p = conferidos_ancestrais(raiz, shas, [q for q in outros if q in shas])",
+      "para": "dos_p = [q for q in outros if q in shas]",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDeParecerAninhado.test_parecer_do_merge_de_pareceres_vale_pelo_blob_conferido"
+      ]
+    },
+    {
+      "id": "N2",
+      "guarda": "só o parecer conferido da história do outro pai vale, não qualquer linha do Histórico",
+      "arquivo": "bin/forge-check",
+      "de": "sorted(set(saida.split()) & shas - set(achados))",
+      "para": "sorted(shas - set(achados))",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDeParecerAninhado.test_conferido_fora_da_historia_do_outro_pai_nao_vale"
+      ]
+    },
+    {
+      "id": "N3",
+      "guarda": "o rev-list que falha fica só com os outros pais (o aceite de antes)",
+      "arquivo": "bin/forge-check",
+      "de": "achados += [] if cod else sorted(",
+      "para": "achados += [] if not cod else sorted(",
+      "testes": [
+        "tests.test_selo_e_entrega.MergeDeParecerAninhado.test_parecer_do_merge_de_pareceres_vale_pelo_blob_conferido"
+      ]
+    }
+  ]
+}

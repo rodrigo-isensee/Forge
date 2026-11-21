@@ -1777,5 +1777,74 @@ class ParecerDoMesmoPapelDoAutor(Conferencia):
                          {"node-backend"})
 
 
+class MergeDeParecerAninhado(Repositorio):
+    """ENTREGA-MERGE-DE-PARECER-ANINHADO (caso real: merge 445f1988 da v0479-pv-a2-concessao, outro pai cdb616f7): um portão trouxe o
+    parecer do outro por merge e a branch mesclou esse merge de pareceres. O diff do outro pai contra o primeiro pai dele só tem o
+    parecer do portão; o do outro portão vale pelo blob de um `parecer conferido` ancestral do outro pai que mude o arquivo."""
+
+    def parecer(self, ramo, arquivos, de):
+        self.git("switch", "-q", "-c", ramo, de)
+        for rel, texto in arquivos.items():
+            self.gravar(rel, texto)
+        self.git("add", *arquivos)
+        sha = self.commit(f"docs: parecer {ramo}")
+        self.git("switch", "-q", "melhoria/x")
+        return sha
+
+    def mesclar(self, alvo, ramo="melhoria/x", trocar=None):
+        """O merge de `alvo` em `ramo`; com `trocar` (arquivo -> texto), resolvido à mão com esse conteúdo."""
+        self.git("switch", "-q", ramo)
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "--no-commit", alvo)
+        for rel, texto in (trocar or {}).items():
+            self.gravar(rel, texto)
+            self.git("add", rel)
+        sha = self.commit(f"merge {alvo[:7]}")
+        self.git("switch", "-q", "melhoria/x")
+        return sha
+
+    def aninhado(self, revisao=None, ramo_rev="rev"):
+        """O autor entrega; review e segurança commitam o parecer cada um na sua cópia; a segurança vai à branch e a review mescla a
+        segurança (o merge de pareceres); a branch mescla esse merge, que traz só o parecer da review."""
+        self.autor = self.entregar()
+        self.rev = self.parecer(ramo_rev, revisao or {"docs/reviews/x.md": "r\n"}, self.autor)
+        self.seg = self.parecer("seg", {"docs/security/x.md": "s\n"}, self.autor)
+        self.de_pareceres = self.mesclar(self.seg, ramo_rev)
+        self.mesclar(self.seg)
+
+    def recusas(self, *conferidos):
+        texto = PEDIDO + "".join(f"- 2026-01-01 10:00: parecer conferido {sha}\n" for sha in conferidos)
+        head, base_ref = self.git("rev-parse", "HEAD"), self.git("rev-parse", "origin/develop")
+        return fc.merges_nao_conferidos(self.proj, texto, self.autor, head, base_ref)[0]
+
+    def test_parecer_do_merge_de_pareceres_vale_pelo_blob_conferido(self):
+        self.aninhado()
+        self.mesclar(self.de_pareceres)
+        self.assertEqual(self.recusas(self.rev, self.seg, self.de_pareceres), [])
+
+    def test_blob_diferente_do_conferido_reprova(self):
+        self.aninhado()
+        m = self.mesclar(self.de_pareceres, trocar={"docs/reviews/x.md": "r\nmudado no merge\n"})
+        self.assertEqual(self.recusas(self.rev, self.seg, self.de_pareceres),
+                         [(f'escopo: fora (o merge {m[:7]} traz "docs/reviews/x.md" fora dos pareceres conferidos)', True)])
+
+    def test_conferido_fora_da_historia_do_outro_pai_nao_vale(self):
+        """O mesmo blob num `parecer conferido` que não é ancestral do outro pai (outra cópia do parecer) não vale."""
+        self.aninhado(ramo_rev="rev-copia")
+        fora = self.parecer("rev", {"docs/reviews/x.md": "r\n"}, self.autor)
+        m = self.mesclar(self.de_pareceres)
+        self.assertEqual(self.recusas(fora, self.seg, self.de_pareceres),
+                         [(f'escopo: fora (o merge {m[:7]} traz "docs/reviews/x.md" fora dos pareceres conferidos)', True)])
+
+    def test_aceite_do_usuario_no_parecer_conferido_reprova(self):
+        self.aninhado(revisao={"docs/reviews/x.md": "r\n", "docs/security/aceites/a.md": "aceite\n"})
+        m = self.mesclar(self.de_pareceres)
+        self.assertIn((f"escopo: fora (aceite trazido pelo merge {m[:7]})", True), self.recusas(self.rev, self.seg, self.de_pareceres))
+
+    def test_outro_pai_sem_linha_segue_nao_conferido(self):
+        self.aninhado()
+        self.mesclar(self.de_pareceres)
+        self.assertIn((f"escopo: fora (merge de {self.de_pareceres[:7]} não conferido)", True), self.recusas(self.rev, self.seg))
+
+
 if __name__ == "__main__":
     unittest.main()
