@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-mp9-guia
-commit: abb581a5b7e513cafa3cb5d391ccd4b516c19f73
+commit: 862d9ecb792c30e0b66e82d30f3794a19828cc65
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -41,3 +41,6 @@ Mutação: não se aplica (diff só de texto e teste; sem regra de código).
 
 ## Revalidação (E24.13, head abb581a5)
 Delta desde a8d4dce4: merge da develop (duas linhas em `templates/projeto/CLAUDE.md`, fora da seção do guia) e a linha `test_guia_varios_projetos: 0.1` em `tests/pesos-d4.json`. Rodados: `python3 -I -m unittest discover -s tests -p test_guia_varios_projetos.py` (4 testes, OK) e `python3 -m unittest tests.test_forge.PesosDaSuite` (3 testes, OK). Suíte inteira não rodou (check-run `bateria` do CI). Parecer: aprovado.
+
+## Revalidação (E24.19, head 862d9ecb)
+`forge-check parecer delta` (abb581a5..862d9ecb): no domínio do QA só `bin/forge-testes` (`test_guia_varios_projetos` entra em `LEITORES_DE_TEXTO` e no mapa do `README.md`) e `tests/test_guia_varios_projetos.py` (import de `agentes`, que liga `hooks/agentes.py` ao teste no mapa). Rodados com TMPDIR: `test_testes_tocados.py` (196 testes, OK; 1 pulado pelo próprio sandbox, `/proc` de outro namespace) e `test_guia_varios_projetos.py` (4 testes, OK). Suíte inteira: check-run `bateria` do CI do PR, sem rerrodar. Parecer: aprovado.
