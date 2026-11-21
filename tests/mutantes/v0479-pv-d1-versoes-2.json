@@ -1,0 +1,26 @@
+{
+  "pedido": "v0479-pv-d1-versoes",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G9",
+      "guarda": "sem afetado: nada a rodar, sem chamar o intérprete",
+      "arquivo": "bin/forge-testes",
+      "de": "elif not modulos:",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_testes_tocados.Versoes.test_sem_afetado_grava_nada_a_rodar_sem_chamar_o_interprete"
+      ]
+    },
+    {
+      "id": "G10",
+      "guarda": "--versoes despacha para as versões, não para o plano comum",
+      "arquivo": "bin/forge-testes",
+      "de": "if args.versoes:\n        return versoes(args.base)",
+      "para": "if False:\n        return versoes(args.base)",
+      "testes": [
+        "tests.test_testes_tocados.Versoes.test_verde_roda_cada_versao_da_configuracao_com_o_interprete_dela"
+      ]
+    }
+  ]
+}
