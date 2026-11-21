@@ -104,13 +104,13 @@
     },
     {
       "id": "A1-separador",
-      "guarda": "o separador -- sozinho nao e prefixo de opcao (forge-testes -- caminho segue leve); desde a E64.1 vale pela lista leve do forge-testes",
+      "guarda": "o separador -- sozinho segue leve (forge-testes -- caminho); desde a E64.1 quem o garante e a tupla de opcao_leve, antes do pede_opcao",
       "arquivo": "hooks/pesado.py",
-      "de": "return len(nome) > 2 and opcao",
-      "para": "return opcao",
+      "de": "in (\"--\", \"-k\"):",
+      "para": "in (\"-k\",):",
       "testes": [
         "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado",
-        "tests.test_forge_pesado.FormasLevesDoForgeTestes.test_versoes_e_opcao_fora_da_lista_pesam"
+        "tests.test_forge_pesado.FormasLevesDoForgeTestes.test_formas_da_lista_seguem_leves"
       ]
     }
   ]
