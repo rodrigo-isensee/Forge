@@ -14,10 +14,10 @@
     },
     {
       "id": "M18",
-      "guarda": "pasta de retros que é link fica fora",
+      "guarda": "pasta retrospectivas/ que é link fica fora",
       "arquivo": "bin/forge-check",
-      "de": "if pasta.is_dir() and not pasta.is_symlink() else []:",
-      "para": "if pasta.is_dir() else []:",
+      "de": "or pasta.is_symlink() or not pasta.is_dir()",
+      "para": "or not pasta.is_dir()",
       "testes": [
         "tests.test_retro_pendentes.RetroPendentes.test_pasta_de_retros_que_e_link_fica_fora"
       ]

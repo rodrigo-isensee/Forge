@@ -44,20 +44,20 @@
     },
     {
       "id": "M5",
-      "guarda": "link, pasta ou arquivo grande não cobre (link)",
+      "guarda": "retro que é link não é seguida (O_NOFOLLOW no descritor)",
       "arquivo": "bin/forge-check",
-      "de": "    if arq.is_symlink() or not arq.is_file() or arq.stat()",
-      "para": "    if not arq.is_file() or arq.stat()",
+      "de": "descritor = os.open(arq, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)",
+      "para": "descritor = os.open(arq, os.O_RDONLY | os.O_NONBLOCK)",
       "testes": [
         "tests.test_retro_pendentes.RetroPendentes.test_link_e_arquivo_grande_nao_cobrem"
       ]
     },
     {
       "id": "M6",
-      "guarda": "arquivo acima do teto não cobre",
+      "guarda": "retro acima do teto não cobre (lida até TETO+1)",
       "arquivo": "bin/forge-check",
-      "de": "or arq.stat().st_size > TETO_DA_RETRO:",
-      "para": "or arq.stat().st_size > TETO_DA_RETRO * 2:",
+      "de": "if len(dados) <= TETO_DA_RETRO else None",
+      "para": "if len(dados) <= TETO_DA_RETRO + 1 else None",
       "testes": [
         "tests.test_retro_pendentes.RetroPendentes.test_link_e_arquivo_grande_nao_cobrem"
       ]

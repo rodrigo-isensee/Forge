@@ -151,6 +151,22 @@ class RetroPendentes(unittest.TestCase):
         self.retros.symlink_to(fora)
         self.assertEqual(self.rodar(), (1, PENDENTES_12 + ["retro: pendentes=2"], []))
 
+    def test_fifo_e_pasta_nao_cobrem_nem_travam(self):
+        os.mkfifo(self.retros / "fifo.md")  # sem escritor: abrir sem O_NONBLOCK travaria o forge-check
+        (self.retros / "pasta.md").mkdir()
+        cod, linhas, erros = self.rodar()
+        self.assertEqual((cod, linhas), (1, PENDENTES_12 + ["retro: pendentes=2"]))
+        self.assertEqual(erros, [f'retro: aviso: "{n}": link, pasta ou acima de 1000000 bytes; nao cobre' for n in ("fifo.md", "pasta.md")])
+
+    def test_pasta_docs_que_e_link_fica_fora(self):
+        controle = self.raiz / "controle"  # --raiz-pedidos só vale dentro da raiz do repositório ou de ~/.forge-contrib
+        (Path(self._pasta.name) / "docs-de-fora" / "retrospectivas").mkdir(parents=True, exist_ok=True)
+        (Path(self._pasta.name) / "docs-de-fora" / "retrospectivas" / "p.md").write_text(CHEIA.format(cobre="v0.1.0, v0.2.0"), encoding="utf-8")
+        controle.mkdir(exist_ok=True)
+        if not (controle / "docs").is_symlink():
+            (controle / "docs").symlink_to(Path(self._pasta.name) / "docs-de-fora")
+        self.assertEqual(self.rodar("--raiz-pedidos", str(controle)), (1, PENDENTES_12 + ["retro: pendentes=2"], []))
+
     def test_desde_ignora_as_tags_anteriores(self):
         self.assertEqual(self.rodar("--desde", "v0.2.0"), (1, [PENDENTES_12[1], "retro: pendentes=1"], []))
 
