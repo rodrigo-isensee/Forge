@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_varredura_divida.ProjetoDoForgeInit.test_projeto_novo_roda_sem_achado"
       ]
+    },
+    {
+      "id": "M22",
+      "guarda": "forge-init leva o teste da varredura (o teste roda o forge-init)",
+      "arquivo": "bin/forge-testes",
+      "de": ", \"test_varredura_divida\")),",
+      "para": ")),",
+      "testes": [
+        "tests.test_testes_tocados.MapaCobreOQueOsTestesLeem.test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo"
+      ]
     }
   ]
 }
