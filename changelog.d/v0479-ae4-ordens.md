@@ -1,0 +1,2 @@
+### Adicionado
+- `forge-check ordens [--pedido] [--desde]` lista as linhas ORDEM DO DONO sem cartão (`sem-cartao:` e `sem-id:`), pelo mesmo cruzamento das decisões, com a etapa do pedido valendo como apontador; `forge-check anotar --tipo ordem` passa a exigir `--cartao <ID|E<n>>`, conferido contra o KANBAN.md (cartão fechado sem entrega não vale) ou as etapas do pedido, e grava `· cartão: <ID>` na linha (AE4.1, v0479).
