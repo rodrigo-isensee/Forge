@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-trilha
-commit: e48a2e60a11d97a36ab936fedacb1e93477ff940
+commit: 0f4facab2db2b2aa60107dfdfac9cad6f9814560
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -12,7 +12,7 @@ bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-21
 ---
-# QA: v0478 E63.4 (hooks/conformidade.py: controle só do jarvis, escrita no índice, substituição no envio do git; head e48a2e60, revalidação)
+# QA: v0478 E63.12 (hooks/conformidade.py: controle só do jarvis, escrita no índice, substituição no envio do git; head 0f4facab, segunda revalidação)
 
 ## Achados
 - A4 (recomendado) hooks/conformidade.py:332 · `git apply --cached p.patch` e `git read-tree` gravam no índice conteúdo que nunca esteve na árvore e saem 0 no head e48a2e60; declarar o limite em docs/hooks.md ou recusar.
@@ -58,3 +58,19 @@ Mutantes novos, uma chamada por spec, `timeout 1500`, rc=0 em todas, nenhum sobr
 `forge-mutante --cobertura --base d4f0b10a`: rc=0, cabeçalho `base=d4f0b10aead7 mb=d4f0b10aead7 rev=e48a2e60a11d`, 48 linhas `coberta · … · declarado, não provado`, nenhuma `não coberto`, `isenta velha` ou `só equivalente`.
 
 Fixtures `pesado/mesma-sessao-libera`: não rodada por mim (falha no sandbox também na base, conforme o brief). A suíte inteira roda só no CI do PR; o head ainda não tem PR, sem check-run `bateria` a citar.
+
+## Revalidação no head 0f4facab (E63.12, escopo incremental)
+`forge-check parecer delta`: intervalo e48a2e60..0f4facab; hooks/conformidade.py, 30 fixtures cpb-/idx-/sub-, specs de mutante -10, -11, -12 (novas) e -3, -6, -8 e a base (reapontadas), docs/hooks.md, docs/hooks-fixtures.md, changelog e corpus de custo. Nenhum achado aberto do parecer anterior além do A4 (cartão, inalterado).
+
+Os quatro testes do domínio, `python3 -I -m unittest discover -s tests -p test_hooks.py -k <nome>`, `timeout 1500`, TMPDIR em `scratchpad/tmp` (fora de `~/.forge-contrib`): `test_travas_do_conformidade`, `test_fixtures_da_substituicao_no_projeto`, `test_fixtures_do_controle_so_jarvis`, `test_fixtures_da_escrita_no_indice`: `Ran 1 test ... OK` nos quatro (3,6 s, 3,7 s, 5,4 s, 3,1 s).
+Ressalva de ambiente: com TMPDIR dentro de `/root/.forge-contrib/wt/` (como o brief indicou), 17 fixtures sub-* e `idx-reset-codigo-libera` falham no head, e também em e48a2e60 (`git archive`, mesma falha no teste do índice): o hook trata o projeto montado sob `~/.forge-contrib` como sessão do Forge (`R-CONTRIB: ... a sessão de projeto não cria branch`). Não é regressão da volta; saída em `/root/.forge-contrib/wt/qa-e6312/{sub,idx,testes}.txt`. Os testes valem rodados com TMPDIR fora dessa pasta.
+
+Mutantes, uma chamada por spec, `timeout 1500`, rc=0 em todas, nenhum sobrevivente nem sem veredito (`rev=0f4facab2db2`): -10 (X1-X8) 8 mortos; -11 (Y1-Y8) 8 mortos; -12 (Z1-Z4) 4 mortos; reapontadas: trilha (C1-C5) 5, -3 (S1-S8) 8, -6 (S9, T1-T7) 8, -8 (V1-V8) 8 mortos. Total 49 mortos. Saídas em `qa-e6312/mut10.txt`, `mut11.txt`, `mut12.txt`, `mutr*.txt`.
+`forge-mutante --cobertura --base d4f0b10a`: rc=0, cabeçalho `base=d4f0b10aead7 mb=d4f0b10aead7 rev=0f4facab2db2`, 63 linhas `coberta · … · declarado, não provado`, nenhuma `não coberto`, `isenta velha` ou `só equivalente`.
+
+Sonda `qa-e6312/sonda.py` (a de E63.8 apontada para este clone; hook sobre a montagem das fixtures; papéis tech-lead, dev, jarvis):
+- Controle, 20 formas: `cd ~/.forge-contrib/wt/x && sed … docs/pedidos/v1.md > $TMPDIR/e.txt` rc=0 (corrigido); `cd` para `wt/x/..`, `wt/x && cd ..`, `cd ../..`, `wt`, a pasta mãe, `wt/../`, `wt/x/../..` com escrita em pedido ou brief, `echo x > ~/.forge-contrib/docs/pedidos/…`, `…/wt/../docs/…`, `tee ../../docs/…`, variável `d=~/.forge-contrib` rc=2 para tech-lead e dev; jarvis rc=0 em tudo. Leituras (`ls`, `cat`) rc=0. Limite já aceito: `python3 -c 'open("../../docs/pedidos/v1.md","w")'` a partir de `wt/x` rc=0.
+- Entrada de arquivo do shell, 36 formas: `| bash < /dev/stdin`, `/dev/fd/0`, `/dev/fd/00`, `/proc/self/fd/0`, `/proc/$$/fd/0`, `/proc/thread-self/fd/0`, `0<`, `//dev/stdin`, `/dev/./stdin`, `/dev/../dev/stdin`, aspas, `/dev/tty`, `/dev/fd/3`, variável com o caminho rc=2 (tech-lead e dev); `bash < script.sh`, `sh < build.sh`, `bash < ./scripts/run.sh`, `echo oi | cat`, `git push origin melhoria/x 2>&1 | tail` rc=0.
+- `help.autocorrect`: `git -c help.autocorrect=…` (e `HELP.AUTOCORRECT`) rc=2; `git config help.autocorrect 1`, `--global`, `--local`, `set`, `--add` rc=2 e `git config alias.p push` rc=2 no projeto; `git config --get help.autocorrect` e `git config help.autocorrect` rc=0. `git -chelp.autocorrect=1` rc=0 é inócuo (o git não aceita `-c` colado). Na montagem da sessão do Forge, `git config help.autocorrect 1` e `alias.p` passam (rc=0), igual ao alias antes da volta; fora das fixtures da volta.
+
+Fixture `pesado/mesma-sessao-libera`: não rodada por mim (falha no sandbox também na base, conforme o brief). A suíte inteira roda só no CI do PR; o head ainda não tem PR, sem check-run `bateria` a citar.
