@@ -11,6 +11,16 @@
       "testes": [
         "tests.test_comparar.ComoOClone.test_executavel_e_link_interno_chegam_como_no_clone"
       ]
+    },
+    {
+      "id": "CMP49",
+      "guarda": "AE7.1 rodar_caso: hook sem updatedInput não entra nas reescritas",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "for _, r in lidos if r is not None)",
+      "para": "for _, r in lidos if True)",
+      "testes": [
+        "tests.test_comparar.Medida.test_mesma_arvore_mede_zero"
+      ]
     }
   ]
 }

@@ -6,8 +6,8 @@
       "id": "CMP40",
       "guarda": "AE7.1 rodar_caso: allow vence o silêncio entre hooks",
       "arquivo": "bin/forge_comparar.py",
-      "de": "key=lambda n: (n == ACEITE, n)",
-      "para": "key=lambda n: n",
+      "de": "(n == ACEITE, n)",
+      "para": "(False, n)",
       "testes": [
         "tests.test_comparar.DecisaoInteira.test_hook_novo_que_aprova_e_reescreve_e_aceite_novo"
       ]
@@ -56,8 +56,8 @@
       "id": "CMP45",
       "guarda": "AE7.1 executar: base que não extrai não roda o head",
       "arquivo": "bin/forge_comparar.py",
-      "de": "lado_head = None if lado_base is None else medir",
-      "para": "lado_head = medir",
+      "de": "None if lado_base is None else",
+      "para": "None if False else",
       "testes": [
         "tests.test_comparar.ComoOClone.test_base_que_nao_se_extrai_nao_roda_o_head"
       ]
@@ -77,7 +77,7 @@
       "guarda": "AE7.1 executar: marca entrada-reescrita",
       "arquivo": "bin/forge_comparar.py",
       "de": "(\" entrada-reescrita\" if reescrita_h != reescrita_b else \"\")",
-      "para": "\"\"",
+      "para": "(\" entrada-reescrita\" if False else \"\")",
       "testes": [
         "tests.test_comparar.DecisaoInteira.test_hook_novo_que_aprova_e_reescreve_e_aceite_novo"
       ]

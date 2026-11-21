@@ -46,8 +46,8 @@
       "id": "CMP36",
       "guarda": "AE7.1 extrair: modo executável como no clone",
       "arquivo": "bin/forge_comparar.py",
-      "de": "0o755 if modo == b\"100755\" else 0o644",
-      "para": "0o644",
+      "de": "modo == b\"100755\"",
+      "para": "False",
       "testes": [
         "tests.test_comparar.ComoOClone.test_executavel_e_link_interno_chegam_como_no_clone"
       ]
@@ -66,8 +66,8 @@
       "id": "CMP38",
       "guarda": "AE7.1 veredito: allow é o nível mais alto",
       "arquivo": "bin/forge_comparar.py",
-      "de": "else ALLOW if decisao == \"allow\" else ACEITE",
-      "para": "else ACEITE if decisao == \"allow\" else ACEITE",
+      "de": "decisao == \"allow\"",
+      "para": "False",
       "testes": [
         "tests.test_comparar.DecisaoInteira.test_allow_no_lugar_do_silencio_e_aceite_novo",
         "tests.test_comparar.DecisaoInteira.test_allow_no_lugar_da_recusa_e_aceite_novo"
@@ -77,8 +77,8 @@
       "id": "CMP39",
       "guarda": "AE7.1 veredito: updatedInput medido",
       "arquivo": "bin/forge_comparar.py",
-      "de": "    return nivel, None if reescrita is None else json.dumps(reescrita, sort_keys=True)",
-      "para": "    return nivel, None",
+      "de": "reescrita is None else json.dumps",
+      "para": "True else json.dumps",
       "testes": [
         "tests.test_comparar.DecisaoInteira.test_reescrita_que_muda_e_aceite_novo"
       ]
