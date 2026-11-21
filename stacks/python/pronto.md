@@ -10,6 +10,8 @@ Pronto completo: o comando sugerido, que o autor roda antes de entregar e o CI r
 
 Detecção: `pyproject.toml`, `requirements.txt`, `setup.py`, `setup.cfg`
 
+Versões: as de Python da matriz `python-version` do CI do projeto; sem matriz, a do `requires-python`. O autor roda os testes rápidos em cada uma antes de entregar (`python<X.Y>` do PATH que se diz dessa versão), um log por versão com `head=` e `rc=`; sem o intérprete, a versão não é verde.
+
 Instalação na cópia (`forge-copia --instalar`, `instalar.json`): só com o lockfile `requirements.lock` (uma linha por pacote com `--hash`, gerado por `pip-compile --generate-hashes`); instala com `--require-hashes --no-deps` e o pacote local com `--no-deps`. Sem `requirements.lock` não instala e avisa.
 
 Pronto existente: `tox.ini` com `[tox]` → `tox`; `pyproject.toml` com `[tool.pytest` → `python -m pytest`; `pytest.ini` com `[pytest]` → `python -m pytest`

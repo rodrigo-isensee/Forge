@@ -1,0 +1,16 @@
+{
+  "pedido": "v0479-pv-d3-modelo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "registros: com o timeout na máquina, o prazo vale",
+      "arquivo": "templates/projeto/.githooks/pre-push",
+      "de": "if command -v timeout >/dev/null 2>&1; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_prepush_so_docs.ConferenciaDeRegistros.test_prazo_estourado_barra_o_envio"
+      ]
+    }
+  ]
+}

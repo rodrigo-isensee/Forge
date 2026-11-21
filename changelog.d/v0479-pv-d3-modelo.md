@@ -1,0 +1,2 @@
+### Adicionado
+- Modelo de projeto (PR-VERDE D3): o .githooks/pre-push roda em todo envio de branch a conferência de registros do projeto, o comando da chave opcional registros do .forge/config.json, com prazo FORGE_REGISTROS_PRAZO (180 s, só dígitos); saída fora de 0, chave que não é comando de uma linha ou prazo inválido barram o envio, e sem a chave nada roda. O CLAUDE.md do modelo cita a conferência e as versões do intérprete, e o pronto.md de cada stack ganha o campo Versões (as da matriz do CI do projeto) (v0478 E57.75).
