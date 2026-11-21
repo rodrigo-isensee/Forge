@@ -293,7 +293,7 @@ class TextoDoJarvis(unittest.TestCase):
     def test_jarvis_manda_anotar_o_historico(self):  # LOTE E3: sem a frase, o Jarvis escrevia o Histórico à mão, com hora estimada
         texto = texto_do_jarvis(RAIZ)
         self.assertIn("forge-check anotar", texto)
-        self.assertIn("Linhas do `## Histórico` e decisões do dono, por `forge-check anotar`", texto)
+        self.assertIn("Linhas do `## Histórico` e decisões do dono, por `forge-check anotar --pedido <p> --tipo <tipo> --literal <fala>`", texto)
 
 
 class Retomada(Base):

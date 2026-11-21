@@ -3,6 +3,7 @@
 conteúdo no head são os da ponta da base e que a branch não tinha mudado no commit do parecer. O arquivo mudado pela branch, antes ou
 depois do parecer (também o desfeito), segue desatualizando. A ref `origin/<base>` é forjável no cliente (A1 de docs/reviews/v0455.md):
 a garantia é a catraca do CI, que recebe a base real."""
+import ast
 import importlib.util
 import io
 import os
@@ -170,6 +171,17 @@ class JuncaoSemBase(unittest.TestCase):
     def test_branch_de_integracao_segue_o_diff_literal(self):  # na `main`, sem `--base`, a develop não vira base implícita
         self.prepara("main")
         self.assertIn("desatualizado: .github/workflows/ci.yml mudou", self.desatualizados())
+
+
+class NomeUnicoNoModulo(unittest.TestCase):
+    """QA A2 da v0479-entrega-merges: uma 2.a definição de mesmo nome no `bin/forge-check` (o `vindos_da_base` do ENTREGA-MERGE-DA-DEVELOP)
+    sobrepôs a do E7 e desligou o `commit_vale` e o `parecer delta` sem que nenhum mutante do conjunto a pegasse."""
+
+    def test_nenhuma_funcao_ou_classe_definida_duas_vezes(self):
+        arvore = ast.parse((AQUI.parent / "bin" / "forge-check").read_text(encoding="utf-8"))
+        nomes = [n.name for n in arvore.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))]
+        self.assertGreater(len(nomes), 300)
+        self.assertEqual(sorted({n for n in nomes if nomes.count(n) > 1}), [])
 
 
 if __name__ == "__main__":
