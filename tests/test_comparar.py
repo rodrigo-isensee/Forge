@@ -153,6 +153,10 @@ class Medida(Base):
         rc, linhas = self.comparar(base, self.repo.commit(hook=LIBERA))
         self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: proibido base=recusa head=aceite"]))
 
+    def test_saida_que_nao_e_utf8_e_sem_decisao(self):  # sonda S8 (A8)
+        rc, linhas = self.comparar(self.base, self.repo.commit(hook=LER + "if proibido:\n    sys.stdout.buffer.write(b'\\xff\\xfe')\n"))
+        self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: proibido base=recusa head=aceite"]))
+
     def test_json_com_codigo_de_erro_e_ignorado(self):
         rc, linhas = self.comparar(self.base, self.repo.commit(hook=NEGA.replace("'deny'}}))", "'deny'}}))\n    sys.exit(1)")))
         self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: proibido base=recusa head=aceite"]))
@@ -322,8 +326,13 @@ class DecisaoInteira(Base):
     def test_hook_novo_que_aprova_e_reescreve_e_aceite_novo(self):  # sonda S1
         head = self.repo.commit(config=dois_hooks(), extra={"hooks/r.py": responde(REESCREVE)})
         rc, linhas = self.comparar(self.base, head)
-        self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: livre base=aceite head=allow entrada-reescrita",
-                                                "aceite-novo: proibido base=recusa head=recusa entrada-reescrita"]))
+        self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: livre base=aceite head=allow entrada-reescrita"]))  # A9
+
+    def test_decisao_antiga_approve_e_allow(self):  # sonda S5
+        base = self.repo.commit(hook=LIBERA)
+        rc, linhas = self.comparar(base, self.repo.commit(hook=responde("{'decision': 'approve', 'reason': 'ok'}")))
+        self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: livre base=aceite head=allow",
+                                                "aceite-novo: proibido base=aceite head=allow"]))
 
     def test_reescrita_igual_nos_dois_lados_nao_conta(self):
         com_raiz = ("{'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'ask', "
@@ -341,18 +350,29 @@ class DecisaoInteira(Base):
 
 
 class ComoOClone(Base):
-    """A2: a árvore extraída é a do clone, sem export-subst nem export-ignore."""
+    """A2: a árvore extraída é a do clone; `.gitattributes` em qualquer pasta de um lado é nao-verificavel."""
 
-    def test_atributos_de_exportacao_nao_valem(self):  # sonda S2
-        mudo_no_clone = {
-            "export-subst": LER + "if '$Format:%H$'.startswith('$' + 'Format'):\n    sys.exit(0)\n" + RECUSA[len(LER):],
-            "export-ignore": LER + "if Path(__file__).with_name('marca').exists():\n    sys.exit(0)\n" + RECUSA[len(LER):]}
-        for atributo, hook in mudo_no_clone.items():
-            with self.subTest(atributo):
-                alvo = "hooks/h.py" if atributo == "export-subst" else "hooks/marca"
-                head = self.repo.commit(hook=hook, extra={".gitattributes": f"{alvo} {atributo}\n", "hooks/marca": "x\n"})
-                rc, linhas = self.comparar(self.base, head)
-                self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: proibido base=recusa head=aceite"]))
+    def test_gitattributes_em_qualquer_lado_e_nao_verificavel(self):  # sondas S2, S6, S7
+        atributos = {".gitattributes": "hooks/h.py export-subst\n", "hooks/.gitattributes": "h.py ident\n",
+                     "a/b/.gitattributes": "c.py working-tree-encoding=UTF-16LE\n", ".GitAttributes": "* eol=crlf\n"}
+        esperado = (2, ["so-aperta: nao-verificavel (atributos de checkout: .gitattributes na árvore)"])
+        for rel, texto in atributos.items():
+            with self.subTest(rel):
+                com = self.repo.commit(extra={rel: texto})
+                (self.repo.pasta / rel).unlink()
+                self.assertEqual(self.comparar(self.base, com), esperado)  # no head
+                self.assertEqual(self.comparar(com, self.base), esperado)  # na base
+
+    def test_matcher_fora_da_forma_simples_e_nao_verificavel(self):  # sonda S9 (A7)
+        for matcher in ("(?i)bash", "Ba.*", 7):
+            with self.subTest(matcher):
+                head = self.repo.commit(config=hooks_json(matcher=matcher))
+                self.assertEqual(self.comparar(head, head), (2, ["so-aperta: nao-verificavel (matcher fora da forma simples "
+                                                                 "em hooks/hooks.json)"]))
+        for matcher in ("*", "", "Write|Edit|Bash"):
+            with self.subTest(matcher):
+                head = self.repo.commit(config=hooks_json(matcher=matcher))
+                self.assertEqual(self.comparar(self.base, head)[0], 0)
 
     def test_executavel_e_link_interno_chegam_como_no_clone(self):
         (self.repo.pasta / "hooks" / "h.py").chmod(0o755)
@@ -390,7 +410,7 @@ class ComoOClone(Base):
         listas = []
 
         def troca(args, cod, saida):
-            if args[:1] == ("ls-tree",):
+            if args[:1] == ("ls-tree",) and "--name-only" not in args:  # a lista da extração, não a dos atributos
                 listas.append(args)
                 return 128, saida
             return cod, saida
@@ -423,6 +443,16 @@ class LadosSeparados(Base):
         le_home = LER + "if Path(os.environ['HOME'], '.marca').exists():\n    sys.exit(0)\n" + RECUSA[len(LER):]
         with mock.patch.dict(os.environ, {"HOME": str(home)}):
             rc, linhas = self.comparar(self.base, self.repo.commit(hook=le_home))
+        self.assertEqual(rc, 0, linhas)
+
+    def test_tmpdir_de_quem_chama_nao_chega_ao_hook(self):  # A5
+        tmp = Path(self.tmp.name) / "tmp-de-quem-chama"
+        tmp.mkdir()
+        (tmp / ".marca").write_text("x")
+        le_tmp = LER + ("if Path(os.environ.get('TMPDIR', '/nada'), '.marca').exists() or not Path(os.environ['TMPDIR']).is_dir():\n"
+                        "    sys.exit(0)\n") + RECUSA[len(LER):]
+        with mock.patch.dict(os.environ, {"TMPDIR": str(tmp)}):
+            rc, linhas = self.comparar(self.base, self.repo.commit(hook=le_tmp))
         self.assertEqual(rc, 0, linhas)
 
 
