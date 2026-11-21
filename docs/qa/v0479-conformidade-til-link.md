@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-til-link
-commit: 481d2855dbf0acc7c9fc9ec09d35ad8bf5d87e24
+commit: 9451e78c19bbbe44b640c04ff1f6a135e0b41767
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -36,3 +36,14 @@ Mutantes (`bin/forge-mutante tests/mutantes/v0479-conformidade-til-link.json tes
 Falso bloqueio: `linkcopia-cp-preserva-libera` (`cp -p`) e `linkcopia-tar-lista-libera` (`tar -t`) liberam no head; na leitura da regex, `cp -v/-f/-n/-u/--preserve`, `tar -tvf`, `tar -cf` e `--exclude` não casam. O que passou a recusar são os dois `tar -x` que o `test_conformidade_verde` moveu de "libera" para "recusa" (mudança declarada no pedido).
 
 Limites do QA: suíte inteira não rodada (só os módulos do recorte, `R-TETO`). O módulo `test_hooks` inteiro não deu veredito local no prazo; as duas funções novas foram rodadas isoladas, e o resto do módulo fica para a prova do check-run `bateria` do mesmo sha no CI do PR.
+
+## Revalidação no head 9451e78c (E80.8, delta 481d2855..9451e78c)
+Vermelho antes do verde (forma de projeto, cópia do head com `hooks/conformidade.py` de 481d2855, `test_hooks -k test_fixtures_do_til_em_substituicao -k test_fixtures_do_link_por_copia`): `Ran 2 tests · FAILED (failures=36)` · `rc=1`; no head `Ran 2 tests · OK` · `rc=0`. As fixtures novas do delta são 44 (o brief diz 47; `git diff --name-status` dá 44 `A`, nenhuma mudada): 36 `bloqueia` caem na base, uma por uma; as 8 `libera` (`cp-longa-comum`, `python-sem-controle`, `unzip-lista-sem-controle`, `for-sem-vigor`, `home-vizinho`, `interpretador-sem-vigor`, `reatribuicao-outra-pasta`, `script-com-vigor`) passam na base de propósito: guardam o lado livre.
+Verde no head: `test_conformidade_verde` OK (`rc=0`); `test_hooks_volta_corpus` `Ran 33 tests in 165.269s · OK` (`rc=0`).
+Mutantes, 63 de 63 mortos, nenhum equivalente, `rc=0` em cada chamada (uma por pedido): `tests/mutantes/v0479-conformidade-til-link.json`, `-2`, `-3`, `-4` (32 mortos); `tests/mutantes/v047-conformidade-cf1.json`, `v047-destino-opaco-10.json`, `v047-destino-opaco-13.json` (24 mortos); `tests/mutantes/v0479-conformidade-trilha-13.json` (7 mortos).
+Realinhamento das specs cf1, destino-opaco-10 e -13 e trilha-13: só o trecho `de` acompanhou o código novo e o `para` mantém o efeito (desligar o ramo); os `testes` que devem cair são os mesmos; os mutantes mataram, sem enfraquecimento.
+Sem `skip` novo: o delta dos testes não acrescenta `skip`, `skipIf` nem `expectedFailure`; os `skipTest` existentes são de ambiente (bash ausente, namespace de pid, root) e anteriores.
+Falso positivo, sondagem direta do hook com cerca de 50 linhas de fluxo real (fixture base `linkcopia-unzip-lista-sem-controle-libera`, `TMPDIR` próprio), todas liberam (rc 0): `cat`/`sed`/`bash -n .githooks/pre-push`, `7z l`, `tar -tf`/`-tzf`/`-czf`, `unzip -l`/`-p`, `tar -xf -C $TMPDIR`, `7z x -o$TMPDIR`, `python3 -c` sem citar controle e `python3 -I -m unittest`, `perl -e`, `node -e`, `cp -a/-r/-p` e `rsync -avz` para `$TMPDIR`, `git diff/log/show` de `docs/pedidos`, `for` e `while read` sem `.claude`, e o jarvis gravando por `echo >`, `cp`, `cp -a`, `tar -x`, `unzip` e `cat <<` na pasta de controle. Só recusa o que é para recusar (`ln -s` do jarvis em brief, regra anterior). Falha fechado, por desenho, o `python3 -c` de quem não é o jarvis que cita a pasta de controle por caminho absoluto ou `docs/qa/` (A1, recomendado).
+
+## Achados
+- A1 (recomendado) hooks/conformidade.py:1 · `python3 -c "print(open('docs/qa/v1.md').read())"` (qa-engineer) e a leitura de `/root/.forge-contrib/docs/briefs/b1.md` (tech-lead) recusam: leitura pura cai no fechado. Raro e com contorno (`cat`); vira cartão.
