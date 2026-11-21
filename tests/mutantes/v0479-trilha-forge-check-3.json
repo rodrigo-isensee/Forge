@@ -67,7 +67,7 @@
       "guarda": "A1: só a ref onde o parecer existe decide; a ausência numa delas não vira frontmatter ilegível",
       "arquivo": "bin/forge-check",
       "de": "        onde = [r for r in refs if blob_de(raiz, r, nome)]",
-      "para": "        onde = refs",
+      "para": "        onde = [r for r in refs if True]",
       "testes": [
         "tests.test_revisor_wt.PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim"
       ]
