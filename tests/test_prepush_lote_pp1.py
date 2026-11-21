@@ -221,13 +221,18 @@ class IntervaloDaFila(Base):
                 self.assertNotIn("error token", erro)  # recusado pelo case, antes da conta (sem erro do bash)
 
 
+# O bin/forge-mutante não tem regra no MAPA do bin/forge-testes (só a convenção, que test_testes_tocados exige): o falso
+# dele é gravado pelo mesmo nome da cópia, como no test_pre_push_patch. Mudar o forge-mutante roda este módulo só no CI.
+MUTANTE = "forge-mutante"
+
+
 class CoberturaDaCatraca(Base):
     """PREPUSH-LEVE-COBERTURA-CATRACA: o envio leve reprova condição mudada em Python de controle sem mutante declarado."""
 
     def preparar(self, repo):
         for pasta in ("bin", "hooks", "tests"):
             (repo / pasta).mkdir()
-        for nome in ("forge-mutante", "forge_apoio_testes.py", "forge-check"):
+        for nome in (MUTANTE, "forge_apoio_testes.py", "forge-check"):
             shutil.copy(RAIZ / "bin" / nome, repo / "bin" / nome)
         for nome in ("catraca.py", "neutralidade.py"):
             shutil.copy(RAIZ / "tests" / nome, repo / "tests" / nome)
@@ -284,13 +289,13 @@ class CoberturaDaCatraca(Base):
         for linha, saida in (("sem mutante sem arquivo", 1), ("sem mutante · hooks/h.py:2 · a", 3)):
             with self.subTest(saida=saida):
                 falso = f"import sys\nprint({linha!r})\nsys.exit({saida})\n"
-                codigo, erro = self.roda(self.remendado, {"hooks/h.py": "def f(a, b):\n    return 1\n", "bin/forge-mutante": falso})
+                codigo, erro = self.roda(self.remendado, {"hooks/h.py": "def f(a, b):\n    return 1\n", f"bin/{MUTANTE}": falso})
                 self.assertEqual(codigo, 0, erro)
                 self.assertIn(f"aviso: bin/forge-mutante --cobertura não conferiu o delta (saída {2 if saida == 1 else saida})", erro)
 
     def test_catraca_ilegivel_no_filtro_e_so_aviso(self):
         falso = "import sys\nprint('sem mutante · hooks/h.py:2 · a')\nsys.exit(1)\n"
-        mudanca = {"hooks/h.py": "def f(a, b):\n    return 1\n", "bin/forge-mutante": falso, "tests/catraca.py": "raise RuntimeError('x')\n"}
+        mudanca = {"hooks/h.py": "def f(a, b):\n    return 1\n", f"bin/{MUTANTE}": falso, "tests/catraca.py": "raise RuntimeError('x')\n"}
         codigo, erro = self.roda(self.remendado, mudanca)
         self.assertEqual(codigo, 0, erro)
         self.assertIn("aviso: bin/forge-mutante --cobertura não conferiu o delta (saída 2)", erro)
