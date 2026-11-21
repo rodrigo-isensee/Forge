@@ -5115,7 +5115,7 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False, confe
         return ["anotar: bin/forge_dono.py ausente ao lado do forge-check; nada gravado"], 2
     if (tipo == "decisao") != (confere is not None) or (confere is not None and not dono.CONFERE.fullmatch(f"confere={confere}")):
         return ["anotar: --confere rapido|seguro|barato|mede|nao-passa vai com --tipo decisao, e só com ele (E8); nada gravado"], 2
-    if (tipo == "ordem") != (cartao is not None) or (cartao is not None and not APONTADOR.fullmatch(cartao)):
+    if (tipo == "ordem") != (cartao is not None) or (cartao is not None and not re.fullmatch(APONTADOR, cartao)):
         return ["anotar: --cartao <ID|E<n>> vai com --tipo ordem, e só com ele (AE4); nada gravado"], 2
     literal, contexto = literal.strip(), (contexto or "").strip()
     if not literal:
@@ -7564,7 +7564,7 @@ def registro_da_frase(frase):
     return re.compile(rf"{ABRE_A_DECISAO}{re.escape(frase)}\s*\((\d{{4}}-\d{{2}}-\d{{2}})(?:[ T]\d{{2}}:\d{{2}})?[^)]*\)\s*:\s*(.+)$")
 
 
-DECISAO_DO_REGISTRO = registro_da_frase(FRASE_DO_DONO)
+DECISAO_DO_REGISTRO = re.compile(rf"{ABRE_A_DECISAO}{re.escape(FRASE_DO_DONO)}\s*\((\d{{4}}-\d{{2}}-\d{{2}})(?:[ T]\d{{2}}:\d{{2}})?[^)]*\)\s*:\s*(.+)$")
 MOTIVO_DA_DECISAO = re.compile(r"\bmotivo\s*:\s*([^;·]+)", re.I)
 REABRE_SE = re.compile(r"\breabre se\s*:?\s*([^;·.]+)", re.I)
 
@@ -7585,8 +7585,8 @@ ID_DE_CARTAO = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+"
 CARTAO_CITADO = re.compile(rf"(?i:cart(?:ão|ões))\s+({ID_DE_CARTAO}(?:(?:\s*[,/+]\s*|\s+e\s+){ID_DE_CARTAO})*)")
 DECISAO_ENCERRADA = re.compile(r"encerrad|descartad|superad", re.I)
 ETAPA_APONTADA = r"E\d+(?:\.\d+[a-z]?)?"  # AE4.1 (D5 a): o item `E<n>` ou a etapa `E<n>.<m>` do pedido
-APONTADOR = re.compile(rf"{ID_DE_CARTAO}|{ETAPA_APONTADA}")
-CARTAO_DA_ORDEM = re.compile(rf"·\s*cartão:\s*({APONTADOR.pattern})\s*$")  # a marca que o `anotar --tipo ordem` grava no fim
+APONTADOR = rf"{ID_DE_CARTAO}|{ETAPA_APONTADA}"  # texto: compila no uso, pelo cache do re (custo do corpus dos hooks, E58.102)
+CARTAO_DA_ORDEM = rf"·\s*cartão:\s*({APONTADOR})\s*$"  # a marca que o `anotar --tipo ordem` grava no fim
 
 
 def e_etapa_do_pedido(alvo, etapas):
@@ -7943,7 +7943,7 @@ def linhas_sem_cartao(raiz, onde, data, texto, cartoes, conta, etapas=None):
     if DECISAO_ENCERRADA.search(texto):
         conta["encerradas"] += 1
         return []
-    marca = CARTAO_DA_ORDEM.search(texto) if etapas is not None else None
+    marca = re.search(CARTAO_DA_ORDEM, texto) if etapas is not None else None
     resumo, ids = sem_controle(texto)[:120], [marca.group(1)] if marca else ids_da_decisao(raiz, texto)
     faltam = [i for i in ids if not tem_cartao(i, cartoes) and not (etapas and e_etapa_do_pedido(i, etapas))]
     chave = "sem-id" if not ids else "sem-cartao" if faltam else "com-cartao"
