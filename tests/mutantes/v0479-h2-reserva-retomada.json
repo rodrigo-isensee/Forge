@@ -42,5 +42,17 @@
         "tests.test_hooks_agentes_autor.Autores.test_prazo_unico_por_registro"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/agentes.py",
+      "trecho": "a.get(\"id\")",
+      "motivo": "a guarda do prazo da recusa em recusar_branch_ocupada virou prazo_do_registro (hooks/agentes.py:366, coberta por M23 de v047-h2-autor-fica-3 e I55 de v0432-integracao-4); a chamada nova tem o mutante M2"
+    },
+    {
+      "arquivo": "hooks/agentes.py",
+      "trecho": "a[\"id\"] == alvo",
+      "motivo": "a compreensão de reservar_retomada virou escrita_do_autor (hooks/agentes.py:746, a[\"id\"] == aid, coberta por M22 de v047-h2-autor-fica-3); o comportamento é o mesmo com o alvo como argumento"
+    }
   ]
 }
