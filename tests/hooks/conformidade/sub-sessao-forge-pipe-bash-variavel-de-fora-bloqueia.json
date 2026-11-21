@@ -1,0 +1,32 @@
+{
+  "descricao": "CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (v0478 E63.9, A12 da segurança E63.7; R-VERIFY, R-FLUXO): o nome do alvo que a linha não atribui pode ser /dev/stdin.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "scripts/x.sh": "echo\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj",
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo 'git push --no-verify origin melhoria/x' | bash < \"$X\""
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:dev"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "envio do git"
+  },
+  "forge": false
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478-dir31-focus",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "F1",
+      "guarda": "o modelo de projeto liga a visão de foco",
+      "arquivo": "templates/projeto/.claude/settings.json",
+      "de": "\"viewMode\": \"focus\",",
+      "para": "\"viewMode\": \"verbose\",",
+      "testes": [
+        "tests.test_sessao_automatica.ModeloELinguagem.test_modelo_de_projeto_liga_a_visao_sem_trocar_o_renderizador"
+      ]
+    },
+    {
+      "id": "F2",
+      "guarda": "arquivo ilegível não decide pelo dono",
+      "arquivo": "scripts/jarvis",
+      "de": "        except Exception:\n            sys.exit(0)\n        dados",
+      "para": "        except Exception:\n            continue\n        dados",
+      "testes": [
+        "tests.test_sessao_automatica.AtalhoAbreNaVisaoDeFoco.test_arquivo_ilegivel_nao_decide_pelo_dono"
+      ]
+    },
+    {
+      "id": "F3",
+      "guarda": "viewMode decidido em arquivo não é passado",
+      "arquivo": "scripts/jarvis",
+      "de": "extra = {} if modo is not None else {\"viewMode\": \"focus\"}",
+      "para": "extra = {\"viewMode\": \"focus\"}",
+      "testes": [
+        "tests.test_sessao_automatica.AtalhoAbreNaVisaoDeFoco.test_viewmode_em_qualquer_arquivo_do_dono_nao_e_passado"
+      ]
+    },
+    {
+      "id": "F4",
+      "guarda": "a tela cheia só vai com a visão valendo",
+      "arquivo": "scripts/jarvis",
+      "de": "if modo in (None, \"focus\") and sem_tui:",
+      "para": "if sem_tui:",
+      "testes": [
+        "tests.test_sessao_automatica.AtalhoAbreNaVisaoDeFoco.test_viewmode_em_qualquer_arquivo_do_dono_nao_e_passado"
+      ]
+    },
+    {
+      "id": "F5",
+      "guarda": "tui decidido em arquivo não é passado",
+      "arquivo": "scripts/jarvis",
+      "de": "sem_tui = not any(\"tui\" in d for d in dados) and not",
+      "para": "sem_tui = not",
+      "testes": [
+        "tests.test_sessao_automatica.AtalhoAbreNaVisaoDeFoco.test_tui_decidido_por_arquivo_ou_variavel_nao_e_passado"
+      ]
+    },
+    {
+      "id": "F6",
+      "guarda": "a variável que desliga a tela alternativa barra a tela cheia",
+      "arquivo": "scripts/jarvis",
+      "de": "    and not os.environ.get(\"CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN\")",
+      "para": "    and True",
+      "testes": [
+        "tests.test_sessao_automatica.AtalhoAbreNaVisaoDeFoco.test_tui_decidido_por_arquivo_ou_variavel_nao_e_passado"
+      ]
+    },
+    {
+      "id": "F7",
+      "guarda": "o arquivo local entra na conferência",
+      "arquivo": "scripts/jarvis",
+      "de": "python3 -I - \"$PWD/.claude/settings.local.json\" \"$PWD/.claude/settings.json\"",
+      "para": "python3 -I - \"$PWD/.claude/settings.json\"",
+      "testes": [
+        "tests.test_sessao_automatica.AtalhoAbreNaVisaoDeFoco.test_arquivo_local_vence_o_projeto"
+      ]
+    },
+    {
+      "id": "F8",
+      "guarda": "o atalho passa a visão por --settings",
+      "arquivo": "scripts/jarvis",
+      "de": "if [ -n \"$foco\" ]; then args+=(--settings \"$foco\"); fi",
+      "para": "if false; then args+=(--settings \"$foco\"); fi",
+      "testes": [
+        "tests.test_sessao_automatica.AtalhoAbreNaVisaoDeFoco.test_sem_nenhum_arquivo_liga_a_visao_e_a_tela_cheia"
+      ]
+    }
+  ]
+}

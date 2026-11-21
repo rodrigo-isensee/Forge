@@ -1,0 +1,37 @@
+{
+  "descricao": "CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.9, A1 e A2 do review E63.6; R-CONFORMIDADE): S1 do review, a rotina do subagente: `cd` para a cópia de wt/ e a leitura do pedido do clone com saída em `$TMPDIR`.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "a.txt": "v\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd ~/.forge-contrib/wt/x && sed -n 1,5p docs/pedidos/v1.md > $TMPDIR/e.txt"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "repos": {
+    "home/.forge-contrib": {
+      "arquivos": {
+        "docs/pedidos/v1.md": "# v1\n",
+        "docs/briefs/b1.md": "b\n",
+        "x/docs/pedidos/v2.md": "# v2\n",
+        "wt/x/docs/pedidos/v1.md": "# v1\n",
+        "a.txt": "v\n"
+      }
+    }
+  }
+}
