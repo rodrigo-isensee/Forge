@@ -160,6 +160,30 @@ class PrePushLocalSemDependencias(Base):
         self.assertIn(f"instale antes as dependências: {INSTALAR_PYTHON}", saida)
         self.assertEqual(chamadas, ["ruff check ."])
 
+    def com_pronto(self, rapido):
+        """Troca o pronto rápido gerado por `rapido` (sem aspa simples), como o projeto que ajusta o seu."""
+        local = self.proj / LOCAL
+        linhas = [f"rapido='{rapido}'" if linha.startswith("rapido='") else linha
+                  for linha in local.read_text(encoding="utf-8").splitlines()]
+        local.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+
+    def test_programa_depois_de_ou_logico_tambem_e_checado(self):
+        """`a || b`: cada lado é um trecho; sem tratar o `||`, o trecho vazio entre as barras suja a lista."""
+        self.com_pronto("ruff check . || mypy src")
+        rc, saida, chamadas = self.pre_push_local(self.proj)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("falta no PATH: ruff mypy (", saida)
+        self.assertEqual(chamadas, [])
+
+    def test_programa_depois_de_pipe_tambem_e_checado(self):
+        """`a | b`: o programa depois do pipe ausente barra o envio, mesmo com o primeiro instalado."""
+        self.com_pronto("ruff check . | mypy src")
+        rc, saida, chamadas = self.pre_push_local(self.proj, {"ruff": 0})
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("falta no PATH: mypy (", saida)
+        self.assertNotIn("pronto rápido:", saida)
+        self.assertEqual(chamadas, [])
+
 
 class EnvioDaCopiaNova(Base):
     """Ponta a ponta: projeto do forge-init, cópia nova por `git worktree add`, envio com código e o PATH de quem roda."""
