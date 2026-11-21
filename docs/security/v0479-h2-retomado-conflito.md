@@ -26,7 +26,7 @@ Já lido e sem mudança desde a rodada anterior: `sem_controle` e o corte de 80 
 Base x head pelas mesmas três fixtures do head (harness de `tests/test_hooks.py`, `executar_fixture`, árvores por `git archive` em TMPDIR próprio): código, stderr e estado iguais nos dois lados; a única diferença é a linha nova no erros.log (no head, as três falham só se o esperado omite `erros_log`, porque a linha a mais aparece; na base, falham só se o esperado a exige). Ganho de observabilidade sem afrouxar nada. Bate com a sonda de 5 passos do autor (`/root/.forge-contrib/wt/e925-saida/sondas.txt`, `head-novo` igual à base).
 
 ## Sondas
-- S1 · fixture `autor-retomado-tardio-branch-tomada-avisa` do head (viva B em a, SubagentStart do retomado A, SubagentStop de B, Agent em a) · espera: rc 2 "R-TETO: melhoria/a ocupada por forge:software-engineer" e a linha "segue com melhoria/a" no erros.log · obtido: head ok; base ok sem o `erros_log` (rc 2, mesmo stderr)
+- S1 · fixture ...branch-tomada-avisa do head (viva B, início de A, fim de B, Agent em a) · espera: rc 2 "ocupada por forge:software-engineer" e linha "segue com" · obtido: head ok; base ok sem o erros_log (rc 2, mesmo stderr)
 - S2 · `...branch-mista` e `...reserva-viva-vale` nos dois lados · espera: mesmo código e stderr · obtido: iguais; diferença só a linha do erros.log
 
 ## Riscos aceitos e ferramentas
