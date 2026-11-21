@@ -109,7 +109,7 @@ que um portão revisou (o `Revisar-sha:` de brief selado de portão da mesma bra
 vale como a branch inteira (`base: Base-sha do brief`, P-N1; `brief mensagem --entrega` emite esse `Desde:`). Intervalo vazio:
 `pendente:` na etapa `codigo`, `escopo: sem commit (nada a conferir)` nas outras. Parecer do papel certo e com autoria:
 `escopo: ok (parecer de <papel>)`; o resto: `escopo: confira "<arquivo>" +a -r`, para a leitura contra o Entregar.
-`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Com o blob do último `parecer conferido` do Histórico que o altera, ancestral do head, sai `escopo: ok (parecer trazido <sha7> de <papel>)`, mesmo com remoção. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`). O arquivo aplicado pelo dono, declarado no `## Histórico` por `- <data> <hora>: patch do dono aplicado <arquivo> commit <sha40>` e citado (sha40 e caminho) por uma `DECISÃO DO DONO`, sai `escopo: ok (patch do dono <sha7>, DECISÃO DO DONO <pedido>:<linha>)` só com o blob e o modo desse commit no head. Na volta (Desde de conferida ou Revisar-sha), o parecer que o portão commitou ou mesclou na branch em qualquer ponto do intervalo sai `escopo: ok (anexo do portão: parecer de <papel> commitado na volta só com parecer)` com o frontmatter da pasta, da branch e do pedido, o `commit:` igual ao Desde (E50.5) e todo commit que muda o arquivo só da pasta do tipo (fora de `docs/security/aceites/`) ou merge sem resolução à mão (E50.1); o autor que o toca segue fora. O parecer do papel de um autor da volta (`Agente destino` de brief selado de codigo; sem nenhum, falha fechada) só vale com o blob do último `parecer conferido` do Histórico (E50.6).
+`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Com o blob do último `parecer conferido` do Histórico que o altera, ancestral do head, sai `escopo: ok (parecer trazido <sha7> de <papel>)`, mesmo com remoção. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). Em toda etapa, o arquivo igual ao do merge-base do head com a `<base>` lida por `git ls-remote origin` sai (`escopo: integração da base pelo remoto`), salvo o aceite do usuário, o ausente nos dois lados e o que a branch mudou até a conferida; com merge-base que não é um só ou fora da 1.a linha de pais da base remota, ou sem rede, nada sai (ENTREGA-MERGE-DA-DEVELOP). O merge de um `parecer conferido` que traz o parecer de outro portão (merge de pareceres) vale pelo blob do `parecer conferido` mais novo da história do outro pai que muda o arquivo, o mesmo no outro pai e no merge (ENTREGA-MERGE-DE-PARECER-ANINHADO). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`). O arquivo aplicado pelo dono, declarado no `## Histórico` por `- <data> <hora>: patch do dono aplicado <arquivo> commit <sha40>` e citado (sha40 e caminho) por uma `DECISÃO DO DONO`, sai `escopo: ok (patch do dono <sha7>, DECISÃO DO DONO <pedido>:<linha>)` só com o blob e o modo desse commit no head. Na volta (Desde de conferida ou Revisar-sha), o parecer que o portão commitou ou mesclou na branch em qualquer ponto do intervalo sai `escopo: ok (anexo do portão: parecer de <papel> commitado na volta só com parecer)` com o frontmatter da pasta, da branch e do pedido, o `commit:` igual ao Desde (E50.5) e todo commit que muda o arquivo só da pasta do tipo (fora de `docs/security/aceites/`) ou merge sem resolução à mão (E50.1); o autor que o toca segue fora. O parecer do papel de um autor da volta (`Agente destino` de brief selado de codigo; sem nenhum, falha fechada) só vale com o blob do último `parecer conferido` do Histórico (E50.6).
 `delta` (VV-2, M12; só leitura, nunca reprova) imprime `delta: <arquivo> +a -r` e `delta: <arquivo>:<ini>-<fim>` (lado novo
 de cada trecho de `git diff -U0`) do que mudou entre o commit (ou o `commit:` do parecer de `--parecer`) e o fim (padrão HEAD),
 fora de docs/reviews, qa, devops, security e do quadro; `delta: nenhum` sem mudança. Com `--classe` (EST-M4), também
@@ -2513,9 +2513,26 @@ def merges_nao_conferidos(raiz, texto, de, head, base_ref):
         recusas += [(f"escopo: fora (merge de {q[:7]} não conferido)", True) for q in outros if q not in shas]
         dos_p = [q for q in outros if q in shas]
         recusas += [(f"escopo: fora (o merge {merge[:7]} traz {nome_seguro(n)} fora dos pareceres conferidos)", True) for n in trazidos
-                    if not any(n in (nomes_do_intervalo(raiz, f"{q}^1", q, estrito=True) or ()) and blob_de(raiz, q, n) == blob_de(raiz, merge, n)
-                               for q in dos_p)]
+                    if not any(vale_pelo_conferido(raiz, shas, merge, q, n) for q in dos_p)]
     return recusas, shas
+
+
+def conferido_mais_novo(raiz, shas, q, nome):
+    """ENTREGA-MERGE-DE-PARECER-ANINHADO: o `parecer conferido` (`shas`) mais novo da história do outro pai `q` (ele incluso) que muda
+    `nome`, o único de que nenhum outro desses descende (review A2: como o `parecer_trazido`, só o último vale). Nenhum, dois ramos sem
+    ordem ou git que falha: None. O `rev-list` que falha fica só com o `q` (o aceite de antes; nada a mais)."""
+    cod, saida = git(raiz, "rev-list", q)
+    ancestrais = {q} | (set() if cod else set(saida.split()) & shas)
+    mudam = [p for p in sorted(ancestrais) if nome in (nomes_do_intervalo(raiz, f"{p}^1", p, estrito=True) or ())]
+    novos = [p for p in mudam if not any(c != p and e_ancestral(raiz, p, c) for c in mudam)]
+    return novos[0] if len(novos) == 1 else None
+
+
+def vale_pelo_conferido(raiz, shas, merge, q, nome):
+    """O `nome` que o `merge` trouxe do outro pai `q` tem, no merge e no `q`, o blob do conferido mais novo que o muda (segurança A4:
+    sem resolução à mão que rebaixe o parecer a uma versão superada)."""
+    p = conferido_mais_novo(raiz, shas, q, nome)
+    return bool(p) and blob_de(raiz, merge, nome) == blob_de(raiz, q, nome) == blob_de(raiz, p, nome)
 
 
 def bases_do_pedido(texto):
@@ -2837,6 +2854,30 @@ def diferem_dos_dois_pais(raiz, de, head, base_ref, ancoras=None):
             antes = contagens.get(nome)
             contagens[nome] = (maior_contagem(antes[0], mais), maior_contagem(antes[1], menos)) if antes else (mais, menos)
     return comuns, contagens
+
+
+def vindos_do_remoto_da_base(raiz, base, base_sha, head, nomes):
+    """ENTREGA-MERGE-DA-DEVELOP: dos `nomes` (o que difere do Base-sha), os que o merge da base trouxe e o autor não mudou por cima: o
+    blob do head igual ao do merge-base do head com a `<base>` do `origin` lida por `git ls-remote` (o remoto, que o autor não reescreve
+    como a `origin/<base>` local, FILTROS-L08-G2-ORIGIN-LOCAL): o conteúdo da base que o merge trouxe (a release que depois apaga um
+    fragmento não o devolve ao autor). Nome distinto do `vindos_da_base` do E7, que o `commit_vale` e o `parecer delta` usam. O aceite
+    do usuário e o arquivo ausente nos dois lados nunca saem (segurança A3). Sem rede, sem o commit remoto no repositório, sem merge da
+    base pela ref local, merge-base que não é um só nem está na 1.a linha de pais da base remota (segurança A2) ou git que falha: nada
+    sai (o escopo de antes)."""
+    local = ref_da_base(raiz, base)
+    if not (nomes and local) or git(raiz, "merge-base", local, head)[1] in ("", base_sha):  # sem merge da base adiante: sem rede
+        return set()
+    remoto, conferido = remoto_da_branch(raiz, base)
+    if not (conferido and remoto):
+        return set()
+    pontos = git(raiz, "merge-base", "--all", remoto, head)[1].split()
+    if len(pontos) != 1:  # o commit remoto não buscado (nenhum) ou o merge cruzado (mais de um): o `ponto:<arquivo>` vazio leria o índice
+        return set()
+    ponto = pontos[0]
+    cod, linha = git(raiz, "rev-list", "--first-parent", remoto)
+    if cod or ponto not in linha.split():  # commit de PR lateral mesclado na base: nunca foi a ponta dela (segurança A2)
+        return set()
+    return {n for n in nomes if not n.startswith(ACEITES_DO_USUARIO) and "" != blob_de(raiz, head, n) == blob_de(raiz, ponto, n)}
 
 
 def igual_na_base(raiz, commit, base_ref, nome):
@@ -3226,7 +3267,8 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
     dos_dois_pais, primeiro_pai = (None if isinstance(r, FalhaDoGit) else r for r in (dos_dois_pais, primeiro_pai))
     if filtro and base_ref and base_sem_ancora(raiz, de, head, base_ref, filtro):
         informativas.append((f"escopo: merge da {nome_seguro(base)} sem âncora (nenhum Base-sha de brief selado depois do da entrega a "
-                             "cobre; a origin/<base> é ref local): o que ela trouxe segue no escopo", False))
+                             "cobre; a origin/<base> é ref local): o que ela trouxe segue no escopo, salvo o igual ao merge-base com a base do `git "
+                             "ls-remote origin`", False))
     if dos_dois_pais:  # E2: só integração na branch
         arquivos = [n for n in arquivos if n in dos_dois_pais[0] or n in desfeitos]
         informativas.append(("escopo: integração da base (o que difere dos dois pais)", False))
@@ -3245,6 +3287,10 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
         else:  # com outro passo do git falho a lista volta inteira no fim (C-3)
             diferem = set(nomes_da_base) | desfeitos  # o que a branch mudou até a conferida e devolveu à base depois dela continua à vista (segurança A1)
             arquivos = [n for n in arquivos if n in diferem]
+    if da_base := vindos_do_remoto_da_base(raiz, base, base_sha, head, set(arquivos) - desfeitos):  # ENTREGA-MERGE-DA-DEVELOP
+        arquivos = [n for n in arquivos if n not in da_base]
+        informativas.append((f"escopo: integração da base pelo remoto ({len(da_base)} arquivo(s) iguais ao merge-base com a "
+                             f"{nome_seguro(base)} do `git ls-remote origin`)", False))
     cod_pais, saida_pais = git(raiz, "rev-list", "--parents", "-n", "1", head)
     pais = []
     if cod_pais:
@@ -7334,13 +7380,14 @@ def conferir_pedido_contraditorio(secoes, pedido):
 
 def remoto_da_branch(raiz, branch):
     """(sha da branch em `origin` ou None, conferido): `git ls-remote origin refs/heads/<branch>` (o remoto, não o último fetch); sem rede
-    ou sem `origin`, cai no ref de rastreio local e `conferido` é False."""
+    ou sem `origin`, cai no ref de rastreio local e `conferido` é False. Só a linha do nome exato vale: o padrão do `ls-remote` casa
+    pela cauda, e `refs/heads/a/refs/heads/<branch>` viria antes (segurança A1 da v0479-entrega-merges)."""
     try:
         cod, saida = git(raiz, "ls-remote", "origin", f"refs/heads/{branch}")
     except subprocess.TimeoutExpired:
         cod, saida = 1, ""
     if cod == 0:
-        sha = saida.split("\t")[0]
+        sha = next((s for s, _, ref in (linha.partition("\t") for linha in saida.splitlines()) if ref == f"refs/heads/{branch}"), "")
         return (sha if SHA40.match(sha) else None), True
     return sha_do_commit(raiz, f"refs/remotes/origin/{branch}"), False
 
