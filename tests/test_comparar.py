@@ -328,6 +328,12 @@ class DecisaoInteira(Base):
         rc, linhas = self.comparar(self.base, head)
         self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: livre base=aceite head=allow entrada-reescrita"]))  # A9
 
+    def test_reescrita_do_caso_recusado_na_base_nao_conta(self):  # A9 do lado da base: CMP60
+        reescreve = {"hooks/r.py": responde(REESCREVE)}
+        base = self.repo.commit(hook=RECUSA, config=dois_hooks(), extra=reescreve)
+        rc, linhas = self.comparar(base, self.repo.commit(hook=LIBERA, config=dois_hooks(), extra=reescreve))
+        self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: proibido base=recusa head=allow entrada-reescrita"]))
+
     def test_decisao_antiga_approve_e_allow(self):  # sonda S5
         base = self.repo.commit(hook=LIBERA)
         rc, linhas = self.comparar(base, self.repo.commit(hook=responde("{'decision': 'approve', 'reason': 'ok'}")))

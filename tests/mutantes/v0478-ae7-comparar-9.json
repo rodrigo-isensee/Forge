@@ -29,7 +29,8 @@
       "de": "[] if nivel == RECUSA else",
       "para": "[] if False else",
       "testes": [
-        "tests.test_comparar.DecisaoInteira.test_hook_novo_que_aprova_e_reescreve_e_aceite_novo"
+        "tests.test_comparar.DecisaoInteira.test_hook_novo_que_aprova_e_reescreve_e_aceite_novo",
+        "tests.test_comparar.DecisaoInteira.test_reescrita_do_caso_recusado_na_base_nao_conta"
       ]
     }
   ]
