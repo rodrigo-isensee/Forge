@@ -70,13 +70,12 @@
     },
     {
       "id": "I55",
-      "guarda": "hooks/agentes.py:394 a.get('id') (negada)",
+      "guarda": "hooks/agentes.py prazo_do_registro registro.get('id') (negada)",
       "arquivo": "hooks/agentes.py",
-      "de": "                prazo = hook.expira_s() if a.get(\"id\") else min(RESERVA_S, hook.expira_s())",
-      "para": "                prazo = hook.expira_s() if not (a.get(\"id\")) else min(RESERVA_S, hook.expira_s())",
+      "de": "return expira_s if registro.get(\"id\") and",
+      "para": "return expira_s if not (registro.get(\"id\")) and",
       "testes": [
-        "tests.test_agentes_hash_brief",
-        "tests.test_selo_e_entrega"
+        "tests.test_hooks_agentes_autor.Autores.test_prazo_unico_por_registro"
       ]
     },
     {
