@@ -540,6 +540,9 @@ VARIAVEIS_DO_BASH = frozenset("_ REPLY MAPFILE BASH_REMATCH OPTARG OPTIND PWD OL
                               "BASH_ARGC BASH_COMMAND BASH_SOURCE BASH_LINENO FUNCNAME PIPESTATUS READLINE_LINE "
                               "READLINE_POINT READLINE_MARK COMP_WORDS COMP_CWORD COMP_LINE COMP_POINT COMPREPLY "
                               "BASH_EXECUTION_STRING EPOCHREALTIME EPOCHSECONDS RANDOM SRANDOM LINENO SECONDS".split())
+# A1 da segurança E80.3: o destino que o hook não calcula numa linha que cita arquivo em vigor (recusa no fim da linha).
+OPACO_EM_VIGOR = ("R-CONFORMIDADE", "destino por variável que nasce em laço, `read` ou expansão que o hook não calcula, numa "
+                  "linha que cita arquivo em vigor: o hook não modela o valor", "use o caminho literal no destino")
 TETO_DE_VALORES = 64  # combinações de valores de uma palavra; acima, o hook não calcula
 # Redesenho da E1.322 (A1 a A3 do review E1.319, A7 a A9 da segurança E1.320, A2 do QA E1.321): a lista positiva, o
 # `echo`/`printf %s` calculado e a troca de `$(pwd)` por `$PWD` valem só quando todos os comandos da linha, lidos como o
@@ -574,6 +577,12 @@ EMBUTIDOS_DO_BASH = frozenset(""". : [ alias bg bind break builtin caller cd com
     typeset ulimit umask unalias unset wait if then else elif fi case esac for select while until do done in function
     time { } ! [[ ]] coproc""".split())
 NOME_DE_FUNCAO = re.compile(r"[A-Za-z_][\w-]*")
+
+
+def normalizada(texto):
+    """E80.5 (A2 da segurança E80.3): o texto como o bash o passa ao programa, sem aspas nem barra invertida
+    (`cp -\\a`, `ta\\r`, `.cla""ude`); para buscar o programa, a opção e o arquivo citado, nunca para ler a linha."""
+    return re.sub(r"[\"'\\]", "", texto)
 
 
 def linha_juntada(linha):
@@ -768,19 +777,37 @@ def atribui_como_argumento(nome, linha):
     return False
 
 
-def valores_da_variavel(m, linha, fundo):
+def valores_em_sequencia(nome, atribuicoes, linha, fundo):
+    """A1 da segurança E80.3 (S3): várias `nome=v` valem pela união dos valores depois de cada uma, com o `$nome` e o
+    `${nome}` dela pelo valor de antes (na primeira, o do ambiente): `d=~; d=$d/.claude`, `d=~/.cla; d=${d}ude`."""
+    propria = re.compile(rf"\$(?:\{{{nome}\}}|{nome}(?!\w))")
+    antes, todos = [SEM_VALOR], []
+    for atribuicao in atribuicoes:
+        pedacos = [valores_da_palavra(p, linha, fundo + 1, sequencia=True) for p in propria.split(atribuicao)]
+        partes = pedacos[:1]
+        for pedaco in pedacos[1:]:  # cada `$nome` da atribuição, entre dois pedaços, vale pelo valor de antes
+            partes += [antes, pedaco]
+        if None in partes or (antes := juntar(partes)) is None:  # o pedaço que o hook não sabe, ou acima do teto
+            return None
+        todos += antes
+    return todos
+
+
+def valores_da_variavel(m, linha, fundo, sequencia=False):
     """U4: os valores de `$x`, `${x}` e `${x:-v}`: o da única atribuição na linha ou, sem ela, o do ambiente
-    (`SEM_VALOR`), mais o padrão literal; None se a variável nasce de outro jeito (`for`, `read`, `+=`)."""
+    (`SEM_VALOR`), mais o padrão literal; None se a variável nasce de outro jeito (`for`, `read`, `+=`). `sequencia`
+    (só o valor calculado da CONFORMIDADE-TIL-EM-SUBSTITUICAO, que só aperta): a reatribuição vale pela sequência."""
     nome = m["chave"] or m["nome"]
     if nasce_fora_do_ambiente(nome, linha):
         return None
     atribuicoes = [valor_atribuido(linha, a.end()) for a in re.finditer(rf"(?<![\w$]){nome}=", linha)]
-    if len(atribuicoes) > 1 or atribuicoes and atribui_como_argumento(nome, linha):  # A19: `declare -n d=_`
+    if len(atribuicoes) > 1 and not sequencia or atribuicoes and atribui_como_argumento(nome, linha):  # A19: `declare -n d=_`
         return None
     if not atribuicoes and any(nasce_fora_do_ambiente(nome[:k], linha) or re.search(rf"(?<![\w$]){nome[:k]}=", linha)
                                for k in range(1, len(nome))):  # A15 (E1.336), A16 (E1.340): `"$d"t` e `"$_"t`
         return None  # `d=.gi; cp x "$d"t` chega sem aspas como `$dt`: o prefixo nascido na linha não é do ambiente
-    valores = valores_da_palavra(atribuicoes[0], linha, fundo + 1) if atribuicoes else [SEM_VALOR]
+    valores = ([SEM_VALOR] if not atribuicoes else valores_em_sequencia(nome, atribuicoes, linha, fundo) if atribuicoes[1:]
+               else valores_da_palavra(atribuicoes[0], linha, fundo + 1, sequencia=sequencia))
     if m["op"] and valores is not None:
         padrao = valores_da_palavra(m["padrao"], linha, fundo + 1, sem_substituicao=True)
         valores = None if padrao is None else valores + padrao
@@ -797,7 +824,7 @@ def fim_do_parentese(texto, inicio):
     return len(texto)
 
 
-def valores_da_palavra(palavra, linha, fundo=0, sem_substituicao=False):
+def valores_da_palavra(palavra, linha, fundo=0, sem_substituicao=False, sequencia=False):
     """U4: os valores que o bash pode dar à palavra, com `SEM_VALOR` no lugar do que o hook não sabe, ou None quando
     ele não os calcula. `$(…)` sem aspas vale por cada corpo da linha; crase partida, só como único corpo e palavra."""
     if fundo > 4 or SEM_VALOR in palavra:
@@ -823,7 +850,7 @@ def valores_da_palavra(palavra, linha, fundo=0, sem_substituicao=False):
             fim = palavra.find("`", i + 1) if c == "`" else fim_do_parentese(palavra, i + 2)
             valores, i = valores_do_corpo(palavra[i + (1 if c == "`" else 2):fim], linha, fundo + 1), fim + 1
         elif c == "$" and (m := VARIAVEL_DO_VALOR.match(palavra, i)):
-            valores, i = valores_da_variavel(m, linha, fundo + 1), m.end()
+            valores, i = valores_da_variavel(m, linha, fundo + 1, sequencia), m.end()
         elif LITERAL.fullmatch(c):
             valores, i = [c], i + 1
         if valores is None:
@@ -1444,6 +1471,7 @@ class Guarda:
         self.trecho = None  # as palavras do comando simples em conferência (`segmento`), que a recusa cita
         self.parecer_pelo_bash = None  # 0.45.3: um parecer que a linha grava; só o Bash o recusa, no fim
         self.calculados = []  # CONFORMIDADE-TIL-EM-SUBSTITUICAO: o alvo pelo valor calculado; só o Bash o recusa, no fim
+        self.opaco_em_vigor = False  # E80.5 (A1): o destino sem valor numa linha que cita o `.claude`; recusa no fim
         self.sem_leitura = False  # E16.1: a linha que o hook não lê (teto, ilegível); a `GuardaDaProva` volta ao texto
         leitura = politica.get("so_leitura")
         self.leitura = leitura if leitura and papel in leitura["papeis"] else None  # papel só de leitura (conferente)
@@ -1691,8 +1719,17 @@ class Guarda:
         # o `~` entre aspas no corpo também, falhando fechado. Recusa no fim da linha (`decidir`): a regra de antes fala antes.
         linha = None if self.texto_da_linha is None or self.corpo_desconhecido or "$" not in caminho and "`" not in caminho \
             else linha_juntada(self.texto_da_linha)
-        valores = linha and valores_da_palavra(self.expandir(caminho, pasta), linha) or ()
-        self.calculados += [self.resolver(v, pasta) for v in valores if SEM_VALOR not in v]
+        # A1 da segurança E80.3: `$HOME` vale como `~`, `$PWD` como `.` e `$CLAUDE_PROJECT_DIR` pelo caminho real (o nome
+        # de uma pasta dele pode coincidir com o de uma variável da linha: aí não há valor e a linha falha fechada), a
+        # reatribuição pela sequência; o valor que o hook não calcula (`for`, `read`) numa linha que cita arquivo em vigor
+        # falha fechado.
+        if linha:
+            real = self.expandir(re.sub(r"\$(?:\{HOME\}|HOME(?!\w))", "~", re.sub(r"\$(?:\{PWD\}|PWD(?!\w))", ".", linha)), pasta)
+            valores = valores_da_palavra(self.expandir(caminho, pasta), real, sequencia=True)
+            if valores is not None:
+                self.calculados += [self.resolver(v, pasta) for v in valores if SEM_VALOR not in v]
+            elif self.papel != "jarvis" and re.search(EM_VIGOR_NO_TEXTO, normalizada(linha)):
+                self.opaco_em_vigor = True
         for alvo in alvos:  # o Bash recusa no fim da linha (`parecer_pelo_bash`), depois das regras específicas dela
             if parecer_conta and e_parecer(alvo):
                 self.parecer_pelo_bash = alvo
@@ -1970,6 +2007,18 @@ class Guarda:
                     self.barrar("R-CONFORMIDADE", f"{ato} {alvo.name}/ {'apaga' if ato == 'apagar' else 'alcança'} {c}: "
                                 f"{e['motivo']}",
                                 f"só o usuário altera; proponha o diff (R-DECISAO); {SUGESTAO}", "instalacao")
+
+    def fechado_em_vigor(self):
+        """E80.5 (A2 e A3 da segurança E80.3, decisão do time): para o papel que não é o jarvis, a linha que cita um arquivo
+        em vigor (`EM_VIGOR_NO_TEXTO`, no texto normalizado) com extrator de pacote ou interpretador com texto
+        (`FECHADO_NA_LINHA`) recusa: o hook não lê o pacote nem executa o texto (`d=~/.claude; python3 -c "…$d…"`). O texto
+        é o da chamada inteira, não o do nível: o `.claude` citado fora do `bash -c` também conta."""
+        texto = normalizada(self.h.campo("tool_input")["command"])
+        achado = self.papel != "jarvis" and re.search(EM_VIGOR_NO_TEXTO, texto) and re.search(FECHADO_NA_LINHA, texto)
+        if achado:
+            self.barrar("R-CONFORMIDADE", f"`{achado.group().strip()}` numa linha que cita arquivo em vigor: o hook não modela "
+                        "o que o pacote ou o texto do interpretador grava", "grave pelo caminho literal, numa linha sem o "
+                        "extrator nem o interpretador com texto")
 
     def checar_texto(self, texto):
         """Escrita em caminho protegido com o caminho em literal dentro de `python -c`, `node -e`, script."""
@@ -2380,6 +2429,8 @@ class Guarda:
         elif INTERPRETES.match(prog):
             for a in args:
                 self.checar_texto(a)
+            if args[:1] and args[0][:1] == "-" and args[0] != "-m":  # E80.5: depois do caminho literal; só a opção antes
+                self.fechado_em_vigor()  # do script (custo do corpus)
             if no_lugar:  # edição no lugar (`-i`, `-pi`, `-0777pi`, `-i.bak`): os arquivos-alvo também são escrita
                 for i, a in enumerate(args):
                     if not a.startswith("-") and not (i and args[i - 1] in ("-e", "-E")):
@@ -2440,6 +2491,7 @@ class Guarda:
                 self.checar_remocao(d, pasta, "extrair em")
             for c in alvos.executados:
                 self.aninhado(c, pasta, nivel, atribuicoes)
+            self.fechado_em_vigor()  # E80.5: depois dos alvos que o hook lê
         elif prog in MUDA_ATRIBUTO:
             for a in args:
                 if not a.startswith("-"):
@@ -2447,6 +2499,8 @@ class Guarda:
                     self.checar_remocao(a, pasta, f"{prog} em")
         elif prog in self.pol["pacotes"]:
             self.pacote(prog, args)
+        elif prog in ("pax", "dpkg", "dpkg-deb"):  # E80.5: extratores fora de `EXTRATORES`
+            self.fechado_em_vigor()
         if prog in ("cp", "mv", "install", "ln"):  # A9, U3: depois das regras do destino e do link
             self.origem_do_git_no_opaco(args, pasta)
         if prog == "sed":  # `w arquivo` no script escreve, com ou sem `-i`
@@ -3831,11 +3885,30 @@ SUBIDA_NO_TEXTO = (r"\.\.|`|\\|[{}]|(?:^|[\s/=])\.[*?[]|~[-+\d]|\bcd\s+-|pushd|p
 # CONFORMIDADE-LINK-POR-COPIA (A18 da segurança E63.15): também o link criado por cópia, que o copia como link (`cp -a`,
 # `-P`, `-d`, `-r`, `-R`, `--no-dereference`, `--archive`, `--recursive`; `rsync -a`, `-l`, `--archive`, `--links`;
 # `tar -x`, `tar x`, `--extract`, `--get`; `os.symlink(` e `symlink_to(` no texto do interpretador).
+# E80.5 (A2 da segurança E80.3, decisão do time): o texto vem normalizado (`normalizada`: sem aspas nem barra invertida,
+# `cp -\a` e `ta\r` como o bash os passa); a opção longa vale por qualquer prefixo do nome, como no GNU (`--arch`,
+# `--recur`, `--no-deref`, `--sym`, `--ext`); e, em vez da lista das formas, a linha com extrator de pacote no modo que
+# extrai (`FECHADO_NA_LINHA`: `tar`, `bsdtar` e `gtar` com `x`, `unzip`, `dpkg`, `7z x|e`, `cpio -i|-p`, `pax -r`; o
+# `busybox` cai pelo applet) ou interpretador com texto (`python -c`, `perl -e`, `node -e|-p`, `php -r`, `deno eval`)
+# falha fechada; listar ou criar o pacote segue livre. Textos: compilados só no uso (custo do corpus).
+LONGA_DO_LINK = (r"a(?:r(?:c(?:h(?:i(?:v(?:e)?)?)?)?)?)?|r(?:e(?:c(?:u(?:r(?:s(?:i(?:v(?:e)?)?)?)?)?)?)?)?"
+                 r"|n(?:o(?:-(?:d(?:e(?:r(?:e(?:f(?:e(?:r(?:e(?:n(?:c(?:e)?)?)?)?)?)?)?)?)?)?)?)?)?|l(?:i(?:n(?:k(?:s)?)?)?)?"
+                 r"|s(?:y(?:m(?:b(?:o(?:l(?:i(?:c(?:-(?:l(?:i(?:n(?:k)?)?)?)?)?)?)?)?)?)?)?)?")
+EXTRAI_DO_TAR = r"e(?:x(?:t(?:r(?:a(?:c(?:t)?)?)?)?)?)?|g(?:e(?:t)?)?"
+FECHADO_NA_LINHA = (r"\b(?:bsd|g)?tar\s+-?[a-zA-Z]*x[a-zA-Z]*(?![\w.-])|\b(?:bsd|g)?tar\b[^;&|\n]*\s(?:-[a-zA-Z]*x[a-zA-Z]*"
+                    rf"|--(?:{EXTRAI_DO_TAR}))(?![\w.-])|(?<![\w.-])(?:unzip|dpkg(?:-deb)?)(?![\w.-])|(?<![\w.-])7z[arz]?\s+(?:-\S*\s+)*[xe]"
+                    rf"(?![\w.-])|(?<![\w.-])cpio\b[^;&|\n]*\s(?:-[a-zA-Z]*[ip]|--(?:{EXTRAI_DO_TAR}|p[\w-]*))|(?<![\w.-])pax\b[^;&|\n]*\s-[a-zA-Z]*r"
+                    r"|(?<![\w.-])(?:(?:python|pypy)[\w.-]*\s(?:[^;&|\n]*\s)?-[a-zA-Z]*c|(?:perl|ruby)[\w.-]*\s"
+                    r"(?:[^;&|\n]*\s)?-[a-zA-Z]*[eE]|(?:node|nodejs|bun)\s(?:[^;&|\n]*\s)?-(?:[a-zA-Z]*[ep]|-eval|-print)"
+                    r"|php\s(?:[^;&|\n]*\s)?-[a-zA-Z]*r|deno\s+eval)")
+# A1 e A3 da segurança E80.3: o arquivo em vigor do Claude Code citado no texto normalizado da linha (`.claude/`,
+# `~/.claude/`, `~/.claude.json`); `.claude-plugin` e `.claude-notas` não contam. Só o `.claude`: a leitura de rotina
+# do `.githooks/` pelo interpretador segue livre (R10 do review, `r10-perl-mstrict-leitura-libera`).
+EM_VIGOR_NO_TEXTO = r"\.claude(?![\w-])"
 CAMINHO_TROCADO_NA_LINHA = (r"(?<![\w$])(?<!\$\{)(?:HOME|BASH_ENV|ENV)(?!\w)|(?<![\w.-])(?:source|ln|link|mv|install|rename)"
-                            r"(?![\w.-])|(?:^|[;&|(])\s*\.\s|\bcp\b[^;&|\n]*\s-(?:[a-zA-Z]*[slaPdrR][a-zA-Z]*|-(?:symbolic-)?link"
-                            r"|-no-dereference|-archive|-recursive)(?![\w-])|\brsync\b[^;&|\n]*\s-(?:[a-zA-Z]*[al][a-zA-Z]*"
-                            r"|-archive|-links)(?![\w-])|\btar\s+-?[a-zA-Z]*x[a-zA-Z]*(?![\w.-])|\btar\b[^;&|\n]*\s(?:-[a-zA-Z]*x"
-                            r"[a-zA-Z]*|--extract|--get)(?![\w.-])|\bsymlink(?:_to)?\s*\(")
+                            r"(?![\w.-])|(?:^|[;&|(])\s*\.\s|\bcp\b[^;&|\n]*\s-[a-zA-Z]*[slaPdrR][a-zA-Z]*(?![\w-])"
+                            r"|\brsync\b[^;&|\n]*\s-[a-zA-Z]*[al][a-zA-Z]*(?![\w-])|\bsymlink(?:_to)?\s*\("
+                            rf"|\b(?:cp|rsync)\b[^;&|\n]*\s--(?:{LONGA_DO_LINK})(?![\w-])|{FECHADO_NA_LINHA}")
 
 
 def sem_copia_de_wt(texto):
@@ -3895,7 +3968,7 @@ class GuardaDaProva(Guarda):
         brief da pasta de controle (`recusa_do_estado`), também pela cópia de `wt/` (`HOME=~/.forge-contrib/wt/g; …`). O
         nome partido por continuação (`HO\\` + quebra) já recusa como construção que o hook não modela."""
         if not nivel and self.controle is not None:
-            trocado = re.search(CAMINHO_TROCADO_NA_LINHA, comando.replace("'", "").replace('"', ""))
+            trocado = re.search(CAMINHO_TROCADO_NA_LINHA, re.sub(r"[\"'\\]", "", comando))  # E80.5: `normalizada`, sem a chamada
             if trocado:
                 self.barrar("R-CONFORMIDADE", f"`{trocado.group().strip()}` na linha: o hook não modela o caminho que ela "
                             "troca (o HOME, o link, o arquivo lido pelo shell)",
@@ -4340,6 +4413,8 @@ def decidir(hook, guarda, ferramenta, entrada):
                 achado = guarda.caminho_barrado(alvo)
                 if achado:
                     guarda.barrar(*achado)
+            if guarda.opaco_em_vigor:  # E80.5 (A1): depois do valor calculado, que diz o caminho
+                guarda.barrar(*OPACO_EM_VIGOR)
             if guarda.perguntas:
                 pedir_confirmacao(guarda.perguntas)
     else:

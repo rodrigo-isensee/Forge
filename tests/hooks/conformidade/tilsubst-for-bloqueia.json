@@ -1,0 +1,22 @@
+{
+  "descricao": "CONFORMIDADE-TIL-EM-SUBSTITUICAO (v0478 E80.5, A1, S4 da segurança E80.3): a variável do `for` numa linha que cita arquivo em vigor falha fechada.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "for d in ~/.claude; do echo x >> \"$d/settings.json\"; done"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o hook não calcula"
+  }
+}

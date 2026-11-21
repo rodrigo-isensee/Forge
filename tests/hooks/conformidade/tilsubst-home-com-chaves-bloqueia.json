@@ -1,0 +1,22 @@
+{
+  "descricao": "CONFORMIDADE-TIL-EM-SUBSTITUICAO (v0478 E80.5, A1, S1 da segurança E80.3): o `${HOME}` da atribuição vale pelo caminho real.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "d=${HOME}/.claude; echo x >> \"$d/settings.json\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "~/.claude/settings.json"
+  }
+}

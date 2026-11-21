@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3394 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3438 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,7 +10,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3394 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 125 | 66 | 59 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2563 | 1893 | 670 | 102 |
+| `conformidade` | 2607 | 1929 | 678 | 102 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 32 | 13 | 19 | 14 |
 | `parecer` | 583 | 448 | 135 | 27 |
@@ -85,11 +85,13 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3394 fixtures) roda em `tests/test
 | `rotulo-*` | 40 | 31 | 9 | `R-CONTRIB` | `FURO-HOOK-A`, `ROTULO-VARIAVEL`, `HOOK-COMENTARIO-SHLEX` | Sessão do Forge: gh api em issues/N/labels, conta do dono. |
 | `git-*` | 37 | 32 | 5 | `R-CONFORMIDADE` | — | `git checkout -- <arquivo comum>` e `git rm` de arquivo comum seguem livres: só o caminho protegido barra. |
 | `oraculo-*` | 36 | 20 | 16 | — | `EXT-1` | EXT-1 (C-7): `cat > tests/test_oraculo_x.py <<'F'` do tech-lead no oráculo bloqueia. |
+| `linkcopia-*` | 35 | 30 | 5 | — | `CONFORMIDADE-LINK-POR-COPIA` | CONFORMIDADE-LINK-POR-COPIA (v0478 E80.5, S9 da segurança E80.3; R-CONFORMIDADE): o extrator de pacote falha fechado (`7z`). |
 | `n5r-*` | 35 | 25 | 10 | `R-REVIEW`, `R-VERIFY`, `R-CONFORMIDADE` | — | N5 (review da 0.43.5): alias na linha troca o subcomando (commit na develop) |
 | `n5-*` | 34 | 21 | 13 | `R-REVIEW` | — | N5 (L22, IMPL-FURO-HOOK-N): am na develop |
 | `nao-*` | 34 | 21 | 13 | `R-MAIN` | `ADR`, `AA2-01` | ADR 0011 (item 2): $' que o shlex lê como aspas abertas. |
 | `pn7-*` | 32 | 24 | 8 | `R-MAIN` | `PN7-DOLAR-INTERROG` | PN7-DOLAR-INTERROG (H1-1, ADR 0011): continua barrado. |
 | `errointerno-*` | 31 | 23 | 8 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA (E5, C3): erro interno com alvo opaco (`$(...)`) numa linha que escreve recusa, sem depender do nome do caminho. |
+| `tilsubst-*` | 31 | 22 | 9 | — | `CONFORMIDADE-TIL-EM-SUBSTITUICAO` | CONFORMIDADE-TIL-EM-SUBSTITUICAO (v0478 E80.1, sonda zy-1 da E63.1): sessão do Forge, o tech-lead grava o pedido da pasta de controle pelo v… |
 | `rverify-*` | 29 | 22 | 7 | `R-VERIFY` | `HOOK-RVERIFY-FALSO-POSITIVO` | HOOK-RVERIFY-FALSO-POSITIVO: cat > $TMPDIR/x.py <<'EOF' com `*` e .githooks/pre-push só no corpo (dado, não destino); sessão do Forge, pasta… |
 | `n2-*` | 28 | 22 | 6 | `R-REVIEW` | — | N2 (L20b, IMPL-FURO-HOOK-N): GIT_OBJECT_DIRECTORY por declare -x |
 | `shell-*` | 28 | 20 | 8 | `R-CONFORMIDADE` | — | Contorno pelo shell: echo 9.9.9 >> .forge/versao |
@@ -114,8 +116,6 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3394 fixtures) roda em `tests/test
 | `ar-*` | 13 | 11 | 2 | `R-VERIFY`, `R-MAIN`, `R-REVIEW` | `AR-TRAVA-UMA-SINTAXE` | AR-TRAVA-UMA-SINTAXE: o programa pelo caminho é o mesmo |
 | `n3-*` | 12 | 9 | 3 | — | — | N3 (IMPL-FURO-HOOK-N, S1b): cp -l faz o mesmo link físico |
 | `fila22-*` | 11 | 7 | 4 | `R-CONFORMIDADE` | `FILA-22` | FILA-22 (review da 0.43.2): abrir PR pelo `gh api` segue a política `pr_criar`; o jarvis (sessão principal) não abre. |
-| `linkcopia-*` | 11 | 9 | 2 | — | `CONFORMIDADE-LINK-POR-COPIA` | CONFORMIDADE-LINK-POR-COPIA (v0478 E80.1, A18 da segurança E63.15; R-CONFORMIDADE): o `cp -a` copia o link como link; o hook resolve o camin… |
-| `tilsubst-*` | 11 | 7 | 4 | — | `CONFORMIDADE-TIL-EM-SUBSTITUICAO` | CONFORMIDADE-TIL-EM-SUBSTITUICAO (v0478 E80.1, sonda zy-1 da E63.1): sessão do Forge, o tech-lead grava o pedido da pasta de controle pelo v… |
 | `e350-*` | 10 | 5 | 5 | — | `E3.50` | E3.50: git add && git commit com heredoc <<'EOF' na mesma chamada, com marcador crítico (docs/reviews), passa. |
 | `m1-*` | 10 | 7 | 3 | — | — | M1 (review da 0.43.2): a linha de selo ou de conferência é da ferramenta; `cd docs/pedidos && cat >> p1.md <<'FIM'` com a conferência no cor… |
 | `crase-*` | 9 | 7 | 2 | `R-CONFORMIDADE` | `CRASE-ASPA-HOOK`, `CRASE-SESSAO-PROJETO` | Orçamento: 60 cd e 60 crases aninhadas terminando em push com --no-verify: o hook recusa sem estourar o timeout (a base recusava em 0,34 s). |

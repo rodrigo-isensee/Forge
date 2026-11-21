@@ -1,0 +1,38 @@
+{
+  "descricao": "CONFORMIDADE-LINK-POR-COPIA (v0478 E80.5, S7 da segurança E80.3; R-CONFORMIDADE): o `cp --arch` vale como `--archive`.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "a.txt": "v\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp --arch ~/q ~/.forge-contrib/wt/ && echo x >> ~/.forge-contrib/wt/q/docs/pedidos/v1.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o hook não modela o caminho que ela troca"
+  },
+  "repos": {
+    "home/.forge-contrib": {
+      "arquivos": {
+        "docs/pedidos/v1.md": "# v1\n",
+        "docs/briefs/b1.md": "b\n",
+        "x/docs/pedidos/v2.md": "# v2\n",
+        "wt/x/docs/pedidos/v1.md": "# v1\n",
+        "a.txt": "v\n"
+      }
+    }
+  }
+}

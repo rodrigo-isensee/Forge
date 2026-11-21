@@ -6,18 +6,18 @@
       "id": "L1",
       "guarda": "o `cp -a`, `-P`, `-d`, `-r` e `-R` contam como link na linha (CONFORMIDADE-LINK-POR-COPIA, E80.1)",
       "arquivo": "hooks/conformidade.py",
-      "de": "                            r\"(?![\\w.-])|(?:^|[;&|(])\\s*\\.\\s|\\bcp\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[slaPdrR][a-zA-Z]*|-(?:symbolic-)?link\"\n",
-      "para": "                            r\"(?![\\w.-])|(?:^|[;&|(])\\s*\\.\\s|\\bcp\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[sl][a-zA-Z]*|-(?:symbolic-)?link\"\n",
+      "de": "                            r\"(?![\\w.-])|(?:^|[;&|(])\\s*\\.\\s|\\bcp\\b[^;&|\\n]*\\s-[a-zA-Z]*[slaPdrR][a-zA-Z]*(?![\\w-])\"\n",
+      "para": "                            r\"(?![\\w.-])|(?:^|[;&|(])\\s*\\.\\s|\\bcp\\b[^;&|\\n]*\\s-[a-zA-Z]*[sl][a-zA-Z]*(?![\\w-])\"\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
       ]
     },
     {
       "id": "L2",
-      "guarda": "o `cp --no-dereference` conta como link na linha (CONFORMIDADE-LINK-POR-COPIA, E80.1)",
+      "guarda": "a opção longa do `cp` e do `rsync` vale por prefixo, como no GNU (A2, S7 da segurança E80.3, E80.5)",
       "arquivo": "hooks/conformidade.py",
-      "de": "                            r\"|-no-dereference|-archive|-recursive)(?![\\w-])|\\brsync\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[al][a-zA-Z]*\"\n",
-      "para": "                            r\"|-archive|-recursive)(?![\\w-])|\\brsync\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[al][a-zA-Z]*\"\n",
+      "de": "                            rf\"|\\b(?:cp|rsync)\\b[^;&|\\n]*\\s--(?:{LONGA_DO_LINK})(?![\\w-])|{FECHADO_NA_LINHA}\")\n",
+      "para": "                            rf\"|{FECHADO_NA_LINHA}\")\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
       ]
@@ -26,38 +26,58 @@
       "id": "L3",
       "guarda": "o `rsync -a` e `-l` contam como link na linha (CONFORMIDADE-LINK-POR-COPIA, E80.1)",
       "arquivo": "hooks/conformidade.py",
-      "de": "                            r\"|-no-dereference|-archive|-recursive)(?![\\w-])|\\brsync\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[al][a-zA-Z]*\"\n",
-      "para": "                            r\"|-no-dereference|-archive|-recursive)(?![\\w-])|\\brsyncQ\\b[^;&|\\n]*\\s-(?:[a-zA-Z]*[al][a-zA-Z]*\"\n",
+      "de": "                            r\"|\\brsync\\b[^;&|\\n]*\\s-[a-zA-Z]*[al][a-zA-Z]*(?![\\w-])|\\bsymlink(?:_to)?\\s*\\(\"\n",
+      "para": "                            r\"|\\brsyncQ\\b[^;&|\\n]*\\s-[a-zA-Z]*[al][a-zA-Z]*(?![\\w-])|\\bsymlink(?:_to)?\\s*\\(\"\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
       ]
     },
     {
       "id": "L4",
-      "guarda": "o `tar x` sem traço conta como extração (CONFORMIDADE-LINK-POR-COPIA, E80.1)",
+      "guarda": "o prefixo de `--archive` e de `--recursive` conta (A2, S7 da segurança E80.3, E80.5)",
       "arquivo": "hooks/conformidade.py",
-      "de": "                            r\"|-archive|-links)(?![\\w-])|\\btar\\s+-?[a-zA-Z]*x[a-zA-Z]*(?![\\w.-])|\\btar\\b[^;&|\\n]*\\s(?:-[a-zA-Z]*x\"\n",
-      "para": "                            r\"|-archive|-links)(?![\\w-])|\\btarQ\\s+-?[a-zA-Z]*x[a-zA-Z]*(?![\\w.-])|\\btar\\b[^;&|\\n]*\\s(?:-[a-zA-Z]*x\"\n",
+      "de": "LONGA_DO_LINK = (r\"a(?:r(?:c(?:h(?:i(?:v(?:e)?)?)?)?)?)?|r(?:e(?:c(?:u(?:r(?:s(?:i(?:v(?:e)?)?)?)?)?)?)?)?\"\n",
+      "para": "LONGA_DO_LINK = (r\"archive|recursive\"\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
       ]
     },
     {
       "id": "L5",
-      "guarda": "o `tar … -x` depois de outra opção conta como extração (CONFORMIDADE-LINK-POR-COPIA, E80.1)",
+      "guarda": "o prefixo de `--no-dereference` e de `--links` conta (A2, S7 da segurança E80.3, E80.5)",
       "arquivo": "hooks/conformidade.py",
-      "de": "                            r\"|-archive|-links)(?![\\w-])|\\btar\\s+-?[a-zA-Z]*x[a-zA-Z]*(?![\\w.-])|\\btar\\b[^;&|\\n]*\\s(?:-[a-zA-Z]*x\"\n",
-      "para": "                            r\"|-archive|-links)(?![\\w-])|\\btar\\s+-?[a-zA-Z]*x[a-zA-Z]*(?![\\w.-])|\\btar\\b[^;&|\\n]*\\s(?:-[a-zA-Z]*Q\"\n",
+      "de": "                 r\"|n(?:o(?:-(?:d(?:e(?:r(?:e(?:f(?:e(?:r(?:e(?:n(?:c(?:e)?)?)?)?)?)?)?)?)?)?)?)?)?|l(?:i(?:n(?:k(?:s)?)?)?)?\"\n",
+      "para": "                 r\"|no-dereference|links\"\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
       ]
     },
     {
       "id": "L6",
-      "guarda": "o `os.symlink(` no texto do interpretador conta como link na linha (CONFORMIDADE-LINK-POR-COPIA, E80.1)",
+      "guarda": "o prefixo de `--symbolic-link` conta (A2, S7 da segurança E80.3, E80.5)",
       "arquivo": "hooks/conformidade.py",
-      "de": "                            r\"[a-zA-Z]*|--extract|--get)(?![\\w.-])|\\bsymlink(?:_to)?\\s*\\(\")\n",
-      "para": "                            r\"[a-zA-Z]*|--extract|--get)(?![\\w.-])|\\bsymlinkQ(?:_to)?\\s*\\(\")\n",
+      "de": "                 r\"|s(?:y(?:m(?:b(?:o(?:l(?:i(?:c(?:-(?:l(?:i(?:n(?:k)?)?)?)?)?)?)?)?)?)?)?)?\")\n",
+      "para": "                 r\"|symbolic-link\")\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
+      ]
+    },
+    {
+      "id": "L7",
+      "guarda": "o prefixo de `--extract` e de `--get` do `tar` conta (A2, S6 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "EXTRAI_DO_TAR = r\"e(?:x(?:t(?:r(?:a(?:c(?:t)?)?)?)?)?)?|g(?:e(?:t)?)?\"\n",
+      "para": "EXTRAI_DO_TAR = r\"extract|get\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
+      ]
+    },
+    {
+      "id": "L8",
+      "guarda": "a barra invertida sai do texto antes da busca do link, como no bash (A2, S8 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            trocado = re.search(CAMINHO_TROCADO_NA_LINHA, re.sub(r\"[\\\"'\\\\]\", \"\", comando))  # E80.5: `normalizada`, sem a chamada\n",
+      "para": "            trocado = re.search(CAMINHO_TROCADO_NA_LINHA, re.sub(r\"[\\\"']\", \"\", comando))  # E80.5: `normalizada`, sem a chamada\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
       ]

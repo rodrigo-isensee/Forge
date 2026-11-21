@@ -1,0 +1,87 @@
+{
+  "pedido": "v0479-conformidade-til-link",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S1",
+      "guarda": "a reatribuição não dá sem valor na conta da sequência (A1, S3 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if len(atribuicoes) > 1 and not sequencia or atribuicoes and atribui_como_argumento(nome, linha):  # A19: `declare -n d=_`\n",
+      "para": "    if len(atribuicoes) > 1 or atribuicoes and atribui_como_argumento(nome, linha):  # A19: `declare -n d=_`\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "S2",
+      "guarda": "a reatribuição vale pela sequência dos valores (A1, S3 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    valores = ([SEM_VALOR] if not atribuicoes else valores_em_sequencia(nome, atribuicoes, linha, fundo) if atribuicoes[1:]\n",
+      "para": "    valores = ([SEM_VALOR] if not atribuicoes else valores_em_sequencia(nome, atribuicoes, linha, fundo) if False\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "S3",
+      "guarda": "o pedaço da reatribuição que o hook não sabe dá sem valor (A1, S3 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if None in partes or (antes := juntar(partes)) is None:  # o pedaço que o hook não sabe, ou acima do teto\n",
+      "para": "        if False:  # o pedaço que o hook não sabe, ou acima do teto\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "S4",
+      "guarda": "o interpretador com opção antes do script passa pela linha que cita arquivo em vigor (A3 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if args[:1] and args[0][:1] == \"-\" and args[0] != \"-m\":  # E80.5: depois do caminho literal; só a opção antes\n",
+      "para": "            if False:  # E80.5: depois do caminho literal; só a opção antes\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "S5",
+      "guarda": "o `pax` e o `dpkg` passam pela linha que cita arquivo em vigor (A2 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif prog in (\"pax\", \"dpkg\", \"dpkg-deb\"):  # E80.5: extratores fora de `EXTRATORES`\n",
+      "para": "        elif prog in (\"paxQ\",):  # E80.5: extratores fora de `EXTRATORES`\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "S6",
+      "guarda": "o texto normalizado tira as aspas e a barra invertida (A1 e A2 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return re.sub(r\"[\\\"'\\\\]\", \"\", texto)\n",
+      "para": "    return texto\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "S7",
+      "guarda": "o `cpio -i|-p` e o `pax -r` falham fechados na linha (A2, S9 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    rf\"(?![\\w.-])|(?<![\\w.-])cpio\\b[^;&|\\n]*\\s(?:-[a-zA-Z]*[ip]|--(?:{EXTRAI_DO_TAR}|p[\\w-]*))|(?<![\\w.-])pax\\b[^;&|\\n]*\\s-[a-zA-Z]*r\"\n",
+      "para": "                    rf\"(?![\\w.-])|(?<![\\w.-])cpioQ\\b[^;&|\\n]*\\s(?:-[a-zA-Z]*[ip]|--(?:{EXTRAI_DO_TAR}|p[\\w-]*))|(?<![\\w.-])paxQ\\b[^;&|\\n]*\\s-[a-zA-Z]*r\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia",
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "S8",
+      "guarda": "o destino sem valor numa linha que cita o `.claude` recusa no fim da linha (A1 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if guarda.opaco_em_vigor:  # E80.5 (A1): depois do valor calculado, que diz o caminho\n",
+      "para": "            if False:  # E80.5 (A1): depois do valor calculado, que diz o caminho\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    }
+  ]
+}

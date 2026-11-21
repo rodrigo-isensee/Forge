@@ -76,8 +76,8 @@
       "id": "O88",
       "guarda": "U4: a variável atribuída na linha vale pelo valor atribuído, não pelo ambiente",
       "arquivo": "hooks/conformidade.py",
-      "de": "valores_da_palavra(atribuicoes[0], linha, fundo + 1) if atribuicoes else [SEM_VALOR]",
-      "para": "valores_da_palavra(atribuicoes[0], linha, fundo + 1) if False else [SEM_VALOR]",
+      "de": "valores = ([SEM_VALOR] if not atribuicoes else valores_em_sequencia(",
+      "para": "valores = ([SEM_VALOR] if True else valores_em_sequencia(",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_u4"
       ]

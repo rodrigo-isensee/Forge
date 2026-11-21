@@ -1,0 +1,87 @@
+{
+  "pedido": "v0479-conformidade-til-link",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "F1",
+      "guarda": "o `tar` seguido do grupo com `x` falha fechado na linha (A2, S8 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "FECHADO_NA_LINHA = (r\"\\b(?:bsd|g)?tar\\s+-?[a-zA-Z]*x[a-zA-Z]*(?![\\w.-])|\\b(?:bsd|g)?tar\\b[^;&|\\n]*\\s(?:-[a-zA-Z]*x[a-zA-Z]*\"\n",
+      "para": "FECHADO_NA_LINHA = (r\"\\b(?:bsd|g)?tarQ\\s+-?[a-zA-Z]*x[a-zA-Z]*(?![\\w.-])|\\b(?:bsd|g)?tar\\b[^;&|\\n]*\\s(?:-[a-zA-Z]*x[a-zA-Z]*\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
+      ]
+    },
+    {
+      "id": "F2",
+      "guarda": "o `unzip`, o `dpkg` e o `7z x|e` falham fechados na linha (A2, S9 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    rf\"|--(?:{EXTRAI_DO_TAR}))(?![\\w.-])|(?<![\\w.-])(?:unzip|dpkg(?:-deb)?)(?![\\w.-])|(?<![\\w.-])7z[arz]?\\s+(?:-\\S*\\s+)*[xe]\"\n",
+      "para": "                    rf\"|--(?:{EXTRAI_DO_TAR}))(?![\\w.-])|(?<![\\w.-])(?:Qunzip)(?![\\w.-])|(?<![\\w.-])7zQ\\s+(?:-\\S*\\s+)*[xe]\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia",
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "F3",
+      "guarda": "o `python -c` falha fechado na linha (A2, S10 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    r\"|(?<![\\w.-])(?:(?:python|pypy)[\\w.-]*\\s(?:[^;&|\\n]*\\s)?-[a-zA-Z]*c|(?:perl|ruby)[\\w.-]*\\s\"\n",
+      "para": "                    r\"|(?<![\\w.-])(?:(?:Qpython)[\\w.-]*\\s(?:[^;&|\\n]*\\s)?-[a-zA-Z]*c|(?:perl|ruby)[\\w.-]*\\s\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
+      ]
+    },
+    {
+      "id": "F4",
+      "guarda": "o `perl -e` e o `ruby -e` falham fechados na linha (A2, S11 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    r\"(?:[^;&|\\n]*\\s)?-[a-zA-Z]*[eE]|(?:node|nodejs|bun)\\s(?:[^;&|\\n]*\\s)?-(?:[a-zA-Z]*[ep]|-eval|-print)\"\n",
+      "para": "                    r\"(?:[^;&|\\n]*\\s)?-[a-zA-Z]*Q|(?:node|nodejs|bun)\\s(?:[^;&|\\n]*\\s)?-(?:[a-zA-Z]*[ep]|-eval|-print)\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
+      ]
+    },
+    {
+      "id": "F5",
+      "guarda": "o `php -r` falha fechado na linha (A2, S11 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    r\"|php\\s(?:[^;&|\\n]*\\s)?-[a-zA-Z]*r|deno\\s+eval)\")\n",
+      "para": "                    r\"|phpQ\\s(?:[^;&|\\n]*\\s)?-[a-zA-Z]*r|deno\\s+eval)\")\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_link_por_copia"
+      ]
+    },
+    {
+      "id": "F6",
+      "guarda": "a linha que cita arquivo em vigor é a que falha fechada no projeto (A1 e A3 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "EM_VIGOR_NO_TEXTO = r\"\\.claude(?![\\w-])\"\n",
+      "para": "EM_VIGOR_NO_TEXTO = r\"\\.claudeQ\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "F7",
+      "guarda": "o extrator ou o interpretador com texto numa linha que cita arquivo em vigor é achado (A3 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        achado = self.papel != \"jarvis\" and re.search(EM_VIGOR_NO_TEXTO, texto) and re.search(FECHADO_NA_LINHA, texto)\n",
+      "para": "        achado = None\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "F8",
+      "guarda": "o achado do extrator ou do interpretador com texto recusa (A3 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if achado:\n            self.barrar(\"R-CONFORMIDADE\", f\"`{achado.group().strip()}` numa linha que cita arquivo em vigor: o hook não modela \"\n",
+      "para": "        if False:\n            self.barrar(\"R-CONFORMIDADE\", f\"`{achado.group().strip()}` numa linha que cita arquivo em vigor: o hook não modela \"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    }
+  ]
+}

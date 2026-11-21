@@ -26,18 +26,8 @@
       "id": "T3",
       "guarda": "o valor que o hook não sabe (`SEM_VALOR`) não vira alvo calculado (CONFORMIDADE-TIL-EM-SUBSTITUICAO, E80.1)",
       "arquivo": "hooks/conformidade.py",
-      "de": "        self.calculados += [self.resolver(v, pasta) for v in valores if SEM_VALOR not in v]\n",
-      "para": "        self.calculados += [self.resolver(v, pasta) for v in valores if SEM_VALOR in v]\n",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
-      ]
-    },
-    {
-      "id": "T5",
-      "guarda": "só a linha lida dá o valor calculado (CONFORMIDADE-TIL-EM-SUBSTITUICAO, E80.1)",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        valores = linha and valores_da_palavra(self.expandir(caminho, pasta), linha) or ()\n",
-      "para": "        valores = linha or valores_da_palavra(self.expandir(caminho, pasta), linha) or ()\n",
+      "de": "                self.calculados += [self.resolver(v, pasta) for v in valores if SEM_VALOR not in v]\n",
+      "para": "                self.calculados += [self.resolver(v, pasta) for v in valores if SEM_VALOR in v]\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
       ]
@@ -46,8 +36,48 @@
       "id": "T4",
       "guarda": "o alvo calculado que cai num caminho protegido recusa no fim da linha (CONFORMIDADE-TIL-EM-SUBSTITUICAO, E80.1)",
       "arquivo": "hooks/conformidade.py",
-      "de": "                achado = guarda.caminho_barrado(alvo)\n                if achado:\n",
-      "para": "                achado = guarda.caminho_barrado(alvo)\n                if False:\n",
+      "de": "                achado = guarda.caminho_barrado(alvo)\n                if achado:\n                    guarda.barrar(*achado)\n",
+      "para": "                achado = guarda.caminho_barrado(alvo)\n                if False:\n                    guarda.barrar(*achado)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "T5",
+      "guarda": "o `$HOME`, o `$PWD` e o `$CLAUDE_PROJECT_DIR` da linha valem pelo caminho real no valor calculado (A1 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            real = self.expandir(re.sub(r\"\\$(?:\\{HOME\\}|HOME(?!\\w))\", \"~\", re.sub(r\"\\$(?:\\{PWD\\}|PWD(?!\\w))\", \".\", linha)), pasta)\n",
+      "para": "            real = linha\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "T6",
+      "guarda": "só a linha lida dá o valor calculado (CONFORMIDADE-TIL-EM-SUBSTITUICAO, E80.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if linha:\n            real = self.expandir(re.sub(r\"\\$(?:\\{HOME\\}|HOME(?!\\w))\", \"~\", re.sub(r\"\\$(?:\\{PWD\\}|PWD(?!\\w))\", \".\", linha)), pasta)\n",
+      "para": "        if False:\n            real = self.expandir(re.sub(r\"\\$(?:\\{HOME\\}|HOME(?!\\w))\", \"~\", re.sub(r\"\\$(?:\\{PWD\\}|PWD(?!\\w))\", \".\", linha)), pasta)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "T7",
+      "guarda": "o destino que o hook não calcula numa linha que cita arquivo em vigor falha fechado (A1, S4 e S5 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            elif self.papel != \"jarvis\" and re.search(EM_VIGOR_NO_TEXTO, normalizada(linha)):\n",
+      "para": "            elif False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
+      ]
+    },
+    {
+      "id": "T8",
+      "guarda": "o valor calculado por inteiro vira alvo, e só o sem valor falha fechado (A1 da segurança E80.3, E80.5)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if valores is not None:\n",
+      "para": "            if valores is None:\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_til_em_substituicao"
       ]

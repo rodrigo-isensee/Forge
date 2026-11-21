@@ -27,8 +27,8 @@
       "id": "CF1-D1",
       "guarda": "E2.179, CONFORMIDADE-DECLARE-N (A19 da segurança E1.344): a atribuição que é argumento de comando (`declare -n d=_`) não dá o valor de `$d`",
       "arquivo": "hooks/conformidade.py",
-      "de": "    if len(atribuicoes) > 1 or atribuicoes and atribui_como_argumento(nome, linha):  # A19: `declare -n d=_`",
-      "para": "    if len(atribuicoes) > 1:  # A19: `declare -n d=_`",
+      "de": "    if len(atribuicoes) > 1 and not sequencia or atribuicoes and atribui_como_argumento(nome, linha):  # A19: `declare -n d=_`",
+      "para": "    if len(atribuicoes) > 1 and not sequencia:  # A19: `declare -n d=_`",
       "testes": [
         "tests.test_conformidade_verde.OraculoCf1.test_declare_n"
       ]

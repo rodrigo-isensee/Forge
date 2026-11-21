@@ -2810,16 +2810,20 @@ class Hooks(unittest.TestCase):
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith("CONFORMIDADE-TIL-EM-SUBSTITUICAO (")]
         liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
-        self.assertGreaterEqual(len(liberam), 4, "outra pasta, o vizinho do protegido e o valor que o hook não sabe (pwd, ambiente)")
-        self.assertGreaterEqual(len(lote) - len(liberam), 6, "echo, printf, crase, variável, cp e o arquivo inteiro")
+        self.assertGreaterEqual(len(liberam), 9, "outra pasta, o vizinho do protegido, o valor que o hook não sabe (pwd, "
+                                "ambiente) e, desde a E80.5, a reatribuição, o for, o vizinho e o interpretador sem arquivo em vigor")
+        self.assertGreaterEqual(len(lote) - len(liberam), 22, "echo, printf, crase, variável, cp, o arquivo inteiro e, desde a "
+                                "E80.5, $HOME, $PWD, reatribuição, for, read, interpretador e extrator (A1 a A3 da E80.3)")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
     def test_fixtures_do_link_por_copia(self):  # CONFORMIDADE-LINK-POR-COPIA (v0478 E80.1): o link criado por cópia na linha
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith("CONFORMIDADE-LINK-POR-COPIA (")]
         liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
-        self.assertGreaterEqual(len(liberam), 2, "a cópia que segue o link e o tar que só lista")
-        self.assertGreaterEqual(len(lote) - len(liberam), 9, "cp -a, -P, -d, -r, --no-dereference, rsync -a, tar -x, tar x, os.symlink")
+        self.assertGreaterEqual(len(liberam), 5, "a cópia que segue o link, o tar que só lista e, desde a E80.5, a opção longa "
+                                "comum e o interpretador e o extrator sem o controle na linha")
+        self.assertGreaterEqual(len(lote) - len(liberam), 30, "cp -a, -P, -d, -r, --no-dereference, rsync -a, tar -x, tar x, "
+                                "os.symlink e, desde a E80.5, a opção abreviada, a barra invertida, os extratores e os interpretadores")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
     def test_fixtures_da_escrita_no_indice(self):  # CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1): git add e update-index em quem: []
