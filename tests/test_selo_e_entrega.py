@@ -1244,15 +1244,106 @@ class MergeDaBaseDepoisDoBrief(Conferencia):
 
     def test_merge_base_sem_ancora_fica_o_base_sha(self):
         """Volta 1 (segurança A2): sem brief selado depois do da entrega, o merge-base não tem âncora do Jarvis e fica o Base-sha;
-        FILTROS-L08-G2-ORIGIN-LOCAL: o filtro G2 também não tira o que a develop sem âncora trouxe."""
+        FILTROS-L08-G2-ORIGIN-LOCAL: o filtro G2 também não tira o que a develop sem âncora trouxe. ENTREGA-MERGE-DA-DEVELOP: sai pelo
+        merge-base com a develop do `git ls-remote origin` (o remoto, não a ref local), com o blob igual ao dele."""
         self.entrega_e_merge(ancorar=False)
         rc, saida = self.conferir()
         self.assertNotIn("base: merge-base", saida)
         # v047 E1.185 (CONFERIDA-POR-BRANCH): a conferida trazida, já na develop, não vira Desde; o intervalo é o do Base-sha
         self.assertIn(f"intervalo: {self.base}..", saida)
         self.assertIn("base: Base-sha do brief (sem conferida na branch)", saida)
-        self.assertIn('escopo: fora do declarado no brief "agents/outro.md"', saida)
+        self.assertIn("escopo: integração da base pelo remoto (1 arquivo(s) iguais ao merge-base", saida)
+        self.assertNotIn("agents/outro.md", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def reprova_com(self, *nomes):
+        rc, saida = self.conferir()
         self.assertEqual(rc, 1, saida)
+        for nome in nomes:
+            self.assertIn(f'escopo: fora do declarado no brief "{nome}"', saida)
+        return saida
+
+    def test_sem_rede_o_que_a_develop_trouxe_segue_no_escopo(self):
+        """ENTREGA-MERGE-DA-DEVELOP: sem o `git ls-remote` (origin que não responde), a ref local não vale: nada sai do escopo."""
+        self.entrega_e_merge(ancorar=False)
+        self.git("remote", "set-url", "origin", str(self.tmp / "nao-existe.git"))
+        self.assertNotIn("pelo remoto", self.reprova_com("agents/outro.md"))
+
+    def test_o_que_o_autor_mudou_por_cima_da_develop_segue_dele(self):
+        self.entrega_e_merge(ancorar=False)
+        self.gravar("agents/outro.md", "a\nb\ndo autor\n")
+        self.git("add", "agents/outro.md")
+        self.commit("feat: por cima da develop")
+        self.reprova_com("agents/outro.md")
+
+    def test_merge_de_fora_da_develop_segue_no_escopo(self):
+        """O merge de uma branch que não está na develop do remoto, mesmo com a `origin/develop` local reescrita para ela."""
+        self.entrega_e_merge(ancorar=False)
+        self.git("switch", "-q", "-c", "lateral", self.base)
+        self.gravar("fora.txt", "f\n")
+        self.git("add", "fora.txt")
+        lateral = self.commit("feat: fora da develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("update-ref", "refs/remotes/origin/develop", lateral)
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "-m", "merge lateral", lateral)
+        self.reprova_com("fora.txt")
+
+    def test_aceite_do_usuario_vindo_da_develop_segue_no_escopo(self):
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.entregar()
+        self.git("switch", "-q", "develop")
+        self.gravar("docs/security/aceites/a.md", "aceite\n")
+        self.git("add", "docs/security/aceites/a.md")
+        self.commit("aceite")
+        self.git("push", "-q", "origin", "develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("fetch", "-q", "origin")
+        self.mesclar_develop()
+        self.reprova_com("docs/security/aceites/a.md")
+
+    def test_ref_local_sem_o_merge_nao_consulta_o_remoto(self):
+        """Com a `origin/develop` local de volta ao Base-sha, o merge da base não aparece por ela: nada sai (sem rede). Sem a conferida
+        de outra branch (`entrega_e_merge`), que com a ref local recuada viraria o Desde e tiraria o arquivo pelos desfeitos."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.entregar()
+        self.develop_anda("a\n")
+        self.mesclar_develop()
+        self.git("update-ref", "refs/remotes/origin/develop", self.base)
+        self.reprova_com("agents/outro.md")
+
+    def test_o_que_a_branch_mudou_e_o_merge_devolveu_a_develop_segue_a_vista(self):
+        """Segurança A1: o arquivo da entrega conferida que o merge trocou pelo da develop (`-X theirs`) segue no escopo."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        conferida = self.entregar()
+        (self.proj / "docs/pedidos/exemplo.md").write_text(self.pedido() + f"- 2026-01-01 10:00: entrega conferida {conferida}\n",
+                                                           encoding="utf-8")
+        self.git("switch", "-q", "develop")
+        self.gravar("bin/app", "x\nda develop\n")
+        self.git("add", "bin/app")
+        self.commit("outro lote")
+        self.git("push", "-q", "origin", "develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("fetch", "-q", "origin")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "-X", "theirs", "-m", "merge", "origin/develop")
+        saida = self.conferir()[1]
+        self.assertIn('escopo: ok (declarado no brief: bin/app) "bin/app"', saida)
+        self.assertNotIn("pelo remoto", saida)
+
+    def test_develop_remota_sem_fetch_nao_tira_nada(self):
+        """O commit da develop do remoto ainda não buscado: sem merge-base com ele, nada sai, nem o arquivo que o autor apagou."""
+        self.entrega_e_merge(ancorar=False)
+        self.git("rm", "-q", "KANBAN.md")
+        self.commit("chore: apaga o quadro")
+        outro = self.tmp / "outro"
+        self.git_em(self.tmp, "clone", "-q", "-b", "develop", str(self.tmp / "origem.git"), "outro")
+        (outro / "novo.txt").write_text("n\n", encoding="utf-8")
+        self.git_em(outro, "add", "novo.txt")
+        self.git_em(outro, "-c", "user.email=a@b", "-c", "user.name=a", "commit", "-q", "-m", "develop anda")
+        self.git_em(outro, "push", "-q", "origin", "develop")
+        self.reprova_com("KANBAN.md", "agents/outro.md")
 
     def test_brief_selado_antes_do_da_entrega_nao_ancora(self):
         """A âncora é o Base-sha de brief selado MAIS NOVO que o da entrega; o selado antes dele, mesmo com a develop adiante, não vale."""
