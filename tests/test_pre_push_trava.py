@@ -56,7 +56,10 @@ class T(unittest.TestCase):
 SUITE_COM_PID = '''import unittest, pathlib, os, time
 class T(unittest.TestCase):
     def test_espera_liberar(self):
-        pathlib.Path("suite-pid").write_text(str(os.getpid()))
+        # grava num temporário e renomeia: quem lê "suite-pid" nunca o vê vazio
+        temporario = pathlib.Path(f"suite-pid.{os.getpid()}")
+        temporario.write_text(str(os.getpid()))
+        os.replace(temporario, "suite-pid")
         for _ in range(600):
             if pathlib.Path("liberar").exists():
                 return

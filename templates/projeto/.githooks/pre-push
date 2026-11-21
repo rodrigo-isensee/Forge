@@ -313,4 +313,42 @@ if [ -x "$local_hook" ]; then
     rodar_etapa
   fi
 fi
+
+# PR-VERDE D3 (v0478 E57.75): a conferência de registros do projeto (índices, mapas e contagens derivados que o CI reprova), só
+# leitura e em segundos: o comando da chave opcional `registros` do .forge/config.json, rodado da raiz; vazia ou sem a chave, nada
+# roda. Vale em todo envio de branch, também o só de texto (o registro pode ser texto), com o prazo FORGE_REGISTROS_PRAZO (180 s,
+# só dígitos). Saída fora de 0 barra o envio (falha fechada), como a chave que não é comando de uma linha; sem python3 ou com o
+# config ilegível, aviso e segue (o CI confere). Sem variável nem opção que pule.
+comando_de_registros() {
+  local cfg_reg
+  cfg_reg="$(git rev-parse --show-toplevel 2>/dev/null)/.forge/config.json"
+  if [ ! -f "$cfg_reg" ] || [ -L "$cfg_reg" ]; then return 0; fi
+  command -v python3 >/dev/null 2>&1 || { echo "pre-push: aviso: sem python3; registros do .forge/config.json não lido (o CI confere)" >&2; return 0; }
+  python3 -I -c '
+import json, sys
+try:
+    with open(sys.argv[1], encoding="utf-8") as f:
+        valor = json.load(f).get("registros", "")
+except (OSError, ValueError, AttributeError):
+    valor = ""
+    print("pre-push: aviso: .forge/config.json ilegível; registros não conferidos (o CI confere)", file=sys.stderr)
+if not isinstance(valor, str) or not valor.isprintable(): sys.exit("pre-push: registros do .forge/config.json precisa ser um comando de uma linha; envio barrado.")
+print(valor.strip())
+' "$cfg_reg"
+}
+if [ "$refs_branches" -gt 0 ]; then
+  registros="$(comando_de_registros)" || exit 1
+  if [ -n "$registros" ]; then
+    prazo_reg="${FORGE_REGISTROS_PRAZO-180}"
+    case "$prazo_reg" in ''|*[!0-9]*|0*|???????*) echo "pre-push: FORGE_REGISTROS_PRAZO precisa ser um inteiro de 1 a 999999 (segundos); envio barrado." >&2; exit 1 ;; esac
+    echo "pre-push: registros: ${registros}"
+    rc_reg=0
+    if command -v timeout >/dev/null 2>&1; then
+      (cd "$(git rev-parse --show-toplevel)" && timeout -- "$prazo_reg" bash -c "$registros" </dev/null 9>&-) || rc_reg=$?  # sem o descritor da trava, como a etapa
+    else
+      (cd "$(git rev-parse --show-toplevel)" && bash -c "$registros" </dev/null 9>&-) || rc_reg=$?
+    fi
+    [ "$rc_reg" -eq 0 ] || { echo "pre-push: a conferência de registros saiu ${rc_reg} (registro desatualizado, sem veredito ou prazo de ${prazo_reg} s); corrija e envie de novo. Nunca --no-verify." >&2; exit 1; }
+  fi
+fi
 exit 0
