@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-limpeza-fim-item
-commit: 70115210cd8bb0d1d0579f11b651ffe536a06ed6
+commit: 011d6e1b9db4f44d236988740619d1776b8922aa
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -44,3 +44,8 @@ Delta lido por `forge-check parecer delta`: `bin/forge-fechar` (função `fim_se
 - Local, só os arquivos tocados: `test_fechar.py` 111 testes OK (1 skip já existente, não introduzido pelo delta); `test_forge_fechar.py` 34 testes OK; `test_forge_copia.py` 57 testes OK. Suíte completa no CI do PR (`bateria` do mesmo sha).
 - Vermelho: `forge-testes --vermelho 9aa1e723… --modulos test_forge_fechar`: `contagem: não prova (passa na base)=30; prova (asserção)=4`; nenhum teste cai no HEAD.
 - Mutação do delta: `bin/forge-mutante tests/mutantes/v0479-limpeza-fim-item-5.json --base 9aa1e723…`: `base=9aa1e723… mb=9aa1e723… rev=8c3538ed…`; M28, M29, M30, M31 todos `morreu`, saída 0. Um mutante por linha de guarda mudada (linhas 798 a 800 e 1311).
+
+## Revalidação (E68.20, head 011d6e1b, delta desde 70115210)
+Delta lido por `forge-check parecer delta`: merge da develop sem conflito (fora do domínio) e o comando completo `forge-fechar <pedido> --ref <branch> --limpar` em `skills/trabalho-em-paralelo/ritmo-e-corte.md:44` (mais as citações das linhas 22 e 31). Sem código nem teste no delta; critérios iguais; sem achado novo.
+- Local, só os arquivos tocados, com TMPDIR: `test_comando_pronto` 3 testes OK; `test_metricas_texto` 2 testes OK. Suíte completa no CI do PR (`bateria` do mesmo sha).
+- Vermelho e mutação: não se aplicam, pois o delta é só texto de skill, sem regra de código.
