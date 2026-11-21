@@ -56,8 +56,8 @@
       "id": "R6",
       "guarda": "-c alias.* recusa",
       "arquivo": "hooks/conformidade.py",
-      "de": "if chave.lower().startswith(\"alias.\"):",
-      "para": "if chave.lower().startswith(\"aliasx.\"):",
+      "de": "if chave.lower().startswith((\"alias.\", \"help.autocorrect\")):",
+      "para": "if chave.lower().startswith((\"aliasx.\", \"help.autocorrect\")):",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_n5"
       ]
