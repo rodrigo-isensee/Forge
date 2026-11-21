@@ -1686,5 +1686,121 @@ class ParecerDoMesmoPapelDoAutor(Conferencia):
                          {"node-backend"})
 
 
+class BugDoQaNaVolta(Conferencia):
+    """E62.1 (DECISÃO DO DONO v0478, 2026-11-20 17:29, item 2): o caso real (AE2 C1, AE1.4, AE1.2): o QA grava o registro de bug em
+    docs/qa/bugs/ (sem frontmatter) e o commita ou mescla na branch depois da conferida; na volta, ele é anexo do portão de QA, como o
+    parecer (E50.1). O autor que o toca, o merge resolvido à mão e o commit que leva outro arquivo seguem fora."""
+
+    ETAPA, PAPEL = ParecerDoPortao.ETAPA, ParecerDoPortao.PAPEL
+    selar_portao, commitar_parecer, assert_fora = ParecerDoPortao.selar_portao, ParecerDoPortao.commitar_parecer, ParecerDoPortao.assert_fora
+    codigo, ate_a_conferida = ParecerMescladoNaVolta.codigo, ParecerMescladoNaVolta.ate_a_conferida
+    REL = "docs/qa/bugs/x-01-defeito.md"
+    OK = 'escopo: ok (anexo do portão: registro de bug de qa commitado na volta só com docs/qa) "docs/qa/bugs/x-01-defeito.md"'
+
+    def commitar_bug(self, *extra, rel=None):
+        rel = rel or self.REL
+        self.gravar(rel, "# X-01 - defeito\n- Severidade: média\n")
+        self.git("add", rel, *extra)
+        return self.commit("docs(qa): registro de bug")
+
+    def mesclar_bug(self, *extra, rel=None):
+        """O QA grava o bug numa branch ao lado e a mescla na branch (o `Merge remote-tracking branch` do caso real)."""
+        self.git("switch", "-q", "-c", "lado")
+        self.commitar_bug(*extra, rel=rel)
+        self.git("switch", "-q", "melhoria/x")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "--no-edit", "lado")
+
+    def argumentos(self, revisado):
+        return (self.proj, revisado, "HEAD", self.REL)
+
+    def test_caso_real_bug_mesclado_antes_da_volta_e_anexo(self):
+        revisado = self.ate_a_conferida()
+        self.mesclar_bug()
+        self.codigo("x\ny\nz\nw\n")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"intervalo: {revisado}..", saida)
+        self.assertIn(self.OK, saida)
+
+    def test_bug_commitado_na_branch_depois_da_volta_e_anexo(self):
+        self.ate_a_conferida()
+        self.codigo("x\ny\nz\nw\n")
+        self.commitar_bug()
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(self.OK, saida)
+
+    def test_autor_que_grava_o_bug_no_commit_do_codigo_segue_fora(self):
+        self.ate_a_conferida()
+        self.gravar(self.REL, "# X-01 - corrigido pelo autor\n")
+        self.codigo("x\ny\nz\nw\n", self.REL)
+        self.assert_fora(self.REL)
+
+    def test_commit_do_bug_com_arquivo_fora_de_docs_qa_segue_fora(self):
+        self.ate_a_conferida()
+        self.gravar("docs/notas/b.md", "nota\n")
+        self.mesclar_bug("docs/notas/b.md")
+        self.codigo("x\ny\nz\nw\n")
+        self.assert_fora(self.REL)
+
+    def test_merge_com_o_bug_resolvido_a_mao_segue_fora(self):
+        self.ate_a_conferida()
+        self.git("switch", "-q", "-c", "lado")
+        self.commitar_bug()
+        self.git("switch", "-q", "melhoria/x")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "--no-commit", "lado")
+        self.gravar(self.REL, "# X-01 - resolvido à mão\n")
+        self.git("add", self.REL)
+        self.commit("Merge branch 'lado'")
+        self.codigo("x\ny\nz\nw\n")
+        self.assert_fora(self.REL)
+
+    def test_sem_conferida_a_regra_nao_vale(self):
+        """Na 1.a entrega (sem Desde), o bug segue fora, como o parecer do E50.1."""
+        self.ate_a_conferida(conferida=False)
+        self.mesclar_bug()
+        self.codigo("x\ny\nz\nw\n")
+        self.assert_fora(self.REL)
+
+    def test_arquivo_de_docs_qa_fora_de_bugs_sem_frontmatter_segue_fora(self):
+        """Só a pasta docs/qa/bugs/ é registro de bug; o arquivo de docs/qa/ sem frontmatter segue a regra do parecer (fora)."""
+        self.ate_a_conferida()
+        self.mesclar_bug(rel="docs/qa/nota.md")
+        self.codigo("x\ny\nz\nw\n")
+        self.assert_fora("docs/qa/nota.md")
+
+    def test_qa_autor_da_volta_sem_linha_do_jarvis_segue_fora(self):
+        """E50.6: com o qa-engineer autor de uma volta (brief selado de codigo), o bug só vale com o `parecer conferido` do Jarvis."""
+        self.ate_a_conferida()
+        self.selar_copia("exemplo-qa-engineer-2.md", {"Agente destino: forge:node-backend": "Agente destino: forge:qa-engineer"}, selar=False)
+        self.mesclar_bug()
+        self.codigo("x\ny\nz\nw\n")
+        self.assert_fora(self.REL)
+
+    def test_autores_e_linha_do_jarvis(self):
+        revisado = self.ate_a_conferida()
+        self.mesclar_bug()
+        self.codigo("x\ny\nz\nw\n")
+        lado = self.git("rev-parse", "lado")
+        self.assertTrue(fc.bug_do_qa_na_volta(*self.argumentos(revisado), {"node-backend"}, {}))
+        for autores in (set(), {"node-backend", "qa-engineer"}):
+            with self.subTest(autores=autores):
+                self.assertFalse(fc.bug_do_qa_na_volta(*self.argumentos(revisado), autores, {}))
+                self.assertFalse(fc.bug_do_qa_na_volta(*self.argumentos(revisado), autores, {self.REL: revisado}))
+                self.assertTrue(fc.bug_do_qa_na_volta(*self.argumentos(revisado), autores, {self.REL: lado}))
+
+    def test_rev_list_que_falha_ou_vazio_recusa(self):
+        revisado = self.ate_a_conferida()
+        self.mesclar_bug()
+        self.codigo("x\ny\nz\nw\n")
+        original = fc.git
+        self.assertTrue(fc.bug_do_qa_na_volta(*self.argumentos(revisado), {"node-backend"}, {}))
+        for resposta in ((128, ""), (0, "")):
+            def falso(raiz, *args, **kw):
+                return resposta if args[0] == "rev-list" and args[-1] == self.REL else original(raiz, *args, **kw)
+            with self.subTest(resposta=resposta), mock.patch.object(fc, "git", falso):
+                self.assertFalse(fc.bug_do_qa_na_volta(*self.argumentos(revisado), {"node-backend"}, {}))
+
+
 if __name__ == "__main__":
     unittest.main()
