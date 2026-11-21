@@ -3,12 +3,12 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pesado-versoes
-commit: f8210fe5ab1eecfebab8b1692aa41b135e7df284
+commit: 4d3f76d441f1c276b554497e69c4330556dc3433
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-20
 ---
-# Review de segurança: v0479-pesado-versoes (v0478 E64.4)
+# Review de segurança: v0479-pesado-versoes (v0478 E64.4, revalidado na E64.9)
 
 Head revisado `f8210fe5`, base `develop` `8ee73d15`. Mudança: `hooks/pesado.py:292-310` troca a lista aberta de opções pesadas do `bin/forge-testes` (`--completa`, `--vermelho`) pela lista fechada das leves (`LEVES_DO_FORGE_TESTES` mais `-k` e `--`); é a recomendação do parecer do PR-VERDE D1 (`--versoes` fora da fila do R-TETO).
 
@@ -37,3 +37,10 @@ O aumento fica **abaixo de 0,1%** do teto. O teto de 0,1% é 5897 passos do inte
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Revisão estática e sondas locais com a biblioteca padrão; nenhuma ferramenta externa usada nem instalada.
+
+## Revalidação no head 4d3f76d4 (v0478 E64.9)
+Delta lido: `forge-check parecer delta docs/security/v0479-pesado-versoes.md`, intervalo `f8210fe5..4d3f76d4`: nenhum arquivo do domínio mudou; fora do domínio só `tests/mutantes/v0451-a1b.json` (além dos pareceres de review, QA e este). `hooks/`, `bin/`, `tests/test_forge_pesado.py` e `tests/test_hooks.py` sem mudança (`git diff --quiet`). O que já foi lido acima segue valendo para o código, que é o mesmo.
+
+Na spec `v0451-a1b`: M5 e A1-separador passam a mutar a fonte nova (`all(opcao_leve(a) for a in argumentos[:1] if`, tupla `("-k",)` sem `--`), e A1-prefixo, A1-igual e A1-separador ganham o teste `test_formas_da_lista_seguem_leves` além do anterior. Nenhum teste saiu, nenhuma guarda foi removida: a spec segue só apertando. Rodei `bin/forge-mutante tests/mutantes/v0451-a1b.json --processos 1` no head: os 10 (M1 a M7, A1-prefixo, A1-igual, A1-separador) morreram.
+
+Achados anteriores: nenhum. Confirmação escrita mantida: a mudança **só aperta**.
