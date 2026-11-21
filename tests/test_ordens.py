@@ -159,6 +159,19 @@ class AnotarComCartao(Base):
         (self.tmp / "KANBAN.md").write_text(KANBAN + "\n" + "x" * TETO_DA_TABELA, encoding="utf-8")
         self.recusa("--cartao", "ABC-1", trecho=f"KANBAN.md passa de {TETO_DA_TABELA} bytes")
 
+    def test_quadro_pasta_recusa_com_rc_2(self):  # A3: o fstat vem antes do fdopen; pasta no lugar do quadro não cai com rc 1
+        (self.tmp / "KANBAN.md").unlink()
+        (self.tmp / "KANBAN.md").mkdir()
+        self.recusa("--cartao", "ABC-1", trecho="KANBAN.md não é arquivo regular")
+
+    def test_quadro_fora_de_utf8_recusa(self):  # A4: os dois quadros que a base recusava e a leitura com troca deixava gravar
+        lixo = KANBAN.encode("utf-8") + b"| LIXO-\xff | x |\n"
+        fechado_torto = KANBAN.encode("utf-8").replace(b"## Fechado sem entrega", b"## Fechado sem entrega\xff")
+        for nome, dados, alvo in (("lixo em outra linha", lixo, "ABC-1"), ("cabeçalho Fechado torto", fechado_torto, "FECH-1")):
+            with self.subTest(nome):
+                (self.tmp / "KANBAN.md").write_bytes(dados)
+                self.recusa("--cartao", alvo, trecho="KANBAN.md fora de UTF-8")
+
     def test_sem_quadro_so_a_etapa_vale(self):
         (self.tmp / "KANBAN.md").unlink()
         self.recusa("--cartao", "ABC-1", trecho="KANBAN.md não existe")

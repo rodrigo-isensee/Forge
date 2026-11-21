@@ -4844,9 +4844,10 @@ def _ler_regular(arq):
         fd = os.open(arq, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except OSError as e:
         return None, {errno.ELOOP: "é link simbólico", errno.ENOENT: "não existe"}.get(e.errno, "não abre")
+    if not stat.S_ISREG(os.fstat(fd).st_mode):  # antes do fdopen: pasta no lugar do arquivo cai ali com IsADirectoryError (A3)
+        os.close(fd)
+        return None, "não é arquivo regular"
     with os.fdopen(fd, "rb") as f:
-        if not stat.S_ISREG(os.fstat(fd).st_mode):
-            return None, "não é arquivo regular"
         dados = f.read(TETO_DA_TABELA + 1)
     if len(dados) > TETO_DA_TABELA:
         return None, f"passa de {TETO_DA_TABELA} bytes"
@@ -5033,12 +5034,14 @@ def propagar_decisao(raiz_pedido, pedido, nova, propagar):
 def recusa_do_apontador(raiz_pedido, pedido_id, pedido_txt, alvo):
     """AE4.1 (D5 a): None se `alvo` é etapa (ou item `E<n>`) do pedido ou cartão do pedido `pedido_id` (coluna Pedido, A2) no KANBAN.md
     da raiz do pedido fora de `Fechado sem entrega` (a ordem gravada agora é posterior ao fechamento); senão o motivo. Quadro que é
-    link, não é arquivo regular ou passa do teto não confere: uma abertura só, por `_ler_regular` (A1)."""
+    link, não é arquivo regular, passa do teto ou sai de UTF-8 não confere: uma abertura só, por `_ler_regular` (A1, A3, A4)."""
     if re.fullmatch(ETAPA_APONTADA, alvo):
         return None if e_etapa_do_pedido(alvo, ler_pedido_brief(pedido_txt)["etapas"]) else f"--cartao {alvo}: etapa fora do `## Etapas` do pedido"
     texto, erro = _ler_regular(Path(raiz_pedido) / "KANBAN.md")
     if texto is None:
         return f"--cartao: KANBAN.md {erro}; não confiro o cartão (use a etapa E<n> do pedido)"
+    if "\ufffd" in texto:  # A4: a leitura troca byte fora de UTF-8 por U+FFFD; quadro assim não confere (linha ou coluna torta)
+        return "--cartao: KANBAN.md fora de UTF-8; não confiro o cartão (use a etapa E<n> do pedido)"
     achados = [(_sem_acento(coluna), id_do_pedido(c[2])) for coluna, cartoes in quadro_do_texto(texto).items() for c in cartoes
                if c[0].casefold() == alvo.casefold()]
     if not achados:
