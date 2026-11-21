@@ -81,8 +81,15 @@ class RetroPendentes(unittest.TestCase):
         self.assertEqual((cod, linhas[-2:]), (1, ["retro: pendente v0.3.0 tag=2026-11-12T10:00-03:00 horas=25", "retro: pendentes=3"]))
 
     def test_retro_completa_cobre_varias_versoes(self):
-        self.gravar("2026-11-12-p.md", CHEIA.format(cobre="v0.1.0, v0.2.0"))
+        self.gravar("2026-11-12-p.md", CHEIA.format(cobre="v0.1.0, v0.2.0,"))  # a vírgula do fim não vira versão vazia
         self.assertEqual(self.rodar(), (0, ["retro: pendentes=0"], []))
+
+    def test_retros_vem_do_raiz_pedidos_quando_dado(self):
+        controle = self.raiz / "docs" / "controle" / "docs" / "retrospectivas"
+        controle.mkdir(parents=True)
+        (controle / "p.md").write_text(CHEIA.format(cobre="v0.1.0"), encoding="utf-8")
+        self.gravar("p.md", CHEIA.format(cobre="v0.2.0"))  # a da raiz do git fica fora com --raiz-pedidos
+        self.assertEqual(self.rodar("--raiz-pedidos", str(self.raiz / "docs" / "controle")), (1, [PENDENTES_12[1], "retro: pendentes=1"], []))
 
     def test_cobre_com_versao_que_nao_existe_avisa_e_nao_cobre(self):
         self.gravar("p.md", CHEIA.format(cobre="v0.1.0, v0.7.0"))

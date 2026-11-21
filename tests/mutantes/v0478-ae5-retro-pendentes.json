@@ -14,6 +14,36 @@
     },
     {
       "id": "M2",
+      "guarda": "--raiz-pedidos dá a pasta das retros",
+      "arquivo": "bin/forge-check",
+      "de": "        return cmd_retro_pendentes(raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz",
+      "para": "        return cmd_retro_pendentes(raiz, Path(a.raiz_pedidos).resolve() if not a.raiz_pedidos else raiz",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_retros_vem_do_raiz_pedidos_quando_dado"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "só linha que começa com ## abre seção",
+      "arquivo": "bin/forge-check",
+      "de": "        if linha.startswith(\"## \"):\n            secao = re.sub",
+      "para": "        if linha.startswith(\"### \"):\n            secao = re.sub",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_retro_completa_cobre_varias_versoes"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "item vazio do Cobre: não vira versão",
+      "arquivo": "bin/forge-check",
+      "de": "for v in m.group(1).split(\",\") if v.strip()]",
+      "para": "for v in m.group(1).split(\",\") if not v.strip()]",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_retro_completa_cobre_varias_versoes"
+      ]
+    },
+    {
+      "id": "M5",
       "guarda": "link, pasta ou arquivo grande não cobre (link)",
       "arquivo": "bin/forge-check",
       "de": "    if arq.is_symlink() or not arq.is_file() or arq.stat()",
@@ -23,7 +53,7 @@
       ]
     },
     {
-      "id": "M3",
+      "id": "M6",
       "guarda": "arquivo acima do teto não cobre",
       "arquivo": "bin/forge-check",
       "de": "or arq.stat().st_size > TETO_DA_RETRO:",
@@ -33,7 +63,7 @@
       ]
     },
     {
-      "id": "M4",
+      "id": "M7",
       "guarda": "Cobre: só vale antes da primeira seção",
       "arquivo": "bin/forge-check",
       "de": "        elif secao is None and (m := COBRE_DA_RETRO",
@@ -43,33 +73,13 @@
       ]
     },
     {
-      "id": "M5",
+      "id": "M8",
       "guarda": "comentário HTML não é corpo de seção",
       "arquivo": "bin/forge-check",
       "de": " and linha.strip() and not linha.strip().startswith(\"<!--\"):",
       "para": " and linha.strip():",
       "testes": [
         "tests.test_retro_pendentes.RetroPendentes.test_retro_so_com_o_cabecalho_do_modelo_nao_cobre"
-      ]
-    },
-    {
-      "id": "M6",
-      "guarda": "retro sem Cobre: não é conferida nem avisa",
-      "arquivo": "bin/forge-check",
-      "de": "    if not declaradas:\n        return set(), []",
-      "para": "    if False:\n        return set(), []",
-      "testes": [
-        "tests.test_retro_pendentes.RetroPendentes.test_retro_sem_cobre_nao_avisa"
-      ]
-    },
-    {
-      "id": "M7",
-      "guarda": "seção sem corpo não cobre",
-      "arquivo": "bin/forge-check",
-      "de": "if not any(t.startswith(s) and cheio for t, cheio",
-      "para": "if not any(t.startswith(s) for t, cheio",
-      "testes": [
-        "tests.test_retro_pendentes.RetroPendentes.test_secao_sem_corpo_nao_cobre"
       ]
     }
   ]
