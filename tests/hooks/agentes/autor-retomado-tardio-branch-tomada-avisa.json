@@ -1,0 +1,64 @@
+{
+  "descricao": "H2-RETOMADO-CONFLITO (R-TETO): o SubagentStart tardio do retomado não grava a branch que outra reserva de escrita viva (de outro id: o autor trocado) tomou; o conflito vai ao erros.log e, quando a reserva viva cai, o disparo de escrita na branch segue (o retomado não a prendeu).",
+  "arquivos": {
+    "docs/briefs/x.md": "Agente destino: forge:tech-lead\nPedido: p1\nBranch: melhoria/a   Base: develop\n\n## Objetivo\nFazer.\n"
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "afedcba9876543210",
+          "tipo": "Explore",
+          "descricao": "outro",
+          "desde": "{agora-60}",
+          "branches": [
+            "melhoria/a"
+          ],
+          "escrita": [
+            "melhoria/a"
+          ]
+        }
+      ],
+      "autores": [
+        {
+          "id": "a0123456789abcdef",
+          "desde": "{agora-400}",
+          "escrita": [
+            "melhoria/a"
+          ]
+        }
+      ]
+    }
+  },
+  "passos": [
+    {
+      "entrada": {
+        "hook_event_name": "SubagentStart",
+        "agent_id": "a0123456789abcdef",
+        "agent_type": "forge:software-engineer"
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SubagentStop",
+        "agent_id": "afedcba9876543210",
+        "agent_type": "Explore"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_2",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Corrigir o CI",
+      "prompt": "Execute docs/briefs/x.md"
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "H2-RETOMADO-CONFLITO R-TETO: retomado a0123456789abcdef sem reserva de melhoria/a",
+    "aviso": "R-TETO: aviso: autor retomável (melhoria/a: afedcba9876543210)"
+  }
+}
