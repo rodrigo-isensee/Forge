@@ -165,7 +165,7 @@ def texto_de_versao_nova(atual, nova, superficie="projeto"):
 
 
 def texto_de_versao_parada(causa, dias, carregada, main, extra="", superficie="projeto"):
-    """Versão parada (v0478 E69.3, seção 4 de docs/propostas/aviso-versao-parada.md): a causa e o comando que a PESSOA roda, nunca
+    """Versão parada (v0478 E69.3, seção 4 do desenho aviso-versao-parada): a causa e o comando que a PESSOA roda, nunca
     "Nada a fazer". `extra`: a instalada (`sessao-antiga`), as vezes (`adiada`) ou a etapa (`falhou`)."""
     atalho, fora = ("jarvis-forge" if superficie == "forge" else "jarvis"), "num terminal fora do Claude: forge atualizar"
     inicio, onde = f"Forge parado há {dias} dias", f"na {carregada} (main na {main})"

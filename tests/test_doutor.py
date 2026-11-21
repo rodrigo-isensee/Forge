@@ -1164,7 +1164,7 @@ class JarvisForgeDefasagem(ap.Base):
 
 
 
-# Aviso de versão parada (v0478 E69.3, opção A de docs/propostas/aviso-versao-parada.md): o doutor, no Stop, diz a causa e o
+# Aviso de versão parada (v0478 E69.3, opção A do desenho aviso-versao-parada): o doutor, no Stop, diz a causa e o
 # comando exato a partir de 2 dias de atraso, um por dia; sem rede usa a última versão guardada com a data; mede em
 # `.forge/run/versao-parada.log`. T1 do desenho: `test_p1_*` e `test_p2_*` reproduzem os dois casos principais e ficam
 # vermelhos na base (bead3e53), que só avisava uma vez por versão, com "Nada a fazer".
