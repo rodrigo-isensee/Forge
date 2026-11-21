@@ -1,0 +1,35 @@
+{
+  "descricao": "PARECER-PELO-PAPEL (v0478 E50.7, A3 da segurança; R-CONFORMIDADE): sessão do Forge, docs/reviews/ de um repositório que não é cópia do Forge segue livre.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/outro/docs/reviews/x.md",
+      "content": "x\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/outro",
+    "agent_type": "forge-python:python-backend"
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "repos": {
+    "outro": {
+      "arquivos": {
+        "a.txt": "v\n",
+        "docs/reviews/x.md": "v\n"
+      },
+      "branch": "melhoria/x"
+    }
+  }
+}

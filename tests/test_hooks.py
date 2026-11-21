@@ -2790,6 +2790,14 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 14, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_parecer_pelo_papel(self):  # PARECER-PELO-PAPEL (v0478 E50.7): pastas de parecer na sessão do Forge
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("PARECER-PELO-PAPEL (")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 13, "o papel dono, o vizinho, outra regra e o repositório que não é do Forge")
+        self.assertGreaterEqual(len(lote) - len(liberam), 25, "papel × pasta × forma, no clone e em wt/*; a variável no alvo e a linha sem leitura, dono incluído (A5, A6)")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_do_n3(self):  # IMPL-FURO-HOOK-N, N3 (0.45.1): link com caminho protegido
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N3 (")]
         self.assertGreaterEqual(len(lote), 12, "as fixtures do item")
@@ -3201,7 +3209,7 @@ class PesadoClassePelosArgumentos(unittest.TestCase):
                 self.assertTrue(self.classe(comando))
 
     def test_formas_leves_e_citacoes_nao_sao_pesadas(self):
-        for comando in ("bin/forge-testes --listar", "./bin/forge-testes --dirigida", "bin/forge-testes",
+        for comando in ("bin/forge-testes --listar", "./bin/forge-testes --afetados", "bin/forge-testes",
                         "bin/forge-mutante --listar", "./bin/forge-mutante --listar", "cat bin/forge-mutante",
                         "echo bin/forge-testes --completa", "grep -n x bin/forge-testes", "'' ; bin/forge-testes --listar"):
             with self.subTest(comando=comando):
@@ -3617,6 +3625,28 @@ class HookDir36(unittest.TestCase):
 
     def test_fixtures_contrib(self):
         self.rodar_prefixo("contrib", 140)
+
+
+class HookSessaoDoForge(unittest.TestCase):
+    """CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE (v0478 E51.1): na sessão do Forge (raiz sem `.forge/versao`), as travas
+    do `conformidade` valem para todo papel em `wt/*` e no clone, e o `vigia` grava `violacoes.jsonl`. Só as fixtures
+    `e51-*`, pela máquina do `Hooks`, para os mutantes de `tests/mutantes/v0479-conformidade-sessao-forge.json`."""
+    executar_em_lote = Hooks.executar_em_lote
+    executar_fixture = Hooks.executar_fixture
+    _pasta_temporaria = Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+
+    def rodar(self, hook, piso, codigos):
+        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / hook).glob("e51-*.json"))], piso, f"{hook}/e51-*")
+        self.assertEqual({f.dados["esperado"]["codigo"] for f in fixtures}, codigos)
+        self.assertEqual(self.executar_em_lote([(f"{hook}/{f.caminho.stem}", f) for f in fixtures]), len(fixtures),
+                         "toda fixture é verificada")
+
+    def test_travas_do_conformidade(self):
+        self.rodar("conformidade", 55, {0, 2})
+
+    def test_vigia_registra(self):
+        self.rodar("vigia", 2, {0})
 
 
 if __name__ == "__main__":

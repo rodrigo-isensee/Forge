@@ -1,0 +1,57 @@
+{
+  "pedido": "v0479-pv-m1-medida",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M30",
+      "guarda": "jobs que não é lista: fonte ilegível, lacuna rc 2 (A3 do review)",
+      "arquivo": "bin/forge-placar",
+      "de": "if any(not isinstance(d.get(\"jobs\", []), list) for d in dados):",
+      "para": "if False:",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_jobs_que_nao_e_lista_sai_lacuna"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "cancelada sem envio novo dá lugar à seguinte do mesmo head (A1 do review, S1)",
+      "arquivo": "bin/forge-placar",
+      "de": "if anterior is None or estado_da_execucao(anterior) == \"cancelado\":",
+      "para": "if anterior is None:",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_cancelada_sem_envio_novo_da_lugar_a_seguinte_do_mesmo_head"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "a execução seguinte só troca a 1.ª quando ela foi cancelada",
+      "arquivo": "bin/forge-placar",
+      "de": "if anterior is None or estado_da_execucao(anterior) == \"cancelado\":",
+      "para": "if True:",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_execucao_seguinte_nao_troca_a_primeira_que_nao_foi_cancelada"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "dependabot pelo login exato, não por substring (A1 da segurança)",
+      "arquivo": "bin/forge-placar",
+      "de": "if str(autor) in AUTORES_DEPENDABOT or not dentro(dia, janela):",
+      "para": "if \"dependabot\" in str(autor).lower() or not dentro(dia, janela):",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_dependabot_e_o_login_exato_nao_a_substring"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "o login dependabot[bot] também fica fora",
+      "arquivo": "bin/forge-placar",
+      "de": "frozenset({\"app/dependabot\", \"dependabot[bot]\"})",
+      "para": "frozenset({\"app/dependabot\"})",
+      "testes": [
+        "tests.evals.test_placar.CiPrimeira.test_dependabot_e_o_login_exato_nao_a_substring"
+      ]
+    }
+  ],
+  "isentas": []
+}

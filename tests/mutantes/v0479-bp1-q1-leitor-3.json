@@ -1,0 +1,16 @@
+{
+  "pedido": "v0479-bp1-q1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Q17",
+      "guarda": "vencida só depois do prazo",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "prazo_efetivo(e) < hoje]",
+      "para": "prazo_efetivo(e) <= hoje]",
+      "testes": [
+        "tests.test_forge_quarentena.AtivasEVencidas.test_vencida_sai_sozinha_e_aparece_nas_vencidas"
+      ]
+    }
+  ]
+}
