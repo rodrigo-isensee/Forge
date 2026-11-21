@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-trilha
-commit: 0f4facab2db2b2aa60107dfdfac9cad6f9814560
+commit: 7a739fca7bed5df9a09bba96ce6b8fca799f906e
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -74,3 +74,15 @@ Sonda `qa-e6312/sonda.py` (a de E63.8 apontada para este clone; hook sobre a mon
 - `help.autocorrect`: `git -c help.autocorrect=…` (e `HELP.AUTOCORRECT`) rc=2; `git config help.autocorrect 1`, `--global`, `--local`, `set`, `--add` rc=2 e `git config alias.p push` rc=2 no projeto; `git config --get help.autocorrect` e `git config help.autocorrect` rc=0. `git -chelp.autocorrect=1` rc=0 é inócuo (o git não aceita `-c` colado). Na montagem da sessão do Forge, `git config help.autocorrect 1` e `alias.p` passam (rc=0), igual ao alias antes da volta; fora das fixtures da volta.
 
 Fixture `pesado/mesma-sessao-libera`: não rodada por mim (falha no sandbox também na base, conforme o brief). A suíte inteira roda só no CI do PR; o head ainda não tem PR, sem check-run `bateria` a citar.
+
+## Revalidação no head 7a739fca (E63.16, escopo incremental)
+`forge-check parecer delta`: intervalo 0f4facab..7a739fca; hooks/conformidade.py (`CAMINHO_TROCADO_NA_LINHA`, `GuardaDaProva.bash`, `sem_copia_de_wt`), 11 fixtures cpb-, specs de mutante -10 e -13, docs, changelog e corpus de custo. Achado aberto: só o A4 (cartão, inalterado).
+
+Os quatro testes do domínio, `python3 -I -m unittest discover -s tests -p test_hooks.py -k <nome>`, `timeout 1500`, TMPDIR em `/tmp/claude-0/qa6316tmp` (fora de `~/.forge-contrib`): `test_travas_do_conformidade` (7,2 s), `test_fixtures_da_substituicao_no_projeto` (5,7 s), `test_fixtures_do_controle_so_jarvis` (9,5 s), `test_fixtures_da_escrita_no_indice` (3,8 s): `Ran 1 test ... OK` nos quatro.
+
+Mutantes, uma chamada por spec, `timeout 1500`, rc=0, nenhum sobrevivente nem sem veredito (`rev=7a739fca7bed`): -13 (W1, W2, W3, W5, W6, W7, W8) 7 mortos; -10 (X1-X8) 8 mortos. Total 15 mortos. Saídas em `/root/.forge-contrib/wt/qa-e6316/mut13.txt` e `mut10.txt`.
+`forge-mutante --cobertura --base d4f0b10a`: rc=0, cabeçalho `base=d4f0b10aead7 mb=d4f0b10aead7 rev=7a739fca7bed`, 66 linhas `coberta · … · declarado, não provado`, nenhuma `não coberto`, `isenta velha` ou `só equivalente`.
+
+Sonda (`qa-e6316/sonda.py`, a de E63.12 apontada para este clone; 20 formas; papéis tech-lead, dev, jarvis; saída em `sonda-novo.txt`): tech-lead e dev rc=2 para `HOME=…;`, `export HOME=`, `HOME=… sh -c`, `env HOME=`, `ln -s …;`, `mv a <pedido>`, `cp -s a <brief>`, `source`, `. x.sh`, `BASH_ENV=` e `wt/$X/docs/pedidos`, todos citando o pedido ou o brief; rc=0 para a leitura pela cópia (`cd wt/x && sed -n … > $TMPDIR/e.txt`, `ls`, `cat`), `mv a b`, `git mv a b`, `ln -s a b`, `cp -r a b`, `git commit -m 'HOME fix'` e `echo HOME > $TMPDIR/e.txt` (sem falso positivo). Jarvis rc=0 nas 20.
+
+Fixture `pesado/mesma-sessao-libera`: não rodada por mim. A suíte inteira roda só no CI do PR; o head ainda não tem PR, sem check-run `bateria` a citar.
