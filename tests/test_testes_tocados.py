@@ -2182,5 +2182,138 @@ class Regerar(unittest.TestCase):
             self.assertTrue((RAIZ / gerador).is_file(), gerador)
 
 
+class Versoes(unittest.TestCase):
+    """PR-VERDE D1 (v0478 E57.56): `--versoes` roda os afetados uma vez por versão de Python do ci.yml, cada uma com o
+    `python<X.Y>` do PATH que se diz dessa versão, e grava um log por versão (`head=` e `rc=`). As versões do brinquedo
+    (9.1, 9.2) não existem em máquina nenhuma: só os intérpretes falsos do teste as atendem, e a do ambiente nunca entra."""
+
+    def setUp(self):
+        self._t = tempfile.TemporaryDirectory()
+        self.addCleanup(self._t.cleanup)
+        self.dir = Path(self._t.name) / "repo"
+        self.falsos = Path(self._t.name) / "falsos"
+        self.falsos.mkdir()
+        self.env = sem_manutencao({"PATH": f"{self.falsos}:{os.environ.get('PATH', '/usr/bin:/bin')}", "HOME": self._t.name,
+                                   "LANG": "C.UTF-8", "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null",
+                                   "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
+                                   "GIT_COMMITTER_EMAIL": "t@t"})
+        for pasta in ("tests", "bin", ".github/workflows"):
+            (self.dir / pasta).mkdir(parents=True)
+        self.git("init", "-q", "-b", "develop")
+        for modulo in ("test_sugerir", "test_forge"):
+            (self.dir / "tests" / f"{modulo}.py").write_text(
+                "import unittest\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n", encoding="utf-8")
+        (self.dir / "bin" / "forge-sugerir").write_text("x = 1\n", encoding="utf-8")  # o mapa leva a test_forge e test_sugerir
+        (self.dir / ".gitignore").write_text("__pycache__/\n/.forge\n", encoding="utf-8")
+        self.ci('python-version: "9.2"', 'python-version: "9.1"', 'python-version: "9.2"')
+        self.git("add", "-A")
+        self.git("commit", "-qm", "base")
+        self.git("switch", "-q", "-c", "melhoria/x")
+        self.falso("9.1")
+        self.falso("9.2")
+
+    def git(self, *args):
+        return subprocess.run(["git", *args], cwd=self.dir, env=self.env, capture_output=True, text=True, check=True).stdout
+
+    def ci(self, *linhas):
+        (self.dir / ".github" / "workflows" / "ci.yml").write_text(
+            "jobs:\n  a:\n    steps:\n" + "".join(f"      - with:\n          {linha}\n" for linha in linhas), encoding="utf-8")
+
+    def falso(self, versao, diz=None):
+        """`python<versao>` falso: responde `diz` (padrão: a própria versão) à pergunta da versão e marca quando roda."""
+        caminho = self.falsos / f"python{versao}"
+        caminho.write_text(f'#!/bin/sh\nif [ "$1" = "-I" ] && [ "$2" = "-c" ]; then echo {diz or versao}; exit 0; fi\n'
+                           f'echo rodou >> "{self.falsos}/rodou-{versao}"\nexec "{sys.executable}" "$@"\n', encoding="utf-8")
+        caminho.chmod(0o755)
+
+    def rodou(self, versao):
+        return (self.falsos / f"rodou-{versao}").is_file()
+
+    def commitar(self, caminho, texto):
+        (self.dir / caminho).write_text(texto, encoding="utf-8")
+        self.git("commit", "-qam", "muda")
+
+    def rodar(self, *args, base="develop"):
+        return subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--versoes", "--base", base, *args], cwd=self.dir,
+                              env=self.env, capture_output=True, text=True, timeout=300)
+
+    def log(self, versao):
+        return (self.dir / ".forge" / "run" / f"afetados-{versao}.log").read_text(encoding="utf-8").splitlines()
+
+    def logs(self):
+        pasta = self.dir / ".forge" / "run"
+        return sorted(p.name for p in pasta.glob("afetados-*.log")) if pasta.is_dir() else []
+
+    def test_verde_roda_cada_versao_da_configuracao_com_o_interprete_dela(self):
+        self.commitar("bin/forge-sugerir", "x = 2\n")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        head = self.git("rev-parse", "HEAD").strip()
+        self.assertEqual(self.logs(), ["afetados-9.1.log", "afetados-9.2.log"])  # sem repetição e sem a do ambiente
+        for versao in ("9.1", "9.2"):
+            with self.subTest(versao):
+                linhas = self.log(versao)
+                self.assertEqual((linhas[0], linhas[-1]), (f"head={head}", "rc=0"))
+                self.assertIn("Ran 2 tests", "\n".join(linhas))
+                self.assertTrue(self.rodou(versao))
+        self.assertLess(r.stdout.index("python9.1 rc=0"), r.stdout.index("python9.2 rc=0"))  # em série, em ordem
+
+    def test_interprete_ausente_e_aviso_e_nao_verde(self):
+        (self.falsos / "python9.2").unlink()
+        self.commitar("bin/forge-sugerir", "x = 2\n")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("aviso: sem o intérprete python9.2", r.stderr)
+        self.assertEqual(self.log("9.2")[-1], "rc=ausente")
+        self.assertEqual(self.log("9.1")[-1], "rc=0")
+
+    def test_interprete_que_se_diz_de_outra_versao_nao_vale(self):
+        self.falso("9.2", diz="9.3")
+        self.commitar("bin/forge-sugerir", "x = 2\n")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertEqual(self.log("9.2")[-1], "rc=ausente")
+        self.assertFalse(self.rodou("9.2"))
+
+    def test_vermelho_em_uma_versao_sai_1(self):
+        (self.falsos / "python9.2").write_text((self.falsos / "python9.2").read_text(encoding="utf-8").replace(
+            "exec ", "exec env FORGE_VERMELHO=1 "), encoding="utf-8")
+        self.commitar("tests/test_sugerir.py",
+                      "import os, unittest\nclass T(unittest.TestCase):\n    def test_ok(self):\n"
+                      "        self.assertNotIn('FORGE_VERMELHO', os.environ)\n")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertEqual((self.log("9.1")[-1], self.log("9.2")[-1]), ("rc=0", "rc=1"))
+
+    def test_sem_versao_na_configuracao_sai_2_sem_log(self):
+        self.ci("python: 3")
+        self.git("commit", "-qam", "sem versão")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("sem veredito", r.stderr)
+        self.assertEqual(self.logs(), [])
+
+    def test_mudanca_nao_commitada_sai_2_sem_log(self):
+        (self.dir / "bin" / "forge-sugerir").write_text("x = 2\n", encoding="utf-8")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("não commitada", r.stderr)
+        self.assertEqual(self.logs(), [])
+
+    def test_git_ilegivel_sai_2_sem_log(self):
+        r = self.rodar(base="nao-existe")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("sem veredito (git merge-base", r.stderr)
+        self.assertEqual(self.logs(), [])
+
+    def test_so_combina_com_base(self):
+        for opcao in (("--afetados",), ("--registros",), ("--listar",), ("-k", "x"), ("bin/forge-sugerir",)):
+            with self.subTest(opcao):
+                r = self.rodar(*opcao)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("--versoes só combina com --base", r.stderr)
+        self.assertEqual(self.logs(), [])
+
+
 if __name__ == "__main__":
     unittest.main()
