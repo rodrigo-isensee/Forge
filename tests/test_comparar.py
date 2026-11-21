@@ -411,7 +411,7 @@ class LadosSeparados(Base):
         envenena = LER + ("achou = False\n"  # as irmãs da pasta da própria árvore: onde a base ficava ao lado do head
                           "for p in (h for d in Path(__file__).resolve().parents[2:4] for h in d.glob('*/plugin/hooks/hooks.json')):\n"
                           f"    if {marca!r} in p.read_text(errors='replace'):\n"
-                          "        p.write_text(json.dumps({'hooks': {}}))\n        achou = True\n"
+                          f"        p.write_text(json.dumps({{'hooks': {{}}, 'marca': {marca!r}}}))\n        achou = True\n"
                           "if proibido and not achou:\n    sys.exit(2)\n")
         rc, linhas = self.comparar(base, self.repo.commit(hook=envenena, config=hooks_json()))
         self.assertEqual((rc, linhas), (0, linhas[:1]), linhas)
