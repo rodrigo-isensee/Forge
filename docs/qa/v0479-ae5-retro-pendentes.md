@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae5-retro-pendentes
-commit: 8d2efa1fdc94a5962a2323c38592a079a23c1612
+commit: c38abefad5b1b87c04628b6524c579f87b6bd529
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -47,3 +47,8 @@ Sem especificação de UX; as obrigações são as de AE5.1 (pendente = tag da m
 - `forge-mutante` nas specs `v0478-ae5-retro-pendentes`, `-2`, `-3` (uma chamada por spec; `rev=8d2efa1fdc94`): M1 a M8, M9 a M16, M17 a M24, todos `morreu`, nenhum sobrevivente.
 - Vermelho (`bin/forge-testes --vermelho 821db42e --modulos test_retro_pendentes --prazo 1100`): `vermelho: base=821db42ed97e head=8d2efa1fdc94`; contagem: não prova (passa na base)=2; prova (API ausente)=2; prova (asserção)=16; rc=0. O delta não traz teste novo.
 - Sem suíte local; bateria do CI não consultada por esta passada.
+
+## Revalidação no head c38abefa
+- Delta (`forge-check parecer delta`, 8d2efa1f..c38abefa): merge da develop (#763); no domínio só a resolução do conflito em `bin/forge-testes` (a tupla FORGE_CHECK traz `test_retro_pendentes` e `test_comparar`, os dois itens), mais `bin/forge-check`, `tests/pesos-d4.json` e a citação `bin/forge_comparar.py` em `tests/test_reval_delta.py`, todos vindos da develop. Nenhuma lógica de AE5.1 mudou.
+- `test_retro_pendentes.py`: 20 testes, OK. `test_comparar.py`: 66 testes, OK. `test_testes_tocados.py`: 196 testes, OK (1 skip do próprio módulo, pré-existente).
+- Vermelho e mutantes: a lógica de AE5.1 não mudou desde 8d2efa1f; as provas anteriores seguem. Sem suíte local; bateria do CI não consultada.
