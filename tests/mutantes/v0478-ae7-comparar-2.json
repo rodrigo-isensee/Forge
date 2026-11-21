@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP9",
+      "guarda": "AE7.1 corpus_de: linha que não é JSON",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "        except ValueError:\n            return None",
+      "para": "        except ValueError:\n            continue",
+      "testes": [
+        "tests.test_comparar.Corpus.test_corpus_ilegivel_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP10",
+      "guarda": "AE7.1 corpus_de: id repetido",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "        if not caso_valido(caso) or caso[\"id\"] in casos:",
+      "para": "        if not caso_valido(caso):",
+      "testes": [
+        "tests.test_comparar.Corpus.test_corpus_ilegivel_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP11",
+      "guarda": "AE7.1 extrair: lista ou lote que não se lê",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    except (AttributeError, ValueError, IndexError, OSError):\n        return False",
+      "para": "    except (AttributeError, ValueError, IndexError, OSError):\n        return True",
+      "testes": [
+        "tests.test_comparar.ComoOClone.test_resposta_que_nao_se_extrai_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP12",
+      "guarda": "AE7.1 extrair: ls-tree que falha",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    return cod == 0 and lido == 0",
+      "para": "    return lido == 0",
+      "testes": [
+        "tests.test_comparar.Refs.test_archive_que_falha_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP13",
+      "guarda": "AE7.1 hooks_de: matcher que não casa com a ferramenta",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "            if matcher not in (\"\", \"*\") and not re.fullmatch(matcher, ferramenta):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_comparar.Medida.test_matcher_que_deixa_de_casar_libera"
+      ]
+    },
+    {
+      "id": "CMP14",
+      "guarda": "AE7.1 hooks_de: comando sem args roda pelo shell",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if \"args\" in h else [\"sh\", \"-c\", troca(h[\"command\"])]",
+      "para": "if True else [\"sh\", \"-c\", troca(h[\"command\"])]",
+      "testes": [
+        "tests.test_comparar.Medida.test_comando_sem_args_roda_pelo_shell"
+      ]
+    },
+    {
+      "id": "CMP15",
+      "guarda": "AE7.1 hooks_de: hooks.json ilegível é nenhum hook",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "  # hooks.json ilegível: nenhum hook\n        return []",
+      "para": "  # hooks.json ilegível: nenhum hook\n        raise",
+      "testes": [
+        "tests.test_comparar.Medida.test_hooks_json_ilegivel_no_head_e_nenhum_hook"
+      ]
+    },
+    {
+      "id": "CMP16",
+      "guarda": "AE7.1 veredito: hook que passa do prazo libera",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    except (subprocess.TimeoutExpired, OSError):\n        return ACEITE, None",
+      "para": "    except (subprocess.TimeoutExpired, OSError):\n        return RECUSA, None",
+      "testes": [
+        "tests.test_comparar.Medida.test_hook_que_passa_do_prazo_libera"
+      ]
+    }
+  ]
+}

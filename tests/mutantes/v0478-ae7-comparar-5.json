@@ -1,0 +1,67 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP32",
+      "guarda": "AE7.1 extrair: lote truncado",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if len(dados) != tamanho or not",
+      "para": "if not",
+      "testes": [
+        "tests.test_comparar.ComoOClone.test_resposta_que_nao_se_extrai_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP33",
+      "guarda": "AE7.1 extrair: nome que sai da pasta",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "or not Path(os.path.realpath(alvo)).is_relative_to(dentro):",
+      "para": "or False:",
+      "testes": [
+        "tests.test_comparar.ComoOClone.test_resposta_que_nao_se_extrai_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP35",
+      "guarda": "AE7.1 extrair: cat-file que falha",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    return cod == 0 and lido == 0",
+      "para": "    return cod == 0",
+      "testes": [
+        "tests.test_comparar.ComoOClone.test_resposta_que_nao_se_extrai_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CMP36",
+      "guarda": "AE7.1 extrair: modo executável como no clone",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "modo == b\"100755\"",
+      "para": "False",
+      "testes": [
+        "tests.test_comparar.ComoOClone.test_executavel_chega_como_no_clone"
+      ]
+    },
+    {
+      "id": "CMP38",
+      "guarda": "AE7.1 veredito: allow é o nível mais alto",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "decisao == \"allow\"",
+      "para": "False",
+      "testes": [
+        "tests.test_comparar.DecisaoInteira.test_allow_no_lugar_do_silencio_e_aceite_novo",
+        "tests.test_comparar.DecisaoInteira.test_allow_no_lugar_da_recusa_e_aceite_novo"
+      ]
+    },
+    {
+      "id": "CMP39",
+      "guarda": "AE7.1 veredito: updatedInput medido",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "reescrita is None else json.dumps",
+      "para": "True else json.dumps",
+      "testes": [
+        "tests.test_comparar.DecisaoInteira.test_reescrita_que_muda_e_aceite_novo"
+      ]
+    }
+  ]
+}
