@@ -3816,15 +3816,26 @@ COPIA_DE_WT = (r"(?<![^\s;&|<>=])(~|\$HOME|/[^\s;&|<>'\"()=]*|)/\.forge-contrib/
                r"(?=[\s;&|<>)'\"]|$)")  # só o caminho absoluto: `~`, `$HOME` ou `/`
 SUBIDA_NO_TEXTO = (r"\.\.|`|\\|[{}]|(?:^|[\s/=])\.[*?[]|~[-+\d]|\bcd\s+-|pushd|popd|OLDPWD|CDPATH|dirname|realpath|"
                    r"readlink")
+# A16 e A17 da segurança E63.11: o que troca, na própria linha, o caminho que o hook resolveu antes de ela rodar: o nome
+# `HOME` fora do `$HOME` e do `${HOME}` (`HOME=`, `export`, `read`, `printf -v`, `env HOME=`, `unset`), o arquivo que o
+# shell lê e pode trocá-lo (`source`, o ponto, `BASH_ENV`, `ENV`) e a entrada criada ou movida (`ln`, `link`, `mv`,
+# `install`, `rename`, `cp -s|-l`): o `~`, o `$HOME` e o caminho real do hook deixam de ser os do bash.
+CAMINHO_TROCADO_NA_LINHA = (r"(?<![\w$])(?<!\$\{)(?:HOME|BASH_ENV|ENV)(?!\w)|(?<![\w.-])(?:source|ln|link|mv|install|rename)"
+                            r"(?![\w.-])|(?:^|[;&|(])\s*\.\s|\bcp\b[^;&|\n]*\s-(?:[a-zA-Z]*[sl][a-zA-Z]*|-(?:symbolic-)?link)"
+                            r"(?![\w-])")
 
 
 def sem_copia_de_wt(texto):
     """A1 do review E63.6: o texto com cada caminho literal e absoluto de uma cópia de `wt/` (pelo caminho real, dentro
     de `~/.forge-contrib/wt/`) trocado por um NUL (o bash não o recebe na linha), para que só a pasta mãe conte em
     `CONTROLE_NO_TEXTO`. Volta o texto intacto se algo nele pode subir ou montar o caminho (`..`, também partido por
-    aspas, `$(`, crase, chave, escape, curinga no ponto, `~-`, `cd -`, `dirname`...) ou se um `$` não é TMPDIR, HOME
-    ou um nome que a linha só atribui a uma cópia (`f=<cópia>`)."""
-    if "forge-contrib/wt/" not in texto or re.search(SUBIDA_NO_TEXTO, texto.replace("'", "").replace('"', "")):
+    aspas, `$(`, crase, chave, escape, curinga no ponto, `~-`, `cd -`, `dirname`...), se troca o caminho que o bash usa
+    (`CAMINHO_TROCADO_NA_LINHA`: `HOME=`, `ln`, A16 e A17 da segurança E63.11) ou se um `$` do texto de antes da troca
+    não é TMPDIR, HOME ou um nome que a linha só atribui a uma cópia (`f=<cópia>`)."""
+    plano = texto.replace("'", "").replace('"', "")
+    if "forge-contrib/wt/" not in texto or re.search(SUBIDA_NO_TEXTO, plano):
+        return texto
+    if re.search(CAMINHO_TROCADO_NA_LINHA, plano):  # A16 e A17: o caminho que o bash usa não é o que o hook resolve
         return texto
     wt, casa = (contrib() / "wt").as_posix() + "/", str(Path.home())
 
@@ -3832,7 +3843,7 @@ def sem_copia_de_wt(texto):
         base = casa if m.group(1) in ("~", "$HOME") else m.group(1)
         return "\0" if os.path.realpath(f"{base}/.forge-contrib/wt/{m.group(2)}").startswith(wt) else m.group(0)
     novo = re.sub(COPIA_DE_WT, copia, texto)
-    for ref in re.finditer(r"\$([A-Za-z_]\w*)?", novo):
+    for ref in re.finditer(r"\$([A-Za-z_]\w*)?", texto):  # A16: antes da troca, o `$` dentro da cópia também conta
         nome = ref.group(1)
         if not nome:
             return texto  # `$(`, `$'`, `$1`, `$?`: fora da lista
@@ -3864,6 +3875,19 @@ class GuardaDaProva(Guarda):
         self.no_clone, self.travas = no_clone, travas
         self.motivos_do_estado = tuple(e["motivo"] for e in pol["caminhos"] if e["caminho"] in ESTADO_DOS_HOOKS)
         self.motivo_do_config = next((e["motivo"] for e in pol["caminhos"] if e["caminho"] == CONFIG_DA_RAIZ), None)
+
+    def bash(self, comando, pasta, nivel=0, so_substituicoes=False, corpo_de_heredoc=False):
+        """A16 e A17 da segurança E63.11: para o papel que não é o jarvis, a linha que troca o caminho que o hook resolve
+        (`CAMINHO_TROCADO_NA_LINHA`: `HOME=`, `ln`, `mv`...) é construção que ele não modela; recusa se cita o pedido ou o
+        brief da pasta de controle (`recusa_do_estado`), também pela cópia de `wt/` (`HOME=~/.forge-contrib/wt/g; …`)."""
+        if not nivel and self.controle is not None:
+            texto = juntar_continuacoes(comando) if "\\\n" in comando else comando
+            trocado = re.search(CAMINHO_TROCADO_NA_LINHA, texto.replace("'", "").replace('"', ""))
+            if trocado:
+                self.barrar("R-CONFORMIDADE", f"`{trocado.group().strip()}` na linha: o hook não modela o caminho que ela "
+                            "troca (o HOME, o link, o arquivo lido pelo shell)",
+                            "peça ao jarvis; texto que cita o pedido ou o brief vai num arquivo (git commit -F)")
+        super().bash(comando, pasta, nivel, so_substituicoes, corpo_de_heredoc)
 
     def caminho_barrado(self, caminho):
         """CONFIG-TETO-SEM-GUARDA: a recusa de `.forge/config.json` só vale para o da raiz da sessão; o modelo

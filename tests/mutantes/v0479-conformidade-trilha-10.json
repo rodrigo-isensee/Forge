@@ -6,7 +6,7 @@
       "id": "X1",
       "guarda": "o texto que pode subir ou montar o caminho fica intacto (E63.9, A1 do review)",
       "arquivo": "hooks/conformidade.py",
-      "de": "    if \"forge-contrib/wt/\" not in texto or re.search(SUBIDA_NO_TEXTO, texto.replace(\"'\", \"\").replace('\"', \"\")):\n",
+      "de": "    if \"forge-contrib/wt/\" not in texto or re.search(SUBIDA_NO_TEXTO, plano):\n",
       "para": "    if \"forge-contrib/wt/\" not in texto:\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
