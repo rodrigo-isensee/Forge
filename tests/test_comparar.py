@@ -576,7 +576,8 @@ class ListaDeForma(Base):
                 "1ª linha recuada": "---\n  name: a\n---\n",
                 "chave de fusão": "---\nname: &a x\n<<: *a\n---\n",
                 "diretiva": "---\n%YAML 1.2\nname: a\n---\n",
-                "sem espaço depois dos dois pontos": "---\nhooks:{}\n---\n"}
+                "sem espaço depois dos dois pontos": "---\nhooks:{}\n---\n",
+                "dois pontos dentro da chave": "---\nname: a\nx:y: z\n---\n"}
         for nome, texto in fora.items():
             with self.subTest(nome):
                 self.nos_dois_lados({"agents/a.md": texto}, motivo)
