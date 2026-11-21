@@ -82,32 +82,35 @@
     },
     {
       "id": "A1-prefixo",
-      "guarda": "opcao abreviada pelo argparse (--comp, --verm) conta como a opcao inteira (A1 do review g1)",
+      "guarda": "opcao abreviada pelo argparse (--comp, --verm) conta como a opcao inteira (A1 do review g1); desde a E64.1 vale pela lista leve do forge-testes",
       "arquivo": "hooks/pesado.py",
       "de": "return len(nome) > 2 and opcao.startswith(nome)",
       "para": "return len(nome) > 2 and opcao == nome",
       "testes": [
-        "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado"
+        "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado",
+        "tests.test_forge_pesado.FormasLevesDoForgeTestes.test_formas_da_lista_seguem_leves"
       ]
     },
     {
       "id": "A1-igual",
-      "guarda": "a forma --opcao=valor conta como a opcao (A1 do review g1)",
+      "guarda": "a forma --opcao=valor conta como a opcao (A1 do review g1); desde a E64.1 vale pela lista leve do forge-testes",
       "arquivo": "hooks/pesado.py",
       "de": "nome = argumento.split(\"=\", 1)[0]",
       "para": "nome = argumento",
       "testes": [
-        "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado"
+        "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado",
+        "tests.test_forge_pesado.FormasLevesDoForgeTestes.test_formas_da_lista_seguem_leves"
       ]
     },
     {
       "id": "A1-separador",
-      "guarda": "o separador -- sozinho nao e prefixo de opcao (forge-testes -- caminho segue leve)",
+      "guarda": "o separador -- sozinho nao e prefixo de opcao (forge-testes -- caminho segue leve); desde a E64.1 vale pela lista leve do forge-testes",
       "arquivo": "hooks/pesado.py",
       "de": "return len(nome) > 2 and opcao",
       "para": "return opcao",
       "testes": [
-        "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado"
+        "tests.test_hooks.PesadoClassePelosArgumentos.test_forge_testes_com_vermelho_igual_ou_opcao_abreviada_e_pesado",
+        "tests.test_forge_pesado.FormasLevesDoForgeTestes.test_versoes_e_opcao_fora_da_lista_pesam"
       ]
     }
   ]
