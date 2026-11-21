@@ -156,3 +156,15 @@ Os achados A1 do review (E63.6) e A12 e A13 da segurança (E63.7) no head e48a2e
 - igual ao e48a2e60 (+0): a exceção da cópia de `wt/` só roda no `controle_no_texto` da `GuardaDaProva` (o corpus não
   chega lá), as regex novas são textos compilados só no uso, e o `help.autocorrect` entrou na tupla do `startswith` que já
   existia; total sobre 5897219: +5478 passos (0,093%), abaixo de 0,1%, e `MEDIDA_DO_CORPUS` segue a mesma
+
+## E63.13 (v0478, terceira volta da trilha)
+
+Os achados A16 e A17 da segurança (E63.11) sobre o head 0f4facab. Mesma máquina, Python 3.12.3, tmp `/tmp/claude-0`,
+233 variáveis, `test_corpus_nos_dois_hooks` instrumentado só para imprimir a contagem (o `custo.py` das sondas da
+segurança), a base e o 0f4facab por `git archive`:
+- base d4f0b10a: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5887957, 'ambiente': 233}`
+- head 0f4facab: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5893435, 'ambiente': 233}`
+- volta nova (árvore de trabalho com o conserto): `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5893435, 'ambiente': 233}`
+- +0 sobre o 0f4facab: a regex nova é texto compilado só no uso, e a `GuardaDaProva.bash` e o `sem_copia_de_wt` não rodam
+  no corpus; os absolutos daqui diferem dos de antes (233 variáveis), a diferença não: +5478 sobre a base, 0,093% sobre
+  5897219 (5478 / 5897219) e sobre 5887957; abaixo de 0,1%, e `MEDIDA_DO_CORPUS` segue a mesma
