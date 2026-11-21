@@ -50,14 +50,21 @@ def raiz():
 
 
 def ignorar_no_projeto():
-    """No projeto, a pasta das cópias fica fora do git dele: um .gitignore com `*`, criado uma vez (o que já existe não é tocado)."""
+    """No projeto, a pasta das cópias fica fora do git dele: um .gitignore com `*`, criado uma vez (o que já existe não é tocado).
+    Sem seguir link: um .gitignore versionado como link é recusado (S2); devolve o motivo da recusa ou None."""
     if not raiz_do_projeto():
-        return
+        return None
     arq = os.path.join(raiz(), ".gitignore")
     os.makedirs(os.path.dirname(arq), exist_ok=True)
-    if not os.path.exists(arq):
-        with open(arq, "w", encoding="utf-8") as f:
-            f.write("*\n")
+    if os.path.islink(arq):
+        return f"{arq} é um link simbólico"
+    try:
+        fd = os.open(arq, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)  # O_EXCL: link criado depois também falha
+    except FileExistsError:
+        return None
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write("*\n")
+    return None
 
 
 def recusa(motivo):
@@ -237,7 +244,9 @@ def main(argv=None):
     if uso > LIMIAR_DISCO:
         return recusa(f"disco com {uso}% de uso, acima de {LIMIAR_DISCO}%: limpe as cópias de itens fechados "
                       "(forge-copia limpar <cópia>; no Forge, forge-fechar <pedido> --ref <branch> --limpar) antes de criar outra")
-    ignorar_no_projeto()
+    falha = ignorar_no_projeto()
+    if falha:
+        return recusa(falha)
     if a.modo == "worktree":
         if git("worktree", "add", "--no-track", "-b", a.branch, "--", real, a.base):
             return 1

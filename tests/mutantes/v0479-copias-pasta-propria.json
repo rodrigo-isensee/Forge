@@ -57,8 +57,8 @@
       "id": "M6",
       "guarda": "MODELO-COPIAS-EM-PASTA-PROPRIA: no Forge, nada de .gitignore na pasta das cópias",
       "arquivo": "bin/forge-copia",
-      "de": "    if not raiz_do_projeto():\n        return\n",
-      "para": "    if False:\n        return\n",
+      "de": "    if not raiz_do_projeto():\n        return None\n",
+      "para": "    if False:\n        return None\n",
       "testes": [
         "tests.test_forge_copia.Projeto.test_o_forge_segue_com_a_pasta_do_home"
       ]
@@ -67,10 +67,20 @@
       "id": "M7",
       "guarda": "MODELO-COPIAS-EM-PASTA-PROPRIA: o .gitignore que já existe não é tocado",
       "arquivo": "bin/forge-copia",
-      "de": "    if not os.path.exists(arq):",
-      "para": "    if True:",
+      "de": "os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW",
+      "para": "os.O_CREAT | os.O_TRUNC",
       "testes": [
         "tests.test_forge_copia.Projeto.test_gitignore_que_ja_existe_nao_e_tocado"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "MODELO-COPIAS-EM-PASTA-PROPRIA: .gitignore versionado como link é recusado (S2)",
+      "arquivo": "bin/forge-copia",
+      "de": "    if os.path.islink(arq):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia.Projeto.test_s2_gitignore_link_solto_e_recusado_sem_gravar_fora"
       ]
     }
   ]

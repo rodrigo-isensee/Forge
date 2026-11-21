@@ -568,6 +568,29 @@ class Projeto(Base):
         self.assertEqual(self.clonar(self.wt / "i1").returncode, 0)
         self.assertEqual((self.wt / ".gitignore").read_text(), "x\n")
 
+    def versionar_link(self, caminho, alvo):
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        caminho.symlink_to(alvo)
+        self.git(self.proj, "add", "-A")
+        self.git(self.proj, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "link")
+
+    def test_s1_forge_wt_como_link_para_a_pasta_do_forge_e_recusado(self):
+        (self.pasta / "wt").mkdir()
+        self.versionar_link(self.wt, self.pasta / "wt")
+        r = self.clonar(self.wt / "x")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("fica fora de", r.stderr)
+        self.assertEqual(list((self.pasta / "wt").iterdir()), [])
+
+    def test_s2_gitignore_link_solto_e_recusado_sem_gravar_fora(self):
+        alvo = self.fora / "alvo_fora"
+        self.versionar_link(self.wt / ".gitignore", alvo)
+        r = self.clonar(self.wt / "i1")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("link simbólico", r.stderr)
+        self.assertFalse(alvo.exists())
+        self.assertFalse((self.wt / "i1").exists())
+
     def test_o_forge_segue_com_a_pasta_do_home(self):
         forge = self.repo(self.fora / "forge", ".forge/config.json", ".claude-plugin/plugin.json")
         r = self.clonar(forge / ".forge" / "wt" / "f1", cwd=forge)
