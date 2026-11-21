@@ -9243,6 +9243,8 @@ def bloco_de_citacoes(raiz, citar):
 
 ETAPAS_DE_PARECER = ("review", "seguranca", "qa")  # as do hook `agentes` (Z10): o parecer não escreve a branch
 LINHA_DE_PARALELO = "- paralelo na mesma branch: parecer, lê a branch sem escrever nela (Z10)"
+LINHA_DO_GITHOOKS = ("- `.githooks/` é do usuário (o hook `conformidade` barra a escrita do agente): entregue o diff como proposta (um "
+                     "`.patch` ou um bloco `diff` num documento de proposta), que o dono aplica; não edite o arquivo (K-252)")
 # BRIEF-PORTAO-REBASE (v0478 E91.1): o envio do parecer é o do papel e do pre-push; o merge entre pareceres em paralelo não se escreve
 ENVIO_DO_PARECER = ("- envio: commit só do parecer (`git add <caminho>`), com `pedido: {pedido}` no frontmatter (o id do pedido, nunca o "
                     "nome da branch, que o `forge-check docs` recusa); `git push origin {branch}`; se o remoto avançou, `git pull --rebase` "
@@ -9346,6 +9348,10 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
         return None, 2, [erro]
     m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
     pedido_id = m.group(1) if m else caminho_do_pedido(raiz, pedido).stem
+    historico = secoes_por(pedido_txt, CABECALHO_PEDIDO).get("Histórico", [])
+    if coberta and coberta in etapas_conferidas(raiz, caminho_pedido, historico):  # K-166
+        return None, 1, [f"brief gerar: recusado: {coberta} já tem entrega conferida; uma etapa por delegação: a nova ganha "
+                         "linha e número novos em ## Etapas (K-166)"]
     if etapa in ETAPAS_QUE_RECUSAM and not branch:
         return None, 1, [f"brief gerar: recusado: --branch obrigatório na etapa {etapa} (os pareceres são lidos dela; P2)"]
     faltas = pareceres_da_etapa(raiz, pedido_id, etapa, branch, base)
@@ -9381,6 +9387,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
                   f"- {PREENCHER}: o que esta etapa entrega, cada item citando o ID do pedido"]
         if tipo == "codigo":  # 0.43.1: o escopo que o `forge-check entrega --pedido` confere vem desta linha, tirada do desenho
             saida.append(f"- {ESCOPO_DECLARADO} {PREENCHER}: caminhos, pastas/ ou globs que esta etapa toca, tirados do desenho")
+            if ".githooks/" in dados["etapas"][coberta][1]:  # K-252: o hook `conformidade` barra a escrita do agente ali
+                saida.append(LINHA_DO_GITHOOKS)
     saida += ["", "## Ler"]
     if etapa == "merge-integracao":  # L09 (P3): o integrador só roda o comando; o `modelo:` é texto para o Jarvis, sem efeito sobre o portão
         print("brief gerar: modelo: haiku (merge-integracao é mecânico; docs/economia-de-tokens.md, regra 2)", file=sys.stderr)
@@ -9438,6 +9446,9 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
                          f"--branch {branch} --base {base} --base-sha {sha_base}{PROVAS_DO_PQ} --etapa codigo` · espera: rc=0")
     if etapa in ("review", "seguranca", "qa"):  # o bloco ## Achados e o teto em caracteres saem do `forge-check docs` (P3)
         saida.append("- PQ-N (cmd): `forge-check docs` · espera: rc=0")
+        if interpolacao_segura(pedido=pedido_id, base=base.removeprefix("origin/")):  # K-156: a validade do parecer antes do QA
+            saida.append(f"- PQ-N (cmd): `forge-check pr {caminho_impresso(pedido_id)} --previo --base {sem_controle(base.removeprefix('origin/'))}` "
+                         "· espera: rc=0, rodado depois do commit do parecer")
     if etapa in ETAPAS_DE_MERGE:
         saida.append(pq_de_merge(base))
     if tipo == "codigo" or etapa in ETAPAS_DE_MERGE:

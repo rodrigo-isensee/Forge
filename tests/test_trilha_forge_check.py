@@ -62,5 +62,45 @@ class EnvioDoParecer(Base):
         self.assertNotIn("- envio: ", self.gerar("review", "E1.2", "forge:revisor-exemplo", branch="melhoria/x;id"))
 
 
+class ModeloDePedidoNoGerar(Base):
+    """MODELO-PEDIDO-E-BRIEF, o resto no `brief gerar`: K-166 (uma etapa por delegação), K-252 (`.githooks/` como proposta) e K-156
+    (o brief que grava parecer propõe o `forge-check pr`)."""
+
+    def test_etapa_ja_conferida_recusa_a_delegacao_nova(self):
+        saida, rc, erros = self.montar("codigo", "E1.1", "forge:dev-exemplo", conferidas={"E1.1"})
+        self.assertEqual((saida, rc), (None, 1))
+        self.assertEqual(len(erros), 1)
+        self.assertTrue(erros[0].startswith("brief gerar: recusado: E1.1 já tem entrega conferida"), erros)
+        self.assertIn("(K-166)", erros[0])
+        self.assertIn("Cobre: E1.1", self.montar("codigo", "E1.1", "forge:dev-exemplo", conferidas={"E1.2"})[0])
+
+    def test_etapa_conferida_le_o_historico_do_pedido(self):
+        texto = PEDIDO + "\n## Histórico\n- 2026-01-01 10:00: nota\n"
+        (self.tmp / "docs" / "pedidos" / "trilha.md").write_text(texto, encoding="utf-8")
+        with mock.patch.object(fc, "etapas_conferidas", return_value=set()) as conferidas, redirect_stderr(io.StringIO()):
+            fc.montar_brief(self.tmp, "trilha", "forge:dev-exemplo", None, "develop", etapa="codigo", cobre="E1.1")
+        self.assertEqual(conferidas.call_args.args[2], ["- 2026-01-01 10:00: nota"])
+
+    def test_githooks_no_escopo_da_etapa_vira_proposta(self):
+        self.assertIn(fc.LINHA_DO_GITHOOKS + "\n", self.gerar("codigo", "E1.3", "forge:dev-exemplo"))
+        self.assertNotIn(fc.LINHA_DO_GITHOOKS, self.gerar("codigo", "E1.1", "forge:dev-exemplo"))
+        for trecho in ("é do usuário", "proposta", "não edite o arquivo"):
+            self.assertIn(trecho, fc.LINHA_DO_GITHOOKS)
+
+    def test_portao_propoe_o_pq_do_forge_check_pr(self):
+        pq = "- PQ-N (cmd): `forge-check pr trilha --previo --base develop` · espera: rc=0, rodado depois do commit do parecer\n"
+        for etapa in ("review", "seguranca", "qa"):
+            with self.subTest(etapa):
+                self.assertIn(pq, self.gerar(etapa, "E1.2", "forge:revisor-exemplo"))
+        self.assertNotIn("`forge-check pr ", self.gerar("codigo", "E1.1", "forge:dev-exemplo"))
+
+    def test_base_fora_da_forma_nao_vai_ao_pq(self):
+        with mock.patch.object(fc, "e_o_forge", return_value=True), mock.patch.object(fc, "pareceres_da_etapa", return_value=[]), \
+                mock.patch.object(fc, "portao_na_branch", return_value=(None, None)), redirect_stderr(io.StringIO()):
+            saida, rc, _ = fc.montar_brief(self.tmp, "trilha", "forge:revisor-exemplo", None, "a..b", etapa="review", cobre="E1.2")
+        self.assertEqual(rc, 0)
+        self.assertNotIn("`forge-check pr ", saida)
+
+
 if __name__ == "__main__":
     unittest.main()
