@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae5-retro-pendentes
-commit: e375c67ae9c02ecec5eea7baffef1bf722bd0098
+commit: 2d378b98dfa98a5f3be4879335985a04c4093b7e
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
@@ -38,6 +38,17 @@ Delta lido só por `forge-check parecer delta docs/reviews/v0479-ae5-retro-pende
 - Nomes de função de módulo do `bin/forge-check`: `grep -oP '^def \K\w+' bin/forge-check | sort | uniq -d` vazio.
 - `python3 -m unittest tests.test_retro_pendentes` (ambiente limpo): 20 testes, OK.
 - `bin/forge-mutante --processos 1 --ids M5,M6,M18,M25,M26,M27,M28,M29` nos três arquivos de mutantes tocados: 8 de 8 morreram (M5 e M27 em 5826, M26 em 5829, M6 em 5834, M28 em 5841, M18 e M25 em 5882, M29 em 5883).
+- Suíte completa: fica no CI do PR (`R-REVIEW`).
+
+Segue aprovado; A1 continua recomendado, sem mudança no delta.
+
+## Revalidação no head 2d378b98 (E58.88)
+Delta lido só por `forge-check parecer delta docs/reviews/v0479-ae5-retro-pendentes.md`: intervalo `e375c67a..2d378b98`, no domínio `bin/forge-check`, `bin/forge-testes`, `tests/pesos-d4.json` e `tests/test_reval_delta.py`; saída `revalida: sim`.
+
+- O merge da develop `f324dfa4` (pais `d7751096`, `c9d69234`) não tem resolução à mão: `git show --remerge-diff f324dfa4` vazio. `bin/forge-testes`, `tests/pesos-d4.json` e as funções de entrega e `remoto_da_branch` do `bin/forge-check` vêm da develop (PRs #752, #755 e #757), fora deste parecer.
+- `git diff c9d69234 HEAD -- bin/forge-check` tem as mesmas linhas mudadas do patch aprovado contra a base antiga `821db42e`, salvo a docstring de `cmd_retro_pendentes`, que troca o caminho `docs/retrospectivas/` por prosa (sem efeito no comportamento).
+- `tests/test_reval_delta.py` ganha a entrada `("tests/test_retro_pendentes.py", "docs/retrospectivas/"): (1, "teste-le")` na guarda C-2: o teste cita o caminho uma vez (`test_retro_pendentes.py:115`, a igualdade dos dois modelos), contagem e classe batem.
+- `python3 -m unittest tests.test_reval_delta tests.test_retro_pendentes` (ambiente limpo): 30 testes, OK.
 - Suíte completa: fica no CI do PR (`R-REVIEW`).
 
 Segue aprovado; A1 continua recomendado, sem mudança no delta.
