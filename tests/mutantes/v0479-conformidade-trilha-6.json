@@ -66,8 +66,8 @@
       "id": "T6",
       "guarda": "o shell que lê a entrada só conta numa linha que cita o git e o envio (E63.5, A4)",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if cita_o_envio and programa and shell_que_le_a_entrada(nomes, valores, opacas, comando.redirecoes):  # o `in` antes\n",
-      "para": "        if programa and shell_que_le_a_entrada(nomes, valores, opacas, comando.redirecoes):  # o `in` antes\n",
+      "de": "        if cita_o_envio and programa and shell_que_le_a_entrada(nomes, valores, opacas, comando.redirecoes, linha):\n",
+      "para": "        if programa and shell_que_le_a_entrada(nomes, valores, opacas, comando.redirecoes, linha):\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
       ]
