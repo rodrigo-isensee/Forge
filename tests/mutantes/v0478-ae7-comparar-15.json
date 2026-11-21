@@ -26,8 +26,8 @@
       "id": "CMP102",
       "guarda": "AE7.1 RAIZ_FORA: settings.json na raiz (F3)",
       "arquivo": "bin/forge_comparar.py",
-      "de": ", b\"settings.json\")  # F3",
-      "para": ")  # F3",
+      "de": "b\".lsp.json\", b\"settings.json\", b\"monitors\"",
+      "para": "b\".lsp.json\", b\"monitors\"",
       "testes": [
         "tests.test_comparar.ListaDeForma.test_f3_arquivo_de_convencao_na_raiz"
       ]
