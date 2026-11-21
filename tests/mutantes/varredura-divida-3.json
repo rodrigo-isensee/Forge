@@ -1,9 +1,19 @@
 {
-  "pedido": "varredura-divida-3",
+  "pedido": "varredura-divida",
   "executor": "unittest",
   "mutantes": [
     {
       "id": "M15",
+      "guarda": "só pasta conta como cópia",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": "for p in pasta.glob(\"*\") if p.is_dir())",
+      "para": "for p in pasta.glob(\"*\"))",
+      "testes": [
+        "tests.test_varredura_divida.Varredura.test_lista_cada_achado_em_ordem_estavel"
+      ]
+    },
+    {
+      "id": "M16",
       "guarda": "du sem saída (pasta que não existe) é 0 MB",
       "arquivo": "scripts/varredura-divida.py",
       "de": "if saida and saida[0].isdigit() else 0",
@@ -13,7 +23,7 @@
       ]
     },
     {
-      "id": "M16",
+      "id": "M17",
       "guarda": "só acima do limite as cópias são achado",
       "arquivo": "scripts/varredura-divida.py",
       "de": "if total > mb:",
@@ -23,7 +33,7 @@
       ]
     },
     {
-      "id": "M17",
+      "id": "M18",
       "guarda": "raiz que não é pasta é erro de uso",
       "arquivo": "scripts/varredura-divida.py",
       "de": "if not a.raiz.is_dir():",
@@ -33,7 +43,7 @@
       ]
     },
     {
-      "id": "M18",
+      "id": "M19",
       "guarda": "subpasta varre o repositório inteiro",
       "arquivo": "scripts/varredura-divida.py",
       "de": "Path(topo[0]) if topo else",
@@ -43,7 +53,7 @@
       ]
     },
     {
-      "id": "M19",
+      "id": "M20",
       "guarda": "a --base dada vence a padrão",
       "arquivo": "scripts/varredura-divida.py",
       "de": "base = a.base or base_padrao(raiz)",
@@ -53,33 +63,13 @@
       ]
     },
     {
-      "id": "M20",
+      "id": "M21",
       "guarda": "só no Forge as cópias se varrem",
       "arquivo": "scripts/varredura-divida.py",
       "de": "if e_o_forge(raiz):",
       "para": "if True:",
       "testes": [
         "tests.test_varredura_divida.ProjetoDoForgeInit.test_projeto_novo_roda_sem_achado"
-      ]
-    },
-    {
-      "id": "M21",
-      "guarda": "trecho vazio conta 0 vezes, não len+1",
-      "arquivo": "scripts/varredura-divida.py",
-      "de": "str(m.get(\"de\") or \"\\0\")",
-      "para": "str(m.get(\"de\") or \"\")",
-      "testes": [
-        "tests.test_varredura_divida.Varredura.test_lista_cada_achado_em_ordem_estavel"
-      ]
-    },
-    {
-      "id": "M22",
-      "guarda": "só pasta conta como cópia",
-      "arquivo": "scripts/varredura-divida.py",
-      "de": "for p in pasta.glob(\"*\") if p.is_dir())",
-      "para": "for p in pasta.glob(\"*\"))",
-      "testes": [
-        "tests.test_varredura_divida.Varredura.test_lista_cada_achado_em_ordem_estavel"
       ]
     }
   ]

@@ -51,6 +51,10 @@ def rodar(*args):
                           env=ambiente(), cwd=tempfile.gettempdir())
 
 
+def mutante(ident, de, arquivo="codigo.py"):
+    return {"id": ident, "guarda": "g", "arquivo": arquivo, "de": de, "para": "troca", "testes": ["tests.test_x.C.test_y"]}
+
+
 def fotografia(pasta):
     return {p.relative_to(pasta).as_posix(): p.read_bytes() for p in sorted(pasta.rglob("*")) if p.is_file()}
 
@@ -63,13 +67,9 @@ class Varredura(unittest.TestCase):
         self.raiz.mkdir()
         gravar(self.raiz, "tests/pesos-d4.json", json.dumps({"test_a": 5, "test_b": 50, "test_c": 20, "test_b.K.t": 900}))
         gravar(self.raiz, "codigo.py", "if x > 1:\n    dobro\n    dobro\n")
-        gravar(self.raiz, "tests/mutantes/ok.json", json.dumps({"mutantes": [
-            {"id": "M1", "arquivo": "codigo.py", "de": "if x > 1:"},
-            {"id": "M2", "arquivo": "codigo.py", "de": "sumiu"},
-            {"id": "M3", "arquivo": "codigo.py", "de": "dobro"},
-            {"id": "M4", "arquivo": "nao-existe.py", "de": "if x > 1:"},
-            {"id": "M5", "arquivo": "codigo.py", "de": ""}]}))
-        gravar(self.raiz, "tests/mutantes/ruim.json", "{")
+        gravar(self.raiz, "tests/mutantes/ok.json", json.dumps({"pedido": "ok", "executor": "unittest", "mutantes": [
+            mutante("M1", "if x > 1:"), mutante("M2", "sumiu"), mutante("M3", "dobro"),
+            mutante("M4", "if x > 1:", "nao-existe.py")]}))
         gravar(self.raiz, "docs/regras/R-COBERTA.md", "x")
         gravar(self.raiz, "docs/regras/R-SOLTA.md", "x")
         gravar(self.raiz, "tests/test_x.py", "# R-COBERTA e R-SOLTA2\n")
@@ -80,6 +80,7 @@ class Varredura(unittest.TestCase):
         git(self.raiz, "init", "-q")
         git(self.raiz, "add", "-A")
         antiga = commit(self.raiz, None, 100)
+        git(self.raiz, "update-ref", "HEAD", antiga)
         refs = {"main": antiga, "develop": commit(self.raiz, antiga, 0), "melhoria/mesclada": antiga,
                 "melhoria/parada": commit(self.raiz, antiga, 60), "melhoria/nova": commit(self.raiz, antiga, 5)}
         for nome, sha in refs.items():
@@ -99,14 +100,12 @@ class Varredura(unittest.TestCase):
             "branch-parada · melhoria/parada · 60 dias sem commit · cartão: retomar ou fechar a branch melhoria/parada",
             "teste-lento · test_b · 50.0 s · cartão: acelerar test_b (50.0 s por rodada)",
             "teste-lento · test_c · 20.0 s · cartão: acelerar test_c (20.0 s por rodada)",
-            "mutante-velho · tests/mutantes/ok.json M2 · codigo.py: trecho 0 vez(es) · cartão: atualizar o trecho do M2 em tests/mutantes/ok.json",
-            "mutante-velho · tests/mutantes/ok.json M3 · codigo.py: trecho 2 vez(es) · cartão: atualizar o trecho do M3 em tests/mutantes/ok.json",
-            "mutante-velho · tests/mutantes/ok.json M4 · nao-existe.py: trecho 0 vez(es) · cartão: atualizar o trecho do M4 em tests/mutantes/ok.json",
-            "mutante-velho · tests/mutantes/ok.json M5 · codigo.py: trecho 0 vez(es) · cartão: atualizar o trecho do M5 em tests/mutantes/ok.json",
-            "mutante-velho · tests/mutantes/ruim.json · spec ilegível · cartão: refazer tests/mutantes/ruim.json",
+            "mutante-velho · tests/mutantes/ok.json M2 · o trecho aparece 0 vezes em codigo.py (precisa de uma) · cartão: atualizar o trecho do M2 em tests/mutantes/ok.json",
+            "mutante-velho · tests/mutantes/ok.json M3 · o trecho aparece 2 vezes em codigo.py (precisa de uma) · cartão: atualizar o trecho do M3 em tests/mutantes/ok.json",
+            "mutante-velho · tests/mutantes/ok.json M4 · o trecho aparece 0 vezes em nao-existe.py (precisa de uma) · cartão: atualizar o trecho do M4 em tests/mutantes/ok.json",
             "regra-sem-teste · R-SOLTA · nenhum teste em tests/ cita o ID · cartão: teste que cubra R-SOLTA",
             f"copias · {self.wt} · 2 cópias, 3 MB · cartão: limpar as cópias sem branch aberta (git worktree remove)",
-            "varredura: 11 achado(s)"])
+            "varredura: 9 achado(s)"])
 
     def test_so_le(self):
         antes = (fotografia(self.tmp), git(self.raiz, "for-each-ref"), git(self.raiz, "status", "--porcelain"))
@@ -127,13 +126,31 @@ class Varredura(unittest.TestCase):
         self.assertEqual(branches, [["branch-mesclada", "melhoria/mesclada", "contida na origin/melhoria/nova"],
                                     ["branch-parada", "melhoria/parada", "60 dias sem commit"]])
 
+    def test_spec_no_lugar_nao_gera_achado(self):
+        gravar(self.raiz, "tests/mutantes/ok.json", json.dumps({"pedido": "ok", "executor": "unittest",
+                                                                "mutantes": [mutante("M1", "if x > 1:")]}))
+        git(self.raiz, "add", "-A")
+        git(self.raiz, "update-ref", "HEAD", commit(self.raiz, git(self.raiz, "rev-parse", "HEAD"), 0))
+        self.assertFalse([linha for linha in self.varrer() if linha.startswith("mutante-velho")])
+
+    def test_spec_recusada_vira_um_achado_e_sem_spec_nenhum(self):
+        gravar(self.raiz, "tests/mutantes/ruim.json", "{")
+        git(self.raiz, "add", "-A")
+        git(self.raiz, "update-ref", "HEAD", commit(self.raiz, git(self.raiz, "rev-parse", "HEAD"), 0))
+        velhos = [linha for linha in self.varrer() if linha.startswith("mutante-velho")]
+        self.assertEqual(len(velhos), 1, velhos)
+        self.assertRegex(velhos[0], r"^mutante-velho · tests/mutantes · forge-mutante: .+ · cartão: corrigir a spec que o forge-mutante recusa$")
+        for spec in (self.raiz / "tests" / "mutantes").glob("*.json"):
+            spec.unlink()
+        self.assertFalse([linha for linha in self.varrer() if linha.startswith("mutante-velho")])
+
     def test_pesos_ilegiveis_nao_geram_achado(self):
         gravar(self.raiz, "tests/pesos-d4.json", "[1, 2]")
         self.assertFalse([linha for linha in self.varrer() if linha.startswith("teste-lento")])
 
     def test_copias_abaixo_do_limite_ou_fora_do_forge_nao_se_listam(self):
         self.assertFalse([linha for linha in self.varrer("--mb", "3") if linha.startswith("copias")])
-        self.assertEqual(self.varrer("--copias", str(self.tmp / "nada"), "--mb", "0")[-1], "varredura: 10 achado(s)")
+        self.assertEqual(self.varrer("--copias", str(self.tmp / "nada"), "--mb", "0")[-1], "varredura: 8 achado(s)")
         gravar(self.raiz, ".forge/versao", "0.0.0")
         self.assertFalse([linha for linha in self.varrer("--mb", "0") if linha.startswith("copias")])
         (self.raiz / ".forge" / "versao").unlink()

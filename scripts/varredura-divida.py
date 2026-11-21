@@ -7,8 +7,8 @@ Linha: `<tipo> · <alvo> · <medida> · cartão: <sugestão>`, em ordem estável
 - branch-mesclada e branch-parada: refs/remotes/origin/* (as já buscadas) contidas na base (padrão: origin/develop,
   senão origin/main) ou sem commit há mais de --dias (padrão 30); main, develop, homolog e HEAD ficam fora.
 - teste-lento: os --lentos (padrão 3) módulos (chave sem ponto) de maior tempo em tests/pesos-d4.json.
-- mutante-velho: mutante de tests/mutantes/*.json cujo trecho `de` não está uma vez só no `arquivo` (a regra do
-  bin/forge-mutante), ou spec ilegível.
+- mutante-velho: o que `bin/forge-mutante --conferir --todas` acha no HEAD (trecho `de` que não está uma vez só no
+  `arquivo`, ou a spec que ele recusa).
 - regra-sem-teste: docs/regras/R-*.md cujo ID nenhum tests/**/*.py cita.
 - copias (só no Forge): uma linha com o total de --copias (padrão ~/.forge-contrib/wt) acima de --mb (padrão 2048) MB;
   o `du` de milhares de cópias leva cerca de um minuto.
@@ -17,7 +17,6 @@ Só leitura: não busca no remoto (rode `git fetch` antes), não abre cartão, n
 Abrir os cartões sozinho é decisão do dono, passo seguinte. Só biblioteca padrão.
 """
 import argparse
-import functools
 import json
 import re
 import subprocess
@@ -27,6 +26,7 @@ from pathlib import Path
 
 FIXAS = {"HEAD", "main", "develop", "homolog"}
 REMOTAS = "refs/remotes/origin/"
+FORGE = Path(__file__).resolve().parent.parent
 
 
 def git(raiz, *args):
@@ -65,25 +65,19 @@ def lentos(raiz, quantos):
         yield "teste-lento", modulo, f"{-menos:.1f} s", f"acelerar {modulo} ({-menos:.1f} s por rodada)"
 
 
-@functools.lru_cache(maxsize=None)
-def texto(caminho):
-    return caminho.read_text(encoding="utf-8", errors="replace") if caminho.is_file() else ""
-
-
 def mutantes(raiz):
-    for spec in sorted((raiz / "tests" / "mutantes").glob("*.json")):
-        nome = spec.relative_to(raiz).as_posix()
-        try:
-            lista = [dict(m) for m in json.loads(spec.read_text(encoding="utf-8"))["mutantes"]]
-        except (OSError, ValueError, TypeError, KeyError):
-            yield "mutante-velho", nome, "spec ilegível", f"refazer {nome}"
-            continue
-        for m in lista:
-            arquivo, ident = str(m.get("arquivo", "")), m.get("id", "?")
-            vezes = texto(raiz / arquivo).count(str(m.get("de") or "\0"))
-            if vezes != 1:
-                yield ("mutante-velho", f"{nome} {ident}", f"{arquivo}: trecho {vezes} vez(es)",
-                       f"atualizar o trecho do {ident} em {nome}")
+    """O trecho de cada mutante pelo próprio forge-mutante (`--conferir --todas`, AR-12, no HEAD): a regra fica num lugar."""
+    if not any((raiz / "tests" / "mutantes").glob("*.json")):
+        return
+    r = subprocess.run([str(FORGE / "bin" / "forge-mutante"), "--conferir", "--todas"], cwd=raiz, capture_output=True,
+                       text=True, timeout=300)
+    for linha in r.stdout.splitlines() if r.returncode == 1 else []:
+        spec, _, resto = linha.partition(": ")
+        ident, _, medida = resto.partition(" · ")
+        yield "mutante-velho", f"{spec} {ident}", medida.split(" · ")[0], f"atualizar o trecho do {ident} em {spec}"
+    if r.returncode == 2:
+        erro = " ".join(r.stderr.split()[-40:])
+        yield "mutante-velho", "tests/mutantes", erro, "corrigir a spec que o forge-mutante recusa"
 
 
 def regras(raiz):
