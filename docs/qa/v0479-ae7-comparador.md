@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae7-comparador
-commit: 757355b43bd7f4bb2b3b5dd109270cdb1d426f80
+commit: 2d1fa4faf827fbe077af623b60c21ca05882dec4
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -101,3 +101,22 @@ Delta lido por `forge-check parecer delta` (intervalo f50171d2..757355b4): `bin/
 - Árvore do autor limpa após as rodadas.
 
 Resultado: aprovado no head 757355b4; sem bug aberto.
+
+## Revalidação no head 2d1fa4fa (E58.56, escopo incremental)
+Delta lido por `forge-check parecer delta` (intervalo 757355b4..2d1fa4fa): `bin/forge_comparar.py` (lista positiva de forma F1 a F7 no lugar das recusas A11 a A13), a ajuda em `bin/forge-check`, `tests/test_comparar.py`, specs ajustadas `-5`, `-7`, `-8`, `-10`, `-11`, `-12` e novas `-13` a `-16`, `changelog.d`, proposta. Saídas em `/root/.forge-contrib/wt/qa-e5856-out/`; TMPDIR próprio; `timeout 1500` em primeiro plano.
+
+- `python3 -I -m unittest discover -s tests -p test_comparar.py`: 63 testes, OK (rc 0).
+- Mutantes, uma chamada por spec, todas rc 0, `rev=2d1fa4faf827`: -13 8, -14 8, -15 5, -16 3, -5 6, -7 2, -8 8, -10 7, -11 6, -12 8 = 61 mutantes, 61 morreram, 0 sobreviventes, 0 sem veredito (CMP49, CMP54 e CMP106 com `(erro)`: teste declarado dá erro sob o mutante e passa sem ele).
+- `bin/forge-mutante --cobertura --base 821db42e` (rc 0): `rev=2d1fa4faf827…`; todas as condições `coberta`; uma `isenta` (`bin/forge_comparar.py:291`, teto do pool, só muda o tempo); `não coberto` só em dados (`tests/comparar/corpus.jsonl`, `tests/pesos-d4.json`). Nenhuma `isenta velha`, nenhuma sem mutante.
+- Sondas em clone descartável `/root/.forge-contrib/wt/qa-e5856-out/sonda`, base 2d1fa4fa contra um commit que viola só o item:
+  - controle `comparar HEAD HEAD`: rc 0, `so-aperta: medido base=2d1fa4fa… head=2d1fa4fa… casos=215 aceites-novos=0`.
+  - F1 link simbólico: rc 2, `nao-verificavel (F1 modo 120000 na árvore)`.
+  - F2 `.gitattributes`: rc 2, `(F2 .gitattributes ou .gitmodules na árvore)`.
+  - F3 `settings.json` na raiz: rc 2, `(F3 settings.json na raiz)`.
+  - F4 chave `hooks` no `plugin.json`: rc 2, `(F4 .claude-plugin/plugin.json fora da lista)`.
+  - F5 `metadata.pluginRoot` no marketplace: rc 2, `(F5 .claude-plugin/marketplace.json fora da lista)`.
+  - F6 `.md` com `hooks:` no cabeçalho: rc 2, `(F6 cabeçalho de .md fora da forma simples)`.
+  - F7 matcher `Bash(.*)`: rc 2, `(F7 matcher fora da forma simples em hooks/hooks.json)`.
+- Árvore do autor limpa após as rodadas.
+
+Resultado: aprovado no head 2d1fa4fa; sem bug aberto.
