@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae5-retro-pendentes
-commit: 600bbecf622bd734806ae351276e844f9a55cc10
+commit: e375c67ae9c02ecec5eea7baffef1bf722bd0098
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
 ---
-# Review: v0478 (E58.63, AE5.1 `forge-check retro --pendentes` e o campo `Cobre:`)
+# Review: v0478 (E58.63 e revalidação E58.67, AE5.1 `forge-check retro --pendentes` e o campo `Cobre:`)
 
 Intervalo lido: `821db42e..600bbecf` (3 commits). Desenho: `docs/propostas/v0479-melhorias-anti-erro.md`, AE5 (a).
 
@@ -28,5 +28,18 @@ Execução no head 600bbecf:
 - Suíte completa: fica no CI do PR (`R-REVIEW`); a branch ainda não tem PR, então não há CI a citar.
 
 A1 é recomendado: não há gatilho no modelo nem no fluxo atual (as retros seguem o modelo de comentário de uma linha), e vira cartão depois do merge.
+
+## Revalidação no head e375c67a (E58.67)
+Delta lido só por `forge-check parecer delta docs/reviews/v0479-ae5-retro-pendentes.md`: intervalo `600bbecf..e375c67a`, no domínio `bin/forge-check`, `changelog.d/v0479-ae5-retro-pendentes.md`, `tests/mutantes/v0478-ae5-retro-pendentes{,-3,-4}.json` e `tests/test_retro_pendentes.py`; saída `revalida: sim`.
+
+- `_texto_da_retro` abre a retro uma vez com `O_NOFOLLOW | O_NONBLOCK`, confere `S_ISREG` pelo `fstat` do descritor (fecha o descritor no ramo de recusa), lê até `TETO_DA_RETRO + 1` e devolve None acima do teto: fecha a janela entre conferir e ler, o FIFO sem escritor e o arquivo que cresce depois do `stat`. `stat` já é importado no módulo.
+- `docs/` que é link também fica fora (`pasta.parent.is_symlink()`), com teste próprio.
+- O teste das 24 h compara código e linhas inteiras; a base de saída vazia falha por asserção, não por índice.
+- Nomes de função de módulo do `bin/forge-check`: `grep -oP '^def \K\w+' bin/forge-check | sort | uniq -d` vazio.
+- `python3 -m unittest tests.test_retro_pendentes` (ambiente limpo): 20 testes, OK.
+- `bin/forge-mutante --processos 1 --ids M5,M6,M18,M25,M26,M27,M28,M29` nos três arquivos de mutantes tocados: 8 de 8 morreram (M5 e M27 em 5826, M26 em 5829, M6 em 5834, M28 em 5841, M18 e M25 em 5882, M29 em 5883).
+- Suíte completa: fica no CI do PR (`R-REVIEW`).
+
+Segue aprovado; A1 continua recomendado, sem mudança no delta.
 
 ## Sondas
