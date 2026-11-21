@@ -98,6 +98,7 @@
   "test_historico_hora": 5.1,
   "test_hook_ansi_c": 3.3,
   "test_hook_git_comum": 5.2,
+  "test_hook_parecer_extglob": 0.6,
   "test_hooks": 135.4,
   "test_hooks.Hooks.test_donos_dos_heredocs_iguais_aos_da_base": 122.8,
   "test_hooks.Hooks.test_fixtures": 198.9,
