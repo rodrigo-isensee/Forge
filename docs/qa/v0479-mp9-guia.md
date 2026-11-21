@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-mp9-guia
-commit: 2054ef3b3ea3a7996b8e9dedbcf71fbb5782a089
+commit: a8d4dce419e55c32c4d3fcf37e02b13db7ea8a18
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-18
+data: 2026-11-21
 ---
 # QA: v0479-mp9-guia (E24.4)
 
@@ -35,3 +35,6 @@ Escopo: o guia "Vários projetos na mesma máquina" (README e `templates/projeto
 - Não rodei o comando contra um `.forge/config.json` real; a leitura do `peso` pelo hook está coberta por testes existentes, não por este parecer.
 
 Mutação: não se aplica (diff só de texto e teste; sem regra de código).
+
+## Revalidação (head a8d4dce4, escopo incremental)
+`forge-check parecer delta` (2054ef3b..a8d4dce4): no domínio do QA só `tests/test_reval_delta.py`, 1 linha, remoção de comentário duplicado em `CITACOES_CONHECIDAS`; sem mudança de comportamento. Rodados com TMPDIR: `test_reval_delta.py` (10 testes, OK) e `test_guia_varios_projetos.py` (4 testes, OK). Suíte inteira: check-run `bateria` do CI do PR, sem rerrodar. Aprovado mantido.
