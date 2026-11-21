@@ -17,6 +17,8 @@
 # 4 (só com --armar) auto-merge armado, o PR mescla quando os checks obrigatórios passarem; se a base andar antes, rode de novo (M3).
 # --limpar: roda só o passo 7, sem forge-check nem merge, e só com prova de PR MERGED na develop para a branch; cada parte é "se existe" (repete sem
 # efeito colateral). Rodado de dentro da worktree da própria branch, sai dela para a principal antes de remover. Só apaga a branch (local e remota) se o sha é o do PR mesclado ou já está na base; nunca usa a opção que força.
+# LIMPEZA-AO-FIM-DO-ITEM: --limpar sem PR MERGED nem aberto passa as cópias de $ref ao `forge-copia limpar` (PR fechado ou `vazio: sim`;
+# só limpas, sem stash e com tudo na origem; branch local e remota ficam); sai com 0 sem pendência, 3 com cópia que ficou.
 # Clones (MP6): o passo 7 também apaga os clones da branch em ~/.forge-contrib/wt (limpos, sem stash, tudo na origem, sha mesclado); campo `clone=`.
 # FORGE-FECHAR-CLONE-LIMPAR: rodado num clone (ou na cópia principal) que está na própria branch, a árvore dela não é worktree ligada: o passo 7
 # não manda `git worktree remove` nem apaga a branch que ela usa ou a remota; limpa os outros clones e lista o resto como pendente (código 3),
@@ -789,6 +791,43 @@ git push origin --delete $(printf '%q' "refs/heads/$ref")"
   fi
 }
 
+# fim_sem_merge: 0 só com prova de fim do item sem merge: PR CLOSED do próprio repositório (o de fork com o mesmo nome não conta) ou
+# `forge-check vazio` com `vazio: sim`. Sem prova, o --limpar recusa como antes, sem apagar nada.
+fim_sem_merge() {
+  local v
+  printf '%s\n' "$lista" | awk '$2=="CLOSED" && $5=="false" {f=1} END {exit !f}' && return 0
+  v="$("$check" vazio --ref "$ref" --base "$base" 2>/dev/null)" || return 1
+  [ "${v#vazio: sim}" != "$v" ]
+}
+
+# limpar_copias_sem_merge (LIMPEZA-AO-FIM-DO-ITEM): sem PR MERGED nem aberto, a worktree ligada e os clones de $ref em ~/.forge-contrib/wt
+# (mesmo origin) passam ao `forge-copia limpar` deste diretório, que relê o fim do item (PR CLOSED ou `vazio: sim`) e só apaga a cópia limpa,
+# sem stash e com tudo na origem. Branch local e remota ficam: o trabalho sem merge vive nelas. Sem cópia nenhuma, para como antes.
+limpar_copias_sem_merge() {
+  local d comum url_aqui apagadas=0 pend=""
+  local -a copias=() g
+  comum="$(cd "$(git rev-parse --git-common-dir)" && pwd -P)"
+  url_aqui="$(git remote get-url origin 2>/dev/null || true)"
+  while IFS= read -r d; do
+    [ "$(cd "$d" 2>/dev/null && pwd -P)/.git" = "$comum" ] || copias+=("$d")  # a principal deste repositório não é cópia do item
+  done < <(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=substr($0,10)} $1=="branch" && $2==b {print w}')
+  for d in "${HOME:-}/.forge-contrib/wt"/*/; do
+    d="${d%/}"
+    if [ ! -d "$d/.git" ] || [ "$(cd "$d/.git" && pwd -P)" = "$comum" ] || [ -z "$url_aqui" ]; then continue; fi
+    g=(git -c core.fsmonitor= --no-optional-locks -C "$d")  # sem fsmonitor e sem trava opcional, como o limpar_clones
+    if [ "$("${g[@]}" symbolic-ref -q HEAD 2>/dev/null || true)" = "refs/heads/$ref" ] \
+      && [ "$("${g[@]}" remote get-url origin 2>/dev/null || true)" = "$url_aqui" ]; then copias+=("$d"); fi
+  done
+  [ "${#copias[@]}" != 0 ] || die "parou no --limpar: sem prova de merge: nenhum PR MERGED em $alvo para $ref e nenhuma cópia dela; nada foi apagado"
+  for d in "${copias[@]}"; do
+    if python3 -I "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/forge-copia" limpar "$d" --base "$base"; then apagadas=$((apagadas + 1)); else pend="$pend
+git -C $(printf '%q' "$d") status --short --branch"; fi
+  done
+  echo "limpeza: sem merge, cópias apagadas=$apagadas; a branch local e a remota de $ref ficam"
+  [ -z "$pend" ] || { printf 'pendente, confira:%s\n' "$pend"; exit 3; }
+  exit 0
+}
+
 # coluna_do_cartao <id>: a coluna atual do cartão no quadro: o `Para` da última linha dele no histórico, senão a seção do KANBAN.md
 # (o título `## ` cortado no primeiro ` (`), senão `—` (cartão sem registro). Só leitura.
 coluna_do_cartao() {
@@ -1264,10 +1303,14 @@ fi
 
 if [ "$limpar" = 1 ]; then
   passo 7 "limpeza por --limpar (R-FLUXO, Depois do merge): só com prova de PR MERGED em $alvo"
-  lista="$(ler "$gh" pr list --head "$ref" --state all --limit 30 --json number,state,baseRefName,headRefOid \
-    --jq '.[] | "\(.number) \(.state) \(.baseRefName) \(.headRefOid)"')" || die "parou no --limpar: não consegui ler os PRs de $ref (nada foi apagado)"
+  lista="$(ler "$gh" pr list --head "$ref" --state all --limit 30 --json number,state,baseRefName,headRefOid,isCrossRepository \
+    --jq '.[] | "\(.number) \(.state) \(.baseRefName) \(.headRefOid) \(.isCrossRepository)"')" || die "parou no --limpar: não consegui ler os PRs de $ref (nada foi apagado)"
   merged_heads="$(printf '%s\n' "$lista" | awk -v b="$alvo" '$2=="MERGED" && $3==b {print $4}')"
-  [ -n "$merged_heads" ] || die "parou no --limpar: sem prova de merge: nenhum PR MERGED em $alvo para $ref; nada foi apagado"
+  if [ -z "$merged_heads" ]; then
+    printf '%s\n' "$lista" | awk '$2=="OPEN" {f=1} END {exit f}' || die "parou no --limpar: sem prova de merge e com PR aberto de $ref; nada foi apagado"
+    fim_sem_merge || die "parou no --limpar: sem prova de merge: nenhum PR MERGED em $alvo para $ref; nada foi apagado"
+    limpar_copias_sem_merge
+  fi
   motivo_cartao="mesclado em $alvo (forge-fechar --limpar)"
   mover_cartoes
   limpar_entrega
