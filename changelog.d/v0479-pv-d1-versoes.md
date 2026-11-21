@@ -1,2 +1,0 @@
-### Adicionado
-- `bin/forge-testes --versoes`: os testes afetados em cada versão de Python do CI (PR-VERDE D1): o plano do `--afetados` roda uma vez por `python-version` de `.github/workflows/ci.yml` (nunca a versão do ambiente), em série, com o `python<X.Y>` do PATH que se diz dessa versão, e grava `.forge/run/afetados-<X.Y>.log` com `head=<sha40>` na 1.ª linha e `rc=` na última, o log que a entrega vai cobrar (D2). Intérprete ausente é aviso e não é verde (`rc=ausente`, saída 1); mudança não commitada, versão nenhuma na configuração ou git ilegível saem 2 (v0478 E57.56).
