@@ -1,5 +1,5 @@
 {
-  "descricao": "H2-RETOMADO-CONFLITO (R-TETO): o SubagentStart tardio do retomado não grava a branch que outra reserva de escrita viva (de outro id: o autor trocado) tomou; o conflito vai ao erros.log e, quando a reserva viva cai, o disparo de escrita na branch segue (o retomado não a prendeu).",
+  "descricao": "H2-RETOMADO-CONFLITO (R-TETO): o SubagentStart tardio do retomado, com a branch tomada por outra reserva de escrita viva (de outro id: o autor trocado), mantém a branch no registro dele; o conflito vai ao erros.log e, quando a reserva viva cai, o disparo de escrita seguinte na branch é recusado pelo retomado, que segue rodando (como na base).",
   "arquivos": {
     "docs/briefs/x.md": "Agente destino: forge:tech-lead\nPedido: p1\nBranch: melhoria/a   Base: develop\n\n## Objetivo\nFazer.\n"
   },
@@ -57,8 +57,8 @@
     }
   },
   "esperado": {
-    "codigo": 0,
-    "erros_log": "H2-RETOMADO-CONFLITO R-TETO: retomado a0123456789abcdef sem reserva de melhoria/a",
-    "aviso": "R-TETO: aviso: autor retomável (melhoria/a: afedcba9876543210)"
+    "codigo": 2,
+    "stderr": "R-TETO: melhoria/a ocupada por forge:software-engineer",
+    "erros_log": "H2-RETOMADO-CONFLITO R-TETO: retomado a0123456789abcdef segue com melhoria/a (outra reserva de escrita viva)"
   }
 }
