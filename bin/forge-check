@@ -2433,7 +2433,7 @@ def de_outra_branch(raiz, linha, branch, ref):
         return False
     if len(citados) != len(re.findall(rf"(?:{pastas})/", linha)):  # subpasta, prefixo forjado ou forma solta: falha fechada
         return False
-    refs = [r for r in (ref, *(ref_da_base(raiz, b) for b in BASES_DO_FLUXO)) if r]
+    refs = [ref, *filter(None, (ref_da_base(raiz, b) for b in BASES_DO_FLUXO))]  # a base que não existe fica de fora
     for nome in set(citados):
         onde = [r for r in refs if blob_de(raiz, r, nome)]
         if not onde:

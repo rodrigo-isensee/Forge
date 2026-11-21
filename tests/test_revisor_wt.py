@@ -107,6 +107,10 @@ class PrLeParecerConferido(ComParecer):
             with self.subTest(cita):
                 self.gravar_pedido(extra=f"- 2026-11-06 18:00: {cita}=aprovado conferido: parecer conferido {SHA_FALSO} (review)\n")
                 self.assertEqual([linha for linha in self.novas() if linha.startswith("docs/pedidos:")], esperado)
+        git("switch", "-q", "-c", "outro", "develop", cwd=self.repo)  # o pr lê a --ref, nunca o HEAD de outra branch
+        self.commitar({"docs/reviews/p1.md": de("melhoria/outra")}, "outro")
+        self.gravar_pedido(extra=f"- 2026-11-06 18:00: docs/reviews/p1.md conferido: parecer conferido {SHA_FALSO} (review)\n")
+        self.assertEqual([linha for linha in self.novas() if linha.startswith("docs/pedidos:")], [erro])
 
     def test_regex_nao_se_cruzam(self):  # t14 (M5): `conferida` não é `parecer conferido`, e vice-versa
         p1 = self.parecer("r1")
