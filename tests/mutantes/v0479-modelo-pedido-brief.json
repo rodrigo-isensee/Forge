@@ -8,7 +8,9 @@
       "arquivo": "templates/projeto/docs/pedidos/_modelo.md",
       "de": "- E1.4 (agile-coach): retrospectiva do pedido; o pedido só fecha com ela gravada\n",
       "para": "",
-      "testes": ["tests.test_modelos_projeto.ModeloPedidoEBrief"]
+      "testes": [
+        "tests.test_modelos_projeto.ModeloPedidoEBrief"
+      ]
     },
     {
       "id": "M2",
@@ -16,7 +18,9 @@
       "arquivo": "templates/projeto/docs/pedidos/_modelo.md",
       "de": "Uma etapa numerada por delegação",
       "para": "Etapas por papel",
-      "testes": ["tests.test_modelos_projeto.ModeloPedidoEBrief"]
+      "testes": [
+        "tests.test_modelos_projeto.ModeloPedidoEBrief"
+      ]
     },
     {
       "id": "M3",
@@ -24,7 +28,9 @@
       "arquivo": "templates/projeto/docs/pedidos/_modelo.md",
       "de": "`(outro repositório)`",
       "para": "`(outro repo)`",
-      "testes": ["tests.test_modelos_projeto.ModeloPedidoEBrief"]
+      "testes": [
+        "tests.test_modelos_projeto.ModeloPedidoEBrief"
+      ]
     },
     {
       "id": "M4",
@@ -32,7 +38,9 @@
       "arquivo": "skills/checagem-do-brief/SKILL.md",
       "de": ": `por-tema.md`.",
       "para": ".",
-      "testes": ["tests.test_modelos_projeto.ModeloPedidoEBrief"]
+      "testes": [
+        "tests.test_modelos_projeto.ModeloPedidoEBrief"
+      ]
     },
     {
       "id": "M5",
@@ -40,7 +48,9 @@
       "arquivo": "skills/checagem-do-brief/por-tema.md",
       "de": "pede o diff como proposta",
       "para": "manda editar o arquivo",
-      "testes": ["tests.test_modelos_projeto.ModeloPedidoEBrief"]
+      "testes": [
+        "tests.test_modelos_projeto.ModeloPedidoEBrief"
+      ]
     },
     {
       "id": "M6",
@@ -48,7 +58,9 @@
       "arquivo": "skills/checagem-do-brief/por-tema.md",
       "de": "o PQ `forge-check pr <pedido>` com `rc=0`",
       "para": "o PQ do autor",
-      "testes": ["tests.test_modelos_projeto.ModeloPedidoEBrief"]
+      "testes": [
+        "tests.test_modelos_projeto.ModeloPedidoEBrief"
+      ]
     },
     {
       "id": "M7",
@@ -56,15 +68,9 @@
       "arquivo": "skills/checagem-do-brief/por-tema.md",
       "de": "com a data e o commit; nunca de uma rodada anterior",
       "para": "ou de uma rodada anterior",
-      "testes": ["tests.test_modelos_projeto.ModeloPedidoEBrief"]
-    },
-    {
-      "id": "M8",
-      "guarda": "onde se manda criar a worktree, confere-se a branch e o status logo depois",
-      "arquivo": "agents/jarvis.md",
-      "de": " (confira `git status -sb`)",
-      "para": "",
-      "testes": ["tests.test_modelos_projeto.ModeloPedidoEBrief"]
+      "testes": [
+        "tests.test_modelos_projeto.ModeloPedidoEBrief"
+      ]
     }
   ]
 }

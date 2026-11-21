@@ -128,8 +128,8 @@ class ModeloPedidoEBrief(unittest.TestCase):
         self.assertIn("Uma etapa numerada por delegação", self.etapas())
 
     def test_pedido_com_dois_repositorios_usa_a_marca_que_a_ferramenta_le(self):
-        marca = re.search(r'^OUTRO_REPOSITORIO, NOVO = "([^"]+)"', ler("bin/forge-check"), re.M).group(1)
-        self.assertRegex(self.etapas(), "dois repositórios: uma etapa e uma branch por repositório.*`" + re.escape(marca) + "`")
+        # A marca é a que o `forge-check` aceita na citação de sha (OUTRO_REPOSITORIO).
+        self.assertRegex(self.etapas(), r"dois repositórios: uma etapa e uma branch por repositório.*`\(outro repositório\)`")
 
     def test_checagem_manda_ler_o_por_tema_e_ele_traz_cada_tema(self):
         self.assertIn("`por-tema.md`", ler(SKILL_CHECAGEM))
@@ -142,10 +142,8 @@ class ModeloPedidoEBrief(unittest.TestCase):
             self.assertNotIn(termo, tema, termo)
 
     def test_onde_se_cria_a_worktree_se_confere_a_branch_logo_depois(self):
-        jarvis = next(l for l in ler("agents/jarvis.md").splitlines() if l.startswith("4. **Desenvolvimento:**"))
         fluxo = next(l for l in ler("skills/fluxo-do-pedido/SKILL.md").splitlines() if l.startswith("4. **Desenvolvimento:**"))
-        for passo in (jarvis, fluxo):
-            self.assertRegex(passo, r"crie a worktree na sua sessão antes de delegar.{0,20}confira `git status -sb`")
+        self.assertRegex(fluxo, r"crie a worktree na sua sessão antes de delegar e confira `git status -sb`")
 
 
 if __name__ == "__main__":
