@@ -41,9 +41,9 @@ Data, ambiente, aprovados/falhos, links para bugs.
 Para cada critério de aceite da especificação, pelo menos um cenário. A tabela critério → teste → resultado do parecer traz a coluna "fronteira protegida" (o limite que o teste guarda: vazio, máximo, permissão; `n/a` se não houver). Sempre incluir: entradas inválidas, limites (vazio, máximo, caracteres especiais), usuário sem permissão, falha da API e navegação só por teclado.
 
 ## Plano antecipado (o plano sai do caminho crítico)
-- **Durante a implementação:** o QA escreve `docs/qa/<feature>.md` a partir da especificação (`CA-n`, fronteiras, dados), sem ler o código do autor (independência). Pedido de correção sem especificação nova não tem plano antecipado.
+- **Durante a implementação:** o QA escreve `docs/qa/<feature>.md` a partir da especificação (`CA-n`, fronteiras, dados), sem ler o código do autor. Pedido de correção sem especificação nova não tem plano antecipado.
 - **Quando o código chega:** a primeira tarefa é conferir o diff contra a lista de `CA-n` (escopo que mudou invalida o plano), completar as bordas que o código revelar, rodar vermelho antes do verde e executar.
-- **Parecer:** numa passada, no mesmo head do review, em paralelo a ele e à segurança (classes N e C, `R-QA`); a escrita do plano, dos testes antecipados e a execução saem do caminho crítico. A suíte inteira roda no CI do PR; o QA cita o `run`. Teste novo que o QA ache necessário vira achado ou vai em commit de teste do autor.
+- **Parecer:** numa passada, no mesmo head do review, em paralelo a ele e à segurança (classes N e C, `R-QA`). A suíte inteira roda no CI do PR; o QA cita o `run`. Teste novo que o QA ache necessário vira achado ou vai em commit de teste do autor.
 - **Teste e parecer:** teste novo ou mudado vai num commit próprio, e o parecer de QA aponta (`commit:`) o commit que o inclui. O teste está fora do domínio do review e não o reabre (`R-REVIEW`). Na volta, `forge-check parecer delta` lista só o que mudou no domínio do QA, sem o merge da develop (`base:`/`aviso:`: base atrasada); a UX mudada (`docs/ux/<demanda>/`) se lê no diff.
 - **Casos de abuso:** com gatilho de segurança (`R-SEGURANCA`), o QA transforma os casos de abuso do modelo de ameaças em testes, em arquivo seu, na mesma janela; o formato dos casos está na skill `cyber-security`.
 
@@ -58,6 +58,7 @@ Para cada critério de aceite da especificação, pelo menos um cenário. A tabe
 - Nada de espera fixa; use as esperas automáticas da ferramenta.
 - Cada teste cria e limpa os próprios dados, sem depender de ordem.
 - Navegador padrão no desenvolvimento; os demais no CI.
+- **Rodada de mais de 10 min (suíte ou E2E):** grave o JSON de cada caso ao terminar, em `relatorios/<rodada>/` no projeto (no `.gitignore`), nunca em `/tmp`, que some; se a sessão cair, o que rodou fica. Exemplo: `<executor-e2e> <caso> --reporter json > relatorios/<rodada>/<caso>.json`.
 
 ## Acessibilidade
 - Verificação automática em todas as telas dos fluxos principais, com as tags WCAG 2.2 AA.
@@ -78,7 +79,7 @@ Todo teste novo de correção ou de regra (`R-QA`) precisa ser visto falhando se
 O parecer de QA registra o comando e a falha observada; teste que nunca falhou não prova nada.
 
 ## Mutação no código alterado
-Quando a stack tiver ferramenta gratuita (`${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`), rode mutação só nos arquivos alterados pelo diff, nunca no projeto inteiro. A meta de pontuação é do projeto, em `docs/engineering/praticas.md`; mutante sobrevivente vira teste novo ou justificativa no parecer. Cobertura de linhas não é meta.
+Quando a stack tiver ferramenta gratuita (`${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`), rode mutação só nos arquivos do diff, nunca no projeto inteiro. A meta de pontuação é do projeto, em `docs/engineering/praticas.md`; mutante sobrevivente vira teste novo ou justificativa no parecer.
 
 ## Simulação de merge (a base certa)
 Simule o merge sobre a base de integração fora da árvore de trabalho:
@@ -86,18 +87,18 @@ Simule o merge sobre a base de integração fora da árvore de trabalho:
 2. Faça `git merge --no-ff refs/remotes/origin/<base>` na cópia descartável.
 3. Rode a checagem **contra essa base** (a mesma da validação), nunca contra a base local.
 
-Nunca use um clone sem as refs remotas: a checagem compara com a base errada e sai com rc 0. Confira que `git rev-parse refs/remotes/origin/<base>` responde antes de confiar no resultado.
+Sem as refs remotas, a checagem compara com a base errada e sai com rc 0: confira que `git rev-parse refs/remotes/origin/<base>` responde.
 
 ## Mutantes declarados nos pedidos de controle
 No Forge, o que decide por regra de código (`bin/`, `hooks/`, `.githooks/`, `tests/catraca.py`) tem a prova de mutação feita à mão e declarada: `bin/forge-mutante tests/mutantes/<pedido>.json` lê a spec (3 a 16 mutantes: arquivo, trecho `de`, trecho `para`, testes que devem cair; o mutante equivalente se declara no campo `equivalente`, com a justificativa, e sai na linha `equivalente: <id> · <justificativa>`, sem rodar; com `testes`, roda, e o que eles matam é inválido; o equivalente não prova: a spec só de equivalentes sem `testes` sai 2 e, no `--cobertura`, a condição coberta só por ele sai `só equivalente`, rc 1) e roda cada um numa cópia descartável. Pedido com mais de 16 mutantes divide em `tests/mutantes/<pedido>-<n>.json` (mesmo `pedido`, id único no conjunto) e passa todas as specs numa só rodada (`bin/forge-mutante <spec-1> <spec-2>`).
 - Pedido de controle: o autor declara os mutantes, **um por linha de guarda mudada no diff**. Nos demais, o QA escreve a lista e pode somar até 16.
 - O QA confere a lista contra o diff antes de rodar: linha de guarda mudada sem mutante é achado bloqueante do QA, porque a saída 0 só prova o que a lista cobre (o autor, sozinho, escolheria mutantes que o teste dele já mata).
 - `forge-mutante --cobertura --base <Base-sha>` é a checagem do autor antes do push: lista a condição Python mudada sem mutante declarado ("declarado, não provado"; shell e outros saem `não coberto: <arquivo>`; as `isentas` da spec, até 8, saem `isenta · arq:L · motivo`, e a que não cruza, `isenta velha`, rc 1). A rodada de mutantes segue como evidência do QA; nenhum hook, pre-push nem CI chama a checagem.
-- O QA roda `forge-mutante` e cola a saída no parecer. Saída 0 é o inverso do usual: todos os mutantes morreram. Erro do teste sob o mutante com o controle verde mata: `morreu · … · (erro)`. Prazo, erro de carga ou processo caído é "sem veredito". `--processos K` (1 a 4; padrão 1) roda k mutantes por vez, cada um na sua cópia e com o mesmo veredito; k > 1 dentro da vez da trava da suíte (`R-TETO`). Na revalidação, `--base <head aprovado>` roda os mutantes do delta e o parecer confere a linha `base=`. Placar e bench rodam por versão, fora do PR.
+- O QA roda `forge-mutante` e cola a saída no parecer. Saída 0: todos os mutantes morreram. Erro do teste sob o mutante com o controle verde mata: `morreu · … · (erro)`. Prazo, erro de carga ou processo caído é "sem veredito". `--processos K` (1 a 4; padrão 1) roda k mutantes por vez, cada um na sua cópia e com o mesmo veredito; k > 1 dentro da vez da trava da suíte (`R-TETO`). Na revalidação, `--base <head aprovado>` roda os mutantes do delta e o parecer confere a linha `base=`. Placar e bench rodam por versão, fora do PR.
 - Mutante sobrevivente é achado bloqueante do QA até virar teste ou equivalente aceito pelo QA.
 - Classe que já reprovou vira linha `AR-<n> · qa` em `docs/engineering/achados-recorrentes.md`.
 
-Bug ou falha de plano cuja classe se repete (já está em `docs/engineering/achados-recorrentes.md` ou volta neste pedido): o `qa-engineer` grava a linha `AR-<n>` nesse arquivo, no formato dele (só classe, ID da regra, contagem e `arquivo:linha`), no mesmo PR do parecer.
+Bug ou falha de plano cuja classe se repete (já está em `docs/engineering/achados-recorrentes.md` ou volta neste pedido): o `qa-engineer` grava a linha `AR-<n>` nesse arquivo, no formato dele, no mesmo PR do parecer.
 
 ## Relatório de bug (`docs/qa/bugs/<id>-<titulo>.md`)
 ```markdown
@@ -122,4 +123,4 @@ Log, screenshot ou trace da ferramenta de E2E.
 - **Baixa:** cosmético, texto, alinhamento.
 
 ## Critério de pronto
-Todos os cenários de prioridade alta passando, nenhum bug crítico ou alto aberto e zero violações de acessibilidade críticas ou sérias.
+Todos os cenários de prioridade alta passando, nenhum bug crítico ou alto aberto e a acessibilidade aprovada.
