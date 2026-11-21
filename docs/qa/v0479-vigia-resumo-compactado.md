@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-vigia-resumo-compactado
-commit: 06a0220a908ce4a467361b9935e500b3c0d62af5
+commit: 9ec21d93d609fc49aa696f796236f59586529572
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -46,3 +46,20 @@ M5 · morreu · hooks/vigia.py:312
 M6 · morreu · hooks/vigia.py:319
 ```
 rc 0, 6 de 6 mortos. `forge-mutante --cobertura --base fb3b670b`: nenhuma condição mudada sem mutante (as 4 linhas "declarado, não provado" têm mutante na spec e morreram na rodada acima).
+
+## Revalidação no head 9ec21d93 (v0478 E93.8)
+Delta (`forge-check parecer delta`, 06a0220a..9ec21d93): `hooks/vigia.py` (marca `is[A-Z]`, docstring), `tests/test_vigia.py` (+2 testes), 2 fixtures novas, spec de mutantes (M7), índice e changelog.
+- `test_vigia`: 12 testes, OK. Fixtures vigia e meta (88), harness que filtra `Hooks.test_fixtures`: OK. Sem `skip`, `skipIf` nem `expectedFailure` (grep, 0 ocorrências nos 3 arquivos).
+- Vermelho (cópia em `$TMPDIR`, `hooks/vigia.py` de 6c4357b6, testes do head): `test_campo_que_comeca_com_is_sem_maiuscula_nao_e_marca` falha; fixture `vigia/entrada-campo-issue-ref-nao-e-marca-avisa` falha. `test_forma_da_ide_sem_origem_com_prompt_id_conta` e a fixture `entrada-forma-da-ide-sem-origem-avisa` passam na base: são guarda de regressão da forma da IDE (a mudança dela é só a docstring), não provam correção.
+- Mutantes (rev=9ec21d93d609): M1 a M7 morreram, rc 0.
+
+```
+M1 · morreu · hooks/vigia.py:308
+M2 · morreu · hooks/vigia.py:311
+M7 · morreu · hooks/vigia.py:310
+M3 · morreu · hooks/vigia.py:313
+M4 · morreu · hooks/vigia.py:316
+M5 · morreu · hooks/vigia.py:315
+M6 · morreu · hooks/vigia.py:322
+```
+- Suíte inteira não rodada (CI do PR).
