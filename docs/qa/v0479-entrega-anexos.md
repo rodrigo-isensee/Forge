@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-entrega-anexos
-commit: de63ff10d81d574f47bfa12365fcde7e2df9d319
+commit: 0fc3623eb2aa597b6829350aa07266a3ae1c8a00
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-20
+data: 2026-11-21
 ---
 # QA: v0478 E62.1 (registro de bug do QA como anexo do portão na volta), head `df0aef74`
 
@@ -65,3 +65,12 @@ Remoto avançou com os pareceres de review e de segurança (`371406b8`, só `doc
 - `docs/hooks.md` e fragmento do changelog: só texto (limite do hook: `git apply`, `update-index --cacheinfo`, `cherry-pick`; cartão CONFORMIDADE-ESCRITA-NO-INDICE).
 - Sem código novo: vermelho e mutantes M1 a M5 de `df0aef74` seguem valendo (as linhas citadas deslocam 2 pela docstring, sem mudar a guarda). Suíte inteira: check-run `bateria` do CI do PR.
 - Resultado: parecer segue **aprovado**, sem achados novos.
+
+## Revalidação incremental (head `0fc3623e`, E62.27; merge da develop com o #752)
+`forge-check parecer delta` lista no domínio `bin/forge-check`, `docs/hooks.md`, `docs/hooks-fixtures.md` e `tests/test_selo_e_entrega.py`. Contra a base `c8e8a08d` (que já traz o #752), o diff de `bin/forge-check` mostra só o que é do pedido: `BUGS_DO_QA`, `bug_do_qa_na_volta` e o ramo `elif` (+22 -5; os -5 são a linha de doc de `entrega --etapa`). `conferido_mais_novo`, `vale_pelo_conferido` e `vindos_do_remoto_da_base` não foram alterados: a resolução do conflito manteve as duas partes.
+- Classes `BugDoQaNaVolta` e `MergeDeParecerAninhado` (`python3 -I -m unittest discover -s tests -p test_selo_e_entrega.py -k BugDoQaNaVolta -k MergeDeParecerAninhado`): `Ran 20 tests ... OK`.
+- Fixtures `*qa-bugs*` (4, por `executar_em_lote` de `test_hooks.Hooks`): `Ran 1 test ... OK`, 4 verificadas.
+- Vermelho: `forge-testes --vermelho c8e8a08d --modulos test_selo_e_entrega` deu "sem veredito" (a base estourou os 600 s do módulo inteiro; não vale como vermelho). Substituído por cópia em `$TMPDIR` com o HEAD e só o `bin/forge-check` da base `c8e8a08d`, mesmas 2 classes: `Ran 20, FAILED (failures=2, errors=2)`. Erro (API ausente): `test_autores_e_linha_do_jarvis`, `test_rev_list_que_falha_ou_vazio_recusa`. Falha: `test_bug_commitado_na_branch_depois_da_volta_e_anexo`, `test_caso_real_bug_mesclado_antes_da_volta_e_anexo`. Os outros 16 passam na base por construção (recusas ou código do #752).
+- Mutantes (`bin/forge-mutante tests/mutantes/v0479-entrega-anexos.json`, rc 0, rev `582e800a`): M1 `:3385`, M2 `:3386`, M3 `:3157`, M4 `:3160`, M5 `:3160`, todos `morreu`.
+- Suíte inteira: check-run `bateria` do CI do PR, não rodada local.
+- Resultado: parecer segue **aprovado**, sem achados.
