@@ -1,0 +1,69 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CP49",
+      "guarda": "E88.1 só agente do time (com agent_id) e só PreToolUse",
+      "arquivo": "hooks/copia.py",
+      "de": "if hook.campo(\"hook_event_name\") == \"PreToolUse\" and isinstance(aid, str) and aid else []",
+      "para": "if hook.campo(\"hook_event_name\") == \"PreToolUse\" else []",
+      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+    },
+    {
+      "id": "CP50",
+      "guarda": "E88.1 sem alvo, o hook não procura o projeto",
+      "arquivo": "hooks/copia.py",
+      "de": "clone_do_forge=True) if lista else None",
+      "para": "clone_do_forge=True) if True else None",
+      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+    },
+    {
+      "id": "CP51",
+      "guarda": "E88.1 fora de projeto do Forge o hook não age",
+      "arquivo": "hooks/copia.py",
+      "de": "    if raiz is None:\n        return\n    refs",
+      "para": "    if False:\n        return\n    refs",
+      "testes": ["tests.test_copia.Copias.test_sem_projeto_nao_le_as_copias"]
+    },
+    {
+      "id": "CP52",
+      "guarda": "E88.1 sem reserva no registro, libera e anota no erros.log",
+      "arquivo": "hooks/copia.py",
+      "de": "    if not refs:\n",
+      "para": "    if False:\n",
+      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+    },
+    {
+      "id": "CP53",
+      "guarda": "E88.6 a cópia vale só com o HEAD numa branch da reserva; a de outra branch ou trocada recusa (A1 da segurança E88.4)",
+      "arquivo": "hooks/copia.py",
+      "de": "if achada is not None and achada[1] not in refs:",
+      "para": "if achada is not None and achada[1] in refs:",
+      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+    },
+    {
+      "id": "CP54",
+      "guarda": "E88.6 fora de cópia, a raiz recusa mesmo em pasta temporária (A1 da segurança E88.4)",
+      "arquivo": "hooks/copia.py",
+      "de": "if achada is None and (dentro(alvo, os.path.realpath(raiz)) or not livre(alvo)):",
+      "para": "if achada is None and not livre(alvo):",
+      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+    },
+    {
+      "id": "CP55",
+      "guarda": "E88.1 o hook está registrado no hooks.json",
+      "arquivo": "hooks/hooks.json",
+      "de": "\"${CLAUDE_PLUGIN_ROOT}/hooks/copia.py\"",
+      "para": "\"${CLAUDE_PLUGIN_ROOT}/hooks/nada.py\"",
+      "testes": ["tests.test_hooks.Hooks.test_hooks_json"]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/copia.py",
+      "trecho": "__name__ == \"__main__\"",
+      "motivo": "a entrada do script, a mesma de todos os hooks; as fixtures rodam o arquivo como programa e a provam"
+    }
+  ]
+}

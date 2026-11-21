@@ -1,0 +1,70 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CP41",
+      "guarda": "E88.1 a linha worktree abre a pasta",
+      "arquivo": "hooks/copia.py",
+      "de": "if linha.startswith(\"worktree \"):",
+      "para": "if False:",
+      "testes": ["tests.test_copia.Copias.test_worktrees"]
+    },
+    {
+      "id": "CP42",
+      "guarda": "E88.1 a linha branch dá a ref da pasta",
+      "arquivo": "hooks/copia.py",
+      "de": "elif linha.startswith(\"branch refs/heads/\"):",
+      "para": "elif False:",
+      "testes": ["tests.test_copia.Copias.test_worktrees"]
+    },
+    {
+      "id": "CP43",
+      "guarda": "E88.6 a raiz nunca vale como cópia própria (A1 da segurança E88.4)",
+      "arquivo": "hooks/copia.py",
+      "de": "    saida.pop(os.path.realpath(raiz), None)\n",
+      "para": "",
+      "testes": ["tests.test_copia.Copias.test_worktrees"]
+    },
+    {
+      "id": "CP44",
+      "guarda": "E88.6 a worktree mais funda ganha da que a contém",
+      "arquivo": "hooks/copia.py",
+      "de": "sorted(trabalho, key=len, reverse=True)",
+      "para": "sorted(trabalho, key=len)",
+      "testes": ["tests.test_copia.Copias.test_copia_do_alvo"]
+    },
+    {
+      "id": "CP45",
+      "guarda": "E88.6 alvo dentro de uma worktree é dessa cópia",
+      "arquivo": "hooks/copia.py",
+      "de": "        if dentro(alvo, pasta):\n            return pasta, trabalho[pasta]",
+      "para": "        if False:\n            return pasta, trabalho[pasta]",
+      "testes": ["tests.test_copia.Copias.test_copia_do_alvo"]
+    },
+    {
+      "id": "CP46",
+      "guarda": "E88.6 o clone é a pasta filha de wt/, não a própria wt/ (só o HEAD do clone do alvo é lido)",
+      "arquivo": "hooks/copia.py",
+      "de": "if dentro(alvo, base) and alvo != base:",
+      "para": "if dentro(alvo, base):",
+      "testes": ["tests.test_copia.Copias.test_copia_do_alvo"]
+    },
+    {
+      "id": "CP47",
+      "guarda": "E88.1 só a reserva do próprio agente",
+      "arquivo": "hooks/copia.py",
+      "de": "if isinstance(a, dict) and a.get(\"id\") == aid",
+      "para": "if isinstance(a, dict)",
+      "testes": ["tests.test_copia.Copias.test_branches_do_agente"]
+    },
+    {
+      "id": "CP48",
+      "guarda": "E88.1 wt/ não é pasta de controle",
+      "arquivo": "hooks/copia.py",
+      "de": "if dentro(caminho, controle) and not dentro(caminho, os.path.join(controle, \"wt\")):",
+      "para": "if dentro(caminho, controle):",
+      "testes": ["tests.test_copia.Leitura.test_livre"]
+    }
+  ]
+}

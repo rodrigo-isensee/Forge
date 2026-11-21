@@ -1,0 +1,9 @@
+{
+  "descricao": "HOOK-AGENTE-FORA-DA-PROPRIA-COPIA (R-CONFORMIDADE): o comando depois do fim do heredoc segue lido (A4 da segurança E88.4).",
+  "git": [{"worktree": "wt", "branch": "melhoria/x"}],
+  "env": {"TMPDIR": "{tmp}"},
+  "estado": {"agentes.json": {"agentes": [{"id": "a0123456789abcdef", "tipo": "forge:tech-lead", "desde": "{agora-60}", "escrita": ["melhoria/x"]}]}},
+  "entrada": {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_use_id": "toolu_1", "agent_id": "a0123456789abcdef",
+    "agent_type": "forge:tech-lead", "tool_input": {"command": "cat <<'EOF' > {tmp}/nota.txt\nx\nEOF\ngit -C {raiz} commit -m x"}},
+  "esperado": {"codigo": 2, "stderr": "R-CONFORMIDADE: "}
+}

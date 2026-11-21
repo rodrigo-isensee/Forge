@@ -1,0 +1,70 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CP33",
+      "guarda": "E88.1 a ferramenta sem campo de caminho não tem alvo",
+      "arquivo": "hooks/copia.py",
+      "de": "\"command\" if bash else CAMPO_DO_CAMINHO",
+      "para": "\"command\" if True else CAMPO_DO_CAMINHO",
+      "testes": ["tests.test_copia.Leitura.test_alvos_por_ferramenta"]
+    },
+    {
+      "id": "CP34",
+      "guarda": "E88.1 entrada que não é objeto não tem alvo",
+      "arquivo": "hooks/copia.py",
+      "de": "entrada.get(chave) if isinstance(entrada, dict) else None",
+      "para": "entrada.get(chave) if True else None",
+      "testes": ["tests.test_copia.Leitura.test_alvos_por_ferramenta"]
+    },
+    {
+      "id": "CP35",
+      "guarda": "E88.1 caminho vazio não tem alvo",
+      "arquivo": "hooks/copia.py",
+      "de": "if not isinstance(valor, str) or not valor:",
+      "para": "if not isinstance(valor, str):",
+      "testes": ["tests.test_copia.Leitura.test_alvos_por_ferramenta"]
+    },
+    {
+      "id": "CP36",
+      "guarda": "E88.1 Write e Edit: o caminho é o alvo",
+      "arquivo": "hooks/copia.py",
+      "de": "alvos_do_bash(valor, cwd) if bash else",
+      "para": "alvos_do_bash(valor, cwd) if False else",
+      "testes": ["tests.test_copia.Leitura.test_alvos_por_ferramenta"]
+    },
+    {
+      "id": "CP37",
+      "guarda": "E88.1 a própria pasta conta como dentro",
+      "arquivo": "hooks/copia.py",
+      "de": "return caminho == pasta or caminho.startswith(",
+      "para": "return caminho.startswith(",
+      "testes": ["tests.test_copia.Leitura.test_dentro"]
+    },
+    {
+      "id": "CP38",
+      "guarda": "E88.1 a worktree tem .git em arquivo que aponta o gitdir",
+      "arquivo": "hooks/copia.py",
+      "de": "if marca.is_file():",
+      "para": "if False:",
+      "testes": ["tests.test_copia.Copias.test_head_de"]
+    },
+    {
+      "id": "CP39",
+      "guarda": "E88.1 HEAD solto não é branch",
+      "arquivo": "hooks/copia.py",
+      "de": "if texto.startswith(\"ref: refs/heads/\") else None",
+      "para": "if True else None",
+      "testes": ["tests.test_copia.Copias.test_head_de"]
+    },
+    {
+      "id": "CP40",
+      "guarda": "E88.1 o git das worktrees roda sem o GIT_ herdado",
+      "arquivo": "hooks/copia.py",
+      "de": "if not k.startswith(\"GIT_\")}",
+      "para": "if True}",
+      "testes": ["tests.test_copia.Copias.test_worktrees"]
+    }
+  ]
+}

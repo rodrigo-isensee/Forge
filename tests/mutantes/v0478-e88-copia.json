@@ -12,59 +12,59 @@
     },
     {
       "id": "CP2",
-      "guarda": "E88.1 destino de redireção é alvo",
+      "guarda": "E88.6 o here-string <<< não abre corpo de heredoc (A4 da segurança E88.4)",
       "arquivo": "hooks/copia.py",
-      "de": "if segmento[i] in REDIRECOES]",
-      "para": "if segmento[i] not in REDIRECOES]",
-      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
+      "de": "r\"(?<!<)<<(?!<)(-?)",
+      "para": "r\"<<(-?)",
+      "testes": ["tests.test_copia.Leitura.test_heredoc"]
     },
     {
       "id": "CP3",
-      "guarda": "E88.1 o cd muda a pasta dos comandos seguintes",
+      "guarda": "E88.6 o fim do heredoc com <<- aceita tab antes do delimitador",
       "arquivo": "hooks/copia.py",
-      "de": "if nome == \"cd\":",
-      "para": "if nome == \"xx\":",
-      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
+      "de": "(linhas[j].lstrip(\"\\t\") if traco else linhas[j]) == fim",
+      "para": "linhas[j] == fim",
+      "testes": ["tests.test_copia.Leitura.test_heredoc"]
     },
     {
       "id": "CP4",
-      "guarda": "E88.1 o git de escrita tem a pasta como alvo",
+      "guarda": "E88.6 heredoc sem fim deixa o texto inteiro na leitura",
       "arquivo": "hooks/copia.py",
-      "de": "if nome == \"git\":",
-      "para": "if nome == \"xx\":",
-      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
+      "de": "            if achado is None:\n                return texto",
+      "para": "            if False:\n                return texto",
+      "testes": ["tests.test_copia.Leitura.test_heredoc"]
     },
     {
       "id": "CP5",
-      "guarda": "E88.1 o -C depois do subcomando é dele, não muda a pasta",
+      "guarda": "E88.6 o laço das linhas do texto lê todas as linhas",
       "arquivo": "hooks/copia.py",
-      "de": "if anterior == \"-C\" and not sub:",
-      "para": "if anterior == \"-C\":",
-      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
+      "de": "    while i < len(linhas):",
+      "para": "    while i < len(linhas) and False:",
+      "testes": ["tests.test_copia.Leitura.test_heredoc"]
     },
     {
       "id": "CP6",
-      "guarda": "E88.1 o valor de -c e -C não é o subcomando",
+      "guarda": "E88.6 a barra antes da quebra de linha junta as linhas (A2 do review E88.3)",
       "arquivo": "hooks/copia.py",
-      "de": "elif not (sub or token.startswith(\"-\") or anterior in VALOR_DO_GIT):",
-      "para": "elif not (sub or token.startswith(\"-\")):",
-      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
+      "de": ".replace(\"\\\\\\n\", \"\")",
+      "para": ".replace(\"\", \"\")",
+      "testes": ["tests.test_copia.Leitura.test_prefixos_e_pasta_do_git"]
     },
     {
       "id": "CP7",
-      "guarda": "E88.1 git de leitura não é alvo",
+      "guarda": "E88.6 opção de escrita desfaz a forma de leitura (apply --check --apply)",
       "arquivo": "hooks/copia.py",
-      "de": "pasta_git if sub in GIT_DE_ESCRITA else None",
-      "para": "pasta_git if True else None",
-      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
+      "de": "    if OPCAO_DE_ESCRITA.intersection(args):",
+      "para": "    if False:",
+      "testes": ["tests.test_copia.Leitura.test_git_que_so_le"]
     },
     {
       "id": "CP8",
-      "guarda": "E88.1 a linha se lê comando a comando",
+      "guarda": "E88.6 opção de leitura (tag -l, stash list, apply --check) não é alvo (A1 do review E88.3)",
       "arquivo": "hooks/copia.py",
-      "de": "if token in SEPARADORES:",
-      "para": "if token in ():",
-      "testes": ["tests.test_copia.Leitura.test_linha_inteira"]
+      "de": "return bool(OPCAO_DE_LEITURA.get(sub, set()).intersection(args)) or len",
+      "para": "return len",
+      "testes": ["tests.test_copia.Leitura.test_git_que_so_le"]
     }
   ]
 }

@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3390 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3399 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -11,7 +11,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3390 fixtures) roda em `tests/test
 | `agentes` | 125 | 66 | 59 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
 | `conformidade` | 2541 | 1877 | 664 | 100 |
-| `copia` | 18 | 8 | 10 | 4 |
+| `copia` | 27 | 15 | 12 | 4 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 32 | 13 | 19 | 14 |
 | `parecer` | 583 | 448 | 135 | 27 |
@@ -171,8 +171,8 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3390 fixtures) roda em `tests/test
 
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
-| `libera-*` | 8 | 0 | 8 | — | `HOOK-AGENTE-FORA-DA-PROPRIA-COPIA` | HOOK-AGENTE-FORA-DA-PROPRIA-COPIA (R-CONFORMIDADE): cd para a cópia e git commit com a mensagem em heredoc. |
-| `recusa-*` | 8 | 8 | 0 | `R-CONFORMIDADE` | `HOOK-AGENTE-FORA-DA-PROPRIA-COPIA` | HOOK-AGENTE-FORA-DA-PROPRIA-COPIA (R-CONFORMIDADE): status na cópia, depois cd para a raiz e git switch. |
+| `recusa-*` | 15 | 15 | 0 | `R-CONFORMIDADE` | `HOOK-AGENTE-FORA-DA-PROPRIA-COPIA` | HOOK-AGENTE-FORA-DA-PROPRIA-COPIA (R-CONFORMIDADE): status na cópia, depois cd para a raiz e git switch. |
+| `libera-*` | 10 | 0 | 10 | — | `HOOK-AGENTE-FORA-DA-PROPRIA-COPIA` | HOOK-AGENTE-FORA-DA-PROPRIA-COPIA (R-CONFORMIDADE): cd para a cópia e git commit com a mensagem em heredoc. |
 | `erro-*` | 1 | 0 | 1 | — | `HOOK-AGENTE-FORA-DA-PROPRIA-COPIA` | HOOK-AGENTE-FORA-DA-PROPRIA-COPIA (R-CONFORMIDADE): registro ilegível libera e registra em erros.log. |
 | `sem-*` | 1 | 0 | 1 | — | — | Projeto sem .forge/versao: o hook não age. |
 

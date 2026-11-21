@@ -4,58 +4,67 @@
   "mutantes": [
     {
       "id": "CP25",
-      "guarda": "E88.1 fora de projeto do Forge o hook não age",
+      "guarda": "E88.6 o git pelo caminho (/usr/bin/git) é o git (A2 da segurança E88.4)",
       "arquivo": "hooks/copia.py",
-      "de": "    if raiz is None:\n        return\n    todas",
-      "para": "    if False:\n        return\n    todas",
-      "testes": ["tests.test_copia.Copias.test_sem_projeto_nao_le_as_copias"]
+      "de": "nome = os.path.basename((comando + [\"\"])[inicio])",
+      "para": "nome = (comando + [\"\"])[inicio]",
+      "testes": ["tests.test_copia.Leitura.test_prefixos_e_pasta_do_git"]
     },
     {
       "id": "CP26",
-      "guarda": "E88.1 a cópia é a que está numa branch do agente",
+      "guarda": "E88.6 env, timeout, command e afins: vale o git que vem depois (A2 da segurança E88.4)",
       "arquivo": "hooks/copia.py",
-      "de": "if ref in refs]",
-      "para": "if ref not in refs]",
-      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+      "de": "    if nome in PREFIXOS:",
+      "para": "    if False:",
+      "testes": ["tests.test_copia.Leitura.test_prefixos_e_pasta_do_git"]
     },
     {
       "id": "CP27",
-      "guarda": "E88.1 sem cópia no registro, libera e anota no erros.log",
+      "guarda": "E88.6 depois do prefixo, o comando é o git e não o próprio prefixo",
       "arquivo": "hooks/copia.py",
-      "de": "    if not proprias:\n",
-      "para": "    if False:\n",
-      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+      "de": "if os.path.basename(comando[k]) == \"git\"), inicio)",
+      "para": "if True), inicio)",
+      "testes": ["tests.test_copia.Leitura.test_prefixos_e_pasta_do_git"]
     },
     {
       "id": "CP28",
-      "guarda": "E88.1 dentro da própria cópia libera",
+      "guarda": "E88.1 o cd muda a pasta dos comandos seguintes",
       "arquivo": "hooks/copia.py",
-      "de": "fora = not any(",
-      "para": "fora = any(",
-      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+      "de": "if nome == \"cd\":",
+      "para": "if nome == \"xx\":",
+      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
     },
     {
       "id": "CP29",
-      "guarda": "E88.1 outra cópia do projeto recusa mesmo em pasta temporária",
+      "guarda": "E88.6 cd - deixa a pasta incerta (A1 do QA E88.5)",
       "arquivo": "hooks/copia.py",
-      "de": "if fora and (any(dentro(alvo, p) for p in outras) or not livre(alvo)):",
-      "para": "if fora and not livre(alvo):",
-      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+      "de": "None if destino == \"-\" else",
+      "para": "None if False else",
+      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
     },
     {
       "id": "CP30",
-      "guarda": "E88.1 o hook está registrado no hooks.json",
-      "arquivo": "hooks/hooks.json",
-      "de": "\"${CLAUDE_PLUGIN_ROOT}/hooks/copia.py\"",
-      "para": "\"${CLAUDE_PLUGIN_ROOT}/hooks/nada.py\"",
-      "testes": ["tests.test_hooks.Hooks.test_hooks_json"]
-    }
-  ],
-  "isentas": [
-    {
+      "guarda": "E88.1 só o git é lido como git de escrita",
       "arquivo": "hooks/copia.py",
-      "trecho": "__name__ == \"__main__\"",
-      "motivo": "a entrada do script, a mesma de todos os hooks; as fixtures rodam o arquivo como programa e a provam"
+      "de": "    if nome == \"git\":",
+      "para": "    if nome == \"xx\":",
+      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
+    },
+    {
+      "id": "CP31",
+      "guarda": "E88.6 ); e os outros grupos de pontuação separam comandos (A2 do QA E88.5)",
+      "arquivo": "hooks/copia.py",
+      "de": "if token and set(token) <= set(\"();&|\"):",
+      "para": "if token and set(token) <= set(\";&|\"):",
+      "testes": ["tests.test_copia.Leitura.test_linha_inteira"]
+    },
+    {
+      "id": "CP32",
+      "guarda": "E88.1 o Bash lê o comando; as outras ferramentas, o caminho",
+      "arquivo": "hooks/copia.py",
+      "de": "hook.campo(\"tool_name\") == \"Bash\", hook.cwd()",
+      "para": "hook.campo(\"tool_name\") != \"Bash\", hook.cwd()",
+      "testes": ["tests.test_copia.Leitura.test_alvos_por_ferramenta"]
     }
   ]
 }

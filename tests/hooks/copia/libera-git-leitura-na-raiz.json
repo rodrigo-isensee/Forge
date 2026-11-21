@@ -1,0 +1,8 @@
+{
+  "descricao": "HOOK-AGENTE-FORA-DA-PROPRIA-COPIA (R-CONFORMIDADE): forma de leitura de subcomando de escrita na raiz (tag -l, stash list, apply --check, branch -a, symbolic-ref --short, worktree list) segue livre (A1 do review E88.3).",
+  "git": [{"worktree": "wt", "branch": "melhoria/x"}],
+  "estado": {"agentes.json": {"agentes": [{"id": "a0123456789abcdef", "tipo": "forge:tech-lead", "desde": "{agora-60}", "escrita": ["melhoria/x"]}]}},
+  "entrada": {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_use_id": "toolu_1", "agent_id": "a0123456789abcdef",
+    "agent_type": "forge:tech-lead", "tool_input": {"command": "git tag -l && git stash list && git apply --check x.patch; git branch -a && git symbolic-ref --short HEAD && git worktree list"}},
+  "esperado": {"codigo": 0}
+}

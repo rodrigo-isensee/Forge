@@ -4,67 +4,67 @@
   "mutantes": [
     {
       "id": "CP17",
-      "guarda": "E88.1 o git das worktrees não herda GIT_*",
+      "guarda": "E88.6 apelido de shell (!) conta como git de escrita",
       "arquivo": "hooks/copia.py",
-      "de": "if not k.startswith(\"GIT_\")}",
-      "para": "if True}",
-      "testes": ["tests.test_copia.Copias.test_copias"]
+      "de": "if not (sub in GIT_DE_ESCRITA or sub.startswith(\"!\")) or leitura(sub, resto):",
+      "para": "if not (sub in GIT_DE_ESCRITA) or leitura(sub, resto):",
+      "testes": ["tests.test_copia.Leitura.test_clone_init_e_apelido"]
     },
     {
       "id": "CP18",
-      "guarda": "E88.1 cada worktree da lista é uma cópia",
+      "guarda": "E88.6 o destino do clone e do init é o alvo, não a opção",
       "arquivo": "hooks/copia.py",
-      "de": "if linha.startswith(\"worktree \"):",
-      "para": "if False:",
-      "testes": ["tests.test_copia.Copias.test_copias"]
+      "de": "if sub in (\"clone\", \"init\") and resto and not resto[-1].startswith(\"-\"):",
+      "para": "if sub in (\"clone\", \"init\") and resto:",
+      "testes": ["tests.test_copia.Leitura.test_clone_init_e_apelido"]
     },
     {
       "id": "CP19",
-      "guarda": "E88.1 a branch da worktree vem da lista",
+      "guarda": "E88.6 --git-dir e GIT_DIR= substituem a pasta corrente como alvo",
       "arquivo": "hooks/copia.py",
-      "de": "elif linha.startswith(\"branch refs/heads/\"):",
-      "para": "elif False:",
-      "testes": ["tests.test_copia.Copias.test_copias"]
+      "de": "    return extras or [pasta]",
+      "para": "    return [pasta]",
+      "testes": ["tests.test_copia.Leitura.test_prefixos_e_pasta_do_git"]
     },
     {
       "id": "CP20",
-      "guarda": "E88.1 os clones de ~/.forge-contrib/wt/ são cópias",
+      "guarda": "E88.6 o laço dos tokens do segmento lê todos",
       "arquivo": "hooks/copia.py",
-      "de": "if wt.is_dir() else []",
-      "para": "if False else []",
-      "testes": ["tests.test_copia.Copias.test_copias"]
+      "de": "    while i < len(segmento):",
+      "para": "    while i < len(segmento) and False:",
+      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
     },
     {
       "id": "CP21",
-      "guarda": "E88.1 só a reserva do próprio agente dá a branch",
+      "guarda": "E88.1 o token de redireção marca o destino",
       "arquivo": "hooks/copia.py",
-      "de": "if isinstance(a, dict) and a.get(\"id\") == aid",
-      "para": "if isinstance(a, dict)",
-      "testes": ["tests.test_copia.Copias.test_branches_do_agente"]
+      "de": "        if set(token) <= PONTUACAO:  #",
+      "para": "        if False:  #",
+      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
     },
     {
       "id": "CP22",
-      "guarda": "E88.1 ~/.forge-contrib/wt/ não é pasta de controle",
+      "guarda": "E88.6 >&1 e >&- não são arquivo; &> e >& com arquivo são (A2 do QA E88.5)",
       "arquivo": "hooks/copia.py",
-      "de": "if dentro(caminho, controle) and not dentro(caminho, os.path.join(controle, \"wt\")):",
-      "para": "if dentro(caminho, controle):",
-      "testes": ["tests.test_copia.Leitura.test_livre"]
+      "de": "if \">\" in token and not re.fullmatch(r\"\\d*|-\", seguinte):",
+      "para": "if \">\" in token:",
+      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
     },
     {
       "id": "CP23",
-      "guarda": "E88.1 sem agent_id (a sessão principal) o hook não confere",
+      "guarda": "E88.6 o descritor de 2> não é argumento do comando",
       "arquivo": "hooks/copia.py",
-      "de": "if hook.campo(\"hook_event_name\") == \"PreToolUse\" and isinstance(aid, str) and aid else []",
-      "para": "if hook.campo(\"hook_event_name\") == \"PreToolUse\" else []",
-      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+      "de": "if not (token.isdigit() and seguinte and set(seguinte) <= PONTUACAO):",
+      "para": "if True:",
+      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
     },
     {
       "id": "CP24",
-      "guarda": "E88.1 sem alvo de escrita o hook não lê o registro",
+      "guarda": "E88.6 a atribuição antes do comando não é o comando (A2 da segurança E88.4)",
       "arquivo": "hooks/copia.py",
-      "de": "clone_do_forge=True) if lista else None",
-      "para": "clone_do_forge=True) if True else None",
-      "testes": ["tests.test_copia.FixturesDaCopia.test_fixtures"]
+      "de": "if not re.match(r\"[A-Za-z_]\\w*=\", t)), len(comando))",
+      "para": "if True), len(comando))",
+      "testes": ["tests.test_copia.Leitura.test_prefixos_e_pasta_do_git"]
     }
   ]
 }

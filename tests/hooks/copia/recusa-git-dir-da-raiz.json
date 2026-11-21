@@ -1,0 +1,8 @@
+{
+  "descricao": "HOOK-AGENTE-FORA-DA-PROPRIA-COPIA (R-CONFORMIDADE): GIT_DIR= aponta o git de escrita para a raiz, da própria cópia (A2 da segurança E88.4).",
+  "git": [{"worktree": "wt", "branch": "melhoria/x"}],
+  "estado": {"agentes.json": {"agentes": [{"id": "a0123456789abcdef", "tipo": "forge:tech-lead", "desde": "{agora-60}", "escrita": ["melhoria/x"]}]}},
+  "entrada": {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_use_id": "toolu_1", "agent_id": "a0123456789abcdef",
+    "agent_type": "forge:tech-lead", "tool_input": {"command": "cd {tmp}/wt && GIT_DIR={raiz}/.git git commit -m x"}},
+  "esperado": {"codigo": 2, "stderr": "R-CONFORMIDADE: "}
+}

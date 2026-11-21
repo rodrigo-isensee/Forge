@@ -4,67 +4,67 @@
   "mutantes": [
     {
       "id": "CP9",
-      "guarda": "E88.1 o Bash se lê pelo comando",
+      "guarda": "E88.6 o argumento sem opção conta para a forma de leitura (git branch -a lê, git branch x grava)",
       "arquivo": "hooks/copia.py",
-      "de": "hook.campo(\"tool_name\") == \"Bash\", hook.cwd()",
-      "para": "hook.campo(\"tool_name\") != \"Bash\", hook.cwd()",
-      "testes": ["tests.test_copia.Leitura.test_alvos_por_ferramenta"]
+      "de": "soltos = [a for a in args if not a.startswith(\"-\")]",
+      "para": "soltos = [a for a in args if True]",
+      "testes": ["tests.test_copia.Leitura.test_git_que_so_le"]
     },
     {
       "id": "CP10",
-      "guarda": "E88.1 Write, Edit e NotebookEdit se leem pelo caminho",
+      "guarda": "E88.6 git tag e git branch sem argumento só leem",
       "arquivo": "hooks/copia.py",
-      "de": "\"command\" if bash else CAMPO_DO_CAMINHO",
-      "para": "\"command\" if True else CAMPO_DO_CAMINHO",
-      "testes": ["tests.test_copia.Leitura.test_alvos_por_ferramenta"]
+      "de": "len(soltos) <= SOLTOS_DE_LEITURA",
+      "para": "len(soltos) < SOLTOS_DE_LEITURA",
+      "testes": ["tests.test_copia.Leitura.test_git_que_so_le"]
     },
     {
       "id": "CP11",
-      "guarda": "E88.1 tool_input que não é objeto não tem alvo",
+      "guarda": "E88.6 GIT_DIR= e GIT_WORK_TREE= viram a pasta do git (A2 da segurança E88.4)",
       "arquivo": "hooks/copia.py",
-      "de": "entrada.get(chave) if isinstance(entrada, dict) else None",
-      "para": "entrada.get(chave) if True else None",
-      "testes": ["tests.test_copia.Leitura.test_alvos_por_ferramenta"]
+      "de": "for t in antes if t.partition(\"=\")[0] in (\"GIT_DIR\", \"GIT_WORK_TREE\")]",
+      "para": "for t in antes if False]",
+      "testes": ["tests.test_copia.Leitura.test_prefixos_e_pasta_do_git"]
     },
     {
       "id": "CP12",
-      "guarda": "E88.1 caminho vazio não vira a pasta atual",
+      "guarda": "E88.1 as opções antes do subcomando não são o subcomando",
       "arquivo": "hooks/copia.py",
-      "de": "if not isinstance(valor, str) or not valor:",
-      "para": "if not isinstance(valor, str):",
-      "testes": ["tests.test_copia.Leitura.test_alvos_por_ferramenta"]
+      "de": "while i < len(args) and args[i].startswith(\"-\"):",
+      "para": "while False:",
+      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
     },
     {
       "id": "CP13",
-      "guarda": "E88.1 o comando do Bash vai à leitura da linha",
+      "guarda": "E88.6 a opção com = não leva a palavra seguinte (--git-dir=)",
       "arquivo": "hooks/copia.py",
-      "de": "alvos_do_bash(valor, cwd) if bash else",
-      "para": "alvos_do_bash(valor, cwd) if False else",
-      "testes": ["tests.test_copia.Leitura.test_alvos_por_ferramenta"]
+      "de": "if not igual and opcao in VALOR_DO_GIT:",
+      "para": "if opcao in VALOR_DO_GIT:",
+      "testes": ["tests.test_copia.Leitura.test_prefixos_e_pasta_do_git"]
     },
     {
       "id": "CP14",
-      "guarda": "E88.1 a própria pasta conta como dentro",
+      "guarda": "E88.1 o -C antes do subcomando muda a pasta do git",
       "arquivo": "hooks/copia.py",
-      "de": "return caminho == pasta or caminho.startswith(",
-      "para": "return caminho.startswith(",
-      "testes": ["tests.test_copia.Leitura.test_dentro"]
+      "de": "        if opcao == \"-C\":\n            pasta = resolver(valor, pasta)",
+      "para": "        if False:\n            pasta = resolver(valor, pasta)",
+      "testes": ["tests.test_copia.Leitura.test_redirecao_cd_e_git"]
     },
     {
       "id": "CP15",
-      "guarda": "E88.1 worktree: o .git é arquivo com o gitdir",
+      "guarda": "E88.6 --git-dir e --work-tree viram a pasta do git (A2 da segurança E88.4)",
       "arquivo": "hooks/copia.py",
-      "de": "if marca.is_file():",
-      "para": "if False:",
-      "testes": ["tests.test_copia.Copias.test_head_de"]
+      "de": "elif opcao in (\"--git-dir\", \"--work-tree\"):",
+      "para": "elif False:",
+      "testes": ["tests.test_copia.Leitura.test_prefixos_e_pasta_do_git"]
     },
     {
       "id": "CP16",
-      "guarda": "E88.1 HEAD solto não é cópia de branch",
+      "guarda": "E88.6 o apelido de -c alias. resolve para o subcomando (A3 da segurança E88.4)",
       "arquivo": "hooks/copia.py",
-      "de": "if texto.startswith(\"ref: refs/heads/\") else None",
-      "para": "if True else None",
-      "testes": ["tests.test_copia.Copias.test_head_de"]
+      "de": "elif opcao == \"-c\" and valor.startswith(\"alias.\"):",
+      "para": "elif False:",
+      "testes": ["tests.test_copia.Leitura.test_clone_init_e_apelido"]
     }
   ]
 }
