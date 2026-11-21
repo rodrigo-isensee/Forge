@@ -5876,6 +5876,93 @@ def cmd_retro(raiz, pedido, dias=30):
     return 0
 
 
+# ---- AE5.1 (v0479): a retrospectiva cobrada 24 h depois da tag na main; a retro declara `Cobre: vX.Y.Z, ...` no cabeçalho ----
+# As expressões ficam em texto e compilam no uso (o cache do `re`): os hooks carregam este módulo a cada decisão e não pagam a
+# compilação do `retro --pendentes`, que só roda neste subcomando (E58.100, custo do corpus).
+COBRE_DA_RETRO = r"Cobre:(.*)"
+VERSAO_DA_TAG = r"v(\d+)\.(\d+)\.(\d+)"
+REF_DA_MAIN = r"[A-Za-z0-9][A-Za-z0-9._/-]*"
+SECOES_DA_RETRO = ("dados do pedido", "o que funcionou", "o que atrapalhou", "causa nova")  # as do _modelo.md, sem número nem acento
+HORAS_ATE_A_RETRO = 24
+TETO_DA_RETRO = 1_000_000
+
+
+def _texto_da_retro(arq):
+    """Texto de uma retro aberta uma vez só (a troca entre conferir e ler não vale): sem seguir link (O_NOFOLLOW), sem travar em FIFO
+    (O_NONBLOCK), só arquivo regular conferido pelo descritor e até `TETO_DA_RETRO` bytes; None em qualquer outro caso. Só leitura."""
+    try:
+        descritor = os.open(arq, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        return None
+    if not stat.S_ISREG(os.fstat(descritor).st_mode):  # antes do fdopen, que recusa pasta com exceção
+        os.close(descritor)
+        return None
+    with os.fdopen(descritor, "rb") as retro:
+        dados = retro.read(TETO_DA_RETRO + 1)
+    return dados.decode("utf-8", errors="replace") if len(dados) <= TETO_DA_RETRO else None
+
+
+def versoes_que_a_retro_cobre(arq, tags):
+    """(versões cobertas, avisos) de uma retrospectiva: a linha `Cobre:` antes da primeira seção `## `. Não cobre: link, pasta ou
+    arquivo acima do teto; retro com uma seção de `SECOES_DA_RETRO` ausente ou sem corpo (comentário HTML não conta); versão fora de `tags`."""
+    nome = nome_seguro(arq.name)
+    if (texto := _texto_da_retro(arq)) is None:
+        return set(), [f"{nome}: link, pasta ou acima de {TETO_DA_RETRO} bytes; nao cobre"]
+    declaradas, corpo, secao = [], {}, None
+    for linha in texto.splitlines():
+        if linha.startswith("## "):
+            secao = re.sub(r"^\d+\.\s*", "", _sem_acento(linha[3:].strip()))
+            corpo.setdefault(secao, False)
+        elif secao is None and (m := re.match(COBRE_DA_RETRO, linha.strip())):
+            declaradas += [v.strip() for v in m.group(1).split(",") if v.strip()]
+        elif secao is not None and linha.strip() and not linha.strip().startswith("<!--"):
+            corpo[secao] = True
+    if not declaradas:
+        return set(), []
+    if faltam := [s for s in SECOES_DA_RETRO if not any(t.startswith(s) and cheio for t, cheio in corpo.items())]:
+        return set(), [f"{nome}: secao sem corpo: {', '.join(faltam)}; nao cobre"]
+    return (set(declaradas),
+            [f"{nome}: Cobre: {nome_seguro(v)} nao e tag vX.Y.Z da main; nao cobre" for v in declaradas if v not in tags])
+
+
+def chave_da_versao(versao):
+    return tuple(int(n) for n in re.fullmatch(VERSAO_DA_TAG, versao).groups())
+
+
+def cmd_retro_pendentes(raiz, raiz_retros, agora, main="origin/main", desde=None):
+    """AE5.1: as tags vX.Y.Z alcançáveis de `main` com mais de `HORAS_ATE_A_RETRO` horas em `agora` (argumento: nada lê o relógio) que
+    nenhuma retro da pasta de retrospectivas de `raiz_retros` cobre; `_*.md` (o modelo) fica fora. Só leitura; rc 0 sem pendente, 1 com
+    pendente, 2 com `agora`, `main`, `desde` ou git ilegível."""
+    hora = _hora(agora or "")
+    if hora is None or not re.fullmatch(REF_DA_MAIN, main) or (desde is not None and not re.fullmatch(VERSAO_DA_TAG, desde)):
+        print("retro: --pendentes exige --agora em ISO 8601, --main ref sem opcao e --desde vX.Y.Z", file=sys.stderr)
+        return 2
+    cod, saida = git(raiz, "for-each-ref", "--merged", main, "--format=%(refname:strip=2) %(creatordate:iso-strict)", "refs/tags/")
+    if cod != 0:
+        print(f"retro: git nao leu as tags de {nome_seguro(main)}", file=sys.stderr)
+        return 2
+    tags = {}
+    for linha in saida.splitlines():
+        nome, _, data = linha.partition(" ")
+        if re.fullmatch(VERSAO_DA_TAG, nome) and (quando := _hora(data)):
+            tags[nome] = quando
+    pasta, cobertas = Path(raiz_retros) / "docs" / "retrospectivas", set()
+    fora = pasta.parent.is_symlink() or pasta.is_symlink() or not pasta.is_dir()  # docs/ ou retrospectivas/ como link fica fora
+    for arq in [] if fora else sorted(pasta.glob("*.md")):
+        if not arq.name.startswith("_"):
+            versoes, avisos = versoes_que_a_retro_cobre(arq, tags)
+            cobertas |= versoes
+            for aviso in avisos:
+                print(f"retro: aviso: {aviso}", file=sys.stderr)
+    limite = datetime.timedelta(hours=HORAS_ATE_A_RETRO)
+    pendentes = sorted((v for v, quando in tags.items() if v not in cobertas and hora - quando > limite
+                        and (desde is None or chave_da_versao(v) >= chave_da_versao(desde))), key=chave_da_versao)
+    for v in pendentes:
+        print(f"retro: pendente {v} tag={tags[v].isoformat(timespec='minutes')} horas={int((hora - tags[v]).total_seconds() // 3600)}")
+    print(f"retro: pendentes={len(pendentes)}")
+    return 1 if pendentes else 0
+
+
 # ---- M14b: o tipo de espera de um movimento (o `tempo_ativo` usa; `esperas` mora em bin/forge_voltas.py, FILA-31 F6, 0.45.7 E5.4) ----
 FRASES_DE_ESPERA = (("aguardando o dono", "dono"), ("sem credencial", "credencial"))
 
@@ -10257,7 +10344,12 @@ def main():
     me.add_argument("--pedido", required=True, help="id do pedido, que é o cartão no histórico e a entrega em entregas.md")
     me.add_argument("--merge", required=True, help="sha40 do commit de merge do tópico (minúsculo; nada mais é aceito)")
     rt = sub.add_parser("retro", parents=[comum], help="linha de métricas de um pedido e os gatilhos de retrospectiva (EST-M11); só leitura, rc 0 com ou sem gatilho")
-    rt.add_argument("--pedido", required=True, help="id de docs/pedidos/<id>.md")
+    modo = rt.add_mutually_exclusive_group(required=True)
+    modo.add_argument("--pedido", help="id de docs/pedidos/<id>.md")
+    modo.add_argument("--pendentes", action="store_true", help="AE5.1: tags vX.Y.Z da main com mais de 24 h em --agora sem retro com `Cobre:`; rc 1 com pendente")
+    rt.add_argument("--agora", help="com --pendentes: a hora de referência, ISO 8601 (o relógio é argumento)")
+    rt.add_argument("--main", default="origin/main", help="com --pendentes: a ref da main (padrão origin/main)")
+    rt.add_argument("--desde", help="com --pendentes: ignora as tags anteriores a esta vX.Y.Z")
     rt.add_argument("--dias", type=int, default=30, help="janela do P85 do lead time, em dias (padrão 30)")
     px = sub.add_parser("proximo", parents=[comum], help="onde o pedido está: etapas, branch, último veredito, próximo passo e bloqueios; só leitura (AQ-2)")
     px.add_argument("pedido", help="id de docs/pedidos/<id>.md")
@@ -10573,6 +10665,8 @@ def executar(a, raiz):
         return modulo_do_bin("forge_dora").executar(a, raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz)
     if a.cmd == "medida":
         return cmd_medida(raiz, a.pedido, a.merge)
+    if a.cmd == "retro" and a.pendentes:  # as retros vêm do --raiz-pedidos (pasta de controle), as tags do git de --raiz
+        return cmd_retro_pendentes(raiz, Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else raiz, a.agora, a.main, a.desde)
     if a.cmd == "retro":
         return cmd_retro(raiz, a.pedido, a.dias)
     if a.cmd == "anotar":
