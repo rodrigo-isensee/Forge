@@ -1,7 +1,7 @@
 """AE4.1 (v0479, desenho anti-erro): toda ordem do dono aponta para um cartão. `forge-check ordens` lista as linhas ORDEM DO DONO
 sem cartão (`sem-cartao:` e `sem-id:`), pelo mesmo cruzamento das decisões; `anotar --tipo ordem` exige `--cartao <ID|E<n>>`,
 conferido contra o KANBAN.md ou as etapas do pedido, e grava `· cartão: <ID>` no fim da linha. Sem rede; subprocesso com
-ambiente limpo e Python com `-I`."""
+ambiente limpo e Python com `-I`; a raiz temporária tem `git init` próprio, para não subir a um repositório que a contenha."""
 import os
 import shutil
 import subprocess
@@ -11,6 +11,7 @@ import unittest
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
+TETO_DA_TABELA = 1024 * 1024  # o do bin/forge-check
 FORGE_CHECK = str(RAIZ / "bin" / "forge-check")
 PEDIDO_ID = "ordens-teste"
 
@@ -39,7 +40,8 @@ ORDEM DO DONO sem data nem dois pontos
 - 2026-11-20 09:00: pedido aberto.
 """
 CABECA = "| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n"
-KANBAN = (f"# Quadro\n\n## Pronto para fazer (WIP 5)\n{CABECA}| ABC-1 | a | {PEDIDO_ID} | forge:tech-lead | 2026-11-20 | 2026-11-20 | — |\n\n"
+KANBAN = (f"# Quadro\n\n## Pronto para fazer (WIP 5)\n{CABECA}| ABC-1 | a | {PEDIDO_ID} | forge:tech-lead | 2026-11-20 | 2026-11-20 | — |\n"
+          "| OUT-1 | c | `docs/pedidos/outro-pedido.md` | forge:tech-lead | 2026-11-20 | 2026-11-20 | — |\n\n"
           f"## Fechado sem entrega\n{CABECA}| FECH-1 | b | {PEDIDO_ID} | forge:tech-lead | 2026-11-20 | 2026-11-20 | — |\n")
 
 
@@ -52,15 +54,18 @@ class Base(unittest.TestCase):
         self.pedido.write_text(PEDIDO, encoding="utf-8")
         (self.tmp / "KANBAN.md").write_text(KANBAN, encoding="utf-8")
         (self.tmp / "home").mkdir()
+        subprocess.run(["git", "init", "-q", str(self.tmp)], env=self.ambiente(), check=True, capture_output=True, timeout=60)
 
-    def rodar(self, *args):
-        ambiente = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.tmp / "home"), "LANG": "C.UTF-8"}
+    def ambiente(self):
+        return {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.tmp / "home"), "LANG": "C.UTF-8"}
+
+    def rodar(self, *args, timeout=60):
         r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.tmp), *args], capture_output=True, text=True,
-                           env=ambiente, cwd=self.tmp, timeout=60)
+                           env=self.ambiente(), cwd=self.tmp, timeout=timeout)
         return r.returncode, r.stdout.splitlines(), r.stderr
 
-    def anotar(self, *extra, tipo="ordem"):
-        return self.rodar("anotar", "--pedido", PEDIDO_ID, "--tipo", tipo, "--literal", "faça agora", *extra)
+    def anotar(self, *extra, tipo="ordem", timeout=60):
+        return self.rodar("anotar", "--pedido", PEDIDO_ID, "--tipo", tipo, "--literal", "faça agora", *extra, timeout=timeout)
 
 
 class Listagem(Base):
@@ -92,8 +97,8 @@ class AnotarComCartao(Base):
     def texto(self):
         return self.pedido.read_text(encoding="utf-8")
 
-    def recusa(self, *extra, tipo="ordem", trecho=""):
-        rc, linhas, erro = self.anotar(*extra, tipo=tipo)
+    def recusa(self, *extra, tipo="ordem", trecho="", timeout=60):
+        rc, linhas, erro = self.anotar(*extra, tipo=tipo, timeout=timeout)
         self.assertEqual(rc, 2, (linhas, erro))
         self.assertIn(trecho, "\n".join(linhas))
         self.assertEqual(self.texto(), PEDIDO, "a recusa não grava")
@@ -142,9 +147,21 @@ class AnotarComCartao(Base):
         (self.tmp / "KANBAN.md").symlink_to(real)
         self.recusa("--cartao", "ABC-1", trecho="KANBAN.md é link simbólico")
 
+    def test_cartao_de_outro_pedido_e_recusado(self):  # A2 da segurança: a coluna Pedido do cartão é o pedido anotado
+        self.recusa("--cartao", "OUT-1", trecho="--cartao OUT-1: cartão de outro pedido")
+
+    def test_quadro_fifo_recusa_sem_travar(self):  # A1: O_NONBLOCK abre o FIFO sem escritor; o fstat recusa o que não é arquivo regular
+        (self.tmp / "KANBAN.md").unlink()
+        os.mkfifo(self.tmp / "KANBAN.md")
+        self.recusa("--cartao", "ABC-1", trecho="KANBAN.md não é arquivo regular", timeout=20)
+
+    def test_quadro_acima_do_teto_nao_confere(self):  # A1: teto de bytes (`_ler_regular`)
+        (self.tmp / "KANBAN.md").write_text(KANBAN + "\n" + "x" * TETO_DA_TABELA, encoding="utf-8")
+        self.recusa("--cartao", "ABC-1", trecho=f"KANBAN.md passa de {TETO_DA_TABELA} bytes")
+
     def test_sem_quadro_so_a_etapa_vale(self):
         (self.tmp / "KANBAN.md").unlink()
-        self.recusa("--cartao", "ABC-1", trecho="KANBAN.md ausente ou ilegível")
+        self.recusa("--cartao", "ABC-1", trecho="KANBAN.md não existe")
         self.assertEqual(self.anotar("--cartao", "E1.1")[0], 0)
 
 

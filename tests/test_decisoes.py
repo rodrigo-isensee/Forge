@@ -30,6 +30,8 @@ class Decisoes(unittest.TestCase):
         self.pedidos = self.tmp / "docs" / "pedidos"
         self.pedidos.mkdir(parents=True)
         (self.pedidos / "p1.md").write_text(PEDIDO, encoding="utf-8")
+        limpo = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.tmp / "home"), "LANG": "C.UTF-8"}
+        subprocess.run(["git", "init", "-q", str(self.tmp)], env=limpo, check=True, capture_output=True, timeout=60)  # raiz isolada
 
     def rodar(self, *args):
         r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(self.tmp), "decisoes", *args], capture_output=True, text=True,

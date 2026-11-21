@@ -4508,8 +4508,13 @@ DEPENDE_DE = re.compile(r"^\W*(?:\*\*)?Depende de:?(?:\*\*)?:?\s*(.*)$", re.IGNO
 
 def quadro_por_coluna(raiz):
     """{coluna cortada no primeiro ` (` por `nome_da_secao` (C-6): [células de cada cartão]}, na ordem do quadro (KANBAN.md); só leitura."""
+    return quadro_do_texto((raiz / "KANBAN.md").read_text(encoding="utf-8"))
+
+
+def quadro_do_texto(texto):
+    """O `quadro_por_coluna` de um texto já lido do KANBAN.md (uma abertura só, A1 do AE4.1)."""
     colunas, secao = {}, None
-    for linha in (raiz / "KANBAN.md").read_text(encoding="utf-8").split("\n"):
+    for linha in texto.split("\n"):
         if linha.startswith("## "):
             secao = nome_da_secao(linha[3:])
             colunas.setdefault(secao, [])
@@ -5025,20 +5030,22 @@ def propagar_decisao(raiz_pedido, pedido, nova, propagar):
     return saida, rc
 
 
-def recusa_do_apontador(raiz_pedido, pedido_txt, alvo):
-    """AE4.1 (D5 a): None se `alvo` é etapa (ou item `E<n>`) do pedido ou cartão do KANBAN.md da raiz do pedido fora de `Fechado sem
-    entrega` (a ordem gravada agora é posterior ao fechamento); senão o motivo. Quadro que é link ou ilegível não confere."""
+def recusa_do_apontador(raiz_pedido, pedido_id, pedido_txt, alvo):
+    """AE4.1 (D5 a): None se `alvo` é etapa (ou item `E<n>`) do pedido ou cartão do pedido `pedido_id` (coluna Pedido, A2) no KANBAN.md
+    da raiz do pedido fora de `Fechado sem entrega` (a ordem gravada agora é posterior ao fechamento); senão o motivo. Quadro que é
+    link, não é arquivo regular ou passa do teto não confere: uma abertura só, por `_ler_regular` (A1)."""
     if re.fullmatch(ETAPA_APONTADA, alvo):
         return None if e_etapa_do_pedido(alvo, ler_pedido_brief(pedido_txt)["etapas"]) else f"--cartao {alvo}: etapa fora do `## Etapas` do pedido"
-    if (Path(raiz_pedido) / "KANBAN.md").is_symlink():
-        return "--cartao: KANBAN.md é link simbólico; não confiro através dele"
-    try:
-        quadro = quadro_por_coluna(Path(raiz_pedido))
-    except (OSError, UnicodeDecodeError):
-        return "--cartao: KANBAN.md ausente ou ilegível; use a etapa E<n> do pedido"
-    colunas = {_sem_acento(coluna) for coluna, cartoes in quadro.items() for c in cartoes if c[0].casefold() == alvo.casefold()}
-    if not colunas:
+    texto, erro = _ler_regular(Path(raiz_pedido) / "KANBAN.md")
+    if texto is None:
+        return f"--cartao: KANBAN.md {erro}; não confiro o cartão (use a etapa E<n> do pedido)"
+    achados = [(_sem_acento(coluna), id_do_pedido(c[2])) for coluna, cartoes in quadro_do_texto(texto).items() for c in cartoes
+               if c[0].casefold() == alvo.casefold()]
+    if not achados:
         return f"--cartao {alvo}: cartão fora do KANBAN.md"
+    colunas = {coluna for coluna, dono_do_cartao in achados if dono_do_cartao == pedido_id}
+    if not colunas:
+        return f"--cartao {alvo}: cartão de outro pedido; a ordem aponta para um cartão deste pedido ou para a etapa"
     if colunas == {"fechado sem entrega"}:
         return f"--cartao {alvo}: cartão fechado sem entrega; a ordem nova aponta para um cartão aberto ou para a etapa"
     return None
@@ -5078,7 +5085,7 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False, confe
     if tipo == "pergunta" and (motivos := dono.recusa_de_corte(dono.opcoes_da_pergunta(literal))):
         recusa = "; ".join(motivos) + " (E6)"
     if tipo == "ordem":
-        recusa = recusa_do_apontador(raiz_do_pedido(raiz, arq), texto, cartao)
+        recusa = recusa_do_apontador(raiz_do_pedido(raiz, arq), id_do_pedido(arq.name), texto, cartao)
     if recusa:
         return [f"anotar: {recusa}; nada gravado"], 2
     linhas = texto.split("\n")

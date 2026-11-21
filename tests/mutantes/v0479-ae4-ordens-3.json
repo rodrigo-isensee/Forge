@@ -51,6 +51,36 @@
       "testes": [
         "tests.test_ordens.Listagem.test_sem_desde_entra_a_ordem_antiga"
       ]
+    },
+    {
+      "id": "M22",
+      "guarda": "recusa_do_apontador: cartão de outro pedido recusa (A2)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not colunas:\n        return f\"--cartao {alvo}: cartão de outro pedido",
+      "para": "    if False:\n        return f\"--cartao {alvo}: cartão de outro pedido",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_cartao_de_outro_pedido_e_recusado"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "recusa_do_apontador: a coluna Pedido é o pedido anotado (A2)",
+      "arquivo": "bin/forge-check",
+      "de": "if dono_do_cartao == pedido_id}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_cartao_de_outro_pedido_e_recusado"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "recusa_do_apontador: FIFO no lugar do KANBAN.md recusa sem travar (A1)",
+      "arquivo": "bin/forge-check",
+      "de": "texto, erro = _ler_regular(Path(raiz_pedido) / \"KANBAN.md\")",
+      "para": "texto, erro = (Path(raiz_pedido) / \"KANBAN.md\").read_text(encoding=\"utf-8\"), None",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_quadro_fifo_recusa_sem_travar"
+      ]
     }
   ]
 }
