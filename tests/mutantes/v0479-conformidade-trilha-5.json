@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-conformidade-trilha",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "L1",
+      "guarda": "o shell que lê o pipe só recusa com o envio citado (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    cita_o_envio = bool(GIT_NO_TEXTO.search(linha) and CITA_O_ENVIO.search(linha))\n",
+      "para": "    cita_o_envio = bool(GIT_NO_TEXTO.search(linha))\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "L2",
+      "guarda": "a atribuição antes do programa não conta como programa (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        originais = [p for p in comando.palavras if p.cru not in ANTES_DO_PROGRAMA and not ATRIBUICAO.match(p.cru)]\n",
+      "para": "        originais = [p for p in comando.palavras if p.cru not in ANTES_DO_PROGRAMA]\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "L3",
+      "guarda": "só o git literal abre a leitura do subcomando (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if nomes[j] != \"git\":\n                continue\n",
+      "para": "            if nomes[j] == \"git\":\n                continue\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "L4",
+      "guarda": "a opção do git antes do subcomando é pulada, e o -c para (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    while resto and resto[0].startswith(\"-\") and resto[0] != \"-c\":\n",
+      "para": "    while resto and resto[0].startswith(\"-\"):\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "L5",
+      "guarda": "o -C do git leva o valor na palavra seguinte (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        resto = resto[2:] if resto[0] in GIT_GLOBAIS_COM_VALOR else resto[1:]  # E63.5 (A3): `--git-dir .git push`\n    return resto if not resto or resto[0] != \"-c\" else []\n",
+      "para": "        resto = resto[2:] if resto[0] not in GIT_GLOBAIS_COM_VALOR else resto[1:]  # E63.5 (A3): `--git-dir .git push`\n    return resto if not resto or resto[0] != \"-c\" else []\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "L6",
+      "guarda": "só o -c faz o envio valer por qualquer palavra (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return resto if not resto or resto[0] != \"-c\" else []\n",
+      "para": "    return resto if not resto else []\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "L7",
+      "guarda": "a linha sem leitura não vai ao registro de erro interno (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            interno = not isinstance(erro, ForaDaProva)  # a linha sem leitura é a recusa; só o erro interno vai ao registro\n",
+      "para": "            interno = isinstance(erro, ForaDaProva)  # a linha sem leitura é a recusa; só o erro interno vai ao registro\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "L8",
+      "guarda": "só o erro interno vai ao registro, na linha que cita o controle (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if interno:\n",
+      "para": "            if not interno:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    }
+  ]
+}

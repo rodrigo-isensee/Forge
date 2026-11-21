@@ -2798,6 +2798,30 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote) - len(liberam), 25, "papel × pasta × forma, no clone e em wt/*; a variável no alvo e a linha sem leitura, dono incluído (A5, A6)")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_controle_so_jarvis(self):  # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.1): pedido e brief da pasta de controle
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 12, "o jarvis em cada forma, a leitura e a pasta vizinha")
+        self.assertGreaterEqual(len(lote) - len(liberam), 30, "papel × pasta × forma (Write, Edit, >>, cp), a variável, o opaco e o teto")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_da_escrita_no_indice(self):  # CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1): git add e update-index em quem: []
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("CONFORMIDADE-ESCRITA-NO-INDICE (")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 8, "o código, a varredura (limite), a pasta com dono e o update-index sem caminho")
+        self.assertGreaterEqual(len(lote) - len(liberam), 21, "as sondas S1-S4 e cada forma do add e do update-index")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_da_substituicao_no_projeto(self):  # CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (v0478 E63.1): envio com parte opaca
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 7, "o envio literal, a leitura com $(…), o commit em heredoc e o shell sem envio")
+        self.assertGreaterEqual(len(lote) - len(liberam), 18, "programa, subcomando, flag e destino por $(…), crase, <(…) e pipe")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_do_n3(self):  # IMPL-FURO-HOOK-N, N3 (0.45.1): link com caminho protegido
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("N3 (")]
         self.assertGreaterEqual(len(lote), 12, "as fixtures do item")

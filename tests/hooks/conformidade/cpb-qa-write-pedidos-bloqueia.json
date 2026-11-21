@@ -1,0 +1,37 @@
+{
+  "descricao": "CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.1; R-CONFORMIDADE): sessão do Forge, o papel qa grava docs/pedidos/ da pasta de controle (write).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "a.txt": "v\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/.forge-contrib/docs/pedidos/v1.md",
+      "content": "entrega conferida x\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:qa-engineer"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o pedido e o Histórico dele"
+  },
+  "repos": {
+    "home/.forge-contrib": {
+      "arquivos": {
+        "docs/pedidos/v1.md": "# v1\n",
+        "docs/briefs/b1.md": "b\n",
+        "x/docs/pedidos/v2.md": "# v2\n"
+      }
+    }
+  }
+}
