@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
@@ -76,6 +77,14 @@ class IsencaoDoDiff(unittest.TestCase):
         self.assertEqual(fc.isencoes_do_diff(["docs/x.md", "src/a.py"]), set())
         self.assertEqual(fc.isencoes_do_diff(["stacks/s/README.md", "docs/guia/CLAUDE-notas.md"]), {"qa"})
         self.assertEqual(fc.isencoes_do_diff([]), set())
+
+    def test_k345_md_em_caminho_de_controle_da_classe_nao_isenta(self):
+        """K-345: o `.md` que a classe põe em C (`.github/`, `hooks/`) pede QA; sem isso o `pr` diria "isento" e "sem parecer de QA"."""
+        for controle in (".github/pull_request_template.md", "hooks/LEIAME.md"):
+            with self.subTest(controle=controle):
+                self.assertEqual(fc.isencoes_do_diff(["docs/x.md", controle]), set())
+        with mock.patch.object(fc, "catraca_da_classe", return_value=None):  # a catraca que não carrega não isenta (falha fechada)
+            self.assertEqual(fc.isencoes_do_diff(["docs/x.md"]), set())
 
 
 class PrComIsencao(Repo):

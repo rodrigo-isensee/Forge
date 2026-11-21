@@ -1,0 +1,46 @@
+{
+  "pedido": "v0479-entrega-por-branch",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "K-345: o .md em caminho de controle da classe não isenta de QA",
+      "arquivo": "bin/forge-check",
+      "de": "    if arquivos and catraca and all(a.endswith(\".md\") and not motivo_de_controle(a, catraca) for a in arquivos):",
+      "para": "    if arquivos and catraca and all(a.endswith(\".md\") and not MD_DE_CONTROLE.match(a) for a in arquivos):",
+      "testes": [
+        "tests.test_isencoes.IsencaoDoDiff.test_k345_md_em_caminho_de_controle_da_classe_nao_isenta"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "K-345: sem a catraca, nada se isenta (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if arquivos and catraca and all(a.endswith(\".md\") and not motivo_de_controle(a, catraca) for a in arquivos):",
+      "para": "    if arquivos and all(a.endswith(\".md\") and not (catraca and motivo_de_controle(a, catraca)) for a in arquivos):",
+      "testes": [
+        "tests.test_isencoes.IsencaoDoDiff.test_k345_md_em_caminho_de_controle_da_classe_nao_isenta"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "K-345: a ponta local diferente da origin/<branch> não se grava",
+      "arquivo": "bin/forge-check",
+      "de": "    if gravar and remoto and remoto != head:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_k345_ponta_local_diferente_da_enviada_nao_grava"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "K-345: só a gravação recusa; o --sem-gravar segue conferindo",
+      "arquivo": "bin/forge-check",
+      "de": "    if gravar and remoto and remoto != head:",
+      "para": "    if remoto and remoto != head:",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_k345_ponta_local_diferente_da_enviada_nao_grava"
+      ]
+    }
+  ]
+}

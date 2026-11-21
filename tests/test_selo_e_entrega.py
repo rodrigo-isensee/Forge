@@ -303,6 +303,25 @@ class Entrega(Repositorio):
         self.assertEqual(rc, 0, saida)
         self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
 
+    def test_k345_ponta_local_diferente_da_enviada_nao_grava(self):
+        """K-345: a linha gravada é a ponta enviada; com a origin/<branch> noutro commit, não grava (o --sem-gravar segue conferindo)."""
+        self.selado()
+        self.entregar()
+        self.git("push", "-q", "origin", "melhoria/x")
+        self.gravar("bin/app", "x\ny\nz\n")
+        self.git("add", "bin/app")
+        local = self.commit("feat: só local")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f'head: o local {local[:12]} não é a "origin/melhoria/x"', saida)
+        self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
+        rc, saida = self.conferir("--sem-gravar")
+        self.assertEqual(rc, 0, saida)
+        self.git("push", "-q", "origin", "melhoria/x")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(fc.entregas_conferidas(self.pedido()), [local])
+
     def test_so_leitura_nao_roda_prova_cmd_nem_grava(self):
         """D4 (0.44.0, L2 do review de segurança da 0.43.1): a forma do conferente lê só git e disco; o PQ cmd fica com o autor e o CI."""
         self.selado(pq_extra="- PQ-4 (cmd): `git rev-parse HEAD` · espera: igual 'nada'\n")

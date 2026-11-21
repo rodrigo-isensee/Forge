@@ -1038,8 +1038,10 @@ MD_DE_CONTROLE = re.compile(r"^(agents/|skills/|stacks/[^/]+/(agents/|skills/|se
 def isencoes_do_diff(arquivos):
     """Tipos de parecer que um diff dispensa (M13, D-M13 = A): só o QA, num diff não vazio todo de `.md` fora do controle (`MD_DE_CONTROLE`: `agents/`,
     `skills/`, `stacks/*/agents/`, `skills/`, `seguranca.md` e `pronto.md`, `docs/regras/`, `templates/projeto/` e `CLAUDE.md`; R-QA: documentação não passa por QA). O review é sempre
-    exigido (R-REVIEW), e o `.md` de controle não tem isenção nenhuma."""
-    if arquivos and all(a.endswith(".md") and not MD_DE_CONTROLE.match(a) for a in arquivos):
+    exigido (R-REVIEW), e o `.md` de controle não tem isenção nenhuma. K-345: o `.md` em caminho de controle da classe C
+    (`motivo_de_controle`: `.github/`, `hooks/`, `.claude/`...) também não, ou o `pr` diria "isento de QA" e "sem parecer de QA" juntos."""
+    catraca = catraca_da_classe()
+    if arquivos and catraca and all(a.endswith(".md") and not motivo_de_controle(a, catraca) for a in arquivos):
         return {"qa"}
     return set()
 
@@ -10075,6 +10077,10 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
     cod, contagem = git(raiz, "rev-list", "--count", f"{inicio}..{head}")
     linhas.append((f"commits: {contagem if not cod else '?'} em {inicio[:12]}..{head[:12]}", bool(cod)))
     linhas += conferir_provas(raiz, brief, branch, head, pasta, so_leitura)
+    remoto = sha_do_commit(raiz, f"refs/remotes/origin/{branch}")  # K-345: a linha gravada é a ponta enviada, não a só local
+    if gravar and remoto and remoto != head:
+        linhas.append((f"head: o local {head[:12]} não é a {nome_seguro("origin/" + branch)} {remoto[:12]}; envie ou traga a branch antes "
+                       "de gravar (ou confira com --sem-gravar)", True))
     if etapa == "codigo" and not cod:  # T1: código sem teste no intervalo da delegação, sinalizado sem reprovar (a classe T isenta)
         aviso = aviso_de_codigo_sem_teste(raiz, f"{inicio}..{head}", nomes_do_intervalo(raiz, inicio, head),
                                           classe_para_o_t1(raiz, head, base))
