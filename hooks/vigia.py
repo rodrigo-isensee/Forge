@@ -298,12 +298,25 @@ def papel_do_agente(politica, agente):
     return next((p for p, tipos in politica.get("papeis", {}).items() if agente in tipos), politica.get("papel_padrao", ""))
 
 
-def texto_do_dono(registro):
-    """Texto digitado pelo dono, ou None. Na dúvida (resultado de ferramenta, meta, subagente, lembrete de sistema,
-    saída de comando) a entrada não conta."""
+def digitado_pelo_dono(registro):
+    """Classificador positivo (FALA-DO-DONO-RESUMO-COMPACTADO): o registro `user` só conta se tem a forma do que o dono
+    digita. Fica fora: qualquer marca `is*` verdadeira (isMeta, isSidechain, isCompactSummary,
+    isVisibleInTranscriptOnly e as que vierem), resultado de ferramenta e `origin` que não seja `{"kind": "human"}`
+    (aviso de tarefa, mensagem de outro agente). Sem `origin` (forma antiga do cliente) valem as outras condições."""
     if not isinstance(registro, dict) or registro.get("type") != "user":
-        return None
-    if registro.get("isMeta") or registro.get("isSidechain") or registro.get("toolUseResult") or registro.get("sourceToolUseID"):
+        return False
+    if any(chave.startswith("is") and valor for chave, valor in registro.items()):
+        return False
+    if registro.get("toolUseResult") or registro.get("sourceToolUseID") or registro.get("sourceToolAssistantUUID"):
+        return False
+    origem = registro.get("origin", {"kind": "human"})
+    return isinstance(origem, dict) and origem.get("kind") == "human"
+
+
+def texto_do_dono(registro):
+    """Texto digitado pelo dono, ou None. Na dúvida (resumo de compactação, resultado de ferramenta, meta, subagente,
+    lembrete de sistema, saída de comando) a entrada não conta."""
+    if not digitado_pelo_dono(registro):
         return None
     mensagem = registro.get("message")
     conteudo = mensagem.get("content") if isinstance(mensagem, dict) else None
