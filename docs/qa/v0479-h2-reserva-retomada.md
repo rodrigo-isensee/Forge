@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-h2-reserva-retomada
-commit: 610ba4ce1568a305a58e9cebf7e4bb289695dd8a
+commit: 768c27efebe14607a881fd4f60b3395fc7444bf5
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -49,6 +49,12 @@ Fixtures isoladas na base (cópia de `git archive ad3b3b6f`): com as duas, `FAIL
 
 ## Skip
 `grep -iE "skip|expectedFailure"` em `tests/test_hooks_agentes_autor.py`, nas duas fixtures novas e nas linhas adicionadas do diff: vazio.
+
+## Revalidação (E87.8, head 768c27ef)
+Delta: só o bloco `isentas` em `tests/mutantes/v0479-h2-reserva-retomada.json` (duas guardas apagadas: `hooks/agentes.py:982(base)` e `:745(base)`).
+- `bin/forge-mutante --cobertura --base origin/develop`: rc=0, `base=dcf8486f… rev=768c27ef…`; 366, 371, 746 e 1302 cobertas; as duas `isenta` com motivo que confere (366 e 746 têm M23/I55/M22); nenhuma guarda sem mutante.
+- `bin/forge-mutante tests/mutantes/v0479-h2-reserva-retomada.json`: rc=0; M1, M2, M3 e M4 `morreu`.
+Parecer segue aprovado.
 
 ## Execução
 `python3 -I -m unittest discover -s tests -p test_hooks_agentes_autor.py`: 13 testes, OK (inclui as fixtures `autor-*` da pasta `agentes`). Suíte completa: check-run `bateria` do CI do PR, não rodada aqui.
