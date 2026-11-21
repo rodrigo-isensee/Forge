@@ -2025,7 +2025,7 @@ class Guarda:
     def recusar_o_teto(self, comando, original, nivel):
         """Bloco T da revalidação 10: com o marcador crítico no nível 0, a chamada acima do teto de caracteres (sem os
         corpos de heredoc) ou de palavras (`excede_o_teto`) é recusada antes de qualquer leitura cara."""
-        if nivel == 0 and not self.leitura and CRITICO.search(original):
+        if nivel == 0 and not self.leitura and self.critico(original):
             excesso = excede_o_teto(comando)
             if excesso:
                 self.sem_leitura = True
@@ -2045,7 +2045,7 @@ class Guarda:
         self.h.corpos_pendentes += provisorios
         # ADR 0011, item 2: linha com marcador crítico e construção não modelada recusa; a recusa vem depois das
         # checagens da linha, para que a regra mais específica (R-MAIN, R-VERIFY...) fale primeiro.
-        achado = None if self.leitura or not CRITICO.search(comando) else construcao_nao_modelada(comando)
+        achado = None if self.leitura or not self.critico(comando) else construcao_nao_modelada(comando)
         original = comando
         if nivel == 0 and self.h.raiz and self.raiz_e_projeto() and CITA_A_MARCA.search(comando):
             self.barrar("R-CONFORMIDADE", "a linha cita a marca da sessão (.git/forge) ou a função que grava nela: só o usuário mexe nela",
@@ -2122,7 +2122,7 @@ class Guarda:
                 self.checar_texto(corpo)
             self.h.corpos_pendentes -= 1
         self.nao_modelada(achado)
-        if gravado and not self.leitura and CRITICO.search(original):  # M3, depois das regras da linha e do corpo
+        if gravado and not self.leitura and self.critico(original):  # M3, depois das regras da linha e do corpo
             self.barrar("R-CONFORMIDADE", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`)",
                         "grave o arquivo pelo Write ou numa chamada do Bash e rode o programa noutra")
         if self.lancador_recusado:  # depois das regras específicas da linha (R-MAIN, R-VERIFY, atualizar...)
@@ -2130,13 +2130,13 @@ class Guarda:
                                           "numa sessão de projeto", f"rode o comando direto, sem o lançador; {SUGESTAO}")
         # ADR 0011, item 2 (opção B da revalidação 8), depois das regras específicas, também as do texto reavaliado (o
         # `aninhado` já o conferiu): com o marcador crítico no nível 0, a reavaliação pelo shell em qualquer nível recusa
-        if nivel == 0 and not self.leitura and self.reavaliacao and CRITICO.search(original):
+        if nivel == 0 and not self.leitura and self.reavaliacao and self.critico(original):
             self.barrar("R-CONFORMIDADE", f"`{self.reavaliacao}` na chamada com ação crítica: "
                                           f"{motivo_da_reavaliacao(self.reavaliacao)}",
                         contorno_da_reavaliacao(self.reavaliacao), trava=TRAVA_OPACA)
         # ADR 0011, item 2 (opções D e A), por último: sobre o texto do nível 0, com o `<<` que o bash pode formar nele
         # ou num nível de cima (`tem_heredoc_no_texto`)
-        if nivel == 0 and not self.leitura and CRITICO.search(original):
+        if nivel == 0 and not self.leitura and self.critico(original):
             sinal = fora_da_gramatica_com_heredoc(original)
             if sinal is not None:
                 self.barrar("R-CONFORMIDADE", f"`{sinal}` na chamada com heredoc e ação crítica: o hook não modela",
@@ -2167,6 +2167,11 @@ class Guarda:
             contextos[sub] = (self.segmento(palavras, pasta_sub, ramos_sub, nivel), ramos_sub)
             vistas.add(contextos[sub][0])
         return contextos[()][0], vistas
+
+    @staticmethod
+    def critico(texto):
+        """O marcador da ação crítica (`CRITICO`); a `GuardaDaProva` soma o pedido e o brief da pasta de controle."""
+        return bool(CRITICO.search(texto))
 
     def nao_modelada(self, achado):
         """ADR 0011, item 2: recusa a linha crítica com construção que o analisador não modela (`construcao_nao_modelada`)."""
@@ -3749,6 +3754,11 @@ CAMINHOS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/securi
 # A5 e A6 da segurança: a pasta de parecer citada no texto da linha (a variável no alvo, `d=docs/qa; echo x > $d/n.md`);
 # `docs/security` cobre `docs/security/aceites`; a caixa não conta (`d=DOCS/QA; echo x > ${d,,}/n.md`).
 PARECER_NO_TEXTO = re.compile(r"(?<![\w.-])docs/(?:reviews|qa|devops|security)(?![\w.-])", re.I)  # `${d,,}` baixa a caixa
+# CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.1): na sessão do Forge, o pedido e o brief da pasta de controle são só do
+# jarvis, como as pastas de parecer: as linhas `entrega conferida`, `parecer conferido` e `DECISÃO DO DONO` vivem neles.
+CAMINHOS_DO_CONTROLE = ("~/.forge-contrib/docs/pedidos/", "~/.forge-contrib/*/docs/pedidos/",
+                        "~/.forge-contrib/docs/briefs/", "~/.forge-contrib/*/docs/briefs/")
+CONTROLE_NO_TEXTO = re.compile(r"\.forge-contrib(?:/[^/\s]+)?/docs/(?:pedidos|briefs)(?![\w.-])", re.I)
 
 
 class GuardaDaProva(Guarda):
@@ -3809,11 +3819,26 @@ class GuardaDaProva(Guarda):
         if any(f"{e['motivo']}: {e['caminho']}" in o_que
                for e in self.pol["caminhos"] if e["caminho"] in CAMINHOS_DE_PARECER):
             return True  # PARECER-PELO-PAPEL
+        if any(f"{e['motivo']}: {e['caminho']}" in o_que
+               for e in self.pol["caminhos"] if e["caminho"] in CAMINHOS_DO_CONTROLE):
+            return True  # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS
         if any(m in o_que for m in self.motivos_do_estado):
             return True
         linha = self.h.campo("tool_input").get("command")
+        if "o hook não modela" in o_que and isinstance(linha, str) and self.controle_no_texto(linha):
+            return True  # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS
         return "o hook não modela" in o_que and isinstance(linha, str) and (
             bool(ESTADO_NO_TEXTO.search(linha)) or self.parecer_no_texto(linha))
+
+    def critico(self, texto):
+        """CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS: a linha que cita o pedido ou o brief da pasta de controle conta como
+        crítica para o papel que não é o jarvis, e a construção que o hook não modela nela recusa."""
+        return super().critico(texto) or self.controle_no_texto(texto)
+
+    def controle_no_texto(self, linha):
+        """CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS: a linha que o hook não lê cita o pedido ou o brief da pasta de controle, e
+        o papel não é o jarvis (o dono grava pelo caminho literal ou pelo `forge-check`)."""
+        return self.papel != "jarvis" and bool(CONTROLE_NO_TEXTO.search(juntar_continuacoes(linha)))
 
     @staticmethod
     def parecer_no_texto(linha):
@@ -3930,6 +3955,11 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, travas=Fa
                 hook.registrar_erro(erro)
             Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita uma pasta de parecer "
                           f"(papel: {papel})", "o dono grava a própria pasta pelo caminho literal; os outros papéis pedem ao dono")
+        if guarda.no_clone and isinstance(alvo, str) and guarda.controle_no_texto(alvo):
+            if not isinstance(erro, ForaDaProva):
+                hook.registrar_erro(erro)
+            Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita o pedido ou o "
+                          f"brief da pasta de controle (papel: {papel})", "peça ao jarvis")
         pasta = Path(hook.cwd())
         opaco = bool(palavras and VARIAVEL.search(alvo))  # S3: `$(…)` ou variável no alvo
         for t in filter(CURINGA.search, palavras):  # A1 da segurança g1: o curinga que o bash expande no alvo
