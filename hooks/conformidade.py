@@ -4060,6 +4060,23 @@ def envio_com_substituicao(linha):
 # Conjuntos literais, sem chamada no carregamento do módulo (custo do corpus: cada chamada conta em toda execução).
 ENTRADA_DO_SHELL = {"-", "-s", "/dev/stdin", "/dev/fd/0", "/proc/self/fd/0"}
 SHELL_OPCAO_COM_VALOR = {"-o", "+o", "-O", "+O", "--rcfile", "--init-file"}
+NAO_E_ARQUIVO = {"dev", "proc", "fd", "..", "stdin"}  # segmento do alvo que pode nomear a própria entrada (A12)
+
+
+def entrada_de_arquivo(redirecoes):
+    """A12 da segurança E63.7, por lista positiva: a última redireção da entrada padrão (sem número ou `0`, de qualquer
+    operador) é `<` com alvo literal (sem `$`, crase, `<(`, curinga nem chave) que não pode nomear a própria entrada:
+    nenhum segmento `dev`, `proc`, `fd`, `..` ou `stdin` e o último não só de dígitos (`< /dev/stdin`, `0< /dev/fd/0`,
+    `< /proc/self/fd/0`, `cd /dev && bash < stdin`; a `bash 3< x 0< /dev/stdin` vale pela última)."""
+    ultima = None
+    for r in redirecoes:
+        if r.prefixo.strip("0") == "" and (r.prefixo or r.operador[0] == "<"):
+            ultima = r
+    alvo = ultima.alvo if ultima and ultima.operador == "<" else None  # `<<<`, `<&`, `<>` e `0>&` não são arquivo
+    if alvo is None or re.search(r"[$`*?[{]|<\(", alvo.cru):
+        return False
+    partes = [p for p in alvo.valor.split("/") if p not in ("", ".")]
+    return bool(partes) and not NAO_E_ARQUIVO.intersection(partes) and not partes[-1].isdigit()
 
 
 def shell_que_le_a_entrada(nomes, valores, opacas, redirecoes=()):
@@ -4068,7 +4085,7 @@ def shell_que_le_a_entrada(nomes, valores, opacas, redirecoes=()):
     script, com `-s`, `-` ou `/dev/stdin`, ou com o script vindo de substituição (`. <(…)`, `bash <(…)`). A entrada
     tirada de um arquivo (`bash < x.sh`) não é o pipe: o shell lê o arquivo, como o `bash x.sh` (E51.10); a de `<(…)`
     (`bash < <(…)`) é texto opaco."""
-    if redirecoes and any(r.operador == "<" and r.alvo and not SUBSTITUICAO_NA_PALAVRA.search(r.alvo.cru) for r in redirecoes):
+    if redirecoes and entrada_de_arquivo(redirecoes):
         return False
     for j, nome in enumerate(nomes):
         shell = nome in SHELLS and (j == 0 or nomes[0] in ENVOLVEDORES)
