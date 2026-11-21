@@ -545,6 +545,15 @@ class ListaDeForma(Base):
                 self.nos_dois_lados({nome: "{}"}, f"F3 {nome} na raiz")
         self.assertEqual(self.comparar(self.base, self.repo.commit(extra={"docs/settings.json": "{}", "a/.mcp.json": "{}"}))[0], 0)
 
+    def test_f3_pasta_de_convencao_na_raiz(self):  # sonda S26 (A18): monitors/monitors.json arma comando fora do sandbox
+        monitor = json.dumps([{"name": "m", "command": "python3 ${CLAUDE_PLUGIN_ROOT}/monitors/m.py", "description": "d"}])
+        for rel, texto in (("monitors/monitors.json", monitor), ("Monitors/monitors.json", monitor),
+                           ("workflows/w.js", "export default 1\n")):
+            with self.subTest(rel):
+                self.nos_dois_lados({rel: texto}, f"F3 {rel} na raiz")
+        fora_da_raiz = {"docs/monitors/monitors.json": monitor, "a/workflows/w.js": "1\n"}
+        self.assertEqual(self.comparar(self.base, self.repo.commit(extra=fora_da_raiz))[0], 0)
+
     def test_f4_chave_fora_da_lista_no_plugin_json(self):
         rel = ".claude-plugin/plugin.json"
         for chave in ("mcpServers", "lspServers", "monitors", "outputStyles", "experimental", "chave-futura"):
@@ -584,6 +593,20 @@ class ListaDeForma(Base):
         dentro = ("---\n# comentário\n\nname: a\ndescription: |\n  hooks: no valor recuado\n  ? e & * ! não contam\n"
                   "tools: Read, Grep\nmodel-x_1: v\n---\nhooks:\n")
         self.assertEqual(self.comparar(self.base, self.repo.commit(extra={"agents/a.md": dentro}))[0], 0)
+
+    def test_f6_toda_quebra_de_linha_conta(self):  # sondas S25 e S28 (A17): o YAML do Claude Code quebra no CR sozinho
+        motivo = "F6 cabeçalho de .md fora da forma simples"
+        fora = {"hooks depois de CR": "---\nname: zz\ndescription: d\rhooks:\r  PreToolUse:\r    - matcher: Bash\n---\n",
+                "allowed-tools depois de CR": "---\nname: zz\ndescription: d\rallowed-tools: Bash(*)\n---\n",
+                "só CR": "---\rname: zz\rhooks: {}\r---\r",
+                "NEL": "---\nname: zz\x85hooks: {}\n---\n",
+                "U+2028": "---\nname: zz\u2028allowed-tools: Bash\n---\n"}
+        for nome, texto in fora.items():
+            with self.subTest(nome):
+                self.nos_dois_lados({"skills/zz/SKILL.md": texto}, motivo)
+        dentro = {"skills/zz/SKILL.md": "---\r\nname: zz\r\ndescription: d\r\n---\r\nhooks:\r\n",  # S25c: CRLF
+                  "docs/vazio.md": "", "docs/branco.md": " \n\n"}
+        self.assertEqual(self.comparar(self.base, self.repo.commit(extra=dentro))[0], 0)
 
 
 class ComoOClone(Base):

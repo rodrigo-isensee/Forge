@@ -1,4 +1,4 @@
-"""`forge-check comparar <base> <head>` (AE7.1, v0478 E58.30): o "só aperta" medido nos hooks da base e do head.
+r"""`forge-check comparar <base> <head>` (AE7.1, v0478 E58.30): o "só aperta" medido nos hooks da base e do head.
 
 Mede: o veredito dos hooks do `hooks/hooks.json` da raiz sobre o corpus da base mais os casos novos do head, extraídos blob a
 blob como o clone do plugin os instala e rodados como o Claude Code os roda (matcher, argv, prazo, stdin, ambiente por lista
@@ -10,14 +10,20 @@ Só mede a árvore que cumpre a lista positiva de forma F1 a F7 nos dois lados (
 nunca da árvore medida. Fora dela, rc 2 `nao-verificavel (F<n> ...)` com o item que falhou:
 - F1 modos: só blob 100644 e 100755 (e pasta); link 120000 (A11) e submódulo 160000 (A14) saem.
 - F2 nomes, em qualquer pasta: nenhum `.gitattributes` (A2) nem `.gitmodules` (A14).
-- F3 raiz: nenhum `.mcp.json`, `.lsp.json` nem `settings.json`, os arquivos de convenção da raiz além de `hooks/hooks.json`
-  (tabela "Standard layout" de code.claude.com/docs/en/plugins-reference, lida em 2026-11-21, Claude Code 2.1.224).
+- F3 raiz: nenhuma entrada `.mcp.json`, `.lsp.json`, `settings.json`, `monitors` (A18: arma comando fora do sandbox) nem
+  `workflows` (scripts `.js`), arquivo ou pasta: as entradas de convenção da raiz que carregam código ou servidor fora de
+  `hooks/hooks.json` e que as outras regras não cobrem. Conferida no Claude Code 2.1.224: a lista de convenção do binário
+  (`.claude-plugin`, `commands`, `skills`, `agents`, `hooks`, `themes`, `output-styles`, `monitors`, `workflows`,
+  `SKILL.md`, `.mcp.json`, `.lsp.json`) mais o `settings.json`, e a tabela "Standard layout" de
+  code.claude.com/docs/en/plugins-reference, lida em 2026-11-21. `.claude-plugin` é F4 e F5; `commands`, `skills`,
+  `agents`, `output-styles` e `SKILL.md` são `.md` (F6); `themes` não executa; `bin/` é limite declarado (abaixo).
 - F4 `.claude-plugin/plugin.json`: objeto só com as chaves de CHAVES_PLUGIN, sem `hooks` em nível nenhum (A10, A16).
 - F5 `.claude-plugin/marketplace.json`: só as chaves de CHAVES_MARKETPLACE; `metadata` só `description` e `version` (sem
   `pluginRoot`, A15); `plugins` com uma entrada só, chaves de CHAVES_ENTRADA e `source` `.` ou `./` (A12).
-- F6 cabeçalho YAML de todo `.md`, forma simples: a 1ª linha de conteúdo na coluna 0; toda linha na coluna 0 que não é
-  comentário é `chave:` com a chave em [A-Za-z0-9_-], e a chave não é `hooks` nem `allowed-tools` (A13, A16); linha recuada
-  é valor da chave de cima; o corpo não conta (A6).
+- F6 cabeçalho YAML de todo `.md`, forma simples, linhas partidas em toda quebra do `splitlines` (`\r` sozinho, `\r\n`,
+  `\n`, `\v`, `\f`, `\x1c` a `\x1e`, `\x85`, U+2028 e U+2029; o YAML do Claude Code quebra no `\r` sozinho, A17): a 1ª
+  linha de conteúdo na coluna 0; toda linha na coluna 0 que não é comentário é `chave:` com a chave em [A-Za-z0-9_-], e
+  a chave não é `hooks` nem `allowed-tools` (A13, A16); linha recuada é valor da chave de cima; o corpo não conta (A6).
 - F7 `hooks/hooks.json`: matcher na forma simples (nome, `|`, `*` ou vazio): só nela o `re` do Python casa como o Claude Code
   (A7).
 Também rc 2: ref que não é commit deste repositório; corpus ilegível ou vazio; árvore que o git não lista; extração que falha.
@@ -45,7 +51,7 @@ NOMES = ("recusa", "pergunta", "aceite", "allow")
 MATCHER_SIMPLES = re.compile(r"[A-Za-z0-9_|]*|\*")
 MODOS = (b"100644", b"100755")  # F1: o `ls-tree -r` não lista pasta
 NOMES_FORA = (b".gitattributes", b".gitmodules")  # F2
-RAIZ_FORA = (b".mcp.json", b".lsp.json", b"settings.json")  # F3
+RAIZ_FORA = (b".mcp.json", b".lsp.json", b"settings.json", b"monitors", b"workflows")  # F3: 1º nome do caminho
 CHAVES_PLUGIN = {"name", "version", "description", "author", "repository", "homepage", "license", "keywords", "agents",
                  "skills", "commands"}  # F4
 CHAVES_MARKETPLACE = {"$schema", "name", "owner", "metadata", "plugins"}  # F5
@@ -134,18 +140,18 @@ def blobs_do_lote(lote, quantos):
 
 
 def cabecalho(texto):
-    """O cabeçalho YAML do `.md`: do `---` do começo até a próxima linha só `---`; sem fecho, o texto inteiro; sem `---` no
-    começo (fora o BOM e linhas em branco), vazio."""
-    linhas = texto.lstrip("\ufeff \t\r\n").split("\n")
+    """O cabeçalho YAML do `.md`, linhas juntadas por `\n`: do `---` do começo até a próxima linha só `---`; sem fecho, o
+    texto inteiro; sem `---` no começo (fora o BOM e linhas em branco), vazio. Quebra em toda quebra do `splitlines` (A17)."""
+    linhas = texto.lstrip("\ufeff \t\r\n").splitlines() or [""]
     if not linhas[0].startswith("---"):
         return ""
-    fecho = next((i for i, linha in enumerate(linhas[1:], 1) if linha.rstrip("\r") == "---"), len(linhas))
+    fecho = next((i for i, linha in enumerate(linhas[1:], 1) if linha == "---"), len(linhas))
     return "\n".join(linhas[1:fecho])
 
 
 def cabecalho_simples(texto):
     """F6: o cabeçalho do `.md` cumpre a forma simples (docstring do módulo); sem cabeçalho, cumpre."""
-    linhas = [linha.rstrip("\r") for linha in cabecalho(texto).split("\n") if linha.strip()]
+    linhas = [linha for linha in cabecalho(texto).split("\n") if linha.strip()]
     if linhas and linhas[0][0] in " \t":
         return False
     for linha in linhas:
@@ -169,7 +175,7 @@ def fora_da_medida(ctx, raiz, sha):
         return f"F1 modo {fora.decode()} na árvore"
     if any(os.path.basename(n).lower() in NOMES_FORA for _, _, n in itens):
         return "F2 .gitattributes ou .gitmodules na árvore"
-    fora = next((n for _, _, n in itens if n.lower() in RAIZ_FORA), None)
+    fora = next((n for _, _, n in itens if n.lower().split(b"/")[0] in RAIZ_FORA), None)
     if fora:
         return f"F3 {fora.decode()} na raiz"
     for manifesto, item, fora_da_lista in MANIFESTOS:

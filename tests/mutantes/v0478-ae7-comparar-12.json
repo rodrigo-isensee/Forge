@@ -6,8 +6,8 @@
       "id": "CMP75",
       "guarda": "AE7.1 cabecalho: sem fecho, o texto inteiro (A13)",
       "arquivo": "bin/forge_comparar.py",
-      "de": "linha.rstrip(\"\\r\") == \"---\"),",
-      "para": "linha.rstrip(\"\\r\") == \"--- \"),",
+      "de": "linha == \"---\"), len(linhas))",
+      "para": "linha == \"--- \"), len(linhas))",
       "testes": [
         "tests.test_comparar.CabecalhoDoMd.test_hooks_no_corpo_ou_como_texto_no_cabecalho_mede"
       ]

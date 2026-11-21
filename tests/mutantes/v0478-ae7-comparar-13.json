@@ -26,8 +26,8 @@
       "id": "CMP85",
       "guarda": "AE7.1 fora_da_medida: nome da raiz sem diferença de caixa (F3)",
       "arquivo": "bin/forge_comparar.py",
-      "de": "if n.lower() in RAIZ_FORA), None)",
-      "para": "if n in RAIZ_FORA), None)",
+      "de": "if n.lower().split(b\"/\")[0] in RAIZ_FORA), None)",
+      "para": "if n.split(b\"/\")[0] in RAIZ_FORA), None)",
       "testes": [
         "tests.test_comparar.ListaDeForma.test_f3_arquivo_de_convencao_na_raiz"
       ]

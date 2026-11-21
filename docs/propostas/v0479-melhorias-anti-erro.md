@@ -132,16 +132,18 @@ da árvore medida.
 - F1 modos: só blob `100644`, `100755` e pasta. Link `120000` (A11) e submódulo `160000` (A14) saem.
 - F2 nomes, em qualquer pasta: nenhum `.gitattributes` (A2) nem `.gitmodules` (A14, também sem gitlink).
 - F3 raiz: nenhum arquivo que o Claude Code lê por convenção além de `hooks/hooks.json` (`.mcp.json`, `.lsp.json`,
-  `settings.json`); o autor confere a lista na documentação de plugins da versão sondada e a cita no docstring.
+  `settings.json` e as pastas `monitors/` e `workflows/`, A18); o autor confere a lista na documentação de plugins e no
+  binário da versão sondada e a cita no docstring (2.1.224: `themes/` não executa, `bin/` é limite declarado, o resto é
+  F4, F5 ou F6).
 - F4 `plugin.json`: só as chaves `name`, `version`, `description`, `author`, `repository`, `homepage`, `license`,
   `keywords`, `agents`, `skills`, `commands`. Qualquer outra (`hooks`, `mcpServers`, `lspServers`, `monitors`,
   `outputStyles`, chave futura) sai (A10, A16).
 - F5 `marketplace.json`: só `$schema`, `name`, `owner`, `metadata` (só `description` e `version`; `pluginRoot` sai, A15) e
   `plugins` com uma entrada só, `source` `.` ou `./` (A12) e chaves da F4 menos `agents`, `skills`, `commands`.
-- F6 cabeçalho de `.md`, forma simples: a 1ª linha de conteúdo na coluna 0; toda linha na coluna 0 que não é comentário é
-  `chave:` com a chave em `[A-Za-z0-9_-]` (sem aspas, `?`, `&`, `*`, `!`, `{`, `[`, `%`, `<<`); a chave não é `hooks` nem
-  `allowed-tools` (A16). Linha recuada é valor da chave de cima. Substitui o `CABECALHO_SUSPEITO` (A13 e o A14 do review
-  deixam de ser lista de truques).
+- F6 cabeçalho de `.md`, forma simples, com toda quebra de linha (o `\r` sozinho também, A17): a 1ª linha de conteúdo na
+  coluna 0; toda linha na coluna 0 que não é comentário é `chave:` com a chave em `[A-Za-z0-9_-]` (sem aspas, `?`, `&`,
+  `*`, `!`, `{`, `[`, `%`, `<<`); a chave não é `hooks` nem `allowed-tools` (A16). Linha recuada é valor da chave de cima.
+  Substitui o `CABECALHO_SUSPEITO` (A13 e o A14 do review deixam de ser lista de truques).
 - F7 `hooks/hooks.json`: matcher na forma simples (A7), como hoje.
 
 O que ele promete medir: o veredito dos hooks de `hooks/hooks.json` sobre o corpus, numa árvore que cumpre F1 a F7.
