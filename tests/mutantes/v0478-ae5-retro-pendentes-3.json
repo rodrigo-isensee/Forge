@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "só tag vX.Y.Z conta",
+      "arquivo": "bin/forge-check",
+      "de": "        if re.fullmatch(VERSAO_DA_TAG, nome) and (quando := _hora(data)):",
+      "para": "        if (quando := _hora(data)):",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_sem_retro_lista_so_as_tags_vxyz_da_main_com_mais_de_24h"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "pasta retrospectivas/ que é link fica fora",
+      "arquivo": "bin/forge-check",
+      "de": "or pasta.is_symlink() or not pasta.is_dir()",
+      "para": "or not pasta.is_dir()",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_pasta_de_retros_que_e_link_fica_fora"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "_*.md (o modelo) fica fora",
+      "arquivo": "bin/forge-check",
+      "de": "        if not arq.name.startswith(\"_\"):\n            versoes, avisos",
+      "para": "        if True:\n            versoes, avisos",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_arquivo_com_sublinhado_fica_fora"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "versão coberta não é pendente",
+      "arquivo": "bin/forge-check",
+      "de": "if v not in cobertas and hora - quando > limite",
+      "para": "if hora - quando > limite",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_retro_completa_cobre_varias_versoes"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "mais de 24 h, não 24 h exatas",
+      "arquivo": "bin/forge-check",
+      "de": "and hora - quando > limite\n",
+      "para": "and hora - quando >= limite\n",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_24h_exatas_nao_e_pendente_e_25h_e"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "--desde inclui a própria versão",
+      "arquivo": "bin/forge-check",
+      "de": "chave_da_versao(v) >= chave_da_versao(desde)",
+      "para": "chave_da_versao(v) > chave_da_versao(desde)",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_desde_ignora_as_tags_anteriores"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "tag fora da main não conta",
+      "arquivo": "bin/forge-check",
+      "de": "\"for-each-ref\", \"--merged\", main, \"--format=",
+      "para": "\"for-each-ref\", \"--format=",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_tag_fora_da_main_nao_e_pendente_nem_cobre"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "pendente dá rc 1",
+      "arquivo": "bin/forge-check",
+      "de": "    return 1 if pendentes else 0",
+      "para": "    return 1 if not pendentes else 0",
+      "testes": [
+        "tests.test_retro_pendentes.RetroPendentes.test_sem_retro_lista_so_as_tags_vxyz_da_main_com_mais_de_24h"
+      ]
+    }
+  ]
+}
