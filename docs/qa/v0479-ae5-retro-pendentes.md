@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae5-retro-pendentes
-commit: e375c67ae9c02ecec5eea7baffef1bf722bd0098
+commit: 2d378b98dfa98a5f3be4879335985a04c4093b7e
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -34,3 +34,9 @@ Sem especificação de UX; as obrigações são as de AE5.1 (pendente = tag da m
 - `forge-mutante --cobertura --base 821db42e`: todas as linhas de guarda mudadas `coberta`; só `não coberto: tests/pesos-d4.json` (dado), rc 0.
 - Pasta de controle real (só leitura, `forge-check retro --pendentes --raiz-pedidos /root/.forge-contrib --desde v0.47.0`): `pendentes=10`, pasta não alterada.
 - Sem suíte local; a bateria do CI do mesmo sha não foi consultada por esta passada.
+
+## Revalidação no head 2d378b98
+- Delta de código e testes sobre f324dfa4 (merge da develop c9d69234, separado com `git diff c9d69234 HEAD`): só 2d378b98, a docstring de `cmd_retro_pendentes` sem o caminho e a entrada `("tests/test_retro_pendentes.py", "docs/retrospectivas/"): (1, "teste-le")` na guarda C-2 de `tests/test_reval_delta.py`. Nenhuma lógica mudou.
+- `python3 -I -m unittest discover -s tests -p test_retro_pendentes.py` (TMPDIR do sandbox): 20 testes, OK.
+- `... -p test_reval_delta.py`: 10 testes, OK (a contagem 1 da entrada confere com a citação real do teste).
+- Vermelho e mutantes: a lógica não mudou desde e375c67a; as provas anteriores seguem. Sem suíte local; bateria do CI não consultada.
