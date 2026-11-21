@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-bp1-q1-leitor
-commit: eec2c1c14cc4de4c1af0d39e3bac4d808ce88b90
+commit: 4dec77902f90f0db3c7887085ab0f4294d55f2e8
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -46,3 +46,10 @@ Delta no domínio: `bin/forge_quarentena.py` (link, teto de 64 KiB, chave repeti
 - Mutação: `forge-mutante --base d0619ab2 tests/mutantes/v0479-bp1-q1-leitor-4.json`: Q18 a Q23 `morreu`; `v0479-quarentena-s1-5.json`: M41 e M42 `morreu` (M42 por erro do teste, controle verde). `--cobertura --base 004ce869`: toda condição Python mudada `coberta`; só `tests/quarentena.json` `não coberto` (dado).
 - Bordas à mão, sem exceção: `teste` lista ou dict, bytes não UTF-8, dict aninhado 20000 níveis (cai no teto), diretório e `/dev/null` como arquivo, prazo igual a `desde`.
 - Contrato dos CA da tabela acima: inalterado; a troca de ids `t.A.tN` por `test_N` nos testes só segue o novo formato.
+
+## Revalidação no head 4dec7790 (delta eec2c1c1..4dec7790)
+Delta no domínio: `bin/forge_quarentena.py` (aninhamento medido por `fundo_demais` de `hooks/_json_raso.py`, sem `RecursionError`), `tests/test_forge_quarentena.py` (+1 teste, 64 passa e 65 é ilegível), `tests/test_json_raso.py` (novo), mutante M42 reescrito. A1 segue aberto, recomendado, sem mudança.
+- `python3 -I -m unittest discover -s tests -p test_forge_quarentena.py`: Ran 28 tests, OK. `test_json_raso.py`: Ran 2 tests, OK.
+- Vermelho: `forge-testes --vermelho eec2c1c1 --modulos test_forge_quarentena`: prova (asserção)=1 (`test_aninhamento_medido_pelo_leitor_no_teto_de_json_raso`); os outros 27 passam na base (herdados).
+- Mutação: `forge-mutante --base eec2c1c1 tests/mutantes/v0479-quarentena-s1-5.json`: M41 `morreu`, M42 `morreu` (`bin/forge_quarentena.py:49`), rc 0.
+- Contrato dos CA da tabela: inalterado.
