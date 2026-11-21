@@ -1,2 +1,0 @@
-### Adicionado
-- `forge-placar ci-primeira`: mede o PR verde na 1.ª execução do CI (PR-VERDE M1, definição D7): no 1.º head do PR, a 1.ª execução de cada workflow exigido (`--exigidos`, padrão `CI,Catraca`), por dia, por semana e no total, com os vermelhos por workflow e por job; cancelada por envio novo fica fora da taxa (a cancelada por rótulo ou edição dá lugar à execução seguinte do mesmo head), rerun não conta como verde, PR do dependabot fora e resposta ilegível sai `lacuna` (rc 2), nunca verde.
