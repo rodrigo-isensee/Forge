@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae4-ordens
-commit: 916ccb02ece58f2a21179aebdf25e6e40a894d6c
+commit: b1cd22ec7933e02b3e45af9a67d8ec25afc1dda1
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
@@ -13,10 +13,20 @@ data: 2026-11-21
 Code review do AE4.1 no head 18d6d2f4 (branch melhoria/v0479-ae4-ordens, base develop 821db42e), v0478 E58.71, contra o desenho `docs/propostas/v0479-melhorias-anti-erro.md` (AE4, opção a).
 
 ## Achados
-- A1 (recomendado) bin/forge-check:10250 · o subparser `ordens` (3 linhas) entrou no meio dos argumentos do `decisoes`: o `de.add_argument("--resposta", ...)` da linha 10253 ficou depois dele; mova o bloco `od` para depois do `--resposta`, sem mudar comportamento.
+- A1 (recomendado) bin/forge-check:10260 · o subparser `ordens` (3 linhas) entrou no meio dos argumentos do `decisoes`: o `de.add_argument("--resposta", ...)` da linha 10263 ficou depois dele; mova o bloco `od` para depois do `--resposta`, sem mudar comportamento.
 
 ## Parecer
-Aprovado (revalidação no head 916ccb02, v0478 E58.75; o A1 recomendado segue para cartão).
+Aprovado (revalidação no head b1cd22ec, v0478 E58.79; o A1 recomendado segue para cartão).
+
+## Revalidação (head b1cd22ec)
+- Delta lido: `forge-check parecer delta docs/reviews/v0479-ae4-ordens.md`, intervalo 916ccb02..b1cd22ec, no domínio: `bin/forge-check`, `changelog.d/v0479-ae4-ordens.md`, `tests/mutantes/v0479-ae4-ordens-4.json`, `tests/test_ordens.py`. Nada fora disso relido.
+- `_ler_regular` (bin/forge-check:4841-4853): o `fstat` sai de dentro do `fdopen` e vem antes dele, fechando o fd no ramo de recusa; pasta no lugar do quadro dá "não é arquivo regular" em vez de `IsADirectoryError` (A3). O outro chamador, `cmd_kanban_gerar` (4887), já trata o `erro` e deixa o quadro intacto com rc 1.
+- `recusa_do_apontador` (5043): texto com U+FFFD recusa "KANBAN.md fora de UTF-8" antes do parse (A4); desfaz a troca aceita na revalidação anterior, agora pelo lado seguro. Um quadro UTF-8 válido que traga U+FFFD literal também recusa: aceito, a saída indica a etapa `E<n>`.
+- Funções de módulo sem nome repetido: `grep -oE '^def [A-Za-z_0-9]+' bin/forge-check | sort | uniq -d` vazio.
+- Tamanho (H1): 6+/3- em `bin/forge-check`.
+- Testes (ambiente limpo, `env -i`, TMPDIR em /dev/shm): `python3 -m unittest tests.test_ordens tests.test_anotar tests.test_decisoes`: `Ran 47 tests ... OK`; `test_quadro_pasta_recusa_com_rc_2` e `test_quadro_fora_de_utf8_recusa` verdes, por comportamento (rc e texto da recusa).
+- Mutantes: `bin/forge-mutante --processos 1 --rev b1cd22ec tests/mutantes/v0479-ae4-ordens-4.json`: M25 `morreu` (4847), M26 `morreu` (5043). `--cobertura --base 916ccb02`: 5043 coberta (M26); a 4847 não aparece na cobertura (guarda movida, mesmo texto), mas tem o M25 declarado e morto.
+- Suíte inteira: fica com o CI do PR (`R-REVIEW`).
 
 ## Revalidação (head 916ccb02)
 - Delta lido: `forge-check parecer delta docs/reviews/v0479-ae4-ordens.md`, intervalo 18d6d2f4..916ccb02, no domínio: `bin/forge-check`, `changelog.d/v0479-ae4-ordens.md`, `docs/propostas/v0479-melhorias-anti-erro.md`, as 3 specs de mutantes, `tests/test_decisoes.py`, `tests/test_ordens.py`. Nada fora disso relido.
