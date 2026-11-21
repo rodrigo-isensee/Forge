@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae4-ordens
-commit: b1cd22ec7933e02b3e45af9a67d8ec25afc1dda1
+commit: df0cf4d96cdf642b624c1468245010619410d9d1
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -47,6 +47,14 @@ Delta de 916ccb02 a b1cd22ec no meu domínio: `bin/forge-check` (`_ler_regular` 
 - Mutantes, uma chamada por spec, todas rc 0, 26 de 26 mortos: spec 1 (M1-M8), spec 2 (M9-M16), spec 3 (M17-M24, M24 `(erro)` sob o mutante com o controle verde), spec 4 (M25 morreu 4847, M26 morreu 5043).
 - `forge-mutante --cobertura --base 821db42e` rc 0: `base=821db42ed97e83e2108e1b88cace186eed89da6a mb=821db42ed97e83e2108e1b88cace186eed89da6a rev=b1cd22ec7933e02b3e45af9a67d8ec25afc1dda1`; 22 linhas `coberta`, e só `não coberto: tests/pesos-d4.json` (dados, sem guarda).
 - Sem bug novo. Parecer mantido: aprovado.
+
+## Revalidação (head df0cf4d9)
+Delta de b1cd22ec a df0cf4d9 no meu domínio, sem a develop (`git diff c9d69234 HEAD`): `agents/jarvis.md` (item do recibo 3 caracteres menor), `tests/mutantes/est-m12-gerar.json` (M3 e M4 alinhados à linha reindentada de `bin/forge-check`), `tests/test_anotar.py` e `tests/pesos-d4.json`; o resto do delta é a develop (c9d69234).
+
+- `test_ordens` 19 testes OK; `test_anotar` 18 OK; `test_orcamento_instrucao` 8 OK (discover, TMPDIR fora do repositório).
+- `bin/forge-mutante tests/mutantes/est-m12-gerar.json`: M1-M6 morreram (M3 em `bin/forge-check:4893`).
+- Mutantes das 4 specs v0479-ae4-ordens: 26 de 26 mortos (M24 `(erro)` sob o mutante com o controle verde, vale como morto); `--cobertura --base c9d69234` sem condição descoberta; só `tests/pesos-d4.json` sai `não coberto` (dado, não guarda).
+- Sem vermelho novo: nenhum teste novo no delta. Sem bug novo. Parecer mantido: aprovado.
 
 ## Cenários e resultado real
 Vermelho antes do verde (`TMPDIR` fora de repositório git; ver A1):
