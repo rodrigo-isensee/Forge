@@ -152,7 +152,7 @@ Os achados A1 do review (E63.6) e A12 e A13 da segurança (E63.7) no head e48a2e
 2 níveis, 234 variáveis, `test_corpus_nos_dois_hooks` instrumentado só para imprimir a contagem, cada árvore por
 `git archive`:
 - base d4f0b10a: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5897219, 'ambiente': 234}`
-- head 37fccab8: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5902697, 'ambiente': 234}`
+- head 37fccab8 e de novo no 02589206 (com o nome atribuído no alvo da entrada): `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5902697, 'ambiente': 234}`
 - igual ao e48a2e60 (+0): a exceção da cópia de `wt/` só roda no `controle_no_texto` da `GuardaDaProva` (o corpus não
   chega lá), as regex novas são textos compilados só no uso, e o `help.autocorrect` entrou na tupla do `startswith` que já
   existia; total sobre 5897219: +5478 passos (0,093%), abaixo de 0,1%, e `MEDIDA_DO_CORPUS` segue a mesma
