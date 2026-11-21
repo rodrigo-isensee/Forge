@@ -17,9 +17,9 @@
       "guarda": "AE7.1 sha_de: commit fora do repositório é None",
       "arquivo": "bin/forge_comparar.py",
       "de": "    return saida if cod == 0 and re.fullmatch(r\"[0-9a-f]{40}|[0-9a-f]{64}\", saida) else None",
-      "para": "    return saida",
+      "para": "    return saida if True and re.fullmatch(r\"[0-9a-f]{40}|[0-9a-f]{64}\", saida) else None",
       "testes": [
-        "tests.test_comparar.Refs.test_commit_de_outro_repositorio_e_nao_verificavel"
+        "tests.test_comparar.Refs.test_rev_parse_que_falha_nao_vale"
       ]
     },
     {
@@ -27,7 +27,7 @@
       "guarda": "AE7.1 caso_valido: linha que não é objeto",
       "arquivo": "bin/forge_comparar.py",
       "de": "    arquivos = caso.get(\"arquivos\", {}) if isinstance(caso, dict) else None",
-      "para": "    arquivos = caso.get(\"arquivos\", {})",
+      "para": "    arquivos = caso.get(\"arquivos\", {}) if True else None",
       "testes": [
         "tests.test_comparar.Corpus.test_corpus_ilegivel_e_nao_verificavel"
       ]

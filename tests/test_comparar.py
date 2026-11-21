@@ -147,6 +147,12 @@ class Medida(Base):
         rc, linhas = self.comparar(base, self.repo.commit(hook=LIBERA, config=pelo_shell))
         self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: proibido base=recusa head=aceite"]))
 
+    def test_block_sem_hook_specific_output_e_recusa(self):
+        bloqueia = LER + "if proibido:\n    print(json.dumps({'decision': 'block', 'reason': 'nao'}))\n"
+        base = self.repo.commit(hook=bloqueia)
+        rc, linhas = self.comparar(base, self.repo.commit(hook=LIBERA))
+        self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: proibido base=recusa head=aceite"]))
+
     def test_json_com_codigo_de_erro_e_ignorado(self):
         rc, linhas = self.comparar(self.base, self.repo.commit(hook=NEGA.replace("'deny'}}))", "'deny'}}))\n    sys.exit(1)")))
         self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: proibido base=recusa head=aceite"]))
@@ -224,8 +230,22 @@ class ComoOClaudeCode(Base):
             rc, linhas = self.comparar(self.base, self.repo.commit(hook=DETECTA))
         self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: proibido base=recusa head=aceite"]))
 
+    def test_variavel_da_lista_ausente_nao_derruba(self):
+        with mock.patch.dict(os.environ):
+            for nome in ("LC_ALL", "TERM", "LOGNAME"):
+                os.environ.pop(nome, None)
+            rc, linhas = self.comparar(self.base, self.base)
+        self.assertEqual(rc, 0, linhas)
+
 
 class Refs(Base):
+    def test_rev_parse_que_falha_nao_vale(self):
+        def git(raiz, *args, **kw):  # a saída é um sha, mas o código do git é de falha: não vale
+            cod, saida = fc.git(raiz, *args, **kw)
+            return (128 if args[:1] == ("rev-parse",) else cod), saida
+        rc, linhas = self.comparar(self.base, self.base, {**CTX, "git": git})
+        self.assertEqual((rc, linhas), (2, ["so-aperta: nao-verificavel (base ou head não é commit deste repositório)"]))
+
     def test_commit_de_outro_repositorio_e_nao_verificavel(self):
         outro = Repo(Path(self.tmp.name) / "outro").commit(hook=LIBERA)
         for base, head in ((self.base, outro), (outro, self.base), ("0" * 40, self.base)):

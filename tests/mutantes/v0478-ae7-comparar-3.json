@@ -47,7 +47,7 @@
       "guarda": "AE7.1 veredito: ask é pergunta",
       "arquivo": "bin/forge_comparar.py",
       "de": "    return PERGUNTA if decisao == \"ask\" else ACEITE",
-      "para": "    return ACEITE",
+      "para": "    return PERGUNTA if decisao == \"nunca\" else ACEITE",
       "testes": [
         "tests.test_comparar.Medida.test_pergunta_no_lugar_da_recusa_e_aceite_novo"
       ]

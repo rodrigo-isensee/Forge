@@ -51,6 +51,30 @@
       "testes": [
         "tests.test_comparar.Subcomando.test_forge_check_comparar"
       ]
+    },
+    {
+      "id": "CMP30",
+      "guarda": "AE7.1 veredito: decision block sem hookSpecificOutput é recusa",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "(saida.get(\"hookSpecificOutput\") or {})",
+      "para": "(saida.get(\"hookSpecificOutput\") or None)",
+      "testes": [
+        "tests.test_comparar.Medida.test_block_sem_hook_specific_output_e_recusa"
+      ]
+    },
+    {
+      "id": "CMP31",
+      "guarda": "AE7.1 rodar_caso: variável da lista ausente do ambiente não derruba",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "for k in AMBIENTE if k in os.environ}",
+      "para": "for k in AMBIENTE if k in os.environ or True}",
+      "testes": [
+        "tests.test_comparar.ComoOClaudeCode.test_variavel_da_lista_ausente_nao_derruba"
+      ]
     }
+  ],
+  "isentas": [
+    {"arquivo": "bin/forge_comparar.py", "trecho": "os.cpu_count() or 1",
+     "motivo": "teto do pool (R-TETO): o número de trabalhadores muda só o tempo, nunca o veredito de um caso; o mutante seria equivalente"}
   ]
 }
