@@ -442,10 +442,14 @@ class Limpar(Base):
         self.assertFalse(d.exists())
 
     def test_fora_da_pasta_ou_a_propria_pasta(self):
-        for alvo in (self.fora, self.pasta):
+        fora = self.fora / "c"  # cópia limpa e de PR fechado, só que fora da pasta liberada
+        self.git(self.fora, "clone", "-q", str(self.origem), str(fora))
+        self.git(fora, "switch", "-q", "-c", "melhoria/f")
+        for alvo in (fora, self.pasta):
             with self.subTest(alvo=alvo):
                 r = self.copia("limpar", str(alvo))
                 self.assertEqual(r.returncode, 2, r.stderr)
+                self.assertIn("fica fora de", r.stderr)
                 self.assertTrue(alvo.is_dir())
 
     def test_pasta_que_nao_e_raiz_de_copia_fica(self):

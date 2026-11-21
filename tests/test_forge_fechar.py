@@ -317,6 +317,20 @@ class LimparSemMerge(unittest.TestCase):
         self.assertIn("sem prova de merge", r.stderr)
         self.assertIn("refs/heads/melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
 
+    def test_a_copia_principal_na_branch_nao_e_copia_do_item(self):
+        self.git("switch", "-q", "melhoria/x")
+        r = self.limpar()
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("nenhuma cópia dela", r.stderr)
+        self.assertTrue(self.proj.is_dir())
+
+    def test_clone_de_outra_branch_nao_e_tocado(self):
+        outra, d = self.clone("c1", "develop"), self.clone("c2")
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertFalse(d.exists())
+        self.assertTrue(outra.is_dir())
+
 
 if __name__ == "__main__":
     unittest.main()
