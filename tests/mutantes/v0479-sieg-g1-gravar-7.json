@@ -73,6 +73,16 @@
       "testes": [
         "tests.test_autorizacao_gravar.Validade.test_prazo_local_ja_passado_nao_nasce_ativa"
       ]
+    },
+    {
+      "id": "M54",
+      "guarda": "G1.2a (A3): sem agora dado, o gravar confere a fala contra o relógio",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "a, ctx[\"gravador\"], agora or datetime.datetime.now(UTC))",
+      "para": "a, ctx[\"gravador\"], agora)",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_forge_check_autorizacao_gravar_grava_o_que_o_ler_aceita"
+      ]
     }
   ]
 }

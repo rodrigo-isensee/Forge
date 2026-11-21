@@ -141,7 +141,7 @@ class MensagemInteira(Base):
             self.falar(resumo_de_compactacao("pode aplicar o rótulo no pr 5"))
             self.nada_gravado(*self.gravar())
         with self.subTest(caso="link"):
-            alvo = self.raiz / "real.jsonl"
+            alvo = self.transcricao.parent / "real.jsonl"  # link na própria pasta da sessão: só o is_symlink recusa
             self.falar(registro("pode aplicar o rótulo no pr 5"))
             self.transcricao.rename(alvo)
             self.transcricao.symlink_to(alvo)
