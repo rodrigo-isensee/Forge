@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae7-comparador
-commit: 3d0bdaf9089fe91ae820e969846ba79234413809
+commit: f50171d232c95fa4562422bcda5f92a144a8a586
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -73,6 +73,20 @@ Delta lido por `forge-check parecer delta` (intervalo 5961e2f3..3d0bdaf9): `bin/
 - Árvore do autor limpa após as rodadas.
 
 Resultado: aprovado no head 3d0bdaf9; sem bug aberto.
+
+## Revalidação no head f50171d2 (E58.47, escopo incremental)
+Delta lido por `forge-check parecer delta` (intervalo 3d0bdaf9..f50171d2): `bin/forge_comparar.py` (A1 decisão `approve`, A2 `.gitattributes`, A7 matcher fora da forma simples, A8 saída não UTF-8, TMPDIR próprio, A9 caso recusado sem reescrita, A10 hooks fora do `hooks/hooks.json`), `tests/test_comparar.py`, specs `-4`, `-6`, `-8`, `-9`, `-10`, `changelog.d`. O comentário com nome de stack, que reprovou o head bddae43f, saiu em 339cf138. Saídas em `/root/.forge-contrib/wt/qa-e5847-out/`; TMPDIR próprio; `timeout 1500` em primeiro plano.
+
+- `python3 -I -m unittest discover -s tests -p test_comparar.py`: 53 testes, OK (rc 0).
+- Mutantes, uma chamada por spec, todas rc 0, `rev=f50171d232c9`: -4 7 (CMP25-CMP31), -6 8 (CMP40-CMP47), -10 7 (CMP61-CMP67) = 22 mutantes, 22 morreram, 0 sobreviventes, 0 sem veredito (CMP26 e CMP31 com `(erro)`, teste declarado dá erro sob o mutante e passa sem ele). Um mutante por linha de guarda mudada no delta: A10 (linhas 72-90), reescrita (232-233), TMPDIR e UTF-8 (186-199), decisão antiga (161).
+- `bin/forge-mutante --cobertura --base 821db42e` (rc 0): `base=821db42ed97e… rev=f50171d232c9…`; 47 condições `coberta`; uma `isenta` (`bin/forge_comparar.py:203`, teto do pool, só muda o tempo); `não coberto` só em dados (`tests/comparar/corpus.jsonl`, `tests/pesos-d4.json`). Nenhuma `isenta velha`.
+- Sonda de hook declarado, clone descartável `/root/.forge-contrib/wt/qa-e5847-clone` sobre f50171d2:
+  - chave `hooks` somada ao `.claude-plugin/plugin.json`: `forge-check comparar f50171d2 <sonda>` rc 2, `so-aperta: nao-verificavel (hooks declarados em .claude-plugin/plugin.json)`.
+  - `hooks:` no cabeçalho YAML de um agente `.md`: rc 2, `so-aperta: nao-verificavel (hooks declarados no cabeçalho de agente ou skill)`.
+  - controle, `forge-check comparar f50171d2 f50171d2`: rc 0, `casos=215 aceites-novos=0`, com a linha `so-aperta: medido base=… head=…`.
+- Árvore do autor limpa após as rodadas.
+
+Resultado: aprovado no head f50171d2; sem bug aberto. O reprovado anterior (bddae43f, comentário com nome de stack) está sanado.
 
 ## Achados
 Nenhum.
