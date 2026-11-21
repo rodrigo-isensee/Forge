@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae7-comparador
-commit: caae27c42db773f7984803f27b62ae3da7b4053e
+commit: bb1bac50822cd077f979063a93430c28a1292977
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -137,3 +137,12 @@ Delta lido por `forge-check parecer delta` (intervalo 2d1fa4fa..caae27c4): F3 pa
 - Árvore do autor limpa após as rodadas.
 
 Resultado: aprovado no head caae27c4; sem bug aberto.
+
+## Revalidação no head bb1bac50 (E58.98, escopo incremental)
+Delta lido por `forge-check parecer delta` (intervalo caae27c4..838c5a21, sem a develop; `git diff c9d69234 HEAD` separa o que veio dela): merge da develop com os pesos das duas chaves em `tests/pesos-d4.json`, par novo na guarda C-2 em `bin/forge-check`, `bin/forge-testes`, CMP102 alinhado à `RAIZ_FORA` (specs `-9` e `-15`), `docs/indice-forge.md` regenerado, `tests/test_comparar.py` (66 testes, com o teste que mata o CMP60) e `tests/test_reval_delta.py`. TMPDIR próprio; sem suíte inteira. O remoto trouxe só o parecer do review (61ffacba), por `git pull --rebase`.
+
+- `python3 -I -m unittest discover -s tests -p test_comparar.py`: 66 testes, OK. `test_reval_delta.py`: 10 testes, OK.
+- `bin/forge-mutante tests/mutantes/v0478-ae7-comparar-9.json tests/mutantes/v0478-ae7-comparar-15.json --ids CMP60,CMP102` (rc 0, `rev=61ffacba0c37`): `CMP60 · morreu · bin/forge_comparar.py:285`; `CMP102 · morreu · bin/forge_comparar.py:54`. 0 sobreviventes.
+- Vermelho (`bin/forge-testes --vermelho c9d69234 --modulos test_comparar`, rc 0): `vermelho: base=c9d69234828f head=61ffacba0c37 módulos=test_comparar (restrito por --modulos)`; `contagem: não prova (passa na base)=65; prova (asserção)=1` (`Subcomando.test_forge_check_comparar`). O teste novo `DecisaoInteira.test_reescrita_da_base_contra_recusa_do_head_nao_conta` sai "não prova (passa na base)": a base não tem `bin/forge_comparar.py` e a ferramenta não separa isso. A prova dele é o mutante CMP60 morto acima; nenhum teste cai no head.
+
+Resultado: aprovado no head bb1bac50; sem bug aberto.
