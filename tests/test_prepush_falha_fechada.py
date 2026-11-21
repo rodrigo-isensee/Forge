@@ -147,11 +147,10 @@ class LimiteSemTr(Base):
         self.assertIn("passou de 1 s e foi encerrada", saida)
 
 
-@unittest.skipUnless(shutil.which("python3"), "sem python3 não há o controle com python3")
 class RegistrosSemPython(Base):
     def test_controle_com_python3_os_registros_rodam(self):
         self.config({"registros": "false"})
-        rc, saida, _ = self.enviar()
+        rc, saida, _ = self.enviar(falsos={"python3": f'exec "{sys.executable}" "$@"'})
         self.assertEqual(rc, 1, saida)
         self.assertIn("a conferência de registros saiu 1", saida)
 
