@@ -27,7 +27,7 @@ def repositorio(pasta, branch):
     git("init", "-q", "-b", branch, cwd=pasta)
     git("config", "user.email", "t@example.com", cwd=pasta)
     git("config", "user.name", "Teste", cwd=pasta)
-    (pasta / "README.md").write_text("x\n", encoding="utf-8")
+    (pasta / "a.txt").write_text("x\n", encoding="utf-8")
     git("add", "-A", cwd=pasta)
     git("commit", "-q", "-m", "base", cwd=pasta)
     return pasta

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Forge: o agente do time grava e roda git de escrita só na própria cópia de trabalho (R-CONFORMIDADE,
-HOOK-AGENTE-FORA-DA-PROPRIA-COPIA).
+"""Forge: o agente do time grava e roda git de escrita só na própria cópia (R-CONFORMIDADE).
+
+HOOK-AGENTE-FORA-DA-PROPRIA-COPIA, pedido v0478 E88.1.
 
 PreToolUse em Bash, Write, Edit, MultiEdit e NotebookEdit, só com `agent_id` (a sessão principal, o Jarvis, segue livre).
 A cópia do agente é a worktree do projeto, ou o clone em `~/.forge-contrib/wt/`, cujo HEAD está numa branch de escrita da

@@ -65,6 +65,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `ambiente.py` | ambiente (E2.54, ordem do dono) - ao abrir a sessão no container, confere o ambiente e põe as linhas `falta:` no contexto. |
 | `conformidade.json` | — |
 | `conformidade.py` | conformidade dos agentes por papel (ADR 0009, seções 2, 3, 6 e 7; R-CONFORMIDADE). |
+| `copia.py` | o agente do time grava e roda git de escrita só na própria cópia (R-CONFORMIDADE). |
 | `doutor.py` | doutor (primeiro uso, F3) - roda as conferências rápidas do `forge doutor` ao abrir a sessão e uma vez por dia. |
 | `hooks.json` | — |
 | `meta.py` | objetivo armado no Stop (S4) e medida da mensagem ao dono (S6), 0.44.2. Só biblioteca padrão. |
