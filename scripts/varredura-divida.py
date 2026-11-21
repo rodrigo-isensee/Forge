@@ -66,11 +66,12 @@ def lentos(raiz, quantos):
 
 
 def mutantes(raiz):
-    """O trecho de cada mutante pelo próprio forge-mutante (`--conferir --todas`, AR-12, no HEAD): a regra fica num lugar."""
+    """O trecho de cada mutante pelo próprio forge-mutante (`--conferir --todas`, AR-12, no HEAD): a regra fica num lugar.
+    O filho roda com `-B`: sem ele, o forge_apoio_testes grava o cache de bytecode em bin/__pycache__/."""
     if not any((raiz / "tests" / "mutantes").glob("*.json")):
         return
-    r = subprocess.run([str(FORGE / "bin" / "forge-mutante"), "--conferir", "--todas"], cwd=raiz, capture_output=True,
-                       text=True, timeout=300)
+    r = subprocess.run([sys.executable, "-B", str(FORGE / "bin" / "forge-mutante"), "--conferir", "--todas"], cwd=raiz,
+                       capture_output=True, text=True, timeout=300)
     for linha in r.stdout.splitlines() if r.returncode == 1 else []:
         spec, _, resto = linha.partition(": ")
         ident, _, medida = resto.partition(" · ")

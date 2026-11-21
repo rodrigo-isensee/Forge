@@ -72,6 +72,16 @@
       "testes": [
         "tests.test_varredura_divida.Varredura.test_pesos_ilegiveis_nao_geram_achado"
       ]
+    },
+    {
+      "id": "M23",
+      "guarda": "o forge-mutante filho não grava o cache de bytecode (-B)",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": "[sys.executable, \"-B\", str(FORGE",
+      "para": "[sys.executable, str(FORGE",
+      "testes": [
+        "tests.test_varredura_divida.Varredura.test_filho_nao_grava_cache_de_bytecode_no_forge"
+      ]
     }
   ]
 }

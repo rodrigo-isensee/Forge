@@ -7,6 +7,7 @@ git herdado (AR-4).
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -46,9 +47,12 @@ def gravar(raiz, caminho, texto):
     alvo.write_text(texto, encoding="utf-8")
 
 
-def rodar(*args):
-    return subprocess.run([sys.executable, "-I", str(SCRIPT), *args], capture_output=True, text=True, timeout=120,
-                          env=ambiente(), cwd=tempfile.gettempdir())
+def rodar(*args, script=SCRIPT):
+    """Sem as PYTHON* herdadas (o forge-mutante liga PYTHONDONTWRITEBYTECODE ou PYTHONPYCACHEPREFIX): quem evita o
+    cache no filho é o script."""
+    env = {k: v for k, v in ambiente().items() if not k.startswith("PYTHON")}
+    return subprocess.run([sys.executable, "-I", str(script), *args], capture_output=True, text=True, timeout=120,
+                          env=env, cwd=tempfile.gettempdir())
 
 
 def mutante(ident, de, arquivo="codigo.py"):
@@ -111,6 +115,20 @@ class Varredura(unittest.TestCase):
         antes = (fotografia(self.tmp), git(self.raiz, "for-each-ref"), git(self.raiz, "status", "--porcelain"))
         self.varrer()
         self.assertEqual((fotografia(self.tmp), git(self.raiz, "for-each-ref"), git(self.raiz, "status", "--porcelain")), antes)
+
+    def test_filho_nao_grava_cache_de_bytecode_no_forge(self):
+        """O forge-mutante filho roda sem gravar bin/__pycache__/ na cópia do Forge (git status vazio, nenhuma pasta nova)."""
+        forge = self.tmp / "forge"
+        shutil.copytree(RAIZ / "bin", forge / "bin", ignore=shutil.ignore_patterns("__pycache__"))
+        (forge / "scripts").mkdir()
+        shutil.copy2(SCRIPT, forge / "scripts")
+        git(forge, "init", "-q")
+        git(forge, "add", "-A")
+        git(forge, "commit", "-q", "-m", "c")
+        r = rodar("--raiz", str(self.raiz), "--copias", str(self.wt), "--lentos", "2", "--mb", "2",
+                  script=forge / "scripts" / "varredura-divida.py")
+        self.assertEqual((r.returncode, r.stdout.splitlines()), (0, self.varrer()), r.stderr)
+        self.assertEqual((git(forge, "status", "--porcelain", "--ignored"), sorted(forge.rglob("__pycache__"))), ("", []))
 
     def test_sem_develop_a_base_e_a_main(self):
         nova_main = git(self.raiz, "rev-parse", "origin/develop")
