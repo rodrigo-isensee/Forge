@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-fechar-defeitos
-commit: 5d383ebfa624c7eabd7ea02fdd2909091c50d29e
+commit: e6c1fe8a2e054a09261612232fcb6fd4bb97f780
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -35,3 +35,9 @@ test_fechar_base_andou: 3 testes 1c e 3 testes 6a · H=ok · B=falha · prova (a
 test_fechar_checks_do_head: 5 testes · H=ok · B=falha · prova (asserção)
 contagem: não prova (passa na base)=182; prova (asserção)=11; pulado=1
 ```
+
+## Revalidação (head e6c1fe8a, delta desde 5d383ebf)
+Delta lido por `forge-check parecer delta`: `bin/forge-fechar` (execução mais recente por check; `--armar` recusa falha já terminada), testes `test_fechar_checks_do_head`, `test_fechar_base_andou`, `test_fechar`, specs de mutantes. Critério novo: com `--armar`, check rodando ou ausente arma; terminado fora de success recusa; catraca velha cancelled ao lado da nova verde mescla.
+- test_fechar_checks_do_head: 8 testes OK; test_fechar_base_andou: 44 testes OK (módulos tocados; sem suíte inteira, que é do CI do PR).
+- forge-mutante, uma chamada por spec, sem sobrevivente: v0478-fechar-checks (FCK-M1..M8 morreram), v0478-fechar-checks-2 (FCK-M9 morreu, por erro do teste declarado), v0478-fechar-6a (F6A-M1..M4 morreram). O rc impresso no laço foi o do `tail`, não o do `forge-mutante`; o veredito é a ausência de linha `sobreviveu`.
+- Vermelho com `--modulos test_fechar,test_fechar_base_andou,test_fechar_checks_do_head`, base 65de25ce: rc 0; 15 testes provam (os 8 de checks, em B=falha, e 7 em test_fechar_base_andou), nenhum cai no HEAD; contagem: não prova (passa na base)=147; prova (asserção)=15; pulado=1.
