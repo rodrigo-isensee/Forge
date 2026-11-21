@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae4-ordens
-commit: b1cd22ec7933e02b3e45af9a67d8ec25afc1dda1
+commit: df0cf4d96cdf642b624c1468245010619410d9d1
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
@@ -16,7 +16,14 @@ Code review do AE4.1 no head 18d6d2f4 (branch melhoria/v0479-ae4-ordens, base de
 - A1 (recomendado) bin/forge-check:10260 · o subparser `ordens` (3 linhas) entrou no meio dos argumentos do `decisoes`: o `de.add_argument("--resposta", ...)` da linha 10263 ficou depois dele; mova o bloco `od` para depois do `--resposta`, sem mudar comportamento.
 
 ## Parecer
-Aprovado (revalidação no head b1cd22ec, v0478 E58.79; o A1 recomendado segue para cartão).
+Aprovado (revalidação no head df0cf4d9, v0478 E58.91; o A1 recomendado segue para cartão).
+
+## Revalidação (head df0cf4d9)
+- Delta lido: `forge-check parecer delta docs/reviews/v0479-ae4-ordens.md`, intervalo b1cd22ec..df0cf4d9, no domínio: `agents/jarvis.md`, `bin/forge-check`, `bin/forge-testes`, `tests/mutantes/est-m12-gerar.json`, `tests/pesos-d4.json`, `tests/test_anotar.py`. Separado da develop por `git diff c9d69234 HEAD`: `bin/forge-check`, `bin/forge-testes`, `tests/pesos-d4.json` e o trecho novo de `test_anotar.py` vieram do merge da develop (27596e7d), sem resolução à mão no domínio; do item, só `agents/jarvis.md` e `est-m12-gerar.json` (df0cf4d9). Nada fora disso relido.
+- `agents/jarvis.md:13`: `; a ordem leva` virou `; ordem com`, mesmo sentido, linha 3 caracteres menor (287 para 284 bytes).
+- `tests/mutantes/est-m12-gerar.json` M3: o `de` acompanha a guarda reindentada em `bin/forge-check:4893` (fora do `fdopen`); `bin/forge-mutante --processos 1 --rev df0cf4d9 --ids M3`: `M3 · morreu · bin/forge-check:4893`.
+- Testes (ambiente limpo, `env -i`, TMPDIR em /dev/shm): `python3 -m unittest tests.test_ordens tests.test_anotar tests.test_orcamento_instrucao tests.test_metricas_texto`: `Ran 47 tests ... OK`.
+- Suíte inteira: fica com o CI do PR (`R-REVIEW`).
 
 ## Revalidação (head b1cd22ec)
 - Delta lido: `forge-check parecer delta docs/reviews/v0479-ae4-ordens.md`, intervalo 916ccb02..b1cd22ec, no domínio: `bin/forge-check`, `changelog.d/v0479-ae4-ordens.md`, `tests/mutantes/v0479-ae4-ordens-4.json`, `tests/test_ordens.py`. Nada fora disso relido.
