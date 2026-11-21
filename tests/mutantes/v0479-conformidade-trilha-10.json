@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-conformidade-trilha",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "X1",
+      "guarda": "o texto que pode subir ou montar o caminho fica intacto (E63.9, A1 do review)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if \"forge-contrib/wt/\" not in texto or re.search(SUBIDA_NO_TEXTO, plano):\n",
+      "para": "    if \"forge-contrib/wt/\" not in texto:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "X2",
+      "guarda": "o `$HOME` vira o home real (E63.9, A1 do review)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        base = casa if m.group(1) in (\"~\", \"$HOME\") else m.group(1)\n",
+      "para": "        base = casa if m.group(1) in (\"~\",) else m.group(1)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "X3",
+      "guarda": "só o caminho real dentro de wt/ vira cópia (E63.9, A1 do review)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return \"\\0\" if os.path.realpath(f\"{base}/.forge-contrib/wt/{m.group(2)}\").startswith(wt) else m.group(0)\n",
+      "para": "        return \"\\0\" if os.path.realpath(f\"{base}/.forge-contrib/wt/{m.group(2)}\").startswith('/') else m.group(0)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "X4",
+      "guarda": "o `$` fora da lista (`$(`, `$1`) deixa o texto intacto (E63.9, A1 do review)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not nome:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "X5",
+      "guarda": "o nome de fora (sem atribuição na linha) deixa o texto intacto (E63.9, A1 do review)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if (not usos) != (nome in (\"TMPDIR\", \"HOME\")) or any(not novo.startswith(f\"{nome}=\\0\", u) for u in usos):\n",
+      "para": "        if any(not novo.startswith(f\"{nome}=\\0\", u) for u in usos):\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "X6",
+      "guarda": "o nome reatribuído (`read d`) deixa o texto intacto (E63.9, A1 do review)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if (not usos) != (nome in (\"TMPDIR\", \"HOME\")) or any(not novo.startswith(f\"{nome}=\\0\", u) for u in usos):\n",
+      "para": "        if (not usos) != (nome in (\"TMPDIR\", \"HOME\")):\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "X7",
+      "guarda": "o controle do papel que não é o jarvis lê a linha sem a cópia de wt/ (E63.9, A1 do review)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return bool(self.controle.search(sem_copia_de_wt(texto) if self.controle is CONTROLE_NO_TEXTO else texto))\n",
+      "para": "        return bool(self.controle.search(sem_copia_de_wt(texto) if self.controle is not CONTROLE_NO_TEXTO else texto))\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "X8",
+      "guarda": "o jarvis não tem controle no texto (E63.9, A1 do review)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self.controle is None:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    }
+  ]
+}

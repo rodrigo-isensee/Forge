@@ -1,0 +1,38 @@
+{
+  "descricao": "CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.9, A1 e A2 do review E63.6; R-CONFORMIDADE): a barra seguida de quebra de linha no meio de pedidos é juntada antes de procurar o controle.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "a.txt": "v\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "d=~/.forge-contrib; echo x > $d/docs/pedi\\\ndos/v1.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:dev"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  },
+  "repos": {
+    "home/.forge-contrib": {
+      "arquivos": {
+        "docs/pedidos/v1.md": "# v1\n",
+        "docs/briefs/b1.md": "b\n",
+        "x/docs/pedidos/v2.md": "# v2\n",
+        "wt/x/docs/pedidos/v1.md": "# v1\n",
+        "a.txt": "v\n"
+      }
+    }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "descricao": "EXT-1 (C-8 a): checar_texto procura o literal do padrão com `*`. Limite registrado (C-8/C-9 do modelo de ameaças da 0.36): rc 0 hoje; a prova da não edição é o histórico (C-2). Quem fechar o furo troca o rc esperado.",
+  "descricao": "EXT-1 (C-8 a): o texto do python -c que grava o teste-oráculo (o padrão `tests/test_oraculo_*.py`, com `*`) recusa. Era limite registrado (C-8/C-9 do modelo de ameaças da 0.36, rc 0); fechado na v0478 E63.5 (A9 da segurança E63.3: o `*` da política casa um trecho sem barra no texto do interpretador).",
   "arquivos": {
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
@@ -20,6 +20,7 @@
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "teste-oráculo do portão"
   }
 }
