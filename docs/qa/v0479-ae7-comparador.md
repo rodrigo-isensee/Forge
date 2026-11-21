@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae7-comparador
-commit: 5961e2f3a30a4209a940a9745fe02a1b3a24f39c
+commit: 3d0bdaf9089fe91ae820e969846ba79234413809
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -60,3 +60,19 @@ Controle (base antiga b14f2e19 contra o head, só apertos e adições): `forge-c
 
 ## Cenários e resultado real
 Aprovado. Sem bug aberto. Saídas completas em `/root/.forge-contrib/wt/qa181-*.txt`.
+
+## Revalidação no head 3d0bdaf9 (E58.38, escopo incremental)
+Delta lido por `forge-check parecer delta` (intervalo 5961e2f3..3d0bdaf9): `bin/forge-check` (só a ajuda do subcomando), `bin/forge_comparar.py` (blob a blob no lugar de `git archive`, lados separados, veredito de 4 níveis com `updatedInput`), `tests/test_comparar.py`, specs `tests/mutantes/v0478-ae7-comparar-2..7.json` (agora 7 specs), `changelog.d`. Saídas em `/root/.forge-contrib/wt/qa-e5838-out/`.
+
+- `python3 -I -m unittest discover -s tests -p test_comparar.py`: 42 testes, OK (rc 0).
+- Mutantes, uma chamada por spec, todas rc 0, `rev=3d0bdaf9089f`: spec base 8, -2 8, -3 8, -4 7, -5 8, -6 8, -7 2 = 49 mutantes, 49 morreram, 0 sobreviventes, 0 sem veredito.
+- `bin/forge-mutante --cobertura --base 821db42e` (rc 0): `base=821db42ed97e… rev=3d0bdaf9089f…`; 35 condições `coberta`; uma `isenta` (`bin/forge_comparar.py:160`, teto do pool, só muda o tempo); `não coberto` só em dados (`tests/comparar/corpus.jsonl`, `tests/pesos-d4.json`). Nenhuma `isenta velha`.
+- Afrouxamento sintético 1 (clone `/root/.forge-contrib/wt/qa-e5838-clone`, `hooks/hooks.json` com `hooks/parecer.py` trocado por `/dev/null`): `forge-check comparar 3d0bdaf9 c1bd526b` rc 1, `casos=215 aceites-novos=3` (heredoc-interpretador python x3, `base=recusa head=aceite`).
+- Afrouxamento sintético 2 (mesmo clone, `hooks/parecer.py` responde `permissionDecision: allow` em tudo): rc 1, `casos=215 aceites-novos=215`, com `base=recusa head=allow` e também `base=aceite head=allow` (o 4º nível pega o allow explícito).
+- Controle: `forge-check comparar 5961e2f3 3d0bdaf9` rc 0, `casos=215 aceites-novos=0`, com a linha `so-aperta: medido base=… head=…`.
+- Árvore do autor limpa após as rodadas.
+
+Resultado: aprovado no head 3d0bdaf9; sem bug aberto.
+
+## Achados
+Nenhum.
