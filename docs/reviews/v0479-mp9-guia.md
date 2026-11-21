@@ -3,21 +3,18 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-mp9-guia
-commit: 2054ef3b3ea3a7996b8e9dedbcf71fbb5782a089
+commit: a8d4dce419e55c32c4d3fcf37e02b13db7ea8a18
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-18
+data: 2026-11-21
 ---
-# Review: v0478 (E24.2, MP9 guia "vários projetos")
+# Review: v0478 (E24.6, MP9 guia "vários projetos", revalidação)
 
-Diff `0c47762a..2054ef3b`: README (seção nova, 8 linhas), `templates/projeto/CLAUDE.md` (1 linha em `## Sessão`), fragmento `changelog.d/v0479-mp9-guia.md`, teste novo `tests/test_guia_varios_projetos.py` e a citação `teste-le` em `tests/test_reval_delta.py`. Só documentação e teste: sem código de controle, sem guarda mudada, teto H1 não se aplica.
+Revalidação (H3, R-REVIEW) do parecer aprovado no head 2054ef3b. Delta lido: `forge-check parecer delta docs/reviews/v0479-mp9-guia.md`, intervalo `2054ef3b..a8d4dce4`; no domínio só `tests/test_reval_delta.py`, 1 linha: apaga a cópia colada do comentário "v047 E2.222" na entrada `test_guia_varios_projetos.py` de `CITACOES_CONHECIDAS`. Resolve o A1 do parecer anterior; a chave e o motivo `teste-le` ficam iguais. O resto do intervalo são os pareceres de QA, segurança e review (fora do domínio) e o merge `f36f349d` da própria branch remota, que só trouxe pareceres.
 
-Conferido contra o desenho (`multi-projeto-1711.md`, linha MP9) e contra o código: `PESO_MAXIMO = 10` e `peso_valido` (0 exclusive a 10, fora disso 1) em `hooks/agentes.py:190,222`; empréstimo da vaga parada em `hooks/agentes.py:238-277`; escape `FORGE_CARGA_LIVRE=1` só com um projeto em `hooks/agentes.py:1079-1088` (MP5); `forge-status --maquina` em `bin/forge-status:90`; `Projeto: <nome>`, `[<projeto>]` e "para qual projeto?" em `skills/falar-com-o-dono/varios-projetos.md`. O guia diz o que o código faz. O teste amarra o "até 10" do texto ao `PESO_MAXIMO` do hook, o que impede o guia de envelhecer em silêncio.
+Item inteiro (`0c47762a..a8d4dce4`): README (8 linhas), `templates/projeto/CLAUDE.md` (1 linha), fragmento `changelog.d/v0479-mp9-guia.md`, `tests/test_guia_varios_projetos.py` e a citação em `tests/test_reval_delta.py`. Só documentação e teste: sem guarda mudada, teto H1 não se aplica. O conteúdo do guia não mudou desde o parecer anterior, que conferiu cada afirmação contra o código.
 
-`docs/engineering/praticas.md` não tem regra "decidida por: leitura"; nada a citar de ferramenta. R-NEUTRO: sem termo de projeto. Suíte: só no CI do PR (R-REVIEW); rodado o teste do diff: `python3 -m unittest test_guia_varios_projetos test_reval_delta` (em `tests/`), 14 testes, OK.
-
-## Achados
-- A1 (recomendado) tests/test_reval_delta.py:140 · a linha nova carrega, depois do comentário MP9, a cópia do comentário da linha anterior ("v047 E2.222: o teste lê o README..."), que não descreve este teste; apague o resto colado.
+`docs/engineering/praticas.md` sem regra "decidida por: leitura" que alcance o diff. Suíte: só no CI do PR (R-REVIEW); rodado o teste do diff: `python3 -m unittest test_guia_varios_projetos test_reval_delta` (em `tests/`), 14 testes, OK.
 
 ## Parecer
-Aprovado. O guia cobre as cinco partes do MP9 (janela por projeto no modo auto, teto em partes iguais com `peso` e comando pronto, escape só com um projeto, bot único com `[<projeto>]`, `forge-status --maquina`), bate com o código e tem teste que acusa a seção ausente e a faixa do `peso` divergente. A1 é cosmético e não devolve.
+Aprovado no head a8d4dce4. O A1 recomendado da rodada anterior foi corrigido; nada novo.
