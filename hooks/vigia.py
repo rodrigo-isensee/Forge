@@ -302,10 +302,13 @@ def digitado_pelo_dono(registro):
     """Classificador positivo (FALA-DO-DONO-RESUMO-COMPACTADO): o registro `user` só conta se tem a forma do que o dono
     digita. Fica fora: qualquer marca `is*` verdadeira (isMeta, isSidechain, isCompactSummary,
     isVisibleInTranscriptOnly e as que vierem), resultado de ferramenta e `origin` que não seja `{"kind": "human"}`
-    (aviso de tarefa, mensagem de outro agente). Sem `origin` (forma antiga do cliente) valem as outras condições."""
+    (aviso de tarefa, mensagem de outro agente). Sem `origin` valem as outras condições: é a forma antiga do cliente e
+    também a atual da extensão de IDE (grava sem `origin`, com `promptId`), então o padrão não é legado a remover.
+    Marca é `is` seguido de maiúscula; um campo como `issueRef` não é marca."""
     if not isinstance(registro, dict) or registro.get("type") != "user":
         return False
-    if any(chave.startswith("is") and valor for chave, valor in registro.items()):
+    marca = re.compile(r"is[A-Z]")
+    if any(marca.match(chave) and valor for chave, valor in registro.items()):
         return False
     if registro.get("toolUseResult") or registro.get("sourceToolUseID") or registro.get("sourceToolAssistantUUID"):
         return False

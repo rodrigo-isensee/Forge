@@ -16,10 +16,20 @@
       "id": "M2",
       "guarda": "FALA-DO-DONO-RESUMO-COMPACTADO: marca is* verdadeira (resumo de compactação, meta, subagente) tira o registro",
       "arquivo": "hooks/vigia.py",
-      "de": "if any(chave.startswith(\"is\") and valor for chave, valor in registro.items()):",
+      "de": "if any(marca.match(chave) and valor for chave, valor in registro.items()):",
       "para": "if False:",
       "testes": [
         "tests.test_vigia.FalaDoDono.test_resumo_de_compactacao_nao_conta"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "FALA-DO-DONO-RESUMO-COMPACTADO: marca é is seguido de maiúscula; campo como issueRef não tira o registro",
+      "arquivo": "hooks/vigia.py",
+      "de": "marca = re.compile(r\"is[A-Z]\")",
+      "para": "marca = re.compile(r\"is\")",
+      "testes": [
+        "tests.test_vigia.FalaDoDono.test_campo_que_comeca_com_is_sem_maiuscula_nao_e_marca"
       ]
     },
     {

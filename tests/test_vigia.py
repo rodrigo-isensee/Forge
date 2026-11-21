@@ -91,6 +91,14 @@ class FalaDoDono(unittest.TestCase):
         self.assertIsNone(vigia.texto_do_dono(self.com(isMeta=True)))
         self.assertIsNone(vigia.texto_do_dono(self.com(isSidechain=True)))
 
+    def test_campo_que_comeca_com_is_sem_maiuscula_nao_e_marca(self):
+        self.assertEqual(vigia.texto_do_dono(self.com(issueRef="x", isolado=True)), self.TEXTO)
+
+    def test_forma_da_ide_sem_origem_com_prompt_id_conta(self):
+        ide = {k: v for k, v in self.DIGITADO.items() if k not in ("origin", "promptSource", "turnOrigin")}
+        ide.update(entrypoint="claude-vscode", promptId="p1")
+        self.assertEqual(vigia.texto_do_dono(ide), self.TEXTO)
+
     def test_resultado_de_ferramenta_nao_conta(self):
         for campo in ("toolUseResult", "sourceToolUseID", "sourceToolAssistantUUID"):
             with self.subTest(campo=campo):
