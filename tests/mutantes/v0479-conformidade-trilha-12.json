@@ -1,0 +1,16 @@
+{
+  "pedido": "v0479-conformidade-trilha",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Z1",
+      "guarda": "a barra com quebra de linha é juntada antes de procurar o controle (E63.9, A1 do review)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        texto = juntar_continuacoes(linha) if \"\\\\\\n\" in linha else linha\n",
+      "para": "        texto = juntar_continuacoes(linha) if False else linha\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    }
+  ]
+}

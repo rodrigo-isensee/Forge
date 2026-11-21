@@ -4076,8 +4076,8 @@ def entrada_de_arquivo(redirecoes):
     alvo = ultima.alvo if ultima and ultima.operador == "<" else None  # `<<<`, `<&`, `<>` e `0>&` não são arquivo
     if alvo is None or re.search(r"[$`*?[{]|<\(", alvo.cru):
         return False
-    partes = [p for p in alvo.valor.split("/") if p not in ("", ".")]
-    return bool(partes) and not NAO_E_ARQUIVO.intersection(partes) and not partes[-1].isdigit()
+    partes = alvo.valor.split("/")  # o último vazio (`0/`) não abre: o bash falha com ENOTDIR
+    return not NAO_E_ARQUIVO.intersection(partes) and not partes[-1].isdigit()
 
 
 def shell_que_le_a_entrada(nomes, valores, opacas, redirecoes=()):

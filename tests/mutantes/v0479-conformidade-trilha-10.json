@@ -14,10 +14,10 @@
     },
     {
       "id": "X2",
-      "guarda": "o `~` e o `$HOME` viram o home real (E63.9, A1 do review)",
+      "guarda": "o `$HOME` vira o home real (E63.9, A1 do review)",
       "arquivo": "hooks/conformidade.py",
       "de": "        base = casa if m.group(1) in (\"~\", \"$HOME\") else m.group(1)\n",
-      "para": "        base = m.group(1)\n",
+      "para": "        base = casa if m.group(1) in (\"~\",) else m.group(1)\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
       ]

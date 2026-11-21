@@ -36,8 +36,8 @@
       "id": "Y4",
       "guarda": "o alvo de só dígitos (`fd/0` relativo) não é arquivo (E63.9, A12)",
       "arquivo": "hooks/conformidade.py",
-      "de": "    return bool(partes) and not NAO_E_ARQUIVO.intersection(partes) and not partes[-1].isdigit()\n",
-      "para": "    return bool(partes) and not NAO_E_ARQUIVO.intersection(partes)\n",
+      "de": "    return not NAO_E_ARQUIVO.intersection(partes) and not partes[-1].isdigit()\n",
+      "para": "    return not NAO_E_ARQUIVO.intersection(partes)\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
       ]
@@ -46,8 +46,8 @@
       "id": "Y5",
       "guarda": "o alvo com `dev`, `proc` ou `stdin` não é arquivo (E63.9, A12)",
       "arquivo": "hooks/conformidade.py",
-      "de": "    return bool(partes) and not NAO_E_ARQUIVO.intersection(partes) and not partes[-1].isdigit()\n",
-      "para": "    return bool(partes) and not partes[-1].isdigit()\n",
+      "de": "    return not NAO_E_ARQUIVO.intersection(partes) and not partes[-1].isdigit()\n",
+      "para": "    return not partes[-1].isdigit()\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
       ]
