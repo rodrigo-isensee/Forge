@@ -87,6 +87,3 @@ Delta lido por `forge-check parecer delta` (intervalo 3d0bdaf9..f50171d2): `bin/
 - Árvore do autor limpa após as rodadas.
 
 Resultado: aprovado no head f50171d2; sem bug aberto. O reprovado anterior (bddae43f, comentário com nome de stack) está sanado.
-
-## Achados
-Nenhum.
