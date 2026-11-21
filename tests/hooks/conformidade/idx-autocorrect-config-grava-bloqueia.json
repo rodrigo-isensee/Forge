@@ -1,0 +1,29 @@
+{
+  "descricao": "CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.9, A13 da segurança E63.7; R-CONFORMIDADE): S16: `git config help.autocorrect immediate` antes do `git stge`.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "docs/qa/q.md": "q\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git config help.autocorrect immediate"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:dev"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "help.autocorrect"
+  }
+}

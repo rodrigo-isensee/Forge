@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-conformidade-trilha",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S1",
+      "guarda": "a linha com envio de parte opaca recusa no nível 0 (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if nivel == 0 and not self.leitura and envio_com_substituicao(comando):  # CONFORMIDADE-SUBSTITUICAO-NO-PROJETO\n",
+      "para": "        if False:  # CONFORMIDADE-SUBSTITUICAO-NO-PROJETO\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "S2",
+      "guarda": "o programa por substituição seguido do envio ou de outra substituição (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if opacas[j] and no_programa and (ENVIO_DO_GIT & set(valores[j + 1:]) or opacas[j + 1:j + 2] == [True]):\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "S3",
+      "guarda": "o subcomando do git por substituição (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if k < len(valores) and opacas[k]:\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "S4",
+      "guarda": "a flag ou o destino do envio por substituição, ou o envio atrás do xargs (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if envio and (any(opacas[j + 1:]) or \"xargs\" in nomes[:j]):\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "S5",
+      "guarda": "o shell que lê o pipe numa linha que cita o envio (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if cita_o_envio and programa and shell_que_le_a_entrada(nomes, valores, opacas, comando.redirecoes, linha):\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "S6",
+      "guarda": "o envio pelo subcomando ou, com -c, por qualquer palavra (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            envio = k < len(valores) and valores[k] in ENVIO_DO_GIT or k >= len(valores) and ENVIO_DO_GIT & set(valores)\n",
+      "para": "            envio = k < len(valores) and valores[k] in ENVIO_DO_GIT\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "S7",
+      "guarda": "o envio sem substituição segue livre: só a palavra opaca depois do git conta (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if envio and (any(opacas[j + 1:]) or \"xargs\" in nomes[:j]):\n",
+      "para": "            if envio:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "S8",
+      "guarda": "a envolvedora antes do programa opaco conta como posição de programa (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            no_programa = j == 0 or nomes[j - 1] in ENVOLVEDORES\n",
+      "para": "            no_programa = j == 0\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    }
+  ]
+}
