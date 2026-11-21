@@ -3,34 +3,27 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-k165-e2e-incremental
-commit: f700354c98e71c6d50ecb54ff47d8677c672fb9a
+commit: b4a5764717bf5d03815bf9071b9bf93aeabe47ad
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-21
 ---
-# Review de segurança: v0478 (E73.3, K165)
+# Review de segurança: v0478 (E73.6, K165, revalidação)
 
-Diff lido: `8caa7f3d..f700354c` (3 arquivos: `skills/qa-testing/SKILL.md`, `tests/config.json`, fragmento `changelog.d/`). Sem código executável; muda texto de regra de QA e acrescenta uma invariante.
+Volta por delta (`R-REVIEW`): a rodada anterior (parecer no head `f700354c`, commit `8a2e2696`) fica no git e não é recopiada.
 
 ## Gatilhos
 Gatilhos: texto de regra de QA protegido por invariante (`tests/config.json`), dado de teste gravado em disco do projeto.
 
-## Achados
-- A1 (recomendado) skills/qa-testing/SKILL.md:61 · "(no `.gitignore`)" descreve, não manda: nada inclui `relatorios/` no `.gitignore` (o `bin/forge-init:214` só ignora `.forge/run/` e afins); o JSON do E2E, com mensagem de erro e dado de teste, pode ir ao git. Torne imperativo ou use pasta já ignorada.
+## Delta lido
+`forge-check parecer delta`, intervalo `f700354c..b4a57647`, no domínio: `skills/qa-testing/SKILL.md` (linha 61) e `tests/config.json` (linhas 579 e 878). Já lido na rodada anterior: o resto do diff `8caa7f3d..f700354c`, sem mudança desde então.
 
 ## Sondas
 
 ## Detalhe dos achados
-**A1.** Evidência: `skills/qa-testing/SKILL.md:61` e `bin/forge-init:214` (lista `ignorados` sem `relatorios/`); o modelo do projeto não traz `.gitignore`. Caminho: o QA grava `relatorios/<rodada>/<caso>.json` num projeto onde a pasta não está ignorada; o relatório JSON do executor E2E carrega mensagem de erro, URL, saída do processo e, às vezes, cabeçalho ou dado de semente; um `git add .` posterior leva isso ao remoto, legível por quem lê o repositório. Severidade: baixa (depende de dado sensível no ambiente de teste e de um commit descuidado). Correção mínima (dono: autor da branch, texto da skill e a invariante junto): trocar "(no `.gitignore`)" por "(acrescente `relatorios/` ao `.gitignore` antes da rodada)", ou gravar em `.forge/run/relatorios/<rodada>/`, já ignorado pelo `forge-init`; ajustar o padrão da invariante em `tests/config.json:579` e `:878` ao texto novo. Esforço: P.
+**A1 (recomendado, rodada anterior): fechado.** `skills/qa-testing/SKILL.md:61` agora manda "acrescente `relatorios/` ao `.gitignore` antes da rodada", imperativo e antes da gravação; a correção mínima proposta foi aplicada ao pé da letra. A invariante acompanha o texto novo em `tests/config.json:579` (padrão) e `:878` (motivo, `R-QA`), e o padrão exige a frase da ordem, de modo que removê-la quebra o teste `Invariantes`. Nenhum texto saiu do lugar além do parêntese descritivo trocado pela ordem; "nunca em `/tmp`" permanece.
 
-**Cortes de texto conferidos (nenhuma regra afrouxou):**
-- "(independência)" e "a escrita do plano ... saem do caminho crítico": a regra fica ("sem ler o código do autor"; invariantes `## Plano antecipado` e `no mesmo head do review` seguem casando).
-- "Cobertura de linhas não é meta": o mesmo princípio segue em "Cobertura se diz por obrigação, não em percentual" (seção "Teste nasce de obrigação").
-- "Nunca use um clone sem as refs remotas": reescrito como condição com a mesma checagem obrigatória (`git rev-parse refs/remotes/origin/<base>`).
-- "(só classe, ID da regra, contagem e `arquivo:linha`)": o "no formato dele" remete a `docs/engineering/achados-recorrentes.md` ("## Formato"), que mantém a restrição e proíbe texto livre, trecho de código e valor de segredo.
-- "zero violações de acessibilidade críticas ou sérias" → "a acessibilidade aprovada": a seção "## Acessibilidade" mantém "Zero violações críticas ou sérias para aprovar"; mesmo critério.
-- "é o inverso do usual": retórico; o significado da saída 0 fica.
-- Nenhuma frase cortada era invariante: todos os 12 padrões de `invariantes["skills/qa-testing/SKILL.md"]` casam no texto do head (sonda local abaixo).
+Sem achado novo.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Sonda local: os 12 padrões de invariante da skill casam (`python3 -I`, `re.search` sobre `tests/config.json`). Suíte inteira não rodada (CI do PR); o CI do head não foi consultado: o `gh` não está disponível na sessão (lacuna).
+Nenhum risco aceito. Sonda local (`python3`, `re.search`): o padrão novo de `invariantes["skills/qa-testing/SKILL.md"]` casa no texto do head (True). Suíte inteira não rodada (CI do PR); o CI do head não foi consultado: o `gh` não está disponível na sessão (lacuna).
