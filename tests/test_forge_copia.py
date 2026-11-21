@@ -520,5 +520,82 @@ class Limpar(Base):
         self.assertTrue(d.is_dir())
 
 
+class Projeto(Base):
+    """MODELO-COPIAS-EM-PASTA-PROPRIA: num projeto (.forge/config.json, sem .claude-plugin/), a cópia é um clone em <projeto>/.forge/wt,
+    gravável no sandbox dele e fora do git por um .gitignore `*`; o projeto não usa ~/.forge-contrib (R-LIMITES); o Forge segue nela."""
+    def repo(self, pasta, *marcas):
+        pasta.mkdir()
+        self.git(pasta, "init", "-q", "-b", "develop")
+        for m in marcas:
+            (pasta / m).parent.mkdir(parents=True, exist_ok=True)
+            (pasta / m).write_text("{}\n")
+        self.git(pasta, "add", "-A")
+        self.git(pasta, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "i")
+        self.git(pasta, "remote", "add", "origin", str(pasta))
+        self.git(pasta, "update-ref", "refs/remotes/origin/develop", "HEAD")
+        return pasta
+
+    def setUp(self):
+        super().setUp()
+        self.proj = self.repo(self.fora / "proj", ".forge/config.json")
+        self.wt = self.proj / ".forge" / "wt"
+
+    def clonar(self, destino, cwd=None, branch="melhoria/p"):
+        return self.copia("clone", str(destino), "--branch", branch, "--origem", str(self.proj), cwd=cwd or self.proj)
+
+    def test_clone_fica_em_forge_wt_e_fora_do_git_do_projeto(self):
+        r = self.clonar(self.wt / "i1")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.branch_de(self.wt / "i1"), "melhoria/p")
+        self.assertEqual((self.wt / ".gitignore").read_text(), "*\n")
+        self.assertEqual(self.git(self.proj, "status", "--porcelain").stdout, "")
+
+    def test_projeto_recusa_a_pasta_do_forge(self):
+        r = self.clonar(self.pasta / "wt" / "p1")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("fica fora de", r.stderr)
+        self.assertFalse((self.pasta / "wt" / "p1").exists())
+
+    def test_de_dentro_de_uma_copia_vale_a_pasta_do_projeto(self):
+        self.assertEqual(self.clonar(self.wt / "i1").returncode, 0)
+        r = self.clonar(self.wt / "i2", cwd=self.wt / "i1", branch="melhoria/q")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse((self.wt / "i1" / ".forge" / "wt").exists())
+
+    def test_gitignore_que_ja_existe_nao_e_tocado(self):
+        self.wt.mkdir(parents=True)
+        (self.wt / ".gitignore").write_text("x\n")
+        self.assertEqual(self.clonar(self.wt / "i1").returncode, 0)
+        self.assertEqual((self.wt / ".gitignore").read_text(), "x\n")
+
+    def test_o_forge_segue_com_a_pasta_do_home(self):
+        forge = self.repo(self.fora / "forge", ".forge/config.json", ".claude-plugin/plugin.json")
+        r = self.clonar(forge / ".forge" / "wt" / "f1", cwd=forge)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertEqual(self.clonar(self.pasta / "wt" / "f2", cwd=forge).returncode, 0)
+        self.assertFalse((self.pasta / ".gitignore").exists())
+        self.assertFalse((forge / ".forge" / "wt").exists())
+
+    def test_fora_de_git_vale_a_pasta_do_home(self):
+        solta = self.fora / "solta"
+        (solta / ".forge").mkdir(parents=True)
+        (solta / ".forge" / "config.json").write_text("{}\n")
+        self.env["GIT_CEILING_DIRECTORIES"] = str(self.fora)
+        r = self.clonar(self.pasta / "wt" / "s1", cwd=solta)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_limpar_apaga_a_copia_do_projeto(self):
+        fal = self.home.parent / "falsos"
+        fal.mkdir()
+        (fal / "gh").write_text(GH_ESTADOS)
+        (fal / "gh").chmod(0o755)
+        (self.home.parent / "estados").write_text("CLOSED false\n")
+        self.env.update(PATH=f"{fal}:{os.environ['PATH']}", GH_ESTADOS=str(self.home.parent / "estados"), GH_FALHA=str(fal / "nao"))
+        self.assertEqual(self.clonar(self.wt / "c1").returncode, 0)
+        r = self.copia("limpar", str(self.wt / "c1"), cwd=self.proj)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse((self.wt / "c1").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
