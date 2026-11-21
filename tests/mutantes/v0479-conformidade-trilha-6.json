@@ -66,7 +66,7 @@
       "id": "T6",
       "guarda": "o shell que lê a entrada numa linha que cita o envio recusa (E63.5, A4)",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if cita_o_envio and programa and shell_que_le_a_entrada(nomes, valores, opacas):  # o `in` antes: custo do corpus\n",
+      "de": "        if cita_o_envio and programa and shell_que_le_a_entrada(nomes, valores, opacas, comando.redirecoes):  # o `in` antes\n",
       "para": "        if False:\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"

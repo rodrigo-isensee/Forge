@@ -51,6 +51,26 @@
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
       ]
+    },
+    {
+      "id": "V6",
+      "guarda": "o shell com a entrada tirada de um arquivo não lê o pipe (E63.5, E51.10)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if redirecoes and any(r.operador == \"<\" and r.alvo and not SUBSTITUICAO_NA_PALAVRA.search(r.alvo.cru) for r in redirecoes):\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "V7",
+      "guarda": "a entrada tirada de <(…) é texto opaco (E63.5, A4)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if redirecoes and any(r.operador == \"<\" and r.alvo and not SUBSTITUICAO_NA_PALAVRA.search(r.alvo.cru) for r in redirecoes):\n",
+      "para": "    if any(r.operador == \"<\" and r.alvo for r in redirecoes):\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
     }
   ]
 }
