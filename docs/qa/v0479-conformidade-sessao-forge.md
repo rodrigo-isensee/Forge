@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-conformidade-sessao-forge
-commit: 96c0215fff321bb1192c84fc712987b59496e8bc
+commit: 6aa5b7bec87035d37234363585f610a674fa0655
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -99,3 +99,14 @@ Delta por `forge-check parecer delta` (sem o que veio da `develop`): `docs/hooks
 | Barreira de papel nas pastas de parecer (E50, `test_fixtures_do_parecer_pelo_papel`, pisos 13 e 25) | check-run `bateria` do PR | papel x pasta x forma | herdado do parecer do E50 |
 
 Prova: `python3 -m unittest tests.test_hooks_volta_corpus tests.test_indice_fixtures` (sem `-I`): `Ran 40 tests in 159.608s · OK`. A aritmética do registro em `tests/provas/v0479-corpus-custo.md` ("Soma do E50 e do E51") confere com a constante e com as duas decisões. Sem teste novo de regra do E51 no delta (vermelho antes do verde não se aplica). Suíte inteira: só no CI do PR, não rodada aqui.
+
+## Revalidação E51.37 (head 6aa5b7be, delta 96c0215f..6aa5b7be)
+
+Delta por `forge-check parecer delta`: só a fixture `tests/hooks/conformidade/e51-wt-ponto-argumento-pipe-aninhado-libera.json` (comando passa de `docs/reviews` para `docs/regras`, descrição explica: a ação crítica fica fora das pastas de parecer, para a barreira de papel do E50 não recusar por outro motivo, E51.34). Nenhum código de hook mudou. Remoto sem avanço (`git fetch`: igual ao head local). Suíte inteira: só no CI do PR, não rodada aqui.
+
+| Obrigação | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| `find .` depois de pipe, no texto reavaliado, segue livre; o motivo da liberação é a regra do E51, não a barreira de papel (E51.34) | `HookSessaoDoForge.test_travas_do_conformidade` (`e51-wt-ponto-argumento-pipe-aninhado-libera`) | ponto como argumento; pasta fora de parecer | passou |
+| Teto da soma e índice das fixtures inalterados | `tests.test_hooks_volta_corpus`, `tests.test_indice_fixtures` | 5897219; 3196 fixtures | passou |
+
+Provas: `python3 -I -m unittest discover -s tests -p test_hooks.py -k HookSessaoDoForge`: `Ran 2 tests in 5.020s`, `OK`. `python3 -m unittest tests.test_hooks_volta_corpus tests.test_indice_fixtures` (sem `-I`): `Ran 40 tests in 109.260s`, `OK`. `-k test_fixtures` (30 testes, 607 s): `FAILED (failures=2, skipped=4)`; as 2 falhas são o subteste `pesado/mesma-sessao-libera` (`test_fixtures` e `test_fixtures_do_v0442`, `PrazoEstourado: prazo de 120 s estourado`, `hooks/pesado.py`, usuário 5 s de CPU: espera, não cálculo). O delta não toca `hooks/pesado.py` nem fixtures `pesado/`; a mesma falha ocorre no head anterior aprovado 96c0215f (cópia `git archive` em `$TMPDIR`, `-k test_fixtures_do_v0442`: `Ran 1 test in 134.555s`, `FAILED (failures=1)`, mesmo subteste). Todas as fixtures `conformidade/` passaram. É ambiente do sandbox (mesma classe do L08 em `docs/qa/lote-l08.md`), não do delta; o CI (`bateria`) decide. Sem teste novo de regra no delta (só comando de fixture e descrição): vermelho antes do verde não se aplica.
