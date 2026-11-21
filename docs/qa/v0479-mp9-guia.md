@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-mp9-guia
-commit: e266490b885f01366dfd6abb80ef65950ffa90e5
+commit: 048b5baa53dc327d642bece4b0b90310b19b28dd
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -47,3 +47,6 @@ Delta desde a8d4dce4: merge da develop (duas linhas em `templates/projeto/CLAUDE
 
 ## Revalidação (E24.24, head e266490b)
 `forge-check parecer delta` (862d9ecb..e266490b, sem o que veio da base): no domínio do QA `README.md`, `bin/forge-testes`, `tests/pesos-d4.json` e `tests/test_reval_delta.py`; o delta é o merge da develop com dois conflitos de lista resolvidos com os dois itens: `FORGE_CHECK` e `LEITORES_DE_TEXTO` em `bin/forge-testes` (`test_comando_pronto`, `test_retro_pendentes`, `test_comparar` junto de `test_guia_varios_projetos`; os módulos existem) e `CITACOES_CONHECIDAS` em `tests/test_reval_delta.py` (entradas da develop e a do guia presentes); `pesos-d4.json` segue JSON válido. Rodados com TMPDIR: `test_guia_varios_projetos.py` (4 testes, OK), `test_testes_tocados.py` (196 testes, OK; 1 pulado pelo sandbox) e `test_reval_delta.py` (10 testes, OK). Suíte inteira: check-run `bateria` do CI do PR, sem rerrodar. Parecer: aprovado.
+
+## Revalidação (E24.29, head 048b5baa)
+`forge-check parecer delta` (e266490b..048b5baa): no domínio do QA só `tests/test_conferir_reversao.py`; o delta é uma linha no `setUp` (cria `tests/test_guia_varios_projetos.py` no repositório falso, pois o MAPA leva `README.md` também ao guia) e o comentário que a explica; sem código de produção. Rodados com TMPDIR: `test_conferir_reversao.py` (13 testes, OK), `test_guia_varios_projetos.py` (4, OK) e `test_testes_tocados.py` (196, OK; 1 pulado pelo sandbox, o mesmo da rodada anterior). Suíte inteira: check-run `bateria` do CI do PR, sem rerrodar. Parecer: aprovado.
