@@ -26,8 +26,8 @@
       "id": "CMP77",
       "guarda": "AE7.1 fora_da_medida: lote dos .md que falha (A13)",
       "arquivo": "bin/forge_comparar.py",
-      "de": "if cod != 0 or textos is None or any(",
-      "para": "if textos is None or any(",
+      "de": "if cod != 0 or textos is None or not all(",
+      "para": "if textos is None or not all(",
       "testes": [
         "tests.test_comparar.HooksForaDoHooksJson.test_leitura_dos_md_que_falha_e_nao_verificavel"
       ]
@@ -54,10 +54,10 @@
     },
     {
       "id": "CMP80",
-      "guarda": "AE7.1 fora_da_medida: hooks no cabeçalho de .md (A13)",
+      "guarda": "AE7.1 fora_da_medida: cabeçalho de .md fora da forma simples (F6)",
       "arquivo": "bin/forge_comparar.py",
-      "de": "any(CABECALHO_SUSPEITO.search(cabecalho(",
-      "para": "any(None and CABECALHO_SUSPEITO.search(cabecalho(",
+      "de": "not all(cabecalho_simples(",
+      "para": "not all(True or cabecalho_simples(",
       "testes": [
         "tests.test_comparar.CabecalhoDoMd.test_hooks_em_qualquer_forma_no_cabecalho_e_nao_verificavel"
       ]
@@ -66,8 +66,8 @@
       "id": "CMP81",
       "guarda": "AE7.1 fora_da_medida: o fim da lista do ls-tree não é entrada (A11)",
       "arquivo": "bin/forge_comparar.py",
-      "de": "for e in lista.split(b\"\\0\") if e]",
-      "para": "for e in lista.split(b\"\\0\") if True]",
+      "de": "e, re.S) for e in lista.split(b\"\\0\") if e]",
+      "para": "e, re.S) for e in lista.split(b\"\\0\") if True]",
       "testes": [
         "tests.test_comparar.Medida.test_mesma_arvore_mede_zero"
       ]

@@ -14,9 +14,9 @@
     },
     {
       "id": "CMP51",
-      "guarda": "AE7.1 fora_da_medida: .gitattributes em qualquer pasta (A2)",
+      "guarda": "AE7.1 fora_da_medida: .gitattributes e .gitmodules em qualquer pasta (F2)",
       "arquivo": "bin/forge_comparar.py",
-      "de": "    if any(os.path.basename(n).lower() == b\".gitattributes\" for _, _, n in itens):",
+      "de": "    if any(os.path.basename(n).lower() in NOMES_FORA for _, _, n in itens):",
       "para": "    if False:",
       "testes": [
         "tests.test_comparar.ComoOClone.test_gitattributes_em_qualquer_lado_e_nao_verificavel"

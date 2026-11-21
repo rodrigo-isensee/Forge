@@ -43,16 +43,6 @@
       ]
     },
     {
-      "id": "CMP37",
-      "guarda": "AE7.1 extrair: submódulo não derruba",
-      "arquivo": "bin/forge_comparar.py",
-      "de": "if e and not e.startswith(b\"160000 \")]",
-      "para": "if e]",
-      "testes": [
-        "tests.test_comparar.ComoOClone.test_submodulo_nao_derruba_a_extracao"
-      ]
-    },
-    {
       "id": "CMP38",
       "guarda": "AE7.1 veredito: allow é o nível mais alto",
       "arquivo": "bin/forge_comparar.py",

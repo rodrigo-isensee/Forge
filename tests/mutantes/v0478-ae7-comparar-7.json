@@ -4,9 +4,9 @@
   "mutantes": [
     {
       "id": "CMP48",
-      "guarda": "AE7.1 extrair: link não se grava (A11)",
+      "guarda": "AE7.1 extrair: modo fora da F1 não se grava (A11)",
       "arquivo": "bin/forge_comparar.py",
-      "de": "            if modo == b\"120000\":",
+      "de": "            if modo not in MODOS:",
       "para": "            if False:",
       "testes": [
         "tests.test_comparar.LinksESource.test_extrair_nao_grava_link"

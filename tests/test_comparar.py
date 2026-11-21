@@ -281,7 +281,7 @@ class Refs(Base):
         os.symlink("/etc/passwd", self.repo.pasta / "hooks" / "fora")
         head = self.repo.commit()
         rc, linhas = self.comparar(self.base, head)
-        self.assertEqual((rc, linhas), (2, ["so-aperta: nao-verificavel (link simbólico na árvore)"]))
+        self.assertEqual((rc, linhas), (2, ["so-aperta: nao-verificavel (F1 modo 120000 na árvore)"]))
 
 
 class Subcomando(Base):
@@ -376,11 +376,12 @@ class HooksForaDoHooksJson(Base):
             "caminho no plugin.json": (".claude-plugin/plugin.json", json.dumps({"name": "p", "hooks": "./outro.json"})),
             "chave escapada": (".claude-plugin/plugin.json", '{"name": "p", "\\u0068ooks": "./outro.json"}'),
             "plugin.json ilegível": (".claude-plugin/plugin.json", '{"name": "p", '),
+            "hooks dentro de author": (".claude-plugin/plugin.json", json.dumps({"name": "p", "author": {"hooks": "x"}})),
             "entrada do marketplace": (".claude-plugin/marketplace.json",
                                        json.dumps({"name": "m", "plugins": [{"name": "p", "source": "./", "hooks": hook}]}))}
         for nome, (rel, texto) in manifestos.items():
             with self.subTest(nome):
-                self.assert_nos_dois_lados({rel: texto}, f"hooks declarados em {rel}")
+                self.assert_nos_dois_lados({rel: texto}, f"{'F5' if 'market' in rel else 'F4'} {rel} fora da lista")
 
     def test_manifesto_sem_hooks_mede(self):
         extra = {".claude-plugin/plugin.json": json.dumps({"name": "p", "description": "hooks: nenhum"}),
@@ -394,10 +395,10 @@ class HooksForaDoHooksJson(Base):
             cod, saida = fc.git(raiz, *args, **kw)
             return (128, saida) if args[:2] == ("cat-file", "blob") and args[2].endswith("plugin.json") else (cod, saida)
         self.assertEqual(self.comparar(self.base, head, {**CTX, "git": git}),
-                         (2, ["so-aperta: nao-verificavel (hooks declarados em .claude-plugin/plugin.json)"]))
+                         (2, ["so-aperta: nao-verificavel (F4 .claude-plugin/plugin.json fora da lista)"]))
 
     def test_hooks_no_cabecalho_de_agente_ou_skill_e_nao_verificavel(self):
-        motivo = "hooks declarados no cabeçalho de agente ou skill"
+        motivo = "F6 cabeçalho de .md fora da forma simples"
         for rel in ("agents/a.md", "skills/s/SKILL.md", "stacks/x/agents/b.md", "stacks/x/skills/t/SKILL.MD"):
             with self.subTest(rel):
                 self.assert_nos_dois_lados({rel: AGENTE_COM_HOOK}, motivo)
@@ -417,7 +418,7 @@ class HooksForaDoHooksJson(Base):
                     cod, saida = fc.git(raiz, *args, **kw)
                     return troca(saida) if args[:2] == ("cat-file", "--batch") and b"\n" in kw["entrada"] else (cod, saida)
                 self.assertEqual(self.comparar(head, head, {**CTX, "git": git}),
-                                 (2, ["so-aperta: nao-verificavel (hooks declarados no cabeçalho de agente ou skill)"]))
+                                 (2, ["so-aperta: nao-verificavel (F6 cabeçalho de .md fora da forma simples)"]))
         self.assertEqual(self.comparar(head, head)[0], 0)
 
 
@@ -452,7 +453,7 @@ class LinksESource(Base):
             os.symlink("../notas.txt", pasta / "agents" / "s17.md")
         for monta in (manifesto_por_link, hooks_json_por_link, md_por_link):
             with self.subTest(monta.__name__):
-                self.nos_dois_lados(monta, "link simbólico na árvore")
+                self.nos_dois_lados(monta, "F1 modo 120000 na árvore")
 
     def test_extrair_nao_grava_link(self):
         os.symlink("h.py", self.repo.pasta / "hooks" / "atalho.py")
@@ -486,9 +487,9 @@ class LinksESource(Base):
                 def monta(lista=lista):
                     (self.repo.pasta / ".claude-plugin").mkdir()
                     (self.repo.pasta / rel).write_text(json.dumps({"name": "m", "plugins": lista}))
-                self.nos_dois_lados(monta, "plugin fora da raiz: source no marketplace.json")
+                self.nos_dois_lados(monta, "F5 .claude-plugin/marketplace.json fora da lista")
         with self.subTest("marketplace que não é objeto"):
-            self.assertTrue(C.plugin_fora_da_raiz("[]"))
+            self.assertTrue(C.marketplace_fora_da_lista("[]"))
         for source in (".", "./"):
             with self.subTest(source):
                 head = self.repo.commit(extra={rel: json.dumps({"name": "m", "plugins": [{"name": "p", "source": source}]})})
@@ -498,7 +499,7 @@ class LinksESource(Base):
 class CabecalhoDoMd(Base):
     """A13 (sondas S14b a S14d) e A6: no cabeçalho YAML de qualquer `.md`, leitura conservadora; o corpo não conta."""
 
-    MOTIVO = "hooks declarados no cabeçalho de agente ou skill"
+    MOTIVO = "F6 cabeçalho de .md fora da forma simples"
 
     def test_hooks_em_qualquer_forma_no_cabecalho_e_nao_verificavel(self):
         cabecalhos = {"recuado": "---\n  name: a\n  hooks:\n    PreToolUse: []\n---\n",
@@ -527,13 +528,71 @@ class CabecalhoDoMd(Base):
                 self.assertEqual(self.comparar(self.base, self.repo.commit(extra={"docs/y.md": texto}))[0], 0)
 
 
+class ListaDeForma(Base):
+    """Emenda AE7.1 (E58.52): fora da lista positiva F1 a F7, em qualquer lado, nao-verificavel com o item que falhou."""
+
+    def nos_dois_lados(self, extra, motivo):
+        com = self.repo.commit(extra=extra)
+        self.repo.git("reset", "-q", "--hard", self.base)
+        self.repo.git("clean", "-q", "-fdx")
+        esperado = (2, [f"so-aperta: nao-verificavel ({motivo})"])
+        self.assertEqual(self.comparar(self.base, com), esperado)  # no head
+        self.assertEqual(self.comparar(com, self.base), esperado)  # na base
+
+    def test_f3_arquivo_de_convencao_na_raiz(self):
+        for nome in (".mcp.json", ".lsp.json", "settings.json", ".MCP.json"):
+            with self.subTest(nome):
+                self.nos_dois_lados({nome: "{}"}, f"F3 {nome} na raiz")
+        self.assertEqual(self.comparar(self.base, self.repo.commit(extra={"docs/settings.json": "{}", "a/.mcp.json": "{}"}))[0], 0)
+
+    def test_f4_chave_fora_da_lista_no_plugin_json(self):
+        rel = ".claude-plugin/plugin.json"
+        for chave in ("mcpServers", "lspServers", "monitors", "outputStyles", "experimental", "chave-futura"):
+            with self.subTest(chave):
+                self.nos_dois_lados({rel: json.dumps({"name": "p", chave: "./x.json"})}, f"F4 {rel} fora da lista")
+        with self.subTest("não é objeto"):
+            self.nos_dois_lados({rel: "[]"}, f"F4 {rel} fora da lista")
+        todas = {c: "x" for c in C.CHAVES_PLUGIN}
+        self.assertEqual(self.comparar(self.base, self.repo.commit(extra={rel: json.dumps(todas)}))[0], 0)
+
+    def test_f5_marketplace_fora_da_lista(self):
+        rel, entrada = ".claude-plugin/marketplace.json", {"name": "p", "source": "."}
+        fora = {"pluginRoot": {"name": "m", "metadata": {"pluginRoot": "./outro"}, "plugins": [entrada]},
+                "metadata que não é objeto": {"name": "m", "metadata": [], "plugins": [entrada]},
+                "chave fora na raiz": {"name": "m", "strict": False, "plugins": [entrada]},
+                "agents na entrada": {"name": "m", "plugins": [{**entrada, "agents": ["./a.md"]}]},
+                "sem plugins": {"name": "m"}}
+        for nome, objeto in fora.items():
+            with self.subTest(nome):
+                self.nos_dois_lados({rel: json.dumps(objeto)}, f"F5 {rel} fora da lista")
+        dentro = {"$schema": "x", "name": "m", "owner": {"name": "o"}, "metadata": {"description": "d", "version": "1"},
+                  "plugins": [{**{c: "x" for c in C.CHAVES_ENTRADA}, "source": "./"}]}
+        self.assertEqual(self.comparar(self.base, self.repo.commit(extra={rel: json.dumps(dentro)}))[0], 0)
+
+    def test_f6_cabecalho_fora_da_forma_simples(self):
+        motivo = "F6 cabeçalho de .md fora da forma simples"
+        fora = {"allowed-tools": "---\nname: a\nallowed-tools: Bash\n---\n",
+                "Hooks maiúsculo": "---\nHooks: {}\n---\n",
+                "1ª linha recuada": "---\n  name: a\n---\n",
+                "chave de fusão": "---\nname: &a x\n<<: *a\n---\n",
+                "diretiva": "---\n%YAML 1.2\nname: a\n---\n",
+                "sem espaço depois dos dois pontos": "---\nhooks:{}\n---\n"}
+        for nome, texto in fora.items():
+            with self.subTest(nome):
+                self.nos_dois_lados({"agents/a.md": texto}, motivo)
+        dentro = ("---\n# comentário\nname: a\ndescription: |\n  hooks: no valor recuado\n  ? e & * ! não contam\n"
+                  "tools: Read, Grep\nmodel-x_1: v\n---\nhooks:\n")
+        self.assertEqual(self.comparar(self.base, self.repo.commit(extra={"agents/a.md": dentro}))[0], 0)
+
+
 class ComoOClone(Base):
     """A2: a árvore extraída é a do clone; `.gitattributes` em qualquer pasta de um lado é nao-verificavel."""
 
     def test_gitattributes_em_qualquer_lado_e_nao_verificavel(self):  # sondas S2, S6, S7
         atributos = {".gitattributes": "hooks/h.py export-subst\n", "hooks/.gitattributes": "h.py ident\n",
-                     "a/b/.gitattributes": "c.py working-tree-encoding=UTF-16LE\n", ".GitAttributes": "* eol=crlf\n"}
-        esperado = (2, ["so-aperta: nao-verificavel (atributos de checkout: .gitattributes na árvore)"])
+                     "a/b/.gitattributes": "c.py working-tree-encoding=UTF-16LE\n", ".GitAttributes": "* eol=crlf\n",
+                     ".gitmodules": "[submodule \"s\"]\n", "a/.GitModules": "[submodule \"s\"]\n"}
+        esperado = (2, ["so-aperta: nao-verificavel (F2 .gitattributes ou .gitmodules na árvore)"])
         for rel, texto in atributos.items():
             with self.subTest(rel):
                 com = self.repo.commit(extra={rel: texto})
@@ -545,7 +604,7 @@ class ComoOClone(Base):
         for matcher in ("(?i)bash", "Ba.*", 7):
             with self.subTest(matcher):
                 head = self.repo.commit(config=hooks_json(matcher=matcher))
-                self.assertEqual(self.comparar(head, head), (2, ["so-aperta: nao-verificavel (matcher fora da forma simples "
+                self.assertEqual(self.comparar(head, head), (2, ["so-aperta: nao-verificavel (F7 matcher fora da forma simples "
                                                                  "em hooks/hooks.json)"]))
         for matcher in ("*", "", "Write|Edit|Bash"):
             with self.subTest(matcher):
@@ -560,11 +619,13 @@ class ComoOClone(Base):
         rc, linhas = self.comparar(base, self.repo.commit(hook="#!/usr/bin/env python3\n" + LIBERA, config=config))
         self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: proibido base=recusa head=aceite"]))
 
-    def test_submodulo_nao_derruba_a_extracao(self):
+    def test_submodulo_e_nao_verificavel(self):  # F1 (A14): o clone com --recursive busca conteúdo fora da árvore
         self.repo.git("update-index", "--add", "--cacheinfo", f"160000,{self.base},sub")
         self.repo.git("commit", "-q", "-m", "sub")
         head = self.repo.git("rev-parse", "HEAD")
-        self.assertEqual(self.comparar(self.base, head)[0], 0)
+        esperado = (2, ["so-aperta: nao-verificavel (F1 modo 160000 na árvore)"])
+        self.assertEqual(self.comparar(self.base, head), esperado)
+        self.assertEqual(self.comparar(head, self.base), esperado)
 
     def _com_git(self, troca):
         def git(raiz, *args, **kw):
