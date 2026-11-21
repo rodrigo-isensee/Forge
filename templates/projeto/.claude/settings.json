@@ -1,5 +1,6 @@
 {
   "agent": "forge:jarvis",
+  "viewMode": "focus",
   "extraKnownMarketplaces": {
     "forge": {
       "source": { "source": "github", "repo": "rodrigo-isensee/Forge" },

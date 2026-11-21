@@ -1,0 +1,29 @@
+{
+  "descricao": "CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1, S1-S4 de docs/security/v0479-pv-a1-adr.md; R-CONFORMIDADE): sessão do Forge, `git add -f` do config da raiz (estado dos hooks).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "docs/security/aceites/x.md": "aceite\n",
+    "docs/qa/q.md": "q\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj",
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git add -f .forge/config.json"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "grava no índice"
+  },
+  "forge": false
+}

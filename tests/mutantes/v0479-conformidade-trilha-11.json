@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-conformidade-trilha",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Y1",
+      "guarda": "a saída redirecionada não conta como a entrada (E63.9, A12)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if r.prefixo.strip(\"0\") == \"\" and (r.prefixo or r.operador[0] == \"<\"):\n",
+      "para": "        if r.prefixo.strip(\"0\") == \"\":\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "Y2",
+      "guarda": "só o `<` simples tira a entrada de arquivo (E63.9, A12)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    alvo = ultima.alvo if ultima and ultima.operador == \"<\" else None  # `<<<`, `<&`, `<>` e `0>&` não são arquivo\n",
+      "para": "    alvo = ultima.alvo if ultima and ultima.operador[0] == \"<\" else None  # `<<<`, `<&`, `<>` e `0>&` não são arquivo\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "Y3",
+      "guarda": "o alvo com curinga ou substituição não é arquivo (E63.9, A12)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if alvo is None or re.search(r\"[`*?[{]|<\\(\", alvo.cru):\n",
+      "para": "    if alvo is None:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "Y4",
+      "guarda": "o alvo de só dígitos (`fd/0` relativo) não é arquivo (E63.9, A12)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return \"$\" not in nome and not NAO_E_ARQUIVO.intersection(partes) and not partes[-1].isdigit()\n",
+      "para": "    return \"$\" not in nome and not NAO_E_ARQUIVO.intersection(partes)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "Y5",
+      "guarda": "o alvo com `dev`, `proc` ou `stdin` não é arquivo (E63.9, A12)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return \"$\" not in nome and not NAO_E_ARQUIVO.intersection(partes) and not partes[-1].isdigit()\n",
+      "para": "    return \"$\" not in nome and not partes[-1].isdigit()\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "Y6",
+      "guarda": "a entrada de arquivo segue livre (E63.9, A12)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if redirecoes and entrada_de_arquivo(redirecoes, linha):\n",
+      "para": "    if redirecoes and not entrada_de_arquivo(redirecoes, linha):\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "Y7",
+      "guarda": "o `-c help.autocorrect` troca o subcomando como o alias (E63.9, A13)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if chave.lower().startswith((\"alias.\", \"help.autocorrect\")):  # A13 da segurança E63.7: `stge` vira `stage`\n",
+      "para": "        if chave.lower().startswith((\"alias.\")):  # A13 da segurança E63.7: `stge` vira `stage`\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
+      ]
+    },
+    {
+      "id": "Y8",
+      "guarda": "o `git config --worktree help.autocorrect` também recusa (E63.9, A13)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        do_merge = bool(CONFIG_DO_MERGE.match(chaves[0])) or chaves[0].lower().startswith(\"help.autocorrect\")  # A13\n",
+      "para": "        do_merge = bool(CONFIG_DO_MERGE.match(chaves[0]))  # A13\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
+      ]
+    }
+  ]
+}

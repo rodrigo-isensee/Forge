@@ -1,5 +1,7 @@
 """SESSAO-AUTOMATICA (diretriz 28, v047 E1.198): todo atalho e instrução de abrir ou retomar o Jarvis usa --permission-mode auto;
+DIR-31: visão de foco por padrão e linguagem fácil no Jarvis;
 GH-VERSAO-MINIMA: o preparar-estacao.sh exige gh >= 2.47 e instala pelo repositório oficial."""
+import json
 import re
 import subprocess
 import sys
@@ -92,6 +94,86 @@ class AtalhosAbremNoAutomatico(unittest.TestCase):
         self.assertIn(MODO, texto)
         self.assertIn("confere o sandbox", texto)
 
+
+# DIR-31 (diretriz 31, v0478 E67.1): visão de foco (Focus view) ligada por padrão no atalho `jarvis` e no modelo de projeto,
+# sem decidir pelo dono quando um arquivo dele já decide; e a regra de linguagem fácil no texto do Jarvis.
+FOCO_E_TELA = '--settings {"viewMode":"focus","tui":"fullscreen"}'
+
+
+class AtalhoAbreNaVisaoDeFoco(unittest.TestCase):
+    setUp, chamadas = tf.JarvisForgeVigente.setUp, tf.JarvisForgeVigente.chamadas
+
+    def abrir(self, usuario=None, projeto=None, local=None, **env):
+        """Roda scripts/jarvis num projeto novo com os três arquivos dados (None: ausente); devolve a linha do `claude` aberto."""
+        pasta = Path(tempfile.mkdtemp(dir=self.home))
+        (pasta / ".claude").mkdir()
+        (self.home / ".claude").mkdir(exist_ok=True)
+        for arquivo, corpo in ((self.home / ".claude/settings.json", usuario), (pasta / ".claude/settings.json", projeto),
+                               (pasta / ".claude/settings.local.json", local)):
+            arquivo.unlink(missing_ok=True)
+            if corpo is not None:
+                arquivo.write_text(corpo, encoding="utf-8")
+        self.registro.unlink(missing_ok=True)
+        ambiente = {k: v for k, v in self.env.items()
+                    if k not in ("CLAUDE_CONFIG_DIR", "CLAUDE_CODE_NO_FLICKER", "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN")}
+        r = subprocess.run(["bash", str(RAIZ / "scripts/jarvis"), "--sem-tmux"], cwd=pasta, env={**ambiente, **env},
+                           capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        abertos = [c for c in self.chamadas() if c.startswith("claude --")]
+        self.assertEqual(len(abertos), 1, self.chamadas())
+        return abertos[0] + " "
+
+    def test_sem_nenhum_arquivo_liga_a_visao_e_a_tela_cheia(self):
+        linha = self.abrir()
+        self.assertIn(FOCO_E_TELA + " ", linha)
+        self.assertNotIn("--verbose", linha)  # o --verbose venceria o viewMode
+
+    def test_viewmode_em_qualquer_arquivo_do_dono_nao_e_passado(self):
+        for onde in ("usuario", "projeto", "local"):
+            with self.subTest(onde=onde):
+                linha = self.abrir(**{onde: '{"viewMode": "default"}'})
+                self.assertNotIn("--settings", linha)
+
+    def test_viewmode_focus_ja_gravado_so_acrescenta_a_tela_cheia(self):
+        linha = self.abrir(projeto='{"viewMode": "focus"}')
+        self.assertIn('--settings {"tui":"fullscreen"} ', linha)
+        self.assertNotIn("viewMode", linha)
+
+    def test_tui_decidido_por_arquivo_ou_variavel_nao_e_passado(self):
+        casos = ({"local": '{"tui": "default"}'}, {"usuario": '{"tui": "default"}'},
+                 {"CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN": "1"}, {"CLAUDE_CODE_NO_FLICKER": "1"})
+        for caso in casos:
+            with self.subTest(caso=caso):
+                self.assertIn('--settings {"viewMode":"focus"} ', self.abrir(**caso))
+
+    def test_arquivo_ilegivel_nao_decide_pelo_dono(self):
+        for onde in ("usuario", "projeto", "local"):
+            with self.subTest(onde=onde):
+                self.assertNotIn("--settings", self.abrir(**{onde: "{isso nao e json"}))
+
+    def test_arquivo_local_vence_o_projeto(self):
+        linha = self.abrir(projeto='{"viewMode": "focus"}', local='{"viewMode": "default"}')
+        self.assertNotIn("--settings", linha)
+
+    def test_python_que_falha_nao_impede_a_abertura(self):
+        falso = self.home / "py-falso"
+        falso.mkdir()
+        (falso / "python3").write_text("#!/bin/sh\nexit 3\n")
+        (falso / "python3").chmod(0o755)
+        self.assertNotIn("--settings", self.abrir(PATH=f"{falso}:{self.env['PATH']}"))
+
+
+class ModeloELinguagem(unittest.TestCase):
+    def test_modelo_de_projeto_liga_a_visao_sem_trocar_o_renderizador(self):
+        modelo = json.loads((RAIZ / "templates/projeto/.claude/settings.json").read_text(encoding="utf-8"))
+        self.assertEqual(modelo.get("viewMode"), "focus")
+        self.assertNotIn("tui", modelo)  # a tela cheia muda seleção e rolagem de quem clona: fica só no atalho do dono
+
+    def test_jarvis_tem_a_regra_de_linguagem_facil_uma_vez(self):
+        linhas = [l for l in (RAIZ / "agents/jarvis.md").read_text(encoding="utf-8").splitlines() if "**Linguagem fácil:**" in l]
+        self.assertEqual(len(linhas), 1)
+        for trecho in ("frases curtas", "sem nome de branch, pasta nem jargão"):
+            self.assertIn(trecho, linhas[0])
 
 class EstacaoExigeGh(unittest.TestCase):
     def rodar(self, versao):

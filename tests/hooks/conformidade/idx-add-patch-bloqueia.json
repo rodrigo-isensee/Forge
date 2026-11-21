@@ -1,0 +1,25 @@
+{
+  "descricao": "CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1, S1-S4 de docs/security/v0479-pv-a1-adr.md; R-CONFORMIDADE): `git add -p` num caminho quem: [].",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "docs/security/aceites/x.md": "aceite\n",
+    "docs/qa/q.md": "q\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git add -p -- docs/security/aceites/x.md"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "grava no índice"
+  }
+}
