@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae4-ordens
-commit: 18d6d2f4d2afd939cf66ca5f22bc3c7a2a87c8f6
+commit: 916ccb02ece58f2a21179aebdf25e6e40a894d6c
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -14,10 +14,7 @@ data: 2026-11-21
 ---
 # QA: v0478 (E58.73, AE4.1: `forge-check ordens` e `anotar --tipo ordem --cartao`)
 
-Head 18d6d2f4, base 821db42e. Sem suíte local (a suíte inteira é o check-run `bateria` do PR); rodei só os módulos dos arquivos tocados.
-
-## Achados
-- A1 (recomendado) tests/test_ordens.py:48 · `Base.setUp` cria a raiz em `tempfile.mkdtemp`; com TMPDIR dentro de um repositório git (o `~/.forge-contrib` é um), `raiz_principal` aponta para ele e o KANBAN real vence: 2 falhas. Fixar a raiz do teste fora disso (mesmo vício em test_decisoes).
+Head 916ccb02 (revalidação do aprovado em 18d6d2f4: A1 e A2 da segurança), base 821db42e. Sem suíte local (a suíte inteira é o check-run `bateria` do PR); rodei só os módulos dos arquivos tocados.
 
 ## Critério → teste → resultado
 Sem especificação de UX para o pedido; as obrigações são as da etapa AE4.1 (ordem sem cartão listada; `anotar --tipo ordem` exige apontador conferido; decisões intactas).
@@ -34,6 +31,14 @@ Sem especificação de UX para o pedido; as obrigações são as da etapa AE4.1 
 | Etapa/item do pedido vale; inventada não | test_etapa_e_item_do_pedido_valem, test_etapa_inventada_e_recusada | `E5` não casa `E51.1` | passou |
 | Quadro ausente ou link simbólico não confere | test_sem_quadro_so_a_etapa_vale, test_quadro_por_link_nao_confere | sem KANBAN, symlink | passou |
 | Grava `· cartão: <ID>` e a listagem a conta | test_cartao_aberto_grava_a_marca_e_a_listagem_a_conta | marca no fim da linha | passou |
+
+## Revalidação (head 916ccb02)
+Delta: `bin/forge-check` (`recusa_do_apontador` abre o KANBAN.md uma vez por `_ler_regular`, só cartão do próprio pedido), testes e specs de mutantes. O A1 do parecer anterior (raiz de teste sob repositório git) está resolvido: `git init` na raiz temporária de test_ordens e test_decisoes. Novos testes: cartão de outro pedido, FIFO sem travar, quadro acima do teto. TMPDIR fora de repositório git.
+
+- `test_ordens` 17 testes OK; `test_anotar` 18 OK; `test_decisoes` 10 OK.
+- Vermelho: `vermelho: base=821db42ed97e head=916ccb02ece5 módulos=test_ordens`; contagem: não prova (passa na base)=1 (guarda de regressão de decisões); prova (asserção)=16; rc 0.
+- Mutantes, uma chamada por spec, todas rc 0, 24 de 24 mortos (M22 outro pedido, M23 coluna Pedido, M24 FIFO `(erro)` sob o mutante com o controle verde, vale como morto; M6-M8 reescritos para a nova forma).
+- `forge-mutante --cobertura --base 821db42e` rc 0: `base=821db42ed97e83e2108e1b88cace186eed89da6a mb=821db42ed97e83e2108e1b88cace186eed89da6a rev=916ccb02ece58f2a21179aebdf25e6e40a894d6c`; 22 linhas `coberta`, e só `não coberto: tests/pesos-d4.json` (dados, sem guarda).
 
 ## Cenários e resultado real
 Vermelho antes do verde (`TMPDIR` fora de repositório git; ver A1):
