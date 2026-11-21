@@ -69,7 +69,7 @@
       "de": "        if h > b or reescrita_h != reescrita_b:",
       "para": "        if h > b:",
       "testes": [
-        "tests.test_comparar.DecisaoInteira.test_hook_novo_que_aprova_e_reescreve_e_aceite_novo"
+        "tests.test_comparar.DecisaoInteira.test_reescrita_que_muda_e_aceite_novo"
       ]
     },
     {
