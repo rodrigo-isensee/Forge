@@ -272,7 +272,7 @@ class LimparSemMerge(unittest.TestCase):
         self.setUp_f()
         (self.tmp / "bin" / "gh").write_text('#!/bin/sh\ncat "$ESTADO/estados_copia"\n')
         (self.tmp / "bin" / "gh").chmod(0o755)
-        (self.estado / "estados_copia").write_text("CLOSED\n")
+        (self.estado / "estados_copia").write_text("CLOSED false\n")
         (self.estado / "lista_extra").write_text(f"234 CLOSED develop {self.git('rev-parse', 'melhoria/x')}\n")
 
     def limpar(self):

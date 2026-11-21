@@ -334,7 +334,8 @@ class Disco(unittest.TestCase):
             self.assertNotRegex((BIN.parent / nome).read_text(), r"\b90\s*%|>\s*90\b")
 
 
-GH_ESTADOS = '#!/bin/sh\n[ -f "$GH_FALHA" ] && exit 1\ncat "$GH_ESTADOS" 2>/dev/null\nexit 0\n'
+GH_ESTADOS = ('#!/bin/sh\n[ -f "$GH_FALHA" ] && exit 1\ncase "$*" in *isCrossRepository*) ;; *) exit 1 ;; esac\n'
+              'cat "$GH_ESTADOS" 2>/dev/null\nexit 0\n')  # linhas "<estado> <isCrossRepository>", como o --jq do forge-copia
 
 
 class Limpar(Base):
@@ -348,7 +349,7 @@ class Limpar(Base):
         (fal / "gh").chmod(0o755)
         self.estados = self.home.parent / "estados"
         self.env.update(PATH=f"{fal}:{os.environ['PATH']}", GH_ESTADOS=str(self.estados), GH_FALHA=str(self.home.parent / "gh-falha"))
-        self.estados.write_text("CLOSED\n")
+        self.estados.write_text("CLOSED false\n")
 
     def clone(self):
         d = self.pasta / "wt" / "c1"
@@ -379,6 +380,7 @@ class Limpar(Base):
     def test_copia_suja_fica(self):
         d = self.clone()
         (d / "novo").write_text("x\n")
+        (self.home.parent / "gh-falha").write_text("")  # a cópia suja fica antes de qualquer consulta ao gh
         self.fica(d, "mudança ou arquivo novo")
 
     def test_worktree_suja_fica(self):
@@ -411,8 +413,32 @@ class Limpar(Base):
         self.fica(d, "worktree ligada")
 
     def test_pr_aberto_fica(self):
-        self.estados.write_text("CLOSED\nOPEN\n")
+        self.estados.write_text("CLOSED false\nOPEN false\n")
         self.fica(self.clone(), "PR aberto")
+
+    def test_pr_fechado_de_fork_com_o_mesmo_nome_nao_encerra_o_item(self):
+        self.estados.write_text("CLOSED true\n")  # A1: o PR fechado vem de fork; a branch tem commit e não há `vazio: sim`
+        d = self.clone()
+        (d / "so-na-branch").write_text("x\n")
+        self.git(d, "add", "so-na-branch")
+        self.git(d, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "b")
+        self.git(d, "push", "-q", "origin", "melhoria/x")
+        self.fica(d, "vazio: sim")
+
+    def test_escrita_durante_a_consulta_ao_gh_fica(self):
+        d = self.clone()
+        mod = SourceFileLoader("forge_copia_corrida", str(BIN)).load_module()
+
+        def escreve(*_):  # A2: alguém escreve na cópia enquanto o gh responde
+            (d / "novo").write_text("x\n")
+
+        erro = io.StringIO()
+        with mock.patch.dict(os.environ, {"HOME": str(self.home)}), mock.patch.object(mod, "fim_do_item", side_effect=escreve), \
+                redirect_stderr(erro):
+            rc = mod.main(["limpar", str(d)])
+        self.assertEqual(rc, 2, erro.getvalue())
+        self.assertIn("mudou durante a consulta ao gh", erro.getvalue())
+        self.assertTrue((d / "novo").is_file())
 
     def test_gh_que_falha_fica(self):
         (self.home.parent / "gh-falha").write_text("")

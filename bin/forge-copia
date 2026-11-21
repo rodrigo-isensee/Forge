@@ -110,11 +110,15 @@ def ler(cmd, cwd=None):
 
 
 def fim_do_item(copia, branch, base):
-    """None se o item acabou (PR MERGED ou CLOSED e nenhum OPEN; sem PR, `vazio: sim`); senão o motivo para a cópia ficar."""
-    rc, saida = ler(["gh", "pr", "list", "--head", branch, "--state", "all", "--json", "state", "--jq", ".[].state"], copia)
+    """None se o item acabou (PR do próprio repositório MERGED ou CLOSED e nenhum OPEN; sem PR, `vazio: sim`); senão o motivo para a cópia ficar."""
+    rc, saida = ler(["gh", "pr", "list", "--head", branch, "--state", "all", "--json", "state,isCrossRepository",
+                     "--jq", '.[] | "\\(.state) \\(.isCrossRepository)"'], copia)
     if rc:
         return "não li os PRs da branch (gh pr list)"
-    estados = set(saida.split())
+    estados = set()
+    for campos in (linha.split() for linha in saida.splitlines()):
+        if len(campos) == 2 and campos[1] == "false":  # PR de fork com o mesmo nome de branch não encerra o item (A1)
+            estados.add(campos[0])
     if "OPEN" in estados:
         return "a branch tem PR aberto"
     if estados:
@@ -122,6 +126,22 @@ def fim_do_item(copia, branch, base):
     check = os.path.join(os.path.dirname(os.path.realpath(__file__)), "forge-check")
     rc, saida = ler([sys.executable, "-I", check, "vazio", "--ref", branch, "--base", base, "--raiz", copia], copia)
     return None if rc == 0 and saida.startswith("vazio: sim") else "sem PR fechado e sem `vazio: sim` (forge-check vazio)"
+
+
+def sujeira(g, real, worktree):
+    """Motivo para a cópia ficar (mudança, stash, commit fora da origem, worktree ligada) ou None se ela está limpa."""
+    conferir = [(["status", "--porcelain"], "mudança ou arquivo novo")]
+    if worktree:
+        conferir.append((["rev-list", "HEAD", "--not", "--remotes"], "commit fora da origem"))
+    else:
+        conferir += [(["stash", "list"], "stash"), (["rev-list", "--all", "--not", "--remotes"], "commit fora da origem")]
+    for cmd, motivo in conferir:
+        rc, saida = ler([*g, *cmd])
+        if rc or saida.strip():
+            return f"a cópia {real} tem {motivo}; ela fica"
+    if not worktree and ler([*g, "worktree", "list", "--porcelain"])[1].count("worktree ") != 1:
+        return f"o clone {real} tem worktree ligada; ele fica"
+    return None
 
 
 def limpar(destino, base):
@@ -137,20 +157,15 @@ def limpar(destino, base):
     if rc or not ref.startswith("refs/heads/"):
         return recusa("a cópia não está numa branch")
     branch, worktree = ref.strip()[len("refs/heads/"):], os.path.isfile(os.path.join(real, ".git"))
-    conferir = [(["status", "--porcelain"], "mudança ou arquivo novo")]
-    if worktree:
-        conferir.append((["rev-list", "HEAD", "--not", "--remotes"], "commit fora da origem"))
-    else:
-        conferir += [(["stash", "list"], "stash"), (["rev-list", "--all", "--not", "--remotes"], "commit fora da origem")]
-    for cmd, motivo in conferir:
-        rc, saida = ler([*g, *cmd])
-        if rc or saida.strip():
-            return recusa(f"a cópia {real} tem {motivo}; ela fica")
-    if not worktree and ler([*g, "worktree", "list", "--porcelain"])[1].count("worktree ") != 1:
-        return recusa(f"o clone {real} tem worktree ligada; ele fica")
+    antes = sujeira(g, real, worktree)
+    if antes:
+        return recusa(antes)
     motivo = fim_do_item(real, branch, base)
     if motivo:
         return recusa(f"o item de {branch} não acabou: {motivo}; a cópia fica")
+    depois = sujeira(g, real, worktree)  # de novo, logo antes de apagar: a escrita feita durante a consulta ao gh não se perde (A2)
+    if depois:
+        return recusa(f"{depois} (mudou durante a consulta ao gh)")
     if worktree:
         if subprocess.run([*g, "worktree", "remove", real]).returncode:
             return 1
