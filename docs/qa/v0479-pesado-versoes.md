@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-pesado-versoes
-commit: f8210fe5ab1eecfebab8b1692aa41b135e7df284
+commit: 4d3f76d441f1c276b554497e69c4330556dc3433
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
