@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-entrega-por-branch
-commit: f4689e1254bf579f5110b4f58c677fac1b9f05e3
+commit: f39a94ed266957ef62be4bc1061c2581da54a7db
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
 ---
-# Review: v0478 E79.2, ENTREGA-POR-BRANCH (K-345)
+# Review: v0478 E79.2 e E79.7, ENTREGA-POR-BRANCH (K-345)
 
 Escopo: `adc52def..f4689e12`, 1 commit, 5 arquivos; código só em `bin/forge-check` (8 linhas a mais, 2 a menos, dentro do H1). Comparado com o Entregar do E79.1 (as duas partes do K-345 que reproduzem).
 
@@ -22,9 +22,13 @@ Escopo: `adc52def..f4689e12`, 1 commit, 5 arquivos; código só em `bin/forge-ch
 - `cmd_entrega_conferir`: a recusa vale só com `gravar`; o `--sem-gravar` segue conferindo (M4 prova). O teste cobre recusa, o `--sem-gravar` e a gravação depois do envio.
 - Commit em Conventional Commits, com fragmento em `changelog.d/` (R-CONTRIB); sem mudança em regra, invariante ou neutralidade (R-NEUTRO).
 
-## Achados
-- A1 (recomendado) bin/forge-check:1605 · a mensagem "isento de QA" (e a da linha 1619) ainda descreve o critério como só o MD_DE_CONTROLE; com o K-345 ele é o motivo_de_controle da classe. Atualizar o texto.
-- A2 (recomendado) bin/forge-check:10081 · sem origin/<branch> (branch nunca enviada) a gravação segue com a ponta local, como em test_cumpriu_grava_uma_vez; e a ref lida é a de rastreio local, não o ls-remote. Decidir se "só a ponta enviada" cobre esse caso.
+## Revalidação E79.7 (delta f4689e12..f39a94ed)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-entrega-por-branch.md`, no domínio `bin/forge-check`, `changelog.d/v0479-entrega-por-branch.md`, `tests/mutantes/v0479-entrega-por-branch.json` e `tests/test_selo_e_entrega.py`; nada fora dele relido.
+- A1 e A2 da segurança e o meu A2: a gravação lê a ponta por `remoto_da_branch` (ls-remote, nome exato); `not lido` (sem resposta) e `remoto is None` (branch ausente) recusam, falha fechada; a ref de rastreio local não decide mais (M6). `recusa_da_gravacao` só monta o motivo, um por ramo (M7, M8).
+- Meu A1: as duas mensagens "isento de QA" (1605, 1619) citam os caminhos de controle da classe C. Fechado.
+- Testes: 3 novos (branch nunca enviada, ref de rastreio apagada ou forjada, origin sem resposta), cada um no ramo de falha, com o `--sem-gravar` ainda conferindo; os que gravam passam a enviar antes (`enviar`, `entrega_gravando`). Rodados aqui os 4 testes K-345 da `Entrega`: `Ran 4 tests` / `OK`.
+- `bin/forge-mutante` (autor, `/root/.forge-contrib/wt/e795-saida/mutante.log`, rev f39a94ed2669): M1 a M8 `morreu`, `rc=0`; um mutante por guarda mudada (10024, 10026, 10091, 10092).
+- Módulo `tests.test_selo_e_entrega` rodado aqui: o log do autor no `e795-saida` é de 15:06, antes da correção, e está cortado; `Ran 176 tests` / `OK` (`/root/.forge-contrib/wt/e797-tl-selo.log`).
 
 ## Parecer
-Aprovado no head f4689e12. As duas correções fazem o que o E79.1 pede, com teste do ramo de falha e mutante morto por guarda (R-REVIEW). A1 e A2 são recomendações e viram cartão depois do merge.
+Aprovado no head f4689e12. As duas correções fazem o que o E79.1 pede, com teste do ramo de falha e mutante morto por guarda (R-REVIEW). Revalidado no head f39a94ed: A1 e A2 fechados no delta, sem achado novo.
