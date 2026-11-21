@@ -3,51 +3,57 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae7-comparador
-commit: 757355b43bd7f4bb2b3b5dd109270cdb1d426f80
+commit: 2d1fa4faf827fbe077af623b60c21ca05882dec4
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
 ---
-# Review: v0478 (E58.49, AE7.1 `forge-check comparar`, revalidação no head 757355b4)
+# Review: v0478 (E58.54, AE7.1 `forge-check comparar`, revalidação no head 2d1fa4fa)
 
-Revalidação (H3, R-REVIEW) do parecer aprovado em f133eb07 (E58.45, head f50171d2). Delta lido por
-`forge-check parecer delta docs/reviews/v0479-ae7-comparador.md`: intervalo `f50171d2..757355b4`, no domínio
+Revalidação (H3, R-REVIEW) do parecer aprovado em 2a7f9ec2 (E58.49, head 757355b4). Delta lido por
+`forge-check parecer delta docs/reviews/v0479-ae7-comparador.md`: intervalo `757355b4..2d1fa4fa`, no domínio
 `bin/forge-check`, `bin/forge_comparar.py`, `changelog.d/v0479-ae7-comparador.md`,
-`tests/mutantes/v0478-ae7-comparar-{5,7,8,10,11,12}.json` e `tests/test_comparar.py`. Fora do delta nada foi relido.
+`docs/propostas/v0479-melhorias-anti-erro.md` (emenda AE7.1, E58.52), `tests/mutantes/v0478-ae7-comparar-{5,7,8,10..16}.json`
+e `tests/test_comparar.py`. Fora do delta nada foi relido.
 
-## Conferido
-- A11 (link simbólico): `fora_da_medida` lê o `ls-tree -r -z -l`; modo 120000 em qualquer pasta dá `nao-verificavel`
-  (link simbólico na árvore), lista que falha ou não casa dá "árvore ilegível"; `extrair` deixa de gravar link (devolve
-  False). Testes `LinksESource` (S15 a S17) nos dois lados. Na árvore real (`HEAD`, `origin/develop`, `origin/main`): 0 links.
-- A12 (source do marketplace): `plugin_fora_da_raiz` exige uma entrada só com `source` `.` ou `./`; JSON ilegível, objeto,
-  repositório de fora e dois plugins dão rc 2. O marketplace real tem `['.']`, então a medida segue útil.
-- A13 (cabeçalho YAML): só o bloco entre os `---` iniciais (BOM e linhas em branco antes; sem fecho, o texto todo), lido em
-  lote com `blobs_do_lote`, que recusa resposta truncada; `CABECALHO_SUSPEITO` pega `hooks` + `:` em qualquer recuo e em
-  fluxo, `? hooks`, barra invertida, âncora, alias e tag. Sonda na árvore real: 0 dos `.md` do head casam, sem falso
-  `nao-verificavel`. Isso também fecha o A6 da rodada anterior (o corpo do `.md` não conta mais).
-- Lista do que mede: o docstring do módulo e o `help`/`description` do subcomando dizem o que dá rc 2 e o limite (hook
-  declarado por outro caminho não é visto). O changelog acompanha.
-- Testes trocados: o teste do `git grep` saiu junto com a busca; os falsos de `ls-tree` separam a lista com `-l`
-  (`fora_da_medida`) da sem `-l` (extração) pelo argumento exato, a mesma regra do código (checklist, item 12). O CMP34 saiu
-  com o código que ele guardava.
-- Neutralidade (R-NEUTRO): `python3 -I tests/test_forge.py Neutralidade NeutralidadeDoNucleo`, ambiente limpo: 6 testes OK.
-- Teste do item: `python3 -I tests/test_comparar.py LinksESource CabecalhoDoMd HooksForaDoHooksJson`, ambiente limpo: 12 OK.
-- Mutantes (V2): `bin/forge-mutante --processos 1` nas specs 10, 11 e 12: CMP61 a CMP82 (22) morreram.
-- Tamanho (H1): `git diff --numstat --no-renames origin/develop...HEAD` em `bin/`, `hooks/`, `scripts/`, `.github/` e
-  `.githooks/` dá 303 linhas (`bin/forge_comparar.py` 295, `bin/forge-check` 6, `bin/forge-testes` 1+1); o delta somou 119
-  em `bin/forge_comparar.py` (88 adições, 31 remoções) e 3 em `bin/forge-check`. **Excesso justificado:** segue um
-  comportamento só (a medida "só aperta"); as linhas novas fecham A11, A12 e A13 da segurança, sem os quais o comparador
-  diria `so-aperta: medido` sem rodar o hook que o Claude Code roda, pior que não ter a medida; cada guarda tem teste de
-  comportamento e mutante morto. O PR deve dizer `teto: excedido, 303 linhas, guardas A9 a A13 da segurança, sem elas a
-  medida afirma o falso`.
+## Conferido (emenda AE7.1 item por item contra `bin/forge_comparar.py`)
+- F1: `MODOS` = 100644 e 100755; `fora_da_medida` recusa o primeiro modo fora (link 120000, gitlink 160000) com
+  `F1 modo <m> na árvore`; `extrair` também recusa modo fora da F1. O teste do submódulo passou de "não derruba" a rc 2 nos
+  dois lados.
+- F2: basename `.gitattributes` ou `.gitmodules` em qualquer pasta, sem caixa. Bate com o texto.
+- F3: `.mcp.json`, `.lsp.json`, `settings.json` só na raiz (compara o caminho inteiro, sem caixa); a fonte está citada no
+  docstring (plugins-reference, Claude Code 2.1.224), como a emenda pede. O teste confirma que `docs/settings.json` e
+  `a/.mcp.json` medem.
+- F4: `CHAVES_PLUGIN` é a lista exata da emenda; objeto que não é dict sai. O autor foi mais estrito: `hooks` em qualquer
+  nível (`author.hooks`) também sai. Só acrescenta rc 2, não afrouxa; aceito.
+- F5: raiz em `$schema`, `name`, `owner`, `metadata`, `plugins`; `metadata` dict só com `description`/`version`; uma entrada
+  dict com chaves de `CHAVES_ENTRADA` (F4 menos `agents`, `skills`, `commands`, mais `source`; precedência `-` antes de `|`
+  conferida) e `source` `.` ou `./`. Sem `plugins` sai (KeyError). Bate com o texto.
+- F6: `cabecalho_simples` segue a forma do texto (1ª linha na coluna 0, chave `[A-Za-z0-9_-]` seguida de `:`, linha recuada é
+  valor, `hooks`/`allowed-tools` saem, sem caixa). Mais estrito que o texto ao exigir espaço ou fim depois do `:` (`x:y: z`,
+  `hooks:{}`). Sonda local: o caso do antigo A14 (`? |-` com comentários) dá False, assim como `"hooks": x`, `hooks : x` e
+  o fluxo `name: {` com `hooks: x}` na coluna 0. O A14 recomendado desta revisão fica fechado.
+- F7: inalterada; só a mensagem ganhou o prefixo.
+- Limites declarados e ajuda: docstring, `help` do subcomando e changelog dizem o mesmo que a emenda.
+- Oráculo C0: `origin/develop` e `origin/main` não têm o corpus, então `comparar X X` dá rc 2 pelo corpus, não pela forma.
+  A medida do autor responde à pergunta do C0 (a árvore cumpre F1 a F7?). Conferi por sonda: `fora_da_medida` dá None em
+  `origin/develop` (821db42e), `origin/main` (1d5aeb03) e `HEAD` (2d1fa4fa). Oráculo aceito; o texto literal da emenda pede
+  um comando que não roda nessas refs (A15).
+- Teste do item: `python3 -I -m unittest discover -s tests -p test_comparar.py`, ambiente limpo: 63 OK.
+- Neutralidade (R-NEUTRO): `python3 -I -m unittest discover -s tests -p test_forge.py -k Neutralidade`, ambiente limpo: 6 OK.
+- Mutantes (V2): `bin/forge-mutante --cobertura --base 757355b4`: toda linha de guarda do delta coberta, rc 0;
+  `bin/forge-mutante --processos 1` nas specs 13 a 16 (CMP83 a CMP107): os 24 morreram,
+  rc 0 (CMP106 morreu por erro do teste declarado, que a ferramenta conta como morte).
+- Tamanho (H1): `bin/forge_comparar.py` foi de 295 a 326 linhas (88 adições, 57 remoções; o docstring cresceu junto), dentro
+  das 30 linhas de código que a emenda admite. O PR atualiza a linha `teto: excedido` com a contagem nova.
 - `praticas.md` sem regra "decidida por: leitura"; suíte inteira fica com o CI (R-CUSTO), não rerrodada aqui.
 
 ## Achados
-- A4 (recomendado) bin/forge_comparar.py:191 · só a raiz do projeto é normalizada nas reescritas; `HOME` e `transcript_path` diferem em cada lado, então um hook que os cite no `updatedInput` dá `entrada-reescrita` falso. Erro do lado seguro; normalizar o HOME como `{home}`.
-- A14 (recomendado) bin/forge_comparar.py:42 · chave explícita por bloco literal com dois comentários antes do `:` (`? |-`, `  hooks`, `# a`, `# b`, `: {}`) escapa do `CABECALHO_SUSPEITO` (sonda local); o parse como chave `hooks` não foi provado (sem YAML aqui). Tratar `?` no começo de linha e `|`/`>` como suspeitos.
+- A4 (recomendado) bin/forge_comparar.py:279 · segue da rodada anterior: só a raiz do projeto é normalizada nas reescritas; `HOME` e `transcript_path` diferem em cada lado e dão `entrada-reescrita` falso. Erro do lado seguro; normalizar o HOME como `{home}`.
+- A15 (recomendado) docs/propostas/v0479-melhorias-anti-erro.md:168 · o C0 da emenda pede `forge-check comparar X X` em `origin/develop` e `origin/main`, que dão rc 2 por falta do corpus; reescrever o oráculo como `fora_da_medida` None em cada ref (o que foi medido).
 
 ## Parecer
-Aprovado no head 757355b4. O delta fecha A11, A12 e A13 da segurança e o A6 desta revisão, com teste de comportamento e
-mutante morto em cada guarda nova; o excesso do teto (303 linhas) é justificado pelo critério do H1. A4 e A14 são
-recomendados (R-REVIEW): viram cartão depois do merge. A decisão sobre os bloqueantes da segurança é do
-`security-engineer` (R-SEGURANCA), na revalidação dele.
+Aprovado no head 2d1fa4fa. O código implementa F1 a F7 como a emenda escreve, mais estrito na F4 (`hooks` em qualquer nível)
+e na F6 (espaço depois do `:`), o que só acrescenta rc 2. As árvores reais do Forge cumprem a lista. A4 e A15 são
+recomendados (R-REVIEW) e viram cartão depois do merge. Os bloqueantes da segurança, pelo critério de parada da emenda, são
+decisão do `security-engineer` (R-SEGURANCA).
