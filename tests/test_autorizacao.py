@@ -330,6 +330,20 @@ class ItemPresoAoCommit(unittest.TestCase):
         git(self.raiz, "update-ref", f"refs/remotes/origin/{RAMO}", git(self.raiz, "rev-parse", "develop"))
         self.assertEqual(self.estado(), ("inativa", "Commit fora do Ramo"))
 
+    def test_parecer_com_tipo_fora_da_sua_pasta_fica_inativa(self):
+        git(self.raiz, "reset", "-q", "--hard", self.revisado)
+        self.parecer(self.revisado)
+        self.parecer(self.revisado, tipo="qa")
+        falso = f"---\ntipo: revisao-seguranca\nbranch: {RAMO}\ncommit: {self.revisado}\nparecer: aprovado\n---\n"
+        self.commitar("docs/qa/falso.md", falso)  # sonda S5 da segurança: o QA não supre o parecer de segurança
+        self.assertEqual(self.estado(), ("inativa", "Parecer com tipo fora da sua pasta"))
+        git(self.raiz, "rm", "-q", "docs/qa/falso.md")
+        git(self.raiz, "commit", "-q", "-m", "rm")
+        self.parecer(self.revisado, tipo="security")
+        self.assertEqual(self.estado(), ("ativa", ""))
+        self.commitar("docs/devops/sem-tipo.md", f"---\nbranch: {RAMO}\ncommit: {self.revisado}\nparecer: aprovado\n---\n")
+        self.assertEqual(self.estado(), ("inativa", "Parecer com tipo fora da sua pasta"))  # tipo ausente não tem pasta
+
 
 if __name__ == "__main__":
     unittest.main()

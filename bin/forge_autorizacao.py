@@ -36,6 +36,7 @@ VOCABULARIO = frozenset((
 DATA_OU_HORA = re.compile(r"\b\d{1,2}(?:/\d{1,2}(?:/\d{2,4})?|:\d{2}|h\d{0,2})\b")  # "18/11", "12:00", "18h" (item 6)
 EXIGIDOS = ("review", "qa", "revisao-seguranca")  # o rótulo afrouxa-regra só cabe em mudança de controle: classe C (P5)
 PARECERES = tuple(f"docs/{p}/" for p in ("reviews", "qa", "security", "devops"))
+PASTA_DO_TIPO = dict(zip(("review", "qa", "revisao-seguranca", "revisao-devops"), PARECERES))  # tipo preso à pasta (ADR 0004)
 ESTADOS_INICIAIS = ("ativa", "pendente-confirmacao")
 PEDIDO = r"[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*"
 NOME = re.compile(rf"A-\d+|C-A-\d+|R-\d+|U-A-\d+(-\d+)?|M-[0-9a-f-]+|F-{PEDIDO}")
@@ -184,7 +185,8 @@ def git(raiz, *args):
 def fora_do_revisado(raiz, campos):
     """Por que o `Commit` não é o head do `Ramo` com os pareceres aprovados nele (E1); "" se é. Depois dele o `Ramo` só traz
     pareceres do próprio `Ramo` (renomeação conta como saída e entrada), os EXIGIDOS estão entre eles, e todo parecer do `Ramo`
-    aprova o `Commit`. Parecer de devops, se houver, também tem de aprovar; a classe do diff segue conferida no merge."""
+    aprova o `Commit`, cada um na pasta do seu tipo. Parecer de devops, se houver, também tem de aprovar; a classe do diff segue
+    conferida no merge."""
     ramo, commit = campos["Ramo"], campos["Commit"]
     ponta = (git(raiz, "rev-parse", "-q", "--verify", f"refs/remotes/origin/{ramo}^{{commit}}")
              or git(raiz, "rev-parse", "-q", "--verify", f"refs/heads/{ramo}^{{commit}}") or "").strip()
@@ -197,7 +199,10 @@ def fora_do_revisado(raiz, campos):
                              for a in depois.splitlines()):
         return "Commit não é o head: o Ramo muda depois dele"
     achados = git(raiz, "grep", "-l", "-F", "-e", f"branch: {ramo}", ponta, "--", *PARECERES) or ""
-    pareceres = [p for p in (frente(git(raiz, "show", a) or "") for a in achados.splitlines()) if p.get("branch") == ramo]
+    lidos = [(a.split(":", 1)[-1], frente(git(raiz, "show", a) or "")) for a in achados.splitlines()]
+    if any(p.get("branch") == ramo and not caminho.startswith(PASTA_DO_TIPO.get(p.get("tipo"), "?")) for caminho, p in lidos):
+        return "Parecer com tipo fora da sua pasta"
+    pareceres = [p for _, p in lidos if p.get("branch") == ramo]
     if not set(EXIGIDOS) <= {p.get("tipo") for p in pareceres} or any(p.get("parecer") != "aprovado" or len(p.get("commit", "")) < 7
                             or not commit.startswith(p.get("commit", "")) for p in pareceres):
         return "Commit sem os pareceres aprovados nele"

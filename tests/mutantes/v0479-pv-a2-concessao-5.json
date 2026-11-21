@@ -1,0 +1,36 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "PV-A2 (segurança A5): parecer com tipo fora da sua pasta derruba a concessão",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if any(p.get(\"branch\") == ramo and not caminho.startswith(",
+      "para": "    if False and any(p.get(\"branch\") == ramo and not caminho.startswith(",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_parecer_com_tipo_fora_da_sua_pasta_fica_inativa"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "PV-A2 (segurança A5): tipo sem pasta conhecida não passa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "PASTA_DO_TIPO.get(p.get(\"tipo\"), \"?\")",
+      "para": "PASTA_DO_TIPO.get(p.get(\"tipo\"), \"\")",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_parecer_com_tipo_fora_da_sua_pasta_fica_inativa"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "PV-A2 (segurança A5): o caminho é o do arquivo, sem o sha do git grep",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "a.split(\":\", 1)[-1]",
+      "para": "a",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_head_com_os_pareceres_aprovados_fica_ativa_e_o_parecer_pode_citar_o_sha_curto"
+      ]
+    }
+  ]
+}
