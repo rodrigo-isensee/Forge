@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "E69.3 estado da ferramenta que não é objeto",
+      "arquivo": "hooks/doutor.py",
+      "de": "estado.get(\"adiamentos\") if isinstance(estado, dict) else None",
+      "para": "estado.get(\"adiamentos\") if True else None",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_estado_da_ferramenta_fora_da_forma_cai_no_texto_sem_o_atalho"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "E69.3 adiamentos que não são objeto",
+      "arquivo": "hooks/doutor.py",
+      "de": "is int] if isinstance(adiamentos, dict) else []",
+      "para": "is int] if True else []",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_estado_da_ferramenta_fora_da_forma_cai_no_texto_sem_o_atalho"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "E69.3 contagem só inteira",
+      "arquivo": "hooks/doutor.py",
+      "de": "if isinstance(r, dict) and type(r.get(\"n\")) is int]",
+      "para": "if isinstance(r, dict)]",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_estado_da_ferramenta_fora_da_forma_cai_no_texto_sem_o_atalho"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "E69.3 adiamento zero não é causa",
+      "arquivo": "hooks/doutor.py",
+      "de": "if vezes and max(vezes) > 0 else",
+      "para": "if vezes else",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_estado_da_ferramenta_fora_da_forma_cai_no_texto_sem_o_atalho"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "E69.3 estado próprio que não é objeto recomeça",
+      "arquivo": "hooks/doutor.py",
+      "de": "        estado = estado if isinstance(estado, dict) else {}\n        novo,",
+      "para": "        estado = estado if True else {}\n        novo,",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_estado_proprio_fora_da_forma_recomeca_a_contagem"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "E69.3 alcance: a carregada igual à vista fecha a medida",
+      "arquivo": "hooks/doutor.py",
+      "de": "if vista and agora and agora >= vista:",
+      "para": "if vista and agora and agora > vista:",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_a_medida_grava_o_aviso_e_o_alcance"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "E69.3 alcance sem aviso não mede",
+      "arquivo": "hooks/doutor.py",
+      "de": "            if estado.get(\"avisada_em\"):\n                medir(hook, estado, hoje())",
+      "para": "            if True:\n                medir(hook, estado, hoje())",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_alcance_sem_aviso_nao_mede"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "E69.3 parada só com a última vista acima da carregada",
+      "arquivo": "hooks/doutor.py",
+      "de": "if ultima and agora and ultima > agora:",
+      "para": "if ultima and agora and ultima >= agora:",
+      "testes": [
+        "tests.test_doutor.VersaoParada.test_em_dia_com_a_ultima_igual_nao_guarda_versao_vista"
+      ]
+    }
+  ]
+}
