@@ -24,6 +24,11 @@ LOCAL = Path(".githooks") / "pre-push.local"
 INSTALAR_PYTHON = ("python3 -m venv .venv && .venv/bin/python -m pip install --require-hashes --no-deps -r requirements.lock"
                    " && .venv/bin/python -m pip install --no-deps -e .")
 BASH = shutil.which("bash") or "/bin/bash"
+# O envio precisa de git, bash e python3; o pre-push do modelo usa ainda os utilitários do sistema abaixo (sem `dirname`
+# ele nem acha o pre-push.local). Os opcionais o hook confere com `command -v` e entram só se existem nesta máquina.
+PROGRAMAS_DO_ENVIO = ("git", "bash", "python3", "dirname", "tr", "rm", "ps", "mkdir", "mktemp", "cat", "sleep", "stat",
+                      "realpath", "date", "env", "id", "find", "mv")
+OPCIONAIS_DO_ENVIO = ("flock", "timeout", "nice", "ionice")
 
 
 def diff_da_proposta():
@@ -89,6 +94,19 @@ class Base(unittest.TestCase):
             arq = pasta / nome
             arq.write_text(f'#!{BASH}\necho "{nome} $*" >> "{self.tmp}/chamadas"\nexit {codigo}\n', encoding="utf-8")
             arq.chmod(0o755)
+        return str(pasta)
+
+    def path_sem_pronto(self):
+        """PATH controlado: só links para o que o envio usa (nunca ruff nem mypy), para o teste rodar igual em toda
+        máquina, com ou sem as ferramentas da stack instaladas."""
+        pasta = self.tmp / "path-sem-pronto"
+        pasta.mkdir()
+        for nome in PROGRAMAS_DO_ENVIO + OPCIONAIS_DO_ENVIO:
+            achado = shutil.which(nome)
+            if achado is None and nome in OPCIONAIS_DO_ENVIO:
+                continue
+            self.assertIsNotNone(achado, f"{nome} fora do PATH: o teste precisa dele")
+            (pasta / nome).symlink_to(achado)
         return str(pasta)
 
     def pre_push_local(self, proj, rc=None):
@@ -186,12 +204,12 @@ class PrePushLocalSemDependencias(Base):
 
 
 class EnvioDaCopiaNova(Base):
-    """Ponta a ponta: projeto do forge-init, cópia nova por `git worktree add`, envio com código e o PATH de quem roda."""
+    """Ponta a ponta: projeto do forge-init, cópia nova por `git worktree add`, envio com código e um PATH
+    controlado, sem ruff nem mypy (o teste roda igual em toda máquina)."""
 
     def test_copia_nova_sem_dependencias_barra_o_envio_explicando(self):
-        if shutil.which("ruff") or shutil.which("mypy"):
-            self.skipTest("ruff ou mypy instalado nesta máquina: a cópia não fica sem dependências")
         proj = self.projeto("python")
+        self.env = {**self.env, "PATH": self.path_sem_pronto()}
         remoto = self.tmp / "remoto.git"
         rodar(["git", "init", "-q", "--bare", str(remoto)], self.tmp, self.env)
         remoto_sem_manutencao(remoto)
@@ -206,9 +224,10 @@ class EnvioDaCopiaNova(Base):
         for cmd in (["git", "add", "-A"], ["git", "commit", "-q", "-m", "codigo"]):
             self.assertEqual(rodar(cmd, copia, self.env).returncode, 0)
         r = rodar(["git", "push", "origin", "feature/x"], copia, self.env)
-        self.assertNotEqual(r.returncode, 0, "sem as ferramentas o envio não passa")
+        self.assertNotEqual(r.returncode, 0, "sem as ferramentas o envio não passa: " + r.stderr)
         self.assertIn("falta no PATH: ruff mypy (cópia nova", r.stderr)
         self.assertIn(INSTALAR_PYTHON, r.stderr)
+        self.assertNotIn("command not found", r.stderr, "falta utilitário no PATH controlado: o hook não roda inteiro")
         self.assertEqual(rodar(["git", "ls-remote", str(remoto)], self.tmp, self.env).stdout, "")
 
 
