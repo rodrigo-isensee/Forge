@@ -3,19 +3,21 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-k165-e2e-incremental
-commit: f700354c98e71c6d50ecb54ff47d8677c672fb9a
+commit: b4a5764717bf5d03815bf9071b9bf93aeabe47ad
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
 ---
-# Review: v0478 (E73.2, K165 e2e incremental)
+# Review: v0478 (E73.7, revalidação; E73.2, K165 e2e incremental)
 
 Diff `8caa7f3d..f700354c`: `skills/qa-testing/SKILL.md` (+1 regra, 6 frases encurtadas), `tests/config.json` (+1 invariante com `regra`/`porque`), fragmento em `changelog.d/`. Só documentação e configuração de teste: 0 linhas de código (H1 dentro do teto), sem guarda mudada, sem mutante a declarar.
 
-## Achados
-- A1 (recomendado) skills/qa-testing/SKILL.md:61 · "(no `.gitignore`)" lê como fato, mas o modelo `templates/projeto/` não traz `.gitignore`; trocar por "acrescente `relatorios/` ao `.gitignore`" deixa o passo explícito para o projeto novo.
-
-## Sondas
+## Revalidação (E73.7, head b4a57647)
+Delta lido: `forge-check parecer delta docs/reviews/v0479-k165-e2e-incremental.md`, intervalo `f700354c..b4a57647`, no domínio `skills/qa-testing/SKILL.md` e `tests/config.json`.
+- A1 da rodada anterior fechado: skills/qa-testing/SKILL.md:61 agora manda "acrescente `relatorios/` ao `.gitignore` antes da rodada", passo explícito para o projeto novo.
+- Frase cortada para o teto: "se a sessão cair, o que rodou fica" sai do texto; o motivo segue no `porque` da invariante (`tests/config.json`, K165) e a regra (JSON por caso, ao terminar, fora de `/tmp`) fica inteira.
+- Invariante mais estrita: o padrão passa a exigir também "que some" e a ordem do `.gitignore` antes da rodada; `regra`/`porque` atualizados no mesmo padrão.
+- Rodados no head: `python3 -I -m unittest discover -s tests -p test_metricas_texto.py` 2 OK; `python3 -I -m unittest discover -k RegrasInviolaveis -s tests -p test_forge.py` 3 OK. Suíte inteira no CI do PR (`R-REVIEW`).
 
 ## Parecer
 Aprovado. A regra nova (K165) faz o que o pedido pede: JSON por caso ao terminar, fora de `/tmp`, fora do git, com exemplo neutro (`<executor-e2e>`, `R-NEUTRO`), e fica protegida pela invariante nova com `R-QA` e motivo.
