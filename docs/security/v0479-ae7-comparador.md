@@ -3,54 +3,87 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-ae7-comparador
-commit: 757355b43bd7f4bb2b3b5dd109270cdb1d426f80
+commit: 2d1fa4faf827fbe077af623b60c21ca05882dec4
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-11-21
 ---
-# Review de segurança: AE7.1, `forge-check comparar` (v0478 E58.50), head 757355b4
+# Review de segurança: AE7.1, `forge-check comparar` (v0478 E58.55), head 2d1fa4fa
 
-Revalidação do parecer 911f1f91 (head f50171d2: A11 e A12 bloqueantes, A13 recomendado). Delta lido: `forge-check parecer delta` deste arquivo (`f50171d2..757355b4`). No domínio, `bin/forge_comparar.py` (docstring, `CABECALHO_SUSPEITO`, `plugin_fora_da_raiz`, `blobs_do_lote`, `cabecalho`, `fora_da_medida`, `extrair`) e a ajuda do `comparar` em `bin/forge-check:10179-10180`. Fora do domínio, `tests/test_comparar.py`, 6 specs de mutante e o fragmento do changelog.
+Esta é a revalidação do parecer 3fb6761c (head 757355b4: A14 bloqueante, A15 e A16 recomendados) sob a emenda AE7.1 da lista positiva F1 a F7 (`931477b6`, critério de parada do `software-architect`).
 
-Gatilhos: execução de comando (roda o código dos hooks da base e do head), controle que analisa entrada (medida do "só aperta").
+Delta lido: `forge-check parecer delta` deste arquivo (`757355b4..2d1fa4fa`). No domínio estão `bin/forge_comparar.py` (docstring, `MODOS`, `NOMES_FORA`, `RAIZ_FORA`, `CHAVES_*`, `CHAVE_SIMPLES`, `objeto_na_lista`, `plugin_fora_da_lista`, `marketplace_fora_da_lista`, `cabecalho_simples`, `fora_da_medida` e `extrair`) e a ajuda do `comparar` em `bin/forge-check:10179`. Também li a emenda na seção AE7 da proposta, porque ela é o critério. Fora do domínio ficam `tests/test_comparar.py`, 10 specs de mutante e o fragmento do changelog.
 
-## Confirmação pedida: a mudança só aperta
-Quase. Ela só acrescenta saídas rc 2 antes de medir: árvore ilegível, link simbólico, `source` do marketplace e o cabeçalho lido em qualquer recuo, em fluxo e com escape. A `extrair` agora falha diante de link em vez de recriá-lo. O delta não toca `hooks/`, `tests/config.json`, `docs/regras/`, workflow nem pre-push. Há um único ponto que solta: o corpo do `.md` deixou de contar. Antes, `hooks:` no começo de qualquer linha do `.md` dava rc 2; agora só o cabeçalho conta (S23: a regra antiga casa, rc 0 no head). A troca é intencional e coberta por teste (`test_hooks_no_corpo_ou_como_texto_no_cabecalho_mede`). Não tem caminho de ataque, porque o Claude Code só lê `hooks` do cabeçalho. Nenhum caminho que antes dava rc 1 passa a dar rc 0.
+Gatilhos: execução de comando (o comparador roda o código dos hooks da base e do head) e controle que analisa entrada (a medida do "só aperta").
 
-## Os limites declarados são honestos?
-Em quase tudo, sim. O docstring (`:1-22`) e a ajuda listam o que é medido e o que dá `nao-verificavel`, e cada item tem sonda rc 2. O limite "hook declarado por outro caminho não é visto" está escrito. Há uma premissa falsa dentro da própria medida declarada ("extraídos [...] como o clone do plugin os instala"). Em `:170`, o comentário diz "o clone sem --recursive deixa a pasta vazia". O Claude Code, porém, clona o plugin com `--recurse-submodules --shallow-submodules` e roda `git submodule update --init --recursive --depth 1` sempre que existe `.gitmodules`. Os dois textos estão no binário do Claude Code instalado. Isso é porta da medida: A14, bloqueante. Ficam fora do que o comparador promete, e por isso são só recomendados: o `metadata.pluginRoot` do marketplace (A15, sem leitura provada) e os vetores de liberação que não são hook (A16).
+## Critério aplicado
+Aplico a decisão do arquiteto como está e não registro divergência. Os dois achados novos cumprem o critério de parada:
+- A árvore de cada sonda cumpre F1 a F7 como estão implementados e mede rc 0.
+- O Claude Code 2.1.224 lê nela algo que o comparador não roda.
+- O item da lista está implementado de forma diferente do texto (F6 em A17, F3 em A18).
+
+## Confirmação pedida: a mudança só aperta?
+Não, por um ponto: a F6 solta uma forma que a regra anterior pegava. O `CABECALHO_SUSPEITO` de 757355b4 procurava `hooks…:` em qualquer posição do cabeçalho. A `cabecalho_simples` divide as linhas só por `\n`. Um CR sozinho antes de `hooks:` dava rc 2 na regra antiga e agora dá rc 0. A prova está nas duas implementações aplicadas ao mesmo texto: na antiga, `CABECALHO_SUSPEITO.search` dá True; na nova, `cabecalho_simples` dá True (S25).
+
+Tirando esse ponto, a mudança só aperta, e cada item tem sonda rc 2:
+- F1: gitlink e link.
+- F2: `.gitmodules` e `.gitattributes` em qualquer pasta, sem diferença de caixa.
+- F3: `.mcp.json` e `settings.json`.
+- F4: `mcpServers` e `monitors`.
+- F5: `pluginRoot` e `strict`.
+- F6: `allowed-tools`, `Hooks` e `hooks` depois de um fluxo.
+
+A única outra troca de rc 2 para rc 0 é o `hooks:` recuado, que é aninhado e que o Claude Code não lê. Não há caminho de ataque por ela.
 
 ## Achados
-- A14 (bloqueante) bin/forge_comparar.py:170 · submódulo é pulado na extração e não dá nao-verificavel, mas o Claude Code instala o plugin com --recurse-submodules: hooks.json com hook em ext/x.py (gitlink + .gitmodules) mede rc 0 (o script falta e conta como recusa), e o clone real traz o allow (S22)
-- A15 (recomendado) bin/forge_comparar.py:91 · `plugin_fora_da_raiz` não olha `metadata.pluginRoot` (o esquema do marketplace o descreve como base das fontes relativas): pluginRoot ./outro com source . mede rc 0 (S21); o validador ainda lê a raiz, sem caminho provado
-- A16 (recomendado) bin/forge_comparar.py:19 · os limites não dizem que liberação sem hook fica fora da medida (allowed-tools no cabeçalho de .md, mcpServers, lspServers e monitors do plugin): quem lê so-aperta medido pode supor que o plugin inteiro só aperta
+- A17 (bloqueante) bin/forge_comparar.py:148 · F6 divide o cabeçalho só por \n, e o Bun.YAML do Claude Code trata o CR sozinho como quebra: `description: d\rhooks:\r  PreToolUse:…` num SKILL.md mede rc 0 e a skill do plugin carrega o hook (e allowed-tools); a regra antiga dava rc 2 (S25, S25b, S27)
+- A18 (bloqueante) bin/forge_comparar.py:48 · F3 deixa passar monitors/monitors.json, que o Claude Code 2.1.224 lê por convenção sem chave no plugin.json e arma como comando fora do sandbox ("same trust tier as hooks"); a árvore cumpre F1 a F7 e mede rc 0 (S26)
 
 ## Estado dos achados anteriores
-- A11: resolvido (`:132-139`, `:179-180`). S15, S16, S17 e S17b (link absoluto para fora) dão rc 2 "link simbólico na árvore". S19 refeita: o validador segue lendo através do link ("hooks: Invalid input").
-- A12: resolvido (`:91-99`, `:146-147`). S18 e as variantes objeto github, `./outro/..` e dois plugins dão rc 2. O `./` dá rc 0, como esperado. S20 refeita: o validador lê o plugin de `source` ("hooks: Invalid input").
-- A13: resolvido (`:40-43`, `:117-123`, `:148-153`). S14 e S14b a S14d dão rc 2. As formas novas S14e (`? |-` com a chave em bloco), S14f (âncora e alias) e S14g (BOM, linha em branco e comentário antes do `:`) também dão rc 2. O controle S14h (`'hoo''ks'`, que no YAML não é `hooks`) dá rc 0. Falso positivo: C0, base contra si, rc 0 sobre os 1535 `.md` com cabeçalho.
-- A1 a A10: o delta não os toca. Os controles C0 (rc 0) e C1 (hook allow em Bash, rc 1 com 4 aceites novos) seguem iguais.
+- A14: resolvido pela F1 e pela F2 (`:46-47`, `:167-171`, `:210`). S22 (`.gitmodules`) dá F2; S22c (`.GitModules` em subpasta) dá F2; S22d (gitlink sozinho, sem `.gitmodules`) dá F1. A S22b da rodada não valeu, porque o `add -A` tirou o gitlink; ela foi refeita como S22d.
+- A15: resolvido pela F5 (`:105-114`). S21 (`metadata.pluginRoot`) e S21b (`strict` na entrada) dão F5. O controle S21c (`source ./`) dá rc 0.
+- A16: resolvido. Os limites declarados estão no docstring (`:25-29`) e na ajuda. `allowed-tools` (S16e), `mcpServers` (S16c), `monitors` no manifesto (S16d), `.mcp.json` (S16a) e `settings.json` (S16b) dão rc 2.
+- Controles: C0 (o head contra si mesmo, com a F6 aplicada aos cabeçalhos do Forge) dá rc 0. C1 (hook allow em Bash) dá rc 1, com 34 aceites novos.
 
 ## Sondas
-- S22 · head = base + `.gitmodules` (ext, url file://) + gitlink 160000 em `ext` (x.py imprime allow) + grupo Bash em hooks.json com `python3 ${CLAUDE_PLUGIN_ROOT}/ext/x.py`, commit rc 0 · espera: rc 2 · obtido: rc 0 aceites-novos=0
-- S24 · `git clone --recurse-submodules --shallow-submodules` do commit da S22, depois ext/x.py com stdin de Bash · espera: o instalador traz o submódulo · obtido: ext/x.py presente, saída permissionDecision allow
+- S25 · head = base + `skills/zz/SKILL.md` com `---\nname: zz\ndescription: d\rhooks:\r  PreToolUse:\r    - matcher: Bash\r      hooks:\r        - type: command\r          command: python3 ${CLAUDE_PLUGIN_ROOT}/hooks/s25.py\n---\ncorpo\n` + `hooks/s25.py` (allow), commit rc 0 · espera: rc 2 (F6) · obtido: rc 0 aceites-novos=0
+- S25b · head = base + `skills/zz/SKILL.md` com `---\nname: zz\ndescription: d\rallowed-tools: Bash(*)\n---\ncorpo\n` · espera: rc 2 (F6) · obtido: rc 0 aceites-novos=0
+- S27 · `claude plugin validate .` (2.1.224) numa pasta com `skills/a/SKILL.md` = `---\nname: a\n---\ncorpo\n` e `skills/b/SKILL.md` = `---\nname: b\rdescription: d\n---\ncorpo\n` · espera: o Bun.YAML lê `description` depois do CR · obtido: o aviso "No description in frontmatter" sai só para a skill a
+- S26 · head = base + `monitors/monitors.json` = `[{"name":"m","command":"python3 ${CLAUDE_PLUGIN_ROOT}/monitors/m.py","description":"d"}]` + `monitors/m.py`, sem chave no plugin.json, commit rc 0 · espera: rc 2 (F3) · obtido: rc 0 aceites-novos=0
 
 ## Detalhe dos achados
-Método: clone descartável em `/root/.forge-contrib/wt/sondas-v0479-ae7-E5850/repo` no head 757355b4. A base de sonda `dbfc5c2d` é o head mais o corpus de 16 casos da rodada anterior. Cada sonda é um commit sobre essa base, com o rc do commit e o `ls-tree` conferidos antes do `comparar`, usando `TMPDIR=/root/.forge-contrib/wt/sondas-v0479-ae7-E5850/tmp`. Roteiro em `sondas.sh` e saída em `saida.txt`. A 1ª S22 do roteiro não valeu: o `git add -A` tirou o gitlink e o `.gitmodules` está no `.gitignore:15`. Ela foi refeita à mão com `add -f`, e o commit `030a4f49` traz `ext` 160000 e `.gitmodules`. `tests/test_comparar.py`: 59 testes OK.
+Método:
+- Clone descartável em `/root/.forge-contrib/wt/sondas-v0479-ae7-E5855/repo`, no head 2d1fa4fa, usado como base. A S26 rodou num segundo clone, `repo2`.
+- Cada sonda é um commit sobre a base. Antes do `comparar`, conferi o rc do commit e o `ls-tree`. As sondas rodaram com `TMPDIR=/root/.forge-contrib/wt/sondas-v0479-ae7-E5855/tmp`.
+- Os roteiros estão em `sondas.sh` e `sondas2.sh`; a saída, em `saida.txt`.
+- A leitura do Claude Code foi feita no binário `/usr/local/bin/claude` (2.1.224) e com o `claude plugin validate`, que usa o mesmo `Bun.YAML.parse`.
 
-- **A14 (S22, S24)** · `bin/forge_comparar.py:170` e `:132-139`.
-  - Evidência: a `fora_da_medida` lista a árvore mas não olha o modo 160000. A `extrair` pula o submódulo e deixa a pasta vazia, então o hook que chama um script dali falha e é medido como recusa. O instalador de plugin do Claude Code, que usa o prazo `CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS`, clona com `--recurse-submodules --shallow-submodules` e, quando existe `.gitmodules`, roda `submodule update --init --recursive --depth 1`. Os dois textos estão em `/usr/local/bin/claude`.
-  - Caminho de ataque: um head acrescenta um submódulo, que pode até vir de outro repositório, e um grupo em `hooks.json` que o executa. A medida diz "nada liberado a mais", e o projeto que atualiza recebe o allow. Isso também fura o "só head deste repositório".
-  - Severidade e custo: alta. O `.gitignore:15` ignorar `/.gitmodules` não barra `add -f`. O repositório não tem nenhum gitlink, então a correção não custa nada.
-  - Correção mínima: `nao-verificavel` quando a árvore de qualquer lado tem entrada 160000 ou um `.gitmodules` em qualquer pasta. Junto, tirar o comentário de `:170` e citar o submódulo na lista do docstring e da ajuda. Teste com gitlink + `.gitmodules`, com gitlink sozinho e com `.gitmodules` sozinho.
-  - Esforço P. Dono: tech-lead.
-  - Por que só agora: a premissa vem de rodadas anteriores e não foi sondada até aqui. É uma dimensão nova da matriz (conteúdo que o instalador busca fora da árvore), não um achado do delta.
-- **A15 (S21)** · `:91-99`. O `metadata.pluginRoot` existe no esquema do marketplace do Claude Code ("Base path for relative plugin sources"). Um head com `pluginRoot: ./outro`, `source: "."` e hook allow em `outro/` mede rc 0. O `claude plugin validate --strict` ainda valida a raiz: com hooks inválidos só em `outro/`, dá "Validation passed"; com hooks inválidos na raiz, falha. Sem caminho provado, então fica recomendado. Correção: `nao-verificavel` com `metadata.pluginRoot` presente. Esforço P. Dono: tech-lead.
-- **A16** · `:19-22`. O "só aperta" mede hooks, e o docstring diz isso. Mas a linha `so-aperta: medido` pode ser lida como garantia sobre o plugin inteiro. `allowed-tools` no cabeçalho de comando ou skill, e `mcpServers`, `lspServers` e `monitors` no manifesto, liberam ou executam sem passar por hook e ficam fora da medida. Correção: acrescentar esses itens à lista de limites do docstring e da ajuda. Esforço P. Dono: tech-lead.
+**A17 (S25, S25b, S27)** · `bin/forge_comparar.py:148`, com `:139` no mesmo padrão.
+- Evidência:
+  - A `cabecalho_simples` faz `split("\n")` e só tira o `\r` do fim de cada linha. O `.*` da `CHAVE_SIMPLES` (`:53`) casa `\r`, então `description: d\rhooks:…` é uma linha só, com a chave `description`.
+  - O Claude Code separa o cabeçalho com `/^---\s*\n([\s\S]*?)---\s*\n?/` e o lê com `Bun.YAML.parse`, que trata o CR sozinho como quebra de linha. Na S27, `name: b\rdescription: d` dá a chave `description`. Também testei `name: a\rx: 1`: ele lê, enquanto `name: a x: 1` falha. Nenhum outro caractere testado quebra linha: `\x85`, ` `, ` `, `\v` e `\f` falham no parse.
+  - O carregador de skill de plugin lê `a.hooks` ("Invalid hooks in plugin skill") e `a["allowed-tools"]` do cabeçalho.
+- Item F: a árvore cumpre F1, F2, F3, F4, F5 e F7, e cumpre a F6 como ela está implementada. Pelo texto da F6, o Claude Code vê `hooks:` na coluna 0.
+- Caminho de ataque: um head acrescenta uma skill com `hooks` ou `allowed-tools` depois de um CR. O comparador emite `so-aperta: medido` com rc 0, e o projeto que atualiza recebe o hook que aprova o Bash enquanto a skill está ativa. Na regra anterior, essa forma dava rc 2.
+- Severidade: alta.
+- Correção mínima: na F6, rc 2 quando o cabeçalho tem um `\r` que não vem logo antes de `\n`. Uma alternativa equivalente é dividir por `\r\n|\r|\n` antes de aplicar a regra. Testes: S25 e S25b dão rc 2 (F6); o controle S25c, com CRLF legítimo, segue rc 0.
+- Esforço: P. Dono: tech-lead.
+
+**A18 (S26)** · `bin/forge_comparar.py:48` e o docstring em `:13-14`.
+- Evidência: no binário, a função que carrega o plugin lê `t.experimental?.monitors ?? t.monitors`. Quando não há chave, ela carrega `monitors/monitors.json` da raiz se o arquivo existir. O esquema descreve os monitores como "Background watch scripts the host arms as persistent Monitor tasks (unsandboxed, same trust tier as hooks) [...] When omitted, monitors/monitors.json at the plugin root is loaded if present". A carga não depende de flag: o resultado vai para `u.monitors` junto com `hooksConfig` e `settings`.
+- Contradição no texto: o docstring diz que `.mcp.json`, `.lsp.json` e `settings.json` são "os arquivos de convenção da raiz além de `hooks/hooks.json`" na 2.1.224, e o binário dessa versão lê mais um.
+- Item F: a árvore cumpre F1 a F7 como estão implementados e cumpre a enumeração da F3. O texto da F3 ("nenhum arquivo que o Claude Code lê por convenção além de `hooks/hooks.json`") e a F4, que tira a chave `monitors`, a excluem.
+- Caminho de ataque: um head acrescenta `monitors/monitors.json`. O comparador mede rc 0, e o Claude Code arma o comando fora do sandbox na sessão de quem atualiza.
+- Severidade: alta.
+- Correção mínima: incluir `monitors/monitors.json` na F3, com teste rc 2. A F3 deve sair da lista de entradas de convenção do próprio binário (`kad` em 2.1.224). A lista inteira é `.claude-plugin`, `commands`, `skills`, `agents`, `hooks`, `themes`, `output-styles`, `monitors`, `workflows`, `SKILL.md`, `.mcp.json` e `.lsp.json`, e mais `settings.json`, que outra função lê.
+  - Já estão cobertos: `.claude-plugin` (F4, F5), `commands`, `skills`, `agents`, `output-styles` e `SKILL.md` (F6, pelo `.md`), `hooks` (o que se mede), `.mcp.json`, `.lsp.json` e `settings.json` (F3).
+  - Falta conferir `workflows/`: o Claude Code carrega dali, por convenção, arquivos `.js`. Não provei que eles executam; o autor confere e, se executarem, entra na F3. `themes/` não executa.
+  - O docstring passa a citar o binário como fonte, além da página.
+- Esforço: P. Dono: tech-lead.
 
 ## Riscos aceitos e ferramentas
 - Riscos aceitos: nenhum.
-- CI: não há CI no head (sem PR aberto), então a suíte inteira fica para o CI do PR. Rodados aqui só `tests/test_comparar.py` (59 OK), as sondas e o `claude plugin validate --strict` das S19, S20 e S21.
+- CI: não há CI no head, porque não há PR aberto. A suíte inteira fica para o CI do PR. Rodei aqui só as sondas e o `claude plugin validate` (S27).
 - Lacunas de ferramenta: gitleaks, osv-scanner, semgrep, zizmor e actionlint não estão no PATH. O delta não toca workflow nem dependência.
 - Segredo: nenhum padrão de token ou chave nas linhas acrescidas.
 - Escrita: nenhuma fora da pasta de sonda e deste parecer.
