@@ -3,38 +3,37 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-entrega-por-branch
-commit: f4689e1254bf579f5110b4f58c677fac1b9f05e3
-parecer: reprovado
+commit: f39a94ed266957ef62be4bc1061c2581da54a7db
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-21
 ---
-# Review de segurança: v0478 E79.3, ENTREGA-POR-BRANCH (K-345)
+# Review de segurança: v0478 E79.6, ENTREGA-POR-BRANCH (K-345), revalidação
 
-Escopo: `adc52def..f4689e12`, 1 commit; código só em `bin/forge-check` (`isencoes_do_diff` e `cmd_entrega_conferir`), mais 2 testes, 4 mutantes e o fragmento do changelog.
+Volta por delta (`R-REVIEW`): a rodada anterior (reprovada em `f4689e12`) fica no git. Lido só `forge-check parecer delta`, intervalo `f4689e12..f39a94ed`; no domínio, só `bin/forge-check`. Fora do domínio e não relidos: `changelog.d/`, `tests/mutantes/`, `tests/test_selo_e_entrega.py` (usado só para rodar as sondas).
 
 ## Gatilhos
-Gatilhos: controle do Forge (`bin/forge-check`: portão de isenção de QA e escritor único da linha `entrega conferida` no Histórico).
+Gatilhos: controle do Forge (`bin/forge-check`: escritor único da linha `entrega conferida` no Histórico).
+
+## Delta lido
+- `bin/forge-check:10091-10093` (`cmd_entrega_conferir`): a ponta passa a vir de `remoto_da_branch` (`bin/forge-check:7552`, `git ls-remote origin refs/heads/<branch>`, só a linha do nome exato, sha validado por `SHA40`); grava só com `lido` e `remoto == head`.
+- `bin/forge-check:10020` (`recusa_da_gravacao`): mensagem por caso (sem resposta do remoto, branch ausente no remoto, ponta diferente); o nome passa por `nome_seguro`.
+- `bin/forge-check:1605` e `:1619`: só o texto do aviso de isenção de QA; nenhuma condição muda.
 
 ## A mudança só aperta?
-Sim, nas duas partes. Nenhum caso antes recusado passa a ser aceito:
-- `isencoes_do_diff` (`bin/forge-check:1044`): o predicado novo exige a catraca carregada e usa `motivo_de_controle`, que já inclui o `MD_DE_CONTROLE` (`bin/forge-check:1087`); o conjunto isento é subconjunto do anterior. Catraca que não carrega devolve `set()` (falha fechada). Teste novo `test_k345_md_em_caminho_de_controle_da_classe_nao_isenta` rodado aqui: `OK`.
-- `cmd_entrega_conferir` (`bin/forge-check:10080-10083`): só acrescenta uma linha de reprovação; não remove condição nenhuma. Teste novo `test_k345_ponta_local_diferente_da_enviada_nao_grava` rodado aqui: `OK`.
+Sim. Antes recusava com `remoto` (ref de rastreio) presente e diferente do head; agora recusa sempre que o `ls-remote` não responde (falha fechada, o `git()` tem limite de tempo e o `TimeoutExpired` vira não lido), que a branch não existe no remoto, ou que a ponta remota difere do head. O único caso antes recusado e agora aceito é a ref de rastreio velha com o remoto já igual ao head (envio por outra cópia sem `fetch`): a ponta está de fato no `origin`, que é o requisito; não é afrouxamento. `--sem-gravar` segue conferindo sem gravar.
 
-O aperto da gravação, porém, é incompleto: a ausência da `origin/<branch>` é tratada como consentimento (A1).
+Limite residual, sem caminho de ataque proporcional: quem troca o URL do `origin` na própria cópia controla o que o `ls-remote` responde; é forja deliberada do ator local, fora do K-345 (o esquecimento do envio).
 
-## Achados
-- A1 (bloqueante) bin/forge-check:10081 · sem a ref origin/<branch> (branch nunca enviada, ou ref de rastreio apagada) a condição é falsa e a entrega grava a ponta só local, contra o que o changelog.d/v0479-entrega-por-branch.md:2 afirma ("só grava a ponta enviada"); provas S1 e S2.
-- A2 (recomendado) bin/forge-check:10080 · a ponta "enviada" é lida da ref de rastreio local, que um update-ref local iguala ao head sem envio (S3 grava); conferir contra o remoto (ls-remote) ou registrar o limite no comentário.
+## Achados da rodada anterior
+- A1 (rodada f4689e12, bloqueante): corrigido em `bin/forge-check:10092`; S1 e S2 agora recusam; testes `test_k345_branch_nunca_enviada_nao_grava` e `test_k345_ref_de_rastreio_apagada_ou_forjada_nao_grava`.
+- A2 (rodada f4689e12, recomendado): corrigido em `bin/forge-check:10091` (ls-remote); S3 agora recusa; testes `test_k345_ref_de_rastreio_apagada_ou_forjada_nao_grava` e `test_k345_origin_sem_resposta_nao_grava`.
 
 ## Sondas
-- S1 · selado, entregar, sem push, `forge-check entrega --pedido` gravando (sonda sobre a classe Entrega dos testes) · espera: rc 1 e nada gravado · obtido: rc 0 e a ponta local gravada
-- S2 · push, commit só local, `git update-ref -d refs/remotes/origin/melhoria/x`, conferir gravando · espera: rc 1 e nada gravado · obtido: rc 0 e o commit só local gravado
-- S3 · push, commit só local, `git update-ref refs/remotes/origin/melhoria/x <local>`, conferir gravando · espera: rc 1 · obtido: rc 0 e o commit só local gravado
-
-## Detalhe dos achados
-**A1.** Evidência: `bin/forge-check:10081` (`if gravar and remoto and remoto != head`). Caminho: o autor (ou o Jarvis) confere a entrega antes do primeiro envio, ou com a ref de rastreio ausente (`fetch --prune` depois de a branch remota sumir, outro nome de remoto); a linha `entrega conferida <sha>` vai ao Histórico apontando um commit que ninguém mais vê, e o portão seguinte (review, QA, segurança no "mesmo head") ancora num sha que não existe no remoto. É o mesmo defeito do K-345 que este item corrige, só por outra entrada. Severidade: baixa (integridade do registro do processo, ator local, sem dado nem segredo), bloqueante por ser defeito provado contra o requisito declarado do item. Correção mínima: recusar também quando `remoto` é `None` com `gravar` (mensagem "a branch não foi enviada; envie antes de gravar ou confira com --sem-gravar"), e ajustar os testes que hoje gravam sem envio (`test_cumpriu_grava_uma_vez` e os da classe `Entrega` que chamam `conferir()` sem `push`) para enviar antes; um mutante para a nova condição. Esforço: P. Dono: tech-lead (autor do E79.1).
-
-**A2.** Evidência: `bin/forge-check:10080` lê `refs/remotes/origin/{branch}`, que é estado local. Caminho: só deliberado (um agente forja a ref com `update-ref`); proporcionalidade: recomendação, não vulnerabilidade. Correção mínima: comparar com `git ls-remote origin refs/heads/<branch>` (rede local ao remoto já usado pelo push) ou, se a rede for indesejada aqui, dizer no comentário que a garantia é contra o esquecimento, não contra forja. Esforço: P. Dono: tech-lead. Volta e é corrigido antes do merge (`R-REVIEW`).
+- S1 · selado, entregar, sem push, `forge-check entrega --pedido exemplo --branch melhoria/x --etapa codigo` gravando · espera: rc 1 e nada gravado · obtido: rc 1, `head: a "origin/melhoria/x" não existe no remoto (git ls-remote)`, nada gravado
+- S2 · push, commit só local, `git update-ref -d refs/remotes/origin/melhoria/x`, conferir gravando · espera: rc 1 e nada gravado · obtido: rc 1, `head: o local <local> não é a "origin/melhoria/x" <enviado>`, nada gravado
+- S3 · push, commit só local, `git update-ref refs/remotes/origin/melhoria/x <local>`, conferir gravando · espera: rc 1 · obtido: rc 1, mesma recusa, nada gravado
+- S4 · legítimo: push do head, conferir gravando · espera: rc 0 e uma linha gravada · obtido: rc 0, 1 linha
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Suíte: não rodada aqui (brief: sem suíte local); a do autor está em `/root/.forge-contrib/wt/e791-saida/resumo.log`, citada no review E79.2; o CI do PR não foi consultável desta sessão (sem acesso ao `gh`), lacuna registrada. Rodados: os 2 testes novos (`OK`) e as sondas S1 a S3 (classe `Entrega` de `tests/test_selo_e_entrega.py`, em pasta temporária). Sem segredo no diff (leitura manual).
+Nenhum risco aceito. Suíte: não rodada aqui (brief: sem suíte local); o CI do PR não foi consultável desta sessão (sem `gh`), lacuna registrada. Rodados: as sondas S1 a S4 (subclasse da `Entrega` de `tests/test_selo_e_entrega.py`, em pasta temporária, 20 testes `OK`) e os 4 testes `test_k345_*` da classe `Entrega` (`OK`). Sem segredo no delta (leitura manual).
