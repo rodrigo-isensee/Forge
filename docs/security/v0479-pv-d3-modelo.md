@@ -19,7 +19,7 @@ Volta por delta (R-REVIEW): a rodada anterior (E57.78, head `146b4050`, reprovad
 - A1 (bloqueante): corrigido em `templates/projeto/.githooks/pre-push:347` e `:349`, exatamente a correção mínima pedida. O descritor 9 sai só do comando de registros; o subshell que o envolve termina junto com ele, então nada que o comando deixe em segundo plano segura a trava. O descritor 8 da fila já fecha antes (`fila_sair`, `:304`).
 
 ## Sondas
-- S1 · registros `setsid sleep 300 >/dev/null 2>&1 & echo $! >> pids`, 1º envio, depois 2º envio com FORGE_PREPUSH_ESPERA=1, com e sem `timeout` no PATH (`TravaDaChecagem.test_trava_nao_passa_para_os_registros`) · espera: 2º envio rc 0 · obtido: rc 0 nos dois subtestes (na rodada anterior: rc 1, "a vez não chegou em 1 s")
+- S1 · registros `setsid sleep 300 >/dev/null 2>&1 & echo $! >> pids`, 2º envio com FORGE_PREPUSH_ESPERA=1, com e sem `timeout` (test_trava_nao_passa_para_os_registros) · espera: rc 0 · obtido: rc 0 nos dois subtestes (antes: rc 1)
 - S2 · mutante M10 (tira `9>&-` da linha 347), mesmo teste · espera: falha · obtido: FAIL `[com timeout]`, rc 1 "outra checagem do projeto está rodando nesta máquina"
 - S3 · mutante M11 (tira `9>&-` da linha 349), mesmo teste · espera: falha · obtido: FAIL `[sem timeout]`, rc 1, mesma mensagem
 
