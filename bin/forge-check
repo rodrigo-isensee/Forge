@@ -9243,6 +9243,10 @@ def bloco_de_citacoes(raiz, citar):
 
 ETAPAS_DE_PARECER = ("review", "seguranca", "qa")  # as do hook `agentes` (Z10): o parecer não escreve a branch
 LINHA_DE_PARALELO = "- paralelo na mesma branch: parecer, lê a branch sem escrever nela (Z10)"
+# BRIEF-PORTAO-REBASE (v0478 E91.1): o envio do parecer é o do papel e do pre-push; o merge entre pareceres em paralelo não se escreve
+ENVIO_DO_PARECER = ("- envio: commit só do parecer (`git add <caminho>`), com `pedido: {pedido}` no frontmatter (o id do pedido, nunca o "
+                    "nome da branch, que o `forge-check docs` recusa); `git push origin {branch}`; se o remoto avançou, `git pull --rebase` "
+                    "sobre o commit do parecer e reenvie (nunca merge nem `--force`; R-VERIFY)")
 
 
 # Orkastery 6 (0.44.2): o agente começa pela ferramenta; regra que só ferramenta verifica vale pelo ID (a ferramenta a aplica).
@@ -9405,6 +9409,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     saida += erros
     if etapa in ETAPAS_DE_PARECER:  # Z10: o parecer lê a branch e roda junto da escrita (hook `agentes`, AG-1b)
         saida += [LINHA_DE_PARALELO, LINHA_DOS_ACHADOS]
+        if branch and interpolacao_segura(pedido=pedido_id, branch=branch):  # G-5: só valor na forma fechada vai ao comando
+            saida.append(ENVIO_DO_PARECER.format(pedido=pedido_id, branch=branch))
     if citar:
         saida += bloco_de_citacoes(raiz, citar)
     saida += ["", "## Fora do escopo (outras etapas do pedido, sem a marca; R-BRIEF)"]

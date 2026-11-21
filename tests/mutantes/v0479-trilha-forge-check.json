@@ -1,0 +1,26 @@
+{
+  "pedido": "v0479-trilha-forge-check",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "BRIEF-PORTAO-REBASE: o brief de portão com branch traz o envio por pull --rebase e o pedido: do parecer",
+      "arquivo": "bin/forge-check",
+      "de": "        if branch and interpolacao_segura(pedido=pedido_id, branch=branch):  # G-5",
+      "para": "        if branch and not interpolacao_segura(pedido=pedido_id, branch=branch):  # G-5",
+      "testes": [
+        "tests.test_trilha_forge_check.EnvioDoParecer"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "BRIEF-PORTAO-REBASE: sem branch, o brief de portão não escreve o envio",
+      "arquivo": "bin/forge-check",
+      "de": "        if branch and interpolacao_segura(pedido=pedido_id, branch=branch):  # G-5",
+      "para": "        if interpolacao_segura(pedido=pedido_id, branch=branch or 'x'):  # G-5",
+      "testes": [
+        "tests.test_trilha_forge_check.EnvioDoParecer"
+      ]
+    }
+  ]
+}
