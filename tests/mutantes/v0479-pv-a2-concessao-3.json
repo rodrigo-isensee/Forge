@@ -1,0 +1,26 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "PV-A2 (E1): Commit fora do revisado deixa a concessão inativa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if revisado:\n        return \"inativa\", revisado",
+      "para": "    if False:\n        return \"inativa\", revisado",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_commit_que_nao_e_o_head_com_os_pareceres_aprovados_fica_inativa"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "PV-A2 (ADR 0004): parecer sem frontmatter não conta",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if texto.startswith(\"---\\n\") else \"\"",
+      "para": "if True else \"\"",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_ramo_sem_parecer_dele_fica_inativo_e_a_ref_do_origin_vale_antes_da_local"
+      ]
+    }
+  ]
+}

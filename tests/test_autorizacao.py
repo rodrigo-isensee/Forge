@@ -186,5 +186,111 @@ class Ler(unittest.TestCase):
                 self.assertEqual(self.estados(agora, **{"A_1": concessao(), **eventos}), [esperado])
 
 
+RAMO = "melhoria/pv-a2"
+ITEM = "pode aplicar o rótulo afrouxa-regra no item PV-A2"
+
+
+def git(raiz, *args):
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "PYTHON"))}
+    env.update(GIT_CEILING_DIRECTORIES=str(Path(raiz).parent), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+    return subprocess.run(["git", "-C", str(raiz), "-c", "user.name=t", "-c", "user.email=t@t", *args], check=True,
+                          capture_output=True, text=True, env=env, timeout=60).stdout.strip()
+
+
+class ItemPresoAoCommit(unittest.TestCase):
+    """Emenda PR-VERDE E1 (PV-A2): o alvo `item:` vale só para o `Commit` que é o head do `Ramo` com os pareceres aprovados."""
+
+    def setUp(self):
+        self.raiz = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.raiz)
+        (self.raiz / fa.PASTA).mkdir(parents=True)
+        git(self.raiz, "init", "-q", "-b", "develop")
+        (self.raiz / ".git" / "info" / "exclude").write_text(".forge/\n", encoding="utf-8")  # o registro fica fora do git
+        self.commitar("base.txt", "base")
+        git(self.raiz, "switch", "-q", "-c", RAMO)
+        self.revisado = self.commitar("codigo.txt", "item")
+        self.parecer(self.revisado)
+
+    def commitar(self, nome, texto):
+        (self.raiz / nome).parent.mkdir(parents=True, exist_ok=True)
+        (self.raiz / nome).write_text(texto, encoding="utf-8")
+        git(self.raiz, "add", "-A")
+        git(self.raiz, "commit", "-q", "-m", nome)
+        return git(self.raiz, "rev-parse", "HEAD")
+
+    def parecer(self, commit, veredito="aprovado", tipo="reviews", ramo=RAMO):
+        return self.commitar(f"docs/{tipo}/pv-a2.md", f"---\ntipo: x\npedido: v0\nbranch: {ramo}\ncommit: {commit}\n"
+                                                     f"parecer: {veredito}\n---\n# parecer\n")
+
+    def estado(self, corpo=ITEM, **troca):
+        troca = {"Alvos": "item:PV-A2", "Commit": self.revisado, "Ramo": RAMO, "Sha256": fa.sha(corpo), **troca}
+        (self.raiz / fa.PASTA / "A-1").write_text(concessao(corpo, **troca), encoding="utf-8")
+        (_, _, _, est, motivo), = fa.concessoes(self.raiz, GRAVADOR, em("2026-11-18 07:00"))[0]
+        return est, motivo
+
+    def test_head_com_os_pareceres_aprovados_fica_ativa_e_o_parecer_pode_citar_o_sha_curto(self):
+        self.assertEqual(self.estado(), ("ativa", ""))
+        self.parecer(self.revisado[:7], tipo="qa")
+        self.assertEqual(self.estado("pode aplicar o rótulo no itemPV-A2"), ("ativa", ""))
+
+    def test_alvo_sem_marcador_fora_da_frase_ou_com_ressalva_nao_nasce_ativa(self):
+        casos = {"sem-marcador": "pode aplicar o rótulo no PV-A2", "outro-cartao": "pode aplicar o rótulo no item PV-A2X",
+                 "cartao-maior": "pode aplicar o rótulo no item PV-A2.1",
+                 "fora-da-frase": "o item PV-A2 está pronto. Pode aplicar o rótulo",
+                 "frase-sem-ato": "pode mesclar o item PV-A2", "negacao": "não aplique o rótulo no item PV-A2",
+                 "condicao": "pode aplicar o rótulo no item PV-A2 se o CI passar"}
+        for caso, corpo in casos.items():
+            with self.subTest(caso=caso):
+                est, motivo = self.estado(corpo)
+                self.assertEqual(est, "adulterada", motivo)
+                self.assertIn("ressalva" if caso in ("negacao", "condicao") else "sem item <CARTAO> na frase do ato", motivo)
+                pendente = self.estado(corpo, **{"Estado-inicial": "pendente-confirmacao", "Motivo-da-pendencia": "x"})
+                self.assertEqual(pendente, ("pendente", "x"))
+
+    def test_commit_abreviado_ausente_ramo_fora_da_forma_ou_ato_errado_e_adulterada(self):
+        casos = {"abreviado": dict(Commit=self.revisado[:12], motivo="Commit não é sha de 40 caracteres"),
+                 "maiusculo": dict(Commit=self.revisado.upper(), motivo="Commit não é sha de 40 caracteres"),
+                 "sem-commit": dict(Commit=None, motivo="Commit não é sha de 40 caracteres"),
+                 "opcao": dict(Ramo="-x", motivo="Ramo fora da forma"), "pontos": dict(Ramo="a..b", motivo="Ramo fora da forma"),
+                 "sem-ramo": dict(Ramo=None, motivo="Ramo fora da forma"),
+                 "ato": dict(Ato="merge-main", motivo="Ato do alvo item: não é rotulo-afrouxa-regra")}
+        for caso, troca in casos.items():
+            with self.subTest(caso=caso):
+                motivo = troca.pop("motivo")
+                self.assertEqual(self.estado(**troca), ("adulterada", motivo))
+
+    def test_commit_que_nao_e_o_head_com_os_pareceres_aprovados_fica_inativa(self):
+        git(self.raiz, "switch", "-q", "-c", "outra", "develop")
+        de_outra = self.commitar("outra.txt", "x")
+        git(self.raiz, "switch", "-q", RAMO)
+        self.assertEqual(self.estado(Commit=de_outra), ("inativa", "Commit fora do Ramo"))
+        self.assertEqual(self.estado(Ramo="outra", Commit=self.revisado), ("inativa", "Commit fora do Ramo"))
+        self.assertEqual(self.estado(Ramo="nenhuma"), ("inativa", "Ramo sem ref no clone"))
+        self.assertEqual(self.estado(Ramo="outra", Commit=de_outra), ("inativa", "Commit sem os pareceres aprovados nele"))
+        antes = git(self.raiz, "rev-parse", "develop")
+        self.assertEqual(self.estado(Commit=antes), ("inativa", "Commit não é o head: o Ramo muda depois dele"))
+        casos = {"reprovado": dict(commit=self.revisado, veredito="reprovado", tipo="security"),
+                 "outro-commit": dict(commit=antes, tipo="security"), "curto-demais": dict(commit=self.revisado[:6], tipo="qa"),
+                 "sem-commit": dict(commit="", tipo="qa")}
+        for caso, parecer in casos.items():
+            with self.subTest(caso=caso):
+                topo = git(self.raiz, "rev-parse", "HEAD")
+                self.parecer(**parecer)
+                self.assertEqual(self.estado(), ("inativa", "Commit sem os pareceres aprovados nele"))
+                git(self.raiz, "reset", "-q", "--hard", topo)
+        self.assertEqual(self.estado(), ("ativa", ""))
+        self.commitar("codigo.txt", "mudou depois do parecer")
+        self.assertEqual(self.estado(), ("inativa", "Commit não é o head: o Ramo muda depois dele"))
+
+    def test_ramo_sem_parecer_dele_fica_inativo_e_a_ref_do_origin_vale_antes_da_local(self):
+        git(self.raiz, "reset", "-q", "--hard", self.revisado)
+        self.parecer(self.revisado, ramo=f"{RAMO}-x")  # o git grep acha pelo trecho; vale só o nome exato
+        self.assertEqual(self.estado(), ("inativa", "Commit sem os pareceres aprovados nele"))
+        self.commitar("docs/qa/pv-a2.md", f"# parecer\nbranch: {RAMO}\ncommit: {self.revisado}\nparecer: aprovado\n---\n")
+        self.assertEqual(self.estado(), ("inativa", "Commit sem os pareceres aprovados nele"))  # sem frontmatter não conta
+        git(self.raiz, "update-ref", f"refs/remotes/origin/{RAMO}", git(self.raiz, "rev-parse", "develop"))
+        self.assertEqual(self.estado(), ("inativa", "Commit fora do Ramo"))
+
+
 if __name__ == "__main__":
     unittest.main()

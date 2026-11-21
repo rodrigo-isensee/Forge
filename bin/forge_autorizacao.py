@@ -2,13 +2,15 @@
 
 `forge-check autorizacao ler` lista cada concessão de `<raiz principal>/.forge/autorizacoes/` com o estado (ativa, pendente com o
 motivo, vencida, retirada, usada, adulterada, inativa), a validade no `Fuso` e em UTC e a mensagem inteira do dono. Gravar e
-travar vêm no G1.2 em diante. Erro ao ler qualquer evento vale como "não há autorização" (falha fechada): nenhuma fica ativa.
+travar vêm no G1.2 em diante. O alvo `item:<CARTAO>` (Emenda PR-VERDE, E1; PV-A2) vale só para o `Commit` que é o head do
+`Ramo` com os pareceres aprovados nele. Erro ao ler qualquer evento vale como "não há autorização" (falha fechada): nenhuma fica ativa.
 """
 import datetime
 import hashlib
 import os
 import re
 import stat
+import subprocess
 import unicodedata
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -18,7 +20,14 @@ CAMPOS = ("Id", "Ato", "Alvos", "Validade", "Validade-utc", "Fuso", "Origem-da-v
           "Mensagem", "Hora-da-fala", "Sessao", "Pedido", "Sha256", "Gravado-por", "Autoriza")
 AUTORIZA = "só o ato e os alvos acima, até a validade; não amplia outra regra (R-DECISAO)"
 ATOS = ("rotulo-afrouxa-regra", "merge-main")
-ALVOS = re.compile(r"pr:[1-9]\d*(, pr:[1-9]\d*)*|versao:\d+\.\d+\.\d+")
+CARTAO = r"[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*"
+ALVOS = re.compile(rf"pr:[1-9]\d*(, pr:[1-9]\d*)*|versao:\d+\.\d+\.\d+|item:{CARTAO}")
+SHA40 = re.compile(r"[0-9a-f]{40}")
+RAMO = re.compile(r"[A-Za-z0-9_]+(?:[./-][A-Za-z0-9_]+)*")  # sem `-` no início (opção do git) nem `..`
+FRASE = re.compile(r"[;!?\n]|\.(?=\s|$)")  # o ponto dentro do cartão (`E57.57`) não separa frase
+TERMOS_DO_ITEM = ("rotulo", "afrouxa")  # termos do ato `rotulo-afrouxa-regra`, o único do alvo `item:` (E1)
+RESSALVA = re.compile(r"\b(nao|nunca|jamais|se|caso|exceto|salvo|desde que|a menos|ainda)\b")  # negação ou condição
+PARECERES = tuple(f"docs/{p}/" for p in ("reviews", "qa", "security", "devops"))
 ESTADOS_INICIAIS = ("ativa", "pendente-confirmacao")
 PEDIDO = r"[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*"
 NOME = re.compile(rf"A-\d+|C-A-\d+|R-\d+|U-A-\d+(-\d+)?|M-[0-9a-f-]+|F-{PEDIDO}")
@@ -121,11 +130,64 @@ def problemas(campos, corpo, gravador):
         (campos["Estado-inicial"] not in ESTADOS_INICIAIS, "Estado-inicial fora da lista"),
         (not re.fullmatch(PEDIDO, campos["Pedido"]), "Pedido fora da forma"),
         (campos["Autoriza"] != AUTORIZA, "Autoriza fora do texto fixo")) if falha]
+    if campos["Alvos"].startswith("item:"):
+        achados += do_item(campos, corpo)
     try:
         limite(campos)
     except (ValueError, LookupError, OSError) as e:  # ZoneInfoNotFoundError é LookupError
         achados.append(f"validade ilegível ({e})")
     return achados
+
+
+def do_item(campos, corpo):
+    """Por que a concessão de alvo `item:` não é íntegra (E1): ato do rótulo, `Commit` sha40, `Ramo` na forma; nasce `ativa` só
+    com `item <CARTAO>` na mesma frase de um termo do ato e sem ressalva na mensagem (item 5 e A2 da ADR 0018)."""
+    marcado = re.compile(rf"(?<![a-z0-9])item ?{re.escape(normal(campos['Alvos'][5:]))}(?![a-z0-9]|[.-][a-z0-9])")
+    no_ato = any(marcado.search(f) and any(t in f for t in TERMOS_DO_ITEM) for f in FRASE.split(normal(corpo)))
+    ativa, ramo = campos["Estado-inicial"] == "ativa", campos.get("Ramo", "")
+    return [texto for falha, texto in (
+        (campos["Ato"] != "rotulo-afrouxa-regra", "Ato do alvo item: não é rotulo-afrouxa-regra"),
+        (not SHA40.fullmatch(campos.get("Commit", "")), "Commit não é sha de 40 caracteres"),
+        (not RAMO.fullmatch(ramo), "Ramo fora da forma"),
+        (ativa and not no_ato, "ativa sem item <CARTAO> na frase do ato"),
+        (ativa and RESSALVA.search(normal(corpo)) is not None, "ativa com ressalva na mensagem")) if falha]
+
+
+def git(raiz, *args):
+    """Saída do `git` na raiz, ou None se ele falha (falha fechada); sem as variáveis GIT_* herdadas."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    try:
+        r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=True, env=env, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.stdout if r.returncode == 0 else None
+
+
+def fora_do_revisado(raiz, campos):
+    """Por que o `Commit` não é o head do `Ramo` com os pareceres aprovados nele (E1); "" se é. Depois dele o `Ramo` só traz
+    pareceres, e todo parecer do `Ramo` (ao menos um) aprova o `Commit`."""
+    ramo, commit = campos["Ramo"], campos["Commit"]
+    ponta = (git(raiz, "rev-parse", "-q", "--verify", f"refs/remotes/origin/{ramo}^{{commit}}")
+             or git(raiz, "rev-parse", "-q", "--verify", f"refs/heads/{ramo}^{{commit}}") or "").strip()
+    if not ponta:
+        return "Ramo sem ref no clone"
+    if git(raiz, "merge-base", "--is-ancestor", commit, ponta) is None:
+        return "Commit fora do Ramo"
+    depois = git(raiz, "diff", "--name-only", commit, ponta)
+    if depois is None or any(not a.startswith(PARECERES) for a in depois.split("\n") if a):
+        return "Commit não é o head: o Ramo muda depois dele"
+    achados = git(raiz, "grep", "-l", "-F", "-e", f"branch: {ramo}", ponta, "--", *PARECERES) or ""
+    pareceres = [p for p in (frente(git(raiz, "show", a) or "") for a in achados.split("\n") if a) if p.get("branch") == ramo]
+    if not pareceres or any(p.get("parecer") != "aprovado" or len(p.get("commit", "")) < 7
+                            or not commit.startswith(p.get("commit", "")) for p in pareceres):
+        return "Commit sem os pareceres aprovados nele"
+    return ""
+
+
+def frente(texto):
+    """{campo: valor} do frontmatter de um parecer (ADR 0004)."""
+    cabeca = texto.split("\n---", 1)[0] if texto.startswith("---\n") else ""
+    return dict(linha.split(": ", 1) for linha in cabeca.split("\n")[1:] if ": " in linha)
 
 
 def confirmada(nome, campos, lidos, gravador):
@@ -139,7 +201,7 @@ def confirmada(nome, campos, lidos, gravador):
         return False
 
 
-def estado(nome, nomes, lidos, gravador, agora):
+def estado(nome, nomes, lidos, gravador, agora, raiz):
     """(estado, motivo) da concessão `nome`; só `ativa` autoriza (item 7)."""
     campos, corpo = lidos[nome]
     achados = problemas(campos, corpo, gravador)
@@ -153,6 +215,9 @@ def estado(nome, nomes, lidos, gravador, agora):
         return "vencida", ""
     if "pedido" in normal(campos["Origem-da-validade"]) and f"F-{campos['Pedido']}" in nomes:
         return "vencida", "pedido fechado"
+    revisado = fora_do_revisado(raiz, campos) if campos["Alvos"].startswith("item:") else ""
+    if revisado:
+        return "inativa", revisado
     if campos["Estado-inicial"] == "pendente-confirmacao" and not confirmada(nome, campos, lidos, gravador):
         return "pendente", campos["Motivo-da-pendencia"]
     return "ativa", ""
@@ -163,7 +228,7 @@ def concessoes(raiz, gravador, agora):
     nomes, lidos, erros = eventos(Path(raiz) / PASTA)
     lista = []
     for nome in sorted((n for n in lidos if n.startswith("A-")), key=lambda n: int(n[2:])):
-        est, motivo = estado(nome, nomes, lidos, gravador, agora)
+        est, motivo = estado(nome, nomes, lidos, gravador, agora, raiz)
         if erros and est == "ativa":
             est, motivo = "inativa", "evento ilegível na pasta"
         lista.append((nome, *lidos[nome], est, motivo))

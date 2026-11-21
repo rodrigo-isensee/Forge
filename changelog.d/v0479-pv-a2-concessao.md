@@ -1,0 +1,2 @@
+### Alterado
+- PR-VERDE A2 (ADR 0018, Emenda PR-VERDE E1): `forge-check autorizacao ler` aceita o alvo `item:<CARTAO>` só no ato `rotulo-afrouxa-regra`, com `Commit` de 40 caracteres e `Ramo` na forma; nasce ativa só com `item <CARTAO>` na frase do ato e sem ressalva; fica ativa só enquanto o `Commit` é o head do `Ramo` com todos os pareceres dele aprovados nele (depois dele, só pareceres); git que falha vale como sem autorização.
