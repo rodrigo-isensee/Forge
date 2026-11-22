@@ -4,10 +4,10 @@ contrato: 1
 pedido: v0478
 branch: melhoria/v0480-seg-conformidade
 commit: bf57b17e42a1c6019ac7f4c721f9f4900c51cc4e
-parecer: aprovado
+parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 0
+bugs_altos: 1
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-22
@@ -26,7 +26,7 @@ Provas:
 - `python3 -I -m unittest discover -s tests -p test_conformidade_seg_v0480.py`: 11 testes, OK.
 - `bin/forge-mutante --base 14696864b679 tests/mutantes/v0480-seg-conformidade-6.json` (rev bf57b17e42a1): S22p, S22c, A5c, A5r, A5v, todos `morreu`.
 - `bin/forge-mutante` nas specs 1 a 5 (rev bf57b17e42a1): 35 `morreu`, nenhum sobrevivente. Specs 1-6 juntas não rodam: ids S22c e S22p repetidos entre -5 e -6 (só nomes, sem efeito no veredito).
-- `tests/test_indice_fixtures.py`: 7 testes, OK. Corpus completo `test_hooks.py` fica para o check-run `bateria` do CI do PR (não terminou local no prazo).
+- `tests/test_indice_fixtures.py`: 7 testes, OK. `python3 -I -m unittest discover -s tests -p test_hooks.py` (2176 s): 167 testes, 3 falhas. Duas são `PrazoEstourado` de 120 s em `pesado/mesma-sessao-libera` (carga da máquina, não atribuo ao delta). A terceira é real: `conformidade/opaco-u4-prefixo-do-ambiente-maiusculo-libera` espera 0 e o hook sai 2 (`cópia recursiva de ev para destino de $(…), crase ou variável`), comando `cp -rT ev "$HOME"t`. Fixture de v047 A9, não tocada no delta; a regra A5 nova a recusa.
 
 # QA: v0478 (E113.10) S22, A20, RESTO-SOBE, negação, RESTO-ANULA e += no hooks/conformidade.py
 
@@ -66,3 +66,6 @@ Reprovado por A1 (alta, segurança com gatilho: push na main liberado). Devolver
 
 ## Resultado
 Aprovado. Sem achado aberto. A suíte inteira fica no check-run `bateria` do PR.
+
+## Achados
+- A6 (bloqueante) hooks/conformidade.py:1861 · A5 recusa `cp -rT ev "$HOME"t`, que a fixture conformidade/opaco-u4-prefixo-do-ambiente-maiusculo-libera (v047 A9) manda liberar; test_hooks falha (esperado 0, obtido 2). Ajustar a regra ou inverter a fixture com motivo, e rodar test_hooks.py inteiro antes do envio.
