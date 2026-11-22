@@ -1,0 +1,66 @@
+{
+  "pedido": "v0478-placar-prometido",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "prometido sem número em % vira falta",
+      "arquivo": "bin/forge-placar",
+      "de": "if \"prometido:\" in metrica and not PROMETIDO.search(metrica):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_placar_prometido.Prometido.test_prometido_sem_numero_e_falta"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "métrica fora do placar sai sem medida, sem quebrar",
+      "arquivo": "bin/forge-placar",
+      "de": "if not DATA.fullmatch(inicio) or nome not in METRICAS:",
+      "para": "if not DATA.fullmatch(inicio):",
+      "testes": [
+        "tests.test_placar_prometido.Prometido.test_metrica_fora_do_placar_nao_quebra_e_sai_sem_medida"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "janela de depois aberta sai sem medida e a que fecha no dia mede",
+      "arquivo": "bin/forge-placar",
+      "de": "if inicio + passo > hoje:",
+      "para": "if inicio + passo >= hoje:",
+      "testes": [
+        "tests.test_placar_prometido.Prometido.test_janela_que_fecha_no_dia_mede"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "sem fonte ou base zero sai sem medida",
+      "arquivo": "bin/forge-placar",
+      "de": "if a is None or d is None or a == 0:",
+      "para": "if a is None or d is None:",
+      "testes": [
+        "tests.test_placar_prometido.Prometido.test_base_zero_sai_sem_medida"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a fonte ausente sai sem medida, nunca zero",
+      "arquivo": "bin/forge-placar",
+      "de": "if a is None or d is None or a == 0:",
+      "para": "if d is None or a == 0:",
+      "testes": [
+        "tests.test_placar_prometido.Prometido.test_sem_fonte_sai_sem_medida"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "as fontes só são lidas se alguma proposta anuncia ganho",
+      "arquivo": "bin/forge-placar",
+      "de": "fontes = carregar(args) if com else None",
+      "para": "fontes = None",
+      "testes": [
+        "tests.test_placar_prometido.Prometido.test_real_medido_ao_lado_do_prometido"
+      ]
+    }
+  ]
+}
