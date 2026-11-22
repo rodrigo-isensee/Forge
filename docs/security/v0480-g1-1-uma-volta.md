@@ -3,46 +3,39 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-g1-1-uma-volta
-commit: 8522e8fe58bcfd9240228b875f1314237bee1f27
-parecer: reprovado
+commit: 4d2c53330343163b7027e417db7090acf3bd9bfc
+parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-21
+data: 2026-11-22
 ---
-# Review de segurança: v0478 E100.7 (G1.1, revalidação da volta)
+# Review de segurança: v0478 E100.11 (G1.1, revalidação da segunda volta)
 
-Revalidação por delta (ORDEM DO DONO 21/11 22:13). A rodada anterior (E100.3, `57c0cbff`, A1 e A2 bloqueantes) fica no git.
+Revalidação por delta (DECISÃO DO DONO 22/11 05:21, mais uma volta). A rodada anterior (E100.7, `f930fc45`, A2 parcial) fica no git.
 
-Delta lido: `forge-check parecer delta docs/security/v0480-g1-1-uma-volta.md`, intervalo `57c0cbff..8522e8fe`. No domínio: `bin/forge-check` (`VOLTA_NA_DECISAO`, `voltas_autorizadas`, `voltas_da_branch` nova, `gerar_volta`, `conferir_volta`, `avaliar_brief`), `agents/jarvis.md` (passo 6), `skills/briefs-e-conferencia/autor-ate-o-merge.md`. Fora: `changelog.d/`, specs de mutantes, `tests/test_volta_por_delta.py`. Já lido na rodada anterior e não relido: o resto do `bin/forge-check`, `hooks/conformidade.py`, ADR 0018.
+Delta lido: `forge-check parecer delta docs/security/v0480-g1-1-uma-volta.md`, intervalo `8522e8fe..4d2c5333`. No domínio só `bin/forge-check`: `VOLTA_NA_DECISAO` (`:4247`), `branch_do_anterior_diferente` nova (`:4278`) e as chamadas em `gerar_volta` (`:4317`) e `conferir_volta` (`:4453`). Fora: `changelog.d/`, fixture, specs de mutantes e testes. Já lido e não relido: o resto do `bin/forge-check`.
 
 Gatilhos: código de controle do Forge (`bin/forge-check`).
 
-Suíte: não rodada aqui (só no CI; o PR ainda não existe). Rodei a classe `BriefDeVolta` (31 testes, com os 7 novos do G1.1): OK.
+Suíte: não rodada aqui (só no CI; o PR ainda não existe). Rodei a classe `BriefDeVolta` (32 testes, com `test_s7_*` e `test_s8_*`): OK.
 
 ## Achados
-- A1 (bloqueante) bin/forge-check:4247 · corrigido: só a forma canônica ancorada autoriza; S1 a S4 dão 1 no head novo
-- A2 (bloqueante) bin/forge-check:4305 · parcial: a contagem usa a Branch: do anterior, mas o brief gerado usa o --branch; com anterior sem Branch: ou de outro item e --branch do item, sai outra "volta 1" e a conferência (:4439) passa com rc 0 (S7, S8)
-- A3 (recomendado) bin/forge-check:4255 · aberto: a autorização segue sendo uma linha que o Jarvis escreve (limite da ADR 0018), e o delta não declara esse limite no R-QA nem na skill
+- A1 (bloqueante) bin/forge-check:4247 · corrigido na rodada anterior; a âncora no fim da linha (A4 do review) mantém S1 a S4 em 1 e fecha "mais uma volta para <branch> recusada" (S9)
+- A2 (bloqueante) bin/forge-check:4278 · corrigido: gerar_volta (:4317) e conferir_volta (:4453) recusam o anterior sem Branch: ou com Branch: diferente da do brief novo; S7 e S8 dão rc 1 nos dois
+- A3 (recomendado) bin/forge-check:4255 · aberto, sem mudança no delta: a autorização segue sendo uma linha que o Jarvis escreve (ADR 0018); falta declarar o limite no R-QA e na skill antes do merge
 
 ## Sondas
-- S1 · voltas_autorizadas(fontes=["- 2026-11-21 23:00: DECISÃO DO DONO: sem nova volta para melhoria/v1-x; cortar e reabrir menor"], "melhoria/v1-x") · espera: 1 · obtido: 1
-- S2 · voltas_autorizadas(fontes=["DECISÃO DO DONO (2026-11-21 23:00): melhoria/v1-x aceita com cartão, nada de voltas"], "melhoria/v1-x") · espera: 1 · obtido: 1
-- S3 · voltas_autorizadas(fontes=["DECISÃO DO DONO (2026-11-21 23:00): melhoria/v0480-g1-1-uma-volta entra antes do G1.2"], "melhoria/v0480-g1-1-uma-volta") · espera: 1 · obtido: 1
-- S4 · voltas_autorizadas(fontes=["DECISÃO DO DONO (2026-11-21 23:00): o dono volta na segunda; melhoria/v1-x espera"], "melhoria/v1-x") · espera: 1 · obtido: 1
-- S5 · BriefDeVolta: gerar() -> volta 1 gravada em -2.md; gerar() de novo com --volta no brief original; conferir(saida, nome=-3.md) · espera: recusa · obtido: gerar rc 1 "já tem volta"; conferir rc 1 "o anterior ... já tem volta"
-- S7 · gerar(--branch melhoria/x) -> -2.md; anterior sem Branch: (com_branch(..., branch=None)); gerar(--branch melhoria/x, volta=anterior); conferir(-3.md) · espera: recusa (volta 2 sem decisão) · obtido: gerar rc 0 "(volta 1)" com Branch: melhoria/x; conferir rc 0
-- S8 · como S7, anterior com Branch: melhoria/y · espera: recusa · obtido: gerar rc 0 "(volta 1)" com Branch: melhoria/x; conferir rc 0
+- S7 · anterior sem Branch: (ato-1.md), já existe volta 1 do item; gerar(--branch melhoria/x, volta=anterior) e conferir(-3.md) · espera: recusa · obtido: gerar rc 1 "não tem `Branch:`", conferir rc 1 (test_s7_anterior_sem_branch_nao_gera_outra_volta_um)
+- S8 · como S7, anterior com Branch: melhoria/y · espera: recusa · obtido: gerar rc 1 "é de melhoria/y, não de melhoria/x", conferir rc 1 (test_s8_anterior_de_outro_item_nao_gera_outra_volta_um)
+- S9 · voltas_autorizadas(fontes=["- 2026-11-22 09:00: DECISÃO DO DONO: mais uma volta para melhoria/x recusada"], "melhoria/x") · espera: 1 · obtido: 1
+- S10 · branch_do_anterior_diferente("melhoria/x", None) · espera: recusa (brief novo sem Branch:) · obtido: 'é de "melhoria/x", não de "<branch>"'
 
 ## Detalhe dos achados
 
-**A1, corrigido.** `VOLTA_NA_DECISAO` (`:4247`) agora exige a frase canônica logo depois de `ABRE_A_DECISAO`, com a branch delimitada (`(?=\s|$)`), e `voltas_autorizadas` (`:4261`) conta linhas distintas. S1 a S4 dão 1. O texto depois da branch segue livre (`mais uma volta para melhoria/x recusada` dá 2), como a correção mínima da rodada anterior pedia; a recusa (`:4285`) prescreve a forma exata, então isso fica sem achado.
+**A2, corrigido.** A correção mínima pedida veio inteira: `branch_do_anterior_diferente` recusa `do_item` vazio e `do_item != branch`; em `gerar_volta` compara com o `--branch` efetivo antes de contar, em `conferir_volta` com a `Branch:` do brief novo (que, ausente, também recusa, S10). O `caminho_de_brief` segue prendendo o anterior a `docs/briefs/`, então a contagem por pasta não foge para outro diretório. Os nomes na mensagem passam por `nome_seguro(sem_controle(...))`.
 
-**A2, parcial.** O que ficou corrigido: a volta gerada de novo a partir do original (S5), o anterior com sucessor e o `(volta N)` sem `Volta-de:` (`:8731`). O que segue aberto: a contagem e a autorização usam `do_item`, a `Branch:` do anterior (`:4305`, `:4439`), mas o brief gerado grava `branch = a.branch or ...` (`:4304`), e a conferência não compara a `Branch:` do brief novo com a do anterior. Caminho: o Jarvis passa em `--volta` qualquer brief do pedido sem `Branch:` (ato, por exemplo) ou de outro item, junto com `--branch <item>`. `do_item` sai vazio ou de outro item, a conta dá 0 e sai mais uma "volta 1" para o item, que passa na conferência (S7, S8). O teto do `R-QA` cai com um comando, que é o mesmo caminho e a mesma severidade (média) do A2 original. Correção mínima, nos dois lugares (`gerar_volta` e `conferir_volta`):
-- recusar quando a `Branch:` do brief novo (ou o `--branch`) é diferente da `Branch:` do anterior;
-- recusar a volta cujo anterior não tem `Branch:`. Hoje o comentário de `:4439` diz "falha fechada", mas para n=1 a volta passa.
+**A1 e A4.** `\.?\s*$` em `canonica.match`: texto depois da branch na mesma linha não autoriza (S9; "e para melhoria/y" também dá 1); ponto final e espaço no fim seguem valendo, o que a forma canônica admite.
 
-Testes: S7 e S8 como recusa no `gerar` e no `conferir`. Esforço P. Dono: autor da E100.5.
-
-**A3, aberto (recomendado).** Sem mudança no delta. A correção mínima é a da rodada anterior: uma linha no `R-QA` e na skill dizendo que a autorização da volta é uma linha que o Jarvis escreve com a leitura dele (ADR 0018), ou o ato `volta-extra` nas concessões. Esforço P. Dono: autor da E100.5.
+**A3, aberto (recomendado).** Mesma correção mínima da rodada anterior: uma linha no `R-QA` e na skill `briefs-e-conferencia` dizendo que a autorização da volta é uma linha que o Jarvis escreve com a leitura dele (ADR 0018), ou o ato `volta-extra` nas concessões. Esforço P. Dono: autor da E100.9. Não é falha explorável por terceiro: quem escreve a linha é o próprio orquestrador, sob o limite já aceito na ADR 0018.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas usadas: o diff do delta e sondas pela biblioteca padrão (`voltas_autorizadas` e a classe `BriefDeVolta` subclassificada fora da cópia, em `$TMPDIR`). `gitleaks` e `semgrep` não estão no PATH (lacuna); o delta não tem segredo nem dependência.
+Nenhum risco aceito. Ferramentas: o diff do delta, os testes S7 e S8 da classe `BriefDeVolta` e sondas pela biblioteca padrão (`voltas_autorizadas`, `branch_do_anterior_diferente`, módulo carregado de `$TMPDIR`). `gitleaks` e `semgrep` não estão no PATH (lacuna); o delta não tem segredo nem dependência.
