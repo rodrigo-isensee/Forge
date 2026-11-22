@@ -4270,7 +4270,7 @@ def voltas_da_branch(pasta, branch, anterior, proprio=None):
             texto = f.read(4096).decode("utf-8", errors="replace")
         m = VOLTA_DE.search(cabecalho_do_brief(texto))
         if m:
-            voltas += bool(branch) and grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(texto)) == branch
+            voltas += grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(texto)) == branch
             sucessores += Path(pasta, Path(m.group(1)).name).resolve() == Path(anterior).resolve()
     return voltas, sucessores
 

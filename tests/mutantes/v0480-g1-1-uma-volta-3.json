@@ -6,18 +6,8 @@
       "id": "M16",
       "guarda": "só conta a volta da mesma Branch:",
       "arquivo": "bin/forge-check",
-      "de": "and grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho_do_brief(texto)) == branch",
-      "para": "and True",
-      "testes": [
-        "tests.test_volta_por_delta.BriefDeVolta.test_volta_de_outro_item_nao_conta"
-      ]
-    },
-    {
-      "id": "M17",
-      "guarda": "sem Branch: no anterior, nenhum brief conta como volta do item",
-      "arquivo": "bin/forge-check",
-      "de": "voltas += bool(branch) and grupo(",
-      "para": "voltas += grupo(",
+      "de": "voltas += grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho_do_brief(texto)) == branch",
+      "para": "voltas += True",
       "testes": [
         "tests.test_volta_por_delta.BriefDeVolta.test_volta_de_outro_item_nao_conta"
       ]
