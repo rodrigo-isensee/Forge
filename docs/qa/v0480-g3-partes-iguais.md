@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-g3-partes-iguais
-commit: 790f114d38117b7da7232f9b7b94f98c945d03aa
+commit: 782d788e202522de56b29898fec976874a9fe5a3
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -35,3 +35,8 @@ data: 2026-11-22
 - A1 resolvido: `corpus_da_fatia` é o corte único; sonda `[k::4][1:]` nela derruba `test_t1_as_fatias_cobrem_todo_o_corpus` (failures=1). Base: 2 OK.
 - A2 resolvido: `test_fatias_travadas_aos_metodos`; constante FATIAS_DO_T1=5 e FATIAS_DE_FIXTURES=5 derrubam o teste (failures=1 cada). Base: 1 OK.
 - test_pesos_teto OK. Sondas em cópia (`git archive`) em $TMPDIR; árvore intacta. Suíte inteira: check-run `bateria` do CI do PR.
+
+## Revalidação (terceira volta, head 782d788e)
+- Delta do parecer: intervalo 790f114d..782d788e sem o que veio da develop; só tests/pesos-d4.json, com a linha test_trilha_forge_check: 1.5 trazida no merge.
+- test_pesos_teto (2 OK) e test_pesos_do_ci (16 OK), com TMPDIR e -I. Peso novo 1,5 s, abaixo de 225 s.
+- Nada mais mudou no domínio do QA. Suíte inteira: check-run bateria do CI do PR.
