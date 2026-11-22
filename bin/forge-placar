@@ -32,6 +32,10 @@ Métrica | Critério de reversão | Início | Revisão | Resultado |`): cada lin
 `código:` ou `texto:`, Início e Revisão são datas com a Revisão de 1 a 30 dias depois, a revisão vencida tem Resultado
 `manter (...)` ou `reverter (...)` com a leitura do `comparar`, e há no máximo `--max-abertas` (padrão 1) abertas: uma causa
 por vez, para o placar atribuir o efeito. rc 1 com uma linha `falta:` por problema.
+Ganho prometido (MEDIR-DE-NOVO-O-PROMETIDO): a Métrica pode trazer `prometido: <N>%` (ex.: `taxa_forma prometido: -20%`, a
+variação anunciada; negativa é queda). Cada proposta assim ganha a linha `prometido: <ID> <métrica> · prometido -20% · real
+-35%`, com o real medido como no `comparar` (janela de `--dias` antes do Início contra a de `--dias` a partir dele) e `real sem
+medida` enquanto a janela de depois não fechou até `--hoje` ou falta fonte ou base; no `--json`, a chave `prometidos`.
 
 Por papel (0.43.3, E23 "erros por papel"): o placar mostra, para cada papel, a taxa de vereditos negativos que o registro atribui
 a ele (coluna `autor`; `destino` vira o papel do brief, `<pedido>-<papel>-<n>`) sobre os vereditos em que ele responde (jarvis:
@@ -104,6 +108,7 @@ ERRO_REGISTRO = re.compile(r"^## \d+\. .*\((\d{4}-\d{2}-\d{2})[ T]\d{2}:\d", re.
 TIPOS_DE_MUDANCA = ("código:", "codigo:", "texto:")
 RESULTADO = re.compile(r"^(manter|reverter)\b.*\S", re.I)
 PRAZO_MAXIMO = 30  # dias entre o início e a revisão
+PROMETIDO = re.compile(r"\bprometido:[ \t]*([+-]?\d{1,6}(?:[.,]\d+)?)[ \t]*%")  # teto de dígitos: o float nunca vira inf
 SEM_TESTE = re.compile(r"^##[ \t]+Sem teste[ \t]*$", re.M | re.I)
 TETO_ANINHAMENTO = 64  # níveis de [ e { aceitos na entrada JSON; a do `gh pr list` usa 2
 PASTAS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/security/", "docs/devops/")  # as do PASTA_E_REGRA do forge-check
@@ -546,6 +551,8 @@ def conferir_proposta(p, hoje):
     metrica = p.get("métrica", "").strip("` ")
     if not any(m == metrica or metrica.startswith(m + " ") for m in METRICAS):
         faltas.append(f"{ident}: Métrica tem de começar por uma métrica do placar ({', '.join(METRICAS)})")
+    if "prometido:" in metrica and not PROMETIDO.search(metrica):
+        faltas.append(f"{ident}: prometido tem de ser um número em %, de até 6 dígitos inteiros (ex.: `prometido: -20%`)")
     if not p.get("mudança", "").lower().startswith(TIPOS_DE_MUDANCA):
         faltas.append(f"{ident}: Mudança tem de começar por `código:` ou `texto:` (texto só para julgamento)")
     if not p.get("critério de reversão", "").strip(" —-"):
@@ -567,6 +574,32 @@ def conferir_proposta(p, hoje):
     return faltas, not fechada
 
 
+def ganho_real(p, fontes, hoje, dias):
+    """A variação medida da métrica da proposta, em % arredondado, ou None (janela de depois aberta, sem fonte ou base zero)."""
+    inicio, nome = p.get("início", ""), p.get("métrica", "").strip("` ").split(" ")[0]
+    if not DATA.fullmatch(inicio) or nome not in METRICAS:
+        return None
+    inicio, passo = datetime.date.fromisoformat(inicio), datetime.timedelta(days=dias)
+    if inicio + passo > hoje:
+        return None
+    a, d = medir(fontes, (inicio - passo, inicio))[nome], medir(fontes, (inicio, inicio + passo))[nome]
+    if a is None or d is None or a == 0:
+        return None
+    return round((d - a) / a * 100)
+
+
+def prometidos(linhas, args, hoje):
+    """O prometido ao lado do real de cada proposta que anuncia ganho; as fontes só são lidas se alguma anuncia."""
+    com = [(p, m) for p in linhas if (m := PROMETIDO.search(p.get("métrica", "")))]
+    fontes = carregar(args) if com else None
+    return [{"id": p.get("id") or "?", "metrica": p.get("métrica", "").strip("` ").split(" ")[0],
+             "prometido": float(m.group(1).replace(",", ".")), "real": ganho_real(p, fontes, hoje, args.dias)} for p, m in com]
+
+
+def pct(v):
+    return f"{v:+g}%"
+
+
 def cmd_propostas(args):
     arq = Path(args.arquivo or Path(args.raiz) / "docs" / "kanban" / "melhorias.md")
     texto = ler(arq)
@@ -584,9 +617,13 @@ def cmd_propostas(args):
         abertas += [p.get("id") or "?"] if aberta else []
     if len(abertas) > args.max_abertas:
         faltas.append(f"abertas: {len(abertas)} ({', '.join(abertas)}), máximo {args.max_abertas}: uma causa por vez")
+    ganhos = prometidos(linhas, args, hoje)
     if args.json:
-        print(json.dumps({"propostas": len(linhas), "abertas": abertas, "faltas": faltas}, ensure_ascii=False))
+        print(json.dumps({"propostas": len(linhas), "abertas": abertas, "faltas": faltas, "prometidos": ganhos}, ensure_ascii=False))
     else:
+        for g in ganhos:
+            real = "sem medida" if g["real"] is None else pct(g["real"])
+            print(f"prometido: {g['id']} {g['metrica']} · prometido {pct(g['prometido'])} · real {real}")
         for f in faltas:
             print(f"falta: {f}")
         print(f"propostas: {len(linhas)} · abertas: {len(abertas)} · resultado: {'reprovado' if faltas else 'ok'}")
