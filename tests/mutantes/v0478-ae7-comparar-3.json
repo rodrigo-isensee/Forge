@@ -56,8 +56,8 @@
       "id": "CMP22",
       "guarda": "AE7.1 rodar_caso: ambiente por lista positiva, sem marca do comparador",
       "arquivo": "bin/forge_comparar.py",
-      "de": "for k in AMBIENTE if k in os.environ}",
-      "para": "for k in os.environ}",
+      "de": "for k in AMBIENTE if k in os.environ}, HOME=str(home), TMPDIR=str(arvore.parent",
+      "para": "for k in os.environ}, HOME=str(home), TMPDIR=str(arvore.parent",
       "testes": [
         "tests.test_comparar.ComoOClaudeCode.test_hook_do_head_que_detecta_o_comparador_nao_finge_apertar"
       ]
