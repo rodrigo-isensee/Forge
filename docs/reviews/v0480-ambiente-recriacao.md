@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ambiente-recriacao
-commit: 93a2123cdbef523aaa7da20aaaf2a7455895d475
+commit: a0be36e6222bb41cf7721d58ec668aeff8928044
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-22
@@ -30,6 +30,13 @@ Base 38c37de9, head 09457540 (E119.1, 2 commits). Revisão completa única, sem 
 - A3 virou cartão (decisão do Jarvis); fica abaixo só como registro.
 - Rodados aqui: `python3 -m unittest tests.test_ambiente_recriacao` (10 OK, 3,4 s); `bin/forge-mutante tests/mutantes/v0480-ambiente-recriacao.json` (rev 93a2123cdbef, 16 de 16 morreram). Suíte inteira e `shellcheck`: CI do PR.
 
+## Revalidação (E119.12, head a0be36e6, volta de CI do #792)
+- Delta lido: `forge-check parecer delta` de 93a2123c..a0be36e6, sem o que veio da develop; no domínio: `bin/forge-testes`, os dois scripts de preparo, `tests/test_ambiente_recriacao.py`, `tests/test_testes_tocados.py` (e `tests/test_forge.py` e `tests/pesos-d4.json`, iguais aos da develop 1fb52da6: vieram do merge, não do autor).
+- Nenhum teste afrouxado: o delta não remove nem enfraquece assert. `tests/test_testes_tocados.py:63` ganhou `test_ambiente_recriacao` na lista exata de `.devcontainer/devcontainer.json`, espelho da regra nova do `MAPA` (casamento por `re.fullmatch`, `bin/forge-testes:507`; a regra do modelo em `templates/projeto/.devcontainer/` vem antes e não colide). A lista segue exata, não subconjunto.
+- `tests/test_ambiente_recriacao.py`: o `git init` passa pelo ponto único (`sem_manutencao`); o PATH sem curl usa `is_symlink` para não colidir com link quebrado. Mesmo comportamento testado.
+- Scripts: SC2088 (`~` entre aspas) trocado por `$HOME` nas mensagens; `command grep` no `preparar-estacao.sh` só desvia de função ou alias; nenhuma guarda mudou de sentido.
+- Rodados aqui: `python3 -m unittest tests.test_testes_tocados tests.test_ambiente_recriacao` (206 OK, 1 pulado pelo sandbox de /proc, 289 s). Suíte inteira e `shellcheck`: CI do PR #792.
+
 ## Achados
 - A1 (recomendado) scripts/preparar-estacao.sh:194 · guarda do --simular sem teste: o mutante `true || return 0` sobrevive a test_ambiente_recriacao e a test_container_simular_nao_altera_nada (o --simular passaria a escrever ~/.bashrc); falta assert de .bashrc ausente no --simular e o mutante na spec.
 - A2 (recomendado) scripts/preparar-estacao.sh:195 · grep '.local/bin' aceita qualquer menção (comentário, PATH no fim): .bashrc só com `# ver ~/.local/bin/README` deixa o export fora (reproduzido no modelo, linha 107). Sugestão: grep -qF da linha exata gravada.
@@ -38,6 +45,8 @@ Base 38c37de9, head 09457540 (E119.1, 2 commits). Revisão completa única, sem 
 - A5 (recomendado) scripts/preparar-estacao.sh:195 · o grep aceita `export PATH="$PATH:$HOME/.local/bin"` (no fim) como presente; com um claude antigo mais cedo no PATH, o atual não vence. Mesmo em templates/projeto/.devcontainer/preparar-ambiente.sh:107. Vira cartão.
 
 ## Parecer
+Revalidação no a0be36e6: aprovado. As cinco correções de CI não mudam comportamento nem afrouxam teste; o merge espera o CI do #792 verde.
+
 Revalidação no 93a2123c: aprovado. A1, A2 e A4 resolvidos com teste de comportamento e mutante que morre; A3 e A5 são recomendados e viram cartão (`R-REVIEW`).
 
 Parecer anterior (09457540): aprovado. O item faz o que o E119.1 pede, nos dois scripts, com testes de comportamento dos ramos de falha. Os quatro achados são recomendados (nenhum defeito do caminho normal provado): viram cartão depois do merge (`R-REVIEW`). O merge depende ainda da segurança (E119.2), do QA (E119.4) e do CI do PR verde, incluindo o `shellcheck`.
