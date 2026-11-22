@@ -10,6 +10,7 @@
   "test_agentes_interrompidos": 1.1,
   "test_ambiente_git": 52.1,
   "test_ambiente_hook": 1.5,
+  "test_ambiente_recriacao": 0.8,
   "test_ambiente_sem_auto_update": 0.2,
   "test_anotar": 3.2,
   "test_apoio_sandbox": 4.1,
