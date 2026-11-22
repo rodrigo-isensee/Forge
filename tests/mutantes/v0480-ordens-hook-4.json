@@ -47,7 +47,7 @@
       "guarda": "CONFORMIDADE: caminho fora da cópia principal não vira forma relativa (A2 da segurança E123.8)",
       "arquivo": "hooks/conformidade.py",
       "de": "return [] if rel is None else [rel]",
-      "para": "return [rel]",
+      "para": "return [] if False else [rel]",
       "testes": [
         "tests.test_hooks.OrdensEmVigor.test_conformidade_ve_o_arquivo_pela_copia_principal"
       ]
@@ -60,6 +60,27 @@
       "para": " '.forge/onboarding.md')",
       "testes": [
         "tests.test_forge.ForgeInit.test_o_arquivo_de_ordens_fica_fora_do_git"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "CONFORMIDADE: a lista lê a forma da cópia principal antes de casar a entrada (A2 da segurança E123.8)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if c in PELA_COPIA_PRINCIPAL and da_principal is None:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_conformidade_recusa_a_pasta_das_ordens_e_a_copia_principal"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "CONFORMIDADE: a pasta das ordens do Forge é só do jarvis no mapa de donos (A1 da segurança E123.8)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "\"caminho\": \"~/.forge-contrib/docs/ordens/\", \"quem\": [\"jarvis\"]",
+      "para": "\"caminho\": \"~/.forge-contrib/docs/ordens-x/\", \"quem\": [\"jarvis\"]",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_so_o_jarvis_escreve_o_arquivo_de_ordens",
+        "tests.test_hooks.OrdensEmVigor.test_conformidade_recusa_a_pasta_das_ordens_e_a_copia_principal"
       ]
     }
   ]
