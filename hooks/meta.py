@@ -320,7 +320,10 @@ def notas_em_outro_idioma(hook, final, dono):
     transcrito, arquivo = hook.campo("transcript_path"), hook.run() / MARCA_DAS_NOTAS
     vista = vista_anterior(arquivo, transcrito)
     notas, marca = notas_da_rodada(transcrito, final, vista.get("marca"), vista.get("final"))
-    gravar_json(arquivo, {"transcrito": str(transcrito), "marca": marca, "final": resumo(final)})
+    try:
+        gravar_json(arquivo, {"transcrito": str(transcrito), "marca": marca, "final": resumo(final)})
+    except OSError as erro:  # A1 da segurança (E109.7): sem a marca gravada, a contagem e a linha da medida seguem
+        hook.registrar_erro(erro)
     return sum(idioma_da_mensagem(fora_de_codigo_e_citacao(n)) not in (None, dono) for n in notas)
 
 

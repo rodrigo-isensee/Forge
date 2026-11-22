@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_meta.NotasEntreFerramentas.test_marca_ilegivel_ou_fora_da_forma_e_ignorada"
       ]
+    },
+    {
+      "id": "M22",
+      "guarda": "falha ao gravar a marca vai ao erros.log e a medida segue (mutante: a exceção sobe e a linha se perde)",
+      "arquivo": "hooks/meta.py",
+      "de": "        hook.registrar_erro(erro)\n    return sum(",
+      "para": "        raise\n    return sum(",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_marca_que_nao_grava_nao_perde_a_linha_da_medida"
+      ]
     }
   ]
 }

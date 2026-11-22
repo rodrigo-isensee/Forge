@@ -343,8 +343,9 @@ class NotasEntreFerramentas(unittest.TestCase):
         run = self.tmp / "run"
         run.mkdir(exist_ok=True)
         (run / "mensagens.jsonl").unlink(missing_ok=True)
+        self.erros = []
         hook = type("Hook", (), {"campo": lambda _s, chave: campos.get(chave), "run": lambda _s: run,
-                                 "iniciante": lambda _s: False})()
+                                 "iniciante": lambda _s: False, "registrar_erro": lambda _s, erro: self.erros.append(erro)})()
         self.meta.medir_mensagem(hook, raiz)
         linha = json.loads((run / "mensagens.jsonl").read_text(encoding="utf-8"))
         return linha.get("notas_em_outro_idioma"), linha.get("outro_idioma")
@@ -443,6 +444,12 @@ class NotasEntreFerramentas(unittest.TestCase):
             with self.subTest(conteudo=conteudo):
                 (self.tmp / "run" / "notas.json").write_text(conteudo, encoding="utf-8")
                 self.assertEqual(self.medir([self.dono("oi"), self.nota(self.EN)]), (1, True))
+
+    def test_marca_que_nao_grava_nao_perde_a_linha_da_medida(self):
+        """E109.7 (A1 e S1 de docs/security/v0480-meta-notas.md): notas.json como pasta; a linha vai ao disco e o erro ao log."""
+        (self.tmp / "run" / "notas.json").mkdir(parents=True)
+        self.assertEqual(self.medir([self.dono("oi"), self.nota(self.EN)]), (1, True))
+        self.assertEqual([type(e) for e in self.erros], [IsADirectoryError])
 
     def test_nota_cuja_chamada_traz_tool_result_ainda_conta(self):
         nota = {"type": "assistant", "message": {"content": [

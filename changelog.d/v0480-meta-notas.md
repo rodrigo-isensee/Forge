@@ -3,3 +3,4 @@
 
 ### Corrigido
 - Idioma das notas sem reconta (META-NOTAS-RECONTA, v0478 E109.1): num segundo Stop sem fala nova do dono (aviso de subagente ou continuação do objetivo), o hook meta para no registro mais novo já lido e pula a mensagem final anterior, guardados em .forge/run/notas.json (só o uuid e o sha256, nunca o texto): a nota já medida não infla outro_idioma de novo; e o pré-filtro pula só o registro de tipo tool_result, não a nota cuja chamada traz esse texto. Reversão: voltar a parar só na fala do dono se a marca esconder nota nova.
+- Medida que não se perde (v0478 E109.7, A1 de segurança): se gravar .forge/run/notas.json falhar (pasta no lugar do arquivo, disco cheio, permissão), o hook meta registra o erro no erros.log e grava a linha do mensagens.jsonl mesmo assim, com a contagem das notas.
