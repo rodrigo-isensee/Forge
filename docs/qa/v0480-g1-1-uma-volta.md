@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-g1-1-uma-volta
-commit: e103b9a634e630e698b5b78e046bee553eec7cd6
+commit: 45d1fc2728a489d04950a6a304369f6f4f6e8fa5
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -61,3 +61,10 @@ Passada única no head 57c0cbff. Sem suíte local: o CI do PR dá a suíte intei
 - `forge-mutante --cobertura --base 2d73a35e` rc 0, sem condição descoberta nem `isenta velha`.
 - Testes afetados, `python3 -I -m unittest discover -s tests -p <arquivo>` com TMPDIR próprio: test_volta_por_delta `Ran 113 ... OK`; test_conferencia_base_dono `Ran 34 ... OK`; test_etapa_do_brief `Ran 89 ... OK`. Nenhum teste mudado no delta, sem `skip`.
 - A1 resolvido: guarda morta removida e M17 retirado junto. M11 saiu porque o trecho que ele mutava deixou de existir desde a volta anterior (`VOLTA_NA_DECISAO` até o fim da linha); a recusa de `melhoria/xy` segue no teste de forma canônica. Sem achados abertos.
+
+## Revalidação no head 45d1fc27 (delta sobre e103b9a6, volta 4)
+- Delta lido por `forge-check parecer delta`; o que muda de teste é o commit 45d1fc27 (`tests/test_forge.py`, `tests/test_revisor_wt.py`), fora o merge da develop.
+- Diff dos testes: o anterior de `VoltaComRecomendacao` ganha a linha `Branch: melhoria/x   Base: develop` (fixture do item), e dois testes apagam o `-2.md` que eles mesmos gravaram antes de gerar de novo. Só 4 linhas somadas e 1 trocada: nenhuma asserção removida nem afrouxada.
+- Os testes ainda falham sem a guarda: numa cópia sem as duas linhas `unlink`, `VoltaComRecomendacao` cai (`test_recomendacao_incluida_sem_decisao_tecnica...`) e `VoltaLeParecerConferido` cai com `já tem volta; gere a partir do último brief da branch`. A recusa do G1.1 está viva e o `unlink` só tira o brief que a própria guarda barraria.
+- Testes afetados, `python3 -I -m unittest` com TMPDIR próprio: `test_forge -k VoltaComRecomendacao` `Ran 16 ... OK`; `test_revisor_wt.py` `Ran 40 ... OK`. Sem `skip`/`expectedFailure` somado. Código de produção igual ao e103b9a6 (delta só de teste): mutantes não rerrodados.
+- Sem achados abertos.
