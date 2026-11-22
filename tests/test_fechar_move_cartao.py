@@ -123,11 +123,11 @@ class Teste(unittest.TestCase):
         self.assertIn(f"cartão K-1: depois do merge, forge-check movimento K-1 --de Em andamento --para Pronto --raiz {self.quadro}", r.stdout)
         self.assertEqual(self.movimentos(), [])
 
-    def test_armar_manda_o_limpar_com_o_cartao_e_o_quadro(self):
-        (self.estado / "auto_arma").write_text("1")
+    def test_armar_recusa_e_nao_move_o_cartao(self):
+        # FECHAR-SEM-AUTO-MERGE: o --armar recusa antes de tudo; sem merge, o cartão fica onde está
         r = self.fechar("p1", "--ref", "melhoria/x", "--armar", "--cartao", "K-1")
-        self.assertEqual(r.returncode, 4, r.stderr + r.stdout)
-        self.assertIn(f"forge-fechar p1 --ref melhoria/x --limpar --cartao K-1 --quadro {self.quadro}", r.stdout)
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("--armar recusado", r.stderr)
         self.assertEqual(self.movimentos(), [])
 
 

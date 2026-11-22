@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3491 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3492 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -12,7 +12,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3491 fixtures) roda em `tests/test
 | `ambiente` | 3 | 0 | 3 | 3 |
 | `conformidade` | 2650 | 1959 | 691 | 104 |
 | `doutor` | 3 | 0 | 3 | 3 |
-| `meta` | 32 | 13 | 19 | 14 |
+| `meta` | 33 | 13 | 20 | 15 |
 | `parecer` | 583 | 448 | 135 | 27 |
 | `pesado` | 27 | 11 | 16 | 20 |
 | `quadro` | 7 | 2 | 5 | 7 |
@@ -193,6 +193,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3491 fixtures) roda em `tests/test
 | `erro-*` | 1 | 0 | 1 | — | — | meta.json corrompido: libera e registra em erros.log. |
 | `espera-*` | 1 | 0 | 1 | — | — | S4: pedido em Aguardando o dono: o Stop passa e o objetivo fica armado. |
 | `falha-*` | 1 | 1 | 0 | — | — | S4: "ainda não" com outra falha recomeça a conta e bloqueia. |
+| `notas-*` | 1 | 0 | 1 | — | `E25.1` | E25.1 (v0478): a nota em inglês entre chamadas de ferramenta da rodada acende outro_idioma (dono sem config: português); a nota da rodada an… |
 | `pausado-*` | 1 | 0 | 1 | — | — | S4: objetivo pausado não bloqueia o Stop. |
 | `pergunta-*` | 1 | 0 | 1 | — | — | S4: última linha do dono no pedido é PERGUNTA AO DONO: espera o dono. |
 | `quarta-*` | 1 | 0 | 1 | — | — | S4: o quarto "ainda não" igual seguido pausa sozinho e o Stop passa. |

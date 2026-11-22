@@ -1,0 +1,33 @@
+{
+  "descricao": "E25.1 (v0478): a nota em inglês entre chamadas de ferramenta da rodada acende outro_idioma (dono sem config: português); a nota da rodada anterior não conta, o texto não é gravado e o Stop passa.",
+  "arquivos": {
+    "t.jsonl": [
+      "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"text\", \"text\": \"Old note: the and is are of to that this.\"}]}}",
+      "{\"type\": \"user\", \"message\": {\"content\": \"continue\"}}",
+      "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"text\", \"text\": \"I finished the step and it is ready; you can check the branch now.\"}]}}",
+      "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {}}]}}"
+    ]
+  },
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{raiz}/t.jsonl",
+    "last_assistant_message": "Terminei a etapa e não ficou pendência; está tudo verde e você já pode ver."
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "mensagens.jsonl": {
+        "contem": [
+          "\"notas_em_outro_idioma\": 1",
+          "\"outro_idioma\": true",
+          "\"idioma\": \"pt\""
+        ],
+        "ausente": [
+          "finished",
+          "Old note"
+        ]
+      }
+    }
+  }
+}
