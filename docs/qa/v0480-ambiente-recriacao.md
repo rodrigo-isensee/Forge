@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ambiente-recriacao
-commit: a0be36e6222bb41cf7721d58ec668aeff8928044
+commit: 1fa9db9660757bbfa03baa2ff273acd8a411d181
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
