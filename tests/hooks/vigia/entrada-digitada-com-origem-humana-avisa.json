@@ -1,0 +1,53 @@
+{
+  "descricao": "FALA-DO-DONO-RESUMO-COMPACTADO: o registro digitado (origin kind human, promptSource typed) segue como fala do dono: a lista de 4 itens sem gravação avisa.",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": ""
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1",
+        "transcript_path": "{tmp}/t.jsonl"
+      }
+    },
+    {
+      "anexar": {
+        "{tmp}/t.jsonl": [
+          "{\"parentUuid\": \"p0\", \"isSidechain\": false, \"userType\": \"external\", \"entrypoint\": \"cli\", \"cwd\": \"{tmp}\", \"sessionId\": \"s1\", \"version\": \"2.0.0\", \"gitBranch\": \"x\", \"uuid\": \"m1\", \"timestamp\": \"2026-01-01T00:00:00.000Z\", \"type\": \"user\", \"message\": {\"role\": \"user\", \"content\": \"Anota isso:\\n- banana azul\\n- laranja\\n3. maca verde\\n- uva\\n\"}, \"origin\": {\"kind\": \"human\"}, \"promptSource\": \"typed\", \"turnOrigin\": \"human\", \"permissionMode\": \"default\"}"
+        ]
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "saida": "a lista do turno não foi gravada em docs/pedidos/",
+    "estado": {
+      "violacoes.jsonl": {
+        "contem": [
+          "\"tipo\": \"entrada-sem-registro\"",
+          "itens=4",
+          "mensagem=m1"
+        ],
+        "ausente": [
+          "banana",
+          "laranja",
+          "maca",
+          "Anota"
+        ]
+      }
+    }
+  }
+}
