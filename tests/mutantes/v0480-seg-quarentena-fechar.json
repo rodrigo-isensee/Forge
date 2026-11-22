@@ -11,6 +11,16 @@
       "testes": [
         "tests.test_forge_quarentena.Validar.test_autorizacao_so_com_digito_ascii"
       ]
+    },
+    {
+      "id": "FS1",
+      "guarda": "FECHAR-SEM-AUTO-MERGE: depois do merge direto, o PR que não consta MERGED no prazo para com a mensagem própria, sem limpar",
+      "arquivo": "bin/forge-fechar",
+      "de": "    [ $((SECONDS - inicio)) -lt \"$espera\" ] || die \"parou no passo 6: o merge direto foi pedido",
+      "para": "    [ $((SECONDS - inicio)) -lt \"$espera\" ] || break; : \"parou no passo 6: o merge direto foi pedido",
+      "testes": [
+        "tests.test_fechar_auto_merge.SemAutoMerge.test_merge_que_nao_consta_merged_no_prazo_para_sem_limpar"
+      ]
     }
   ]
 }

@@ -1,7 +1,7 @@
 """FECHAR-CHECKS-ANTES-DO-MERGE (v0478): antes do merge, o `bin/forge-fechar` lê os check-runs do head conferido e, por nome de `bateria`,
 `bateria (python 3.14)` e `catraca`, julga só a execução mais recente (id maior; E75.6). No merge direto, recusa se ela falta ou não está em
-completed/success (a conta do dono passaria pelo bypass do ruleset). Com --armar, recusa só a que já terminou fora de success; rodando ou
-ausente, arma (E75.2 e E75.6).
+completed/success (a conta do dono passaria pelo bypass do ruleset): terminada fora de success para; rodando ou ausente espera até
+--espera e relê (FECHAR-SEM-AUTO-MERGE; aqui com --espera 0, sem espera). O --armar recusa (test_fechar_sem_auto_merge).
 
 Reaproveita o ambiente de `test_fechar.Fechar` (repositório temporário, `gh` e `forge-check` falsos) sem herdar os testes dele.
 """
@@ -51,13 +51,13 @@ class FecharChecksDoHead(unittest.TestCase):
             with self.subTest(nome=nome):
                 self.setUp()
                 self.runs(linhas)
-                r = self.fechar("p1", "--ref", "melhoria/x")
+                r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "0")
                 self.assert_recusou(r, f"o check obrigatório {nome} do head")
                 self.assertIn(texto, r.stderr)
 
     def test_nome_mais_longo_verde_nao_vale_pelo_exigido(self):
         self.runs(VERDES[1:])  # só `bateria (python 3.14)`: a `bateria` não está entre os check-runs
-        self.assert_recusou(self.fechar("p1", "--ref", "melhoria/x"), "o check obrigatório bateria do head")
+        self.assert_recusou(self.fechar("p1", "--ref", "melhoria/x", "--espera", "0"), "o check obrigatório bateria do head")
 
     def test_rotulo_aplicado_catraca_velha_cancelled_e_nova_verde_mescla(self):
         # E75.6 (A2 do review): a forma real do PR 745; o filter=latest devolve as duas suítes da catraca, em qualquer ordem
@@ -78,32 +78,27 @@ class FecharChecksDoHead(unittest.TestCase):
                 self.runs(ordem)
                 self.assert_recusou(self.fechar("p1", "--ref", "melhoria/x"), "o check obrigatório catraca do head")
 
-    def test_com_armar_e_check_rodando_ou_ausente_arma(self):
-        # E75.2: o --armar arma antes do CI terminar; rodando ou ainda sem execução não para (E75.6)
+    def test_rodando_ou_ausente_espera_e_para_no_prazo_sem_merge(self):
+        # FECHAR-SEM-AUTO-MERGE: o pendente não arma nada; espera até --espera (aqui 0) e para, sem merge
         for nome, linhas in {"rodando": [*VERDES[:2], "catraca\t13\tqueued\t-"], "ausente": VERDES[:2]}.items():
             with self.subTest(caso=nome):
                 self.setUp()
-                (self.estado / "auto_arma").write_text("")
                 self.runs(linhas)
-                sha = self.git("rev-parse", "melhoria/x")
-                r = self.fechar("p1", "--ref", "melhoria/x", "--armar")
-                self.assertEqual(r.returncode, 4, r.stderr + r.stdout)
-                self.assertIn("auto-merge armado no PR #7", r.stdout)
-                self.assertIn("sem falha terminada", r.stdout)
-                self.assertNotIn("o check obrigatório", r.stderr)
+                r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "0")
+                self.assert_recusou(r, "o check obrigatório catraca do head")
+                self.assertIn(f"(lida: {'queued/-' if nome == 'rodando' else 'ausente'}) após 0s; nada foi mesclado", r.stderr)
                 self.assertEqual(len(self.leituras()), 1)
-                self.assertEqual(self.merges(), [f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha}"])
 
-    def test_com_armar_e_check_terminado_com_falha_recusa(self):
-        # E75.6 (A1 da segurança): o --auto da conta do dono mesclaria na hora pelo bypass
+    def test_terminado_com_falha_recusa_sem_esperar(self):
+        # E75.6 (A1 da segurança): a execução mais recente terminada fora de success para na hora, mesmo com prazo
         for conclusao in ("failure", "cancelled", "timed_out"):
             with self.subTest(conclusao=conclusao):
                 self.setUp()
-                (self.estado / "auto_arma").write_text("")
                 self.runs(["catraca\t5\tcompleted\tsuccess", *VERDES[:2], f"catraca\t13\tcompleted\t{conclusao}"])
-                r = self.fechar("p1", "--ref", "melhoria/x", "--armar")
+                r = self.fechar("p1", "--ref", "melhoria/x")
                 self.assert_recusou(r, "o check obrigatório catraca do head")
-                self.assertIn(f"terminou em {conclusao} na execução mais recente; nada foi mesclado nem armado", r.stderr)
+                self.assertIn(f"terminou em {conclusao} na execução mais recente; nada foi mesclado", r.stderr)
+                self.assertEqual(len(self.leituras()), 1)
 
     def test_leitura_dos_check_runs_que_falha_para(self):
         (self.estado / "falha_check_runs").write_text("3")
