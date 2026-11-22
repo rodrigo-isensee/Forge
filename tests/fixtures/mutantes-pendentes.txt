@@ -4,7 +4,6 @@
 # `bin/forge-mutante --conferir --todas`: `tests/mutantes/<spec>.json: <id>`.
 #
 # O trecho aparece mais de uma vez no arquivo (outro commit repetiu a linha): o `de` precisa de mais contexto.
-tests/mutantes/acelera-e2b-diff-vazio.json: M7
 tests/mutantes/acelera-p3c-rotulados-funcao-2.json: M22
 tests/mutantes/hk3-parecer-pasta-14.json: M103
 tests/mutantes/hk3-parecer-pasta-14.json: M104
@@ -21,7 +20,6 @@ tests/mutantes/pesado-trava-fundo.json: M4
 tests/mutantes/pn4-decisao-aprovacao.json: M2
 tests/mutantes/prepush-projeto-trava-2.json: M8
 tests/mutantes/prepush-projeto-trava-2.json: M9
-tests/mutantes/revisor-wt-e6a-1.json: M2
 tests/mutantes/s8-verde-protegido.json: M3
 tests/mutantes/t1-conf-escopo.json: M14
 tests/mutantes/v0441-o4-resposta.json: M12
@@ -32,6 +30,3 @@ tests/mutantes/v0457-escopo-ponto-3.json: M17
 tests/mutantes/v0457-escopo-ponto-3.json: M20
 tests/mutantes/z075-prepush-relogio.json: M1
 tests/mutantes/z075-prepush-relogio.json: M2
-tests/mutantes/z075-uma-delegacao-por-branch.json: M3
-tests/mutantes/z075-uma-delegacao-por-branch.json: M6
-tests/mutantes/z075-uma-delegacao-por-branch.json: M7

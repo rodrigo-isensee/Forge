@@ -1,0 +1,66 @@
+{
+  "pedido": "v0479-trilha-forge-check",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M7",
+      "guarda": "FC-DOCS-CAMINHO: --base lê o diff contra a origin/<base> dada",
+      "arquivo": "bin/forge-check",
+      "de": "        delta = documentos_do_delta(raiz, f\"origin/{base or 'develop'}\")",
+      "para": "        delta = documentos_do_delta(raiz, f\"origin/{'develop'}\")",
+      "testes": [
+        "tests.test_volta_por_delta.DocsEstritoNoDelta"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "FC-DOCS-CAMINHO: com --base, diff ilegível reprova",
+      "arquivo": "bin/forge-check",
+      "de": "        if base and delta is None:  # FC-DOCS-CAMINHO",
+      "para": "        if base and False:  # FC-DOCS-CAMINHO",
+      "testes": [
+        "tests.test_volta_por_delta.DocsEstritoNoDelta"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "FC-DOCS-CAMINHO: sem --base, diff ilegível segue só com o aviso",
+      "arquivo": "bin/forge-check",
+      "de": "        if base and delta is None:  # FC-DOCS-CAMINHO",
+      "para": "        if delta is None:  # FC-DOCS-CAMINHO",
+      "testes": [
+        "tests.test_volta_por_delta.DocsEstritoNoDelta"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "FC-DOCS-CAMINHO: com --base, só os documentos do diff",
+      "arquivo": "bin/forge-check",
+      "de": "documentos(raiz) if not base or rel in delta], []",
+      "para": "documentos(raiz) if True], []",
+      "testes": [
+        "tests.test_volta_por_delta.DocsEstritoNoDelta"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "FC-DOCS-CAMINHO: sem --base, a pasta inteira, como antes",
+      "arquivo": "bin/forge-check",
+      "de": "documentos(raiz) if not base or rel in delta], []",
+      "para": "documentos(raiz) if rel in (delta or ())], []",
+      "testes": [
+        "tests.test_volta_por_delta.DocsEstritoNoDelta"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "FC-DOCS-CAMINHO: o PQ do portão leva --base só com base do fluxo",
+      "arquivo": "bin/forge-check",
+      "de": "' if nome in BASES_DO_FLUXO else ''}` · espera: rc=0\")",
+      "para": "' if nome not in BASES_DO_FLUXO else ''}` · espera: rc=0\")",
+      "testes": [
+        "tests.test_trilha_forge_check.DocsNoFluxoDeEntrega"
+      ]
+    }
+  ]
+}

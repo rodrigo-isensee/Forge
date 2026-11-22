@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "parecer conferido de outra branch do pedido conta",
       "arquivo": "bin/forge-check",
-      "de": "(frontmatter_do_parecer(raiz, p, n) or {}).get(\"branch\") == branch}",
-      "para": "(frontmatter_do_parecer(raiz, p, n) or {}).get(\"branch\") is not None}",
+      "de": "if n.startswith(f\"{pasta}/\") and (frontmatter_do_parecer(raiz, p, n) or {}).get(\"branch\") == branch}",
+      "para": "if n.startswith(f\"{pasta}/\") and (frontmatter_do_parecer(raiz, p, n) or {}).get(\"branch\") is not None}",
       "testes": [
         "tests.test_revisor_wt.PrLeParecerConferido.test_parecer_conferido_de_outra_branch_do_pedido_nao_conta"
       ]
@@ -57,8 +57,8 @@
       "id": "M6",
       "guarda": "pedido ausente não volta vazio",
       "arquivo": "bin/forge-check",
-      "de": "return ({}, []) if texto is None else ultimos_do_historico(raiz, texto)",
-      "para": "return ({}, []) if False else ultimos_do_historico(raiz, texto)",
+      "de": "return ({}, []) if texto is None else ultimos_do_historico(raiz, texto, branch, ref)",
+      "para": "return ({}, []) if False else ultimos_do_historico(raiz, texto, branch, ref)",
       "testes": [
         "tests.test_revisor_wt.PrLeParecerConferido.test_sem_pedido_e_fora_do_historico_nada_muda"
       ]

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-ae4-ordens",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "cmd_decisoes: o aviso diz ordem na linha torta da ordem (AE4.1)",
+      "arquivo": "bin/forge-check",
+      "de": "{'ordem' if ordem else 'decisão'}",
+      "para": "{'ordem' if False else 'decisão'}",
+      "testes": [
+        "tests.test_ordens.Listagem.test_ordem_torta_sai_aviso_e_fica_fora"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "linhas_sem_cartao: a marca do fim da linha só vale na ordem (AE4.1)",
+      "arquivo": "bin/forge-check",
+      "de": "if etapas is not None else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_ordens.Listagem.test_decisoes_seguem_sem_as_ordens"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "linhas_sem_cartao: com a marca, ela é o apontador (AE4.1)",
+      "arquivo": "bin/forge-check",
+      "de": "[marca.group(1)] if marca else ids_da_decisao",
+      "para": "[marca.group(1)] if False else ids_da_decisao",
+      "testes": [
+        "tests.test_ordens.Listagem.test_lista_sem_cartao_e_sem_id_das_ordens_desde_a_data"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "linhas_sem_cartao: a etapa do pedido vale como apontador da ordem (AE4.1)",
+      "arquivo": "bin/forge-check",
+      "de": "if not tem_cartao(i, cartoes) and not (etapas and e_etapa_do_pedido(i, etapas))]",
+      "para": "if not tem_cartao(i, cartoes)]",
+      "testes": [
+        "tests.test_ordens.Listagem.test_lista_sem_cartao_e_sem_id_das_ordens_desde_a_data"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "main: o subcomando ordens é despachado (AE4.1)",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd in (\"decisoes\", \"ordens\"):",
+      "para": "    if a.cmd in (\"decisoes\",):",
+      "testes": [
+        "tests.test_ordens.Listagem.test_sem_desde_entra_a_ordem_antiga"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "recusa_do_apontador: cartão de outro pedido recusa (A2)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not colunas:\n        return f\"--cartao {sem_controle(alvo)}: cartão de outro pedido",
+      "para": "    if False:\n        return f\"--cartao {sem_controle(alvo)}: cartão de outro pedido",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_cartao_de_outro_pedido_e_recusado"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "recusa_do_apontador: a coluna Pedido é o pedido anotado (A2)",
+      "arquivo": "bin/forge-check",
+      "de": "if dono_do_cartao == pedido_id}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_cartao_de_outro_pedido_e_recusado"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "recusa_do_apontador: FIFO no lugar do KANBAN.md recusa sem travar (A1)",
+      "arquivo": "bin/forge-check",
+      "de": "texto, erro = _ler_regular(Path(raiz_pedido) / \"KANBAN.md\")",
+      "para": "texto, erro = (Path(raiz_pedido) / \"KANBAN.md\").read_text(encoding=\"utf-8\"), None",
+      "testes": [
+        "tests.test_ordens.AnotarComCartao.test_quadro_fifo_recusa_sem_travar"
+      ]
+    }
+  ]
+}

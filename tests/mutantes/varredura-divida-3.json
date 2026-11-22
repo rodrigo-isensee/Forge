@@ -1,0 +1,93 @@
+{
+  "pedido": "varredura-divida",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M15",
+      "guarda": "só pasta conta como cópia",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": "p.is_dir()",
+      "para": "p.exists()",
+      "testes": [
+        "tests.test_varredura_divida.Varredura.test_lista_cada_achado_em_ordem_estavel"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "du sem saída (pasta que não existe) é 0 MB",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": "if saida and saida[0].isdigit() else 0",
+      "para": "if True else 0",
+      "testes": [
+        "tests.test_varredura_divida.Varredura.test_copias_abaixo_do_limite_ou_fora_do_forge_nao_se_listam"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "só acima do limite as cópias são achado",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": "if total > mb:",
+      "para": "if total >= mb:",
+      "testes": [
+        "tests.test_varredura_divida.Varredura.test_copias_abaixo_do_limite_ou_fora_do_forge_nao_se_listam"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "raiz que não é pasta é erro de uso",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": "if not a.raiz.is_dir():",
+      "para": "if False:",
+      "testes": [
+        "tests.test_varredura_divida.Varredura.test_raiz_que_nao_existe_e_erro_de_uso"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "subpasta varre o repositório inteiro",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": "Path(topo[0]) if topo else",
+      "para": "Path(topo[0]) if False else",
+      "testes": [
+        "tests.test_varredura_divida.Varredura.test_subpasta_varre_o_repositorio_inteiro"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "a --base dada vence a padrão",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": "base = a.base or base_padrao(raiz)",
+      "para": "base = base_padrao(raiz)",
+      "testes": [
+        "tests.test_varredura_divida.Varredura.test_base_dada_nao_se_lista"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "só no Forge as cópias se varrem",
+      "arquivo": "scripts/varredura-divida.py",
+      "de": "if e_o_forge(raiz):",
+      "para": "if True:",
+      "testes": [
+        "tests.test_varredura_divida.ProjetoDoForgeInit.test_projeto_novo_roda_sem_achado"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "forge-init leva o teste da varredura (o teste roda o forge-init)",
+      "arquivo": "bin/forge-testes",
+      "de": ", \"test_varredura_divida\")),",
+      "para": ")),",
+      "testes": [
+        "tests.test_testes_tocados.MapaCobreOQueOsTestesLeem.test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "scripts/varredura-divida.py",
+      "trecho": "__name__ == \"__main__\"",
+      "motivo": "ponto de entrada do script: só chama main(), que os testes rodam pelo subprocesso"
+    }
+  ]
+}

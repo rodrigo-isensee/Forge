@@ -86,6 +86,32 @@ class PrLeParecerConferido(ComParecer):
                                         "rode git fetch (VOLTAS-REVISOR-WT)"])
         self.assertEqual(self.novas(ref="develop", pedido="p1"), [])  # integração: fora do `de_trabalho`
 
+    def test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim(self):  # K-156 pela ref (A1 e S1 a S4 da segurança)
+        erro = f"docs/pedidos: parecer conferido {SHA_FALSO[:7]}: o git não lê o commit nem o pai dele; rode git fetch (VOLTAS-REVISOR-WT)"
+        de = lambda b: PARECER.format(branch=b, commit=self.c1, parecer="aprovado", data="2026-11-06")  # noqa: E731
+        git("switch", "-q", "develop", cwd=self.repo)  # o item mesclado por squash: o parecer dele está na base, com a branch: dele
+        self.commitar({"docs/reviews/outra.md": de("melhoria/outra"), "docs/security/outra.md": de("melhoria/outra"),
+                       "docs/security/z/outra.md": de("melhoria/outra"), "docs/reviews/sem.md": "sem frontmatter\n",
+                       "docs/reviews/dupla.md": de("melhoria/x")}, "squash de outro item")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        self.commitar({"docs/reviews/p1.md": de("melhoria/x"), "docs/security/x-2.md": de("melhoria/x"),
+                       "docs/qa/alheio.md": de("melhoria/outra"), "docs/reviews/dupla.md": de("melhoria/outra")}, "pareceres")
+        for cita, esperado in (("docs/reviews/outra.md=aprovado; docs/security/outra.md", []), ("docs/qa/x.md", [erro]),
+                               ("docs/reviews/outra.md; docs/security/x.md", [erro]), ("nenhum", [erro]), ("docs/qa/alheio.md", []),
+                               ("docs/reviews/p1.md", [erro]),  # S1: nomeado pelo pedido, com a branch: da própria branch
+                               ("docs/reviews/OUTRA.md", [erro]),  # S2: o nome com outra caixa não existe na ref
+                               ("docs/security/z/outra.md docs/reviews/outra.md", [erro]),  # S3: subpasta
+                               ("docs/security/x-2.md", [erro]),  # S4: sufixo -2, da própria branch
+                               ("xdocs/reviews/p1.md docs/reviews/outra.md", [erro]), ("docs/reviews/sem.md", [erro]),
+                               ("docs/reviews/dupla.md", [erro])):  # numa ref é da branch: basta uma
+            with self.subTest(cita):
+                self.gravar_pedido(extra=f"- 2026-11-06 18:00: {cita}=aprovado conferido: parecer conferido {SHA_FALSO} (review)\n")
+                self.assertEqual([linha for linha in self.novas() if linha.startswith("docs/pedidos:")], esperado)
+        git("switch", "-q", "-c", "outro", "develop", cwd=self.repo)  # o pr lê a --ref, nunca o HEAD de outra branch
+        self.commitar({"docs/reviews/p1.md": de("melhoria/outra")}, "outro")
+        self.gravar_pedido(extra=f"- 2026-11-06 18:00: docs/reviews/p1.md conferido: parecer conferido {SHA_FALSO} (review)\n")
+        self.assertEqual([linha for linha in self.novas() if linha.startswith("docs/pedidos:")], [erro])
+
     def test_regex_nao_se_cruzam(self):  # t14 (M5): `conferida` não é `parecer conferido`, e vice-versa
         p1 = self.parecer("r1")
         self.historico(p1, forma="entrega conferida")

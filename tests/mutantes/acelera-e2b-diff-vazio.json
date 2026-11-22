@@ -54,8 +54,8 @@
       "id": "M7",
       "guarda": "conflito do merge-tree da nao, nunca sim (C-4)",
       "arquivo": "bin/forge-check",
-      "de": "if cod == 1:",
-      "para": "if cod == 99:",
+      "de": "cod, saida = git(raiz, \"merge-tree\", \"--write-tree\", b40, ref)\n    if cod == 1:",
+      "para": "cod, saida = git(raiz, \"merge-tree\", \"--write-tree\", b40, ref)\n    if cod == 99:",
       "testes": ["tests.test_estado_da_branch.DiffVazio.test_arquivo_a_mais_conflito_e_squash_seguido_de_mudanca_dao_nao"]
     },
     {

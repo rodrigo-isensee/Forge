@@ -31,6 +31,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs [ARQUIVO...] | kanban [-
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
      forge-check voltas [--pedido ID]
      forge-check decisoes [--pedido ID] [--sem-cartao [--desde AAAA-MM-DD]]
+     forge-check ordens [--pedido ID] [--desde AAAA-MM-DD]
      forge-check proximo <pedido> [--item E<n>] [--etapa E<n>.<m>]
      forge-check esperas [--pedido ID [--kanban ARQUIVO]]
      forge-check afrouxamentos (--prs N,N... | --rotulados ARQUIVO.json) [--ref REF]
@@ -128,6 +129,7 @@ registro, silêncio; fonte inalcançável: sai com 3 (quem chama não grava o ca
 (`—` onde a linha não diz); a linha da frase fora de `(<data>): <texto>` sai `aviso:` e fica fora. Derivado e informativo: nenhum portão o lê, e o aceite continua a linha literal do pedido.
 Com `--sem-cartao` (DECISAO-SEM-CARTAO), cruza cada decisão (desde `--desde`) com os cartões do KANBAN.md e do histórico: `sem-cartao: <pedido>:<linha> | data | ID | decisão`,
 `sem-id:` para a decisão sem ID e, no fim, `decisoes: sem-cartao=N sem-id=M com-cartao=K encerradas=E`; rc sempre 0. Roda na retrospectiva e antes de cada release.
+`ordens` (AE4) faz o mesmo cruzamento com as linhas `ORDEM DO DONO`; a marca `· cartão: <ID|E<n>>` que o `anotar --tipo ordem --cartao` grava é o apontador, e a etapa do pedido vale.
 `transcricao` confere o comportamento de uma sessão gravada, sem IA e sem rede (ADR 0007); `custo` soma os tokens
 das transcrições locais do Claude Code (sem custo, R-CUSTO), com saída anonimizada.
 `lastro` (M1) conta, no relatório final de cada subagente, as afirmações verificáveis (sha, PR, push, mescla, testes OK e a afirmação absoluta "todos os testes passam", que só tem lastro numa saída de teste que terminou OK)
@@ -399,11 +401,11 @@ def documentos(raiz, tipo=None, ref=None):
             yield rel, texto
 
 
-def documentos_do_delta(raiz):
-    """Arquivos mudados desde o merge-base(origin/develop, HEAD), commitados ou não, mais os novos fora do índice (B12).
+def documentos_do_delta(raiz, base="origin/develop"):
+    """Arquivos mudados desde o merge-base(`base`, HEAD), commitados ou não, mais os novos fora do índice (B12).
     None se o git falhar: o `docs` segue no modo de hoje e o estrito fica com o `forge-check pr`."""
     cod, mudados = git(raiz, "diff", "--name-only", "-z", "--relative", "--no-renames", "--no-ext-diff", "--no-textconv",
-                       "--merge-base", "origin/develop", "--", bruto=True)
+                       "--merge-base", base, "--", bruto=True)
     cod_novos, novos = git(raiz, "ls-files", "-z", "--others", "--exclude-standard", bruto=True)
     return None if cod or cod_novos else set(nomes_z(mudados) + nomes_z(novos))
 
@@ -453,14 +455,18 @@ def documentos_dados(raiz, arquivos):
     return lidos, saida
 
 
-def cmd_docs(raiz, arquivos=()):
+def cmd_docs(raiz, arquivos=(), base=None):
     """Valida os documentos do contrato. Sem `arquivos`, todos, e o modo estrito só nos do delta (B12); com eles (FC-DOCS-CAMINHO),
-    só os dados, todos no modo estrito. No estrito, o parecer também tem o `pedido:` conferido (`problema_do_pedido`)."""
+    só os dados, todos no modo estrito. Com `base` (o fluxo de entrega), só os do diff da branch contra a `origin/<base>`, todos no
+    estrito; diff ilegível reprova. No estrito, o parecer também tem o `pedido:` conferido (`problema_do_pedido`)."""
     if arquivos:
         lidos, saida = documentos_dados(raiz, arquivos)
         delta = {rel for rel, _, _ in lidos}
     else:
-        lidos, saida, delta = [(rel, texto, rel) for rel, texto in documentos(raiz)], [], documentos_do_delta(raiz)
+        delta = documentos_do_delta(raiz, f"origin/{base or 'develop'}")
+        if base and delta is None:  # FC-DOCS-CAMINHO: sem o diff, nada se afirma (falha fechada)
+            return [f"docs: o diff contra origin/{sem_controle(base)} não se lê; nada conferido (FC-DOCS-CAMINHO)"]
+        lidos, saida = [(rel, texto, rel) for rel, texto in documentos(raiz) if not base or rel in delta], []
         if delta is None:
             print("aviso: docs: base ilegível; estrito só no forge-check pr", file=sys.stderr)
     for rel, texto, nome in lidos:
@@ -2003,7 +2009,7 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False, suite=N
     de_trabalho = bool(branch) and branch not in BASES_DO_FLUXO
     registros = autorias(raiz)
     exigidos, gatilhos_de_seguranca = exigidos_do_pr(raiz, pedido, ref, base)
-    conferidos, ilegiveis = pareceres_conferidos(raiz, pedido, branch) if de_trabalho else ({}, [])
+    conferidos, ilegiveis = pareceres_conferidos(raiz, pedido, branch, ref or "HEAD") if de_trabalho else ({}, [])
     saida += [f"docs/pedidos: parecer conferido {p[:7]}: o git não lê o commit nem o pai dele; rode git fetch (VOLTAS-REVISOR-WT)"
               for p in ilegiveis]
     for tipo in exigidos:
@@ -2409,21 +2415,44 @@ def linha_de_origem(arquivo):
     return None
 
 
-def pareceres_conferidos(raiz, pedido, branch):
+def pareceres_conferidos(raiz, pedido, branch, ref="HEAD"):
     """VOLTAS-REVISOR-WT (M1, T-2): ({arquivo: sha40 do último `parecer conferido` do `## Histórico` que o altera}, [sha que o git não
     lê]); o pedido é o da conferência do head (`pedido_da_conferencia`, A1) e o arquivo sai de `git diff --name-only P^1 P`, nunca do
     texto da linha. Sem o pedido, nada (como hoje: a conferência do head já recusa)."""
     texto = pedido_da_conferencia(raiz, pedido, branch)[1]
-    return ({}, []) if texto is None else ultimos_do_historico(raiz, texto)
+    return ({}, []) if texto is None else ultimos_do_historico(raiz, texto, branch, ref)
 
 
-def ultimos_do_historico(raiz, texto):
-    """O par de `pareceres_conferidos` lido do texto de um pedido já resolvido (a volta tem o dela, E6b-1)."""
+def de_outra_branch(raiz, linha, branch, ref):
+    """K-156 (A1 da segurança, pela ref e nunca pelo nome do arquivo): True se cada parecer citado (`docs/<pasta>/<nome>.md`, sem
+    subpasta) existe na `ref` ou numa base do fluxo e, em todas onde existe, tem `branch:` diferente da `branch`. Sem branch, sem
+    parecer citado, citação fora dessa forma, parecer ausente, `branch:` igual ou sem frontmatter legível: False (a linha conta)."""
+    pastas = "|".join(re.escape(p) for p in PASTAS_DE_PARECER)
+    citados = re.findall(rf"(?<![\w/])((?:{pastas})/[^\s/=;:,`]+\.md)(?![^\s=;:,`])", linha)
+    if not branch or not citados:
+        return False
+    if len(citados) != len(re.findall(rf"(?:{pastas})/", linha)):  # subpasta, prefixo forjado ou forma solta: falha fechada
+        return False
+    refs = [ref, *filter(None, (ref_da_base(raiz, b) for b in BASES_DO_FLUXO))]  # a base que não existe fica de fora
+    for nome in set(citados):
+        onde = [r for r in refs if blob_de(raiz, r, nome)]
+        if not onde:
+            return False
+        if any((frontmatter_do_parecer(raiz, r, nome) or {}).get("branch") in (None, "", branch) for r in onde):
+            return False
+    return True
+
+
+def ultimos_do_historico(raiz, texto, branch=None, ref="HEAD"):
+    """O par de `pareceres_conferidos` lido do texto de um pedido já resolvido (a volta tem o dela, E6b-1). Com `branch`, o P que o
+    git não lê só é ilegível se a linha é da branch (`de_outra_branch` lido na `ref`, K-156: o squash de outro item apaga o P dele)."""
     ultimos, ilegiveis = {}, []
     for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", []):
         if m := PARECER_CONFERIDO.match(linha):
             p = m.group(1)
             cod, saida = git(raiz, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "--no-textconv", f"{p}^1", p, "--", bruto=True)
+            if cod and de_outra_branch(raiz, linha, branch, ref):  # K-156
+                continue
             if cod:
                 ilegiveis.append(p)
                 continue
@@ -2434,7 +2463,7 @@ def ultimos_do_historico(raiz, texto):
 def conferidos_fora_da_ref(raiz, pedido_txt, ref, branch):
     """VOLTAS-REVISOR-WT (E6b-1, T-2): ({arquivo: P} do último `parecer conferido` de cada arquivo que não é ancestral da `ref` e cujo
     parecer é da `branch` da volta, como no `pr` (E11), erro). P que o git não lê é erro (falha fechada)."""
-    ultimos, ilegiveis = ultimos_do_historico(raiz, pedido_txt)
+    ultimos, ilegiveis = ultimos_do_historico(raiz, pedido_txt, branch, ref)
     if ilegiveis:
         return None, f"parecer conferido {ilegiveis[0][:7]}: o git não lê o commit nem o pai dele; rode git fetch (VOLTAS-REVISOR-WT)"
     return {n: p for n, p in ultimos.items()
@@ -3340,7 +3369,7 @@ def linhas_de_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs
     linhas += informativas + [(f"escopo: o git falhou ({passo}); o escopo não foi lido", True) for passo in falhas]
     recusas, shas = merges_nao_conferidos(raiz, texto, de, head, base_ref) if etapa in ("qa", "codigo") else ([], set())
     linhas += recusas
-    ultimos = pareceres_conferidos(raiz, pedido, branch)[0]  # E6a-4: o "trazido" vale em qualquer etapa; o M2, só em qa/codigo
+    ultimos = pareceres_conferidos(raiz, pedido, branch, head)[0]  # E6a-4: o "trazido" vale em qualquer etapa; o M2, só em qa/codigo
     do_dono, fora_da_forma = patches_do_dono(texto)
     linhas += [(f"patch do dono: linha fora da forma `- <data> <hora>: patch do dono aplicado <arquivo> commit <sha40>`, ignorada (P3): "
                 f"{linha_legivel(linha.strip())[:160]}", False) for linha in fora_da_forma]
@@ -4572,8 +4601,13 @@ DEPENDE_DE = re.compile(r"^\W*(?:\*\*)?Depende de:?(?:\*\*)?:?\s*(.*)$", re.IGNO
 
 def quadro_por_coluna(raiz):
     """{coluna cortada no primeiro ` (` por `nome_da_secao` (C-6): [células de cada cartão]}, na ordem do quadro (KANBAN.md); só leitura."""
+    return quadro_do_texto((raiz / "KANBAN.md").read_text(encoding="utf-8"))
+
+
+def quadro_do_texto(texto):
+    """O `quadro_por_coluna` de um texto já lido do KANBAN.md (uma abertura só, A1 do AE4.1)."""
     colunas, secao = {}, None
-    for linha in (raiz / "KANBAN.md").read_text(encoding="utf-8").split("\n"):
+    for linha in texto.split("\n"):
         if linha.startswith("## "):
             secao = nome_da_secao(linha[3:])
             colunas.setdefault(secao, [])
@@ -4782,13 +4816,35 @@ def custo_do_trecho(raiz, desde, ate):
     return total_uso(soma)
 
 
+def movimentos_do_cartao(arq, cartao):
+    """As linhas do historico.md (células) do cartão, com hora ISO 8601, na ordem do arquivo; só leitura."""
+    return [c for c in _ler_tabela(arq) if len(c) >= 5 and chave_do_cartao(c[1]) == chave_do_cartao(cartao) and ISO8601.match(c[0])]
+
+
+MOVIMENTO_RECUSADO = "movimento: recusado:"  # K170: recusa de rc 2, distinta do erro de uso (rc 1)
+
+
+def sem_entrada_em_bloqueado(arq, cartao, de):
+    """K170: o texto da recusa (rc 2) se --de é Bloqueado e o último movimento do cartão não o pôs em Bloqueado; None se vale.
+    Só Bloqueado: o movimento não confere --de contra a última coluna nas outras colunas."""
+    if _sem_acento(de) != "bloqueado":
+        return None
+    ultimo = (movimentos_do_cartao(arq, cartao) or [None])[-1]
+    if ultimo is not None and _sem_acento(ultimo[3]) == "bloqueado":
+        return None
+    visto = f"o último é {nome_seguro(ultimo[2])} -> {nome_seguro(ultimo[3])}" if ultimo else "o cartão não tem movimento"
+    return (MOVIMENTO_RECUSADO + f" {nome_seguro(cartao)} --de {nome_seguro(de)} sem a linha de entrada em Bloqueado em "
+            f"docs/kanban/historico.md ({visto}); registre a entrada antes: forge-check movimento {nome_seguro(cartao)} "
+            f"--de <coluna atual> --para Bloqueado --motivo <por quê>; nada gravado")
+
+
 def custo_do_movimento(raiz, cartao, para, arq, agora):
     """L16: o texto `custo do trecho: N tokens|lacuna` (ao parar o cartão) ou `custo total: ...` (no Pronto), ou "". O trecho vai do
     último movimento do cartão até agora; o total soma os trechos já gravados mais o de agora, e uma lacuna fica dita, nunca 0."""
     destino = _sem_acento(para)
     if destino not in PARADAS_DO_QUADRO and destino != FIM_DO_QUADRO:
         return ""
-    movimentos = [c for c in _ler_tabela(arq) if len(c) >= 5 and chave_do_cartao(c[1]) == chave_do_cartao(cartao) and ISO8601.match(c[0])]
+    movimentos = movimentos_do_cartao(arq, cartao)
     ultimo = _hora(movimentos[-1][0]) if movimentos else None
     trecho = custo_do_trecho(raiz, ultimo, agora) if ultimo else None
     if destino != FIM_DO_QUADRO:
@@ -4903,9 +4959,10 @@ def _ler_regular(arq):
         fd = os.open(arq, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except OSError as e:
         return None, {errno.ELOOP: "é link simbólico", errno.ENOENT: "não existe"}.get(e.errno, "não abre")
+    if not stat.S_ISREG(os.fstat(fd).st_mode):  # antes do fdopen: pasta no lugar do arquivo cai ali com IsADirectoryError (A3)
+        os.close(fd)
+        return None, "não é arquivo regular"
     with os.fdopen(fd, "rb") as f:
-        if not stat.S_ISREG(os.fstat(fd).st_mode):
-            return None, "não é arquivo regular"
         dados = f.read(TETO_DA_TABELA + 1)
     if len(dados) > TETO_DA_TABELA:
         return None, f"passa de {TETO_DA_TABELA} bytes"
@@ -5009,6 +5066,8 @@ def cmd_movimento(raiz, cartao, de, para, motivo, atributos):
     arq = raiz / "docs" / "kanban" / "historico.md"
     if arq.is_symlink():
         return ["movimento: docs/kanban/historico.md é link simbólico; não escrevo através dele"]
+    if recusa := sem_entrada_em_bloqueado(arq, campos[0], campos[1]):
+        return [recusa]
     agora = datetime.datetime.now().astimezone()
     hora = agora.isoformat(timespec="seconds")
     custo = custo_do_movimento(raiz, campos[0], campos[2], arq, agora)  # L16: só no `movimento`, só acrescentando (C-16a)
@@ -5089,11 +5148,35 @@ def propagar_decisao(raiz_pedido, pedido, nova, propagar):
     return saida, rc
 
 
-def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False, confere=None):
+def recusa_do_apontador(raiz_pedido, pedido_id, pedido_txt, alvo):
+    """AE4.1 (D5 a): None se `alvo` é etapa (ou item `E<n>`) do pedido ou cartão do pedido `pedido_id` (coluna Pedido, A2) no KANBAN.md
+    da raiz do pedido fora de `Fechado sem entrega` (a ordem gravada agora é posterior ao fechamento); senão o motivo. Quadro que é
+    link, não é arquivo regular, passa do teto ou sai de UTF-8 não confere: uma abertura só, por `_ler_regular` (A1, A3, A4)."""
+    if re.fullmatch(ETAPA_APONTADA, alvo):
+        return None if e_etapa_do_pedido(alvo, ler_pedido_brief(pedido_txt)["etapas"]) else f"--cartao {sem_controle(alvo)}: etapa fora do `## Etapas` do pedido"
+    texto, erro = _ler_regular(Path(raiz_pedido) / "KANBAN.md")
+    if texto is None:
+        return f"--cartao: KANBAN.md {erro}; não confiro o cartão (use a etapa E<n> do pedido)"
+    if "\ufffd" in texto:  # A4: a leitura troca byte fora de UTF-8 por U+FFFD; quadro assim não confere (linha ou coluna torta)
+        return "--cartao: KANBAN.md fora de UTF-8; não confiro o cartão (use a etapa E<n> do pedido)"
+    achados = [(_sem_acento(coluna), id_do_pedido(c[2])) for coluna, cartoes in quadro_do_texto(texto).items() for c in cartoes
+               if c[0].casefold() == alvo.casefold()]
+    if not achados:
+        return f"--cartao {sem_controle(alvo)}: cartão fora do KANBAN.md"
+    colunas = {coluna for coluna, dono_do_cartao in achados if dono_do_cartao == pedido_id}
+    if not colunas:
+        return f"--cartao {sem_controle(alvo)}: cartão de outro pedido; a ordem aponta para um cartão deste pedido ou para a etapa"
+    if colunas == {"fechado sem entrega"}:
+        return f"--cartao {sem_controle(alvo)}: cartão fechado sem entrega; a ordem nova aponta para um cartão aberto ou para a etapa"
+    return None
+
+
+def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False, confere=None, cartao=None):
     """P4: grava no pedido a decisão, a pergunta ou a ordem do dono (no fim de `## Decisões do usuário`, criada antes de `## Histórico`
     se faltar) ou a linha do Histórico, com a hora do relógio (nunca do argumento). O `literal` é a fala do dono, entre aspas; o
     `contexto`, a paráfrase, fica fora delas. Nenhuma linha existente muda. (linhas, rc). 0.45.7 (`forge_dono`): a pergunta com
-    recomendação de corte leva a origem (E6); a decisão leva `--confere` (E8) e, em códigos, a marca `revertida=` e a `origem=` (E7)."""
+    recomendação de corte leva a origem (E6); a decisão leva `--confere` (E8) e, em códigos, a marca `revertida=` e a `origem=` (E7).
+    AE4.1: a ordem leva `--cartao <ID|E<n>>` (`recusa_do_apontador`) e grava `· cartão: <ID>` no fim da linha."""
     dono = modulo_do_dono()
     for nome, valor in (("--literal", literal), ("--contexto", contexto)):
         motivo = recusa_do_campo(valor, nome) or (dono and tipo != "historico" and dono.recusa_da_forja(valor))
@@ -5103,6 +5186,8 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False, confe
         return ["anotar: bin/forge_dono.py ausente ao lado do forge-check; nada gravado"], 2
     if (tipo == "decisao") != (confere is not None) or (confere is not None and not dono.CONFERE.fullmatch(f"confere={confere}")):
         return ["anotar: --confere rapido|seguro|barato|mede|nao-passa vai com --tipo decisao, e só com ele (E8); nada gravado"], 2
+    if (tipo == "ordem") != (cartao is not None) or (cartao is not None and not re.fullmatch(APONTADOR, cartao)):
+        return ["anotar: --cartao <ID|E<n>> vai com --tipo ordem, e só com ele (AE4); nada gravado"], 2
     literal, contexto = literal.strip(), (contexto or "").strip()
     if not literal:
         return ["anotar: --literal não pode ser vazio"], 2
@@ -5119,6 +5204,8 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False, confe
     atributos, recusa = dono.leitura_da_decisao(texto, literal) if tipo == "decisao" else ({}, None)
     if tipo == "pergunta" and (motivos := dono.recusa_de_corte(dono.opcoes_da_pergunta(literal))):
         recusa = "; ".join(motivos) + " (E6)"
+    if tipo == "ordem":
+        recusa = recusa_do_apontador(raiz_do_pedido(raiz, arq), id_do_pedido(arq.name), texto, cartao)
     if recusa:
         return [f"anotar: {recusa}; nada gravado"], 2
     linhas = texto.split("\n")
@@ -5135,6 +5222,8 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None, propagar=False, confe
         if tipo == "decisao":
             atributos = {"confere": confere, "forge": versao_da_propria_copia() or "desconhecida", **atributos}
             nova += MARCA_DE_ATRIBUTOS + "; ".join(f"{k}={v}" for k, v in atributos.items())
+        if tipo == "ordem":
+            nova += f" · cartão: {cartao}"
         fim = fim_da_secao(linhas, "Decisões do usuário")
         if fim is not None:
             linhas.insert(fim, nova)
@@ -7598,9 +7687,9 @@ def e_linha_de_decisao(linha, frase=FRASE_DO_DONO):
     return re.match(rf"{ABRE_A_DECISAO}{re.escape(frase)}(?![^\W_])", linha) is not None
 
 
-def linhas_de_decisao(texto):
-    """[(número da linha como o `grep -n` conta, linha)] das linhas de decisão do dono (`e_linha_de_decisao`)."""
-    return [(n, l.strip()) for n, l in enumerate(texto.split("\n"), 1) if e_linha_de_decisao(l)]
+def linhas_de_decisao(texto, frase=FRASE_DO_DONO):
+    """[(número da linha como o `grep -n` conta, linha)] das linhas de decisão do dono (`e_linha_de_decisao`), ou da `frase` dada."""
+    return [(n, l.strip()) for n, l in enumerate(texto.split("\n"), 1) if e_linha_de_decisao(l, frase)]
 
 
 def mencoes_da_frase(texto):
@@ -7628,6 +7717,11 @@ def ler_registro(raiz, rel, pastas=("docs/pedidos",), erros="replace", bases=Non
     return None, "ausente"
 
 
+def registro_da_frase(frase):
+    """A linha `<frase> (<data>[ hora]): <texto>` do registro: grupos data e texto (decisão ou ordem do dono)."""
+    return re.compile(rf"{ABRE_A_DECISAO}{re.escape(frase)}\s*\((\d{{4}}-\d{{2}}-\d{{2}})(?:[ T]\d{{2}}:\d{{2}})?[^)]*\)\s*:\s*(.+)$")
+
+
 DECISAO_DO_REGISTRO = re.compile(rf"{ABRE_A_DECISAO}{re.escape(FRASE_DO_DONO)}\s*\((\d{{4}}-\d{{2}}-\d{{2}})(?:[ T]\d{{2}}:\d{{2}})?[^)]*\)\s*:\s*(.+)$")
 MOTIVO_DA_DECISAO = re.compile(r"\bmotivo\s*:\s*([^;·]+)", re.I)
 REABRE_SE = re.compile(r"\breabre se\s*:?\s*([^;·.]+)", re.I)
@@ -7648,6 +7742,14 @@ def pedidos_do_registro(raiz, pedido):
 ID_DE_CARTAO = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+"
 CARTAO_CITADO = re.compile(rf"(?i:cart(?:ão|ões))\s+({ID_DE_CARTAO}(?:(?:\s*[,/+]\s*|\s+e\s+){ID_DE_CARTAO})*)")
 DECISAO_ENCERRADA = re.compile(r"encerrad|descartad|superad", re.I)
+ETAPA_APONTADA = r"E\d+(?:\.\d+[a-z]?)?"  # AE4.1 (D5 a): o item `E<n>` ou a etapa `E<n>.<m>` do pedido
+APONTADOR = rf"{ID_DE_CARTAO}|{ETAPA_APONTADA}"  # texto: compila no uso, pelo cache do re (custo do corpus dos hooks, E58.102)
+CARTAO_DA_ORDEM = rf"·\s*cartão:\s*({APONTADOR})\s*$"  # a marca que o `anotar --tipo ordem` grava no fim
+
+
+def e_etapa_do_pedido(alvo, etapas):
+    """True se `alvo` é uma etapa de `etapas` ou o item `E<n>` de alguma delas (`E5` casa `E5.1`, não `E51.1`)."""
+    return alvo in etapas or ("." not in alvo and any(e.startswith(alvo + ".") for e in etapas))
 
 
 def ids_da_decisao(raiz, texto):
@@ -7959,44 +8061,49 @@ def pedido_em_coluna(raiz, pedido, colunas):
     return any(_sem_acento(c) in colunas for c in colunas_do_pedido(raiz, {pedido}))
 
 
-def cmd_decisoes(raiz, pedido=None, sem_cartao=False, desde=None):
+def cmd_decisoes(raiz, pedido=None, sem_cartao=False, desde=None, frase=FRASE_DO_DONO):
     """L15 (EXT-2): o registro das linhas `DECISÃO DO DONO` dos pedidos, gerado no stdout (nada se grava): `decisao: <pedido>:<linha> | data |
     decisão | motivo | reabre se`. A linha que abre com a frase e não segue `(<data>): <texto>` sai `aviso:` e fica fora. Só as linhas
-    de `docs/pedidos/` valem (brief, parecer e transcrição não entram), e nenhum portão lê esta saída (C-15a). O texto vai por `sem_controle`."""
-    saida, avisos, total = [], 0, 0
+    de `docs/pedidos/` valem (brief, parecer e transcrição não entram), e nenhum portão lê esta saída (C-15a). O texto vai por `sem_controle`.
+    AE4.1: com `frase` ORDEM DO DONO (`forge-check ordens`), o mesmo cruzamento, com a etapa do pedido valendo como apontador."""
+    saida, avisos, total, rotulo, ordem = [], 0, 0, "decisoes" if frase == FRASE_DO_DONO else "ordens", frase != FRASE_DO_DONO
+    registro = registro_da_frase(frase)
     cartoes, conta = (cartoes_conhecidos(raiz), dict.fromkeys(("sem-cartao", "sem-id", "com-cartao", "encerradas"), 0)) if sem_cartao else (None, None)
     for nome in pedidos_do_registro(raiz, pedido):
         texto, motivo_de_falha = ler_registro(raiz, f"docs/pedidos/{nome}.md")
         if texto is None:
-            saida.append(f"decisoes: aviso: {nome}: pedido {motivo_de_falha}; nada lido")
+            saida.append(f"{rotulo}: aviso: {nome}: pedido {motivo_de_falha}; nada lido")
             avisos += 1
             continue
-        for n, linha in linhas_de_decisao(texto):
-            m = DECISAO_DO_REGISTRO.match(linha)
+        etapas = ler_pedido_brief(texto)["etapas"] if ordem else None
+        for n, linha in linhas_de_decisao(texto, frase):
+            m = registro.match(linha)
             if not m:
-                saida.append(f"decisoes: aviso: {nome}:{n}: linha de decisão sem `(<data>): <texto>`; fora do registro")
+                saida.append(f"{rotulo}: aviso: {nome}:{n}: linha de {'ordem' if ordem else 'decisão'} sem `(<data>): <texto>`; fora do registro")
                 avisos += 1
                 continue
             if sem_cartao:
                 if not desde or m.group(1) >= desde.isoformat():
-                    saida += linhas_sem_cartao(raiz, f"{nome}:{n}", m.group(1), m.group(2), cartoes, conta)
+                    saida += linhas_sem_cartao(raiz, f"{nome}:{n}", m.group(1), m.group(2), cartoes, conta, etapas)
                 continue
             motivo, reabre = MOTIVO_DA_DECISAO.search(m.group(2)), REABRE_SE.search(m.group(2))
             campos = [m.group(1), sem_controle(m.group(2)).strip()[:160], sem_controle(motivo.group(1)).strip() if motivo else "—",
                       sem_controle(reabre.group(1)).strip() if reabre else "—"]
             saida.append(f"decisao: {nome}:{n} | " + " | ".join(campos))
             total += 1
-    saida.append("decisoes: " + " ".join(f"{k}={v}" for k, v in conta.items()) if sem_cartao else f"decisoes: total={total} avisos={avisos}")
+    saida.append(f"{rotulo}: " + " ".join(f"{k}={v}" for k, v in conta.items()) if sem_cartao else f"decisoes: total={total} avisos={avisos}")
     return saida
 
 
-def linhas_sem_cartao(raiz, onde, data, texto, cartoes, conta):
-    """As linhas `sem-cartao:`/`sem-id:` de uma decisão, somando em `conta`; a encerrada só conta. Texto por `sem_controle` antes do corte (C-8)."""
+def linhas_sem_cartao(raiz, onde, data, texto, cartoes, conta, etapas=None):
+    """As linhas `sem-cartao:`/`sem-id:` de uma decisão, somando em `conta`; a encerrada só conta. Texto por `sem_controle` antes do corte (C-8).
+    AE4.1: com `etapas` (ordem), a marca `· cartão: <ID|E<n>>` do fim da linha é o apontador, e a etapa do pedido vale como cartão."""
     if DECISAO_ENCERRADA.search(texto):
         conta["encerradas"] += 1
         return []
-    resumo, ids = sem_controle(texto)[:120], ids_da_decisao(raiz, texto)
-    faltam = [i for i in ids if not tem_cartao(i, cartoes)]
+    marca = re.search(CARTAO_DA_ORDEM, texto) if etapas is not None else None
+    resumo, ids = sem_controle(texto)[:120], [marca.group(1)] if marca else ids_da_decisao(raiz, texto)
+    faltam = [i for i in ids if not tem_cartao(i, cartoes) and not (etapas and e_etapa_do_pedido(i, etapas))]
     chave = "sem-id" if not ids else "sem-cartao" if faltam else "com-cartao"
     conta[chave] += len(faltam) or 1
     lugar = caminho_impresso(onde)
@@ -9163,6 +9270,12 @@ def bloco_de_citacoes(raiz, citar):
 
 ETAPAS_DE_PARECER = ("review", "seguranca", "qa")  # as do hook `agentes` (Z10): o parecer não escreve a branch
 LINHA_DE_PARALELO = "- paralelo na mesma branch: parecer, lê a branch sem escrever nela (Z10)"
+LINHA_DO_GITHOOKS = ("- `.githooks/` é do usuário (o hook `conformidade` barra a escrita do agente): entregue o diff como proposta (um "
+                     "`.patch` ou um bloco `diff` num documento de proposta), que o dono aplica; não edite o arquivo (K-252)")
+# BRIEF-PORTAO-REBASE (v0478 E91.1): o envio do parecer é o do papel e do pre-push; o merge entre pareceres em paralelo não se escreve
+ENVIO_DO_PARECER = ("- envio: commit só do parecer (`git add <caminho>`), com `pedido: {pedido}` no frontmatter (o id do pedido, nunca o "
+                    "nome da branch, que o `forge-check docs` recusa); `git push origin {branch}`; se o remoto avançou, `git pull --rebase` "
+                    "sobre o commit do parecer e reenvie (nunca merge nem `--force`; R-VERIFY)")
 
 
 # Orkastery 6 (0.44.2): o agente começa pela ferramenta; regra que só ferramenta verifica vale pelo ID (a ferramenta a aplica).
@@ -9262,6 +9375,10 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
         return None, 2, [erro]
     m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
     pedido_id = m.group(1) if m else caminho_do_pedido(raiz, pedido).stem
+    historico = secoes_por(pedido_txt, CABECALHO_PEDIDO).get("Histórico", [])
+    if coberta and coberta in etapas_conferidas(raiz, caminho_pedido, historico):  # K-166
+        return None, 1, [f"brief gerar: recusado: {coberta} já tem entrega conferida; uma etapa por delegação: a nova ganha "
+                         "linha e número novos em ## Etapas (K-166)"]
     if etapa in ETAPAS_QUE_RECUSAM and not branch:
         return None, 1, [f"brief gerar: recusado: --branch obrigatório na etapa {etapa} (os pareceres são lidos dela; P2)"]
     faltas = pareceres_da_etapa(raiz, pedido_id, etapa, branch, base)
@@ -9297,6 +9414,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
                   f"- {PREENCHER}: o que esta etapa entrega, cada item citando o ID do pedido"]
         if tipo == "codigo":  # 0.43.1: o escopo que o `forge-check entrega --pedido` confere vem desta linha, tirada do desenho
             saida.append(f"- {ESCOPO_DECLARADO} {PREENCHER}: caminhos, pastas/ ou globs que esta etapa toca, tirados do desenho")
+            if ".githooks/" in dados["etapas"][coberta][1]:  # K-252: o hook `conformidade` barra a escrita do agente ali
+                saida.append(LINHA_DO_GITHOOKS)
     saida += ["", "## Ler"]
     if etapa == "merge-integracao":  # L09 (P3): o integrador só roda o comando; o `modelo:` é texto para o Jarvis, sem efeito sobre o portão
         print("brief gerar: modelo: haiku (merge-integracao é mecânico; docs/economia-de-tokens.md, regra 2)", file=sys.stderr)
@@ -9325,6 +9444,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     saida += erros
     if etapa in ETAPAS_DE_PARECER:  # Z10: o parecer lê a branch e roda junto da escrita (hook `agentes`, AG-1b)
         saida += [LINHA_DE_PARALELO, LINHA_DOS_ACHADOS]
+        if branch and interpolacao_segura(pedido=pedido_id, branch=branch):  # G-5: só valor na forma fechada vai ao comando
+            saida.append(ENVIO_DO_PARECER.format(pedido=pedido_id, branch=branch))
     if citar:
         saida += bloco_de_citacoes(raiz, citar)
     saida += ["", "## Fora do escopo (outras etapas do pedido, sem a marca; R-BRIEF)"]
@@ -9351,7 +9472,11 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
             saida.append(f"- PQ-N (cmd, do autor): `forge-check entrega {caminho_impresso(pedido_id)}{f' --raiz-pedidos {caminho_impresso(pasta)}' if pasta else ''} "
                          f"--branch {branch} --base {base} --base-sha {sha_base}{PROVAS_DO_PQ} --etapa codigo` · espera: rc=0")
     if etapa in ("review", "seguranca", "qa"):  # o bloco ## Achados e o teto em caracteres saem do `forge-check docs` (P3)
-        saida.append("- PQ-N (cmd): `forge-check docs` · espera: rc=0")
+        nome = base.removeprefix("origin/")  # FC-DOCS-CAMINHO: no fluxo de entrega, só os documentos do diff da branch
+        saida.append(f"- PQ-N (cmd): `forge-check docs{f' --base {nome}' if nome in BASES_DO_FLUXO else ''}` · espera: rc=0")
+        if interpolacao_segura(pedido=pedido_id, base=base.removeprefix("origin/")):  # K-156: a validade do parecer antes do QA
+            saida.append(f"- PQ-N (cmd): `forge-check pr {caminho_impresso(pedido_id)} --previo --base {sem_controle(base.removeprefix('origin/'))}` "
+                         "· espera: rc=0, rodado depois do commit do parecer")
     if etapa in ETAPAS_DE_MERGE:
         saida.append(pq_de_merge(base))
     if tipo == "codigo" or etapa in ETAPAS_DE_MERGE:
@@ -10296,6 +10421,8 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("docs", parents=[comum]).add_argument("arquivos", nargs="*", metavar="ARQUIVO",
                                                         help="só estes pareceres, no modo estrito; fora da raiz, com o critério da pasta do tipo (FC-DOCS-CAMINHO)")
+    sub.choices["docs"].add_argument("--base", choices=BASES_DO_FLUXO, help="sem ARQUIVO: só os documentos do diff da branch contra a "
+                                     "origin/<base>, no modo estrito; diff ilegível reprova (FC-DOCS-CAMINHO, o fluxo de entrega)")
     sub.add_parser("kanban", parents=[comum]).add_argument("--gerar", action="store_true", help="refaz o KANBAN.md de docs/kanban/historico.md (EST-M12)")
     sub.add_parser("fontes", help="confere se as fontes de boas práticas do registro local têm versão nova")
     br = sub.add_parser("brief", parents=[comum], help="forma, corte e decisões de um brief (C2, C4); `brief gerar` monta os blocos fixos; `brief mensagem` imprime a mensagem ao conferente")
@@ -10364,6 +10491,9 @@ def main():
         de.add_argument(f"--{nome}", default="", help="com registrar/reverter/conferir (ver bin/forge_decisor.py)")
     de.add_argument("--sem-cartao", action="store_true", help="cruza cada decisão com os cartões do KANBAN.md e do histórico e lista as sem cartão (rc 0)")
     de.add_argument("--desde", type=datetime.date.fromisoformat, help="com --sem-cartao: só decisões desta data (AAAA-MM-DD) em diante")
+    od = sub.add_parser("ordens", parents=[comum], help="as linhas ORDEM DO DONO sem cartão: sem-cartao: e sem-id: (AE4); só leitura, rc 0")
+    od.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md); padrão: todos")
+    od.add_argument("--desde", type=datetime.date.fromisoformat, help="só ordens desta data (AAAA-MM-DD) em diante")
     de.add_argument("--resposta", help="com --pedido: a resposta curta do dono (\"1a 2c\", \"aprovo\") lida contra a última PERGUNTA AO DONO "
                     "do pedido; vocabulário fechado, ambígua volta como pergunta (rc 1), palavra solta nunca vale para opção irreversível (O4)")
     pe = sub.add_parser("pedido", parents=[comum], help="a fala do dono literal, com sha256, em docs/pedidos/<id>/fala-<hora>.md (S2)")
@@ -10473,7 +10603,7 @@ def main():
     rg.add_argument("--json", action="store_true", help="saída em JSON")
     mv = sub.add_parser("movimento", parents=[comum], help="anota um movimento do quadro em docs/kanban/historico.md, com a hora real")
     mv.add_argument("cartao")
-    mv.add_argument("--de", required=True, help="coluna de origem")
+    mv.add_argument("--de", required=True, help="coluna de origem (Bloqueado exige a linha de entrada do cartão em Bloqueado; sem ela, rc 2: K170)")
     mv.add_argument("--para", required=True, help="coluna de destino")
     mv.add_argument("--motivo", default="", help="motivo do movimento (padrão: —; até 500 caracteres, sem `atributos:`)")
     for nome, ajuda in (("--titulo", "título do cartão (até 120 caracteres)"), ("--pedido", "id do pedido do cartão"),
@@ -10486,6 +10616,7 @@ def main():
     na.add_argument("--contexto", help="a paráfrase do Jarvis, fora das aspas (decisao, pergunta, ordem)")
     na.add_argument("--propagar", action="store_true", help="só com --tipo decisao: grava o brief seguinte de cada brief em voo do pedido com a linha nova (B15)")
     na.add_argument("--confere", help="obrigatório com --tipo decisao: rapido, seguro, barato, mede ou nao-passa (E8, critério do Jarvis)")
+    na.add_argument("--cartao", help="obrigatório com --tipo ordem: ID do cartão do KANBAN.md (aberto) ou etapa E<n> do pedido (AE4)")
     cf = sub.add_parser("conferencia", help="registro das conferências do conferente (S-18)")
     csub = cf.add_subparsers(dest="acao", required=True)
     rg = csub.add_parser("registrar", parents=[comum], help="acrescenta uma conferência em docs/kanban/conferencias.md, em formato fixo, com a hora real")
@@ -10670,7 +10801,7 @@ def executar(a, raiz):
     if a.cmd == "retro":
         return cmd_retro(raiz, a.pedido, a.dias)
     if a.cmd == "anotar":
-        linhas, rc = cmd_anotar(raiz, a.pedido, a.tipo, a.literal, a.contexto, a.propagar, a.confere)
+        linhas, rc = cmd_anotar(raiz, a.pedido, a.tipo, a.literal, a.contexto, a.propagar, a.confere, a.cartao)
         print("\n".join(linhas))
         return rc
     if a.cmd == "escape":
@@ -10711,8 +10842,9 @@ def executar(a, raiz):
         return modulo_do_bin({"rodar": "forge_run", "meta": "forge_meta"}[a.cmd]).executar(a, raiz)
     if a.cmd == "decisoes" and a.acao:
         return modulo_do_bin("forge_decisor").executar(a, raiz)
-    if a.cmd == "decisoes":
-        for linha in cmd_decisoes(raiz, a.pedido, a.sem_cartao, a.desde):
+    if a.cmd in ("decisoes", "ordens"):
+        for linha in (cmd_decisoes(raiz, a.pedido, a.sem_cartao, a.desde) if a.cmd == "decisoes"
+                      else cmd_decisoes(raiz, a.pedido, True, a.desde, FRASES_DO_ANOTAR["ordem"])):
             print(linha)
         return 0
     if a.cmd in ("sobreposicao", "movimento"):
@@ -10722,6 +10854,8 @@ def executar(a, raiz):
         extra, rc = release_em_curso(raiz, a.ref) if a.cmd == "sobreposicao" and a.ref else ([], 0)
         for linha in linhas + extra:
             print(linha)
+        if a.cmd == "movimento" and linhas[0].startswith(MOVIMENTO_RECUSADO):
+            return 2
         return rc or (1 if (a.cmd == "movimento" and linhas[0].startswith("movimento:"))
                       or (a.cmd == "sobreposicao" and linhas[0].startswith("sobreposicao: erro:")) else 0)
     if a.cmd == "provas" and a.acao == "medida":
@@ -10780,7 +10914,7 @@ def executar(a, raiz):
     if sem_checks:
         print(f"pr: checks do head não conferidos ({SEM_CHECKS_DO_FECHAR}=1, passo 1 do forge-fechar: os passos 4 e 6 os exigem verdes); "
               "resultado não gravado para o hook (E3.80)", file=sys.stderr)
-    violacoes = {"docs": lambda: cmd_docs(raiz, a.arquivos), "kanban": lambda: cmd_kanban(raiz),
+    violacoes = {"docs": lambda: cmd_docs(raiz, a.arquivos, a.base), "kanban": lambda: cmd_kanban(raiz),
                  "pr": lambda: pr_da_cli(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None), branch_do_pr,
                                           previo=getattr(a, "previo", False), sem_checks=sem_checks)}[a.cmd]()
     for v in violacoes:
