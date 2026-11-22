@@ -8,7 +8,9 @@
       "arquivo": "bin/forge-check",
       "de": "return int(grupo(VOLTA_NO_ENTREGAR, (blocos.get(\"Entregar\") or [\"\"])[0]) or 0)",
       "para": "return int(grupo(VOLTA_NO_ENTREGAR, (blocos.get(\"Entregar\") or [\"\"])[0]) or 1)",
-      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_sem_branch_nenhuma_decisao_autoriza"]
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_sem_branch_nenhuma_decisao_autoriza"
+      ]
     },
     {
       "id": "M9",
@@ -16,7 +18,16 @@
       "arquivo": "bin/forge-check",
       "de": "sem_controle(branch or '<branch>')",
       "para": "sem_controle(branch or '')",
-      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_sem_branch_nenhuma_decisao_autoriza"]
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_sem_branch_nenhuma_decisao_autoriza"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "grupo(r\"\\bvolta (\\d+)\", (blocos.get(\"Entregar\") or [\"\"])[0]) or 0",
+      "motivo": "a condição saiu do gerar_volta para numero_da_volta (G1.1), coberta lá pelo M8"
     }
   ]
 }
