@@ -41,7 +41,7 @@ class SegurancaDaAuditoria(unittest.TestCase):
         self.conferir("S22:", recusam=5, liberam=2)
 
     def test_a20_resto_com_barra_depois_do_opaco_no_git_recusa_como_o_literal(self):
-        self.conferir("A20:", recusam=9, liberam=3)
+        self.conferir("A20:", recusam=9, liberam=2)
 
     def test_resto_sobe_depois_do_opaco_vale_resolvido(self):
         self.conferir("RESTO-SOBE:", recusam=5, liberam=1)

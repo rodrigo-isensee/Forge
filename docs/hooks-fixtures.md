@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3466 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3465 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,7 +10,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3466 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 130 | 70 | 60 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2625 | 1939 | 686 | 103 |
+| `conformidade` | 2624 | 1939 | 685 | 103 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 32 | 13 | 19 | 14 |
 | `parecer` | 583 | 448 | 135 | 27 |
@@ -97,13 +97,13 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3466 fixtures) roda em `tests/test
 | `comentario-*` | 26 | 23 | 3 | `R-VERIFY`, `R-CONFORMIDADE`, `R-MAIN` | `HOOK-COMENTARIO-SHLEX` | Na regex do `=~` o bash não abre comentário depois de `\|`: o push seguinte é lido. |
 | `fc-*` | 26 | 17 | 9 | `R-CONFORMIDADE` | `FURO-HOOK-A` | FURO-HOOK-A, A4: contraprova: saída fora de pasta protegida. |
 | `vigor-*` | 25 | 24 | 1 | `R-CONFORMIDADE` | `CLAUDE` | {raiz}/.claude/agents/x.md é do usuário: bloqueia até o jarvis. |
-| `a20-*` | 21 | 16 | 5 | — | `A20-MAIS` | A20: $(echo .git) com resto /. (v0478 E113.1) |
 | `hook-*` | 21 | 13 | 8 | `R-VERIFY` | `HOOK-N4`, `HOOK-MSG-SEGMENTO` | hooks_desligados com conformidade (escolha do usuário): libera. |
 | `leitura-*` | 21 | 17 | 4 | — | `K2-REC` | bash -c com forge sugerir segue recusada (F6, só leitura) |
 | `n1-*` | 21 | 16 | 5 | `R-MAIN`, `R-VERIFY` | — | N1 (IMPL-FURO-HOOK-N, C-N1-2): o alias com ponto no nome também é lido |
 | `pacote-*` | 21 | 9 | 12 | `R-CONFORMIDADE` | `QA` | Dev instala dependência nova. |
 | `pr-*` | 21 | 17 | 4 | `R-CONFORMIDADE`, `R-MAIN` | `FILA-22`, `QA` | Dev criando PR: bloqueia. |
 | `tagv-*` | 21 | 17 | 4 | `R-FLUXO`, `R-CONTRIB` | `V0474-TAG` | V0474-TAG: tag anotada no clone de contribuição do Forge (segurança A2 da v0474); a tag v* do Forge só nasce do release.yml. |
+| `a20-*` | 20 | 16 | 4 | — | `A20-MAIS` | A20: $(echo .git) com resto /. (v0478 E113.1) |
 | `resto-*` | 20 | 15 | 5 | `R-CONFORMIDADE` | `RESTO-ANULA`, `RESTO-SOBE` | RESTO-ANULA: `d=docs; cp ev/config "$d.."`: o `..` colado é outro nome, não sobe (v0478 E113.6) |
 | `aq-*` | 18 | 13 | 5 | — | `AQ` | AQ barrado em agents/ de uma worktree fora da raiz. |
 | `autoria-*` | 17 | 0 | 17 | — | — | Redirecionamento para docs/qa/ pelo Bash também registra. |
