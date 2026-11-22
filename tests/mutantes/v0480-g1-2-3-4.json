@@ -1,0 +1,78 @@
+{
+  "pedido": "v0480-g1-2-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CT1",
+      "guarda": "G1.3: tests/guarda_git.py é código de controle em tests/ e segue C",
+      "arquivo": "bin/forge-check",
+      "de": "tests/((apoio_|modelo_)[^/]*|guarda_git)\\.py$",
+      "para": "tests/((apoio_|modelo_)[^/]*)\\.py$",
+      "testes": [
+        "tests.test_classe_risco.ClasseDasMudancas.test_g13_fora_da_t"
+      ]
+    },
+    {
+      "id": "CT2",
+      "guarda": "G1.3: na T de testes, o controle é o teste em si (test_*.py ou tests/hooks/), não código em tests/",
+      "arquivo": "bin/forge-check",
+      "de": "TESTE_PROPRIO = re.compile(r\"^tests/(hooks/|test_[^/]+\\.py$)\")",
+      "para": "TESTE_PROPRIO = re.compile(r\"^tests/\")",
+      "testes": [
+        "tests.test_classe_risco.ClasseDasMudancas.test_g13_fora_da_t"
+      ]
+    },
+    {
+      "id": "CT3",
+      "guarda": "G1.3: arquivo removido ou link não entra na T de texto ou teste",
+      "arquivo": "bin/forge-check",
+      "de": "    if any(m.removido or m.modo_incomum for m in contam):\n        return None\n    if all(m.nome.endswith(\".md\")",
+      "para": "    if any(m.modo_incomum for m in contam):\n        return None\n    if all(m.nome.endswith(\".md\")",
+      "testes": [
+        "tests.test_classe_risco.ClasseDasMudancas.test_g13_fora_da_t"
+      ]
+    },
+    {
+      "id": "CT4",
+      "guarda": "G1.3: a T de texto pede o diff todo de .md",
+      "arquivo": "bin/forge-check",
+      "de": "    if all(m.nome.endswith(\".md\") for m in contam) and all(\n",
+      "para": "    if all(\n",
+      "testes": [
+        "tests.test_classe_risco.ClasseDasMudancas.test_g13_fora_da_t"
+      ]
+    },
+    {
+      "id": "CT5",
+      "guarda": "G1.3 (D2): docs/regras/ entra na T de texto; o resto dos controles do Forge, não",
+      "arquivo": "bin/forge-check",
+      "de": "motivo == MOTIVO_DO_TEXTO or (motivo == \"controle do Forge\" and nome.startswith(\"docs/regras/\"))",
+      "para": "motivo == MOTIVO_DO_TEXTO",
+      "testes": [
+        "tests.test_classe_risco.ClasseDasMudancas.test_g13_so_texto_ou_so_teste_de_controle_e_t",
+        "tests.test_classe_risco.ClasseNoRepositorio.test_docs_em_docs_regras_e_t_com_seguranca_e_sem_qa"
+      ]
+    },
+    {
+      "id": "CT6",
+      "guarda": "G1.3: a T de testes pede o diff todo de testes e só teste de controle",
+      "arquivo": "bin/forge-check",
+      "de": "if all(TESTE.search(m.nome) for m in contam) and all(motivo == MOTIVO_DO_TESTE and TESTE_PROPRIO.match(n) for n, motivo in controle):",
+      "para": "if all(TESTE.search(m.nome) for m in contam):",
+      "testes": [
+        "tests.test_classe_risco.ClasseDasMudancas.test_g13_fora_da_t"
+      ]
+    },
+    {
+      "id": "CT7",
+      "guarda": "G1.3: o controle só de texto ou de teste é T",
+      "arquivo": "bin/forge-check",
+      "de": "    if controle and (leve := so_texto_ou_so_teste(contam, controle)):",
+      "para": "    if False and (leve := so_texto_ou_so_teste(contam, controle)):",
+      "testes": [
+        "tests.test_classe_risco.ClasseDasMudancas.test_g13_so_texto_ou_so_teste_de_controle_e_t",
+        "tests.test_isencoes.PrComIsencao.test_md_de_agente_skill_e_modelo_com_review_e_sem_qa_passa"
+      ]
+    }
+  ]
+}

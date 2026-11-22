@@ -1,12 +1,12 @@
 {
-  "descricao": "Diff só de .md de controle (agents/) com review e sem QA: sem isenção (M13), bloqueia.",
+  "descricao": "Diff só de .md de regra (docs/regras/) com review e sem segurança: classe T com o gatilho de controles do Forge (G1.3, D2), bloqueia pela R-SEGURANCA e não pede QA.",
   "git": [
     {
-      "branch": "melhoria/agente"
+      "branch": "melhoria/regra"
     },
     {
       "arquivos": {
-        "agents/x.md": "# Agente\n"
+        "docs/regras/R-X.md": "# R-X\n"
       },
       "commit": "docs: mudança"
     },
@@ -17,7 +17,7 @@
           "tipo: review",
           "contrato: 1",
           "pedido: p1",
-          "branch: melhoria/agente",
+          "branch: melhoria/regra",
           "commit: {HEAD}",
           "parecer: aprovado",
           "revisor: forge:tech-lead",
@@ -39,6 +39,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "R-QA: docs/qa: qa: sem parecer"
+    "stderr": "R-SEGURANCA: docs/security: revisao-seguranca: sem parecer"
   }
 }

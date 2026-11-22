@@ -31,13 +31,17 @@ class ClasseDasMudancas(unittest.TestCase):
                      "docs/regras/R-X.md", "agents/x.md", "skills/a/SKILL.md", "tests/catraca.py", "tests/config.json",
                      "hooks/conformidade.json", "migrations/0001.sql", "Dockerfile", "templates/projeto/CLAUDE.md"):
             with self.subTest(nome=nome):
-                self.assertEqual(classe([M("docs/x.md"), M(nome)]), "C")
+                self.assertEqual(classe([M("src/a.py"), M(nome)]), "C")  # G1.3: com código ao lado, todo controle segue C
 
     def test_config_do_claude_mcp_e_teste_de_controle_sao_c(self):  # EXT-B1: hoje sairiam N
         for nome in (".claude/settings.json", ".claude/hooks/x.sh", ".claude/agents/a.md", "app/.claude/settings.local.json", ".mcp.json",
                      "tests/test_hooks_x.py", "tests/catraca_apoio.py", "tests/test_oraculo_a.py", "tests/test_forge_check_y.py",
                      "tests/test_fechar_z.py", "tests/hooks/caso.json", "tests/test_pre_push_a.py", "tests/test_conformidade_b.py"):
             with self.subTest(nome=nome):
+                self.assertEqual(classe([M(nome), M("src/a.py")]), "C")  # G1.3: sozinho, o teste de controle é T (SoTextoOuSoTeste)
+        for nome in (".claude/settings.json", ".claude/hooks/x.sh", ".claude/agents/a.md", "app/.claude/settings.local.json", ".mcp.json",
+                     "tests/catraca_apoio.py"):
+            with self.subTest(sozinho=nome):
                 self.assertEqual(classe([M(nome)]), "C")
         self.assertEqual(classe([M("tests/test_app.py")]), "T")  # teste comum segue T
         self.assertEqual(classe([M("docs/mcp.json.md")]), "T")
@@ -49,6 +53,25 @@ class ClasseDasMudancas(unittest.TestCase):
             with self.subTest(nome=nome):
                 self.assertEqual(classe([M(nome)]), "C")
         self.assertEqual(classe([M("tests/fixtures/apoio_x.json")]), "T")
+
+    def test_g13_so_texto_ou_so_teste_de_controle_e_t(self):
+        for mudancas in ([M("docs/x.md"), M("agents/x.md")], [M("skills/a/SKILL.md"), M("stacks/s/agents/y.md"), M("CLAUDE.md")],
+                         [M("templates/projeto/CLAUDE.md")], [M("docs/regras/R-X.md"), M("agents/x.md")], [M("stacks/s/seguranca.md")],
+                         [M("tests/test_hooks_x.py"), M("tests/test_app.py")], [M("tests/hooks/caso.json"), M("tests/test_oraculo_a.py")],
+                         [M("agents/novo/x.md", novo_em_pasta_nova=True)]):
+            with self.subTest(mudancas=[m.nome for m in mudancas]):
+                self.assertEqual(classe(mudancas), "T")
+        c, motivos, _ = fc.classe_das_mudancas([M("agents/x.md")], CATRACA, sem_contagem)
+        self.assertEqual((c, motivos), ("T", ["só texto, inclusive de agente, skill, modelo ou regra (G1.3)"]))
+
+    def test_g13_fora_da_t(self):  # o resto de CONTROLES_DO_FORGE, o código de controle em tests/, a mistura, a remoção e o link
+        for mudancas in ([M("agents/x.md"), M("tests/test_app.py")], [M("tests/test_hooks_x.py"), M("docs/x.md")],
+                         [M("hooks/notas.md")], [M(".github/x.md")], [M("tests/test_hooks_x.py"), M("tests/config.json")],
+                         [M("tests/test_hooks_x.py"), M("tests/catraca.py")], [M("tests/guarda_git.py")], [M("tests/apoio_x.py")],
+                         [M("tests/test_hooks_x.py", removido=True)], [M("agents/x.md", removido=True)],
+                         [M("agents/x.md", modo_incomum=True)], [M("tests/catraca_apoio.py"), M("tests/test_app.py")]):
+            with self.subTest(mudancas=[m.nome for m in mudancas]):
+                self.assertEqual(classe(mudancas), "C")
 
     def test_teste_de_controle_fica_no_dominio_da_seguranca_e_nao_e_do_qa(self):  # M4: uma lista só para as duas regras
         for nome in ("tests/test_conformidade.py", "tests/test_hooks.py", "tests/catraca.py"):
@@ -141,11 +164,24 @@ class ClasseNoRepositorio(Repo):
         self.assertEqual((saida["classe"], saida["pareceres"]), ("N", ["review", "qa"]))
         self.assertEqual(saida["portoes"], ["autor", ["review", "qa"], "CI"])
 
-    def test_docs_em_docs_regras_e_c(self):
+    def test_docs_em_docs_regras_e_t_com_seguranca_e_sem_qa(self):  # G1.3, D2: review e segurança (gatilho), sem QA
         self.commitar({"docs/regras/R-X.md": "# x\n"}, "regra")
         saida = self.classe()
-        self.assertEqual((saida["classe"], saida["arquivos"]), ("C", ["docs/regras/R-X.md"]))
-        self.assertEqual(saida["pareceres"], ["review", "qa", "revisao-seguranca"])
+        self.assertEqual((saida["classe"], saida["arquivos"]), ("T", ["docs/regras/R-X.md"]))
+        self.assertEqual(saida["pareceres"], ["review", "revisao-seguranca"])
+
+    def test_docs_regras_com_codigo_de_controle_e_c(self):
+        self.commitar({"docs/regras/R-X.md": "# x\n", "hooks/x.py": "x = 1\n"}, "regra e hook")
+        saida = self.classe()
+        self.assertEqual((saida["classe"], saida["pareceres"]), ("C", ["review", "qa", "revisao-seguranca"]))
+
+    def test_agente_e_teste_de_controle_sozinhos_sao_t_so_com_review(self):  # G1.3
+        for arquivos in ({"agents/x.md": "# x\n", "skills/a/SKILL.md": "# a\n"}, {"tests/test_hooks_x.py": "ok\n"}):
+            with self.subTest(arquivos=sorted(arquivos)):
+                self.setUp()
+                self.commitar(arquivos, "texto ou teste")
+                saida = self.classe()
+                self.assertEqual((saida["classe"], saida["pareceres"]), ("T", ["review"]))
 
     def test_teste_mais_codigo_grande_e_n(self):
         self.commitar({"tests/test_app.py": "ok\n", "src/app.py": "v1\n" + "".join(f"l{i}\n" for i in range(25))}, "teste e código")

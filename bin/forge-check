@@ -44,7 +44,8 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs [ARQUIVO...] | kanban [-
      forge-check regras [--estrito] [--hoje D] [--json]   (validade das regras: Revisar em e Medida; 0.43.1 H)
      forge-check dora [--desde D --ate D] [--fuso ±HH:MM] [--json]   (DORA e vazão, só o que voltas, esperas e metricas não dão; 0.45.7; bin/forge_dora.py)
 `classe` (P5, rigor proporcional ao risco; só leitura, sem rede, rc 0) classifica o diff `base...head`: `C` se toca caminho de controle (PROTEGIDOS e
-SENSIVEIS de tests/catraca.py, CONTROLES_DO_FORGE, MD_DE_CONTROLE, pipeline e infraestrutura, .claude/, .mcp.json ou teste de controle), `T` se é só documentação comum, só testes ou até 20
+SENSIVEIS de tests/catraca.py, CONTROLES_DO_FORGE, MD_DE_CONTROLE, pipeline e infraestrutura, .claude/, .mcp.json ou teste de controle), `T` se é só `.md` (G1.3: também
+de agente, skill, modelo e docs/regras/, esta com a segurança pelo gatilho), só testes (também os de controle), só documentação comum ou até 20
 linhas (sem binário, link, remoção, gatilho de segurança nem arquivo novo em pasta que a base não tem), `N` no resto; git que falha dá `C`.
 Os pareceres, a pasta do quadro e a de UX (LIVRES) não contam. Saída: `classe:`, `motivo:` e as linhas `portoes:` (T: autor + review + CI; N: autor +
 review ∥ qa + CI; C: autor + review ∥ seguranca ∥ qa + CI; devops entra com pipeline ou infraestrutura) e `pareceres:`; o `pr` exige os pareceres da
@@ -1042,21 +1043,6 @@ def gatilhos(raiz, pedido, ref=None, base=None):
 MD_DE_CONTROLE = re.compile(r"^(agents/|skills/|stacks/[^/]+/(agents/|skills/|seguranca\.md$|pronto\.md$)|docs/regras/|templates/projeto/|(.*/)?CLAUDE\.md$)")
 
 
-def isencoes_do_diff(arquivos):
-    """Tipos de parecer que um diff dispensa (M13, D-M13 = A): só o QA, num diff não vazio todo de `.md` fora do controle (`MD_DE_CONTROLE`: `agents/`,
-    `skills/`, `stacks/*/agents/`, `skills/`, `seguranca.md` e `pronto.md`, `docs/regras/`, `templates/projeto/` e `CLAUDE.md`; R-QA: documentação não passa por QA). O review é sempre
-    exigido (R-REVIEW), e o `.md` de controle não tem isenção nenhuma."""
-    if arquivos and all(a.endswith(".md") and not MD_DE_CONTROLE.match(a) for a in arquivos):
-        return {"qa"}
-    return set()
-
-
-def isencoes_da_entrega(raiz, ref=None, base=None):
-    """A regra única de isenção (M13): o que o diff da entrega sobre a base dispensa. Usada pelo `cmd_pr`, pelo hook `parecer` e pelo
-    `brief gerar` (P2); ninguém tem regra própria."""
-    return isencoes_do_diff(arquivos_da_entrega(raiz, ref, base))
-
-
 # ---- P5 (0.43.1; dono, 2026-11-08): rigor proporcional ao risco, a classe da entrega decidida pela ferramenta, nunca pelo Jarvis ----
 # T (trivial), N (normal), C (controle). Os caminhos de controle não têm lista própria: são os PROTEGIDOS e os SENSIVEIS da catraca
 # (tests/catraca.py), os CONTROLES_DO_FORGE e o MD_DE_CONTROLE daqui e o PIPELINE_E_INFRA (devops). Na dúvida, a classe sobe.
@@ -1065,7 +1051,7 @@ LINHAS_DO_TRIVIAL = 20
 CONFIG_DO_CLAUDE = re.compile(r"(^|/)(\.claude/|\.mcp\.json$)")
 # M5 e L1 (0.43.2): o manifesto e os agentes dos plugins, os pesados das stacks, os apoios dos testes (o que os testes de controle
 # importam ou o CI roda) e a forma compilada (o que o interpretador carrega no lugar do fonte) também são controle.
-PLUGIN_E_APOIOS = re.compile(r"^(\.claude-plugin/|dev/|stacks/[^/]+/pesados\.json$|tests/(apoio_|modelo_)[^/]*\.py$|tests/[^/]+\.sh$)")
+PLUGIN_E_APOIOS = re.compile(r"^(\.claude-plugin/|dev/|stacks/[^/]+/pesados\.json$|tests/((apoio_|modelo_)[^/]*|guarda_git)\.py$|tests/[^/]+\.sh$)")
 TESTE_DE_CONTROLE = re.compile(r"^tests/(hooks/|catraca|neutralidade|test_(hooks|catraca|oraculo_|forge_check|conformidade|pre_?push|fechar|guarda|"
                                r"agentes|parecer|isencoes|classe_risco|invariante))")
 TESTE = re.compile(r"(^|/)(tests?|__tests__|spec)/|(^|/)(test_[^/]+|[^/]+_test\.[^/.]+|[^/]+\.(test|spec)\.[^/]+)$")
@@ -1084,17 +1070,21 @@ def catraca_da_classe():
     return _CATRACA[0]
 
 
+TESTE_PROPRIO = re.compile(r"^tests/(hooks/|test_[^/]+\.py$)")  # G1.3: o teste de controle em si; o código de controle em tests/ segue C
+MOTIVO_DO_TEXTO, MOTIVO_DO_TESTE = "regra, agente, skill ou configuração do projeto", "teste de controle"
+
+
 def motivo_de_controle(nome, catraca):
     """O motivo de `nome` ser caminho de controle (classe C), ou None."""
     for motivo, casa in (("protegido da catraca", lambda n: n.startswith(tuple(catraca.PROTEGIDOS))),
                          ("sensível da catraca", lambda n: n.startswith(tuple(catraca.SENSIVEIS))),
                          ("controle do Forge", lambda n: n.startswith(CONTROLES_DO_FORGE)),
-                         ("regra, agente, skill ou configuração do projeto", MD_DE_CONTROLE.match),
+                         (MOTIVO_DO_TEXTO, MD_DE_CONTROLE.match),
                          ("pipeline, contêiner ou infraestrutura", PIPELINE_E_INFRA.match),
                          ("configuração do Claude Code ou MCP", CONFIG_DO_CLAUDE.search),
                          ("plugin, pesados da stack ou apoio dos testes", PLUGIN_E_APOIOS.match),
                          ("forma compilada", lambda n: catraca.FORMA_COMPILADA.search(n)),
-                         ("teste de controle", TESTE_DE_CONTROLE.match)):
+                         (MOTIVO_DO_TESTE, TESTE_DE_CONTROLE.match)):
         if casa(nome):
             return motivo
     return None
@@ -1119,6 +1109,20 @@ def impedimento_do_trivial(m):
     return None
 
 
+# G1.3 (ORDEM DO DONO de 21/11 22:13; D2): só texto (agente, skill, modelo, CLAUDE.md, `docs/regras/`) ou só testes (inclusive os de
+# controle) é T, um parecer só, o review; `docs/regras/` soma a segurança pelo gatilho (R-SEGURANCA). O resto do controle segue C.
+def so_texto_ou_so_teste(contam, controle):
+    """G1.3: o motivo da classe T de um diff de controle todo de `.md` ou todo de testes, sem arquivo removido nem link, ou None."""
+    if any(m.removido or m.modo_incomum for m in contam):
+        return None
+    if all(m.nome.endswith(".md") for m in contam) and all(
+            motivo == MOTIVO_DO_TEXTO or (motivo == "controle do Forge" and nome.startswith("docs/regras/")) for nome, motivo in controle):
+        return "só texto, inclusive de agente, skill, modelo ou regra (G1.3)"
+    if all(TESTE.search(m.nome) for m in contam) and all(motivo == MOTIVO_DO_TESTE and TESTE_PROPRIO.match(n) for n, motivo in controle):
+        return "só testes, inclusive de controle (G1.3)"
+    return None
+
+
 def classe_das_mudancas(mudancas, catraca, contar):
     """(classe, motivos, arquivos que decidiram) de uma lista de `Mudanca` (P5). `None` (o git falhou) ou catraca ausente dão C;
     os LIVRES (pareceres, quadro, UX) não contam, para a classe não mudar quando o parecer entra na branch. T: só documentação
@@ -1130,6 +1134,8 @@ def classe_das_mudancas(mudancas, catraca, contar):
         return "C", ["não carreguei tests/catraca.py (lista de protegidos)"], []
     contam = [m for m in mudancas if not livre(m.nome, LIVRES)]
     controle = [(m.nome, motivo) for m in contam if (motivo := motivo_de_controle(m.nome, catraca))]
+    if controle and (leve := so_texto_ou_so_teste(contam, controle)):
+        return "T", [leve], [m.nome for m in contam]
     if controle:
         return "C", [f"{motivo}: {caminho_impresso(nome)}" for nome, motivo in controle], [nome for nome, _ in controle]
     if not contam:
@@ -1606,9 +1612,6 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
     if conferir:  # T1: código sem teste sinalizado (a classe T isenta), antes do veredito
         aviso_t1_do_pr(raiz, ref, None if base is None else base.removeprefix("origin/"))
     if base is None:
-        if isencoes_da_entrega(raiz, ref, None):
-            print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
-                  file=sys.stderr)
         avisar_classe(raiz, ref, None)
         branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
         return cmd_pr(raiz, pedido, ref, None, branch, previo, suite) + (conferencia_do_head(raiz, pedido, ref, None, branch)
@@ -1620,9 +1623,6 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
     resolvida, aviso = base_do_delta(raiz, nome, ref)
     if aviso:
         print(aviso, file=sys.stderr)
-    if isencoes_da_entrega(raiz, ref, resolvida):
-        print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
-              file=sys.stderr)
     avisar_classe(raiz, ref, resolvida)
     if promocao(raiz, ref, nome):  # A9: a conferência do head é portão da branch de trabalho; a leva já passou por ele em cada PR
         print(f"pr: promoção: o head é o da integração e a base é {nome}; a conferência do head ficou nos PRs da leva (TEMPO-B2)", file=sys.stderr)
@@ -1827,7 +1827,7 @@ def pedido_do_pr(raiz, pedido, ref=None):
 def exigidos_do_pr(raiz, pedido, ref=None, base=None):
     """Os pareceres que o `forge-check pr` exige e os gatilhos de segurança que pedem o de segurança: `(tipos, gatilhos)`. A classe da
     entrega (P5, `classe_da_entrega`) decide review e QA (T: só review; N: review e QA; C: também segurança); devops e segurança dos gatilhos
-    (R-SEGURANCA, R-REVIEW) somam por cima, e a isenção do M13 (`.md` comum) é a classe T."""
+    (R-SEGURANCA, R-REVIEW) somam por cima, e a isenção do M13 saiu: o `.md` e o teste, inclusive de controle, são a classe T (G1.3)."""
     infra, gatilhos_de_seguranca = gatilhos(raiz, pedido, ref, base)
     classe, motivos, _ = classe_da_entrega(raiz, ref, base)  # P5: a classe decide review e QA; os gatilhos de hoje somam por cima
     if classe == "C" and not gatilhos_de_seguranca:  # o motivo do parecer de segurança que só a classe pede
@@ -9229,7 +9229,7 @@ ETAPAS_QUE_RECUSAM = ("pr",) + ETAPAS_DE_MERGE  # sem os pareceres exigidos, o `
 
 
 def pareceres_da_etapa(raiz, pedido_id, etapa, branch, base):
-    """Linhas do `forge-check pr` que a etapa do fluxo exige (P2 e M5, uma só fonte: `pr_da_cli`, com a isenção da M13): em `qa`, só as
+    """Linhas do `forge-check pr` que a etapa do fluxo exige (P2 e M5, uma só fonte: `pr_da_cli`, com a classe da entrega): em `qa`, só as
     do review; em `pr` e nas de merge, todas. [] nas outras etapas ou sem branch."""
     if etapa not in ("qa",) + ETAPAS_QUE_RECUSAM or not branch:
         return []

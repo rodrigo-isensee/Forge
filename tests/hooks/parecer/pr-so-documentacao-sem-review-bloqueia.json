@@ -1,5 +1,5 @@
 {
-  "descricao": "Diff só de .md comum sem parecer: o review vale em toda entrega (R-REVIEW, M13); só o QA é isento.",
+  "descricao": "Diff só de .md comum sem parecer: o review vale em toda entrega (R-REVIEW); a classe T dispensa só o QA (G1.3).",
   "git": [
     {
       "branch": "docs/guia"

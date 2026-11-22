@@ -1,12 +1,12 @@
 {
-  "descricao": "Diff só de .md de skill de stack (stacks/*/skills/) com review e sem QA: sem isenção (M13), bloqueia.",
+  "descricao": "Diff só de .md de controle (agents/) com review e sem QA: classe T, só o review (G1.3), libera.",
   "git": [
     {
-      "branch": "melhoria/skill"
+      "branch": "melhoria/agente"
     },
     {
       "arquivos": {
-        "stacks/exemplo/skills/x/SKILL.md": "# Skill\n"
+        "agents/x.md": "# Agente\n"
       },
       "commit": "docs: mudança"
     },
@@ -17,7 +17,7 @@
           "tipo: review",
           "contrato: 1",
           "pedido: p1",
-          "branch: melhoria/skill",
+          "branch: melhoria/agente",
           "commit: {HEAD}",
           "parecer: aprovado",
           "revisor: forge:tech-lead",
@@ -37,8 +37,11 @@
       "command": "gh pr create --base develop --title 'docs: x' --body 'x'"
     }
   },
+  "resultado_do_pr": {
+    "pedido": "p1",
+    "base": "develop"
+  },
   "esperado": {
-    "codigo": 2,
-    "stderr": "R-QA: docs/qa: qa: sem parecer"
+    "codigo": 0
   }
 }

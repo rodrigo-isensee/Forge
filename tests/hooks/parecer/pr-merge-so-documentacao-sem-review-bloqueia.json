@@ -1,5 +1,5 @@
 {
-  "descricao": "Só .md comum sem review: gh pr merge bloqueia (R-REVIEW, M13).",
+  "descricao": "Só .md comum sem review: gh pr merge bloqueia (R-REVIEW, classe T).",
   "arquivos": {
     "src/app.js": "v1\n"
   },

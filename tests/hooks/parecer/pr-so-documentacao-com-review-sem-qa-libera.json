@@ -1,5 +1,5 @@
 {
-  "descricao": "Diff só de .md comum com review aprovado e sem QA: isento de QA (R-QA, M13), libera.",
+  "descricao": "Diff só de .md comum com review aprovado e sem QA: classe T, só o review (R-QA, G1.3), libera.",
   "git": [
     {
       "branch": "docs/guia"

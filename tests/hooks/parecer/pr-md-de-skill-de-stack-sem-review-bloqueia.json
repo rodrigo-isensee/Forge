@@ -1,0 +1,26 @@
+{
+  "descricao": "Diff só de .md de skill de stack (stacks/*/skills/) sem review: o review vale em toda entrega, também na classe T (R-REVIEW, G1.3), bloqueia.",
+  "git": [
+    {
+      "branch": "melhoria/skill"
+    },
+    {
+      "arquivos": {
+        "stacks/exemplo/skills/x/SKILL.md": "# Skill\n"
+      },
+      "commit": "docs: mudança"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh pr create --base develop --title 'docs: x' --body 'x'"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: nenhum parecer em docs/reviews/ com"
+  }
+}
