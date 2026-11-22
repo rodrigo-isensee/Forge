@@ -3,6 +3,17 @@
   "executor": "unittest",
   "mutantes": [
     {
+      "id": "S22u",
+      "guarda": "S22: o push sem destino vale pela candidata da regra mais dura",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                atual = atual or self.ramos_em(pasta, ramos)[0]\n",
+      "para": "                atual = atual or self.ramos_em(pasta, ramos)[-1]\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante",
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_merge_com_duas_candidatas_de_integracao_vale_a_mais_dura"
+      ]
+    },
+    {
       "id": "S22t",
       "guarda": "S22: as candidatas fora da integração seguem depois das de integração",
       "arquivo": "hooks/conformidade.py",
