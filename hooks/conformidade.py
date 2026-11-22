@@ -1600,7 +1600,6 @@ class Guarda:
         no_claude_do_home = relativo_ao_pai(posix, home / ".claude") is not None
         do_home = [r for t, r in [*formas, *pelo_link] if t == "home"]  # fora do laço das regras (custo por arquivo)
         do_proj = [r for t, r in formas if t == "proj"]
-        da_principal = None  # A2 da segurança E123.8: a forma relativa à cópia principal, lida só se a entrada pede
         for e in self.pol["caminhos"]:
             c = e["caminho"]
             if c.startswith("~/"):
@@ -1608,11 +1607,9 @@ class Guarda:
             elif e.get("so_forge") and not self.regras_do_forge():
                 continue
             else:
-                if c in PELA_COPIA_PRINCIPAL and da_principal is None:
-                    da_principal = self.relativos_a_copia_principal(posix)
                 achou = any(casa(r, c) for r in do_proj) or (
-                    c in PELA_COPIA_PRINCIPAL and any(casa(r, c) for r in da_principal)) or (
-                    not e["quem"] and not no_claude_do_home and em_qualquer_lugar(posix, c))
+                    not e["quem"] and not no_claude_do_home and em_qualquer_lugar(posix, c)) or (
+                    c in PELA_COPIA_PRINCIPAL and any(casa(r, c) for r in self.relativos_a_copia_principal(posix)))
             if not achou:
                 continue
             if self.papel in e["quem"]:
