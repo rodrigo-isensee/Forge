@@ -116,8 +116,8 @@
       "id": "M12",
       "guarda": "o 1c roda antes do PR e do merge (pulado equivale a rodar depois do passo 6)",
       "arquivo": "bin/forge-fechar",
-      "de": "promovivel \"$sha_conferido\"",
-      "para": ": \"$sha_conferido\"",
+      "de": "promovivel \"$sha_1c\"",
+      "para": ": \"$sha_1c\"",
       "testes": [
         "tests.test_fechar.Fechar.test_1c_rc_diferente_de_0_ou_prazo_para_sem_pr_nem_merge"
       ]

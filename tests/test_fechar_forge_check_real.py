@@ -57,7 +57,7 @@ class FecharComOForgeCheckReal(unittest.TestCase):
         self.pedido.write_text(f"# real\n\n## Histórico\n- 2026-11-04 09:00: entrega conferida {self.entrega} (E1.2)\n", encoding="utf-8")
         r = self.fechar("x", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertTrue([c for c in self.chamadas() if c.startswith("gh pr merge melhoria/x --auto --squash")])
+        self.assertTrue([c for c in self.chamadas() if c.startswith("gh pr merge melhoria/x --squash")])
 
 
 # O `gh` que o forge-check real acha no PATH (o fechar usa o FORGE_GH): PR pronto no head da branch e o CI ainda rodando.
@@ -75,7 +75,7 @@ esac
 
 class FecharComChecksPendentes(unittest.TestCase):
     """A1 e A2 do review (E3.80): com o PR pronto e o CI rodando, o `forge-check pr` real reprova, mas o passo 1 do fechar só confere os
-    pareceres (os checks ficam para os passos 4 e 6): o --armar arma o auto-merge em vez de parar no passo 1."""
+    pareceres (os checks ficam para os passos 4 e 6): com checks pendentes, o fechamento passa do passo 1 e espera no passo 4."""
 
     git, fechar, chamadas, tearDown = base.Fechar.git, base.Fechar.fechar, base.Fechar.chamadas, base.Fechar.tearDown
 
@@ -96,12 +96,12 @@ class FecharComChecksPendentes(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("checks do head no PR #7 não concluídos e verdes: CI/bateria (pending)", r.stdout)
 
-    def test_armar_com_checks_pendentes_passa_do_passo_1_e_arma(self):
-        (self.estado / "auto_arma").write_text("")
-        r = self.fechar("x", "--ref", "melhoria/x", "--armar")
-        self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
+    def test_checks_pendentes_passam_do_passo_1_e_param_no_4_sem_merge(self):
+        r = self.fechar("x", "--ref", "melhoria/x", "--espera", "0")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertNotIn("parou no passo 1", r.stdout + r.stderr)
-        self.assertIn("auto-merge armado no PR #7", r.stdout)
+        self.assertIn("parou no passo 4", r.stderr)
+        self.assertFalse([c for c in self.chamadas() if c.startswith("gh pr merge")])
         self.assertFalse([c for c in self.chamadas() if c.startswith("gh-do-check pr ")], "o passo 1 não lê os checks")
 
 

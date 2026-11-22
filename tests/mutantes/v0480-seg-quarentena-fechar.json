@@ -1,0 +1,77 @@
+{
+  "pedido": "v0480-seg-quarentena-fechar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "QD1",
+      "guarda": "QUARENTENA-DIGITO-ASCII: o OK do dono (A-<n>) só com dígito ASCII; \\d aceitaria dígito Unicode",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "OK_DO_DONO = re.compile(r\"A-[0-9]+\")",
+      "para": "OK_DO_DONO = re.compile(r\"A-\\d+\")",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_autorizacao_so_com_digito_ascii"
+      ]
+    },
+    {
+      "id": "FS1",
+      "guarda": "FECHAR-SEM-AUTO-MERGE: depois do merge direto, o PR que não consta MERGED no prazo para com a mensagem própria, sem limpar",
+      "arquivo": "bin/forge-fechar",
+      "de": "    [ $((SECONDS - inicio)) -lt \"$espera\" ] || die \"parou no passo 6: o merge direto foi pedido",
+      "para": "    [ $((SECONDS - inicio)) -lt \"$espera\" ] || break; : \"parou no passo 6: o merge direto foi pedido",
+      "testes": [
+        "tests.test_fechar_auto_merge.SemAutoMerge.test_merge_que_nao_consta_merged_no_prazo_para_sem_limpar"
+      ]
+    },
+    {
+      "id": "VU1",
+      "guarda": "E114.5 A1 (segurança): a execução em skipped não conta como verde nem como falha do exigido",
+      "arquivo": "bin/forge-fechar",
+      "de": "$1 == n && $4 != \"skipped\" && (!achou",
+      "para": "$1 == n && (!achou",
+      "testes": [
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_skipped_nao_conta_nem_com_id_maior",
+        "tests.test_fechar_lote.Promover.test_bateria_skipped_do_push_nao_para_e_exigido_da_homolog_conta"
+      ]
+    },
+    {
+      "id": "VU2",
+      "guarda": "E114.5 A3 (segurança): o passo 6 confere também os exigidos do ruleset ou da proteção do destino",
+      "arquivo": "bin/forge-fechar",
+      "de": "    for par in \"${exigidos[@]}\"; do\n      nome=",
+      "para": "    for par in \"${CHECKS_EXIGIDOS[@]}\"; do\n      nome=",
+      "testes": [
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_exigido_a_mais_no_ruleset_do_destino_e_conferido"
+      ]
+    },
+    {
+      "id": "VU3",
+      "guarda": "E114.5 A3 (segurança): o P6 lê os exigidos do ruleset ou da proteção da homolog",
+      "arquivo": "bin/forge-fechar",
+      "de": "    ler_exigidos_do_destino  # os obrigatórios a mais",
+      "para": "    :  # os obrigatórios a mais",
+      "testes": [
+        "tests.test_fechar_lote.Promover.test_bateria_skipped_do_push_nao_para_e_exigido_da_homolog_conta"
+      ]
+    },
+    {
+      "id": "VU4",
+      "guarda": "E114.5 A3 (review): o prazo do passo 6 conta do início do passo 4, sem recomeçar",
+      "arquivo": "bin/forge-fechar",
+      "de": "falta_e ini=\"$2\"",
+      "para": "falta_e ini=$SECONDS",
+      "testes": [
+        "tests.test_fechar_checks_do_head.PrazoUnico.test_espera_do_passo_4_desconta_o_prazo_do_passo_6"
+      ]
+    },
+    {
+      "id": "VU5",
+      "guarda": "E114.5 A2 (segurança): o PR é relido (base, head, nome) depois da espera dos checks, logo antes do merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "    ler_pr_antes_do_merge\n    conferir_base_no_merge",
+      "para": "    :\n    conferir_base_no_merge",
+      "testes": [
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_pr_que_muda_de_base_na_espera_dos_checks_nao_mescla"
+      ]
+    }
+  ]
+}
