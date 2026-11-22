@@ -1,0 +1,46 @@
+{
+  "pedido": "v0480-seg-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A20a",
+      "guarda": "A20: o resto com barra depois do opaco passa pela conferência do valor",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif expandido[fim:fim + 1] == \"/\":\n",
+      "para": "        elif False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a20_resto_com_barra_depois_do_opaco_no_git_recusa_como_o_literal"
+      ]
+    },
+    {
+      "id": "A20b",
+      "guarda": "A20: o valor calculado que cai no .git recusa, com resto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if valores and valor_no_git(valores):\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a20_resto_com_barra_depois_do_opaco_no_git_recusa_como_o_literal"
+      ]
+    },
+    {
+      "id": "A20c",
+      "guarda": "A20: o texto do valor que cita o .git recusa, com resto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif any(cita_o_dir_do_git(t) or cita_o_dir_do_git(palavra_juntada(t)) for t in self.textos_do_valor(caminho)[1]):\n",
+      "para": "        elif False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a20_resto_com_barra_depois_do_opaco_no_git_recusa_como_o_literal"
+      ]
+    },
+    {
+      "id": "A20d",
+      "guarda": "A20: o posicional ($@, $1) lê a linha inteira (set --)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        largo |= any(re.search(r\"\\$\\{?[@*\\d]\", t) for t in precisos)  # A20: o posicional nasce do `set --` da linha\n",
+      "para": "        largo |= False\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a20_resto_com_barra_depois_do_opaco_no_git_recusa_como_o_literal"
+      ]
+    }
+  ]
+}

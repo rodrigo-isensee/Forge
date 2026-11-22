@@ -1,6 +1,7 @@
 """Segurança da auditoria (v0478 E113.1): três brechas do hooks/conformidade.py, cada uma com as fixtures dela.
 
 S22 (CONFORMIDADE-S22-FLUXO): a troca de branch vale certa só quando o operador garante que ela rodou.
+A20 (CONFORMIDADE-A20-RESTO-BARRA-OPACO): o resto com barra depois do opaco que cai no .git recusa como o literal.
 As fixtures moram em tests/hooks/conformidade/ (a suíte inteira as roda em test_hooks); aqui, só as de cada cartão,
 pelo prefixo da descrição, para a mutação do diff rodar rápido."""
 import sys
@@ -34,6 +35,9 @@ class SegurancaDaAuditoria(unittest.TestCase):
 
     def test_s22_troca_de_branch_so_vale_com_o_operador_que_garante(self):
         self.conferir("S22:", recusam=5, liberam=2)
+
+    def test_a20_resto_com_barra_depois_do_opaco_no_git_recusa_como_o_literal(self):
+        self.conferir("A20:", recusam=6, liberam=2)
 
 
 if __name__ == "__main__":

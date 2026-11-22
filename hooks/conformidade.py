@@ -1722,6 +1722,7 @@ class Guarda:
         funcoes = (re.findall(r"(?<![\w$-])([\w.-]+)\s*\(\s*\)", linha)
                    + re.findall(r"(?<![\w$.-])function\s+([\w.-]+)", linha))  # D2b: `function f {` sem `()`
         largo |= any(re.search(rf"(?<![\w.-]){re.escape(f)}(?![\w.-])", t) for f in funcoes for t in precisos)
+        largo |= any(re.search(r"\$\{?[@*\d]", t) for t in precisos)  # A20: o posicional nasce do `set --` da linha
         return precisos, precisos + [linha] if largo else precisos
 
     def destino_opaco(self, caminho, pasta):
@@ -1752,6 +1753,22 @@ class Guarda:
         expandido, fim = self.fim_do_opaco(caminho, pasta) or ("", 0)
         if expandido[fim:fim + 1] not in ("", "/"):
             self.valor_calculado(expandido)
+        elif expandido[fim:fim + 1] == "/":
+            self.resto_com_barra(caminho, expandido)
+
+    def resto_com_barra(self, caminho, expandido):
+        """A20 (E113.1): o resto com barra (`"$d/."`, `"$(echo .git)/."`, `"$@"/c`) vale como o literal (`.git/.`): recusa
+        quando o texto que produz o valor cita o diretório do git (U1) ou o valor que o hook calcula cai nele (U4); o que
+        ele não sabe segue para o `resto_no_git`."""
+        valores = valores_da_palavra(expandido, linha_juntada(self.texto_da_linha))  # só recusa: vale também com A12
+        if valores and valor_no_git(valores):
+            motivo = "o valor que o hook calcula cai no diretório do git (.git)"
+        elif any(cita_o_dir_do_git(t) or cita_o_dir_do_git(palavra_juntada(t)) for t in self.textos_do_valor(caminho)[1]):
+            motivo = "o texto que produz o valor cita o diretório do git (.git)"
+        else:
+            return
+        self.barrar("R-CONFORMIDADE", f"destino de $(…), crase ou variável com resto: {motivo}",
+                    "escreva o caminho literal do destino")
 
     def valor_calculado(self, palavra):
         """U4 (volta da E1.232): libera só o valor que o hook calcula (`valores_da_palavra`) e que não cai no `.git`."""
