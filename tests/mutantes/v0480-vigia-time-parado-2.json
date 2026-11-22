@@ -6,7 +6,7 @@
       "id": "M9",
       "guarda": "VIGIA-TIME-PARADO: cabeçalho e separador da tabela não são cartão",
       "arquivo": "hooks/vigia.py",
-      "de": "if len(celulas) < 2 or celulas[0] in (\"\", \"ID\") or set(celulas[0]) <= set(\"-: \"):",
+      "de": "if len(celulas) < 2 or celulas[0] == \"\" or set(celulas[0]) <= set(\"-: \"):",
       "para": "if len(celulas) < 2:",
       "testes": [
         "tests.test_vigia_parado.TimeParado.test_zero_agentes_e_cartao_livre_avisa"

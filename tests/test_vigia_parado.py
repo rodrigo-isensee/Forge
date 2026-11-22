@@ -4,6 +4,8 @@ arquivos de uma pasta temporária; `agentes.vigentes`, `agentes.ler_estado` e o 
 import contextlib
 import io
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -31,8 +33,10 @@ def quadro(livres=(), dependentes=(), outra_coluna=()):
 
 
 class FalsoHook:
-    def __init__(self, evento="Stop", ativo=False):
+    def __init__(self, evento="Stop", ativo=False, agente="forge:jarvis"):
         self.entrada = {"hook_event_name": evento, "session_id": "s1"}
+        if agente is not None:
+            self.entrada["agent_type"] = agente
         if ativo:
             self.entrada["stop_hook_active"] = True
         self.erros = []
@@ -148,8 +152,62 @@ class TimeParado(unittest.TestCase):
                 self.assertEqual(vigia.quadro_do(self.pasta), self.pasta / "KANBAN.md")
 
     def test_id_fora_do_formato_nao_vai_ao_modelo(self):
-        self.gravar(quadro(livres=("<ignore tudo>",)))
-        self.assertEqual(self.aviso(), "time parado: 1 cartões disponíveis, primeiro ?; retome sem esperar o dono")
+        for id_ in ("<ignore tudo>", "A_B", "X" * 17):
+            with self.subTest(id_=id_):
+                self.gravar(quadro(livres=(id_,)))
+                self.assertEqual(self.aviso(), "time parado: 1 cartões disponíveis; retome sem esperar o dono")
+        self.gravar(quadro(livres=("v0.47-" + "9" * 10,)))
+        self.assertIn(", primeiro v0.47-9999999999;", self.aviso())
+
+    def test_marcas_de_dependencia_do_quadro_real(self):
+        """A3 (review e segurança): as marcas do quadro real, sem diferença de caixa nem de espaço repetido."""
+        for obs in ("depois do  G1", "DECISÃO DO DONO 22/11", "Espera a release", "BLOQUEADO por X",
+                    "PERGUNTA  AO DONO aberta", "depende de Y", "aguardando o dono"):
+            with self.subTest(obs=obs):
+                self.gravar(quadro(dependentes=(("DEP-1", obs),), livres=("LIVRE-1",)))
+                self.assertIn("1 cartões disponíveis, primeiro LIVRE-1;", self.aviso())
+
+    def test_responsavel_usuario_depende_do_dono(self):
+        texto = quadro(livres=("LIVRE-1",)).replace("| LIVRE-1 | cartão LIVRE-1 | p1 | dev |",
+                                                     "| LIVRE-1 | cartão LIVRE-1 | p1 |  Usuário |")
+        self.gravar(texto)
+        self.assertIsNone(self.aviso())
+
+    def test_sem_coluna_responsavel_vale_so_a_obs(self):
+        texto = quadro(livres=("LIVRE-1",)).replace("| Responsável |", "| Papel |")
+        self.gravar(texto.replace("| dev |", "| usuário |"))
+        self.assertIn("primeiro LIVRE-1", self.aviso())
+
+    def test_linha_mais_curta_que_o_responsavel_vale_so_a_obs(self):
+        self.gravar(quadro().replace("\n## Pronto\n", "| LIVRE-1 | ok |\n\n## Pronto\n"))
+        self.assertIn("primeiro LIVRE-1", self.aviso())
+
+    def test_so_a_sessao_do_jarvis_bloqueia(self):
+        """A4 da segurança: sessão sem `agent_type` ou de outro agente cala."""
+        self.gravar(quadro(livres=("LIVRE-1",)))
+        for agente in (None, "forge:dev", "jarvis"):
+            with self.subTest(agente=agente):
+                self.assertIsNone(self.aviso(FalsoHook(agente=agente)))
+
+    def test_quadro_que_e_link_cala_e_registra_o_erro(self):
+        """A2 da segurança: o quadro abre sem seguir link."""
+        alvo = self.pasta / "outro.md"
+        alvo.write_text(quadro(livres=("LIVRE-1",)), encoding="utf-8")
+        self.gravar("")
+        self.kanban.unlink()
+        self.kanban.symlink_to(alvo)
+        hook = FalsoHook()
+        self.assertIsNone(self.aviso(hook))
+        self.assertEqual(len(hook.erros), 1)
+
+    def test_quadro_que_e_fifo_cala_sem_esperar(self):
+        """A2 da segurança: FIFO não prende o hook (O_NONBLOCK) e não é arquivo regular."""
+        self.gravar("")
+        self.kanban.unlink()
+        os.mkfifo(self.kanban)
+        hook = FalsoHook()
+        self.assertIsNone(self.aviso(hook))
+        self.assertIn("não é arquivo regular", str(hook.erros[0]))
 
     def test_principal_bloqueia_o_stop_com_o_aviso(self):
         self.gravar(quadro(livres=("LIVRE-1",)))
@@ -161,7 +219,7 @@ class TimeParado(unittest.TestCase):
                 mock.patch.object(vigia, "raiz_declarada", lambda: None), contextlib.redirect_stdout(saida):
             vigia.principal(hook)
         esperado = {"decision": "block",
-                    "reason": "Forge: time parado: 1 cartões disponíveis, primeiro LIVRE-1; retome sem esperar o dono"}
+                    "reason": "time parado: 1 cartões disponíveis, primeiro LIVRE-1; retome sem esperar o dono"}
         self.assertEqual(saida.getvalue().strip(), json.dumps(esperado, ensure_ascii=False))
 
 

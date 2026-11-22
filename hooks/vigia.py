@@ -21,15 +21,18 @@ subcomando (`git push`, `gh pr merge`, `npm install`) com as flags críticas (`-
 comando inteiro; `barrado` é a regra do hook que recusou a chamada, ou null. O papel vem de `conformidade.json` pelo
 `agent_type` (a transcrição principal fora do `Stop` é da sessão sem `agent_type`).
 Cada violação nova vai para `.forge/run/violacoes.jsonl`; havendo alguma, a saída é só
-`{"systemMessage": "Forge: <n> violação(ões) - ..."}` com código 0 (nunca `additionalContext`: ADR 0003).
+`{"systemMessage": "Forge: <n> violação(ões) - ..."}` com código 0 (nunca `additionalContext`: ADR 0003; a única
+exceção é o `reason` fixo do time parado, abaixo).
 Sem violação não escreve nada. Erro interno: sai 0 e registra em `erros.log`. Só biblioteca padrão.
 Age no projeto e também na sessão do Forge (clone sem `.forge/versao`, `wt/*`), com o estado no `.forge/run/` da cópia
 principal do clone (`Hook.run`), como os outros hooks (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE).
-VIGIA-TIME-PARADO (v0478 E105.1, ordem do dono 22/11): no `Stop` da sessão principal, com zero agentes vigentes no registro
-do R-TETO (`agentes.json`, lido como o `agentes.py` o lê) e cartão na coluna `Pronto para fazer` do quadro (`KANBAN.md` da
-raiz; no clone do Forge, o de `~/.forge-contrib`) sem marca de dependência na última coluna (Obs.), a saída leva também
-`{"decision": "block", "reason": "Forge: time parado: ..."}`: o Jarvis retoma sem encerrar a vez. Uma vez por vez: com
-`stop_hook_active` (o Stop que segue o bloqueio) deixa encerrar. Registro ou quadro ilegível cala (dúvida não bloqueia).
+VIGIA-TIME-PARADO (v0478 E105.1, ordem do dono 22/11; emenda da ADR 0003, item 7): só no `Stop` da sessão do Jarvis
+(`agent_type` do papel `jarvis` em `conformidade.json`; a sessão que não se identifica cala), com zero agentes vigentes no
+registro do R-TETO (`agentes.json`, lido como o `agentes.py` o lê) e cartão na coluna `Pronto para fazer` do quadro
+(`KANBAN.md` da raiz; no clone do Forge, o de `~/.forge-contrib`) sem marca de dependência na Obs. e sem Responsável
+`usuário`, a saída leva também `{"decision": "block", "reason": "time parado: ..."}`, texto fixo de uma linha: o Jarvis
+retoma sem encerrar a vez. Uma vez por vez: com `stop_hook_active` (o Stop que segue o bloqueio) deixa encerrar. Registro
+ou quadro ilegível (link, FIFO, não regular) cala e vai ao erros.log (dúvida não bloqueia).
 O aviso de agente terminado chega ao Jarvis como turno, que acaba neste mesmo `Stop`; o `SubagentStop` não bloqueia (prenderia o agente).
 """
 import hashlib
@@ -37,6 +40,7 @@ import json
 import os
 import re
 import shlex
+import stat
 import sys
 import time
 from pathlib import Path
@@ -526,9 +530,22 @@ def avisar_versao_sumiu(hook):
 
 # VIGIA-TIME-PARADO --------------------------------------------------------------------------------
 COLUNA_LIVRE = "pronto para fazer"
-MARCAS_DE_DEPENDENCIA = ("depende de", "espera o dono", "aguardando o dono")
+# Comparadas com a Obs. em minúsculas e com o espaço repetido reduzido a um (`_normal`).
+MARCAS_DE_DEPENDENCIA = ("depende de", "espera", "aguardando o dono", "depois do", "decisão do dono", "bloqueado",
+                         "pergunta ao dono")
+RESPONSAVEL_DONO = "usuário"  # skills/kanban-scrum: Responsável "usuário" quando o cartão depende do dono
 LIMITE_QUADRO = 4 * 1024 * 1024  # o quadro do Forge tem ~0,5 MB; acima disso, cala
-_ID_DO_CARTAO = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")  # o ID vai ao modelo: só o formato de ID passa
+_ID_DO_CARTAO = re.compile(r"[A-Za-z0-9.-]{1,16}")  # o ID vai ao modelo: lista positiva (emenda da ADR 0003, item 7)
+
+
+def _normal(texto):
+    return " ".join(texto.lower().split())
+
+
+def sessao_do_jarvis(hook):
+    """Só a sessão que se identifica como o Jarvis (`agent_type` do papel `jarvis`); sem `agent_type`, não se sabe: cala."""
+    papeis = ler_json(PLUGIN / "hooks" / "conformidade.json", {}).get("papeis", {})
+    return hook.campo("agent_type") in papeis.get("jarvis", [])
 
 
 def quadro_do(raiz):
@@ -537,20 +554,24 @@ def quadro_do(raiz):
 
 
 def ler_quadro(caminho):
-    """Texto do quadro, ou None se não há quadro ou se passa de LIMITE_QUADRO."""
+    """Texto do quadro, ou None se não há quadro ou se passa de LIMITE_QUADRO. Abre como `agentes.ler_estado`, sem seguir
+    link nem esperar FIFO; o que não é arquivo regular levanta (o chamador cala e registra o erro)."""
     try:
-        with open(caminho, "rb") as f:
-            dados = f.read(LIMITE_QUADRO + 1)
+        fd = os.open(caminho, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except FileNotFoundError:
         return None
+    with os.fdopen(fd, "rb") as f:
+        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+            raise OSError(f"{caminho}: não é arquivo regular")
+        dados = f.read(LIMITE_QUADRO + 1)
     if len(dados) > LIMITE_QUADRO:
         return None
     return dados.decode("utf-8", errors="replace")
 
 
 def cartoes_livres(texto):
-    """IDs dos cartões da coluna `Pronto para fazer` sem marca de dependência na Obs. (última coluna), na ordem do quadro."""
-    livres, na_coluna = [], False
+    """IDs dos cartões da coluna `Pronto para fazer` que não dependem do dono (`depende_do_dono`), na ordem do quadro."""
+    livres, na_coluna, responsavel = [], False, None
     for linha in texto.splitlines():
         if linha.startswith("## "):
             na_coluna = linha[3:].strip().lower().startswith(COLUNA_LIVRE)
@@ -558,12 +579,24 @@ def cartoes_livres(texto):
         if not na_coluna or not linha.lstrip().startswith("|"):
             continue
         celulas = [c.strip() for c in linha.replace("\\|", "").strip().strip("|").split("|")]
-        if len(celulas) < 2 or celulas[0] in ("", "ID") or set(celulas[0]) <= set("-: "):
+        if celulas[0] == "ID":  # cabeçalho: a posição do Responsável nesta tabela
+            nomes = [_normal(c) for c in celulas]
+            responsavel = nomes.index("responsável") if "responsável" in nomes else None
             continue
-        if any(marca in celulas[-1].lower() for marca in MARCAS_DE_DEPENDENCIA):
+        if len(celulas) < 2 or celulas[0] == "" or set(celulas[0]) <= set("-: "):
+            continue
+        if depende_do_dono(celulas, responsavel):
             continue
         livres.append(celulas[0])
     return livres
+
+
+def depende_do_dono(celulas, responsavel):
+    """Marca de dependência na Obs. (última coluna) ou Responsável `usuário` (posição achada no cabeçalho)."""
+    if any(marca in _normal(celulas[-1]) for marca in MARCAS_DE_DEPENDENCIA):
+        return True
+    dono = celulas[responsavel] if responsavel is not None and responsavel < len(celulas) else ""
+    return _normal(dono) == RESPONSAVEL_DONO
 
 
 def agentes_rodando(hook, raiz):
@@ -580,6 +613,8 @@ def aviso_time_parado(hook, raiz):
     if hook.campo("stop_hook_active") is True:
         return None
     try:
+        if not sessao_do_jarvis(hook):
+            return None
         if agentes_rodando(hook, raiz) != 0:
             return None
         livres = cartoes_livres(ler_quadro(quadro_do(raiz)) or "")
@@ -588,8 +623,8 @@ def aviso_time_parado(hook, raiz):
         return None
     if not livres:
         return None
-    primeiro = livres[0] if _ID_DO_CARTAO.fullmatch(livres[0]) else "?"
-    return f"time parado: {len(livres)} cartões disponíveis, primeiro {primeiro}; retome sem esperar o dono"
+    primeiro = f", primeiro {livres[0]}" if _ID_DO_CARTAO.fullmatch(livres[0]) else ""
+    return f"time parado: {len(livres)} cartões disponíveis{primeiro}; retome sem esperar o dono"
 
 
 def principal(hook):
@@ -617,7 +652,7 @@ def principal(hook):
         resumo = " ".join(f"{novas[0][0]}: {TEXTOS_FIXOS.get(novas[0][0], novas[0][1])}".split())[:120]
         saida["systemMessage"] = f"Forge: {partes} — {resumo} (.forge/run/violacoes.jsonl)"
     if parado:
-        saida.update({"decision": "block", "reason": f"Forge: {parado}"})
+        saida.update({"decision": "block", "reason": parado})
     if saida:
         print(json.dumps(saida, ensure_ascii=False))
 

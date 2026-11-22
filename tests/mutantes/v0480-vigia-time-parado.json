@@ -36,7 +36,7 @@
       "id": "M4",
       "guarda": "VIGIA-TIME-PARADO: marca de dependência na Obs. tira o cartão",
       "arquivo": "hooks/vigia.py",
-      "de": "if any(marca in celulas[-1].lower() for marca in MARCAS_DE_DEPENDENCIA):",
+      "de": "if any(marca in _normal(celulas[-1]) for marca in MARCAS_DE_DEPENDENCIA):",
       "para": "if False:",
       "testes": [
         "tests.test_vigia_parado.TimeParado.test_so_cartoes_dependentes_cala"
@@ -66,8 +66,8 @@
       "id": "M7",
       "guarda": "VIGIA-TIME-PARADO: ID fora do formato não vai ao modelo",
       "arquivo": "hooks/vigia.py",
-      "de": "primeiro = livres[0] if _ID_DO_CARTAO.fullmatch(livres[0]) else \"?\"",
-      "para": "primeiro = livres[0] if True else \"?\"",
+      "de": "primeiro = f\", primeiro {livres[0]}\" if _ID_DO_CARTAO.fullmatch(livres[0]) else \"\"",
+      "para": "primeiro = f\", primeiro {livres[0]}\" if True else \"\"",
       "testes": [
         "tests.test_vigia_parado.TimeParado.test_id_fora_do_formato_nao_vai_ao_modelo"
       ]
