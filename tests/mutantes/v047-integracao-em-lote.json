@@ -26,8 +26,8 @@
       "id": "IL-M3",
       "guarda": "--lote recusa opção de item",
       "arquivo": "bin/forge-fechar",
-      "de": "[ \"$limpar$sem_limpar$armar$esperar$item_de_lote\" != 00000 ] || [ \"${#cartoes[@]}\" != 0 ]; then\n    die \"--lote recebe",
-      "para": "[ \"$limpar$sem_limpar$armar$esperar$item_de_lote\" = x ] || [ \"${#cartoes[@]}\" != 0 ]; then\n    die \"--lote recebe",
+      "de": "[ \"$limpar$sem_limpar$esperar$item_de_lote\" != 0000 ] || [ \"${#cartoes[@]}\" != 0 ]; then\n    die \"--lote recebe",
+      "para": "[ \"$limpar$sem_limpar$esperar$item_de_lote\" = x ] || [ \"${#cartoes[@]}\" != 0 ]; then\n    die \"--lote recebe",
       "testes": [
         "tests.test_fechar_lote.Lote.test_lote_recusa_opcao_de_item"
       ]

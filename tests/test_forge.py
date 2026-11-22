@@ -6004,7 +6004,8 @@ class VoltaComRecomendacao(unittest.TestCase):
         self.pedido.write_text(PEDIDO + f"\n## Histórico\n- 2026-10-19 16:00: entrega conferida {self.c1}\n", encoding="utf-8")
         self.rel_anterior = "docs/briefs/pedido-sintetico-dev-exemplo-1.md"
         (self.repo / "docs" / "briefs").mkdir(parents=True)
-        (self.repo / self.rel_anterior).write_bytes(self.ANTERIOR.read_bytes())
+        anterior = self.ANTERIOR.read_text(encoding="utf-8").replace("\n", "\nBranch: melhoria/x   Base: develop\n", 1)  # G1.1: o anterior é do item
+        (self.repo / self.rel_anterior).write_text(anterior, encoding="utf-8")
         self.parecer(self.ACHADOS)
 
     def commitar(self, arquivos, mensagem):
@@ -6127,6 +6128,7 @@ class VoltaComRecomendacao(unittest.TestCase):
         self.assertNotIn("volta: ok", conferencia)
         self.assertIn("volta: recomendação R1 sem DECISÃO TÉCNICA no Histórico", self.conferir(self.preenchido(r.stdout), ref=None)[1])  # sem --ref também
         self.tecnica("- DECISÃO TÉCNICA 2026-10-20 (Jarvis): inclui R1 do review porque cai nas mesmas linhas do A1")
+        (self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md").unlink()  # G1.1: a volta conferida acima já sucede o anterior
         r = self.gerar("--incluir", "docs/reviews/p1.md:R1")
         self.assertNotIn("DECISÃO TÉCNICA para", r.stdout)
         rc, conferencia = self.conferir(self.preenchido(r.stdout))

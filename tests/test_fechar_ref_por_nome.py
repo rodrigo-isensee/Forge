@@ -17,7 +17,7 @@ class FecharRefPorNome(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual(self.chamadas()[0], "forge-check pr p1 --ref refs/heads/melhoria/x --base origin/develop")
-        self.assertIn(f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha}", self.chamadas())
+        self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {sha}", self.chamadas())
 
     def test_tag_de_mesmo_nome_nao_desvia_a_conferencia(self):
         sha_branch = self.git("rev-parse", "refs/heads/melhoria/x")
@@ -28,7 +28,7 @@ class FecharRefPorNome(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual(self.chamadas()[0], "forge-check pr p1 --ref refs/heads/melhoria/x --base origin/develop")
-        self.assertIn(f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha_branch}", self.chamadas())
+        self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {sha_branch}", self.chamadas())
 
     def test_dry_run_descreve_o_nome(self):
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")

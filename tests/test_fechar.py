@@ -45,8 +45,8 @@ case "$1 $2" in
       *number,state*) [ -f "$ESTADO/aberto" ] && cat "$ESTADO/aberto"; exit 0 ;;
       *state,headRefOid,baseRefName,mergeCommit*)
         falha_n falha_estado && exit 1
-        if [ -f "$ESTADO/armado" ] && [ -f "$ESTADO/mescla_apos" ]; then
-          n="$(cat "$ESTADO/mescla_apos")"; echo $((n - 1)) > "$ESTADO/mescla_apos"; [ "$n" -gt 1 ] || echo MERGED > "$ESTADO/estado"
+        if [ -f "$ESTADO/mergeado" ] && [ -f "$ESTADO/merged_apos" ]; then
+          n="$(cat "$ESTADO/merged_apos")"; echo $((n - 1)) > "$ESTADO/merged_apos"; [ "$n" -gt 1 ] || echo MERGED > "$ESTADO/estado"
         fi
         pre_base="$(cut -d' ' -f1 "$ESTADO/pre" 2>/dev/null || echo develop)"
         merge_oid="$(cat "$ESTADO/merge_commit" 2>/dev/null || echo 0123456789abcdef0123456789abcdef01234567)"
@@ -95,6 +95,8 @@ case "$1 $2" in
     falha_n falha_checks && { echo "HTTP 502"; exit 1; }
     checks_json < "$ESTADO/checks"; exit 0 ;;
   "pr merge")
+    # FECHAR-SEM-AUTO-MERGE: o merge automático é proibido pelo dono; o falso recusa e marca, para todo teste do forge-fechar o pegar
+    [[ " $* " == *" --auto "* ]] && { echo "merge automático recusado" >> "$REGISTRO"; exit 65; }
     [ -f "$ESTADO/merge_502" ] && exit 1
     [ -f "$ESTADO/merge_502_mas_mescla" ] && { echo MERGED > "$ESTADO/estado"; exit 1; }
     # como o GitHub: recusa se o head do PR (arquivo "head", quando existe) não é o do --match-head-commit
@@ -102,9 +104,13 @@ case "$1 $2" in
       [[ "$*" == *"--match-head-commit $(cat "$ESTADO/head")"* ]] || exit 1
     fi
     [[ "$*" == *--match-head-commit* ]] || exit 1
-    # R7: com "auto_arma", o --auto só arma (checks obrigatórios pendentes); "mescla_apos" N: o GitHub mescla na N-ésima leitura do estado
-    if [ -f "$ESTADO/auto_arma" ] && [[ "$*" == *" --auto "* ]]; then : > "$ESTADO/armado"; exit 0; fi
+    # merged_apos N: o merge direto deu certo, mas o GitHub só mostra o MERGED na N-ésima leitura do estado
+    if [ -f "$ESTADO/merged_apos" ]; then : > "$ESTADO/mergeado"; exit 0; fi
     echo MERGED > "$ESTADO/estado"; exit 0 ;;
+  "api repos/{owner}/{repo}/rules/branches/"*)
+    # E114.5 (A3 da segurança): exigidos_<branch> traz os contextos que o ruleset da branch exige (a saída do --jq); sem ele, a leitura falha (404)
+    cat "$ESTADO/exigidos_${2##*/}" 2>/dev/null || exit 1
+    exit 0 ;;
   "api repos/{owner}/{repo}/commits/"*)
     # FECHAR-CHECKS-ANTES-DO-MERGE: só a forma que o script pede (sha de 40 hex, os mais recentes, 100 por página, o --jq dele); a saída é a do
     # --jq (nome, id, status, conclusão): check_runs_<sha>, senão check_runs, senão os três exigidos verdes. Como o GitHub real (PR 745), o
@@ -112,6 +118,10 @@ case "$1 $2" in
     [[ "$2" =~ ^repos/\{owner\}/\{repo\}/commits/([0-9a-f]{40})/check-runs\?filter=latest\&per_page=100$ ]] || exit 64
     [ "${*:3}" = '--jq .check_runs[] | [.name, .id, .status, (.conclusion // "-")] | @tsv' ] || exit 64
     falha_n falha_check_runs && { echo "HTTP 502" >&2; exit 1; }
+    # pre_apos_checks (E114.5, A2 da segurança): a base e o rascunho do PR mudam durante a leitura dos check-runs (vale para as leituras seguintes)
+    [ -f "$ESTADO/pre_apos_checks" ] && cp "$ESTADO/pre_apos_checks" "$ESTADO/pre"
+    # check_runs_pendentes N (FECHAR-SEM-AUTO-MERGE): as N primeiras leituras trazem a catraca ainda rodando; depois, as de sempre
+    falha_n check_runs_pendentes && { printf 'bateria\t901\tcompleted\tsuccess\nbateria (python 3.14)\t902\tcompleted\tsuccess\ncatraca\t903\tin_progress\t-\n'; exit 0; }
     cat "$ESTADO/check_runs_${BASH_REMATCH[1]}" 2>/dev/null || cat "$ESTADO/check_runs" 2>/dev/null \
       || printf 'catraca\t900\tcompleted\tcancelled\nbateria\t901\tcompleted\tsuccess\nbateria (python 3.14)\t902\tcompleted\tsuccess\ncatraca\t903\tcompleted\tsuccess\n'
     exit 0 ;;
@@ -242,7 +252,7 @@ class Fechar(unittest.TestCase):
         chamadas = self.chamadas()
         self.assertEqual(chamadas[0], "forge-check pr p1 --ref refs/heads/melhoria/x --base origin/develop")  # B5: o parecer é conferido no sha
         self.assertTrue(any(c.startswith("gh pr create --base develop --head melhoria/x") for c in chamadas))
-        self.assertIn(f"gh pr merge melhoria/x --auto --squash --match-head-commit {sha}", chamadas)
+        self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {sha}", chamadas)
         self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
         self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
         corpo = self.registro.read_text()

@@ -74,12 +74,13 @@
     },
     {
       "id": "C8",
-      "guarda": "a linha do --limpar do --armar leva o --quadro",
+      "guarda": "FECHAR-SEM-AUTO-MERGE: o --armar recusa antes de tudo (nem merge nem cartão)",
       "arquivo": "bin/forge-fechar",
-      "de": "[ \"${#cartoes[@]}\" = 0 ] || printf",
-      "para": "true || printf",
+      "de": "    --armar) die \"--armar recusado: o merge automático é proibido pelo dono",
+      "para": "    --armar) shift; : \"--armar recusado: o merge automático é proibido pelo dono",
       "testes": [
-        "tests.test_fechar_move_cartao.Teste.test_armar_manda_o_limpar_com_o_cartao_e_o_quadro"
+        "tests.test_fechar_move_cartao.Teste.test_armar_recusa_e_nao_move_o_cartao",
+        "tests.test_fechar_auto_merge.SemAutoMerge.test_armar_recusa_com_o_porque_e_o_comando_certo_sem_nada_feito"
       ]
     }
   ]
