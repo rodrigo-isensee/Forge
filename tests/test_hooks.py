@@ -187,6 +187,8 @@ PARES_QUE_O_BASH_IGNORA = (("x=`#'`; ", " # '"), ('x=`#"`; ', ' # "'), ("echo `#
                                                ("cat <<EOF\n$(", ")\nEOF"), ("cat <<EOF\n`", "`\nEOF"),
                                                # o corpo já tirado não volta a ser tirado na palavra relida
                                                ("x=\"$(cat <<'X'\nX\n", "\n)\""))))
+FATIAS_DE_FIXTURES = 4  # `Hooks.test_fixtures` dividido em 4 unidades abaixo de 225 s (G3, tests/pesos-d4.json)
+FATIAS_DO_T1 = 4  # o T1 das variantes dividido em 4 unidades abaixo de 225 s
 VARIANTES_QUE_O_BASH_IGNORA = (tuple((p, "") for p in PREFIXOS_QUE_O_BASH_IGNORA)
                                + tuple(("", s) for s in SUFIXOS_QUE_O_BASH_IGNORA) + PARES_QUE_O_BASH_IGNORA)
 # T2: uma variante por mecanismo, aplicada a uma fixture de cada família de recusa (o motivo vai ao lado).
@@ -737,10 +739,36 @@ class Hooks(unittest.TestCase):
         self.fixtures = minimo([f for f in todos if f.dados.get("prazo_de_producao") is not True], 460, "fixtures em tests/hooks/")
         self.de_prazo = [f for f in todos if f.dados.get("prazo_de_producao") is True]
 
-    def test_fixtures(self):
+    def fixtures_da_fatia(self, k):
+        """A fatia `k` (de 0 a FATIAS_DE_FIXTURES - 1) das fixtures, pelo índice (`i % FATIAS_DE_FIXTURES`): as fatias
+        repartem o conjunto sem sobra nem repetição (`test_fixtures_as_fatias_cobrem_todas`), e cada uma é uma unidade
+        do CI abaixo do limite de 225 s do test_pesos_teto."""
+        return [f for i, f in enumerate(self.fixtures) if i % FATIAS_DE_FIXTURES == k]
+
+    def verificar_fatia_de_fixtures(self, k):
         self.assertTrue(self.fixtures, "nenhum fixture em tests/hooks/")
-        casos = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures]
-        self.assertEqual(self.executar_em_lote(casos), len(self.fixtures), "todo fixture é verificado")
+        fatia = self.fixtures_da_fatia(k)
+        self.assertTrue(fatia, f"fatia {k} sem fixture")
+        casos = [(f"{f.hook}/{f.caminho.stem}", f) for f in fatia]
+        self.assertEqual(self.executar_em_lote(casos), len(fatia), "todo fixture da fatia é verificado")
+
+    def test_fixtures_fatia_1(self):
+        self.verificar_fatia_de_fixtures(0)
+
+    def test_fixtures_fatia_2(self):
+        self.verificar_fatia_de_fixtures(1)
+
+    def test_fixtures_fatia_3(self):
+        self.verificar_fatia_de_fixtures(2)
+
+    def test_fixtures_fatia_4(self):
+        self.verificar_fatia_de_fixtures(3)
+
+    def test_fixtures_as_fatias_cobrem_todas(self):
+        """A união das fatias é o conjunto inteiro, sem repetição: dividir `test_fixtures` não tira fixture da verificação."""
+        nomes = [f.caminho for k in range(FATIAS_DE_FIXTURES) for f in self.fixtures_da_fatia(k)]
+        self.assertEqual(sorted(nomes), sorted(f.caminho for f in self.fixtures))
+        self.assertEqual(len(nomes), len(set(nomes)))
 
     def test_sem_ns_de_pid_do_pai_as_fixtures_de_pid_e_sessao_saem_puladas_com_motivo(self):  # E1.90 (v047)
         def ilegivel(_caminho):
@@ -2639,11 +2667,31 @@ class Hooks(unittest.TestCase):
             _CORPUS.extend(f.dados["entrada"]["tool_input"]["command"] for f in todas if f.caminho.stem not in fora)
         return minimo(_CORPUS, 500, "linhas de recusa de Bash")
 
-    def test_t1_variantes_que_o_bash_ignora_nao_tiram_comando_da_leitura(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
+    def test_t1_fatia_1_variantes_que_o_bash_ignora_nao_tiram_comando_da_leitura(self):
+        self.verificar_t1_da_fatia(0)
+
+    def test_t1_fatia_2_variantes_que_o_bash_ignora_nao_tiram_comando_da_leitura(self):
+        self.verificar_t1_da_fatia(1)
+
+    def test_t1_fatia_3_variantes_que_o_bash_ignora_nao_tiram_comando_da_leitura(self):
+        self.verificar_t1_da_fatia(2)
+
+    def test_t1_fatia_4_variantes_que_o_bash_ignora_nao_tiram_comando_da_leitura(self):
+        self.verificar_t1_da_fatia(3)
+
+    def test_t1_as_fatias_cobrem_todo_o_corpus(self):
+        """A união das fatias do T1 é o corpus inteiro, sem repetição: dividir o T1 não tira linha da verificação."""
+        corpus = list(self.corpus_de_recusas())
+        juntas = [linha for k in range(FATIAS_DO_T1) for linha in corpus[k::FATIAS_DO_T1]]
+        self.assertEqual(sorted(juntas), sorted(corpus))
+        self.assertEqual(len(juntas), len(corpus))
+
+    def verificar_t1_da_fatia(self, k):  # HOOK-COMENTARIO-SHLEX, ADR 0013
         """T1, inclusão no leitor: com qualquer variante que o bash ignora, todo comando da leitura fiel da linha continua
         lido (as palavras dele no começo de um comando da variante, os destinos entre os dela), ou a variante é ilegível
         (e quem confere recusa). Pela composição de teste do `conformidade` (heredoc, palavras relidas, `bash -c`), sem
-        subprocesso."""
+        subprocesso. Fatia `k` do corpus (`corpus[k::FATIAS_DO_T1]`); o piso de variantes lidas é o de 500 linhas
+        repartido pelas fatias, arredondado para cima: a soma dos pisos nunca é menor que o do teste inteiro."""
         _comum, _, _ = modulos_dos_hooks()
 
         def lidos(linha, todas=True):
@@ -2653,7 +2701,7 @@ class Hooks(unittest.TestCase):
                 return None
 
         lidas = 0
-        for linha in self.corpus_de_recusas():
+        for linha in list(self.corpus_de_recusas())[k::FATIAS_DO_T1]:
             base = lidos(linha, todas=False) or []
             for prefixo, sufixo in VARIANTES_QUE_O_BASH_IGNORA:
                 if '$(' in prefixo and '"' in prefixo and ('"' in linha or _comum.CASE.search(linha)
@@ -2674,7 +2722,7 @@ class Hooks(unittest.TestCase):
                     achou = any(p[:len(palavras)] == palavras and set(destinos) <= set(d) for p, d in outra)
                     if not achou:
                         self.fail(f"{variante!r}: some {palavras} {destinos}")
-        self.assertGreaterEqual(lidas, 500 * len(VARIANTES_QUE_O_BASH_IGNORA))
+        self.assertGreaterEqual(lidas, -(-500 * len(VARIANTES_QUE_O_BASH_IGNORA) // FATIAS_DO_T1))
 
     def test_t2_cada_familia_de_recusa_recusa_com_cada_mecanismo(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
         """T2, ligação leitor → recusa, pelo hook real: uma fixture por família de recusa, com uma variante por mecanismo
