@@ -16,8 +16,8 @@
       "id": "AE72-18",
       "guarda": "AE7.2 medir_entrega: o ambiente do forge-check é só a lista positiva presente",
       "arquivo": "bin/forge_comparar.py",
-      "de": "ambiente = dict({k: os.environ[k] for k in AMBIENTE if k in os.environ}, HOME=str(home), TMPDIR=str(home))",
-      "para": "ambiente = dict({k: os.environ[k] for k in AMBIENTE if k not in os.environ}, HOME=str(home), TMPDIR=str(home))",
+      "de": "ambiente = dict({k: os.environ[k] for k in AMBIENTE if k in os.environ}, HOME=str(home), TMPDIR=str(temp))",
+      "para": "ambiente = dict({k: os.environ[k] for k in AMBIENTE if k not in os.environ}, HOME=str(home), TMPDIR=str(temp))",
       "testes": [
         "tests.test_comparar.AlvoEntrega.test_head_que_aceita_o_que_a_base_recusava_e_aceite_novo"
       ]

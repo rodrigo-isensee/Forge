@@ -43,6 +43,7 @@ import hashlib
 import json
 import os
 import re
+import resource
 import shutil
 import subprocess
 import sys
@@ -53,6 +54,7 @@ from pathlib import Path
 
 CORPUS = "tests/comparar/corpus.jsonl"
 GERADORES, SEMENTE = "tests/comparar/geradores.py", 478  # AE7.2: a semente é deste código, nunca da árvore medida
+TETO_GERADOS, TETO_CASOS = 4 << 20, 2000  # A2 (E107.6): bytes da saída do gerador e casos gerados por lado
 ENTREGA, PRAZO_ENTREGA = "bin/forge-check", 120
 REF = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._/-]{0,199}")
 AMBIENTE = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "USER", "LOGNAME", "SHELL", "TERM")  # HOME e TMPDIR: os do lado
@@ -85,19 +87,30 @@ def caso_valido(caso):
                                                    and ".." not in Path(r).parts for r, t in arquivos.items()))
 
 
+def teto_de_arquivo():
+    """A2: no filho do gerador, nada escrito passa de TETO_GERADOS + 1 bytes (o excesso o `fstat` acusa)."""
+    resource.setrlimit(resource.RLIMIT_FSIZE, (TETO_GERADOS + 1, TETO_GERADOS + 1))
+
+
 def gerados_de(ctx, raiz, sha):
     """AE7.2: o JSONL das famílias geradas em `sha` (o gerador daquele lado, `python3 -I`, num temporário, com a SEMENTE); ""
-    sem o arquivo; None se o git ou o gerador falha ou passa do prazo."""
+    sem o arquivo; None se o git ou o gerador falha, passa do prazo, ou a saída passa de TETO_GERADOS bytes ou TETO_CASOS
+    linhas (A2: a saída vai a um arquivo anônimo com RLIMIT_FSIZE, nunca inteira à memória)."""
     if ctx["git"](raiz, "cat-file", "-e", f"{sha}:{GERADORES}")[0] != 0:
         return ""
     cod, codigo = ctx["git"](raiz, "cat-file", "blob", f"{sha}:{GERADORES}", bruto=True)
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryFile() as saida:
         try:
-            r = subprocess.run([sys.executable, "-I", "-", str(SEMENTE)], input=codigo, cwd=tmp, capture_output=True, timeout=60,
+            r = subprocess.run([sys.executable, "-I", "-", str(SEMENTE)], input=codigo, cwd=tmp, stdout=saida,
+                               stderr=subprocess.DEVNULL, timeout=60, preexec_fn=teto_de_arquivo,
                                env=dict({k: os.environ[k] for k in AMBIENTE if k in os.environ}, HOME=tmp, TMPDIR=tmp))
-        except (subprocess.TimeoutExpired, OSError):
+        except (subprocess.SubprocessError, OSError):
             return None
-    return r.stdout.decode("utf-8", "replace") if cod == 0 and r.returncode == 0 else None
+        if os.fstat(saida.fileno()).st_size > TETO_GERADOS:
+            return None
+        saida.seek(0)
+        texto = saida.read().decode("utf-8", "replace")
+    return texto if cod == 0 and r.returncode == 0 and len(texto.splitlines()) <= TETO_CASOS else None
 
 
 def corpus_de(ctx, raiz, sha):
@@ -327,18 +340,19 @@ def medir(ctx, raiz, sha, casos, sessao):
 
 def medir_entrega(ctx, raiz, sha, casos):
     """AE7.2, alvo `entrega`: {id: nível} do `bin/forge-check` de `sha` em cada fixture de `casos` ({id: (pasta, argv)}): a árvore
-    extraída inteira e uma cópia própria de cada fixture, num temporário do lado, com HOME e TMPDIR próprios; rc 0 é aceite,
+    extraída inteira e uma cópia própria de cada fixture, num temporário do lado, com HOME e TMPDIR próprios de cada caso; rc 0 é aceite,
     outro rc, prazo ou erro é recusa. None se a extração falha."""
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-        arvore, home = Path(tmp) / "plugin", Path(tmp) / "home"
+        arvore = Path(tmp) / "plugin"
         if not extrair(ctx, raiz, sha, arvore):
             return None
-        home.mkdir()
-        ambiente = dict({k: os.environ[k] for k in AMBIENTE if k in os.environ}, HOME=str(home), TMPDIR=str(home))
         niveis = {}
-        for n, i in enumerate(sorted(casos)):
+        for n, i in enumerate(sorted(casos)):  # A3 (E107.6): HOME e TMPDIR de cada caso, nada passa de um caso ao seguinte
             pasta, argv = casos[i]
-            copia = Path(tmp) / f"fixture-{n}"
+            copia, home, temp = (Path(tmp) / f"{nome}-{n}" for nome in ("fixture", "home", "tmp"))
+            home.mkdir()
+            temp.mkdir()
+            ambiente = dict({k: os.environ[k] for k in AMBIENTE if k in os.environ}, HOME=str(home), TMPDIR=str(temp))
             try:
                 shutil.copytree(pasta, copia, symlinks=True)
                 r = subprocess.run([sys.executable, "-I", str(arvore / ENTREGA), "--raiz", str(copia), *argv], cwd=copia,
@@ -405,7 +419,8 @@ def executar(a, raiz, ctx):
             novos.append(f"aceite-novo: {ctx['seguro'](i)} base={NOMES[b]} head={NOMES[h]}"
                          + (" entrada-reescrita" if reescreve else ""))
     familias = sorted({i.split("/")[1] for i in casos if i.startswith("gerada/") and i.count("/") == 2})
-    cobertura = " ".join(f"{f}={sum(i.startswith(f'gerada/{f}/') for i in casos)}" for f in familias)
+    # A1 (E107.6): o nome da família vem do id gerado pelo head; nada dele imita outra linha da saída
+    cobertura = ctx["seguro"](" ".join(f"{f}={sum(i.startswith(f'gerada/{f}/') for i in casos)}" for f in familias))
     print("\n".join([f"so-aperta: medido base={base} head={head} corpus={resumo} casos={len(casos)} aceites-novos={len(novos)}",
                      *([f"familias: semente={SEMENTE} {cobertura}"] if familias else []), *novos, *(f"corpus-removido: {ctx['seguro'](i)}" for i in removidos)]))
     return 1 if novos or removidos else 0

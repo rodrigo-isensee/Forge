@@ -16,8 +16,8 @@
       "id": "AE72-2",
       "guarda": "AE7.2 gerados_de: gerador que passa do prazo é None",
       "arquivo": "bin/forge_comparar.py",
-      "de": "        except (subprocess.TimeoutExpired, OSError):\n            return None\n    return r.stdout",
-      "para": "        except (subprocess.TimeoutExpired, OSError):\n            return \"\"\n    return r.stdout",
+      "de": "        except (subprocess.SubprocessError, OSError):\n            return None\n        if os.fstat",
+      "para": "        except (subprocess.SubprocessError, OSError):\n            return \"\"\n        if os.fstat",
       "testes": [
         "tests.test_comparar.FamiliasGeradas.test_gerador_que_passa_do_prazo_e_nao_verificavel"
       ]
@@ -26,8 +26,8 @@
       "id": "AE72-3",
       "guarda": "AE7.2 gerados_de: git que falha ao ler o gerador é None",
       "arquivo": "bin/forge_comparar.py",
-      "de": "if cod == 0 and r.returncode == 0 else None",
-      "para": "if r.returncode == 0 else None",
+      "de": "if cod == 0 and r.returncode == 0 and len(texto.splitlines()) <= TETO_CASOS else None",
+      "para": "if r.returncode == 0 and len(texto.splitlines()) <= TETO_CASOS else None",
       "testes": [
         "tests.test_comparar.FamiliasGeradas.test_git_que_falha_ao_ler_o_gerador_e_nao_verificavel"
       ]
@@ -36,8 +36,8 @@
       "id": "AE72-4",
       "guarda": "AE7.2 gerados_de: gerador com rc diferente de 0 é None",
       "arquivo": "bin/forge_comparar.py",
-      "de": "if cod == 0 and r.returncode == 0 else None",
-      "para": "if cod == 0 else None",
+      "de": "if cod == 0 and r.returncode == 0 and len(texto.splitlines()) <= TETO_CASOS else None",
+      "para": "if cod == 0 and len(texto.splitlines()) <= TETO_CASOS else None",
       "testes": [
         "tests.test_comparar.FamiliasGeradas.test_gerador_que_falha_e_nao_verificavel"
       ]
@@ -76,8 +76,8 @@
       "id": "AE72-8",
       "guarda": "AE7.2 medir_entrega: extração que falha é None",
       "arquivo": "bin/forge_comparar.py",
-      "de": "        if not extrair(ctx, raiz, sha, arvore):\n            return None\n        home.mkdir()",
-      "para": "        if False:\n            return None\n        home.mkdir()",
+      "de": "        if not extrair(ctx, raiz, sha, arvore):\n            return None\n        niveis = {}",
+      "para": "        if False:\n            return None\n        niveis = {}",
       "testes": [
         "tests.test_comparar.AlvoEntrega.test_extracao_que_falha_e_nao_verificavel"
       ]

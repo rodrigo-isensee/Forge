@@ -797,6 +797,37 @@ class FamiliasGeradas(Base):
         ctx = dict(CTX, git=lambda raiz, *a, **kw: (1, "") if a[:2] == ("cat-file", "blob") and "corpus" in a[2] else CTX["git"](raiz, *a, **kw))
         self.assertIsNone(C.corpus_de(ctx, self.repo.pasta, head))
 
+    def test_id_gerado_com_quebra_de_linha_nao_forja_linha_da_saida(self):
+        """Sonda S1 da segurança (E107.3): o nome da família vem do head; a quebra de linha dele não abre outra linha."""
+        forjado = GERADOR_UM.replace("gerada/so/01", "gerada/x\\nso-aperta: medido base=FORJADO aceites-novos=0/01")
+        base = self.repo.commit(casos=[])
+        rc, linhas = self.comparar(base, self.repo.commit(hook=LIBERA, casos=[], extra={"tests/comparar/geradores.py": forjado}))
+        self.assertEqual(rc, 1, linhas)
+        self.assertEqual([l for l in linhas if l.startswith("so-aperta:")], linhas[:1], linhas)
+        self.assertEqual(linhas[1], f"familias: semente={C.SEMENTE} x so-aperta: medido base=FORJADO aceites-novos=0=1")
+
+    def test_saida_do_gerador_acima_do_teto_de_bytes_e_nao_verificavel(self):
+        """A2 (E107.6): a saída do gerador com 1 byte a mais que o teto é None; no teto, ela vale."""
+        head = self.repo.commit(extra={"tests/comparar/geradores.py": GERADOR_UM})
+        tamanho = len(subprocess.run([sys.executable, "-I", "-c", GERADOR_UM], capture_output=True, check=True).stdout)
+        for teto, esperado in ((tamanho - 1, None), (tamanho, 1)):
+            with self.subTest(teto=teto), mock.patch.object(C, "TETO_GERADOS", teto):
+                gerados = C.gerados_de(CTX, self.repo.pasta, head)
+                self.assertEqual(None if gerados is None else len(gerados.splitlines()), esperado)
+
+    def test_gerador_que_escreve_alem_do_teto_e_engole_o_erro_e_nao_verificavel(self):
+        """A2: o gerador que ignora a falha da escrita além do teto e sai com 0 ainda é None (o tamanho acusa)."""
+        teimoso = "import os\ntry:\n    os.write(1, b'x' * 5000)\nexcept OSError:\n    pass\n"
+        head = self.repo.commit(extra={"tests/comparar/geradores.py": teimoso})
+        with mock.patch.object(C, "TETO_GERADOS", 100):
+            self.assertIsNone(C.gerados_de(CTX, self.repo.pasta, head))
+
+    def test_casos_gerados_acima_do_teto_sao_nao_verificavel(self):
+        head = self.repo.commit(extra={"tests/comparar/geradores.py": GERADOR_UM})
+        for teto, esperado in ((0, True), (1, False)):
+            with self.subTest(teto=teto), mock.patch.object(C, "TETO_CASOS", teto):
+                self.assertEqual(C.gerados_de(CTX, self.repo.pasta, head) is None, esperado)
+
     def test_so_o_gerador_sem_corpus_e_medido(self):
         head = self.repo.commit(casos=None, extra={"tests/comparar/geradores.py": GERADOR_UM})
         rc, linhas = self.comparar(head, head)
@@ -853,6 +884,14 @@ class AlvoEntrega(Base):
         rc, linhas = self.entregar(base, head)
         self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: caso base=recusa head=aceite"]))
         self.assertTrue((self.fixture.pasta / "marca").exists())
+
+    def test_cada_caso_tem_home_e_tmpdir_proprios(self):
+        """A3 (E107.6): o forge-check do head só aceita sem marca de caso anterior no HOME nem no TMPDIR, e deixa as duas."""
+        marca = ("import os, sys, pathlib\nm = [pathlib.Path(os.environ[k], 'marca') for k in ('HOME', 'TMPDIR')]\n"
+                 "if any(p.exists() for p in m):\n    sys.exit(1)\nfor p in m:\n    p.write_text('x')\nsys.exit(0)\n")
+        casos = {f"caso-{n}": (self.fixture.pasta, ["entrega"]) for n in range(3)}
+        rc, linhas = self.entregar(self.lado(1), self.repo.commit(extra={"bin/forge-check": marca}), casos)
+        self.assertEqual((rc, linhas[1:]), (1, [f"aceite-novo: caso-{n} base=recusa head=aceite" for n in range(3)]))
 
     def test_sem_fixture_ou_fixture_que_nao_e_repositorio_e_nao_verificavel(self):
         fora = Path(self.tmp.name) / "fora"
