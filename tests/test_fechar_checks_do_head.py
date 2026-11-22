@@ -131,17 +131,35 @@ class FecharChecksDoHead(unittest.TestCase):
 
 
 class PrazoUnico(unittest.TestCase):
-    """E114.5 (A3 do review): a espera do passo 6 conta o --espera do início do passo 4, sem recomeçar o prazo."""
-    setUp, tearDown, fechar, chamadas = seq.FecharEsperaCatraca.setUp, base.Fechar.tearDown, base.Fechar.fechar, base.Fechar.chamadas
+    """E114.5 (A3 do review): a espera do passo 6 conta o --espera do início do passo 4, sem recomeçar o prazo.
+
+    E124.1: determinístico. O passo 4 gasta o --espera inteiro numa leitura dos checks que demora (o `gh` falso dorme e responde tudo
+    verde), não numa volta do laço com prazo de 1 s: o passo 4 só confere o prazo com exigido pendente ou ausente, então a carga da máquina
+    não o faz parar antes do passo 6 (a falha antiga: "o check exigido catraca não passou ... ausente após 1s"); carga só alonga o tempo
+    gasto, e o passo 6 continua achando o prazo esgotado. Com o prazo recomeçado no passo 6 (mutante VU4), ele relê os check-runs.
+    """
+    tearDown, fechar, chamadas = base.Fechar.tearDown, base.Fechar.fechar, base.Fechar.chamadas
     git, merges = base.Fechar.git, base.Fechar.merges
+    ESPERA = 3  # folga do mutante VU4: a 1.ª leitura do passo 6, com o prazo recomeçado, cabe em 3 s mesmo com a máquina carregada
+    DORME = '    [ -f "$ESTADO/checks_dorme" ] && sleep "$(cat "$ESTADO/checks_dorme")"\n'
+
+    def setUp(self):
+        base.Fechar.setUp(self)
+        gh = self.tmp / "gh"
+        texto = gh.read_text(encoding="utf-8")
+        self.assertEqual(texto.count(seq.LEITURA), 1)
+        gh.write_text(texto.replace(seq.LEITURA, self.DORME + seq.LEITURA), encoding="utf-8")
 
     def test_espera_do_passo_4_desconta_o_prazo_do_passo_6(self):
-        ok = ["bateria\tpass\t1m\turl", "bateria (python 3.14)\tpass\t1m\turl", "catraca\tpass\t5s\turl"]
-        (self.estado / "checks_seq").write_text("".join(f"{l}\n" for l in ok[:2]) + "---\n" + "".join(f"{l}\n" for l in ok))
+        (self.estado / "checks_dorme").write_text(str(self.ESPERA))
         (self.estado / "check_runs_pendentes").write_text("99")
-        r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "1", FORGE_FECHAR_INTERVALO="1")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--espera", str(self.ESPERA), FORGE_FECHAR_INTERVALO="1")
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn("o check obrigatório catraca do head", r.stderr)
+        self.assertIn("checks verdes (exigidos em pass", r.stdout)  # o passo 4 passou, numa leitura só, depois do prazo inteiro
+        self.assertEqual(len([c for c in self.chamadas() if c.startswith("gh pr checks")]), 1)
+        sha = self.git("rev-parse", "melhoria/x")
+        self.assertIn(f"o check obrigatório catraca do head {sha[:12]} não está verde (completed/success) na execução mais recente "
+                      f"(lida: in_progress/-) após {self.ESPERA}s; nada foi mesclado", r.stderr)
         self.assertEqual(self.merges(), [])
         self.assertEqual(len([c for c in self.chamadas() if c.startswith("gh api repos/{owner}/{repo}/commits/")]), 1)
 

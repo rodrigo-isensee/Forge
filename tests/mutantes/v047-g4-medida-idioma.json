@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "SIEG-G4: outro_idioma só com idioma e dono conhecidos",
       "arquivo": "hooks/meta.py",
-      "de": "\"outro_idioma\": idioma is not None and dono is not None and idioma != dono",
-      "para": "\"outro_idioma\": idioma != dono",
+      "de": "or (idioma is not None and dono is not None and idioma != dono)",
+      "para": "or (idioma != dono)",
       "testes": [
         "tests.test_meta.IdiomaDoDono.test_idioma_sem_lista_nao_mede_nem_acusa",
         "tests.test_meta.IdiomaDoDono.test_mensagem_curta_mista_ou_em_codigo_fica_sem_idioma_e_nao_e_acusada"

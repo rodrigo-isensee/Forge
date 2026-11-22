@@ -184,7 +184,7 @@ class EtapaJaResolvidaNaDevelop(RaizSintetica):
 class MensagemEmOutroIdioma(unittest.TestCase):
     """JARVIS-SO-PORTUGUES (ORDEM DO DONO 16/11 21:36, v047: às 21:18 o Jarvis escreveu ao dono em inglês). A regra única está em
     skills/falar-com-o-dono/toda-mensagem.md (SIEG-G4); a medida é o `outro_idioma` do hook meta. A nota entre chamadas de
-    ferramenta ainda não é medida: o hook lê só a mensagem final (backlog)."""
+    ferramenta também é medida (E25.1, 0.47.9)."""
     PAPEL = "jarvis"
     PT = "Disparei os portões da branch e não ficou pendência; você já pode ver o PR quando quiser."
     EN = "Waiting for the agents to finish; the branch is ready and you can check it now."
@@ -214,9 +214,8 @@ class MensagemEmOutroIdioma(unittest.TestCase):
         (linha,) = self.medir(self.EN)
         self.assertEqual((linha["idioma"], linha["idioma_do_dono"], linha["outro_idioma"]), ("en", "pt", True))
 
-    @unittest.expectedFailure
     def test_nota_entre_ferramentas_em_ingles_e_acusada(self):
-        """ERRO 16/11 21:18: o hook meta mede só a mensagem final; a nota em inglês antes de uma ferramenta passa sem acusação."""
+        """ERRO 16/11 21:18: a nota em inglês antes de uma ferramenta passava sem acusação; E25.1 (0.47.9) a mede."""
         self.assertTrue(any(l["outro_idioma"] for l in self.medir(self.PT, notas=[self.EN])))
 
 
