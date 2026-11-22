@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-specs-mutante-unicas
-commit: fa6deb89a15dbf96f9d4ebd0559c1321c5b91f2c
+commit: 118dd80c997f24f9b8dd6764fb6da7854041401c
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
@@ -24,3 +24,9 @@ Etapa E97.2, classe T, review como portão único. Base 27169ed1, head fa6deb89.
 
 ## Parecer
 Aprovado. O diff faz só o que a etapa pede: cinco trechos `de` passam a ser únicos no arquivo, com a mesma mutação, e todos os cinco mutantes morrem com os testes declarados.
+
+## Revalidação (E97.5, head 118dd80c)
+- Delta lido: `forge-check parecer delta docs/reviews/v0479-specs-mutante-unicas.md`, intervalo fa6deb89..118dd80c sem a base; no domínio só `tests/fixtures/mutantes-pendentes.txt`. O merge da develop 9253a761 (4a7fecc8, varredura de dívida) fica fora do escopo.
+- O 118dd80c tira das pendentes exatamente as cinco linhas dos mutantes corrigidos no fa6deb89 (revisor-wt-e6a-1 M2, acelera-e2b-diff-vazio M7, z075-uma-delegacao-por-branch M3, M6 e M7); era o que reprovava o ConferirTodas no CI do PR #782 (a catraca só encolhe, AR-12).
+- `python3 -m unittest tests.test_forge_mutante`: `Ran 145 tests`, `OK`, incluindo o teste que confere toda spec contra as pendentes.
+- Parecer mantido: aprovado.
