@@ -3,30 +3,26 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ae3-1-controle
-commit: 98882c4903c31dd2e074783dec70b31882046244
+commit: 59ad2edc89d3ae5d030c994c1c2b0bd67fae90c0
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-22
 ---
-# Review: v0478 (E108.2, AE3.1 bin/forge_controle.py)
+# Review: v0478 (E108.7, revalidação da volta única do AE3.1 bin/forge_controle.py)
 
-Escopo conferido contra o brief do autor (E108.1): só o módulo `salvar`, teste, specs de mutante, uma linha em `tests/pesos-d4.json` e o fragmento; sem `bin/forge-check`, sem relógio (AE3.2), sem push. Diff b0895f6c..98882c49: 8 arquivos, 116 linhas de código (dentro do teto H1), um comportamento. O merge da `develop` (98882c49) só trouxe a base, pedido no brief por causa do `pesos-d4.json` (`R-FLUXO`).
+Revalidação por delta (H3, `R-REVIEW`): li só `forge-check parecer delta docs/reviews/v0480-ae3-1-controle.md`, intervalo 98882c49..59ad2edc, sem o que veio da `develop`. No domínio: `bin/forge_controle.py`, `tests/test_forge_controle.py`, `tests/mutantes/v0478-ae3-controle-5.json` e `-6.json`, o fragmento do changelog e `tests/pesos-d4.json` (este só do merge da base b97343ca; o commit de correção 59ad2edc não o toca). Código do delta: 41 linhas em `bin/forge_controle.py`, dentro do teto H1, um comportamento (o `salvar` recusa o que rodaria código de fora ou escaparia da pasta).
 
-## Achados
-- A1 (recomendado) bin/forge_controle.py:35 · o hook é recusado por rodar código de fora, mas `core.fsmonitor` na config da pasta roda um programa no `git status` e o salvar segue (sonda S3: `salvo`, programa rodou); filtros `clean` e `commit.gpgsign` idem. Cabe ao parecer de segurança (E108.3, R-SEGURANCA) dizer se entra.
-- A2 (recomendado) bin/forge_controle.py:113 · commit que falha deixa os nomes preparados no índice (sonda S2: `KANBAN.md` em `diff --cached`); o próximo commit à mão os leva junto. Sugestão: `reset -q -- <nomes>` no ramo de erro do commit.
-- A3 (recomendado) bin/forge_controle.py:110 · arquivo novo no índice e apagado na árvore (`AD`) faz o primeiro salvar sair `erro` (`pathspec did not match`; sonda S1); o `add` limpa o índice e o segundo salvar sai `nada`. Não trava, mas é um `erro` falso.
-- A4 (recomendado) tests/test_forge_controle.py:149 · nenhum teste prova que hook sem bit de execução não conta (`os.access(..., X_OK)` da linha 45 sem mutante); tirar a condição não mata nenhum teste.
+O delta fecha o A1 da rodada anterior (fsmonitor, filtros, assinatura): `_comando_na_config` lê a config efetiva (`config -z --list`, com includes) e sai `nao-verificavel` sem mexer nela (`R-VERIFY`). Também traz o que o parecer de segurança pediu: `SEGREDO` sem diferença de caixa e com `.netrc`, `credentials*`, `secrets*`, `.p8`, `.kdbx`, `.jks` e `.keystore`, e a trava aberta com `O_NOFOLLOW` pelo caminho não resolvido. Os recomendados A2 a A4 da rodada anterior viraram cartão (`R-REVIEW`) e saem deste parecer.
 
 ## Sondas
+- S1 · `[core] fsmonitor` sem valor (booleano implícito) e `KANBAN.md` mudado · espera: `nao-verificavel` · obtido: `('nao-verificavel', 'comando na config core.fsmonitor')`
+- S2 · `salvar` numa worktree ligada (`--git-path` devolve caminho absoluto) · espera: `salvo` com a trava em `.git/worktrees/<w>/` · obtido: `('salvo', '13e05295...')`, trava em `r/.git/worktrees/w/forge-controle.lock`
 
 ## Parecer
-Aprovado. Faz o que o AE3.1 pede: lista positiva (`KANBAN.md`, `docs/`), mensagem fixa, `commit --only` sem `add -A` (o teste confirma que o preparado fora da lista fica fora), nunca push nem `--no-verify`, nunca mexe no `core.hooksPath` (`R-VERIFY`), sem `GIT_*` herdadas, tudo ou nada nas recusas e trava por `flock`. Cada guarda tem teste do ramo de falha por comportamento.
+Aprovado. Cada guarda nova tem mutante declarado (CTL26 a CTL35, um por linha) e teste do ramo de falha por comportamento (o script de fsmonitor, filtro ou gpg não roda; o alvo do link da trava não é criado); o ramo de sucesso com `false`/`off` também é provado. Valor vazio (`key =`) também barra: lado seguro, não é defeito.
 
 Provas lidas e rodadas:
-- `python3 -I -m unittest discover -s tests -p test_forge_controle.py`: `Ran 25 tests ... OK`.
-- `bin/forge-mutante --processos 1` nas 4 specs `v0478-ae3-controle*.json` no rev 98882c4903c3: 25 de 25 mortos, rc=0 (CTL24 morreu por erro do teste declarado, aceito pela ferramenta).
-- Sondas de leitura (recomendados, não bloqueiam): S1 `AD` → `('erro', "error: pathspec 'docs/novo.md' did not match ...")`; S2 commit falso que falha → índice com `KANBAN.md`; S3 `core.fsmonitor` = script que grava marca → `('salvo', ...)`, marca criada.
+- `python3 -I -m unittest discover -s tests -p test_forge_controle.py` (ambiente limpo): `Ran 41 tests ... OK`.
+- `bin/forge-mutante --processos 1 --rev 59ad2edc` nas specs `v0478-ae3-controle-5.json` e `-6.json`: 10 de 10 mortos (CTL26 a CTL35), rc=0.
+- `bin/forge-mutante --cobertura --base 98882c49 --rev 59ad2edc`: as guardas de `bin/forge_controle.py` (linhas 47, 63, 68, 70) cobertas; os "não coberto" listados são da base (`bin/forge-fechar`, `tests/pesos-d4.json`), fora do domínio.
 - Suíte inteira: fica no CI do PR (não rerrodada aqui).
-
-Os recomendados viram cartão depois do merge (`R-REVIEW`); A1 depende do parecer de segurança.
