@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "AG-1a AG-1/C-2: todos os briefs citados são lidos, não só o primeiro",
       "arquivo": "hooks/agentes.py",
-      "de": "    for caminho in caminhos:",
-      "para": "    for caminho in caminhos[:1]:",
+      "de": "    branches, fc = set(), None\n    for caminho in caminhos:",
+      "para": "    branches, fc = set(), None\n    for caminho in caminhos[:1]:",
       "testes": [
         "tests.test_agentes_hash_brief.BranchesDaReserva.test_todos_os_briefs_contam_e_nenhuma_fica_fora"
       ]
@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "AG-1a AG-1/C-2: mais de 4 briefs avisam e gravam vazio",
       "arquivo": "hooks/agentes.py",
-      "de": "    if len(caminhos) > MAXIMO_DE_BRIEFS:",
-      "para": "    if len(caminhos) > MAXIMO_DE_BRIEFS + 1:",
+      "de": "    caminhos = list(dict.fromkeys(caminhos_de_brief(str(prompt or \"\"))))\n    if len(caminhos) > MAXIMO_DE_BRIEFS:",
+      "para": "    caminhos = list(dict.fromkeys(caminhos_de_brief(str(prompt or \"\"))))\n    if len(caminhos) > MAXIMO_DE_BRIEFS + 1:",
       "testes": [
         "tests.test_agentes_hash_brief.BranchesDaReserva.test_cinco_briefs_avisam_e_gravam_vazio"
       ]
@@ -66,8 +66,8 @@
       "id": "M7",
       "guarda": "AG-1a AG-1/C-2: com 4 briefs a regra vale (limite)",
       "arquivo": "hooks/agentes.py",
-      "de": "    if len(caminhos) > MAXIMO_DE_BRIEFS:",
-      "para": "    if len(caminhos) >= MAXIMO_DE_BRIEFS:",
+      "de": "    caminhos = list(dict.fromkeys(caminhos_de_brief(str(prompt or \"\"))))\n    if len(caminhos) > MAXIMO_DE_BRIEFS:",
+      "para": "    caminhos = list(dict.fromkeys(caminhos_de_brief(str(prompt or \"\"))))\n    if len(caminhos) >= MAXIMO_DE_BRIEFS:",
       "testes": [
         "tests.test_agentes_hash_brief.BranchesDaReserva.test_cinco_briefs_avisam_e_gravam_vazio"
       ]

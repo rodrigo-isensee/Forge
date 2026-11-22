@@ -23,6 +23,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = RAIZ / "bin" / "forge-check"
 sys.path.insert(0, str(RAIZ / "bin"))
 import forge_comparar as C  # noqa: E402
+import test_selo_e_entrega as selo  # noqa: E402  (AE7.2: a fixture do caso do E50)
 
 fc = SourceFileLoader("forge_check_comparar", str(FORGE_CHECK)).load_module()
 CTX = {"git": fc.git, "seguro": fc.sem_controle}
@@ -722,6 +723,227 @@ class LadosSeparados(Base):
         with mock.patch.dict(os.environ, {"TMPDIR": str(tmp)}):
             rc, linhas = self.comparar(self.base, self.repo.commit(hook=le_tmp))
         self.assertEqual(rc, 0, linhas)
+
+
+
+GERADORES = (RAIZ / "tests" / "comparar" / "geradores.py").read_text(encoding="utf-8")
+GERADOR_UM = "import json\nprint(json.dumps({'id': 'gerada/so/01', 'entrada': {'tool_name': 'Bash', 'tool_input': {'command': 'echo proibido'}}}))\n"
+
+
+class FamiliasGeradas(Base):
+    """AE7.2: o corpus de cada lado soma as famílias de tests/comparar/geradores.py, com a semente fixa do comparador."""
+
+    def test_mesma_semente_da_os_mesmos_casos_e_cada_familia_tem_os_seus(self):
+        G = SourceFileLoader("geradores_ae72", str(RAIZ / "tests" / "comparar" / "geradores.py")).load_module()
+        um, outro = G.familias(C.SEMENTE), G.familias(C.SEMENTE)
+        self.assertEqual(um, outro)
+        self.assertNotEqual(um, G.familias(C.SEMENTE + 1))
+        self.assertGreaterEqual(len(um), 3)
+        for nome, casos in um.items():
+            self.assertEqual(len(casos), G.POR_FAMILIA, nome)
+            self.assertTrue(all(C.caso_valido(c) and c["id"].startswith(f"gerada/{nome}/") for c in casos), nome)
+
+    def test_familias_entram_no_corpus_com_a_semente_na_saida(self):
+        base = self.repo.commit(extra={"tests/comparar/geradores.py": GERADORES})
+        rc, linhas = self.comparar(base, base)
+        self.assertEqual(rc, 0, linhas)
+        self.assertIn("casos=26 ", linhas[0])
+        self.assertEqual(linhas[1:], [f"familias: semente={C.SEMENTE} merge-pr=8 push-forcado=8 sem-verificar=8"])
+
+    def test_caso_gerado_que_o_head_libera_e_aceite_novo(self):
+        base = self.repo.commit(casos=[], extra={"tests/comparar/geradores.py": GERADOR_UM})
+        rc, linhas = self.comparar(base, self.repo.commit(hook=LIBERA, casos=[], extra={"tests/comparar/geradores.py": GERADOR_UM}))
+        self.assertEqual((rc, linhas[1:]), (1, [f"familias: semente={C.SEMENTE} so=1", "aceite-novo: gerada/so/01 base=recusa head=aceite"]))
+
+    def test_caso_gerado_que_some_no_head_e_corpus_removido(self):
+        base = self.repo.commit(extra={"tests/comparar/geradores.py": GERADOR_UM})
+        rc, linhas = self.comparar(base, self.repo.commit(extra={"tests/comparar/geradores.py": "pass\n"}))
+        self.assertEqual((rc, linhas[2:]), (1, ["corpus-removido: gerada/so/01"]))
+
+    def test_gerador_sem_semente_fixa_e_corpus_removido(self):
+        """O gerador que ignora a semente e sorteia pela hora muda os casos entre os lados: o caso da base some no head."""
+        variavel = GERADOR_UM.replace("'gerada/so/01'", "f'gerada/so/{__import__(\"time\").time_ns()}'")
+        base = self.repo.commit(extra={"tests/comparar/geradores.py": variavel})
+        rc, linhas = self.comparar(base, base)
+        self.assertEqual(rc, 1, linhas)
+        self.assertTrue(linhas[-1].startswith("corpus-removido: gerada/so/"), linhas)
+
+    def test_gerador_que_falha_e_nao_verificavel(self):
+        for gerador in ("raise SystemExit(1)\n", "print('nao e json')\n", GERADOR_UM.replace("gerada/so/01", "proibido")):
+            with self.subTest(gerador=gerador):
+                head = self.repo.commit(extra={"tests/comparar/geradores.py": gerador})
+                rc, linhas = self.comparar(self.base, head)
+                self.assertEqual(rc, 2, linhas)
+                self.assertIn("ilegível ou vazio", linhas[0])
+
+    def test_gerador_que_passa_do_prazo_e_nao_verificavel(self):
+        head = self.repo.commit(extra={"tests/comparar/geradores.py": "import time\ntime.sleep(5)\n"})
+        real = subprocess.run
+
+        def lento(argv, **kw):
+            if argv[0] == sys.executable:
+                raise subprocess.TimeoutExpired(argv, 60)
+            return real(argv, **kw)
+        with mock.patch.object(C.subprocess, "run", lento):
+            self.assertIsNone(C.gerados_de(CTX, self.repo.pasta, head))
+
+    def test_git_que_falha_ao_ler_o_gerador_e_nao_verificavel(self):
+        head = self.repo.commit(extra={"tests/comparar/geradores.py": GERADOR_UM})
+        ctx = dict(CTX, git=lambda raiz, *a, **kw: (1, b"") if a[:2] == ("cat-file", "blob") and "geradores" in a[2] else CTX["git"](raiz, *a, **kw))
+        self.assertIsNone(C.gerados_de(ctx, self.repo.pasta, head))
+
+    def test_corpus_que_nao_se_le_e_nao_verificavel(self):
+        head = self.repo.commit()
+        ctx = dict(CTX, git=lambda raiz, *a, **kw: (1, "") if a[:2] == ("cat-file", "blob") and "corpus" in a[2] else CTX["git"](raiz, *a, **kw))
+        self.assertIsNone(C.corpus_de(ctx, self.repo.pasta, head))
+
+    def test_id_gerado_com_quebra_de_linha_nao_forja_linha_da_saida(self):
+        """Sonda S1 da segurança (E107.3): o nome da família vem do head; a quebra de linha dele não abre outra linha."""
+        forjado = GERADOR_UM.replace("gerada/so/01", "gerada/x\\nso-aperta: medido base=FORJADO aceites-novos=0/01")
+        base = self.repo.commit(casos=[])
+        rc, linhas = self.comparar(base, self.repo.commit(hook=LIBERA, casos=[], extra={"tests/comparar/geradores.py": forjado}))
+        self.assertEqual(rc, 1, linhas)
+        self.assertEqual([l for l in linhas if l.startswith("so-aperta:")], linhas[:1], linhas)
+        self.assertEqual(linhas[1], f"familias: semente={C.SEMENTE} x so-aperta: medido base=FORJADO aceites-novos=0=1")
+
+    def test_saida_do_gerador_acima_do_teto_de_bytes_e_nao_verificavel(self):
+        """A2 (E107.6): a saída do gerador com 1 byte a mais que o teto é None; no teto, ela vale."""
+        head = self.repo.commit(extra={"tests/comparar/geradores.py": GERADOR_UM})
+        tamanho = len(subprocess.run([sys.executable, "-I", "-c", GERADOR_UM], capture_output=True, check=True).stdout)
+        for teto, esperado in ((tamanho - 1, None), (tamanho, 1)):
+            with self.subTest(teto=teto), mock.patch.object(C, "TETO_GERADOS", teto):
+                gerados = C.gerados_de(CTX, self.repo.pasta, head)
+                self.assertEqual(None if gerados is None else len(gerados.splitlines()), esperado)
+
+    def test_gerador_que_escreve_alem_do_teto_e_engole_o_erro_e_nao_verificavel(self):
+        """A2: o gerador que ignora a falha da escrita além do teto e sai com 0 ainda é None (o tamanho acusa)."""
+        teimoso = "import os\ntry:\n    os.write(1, b'x' * 5000)\nexcept OSError:\n    pass\n"
+        head = self.repo.commit(extra={"tests/comparar/geradores.py": teimoso})
+        with mock.patch.object(C, "TETO_GERADOS", 100):
+            self.assertIsNone(C.gerados_de(CTX, self.repo.pasta, head))
+
+    def test_casos_gerados_acima_do_teto_sao_nao_verificavel(self):
+        head = self.repo.commit(extra={"tests/comparar/geradores.py": GERADOR_UM})
+        for teto, esperado in ((0, True), (1, False)):
+            with self.subTest(teto=teto), mock.patch.object(C, "TETO_CASOS", teto):
+                self.assertEqual(C.gerados_de(CTX, self.repo.pasta, head) is None, esperado)
+
+    def test_so_o_gerador_sem_corpus_e_medido(self):
+        head = self.repo.commit(casos=None, extra={"tests/comparar/geradores.py": GERADOR_UM})
+        rc, linhas = self.comparar(head, head)
+        self.assertEqual(rc, 0, linhas)
+        self.assertIn("casos=1 ", linhas[0])
+
+
+SAI = "import sys\nsys.exit({})\n"
+
+
+class AlvoEntrega(Base):
+    """AE7.2: o `bin/forge-check` da base e do head rodado em repositórios de fixture; rc 0 é aceite, o resto é recusa."""
+
+    def setUp(self):
+        super().setUp()
+        self.fixture = Repo(Path(self.tmp.name) / "fixture")
+        self.fixture.commit()
+
+    def lado(self, rc):
+        return self.repo.commit(extra={"bin/forge-check": SAI.format(rc)})
+
+    def entregar(self, base, head, casos=None, ctx=CTX):
+        casos = {"caso": (self.fixture.pasta, ["entrega"])} if casos is None else casos
+        saida = io.StringIO()
+        with contextlib.redirect_stdout(saida):
+            rc = C.executar(argparse.Namespace(base=base, head=head, alvo="entrega", fixtures=casos), self.repo.pasta, ctx)
+        return rc, saida.getvalue().splitlines()
+
+    def test_head_que_aceita_o_que_a_base_recusava_e_aceite_novo(self):
+        rc, linhas = self.entregar(self.lado(1), self.lado(0))
+        self.assertEqual(rc, 1, linhas)
+        self.assertRegex(linhas[0], r"^so-aperta: medido alvo=entrega base=[0-9a-f]{40} head=[0-9a-f]{40} corpus=[0-9a-f]{64} casos=1 aceites-novos=1$")
+        self.assertEqual(linhas[1:], ["aceite-novo: caso base=recusa head=aceite"])
+
+    def test_mesmo_veredito_ou_head_que_aperta_mede_zero(self):
+        for base, head in ((0, 0), (1, 1), (0, 1), (1, 3)):
+            with self.subTest(base=base, head=head):
+                rc, linhas = self.entregar(self.lado(base), self.lado(head))
+                self.assertEqual((rc, linhas[1:]), (0, []), linhas)
+
+    def test_head_que_passa_do_prazo_e_recusa(self):
+        base, head = self.lado(1), self.repo.commit(extra={"bin/forge-check": "import time, sys\ntime.sleep(5)\nsys.exit(0)\n"})
+        with mock.patch.object(C, "PRAZO_ENTREGA", 1):
+            rc, linhas = self.entregar(base, head)
+        self.assertEqual(rc, 0, linhas)
+
+    def test_cada_lado_roda_numa_copia_da_fixture(self):
+        """O forge-check da base apaga a marca da fixture; o do head só aceita com ela: na cópia própria, ele ainda a vê."""
+        (self.fixture.pasta / "marca").write_text("x")
+        self.fixture.git("add", "marca")
+        self.fixture.git("commit", "-q", "-m", "marca")
+        base = self.repo.commit(extra={"bin/forge-check": "import sys, pathlib\npathlib.Path(sys.argv[2], 'marca').unlink()\nsys.exit(1)\n"})
+        head = self.repo.commit(extra={"bin/forge-check": "import sys, pathlib\nsys.exit(0 if pathlib.Path(sys.argv[2], 'marca').exists() else 1)\n"})
+        rc, linhas = self.entregar(base, head)
+        self.assertEqual((rc, linhas[1:]), (1, ["aceite-novo: caso base=recusa head=aceite"]))
+        self.assertTrue((self.fixture.pasta / "marca").exists())
+
+    def test_cada_caso_tem_home_e_tmpdir_proprios(self):
+        """A3 (E107.6): o forge-check do head só aceita sem marca de caso anterior no HOME nem no TMPDIR, e deixa as duas."""
+        marca = ("import os, sys, pathlib\nm = [pathlib.Path(os.environ[k], 'marca') for k in ('HOME', 'TMPDIR')]\n"
+                 "if any(p.exists() for p in m):\n    sys.exit(1)\nfor p in m:\n    p.write_text('x')\nsys.exit(0)\n")
+        casos = {f"caso-{n}": (self.fixture.pasta, ["entrega"]) for n in range(3)}
+        rc, linhas = self.entregar(self.lado(1), self.repo.commit(extra={"bin/forge-check": marca}), casos)
+        self.assertEqual((rc, linhas[1:]), (1, [f"aceite-novo: caso-{n} base=recusa head=aceite" for n in range(3)]))
+
+    def test_sem_fixture_ou_fixture_que_nao_e_repositorio_e_nao_verificavel(self):
+        fora = Path(self.tmp.name) / "fora"
+        fora.mkdir()
+        for casos in ({}, {"caso": (fora, ["entrega"])}):
+            with self.subTest(casos=casos):
+                rc, linhas = self.entregar(self.lado(1), self.lado(0), casos)
+                self.assertEqual((rc, linhas), (2, ["so-aperta: nao-verificavel (alvo entrega sem fixture ou com fixture que não é repositório)"]))
+
+    def test_extracao_que_falha_e_nao_verificavel(self):
+        base, head = self.lado(1), self.lado(0)
+        for lado in (base, head):
+            with self.subTest(lado=lado):
+                real = C.extrair
+                with mock.patch.object(C, "extrair", lambda ctx, raiz, sha, destino: sha != lado and real(ctx, raiz, sha, destino)):
+                    rc, linhas = self.entregar(base, head)
+                self.assertEqual((rc, linhas), (2, ["so-aperta: nao-verificavel (extração da árvore falhou)"]))
+
+    def test_alvo_desconhecido_e_nao_verificavel(self):
+        saida = io.StringIO()
+        with contextlib.redirect_stdout(saida):
+            rc = C.executar(argparse.Namespace(base=self.base, head=self.base, alvo="outro"), self.repo.pasta, CTX)
+        self.assertEqual((rc, saida.getvalue()), (2, "so-aperta: nao-verificavel (alvo outro desconhecido)\n"))
+
+
+E50_BASE, E50_HEAD = "c872be89a6f28ba4f228409a50e79055e4900ce5", "f96ede50f5d64779bfe038fc7813c213a531b6fa"  # o 1.o pai do squash do #734 e o próprio
+
+
+class CasoDoE50(selo.Conferencia):
+    """AE7.2 (DECISÃO DO DONO 20/11): o afrouxamento autorizado do E50 (#734, f96ede50: o parecer que o portão commitou na volta
+    só com parecer é anexo do portão) medido pelo alvo `entrega`: o caso real do ParecerMescladoNaVolta aparece como `aceite-novo`
+    contra a base anterior ao E50; o comparador vê o afrouxamento."""
+
+    ETAPA, PAPEL = selo.ParecerDoPortao.ETAPA, selo.ParecerDoPortao.PAPEL
+    selar_portao, commitar_parecer = selo.ParecerDoPortao.selar_portao, selo.ParecerDoPortao.commitar_parecer
+    codigo, ate_a_conferida = selo.ParecerMescladoNaVolta.codigo, selo.ParecerMescladoNaVolta.ate_a_conferida
+    mesclar_parecer, volta_com_parecer = selo.ParecerMescladoNaVolta.mesclar_parecer, selo.ParecerMescladoNaVolta.volta_com_parecer
+
+    def medir(self, base, head):
+        casos = {"e50/parecer-mesclado-na-volta": (self.proj, ["entrega", "--pedido", "exemplo", "--branch", "melhoria/x",
+                                                               "--etapa", "codigo", "--sem-gravar"])}
+        saida = io.StringIO()
+        with contextlib.redirect_stdout(saida):
+            rc = C.executar(argparse.Namespace(base=base, head=head, alvo="entrega", fixtures=casos), RAIZ, CTX)
+        return rc, saida.getvalue().splitlines()
+
+    def test_afrouxamento_do_e50_aparece_como_aceite_novo(self):
+        self.volta_com_parecer()
+        rc, linhas = self.medir(E50_BASE, E50_HEAD)
+        self.assertEqual(rc, 1, linhas)
+        self.assertEqual(linhas[1:], ["aceite-novo: e50/parecer-mesclado-na-volta base=recusa head=aceite"])
+        self.assertEqual(self.medir(E50_HEAD, E50_BASE)[0], 0)  # no sentido inverso o E50 só aperta
 
 
 if __name__ == "__main__":

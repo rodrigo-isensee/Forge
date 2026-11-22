@@ -13,6 +13,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `forge-atualizar` | atualiza o Forge do projeto com ponto de retorno (primeiro uso, F5). Rode no terminal, dentro do projeto. |
 | `forge-changelog` | changelog por fragmentos (ADR 0006), para PRs paralelos não conflitarem no CHANGELOG.md. Só biblioteca padrão. |
 | `forge-check` | valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos. |
+| `forge-contador` | linha do contador da versão e visão do backlog para o aviso de marco. Só leitura, sem rede; erro sai com 2. |
 | `forge-copia` | cria a cópia de trabalho (clone ou worktree) SÓ na pasta liberada do sandbox (~/.forge-contrib; num projeto, <projeto>/.forge/wt). |
 | `forge-cota-ci` | aviso de minutos do Actions perto do fim (R-CUSTO). Só leitura, sem custo, só biblioteca padrão. |
 | `forge-desfazer` | volta ao último ponto bom, sem apagar histórico. Rode no terminal, dentro do projeto. |
@@ -99,4 +100,5 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `suite-paralela.py` | a suíte inteira (`python3 -m unittest discover -s tests`) dividida em até 4 processos (D4, R-TETO). |
 | `suite-partes.py` | uma parte da suíte em paralelo, sobre o mecanismo de `scripts/suite-paralela.py` (D4), sem mudá-lo. |
 | `validar-plugin.sh` | Valida o plugin (claude plugin validate --strict) numa cópia limpa em $TMPDIR. |
+| `varredura-divida.py` | varredura semanal de dívida técnica; só lê e lista os achados, um por linha, com a sugestão de cartão. |
 | `verificar-contribuicao.sh` | Varre o diff da ponta ($2, padrão HEAD) contra origin/develop (ou a base dada em $1) atrás de segredos |

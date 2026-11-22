@@ -16,8 +16,8 @@
       "id": "CMP26",
       "guarda": "AE7.1 executar: extração que falha",
       "arquivo": "bin/forge_comparar.py",
-      "de": "    if lado_head is None:",
-      "para": "    if False:",
+      "de": "None if lado_base is None else medir(ctx, raiz, head, casos, sessao)\n    if lado_head is None:",
+      "para": "None if lado_base is None else medir(ctx, raiz, head, casos, sessao)\n    if False:",
       "testes": [
         "tests.test_comparar.Refs.test_archive_que_falha_e_nao_verificavel"
       ]
@@ -66,8 +66,8 @@
       "id": "CMP31",
       "guarda": "AE7.1 rodar_caso: variável da lista ausente do ambiente não derruba",
       "arquivo": "bin/forge_comparar.py",
-      "de": "for k in AMBIENTE if k in os.environ}",
-      "para": "for k in AMBIENTE if k in os.environ or True}",
+      "de": "for k in AMBIENTE if k in os.environ}, HOME=str(home), TMPDIR=str(arvore.parent",
+      "para": "for k in AMBIENTE if k in os.environ or True}, HOME=str(home), TMPDIR=str(arvore.parent",
       "testes": [
         "tests.test_comparar.ComoOClaudeCode.test_variavel_da_lista_ausente_nao_derruba"
       ]
