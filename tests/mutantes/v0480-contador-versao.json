@@ -66,7 +66,7 @@
       "id": "M7",
       "guarda": "o README de changelog.d não conta como item entregue",
       "arquivo": "bin/forge-contador",
-      "de": "n.endswith(\".md\") and Path(n).name != \"README.md\")",
+      "de": "n.endswith(\".md\") and Path(n).name.lower() != \"readme.md\")",
       "para": "n.endswith(\".md\"))",
       "testes": [
         "tests.test_forge_contador.LinhaDaVersao.test_conta_fragmentos_sem_readme_e_sobe_o_patch"

@@ -87,7 +87,7 @@ class Base(unittest.TestCase):
 class LinhaDaVersao(Base):
     def test_conta_fragmentos_sem_readme_e_sobe_o_patch(self):
         self.commit({".claude-plugin/plugin.json": json.dumps({"version": "1.4.9"}),
-                     "changelog.d/README.md": "r", "changelog.d/a.md": "a", "changelog.d/b.md": "b",
+                     "changelog.d/readme.md": "r", "changelog.d/a.md": "a", "changelog.d/b.md": "b",
                      "changelog.d/nota.txt": "n"})
         r = self.contador()
         self.assertEqual((r.returncode, r.stdout), (0, "1.4.10: 2 de 20\n"), r.stderr)
@@ -108,7 +108,7 @@ class LinhaDaVersao(Base):
 
     def test_teto_da_configuracao(self):
         self.commit({".claude-plugin/plugin.json": json.dumps({"version": "0.1.0"}),
-                     ".forge/config.json": json.dumps({"teto_versao": 7}), "changelog.d/README.md": "r"})
+                     ".forge/config.json": json.dumps({"teto_versao": 7}), "changelog.d/readme.md": "r"})
         self.assertEqual(self.contador().stdout, "0.1.1: 0 de 7\n")
 
     def test_fragmento_com_nome_nao_ascii_conta(self):

@@ -51,7 +51,7 @@ def versao_seguinte(raiz, ref):
 def entregues(raiz, ref):
     nomes = git(raiz, "ls-tree", "-z", "--name-only", ref, "changelog.d/").split("\0")
     if any(nomes):
-        return sum(1 for n in nomes if n.endswith(".md") and Path(n).name != "README.md")
+        return sum(1 for n in nomes if n.endswith(".md") and Path(n).name.lower() != "readme.md")
     marca = ultima_marca(raiz, ref)
     assuntos = git(raiz, "log", "--first-parent", "--format=%s", f"{marca}..{ref}" if marca else ref).splitlines()
     prs = sum(1 for a in assuntos if PR.search(a))
