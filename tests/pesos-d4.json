@@ -54,6 +54,7 @@
   "test_fechar_auto_merge": 4.9,
   "test_fechar_aviso_rotulo": 3.1,
   "test_fechar_base_andou": 18.9,
+  "test_fechar_checks_do_head": 5.2,
   "test_fechar_checks_exigidos": 5.1,
   "test_fechar_config": 4.1,
   "test_fechar_corrida_rotulo": 19.4,
