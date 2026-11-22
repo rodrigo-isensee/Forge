@@ -855,21 +855,23 @@ mover_cartoes() {
   done
 }
 
-# checks_do_head_verdes <passo> (6 e P6, FECHAR-CHECKS-ANTES-DO-MERGE e FECHAR-SEM-AUTO-MERGE): a conta do dono passa pelo bypass do ruleset
-# e mesclaria com check obrigatório vermelho ou rodando. Logo antes do merge, lê os check-runs do head conferido (gh api, só leitura) e, por nome
-# de CHECKS_EXIGIDOS (a catraca incluída), julga só a execução mais recente (id maior): o filter=latest devolve uma por suíte, e com o rótulo
-# afrouxa-regra a catraca velha fica cancelled ao lado da nova (E75.6). Terminada fora de success (failure, cancelled, timed_out...) para;
-# pendente ou ausente espera (a cada FORGE_FECHAR_INTERVALO, até --espera desde a primeira leitura) e relê tudo; sem todos verdes, nada mescla.
-# Leitura que falha para.
+# checks_do_head_verdes <passo> <início> (6 e P6, FECHAR-CHECKS-ANTES-DO-MERGE e FECHAR-SEM-AUTO-MERGE): a conta do dono passa pelo bypass do
+# ruleset e mesclaria com check obrigatório vermelho ou rodando. Logo antes do merge, lê os check-runs do head conferido (gh api, só leitura) e,
+# por nome dos exigidos (CHECKS_EXIGIDOS, a catraca incluída, mais os do ruleset ou da proteção do destino que ler_exigidos_do_destino leu),
+# julga só a execução mais recente (id maior): o filter=latest devolve uma por suíte, e com o rótulo afrouxa-regra a catraca velha fica cancelled
+# ao lado da nova (E75.6). A execução em skipped não conta (nem verde nem falha): no commit da marca, o push na develop deixa a bateria em
+# skipped antes de o CI do PR criar a dele; o exigido só em skipped fica ausente. Terminada fora de success (failure, cancelled, timed_out...)
+# para; pendente ou ausente espera (a cada FORGE_FECHAR_INTERVALO, até --espera contado de <início>, o do passo 4 no passo 6) e relê tudo; sem
+# todos verdes, nada mescla. Leitura que falha para.
 checks_do_head_verdes() {
-  local runs par nome ultima falta falta_e ini=$SECONDS
+  local runs par nome ultima falta falta_e ini="$2"
   while :; do
     runs="$(ler "$gh" api "repos/{owner}/{repo}/commits/$remoto_sha/check-runs?filter=latest&per_page=100" --jq '.check_runs[] | [.name, .id, .status, (.conclusion // "-")] | @tsv')" \
       || die "parou no passo $1: não consegui ler os check-runs do head $remoto_sha; nada foi mesclado"
     falta=""
-    for par in "${CHECKS_EXIGIDOS[@]}"; do
+    for par in "${exigidos[@]}"; do
       nome="${par#*/}"
-      ultima="$(printf '%s\n' "$runs" | awk -F'\t' -v n="$nome" '$1 == n && (!achou || $2 + 0 > id) {achou = 1; id = $2 + 0; e = $3 "/" $4} END {print e}')"
+      ultima="$(printf '%s\n' "$runs" | awk -F'\t' -v n="$nome" '$1 == n && $4 != "skipped" && (!achou || $2 + 0 > id) {achou = 1; id = $2 + 0; e = $3 "/" $4} END {print e}')"
       case "$ultima" in
         completed/success) ;;
         completed/*) die "parou no passo $1: o check obrigatório $nome do head ${remoto_sha:0:12} terminou em ${ultima#completed/} na execução mais recente; nada foi mesclado (o bypass do ruleset deixaria a conta do dono mesclar)" ;;
@@ -882,13 +884,30 @@ checks_do_head_verdes() {
     echo "check-runs do head ${remoto_sha:0:12}: espero $falta ($falta_e); releio em ${intervalo}s."
     dormir "$intervalo"
   done
-  echo "check-runs obrigatórios do head ${remoto_sha:0:12} verdes: ${CHECKS_EXIGIDOS[*]}."
+  echo "check-runs obrigatórios do head ${remoto_sha:0:12} verdes: ${exigidos[*]}."
 }
 # mesclar_direto <método> <head> [--subject T --body C]: o único `gh pr merge` do script (passo 6 e P6), por nome de branch ($ref, que o hook
 # `parecer` exige), direto e preso ao head, sempre depois de checks_do_head_verdes (FECHAR-SEM-AUTO-MERGE). FECHAR-PROMOVER-MENSAGEM-PT: o merge
 # com --merge (P6) leva título e corpo em português; sem eles, o GitHub grava "Merge pull request #N from ..." (merge_commit_title=MERGE_MESSAGE).
 # O --squash do passo 6 usa o título do PR.
 mesclar_direto() { "$gh" pr merge "$ref" "$1" --match-head-commit "$2" "${@:3}"; }
+
+# ler_pr_antes_do_merge (passo 6): lê o PR pelo número guardado (as leituras do passo 6 vão por ele; o merge segue por nome de branch, que o hook
+# `parecer` exige) e para com base main ou fora de $alvo, fork ou head diferente do conferido no passo 2. Fora de MERGED, relê o número pelo nome da
+# branch e para se não for o pr_n guardado. Roda antes e depois da espera dos checks; sobra só a janela entre a última leitura e o merge (um PR novo
+# do mesmo head aberto nesse intervalo): o --match-head-commit prende o head, não o PR. Define pre_base, pre_rascunho, pre_estado e pre_head.
+ler_pr_antes_do_merge() {
+  local pre pre_fork por_nome
+  pre="$(ler "$gh" pr view "$pr_n" --json baseRefName,isDraft,state,headRefOid,isCrossRepository --jq '"\(.baseRefName) \(.isDraft) \(.state) \(.headRefOid) \(.isCrossRepository)"')" || die "parou no passo 6: não consegui ler a base do PR"
+  read -r pre_base pre_rascunho pre_estado pre_head pre_fork <<<"$pre"
+  [ "$pre_base" != main ] || die "parou no passo 6: o PR tem base main; a main é só do dono (R-MAIN)"
+  [ "$pre_base" = "$alvo" ] || die "parou no passo 6: o PR tem base $pre_base, não $alvo"
+  [ "$pre_fork" != true ] || die "parou no passo 6: o PR #$pr_n vem de um fork (isCrossRepository); o fechamento só vale para PR do próprio repositório"
+  [ "$pre_head" = "$remoto_sha" ] || die "parou no passo 6: o head do PR #$pr_n (${pre_head:-desconhecido}) difere do conferido no passo 2 ($remoto_sha); confira e rode de novo"
+  [ "${pre_estado:-OPEN}" != MERGED ] || return 0
+  por_nome="$(ler "$gh" pr view "$ref" --json number --jq '.number')" || die "parou no passo 6: não consegui reler o PR pelo nome da branch"
+  [ "$por_nome" = "$pr_n" ] || die "parou no passo 6: o nome da branch $ref resolve para o PR #${por_nome:-desconhecido}, não para o #$pr_n guardado; há mais de um PR aberto desse head; feche o outro e rode de novo"
+}
 
 # estado_do_pr: lê o PR de número pr_n (leitura, com repetição) e define pr_estado, pr_head, pr_base e pr_merge ("-" sem commit de merge); vazios se a leitura falhar.
 estado_do_pr() {
@@ -1242,7 +1261,8 @@ Tempo do commit da marca até o PR para a main pronto, por versão (diretriz 27,
     fi
     passo P6 "check-runs obrigatórios da marca verdes e merge direto preso a ela (até ${espera}s)"
     ref="$ramo" remoto_sha="$sha"
-    checks_do_head_verdes P6
+    ler_exigidos_do_destino  # os obrigatórios a mais do ruleset ou da proteção da homolog (alvo=homolog), além de CHECKS_EXIGIDOS
+    checks_do_head_verdes P6 "$SECONDS"
     if ! mesclar_direto --merge "$sha" --subject "chore(promoção): $versao para a homolog (#$pr_n)" \
       --body "Promoção da versão $versao para a homolog pelo commit da marca $sha (pedido $pedido)."; then echo "aviso: o gh pr merge devolveu erro; confiro o estado do PR." >&2; fi
     inicio=$SECONDS
@@ -1311,7 +1331,7 @@ if [ "$seco" = 1 ]; then
   passo 5 "$gh pr view <número do PR, lido no passo 3> --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
   passo "6a" "git ls-remote origin refs/heads/$alvo (a base que o passo 2b leu? se andou durante os checks: com conflito no git merge-tree --write-tree para sem mesclar; sem conflito segue, sem trazer a base (E8); base local velha: busca a base uma vez, só leitura, e confere o merge com ela)"
   [ "$item_de_lote" = 1 ] || passo "6b" "$gh run list --branch $alvo --event push --commit <topo da $alvo>: verde antes do merge (pendente espera até ${espera_ci}s; vermelho para)"
-  passo 6 "check-runs obrigatórios do head verdes (${CHECKS_EXIGIDOS[*]}; falha para; pendente espera até ${espera}s); $gh pr merge $ref $metodo --match-head-commit <head conferido> (merge direto, nunca automático; base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge)"
+  passo 6 "check-runs obrigatórios do head verdes (${CHECKS_EXIGIDOS[*]} e os do ruleset ou da proteção de $alvo; skipped não conta; falha para; pendente espera até o fim do --espera do passo 4); relê o PR e a base de $alvo; $gh pr merge $ref $metodo --match-head-commit <head conferido> (merge direto, nunca automático; base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge)"
   for c in "${cartoes[@]}"; do echo "cartão $c: depois do merge, forge-check movimento $c --de $(coluna_do_cartao "$c") --para Pronto --raiz $quadro"; done
   [ "$sem_limpar" = 0 ] || echo "--sem-limpar: o passo 7 é pulado; imprime os comandos da limpeza e sai com código 3 depois do merge."
   passo 7 "git worktree remove <worktree de $ref> (prune se o diretório já sumiu); git branch -D $ref (só com o sha mesclado); clones da branch em ~/.forge-contrib/wt (só limpos, com tudo na origem e mesclados); git push origin --delete $ref (até 3 tentativas, por último); sai com código 3 se algo ficar pendente"
@@ -1575,21 +1595,14 @@ if [ "$ja_mesclado" = 0 ]; then
     ci_antes_do_merge 6b
   fi
   passo 6 "merge ($metodo) em $alvo"
-  # As leituras do passo 6 vão pelo número do PR (lido no passo 3); o merge continua por nome de branch (o hook `parecer` o exige) e preso ao head.
-  pre="$(ler "$gh" pr view "$pr_n" --json baseRefName,isDraft,state,headRefOid,isCrossRepository --jq '"\(.baseRefName) \(.isDraft) \(.state) \(.headRefOid) \(.isCrossRepository)"')" || die "parou no passo 6: não consegui ler a base do PR"
-  read -r pre_base pre_rascunho pre_estado pre_head pre_fork <<<"$pre"
-  [ "$pre_base" != main ] || die "parou no passo 6: o PR tem base main; a main é só do dono (R-MAIN)"
-  [ "$pre_base" = "$alvo" ] || die "parou no passo 6: o PR tem base $pre_base, não $alvo"
-  [ "$pre_fork" != true ] || die "parou no passo 6: o PR #$pr_n vem de um fork (isCrossRepository); o fechamento só vale para PR do próprio repositório"
-  [ "$pre_head" = "$remoto_sha" ] || die "parou no passo 6: o head do PR #$pr_n (${pre_head:-desconhecido}) difere do conferido no passo 2 ($remoto_sha); confira e rode de novo"
+  ler_pr_antes_do_merge
   if [ "${pre_estado:-OPEN}" = MERGED ]; then
     echo "o PR já consta como MERGED; o merge não se repete."
   else
-    # O ready e o merge agem no PR que o gh resolve pelo nome da branch (o hook `parecer` o exige): releio por esse nome e paro se não for o pr_n guardado.
-    # Sobra só a janela entre esta leitura e o merge (um PR novo do mesmo head aberto nesse intervalo); o --match-head-commit prende o head, não o PR.
-    por_nome="$(ler "$gh" pr view "$ref" --json number --jq '.number')" || die "parou no passo 6: não consegui reler o PR pelo nome da branch"
-    [ "$por_nome" = "$pr_n" ] || die "parou no passo 6: o nome da branch $ref resolve para o PR #${por_nome:-desconhecido}, não para o #$pr_n guardado; há mais de um PR aberto desse head; feche o outro e rode de novo"
-    checks_do_head_verdes 6
+    checks_do_head_verdes 6 "$inicio"  # o prazo é o do passo 4: o --espera vale para as duas esperas juntas
+    # A espera dos checks pode ser longa: releio o PR (base, head, nome) e a base de $alvo logo antes do merge (o --match-head-commit prende só o head).
+    ler_pr_antes_do_merge
+    conferir_base_no_merge
     if [ "$pre_rascunho" = true ]; then
       "$gh" pr ready "$ref" || die "parou no passo 6: não consegui marcar o PR como pronto"
     fi

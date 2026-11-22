@@ -565,6 +565,21 @@ class Promover(Ambiente):
         self.assertEqual(len(self.merges()), 1, "o merge não se repete na espera")
         self.assertFalse([c for c in self.chamadas() if " --auto" in c or c == "merge automático recusado"])
 
+    def test_bateria_skipped_do_push_nao_para_e_exigido_da_homolog_conta(self):
+        # E114.5 (A1 e A3 da segurança): a bateria em skipped do push na develop (id maior) não para o P6; o exigido a mais da homolog conta
+        verdes = "bateria\t1\tcompleted\tsuccess\nbateria (python 3.14)\t2\tcompleted\tsuccess\ncatraca\t3\tcompleted\tsuccess\n"
+        (self.estado / f"check_runs_{self.marca}").write_text(verdes + "bateria\t90\tcompleted\tskipped\nbateria (python 3.14)\t91\tcompleted\tskipped\n")
+        r = self.promover()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(len(self.merges()), 1)
+        self.setUp()
+        (self.estado / f"check_runs_{self.marca}").write_text(verdes)
+        (self.estado / "exigidos_homolog").write_text("lint\n")
+        r = self.promover("--espera", "0")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn(f"parou no passo P6: o check obrigatório lint do head {self.marca[:12]}", r.stderr)
+        self.assertEqual(self.merges(), [])
+
     def test_merged_atrasado_da_promocao_espera_e_fecha(self):
         (self.estado / "merged_apos").write_text("3")
         r = self.promover()

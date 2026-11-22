@@ -11,6 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 import test_fechar as base  # noqa: E402  (o módulo, não a classe: a classe seria coletada de novo aqui)
+import test_fechar_espera_catraca as seq  # noqa: E402
 
 # a saída do --jq do script: nome, id, status, conclusão
 VERDES = ["bateria\t11\tcompleted\tsuccess", "bateria (python 3.14)\t12\tcompleted\tsuccess", "catraca\t13\tcompleted\tsuccess"]
@@ -100,9 +101,49 @@ class FecharChecksDoHead(unittest.TestCase):
                 self.assertIn(f"terminou em {conclusao} na execução mais recente; nada foi mesclado", r.stderr)
                 self.assertEqual(len(self.leituras()), 1)
 
+    def test_skipped_nao_conta_nem_com_id_maior(self):
+        # E114.5 (A1 da segurança): a execução em skipped (a do push na develop) não é verde nem falha; o exigido só em skipped fica ausente
+        self.runs([*VERDES, "bateria\t40\tcompleted\tskipped"])
+        r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "0")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(len(self.merges()), 1)
+        self.setUp()
+        self.runs(["bateria\t40\tcompleted\tskipped", *VERDES[1:]])
+        r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "0")
+        self.assert_recusou(r, "o check obrigatório bateria do head")
+        self.assertIn("(lida: ausente) após 0s; nada foi mesclado", r.stderr)
+
+    def test_exigido_a_mais_no_ruleset_do_destino_e_conferido(self):
+        # E114.5 (A3 da segurança): os obrigatórios a mais do ruleset da base entram na conferência do passo 6
+        (self.estado / "exigidos_develop").write_text("lint\n")
+        with (self.estado / "checks").open("a") as f:
+            f.write("lint\tpass\t1s\turl\n")  # o passo 4 o vê em pass (gh pr checks); o check-run dele não existe no head
+        self.assert_recusou(self.fechar("p1", "--ref", "melhoria/x", "--espera", "0"), "o check obrigatório lint do head")
+
+    def test_pr_que_muda_de_base_na_espera_dos_checks_nao_mescla(self):
+        # E114.5 (A2 da segurança): o PR e a base são relidos depois da espera dos checks, logo antes do merge
+        (self.estado / "pre_apos_checks").write_text("homolog false\n")
+        self.assert_recusou(self.fechar("p1", "--ref", "melhoria/x"), "parou no passo 6: o PR tem base homolog, não develop")
+
     def test_leitura_dos_check_runs_que_falha_para(self):
         (self.estado / "falha_check_runs").write_text("3")
         self.assert_recusou(self.fechar("p1", "--ref", "melhoria/x"), "não consegui ler os check-runs do head")
+
+
+class PrazoUnico(unittest.TestCase):
+    """E114.5 (A3 do review): a espera do passo 6 conta o --espera do início do passo 4, sem recomeçar o prazo."""
+    setUp, tearDown, fechar, chamadas = seq.FecharEsperaCatraca.setUp, base.Fechar.tearDown, base.Fechar.fechar, base.Fechar.chamadas
+    git, merges = base.Fechar.git, base.Fechar.merges
+
+    def test_espera_do_passo_4_desconta_o_prazo_do_passo_6(self):
+        ok = ["bateria\tpass\t1m\turl", "bateria (python 3.14)\tpass\t1m\turl", "catraca\tpass\t5s\turl"]
+        (self.estado / "checks_seq").write_text("".join(f"{l}\n" for l in ok[:2]) + "---\n" + "".join(f"{l}\n" for l in ok))
+        (self.estado / "check_runs_pendentes").write_text("99")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "1", FORGE_FECHAR_INTERVALO="1")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("o check obrigatório catraca do head", r.stderr)
+        self.assertEqual(self.merges(), [])
+        self.assertEqual(len([c for c in self.chamadas() if c.startswith("gh api repos/{owner}/{repo}/commits/")]), 1)
 
 
 if __name__ == "__main__":

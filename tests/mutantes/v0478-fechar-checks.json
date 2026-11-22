@@ -27,8 +27,8 @@
       "id": "FCK-M3",
       "guarda": "o passo 6 confere os check-runs do head antes do ready e do merge (FECHAR-CHECKS-ANTES-DO-MERGE)",
       "arquivo": "bin/forge-fechar",
-      "de": "    checks_do_head_verdes 6\n    if [ \"$pre_rascunho\" = true ]; then",
-      "para": "    : checks_do_head_verdes 6\n    if [ \"$pre_rascunho\" = true ]; then",
+      "de": "    checks_do_head_verdes 6 \"$inicio\"",
+      "para": "    : checks_do_head_verdes 6 \"$inicio\"",
       "testes": [
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_check_runs_verdes_leem_o_head_conferido_e_mesclam",
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_execucao_mais_nova_com_falha_recusa_mesmo_com_a_velha_verde"
@@ -38,8 +38,8 @@
       "id": "FCK-M4",
       "guarda": "por nome, só a execução de id maior vale, em qualquer ordem da resposta (FECHAR-CHECKS-ANTES-DO-MERGE, E75.6)",
       "arquivo": "bin/forge-fechar",
-      "de": "$1 == n && (!achou || $2 + 0 > id)",
-      "para": "$1 == n && (!achou || 1)",
+      "de": "$4 != \"skipped\" && (!achou || $2 + 0 > id)",
+      "para": "$4 != \"skipped\" && (!achou || 1)",
       "testes": [
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_rotulo_aplicado_catraca_velha_cancelled_e_nova_verde_mescla",
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_execucao_mais_nova_com_falha_recusa_mesmo_com_a_velha_verde"
@@ -70,8 +70,8 @@
       "id": "FCK-M7",
       "guarda": "FECHAR-SEM-AUTO-MERGE: o P6 confere os check-runs da marca antes do merge direto",
       "arquivo": "bin/forge-fechar",
-      "de": "    checks_do_head_verdes P6\n",
-      "para": "    : checks_do_head_verdes P6\n",
+      "de": "    checks_do_head_verdes P6 \"$SECONDS\"\n",
+      "para": "    : checks_do_head_verdes P6 \"$SECONDS\"\n",
       "testes": [
         "tests.test_fechar_lote.Promover.test_check_da_marca_terminado_com_falha_para_sem_merge"
       ]
