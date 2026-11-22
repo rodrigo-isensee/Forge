@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-contador-versao
-commit: 1593c1a1ee1547c1c208c2293291f88fdd550a8c
+commit: 5e05c2b6551c1ecfa658fb351546b2d65f1a2fee
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -65,4 +65,14 @@ Delta: `forge-check parecer delta` (362b45ad..1593c1a1, sem a develop): `bin/for
 Provas:
 - `python3 -I -m unittest discover -s tests -p test_forge_contador.py`: 24 testes, OK; `test_jarvis_nucleo.py`: 43 OK; `test_reval_delta.py`: 10 OK.
 - `bin/forge-mutante tests/mutantes/v0480-contador-versao*.json`: todos morreram, nenhum sobrevivente, rc 0.
+- Suíte inteira: check-run `bateria` do CI do PR, não rodada local.
+
+## Revalidação (volta final, head 5e05c2b6)
+Delta: `forge-check parecer delta` (1593c1a1..5e05c2b6, sem a develop): `skills/fluxo-do-pedido/SKILL.md`, `tests/test_forge_contador.py`, `tests/test_reval_delta.py`, spec `v0480-contador-versao-5.json`.
+- Teste forte de volta: `README.md` (maiúsculo) fora da contagem e `Readme.md` (caixa mista) em teste próprio; a fronteira da caixa é guardada por M36 (`.lower()` trocado), que morre.
+- `test_reval_delta`: `tests/test_forge_contador.py` entra na tabela de nomes sintéticos (2 citações de `README.md`).
+- Skill `fluxo-do-pedido`: volta ao texto da develop (linha do contador removida; linhas do dono e da worktree como na develop); sem efeito na ferramenta.
+Provas:
+- `python3 -I -m unittest discover -s tests -p test_forge_contador.py`: 25 testes, OK; `test_reval_delta.py`: 10 OK; `test_modelos_projeto.py`: 25 OK.
+- `bin/forge-mutante tests/mutantes/v0480-contador-versao*.json` (5 specs, rev=5e05c2b6551c): M1..M36 todos morreram, nenhum sobrevivente, rc 0.
 - Suíte inteira: check-run `bateria` do CI do PR, não rodada local.
