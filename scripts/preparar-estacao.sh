@@ -185,7 +185,7 @@ container_pacotes() {
   fi
 }
 
-# E119.1 (AMBIENTE-SOBREVIVE-RECRIACAO): o Claude Code atual. O home some com o container e o `claude` do PATH da imagem pode ser
+# E119.1 (AMBIENTE-SOBREVIVE-RECRIACAO): o Claude Code atual. O home some com o container e o binário claude do PATH da imagem pode ser
 # antigo; o instalador oficial (nativo, de claude.ai, sem custo) põe o binário em ~/.local/bin/claude, que se atualiza sozinho.
 # Só instala se esse binário faltar (rodar duas vezes não muda nada) e garante ~/.local/bin na frente do PATH do bash. Falha
 # (sem rede) vira "falta:", nunca barra o container.

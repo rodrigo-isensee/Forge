@@ -33,7 +33,7 @@ chave_confere() {
 }
 como_root() { if [ "$(id -u)" = 0 ]; then "$@"; else sudo "$@"; fi; }
 
-# Claude Code atual: o home some com o container e o `claude` do PATH da imagem pode ser antigo. O instalador oficial (nativo, de
+# Claude Code atual: o home some com o container e o binário claude do PATH da imagem pode ser antigo. O instalador oficial (nativo, de
 # claude.ai, sem custo) põe o binário em ~/.local/bin/claude, que se atualiza sozinho; só roda se esse binário faltar.
 claude_ok() { [ -x "$HOME/.local/bin/claude" ]; }
 
