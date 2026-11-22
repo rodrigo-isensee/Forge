@@ -31,6 +31,17 @@
       "testes": [
         "tests.test_forge_contador.Backlog.test_quadro_fora_de_utf8_e_erro"
       ]
+    },
+    {
+      "id": "M36",
+      "guarda": "o README de changelog.d sai da contagem sem diferença de caixa",
+      "arquivo": "bin/forge-contador",
+      "de": "Path(n).name.lower() != \"readme.md\"",
+      "para": "Path(n).name != \"readme.md\"",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_conta_fragmentos_sem_readme_e_sobe_o_patch",
+        "tests.test_forge_contador.LinhaDaVersao.test_readme_com_caixa_mista_nao_conta"
+      ]
     }
   ]
 }
