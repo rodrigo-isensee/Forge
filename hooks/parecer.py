@@ -10,7 +10,8 @@ literal; o que o hook não resolve (variável, crase, `$( )`, `cd` em subshell, 
 (`if cd`, `! cd`) ou bloco, pasta inexistente, `popd`, `pushd`, `--git-dir`, `--work-tree`, `GIT_DIR`) recusa o merge e o pull, nunca é julgado pela pasta
 da sessão (HK3-PARECER, E1 e E3).
 Os pareceres exigidos são os do forge-check (P5, `exigidos_do_pr`: a classe T dispensa o QA e exige o review; os gatilhos de
-segurança e devops somam por cima); `.md` de controle (`agents/`, `skills/`, `stacks/*/agents|skills/`, `stacks/*/seguranca.md` e `pronto.md`, `docs/regras/`, `templates/projeto/`, `CLAUDE.md`) não tem isenção. Libera
+segurança e devops somam por cima); só texto ou só teste de controle é T (G1.3), fora `stacks/*/seguranca.md` e `pronto.md`, o `.md` em
+`.claude/` (salvo `CLAUDE.md`), binário e cabeçalho de agente ou skill mudado, que seguem C. Libera
 atualização a partir de uma branch de integração e promoção entre branches de integração. O merge de PR (ADR 0008, 4.3) é resolvido sem rede, pela branch: base `main` é `R-MAIN`;
 PR só por número, `gh api` de merge e merge no Forge a partir de projeto são `R-CONTRIB`.
 No clone do Forge (`raiz_de_estado`: `~/Forge` e as worktrees de `~/.forge-contrib/wt/`) age também, sem

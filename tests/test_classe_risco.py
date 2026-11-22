@@ -56,7 +56,8 @@ class ClasseDasMudancas(unittest.TestCase):
 
     def test_g13_so_texto_ou_so_teste_de_controle_e_t(self):
         for mudancas in ([M("docs/x.md"), M("agents/x.md")], [M("skills/a/SKILL.md"), M("stacks/s/agents/y.md"), M("CLAUDE.md")],
-                         [M("templates/projeto/CLAUDE.md")], [M("docs/regras/R-X.md"), M("agents/x.md")], [M("stacks/s/seguranca.md")],
+                         [M("templates/projeto/CLAUDE.md")], [M("docs/regras/R-X.md"), M("agents/x.md")],
+                         [M("templates/projeto/.claude/CLAUDE.md")], [M(".claude/CLAUDE.md")],
                          [M("tests/test_hooks_x.py"), M("tests/test_app.py")], [M("tests/hooks/caso.json"), M("tests/test_oraculo_a.py")],
                          [M("agents/novo/x.md", novo_em_pasta_nova=True)]):
             with self.subTest(mudancas=[m.nome for m in mudancas]):
@@ -72,6 +73,20 @@ class ClasseDasMudancas(unittest.TestCase):
                          [M("agents/x.md", modo_incomum=True)], [M("tests/catraca_apoio.py"), M("tests/test_app.py")]):
             with self.subTest(mudancas=[m.nome for m in mudancas]):
                 self.assertEqual(classe(mudancas), "C")
+
+    def test_e1226_md_que_configura_e_apoio_de_tests_seguem_c(self):  # segurança A1, A2 e A3 da G1.2 e G1.3
+        casos = ([M("stacks/s/pronto.md")], [M("stacks/s/seguranca.md")], [M("stacks/s/pronto.md"), M("agents/x.md")],
+                 [M("templates/projeto/.claude/agents/x.md")], [M("templates/projeto/.claude/commands/x.md")],
+                 [M(".claude/skills/a/SKILL.md")], [M("tests/quarentenas.py"), M("tests/test_catraca.py")],
+                 [M("tests/quarentenas.py")], [M("tests/gh_falso.py"), M("tests/test_hooks_x.py")])
+        self.assertEqual({tuple(m.nome for m in c): classe(c) for c in casos}, {tuple(m.nome for m in c): "C" for c in casos})
+
+    def test_e1226_barreira_tira_da_t(self):  # QA A1 e segurança A5: binário ou cabeçalho de agente mudado
+        def barreiras(nomes):
+            return [("agents/x.md", "cabeçalho de agente ou skill mudado (permissão)")]
+        c, motivos, arquivos = fc.classe_das_mudancas([M("agents/x.md")], CATRACA, sem_contagem, barreiras)
+        self.assertEqual((c, motivos, arquivos), ("C", ["cabeçalho de agente ou skill mudado (permissão): agents/x.md"], ["agents/x.md"]))
+        self.assertEqual(fc.classe_das_mudancas([M("agents/x.md")], CATRACA, sem_contagem, lambda nomes: [])[0], "T")
 
     def test_teste_de_controle_fica_no_dominio_da_seguranca_e_nao_e_do_qa(self):  # M4: uma lista só para as duas regras
         for nome in ("tests/test_conformidade.py", "tests/test_hooks.py", "tests/catraca.py"):
@@ -182,6 +197,24 @@ class ClasseNoRepositorio(Repo):
                 self.commitar(arquivos, "texto ou teste")
                 saida = self.classe()
                 self.assertEqual((saida["classe"], saida["pareceres"]), ("T", ["review"]))
+
+    def test_e1226_binario_e_cabecalho_de_agente_saem_da_t(self):  # QA A1 e segurança A5 (E122.6)
+        git("switch", "-q", "develop", cwd=self.tmp)
+        self.commitar({"agents/x.md": "---\nname: x\ntools: Read\n---\n# x\n"}, "agente na base")
+        git("switch", "-q", "-C", "melhoria/x", cwd=self.tmp)
+        self.commitar({"agents/x.md": "---\nname: x\ntools: Read\n---\n# x, corpo novo\n"}, "só o corpo")
+        self.assertEqual(self.classe()["classe"], "T")
+        self.commitar({"agents/x.md": "---\nname: x\ntools: Read, Edit\n---\n# x, corpo novo\n"}, "tools")
+        saida = self.classe()
+        self.assertEqual((saida["classe"], saida["arquivos"]), ("C", ["agents/x.md"]))
+        self.assertIn("cabeçalho de agente ou skill", saida["motivos"][0])
+        self.setUp()
+        (self.tmp / "agents").mkdir(exist_ok=True)
+        (self.tmp / "agents" / "b.md").write_bytes(b"\x00\x01bin")
+        self.commitar({}, "binário")
+        saida = self.classe()
+        self.assertEqual(saida["classe"], "C")
+        self.assertIn("binário", saida["motivos"][0])
 
     def test_teste_mais_codigo_grande_e_n(self):
         self.commitar({"tests/test_app.py": "ok\n", "src/app.py": "v1\n" + "".join(f"l{i}\n" for i in range(25))}, "teste e código")

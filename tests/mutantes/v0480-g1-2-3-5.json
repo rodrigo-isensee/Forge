@@ -1,0 +1,56 @@
+{
+  "pedido": "v0480-g1-2-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "MQ1",
+      "guarda": "E122.6 (segurança A1 e A2): .md que configura não entra na T de texto",
+      "arquivo": "bin/forge-check",
+      "de": "    if any(MD_QUE_CONFIGURA.search(m.nome) for m in contam):\n        return None\n",
+      "para": "",
+      "testes": [
+        "tests.test_classe_risco.ClasseDasMudancas.test_e1226_md_que_configura_e_apoio_de_tests_seguem_c"
+      ]
+    },
+    {
+      "id": "MQ2",
+      "guarda": "E122.6 (segurança A2): .md em .claude/ do modelo é configuração do Claude Code",
+      "arquivo": "bin/forge-check",
+      "de": "MD_QUE_CONFIGURA = re.compile(r\"^stacks/[^/]+/(seguranca|pronto)\\.md$|(^|/)\\.claude/(?!CLAUDE\\.md$)\")",
+      "para": "MD_QUE_CONFIGURA = re.compile(r\"^stacks/[^/]+/(seguranca|pronto)\\.md$\")",
+      "testes": [
+        "tests.test_classe_risco.ClasseDasMudancas.test_e1226_md_que_configura_e_apoio_de_tests_seguem_c"
+      ]
+    },
+    {
+      "id": "MQ3",
+      "guarda": "E122.6: o .claude/CLAUDE.md é instrução e segue T",
+      "arquivo": "bin/forge-check",
+      "de": "|(^|/)\\.claude/(?!CLAUDE\\.md$)\")",
+      "para": "|(^|/)\\.claude/\")",
+      "testes": [
+        "tests.test_classe_risco.ClasseDasMudancas.test_g13_so_texto_ou_so_teste_de_controle_e_t"
+      ]
+    },
+    {
+      "id": "MQ4",
+      "guarda": "E122.6 (segurança A1): pronto.md e seguranca.md das stacks não entram na T",
+      "arquivo": "bin/forge-check",
+      "de": "re.compile(r\"^stacks/[^/]+/(seguranca|pronto)\\.md$|",
+      "para": "re.compile(r\"^stacks/[^/]+/(nada)\\.md$|",
+      "testes": [
+        "tests.test_classe_risco.ClasseDasMudancas.test_e1226_md_que_configura_e_apoio_de_tests_seguem_c"
+      ]
+    },
+    {
+      "id": "BR1",
+      "guarda": "E122.6: a barreira tira da T",
+      "arquivo": "bin/forge-check",
+      "de": "        if barrados:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_classe_risco.ClasseDasMudancas.test_e1226_barreira_tira_da_t"
+      ]
+    }
+  ]
+}

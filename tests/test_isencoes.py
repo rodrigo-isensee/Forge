@@ -75,6 +75,7 @@ class RegraUnica(unittest.TestCase):
             classe = fc.classe_das_mudancas([fc.Mudanca(n) for n in nomes], fc.catraca_da_classe(), None)[0]
             exigidos[nomes[0]] = fc.pareceres_exigidos(classe, infra, gatilhos)
         self.assertEqual(exigidos.pop("docs/regras/R-X.md"), ["review", "revisao-seguranca"])
+        self.assertEqual(exigidos.pop("stacks/s/seguranca.md"), ["review", "qa", "revisao-seguranca"])  # E122.6, segurança A1: segue C
         self.assertEqual(set(map(tuple, exigidos.values())), {("review",)})
 
 
@@ -94,13 +95,23 @@ class PrComIsencao(Repo):
         self.assertNotIn("qa: sem parecer", saida)
 
     def test_md_de_agente_skill_e_modelo_com_review_e_sem_qa_passa(self):  # G1.3
-        for rel in ("agents/x.md", "stacks/s/seguranca.md", "stacks/s/pronto.md", "templates/projeto/README.md", "CLAUDE.md"):
+        for rel in ("agents/x.md", "templates/projeto/README.md", "CLAUDE.md", "templates/projeto/.claude/CLAUDE.md"):
             with self.subTest(rel=rel):
                 self.setUp()
                 self.entrega({rel: "# x\n"})
                 rc, saida, erro = self.pr()
                 self.assertEqual(rc, 0, saida)
                 self.assertIn("pr: classe T (só texto, inclusive de agente, skill, modelo ou regra (G1.3))", erro)
+
+    def test_md_que_configura_pede_qa_e_seguranca(self):  # E122.6, segurança A1 e A2: o .md que o projeto executa segue C
+        for rel in ("stacks/s/pronto.md", "stacks/s/seguranca.md", "templates/projeto/.claude/agents/x.md"):
+            with self.subTest(rel=rel):
+                self.setUp()
+                self.entrega({rel: "# x\n"})
+                rc, saida, _ = self.pr()
+                self.assertEqual(rc, 1, saida)
+                self.assertIn("qa: sem parecer para o pedido `p1` (R-QA)", saida)
+                self.assertIn("revisao-seguranca: sem parecer para o pedido `p1` (classe C", saida)
 
     def test_md_de_controle_sem_review_reprova(self):
         self.entrega({"agents/x.md": "# x\n"}, com_review=False)

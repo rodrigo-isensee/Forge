@@ -4,10 +4,10 @@
   "mutantes": [
     {
       "id": "CT1",
-      "guarda": "G1.3: tests/guarda_git.py é código de controle em tests/ e segue C",
+      "guarda": "G1.3 e E122.6 (segurança A3): o .py da raiz de tests/ fora de test_*.py (guarda_git, quarentenas) é apoio e segue C",
       "arquivo": "bin/forge-check",
-      "de": "tests/((apoio_|modelo_)[^/]*|guarda_git)\\.py$",
-      "para": "tests/((apoio_|modelo_)[^/]*)\\.py$",
+      "de": "tests/(?!test_)[^/]+\\.py$|tests/[^/]+\\.sh$)",
+      "para": "tests/[^/]+\\.sh$)",
       "testes": [
         "tests.test_classe_risco.ClasseDasMudancas.test_g13_fora_da_t"
       ]
@@ -26,8 +26,8 @@
       "id": "CT3",
       "guarda": "G1.3: arquivo removido ou link não entra na T de texto ou teste",
       "arquivo": "bin/forge-check",
-      "de": "    if any(m.removido or m.modo_incomum for m in contam):\n        return None\n    if all(m.nome.endswith(\".md\")",
-      "para": "    if any(m.modo_incomum for m in contam):\n        return None\n    if all(m.nome.endswith(\".md\")",
+      "de": "    if any(m.removido or m.modo_incomum for m in contam):\n",
+      "para": "    if any(m.modo_incomum for m in contam):\n",
       "testes": [
         "tests.test_classe_risco.ClasseDasMudancas.test_g13_fora_da_t"
       ]

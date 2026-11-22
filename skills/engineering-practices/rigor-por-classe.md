@@ -3,7 +3,7 @@
 Detalhe da `R-REVIEW` (diretriz 25: o resumo fica na regra). A classe e os portões vêm de `forge-check classe`.
 
 - **T:** autor, 1 review e CI.
-- **T de texto ou de teste (G1.3; D2):** diff todo de `.md`, inclusive agente, skill, modelo, `CLAUDE.md` e `docs/regras/`, ou todo de testes, inclusive os de controle (`tests/test_*.py` e `tests/hooks/`), sem remoção nem link, é T: só o review. `docs/regras/` soma a segurança pelo gatilho, sem QA. Seguem C: o resto de `CONTROLES_DO_FORGE`, o código de controle em `tests/` (`catraca.py`, `neutralidade.py`, `guarda_git.py`, apoios) e a mistura de texto ou teste com código. A isenção M13 saiu. A catraca segue medindo o teste enfraquecido. Reversão: 1 escape de segurança em item T de texto de controle.
+- **T de texto ou de teste (G1.3; D2):** diff todo de `.md`, inclusive agente, skill, modelo, `CLAUDE.md` e `docs/regras/`, ou todo de testes, inclusive os de controle (`tests/test_*.py` e `tests/hooks/`), sem remoção nem link, é T: só o review. `docs/regras/` soma a segurança pelo gatilho, sem QA. Seguem C: o resto de `CONTROLES_DO_FORGE`, `stacks/*/pronto.md` e `seguranca.md`, o `.md` em `.claude/` (salvo `CLAUDE.md`), binário, cabeçalho de agente ou skill mudado, o código de controle em `tests/` (`catraca.py`, `neutralidade.py`, todo `.py` da raiz fora de `test_*.py`) e a mistura de texto ou teste com código. A isenção M13 saiu. A catraca mede o `.py` enfraquecido; a fixture de `tests/hooks/` mudada só tem o review. Reversão: 1 escape de segurança em item T de texto de controle.
 - **N:** review ∥ QA e CI.
 - **C:** review ∥ segurança ∥ QA e CI, mais devops com infra (`docs/devops/<pedido>.md`).
 

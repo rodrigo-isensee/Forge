@@ -45,7 +45,8 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs [ARQUIVO...] | kanban [-
      forge-check dora [--desde D --ate D] [--fuso ±HH:MM] [--json]   (DORA e vazão, só o que voltas, esperas e metricas não dão; 0.45.7; bin/forge_dora.py)
 `classe` (P5, rigor proporcional ao risco; só leitura, sem rede, rc 0) classifica o diff `base...head`: `C` se toca caminho de controle (PROTEGIDOS e
 SENSIVEIS de tests/catraca.py, CONTROLES_DO_FORGE, MD_DE_CONTROLE, pipeline e infraestrutura, .claude/, .mcp.json ou teste de controle), `T` se é só `.md` (G1.3: também
-de agente, skill, modelo e docs/regras/, esta com a segurança pelo gatilho), só testes (também os de controle), só documentação comum ou até 20
+de agente, skill, modelo e docs/regras/, esta com a segurança pelo gatilho; fora pronto.md e seguranca.md das stacks, .md em .claude/, binário
+e cabeçalho de agente mudado), só testes (também os de controle), só documentação comum ou até 20
 linhas (sem binário, link, remoção, gatilho de segurança nem arquivo novo em pasta que a base não tem), `N` no resto; git que falha dá `C`.
 Os pareceres, a pasta do quadro e a de UX (LIVRES) não contam. Saída: `classe:`, `motivo:` e as linhas `portoes:` (T: autor + review + CI; N: autor +
 review ∥ qa + CI; C: autor + review ∥ seguranca ∥ qa + CI; devops entra com pipeline ou infraestrutura) e `pareceres:`; o `pr` exige os pareceres da
@@ -1051,7 +1052,8 @@ LINHAS_DO_TRIVIAL = 20
 CONFIG_DO_CLAUDE = re.compile(r"(^|/)(\.claude/|\.mcp\.json$)")
 # M5 e L1 (0.43.2): o manifesto e os agentes dos plugins, os pesados das stacks, os apoios dos testes (o que os testes de controle
 # importam ou o CI roda) e a forma compilada (o que o interpretador carrega no lugar do fonte) também são controle.
-PLUGIN_E_APOIOS = re.compile(r"^(\.claude-plugin/|dev/|stacks/[^/]+/pesados\.json$|tests/((apoio_|modelo_)[^/]*|guarda_git)\.py$|tests/[^/]+\.sh$)")
+# E122.6 (segurança A3): todo .py da raiz de tests/ que não é test_*.py é apoio (quarentenas.py, gh_falso.py, guarda_git.py).
+PLUGIN_E_APOIOS = re.compile(r"^(\.claude-plugin/|dev/|stacks/[^/]+/pesados\.json$|tests/(?!test_)[^/]+\.py$|tests/[^/]+\.sh$)")
 TESTE_DE_CONTROLE = re.compile(r"^tests/(hooks/|catraca|neutralidade|test_(hooks|catraca|oraculo_|forge_check|conformidade|pre_?push|fechar|guarda|"
                                r"agentes|parecer|isencoes|classe_risco|invariante))")
 TESTE = re.compile(r"(^|/)(tests?|__tests__|spec)/|(^|/)(test_[^/]+|[^/]+_test\.[^/.]+|[^/]+\.(test|spec)\.[^/]+)$")
@@ -1071,6 +1073,10 @@ def catraca_da_classe():
 
 
 TESTE_PROPRIO = re.compile(r"^tests/(hooks/|test_[^/]+\.py$)")  # G1.3: o teste de controle em si; o código de controle em tests/ segue C
+# E122.6 (segurança A1 e A2): .md que o projeto executa ou carrega como configuração nunca é texto: o pronto.md vira comando no CI e no
+# pre-push do projeto; o .md em .claude/ é agente, comando ou skill do Claude Code (o .claude/CLAUDE.md é instrução, como o CLAUDE.md).
+MD_QUE_CONFIGURA = re.compile(r"^stacks/[^/]+/(seguranca|pronto)\.md$|(^|/)\.claude/(?!CLAUDE\.md$)")
+CABECALHO_DE_PAPEL = re.compile(r"^(agents/|skills/|stacks/[^/]+/(agents|skills)/)")  # E122.6 (segurança A5): tools:, model:, allowed-tools:
 MOTIVO_DO_TEXTO, MOTIVO_DO_TESTE = "regra, agente, skill ou configuração do projeto", "teste de controle"
 
 
@@ -1115,6 +1121,8 @@ def so_texto_ou_so_teste(contam, controle):
     """G1.3: o motivo da classe T de um diff de controle todo de `.md` ou todo de testes, sem arquivo removido nem link, ou None."""
     if any(m.removido or m.modo_incomum for m in contam):
         return None
+    if any(MD_QUE_CONFIGURA.search(m.nome) for m in contam):
+        return None
     if all(m.nome.endswith(".md") for m in contam) and all(
             motivo == MOTIVO_DO_TEXTO or (motivo == "controle do Forge" and nome.startswith("docs/regras/")) for nome, motivo in controle):
         return "só texto, inclusive de agente, skill, modelo ou regra (G1.3)"
@@ -1123,11 +1131,31 @@ def so_texto_ou_so_teste(contam, controle):
     return None
 
 
-def classe_das_mudancas(mudancas, catraca, contar):
+def barreiras_do_leve(raiz, de, ate, nomes):
+    """E122.6 (QA A1, segurança A5): [(nome, motivo)] que tiram da T o controle só de texto ou só de teste: binário no diff (o review
+    não o lê) e cabeçalho de agente ou skill mudado ou novo (permissão); o git que falha no diff também tira (falha fechada)."""
+    contagem = linhas_do_diff(raiz, de, ate, nomes)
+    if contagem is None or contagem[1]:
+        return [(nomes[0], "binário no diff (ou diff ilegível), entre")]
+    return [(n, "cabeçalho de agente ou skill mudado (permissão)") for n in nomes
+            if CABECALHO_DE_PAPEL.match(n) and cabecalho_do_md(raiz, de, n) != cabecalho_do_md(raiz, ate, n)]
+
+
+def cabecalho_do_md(raiz, rev, nome):
+    """O frontmatter cru (bytes) de `nome` em `rev`; b"" sem arquivo ou sem frontmatter."""
+    cod, texto = git(raiz, "cat-file", "blob", f"{rev}:{nome}", bruto=True)
+    if cod or not texto.startswith(b"---"):
+        return b""
+    fim = texto.find(b"\n---", 3)
+    return texto if fim < 0 else texto[:fim]
+
+
+def classe_das_mudancas(mudancas, catraca, contar, barreiras=None):
     """(classe, motivos, arquivos que decidiram) de uma lista de `Mudanca` (P5). `None` (o git falhou) ou catraca ausente dão C;
     os LIVRES (pareceres, quadro, UX) não contam, para a classe não mudar quando o parecer entra na branch. T: só documentação
     comum, só testes (com documentação ou não) ou até LINHAS_DO_TRIVIAL linhas sem binário, sem nenhum impedimento; diff vazio é N.
-    `contar(nomes)` devolve (linhas mudadas, tem binário) ou None (git falhou: N); só roda quando decide, com até LINHAS_DO_TRIVIAL arquivos."""
+    `contar(nomes)` devolve (linhas mudadas, tem binário) ou None (git falhou: N); só roda quando decide, com até LINHAS_DO_TRIVIAL arquivos.
+    `barreiras(nomes)` (`barreiras_do_leve`) dá o que tira da T o controle só de texto ou só de teste."""
     if mudancas is None:
         return "C", ["o git falhou: o diff da entrega não foi lido"], []
     if catraca is None:
@@ -1135,6 +1163,9 @@ def classe_das_mudancas(mudancas, catraca, contar):
     contam = [m for m in mudancas if not livre(m.nome, LIVRES)]
     controle = [(m.nome, motivo) for m in contam if (motivo := motivo_de_controle(m.nome, catraca))]
     if controle and (leve := so_texto_ou_so_teste(contam, controle)):
+        barrados = barreiras([m.nome for m in contam]) if barreiras else []
+        if barrados:
+            return "C", [f"{motivo}: {caminho_impresso(nome)}" for nome, motivo in barrados], [nome for nome, _ in barrados]
         return "T", [leve], [m.nome for m in contam]
     if controle:
         return "C", [f"{motivo}: {caminho_impresso(nome)}" for nome, motivo in controle], [nome for nome, _ in controle]
@@ -1208,7 +1239,8 @@ def mudancas_da_entrega(raiz, ref=None, base=None):
 def classe_da_entrega(raiz, ref=None, base=None):
     """(classe, motivos, arquivos que decidiram) da entrega (P5): a regra única da classe, usada pelo `forge-check classe` e pelo `pr`."""
     mudancas, mb = mudancas_da_entrega(raiz, ref, base)
-    return classe_das_mudancas(mudancas, catraca_da_classe(), lambda nomes: linhas_do_diff(raiz, mb, ref or "HEAD", nomes))
+    return classe_das_mudancas(mudancas, catraca_da_classe(), lambda nomes: linhas_do_diff(raiz, mb, ref or "HEAD", nomes),
+                               lambda nomes: barreiras_do_leve(raiz, mb, ref or "HEAD", nomes))
 
 
 def pareceres_exigidos(classe, infra, gatilhos_de_seguranca):
@@ -4118,6 +4150,7 @@ def problemas_do_bloco(achados, erros, tem_bloco, campos, estrito):
 # G1.2 (ORDEM DO DONO de 21/11 22:13): na revalidação, o bloqueante fica no que mudou; o resto vira recomendado e cartão
 TRECHO_DO_DIFF = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", re.M)
 MARGEM_DO_DELTA = 3
+LARGURA_DA_FAIXA = 20  # E122.6 (QA A2): faixa mais larga que isso (`arquivo:1-99999`) não cruza o delta, vira cartão
 EXPLORAVEL = re.compile(r"\bexplorável: (S\d+)\b")
 
 
@@ -4167,7 +4200,8 @@ def fora_do_delta(raiz, rel, texto, campos, ref):
             continue
         trechos = trechos_do_delta(raiz, de, ate, a["arquivo"])
         primeira, _, ultima = a["linha"].partition("-")
-        if trechos is None or any(int(primeira) <= fim and int(ultima or primeira) >= ini for ini, fim in trechos):
+        larga = int(ultima or primeira) - int(primeira) >= LARGURA_DA_FAIXA
+        if trechos is None or (not larga and any(int(primeira) <= fim and int(ultima or primeira) >= ini for ini, fim in trechos)):
             continue
         saida.append(f"{caminho_impresso(rel)}: achados: {a['id']} bloqueante novo fora do que mudou em {de[:7]}..{ate[:7]} "
                      f"({caminho_impresso(a['arquivo'])}:{a['linha']}): vira recomendado e cartão; na segurança, só com "

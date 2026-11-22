@@ -71,17 +71,26 @@ class Revalidacao(unittest.TestCase):
         self.assertIn("A2 bloqueante novo fora do que mudou", saida[0])
         self.assertIn("vira recomendado e cartão", saida[0])
 
+    def recusas_por_linha(self, linhas):
+        """{linha: quantas recusas}, um repositório novo por linha; sem subTest, para o `--vermelho` ver o erro da base no id do teste
+        (E122.6, QA A4)."""
+        contagem = {}
+        for linha in linhas:
+            self.setUp()
+            contagem[linha] = len(self.rodadas([f"- A2 (bloqueante) src/a.py:{linha} · achado"]))
+        return contagem
+
     def test_bloqueante_no_trecho_mudado_ou_na_margem_passa(self):
-        for linha in ("15", "12", "18", "10-12", "1-30"):
-            with self.subTest(linha=linha):
-                self.assertEqual(self.rodadas([f"- A2 (bloqueante) src/a.py:{linha} · no que mudou"]), [])
-                self.setUp()
+        linhas = ("15", "12", "18", "10-12", "1-20")
+        self.assertEqual(self.recusas_por_linha(linhas), dict.fromkeys(linhas, 0))
 
     def test_fora_da_margem_de_3_linhas_e_recusado(self):
-        for linha in ("11", "19", "5-11"):
-            with self.subTest(linha=linha):
-                self.assertEqual(len(self.rodadas([f"- A2 (bloqueante) src/a.py:{linha} · fora"])), 1)
-                self.setUp()
+        linhas = ("11", "19", "5-11")
+        self.assertEqual(self.recusas_por_linha(linhas), dict.fromkeys(linhas, 1))
+
+    def test_faixa_larga_nao_cruza_o_delta(self):  # E122.6 (QA A2): `arquivo:1-99999` não escapa do delta
+        linhas = ("1-21", "1-99999", "14-34")
+        self.assertEqual(self.recusas_por_linha(linhas), dict.fromkeys(linhas, 1))
 
     def test_bloqueante_repetido_da_rodada_anterior_passa(self):
         self.assertEqual(self.rodadas(["- A1 (bloqueante) src/a.py:5 · defeito provado na linha 5, ainda aberto"]), [])

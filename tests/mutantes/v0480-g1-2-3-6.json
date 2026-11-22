@@ -1,0 +1,56 @@
+{
+  "pedido": "v0480-g1-2-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "BR2",
+      "guarda": "E122.6 (QA A1): binário no diff tira da T",
+      "arquivo": "bin/forge-check",
+      "de": "    if contagem is None or contagem[1]:\n",
+      "para": "    if contagem is None:\n",
+      "testes": [
+        "tests.test_classe_risco.ClasseNoRepositorio.test_e1226_binario_e_cabecalho_de_agente_saem_da_t"
+      ]
+    },
+    {
+      "id": "BR3",
+      "guarda": "E122.6 (segurança A5): cabeçalho de agente mudado tira da T",
+      "arquivo": "bin/forge-check",
+      "de": "if CABECALHO_DE_PAPEL.match(n) and cabecalho_do_md(raiz, de, n) != cabecalho_do_md(raiz, ate, n)]",
+      "para": "if CABECALHO_DE_PAPEL.match(n) and False]",
+      "testes": [
+        "tests.test_classe_risco.ClasseNoRepositorio.test_e1226_binario_e_cabecalho_de_agente_saem_da_t"
+      ]
+    },
+    {
+      "id": "BR4",
+      "guarda": "E122.6: só o frontmatter conta, não o corpo",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod or not texto.startswith(b\"---\"):\n",
+      "para": "    if cod:\n",
+      "testes": [
+        "tests.test_classe_risco.ClasseNoRepositorio.test_e1226_binario_e_cabecalho_de_agente_saem_da_t"
+      ]
+    },
+    {
+      "id": "BR5",
+      "guarda": "E122.6: a classe da entrega passa as barreiras",
+      "arquivo": "bin/forge-check",
+      "de": "                               lambda nomes: barreiras_do_leve(raiz, mb, ref or \"HEAD\", nomes))",
+      "para": "                               None)",
+      "testes": [
+        "tests.test_classe_risco.ClasseNoRepositorio.test_e1226_binario_e_cabecalho_de_agente_saem_da_t"
+      ]
+    },
+    {
+      "id": "FL1",
+      "guarda": "E122.6 (QA A2): faixa larga não cruza o delta",
+      "arquivo": "bin/forge-check",
+      "de": "(not larga and any(",
+      "para": "(any(",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_faixa_larga_nao_cruza_o_delta"
+      ]
+    }
+  ]
+}
