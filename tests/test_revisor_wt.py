@@ -412,6 +412,7 @@ class VoltaLeParecerConferido(Repositorio):
         self.assertNotIn("falta achado", self.conferir(self.preenchido(saida))[1])
         sem_a1 = self.preenchido(saida).replace(f"(review {p[:7]} A1)", "(sem A1)")
         self.assertIn('volta: falta achado "A1" de docs/reviews/p1.md', self.conferir(sem_a1)[1])
+        (self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md").unlink()  # G1.1: a volta conferida acima já sucede o anterior
         self.historico(SHA_FALSO)  # falha fechada nos dois lados
         self.assertIn(f"parecer conferido {SHA_FALSO[:7]}: o git não lê o commit nem o pai dele", self.gerar()[1])
         self.assertIn(f"volta: parecer conferido {SHA_FALSO[:7]}: o git não lê", self.conferir(self.preenchido(saida))[1])

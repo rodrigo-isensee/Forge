@@ -1,0 +1,66 @@
+{
+  "pedido": "v0480-vigia-time-parado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "VIGIA-TIME-PARADO: cabeçalho e separador da tabela não são cartão",
+      "arquivo": "hooks/vigia.py",
+      "de": "if len(celulas) < 2 or celulas[0] == \"\" or set(celulas[0]) <= set(\"-: \"):",
+      "para": "if len(celulas) < 2:",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_zero_agentes_e_cartao_livre_avisa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "VIGIA-TIME-PARADO: o aviso bloqueia o Stop",
+      "arquivo": "hooks/vigia.py",
+      "de": "    if parado:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_principal_bloqueia_o_stop_com_o_aviso"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "VIGIA-TIME-PARADO: a saída só se imprime com conteúdo",
+      "arquivo": "hooks/vigia.py",
+      "de": "    if saida:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_principal_bloqueia_o_stop_com_o_aviso"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "VIGIA-TIME-PARADO: no clone do Forge o quadro é o de ~/.forge-contrib",
+      "arquivo": "hooks/vigia.py",
+      "de": "if e_clone_do_forge(raiz) else",
+      "para": "if False else",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_quadro_do_clone_e_o_de_contrib"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "VIGIA-TIME-PARADO: só o título de seção muda a coluna",
+      "arquivo": "hooks/vigia.py",
+      "de": "if linha.startswith(\"## \"):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_zero_agentes_e_cartao_livre_avisa"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "VIGIA-TIME-PARADO: quadro ausente vira texto vazio, sem erro",
+      "arquivo": "hooks/vigia.py",
+      "de": "ler_quadro(quadro_do(raiz)) or \"\"",
+      "para": "ler_quadro(quadro_do(raiz))",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_sem_quadro_cala"
+      ]
+    }
+  ]
+}

@@ -69,7 +69,7 @@
       "de": "[ \"$pr_estado\" = MERGED ] && [ \"$pr_head\" = \"$sha\" ] && [ \"$pr_base\" = homolog ]; }; then",
       "para": "[ \"$pr_head\" = \"$sha\" ] && [ \"$pr_base\" = homolog ]; }; then",
       "testes": [
-        "tests.test_fechar_lote.Promover.test_pr_que_nao_mescla_no_prazo_para_para_retomar"
+        "tests.test_fechar_lote.Promover.test_pr_que_nao_consta_merged_no_prazo_para_para_retomar"
       ]
     },
     {

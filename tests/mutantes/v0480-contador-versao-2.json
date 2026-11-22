@@ -1,0 +1,87 @@
+{
+  "pedido": "v0480-contador-versao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "cartão de coluna fechada e linha de cabeçalho não contam como abertos",
+      "arquivo": "bin/forge-contador",
+      "de": "        if atual and atual not in FECHADAS and linha.startswith(\"|\")",
+      "para": "        if atual and linha.startswith(\"|\")",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_so_quadro"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "linha do histórico fora da tabela (menos de 4 células) é ignorada",
+      "arquivo": "bin/forge-contador",
+      "de": "        if len(c) < 4:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_previsao_pela_vazao_liquida"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "entrada é só vinda de fora das abertas para uma aberta",
+      "arquivo": "bin/forge-contador",
+      "de": "        if c[3] in colunas_abertas and not de_aberta:\n",
+      "para": "        if c[3] in colunas_abertas:\n",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_previsao_pela_vazao_liquida"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "saída é só de aberta para fechada (fechada para fechada não conta)",
+      "arquivo": "bin/forge-contador",
+      "de": "        elif de_aberta and c[3] in FECHADAS:\n",
+      "para": "        elif c[3] in FECHADAS:\n",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_previsao_pela_vazao_liquida"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "vazão líquida sem queda: sem data enquanto crescer",
+      "arquivo": "bin/forge-contador",
+      "de": "    if liquida <= 0:\n",
+      "para": "    if liquida < 0:\n",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_vazao_zero_sem_data"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "quadro ou histórico ausente é erro (saída 2)",
+      "arquivo": "bin/forge-contador",
+      "de": "    except (OSError, UnicodeDecodeError) as e:\n",
+      "para": "    except UnicodeDecodeError as e:\n",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_quadro_ausente_e_erro"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "coluna sem cartão não aparece na lista de abertos",
+      "arquivo": "bin/forge-contador",
+      "de": "colunas.items() if v > 0)",
+      "para": "colunas.items() if v >= 0)",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_so_quadro"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "o dia com mais entradas que saídas leva a marca crescendo",
+      "arquivo": "bin/forge-contador",
+      "de": "(\" (crescendo)\" if ent > sai else \"\")",
+      "para": "(\" (crescendo)\" if ent >= sai else \"\")",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_crescendo_sem_data",
+        "tests.test_forge_contador.Backlog.test_vazao_zero_sem_data"
+      ]
+    }
+  ]
+}

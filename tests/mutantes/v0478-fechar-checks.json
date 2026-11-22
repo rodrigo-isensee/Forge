@@ -6,29 +6,29 @@
       "id": "FCK-M1",
       "guarda": "leitura dos check-runs do head que falha para antes do merge (FECHAR-CHECKS-ANTES-DO-MERGE)",
       "arquivo": "bin/forge-fechar",
-      "de": "    || die \"parou no passo 6: não consegui ler os check-runs do head",
-      "para": "    || true \"parou no passo 6: não consegui ler os check-runs do head",
+      "de": "      || die \"parou no passo $1: não consegui ler os check-runs do head",
+      "para": "      || true \"parou no passo $1: não consegui ler os check-runs do head",
       "testes": [
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_leitura_dos_check_runs_que_falha_para"
       ]
     },
     {
       "id": "FCK-M2",
-      "guarda": "execução mais recente terminada fora de success recusa, no merge direto e com --armar (FECHAR-CHECKS-ANTES-DO-MERGE, E75.6)",
+      "guarda": "execução mais recente terminada fora de success recusa na hora, sem esperar (FECHAR-CHECKS-ANTES-DO-MERGE, E75.6)",
       "arquivo": "bin/forge-fechar",
-      "de": "      completed/*) die \"parou no passo 6: o check obrigatório",
-      "para": "      completed/*) true \"parou no passo 6: o check obrigatório",
+      "de": "        completed/*) die \"parou no passo $1: o check obrigatório",
+      "para": "        completed/*) true \"parou no passo $1: o check obrigatório",
       "testes": [
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_exigido_vermelho_rodando_ou_ausente_recusa_o_merge",
-        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_com_armar_e_check_terminado_com_falha_recusa"
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_terminado_com_falha_recusa_sem_esperar"
       ]
     },
     {
       "id": "FCK-M3",
       "guarda": "o passo 6 confere os check-runs do head antes do ready e do merge (FECHAR-CHECKS-ANTES-DO-MERGE)",
       "arquivo": "bin/forge-fechar",
-      "de": "    checks_do_head_verdes \"$armar\"\n    if [ \"$pre_rascunho\" = true ]; then",
-      "para": "    : checks_do_head_verdes \"$armar\"\n    if [ \"$pre_rascunho\" = true ]; then",
+      "de": "    checks_do_head_verdes 6 \"$inicio\"",
+      "para": "    : checks_do_head_verdes 6 \"$inicio\"",
       "testes": [
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_check_runs_verdes_leem_o_head_conferido_e_mesclam",
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_execucao_mais_nova_com_falha_recusa_mesmo_com_a_velha_verde"
@@ -38,8 +38,8 @@
       "id": "FCK-M4",
       "guarda": "por nome, só a execução de id maior vale, em qualquer ordem da resposta (FECHAR-CHECKS-ANTES-DO-MERGE, E75.6)",
       "arquivo": "bin/forge-fechar",
-      "de": "$1 == n && (!achou || $2 + 0 > id)",
-      "para": "$1 == n && (!achou || 1)",
+      "de": "$4 != \"skipped\" && (!achou || $2 + 0 > id)",
+      "para": "$4 != \"skipped\" && (!achou || 1)",
       "testes": [
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_rotulo_aplicado_catraca_velha_cancelled_e_nova_verde_mescla",
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_execucao_mais_nova_com_falha_recusa_mesmo_com_a_velha_verde"
@@ -47,20 +47,20 @@
     },
     {
       "id": "FCK-M5",
-      "guarda": "com --armar, check rodando ou ausente arma (FECHAR-CHECKS-ANTES-DO-MERGE, E75.2)",
+      "guarda": "FECHAR-SEM-AUTO-MERGE: execução mais recente rodando ou ausente não conta como verde",
       "arquivo": "bin/forge-fechar",
-      "de": "      *) [ \"${1:-0}\" = 1 ] \\",
-      "para": "      *) false \\",
+      "de": "        *) [ -n \"$falta\" ] || { falta=",
+      "para": "        *) true || { falta=",
       "testes": [
-        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_com_armar_e_check_rodando_ou_ausente_arma"
+        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_rodando_ou_ausente_espera_e_para_no_prazo_sem_merge"
       ]
     },
     {
       "id": "FCK-M6",
-      "guarda": "no merge direto, execução mais recente rodando ou ausente recusa (FECHAR-CHECKS-ANTES-DO-MERGE)",
+      "guarda": "pendente no fim do prazo para, sem merge (FECHAR-CHECKS-ANTES-DO-MERGE, FECHAR-SEM-AUTO-MERGE)",
       "arquivo": "bin/forge-fechar",
-      "de": "           || die \"parou no passo 6: o check obrigatório $nome do head ${remoto_sha:0:12} não está verde",
-      "para": "           || true \"parou no passo 6: o check obrigatório $nome do head ${remoto_sha:0:12} não está verde",
+      "de": "      || die \"parou no passo $1: o check obrigatório $falta do head",
+      "para": "      || { break; } && : \"parou no passo $1: o check obrigatório $falta do head",
       "testes": [
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_exigido_vermelho_rodando_ou_ausente_recusa_o_merge",
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_nome_mais_longo_verde_nao_vale_pelo_exigido"
@@ -68,22 +68,23 @@
     },
     {
       "id": "FCK-M7",
-      "guarda": "o passo 6 passa o --armar à conferência dos check-runs (FECHAR-CHECKS-ANTES-DO-MERGE, E75.6)",
+      "guarda": "FECHAR-SEM-AUTO-MERGE: o P6 confere os check-runs da marca antes do merge direto",
       "arquivo": "bin/forge-fechar",
-      "de": "    checks_do_head_verdes \"$armar\"\n",
-      "para": "    checks_do_head_verdes 0\n",
+      "de": "    checks_do_head_verdes P6 \"$SECONDS\"\n",
+      "para": "    : checks_do_head_verdes P6 \"$SECONDS\"\n",
       "testes": [
-        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_com_armar_e_check_rodando_ou_ausente_arma"
+        "tests.test_fechar_lote.Promover.test_check_da_marca_terminado_com_falha_para_sem_merge"
       ]
     },
     {
       "id": "FCK-M8",
-      "guarda": "com --armar, a conferência diz que arma sem falha terminada, não que os checks estão verdes (FECHAR-CHECKS-ANTES-DO-MERGE, E75.6)",
+      "guarda": "FECHAR-SEM-AUTO-MERGE: o pendente espera até --espera e relê antes do merge",
       "arquivo": "bin/forge-fechar",
-      "de": "  if [ \"${1:-0}\" = 1 ]; then echo \"check-runs obrigatórios do head",
-      "para": "  if false; then echo \"check-runs obrigatórios do head",
+      "de": "    [ $((SECONDS - ini)) -lt \"$espera\" ] \\",
+      "para": "    [ $((SECONDS - ini)) -lt 0 ] \\",
       "testes": [
-        "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_com_armar_e_check_rodando_ou_ausente_arma"
+        "tests.test_fechar_auto_merge.SemAutoMerge.test_check_run_pendente_espera_e_relê_antes_do_merge",
+        "tests.test_fechar_lote.Promover.test_check_pendente_da_marca_espera_e_mescla_direto"
       ]
     }
   ]

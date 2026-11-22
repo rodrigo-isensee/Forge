@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-vigia-time-parado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M15",
+      "guarda": "VIGIA-TIME-PARADO: a linha ID é o cabeçalho, não cartão",
+      "arquivo": "hooks/vigia.py",
+      "de": "if celulas[0] == \"ID\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_zero_agentes_e_cartao_livre_avisa"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "VIGIA-TIME-PARADO: cabeçalho sem Responsável não procura a posição",
+      "arquivo": "hooks/vigia.py",
+      "de": "if \"responsável\" in nomes else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_sem_coluna_responsavel_vale_so_a_obs"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "VIGIA-TIME-PARADO: cartão que depende do dono não conta",
+      "arquivo": "hooks/vigia.py",
+      "de": "if depende_do_dono(celulas, responsavel):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_marcas_de_dependencia_do_quadro_real"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "VIGIA-TIME-PARADO: linha mais curta que o Responsável vale só a Obs.",
+      "arquivo": "hooks/vigia.py",
+      "de": "if responsavel is not None and responsavel < len(celulas) else",
+      "para": "if responsavel is not None else",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_linha_mais_curta_que_o_responsavel_vale_so_a_obs"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "VIGIA-TIME-PARADO: Responsável usuário depende do dono",
+      "arquivo": "hooks/vigia.py",
+      "de": "return _normal(dono) == RESPONSAVEL_DONO",
+      "para": "return False",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_responsavel_usuario_depende_do_dono"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "VIGIA-TIME-PARADO: só a sessão do Jarvis bloqueia",
+      "arquivo": "hooks/vigia.py",
+      "de": "if not sessao_do_jarvis(hook):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_so_a_sessao_do_jarvis_bloqueia"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "VIGIA-TIME-PARADO: quadro que não é arquivo regular cala",
+      "arquivo": "hooks/vigia.py",
+      "de": "if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_quadro_que_e_fifo_cala_sem_esperar"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "VIGIA-TIME-PARADO: o quadro abre sem seguir link",
+      "arquivo": "hooks/vigia.py",
+      "de": "os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)\n    except FileNotFoundError:",
+      "para": "os.O_RDONLY | os.O_NONBLOCK)\n    except FileNotFoundError:",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_quadro_que_e_link_cala_e_registra_o_erro"
+      ]
+    }
+  ]
+}
