@@ -981,6 +981,8 @@ class PqDoExecutor(eb.Repo):
 
     def test_volta_com_branch_fora_da_forma_nao_gera(self):
         eb.Volta.anterior(self)
+        arq = self.repo / "docs" / "briefs" / "exemplo-dev-exemplo-1.md"  # G1.1: a `Branch:` do anterior é a do --branch
+        arq.write_text(arq.read_text(encoding="utf-8").replace("Branch: melhoria/x ", "Branch: melhoria/x;rm ", 1), encoding="utf-8")
         self.pareceres(self.c1, p="reprovado", corpo="## Achados\n- A1 (bloqueante) src/app.py:1 · o valor está errado\n")
         _, saida, erro = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo",
                                     "--volta", "docs/briefs/exemplo-dev-exemplo-1.md", "--ref", "melhoria/x", "--branch", "melhoria/x;rm")

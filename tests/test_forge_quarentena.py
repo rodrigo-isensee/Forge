@@ -146,6 +146,14 @@ class Validar(unittest.TestCase):
             with self.subTest(ok=ok):
                 self.assertTrue(any("autorizacao" in m for m in self.erros(entrada(autorizacao=ok))))
 
+    def test_autorizacao_so_com_digito_ascii(self):
+        # QUARENTENA-DIGITO-ASCII: `\d` casava dígito Unicode ("A-١", "A-５"); só [0-9] vale, na entrada e na prorrogação.
+        for ok in ("A-\u0661", "A-\uff15", "A-1\u0662"):
+            with self.subTest(ok=ok):
+                self.assertTrue(any("autorizacao" in m for m in self.erros(entrada(autorizacao=ok))))
+                e = entrada(prorrogacao={"prazo": "2026-12-04", "autorizacao": ok})
+                self.assertTrue(any("OK novo" in m for m in self.erros(e)))
+
     def test_prorrogacao_unica_de_ate_sete_dias_com_ok_novo(self):
         self.assertEqual(self.erros(entrada(prorrogacao={"prazo": "2026-12-04", "autorizacao": "A-11"})), [])
 
