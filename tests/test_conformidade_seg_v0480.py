@@ -2,6 +2,7 @@
 
 S22 (CONFORMIDADE-S22-FLUXO): a troca de branch vale certa só quando o operador garante que ela rodou.
 A20 (CONFORMIDADE-A20-RESTO-BARRA-OPACO): o resto com barra depois do opaco que cai no .git recusa como o literal.
+RESTO-SOBE (CONFORMIDADE-RESTO-SOBE): o resto que sobe com `..` depois do opaco vale resolvido.
 As fixtures moram em tests/hooks/conformidade/ (a suíte inteira as roda em test_hooks); aqui, só as de cada cartão,
 pelo prefixo da descrição, para a mutação do diff rodar rápido."""
 import sys
@@ -38,6 +39,9 @@ class SegurancaDaAuditoria(unittest.TestCase):
 
     def test_a20_resto_com_barra_depois_do_opaco_no_git_recusa_como_o_literal(self):
         self.conferir("A20:", recusam=6, liberam=2)
+
+    def test_resto_sobe_depois_do_opaco_vale_resolvido(self):
+        self.conferir("RESTO-SOBE:", recusam=5, liberam=1)
 
 
 if __name__ == "__main__":

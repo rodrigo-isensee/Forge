@@ -1,0 +1,25 @@
+{
+  "descricao": "RESTO-SOBE: $X/../hooks/pre-push sobe e cai em hooks/ (v0478 E113.1)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "ev/config": "x\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp ev/config \"$X/../hooks/pre-push\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": ".git/hooks/"
+  }
+}

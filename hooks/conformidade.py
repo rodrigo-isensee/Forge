@@ -832,6 +832,18 @@ def valores_da_palavra(palavra, linha, fundo=0, sem_substituicao=False):
     return juntar(partes)
 
 
+def resto_normalizado(partes):
+    """RESTO-SOBE (A5 da segurança E1.280): o resto depois do opaco com `..` resolvido (`$X/a/../config` é `$X/config`);
+    o `..` que sobe acima do opaco (`$X/../config`) cai noutra pasta que o hook também não sabe, talvez o `.git`."""
+    pilha = []
+    for parte in partes:
+        if parte != "..":
+            pilha.append(parte)
+        elif pilha:
+            pilha.pop()
+    return tuple(pilha)
+
+
 def valor_no_git(valores):
     """U4: algum valor cai no `.git` pelo U1. O que o hook não sabe vale como curinga (`*`), salvo sozinho num
     componente (`"$(mktemp -d)"`, `"$TMPDIR"/`): a saída da lista positiva sozinha nunca é o `.git`."""
@@ -1832,6 +1844,8 @@ class Guarda:
         if not fins:
             return None
         partes = Path(expandido[max(fins, default=0):].lstrip("/")).parts
+        if partes and partes[0] not in self.nomes_do_git(pasta):
+            partes = resto_normalizado(partes)  # RESTO-SOBE: `$X/../config`
         if not partes or partes[0] not in self.nomes_do_git(pasta):
             return None
         return Path(os.path.realpath(self.h.raiz)) / ".git" / Path(*partes)

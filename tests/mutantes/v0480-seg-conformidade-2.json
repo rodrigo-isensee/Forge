@@ -41,6 +41,36 @@
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a20_resto_com_barra_depois_do_opaco_no_git_recusa_como_o_literal"
       ]
+    },
+    {
+      "id": "RS1",
+      "guarda": "RESTO-SOBE: o resto que não começa por nome do git é resolvido antes de desistir",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if partes and partes[0] not in self.nomes_do_git(pasta):\n            partes = resto_normalizado(partes)",
+      "para": "        if False:\n            partes = resto_normalizado(partes)",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_resto_sobe_depois_do_opaco_vale_resolvido"
+      ]
+    },
+    {
+      "id": "RS2",
+      "guarda": "RESTO-SOBE: o `..` não entra no resto resolvido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if parte != \"..\":\n            pilha.append(parte)\n",
+      "para": "        if True:\n            pilha.append(parte)\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_resto_sobe_depois_do_opaco_vale_resolvido"
+      ]
+    },
+    {
+      "id": "RS3",
+      "guarda": "RESTO-SOBE: o `..` desfaz a pasta de antes do resto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif pilha:\n            pilha.pop()\n",
+      "para": "        elif False:\n            pilha.pop()\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_resto_sobe_depois_do_opaco_vale_resolvido"
+      ]
     }
   ]
 }
