@@ -3,22 +3,20 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-seg-conformidade
-commit: a4266c77896643b544328310ae6deee34665d6c1
-parecer: reprovado
-escopo: completo
+commit: 14696864b679da061fc87f6dda8ad0b7227adb4f
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-22
 ---
-# QA: v0478 (E113.4) S22, A20 e RESTO-SOBE no hooks/conformidade.py
+# QA: v0478 (E113.10) S22, A20, RESTO-SOBE, negação, RESTO-ANULA e += no hooks/conformidade.py
+
+Revalidação no head 14696864 (delta de `forge-check parecer delta`: `hooks/conformidade.py` e as fixtures). A1 (negação `!`) e A2 (`+=`) do parecer anterior estão corrigidos. Passada anterior (a4266c77) preservada abaixo.
 
 Passada única, head a4266c77, base b0895f6cc. Só os testes afetados, as specs de mutante e as sondas do QA; a suíte inteira fica para o CI do PR (`R-QA`).
-
-## Achados
-- A1 (bloqueante) hooks/conformidade.py:2230 · S22 não vê a negação `!`: `! git switch -c x && git push origin` na main sai liberado, mas o push roda só quando a troca falhou. Sonda no head e na base, rc 0 em vez de 2 (R-MAIN). Mesma classe do cartão (a troca só vale com operador que garante).
-- A2 (recomendado) hooks/conformidade.py:1768 · A20: `d=.gi; d+=t; cp ev/config "$d/c"` (atribuição com `+=`) sai liberado, igual na base; o hook não calcula o `+=`. Cobrir com fixture ou recusar o `+=` com valor parcial do `.git`.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -39,3 +37,16 @@ Não é instável. Ela não está no diff (última mudança em #747) e roda em s
 
 ## Resultado
 Reprovado por A1 (alta, segurança com gatilho: push na main liberado). Devolver ao autor com fixture `S22: ! git switch ... && git push` e mutante para a guarda nova; depois `forge-check parecer delta docs/qa/v0480-seg-conformidade.md`.
+
+
+## Revalidação E113.10 (head 14696864)
+- A1 corrigido: sondas (`!`, `!` sem espaço, `! !`, `( ! ... )`, `{ ! ...; }`, `true && ! ...`, `! x; push`, `! x || push`) na main: todas rc 2. Controles livres: `git switch -c x && git push` e `( git switch -c x ) && git push` rc 0; `! git switch ... && push` em `feature/x` rc 0. Fixtures `s22-negado-*` e `s22-subshell-negado-*` guardam.
+- A2 corrigido: `d=.gi; d+=t`, `d=.; d+=git`, `d+=` vazio, `${d}`, `d+=.git` solto, `d=x; d+=.git`, três `+=`, `d+="t"`, `export d=.gi`, `"$d/."`: todas rc 2; `d=ok; d+=y` e `d=docs; d+=/x` rc 0.
+- `{ git switch -c x; } && git push origin` na main: rc 2, igual ao head anterior (as chaves não são modeladas; fixture `s22-chaves-...` o declara); falso positivo conservador, não é achado.
+- Testes: `python3 -I -m unittest discover -s tests -p test_conformidade_seg_v0480.py`: 8 testes, OK (36 s). Vermelho: mesmo teste e fixtures sobre a base bfed8033b (`git archive` em cópia descartável): 8 testes, `FAILED (failures=61)`.
+- Mutantes: `bin/forge-mutante --processos 2` nas 5 specs: `rev=14696864b679`, 37 de 37 `morreu`, nenhum sobrevivente, sem equivalentes, rc 0 (log em `$TMPDIR/q/mut.log`).
+- Specs antigas editadas pelo diff, uma por pedido: `impl-furo-hook-a-a3` 16/16 `morreu`, `v0435-hooks-n5` 13/13, `v047-destino-opaco` 8/8; rc 0, `rev=14696864b679`, sem sobrevivente.
+- `forge-mutante --cobertura --base bfed8033b`: toda condição mudada `coberta`; só `tests/pesos-d4.json` (dado) `não coberto`; rc 0.
+
+## Resultado
+Aprovado. Sem achado aberto. A suíte inteira fica no check-run `bateria` do PR.
