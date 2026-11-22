@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-trilha-forge-check
-commit: d2f79996cc41129fab309d802639e83228d981c8
+commit: 06ab19882f2550d175dbd077d85d02f0d2d1d16c
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -42,6 +42,12 @@ Escopo: BRIEF-PORTAO-REBASE, FC-DOCS-CAMINHO e MODELO-PEDIDO-E-BRIEF (K-166, K-2
 - Vermelho antes do verde, `forge-testes --vermelho 95994eec --modulos test_revisor_wt`: `vermelho: base=95994eec3b87 head=d2f79996cc41`; `PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim · H=ok · B=falha · prova (asserção)`; contagem: prova=1, não prova (passa na base)=39 (herdados); nenhum cai no HEAD.
 - Mutantes, `--base 95994eec`: v0479-trilha-forge-check-3.json M13..M20 mortos; revisor-wt-e6a-4.json M1..M4 mortos (M3 realinhado, bin/forge-check:3372); revisor-wt-e6a-1.json M1, M3..M8 mortos (M6 realinhado, :2423), mas M2 `inválido` (trecho aparece 2 vezes) e a spec sai 2 (A1; já era assim no 95994eec, fora do delta do M6).
 - Sem skip, skipIf ou expectedFailure em tests/test_revisor_wt.py (grep: 0).
+
+## Revalidação (head 06ab1988, delta de d2f79996; E91.17)
+- Mudou no domínio só `tests/mutantes/v0479-trilha-forge-check-2.json` (`para` do M7 virou `f"origin/{'develop'}"`); o merge da develop 27169ed1 (ce5b60de) fica fora do delta.
+- `bin/forge-mutante --ids M7` (3 specs): `M7 · morreu · bin/forge-check:466`, rc=0.
+- `bin/forge-mutante --base d2f79996cc41129fab309d802639e83228d981c8 tests/mutantes/v0479-trilha-forge-check-2.json`: M7..M12 mortos, rc=0.
+- `bin/forge-mutante --cobertura --base 27169ed1dc3e02ea82bc90bdcee5576ae3e6192f`: `coberta · bin/forge-check:466 · …-2.json:M7 · declarado, não provado`; 467, 469 e demais linhas do diff do pedido cobertas; só `não coberto: tests/pesos-d4.json` (dado, sem guarda).
 
 ## Achados
 - A1 (recomendado) tests/mutantes/revisor-wt-e6a-1.json:1 · M2 `inválido` (o trecho `de` aparece 2 vezes em bin/forge-check, linhas 2018 e 2470): a spec sai 2 e a guarda do filtro por branch fica sem mutante rodando; desambiguar o trecho (cartão).
