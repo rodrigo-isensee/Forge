@@ -2082,7 +2082,7 @@ class Guarda:
             comando = REV_PARSE_DO_GIT.sub(trocar_rev_parse, comando)
             self.texto_da_linha = comando
             self.recusar_o_teto(comando, original, nivel)
-            lidas = leituras(comando)
+            lidas = leituras(comando, com_sinal=True)  # S22: o sinal diz se a troca de branch rodou
             # opção B da revalidação 9: sobre a palavra que o bash recebe, em qualquer posição; recusa no fim do nível 0.
             # A palavra `"$(…)"` não: o texto dela é o do `shlex`, e o nível de fora já leu as substituições como escritas
             if not so_substituicoes:
@@ -2171,6 +2171,9 @@ class Guarda:
         ramos = {}
         contextos = {(): (pasta, ramos)}  # cada substituição roda num subshell: `cd` e branch lá dentro ficam lá
         vistas = {pasta}
+        # S22: a troca de branch vale certa só enquanto a cadeia de `&&` que a segue dura; no primeiro outro sinal (ou
+        # com sinal antes dela fora da lista positiva: `||`, `|`) a branch de antes volta como candidata (`ramo_em`)
+        anterior, incertas = {}, {}
 
         def contexto(sub):
             if sub not in contextos:
@@ -2178,10 +2181,11 @@ class Guarda:
                 contextos[sub] = (pasta_de_fora, dict(ramos_de_fora))
             return contextos[sub]
 
-        for palavras, destinos, sub in partes:
+        for palavras, destinos, sub, sinal in partes:
             if so_substituicoes and not sub:
                 continue
             pasta_sub, ramos_sub = contexto(sub)
+            antes = dict(ramos_sub)
             for d in destinos:
                 if self.leitura and d not in self.leitura["saidas"]:
                     self.barrar("R-CONFORMIDADE", f"redirecionamento para {d} pelo papel só de leitura ({self.papel})",
@@ -2189,6 +2193,13 @@ class Guarda:
                 self.checar_escrita(d, pasta_sub)
             contextos[sub] = (self.segmento(palavras, pasta_sub, ramos_sub, nivel), ramos_sub)
             vistas.add(contextos[sub][0])
+            for chave, ramo in ramos_sub.items():
+                if antes.get(chave) != ramo:
+                    incertas.setdefault(sub, {}).setdefault(chave, []).extend(antes.get(chave, (None,)))
+            if sinal.rstrip("\n") != "&&" or anterior.get(sub, "").rstrip("\n") not in ("", ";", "&&", "&", "("):
+                for chave, velhas in incertas.pop(sub, {}).items():
+                    ramos_sub[chave] = tuple(dict.fromkeys(ramos_sub[chave] + tuple(velhas)))
+            anterior[sub] = sinal
         return contextos[()][0], vistas
 
     critico = CRITICO.search  # o marcador da ação crítica; a `GuardaDaProva` soma o controle (custo: uma chamada só)
@@ -2354,7 +2365,7 @@ class Guarda:
         if parte and parte[0] == "branch" and not por_applet:  # A8: nem busybox nem toybox têm applet git
             raiz = raiz_do_projeto(pasta / parte[1] if parte[1] else pasta)
             if raiz:
-                ramos[raiz.resolve()] = parte[2]
+                ramos[raiz.resolve()] = (parte[2],)
         if prog in SHELLS:
             self.atualizacao(palavras, so_binarios=True)
         elif prog in ENVOLVEDORES or INTERPRETES.match(prog) or prog == "forge" or prog in BINARIOS_DE_ATUALIZACAO:
@@ -2563,9 +2574,12 @@ class Guarda:
 
     # git ---------------------------------------------------------------------------------------------
     def ramo_em(self, pasta, ramos):
+        """A branch da pasta. S22: com a troca incerta (`conferir_partes`), a candidata de integração, a da regra mais
+        dura; senão, a mais nova. `None` é a branch do disco."""
         raiz = raiz_do_projeto(pasta)
-        chave = raiz.resolve() if raiz else None
-        return ramos[chave] if chave in ramos else git(pasta, "branch", "--show-current")[1]
+        candidatas = ramos.get(raiz.resolve() if raiz else None, (None,))
+        nomes = [git(pasta, "branch", "--show-current")[1] if c is None else c for c in candidatas]
+        return next((n for n in nomes if n in INTEGRACAO), nomes[0])
 
     def pathspecs_da_linha(self, atribuicoes):
         """As opções `--*-pathspecs` que as variáveis `GIT_*_PATHSPECS` da linha (atribuição, `env`, `export`) ligam. Só

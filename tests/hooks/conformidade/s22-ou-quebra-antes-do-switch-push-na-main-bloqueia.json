@@ -1,0 +1,24 @@
+{
+  "descricao": "S22: `true ||` com quebra de linha antes do switch: o `||` pula o switch e o push sai da main",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "main"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "true ||\ngit switch -c x && git push origin"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-MAIN"
+  }
+}

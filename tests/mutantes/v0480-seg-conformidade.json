@@ -1,0 +1,66 @@
+{
+  "pedido": "v0480-seg-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S22a",
+      "guarda": "S22: a troca de branch nova guarda a de antes como candidata enquanto a cadeia dura",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if antes.get(chave) != ramo:\n",
+      "para": "                if False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante"
+      ]
+    },
+    {
+      "id": "S22b",
+      "guarda": "S22: sinal que não é && depois da troca devolve a branch de antes como candidata",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if sinal.rstrip(\"\\n\") != \"&&\" or anterior.get(sub, \"\").rstrip(\"\\n\") not in (\"\", \";\", \"&&\", \"&\", \"(\"):\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante"
+      ]
+    },
+    {
+      "id": "S22c",
+      "guarda": "S22: sinal antes da troca fora da lista positiva (||, ||+quebra, |) a deixa incerta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if sinal.rstrip(\"\\n\") != \"&&\" or anterior.get(sub, \"\").rstrip(\"\\n\") not in (\"\", \";\", \"&&\", \"&\", \"(\"):\n",
+      "para": "            if sinal.rstrip(\"\\n\") != \"&&\" or anterior.get(sub, \"\").rstrip(\"\\n\") not in (\"\", \";\", \"&&\", \"&\", \"(\", \"||\", \"|\"):\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante"
+      ]
+    },
+    {
+      "id": "S22d",
+      "guarda": "S22: com a troca incerta, vale a candidata de integração",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return next((n for n in nomes if n in INTEGRACAO), nomes[0])\n",
+      "para": "        return next((n for n in nomes if False), nomes[0])\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante"
+      ]
+    },
+    {
+      "id": "S22e",
+      "guarda": "S22: a candidata None é a branch do disco, lida no git",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        nomes = [git(pasta, \"branch\", \"--show-current\")[1] if c is None else c for c in candidatas]\n",
+      "para": "        nomes = [git(pasta, \"branch\", \"--show-current\")[1] if False else c for c in candidatas]\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante"
+      ]
+    },
+    {
+      "id": "S22f",
+      "guarda": "S22: && seguido de quebra de linha mantém a cadeia certa (sem falso positivo)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if sinal.rstrip(\"\\n\") != \"&&\" or anterior.get(sub, \"\").rstrip(\"\\n\") not in (\"\", \";\", \"&&\", \"&\", \"(\"):\n",
+      "para": "            if sinal != \"&&\" or anterior.get(sub, \"\").rstrip(\"\\n\") not in (\"\", \";\", \"&&\", \"&\", \"(\"):\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante"
+      ]
+    }
+  ]
+}
