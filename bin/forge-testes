@@ -189,6 +189,7 @@ RODAM_OS_HOOKS = (("test_hooks", "test_catraca", "test_sugerir", "test_forge", "
                    "test_pre_push_patch", "test_ambiente_hook", "test_estado_ilegivel", "test_maquina") + VOLTA_UNICA  # v047 E2.567: test_pre_push_patch lê hooks/_comum.py
                   + EVALS_DE_FORMA)
 MAPA = [
+    (r"templates/projeto/\.devcontainer/(preparar-ambiente\.sh|devcontainer\.json)", PUBLICADO + ("test_ambiente_recriacao",)),  # v0478 E119.1: o teste roda o preparo e lê o postStart do modelo
     (r"bin/forge-changelog", ("test_changelog", "test_conferir_release", "test_forge", "test_pre_push_afetados") + EVALS_DE_FORMA),  # PREPUSH-BARATAS
     (r"bin/forge-check", FORGE_CHECK + EVALS_DE_FORMA),
     (r"bin/forge_(governanca|decisor|run|meta|provas|dora)\.py", FORGE_CHECK),  # o forge-check importa o módulo ao montar os subcomandos (0.43.1 H)
@@ -230,7 +231,8 @@ MAPA = [
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados", "test_sempre_atual", "test_oraculo_sempre_atual", "test_sessao_automatica")),
     (r"scripts/indice-fixtures\.py", ("test_indice_fixtures", "test_forge", "test_testes_tocados", "test_prepush_lote_pp1")),  # v0478 E94.1: o teste roda o script na cópia
     (r"scripts/preparar-estacao\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve",
-                                       "test_sempre_atual", "test_oraculo_sempre_atual", "test_sessao_automatica", "test_ferramentas_portoes")),  # v047 E6.5: o postStart chama a ferramenta e refaz os atalhos
+                                       "test_sempre_atual", "test_oraculo_sempre_atual", "test_sessao_automatica", "test_ferramentas_portoes",
+                                       "test_ambiente_recriacao")),  # v047 E6.5: o postStart chama a ferramenta e refaz os atalhos
     (r"scripts/(validar-plugin|configurar-ambiente-local|verificar-contribuicao)\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve", "test_sessao_automatica")),  # v046 E19.3 (A4): o teste lê e grava o script
     (r"stacks/.*", CONTEUDO + ("test_hooks", "test_adotar", "test_stack_python") + VOLTA_UNICA),
     (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks", "test_stack_python") + VOLTA_UNICA),
@@ -257,6 +259,7 @@ MAPA = [
     (r"CONTRIBUTING\.md", ("test_forge", "test_changelog")),
     (r"(CHANGELOG\.md|changelog\.d/.*)", ("test_forge", "test_changelog")),
     (r"tests/comportamento/.*", ("test_comportamento",)),
+    (r"\.devcontainer/devcontainer\.json", ("test_forge", "test_ambiente_recriacao")),  # v0478 E119.1: o teste lê o postStart
     (r"\.devcontainer/.*", ("test_forge",)),  # 0.43.1, frente A
 ]
 # Sem regra (de propósito), por exemplo: .github/, .githooks/, tests/config.json, tests/catraca.py e os outros
