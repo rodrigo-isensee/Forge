@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-g1-1-uma-volta
-commit: 8522e8fe58bcfd9240228b875f1314237bee1f27
-parecer: aprovado
+commit: 4d2c53330343163b7027e417db7090acf3bd9bfc
+parecer: reprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-21
+data: 2026-11-22
 ---
 # QA: G1.1, no máximo 1 volta por item (E100.4)
 
@@ -47,3 +47,13 @@ Passada única no head 57c0cbff. Sem suíte local: o CI do PR dá a suíte intei
 - Sem `skip`, `skipIf` ou `expectedFailure` em tests/test_volta_por_delta.py (grep 0).
 - `test_volta_tira_o_fora_do_escopo_do_pedido`: o ajuste só apaga o brief -2 criado antes (o anterior com volta não gera outra); as asserções do corte do dono ficam; sem enfraquecimento.
 - A1 e A2 do parecer anterior resolvidos (teste e mutante). Sem achados abertos.
+
+## Revalidação no head 4d2c5333 (delta sobre 8522e8fe, volta 2)
+- Delta lido por `forge-check parecer delta`: forge-check (`branch_do_anterior_diferente`, `VOLTA_NA_DECISAO` até o fim da linha), fixture `volta-anterior.md`, specs `-3` (M23) e `-4` (M24 a M28) e os testes de volta.
+- Testes afetados, `python3 -I -m unittest discover -s tests -p <arquivo>` com TMPDIR próprio: test_volta_por_delta `Ran 113 ... OK`; test_conferencia_base_dono `Ran 34 ... OK`; test_etapa_do_brief `Ran 89 ... OK`. Sem `skip`/`expectedFailure` novo no diff.
+- Teste mudado: `→ "pode"` agora recusado (a forma canônica vai até o fim da linha) e `→ "não"` somado ao grupo de recusa; endurece, não afrouxa.
+- Mutantes, `forge-mutante spec-3 spec-4 --base 8522e8fe` (`mb=8522e8fe`): M16, M18 a M28 `morreu`; **M17 `sobreviveu · bin/forge-check:4273`**.
+  Causa: `branch_do_anterior_diferente` agora recusa o anterior sem `Branch:` antes de `voltas_da_branch`, então `bool(branch) and` ficou sem efeito observável pelo teste declarado (guarda morta ou redundante).
+
+## Achados
+- A1 (bloqueante) bin/forge-check:4273 · o mutante M17 (`voltas += bool(branch) and grupo(` → `voltas += grupo(`) sobrevive no delta: a guarda ficou redundante com `branch_do_anterior_diferente`. Remova `bool(branch) and` (código morto) ou declare M17 `equivalente` com a justificativa; QA aceita a segunda.
