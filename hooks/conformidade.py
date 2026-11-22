@@ -1867,9 +1867,8 @@ class Guarda:
     def valor_de_fora(self, palavra, pasta):
         """A5 da segurança E113.8: o valor da palavra vem de fora da linha (`"$X"` sem `X=` nela) ou o hook não o calcula;
         `d=docs; … "$d"` não."""
-        linha = None if self.corpo_desconhecido else linha_juntada(self.texto_da_linha)
-        valores = None if linha is None else valores_da_palavra(self.expandir(palavra, pasta), linha)
-        return valores is None or any(SEM_VALOR in v for v in valores)
+        valores = valores_da_palavra(self.expandir(palavra, pasta), linha_juntada(self.texto_da_linha))
+        return valores is None or any(SEM_VALOR in v for v in valores)  # o corpo desconhecido já recusou (valor_calculado)
 
     def corpo_positivo(self, palavra):
         """U3: a palavra é uma substituição só (direta ou pela única atribuição da variável na linha) cujo corpo está na

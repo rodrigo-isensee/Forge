@@ -46,8 +46,8 @@
       "id": "A5v",
       "guarda": "A5 (E113.8): só o valor que vem de fora da linha recusa a cópia recursiva",
       "arquivo": "hooks/conformidade.py",
-      "de": "        return valores is None or any(SEM_VALOR in v for v in valores)\n",
-      "para": "        return valores is None\n",
+      "de": "        return valores is None or any(SEM_VALOR in v for v in valores)  #",
+      "para": "        return valores is None  #",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a5_copia_recursiva_para_opaco_sem_resto_recusa"
       ]
