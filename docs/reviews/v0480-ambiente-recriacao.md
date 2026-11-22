@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ambiente-recriacao
-commit: a0be36e6222bb41cf7721d58ec668aeff8928044
+commit: 1fa9db9660757bbfa03baa2ff273acd8a411d181
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-22
@@ -37,6 +37,11 @@ Base 38c37de9, head 09457540 (E119.1, 2 commits). Revisão completa única, sem 
 - Scripts: SC2088 (`~` entre aspas) trocado por `$HOME` nas mensagens; `command grep` no `preparar-estacao.sh` só desvia de função ou alias; nenhuma guarda mudou de sentido.
 - Rodados aqui: `python3 -m unittest tests.test_testes_tocados tests.test_ambiente_recriacao` (206 OK, 1 pulado pelo sandbox de /proc, 289 s). Suíte inteira e `shellcheck`: CI do PR #792.
 
+## Revalidação (E119.16, head 1fa9db96, 3ª volta)
+- Delta lido: `forge-check parecer delta` de a0be36e6..1fa9db96, sem o que veio da develop; no domínio: `tests/mutantes/v0480-ambiente-recriacao.json` (só o `de` e o `para` do M16) e `tests/pesos-d4.json` (`test_forge_contador`, vindo do merge da develop 48d6f4b, não do autor).
+- M16: `de` e `para` passam a `command grep -qE`, espelho da linha 195 do `preparar-estacao.sh` desde o SC da volta anterior; o `de` ocorre uma vez na fonte. Guarda, arquivo e teste iguais; nada afrouxado.
+- Rodados aqui: `bin/forge-mutante --ids M16 --processos 1` (rev 1fa9db966075: M16 morreu, preparar-estacao.sh:194); `bin/forge-mutante --conferir --base 48d6f4b8` (o trecho de cada spec do diff está no lugar). Suíte inteira e `shellcheck`: CI do PR #792.
+
 ## Achados
 - A1 (recomendado) scripts/preparar-estacao.sh:194 · guarda do --simular sem teste: o mutante `true || return 0` sobrevive a test_ambiente_recriacao e a test_container_simular_nao_altera_nada (o --simular passaria a escrever ~/.bashrc); falta assert de .bashrc ausente no --simular e o mutante na spec.
 - A2 (recomendado) scripts/preparar-estacao.sh:195 · grep '.local/bin' aceita qualquer menção (comentário, PATH no fim): .bashrc só com `# ver ~/.local/bin/README` deixa o export fora (reproduzido no modelo, linha 107). Sugestão: grep -qF da linha exata gravada.
@@ -45,6 +50,8 @@ Base 38c37de9, head 09457540 (E119.1, 2 commits). Revisão completa única, sem 
 - A5 (recomendado) scripts/preparar-estacao.sh:195 · o grep aceita `export PATH="$PATH:$HOME/.local/bin"` (no fim) como presente; com um claude antigo mais cedo no PATH, o atual não vence. Mesmo em templates/projeto/.devcontainer/preparar-ambiente.sh:107. Vira cartão.
 
 ## Parecer
+Revalidação no 1fa9db96: aprovado. O M16 volta a casar com a fonte e morre; o merge espera o CI do #792 verde.
+
 Revalidação no a0be36e6: aprovado. As cinco correções de CI não mudam comportamento nem afrouxam teste; o merge espera o CI do #792 verde.
 
 Revalidação no 93a2123c: aprovado. A1, A2 e A4 resolvidos com teste de comportamento e mutante que morre; A3 e A5 são recomendados e viram cartão (`R-REVIEW`).
