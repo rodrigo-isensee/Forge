@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-varredura-divida
-commit: 7bfd64e7d4e2d43daa0cb412ee647684ae70c76c
+commit: 5b1ad8ca2cd4c9ecc07c980cf02a16b066884c3f
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -34,3 +34,8 @@ Escopo: `scripts/varredura-divida.py`, `tests/test_varredura_divida.py`, specs `
 - Sem `skip`, `skipIf` nem `expectedFailure` no módulo de teste (grep vazio).
 - Saída no Forge (`--copias` inexistente): 46 linhas (11 branch-mesclada, 31 mutante-velho, 3 teste-lento, fecho `varredura: 45 achado(s)`), idêntica em duas rodadas, rc 0.
 - Projeto criado com `bin/forge-init` e versionado: `varredura: 0 achado(s)`, rc 0.
+
+## Revalidação (delta 7bfd64e7..5b1ad8ca)
+- Vermelho do teste novo (`bin/forge-testes --vermelho dfc70dc5 --modulos tests.test_varredura_divida`): `vermelho: base=dfc70dc50cbc head=5b1ad8ca2cd4`; `test_filho_nao_grava_cache_de_bytecode_no_forge · H=ok · B=falha · prova (asserção)`; revertido à base: `scripts/varredura-divida.py`.
+- Mutantes (`bin/forge-mutante` nas 3 specs, `--processos 2`): rc 0, M1 a M23 todos `morreu` (M23 em `scripts/varredura-divida.py:73`), nenhum sobrevivente.
+- `skip`, `skipIf`, `expectedFailure` em `tests/test_varredura_divida.py`: grep vazio.
