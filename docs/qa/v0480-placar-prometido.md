@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-placar-prometido
-commit: b57a96761cfd79434411d1978ff1e537a07c8b7c
+commit: d27d69cdee924cacfd4ad969e30ec426ecdf5f1b
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -42,4 +42,10 @@ Escopo: `bin/forge-placar propostas` com `prometido: <N>%` na Métrica (MEDIR-DE
 Delta de código: `PROMETIDO` limitado a 6 dígitos inteiros (`bin/forge-placar:111`, o float nunca vira `inf`), mensagem de falta, mapa do `forge-testes` e mutantes M6, M7, M10. Sem achado.
 - Provas: `python3 -I -m unittest discover -s tests -p test_placar_prometido.py`: Ran 14 tests, OK.
 - Provas: `bin/forge-mutante --base afc7083d568d98634c39a498fef1954cc4f3dc1f --ids M6,M7,M10 <spec-1> <spec-2>`: `base=afc7083d… rev=b57a9676…`; M6 `morreu · bin/forge-placar:594`, M7 `morreu · bin/forge-placar:593`, M10 `morreu · bin/forge-placar:111`; rc 0, nenhum sobrevivente.
+- Suíte inteira: check-run `bateria` do PR no mesmo sha (não rodada local).
+
+## Revalidação (head d27d69cd, merge da develop)
+Delta no domínio: `bin/forge-testes` (mapa do `test_ambiente_recriacao`), `tests/pesos-d4.json` e `tests/test_testes_tocados.py`, todos vindos da develop com o conflito resolvido em `test_testes_tocados.py`. Nada toca `bin/forge-placar`. Sem achado.
+- Provas: `python3 -I -m unittest discover -s tests -p test_testes_tocados.py`: Ran 196 tests, OK (skipped=1, skip herdado da develop).
+- Provas: `python3 -I -m unittest discover -s tests -p test_placar_prometido.py`: Ran 14 tests, OK.
 - Suíte inteira: check-run `bateria` do PR no mesmo sha (não rodada local).
