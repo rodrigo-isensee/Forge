@@ -29,7 +29,7 @@ exit 0
 CURL_FALHA = 'echo "curl $*" >> "$REGISTRO"\nexit 22\n'
 
 
-def rodar(tmp, script, *args, curl=CURL_OK, claude_no_path=False, claude_local=False):
+def rodar(tmp, script, *args, curl=CURL_OK, claude_no_path=False, claude_local=False, sem_curl=False, bashrc=None):
     """Roda o script de preparo com home descartável e ferramentas falsas; devolve (resultado, home, chamadas)."""
     tmp = Path(tmp)
     home, persist, bin_falso, proj = tmp / "home", tmp / "persist", tmp / "bin", tmp / "proj"
@@ -51,8 +51,20 @@ def rodar(tmp, script, *args, curl=CURL_OK, claude_no_path=False, claude_local=F
         (home / ".local/bin").mkdir(parents=True)
         (home / ".local/bin/claude").write_text("#!/bin/sh\nexit 0\n")
         (home / ".local/bin/claude").chmod(0o755)
+    if bashrc is not None:
+        (home / ".bashrc").write_text(bashrc)
     env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "GH_", "XDG_", "FORGE_"))}
-    env.update(HOME=str(home), PATH=f"{bin_falso}:{env['PATH']}", REGISTRO=str(registro), FORGE_PERSISTENTE=str(persist),
+    caminho = env["PATH"]
+    if sem_curl:  # PATH sem curl: o falso sai de bin_falso e as demais ferramentas entram por link, menos o curl real
+        (bin_falso / "curl").unlink()
+        sem = tmp / "sem-curl"
+        sem.mkdir()
+        for d in dict.fromkeys(caminho.split(":")):
+            for f in Path(d).glob("*") if Path(d).is_dir() else ():
+                if f.name != "curl" and not (sem / f.name).exists():
+                    (sem / f.name).symlink_to(f)
+        caminho = str(sem)
+    env.update(HOME=str(home), PATH=f"{bin_falso}:{caminho}", REGISTRO=str(registro), FORGE_PERSISTENTE=str(persist),
                FORGE_PROJETO=str(proj), FORGE_PREPARO_ESSENCIAL="1",
                FORGE_APT_CHAVE=str(tmp / "chave.gpg"), FORGE_APT_LISTA=str(tmp / "gh.list"))
     argv = list(args) if args else (["--container"] if script == FORGE else [])
@@ -68,7 +80,8 @@ class ClaudeNoPreparo(unittest.TestCase):
                 self.assertIn("fez: instalou o Claude Code atual em", r.stdout, r.stdout + r.stderr)
                 self.assertTrue(os.access(home / ".local/bin/claude", os.X_OK))
                 self.assertEqual(chamadas.count(INSTALADOR), 1)
-                self.assertIn(f"-o ", chamadas)
+                self.assertRegex(chamadas, rf"curl -fsSL --proto =https --proto-redir =https --connect-timeout 20 --max-time 120 "
+                                           rf"-o \S+/instalar\.sh {re.escape(INSTALADOR)}\n")
                 r2, _, chamadas2 = rodar(tmp, script, claude_no_path=True)
                 self.assertIn("fez: Claude Code já instalado em", r2.stdout, r2.stdout + r2.stderr)
                 self.assertEqual(chamadas2.count(INSTALADOR), 1, "a segunda rodada não pode baixar de novo")
@@ -81,6 +94,8 @@ class ClaudeNoPreparo(unittest.TestCase):
                 r, home, _ = rodar(tmp, script, curl=CURL_FALHA)
                 self.assertIn("falta: instalar o Claude Code (o download ou a instalação falhou", r.stdout, r.stdout + r.stderr)
                 self.assertIn(INSTALADOR, r.stdout)
+                self.assertNotIn("| bash", r.stdout, "a falta dá o comando em dois passos, nunca curl | bash")
+                self.assertIn("e depois rode bash instalar-claude.sh", r.stdout)
                 self.assertFalse((home / ".local/bin/claude").exists())
 
     def test_o_instalador_e_baixado_e_nao_executado_por_pipe(self):
@@ -88,8 +103,38 @@ class ClaudeNoPreparo(unittest.TestCase):
         for script in (FORGE, PROJETO):
             with self.subTest(script=script):
                 texto = (RAIZ / script).read_text(encoding="utf-8")
-                self.assertIn(f'curl -fsSL -o "$tmp/instalar.sh" {INSTALADOR}', texto)
+                self.assertIn("curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout 20 --max-time 120 "
+                              f'-o "$tmp/instalar.sh" {INSTALADOR}', texto)
                 self.assertIn('bash "$tmp/instalar.sh"', texto)
+
+    def test_sem_curl_vira_falta_em_dois_passos_sem_baixar_nem_instalar(self):
+        for script in (FORGE, PROJETO):
+            with self.subTest(script=script), tempfile.TemporaryDirectory() as tmp:
+                r, home, chamadas = rodar(tmp, script, sem_curl=True)
+                self.assertIn("falta: instalar o Claude Code (sem curl aqui): baixe com curl", r.stdout, r.stdout + r.stderr)
+                self.assertIn("e depois rode bash instalar-claude.sh", r.stdout)
+                self.assertNotIn("| bash", r.stdout)
+                self.assertEqual(chamadas, "")
+                self.assertFalse((home / ".local/bin/claude").exists())
+
+    def test_comentario_com_local_bin_no_bashrc_nao_conta_como_o_export(self):
+        comentario = "# o claude fica em ~/.local/bin\n#export PATH=$HOME/.local/bin:$PATH\n"
+        for script in (FORGE, PROJETO):
+            with self.subTest(script=script), tempfile.TemporaryDirectory() as tmp:
+                _, home, _ = rodar(tmp, script, claude_local=True, bashrc=comentario)
+                bashrc = (home / ".bashrc").read_text()
+                self.assertTrue(bashrc.startswith(comentario), bashrc)
+                self.assertEqual(len(re.findall(r'(?m)^export PATH="\$HOME/\.local/bin:\$PATH"', bashrc)), 1, bashrc)
+
+    def test_simular_nao_grava_o_bashrc_e_nao_roda_o_instalador(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r, home, chamadas = rodar(tmp, FORGE, "--simular", "--container", claude_local=True)
+            self.assertFalse((home / ".bashrc").exists(), "o --simular não altera o home")
+        with tempfile.TemporaryDirectory() as tmp:
+            r, home, chamadas = rodar(tmp, FORGE, "--simular", "--container", claude_no_path=True)
+            self.assertIn("[simular] baixar " + INSTALADOR, r.stdout, r.stdout + r.stderr)
+            self.assertFalse((home / ".bashrc").exists() or (home / ".local").exists())
+            self.assertEqual(chamadas, "")
 
     def test_verificar_diz_o_que_falta_sem_alterar_nada(self):
         for script in (FORGE, PROJETO):

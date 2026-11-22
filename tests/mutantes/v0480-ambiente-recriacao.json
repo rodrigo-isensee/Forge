@@ -66,7 +66,7 @@
       "id": "M7",
       "guarda": "estação: o ~/.local/bin entra no PATH do bash uma vez só (idempotente)",
       "arquivo": "scripts/preparar-estacao.sh",
-      "de": "grep -q '.local/bin' \"$HOME/.bashrc\" 2>/dev/null && return 0",
+      "de": "grep -qE '^[[:space:]]*export PATH=.*\\.local/bin' \"$HOME/.bashrc\" 2>/dev/null && return 0",
       "para": "false && return 0",
       "testes": [
         "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_sem_claude_local_instala_pelo_instalador_oficial_e_a_segunda_rodada_nao_repete"
@@ -76,7 +76,7 @@
       "id": "M8",
       "guarda": "modelo: o ~/.local/bin entra no PATH do bash uma vez só (idempotente)",
       "arquivo": "templates/projeto/.devcontainer/preparar-ambiente.sh",
-      "de": "if ! grep -q '.local/bin' \"$HOME/.bashrc\" 2>/dev/null; then",
+      "de": "if ! grep -qE '^[[:space:]]*export PATH=.*\\.local/bin' \"$HOME/.bashrc\" 2>/dev/null; then",
       "para": "if true; then",
       "testes": [
         "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_sem_claude_local_instala_pelo_instalador_oficial_e_a_segunda_rodada_nao_repete"
@@ -90,6 +90,76 @@
       "para": "</dev/null >/dev/null 2>&1 || true; then\n      fez \"instalou o Claude Code atual",
       "testes": [
         "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_instalacao_que_falha_vira_falta_e_nao_deixa_binario"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "estação: o download do instalador só por https e com limite de tempo",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "--proto '=https' --proto-redir '=https' --connect-timeout 20 --max-time 120 -o \"$tmp/instalar.sh\"",
+      "para": "-o \"$tmp/instalar.sh\"",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_sem_claude_local_instala_pelo_instalador_oficial_e_a_segunda_rodada_nao_repete"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "estação: a falta de instalação dá o comando em dois passos, nunca curl | bash",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "rode de novo com rede): baixe com curl -fsSL -o instalar-claude.sh https://claude.ai/install.sh e depois rode bash instalar-claude.sh",
+      "para": "rode de novo com rede): curl -fsSL https://claude.ai/install.sh | bash",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_instalacao_que_falha_vira_falta_e_nao_deixa_binario"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "estação: comentário com .local/bin no .bashrc não conta como o export do PATH",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "'^[[:space:]]*export PATH=.*\\.local/bin'",
+      "para": "'\\.local/bin'",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_comentario_com_local_bin_no_bashrc_nao_conta_como_o_export"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "modelo: o download do instalador só por https e com limite de tempo",
+      "arquivo": "templates/projeto/.devcontainer/preparar-ambiente.sh",
+      "de": "--proto '=https' --proto-redir '=https' --connect-timeout 20 --max-time 120 -o \"$tmp/instalar.sh\"",
+      "para": "-o \"$tmp/instalar.sh\"",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_sem_claude_local_instala_pelo_instalador_oficial_e_a_segunda_rodada_nao_repete"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "modelo: a falta de instalação dá o comando em dois passos, nunca curl | bash",
+      "arquivo": "templates/projeto/.devcontainer/preparar-ambiente.sh",
+      "de": "rode de novo com rede): baixe com curl -fsSL -o instalar-claude.sh https://claude.ai/install.sh e depois rode bash instalar-claude.sh",
+      "para": "rode de novo com rede): curl -fsSL https://claude.ai/install.sh | bash",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_instalacao_que_falha_vira_falta_e_nao_deixa_binario"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "modelo: comentário com .local/bin no .bashrc não conta como o export do PATH",
+      "arquivo": "templates/projeto/.devcontainer/preparar-ambiente.sh",
+      "de": "'^[[:space:]]*export PATH=.*\\.local/bin'",
+      "para": "'\\.local/bin'",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_comentario_com_local_bin_no_bashrc_nao_conta_como_o_export"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "estação: o --simular não grava o .bashrc",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "  [ \"$simular\" = 0 ] || return 0\n  grep -qE",
+      "para": "  grep -qE",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_simular_nao_grava_o_bashrc_e_nao_roda_o_instalador"
       ]
     }
   ]

@@ -192,7 +192,7 @@ container_pacotes() {
 claude_ok() { [ -x "$HOME/.local/bin/claude" ]; }
 garantir_path_local() {
   [ "$simular" = 0 ] || return 0
-  grep -q '.local/bin' "$HOME/.bashrc" 2>/dev/null && return 0
+  grep -qE '^[[:space:]]*export PATH=.*\.local/bin' "$HOME/.bashrc" 2>/dev/null && return 0
   # shellcheck disable=SC2016 # $HOME e $PATH devem ir literais para o .bashrc
   printf '\n# claude e atalhos pessoais\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.bashrc"
   fez "~/.local/bin entrou na frente do PATH do bash"
@@ -202,16 +202,16 @@ container_claude() {
   if claude_ok; then
     fez "Claude Code já instalado em $HOME/.local/bin/claude"
   elif ! tem curl; then
-    falta "instalar o Claude Code (sem curl aqui): curl -fsSL https://claude.ai/install.sh | bash"
+    falta "instalar o Claude Code (sem curl aqui): baixe com curl -fsSL -o instalar-claude.sh https://claude.ai/install.sh e depois rode bash instalar-claude.sh"
   elif [ "$simular" = 1 ]; then
     printf '[simular] baixar https://claude.ai/install.sh e rodar com bash\n'
   else
     tmp="$(mktemp -d)"
-    if curl -fsSL -o "$tmp/instalar.sh" https://claude.ai/install.sh \
+    if curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout 20 --max-time 120 -o "$tmp/instalar.sh" https://claude.ai/install.sh \
        && { if tem timeout; then timeout 300 bash "$tmp/instalar.sh"; else bash "$tmp/instalar.sh"; fi; } </dev/null >/dev/null 2>&1 && claude_ok; then
       fez "instalou o Claude Code atual em $HOME/.local/bin/claude"
     else
-      falta "instalar o Claude Code (o download ou a instalação falhou; rode de novo com rede): curl -fsSL https://claude.ai/install.sh | bash"
+      falta "instalar o Claude Code (o download ou a instalação falhou; rode de novo com rede): baixe com curl -fsSL -o instalar-claude.sh https://claude.ai/install.sh e depois rode bash instalar-claude.sh"
     fi
     rm -rf "$tmp"
   fi
