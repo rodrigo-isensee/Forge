@@ -67,7 +67,7 @@
       "guarda": "VIGIA-TIME-PARADO: ID fora do formato não vai ao modelo",
       "arquivo": "hooks/vigia.py",
       "de": "primeiro = livres[0] if _ID_DO_CARTAO.fullmatch(livres[0]) else \"?\"",
-      "para": "primeiro = livres[0]",
+      "para": "primeiro = livres[0] if True else \"?\"",
       "testes": [
         "tests.test_vigia_parado.TimeParado.test_id_fora_do_formato_nao_vai_ao_modelo"
       ]
