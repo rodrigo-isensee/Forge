@@ -1,0 +1,40 @@
+{
+  "descricao": "FALA-DO-DONO-RESUMO-COMPACTADO: o resumo de compactação (registro user com isCompactSummary e isVisibleInTranscriptOnly, sem isMeta) é escrito pelo modelo: a lista dele não conta como fala do dono.",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": ""
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1",
+        "transcript_path": "{tmp}/t.jsonl"
+      }
+    },
+    {
+      "anexar": {
+        "{tmp}/t.jsonl": [
+          "{\"parentUuid\": \"p0\", \"isSidechain\": false, \"userType\": \"external\", \"entrypoint\": \"cli\", \"cwd\": \"{tmp}\", \"sessionId\": \"s1\", \"version\": \"2.0.0\", \"gitBranch\": \"x\", \"uuid\": \"m1\", \"timestamp\": \"2026-01-01T00:00:00.000Z\", \"type\": \"user\", \"message\": {\"role\": \"user\", \"content\": \"Anota isso:\\n- banana azul\\n- laranja\\n3. maca verde\\n- uva\\n\"}, \"isVisibleInTranscriptOnly\": true, \"isCompactSummary\": true}"
+        ]
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_arquivo": [
+      "violacoes.jsonl"
+    ]
+  }
+}

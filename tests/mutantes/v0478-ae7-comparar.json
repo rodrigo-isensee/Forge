@@ -66,8 +66,8 @@
       "id": "CMP7",
       "guarda": "AE7.1 corpus_de: sem o arquivo é corpus vazio",
       "arquivo": "bin/forge_comparar.py",
-      "de": "    if ctx[\"git\"](raiz, \"cat-file\", \"-e\", f\"{sha}:{CORPUS}\")[0] != 0:",
-      "para": "    if False:",
+      "de": "    if ctx[\"git\"](raiz, \"cat-file\", \"-e\", f\"{sha}:{CORPUS}\")[0] == 0:",
+      "para": "    if True:",
       "testes": [
         "tests.test_comparar.Corpus.test_head_sem_o_arquivo_do_corpus_tira_todos"
       ]
@@ -76,8 +76,8 @@
       "id": "CMP8",
       "guarda": "AE7.1 corpus_de: blob que não se lê é ilegível",
       "arquivo": "bin/forge_comparar.py",
-      "de": "    if cod != 0:\n        return None",
-      "para": "    if False:\n        return None",
+      "de": "    if cod != 0 or gerados is None:\n        return None",
+      "para": "    if gerados is None:\n        return None",
       "testes": [
         "tests.test_comparar.Corpus.test_blob_que_nao_se_le_e_nao_verificavel"
       ]

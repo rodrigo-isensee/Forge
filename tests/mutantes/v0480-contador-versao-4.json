@@ -1,0 +1,87 @@
+{
+  "pedido": "v0480-contador-versao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "linha separadora da tabela (só - e :) não conta como cartão",
+      "arquivo": "bin/forge-contador",
+      "de": "                and not set(celulas[0]) <= set(\"-:\"):",
+      "para": "                and True:",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_so_quadro"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "plugin.json ilegível ou não objeto na REF é erro de versão ilegível (saída 2)",
+      "arquivo": "bin/forge-contador",
+      "de": "    except (ValueError, AttributeError) as e:\n        raise Erro(f\"versão ilegível",
+      "para": "    except (ZeroDivisionError,) as e:\n        raise Erro(f\"versão ilegível",
+      "testes": [
+        "tests.test_forge_contador.LinhaDaVersao.test_plugin_json_ilegivel_e_erro"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "com changelog.d/ conta fragmentos; sem ele, os PRs mesclados",
+      "arquivo": "bin/forge-contador",
+      "de": "    if any(nomes):\n",
+      "para": "    if True:\n",
+      "testes": [
+        "tests.test_forge_contador.SemChangelog.test_conta_merges_e_squashes_desde_a_marca"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "só assunto de merge ou squash com #n conta como PR",
+      "arquivo": "bin/forge-contador",
+      "de": "prs = sum(1 for a in assuntos if PR.search(a))",
+      "para": "prs = sum(1 for a in assuntos if a)",
+      "testes": [
+        "tests.test_forge_contador.SemChangelog.test_conta_merges_e_squashes_desde_a_marca",
+        "tests.test_forge_contador.SemChangelog.test_sem_pr_reconhecivel_diz_sem_contagem"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "commits sem PR reconhecível dão sem contagem, não 0",
+      "arquivo": "bin/forge-contador",
+      "de": "return \"sem contagem\" if assuntos and not prs else prs",
+      "para": "return prs",
+      "testes": [
+        "tests.test_forge_contador.SemChangelog.test_sem_pr_reconhecivel_diz_sem_contagem"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "intervalo vazio desde a marca dá 0, não sem contagem",
+      "arquivo": "bin/forge-contador",
+      "de": "if assuntos and not prs else prs",
+      "para": "if not prs else prs",
+      "testes": [
+        "tests.test_forge_contador.SemChangelog.test_marca_no_topo_da_zero"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "--historico sem --quadro é recusado",
+      "arquivo": "bin/forge-contador",
+      "de": "    if a.historico and not a.quadro:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_historico_sem_quadro_e_recusado"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "previsão além do ano 9999 é erro curto (saída 2), sem traceback",
+      "arquivo": "bin/forge-contador",
+      "de": "    except (Erro, OverflowError) as e:",
+      "para": "    except Erro as e:",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_previsao_alem_do_calendario_e_erro"
+      ]
+    }
+  ]
+}

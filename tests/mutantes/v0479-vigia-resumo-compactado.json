@@ -1,0 +1,76 @@
+{
+  "pedido": "v0479-vigia-resumo-compactado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "FALA-DO-DONO-RESUMO-COMPACTADO: tipo diferente de user não é fala do dono",
+      "arquivo": "hooks/vigia.py",
+      "de": "    if not isinstance(registro, dict) or registro.get(\"type\") != \"user\":\n        return False",
+      "para": "    if not isinstance(registro, dict):\n        return False",
+      "testes": [
+        "tests.test_vigia.FalaDoDono.test_outro_tipo_nao_conta"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "FALA-DO-DONO-RESUMO-COMPACTADO: marca is* verdadeira (resumo de compactação, meta, subagente) tira o registro",
+      "arquivo": "hooks/vigia.py",
+      "de": "if any(marca.match(chave) and valor for chave, valor in registro.items()):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_vigia.FalaDoDono.test_resumo_de_compactacao_nao_conta"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "FALA-DO-DONO-RESUMO-COMPACTADO: marca é is seguido de maiúscula; campo como issueRef não tira o registro",
+      "arquivo": "hooks/vigia.py",
+      "de": "marca = re.compile(r\"is[A-Z]\")",
+      "para": "marca = re.compile(r\"is\")",
+      "testes": [
+        "tests.test_vigia.FalaDoDono.test_campo_que_comeca_com_is_sem_maiuscula_nao_e_marca"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "FALA-DO-DONO-RESUMO-COMPACTADO: resultado de ferramenta (toolUseResult, sourceToolUseID, sourceToolAssistantUUID) não conta",
+      "arquivo": "hooks/vigia.py",
+      "de": "if registro.get(\"toolUseResult\") or registro.get(\"sourceToolUseID\") or registro.get(\"sourceToolAssistantUUID\"):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_vigia.FalaDoDono.test_resultado_de_ferramenta_nao_conta"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "FALA-DO-DONO-RESUMO-COMPACTADO: origin só conta com kind human",
+      "arquivo": "hooks/vigia.py",
+      "de": "return isinstance(origem, dict) and origem.get(\"kind\") == \"human\"",
+      "para": "return True",
+      "testes": [
+        "tests.test_vigia.FalaDoDono.test_origem_que_nao_e_humana_nao_conta"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "FALA-DO-DONO-RESUMO-COMPACTADO: registro sem origin (forma antiga) segue contando",
+      "arquivo": "hooks/vigia.py",
+      "de": "origem = registro.get(\"origin\", {\"kind\": \"human\"})",
+      "para": "origem = registro.get(\"origin\")",
+      "testes": [
+        "tests.test_vigia.FalaDoDono.test_digitado_conta_com_origem_humana_sem_origem_e_em_blocos_de_texto"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "FALA-DO-DONO-RESUMO-COMPACTADO: texto_do_dono passa pelo classificador positivo",
+      "arquivo": "hooks/vigia.py",
+      "de": "    if not digitado_pelo_dono(registro):\n        return None",
+      "para": "    if False:\n        return None",
+      "testes": [
+        "tests.test_vigia.FalaDoDono.test_resumo_de_compactacao_nao_conta"
+      ]
+    }
+  ]
+}
