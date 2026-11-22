@@ -1,0 +1,16 @@
+{
+  "pedido": "v0480-seg-quarentena-fechar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "QD1",
+      "guarda": "QUARENTENA-DIGITO-ASCII: o OK do dono (A-<n>) só com dígito ASCII; \\d aceitaria dígito Unicode",
+      "arquivo": "bin/forge_quarentena.py",
+      "de": "OK_DO_DONO = re.compile(r\"A-[0-9]+\")",
+      "para": "OK_DO_DONO = re.compile(r\"A-\\d+\")",
+      "testes": [
+        "tests.test_forge_quarentena.Validar.test_autorizacao_so_com_digito_ascii"
+      ]
+    }
+  ]
+}
