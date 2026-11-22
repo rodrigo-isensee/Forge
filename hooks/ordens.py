@@ -3,7 +3,7 @@
 
 SessionStart (startup, resume, compact; o matcher fica no hooks.json) e UserPromptSubmit: lê o arquivo de ordens em vigor
 (projeto: `.forge/ordens-em-vigor.md` na cópia principal, nunca na worktree; clone do Forge e worktrees:
-`~/.forge-contrib/docs/kanban/ordens-em-vigor.md`)
+`~/.forge-contrib/docs/ordens/ordens-em-vigor.md`, pasta própria e protegida como pasta)
 e o imprime em texto puro, depois de uma linha fixa gerada aqui. Teto: 15 linhas e 2000 caracteres, contados depois de
 trocar os caracteres de controle por espaço; acima, corta e fecha com `ordens cortadas no teto: <N> linhas, <M> caracteres`.
 Só lê: não cria, não regrava, não apaga. Ausente, vazio, maior que 64 KiB, link para fora da raiz, fora de projeto do Forge:
@@ -18,7 +18,7 @@ from pathlib import Path
 from _comum import contrib, diretorio_comum, e_clone_do_forge, executar
 
 NO_PROJETO = ".forge/ordens-em-vigor.md"
-NO_FORGE = "docs/kanban/ordens-em-vigor.md"
+NO_FORGE = "docs/ordens/ordens-em-vigor.md"  # pasta própria, guardada como pasta (A1 da segurança E123.8)
 TETO_LINHAS = 15
 TETO_CARACTERES = 2000
 TETO_BYTES = 64 * 1024
@@ -30,7 +30,7 @@ AVISO_DO_TETO = "ordens cortadas no teto: {linhas} linhas, {caracteres} caracter
 
 def fontes(raiz):
     """[(arquivo, base que o contém, origem para a linha fixa)] da sessão: no máximo uma; nenhuma sem a cópia principal
-    (o `.git` que não se resolve ou repositório sem `.git`, como o nu). No Forge, a base é `docs/kanban/` de
+    (o `.git` que não se resolve ou repositório sem `.git`, como o nu). No Forge, a base é `docs/ordens/` de
     `~/.forge-contrib`: a pasta trocada por link sai da base (A1 da segurança E123.3). No projeto, a cópia principal pela
     pasta comum do git lida do disco (`diretorio_comum`): a worktree, que o dev grava, não é fonte (A2 da segurança)."""
     if e_clone_do_forge(raiz):

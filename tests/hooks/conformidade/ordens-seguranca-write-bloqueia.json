@@ -13,7 +13,7 @@
   "entrada": {
     "tool_name": "Write",
     "tool_input": {
-      "file_path": "{tmp}/home/.forge-contrib/docs/kanban/ordens-em-vigor.md",
+      "file_path": "{tmp}/home/.forge-contrib/docs/ordens/ordens-em-vigor.md",
       "content": "x\n"
     },
     "hook_event_name": "PreToolUse",
@@ -28,7 +28,7 @@
   "repos": {
     "home/.forge-contrib": {
       "arquivos": {
-        "docs/kanban/ordens-em-vigor.md": "ordem\n",
+        "docs/ordens/ordens-em-vigor.md": "ordem\n",
         "docs/briefs/b1.md": "b\n"
       }
     }

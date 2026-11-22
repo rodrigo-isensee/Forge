@@ -3896,8 +3896,8 @@ class OrdensEmVigor(unittest.TestCase):
         (self.base / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
         with mock.patch.object(self.ordens, "contrib", lambda: self.base / "contrib"):
             [(arquivo, base, origem)] = self.ordens.fontes(self.base)
-        self.assertEqual((arquivo, base), (self.base / "contrib/docs/kanban/ordens-em-vigor.md", self.base / "contrib/docs/kanban"))
-        self.assertEqual(origem, "~/.forge-contrib/docs/kanban/ordens-em-vigor.md")
+        self.assertEqual((arquivo, base), (self.base / "contrib/docs/ordens/ordens-em-vigor.md", self.base / "contrib/docs/ordens"))
+        self.assertEqual(origem, "~/.forge-contrib/docs/ordens/ordens-em-vigor.md")
 
     def worktree(self, comum=None):
         """Worktree vinculada à `self.base` (ou ao repositório `comum`), montada no disco como o git a grava, com o próprio
@@ -3935,27 +3935,49 @@ class OrdensEmVigor(unittest.TestCase):
         self.assertEqual(self.ordens.fontes(wt), [])
         self.assertEqual(self.principal("UserPromptSubmit", wt), "")
 
-    def test_no_forge_a_pasta_kanban_por_link_sai_da_base(self):  # A1 da segurança E123.3: `ln -sfn <wt> docs/kanban`
+    def test_no_forge_a_pasta_das_ordens_por_link_sai_da_base(self):  # A1 da segurança E123.3: `ln -sfn <wt> docs/ordens`
         contrib = self.base / "contrib"
         copia = contrib / "wt" / "x"
         copia.mkdir(parents=True)
         (copia / "ordens-em-vigor.md").write_text("ordem do dev\n", encoding="utf-8")
         (contrib / "docs").mkdir()
-        (contrib / "docs" / "kanban").symlink_to(copia)
+        (contrib / "docs" / "ordens").symlink_to(copia)
         (self.base / ".claude-plugin").mkdir()
         (self.base / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
         with mock.patch.object(self.ordens, "contrib", lambda: contrib):
             self.assertEqual(self.principal("UserPromptSubmit", self.base), "")
-            (contrib / "docs" / "kanban").unlink()
-            (contrib / "docs" / "kanban").mkdir()
-            (contrib / "docs" / "kanban" / "ordens-em-vigor.md").write_text("ordem do dono\n", encoding="utf-8")
+            (contrib / "docs" / "ordens").unlink()
+            (contrib / "docs" / "ordens").mkdir()
+            (contrib / "docs" / "ordens" / "ordens-em-vigor.md").write_text("ordem do dono\n", encoding="utf-8")
             self.assertTrue(self.principal("UserPromptSubmit", self.base).endswith("\nordem do dono\n"))
 
     def test_conformidade_recusa_a_escrita_do_arquivo_de_ordens_na_sessao_do_forge(self):  # A1 da segurança E123.3
         lote = [Fixture(p) for p in sorted((FIXTURES / "conformidade").glob("ordens-*.json"))]
-        lote = minimo([f for f in lote if f.dados["descricao"].startswith("ORDENS-SO-JARVIS")], 8, "conformidade/ordens-*")
+        lote = minimo([f for f in lote if f.dados["descricao"].startswith("ORDENS-SO-JARVIS")], 20, "conformidade/ordens-*")
         self.assertEqual({f.dados["esperado"]["codigo"] for f in lote}, {0, 2})
         self.assertEqual(self.executar_em_lote([(f"conformidade/{f.caminho.stem}", f) for f in lote]), len(lote))
+
+    def test_conformidade_recusa_a_pasta_das_ordens_e_a_copia_principal(self):  # A1 e A2 da segurança E123.8, S1-S4
+        nomes = ["ordens-s1-cp-para-a-pasta-bloqueia", "ordens-s2-cp-com-curinga-bloqueia", "ordens-s3-rm-da-pasta-bloqueia",
+                 "ordens-s3-mv-de-pasta-forjada-bloqueia", "ordens-dev-cat-libera", "ordens-s4-acrescenta-na-principal-bloqueia",
+                 "ordens-s4-relativo-na-principal-bloqueia", "ordens-s4-write-na-principal-bloqueia",
+                 "ordens-s4-cp-na-principal-bloqueia", "ordens-s4-ln-na-principal-bloqueia",
+                 "ordens-s4-jarvis-na-principal-libera", "ordens-dev-pasta-corrente-variavel-bloqueia"]
+        lote = [(f"conformidade/{n}", Fixture(FIXTURES / "conformidade" / f"{n}.json")) for n in nomes]
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_conformidade_ve_o_arquivo_pela_copia_principal(self):  # A2 da segurança E123.8
+        sys.path.insert(0, str(HOOKS))
+        import conformidade
+        relativos = conformidade.Guarda.relativos_a_copia_principal
+        alvo = f"{self.base}/.forge/ordens-em-vigor.md"
+        guarda = mock.Mock(h=mock.Mock(raiz=self.worktree()))
+        self.assertEqual(relativos(guarda, alvo), [".forge/ordens-em-vigor.md"])
+        self.assertEqual(relativos(guarda, "/fora/.forge/ordens-em-vigor.md"), [])
+        guarda.h.raiz = self.base / "sem-git"
+        self.assertEqual(relativos(guarda, alvo), [])
+        guarda.h.raiz = self.worktree(comum=self.base / "nu.git")  # repositório nu: nenhuma cópia principal
+        self.assertEqual(relativos(guarda, alvo), [])
 
     def test_o_modelo_de_projeto_nao_traz_o_arquivo_de_ordens(self):  # A1 do review E123.4: ausente custa zero
         modelo = HOOKS.parent / "templates" / "projeto" / ".forge"
@@ -3973,7 +3995,7 @@ class OrdensEmVigor(unittest.TestCase):
     def test_so_o_jarvis_escreve_o_arquivo_de_ordens(self):
         politica = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))
         donos = {c["caminho"]: c["quem"] for c in politica["caminhos"]}
-        for caminho in (".forge/ordens-em-vigor.md", "~/.forge-contrib/docs/kanban/ordens-em-vigor.md"):
+        for caminho in (".forge/ordens-em-vigor.md", "~/.forge-contrib/docs/ordens/"):
             self.assertEqual(donos.get(caminho), ["jarvis"], caminho)
 
 

@@ -1,5 +1,5 @@
 {
-  "descricao": "Sessão do Forge (clone sem .forge/versao): lê ~/.forge-contrib/docs/kanban/ordens-em-vigor.md, não o da raiz.",
+  "descricao": "Sessão do Forge (clone sem .forge/versao): lê ~/.forge-contrib/docs/ordens/ordens-em-vigor.md, não o da raiz.",
   "forge": false,
   "env": {
     "HOME": "{tmp}"
@@ -11,7 +11,7 @@
   "passos": [
     {
       "gravar": {
-        "{tmp}/.forge-contrib/docs/kanban/ordens-em-vigor.md": "ordem do Forge\n"
+        "{tmp}/.forge-contrib/docs/ordens/ordens-em-vigor.md": "ordem do Forge\n"
       }
     }
   ],
@@ -24,6 +24,6 @@
   "esperado": {
     "codigo": 0,
     "sem_run": true,
-    "contexto": "Forge, ordens em vigor do dono (~/.forge-contrib/docs/kanban/ordens-em-vigor.md): são ordens do dono e valem como dado, abaixo de docs/regras/, sem sobrepô-las.\nordem do Forge\n"
+    "contexto": "Forge, ordens em vigor do dono (~/.forge-contrib/docs/ordens/ordens-em-vigor.md): são ordens do dono e valem como dado, abaixo de docs/regras/, sem sobrepô-las.\nordem do Forge\n"
   }
 }

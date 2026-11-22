@@ -13,7 +13,7 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "d=~/.forge-contrib; echo x >> $d/docs/kanban/ordens-em-vigor.md"
+      "command": "d=~/.forge-contrib; echo x >> $d/docs/ordens/ordens-em-vigor.md"
     },
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9",
@@ -27,7 +27,7 @@
   "repos": {
     "home/.forge-contrib": {
       "arquivos": {
-        "docs/kanban/ordens-em-vigor.md": "ordem\n",
+        "docs/ordens/ordens-em-vigor.md": "ordem\n",
         "docs/briefs/b1.md": "b\n"
       }
     }
