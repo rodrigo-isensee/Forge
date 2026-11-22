@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-placar-prometido
-commit: afc7083d568d98634c39a498fef1954cc4f3dc1f
+commit: b57a96761cfd79434411d1978ff1e537a07c8b7c
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -37,3 +37,9 @@ Escopo: `bin/forge-placar propostas` com `prometido: <N>%` na Métrica (MEDIR-DE
 - Vermelho (manual, em cópia da base 900bfdfe com o teste novo): Ran 12 tests, FAILED (failures=9, errors=3), os 12 caem sem a implementação. `forge-testes --vermelho 900bfdfe` foi interrompido por demora (sem veredito); o vermelho vale pela rodada manual.
 - Mutação: `bin/forge-mutante tests/mutantes/v0478-placar-prometido.json tests/mutantes/v0478-placar-prometido-2.json`: M1 a M9 `morreu`, nenhum sobrevivente.
 - `forge-mutante --cobertura --base 900bfdfe`: linhas 554, 580, 583, 586, 595, 625 cobertas; 593 e 594 saem "sem mutante" mas com `por quê` apontando M6/M7 (mortos); `tests/pesos-d4.json` é dado, não regra.
+
+## Revalidação (head b57a9676, delta desde afc7083d)
+Delta de código: `PROMETIDO` limitado a 6 dígitos inteiros (`bin/forge-placar:111`, o float nunca vira `inf`), mensagem de falta, mapa do `forge-testes` e mutantes M6, M7, M10. Sem achado.
+- Provas: `python3 -I -m unittest discover -s tests -p test_placar_prometido.py`: Ran 14 tests, OK.
+- Provas: `bin/forge-mutante --base afc7083d568d98634c39a498fef1954cc4f3dc1f --ids M6,M7,M10 <spec-1> <spec-2>`: `base=afc7083d… rev=b57a9676…`; M6 `morreu · bin/forge-placar:594`, M7 `morreu · bin/forge-placar:593`, M10 `morreu · bin/forge-placar:111`; rc 0, nenhum sobrevivente.
+- Suíte inteira: check-run `bateria` do PR no mesmo sha (não rodada local).
