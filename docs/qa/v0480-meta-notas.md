@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-meta-notas
-commit: 064e58ce43a4a9f25093ff826847297da1c4780d
+commit: e31f2416990cc6ed223b76584141805061eea624
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -47,10 +47,19 @@ Os 17 testes novos de `NotasEntreFerramentas` caem na base (13 por asserção, 4
 `forge-mutante --cobertura --base 900bfdfe2435...`: `base=900bfdfe24352def4272749213a74baceb69cc21 mb=900bfdfe24352def4272749213a74baceb69cc21 rev=064e58ce43a4a9f25093ff826847297da1c4780d`; toda condição mudada em `hooks/meta.py` (linhas 281 a 345) tem mutante declarado; única observação `spec editada · v047-g4-medida-idioma.json` (o trecho `de` do M6 acompanhou a nova linha 345, legítimo).
 - `v0478-meta-notas.json`: M1 a M8 morreu (rc 0).
 - `v0478-meta-notas-2.json`: M9 a M14 morreu (M11 a M14 por erro do teste declarado sob o mutante, com controle verde, vale como morte) (rc 0).
-- `v0478-meta-notas-3.json`: M15 a M21 morreu (M19, M21 por erro, idem) (rc 0).
+- `v0478-meta-notas-3.json`: M15 a M22 morreu (M19, M21, M22 por erro, idem) (rc 0).
 - `v047-g4-medida-idioma.json`: M1 a M8 morreu (rc 0).
 Nenhum sobrevivente; nenhum equivalente declarado.
 
 ## Observações sem achado
 - A marca grava só uuid e sha256 da final, nunca o texto; confere com o cabeçalho do módulo.
-- Gravação de `notas.json` roda a cada Stop com dono conhecido; falha de escrita cai no tratamento de erro interno do hook (libera), conforme o docstring.
+- Gravação de `notas.json` roda a cada Stop com dono conhecido; desde e31f2416 a falha de escrita vai ao `erros.log` e a linha da medida segue (A1 da segurança, E109.7).
+
+## Revalidação (E109.10, head e31f2416)
+Delta `064e58ce..e31f2416` (`forge-check parecer delta`): `hooks/meta.py` (try/except OSError em torno de `gravar_json`, linha 323), `tests/test_meta.py`, `tests/mutantes/v0478-meta-notas-3.json` (M22), `changelog.d`. Obrigação nova: falha ao gravar a marca não perde a linha da medida (A1 de `docs/security/v0480-meta-notas.md`).
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Marca que não grava não perde a linha, erro vai ao log | `NotasEntreFerramentas.test_marca_que_nao_grava_nao_perde_a_linha_da_medida` | `notas.json` no lugar de pasta (IsADirectoryError) | passou |
+- `python3 -I -m unittest discover -s tests -p test_meta.py`: 50 testes, OK.
+- `forge-mutante tests/mutantes/v0478-meta-notas-3.json`: `M22 · morreu · hooks/meta.py:326 · (erro) o teste declarado deu erro sob o mutante e passa sem ele`; M15 a M21 seguem mortos; rc 0.
+- Suíte inteira: vale o check-run `bateria` do CI do PR no mesmo sha.
