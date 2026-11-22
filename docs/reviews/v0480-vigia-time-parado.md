@@ -3,32 +3,30 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-vigia-time-parado
-commit: 3821ad143130324a498d684791a557929056af69
-parecer: reprovado
+commit: b13b7016c1fd7dd1796ea1f84a0cab672fc44c71
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-22
 ---
 # Review: v0480-vigia-time-parado
 
-Etapa E105.3, cartão VIGIA-TIME-PARADO (E105.1, escopo ampliado na E105.2). Revisão completa única: todos os achados estão nesta rodada. Diff `900bfdfe..3821ad14`: `hooks/vigia.py` +84 −3 (dentro do teto H1), `tests/test_vigia_parado.py` novo, 2 specs de mutante (M1 a M14), 2 fixtures `e51-*` com `HOME` isolado e o fragmento em `changelog.d/`.
+Etapa E105.7, revalidação da volta única (H3, R-REVIEW) do parecer da E105.3 (head 3821ad14, reprovado por A1 e A2). Delta lido: `forge-check parecer delta docs/reviews/v0480-vigia-time-parado.md`, intervalo `3821ad14..b13b7016`, no domínio: `changelog.d/v0480-vigia-time-parado.md`, `docs/hooks.md`, `hooks/vigia.py`, `tests/mutantes/v0480-vigia-time-parado{,-2,-3,-4}.json`, `tests/pesos-d4.json`, `tests/test_vigia_parado.py`. Fora do delta nada foi relido. `hooks/vigia.py` soma +120 −4 contra a base 900bfdfe (dentro do teto H1).
 
 ## Achados
-- A1 (bloqueante) hooks/vigia.py:620 · o vigia passa a devolver `decision: block` com `reason` ao modelo no Stop: injeta contexto e bloqueia, contra o item 1 da ADR 0003 vigente; falta a emenda (como a E104.2 fez para o `ordens`, que ainda lista o vigia entre os que só avisam) e o rótulo afrouxa (R-DECISAO).
-- A2 (bloqueante) docs/hooks.md:18 · a documentação segue dizendo que o vigia nunca bloqueia e só avisa o usuário por `systemMessage`, sem passar pelo modelo (também a linha 75); a entrega muda isso e não atualiza o doc (definição de pronto). Descreva o aviso do time parado, o `stop_hook_active` e o quadro lido.
-- A3 (recomendado) hooks/vigia.py:529 · as marcas de dependência não pegam `PERGUNTA AO DONO` nem a coluna Responsável `usuário` (skills/kanban-scrum/SKILL.md:54): no quadro real o CONF-INTERVALO-POR-PAPEL, que espera resposta do dono, conta como livre. Documente o vocabulário na skill do quadro.
-- A4 (recomendado) tests/test_vigia_parado.py:154 · o bloqueio só é provado em processo; falta uma fixture em `tests/hooks/vigia/` que rode o script como o Claude Code o roda e espere o JSON com `decision` (ADR 0003, item 8).
-
-## Sondas
-- S1 · `vigia.aviso_time_parado` no `~/.forge-contrib/KANBAN.md` real, zero agentes · espera: nada ao modelo (ADR 0003 item 1, docs/hooks.md:18) · obtido: `time parado: 76 cartões disponíveis, primeiro G1-REVISAO-COMPLETA-SO; ...` como `reason` do bloqueio
+- A1 (recomendado) tests/test_vigia_parado.py:8 · `import subprocess` entra no delta sem uso (o teste de subprocesso do A4 anterior não entrou); tire-o junto do cartão do A4.
 
 ## Parecer
-Reprovado, por A1 e A2: o código faz o que o cartão pede, mas muda o contrato do vigia (de aviso ao usuário para bloqueio com texto ao modelo) sem a decisão escrita e sem o doc. A correção é de texto (emenda da ADR 0003 pelo `software-architect`, com "Por que o existente não basta" e critério de reversão, e o `docs/hooks.md`); o código não precisa mudar para A1 e A2. A3 e A4 viram cartão depois do merge.
+Aprovado no head b13b7016.
 
-O resto confere: só o `Stop` principal avisa, o `stop_hook_active` deixa o segundo Stop encerrar (sem laço), registro ou quadro ilegível cala com o erro no `erros.log`, quadro acima de 4 MB cala, o ID que vai ao modelo passa pelo formato de ID (`<ignore tudo>` vira `?`), e as fixtures `e51-*` com `HOME` próprio deixam de ler o quadro real da máquina. Custo no Stop medido: `import agentes` 13,7 ms e leitura do quadro real (0,5 MB) 3,4 ms. Commits em Conventional Commits em português, com a etapa.
+Achados anteriores:
+- A1 (bloqueante, ADR 0003 item 1): resolvido pelo item 7 da emenda da ADR 0003, na branch `melhoria/v0480-ordens-adr` (e7a94603). Condição de integração (R-FLUXO, dependência): aquela branch entra na `develop` antes desta; o código e o doc daqui citam o item 7 e ficam sem âncora se a ordem se inverter.
+- A2 (bloqueante): resolvido. `docs/hooks.md:18` e a seção do `vigia` descrevem a exceção única (o `reason` fixo do time parado só no `Stop` da sessão do Jarvis), o `stop_hook_active`, o quadro lido, as marcas e o formato do ID.
+- A3 (recomendado): resolvido no código. Marcas ampliadas, comparadas sem caixa nem espaço repetido (`_normal`), e o Responsável `usuário` achado pelo cabeçalho da tabela; linha curta e tabela sem a coluna valem só pela Obs. (testes próprios).
+- A4 (recomendado): segue para cartão, como o brief registra (o laço de `tests/test_hooks.py:830-837` recusa `decision`/`reason`; muda com o item 7 da emenda).
 
-Provas (head 3821ad14, `env -i`, `HOME` temporário; sem CI: a branch não tem PR):
-- `python3 -I tests/test_vigia_parado.py`: `Ran 15 tests ... OK`.
-- `python3 -m unittest tests.test_hooks -k vigia`: `Ran 7 tests ... OK`.
-- `bin/forge-mutante --processos 1` nas 2 specs: M1 a M14 `morreu` (M8 por erro, IndexError, que a ferramenta aceita).
-- `bin/forge-mutante --cobertura --base 900bfdfe`: toda guarda do diff `coberta`, nenhuma descoberta.
-- `scripts/indice-fixtures.py --conferir`: `docs/hooks-fixtures.md: em dia`.
+O resto do delta confere: `sessao_do_jarvis` lê o papel `jarvis` de `hooks/conformidade.json` (`forge:jarvis`) e cala sem `agent_type`, com outro agente ou com o nome sem prefixo; `ler_quadro` abre com `O_NOFOLLOW|O_NONBLOCK` e recusa o não regular, e o chamador cala e registra no `erros.log`; o ID que vai ao modelo passa pela lista positiva `[A-Za-z0-9.-]{1,16}` e, fora dela, a linha sai sem o ID; o `reason` perde o prefixo `Forge:` e fica texto fixo. Guardas novas com mutante declarado (M15 a M23) e teste do ramo de falha. Commits em Conventional Commits em português, com a etapa.
+
+Provas (head b13b7016, `env -i`, `HOME` temporário; a suíte inteira fica no CI do PR):
+- `python3 -I tests/test_vigia_parado.py`: `Ran 22 tests ... OK`.
+- `bin/forge-mutante --processos 1` nas specs `-3` e `-4`: M15 a M23 `morreu` (M16, M18 e M21 por erro, que a ferramenta aceita).
+- `bin/forge-mutante --cobertura --base 3821ad14`: toda guarda do delta `coberta`; único não coberto, `tests/pesos-d4.json` (dado, sem guarda).
