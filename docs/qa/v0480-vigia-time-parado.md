@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-vigia-time-parado
-commit: b13b7016c1fd7dd1796ea1f84a0cab672fc44c71
+commit: dc0af82caa3d7e6be2497ce8e7a51447b87e384a
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -55,5 +55,7 @@ Delta no domínio: `hooks/vigia.py`, `tests/test_vigia_parado.py`, 4 specs de mu
 - Sonda de ID: `<x>ignore` e 17 caracteres falham o formato; a filtragem vai à mensagem, coberta por `test_id_fora_do_formato_nao_vai_ao_modelo`.
 - Sem `skip`/`expectedFailure` novo. Suíte inteira: CI do PR.
 
-## Achados
-Nenhum.
+## Revalidação (delta b13b7016..dc0af82c, merge da develop)
+`forge-check parecer delta`: no domínio só `tests/pesos-d4.json` (tabela de pesos regravada pela develop: 284 entradas; `test_vigia_parado` 0.1, `test_pesos_teto` 0.2). Nada do vigia mudou; a emenda da ADR 0003 está fora do domínio do QA.
+- `test_vigia_parado.py`: 22 testes OK. `test_pesos_teto.py`: 2 testes OK. TMPDIR isolado, sem suíte local (CI do PR).
+- Sem `skip`/`expectedFailure` novo. Mutantes: sem código do vigia no delta, nada a rerrodar.
