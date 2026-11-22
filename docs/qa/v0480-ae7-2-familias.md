@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ae7-2-familias
-commit: 62d27eb6ca7c576d9040e5ee7f230ba192798a58
+commit: 22ca54c6464d3f29361f246623a97620e564a622
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -35,4 +35,10 @@ data: 2026-11-22
 - `forge-check parecer delta`: no domínio `bin/forge_comparar.py`, `tests/test_comparar.py`, 3 specs de mutantes, `tests/pesos-d4.json`, changelog. Tetos do gerador (A2), `seguro` no nome da família (A1) e HOME/TMPDIR por caso (A3) lidos no diff; sem escopo novo.
 - `TMPDIR` vazio, `python3 -I -m unittest discover -s tests -p test_comparar.py`: `Ran 89 tests in 141.213s · OK` (inclui `LadosSeparados`, que passa com `TMPDIR` limpo).
 - `bin/forge-mutante tests/mutantes/v0478-ae7-2-familias-4.json --base cb2043bc55d7cf94bdc4fcaf0f4bfa17f9ee7995`: `base=cb2043bc55d7cf94bdc4fcaf0f4bfa17f9ee7995 ... rev=62d27eb6ca7c`; AE72-25 a AE72-29 `morreu` (bin/forge_comparar.py:109, 113, 113, 109, 423); nenhum sobrevivente.
+- Sem achados.
+
+## Revalidação (volta de CI, delta 62d27eb6..22ca54c6)
+- `forge-check parecer delta`: no domínio, só `tests/mutantes/v0478-ae7-comparar.json`, `-3`, `-4`, `-6` e `tests/pesos-d4.json`; nenhum código de produção do AE7.2 mudou. A volta realinhou nove mutantes do AE7.1 à fonte atual (trecho `de` mais longo, para ficar único).
+- `TMPDIR` vazio, `bin/forge-mutante --base 62d27eb6 tests/mutantes/v0478-ae7-comparar.json -3 -4 -6 --processos 2`: rc 0; CMP7 a CMP47 todos `morreu` (CMP22 em forge_comparar.py:320, CMP26 em :410; CMP23, CMP26 e CMP31 com `(erro)` sob controle verde); nenhum sobrevivente nem sem veredito.
+- `bin/forge-mutante --conferir --todas` (`TMPDIR` vazio): nenhuma linha dos quatro specs `v0478-ae7-comparar*`; as 26 linhas restantes (ex.: `hk3-parecer-pasta-14`, `z075-prepush-relogio`, `v0441-*`) são de specs de outros pedidos, fora do diff, e não bloqueiam este item.
 - Sem achados.
