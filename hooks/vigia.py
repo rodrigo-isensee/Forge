@@ -569,10 +569,8 @@ def cartoes_livres(texto):
 def agentes_rodando(hook, raiz):
     """Registros vigentes do R-TETO (reserva ou agente iniciado), pela mesma leitura do `agentes.py`; ilegível levanta."""
     import agentes  # só no Stop: o módulo é grande
-    arquivo = agentes.arquivo_de_estado(raiz)
-    if arquivo is None:
-        raise agentes.EstadoIlegivel("sem diretório comum do git")
-    return len(agentes.vigentes(agentes.ler_estado(arquivo)["agentes"], time.time(), hook.expira_s()))
+    estado = agentes.ler_estado(agentes.arquivo_de_estado(raiz))  # sem diretório comum (None), o TypeError é a dúvida
+    return len(agentes.vigentes(estado["agentes"], time.time(), hook.expira_s()))
 
 
 def aviso_time_parado(hook, raiz):

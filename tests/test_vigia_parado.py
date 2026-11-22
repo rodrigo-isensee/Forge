@@ -124,8 +124,9 @@ class TimeParado(unittest.TestCase):
         self.assertEqual(len(hook.erros), 1)
 
     def test_quadro_grande_demais_cala(self):
-        self.gravar(quadro(livres=("LIVRE-1",)))
-        with mock.patch.object(vigia, "LIMITE_QUADRO", 10):
+        texto = quadro(livres=("LIVRE-1",))
+        self.gravar(texto)
+        with mock.patch.object(vigia, "LIMITE_QUADRO", len(texto.encode("utf-8")) - 1):  # o corte ainda traz o cartão livre
             self.assertIsNone(self.aviso())
 
     def test_sem_quadro_cala(self):
@@ -146,8 +147,9 @@ class TimeParado(unittest.TestCase):
                 mock.patch.object(vigia, "versao_sumiu", lambda: False), \
                 mock.patch.object(vigia, "raiz_declarada", lambda: None), contextlib.redirect_stdout(saida):
             vigia.principal(hook)
-        self.assertEqual(json.loads(saida.getvalue()), {
-            "decision": "block", "reason": "Forge: time parado: 1 cartões disponíveis, primeiro LIVRE-1; retome sem esperar o dono"})
+        esperado = {"decision": "block",
+                    "reason": "Forge: time parado: 1 cartões disponíveis, primeiro LIVRE-1; retome sem esperar o dono"}
+        self.assertEqual(saida.getvalue().strip(), json.dumps(esperado, ensure_ascii=False))
 
 
 if __name__ == "__main__":
