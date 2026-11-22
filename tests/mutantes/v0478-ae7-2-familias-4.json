@@ -1,0 +1,56 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE72-25",
+      "guarda": "A2 (E107.6) gerados_de: saída do gerador acima de TETO_GERADOS bytes é None",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "        if os.fstat(saida.fileno()).st_size > TETO_GERADOS:\n            return None",
+      "para": "        if False:\n            return None",
+      "testes": [
+        "tests.test_comparar.FamiliasGeradas.test_gerador_que_escreve_alem_do_teto_e_engole_o_erro_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "AE72-26",
+      "guarda": "A2 (E107.6) gerados_de: mais linhas que TETO_CASOS é None",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if cod == 0 and r.returncode == 0 and len(texto.splitlines()) <= TETO_CASOS else None",
+      "para": "if cod == 0 and r.returncode == 0 else None",
+      "testes": [
+        "tests.test_comparar.FamiliasGeradas.test_casos_gerados_acima_do_teto_sao_nao_verificavel"
+      ]
+    },
+    {
+      "id": "AE72-27",
+      "guarda": "A2 (E107.6) gerados_de: no teto de casos exato o gerador vale",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if cod == 0 and r.returncode == 0 and len(texto.splitlines()) <= TETO_CASOS else None",
+      "para": "if cod == 0 and r.returncode == 0 and len(texto.splitlines()) < TETO_CASOS else None",
+      "testes": [
+        "tests.test_comparar.FamiliasGeradas.test_casos_gerados_acima_do_teto_sao_nao_verificavel"
+      ]
+    },
+    {
+      "id": "AE72-28",
+      "guarda": "A2 (E107.6) gerados_de: no teto de bytes exato a saída vale",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "st_size > TETO_GERADOS:",
+      "para": "st_size >= TETO_GERADOS:",
+      "testes": [
+        "tests.test_comparar.FamiliasGeradas.test_saida_do_gerador_acima_do_teto_de_bytes_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "AE72-29",
+      "guarda": "A1 (E107.6) a linha familias: passa pelo seguro",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    cobertura = ctx[\"seguro\"](\" \".join(",
+      "para": "    cobertura = str(\" \".join(",
+      "testes": [
+        "tests.test_comparar.FamiliasGeradas.test_id_gerado_com_quebra_de_linha_nao_forja_linha_da_saida"
+      ]
+    }
+  ]
+}
