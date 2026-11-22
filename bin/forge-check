@@ -4243,7 +4243,7 @@ def fora_do_escopo_do_pedido(dados, cobre, entregues, anterior=()):
 
 
 VOLTA_NO_ENTREGAR = r"\bvolta (\d+)"  # `grupo` compila (re.M)
-VOLTA_NA_DECISAO = re.compile(r"\bvoltas?\b", re.I)
+VOLTA_NA_DECISAO = r"(?i)\bvoltas?\b"
 
 
 def numero_da_volta(blocos):
@@ -4257,18 +4257,17 @@ def voltas_autorizadas(cobradas, branch):
     if not branch:
         return 1
     nome = re.compile(rf"(?<![\w./-]){re.escape(branch)}(?![\w/-]|\.\w)")
-    return 1 + sum(1 for _, linhas in cobradas["fontes"] for _, linha in linhas if nome.search(linha) and VOLTA_NA_DECISAO.search(linha))
+    return 1 + sum(1 for _, linhas in cobradas["fontes"] for _, linha in linhas if nome.search(linha) and re.search(VOLTA_NA_DECISAO, linha))
 
 
 def recusa_da_volta(n, cobradas, branch):
     """G1.1: o motivo de recusar a volta `n` sem a decisão do dono (R-DECISAO), com o que fazer; None se ela cabe no teto."""
     if n <= voltas_autorizadas(cobradas, branch):
         return None
-    alvo = nome_seguro(sem_controle(branch or "<branch>"))
-    return (f"volta {n} recusada para {alvo}: no máximo 1 volta por item (R-QA; CI vermelho e conflito com a base entram no mesmo brief "
+    return (f"volta {n} recusada para {nome_seguro(sem_controle(branch or '<branch>'))}: no máximo 1 volta por item (R-QA; CI vermelho e conflito com a base entram no mesmo brief "
             "de volta e não contam). Corrigir: leve ao dono como decisão (R-DECISAO), com três opções: (a) cortar o item e reabrir menor; "
             "(b) aceitar com cartão, só sem bloqueante de segurança; (c) autorizar mais uma volta, gravada no pedido como "
-            f"`- AAAA-MM-DD HH:MM: DECISÃO DO DONO: mais uma volta para {alvo}` (uma linha por volta a mais)")
+            f"`- AAAA-MM-DD HH:MM: DECISÃO DO DONO: mais uma volta para {nome_seguro(sem_controle(branch or '<branch>'))}` (uma linha por volta a mais)")
 
 
 def gerar_volta(raiz, caminho_pedido, pedido_txt, a):

@@ -14,7 +14,7 @@
       "id": "M2",
       "guarda": "a decisão só autoriza se citar a volta, não só a branch",
       "arquivo": "bin/forge-check",
-      "de": "if nome.search(linha) and VOLTA_NA_DECISAO.search(linha))",
+      "de": "if nome.search(linha) and re.search(VOLTA_NA_DECISAO, linha))",
       "para": "if nome.search(linha))",
       "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_volta_dois_so_com_decisao_do_dono_que_cita_a_branch"]
     },
