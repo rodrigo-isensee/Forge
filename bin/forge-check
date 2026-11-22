@@ -4158,11 +4158,11 @@ def mesmo_commit(a, b):
     return bool(a) and bool(b) and (a.startswith(b) or b.startswith(a))
 
 
-def parecer_anterior(raiz, rel, ref, campos):
-    """(commit, achados) da versão anterior de `rel` na `ref` (a rodada anterior: mesmo pedido e branch, outro `commit:`), ou None."""
-    cod, saida = git(raiz, "log", "--format=%H", "-n", "30", ref, "--", rel)
-    for sha in saida.split() if not cod else ():
-        cod, texto = git(raiz, "show", f"{sha}:{rel}")
+def parecer_anterior(raiz, rel, ponta, campos):
+    """(commit, achados) da versão anterior de `rel` na `ponta` (a rodada anterior: mesmo pedido e branch, outro `commit:`), ou None."""
+    cod, saida = git(raiz, "log", "--format=%H", "-n", "30", ponta, "--", rel)
+    for ref in saida.split() if not cod else ():
+        cod, texto = git(raiz, "show", f"{ref}:{rel}")  # argumento do git, não vai à saída
         antes = (ler_frontmatter(texto)[0] or {}) if not cod else {}
         if (antes.get("pedido"), antes.get("branch")) != (campos.get("pedido"), campos.get("branch")):
             continue

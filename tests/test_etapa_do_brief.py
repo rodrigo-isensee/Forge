@@ -377,8 +377,8 @@ class TabelaDePareceres(Repo):
         self.assertEqual(rc, 0, saida)
         self.assertIn("Etapa: pr   Cobre: E1.5", saida)
 
-    def test_md_de_controle_sem_qa_recusa(self):
-        self.entrega({"agents/x.md": "# x\n"}, "review")
+    def test_md_de_controle_sem_qa_recusa(self):  # G1.3: o texto de agente é T; o pronto.md da stack segue C (E122.6)
+        self.entrega({"stacks/s/pronto.md": "# x\n"}, "review")
         rc, saida = self.gerar("merge-integracao")
         self.assertEqual(rc, 1)
         self.assertIn("brief gerar: recusado: docs/qa: qa: sem parecer", saida)
