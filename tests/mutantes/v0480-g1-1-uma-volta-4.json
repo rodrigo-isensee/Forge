@@ -43,6 +43,16 @@
         "tests.test_volta_por_delta.BriefDeVolta.test_s7_anterior_sem_branch_nao_gera_outra_volta_um",
         "tests.test_volta_por_delta.BriefDeVolta.test_s8_anterior_de_outro_item_nao_gera_outra_volta_um"
       ]
+    },
+    {
+      "id": "M28",
+      "guarda": "a recusa nomeia a volta sem Branch: como <branch>",
+      "arquivo": "bin/forge-check",
+      "de": "sem_controle(branch or '<branch>'))}; \"",
+      "para": "sem_controle(branch or ''))}; \"",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_conferencia_recusa_a_volta_sem_branch_no_brief_novo"
+      ]
     }
   ]
 }

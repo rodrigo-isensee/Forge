@@ -1151,6 +1151,13 @@ class BriefDeVolta(Repositorio):
         self.assertEqual(rc, 1, conferencia)
         self.assertIn(f'volta: o anterior "{anterior}" é de "melhoria/y", não de "melhoria/x"', conferencia)
 
+    def test_conferencia_recusa_a_volta_sem_branch_no_brief_novo(self):  # segurança A2: a volta sem `Branch:` não é do item
+        rc, saida = self.gerar()
+        texto = "".join(l for l in saida.splitlines(keepends=True) if not l.startswith("Branch:"))
+        rc, conferencia = self.conferir(texto, ref=None)
+        self.assertEqual(rc, 1, conferencia)
+        self.assertIn(f'volta: o anterior "{self.rel_anterior}" é de "melhoria/x", não de "<branch>"', conferencia)
+
     def test_conferencia_sem_cobradas_le_as_decisoes_do_pedido(self):  # QA A2: o fallback `cobradas or` do conferir_volta
         rc, saida = self.gerar()
         (self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md").write_text(saida, encoding="utf-8")
