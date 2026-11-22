@@ -3,12 +3,14 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-trilha-forge-check
-commit: d2f79996cc41129fab309d802639e83228d981c8
+commit: 06ab19882f2550d175dbd077d85d02f0d2d1d16c
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
 ---
-# Review: v0478 E91.11 (TRILHA-FORGE-CHECK, revalidação)
+# Review: v0478 E91.15 (TRILHA-FORGE-CHECK, revalidação)
+
+Delta lido (E91.15): `forge-check parecer delta` de d2f79996..06ab1988, sem o que veio da develop 27169ed1 (merge ce5b60de); no domínio só `tests/mutantes/v0479-trilha-forge-check-2.json`. O `para` do M7 passou a `f"origin/{'develop'}"`: a mutação é a mesma (ignora a `base` dada), agora dentro do nó `base or 'develop'` que a catraca exige. `forge-mutante --ids M7`: morreu em bin/forge-check:466. `--cobertura --base 27169ed1`: :466 coberta pelo M7. Sem achado novo; o aprovado abaixo segue.
 
 Escopo: delta 95994eec..d2f79996 lido por `forge-check parecer delta` (bin/forge-check, changelog.d, specs revisor-wt-e6a-1, revisor-wt-e6a-4 e -3, test_revisor_wt). H1: o item soma 79 linhas de código desde o Base-sha 15936278 (`bin/forge-check` 62+15, `bin/forge-testes` 1+1); a volta tem 25+13. Dentro do teto.
 
