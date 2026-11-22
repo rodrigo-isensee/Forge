@@ -185,6 +185,39 @@ container_pacotes() {
   fi
 }
 
+# E119.1 (AMBIENTE-SOBREVIVE-RECRIACAO): o Claude Code atual. O home some com o container e o `claude` do PATH da imagem pode ser
+# antigo; o instalador oficial (nativo, de claude.ai, sem custo) põe o binário em ~/.local/bin/claude, que se atualiza sozinho.
+# Só instala se esse binário faltar (rodar duas vezes não muda nada) e garante ~/.local/bin na frente do PATH do bash. Falha
+# (sem rede) vira "falta:", nunca barra o container.
+claude_ok() { [ -x "$HOME/.local/bin/claude" ]; }
+garantir_path_local() {
+  [ "$simular" = 0 ] || return 0
+  grep -q '.local/bin' "$HOME/.bashrc" 2>/dev/null && return 0
+  # shellcheck disable=SC2016 # $HOME e $PATH devem ir literais para o .bashrc
+  printf '\n# claude e atalhos pessoais\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.bashrc"
+  fez "~/.local/bin entrou na frente do PATH do bash"
+}
+container_claude() {
+  local tmp
+  if claude_ok; then
+    fez "Claude Code já instalado em $HOME/.local/bin/claude"
+  elif ! tem curl; then
+    falta "instalar o Claude Code (sem curl aqui): curl -fsSL https://claude.ai/install.sh | bash"
+  elif [ "$simular" = 1 ]; then
+    printf '[simular] baixar https://claude.ai/install.sh e rodar com bash\n'
+  else
+    tmp="$(mktemp -d)"
+    if curl -fsSL -o "$tmp/instalar.sh" https://claude.ai/install.sh \
+       && { if tem timeout; then timeout 300 bash "$tmp/instalar.sh"; else bash "$tmp/instalar.sh"; fi; } </dev/null >/dev/null 2>&1 && claude_ok; then
+      fez "instalou o Claude Code atual em $HOME/.local/bin/claude"
+    else
+      falta "instalar o Claude Code (o download ou a instalação falhou; rode de novo com rede): curl -fsSL https://claude.ai/install.sh | bash"
+    fi
+    rm -rf "$tmp"
+  fi
+  garantir_path_local
+}
+
 # Garante que $1 (no home) seja link para $2 (persistente). $3 = nome; $4 = 1 cria $2 vazio (0700) se faltar.
 # Diretório real em $1 é movido para $2 (o mv entre discos copia e só remove a origem se a cópia der certo).
 persistir() {
@@ -404,6 +437,7 @@ preparar_container() {
   FORGE_CONTRIB_REPO="${FORGE_CONTRIB_REPO:-rodrigo-isensee/forge-contrib}"
   dados="${XDG_DATA_HOME:-$HOME/.local/share}"
   container_pacotes
+  container_claude
   persistir "$HOME/.config/gh" "$HOME/.claude/gh" "configuração do gh" 1 || true
   container_forge
   container_login
@@ -433,6 +467,7 @@ verificar_container() {
   if tem gh && ! gh auth status >/dev/null 2>&1; then
     f+=("gh sem login (o login mora em ~/.claude/gh e sobrevive à recriação; falta fazê-lo uma vez): gh auth login -s repo,workflow --web e depois $preparo")
   fi
+  claude_ok || f+=("Claude Code atual ausente em $HOME/.local/bin/claude (o do PATH pode ser antigo): rode $preparo")
   if [ ! -d "$real" ] || [ "$(readlink -f "$HOME/.forge-contrib")" != "$(readlink -f "$real")" ]; then
     f+=("link $HOME/.forge-contrib -> $real ausente ou sem destino: rode $preparo")
   fi

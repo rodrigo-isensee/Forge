@@ -1836,7 +1836,7 @@ class PrepararEstacao(unittest.TestCase):
         env["PATH"] = ":".join(novas)
 
     def _container(self, tmp, *args, logado=False, escopos="'gist', 'repo', 'workflow'", essencial=False, sem_gh=False, extras=None,
-                   plugin_ativo=False):
+                   plugin_ativo=False, sem_claude_local=False):
         """Roda `preparar-estacao.sh --container` sem rede: gh, tmux, shellcheck, claude, sudo, curl e apt-get são
         falsos e registram a chamada; o jarvis-forge da origem falsa cria a cópia vigente com `dev/`."""
         tmp = Path(tmp)
@@ -1845,6 +1845,10 @@ class PrepararEstacao(unittest.TestCase):
         for d in (home / ".claude", origem / "scripts", bin_falso):
             d.mkdir(parents=True, exist_ok=True)
         registro = tmp / "chamadas"
+        if not sem_claude_local:  # E119.1: o Claude Code atual já em ~/.local/bin (o teste de instalação o tira)
+            (home / ".local/bin").mkdir(parents=True, exist_ok=True)
+            (home / ".local/bin/claude").write_text("#!/bin/sh\nexit 0\n")
+            (home / ".local/bin/claude").chmod(0o755)
         (origem / "scripts" / "jarvis-forge").write_text(
             '#!/bin/sh\nd="$HOME/.local/share/forge/vigente/dev/agents"\nmkdir -p "$d" && echo aq > "$d/aq.md"\n')
         mostrar_escopos = f"echo \"  - Token scopes: {escopos}\"; " if escopos else ""
@@ -1974,7 +1978,7 @@ class PrepararEstacao(unittest.TestCase):
 
     def test_container_simular_nao_altera_nada(self):
         with tempfile.TemporaryDirectory() as tmp:
-            r, home, persist, chamadas = self._container(tmp, "--simular")
+            r, home, persist, chamadas = self._container(tmp, "--simular", sem_claude_local=True)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertIn("[simular]", r.stdout)
             for criado in ("Forge", ".config", ".local", ".forge-contrib"):
@@ -2107,7 +2111,7 @@ class PrepararEstacao(unittest.TestCase):
             self.assertEqual(r.returncode, 1)
             self.assertIn("falta: gh não instalado: rode bash ", r.stdout)
 
-    def _projeto_ambiente(self, tmp, *args, logado=False, sem_gh=False, sem_tmux=False, extras=None):
+    def _projeto_ambiente(self, tmp, *args, logado=False, sem_gh=False, sem_tmux=False, extras=None, sem_claude_local=False):
         """Roda o preparar-ambiente.sh do modelo de projeto com gh falso e home descartável."""
         tmp = Path(tmp)
         home, persist, bin_falso, proj = tmp / "home", tmp / "persist", tmp / "bin", tmp / "proj"
@@ -2116,6 +2120,10 @@ class PrepararEstacao(unittest.TestCase):
         if not (proj / ".git").exists():
             git("init", "-q", cwd=proj)
         registro = tmp / "chamadas"
+        if not sem_claude_local:  # E119.1
+            (home / ".local/bin").mkdir(parents=True, exist_ok=True)
+            (home / ".local/bin/claude").write_text("#!/bin/sh\nexit 0\n")
+            (home / ".local/bin/claude").chmod(0o755)
         falsos = {} if sem_gh else {"gh": f'echo "gh $*" >> "{registro}"\n[ "$1 $2" = "auth status" ] && exit {0 if logado else 1}\nexit 0\n'}
         falsos.update({n: f'echo "{n} $*" >> "{registro}"\nexit 1\n' for n in ("sudo", "curl", "apt-get")})
         if not sem_tmux:

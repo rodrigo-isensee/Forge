@@ -1,0 +1,96 @@
+{
+  "pedido": "v0480-ambiente-recriacao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "estação: o claude do PATH da imagem (antigo) não conta como o Claude Code atual",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "claude_ok() { [ -x \"$HOME/.local/bin/claude\" ]; }",
+      "para": "claude_ok() { tem claude; }",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_sem_claude_local_instala_pelo_instalador_oficial_e_a_segunda_rodada_nao_repete"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "modelo: o claude do PATH da imagem (antigo) não conta como o Claude Code atual",
+      "arquivo": "templates/projeto/.devcontainer/preparar-ambiente.sh",
+      "de": "claude_ok() { [ -x \"$HOME/.local/bin/claude\" ]; }",
+      "para": "claude_ok() { tem claude; }",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_sem_claude_local_instala_pelo_instalador_oficial_e_a_segunda_rodada_nao_repete"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "estação: com o Claude Code já instalado, a segunda rodada não baixa de novo",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "  if claude_ok; then",
+      "para": "  if false; then",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_com_claude_local_nada_e_baixado"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "modelo: com o Claude Code já instalado, a segunda rodada não baixa de novo",
+      "arquivo": "templates/projeto/.devcontainer/preparar-ambiente.sh",
+      "de": "if claude_ok; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_com_claude_local_nada_e_baixado"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "estação --verificar: o Claude Code ausente é dito",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "claude_ok || f+=(",
+      "para": "true || f+=(",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_verificar_diz_o_que_falta_sem_alterar_nada"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "modelo --verificar: o Claude Code ausente é dito",
+      "arquivo": "templates/projeto/.devcontainer/preparar-ambiente.sh",
+      "de": "claude_ok || faltas+=(",
+      "para": "true || faltas+=(",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_verificar_diz_o_que_falta_sem_alterar_nada"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "estação: o ~/.local/bin entra no PATH do bash uma vez só (idempotente)",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "grep -q '.local/bin' \"$HOME/.bashrc\" 2>/dev/null && return 0",
+      "para": "false && return 0",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_sem_claude_local_instala_pelo_instalador_oficial_e_a_segunda_rodada_nao_repete"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "modelo: o ~/.local/bin entra no PATH do bash uma vez só (idempotente)",
+      "arquivo": "templates/projeto/.devcontainer/preparar-ambiente.sh",
+      "de": "if ! grep -q '.local/bin' \"$HOME/.bashrc\" 2>/dev/null; then",
+      "para": "if true; then",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_sem_claude_local_instala_pelo_instalador_oficial_e_a_segunda_rodada_nao_repete"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "instalação que falha vira falta e o preparo não declara o Claude Code instalado",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "</dev/null >/dev/null 2>&1 && claude_ok; then\n      fez \"instalou o Claude Code atual",
+      "para": "</dev/null >/dev/null 2>&1 || true; then\n      fez \"instalou o Claude Code atual",
+      "testes": [
+        "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_instalacao_que_falha_vira_falta_e_nao_deixa_binario"
+      ]
+    }
+  ]
+}
