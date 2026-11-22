@@ -37,6 +37,9 @@ QA = ("---\ntipo: qa\ncontrato: 1\npedido: {p}\nbranch: melhoria/{p}\ncommit: {c
       "bugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0\ndata: 2026-10-22\n---\n# Q\n")
 CHANGELOG = "# Changelog\n\n## [Não publicado]\n{np}\n## [{v}] - 2026-10-22\n- x\n"
 MERGE = "gh pr " + "merge"  # montado: o texto do comando não aparece solto no arquivo
+AUTO = "--" + "auto"  # PROMOVER-SEM-AUTO-MERGE: o merge automático é proibido em qualquer PR (decisão do dono)
+# os obrigatórios de CHECKS_EXIGIDOS do bin/forge-fechar, todos em pass
+VERDES = (("bateria", "pass"), ("bateria (python 3.14)", "pass"), ("catraca", "pass"))
 
 
 def checks(*itens, evento="pull_request"):
@@ -72,7 +75,7 @@ class Promover(unittest.TestCase):
         self.git("push", "-q", "origin", "develop")
         self.git("push", "-q", "origin", "develop:homolog", "develop:main")
         self.git("fetch", "-q", "origin")
-        (self.estado / "checks").write_text(checks(("bateria", "pass"), ("catraca", "pass")))
+        (self.estado / "checks").write_text(checks(*VERDES))
 
     def tearDown(self):
         shutil.rmtree(self.tmp)
@@ -253,7 +256,8 @@ class Execucao(Promover):
         self.assertNotIn("pr merge", chamadas)
         self.assertNotIn("--force", chamadas)
         sha = self.git("rev-parse", "origin/develop")
-        self.assertIn(f"{MERGE} develop --auto --merge --match-head-commit {sha}", r.stdout)
+        self.assertIn(f"{MERGE} develop --merge --match-head-commit {sha}", r.stdout)
+        self.assertNotIn(AUTO, r.stdout + r.stderr)
         self.assertIn("check bateria pass run=1 job=2", r.stdout)
 
     def test_pr_ja_aberto_e_reusado(self):
@@ -277,13 +281,13 @@ class Execucao(Promover):
         self.assertEqual(r.returncode, 1)
         self.assertEqual(self.gh_chamadas(), [])
 
-    def test_check_pendente_imprime_o_merge_automatico_sem_mesclar(self):
+    def test_check_pendente_nao_imprime_merge_e_sai_com_4(self):
         self.pronta()
-        (self.estado / "checks").write_text(checks(("bateria", "pending")))
+        (self.estado / "checks").write_text(checks(*VERDES[1:], ("bateria", "pending")))
         r = self.roda()
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        sha = self.git("rev-parse", "origin/develop")
-        self.assertIn(f"{MERGE} develop --auto --merge --match-head-commit {sha}", r.stdout)
+        self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
+        self.assertNotIn(MERGE, r.stdout)
+        self.assertNotIn(AUTO, r.stdout + r.stderr)
         self.assertNotIn("pr merge", "\n".join(self.gh_chamadas()))
 
     def test_check_vermelho_para(self):
@@ -302,32 +306,61 @@ class Execucao(Promover):
         self.assertNotIn(MERGE, r.stdout)
         self.assertNotIn("pr edit", "\n".join(self.gh_chamadas()))  # nunca aplica o rótulo
 
-    def test_sem_checks_ainda_imprime_o_merge_automatico(self):
+    def test_sem_checks_ainda_nao_imprime_merge(self):
         self.pronta()
         (self.estado / "checks").write_text("")
         r = self.roda()
+        self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
+        self.assertNotIn(MERGE, r.stdout)
+
+    def test_obrigatorio_sem_execucao_do_pr_nao_imprime_merge(self):
+        self.pronta()  # bateria e catraca verdes, mas falta a bateria (python 3.14), obrigatória no bin/forge-fechar
+        (self.estado / "checks").write_text(checks(("bateria", "pass"), ("catraca", "pass"), ("outro", "skipping")))
+        r = self.roda()
+        self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
+        self.assertIn("bateria (python 3.14)", r.stdout)
+        self.assertNotIn("checks verdes", r.stdout)
+        self.assertNotIn(MERGE, r.stdout)
+
+    def test_obrigatorio_pulado_para(self):
+        self.pronta()
+        (self.estado / "checks").write_text(checks(*VERDES[1:], ("bateria", "skipping")))
+        r = self.roda()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("check obrigatório bateria fora de pass", r.stderr)
+        self.assertNotIn(MERGE, r.stdout)
+
+    def test_nunca_imprime_merge_automatico(self):
+        """PROMOVER-SEM-AUTO-MERGE: em nenhum caminho (verde, pendente, sem check, vermelho, rótulo, dry-run) sai o --auto."""
+        self.pronta()
+        casos = {"verde": checks(*VERDES), "pendente": checks(("bateria", "pending")), "sem check": "",
+                 "só push": checks(*VERDES, evento="push"), "vermelho": checks(("bateria", "fail")),
+                 "rótulo": checks(*VERDES[:2], ("catraca", "fail"))}
+        for caso, saida in casos.items():
+            (self.estado / "checks").write_text(saida)
+            r = self.roda()
+            self.assertNotIn(AUTO, r.stdout + r.stderr, caso)
+        r = self.roda("--dry-run")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        sha = self.git("rev-parse", "origin/develop")
-        self.assertIn(f"{MERGE} develop --auto --merge --match-head-commit {sha}", r.stdout)
+        self.assertNotIn(AUTO, r.stdout + r.stderr)
 
     def test_le_os_checks_em_json_com_o_evento(self):
         self.pronta()
         self.roda()
         self.assertIn("pr checks 9 --json name,bucket,event,link", "\n".join(self.gh_chamadas()))
 
-    def test_so_checks_do_push_nao_sao_verdes_e_o_merge_sai_com_auto(self):
+    def test_so_checks_do_push_nao_sao_verdes_e_nao_ha_merge(self):
         self.pronta()  # PROMOVER-SEM-AUTO (#371): logo após abrir o PR, só os checks do push da develop existem
-        (self.estado / "checks").write_text(checks(("bateria", "pass"), ("catraca", "pass"), evento="push"))
+        (self.estado / "checks").write_text(checks(*VERDES, evento="push"))
         r = self.roda()
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
         self.assertNotIn("checks verdes", r.stdout)
         self.assertIn("nenhum check do evento pull_request", r.stdout)
-        sha = self.git("rev-parse", "origin/develop")
-        self.assertIn(f"{MERGE} develop --auto --merge --match-head-commit {sha}", r.stdout)
+        self.assertNotIn(MERGE, r.stdout)
 
     def test_check_do_push_nao_decide_o_vermelho_nem_o_verde(self):
         self.pronta()
-        (self.estado / "checks").write_text(checks(("bateria", "fail", "push"), ("bateria", "pass")))
+        (self.estado / "checks").write_text(checks(("bateria", "fail", "push"), *VERDES))
         r = self.roda()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("checks verdes", r.stdout)
@@ -346,8 +379,8 @@ class Execucao(Promover):
             self.assertNotIn(MERGE, r.stdout)
         (self.estado / "checks").write_text("no checks reported on the 'develop' branch\n")
         r = self.roda()
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn("--auto", r.stdout)
+        self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
+        self.assertNotIn(MERGE, r.stdout)
 
     def test_fetch_traz_a_develop_nova_do_remoto(self):
         self.pronta()
@@ -424,6 +457,37 @@ class ContraMainFalha(unittest.TestCase):
         caiu = subprocess.CompletedProcess([], 1, stdout="", stderr="Traceback: erro\n")
         self.assertIn("Traceback: erro", self.para(caiu))
         self.assertIn("melhoria/release-0.2.0", self.para(caiu))
+
+
+class ChecksObrigatorios(unittest.TestCase):
+    """PROMOVER-SEM-AUTO-MERGE: os obrigatórios vêm de CHECKS_EXIGIDOS do bin/forge-fechar; sem a lista, nada de merge."""
+
+    def setUp(self):
+        spec = importlib.util.spec_from_file_location("promover_homolog", SCRIPT)
+        self.mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.mod)
+        self.tmp = Path(tempfile.mkdtemp(prefix="promover-obrig-"))
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def le(self, texto):
+        fechar = self.tmp / "forge-fechar"
+        if texto is not None:
+            fechar.write_text(texto, encoding="utf-8")
+        with mock.patch.object(self.mod, "FORGE_FECHAR", fechar), redirect_stderr(io.StringIO()) as erro:
+            try:
+                return self.mod.checks_obrigatorios(), ""
+            except SystemExit as saida:
+                return saida.code, erro.getvalue()
+
+    def test_le_os_nomes_do_forge_fechar_real(self):
+        self.assertEqual(self.mod.checks_obrigatorios(), [n for n, _ in VERDES])
+
+    def test_lista_ausente_vazia_ou_arquivo_faltando_para(self):
+        for texto in (None, "#!/bin/bash\n", "readonly CHECKS_EXIGIDOS=()\n"):
+            codigo, erro = self.le(texto)
+            self.assertEqual(codigo, 1, texto)
+            self.assertIn("nada a mesclar" if texto is None else "CHECKS_EXIGIDOS", erro, texto)
+        self.assertEqual(self.le('readonly CHECKS_EXIGIDOS=("W/a b" "c")\n'), (["a b", "c"], ""))
 
 
 class ConferirRef(Promover):
