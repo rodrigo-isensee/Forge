@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ae3-1-controle
-commit: ba201c86c80fd9d74ac7e8ca88fdd18550630fd7
+commit: 40244cc20339c7438a9a20ec66e8b92ccfc405d1
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -43,3 +43,9 @@ Critérios tirados do contrato do módulo (docstring, AE3.1).
 ## Revalidação (head ba201c86, delta desde 59ad2edc)
 - Delta no domínio: uma linha em `docs/indice-forge.md` (entrada de `forge_controle.py`) e `tests/pesos-d4.json` (peso de teste, dado); o resto veio da develop. Sem código de guarda mudado, sem mutante novo.
 - Provas: `python3 -I -m unittest discover -s tests -p test_indice_forge.py`: Ran 19 tests, OK, rc 0. Sem suíte local; a bateria é a do CI do PR.
+
+## Revalidação (head 40244cc2, delta desde ba201c86)
+Delta do domínio (`forge-check parecer delta`): `bin/forge_controle.py` (só a docstring perdeu o caminho do doc) e `tests/test_forge_controle.py` (isolamento da config de sistema e teste novo).
+- `test_forge_controle`: 42 testes, OK. `test_reval_delta`: 10 testes, OK (TMPDIR próprio).
+- `test_config_de_sistema_com_filter_lfs_so_nao_vaza_com_o_isolamento`: 1 teste, OK. Com a config de sistema falsa (`filter.lfs`) e o isolamento desligado, `salvar` sai `nao-verificavel` sem commit; com o isolamento ligado, sai `salvo`. O teste cobre os dois lados, então o isolamento que cai derruba a suíte.
+- Sem achado.
