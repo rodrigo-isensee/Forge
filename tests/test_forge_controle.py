@@ -27,8 +27,18 @@ class Base(unittest.TestCase):
         casa = self.tmp / "casa"
         casa.mkdir()
         (casa / ".gitconfig").write_text("[user]\n\tname = t\n\temail = t@t\n[init]\n\tdefaultBranch = principal\n")
+        # Config de sistema da máquina (o runner traz filter.lfs em /etc/gitconfig): o `_git` do módulo tira as `GIT_*`
+        # herdadas, então o isolamento vai num `git` à frente no PATH, que liga GIT_CONFIG_NOSYSTEM. Uma config de sistema
+        # falsa com filter.lfs fica apontada sempre: se o isolamento cair, todo `salvar` sai nao-verificavel.
+        self.sistema = self.tmp / "gitconfig-do-sistema"
+        self.sistema.write_text('[filter "lfs"]\n\tclean = git-lfs clean -- %f\n\tprocess = git-lfs filter-process\n')
+        self.bin = self.tmp / "bin"
+        self.bin.mkdir()
+        self.git_real = shutil.which("git")
+        self.embrulhar_git(isolado=True)
         limpo = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-        ambiente = mock.patch.dict(os.environ, limpo | {"HOME": str(casa), "XDG_CONFIG_HOME": str(casa)}, clear=True)
+        isolado = {"HOME": str(casa), "XDG_CONFIG_HOME": str(casa), "PATH": f"{self.bin}{os.pathsep}{limpo.get('PATH', '')}"}
+        ambiente = mock.patch.dict(os.environ, limpo | isolado, clear=True)
         ambiente.start()
         self.addCleanup(ambiente.stop)
         self.env = sem_git_herdado(GIT_CONFIG_NOSYSTEM="1")
@@ -44,6 +54,12 @@ class Base(unittest.TestCase):
         self.git("remote", "add", "origin", str(self.remoto))
         self.git("push", "-q", "origin", "principal")
         self.inicio = self.head()
+
+    def embrulhar_git(self, isolado):
+        nosystem = "GIT_CONFIG_NOSYSTEM=1 " if isolado else ""
+        embrulho = self.bin / "git"
+        embrulho.write_text(f'#!/bin/sh\n{nosystem}GIT_CONFIG_SYSTEM="{self.sistema}" exec "{self.git_real}" "$@"\n')
+        embrulho.chmod(0o755)
 
     def git(self, *args, cwd=None):
         r = subprocess.run(["git", *args], cwd=cwd or self.pasta, env=self.env, capture_output=True, text=True,
@@ -102,6 +118,13 @@ class Salvar(Base):
         with mock.patch.dict(os.environ, {"GIT_DIR": str(outro / ".git")}):
             self.assertEqual(C.salvar(self.pasta)[0], "salvo")
         self.assertNotEqual(self.head(), self.inicio)
+
+    def test_config_de_sistema_com_filter_lfs_so_nao_vaza_com_o_isolamento(self):
+        self.escrever("KANBAN.md", "quadro novo\n")
+        self.embrulhar_git(isolado=False)
+        self.assert_sem_commit(C.salvar(self.pasta), "nao-verificavel")
+        self.embrulhar_git(isolado=True)
+        self.assertEqual(C.salvar(self.pasta)[0], "salvo")
 
 
 class Recusas(Base):

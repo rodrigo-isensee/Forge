@@ -1,6 +1,6 @@
 """Forge: salva a pasta de controle (quadro, pedidos, briefs, retros, pareceres) num commit local (AE3.1, v0478 E108.1).
 
-Desenho em docs/propostas/v0479-melhorias-anti-erro.md (AE3, D3 e D7): `salvar(pasta)` faz o commit só dos caminhos da lista
+Desenho na proposta v0479 de melhorias anti-erro (AE3, D3 e D7): `salvar(pasta)` faz o commit só dos caminhos da lista
 positiva `CAMINHOS`, com a mensagem fixa `MENSAGEM`, nunca `add -A`, nunca push, nunca `--no-verify` e sem efeito se nada
 mudou. Tudo ou nada: um caminho recusado (link, segredo, arquivo grande, tipo estranho) não deixa commit parcial. Hook ativo na
 pasta (`core.hooksPath` ou `.git/hooks` sem `.sample`) ou chave da config que roda comando (`core.fsmonitor`, filtro
