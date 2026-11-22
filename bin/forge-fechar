@@ -3,12 +3,14 @@
 # Uso: forge-fechar <pedido> --ref <branch> [--base origin/develop] [--titulo T] [--origem T] [--muda T]
 #                  [--medir RUN|ARQUIVO] [--espera SEGUNDOS] [--esperar-rotulo] [--armar] [--limpar] [--sem-limpar] [--dry-run]
 #                  [--cartao ID ...] [--quadro PASTA]
-# Roda em ordem e para no primeiro erro: (1) forge-check pr; (1c) a árvore do sha conferido é promovível (scripts/promover-homolog.py
+# Roda em ordem e para no primeiro erro: (1) forge-check pr; (1c) a árvore do sha conferido (base andou sem conflito: a do merge com ela) é promovível (scripts/promover-homolog.py
 # --conferir-ref, do diretório deste script; rc diferente de 0, prazo de 300 s ou script ausente param); (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto, também o rascunho do autor, um só e com o head conferido);
 # (2b) se a base andou desde o ponto de partida: com conflito real (`git merge-tree --write-tree`) ou falha de leitura, para e devolve ao agente; sem
 # conflito, em melhoria/* traz a base sozinho (H4: commit de merge com a árvore do merge-tree, `git push origin` de sempre, sem forçar nem pular o
 # pre-push) e recomeça a cadeia no head novo, uma vez por cadeia; fora de melhoria/* ou na cadeia recomeçada, avisa e segue sem trazer (E8);
-# (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido; (7) limpeza.
+# (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido
+# (antes dele, a execução mais recente de cada check-run obrigatório do head: verde no merge direto; com --armar, sem falha já terminada:
+# FECHAR-CHECKS-ANTES-DO-MERGE); (7) limpeza.
 # R7 / MERGE-LIBERADO (0.43.3): o passo 6 usa o auto-merge do GitHub (`gh pr merge --auto`, preso ao head): quem mescla é o GitHub, só com os
 # checks obrigatórios do ruleset verdes; com eles já verdes, o gh mescla na hora. Depois o script espera o MERGED até o fim de --espera.
 # --armar: pula a espera do passo 4, arma o auto-merge logo depois do passo 5 e sai com código 4 se o PR ainda não mesclou (o tech-lead
@@ -33,7 +35,8 @@
 # mudar durante a espera para. Prazo esgotado para como sem a opção. O script nunca aplica rótulo nem marca item do checklist.
 # Sem a branch local, --ref vale com a branch só no origin (FECHAR-BRANCH-LOCAL): o sha conferido vem do servidor (ls-remote), o commit
 # tem de existir aqui (senão pede git fetch origin <branch>).
-# Antes do merge (6a), a base é relida: se andou durante os checks, para só com conflito real; sem ele segue (E8).
+# Antes do merge (6a), a base é relida: se andou durante os checks, para só com conflito real; sem ele segue (E8). Base local velha:
+# busca a base uma vez (só leitura) e confere o merge com a nova (FECHAR-6A-DEVELOP-ANDOU); a busca que falha para.
 # Idempotente: head já mesclado na base ou PR já MERGED com este head não abre PR nem mescla de novo (vai direto à limpeza).
 # Erro passageiro do GitHub (502): só as operações que não mudam o PR repetem, até 3 vezes (leituras de estado, de PR e de checks; `push --delete`
 # da limpeza). Push de código, criação de PR, `pr ready` e merge nunca se repetem sozinhos.
@@ -98,6 +101,7 @@ exigidos=("${CHECKS_EXIGIDOS[@]}")  # E3.45: mais os do ruleset e da proteção 
 pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 trazida=0 so_remota=0 base_2b="" arvore_mt="" dorme_pid="" promover_teste="" subida_n="" subida_ini="" subida_extra=""  # nascem vazios: o fim nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
 armar=0 estado_lido=0  # --armar (R7): arma o auto-merge sem esperar os checks
 lote=0 item_de_lote=0 promover_sha="" espera_ci=3600 ci_falhou=0 ci_st="" ci_ruins="" ja_mesclado=1 posicionais=()  # lote, promoção pela marca e espera do CI da develop
+sha_1c="" arvore_1c=""  # FECHAR-1C-ANTES-DO-2B: o sha e o texto do 1c nascem vazios (nada herdado do ambiente)
 args_originais=("$@")  # H4: o recomeço da cadeia depois do merge da base (passo 2b) roda o mesmo comando com `--trazida`
 cartoes=() quadro="${HOME:-}/.forge-contrib" motivo_cartao="" cartao_pend=0  # FECHAR-MOVE-CARTAO
 while [ $# -gt 0 ]; do
@@ -854,6 +858,28 @@ mover_cartoes() {
   done
 }
 
+# checks_do_head_verdes [1] (passo 6, FECHAR-CHECKS-ANTES-DO-MERGE, v0478): a conta do dono passa pelo bypass do ruleset, e o --auto dela
+# mescla na hora mesmo com check obrigatório vermelho ou rodando. Antes do merge, lê os check-runs do head conferido (gh api, só leitura) e, por
+# nome de CHECKS_EXIGIDOS, julga só a execução mais recente (id maior): o filter=latest devolve uma por suíte, e com o rótulo afrouxa-regra a
+# catraca velha fica cancelled ao lado da nova (E75.6). Merge direto: para se a mais recente falta ou não está em completed/success. Com 1
+# (--armar, E75.6): para só se ela já terminou fora de success (failure, cancelled, timed_out...); rodando ou ausente, arma. Leitura que falha para.
+checks_do_head_verdes() {
+  local runs par nome ultima
+  runs="$(ler "$gh" api "repos/{owner}/{repo}/commits/$remoto_sha/check-runs?filter=latest&per_page=100" --jq '.check_runs[] | [.name, .id, .status, (.conclusion // "-")] | @tsv')" \
+    || die "parou no passo 6: não consegui ler os check-runs do head $remoto_sha; nada foi mesclado"
+  for par in "${CHECKS_EXIGIDOS[@]}"; do
+    nome="${par#*/}"
+    ultima="$(printf '%s\n' "$runs" | awk -F'\t' -v n="$nome" '$1 == n && (!achou || $2 + 0 > id) {achou = 1; id = $2 + 0; e = $3 "/" $4} END {print e}')"
+    case "$ultima" in
+      completed/success) ;;
+      completed/*) die "parou no passo 6: o check obrigatório $nome do head ${remoto_sha:0:12} terminou em ${ultima#completed/} na execução mais recente; nada foi mesclado nem armado (o bypass do ruleset deixaria a conta do dono mesclar)" ;;
+      *) [ "${1:-0}" = 1 ] \
+           || die "parou no passo 6: o check obrigatório $nome do head ${remoto_sha:0:12} não está verde (completed/success) na execução mais recente; nada foi mesclado (o bypass do ruleset deixaria a conta do dono mesclar)" ;;
+    esac
+  done
+  if [ "${1:-0}" = 1 ]; then echo "check-runs obrigatórios do head ${remoto_sha:0:12} sem falha terminada: ${CHECKS_EXIGIDOS[*]}; armo o auto-merge."
+  else echo "check-runs obrigatórios do head ${remoto_sha:0:12} verdes: ${CHECKS_EXIGIDOS[*]}."; fi
+}
 # mesclar_auto <método> <head> [--subject T --body C]: o único `gh pr merge` do script (passo 6 e P6), por nome de branch ($ref, que o hook
 # `parecer` exige), com --auto e preso ao head. FECHAR-PROMOVER-MENSAGEM-PT: o merge com --merge (P6) leva título e corpo em português; sem
 # eles, o GitHub grava "Merge pull request #N from ..." (merge_commit_title=MERGE_MESSAGE). O --squash do passo 6 usa o título do PR.
@@ -967,6 +993,12 @@ conferir_base_no_merge() {
   [ -n "$srv" ] || die "parou no passo 6a: não consegui ler a $alvo no servidor (resposta vazia); nada foi mesclado"
   [ "$srv" != "$base_2b" ] || return 0
   local_base="$(git rev-parse --verify --quiet "$base^{commit}")" || local_base=""
+  if [ "$local_base" != "$srv" ]; then  # FECHAR-6A-DEVELOP-ANDOU: busca a base sozinho, uma vez (só leitura), e segue a conferência
+    echo "a $alvo andou durante os checks ($base_2b -> $srv); busco a $alvo (git fetch, só leitura) e confiro o merge com ela."
+    git fetch -q origin "+refs/heads/$alvo:refs/remotes/origin/$alvo" \
+      || die "parou no passo 6a: a $alvo andou durante os checks ($base_2b -> $srv) e a busca dela falhou; nada foi mesclado; rode: git fetch origin $alvo, e rode de novo"
+    local_base="$(git rev-parse --verify --quiet "$base^{commit}")" || local_base=""
+  fi
   if [ "$local_base" != "$srv" ] || ! git merge-base --is-ancestor "$base_2b" "$srv" 2>/dev/null; then
     die "parou no passo 6a: a $alvo andou durante os checks ($base_2b -> $srv) e $base não a tem; nada foi mesclado; rode: git fetch origin $alvo, e rode de novo"
   fi
@@ -999,8 +1031,19 @@ conferir_1c() {
   local saida_1c rc_1c=0
   [ -f "$promover" ] || die "parou no passo 1c: não achei $promover (nada foi aberto nem mesclado)"
   saida_1c="$(timeout 300 python3 -I "$promover" --conferir-ref "$1" 2>&1)" || rc_1c=$?
-  [ "$rc_1c" = 0 ] || die "parou no passo 1c: a árvore que entra na $alvo não é promovível (rc $rc_1c; nada foi aberto nem mesclado): $saida_1c
+  [ "$rc_1c" = 0 ] || die "parou no passo 1c: ${arvore_1c:-a árvore que entra na $alvo} não é promovível (rc $rc_1c; nada foi aberto nem mesclado): $saida_1c
 com release na develop ainda não promovida, promova-a (scripts/promover-homolog.py) antes de mesclar outra branch (R-FLUXO)${2:-}"
+}
+# merge_para_o_1c <sha> (FECHAR-1C-ANTES-DO-2B, v0478): define sha_1c, o sha que o 1c do fechamento confere, e arvore_1c, o texto dele. Com a
+# base fora do head e o merge-tree limpo, um commit solto (sem ref; pais: o head e a base local) com a árvore do merge, a que o 2b traria; assim
+# a branch criada antes de uma release promovida não para pela versão velha da própria árvore. Base já no head, conflito ou falha: o head.
+merge_para_o_1c() {
+  local mt m
+  sha_1c="$1" arvore_1c="a árvore de $ref (head ${1:0:12})"
+  if git merge-base --is-ancestor "$base" "$1" 2>/dev/null; then return 0; fi
+  mt="$(git merge-tree --write-tree --no-messages "$1" "$base" 2>/dev/null)" || return 0
+  m="$(git commit-tree "${mt%%$'\n'*}" -p "$1" -p "$base" -m "forge-fechar 1c: merge de $base em $ref (só leitura)" 2>/dev/null)" || return 0
+  sha_1c="$m" arvore_1c="a árvore do merge de $base em $ref (${m:0:12}, merge-tree limpo)"
 }
 
 # ja_no_alvo <sha> (FECHAR-SEM-HOMOLOG-LOCAL): o sha já está na base local ou num PR MERGED em $alvo do próprio repositório (o GitHub
@@ -1270,7 +1313,7 @@ if [ "$seco" = 1 ]; then
   passo 3 "$gh pr create --base $alvo --head $ref --title '$titulo' (se não houver PR aberto; não abre se o head já está em $base ou já tem PR MERGED)"
   passo 4 "$gh pr checks <número do PR, lido no passo 3> (espera até ${espera}s; por JSON; os exigidos, pelo par workflow/nome (${CHECKS_EXIGIDOS[*]}) e os do ruleset ou da proteção de $alvo pelo nome, só passam em pass, os demais em pass ou skipping)"
   passo 5 "$gh pr view <número do PR, lido no passo 3> --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
-  passo "6a" "git ls-remote origin refs/heads/$alvo (a base que o passo 2b leu? se andou durante os checks: com conflito no git merge-tree --write-tree para sem mesclar; sem conflito segue, sem trazer a base (E8); base local velha pede git fetch)"
+  passo "6a" "git ls-remote origin refs/heads/$alvo (a base que o passo 2b leu? se andou durante os checks: com conflito no git merge-tree --write-tree para sem mesclar; sem conflito segue, sem trazer a base (E8); base local velha: busca a base uma vez, só leitura, e confere o merge com ela)"
   [ "$item_de_lote" = 1 ] || passo "6b" "$gh run list --branch $alvo --event push --commit <topo da $alvo>: verde antes do merge (pendente espera até ${espera_ci}s; vermelho para)"
   passo 6 "$gh pr merge $ref --auto $metodo --match-head-commit <head conferido> (auto-merge do GitHub com os checks obrigatórios; base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge; espera o MERGED até --espera; com --armar sai com código 4 se ainda não mesclou)"
   for c in "${cartoes[@]}"; do echo "cartão $c: depois do merge, forge-check movimento $c --de $(coluna_do_cartao "$c") --para Pronto --raiz $quadro"; done
@@ -1368,8 +1411,10 @@ fi
 FORGE_FECHAR_PASSO_1=1 "$check" pr "$pedido" --ref "$ref_check" --base "$base" || die "parou no passo 1: forge-check pr acusou violação (nada foi aberto nem mesclado)"
 local_sha="$(head_atual || true)"
 [ "$local_sha" = "$sha_conferido" ] || die "parou no passo 1: o head de $ref mudou durante a conferência dos pareceres (conferido $sha_conferido, agora ${local_sha:-ausente}); os pareceres valem para o sha conferido; confira e rode de novo"
-passo "1c" "promovível: $promover --conferir-ref $sha_conferido"
-promovivel "$sha_conferido"
+passo "1c" "promovível: $promover --conferir-ref $sha_conferido (ou o merge dele com $base, se ela não está no head)"
+merge_para_o_1c "$sha_conferido"
+echo "1c: confiro $arvore_1c."
+promovivel "$sha_1c"
 
 passo 2 "head no servidor"
 local_sha="$(head_atual)" || die "parou no passo 2: a branch $ref não existe ou não foi lida (local ou, no modo só remota, no origin)"
@@ -1439,8 +1484,9 @@ if [ "$ja_mesclado" = 0 ]; then
     fi
   fi
   while :; do
-    # --armar (R7): quem espera os checks obrigatórios é o auto-merge do GitHub; o script não lê nem espera os checks aqui.
-    [ "$armar" = 0 ] || { echo "--armar: os checks não são esperados aqui; o auto-merge do GitHub mescla só com os obrigatórios verdes."; break; }
+    # --armar (R7): o script não espera os checks aqui. O bypass do ruleset deixa a conta do dono mesclar com check rodando; o passo 6 só
+    # recusa o obrigatório que já terminou fora de success (FECHAR-CHECKS-ANTES-DO-MERGE, E75.6).
+    [ "$armar" = 0 ] || { echo "--armar: os checks não são esperados aqui; o passo 6 recusa check obrigatório que já terminou com falha."; break; }
     # Por JSON (C-6): nome, estado (bucket), workflow e link por tab; o `@tsv` escapa o tab de um nome, que não desalinha as colunas.
     saida="$("$gh" pr checks "$pr_n" --json name,bucket,link,workflow --jq '.[] | [.name, .bucket, .workflow, .link] | @tsv' 2>&1 || true)"
     estados="$(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {print $2}')"
@@ -1550,6 +1596,7 @@ if [ "$ja_mesclado" = 0 ]; then
     # Sobra só a janela entre esta leitura e o merge (um PR novo do mesmo head aberto nesse intervalo); o --match-head-commit prende o head, não o PR.
     por_nome="$(ler "$gh" pr view "$ref" --json number --jq '.number')" || die "parou no passo 6: não consegui reler o PR pelo nome da branch"
     [ "$por_nome" = "$pr_n" ] || die "parou no passo 6: o nome da branch $ref resolve para o PR #${por_nome:-desconhecido}, não para o #$pr_n guardado; há mais de um PR aberto desse head; feche o outro e rode de novo"
+    checks_do_head_verdes "$armar"
     if [ "$pre_rascunho" = true ]; then
       "$gh" pr ready "$ref" || die "parou no passo 6: não consegui marcar o PR como pronto"
     fi

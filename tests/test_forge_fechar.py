@@ -15,7 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho ta
 import test_fechar as fechar_base  # noqa: E402  (o módulo: a classe seria coletada de novo aqui)
 import test_fechar_checks_exigidos as exig  # noqa: E402
 
-API = '''if [ "$1" = api ]; then  # a chamada já foi registrada no começo do gh falso
+API = '''# a chamada já foi registrada no começo do gh falso; a dos check-runs do head (FECHAR-CHECKS-ANTES-DO-MERGE) segue para o falso de base
+if [ "$1" = api ] && [[ "$2" != "repos/{owner}/{repo}/commits/"* ]]; then
   [ "$3" = --jq ] || exit 64
   case "$2" in
     "repos/{owner}/{repo}/rules/branches/develop") f=api_regras ;;
