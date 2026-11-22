@@ -69,18 +69,28 @@ Estado da emenda: **vigente a partir do PR que traz o hook `ordens` (E104.1)**, 
 4. **Nunca bloqueia nem falha a sessão:** sai sempre com 0. Arquivo ausente, vazio, ilegível, maior que 64 KiB, link simbólico para fora da raiz, fora de projeto do Forge (item 3), erro interno ou demora: silêncio total e saída 0; o erro interno vai a `.forge/run/erros.log` (item 4). Nenhum caso de fixture espera código 2: o `ordens` entra na lista dos hooks que só avisam (`vigia`, `doutor`, `ambiente`).
 5. **Determinístico** (item 2): só o arquivo em disco, sem git, sem rede, sem IA, sem executar nada. Termina em menos de 100 ms no caso comum, porque roda a cada mensagem do dono.
 6. **Quem escreve o arquivo** é o Jarvis, ao registrar uma ordem do dono (o arquivo entra no mapa de donos do hook `conformidade` no mesmo PR do hook); o `security-engineer` confere no parecer que nenhum subagente o edita, porque o texto vira contexto da sessão principal a cada mensagem.
+7. **Aviso de time parado do `vigia` (E104.4, ORDEM DO DONO 22/11: o vigia avisa o Jarvis na hora, para retomar sem esperar o dono; vigente a partir do PR do vigia, com fixtures e o parecer E105.4).** No `Stop` da sessão do Jarvis, quando há cartão disponível e nenhum agente ativo, o `vigia` impede a parada com `{"decision": "block", "reason": ...}` no stdout e saída 0; o `reason` entra no contexto do modelo, por isso a exceção. Regras:
+   - **Só a sessão principal:** só no evento `Stop` (nunca no `SubagentStop` nem no `SessionStart`) e só na sessão do Jarvis; em subagente ou sessão que não se identifica, silêncio.
+   - **Texto fixo e curto, gerado pelo script:** `time parado: <N> cartões disponíveis, primeiro <ID>; retome sem esperar o dono`, uma linha, até ~200 caracteres (item 1). `<N>` é inteiro; `<ID>` só entra se casar por inteiro com o formato fixo de ID de cartão (letras, dígitos, ponto e hífen, até 16 caracteres; lista positiva, AR-15); fora do formato, a linha sai sem o `primeiro <ID>`. Nenhum texto livre de arquivo (título do cartão, quadro, pedido, ordens) entra no `reason`.
+   - **Uma vez por vez:** com `stop_hook_active` verdadeiro na entrada, o `vigia` não bloqueia de novo e sai com 0 e o aviso de sempre; nunca prende a sessão em laço.
+   - **Nunca bloqueia ferramenta nem falha a sessão:** fora de projeto do Forge (item 3), quadro ilegível, erro interno ou demora, silêncio e saída 0 (item 4); o `vigia` continua no grupo que só avisa (códigos `{0}`), e o `decision: block` do `Stop` só adia a parada, não recusa ação.
+   - **Determinístico** (item 2): conta os cartões pelo estado em disco (`KANBAN.md`, registro de agentes), sem git além do que o `vigia` já usa, sem rede, sem IA.
 
 ### Por que o existente não basta
 - A emenda da retomada injeta o estado do pedido, não as ordens, só no `SessionStart` e só com pedido aberto; está como proposta.
 - O `CLAUDE.md` e o núcleo do Jarvis são texto da fábrica, iguais em todos os projetos (`R-NEUTRO`); a ordem do dono é do dia e muda sem versão.
 - As ordens registradas no pedido (`ORDEM DO DONO`) ficam no meio de milhares de linhas (o pedido v0478 passa de 4000) e não voltam ao contexto depois da compactação. Evidência: a ordem do dono de 22/11 05:30 (pedido v0478, linha da ORDEM DO DONO) manda, até o hook entrar, "reler diretrizes e autorizações depois de cada compactação", porque elas se perderam; e o arquivo provisório `docs/kanban/ordens-em-vigor.md` já existe sem nada que o leia (Histórico 22/11 05:34).
 
-### Afrouxa: sim, ADR 0003 item 1 e duas invariantes de teste
+### Afrouxa: sim, ADR 0003 item 1 e três invariantes de teste
 O item 1 ("um hook nunca injeta contexto") ganha a 3ª exceção, e pela 1ª vez num evento que dispara a cada mensagem. Mudam junto, no PR do hook (E104.1), com o rótulo `afrouxa-regra`:
 - `tests/test_hooks.py`, `test_hooks_json` (linha 1493): `assertNotIn("UserPromptSubmit", d["hooks"])` passa a aceitar `UserPromptSubmit` só com o `ordens.py`; a lista de permitidos no `SessionStart` (linhas 1496 a 1499) ganha `ordens.py`, citando esta emenda.
 - `tests/test_hooks.py`, `test_cada_hook_tem_caso_que_passa_e_que_bloqueia` (linha 1487): `ordens` entra no grupo que só avisa (códigos `{0}`), com os casos `sem-forge-versao` e `erro-interno`, mais os casos do teto e do arquivo ausente.
 - `tests/test_doutor.py`, `test_hooks_json_registra_o_doutor_so_em_sessionstart_e_stop` (linha 608): `assertNotIn("UserPromptSubmit", d["hooks"])` passa a conferir que o único comando no `UserPromptSubmit` é o `ordens.py`.
 Nenhum trecho de `invariantes` em `tests/config.json` sai.
+
+O item 7 (aviso de time parado do `vigia`) muda, no PR do vigia, com o mesmo rótulo `afrouxa-regra`:
+- `tests/test_hooks.py`, laço das fixtures (linhas 830 a 837): `assertEqual(list(saida), ["systemMessage"])` passa a aceitar também `decision` e `reason` só no `Stop` sem `stop_hook_active`, com `decision == "block"` e o `reason` casando por inteiro `^time parado: \d+ cartões disponíveis(, primeiro [A-Za-z0-9.-]{1,16})?; retome sem esperar o dono$`; o comentário "nunca contexto para o modelo" vira "contexto só no reason fixo do Stop (emenda da ADR 0003, item 7)". Fixtures novas: bloqueia uma vez, `stop_hook_active` libera, ID fora do formato sai sem ID, subagente silencioso.
+- Não mudam: `test_cada_hook_tem_caso_que_passa_e_que_bloqueia` (linha 1487; o `vigia` segue com códigos `{0}`), `test_hooks_json` (linhas 1493 a 1499; o `vigia.py` já é permitido no `Stop`, e o `additionalContext` segue proibido nele).
 
 Motivo para o título do PR: "afrouxa ADR 0003 item 1: hook ordens injeta as ordens em vigor do dono (até 15 linhas, 2000 caracteres) no SessionStart e no UserPromptSubmit, só leitura e sem bloquear (ORDEM DO DONO 22/11)".
 
@@ -88,7 +98,7 @@ Motivo para o título do PR: "afrouxa ADR 0003 item 1: hook ordens injeta as ord
 - Custo de contexto: até ~2000 caracteres a cada mensagem do dono (o teto do item 3 limita), só quando o arquivo existe; arquivo ausente custa zero.
 - Risco: o arquivo vira canal de instrução para a sessão principal; mitigado pelo item 6 (só o Jarvis escreve), pelo escape do item 3 e pela linha fixa do item 2 (dado, abaixo de `docs/regras/`).
 
-Critério de reversão da emenda: um caso em que texto que não veio do dono chegue ao arquivo e mude o comportamento da sessão, ou o hook passe de 100 ms no p95 em `.forge/run/erros.log` ou nas medições do CI, ou o dono registre que as ordens injetadas não evitaram a mesma perda depois de compactar em 2 versões seguidas.
+Critério de reversão da emenda: um caso em que texto que não veio do dono chegue ao arquivo e mude o comportamento da sessão, ou o hook passe de 100 ms no p95 em `.forge/run/erros.log` ou nas medições do CI, ou o dono registre que as ordens injetadas não evitaram a mesma perda depois de compactar em 2 versões seguidas. Para o item 7: um `reason` do `vigia` com texto fora do formato fixo, ou uma sessão presa em mais de um bloqueio seguido do `Stop`.
 
 | Leitura | Quando | Quem |
 |---|---|---|
