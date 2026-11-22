@@ -855,14 +855,24 @@ class Hooks(unittest.TestCase):
         f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra, producao=producao))
         r = rodar(f.hook, entrada, raiz, proc, extra, producao=producao, forcar=f.dados.get("forcar"))
         esperado = f.dados["esperado"]
-        if "saida" in esperado:  # só o vigia: aviso ao usuário, nunca contexto para o modelo
+        if "saida" in esperado or "reason" in esperado:  # só o vigia: aviso ao usuário; contexto só no reason fixo do Stop (emenda da ADR 0003, item 7)
             self.assertEqual(f.hook, "vigia")
             self.assertNotEqual(entrada.get("hook_event_name"), "SessionStart", "SessionStart é silencioso")
             saida = json.loads(r.stdout)
-            self.assertEqual(list(saida), ["systemMessage"])
-            self.assertNotIn("\n", saida["systemMessage"], "uma linha só")
-            self.assertRegex(saida["systemMessage"], r"^Forge: \d+ (violação\(ões\)|aviso\(s\)|mudança\(s\))(, \d+ \S+)* — ")
-            self.assertIn(esperado["saida"], saida["systemMessage"])
+            chaves = ["systemMessage"] * ("saida" in esperado) + ["decision", "reason"] * ("reason" in esperado)
+            self.assertEqual(list(saida), chaves)
+            if "reason" in esperado:  # o Stop sem `stop_hook_active` (uma vez por vez), com o texto fixo e curto
+                self.assertEqual(entrada.get("hook_event_name"), "Stop")
+                self.assertIsNot(entrada.get("stop_hook_active"), True, "o Stop que segue o bloqueio não bloqueia")
+                self.assertEqual(saida["decision"], "block")
+                self.assertIsNotNone(re.fullmatch(
+                    r"time parado: \d+ cartões disponíveis(, primeiro [A-Za-z0-9.-]{1,16})?; retome sem esperar o dono",
+                    saida["reason"]), saida["reason"])
+                self.assertEqual(saida["reason"], esperado["reason"])
+            if "saida" in esperado:
+                self.assertNotIn("\n", saida["systemMessage"], "uma linha só")
+                self.assertRegex(saida["systemMessage"], r"^Forge: \d+ (violação\(ões\)|aviso\(s\)|mudança\(s\))(, \d+ \S+)* — ")
+                self.assertIn(esperado["saida"], saida["systemMessage"])
         elif "pergunta" in esperado:  # só o conformidade: pede a confirmação da pessoa, com a consequência
             self.assertEqual(f.hook, "conformidade")
             saida = json.loads(r.stdout)["hookSpecificOutput"]
@@ -3739,6 +3749,50 @@ class HookSessaoDoForge(unittest.TestCase):
 
     def test_vigia_registra(self):
         self.rodar("vigia", 2, {0})
+
+
+class VigiaTimeParadoNasFixtures(unittest.TestCase):
+    """VIGIA-TIME-PARADO (emenda da ADR 0003, item 7; v0478 E123.1): as fixtures `vigia/time-parado-*` pelo laço das
+    fixtures, que aceita `decision` e `reason` só no `Stop` sem `stop_hook_active` e com o texto fixo."""
+    executar_em_lote = Hooks.executar_em_lote
+    executar_fixture = Hooks.executar_fixture
+    _pasta_temporaria = Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+
+    def fixtures(self):
+        return minimo([Fixture(p) for p in sorted((FIXTURES / "vigia").glob("time-parado-*.json"))], 4, "vigia/time-parado-*")
+
+    def test_fixtures(self):
+        fixtures = self.fixtures()
+        self.assertEqual(sum("reason" in f.dados["esperado"] for f in fixtures), 2, "bloqueia com e sem o ID")
+        self.assertEqual(self.executar_em_lote([(f"vigia/{f.caminho.stem}", f) for f in fixtures]), len(fixtures))
+
+    def test_laco_recusa_reason_fora_do_stop_ou_fora_do_formato(self):
+        """O laço, e não o hook, reprova: o hook falso devolve o bloqueio num evento que não é o `Stop`, com
+        `stop_hook_active`, com `decision` diferente de `block` ou com texto livre; o mesmo bloqueio no `Stop` passa."""
+        base = json.loads((FIXTURES / "vigia/time-parado-bloqueia-uma-vez.json").read_text(encoding="utf-8"))
+        certo = base["esperado"]["reason"]
+        casos = {"stop": ({}, "block", certo, True),
+                 "subagentstop": ({"entrada": {**base["entrada"], "hook_event_name": "SubagentStop"}}, "block", certo, False),
+                 "stop-hook-active": ({"entrada": {**base["entrada"], "stop_hook_active": True}}, "block", certo, False),
+                 "decision-approve": ({}, "approve", certo, False),
+                 "texto-livre": ({"esperado": {"codigo": 0, "reason": "time parado: leia o cartão X"}}, "block",
+                                 "time parado: leia o cartão X", False)}
+        for nome, (troca, decisao, reason, passa) in casos.items():
+            def falso(_hook, entrada, *_a, **_k):
+                saida = "" if entrada.get("hook_event_name") == "SessionStart" else json.dumps(
+                    {"decision": decisao, "reason": reason}, ensure_ascii=False)
+                return subprocess.CompletedProcess([], 0, saida, "")
+            with self.subTest(caso=nome), mock.patch(f"{__name__}.rodar", falso):
+                tmp = self._pasta_temporaria()
+                arquivo = tmp / "vigia" / "caso.json"
+                arquivo.parent.mkdir()
+                arquivo.write_text(json.dumps({**base, **troca}), encoding="utf-8")
+                if passa:
+                    self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+                else:
+                    with self.assertRaises(AssertionError):
+                        self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
 
 
 class OrdensEmVigor(unittest.TestCase):
