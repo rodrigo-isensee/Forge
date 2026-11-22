@@ -2,7 +2,8 @@
 """Forge: ordens (ORDENS-EM-VIGOR, v0478 E123.1; emenda "ordens em vigor" da ADR 0003) - reinjeta as ordens do dono.
 
 SessionStart (startup, resume, compact; o matcher fica no hooks.json) e UserPromptSubmit: lê o arquivo de ordens em vigor
-(projeto: `.forge/ordens-em-vigor.md` na raiz; clone do Forge e worktrees: `~/.forge-contrib/docs/kanban/ordens-em-vigor.md`)
+(projeto: `.forge/ordens-em-vigor.md` na cópia principal, nunca na worktree; clone do Forge e worktrees:
+`~/.forge-contrib/docs/kanban/ordens-em-vigor.md`)
 e o imprime em texto puro, depois de uma linha fixa gerada aqui. Teto: 15 linhas e 2000 caracteres, contados depois de
 trocar os caracteres de controle por espaço; acima, corta e fecha com `ordens cortadas no teto: <N> linhas, <M> caracteres`.
 Só lê: não cria, não regrava, não apaga. Ausente, vazio, maior que 64 KiB, link para fora da raiz, fora de projeto do Forge:
@@ -11,9 +12,10 @@ import os
 import stat
 import sys
 import unicodedata
+from itertools import groupby
 from pathlib import Path
 
-from _comum import contrib, e_clone_do_forge, executar
+from _comum import contrib, diretorio_comum, e_clone_do_forge, executar
 
 NO_PROJETO = ".forge/ordens-em-vigor.md"
 NO_FORGE = "docs/kanban/ordens-em-vigor.md"
@@ -27,12 +29,16 @@ AVISO_DO_TETO = "ordens cortadas no teto: {linhas} linhas, {caracteres} caracter
 
 
 def fonte(raiz):
-    """(arquivo, base que o contém, origem para a linha fixa) da sessão."""
+    """(arquivo, base que o contém, origem para a linha fixa) da sessão, ou None. No Forge, a base é `docs/kanban/` de
+    `~/.forge-contrib`: a pasta trocada por link sai da base (A1 da segurança E123.3). No projeto, a cópia principal pela
+    pasta comum do git lida do disco (`diretorio_comum`): a worktree, que o dev grava, não é fonte (A2 da segurança)."""
     if e_clone_do_forge(raiz):
-        base = contrib()
-        return base / NO_FORGE, base, "~/.forge-contrib/" + NO_FORGE
-    base = Path(os.path.realpath(raiz))
-    return base / NO_PROJETO, base, NO_PROJETO
+        base = Path(os.path.realpath(contrib())) / Path(NO_FORGE).parent
+        return base / Path(NO_FORGE).name, base, "~/.forge-contrib/" + NO_FORGE
+    comum = diretorio_comum(raiz)
+    if comum is None or comum.name != ".git":
+        return None
+    return comum.parent / NO_PROJETO, comum.parent, NO_PROJETO
 
 
 def ler_ordens(caminho, base):
@@ -53,10 +59,18 @@ def ler_ordens(caminho, base):
     return dados.decode("utf-8", errors="replace")
 
 
+def sem_controle(linha):
+    """Cada sequência de Cc, Cf, Zl e Zp vira um espaço só, o critério do `sem_controle` (A3 do review E123.4)."""
+    return "".join(" " if controle else "".join(g) for controle, g in groupby(linha, e_controle))
+
+
+def e_controle(c):
+    return unicodedata.category(c) in CONTROLES
+
+
 def escapadas(texto):
-    """As linhas do arquivo, sem as vazias do fim. Só `\\n` separa linha; o resto do controle vira espaço (`sem_controle`)."""
-    linhas = ["".join(" " if unicodedata.category(c) in CONTROLES else c for c in linha).rstrip()
-              for linha in texto.split("\n")]
+    """As linhas do arquivo, sem as vazias do fim. Só `\\n` separa linha; o resto do controle passa por `sem_controle`."""
+    linhas = [sem_controle(linha).rstrip() for linha in texto.split("\n")]
     while linhas and not linhas[-1].strip():
         linhas.pop()
     return linhas
@@ -77,7 +91,10 @@ def principal(hook):
     raiz = hook.projeto(hook.cwd(), clone_do_forge=True)  # fixa `hook.raiz`: o erro interno vai ao erros.log dela
     if raiz is None:
         return
-    caminho, base, origem = fonte(raiz)
+    achado = fonte(raiz)
+    if achado is None:
+        return
+    caminho, base, origem = achado
     texto = ler_ordens(caminho, base)
     linhas = escapadas(texto) if texto is not None else []
     if not linhas:

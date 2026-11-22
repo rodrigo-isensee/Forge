@@ -3814,6 +3814,7 @@ class OrdensEmVigor(unittest.TestCase):
         self.base = Path(os.path.realpath(self._pasta_temporaria()))
         self.arquivo = self.base / ".forge" / "ordens-em-vigor.md"
         self.arquivo.parent.mkdir()
+        (self.base / ".git").mkdir()  # cópia principal: a fonte é a pasta comum do git (A2 da segurança E123.3)
 
     def principal(self, evento, raiz):
         """Roda `ordens.principal` com um hook falso: (stdout, raiz pedida)."""
@@ -3871,6 +3872,9 @@ class OrdensEmVigor(unittest.TestCase):
         with self.assertRaisesRegex(OSError, "não é arquivo regular"):
             self.ordens.ler_ordens(self.arquivo, self.base)
 
+    def test_sequencia_de_controles_vira_um_espaco_so(self):  # A3 do review E123.4: o critério do `sem_controle`
+        self.assertEqual(self.ordens.escapadas("a\t\x1b\u2028b\n"), ["a b"])
+
     def test_controle_vira_espaco_e_so_a_quebra_separa_linha(self):
         self.assertEqual(self.ordens.escapadas("a\rb c\x00d\te​f\n\n \n"), ["a b c d e f"])
 
@@ -3892,8 +3896,63 @@ class OrdensEmVigor(unittest.TestCase):
         (self.base / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
         with mock.patch.object(self.ordens, "contrib", lambda: self.base / "contrib"):
             arquivo, base, origem = self.ordens.fonte(self.base)
-        self.assertEqual((arquivo, base), (self.base / "contrib/docs/kanban/ordens-em-vigor.md", self.base / "contrib"))
+        self.assertEqual((arquivo, base), (self.base / "contrib/docs/kanban/ordens-em-vigor.md", self.base / "contrib/docs/kanban"))
         self.assertEqual(origem, "~/.forge-contrib/docs/kanban/ordens-em-vigor.md")
+
+    def worktree(self):
+        """Worktree vinculada à `self.base` (montada no disco, como o git a grava), com o próprio arquivo de ordens."""
+        wt = Path(os.path.realpath(self._pasta_temporaria())) / "wt"
+        meta = self.base / ".git" / "worktrees" / "wt"
+        meta.mkdir(parents=True)
+        (meta / "gitdir").write_text(f"{wt}/.git\n", encoding="utf-8")
+        (meta / "commondir").write_text("../..\n", encoding="utf-8")
+        (wt / ".forge").mkdir(parents=True)
+        (wt / ".git").write_text(f"gitdir: {meta}\n", encoding="utf-8")
+        (wt / ".forge" / "ordens-em-vigor.md").write_text("ordem do dev na worktree\n", encoding="utf-8")
+        return wt
+
+    def test_na_worktree_le_so_a_copia_principal(self):  # A2 da segurança E123.3
+        wt = self.worktree()
+        self.assertEqual(self.ordens.fonte(wt), (self.arquivo, self.base, ".forge/ordens-em-vigor.md"))
+        self.assertEqual(self.principal("UserPromptSubmit", wt), "")
+        self.arquivo.write_text("ordem do dono\n", encoding="utf-8")
+        self.assertTrue(self.principal("UserPromptSubmit", wt).endswith("\nordem do dono\n"))
+
+    def test_git_que_nao_se_resolve_cala(self):  # A2 da segurança E123.3: sem a cópia principal, nenhuma fonte
+        wt = self.worktree()
+        (wt / ".git").write_text("gitdir: /nao/existe\n", encoding="utf-8")
+        self.assertIsNone(self.ordens.fonte(wt))
+        self.assertEqual(self.principal("UserPromptSubmit", wt), "")
+        (self.base / ".git" / "commondir").write_text("x\n", encoding="utf-8")  # cópia principal com `commondir`: desvio
+        self.arquivo.write_text("ordem\n", encoding="utf-8")
+        self.assertEqual(self.principal("UserPromptSubmit", self.base), "")
+
+    def test_no_forge_a_pasta_kanban_por_link_sai_da_base(self):  # A1 da segurança E123.3: `ln -sfn <wt> docs/kanban`
+        contrib = self.base / "contrib"
+        copia = contrib / "wt" / "x"
+        copia.mkdir(parents=True)
+        (copia / "ordens-em-vigor.md").write_text("ordem do dev\n", encoding="utf-8")
+        (contrib / "docs").mkdir()
+        (contrib / "docs" / "kanban").symlink_to(copia)
+        (self.base / ".claude-plugin").mkdir()
+        (self.base / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
+        with mock.patch.object(self.ordens, "contrib", lambda: contrib):
+            self.assertEqual(self.principal("UserPromptSubmit", self.base), "")
+            (contrib / "docs" / "kanban").unlink()
+            (contrib / "docs" / "kanban").mkdir()
+            (contrib / "docs" / "kanban" / "ordens-em-vigor.md").write_text("ordem do dono\n", encoding="utf-8")
+            self.assertTrue(self.principal("UserPromptSubmit", self.base).endswith("\nordem do dono\n"))
+
+    def test_conformidade_recusa_a_escrita_do_arquivo_de_ordens_na_sessao_do_forge(self):  # A1 da segurança E123.3
+        lote = [Fixture(p) for p in sorted((FIXTURES / "conformidade").glob("ordens-*.json"))]
+        lote = minimo([f for f in lote if f.dados["descricao"].startswith("ORDENS-SO-JARVIS")], 8, "conformidade/ordens-*")
+        self.assertEqual({f.dados["esperado"]["codigo"] for f in lote}, {0, 2})
+        self.assertEqual(self.executar_em_lote([(f"conformidade/{f.caminho.stem}", f) for f in lote]), len(lote))
+
+    def test_o_modelo_de_projeto_nao_traz_o_arquivo_de_ordens(self):  # A1 do review E123.4: ausente custa zero
+        modelo = HOOKS.parent / "templates" / "projeto" / ".forge"
+        self.assertTrue((modelo / "config.json").is_file())
+        self.assertFalse((modelo / "ordens-em-vigor.md").exists())
 
     def test_hooks_json_registra_o_ordens_nos_matchers_da_emenda(self):
         d = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))
