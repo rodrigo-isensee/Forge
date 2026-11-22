@@ -1,0 +1,24 @@
+{
+  "descricao": "A5-COPIA: `cp -r ev \"$X/sub\"`: o destino com resto segue livre (v0478 E113.11)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "ev/config": "[core]\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp -r ev \"$X/sub\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

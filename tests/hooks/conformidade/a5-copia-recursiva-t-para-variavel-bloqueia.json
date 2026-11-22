@@ -1,0 +1,25 @@
+{
+  "descricao": "A5-COPIA: `cp -rT ev \"$X\"`: a cópia da pasta para variável de fora da linha recusa como `cp ev/config \"$X\"` (v0478 E113.11)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "ev/config": "[core]\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp -rT ev \"$X\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

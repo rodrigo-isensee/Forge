@@ -1,0 +1,23 @@
+{
+  "descricao": "S22-PRIMEIRO: `(exit 0; git switch -c x && git push origin)`: dentro do subshell o push só roda depois da troca (v0478 E113.11)",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "main"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "(exit 0; git switch -c x && git push origin)"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "pedido": "v0480-seg-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S22p",
+      "guarda": "A3 (E113.8): a troca sai do subshell só se é o primeiro comando dele",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif primeiros[nivel - 1].rstrip(\"\\n\") != \"(\":\n",
+      "para": "        elif False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_so_sai_do_subshell_se_e_o_primeiro_comando"
+      ]
+    },
+    {
+      "id": "S22c",
+      "guarda": "A4 (E113.8): o `)` devolve a pasta de fora do subshell",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                contextos[sub] = (pastas_de_fora[-1], ramos_sub, cadeia)  # A4",
+      "para": "                contextos[sub] = (contextos[sub][0], ramos_sub, cadeia)  # A4",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_cd_dentro_do_subshell_fica_nele"
+      ]
+    },
+    {
+      "id": "A5c",
+      "guarda": "A5 (E113.8): a cópia recursiva para opaco sem resto recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if pasta_inteira and nomes:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a5_copia_recursiva_para_opaco_sem_resto_recusa"
+      ]
+    },
+    {
+      "id": "A5r",
+      "guarda": "A5 (E113.8): só o `cp` com opção recursiva conta como cópia de pasta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            self.origem_do_git_no_opaco(args, pasta, prog == \"cp\" and any(map(COPIA_RECURSIVA.fullmatch, args)))\n",
+      "para": "            self.origem_do_git_no_opaco(args, pasta, prog == \"cp\" or any(map(COPIA_RECURSIVA.fullmatch, args)))\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a5_copia_recursiva_para_opaco_sem_resto_recusa"
+      ]
+    }
+  ]
+}

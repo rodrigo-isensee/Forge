@@ -6,6 +6,9 @@ RESTO-SOBE (CONFORMIDADE-RESTO-SOBE): o resto que sobe com `..` depois do opaco 
 Volta única da E113.6 (achados dos três portões): S22-MERGE (com duas candidatas de integração vale a da regra mais
 dura), S22-NEG (a troca negada), S22-SUB (o subshell: a cadeia segue pelo `)`, sem falso positivo), RESTO-ANULA (o
 resto que se anula ou sobe vale como o opaco sem resto) e A20-MAIS (a atribuição com `+=`).
+Segunda volta (E113.11, achados da segurança E113.8): S22-PRIMEIRO (a troca sai do subshell só se é o primeiro comando
+dele: `exit` ou `exec` antes dela), S22-CD (o `cd` dentro de `( … )` fica nele) e A5-COPIA (a cópia recursiva para
+variável de fora da linha recusa como a de arquivo).
 As fixtures moram em tests/hooks/conformidade/ (a suíte inteira as roda em test_hooks); aqui, só as de cada cartão,
 pelo prefixo da descrição, para a mutação do diff rodar rápido."""
 import sys
@@ -60,6 +63,15 @@ class SegurancaDaAuditoria(unittest.TestCase):
 
     def test_a20_atribuicao_com_mais_igual_junta_os_pedacos(self):
         self.conferir("A20-MAIS:", recusam=7, liberam=2)
+
+    def test_s22_troca_so_sai_do_subshell_se_e_o_primeiro_comando(self):
+        self.conferir("S22-PRIMEIRO:", recusam=9, liberam=2)
+
+    def test_s22_cd_dentro_do_subshell_fica_nele(self):
+        self.conferir("S22-CD:", recusam=5, liberam=2)
+
+    def test_a5_copia_recursiva_para_opaco_sem_resto_recusa(self):
+        self.conferir("A5-COPIA:", recusam=5, liberam=2)
 
 
 if __name__ == "__main__":

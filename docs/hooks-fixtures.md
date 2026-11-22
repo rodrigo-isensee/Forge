@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3465 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3491 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,7 +10,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3465 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 130 | 70 | 60 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2624 | 1939 | 685 | 103 |
+| `conformidade` | 2650 | 1959 | 691 | 104 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 32 | 13 | 19 | 14 |
 | `parecer` | 583 | 448 | 135 | 27 |
@@ -76,10 +76,10 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3465 fixtures) roda em `tests/test
 | `v0453-*` | 81 | 57 | 24 | `R-FLUXO`, `R-CONFORMIDADE` | `V0453-GH-ALIAS`, `V0453-AQ-LEITURA`, `V0453-PARECER-BASH`, `V0453-PUSH-TODAS` | V0453-AQ-LEITURA: aq não prepara commit |
 | `cpb-*` | 76 | 53 | 23 | `R-CONFORMIDADE` | `CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS` | CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.9, A1 e A2 do review E63.6; R-CONFORMIDADE): a barra seguida de quebra de linha no meio de pe… |
 | `heredoc-*` | 68 | 59 | 9 | `R-CONFORMIDADE`, `R-MAIN`, `R-REVIEW`, `R-VERIFY` | `HEREDOC-FURO-HOOK`, `C-8`, `HEREDOC-COMENTARIO`, `HEREDOC-DONOS` e mais 1 | A1 do review (volta 3): o mkdir e o cd antes do && não leem o corpo: o dono é o cat > n.md, que só o grava. |
+| `s22-*` | 62 | 46 | 16 | `R-MAIN`, `R-REVIEW` | `S22-MERGE`, `S22-SUB`, `S22-PRIMEIRO`, `S22-CD` e mais 1 | S22-CD: `(cd /tmp; true); git reset --hard HEAD~1`: o `cd` do subshell fica nele, e o comando de fora roda na main (v0478 E113.11) |
 | `e51-*` | 59 | 40 | 19 | `R-CONFORMIDADE`, `R-VERIFY`, `R-MAIN`, `R-FLUXO` | `E51.6`, `E51.10`, `E51.1`, `E51.18` e mais 2 | E51.10 (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE): sessão do Forge com a pasta corrente no clone: o alias encadeado demais é trava. |
 | `sub-*` | 52 | 38 | 14 | — | `CONFORMIDADE-SUBSTITUICAO-NO-PROJETO` | CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (v0478 E63.1, alvo opaco por lista positiva do E51.6; R-VERIFY, R-FLUXO): no projeto, o dev envia à dev… |
 | `merge-*` | 47 | 40 | 7 | `R-CONFORMIDADE`, `R-REVIEW`, `R-MAIN`, `R-DECISAO` | `FURO-HOOK-A`, `FILA-22`, `QA` | git merge main numa branch de trabalho (atualização): qualquer papel. |
-| `s22-*` | 43 | 31 | 12 | `R-MAIN`, `R-REVIEW` | `S22-MERGE`, `S22-SUB`, `S22-NEG` | S22-SUB: `{ git switch -c x; } && git push origin`: as chaves com ação crítica o hook não modela (v0478 E113.6) |
 | `pp-*` | 42 | 28 | 14 | — | `PARECER-PELO-PAPEL` | PARECER-PELO-PAPEL (v0478 E50.7, A3 da segurança; R-CONFORMIDADE): sessão do Forge, pasta corrente no clone, a regra de docs/pedidos/ (outra… |
 | `idx-*` | 41 | 30 | 11 | `R-REVIEW` | `CONFORMIDADE-ESCRITA-NO-INDICE` | CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1, S1-S4 de docs/security/v0479-pv-a1-adr.md; R-CONFORMIDADE): `git add --chmod=+x` fora da políti… |
 | `lancador-*` | 40 | 36 | 4 | `R-CONFORMIDADE`, `R-VERIFY` | — | Prefixo desembrulhado antes de classificar: command git commit --no-verify -m x |
@@ -120,6 +120,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3465 fixtures) roda em `tests/test
 | `e350-*` | 10 | 5 | 5 | — | `E3.50` | E3.50: git add && git commit com heredoc <<'EOF' na mesma chamada, com marcador crítico (docs/reviews), passa. |
 | `m1-*` | 10 | 7 | 3 | — | — | M1 (review da 0.43.2): a linha de selo ou de conferência é da ferramenta; `cd docs/pedidos && cat >> p1.md <<'FIM'` com a conferência no cor… |
 | `crase-*` | 9 | 7 | 2 | `R-CONFORMIDADE` | `CRASE-ASPA-HOOK`, `CRASE-SESSAO-PROJETO` | Orçamento: 60 cd e 60 crases aninhadas terminando em push com --no-verify: o hook recusa sem estourar o timeout (a base recusava em 0,34 s). |
+| `a5-*` | 7 | 5 | 2 | `R-CONFORMIDADE` | `A5-COPIA` | A5-COPIA: `cp -a ev/. "$X"`: a cópia da pasta para variável de fora da linha recusa como `cp ev/config "$X"` (v0478 E113.11) |
 | `erro-*` | 7 | 5 | 2 | — | — | Config corrompida e comando sem marcador: libera e registra. |
 | `estadoclone-*` | 6 | 4 | 2 | — | `AGENTES-JSON-SEM-GUARDA`, `CONFIG-TETO-SEM-GUARDA` | AGENTES-JSON-SEM-GUARDA: no clone do Forge, ler o agentes.json segue livre. |
 | `pedido-*` | 6 | 4 | 2 | — | `VV-2` | VV-2, A1: o dev não grava no pedido. |

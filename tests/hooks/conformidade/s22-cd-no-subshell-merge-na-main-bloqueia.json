@@ -1,5 +1,5 @@
 {
-  "descricao": "S22-SUB: `(cd . ; git switch -c x) && git push origin`: a troca é o último comando do subshell (v0478 E113.6)",
+  "descricao": "S22-CD: `(cd /) ; git merge develop`: o `cd` do subshell fica nele, e o comando de fora roda na main (v0478 E113.11)",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -11,13 +11,14 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "(cd . ; git switch -c x) && git push origin"
+      "command": "(cd /) ; git merge develop"
     },
     "agent_type": "forge:node-backend",
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-MAIN"
   }
 }
