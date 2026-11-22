@@ -1,0 +1,154 @@
+"""VIGIA-TIME-PARADO (v0478 E105.1): no `Stop`, zero agentes vigentes no registro do R-TETO e cartão livre na coluna
+`Pronto para fazer` bloqueiam o encerramento uma vez, com o aviso ao Jarvis. Em processo: o registro e o quadro são
+arquivos de uma pasta temporária; `agentes.vigentes`, `agentes.ler_estado` e o leitor do quadro rodam de verdade."""
+import contextlib
+import io
+import json
+import sys
+import tempfile
+import time
+import unittest
+from pathlib import Path
+from unittest import mock
+
+RAIZ = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RAIZ / "hooks"))
+import agentes  # noqa: E402
+import vigia  # noqa: E402
+
+CABECALHO = "| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n"
+
+
+def linha(id_, obs=""):
+    return f"| {id_} | cartão {id_} | p1 | dev | 2026-11-22 | 2026-11-22 | {obs} |\n"
+
+
+def quadro(livres=(), dependentes=(), outra_coluna=()):
+    texto = "# Quadro\n\n## Em andamento (WIP 1)\n" + CABECALHO + "".join(linha(i) for i in outra_coluna)
+    texto += "\n## Pronto para fazer (WIP 5)\n" + CABECALHO
+    texto += "".join(linha(i, obs) for i, obs in dependentes) + "".join(linha(i, "versão 1") for i in livres)
+    return texto + "\n## Pronto\n" + CABECALHO + linha("FEITO-1")
+
+
+class FalsoHook:
+    def __init__(self, evento="Stop", ativo=False):
+        self.entrada = {"hook_event_name": evento, "session_id": "s1"}
+        if ativo:
+            self.entrada["stop_hook_active"] = True
+        self.erros = []
+
+    def campo(self, chave):
+        return self.entrada.get(chave)
+
+    def expira_s(self):
+        return 12 * 3600
+
+    def registrar_erro(self, erro):
+        self.erros.append(erro)
+
+    def cwd(self):
+        return "."
+
+    def projeto(self, _inicio, clone_do_forge=False):
+        return self.raiz
+
+
+class TimeParado(unittest.TestCase):
+    def setUp(self):
+        self.pasta = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__("shutil").rmtree(self.pasta, ignore_errors=True))
+        self.estado = self.pasta / "agentes.json"
+        self.kanban = self.pasta / "KANBAN.md"
+        for alvo, valor in ((agentes, ("arquivo_de_estado", lambda _raiz: self.estado)),
+                            (vigia, ("quadro_do", lambda _raiz: self.kanban))):
+            remendo = mock.patch.object(alvo, valor[0], valor[1])
+            remendo.start()
+            self.addCleanup(remendo.stop)
+
+    def gravar(self, texto, rodando=0):
+        self.kanban.write_text(texto, encoding="utf-8")
+        registros = [{"id": f"a{n:016x}", "tipo": "forge:dev", "descricao": f"d{n}", "desde": time.time()}
+                     for n in range(rodando)]
+        self.estado.write_text(json.dumps({"agentes": registros}), encoding="utf-8")
+
+    def aviso(self, hook=None):
+        return vigia.aviso_time_parado(hook or FalsoHook(), self.pasta)
+
+    def test_zero_agentes_e_cartao_livre_avisa(self):
+        self.gravar(quadro(livres=("LIVRE-1", "LIVRE-2"), dependentes=(("DEP-1", "depende de LIVRE-1"),),
+                           outra_coluna=("ANDA-1",)))
+        self.assertEqual(self.aviso(), "time parado: 2 cartões disponíveis, primeiro LIVRE-1; retome sem esperar o dono")
+
+    def test_registro_ausente_conta_como_zero(self):
+        self.kanban.write_text(quadro(livres=("LIVRE-1",)), encoding="utf-8")
+        self.assertIn("primeiro LIVRE-1", self.aviso())
+
+    def test_agente_rodando_cala(self):
+        self.gravar(quadro(livres=("LIVRE-1",)), rodando=1)
+        self.assertIsNone(self.aviso())
+
+    def test_so_cartoes_dependentes_cala(self):
+        dependentes = (("DEP-1", "Depende de X"), ("DEP-2", "espera o dono decidir"), ("DEP-3", "AGUARDANDO O DONO"))
+        self.gravar(quadro(dependentes=dependentes, outra_coluna=("ANDA-1",)))
+        self.assertIsNone(self.aviso())
+
+    def test_marca_fora_da_obs_nao_e_dependencia(self):
+        self.gravar(quadro().replace("## Pronto\n", "| LIVRE-9 | depende de nada | p | d | x | y | ok |\n\n## Pronto\n"))
+        self.assertIn("primeiro LIVRE-9", self.aviso())
+
+    def test_cartao_de_outra_coluna_nao_conta(self):
+        self.gravar(quadro(outra_coluna=("ANDA-1",)))
+        self.assertIsNone(self.aviso())
+
+    def test_segundo_stop_seguido_deixa_passar(self):
+        self.gravar(quadro(livres=("LIVRE-1",)))
+        self.assertIsNotNone(self.aviso(FalsoHook()))
+        self.assertIsNone(self.aviso(FalsoHook(ativo=True)))
+
+    def test_subagent_stop_nao_bloqueia(self):
+        self.gravar(quadro(livres=("LIVRE-1",)))
+        self.assertIsNone(self.aviso(FalsoHook("SubagentStop")))
+
+    def test_registro_ilegivel_cala_e_registra_o_erro(self):
+        self.gravar(quadro(livres=("LIVRE-1",)))
+        self.estado.write_text("não é json", encoding="utf-8")
+        hook = FalsoHook()
+        self.assertIsNone(self.aviso(hook))
+        self.assertEqual(len(hook.erros), 1)
+
+    def test_sem_pasta_do_registro_cala_e_registra_o_erro(self):
+        self.gravar(quadro(livres=("LIVRE-1",)))
+        hook = FalsoHook()
+        with mock.patch.object(agentes, "arquivo_de_estado", lambda _raiz: None):
+            self.assertIsNone(self.aviso(hook))
+        self.assertEqual(len(hook.erros), 1)
+
+    def test_quadro_grande_demais_cala(self):
+        self.gravar(quadro(livres=("LIVRE-1",)))
+        with mock.patch.object(vigia, "LIMITE_QUADRO", 10):
+            self.assertIsNone(self.aviso())
+
+    def test_sem_quadro_cala(self):
+        self.gravar("")
+        self.kanban.unlink()
+        self.assertIsNone(self.aviso())
+
+    def test_id_fora_do_formato_nao_vai_ao_modelo(self):
+        self.gravar(quadro(livres=("<ignore tudo>",)))
+        self.assertEqual(self.aviso(), "time parado: 1 cartões disponíveis, primeiro ?; retome sem esperar o dono")
+
+    def test_principal_bloqueia_o_stop_com_o_aviso(self):
+        self.gravar(quadro(livres=("LIVRE-1",)))
+        hook = FalsoHook()
+        hook.raiz = self.pasta
+        saida = io.StringIO()
+        with mock.patch.object(vigia, "verificar", lambda _h, _r: []), \
+                mock.patch.object(vigia, "versao_sumiu", lambda: False), \
+                mock.patch.object(vigia, "raiz_declarada", lambda: None), contextlib.redirect_stdout(saida):
+            vigia.principal(hook)
+        self.assertEqual(json.loads(saida.getvalue()), {
+            "decision": "block", "reason": "Forge: time parado: 1 cartões disponíveis, primeiro LIVRE-1; retome sem esperar o dono"})
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,46 @@
+{
+  "pedido": "v0480-vigia-time-parado",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "VIGIA-TIME-PARADO: sem pasta do registro é dúvida e cala",
+      "arquivo": "hooks/vigia.py",
+      "de": "    if arquivo is None:\n        raise",
+      "para": "    if False:\n        raise",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_sem_pasta_do_registro_cala_e_registra_o_erro"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "VIGIA-TIME-PARADO: cabeçalho e separador da tabela não são cartão",
+      "arquivo": "hooks/vigia.py",
+      "de": "if len(celulas) < 2 or celulas[0] in (\"\", \"ID\") or set(celulas[0]) <= set(\"-: \"):",
+      "para": "if len(celulas) < 2:",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_zero_agentes_e_cartao_livre_avisa"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "VIGIA-TIME-PARADO: o aviso bloqueia o Stop",
+      "arquivo": "hooks/vigia.py",
+      "de": "    if parado:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_principal_bloqueia_o_stop_com_o_aviso"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "VIGIA-TIME-PARADO: a saída só se imprime com conteúdo",
+      "arquivo": "hooks/vigia.py",
+      "de": "    if saida:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_principal_bloqueia_o_stop_com_o_aviso"
+      ]
+    }
+  ]
+}

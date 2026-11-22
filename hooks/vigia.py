@@ -25,6 +25,12 @@ Cada violação nova vai para `.forge/run/violacoes.jsonl`; havendo alguma, a sa
 Sem violação não escreve nada. Erro interno: sai 0 e registra em `erros.log`. Só biblioteca padrão.
 Age no projeto e também na sessão do Forge (clone sem `.forge/versao`, `wt/*`), com o estado no `.forge/run/` da cópia
 principal do clone (`Hook.run`), como os outros hooks (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE).
+VIGIA-TIME-PARADO (v0478 E105.1, ordem do dono 22/11): no `Stop` da sessão principal, com zero agentes vigentes no registro
+do R-TETO (`agentes.json`, lido como o `agentes.py` o lê) e cartão na coluna `Pronto para fazer` do quadro (`KANBAN.md` da
+raiz; no clone do Forge, o de `~/.forge-contrib`) sem marca de dependência na última coluna (Obs.), a saída leva também
+`{"decision": "block", "reason": "Forge: time parado: ..."}`: o Jarvis retoma sem encerrar a vez. Uma vez por vez: com
+`stop_hook_active` (o Stop que segue o bloqueio) deixa encerrar. Registro ou quadro ilegível cala (dúvida não bloqueia).
+O aviso de agente terminado chega ao Jarvis como turno, que acaba neste mesmo `Stop`; o `SubagentStop` não bloqueia (prenderia o agente).
 """
 import hashlib
 import json
@@ -35,8 +41,8 @@ import sys
 import time
 from pathlib import Path
 
-from _comum import (LIMITE_LOG, PLUGIN, copia_de_trabalho, executar, git, gravar_json, ler_json, marcar_projeto,
-                    motivo_da_falha, raiz_declarada, versao_sumiu)
+from _comum import (LIMITE_LOG, PLUGIN, contrib, copia_de_trabalho, e_clone_do_forge, executar, git, gravar_json,
+                    ler_json, marcar_projeto, motivo_da_falha, raiz_declarada, versao_sumiu)
 
 LIMITE_ARQUIVO = 2 * 1024 * 1024
 LIMITE_ARQUIVOS = 3000
@@ -518,11 +524,82 @@ def avisar_versao_sumiu(hook):
     return [("versao-sumiu", detalhe)]
 
 
+# VIGIA-TIME-PARADO --------------------------------------------------------------------------------
+COLUNA_LIVRE = "pronto para fazer"
+MARCAS_DE_DEPENDENCIA = ("depende de", "espera o dono", "aguardando o dono")
+LIMITE_QUADRO = 4 * 1024 * 1024  # o quadro do Forge tem ~0,5 MB; acima disso, cala
+_ID_DO_CARTAO = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")  # o ID vai ao modelo: só o formato de ID passa
+
+
+def quadro_do(raiz):
+    """O `KANBAN.md` que vale para a sessão: no clone do Forge, o de `~/.forge-contrib`; no projeto, o da raiz."""
+    return contrib() / "KANBAN.md" if e_clone_do_forge(raiz) else Path(raiz) / "KANBAN.md"
+
+
+def ler_quadro(caminho):
+    """Texto do quadro, ou None se não há quadro ou se passa de LIMITE_QUADRO."""
+    try:
+        with open(caminho, "rb") as f:
+            dados = f.read(LIMITE_QUADRO + 1)
+    except FileNotFoundError:
+        return None
+    if len(dados) > LIMITE_QUADRO:
+        return None
+    return dados.decode("utf-8", errors="replace")
+
+
+def cartoes_livres(texto):
+    """IDs dos cartões da coluna `Pronto para fazer` sem marca de dependência na Obs. (última coluna), na ordem do quadro."""
+    livres, na_coluna = [], False
+    for linha in texto.splitlines():
+        if linha.startswith("## "):
+            na_coluna = linha[3:].strip().lower().startswith(COLUNA_LIVRE)
+            continue
+        if not na_coluna or not linha.lstrip().startswith("|"):
+            continue
+        celulas = [c.strip() for c in linha.replace("\\|", "").strip().strip("|").split("|")]
+        if len(celulas) < 2 or celulas[0] in ("", "ID") or set(celulas[0]) <= set("-: "):
+            continue
+        if any(marca in celulas[-1].lower() for marca in MARCAS_DE_DEPENDENCIA):
+            continue
+        livres.append(celulas[0])
+    return livres
+
+
+def agentes_rodando(hook, raiz):
+    """Registros vigentes do R-TETO (reserva ou agente iniciado), pela mesma leitura do `agentes.py`; ilegível levanta."""
+    import agentes  # só no Stop: o módulo é grande
+    arquivo = agentes.arquivo_de_estado(raiz)
+    if arquivo is None:
+        raise agentes.EstadoIlegivel("sem diretório comum do git")
+    return len(agentes.vigentes(agentes.ler_estado(arquivo)["agentes"], time.time(), hook.expira_s()))
+
+
+def aviso_time_parado(hook, raiz):
+    """O aviso do time parado para o `Stop`, ou None. Nunca levanta: o erro vai ao erros.log e cala."""
+    if hook.campo("hook_event_name") != "Stop":
+        return None
+    if hook.campo("stop_hook_active") is True:
+        return None
+    try:
+        if agentes_rodando(hook, raiz) != 0:
+            return None
+        livres = cartoes_livres(ler_quadro(quadro_do(raiz)) or "")
+    except Exception as erro:  # noqa: BLE001 - nunca falha a sessão; dúvida não bloqueia o encerramento
+        hook.registrar_erro(erro)
+        return None
+    if not livres:
+        return None
+    primeiro = livres[0] if _ID_DO_CARTAO.fullmatch(livres[0]) else "?"
+    return f"time parado: {len(livres)} cartões disponíveis, primeiro {primeiro}; retome sem esperar o dono"
+
+
 def principal(hook):
     evento = hook.campo("hook_event_name")
     if evento == "SessionStart" and raiz_declarada() is not None:
         marcar_projeto(raiz_declarada())
     raiz = hook.projeto(hook.cwd(), clone_do_forge=True)  # a sessão do Forge também (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE)
+    parado = None
     if versao_sumiu() and evento in ("Stop", "SubagentStop"):
         novas = avisar_versao_sumiu(hook)
     elif raiz is None or evento not in ("SessionStart", "Stop", "SubagentStop"):
@@ -531,6 +608,8 @@ def principal(hook):
         return iniciar(hook, raiz)
     else:
         novas = verificar(hook, raiz)
+        parado = aviso_time_parado(hook, raiz)
+    saida = {}
     if novas:
         novas = sorted(novas, key=lambda n: GRAVIDADE[n[0]][0])  # o resumo é do mais grave (a ordenação é estável)
         contagem = {}
@@ -538,7 +617,11 @@ def principal(hook):
             contagem[GRAVIDADE[tipo]] = contagem.get(GRAVIDADE[tipo], 0) + 1
         partes = ", ".join(f"{n} {nome}" for (_, nome), n in sorted(contagem.items()))
         resumo = " ".join(f"{novas[0][0]}: {TEXTOS_FIXOS.get(novas[0][0], novas[0][1])}".split())[:120]
-        print(json.dumps({"systemMessage": f"Forge: {partes} — {resumo} (.forge/run/violacoes.jsonl)"}, ensure_ascii=False))
+        saida["systemMessage"] = f"Forge: {partes} — {resumo} (.forge/run/violacoes.jsonl)"
+    if parado:
+        saida.update({"decision": "block", "reason": f"Forge: {parado}"})
+    if saida:
+        print(json.dumps(saida, ensure_ascii=False))
 
 
 if __name__ == "__main__":
