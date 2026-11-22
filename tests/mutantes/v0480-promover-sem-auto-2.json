@@ -1,0 +1,26 @@
+{
+  "pedido": "v0480-promover-sem-auto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "sem a linha CHECKS_EXIGIDOS nao ha obrigatorio inventado",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "m.group(1)) if m else []",
+      "para": "m.group(1)) if m else [\"W/bateria\"]",
+      "testes": [
+        "tests.test_promover_homolog.ChecksObrigatorios.test_lista_ausente_vazia_ou_arquivo_faltando_para"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "cada obrigatorio julgado so pelas execucoes do proprio nome",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "if n == nome}",
+      "para": "if n != nome}",
+      "testes": [
+        "tests.test_promover_homolog.Execucao.test_obrigatorio_sem_execucao_do_pr_nao_imprime_merge"
+      ]
+    }
+  ]
+}

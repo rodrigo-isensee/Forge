@@ -78,7 +78,7 @@
       "guarda": "forge-fechar ilegivel para",
       "arquivo": "scripts/promover-homolog.py",
       "de": "parar(f\"não li os checks obrigatórios",
-      "para": "texto = \"\" or print(f\"não li os checks obrigatórios",
+      "para": "texto = \"readonly CHECKS_EXIGIDOS=()\" or parar(f\"não li os checks obrigatórios",
       "testes": [
         "tests.test_promover_homolog.ChecksObrigatorios.test_lista_ausente_vazia_ou_arquivo_faltando_para"
       ]
