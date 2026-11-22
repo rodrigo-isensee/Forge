@@ -1654,6 +1654,23 @@ class DocsEstritoNoDelta(Repositorio):
         self.assertEqual((rc, saida), (0, ""))
         self.assertIn(self.AVISO, erro)
 
+    def test_base_do_fluxo_confere_so_o_diff_no_estrito_e_sem_diff_reprova(self):  # FC-DOCS-CAMINHO (v0478 E91.1)
+        velho = "---\ntipo: review\ncontrato: 1\npedido: p1\n---\n# velho\n"
+        nenhum = self.LONGO.replace("tipo: review", "tipo: revisao-seguranca").split("## Achados")[0] + "## Achados\n- Nenhum.\n"
+        self.pedido.write_text("# p1\n", encoding="utf-8")
+        self.commitar({"docs/reviews/velho.md": velho}, "parecer antigo fora do formato")
+        self.com_origem(self.head())
+        self.commitar({"docs/security/p1.md": nenhum}, "parecer de segurança da branch")
+        self.assertIn("docs/reviews/velho.md: branch: obrigatório", self.docs()[1])  # sem --base, a pasta inteira, como antes
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.repo), "docs", "--base", "develop"],
+                           env=dict(ambiente_limpo(), HOME=str(self.home)), capture_output=True, text=True)
+        self.assertEqual((r.returncode, r.stdout.splitlines()), (1, [
+            'docs/security/p1.md: achados: linha do bloco ## Achados fora do formato (uma linha, sem caractere de controle; '
+            'sem achados, omita o bloco): "- Nenhum." (R-SEGURANCA)']))
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.repo), "docs", "--base", "main"],
+                           env=dict(ambiente_limpo(), HOME=str(self.home)), capture_output=True, text=True)
+        self.assertEqual((r.returncode, r.stdout), (1, "docs: o diff contra origin/main não se lê; nada conferido (FC-DOCS-CAMINHO)\n"))
+
     def test_ls_files_que_falha_devolve_none(self):
         self.com_origem(self.base)
         modulo = carregar_forge_check()

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-trilha-forge-check",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M13",
+      "guarda": "K-156: o P ilegível de linha de outra branch não entra na conta",
+      "arquivo": "bin/forge-check",
+      "de": "            if cod and de_outra_branch(raiz, linha, branch, ref):  # K-156",
+      "para": "            if cod and False:  # K-156",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "K-156: a linha sem parecer citado segue ilegível (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not branch or not citados:",
+      "para": "    if not branch:",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "A1/S3: citação em subpasta ou com prefixo forjado mantém a linha ilegível",
+      "arquivo": "bin/forge-check",
+      "de": "    if len(citados) != len(re.findall(rf\"(?:{pastas})/\", linha)):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "A1/S2: parecer citado que não existe na ref nem na base mantém a linha ilegível",
+      "arquivo": "bin/forge-check",
+      "de": "        if not onde:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "A1/S1/S4: parecer com a branch: da própria branch mantém a linha ilegível, qualquer que seja o nome",
+      "arquivo": "bin/forge-check",
+      "de": ".get(\"branch\") in (None, \"\", branch) for r in onde):",
+      "para": ".get(\"branch\") in (None, \"\") for r in onde):",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "A1: parecer sem frontmatter legível mantém a linha ilegível",
+      "arquivo": "bin/forge-check",
+      "de": ".get(\"branch\") in (None, \"\", branch) for r in onde):",
+      "para": ".get(\"branch\") in (branch,) for r in onde):",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "A1: só a ref onde o parecer existe decide; a ausência numa delas não vira frontmatter ilegível",
+      "arquivo": "bin/forge-check",
+      "de": "        onde = [r for r in refs if blob_de(raiz, r, nome)]",
+      "para": "        onde = [r for r in refs if True]",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "A1: o pr decide pela --ref, não pelo HEAD da cópia",
+      "arquivo": "bin/forge-check",
+      "de": "pareceres_conferidos(raiz, pedido, branch, ref or \"HEAD\") if de_trabalho else",
+      "para": "pareceres_conferidos(raiz, pedido, branch, \"HEAD\") if de_trabalho else",
+      "testes": [
+        "tests.test_revisor_wt.PrLeParecerConferido.test_sha_ilegivel_de_outra_branch_nao_conta_e_o_da_branch_sim"
+      ]
+    }
+  ]
+}
