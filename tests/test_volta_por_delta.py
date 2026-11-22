@@ -1030,7 +1030,8 @@ class BriefDeVolta(Repositorio):
         self.assertEqual(modulo.voltas_autorizadas(cobradas, "melhoria/x"), 2)
         for vazio in (None, ""):
             self.assertEqual(modulo.voltas_autorizadas(cobradas, vazio), 1)
-        self.assertIn("volta 2 recusada", modulo.recusa_da_volta(2, cobradas, None))
+        self.assertIn('volta 2 recusada para "<branch>"', modulo.recusa_da_volta(2, cobradas, None))
+        self.assertEqual((modulo.numero_da_volta({}), modulo.numero_da_volta({"Entregar": ["## Entregar\n"]})), (0, 0))
 
     def test_etapa_de_merge_acrescenta_o_pq_por_ancestralidade(self):  # E5 na volta
         rc, saida = self.gerar("--etapa", "merge-integracao")
