@@ -1,0 +1,25 @@
+{
+  "descricao": "A5-COPIA: `d=docs; cp -rT ev \"$d\"`: o valor que o hook calcula segue livre (v0478 E113.11)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "ev/config": "[core]\n",
+    "ev/a": "a\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "d=docs; cp -rT ev \"$d\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

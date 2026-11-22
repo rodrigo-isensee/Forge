@@ -71,7 +71,7 @@ class SegurancaDaAuditoria(unittest.TestCase):
         self.conferir("S22-CD:", recusam=5, liberam=2)
 
     def test_a5_copia_recursiva_para_opaco_sem_resto_recusa(self):
-        self.conferir("A5-COPIA:", recusam=5, liberam=2)
+        self.conferir("A5-COPIA:", recusam=5, liberam=4)
 
 
 if __name__ == "__main__":

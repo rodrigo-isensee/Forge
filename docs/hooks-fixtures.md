@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3492 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3494 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,7 +10,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3492 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 130 | 70 | 60 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2650 | 1959 | 691 | 104 |
+| `conformidade` | 2652 | 1959 | 693 | 104 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 33 | 13 | 20 | 15 |
 | `parecer` | 583 | 448 | 135 | 27 |
@@ -119,8 +119,8 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3492 fixtures) roda em `tests/test
 | `fila22-*` | 11 | 7 | 4 | `R-CONFORMIDADE` | `FILA-22` | FILA-22 (review da 0.43.2): abrir PR pelo `gh api` segue a política `pr_criar`; o jarvis (sessão principal) não abre. |
 | `e350-*` | 10 | 5 | 5 | — | `E3.50` | E3.50: git add && git commit com heredoc <<'EOF' na mesma chamada, com marcador crítico (docs/reviews), passa. |
 | `m1-*` | 10 | 7 | 3 | — | — | M1 (review da 0.43.2): a linha de selo ou de conferência é da ferramenta; `cd docs/pedidos && cat >> p1.md <<'FIM'` com a conferência no cor… |
+| `a5-*` | 9 | 5 | 4 | `R-CONFORMIDADE` | `A5-COPIA` | A5-COPIA: `cp -a ev/. "$X"`: a cópia da pasta para variável de fora da linha recusa como `cp ev/config "$X"` (v0478 E113.11) |
 | `crase-*` | 9 | 7 | 2 | `R-CONFORMIDADE` | `CRASE-ASPA-HOOK`, `CRASE-SESSAO-PROJETO` | Orçamento: 60 cd e 60 crases aninhadas terminando em push com --no-verify: o hook recusa sem estourar o timeout (a base recusava em 0,34 s). |
-| `a5-*` | 7 | 5 | 2 | `R-CONFORMIDADE` | `A5-COPIA` | A5-COPIA: `cp -a ev/. "$X"`: a cópia da pasta para variável de fora da linha recusa como `cp ev/config "$X"` (v0478 E113.11) |
 | `erro-*` | 7 | 5 | 2 | — | — | Config corrompida e comando sem marcador: libera e registra. |
 | `estadoclone-*` | 6 | 4 | 2 | — | `AGENTES-JSON-SEM-GUARDA`, `CONFIG-TETO-SEM-GUARDA` | AGENTES-JSON-SEM-GUARDA: no clone do Forge, ler o agentes.json segue livre. |
 | `pedido-*` | 6 | 4 | 2 | — | `VV-2` | VV-2, A1: o dev não grava no pedido. |

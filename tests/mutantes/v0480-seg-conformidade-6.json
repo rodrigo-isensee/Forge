@@ -26,8 +26,8 @@
       "id": "A5c",
       "guarda": "A5 (E113.8): a cópia recursiva para opaco sem resto recusa",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if pasta_inteira and nomes:\n",
-      "para": "        if False:\n",
+      "de": "        if prog == \"cp\" and nomes and any(re.fullmatch(r\"-[^-]*[rRa]\\w*|--(recursive|archive)\", a) for a in args) \\\n",
+      "para": "        if False and nomes and any(re.fullmatch(r\"-[^-]*[rRa]\\w*|--(recursive|archive)\", a) for a in args) \\\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a5_copia_recursiva_para_opaco_sem_resto_recusa"
       ]
@@ -36,8 +36,18 @@
       "id": "A5r",
       "guarda": "A5 (E113.8): só o `cp` com opção recursiva conta como cópia de pasta",
       "arquivo": "hooks/conformidade.py",
-      "de": "            self.origem_do_git_no_opaco(args, pasta, prog == \"cp\" and any(map(COPIA_RECURSIVA.fullmatch, args)))\n",
-      "para": "            self.origem_do_git_no_opaco(args, pasta, prog == \"cp\" or any(map(COPIA_RECURSIVA.fullmatch, args)))\n",
+      "de": "        if prog == \"cp\" and nomes and any(re.fullmatch(r\"-[^-]*[rRa]\\w*|--(recursive|archive)\", a) for a in args) \\\n",
+      "para": "        if prog == \"cp\" and nomes and True \\\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a5_copia_recursiva_para_opaco_sem_resto_recusa"
+      ]
+    },
+    {
+      "id": "A5v",
+      "guarda": "A5 (E113.8): só o valor que vem de fora da linha recusa a cópia recursiva",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return valores is None or any(SEM_VALOR in v for v in valores)\n",
+      "para": "        return valores is None\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a5_copia_recursiva_para_opaco_sem_resto_recusa"
       ]

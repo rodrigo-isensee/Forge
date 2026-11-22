@@ -1,0 +1,25 @@
+{
+  "descricao": "A5-COPIA: `cp ev/a \"$X\"`: a cópia de arquivo sem nome do git segue livre (v0478 E113.11)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "ev/config": "[core]\n",
+    "ev/a": "a\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp ev/a \"$X\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

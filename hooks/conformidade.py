@@ -125,7 +125,6 @@ ESCRITA_NO_TEXTO = re.compile(  # só escrita de arquivo: `.replace(` de texto e
     r"file_put_contents|\bf(write|puts)\b|File\.(delete|rename)|FileUtils|inplace|system\(", re.I)
 TODOS_OS_ARGUMENTOS = {"rm", "mv", "tee", "truncate", "shred", "unlink", "rmdir", "touch"}
 SO_DESTINO = {"cp", "ln", "install", "rsync"}
-COPIA_RECURSIVA = re.compile(r"-[^-]*[rRa]\w*|--(recursive|archive)")  # A5 da segurança E113.8: `cp -rT`, `-a`, `-R`
 LEITORES = {"cat", "head", "tail", "less", "more", "bat", "nl", "tac", "source", ".", "grep", "egrep", "rg", "xxd",
             "od", "strings", "base64"}
 # F6: leitor sem execução (sem `source`/`.`, pagers e `xxd`, que executam ou gravam por argumento) e as opções que não executam
@@ -1843,11 +1842,12 @@ class Guarda:
         self.barrar("R-CONFORMIDADE", f"destino de $(…), crase ou variável: {motivo}",
                     "escreva o caminho literal do destino")
 
-    def origem_do_git_no_opaco(self, args, pasta, pasta_inteira=False):
+    def origem_do_git_no_opaco(self, args, pasta, prog):
         """A9, U3: `cp`, `mv`, `install` e `ln` com destino opaco sem resto e origem com nome do git ou de hook (C18)
         recusam, salvo quando o corpo é um da lista positiva (`CORPO_POSITIVO`: `mktemp`, `date`, `pwd`,
-        `git rev-parse --show-toplevel`). A5 da segurança E113.8: a cópia recursiva (`pasta_inteira`) recusa sempre,
-        porque o hook não vê os nomes de dentro da pasta (`cp -rT ev "$X"` grava `ev/config` como `cp ev/config "$X"`)."""
+        `git rev-parse --show-toplevel`). A5 da segurança E113.8: a cópia recursiva (`cp -r`, `-a`) para valor que o hook
+        não calcula (`valor_de_fora`) recusa, porque ele não vê os nomes de dentro da pasta (`cp -rT ev "$X"` grava
+        `ev/config` como `cp ev/config "$X"`)."""
         alvo = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-t", "--target-directory")), None)
         alvo = alvo or next((a.split("=", 1)[1] for a in args if a.startswith("--target-directory=")), None)
         alvo = alvo or next((a for a in reversed(args) if not a.startswith("-") or "`" in a), None)
@@ -1858,10 +1858,18 @@ class Guarda:
         if achado:
             self.barrar("R-CONFORMIDADE", f"origem `{achado}` (nome do git ou de hook) para destino de $(…), crase ou "
                                           "variável que o hook não lê", "escreva o caminho literal do destino")
-        if pasta_inteira and nomes:
+        if prog == "cp" and nomes and any(re.fullmatch(r"-[^-]*[rRa]\w*|--(recursive|archive)", a) for a in args) \
+                and self.valor_de_fora(alvo, pasta):  # `-r`, `-R`, `-a`; o padrão só aqui: o import não paga (corpus)
             self.barrar("R-CONFORMIDADE", f"cópia recursiva de `{nomes[0]}` para destino de $(…), crase ou variável que o "
                                           "hook não lê: os nomes de dentro da pasta podem ser do git",
                         "escreva o caminho literal do destino")
+
+    def valor_de_fora(self, palavra, pasta):
+        """A5 da segurança E113.8: o valor da palavra vem de fora da linha (`"$X"` sem `X=` nela) ou o hook não o calcula;
+        `d=docs; … "$d"` não."""
+        linha = None if self.corpo_desconhecido else linha_juntada(self.texto_da_linha)
+        valores = None if linha is None else valores_da_palavra(self.expandir(palavra, pasta), linha)
+        return valores is None or any(SEM_VALOR in v for v in valores)
 
     def corpo_positivo(self, palavra):
         """U3: a palavra é uma substituição só (direta ou pela única atribuição da variável na linha) cujo corpo está na
@@ -2549,7 +2557,7 @@ class Guarda:
         elif prog in self.pol["pacotes"]:
             self.pacote(prog, args)
         if prog in ("cp", "mv", "install", "ln"):  # A9, U3: depois das regras do destino e do link
-            self.origem_do_git_no_opaco(args, pasta, prog == "cp" and any(map(COPIA_RECURSIVA.fullmatch, args)))
+            self.origem_do_git_no_opaco(args, pasta, prog)
         if prog == "sed":  # `w arquivo` no script escreve, com ou sem `-i`
             for a in args:
                 for destino in SED_ESCREVE.findall(script_do_sed(a)):

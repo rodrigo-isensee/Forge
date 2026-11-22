@@ -8,4 +8,4 @@
 - hooks/conformidade.py: na linha com lançador que o hook não lê ('builtin -iu', 'env -iu'), o resto com barra calcula o valor pelos corpos da palavra ('builtin -iu cp -rT ev ".g$(echo it)/c"' recusa) (A20)
 - hooks/conformidade.py: a troca de branch só sai do subshell se é o primeiro comando dele; '(exit 0; git switch -c x) && git push origin' e a forma com 'exec' na main voltam a ser recusadas, e '(cd . ; git switch -c x) && git push' também (A3 da segurança E113.8)
 - hooks/conformidade.py: o 'cd' dentro de '( … )' fica no subshell; '(cd /tmp); git push origin' na main é recusado (A4 da segurança E113.8)
-- hooks/conformidade.py: a cópia recursiva ('cp -rT', 'cp -r ev/.', 'cp -a') para destino de variável que o hook não lê recusa como a cópia de arquivo (A5 da segurança E113.8)
+- hooks/conformidade.py: a cópia recursiva ('cp -rT', 'cp -r ev/.', 'cp -a') para variável de fora da linha recusa como a cópia de arquivo; com o valor na linha ('d=docs') segue livre (A5 da segurança E113.8)
