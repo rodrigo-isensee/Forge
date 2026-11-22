@@ -68,7 +68,7 @@
       "guarda": "E122.6: o cabeçalho vai até o fechamento `---`, não o arquivo inteiro",
       "arquivo": "bin/forge-check",
       "de": "return texto if fim < 0 else texto[:fim]",
-      "para": "return texto",
+      "para": "return texto if fim >= 0 else texto[:fim]",
       "testes": [
         "tests.test_classe_risco.ClasseNoRepositorio.test_e1226_binario_e_cabecalho_de_agente_saem_da_t"
       ]
