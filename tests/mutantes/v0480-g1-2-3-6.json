@@ -29,7 +29,8 @@
       "de": "    if cod or not texto.startswith(b\"---\"):\n",
       "para": "    if cod:\n",
       "testes": [
-        "tests.test_classe_risco.ClasseNoRepositorio.test_e1226_binario_e_cabecalho_de_agente_saem_da_t"
+        "tests.test_classe_risco.ClasseNoRepositorio.test_e1226_binario_e_cabecalho_de_agente_saem_da_t",
+        "tests.test_classe_risco.ClasseNoRepositorio.test_agente_e_teste_de_controle_sozinhos_sao_t_so_com_review"
       ]
     },
     {

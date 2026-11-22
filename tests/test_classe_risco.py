@@ -78,7 +78,8 @@ class ClasseDasMudancas(unittest.TestCase):
         casos = ([M("stacks/s/pronto.md")], [M("stacks/s/seguranca.md")], [M("stacks/s/pronto.md"), M("agents/x.md")],
                  [M("templates/projeto/.claude/agents/x.md")], [M("templates/projeto/.claude/commands/x.md")],
                  [M(".claude/skills/a/SKILL.md")], [M("tests/quarentenas.py"), M("tests/test_catraca.py")],
-                 [M("tests/quarentenas.py")], [M("tests/gh_falso.py"), M("tests/test_hooks_x.py")])
+                 [M("tests/quarentenas.py")], [M("tests/gh_falso.py"), M("tests/test_hooks_x.py")],
+                 [M("tests/catraca_dados/x.json"), M("tests/test_hooks_x.py")])
         self.assertEqual({tuple(m.nome for m in c): classe(c) for c in casos}, {tuple(m.nome for m in c): "C" for c in casos})
 
     def test_e1226_barreira_tira_da_t(self):  # QA A1 e segurança A5: binário ou cabeçalho de agente mudado

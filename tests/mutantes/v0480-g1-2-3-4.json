@@ -19,7 +19,8 @@
       "de": "TESTE_PROPRIO = re.compile(r\"^tests/(hooks/|test_[^/]+\\.py$)\")",
       "para": "TESTE_PROPRIO = re.compile(r\"^tests/\")",
       "testes": [
-        "tests.test_classe_risco.ClasseDasMudancas.test_g13_fora_da_t"
+        "tests.test_classe_risco.ClasseDasMudancas.test_g13_fora_da_t",
+        "tests.test_classe_risco.ClasseDasMudancas.test_e1226_md_que_configura_e_apoio_de_tests_seguem_c"
       ]
     },
     {
