@@ -3,42 +3,74 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-seg-conformidade
-commit: a4266c77896643b544328310ae6deee34665d6c1
+commit: 14696864b679da061fc87f6dda8ad0b7227adb4f
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-11-22
 ---
-# Review de segurança: v0478 (E113.2, cartões S22, A20 e RESTO-SOBE do hooks/conformidade.py)
+# Review de segurança: v0478 (E113.8, revalidação da volta única E113.6 do hooks/conformidade.py)
 
-Revisão completa única do diff `b0895f6c..a4266c77` (hooks/conformidade.py, 23 fixtures, tests/test_conformidade_seg_v0480.py, mutantes). Cada sonda rodou na cabeça e na base (`git archive b0895f6c`), com o mesmo montador das fixtures (`tests/test_hooks.py`: `Fixture.montar` e `rodar`), repositório na `main` e um papel de implementação da stack, salvo onde se indica.
+Revalidação por delta (`forge-check parecer delta`, intervalo `a4266c77..14696864`): no domínio, `hooks/conformidade.py` (S22 com `por_dureza`, `alcance_da_troca`, a pilha de subshells no `conferir_partes`, `ramos_em` e `merge_na_integracao`; `resto_se_anula` no `opaco_sem_resto`; `+=` no `textos_do_valor`; corpos sós no `valor_calculado`), 66 fixtures novas e `tests/test_conformidade_seg_v0480.py`; fora do domínio, changelog, `docs/hooks-fixtures.md`, specs de mutante e `tests/pesos-d4.json`, não relidos. A rodada anterior está no git (commit do parecer sobre a4266c77).
+
+Método: 107 sondas da matriz (as minhas S1 a S6, as 29 do QA, o corpus de legítimos e as formas novas de subshell) mais 34 de apoio, cada uma na cabeça e na base a4266c77, com o montador das fixtures (`tests/test_hooks.py`, `Fixture.montar` e `rodar`), repositório na `main` (S22) ou em `feature/x` (escrita), papel de implementação da stack salvo indicação.
 
 ## Gatilhos
 Gatilhos: guarda de controle (hook conformidade), R-MAIN, escrita no diretório do git.
 
-## A mudança só aperta?
-Sim. Nenhuma das 55 sondas que passaram pela base e pela cabeça foi recusada na base e liberada na cabeça. Pelo código: o S22 só acrescenta candidatas a `ramos` e o `ramo_em` (hooks/conformidade.py:2613) troca a mais nova pela de integração quando há uma, nunca o contrário (com uma candidata só, o resultado é o de antes); o A20 só acrescenta `barrar` (hooks/conformidade.py:1772) e o posicional só soma a linha aos textos largos, lidos com `any` para recusar (hooks/conformidade.py:1737, 1757, 1900); o RESTO-SOBE só normaliza o resto quando a 1ª parte não é nome do git, caso que antes devolvia `None`, e o resultado só entra como alvo a mais (hooks/conformidade.py:1848, 1831). O corpus de legítimos das sondas segue livre: `git switch -c x && git push origin`, com quebra e com `git add -A` no meio, `d=docs; cp … "$d/c"`, `"$(mktemp -d)/c"`, `"$(pwd)/docs/c"`, `"$(mktemp -d)/../x"`, `"$X/a/../docs/x"`.
+## O afrouxamento do subshell é seguro? O resto só aperta?
+Comparando a cabeça com a base nas 107 sondas, só o subshell libera o que a base recusava (15 sondas). Oito dessas liberações estão certas: `(git switch -c x) && git push origin`, com quebra depois do `&&`, `( (…) )`, `(… && true)`, `(cd . ; …)`, `&& (git push origin)`, `2>/dev/null` e `(shopt …; …)`. A troca de branch muda o HEAD em disco e o `&&` depois do `)` garante o código 0 do subshell. As outras sete são brecha nova (A3). Dentro do subshell, `exit` e `exec` antes da troca encerram o subshell com 0 sem rodar a troca, e o push sai na `main`. A base recusava essas sete. Por isso o afrouxamento **não é seguro como está**. Na mesma família, `(exit 0; git switch -c x) && git reset --hard HEAD~1` recusava na base (R-REVIEW) e na cabeça passa.
 
-## Sondas refeitas dos cartões
-- S22: as 10 formas incertas (`false && git switch -c x; git push origin`, `true || … &&`, `| cat &&`, `&& git status;`, `&`, `|&`, `{ …; } &&`, `( … ) &&`, `if false; then …; fi;`, `git checkout -b`) recusam com R-MAIN na cabeça; na base, 9 delas passavam. As 3 formas certas liberam. Fechado para o push; aberto para o merge (A1).
-- A20: `"$(echo .git)/."`, `set -- .git; … "$@"/c`, `d=.git; … "$d/."`, `"${d}/x/y"`, `"$(printf %s .git)/."` recusam na cabeça e passavam na base. Fechado.
-- RESTO-SOBE: `"$X/a/../config"`, `"$X/a/../../config"`, `"$X/../hooks/pre-push"`, `TMPDIR=.git` e `export TMPDIR=.git` com `"$(mktemp -u)"/../config` e `"$(mktemp -d)"/../config` recusam na cabeça e passavam na base. Aberto quando o `..` é o fim do resto (A2).
+O resto só aperta. Nenhuma outra sonda que a base recusava passa na cabeça, e o código confirma isso:
+- `por_dureza` só reordena as candidatas, com a mais dura primeiro.
+- O merge confere cada candidata.
+- `resto_se_anula` manda mais formas ao `destino_opaco`, que é o caminho que recusa.
+- O `+=` só acrescenta textos precisos.
+- O `valores is None` só alimenta o `valor_no_git`, que serve para recusar.
+
+O corpus de legítimos segue livre: `"$(mktemp -d)/c"`, `"$(mktemp -d)/."`, `"$(mktemp -d)/../x"`, `"$X/a/../docs/x"`, `"$(pwd)/docs/c"`, `d=docs`, `d=do; d+=cs`, `d=docs; d+=/x`, `git switch -c x && git push origin`, com quebra e com `git add -A`, e, na feature, `git switch -c x && git merge develop`.
+
+## Achados anteriores
+- A1 (merge com duas candidatas): fechado. `false && git switch develop; git merge develop` e as formas com `homolog`, `true ||`, `| cat;`, `!` e `( … );` recusam com R-MAIN e passavam na base. A forma com `exit` no subshell segue aberta e foi para o A3.
+- A2 (resto que se anula): fechado na dimensão do resto. As 17 formas recusam: `/..`, `/.`, `/a/..`, `/./`, `/.//`, `"$X"/.`, `"$X"/..`, `"$X"/./..`, `"${X}/.."`, `/../..`, `/a/../.`, `$(cat f)/.`, `mv`, `TMPDIR=.git` e `export TMPDIR=.git` com `mktemp`. A forma `cp -rT ev "$X/."` da minha S6 segue livre, mas não por causa do resto: `cp -rT ev "$X"`, sem resto, também passa (na base e na cabeça). Foi para o A5.
+- QA A1 (a negação) e QA A2 (o `+=`): fechados. Recusam `! git switch|checkout … && push`, `(! …) &&` e as 9 formas de `+=` (`d+="t"`, `d+=$e`, `d+=$'t'`, `declare`, `export`, três vezes, `d+=/../.git`).
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:2613 · S22 incompleto no merge: com duas candidatas de integração o ramo_em devolve a mais nova, não a mais dura; na main, `false && git switch develop; git merge develop` passa (develop sobre develop) e o bash mescla a develop na main
-- A2 (bloqueante) hooks/conformidade.py:1848 · RESTO-SOBE e A20 incompletos: o resto que se anula (`/..`, `/.`, `/a/..`) depois de opaco que o hook não sabe passa; `TMPDIR=.git; cp ev/config "$(mktemp -d)"/..` grava .git/config, e `"$X/.."`, `"$X/."` passam onde `"$X"` e `"$X/"` recusam
+- A3 (bloqueante) hooks/conformidade.py:2279 · S22-SUB afrouxa: `exit` ou `exec` antes da troca no subshell sai com 0 sem trocar; `(exit 0; git switch -c x) && git push origin` na main passa (a base recusava), e o mesmo com `git reset --hard` e com `git merge develop`
+- A4 (bloqueante) hooks/conformidade.py:2249 · O `cd` dentro de `( … )` vaza para fora no hook (o contexto só separa substituições): `(cd /tmp); git push origin`, `(cd /) ; git merge develop` e `(cd /tmp; true); git reset --hard HEAD~1` na main passam; o bash roda os três na main
+- A5 (recomendado) hooks/conformidade.py:1780 · Cópia de pasta para opaco sem resto passa onde a de arquivo recusa: `cp -rT ev "$X"`, `cp -r -T ev "$X"`, `cp -r ev/. "$X"` com X de fora da linha (`cp ev/config "$X"` recusa); igual na base
 
 ## Sondas
-- S1 · na main, papel de implementação da stack: `false && git switch develop; git merge develop` · espera: código 2, R-MAIN (merge na main é do usuário) · obtido: código 0 (cabeça e base)
-- S2 · na main, papel forge:tech-lead: `false && git switch homolog; git merge homolog` · espera: código 2, R-MAIN · obtido: código 0 (cabeça e base)
-- S3 · na main: `git merge develop` (controle) · espera: código 2, R-MAIN · obtido: código 2, R-MAIN
-- S4 · `TMPDIR=.git; cp ev/config "$(mktemp -d)"/..` · espera: código 2, R-CONFORMIDADE (.git/config) · obtido: código 0 (cabeça e base); num repositório descartável, o mesmo comando grava ev/config em .git/config
-- S5 · `cp ev/config "$X/.."` e `cp ev/config "$X/a/.."` · espera: código 2, como `cp ev/config "$X"` · obtido: código 0 (cabeça e base); com X apontando para .git/hooks, grava .git/config
-- S6 · `cp ev/config "$X/."`, `cp -rT ev "$X/."`, `cp ev/config "$X/./"`, `cp ev/config "$(cat f)/."` · espera: código 2, como `"$X"` e `"$X/"` · obtido: código 0 (cabeça e base)
+- S1 · na main: `(exit 0; git switch -c x) && git push origin` · espera: código 2, R-MAIN (como na base) · obtido: código 0 na cabeça, 2 na base
+- S2 · na main: `(exec true; git switch -c x) && git push origin` · espera: código 2, R-MAIN · obtido: código 0 na cabeça, 2 na base
+- S3 · na main: `(true || exit 0; git switch -c x) && git push origin` · espera: código 2, R-MAIN · obtido: código 0 na cabeça, 2 na base
+- S4 · na main: `(exit 0 && git switch -c x) && git push origin` · espera: código 2, R-MAIN · obtido: código 0 na cabeça, 2 na base
+- S5 · na main: `(exit 0; git switch -c x) && git reset --hard HEAD~1` · espera: código 2, R-REVIEW (como na base) · obtido: código 0 na cabeça
+- S6 · na main, papel forge:tech-lead: `(exit 0; git switch homolog) && git merge homolog` · espera: código 2, R-MAIN · obtido: código 0 (cabeça e base)
+- S7 · repositório descartável na main: `(exit 0; git switch -c x) && git branch --show-current` · espera: o bash segue o `&&` sem trocar · obtido: imprime main
+- S8 · na main: `(cd /tmp); git push origin` e `(cd /tmp) && git push origin` · espera: código 2, R-MAIN · obtido: código 0 (cabeça e base)
+- S9 · na main: `(cd /) ; git merge develop` · espera: código 2, R-MAIN · obtido: código 0 (cabeça e base)
+- S10 · na main: `(cd /tmp; true); git reset --hard HEAD~1` · espera: código 2, R-REVIEW · obtido: código 0 (cabeça e base)
 
 ## Detalhe dos achados
-**A1.** Evidência: hooks/conformidade.py:2613 (`next((n for n in nomes if n in INTEGRACAO), nomes[0])`) e o merge em hooks/conformidade.py:2678 (`atual in INTEGRACAO and not all(b == atual …)`). Caminho de ataque: o agente na main (ou na homolog) escreve uma troca de branch que não roda (`false &&`, `true ||`, `| cat;`) para outra branch de integração e mescla essa mesma branch; o hook lê "develop sobre develop" e libera, o bash mescla a develop na main por qualquer papel (R-MAIN) e, na homolog, o tech-lead mescla sem passar pela regra da homolog. É a própria brecha do cartão S22, que o diff fecha para o push (lá qualquer candidata de integração já recusa) e deixa aberta para o merge; a docstring do `ramo_em` promete "a da regra mais dura", e entre main e develop a mais dura é a main. Severidade: alta (contorna R-MAIN, ação crítica, sem ninguém ver). Correção mínima: com a troca incerta, o hook confere a regra com cada candidata e recusa se alguma recusar, nos quatro chamadores do `ramo_em`: o merge (hooks/conformidade.py:2677), o `git_integracao` (hooks/conformidade.py:2871), o rebase (hooks/conformidade.py:2927) e o push (hooks/conformidade.py:3077); alternativa mais curta: o `ramo_em` ordena as candidatas por dureza (main e master, depois homolog, depois develop, depois as outras) e o merge recusa também quando há mais de uma candidata e alguma difere da branch mesclada. Fixtures: S1, S2 e a forma com `true ||` e `| cat;`. Esforço: P. Dono: quem implementou E113.1.
+**A3.** Evidência: hooks/conformidade.py:2279. A troca pendente só cai quando o sinal depois dela não é `&&`, `(` ou `)`. O `alcance_da_troca` (hooks/conformidade.py:860) olha só o sinal logo antes da troca e o começo de cada subshell; ninguém olha os comandos anteriores dentro do mesmo subshell.
 
-**A2.** Evidência: hooks/conformidade.py:1848 (o resto normalizado que fica vazio devolve `None`), hooks/conformidade.py:1769 e 1780 (o `resto_com_barra` sai sem recusar quando o hook não sabe o valor) e hooks/conformidade.py:1718 (o `opaco_sem_resto` só tira `/`, não `.` nem `..`). Caminho de ataque: o agente escreve o destino com um resto que se anula ou sobe um nível (`/.`, `/..`, `/a/..`); o hook trata como resto livre, quando o valor é o do opaco (ou o pai dele) que ele não sabe. Com `TMPDIR=.git` e `mktemp -d` a linha sozinha grava .git/config (S4, conferido num repositório descartável); com uma variável exportada numa chamada anterior (`X=.git/hooks`), `cp ev/config "$X/.."` faz o mesmo. É a dimensão do cartão RESTO-SOBE (o `..` depois do opaco) com o `..` no fim, e do A20 (o resto `/.`) com valor que o hook não sabe. Severidade: alta (escrita no .git: config e hooks, execução de código no próximo comando do git). Correção mínima: depois de normalizar o resto, o que fica vazio (`/.`, `/./`, `/..`, `/a/..`, `/a/../.`) é o opaco sem resto e vai ao `destino_opaco` (recusa o valor que o hook não calcula, como `"$X"`), e o `..` que sobe acima do opaco (`/..` no fim) recusa como o opaco sem resto, porque o pai do valor que o hook não sabe também é desconhecido; vale também para o `opaco_sem_resto` (hooks/conformidade.py:1718) e para o `origem_do_git_no_opaco`. Fixtures: S4, S5, S6, e as legítimas `"$(mktemp -d)/c"` e `"$(mktemp -d)/../x"` seguem livres. Esforço: P. Dono: quem implementou E113.1.
+Caminho de ataque: o agente na `main` (ou na `homolog`) escreve `(exit 0; git switch -c x) && <ação crítica>`. O hook lê a troca como certa e libera. O bash encerra o subshell com 0 antes da troca e roda o push, o `reset --hard` ou o merge na `main` (R-MAIN, R-REVIEW). As formas provadas são `exit`, `exit 0`, `builtin exit 0`, `exec true`, `true || exit 0;`, `exit 0 &&`, `: ; exit 0 ;` e `exit 0` seguido de quebra de linha. Todas recusavam na base: é regressão do afrouxamento.
+
+Severidade: alta (contorna R-MAIN numa ação crítica, sem ninguém ver).
+
+Correção mínima: a troca dentro de um subshell só vale certa quando é o primeiro comando dele (sinal antes `(`, de nível em nível) e os comandos depois dela, até o `)`, vêm por `&&`. Qualquer outro comando antes da troca no mesmo subshell devolve a branch de antes como candidata. É uma lista positiva: cobre `exit`, `exec`, `return`, função, `trap` e `kill` sem listar cada um. `(cd . ; git switch -c x) && git push` passa a recusar, falso positivo aceitável; inverta a fixture `s22-subshell-cd-e-switch-e-e-push-libera`. Fixtures: S1 a S6. Esforço: P. Dono: quem implementou E113.6.
+
+**A4.** Evidência: hooks/conformidade.py:2249. O `contexto(sub)` cria uma pasta e branches separadas só por substituição (`sub`). O `( … )` não ganha contexto próprio, e o `cd` lá dentro muda a pasta dos comandos de fora. O `segmento` devolve `/tmp`, fora de qualquer repositório, e o push, o merge e o reset seguintes não acham branch nem regra.
+
+Caminho de ataque: na `main`, `(cd /tmp); git push origin`. O hook confere o push em `/tmp` e libera, e o bash o roda no projeto, na `main`. O mesmo vale para `git merge develop` (R-MAIN) e `git reset --hard` (R-REVIEW). Não é regressão (a base faz igual), mas é a dimensão "escopo do subshell" do cartão S22-SUB, na mesma função que a volta mexeu. Severidade: alta. Pela matriz, vira dimensão nova.
+
+Correção mínima: o `(` abre um contexto (pasta e branches) como a substituição, e o `)` o descarta, voltando à pasta de antes. Só o HEAD em disco atravessa o `)`, pela regra do A3. Fixtures: S8 a S10 recusam; `(cd docs && ls) && git status` segue livre. Esforço: P. Dono: quem implementou E113.6.
+
+**A5.** Evidência: hooks/conformidade.py:1780 (`destino_opaco`). `cp ev/config "$X"` recusa, mas `cp -rT ev "$X"`, `cp -r -T ev "$X"` e `cp -r ev/. "$X"` passam, na base e na cabeça. Com valor da linha (`X=.git;`, `$(cat f)`, `$(printf %s .gi)t`) o hook recusa.
+
+Caminho de ataque: X vem de fora da linha (o ambiente da sessão) apontando para `.git`, e a cópia da pasta grava `.git/config`. É menos realista que o A3 e o A4, porque o estado do shell não persiste entre chamadas. Severidade: média.
+
+Correção mínima: a cópia recursiva (`-r`, `-R`, `-a`) com destino opaco sem resto segue a mesma regra da cópia de arquivo. Esforço: P. Dono: quem implementou E113.6.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. A1 e A2 já existiam na base (não são regressão), mas são as mesmas brechas dos cartões S22 e RESTO-SOBE/A20 e por isso bloqueiam a entrega deles. Suíte: não rodei a suíte (só no CI); rodei as sondas acima e conferi as fixtures novas pelas próprias entradas. Ferramentas: só leitura do diff e o montador das fixtures; nenhuma varredura externa.
+Nenhum risco aceito. A suíte não rodou aqui; ela roda inteira só no CI. Rodei as 141 sondas com o montador das fixtures, na cabeça e na base, e o S7 num repositório descartável. As tabelas das sondas ficaram só na área de rascunho desta sessão. Ferramentas: leitura do delta e o montador das fixtures; nenhuma varredura externa.
