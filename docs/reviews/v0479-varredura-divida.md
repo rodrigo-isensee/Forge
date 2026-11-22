@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-varredura-divida
-commit: 7bfd64e7d4e2d43daa0cb412ee647684ae70c76c
+commit: 5b1ad8ca2cd4c9ecc07c980cf02a16b066884c3f
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-21
@@ -24,3 +24,11 @@ Aprovado (`R-REVIEW`).
 - Mutantes: os 22 das três specs `varredura-divida*.json` rodados aqui, todos `morreu`. `tests.test_varredura_divida`: 12 testes, OK. Os testes limpam o git herdado (`sem_git_herdado`) e chamam o script com `python3 -I` (AR-4).
 - Suíte inteira não rerrodada (fica no CI). O `test_forge ... test_raiz_depois_do_subcomando_e_git_isolado` falha também na base por ambiente, segundo o brief; fora deste diff.
 - A1 é recomendado: o achado sai (não some), só com o texto errado, e o docstring avisa "no HEAD".
+
+## Revalidação no head 5b1ad8ca (E95.7)
+- Delta lido: `forge-check parecer delta`, intervalo 7bfd64e7..5b1ad8ca, 3 arquivos no domínio: `scripts/varredura-divida.py`, `tests/mutantes/varredura-divida.json`, `tests/test_varredura_divida.py`.
+- O filho `forge-mutante` roda como `[sys.executable, "-B", ...]`, sem cache de bytecode em `bin/__pycache__/`; mesma saída e mesmo `timeout`.
+- `rodar()` tira as `PYTHON*` herdadas: quem evita o cache é o script, não o ambiente do `forge-mutante`. O teste novo copia o `bin/` para um repositório git próprio e confere `status --porcelain --ignored` vazio e nenhum `__pycache__`.
+- `tests.test_varredura_divida`: 13 testes, OK. `forge-mutante tests/mutantes/varredura-divida.json --ids M23`: `M23 · morreu · scripts/varredura-divida.py:73`.
+- H1: código do item contra a base 9d5dcb6e é `scripts/varredura-divida.py` (135) e `bin/forge-testes` (2), cerca de 138 linhas, dentro do teto.
+- A1 segue recomendado, intocado pelo delta. O registro desatualizado do changelog no `--registros` vem da branch atrás da develop e se resolve no merge da base.
