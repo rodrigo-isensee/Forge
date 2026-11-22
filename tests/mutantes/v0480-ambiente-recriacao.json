@@ -156,8 +156,8 @@
       "id": "M16",
       "guarda": "estação: o --simular não grava o .bashrc",
       "arquivo": "scripts/preparar-estacao.sh",
-      "de": "  [ \"$simular\" = 0 ] || return 0\n  grep -qE",
-      "para": "  grep -qE",
+      "de": "  [ \"$simular\" = 0 ] || return 0\n  command grep -qE",
+      "para": "  command grep -qE",
       "testes": [
         "tests.test_ambiente_recriacao.ClaudeNoPreparo.test_simular_nao_grava_o_bashrc_e_nao_roda_o_instalador"
       ]
