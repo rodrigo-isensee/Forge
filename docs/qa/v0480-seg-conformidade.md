@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-seg-conformidade
-commit: 14696864b679da061fc87f6dda8ad0b7227adb4f
+commit: bf57b17e42a1c6019ac7f4c721f9f4900c51cc4e
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -12,6 +12,22 @@ bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-22
 ---
+
+## Revalidação 2ª volta (head bf57b17e)
+Delta de `forge-check parecer delta` (14696864..bf57b17e): `hooks/conformidade.py`, 26 fixtures `tests/hooks/conformidade/a5-*` e S22, `docs/hooks-fixtures.md`, spec `-6`. A3 (subshell só leva a troca se ela é o 1º comando), A4 (`cd` no subshell não vaza) e A5 (`cp -r` para variável de fora recusa) cobertos; nenhum achado novo.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| A3 | test_s22_troca_so_sai_do_subshell_se_e_o_primeiro_comando | troca em 2º comando do subshell | passou |
+| A4 | test_s22_cd_dentro_do_subshell_fica_nele | `cd` dentro de `( )` | passou |
+| A5 | test_a5_copia_recursiva_para_opaco_sem_resto_recusa | `-r`/`-a`/`-t`/`--recursive`, `.` de origem; libera arquivo, mktemp, variável da própria linha | passou |
+
+Provas:
+- `python3 -I -m unittest discover -s tests -p test_conformidade_seg_v0480.py`: 11 testes, OK.
+- `bin/forge-mutante --base 14696864b679 tests/mutantes/v0480-seg-conformidade-6.json` (rev bf57b17e42a1): S22p, S22c, A5c, A5r, A5v, todos `morreu`.
+- `bin/forge-mutante` nas specs 1 a 5 (rev bf57b17e42a1): 35 `morreu`, nenhum sobrevivente. Specs 1-6 juntas não rodam: ids S22c e S22p repetidos entre -5 e -6 (só nomes, sem efeito no veredito).
+- `tests/test_indice_fixtures.py`: 7 testes, OK. Corpus completo `test_hooks.py` fica para o check-run `bateria` do CI do PR (não terminou local no prazo).
+
 # QA: v0478 (E113.10) S22, A20, RESTO-SOBE, negação, RESTO-ANULA e += no hooks/conformidade.py
 
 Revalidação no head 14696864 (delta de `forge-check parecer delta`: `hooks/conformidade.py` e as fixtures). A1 (negação `!`) e A2 (`+=`) do parecer anterior estão corrigidos. Passada anterior (a4266c77) preservada abaixo.
