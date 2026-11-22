@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ambiente-recriacao
-commit: 93a2123cdbef523aaa7da20aaaf2a7455895d475
+commit: a0be36e6222bb41cf7721d58ec668aeff8928044
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -44,4 +44,10 @@ Delta (`forge-check parecer delta`): 09457540..93a2123c, só os dois scripts, o 
 - Endurecimentos do delta (https com limite, falta em dois passos, export real no .bashrc) cobertos por M10..M15, todos `morreu`.
 - test_ambiente_recriacao.py (discover): 10 testes, OK.
 - `bin/forge-mutante tests/mutantes/v0480-ambiente-recriacao.json --base 09457540dde8f8b4d47c47d32cc6d57e9b883b10`: `base=09457540... rev=93a2123c...`, M1..M16 todos `morreu`, saída 0.
+- Sem bugs novos. Suíte inteira: check-run `bateria` do PR no mesmo sha (não rerrodada aqui).
+
+## Revalidação no head a0be36e6 (volta de CI do #792, escopo incremental)
+Delta (`forge-check parecer delta`): 93a2123c..a0be36e6, sem o que veio da develop. No domínio: `bin/forge-testes` (regras do MAPA para `test_ambiente_recriacao`), os dois scripts (`command grep` e `$HOME` na mensagem de PATH, sem mudar guarda), `tests/test_ambiente_recriacao.py` (git init sem manutenção, `iterdir` e `is_symlink` no PATH sem curl), `tests/test_forge.py` (briefs G1.1), `tests/test_testes_tocados.py` e `tests/pesos-d4.json`. Nenhuma linha de guarda mudou nos scripts; os mutantes M1..M16 seguem válidos. Mudanças só de teste e de mapa: sem teste novo de regra, sem vermelho novo.
+- Spec do item (E119.1): os 10 testes de `test_ambiente_recriacao` cobrem os critérios da tabela acima, todos passando; o teste de PATH sem curl não ficou frágil com link quebrado.
+- `test_ambiente_recriacao.py`: 10 testes, OK. `test_ambiente_git.py`: 20, OK. `test_salvar_desfazer.py`: 38, OK. `test_testes_tocados.py`: 196, OK (skipped=1, `skipIf` que já existia na base, fora do delta).
 - Sem bugs novos. Suíte inteira: check-run `bateria` do PR no mesmo sha (não rerrodada aqui).
