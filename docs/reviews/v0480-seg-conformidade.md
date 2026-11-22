@@ -3,26 +3,28 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-seg-conformidade
-commit: 14696864b679da061fc87f6dda8ad0b7227adb4f
+commit: bf57b17e42a1c6019ac7f4c721f9f4900c51cc4e
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-22
 ---
-# Review: v0478 (E113.9, melhoria/v0480-seg-conformidade)
+# Review: v0478 (E113.12, melhoria/v0480-seg-conformidade)
 
-Revalidação da volta única (H2/H3, R-REVIEW). Delta lido: `forge-check parecer delta` deste parecer, intervalo `a4266c77..14696864` sem o que veio da `develop`: `hooks/conformidade.py` (S22 no merge, negação e subshell; RESTO-ANULA; `+=`; A20 com lançador), 83 fixtures novas, specs de mutantes `v0480-seg-conformidade{,-2..-5}.json` e três specs antigas acertadas ao texto novo (`impl-furo-hook-a-a3`, `v0435-hooks-n5`, `v047-destino-opaco`), `tests/test_conformidade_seg_v0480.py`, `tests/test_conformidade_verde.py`, `docs/hooks-fixtures.md` e o fragmento do changelog.
+Revalidação da 2ª volta (H2/H3, R-REVIEW), que responde aos achados A3, A4 e A5 da segurança E113.8. Delta lido: `forge-check parecer delta` deste parecer, intervalo `14696864..bf57b17e` sem o que veio da `develop`: `hooks/conformidade.py` (`alcance_da_troca`, a pilha de pastas do subshell, `origem_do_git_no_opaco` com `prog` e `valor_de_fora`), 26 fixtures novas e uma invertida, `tests/mutantes/v0480-seg-conformidade-6.json`, `tests/test_conformidade_seg_v0480.py`, `docs/hooks-fixtures.md` e o fragmento do changelog. `tests/pesos-d4.json` mudou só com nomes de testes vindos da `develop`.
 
 ## Sondas
-- S1 · branch main, forge:tech-lead, `git switch develop; git merge feat` · espera: código 2 · obtido: código 2 (era 0 em a4266c77: A1 fechado)
-- S2 · branch main, forge:tech-lead, `git checkout develop || true; git merge feat` · espera: código 2 · obtido: código 2
-- S3 · branch main, forge:tech-lead, `(git switch -c x) && git push origin` · espera: código 0 · obtido: código 0 (A2 fechado)
-- S4 · branch main, forge:tech-lead, `(git switch develop); git merge feat` · espera: código 2 · obtido: código 2
-- S5 · branch main, forge:tech-lead, `git switch develop || git merge feat` · espera: código 2 · obtido: código 2
-- S6 · branch main, forge:tech-lead, `git switch -c x && git merge develop` e `git switch -c x; git push origin x` · espera: código 0 · obtido: código 0
+- S1 · main, `(git switch -c x || exit 0) && git push origin` · espera: código 2 · obtido: código 2
+- S2 · main, `( (git switch -c x) ) && git push origin` · espera: código 0 · obtido: código 0 (a troca é o primeiro comando nos dois níveis)
+- S3 · main, `(true && git switch -c x) && git push origin` · espera: código 2 · obtido: código 2
+- S4 · main, `(cd /tmp) ; (cd /) ; git merge develop` · espera: código 2 · obtido: código 2 (a pilha de pastas segue em par com a de subshells)
+- S5 · feature/x, `(cd src; ls) ; git push origin feature/x` · espera: código 0 · obtido: código 0
+- S6 · main, `( (cd /tmp) ; git switch -c x) && git push origin` · espera: código 2 · obtido: código 2
+- S7 · feature/x, `cp -av ev "$X"` e `cp -t "$X" -R ev` · espera: código 2 · obtido: código 2
+- S8 · feature/x, `cp -r ev "$(mktemp -d)"` e `cp -v ev/a "$X"` · espera: código 0 · obtido: código 0
 
 ## Parecer
-Aprovado. A1 (merge com duas candidatas de integração) está fechado: `ramos_em` devolve as candidatas por `por_dureza` e o merge confere cada uma (`merge_na_integracao`, hooks/conformidade.py:2729); push, rebase e N5 seguem pela primeira, que é a mais dura. A2 (subshell que fecha depois da troca) está fechado por `alcance_da_troca`: a cadeia segue pelo `)` só quando o começo do grupo garante, e a branch é estado do repositório, então a troca dentro de `( … )` vale fora dele, como o hook agora modela. As chaves `{ …; } &&` com ação crítica recusam por fixture: falha fechada, aceita.
+Aprovado. A3: `alcance_da_troca` só deixa a troca sair de um nível quando o sinal antes do que abre o nível é `(`, de nível em nível (`primeiros`), então `exit`, `exec`, `cd` ou função antes dela prendem a troca no subshell. A4: o `(` empilha a pasta de fora e o `)` que fecha um subshell aberto a devolve, com a pilha em par com a de subshells (só empilha no `(`, só desempilha com `fecha`); a branch continua valendo fora, como antes. A5: a cópia recursiva (`-r`, `-R`, `-a`, `--recursive`, `--archive`, também combinadas) só recusa com valor de fora da linha (`valor_de_fora`), e `d=docs; cp -rT ev "$d"` segue livre.
 
-As três correções fora dos achados conferem: o teto do corpus (o `+=`/`del` sem chamada, comentário na linha), `test_conformidade_verde` (com `;` a troca é incerta, então o commit na main recusa: é o S22 aplicado, não afrouxa) e a A20 com lançador (`valores is None` cai nos corpos de substituição da palavra, só recusa a mais). As specs antigas mudaram só o texto `de`/`para` para casar com a fonte nova, com a mesma guarda.
+Nenhum teste afrouxado. No delta nenhuma fixture antiga mudou, salvo a invertida `s22-subshell-cd-e-switch-e-e-push` (libera → bloqueia), que agora recusa mais: o A3 aplicado, com falha fechada. `test_conformidade_seg_v0480.py` só ganhou três testes, sem baixar mínimo, e o S22-SUB segue com `recusam=9, liberam=5`. Dentro da volta, o `liberam` do A5-COPIA subiu de 2 para 4. O teto do corpus (`test_hooks_volta_corpus`) não está no delta.
 
-Verificadores: `python3 -m unittest tests.test_hooks_volta_corpus tests.test_conformidade_verde tests.test_indice_fixtures tests.test_conformidade_seg_v0480` no head 14696864 com o ambiente limpo: 91 testes OK (509 s). Mutação do diff e suíte inteira: do autor e do CI do PR (V2), sem rerrodar aqui.
+Verificadores: `python3 -I tests/test_conformidade_seg_v0480.py` no head bf57b17e, com o ambiente limpo: 11 testes OK (47 s). `bin/forge-mutante tests/mutantes/v0480-seg-conformidade-6.json`: S22p, S22c, A5c, A5r e A5v morreram (um por linha de guarda mudada: hooks/conformidade.py:873, 2297, 1861, 1871). `--cobertura --base 14696864`: as linhas de guarda de hooks/conformidade.py estão cobertas. A suíte inteira fica com o CI do PR (V2), sem rerrodar aqui.
