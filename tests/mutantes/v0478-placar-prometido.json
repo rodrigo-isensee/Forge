@@ -57,7 +57,7 @@
       "guarda": "as fontes só são lidas se alguma proposta anuncia ganho",
       "arquivo": "bin/forge-placar",
       "de": "fontes = carregar(args) if com else None",
-      "para": "fontes = None",
+      "para": "fontes = carregar(args) if not com else None",
       "testes": [
         "tests.test_placar_prometido.Prometido.test_real_medido_ao_lado_do_prometido"
       ]
@@ -66,8 +66,8 @@
       "id": "M7",
       "guarda": "só a proposta com prometido ganha a linha",
       "arquivo": "bin/forge-placar",
-      "de": "for p in linhas if (m := PROMETIDO.search(p.get(\"métrica\", \"\")))]",
-      "para": "for p in linhas if (m := PROMETIDO.search(p.get(\"métrica\", \"\"))) or True]",
+      "de": "(m := PROMETIDO.search(p.get(\"métrica\", \"\")))",
+      "para": "(m := PROMETIDO.search(p.get(\"métrica\", \"\")) or PROMETIDO.search(\"prometido: 0%\"))",
       "testes": [
         "tests.test_placar_prometido.Prometido.test_proposta_sem_prometido_nao_ganha_a_linha"
       ]

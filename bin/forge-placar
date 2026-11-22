@@ -108,7 +108,7 @@ ERRO_REGISTRO = re.compile(r"^## \d+\. .*\((\d{4}-\d{2}-\d{2})[ T]\d{2}:\d", re.
 TIPOS_DE_MUDANCA = ("código:", "codigo:", "texto:")
 RESULTADO = re.compile(r"^(manter|reverter)\b.*\S", re.I)
 PRAZO_MAXIMO = 30  # dias entre o início e a revisão
-PROMETIDO = re.compile(r"\bprometido:[ \t]*([+-]?\d+(?:[.,]\d+)?)[ \t]*%")
+PROMETIDO = re.compile(r"\bprometido:[ \t]*([+-]?\d{1,6}(?:[.,]\d+)?)[ \t]*%")  # teto de dígitos: o float nunca vira inf
 SEM_TESTE = re.compile(r"^##[ \t]+Sem teste[ \t]*$", re.M | re.I)
 TETO_ANINHAMENTO = 64  # níveis de [ e { aceitos na entrada JSON; a do `gh pr list` usa 2
 PASTAS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/security/", "docs/devops/")  # as do PASTA_E_REGRA do forge-check
@@ -552,7 +552,7 @@ def conferir_proposta(p, hoje):
     if not any(m == metrica or metrica.startswith(m + " ") for m in METRICAS):
         faltas.append(f"{ident}: Métrica tem de começar por uma métrica do placar ({', '.join(METRICAS)})")
     if "prometido:" in metrica and not PROMETIDO.search(metrica):
-        faltas.append(f"{ident}: prometido tem de ser um número em % (ex.: `prometido: -20%`)")
+        faltas.append(f"{ident}: prometido tem de ser um número em %, de até 6 dígitos inteiros (ex.: `prometido: -20%`)")
     if not p.get("mudança", "").lower().startswith(TIPOS_DE_MUDANCA):
         faltas.append(f"{ident}: Mudança tem de começar por `código:` ou `texto:` (texto só para julgamento)")
     if not p.get("critério de reversão", "").strip(" —-"):

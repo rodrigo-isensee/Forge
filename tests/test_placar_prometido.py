@@ -80,6 +80,19 @@ class Prometido(unittest.TestCase):
         self.assertIn("falta: M-1: prometido tem de ser um número em %", saida)
         self.assertNotIn("prometido: M-1", saida)
 
+    def test_prometido_com_digitos_demais_e_falta_e_o_json_segue_estrito(self):
+        """Centenas de dígitos virariam float inf e o --json sairia Infinity (achado A1 da segurança)."""
+        rc, saida, erro = self.rodar(PROPOSTA.replace("prometido: -20%", "prometido: " + "9" * 400 + "%"), extra=("--json",))
+        self.assertEqual(rc, 1, saida + erro)
+        dados = json.loads(saida, parse_constant=lambda c: self.fail(f"--json com {c}"))
+        self.assertEqual(dados["prometidos"], [])
+        self.assertTrue(any(f.startswith("M-1: prometido tem de ser um número em %") for f in dados["faltas"]), dados)
+
+    def test_prometido_de_seis_digitos_ainda_vale(self):
+        rc, saida, _ = self.rodar(PROPOSTA.replace("prometido: -20%", "prometido: -999999%"))
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("prometido: M-1 taxa_forma · prometido -999999% · real -60%\n", saida)
+
     def test_proposta_sem_prometido_nao_ganha_a_linha(self):
         rc, saida, _ = self.rodar(PROPOSTA.replace(" prometido: -20%", ""), extra=("--json",))
         self.assertEqual(rc, 0, saida)
