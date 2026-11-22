@@ -47,8 +47,9 @@
       "guarda": "AE7.2 executar_entrega: base que não se extrai não roda o head",
       "arquivo": "bin/forge_comparar.py",
       "de": "lado_head = None if lado_base is None else medir_entrega(",
-      "para": "lado_head = medir_entrega(",
+      "para": "lado_head = None if lado_base is not None else medir_entrega(",
       "testes": [
+        "tests.test_comparar.AlvoEntrega.test_head_que_aceita_o_que_a_base_recusava_e_aceite_novo",
         "tests.test_comparar.AlvoEntrega.test_extracao_que_falha_e_nao_verificavel"
       ]
     },
