@@ -3,12 +3,12 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-seg-quarentena-fechar
-commit: e77f3543f1844065aa66c90e6c1ba3123e66e55c
+commit: 3820b48415ae762ca859e669431b50fc84b18e03
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 0
+bugs_medios: 1
 bugs_baixos: 0
 data: 2026-11-22
 ---
@@ -32,3 +32,23 @@ data: 2026-11-22
 - Sondas: dígito Unicode recusado (acima); `--armar` sai 1 com o comando certo; check pendente espera e relê; check com falha para antes do merge, sem `gh pr merge`.
 - Sem `skip`, `skipIf` nem `expectedFailure` nos testes tocados.
 - O remoto avançou com os pareceres de review e segurança (só `docs/`), sem código; rebase sobre eles.
+
+## Revalidação (volta única, head 3820b484; delta e77f3543..3820b484)
+Delta no domínio do QA: `bin/forge-fechar` (skipped fora da conta, ruleset do destino, prazo único contado do passo 4, releitura antes do merge), `docs/fechamento-integrador.md`, specs de mutantes e os testes `test_fechar`, `test_fechar_checks_do_head`, `test_fechar_lote`, `test_forge_fechar`.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Execução `skipped` não conta como verde nem falha | VU1, VU2 (mutantes) e `FecharChecksDoHead` | só `skipped` = ausente | passou |
+| Exigidos do ruleset do destino entram na conta | VU3, `test_fechar` (fake `rules/branches/`) | ruleset ilegível ou ausente | passou |
+| Prazo do passo 6 conta do início do passo 4 | VU4, `PrazoUnico.test_espera_do_passo_4_desconta_o_prazo_do_passo_6` | prazo esgotado no passo 4 | passou, com ressalva (A1) |
+| Releitura antes do merge (base e rascunho mudam) | VU5, `pre_apos_checks` em `test_fechar` | mudança durante a leitura | passou |
+
+- Testes (TMPDIR próprio, `python3 -I -m unittest discover -s tests -p <módulo>.py`): test_fechar 111 OK (skipped=1: aviso de shellcheck fora do PATH, ambiente, já existia); test_fechar_checks_do_head 12 OK; test_fechar_lote 62 OK; test_forge_fechar 34 OK; test_fechar_auto_merge 8 OK. Suíte inteira: CI do PR.
+- `forge-mutante tests/mutantes/v0480-seg-quarentena-fechar.json`: QD1, FS1, VU1, VU2, VU3, VU5 `morreu`; VU4 `morreu` em 2 de 4 rodadas e `controle vermelho` (sem veredito, rc 2) nas outras 2. `forge-mutante tests/mutantes/v0478-fechar-checks.json`: FCK-M1 a FCK-M8 `morreu`.
+- Instabilidade: o teste de VU4 usa `--espera 1` e intervalo 1s; com carga alta (load 19 em 12 CPUs) o passo 4 esgota o prazo antes do passo 6 e a asserção da mensagem falha (1 em 6 isolado). Bug `docs/qa/bugs/v0480-prazo-unico-teste-instavel.md`.
+- Sem `skip`, `skipIf` nem `expectedFailure` novos.
+
+Parecer: aprovado (volta única). Provas: delta de `forge-check parecer delta`; testes dos 5 módulos afetados verdes; mutantes VU1 a VU5 mortos, VU4 com ressalva de instabilidade.
+
+## Achados
+- A1 (recomendado) tests/test_fechar_checks_do_head.py:142 · teste de prazo único instável sob carga (`--espera 1`, intervalo 1s): VU4 sai `controle vermelho` em parte das rodadas. Folgar os prazos ou injetar o relógio do passo 4. Vira cartão.
