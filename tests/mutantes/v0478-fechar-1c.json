@@ -1,0 +1,36 @@
+{
+  "pedido": "v0478-fechar-1c",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "F1C-M1",
+      "guarda": "base já no head: o 1c confere o próprio head, sem commit de merge (FECHAR-1C-ANTES-DO-2B)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if git merge-base --is-ancestor \"$base\" \"$1\" 2>/dev/null; then return 0; fi",
+      "para": "  if false; then return 0; fi",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_promovivel_segue_com_o_sha_conferido"
+      ]
+    },
+    {
+      "id": "F1C-M2",
+      "guarda": "merge-tree com conflito ou falha: o 1c confere o head, não a árvore com marcas de conflito (FECHAR-1C-ANTES-DO-2B)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  mt=\"$(git merge-tree --write-tree --no-messages \"$1\" \"$base\" 2>/dev/null)\" || return 0",
+      "para": "  mt=\"$(git merge-tree --write-tree --no-messages \"$1\" \"$base\" 2>/dev/null)\" || true",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_1c_com_conflito_ou_falha_do_merge_confere_o_head"
+      ]
+    },
+    {
+      "id": "F1C-M3",
+      "guarda": "commit-tree que falha: o 1c confere o head, nunca um sha vazio (FECHAR-1C-ANTES-DO-2B)",
+      "arquivo": "bin/forge-fechar",
+      "de": "-m \"forge-fechar 1c: merge de $base em $ref (só leitura)\" 2>/dev/null)\" || return 0",
+      "para": "-m \"forge-fechar 1c: merge de $base em $ref (só leitura)\" 2>/dev/null)\" || true",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_1c_com_conflito_ou_falha_do_merge_confere_o_head"
+      ]
+    }
+  ]
+}
