@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ae3-1-controle
-commit: 59ad2edc89d3ae5d030c994c1c2b0bd67fae90c0
+commit: ba201c86c80fd9d74ac7e8ca88fdd18550630fd7
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -39,3 +39,7 @@ Critérios tirados do contrato do módulo (docstring, AE3.1).
 - Provas: `python3 -I -m unittest discover -s tests -p test_forge_controle.py`: Ran 41 tests, OK, rc 0.
 - Mutantes: `bin/forge-mutante tests/mutantes/v0478-ae3-controle-5.json tests/mutantes/v0478-ae3-controle-6.json --base 98882c49...`, linha `base=98882c4903c31dd2e074783dec70b31882046244`: CTL26 a CTL35 morreram, rc 0.
 - Config que roda comando (fsmonitor, filtros, gpg, include) e trava por link: cobertas pelos testes novos e pelos mutantes.
+
+## Revalidação (head ba201c86, delta desde 59ad2edc)
+- Delta no domínio: uma linha em `docs/indice-forge.md` (entrada de `forge_controle.py`) e `tests/pesos-d4.json` (peso de teste, dado); o resto veio da develop. Sem código de guarda mudado, sem mutante novo.
+- Provas: `python3 -I -m unittest discover -s tests -p test_indice_forge.py`: Ran 19 tests, OK, rc 0. Sem suíte local; a bateria é a do CI do PR.
