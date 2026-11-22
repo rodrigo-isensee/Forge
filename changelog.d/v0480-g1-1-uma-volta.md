@@ -1,0 +1,2 @@
+### Alterado
+- G1.1 (ordem do dono de 21/11): no máximo 1 volta por item. O `forge-check brief gerar --volta` recusa a 2.ª e a conferência recusa o brief que contorna a numeração; a recusa diz o que levar ao dono (cortar e reabrir menor, aceitar com cartão sem bloqueante de segurança, ou autorizar mais uma volta pela linha DECISÃO DO DONO do pedido que cita a branch e a volta). R-QA passa de 3 voltas por bug para 1 por item.

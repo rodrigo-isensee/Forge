@@ -977,13 +977,60 @@ class BriefDeVolta(Repositorio):
         self.assertIn("nenhum parecer lido", saida)
         self.assertNotIn("PREENCHER: nenhum achado bloqueante", saida)
 
-    def test_volta_dois_conta_a_partir_do_anterior(self):
+    def autorizar(self, linha):
+        self.pedido.write_text(self.pedido.read_text(encoding="utf-8") + linha, encoding="utf-8")
+
+    def test_volta_dois_so_com_decisao_do_dono_que_cita_a_branch(self):  # G1.1 (ORDEM DO DONO 21/11 22:13)
         rc, saida = self.gerar()
         segundo = self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md"
         segundo.write_text(saida, encoding="utf-8")
+        rc, recusa = self.gerar(volta="docs/briefs/pedido-sintetico-dev-exemplo-2.md")
+        self.assertEqual(rc, 1, recusa)
+        self.assertIn("volta 2 recusada para \"melhoria/x\"", recusa)
+        self.assertIn("cortar o item e reabrir menor", recusa)
+        self.assertNotIn("## Entregar", recusa)
+        for linha in ("- DECISÃO DO DONO (2026-11-21): mais uma volta para melhoria/xy\n",  # nome parecido não vale
+                      "- nota: DECISÃO DO DONO: mais uma volta para melhoria/x\n",  # a frase no meio da linha não é decisão
+                      "- DECISÃO DO DONO (2026-11-21): melhoria/x segue sem pressa\n"):  # cita a branch, não a volta
+            with self.subTest(linha):
+                self.autorizar(linha)
+                self.assertEqual(self.gerar(volta="docs/briefs/pedido-sintetico-dev-exemplo-2.md")[0], 1)
+        self.autorizar("- DECISÃO DO DONO (2026-11-21): mais uma volta para melhoria/x.\n")
         rc, saida = self.gerar(volta="docs/briefs/pedido-sintetico-dev-exemplo-2.md")
+        self.assertEqual(rc, 0, saida)
         self.assertIn("## Entregar (volta 2)\n", saida)
         self.assertIn("- PQ-5 (cmd, do autor)", saida)
+        terceiro = self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-3.md"
+        terceiro.write_text(saida, encoding="utf-8")
+        rc, recusa = self.gerar(volta="docs/briefs/pedido-sintetico-dev-exemplo-3.md")  # uma decisão, uma volta a mais
+        self.assertEqual(rc, 1, recusa)
+        self.assertIn("volta 3 recusada", recusa)
+
+    def test_conferencia_recusa_a_numeracao_contornada(self):  # G1.1: o brief à mão não volta a contar do 1 nem pula o teto
+        rc, saida = self.gerar()
+        segundo = self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md"
+        segundo.write_text(saida, encoding="utf-8")
+        texto = saida.replace(f"Volta-de: {self.rel_anterior} sha256 {hashlib.sha256(self.ANTERIOR.read_bytes()).hexdigest()}",
+                              f"Volta-de: docs/briefs/pedido-sintetico-dev-exemplo-2.md sha256 {hashlib.sha256(saida.encode()).hexdigest()}")
+        rc, conferencia = self.conferir(texto, nome="pedido-sintetico-dev-exemplo-3.md", ref=None)  # volta de volta, ainda "volta 1"
+        self.assertIn("volta: numeração contornada", conferencia)
+        rc, conferencia = self.conferir(texto.replace("## Entregar (volta 1)", "## Entregar (volta 2)"), nome="pedido-sintetico-dev-exemplo-3.md", ref=None)
+        self.assertNotIn("numeração contornada", conferencia)
+        self.assertIn("volta: volta 2 recusada para \"melhoria/x\"", conferencia)
+        self.autorizar("- DECISÃO DO DONO (2026-11-21): mais uma volta para melhoria/x\n")
+        rc, conferencia = self.conferir(texto.replace("## Entregar (volta 1)", "## Entregar (volta 2)"), nome="pedido-sintetico-dev-exemplo-3.md", ref=None)
+        self.assertNotIn("recusada", conferencia)
+        rc, conferencia = self.conferir(saida, ref=None)  # a volta 1 segue sem decisão
+        self.assertNotIn("recusada", conferencia)
+        self.assertNotIn("numeração contornada", conferencia)
+
+    def test_sem_branch_nenhuma_decisao_autoriza(self):  # G1.1: sem nome lido, o teto fica em 1 (falha fechada)
+        modulo = carregar_forge_check()
+        cobradas = {"fontes": [("p", [(1, "DECISÃO DO DONO: mais uma volta para melhoria/x")])]}
+        self.assertEqual(modulo.voltas_autorizadas(cobradas, "melhoria/x"), 2)
+        for vazio in (None, ""):
+            self.assertEqual(modulo.voltas_autorizadas(cobradas, vazio), 1)
+        self.assertIn("volta 2 recusada", modulo.recusa_da_volta(2, cobradas, None))
 
     def test_etapa_de_merge_acrescenta_o_pq_por_ancestralidade(self):  # E5 na volta
         rc, saida = self.gerar("--etapa", "merge-integracao")

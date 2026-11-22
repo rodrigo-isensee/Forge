@@ -1,0 +1,62 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "sem branch lida, nenhuma decisão autoriza volta a mais (o padrão vazio casaria com tudo)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not branch:\n        return 1\n    nome = re.compile(",
+      "para": "    if False:\n        return 1\n    nome = re.compile(",
+      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_sem_branch_nenhuma_decisao_autoriza"]
+    },
+    {
+      "id": "M2",
+      "guarda": "a decisão só autoriza se citar a volta, não só a branch",
+      "arquivo": "bin/forge-check",
+      "de": "if nome.search(linha) and VOLTA_NA_DECISAO.search(linha))",
+      "para": "if nome.search(linha))",
+      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_volta_dois_so_com_decisao_do_dono_que_cita_a_branch"]
+    },
+    {
+      "id": "M3",
+      "guarda": "a branch vale pelo nome exato, nunca por prefixo",
+      "arquivo": "bin/forge-check",
+      "de": "{re.escape(branch)}(?![\\w/-]|\\.\\w)\")",
+      "para": "{re.escape(branch)}\")",
+      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_volta_dois_so_com_decisao_do_dono_que_cita_a_branch"]
+    },
+    {
+      "id": "M4",
+      "guarda": "acima das voltas autorizadas, recusa",
+      "arquivo": "bin/forge-check",
+      "de": "    if n <= voltas_autorizadas(cobradas, branch):",
+      "para": "    if True:",
+      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_volta_dois_so_com_decisao_do_dono_que_cita_a_branch"]
+    },
+    {
+      "id": "M5",
+      "guarda": "o brief gerar --volta não gera acima do teto",
+      "arquivo": "bin/forge-check",
+      "de": "    if recusa := recusa_da_volta(n, cobradas, branch):  # G1.1: nada gerado acima do teto",
+      "para": "    if False:  # G1.1: nada gerado acima do teto",
+      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_volta_dois_so_com_decisao_do_dono_que_cita_a_branch"]
+    },
+    {
+      "id": "M6",
+      "guarda": "a conferência recusa a numeração que recomeça ou pula",
+      "arquivo": "bin/forge-check",
+      "de": "    if n != n_anterior + 1:  # G1.1: o brief à mão não recomeça a contagem nem a pula",
+      "para": "    if False:  # G1.1: o brief à mão não recomeça a contagem nem a pula",
+      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_conferencia_recusa_a_numeracao_contornada"]
+    },
+    {
+      "id": "M7",
+      "guarda": "a conferência recusa a volta acima do teto sem a decisão",
+      "arquivo": "bin/forge-check",
+      "de": "    if recusa := recusa_da_volta(n_anterior + 1, cobradas or",
+      "para": "    if False and recusa_da_volta(n_anterior + 1, cobradas or",
+      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_conferencia_recusa_a_numeracao_contornada"]
+    }
+  ]
+}

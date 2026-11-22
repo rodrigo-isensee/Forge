@@ -14,4 +14,4 @@ Medida: 27 de 52 bloqueantes dos pareceres eram defeito provado; 4 escapes (estu
 - Documentação não passa por QA, só o código que a verifica.
 - Guarda mudada em código de controle (classe C) pede mutante em `tests/mutantes/` no próprio diff (catraca do CI).
 - Bug bloqueante, crítico ou alto bloqueia a entrega e nunca segue aberto (ou vai ao usuário como decisão). Médio e baixo viram cartão no quadro, sem aceite do usuário caso a caso (BUR-B4).
-- No máximo 3 voltas por bug; na 3.ª reprovação, o Jarvis leva a decisão ao usuário.
+- No máximo 1 volta por item (G1.1, ordem do dono de 21/11): o `forge-check brief gerar --volta` recusa a 2.ª, e a conferência recusa o brief que contorna a numeração. Na 2.ª reprovação, o Jarvis leva a decisão ao usuário (`R-DECISAO`): cortar o item e reabrir menor; aceitar com cartão, só sem bloqueante de segurança; ou autorizar mais uma volta, que vale só como linha `DECISÃO DO DONO` do pedido que cita a branch e a volta (uma linha por volta a mais). CI vermelho e conflito com a base não contam como volta.
