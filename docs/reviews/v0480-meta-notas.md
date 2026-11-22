@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-meta-notas
-commit: 064e58ce43a4a9f25093ff826847297da1c4780d
+commit: e31f2416990cc6ed223b76584141805061eea624
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-22
 ---
-# Review: v0478 (E109.4, melhoria/v0480-meta-notas)
+# Review: v0478 (E109.4 e E109.9, melhoria/v0480-meta-notas)
 
 Escopo: diff `900bfdfe..064e58ce`, dois cartões no `hooks/meta.py`. META-NOTAS-ENTRE-FERRAMENTAS (`988f0ab4`, absorve a `melhoria/v0479-meta-notas`, aprovada em `docs/reviews/v0479-meta-notas.md`) e META-NOTAS-RECONTA (`064e58ce`, A1 e A2 daquele parecer). Cerca de 55 linhas de código em `hooks/meta.py`, um comportamento por commit (H1).
 
@@ -22,3 +22,10 @@ Aprovado. O cartão RECONTA fecha os dois recomendados da v0479: o segundo Stop 
 Ferramentas no SHA revisado: `python3 -m unittest tests.test_meta tests.evals.test_erros_por_papel.MensagemEmOutroIdioma` com 52 testes OK; `bin/forge-mutante` nas três specs `tests/mutantes/v0478-meta-notas*.json` com M1 a M21 mortos (M11 a M14, M19 e M21 por erro do teste declarado, que conta como morto) e em `tests/mutantes/v047-g4-medida-idioma.json` com M4 a M8 mortos. Um mutante por linha de guarda mudada. Suíte inteira e corpus `tests/hooks/`: no CI do PR (`R-REVIEW`). Segurança no mesmo head: `docs/security/v0480-meta-notas.md`.
 
 A1 e A2 não bloqueiam (`R-REVIEW`): A1 só infla a medida com sessões paralelas, sem efeito na decisão do Stop, e degrada para o comportamento já aprovado do E25.1; A2 é texto. Viram cartão depois do merge.
+
+## Revalidação (E109.9, head e31f2416)
+Delta lido: `forge-check parecer delta docs/reviews/v0480-meta-notas.md`, intervalo `064e58ce..e31f2416`, no domínio `changelog.d/v0480-meta-notas.md`, `hooks/meta.py`, `tests/mutantes/v0478-meta-notas-3.json` e `tests/test_meta.py`; nada fora dele relido.
+
+O commit `e31f2416` fecha o A1 da segurança (`docs/security/v0480-meta-notas.md`): em `hooks/meta.py:323-326` a falha de `gravar_json` na marca (`OSError`) vai ao `hook.registrar_erro` (`hooks/_comum.py:2737`, que já engole a própria falha) e a contagem segue, então a linha do `mensagens.jsonl` não se perde. O `except` é estreito (`OSError`, não `Exception`) e comentado; a marca não gravada só faz o próximo Stop recontar, o comportamento já aprovado do E25.1. O teste novo cria `notas.json` como pasta e afirma a linha `(1, True)` e um `IsADirectoryError` no log (ramo de falha por comportamento, não pela fonte). Fragmento do changelog com a entrada em `### Corrigido`. Os A1 e A2 deste parecer seguem como recomendados.
+
+Ferramentas no SHA e31f2416: `python3 -m unittest tests.test_meta` com 50 testes OK; `bin/forge-mutante --ids M22 tests/mutantes/v0478-meta-notas-3.json`: `M22 · morreu · hooks/meta.py:326`. Um mutante para a única guarda nova. Suíte inteira no CI do PR (`R-REVIEW`).
