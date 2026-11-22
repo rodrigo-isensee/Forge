@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3377 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3382 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -16,7 +16,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3377 fixtures) roda em `tests/test
 | `parecer` | 583 | 448 | 135 | 27 |
 | `pesado` | 27 | 11 | 16 | 20 |
 | `quadro` | 7 | 2 | 5 | 7 |
-| `vigia` | 51 | 0 | 51 | 26 |
+| `vigia` | 56 | 0 | 56 | 26 |
 
 ## `agentes`
 
@@ -266,7 +266,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3377 fixtures) roda em `tests/test
 
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
-| `entrada-*` | 12 | 0 | 12 | — | — | Só 2 itens de lista: silêncio. |
+| `entrada-*` | 17 | 0 | 17 | — | `FALA-DO-DONO-RESUMO-COMPACTADO` | FALA-DO-DONO-RESUMO-COMPACTADO: registro user com origin de aviso de tarefa (kind diferente de human) não é fala do dono, mesmo sem começar… |
 | `d-*` | 4 | 0 | 4 | — | — | Achado D, cadeia 3: o `mv .git .g` é barrado pelo conformidade (o `.git` fica); sem o `.forge/versao`, o vigia avisa no Stop. |
 | `bloqueio-*` | 3 | 0 | 3 | — | — | Bloqueio de outra sessão não vale nesta. |
 | `contorno-*` | 3 | 0 | 3 | — | — | O bloqueio fica no estado: a nova tentativa em outro turno (outro Stop) também é contorno. |
