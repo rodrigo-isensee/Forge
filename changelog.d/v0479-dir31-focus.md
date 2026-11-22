@@ -1,2 +1,0 @@
-### Adicionado
-- Visão de foco (Focus view) ligada por padrão (diretriz 31): o modelo de projeto traz `"viewMode": "focus"` e o atalho `jarvis` a passa por sessão, com a tela cheia, só quando nenhum arquivo de configuração do dono define `viewMode`; o README diz onde desligar e como ligar na extensão do VS Code. O Jarvis ganha a regra de linguagem fácil (1ª pessoa, português, frases curtas, sem nome de branch, pasta nem jargão).
