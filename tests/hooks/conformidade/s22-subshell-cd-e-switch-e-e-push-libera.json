@@ -1,0 +1,23 @@
+{
+  "descricao": "S22-SUB: `(cd . ; git switch -c x) && git push origin`: a troca é o último comando do subshell (v0478 E113.6)",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "main"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "(cd . ; git switch -c x) && git push origin"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

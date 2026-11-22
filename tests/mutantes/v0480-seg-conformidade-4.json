@@ -1,0 +1,66 @@
+{
+  "pedido": "v0480-seg-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "MG1",
+      "guarda": "S22: o merge de outra branch na integração passa pelas regras",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if atual in INTEGRACAO and not all(b == atual for b, _ in mescladas):\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_merge_com_duas_candidatas_de_integracao_vale_a_mais_dura"
+      ]
+    },
+    {
+      "id": "MG2",
+      "guarda": "R-MAIN: o merge na main é do usuário, também com a troca incerta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if atual in (\"main\", \"master\"):\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_merge_com_duas_candidatas_de_integracao_vale_a_mais_dura"
+      ]
+    },
+    {
+      "id": "MG3",
+      "guarda": "R-REVIEW: a estratégia no merge na integração, também com a troca incerta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if achada:  # A3: todo papel; a estratégia, o squash e o no-commit descartam ou mudam o que o review leu\n",
+      "para": "            if False:  # A3: todo papel; a estratégia, o squash e o no-commit descartam ou mudam o que o review leu\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_merge_com_duas_candidatas_de_integracao_vale_a_mais_dura"
+      ]
+    },
+    {
+      "id": "MG4",
+      "guarda": "R-CONFORMIDADE: o merge na integração só pelo papel que mescla, também com a troca incerta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if not self.pode(\"merge_integracao\"):\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_merge_com_duas_candidatas_de_integracao_vale_a_mais_dura"
+      ]
+    },
+    {
+      "id": "RA1",
+      "guarda": "RESTO-ANULA: o resto que se anula ou sobe vale como o opaco sem resto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return bool(opaco) and resto_se_anula(opaco[0][opaco[1]:])\n",
+      "para": "        return bool(opaco) and not opaco[0][opaco[1]:].strip(\"/\")\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_resto_que_se_anula_ou_sobe_vale_como_o_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "RA2",
+      "guarda": "RESTO-ANULA: o `..` colado (`$d..`) é outro nome, não sobe",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if resto and not resto.startswith(\"/\"):\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_resto_que_se_anula_ou_sobe_vale_como_o_opaco_sem_resto"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "descricao": "A20: `.g$(echo it)/c`: o valor calculado com resto de nome cai no .git (v0478 E113.6)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "ev/config": "x\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp -rT ev \".g$(echo it)/c\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "com resto: o valor que o hook calcula cai no diretório do git"
+  }
+}

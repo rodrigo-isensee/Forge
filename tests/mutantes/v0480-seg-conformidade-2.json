@@ -59,7 +59,8 @@
       "de": "        if parte != \"..\":\n            pilha.append(parte)\n",
       "para": "        if True:\n            pilha.append(parte)\n",
       "testes": [
-        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_resto_sobe_depois_do_opaco_vale_resolvido"
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_resto_sobe_depois_do_opaco_vale_resolvido",
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_resto_que_se_anula_ou_sobe_vale_como_o_opaco_sem_resto"
       ]
     },
     {
@@ -69,7 +70,18 @@
       "de": "        elif pilha:\n            pilha.pop()\n",
       "para": "        elif False:\n            pilha.pop()\n",
       "testes": [
-        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_resto_sobe_depois_do_opaco_vale_resolvido"
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_resto_sobe_depois_do_opaco_vale_resolvido",
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_resto_que_se_anula_ou_sobe_vale_como_o_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "AM1",
+      "guarda": "A20 (A2 do QA E113.4): a atribuição com += junta os pedaços (`d=.gi; d+=t`)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if any(m[0].endswith(\"+=\") for m in atribuidos):  # A2 do QA E113.4: `d=.gi; d+=t` é `.git`\n",
+      "para": "                if False:  # A2 do QA E113.4: `d=.gi; d+=t` é `.git`\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a20_atribuicao_com_mais_igual_junta_os_pedacos"
       ]
     }
   ]

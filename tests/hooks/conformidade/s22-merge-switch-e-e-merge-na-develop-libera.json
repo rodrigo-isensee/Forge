@@ -1,0 +1,23 @@
+{
+  "descricao": "S22-MERGE: `git switch develop && git merge feature/x`: a troca certa leva o merge à develop (v0478 E113.6)",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "main"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git switch develop && git merge feature/x"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

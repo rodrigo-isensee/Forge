@@ -1,0 +1,24 @@
+{
+  "descricao": "S22-SUB: `( true || (git switch -c x) ) && git push origin`: o subshell de dentro depois do `||` (v0478 E113.6)",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "main"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "( true || (git switch -c x) ) && git push origin"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-MAIN"
+  }
+}

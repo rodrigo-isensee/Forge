@@ -1,0 +1,20 @@
+{
+  "descricao": "S22-MERGE: `false && git switch homolog; git merge homolog`: a develop segue candidata e o papel não mescla nela (v0478 E113.6)",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "false && git switch homolog; git merge homolog"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "merge em develop"
+  }
+}

@@ -20,6 +20,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "destino de $(…), crase ou variável com resto"
+    "stderr": "destino de $(…), crase ou variável sem nada depois: o texto que produz o valor cita o diretório do git"
   }
 }

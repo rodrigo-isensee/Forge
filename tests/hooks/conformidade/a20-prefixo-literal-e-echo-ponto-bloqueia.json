@@ -20,6 +20,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "destino de $(…), crase ou variável com resto"
+    "stderr": "destino de $(…), crase ou variável: o valor que o hook calcula cai no diretório do git"
   }
 }

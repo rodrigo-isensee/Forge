@@ -1,0 +1,24 @@
+{
+  "descricao": "RESTO-ANULA: `d=docs; cp ev/config \"$d..\"`: o `..` colado é outro nome, não sobe (v0478 E113.6)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "ev/config": "x\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "d=docs; cp ev/config \"$d..\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

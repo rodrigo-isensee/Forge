@@ -1,0 +1,23 @@
+{
+  "descricao": "A20-MAIS: `d=do; d+=cs; cp src/app.js \"$d/c\"`: os pedaços dão docs (v0478 E113.6)",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "d=do; d+=cs; cp src/app.js \"$d/c\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

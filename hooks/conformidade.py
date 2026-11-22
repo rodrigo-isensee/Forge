@@ -244,6 +244,10 @@ RESET_COM_VALOR = {"--pathspec-from-file"}
 FETCH_COM_VALOR = {"--depth", "--deepen", "--shallow-since", "--shallow-exclude", "--negotiation-tip", "-j", "--jobs",
                    "--upload-pack", "--refmap", "-o", "--server-option", "--filter", "--recurse-submodules-default",
                    "--submodule-prefix"}
+# S22 (A1 da segurança E113.2): com a troca de branch incerta, a candidata da regra mais dura decide (`ramos_em`)
+# S22: o sinal antes da troca de branch que garante que, se a cadeia seguinte roda, ela rodou
+CADEIA_CERTA = ("", ";", "&&", "&", "(")
+DUREZA = {"main": 0, "master": 0, "homolog": 1, "develop": 2}
 CONTORNO_DA_INTEGRACAO = ("faça o commit na branch de trabalho e mescle com `git merge` (parecer); para atualizar a "
                           "integração, `git merge --ff-only origin/<branch>`")
 # 0.45.3: parecer gravado pelo Bash (`>`, `>>`, `tee`, `cp`, `sed -i`...) não tem a autoria que o `forge-check pr` exige, e a
@@ -842,6 +846,28 @@ def resto_normalizado(partes):
         elif pilha:
             pilha.pop()
     return tuple(pilha)
+
+
+def alcance_da_troca(grupos, sinal_antes, negada):
+    """S22: a menor profundidade de subshell em que a troca de branch segue certa. A troca negada (`! git switch`) ou
+    com sinal antes que não garante que ela rodou (`||`, `|`) não vale nem no próprio nível; a aberta no subshell
+    (`grupos`: sinal antes do `(`, negado) que vem depois de um desses vale só dentro dele (`true || (git switch x) &&`)."""
+    if negada or sinal_antes not in CADEIA_CERTA:
+        return len(grupos) + 1
+    for nivel in range(len(grupos), 0, -1):
+        antes_do_grupo, grupo_negado = grupos[nivel - 1]
+        if grupo_negado or antes_do_grupo not in CADEIA_CERTA:
+            return nivel
+    return 0
+
+
+def resto_se_anula(resto):
+    """A2 da segurança E113.2: o resto depois do opaco não desce abaixo dele (``, `/`, `/.`, `/..`, `/a/..`): o destino
+    é o próprio valor opaco ou um pai dele, que o hook também não sabe; vale como o opaco sem resto. O resto colado
+    (`$X..`) é outro nome, não sobe."""
+    if resto and not resto.startswith("/"):
+        return False
+    return not resto_normalizado(Path(resto.lstrip("/")).parts)
 
 
 def valor_no_git(valores):
@@ -1713,9 +1739,10 @@ class Guarda:
         return (expandido, max(fins)) if fins else None
 
     def opaco_sem_resto(self, caminho, pasta):
-        """A9: o caminho é opaco e nada vem depois da última parte opaca além de `/`."""
+        """A9: o caminho é opaco e nada vem depois da última parte opaca além de `/` (ou de um resto que se anula ou
+        sobe: `resto_se_anula`)."""
         opaco = self.fim_do_opaco(caminho, pasta)
-        return bool(opaco) and not opaco[0][opaco[1]:].strip("/")
+        return bool(opaco) and resto_se_anula(opaco[0][opaco[1]:])
 
     def textos_do_valor(self, palavra):
         """(precisos, largos): o texto que produz o valor da palavra. Precisos: a palavra, os corpos de substituição da
@@ -1729,7 +1756,11 @@ class Guarda:
         for texto in precisos:  # cresce enquanto o valor de uma variável usa outra
             for nome in set(re.findall(r"\$\{?(\w+)", texto)) - nomes:
                 nomes.add(nome)
-                precisos += [valor_atribuido(linha, m.end()) for m in re.finditer(rf"(?<![\w$]){nome}\+?=", linha)]
+                atribuidos = list(re.finditer(rf"(?<![\w$]){nome}\+?=", linha))
+                valores = [valor_atribuido(linha, m.end()) for m in atribuidos]
+                precisos += valores
+                if any(m[0].endswith("+=") for m in atribuidos):  # A2 do QA E113.4: `d=.gi; d+=t` é `.git`
+                    precisos += ["".join(valores[i:]) for i in range(len(valores))]
                 largo |= bool(re.search(rf"(?<![\w${{]){nome}(?![\w+=])", linha))
         funcoes = (re.findall(r"(?<![\w$-])([\w.-]+)\s*\(\s*\)", linha)
                    + re.findall(r"(?<![\w$.-])function\s+([\w.-]+)", linha))  # D2b: `function f {` sem `()`
@@ -2202,9 +2233,11 @@ class Guarda:
         ramos = {}
         contextos = {(): (pasta, ramos)}  # cada substituição roda num subshell: `cd` e branch lá dentro ficam lá
         vistas = {pasta}
-        # S22: a troca de branch vale certa só enquanto a cadeia de `&&` que a segue dura; no primeiro outro sinal (ou
-        # com sinal antes dela fora da lista positiva: `||`, `|`) a branch de antes volta como candidata (`ramo_em`)
-        anterior, incertas = {}, {}
+        # S22: a troca de branch vale certa só enquanto a cadeia de `&&` que a segue dura, também pelo fim do subshell
+        # (`( … ) &&`); no primeiro outro sinal, ou ao sair do subshell cujo começo não garante (`alcance_da_troca`), a
+        # branch de antes volta como candidata (`ramos_em`). As chaves com ação crítica o hook recusa (`chaves`)
+        partes = [p for p in partes if p[2] or not so_substituicoes]
+        anterior, incertas, grupos = {}, {}, {}
 
         def contexto(sub):
             if sub not in contextos:
@@ -2212,11 +2245,14 @@ class Guarda:
                 contextos[sub] = (pasta_de_fora, dict(ramos_de_fora))
             return contextos[sub]
 
+        def soltar(sub, chaves):
+            ramos_sub = contextos[sub][1]
+            for chave, velhas, _ in chaves:
+                ramos_sub[chave] = tuple(dict.fromkeys(ramos_sub[chave] + tuple(velhas)))
+
         for palavras, destinos, sub, sinal in partes:
-            if so_substituicoes and not sub:
-                continue
             pasta_sub, ramos_sub = contexto(sub)
-            antes = dict(ramos_sub)
+            antes, pilha, sinal_antes = dict(ramos_sub), grupos.setdefault(sub, []), anterior.get(sub, "").rstrip("\n")
             for d in destinos:
                 if self.leitura and d not in self.leitura["saidas"]:
                     self.barrar("R-CONFORMIDADE", f"redirecionamento para {d} pelo papel só de leitura ({self.papel})",
@@ -2224,12 +2260,20 @@ class Guarda:
                 self.checar_escrita(d, pasta_sub)
             contextos[sub] = (self.segmento(palavras, pasta_sub, ramos_sub, nivel), ramos_sub)
             vistas.add(contextos[sub][0])
+            alcance = alcance_da_troca(pilha, sinal_antes, palavras[:1] == ["!"])
             for chave, ramo in ramos_sub.items():
                 if antes.get(chave) != ramo:
-                    incertas.setdefault(sub, {}).setdefault(chave, []).extend(antes.get(chave, (None,)))
-            if sinal.rstrip("\n") != "&&" or anterior.get(sub, "").rstrip("\n") not in ("", ";", "&&", "&", "("):
-                for chave, velhas in incertas.pop(sub, {}).items():
-                    ramos_sub[chave] = tuple(dict.fromkeys(ramos_sub[chave] + tuple(velhas)))
+                    incertas.setdefault(sub, []).append((chave, antes.get(chave, (None,)), alcance))
+            fim = sinal.rstrip("\n")
+            fecha = fim == ")" and bool(pilha)
+            if fim == "(":
+                pilha.append((sinal_antes, palavras != []))  # `! (`; outra palavra antes do `(` não garante
+            elif fecha:
+                pilha.pop()
+            continua = fim in ("&&", "(") or fecha
+            fora = [t for t in incertas.get(sub, []) if not continua or t[2] > len(pilha)]
+            soltar(sub, fora)
+            incertas[sub] = [t for t in incertas.get(sub, []) if t not in fora]
             anterior[sub] = sinal
         return contextos[()][0], vistas
 
@@ -2604,13 +2648,18 @@ class Guarda:
         return next((a.split("=", 1)[1] for a in atribuicoes if a.startswith(nome + "=")), self.ambiente.get(nome))
 
     # git ---------------------------------------------------------------------------------------------
-    def ramo_em(self, pasta, ramos):
-        """A branch da pasta. S22: com a troca incerta (`conferir_partes`), a candidata de integração, a da regra mais
-        dura; senão, a mais nova. `None` é a branch do disco."""
+    def ramos_em(self, pasta, ramos):
+        """As branches candidatas da pasta, da regra mais dura à mais branda (`DUREZA`: main e master, homolog, develop;
+        depois as outras, a mais nova antes). S22: com a troca incerta (`conferir_partes`) há mais de uma; `None` é a
+        branch do disco."""
         raiz = raiz_do_projeto(pasta)
         candidatas = ramos.get(raiz.resolve() if raiz else None, (None,))
         nomes = [git(pasta, "branch", "--show-current")[1] if c is None else c for c in candidatas]
-        return next((n for n in nomes if n in INTEGRACAO), nomes[0])
+        return sorted(dict.fromkeys(nomes), key=lambda n: DUREZA.get(n, len(DUREZA)))  # A1 da E113.2: main antes
+
+    def ramo_em(self, pasta, ramos):
+        """A branch da pasta: a candidata da regra mais dura (`ramos_em`)."""
+        return self.ramos_em(pasta, ramos)[0]
 
     def pathspecs_da_linha(self, atribuicoes):
         """As opções `--*-pathspecs` que as variáveis `GIT_*_PATHSPECS` da linha (atribuição, `env`, `export`) ligam. Só
@@ -2674,17 +2723,22 @@ class Guarda:
         elif sub == "subtree" and args[:1] == ["push"]:  # `git subtree push -P <pasta> <repositório> <ref>`
             self.git_push(parecer.posicionais(args[1:], SUBTREE_COM_VALOR), pasta_git, ramos, "subtree push", troca)
         elif parte and parte[0] == "merge" and parte[2]:
-            atual = self.ramo_em(pasta_git, ramos)
-            if atual in INTEGRACAO and not all(b == atual for b, _ in parte[2]):
-                if atual in ("main", "master"):
-                    self.barrar("R-MAIN", f"merge na {atual} é do usuário", "abra o PR e peça ao usuário que o mescle")
-                achada = opcao_de_merge_que_muda_o_resultado(args)
-                if achada:  # A3: todo papel; a estratégia, o squash e o no-commit descartam ou mudam o que o review leu
-                    self.barrar("R-REVIEW", f"git {sub} {achada} na {atual} muda o que o review leu",
-                                "mescle sem estratégia, --squash nem --no-commit; resolva o conflito na branch de trabalho")
-                if not self.pode("merge_integracao"):
-                    self.barrar("R-CONFORMIDADE", f"merge em {atual} {self.so_de('merge_integracao')} "
-                                                  f"(papel: {self.papel})", "peça ao tech-lead")
+            for atual in self.ramos_em(pasta_git, ramos):  # A1 da E113.2: com a troca incerta, cada candidata
+                self.merge_na_integracao(sub, args, atual, parte[2])
+
+    def merge_na_integracao(self, sub, args, atual, mescladas):
+        """O merge das branches `mescladas` na branch `atual`: na main é do usuário; na integração, só sem opção que
+        mude o resultado e pelo papel que mescla."""
+        if atual in INTEGRACAO and not all(b == atual for b, _ in mescladas):
+            if atual in ("main", "master"):
+                self.barrar("R-MAIN", f"merge na {atual} é do usuário", "abra o PR e peça ao usuário que o mescle")
+            achada = opcao_de_merge_que_muda_o_resultado(args)
+            if achada:  # A3: todo papel; a estratégia, o squash e o no-commit descartam ou mudam o que o review leu
+                self.barrar("R-REVIEW", f"git {sub} {achada} na {atual} muda o que o review leu",
+                            "mescle sem estratégia, --squash nem --no-commit; resolva o conflito na branch de trabalho")
+            if not self.pode("merge_integracao"):
+                self.barrar("R-CONFORMIDADE", f"merge em {atual} {self.so_de('merge_integracao')} "
+                                              f"(papel: {self.papel})", "peça ao tech-lead")
 
     def alias_do_git(self, sub, pasta):
         """A expansão do alias `sub` na configuração que o git lê em `pasta`, ou None se `sub` é comando do git ou não é

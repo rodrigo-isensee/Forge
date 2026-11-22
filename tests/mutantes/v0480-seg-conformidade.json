@@ -9,37 +9,40 @@
       "de": "                if antes.get(chave) != ramo:\n",
       "para": "                if False:\n",
       "testes": [
-        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante"
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante",
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_negada_nao_vale"
       ]
     },
     {
       "id": "S22b",
-      "guarda": "S22: sinal que não é && depois da troca devolve a branch de antes como candidata",
+      "guarda": "S22: a troca negada (`! git switch`) não vale nem no próprio nível",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if sinal.rstrip(\"\\n\") != \"&&\" or anterior.get(sub, \"\").rstrip(\"\\n\") not in (\"\", \";\", \"&&\", \"&\", \"(\"):\n",
-      "para": "            if False:\n",
+      "de": "    if negada or sinal_antes not in CADEIA_CERTA:\n",
+      "para": "    if sinal_antes not in CADEIA_CERTA:\n",
       "testes": [
-        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante"
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_negada_nao_vale"
       ]
     },
     {
       "id": "S22c",
-      "guarda": "S22: sinal antes da troca fora da lista positiva (||, ||+quebra, |) a deixa incerta",
+      "guarda": "S22: sinal antes da troca fora da lista positiva (||, |) a deixa incerta",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if sinal.rstrip(\"\\n\") != \"&&\" or anterior.get(sub, \"\").rstrip(\"\\n\") not in (\"\", \";\", \"&&\", \"&\", \"(\"):\n",
-      "para": "            if sinal.rstrip(\"\\n\") != \"&&\" or anterior.get(sub, \"\").rstrip(\"\\n\") not in (\"\", \";\", \"&&\", \"&\", \"(\", \"||\", \"|\"):\n",
+      "de": "    if negada or sinal_antes not in CADEIA_CERTA:\n",
+      "para": "    if negada:\n",
       "testes": [
-        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante"
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante",
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_subshell_segue_a_cadeia_so_com_o_comeco_que_garante"
       ]
     },
     {
       "id": "S22d",
-      "guarda": "S22: com a troca incerta, vale a candidata de integração",
+      "guarda": "S22: o subshell aberto depois de ||, | ou negado vale só dentro dele",
       "arquivo": "hooks/conformidade.py",
-      "de": "        return next((n for n in nomes if n in INTEGRACAO), nomes[0])\n",
-      "para": "        return next((n for n in nomes if False), nomes[0])\n",
+      "de": "        if grupo_negado or antes_do_grupo not in CADEIA_CERTA:\n",
+      "para": "        if False:\n",
       "testes": [
-        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante"
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_subshell_segue_a_cadeia_so_com_o_comeco_que_garante",
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_merge_com_duas_candidatas_de_integracao_vale_a_mais_dura"
       ]
     },
     {
@@ -54,12 +57,33 @@
     },
     {
       "id": "S22f",
-      "guarda": "S22: && seguido de quebra de linha mantém a cadeia certa (sem falso positivo)",
+      "guarda": "S22 (falso positivo): o `)` que fecha o subshell aberto segue a cadeia",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if sinal.rstrip(\"\\n\") != \"&&\" or anterior.get(sub, \"\").rstrip(\"\\n\") not in (\"\", \";\", \"&&\", \"&\", \"(\"):\n",
-      "para": "            if sinal != \"&&\" or anterior.get(sub, \"\").rstrip(\"\\n\") not in (\"\", \";\", \"&&\", \"&\", \"(\"):\n",
+      "de": "            fecha = fim == \")\" and bool(pilha)\n",
+      "para": "            fecha = False\n",
       "testes": [
-        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante"
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_subshell_segue_a_cadeia_so_com_o_comeco_que_garante"
+      ]
+    },
+    {
+      "id": "S22g",
+      "guarda": "S22 (falso positivo): o `(` depois do `&&` segue a cadeia",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            continua = fim in (\"&&\", \"(\") or fecha\n",
+      "para": "            continua = fim == \"&&\" or fecha\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_subshell_segue_a_cadeia_so_com_o_comeco_que_garante"
+      ]
+    },
+    {
+      "id": "S22h",
+      "guarda": "S22: ao sair do subshell cujo começo não garante, a troca fica incerta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            fora = [t for t in incertas.get(sub, []) if not continua or t[2] > len(pilha)]\n",
+      "para": "            fora = [t for t in incertas.get(sub, []) if not continua]\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_subshell_segue_a_cadeia_so_com_o_comeco_que_garante",
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_merge_com_duas_candidatas_de_integracao_vale_a_mais_dura"
       ]
     }
   ]
