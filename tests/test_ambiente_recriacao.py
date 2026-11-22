@@ -14,6 +14,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -36,7 +37,8 @@ def rodar(tmp, script, *args, curl=CURL_OK, claude_no_path=False, claude_local=F
     for d in (home, persist / "Forge" / "scripts", bin_falso, proj):
         d.mkdir(parents=True, exist_ok=True)
     if not (proj / ".git").exists():
-        subprocess.run(["git", "init", "-q", str(proj)], check=True, capture_output=True)
+        subprocess.run(["git", "init", "-q", str(proj)], check=True, capture_output=True,
+                       env=sem_manutencao())
     registro = tmp / "chamadas"
     falsos = {
         "gh": 'case "$1" in --version) echo "gh version 2.104.0 (2026-11-12)"; exit 0 ;; esac\n[ "$1 $2" = "auth status" ] && exit 1\nexit 0\n',
@@ -60,9 +62,10 @@ def rodar(tmp, script, *args, curl=CURL_OK, claude_no_path=False, claude_local=F
         sem = tmp / "sem-curl"
         sem.mkdir()
         for d in dict.fromkeys(caminho.split(":")):
-            for f in Path(d).glob("*") if Path(d).is_dir() else ():
-                if f.name != "curl" and not (sem / f.name).exists():
-                    (sem / f.name).symlink_to(f)
+            for f in Path(d).iterdir() if Path(d).is_dir() else ():
+                alvo = sem / f.name
+                if f.name != "curl" and not alvo.is_symlink():  # is_symlink: link quebrado também ocupa o nome
+                    alvo.symlink_to(f)
         caminho = str(sem)
     env.update(HOME=str(home), PATH=f"{bin_falso}:{caminho}", REGISTRO=str(registro), FORGE_PERSISTENTE=str(persist),
                FORGE_PROJETO=str(proj), FORGE_PREPARO_ESSENCIAL="1",

@@ -107,7 +107,7 @@ fi
 if ! grep -qE '^[[:space:]]*export PATH=.*\.local/bin' "$HOME/.bashrc" 2>/dev/null; then
   # shellcheck disable=SC2016 # $HOME e $PATH devem ir literais para o .bashrc
   printf '\n# claude e atalhos pessoais\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.bashrc"
-  feitos+=("~/.local/bin entrou na frente do PATH do bash")
+  feitos+=("$HOME/.local/bin entrou na frente do PATH do bash")
 fi
 
 if link_ok; then

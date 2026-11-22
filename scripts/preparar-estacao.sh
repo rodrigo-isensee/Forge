@@ -192,10 +192,10 @@ container_pacotes() {
 claude_ok() { [ -x "$HOME/.local/bin/claude" ]; }
 garantir_path_local() {
   [ "$simular" = 0 ] || return 0
-  grep -qE '^[[:space:]]*export PATH=.*\.local/bin' "$HOME/.bashrc" 2>/dev/null && return 0
+  command grep -qE '^[[:space:]]*export PATH=.*\.local/bin' "$HOME/.bashrc" 2>/dev/null && return 0
   # shellcheck disable=SC2016 # $HOME e $PATH devem ir literais para o .bashrc
   printf '\n# claude e atalhos pessoais\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.bashrc"
-  fez "~/.local/bin entrou na frente do PATH do bash"
+  fez "$HOME/.local/bin entrou na frente do PATH do bash"
 }
 container_claude() {
   local tmp
