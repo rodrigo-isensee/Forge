@@ -1,7 +1,7 @@
 """AE3.1 (v0478 E108.1): `salvar` de bin/forge_controle.py, o commit local da pasta de controle. Cada teste monta um
 repositório temporário com HOME próprio (identidade do git sem o config de quem roda a suíte) e um remoto bare. Um teste por
-guarda, com o ramo de falha: caminho fora da lista, link, segredo, arquivo grande ou não comum, hook ativo, trava, pasta que
-não é a raiz e `GIT_DIR` herdado; e os ramos de sucesso: só a lista entra, mensagem fixa, nada muda sem mudança, nunca push."""
+guarda, com o ramo de falha: caminho fora da lista, link, segredo (em qualquer caixa), arquivo grande ou não comum, hook ativo,
+chave da config que roda comando (uma por chave), trava (e trava que é link), pasta que não é a raiz e `GIT_DIR` herdado; e os ramos de sucesso: só a lista entra, mensagem fixa, nada muda sem mudança, nunca push."""
 import fcntl
 import os
 import shutil
@@ -127,6 +127,27 @@ class Recusas(Base):
         self.escrever("docs/.env", "CHAVE=1\n")
         self.assert_sem_commit(C.salvar(self.pasta), "recusado")
 
+    def test_segredo_em_maiusculas_e_recusado_sem_commit(self):
+        self.escrever("docs/chave.PEM", "-----BEGIN-----\n")
+        resultado = C.salvar(self.pasta)
+        self.assert_sem_commit(resultado, "recusado")
+        self.assertEqual(resultado[1], "nome de segredo: docs/chave.PEM")
+
+    def test_cada_nome_de_segredo_e_recusado_em_qualquer_caixa(self):
+        nomes = ("docs/a.PEM", "docs/a.KEY", "docs/id_RSA", "docs/.ENV", "docs/.netrc", "docs/.NETRC",
+                 "docs/credentials", "docs/credentials.json", "docs/Credentials.yml", "docs/secrets", "docs/secrets.toml",
+                 "docs/SECRETS.env", "docs/cofre.kdbx", "docs/a.jks", "docs/a.keystore", "docs/AuthKey.P8")
+        for nome in nomes:
+            with self.subTest(nome=nome):
+                self.escrever(nome, "x\n")
+                self.assertEqual(C._recusa(self.pasta, nome), "nome de segredo")
+
+    def test_nome_parecido_com_segredo_entra(self):
+        for nome in ("docs/chaves.md", "docs/keystore-guia.md", "docs/sobre-credentials/a.md", "docs/p8.md"):
+            with self.subTest(nome=nome):
+                self.escrever(nome, "x\n")
+                self.assertIsNone(C._recusa(self.pasta, nome))
+
     def test_arquivo_acima_do_teto_e_recusado(self):
         self.escrever("docs/grande.md", "x" * (C.TETO_DE_BYTES + 1))
         self.assert_sem_commit(C.salvar(self.pasta), "recusado")
@@ -173,6 +194,73 @@ class Ambiente(Base):
         self.assert_sem_commit(C.salvar(self.pasta), "nao-verificavel")
         self.assertEqual(self.git("config", "--get", "core.hooksPath"), "ganchos")
 
+    def assert_config_barra(self, *pares, atributo=None):
+        """Grava as chaves na config local; o salvar sai nao-verificavel, o script não roda e não sai commit."""
+        marca = self.tmp / "rodou"
+        script = self.tmp / "script.sh"
+        script.write_text(f"#!/bin/sh\necho >> '{marca}'\ncat\n")
+        script.chmod(0o755)
+        for chave, valor in pares:
+            self.git("config", chave, valor.replace("SCRIPT", str(script)))
+        if atributo:
+            (self.pasta / ".git/info").mkdir(exist_ok=True)
+            (self.pasta / ".git/info/attributes").write_text(atributo)
+        self.escrever("docs/pedido.md", "mudou\n")
+        resultado = C.salvar(self.pasta)
+        self.assert_sem_commit(resultado, "nao-verificavel")
+        self.assertTrue(resultado[1].startswith("comando na config "), resultado)
+        self.assertFalse(marca.exists())
+        return resultado
+
+    def test_core_fsmonitor_e_nao_verificavel(self):
+        self.assert_config_barra(("core.fsmonitor", "SCRIPT"))
+
+    def test_core_fsmonitor_true_e_nao_verificavel(self):
+        self.assert_config_barra(("core.fsmonitor", "true"))
+
+    def test_filtro_clean_e_nao_verificavel(self):
+        self.assert_config_barra(("filter.z.clean", "SCRIPT"), atributo="*.md filter=z\n")
+
+    def test_filtro_smudge_e_nao_verificavel(self):
+        self.assert_config_barra(("filter.z.smudge", "SCRIPT"), atributo="*.md filter=z\n")
+
+    def test_filtro_process_e_nao_verificavel(self):
+        self.assert_config_barra(("filter.Z.process", "SCRIPT"), atributo="*.md filter=Z\n")
+
+    def test_commit_gpgsign_e_nao_verificavel(self):
+        self.assert_config_barra(("commit.gpgsign", "true"))
+
+    def test_gpg_program_e_nao_verificavel(self):
+        self.assert_config_barra(("gpg.program", "SCRIPT"))
+
+    def test_gpg_program_do_formato_e_nao_verificavel(self):
+        self.assert_config_barra(("gpg.x509.program", "SCRIPT"))
+
+    def test_gpg_ssh_default_key_command_e_nao_verificavel(self):
+        self.assertEqual(self.assert_config_barra(("gpg.ssh.defaultKeyCommand", "SCRIPT"))[1],
+                         "comando na config gpg.ssh.defaultkeycommand")
+
+    def test_chave_vinda_de_include_e_nao_verificavel(self):
+        incluido = self.tmp / "incluido.cfg"
+        incluido.write_text("[core]\n\tfsmonitor = true\n")
+        self.assert_config_barra(("include.path", str(incluido)))
+
+    def test_fsmonitor_e_gpgsign_desligados_salvam(self):
+        self.git("config", "core.fsmonitor", "false")
+        self.git("config", "commit.gpgsign", "off")
+        self.escrever("KANBAN.md", "quadro novo\n")
+        self.assertEqual(C.salvar(self.pasta)[0], "salvo")
+
+    def test_trava_que_e_link_e_nao_verificavel_e_nao_cria_o_alvo(self):
+        alvo = self.tmp / "fora.lock"
+        trava = Path(self.git("rev-parse", "--path-format=absolute", "--git-path", "forge-controle.lock"))
+        trava.symlink_to(alvo)
+        self.escrever("KANBAN.md", "quadro novo\n")
+        resultado = C.salvar(self.pasta)
+        self.assert_sem_commit(resultado, "nao-verificavel")
+        self.assertTrue(resultado[1].startswith("trava ilegível"), resultado)
+        self.assertFalse(alvo.exists())
+
     def test_subpasta_nao_e_a_raiz(self):
         self.escrever("docs/novo.md", "n\n")
         self.assert_sem_commit(C.salvar(self.pasta / "docs"), "nao-verificavel")
@@ -209,6 +297,13 @@ class Falhas(Base):
         self.escrever("KANBAN.md", "quadro novo\n")
         with self.falhar_em("hooks"):
             self.assert_sem_commit(C.salvar(self.pasta), "nao-verificavel")
+
+    def test_config_ilegivel_e_nao_verificavel(self):
+        self.escrever("KANBAN.md", "quadro novo\n")
+        with self.falhar_em("--list"):
+            resultado = C.salvar(self.pasta)
+        self.assert_sem_commit(resultado, "nao-verificavel")
+        self.assertEqual(resultado[1], "config ilegível")
 
     def test_trava_ilegivel_e_nao_verificavel(self):
         self.escrever("KANBAN.md", "quadro novo\n")

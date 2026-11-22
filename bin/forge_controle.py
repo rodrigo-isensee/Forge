@@ -3,9 +3,11 @@
 Desenho em docs/propostas/v0479-melhorias-anti-erro.md (AE3, D3 e D7): `salvar(pasta)` faz o commit só dos caminhos da lista
 positiva `CAMINHOS`, com a mensagem fixa `MENSAGEM`, nunca `add -A`, nunca push, nunca `--no-verify` e sem efeito se nada
 mudou. Tudo ou nada: um caminho recusado (link, segredo, arquivo grande, tipo estranho) não deixa commit parcial. Hook ativo na
-pasta (`core.hooksPath` ou `.git/hooks` sem `.sample`) sai `nao-verificavel`: o commit rodaria código de fora e o módulo
-nunca troca nem esvazia o `core.hooksPath` (R-VERIFY). O git roda sem as `GIT_*` herdadas (um hook exporta `GIT_DIR`, que
-venceria o `-C`) e sem `-c` de quem chama. Dois `salvar` ao mesmo tempo: o segundo sai `ocupado`. Só biblioteca padrão.
+pasta (`core.hooksPath` ou `.git/hooks` sem `.sample`) ou chave da config que roda comando (`core.fsmonitor`, filtro
+`clean`/`smudge`/`process`, `commit.gpgsign`, `gpg.*program`, `gpg.ssh.defaultKeyCommand`) sai `nao-verificavel`: o git
+rodaria código de fora, e o módulo nunca troca nem esvazia a config (R-VERIFY). O git roda sem as `GIT_*` herdadas (um hook
+exporta `GIT_DIR`, que venceria o `-C`) e sem `-c` de quem chama. Dois `salvar` ao mesmo tempo: o segundo sai `ocupado`; a
+trava abre com `O_NOFOLLOW`. Só biblioteca padrão.
 Saída: (estado, detalhe), com estado em salvo, nada, recusado, nao-verificavel, ocupado ou erro.
 """
 import fcntl
@@ -18,7 +20,12 @@ from pathlib import Path
 MENSAGEM = "chore(controle): salvar a pasta de controle"
 CAMINHOS = ("KANBAN.md", "docs/")  # lista positiva: o quadro e a pasta docs/ (pedidos, briefs, retros, pareceres, kanban)
 TETO_DE_BYTES = 1_000_000
-SEGREDO = re.compile(r"(^|/)\.env(\.[^/]*)?$|\.(pem|key|p12|pfx)$|(^|/)id_(rsa|ed25519|ecdsa|dsa)$")
+SEGREDO = re.compile(r"(^|/)\.env(\.[^/]*)?$|\.(pem|key|p12|pfx|p8|kdbx|jks|keystore)$|(^|/)id_(rsa|ed25519|ecdsa|dsa)$"
+                     r"|(^|/)(\.netrc|credentials[^/]*|secrets[^/]*)$", re.IGNORECASE)  # sem diferença de caixa
+# Chaves da config que fazem o git rodar comando no status, no add ou no commit (fsmonitor, filtro, assinatura).
+COMANDO_NA_CONFIG = re.compile(r"filter\..+\.(clean|smudge|process)|gpg\.([^.]+\.)?program|gpg\.ssh\.defaultkeycommand")
+LIGADA_SE_VERDADE = ("core.fsmonitor", "commit.gpgsign")
+FALSO = ("false", "no", "off", "0")
 SEM_MANUTENCAO = ("-c", "maintenance.auto=false", "-c", "gc.auto=0")  # nada de repack em segundo plano depois do commit
 
 
@@ -36,6 +43,9 @@ def _hook_ativo(pasta):
     """Motivo se algum hook rodaria no commit (ou se não dá para saber); None se não há hook."""
     if _git(pasta, "config", "--get", "core.hooksPath")[0] == 0:
         return "core.hooksPath configurado"
+    motivo = _comando_na_config(pasta)
+    if motivo:
+        return motivo
     cod, saida = _git(pasta, "rev-parse", "--path-format=absolute", "--git-path", "hooks")
     if cod != 0:
         return "pasta de hooks ilegível"
@@ -44,6 +54,21 @@ def _hook_ativo(pasta):
         for arq in hooks.iterdir():
             if not arq.name.endswith(".sample") and arq.is_file() and os.access(arq, os.X_OK):
                 return f"hook ativo {arq.name}"
+    return None
+
+
+def _comando_na_config(pasta):
+    """Motivo se a config efetiva (todas as origens, com includes) faz o git rodar comando; None se não faz."""
+    cod, saida = _git(pasta, "config", "-z", "--list")
+    if cod != 0:
+        return "config ilegível"
+    for item in saida.split("\0"):
+        chave, _, valor = item.partition("\n")
+        chave = chave.lower()
+        if COMANDO_NA_CONFIG.fullmatch(chave):
+            return f"comando na config {chave}"
+        if chave in LIGADA_SE_VERDADE and valor.strip().lower() not in FALSO:
+            return f"comando na config {chave}"
     return None
 
 
@@ -83,10 +108,14 @@ def salvar(pasta):
     cod, raiz = _git(pasta, "rev-parse", "--show-toplevel")
     if cod != 0 or Path(raiz.strip()).resolve() != pasta:
         return "nao-verificavel", "a pasta não é a raiz de um repositório git"
-    cod, trava = _git(pasta, "rev-parse", "--path-format=absolute", "--git-path", "forge-controle.lock")
+    cod, trava = _git(pasta, "rev-parse", "--git-path", "forge-controle.lock")  # sem absolute: ele resolve o link
     if cod != 0:
         return "nao-verificavel", "trava ilegível"
-    with open(trava.strip(), "a", encoding="utf-8") as arquivo_da_trava:
+    try:  # O_NOFOLLOW: um link no lugar da trava não cria arquivo fora da pasta
+        descritor = os.open(pasta / trava.strip(), os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    except OSError as erro:
+        return "nao-verificavel", f"trava ilegível: {erro.strerror}"
+    with os.fdopen(descritor, "w", encoding="utf-8") as arquivo_da_trava:
         try:
             fcntl.flock(arquivo_da_trava, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
