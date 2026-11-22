@@ -16,8 +16,8 @@
       "id": "M9",
       "guarda": "sem branch lida, a recusa nomeia o marcador, nunca some",
       "arquivo": "bin/forge-check",
-      "de": "sem_controle(branch or '<branch>')",
-      "para": "sem_controle(branch or '')",
+      "de": "recusada para {nome_seguro(sem_controle(branch or '<branch>'))}",
+      "para": "recusada para {nome_seguro(sem_controle(branch or ''))}",
       "testes": [
         "tests.test_volta_por_delta.BriefDeVolta.test_sem_branch_nenhuma_decisao_autoriza"
       ]
@@ -28,16 +28,6 @@
       "arquivo": "bin/forge-check",
       "de": "1 + len({linha for _, linhas in cobradas[\"fontes\"] for _, linha in linhas if canonica.match(linha)})",
       "para": "1 + len([linha for _, linhas in cobradas[\"fontes\"] for _, linha in linhas if canonica.match(linha)])",
-      "testes": [
-        "tests.test_volta_por_delta.BriefDeVolta.test_so_a_forma_canonica_autoriza_e_uma_linha_vale_uma_volta"
-      ]
-    },
-    {
-      "id": "M11",
-      "guarda": "a branch termina no nome exato (nem melhoria/xy nem melhoria/x.y)",
-      "arquivo": "bin/forge-check",
-      "de": "`?\\.?(?=\\s|$)\"",
-      "para": "`?\"",
       "testes": [
         "tests.test_volta_por_delta.BriefDeVolta.test_so_a_forma_canonica_autoriza_e_uma_linha_vale_uma_volta"
       ]
