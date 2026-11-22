@@ -57,6 +57,10 @@ class AmbienteNoSessionStart(unittest.TestCase):
             (self.home / ".forge-contrib").symlink_to(real)
         git(raiz, "config", "core.hooksPath", ".githooks")
         self.gh_ok(True)
+        claude = self.home / ".local/bin/claude"  # E119.1: o Claude Code atual mora em ~/.local/bin
+        claude.parent.mkdir(parents=True, exist_ok=True)
+        claude.write_text("#!/bin/sh\nexit 0\n")
+        claude.chmod(0o755)
 
     def rodar(self, cwd, evento="SessionStart", persistente=None, hook=HOOK):
         env = {**os.environ, "HOME": str(self.home), "PATH": f"{self.bin}:{os.environ['PATH']}",
