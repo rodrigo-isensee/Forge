@@ -247,6 +247,18 @@ FETCH_COM_VALOR = {"--depth", "--deepen", "--shallow-since", "--shallow-exclude"
 # S22 (A1 da segurança E113.2): com a troca de branch incerta, a candidata da regra mais dura decide (`ramos_em`)
 # S22: o sinal antes da troca de branch que garante que, se a cadeia seguinte roda, ela rodou
 CADEIA_CERTA = ("", ";", "&&", "&", "(")
+# A6 da segurança E113.13: o sinal que termina a lista and-or (o `(` abre a de dentro) e o do pipe, com a quebra de linha
+FIM_DE_LISTA = ("", ";", ";\n", "\n", "&", "&\n")
+PIPE = ("|", "|\n", "|&", "|&\n")
+# A7 da segurança E113.13: depois do `~`, o que volta ao OLDPWD (`~-`) ou à pilha do `pushd` (`~1`, `~+1`, `~-1`)
+VOLTA_NO_TIL = "+-0123456789"
+# A5 da segurança E113.13: `-t` e toda abreviação de `--target-directory` (o getopt do GNU aceita o prefixo único)
+ALVO_DO_T = {"-t", "--t", "--ta", "--tar", "--targ", "--targe", "--target", "--target-", "--target-d", "--target-di",
+             "--target-dir", "--target-dire", "--target-direc", "--target-direct", "--target-directo",
+             "--target-director", "--target-directory"}
+# A5: a opção recursiva do `cp` e do `rsync`: a letra no grupo de curtas (`-r`, `-R`, `-a`, `-rt"$X"`) ou a longa em
+# qualquer abreviação (`--recur`, `--arch`)
+COPIA_RECURSIVA = r"-[a-zA-Z]*[rRa]|--r(?:e(?:c(?:u(?:r(?:s(?:i(?:v(?:e)?)?)?)?)?)?)?)?$|--ar(?:c(?:h(?:i(?:v(?:e)?)?)?)?)?$"
 DUREZA = ("main", "master", "homolog", "develop")
 # S22: a chave em que o `segmento` anota a troca de branch do comando (raiz, candidatas de antes) para o
 # `conferir_partes`
@@ -1282,6 +1294,27 @@ EXTRATORES = {"tar": alvos_do_tar, "gtar": alvos_do_tar, "bsdtar": functools.par
               "cpio": alvos_do_cpio, "unzip": alvos_do_unzip, **dict.fromkeys(("7z", "7za", "7zr", "7zz"), alvos_do_7z)}
 
 
+def alvo_do_t(args):
+    """A5 da segurança E113.13: o destino de `-t` (também colado e no grupo: `-t"$X"`, `-rt"$X"`) e de
+    `--target-directory` em qualquer abreviação (`--targ`, `--target-dir=`), à maneira do getopt; senão None. Um laço
+    só, sem chamada por palavra e fora da classe (o `staticmethod` é uma chamada por execução): o teto do corpus
+    (CORPUS-CUSTO-CONTADOR) conta cada uma."""
+    seguinte = False
+    for a in args:
+        if seguinte:
+            return a
+        if a in ALVO_DO_T:
+            seguinte = True
+        elif "=" in a and a[:3] == "--t" and a.partition("=")[0] in ALVO_DO_T:
+            return a.partition("=")[2]
+        elif a[:1] == "-" and a[1:2] != "-" and "t" in a:  # o `t` do grupo toma o resto, ou a palavra seguinte
+            grupo, _, valor = a[1:].partition("t")
+            if valor and (grupo.isalpha() or not grupo):
+                return valor
+            seguinte = not valor and (grupo.isalpha() or not grupo)
+    return None
+
+
 def sed_no_lugar(args):
     """`sed` com edição no lugar: `-i` sozinho, agrupado ou com sufixo (`-ni`, `-i.bak`) ou `--in-place[=sufixo]` em
     qualquer abreviação (`--i`, `--in-pl=~`)."""
@@ -1847,9 +1880,9 @@ class Guarda:
         recusam, salvo quando o corpo é um da lista positiva (`CORPO_POSITIVO`: `mktemp`, `date`, `pwd`,
         `git rev-parse --show-toplevel`). A5 da segurança E113.8: a cópia recursiva (`cp -r`, `-a`) para valor que o hook
         não calcula (`valor_de_fora`) recusa, porque ele não vê os nomes de dentro da pasta (`cp -rT ev "$X"` grava
-        `ev/config` como `cp ev/config "$X"`)."""
-        alvo = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-t", "--target-directory")), None)
-        alvo = alvo or next((a.split("=", 1)[1] for a in args if a.startswith("--target-directory=")), None)
+        `ev/config` como `cp ev/config "$X"`). A5 e A8 da segurança E113.13: o destino também de `-t` colado e de
+        `--target-directory` abreviado (`alvo_do_t`), a opção recursiva abreviada (`COPIA_RECURSIVA`) e o `rsync`."""
+        alvo = None if prog == "rsync" else alvo_do_t(args)  # A8: no `rsync`, `-t` é guardar a data
         alvo = alvo or next((a for a in reversed(args) if not a.startswith("-") or "`" in a), None)
         if not alvo or not self.opaco_sem_resto(alvo, pasta) or self.corpo_positivo(alvo):
             return
@@ -1858,7 +1891,7 @@ class Guarda:
         if achado:
             self.barrar("R-CONFORMIDADE", f"origem `{achado}` (nome do git ou de hook) para destino de $(…), crase ou "
                                           "variável que o hook não lê", "escreva o caminho literal do destino")
-        if prog == "cp" and nomes and any(re.fullmatch(r"-[^-]*[rRa]\w*|--(recursive|archive)", a) for a in args) \
+        if prog in ("cp", "rsync") and nomes and any(re.match(COPIA_RECURSIVA, a) for a in args) \
                 and self.valor_de_fora(alvo, pasta):  # `-r`, `-R`, `-a`; o padrão só aqui: o import não paga (corpus)
             self.barrar("R-CONFORMIDADE", f"cópia recursiva de `{nomes[0]}` para destino de $(…), crase ou variável que o "
                                           "hook não lê: os nomes de dentro da pasta podem ser do git",
@@ -2260,14 +2293,15 @@ class Guarda:
         """As checagens de cada comando simples de uma leitura da linha (`leituras`); devolve a pasta depois dela e as
         pastas por onde a leitura passou (a de cada comando, também dentro das substituições)."""
         # cada substituição roda num subshell: `cd` e branch lá dentro ficam lá. A cadeia (S22), por substituição:
-        # [subshells abertos (sinal antes, negado), trocas pendentes, sinal antes, pasta de fora de cada subshell]
-        contextos = {(): (pasta, {}, [[], [], "", []])}
+        # [subshells abertos (sinal antes, negado), trocas pendentes, sinal antes, pasta de fora de cada subshell, pasta
+        # do começo da lista and-or de cada nível de subshell (A6: a lista que termina em `&` roda num subshell)]
+        contextos = {(): (pasta, {}, [[], [], "", [], [pasta]])}
         vistas = {pasta}
 
         def contexto(sub):
             if sub not in contextos:
                 pasta_de_fora, ramos_de_fora, _ = contexto(sub[:-1])
-                contextos[sub] = (pasta_de_fora, dict(ramos_de_fora), [[], [], "", []])
+                contextos[sub] = (pasta_de_fora, dict(ramos_de_fora), [[], [], "", [], [pasta_de_fora]])
             return contextos[sub]
 
         # S22: a troca de branch vale certa só enquanto a cadeia de `&&` que a segue dura, também pelo fim do subshell
@@ -2277,14 +2311,26 @@ class Guarda:
             if so_substituicoes and not sub:
                 continue
             pasta_sub, ramos_sub, cadeia = contexto(sub)
-            pilha, pendentes, sinal_antes, pastas_de_fora = cadeia
+            pilha, pendentes, sinal_antes, pastas_de_fora, inicios = cadeia
+            if pasta_sub is None:  # A7: depois de `cd -`, `cd ~-`, `popd` ou `pushd` sem pasta, a pasta é desconhecida
+                self.barrar("R-CONFORMIDADE", "comando depois de `cd -`, `cd ~-`, `popd` ou `pushd` sem pasta: o hook "
+                                              "não segue a volta à pasta anterior", "use `cd` com o caminho da pasta")
+                pasta_sub = pasta  # a `GuardaDaProva` segue sem recusar: a pasta da linha
+            if sinal_antes in FIM_DE_LISTA:  # sem chamada: o teto do corpus (CORPUS-CUSTO-CONTADOR) conta cada uma
+                inicios[-1] = pasta_sub
             for d in destinos:
                 if self.leitura and d not in self.leitura["saidas"]:
                     self.barrar("R-CONFORMIDADE", f"redirecionamento para {d} pelo papel só de leitura ({self.papel})",
                                 DICA_LEITURA)
                 self.checar_escrita(d, pasta_sub)
             contextos[sub] = (self.segmento(palavras, pasta_sub, ramos_sub, nivel), ramos_sub, cadeia)
-            vistas.add(contextos[sub][0])
+            if contextos[sub][0] is not None:
+                vistas.add(contextos[sub][0])
+            # A6: cada lado de um pipe e a lista que termina em `&` rodam num subshell: o `cd` deles não sai dali
+            if sinal in PIPE or sinal_antes in PIPE:
+                contextos[sub] = (pasta_sub, ramos_sub, cadeia)
+            elif sinal in ("&", "&\n"):
+                contextos[sub] = (inicios[-1], ramos_sub, cadeia)
             if TROCA_DE_BRANCH in ramos_sub:
                 chave, velhas = ramos_sub.pop(TROCA_DE_BRANCH)
                 pendentes.append((chave, velhas, alcance_da_troca(pilha, sinal_antes, palavras[:1] == ["!"])))
@@ -2292,10 +2338,12 @@ class Guarda:
             if sinal == "(":
                 pilha += [(sinal_antes, palavras != [])]  # `! (`; outra palavra antes do `(` não garante
                 pastas_de_fora += [contextos[sub][0]]
+                inicios += [contextos[sub][0]]  # A6: a lista de dentro começa no `(`
             elif fecha:
                 del pilha[-1]  # `+=` e `del`, sem chamada: o teto do corpus (CORPUS-CUSTO-CONTADOR) conta cada uma
                 contextos[sub] = (pastas_de_fora[-1], ramos_sub, cadeia)  # A4: o `cd` do `( … )` fica nele; o HEAD não
                 del pastas_de_fora[-1]
+                del inicios[-1]
             # segue a cadeia: o `&&` (também com quebra), o `(` que abre o subshell e o `)` que fecha o aberto
             for troca in [t for t in pendentes if t[2] > len(pilha) or not (
                     fecha or sinal == "(" or sinal.rstrip("\n") == "&&")]:
@@ -2304,7 +2352,7 @@ class Guarda:
                 velhas = [git(chave, "branch", "--show-current")[1] if v is None else v for v in velhas]
                 ramos_sub[chave] = por_dureza(ramos_sub[chave] + tuple(velhas))
             cadeia[2] = sinal
-        return contextos[()][0], vistas
+        return contextos[()][0] or pasta, vistas  # A7: a linha que termina na volta de pasta não tem comando depois
 
     critico = CRITICO.search  # o marcador da ação crítica; a `GuardaDaProva` soma o controle (custo: uma chamada só)
 
@@ -2461,11 +2509,18 @@ class Guarda:
         if parecer.expande(palavras[0]) and parecer.gh_de_merge_ou_api(args):
             self.barrar("R-MAIN", "programa por expansão com pr merge ou api: o hook não sabe se é o gh",
                         "chame `gh` pelo nome, sem expansão")  # GH-MERGE-ADMIN, C-1 e C-3: falha fechado
-        if prog == "pushd":  # como o `cd`: o destino é o primeiro argumento que não é opção
-            alvo = next((a for a in args if not a.startswith("-")), None)
-            return self.caminho(pasta, alvo) if alvo else pasta
+        if prog in ("pushd", "popd"):  # como o `cd`: o destino é o primeiro argumento que não é opção
+            alvo = next((a for a in args if not a.startswith("-")), "") if prog == "pushd" else ""
+            # A7 da segurança E113.13: `popd`, `pushd` sem pasta, `pushd +N` e `~-` voltam à pilha: None, desconhecida
+            if not alvo or alvo[:1] == "+" or alvo[:1] == "~" and alvo[1:2] != "" and alvo[1:2] in VOLTA_NO_TIL:
+                return None
+            return self.caminho(pasta, alvo)
         if parte and parte[0] == "cd":
-            return self.caminho(pasta, parte[1]) if parte[1] else Path.home()
+            alvo = parte[1] or ""
+            # A7: `cd -` (também com opção antes, `cd -L -`) e `cd ~-` voltam ao OLDPWD, `cd ~1` à pilha: desconhecida
+            if alvo[:1] == "-" or alvo[:1] == "~" and alvo[1:2] != "" and alvo[1:2] in VOLTA_NO_TIL:
+                return None
+            return self.caminho(pasta, alvo) if alvo else Path.home()
         if parte and parte[0] == "branch" and not por_applet:  # A8: nem busybox nem toybox têm applet git
             raiz = raiz_do_projeto(pasta / parte[1] if parte[1] else pasta)
             if raiz:
@@ -2546,6 +2601,10 @@ class Guarda:
             for d in alvos.pastas:
                 self.checar_escrita(d, pasta, parecer_conta=False)
                 self.checar_remocao(d, pasta, "extrair em")
+                if self.opaco_sem_resto(d, pasta) and self.valor_de_fora(d, pasta):  # A8 da segurança E113.13
+                    self.barrar("R-CONFORMIDADE", f"`{prog}` extrai para destino de $(…), crase ou variável que o hook "
+                                                  "não lê: os nomes do pacote podem ser do git",
+                                "escreva o caminho literal do destino")
             for c in alvos.executados:
                 self.aninhado(c, pasta, nivel, atribuicoes)
         elif prog in MUDA_ATRIBUTO:
@@ -2555,7 +2614,7 @@ class Guarda:
                     self.checar_remocao(a, pasta, f"{prog} em")
         elif prog in self.pol["pacotes"]:
             self.pacote(prog, args)
-        if prog in ("cp", "mv", "install", "ln"):  # A9, U3: depois das regras do destino e do link
+        if prog in ("cp", "mv", "install", "ln", "rsync"):  # A9, U3: depois das regras do destino e do link
             self.origem_do_git_no_opaco(args, pasta, prog)
         if prog == "sed":  # `w arquivo` no script escreve, com ou sem `-i`
             for a in args:

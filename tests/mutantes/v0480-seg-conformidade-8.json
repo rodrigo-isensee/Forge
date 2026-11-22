@@ -1,0 +1,66 @@
+{
+  "pedido": "v0480-seg-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A5i",
+      "guarda": "A5 (E113.13): `--target-dir=` abreviado com o valor colado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif \"=\" in a and a[:3] == \"--t\" and a.partition(\"=\")[0] in ALVO_DO_T:\n",
+      "para": "        elif False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a5_copia_com_opcao_abreviada_ou_alvo_colado_recusa"
+      ]
+    },
+    {
+      "id": "A5a",
+      "guarda": "A5 (E113.13): `--recur` e `--arch` abreviam a opção recursiva",
+      "arquivo": "hooks/conformidade.py",
+      "de": "COPIA_RECURSIVA = r\"-[a-zA-Z]*[rRa]|--r(?:",
+      "para": "COPIA_RECURSIVA = r\"-[a-zA-Z]*[rRa]|--recursive$|--archive$|--r(?!)(?:",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a5_copia_com_opcao_abreviada_ou_alvo_colado_recusa"
+      ]
+    },
+    {
+      "id": "A8x",
+      "guarda": "A8 (E113.13): a extração para opaco sem resto de fora da linha recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if self.opaco_sem_resto(d, pasta) and self.valor_de_fora(d, pasta):  # A8",
+      "para": "                if False:  # A8",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a8_extracao_para_opaco_sem_resto_recusa"
+      ]
+    },
+    {
+      "id": "A8r",
+      "guarda": "A8 (E113.13): o `rsync` passa pela regra da cópia para opaco",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if prog in (\"cp\", \"mv\", \"install\", \"ln\", \"rsync\"):  #",
+      "para": "        if prog in (\"cp\", \"mv\", \"install\", \"ln\"):  #",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a8_extracao_para_opaco_sem_resto_recusa"
+      ]
+    },
+    {
+      "id": "A8c",
+      "guarda": "A8 (E113.13): o `rsync` recursivo recusa como o `cp -r`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if prog in (\"cp\", \"rsync\") and nomes",
+      "para": "        if prog == \"cp\" and nomes",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a8_extracao_para_opaco_sem_resto_recusa"
+      ]
+    },
+    {
+      "id": "A8t",
+      "guarda": "A8 (E113.13): no `rsync`, `-t` não toma destino",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        alvo = None if prog == \"rsync\" else alvo_do_t(args)",
+      "para": "        alvo = alvo_do_t(args)",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a8_extracao_para_opaco_sem_resto_recusa"
+      ]
+    }
+  ]
+}

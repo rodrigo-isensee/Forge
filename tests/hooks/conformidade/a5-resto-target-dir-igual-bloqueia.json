@@ -1,0 +1,27 @@
+{
+  "descricao": "A5-RESTO: `cp --target-dir=\"$X\" -r ev`: `--target-dir=` com o valor colado (v0478 E113.15)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/a.md": "a\n",
+    "ev/config": "[core]\n",
+    "ev/a": "a\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp --target-dir=\"$X\" -r ev"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

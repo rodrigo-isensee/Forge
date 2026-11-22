@@ -1,0 +1,26 @@
+{
+  "descricao": "A8-EXTRAI: `d=docs; tar -xf a.tar -C \"$d\"`: com o valor na linha, a extração segue livre (v0478 E113.15)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/a.md": "a\n",
+    "ev/config": "[core]\n",
+    "ev/a": "a\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "d=docs; tar -xf a.tar -C \"$d\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

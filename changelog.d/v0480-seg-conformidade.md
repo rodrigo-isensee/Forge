@@ -9,3 +9,7 @@
 - hooks/conformidade.py: a troca de branch só sai do subshell se é o primeiro comando dele; '(exit 0; git switch -c x) && git push origin' e a forma com 'exec' na main voltam a ser recusadas, e '(cd . ; git switch -c x) && git push' também (A3 da segurança E113.8)
 - hooks/conformidade.py: o 'cd' dentro de '( … )' fica no subshell; '(cd /tmp); git push origin' na main é recusado (A4 da segurança E113.8)
 - hooks/conformidade.py: a cópia recursiva ('cp -rT', 'cp -r ev/.', 'cp -a') para variável de fora da linha recusa como a cópia de arquivo; com o valor na linha ('d=docs') segue livre (A5 da segurança E113.8)
+- hooks/conformidade.py: o 'cd' de um lado de pipe ('|', '|&') ou da lista que termina em '&' fica no subshell; 'cd /tmp & git push origin' e 'cd /tmp | true; git push origin' na main são recusados (A6 da segurança E113.13)
+- hooks/conformidade.py: depois de 'cd -', 'cd ~-', 'popd' ou 'pushd' sem pasta, o hook não sabe a pasta, e o comando seguinte na linha é recusado; 'cd /tmp; cd -; git push origin' na main deixa de passar (A7 da segurança E113.13)
+- hooks/conformidade.py: a cópia para variável de fora da linha recusa também com a opção longa abreviada ('--recur', '--arch', '--targ', '--target-dir') e com o '-t' colado ('cp -rt"$X" ev') (A5 da segurança E113.13)
+- hooks/conformidade.py: a extração ('tar -C', 'unzip -d') e o 'rsync -r' para variável de fora da linha recusam como a cópia recursiva (A8 da segurança E113.13)

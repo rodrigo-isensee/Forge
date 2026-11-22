@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-seg-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A6p",
+      "guarda": "A6 (E113.13): cada lado do pipe fica no subshell",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if sinal in PIPE or sinal_antes in PIPE:\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a6_cd_de_pipe_ou_segundo_plano_fica_no_subshell"
+      ]
+    },
+    {
+      "id": "A6e",
+      "guarda": "A6 (E113.13): a lista que termina em `&` volta à pasta do começo dela",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            elif sinal in (\"&\", \"&\\n\"):\n",
+      "para": "            elif False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a6_cd_de_pipe_ou_segundo_plano_fica_no_subshell"
+      ]
+    },
+    {
+      "id": "A6i",
+      "guarda": "A6 (E113.13): a lista começa depois de `;`, `&` ou quebra de linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if sinal_antes in FIM_DE_LISTA:  #",
+      "para": "            if False:  #",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a6_cd_de_pipe_ou_segundo_plano_fica_no_subshell"
+      ]
+    },
+    {
+      "id": "A7b",
+      "guarda": "A7 (E113.13): o comando depois da pasta desconhecida recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if pasta_sub is None:  # A7",
+      "para": "            if False:  # A7",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a7_volta_de_pasta_desconhecida_recusa_o_comando_depois"
+      ]
+    },
+    {
+      "id": "A7c",
+      "guarda": "A7 (E113.13): `cd -` e `cd ~-` dão pasta desconhecida",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if alvo[:1] == \"-\" or alvo[:1] == \"~\" and alvo[1:2] != \"\" and alvo[1:2] in VOLTA_NO_TIL:\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a7_volta_de_pasta_desconhecida_recusa_o_comando_depois"
+      ]
+    },
+    {
+      "id": "A7p",
+      "guarda": "A7 (E113.13): `popd` e `pushd` sem pasta dão pasta desconhecida",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if not alvo or alvo[:1] == \"+\" or alvo[:1] == \"~\" and alvo[1:2] != \"\" and alvo[1:2] in VOLTA_NO_TIL:\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a7_volta_de_pasta_desconhecida_recusa_o_comando_depois"
+      ]
+    },
+    {
+      "id": "A5t",
+      "guarda": "A5 (E113.13): `-t` e `--target-directory` abreviado tomam a palavra seguinte",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if a in ALVO_DO_T:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a5_copia_com_opcao_abreviada_ou_alvo_colado_recusa"
+      ]
+    },
+    {
+      "id": "A5g",
+      "guarda": "A5 (E113.13): o `t` do grupo de curtas toma o resto da palavra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if valor and (grupo.isalpha() or not grupo):\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a5_copia_com_opcao_abreviada_ou_alvo_colado_recusa"
+      ]
+    }
+  ]
+}

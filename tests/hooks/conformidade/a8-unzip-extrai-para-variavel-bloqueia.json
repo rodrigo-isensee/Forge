@@ -1,0 +1,27 @@
+{
+  "descricao": "A8-EXTRAI: `unzip -o a.zip -d \"$X\"`: o `unzip -d` para variável de fora da linha recusa como o `tar -C` (v0478 E113.15)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/a.md": "a\n",
+    "ev/config": "[core]\n",
+    "ev/a": "a\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "unzip -o a.zip -d \"$X\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

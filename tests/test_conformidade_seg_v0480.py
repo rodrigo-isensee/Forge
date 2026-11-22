@@ -9,6 +9,9 @@ resto que se anula ou sobe vale como o opaco sem resto) e A20-MAIS (a atribuiç�
 Segunda volta (E113.11, achados da segurança E113.8): S22-PRIMEIRO (a troca sai do subshell só se é o primeiro comando
 dele: `exit` ou `exec` antes dela), S22-CD (o `cd` dentro de `( … )` fica nele) e A5-COPIA (a cópia recursiva para
 variável de fora da linha recusa como a de arquivo).
+Terceira volta (E113.15, achados da segurança E113.13): A6-PASTA (o `cd` de um lado de pipe ou da lista que termina em
+`&` fica no subshell), A7-VOLTA (`cd -`, `cd ~-`, `popd` e `pushd` sem pasta: o comando depois recusa), A5-RESTO (as
+abreviações longas do `cp` e o `-t` colado) e A8-EXTRAI (`tar -C`, `unzip -d` e `rsync -r` para variável de fora).
 As fixtures moram em tests/hooks/conformidade/ (a suíte inteira as roda em test_hooks); aqui, só as de cada cartão,
 pelo prefixo da descrição, para a mutação do diff rodar rápido."""
 import sys
@@ -72,6 +75,18 @@ class SegurancaDaAuditoria(unittest.TestCase):
 
     def test_a5_copia_recursiva_para_opaco_sem_resto_recusa(self):
         self.conferir("A5-COPIA:", recusam=5, liberam=4)
+
+    def test_a6_cd_de_pipe_ou_segundo_plano_fica_no_subshell(self):
+        self.conferir("A6-PASTA:", recusam=8, liberam=3)
+
+    def test_a7_volta_de_pasta_desconhecida_recusa_o_comando_depois(self):
+        self.conferir("A7-VOLTA:", recusam=5, liberam=3)
+
+    def test_a5_copia_com_opcao_abreviada_ou_alvo_colado_recusa(self):
+        self.conferir("A5-RESTO:", recusam=7, liberam=2)
+
+    def test_a8_extracao_para_opaco_sem_resto_recusa(self):
+        self.conferir("A8-EXTRAI:", recusam=4, liberam=3)
 
 
 if __name__ == "__main__":

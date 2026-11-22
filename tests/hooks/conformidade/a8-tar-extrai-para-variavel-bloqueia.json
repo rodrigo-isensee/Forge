@@ -1,0 +1,27 @@
+{
+  "descricao": "A8-EXTRAI: `tar -xf a.tar -C \"$X\"`: o `tar` grava os nomes do pacote, que o hook não vê, como a cópia recursiva (v0478 E113.15)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/a.md": "a\n",
+    "ev/config": "[core]\n",
+    "ev/a": "a\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "tar -xf a.tar -C \"$X\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

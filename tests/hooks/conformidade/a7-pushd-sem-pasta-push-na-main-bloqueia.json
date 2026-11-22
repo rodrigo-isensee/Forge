@@ -1,0 +1,27 @@
+{
+  "descricao": "A7-VOLTA: `pushd /tmp; pushd; git push origin`: `pushd` sem pasta troca as duas do topo da pilha (v0478 E113.15)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/a.md": "a\n",
+    "ev/config": "[core]\n",
+    "ev/a": "a\n"
+  },
+  "git": [
+    {
+      "branch": "main"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "pushd /tmp; pushd; git push origin"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}
