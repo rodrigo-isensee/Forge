@@ -3,33 +3,33 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ae7-2-familias
-commit: 62d27eb6ca7c576d9040e5ee7f230ba192798a58
+commit: 22ca54c6464d3f29361f246623a97620e564a622
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-22
 ---
-# Review: v0478 (E107.8, revalidação do AE7.2 na volta única, head 62d27eb6)
+# Review: v0478 (E107.12, revalidação da volta de CI do AE7.2, head 22ca54c6)
 
 Revalidação (H3, R-REVIEW) pelo delta: `forge-check parecer delta docs/reviews/v0480-ae7-2-familias.md`, intervalo
-`cb2043bc..62d27eb6` sem o que veio da develop. No domínio: `bin/forge_comparar.py`, `tests/test_comparar.py`,
-`tests/mutantes/v0478-ae7-2-familias{,-3,-4}.json`, `tests/pesos-d4.json`, `changelog.d/v0480-ae7-2-familias.md`.
-O parecer anterior (cb2043bc, aprovado) vale para o resto; os recomendados A2 a A4 dele viraram cartão.
+`62d27eb6..22ca54c6` sem o que veio da develop. No domínio: `tests/mutantes/v0478-ae7-comparar{,-3,-4,-6}.json` e
+`tests/pesos-d4.json` (a linha `test_ambiente_recriacao` veio da develop, 7c4ee3c1; nada da branch). O parecer anterior
+(62d27eb6, aprovado) vale para o resto.
 
 ## Conferido no delta
-- A1 da segurança (E107.3, sonda S1): a linha `familias:` passa pelo `ctx["seguro"]`; o id gerado com quebra de linha
-  vira espaço e não forja outra linha `so-aperta:` (`test_id_gerado_com_quebra_de_linha_nao_forja_linha_da_saida`).
-- A2: a saída do gerador vai a um arquivo anônimo com `RLIMIT_FSIZE` de `TETO_GERADOS + 1` no filho; o `fstat` acusa o
-  excesso mesmo quando o gerador engole o `EFBIG` (o CPython ignora `SIGXFSZ`), e acima de `TETO_CASOS` linhas é `None`.
-  O `except` passa a `SubprocessError`, que cobre a falha no `preexec_fn`. Bordas exatas de bytes e casos com teste.
-- A3 (e o meu A1 anterior): HOME e TMPDIR próprios por caso no alvo `entrega`, pastas distintas
-  (`test_cada_caso_tem_home_e_tmpdir_proprios`).
-- Guardas: linhas 109 e 113 cobertas por AE72-25 a AE72-28 e AE72-3/4 (`forge-mutante --cobertura --base cb2043bc`);
-  linha 423 por AE72-29; specs antigas ajustadas ao texto novo (AE72-2, -3, -4, -8, -18).
-- Tamanho (H1): +27 linhas de código no delta, um comportamento por achado; fragmento de changelog atualizado.
-- Teste afetado rodado: os 5 testes novos verdes; 10 mutantes do delta mortos (abaixo). Suíte inteira: CI do PR
-  (o PR ainda não existe; nada rerrodado aqui).
+- O commit 22ca54c6 muda só `de` e `para` de nove mutantes do AE7.1 (CMP7, CMP8, CMP22, CMP26, CMP31, CMP42 a CMP45);
+  nenhum mutante sai, nenhum teste declarado muda. Cada `de` ocorre uma vez na fonte (`bin/forge_comparar.py`), e a troca
+  segue a guarda que o `guarda` descreve (CMP7 e CMP8 acompanham a condição reescrita, `== 0` e `cod != 0 or ...`).
+- `forge-mutante --conferir --base 62d27eb6`: o trecho de cada spec do diff está no lugar.
+- Mutantes: 8 de 9 `morreu` (CMP26 e CMP31 por erro do teste declarado, com o controle verde). CMP43 deu `controle
+  vermelho` duas vezes na cópia do `forge-mutante`; isolado, o mesmo teste passa (ver A1): é o ambiente, não o mutante.
+- Suíte inteira: CI do PR #797 (run 45033801166, pendente na leitura); nada rerrodado aqui.
+
+## Achados
+- A1 (recomendado) tests/test_comparar.py:701 · o hook envenenado varre `parents[3]`, que é o TMPDIR de quem chama; com 246 mil entradas em /tmp/claude-0 o teste falha a frio (2 de 4 cópias novas, e o controle do CMP43); com TMPDIR vazio, 2 de 2 verdes. Fixar TMPDIR próprio no teste.
 
 ## Provas
-- `python3 -I -m unittest discover -s tests -p test_comparar.py -k teto -k forja -k home_e_tmpdir`: `Ran 5 tests ... OK`
-- `bin/forge-mutante --processos 1 --ids AE72-2,AE72-3,AE72-4,AE72-8,AE72-18,AE72-25,AE72-26,AE72-27,AE72-28,AE72-29`
-  (rev 62d27eb6ca7c): os 10 `morreu`.
+- `forge-mutante --conferir --base 62d27eb6`: `conferidas: o trecho de cada spec do diff está no lugar`
+- `forge-mutante --processos 1 --ids ...` (rev 22ca54c6464d), nas 4 specs: CMP7, CMP8, CMP22, CMP26, CMP31, CMP42, CMP44,
+  CMP45 `morreu`; CMP43 `controle vermelho`.
+- `test_hook_do_head_nao_alcanca_a_base` em clone novo de 22ca54c6: com TMPDIR=/tmp/claude-0, `FAILED` na 1ª execução e
+  `OK` nas seguintes; com TMPDIR vazio próprio, `OK` em 2 de 2 clones novos; no 62d27eb6 (mesma fonte e teste), `OK`.
