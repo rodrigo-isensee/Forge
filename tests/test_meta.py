@@ -382,21 +382,72 @@ class NotasEntreFerramentas(unittest.TestCase):
         resultado = {"type": "user", "toolUseResult": {}, "message": {"content": [{"type": "tool_result", "content": "z" * 50}]}}
         caminho = self.transcrito([self.dono("oi"), self.nota(self.EN), resultado])
         with mock.patch.object(self.meta.json, "loads", wraps=json.loads) as loads:
-            self.assertEqual(len(self.meta.notas_da_rodada(str(caminho), self.PT)), 1)
+            self.assertEqual(len(self.meta.notas_da_rodada(str(caminho), self.PT)[0]), 1)
         self.assertFalse([c for c in loads.call_args_list if "tool_result" in c.args[0]])
 
     def test_registro_fora_da_forma_e_pulado_sem_erro(self):
         """Transcrito com mensagem, conteúdo ou bloco fora da forma e sem mensagem final: a nota boa ainda é lida."""
         registros = [self.dono("oi"), self.nota(self.EN), {"type": "assistant", "message": "texto solto"},
-                     {"type": "assistant", "message": {"content": None}}, {"type": "assistant", "message": {"content": ["solto"]}}]
-        self.assertEqual(self.meta.notas_da_rodada(str(self.transcrito(registros)), None), [self.EN])
+                     {"type": "assistant", "message": {"content": None}}, {"type": "assistant", "message": {"content": ["solto"]}},
+                     '["assistant", "registro que não é objeto"]']
+        self.assertEqual(self.meta.notas_da_rodada(str(self.transcrito(registros)), None)[0], [self.EN])
 
     def test_notas_param_no_teto_da_medida(self):
         """O total lido das notas para em TETO_DA_MEDIDA: o tempo não cresce com a rodada."""
         caminho = self.transcrito([self.dono("oi")] + [self.nota("x" * 30) for _ in range(5)])
         with mock.patch.object(self.meta, "TETO_DA_MEDIDA", 70):
-            notas = self.meta.notas_da_rodada(str(caminho), self.PT)
+            notas = self.meta.notas_da_rodada(str(caminho), self.PT)[0]
         self.assertEqual([len(n) for n in notas], [30, 30, 10])
+
+    # E109.1 (META-NOTAS-RECONTA, A1 e A2 de docs/reviews/v0479-meta-notas.md): num segundo Stop sem fala nova do dono, a
+    # nota já medida e a final anterior não se recontam; e a nota cuja chamada traz o texto "tool_result" ainda é lida.
+    PT2 = "Recebi o aviso do agente e não ficou pendência; você já pode ver a branch."
+
+    def com_uuid(self, registro, uuid):
+        return {**registro, "uuid": uuid}
+
+    def final(self, texto, uuid):
+        return {"type": "assistant", "uuid": uuid, "message": {"content": [{"type": "text", "text": texto}]}}
+
+    def aviso(self, uuid):
+        return {"type": "user", "uuid": uuid, "message": {"content": "<task-notification>pronto</task-notification>"}}
+
+    def test_segundo_stop_sem_fala_do_dono_nao_reconta_a_nota(self):
+        rodada = [self.com_uuid(self.dono("oi"), "u0"), self.com_uuid(self.nota(self.EN), "u1"), self.final(self.PT, "u2")]
+        self.assertEqual(self.medir(rodada), (1, True))
+        seguinte = rodada + [self.aviso("u3"), self.com_uuid(self.nota(self.PT), "u4"), self.final(self.PT2, "u5")]
+        self.assertEqual(self.medir(seguinte, final=self.PT2), (0, False))
+
+    def test_nota_nova_depois_da_marca_ainda_conta(self):
+        rodada = [self.com_uuid(self.dono("oi"), "u0"), self.final(self.PT, "u1")]
+        self.assertEqual(self.medir(rodada), (0, False))
+        seguinte = rodada + [self.aviso("u2"), self.com_uuid(self.nota(self.EN), "u3"), self.final(self.PT2, "u4")]
+        self.assertEqual(self.medir(seguinte, final=self.PT2), (1, True))
+
+    def test_final_anterior_que_chegou_depois_ao_transcrito_nao_conta(self):
+        """D13: no primeiro Stop a final (em inglês) ainda não estava no transcrito; no segundo ela aparece depois da marca."""
+        rodada = [self.com_uuid(self.dono("oi"), "u0"), self.com_uuid(self.nota(self.PT), "u1")]
+        self.assertEqual(self.medir(rodada, final=self.EN), (0, True))
+        seguinte = rodada + [self.final(self.EN, "u2"), self.aviso("u3"), self.final(self.PT2, "u4")]
+        self.assertEqual(self.medir(seguinte, final=self.PT2), (0, False))
+
+    def test_marca_de_outro_transcrito_nao_vale(self):
+        (self.tmp / "run").mkdir(exist_ok=True)
+        (self.tmp / "run" / "notas.json").write_text(json.dumps(
+            {"transcrito": str(self.tmp / "outro.jsonl"), "marca": "u1", "final": self.meta.resumo(self.EN)}), encoding="utf-8")
+        self.assertEqual(self.medir([self.dono("oi"), self.com_uuid(self.nota(self.EN), "u1")]), (1, True))
+
+    def test_marca_ilegivel_ou_fora_da_forma_e_ignorada(self):
+        (self.tmp / "run").mkdir(exist_ok=True)
+        for conteudo in ("{quebrado", "[]"):
+            with self.subTest(conteudo=conteudo):
+                (self.tmp / "run" / "notas.json").write_text(conteudo, encoding="utf-8")
+                self.assertEqual(self.medir([self.dono("oi"), self.nota(self.EN)]), (1, True))
+
+    def test_nota_cuja_chamada_traz_tool_result_ainda_conta(self):
+        nota = {"type": "assistant", "message": {"content": [
+            {"type": "text", "text": self.EN}, {"type": "tool_use", "name": "Grep", "input": {"pattern": "tool_result"}}]}}
+        self.assertEqual(self.medir([self.dono("oi"), nota]), (1, True))
 
 
 class VariosProjetos(unittest.TestCase):

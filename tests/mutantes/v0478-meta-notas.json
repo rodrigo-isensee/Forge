@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "linha ilegível é pulada, não fecha a rodada (mutante: break)",
       "arquivo": "hooks/meta.py",
-      "de": "        except (ValueError, RecursionError):\n            continue\n        if texto_do_dono(obj):",
-      "para": "        except (ValueError, RecursionError):\n            break\n        if texto_do_dono(obj):",
+      "de": "        except (ValueError, RecursionError):\n            continue\n        uuid =",
+      "para": "        except (ValueError, RecursionError):\n            break\n        uuid =",
       "testes": [
         "tests.test_meta.NotasEntreFerramentas.test_linha_ilegivel_nao_interrompe_a_rodada"
       ]
@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "a fala do dono fecha a rodada (mutante: nunca fecha)",
       "arquivo": "hooks/meta.py",
-      "de": "        if texto_do_dono(obj):\n            break",
-      "para": "        if False:\n            break",
+      "de": "if texto_do_dono(obj) or (",
+      "para": "if False or (",
       "testes": [
         "tests.test_meta.NotasEntreFerramentas.test_nota_de_rodada_anterior_nao_conta"
       ]
@@ -46,8 +46,8 @@
       "id": "M5",
       "guarda": "a mensagem final no transcrito não conta como nota (mutante: conta)",
       "arquivo": "hooks/meta.py",
-      "de": "and texto.strip() != final:",
-      "para": ":",
+      "de": "and texto.strip() != final and resumo(",
+      "para": "and resumo(",
       "testes": [
         "tests.test_meta.NotasEntreFerramentas.test_mensagem_final_no_transcrito_nao_conta_como_nota"
       ]
@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "as notas param no TETO_DA_MEDIDA (mutante: nunca param)",
       "arquivo": "hooks/meta.py",
-      "de": "                if total >= TETO_DA_MEDIDA:\n                    return notas",
-      "para": "                if False:\n                    return notas",
+      "de": "                if total >= TETO_DA_MEDIDA:\n                    return notas, nova",
+      "para": "                if False:\n                    return notas, nova",
       "testes": [
         "tests.test_meta.NotasEntreFerramentas.test_notas_param_no_teto_da_medida"
       ]
