@@ -1,0 +1,46 @@
+{
+  "pedido": "v0480-seg-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S22t",
+      "guarda": "S22: as candidatas fora da integração seguem depois das de integração",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return tuple([n for n in DUREZA if n in nomes] + [n for n in dict.fromkeys(nomes) if n not in DUREZA])\n",
+      "para": "    return tuple([n for n in DUREZA if n in nomes] + [n for n in dict.fromkeys(nomes) if False])\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_merge_com_duas_candidatas_de_integracao_vale_a_mais_dura"
+      ]
+    },
+    {
+      "id": "AL1",
+      "guarda": "A20: a linha com lançador que o hook não lê calcula o valor pelos corpos da palavra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if valores is None:  # a linha que o hook não lê (`builtin -iu cp … \".g$(echo it)/c\"`): os corpos da palavra sós\n",
+      "para": "        if False:  # a linha que o hook não lê (`builtin -iu cp … \".g$(echo it)/c\"`): os corpos da palavra sós\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a20_resto_com_barra_depois_do_opaco_no_git_recusa_como_o_literal"
+      ]
+    },
+    {
+      "id": "S22r",
+      "guarda": "S22: o `&&` seguido de quebra segue a cadeia",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    fecha or sinal == \"(\" or sinal.rstrip(\"\\n\") == \"&&\")]:\n",
+      "para": "                    fecha or sinal == \"(\" or sinal == \"&&\")]:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante"
+      ]
+    },
+    {
+      "id": "S22s",
+      "guarda": "S22: o `)` que fecha segue a cadeia",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    fecha or sinal == \"(\" or sinal.rstrip(\"\\n\") == \"&&\")]:\n",
+      "para": "                    sinal == \"(\" or sinal.rstrip(\"\\n\") == \"&&\")]:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_subshell_segue_a_cadeia_so_com_o_comeco_que_garante"
+      ]
+    }
+  ]
+}

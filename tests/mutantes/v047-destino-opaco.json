@@ -36,7 +36,7 @@
       "id": "O4",
       "guarda": "A9: com resto depois da parte opaca, o caso é do resto_no_git (`.gitx` livre)",
       "arquivo": "hooks/conformidade.py",
-      "de": "return bool(opaco) and not opaco[0][opaco[1]:].strip(\"/\")",
+      "de": "return bool(opaco) and resto_se_anula(opaco[0][opaco[1]:])",
       "para": "return bool(opaco)",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
@@ -76,8 +76,8 @@
       "id": "O8",
       "guarda": "A9, U1: o corpo que chama função da linha vale a linha inteira (S5)",
       "arquivo": "hooks/conformidade.py",
-      "de": "        largo |= any(re.search(",
-      "para": "        largo |= False and any(re.search(",
+      "de": "        largo |= any(re.search(rf\"(?<![\\w.-]){re.escape(f)}",
+      "para": "        largo |= False and any(re.search(rf\"(?<![\\w.-]){re.escape(f)}",
       "testes": [
         "tests.test_hook_destino_opaco.HookDestinoOpaco.test_fixtures_opaco_sem_resto"
       ]

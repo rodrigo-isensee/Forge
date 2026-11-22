@@ -64,13 +64,13 @@
     },
     {
       "id": "S22q",
-      "guarda": "S22: a troca que segue pendente fica para o próximo sinal",
+      "guarda": "S22: a troca nova anota as candidatas de antes",
       "arquivo": "hooks/conformidade.py",
-      "de": "            incertas[sub] = [t for t in incertas.get(sub, []) if t not in fora]\n",
-      "para": "            incertas[sub] = [t for t in incertas.get(sub, []) if t in fora]\n",
+      "de": "                ramos[TROCA_DE_BRANCH], ramos[chave] = (chave, ramos.get(chave, (None,))), (parte[2],)\n",
+      "para": "                ramos[chave] = (parte[2],)\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante",
-        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_subshell_segue_a_cadeia_so_com_o_comeco_que_garante"
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_negada_nao_vale"
       ]
     },
     {

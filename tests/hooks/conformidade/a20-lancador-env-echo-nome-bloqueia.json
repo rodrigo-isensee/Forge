@@ -1,0 +1,24 @@
+{
+  "descricao": "A20: `env -iu X cp -rT ev \".g$(echo it)/c\"`: idem com o env (v0478 E113.6)",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "env -iu X cp -rT ev \".g$(echo it)/c\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o valor que o hook calcula cai no diretório do git"
+  }
+}

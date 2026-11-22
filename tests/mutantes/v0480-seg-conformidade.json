@@ -4,10 +4,10 @@
   "mutantes": [
     {
       "id": "S22a",
-      "guarda": "S22: a troca de branch nova guarda a de antes como candidata enquanto a cadeia dura",
+      "guarda": "S22: a troca de branch anotada (`TROCA_DE_BRANCH`) fica pendente enquanto a cadeia dura",
       "arquivo": "hooks/conformidade.py",
-      "de": "                if antes.get(chave) != ramo:\n",
-      "para": "                if False:\n",
+      "de": "            if TROCA_DE_BRANCH in ramos_sub:\n",
+      "para": "            if False:\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante",
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_negada_nao_vale"
@@ -17,8 +17,8 @@
       "id": "S22b",
       "guarda": "S22: a troca negada (`! git switch`) não vale nem no próprio nível",
       "arquivo": "hooks/conformidade.py",
-      "de": "    if negada or sinal_antes not in CADEIA_CERTA:\n",
-      "para": "    if sinal_antes not in CADEIA_CERTA:\n",
+      "de": "    if negada or sinal_antes.rstrip(\"\\n\") not in CADEIA_CERTA:\n",
+      "para": "    if sinal_antes.rstrip(\"\\n\") not in CADEIA_CERTA:\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_negada_nao_vale"
       ]
@@ -27,7 +27,7 @@
       "id": "S22c",
       "guarda": "S22: sinal antes da troca fora da lista positiva (||, |) a deixa incerta",
       "arquivo": "hooks/conformidade.py",
-      "de": "    if negada or sinal_antes not in CADEIA_CERTA:\n",
+      "de": "    if negada or sinal_antes.rstrip(\"\\n\") not in CADEIA_CERTA:\n",
       "para": "    if negada:\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante",
@@ -38,7 +38,7 @@
       "id": "S22d",
       "guarda": "S22: o subshell aberto depois de ||, | ou negado vale só dentro dele",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if grupo_negado or antes_do_grupo not in CADEIA_CERTA:\n",
+      "de": "        if grupo_negado or antes_do_grupo.rstrip(\"\\n\") not in CADEIA_CERTA:\n",
       "para": "        if False:\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_subshell_segue_a_cadeia_so_com_o_comeco_que_garante",
@@ -47,10 +47,10 @@
     },
     {
       "id": "S22e",
-      "guarda": "S22: a candidata None é a branch do disco, lida no git",
+      "guarda": "S22: a candidata None é a branch do disco, lida no git ao voltar",
       "arquivo": "hooks/conformidade.py",
-      "de": "        nomes = [git(pasta, \"branch\", \"--show-current\")[1] if c is None else c for c in candidatas]\n",
-      "para": "        nomes = [git(pasta, \"branch\", \"--show-current\")[1] if False else c for c in candidatas]\n",
+      "de": "                velhas = [git(chave, \"branch\", \"--show-current\")[1] if v is None else v for v in velhas]\n",
+      "para": "                velhas = [git(chave, \"branch\", \"--show-current\")[1] if False else v for v in velhas]\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante"
       ]
@@ -59,7 +59,7 @@
       "id": "S22f",
       "guarda": "S22 (falso positivo): o `)` que fecha o subshell aberto segue a cadeia",
       "arquivo": "hooks/conformidade.py",
-      "de": "            fecha = fim == \")\" and bool(pilha)\n",
+      "de": "            fecha = sinal == \")\" and pilha != []\n",
       "para": "            fecha = False\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_subshell_segue_a_cadeia_so_com_o_comeco_que_garante"
@@ -69,8 +69,8 @@
       "id": "S22g",
       "guarda": "S22 (falso positivo): o `(` depois do `&&` segue a cadeia",
       "arquivo": "hooks/conformidade.py",
-      "de": "            continua = fim in (\"&&\", \"(\") or fecha\n",
-      "para": "            continua = fim == \"&&\" or fecha\n",
+      "de": "                    fecha or sinal == \"(\" or sinal.rstrip(\"\\n\") == \"&&\")]:\n",
+      "para": "                    fecha or sinal.rstrip(\"\\n\") == \"&&\")]:\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_subshell_segue_a_cadeia_so_com_o_comeco_que_garante"
       ]
@@ -79,8 +79,8 @@
       "id": "S22h",
       "guarda": "S22: ao sair do subshell cujo começo não garante, a troca fica incerta",
       "arquivo": "hooks/conformidade.py",
-      "de": "            fora = [t for t in incertas.get(sub, []) if not continua or t[2] > len(pilha)]\n",
-      "para": "            fora = [t for t in incertas.get(sub, []) if not continua]\n",
+      "de": "            for troca in [t for t in pendentes if t[2] > len(pilha) or not (\n",
+      "para": "            for troca in [t for t in pendentes if not (\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_subshell_segue_a_cadeia_so_com_o_comeco_que_garante",
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_merge_com_duas_candidatas_de_integracao_vale_a_mais_dura"

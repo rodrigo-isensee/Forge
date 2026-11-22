@@ -78,8 +78,8 @@
       "id": "AM1",
       "guarda": "A20 (A2 do QA E113.4): a atribuição com += junta os pedaços (`d=.gi; d+=t`)",
       "arquivo": "hooks/conformidade.py",
-      "de": "                if any(m[0].endswith(\"+=\") for m in atribuidos):  # A2 do QA E113.4: `d=.gi; d+=t` é `.git`\n",
-      "para": "                if False:  # A2 do QA E113.4: `d=.gi; d+=t` é `.git`\n",
+      "de": "                if [m for m in atribuidos if m[0][-2] == \"+\"]:  # A2 do QA E113.4: `d=.gi; d+=t` é `.git`\n",
+      "para": "                if []:  # A2 do QA E113.4: `d=.gi; d+=t` é `.git`\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a20_atribuicao_com_mais_igual_junta_os_pedacos"
       ]

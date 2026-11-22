@@ -5,3 +5,4 @@
 - hooks/conformidade.py: com a troca de branch incerta, o merge confere cada candidata e o push usa a da regra mais dura, main antes de develop ('false && git switch develop; git merge develop' na main é recusado); a troca negada ('! git switch -c x && git push') não vale; o subshell segue a cadeia só se o começo dele garante a troca, e '(git switch -c x) && git push' deixa de ser recusado (S22)
 - hooks/conformidade.py: o resto que se anula ou sobe depois de $(…), crase ou variável ('/.', '/..', '/a/..') vale como o destino sem resto ('TMPDIR=.git; cp ev/config "$(mktemp -d)"/..' gravava .git/config) (RESTO-ANULA)
 - hooks/conformidade.py: a atribuição com '+=' junta os pedaços no texto que produz o valor ('d=.gi; d+=t; cp x "$d/c"' recusa) (A20)
+- hooks/conformidade.py: na linha com lançador que o hook não lê ('builtin -iu', 'env -iu'), o resto com barra calcula o valor pelos corpos da palavra ('builtin -iu cp -rT ev ".g$(echo it)/c"' recusa) (A20)

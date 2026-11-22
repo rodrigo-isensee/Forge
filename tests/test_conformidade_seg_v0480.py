@@ -41,13 +41,13 @@ class SegurancaDaAuditoria(unittest.TestCase):
         self.conferir("S22:", recusam=5, liberam=2)
 
     def test_a20_resto_com_barra_depois_do_opaco_no_git_recusa_como_o_literal(self):
-        self.conferir("A20:", recusam=7, liberam=2)
+        self.conferir("A20:", recusam=9, liberam=3)
 
     def test_resto_sobe_depois_do_opaco_vale_resolvido(self):
         self.conferir("RESTO-SOBE:", recusam=5, liberam=1)
 
     def test_s22_merge_com_duas_candidatas_de_integracao_vale_a_mais_dura(self):
-        self.conferir("S22-MERGE:", recusam=10, liberam=2)
+        self.conferir("S22-MERGE:", recusam=12, liberam=4)
 
     def test_s22_troca_negada_nao_vale(self):
         self.conferir("S22-NEG:", recusam=5, liberam=1)

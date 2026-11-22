@@ -247,7 +247,10 @@ FETCH_COM_VALOR = {"--depth", "--deepen", "--shallow-since", "--shallow-exclude"
 # S22 (A1 da segurança E113.2): com a troca de branch incerta, a candidata da regra mais dura decide (`ramos_em`)
 # S22: o sinal antes da troca de branch que garante que, se a cadeia seguinte roda, ela rodou
 CADEIA_CERTA = ("", ";", "&&", "&", "(")
-DUREZA = {"main": 0, "master": 0, "homolog": 1, "develop": 2}
+DUREZA = ("main", "master", "homolog", "develop")
+# S22: a chave em que o `segmento` anota a troca de branch do comando (raiz, candidatas de antes) para o
+# `conferir_partes`
+TROCA_DE_BRANCH = "troca de branch"  # as outras chaves são Path ou None
 CONTORNO_DA_INTEGRACAO = ("faça o commit na branch de trabalho e mescle com `git merge` (parecer); para atualizar a "
                           "integração, `git merge --ff-only origin/<branch>`")
 # 0.45.3: parecer gravado pelo Bash (`>`, `>>`, `tee`, `cp`, `sed -i`...) não tem a autoria que o `forge-check pr` exige, e a
@@ -848,17 +851,23 @@ def resto_normalizado(partes):
     return tuple(pilha)
 
 
+def por_dureza(nomes):
+    """S22 (A1 da segurança E113.2): as candidatas sem repetição, da regra mais dura à mais branda (`DUREZA`: main e
+    master, homolog, develop; depois as outras, na ordem em que vieram)."""
+    return tuple([n for n in DUREZA if n in nomes] + [n for n in dict.fromkeys(nomes) if n not in DUREZA])
+
+
 def alcance_da_troca(grupos, sinal_antes, negada):
     """S22: a menor profundidade de subshell em que a troca de branch segue certa. A troca negada (`! git switch`) ou
     com sinal antes que não garante que ela rodou (`||`, `|`) não vale nem no próprio nível; a aberta no subshell
     (`grupos`: sinal antes do `(`, negado) que vem depois de um desses vale só dentro dele (`true || (git switch x) &&`)."""
-    if negada or sinal_antes not in CADEIA_CERTA:
+    if negada or sinal_antes.rstrip("\n") not in CADEIA_CERTA:
         return len(grupos) + 1
-    for nivel in range(len(grupos), 0, -1):
-        antes_do_grupo, grupo_negado = grupos[nivel - 1]
-        if grupo_negado or antes_do_grupo not in CADEIA_CERTA:
-            return nivel
-    return 0
+    alcance = 0
+    for nivel, (antes_do_grupo, grupo_negado) in enumerate(grupos, 1):
+        if grupo_negado or antes_do_grupo.rstrip("\n") not in CADEIA_CERTA:
+            alcance = nivel  # o mais fundo que não garante
+    return alcance
 
 
 def resto_se_anula(resto):
@@ -1756,10 +1765,10 @@ class Guarda:
         for texto in precisos:  # cresce enquanto o valor de uma variável usa outra
             for nome in set(re.findall(r"\$\{?(\w+)", texto)) - nomes:
                 nomes.add(nome)
-                atribuidos = list(re.finditer(rf"(?<![\w$]){nome}\+?=", linha))
+                atribuidos = [*re.finditer(rf"(?<![\w$]){nome}\+?=", linha)]
                 valores = [valor_atribuido(linha, m.end()) for m in atribuidos]
                 precisos += valores
-                if any(m[0].endswith("+=") for m in atribuidos):  # A2 do QA E113.4: `d=.gi; d+=t` é `.git`
+                if [m for m in atribuidos if m[0][-2] == "+"]:  # A2 do QA E113.4: `d=.gi; d+=t` é `.git`
                     precisos += ["".join(valores[i:]) for i in range(len(valores))]
                 largo |= bool(re.search(rf"(?<![\w${{]){nome}(?![\w+=])", linha))
         funcoes = (re.findall(r"(?<![\w$-])([\w.-]+)\s*\(\s*\)", linha)
@@ -1804,6 +1813,8 @@ class Guarda:
         quando o texto que produz o valor cita o diretório do git (U1) ou o valor que o hook calcula cai nele (U4); o que
         ele não sabe segue para o `resto_no_git`."""
         valores = valores_da_palavra(expandido, linha_juntada(self.texto_da_linha))  # só recusa: vale também com A12
+        if valores is None:  # a linha que o hook não lê (`builtin -iu cp … ".g$(echo it)/c"`): os corpos da palavra sós
+            valores = valores_da_palavra(expandido, "; ".join(corpos_de_substituicao(expandido)))
         if valores and valor_no_git(valores):
             motivo = "o valor que o hook calcula cai no diretório do git (.git)"
         elif any(cita_o_dir_do_git(t) or cita_o_dir_do_git(palavra_juntada(t)) for t in self.textos_do_valor(caminho)[1]):
@@ -2230,52 +2241,48 @@ class Guarda:
     def conferir_partes(self, partes, pasta, nivel, so_substituicoes):
         """As checagens de cada comando simples de uma leitura da linha (`leituras`); devolve a pasta depois dela e as
         pastas por onde a leitura passou (a de cada comando, também dentro das substituições)."""
-        ramos = {}
-        contextos = {(): (pasta, ramos)}  # cada substituição roda num subshell: `cd` e branch lá dentro ficam lá
+        # cada substituição roda num subshell: `cd` e branch lá dentro ficam lá. A cadeia (S22), por substituição:
+        # [subshells abertos (sinal antes, negado), trocas pendentes, sinal antes]
+        contextos = {(): (pasta, {}, [[], [], ""])}
         vistas = {pasta}
-        # S22: a troca de branch vale certa só enquanto a cadeia de `&&` que a segue dura, também pelo fim do subshell
-        # (`( … ) &&`); no primeiro outro sinal, ou ao sair do subshell cujo começo não garante (`alcance_da_troca`), a
-        # branch de antes volta como candidata (`ramos_em`). As chaves com ação crítica o hook recusa (`chaves`)
-        anterior, incertas, grupos = {}, {}, {}
 
         def contexto(sub):
             if sub not in contextos:
-                pasta_de_fora, ramos_de_fora = contexto(sub[:-1])
-                contextos[sub] = (pasta_de_fora, dict(ramos_de_fora))
+                pasta_de_fora, ramos_de_fora, _ = contexto(sub[:-1])
+                contextos[sub] = (pasta_de_fora, dict(ramos_de_fora), [[], [], ""])
             return contextos[sub]
 
-        def soltar(sub, chaves):
-            ramos_sub = contextos[sub][1]
-            for chave, velhas, _ in chaves:
-                ramos_sub[chave] = tuple(dict.fromkeys(ramos_sub[chave] + tuple(velhas)))
-
+        # S22: a troca de branch vale certa só enquanto a cadeia de `&&` que a segue dura, também pelo fim do subshell
+        # (`( … ) &&`); no primeiro outro sinal, ou ao sair do subshell cujo começo não garante (`alcance_da_troca`), a
+        # branch de antes volta como candidata (`ramos_em`). As chaves com ação crítica o hook recusa (`chaves`)
         for palavras, destinos, sub, sinal in partes:
             if so_substituicoes and not sub:
                 continue
-            pasta_sub, ramos_sub = contexto(sub)
-            antes, pilha, sinal_antes = dict(ramos_sub), grupos.setdefault(sub, []), anterior.get(sub, "").rstrip("\n")
+            pasta_sub, ramos_sub, cadeia = contexto(sub)
+            pilha, pendentes, sinal_antes = cadeia
             for d in destinos:
                 if self.leitura and d not in self.leitura["saidas"]:
                     self.barrar("R-CONFORMIDADE", f"redirecionamento para {d} pelo papel só de leitura ({self.papel})",
                                 DICA_LEITURA)
                 self.checar_escrita(d, pasta_sub)
-            contextos[sub] = (self.segmento(palavras, pasta_sub, ramos_sub, nivel), ramos_sub)
+            contextos[sub] = (self.segmento(palavras, pasta_sub, ramos_sub, nivel), ramos_sub, cadeia)
             vistas.add(contextos[sub][0])
-            alcance = alcance_da_troca(pilha, sinal_antes, palavras[:1] == ["!"])
-            for chave, ramo in ramos_sub.items():
-                if antes.get(chave) != ramo:
-                    incertas.setdefault(sub, []).append((chave, antes.get(chave, (None,)), alcance))
-            fim = sinal.rstrip("\n")
-            fecha = fim == ")" and bool(pilha)
-            if fim == "(":
-                pilha.append((sinal_antes, palavras != []))  # `! (`; outra palavra antes do `(` não garante
+            if TROCA_DE_BRANCH in ramos_sub:
+                chave, velhas = ramos_sub.pop(TROCA_DE_BRANCH)
+                pendentes.append((chave, velhas, alcance_da_troca(pilha, sinal_antes, palavras[:1] == ["!"])))
+            fecha = sinal == ")" and pilha != []
+            if sinal == "(":
+                pilha += [(sinal_antes, palavras != [])]  # `! (`; outra palavra antes do `(` não garante
             elif fecha:
-                pilha.pop()
-            continua = fim in ("&&", "(") or fecha
-            fora = [t for t in incertas.get(sub, []) if not continua or t[2] > len(pilha)]
-            soltar(sub, fora)
-            incertas[sub] = [t for t in incertas.get(sub, []) if t not in fora]
-            anterior[sub] = sinal
+                del pilha[-1]  # `+=` e `del`, sem chamada: o teto do corpus (CORPUS-CUSTO-CONTADOR) conta cada uma
+            # segue a cadeia: o `&&` (também com quebra), o `(` que abre o subshell e o `)` que fecha o aberto
+            for troca in [t for t in pendentes if t[2] > len(pilha) or not (
+                    fecha or sinal == "(" or sinal.rstrip("\n") == "&&")]:
+                pendentes.remove(troca)  # a troca incerta: a branch de antes volta como candidata
+                chave, velhas, _ = troca
+                velhas = [git(chave, "branch", "--show-current")[1] if v is None else v for v in velhas]
+                ramos_sub[chave] = por_dureza(ramos_sub[chave] + tuple(velhas))
+            cadeia[2] = sinal
         return contextos[()][0], vistas
 
     critico = CRITICO.search  # o marcador da ação crítica; a `GuardaDaProva` soma o controle (custo: uma chamada só)
@@ -2441,7 +2448,8 @@ class Guarda:
         if parte and parte[0] == "branch" and not por_applet:  # A8: nem busybox nem toybox têm applet git
             raiz = raiz_do_projeto(pasta / parte[1] if parte[1] else pasta)
             if raiz:
-                ramos[raiz.resolve()] = (parte[2],)
+                chave = raiz.resolve()
+                ramos[TROCA_DE_BRANCH], ramos[chave] = (chave, ramos.get(chave, (None,))), (parte[2],)
         if prog in SHELLS:
             self.atualizacao(palavras, so_binarios=True)
         elif prog in ENVOLVEDORES or INTERPRETES.match(prog) or prog == "forge" or prog in BINARIOS_DE_ATUALIZACAO:
@@ -2650,17 +2658,11 @@ class Guarda:
 
     # git ---------------------------------------------------------------------------------------------
     def ramos_em(self, pasta, ramos):
-        """As branches candidatas da pasta, da regra mais dura à mais branda (`DUREZA`: main e master, homolog, develop;
-        depois as outras, a mais nova antes). S22: com a troca incerta (`conferir_partes`) há mais de uma; `None` é a
-        branch do disco."""
+        """As branches candidatas da pasta, da regra mais dura à mais branda (`por_dureza`); a primeira é a branch.
+        S22: com a troca incerta (`conferir_partes`) há mais de uma; sem troca na linha, a do disco."""
         raiz = raiz_do_projeto(pasta)
-        candidatas = ramos.get(raiz.resolve() if raiz else None, (None,))
-        nomes = [git(pasta, "branch", "--show-current")[1] if c is None else c for c in candidatas]
-        return sorted(dict.fromkeys(nomes), key=lambda n: DUREZA.get(n, len(DUREZA)))  # A1 da E113.2: main antes
-
-    def ramo_em(self, pasta, ramos):
-        """A branch da pasta: a candidata da regra mais dura (`ramos_em`)."""
-        return self.ramos_em(pasta, ramos)[0]
+        chave = raiz.resolve() if raiz else None
+        return [*ramos[chave]] if chave in ramos else [git(pasta, "branch", "--show-current")[1]]
 
     def pathspecs_da_linha(self, atribuicoes):
         """As opções `--*-pathspecs` que as variáveis `GIT_*_PATHSPECS` da linha (atribuição, `env`, `export`) ligam. Só
@@ -2923,7 +2925,7 @@ class Guarda:
         relevante = sub in NA_INTEGRACAO_RECUSADOS | {"reset", "merge", "pull", "notes", "update-ref"}
         if not relevante or SAIDAS_DA_OPERACAO & set(args):
             return
-        atual = self.ramo_em(pasta, ramos)
+        atual = self.ramos_em(pasta, ramos)[0]
         if atual not in INTEGRACAO:
             return
         if sub in NA_INTEGRACAO_RECUSADOS:
@@ -2979,7 +2981,7 @@ class Guarda:
             self.reescreve_historico(f"git {sub}")
         elif sub == "rebase":
             pos = parecer.posicionais(args, REBASE_COM_VALOR)
-            atual = self.ramo_em(pasta, ramos)
+            atual = self.ramos_em(pasta, ramos)[0]
             alvo = nome_da_branch(pos[1]) if len(pos) > 1 else atual
             if any(a in ("--abort", "--quit") for a in args):
                 return
@@ -3129,7 +3131,7 @@ class Guarda:
         for r in refs or [None]:
             destino = r.split(":")[-1] if r else None
             if destino in (None, "", "HEAD"):
-                atual = atual or self.ramo_em(pasta, ramos)
+                atual = atual or self.ramos_em(pasta, ramos)[0]
                 destino = atual
             if "*" in destino and self.ref_local_da_integracao(destino):  # `refs/heads/*`: o curinga alcança a integração
                 destino = "develop"

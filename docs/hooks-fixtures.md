@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3382 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3466 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,7 +10,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3382 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 130 | 70 | 60 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2541 | 1877 | 664 | 100 |
+| `conformidade` | 2625 | 1939 | 686 | 103 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 32 | 13 | 19 | 14 |
 | `parecer` | 583 | 448 | 135 | 27 |
@@ -79,6 +79,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3382 fixtures) roda em `tests/test
 | `e51-*` | 59 | 40 | 19 | `R-CONFORMIDADE`, `R-VERIFY`, `R-MAIN`, `R-FLUXO` | `E51.6`, `E51.10`, `E51.1`, `E51.18` e mais 2 | E51.10 (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE): sessão do Forge com a pasta corrente no clone: o alias encadeado demais é trava. |
 | `sub-*` | 52 | 38 | 14 | — | `CONFORMIDADE-SUBSTITUICAO-NO-PROJETO` | CONFORMIDADE-SUBSTITUICAO-NO-PROJETO (v0478 E63.1, alvo opaco por lista positiva do E51.6; R-VERIFY, R-FLUXO): no projeto, o dev envia à dev… |
 | `merge-*` | 47 | 40 | 7 | `R-CONFORMIDADE`, `R-REVIEW`, `R-MAIN`, `R-DECISAO` | `FURO-HOOK-A`, `FILA-22`, `QA` | git merge main numa branch de trabalho (atualização): qualquer papel. |
+| `s22-*` | 43 | 31 | 12 | `R-MAIN`, `R-REVIEW` | `S22-MERGE`, `S22-SUB`, `S22-NEG` | S22-SUB: `{ git switch -c x; } && git push origin`: as chaves com ação crítica o hook não modela (v0478 E113.6) |
 | `pp-*` | 42 | 28 | 14 | — | `PARECER-PELO-PAPEL` | PARECER-PELO-PAPEL (v0478 E50.7, A3 da segurança; R-CONFORMIDADE): sessão do Forge, pasta corrente no clone, a regra de docs/pedidos/ (outra… |
 | `idx-*` | 41 | 30 | 11 | `R-REVIEW` | `CONFORMIDADE-ESCRITA-NO-INDICE` | CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1, S1-S4 de docs/security/v0479-pv-a1-adr.md; R-CONFORMIDADE): `git add --chmod=+x` fora da políti… |
 | `lancador-*` | 40 | 36 | 4 | `R-CONFORMIDADE`, `R-VERIFY` | — | Prefixo desembrulhado antes de classificar: command git commit --no-verify -m x |
@@ -96,12 +97,14 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3382 fixtures) roda em `tests/test
 | `comentario-*` | 26 | 23 | 3 | `R-VERIFY`, `R-CONFORMIDADE`, `R-MAIN` | `HOOK-COMENTARIO-SHLEX` | Na regex do `=~` o bash não abre comentário depois de `\|`: o push seguinte é lido. |
 | `fc-*` | 26 | 17 | 9 | `R-CONFORMIDADE` | `FURO-HOOK-A` | FURO-HOOK-A, A4: contraprova: saída fora de pasta protegida. |
 | `vigor-*` | 25 | 24 | 1 | `R-CONFORMIDADE` | `CLAUDE` | {raiz}/.claude/agents/x.md é do usuário: bloqueia até o jarvis. |
+| `a20-*` | 21 | 16 | 5 | — | `A20-MAIS` | A20: $(echo .git) com resto /. (v0478 E113.1) |
 | `hook-*` | 21 | 13 | 8 | `R-VERIFY` | `HOOK-N4`, `HOOK-MSG-SEGMENTO` | hooks_desligados com conformidade (escolha do usuário): libera. |
 | `leitura-*` | 21 | 17 | 4 | — | `K2-REC` | bash -c com forge sugerir segue recusada (F6, só leitura) |
 | `n1-*` | 21 | 16 | 5 | `R-MAIN`, `R-VERIFY` | — | N1 (IMPL-FURO-HOOK-N, C-N1-2): o alias com ponto no nome também é lido |
 | `pacote-*` | 21 | 9 | 12 | `R-CONFORMIDADE` | `QA` | Dev instala dependência nova. |
 | `pr-*` | 21 | 17 | 4 | `R-CONFORMIDADE`, `R-MAIN` | `FILA-22`, `QA` | Dev criando PR: bloqueia. |
 | `tagv-*` | 21 | 17 | 4 | `R-FLUXO`, `R-CONTRIB` | `V0474-TAG` | V0474-TAG: tag anotada no clone de contribuição do Forge (segurança A2 da v0474); a tag v* do Forge só nasce do release.yml. |
+| `resto-*` | 20 | 15 | 5 | `R-CONFORMIDADE` | `RESTO-ANULA`, `RESTO-SOBE` | RESTO-ANULA: `d=docs; cp ev/config "$d.."`: o `..` colado é outro nome, não sobe (v0478 E113.6) |
 | `aq-*` | 18 | 13 | 5 | — | `AQ` | AQ barrado em agents/ de uma worktree fora da raiz. |
 | `autoria-*` | 17 | 0 | 17 | — | — | Redirecionamento para docs/qa/ pelo Bash também registra. |
 | `desenho-*` | 16 | 7 | 9 | — | `E5-0` | E5-0 (Q-B, PAR-P2): sonda: docs/architecture/ de projeto fica sem dono até DESENHO-PROJETO-DONO; o devops grava a seção CI/CD do plano. |

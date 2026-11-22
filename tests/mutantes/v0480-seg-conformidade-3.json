@@ -6,8 +6,8 @@
       "id": "S22i",
       "guarda": "S22: o sinal que não segue a cadeia deixa a troca incerta",
       "arquivo": "hooks/conformidade.py",
-      "de": "            fora = [t for t in incertas.get(sub, []) if not continua or t[2] > len(pilha)]\n",
-      "para": "            fora = [t for t in incertas.get(sub, []) if t[2] > len(pilha)]\n",
+      "de": "            for troca in [t for t in pendentes if t[2] > len(pilha) or not (\n",
+      "para": "            for troca in [t for t in pendentes if t[2] > len(pilha) or False and (\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante",
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_subshell_segue_a_cadeia_so_com_o_comeco_que_garante"
@@ -17,8 +17,8 @@
       "id": "S22j",
       "guarda": "S22: a palavra `!` antes da troca a nega",
       "arquivo": "hooks/conformidade.py",
-      "de": "            alcance = alcance_da_troca(pilha, sinal_antes, palavras[:1] == [\"!\"])\n",
-      "para": "            alcance = alcance_da_troca(pilha, sinal_antes, False)\n",
+      "de": "                pendentes.append((chave, velhas, alcance_da_troca(pilha, sinal_antes, palavras[:1] == [\"!\"])))\n",
+      "para": "                pendentes.append((chave, velhas, alcance_da_troca(pilha, sinal_antes, False)))\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_negada_nao_vale",
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_merge_com_duas_candidatas_de_integracao_vale_a_mais_dura"
@@ -28,8 +28,8 @@
       "id": "S22k",
       "guarda": "S22: o subshell negado (`! (`) não garante a troca de dentro",
       "arquivo": "hooks/conformidade.py",
-      "de": "                pilha.append((sinal_antes, palavras != []))  # `! (`; outra palavra antes do `(` não garante\n",
-      "para": "                pilha.append((sinal_antes, False))  # `! (`; outra palavra antes do `(` não garante\n",
+      "de": "                pilha += [(sinal_antes, palavras != [])]  # `! (`; outra palavra antes do `(` não garante\n",
+      "para": "                pilha += [(sinal_antes, False)]  # `! (`; outra palavra antes do `(` não garante\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_negada_nao_vale"
       ]
@@ -38,7 +38,7 @@
       "id": "S22l",
       "guarda": "S22: o `(` abre o nível do subshell",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if fim == \"(\":\n",
+      "de": "            if sinal == \"(\":\n",
       "para": "            if False:\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_subshell_segue_a_cadeia_so_com_o_comeco_que_garante"
@@ -59,12 +59,11 @@
       "id": "S22n",
       "guarda": "S22 (A1 da segurança E113.2): a candidata da regra mais dura vem primeiro (main antes de develop)",
       "arquivo": "hooks/conformidade.py",
-      "de": "        return sorted(dict.fromkeys(nomes), key=lambda n: DUREZA.get(n, len(DUREZA)))  # A1 da E113.2: main antes\n",
-      "para": "        return list(dict.fromkeys(nomes))  # A1 da E113.2: main antes\n",
+      "de": "    return tuple([n for n in DUREZA if n in nomes] + [n for n in dict.fromkeys(nomes) if n not in DUREZA])\n",
+      "para": "    return tuple([n for n in DUREZA if False] + [n for n in dict.fromkeys(nomes) if n not in DUREZA])\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante",
-        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_negada_nao_vale",
-        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_subshell_segue_a_cadeia_so_com_o_comeco_que_garante"
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_merge_com_duas_candidatas_de_integracao_vale_a_mais_dura"
       ]
     },
     {
@@ -81,8 +80,8 @@
       "id": "S22p",
       "guarda": "S22: o subshell negado vale só dentro dele",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if grupo_negado or antes_do_grupo not in CADEIA_CERTA:\n",
-      "para": "        if antes_do_grupo not in CADEIA_CERTA:\n",
+      "de": "        if grupo_negado or antes_do_grupo.rstrip(\"\\n\") not in CADEIA_CERTA:\n",
+      "para": "        if antes_do_grupo.rstrip(\"\\n\") not in CADEIA_CERTA:\n",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_negada_nao_vale"
       ]

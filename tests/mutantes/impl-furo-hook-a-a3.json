@@ -56,8 +56,8 @@
       "id": "A3-m6",
       "guarda": "a opcao de merge recusa na integracao",
       "arquivo": "hooks/conformidade.py",
-      "de": "                achada = opcao_de_merge_que_muda_o_resultado(args)",
-      "para": "                achada = None",
+      "de": "            achada = opcao_de_merge_que_muda_o_resultado(args)",
+      "para": "            achada = None",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
       ]

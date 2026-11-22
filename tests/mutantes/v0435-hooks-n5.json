@@ -86,8 +86,8 @@
       "id": "N5-9",
       "guarda": "N5: fora da integração não recusa",
       "arquivo": "hooks/conformidade.py",
-      "de": "atual = self.ramo_em(pasta, ramos)\n        if atual not in INTEGRACAO:",
-      "para": "atual = self.ramo_em(pasta, ramos)\n        if atual in INTEGRACAO:",
+      "de": "atual = self.ramos_em(pasta, ramos)[0]\n        if atual not in INTEGRACAO:",
+      "para": "atual = self.ramos_em(pasta, ramos)[0]\n        if atual in INTEGRACAO:",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_n5"
       ]

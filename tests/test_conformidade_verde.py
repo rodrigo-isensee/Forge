@@ -674,6 +674,10 @@ class TrocaDeBranchAtrasDoBusybox(CloneDoForge):  # A8 da segurança (S21): nem 
 
     def test_troca_direta_segue_registrada(self):  # contraprova: sem applet, a troca vale para o comando seguinte
         proj = self.projeto_na_main()
-        for op in (";", "&&"):
-            c = f"git switch -c feature/x {op} git commit -m x"
-            self.libera(self.rodar_em(proj, c, "forge:tech-lead"), c)
+        c = "git switch -c feature/x && git commit -m x"
+        self.libera(self.rodar_em(proj, c, "forge:tech-lead"), c)
+        # S22 (v0478 E113.1): com `;` a troca pode não ter rodado e o commit cai na main
+        c = "git switch -c feature/x ; git commit -m x"
+        r = self.rodar_em(proj, c, "forge:tech-lead")
+        self.assertEqual(r.returncode, 2, f"{c}: {r.stderr}")
+        self.assertIn("git commit na main", r.stderr)

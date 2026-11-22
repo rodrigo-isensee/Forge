@@ -1,0 +1,24 @@
+{
+  "descricao": "A20: `builtin -iu cp -rT ev \".g$(echo it)/c\"`: a linha com lançador que o hook não lê: os corpos da palavra sós (v0478 E113.6)",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "builtin -iu cp -rT ev \".g$(echo it)/c\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o valor que o hook calcula cai no diretório do git"
+  }
+}
