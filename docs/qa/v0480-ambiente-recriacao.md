@@ -51,3 +51,10 @@ Delta (`forge-check parecer delta`): 93a2123c..a0be36e6, sem o que veio da devel
 - Spec do item (E119.1): os 10 testes de `test_ambiente_recriacao` cobrem os critérios da tabela acima, todos passando; o teste de PATH sem curl não ficou frágil com link quebrado.
 - `test_ambiente_recriacao.py`: 10 testes, OK. `test_ambiente_git.py`: 20, OK. `test_salvar_desfazer.py`: 38, OK. `test_testes_tocados.py`: 196, OK (skipped=1, `skipIf` que já existia na base, fora do delta).
 - Sem bugs novos. Suíte inteira: check-run `bateria` do PR no mesmo sha (não rerrodada aqui).
+
+## Revalidação no head 1fa9db96 (3ª volta, escopo incremental)
+Delta (`forge-check parecer delta`): a0be36e6..1fa9db96, sem o que veio da develop. No domínio: `tests/mutantes/v0480-ambiente-recriacao.json` (M16 alinhado à linha `command grep -qE`; só o `de`/`para` da spec, nenhum script mudou) e `tests/pesos-d4.json` (peso de `test_forge_contador`). Nenhuma guarda mudou.
+- `bin/forge-mutante --conferir --base a0be36e6...`: `base=a0be36e6... mb=a0be36e6... rev=1fa9db96...`, `conferidas: o trecho de cada spec do diff está no lugar`.
+- M16 (`--ids M16`): `M16 · morreu · scripts/preparar-estacao.sh:194`.
+- `--base a0be36e6`: M1..M16 todos `morreu`.
+- Sem bugs novos. Suíte inteira: check-run `bateria` do PR no mesmo sha (não rerrodada aqui).
