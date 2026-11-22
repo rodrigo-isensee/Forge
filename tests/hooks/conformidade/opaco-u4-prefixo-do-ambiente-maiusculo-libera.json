@@ -1,5 +1,5 @@
 {
-  "descricao": "CONFORMIDADE-A9-DESTINO-OPACO, volta da E1.342 (A16 da segurança E1.340): o nome do ambiente com resto colado (`\"$HOME\"t`), sem prefixo da lista do bash nem nascido na linha, segue livre.",
+  "descricao": "CONFORMIDADE-A9-DESTINO-OPACO, volta da E1.342 (A16 da segurança E1.340): o nome do ambiente com resto colado (`\"$HOME\"t`), sem prefixo da lista do bash nem nascido na linha, segue livre. Sem `-r` desde a E113.15: a cópia recursiva para valor de fora da linha recusa (A5, opaco-u4-prefixo-do-ambiente-maiusculo-recursiva-bloqueia).",
   "arquivos": {
     "x": "x\n",
     "config": "c\n",
@@ -31,7 +31,7 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "cp -rT ev \"$HOME\"t"
+      "command": "cp -T ev \"$HOME\"t"
     },
     "agent_type": "forge:tech-lead",
     "hook_event_name": "PreToolUse",
