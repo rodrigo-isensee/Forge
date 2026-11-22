@@ -1,0 +1,16 @@
+{
+  "pedido": "v0478-fechar-checks-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "FCK-M9",
+      "guarda": "FECHAR-SEM-AUTO-MERGE: check-run obrigatório pendente ou ausente não deixa mesclar (espera e relê)",
+      "arquivo": "bin/forge-fechar",
+      "de": "    [ -n \"$falta\" ] || break",
+      "para": "    break",
+      "testes": [
+        "tests.test_fechar_auto_merge.SemAutoMerge.test_check_run_pendente_no_fim_do_prazo_para_sem_merge"
+      ]
+    }
+  ]
+}

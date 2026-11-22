@@ -117,7 +117,7 @@ class TestComandoPronto(unittest.TestCase):
         self.assertIn("falta --nota", problemas_da_citacao("check", ["escape", "registrar", "--pedido", "<p>"]))
         self.assertEqual(problemas_da_citacao("check", ["pausa"]), ["falta --gravar ou --retomar"])
         self.assertEqual(problemas_da_citacao("check", ["pausa", "--retomar", "--esperar"]), [])
-        self.assertEqual(problemas_da_citacao("fechar", ["<pedido>", "--ref", "<branch>", "--armar"]), [])
+        self.assertEqual(problemas_da_citacao("fechar", ["<pedido>", "--ref", "<branch>", "--sem-limpar"]), [])
 
     def test_citacoes_acha_so_entre_crases(self):
         texto = "rode forge-check solto e `bin/forge-fechar` e `${CLAUDE_PLUGIN_ROOT}/bin/forge-check classe` e `forge-checks x`"
