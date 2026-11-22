@@ -3,33 +3,27 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ordens-hook
-commit: c63e96158e67cb61056a5552a12ed7a3f7354925
-parecer: reprovado
+commit: cf679683033698c8ca97f8ec587c008c00cd0a9f
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-22
 ---
-# Review: v0478 (E123.4, hook ordens e laço das fixtures do vigia)
+# Review: v0478 (E123.7, revalidação do hook ordens)
 
-Diff `48d6f4b86..c63e9615` (2 commits: `af76641f5` itens 1 a 6, `c63e96158` item 7), conferido contra a emenda "ordens em vigor" da ADR 0003.
+Revalidação pelo delta (H3, `R-REVIEW`): `forge-check parecer delta docs/reviews/v0480-ordens-hook.md`, intervalo `c63e96158..cf679683`, sem o que veio da `develop`; 15 arquivos no domínio, lidos só no delta. Parecer anterior: reprovado em `c63e9615` (gravado no commit `dc2554ec`).
 
-## Achados
-- A1 (bloqueante) templates/projeto/.forge/ordens-em-vigor.md:1 · o forge-init copia o modelo a todo projeto; o cabeçalho não é vazio e o hook o injeta a cada mensagem (243 bytes sem ordem nenhuma, S1). Contraria a emenda (ausente custa zero; vazio é silêncio). Retire o arquivo do modelo: o Jarvis o cria na 1ª ordem.
-- A2 (recomendado) tests/test_hooks.py:891 · o ramo `contexto` do laço das fixtures afrouxa "hook nunca escreve no stdout" para o ordens, e a seção "Afrouxa" da emenda não o lista entre as invariantes que mudam; inclua-o na emenda.
-- A3 (recomendado) hooks/ordens.py:58 · a emenda (item 3) e a fixture injeta-no-userpromptsubmit citam `sem_controle`, que junta a sequência de controles num espaço só; aqui cada controle vira um espaço (tab+ESC dá dois). Alinhe o critério ou o texto da emenda.
-
-## Sondas
-- S1 · projeto git com `.forge/versao` e só o `.forge/ordens-em-vigor.md` do modelo, `{"hook_event_name":"UserPromptSubmit",...}` em `hooks/ordens.py` · espera: stdout vazio, saída 0 · obtido: linha fixa mais o cabeçalho do modelo (243 bytes), saída 0
-
-## Conferência contra a emenda
-- Invariantes listadas e mudadas: `test_hooks_json` (UserPromptSubmit só com `ordens.py`; `ordens.py` permitido no SessionStart), `test_cada_hook_tem_caso_que_passa_e_que_bloqueia` (`ordens` em `{0}`, com sem-forge-versao, erro-interno, teto e arquivo ausente), `test_doutor` linha 608 (único comando no UserPromptSubmit é o `ordens.py`), laço das fixtures do item 7 (`decision`/`reason` só no Stop sem `stop_hook_active`, `fullmatch` do texto fixo, comentário trocado, 4 fixtures novas). `tests/config.json` intocado: nenhum trecho de `invariantes` sai.
-- Mudança fora da lista: só o ramo `contexto` (A2). `test_vigia_parado.py` perde só um `import subprocess` sem uso.
-- Itens 1 a 6: fonte única e só leitura (`O_NOFOLLOW`, `O_NONBLOCK`, regular, 64 KiB, base por `realpath`), texto puro com linha fixa, teto 15/2000 com aviso, saída sempre 0 com erro ao `erros.log`, sem git nem rede, dono único `jarvis` nos dois caminhos do `conformidade.json`. Matchers `startup|resume|compact` e UserPromptSubmit sem matcher.
-- Guardas: 14 mutantes declarados (8 + 6) cobrem cada guarda de `hooks/ordens.py`, cada um com teste de comportamento do ramo de falha; não os rerrodei (V2, do autor).
-- Commits: os 2 do Entregar presentes, Conventional Commits, `[afrouxa-regra: ADR 0003 item 1]` no título.
+## Delta lido
+- A1 (bloqueante, resolvido): `templates/projeto/.forge/ordens-em-vigor.md` apagado; `test_o_modelo_de_projeto_nao_traz_o_arquivo_de_ordens` afirma a ausência e confere que a pasta existe (`config.json`), então não passa por pasta errada. A emenda (item 1) passa a dizer que o modelo não traz o arquivo e que o Jarvis o cria na 1.ª ordem.
+- A2 (recomendado, resolvido): a seção "Afrouxa" da emenda da ADR 0003 lista o ramo `contexto` do laço das fixtures; o texto bate com `tests/test_hooks.py:891-895` (só o `ordens`, linha fixa primeiro, igual ao esperado).
+- A3 (recomendado, resolvido): `hooks/ordens.py:63` `sem_controle` por `groupby` junta cada sequência de controle num espaço; `test_sequencia_de_controles_vira_um_espaco_so` (`a\t\x1b b` dá `a b`) e o mutante M20.
+- Também no delta (A1 e A2 da segurança E123.3, cujo mérito é do `security-engineer`): fonte do projeto pela cópia principal (`diretorio_comum`), base `docs/kanban/` no Forge e o arquivo de ordens no `CAMINHOS_DO_CONTROLE` e no `CONTROLE_NO_TEXTO`, com 8 fixtures (7 bloqueiam, 1 libera o jarvis) e os mutantes M15 a M19. Cito, sem refazer.
+- Nenhum teste afrouxado: as únicas linhas de teste removidas são as 3 de `test_fonte_do_projeto_e_do_clone_do_forge`, trocadas pela nova assinatura (`fontes` devolve lista) e pela base `contrib/docs/kanban`, que é mais estrita. O `setUp` ganha `.git` para a cópia principal. `tests/config.json` intocado.
 
 ## Provas
-- `python3 -s -E -m unittest tests.test_vigia_parado tests.test_doutor tests.test_indice_forge tests.test_hooks.OrdensEmVigor tests.test_hooks.VigiaTimeParadoNasFixtures tests.test_hooks.Hooks.test_hooks_json tests.test_hooks.Hooks.test_cada_hook_tem_caso_que_passa_e_que_bloqueia` (ambiente limpo por `env -i`): `Ran 187 tests in 160.823s OK`; inclui as fixtures de `tests/hooks/ordens` (10) e `tests/hooks/vigia/time-parado-*` (4).
+- `python3 -s -E -m unittest tests.test_hooks.OrdensEmVigor` (ambiente limpo por `env -i`): `Ran 21 tests in 3.175s OK`.
+- As 10 fixtures de `tests/hooks/ordens` pelo `executar_em_lote`: `Ran 1 test in 1.388s OK` (10 fixtures), com o `sem_controle` novo.
+- `bin/forge-mutante --ids M20 tests/mutantes/v0480-ordens-hook-3.json`: `M20 · morreu · hooks/ordens.py:65`.
 - Suíte inteira: fica no CI do PR (não rerrodada).
 
 ## Parecer
-Reprovado por A1: o código do hook segue a emenda, mas o modelo de projeto faz todo projeto novo pagar a injeção a cada mensagem sem ordem nenhuma. Correção curta: apagar `templates/projeto/.forge/ordens-em-vigor.md` (ou o hook ignorar linhas de comentário, com mutante e fixture). A2 e A3 são recomendados e viram cartão depois do merge.
+Aprovado: os três achados de `c63e9615` foram resolvidos no delta, cada um com teste de comportamento, e nenhum teste foi afrouxado. Os dois pontos abertos pelo autor viram cartão depois do merge, sem bloquear: a remoção da pasta mãe, que já acontecia na base, e a mediana de 106 ms, quase toda gasta na carga do interpretador.
