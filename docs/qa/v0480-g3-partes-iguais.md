@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-g3-partes-iguais
-commit: 782d788e202522de56b29898fec976874a9fe5a3
+commit: 0cb38c94f37af4125a6bb3f8b08d5613e0332f4c
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -40,3 +40,11 @@ data: 2026-11-22
 - Delta do parecer: intervalo 790f114d..782d788e sem o que veio da develop; só tests/pesos-d4.json, com a linha test_trilha_forge_check: 1.5 trazida no merge.
 - test_pesos_teto (2 OK) e test_pesos_do_ci (16 OK), com TMPDIR e -I. Peso novo 1,5 s, abaixo de 225 s.
 - Nada mais mudou no domínio do QA. Suíte inteira: check-run bateria do CI do PR.
+
+## Revalidação (quarta volta, head 0cb38c94)
+Merge da develop (#784). Único conflito: `tests/pesos-d4.json`, com a entrada `"test_fechar_checks_do_head": 5.2` vinda da develop. `forge-check parecer delta` lista só essa linha no domínio.
+Provas:
+- test_pesos_teto: Ran 2 tests, OK.
+- test_pesos_do_ci: Ran 16 tests, OK.
+- Suíte inteira: check-run `bateria` do CI do PR, mesmo sha.
+Parecer: aprovado; sem achados.
