@@ -4,12 +4,13 @@
   "mutantes": [
     {
       "id": "M9",
-      "guarda": "sem a linha CHECKS_EXIGIDOS nao ha obrigatorio inventado",
+      "guarda": "a lista lida da linha CHECKS_EXIGIDOS vale; sem ela, nenhum obrigatorio",
       "arquivo": "scripts/promover-homolog.py",
-      "de": "m.group(1)) if m else []",
-      "para": "m.group(1)) if m else [\"W/bateria\"]",
+      "de": "if m else []",
+      "para": "if m and False else []",
       "testes": [
-        "tests.test_promover_homolog.ChecksObrigatorios.test_lista_ausente_vazia_ou_arquivo_faltando_para"
+        "tests.test_promover_homolog.ChecksObrigatorios.test_lista_ausente_vazia_ou_arquivo_faltando_para",
+        "tests.test_promover_homolog.ChecksObrigatorios.test_le_os_nomes_do_forge_fechar_real"
       ]
     },
     {
