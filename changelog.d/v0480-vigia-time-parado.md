@@ -1,0 +1,2 @@
+### Adicionado
+- vigia: no Stop da sessão do Jarvis (só ela; agent_type do papel jarvis), com zero agentes rodando e cartão disponível em Pronto para fazer (sem Responsável 'usuário' e sem marca de dependência na Obs.: depende de, espera, depois do, decisão do dono, bloqueado, pergunta ao dono), adia o encerramento uma vez com o reason fixo 'time parado: N cartões disponíveis, primeiro <ID>; retome sem esperar o dono' (ID só no formato [A-Za-z0-9.-]{1,16}); o quadro abre sem seguir link nem esperar FIFO (VIGIA-TIME-PARADO, v0478 E105.1 e E105.6; emenda da ADR 0003, item 7)
