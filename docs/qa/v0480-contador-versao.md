@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-contador-versao
-commit: 362b45ad31e23cc33af7abe42f7d08758ba7e37c
+commit: 1593c1a1ee1547c1c208c2293291f88fdd550a8c
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -55,4 +55,14 @@ Delta: `forge-check parecer delta` (intervalo fb4d5390..362b45ad): bin/forge-con
 Provas:
 - `python3 -I -m unittest discover -s tests -p test_forge_contador.py`: 24 testes, OK.
 - `forge-mutante tests/mutantes/v0480-contador-versao*.json` (5 specs, rev=362b45ad31e2): M1..M35 todos morreram, nenhum sobrevivente, rc 0.
+- Suíte inteira: check-run `bateria` do CI do PR, não rodada local.
+
+## Revalidação (volta de CI, head 1593c1a1)
+Delta: `forge-check parecer delta` (362b45ad..1593c1a1, sem a develop): `bin/forge-contador`, `docs/indice-forge.md`, `skills/fluxo-do-pedido/SKILL.md`, `tests/test_forge_contador.py`, spec de mutantes `v0480-contador-versao.json`, `tests/pesos-d4.json`.
+- `bin/forge-contador:54`: o README de `changelog.d` passa a ser reconhecido sem distinguir caixa (`.lower() != "readme.md"`); teste e mutante M7 acompanham (`readme.md` minúsculo). Contrato inalterado.
+- Skill: duas linhas encurtadas (texto do invariante); a linha do contador mantém "abre com a saída do `forge-contador`". Sem efeito no comportamento da ferramenta.
+- Índice: linha de `forge-contador`; `pesos-d4.json`: dado de CI, fora das obrigações.
+Provas:
+- `python3 -I -m unittest discover -s tests -p test_forge_contador.py`: 24 testes, OK; `test_jarvis_nucleo.py`: 43 OK; `test_reval_delta.py`: 10 OK.
+- `bin/forge-mutante tests/mutantes/v0480-contador-versao*.json`: todos morreram, nenhum sobrevivente, rc 0.
 - Suíte inteira: check-run `bateria` do CI do PR, não rodada local.
