@@ -1022,6 +1022,7 @@ class BriefDeVolta(Repositorio):
         self.assertNotIn("recusada", conferencia)
         rc, conferencia = self.conferir(saida, ref=None)  # a volta 1 segue sem decisão
         self.assertNotIn("recusada", conferencia)
+        self.assertNotIn("já tem volta", conferencia)  # o próprio brief não é sucessor de si
         self.assertNotIn("numeração contornada", conferencia)
 
     def test_sem_branch_nenhuma_decisao_autoriza(self):  # G1.1: sem nome lido, o teto fica em 1 (falha fechada)
@@ -1032,6 +1033,104 @@ class BriefDeVolta(Repositorio):
             self.assertEqual(modulo.voltas_autorizadas(cobradas, vazio), 1)
         self.assertIn('volta 2 recusada para "<branch>"', modulo.recusa_da_volta(2, cobradas, None))
         self.assertEqual((modulo.numero_da_volta({}), modulo.numero_da_volta({"Entregar": ["## Entregar\n"]})), (0, 0))
+
+    def test_so_a_forma_canonica_autoriza_e_uma_linha_vale_uma_volta(self):  # G1.1 (review S2, S3; segurança S1 a S4)
+        modulo = carregar_forge_check()
+
+        def voltas(*linhas, branch="melhoria/x", fontes=1):
+            return modulo.voltas_autorizadas({"fontes": [(f"p{i}", [(1, l) for l in linhas]) for i in range(fontes)]}, branch)
+        for linha in ("DECISÃO DO DONO: mais uma volta para melhoria/x", "- DECISÃO DO DONO: mais uma volta para `melhoria/x`.",
+                      "- 2026-11-21 23:00: DECISÃO DO DONO: mais uma volta para melhoria/x.",
+                      "DECISÃO DO DONO (2026-11-21 23:00): mais uma volta para melhoria/x → \"pode\""):
+            with self.subTest(linha):
+                self.assertEqual(voltas(linha), 2)
+        for linha, branch in (("DECISÃO DO DONO: nenhuma volta a mais para melhoria/x", "melhoria/x"),  # review S2
+                              ("- 2026-11-21 23:00: DECISÃO DO DONO: sem nova volta para melhoria/v1-x; cortar e reabrir menor", "melhoria/v1-x"),
+                              ("DECISÃO DO DONO (2026-11-21 23:00): melhoria/v1-x aceita com cartão, nada de voltas", "melhoria/v1-x"),
+                              ("DECISÃO DO DONO (2026-11-21 23:00): melhoria/v0480-g1-1-uma-volta entra antes do G1.2", "melhoria/v0480-g1-1-uma-volta"),
+                              ("DECISÃO DO DONO (2026-11-21 23:00): o dono volta na segunda; melhoria/v1-x espera", "melhoria/v1-x"),
+                              ("DECISÃO DO DONO: aceita; DECISÃO DO DONO: mais uma volta para melhoria/x", "melhoria/x"),  # fora da âncora
+                              ("DECISÃO DO DONO: mais uma volta para melhoria/xy", "melhoria/x"),
+                              ("DECISÃO DO DONO: mais uma volta para melhoria/x.y", "melhoria/x")):
+            with self.subTest(linha):
+                self.assertEqual(voltas(linha, branch=branch), 1)
+        self.assertEqual(voltas("DECISÃO DO DONO: mais uma volta para melhoria/x", fontes=2), 2)  # review S3: a mesma linha em duas fontes
+        self.assertEqual(voltas("- 2026-11-21 23:00: DECISÃO DO DONO: mais uma volta para melhoria/x",
+                                "- 2026-11-22 09:00: DECISÃO DO DONO: mais uma volta para melhoria/x"), 3)
+
+    def com_branch(self, nome, branch="melhoria/x", volta_de=None):
+        """Um brief do item em docs/briefs: o anterior sintético com `Branch:` e, se pedido, um `Volta-de:` (sem ser volta gerada)."""
+        cabeca = f"Branch: {branch}   Base: develop\n" if branch else ""
+        if volta_de:
+            cabeca += f"Volta-de: {volta_de} sha256 {'0' * 64}\n"
+        linhas = self.ANTERIOR.read_text(encoding="utf-8").split("\n", 1)
+        arq = self.repo / "docs" / "briefs" / nome
+        arq.write_text(f"{linhas[0]}\n{cabeca}{linhas[1]}", encoding="utf-8")
+        return f"docs/briefs/{nome}"
+
+    def volta_de(self, texto, rel, conteudo):
+        """O `texto` gerado apontando o `Volta-de:` para `rel` (com o sha256 de `conteudo`)."""
+        return texto.replace(f"Volta-de: {self.rel_anterior} sha256 {hashlib.sha256(self.ANTERIOR.read_bytes()).hexdigest()}",
+                             f"Volta-de: {rel} sha256 {hashlib.sha256(conteudo).hexdigest()}")
+
+    def test_volta_conta_o_item_e_nao_a_cadeia(self):  # G1.1 (review A1 e S1, segurança A2 e S5)
+        rc, saida = self.gerar()
+        (self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md").write_text(saida, encoding="utf-8")
+        rc, recusa = self.gerar()  # o brief original de novo: outra "volta 1"
+        self.assertEqual(rc, 1, recusa)
+        self.assertIn("já tem volta", recusa)
+        self.assertNotIn("## Entregar", recusa)
+        rc, conferencia = self.conferir(saida, nome="pedido-sintetico-dev-exemplo-3.md", ref=None)  # a mesma volta escrita de novo
+        self.assertIn('volta: o anterior "docs/briefs/pedido-sintetico-dev-exemplo-1.md" já tem volta', conferencia)
+        (self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-3.md").unlink()
+        outro = self.com_branch("pedido-sintetico-review-1.md")  # um brief do item sem `Volta-de:` não recomeça a conta
+        rc, recusa = self.gerar("--branch", "melhoria/outra", volta=outro)
+        self.assertEqual(rc, 1, recusa)
+        self.assertIn('volta 2 recusada para "melhoria/x"', recusa)  # a `Branch:` do anterior, nunca o --branch
+        self.autorizar("- DECISÃO DO DONO (2026-11-21): mais uma volta para melhoria/outra\n")
+        self.assertEqual(self.gerar("--branch", "melhoria/outra", volta=outro)[0], 1)
+        texto = self.volta_de(saida, outro, (self.repo / outro).read_bytes())
+        rc, conferencia = self.conferir(texto, nome="pedido-sintetico-dev-exemplo-3.md", ref=None)
+        self.assertIn('volta: volta 2 recusada para "melhoria/x"', conferencia)
+        self.assertNotIn("numeração contornada", conferencia)
+
+    def test_volta_de_outro_item_nao_conta(self):  # G1.1: só a mesma `Branch:` conta; brief sem `Branch:` não conta para ninguém
+        self.com_branch("outro-1.md", branch="melhoria/outra", volta_de="docs/briefs/outro-0.md")
+        self.com_branch("outro-2.md", branch=None, volta_de="docs/briefs/outro-0.md")
+        self.assertEqual(self.gerar()[0], 0)
+        rc, saida = self.gerar(volta=self.com_branch("pedido-sintetico-review-1.md"))
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("## Entregar (volta 1)\n", saida)
+
+    def test_volta_sem_volta_de_e_recusada(self):  # G1.1 (segurança A2): sem `Volta-de:` a volta fugiria da contagem
+        rc, saida = self.gerar()
+        texto = "".join(l for l in saida.splitlines(keepends=True) if not l.startswith("Volta-de:"))
+        rc, conferencia = self.conferir(texto, ref=None)
+        self.assertEqual(rc, 1, conferencia)
+        self.assertIn("volta: Entregar (volta N) sem a linha Volta-de", conferencia)
+        rc, conferencia = self.conferir(self.ANTERIOR.read_text(encoding="utf-8"), ref=None)  # o brief da entrega original segue
+        self.assertNotIn("sem a linha Volta-de", conferencia)
+
+    def test_conferencia_sem_branch_no_anterior_e_teto_um(self):  # QA A1: a conferência com o anterior sem `Branch:`
+        rc, saida = self.gerar()
+        sem_branch = "".join(l for l in saida.splitlines(keepends=True) if not l.startswith("Branch:"))
+        (self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md").write_text(sem_branch, encoding="utf-8")
+        self.autorizar("- DECISÃO DO DONO (2026-11-21): mais uma volta para melhoria/x\n")
+        texto = self.volta_de(saida, "docs/briefs/pedido-sintetico-dev-exemplo-2.md", sem_branch.encode())
+        rc, conferencia = self.conferir(texto.replace("## Entregar (volta 1)", "## Entregar (volta 2)"), nome="pedido-sintetico-dev-exemplo-3.md", ref=None)
+        self.assertIn('volta: volta 2 recusada para "<branch>"', conferencia)
+
+    def test_conferencia_sem_cobradas_le_as_decisoes_do_pedido(self):  # QA A2: o fallback `cobradas or` do conferir_volta
+        rc, saida = self.gerar()
+        (self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md").write_text(saida, encoding="utf-8")
+        texto = self.volta_de(saida, "docs/briefs/pedido-sintetico-dev-exemplo-2.md", saida.encode()).replace("## Entregar (volta 1)", "## Entregar (volta 2)")
+        modulo = carregar_forge_check()
+        pedido = self.pedido.read_text(encoding="utf-8")
+        autorizado = pedido + "- DECISÃO DO DONO (2026-11-21): mais uma volta para melhoria/x\n"
+        for pedido_txt, recusada in ((pedido, True), (autorizado, False)):
+            with self.subTest(recusada=recusada):
+                linhas = [l for l, _ in modulo.conferir_volta(self.repo, texto, pedido_txt, "pedido-sintetico", None, None)]
+                self.assertEqual(any("volta 2 recusada" in l for l in linhas), recusada, linhas)
 
     def test_etapa_de_merge_acrescenta_o_pq_por_ancestralidade(self):  # E5 na volta
         rc, saida = self.gerar("--etapa", "merge-integracao")
@@ -1106,6 +1205,7 @@ class BriefDeVolta(Repositorio):
         corte = '- Retira do escopo original: "x" · justificativa: a · consequência: b · decisão: c\n'
         anterior = self.ANTERIOR.read_text(encoding="utf-8").replace("## Fora do escopo\n", "## Fora do escopo\n" + corte, 1)
         self.brief_anterior.write_text(anterior, encoding="utf-8")
+        (self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md").unlink()  # G1.1: o anterior com volta não gera outra
         self.assertIn(corte, self.gerar()[1])  # o corte do dono passa para a volta
 
     def test_volta_de_pedido_grande_cabe_no_teto_e_passa_na_conferencia(self):  # BRIEF-VOLTA-FORA-COMPACTO (146 KB no v047)

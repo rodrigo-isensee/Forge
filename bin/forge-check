@@ -169,6 +169,7 @@ import fcntl
 import fnmatch
 import functools
 import hashlib
+import io
 import json
 import os
 import re
@@ -4243,7 +4244,7 @@ def fora_do_escopo_do_pedido(dados, cobre, entregues, anterior=()):
 
 
 VOLTA_NO_ENTREGAR = r"\bvolta (\d+)"  # `grupo` compila (re.M)
-VOLTA_NA_DECISAO = r"(?i)\bvoltas?\b"
+VOLTA_NA_DECISAO = r"DECISÃO DO DONO(?: \([^)\n]*\))?:\s*mais uma volta para\s+`?{}`?\.?(?=\s|$)"  # só a forma canônica (`format` com a branch)
 
 
 def numero_da_volta(blocos):
@@ -4253,11 +4254,25 @@ def numero_da_volta(blocos):
 
 def voltas_autorizadas(cobradas, branch):
     """G1.1 (ORDEM DO DONO 21/11 22:13): 1 volta por item, mais uma por linha `DECISÃO DO DONO` das fontes de `decisoes_cobradas`
-    que cita a branch pelo nome exato (nunca prefixo) e a volta."""
+    na forma canônica `DECISÃO DO DONO[ (data)]: mais uma volta para <branch>`, com o nome exato; a mesma linha em duas fontes vale uma."""
     if not branch:
         return 1
-    nome = re.compile(rf"(?<![\w./-]){re.escape(branch)}(?![\w/-]|\.\w)")
-    return 1 + sum(1 for _, linhas in cobradas["fontes"] for _, linha in linhas if nome.search(linha) and re.search(VOLTA_NA_DECISAO, linha))
+    canonica = re.compile(ABRE_A_DECISAO + VOLTA_NA_DECISAO.format(re.escape(branch)))
+    return 1 + len({linha for _, linhas in cobradas["fontes"] for _, linha in linhas if canonica.match(linha)})
+
+
+def voltas_da_branch(pasta, branch, anterior, proprio=None):
+    """G1.1: (voltas do item, sucessores do anterior) pelos briefs de `pasta` com `Volta-de:`: as voltas contam os da mesma `Branch:`
+    (o item, não a cadeia escolhida), os sucessores os que já apontam para o `anterior`; o `proprio` (o brief conferido) fica fora."""
+    voltas = sucessores = 0
+    for arq in sorted(Path(pasta).glob("*.md")):  # só o começo: `Volta-de:` e `Branch:` moram no cabeçalho (milhares de briefs)
+        with open(arq, "rb") if arq.is_file() and arq.resolve() != proprio else io.BytesIO() as f:
+            texto = f.read(4096).decode("utf-8", errors="replace")
+        m = VOLTA_DE.search(cabecalho_do_brief(texto))
+        if m:
+            voltas += bool(branch) and grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(texto)) == branch
+            sucessores += Path(pasta, Path(m.group(1)).name).resolve() == Path(anterior).resolve()
+    return voltas, sucessores
 
 
 def recusa_da_volta(n, cobradas, branch):
@@ -4267,7 +4282,7 @@ def recusa_da_volta(n, cobradas, branch):
     return (f"volta {n} recusada para {nome_seguro(sem_controle(branch or '<branch>'))}: no máximo 1 volta por item (R-QA; CI vermelho e conflito com a base entram no mesmo brief "
             "de volta e não contam). Corrigir: leve ao dono como decisão (R-DECISAO), com três opções: (a) cortar o item e reabrir menor; "
             "(b) aceitar com cartão, só sem bloqueante de segurança; (c) autorizar mais uma volta, gravada no pedido como "
-            "`- AAAA-MM-DD HH:MM: DECISÃO DO DONO: mais uma volta para <a branch acima>` (uma linha por volta a mais)")
+            "`- AAAA-MM-DD HH:MM: DECISÃO DO DONO: mais uma volta para <a branch acima>` (só essa forma canônica conta; uma linha por volta a mais)")
 
 
 def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
@@ -4287,9 +4302,13 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
     pedido_id = m.group(1) if m else caminho_pedido.stem
     branch = a.branch or grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(anterior)) or a.ref  # P5: o --ref não vira Branch
-    n = numero_da_volta(blocos_literais(anterior)) + 1
+    do_item = grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(anterior))  # G1.1: a do anterior, nunca o --branch
+    voltas, sucessores = voltas_da_branch(arquivo.parent, do_item, arquivo)
+    if sucessores:  # G1.1: a volta sai do último brief do item
+        return None, 1, [f"brief gerar --volta: {caminho_impresso(rel_volta)} já tem volta; Corrigir: gere a partir do último brief da branch"]
+    n = max(numero_da_volta(blocos_literais(anterior)), voltas) + 1
     cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt)
-    if recusa := recusa_da_volta(n, cobradas, branch):  # G1.1: nada gerado acima do teto
+    if recusa := recusa_da_volta(n, cobradas, do_item):  # G1.1: nada gerado acima do teto
         return None, 1, [f"brief gerar --volta: {recusa}"]
     fora, erro = conferidos_fora_da_ref(raiz, pedido_txt, ref, branch)
     pareceres, erro = (None, erro) if erro else pareceres_da_volta(raiz, pedido_id, ref, a.parecer, fora)
@@ -4393,7 +4412,7 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     return "".join(saida), 0, []
 
 
-def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=None):
+def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=None, proprio=None):
     """Linhas `volta:` de um brief com `Volta-de:` (M7): o anterior pelo sha256, os blocos copiados, as decisões do dono e todo achado
     bloqueante dos pareceres no Entregar ou cortado com a marca. Lista de (linha, reprova)."""
     m = VOLTA_DE.search(texto)
@@ -4417,8 +4436,11 @@ def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=N
     n_anterior, n = numero_da_volta(antigos), numero_da_volta(novos)
     if n != n_anterior + 1:  # G1.1: o brief à mão não recomeça a contagem nem a pula
         saida.append((f"volta: numeração contornada: Entregar (volta {n}) depois de (volta {n_anterior}); Corrigir: gere com `forge-check brief gerar --volta`", True))
-    branch_da_volta = grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(texto))  # sem `Branch:`, teto 1 (falha fechada)
-    if recusa := recusa_da_volta(n_anterior + 1, cobradas or {"fontes": [("", linhas_de_decisao(pedido_txt))]}, branch_da_volta):
+    do_item = grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(anterior))  # a do anterior; sem `Branch:`, teto 1 (falha fechada)
+    voltas, sucessores = voltas_da_branch(arquivo.parent, do_item, arquivo, proprio)
+    if sucessores:
+        saida.append((f"volta: o anterior {nome_seguro(m.group(1))} já tem volta; Corrigir: gere a partir do último brief da branch", True))
+    if recusa := recusa_da_volta(max(n_anterior, voltas) + 1, cobradas or {"fontes": [("", linhas_de_decisao(pedido_txt))]}, do_item):
         saida.append((f"volta: {recusa}", True))
     for linha in [l for l in antigos.get("Fora do escopo", []) if MARCA_DE_CORTE in l]:  # o corte do dono não some na volta
         if linha.rstrip("\n") not in [l.rstrip("\n") for l in novos.get("Fora do escopo", [])]:
@@ -8705,7 +8727,9 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     linhas += [(a, not a.startswith("aviso:")) for a in avisos_do_historico(pedido_txt) + aviso_de_recibo(pedido_txt)]
     linhas += travas_dos_evals(texto, secoes_por(texto, CABECALHO_BRIEF), pedido_id)
     if re.search(r"^Volta-de:", texto, re.M):  # brief de volta (M7): o anterior, os blocos copiados e os achados dos pareceres
-        linhas += conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, pareceres, cobradas)
+        linhas += conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, pareceres, cobradas, Path(brief).resolve())
+    elif numero_da_volta(blocos_literais(texto)):  # G1.1: a volta sem `Volta-de:` fugiria da contagem
+        linhas.append(("volta: Entregar (volta N) sem a linha Volta-de; Corrigir: gere com `forge-check brief gerar --volta`", True))
     return pedido_id, linhas
 
 

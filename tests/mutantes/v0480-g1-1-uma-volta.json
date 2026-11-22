@@ -6,25 +6,31 @@
       "id": "M1",
       "guarda": "sem branch lida, nenhuma decisão autoriza volta a mais (o padrão vazio casaria com tudo)",
       "arquivo": "bin/forge-check",
-      "de": "    if not branch:\n        return 1\n    nome = re.compile(",
-      "para": "    if False:\n        return 1\n    nome = re.compile(",
-      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_sem_branch_nenhuma_decisao_autoriza"]
+      "de": "    if not branch:\n        return 1\n    canonica = re.compile(",
+      "para": "    if False:\n        return 1\n    canonica = re.compile(",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_sem_branch_nenhuma_decisao_autoriza"
+      ]
     },
     {
       "id": "M2",
-      "guarda": "a decisão só autoriza se citar a volta, não só a branch",
+      "guarda": "só a forma canônica autoriza, não qualquer linha que cite a branch",
       "arquivo": "bin/forge-check",
-      "de": "if nome.search(linha) and re.search(VOLTA_NA_DECISAO, linha))",
-      "para": "if nome.search(linha))",
-      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_volta_dois_so_com_decisao_do_dono_que_cita_a_branch"]
+      "de": "if canonica.match(linha)})",
+      "para": "if branch in linha})",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_so_a_forma_canonica_autoriza_e_uma_linha_vale_uma_volta"
+      ]
     },
     {
       "id": "M3",
-      "guarda": "a branch vale pelo nome exato, nunca por prefixo",
+      "guarda": "a forma canônica vem logo depois do prefixo da decisão, nunca no meio da linha",
       "arquivo": "bin/forge-check",
-      "de": "{re.escape(branch)}(?![\\w/-]|\\.\\w)\")",
-      "para": "{re.escape(branch)}\")",
-      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_volta_dois_so_com_decisao_do_dono_que_cita_a_branch"]
+      "de": "re.compile(ABRE_A_DECISAO + VOLTA_NA_DECISAO",
+      "para": "re.compile(\".*\" + VOLTA_NA_DECISAO",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_so_a_forma_canonica_autoriza_e_uma_linha_vale_uma_volta"
+      ]
     },
     {
       "id": "M4",
@@ -32,15 +38,19 @@
       "arquivo": "bin/forge-check",
       "de": "    if n <= voltas_autorizadas(cobradas, branch):",
       "para": "    if True:",
-      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_volta_dois_so_com_decisao_do_dono_que_cita_a_branch"]
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_dois_so_com_decisao_do_dono_que_cita_a_branch"
+      ]
     },
     {
       "id": "M5",
       "guarda": "o brief gerar --volta não gera acima do teto",
       "arquivo": "bin/forge-check",
-      "de": "    if recusa := recusa_da_volta(n, cobradas, branch):  # G1.1: nada gerado acima do teto",
+      "de": "    if recusa := recusa_da_volta(n, cobradas, do_item):  # G1.1: nada gerado acima do teto",
       "para": "    if False:  # G1.1: nada gerado acima do teto",
-      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_volta_dois_so_com_decisao_do_dono_que_cita_a_branch"]
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_dois_so_com_decisao_do_dono_que_cita_a_branch"
+      ]
     },
     {
       "id": "M6",
@@ -48,15 +58,19 @@
       "arquivo": "bin/forge-check",
       "de": "    if n != n_anterior + 1:  # G1.1: o brief à mão não recomeça a contagem nem a pula",
       "para": "    if False:  # G1.1: o brief à mão não recomeça a contagem nem a pula",
-      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_conferencia_recusa_a_numeracao_contornada"]
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_conferencia_recusa_a_numeracao_contornada"
+      ]
     },
     {
       "id": "M7",
       "guarda": "a conferência recusa a volta acima do teto sem a decisão",
       "arquivo": "bin/forge-check",
-      "de": "    if recusa := recusa_da_volta(n_anterior + 1, cobradas or",
-      "para": "    if False and recusa_da_volta(n_anterior + 1, cobradas or",
-      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_conferencia_recusa_a_numeracao_contornada"]
+      "de": "    if recusa := recusa_da_volta(max(n_anterior, voltas) + 1, cobradas or",
+      "para": "    if False and recusa_da_volta(max(n_anterior, voltas) + 1, cobradas or",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_conferencia_recusa_a_numeracao_contornada"
+      ]
     }
   ]
 }
