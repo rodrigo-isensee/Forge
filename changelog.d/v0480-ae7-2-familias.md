@@ -1,0 +1,2 @@
+### Adicionado
+- AE7.2 (v0478 E107.1): o comparador do 'só aperta' soma ao corpus as famílias geradas de tests/comparar/geradores.py (semente fixa, impressa na linha familias:) e ganha o alvo entrega, que roda o bin/forge-check da base e do head em repositórios de fixture; o afrouxamento autorizado do E50 (#734) aparece como aceite-novo contra a base anterior. A opção --alvo na CLI fica para o AE7.3.

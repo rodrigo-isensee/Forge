@@ -32,18 +32,28 @@ Quem consome exige a linha `so-aperta: medido base=<sha> head=<sha>`, não só o
 com head deste repositório e sob o sandbox. Limites declarados (não reprovam): liberação que não passa por hook (código de
 `bin/` e `scripts/`, instrução de agente, permissão do projeto ou do usuário; `so-aperta: medido` fala dos hooks, não do
 plugin inteiro); o que o instalador ou o Claude Code passarem a ler depois da versão sondada; hook que detecta o ambiente
-sintético (assunto do code review); o corpus é finito."""
+sintético (assunto do code review); o corpus é finito.
+
+AE7.2 (v0478 E107.1): o corpus de cada lado soma as famílias geradas por `tests/comparar/geradores.py` daquele lado, rodado
+com `python3 -I - <SEMENTE>` (semente fixa, impressa em `familias: semente=<n> <família>=<casos>`); gerador que falha é
+`nao-verificavel`, e o caso gerado que some no head é `corpus-removido`, como o do corpus. Alvo `entrega` (`executar_entrega`;
+a opção na CLI é do AE7.3): o `bin/forge-check` da base e do head, cada um extraído inteiro, rodado em cada repositório de
+fixture (uma cópia por lado e caso, HOME e TMPDIR próprios); rc 0 é aceite, outro rc, prazo ou erro é recusa."""
 import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
+import sys
 import tempfile
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 CORPUS = "tests/comparar/corpus.jsonl"
+GERADORES, SEMENTE = "tests/comparar/geradores.py", 478  # AE7.2: a semente é deste código, nunca da árvore medida
+ENTREGA, PRAZO_ENTREGA = "bin/forge-check", 120
 REF = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._/-]{0,199}")
 AMBIENTE = ("PATH", "LANG", "LC_ALL", "LC_CTYPE", "USER", "LOGNAME", "SHELL", "TERM")  # HOME e TMPDIR: os do lado
 RECUSA, PERGUNTA, ACEITE, ALLOW = 0, 1, 2, 3  # A1: `allow` pula a pergunta ao usuário, libera mais que o silêncio
@@ -75,15 +85,32 @@ def caso_valido(caso):
                                                    and ".." not in Path(r).parts for r, t in arquivos.items()))
 
 
+def gerados_de(ctx, raiz, sha):
+    """AE7.2: o JSONL das famílias geradas em `sha` (o gerador daquele lado, `python3 -I`, num temporário, com a SEMENTE); ""
+    sem o arquivo; None se o git ou o gerador falha ou passa do prazo."""
+    if ctx["git"](raiz, "cat-file", "-e", f"{sha}:{GERADORES}")[0] != 0:
+        return ""
+    cod, codigo = ctx["git"](raiz, "cat-file", "blob", f"{sha}:{GERADORES}", bruto=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            r = subprocess.run([sys.executable, "-I", "-", str(SEMENTE)], input=codigo, cwd=tmp, capture_output=True, timeout=60,
+                               env=dict({k: os.environ[k] for k in AMBIENTE if k in os.environ}, HOME=tmp, TMPDIR=tmp))
+        except (subprocess.TimeoutExpired, OSError):
+            return None
+    return r.stdout.decode("utf-8", "replace") if cod == 0 and r.returncode == 0 else None
+
+
 def corpus_de(ctx, raiz, sha):
-    """{id: linha canônica} do corpus em `sha`; {} sem o arquivo; None se uma linha não é caso ou repete um id."""
-    if ctx["git"](raiz, "cat-file", "-e", f"{sha}:{CORPUS}")[0] != 0:
-        return {}
-    cod, texto = ctx["git"](raiz, "cat-file", "blob", f"{sha}:{CORPUS}")
-    if cod != 0:
+    """{id: linha canônica} do corpus em `sha` mais as famílias geradas (AE7.2); {} sem os dois; None se uma linha não é caso,
+    repete um id ou o gerador falha."""
+    gerados = gerados_de(ctx, raiz, sha)
+    cod, texto = 0, ""
+    if ctx["git"](raiz, "cat-file", "-e", f"{sha}:{CORPUS}")[0] == 0:
+        cod, texto = ctx["git"](raiz, "cat-file", "blob", f"{sha}:{CORPUS}")
+    if cod != 0 or gerados is None:
         return None
     casos = {}
-    for linha in filter(str.strip, texto.splitlines()):
+    for linha in filter(str.strip, (texto + "\n" + gerados).splitlines()):
         try:
             caso = json.loads(linha)
         except ValueError:
@@ -298,10 +325,60 @@ def medir(ctx, raiz, sha, casos, sessao):
             return dict(zip(sorted(casos), fila.map(lambda i: rodar_caso(ctx, arvore, json.loads(casos[i]), sessao), sorted(casos))))
 
 
+def medir_entrega(ctx, raiz, sha, casos):
+    """AE7.2, alvo `entrega`: {id: nível} do `bin/forge-check` de `sha` em cada fixture de `casos` ({id: (pasta, argv)}): a árvore
+    extraída inteira e uma cópia própria de cada fixture, num temporário do lado, com HOME e TMPDIR próprios; rc 0 é aceite,
+    outro rc, prazo ou erro é recusa. None se a extração falha."""
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        arvore, home = Path(tmp) / "plugin", Path(tmp) / "home"
+        if not extrair(ctx, raiz, sha, arvore):
+            return None
+        home.mkdir()
+        ambiente = dict({k: os.environ[k] for k in AMBIENTE if k in os.environ}, HOME=str(home), TMPDIR=str(home))
+        niveis = {}
+        for n, i in enumerate(sorted(casos)):
+            pasta, argv = casos[i]
+            copia = Path(tmp) / f"fixture-{n}"
+            try:
+                shutil.copytree(pasta, copia, symlinks=True)
+                r = subprocess.run([sys.executable, "-I", str(arvore / ENTREGA), "--raiz", str(copia), *argv], cwd=copia,
+                                   env=ambiente, capture_output=True, timeout=PRAZO_ENTREGA)
+                niveis[i] = ACEITE if r.returncode == 0 else RECUSA
+            except (subprocess.TimeoutExpired, OSError, shutil.Error):
+                niveis[i] = RECUSA
+        return niveis
+
+
+def executar_entrega(ctx, raiz, base, head, casos):
+    """AE7.2: o alvo `entrega` sobre `casos` ({id: (pasta do repositório de fixture, argv do forge-check)}), a base antes; rc 0
+    nada aceito a mais, 1 `aceite-novo`, 2 `nao-verificavel` (sem caso, fixture que não é repositório, extração que falha)."""
+    heads = {i: ctx["git"](Path(p), "rev-parse", "--verify", "--quiet", "HEAD") for i, (p, _) in casos.items()}
+    if not casos or any(cod != 0 for cod, _ in heads.values()):
+        print("so-aperta: nao-verificavel (alvo entrega sem fixture ou com fixture que não é repositório)")
+        return 2
+    resumo = hashlib.sha256(json.dumps([[i, list(casos[i][1]), heads[i][1]] for i in sorted(casos)]).encode()).hexdigest()
+    lado_base = medir_entrega(ctx, raiz, base, casos)
+    lado_head = None if lado_base is None else medir_entrega(ctx, raiz, head, casos)
+    if lado_head is None:
+        print("so-aperta: nao-verificavel (extração da árvore falhou)")
+        return 2
+    novos = [f"aceite-novo: {ctx['seguro'](i)} base={NOMES[lado_base[i]]} head={NOMES[lado_head[i]]}"
+             for i in sorted(casos) if lado_head[i] > lado_base[i]]
+    print("\n".join([f"so-aperta: medido alvo=entrega base={base} head={head} corpus={resumo} casos={len(casos)} "
+                     f"aceites-novos={len(novos)}", *novos]))
+    return 1 if novos else 0
+
+
 def executar(a, raiz, ctx):
     base, head = sha_de(ctx, raiz, a.base), sha_de(ctx, raiz, a.head)
     if base is None or head is None:
         print("so-aperta: nao-verificavel (base ou head não é commit deste repositório)")
+        return 2
+    alvo = getattr(a, "alvo", "hooks")  # AE7.2: a opção `--alvo` na CLI é do AE7.3
+    if alvo == "entrega":
+        return executar_entrega(ctx, raiz, base, head, getattr(a, "fixtures", None) or {})
+    if alvo != "hooks":
+        print(f"so-aperta: nao-verificavel (alvo {ctx['seguro'](str(alvo))} desconhecido)")
         return 2
     corpus_base, corpus_head = corpus_de(ctx, raiz, base), corpus_de(ctx, raiz, head)
     if corpus_base is None or corpus_head is None or not {**corpus_head, **corpus_base}:
@@ -327,6 +404,8 @@ def executar(a, raiz, ctx):
         if h > b or reescreve:
             novos.append(f"aceite-novo: {ctx['seguro'](i)} base={NOMES[b]} head={NOMES[h]}"
                          + (" entrada-reescrita" if reescreve else ""))
+    familias = sorted({i.split("/")[1] for i in casos if i.startswith("gerada/") and i.count("/") == 2})
+    cobertura = " ".join(f"{f}={sum(i.startswith(f'gerada/{f}/') for i in casos)}" for f in familias)
     print("\n".join([f"so-aperta: medido base={base} head={head} corpus={resumo} casos={len(casos)} aceites-novos={len(novos)}",
-                     *novos, *(f"corpus-removido: {ctx['seguro'](i)}" for i in removidos)]))
+                     *([f"familias: semente={SEMENTE} {cobertura}"] if familias else []), *novos, *(f"corpus-removido: {ctx['seguro'](i)}" for i in removidos)]))
     return 1 if novos or removidos else 0
