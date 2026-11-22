@@ -3,36 +3,42 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-vigia-time-parado
-commit: 3821ad143130324a498d684791a557929056af69
-parecer: reprovado
+commit: b13b7016c1fd7dd1796ea1f84a0cab672fc44c71
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-22
 ---
-# Review de segurança: v0478 (E105.4, VIGIA-TIME-PARADO)
+# Review de segurança: v0478 (E105.8, VIGIA-TIME-PARADO, revalidação)
 
-Revisão completa única do diff 900bfdfe..3821ad14 (`hooks/vigia.py`, `tests/test_vigia_parado.py`, duas fixtures com HOME isolado, duas specs de mutante, fragmento do changelog).
+Volta por delta sobre o parecer de 4822ad8e (head 3821ad14). Delta lido (`forge-check parecer delta`, 3821ad14..b13b7016), no domínio: `hooks/vigia.py`, `docs/hooks.md`. Fora do domínio e não relidos: testes, specs de mutante, `tests/pesos-d4.json`, fragmento do changelog. Já lido na rodada anterior e sem mudança: o resto do diff 900bfdfe..3821ad14.
 
-Gatilhos: hook de controle (o vigia passa a decidir o `Stop` da sessão e a escrever texto ao modelo).
+Gatilhos: hook de controle (o vigia decide o `Stop` da sessão e escreve texto ao modelo).
 
 ## Achados
-- A1 (bloqueante) hooks/vigia.py:620 · o Stop bloqueado com `reason` põe texto no contexto do modelo ("retome sem esperar o dono"), o que a ADR 0003 item 1 proíbe (a emenda da exceção é proposta e só cobre o SessionStart); a docstring em hooks/vigia.py:24 ainda diz que a saída é só systemMessage
-- A2 (recomendado) hooks/vigia.py:542 · `ler_quadro` abre o KANBAN.md com `open()`, segue link e espera FIFO: um KANBAN.md que é FIFO prende o hook até o timeout de 10 s em cada Stop; usar a abertura de `agentes.ler_estado` (O_NOFOLLOW, O_NONBLOCK, só arquivo regular)
-- A3 (recomendado) hooks/vigia.py:529 · só três marcas de dependência; no quadro real, 40 dos 76 cartões tidos por livres têm na Obs. "depois do", "DECISÃO DO DONO", "espera" ou "bloqueado"; o aviso manda retomar sem esperar o dono e pode apontar cartão que depende de decisão (R-DECISAO)
-- A4 (recomendado) hooks/vigia.py:578 · o bloqueio vale para o Stop de qualquer sessão principal no projeto ou no clone do Forge, não só a do Jarvis: uma sessão aberta pelo dono para outra coisa recebe a ordem de retomar cartões sem esperá-lo
+- A1 (bloqueante) hooks/vigia.py:626 · resolvido: reason ao modelo agora coberto pelo item 7 da emenda da ADR 0003 (melhoria/v0480-ordens-adr, e7a94603); o código segue o item 7: só Stop, só sessão do Jarvis, texto fixo, ID por lista positiva, uma vez por vez
+- A2 (recomendado) hooks/vigia.py:560 · resolvido: ler_quadro abre com O_NOFOLLOW e O_NONBLOCK e exige arquivo regular (fstat); link e FIFO calam e vão ao erros.log
+- A3 (recomendado) hooks/vigia.py:534 · resolvido: sete marcas comparadas sem caixa e sem espaço repetido, mais Responsável usuário pelo cabeçalho; no quadro real, livres caem de 76 para 27
+- A4 (recomendado) hooks/vigia.py:545 · resolvido: sessao_do_jarvis exige agent_type no papel jarvis de conformidade.json; sem agent_type ou de outro agente, cala
+
+## Detalhe
+**A1 contra o item 7**, regra por regra:
+- Só a sessão principal: `aviso_time_parado` sai em `hook_event_name != "Stop"` (`hooks/vigia.py:611`) e em `sessao_do_jarvis` falso (`:616`); `agent_type` vem de `papeis.jarvis` = `["forge:jarvis"]`. Sem `agent_type`, silêncio (falha fechada).
+- Texto fixo: `hooks/vigia.py:626-627`; `<N>` é `len()`; `<ID>` só com `fullmatch` de `[A-Za-z0-9.-]{1,16}`, fora disso a linha sai sem `, primeiro`. O prefixo `Forge:` saiu do `reason` (`:655`), como o item 7 fixa. Nenhum texto livre do quadro entra.
+- Uma vez por vez: `stop_hook_active is True` sai antes (`:613`), e a saída segue com o `systemMessage` de sempre.
+- Nunca falha a sessão: tudo dentro do `try` com `registrar_erro`; código 0.
+- Determinístico: só disco (quadro, `agentes.json`), sem rede nem git novo.
+- Docstring (`:24-35`) e `docs/hooks.md` alinhados ao item 7.
+
+Condição: o item 7 só vale com a branch `melhoria/v0480-ordens-adr` mesclada antes desta, e o título do PR leva o rótulo `afrouxa-regra` (emenda da ADR 0003, "Afrouxa").
 
 ## Sondas
-- S1 · python3 -m unittest tests.test_vigia_parado.TimeParado.test_principal_bloqueia_o_stop_com_o_aviso · espera: saída sem texto ao modelo (ADR 0003 item 1) · obtido: OK; stdout {"decision": "block", "reason": "Forge: time parado: 1 cartões disponíveis, primeiro LIVRE-1; retome sem esperar o dono"}
+- S1 · reason montado com IDs de 16 e 17 letras, G1-X, dígitos arábicos, largura total, a_b, espaço de largura zero e um ponto, contra a expressão do item 7 · espera: todos casam; só os de formato entram · obtido: todos casam; entram o de 16, G1-X e o ponto
+- S2 · `cartoes_livres` sobre `~/.forge-contrib/KANBAN.md` real (só leitura) · espera: menos livres que os 76 da rodada anterior, sem "depois do", "DECISÃO DO DONO", "espera", "bloqueado" na Obs. · obtido: 27 livres, nenhuma dessas marcas na Obs.
+- S3 · `python3 -m unittest tests.test_vigia_parado` · espera: OK · obtido: 22 testes, OK (inclui link, FIFO, sessão do Jarvis, ID fora do formato e o `principal` com o JSON exato)
 
-## Detalhe dos achados
-**A1.** Evidência: `hooks/vigia.py:618-622` monta `{"decision": "block", "reason": ...}`; o `reason` do Stop bloqueado é entregue ao modelo como instrução para continuar. A ADR 0003 (citada no brief como decisão em vigor), item 1: hook nunca injeta contexto; a seção da emenda diz que nenhum hook injeta contexto até o PR dela, e a exceção proposta é só o `SessionStart` com a saída do `forge-check proximo`, com parecer de segurança da classe H11 e critério de reversão por mudança de comportamento da sessão. Este hook existe justamente para mudar o comportamento da sessão. A ordem do dono de 22/11 05:30 pede que o vigia "acuse" o time parado; não traz a emenda da ADR. Caminho: não há atacante externo (o texto é fixo e o ID passa pelo filtro `_ID_DO_CARTAO`, o que está bem feito); o defeito é de requisito: um controle novo que contraria a ADR vigente sem decisão registrada. Severidade: média (governança dos hooks). Correção mínima, uma das duas: (a) acusar por `systemMessage` ao dono, sem `decision`/`reason`, como o resto do vigia; ou (b) emenda da ADR 0003 aceita pelo dono que autorize o bloqueio do Stop com texto fixo (a E104.2 já emenda a ADR para outro hook e pode levar esta exceção), com a docstring de `hooks/vigia.py:24` e `:28-33` alinhada. Esforço: P (a) ou M (b). Dono: tech-lead (código); software-architect (emenda), decisão do dono (R-DECISAO).
-
-**A2.** Evidência: `hooks/vigia.py:539-549`. Sonda local: KANBAN.md criado com `mkfifo` numa pasta temporária, `ler_quadro` ainda preso depois de 3 s; link para arquivo fora da raiz é seguido. O git não versiona FIFO, então o caminho exige escrita local na raiz; o link versionado só aponta para um arquivo cujo conteúdo sai como contagem e um ID filtrado (sem vazamento útil). Severidade: baixa (atraso de 10 s por Stop, depois o Claude Code mata o hook). Correção mínima: abrir como `agentes.ler_estado` (`hooks/agentes.py:419-426`): `os.open` com `O_RDONLY | O_NOFOLLOW | O_NONBLOCK`, `fstat` exigindo arquivo regular, e tratar o resto como "sem quadro". Esforço: P. Dono: tech-lead.
-
-**A3.** Evidência: `MARCAS_DE_DEPENDENCIA` em `hooks/vigia.py:529` = "depende de", "espera o dono", "aguardando o dono". Sobre o `~/.forge-contrib/KANBAN.md` real (só leitura), `cartoes_livres` devolve 76 cartões; 40 deles têm na Obs. marcas não reconhecidas: "depois do" (ex.: G2-PARECER-COMO-STATUS "depois do G1", G3-TESTES-UMA-VEZ "depois do G2"), "DECISÃO DO DONO", "espera", "bloqueado". Hoje o primeiro é livre de fato (G1-REVISAO-COMPLETA-SO), então o efeito imediato é pequeno; o risco é a frase "retome sem esperar o dono" apontar um cartão que depende do dono quando a ordem do quadro mudar. Correção mínima: ler a dependência pela mesma regra da fila provada (E106.1, `docs/kanban/fila-livre-2211.md`) ou acrescentar ao menos "depois d", "decisão do dono", "bloquead", e tirar "sem esperar o dono" do texto quando a classificação não é provada. Esforço: P. Dono: tech-lead.
-
-**A4.** Evidência: `hooks/vigia.py:578-581` só filtra o evento e `stop_hook_active`. O hook roda no Stop de toda sessão em projeto do Forge e no clone (`clone_do_forge=True`), inclusive a sessão aberta pelo dono sem o Jarvis. Caminho: o dono abre uma sessão para uma consulta; ao fim da resposta, o modelo recebe "retome sem esperar o dono" e pode começar trabalho que ninguém pediu naquela sessão. Correção mínima: restringir à sessão do Jarvis (marcador da sessão gravado no `SessionStart` do Jarvis, ou `agent_type` quando o cliente o envia) e, na dúvida, calar. Esforço: P a M. Dono: tech-lead.
-
-**O que está bem:** o ID que vai ao modelo passa por `fullmatch` de formato de ID (teste `test_id_fora_do_formato_nao_vai_ao_modelo`); a contagem é inteira; o laço é limitado por `stop_hook_active`; o `SubagentStop` não bloqueia; registro ilegível, sem diretório comum, quadro ausente ou acima de 4 MB calam e vão ao erros.log; a leitura do registro reaproveita `agentes.ler_estado` (sem seguir link, sem esperar FIFO). As fixtures com `HOME` isolado evitam que o teste leia o quadro real.
+## Cartões propostos (fora do delta, não bloqueiam)
+- VIGIA-FIXTURE-ITEM7 (dono: qa-engineer): o item 7 prevê mudar o laço das fixtures de `tests/test_hooks.py` (aceitar `decision`/`reason` só no `Stop`, com o `reason` casando a expressão do item 7) e quatro fixtures em `tests/hooks/vigia/` (bloqueia uma vez, `stop_hook_active` libera, ID fora do formato, subagente silencioso). Hoje o comportamento é coberto pelos testes de unidade de `tests/test_vigia_parado.py`, mas a guarda de ponta a ponta do critério de reversão ("reason com texto fora do formato fixo") não existe no laço.
+- Observação funcional: com o teto de 16 caracteres, a maioria dos IDs reais (o primeiro livre hoje tem 28) sai sem `, primeiro <ID>`. É o que a ADR fixa; não é defeito de segurança.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Rodados: `tests.test_vigia_parado` (15 testes, OK), sondas locais de FIFO e link sobre `ler_quadro` e `cartoes_livres` sobre o quadro real (só leitura). Suíte inteira: fica para o CI do PR (por brief). Ferramentas de SAST e varredura de segredos não estão no PATH: lacuna registrada.
+Nenhum risco aceito. Suíte inteira: fica para o CI do PR (por brief). Ferramentas de SAST e varredura de segredos não estão no PATH: lacuna registrada.
