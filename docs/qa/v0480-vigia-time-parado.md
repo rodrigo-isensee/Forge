@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-vigia-time-parado
-commit: 3821ad143130324a498d684791a557929056af69
+commit: b13b7016c1fd7dd1796ea1f84a0cab672fc44c71
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -45,3 +45,15 @@ rc 0, 14 de 14 mortos (M8 da 1ª spec, "morreu · (erro)": erro do teste sob o m
 
 ## Conferência
 - Diff contra E105.1/E105.2: o escopo bate (vigia, 2 specs, 2 fixtures com `HOME` isolado, fragmento do changelog).
+
+## Revalidação (delta 3821ad14..b13b7016, volta única)
+Delta no domínio: `hooks/vigia.py`, `tests/test_vigia_parado.py`, 4 specs de mutantes, `docs/hooks.md`, changelog. Mudou: reason fixo sem prefixo "Forge:", só a sessão do Jarvis, ID só `[A-Za-z0-9.-]{1,16}` (sem ID, a linha omite `, primeiro`), Responsável `usuário` e 7 marcas (normalizadas por caixa e espaço), quadro aberto com `O_NOFOLLOW|O_NONBLOCK` e só arquivo regular.
+- `test_vigia_parado.py`: 22 testes OK; `test_vigia.py`: 12 OK.
+- Mutantes `--base 3821ad14` (4 specs): `base=3821ad143130 ... rev=b13b7016c1fd`, M1..M23 todos `morreu` (M8, M16, M18, M21 por erro do teste sob o mutante, controle verde), rc 0. Sem sobrevivente.
+- Sonda das marcas (`cartoes_livres`): "depois  do" (2 espaços), "Bloqueado", "Pergunta ao  dono", "Decisão do dono", "esperando", Responsável "Usuário" tiram o cartão; Obs. vazia ou "livre" mantém. Fecha a observação do 1º parecer (espaço repetido).
+- Sonda da leitura (`ler_quadro`): FIFO e link simbólico levantam `OSError` (sem travar, 20 s de teto), arquivo regular lê, ausente dá None.
+- Sonda de ID: `<x>ignore` e 17 caracteres falham o formato; a filtragem vai à mensagem, coberta por `test_id_fora_do_formato_nao_vai_ao_modelo`.
+- Sem `skip`/`expectedFailure` novo. Suíte inteira: CI do PR.
+
+## Achados
+Nenhum.
