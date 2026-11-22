@@ -2679,10 +2679,21 @@ class Hooks(unittest.TestCase):
     def test_t1_fatia_4_variantes_que_o_bash_ignora_nao_tiram_comando_da_leitura(self):
         self.verificar_t1_da_fatia(3)
 
+    def corpus_da_fatia(self, k):
+        """O corte do T1: a fatia `k` do corpus (`corpus[k::FATIAS_DO_T1]`). Uma função só: as fatias e o teste de
+        cobertura a usam, então mudar o corte quebra a cobertura."""
+        return list(self.corpus_de_recusas())[k::FATIAS_DO_T1]
+
+    def test_fatias_travadas_aos_metodos(self):
+        """As constantes de fatias batem com o número de métodos `test_fixtures_fatia_*` e `test_t1_fatia_*`."""
+        nomes = dir(self)
+        self.assertEqual(sum(n.startswith("test_fixtures_fatia_") for n in nomes), FATIAS_DE_FIXTURES)
+        self.assertEqual(sum(n.startswith("test_t1_fatia_") for n in nomes), FATIAS_DO_T1)
+
     def test_t1_as_fatias_cobrem_todo_o_corpus(self):
         """A união das fatias do T1 é o corpus inteiro, sem repetição: dividir o T1 não tira linha da verificação."""
         corpus = list(self.corpus_de_recusas())
-        juntas = [linha for k in range(FATIAS_DO_T1) for linha in corpus[k::FATIAS_DO_T1]]
+        juntas = [linha for k in range(FATIAS_DO_T1) for linha in self.corpus_da_fatia(k)]
         self.assertEqual(sorted(juntas), sorted(corpus))
         self.assertEqual(len(juntas), len(corpus))
 
@@ -2701,7 +2712,7 @@ class Hooks(unittest.TestCase):
                 return None
 
         lidas = 0
-        for linha in list(self.corpus_de_recusas())[k::FATIAS_DO_T1]:
+        for linha in self.corpus_da_fatia(k):
             base = lidos(linha, todas=False) or []
             for prefixo, sufixo in VARIANTES_QUE_O_BASH_IGNORA:
                 if '$(' in prefixo and '"' in prefixo and ('"' in linha or _comum.CASE.search(linha)
