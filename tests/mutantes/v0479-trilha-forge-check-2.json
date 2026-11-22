@@ -7,7 +7,7 @@
       "guarda": "FC-DOCS-CAMINHO: --base lê o diff contra a origin/<base> dada",
       "arquivo": "bin/forge-check",
       "de": "        delta = documentos_do_delta(raiz, f\"origin/{base or 'develop'}\")",
-      "para": "        delta = documentos_do_delta(raiz, \"origin/develop\")",
+      "para": "        delta = documentos_do_delta(raiz, f\"origin/{'develop'}\")",
       "testes": [
         "tests.test_volta_por_delta.DocsEstritoNoDelta"
       ]
