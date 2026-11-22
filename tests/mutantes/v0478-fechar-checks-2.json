@@ -4,12 +4,12 @@
   "mutantes": [
     {
       "id": "FCK-M9",
-      "guarda": "com --armar, o passo 4 não espera os checks; o passo 6 recusa só o que já terminou com falha (FECHAR-CHECKS-ANTES-DO-MERGE, E75.6)",
+      "guarda": "FECHAR-SEM-AUTO-MERGE: check-run obrigatório pendente ou ausente não deixa mesclar (espera e relê)",
       "arquivo": "bin/forge-fechar",
-      "de": "    [ \"$armar\" = 0 ] || { echo \"--armar: os checks não são esperados aqui;",
-      "para": "    true || { echo \"--armar: os checks não são esperados aqui;",
+      "de": "    [ -n \"$falta\" ] || break",
+      "para": "    break",
       "testes": [
-        "tests.test_fechar_auto_merge.AutoMerge.test_armar_nao_espera_os_checks_e_sai_com_codigo_4"
+        "tests.test_fechar_auto_merge.SemAutoMerge.test_check_run_pendente_no_fim_do_prazo_para_sem_merge"
       ]
     }
   ]

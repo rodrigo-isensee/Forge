@@ -28,6 +28,8 @@ if [ "$1" = api ] && [[ "$2" != "repos/{owner}/{repo}/commits/"* ]]; then
 fi
 '''
 CASO = 'case "$1 $2" in\n'
+# E114.5 (A3 da segurança): o passo 6 confere também o exigido do ruleset nos check-runs do head; aqui ele vem verde
+RUNS_COM_LINT = "bateria\t1\tcompleted\tsuccess\nbateria (python 3.14)\t2\tcompleted\tsuccess\ncatraca\t3\tcompleted\tsuccess\nlint\t4\tcompleted\tsuccess\n"
 
 
 class FecharExigidosDoDestino(unittest.TestCase):
@@ -53,6 +55,7 @@ class FecharExigidosDoDestino(unittest.TestCase):
     def test_exigido_do_ruleset_de_qualquer_workflow_em_pass_mescla(self):
         (self.estado / "api_regras").write_text("lint\n")
         self.leituras([*exig.OK, "lint\tpass\t1m\turl\tQualquer"])
+        (self.estado / "check_runs").write_text(RUNS_COM_LINT)
         r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "0")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("exigidos em pass: CI/bateria CI/bateria (python 3.14) Catraca/catraca */lint)", r.stdout)
@@ -63,6 +66,7 @@ class FecharExigidosDoDestino(unittest.TestCase):
     def test_ruleset_ilegivel_nao_acrescenta_e_a_protecao_vale(self):  # o corpo do 404 do ruleset não vira exigido
         (self.estado / "api_protecao").write_text("lint\n")
         self.leituras([*exig.OK, "lint\tpass\t1m\turl"])
+        (self.estado / "check_runs").write_text(RUNS_COM_LINT)
         r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "0")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("exigidos em pass: CI/bateria CI/bateria (python 3.14) Catraca/catraca */lint)", r.stdout)
