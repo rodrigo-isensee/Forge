@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_volta_por_delta.BriefDeVolta.test_volta_de_outro_item_nao_conta"
       ]
+    },
+    {
+      "id": "M23",
+      "guarda": "a forma canônica vale até o fim da linha (review A4)",
+      "arquivo": "bin/forge-check",
+      "de": "`?{}`?\\.?\\s*$\"",
+      "para": "`?{}`?\\.?(?=\\s|$)\"",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_so_a_forma_canonica_autoriza_e_uma_linha_vale_uma_volta"
+      ]
     }
   ]
 }

@@ -4244,7 +4244,7 @@ def fora_do_escopo_do_pedido(dados, cobre, entregues, anterior=()):
 
 
 VOLTA_NO_ENTREGAR = r"\bvolta (\d+)"  # `grupo` compila (re.M)
-VOLTA_NA_DECISAO = r"DECISÃO DO DONO(?: \([^)\n]*\))?:\s*mais uma volta para\s+`?{}`?\.?(?=\s|$)"  # só a forma canônica (`format` com a branch)
+VOLTA_NA_DECISAO = r"DECISÃO DO DONO(?: \([^)\n]*\))?:\s*mais uma volta para\s+`?{}`?\.?\s*$"  # só a forma canônica, até o fim da linha (`format` com a branch; A4)
 
 
 def numero_da_volta(blocos):
@@ -4275,6 +4275,17 @@ def voltas_da_branch(pasta, branch, anterior, proprio=None):
     return voltas, sucessores
 
 
+def branch_do_anterior_diferente(do_item, branch):
+    """G1.1 (segurança A2, S7 e S8): o motivo de recusar a volta cujo anterior não tem `Branch:` ou tem outra que a do brief novo
+    (a contagem é pela do anterior; a volta, pela nova); None se as duas são a mesma."""
+    if not do_item:
+        return ("não tem `Branch:`; Corrigir: passe em --volta o último brief do item (o que tem `Branch: <branch do item>`)")
+    if do_item != branch:
+        return (f"é de {nome_seguro(sem_controle(do_item))}, não de {nome_seguro(sem_controle(branch or '<branch>'))}; "
+                "Corrigir: passe em --volta o último brief deste item, sem --branch diferente da `Branch:` dele")
+    return None
+
+
 def recusa_da_volta(n, cobradas, branch):
     """G1.1: o motivo de recusar a volta `n` sem a decisão do dono (R-DECISAO), com o que fazer; None se ela cabe no teto."""
     if n <= voltas_autorizadas(cobradas, branch):
@@ -4303,6 +4314,8 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     pedido_id = m.group(1) if m else caminho_pedido.stem
     branch = a.branch or grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(anterior)) or a.ref  # P5: o --ref não vira Branch
     do_item = grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(anterior))  # G1.1: a do anterior, nunca o --branch
+    if motivo := branch_do_anterior_diferente(do_item, branch):  # G1.1 (segurança A2, S7 e S8)
+        return None, 1, [f"brief gerar --volta: {caminho_impresso(rel_volta)} {motivo}"]
     voltas, sucessores = voltas_da_branch(arquivo.parent, do_item, arquivo)
     if sucessores:  # G1.1: a volta sai do último brief do item
         return None, 1, [f"brief gerar --volta: {caminho_impresso(rel_volta)} já tem volta; Corrigir: gere a partir do último brief da branch"]
@@ -4437,6 +4450,8 @@ def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=N
     if n != n_anterior + 1:  # G1.1: o brief à mão não recomeça a contagem nem a pula
         saida.append((f"volta: numeração contornada: Entregar (volta {n}) depois de (volta {n_anterior}); Corrigir: gere com `forge-check brief gerar --volta`", True))
     do_item = grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(anterior))  # a do anterior; sem `Branch:`, teto 1 (falha fechada)
+    if motivo := branch_do_anterior_diferente(do_item, grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(texto))):
+        saida.append((f"volta: o anterior {nome_seguro(m.group(1))} {motivo}", True))
     voltas, sucessores = voltas_da_branch(arquivo.parent, do_item, arquivo, proprio)
     if sucessores:
         saida.append((f"volta: o anterior {nome_seguro(m.group(1))} já tem volta; Corrigir: gere a partir do último brief da branch", True))

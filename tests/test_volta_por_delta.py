@@ -826,7 +826,7 @@ class PqDeMerge(unittest.TestCase):
 class BriefDeVolta(Repositorio):
     """`brief gerar --volta` (M7) e a conferência de um brief com `Volta-de:`, contra os pareceres lidos da ref (C1 a C5)."""
     PEDIDO_FIXTURE = RAIZ / "tests" / "fixtures" / "brief" / "pedido.md"
-    ANTERIOR = RAIZ / "tests" / "fixtures" / "brief" / "etapa-outro-papel.md"
+    ANTERIOR = RAIZ / "tests" / "fixtures" / "brief" / "volta-anterior.md"  # G1.1: com `Branch: melhoria/x`
     ACHADOS = ("## Achados\n- A1 (bloqueante) src/app.txt:3 · a função perde o erro de domínio\n"
                "- A2 (recomendado) src/app.txt:7 · nome pouco claro\n- A3 (bloqueante) tests/x.py:10 · falta teste do caso de borda\n")
     REVIEW = ("---\ntipo: review\ncontrato: 1\npedido: pedido-sintetico\nbranch: melhoria/x\ncommit: {c}\nparecer: {p}\n"
@@ -1040,8 +1040,7 @@ class BriefDeVolta(Repositorio):
         def voltas(*linhas, branch="melhoria/x", fontes=1):
             return modulo.voltas_autorizadas({"fontes": [(f"p{i}", [(1, l) for l in linhas]) for i in range(fontes)]}, branch)
         for linha in ("DECISÃO DO DONO: mais uma volta para melhoria/x", "- DECISÃO DO DONO: mais uma volta para `melhoria/x`.",
-                      "- 2026-11-21 23:00: DECISÃO DO DONO: mais uma volta para melhoria/x.",
-                      "DECISÃO DO DONO (2026-11-21 23:00): mais uma volta para melhoria/x → \"pode\""):
+                      "- 2026-11-21 23:00: DECISÃO DO DONO: mais uma volta para melhoria/x.  "):
             with self.subTest(linha):
                 self.assertEqual(voltas(linha), 2)
         for linha, branch in (("DECISÃO DO DONO: nenhuma volta a mais para melhoria/x", "melhoria/x"),  # review S2
@@ -1051,7 +1050,9 @@ class BriefDeVolta(Repositorio):
                               ("DECISÃO DO DONO (2026-11-21 23:00): o dono volta na segunda; melhoria/v1-x espera", "melhoria/v1-x"),
                               ("DECISÃO DO DONO: aceita; DECISÃO DO DONO: mais uma volta para melhoria/x", "melhoria/x"),  # fora da âncora
                               ("DECISÃO DO DONO: mais uma volta para melhoria/xy", "melhoria/x"),
-                              ("DECISÃO DO DONO: mais uma volta para melhoria/x.y", "melhoria/x")):
+                              ("DECISÃO DO DONO: mais uma volta para melhoria/x.y", "melhoria/x"),
+                              ("DECISÃO DO DONO: mais uma volta para melhoria/x foi negada", "melhoria/x"),  # review A4: até o fim da linha
+                              ("DECISÃO DO DONO (2026-11-21 23:00): mais uma volta para melhoria/x → \"não\"", "melhoria/x")):
             with self.subTest(linha):
                 self.assertEqual(voltas(linha, branch=branch), 1)
         self.assertEqual(voltas("DECISÃO DO DONO: mais uma volta para melhoria/x", fontes=2), 2)  # review S3: a mesma linha em duas fontes
@@ -1063,9 +1064,9 @@ class BriefDeVolta(Repositorio):
         cabeca = f"Branch: {branch}   Base: develop\n" if branch else ""
         if volta_de:
             cabeca += f"Volta-de: {volta_de} sha256 {'0' * 64}\n"
-        linhas = self.ANTERIOR.read_text(encoding="utf-8").split("\n", 1)
+        linhas = [l for l in self.ANTERIOR.read_text(encoding="utf-8").split("\n") if not l.startswith("Branch:")]
         arq = self.repo / "docs" / "briefs" / nome
-        arq.write_text(f"{linhas[0]}\n{cabeca}{linhas[1]}", encoding="utf-8")
+        arq.write_text(f"{linhas[0]}\n{cabeca}" + "\n".join(linhas[1:]), encoding="utf-8")
         return f"docs/briefs/{nome}"
 
     def volta_de(self, texto, rel, conteudo):
@@ -1086,7 +1087,8 @@ class BriefDeVolta(Repositorio):
         outro = self.com_branch("pedido-sintetico-review-1.md")  # um brief do item sem `Volta-de:` não recomeça a conta
         rc, recusa = self.gerar("--branch", "melhoria/outra", volta=outro)
         self.assertEqual(rc, 1, recusa)
-        self.assertIn('volta 2 recusada para "melhoria/x"', recusa)  # a `Branch:` do anterior, nunca o --branch
+        self.assertIn('é de "melhoria/x", não de "melhoria/outra"', recusa)  # segurança A2: --branch diferente do anterior
+        self.assertEqual(self.gerar(volta=outro)[0], 1)  # sem --branch, a do anterior: volta 2 sem decisão
         self.autorizar("- DECISÃO DO DONO (2026-11-21): mais uma volta para melhoria/outra\n")
         self.assertEqual(self.gerar("--branch", "melhoria/outra", volta=outro)[0], 1)
         texto = self.volta_de(saida, outro, (self.repo / outro).read_bytes())
@@ -1119,6 +1121,35 @@ class BriefDeVolta(Repositorio):
         texto = self.volta_de(saida, "docs/briefs/pedido-sintetico-dev-exemplo-2.md", sem_branch.encode())
         rc, conferencia = self.conferir(texto.replace("## Entregar (volta 1)", "## Entregar (volta 2)"), nome="pedido-sintetico-dev-exemplo-3.md", ref=None)
         self.assertIn('volta: volta 2 recusada para "<branch>"', conferencia)
+        self.assertIn('volta: o anterior "docs/briefs/pedido-sintetico-dev-exemplo-2.md" não tem `Branch:`', conferencia)
+
+    def anterior_de_volta(self, branch):
+        """S7 e S8 (segurança A2): um brief de volta do item já existe; o `--volta` aponta outro, sem `Branch:` ou de outro item."""
+        rc, saida = self.gerar()
+        (self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md").write_text(saida, encoding="utf-8")
+        return saida, self.com_branch("pedido-sintetico-ato-1.md", branch=branch)
+
+    def test_s7_anterior_sem_branch_nao_gera_outra_volta_um(self):  # segurança S7
+        saida, anterior = self.anterior_de_volta(None)
+        rc, recusa = self.gerar("--branch", "melhoria/x", volta=anterior)
+        self.assertEqual(rc, 1, recusa)
+        self.assertIn(f'brief gerar --volta: {anterior} não tem `Branch:`; Corrigir:', recusa)
+        self.assertNotIn("## Entregar", recusa)
+        texto = self.volta_de(saida, anterior, (self.repo / anterior).read_bytes())
+        rc, conferencia = self.conferir(texto, nome="pedido-sintetico-dev-exemplo-3.md", ref=None)
+        self.assertEqual(rc, 1, conferencia)
+        self.assertIn(f'volta: o anterior "{anterior}" não tem `Branch:`', conferencia)
+
+    def test_s8_anterior_de_outro_item_nao_gera_outra_volta_um(self):  # segurança S8
+        saida, anterior = self.anterior_de_volta("melhoria/y")
+        rc, recusa = self.gerar("--branch", "melhoria/x", volta=anterior)
+        self.assertEqual(rc, 1, recusa)
+        self.assertIn(f'brief gerar --volta: {anterior} é de "melhoria/y", não de "melhoria/x"; Corrigir:', recusa)
+        self.assertNotIn("## Entregar", recusa)
+        texto = self.volta_de(saida, anterior, (self.repo / anterior).read_bytes())
+        rc, conferencia = self.conferir(texto, nome="pedido-sintetico-dev-exemplo-3.md", ref=None)
+        self.assertEqual(rc, 1, conferencia)
+        self.assertIn(f'volta: o anterior "{anterior}" é de "melhoria/y", não de "melhoria/x"', conferencia)
 
     def test_conferencia_sem_cobradas_le_as_decisoes_do_pedido(self):  # QA A2: o fallback `cobradas or` do conferir_volta
         rc, saida = self.gerar()

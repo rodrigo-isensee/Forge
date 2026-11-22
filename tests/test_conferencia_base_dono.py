@@ -299,7 +299,7 @@ class VoltaComABaseDoDono(Repositorio):
         self.pedido = self.fora / "docs" / "pedidos" / "pedido-sintetico.md"
         self.pedido.write_text(pedido + f"\n## Histórico\n- 2026-10-23 15:56: base do delta fixada pelo dono {self.c1}\n", encoding="utf-8")
         anterior = self.fora / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-1.md"
-        anterior.write_bytes((self.FIXTURES / "etapa-outro-papel.md").read_bytes())
+        anterior.write_bytes((self.FIXTURES / "volta-anterior.md").read_bytes())  # G1.1: o anterior traz a `Branch:`
 
     def gerar(self, *extra):
         return self.check("brief", "gerar", "--pedido", "pedido-sintetico", "--destino", "forge:dev-exemplo", "--volta",
