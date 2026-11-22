@@ -1,0 +1,27 @@
+{
+  "pedido": "v0480-promover-sem-auto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "a lista lida da linha CHECKS_EXIGIDOS vale; sem ela, nenhum obrigatorio",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "if m else []",
+      "para": "if m and False else []",
+      "testes": [
+        "tests.test_promover_homolog.ChecksObrigatorios.test_lista_ausente_vazia_ou_arquivo_faltando_para",
+        "tests.test_promover_homolog.ChecksObrigatorios.test_le_os_nomes_do_forge_fechar_real"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "cada obrigatorio julgado so pelas execucoes do proprio nome",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "if n == nome}",
+      "para": "if n != nome}",
+      "testes": [
+        "tests.test_promover_homolog.Execucao.test_obrigatorio_sem_execucao_do_pr_nao_imprime_merge"
+      ]
+    }
+  ]
+}
