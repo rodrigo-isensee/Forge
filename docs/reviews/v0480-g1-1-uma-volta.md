@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-g1-1-uma-volta
-commit: e103b9a634e630e698b5b78e046bee553eec7cd6
+commit: 45d1fc2728a489d04950a6a304369f6f4f6e8fa5
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-22
 ---
-# Review: v0478 · G1.1 (no máximo 1 volta por item), etapas E100.2, E100.6, E100.10 e E100.15
+# Review: v0478 · G1.1 (no máximo 1 volta por item), etapas E100.2, E100.6, E100.10, E100.15 e E100.20
 
 Revisão única (ORDEM DO DONO 21/11 22:13): a revalidação (E100.6) leu só o delta `forge-check parecer delta` de 57c0cbff..8522e8fe (no domínio: `agents/jarvis.md`, `bin/forge-check`, `changelog.d/v0480-g1-1-uma-volta.md`, `skills/briefs-e-conferencia/autor-ate-o-merge.md`, `tests/mutantes/v0480-g1-1-uma-volta{,-2,-3}.json`, `tests/test_volta_por_delta.py`). Desenho: `docs/propostas/g1-g3-fluxo-rapido.md`, seções 2 e 5.
 
@@ -31,6 +31,13 @@ Delta lido: `forge-check parecer delta` de 4d2c5333..e103b9a6 (no domínio: `bin
 - M9 ficou único: o `de` (`recusada para {nome_seguro(sem_controle(branch or '<branch>'))}`) ocorre 1 vez, e o antigo ocorria 2 (bin/forge-check:4284 e 4293). M11 saiu: o trecho `\.?(?=\s|$)` não existe desde a A4, e a âncora segue guardada pelo M23.
 - Verificação: `bin/forge-mutante --processos 1 --ids M9,M16`: M9 morreu (4293), M16 morreu (4273). `--cobertura --base 4d2c5333`: 4273 coberta (M16). `--conferir --base 4d2c5333`: o trecho de cada spec do diff está no lugar. Suíte inteira: CI do PR (sem PR aberto; nada a citar). Tamanho (H1): 1 linha de código no delta.
 
+## Revalidação (E100.20, head 45d1fc27, volta autorizada pelo dono, só testes)
+Delta lido: `forge-check parecer delta` de e103b9a6..45d1fc27 (no domínio: `bin/forge-check`, `tests/test_forge.py`, `tests/test_revisor_wt.py`, `tests/test_volta_por_delta.py`). `bin/forge-check` e `tests/test_volta_por_delta.py` chegam pelo merge 027af0c6 da `develop` (bfed8033), sem resolução manual (`git show --cc 027af0c6` vazio); o código do item é o já aprovado.
+- 45d1fc27 só toca testes (4 linhas acrescentadas, 1 trocada); nenhuma asserção removida nem mudada:
+  - `tests/test_forge.py:5999` (setUp de `VoltaComRecomendacao`): o brief anterior ganha `Branch: melhoria/x   Base: develop`, coerente com a recusa S7 (anterior sem `Branch:` é recusado). Não afrouxa: o teste volta a exercer o caminho que ele afirma, em vez de cair na recusa.
+  - `tests/test_forge.py:6123` e `tests/test_revisor_wt.py:415`: apagam o `-2.md` que o próprio teste gerou antes de gerar de novo; sem isso, o 2.º `gerar` cai em "já tem volta" (G1.1, comportamento aprovado). O `unlink` sem `missing_ok` falha se o arquivo não existir, o que prova a geração anterior. As asserções seguintes são as mesmas.
+- Verificação: `VoltaComRecomendacao` e `VoltaLeParecerConferido`, 19 testes, verdes no head 45d1fc27 com `env -i`. Sem guarda nova, sem mutante a declarar. Suíte inteira: CI do PR (sem PR; nada a citar). Tamanho (H1): 0 linha de código.
+
 ## Verificação
 - Testes afetados: `tests.test_volta_por_delta.BriefDeVolta`, 29 testes, verdes no head 8522e8fe, com ambiente limpo (`env -i`) e `python3 -I`. Suíte inteira: com o CI do PR (sem PR aberto agora; nada a citar).
 - Mutantes: `bin/forge-mutante` nas três specs, M1 a M22 morreram (M1 por erro sob `None`, como antes). `bin/forge-mutante --cobertura --base 57c0cbff`: toda guarda do delta coberta (4261, 4269, 4272 a 4274, 4307, 4311, 4441, 4443, 8731); a guarda apagada em 4421(base) foi substituída pela 4443.
@@ -38,4 +45,4 @@ Delta lido: `forge-check parecer delta` de 4d2c5333..e103b9a6 (no domínio: `bin
 - Regras de leitura alcançadas pelo delta: R-QA coerente entre `agents/jarvis.md`, `autor-ate-o-merge.md` e a mensagem de recusa; fragmento do `changelog.d/` atualizado com a branch.
 
 ## Parecer
-Aprovado no head e103b9a6 (E100.15): o delta tira código morto e acerta as specs de mutante, M9 e M16 mortos, sem achado novo. Na rodada anterior (head 4d2c5333): A4 está resolvido, e S7 e S8 (segurança A2) estão recusados no gerar e na conferência, com teste do ramo de falha e mutante por guarda, todos mortos. Sem achado novo no delta.
+Aprovado no head 45d1fc27 (E100.20): o delta só ajusta a preparação de dois testes ao G1.1, sem afrouxar asserção, e o merge da `develop` não muda o patch do item. Aprovado no head e103b9a6 (E100.15): o delta tira código morto e acerta as specs de mutante, M9 e M16 mortos, sem achado novo. Na rodada anterior (head 4d2c5333): A4 está resolvido, e S7 e S8 (segurança A2) estão recusados no gerar e na conferência, com teste do ramo de falha e mutante por guarda, todos mortos. Sem achado novo no delta.
