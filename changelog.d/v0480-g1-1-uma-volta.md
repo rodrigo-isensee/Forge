@@ -1,3 +1,0 @@
-### Alterado
-- G1.1 (ordem do dono de 21/11): no máximo 1 volta por item. As voltas contam pelo item (briefs com `Volta-de:` da mesma `Branch:`): o `forge-check brief gerar --volta` recusa a 2.ª e o anterior que já tem volta, e a conferência recusa o brief que contorna a contagem; a recusa diz o que levar ao dono (cortar e reabrir menor, aceitar com cartão sem bloqueante de segurança, ou autorizar mais uma volta só pela forma canônica `DECISÃO DO DONO[ (data)]: mais uma volta para <branch>`). R-QA passa de 3 voltas por bug para 1 por item.
-- G1.1, volta 2: a volta recusa o brief anterior sem `Branch:` ou de outra branch que a do brief novo, e a forma canônica da autorização vale só até o fim da linha (texto depois da branch não autoriza).
