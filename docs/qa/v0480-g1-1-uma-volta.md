@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-g1-1-uma-volta
-commit: 4d2c53330343163b7027e417db7090acf3bd9bfc
-parecer: reprovado
+commit: e103b9a634e630e698b5b78e046bee553eec7cd6
+parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
@@ -55,5 +55,9 @@ Passada única no head 57c0cbff. Sem suíte local: o CI do PR dá a suíte intei
 - Mutantes, `forge-mutante spec-3 spec-4 --base 8522e8fe` (`mb=8522e8fe`): M16, M18 a M28 `morreu`; **M17 `sobreviveu · bin/forge-check:4273`**.
   Causa: `branch_do_anterior_diferente` agora recusa o anterior sem `Branch:` antes de `voltas_da_branch`, então `bool(branch) and` ficou sem efeito observável pelo teste declarado (guarda morta ou redundante).
 
-## Achados
-- A1 (bloqueante) bin/forge-check:4273 · o mutante M17 (`voltas += bool(branch) and grupo(` → `voltas += grupo(`) sobrevive no delta: a guarda ficou redundante com `branch_do_anterior_diferente`. Remova `bool(branch) and` (código morto) ou declare M17 `equivalente` com a justificativa; QA aceita a segunda.
+## Revalidação no head e103b9a6 (delta sobre 4d2c5333, volta 3)
+- Delta lido por `forge-check parecer delta`: `bin/forge-check` (apagado o `bool(branch) and` morto em `voltas_da_branch`) e specs `-2` (M9 único, M11 fora) e `-3` (M16 ajustado, M17 fora).
+- Mutantes, `forge-mutante` nas 4 specs com `--base 4d2c5333` (`base=4d2c5333 mb=4d2c5333 rev=e103b9a6`), rc 0: M1 a M10, M12 a M16, M18 a M28 todos `morreu`, nenhum sobrevivente (M16 em bin/forge-check:4273 e M9 em :4293 morreram).
+- `forge-mutante --cobertura --base 2d73a35e` rc 0, sem condição descoberta nem `isenta velha`.
+- Testes afetados, `python3 -I -m unittest discover -s tests -p <arquivo>` com TMPDIR próprio: test_volta_por_delta `Ran 113 ... OK`; test_conferencia_base_dono `Ran 34 ... OK`; test_etapa_do_brief `Ran 89 ... OK`. Nenhum teste mudado no delta, sem `skip`.
+- A1 resolvido: guarda morta removida e M17 retirado junto. M11 saiu porque o trecho que ele mutava deixou de existir desde a volta anterior (`VOLTA_NA_DECISAO` até o fim da linha); a recusa de `melhoria/xy` segue no teste de forma canônica. Sem achados abertos.
