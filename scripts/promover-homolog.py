@@ -15,13 +15,16 @@ Passos, em ordem; para no primeiro erro:
   5. checks: uma leitura de `gh pr checks --json`; só contam os do evento pull_request (os do push da develop, no
      mesmo sha, não são a bateria do PR); só pass/skipping passam.
   6. rótulo: a Catraca vermelha pede o rótulo `afrouxa-regra` do dono; o script só avisa, nunca o aplica.
-  7. imprime o comando que liga o merge automático (--auto); com o merge automático desligado no repositório, o comando recusa e o tech-lead mescla com tudo verde. O script NÃO mescla: o rótulo segue com o dono.
+  7. só com todo check obrigatório verde (os de CHECKS_EXIGIDOS do bin/forge-fechar, em pass) imprime o merge direto do
+     tech-lead, preso ao head e sem merge automático (proibido em qualquer PR, decisão do dono); pendente ou ausente não
+     imprime merge nenhum. O script NÃO mescla: o rótulo segue com o dono.
 --conferir-ref <sha40> (PROMOVER-CONFERIR, Z6 e SP4): só leitura, sem fetch e sem gh; roda os passos 2 e 3 do commit
 contra a origin/homolog local (a ref de commit pode ser qualquer uma, não só a develop); rc 0 promovível, 1 não (sempre 0 ou 1).
 --dry-run: roda só as leituras locais dos passos 1 a 3, o forge-check pr inclusive (nenhum fetch, nenhum gh, nenhum PR, nenhuma escrita) e descreve 4 a 7.
 Sem --dry-run, antes do passo 1 roda `git fetch origin` (atualiza as refs remotas; é a única escrita local).
-Código de saída: 0 pronta para o merge automático (checks verdes, pendentes ou ainda sem check; ou dry-run sem problema);
-1 parou (inclui check vermelho); 3 preparada, mas o rótulo do dono por vir (rode de novo).
+Código de saída: 0 pronta para o merge direto (checks obrigatórios verdes; ou dry-run sem problema); 1 parou (inclui
+check vermelho); 3 preparada, mas o rótulo do dono por vir (rode de novo); 4 checks pendentes ou ainda sem check,
+nada a mesclar (rode de novo).
 Nunca: mescla, aplica rótulo, usa --force ou --no-verify, toca a main. Roda só no repositório do Forge.
 Para teste, com FORGE_PROMOVER_TESTE=1: FORGE_GH substitui o `gh` e FORGE_PROMOVER_PAUSA (segundos) a espera entre leituras
 repetidas; sem a variável, FORGE_GH é ignorada, com aviso.
@@ -40,6 +43,8 @@ CATRACA = "catraca"
 ROTULO = "afrouxa-regra"
 PENDENTES = {"pending", "queued", "in_progress"}
 FORGE_CHECK = Path(__file__).resolve().parent.parent / "bin" / "forge-check"
+FORGE_FECHAR = Path(__file__).resolve().parent.parent / "bin" / "forge-fechar"  # fonte única dos checks obrigatórios
+PENDENTE = 4  # checks pendentes ou ainda sem check: nada a mesclar
 PARECERES_DA_LEVA = ("docs/devops", "docs/security")  # com --base main, os gatilhos leem a leva inteira (P-N3)
 OK = {"pass", "skipping"}
 SHA40 = re.compile(r"[0-9a-f]{40}")
@@ -266,9 +271,9 @@ def simular_passos_do_pr(comando_merge):
     """--dry-run: descreve os passos 4 a 7 sem chamar o gh."""
     gh = comando_gh()
     print(f"[4] {gh} pr create --base homolog --head develop (só se não houver PR aberto; PR com base que não seja homolog para)")
-    print(f"[5] checks: {gh} pr checks <PR> --json (uma leitura; só os do evento pull_request; só pass/skipping passam; pendente sai com 0)")
+    print(f"[5] checks: {gh} pr checks <PR> --json (uma leitura; só os do evento pull_request; só pass/skipping passam; pendente sai com {PENDENTE}, sem merge)")
     print(f"[6] rótulo: catraca vermelha pede o rótulo {ROTULO} do dono; o script nunca o aplica")
-    print(f"[7] imprime o comando do tech-lead que liga o merge automático ({comando_merge}); com ele desligado no repositório, mescla com tudo verde; o script não mescla")
+    print(f"[7] só com os checks obrigatórios em pass, imprime o merge direto do tech-lead, sem merge automático ({comando_merge}); o script não mescla")
     print("dry-run concluído: nada foi alterado.")
     return 0
 
@@ -291,12 +296,36 @@ def abrir_ou_reusar_pr(gh, versao, ref, base):
     return numero
 
 
-def esperar_checks(sha, comando_merge, motivo):
-    """Checks ainda não verdes: o merge automático espera; imprime o comando do tech-lead (passo 7)."""
+def esperar_checks(motivo):
+    """Checks obrigatórios ainda não todos verdes: nenhum comando de merge (o automático é proibido); sai com PENDENTE."""
     print(motivo)
-    print(f"head: {sha}")
-    print(f"[7] liga o merge automático (o tech-lead não espera os checks): {comando_merge}")
-    return 0
+    print("[7] sem comando de merge: falta check obrigatório verde; rode este script de novo quando os checks terminarem")
+    return PENDENTE
+
+
+def checks_obrigatorios():
+    """Nomes dos checks obrigatórios: CHECKS_EXIGIDOS do bin/forge-fechar (pares workflow/nome; vale o nome, como lá)."""
+    try:
+        texto = FORGE_FECHAR.read_text(encoding="utf-8")
+    except OSError as e:
+        parar(f"não li os checks obrigatórios em {FORGE_FECHAR}: {e}; nada a mesclar")
+    m = re.search(r"^readonly CHECKS_EXIGIDOS=\((.*)\)$", texto, re.M)
+    pares = re.findall(r'"([^"]+)"', m.group(1)) if m else []
+    if not pares:
+        parar(f"CHECKS_EXIGIDOS não achada ou vazia em {FORGE_FECHAR}; sem check obrigatório não há merge")
+    return [par.split("/", 1)[-1] for par in pares]
+
+
+def conferir_obrigatorios(estados):
+    """Cada check obrigatório tem execução do PR e só em pass. Devolve os que faltam; skipping num obrigatório para."""
+    faltam = []
+    for nome in checks_obrigatorios():
+        buckets = {e for n, e in estados if n == nome}
+        if not buckets:
+            faltam.append(nome)
+        elif buckets != {"pass"}:
+            parar(f"check obrigatório {nome} fora de pass ({', '.join(sorted(buckets))}); nada a mesclar")
+    return faltam
 
 
 def avisar_rotulo(gh, numero):
@@ -319,7 +348,7 @@ def decidir_pelos_checks(gh, numero, sha, comando_merge):
     if estados is None and saida.strip() and "no checks reported" not in saida.lower():
         parar(f"não consegui ler os checks: {saida.strip()}")
     if not estados:
-        return esperar_checks(sha, comando_merge, "nenhum check do evento pull_request apareceu ainda; o merge automático espera os checks.")
+        return esperar_checks("nenhum check do evento pull_request apareceu ainda.")
     vermelhos = [(n, e) for n, e in estados if e not in OK and e not in PENDENTES and not (n == CATRACA and e == "fail")]
     if vermelhos:
         parar("check vermelho ou desconhecido: " + ", ".join(f"{n}={e}" for n, e in vermelhos) + "; corrija e rode de novo")
@@ -328,17 +357,21 @@ def decidir_pelos_checks(gh, numero, sha, comando_merge):
         return avisar_rotulo(gh, numero)
     print(f"[6] rótulo: a catraca não pede o rótulo {ROTULO}")
     if pendente:
-        return esperar_checks(sha, comando_merge, "checks ainda pendentes; o merge automático espera os checks.")
+        return esperar_checks("checks ainda pendentes.")
+    faltam = conferir_obrigatorios(estados)
+    if faltam:
+        return esperar_checks(f"check obrigatório ainda sem execução do PR: {', '.join(faltam)}.")
     print("checks verdes.")
     print(f"head: {sha}")
-    print(f"[7] pronta para o merge do tech-lead; este script não mescla. Liga o merge automático: {comando_merge} (com ele desligado no repositório, o comando recusa: mescle com tudo verde)")
+    print(f"[7] pronta para o merge do tech-lead, logo depois desta leitura (se passar tempo, rode de novo); este script não mescla. "
+          f"Merge direto, preso ao head, sem merge automático: {comando_merge}")
     return 0
 
 
 def promover(args):
     versao = conferir_ref_e_versao(args)
     sha = git("rev-parse", args.ref).stdout.strip()
-    comando_merge = f"gh pr merge develop --auto --merge --match-head-commit {sha}"
+    comando_merge = f"gh pr merge develop --merge --match-head-commit {sha}"
     if args.dry_run:
         return simular_passos_do_pr(comando_merge)
     gh = comando_gh()
