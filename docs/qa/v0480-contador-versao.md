@@ -3,13 +3,13 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-contador-versao
-commit: fb4d5390b925256caa28286bef2f997d8af66489
-parecer: reprovado
-escopo: completo
+commit: 362b45ad31e23cc33af7abe42f7d08758ba7e37c
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 1
-bugs_baixos: 1
+bugs_medios: 0
+bugs_baixos: 0
 data: 2026-11-22
 ---
 # QA: v0478 · E103.5 · bin/forge-contador
@@ -45,3 +45,14 @@ Sem especificação de UX nem contrato de API; as obrigações são o cabeçalho
 - Mutantes (um por spec, pedidos distintos): spec 1: M1..M8 morreram; spec -2: M1..M8 morreram (M2 e M5 por erro com controle verde); spec -3: M1..M8 morreram (M6 por erro). Nenhum sobrevivente. `bin/forge-contador` é ferramenta nova, não guarda existente; `--cobertura` não se aplica.
 - Vermelho: `forge-testes --vermelho 900bfdfe --modulos test_forge_contador --prazo 90`: 10 provam (asserção), 1 não prova (passa na base), 5 sem veredito (os 5 de Backlog, erro na base: voltam ao autor, não valem como vermelho). A rodada sem `--modulos` estourou o prazo (rc 143, sem veredito).
 - Nenhum teste cobre o caso de A1; o autor soma o teste com o conserto.
+
+## Revalidação (volta única, head 362b45ad)
+Delta: `forge-check parecer delta` (intervalo fb4d5390..362b45ad): bin/forge-contador, skill, testes e 5 specs de mutantes.
+- A1 resolvido: plugin.json `{` e `[]` dão rc 2 com mensagem "versão ilegível".
+- A2 resolvido: fragmento `ação.md` entra na contagem (sonda: 2 de 20 com a.md e ação.md).
+- A3 resolvido: `--historico` sem `--quadro` dá rc 2 ("pede --quadro").
+- A4 resolvido: as 5 specs rodam numa só rodada de `bin/forge-mutante`, rc 0.
+Provas:
+- `python3 -I -m unittest discover -s tests -p test_forge_contador.py`: 24 testes, OK.
+- `forge-mutante tests/mutantes/v0480-contador-versao*.json` (5 specs, rev=362b45ad31e2): M1..M35 todos morreram, nenhum sobrevivente, rc 0.
+- Suíte inteira: check-run `bateria` do CI do PR, não rodada local.
