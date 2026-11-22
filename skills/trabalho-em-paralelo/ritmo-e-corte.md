@@ -19,7 +19,7 @@ Detalhe da skill `trabalho-em-paralelo` (diretriz 25: o Jarvis traz o resumo e m
 ## Fila e conserto da integração (`R-FLUXO`; BP2, decisões do dono de 20/11)
 - **Fila em série:** antes de cada merge, confira sobre qual topo da integração o CI do PR rodou. Se a base andou depois, traga-a pelo merge de sempre (sem forçar nem pular hook) e espere o CI de novo, mesmo sem arquivo em comum (D3). Check e parecer seguem: no Forge, a bateria completa roda no CI do PR, obrigatória para o merge, e o `tech-lead` mescla com tudo verde.
 - **Lote** (diretriz 26) é exceção declarada (D4): já exige a integração verde antes, itens sem arquivo em comum e o CI acompanhado no fim; os itens dele não repetem o teste sobre o topo.
-- **Onde mora a fila** (D1): no Forge, no `bin/forge-fechar` (até a I4, à mão; última linha), com o servidor como está; reabre quando o Forge for para uma organização (BP9). No projeto de organização, a fila nativa do GitHub (`docs/engineering/protecao-de-branch.md` do projeto); em conta pessoal, o passo à mão acima.
+- **Onde mora a fila** (D1): no Forge, no `bin/forge-fechar <pedido> --ref <branch>` (até a I4, à mão; última linha), com o servidor como está; reabre quando o Forge for para uma organização (BP9). No projeto de organização, a fila nativa do GitHub (`docs/engineering/protecao-de-branch.md` do projeto); em conta pessoal, o passo à mão acima.
 - **Conserto da integração vermelha** (D2): com o CI de `push` da integração vermelho, o PR que conserta entra só se todas valem; leitura que falha para o merge:
   1. o vermelho é o do topo, lido na hora, e terminou com falha (nem pendente nem cancelado); topo que andou, pare;
   2. pareceres da classe aprovados no head e a cadeia de sempre: nenhum portão é dispensado;
@@ -28,7 +28,7 @@ Detalhe da skill `trabalho-em-paralelo` (diretriz 25: o Jarvis traz o resumo e m
   5. o diff tem relação com o vermelho: toca o arquivo de um teste que falhou ou um arquivo mudado desde o último verde, ou reverte um merge desse intervalo;
   6. um conserto por vez; o CI do merge é acompanhado e, sem verde, a integração segue fechada para o resto;
   7. o `## Histórico` do pedido registra run, topo, PR e head.
-- No Forge, o `bin/forge-fechar` passa a conferir o conserto e a fila (BP2 I1 e I4); até lá, e no projeto, o `tech-lead` confere à mão.
+- No Forge, o `bin/forge-fechar <pedido> --ref <branch>` passa a conferir o conserto e a fila (BP2 I1 e I4); até lá, e no projeto, o `tech-lead` confere à mão.
 
 ## CI pago (`R-CUSTO`, E3.43)
 Em projeto privado, cada push e cada `gh run rerun` custa um run de CI (num projeto de origem, 163 rodadas de push contra 33 de PR num dia esgotaram a cota grátis).
@@ -40,7 +40,8 @@ Em projeto privado, cada push e cada `gh run rerun` custa um run de CI (num proj
 - Até 20 agentes ao mesmo tempo, dentro do `R-TETO`, e no máximo 12 branches com trabalho aberto.
 - Agente livre termina o que está aberto (revisão, conserto, teste vermelho, CI vermelho) antes de abrir item novo; branch nova só quando uma entra na `develop`.
 - A regra de tocar o máximo de itens ao mesmo tempo continua: o máximo vale dentro desses tetos.
-- Instância extra de um papel, uma por item independente, trabalha numa cópia própria: `forge-copia clone --instalar`.
+- Instância extra de um papel, uma por item independente, trabalha numa cópia própria, um clone: `forge-copia clone --instalar`, em `~/.forge-contrib/wt/<item>` no Forge e `.forge/wt/<item>` no projeto (o sandbox não libera `.git/worktrees`).
+- Fim do item (PR mesclado, PR fechado sem merge ou `vazio: sim`), no Forge e nos projetos: o tech-lead apaga a cópia com `forge-copia limpar <cópia>`, que confere o fim e só apaga a cópia limpa, sem stash e com tudo na origem; a branch fica. No Forge, o `forge-fechar <pedido> --ref <branch> --limpar` já passa as cópias a ele (LIMPEZA-AO-FIM-DO-ITEM).
 
 ## Versão quando ficar pronta (diretriz 34 do dono)
 - O tech-lead marca uma versão sempre que a `develop` tem um conjunto verde que valha uma versão: até 2 por dia, ou mais se couber (diretrizes 21 e 27).

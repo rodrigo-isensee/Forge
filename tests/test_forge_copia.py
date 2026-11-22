@@ -334,5 +334,291 @@ class Disco(unittest.TestCase):
             self.assertNotRegex((BIN.parent / nome).read_text(), r"\b90\s*%|>\s*90\b")
 
 
+GH_ESTADOS = ('#!/bin/sh\n[ -f "$GH_FALHA" ] && exit 1\ncase "$*" in *isCrossRepository*) ;; *) exit 1 ;; esac\n'
+              'cat "$GH_ESTADOS" 2>/dev/null\nexit 0\n')  # linhas "<estado> <isCrossRepository>", como o --jq do forge-copia
+
+
+class Limpar(Base):
+    """LIMPEZA-AO-FIM-DO-ITEM: `forge-copia limpar` apaga a cópia do item acabado (PR fechado, mesclado ou `vazio: sim`), só limpa e com tudo
+    na origem; o `gh` falso, no PATH, devolve os estados do arquivo GH_ESTADOS (sem rede, R-CUSTO)."""
+    def setUp(self):
+        super().setUp()
+        fal = self.home.parent / "falsos"
+        fal.mkdir()
+        (fal / "gh").write_text(GH_ESTADOS)
+        (fal / "gh").chmod(0o755)
+        self.estados = self.home.parent / "estados"
+        self.env.update(PATH=f"{fal}:{os.environ['PATH']}", GH_ESTADOS=str(self.estados), GH_FALHA=str(self.home.parent / "gh-falha"))
+        self.estados.write_text("CLOSED false\n")
+
+    def clone(self):
+        d = self.pasta / "wt" / "c1"
+        self.assertEqual(self.copia("clone", str(d), "--branch", "melhoria/x", "--origem", str(self.origem)).returncode, 0)
+        return d
+
+    def fica(self, d, motivo):
+        r = self.copia("limpar", str(d))
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn(motivo, r.stderr)
+        self.assertTrue(d.is_dir())
+
+    def test_clone_de_pr_fechado_sem_merge_e_apagado(self):
+        d = self.clone()
+        r = self.copia("limpar", str(d))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse(d.exists())
+
+    def test_worktree_de_pr_fechado_sai_e_a_branch_fica(self):
+        d = self.pasta / "wt" / "w1"
+        self.assertEqual(self.copia("worktree", str(d), "--branch", "melhoria/w").returncode, 0)
+        r = self.copia("limpar", str(d))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse(d.exists())
+        self.assertNotIn(str(d), self.git(self.origem, "worktree", "list").stdout)
+        self.assertEqual(self.git(self.origem, "branch", "--list", "melhoria/w").stdout.strip(), "melhoria/w")
+
+    def test_copia_suja_fica(self):
+        d = self.clone()
+        (d / "novo").write_text("x\n")
+        (self.home.parent / "gh-falha").write_text("")  # a cópia suja fica antes de qualquer consulta ao gh
+        self.fica(d, "mudança ou arquivo novo")
+
+    def test_worktree_suja_fica(self):
+        d = self.pasta / "wt" / "w2"
+        self.copia("worktree", str(d), "--branch", "melhoria/w2")
+        (d / "novo").write_text("x\n")
+        self.fica(d, "mudança ou arquivo novo")
+
+    def test_stash_fica(self):
+        d = self.clone()
+        (d / "s").write_text("x\n")
+        self.git(d, "add", "s")
+        self.git(d, "-c", "user.name=t", "-c", "user.email=t@t", "stash", "-q")
+        self.fica(d, "stash")
+
+    def test_commit_fora_da_origem_fica(self):
+        d = self.clone()
+        self.git(d, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "local")
+        self.fica(d, "commit fora da origem")
+
+    def test_worktree_com_commit_fora_da_origem_fica(self):
+        d = self.pasta / "wt" / "w3"
+        self.copia("worktree", str(d), "--branch", "melhoria/w3")
+        self.git(d, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "local")
+        self.fica(d, "commit fora da origem")
+
+    def test_clone_com_worktree_ligada_fica(self):
+        d = self.clone()
+        self.git(d, "worktree", "add", "-q", "-b", "outra", str(self.pasta / "wt" / "lig"), "origin/develop")
+        self.fica(d, "worktree ligada")
+
+    def test_pr_aberto_fica(self):
+        self.estados.write_text("CLOSED false\nOPEN false\n")
+        self.fica(self.clone(), "PR aberto")
+
+    def test_pr_fechado_de_fork_com_o_mesmo_nome_nao_encerra_o_item(self):
+        self.estados.write_text("CLOSED true\n")  # A1: o PR fechado vem de fork; a branch tem commit e não há `vazio: sim`
+        d = self.clone()
+        (d / "so-na-branch").write_text("x\n")
+        self.git(d, "add", "so-na-branch")
+        self.git(d, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "b")
+        self.git(d, "push", "-q", "origin", "melhoria/x")
+        self.fica(d, "vazio: sim")
+
+    def test_escrita_durante_a_consulta_ao_gh_fica(self):
+        d = self.clone()
+        mod = SourceFileLoader("forge_copia_corrida", str(BIN)).load_module()
+
+        def escreve(*_):  # A2: alguém escreve na cópia enquanto o gh responde
+            (d / "novo").write_text("x\n")
+
+        erro = io.StringIO()
+        with mock.patch.dict(os.environ, {"HOME": str(self.home)}), mock.patch.object(mod, "fim_do_item", side_effect=escreve), \
+                redirect_stderr(erro):
+            rc = mod.main(["limpar", str(d)])
+        self.assertEqual(rc, 2, erro.getvalue())
+        self.assertIn("mudou durante a consulta ao gh", erro.getvalue())
+        self.assertTrue((d / "novo").is_file())
+
+    def test_gh_que_falha_fica(self):
+        (self.home.parent / "gh-falha").write_text("")
+        self.fica(self.clone(), "gh pr list")
+
+    def test_sem_pr_e_sem_vazio_sim_fica(self):
+        self.estados.write_text("")
+        d = self.clone()
+        (d / "so-na-branch").write_text("x\n")
+        self.git(d, "add", "so-na-branch")
+        self.git(d, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "b")
+        self.git(d, "push", "-q", "origin", "melhoria/x")
+        self.fica(d, "vazio: sim")
+
+    def test_sem_pr_com_vazio_sim_e_apagado(self):
+        self.estados.write_text("")
+        d = self.clone()
+        quem = ("-c", "user.name=t", "-c", "user.email=t@t")
+        for repo, msg in ((self.origem, "na develop"), (d, "na branch")):
+            (repo / "f").write_text("igual\n")
+            self.git(repo, "add", "f")
+            self.git(repo, *quem, "commit", "-q", "-m", msg)
+        self.git(d, "push", "-q", "origin", "melhoria/x")
+        self.git(d, "fetch", "-q", "origin")
+        r = self.copia("limpar", str(d))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse(d.exists())
+
+    def test_fora_da_pasta_ou_a_propria_pasta(self):
+        fora = self.fora / "c"  # cópia limpa e de PR fechado, só que fora da pasta liberada
+        self.git(self.fora, "clone", "-q", str(self.origem), str(fora))
+        self.git(fora, "switch", "-q", "-c", "melhoria/f")
+        for alvo in (fora, self.pasta):
+            with self.subTest(alvo=alvo):
+                r = self.copia("limpar", str(alvo))
+                self.assertEqual(r.returncode, 2, r.stderr)
+                self.assertIn("fica fora de", r.stderr)
+                self.assertTrue(alvo.is_dir())
+
+    def test_pasta_que_nao_e_raiz_de_copia_fica(self):
+        d = self.clone()
+        (d / "sub").mkdir()
+        self.fica(d / "sub", "raiz de uma cópia git")
+
+    def test_head_solto_fica(self):
+        d = self.clone()
+        self.git(d, "switch", "-q", "--detach")
+        self.fica(d, "não está numa branch")
+
+    def test_criar_sem_branch_e_recusado(self):
+        r = self.copia("clone", str(self.pasta / "c9"), "--origem", str(self.origem))
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("pede --branch", r.stderr)
+
+    def test_base_com_cara_de_opcao_e_recusada(self):
+        d = self.clone()
+        r = self.copia("limpar", str(d), "--base=--x")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("base começa com", r.stderr)
+        self.assertTrue(d.is_dir())
+
+    def test_worktree_travada_fica_com_codigo_1(self):
+        d = self.pasta / "wt" / "w4"
+        self.copia("worktree", str(d), "--branch", "melhoria/w4")
+        self.git(self.origem, "worktree", "lock", str(d))
+        r = self.copia("limpar", str(d))
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertTrue(d.is_dir())
+
+    def test_rm_que_falha_sai_1_e_diz(self):
+        d = self.clone()
+        mod = SourceFileLoader("forge_copia_limpar", str(BIN)).load_module()
+        erro = io.StringIO()
+        with mock.patch.dict(os.environ, {"HOME": str(self.home)}), mock.patch.object(mod, "fim_do_item", return_value=None), \
+                mock.patch.object(mod.shutil, "rmtree", side_effect=OSError(13, "negado")), redirect_stderr(erro):
+            rc = mod.main(["limpar", str(d)])
+        self.assertEqual(rc, 1, erro.getvalue())
+        self.assertIn("não consegui apagar", erro.getvalue())
+        self.assertTrue(d.is_dir())
+
+
+class Projeto(Base):
+    """MODELO-COPIAS-EM-PASTA-PROPRIA: num projeto (.forge/config.json, sem .claude-plugin/), a cópia é um clone em <projeto>/.forge/wt,
+    gravável no sandbox dele e fora do git por um .gitignore `*`; o projeto não usa ~/.forge-contrib (R-LIMITES); o Forge segue nela."""
+    def repo(self, pasta, *marcas):
+        pasta.mkdir()
+        self.git(pasta, "init", "-q", "-b", "develop")
+        for m in marcas:
+            (pasta / m).parent.mkdir(parents=True, exist_ok=True)
+            (pasta / m).write_text("{}\n")
+        self.git(pasta, "add", "-A")
+        self.git(pasta, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "i")
+        self.git(pasta, "remote", "add", "origin", str(pasta))
+        self.git(pasta, "update-ref", "refs/remotes/origin/develop", "HEAD")
+        return pasta
+
+    def setUp(self):
+        super().setUp()
+        self.proj = self.repo(self.fora / "proj", ".forge/config.json")
+        self.wt = self.proj / ".forge" / "wt"
+
+    def clonar(self, destino, cwd=None, branch="melhoria/p"):
+        return self.copia("clone", str(destino), "--branch", branch, "--origem", str(self.proj), cwd=cwd or self.proj)
+
+    def test_clone_fica_em_forge_wt_e_fora_do_git_do_projeto(self):
+        r = self.clonar(self.wt / "i1")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.branch_de(self.wt / "i1"), "melhoria/p")
+        self.assertEqual((self.wt / ".gitignore").read_text(), "*\n")
+        self.assertEqual(self.git(self.proj, "status", "--porcelain").stdout, "")
+
+    def test_projeto_recusa_a_pasta_do_forge(self):
+        r = self.clonar(self.pasta / "wt" / "p1")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("fica fora de", r.stderr)
+        self.assertFalse((self.pasta / "wt" / "p1").exists())
+
+    def test_de_dentro_de_uma_copia_vale_a_pasta_do_projeto(self):
+        self.assertEqual(self.clonar(self.wt / "i1").returncode, 0)
+        r = self.clonar(self.wt / "i2", cwd=self.wt / "i1", branch="melhoria/q")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse((self.wt / "i1" / ".forge" / "wt").exists())
+
+    def test_gitignore_que_ja_existe_nao_e_tocado(self):
+        self.wt.mkdir(parents=True)
+        (self.wt / ".gitignore").write_text("x\n")
+        self.assertEqual(self.clonar(self.wt / "i1").returncode, 0)
+        self.assertEqual((self.wt / ".gitignore").read_text(), "x\n")
+
+    def versionar_link(self, caminho, alvo):
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        caminho.symlink_to(alvo)
+        self.git(self.proj, "add", "-A")
+        self.git(self.proj, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "link")
+
+    def test_s1_forge_wt_como_link_para_a_pasta_do_forge_e_recusado(self):
+        (self.pasta / "wt").mkdir()
+        self.versionar_link(self.wt, self.pasta / "wt")
+        r = self.clonar(self.wt / "x")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("fica fora de", r.stderr)
+        self.assertEqual(list((self.pasta / "wt").iterdir()), [])
+
+    def test_s2_gitignore_link_solto_e_recusado_sem_gravar_fora(self):
+        alvo = self.fora / "alvo_fora"
+        self.versionar_link(self.wt / ".gitignore", alvo)
+        r = self.clonar(self.wt / "i1")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("link simbólico", r.stderr)
+        self.assertFalse(alvo.exists())
+        self.assertFalse((self.wt / "i1").exists())
+
+    def test_o_forge_segue_com_a_pasta_do_home(self):
+        forge = self.repo(self.fora / "forge", ".forge/config.json", ".claude-plugin/plugin.json")
+        r = self.clonar(forge / ".forge" / "wt" / "f1", cwd=forge)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertEqual(self.clonar(self.pasta / "wt" / "f2", cwd=forge).returncode, 0)
+        self.assertFalse((self.pasta / ".gitignore").exists())
+        self.assertFalse((forge / ".forge" / "wt").exists())
+
+    def test_fora_de_git_vale_a_pasta_do_home(self):
+        solta = self.fora / "solta"
+        (solta / ".forge").mkdir(parents=True)
+        (solta / ".forge" / "config.json").write_text("{}\n")
+        self.env["GIT_CEILING_DIRECTORIES"] = str(self.fora)
+        r = self.clonar(self.pasta / "wt" / "s1", cwd=solta)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_limpar_apaga_a_copia_do_projeto(self):
+        fal = self.home.parent / "falsos"
+        fal.mkdir()
+        (fal / "gh").write_text(GH_ESTADOS)
+        (fal / "gh").chmod(0o755)
+        (self.home.parent / "estados").write_text("CLOSED false\n")
+        self.env.update(PATH=f"{fal}:{os.environ['PATH']}", GH_ESTADOS=str(self.home.parent / "estados"), GH_FALHA=str(fal / "nao"))
+        self.assertEqual(self.clonar(self.wt / "c1").returncode, 0)
+        r = self.copia("limpar", str(self.wt / "c1"), cwd=self.proj)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse((self.wt / "c1").exists())
+
+
 if __name__ == "__main__":
     unittest.main()

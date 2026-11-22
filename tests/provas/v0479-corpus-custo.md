@@ -123,3 +123,48 @@ O E50 entrou na develop (#734, f96ede50) com o teto em 5895051 (+1084); o E51 me
 - medida nova: 5897219, ruído 0; total sobre 5893967: +3252 passos (1084 + 2168, sem passo a mais da junção)
 - autorizações do dono, cada uma só para o seu item e não precedente (DECISÃO DO DONO no pedido v0478): E50 +1084 em
   20/11 às 19:09; E51 +2168 em 20/11 às 19:55. O total fica abaixo de +3300, o limite do aviso pedido pelo dono
+
+## E63.1 (v0478, CONFORMIDADE-SEGURANCA)
+
+Os três cartões do `hooks/conformidade.py` (pedido e brief da pasta de controle só do jarvis, escrita no índice,
+envio com parte vinda de substituição), sobre a develop d4f0b10a. Mesma máquina, Python 3.12.3, tmp a 2 níveis, 234
+variáveis, `python3 -I -m unittest discover -s tests -p test_hooks_volta_corpus.py -k test_corpus_nos_dois_hooks`:
+- base (o `hooks/conformidade.py` da d4f0b10a): `interpretador` 5897219, igual ao teto
+- primeira versão dos cartões: `{'execucoes': 557, 'subprocessos': 4637, 'sono': 0, 'interpretador': 5975100, 'ambiente': 234}` (+77881, 1,32%; +6 subprocessos): acima de 0,1%, refeita
+- com os filtros baratos (o `ls-files` só para pasta, curinga ou magia; o `in` do texto antes das chamadas; o marcador crítico numa chamada só): `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5902634, 'ambiente': 234}`
+- por cartão, cada um desligado sobre a versão final: escrita no índice +320, envio com substituição +4630 (medidas de uma rodada intermediária), o resto no pedido e brief da pasta de controle
+- medida nova: 5902634 (+5415 passos, 0,092%), ruído 0 em duas rodadas; abaixo de 0,1%: o time decide com a confirmação escrita da segurança (brief v0478-tech-lead-481)
+
+## E63.5 (v0478, volta única dos portões da trilha)
+
+Os achados A1 a A9 da segurança (E63.3) e A1 a A4 do QA (E63.4) no head 6c0b0f03. Mesma máquina, Python 3.12.3, tmp a
+2 níveis, 234 variáveis, o mesmo comando, só o `hooks/conformidade.py` trocado em cada rodada:
+- base (o da d4f0b10a): `interpretador` 5897219; head 6c0b0f03: 5902634 (os dois iguais às medidas anteriores)
+- primeira versão da volta: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5906031, 'ambiente': 234}` (+8812 sobre a base, 0,149%): acima de 0,1%, refeita
+- por parte, desligada sobre a primeira versão: conjuntos e regex novos no carregamento do módulo cerca de +2800 (uma chamada por execução: 557 execuções), o shell que lê a entrada +335, o filtro barato +304, o `*` da política no texto +78, o `xargs git` +18; a pasta do controle, o `reset` e o `--git-dir` 0 no corpus
+- com os conjuntos literais (sem chamada no carregamento), a regex da pasta do controle compilada só quando a pasta corrente é o controle, o `in` do programa antes de chamar a função do shell, o `stdin` no filtro no lugar de `/dev/` (o `2>/dev/null` passava o filtro) e o fim do caminho com `*` antes da busca: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5902697, 'ambiente': 234}`
+- o conserto do `bash < arquivo` (a fixture `e51-wt-bash-entrada-de-arquivo-libera`, com o `any` só quando há redireção) mediu de novo 5902697 em duas rodadas
+- medida nova: 5902697, ruído 0 em cinco rodadas; +63 sobre o head 6c0b0f03; total sobre 5897219: +5478 passos (0,093%), abaixo de 0,1%
+
+## E63.9 (v0478, segunda volta única da trilha)
+
+Os achados A1 do review (E63.6) e A12 e A13 da segurança (E63.7) no head e48a2e60. Mesma máquina, Python 3.12.3, tmp a
+2 níveis, 234 variáveis, `test_corpus_nos_dois_hooks` instrumentado só para imprimir a contagem, cada árvore por
+`git archive`:
+- base d4f0b10a: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5897219, 'ambiente': 234}`
+- head 37fccab8 e de novo no 02589206 (com o nome atribuído no alvo da entrada): `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5902697, 'ambiente': 234}`
+- igual ao e48a2e60 (+0): a exceção da cópia de `wt/` só roda no `controle_no_texto` da `GuardaDaProva` (o corpus não
+  chega lá), as regex novas são textos compilados só no uso, e o `help.autocorrect` entrou na tupla do `startswith` que já
+  existia; total sobre 5897219: +5478 passos (0,093%), abaixo de 0,1%, e `MEDIDA_DO_CORPUS` segue a mesma
+
+## E63.13 (v0478, terceira volta da trilha)
+
+Os achados A16 e A17 da segurança (E63.11) sobre o head 0f4facab. Mesma máquina, Python 3.12.3, tmp `/tmp/claude-0`,
+233 variáveis, `test_corpus_nos_dois_hooks` instrumentado só para imprimir a contagem (o `custo.py` das sondas da
+segurança), a base e o 0f4facab por `git archive`:
+- base d4f0b10a: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5887957, 'ambiente': 233}`
+- head 0f4facab: `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5893435, 'ambiente': 233}`
+- volta nova (árvore de trabalho com o conserto): `{'execucoes': 557, 'subprocessos': 4631, 'sono': 0, 'interpretador': 5893435, 'ambiente': 233}`
+- +0 sobre o 0f4facab: a regex nova é texto compilado só no uso, e a `GuardaDaProva.bash` e o `sem_copia_de_wt` não rodam
+  no corpus; os absolutos daqui diferem dos de antes (233 variáveis), a diferença não: +5478 sobre a base, 0,093% sobre
+  5897219 (5478 / 5897219) e sobre 5887957; abaixo de 0,1%, e `MEDIDA_DO_CORPUS` segue a mesma

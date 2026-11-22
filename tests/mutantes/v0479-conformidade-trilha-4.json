@@ -1,0 +1,86 @@
+{
+  "pedido": "v0479-conformidade-trilha",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "K1",
+      "guarda": "a linha acima do teto que cita o controle é crítica na GuardaDaProva (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if nivel == 0 and not self.leitura and self.critico(original):\n            excesso = excede_o_teto(comando)\n",
+      "para": "        if nivel == 0 and not self.leitura and CRITICO.search(original):\n            excesso = excede_o_teto(comando)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "K2",
+      "guarda": "a construção não modelada numa linha que cita o controle recusa (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        achado = None if self.leitura or not self.critico(comando) else construcao_nao_modelada(comando)\n",
+      "para": "        achado = None if self.leitura or not CRITICO.search(comando) else construcao_nao_modelada(comando)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "K3",
+      "guarda": "a palavra que não é opção conta como caminho do índice (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        palavras, termos = [a for a in args if not a.startswith(\"-\")], MARCADOR.termos()\n",
+      "para": "        palavras, termos = [a for a in args if a.startswith(\"-\")], MARCADOR.termos()\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
+      ]
+    },
+    {
+      "id": "K4",
+      "guarda": "o --cacheinfo com duas vírgulas dá o caminho (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        caminhos = palavras + [a.split(\",\", 2)[2] for a in palavras if a.count(\",\") >= 2]\n",
+      "para": "        caminhos = palavras + [a.split(\",\", 2)[2] for a in palavras if a.count(\",\") >= 3]\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
+      ]
+    },
+    {
+      "id": "K5",
+      "guarda": "o alvo que casa um termo da política vai à regra inteira (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    achado = self.caminho_barrado(Path(alvo)) if termos is False or termos.search(str(alvo)) else None\n",
+      "para": "                    achado = self.caminho_barrado(Path(alvo)) if termos is False else None\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_escrita_no_indice"
+      ]
+    },
+    {
+      "id": "K6",
+      "guarda": "só o jarvis fica fora do controle crítico (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        self.controle, self.critico = ((None, CRITICO.search) if papel == \"jarvis\"\n",
+      "para": "        self.controle, self.critico = ((None, CRITICO.search) if papel != \"jarvis\"\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
+      ]
+    },
+    {
+      "id": "K7",
+      "guarda": "o marcador de substituição inclui o $( (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    marcador = \"$(\" in linha or \"`\" in linha or \"<(\" in linha\n",
+      "para": "    marcador = \"`\" in linha or \"<(\" in linha\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    },
+    {
+      "id": "K8",
+      "guarda": "o envio citado no texto passa pelo filtro barato (E63.1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    envio = \"push\" in linha or \"send-pack\" in linha or \"\\\\\" in linha  # o escape pode esconder o nome (`pu\\sh`)\n",
+      "para": "    envio = \"send-pack\" in linha or \"\\\\\" in linha  # o escape pode esconder o nome (`pu\\sh`)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_substituicao_no_projeto"
+      ]
+    }
+  ]
+}

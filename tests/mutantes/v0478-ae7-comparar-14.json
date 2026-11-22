@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP91",
+      "guarda": "AE7.1 marketplace_fora_da_lista: metadata que não é objeto (F5)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "isinstance(metadata, dict) and",
+      "para": "True and",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f5_marketplace_fora_da_lista"
+      ]
+    },
+    {
+      "id": "CMP93",
+      "guarda": "AE7.1 cabecalho_simples: 1ª linha de conteúdo na coluna 0 (F6)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "    if linhas and linhas[0][0] in \" \\t\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f6_cabecalho_fora_da_forma_simples"
+      ]
+    },
+    {
+      "id": "CMP94",
+      "guarda": "AE7.1 cabecalho_simples: só linha recuada ou comentário pula (F6)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if linha[0] in \" \\t#\":",
+      "para": "if linha[0] in \" \\t#%\":",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f6_cabecalho_fora_da_forma_simples"
+      ]
+    },
+    {
+      "id": "CMP95",
+      "guarda": "AE7.1 cabecalho_simples: allowed-tools sai (F6, A16)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "in (\"hooks\", \"allowed-tools\")",
+      "para": "in (\"hooks\",)",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f6_cabecalho_fora_da_forma_simples"
+      ]
+    },
+    {
+      "id": "CMP96",
+      "guarda": "AE7.1 cabecalho_simples: chave sem diferença de caixa (F6)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "chave.group(1).lower() in",
+      "para": "chave.group(1) in",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f6_cabecalho_fora_da_forma_simples"
+      ]
+    },
+    {
+      "id": "CMP97",
+      "guarda": "AE7.1 cabecalho_simples: linha na coluna 0 fora da forma chave: (F6)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if not chave or chave.group(1)",
+      "para": "if False or chave and chave.group(1)",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f6_cabecalho_fora_da_forma_simples"
+      ]
+    },
+    {
+      "id": "CMP98",
+      "guarda": "AE7.1 CHAVE_SIMPLES: chave só em [A-Za-z0-9_-] (F6)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "r\"([A-Za-z0-9_-]+):",
+      "para": "r\"([^:]+):",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f6_cabecalho_fora_da_forma_simples"
+      ]
+    },
+    {
+      "id": "CMP99",
+      "guarda": "AE7.1 CHAVE_SIMPLES: espaço ou fim depois dos dois pontos (F6)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "):(?:[ \\t].*)?\")",
+      "para": "):.*\")",
+      "testes": [
+        "tests.test_comparar.ListaDeForma.test_f6_cabecalho_fora_da_forma_simples"
+      ]
+    }
+  ]
+}

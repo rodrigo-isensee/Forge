@@ -1244,15 +1244,195 @@ class MergeDaBaseDepoisDoBrief(Conferencia):
 
     def test_merge_base_sem_ancora_fica_o_base_sha(self):
         """Volta 1 (segurança A2): sem brief selado depois do da entrega, o merge-base não tem âncora do Jarvis e fica o Base-sha;
-        FILTROS-L08-G2-ORIGIN-LOCAL: o filtro G2 também não tira o que a develop sem âncora trouxe."""
+        FILTROS-L08-G2-ORIGIN-LOCAL: o filtro G2 também não tira o que a develop sem âncora trouxe. ENTREGA-MERGE-DA-DEVELOP: sai pelo
+        merge-base com a develop do `git ls-remote origin` (o remoto, não a ref local), com o blob igual ao dele."""
         self.entrega_e_merge(ancorar=False)
         rc, saida = self.conferir()
         self.assertNotIn("base: merge-base", saida)
         # v047 E1.185 (CONFERIDA-POR-BRANCH): a conferida trazida, já na develop, não vira Desde; o intervalo é o do Base-sha
         self.assertIn(f"intervalo: {self.base}..", saida)
         self.assertIn("base: Base-sha do brief (sem conferida na branch)", saida)
-        self.assertIn('escopo: fora do declarado no brief "agents/outro.md"', saida)
+        self.assertIn("escopo: integração da base pelo remoto (1 arquivo(s) iguais ao merge-base", saida)
+        self.assertNotIn("agents/outro.md", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def reprova_com(self, *nomes):
+        rc, saida = self.conferir()
         self.assertEqual(rc, 1, saida)
+        for nome in nomes:
+            self.assertIn(f'escopo: fora do declarado no brief "{nome}"', saida)
+        return saida
+
+    def test_sem_rede_o_que_a_develop_trouxe_segue_no_escopo(self):
+        """ENTREGA-MERGE-DA-DEVELOP: sem o `git ls-remote` (origin que não responde), a ref local não vale: nada sai do escopo."""
+        self.entrega_e_merge(ancorar=False)
+        self.git("remote", "set-url", "origin", str(self.tmp / "nao-existe.git"))
+        self.assertNotIn("pelo remoto", self.reprova_com("agents/outro.md"))
+
+    def test_o_que_o_autor_mudou_por_cima_da_develop_segue_dele(self):
+        self.entrega_e_merge(ancorar=False)
+        self.gravar("agents/outro.md", "a\nb\ndo autor\n")
+        self.git("add", "agents/outro.md")
+        self.commit("feat: por cima da develop")
+        self.reprova_com("agents/outro.md")
+
+    def test_merge_de_fora_da_develop_segue_no_escopo(self):
+        """O merge de uma branch que não está na develop do remoto, mesmo com a `origin/develop` local reescrita para ela."""
+        self.entrega_e_merge(ancorar=False)
+        self.git("switch", "-q", "-c", "lateral", self.base)
+        self.gravar("fora.txt", "f\n")
+        self.git("add", "fora.txt")
+        lateral = self.commit("feat: fora da develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("update-ref", "refs/remotes/origin/develop", lateral)
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "-m", "merge lateral", lateral)
+        self.reprova_com("fora.txt")
+
+    def test_aceite_do_usuario_vindo_da_develop_segue_no_escopo(self):
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.entregar()
+        self.git("switch", "-q", "develop")
+        self.gravar("docs/security/aceites/a.md", "aceite\n")
+        self.git("add", "docs/security/aceites/a.md")
+        self.commit("aceite")
+        self.git("push", "-q", "origin", "develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("fetch", "-q", "origin")
+        self.mesclar_develop()
+        self.reprova_com("docs/security/aceites/a.md")
+
+    def test_ref_local_sem_o_merge_nao_consulta_o_remoto(self):
+        """Com a `origin/develop` local de volta ao Base-sha, o merge da base não aparece por ela: nada sai (sem rede). Sem a conferida
+        de outra branch (`entrega_e_merge`), que com a ref local recuada viraria o Desde e tiraria o arquivo pelos desfeitos."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.entregar()
+        self.develop_anda("a\n")
+        self.mesclar_develop()
+        self.git("update-ref", "refs/remotes/origin/develop", self.base)
+        self.reprova_com("agents/outro.md")
+
+    def test_o_que_a_branch_mudou_e_o_merge_devolveu_a_develop_segue_a_vista(self):
+        """Segurança A1: o arquivo da entrega conferida que o merge trocou pelo da develop (`-X theirs`) segue no escopo."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        conferida = self.entregar()
+        (self.proj / "docs/pedidos/exemplo.md").write_text(self.pedido() + f"- 2026-01-01 10:00: entrega conferida {conferida}\n",
+                                                           encoding="utf-8")
+        self.git("switch", "-q", "develop")
+        self.gravar("bin/app", "x\nda develop\n")
+        self.git("add", "bin/app")
+        self.commit("outro lote")
+        self.git("push", "-q", "origin", "develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("fetch", "-q", "origin")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "-X", "theirs", "-m", "merge", "origin/develop")
+        saida = self.conferir()[1]
+        self.assertIn('escopo: ok (declarado no brief: bin/app) "bin/app"', saida)
+        self.assertNotIn("pelo remoto", saida)
+
+    def test_develop_remota_sem_fetch_nao_tira_nada(self):
+        """O commit da develop do remoto ainda não buscado: sem merge-base com ele, nada sai, nem o arquivo que o autor apagou."""
+        self.entrega_e_merge(ancorar=False)
+        self.git("rm", "-q", "KANBAN.md")
+        self.commit("chore: apaga o quadro")
+        outro = self.tmp / "outro"
+        self.git_em(self.tmp, "clone", "-q", "-b", "develop", str(self.tmp / "origem.git"), "outro")
+        (outro / "novo.txt").write_text("n\n", encoding="utf-8")
+        self.git_em(outro, "add", "novo.txt")
+        self.git_em(outro, "-c", "user.email=a@b", "-c", "user.name=a", "commit", "-q", "-m", "develop anda")
+        self.git_em(outro, "push", "-q", "origin", "develop")
+        self.reprova_com("KANBAN.md", "agents/outro.md")
+
+    def selado_e_entregue(self):
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        return self.entregar()
+
+    def test_ref_homonima_por_cauda_no_remoto_nao_e_a_develop(self):
+        """Segurança A1 (S1): `refs/heads/a/refs/heads/develop` casa o padrão do `ls-remote` e vem antes; com a `origin/develop` local
+        reescrita para ela, o arquivo fora do brief segue no escopo."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.gravar("agents/fora.md", "fora do brief\n")
+        self.git("add", "agents/fora.md")
+        forjado = self.commit("feat: fora do brief")
+        self.git("push", "-q", "origin", f"{forjado}:refs/heads/a/refs/heads/develop")
+        self.entregar()
+        self.git("update-ref", "refs/remotes/origin/develop", forjado)
+        self.assertNotIn("pelo remoto", self.reprova_com("agents/fora.md"))
+
+    def test_remoto_da_branch_so_aceita_o_nome_exato(self):
+        """Segurança A1, também nos usos antigos (`estado_do_commit`, `aviso_de_review_proprio`): a linha de nome exato, ou nenhuma."""
+        forjado, real = "a" * 40, "b" * 40
+        for saida, esperado in ((f"{forjado}\trefs/heads/a/refs/heads/develop\n{real}\trefs/heads/develop\n", real),
+                                (f"{forjado}\trefs/heads/a/refs/heads/develop\n", None)):
+            with mock.patch.object(fc, "git", lambda raiz, *args, _s=saida: (0, _s)):
+                self.assertEqual(fc.remoto_da_branch(self.proj, "develop"), (esperado, True), saida)
+
+    def lateral_na_develop(self, rel, fraco, forte):
+        """Um PR lateral mesclado na develop com `--no-ff`: X (versão intermediária; `fraco` None apaga) e a correção; o autor mescla X."""
+        self.git("switch", "-q", "-c", "pr", self.base)
+        if fraco is None:
+            self.git("rm", "-q", rel)
+        else:
+            self.gravar(rel, fraco)
+            self.git("add", rel)
+        x = self.commit("pr: versão intermediária")
+        self.gravar(rel, forte)
+        self.git("add", rel)
+        self.commit("pr: correção pedida no review")
+        self.git("switch", "-q", "develop")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "-m", "merge pr", "pr")
+        self.git("push", "-q", "origin", "develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("fetch", "-q", "origin")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "-m", "merge x", x)
+        return x
+
+    def test_merge_base_fora_da_primeira_linha_de_pais_nao_tira_nada(self):
+        """Segurança A2 (S2): o autor mescla o commit intermediário de um PR lateral já na develop; a versão que a develop nunca teve na
+        ponta segue no escopo."""
+        self.selado_e_entregue()
+        x = self.lateral_na_develop("agents/guarda.md", "fraco\n", "forte\n")
+        self.assertEqual(self.git("merge-base", "origin/develop", "HEAD"), x)
+        self.reprova_com("agents/guarda.md")
+
+    def test_arquivo_apagado_pelo_intermediario_segue_no_escopo(self):
+        """Segurança A2 (S3): o intermediário apaga o quadro e a correção o devolve; o merge do intermediário não tira a remoção."""
+        self.selado_e_entregue()
+        self.lateral_na_develop("KANBAN.md", None, "# Quadro\nnovo\n")
+        self.reprova_com("KANBAN.md")
+
+    def test_arquivo_ausente_nos_dois_lados_segue_no_escopo(self):
+        """Segurança A3: a develop apaga o quadro na 1.a linha de pais e o autor a mescla; ausente no head e no merge-base não é igual."""
+        self.selado_e_entregue()
+        self.git("switch", "-q", "develop")
+        self.git("rm", "-q", "KANBAN.md")
+        self.commit("chore: apaga o quadro")
+        self.git("push", "-q", "origin", "develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("fetch", "-q", "origin")
+        self.mesclar_develop()
+        self.reprova_com("KANBAN.md")
+
+    def test_merge_cruzado_com_dois_merge_bases_nao_tira_nada(self):
+        """Segurança A2: a branch mescla a develop (d1) e a develop mescla o commit do autor (b1); `merge-base --all` dá d1 e b1, e d1,
+        o mais novo e na 1.a linha de pais, viria primeiro: com mais de um merge-base, nada sai."""
+        b1 = self.selado_e_entregue()
+        self.env["GIT_COMMITTER_DATE"] = "2030-01-01T00:00:00Z"  # d1 mais novo que b1: a ordem do `merge-base --all` fica fixa
+        d1, = self.develop_anda("a\n")
+        del self.env["GIT_COMMITTER_DATE"]
+        self.mesclar_develop()
+        head = self.git("rev-parse", "HEAD")
+        self.git("switch", "-q", "develop")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "-m", "merge b1", b1)
+        self.git("push", "-q", "origin", "develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("fetch", "-q", "origin")
+        self.assertEqual(self.git("merge-base", "--all", "origin/develop", head).split(), [d1, b1])
+        self.assertEqual(fc.vindos_do_remoto_da_base(self.proj, "develop", self.base, head, {"agents/outro.md"}), set())
 
     def test_brief_selado_antes_do_da_entrega_nao_ancora(self):
         """A âncora é o Base-sha de brief selado MAIS NOVO que o da entrega; o selado antes dele, mesmo com a develop adiante, não vale."""
@@ -1339,13 +1519,18 @@ class JuncaoLimpa(Conferencia):
 
     def test_juncao_sem_ancora_segue_pendente(self):
         """A `origin/develop` é ref local que o autor reescreve: sem Base-sha selado que a cubra, recusa; e o que a develop trouxe
-        segue no escopo (FILTROS-L08-G2-ORIGIN-LOCAL)."""
+        segue no escopo (FILTROS-L08-G2-ORIGIN-LOCAL), salvo o igual ao merge-base com a develop do `git ls-remote`
+        (ENTREGA-MERGE-DA-DEVELOP): sem nada do autor, o intervalo fica pendente."""
         self.conferida()
         self.juncao("a\n", ancorar=False)
         rc, saida = self.conferir()
         self.assertEqual(rc, 1, saida)
-        self.assertIn('escopo: fora do declarado no brief "agents/outro.md"', saida)
+        self.assertIn("pendente: intervalo vazio na etapa codigo", saida)
+        self.assertNotIn("agents/outro.md", saida)
         self.assertIn("escopo: merge da \"develop\" sem âncora", saida)
+        # segurança A5: o aviso sem âncora não contradiz a linha da integração pelo remoto
+        self.assertIn("segue no escopo, salvo o igual ao merge-base com a base do `git ls-remote origin`", saida)
+        self.assertIn("escopo: integração da base pelo remoto (", saida)
 
     def test_conflito_resolvido_a_mao_segue_pendente(self):
         self.conferida()
@@ -1684,6 +1869,283 @@ class ParecerDoMesmoPapelDoAutor(Conferencia):
                                                   "Agente destino: forge:node-backend": "Agente destino: forge:tech-lead"}, selar=False)
         self.assertEqual(fc.autores_da_volta(self.proj, self.proj / "docs/pedidos/exemplo.md", self.pedido(), "melhoria/x", "exemplo"),
                          {"node-backend"})
+
+
+class BugDoQaNaVolta(Conferencia):
+    """E62.1 (DECISÃO DO DONO v0478, 2026-11-20 17:29, item 2): o caso real (AE2 C1, AE1.4, AE1.2): o QA grava o registro de bug em
+    docs/qa/bugs/ (sem frontmatter) e o commita ou mescla na branch depois da conferida; na volta, ele é anexo do portão de QA, como o
+    parecer (E50.1). O autor que o toca, o merge resolvido à mão e o commit que leva outro arquivo seguem fora."""
+
+    ETAPA, PAPEL = ParecerDoPortao.ETAPA, ParecerDoPortao.PAPEL
+    selar_portao, commitar_parecer, assert_fora = ParecerDoPortao.selar_portao, ParecerDoPortao.commitar_parecer, ParecerDoPortao.assert_fora
+    codigo, ate_a_conferida = ParecerMescladoNaVolta.codigo, ParecerMescladoNaVolta.ate_a_conferida
+    REL = "docs/qa/bugs/x-01-defeito.md"
+    OK = 'escopo: ok (anexo do portão: registro de bug de qa commitado na volta só com docs/qa) "docs/qa/bugs/x-01-defeito.md"'
+
+    def commitar_bug(self, *extra, rel=None):
+        rel = rel or self.REL
+        self.gravar(rel, "# X-01 - defeito\n- Severidade: média\n")
+        self.git("add", rel, *extra)
+        return self.commit("docs(qa): registro de bug")
+
+    def mesclar_bug(self, *extra, rel=None):
+        """O QA grava o bug numa branch ao lado e a mescla na branch (o `Merge remote-tracking branch` do caso real)."""
+        self.git("switch", "-q", "-c", "lado")
+        self.commitar_bug(*extra, rel=rel)
+        self.git("switch", "-q", "melhoria/x")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "--no-edit", "lado")
+
+    def argumentos(self, revisado):
+        return (self.proj, revisado, "HEAD", self.REL)
+
+    def test_caso_real_bug_mesclado_antes_da_volta_e_anexo(self):
+        revisado = self.ate_a_conferida()
+        self.mesclar_bug()
+        self.codigo("x\ny\nz\nw\n")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"intervalo: {revisado}..", saida)
+        self.assertIn(self.OK, saida)
+
+    def test_bug_commitado_na_branch_depois_da_volta_e_anexo(self):
+        self.ate_a_conferida()
+        self.codigo("x\ny\nz\nw\n")
+        self.commitar_bug()
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(self.OK, saida)
+
+    def test_autor_que_grava_o_bug_no_commit_do_codigo_segue_fora(self):
+        self.ate_a_conferida()
+        self.gravar(self.REL, "# X-01 - corrigido pelo autor\n")
+        self.codigo("x\ny\nz\nw\n", self.REL)
+        self.assert_fora(self.REL)
+
+    def test_commit_do_bug_com_arquivo_fora_de_docs_qa_segue_fora(self):
+        self.ate_a_conferida()
+        self.gravar("docs/notas/b.md", "nota\n")
+        self.mesclar_bug("docs/notas/b.md")
+        self.codigo("x\ny\nz\nw\n")
+        self.assert_fora(self.REL)
+
+    def test_merge_com_o_bug_resolvido_a_mao_segue_fora(self):
+        self.ate_a_conferida()
+        self.git("switch", "-q", "-c", "lado")
+        self.commitar_bug()
+        self.git("switch", "-q", "melhoria/x")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "--no-commit", "lado")
+        self.gravar(self.REL, "# X-01 - resolvido à mão\n")
+        self.git("add", self.REL)
+        self.commit("Merge branch 'lado'")
+        self.codigo("x\ny\nz\nw\n")
+        self.assert_fora(self.REL)
+
+    def test_sem_conferida_a_regra_nao_vale(self):
+        """Na 1.a entrega (sem Desde), o bug segue fora, como o parecer do E50.1."""
+        self.ate_a_conferida(conferida=False)
+        self.mesclar_bug()
+        self.codigo("x\ny\nz\nw\n")
+        self.assert_fora(self.REL)
+
+    def test_arquivo_de_docs_qa_fora_de_bugs_sem_frontmatter_segue_fora(self):
+        """Só a pasta docs/qa/bugs/ é registro de bug; o arquivo de docs/qa/ sem frontmatter segue a regra do parecer (fora)."""
+        self.ate_a_conferida()
+        self.mesclar_bug(rel="docs/qa/nota.md")
+        self.codigo("x\ny\nz\nw\n")
+        self.assert_fora("docs/qa/nota.md")
+
+    def test_qa_autor_da_volta_sem_linha_do_jarvis_segue_fora(self):
+        """E50.6: com o qa-engineer autor de uma volta (brief selado de codigo), o bug só vale com o `parecer conferido` do Jarvis."""
+        self.ate_a_conferida()
+        self.selar_copia("exemplo-qa-engineer-2.md", {"Agente destino: forge:node-backend": "Agente destino: forge:qa-engineer"}, selar=False)
+        self.mesclar_bug()
+        self.codigo("x\ny\nz\nw\n")
+        self.assert_fora(self.REL)
+
+    def test_autores_e_linha_do_jarvis(self):
+        revisado = self.ate_a_conferida()
+        self.mesclar_bug()
+        self.codigo("x\ny\nz\nw\n")
+        lado = self.git("rev-parse", "lado")
+        self.assertTrue(fc.bug_do_qa_na_volta(*self.argumentos(revisado), {"node-backend"}, {}))
+        for autores in (set(), {"node-backend", "qa-engineer"}):
+            with self.subTest(autores=autores):
+                self.assertFalse(fc.bug_do_qa_na_volta(*self.argumentos(revisado), autores, {}))
+                self.assertFalse(fc.bug_do_qa_na_volta(*self.argumentos(revisado), autores, {self.REL: revisado}))
+                self.assertTrue(fc.bug_do_qa_na_volta(*self.argumentos(revisado), autores, {self.REL: lado}))
+
+    def test_rev_list_que_falha_ou_vazio_recusa(self):
+        revisado = self.ate_a_conferida()
+        self.mesclar_bug()
+        self.codigo("x\ny\nz\nw\n")
+        original = fc.git
+        self.assertTrue(fc.bug_do_qa_na_volta(*self.argumentos(revisado), {"node-backend"}, {}))
+        for resposta in ((128, ""), (0, "")):
+            def falso(raiz, *args, **kw):
+                return resposta if args[0] == "rev-list" and args[-1] == self.REL else original(raiz, *args, **kw)
+            with self.subTest(resposta=resposta), mock.patch.object(fc, "git", falso):
+                self.assertFalse(fc.bug_do_qa_na_volta(*self.argumentos(revisado), {"node-backend"}, {}))
+
+
+class MergeDeParecerAninhado(Repositorio):
+    """ENTREGA-MERGE-DE-PARECER-ANINHADO (caso real: merge 445f1988 da v0479-pv-a2-concessao, outro pai cdb616f7): um portão trouxe o
+    parecer do outro por merge e a branch mesclou esse merge de pareceres. O diff do outro pai contra o primeiro pai dele só tem o
+    parecer do portão; o do outro portão vale pelo blob de um `parecer conferido` ancestral do outro pai que mude o arquivo."""
+
+    def parecer(self, ramo, arquivos, de):
+        self.git("switch", "-q", "-c", ramo, de)
+        for rel, texto in arquivos.items():
+            self.gravar(rel, texto)
+        self.git("add", *arquivos)
+        sha = self.commit(f"docs: parecer {ramo}")
+        self.git("switch", "-q", "melhoria/x")
+        return sha
+
+    def mesclar(self, alvo, ramo="melhoria/x", trocar=None):
+        """O merge de `alvo` em `ramo`; com `trocar` (arquivo -> texto), resolvido à mão com esse conteúdo."""
+        self.git("switch", "-q", ramo)
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "--no-commit", alvo)
+        for rel, texto in (trocar or {}).items():
+            self.gravar(rel, texto)
+            self.git("add", rel)
+        sha = self.commit(f"merge {alvo[:7]}")
+        self.git("switch", "-q", "melhoria/x")
+        return sha
+
+    def aninhado(self, revisao=None, ramo_rev="rev"):
+        """O autor entrega; review e segurança commitam o parecer cada um na sua cópia; a segurança vai à branch e a review mescla a
+        segurança (o merge de pareceres); a branch mescla esse merge, que traz só o parecer da review."""
+        self.autor = self.entregar()
+        self.rev = self.parecer(ramo_rev, revisao or {"docs/reviews/x.md": "r\n"}, self.autor)
+        self.seg = self.parecer("seg", {"docs/security/x.md": "s\n"}, self.autor)
+        self.de_pareceres = self.mesclar(self.seg, ramo_rev)
+        self.mesclar(self.seg)
+
+    def recusas(self, *conferidos):
+        texto = PEDIDO + "".join(f"- 2026-01-01 10:00: parecer conferido {sha}\n" for sha in conferidos)
+        head, base_ref = self.git("rev-parse", "HEAD"), self.git("rev-parse", "origin/develop")
+        return fc.merges_nao_conferidos(self.proj, texto, self.autor, head, base_ref)[0]
+
+    def test_parecer_do_merge_de_pareceres_vale_pelo_blob_conferido(self):
+        self.aninhado()
+        self.mesclar(self.de_pareceres)
+        self.assertEqual(self.recusas(self.rev, self.seg, self.de_pareceres), [])
+
+    def test_blob_diferente_do_conferido_reprova(self):
+        self.aninhado()
+        m = self.mesclar(self.de_pareceres, trocar={"docs/reviews/x.md": "r\nmudado no merge\n"})
+        self.assertEqual(self.recusas(self.rev, self.seg, self.de_pareceres),
+                         [(f'escopo: fora (o merge {m[:7]} traz "docs/reviews/x.md" fora dos pareceres conferidos)', True)])
+
+    def test_conferido_fora_da_historia_do_outro_pai_nao_vale(self):
+        """O mesmo blob num `parecer conferido` que não é ancestral do outro pai (outra cópia do parecer) não vale."""
+        self.aninhado(ramo_rev="rev-copia")
+        fora = self.parecer("rev", {"docs/reviews/x.md": "r\n"}, self.autor)
+        m = self.mesclar(self.de_pareceres)
+        self.assertEqual(self.recusas(fora, self.seg, self.de_pareceres),
+                         [(f'escopo: fora (o merge {m[:7]} traz "docs/reviews/x.md" fora dos pareceres conferidos)', True)])
+
+    def test_aceite_do_usuario_no_parecer_conferido_reprova(self):
+        self.aninhado(revisao={"docs/reviews/x.md": "r\n", "docs/security/aceites/a.md": "aceite\n"})
+        m = self.mesclar(self.de_pareceres)
+        self.assertIn((f"escopo: fora (aceite trazido pelo merge {m[:7]})", True), self.recusas(self.rev, self.seg, self.de_pareceres))
+
+    def test_outro_pai_sem_linha_segue_nao_conferido(self):
+        self.aninhado()
+        self.mesclar(self.de_pareceres)
+        self.assertIn((f"escopo: fora (merge de {self.de_pareceres[:7]} não conferido)", True), self.recusas(self.rev, self.seg))
+
+    N = "docs/reviews/x.md"
+
+    def fora(self, m):
+        return [(f'escopo: fora (o merge {m[:7]} traz "{self.N}" fora dos pareceres conferidos)', True)]
+
+    def dois_conferidos(self):
+        """P1 (aprovado) e P2 (reprovado, sobre P1) do mesmo portão no mesmo arquivo."""
+        self.autor = self.entregar()
+        p1 = self.parecer("rev", {self.N: "parecer: aprovado\n"}, self.autor)
+        return p1, self.parecer("rev2", {self.N: "parecer: reprovado\n"}, p1)
+
+    def test_o_conferido_mais_novo_vale(self):
+        p1, p2 = self.dois_conferidos()
+        self.mesclar(p2)
+        self.assertEqual(self.recusas(p1, p2), [])
+
+    def test_parecer_conferido_antigo_restaurado_no_merge_reprova(self):
+        """Review A2 (S2): o merge de P2 resolvido à mão com o blob de P1 não vale (só o último conferido que muda o arquivo)."""
+        p1, p2 = self.dois_conferidos()
+        m = self.mesclar(p2, trocar={self.N: "parecer: aprovado\n"})
+        self.assertEqual(self.recusas(p1, p2), self.fora(m))
+
+    def test_outro_pai_que_rebaixa_o_parecer_reprova(self):
+        """Segurança A4: o outro pai conferido é um merge que guardou o blob superado de P1; sem resolução no merge da branch, não vale."""
+        p1, p2 = self.dois_conferidos()
+        q = self.mesclar(p2, "rev", trocar={self.N: "parecer: aprovado\n"})
+        m = self.mesclar(q)
+        self.assertEqual(self.recusas(p1, p2, q), self.fora(m))
+
+    def test_mudanca_fora_do_portao_depois_do_conferido_reprova(self):
+        """Um commit sem linha muda o parecer depois de P1 e um conferido de outro arquivo (P3) vem por cima: o mais novo que muda o
+        arquivo é P1, e o blob trazido não é o dele."""
+        self.autor = self.entregar()
+        p1 = self.parecer("rev", {self.N: "parecer: aprovado\n"}, self.autor)
+        c = self.parecer("solto", {self.N: "parecer: mudado fora do portão\n"}, p1)
+        p3 = self.parecer("seg", {"docs/security/x.md": "s\n"}, c)
+        m = self.mesclar(p3)
+        self.assertEqual(self.recusas(p1, p3), self.fora(m))
+
+    def test_dois_conferidos_sem_ordem_nao_tem_o_mais_novo(self):
+        """Dois pareceres conferidos em ramos paralelos, unidos por merge que guarda um deles: nenhum é o mais novo (falha fechada)."""
+        self.autor = self.entregar()
+        pa = self.parecer("ra", {self.N: "a\n"}, self.autor)
+        pb = self.parecer("rb", {self.N: "b\n"}, self.autor)
+        self.git("switch", "-q", "ra")
+        self.git("-c", "user.email=a@b", "-c", "user.name=a", "merge", "-q", "--no-ff", "-s", "ours", "-m", "une", pb)
+        q = self.git("rev-parse", "HEAD")
+        self.git("switch", "-q", "melhoria/x")
+        self.assertIsNone(fc.conferido_mais_novo(self.proj, {pa, pb, q}, q, self.N))
+
+    def na_branch(self, rel, texto):
+        self.gravar(rel, texto)
+        self.git("add", rel)
+        return self.commit(f"docs: {rel} na branch")
+
+    def outro_pai_sobre_conferido(self):
+        """CONFERENCIA-MERGE-DE-PARECERES (caso real: merge 3bd82d6, outro pai d5816e86): o QA commita na branch; a segurança commita
+        sobre a review no remoto; a branch mescla a segurança, e o parecer da review vem do conferido ancestral do outro pai."""
+        self.autor = self.entregar()
+        self.na_branch("docs/qa/x.md", "q\n")
+        self.rev = self.parecer("rev", {self.N: "r\n"}, self.autor)
+        self.seg = self.parecer("seg", {"docs/security/x.md": "s\n"}, self.rev)
+        return self.mesclar(self.seg)
+
+    def test_caso_real_outro_pai_sobre_conferido_vale(self):
+        self.outro_pai_sobre_conferido()
+        self.assertEqual(self.recusas(self.rev, self.seg), [])
+
+    def test_caso_real_ancestral_sem_linha_reprova(self):
+        m = self.outro_pai_sobre_conferido()
+        self.assertEqual(self.recusas(self.seg), self.fora(m))
+
+    def merge_do_merge_de_pareceres(self):
+        """Caso real (merge bca3bf42, outro pai 151bdda5): três portões em paralelo; a review mescla a segurança, o QA também, e a
+        review mescla o merge do QA, que traz o parecer do QA do primeiro pai do outro pai."""
+        self.autor = self.entregar()
+        self.na_branch(self.N, "r\n")
+        self.seg = self.parecer("seg", {"docs/security/x.md": "s\n"}, self.autor)
+        self.mesclar(self.seg)
+        self.qa = self.parecer("qa", {"docs/qa/x.md": "q\n"}, self.autor)
+        self.q = self.mesclar(self.seg, "qa")
+        return self.mesclar(self.q)
+
+    def test_caso_real_merge_de_merge_de_pareceres_vale(self):
+        self.merge_do_merge_de_pareceres()
+        self.assertEqual(self.recusas(self.seg, self.qa, self.q), [])
+
+    def test_caso_real_merge_de_merge_com_o_qa_sem_linha_reprova(self):
+        m = self.merge_do_merge_de_pareceres()
+        self.assertEqual(self.recusas(self.seg, self.q),
+                         [(f'escopo: fora (o merge {m[:7]} traz "docs/qa/x.md" fora dos pareceres conferidos)', True)])
 
 
 if __name__ == "__main__":
