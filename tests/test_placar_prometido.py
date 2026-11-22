@@ -85,6 +85,19 @@ class Prometido(unittest.TestCase):
         self.assertEqual(rc, 0, saida)
         self.assertEqual(json.loads(saida)["prometidos"], [])
 
+    def test_so_a_janela_de_antes_sem_medida_sai_sem_medida(self):
+        """pronto_ate_develop só com item mesclado depois do Início: antes sem medida, depois com 60 min."""
+        self.gravar("docs/pedidos/p.md", "# p\n\n## Histórico\n- 2026-11-10 10:00: entrega conferida " + "a" * 40
+                    + "\n- 2026-11-10 11:00: PR mesclado na develop\n")
+        linha = PROPOSTA.replace("taxa_forma prometido", "pronto_ate_develop prometido")
+        rc, saida, erro = self.rodar(linha)
+        self.assertEqual(rc, 0, saida + erro)
+        self.assertIn("prometido: M-1 pronto_ate_develop · prometido -20% · real sem medida\n", saida)
+
+    def test_proposta_sem_id_sai_com_interrogacao(self):
+        rc, saida, _ = self.rodar(PROPOSTA.replace("| M-1 |", "|  |"), extra=("--json",))
+        self.assertEqual(json.loads(saida)["prometidos"][0]["id"], "?", saida)
+
     def test_decimal_com_virgula_e_ganho_que_sobe(self):
         linha = PROPOSTA.replace("prometido: -20%", "prometido: +2,5%")
         rc, saida, _ = self.rodar(linha, conf=((10, 2), (10, 4)))
