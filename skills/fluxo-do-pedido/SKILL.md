@@ -45,6 +45,7 @@ O Jarvis pergunta o que é da pessoa (produto, escopo, custo, risco), sem jargã
 
 ## Versão
 **Versão marcada a cada dia (diretriz 21):** a versão é só a marca; uma vez por dia o `tech-lead` marca na `develop` o que entrou, leva à `homolog` e entrega ao dono o PR para a `main`, sem esperar o pedido inteiro.
+**Contador da versão:** todo aviso de marco começa pela saída do `bin/forge-contador` (`--quadro` e `--historico` com o quadro e o histórico do projeto), copiada como está.
 
 ## Fábrica × projeto
 Toda melhoria do time vale para o Forge e para todos os projetos que o usam, salvo ordem do dono: vai ao Forge o que muda **como o time desenvolve**; fica no projeto o que é do sistema. Melhoria de fábrica vista **em qualquer projeto** → skill `contribuir-com-o-forge`. **Todos os projetos usam só a `main` do Forge.** **Autonomia para melhorar o Forge e os projetos (concedida pelo usuário):** melhoria que passa na entrada direta (`R-DECISAO`) vira cartão no repositório certo; uma mudança que tenha as duas partes vira **dois PRs**.
