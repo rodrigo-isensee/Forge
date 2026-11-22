@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ordens-hook
-commit: c63e96158e67cb61056a5552a12ed7a3f7354925
+commit: cf679683033698c8ca97f8ec587c008c00cd0a9f
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -39,3 +39,21 @@ data: 2026-11-22
 - `bin/forge-mutante tests/mutantes/v0480-ordens-hook.json tests/mutantes/v0480-ordens-hook-2.json`: M1 a M14 `morreu`, nenhum sobrevivente (M2, M5, M12, M13 por erro do teste sob o mutante com o controle verde).
 - `bin/forge-mutante --cobertura --base 48d6f4b86`: toda condição mudada de `hooks/ordens.py` coberta por mutante declarado.
 - Suíte inteira: no CI do PR, fora deste parecer (sem suíte local, como pede o brief).
+
+## Revalidação do delta (E123.9, head cf679683, base do delta c63e9615)
+Delta no domínio (`forge-check parecer delta`): modelo de projeto sem o arquivo de ordens; `hooks/conformidade.py` com o arquivo nas listas `CAMINHOS_DO_CONTROLE` e `CONTROLE_NO_TEXTO`; `hooks/ordens.py` lendo da cópia principal (`fontes`, `diretorio_comum`) e `sem_controle`; 8 fixtures `tests/hooks/conformidade/ordens-*`; `tests/test_hooks.py`; mutantes M15 a M20.
+
+| Mudança do delta | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Escrita do arquivo recusada ao dev e ao security, liberada ao Jarvis (Write, `>>`, ln, mv, rm, variável) | 8 fixtures `ordens-*` da conformidade | permissão por papel; pasta mãe em variável | passou |
+| Lê da cópia principal, nunca da worktree | `test_na_worktree_le_so_a_copia_principal` | worktree com arquivo próprio | passou |
+| `.git` nu ou que não se resolve cala | `test_worktree_de_repositorio_nu_cala` | repositório nu | passou |
+| Pasta `kanban` por link sai da base | `test_no_forge_a_pasta_kanban_por_link_sai_da_base` | link para fora | passou |
+| Sequência de controles vira um espaço | `test_sequencia_de_controles_vira_um_espaco_so` | sequência de controle | passou |
+
+## Provas
+- `env -i PATH HOME TMPDIR python3 -I -m unittest discover -s tests -p test_hooks.py -k OrdensEmVigor -k test_cada_hook -k ordens`: 22 testes, OK.
+- As 8 fixtures `ordens-*` pelo lote do `Hooks.executar_em_lote`: 8 verificadas, OK.
+- `bin/forge-mutante --base c63e96158e67cb61056a5552a12ed7a3f7354925` sobre as 3 specs (`base=c63e96158e67cb61056a5552a12ed7a3f7354925 ... rev=cf6796830336`): M1 a M20 `morreu`, nenhum sobrevivente (M15 a M20 em `v0480-ordens-hook-3.json`).
+- `bin/forge-mutante --cobertura --base c63e96158e67`: condições mudadas de `hooks/ordens.py` (linhas 40 e 65) cobertas por M17 e M20; as de `hooks/meta.py` pertencem à base e as não cobertas (`.sh`, `pesos-d4.json`) não são do delta.
+- Observação: uma rodada com `-k fixtures_fatia` deu 1 falha em 4 testes (497 s, sob carga, em paralelo aos mutantes) e a repetição sozinha deu OK (subtestes de pid pulados pelo ns de pid do sandbox, 550 s). Não reproduzida; a suíte inteira roda no CI do PR (check-run `bateria` do mesmo sha).
