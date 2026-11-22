@@ -1,0 +1,26 @@
+{
+  "pedido": "v0480-contador-versao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "quadro fora de UTF-8 é erro curto (saída 2), sem traceback",
+      "arquivo": "bin/forge-contador",
+      "de": "    except (OSError, UnicodeDecodeError) as e:\n",
+      "para": "    except OSError as e:\n",
+      "testes": [
+        "tests.test_forge_contador.Backlog.test_quadro_fora_de_utf8_e_erro"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "a contagem de PRs parte da última marca, não do início",
+      "arquivo": "bin/forge-contador",
+      "de": "f\"{marca}..{ref}\" if marca else ref",
+      "para": "ref",
+      "testes": [
+        "tests.test_forge_contador.SemChangelog.test_conta_merges_e_squashes_desde_a_marca"
+      ]
+    }
+  ]
+}

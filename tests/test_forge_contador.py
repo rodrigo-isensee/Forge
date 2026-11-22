@@ -66,13 +66,13 @@ class Base(unittest.TestCase):
         return subprocess.run(["git", *a], cwd=cwd or self.raiz, env=self.env, capture_output=True, text=True,
                               check=True)
 
-    def commit(self, arquivos):
+    def commit(self, arquivos, msg="c"):
         for nome, texto in arquivos.items():
             p = self.raiz / nome
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(texto, encoding="utf-8")
         self.git("add", "-A")
-        self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "c")
+        self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", msg)
 
     def contador(self, *a):
         return subprocess.run([sys.executable, "-I", str(BIN), "--raiz", str(self.raiz), *a], cwd=self.dir,
@@ -108,8 +108,21 @@ class LinhaDaVersao(Base):
 
     def test_teto_da_configuracao(self):
         self.commit({".claude-plugin/plugin.json": json.dumps({"version": "0.1.0"}),
-                     ".forge/config.json": json.dumps({"teto_versao": 7})})
+                     ".forge/config.json": json.dumps({"teto_versao": 7}), "changelog.d/README.md": "r"})
         self.assertEqual(self.contador().stdout, "0.1.1: 0 de 7\n")
+
+    def test_fragmento_com_nome_nao_ascii_conta(self):
+        self.commit({"changelog.d/a.md": "a", "changelog.d/ação.md": "b", "changelog.d/çé.md": "c"})
+        self.assertEqual(self.contador().stdout, "0.0.1: 3 de 20\n")
+
+    def test_plugin_json_ilegivel_e_erro(self):
+        for texto in ("{", "[]"):
+            with self.subTest(texto=texto):
+                self.commit({".claude-plugin/plugin.json": texto})
+                r = self.contador()
+                self.assertEqual((r.returncode, r.stdout), (2, ""))
+                self.assertIn("versão ilegível", r.stderr)
+                self.assertNotIn("Traceback", r.stderr)
 
     def test_teto_invalido_e_erro(self):
         for valor in (0, "20", True, -3):
@@ -147,6 +160,34 @@ class LinhaDaVersao(Base):
         r = self.contador()
         self.assertEqual(r.returncode, 2)
         self.assertIn("--ref", r.stderr)
+
+
+class SemChangelog(Base):
+    """Projeto sem changelog.d/: N = PRs mesclados (merge ou squash #n) na ref desde a última marca."""
+
+    def test_conta_merges_e_squashes_desde_a_marca(self):
+        self.commit({"a": "a"}, "feat: antes da marca (#1)")
+        self.git("tag", "v1.2.0")
+        self.commit({"b": "b"}, "feat: item (#2)")
+        self.commit({"c": "c"}, "chore: direto, sem PR")
+        self.git("switch", "-q", "-c", "ramo")
+        self.commit({"d": "d"}, "wip interno (#90)")
+        self.git("switch", "-q", "develop")
+        self.git("-c", "user.name=t", "-c", "user.email=t@t", "merge", "-q", "--no-ff", "-m",
+                 "Merge pull request #3 from x/ramo", "ramo")
+        self.commit({"e": "e"}, "fix: outro item (#4)")
+        self.assertEqual(self.contador().stdout, "1.2.1: 3 de 20\n")
+
+    def test_sem_pr_reconhecivel_diz_sem_contagem(self):
+        self.commit({"a": "a"})
+        self.git("tag", "v1.2.0")
+        self.commit({"b": "b"}, "chore: direto, sem PR")
+        self.assertEqual(self.contador().stdout, "1.2.1: sem contagem de 20\n")
+
+    def test_marca_no_topo_da_zero(self):
+        self.commit({"a": "a"}, "chore: direto")
+        self.git("tag", "v1.2.0")
+        self.assertEqual(self.contador().stdout, "1.2.1: 0 de 20\n")
 
 
 class Backlog(Base):
@@ -199,6 +240,26 @@ class Backlog(Base):
         linhas = self.contador("--quadro", self.quadro, "--historico", h, "--data", "2026-11-22").stdout.splitlines()
         self.assertTrue(linhas[1].endswith(" · hoje +1 -1"), linhas[1])
         self.assertEqual(linhas[2], "previsão: sem data enquanto crescer")
+
+    def test_historico_sem_quadro_e_recusado(self):
+        r = self.contador("--historico", self.escrever("h.md", historico()))
+        self.assertEqual((r.returncode, r.stdout), (2, ""))
+        self.assertIn("--historico pede --quadro", r.stderr)
+
+    def test_previsao_alem_do_calendario_e_erro(self):
+        h = self.escrever("h.md", historico(("9999-12-31T10:00-03:00", "Entrada", "Pronto")))
+        r = self.contador("--quadro", self.quadro, "--historico", h, "--data", "9999-12-31")
+        self.assertEqual((r.returncode, r.stdout), (2, ""))
+        self.assertTrue(r.stderr.startswith("forge-contador: "), r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_quadro_fora_de_utf8_e_erro(self):
+        quadro = self.dir / "ruim.md"
+        quadro.write_bytes(b"## Entrada\n| A | \xff |\n")
+        r = self.contador("--quadro", str(quadro))
+        self.assertEqual((r.returncode, r.stdout), (2, ""))
+        self.assertIn("não é UTF-8", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
 
     def test_quadro_ausente_e_erro(self):
         r = self.contador("--quadro", str(self.dir / "nao.md"))

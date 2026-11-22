@@ -1,9 +1,9 @@
 {
-  "pedido": "v0480-contador-versao-2",
+  "pedido": "v0480-contador-versao",
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M1",
+      "id": "M9",
       "guarda": "cartão de coluna fechada e linha de cabeçalho não contam como abertos",
       "arquivo": "bin/forge-contador",
       "de": "        if atual and atual not in FECHADAS and linha.startswith(\"|\")",
@@ -13,7 +13,7 @@
       ]
     },
     {
-      "id": "M2",
+      "id": "M10",
       "guarda": "linha do histórico fora da tabela (menos de 4 células) é ignorada",
       "arquivo": "bin/forge-contador",
       "de": "        if len(c) < 4:\n",
@@ -23,7 +23,7 @@
       ]
     },
     {
-      "id": "M3",
+      "id": "M11",
       "guarda": "entrada é só vinda de fora das abertas para uma aberta",
       "arquivo": "bin/forge-contador",
       "de": "        if c[3] in colunas_abertas and not de_aberta:\n",
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "id": "M4",
+      "id": "M12",
       "guarda": "saída é só de aberta para fechada (fechada para fechada não conta)",
       "arquivo": "bin/forge-contador",
       "de": "        elif de_aberta and c[3] in FECHADAS:\n",
@@ -43,7 +43,7 @@
       ]
     },
     {
-      "id": "M5",
+      "id": "M13",
       "guarda": "vazão líquida sem queda: sem data enquanto crescer",
       "arquivo": "bin/forge-contador",
       "de": "    if liquida <= 0:\n",
@@ -53,17 +53,17 @@
       ]
     },
     {
-      "id": "M6",
-      "guarda": "quadro ou histórico ilegível é erro (saída 2)",
+      "id": "M14",
+      "guarda": "quadro ou histórico ausente é erro (saída 2)",
       "arquivo": "bin/forge-contador",
-      "de": "        raise Erro(f\"{caminho}: {e.strerror}\") from e",
-      "para": "        return \"\"",
+      "de": "    except (OSError, UnicodeDecodeError) as e:\n",
+      "para": "    except UnicodeDecodeError as e:\n",
       "testes": [
         "tests.test_forge_contador.Backlog.test_quadro_ausente_e_erro"
       ]
     },
     {
-      "id": "M7",
+      "id": "M15",
       "guarda": "coluna sem cartão não aparece na lista de abertos",
       "arquivo": "bin/forge-contador",
       "de": "colunas.items() if v > 0)",
@@ -73,7 +73,7 @@
       ]
     },
     {
-      "id": "M8",
+      "id": "M16",
       "guarda": "o dia com mais entradas que saídas leva a marca crescendo",
       "arquivo": "bin/forge-contador",
       "de": "(\" (crescendo)\" if ent > sai else \"\")",
