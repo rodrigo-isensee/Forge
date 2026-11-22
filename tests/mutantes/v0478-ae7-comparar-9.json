@@ -1,0 +1,37 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CMP58",
+      "guarda": "AE7.1 rodar_caso: TMPDIR próprio do lado (A5)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "TMPDIR=str(arvore.parent / \"tmp\"),",
+      "para": "TMPDIR=os.environ.get(\"TMPDIR\", \"\"),",
+      "testes": [
+        "tests.test_comparar.LadosSeparados.test_tmpdir_de_quem_chama_nao_chega_ao_hook"
+      ]
+    },
+    {
+      "id": "CMP59",
+      "guarda": "AE7.1 veredito: saída que não é UTF-8 não derruba (A8)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "errors=\"replace\"",
+      "para": "errors=\"strict\"",
+      "testes": [
+        "tests.test_comparar.Medida.test_saida_que_nao_e_utf8_e_sem_decisao"
+      ]
+    },
+    {
+      "id": "CMP60",
+      "guarda": "AE7.1 rodar_caso: caso recusado não conta reescrita (A9)",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "[] if nivel == RECUSA else",
+      "para": "[] if False else",
+      "testes": [
+        "tests.test_comparar.DecisaoInteira.test_hook_novo_que_aprova_e_reescreve_e_aceite_novo",
+        "tests.test_comparar.DecisaoInteira.test_reescrita_do_caso_recusado_na_base_nao_conta"
+      ]
+    }
+  ]
+}

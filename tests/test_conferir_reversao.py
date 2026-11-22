@@ -17,7 +17,8 @@ AMBIENTE = sem_manutencao({**os.environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_
                            "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
                            "GIT_COMMITTER_EMAIL": "t@t"})
 TESTE_BASE = "import unittest\nclass T(unittest.TestCase):\n    def test_x(self):\n        self.assertTrue(True)\n"
-# Plano dirigido no repositório falso: o diff da branch só toca `README.md` (-> test_forge, test_doutor) e `CONTRIBUTING.md`
+# Plano dirigido no repositório falso: o diff da branch só toca `README.md` (-> test_forge, test_doutor,
+# test_guia_varios_projetos) e `CONTRIBUTING.md`
 # (-> test_forge, test_changelog), regras do MAPA de `bin/forge-testes` cujos módulos a base traz. Acoplamento
 # de propósito: se o MAPA mudar essas regras, o plano cai na suíte inteira e estes casos quebram alto (sem falso verde).
 # O `test_forge` da base grava a marca (CONFERIR_MARCA) quando é carregado: a marca prova que alguma suíte rodou.
@@ -57,6 +58,7 @@ class ConferirReversao(unittest.TestCase):
         (self.repo / "tests" / "test_forge.py").write_text(TESTE_FORGE)
         (self.repo / "tests" / "test_changelog.py").write_text(TESTE_BASE)
         (self.repo / "tests" / "test_doutor.py").write_text(TESTE_BASE)  # o MAPA leva README.md também ao test_doutor
+        (self.repo / "tests" / "test_guia_varios_projetos.py").write_text(TESTE_BASE)  # e ao guia (MP9)
         self.marca = Path(self._tmp.name) / "marca"
         self.commitar("base")
         self.base = git(self.repo, "rev-parse", "HEAD")

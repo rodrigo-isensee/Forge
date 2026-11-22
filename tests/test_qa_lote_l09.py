@@ -77,7 +77,7 @@ class MensagemAteOHook(Base):
 class TextoDaSkill(unittest.TestCase):  # UM-BRIEF (versao-075 UN-1, adendo 7): o mapa leva skills/ a este módulo
     def test_skill_manda_uma_mensagem_por_brief(self):
         texto = (Path(__file__).resolve().parent.parent / "skills/briefs-e-conferencia/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("com a mensagem de `forge-check brief mensagem`", texto)
+        self.assertIn("com a mensagem de `forge-check brief mensagem --arquivo <brief> --pedido <p>`", texto)
         self.assertNotIn("`--arquivo a b`", texto)
 
 

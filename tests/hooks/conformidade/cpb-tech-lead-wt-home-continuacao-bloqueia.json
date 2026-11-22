@@ -1,0 +1,38 @@
+{
+  "descricao": "CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.13, A16 e A17 da segurança E63.11; R-CONFORMIDADE): o nome HOME partido por barra e quebra de linha, que o bash junta, sem `$` na linha.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "a.txt": "v\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "HO\\\nME=~/.forge-contrib/wt/g; echo x >> ~/.forge-contrib/wt/x/docs/pedidos/v1.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  },
+  "repos": {
+    "home/.forge-contrib": {
+      "arquivos": {
+        "docs/pedidos/v1.md": "# v1\n",
+        "docs/briefs/b1.md": "b\n",
+        "x/docs/pedidos/v2.md": "# v2\n",
+        "wt/x/docs/pedidos/v1.md": "# v1\n",
+        "a.txt": "v\n"
+      }
+    }
+  }
+}

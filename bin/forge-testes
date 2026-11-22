@@ -150,14 +150,14 @@ NOME_DE_MODULO = re.compile(r"test_[a-z0-9_]+")
 # Os módulos que saíram de `test_hooks` (HOOKS-CORPUS-RAPIDO) rodam onde `test_hooks` roda e executam o `bin/forge-check`
 # pelo apoio `tests/apoio_volta_unica.py` (`test_doutor_relogio` o copia pelo apoio `tests/apoio_versao_defasada.py`).
 VOLTA_UNICA = ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades")
-FORGE_CHECK = ("test_anotar", "test_promocao_por_marca", "test_fc_pr_parecer_forjado", "test_filtros_l08_g2_ancora", "test_forge_check_pr", "test_forge_tamanho", "test_conferida_por_branch", "test_forge_check_base_igual", "test_forge_check_versao_livre", "test_pre_push_link_apoio", "test_v0441_review", "test_brief_forma_aceita", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio", "test_qa_doutor_034",
+FORGE_CHECK = ("test_anotar", "test_comando_pronto", "test_promocao_por_marca", "test_fc_pr_parecer_forjado", "test_filtros_l08_g2_ancora", "test_forge_check_pr", "test_forge_tamanho", "test_conferida_por_branch", "test_forge_check_base_igual", "test_forge_check_versao_livre", "test_pre_push_link_apoio", "test_v0441_review", "test_brief_forma_aceita", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio", "test_qa_doutor_034",
                "test_conf_escopo", "test_conferencia_registrar", "test_decisao_aprovacao", "test_decisao_aprovacao_raiz", "test_erros_no_brief", "test_hook_ansi_c", "test_citacao_p2",
                "test_entrega_git_falha", "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks", "test_hook_erro_libera", "test_estado_ilegivel", "test_hooks_parecer_pasta",
                "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_forge_medidas", "test_mensagem_conferente", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
                "test_testes_tocados", "test_pre_envio_brief", "test_brief_tamanho", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
-               "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt", "test_governanca", "test_selo_e_entrega",
+               "test_decisoes", "test_ordens", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt", "test_governanca", "test_selo_e_entrega",
                "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados", "test_aq5_parecer_novo", "test_brief_gerar_custo", "test_git_rede_config",
-               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_hooks_parecer_repo", "test_hooks_parecer_matriz", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo", "test_hook_destino_opaco", "test_conformidade_opaco", "test_conferencia_dois_pedidos", "test_pr_hook_rapido", "test_sessao_automatica", "test_autorizacao", "test_conformidade_verde", "test_hooks_agentes_autor", "test_parecer_delta", "test_revisar_sha", "test_maquina", "test_maquina_teto", "test_meta85_entrega", "test_meta85_revalida", "test_meta85_item_arquivos", "test_conformidade_vscode_container", "test_forge_onde") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
+               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_hooks_parecer_repo", "test_hooks_parecer_matriz", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo", "test_hook_destino_opaco", "test_conformidade_opaco", "test_conferencia_dois_pedidos", "test_pr_hook_rapido", "test_sessao_automatica", "test_autorizacao", "test_conformidade_verde", "test_hooks_agentes_autor", "test_parecer_delta", "test_revisar_sha", "test_maquina", "test_maquina_teto", "test_meta85_entrega", "test_meta85_revalida", "test_meta85_item_arquivos", "test_conformidade_vscode_container", "test_forge_onde", "test_retro_pendentes", "test_comparar") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
 # E1.120 (v047): quem reaproveita `Hooks.executar_em_lote` sem herdar de `Hooks` (git grep; os VOLTA_UNICA pela base de
 # `tests/apoio_volta_unica.py`) quebra quando o test_hooks muda o lote; pedir tests/test_hooks.py pelo caminho os roda junto.
 REAPROVEITAM_O_LOTE = ("test_esperar_estado", "test_hook_ansi_c", "test_hook_git_comum", "test_hooks_fila27", "test_hooks_parecer_repo",
@@ -172,7 +172,7 @@ LEITORES_DE_TEXTO = ("test_anotar", "test_citacao", "test_clareza", "test_depend
                      "test_orcamento_instrucao", "test_metricas_texto", "test_aq1_texto", "test_textos_034",
                      "test_achado_teto_doc", "test_medidas_m14b",
                      "test_ambiente_sem_auto_update", "test_sessao_automatica",
-                     "test_frontmatter_agentes")  # EST-M4: a guarda C-2 lê agents/ e skills/; E2.363: agents/ e stacks/*/agents/
+                     "test_frontmatter_agentes", "test_guia_varios_projetos", "test_retro_pendentes")  # EST-M4: a guarda C-2 lê agents/ e skills/; E2.363: agents/ e stacks/*/agents/
 CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor",
             "test_modelos_citados") + LEITORES_DE_TEXTO
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
@@ -198,7 +198,7 @@ MAPA = [
     (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge", "test_novo_projeto", "test_medidas_m14b",
                            "test_doutor_custo", "test_doutor_protecao_gh", "test_doutor_relogio", "test_qa_doutor_f8", "test_doutor_branch_atrasada")),
     (r"bin/forge-adotar", ("test_adotar", "test_stack_python", "test_forge")),  # 0.45.0: adoção de projeto existente
-    (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge", "test_reval_delta", "test_salvar_desfazer", "test_adotar", "test_stack_python", "test_modelo_ci", "test_sandbox_controle")),  # EST-M4: guarda C-2; GREP-UGREP
+    (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge", "test_reval_delta", "test_prepush_k152", "test_salvar_desfazer", "test_adotar", "test_stack_python", "test_modelo_ci", "test_sandbox_controle")),  # EST-M4: guarda C-2; GREP-UGREP; K152: o forge-init grava o comando de instalar
     (r"bin/(forge-atualizar|forge_versoes\.py|forge-voltar-versao)", ("test_atualizar", "test_forge", "test_doutor")),
     (r"bin/forge-upgrade", ("test_atualizar", "test_forge", "test_doutor", "test_sempre_atual")),  # v0474: o test_sempre_atual roda o forge-upgrade de verdade (review A1)
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
@@ -234,6 +234,7 @@ MAPA = [
     (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks", "test_stack_python") + VOLTA_UNICA),
     (r"templates/projeto/docs/(reviews|qa|security|devops)/_modelo\.md", PUBLICADO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),  # o teste gera parecer do modelo
     (r"templates/projeto/\.githooks/pre-push", PUBLICADO + ("test_prepush_so_docs", "test_caminhos_extra_pre_push", "test_prepush_refs")),
+    (r"templates/projeto/\.githooks/pre-push\.local", PUBLICADO + ("test_prepush_k152",)),  # v0478 E81.1: o teste gera e roda o pre-push.local
     (r"templates/projeto/\.forge/config\.json", PUBLICADO + ("test_ritmo",)),  # v0457 E3.9: test_ritmo lê o modelo do config
     (r"templates/projeto/(docs/devops/pos-release\.(md|passos)|scripts/pos-release)", PUBLICADO + ("test_pos_release",)),  # v047 E2.394: o teste lê os três
     (r"templates/projeto/\.claude/settings\.json", PUBLICADO + ("test_sandbox_controle",)),  # v0478 E29.1: o teste lê o denyWrite do modelo
@@ -243,11 +244,13 @@ MAPA = [
     (r"docs/indice-forge\.md", CONTEUDO + ("test_indice_forge",)),  # H7 (v0478 E8.1): o índice gerado confere em dia
     (r"docs/(security|devops)/_modelo\.md", CONTEUDO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),
     (r"skills/esperar-estado/.*|agents/tech-lead\.md", CONTEUDO + ("test_esperar_estado",)),
+    (r"skills/(briefs-e-conferencia|fluxo-do-pedido|trabalho-em-paralelo)/.*", CONTEUDO + ("test_comando_pronto",)),  # v0478 E66.1: o teste lê as três
     (r"skills/(produto-criterios|observabilidade-incidentes|explicar-para-o-leigo|modo-iniciante)/.*|agents/(jarvis|devops-engineer)\.md", CONTEUDO + ("test_skills_v0442",)),
     (r"docs/devops/pp1-pre-push\.patch", CONTEUDO + ("test_pre_push_patch",)),  # v047 E2.567: o teste aplica o patch
     (r"docs/engineering/v0479-sandbox-controle\.patch", CONTEUDO + ("test_sandbox_controle",)),  # v0478 E29.1: o teste aplica o patch
+    (r"docs/propostas/k152-pre-push\.md", CONTEUDO + ("test_prepush_k152",)),  # v0478 E81.1: o teste aplica o diff da proposta
     (r"(agents|skills|docs)/.*", CONTEUDO),
-    (r"README\.md", ("test_forge", "test_doutor")),  # PY-MINIMO: test_doutor confere o Python mínimo no README
+    (r"README\.md", ("test_forge", "test_doutor", "test_guia_varios_projetos")),  # PY-MINIMO: test_doutor confere o Python mínimo no README
     (r"CONTRIBUTING\.md", ("test_forge", "test_changelog")),
     (r"(CHANGELOG\.md|changelog\.d/.*)", ("test_forge", "test_changelog")),
     (r"tests/comportamento/.*", ("test_comportamento",)),
