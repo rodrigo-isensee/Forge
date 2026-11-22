@@ -1,0 +1,2 @@
+### Adicionado
+- Hook `ordens`: reinjeta as ordens em vigor do dono (`.forge/ordens-em-vigor.md` no projeto; `~/.forge-contrib/docs/kanban/ordens-em-vigor.md` no Forge) no SessionStart (startup, resume, compact) e a cada mensagem (UserPromptSubmit), em texto puro, até 15 linhas e 2000 caracteres, só leitura e sem bloquear; só o Jarvis grava o arquivo (emenda "ordens em vigor" da ADR 0003, afrouxa o item 1).

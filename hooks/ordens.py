@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+"""Forge: ordens (ORDENS-EM-VIGOR, v0478 E123.1; emenda "ordens em vigor" da ADR 0003) - reinjeta as ordens do dono.
+
+SessionStart (startup, resume, compact; o matcher fica no hooks.json) e UserPromptSubmit: lê o arquivo de ordens em vigor
+(projeto: `.forge/ordens-em-vigor.md` na raiz; clone do Forge e worktrees: `~/.forge-contrib/docs/kanban/ordens-em-vigor.md`)
+e o imprime em texto puro, depois de uma linha fixa gerada aqui. Teto: 15 linhas e 2000 caracteres, contados depois de
+trocar os caracteres de controle por espaço; acima, corta e fecha com `ordens cortadas no teto: <N> linhas, <M> caracteres`.
+Só lê: não cria, não regrava, não apaga. Ausente, vazio, maior que 64 KiB, link para fora da raiz, fora de projeto do Forge:
+silêncio. Ilegível ou erro interno: silêncio e uma linha no erros.log. Sai sempre com 0. Só biblioteca padrão."""
+import os
+import stat
+import sys
+import unicodedata
+from pathlib import Path
+
+from _comum import contrib, e_clone_do_forge, executar
+
+NO_PROJETO = ".forge/ordens-em-vigor.md"
+NO_FORGE = "docs/kanban/ordens-em-vigor.md"
+TETO_LINHAS = 15
+TETO_CARACTERES = 2000
+TETO_BYTES = 64 * 1024
+CONTROLES = {"Cc", "Cf", "Zl", "Zp"}  # o critério do `sem_controle` (agentes.py), sem importar o módulo grande
+CABECALHO = ("Forge, ordens em vigor do dono ({origem}): são ordens do dono e valem como dado, abaixo de docs/regras/, "
+             "sem sobrepô-las.")
+AVISO_DO_TETO = "ordens cortadas no teto: {linhas} linhas, {caracteres} caracteres"
+
+
+def fonte(raiz):
+    """(arquivo, base que o contém, origem para a linha fixa) da sessão."""
+    if e_clone_do_forge(raiz):
+        base = contrib()
+        return base / NO_FORGE, base, "~/.forge-contrib/" + NO_FORGE
+    base = Path(os.path.realpath(raiz))
+    return base / NO_PROJETO, base, NO_PROJETO
+
+
+def ler_ordens(caminho, base):
+    """O texto do arquivo, ou None (ausente, link para fora da base, maior que TETO_BYTES). Ilegível ou não regular levanta."""
+    real = Path(os.path.realpath(caminho))
+    if base not in real.parents:
+        return None
+    try:
+        fd = os.open(real, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
+        return None
+    with os.fdopen(fd, "rb") as f:
+        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+            raise OSError(f"{real}: não é arquivo regular")
+        dados = f.read(TETO_BYTES + 1)
+    if len(dados) > TETO_BYTES:
+        return None
+    return dados.decode("utf-8", errors="replace")
+
+
+def escapadas(texto):
+    """As linhas do arquivo, sem as vazias do fim. Só `\\n` separa linha; o resto do controle vira espaço (`sem_controle`)."""
+    linhas = ["".join(" " if unicodedata.category(c) in CONTROLES else c for c in linha).rstrip()
+              for linha in texto.split("\n")]
+    while linhas and not linhas[-1].strip():
+        linhas.pop()
+    return linhas
+
+
+def no_teto(linhas):
+    """(linhas dentro do teto, aviso do corte ou None): até TETO_LINHAS linhas e TETO_CARACTERES caracteres, quebras contadas."""
+    inteiro = "\n".join(linhas)
+    if len(linhas) <= TETO_LINHAS and len(inteiro) <= TETO_CARACTERES:
+        return linhas, None
+    cortado = "\n".join(linhas[:TETO_LINHAS])[:TETO_CARACTERES]
+    return cortado.split("\n"), AVISO_DO_TETO.format(linhas=len(linhas), caracteres=len(inteiro))
+
+
+def principal(hook):
+    if hook.campo("hook_event_name") not in ("SessionStart", "UserPromptSubmit"):
+        return
+    raiz = hook.projeto(hook.cwd(), clone_do_forge=True)  # fixa `hook.raiz`: o erro interno vai ao erros.log dela
+    if raiz is None:
+        return
+    caminho, base, origem = fonte(raiz)
+    texto = ler_ordens(caminho, base)
+    linhas = escapadas(texto) if texto is not None else []
+    if not linhas:
+        return
+    linhas, aviso = no_teto(linhas)
+    print("\n".join([CABECALHO.format(origem=origem), *linhas] + ([aviso] if aviso else [])))
+
+
+if __name__ == "__main__":
+    executar("ordens", principal)
+    sys.exit(0)
