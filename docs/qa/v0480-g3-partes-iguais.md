@@ -3,20 +3,16 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-g3-partes-iguais
-commit: 4c0b3842edfc6916e013bc5fcef7f749a094493f
-parecer: reprovado
-escopo: completo
+commit: 790f114d38117b7da7232f9b7b94f98c945d03aa
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 1
+bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-22
 ---
 # QA: v0478 (E102.7, reequilíbrio das partes do CI)
-
-## Achados
-- A1 (bloqueante) tests/test_hooks.py:2682 · o teste de cobertura do T1 refaz o corte `corpus[k::4]` por conta própria e não passa pelo código que roda (linha 2704): sonda que tira 1 linha de cada fatia em 2704 sobrevive (OK).
-- A2 (recomendado) tests/test_hooks.py:190 · subir FATIAS_DE_FIXTURES ou FATIAS_DO_T1 para 5 sem criar o 5º teste passa nos testes de cobertura e deixa uma fatia sem rodar; falta travar a constante contra o número de métodos.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -33,3 +29,9 @@ data: 2026-11-22
 - Sondas (cópia em $TMPDIR, HEAD intacto): M1 fixtures perde i=0: cai. M2 T1 perde 1 linha por fatia: sobrevive (A1). M3/M4 constante 5: sobrevive (A2). M5 constante 3: fatia 4 cai.
 - Pesos: as chaves antigas `test_fixtures` e `t1_variantes` saíram e as 8 fatias entraram (soma 210,9 s e 156,8 s, contra 198,9 e 157,2 s da base, sem escala). As fatias de test_hooks não rodaram aqui (suíte no CI do PR).
 - Vermelho antes do verde: não rodei `forge-testes --vermelho`; os testes novos são de cobertura e as sondas M1 e M5 os viram falhar.
+
+## Revalidação (segunda volta, head 790f114d)
+- Delta (`forge-check parecer delta`): só tests/test_hooks.py e o fragmento de changelog.
+- A1 resolvido: `corpus_da_fatia` é o corte único; sonda `[k::4][1:]` nela derruba `test_t1_as_fatias_cobrem_todo_o_corpus` (failures=1). Base: 2 OK.
+- A2 resolvido: `test_fatias_travadas_aos_metodos`; constante FATIAS_DO_T1=5 e FATIAS_DE_FIXTURES=5 derrubam o teste (failures=1 cada). Base: 1 OK.
+- test_pesos_teto OK. Sondas em cópia (`git archive`) em $TMPDIR; árvore intacta. Suíte inteira: check-run `bateria` do CI do PR.
