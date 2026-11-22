@@ -20,7 +20,7 @@ Gatilhos: controle de conformidade (comparador do "só aperta"), execução de c
 - A3 (recomendado) resolvido: `bin/forge_comparar.py:350-356`, HOME e TMPDIR criados por caso dentro do laço. Teste `AlvoEntrega.test_cada_caso_tem_home_e_tmpdir_proprios`.
 
 ## Sondas
-- S1 · gerador do head com id `gerada/x<SEP>so-aperta: medido base=FORJADO aceites-novos=0/01`, SEP em `\n`, `\r`, U+2028, U+0085, U+001E, hook LIBERA · espera: só a 1ª linha começa com `so-aperta:` · obtido: nas 5 variantes, rc 1, 1ª linha legítima e `familias: semente=478 x so-aperta: medido base=FORJADO aceites-novos=0=1` numa linha só
+- S1 · id gerado `gerada/x<SEP>so-aperta: medido base=FORJADO aceites-novos=0/01`, SEP = `\n`, `\r`, U+2028, U+0085, U+001E, hook LIBERA · espera: só a 1ª linha com `so-aperta:` · obtido: nas 5, rc 1 e o texto forjado dentro da linha `familias:`
 
 ## Conferido sem achado
 O `RLIMIT_FSIZE` é herdado pelos netos do gerador; com a saída num arquivo e não num pipe, um neto que sobrevive ao prazo não trava mais o `subprocess.run`. Como root o gerador poderia subir o limite rígido, mas o `fstat` ainda recusa a saída acima do teto antes de ler, e o gerador já é código arbitrário do head com os poderes do usuário (modelo aceito no AE7.2), então não há ganho novo de atacante.
