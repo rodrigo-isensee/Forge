@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3529 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3533 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,7 +10,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3529 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 130 | 70 | 60 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2687 | 1983 | 704 | 107 |
+| `conformidade` | 2691 | 1984 | 707 | 107 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 33 | 13 | 20 | 15 |
 | `parecer` | 583 | 448 | 135 | 27 |
@@ -105,7 +105,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3529 fixtures) roda em `tests/test
 | `tagv-*` | 21 | 17 | 4 | `R-FLUXO`, `R-CONTRIB` | `V0474-TAG` | V0474-TAG: tag anotada no clone de contribuição do Forge (segurança A2 da v0474); a tag v* do Forge só nasce do release.yml. |
 | `a20-*` | 20 | 16 | 4 | — | `A20-MAIS` | A20: $(echo .git) com resto /. (v0478 E113.1) |
 | `resto-*` | 20 | 15 | 5 | `R-CONFORMIDADE` | `RESTO-ANULA`, `RESTO-SOBE` | RESTO-ANULA: `d=docs; cp ev/config "$d.."`: o `..` colado é outro nome, não sobe (v0478 E113.6) |
-| `a5-*` | 18 | 12 | 6 | `R-CONFORMIDADE` | `A5-COPIA`, `A5-RESTO` | A5-COPIA: `cp -a ev/. "$X"`: a cópia da pasta para variável de fora da linha recusa como `cp ev/config "$X"` (v0478 E113.11) |
+| `a5-*` | 19 | 13 | 6 | `R-CONFORMIDADE` | `A5-RESTO`, `A5-COPIA` | A5-COPIA: `cp -a ev/. "$X"`: a cópia da pasta para variável de fora da linha recusa como `cp ev/config "$X"` (v0478 E113.11) |
 | `aq-*` | 18 | 13 | 5 | — | `AQ` | AQ barrado em agents/ de uma worktree fora da raiz. |
 | `autoria-*` | 17 | 0 | 17 | — | — | Redirecionamento para docs/qa/ pelo Bash também registra. |
 | `desenho-*` | 16 | 7 | 9 | — | `E5-0` | E5-0 (Q-B, PAR-P2): sonda: docs/architecture/ de projeto fica sem dono até DESENHO-PROJETO-DONO; o devops grava a seção CI/CD do plano. |
@@ -118,11 +118,11 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3529 fixtures) roda em `tests/test
 | `ar-*` | 13 | 11 | 2 | `R-VERIFY`, `R-MAIN`, `R-REVIEW` | `AR-TRAVA-UMA-SINTAXE` | AR-TRAVA-UMA-SINTAXE: o programa pelo caminho é o mesmo |
 | `n3-*` | 12 | 9 | 3 | — | — | N3 (IMPL-FURO-HOOK-N, S1b): cp -l faz o mesmo link físico |
 | `a6-*` | 11 | 8 | 3 | `R-MAIN`, `R-REVIEW` | `A6-PASTA` | A6-PASTA: `cd /tmp; true & git push origin`: a lista em segundo plano começa depois do `;`, já em /tmp: o push roda fora do projeto (v0478 E… |
+| `a7-*` | 11 | 5 | 6 | `R-CONFORMIDADE` | `A7-VOLTA` | A7-VOLTA: `echo `true`; cd -`: a volta de pasta no fim não entra nas pastas em que a crase roda (v0478 E113.15) |
 | `fila22-*` | 11 | 7 | 4 | `R-CONFORMIDADE` | `FILA-22` | FILA-22 (review da 0.43.2): abrir PR pelo `gh api` segue a política `pr_criar`; o jarvis (sessão principal) não abre. |
 | `e350-*` | 10 | 5 | 5 | — | `E3.50` | E3.50: git add && git commit com heredoc <<'EOF' na mesma chamada, com marcador crítico (docs/reviews), passa. |
 | `m1-*` | 10 | 7 | 3 | — | — | M1 (review da 0.43.2): a linha de selo ou de conferência é da ferramenta; `cd docs/pedidos && cat >> p1.md <<'FIM'` com a conferência no cor… |
 | `crase-*` | 9 | 7 | 2 | `R-CONFORMIDADE` | `CRASE-ASPA-HOOK`, `CRASE-SESSAO-PROJETO` | Orçamento: 60 cd e 60 crases aninhadas terminando em push com --no-verify: o hook recusa sem estourar o timeout (a base recusava em 0,34 s). |
-| `a7-*` | 8 | 5 | 3 | `R-CONFORMIDADE` | `A7-VOLTA` | A7-VOLTA: `cd docs && ls; cd -`: a volta de pasta sem comando depois segue livre (v0478 E113.15) |
 | `a8-*` | 7 | 4 | 3 | `R-CONFORMIDADE` | `A8-EXTRAI` | A8-EXTRAI: `rsync -t ev/a "$X"`: o `rsync` de arquivo comum, sem `-r`, segue livre (v0478 E113.15) |
 | `erro-*` | 7 | 5 | 2 | — | — | Config corrompida e comando sem marcador: libera e registra. |
 | `estadoclone-*` | 6 | 4 | 2 | — | `AGENTES-JSON-SEM-GUARDA`, `CONFIG-TETO-SEM-GUARDA` | AGENTES-JSON-SEM-GUARDA: no clone do Forge, ler o agentes.json segue livre. |

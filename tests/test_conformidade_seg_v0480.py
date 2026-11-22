@@ -80,10 +80,10 @@ class SegurancaDaAuditoria(unittest.TestCase):
         self.conferir("A6-PASTA:", recusam=8, liberam=3)
 
     def test_a7_volta_de_pasta_desconhecida_recusa_o_comando_depois(self):
-        self.conferir("A7-VOLTA:", recusam=5, liberam=3)
+        self.conferir("A7-VOLTA:", recusam=5, liberam=6)
 
     def test_a5_copia_com_opcao_abreviada_ou_alvo_colado_recusa(self):
-        self.conferir("A5-RESTO:", recusam=7, liberam=2)
+        self.conferir("A5-RESTO:", recusam=8, liberam=2)
 
     def test_a8_extracao_para_opaco_sem_resto_recusa(self):
         self.conferir("A8-EXTRAI:", recusam=4, liberam=3)

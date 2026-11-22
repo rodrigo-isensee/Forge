@@ -1,0 +1,76 @@
+{
+  "pedido": "v0480-seg-conformidade",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A5s",
+      "guarda": "A5 (E113.13): a palavra depois de `-t` ou `--targ` é o destino",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if seguinte:\n            return a\n",
+      "para": "        if False:\n            return a\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a5_copia_com_opcao_abreviada_ou_alvo_colado_recusa"
+      ]
+    },
+    {
+      "id": "A5k",
+      "guarda": "A5 (E113.13): o grupo de curtas com `t` toma o destino",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif a[:1] == \"-\" and a[1:2] != \"-\" and \"t\" in a:  #",
+      "para": "        elif False:  #",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a5_copia_com_opcao_abreviada_ou_alvo_colado_recusa"
+      ]
+    },
+    {
+      "id": "A5f",
+      "guarda": "A5 (E113.13): o `t` no fim do grupo toma a palavra seguinte",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            seguinte = not valor and (grupo.isalpha() or not grupo)\n",
+      "para": "            seguinte = False\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a5_copia_com_opcao_abreviada_ou_alvo_colado_recusa"
+      ]
+    },
+    {
+      "id": "A7v",
+      "guarda": "A7 (E113.13): a pasta desconhecida não entra nas pastas da crase",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if contextos[sub][0] is not None:\n",
+      "para": "            if True:\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a7_volta_de_pasta_desconhecida_recusa_o_comando_depois"
+      ]
+    },
+    {
+      "id": "A7f",
+      "guarda": "A7 (E113.13): a linha que termina na volta de pasta devolve a pasta de antes",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        return contextos[()][0] or pasta, vistas",
+      "para": "        return contextos[()][0], vistas",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a7_volta_de_pasta_desconhecida_recusa_o_comando_depois"
+      ]
+    },
+    {
+      "id": "A7o",
+      "guarda": "A7 (E113.13): `popd` também dá pasta desconhecida",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if prog in (\"pushd\", \"popd\"):  #",
+      "para": "        if prog == \"pushd\":  #",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a7_volta_de_pasta_desconhecida_recusa_o_comando_depois"
+      ]
+    },
+    {
+      "id": "A7h",
+      "guarda": "A7 (E113.13): o `cd` sem argumento segue indo ao HOME",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            alvo = parte[1] or \"\"\n",
+      "para": "            alvo = parte[1]\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a7_volta_de_pasta_desconhecida_recusa_o_comando_depois"
+      ]
+    }
+  ]
+}

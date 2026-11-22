@@ -56,8 +56,8 @@
       "id": "A8t",
       "guarda": "A8 (E113.13): no `rsync`, `-t` não toma destino",
       "arquivo": "hooks/conformidade.py",
-      "de": "        alvo = None if prog == \"rsync\" else alvo_do_t(args)",
-      "para": "        alvo = alvo_do_t(args)",
+      "de": "        alvo = None if prog == \"rsync\" else",
+      "para": "        alvo = None if prog == \"rsync!\" else",
       "testes": [
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a8_extracao_para_opaco_sem_resto_recusa"
       ]
