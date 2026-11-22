@@ -52,6 +52,36 @@
       "testes": [
         "tests.test_parecer_fora_do_delta.Revalidacao.test_faixa_larga_nao_cruza_o_delta"
       ]
+    },
+    {
+      "id": "FL2",
+      "guarda": "E122.6: faixa de 20 linhas de largura já é larga",
+      "arquivo": "bin/forge-check",
+      "de": "int(ultima or primeira) - int(primeira) >= LARGURA_DA_FAIXA",
+      "para": "int(ultima or primeira) - int(primeira) > LARGURA_DA_FAIXA",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_faixa_larga_nao_cruza_o_delta"
+      ]
+    },
+    {
+      "id": "FM1",
+      "guarda": "E122.6: o cabeçalho vai até o fechamento `---`, não o arquivo inteiro",
+      "arquivo": "bin/forge-check",
+      "de": "return texto if fim < 0 else texto[:fim]",
+      "para": "return texto",
+      "testes": [
+        "tests.test_classe_risco.ClasseNoRepositorio.test_e1226_binario_e_cabecalho_de_agente_saem_da_t"
+      ]
+    },
+    {
+      "id": "BA1",
+      "guarda": "E122.6: sem barreiras (chamada direta), nada é barrado",
+      "arquivo": "bin/forge-check",
+      "de": "barreiras([m.nome for m in contam]) if barreiras else []",
+      "para": "barreiras([m.nome for m in contam]) if not barreiras else []",
+      "testes": [
+        "tests.test_classe_risco.ClasseDasMudancas.test_g13_so_texto_ou_so_teste_de_controle_e_t"
+      ]
     }
   ]
 }

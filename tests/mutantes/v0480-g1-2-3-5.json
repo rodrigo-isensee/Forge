@@ -6,8 +6,8 @@
       "id": "MQ1",
       "guarda": "E122.6 (segurança A1 e A2): .md que configura não entra na T de texto",
       "arquivo": "bin/forge-check",
-      "de": "    if any(MD_QUE_CONFIGURA.search(m.nome) for m in contam):\n        return None\n",
-      "para": "",
+      "de": "    if any(MD_QUE_CONFIGURA.search(m.nome) for m in contam):",
+      "para": "    if any(False for m in contam):",
       "testes": [
         "tests.test_classe_risco.ClasseDasMudancas.test_e1226_md_que_configura_e_apoio_de_tests_seguem_c"
       ]
@@ -50,6 +50,26 @@
       "para": "        if False:\n",
       "testes": [
         "tests.test_classe_risco.ClasseDasMudancas.test_e1226_barreira_tira_da_t"
+      ]
+    },
+    {
+      "id": "HD1",
+      "guarda": "E122.6: a contagem de linhas lê a --head pedida",
+      "arquivo": "bin/forge-check",
+      "de": "lambda nomes: linhas_do_diff(raiz, mb, ref or \"HEAD\", nomes)",
+      "para": "lambda nomes: linhas_do_diff(raiz, mb, \"HEAD\", nomes)",
+      "testes": [
+        "tests.test_classe_risco.ClasseNoRepositorio.test_fronteira_20_21_linhas_contadas_pelo_git"
+      ]
+    },
+    {
+      "id": "HD2",
+      "guarda": "E122.6: a barreira lê a --head pedida",
+      "arquivo": "bin/forge-check",
+      "de": "lambda nomes: barreiras_do_leve(raiz, mb, ref or \"HEAD\", nomes)",
+      "para": "lambda nomes: barreiras_do_leve(raiz, mb, \"HEAD\", nomes)",
+      "testes": [
+        "tests.test_classe_risco.ClasseNoRepositorio.test_e1226_binario_e_cabecalho_de_agente_saem_da_t"
       ]
     }
   ]

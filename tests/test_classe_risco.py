@@ -173,12 +173,13 @@ class ClasseNoRepositorio(Repo):
         return json.loads(r.stdout)
 
     def test_fronteira_20_21_linhas_contadas_pelo_git(self):
-        self.commitar({"src/app.py": "v1\n" + "".join(f"l{i}\n" for i in range(20))}, "20 linhas")
+        vinte = self.commitar({"src/app.py": "v1\n" + "".join(f"l{i}\n" for i in range(20))}, "20 linhas")
         self.assertEqual(self.classe()["classe"], "T")
         self.commitar({"src/app.py": "v1\n" + "".join(f"l{i}\n" for i in range(21))}, "21 linhas")
         saida = self.classe()
         self.assertEqual((saida["classe"], saida["pareceres"]), ("N", ["review", "qa"]))
         self.assertEqual(saida["portoes"], ["autor", ["review", "qa"], "CI"])
+        self.assertEqual(self.classe("--head", vinte)["classe"], "T")  # a contagem lê a --head, não o HEAD
 
     def test_docs_em_docs_regras_e_t_com_seguranca_e_sem_qa(self):  # G1.3, D2: review e segurança (gatilho), sem QA
         self.commitar({"docs/regras/R-X.md": "# x\n"}, "regra")
@@ -203,12 +204,13 @@ class ClasseNoRepositorio(Repo):
         git("switch", "-q", "develop", cwd=self.tmp)
         self.commitar({"agents/x.md": "---\nname: x\ntools: Read\n---\n# x\n"}, "agente na base")
         git("switch", "-q", "-C", "melhoria/x", cwd=self.tmp)
-        self.commitar({"agents/x.md": "---\nname: x\ntools: Read\n---\n# x, corpo novo\n"}, "só o corpo")
+        corpo = self.commitar({"agents/x.md": "---\nname: x\ntools: Read\n---\n# x, corpo novo\n"}, "só o corpo")
         self.assertEqual(self.classe()["classe"], "T")
         self.commitar({"agents/x.md": "---\nname: x\ntools: Read, Edit\n---\n# x, corpo novo\n"}, "tools")
         saida = self.classe()
         self.assertEqual((saida["classe"], saida["arquivos"]), ("C", ["agents/x.md"]))
         self.assertIn("cabeçalho de agente ou skill", saida["motivos"][0])
+        self.assertEqual(self.classe("--head", corpo)["classe"], "T")  # a barreira lê a --head, não o HEAD
         self.setUp()
         (self.tmp / "agents").mkdir(exist_ok=True)
         (self.tmp / "agents" / "b.md").write_bytes(b"\x00\x01bin")
