@@ -606,14 +606,15 @@ class Execucao(unittest.TestCase):
         self.assertIn("suíte completa (tests/config.json altera o mapa ou a configuração)", r.stdout)
 
     def test_arquivo_mapeado_renomeado_inclui_os_modulos_do_caminho_antigo(self):
-        (self.dir / "tests" / "test_forge_mutante.py").write_text("x = 1\n", encoding="utf-8")  # o mapa de bin/forge-mutante o cita
+        for modulo in ("test_forge_mutante", "test_pre_push_patch", "test_prepush_lote_pp1"):  # o mapa de bin/forge-mutante os cita
+            (self.dir / "tests" / f"{modulo}.py").write_text("x = 1\n", encoding="utf-8")
         git(self.dir, "add", "-A")
         git(self.dir, "commit", "-qm", "bin")
         git(self.dir, "switch", "-q", "-c", "melhoria/z")
         git(self.dir, "mv", "bin/forge-sugerir", "bin/forge-mutante")
         r = subprocess.run([sys.executable, str(FERRAMENTA), "--base", "melhoria/x", "--listar"], cwd=self.dir,
                            env=AMBIENTE, capture_output=True, text=True)
-        self.assertIn("dirigido (test_forge, test_forge_mutante, test_sugerir)", r.stdout)  # test_sugerir vem do caminho antigo
+        self.assertIn("dirigido (test_forge, test_forge_mutante, test_pre_push_patch, test_prepush_lote_pp1, test_sugerir)", r.stdout)  # test_sugerir vem do caminho antigo
 
     # FORGE-TESTES-CAMINHOS: classe "a ferramenta recusa a forma de chamada que os briefs mandam usar". Variantes:
     # caminho relativo, absoluto, com `..`, a partir de subpasta, vários, fora do repositório, junto de opção
