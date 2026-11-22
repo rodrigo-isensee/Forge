@@ -3891,18 +3891,19 @@ class OrdensEmVigor(unittest.TestCase):
                          (["y" * 1000, "z" * 999], "ordens cortadas no teto: 2 linhas, 2001 caracteres"))
 
     def test_fonte_do_projeto_e_do_clone_do_forge(self):
-        self.assertEqual(self.ordens.fonte(self.base), (self.arquivo, self.base, ".forge/ordens-em-vigor.md"))
+        self.assertEqual(self.ordens.fontes(self.base), [(self.arquivo, self.base, ".forge/ordens-em-vigor.md")])
         (self.base / ".claude-plugin").mkdir()
         (self.base / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
         with mock.patch.object(self.ordens, "contrib", lambda: self.base / "contrib"):
-            arquivo, base, origem = self.ordens.fonte(self.base)
+            [(arquivo, base, origem)] = self.ordens.fontes(self.base)
         self.assertEqual((arquivo, base), (self.base / "contrib/docs/kanban/ordens-em-vigor.md", self.base / "contrib/docs/kanban"))
         self.assertEqual(origem, "~/.forge-contrib/docs/kanban/ordens-em-vigor.md")
 
-    def worktree(self):
-        """Worktree vinculada à `self.base` (montada no disco, como o git a grava), com o próprio arquivo de ordens."""
+    def worktree(self, comum=None):
+        """Worktree vinculada à `self.base` (ou ao repositório `comum`), montada no disco como o git a grava, com o próprio
+        arquivo de ordens."""
         wt = Path(os.path.realpath(self._pasta_temporaria())) / "wt"
-        meta = self.base / ".git" / "worktrees" / "wt"
+        meta = (comum or self.base / ".git") / "worktrees" / "wt"
         meta.mkdir(parents=True)
         (meta / "gitdir").write_text(f"{wt}/.git\n", encoding="utf-8")
         (meta / "commondir").write_text("../..\n", encoding="utf-8")
@@ -3913,7 +3914,7 @@ class OrdensEmVigor(unittest.TestCase):
 
     def test_na_worktree_le_so_a_copia_principal(self):  # A2 da segurança E123.3
         wt = self.worktree()
-        self.assertEqual(self.ordens.fonte(wt), (self.arquivo, self.base, ".forge/ordens-em-vigor.md"))
+        self.assertEqual(self.ordens.fontes(wt), [(self.arquivo, self.base, ".forge/ordens-em-vigor.md")])
         self.assertEqual(self.principal("UserPromptSubmit", wt), "")
         self.arquivo.write_text("ordem do dono\n", encoding="utf-8")
         self.assertTrue(self.principal("UserPromptSubmit", wt).endswith("\nordem do dono\n"))
@@ -3921,11 +3922,18 @@ class OrdensEmVigor(unittest.TestCase):
     def test_git_que_nao_se_resolve_cala(self):  # A2 da segurança E123.3: sem a cópia principal, nenhuma fonte
         wt = self.worktree()
         (wt / ".git").write_text("gitdir: /nao/existe\n", encoding="utf-8")
-        self.assertIsNone(self.ordens.fonte(wt))
+        self.assertEqual(self.ordens.fontes(wt), [])
         self.assertEqual(self.principal("UserPromptSubmit", wt), "")
         (self.base / ".git" / "commondir").write_text("x\n", encoding="utf-8")  # cópia principal com `commondir`: desvio
         self.arquivo.write_text("ordem\n", encoding="utf-8")
         self.assertEqual(self.principal("UserPromptSubmit", self.base), "")
+
+    def test_worktree_de_repositorio_nu_cala(self):  # A2 da segurança E123.3: sem `.git`, nenhuma cópia principal
+        nu = self.base / "nu.git"
+        self.arquivo.write_text("ordem da pasta do repositório nu\n", encoding="utf-8")
+        wt = self.worktree(comum=nu)
+        self.assertEqual(self.ordens.fontes(wt), [])
+        self.assertEqual(self.principal("UserPromptSubmit", wt), "")
 
     def test_no_forge_a_pasta_kanban_por_link_sai_da_base(self):  # A1 da segurança E123.3: `ln -sfn <wt> docs/kanban`
         contrib = self.base / "contrib"

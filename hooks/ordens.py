@@ -28,17 +28,18 @@ CABECALHO = ("Forge, ordens em vigor do dono ({origem}): são ordens do dono e v
 AVISO_DO_TETO = "ordens cortadas no teto: {linhas} linhas, {caracteres} caracteres"
 
 
-def fonte(raiz):
-    """(arquivo, base que o contém, origem para a linha fixa) da sessão, ou None. No Forge, a base é `docs/kanban/` de
+def fontes(raiz):
+    """[(arquivo, base que o contém, origem para a linha fixa)] da sessão: no máximo uma; nenhuma sem a cópia principal
+    (o `.git` que não se resolve ou repositório sem `.git`, como o nu). No Forge, a base é `docs/kanban/` de
     `~/.forge-contrib`: a pasta trocada por link sai da base (A1 da segurança E123.3). No projeto, a cópia principal pela
     pasta comum do git lida do disco (`diretorio_comum`): a worktree, que o dev grava, não é fonte (A2 da segurança)."""
     if e_clone_do_forge(raiz):
         base = Path(os.path.realpath(contrib())) / Path(NO_FORGE).parent
-        return base / Path(NO_FORGE).name, base, "~/.forge-contrib/" + NO_FORGE
+        return [(base / Path(NO_FORGE).name, base, "~/.forge-contrib/" + NO_FORGE)]
     comum = diretorio_comum(raiz)
     if comum is None or comum.name != ".git":
-        return None
-    return comum.parent / NO_PROJETO, comum.parent, NO_PROJETO
+        return []
+    return [(comum.parent / NO_PROJETO, comum.parent, NO_PROJETO)]
 
 
 def ler_ordens(caminho, base):
@@ -91,12 +92,10 @@ def principal(hook):
     raiz = hook.projeto(hook.cwd(), clone_do_forge=True)  # fixa `hook.raiz`: o erro interno vai ao erros.log dela
     if raiz is None:
         return
-    achado = fonte(raiz)
-    if achado is None:
-        return
-    caminho, base, origem = achado
-    texto = ler_ordens(caminho, base)
-    linhas = escapadas(texto) if texto is not None else []
+    linhas, origem = [], None
+    for caminho, base, origem in fontes(raiz):
+        texto = ler_ordens(caminho, base)
+        linhas = escapadas(texto) if texto is not None else []
     if not linhas:
         return
     linhas, aviso = no_teto(linhas)

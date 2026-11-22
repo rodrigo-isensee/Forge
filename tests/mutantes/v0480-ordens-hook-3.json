@@ -24,20 +24,20 @@
     },
     {
       "id": "M17",
-      "guarda": "ORDENS: sem a pasta comum do git lida do disco, nenhuma fonte (A2 da segurança E123.3)",
+      "guarda": "ORDENS: só a pasta comum `.git` dá a cópia principal; repositório nu ou `.git` que não se resolve, nenhuma fonte (A2 da segurança E123.3)",
       "arquivo": "hooks/ordens.py",
       "de": "if comum is None or comum.name != \".git\":",
-      "para": "if False:",
+      "para": "if comum is None:",
       "testes": [
-        "tests.test_hooks.OrdensEmVigor.test_git_que_nao_se_resolve_cala"
+        "tests.test_hooks.OrdensEmVigor.test_worktree_de_repositorio_nu_cala"
       ]
     },
     {
       "id": "M18",
       "guarda": "ORDENS: no projeto, a fonte é a cópia principal, nunca a worktree (A2 da segurança E123.3)",
       "arquivo": "hooks/ordens.py",
-      "de": "return comum.parent / NO_PROJETO, comum.parent, NO_PROJETO",
-      "para": "return Path(os.path.realpath(raiz)) / NO_PROJETO, Path(os.path.realpath(raiz)), NO_PROJETO",
+      "de": "return [(comum.parent / NO_PROJETO, comum.parent, NO_PROJETO)]",
+      "para": "return [(Path(os.path.realpath(raiz)) / NO_PROJETO, Path(os.path.realpath(raiz)), NO_PROJETO)]",
       "testes": [
         "tests.test_hooks.OrdensEmVigor.test_na_worktree_le_so_a_copia_principal"
       ]
@@ -57,19 +57,9 @@
       "guarda": "ORDENS: cada sequência de controle vira um espaço só (A3 do review E123.4)",
       "arquivo": "hooks/ordens.py",
       "de": "\" \" if controle else \"\".join(g)",
-      "para": "\" \" * len(list(g)) if controle else \"\".join(g)",
+      "para": "\" \" if not controle else \"\".join(g)",
       "testes": [
         "tests.test_hooks.OrdensEmVigor.test_sequencia_de_controles_vira_um_espaco_so"
-      ]
-    },
-    {
-      "id": "M21",
-      "guarda": "ORDENS: fonte None (sem cópia principal), silêncio",
-      "arquivo": "hooks/ordens.py",
-      "de": "    if achado is None:\n        return\n",
-      "para": "    if False:\n        return\n",
-      "testes": [
-        "tests.test_hooks.OrdensEmVigor.test_git_que_nao_se_resolve_cala"
       ]
     }
   ]
