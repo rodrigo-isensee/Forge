@@ -53,6 +53,27 @@
       ]
     },
     {
+      "id": "RA3",
+      "guarda": "RESTO-ANULA: só o resto que não desce abaixo do opaco se anula",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return not resto_normalizado(Path(resto.lstrip(\"/\")).parts)\n",
+      "para": "    return resto_normalizado(Path(resto.lstrip(\"/\")).parts)\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_resto_que_se_anula_ou_sobe_vale_como_o_opaco_sem_resto"
+      ]
+    },
+    {
+      "id": "S22q",
+      "guarda": "S22: a troca que segue pendente fica para o próximo sinal",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            incertas[sub] = [t for t in incertas.get(sub, []) if t not in fora]\n",
+      "para": "            incertas[sub] = [t for t in incertas.get(sub, []) if t in fora]\n",
+      "testes": [
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_troca_de_branch_so_vale_com_o_operador_que_garante",
+        "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_s22_subshell_segue_a_cadeia_so_com_o_comeco_que_garante"
+      ]
+    },
+    {
       "id": "RA2",
       "guarda": "RESTO-ANULA: o `..` colado (`$d..`) é outro nome, não sobe",
       "arquivo": "hooks/conformidade.py",

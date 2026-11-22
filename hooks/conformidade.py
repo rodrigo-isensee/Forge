@@ -2236,7 +2236,6 @@ class Guarda:
         # S22: a troca de branch vale certa só enquanto a cadeia de `&&` que a segue dura, também pelo fim do subshell
         # (`( … ) &&`); no primeiro outro sinal, ou ao sair do subshell cujo começo não garante (`alcance_da_troca`), a
         # branch de antes volta como candidata (`ramos_em`). As chaves com ação crítica o hook recusa (`chaves`)
-        partes = [p for p in partes if p[2] or not so_substituicoes]
         anterior, incertas, grupos = {}, {}, {}
 
         def contexto(sub):
@@ -2251,6 +2250,8 @@ class Guarda:
                 ramos_sub[chave] = tuple(dict.fromkeys(ramos_sub[chave] + tuple(velhas)))
 
         for palavras, destinos, sub, sinal in partes:
+            if so_substituicoes and not sub:
+                continue
             pasta_sub, ramos_sub = contexto(sub)
             antes, pilha, sinal_antes = dict(ramos_sub), grupos.setdefault(sub, []), anterior.get(sub, "").rstrip("\n")
             for d in destinos:
