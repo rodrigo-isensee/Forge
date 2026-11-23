@@ -3,12 +3,18 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-copia-nome-unico
-commit: 2f16f0175ef1a657ad21031e493e079cdce06b41
+commit: 04e560fa12257cef55d8122dfd1f32a8a1188685
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-23
 ---
-# Review: v0478 · E111.2, revalidado em E111.6 · CLONE-NOME-UNICO (forge-copia)
+# Review: v0478 · E111.2, revalidado em E111.6 e E111.10 · CLONE-NOME-UNICO (forge-copia)
+
+## Revalidação E111.10 (head 04e560fa)
+Delta lido: `forge-check parecer delta` de 2f16f017..04e560fa; no domínio só `tests/pesos-d4.json`, o arquivo do conflito no merge da develop (f17183d1). Desde 2f16f017, fora do merge, só pareceres (6a1a8ce8, a2bf1b46, 3d7866ba).
+- Resolução (`git show --remerge-diff 04e560fa`): lado da develop inteiro mais a linha `"test_forge_copia_nome": 4.0`. `git diff f17183d1 04e560fa -- tests/pesos-d4.json` dá só essa linha; o JSON carrega, 289 chaves, em ordem.
+- Patch da branch inalterado: `git diff 900bfdfe 3d7866ba` e `git diff f17183d1 04e560fa` (sem as linhas `index`) diferem só no contexto do trecho de `tests/pesos-d4.json`; `bin/forge-copia`, testes e mutantes iguais.
+- Suíte completa: CI do PR sobre a develop atual.
 
 ## Revalidação E111.6 (head 2f16f017)
 Delta lido: `forge-check parecer delta` de 95011540..2f16f017 (desde 0def05cd só há pareceres); no domínio: `bin/forge-copia` (+2), changelog, mutantes e teste.
