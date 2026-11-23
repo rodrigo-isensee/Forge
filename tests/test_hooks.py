@@ -1787,7 +1787,13 @@ class Hooks(unittest.TestCase):
                        "branch não texto": {"caminho": ".github/", "quem": [], "motivo": "m", "branch": 7},
                        "quem não lista": {"caminho": ".github/", "quem": "jarvis", "motivo": "m"},
                        "so_forge não booleano": {"caminho": ".github/", "quem": [], "motivo": "m", "so_forge": "s"},
-                       "entrada não objeto": "docs/"}
+                       "entrada não objeto": "docs/",
+                       # E123.19: um caso por guarda de `entrada_valida` (mutantes em tests/mutantes/v0480-ordens-hook-6.json)
+                       "caminho vazio": {"caminho": "", "quem": [], "motivo": "m"},
+                       "caminho não texto": {"caminho": 7, "quem": [], "motivo": "m"},
+                       "motivo vazio": {"caminho": ".github/", "quem": [], "motivo": ""},
+                       "quem com item não texto": {"caminho": ".github/", "quem": [7], "motivo": "m"},
+                       "branch vazia": {"caminho": ".github/", "quem": [], "motivo": "m", "branch": ""}}
         for nome, entrada in malformadas.items():
             with self.subTest(nome):
                 tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))

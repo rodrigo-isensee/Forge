@@ -3600,12 +3600,16 @@ def com_trecho(rid, o_que, corrigir, palavras):
 
 
 def entrada_valida(e):
-    """Forma de uma entrada de `caminhos`: sem ela o hook cairia em KeyError/TypeError e liberaria (saída 0)."""
-    def texto(v):
-        return isinstance(v, str) and bool(v)
-    return (isinstance(e, dict) and texto(e.get("caminho")) and texto(e.get("motivo"))
-            and isinstance(e.get("quem"), list) and all(isinstance(q, str) for q in e["quem"])
-            and isinstance(e.get("so_forge", False), bool) and ("branch" not in e or texto(e["branch"])))
+    """Forma de uma entrada de `caminhos`: sem ela o hook cairia em KeyError/TypeError e liberaria (saída 0). Sem função
+    por campo: roda para cada entrada em toda chamada do hook (custo do corpus, CORPUS-CUSTO-CONTADOR)."""
+    if not isinstance(e, dict):
+        return False
+    caminho, motivo, quem = e.get("caminho"), e.get("motivo"), e.get("quem")
+    return (isinstance(caminho, str) and caminho != ""
+            and isinstance(motivo, str) and motivo != ""
+            and isinstance(quem, list) and all(isinstance(q, str) for q in quem)
+            and isinstance(e.get("so_forge", False), bool)
+            and ("branch" not in e or isinstance(e["branch"], str) and e["branch"] != ""))
 
 
 def lista_de_textos(v):
