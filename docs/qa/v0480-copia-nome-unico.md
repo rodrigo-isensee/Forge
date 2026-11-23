@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-copia-nome-unico
-commit: 2f16f0175ef1a657ad21031e493e079cdce06b41
+commit: 04e560fa12257cef55d8122dfd1f32a8a1188685
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -15,6 +15,10 @@ data: 2026-11-23
 # QA: v0480-copia-nome-unico (CLONE-NOME-UNICO)
 
 Delta 900bfdfe..95011540: `bin/forge-copia` (destino ocupado nunca reusado; a recusa diz a branch da cópia e sugere nome livre; `--papel`), `tests/test_forge_copia_nome.py`, specs de mutantes, `tests/pesos-d4.json`.
+
+## Revalidação por delta (E111.11)
+
+Delta 2f16f017..04e560fa (merge da develop f17183d; `forge-check parecer delta` lista só `tests/pesos-d4.json` no domínio). A linha `test_forge_copia_nome: 4.0` é idêntica nos dois lados; o JSON carrega (289 chaves). `python3 -m unittest tests.test_forge_copia_nome`: 9 testes, OK no head. Aprovação anterior mantida.
 
 ## Achados
 - A1 (recomendado) bin/forge-copia:261 · mutante M6 de tests/mutantes/v0475-copia-pasta.json `if valor.startswith("-")` sobrevive, também na base 900bfdfe (provado em cópia); linha fora do diff, guarda redundante com check-ref-format; virar teste ou equivalente.
