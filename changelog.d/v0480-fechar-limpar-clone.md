@@ -1,0 +1,3 @@
+### Corrigido
+- forge-fechar --limpar: apaga o clone sem trabalho cujo HEAD é ancestral do head mesclado e o que tem commit fora das refs remotas velhas dele, mas que as pontas lidas agora da origin alcançam (leitura e busca desta cópia, sem fetch no clone); o campo `clone=` sai sempre na linha `limpeza:` (`nenhum` sem clone) (LIMPAR-CLONE-NAO-LISTADO).
+- forge-fechar: a busca dos pareceres citados que falha em lote divide os sha em metades, e só a metade que falha se divide de novo; `--principal` vazio, com `--promover` ou com `--limpar` é erro de uso (A1 e A2 do review de FECHAR-BUSCA-PARECERES-CITADOS).

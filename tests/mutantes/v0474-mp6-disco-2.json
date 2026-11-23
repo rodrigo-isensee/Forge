@@ -26,7 +26,7 @@
       "id": "M12",
       "guarda": "clone com commit fora das refs do origin (branch, tag, stash) fica",
       "arquivo": "bin/forge-fechar",
-      "de": "      || [ -n \"$(\"${g[@]}\" rev-list --all --not --remotes 2>/dev/null || echo erro)\" ] ||",
+      "de": "      || [ -n \"$fora\" ] ||",
       "para": "      ||",
       "testes": [
         "tests.test_forge_fechar.LimparClones.test_commit_nao_enviado_em_outra_branch_fica",
@@ -37,8 +37,8 @@
       "id": "M13",
       "guarda": "clone com sha nao mesclado fica",
       "arquivo": "bin/forge-fechar",
-      "de": " ! sha_confere \"$sha_dela\"; then",
-      "para": " false; then",
+      "de": " ! sha_confere \"$sha_dela\"; }; then",
+      "para": " false; }; then",
       "testes": [
         "tests.test_forge_fechar.LimparClones.test_commit_enviado_e_nao_mesclado_fica"
       ]

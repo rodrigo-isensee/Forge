@@ -44,12 +44,13 @@
     },
     {
       "id": "M5",
-      "guarda": "o sha que a fonte nao tem nao derruba o fechamento",
+      "guarda": "o sha sozinho que a fonte nao tem nao derruba o fechamento",
       "arquivo": "bin/forge-fechar",
-      "de": "\"$fonte\" \"$s\" >/dev/null 2>&1 || true; done",
-      "para": "\"$fonte\" \"$s\" >/dev/null 2>&1; done",
+      "de": "[ \"$#\" -gt 1 ] || return 0  # o sha sozinho",
+      "para": "[ \"$#\" -gt 1 ] || return 1  # o sha sozinho",
       "testes": [
-        "tests.test_fechar_busca_pareceres.FecharBuscaPareceres.test_busca_da_origin_e_da_principal_e_diz_o_que_nao_existe"
+        "tests.test_fechar_busca_pareceres.FecharBuscaPareceres.test_busca_da_origin_e_da_principal_e_diz_o_que_nao_existe",
+        "tests.test_fechar_busca_pareceres.FecharBuscaPareceres.test_sha_ausente_entre_muitos_busca_por_metades"
       ]
     },
     {

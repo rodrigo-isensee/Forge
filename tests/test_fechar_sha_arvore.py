@@ -33,7 +33,7 @@ class Teste(unittest.TestCase):
         self.git("commit", "-q", "-m", "feat: trabalho novo", cwd=wt)
         r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente clone=nenhum"])
         self.assertEqual(self.marcas("git worktree remove"), [])
         self.assertEqual((wt / "ambiente.local").read_text(), "conteudo que so existe aqui\n")
         self.assertIn("não removi a worktree", r.stderr)
@@ -45,7 +45,7 @@ class Teste(unittest.TestCase):
         self.com_worktree()
         r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=nenhum"])
         self.assertEqual(len(self.marcas("git worktree remove")), 1)
 
 

@@ -914,7 +914,11 @@ class Fechar(unittest.TestCase):
 
     def test_lsremote_exato_um_ajudante_unico_le_a_branch_remota(self):
         codigo = [l for l in SCRIPT.read_text().splitlines() if not l.lstrip().startswith(("#", "echo", "passo"))]
-        chamadas = [l for l in codigo if "ls-remote" in l]
+        # LIMPAR-CLONE-NAO-LISTADO (v0478 E132.6): a lista de todas as pontas da origin (origem_atual) não lê uma branch pelo nome
+        pontas = [l for l in codigo if "ls-remote --heads --tags --refs origin 2>/dev/null |" in l]
+        self.assertEqual(len(pontas), 1, pontas)
+        self.assertIn(pontas[0].strip(), SCRIPT.read_text().split("origem_atual() {", 1)[1].split("\n}", 1)[0])
+        chamadas = [l for l in codigo if "ls-remote" in l and l not in pontas]
         self.assertEqual(len(chamadas), 1, chamadas)
         corpo = SCRIPT.read_text().split("remoto_exato() {", 1)[1].split("\n}", 1)[0]
         self.assertIn(chamadas[0].strip(), corpo)  # a única chamada é a do ajudante
@@ -1211,7 +1215,7 @@ class Fechar(unittest.TestCase):
         (self.estado / "wt_busy").write_text("apaga")
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=nenhum"])
         self.assertEqual(len(self.marcas("git worktree prune")), 1)
         self.assertEqual(len(self.arvores()), 1)
         self.assertFalse(wt.exists())
@@ -1223,7 +1227,7 @@ class Fechar(unittest.TestCase):
         (self.estado / "wt_busy").write_text("persiste")
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente clone=nenhum"])
         self.assertIn(f"git worktree remove {wt}", r.stdout)
         self.assertIn("git branch -D melhoria/x", r.stdout)
         self.assertEqual(self.marcas("git worktree prune"), [])
@@ -1238,7 +1242,7 @@ class Fechar(unittest.TestCase):
         (wt / "rascunho").write_text("não commitado\n")
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente clone=nenhum"])
         self.assertTrue((wt / "rascunho").exists())
         self.assertNotIn("--force", self.registro.read_text())  # o texto do git ("use --force") é dele, não uma chamada do script
         self.assertNotIn("--force", SCRIPT.read_text().replace("# ", "#"). split("limpar_entrega() {")[1].split("\n}\n")[0])
@@ -1262,7 +1266,7 @@ class Fechar(unittest.TestCase):
         self.git("switch", "-q", "develop")
         r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=pendente"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=pendente clone=nenhum"])
         self.assertEqual(self.marcas("git branch -D"), [])
         self.assertEqual(self.git("branch", "--list", "melhoria/x"), "melhoria/x")
 
@@ -1279,7 +1283,7 @@ class Fechar(unittest.TestCase):
         self.git("switch", "-q", "develop")
         r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=ok clone=nenhum"])
         self.assertEqual(self.marcas("git push origin --delete"), [])
         self.assertIn(novo, self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
 
@@ -1305,7 +1309,7 @@ class Fechar(unittest.TestCase):
         (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha}\n")
         r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=nenhum"])
         self.assertFalse(wt.exists())
         self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
         self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
@@ -1313,7 +1317,7 @@ class Fechar(unittest.TestCase):
         antes = self.chamadas()
         r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=nenhum"])
         self.assertEqual([c for c in self.chamadas() if c.startswith("git ")], [c for c in antes if c.startswith("git ")])
         self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))
 
@@ -1323,7 +1327,7 @@ class Fechar(unittest.TestCase):
         self.git("branch", "-D", "melhoria/x")
         r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=nenhum"])
         self.assertEqual(len(self.marcas("git push origin --delete")), 1)
         self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
 

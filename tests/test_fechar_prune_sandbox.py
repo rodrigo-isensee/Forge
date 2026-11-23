@@ -47,7 +47,7 @@ class Teste(unittest.TestCase):
         shutil.rmtree(outra)  # o registro que outra sessão deixou para trás
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=nenhum"])
         self.assertEqual(len(self.marcas("git worktree prune -v")), 1)
         self.assertLess(self.marcas("git worktree remove")[0], self.marcas("git worktree prune -v")[0])
         self.assertIn("registro: prune tirou 1 registro(s) de worktree órfã", r.stdout)
@@ -63,7 +63,7 @@ class Teste(unittest.TestCase):
         (self.estado / "meta_presa").write_text(str(meta))
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=nenhum"])
         self.assertIn(f"registro: os metadados da worktree ficaram em {meta} (o sandbox os prende nesta sessão)", r.stdout)
         self.assertNotIn("pendente, rode:", r.stdout)
         self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
