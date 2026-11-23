@@ -3,12 +3,21 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-copia-nome-unico
-commit: 950115403000c469798f92046bce95713ddfb5b3
+commit: 2f16f0175ef1a657ad21031e493e079cdce06b41
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-23
 ---
-# Review: v0478 · E111.2 · CLONE-NOME-UNICO (forge-copia)
+# Review: v0478 · E111.2, revalidado em E111.6 · CLONE-NOME-UNICO (forge-copia)
+
+## Revalidação E111.6 (head 2f16f017)
+Delta lido: `forge-check parecer delta` de 95011540..2f16f017 (desde 0def05cd só há pareceres); no domínio: `bin/forge-copia` (+2), changelog, mutantes e teste.
+- A1 da segurança tratado: `ocupado` devolve verdadeiro para link simbólico (`bin/forge-copia:79`), e a sugestão pula para `-2`. No destino informado nada muda: `ocupado(real)` recebe o `realpath`, que nunca é link.
+- `test_link_com_o_nome_sugerido_nao_e_oferecido` exercita o ramo de falha (link para pasta vazia fora da pasta de cópias: saída 2, sugere `b-qa-2`, nada criado no alvo).
+- `bin/forge-mutante --processos 1 --ids M6 tests/mutantes/v0480-copia-nome-unico.json`: `M6 · morreu · bin/forge-copia:79`.
+- `python3 -m unittest tests.test_forge_copia_nome`: 9 testes, OK. Suíte completa: CI do PR #806.
+
+## Primeira rodada (head 95011540)
 
 Delta lido: 900bfdfe..95011540 (primeira rodada; 6 arquivos, 36 linhas de código em `bin/forge-copia`, dentro do teto H1, um comportamento).
 
