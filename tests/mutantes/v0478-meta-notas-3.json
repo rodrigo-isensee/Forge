@@ -4,12 +4,12 @@
   "mutantes": [
     {
       "id": "M15",
-      "guarda": "o pré-filtro pula só o registro de resultado (\"type\":\"tool_result\"), não a nota cuja chamada traz o texto",
+      "guarda": "o pré-filtro pula o registro de resultado (\"type\":\"tool_result\") sem decodificar (mutante: decodifica); E137.1: a nota do assistente é a M1 de v0480-meta-notas-reconta",
       "arquivo": "hooks/meta.py",
-      "de": "'\"type\":\"tool_result\"' in linha",
-      "para": "'\"tool_result\"' in linha",
+      "de": "if ('\"type\":\"tool_result\"' in linha and",
+      "para": "if (False and",
       "testes": [
-        "tests.test_meta.NotasEntreFerramentas.test_nota_cuja_chamada_traz_tool_result_ainda_conta"
+        "tests.test_meta.NotasEntreFerramentas.test_resultado_de_ferramenta_nem_se_decodifica"
       ]
     },
     {
