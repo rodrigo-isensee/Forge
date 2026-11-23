@@ -3,15 +3,25 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-seg-conformidade
-commit: bf57b17e42a1c6019ac7f4c721f9f4900c51cc4e
-parecer: reprovado
+commit: b96cab3cbfbb3f625f6cb1732a018a8178f8c92c
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-22
+data: 2026-11-23
 ---
+
+## Revalidação 3ª volta (head b96cab3c)
+Delta de `forge-check parecer delta` (bf57b17e..b96cab3c): `hooks/conformidade.py`, fixtures novas A5-RESTO, A6, A7, A8, `docs/hooks-fixtures.md`, specs `-7`, `-8`, `-9`. O bug alto da 2ª volta (u4 `cp -rT ev "$HOME"t` recusado) está resolvido: a fixture `opaco-u4-prefixo-do-ambiente-maiusculo-libera` virou caso sem `-r` e a recursiva ficou separada em `...-recursiva-bloqueia`; as duas passam. Teto do corpus: `tests/pesos-d4.json` (test_comparar 103,7 s, test_placar_prometido 3,0 s) segue abaixo do limite de 225 s do `test_pesos_teto`; `tests/config.json` não mudou.
+
+Provas:
+- `python3 -I -m unittest discover -s tests -p test_conformidade_seg_v0480.py`: 15 testes, OK.
+- `tests/test_indice_fixtures.py`: 7 OK. `tests/test_pesos_teto.py`: 2 OK.
+- `bin/forge-mutante --processos 3 --base bf57b17e tests/mutantes/v0480-seg-conformidade-{7,8,9}.json` (`base=bf57b17e… rev=b96cab3cbfbb…`): 21 mutantes do autor, todos `morreu`, nenhum sobrevivente.
+- `bin/forge-mutante --cobertura --base bf57b17e`: sem condição de guarda mudada sem mutante (só `apagada` na base e `não coberto: tests/pesos-d4.json`, dado).
+- Suíte completa e `test_hooks.py` não rodados localmente (brief: sem suíte local); vale o check-run `bateria` do CI do mesmo sha.
 
 ## Revalidação 2ª volta (head bf57b17e)
 Delta de `forge-check parecer delta` (14696864..bf57b17e): `hooks/conformidade.py`, 26 fixtures `tests/hooks/conformidade/a5-*` e S22, `docs/hooks-fixtures.md`, spec `-6`. A3 (subshell só leva a troca se ela é o 1º comando), A4 (`cd` no subshell não vaza) e A5 (`cp -r` para variável de fora recusa) cobertos; nenhum achado novo.
