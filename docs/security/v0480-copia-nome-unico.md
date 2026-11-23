@@ -3,20 +3,21 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-copia-nome-unico
-commit: 2f16f0175ef1a657ad21031e493e079cdce06b41
+commit: d8e71e215ae0f8c19f99cc1ca6565e5063f9ecff
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-23
 ---
-# Review de segurança: v0478 (E111.7, volta por delta do CLONE-NOME-UNICO)
+# Review de segurança: v0478 (E111.18, volta por delta do CLONE-NOME-UNICO após a volta de CI E111.13)
 
-Delta lido (`forge-check parecer delta`): `95011540..2f16f017`; no domínio só `bin/forge-copia` (`ocupado`, +2 linhas); fora do domínio, também lidos: `tests/test_forge_copia_nome.py`, `tests/mutantes/v0480-copia-nome-unico.json`, `changelog.d/v0480-copia-nome-unico.md`. Já lido na rodada anterior (commit `0e11bc4a`, parecer sobre `95011540`): o restante do `bin/forge-copia` e as sondas de caminho, opção e controle.
+Delta lido (`forge-check parecer delta`): `2f16f017..d8e71e21`, sem o que veio da base (develop); no domínio só `bin/forge-testes`, e nele só a linha nova do `MAPA` (`bin/forge-testes:210`, commit `f6f1eaf1`): `bin/forge-copia` leva a `test_forge_copia`, `test_forge_copia_nome` e `test_forge`. As demais linhas do `MAPA` no diff vieram da develop (merge `d2288045`). Fora do domínio: `tests/pesos-d4.json` e os pareceres de QA e review. Já lido nas rodadas anteriores (parecer `6a1a8ce8` sobre `2f16f017` e o de `95011540`): o `bin/forge-copia` inteiro, o A1 (corrigido) e as sondas de caminho, opção e controle.
 
-Gatilhos: controle do Forge (caminho de escrita das cópias na pasta liberada do sandbox).
+Gatilhos: controle do Forge (caminho de escrita das cópias na pasta liberada do sandbox; mapa de testes dirigidos do envio).
 
 ## Conferência
-- **A1 (anterior, recomendado): corrigido.** `bin/forge-copia:79-80` trata `os.path.islink` como ocupado antes de seguir o link; `nome_unico` (`:88`) pula o link e sugere o próximo nome. Sonda S1 refeita pelo teste novo `test_link_com_o_nome_sugerido_nao_e_oferecido` (`tests/test_forge_copia_nome.py:86-94`): link `b-qa` para pasta vazia fora da pasta de cópias · espera: sugere `b-qa-2`, rc 2, pasta de fora vazia · obtido: igual (9 testes, OK). Mutante M6 (`if False:`) aplicado numa cópia: o teste novo falha (morto).
-- **Só aperta: sim.** A mudança só faz `ocupado` devolver `True` em mais casos (nunca `False` onde antes era `True`). No destino explícito, `ocupado` recebe `realpath` (`:109`, `:114`), que já resolveu os links: o comportamento não muda (laço de links já era ocupado por `lexists` e não ser pasta). Na sugestão, só deixa de oferecer link como livre. Nenhuma recusa foi afrouxada, nenhum caminho novo de escrita.
+- **Mapa de testes (`bin/forge-testes:210`).** A linha só acrescenta módulos à seleção dirigida quando `bin/forge-copia` é tocado; os dois módulos existem (`tests/test_forge_copia.py`, `tests/test_forge_copia_nome.py`) e `forge-testes --listar bin/forge-copia` os lista. Não remove regra, não muda a ordem de casamento de outro caminho (o padrão `bin/forge-copia` não casa outro script do `bin/`) e não toca o portão: a suíte inteira continua só no CI.
+- **Só aperta: sim.** O item segue só apertando: o `bin/forge-copia` não mudou desde `2f16f017` (a análise de `ocupado` do parecer anterior vale), e a mudança nova só faz o envio rodar mais testes quando o script é tocado. Nenhuma recusa afrouxada, nenhum caminho novo de escrita ou execução.
+- Testes dos arquivos tocados: `python3 -m unittest tests.test_forge_copia tests.test_forge_copia_nome tests.test_testes_tocados` → 271 testes, OK (skipped=1).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura estática, teste novo e mutante rodados localmente; varredor de segredos, SAST e auditor de dependências ausentes no PATH (lacuna; o delta não traz dependência nem segredo). Suíte inteira: não rodada (brief: sem suíte local); o portão de merge segue dependendo do CI verde do PR.
+Nenhum risco aceito. Ferramentas: leitura estática e os testes dos arquivos tocados rodados localmente; varredor de segredos, SAST e auditor de dependências ausentes no PATH (lacuna; o delta não traz dependência nem segredo). Suíte inteira: não rodada (brief: sem suíte local); o portão de merge segue dependendo do CI verde do PR.
