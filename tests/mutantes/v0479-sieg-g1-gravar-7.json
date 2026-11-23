@@ -37,7 +37,7 @@
       "id": "M50",
       "guarda": "G1.2a (A4): transcrição fora de ~/.claude/projects/<pasta>/ recusa",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "            or arq.resolve().parent.parent != (Path.home() / \".claude\" / \"projects\").resolve()):",
+      "de": "            or arq.resolve().parent.parent != (casa_do_dono() / \".claude\" / \"projects\").resolve()):",
       "para": "            or False):",
       "testes": [
         "tests.test_autorizacao_gravar.TranscricaoDaSessaoEmCurso.test_transcricao_fora_da_pasta_do_claude_code_recusa",
@@ -78,8 +78,8 @@
       "id": "M54",
       "guarda": "G1.2a (A3): sem agora dado, o gravar confere a fala contra o relógio",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "a, ctx[\"gravador\"], agora or datetime.datetime.now(UTC))",
-      "para": "a, ctx[\"gravador\"], agora)",
+      "de": "a, ctx[\"gravador\"], agora or datetime.datetime.now(UTC), ctx.get(\"pedido_existe\"))",
+      "para": "a, ctx[\"gravador\"], agora, ctx.get(\"pedido_existe\"))",
       "testes": [
         "tests.test_autorizacao_gravar.MensagemInteira.test_forge_check_autorizacao_gravar_grava_o_que_o_ler_aceita"
       ]

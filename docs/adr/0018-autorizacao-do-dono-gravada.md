@@ -50,7 +50,13 @@ máximo 48 h antes de agora e nunca no futuro;
 ato, alvos, validade e pendência saem do texto todo (item 5, com o `fora_do_vocabulario` do leitor); o `Commit` do alvo `item:` sai do
 parecer de review do `Ramo` e passa pelo `fora_do_revisado` (PV-A2); o que o leitor recusaria não é gravado. Prazo no fuso do dono (data,
 dia da semana, "esta noite") vale uso único e nasce `pendente-confirmacao` ("prazo local sem fuso nesta etapa"), para que data já passada
-nunca nasça ativa, e `Fuso` grava `UTC`. A volta dos portões (E90.6) fechou esses quatro pontos (A1 a A4 da segurança); a cópia do
+nunca nasça ativa, e `Fuso` grava `UTC`. A volta dos portões (E90.6) fechou o resumo de compactação, o prazo local e a fala fora das
+48 h no `gravar`; a volta E90.10 fechou o resto do que o código alcança: a pasta das transcrições vem do banco de senhas
+(`pwd.getpwuid`), não do `HOME` do chamador; o `ler` trata fala no futuro como adulterada; emoji e letra de outra escrita contam como
+palavra fora do vocabulário; "até o fim deste pedido" só nasce ativa com o pedido em `docs/pedidos/` e sem o `F-<Pedido>`; e o ponto
+final logo depois do alvo não o esconde. A origem da transcrição **não** está provada: `CLAUDE_CODE_SESSION_ID` ainda vem do ambiente
+do chamador e escolhe outra transcrição real dentro de 48 h, e a pasta de concessões aceita escrita direta; só o corte do hook, que
+confere o `transcript_path` do evento e protege `.forge/autorizacoes/`, prova a origem. A cópia do
 classificador em `hooks/vigia.py` tem a mesma falta do resumo e é corrigida noutro item. Ficam para os cortes seguintes da
 G1.2: a leitura do fuso em `/etc/localtime` e o prazo local; `confirmar` e `retirar`; e, no hook (`hooks/conformidade.py`, em curso noutro
 item), a forma literal do comando, a conferência do `transcript_path` do evento e a proteção das três grafias de `.forge/autorizacoes/`.

@@ -31,6 +31,9 @@ AGORA = datetime.datetime(2026, 11, 18, 0, 1, tzinfo=UTC)  # o gravar roda 1 min
 U1 = "11111111-1111-4111-8111-111111111111"
 RAMO = "melhoria/pv-a2"
 MARCAS = ("nao", "nunca", "ainda", "antes", "depois", "so", "se", "exceto", "menos", "sem")  # lista de teste do item 5
+CASA_TROCADA = ("import pwd, runpy, sys, types; casa = sys.argv.pop(1); "
+                "pwd.getpwuid = lambda uid: types.SimpleNamespace(pw_dir=casa); sys.argv = sys.argv[1:]; "
+                "runpy.run_path(sys.argv[0], run_name='__main__')")  # o forge-check inteiro, com a casa do banco de senhas trocada
 fa = None  # carregado em setUpModule: na base, sem o gravar, cada teste cai por conta própria (R-QA)
 
 
@@ -64,24 +67,43 @@ class Base(unittest.TestCase):
     def setUp(self):
         self.raiz = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.raiz)
-        self.projetos = self.raiz / ".claude" / "projects"  # onde o Claude Code grava a transcrição (HOME = raiz)
+        self.projetos = self.raiz / ".claude" / "projects"  # onde o Claude Code grava a transcrição (casa do dono = raiz)
         self.transcricao = self.projetos / "-raiz" / f"{SESSAO}.jsonl"
         self.transcricao.parent.mkdir(parents=True)
-        ambiente = mock.patch.dict(os.environ, {"HOME": str(self.raiz), "CLAUDE_CODE_SESSION_ID": SESSAO})
+        ambiente = mock.patch.dict(os.environ, {"HOME": str(self.raiz / "outra"), "CLAUDE_CODE_SESSION_ID": SESSAO})
         ambiente.start()
         self.addCleanup(ambiente.stop)
+        casa = mock.patch.object(fa, "casa_do_dono", lambda: self.raiz)  # A4: a casa vem do banco de senhas, nunca do HOME
+        casa.start()
+        self.addCleanup(casa.stop)
 
     def falar(self, *registros):
         self.transcricao.write_text("".join(json.dumps(r) + "\n" for r in registros), encoding="utf-8")
 
-    def gravar(self, texto=None, ato="rotulo-afrouxa-regra", alvos="pr:5", uuid=U1, ramo="", pedido="v0478", agora=AGORA):
+    def gravar(self, texto=None, ato="rotulo-afrouxa-regra", alvos="pr:5", uuid=U1, ramo="", pedido="v0478", agora=AGORA,
+               pedidos=("v0478",)):
         if texto is not None:
             self.falar({"type": "assistant", "uuid": "x"}, registro(texto))
         a = argparse.Namespace(mensagem=uuid, transcricao=str(self.transcricao), ato=ato, alvos=alvos, ramo=ramo, pedido=pedido)
+        ctx = {"gravador": GRAVADOR, "seguro": str, "pedido_existe": lambda p: p in pedidos}
+        if pedidos is None:  # sem como conferir o pedido no registro (A6)
+            del ctx["pedido_existe"]
         saida = io.StringIO()
         with contextlib.redirect_stdout(saida):
-            rc = fa.cmd_gravar(self.raiz, a, {"gravador": GRAVADOR, "seguro": str}, agora)
+            rc = fa.cmd_gravar(self.raiz, a, ctx, agora)
         return rc, saida.getvalue()
+
+    def forge_check(self, *args, uuid=U1, casa=None):
+        """`forge-check autorizacao gravar` noutro processo, com o ambiente desta sessão (sem GIT_, FORGE_ e PYTHON herdados);
+        `casa` troca só a pasta do usuário no banco de senhas (`pwd`), nunca o HOME (A4)."""
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "PYTHON"))}
+        env["GIT_CEILING_DIRECTORIES"] = str(self.raiz.parent)
+        cmd = [sys.executable, "-I", str(BIN / "forge-check")]
+        if casa is not None:
+            cmd = [sys.executable, "-I", "-c", CASA_TROCADA, str(casa), str(BIN / "forge-check")]
+        return subprocess.run([*cmd, "--raiz", str(self.raiz), "autorizacao", "gravar", "--mensagem", uuid,
+                               "--transcricao", str(self.transcricao), "--ato", "merge-main", "--alvos", "versao:0.47.3", *args],
+                              capture_output=True, text=True, env=env, timeout=60)
 
     def lidas(self, agora="2026-11-18 00:01"):
         momento = datetime.datetime.strptime(agora, "%Y-%m-%d %H:%M").replace(tzinfo=UTC)
@@ -196,11 +218,7 @@ class MensagemInteira(Base):
     def test_forge_check_autorizacao_gravar_grava_o_que_o_ler_aceita(self):
         agora = datetime.datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
         self.falar(registro("pode mesclar a main 0.47.3", timestamp=agora))
-        env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "PYTHON"))}
-        env["GIT_CEILING_DIRECTORIES"] = str(self.raiz.parent)
-        r = subprocess.run([sys.executable, "-I", str(BIN / "forge-check"), "--raiz", str(self.raiz), "autorizacao", "gravar",
-                            "--mensagem", U1, "--transcricao", str(self.transcricao), "--ato", "merge-main",
-                            "--alvos", "versao:0.47.3", "--pedido", "v0478"], capture_output=True, text=True, env=env, timeout=60)
+        r = self.forge_check("--pedido", "v0478", casa=self.raiz)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("autorizacao: A-1 gravada · ativa", r.stdout)
         self.assertEqual(self.lidas(datetime.datetime.now(UTC).strftime("%Y-%m-%d %H:%M"))[0][1]["Gravado-por"], GRAVADOR)
@@ -233,6 +251,85 @@ class TranscricaoDaSessaoEmCurso(Base):
         fora.mkdir()
         (self.projetos / "-link").symlink_to(fora, target_is_directory=True)
         self.recusada(self.projetos / "-link" / f"{SESSAO}.jsonl")
+
+    def test_home_e_sessao_do_chamador_nao_escolhem_a_transcricao(self):
+        """S4 da segurança (f88a2a8e, A4): o agente escreve a transcrição numa pasta sua e aponta o HOME e a sessão para ela; a
+        casa vem do banco de senhas e recusa. A mesma transcrição, com a casa do banco de senhas nela, grava (o controle)."""
+        agora = datetime.datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        self.falar(registro("pode mesclar a main 0.47.3", timestamp=agora))
+        os.environ["HOME"] = str(self.raiz)
+        r = self.forge_check("--pedido", "v0478")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("não é o .jsonl comum da sessão em curso", r.stdout)
+        self.assertFalse((self.raiz / fa.PASTA).exists())
+        self.assertEqual(self.forge_check("--pedido", "v0478", casa=self.raiz).returncode, 0)
+
+
+class VoltaDosPortoes(Base):
+    """E90.10: recomendados da segurança f88a2a8e (A3, A5, A6) e A2 do review 44b4a481."""
+
+    def test_fala_no_futuro_escrita_na_pasta_nao_fica_ativa_no_ler(self):
+        """A3: o `ler` confere a `Hora-da-fala` contra agora, como o `gravar`; no próprio instante da fala ela vale."""
+        self.gravada("pode aplicar o rótulo no pr 5")
+        (_, _, _, est, motivo), = self.lidas("2026-11-17 23:59")
+        self.assertEqual((est, motivo), ("adulterada", "Hora-da-fala no futuro"))
+        self.assertEqual(self.lidas("2026-11-18 00:00")[0][3:], ("ativa", ""))
+
+    def test_emoji_ou_negacao_em_outra_escrita_nasce_pendente(self):
+        """A5 (S5, S6): o que não é letra latina, dígito ou pontuação comum conta como fora do vocabulário."""
+        for i, texto in enumerate(("pode aplicar o rótulo no pr 5 \U0001F6AB\U0001F6AB", "pode aplicar o rótulo no pr 5 нет")):
+            with self.subTest(texto=texto):
+                uuid = f"{i:08d}-6666-4000-8000-000000000000"
+                self.falar(registro(texto, uuid=uuid))
+                self.assertEqual(self.gravar(uuid=uuid)[0], 0)
+                campos, _, est, motivo = self.lidas()[-1][1:]
+                self.assertEqual((campos["Estado-inicial"], est), ("pendente-confirmacao", "pendente"))
+                self.assertIn("fora do vocabulário", motivo)
+
+    def test_ponto_final_logo_depois_do_alvo_nao_deixa_pendente(self):
+        """A2 do review: "pr 5." e "0.47.3." são o alvo com ponto final; "pr 5.1" não é o pr 5."""
+        for i, (texto, ato, alvos, esperado) in enumerate((
+                ("pode aplicar o rótulo no PR 5.", "rotulo-afrouxa-regra", "pr:5", "ativa"),
+                ("pode mesclar a main 0.47.3.", "merge-main", "versao:0.47.3", "ativa"),
+                ("pode aplicar o rótulo no pr 5.1", "rotulo-afrouxa-regra", "pr:5", "pendente"))):
+            with self.subTest(texto=texto):
+                uuid = f"{i:08d}-7777-4000-8000-000000000000"
+                self.falar(registro(texto, uuid=uuid))
+                self.assertEqual(self.gravar(ato=ato, alvos=alvos, uuid=uuid)[0], 0)
+                self.assertEqual(self.lidas()[-1][3], esperado)
+
+    def test_fim_deste_pedido_so_com_o_pedido_aberto(self):
+        """A6 (S7): pedido fora do registro, com o `F-<Pedido>` gravado ou sem como conferir nasce pendente; o aberto, ativa."""
+        texto = "pode aplicar o rótulo no pr 5 até o fim deste pedido"
+        casos = (("nunca-fecha", ("v0478",), False, "pendente-confirmacao"), ("v0478", None, False, "pendente-confirmacao"),
+                 ("v0478", ("v0478",), True, "pendente-confirmacao"), ("v0478", ("v0478",), False, "ativa"))
+        for i, (pedido, pedidos, fechado, esperado) in enumerate(casos):
+            with self.subTest(pedido=pedido, pedidos=pedidos, fechado=fechado):
+                shutil.rmtree(self.raiz / fa.PASTA, ignore_errors=True)
+                if fechado:
+                    (self.raiz / fa.PASTA).mkdir(parents=True)
+                    (self.raiz / fa.PASTA / f"F-{pedido}").write_text("")
+                uuid = f"{i:08d}-8888-4000-8000-000000000000"
+                self.falar(registro(texto, uuid=uuid))
+                rc, saida = self.gravar(uuid=uuid, pedido=pedido, pedidos=pedidos)
+                self.assertEqual(rc, 0, saida)
+                campos = self.lidas()[-1][1]
+                self.assertEqual(campos["Estado-inicial"], esperado)
+                if esperado != "ativa":
+                    self.assertIn("pedido inexistente ou fechado", campos["Motivo-da-pendencia"])
+
+    def test_forge_check_confere_o_pedido_no_registro(self):
+        """A6 de ponta a ponta: o `forge-check` acha `docs/pedidos/<id>.md` da raiz; o pedido sem arquivo nasce pendente."""
+        (self.raiz / "docs" / "pedidos").mkdir(parents=True)
+        (self.raiz / "docs" / "pedidos" / "v0478.md").write_text("# Pedido v0478\n", encoding="utf-8")
+        agora = datetime.datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        for i, (pedido, esperado) in enumerate((("v0478", "ativa"), ("nunca-fecha", "pendente-confirmacao"))):
+            with self.subTest(pedido=pedido):
+                uuid = f"{i:08d}-9999-4000-8000-000000000000"
+                self.falar(registro("pode mesclar a main 0.47.3 até o fim deste pedido", uuid=uuid, timestamp=agora))
+                r = self.forge_check("--pedido", pedido, uuid=uuid, casa=self.raiz)
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                self.assertIn(f"gravada · {esperado}", r.stdout)
 
 
 class EscopoPeloTextoTodo(Base):

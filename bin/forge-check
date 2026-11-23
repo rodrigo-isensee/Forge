@@ -10709,7 +10709,8 @@ def executar(a, raiz):
             return 2
         return modulo.executar(a, raiz, {"pedido": pedido_para_anotar, "versao": versao_da_propria_copia, "seguro": sem_controle})
     if a.cmd == "autorizacao":  # ADR 0018, G1.1: o Gravado-por aceito é o sha256 deste forge-check
-        ctx = {"gravador": escritor_do_resultado(), "seguro": sem_controle}
+        ctx = {"gravador": escritor_do_resultado(), "seguro": sem_controle,  # A6: "fim deste pedido" só com o pedido no registro
+               "pedido_existe": lambda pedido: pedido_para_anotar(raiz, pedido) is not None}
         return modulo_do_bin("forge_autorizacao").executar(a, raiz_principal(raiz), ctx)
     if a.cmd == "transcricao" and a.acao == "custo" and a.media_por_agente:  # CUSTO-MEDIA-POR-AGENTE: em bin/forge_transcricao.py
         return cmd_transcricao_do_modulo(a, raiz)
