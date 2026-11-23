@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ordens-hook
-commit: 8e84ef3b57fa6fe7cee56e7b640dfecaba1a8271
+commit: fe14fb1ea179e325195005e2cab46a2bc95d4eaa
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -74,3 +74,18 @@ Delta no domínio: pasta própria `docs/ordens/` do Forge (`hooks/ordens.py`), a
 - `bin/forge-mutante --base e34c7466e <specs 3 e 4> --processos 3` (`base=e34c7466e61b785683baf48201f20110ce3b2af2 ... rev=8e84ef3b57fa`): M15 a M26 e M28 `morreu`, nenhum sobrevivente (M26 por erro do teste sob o mutante com o controle verde). A spec 4 não tem M27: a sequência salta de M26 para M28, sem efeito no veredito.
 - `bin/forge-mutante --cobertura --base e34c7466e`: linhas 1610, 1642 e 1645 de `hooks/conformidade.py` cobertas por M23, M24 e M25; `hooks/conformidade.json` e `bin/forge-init` (shell) saem `não coberto` pela checagem e têm M28 e M26 declarados e mortos.
 - Suíte inteira: no CI do PR (check-run `bateria` do mesmo sha), fora deste parecer.
+
+## Revalidação do delta (E123.17, head fe14fb1e, base do delta 8e84ef3b)
+Delta no domínio (`forge-check parecer delta`): `bin/forge-init`, `hooks/conformidade.py` e `.json`, `hooks/ordens.py`, 11 fixtures `ordens-a4-*`, 5 `ordens-s4-*` e a `s5` em `tests/hooks`, `tests/test_hooks.py`, `tests/test_forge.py`, mutantes M21 a M31.
+
+| Mudança do delta | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Curinga no nome do arquivo de ordens do projeto recusado (S1 a S3), Jarvis liberado | `test_conformidade_recusa_curinga_no_nome_das_ordens_do_projeto` (11 fixtures `ordens-a4-*`: 2 liberam, 9 bloqueiam) | curinga, classe, absoluto, pasta inteira | passou |
+| Cópia principal protegida (S4), worktree forjada injeta só o dono (S5) | fixtures `ordens-s4-*`, `s5-worktree-forjada-injeta-so-o-dono` | permissão por papel, caminho relativo | passou |
+| `forge-init` e modelo de projeto | `tests.test_forge.ForgeInit` | n/a | 12 testes, OK |
+
+## Provas (E123.17)
+- `python3 -m unittest discover -s tests -p test_hooks.py -k OrdensEmVigor -k ordens` (sem `-I`, da raiz, TMPDIR do sandbox): 24 testes, OK.
+- `python3 -m unittest tests.test_forge.ForgeInit`: 12 testes, OK.
+- `bin/forge-mutante --base 8e84ef3b57fa6fe7cee56e7b640dfecaba1a8271` sobre `v0480-ordens-hook-4.json` e `-5.json` (`base=8e84ef3b57fa6fe7cee56e7b640dfecaba1a8271 rev=fe14fb1ea179`): M21 a M26 (M26 com o texto novo, `bin/forge-init:222`, por erro do teste sob o mutante com o controle verde), M28 a M31 `morreu`; nenhum sobrevivente.
+- Suíte inteira: no CI do PR (check-run `bateria` do mesmo sha), sem suíte local.
