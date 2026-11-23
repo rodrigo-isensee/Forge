@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "o trazido só vale nas etapas do M2 (qa e codigo)",
       "arquivo": "bin/forge-check",
-      "de": "ultimos = pareceres_conferidos(raiz, pedido, branch)[0]  #",
-      "para": "ultimos = pareceres_conferidos(raiz, pedido, branch)[0] if shas else {}  #",
+      "de": "ultimos = pareceres_conferidos(raiz, pedido, branch, head)[0]  #",
+      "para": "ultimos = pareceres_conferidos(raiz, pedido, branch, head)[0] if shas else {}  #",
       "testes": [
         "tests.test_revisor_wt.ParecerTrazido.test_o_ultimo_p_trazido_com_remocao_e_ok_em_qualquer_etapa"
       ]

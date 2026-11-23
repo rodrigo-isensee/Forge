@@ -1,2 +1,0 @@
-### Adicionado
-- scripts/varredura-divida.py: varredura semanal de dívida técnica, só leitura. Lista um achado por linha com a sugestão de cartão: branches remotas mescladas ou paradas, módulos de teste mais lentos (tests/pesos-d4.json), mutantes com trecho fora do lugar, regras com ID sem teste que as cite e o disco das cópias em ~/.forge-contrib/wt (só no Forge). Não abre cartão, não grava nada e não usa rede; abrir os cartões sozinho fica para decisão do dono (v0478 E95.1).
