@@ -1,0 +1,38 @@
+---
+tipo: qa
+contrato: 1
+pedido: v0478
+branch: melhoria/v0480-copia-nome-unico
+commit: 950115403000c469798f92046bce95713ddfb5b3
+parecer: aprovado
+escopo: incremental
+bugs_criticos: 0
+bugs_altos: 0
+bugs_medios: 0
+bugs_baixos: 0
+data: 2026-11-23
+---
+# QA: v0480-copia-nome-unico (CLONE-NOME-UNICO)
+
+Delta 900bfdfe..95011540: `bin/forge-copia` (destino ocupado nunca reusado; a recusa diz a branch da cópia e sugere nome livre; `--papel`), `tests/test_forge_copia_nome.py`, specs de mutantes, `tests/pesos-d4.json`.
+
+## Achados
+- A1 (recomendado) bin/forge-copia:261 · mutante M6 de tests/mutantes/v0475-copia-pasta.json `if valor.startswith("-")` sobrevive, também na base 900bfdfe (provado em cópia); linha fora do diff, guarda redundante com check-ref-format; virar teste ou equivalente.
+
+## Critério → teste → resultado
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| CLONE-NOME-UNICO: ocupado é recusado com a branch da cópia e nome sugerido | test_nome_tomado_por_outra_branch_recusa_com_o_nome_sugerido, test_mesma_branch_em_uso_tambem_recusa | cópia de outra branch / mesma branch | passou |
+| nome livre cria | test_nome_livre_cria | destino livre | passou |
+| nome sugerido tomado ganha -2, -3 | test_nome_sugerido_ja_tomado_ganha_sufixo_numerico | máximo: nome e arquivo ocupados | passou |
+| sem --papel usa branch sem prefixo | test_sem_papel_sugere_a_branch_sem_prefixo | branch com subpasta | passou |
+| pasta vazia não é tomada | test_pasta_vazia_nao_esta_tomada | vazio | passou |
+| não dita a branch do repositório em volta | test_pasta_comum_dentro_de_repositorio_nao_diz_a_branch_do_repositorio | pasta comum | passou |
+| papel inválido recusa sem criar | test_papel_invalido_recusa_sem_criar | `../x`, maiúscula, `-`, `/` | passou |
+
+## Cenários e resultado real
+- `python3 -m unittest tests.test_forge_copia_nome tests.test_forge_copia` (TMPDIR): Ran 74 tests, OK.
+- Vermelho (manual, em cópia de 900bfdfe com o teste novo): `python3 -m unittest tests.test_forge_copia_nome` -> Ran 8, FAILED (failures=10); só `test_pasta_vazia_nao_esta_tomada` passa na base (fronteira que já valia). O `forge-testes --vermelho` oficial rodou a suíte inteira (233 módulos, mais de 6 min) e foi interrompido: sem veredito; não vale como vermelho.
+- Mutantes `bin/forge-mutante tests/mutantes/v0480-copia-nome-unico.json`: M1 a M5 morreu. Spec v0475 (editada em M5): M5 morreu, M6 sobreviveu (A1, pré-existente), demais morreram.
+- `forge-mutante --cobertura --base 900bfdfe`: linhas 79, 86, 95, 97, 265 e 112 cobertas; `tests/pesos-d4.json` é dado, sem guarda.
+- Suíte inteira: no CI do PR (`bateria`); não rodada local.
