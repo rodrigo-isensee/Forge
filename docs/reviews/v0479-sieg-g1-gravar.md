@@ -3,23 +3,22 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-sieg-g1-gravar
-commit: 3e653044fb25104f5a56198d03da6d22602c0a50
+commit: d4960f8e7e8e428d5eea5726f380740be9f51081
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-23
 ---
-# Review: v0478 E90.15 (SIEG-G1 G1.2a, `forge-check autorizacao gravar`, volta E90.14)
+# Review: v0478 E90.20 (SIEG-G1 G1.2a, `forge-check autorizacao gravar`, merge da develop E90.19)
 
-Revalidação por delta do parecer aprovado bafa19a2 (head 9f833cd6). Li o `forge-check parecer delta`: `revalida: sim`, `bin/forge_autorizacao.py` mudou depois do parecer. Intervalo `175ee8df..3e653044`, 5 arquivos, 16+/16-: `bin/forge_autorizacao.py`, `changelog.d/v0479-sieg-g1-gravar.md`, `docs/adr/0018-autorizacao-do-dono-gravada.md`, `tests/mutantes/v0479-sieg-g1-gravar-8.json` e `tests/test_autorizacao_gravar.py`.
+Revalidação por delta do parecer aprovado e2c9b109 (head 3e653044). Li o `forge-check parecer delta`: intervalo `3e653044..d4960f8e`, sem o que veio da base; no domínio, `bin/forge-check`, `bin/forge-testes`, `docs/indice-forge.md` e `tests/pesos-d4.json`.
 
 ## Conferido
-- **Decisão 3a do dono (23/11 16:53):** o delta desfaz só o ajuste de pontuação do A2 do review 44b4a481. `bin/forge_autorizacao.py:319` volta a `(?![\w.])` nos dois alvos, idêntico ao de antes do A2 (`d7c1a53b:bin/forge_autorizacao.py:311`). Nenhuma outra linha de código mudou; o item só aperta: "pr 5." e "0.47.3." voltam a nascer pendentes.
-- **Teste:** `test_ponto_final_logo_depois_do_alvo_deixa_pendente` espera `pendente` nos três casos ("PR 5.", "0.47.3.", "pr 5.1"); é teste de comportamento pelo `gravar`, não leitura da fonte.
-- **Mutantes:** M58 e M59 (`-8.json`) invertidos para o sentido novo (o mutante reintroduz o `(?!\w|\.\w)`). `bin/forge-mutante --processos 1 --ids M58,M59` em 3e653044: os dois morreram em `:319`.
-- **Docs:** ADR 0018 (`:56-57`) registra que o ponto final depois do alvo segue pendente pela decisão 3a; o fragmento do changelog perde a frase do A2. Nenhuma referência restante ao teste antigo nem ao trecho desfeito no domínio do item (o `(?!\w|\.\w)` de `tests/mutantes/v047-jargao-medida-3.json` é de `hooks/meta.py`, fora do item).
-- **Testes:** `python3 -m unittest tests.test_autorizacao_gravar tests.test_autorizacao`: 49 testes, OK. A suíte inteira roda no CI.
-- **Tamanho (H1):** 1 linha de código; dentro do teto.
-- **A1 anterior (recomendado, travessão e aspas curvas):** fora deste delta; segue como cartão depois do merge.
+- **Resolução do conflito:** contra a develop (`fc488261`), `bin/forge-testes` ganha só a palavra `"test_autorizacao_gravar",` na tupla `FORGE_CHECK` (`:160`, `git diff --word-diff`), ao lado de `test_autorizacao`; as entradas novas da develop (`test_trilha_forge_check`, `test_prepush_lote_pp1`) ficaram. `tests/pesos-d4.json` é a versão da develop mais `"test_autorizacao_gravar": 3.7`, o mesmo peso da branch em e2c9b109; JSON válido, 289 chaves em ordem.
+- **Sem mudança de lógica:** o diff `fc488261..d4960f8e` em `bin/forge-check` e `docs/indice-forge.md` é idêntico, linha a linha, ao da branch desde o merge-base `15936278` até e2c9b109; a junção não alterou nada do item.
+- **Seleção:** `bin/forge-testes --listar bin/forge_autorizacao.py` aponta `test_autorizacao` e `test_autorizacao_gravar`.
+- **Testes dos arquivos tocados:** `python3 -m unittest tests.test_autorizacao_gravar tests.test_autorizacao tests.test_pesos_teto tests.test_pesos_do_ci`: 67 testes, OK. A suíte inteira roda no CI.
+- **Decisão 3a do dono (23/11 16:53):** `bin/forge_autorizacao.py` fora deste delta; segue o que o parecer e2c9b109 conferiu.
+- **A1 anterior (recomendado, travessão e aspas curvas):** fora do delta; segue como cartão depois do merge.
 
 ## Parecer
-Aprovado (`R-REVIEW`). O delta cumpre a Decisão 3a: só desfaz o A2, com teste do ramo pendente e os dois mutantes mortos.
+Aprovado (`R-REVIEW`). A resolução é a versão da develop mais a entrada do item, sem mudança de lógica.
