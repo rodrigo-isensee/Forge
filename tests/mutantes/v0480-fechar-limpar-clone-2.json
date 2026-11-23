@@ -52,6 +52,16 @@
       "testes": [
         "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_commit_que_a_origin_tem_com_ref_velha_no_clone_e_apagado"
       ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a linha de integracao do CLAUDE.md casa em qualquer locale (alternancia, nao colchete de letra acentuada)",
+      "arquivo": "bin/forge-fechar",
+      "de": "grep -iE 'integra(c|ç|Ç)(a|ã|Ã)o'",
+      "para": "grep -i 'integra[cç][aã]o'",
+      "testes": [
+        "tests.test_fechar_longas.Teste.test_branch_de_integracao_e_recusada_fora_de_locale_utf8"
+      ]
     }
   ]
 }

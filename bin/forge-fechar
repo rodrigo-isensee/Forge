@@ -177,7 +177,7 @@ case "$ref" in main|master|develop|homolog) die "a branch da entrega não pode s
 raiz_proj=$(git rev-parse --show-toplevel 2>/dev/null || true)
 if [ -n "$raiz_proj" ] && [ -f "$raiz_proj/CLAUDE.md" ]; then
   # shellcheck disable=SC2016  # as crases são o padrão a procurar, não uma expansão
-  integracao=$(grep -i 'integra[cç][aã]o' "$raiz_proj/CLAUDE.md" 2>/dev/null | grep -o '`[^`]*`' | head -1 | tr -d '`' || true)
+  integracao=$(grep -iE 'integra(c|ç|Ç)(a|ã|Ã)o' "$raiz_proj/CLAUDE.md" 2>/dev/null | grep -o '`[^`]*`' | head -1 | tr -d '`' || true)
   [ -z "$integracao" ] || [ "$ref" != "$integracao" ] || die "a branch da entrega não pode ser $ref: é a branch de integração do CLAUDE.md (R-FLUXO, R-VERIFY)"
 fi
 git check-ref-format --branch "$ref" >/dev/null 2>&1 || die "--ref não é um nome de branch válido: $ref"
