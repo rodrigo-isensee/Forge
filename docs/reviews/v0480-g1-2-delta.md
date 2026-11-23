@@ -23,7 +23,7 @@ Aprovado.
 **O corte bate com o código revisado.** Comparei o patch de cada arquivo com o patch revisado (merge-base 7c4ee3c1..17c4ba57):
 - Sem nenhuma diferença: `agents/qa-engineer.md`, `agents/security-engineer.md`, `agents/tech-lead.md`, `bin/forge-testes`, `docs/regras/R-REVIEW.md`, `tests/test_parecer_fora_do_delta.py`, `tests/test_testes_tocados.py` e `tests/mutantes/v047-docs-pareceres-2.json` (M11).
 - Em `bin/forge-check`, o bloco G1.2 inteiro é idêntico ao de 17c4ba57: constantes, `mesmo_commit`, `parecer_anterior`, `trechos_do_delta` e `fora_do_delta`. As chamadas em `cmd_docs` (`:480`) e em `cmd_pr` (`:2045`) também são as mesmas.
-- Mutantes: FD1 a FD22, FL1 e FL2. Só o campo `pedido` muda. Os de G1.3 (CT*, MQ*, BR*, HD*, FM1, BA1) ficaram de fora.
+- Mutantes: os 24 do G1.2, em `tests/mutantes/v0480-g1-2-delta*.json` (três arquivos de 8), vieram iguais aos revisados; só o campo `pedido` muda. Os do G1.3 ficaram de fora.
 
 **O corte não leva nada do G1.3.**
 - No diff não aparecem `so_texto_ou_so_teste`, `barreiras_do_leve` nem `cabecalho_do_md`, e `classe_das_mudancas` não foi tocada.
