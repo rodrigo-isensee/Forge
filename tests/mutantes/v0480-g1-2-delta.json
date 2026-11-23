@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-g1-2-delta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "FD1",
+      "guarda": "G1.2: a rodada anterior é do mesmo pedido e da mesma branch",
+      "arquivo": "bin/forge-check",
+      "de": "if (antes.get(\"pedido\"), antes.get(\"branch\")) != (campos.get(\"pedido\"), campos.get(\"branch\")):\n            continue",
+      "para": "if False:\n            continue",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_rodada_anterior_de_outro_pedido_nao_conta"
+      ]
+    },
+    {
+      "id": "FD2",
+      "guarda": "G1.2: a versão com o mesmo commit: não é a rodada anterior",
+      "arquivo": "bin/forge-check",
+      "de": "if antes.get(\"commit\") and not mesmo_commit(antes[\"commit\"], campos[\"commit\"]):",
+      "para": "if antes.get(\"commit\"):",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_mesmo_commit_nao_e_rodada_anterior"
+      ]
+    },
+    {
+      "id": "FD3",
+      "guarda": "G1.2: o diff que falha devolve None (nunca trecho vazio, que recusaria tudo)",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod:\n        return None\n    return [(int(c) - MARGEM_DO_DELTA",
+      "para": "    if False:\n        return None\n    return [(int(c) - MARGEM_DO_DELTA",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_diff_que_falha_devolve_none"
+      ]
+    },
+    {
+      "id": "FD4",
+      "guarda": "G1.2: só parecer com commit: válido entra na conta",
+      "arquivo": "bin/forge-check",
+      "de": "if campos.get(\"tipo\") not in DOMINIO_DO_PARECER or not COMMIT.match(campos.get(\"commit\") or \"\"):",
+      "para": "if campos.get(\"tipo\") not in DOMINIO_DO_PARECER:",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_parecer_sem_commit_valido_nao_recusa"
+      ]
+    },
+    {
+      "id": "FD5",
+      "guarda": "G1.2: sem rodada anterior, nada é recusado",
+      "arquivo": "bin/forge-check",
+      "de": "    if not de or not ate:\n        return []\n    repetidos",
+      "para": "    if False:\n        return []\n    repetidos",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_primeira_rodada_nao_recusa"
+      ]
+    },
+    {
+      "id": "FD6",
+      "guarda": "G1.2: o bloqueante repetido da rodada anterior (mesmo id e arquivo) passa",
+      "arquivo": "bin/forge-check",
+      "de": "if a[\"gravidade\"] != \"bloqueante\" or (a[\"id\"], a[\"arquivo\"]) in repetidos:",
+      "para": "if a[\"gravidade\"] != \"bloqueante\":",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_bloqueante_repetido_da_rodada_anterior_passa"
+      ]
+    },
+    {
+      "id": "FD7",
+      "guarda": "G1.2: a exceção explorável vale só no parecer de segurança",
+      "arquivo": "bin/forge-check",
+      "de": "if campos[\"tipo\"] == \"revisao-seguranca\" and marca and marca.group(1) in sondas:",
+      "para": "if marca and marca.group(1) in sondas:",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_exploravel_no_review_nao_vale"
+      ]
+    },
+    {
+      "id": "FD8",
+      "guarda": "G1.2: o explorável precisa da sonda citada em ## Sondas",
+      "arquivo": "bin/forge-check",
+      "de": "if campos[\"tipo\"] == \"revisao-seguranca\" and marca and marca.group(1) in sondas:",
+      "para": "if campos[\"tipo\"] == \"revisao-seguranca\" and marca:",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_seguranca_exploravel_sem_a_sonda_e_recusado"
+      ]
+    }
+  ]
+}
