@@ -1,0 +1,88 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M47",
+      "guarda": "G1.2a (A1): classificador positivo, só o registro com origin humano é fala do dono",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "r.get(\"origin\") != {\"kind\": \"human\"} or",
+      "para": "False or",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_so_a_mensagem_digitada_pelo_dono_na_sessao_principal"
+      ]
+    },
+    {
+      "id": "M48",
+      "guarda": "G1.2a (A1): resumo de compactação (isCompactSummary, isVisibleInTranscriptOnly) recusa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "\"isCompactSummary\", \"isVisibleInTranscriptOnly\", ",
+      "para": "",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_so_a_mensagem_digitada_pelo_dono_na_sessao_principal"
+      ]
+    },
+    {
+      "id": "M49",
+      "guarda": "G1.2a (A4): transcrição de outra sessão ou sem sessão em curso recusa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": " or arq.stem != os.environ.get(\"CLAUDE_CODE_SESSION_ID\")",
+      "para": "",
+      "testes": [
+        "tests.test_autorizacao_gravar.TranscricaoDaSessaoEmCurso.test_transcricao_de_outra_sessao_recusa",
+        "tests.test_autorizacao_gravar.TranscricaoDaSessaoEmCurso.test_sem_sessao_em_curso_no_ambiente_recusa"
+      ]
+    },
+    {
+      "id": "M50",
+      "guarda": "G1.2a (A4): transcrição fora de ~/.claude/projects/<pasta>/ recusa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "            or arq.resolve().parent.parent != (casa_do_dono() / \".claude\" / \"projects\").resolve()):",
+      "para": "            or False):",
+      "testes": [
+        "tests.test_autorizacao_gravar.TranscricaoDaSessaoEmCurso.test_transcricao_fora_da_pasta_do_claude_code_recusa",
+        "tests.test_autorizacao_gravar.TranscricaoDaSessaoEmCurso.test_pasta_do_projeto_que_e_link_para_fora_recusa"
+      ]
+    },
+    {
+      "id": "M51",
+      "guarda": "G1.2a (A3): Hora-da-fala no futuro recusa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "<= (fala := instante(carimbo)) <= agora:",
+      "para": "<= (fala := instante(carimbo)):",
+      "testes": [
+        "tests.test_autorizacao_gravar.Validade.test_hora_da_fala_no_futuro_ou_mais_velha_que_48_h_recusa"
+      ]
+    },
+    {
+      "id": "M52",
+      "guarda": "G1.2a (A3): Hora-da-fala mais velha que 48 h recusa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if not agora - datetime.timedelta(hours=48) <=",
+      "para": "if not agora - datetime.timedelta(hours=49) <=",
+      "testes": [
+        "tests.test_autorizacao_gravar.Validade.test_hora_da_fala_no_futuro_ou_mais_velha_que_48_h_recusa"
+      ]
+    },
+    {
+      "id": "M53",
+      "guarda": "G1.2a (A2): prazo local (data, dia, esta noite) nasce pendente, nunca ativa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(None in fins, \"prazo local sem fuso nesta etapa\")",
+      "para": "(False, \"prazo local sem fuso nesta etapa\")",
+      "testes": [
+        "tests.test_autorizacao_gravar.Validade.test_prazo_local_ja_passado_nao_nasce_ativa"
+      ]
+    },
+    {
+      "id": "M54",
+      "guarda": "G1.2a (A3): sem agora dado, o gravar confere a fala contra o relógio",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "a, ctx[\"gravador\"], agora or datetime.datetime.now(UTC), ctx.get(\"pedido_existe\"))",
+      "para": "a, ctx[\"gravador\"], agora, ctx.get(\"pedido_existe\"))",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_forge_check_autorizacao_gravar_grava_o_que_o_ler_aceita"
+      ]
+    }
+  ]
+}
