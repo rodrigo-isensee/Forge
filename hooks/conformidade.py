@@ -1609,7 +1609,8 @@ class Guarda:
             else:
                 achou = any(casa(r, c) for r in do_proj) or (
                     not e["quem"] and not no_claude_do_home and em_qualquer_lugar(posix, c)) or (
-                    c in PELA_COPIA_PRINCIPAL and any(casa(r, c) for r in self.relativos_a_copia_principal(posix)))
+                    c in PELA_COPIA_PRINCIPAL and em_qualquer_lugar(posix, c)  # sem a pasta no texto, sem ler o disco
+                    and any(casa(r, c) for r in self.relativos_a_copia_principal(posix)))
             if not achou:
                 continue
             if self.papel in e["quem"]:
