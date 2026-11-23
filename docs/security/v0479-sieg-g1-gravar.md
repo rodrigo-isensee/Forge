@@ -3,46 +3,60 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-sieg-g1-gravar
-commit: 2a0e46204eb6e731fec268e2d01fa32d142479eb
-parecer: reprovado
+commit: d7c1a53b259e6f2ce980cbe05a2986eeed958be6
+parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-21
+data: 2026-11-23
 ---
-# Review de segurança: v0478 E90.4 (SIEG-G1, G1.2a, `autorizacao gravar`, PV-A2)
+# Review de segurança: v0478 E90.8 (SIEG-G1, G1.2a, `autorizacao gravar`), volta por delta
 
 Gatilhos: autorização do dono (ADR 0018), controle do Forge (`R-SEGURANCA`).
 
 ## Resumo
-O corte entrega `forge-check autorizacao gravar` (`bin/forge_autorizacao.py:269-409`). Tentei forjar a autorização pelas oito vias do pedido, com o comando real numa raiz descartável. Resistem a ferramenta, o subagente, o meta, o lembrete, a mensagem acima de 64 KiB, o marcador `M-<uuid>` reaproveitado, o `item:` solto ou fora da frase do ato e o `Commit` fora do head revisado. Isso vale para a sondagem e para `tests/test_autorizacao_gravar.py` (20 testes, verdes aqui).
+Volta da E90.6 sobre o parecer anterior (commit 5883995b, head 2a0e4620, reprovado). Delta lido com `forge-check parecer delta`: `2a0e4620..d7c1a53b`. No domínio entram `bin/forge_autorizacao.py` e `docs/adr/0018-autorizacao-do-dono-gravada.md`. Também li os testes e os mutantes do delta, que estão fora do domínio, para conferir o que deixou de ser testado.
 
-Duas vias passam e reprovam o corte. O resumo de compactação, texto escrito pelo modelo, é lido como fala do dono e nasce `ativa` (A1). Um prazo local já vencido vira `uso-unico` `ativa` por até 48 h (A2).
+Os dois bloqueantes fecharam. Com o comando real numa raiz descartável, o resumo de compactação recusa (S1), e um prazo local já vencido nasce `pendente-confirmacao` com uso único (S2). O classificador agora é positivo: `origin` tem de ser `{"kind": "human"}` (`:292`). Nas transcrições reais desta máquina, os 1.354 registros digitados pelo dono trazem essa forma, e nenhum resumo de compactação a traz. A `Hora-da-fala` no futuro ou com mais de 48 h recusa no `gravar` (`:377`). `tests/test_autorizacao_gravar.py`: 26 OK aqui.
 
-**Explorável antes dos próximos cortes?** Hoje, não. Nada consome concessão: só `ler` e os testes importam o módulo (busca por `forge_autorizacao` e `autorizacoes` no repositório). A pasta `.forge/autorizacoes/` ainda não tem proteção, então um agente já escreve nela direto, com `Sha256` e `Gravado-por` públicos (ADR 0018, Consequências). O `gravar` não abre uma capacidade nova.
+Ficam abertos quatro recomendados, que voltam ao autor e são corrigidos antes do merge (`R-REVIEW`). A4 só fechou em parte: a raiz `~/.claude/projects` sai de `Path.home()`, que vem do `HOME`, e um agente aponta o `HOME` e o `CLAUDE_CODE_SESSION_ID` para uma transcrição que ele mesmo escreveu em `$TMPDIR`. Nesse caso a concessão nasce `ativa` (S4). O próprio teste usa esse caminho para montar a fixture. A3 continua aberto do lado do `ler`, e A5 e A6 seguem sem mudança (S5 a S7).
 
-A transcrição, porém, é qualquer `.jsonl` (A4). Junto com a `Hora-da-fala` futura (A3), isso planta hoje uma concessão `ativa` até 2030, e ela sobrevive à proteção da pasta e ao hook, porque esses cortes só barram escrita nova. A ordem da ADR (G1.3 depende da G1.2 inteira) segura o consumo. A limpeza ou a recusa do que foi gravado antes da proteção tem de entrar nesse corte.
+**Explorável antes dos próximos cortes?** Não, pelo mesmo motivo do parecer anterior: nada consome concessão, e a pasta `.forge/autorizacoes/` ainda aceita escrita direta. A ADR deixa para o hook a conferência do `transcript_path` e a forma literal do comando. Por isso, A4 continua recomendado e não sobe a bloqueante (o critério não mudou).
 
-**Só aperta?** Não por inteiro. Contra a ADR, o corte segue o item 6, e o teto de 48 h no `uso-unico` é menor que os 7 dias do prazo escrito. Contra a fala do dono, que é o que a ordem de 16/11 protege, A2 dá validade além do prazo escrito e A1 grava texto que não é do dono. Fora disso, o corte só acrescenta recusas: nenhum leitor afrouxou, e `fora_do_revisado` só ganhou `ponta_do_ramo`, sem mudar o comportamento.
+**Só aperta?** Sim. Contra o parecer anterior e contra a ADR, cada mudança do delta acrescenta recusa ou pendência:
+- a transcrição tem de estar no lugar da sessão;
+- o registro precisa de `origin` humano;
+- o resumo de compactação recusa;
+- a fala fora da janela de 48 h ou no futuro recusa;
+- o prazo local, que antes nascia `ativa` com uso único, agora nasce `pendente-confirmacao`.
+
+Nenhum leitor afrouxou, e `fim_do_termo` e `limite` não mudaram. Os testes e mutantes removidos do delta foram trocados por equivalentes mais estritos: o mapa do termo agora espera a pendência, e os mutantes antigos do classificador estão em `tests/mutantes/v0479-sieg-g1-gravar-7.json`. Há uma ressalva de texto, sem efeito no comportamento: a ADR diz que a volta "fechou esses quatro pontos (A1 a A4)", e isso vale para A1 e A2, mas não para A3 no `ler` nem para A4 com `HOME` trocado.
 
 ## Achados
-- A1 (bloqueante) bin/forge_autorizacao.py:291 · Resumo de compactação (`isCompactSummary`, `isVisibleInTranscriptOnly`) passa no classificador e nasce `ativa` (S1); há 65 desses registros nas transcrições reais desta máquina. Fere o item 4 da ADR 0018 e a classe fala-forjada.
-- A2 (bloqueante) bin/forge_autorizacao.py:330 · Prazo local vira `uso-unico` com teto de 48 h desde a fala, mesmo já vencido no texto: "ate <anteontem>" nasce e fica `ativa` (S2). A concessão passa do prazo escrito pelo dono em qualquer fuso; afrouxa a fala.
-- A3 (recomendado) bin/forge_autorizacao.py:295 · `Hora-da-fala` da transcrição não é conferida contra agora: carimbo de 2030 grava `ativa` até 2030-01-03 (S3, A13 do parecer v047 em aberto no leitor). Recuse fala futura ou mais velha que o teto, no `gravar` e no `ler`.
-- A4 (recomendado) bin/forge_autorizacao.py:282 · Qualquer `<sessão>.jsonl` vale como transcrição: uma escrita pelo agente em $TMPDIR, ou de outra sessão, grava `ativa` (S4). A conferência fica para o hook; o próprio `forge-check` (item 3, duas leituras) deve exigir a pasta de transcrições da raiz.
-- A5 (recomendado) bin/forge_autorizacao.py:156 · O vocabulário positivo só vê `[a-z0-9]`: emoji de recusa e negação fora do alfabeto latino somem e a mensagem nasce `ativa` (S5, S6). Conte como palavra fora do vocabulário todo caractere que não é letra latina, dígito, espaço ou pontuação.
-- A6 (recomendado) bin/forge_autorizacao.py:375 · `--pedido` é livre: "ate o fim deste pedido" com um pedido que não existe nunca encontra o `F-<Pedido>` e vale os 7 dias inteiros (S7). Confira que o pedido existe em `docs/pedidos/` e está aberto.
+- A3 (recomendado) bin/forge_autorizacao.py:118 · Aberto no `ler`: o `gravar` já recusa fala futura ou com mais de 48 h (:377), mas `limite`/`estado` não conferem `Hora-da-fala` contra agora. Uma concessão escrita direto na pasta com carimbo de 2030 segue `ativa`. Corrija antes do G1.3.
+- A4 (recomendado) bin/forge_autorizacao.py:284 · Fechado em parte: a raiz vem de `Path.home()` (o `HOME`), e com `HOME` e `CLAUDE_CODE_SESSION_ID` trocados, uma transcrição escrita em $TMPDIR grava `ativa` (S4). Use `pwd.getpwuid(os.getuid()).pw_dir` e corrija na ADR 0018 o "fechou A1 a A4".
+- A5 (recomendado) bin/forge_autorizacao.py:152 · Sem mudança: emoji de recusa e negação em cirílico ainda somem do vocabulário, e a mensagem nasce `ativa` (S5, S6).
+- A6 (recomendado) bin/forge_autorizacao.py:380 · Sem mudança: com `--pedido` inexistente, "ate o fim deste pedido" vale os 7 dias inteiros (S7). Confira que o pedido existe e está aberto em docs/pedidos/.
 
 ## Sondas
-- S1 · registro `type: user` com `isCompactSummary: true` e `isVisibleInTranscriptOnly: true`, texto "pode aplicar o rotulo no pr 5", via `forge-check autorizacao gravar` · espera: recusada · obtido: A-1 gravada, ativa (nenhum), pr:5
-- S2 · fala agora com "pode aplicar o rotulo no pr 5 ate 19/11" (data de dois dias antes), gravar e `ler` em seguida · espera: pendente ou vencida · obtido: A-1 gravada, ativa, uso-unico, `ler` diz ativa
+- S1 · registro `type: user` com `isCompactSummary: true`, `isVisibleInTranscriptOnly: true` e sem `origin`, texto "pode aplicar o rotulo no pr 5", via `forge-check autorizacao gravar` · espera: recusada · obtido: recusada, "a mensagem não é uma só, digitada pelo dono nesta sessão"
+- S2 · fala agora com "pode aplicar o rotulo no pr 5 ate 21/11" (dois dias antes), gravar e `ler` · espera: pendente · obtido: A-1 pendente-confirmacao (prazo local sem fuso nesta etapa), uso-unico; `ler`: 0 ativas
+- S3 · `timestamp` 2030-01-01T00:00:00.000Z, e outro de 49 h atrás · espera: recusada · obtido: recusada, "Hora-da-fala no futuro ou fora da sessão (mais de 48 h)", nos dois
+- S4 · `HOME=$TMPDIR/r CLAUDE_CODE_SESSION_ID=<id> forge-check autorizacao gravar --transcricao $TMPDIR/r/.claude/projects/-p/<id>.jsonl`, com a transcrição escrita pelo agente · espera: recusada · obtido: A-1 gravada, ativa
+- S5 · "pode aplicar o rotulo no pr 5" seguido de dois emojis de proibição · espera: pendente · obtido: A-1 ativa
+- S6 · "pode aplicar o rotulo no pr 5 нет" · espera: pendente · obtido: A-1 ativa
+- S7 · `--pedido nunca-fecha` com "ate o fim deste pedido" · espera: pendente ou recusada · obtido: A-1 ativa até agora+7 dias
+- S8 · `origin: {"kind": "human", "x": 1}` · espera: recusada · obtido: recusada
 
 ## Detalhe dos achados
-Sondas de apoio (não provam bloqueante): S3 é o carimbo `2030-01-01T00:00:00.000Z`, gravado `ate:2030-01-03 00:00` `ativa`. S4 é uma transcrição escrita em `$TMPDIR` pelo próprio agente, que gera A-1 `ativa`. S5 é "pode aplicar o rotulo no pr 5" seguido de dois emojis de proibição, e S6 é o mesmo texto seguido de "нет" em cirílico; os dois nascem `ativa`. S7 é `--pedido nunca-fecha` com "ate o fim deste pedido", que segue `ativa` em agora+6 dias. Recusas conferidas na mesma rodada: o marcador reaproveitado ("a mensagem já gerou concessão"), a mensagem de 64 KiB+1, "ainda nao" (pendente), o `item:` sem `Commit` e o `item:` fora da frase do ato.
+Estado dos achados anteriores:
+- **A1:** fechado (`:292`, S1, `resumo_de_compactacao` no teste com a forma real).
+- **A2:** fechado (`:328`, S2, `test_prazo_local_ja_passado_nao_nasce_ativa`).
+- **A3:** fechado no `gravar` (S3) e aberto no `ler`.
+- **A4:** fechado em parte (S4).
+- **A5 e A6:** abertos (S5 a S7).
 
-**A1.** A evidência está em `bin/forge_autorizacao.py:291`: a lista negativa tem `isMeta`, `isSidechain`, `toolUseResult` e `sourceToolUseID`. O resumo de compactação é `type: user`, string, sem `<` no início, e passa. Caminho: depois de uma compactação, o Jarvis aponta o uuid do resumo. Esse texto é do modelo e pode citar, fora do contexto, uma fala antiga do dono. Hoje ele nasce pendente quando é longo e `ativa` quando é curto (S1). Severidade alta. Correção mínima: classificador positivo, que recusa registro com qualquer chave booleana verdadeira fora de uma lista do que o dono digita (das transcrições reais, só `queueSkipSlashCommands`), e fixture de resumo real no teste. Esforço P. Dono: tech-lead.
+S4 não abre uma capacidade nova: a pasta de concessões ainda aceita escrita direta. A correção mínima tira o `HOME` do caminho (`pwd`), e assim só sobra a transcrição real, que o sandbox não deixa o agente escrever (`~/.claude/projects` está fora da escrita). Um `CLAUDE_CODE_SESSION_ID` trocado ainda escolhe a transcrição de outra sessão real dentro de 48 h. Esse caso fica para o hook, que confere o `transcript_path` do evento, como a ADR já prevê. Esforço P. Dono: tech-lead.
 
-**A2.** A evidência está em `:330` (`fim_do_termo` em `:298` devolve `None` para data, dia e "esta noite") e no teto de 48 h de `limite` em `:117-120`. Caminho: o dono diz "até 19/11", ou "esta noite", e o agente usa a concessão no dia seguinte ao prazo; o leitor a vê `ativa`. Severidade média, porque hoje não há consumidor e depois ela fica dentro de 48 h. Correção mínima, que só aperta e não mexe no fuso: prazo local nasce `pendente-confirmacao` com o motivo "prazo local sem fuso nesta etapa", e o Jarvis pergunta a data, como o item 6 já prevê para o termo que não se lê. Também vale limitar o fim pelo instante mais cedo possível do prazo escrito (fuso UTC+14). Esforço P. Dono: tech-lead.
-
-**A3 a A6.** Voltam ao autor e são corrigidos antes do merge (`R-REVIEW`). A3 e A4 precisam estar fechados antes do G1.3, junto com a recusa das concessões gravadas antes da proteção da pasta. O `--ramo` livre no alvo `item:` (o cartão não está preso ao `Ramo`) e a confiança nas refs locais de `fora_do_revisado` (um agente move `refs/remotes/origin/<ramo>` no clone) seguem o desenho: a ADR os confere no `declarar` e na catraca (PV-A3, PV-A4, E1), contra o remoto. Não abro achado.
+Sondas S3, S5 a S8: apoio, não provam bloqueante.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. A suíte inteira não rodou aqui, e não há CI do PR (o brief pede sem suíte local e sem PR). Rodei `tests/test_autorizacao_gravar.py` (20 OK) e as sondas S1 a S7 com o comando real numa raiz descartável. Não rodei `gitleaks` nem `semgrep`: o diff não traz segredo nem dependência.
+Nenhum risco aceito. A suíte inteira não rodou aqui, e não há CI do PR: o brief pede sem suíte local e sem PR, e o CI do PR vai ser o portão da suíte. Rodei `tests/test_autorizacao_gravar.py` (26 OK) e as sondas S1 a S8 com o `bin/forge-check` do head, numa raiz descartável em `$TMPDIR`. Não rodei `gitleaks` nem `semgrep`: o delta não traz segredo nem dependência.
