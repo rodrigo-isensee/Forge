@@ -76,6 +76,8 @@ def recusa(motivo):
 
 
 def ocupado(caminho):
+    if os.path.islink(caminho):  # link nunca é livre: a sugestão não aponta para fora da pasta (A1 da segurança)
+        return True
     return os.path.lexists(caminho) and (not os.path.isdir(caminho) or bool(os.listdir(caminho)))
 
 

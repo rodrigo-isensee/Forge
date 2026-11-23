@@ -83,6 +83,16 @@ class NomeUnico(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self.branch_de(d), "melhoria/a")
 
+    def test_link_com_o_nome_sugerido_nao_e_oferecido(self):
+        self.assertEqual(self.clone(self.pasta / "c1", "melhoria/a").returncode, 0)
+        fora = self.home / "fora"
+        fora.mkdir()
+        (self.pasta / "b-qa").symlink_to(fora)  # link para pasta vazia fora da pasta de cópias
+        r = self.clone(self.pasta / "c1", "melhoria/b", "--papel", "qa")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn(f"use o nome único {self.pasta / 'b-qa-2'}", r.stderr)
+        self.assertEqual(list(fora.iterdir()), [])
+
     def test_pasta_comum_dentro_de_repositorio_nao_diz_a_branch_do_repositorio(self):
         d = self.origem / "sub"
         d.mkdir()

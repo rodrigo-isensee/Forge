@@ -51,6 +51,16 @@
       "testes": [
         "tests.test_forge_copia_nome.NomeUnico.test_papel_invalido_recusa_sem_criar"
       ]
+    },
+    {
+      "id": "M6",
+      "guarda": "CLONE-NOME-UNICO: link com o nome sugerido é ocupado (nunca oferecido como livre)",
+      "arquivo": "bin/forge-copia",
+      "de": "    if os.path.islink(caminho):  # link nunca é livre",
+      "para": "    if False:  # link nunca é livre",
+      "testes": [
+        "tests.test_forge_copia_nome.NomeUnico.test_link_com_o_nome_sugerido_nao_e_oferecido"
+      ]
     }
   ]
 }
