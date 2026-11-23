@@ -32,6 +32,26 @@
         "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_head_ancestral_do_mesclado_e_apagado",
         "tests.test_forge_fechar.LimparClones.test_clone_limpo_e_mesclado_e_apagado"
       ]
+    },
+    {
+      "id": "M10",
+      "guarda": "remoto_exato --pontas le todas as refs, nao a branch de nome --pontas",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$nome\" != \"refs/heads/--pontas\" ] || nome=\"refs/*\"",
+      "para": "[ \"$nome\" != \"refs/heads/--pontas\" ] || :",
+      "testes": [
+        "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_commit_que_a_origin_tem_com_ref_velha_no_clone_e_apagado"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "as pontas saem pelo filtro de heads e tags, nao pelo do nome exato",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ \"$nome\" = \"refs/*\" ]; then",
+      "para": "  if false; then",
+      "testes": [
+        "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_commit_que_a_origin_tem_com_ref_velha_no_clone_e_apagado"
+      ]
     }
   ]
 }

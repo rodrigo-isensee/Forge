@@ -14,7 +14,7 @@ import test_forge_fechar as ff  # noqa: E402  (o módulo, não a classe: a class
 
 # ls-remote das pontas que falha (rede fora): o commit fora das refs do clone não se prova na origem
 LS_REMOTE_FALHA = '''#!/usr/bin/env bash
-if [ "$1 $2 $3 $4 $5" = "ls-remote --heads --tags --refs origin" ]; then echo "HTTP 502" >&2; exit 1; fi
+if [ "$#" = 3 ] && [ "$1 $2 $3" = "ls-remote origin refs/*" ]; then echo "HTTP 502" >&2; exit 1; fi
 exec "$GIT_DE_BAIXO" "$@"
 '''
 

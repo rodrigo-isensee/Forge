@@ -258,10 +258,16 @@ repetir() {
 # remoto_exato <branch> [prefixo...]: sha de refs/heads/<branch> no origin (vazio se não existe); falha se a leitura falha. O padrão do
 # `git ls-remote` casa pelo fim do nome (refs/heads/a/refs/heads/<branch> também sai): só vale a linha com a coluna 2 igual ao nome inteiro.
 # O prefixo (com_teto 10) roda na frente do git. A coluna 1 tem de ser um sha hexadecimal (40 ou 64 caracteres); linha que casa o nome com outra
-# coisa na coluna 1 é leitura que falhou (rc 1), nunca um valor que segue para os passos seguintes.
+# coisa na coluna 1 é leitura que falhou (rc 1), nunca um valor que segue para os passos seguintes. `remoto_exato --pontas` (origem_atual,
+# LIMPAR-CLONE-NAO-LISTADO) lê pela mesma chamada as pontas do origin: o sha de cada refs/heads/* e refs/tags/*, sem as descascadas (^{}).
 remoto_exato() {
   local nome="refs/heads/$1" saida_remota; shift
+  [ "$nome" != "refs/heads/--pontas" ] || nome="refs/*"
   saida_remota="$("$@" git ls-remote origin "$nome")" || return 1
+  if [ "$nome" = "refs/*" ]; then
+    printf '%s\n' "$saida_remota" | awk '$2 ~ /^refs\/(heads|tags)\// && $2 !~ /\^\{\}$/ { print $1 }'
+    return 0
+  fi
   printf '%s\n' "$saida_remota" | awk -v r="$nome" '$2 == r { if ((length($1) == 40 || length($1) == 64) && $1 ~ /^[0-9a-f]+$/) print $1; else ruim = 1; exit } END { exit ruim }'
 }
 # A linha que o teste do orçamento de heredocs imprime (tests/test_hooks.py, FORMATO_DO_ORCAMENTO); a mesma regex, em ERE.
@@ -599,7 +605,7 @@ buscar_de() {
 # (`nenhum`: nenhum clone da branch) e acrescenta a `pend_cmds`.
 origem_atual() {  # define `pontas` (vazio se a leitura falha: o commit fora das refs do clone fica fora da origem) e busca o que falta delas e dos mesclados
   local -a sem
-  pontas="$(git ls-remote --heads --tags --refs origin 2>/dev/null | cut -f1 | sort -u)" || pontas=""
+  pontas="$(remoto_exato --pontas 2>/dev/null | sort -u)" || pontas=""
   # shellcheck disable=SC2086  # uma ponta ou um sha por palavra
   mapfile -t sem < <(printf '%s\n' $pontas $merged_heads | grep -E '^[0-9a-f]{40}$' | sort -u | faltam)
   buscar_de origin "${sem[@]}"

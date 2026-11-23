@@ -914,11 +914,7 @@ class Fechar(unittest.TestCase):
 
     def test_lsremote_exato_um_ajudante_unico_le_a_branch_remota(self):
         codigo = [l for l in SCRIPT.read_text().splitlines() if not l.lstrip().startswith(("#", "echo", "passo"))]
-        # LIMPAR-CLONE-NAO-LISTADO (v0478 E132.6): a lista de todas as pontas da origin (origem_atual) não lê uma branch pelo nome
-        pontas = [l for l in codigo if "ls-remote --heads --tags --refs origin 2>/dev/null |" in l]
-        self.assertEqual(len(pontas), 1, pontas)
-        self.assertIn(pontas[0].strip(), SCRIPT.read_text().split("origem_atual() {", 1)[1].split("\n}", 1)[0])
-        chamadas = [l for l in codigo if "ls-remote" in l and l not in pontas]
+        chamadas = [l for l in codigo if "ls-remote" in l]
         self.assertEqual(len(chamadas), 1, chamadas)
         corpo = SCRIPT.read_text().split("remoto_exato() {", 1)[1].split("\n}", 1)[0]
         self.assertIn(chamadas[0].strip(), corpo)  # a única chamada é a do ajudante
