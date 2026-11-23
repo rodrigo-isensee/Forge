@@ -3,26 +3,26 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ordens-hook
-commit: fe14fb1ea179e325195005e2cab46a2bc95d4eaa
+commit: 35211762d50aec616625d3e7bd90ed88c7bb7f47
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-23
 ---
-# Review: v0478 (E123.15, 3ª volta do hook ordens)
+# Review: v0478 (E123.20, volta de CI do hook ordens)
 
-Revalidação pelo delta (H3, `R-REVIEW`): `forge-check parecer delta docs/reviews/v0480-ordens-hook.md`, intervalo `8e84ef3b..fe14fb1e`. Lido só o código e os testes do domínio do commit `fe14fb1e` (E123.14). Parecer anterior: aprovado em `8e84ef3b` (`781ac440`). A volta responde ao A4 da segurança E123.12 (`e29c3dbd`); o mérito de segurança é do `security-engineer`. Aqui confiro só correção, consistência e teste.
+Revalidação por delta (H3, `R-REVIEW`): `forge-check parecer delta docs/reviews/v0480-ordens-hook.md`, intervalo `fe14fb1e..35211762`, sem o merge da develop `51cb434d`. Parecer anterior: aprovado em `fe14fb1e` (`0637c6da`). Li só o commit do autor `35211762` (E123.19). A linha do `docs/indice-forge.md` que o delta lista (`forge_controle.py`) veio da develop (`ba201c86`) e fica fora do escopo.
 
 ## Delta lido
-- Só listas e constantes mudam, sem lógica nova. `NO_PROJETO` passa a `.forge/ordens/ordens-em-vigor.md` (`hooks/ordens.py:20`). O mapa de donos troca o arquivo pela pasta `.forge/ordens/` (`hooks/conformidade.json:66`). `PELA_COPIA_PRINCIPAL` vira `(".forge/ordens/",)` (`hooks/conformidade.py:3818`), e os `ignorados` do `bin/forge-init:222` passam a guardar a pasta.
-- A pasta casa pelo mesmo `achou` de prefixo que já guarda `docs/ordens/` no Forge, então o curinga no nome (`ordens-em-vigo?.md`, `[r]`, `*`) não escapa. As 11 fixtures `ordens-a4-*` provam isso: 9 bloqueiam (S1 a S3, `cp` e `rm` na pasta) e 2 liberam (o `cat` do dev e o `cp` do jarvis).
-- Nenhum teste foi afrouxado. As fixtures e os testes que já existiam mudam só o caminho. O teste novo `test_conformidade_recusa_curinga_no_nome_das_ordens_do_projeto` exige no mínimo 11 fixtures e confere os códigos esperados, e o teste do modelo de projeto passa a afirmar que a pasta `ordens` não existe nele.
-- A ADR 0003 (itens 1 e 6), o fragmento do changelog e a docstring do `ordens` batem com o código. Fora dos pareceres e das fixtures S4, nenhum arquivo cita mais `.forge/ordens-em-vigor.md` (`git grep`). O índice `docs/hooks-fixtures.md` está atualizado: `tests.test_indice_fixtures` saiu OK.
-- Mutantes: as 3 constantes novas têm M29, M30 e M31 (`tests/mutantes/v0480-ordens-hook-5.json`), e M26 foi reescrito para a pasta.
+- **U6** (`tests/mutantes/v0479-conformidade-trilha-7.json`): o `de` passa a citar o texto atual de `CONTROLE_NO_TEXTO` (`hooks/conformidade.py:3828-3829`, com `ordens`), e o `para` ganha `ordens` também. Assim o mutante segue apertando só a posição, sem tirar a pasta nova.
+- **`entrada_valida`** (`hooks/conformidade.py:3602-3612`): a função interna `texto` sai e as checagens ficam em linha. É equivalente: `isinstance(v, str) and bool(v)` vira `isinstance(v, str) and v != ""`. Na branch, `A or B and C` agrupa como `A or (B and C)`, que é o mesmo de antes. As entradas aceitas e recusadas não mudam. O motivo (custo do corpus) está na docstring.
+- **Testes**: há 5 casos de falha novos em `test_politica_de_conformidade_malformada_bloqueia`: caminho vazio, caminho que não é texto, motivo vazio, item de `quem` que não é texto e branch vazia. Cada guarda tem um ramo de falha por comportamento, e nenhum teste foi afrouxado.
+- **Mutantes**: M32 a M37 (`tests/mutantes/v0480-ordens-hook-6.json`), um por linha de guarda mudada.
 
 ## Provas
-- `python3 -m unittest tests.test_hooks.OrdensEmVigor tests.test_forge.ForgeInit` (`env -i`): `Ran 36 tests in 17.034s OK`. `tests.test_indice_fixtures`: `Ran 7 tests OK`.
-- `bin/forge-mutante tests/mutantes/v0480-ordens-hook-5.json`: M29, M30 e M31 `morreu`. `--ids M26` na spec `-4`: `morreu · (erro)`, porque o `git check-ignore` levanta exceção sob o mutante, e é esse o desenho do teste.
-- Suíte inteira: fica no CI do PR e não foi rodada de novo.
+- `python3 -m unittest tests.test_hooks.Hooks.test_politica_de_conformidade_malformada_bloqueia tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis` (`env -i`): `Ran 2 tests in 22.000s OK`.
+- `bin/forge-mutante tests/mutantes/v0480-ordens-hook-6.json --processos 1`: M32 a M37 `morreu` (linhas 3605 a 3612). `--ids U6` na spec `trilha-7`: `U6 · morreu · hooks/conformidade.py:3828`.
+- `bin/forge-mutante --conferir --base fe14fb1e`: `conferidas: o trecho de cada spec do diff está no lugar`.
+- CI do PR #805 no head `35211762`: suíte 5/5 verde. Falham só `catraca` (`R-CONFORMIDADE`: falta o rótulo `afrouxa-regra`, autorizado pelo dono em 2026-11-23 15:25 e aplicado depois do último push), `bateria (pareceres)` (pareceres ainda não estão no head) e o agregado `bateria`. Nenhuma das falhas vem do código.
 
 ## Parecer
-Aprovado. O A4 da segurança E123.12 foi tratado só com listas e constantes, cada uma coberta por um mutante que morre e por fixtures de comportamento. Nenhum teste foi afrouxado, e a documentação acompanha o código.
+Aprovado. A volta de CI só refatora `entrada_valida` para uma forma equivalente e atualiza a spec U6 para o texto atual da guarda. Cada guarda tem caso de falha e mutante que morre.
