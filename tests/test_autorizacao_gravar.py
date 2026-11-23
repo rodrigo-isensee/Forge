@@ -286,11 +286,11 @@ class VoltaDosPortoes(Base):
                 self.assertEqual((campos["Estado-inicial"], est), ("pendente-confirmacao", "pendente"))
                 self.assertIn("fora do vocabulário", motivo)
 
-    def test_ponto_final_logo_depois_do_alvo_nao_deixa_pendente(self):
-        """A2 do review: "pr 5." e "0.47.3." são o alvo com ponto final; "pr 5.1" não é o pr 5."""
+    def test_ponto_final_logo_depois_do_alvo_deixa_pendente(self):
+        """E90.14 (decisão 3a do dono): "pr 5." e "0.47.3." seguem pendentes, como na base; "pr 5.1" não é o pr 5."""
         for i, (texto, ato, alvos, esperado) in enumerate((
-                ("pode aplicar o rótulo no PR 5.", "rotulo-afrouxa-regra", "pr:5", "ativa"),
-                ("pode mesclar a main 0.47.3.", "merge-main", "versao:0.47.3", "ativa"),
+                ("pode aplicar o rótulo no PR 5.", "rotulo-afrouxa-regra", "pr:5", "pendente"),
+                ("pode mesclar a main 0.47.3.", "merge-main", "versao:0.47.3", "pendente"),
                 ("pode aplicar o rótulo no pr 5.1", "rotulo-afrouxa-regra", "pr:5", "pendente"))):
             with self.subTest(texto=texto):
                 uuid = f"{i:08d}-7777-4000-8000-000000000000"

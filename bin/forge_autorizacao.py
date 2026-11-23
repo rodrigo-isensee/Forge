@@ -316,7 +316,7 @@ def fim_do_termo(termo, fala):
 def leitura(texto, ato, alvos, fala):
     """Campos de escopo e validade lidos do texto todo (itens 5 e 6). Sem termo de ato ou com outro ato: Recusa."""
     norm = normal(texto)
-    marcado = re.compile(rf"(?<![a-z0-9])(?:(?:pr|pull) ?#?|#)([1-9]\d*)(?!\w|\.\w)|(?<![\w.])(\d+\.\d+\.\d+)(?!\w|\.\w)"
+    marcado = re.compile(rf"(?<![a-z0-9])(?:(?:pr|pull) ?#?|#)([1-9]\d*)(?![\w.])|(?<![\w.])(\d+\.\d+\.\d+)(?![\w.])"
                          rf"|(?<![a-z0-9])item ?({CARTAO.lower()})(?![\w-])")
     termo = re.compile(r"ate (?:o )?fim deste pedido|ate amanha|esta noite|\bhoje\b|\bhj\b|ate (?:a )?(?:" + "|".join(DIAS)
                        + r")(?:[- ]feira)?|ate \d{1,2}/\d{1,2}(?: \d{1,2}(?::\d{2}|h(?:\d{2})?))?(?![\w/:])")

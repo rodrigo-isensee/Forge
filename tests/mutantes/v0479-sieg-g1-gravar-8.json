@@ -34,22 +34,22 @@
     },
     {
       "id": "M58",
-      "guarda": "E90.10 (A2 do review): ponto final logo depois do número do PR não some com o alvo",
+      "guarda": "E90.14 (decisão 3a do dono): ponto final logo depois do número do PR deixa a concessão pendente",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "([1-9]\\d*)(?!\\w|\\.\\w)",
-      "para": "([1-9]\\d*)(?![\\w.])",
+      "de": "([1-9]\\d*)(?![\\w.])",
+      "para": "([1-9]\\d*)(?!\\w|\\.\\w)",
       "testes": [
-        "tests.test_autorizacao_gravar.VoltaDosPortoes.test_ponto_final_logo_depois_do_alvo_nao_deixa_pendente"
+        "tests.test_autorizacao_gravar.VoltaDosPortoes.test_ponto_final_logo_depois_do_alvo_deixa_pendente"
       ]
     },
     {
       "id": "M59",
-      "guarda": "E90.10 (A2 do review): ponto final logo depois da versão não some com o alvo",
+      "guarda": "E90.14 (decisão 3a do dono): ponto final logo depois da versão deixa a concessão pendente",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "(\\d+\\.\\d+\\.\\d+)(?!\\w|\\.\\w)",
-      "para": "(\\d+\\.\\d+\\.\\d+)(?![\\w.])",
+      "de": "(\\d+\\.\\d+\\.\\d+)(?![\\w.])",
+      "para": "(\\d+\\.\\d+\\.\\d+)(?!\\w|\\.\\w)",
       "testes": [
-        "tests.test_autorizacao_gravar.VoltaDosPortoes.test_ponto_final_logo_depois_do_alvo_nao_deixa_pendente"
+        "tests.test_autorizacao_gravar.VoltaDosPortoes.test_ponto_final_logo_depois_do_alvo_deixa_pendente"
       ]
     },
     {

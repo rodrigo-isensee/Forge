@@ -53,8 +53,8 @@ dia da semana, "esta noite") vale uso único e nasce `pendente-confirmacao` ("pr
 nunca nasça ativa, e `Fuso` grava `UTC`. A volta dos portões (E90.6) fechou o resumo de compactação, o prazo local e a fala fora das
 48 h no `gravar`; a volta E90.10 fechou o resto do que o código alcança: a pasta das transcrições vem do banco de senhas
 (`pwd.getpwuid`), não do `HOME` do chamador; o `ler` trata fala no futuro como adulterada; emoji e letra de outra escrita contam como
-palavra fora do vocabulário; "até o fim deste pedido" só nasce ativa com o pedido em `docs/pedidos/` e sem o `F-<Pedido>`; e o ponto
-final logo depois do alvo não o esconde. A origem da transcrição **não** está provada: `CLAUDE_CODE_SESSION_ID` ainda vem do ambiente
+palavra fora do vocabulário; "até o fim deste pedido" só nasce ativa com o pedido em `docs/pedidos/` e sem o `F-<Pedido>`. Ponto final logo
+depois do alvo ("pr 5.", "0.47.3.") segue deixando a concessão pendente (decisão 3a do dono). A origem da transcrição **não** está provada: `CLAUDE_CODE_SESSION_ID` ainda vem do ambiente
 do chamador e escolhe outra transcrição real dentro de 48 h, e a pasta de concessões aceita escrita direta; só o corte do hook, que
 confere o `transcript_path` do evento e protege `.forge/autorizacoes/`, prova a origem. A cópia do
 classificador em `hooks/vigia.py` tem a mesma falta do resumo e é corrigida noutro item. Ficam para os cortes seguintes da
