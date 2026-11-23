@@ -3,12 +3,18 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-copia-nome-unico
-commit: 04e560fa12257cef55d8122dfd1f32a8a1188685
+commit: f6f1eaf1a22d1b046e953b62135e76d9419284eb
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-23
 ---
-# Review: v0478 · E111.2, revalidado em E111.6 e E111.10 · CLONE-NOME-UNICO (forge-copia)
+# Review: v0478 · E111.2, revalidado em E111.6, E111.10 e E111.15 · CLONE-NOME-UNICO (forge-copia)
+
+## Revalidação E111.15 (head f6f1eaf1, volta de CI E111.13)
+Delta lido: `forge-check parecer delta` de 04e560fa..f6f1eaf1, sem o que veio da develop (d2288045); no domínio só `bin/forge-testes` (+1).
+- A linha nova do `MAPA` (`bin/forge-testes:210`) leva `bin/forge-copia` a `test_forge_copia`, `test_forge_copia_nome` e `test_forge`; trata a falha do run 45252018444 (`MapaCobreOQueOsTestesLeem`: o módulo novo lê o script e a convenção só achava `test_forge_copia`). Os três módulos existem; é dado de mapa, sem guarda nova.
+- `bin/forge-testes --listar bin/forge-copia`: dirigido (test_forge, test_forge_copia, test_forge_copia_nome, test_indice_forge, test_oraculo_sempre_atual, test_oraculo_v047).
+- `python3 -m unittest tests.test_testes_tocados` (ambiente limpo): 196 testes, OK (skipped=1). Suíte completa: CI do PR.
 
 ## Revalidação E111.10 (head 04e560fa)
 Delta lido: `forge-check parecer delta` de 2f16f017..04e560fa; no domínio só `tests/pesos-d4.json`, o arquivo do conflito no merge da develop (f17183d1). Desde 2f16f017, fora do merge, só pareceres (6a1a8ce8, a2bf1b46, 3d7866ba).
