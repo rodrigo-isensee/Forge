@@ -1,8 +1,9 @@
 # SIEG-G5: mensagem de decisão ao dono em formato fixo, conferida antes de sair
 
-Estado: proposta · pedido v0478 (E135.1) · cartão `SIEG-G5-DECISAO-FORMATO-FIXO` (dono 16/11 15:40) · autor: software-architect
+Estado: proposta · pedido v0478 (E135.1, volta E135.5) · cartão `SIEG-G5-DECISAO-FORMATO-FIXO` (dono 16/11 15:40) · autor: software-architect
 Origem: só a ideia G5 de um estudo externo de fábrica de agentes (anexo do pedido em `docs/anexos/`, linha 12), nada de código copiado.
-Afrouxa? Não: nada sai de `docs/regras/`, de `tests/config.json` nem de controle. Hook novo: nenhum.
+Afrouxa? Esta proposta, não: nada sai de `docs/regras/`, de `tests/config.json` nem de controle. A troca que ela pede (T3, "Trava que
+sai") afrouxa: "sim, R-CONFORMIDADE", e vai ao dono. Hook novo: nenhum. Trava nova: sim (F1 a F4 e F6, ver "Trava que sai").
 
 ## Problema
 Em 16/11 o Jarvis repetiu "continuo esperando as suas duas respostas" e mandou perguntas sem opção marcada
@@ -15,74 +16,82 @@ resposta do dono, e só depois.
 | Formato da pergunta | `skills/modo-iniciante/SKILL.md:31-38` | contexto, exemplo, opções, "Afrouxa o processo?", custo, recomendação | é texto, nada o confere |
 | Uma a uma | `skills/falar-com-o-dono/SKILL.md:10` | uma decisão por mensagem (`R-DECISAO`) | idem |
 | Resposta curta O4 | `skills/falar-com-o-dono/resposta-curta.md:7` | código `1a)`, marcas `[recomendada]`, `[reversível]`/`[irreversível]` | idem |
-| Leitura da resposta | `bin/forge_dono.py:97-137` (`opcoes_da_pergunta`, `ler_resposta`) | lê `1a 2c`/`aprovo` contra a última `PERGUNTA AO DONO`; o ambíguo volta (rc 1) | só confere depois que o dono responde |
+| Leitura da resposta | `bin/forge_dono.py:97-137` | lê `1a 2c`/`aprovo` contra a última `PERGUNTA AO DONO`; o ambíguo volta (rc 1) | só confere depois da resposta |
 | Opções exclusivas | `bin/forge_dono.py:125-126` | duas opções da mesma questão = ambiguidade | não está escrito na pergunta |
-| `decisoes --resposta` | `bin/forge-check:10572`, `bin/forge_dono.py:316-330` | a porta de entrada da leitura acima | idem |
-| Gate da pergunta | `bin/forge-check:5278` (`anotar --tipo pergunta`) | recusa corte recomendado sem `origem:`… (E6, `forge_dono.py:198-208`) | não confere nada além do corte |
+| Gate da pergunta | `bin/forge-check:5278` (`anotar --tipo pergunta`) | recusa corte recomendado sem `origem:` (E6, `forge_dono.py:198-208`) | não confere nada além do corte |
 | Teto de tamanho | `hooks/meta.py:40` (`TETO_DA_MENSAGEM = 1200`, S6) | mede a mensagem no Stop | só mede, nunca recusa |
-| Medida posterior | `bin/forge_transcricao.py:278-342` (`transcricao decisoes`) | conta respostas com mais de um grupo A/B/C ou grupo sem "Recomendo" | não vê código, marca nem tamanho |
+| Medida posterior | `bin/forge_transcricao.py:255-342` (`transcricao decisoes`) | conta grupos A/B/C com mais de um grupo ou sem "Recomendo" | só vê letras A a F maiúsculas (`:255`); não vê `1a)`, marca nem tamanho |
 
 ## O que falta
-1. **Conferência do formato antes de sair.** O único ponto que vê a pergunta antes do dono é o
-   `anotar --tipo pergunta`, e ele só aplica a E6.
-2. **Ligar a mensagem à pergunta anotada.** O Jarvis pode escrever no chat um texto diferente do que anotou, ou não
-   anotar. Nenhuma regra diz que a mensagem de decisão é o literal que o anotar aceitou.
-3. **Medir o que escapa.** `transcricao decisoes` não conta grupo de opções sem código `Na)` ou sem marca.
+1. **Conferência do formato antes de sair.** O único ponto que vê a pergunta antes do dono é o `anotar --tipo pergunta`, e ele só aplica a E6.
+2. **Ligar a mensagem à pergunta anotada.** Nenhuma regra diz que a mensagem de decisão é o literal que o anotar aceitou.
+3. **Uma régua que veja o formato novo.** `grupos_de_opcoes` devolve `[]` para `1a)`/`1b)` (sonda S1 do review E135.4).
 
 ## Formato fixo (o literal da `PERGUNTA AO DONO`)
-- F1: cada questão tem de 2 a 4 opções `Na)`, letras seguidas a partir de `a` (teto de opções).
+- F1: cada questão tem de 2 a 4 opções `Na)`, letras seguidas a partir de `a`.
 - F2: cada questão tem exatamente uma opção `[recomendada]`.
 - F3: cada opção tem exatamente uma das marcas `[reversível]` ou `[irreversível]`.
 - F4: cada opção tem `afrouxa: não` ou `afrouxa: sim, <regra>` (modo-iniciante, item 4).
-- F5: relação entre opções: as opções de uma questão se excluem, o que já vale em `forge_dono.py:125-126`. Opções que
-  se combinam viram questões separadas. Escrever isso na skill basta; não precisa de marca nova.
-- F6: o literal tem até 1200 caracteres, o mesmo número de `TETO_DA_MENSAGEM` (`hooks/meta.py:40`), num lugar só.
-- F7: a E6 (corte recomendado com origem) continua do jeito que está, como uma das regras.
-Fora do formato e deste corte: os números de tempo e tokens por opção (`skills/modo-iniciante/numeros.md`). Ficam para
-uma versão seguinte, depois de medir F1 a F7.
+- F5: as opções de uma questão se excluem (já vale em `forge_dono.py:125-126`); opções que se combinam viram questões separadas. Só texto na skill.
+- F6: o literal tem até `TETO_DA_MENSAGEM` caracteres (1200), constante única (ver "Teto num lugar só").
+- F7: a E6 continua do jeito que está, como uma das regras.
+Fora deste corte: números de tempo e tokens por opção (`skills/modo-iniciante/numeros.md`), para depois de medir F1 a F7.
 
 ## Onde a conferência roda
-Na **ferramenta**, no gate que já existe: `forge-check anotar --tipo pergunta` (`bin/forge-check:5278`) passa a chamar
-uma função `recusa_do_formato(literal)` de `bin/forge_dono.py` que reúne F1 a F7. A `recusa_de_corte` vira uma das
-regras dessa função. Fica um ponto de recusa só, no mesmo lugar: não há hook novo nem trava nova (regra da retro de
-21/11). A extensão do Stop que o estudo externo sugere (mesmo anexo, linha 12, última coluna) foi rejeitada: seria uma
-trava nova, e nenhuma sai em troca.
-Fluxo: anotar a pergunta, e só com rc 0 enviar ao dono **o mesmo literal**. Recusa (rc 2) é corrigida e anotada de
-novo antes de qualquer envio. `decisoes --resposta` não muda: ela passa a ler sempre pergunta bem formada.
-Pergunta já gravada não é conferida de novo: o retroativo fica fora.
+No gate que já existe: `forge-check anotar --tipo pergunta` (`bin/forge-check:5278`) chama `recusa_do_formato(literal)` de
+`bin/forge_dono.py`, que reúne F1 a F7 (a `recusa_de_corte` vira uma das regras). Sem hook novo; a extensão do Stop do
+estudo externo foi rejeitada. Fluxo: anotar e, só com rc 0, enviar ao dono **o mesmo literal**; recusa (rc 2) é corrigida
+e anotada de novo. `decisoes --resposta` não muda. Pergunta já gravada não é conferida de novo.
+
+## Trava que sai (regra 3 da DECISÃO DO DONO 21/11 20:54, `docs/pedidos/v0478.md:717`)
+F1 a F4 e F6 são cinco recusas novas com rc 2: uma trava de processo nova. Juntar a E6 na função nova não simplifica nada.
+- Sai: **T3** do insumo de corte (`docs/retrospectivas/insumo-corte-de-travas-2311.md`, T3): a gramática do papel só de
+  leitura (`hooks/_comum.py:689`, `hooks/conformidade.py:1954`) passa a aceitar `$?` e `$TMPDIR` fora de aspas simples;
+  `$VAR` qualquer e a atribuição de `TMPDIR` seguem recusados. Risco baixo (lista fechada de dois nomes) e é o primeiro da
+  ordem sugerida no insumo. Custo medido lá: 2 linhas de recusa falsa e 1 incidente (E78.6, E63.6, E63.8).
+- Por que T3 e não o S6 ou a medida posterior: os dois só medem, não recusam; tirá-los não tira trava.
+- A regra 3 foi escrita para cartão de retro e o SIEG-G5 é cartão do dono; a troca vale mesmo assim, a pedido do review.
+- O C1 só entra na develop depois do merge do T3 (ou junto). T3 afrouxa: PR próprio com rótulo `afrouxa-regra`, motivo no
+  título e pergunta ao dono (ver "Em aberto"). Se o dono recusar o T3, o C1 não entra até haver outra trava que saia.
+
+## Teto num lugar só (F6)
+`TETO_DA_MENSAGEM = 1200` passa de `hooks/meta.py:40` para `bin/forge_dono.py` (só biblioteca padrão, já importado pelo
+`forge-check`). `hooks/meta.py` importa de lá pelo caminho `PLUGIN / "bin"`, como `hooks/doutor.py:106` faz com
+`forge_versoes`. Direção: o hook importa do `bin`; o `bin` não importa do hook. Oráculo: teste que reprova `\b1200\b` em
+`hooks/meta.py` e em `bin/forge-check` e exige `from forge_dono import TETO_DA_MENSAGEM` em `hooks/meta.py`; o mutante
+que troca o valor em `forge_dono.py` muda o teto lido pelo `meta`.
 
 ## Por que o existente não basta
 - A skill e a O4 são texto. Em 16/11 a pergunta saiu sem opção marcada mesmo com elas em vigor (estudo, linha 12).
-- `ler_resposta` só vê a pergunta quando o dono já respondeu. Pergunta sem `[recomendada]` só aparece como
-  ambiguidade na volta, com uma rodada perdida (`forge_dono.py:128-134`).
-- S6 mede o tamanho, mas não recusa (`hooks/meta.py:10`). A medida posterior não vê código nem marca.
-- Evidência de execução: esta entrega não rodou comandos (o papel não tem shell). Antes do C1, o tech-lead roda
-  `forge-check transcricao decisoes` nos transcritos de 16/11 e registra a taxa de violação, que serve de linha de base.
+- `ler_resposta` só vê a pergunta depois da resposta: sem `[recomendada]` vira ambiguidade na volta (`forge_dono.py:128-134`).
+- S6 mede o tamanho, mas não recusa (`hooks/meta.py:10`). A medida posterior não vê `1a)` (S1 do review: devolve `[]`).
+- Evidência de execução: esta entrega não rodou comandos (o papel não tem shell); a linha de base é o C0.
 
 ## Corte (cada fatia entra sozinha na develop)
 | Fatia | Agente | Entrega | Pronto quando (oráculo) |
 |---|---|---|---|
-| C0 | tech-lead | linha de base: `forge-check transcricao decisoes` sobre as sessões de 9/11 a 16/11 | a saída `total:` copiada no pedido |
-| C1 | dev Python do Forge + qa-engineer | `recusa_do_formato` (F1 a F7) no `anotar --tipo pergunta`; a E6 dentro dela | `tests/test_anotar.py` e `tests/test_forge_dono.py` com um caso recusado por regra F1 a F7 e um aceito; o mutante de cada regra morre (`tests/mutantes/`); `.githooks/pre-push --suite` verde |
-| C2 | tech-lead (texto) | `resposta-curta.md` e `falar-com-o-dono/SKILL.md:10`: "a mensagem de decisão é o literal aceito pelo `anotar`, enviado depois do rc 0"; F5 escrita | `tests/test_clareza.py` verde; invariante novo só se o dono pedir |
-| C3 | dev Python do Forge | `transcricao decisoes` ganha `sem_codigo` (grupo sem `Na)` ou sem `[recomendada]`) e `acima_do_teto` | teste com transcrito sintético de cada caso; só números na saída |
-Ordem: C0 primeiro. C1 e C3 podem rodar em paralelo. C2 depois do C1, porque o texto cita o comportamento.
-Segurança: o literal já passa por `recusa_do_campo` e `recusa_da_forja` (`bin/forge-check:5254-5257`). C1 não
-acrescenta leitura de arquivo nem rede (`R-CUSTO`). Gatilho de segurança: nenhum novo, confirmar com o security-engineer.
+| C3 | dev Python do Forge | `transcricao decisoes` ganha `fora_do_formato`: resposta com grupo de opções (A a F ou `Na)`) que fere F1, F2 ou F6, contando grupo sem código `Na)` como fora | teste com transcrito sintético por caso, incluindo o texto da S1 (espera um grupo visto e 0 fora) e um grupo `A)`/`B)` (espera 1 fora); só números na saída |
+| C0 | tech-lead | linha de base com a régua do C3: `forge-check transcricao decisoes` nas sessões de 9/11 a 16/11 | linhas `total:` e `fora_do_formato` copiadas no pedido |
+| C1 | dev Python do Forge + qa-engineer | `recusa_do_formato` (F1 a F7) no `anotar`; teto movido para `forge_dono.py` | casos por regra em `tests/test_forge_dono.py` e `tests/test_anotar.py`, um aceito; mutante de cada regra morre (`tests/mutantes/`); teste do teto único; `.githooks/pre-push --suite` verde |
+| C2 | tech-lead (texto) | frase em `skills/falar-com-o-dono/SKILL.md:11` (logo depois da `:10`) e `resposta-curta.md:8` (depois da `:7`); F5 escrita | `grep -cF "A mensagem de decisão é o literal que o anotar da pergunta aceitou com rc 0, enviado sem mudança."` dá 1 em cada arquivo; `tests/test_clareza.py` verde |
+Ordem: T3 e C3 em paralelo; C0 depois do C3 (usa a régua dele); C1 depois do C0 e do T3; C2 depois do C1.
+Segurança: o literal já passa por `recusa_do_campo` e `recusa_da_forja` (`bin/forge-check:5254-5257`). C1 não acrescenta
+leitura de arquivo nem rede (`R-CUSTO`). Gatilho: o import `bin` no `hooks/meta.py` e o T3 vão ao security-engineer.
 
 ## Critério de parada (C1)
 - bloqueia: pergunta ao dono fora do formato F1 a F7 gravada como `PERGUNTA AO DONO`.
-- F1 · questão com menos de 2 ou mais de 4 opções, ou letra pulada · oráculo: `tests/test_forge_dono.py` (caso F1)
+- F1 · menos de 2 ou mais de 4 opções, ou letra pulada · oráculo: `tests/test_forge_dono.py` (caso F1)
 - F2 · nenhuma ou duas `[recomendada]` · oráculo: idem (caso F2)
 - F3 · opção sem marca de reversão ou com as duas · oráculo: idem (caso F3)
 - F4 · opção sem `afrouxa:` · oráculo: idem (caso F4)
-- F6 · literal acima de 1200 caracteres · oráculo: idem (caso F6)
+- F6 · literal acima de `TETO_DA_MENSAGEM` · oráculo: idem (caso F6) e o teste do teto único
 - F7 · corte sem origem (E6) · oráculo: os casos E6 de `tests/test_anotar.py` continuam verdes
 - gatilho · oráculo: `forge-check anotar --tipo pergunta` sai com rc 2 e "nada gravado" em cada caso acima
 
 ## Critério de reversão
-Reverter o C1 se, em 2 semanas, o `anotar` recusar uma pergunta que o dono considere bem formada (falso positivo
-registrado no pedido). Também se a taxa `violacoes` do `transcricao decisoes` não cair em relação à linha de base do C0.
+Mesma régua do C0 (`fora_do_formato` do C3, sobre `com_grupo`). Reverter o C1 se, em 2 semanas depois do merge, a taxa não
+cair em relação ao C0, ou se o `anotar` recusar uma pergunta que o dono considere bem formada (falso positivo no pedido).
 
-## Em aberto (vai ao dono só se o time não fechar)
-- Teto de 4 opções e de 1200 caracteres: o 1200 já está no S6. O 4 é estimado, porque o exemplo da skill usa 2 ou 3 opções.
+## Em aberto (pergunta ao dono)
+- Troca da regra 3: entra a trava F1 a F4 e F6, sai a T3 (afrouxa R-CONFORMIDADE). Recomendação: aprovar o par.
+- Teto de 4 opções: estimado (a skill usa 2 ou 3 opções). O 1200 já é o do S6.
