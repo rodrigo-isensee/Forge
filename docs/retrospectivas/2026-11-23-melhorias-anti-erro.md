@@ -14,7 +14,7 @@ Pedido de 8 itens, AE1 a AE8, "Pronto quando": a auditoria diária (AE6) dar zer
 | "Pronto quando" (AE6 zero por 3 dias) | não medido | sem registro da auditoria diária da AE6 neste clone; AE6 só tem desenho |
 | Lead time do pedido, voltas por classe, escape | não medido | `forge-check retro --pedido melhorias-anti-erro`: `lead=nao-medido p85=nao-medido(n=0) voltas-classe=nao-medido escapes=0 custo=lacuna`; "sem gatilho" |
 | Clareza | não medido | sem seção "Registro de clareza" |
-| ERRO-JARVIS do período | 15 em v0478 (5+1+9, 0.47.12 a 0.47.14), 5 da classe "afirma sem ler o estado" | medido (retros das versões) |
+| ERRO-JARVIS do período | 25 em v0478 (8+5+12, 0.47.12 a 0.47.14), 5 da classe "afirma sem ler o estado" | medido (as duas formas `ERRO-JARVIS:` e `ERRO-JARVIS HH:MMx:` nas linhas datadas de `docs/pedidos/v0478.md`, por janela de tag; sonda S1 do review a315a372; a classe vem da leitura de cada linha) |
 
 Linha de métricas e resumo do `forge-placar --dias 14` (medido; 09/11 a 23/11): `taxa_forma: atual 0.00% · anterior 68.98%`, `erros_jarvis: atual 3.39% · anterior 14.90%`, `taxa_escape: atual 0.00% · anterior 0.37%`.
 `resumo: os erros de forma do time caíram 100%; os defeitos que escaparam caíram 100%`
