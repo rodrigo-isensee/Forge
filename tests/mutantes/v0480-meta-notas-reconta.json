@@ -17,7 +17,7 @@
       "guarda": "a marca de um transcrito fora da forma (não objeto) fica de fora (mutante: entra e a medida se perde)",
       "arquivo": "hooks/meta.py",
       "de": " if isinstance(v, dict)}",
-      "para": "}",
+      "para": " if True}",
       "testes": [
         "tests.test_meta.NotasEntreFerramentas.test_marca_do_transcrito_fora_da_forma_e_ignorada"
       ]
