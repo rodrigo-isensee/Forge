@@ -3,36 +3,31 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-sieg-g1-gravar
-commit: 9f833cd6d8290f0d0aeeb2306ef1f16fa56f9b67
+commit: 3e653044fb25104f5a56198d03da6d22602c0a50
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-23
 ---
-# Review de segurança: v0478 E90.12 (SIEG-G1, G1.2a, `autorizacao gravar`), volta por delta
+# Review de segurança: v0478 E90.16 (SIEG-G1, G1.2a, `autorizacao gravar`), volta por delta
 
 Gatilhos: autorização do dono (ADR 0018), controle do Forge (`R-SEGURANCA`).
 
 ## Resumo
-Esta é a volta da E90.10 sobre o parecer aprovado f88a2a8e (head d7c1a53b, com quatro recomendados abertos). A rodada anterior fica no git. Li o delta com `forge-check parecer delta`, no intervalo `d7c1a53b..9f833cd6`. Dentro do domínio estão `bin/forge-check` (`:10713`, o `pedido_existe` no contexto), `bin/forge_autorizacao.py` e `docs/adr/0018-autorizacao-do-dono-gravada.md`. Fora do domínio, também li o delta de `tests/test_autorizacao_gravar.py` e os mutantes 8 e 9. `tests/test_autorizacao_gravar.py`: 32 OK aqui.
+Esta é a volta da E90.14 (Decisão 3a do dono) sobre o parecer aprovado cbdc9782 (head 9f833cd6). A rodada anterior fica no git. Li o delta com `forge-check parecer delta`, no intervalo `9f833cd6..3e653044`. Dentro do domínio estão `bin/forge_autorizacao.py` (`:319`, só o regex `marcado`) e `docs/adr/0018-autorizacao-do-dono-gravada.md`. Fora do domínio, também li `tests/test_autorizacao_gravar.py`, o mutante 8 (M58, M59) e `changelog.d/`. `tests/test_autorizacao_gravar.py`: 32 OK aqui.
 
-Estado dos achados anteriores (sondas S1 a S6, com o `bin/forge-check` do head numa raiz descartável em `$TMPDIR`):
-- **A3:** fechado. `estado` (`:242`) trata `Hora-da-fala` depois de agora como adulterada. No instante da fala, a concessão vale (S1).
-- **A4:** fechado no que o código alcança. `casa_do_dono` (`:282`) vem do banco de senhas. A sonda S4 da rodada anterior (`HOME` e `CLAUDE_CODE_SESSION_ID` apontados para uma transcrição escrita em `$TMPDIR`) agora é recusada (S2). Continua possível, dentro de 48 h, escolher a transcrição de outra sessão real pelo `CLAUDE_CODE_SESSION_ID`. Isso fica para o corte do hook (`transcript_path` do evento), e a ADR agora diz isso por escrito.
-- **A5:** fechado. Emoji, letra cirílica e travessão contam como fora do vocabulário e deixam a concessão pendente (S3).
-- **A6:** fechado. "até o fim deste pedido" nasce pendente quando o pedido não está em `docs/pedidos/`, quando há `F-<Pedido>` gravado ou quando falta `pedido_existe` (S4). `pedido_para_anotar` só aceita o id, e `--pedido` com caminho é recusado como "Pedido fora da forma".
-- **Texto da ADR 0018:** corrigido. A ressalva da rodada anterior ("fechou A1 a A4") saiu. Agora o texto diz o que cada volta fechou e declara que a origem da transcrição **não** está provada até o corte do hook.
+Estado dos achados anteriores:
+- **A3, A4, A5, A6:** seguem fechados. O delta não toca `estado`, `casa_do_dono`, `fora_do_vocabulario` nem o contexto do pedido.
+- **Afrouxamento do A2 do review (S5 da rodada anterior):** desfeito. O regex `marcado` (`bin/forge_autorizacao.py:319`) voltou a `(?![\w.])` nos dois ramos. O texto é idêntico byte a byte ao da base 2d5efbe8 (`:311`). "pr 5." e "0.47.3." voltam a nascer `pendente-confirmacao` (S1), como na base (S2). O teste `test_ponto_final_logo_depois_do_alvo_deixa_pendente` exige pendente. Os mutantes M58 e M59 recolocam a forma frouxa `(?!\w|\.\w)`, e o teste os mata: no 9f833cd6 os dois casos saíam `ativa` (S3).
+- **ADR 0018 e changelog:** a frase "o ponto final logo depois do alvo não o esconde" saiu. A ADR diz agora que esses casos seguem pendentes pela decisão 3a. Nada promete mais do que o código faz.
 
-**Só aperta?** Não. A3, A4, A5 e A6 só acrescentam recusa ou pendência, mas uma mudança afrouxa: o A2 do review. O regex `marcado` (`:319`) trocou `(?![\w.])` por `(?!\w|\.\w)`. Com isso, "pr 5." e "0.47.3." deixaram de nascer `pendente-confirmacao` (na base 2d5efbe8: "palavra fora do vocabulário: 5") e passaram a nascer `ativa` (S5). Não há caminho de ataque: o ponto final não muda o alvo, e o que vem depois dele continua preso ("pr 5.1" e "pr 5._" seguem pendentes, com "alvos do texto diferentes", S6). Aprovo a mudança, mas, por escrito, ela não entra no rótulo "só aperta".
+**Só aperta? Sim, por escrito.** Medido contra a base 2d5efbe8, o item agora só acrescenta recusa ou pendência: A3 (fala no futuro, adulterada), A4 (pasta pelo banco de senhas), A5 (emoji e outra escrita fora do vocabulário) e A6 (fim do pedido só com o pedido aberto). A única mudança que afrouxava foi o A2, e ela foi desfeita. Nas sondas S1 e S2, todo caso que era pendente na base continua pendente no head. A única diferença está no motivo de "pr 5._", que agora também lista `_` como fora do vocabulário, efeito do A5, ou seja, mais um aperto. Pelo lado da segurança, o rótulo "só aperta" vale para este item no head 3e653044.
 
-**Explorável antes dos próximos cortes?** Não. Nada consome concessão ainda, e `.forge/autorizacoes/` aceita escrita direta até o corte do hook, como a ADR registra.
+**Explorável antes dos próximos cortes?** Não, e isso não mudou: nada consome concessão ainda, e a origem da transcrição só é provada no corte do hook, como a ADR registra.
 
 ## Sondas
-- S1 · concessão gravada agora; `concessoes` lida 5 min antes e depois no instante da fala · espera: adulterada, depois ativa · obtido: `('A-1', 'adulterada', 'Hora-da-fala no futuro')`, depois `('A-1', 'ativa', '')`
-- S2 · `forge-check autorizacao gravar` com `HOME` e `CLAUDE_CODE_SESSION_ID` trocados para uma transcrição em `$TMPDIR`, com a casa real do `pwd` · espera: recusada · obtido: recusada, "transcrição não é o .jsonl comum da sessão em curso"; no controle, com a casa do `pwd` na raiz: A-1 ativa
-- S3 · "pode aplicar o rotulo no pr 5" com dois emojis de proibição, com "нет" e com "— nao" · espera: pendente · obtido: pendente-confirmacao, com "fora do vocabulário: 🚫", "е, н, т" e "nao, —"
-- S4 · "ate o fim deste pedido" com `--pedido nunca-fecha` e com `--pedido v0478` e `docs/pedidos/v0478.md` presente · espera: pendente e ativa · obtido: pendente-confirmacao ("pedido inexistente ou fechado") e ativa; com `--pedido ../../x`, recusada
-- S5 · "pode aplicar o rotulo no pr 5." no head e na base 2d5efbe8 · espera: o afrouxamento declarado · obtido: ativa no head, pendente-confirmacao na base
-- S6 · "pr 5.1" e "pr 5._" · espera: pendente · obtido: pendente-confirmacao, com "alvos do texto diferentes dos declarados"
+- S1 · `leitura` do head com "pode aplicar o rótulo no PR 5.", "pode mesclar a main 0.47.3.", "pr 5.1", "pr 5._" e "pr 5" · espera: pendente nos quatro primeiros, ativa no último · obtido: pendente-confirmacao ("fora do vocabulário: 5"; "0, 3, 47"; "alvos do texto diferentes"; idem) e ativa
+- S2 · as mesmas entradas na base 2d5efbe8 · espera: o mesmo estado do head · obtido: os mesmos estados; "pr 5._" lista só "5" no motivo
+- S3 · as mesmas entradas no 9f833cd6 · espera: o afrouxamento que foi desfeito · obtido: "PR 5." e "0.47.3." ativa
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. A suíte inteira não rodou aqui e não há CI do PR: o brief pede para não rodar a suíte local nem abrir PR, e o CI do PR será o portão. Rodei `tests/test_autorizacao_gravar.py` (32 OK) e as sondas S1 a S6. Não rodei `gitleaks` nem `semgrep`: o delta não traz segredo nem dependência, e o único import novo é `pwd`, da biblioteca padrão.
+Nenhum risco aceito. A suíte inteira não rodou aqui e não há CI do PR: o brief pede para não rodar a suíte local nem abrir PR, e o CI do PR será o portão. Rodei `tests/test_autorizacao_gravar.py` (32 OK) e as sondas S1 a S3. Não rodei `gitleaks` nem `semgrep`: o delta é uma linha de regex, sem segredo nem dependência.
