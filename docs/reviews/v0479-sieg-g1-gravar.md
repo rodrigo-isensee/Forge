@@ -3,29 +3,26 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-sieg-g1-gravar
-commit: d7c1a53b259e6f2ce980cbe05a2986eeed958be6
+commit: 9f833cd6d8290f0d0aeeb2306ef1f16fa56f9b67
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-23
 ---
-# Review: v0478 E90.7 (SIEG-G1 G1.2a, `forge-check autorizacao gravar`, volta E90.6)
+# Review: v0478 E90.11 (SIEG-G1 G1.2a, `forge-check autorizacao gravar`, volta E90.10)
 
-Revalidação por delta (Decisão 1 do dono, 23/11): `forge-check parecer delta` lido, intervalo `2a0e4620..d7c1a53b`; no domínio `bin/forge_autorizacao.py`, `changelog.d/v0479-sieg-g1-gravar.md`, `docs/adr/0018-autorizacao-do-dono-gravada.md`, `tests/mutantes/v0479-sieg-g1-gravar.json`, `tests/mutantes/v0479-sieg-g1-gravar-7.json` e `tests/test_autorizacao_gravar.py`.
+Revalidação por delta do parecer aprovado 44b4a481 (Decisão 1 do dono, 23/11). Li o `forge-check parecer delta`, intervalo `d7c1a53b..9f833cd6`. No domínio: `bin/forge-check`, `bin/forge_autorizacao.py`, `changelog.d/v0479-sieg-g1-gravar.md`, `docs/adr/0018-autorizacao-do-dono-gravada.md`, `tests/mutantes/v047-sieg-g1-autorizacao-6.json`, `tests/mutantes/v0479-sieg-g1-gravar-7.json`, `-8.json`, `-9.json` e `tests/test_autorizacao_gravar.py`.
 
 ## Achados
-- A1 (recomendado) docs/adr/0018-autorizacao-do-dono-gravada.md:53 · Diz que a volta "fechou" o A4 da segurança, mas `HOME` e `CLAUDE_CODE_SESSION_ID` são do ambiente do chamador: transcrição escrita pelo agente em `$TMPDIR` com os dois ajustados grava `ativa` (S1). Diga que a origem só se prova no corte do hook; `HOME` pode sair de `pwd.getpwuid`
-- A2 (recomendado) bin/forge_autorizacao.py:311 · Herdado do review anterior (era A2): `(?![\w.])` não aceita ponto final logo após o alvo, e "pode aplicar o rótulo no PR 5." nasce pendente. Falha fechada; alinhe com o `do_item`
-
-## Sondas
-- S1 · `HOME` e `CLAUDE_CODE_SESSION_ID=s9` do chamador, `<tmp>/h/.claude/projects/p/s9.jsonl` escrito à mão (origin human, hora atual), gravar pr:5 · espera: recusada (como diz a ADR) · obtido: rc 0, A-1 gravada · ativa
+- A1 (recomendado) bin/forge_autorizacao.py:157 · Travessão e aspas curvas (que o corretor do celular e do macOS insere) agora contam como fora do vocabulário: "pode aplicar o rótulo no “pr 5”" nasce pendente. A falha é fechada; incluir `—–“”‘’…` na classe de pontuação comum
 
 ## Conferido
-- **A1 anterior (bloqueante) fechado:** o classificador agora é positivo, `origin == {"kind": "human"}`, e recusa também `isCompactSummary` e `isVisibleInTranscriptOnly` (`bin/forge_autorizacao.py:292-293`). Nas transcrições reais desta máquina, a mensagem digitada pelo dono traz `origin {"kind":"human"}` (595 registros), e o resumo de compactação vem sem `origin` (29): o critério separa os dois. Se o Claude Code acrescentar um campo ao `origin`, a igualdade exata falha fechada.
-- **Volta E90.6 da segurança:** a fala no futuro ou de mais de 48 h recusa (`:377`); o prazo local nasce `pendente-confirmacao` com "prazo local sem fuso nesta etapa" (`:328`), e data já passada nunca nasce ativa. `agora` foi injetado em `cmd_gravar` e em `concessao_lida` para o teste do relógio.
-- **A3 e A4 anteriores:** a ADR registra a cópia do classificador em `hooks/vigia.py` como corrigida noutro item. A frase sobre a origem do registro ficou mais forte do que o código entrega (A1 acima).
-- **Mutantes (guardas do diff):** `bin/forge-mutante tests/mutantes/v0479-sieg-g1-gravar-7.json` com M47 a M54 mortos, um por linha de guarda nova; M1, M4 e M5 foram realinhados às linhas novas.
-- **Testes:** `python3 -m unittest tests.test_autorizacao_gravar tests.test_autorizacao` deu 43 testes, OK. O teste que roda subprocesso limpa o ambiente herdado e usa `-I`. Suíte inteira: no CI.
-- **Tamanho (H1):** o delta soma cerca de 14 linhas de código em `bin/`, e o item segue dentro do teto.
+- **A1 anterior (ADR):** `docs/adr/0018-autorizacao-do-dono-gravada.md:53-59` agora diz que a origem **não** está provada, porque `CLAUDE_CODE_SESSION_ID` vem do chamador e a pasta aceita escrita direta, e que só o corte do hook a prova. A casa sai de `pwd.getpwuid` (`:282-284`). O teste `test_home_e_sessao_do_chamador_nao_escolhem_a_transcricao` roda o forge-check noutro processo com `-I` e o ambiente limpo, e traz o controle positivo. Fechado.
+- **A2 anterior:** `(?!\w|\.\w)` aceita "PR 5." e "0.47.3." e mantém "pr 5.1" fora do pr 5 (`:319`, teste com os três casos). Fechado.
+- **A3 da segurança:** o `estado` do ler trata fala no futuro como `adulterada` (`:242`). Antes disso, `problemas` já passou pelo `limite`, que valida a hora; o `instante` não levanta exceção ali.
+- **A6 da segurança:** "até o fim deste pedido" só nasce ativa com `docs/pedidos/<id>.md` (`pedido_para_anotar`) e sem o `F-<Pedido>` (`:380-382`, `:401-403`). Sem `pedido_existe` ou com `--pedido` vazio, a concessão nasce pendente, e o motivo não herda o "nenhum".
+- **Mutantes:** `bin/forge-mutante --processos 1` sobre `-8.json` e `-9.json` matou M55 a M63. Com `--ids`, M44, M50 e M54 realinhados também morreram. O trecho `de` do M44 agora é único.
+- **Testes:** rodei `python3 -m unittest tests.test_autorizacao_gravar tests.test_autorizacao`: 49 testes, OK. A suíte inteira roda no CI.
+- **Tamanho (H1):** o delta tem cerca de 20 linhas de código em `bin/`, dentro do teto.
 
 ## Parecer
-Aprovado (`R-REVIEW`). O bloqueante do review anterior está corrigido, com teste do ramo de falha e mutante morto. A1 e A2 não bloqueiam e viram cartão depois do merge. O A1 tem a mesma gravidade que a segurança deu à via (A4 dela, recomendado). Ele não bloqueia porque nada consome concessão antes da G1.3, e o hook é o corte que prova a origem.
+Aprovado (`R-REVIEW`). Os dois recomendados do review anterior estão fechados, e os da segurança que este review alcança (A3, A4 e A6) vêm com teste do ramo de falha e mutante morto. O A1 é falha fechada e vira cartão depois do merge.
