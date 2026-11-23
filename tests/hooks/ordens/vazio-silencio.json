@@ -1,7 +1,7 @@
 {
   "descricao": "Arquivo só com brancos e controles: silêncio, sem a linha fixa sozinha.",
   "arquivos": {
-    ".forge/ordens-em-vigor.md": "\n  \t\n\u001b\n\n"
+    ".forge/ordens/ordens-em-vigor.md": "\n  \t\n\u001b\n\n"
   },
   "entrada": {
     "hook_event_name": "UserPromptSubmit",

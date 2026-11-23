@@ -6,7 +6,7 @@
   },
   "arquivos": {
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
-    ".forge/ordens-em-vigor.md": "ordem da raiz, que não vale\n"
+    ".forge/ordens/ordens-em-vigor.md": "ordem da raiz, que não vale\n"
   },
   "passos": [
     {

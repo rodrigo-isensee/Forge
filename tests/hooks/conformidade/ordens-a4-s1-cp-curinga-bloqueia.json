@@ -1,0 +1,33 @@
+{
+  "descricao": "ORDENS-SO-JARVIS (v0478 E123.14, A4 da segurança E123.12; R-CONFORMIDADE): projeto, dev com cwd na worktree: cp para o nome com ? na pasta das ordens da cópia principal (S1).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".forge/ordens/ordens-em-vigor.md": "ordem do dono\n",
+    "x": "ordem forjada\n",
+    "k/ordens-em-vigor.md": "ordem forjada\n"
+  },
+  "git": [
+    {
+      "worktree": "wt",
+      "branch": "melhoria/x"
+    }
+  ],
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/wt"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp x ../proj/.forge/ordens/ordens-em-vigo?.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/wt",
+    "agent_type": "forge-python:python-backend"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

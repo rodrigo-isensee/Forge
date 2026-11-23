@@ -1,7 +1,7 @@
 {
   "descricao": "O arquivo de ordens é link para fora da raiz do projeto: silêncio (o texto de fora não vira contexto).",
   "links": {
-    ".forge/ordens-em-vigor.md": "{tmp}/fora.md"
+    ".forge/ordens/ordens-em-vigor.md": "{tmp}/fora.md"
   },
   "passos": [
     {

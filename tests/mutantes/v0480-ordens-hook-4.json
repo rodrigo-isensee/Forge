@@ -54,9 +54,9 @@
     },
     {
       "id": "M26",
-      "guarda": "FORGE-INIT: o arquivo de ordens entra em ignorados (A3 da segurança E123.8)",
+      "guarda": "FORGE-INIT: a pasta das ordens entra em ignorados (A3 da segurança E123.8; pasta pelo A4 da E123.12)",
       "arquivo": "bin/forge-init",
-      "de": " '.forge/onboarding.md' '.forge/ordens-em-vigor.md')",
+      "de": " '.forge/onboarding.md' '.forge/ordens/')",
       "para": " '.forge/onboarding.md')",
       "testes": [
         "tests.test_forge.ForgeInit.test_o_arquivo_de_ordens_fica_fora_do_git"

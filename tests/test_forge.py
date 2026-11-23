@@ -900,8 +900,9 @@ class ForgeInit(unittest.TestCase):
 
     def test_o_arquivo_de_ordens_fica_fora_do_git(self):  # A3 da segurança E123.8: o commit de branch não chega ao Jarvis
         self.rodar()
-        (self.tmp / ".forge/ordens-em-vigor.md").write_text("ordem do dono\n", encoding="utf-8")
-        git("check-ignore", "-q", ".forge/ordens-em-vigor.md", cwd=self.tmp)  # não ignorado: sai com 1 e levanta
+        (self.tmp / ".forge/ordens").mkdir()
+        (self.tmp / ".forge/ordens/ordens-em-vigor.md").write_text("ordem do dono\n", encoding="utf-8")
+        git("check-ignore", "-q", ".forge/ordens/ordens-em-vigor.md", cwd=self.tmp)  # não ignorado: sai com 1 e levanta
 
     def test_projeto_antigo_fica_com_versao_zero(self):
         (self.tmp / "KANBAN.md").write_text("# Quadro\n", encoding="utf-8")

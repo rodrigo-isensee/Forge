@@ -3812,8 +3812,8 @@ class OrdensEmVigor(unittest.TestCase):
 
     def setUp(self):
         self.base = Path(os.path.realpath(self._pasta_temporaria()))
-        self.arquivo = self.base / ".forge" / "ordens-em-vigor.md"
-        self.arquivo.parent.mkdir()
+        self.arquivo = self.base / ".forge" / "ordens" / "ordens-em-vigor.md"
+        self.arquivo.parent.mkdir(parents=True)
         (self.base / ".git").mkdir()  # cópia principal: a fonte é a pasta comum do git (A2 da segurança E123.3)
 
     def principal(self, evento, raiz):
@@ -3891,7 +3891,7 @@ class OrdensEmVigor(unittest.TestCase):
                          (["y" * 1000, "z" * 999], "ordens cortadas no teto: 2 linhas, 2001 caracteres"))
 
     def test_fonte_do_projeto_e_do_clone_do_forge(self):
-        self.assertEqual(self.ordens.fontes(self.base), [(self.arquivo, self.base, ".forge/ordens-em-vigor.md")])
+        self.assertEqual(self.ordens.fontes(self.base), [(self.arquivo, self.base, ".forge/ordens/ordens-em-vigor.md")])
         (self.base / ".claude-plugin").mkdir()
         (self.base / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
         with mock.patch.object(self.ordens, "contrib", lambda: self.base / "contrib"):
@@ -3907,14 +3907,14 @@ class OrdensEmVigor(unittest.TestCase):
         meta.mkdir(parents=True)
         (meta / "gitdir").write_text(f"{wt}/.git\n", encoding="utf-8")
         (meta / "commondir").write_text("../..\n", encoding="utf-8")
-        (wt / ".forge").mkdir(parents=True)
+        (wt / ".forge" / "ordens").mkdir(parents=True)
         (wt / ".git").write_text(f"gitdir: {meta}\n", encoding="utf-8")
-        (wt / ".forge" / "ordens-em-vigor.md").write_text("ordem do dev na worktree\n", encoding="utf-8")
+        (wt / ".forge" / "ordens" / "ordens-em-vigor.md").write_text("ordem do dev na worktree\n", encoding="utf-8")
         return wt
 
     def test_na_worktree_le_so_a_copia_principal(self):  # A2 da segurança E123.3
         wt = self.worktree()
-        self.assertEqual(self.ordens.fontes(wt), [(self.arquivo, self.base, ".forge/ordens-em-vigor.md")])
+        self.assertEqual(self.ordens.fontes(wt), [(self.arquivo, self.base, ".forge/ordens/ordens-em-vigor.md")])
         self.assertEqual(self.principal("UserPromptSubmit", wt), "")
         self.arquivo.write_text("ordem do dono\n", encoding="utf-8")
         self.assertTrue(self.principal("UserPromptSubmit", wt).endswith("\nordem do dono\n"))
@@ -3966,14 +3966,20 @@ class OrdensEmVigor(unittest.TestCase):
         lote = [(f"conformidade/{n}", Fixture(FIXTURES / "conformidade" / f"{n}.json")) for n in nomes]
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_conformidade_recusa_curinga_no_nome_das_ordens_do_projeto(self):  # A4 da segurança E123.12, S1-S3
+        lote = [Fixture(p) for p in sorted((FIXTURES / "conformidade").glob("ordens-a4-*.json"))]
+        lote = minimo(lote, 11, "conformidade/ordens-a4-*")
+        self.assertEqual(sorted(f.dados["esperado"]["codigo"] for f in lote), [0, 0] + [2] * 9)
+        self.assertEqual(self.executar_em_lote([(f"conformidade/{f.caminho.stem}", f) for f in lote]), len(lote))
+
     def test_conformidade_ve_o_arquivo_pela_copia_principal(self):  # A2 da segurança E123.8
         sys.path.insert(0, str(HOOKS))
         import conformidade
         relativos = conformidade.Guarda.relativos_a_copia_principal
-        alvo = f"{self.base}/.forge/ordens-em-vigor.md"
+        alvo = f"{self.base}/.forge/ordens/ordens-em-vigor.md"
         guarda = mock.Mock(h=mock.Mock(raiz=self.worktree()))
-        self.assertEqual(relativos(guarda, alvo), [".forge/ordens-em-vigor.md"])
-        self.assertEqual(relativos(guarda, "/fora/.forge/ordens-em-vigor.md"), [])
+        self.assertEqual(relativos(guarda, alvo), [".forge/ordens/ordens-em-vigor.md"])
+        self.assertEqual(relativos(guarda, "/fora/.forge/ordens/ordens-em-vigor.md"), [])
         guarda.h.raiz = self.base / "sem-git"
         self.assertEqual(relativos(guarda, alvo), [])
         guarda.h.raiz = self.worktree(comum=self.base / "nu.git")  # repositório nu: nenhuma cópia principal
@@ -3982,6 +3988,7 @@ class OrdensEmVigor(unittest.TestCase):
     def test_o_modelo_de_projeto_nao_traz_o_arquivo_de_ordens(self):  # A1 do review E123.4: ausente custa zero
         modelo = HOOKS.parent / "templates" / "projeto" / ".forge"
         self.assertTrue((modelo / "config.json").is_file())
+        self.assertFalse((modelo / "ordens").exists())
         self.assertFalse((modelo / "ordens-em-vigor.md").exists())
 
     def test_hooks_json_registra_o_ordens_nos_matchers_da_emenda(self):
@@ -3995,7 +4002,7 @@ class OrdensEmVigor(unittest.TestCase):
     def test_so_o_jarvis_escreve_o_arquivo_de_ordens(self):
         politica = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))
         donos = {c["caminho"]: c["quem"] for c in politica["caminhos"]}
-        for caminho in (".forge/ordens-em-vigor.md", "~/.forge-contrib/docs/ordens/"):
+        for caminho in (".forge/ordens/", "~/.forge-contrib/docs/ordens/"):
             self.assertEqual(donos.get(caminho), ["jarvis"], caminho)
 
 

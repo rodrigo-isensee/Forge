@@ -1,7 +1,7 @@
 {
   "descricao": "HOOK-ERRO-LIBERA: erro ao ler o arquivo de ordens: sai 0, sem contexto, e a linha vai ao erros.log.",
   "arquivos": {
-    ".forge/ordens-em-vigor.md": "ordem 1\n"
+    ".forge/ordens/ordens-em-vigor.md": "ordem 1\n"
   },
   "forcar": {
     "onde": "ler_ordens",

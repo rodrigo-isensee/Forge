@@ -2,7 +2,7 @@
 """Forge: ordens (ORDENS-EM-VIGOR, v0478 E123.1; emenda "ordens em vigor" da ADR 0003) - reinjeta as ordens do dono.
 
 SessionStart (startup, resume, compact; o matcher fica no hooks.json) e UserPromptSubmit: lê o arquivo de ordens em vigor
-(projeto: `.forge/ordens-em-vigor.md` na cópia principal, nunca na worktree; clone do Forge e worktrees:
+(projeto: `.forge/ordens/ordens-em-vigor.md` na cópia principal, nunca na worktree; clone do Forge e worktrees:
 `~/.forge-contrib/docs/ordens/ordens-em-vigor.md`, pasta própria e protegida como pasta)
 e o imprime em texto puro, depois de uma linha fixa gerada aqui. Teto: 15 linhas e 2000 caracteres, contados depois de
 trocar os caracteres de controle por espaço; acima, corta e fecha com `ordens cortadas no teto: <N> linhas, <M> caracteres`.
@@ -17,7 +17,7 @@ from pathlib import Path
 
 from _comum import contrib, diretorio_comum, e_clone_do_forge, executar
 
-NO_PROJETO = ".forge/ordens-em-vigor.md"
+NO_PROJETO = ".forge/ordens/ordens-em-vigor.md"  # pasta própria, guardada como pasta (A4 da segurança E123.12)
 NO_FORGE = "docs/ordens/ordens-em-vigor.md"  # pasta própria, guardada como pasta (A1 da segurança E123.8)
 TETO_LINHAS = 15
 TETO_CARACTERES = 2000

@@ -2,7 +2,7 @@
   "descricao": "ORDENS-SO-JARVIS (v0478 E123.10, A2 da segurança E123.8; R-CONFORMIDADE): projeto, dev com cwd na worktree: Write no arquivo da cópia principal (S4).",
   "arquivos": {
     "src/app.js": "v1\n",
-    ".forge/ordens-em-vigor.md": "ordem do dono\n",
+    ".forge/ordens/ordens-em-vigor.md": "ordem do dono\n",
     "x": "ordem forjada\n"
   },
   "git": [
@@ -18,7 +18,7 @@
   "entrada": {
     "tool_name": "Write",
     "tool_input": {
-      "file_path": "{tmp}/proj/.forge/ordens-em-vigor.md",
+      "file_path": "{tmp}/proj/.forge/ordens/ordens-em-vigor.md",
       "content": "ordem forjada pelo dev\n"
     },
     "hook_event_name": "PreToolUse",

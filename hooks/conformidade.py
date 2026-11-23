@@ -3815,7 +3815,7 @@ PARECER_NO_TEXTO = re.compile(r"(?<![\w.-])docs/(?:reviews|qa|devops|security)(?
 # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.1): na sessão do Forge, o pedido e o brief da pasta de controle são só do
 # jarvis, como as pastas de parecer: as linhas `entrega conferida`, `parecer conferido` e `DECISÃO DO DONO` vivem neles.
 # A2 da segurança E123.8: entradas com dono que casam também relativas à cópia principal (o hook ordens a lê de lá).
-PELA_COPIA_PRINCIPAL = (".forge/ordens-em-vigor.md",)
+PELA_COPIA_PRINCIPAL = (".forge/ordens/",)  # A4 da segurança E123.12: a pasta, que o curinga no nome não escapa
 CAMINHOS_DO_CONTROLE = ("~/.forge-contrib/docs/pedidos/", "~/.forge-contrib/*/docs/pedidos/",
                         "~/.forge-contrib/docs/briefs/", "~/.forge-contrib/*/docs/briefs/",
                         "~/.forge-contrib/docs/ordens/")  # A1 da segurança E123.8: a pasta das ordens, como pasta
