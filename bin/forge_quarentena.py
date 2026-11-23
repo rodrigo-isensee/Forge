@@ -25,7 +25,7 @@ CLASSES = ("relogio", "carga", "ordem", "rede-local", "desconhecida")
 TETO_ENTRADAS = 3
 PRAZO_DIAS = 7
 DATA = re.compile(r"\d{4}-\d{2}-\d{2}")
-OK_DO_DONO = re.compile(r"A-\d+")
+OK_DO_DONO = re.compile(r"A-[0-9]+")  # só dígito ASCII: \d aceitaria "A-١" (QUARENTENA-DIGITO-ASCII)
 TETO_BYTES = 64 * 1024
 # id de um teste só: modulo.Classe.metodo (o módulo pode ter pontos), ASCII, o método com o prefixo `test` do unittest.
 ID_DE_TESTE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\.test[A-Za-z0-9_]*")

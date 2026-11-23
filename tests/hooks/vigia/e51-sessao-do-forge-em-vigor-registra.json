@@ -2,7 +2,8 @@
   "descricao": "E51.1 (CONFORMIDADE-DESLIGADA-NA-SESSAO-DO-FORGE): sessão do Forge (clone sem .forge/versao): o arquivo em vigor mudado desde o SessionStart é gravado em .forge/run/violacoes.jsonl.",
   "forge": false,
   "env": {
-    "CLAUDE_PROJECT_DIR": "{raiz}"
+    "CLAUDE_PROJECT_DIR": "{raiz}",
+    "HOME": "{tmp}"
   },
   "arquivos": {
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",

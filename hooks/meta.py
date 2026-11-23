@@ -17,9 +17,14 @@ frequentes de PALAVRAS_DO_IDIOMA, fora de código e citação) e `outro_idioma`,
 (`cortado` na linha): o tempo dela não cresce com a mensagem. MP1 (diretriz 35, 0.47.5): com mais de um projeto ativo
 (nomes em ATIVOS), fora da sessão do próprio Forge, a linha leva também se a mensagem não começa por `Projeto:` e se a
 última fala do dono cita outro projeto ativo sem a pergunta "isto é para o projeto" (só contagens, nunca o nome).
+E25.1 (0.47.9): o idioma vale também para as notas entre chamadas de ferramenta da rodada (desde a última fala do dono,
+do transcrito, até TETO_DA_MEDIDA caracteres): `notas_em_outro_idioma` conta as que diferem, e `outro_idioma` as inclui.
+E109.1: num segundo Stop sem fala nova do dono, a rodada para no registro mais novo já lido e pula a final anterior
+(MARCA_DAS_NOTAS, só o uuid e o sha256, nunca o texto): nada se reconta.
 Erro interno: libera e vai ao erros.log.
 """
 import datetime
+import hashlib
 import json
 import os
 import re
@@ -261,6 +266,67 @@ def medida_do_projeto(hook, raiz, texto):
             "sem_pergunta_do_projeto": cita and PERGUNTA_DO_PROJETO not in texto.lower()}
 
 
+MARCA_DAS_NOTAS = "notas.json"  # E109.1: em .forge/run, o que o Stop anterior leu (uuid e sha256 da final, nunca o texto)
+
+
+def resumo(texto):
+    return hashlib.sha256(texto.strip().encode("utf-8")).hexdigest()
+
+
+def notas_da_rodada(transcrito, final, marca=None, final_anterior=None):
+    """E25.1: os textos do assistente na rodada (desde a última fala do dono), lidos do fim, fora a mensagem `final`, até
+    TETO_DA_MEDIDA caracteres somados (o tempo não cresce com a rodada). Subagente (isSidechain) não conta: não fala ao dono.
+    E109.1: para também na `marca` (uuid do registro mais novo lido no Stop anterior) e pula o texto cujo resumo é o
+    `final_anterior`. Devolve (notas, uuid do registro mais novo lido)."""
+    notas, total, final, nova = [], 0, (final or "").strip(), None
+    for linha in linhas_do_fim(transcrito):
+        if '"type":"tool_result"' in linha or ('"user"' not in linha and '"assistant"' not in linha):
+            continue  # resultado de ferramenta nunca é fala do dono nem nota: nem se decodifica (custo)
+        try:
+            obj = json.loads(linha)
+        except (ValueError, RecursionError):
+            continue
+        uuid = obj.get("uuid") if isinstance(obj, dict) else None
+        if nova is None and isinstance(uuid, str):
+            nova = uuid
+        if texto_do_dono(obj) or (marca is not None and uuid == marca):
+            break
+        if not isinstance(obj, dict) or obj.get("type") != "assistant" or obj.get("isSidechain"):
+            continue
+        conteudo = obj.get("message", {}).get("content") if isinstance(obj.get("message"), dict) else None
+        for bloco in conteudo if isinstance(conteudo, list) else []:
+            texto = bloco.get("text") if isinstance(bloco, dict) and bloco.get("type") == "text" else None
+            if isinstance(texto, str) and texto.strip() and texto.strip() != final and resumo(texto) != final_anterior:
+                notas.append(texto[:TETO_DA_MEDIDA - total])
+                total += len(notas[-1])
+                if total >= TETO_DA_MEDIDA:
+                    return notas, nova
+    return notas, nova
+
+
+def vista_anterior(arquivo, transcrito):
+    """E109.1: o que o Stop anterior do mesmo `transcrito` leu; {} sem ele, de outro transcrito ou ilegível."""
+    try:
+        vista = ler_json(arquivo, {})
+    except (OSError, ValueError):
+        return {}
+    return vista if isinstance(vista, dict) and vista.get("transcrito") == str(transcrito) else {}
+
+
+def notas_em_outro_idioma(hook, final, dono):
+    """Quantas notas da rodada estão num idioma diferente do `dono` (cada nota medida sozinha; curta ou mista não conta)."""
+    if dono is None:
+        return 0
+    transcrito, arquivo = hook.campo("transcript_path"), hook.run() / MARCA_DAS_NOTAS
+    vista = vista_anterior(arquivo, transcrito)
+    notas, marca = notas_da_rodada(transcrito, final, vista.get("marca"), vista.get("final"))
+    try:
+        gravar_json(arquivo, {"transcrito": str(transcrito), "marca": marca, "final": resumo(final)})
+    except OSError as erro:  # A1 da segurança (E109.7): sem a marca gravada, a contagem e a linha da medida seguem
+        hook.registrar_erro(erro)
+    return sum(idioma_da_mensagem(fora_de_codigo_e_citacao(n)) not in (None, dono) for n in notas)
+
+
 def mensagem_ao_dono(hook):
     """A mensagem final do evento (last_assistant_message); o transcrito só sem ela, que ali pode faltar a final (D13)."""
     texto = hook.campo("last_assistant_message")
@@ -273,11 +339,13 @@ def medir_mensagem(hook, raiz=None):
     for texto in filter(None, [mensagem_ao_dono(hook)]):
         medido = texto[:TETO_DA_MEDIDA]
         idioma, dono = idioma_da_mensagem(fora_de_codigo_e_citacao(medido)), idioma_do_dono(raiz)
+        notas = notas_em_outro_idioma(hook, texto, dono)
         achados = sorted({p for p in jargao() if re.search(r"(?<!\w)" + re.escape(p) + r"(?!\w)", medido, re.I)})
         linha = {"em": agora(), "caracteres": len(texto), "teto": TETO_DA_MENSAGEM, "passou_do_teto": len(texto) > TETO_DA_MENSAGEM,
                  "jargao": achados, "classes": classes_de_jargao(medido), "cortado": len(texto) > TETO_DA_MEDIDA,
                  "idioma": idioma, "idioma_do_dono": dono,
-                 "outro_idioma": idioma is not None and dono is not None and idioma != dono, "iniciante": hook.iniciante(),
+                 "notas_em_outro_idioma": notas,
+                 "outro_idioma": notas > 0 or (idioma is not None and dono is not None and idioma != dono), "iniciante": hook.iniciante(),
                  **medida_do_projeto(hook, raiz, medido)}
         with open(hook.run() / "mensagens.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(linha, ensure_ascii=False) + "\n")

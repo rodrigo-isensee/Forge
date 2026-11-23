@@ -1,0 +1,88 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE72-17",
+      "guarda": "AE7.2 gerados_de: o ambiente do gerador é só a lista positiva presente",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "env=dict({k: os.environ[k] for k in AMBIENTE if k in os.environ}, HOME=tmp, TMPDIR=tmp)",
+      "para": "env=dict({k: os.environ[k] for k in AMBIENTE if k not in os.environ}, HOME=tmp, TMPDIR=tmp)",
+      "testes": [
+        "tests.test_comparar.FamiliasGeradas.test_caso_gerado_que_o_head_libera_e_aceite_novo"
+      ]
+    },
+    {
+      "id": "AE72-18",
+      "guarda": "AE7.2 medir_entrega: o ambiente do forge-check é só a lista positiva presente",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "ambiente = dict({k: os.environ[k] for k in AMBIENTE if k in os.environ}, HOME=str(home), TMPDIR=str(temp))",
+      "para": "ambiente = dict({k: os.environ[k] for k in AMBIENTE if k not in os.environ}, HOME=str(home), TMPDIR=str(temp))",
+      "testes": [
+        "tests.test_comparar.AlvoEntrega.test_head_que_aceita_o_que_a_base_recusava_e_aceite_novo"
+      ]
+    },
+    {
+      "id": "AE72-19",
+      "guarda": "AE7.2 executar_entrega: rc 1 só com aceite novo",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "return 1 if novos else 0",
+      "para": "return 1 if not novos else 0",
+      "testes": [
+        "tests.test_comparar.AlvoEntrega.test_head_que_aceita_o_que_a_base_recusava_e_aceite_novo",
+        "tests.test_comparar.AlvoEntrega.test_mesmo_veredito_ou_head_que_aperta_mede_zero"
+      ]
+    },
+    {
+      "id": "AE72-20",
+      "guarda": "AE7.2 executar: o alvo entrega vai ao executar_entrega",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if alvo == \"entrega\":",
+      "para": "if alvo != \"entrega\":",
+      "testes": [
+        "tests.test_comparar.AlvoEntrega.test_head_que_aceita_o_que_a_base_recusava_e_aceite_novo"
+      ]
+    },
+    {
+      "id": "AE72-21",
+      "guarda": "AE7.2 executar: as fixtures do alvo entrega chegam ao executar_entrega",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "getattr(a, \"fixtures\", None) or {}",
+      "para": "getattr(a, \"fixtures\", None) and {}",
+      "testes": [
+        "tests.test_comparar.AlvoEntrega.test_head_que_aceita_o_que_a_base_recusava_e_aceite_novo"
+      ]
+    },
+    {
+      "id": "AE72-22",
+      "guarda": "AE7.2 executar: a cobertura conta só ids gerada/<família>/<n>",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "i.startswith(\"gerada/\") and i.count(\"/\") == 2",
+      "para": "i.startswith(\"gerada/\") and i.count(\"/\") == 3",
+      "testes": [
+        "tests.test_comparar.FamiliasGeradas.test_familias_entram_no_corpus_com_a_semente_na_saida"
+      ]
+    },
+    {
+      "id": "AE72-23",
+      "guarda": "AE7.2 executar: a linha familias: só sai com caso gerado",
+      "arquivo": "bin/forge_comparar.py",
+      "de": "if familias else []",
+      "para": "if not familias else []",
+      "testes": [
+        "tests.test_comparar.Medida.test_mesma_arvore_mede_zero",
+        "tests.test_comparar.FamiliasGeradas.test_familias_entram_no_corpus_com_a_semente_na_saida"
+      ]
+    },
+    {
+      "id": "AE72-24",
+      "guarda": "AE7.2 geradores: rodado como programa, imprime os casos",
+      "arquivo": "tests/comparar/geradores.py",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if __name__ != \"__main__\":",
+      "testes": [
+        "tests.test_comparar.FamiliasGeradas.test_familias_entram_no_corpus_com_a_semente_na_saida"
+      ]
+    }
+  ]
+}

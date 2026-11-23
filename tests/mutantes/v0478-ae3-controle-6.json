@@ -1,0 +1,26 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CTL34",
+      "guarda": "AE3.1 SEGREDO: .netrc, credentials* e secrets*",
+      "arquivo": "bin/forge_controle.py",
+      "de": "\n                     r\"|(^|/)(\\.netrc|credentials[^/]*|secrets[^/]*)$\", re.IGNORECASE)",
+      "para": "\n                     r\"\", re.IGNORECASE)",
+      "testes": [
+        "tests.test_forge_controle.Recusas.test_cada_nome_de_segredo_e_recusado_em_qualquer_caixa"
+      ]
+    },
+    {
+      "id": "CTL35",
+      "guarda": "AE3.1 SEGREDO: .p8, .kdbx, .jks e .keystore",
+      "arquivo": "bin/forge_controle.py",
+      "de": "|pfx|p8|kdbx|jks|keystore)$",
+      "para": "|pfx)$",
+      "testes": [
+        "tests.test_forge_controle.Recusas.test_cada_nome_de_segredo_e_recusado_em_qualquer_caixa"
+      ]
+    }
+  ]
+}
