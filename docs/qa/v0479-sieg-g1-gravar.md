@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0479-sieg-g1-gravar
-commit: 9f833cd6d8290f0d0aeeb2306ef1f16fa56f9b67
+commit: 3e653044fb25104f5a56198d03da6d22602c0a50
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -32,3 +32,15 @@ Revalidação por delta no head 9f833cd6 (volta E90.10), desde 2d5efbe8; o parec
 - `forge-mutante --cobertura --base 2d5efbe8`: toda condição mudada `coberta` (declarado, e provado pela rodada acima); sem `não coberta`.
 - Lido no diff: a classe de caracteres do A5 manda também aspas curvas e travessão para pendente; falha para o lado seguro, sem bloqueio.
 - `forge-check parecer delta`: intervalo d7c1a53b..9f833cd6 lido; o domínio mudou só em `bin/`, specs de mutante e `tests/test_autorizacao_gravar.py`.
+
+## Revalidação por delta (E90.17): head 3e653044, desde 9f833cd6 (volta E90.14, decisão 3a)
+O delta desfaz só o ajuste de pontuação: o regex marcado (`bin/forge_autorizacao.py:319`) volta a `(?![\w.])`, o ponto final logo depois do alvo deixa a concessão pendente, como na base. Tocados: o regex, ADR 0018, fragmento do changelog, mutantes M58/M59 (de/para invertidos) e o teste renomeado.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| E90.14: `pr 5.` e `0.47.3.` pendentes | `VoltaDosPortoes.test_ponto_final_logo_depois_do_alvo_deixa_pendente` | ponto final após PR e versão pendente; `pr 5.1` segue pendente com alvo `pr:5` | passou |
+
+- Testes: `python3 -m unittest tests.test_autorizacao_gravar` (TMPDIR próprio): 32 testes, OK. Sem `skip` nem `expectedFailure`.
+- Vermelho: `forge-testes --vermelho 9f833cd6 --modulos test_autorizacao_gravar` fecha `contagem: não prova (passa na base)=31; prova (asserção)=1`; o teste mudado sai `H=ok · B=falha · prova (asserção)`.
+- Mutantes: `bin/forge-mutante --base 9f833cd6 tests/mutantes/v0479-sieg-g1-gravar-8.json` (`base=9f833cd6d829 mb=9f833cd6d829 rev=3e653044fb25`): M55 a M62 todos `morreu`, M58 e M59 incluídos. Nenhum sobrevivente.
+- Lido no diff: a linha de guarda mudada (319) tem M58 e M59; ADR e changelog coerentes com o comportamento.
