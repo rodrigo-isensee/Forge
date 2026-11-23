@@ -35,6 +35,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `forge_apoio_testes.py` | o que `bin/forge-testes` e `bin/forge-mutante` têm em comum: a linha de contexto do log (MAQ-A7), com as outras |
 | `forge_autorizacao.py` | as autorizações do dono gravadas (ADR 0018, G1.1: formato, integridade e estado). Só biblioteca padrão; só leitura. |
 | `forge_comparar.py` | `forge-check comparar <base> <head>` (AE7.1, v0478 E58.30): o "só aperta" medido nos hooks da base e do head. |
+| `forge_controle.py` | salva a pasta de controle (quadro, pedidos, briefs, retros, pareceres) num commit local (AE3.1, v0478 E108.1). |
 | `forge_corrigidos.py` | `forge-check corrigidos` e `forge-check afrouxamentos` (M14b; FILA-31 F6, 0.45.7 E5.3): os PRs `fix` que corrigem PR já |
 | `forge_decisor.py` | decisão óbvia por regra fixa (orkastery 3, 0.44.2). Só biblioteca padrão. |
 | `forge_disco.py` | o uso do disco e o limiar único da cópia de trabalho (MP6, v0474 E3.251). |
