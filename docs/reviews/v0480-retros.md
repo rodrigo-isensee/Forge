@@ -3,28 +3,22 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-retros
-commit: 9b2109ef447889d8338bf962cf6faa20bf76e6bf
-parecer: reprovado
+commit: 3b972c81b48b18db009acaed0c0aec984f172039
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-23
 ---
-# Review: v0478 · retrospectivas atrasadas (0.47.12 a 0.47.14 e três pedidos), etapa E116.4
+# Review: v0478 · retrospectivas atrasadas (0.47.12 a 0.47.14 e três pedidos), etapa E116.7 (2ª volta)
 
-Diff `8773be38..9b2109ef`: seis retros em `docs/retrospectivas/` e o fragmento `changelog.d/v0480-retros.md`; só documentação, sem código, sem guarda nem mutante.
+Revalidação por delta (H3, `R-REVIEW`) do parecer reprovado a315a372 (head 9b2109ef).
 
-## Ferramentas (citadas, não refeitas)
-- `forge-check docs` (0.47.15 instalado) no head: sai 0.
-- `forge-check retro --pendentes --agora 2026-11-23T15:00:00-03:00`: v0.47.12, v0.47.13 e v0.47.14 saíram da lista; nenhum `aviso:` (as duas retros de pedido sem tag própria usam `Tags:` e não reivindicam versão).
-- Neutralidade (`R-NEUTRO`): `python3 -m unittest -k Neutralidade tests.test_forge`, 6 testes OK.
+## Delta lido
+- `forge-check parecer delta docs/reviews/v0480-retros.md`: intervalo `9b2109ef..3b972c81`; no domínio, só as retros 0.47.12, 0.47.13, 0.47.14 e melhorias-anti-erro. Só documentação, sem código, guarda nem mutante.
+- Fora do delta nada foi relido; as ferramentas citadas no parecer anterior (`forge-check docs`, `retro --pendentes`, Neutralidade) seguem valendo para o que não mudou.
 
 ## Leitura
-- Modelo: as seis seguem as cinco seções do `_modelo.md`, com marca `medido`/`estimado`/`não medido` e a fonte em cada linha de dado.
-- `R-DECISAO`: nenhuma regra nova em texto; a causa recorrente vai a cartão (JARVIS-CONFERE-ESTADO-ANTES) e a proposta do PR-VERDE fica com métrica e critério de reversão para o tech-lead. Os cartões citados existem no `KANBAN.md`.
-- Conferidos contra a fonte: etapas do 1311 (99, `grep -cE`), `Melhoria vista:` por janela (1, 2, 0), datas das tags v0.47.11 a v0.47.14.
-- A contagem de ERRO-JARVIS, marcada `medido`, não bate com a fonte (A1).
-
-## Achados
-- A1 (bloqueante) docs/retrospectivas/2026-11-23-0.47.13.md:17 · ERRO-JARVIS contado só na forma `ERRO-JARVIS:` e perde `ERRO-JARVIS 20:4x:`: são 8/5/12 entradas, não 5/1/9 (S1); o "Um ERRO-JARVIS" (0.47.13:32), os 15 (anti-erro:17) e o "5 de 15" (0.47.14:37) mudam junto.
+- A1 resolvido: a contagem passa a incluir as duas formas (`ERRO-JARVIS:` e `ERRO-JARVIS HH:MM[x]:`), sem as citações, e dá 8, 5 e 12, total 25 (S1). Mudaram junto: tabela e seção 3 da 0.47.12 ("Oito"), tabela e seção 3 da 0.47.13 ("Cinco"), tabela, ressalva e "5 de 25" da 0.47.14 e "25 (8+5+12)" na anti-erro. Nenhum 5/1/9 ou 15 sobrou nas quatro.
+- As faixas de linha citadas nas retros (1694 a 1950 etc.) já estão 4 linhas atrás, porque a fonte cresce acima do `## Histórico`. A janela pela data da tag dá a mesma contagem, então não é achado.
 
 ## Sondas
-- S1 · entradas ERRO-JARVIS nas linhas datadas de `docs/pedidos/v0478.md` por janela de tag, fora citações ("no brief)") · espera: 5, 1, 9 · obtido: 8 (1694..1946), 5 (2006, 2083, 2397, 2548, 2635), 12 (3042..3468)
+- S1 · entradas ERRO-JARVIS em `docs/pedidos/v0478.md` por janela da data das tags (v0.47.11 20/11 07:19, v0.47.12 20/11 18:47, v0.47.13 21/11 07:27, v0.47.14 21/11 21:05), sem "no brief)", "ERRO-JARVIS)" e "de novo" · espera: 8, 5, 12 · obtido: 8, 5, 12
