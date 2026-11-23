@@ -316,7 +316,7 @@ class VoltaDosPortoes(Base):
                 campos = self.lidas()[-1][1]
                 self.assertEqual(campos["Estado-inicial"], esperado)
                 if esperado != "ativa":
-                    self.assertIn("pedido inexistente ou fechado", campos["Motivo-da-pendencia"])
+                    self.assertEqual(campos["Motivo-da-pendencia"], "pedido inexistente ou fechado")  # sem o "nenhum" antes
 
     def test_forge_check_confere_o_pedido_no_registro(self):
         """A6 de ponta a ponta: o `forge-check` acha `docs/pedidos/<id>.md` da raiz; o pedido sem arquivo nasce pendente."""
