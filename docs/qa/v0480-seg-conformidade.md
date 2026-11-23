@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-seg-conformidade
-commit: b96cab3cbfbb3f625f6cb1732a018a8178f8c92c
+commit: 6c50697357fc00326d3db374695558e86bb68a6a
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -12,6 +12,17 @@ bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-23
 ---
+
+## Revalidação 4ª volta (head 6c506973)
+Delta (`forge-check parecer delta`, b96cab3c..6c506973): só `tests/mutantes/v0480-seg-conformidade-9.json`, com duas `isentas` (guardas apagadas das linhas 1773 e 1774 da base, em `hooks/conformidade.py`). `hooks/conformidade.py` e testes não mudaram (diff vazio). A isenção não afrouxa teste: os motivos apontam A5t e A5i, que existem nas specs `-7` e `-8` e morrem; o teste citado existe.
+
+Provas:
+- `python3 -m unittest tests.test_conformidade_seg_v0480`: 15 testes, OK.
+- `forge-mutante --cobertura --base 2b9cd3229`: as duas `isenta` cruzam (`1773(base)`, `1774(base)`); o resto `coberta`; só `tests/pesos-d4.json` (dado) `não coberto`.
+- `forge-mutante --base b96cab3c` nas specs -7, -8, -9: `base=b96cab3c… rev=6c506973…`, rc 0, sem sobrevivente (7 mutantes rodaram; os demais saíram `fora do diff`).
+- `forge-mutante` das specs -7 e -8 inteiras: A5t, A5i e os outros 12 `morreu`, rc 0.
+
+Resultado: aprovado. A suíte inteira fica no check-run `bateria` do PR. O A6 abaixo é histórico, resolvido na 3ª volta.
 
 ## Revalidação 3ª volta (head b96cab3c)
 Delta de `forge-check parecer delta` (bf57b17e..b96cab3c): `hooks/conformidade.py`, fixtures novas A5-RESTO, A6, A7, A8, `docs/hooks-fixtures.md`, specs `-7`, `-8`, `-9`. O bug alto da 2ª volta (u4 `cp -rT ev "$HOME"t` recusado) está resolvido: a fixture `opaco-u4-prefixo-do-ambiente-maiusculo-libera` virou caso sem `-r` e a recursiva ficou separada em `...-recursiva-bloqueia`; as duas passam. Teto do corpus: `tests/pesos-d4.json` (test_comparar 103,7 s, test_placar_prometido 3,0 s) segue abaixo do limite de 225 s do `test_pesos_teto`; `tests/config.json` não mudou.
