@@ -1,7 +1,9 @@
 """M12 (v046, E14.2): `bin/forge-pesado` mostra quem tem a vez da bateria pesada e espera a vez com teto, só lendo o estado
 que o hook `pesado` grava (`pesado.json` e a fila `pesado.fila/`). Cada teste roda o comando num projeto temporário,
 com o ambiente limpo e o Python com `-I`."""
+import contextlib
 import fcntl
+import io
 import json
 import os
 import shutil
@@ -11,7 +13,9 @@ import tempfile
 import threading
 import time
 import unittest
+from importlib.machinery import SourceFileLoader
 from pathlib import Path
+from unittest import mock
 
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ / "tests"))
@@ -151,6 +155,57 @@ class ForgePesado(unittest.TestCase):
     def test_teto_no_limite_vale(self):
         r = self.rodar("esperar", "--teto", "540", "--passo", "0.1")
         self.assertEqual((r.returncode, r.stdout.splitlines()[-1:]), (0, ["fim=livre"]), r.stderr)
+
+
+class TravaQueSomeNaLeitura(unittest.TestCase):
+    """PESADO-CORRIDA-TRAVA-SOME (v0478 E89.1): o hook solta a trava entre o `exists` e a leitura; a espera trata o
+    arquivo que sumiu como trava livre e pega a vez. A corrida entra por injeção (o `exists` da trava apaga o arquivo
+    antes de responder), sem depender do relógio; o arquivo que existe e não se lê segue levantando."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.fp = SourceFileLoader("forge_pesado_corrida", str(BIN)).load_module()
+
+    def setUp(self):
+        self.run_dir = Path(tempfile.mkdtemp(prefix="forge-pesado-corrida-"))
+        self.addCleanup(shutil.rmtree, self.run_dir, True)
+        (self.run_dir / "pesado.fila").mkdir()
+        self.trava = self.run_dir / "pesado.json"
+        self.trava.write_text(json.dumps({"pid": os.getpid(), "agente": "agente-x", "desde": time.time()}),
+                              encoding="utf-8")
+        ambiente = mock.patch.dict(os.environ, {"FORGE_MAQUINA": str(self.run_dir)})  # a fila da máquina, vazia
+        ambiente.start()
+        self.addCleanup(ambiente.stop)
+
+    def test_trava_que_some_entre_o_exists_e_a_leitura_pega_a_vez(self):
+        exists, trava, sumiu = Path.exists, self.trava, []
+
+        def exists_que_solta(caminho, *a, **k):
+            existe = exists(caminho, *a, **k)
+            if caminho == trava and existe:
+                caminho.unlink()  # o hook solta a trava logo depois da checagem
+                sumiu.append(caminho)
+            return existe
+
+        saida = io.StringIO()
+        with mock.patch.object(Path, "exists", exists_que_solta), contextlib.redirect_stdout(saida):
+            rc = self.fp.esperar(self.run_dir, 3600, 5, 0.1)
+        self.assertEqual(sumiu, [trava], "a injeção não apagou a trava entre a checagem e a leitura")
+        self.assertEqual((rc, saida.getvalue().splitlines()), (0, ["volta 1: pesado: livre · fila: 0", "fim=livre"]))
+
+    def test_trava_que_existe_e_nao_se_le_segue_levantando(self):
+        read_text, trava = Path.read_text, self.trava
+
+        def sem_permissao(caminho, *a, **k):
+            if caminho == trava:
+                raise PermissionError(13, "Permission denied", str(caminho))
+            return read_text(caminho, *a, **k)
+
+        with mock.patch.object(Path, "read_text", sem_permissao), self.assertRaises(PermissionError):
+            self.fp.estado(self.run_dir, 3600)
+        self.trava.write_text("{quebrado", encoding="utf-8")
+        with self.assertRaises(ValueError):
+            self.fp.estado(self.run_dir, 3600)
 
 
 class FormasLevesDoForgeTestes(unittest.TestCase):

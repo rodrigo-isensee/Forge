@@ -1,2 +1,0 @@
-### Adicionado
-- doutor: aviso de versão parada no Stop, a partir de 2 dias atrás da última versão vista e no máximo um por dia (outro no mesmo dia só se a causa mudar), com a causa (sessão aberta há dias, abertura sem o atalho, adiamento repetido, falha da forge-sempre-atual) e o comando que a pessoa roda, no lugar de "Nada a fazer"; sem rede usa a última versão guardada, com a data; medida em `.forge/run/versao-parada.log`; sem rede nova nem token (AVISO-VERSAO-PARADA-NO-PROJETO, v0478 E69.3)

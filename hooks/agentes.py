@@ -49,6 +49,9 @@ H2-AUTOR-FICA-ATE-O-MERGE (v047, E2.10): o `SubagentStop` de um agente de escrit
 escrevia. Um disparo de escrita numa dessas branches, dentro de expiracao_horas, avisa (R-TETO, código 0) que o autor pode ser
 retomado por `SendMessage`; o aviso some se o id tem lápide (liberado como morto: a desistência registrada), se está ativo ou se
 passou do prazo. Nunca recusa: `autores` ilegível vale vazio.
+H2-RESERVA-DA-RETOMADA-PRAZO (v0478, E87.1): o prazo de cada registro sai de `prazo_do_registro` (expiração e hora da recusa);
+o retomado cujo `SubagentStart` chega depois de RESERVA_S reserva de novo as branches do id dele em `autores`.
+H2-RETOMADO-CONFLITO (v0478, E92.1): ele mantém todas as branches, mesmo a que outra reserva de escrita viva tomou; o conflito vai ao erros.log.
 MP3 (diretriz 35, dono 17/11 21:11): com um projeto ativo na máquina (registro do MP2, `_maquina`), o teto de sempre. Com dois ou
 mais, depois do teto do projeto (`teto_agentes` fixo vira só o máximo dele), a parte garantida de cada um sai do teto adaptativo
 da máquina dividido pelos pesos (`peso` em .forge/config.json, padrão 1); a vaga parada de um vai a outro, e o dono da vaga que
@@ -358,11 +361,16 @@ def nenhum_morto(_registro):
     return False
 
 
+def prazo_do_registro(registro, expira_s):
+    """H2-RESERVA-DA-RETOMADA-PRAZO: o prazo único do registro, o mesmo para a expiração e para a hora da recusa: a reserva
+    sem início e a de `RETOMADA` valem RESERVA_S; o agente iniciado, expiracao_horas."""
+    return expira_s if registro.get("id") and registro.get("tipo") != RETOMADA else min(RESERVA_S, expira_s)
+
+
 def dentro_do_prazo(registro, agora, expira_s):
-    """O registro é um objeto com `desde` numérico dentro do prazo (a reserva sem início, o de `RETOMADA`: RESERVA_S)."""
+    """O registro é um objeto com `desde` numérico dentro do prazo (`prazo_do_registro`)."""
     return (isinstance(registro, dict) and isinstance(registro.get("desde"), (int, float))
-            and agora - registro["desde"] < (expira_s if registro.get("id") and registro.get("tipo") != RETOMADA
-                                             else min(RESERVA_S, expira_s)))
+            and agora - registro["desde"] < prazo_do_registro(registro, expira_s))
 
 
 def vigentes(agentes, agora, expira_s, morto=nenhum_morto):
@@ -734,6 +742,11 @@ def recusar_retomada(hook, agentes, lapides):
                            "descrição); não o retome: espere o relançamento terminar.")
 
 
+def escrita_do_autor(autores, aid):
+    """H2: as branches que o autor `aid` escrevia, em ordem."""
+    return sorted({b for a in autores if a["id"] == aid for b in textos(a.get("escrita"))})
+
+
 def reservar_retomada(hook, agentes, autores, agora):
     """H2 e Z10 (R-TETO): retomar por `SendMessage` o autor parado é uma delegação de escrita. Recusa se outra reserva escreve
     uma das branches dele; senão, reserva-as com o id dele, que o `SubagentStop` dele solta. A reserva vale o prazo curto
@@ -742,7 +755,7 @@ def reservar_retomada(hook, agentes, autores, agora):
     alvo = entrada.get("to") if isinstance(entrada, dict) else None
     if any(a.get("id") == alvo for a in agentes):
         return
-    escrita = sorted({b for a in autores if a["id"] == alvo for b in textos(a.get("escrita"))})
+    escrita = escrita_do_autor(autores, alvo)
     if not escrita:
         return
     recusar_branch_ocupada(hook, agentes, escrita)
@@ -979,7 +992,7 @@ def recusar_branch_ocupada(hook, agentes, branches):
         ocupadas = escritas_do_registro(a)
         for branch in branches:
             if branch in ocupadas:
-                prazo = hook.expira_s() if a.get("id") else min(RESERVA_S, hook.expira_s())
+                prazo = prazo_do_registro(a, hook.expira_s())
                 try:
                     hora = time.strftime("%H:%M", time.localtime(a["desde"] + prazo))
                 except (OverflowError, ValueError, OSError, TypeError):  # `desde` absurdo: a recusa sai do mesmo jeito
@@ -1277,7 +1290,7 @@ def e_do_agente(registro, aid, uso):
     return registro.get("id") == aid
 
 
-def iniciar(hook, agentes, agora):
+def iniciar(hook, agentes, autores, agora):
     aid, tipo = hook.campo("agent_id"), str(hook.campo("agent_type") or "")
     retomado = next((a for a in agentes if aid and a.get("id") == aid and a.get("tipo") == RETOMADA), None)
     if retomado is not None:  # H2: o sinal do retomado; a reserva curta da retomada vira a do agente (expiracao_horas)
@@ -1286,6 +1299,15 @@ def iniciar(hook, agentes, agora):
     if not aid or any(a.get("id") == aid for a in agentes):
         return
     dono = da_sessao(hook)
+    escrita = escrita_do_autor(autores, aid)
+    if escrita:  # H2-RESERVA-DA-RETOMADA-PRAZO: o retomado que começa depois do prazo curto reserva de novo as branches dele
+        ocupadas = {b for a in agentes for b in escritas_do_registro(a)}
+        tomadas = [b for b in escrita if b in ocupadas]
+        if tomadas:  # H2-RETOMADO-CONFLITO: o retomado roda de qualquer jeito; o conflito vai ao erros.log, que o vigia mostra no Stop
+            hook.registrar_erro(RuntimeError(f"H2-RETOMADO-CONFLITO R-TETO: retomado {aid} segue com "
+                                             f"{sem_controle(', '.join(tomadas))[:CORTE_DO_NOME]} (outra reserva de escrita viva)"))
+        agentes.append({"id": aid, "tipo": tipo, "descricao": "", "desde": agora, "branches": escrita, "escrita": escrita, **dono})
+        return
     # Com sessão provada, só a reserva da mesma sessão (ou a antiga, sem sessão) casa: o agente de outra sessão não herda o
     # pid dela. Sem sessão provada, casa como antes, mas o registro perde o pid (abaixo).
     reservas = sorted((a for a in agentes if not a.get("id") and (not dono or not a.get("sessao") or a["sessao"] == dono["sessao"])),
@@ -1377,7 +1399,7 @@ def atualizar_estado(hook, evento, ferramenta, lidos, recusa=None):
             pendente = lancar(hook, agentes, agora, lidos)
             interrompidos = fechar_por_relancamento(interrompidos, agentes[-1])  # só chega aqui com a reserva feita
         elif evento == "SubagentStart":
-            iniciar(hook, agentes, agora)
+            iniciar(hook, agentes, autores, agora)
         else:
             aid = hook.campo("agent_id")
             uso = uso_do_agente(hook, aid) if aid else None  # RESERVA-NAO-CAI-NO-FIM: cai a reserva que este agente gravou

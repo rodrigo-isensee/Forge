@@ -2,27 +2,27 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3372 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3383 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
-| `agentes` | 125 | 66 | 59 | 30 |
+| `agentes` | 130 | 70 | 60 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
 | `conformidade` | 2541 | 1877 | 664 | 100 |
 | `doutor` | 3 | 0 | 3 | 3 |
-| `meta` | 32 | 13 | 19 | 14 |
+| `meta` | 33 | 13 | 20 | 15 |
 | `parecer` | 583 | 448 | 135 | 27 |
 | `pesado` | 27 | 11 | 16 | 20 |
 | `quadro` | 7 | 2 | 5 | 7 |
-| `vigia` | 51 | 0 | 51 | 26 |
+| `vigia` | 56 | 0 | 56 | 26 |
 
 ## `agentes`
 
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
-| `autor-*` | 23 | 3 | 20 | `R-TETO` | `H2-AUTOR-FICA-ATE-O-MERGE` | H2-AUTOR-FICA-ATE-O-MERGE (R-TETO): só a reserva da retomada (tipo SendMessage) se converte no SubagentStart; o agente já ativo com o mesmo… |
+| `autor-*` | 28 | 7 | 21 | `R-TETO` | `H2-AUTOR-FICA-ATE-O-MERGE`, `H2-RETOMADO-CONFLITO`, `H2-RESERVA-DA-RETOMADA-PRAZO` | H2-AUTOR-FICA-ATE-O-MERGE (R-TETO): só a reserva da retomada (tipo SendMessage) se converte no SubagentStart; o agente já ativo com o mesmo… |
 | `estado-*` | 15 | 12 | 3 | `R-TETO` | `HOOK-ESTADO-ILEGIVEL-LIBERA` | HOOK-ESTADO-ILEGIVEL-LIBERA (A1, R-TETO): `agentes` que não é lista (número) recusa o disparo. |
 | `carga-*` | 12 | 8 | 4 | `R-TETO` | `MP5` | Load 5 está abaixo de 80% de 8 núcleos (6,4): um ativo libera. |
 | `errointerno-*` | 8 | 7 | 1 | `R-BRIEF`, `R-TETO` | `HOOK-ERRO-LIBERA`, `HOOK-ESTADO-ILEGIVEL-LIBERA` | HOOK-ERRO-LIBERA (C7): erro ao fixar a pasta do estado não leva o R-BRIEF junto: o especialista sem brief segue recusado. |
@@ -189,6 +189,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3372 fixtures) roda em `tests/test
 | `erro-*` | 1 | 0 | 1 | — | — | meta.json corrompido: libera e registra em erros.log. |
 | `espera-*` | 1 | 0 | 1 | — | — | S4: pedido em Aguardando o dono: o Stop passa e o objetivo fica armado. |
 | `falha-*` | 1 | 1 | 0 | — | — | S4: "ainda não" com outra falha recomeça a conta e bloqueia. |
+| `notas-*` | 1 | 0 | 1 | — | `E25.1` | E25.1 (v0478): a nota em inglês entre chamadas de ferramenta da rodada acende outro_idioma (dono sem config: português); a nota da rodada an… |
 | `pausado-*` | 1 | 0 | 1 | — | — | S4: objetivo pausado não bloqueia o Stop. |
 | `pergunta-*` | 1 | 0 | 1 | — | — | S4: última linha do dono no pedido é PERGUNTA AO DONO: espera o dono. |
 | `quarta-*` | 1 | 0 | 1 | — | — | S4: o quarto "ainda não" igual seguido pausa sozinho e o Stop passa. |
@@ -266,7 +267,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3372 fixtures) roda em `tests/test
 
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
-| `entrada-*` | 12 | 0 | 12 | — | — | Só 2 itens de lista: silêncio. |
+| `entrada-*` | 17 | 0 | 17 | — | `FALA-DO-DONO-RESUMO-COMPACTADO` | FALA-DO-DONO-RESUMO-COMPACTADO: registro user com origin de aviso de tarefa (kind diferente de human) não é fala do dono, mesmo sem começar… |
 | `d-*` | 4 | 0 | 4 | — | — | Achado D, cadeia 3: o `mv .git .g` é barrado pelo conformidade (o `.git` fica); sem o `.forge/versao`, o vigia avisa no Stop. |
 | `bloqueio-*` | 3 | 0 | 3 | — | — | Bloqueio de outra sessão não vale nesta. |
 | `contorno-*` | 3 | 0 | 3 | — | — | O bloqueio fica no estado: a nova tentativa em outro turno (outro Stop) também é contorno. |

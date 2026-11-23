@@ -1,0 +1,76 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CTL15",
+      "guarda": "AE3.1 salvar: trava ilegível",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    if cod != 0:\n        return \"nao-verificavel\", \"trava ilegível\"",
+      "para": "    if False:\n        return \"nao-verificavel\", \"trava ilegível\"",
+      "testes": [
+        "tests.test_forge_controle.Falhas.test_trava_ilegivel_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CTL16",
+      "guarda": "AE3.1 salvar: segundo salvar ao mesmo tempo",
+      "arquivo": "bin/forge_controle.py",
+      "de": "            return \"ocupado\", \"outro salvar em andamento\"",
+      "para": "            pass",
+      "testes": [
+        "tests.test_forge_controle.Ambiente.test_segundo_salvar_ao_mesmo_tempo_sai_ocupado"
+      ]
+    },
+    {
+      "id": "CTL17",
+      "guarda": "AE3.1 _salvar_travado: hook ativo para antes do commit",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    if motivo:\n        return \"nao-verificavel\", motivo",
+      "para": "    if False:\n        return \"nao-verificavel\", motivo",
+      "testes": [
+        "tests.test_forge_controle.Ambiente.test_hook_ativo_e_nao_verificavel_e_nao_roda"
+      ]
+    },
+    {
+      "id": "CTL18",
+      "guarda": "AE3.1 _salvar_travado: status ilegível",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    if nomes is None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_controle.Falhas.test_status_que_falha_e_erro"
+      ]
+    },
+    {
+      "id": "CTL19",
+      "guarda": "AE3.1 _salvar_travado: nada mudou",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    if not nomes:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_controle.Salvar.test_sem_mudanca_nao_faz_commit"
+      ]
+    },
+    {
+      "id": "CTL20",
+      "guarda": "AE3.1 _salvar_travado: um recusado barra todos",
+      "arquivo": "bin/forge_controle.py",
+      "de": "        if motivo:\n            return \"recusado\"",
+      "para": "        if False:\n            return \"recusado\"",
+      "testes": [
+        "tests.test_forge_controle.Recusas.test_link_para_fora_e_recusado_sem_commit_parcial"
+      ]
+    },
+    {
+      "id": "CTL21",
+      "guarda": "AE3.1 _salvar_travado: add que falha",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    cod, saida = _git(pasta, \"add\", \"--\", *nomes)\n    if cod != 0:",
+      "para": "    cod, saida = _git(pasta, \"add\", \"--\", *nomes)\n    if False:",
+      "testes": [
+        "tests.test_forge_controle.Falhas.test_add_que_falha_e_erro"
+      ]
+    }
+  ]
+}

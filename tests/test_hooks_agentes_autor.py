@@ -10,6 +10,7 @@ import io
 import json
 import sys
 import unittest
+from unittest import mock
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
@@ -75,6 +76,38 @@ class Autores(unittest.TestCase):
         reservas = []
         agentes.reservar_retomada(Falso(), reservas, [{"id": A, "desde": 1.0, "escrita": ["melhoria/a"]}], 2.0)
         self.assertEqual(reservas, [])
+
+    def test_prazo_unico_por_registro(self):
+        """H2-RESERVA-DA-RETOMADA-PRAZO: a reserva sem início e a da retomada valem o prazo curto; o agente iniciado, o longo."""
+        longo = 3600.0
+        self.assertEqual(agentes.prazo_do_registro({"tipo": "Explore"}, longo), agentes.RESERVA_S)
+        self.assertEqual(agentes.prazo_do_registro({"id": A, "tipo": agentes.RETOMADA}, longo), agentes.RESERVA_S)
+        self.assertEqual(agentes.prazo_do_registro({"id": A, "tipo": "Explore"}, longo), longo)
+        self.assertEqual(agentes.prazo_do_registro({"id": A, "tipo": agentes.RETOMADA}, 60.0), 60.0)
+
+    def test_hora_da_recusa_da_retomada_usa_o_prazo_curto(self):
+        """A hora anunciada na recusa é a da expiração real da reserva da retomada (RESERVA_S), não a de expiracao_horas."""
+        class Falso:
+            expira_s = staticmethod(lambda: 36000.0)
+            run = staticmethod(lambda: Path("/x"))
+        desde = 1_000_000.0
+        reserva = {"id": A, "tipo": agentes.RETOMADA, "desde": desde, "escrita": ["melhoria/a"]}
+        erro = io.StringIO()
+        with redirect_stderr(erro), self.assertRaises(SystemExit):
+            agentes.recusar_branch_ocupada(Falso(), [reserva], ["melhoria/a"])
+        curta = agentes.time.strftime("%H:%M", agentes.time.localtime(desde + agentes.RESERVA_S))
+        longa = agentes.time.strftime("%H:%M", agentes.time.localtime(desde + 36000.0))
+        self.assertIn(f"expiração às {curta}", erro.getvalue())
+        self.assertNotEqual(curta, longa)
+
+    def test_inicio_sem_autor_nao_reserva_branch(self):
+        """O SubagentStart de id fora de `autores` não ganha branch de escrita (só o retomado tardio a recupera)."""
+        class Falso:
+            campo = staticmethod(lambda nome: {"agent_id": A, "agent_type": "Explore"}.get(nome))
+        registros = []
+        with mock.patch.object(agentes, "da_sessao", return_value={}), mock.patch.object(agentes, "uso_do_agente", return_value=None):
+            agentes.iniciar(Falso(), registros, [{"id": B, "desde": 1.0, "escrita": ["melhoria/a"]}], 2.0)
+        self.assertEqual(registros, [{"id": A, "tipo": "Explore", "descricao": "", "desde": 2.0}])
 
     def test_lapide_e_ativo_tiram_o_autor_do_aviso(self):
         autores = [{"id": A, "desde": 1.0, "escrita": ["melhoria/a"]}]
