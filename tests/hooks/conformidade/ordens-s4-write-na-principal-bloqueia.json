@@ -1,0 +1,33 @@
+{
+  "descricao": "ORDENS-SO-JARVIS (v0478 E123.10, A2 da segurança E123.8; R-CONFORMIDADE): projeto, dev com cwd na worktree: Write no arquivo da cópia principal (S4).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".forge/ordens/ordens-em-vigor.md": "ordem do dono\n",
+    "x": "ordem forjada\n"
+  },
+  "git": [
+    {
+      "worktree": "wt",
+      "branch": "melhoria/x"
+    }
+  ],
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/wt"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/proj/.forge/ordens/ordens-em-vigor.md",
+      "content": "ordem forjada pelo dev\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/wt",
+    "agent_type": "forge-python:python-backend"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

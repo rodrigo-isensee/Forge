@@ -1,0 +1,32 @@
+{
+  "descricao": "ORDENS-SO-JARVIS (v0478 E123.14, A4 da segurança E123.12; R-CONFORMIDADE): projeto, o jarvis grava as ordens pelo nome com ? com cwd na cópia principal.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".forge/ordens/ordens-em-vigor.md": "ordem do dono\n",
+    "x": "ordem forjada\n",
+    "k/ordens-em-vigor.md": "ordem forjada\n"
+  },
+  "git": [
+    {
+      "worktree": "wt",
+      "branch": "melhoria/x"
+    }
+  ],
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp x .forge/ordens/ordens-em-vigo?.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:jarvis"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
