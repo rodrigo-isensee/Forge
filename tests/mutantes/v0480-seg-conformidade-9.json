@@ -72,5 +72,17 @@
         "tests.test_conformidade_seg_v0480.SegurancaDaAuditoria.test_a7_volta_de_pasta_desconhecida_recusa_o_comando_depois"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "a in (\"-t\", \"--target-directory\")",
+      "motivo": "condição apagada (base 1773): a leitura de `-t`/`--target-directory` passou ao `alvo_do_t` (A5 da segurança E113.13), cuja guarda `if a in ALVO_DO_T:` tem o mutante A5t (v0480-seg-conformidade-7.json), morto pelo test_a5_copia_com_opcao_abreviada_ou_alvo_colado_recusa"
+    },
+    {
+      "arquivo": "hooks/conformidade.py",
+      "trecho": "a.startswith(\"--target-directory=\")",
+      "motivo": "condição apagada (base 1774): o valor colado de `--target-directory=` passou ao `alvo_do_t` (A5 da segurança E113.13), cuja guarda do `=` abreviado tem o mutante A5i (v0480-seg-conformidade-8.json), morto pelo test_a5_copia_com_opcao_abreviada_ou_alvo_colado_recusa"
+    }
   ]
 }
