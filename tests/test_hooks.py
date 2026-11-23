@@ -1768,7 +1768,13 @@ class Hooks(unittest.TestCase):
                        "branch não texto": {"caminho": ".github/", "quem": [], "motivo": "m", "branch": 7},
                        "quem não lista": {"caminho": ".github/", "quem": "jarvis", "motivo": "m"},
                        "so_forge não booleano": {"caminho": ".github/", "quem": [], "motivo": "m", "so_forge": "s"},
-                       "entrada não objeto": "docs/"}
+                       "entrada não objeto": "docs/",
+                       # E123.19: um caso por guarda de `entrada_valida` (mutantes em tests/mutantes/v0480-ordens-guarda-2.json)
+                       "caminho vazio": {"caminho": "", "quem": [], "motivo": "m"},
+                       "caminho não texto": {"caminho": 7, "quem": [], "motivo": "m"},
+                       "motivo vazio": {"caminho": ".github/", "quem": [], "motivo": ""},
+                       "quem com item não texto": {"caminho": ".github/", "quem": [7], "motivo": "m"},
+                       "branch vazia": {"caminho": ".github/", "quem": [], "motivo": "m", "branch": ""}}
         for nome, entrada in malformadas.items():
             with self.subTest(nome):
                 tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
@@ -3730,6 +3736,67 @@ class HookSessaoDoForge(unittest.TestCase):
 
     def test_vigia_registra(self):
         self.rodar("vigia", 2, {0})
+
+
+class GuardaDasOrdens(unittest.TestCase):
+    """ORDENS-SO-JARVIS (v0478 E123.25, corte do hook de ordens pelo teto H1, item 1): o `conformidade` recusa a escrita do
+    arquivo de ordens fora do jarvis, na pasta do Forge e na cópia principal do projeto. Só a guarda: o hook `ordens` vem
+    depois (item 2); os mutantes estão em `tests/mutantes/v0480-ordens-guarda*.json`."""
+    executar_em_lote = Hooks.executar_em_lote
+    executar_fixture = Hooks.executar_fixture
+    _pasta_temporaria = Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+
+    def setUp(self):
+        self.base = Path(os.path.realpath(self._pasta_temporaria()))
+        (self.base / ".git").mkdir()  # cópia principal: a pasta comum do git (A2 da segurança E123.3)
+
+    def worktree(self, comum=None):
+        """Worktree vinculada à `self.base` (ou ao repositório `comum`), montada no disco como o git a grava, com o próprio
+        arquivo de ordens."""
+        wt = Path(os.path.realpath(self._pasta_temporaria())) / "wt"
+        meta = (comum or self.base / ".git") / "worktrees" / "wt"
+        meta.mkdir(parents=True)
+        (meta / "gitdir").write_text(f"{wt}/.git\n", encoding="utf-8")
+        (meta / "commondir").write_text("../..\n", encoding="utf-8")
+        (wt / ".forge" / "ordens").mkdir(parents=True)
+        (wt / ".git").write_text(f"gitdir: {meta}\n", encoding="utf-8")
+        (wt / ".forge" / "ordens" / "ordens-em-vigor.md").write_text("ordem do dev na worktree\n", encoding="utf-8")
+        return wt
+
+    def test_conformidade_recusa_a_escrita_do_arquivo_de_ordens_na_sessao_do_forge(self):  # A1 da segurança E123.3
+        lote = [Fixture(p) for p in sorted((FIXTURES / "conformidade").glob("ordens-*.json"))]
+        lote = minimo([f for f in lote if f.dados["descricao"].startswith("ORDENS-SO-JARVIS")], 20, "conformidade/ordens-*")
+        self.assertEqual({f.dados["esperado"]["codigo"] for f in lote}, {0, 2})
+        self.assertEqual(self.executar_em_lote([(f"conformidade/{f.caminho.stem}", f) for f in lote]), len(lote))
+
+    def test_conformidade_recusa_a_pasta_das_ordens_e_a_copia_principal(self):  # A1 e A2 da segurança E123.8, S1-S4
+        nomes = ["ordens-s1-cp-para-a-pasta-bloqueia", "ordens-s2-cp-com-curinga-bloqueia", "ordens-s3-rm-da-pasta-bloqueia",
+                 "ordens-s3-mv-de-pasta-forjada-bloqueia", "ordens-dev-cat-libera", "ordens-s4-acrescenta-na-principal-bloqueia",
+                 "ordens-s4-relativo-na-principal-bloqueia", "ordens-s4-write-na-principal-bloqueia",
+                 "ordens-s4-cp-na-principal-bloqueia", "ordens-s4-ln-na-principal-bloqueia",
+                 "ordens-s4-jarvis-na-principal-libera", "ordens-dev-pasta-corrente-variavel-bloqueia"]
+        lote = [(f"conformidade/{n}", Fixture(FIXTURES / "conformidade" / f"{n}.json")) for n in nomes]
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_conformidade_recusa_curinga_no_nome_das_ordens_do_projeto(self):  # A4 da segurança E123.12, S1-S3
+        lote = [Fixture(p) for p in sorted((FIXTURES / "conformidade").glob("ordens-a4-*.json"))]
+        lote = minimo(lote, 11, "conformidade/ordens-a4-*")
+        self.assertEqual(sorted(f.dados["esperado"]["codigo"] for f in lote), [0, 0] + [2] * 9)
+        self.assertEqual(self.executar_em_lote([(f"conformidade/{f.caminho.stem}", f) for f in lote]), len(lote))
+
+    def test_conformidade_ve_o_arquivo_pela_copia_principal(self):  # A2 da segurança E123.8
+        sys.path.insert(0, str(HOOKS))
+        import conformidade
+        relativos = conformidade.Guarda.relativos_a_copia_principal
+        alvo = f"{self.base}/.forge/ordens/ordens-em-vigor.md"
+        guarda = mock.Mock(h=mock.Mock(raiz=self.worktree()))
+        self.assertEqual(relativos(guarda, alvo), [".forge/ordens/ordens-em-vigor.md"])
+        self.assertEqual(relativos(guarda, "/fora/.forge/ordens/ordens-em-vigor.md"), [])
+        guarda.h.raiz = self.base / "sem-git"
+        self.assertEqual(relativos(guarda, alvo), [])
+        guarda.h.raiz = self.worktree(comum=self.base / "nu.git")  # repositório nu: nenhuma cópia principal
+        self.assertEqual(relativos(guarda, alvo), [])
 
 
 if __name__ == "__main__":
