@@ -30,7 +30,7 @@ Escopo: `fora_do_delta` em `bin/forge-check` (ligado em `cmd_docs` estrito e `cm
 ## Cenários e resultado real
 - `python3 -I -m unittest discover -s tests -p test_parecer_fora_do_delta.py`: Ran 21 tests, OK. `test_testes_tocados.py`: Ran 196, OK (skipped=1, já existente).
 - Vermelho antes do verde: `forge-testes --vermelho 5cff9f6 --modulos test_parecer_fora_do_delta` → `vermelho: base=5cff9f6aa191 head=bdd44bc03d94`; 18 "prova (API ausente)", 2 "prova (asserção)", 1 "não prova (passa na base)" (`test_docs_sem_base_nao_e_estrito_e_nao_recusa`, guarda negativa: sem `--base` já não recusava); nenhum cai no HEAD; rc=0.
-- Mutantes (`forge-mutante --base 5cff9f6 <spec>`, `base=5cff9f6aa191… rev=bdd44bc03d94`): v0480-g1-2-delta FD1–FD8 morreram; -2 FD9–FD16 morreram; -3 FD17–FD22, FL1, FL2 morreram. Nenhum sobrevivente; 24 mutantes sobre as linhas de guarda do diff em `bin/forge-check` (4126–4172, 479–480, 2045).
+- Mutantes (`forge-mutante --base 5cff9f6 <spec>`, `base=5cff9f6aa191… rev=bdd44bc03d94`): as três specs do pedido (v0480-g1-2-delta, -2 e -3) rodaram e todos os mutantes morreram. Nenhum sobrevivente; 24 mutantes sobre as linhas de guarda do diff em `bin/forge-check` (4126–4172, 479–480, 2045).
 
 ## Observações
 Nada bloqueante. Sem bug registrado.
