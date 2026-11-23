@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ordens-hook
-commit: cf679683033698c8ca97f8ec587c008c00cd0a9f
+commit: 8e84ef3b57fa6fe7cee56e7b640dfecaba1a8271
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-22
+data: 2026-11-23
 ---
 # QA: hook ordens e laço das fixtures do vigia (v0478 E123.5)
 
@@ -57,3 +57,20 @@ Delta no domínio (`forge-check parecer delta`): modelo de projeto sem o arquivo
 - `bin/forge-mutante --base c63e96158e67cb61056a5552a12ed7a3f7354925` sobre as 3 specs (`base=c63e96158e67cb61056a5552a12ed7a3f7354925 ... rev=cf6796830336`): M1 a M20 `morreu`, nenhum sobrevivente (M15 a M20 em `v0480-ordens-hook-3.json`).
 - `bin/forge-mutante --cobertura --base c63e96158e67`: condições mudadas de `hooks/ordens.py` (linhas 40 e 65) cobertas por M17 e M20; as de `hooks/meta.py` pertencem à base e as não cobertas (`.sh`, `pesos-d4.json`) não são do delta.
 - Observação: uma rodada com `-k fixtures_fatia` deu 1 falha em 4 testes (497 s, sob carga, em paralelo aos mutantes) e a repetição sozinha deu OK (subtestes de pid pulados pelo ns de pid do sandbox, 550 s). Não reproduzida; a suíte inteira roda no CI do PR (check-run `bateria` do mesmo sha).
+
+## Revalidação do delta (E123.13, head 8e84ef3b, base do delta e34c7466, 2ª volta)
+Delta no domínio: pasta própria `docs/ordens/` do Forge (`hooks/ordens.py`), a pasta como pasta em `CAMINHOS_DO_CONTROLE` e `CONTROLE_NO_TEXTO` (A1), guarda pela cópia principal `relativos_a_copia_principal` (A2), `.forge/ordens-em-vigor.md` nos ignorados do `bin/forge-init` (A3), fixtures `ordens-s1` a `s5`, specs de mutantes 3 e 4, `tests/test_hooks.py`, `tests/test_forge.py`.
+
+| Mudança do delta | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Pasta das ordens recusada ao dev (cp, curinga, mover ou remover pasta forjada) | `test_conformidade_recusa_a_pasta_das_ordens_e_a_copia_principal`, fixtures `ordens-s1` a `s3` | permissão por papel; pasta inteira | passou |
+| Escrita pela cópia principal a partir da worktree (absoluto, `../`, `>>`) recusada ao dev, liberada ao Jarvis | `test_conformidade_ve_o_arquivo_pela_copia_principal`, fixtures `ordens-s4-*` | worktree para cópia principal | passou |
+| Pasta das ordens trocada por link sai da base | `test_no_forge_a_pasta_das_ordens_por_link_sai_da_base` | link para fora | passou |
+| Worktree forjada injeta só o dono | fixture `s5-worktree-forjada-injeta-so-o-dono` | worktree com arquivo próprio | passou |
+| Arquivo de ordens fora do git | `test_o_arquivo_de_ordens_fica_fora_do_git` | `.gitignore` do projeto | passou |
+
+## Provas (2ª volta)
+- `env -i PATH HOME TMPDIR python3 -I -m unittest discover -s tests -p test_hooks.py -k OrdensEmVigor -k test_cada_hook -k ordens -k conformidade_tem`: 24 testes, OK.
+- `bin/forge-mutante --base e34c7466e <specs 3 e 4> --processos 3` (`base=e34c7466e61b785683baf48201f20110ce3b2af2 ... rev=8e84ef3b57fa`): M15 a M26 e M28 `morreu`, nenhum sobrevivente (M26 por erro do teste sob o mutante com o controle verde). A spec 4 não tem M27: a sequência salta de M26 para M28, sem efeito no veredito.
+- `bin/forge-mutante --cobertura --base e34c7466e`: linhas 1610, 1642 e 1645 de `hooks/conformidade.py` cobertas por M23, M24 e M25; `hooks/conformidade.json` e `bin/forge-init` (shell) saem `não coberto` pela checagem e têm M28 e M26 declarados e mortos.
+- Suíte inteira: no CI do PR (check-run `bateria` do mesmo sha), fora deste parecer.
