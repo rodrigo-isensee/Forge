@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ordens-hook
-commit: fe14fb1ea179e325195005e2cab46a2bc95d4eaa
+commit: 35211762d50aec616625d3e7bd90ed88c7bb7f47
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -88,4 +88,21 @@ Delta no domínio (`forge-check parecer delta`): `bin/forge-init`, `hooks/confor
 - `python3 -m unittest discover -s tests -p test_hooks.py -k OrdensEmVigor -k ordens` (sem `-I`, da raiz, TMPDIR do sandbox): 24 testes, OK.
 - `python3 -m unittest tests.test_forge.ForgeInit`: 12 testes, OK.
 - `bin/forge-mutante --base 8e84ef3b57fa6fe7cee56e7b640dfecaba1a8271` sobre `v0480-ordens-hook-4.json` e `-5.json` (`base=8e84ef3b57fa6fe7cee56e7b640dfecaba1a8271 rev=fe14fb1ea179`): M21 a M26 (M26 com o texto novo, `bin/forge-init:222`, por erro do teste sob o mutante com o controle verde), M28 a M31 `morreu`; nenhum sobrevivente.
+- Suíte inteira: no CI do PR (check-run `bateria` do mesmo sha), sem suíte local.
+
+## Revalidação do delta (E123.22, head 35211762, base do delta fe14fb1e, sem o merge da develop)
+Delta no domínio (`forge-check parecer delta`): `hooks/conformidade.py` (`entrada_valida` sem função por campo, mesmas guardas), `tests/test_hooks.py` (5 casos novos de política malformada), spec U6 (`v0479-conformidade-trilha-7.json`), spec `v0480-ordens-hook-6.json` (M32 a M37), índice. O delta não toca o teto do corpus (`tests/apoio_volta_unica.py` e `tests/test_hooks_volta_corpus.py` sem diff).
+
+| Mudança do delta | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Política com entrada malformada bloqueia (não objeto, caminho vazio ou não texto, motivo vazio, quem com item não texto, so_forge não booleano, branch vazia ou não texto) | `test_politica_de_conformidade_malformada_bloqueia` | vazio, tipo errado por campo | passou |
+| U6 com a guarda atual de `CONTROLE_NO_TEXTO` (inclui `ordens`) | `test_fixtures_do_controle_so_jarvis` | pasta mãe e pasta em qualquer posição | passou |
+| Corpus do hook abaixo do teto, sem mexer no teto | `test_corpus_nos_dois_hooks` (módulo `test_hooks_volta_corpus`) | teto de trabalho | passou |
+
+## Provas (E123.22)
+- `python3 -m unittest tests.test_hooks.Hooks.test_politica_de_conformidade_malformada_bloqueia tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis`: 2 testes, OK.
+- `python3 -m unittest tests.test_hooks_volta_corpus`: 33 testes, OK (374 s).
+- `bin/forge-mutante --base fe14fb1ea179e325195005e2cab46a2bc95d4eaa tests/mutantes/v0480-ordens-hook-6.json --processos 2` (rev=35211762d50a): M32 a M37 `morreu`, nenhum sobrevivente.
+- `bin/forge-mutante --base fe14fb1ea179e325195005e2cab46a2bc95d4eaa tests/mutantes/v0479-conformidade-trilha-7.json --processos 2`: U1 a U8 `morreu`, U6 com a guarda atual.
+- `bin/forge-mutante --cobertura --base fe14fb1ea179`: linhas 3605 e 3608 de `hooks/conformidade.py` cobertas por M32 a M37; `tests/pesos-d4.json` `não coberto` (dado, não guarda).
 - Suíte inteira: no CI do PR (check-run `bateria` do mesmo sha), sem suíte local.
