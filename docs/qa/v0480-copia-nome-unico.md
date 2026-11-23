@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-copia-nome-unico
-commit: 04e560fa12257cef55d8122dfd1f32a8a1188685
+commit: f6f1eaf1a22d1b046e953b62135e76d9419284eb
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -47,3 +47,10 @@ Delta 2f16f017..04e560fa (merge da develop f17183d; `forge-check parecer delta` 
 - `python3 -m unittest tests.test_forge_copia_nome` (TMPDIR): Ran 9, OK.
 - `bin/forge-mutante tests/mutantes/v0480-copia-nome-unico.json`: M1 a M6 morreu (M6 · morreu · bin/forge-copia:79); com a guarda desligada o teste novo cai: vermelho provado pelo mutante.
 - A1 segue aberto como recomendado (linha fora do diff). Suíte inteira: no CI (`bateria`).
+
+## Revalidação por delta (head f6f1eaf1, volta de CI E111.13, desde d2288045)
+- Delta no domínio: só bin/forge-testes (+1 linha no MAPA: bin/forge-copia -> test_forge_copia, test_forge_copia_nome, test_forge). Dado de mapeamento, sem guarda de código; sem mutante cabível.
+- python3 -m unittest tests.test_testes_tocados (da raiz, sem -I): Ran 196, OK (skipped=1, herdado do módulo).
+- python3 -I -m unittest discover -s tests -p test_forge_copia_nome.py: Ran 9, OK.
+- bin/forge-testes --listar bin/forge-copia: o dirigido inclui test_forge_copia_nome (o efeito da linha nova).
+- Aprovação mantida; A1 segue aberto como recomendado. Suíte inteira: no CI (bateria).
