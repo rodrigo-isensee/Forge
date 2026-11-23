@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-copia-nome-unico
-commit: 950115403000c469798f92046bce95713ddfb5b3
+commit: 2f16f0175ef1a657ad21031e493e079cdce06b41
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -29,6 +29,7 @@ Delta 900bfdfe..95011540: `bin/forge-copia` (destino ocupado nunca reusado; a re
 | pasta vazia não é tomada | test_pasta_vazia_nao_esta_tomada | vazio | passou |
 | não dita a branch do repositório em volta | test_pasta_comum_dentro_de_repositorio_nao_diz_a_branch_do_repositorio | pasta comum | passou |
 | papel inválido recusa sem criar | test_papel_invalido_recusa_sem_criar | `../x`, maiúscula, `-`, `/` | passou |
+| nome sugerido ocupado por atalho simbólico (volta 2f16f017) | test_link_com_o_nome_sugerido_nao_e_oferecido | atalho para pasta vazia fora da pasta; nada escrito fora | passou |
 
 ## Cenários e resultado real
 - `python3 -m unittest tests.test_forge_copia_nome tests.test_forge_copia` (TMPDIR): Ran 74 tests, OK.
@@ -36,3 +37,9 @@ Delta 900bfdfe..95011540: `bin/forge-copia` (destino ocupado nunca reusado; a re
 - Mutantes `bin/forge-mutante tests/mutantes/v0480-copia-nome-unico.json`: M1 a M5 morreu. Spec v0475 (editada em M5): M5 morreu, M6 sobreviveu (A1, pré-existente), demais morreram.
 - `forge-mutante --cobertura --base 900bfdfe`: linhas 79, 86, 95, 97, 265 e 112 cobertas; `tests/pesos-d4.json` é dado, sem guarda.
 - Suíte inteira: no CI do PR (`bateria`); não rodada local.
+
+## Revalidação por delta (head 2f16f017, desde 950115403)
+- Delta: `ocupado()` trata atalho simbólico como ocupado (`bin/forge-copia:79`), teste novo, mutante M6 da spec, fragmento de changelog.
+- `python3 -m unittest tests.test_forge_copia_nome` (TMPDIR): Ran 9, OK.
+- `bin/forge-mutante tests/mutantes/v0480-copia-nome-unico.json`: M1 a M6 morreu (M6 · morreu · bin/forge-copia:79); com a guarda desligada o teste novo cai: vermelho provado pelo mutante.
+- A1 segue aberto como recomendado (linha fora do diff). Suíte inteira: no CI (`bateria`).
