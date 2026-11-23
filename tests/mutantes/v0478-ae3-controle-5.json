@@ -1,0 +1,88 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CTL26",
+      "guarda": "AE3.1 _hook_ativo: chave da config que roda comando para antes do commit",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    motivo = _comando_na_config(pasta)\n    if motivo:",
+      "para": "    motivo = _comando_na_config(pasta)\n    if False:",
+      "testes": [
+        "tests.test_forge_controle.Ambiente.test_core_fsmonitor_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CTL27",
+      "guarda": "AE3.1 _comando_na_config: config ilegível",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    if cod != 0:\n        return \"config ilegível\"",
+      "para": "    if False:\n        return \"config ilegível\"",
+      "testes": [
+        "tests.test_forge_controle.Falhas.test_config_ilegivel_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CTL28",
+      "guarda": "AE3.1 _comando_na_config: filtro e programa de assinatura",
+      "arquivo": "bin/forge_controle.py",
+      "de": "        if COMANDO_NA_CONFIG.fullmatch(chave):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_controle.Ambiente.test_filtro_clean_e_nao_verificavel",
+        "tests.test_forge_controle.Ambiente.test_gpg_program_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CTL29",
+      "guarda": "AE3.1 _comando_na_config: fsmonitor e gpgsign desligados não barram",
+      "arquivo": "bin/forge_controle.py",
+      "de": "and valor.strip().lower() not in FALSO:",
+      "para": "and True:",
+      "testes": [
+        "tests.test_forge_controle.Ambiente.test_fsmonitor_e_gpgsign_desligados_salvam"
+      ]
+    },
+    {
+      "id": "CTL30",
+      "guarda": "AE3.1 _comando_na_config: fsmonitor e gpgsign ligados barram",
+      "arquivo": "bin/forge_controle.py",
+      "de": "        if chave in LIGADA_SE_VERDADE and",
+      "para": "        if False and",
+      "testes": [
+        "tests.test_forge_controle.Ambiente.test_core_fsmonitor_true_e_nao_verificavel",
+        "tests.test_forge_controle.Ambiente.test_commit_gpgsign_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CTL31",
+      "guarda": "AE3.1 salvar: trava que é link não é seguida",
+      "arquivo": "bin/forge_controle.py",
+      "de": "os.O_CREAT | os.O_NOFOLLOW",
+      "para": "os.O_CREAT",
+      "testes": [
+        "tests.test_forge_controle.Ambiente.test_trava_que_e_link_e_nao_verificavel_e_nao_cria_o_alvo"
+      ]
+    },
+    {
+      "id": "CTL32",
+      "guarda": "AE3.1 salvar: caminho da trava sem resolver o link",
+      "arquivo": "bin/forge_controle.py",
+      "de": "\"rev-parse\", \"--git-path\", \"forge-controle.lock\")",
+      "para": "\"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"forge-controle.lock\")",
+      "testes": [
+        "tests.test_forge_controle.Ambiente.test_trava_que_e_link_e_nao_verificavel_e_nao_cria_o_alvo"
+      ]
+    },
+    {
+      "id": "CTL33",
+      "guarda": "AE3.1 SEGREDO: sem diferença de caixa",
+      "arquivo": "bin/forge_controle.py",
+      "de": "re.IGNORECASE)  # sem diferença de caixa",
+      "para": "0)  # sem diferença de caixa",
+      "testes": [
+        "tests.test_forge_controle.Recusas.test_segredo_em_maiusculas_e_recusado_sem_commit"
+      ]
+    }
+  ]
+}
