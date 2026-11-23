@@ -56,8 +56,8 @@
       "id": "U6",
       "guarda": "a pasta mãe e o pedido citados em qualquer posição contam como controle (E63.5, A1)",
       "arquivo": "hooks/conformidade.py",
-      "de": "CONTROLE_NO_TEXTO = re.compile(r\"forge-contrib[\\s\\S]*(?:pedidos|briefs)|(?:pedidos|briefs)[\\s\\S]*forge-contrib\", re.I)\n",
-      "para": "CONTROLE_NO_TEXTO = re.compile(r\"\\.forge-contrib(?:/[^/\\s]+)?/docs/(?:pedidos|briefs)(?![\\w.-])\", re.I)\n",
+      "de": "CONTROLE_NO_TEXTO = re.compile(r\"forge-contrib[\\s\\S]*(?:pedidos|briefs|ordens)|(?:pedidos|briefs|ordens)\"\n                               r\"[\\s\\S]*forge-contrib\", re.I)\n",
+      "para": "CONTROLE_NO_TEXTO = re.compile(r\"\\.forge-contrib(?:/[^/\\s]+)?/docs/(?:pedidos|briefs|ordens)(?![\\w.-])\", re.I)\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis"
       ]

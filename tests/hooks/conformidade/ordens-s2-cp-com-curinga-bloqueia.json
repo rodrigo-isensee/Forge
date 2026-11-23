@@ -1,0 +1,36 @@
+{
+  "descricao": "ORDENS-SO-JARVIS (v0478 E123.10, A1 da segurança E123.8; R-CONFORMIDADE): sessão do Forge, papel dev: cp para o nome com curinga na pasta das ordens (S2).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    "k/ordens-em-vigor.md": "ordem forjada pelo dev\n",
+    "x": "ordem forjada pelo dev\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp {tmp}/proj/x ~/.forge-contrib/docs/ordens/ordens-em-vigo?.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge-python:python-backend"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  },
+  "repos": {
+    "home/.forge-contrib": {
+      "arquivos": {
+        "docs/ordens/ordens-em-vigor.md": "ordem do dono\n",
+        "docs/briefs/b1.md": "b\n"
+      }
+    }
+  }
+}

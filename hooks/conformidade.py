@@ -1608,7 +1608,8 @@ class Guarda:
                 continue
             else:
                 achou = any(casa(r, c) for r in do_proj) or (
-                    not e["quem"] and not no_claude_do_home and em_qualquer_lugar(posix, c))
+                    not e["quem"] and not no_claude_do_home and em_qualquer_lugar(posix, c)) or (
+                    c in PELA_COPIA_PRINCIPAL and any(casa(r, c) for r in self.relativos_a_copia_principal(posix)))
             if not achou:
                 continue
             if self.papel in e["quem"]:
@@ -1632,6 +1633,16 @@ class Guarda:
             return ("R-CONTRIB", f"manifesto de plugin no projeto ({MANIFESTO}): só a sessão do Forge escreve",
                     "proponha a mudança ao usuário (R-DECISAO)")
         return None
+
+    def relativos_a_copia_principal(self, posix):
+        """[caminho relativo à cópia principal] do `posix` resolvido, ou []: a cópia principal é a pasta comum `.git`
+        da raiz lida do disco (`diretorio_comum`, o cálculo do `fontes` do hook ordens); nu ou `.git` que não se resolve,
+        nenhuma (A2 da segurança E123.8: o dev na worktree grava a cópia principal pelo caminho absoluto ou por `../`)."""
+        comum = diretorio_comum(self.h.raiz)
+        if comum is None or comum.name != ".git":
+            return []
+        rel = relativo_ao_pai(posix, comum.parent)
+        return [] if rel is None else [rel]
 
     def links_do_home(self, home):
         """(nome, realpath do alvo) de cada pasta do home citada nas regras `~/X/...` que é link para fora do home."""
@@ -3589,12 +3600,16 @@ def com_trecho(rid, o_que, corrigir, palavras):
 
 
 def entrada_valida(e):
-    """Forma de uma entrada de `caminhos`: sem ela o hook cairia em KeyError/TypeError e liberaria (saída 0)."""
-    def texto(v):
-        return isinstance(v, str) and bool(v)
-    return (isinstance(e, dict) and texto(e.get("caminho")) and texto(e.get("motivo"))
-            and isinstance(e.get("quem"), list) and all(isinstance(q, str) for q in e["quem"])
-            and isinstance(e.get("so_forge", False), bool) and ("branch" not in e or texto(e["branch"])))
+    """Forma de uma entrada de `caminhos`: sem ela o hook cairia em KeyError/TypeError e liberaria (saída 0). Sem função
+    por campo: roda para cada entrada em toda chamada do hook (custo do corpus, CORPUS-CUSTO-CONTADOR)."""
+    if not isinstance(e, dict):
+        return False
+    caminho, motivo, quem = e.get("caminho"), e.get("motivo"), e.get("quem")
+    return (isinstance(caminho, str) and caminho != ""
+            and isinstance(motivo, str) and motivo != ""
+            and isinstance(quem, list) and all(isinstance(q, str) for q in quem)
+            and isinstance(e.get("so_forge", False), bool)
+            and ("branch" not in e or isinstance(e["branch"], str) and e["branch"] != ""))
 
 
 def lista_de_textos(v):
@@ -3803,13 +3818,17 @@ CAMINHOS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/securi
 PARECER_NO_TEXTO = re.compile(r"(?<![\w.-])docs/(?:reviews|qa|devops|security)(?![\w.-])", re.I)  # `${d,,}` baixa a caixa
 # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.1): na sessão do Forge, o pedido e o brief da pasta de controle são só do
 # jarvis, como as pastas de parecer: as linhas `entrega conferida`, `parecer conferido` e `DECISÃO DO DONO` vivem neles.
+# A2 da segurança E123.8: entradas com dono que casam também relativas à cópia principal (o hook ordens a lê de lá).
+PELA_COPIA_PRINCIPAL = (".forge/ordens/",)  # A4 da segurança E123.12: a pasta, que o curinga no nome não escapa
 CAMINHOS_DO_CONTROLE = ("~/.forge-contrib/docs/pedidos/", "~/.forge-contrib/*/docs/pedidos/",
-                        "~/.forge-contrib/docs/briefs/", "~/.forge-contrib/*/docs/briefs/")
+                        "~/.forge-contrib/docs/briefs/", "~/.forge-contrib/*/docs/briefs/",
+                        "~/.forge-contrib/docs/ordens/")  # A1 da segurança E123.8: a pasta das ordens, como pasta
 # A1 da E63.3: a pasta mãe numa variável (`d=~/.forge-contrib; echo x > $d/docs/pedidos/v1.md`) separa os dois nomes;
 # basta a linha citar os dois, em qualquer ordem e posição. Com a pasta corrente no controle, basta `pedidos` ou `briefs`.
-CONTROLE_NO_TEXTO = re.compile(r"forge-contrib[\s\S]*(?:pedidos|briefs)|(?:pedidos|briefs)[\s\S]*forge-contrib", re.I)
+CONTROLE_NO_TEXTO = re.compile(r"forge-contrib[\s\S]*(?:pedidos|briefs|ordens)|(?:pedidos|briefs|ordens)"
+                               r"[\s\S]*forge-contrib", re.I)
 CRITICO_COM_CONTROLE = re.compile(f"{CRITICO.pattern}|{CONTROLE_NO_TEXTO.pattern}", re.I)
-PEDIDO_OU_BRIEF = r"pedidos|briefs"  # compilado só na pasta do controle (`GuardaDaProva`): custo do corpus
+PEDIDO_OU_BRIEF = r"pedidos|briefs|ordens"  # compilado só na pasta do controle (`GuardaDaProva`): custo do corpus
 # A1 do review E63.6: a cópia de `wt/` pelo caminho literal (`cd ~/.forge-contrib/wt/x &&`, `f=~/.forge-contrib/wt/r.txt`)
 # não é a pasta mãe. Lista positiva em `sem_copia_de_wt`; textos, e não compilados no carregamento (custo do corpus).
 COPIA_DE_WT = (r"(?<![^\s;&|<>=])(~|\$HOME|/[^\s;&|<>'\"()=]*|)/\.forge-contrib/wt/(\w[\w.-]*(?:/\w[\w.-]*)*)/?"
