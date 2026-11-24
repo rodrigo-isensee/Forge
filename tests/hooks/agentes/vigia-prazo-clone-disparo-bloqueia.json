@@ -1,0 +1,26 @@
+{
+  "descricao": "VIGIA-AGENTES-PESADO (E172.3): no clone do Forge (sem .forge/versao), o prazo vencido no disparo também recusa com R-TETO: a sessão vigiada conta o clone.",
+  "forge": false,
+  "arquivos": {
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forcar": {
+    "onde": "fixar_estado_do_clone",
+    "como": "prazo"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Conferir",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO: o hook não decidiu",
+    "erros_log": "prazo de"
+  }
+}

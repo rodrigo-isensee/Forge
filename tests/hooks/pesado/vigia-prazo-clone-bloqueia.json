@@ -1,0 +1,24 @@
+{
+  "descricao": "VIGIA-AGENTES-PESADO (E172.3): no clone do Forge (sem .forge/versao), o prazo vencido da suíte também recusa com R-TETO: a sessão vigiada conta o clone.",
+  "forge": false,
+  "arquivos": {
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forcar": {
+    "onde": "pesados_da_raiz",
+    "como": "prazo"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "python3 -m unittest discover"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO: o hook não decidiu",
+    "erros_log": "prazo de"
+  }
+}

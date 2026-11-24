@@ -2,21 +2,21 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3570 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3579 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
 | Hook | Fixtures | Recusa | Libera | Prefixos |
 | --- | ---: | ---: | ---: | ---: |
-| `agentes` | 130 | 70 | 60 | 30 |
+| `agentes` | 133 | 72 | 61 | 31 |
 | `ambiente` | 3 | 0 | 3 | 3 |
 | `conformidade` | 2705 | 2003 | 702 | 102 |
 | `decisao` | 4 | 0 | 4 | 4 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 33 | 13 | 20 | 15 |
-| `ordens` | 11 | 0 | 11 | 10 |
+| `ordens` | 14 | 0 | 14 | 11 |
 | `parecer` | 587 | 452 | 135 | 28 |
-| `pesado` | 27 | 11 | 16 | 20 |
+| `pesado` | 30 | 13 | 17 | 21 |
 | `quadro` | 7 | 2 | 5 | 7 |
 | `vigia` | 60 | 0 | 60 | 27 |
 
@@ -39,6 +39,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3570 fixtures) roda em `tests/test
 | `memoria-*` | 3 | 2 | 1 | `R-TETO` | — | 16 GB no total (piso padrão 2 GB), 1,5 GB livres: bloqueia. |
 | `reserva-*` | 3 | 0 | 3 | — | `C1-5` | C1: a reserva grava pid da sessão, namespace e session_id. |
 | `ritmo-*` | 3 | 2 | 1 | — | — | ritmo acelerado com teto_maximo 1 e um ativo: bloqueia (o acelerado não passa do teto de sempre). |
+| `vigia-*` | 3 | 2 | 1 | `R-TETO` | `VIGIA-AGENTES-PESADO` | VIGIA-AGENTES-PESADO (E172.3): no clone do Forge (sem .forge/versao), o prazo vencido no disparo também recusa com R-TETO: a sessão vigiada… |
 | `bloqueia-*` | 2 | 2 | 0 | — | — | Mesmo tipo e mesma descrição de um agente ativo: relançamento duplicado. |
 | `duplicado-*` | 2 | 1 | 1 | — | — | C1: o relançamento com a mesma descrição passa quando o registro é de sessão morta. |
 | `fim-*` | 2 | 0 | 2 | — | — | C1: o SubagentStop remove só o agent_id; o outro, de sessão viva, fica. |
@@ -211,6 +212,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3570 fixtures) roda em `tests/test
 
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
+| `idioma-*` | 3 | 0 | 3 | — | — | A1 do review E174.6 (v0478 E174.12): clone do Forge com .forge/config.json aninhado abaixo de 64 KiB (RecursionError no json.loads): a linha… |
 | `teto-*` | 2 | 0 | 2 | — | — | 3 linhas de 900 caracteres (2702 com as quebras): injeta 2000 caracteres e avisa o corte. |
 | `arquivo-*` | 1 | 0 | 1 | — | — | Projeto sem .forge/ordens/ordens-em-vigor.md: silêncio, saída 0 e nada gravado (custo zero de contexto). |
 | `erro-*` | 1 | 0 | 1 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA: erro ao ler o arquivo de ordens: sai 0, sem contexto, e a linha vai ao erros.log. |
@@ -261,6 +263,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3570 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | `forgetestes-*` | 3 | 2 | 1 | `R-TETO` | `PESADO-VERSOES-FORA-DA-FILA` | PESADO-VERSOES-FORA-DA-FILA: o teste dirigido pelas opções da lista fechada segue leve com a trava ocupada. |
 | `sem-*` | 3 | 0 | 3 | — | — | Projeto sem .forge/versao: o hook não age. |
+| `vigia-*` | 3 | 2 | 1 | `R-TETO` | `VIGIA-AGENTES-PESADO` | VIGIA-AGENTES-PESADO (E172.3, decisão do dono de 24/11): o prazo do vigia vence no PreToolUse da tarefa pesada; recusa com R-TETO, em vez de… |
 | `mutacao-*` | 2 | 1 | 1 | `R-TETO` | `TM-25` | TM-25: Stryker de outra sessão ativo; o teste de banco da lista da stack espera (um por vez). |
 | `outra-*` | 2 | 2 | 0 | — | `HOOK-COMENTARIO-SHLEX` | HOOK-COMENTARIO-SHLEX (ADR 0013): a linha que a leitura fiel não lê é lida pela antiga: o pesado continua visto. |
 | `pos-*` | 2 | 0 | 2 | — | — | PostToolUse de outra chamada não solta a trava alheia. |

@@ -1,0 +1,22 @@
+{
+  "descricao": "VIGIA-AGENTES-PESADO (E172.3, decisão do dono de 24/11): o prazo do vigia vence no disparo (PreToolUse), sem marcador crítico; recusa com R-TETO, em vez de o timeout liberá-lo.",
+  "forcar": {
+    "onde": "atualizar_estado",
+    "como": "prazo"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "Explore",
+      "description": "Conferir",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO: o hook não decidiu",
+    "erros_log": "prazo de"
+  }
+}
