@@ -1,0 +1,76 @@
+{
+  "pedido": "v0480-graphql-ilegivel",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "GQ49",
+      "guarda": "E168.13 (A7): a chave antes do subcomando do gh é leitura incerta",
+      "arquivo": "hooks/parecer.py",
+      "de": "a in GH_SUBCOMANDOS_CRITICOS or chave_incerta(a) for a in toks[1:i])",
+      "para": "a in GH_SUBCOMANDOS_CRITICOS or False for a in toks[1:i])",
+      "testes": [
+        "tests.test_hooks.Hooks.test_gh_incerto_chave"
+      ]
+    },
+    {
+      "id": "GQ50",
+      "guarda": "E168.13 (A7): a chave no subcomando do gh é leitura incerta",
+      "arquivo": "hooks/parecer.py",
+      "de": "or any(map(chave_incerta, sub + endpoint)))",
+      "para": "or any(map(chave_incerta, endpoint)))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_gh_incerto_chave"
+      ]
+    },
+    {
+      "id": "GQ51",
+      "guarda": "E168.13 (A7): a chave no endpoint do gh api é leitura incerta",
+      "arquivo": "hooks/parecer.py",
+      "de": "or any(map(chave_incerta, sub + endpoint)))",
+      "para": "or any(map(chave_incerta, sub)))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_gh_incerto_chave"
+      ]
+    },
+    {
+      "id": "GQ52",
+      "guarda": "E168.13 (A7): o endpoint só é lido quando o subcomando é api",
+      "arquivo": "hooks/parecer.py",
+      "de": "endpoint = [endpoint_da_api(toks[i + 1:])] if sub == [\"api\"] else []",
+      "para": "endpoint = [endpoint_da_api(toks[i + 1:])] if False else []",
+      "testes": [
+        "tests.test_hooks.Hooks.test_gh_incerto_chave"
+      ]
+    },
+    {
+      "id": "GQ53",
+      "guarda": "E168.13 (A7): os marcadores do gh no endpoint não são chave",
+      "arquivo": "hooks/parecer.py",
+      "de": "return bool(CHAVES.search(MARCADOR_DO_GH.sub(\"\", palavra)))",
+      "para": "return bool(CHAVES.search(palavra))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_gh_incerto_chave"
+      ]
+    },
+    {
+      "id": "GQ54",
+      "guarda": "E168.13 (A7): a sequência com .. entre chaves é expansão",
+      "arquivo": "hooks/parecer.py",
+      "de": "CHAVES = re.compile(r\"\\{.*(?:,|\\.\\.)\", re.S)",
+      "para": "CHAVES = re.compile(r\"\\{.*(?:,)\", re.S)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_gh_incerto_chave"
+      ]
+    },
+    {
+      "id": "GQ55",
+      "guarda": "E168.13 (A7): a recusa do gh na dúvida alcança o hook conformidade pela chave no subcomando e no endpoint",
+      "arquivo": "hooks/parecer.py",
+      "de": "or any(map(chave_incerta, sub + endpoint)))",
+      "para": "or False)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    }
+  ]
+}

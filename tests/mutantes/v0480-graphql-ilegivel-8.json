@@ -1,0 +1,57 @@
+{
+  "pedido": "v0480-graphql-ilegivel",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "GQ44",
+      "guarda": "E168.9 (A5): a palavra com chave e vírgula ou .. é consultada na leitura das expansões",
+      "arquivo": "hooks/conformidade.py",
+      "de": "parecer.expande(a) or CURINGA.search(a) or CHAVES.search(a) else 0",
+      "para": "parecer.expande(a) or CURINGA.search(a) or False else 0",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ45",
+      "guarda": "E168.9 (A5): o GraphQL sem campo à vista também passa pela consulta ilegível",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if (parecer.metodo_mutante(args) or e_graphql(parecer.endpoint_da_api(args))) and self.consulta_ilegivel(args):",
+      "para": "if (parecer.metodo_mutante(args) or False) and self.consulta_ilegivel(args):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ46",
+      "guarda": "E168.9 (A5): entre aspas duplas a vírgula não é expansão de chaves",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        fora = aspas is None",
+      "para": "        fora = True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_expansao_por_palavra_chaves"
+      ]
+    },
+    {
+      "id": "GQ47",
+      "guarda": "E168.9 (A5): o { entre aspas não abre chave",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(chave or c == \"{\", c) if fora else (chave, \"\")",
+      "para": "(chave or c == \"{\", c) if True else (chave, \"\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_expansao_por_palavra_chaves"
+      ]
+    },
+    {
+      "id": "GQ48",
+      "guarda": "E168.9: a opção com = não leva o valor seguinte",
+      "arquivo": "hooks/parecer.py",
+      "de": "    return \"=\" not in opcao and opcao not in GH_SEM_VALOR",
+      "para": "    return True and opcao not in GH_SEM_VALOR",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ordem_do_gh",
+        "tests.test_hooks.Hooks.test_analisar_pula_a_opcao_entre_pr_e_o_subcomando"
+      ]
+    }
+  ]
+}

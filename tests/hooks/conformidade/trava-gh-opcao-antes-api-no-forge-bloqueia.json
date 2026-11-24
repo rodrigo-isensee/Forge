@@ -1,0 +1,24 @@
+{
+  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (GRAPHQL-CONSULTA-EM-VARIAVEL, E168.9, A1 do QA do #854): na sessão de outro projeto, `gh -X POST api repos/<forge>/issues` com o método antes do `api`: a trava R-CONTRIB lê o gh na ordem do gh (`ordem_do_gh` no `Guarda.gh`) e recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh -X POST api repos/rodrigo-isensee/Forge/issues -f title=x"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: gh api que muda algo no Forge"
+  }
+}

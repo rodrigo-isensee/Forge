@@ -1,0 +1,29 @@
+{
+  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (GRAPHQL-CONSULTA-EM-VARIAVEL, E168.9, A1 do review e S9 da segurança do #854): no parecer, `gh -t api pr merge feature/x --admin` (o `-t` toma o `api` e o gh roda `pr merge`) é leitura incerta e recusa, sem escolher uma leitura.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh -t api pr merge feature/x --admin"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: gh com opção antes do subcomando que o hook não lê"
+  }
+}

@@ -66,8 +66,8 @@
       "id": "G7",
       "guarda": "o -R/--repo entre pr e o subcomando é pulado antes de ler o subcomando",
       "arquivo": "hooks/parecer.py",
-      "de": "while j < len(toks) and (toks[j] in (\"-R\", \"--repo\") or toks[j].startswith((\"--repo=\", \"-R\"))):",
-      "para": "while False:",
+      "de": "while j < len(toks) and toks[j].startswith(\"-\") and toks[j] != \"--\":\n            # a opção",
+      "para": "while False:\n            # a opção",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
