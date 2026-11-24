@@ -1,0 +1,26 @@
+{
+  "pedido": "v0480-mutante-varias-trocas",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "MUTANTE-VARIAS-TROCAS: par_que_nao_sobrevive: par sem registro não conta como sobrevivente",
+      "arquivo": "bin/forge-mutante",
+      "de": "classe = \"sem veredito\" if registro is None else",
+      "para": "classe = \"sem veredito\" if registro is not None else",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_par_isca_que_morre_sozinho_torna_o_mutante_invalido"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "MUTANTE-VARIAS-TROCAS: par_que_nao_sobrevive: o par morto sozinho diz que vira mutante próprio",
+      "arquivo": "bin/forge-mutante",
+      "de": "if classe == 'morreu' else 'sozinho sai '",
+      "para": "if classe != 'morreu' else 'sozinho sai '",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_par_isca_que_morre_sozinho_torna_o_mutante_invalido"
+      ]
+    }
+  ]
+}
