@@ -3,14 +3,14 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-meta-notas-reconta
-commit: c947a0634110a0006d4ca4f6d63e446a2c2445d5
+commit: 25c6a8be55fd458c627fe3f28dd1ae6609483d9a
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-23
 ---
 # Review: v0478 · marca das notas por transcrito e nota com tool_result na entrada, etapa E137.16 (PR #822)
 
-Revisão completa do intervalo `0e59c446..c947a063` (3 commits): `hooks/meta.py` (+15 linhas de código, dentro do teto H1), `tests/test_meta.py`, `tests/mutantes/v0480-meta-notas-reconta.json`, `tests/mutantes/v0478-meta-notas-3.json` e o fragmento `changelog.d/v0480-meta-notas-reconta.md`.
+Revisão completa do intervalo `0e59c446..c947a063` (3 commits): `hooks/meta.py` (+15 linhas de código, dentro do teto H1), `tests/test_meta.py`, `tests/mutantes/v0480-meta-notas-reconta.json`, `tests/mutantes/v0478-meta-notas-3.json` e o fragmento `changelog.d/v0480-meta-notas-reconta.md`. Revalidação por delta no head 25c6a8be (E137.25), abaixo.
 
 ## Ferramentas citadas
 - `python3 -m unittest tests.test_meta` (ambiente limpo, no head): 54 testes, OK.
@@ -25,6 +25,14 @@ Revisão completa do intervalo `0e59c446..c947a063` (3 commits): `hooks/meta.py`
 - Corrida entre dois Stops quase simultâneos de sessões diferentes: quem grava por último pode apagar a marca da outra, que reconta uma vez. A gravação é atômica (`gravar_json` com `os.replace`), o arquivo não se corrompe e o caso é bem mais raro que a alternância que o item corrige; não é achado.
 - Commits em Conventional Commits, com o pedido e a etapa; o fragmento traz custo e reversão (`R-DECISAO`).
 
+## Revalidação por delta (head 25c6a8be, etapa E137.25)
+- Delta lido: `forge-check parecer delta` no intervalo `c947a063..25c6a8be`, sem o que veio da `develop` (merge 2da8dd51). No domínio, só `tests/mutantes/v0478-meta-notas-2.json` (M10) e `tests/mutantes/v0478-meta-notas.json` (M1); `tests/test_meta.py` e `tests/mutantes/v0480-meta-notas-reconta.json` dispensados (teste do QA aprovado em 6b1b7c1).
+- Só o `de` muda, para o texto atual de `hooks/meta.py:285-286` (cada trecho ocorre uma vez no arquivo); `hooks/meta.py` não muda no delta. O `para` segue mirando a mesma guarda: M10 troca o pulo do `tool_result` por `False` (a linha volta a ser decodificada) e M1 troca o `and` do filtro user/assistant por `or`. Testes que matam cada um, os mesmos.
+- `bin/forge-mutante --ids M10 tests/mutantes/v0478-meta-notas-2.json` (rev 25c6a8be55fd): `M10 · morreu · hooks/meta.py:285`.
+- `bin/forge-mutante --ids M1 tests/mutantes/v0478-meta-notas.json` (rev 25c6a8be55fd): `M1 · morreu · hooks/meta.py:286`.
+- `bin/forge-mutante --conferir --base c947a063`: "conferidas: o trecho de cada spec do diff está no lugar".
+- CI do #822 no head, na leitura: partes da suíte pendentes, `catraca` verde, `bateria (pareceres)` vermelha com o parecer ainda em c947a063 (este commit o atualiza); sem rerrodar aqui.
+
 ## Achados
 - A1 (recomendado) changelog.d/v0480-meta-notas-reconta.md:2 · O notas.json na forma antiga (marca única) vira {} na forma nova: o 1º Stop de cada projeto depois da atualização reconta a rodada uma vez (S1). Dizer isso no fragmento, para quem ler a medida notas_em_outro_idioma da versão.
 
@@ -32,4 +40,4 @@ Revisão completa do intervalo `0e59c446..c947a063` (3 commits): `hooks/meta.py`
 - S1 · notas.json antigo `{"transcrito": <t.jsonl>, "marca": "u2", "final": sha256(PT)}` e a rodada dono u0, nota EN u1, final PT u2, medida duas vezes · espera: 1º Stop (1, True), arquivo só com a chave do transcrito, 2º Stop (0, False) · obtido: (1, True), [t.jsonl], (0, False)
 
 ## Parecer
-Aprovado. A marca por transcrito resolve a reconta entre sessões, o pré-filtro deixa de pular a nota cuja entrada traz o par `"type":"tool_result"` e os mutantes das duas specs morrem. O efeito do formato antigo é uma reconta única, aceitável; a nota no changelog (A1) fica como recomendação, sem devolver.
+Aprovado. A marca por transcrito resolve a reconta entre sessões, o pré-filtro deixa de pular a nota cuja entrada traz o par `"type":"tool_result"` e os mutantes das duas specs morrem. O efeito do formato antigo é uma reconta única, aceitável; a nota no changelog (A1) fica como recomendação, sem devolver. No head 25c6a8be, M10 e M1 realinhados ao pré-filtro atual morrem na mesma guarda; lógica igual.
