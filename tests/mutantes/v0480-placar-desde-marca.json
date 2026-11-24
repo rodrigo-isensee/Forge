@@ -51,5 +51,12 @@
       "para": "shlex.quote((marca or tags)[0])",
       "testes": ["tests.test_changelog.ReleaseAvisaMedidasDaVersao.test_no_forge_imprime_o_placar_desde_a_tag_anterior_e_o_bench"]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-changelog",
+      "trecho": "tag.returncode == 0 and tag.stdout.strip()",
+      "motivo": "guarda trocada por `if tags or marca` na linha 285, que PDM4 e o M10 de v046-mutacao-bench-2 cobrem; a tag passou a vir do git tag --points-at na marca"
+    }
   ]
 }
