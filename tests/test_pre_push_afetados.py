@@ -282,7 +282,7 @@ class ChecagensBaratasAntesDaTrava(Base):
 
     def segura_a_trava(self):
         self.trava.touch()
-        segurador = subprocess.Popen(["flock", str(self.trava), "sleep", "60"])
+        segurador = self.segurador = subprocess.Popen(["flock", str(self.trava), "sleep", "60"])
         self.addCleanup(segurador.wait)
         self.addCleanup(segurador.terminate)
         for _ in range(100):
@@ -291,15 +291,33 @@ class ChecagensBaratasAntesDaTrava(Base):
             time.sleep(0.05)
         self.fail("o flock de fora não segurou a trava")
 
+    def flock_falso(self):
+        """`flock` na frente do PATH do hook: registra cada chamada (argumentos) e chama o verdadeiro."""
+        real = shutil.which("flock")
+        falso = Path(tempfile.mkdtemp(prefix="flock-falso-"))
+        self.addCleanup(shutil.rmtree, falso)
+        registro = falso / "registro"
+        registro.touch()
+        (falso / "flock").write_text(f'#!/bin/sh\nprintf "%s\\n" "$*" >> "{registro}"\nexec "{real}" "$@"\n')
+        (falso / "flock").chmod(0o755)
+        self.env = dict(self.env, PATH=f"{falso}:{self.env.get('PATH', os.environ['PATH'])}")
+        return registro
+
     def reprova_sem_esperar(self, trecho):
         self.segura_a_trava()
-        inicio = time.monotonic()
+        registro = self.flock_falso()
         codigo, marcas, erro = self.roda()
         self.assertEqual((codigo, marcas), (1, set()), erro)
         self.assertIn(trecho, erro)
         self.assertIn("checagens baratas reprovadas", erro)
         self.assertNotIn("pre-push: entrou", erro, "a checagem barata não pode esperar a trava")
-        self.assertLess(time.monotonic() - inicio, 15)
+        # sem relógio: antes de "entrou" o hook não chama `flock` (nem espera curta ou silenciosa); o registro do `flock` falso
+        # fica vazio. Além disso, o hook nunca entrou na fila e a trava segue com o flock de fora, que ainda vive.
+        self.assertEqual(registro.read_text(), "", "o hook chamou o flock antes das checagens baratas reprovarem")
+        self.assertNotIn("esperando a vez", erro)
+        self.assertNotIn("a vez não chegou", erro)
+        self.assertIsNone(self.segurador.poll(), "o flock de fora devia seguir segurando a trava")
+        self.assertNotEqual(subprocess.run(["flock", "-n", str(self.trava), "true"]).returncode, 0, "a trava foi solta")
 
     def test_sintaxe_python_reprova_antes_da_trava(self):
         self.commit("quebra", bin__forge_sugerir="x = 2\n", bin__util_py="def f(:\n")
@@ -383,6 +401,7 @@ def isca_de_caminho(nome):
 class NeutralidadeECaminhoCedo(Base):
     """PARECER-NEUTRALIDADE-CEDO e SENTINELA-CAMINHO-LOCAL (0.43.3): as checagens baratas rodam a neutralidade e o
     scripts/verificar-contribuicao.sh nos arquivos tocados, em segundos e antes da fila e da trava."""
+    flock_falso = ChecagensBaratasAntesDaTrava.flock_falso
     segura_a_trava = ChecagensBaratasAntesDaTrava.segura_a_trava
     reprova_sem_esperar = ChecagensBaratasAntesDaTrava.reprova_sem_esperar
 

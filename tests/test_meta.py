@@ -332,14 +332,14 @@ class NotasEntreFerramentas(unittest.TestCase):
     def dono(texto):
         return {"type": "user", "message": {"content": texto}}
 
-    def transcrito(self, registros):
-        caminho = self.tmp / "t.jsonl"
+    def transcrito(self, registros, nome="t.jsonl"):
+        caminho = self.tmp / nome
         caminho.write_text("".join((r if isinstance(r, str) else json.dumps(r, separators=(",", ":"))) + "\n"
                                    for r in registros), encoding="utf-8")
         return caminho
 
-    def medir(self, registros, final=None, raiz=None):
-        campos = {"last_assistant_message": final or self.PT, "transcript_path": str(self.transcrito(registros))}
+    def medir(self, registros, final=None, raiz=None, nome="t.jsonl"):
+        campos = {"last_assistant_message": final or self.PT, "transcript_path": str(self.transcrito(registros, nome))}
         run = self.tmp / "run"
         run.mkdir(exist_ok=True)
         (run / "mensagens.jsonl").unlink(missing_ok=True)
@@ -435,8 +435,42 @@ class NotasEntreFerramentas(unittest.TestCase):
     def test_marca_de_outro_transcrito_nao_vale(self):
         (self.tmp / "run").mkdir(exist_ok=True)
         (self.tmp / "run" / "notas.json").write_text(json.dumps(
-            {"transcrito": str(self.tmp / "outro.jsonl"), "marca": "u1", "final": self.meta.resumo(self.EN)}), encoding="utf-8")
+            {str(self.tmp / "outro.jsonl"): {"marca": "u1", "final": self.meta.resumo(self.EN)}}), encoding="utf-8")
         self.assertEqual(self.medir([self.dono("oi"), self.com_uuid(self.nota(self.EN), "u1")]), (1, True))
+
+    # E137.1 (A1 de docs/reviews/v0480-meta-notas.md): o .forge/run é um só para as sessões do projeto; a marca de uma
+    # sessão não apaga a da outra.
+    def test_stop_de_outra_sessao_no_meio_nao_faz_recontar(self):
+        rodada = [self.com_uuid(self.dono("oi"), "u0"), self.com_uuid(self.nota(self.EN), "u1"), self.final(self.PT, "u2")]
+        self.assertEqual(self.medir(rodada), (1, True))
+        self.assertEqual(self.medir([self.com_uuid(self.dono("oi"), "b0"), self.final(self.PT, "b1")], nome="b.jsonl"), (0, False))
+        seguinte = rodada + [self.aviso("u3"), self.com_uuid(self.nota(self.PT), "u4"), self.final(self.PT2, "u5")]
+        self.assertEqual(self.medir(seguinte, final=self.PT2), (0, False))
+
+    def test_marca_do_transcrito_fora_da_forma_e_ignorada(self):
+        (self.tmp / "run").mkdir(exist_ok=True)
+        (self.tmp / "run" / "notas.json").write_text(json.dumps({str(self.tmp / "t.jsonl"): "u1"}), encoding="utf-8")
+        self.assertEqual(self.medir([self.dono("oi"), self.com_uuid(self.nota(self.EN), "u1")]), (1, True))
+
+    def test_marcas_guardadas_param_no_teto_e_sai_a_mais_velha(self):
+        for i in range(self.meta.MARCAS_GUARDADAS + 1):
+            self.medir([self.dono("oi"), self.final(self.PT, f"u{i}")], nome=f"s{i}.jsonl")
+        marcas = json.loads((self.tmp / "run" / "notas.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(marcas), self.meta.MARCAS_GUARDADAS)
+        self.assertNotIn(str(self.tmp / "s0.jsonl"), marcas)
+
+    # E137.21 (A1 de docs/qa/v0480-meta-notas-reconta.md): sai a marca usada há mais tempo, não a gravada primeiro.
+    def test_sessao_que_volta_a_ser_usada_guarda_a_marca(self):
+        teto = self.meta.MARCAS_GUARDADAS
+        for i in range(teto):
+            self.medir([self.dono("oi"), self.final(self.PT, f"u{i}")], nome=f"s{i}.jsonl")
+        self.medir([self.dono("oi"), self.final(self.PT, "u0")], nome="s0.jsonl")
+        for i in range(teto, 2 * teto - 1):
+            self.medir([self.dono("oi"), self.final(self.PT, f"u{i}")], nome=f"s{i}.jsonl")
+        marcas = json.loads((self.tmp / "run" / "notas.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(marcas), teto)
+        self.assertIn(str(self.tmp / "s0.jsonl"), marcas)
+        self.assertNotIn(str(self.tmp / "s1.jsonl"), marcas)
 
     def test_marca_ilegivel_ou_fora_da_forma_e_ignorada(self):
         (self.tmp / "run").mkdir(exist_ok=True)
@@ -454,6 +488,13 @@ class NotasEntreFerramentas(unittest.TestCase):
     def test_nota_cuja_chamada_traz_tool_result_ainda_conta(self):
         nota = {"type": "assistant", "message": {"content": [
             {"type": "text", "text": self.EN}, {"type": "tool_use", "name": "Grep", "input": {"pattern": "tool_result"}}]}}
+        self.assertEqual(self.medir([self.dono("oi"), nota]), (1, True))
+
+    def test_nota_cuja_entrada_traz_o_par_type_tool_result_ainda_conta(self):
+        """E137.1 (A2 de docs/reviews/v0479-meta-notas.md): a entrada da ferramenta é objeto, sem aspas escapadas; o par
+        "type":"tool_result" ali não faz da nota um resultado de ferramenta."""
+        nota = {"type": "assistant", "message": {"content": [
+            {"type": "text", "text": self.EN}, {"type": "tool_use", "name": "Busca", "input": {"type": "tool_result"}}]}}
         self.assertEqual(self.medir([self.dono("oi"), nota]), (1, True))
 
 

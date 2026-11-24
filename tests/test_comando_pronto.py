@@ -12,7 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-PASTAS = ("briefs-e-conferencia", "fluxo-do-pedido", "trabalho-em-paralelo")
+PASTAS = ("briefs-e-conferencia", "fluxo-do-pedido", "trabalho-em-paralelo", "qa-testing", "esperar-estado")  # E96.1: + as duas
 COM_SUBCOMANDO = {"check", "changelog"}
 FERRAMENTA = re.compile(r"(?<![\w-])(?:\S*/)?forge-(check|fechar|mutante|testes|changelog)(?![\w-])")
 CRASE = re.compile(r"`([^`\n]+)`")
@@ -72,7 +72,20 @@ def problemas_da_citacao(ferramenta, resto):
         return [f"--help falhou para {' '.join(caminho)}"]
     conhecidas, usadas = set(OPCAO.findall(texto)), set(OPCAO.findall(" ".join(palavras)))
     erros = [f"opção {o} não existe no --help" for o in sorted(usadas - conhecidas)]
-    return erros + [f"falta {' ou '.join(sorted(g))}" for g in obrigatorias(uso(texto)) if not g & usadas]
+    erros += [f"falta {' ou '.join(sorted(g))}" for g in obrigatorias(uso(texto)) if not g & usadas]
+    return erros + formas_que_falham(ferramenta, palavras, usadas, uso(texto))
+
+
+def formas_que_falham(ferramenta, palavras, usadas, texto_uso):
+    """E96.1: formas aceitas pelo --help que os agentes relataram erradas. `--vermelho` sem `--modulos` pode rodar a suíte
+    toda; a spec do `forge-mutante` vai pelo caminho em tests/mutantes/, não pelo nome do pedido."""
+    if ferramenta == "testes" and "--vermelho" in usadas and "--modulos" not in usadas:
+        return ["--vermelho sem --modulos"]
+    if ferramenta != "mutante":
+        return []
+    com_valor = set(re.findall(r"(--[a-z][a-z0-9-]*) [A-Z]", texto_uso))
+    soltas = [p for i, p in enumerate(palavras) if not p.startswith("-") and (i == 0 or palavras[i - 1] not in com_valor)]
+    return [f"spec fora de tests/mutantes/: {p}" for p in soltas if not p.startswith("tests/mutantes/")]
 
 
 def citacoes(texto):
@@ -118,6 +131,11 @@ class TestComandoPronto(unittest.TestCase):
         self.assertEqual(problemas_da_citacao("check", ["pausa"]), ["falta --gravar ou --retomar"])
         self.assertEqual(problemas_da_citacao("check", ["pausa", "--retomar", "--esperar"]), [])
         self.assertEqual(problemas_da_citacao("fechar", ["<pedido>", "--ref", "<branch>", "--sem-limpar"]), [])
+        self.assertEqual(problemas_da_citacao("testes", ["--vermelho", "<base>"]), ["--vermelho sem --modulos"])
+        self.assertEqual(problemas_da_citacao("testes", ["--vermelho", "<base>", "--modulos", "test_x"]), [])
+        self.assertEqual(problemas_da_citacao("mutante", ["<pedido>"]), ["spec fora de tests/mutantes/: <pedido>"])
+        self.assertEqual(problemas_da_citacao("mutante", ["--base", "<sha>", "tests/mutantes/<p>.json"]), [])
+        self.assertEqual(problemas_da_citacao("mutante", ["--cobertura", "--base", "<Base-sha>"]), [])
 
     def test_citacoes_acha_so_entre_crases(self):
         texto = "rode forge-check solto e `bin/forge-fechar` e `${CLAUDE_PLUGIN_ROOT}/bin/forge-check classe` e `forge-checks x`"
