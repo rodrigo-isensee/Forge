@@ -1,0 +1,2 @@
+### Corrigido
+- Skills qa-testing e esperar-estado com o comando pronto para colar (v0478 E96.1, trazido na E138.2): vermelho com --modulos, spec do forge-mutante pelo caminho e depois do commit, um módulo com -I pelo discover ou pelo arquivo, pasta temporária com mktemp -d e comando longo com log e rc= (skills/qa-testing/comandos.md); o laço do PR trata 'no checks reported' como pendente e cala o erro do gh pr view; o laço sem teto foi para envio-longo.md. O test_comando_pronto passa a ler as duas skills.
