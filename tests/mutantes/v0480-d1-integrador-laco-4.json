@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-d1-integrador-laco",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): o último grupo entra",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"${#grupo[@]}\" = 0 ] || grupos+=",
+      "para": "[ 1 = 1 ] || grupos+=",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_grupos_de_ate_3_em_ordem_e_o_ultimo_sozinho_sem_lote"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): um item só vai sem --lote",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"${#itens[@]}\" = 1 ]",
+      "para": "if [ \"${#itens[@]}\" = 0 ]",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_grupos_de_ate_3_em_ordem_e_o_ultimo_sozinho_sem_lote"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): --dry-run não fecha",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$seco\" = 1 ]; then echo \"  rodaria",
+      "para": "if [ \"$seco\" = 9 ]; then echo \"  rodaria",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_dry_run_le_e_nao_fecha"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): o código do grupo é lido",
+      "arquivo": "bin/forge-fechar",
+      "de": "\"${cmd[@]}\" || rc=$?",
+      "para": "\"${cmd[@]}\" || true",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_codigos_dos_grupos"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): limpeza pendente não esconde grupo parado",
+      "arquivo": "bin/forge-fechar",
+      "de": "3) [ \"$rc_laco\" = 1 ] || rc_laco=3 ;;",
+      "para": "3) rc_laco=3 ;;",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_codigos_dos_grupos"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): CI não verde para o laço",
+      "arquivo": "bin/forge-fechar",
+      "de": "os grupos seguintes ficam para a próxima volta.\" >&2; exit 5 ;;",
+      "para": "os grupos seguintes ficam para a próxima volta.\" >&2 ;;",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_codigos_dos_grupos"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): grupo que parou dá código 1",
+      "arquivo": "bin/forge-fechar",
+      "de": "*) rc_laco=1; echo \"aviso: o grupo",
+      "para": "*) rc_laco=0; echo \"aviso: o grupo",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_codigos_dos_grupos"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): o laço sai com o código dos grupos",
+      "arquivo": "bin/forge-fechar",
+      "de": "  exit \"$rc_laco\"\n}",
+      "para": "  exit 0\n}",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_codigos_dos_grupos"
+      ]
+    }
+  ]
+}

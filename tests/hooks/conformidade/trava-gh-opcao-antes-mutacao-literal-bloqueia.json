@@ -1,0 +1,24 @@
+{
+  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (GRAPHQL-CONSULTA-EM-VARIAVEL, E168.5, S2 da segurança do #854): o campo antes do subcomando (`gh -f query='mutation{mergePullRequest…}' api graphql`) é lido como depois dele; o merge literal recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh -f query='mutation{mergePullRequest(input:{pullRequestId:\"PR_x\"}){clientMutationId}}' api graphql"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: gh api que altera refs, regras, acessos ou faz merge"
+  }
+}
