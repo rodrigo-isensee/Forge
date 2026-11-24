@@ -29,7 +29,18 @@
       "de": "PRAZO_DA_DECISAO_S) if regra_do_prazo else None",
       "para": "PRAZO_DA_DECISAO_S) if regra_do_prazo and critico is not None else None",
       "testes": [
-        "tests.test_hooks_volta_propriedades.VigiaAgentesPesado.test_fixtures_do_vigia_agentes_pesado"
+        "tests.test_hooks_volta_propriedades.VigiaAgentesPesado.test_fixtures_do_vigia_agentes_pesado",
+        "tests.test_hooks_volta_propriedades.VigiaAgentesPesado.test_prazo_do_hook_pelo_relogio_falso"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "VIGIA-AGENTES-PESADO: o prazo do hook (8 s no agentes, 290 s no pesado) vale no lugar dos 3 s comuns",
+      "arquivo": "hooks/_comum.py",
+      "de": "max(prazo_do_hook or 0, PRAZO_DA_DECISAO_S)",
+      "para": "max(0, PRAZO_DA_DECISAO_S)",
+      "testes": [
+        "tests.test_hooks_volta_propriedades.VigiaAgentesPesado.test_prazo_do_hook_pelo_relogio_falso"
       ]
     },
     {

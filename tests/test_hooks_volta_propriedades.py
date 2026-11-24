@@ -3,6 +3,8 @@
 Os testes saíram da classe `CorpusHeredocVoltaUnica` de tests/test_hooks.py (HOOKS-CORPUS-RAPIDO); a base e o corpus estão em
 tests/apoio_volta_unica.py."""
 from pathlib import Path
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -298,6 +300,35 @@ class VigiaAgentesPesado(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 6, "as fixtures do vigia nos dois hooks")
         self.assertEqual({f.hook for _, f in lote}, {"agentes", "pesado"})
         self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_prazo_do_hook_pelo_relogio_falso(self):
+        """O `executar` arma o vigia com o `prazo_do_hook` de cada um (e não com os 3 s comuns): o passo que dorme até
+        perto do prazo libera; o que chega nele recusa com R-TETO e o prazo do hook no texto; a saída desarma."""
+        _comum, _, _ = modulos_dos_hooks()
+        import agentes
+        import pesado
+        raiz = Path(tempfile.mkdtemp(prefix="forge-vigia-ap-"))
+        self.addCleanup(shutil.rmtree, raiz, ignore_errors=True)
+        subprocess.run(["git", "init", "-q", "-b", "develop", str(raiz)], check=True, stdin=subprocess.DEVNULL,
+                       env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(raiz)})
+        (raiz / ".forge").mkdir()
+        (raiz / ".forge" / "versao").write_text("0.0.0\n", encoding="utf-8")
+        ambiente = {k: v for k, v in os.environ.items() if k != "FORGE_GUARDA_ABERTA"}
+        for modulo in (agentes, pesado):
+            prazo = modulo.PRAZO_DO_HOOK_S
+            for passo, codigo in ((prazo - 0.1, 0), (prazo, 2)):
+                with self.subTest(hook=modulo.__name__, passo=passo):
+                    relogio = test_hooks.RelogioFalso(_comum.PrazoVencido)
+                    entrada = {"hook_event_name": "PreToolUse", "cwd": str(raiz)}
+                    with mock.patch.dict(os.environ, {**ambiente, "CLAUDE_PROJECT_DIR": str(raiz)}, clear=True), \
+                            mock.patch("sys.stdin", io.StringIO(json.dumps(entrada))), \
+                            contextlib.redirect_stderr(io.StringIO()) as erro, self.assertRaises(SystemExit) as saida:
+                        _comum.executar(modulo.__name__, lambda hook, s=passo: relogio.dormir(s), clone_do_forge=True,
+                                        regra_do_prazo="R-TETO", prazo_do_hook=prazo, relogio=relogio, armar=relogio.armar)
+                    self.assertEqual(saida.exception.code, codigo, erro.getvalue())
+                    self.assertEqual(relogio.armados, [prazo, 0])
+                    if codigo:
+                        self.assertRegex(erro.getvalue(), f"^R-TETO: o hook não decidiu em {prazo:g} s ")
 
     def test_prazo_de_cada_hook_abaixo_do_timeout_do_hooks_json(self):
         """O prazo do vigia de cada hook passa do prazo comum (e, no `pesado`, da espera na fila) e fica abaixo do menor
