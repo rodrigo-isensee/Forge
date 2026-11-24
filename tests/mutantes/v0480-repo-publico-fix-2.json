@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-repo-publico-fix",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "RP9",
+      "guarda": "A2: criar pelo GraphQL sem PRIVATE literal recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return bool(GRAPHQL_CRIA_REPO.search(texto)) and not",
+      "para": "return False and not",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP10",
+      "guarda": "A2: criar pelo GraphQL com PRIVATE literal segue livre",
+      "arquivo": "hooks/conformidade.py",
+      "de": "and not GRAPHQL_PRIVADA.search(texto)",
+      "para": "and True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP11",
+      "guarda": "A2: o endpoint de editar o repositório entra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not cria and not API_DO_REPO.fullmatch(endpoint):",
+      "para": "if not cria and API_DO_REPO.fullmatch(endpoint):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP12",
+      "guarda": "A2: o endpoint de criar entra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not cria and not API_DO_REPO",
+      "para": "if True and not API_DO_REPO",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP13",
+      "guarda": "A2 (S6): valor que o hook não lê falha fechado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not legivel:\n            return True",
+      "para": "if False:\n            return True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP14",
+      "guarda": "A2 (S5): campo=@arq vira o campo=valor que o gh envia",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if i and \"=@\" in a]",
+      "para": "if i and \"=@\" in a and False]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP15",
+      "guarda": "A2: o público lido do arquivo recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return any(map(VISIBILIDADE_PUBLICA.search, textos)) or cria",
+      "para": "return False or cria",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP16",
+      "guarda": "A2 (S4): criar sem private=true nem visibility privada recusa; com eles segue livre",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or cria and not any(map(VISIBILIDADE_PRIVADA.search, textos))",
+      "para": "or cria and True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    }
+  ]
+}

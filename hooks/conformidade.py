@@ -326,6 +326,19 @@ REFS_DE_TROCA = {"fetch", "pull", "push", "send-pack", "update-ref", "symbolic-r
 REPO_APAGAR = re.compile(r"^/?repos/[^/]+/[^/]+/?$")
 GRAPHQL_APAGAR = re.compile(r"mutation[^}]*deleteRepository", re.I)
 VISIBILIDADE_PUBLICA = re.compile(r"\bprivate[\"']?\s*[=:]\s*[\"']?false\b|\bvisibility[\"']?\s*[=:]\s*[\"']?public\b", re.I)
+# CONFORMIDADE-REPO-CREATE-PUBLICO (v0478 E141.2; A1 e A2 de docs/security/v0480-repo-publico-diag.md): criar repositório
+# só com a visibilidade privada explícita (o padrão da API é público; sem TTY o gh exige uma), pelo `gh repo create` e
+# pela API. Valor que o hook não lê (`$`, crase, arquivo ausente) no endpoint do repositório falha fechado.
+VISIBILIDADE_PRIVADA = re.compile(r"\bprivate[\"']?\s*[=:]\s*[\"']?true\b|\bvisibility[\"']?\s*[=:]\s*[\"']?(private|internal)\b",
+                                  re.I)
+CRIAR_COM_VALOR = {"-d", "--description", "-h", "--homepage", "-t", "--team", "-g", "--gitignore", "-l", "--license", "-p",
+                   "--template", "-r", "--remote", "-s", "--source"}  # as opções de `gh repo create` que levam valor
+API_CRIA_REPO = re.compile(r"user/repos|orgs/[^/]+/repos|repos/[^/]+/[^/]+/generate", re.I)  # endpoint normalizado
+API_DO_REPO = re.compile(r"repos/[^/]+/[^/]+", re.I)
+GRAPHQL_DO_REPO = re.compile(r"\b(createRepository|cloneTemplateRepository|updateRepository)\b")
+GRAPHQL_CRIA_REPO = re.compile(r"\b(createRepository|cloneTemplateRepository)\b")
+GRAPHQL_PRIVADA = re.compile(r"\bvisibility[\"']?\s*:\s*[\"']?(PRIVATE|INTERNAL)\b")
+GRAPHQL_NAO_PRIVADA = re.compile(r"\bvisibility[\"']?\s*:(?!\s*[\"']?(PRIVATE|INTERNAL)\b)")  # PUBLIC, `$v`, outro valor
 CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem em arquivos do projeto
 # CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1; S1-S4 de docs/security/v0479-pv-a1-adr.md): gravam no índice o caminho
 # nomeado, com conteúdo que nunca esteve na árvore (`-c filter.*.clean`, `--chmod`, `--cacheinfo`).
@@ -3376,6 +3389,11 @@ class Guarda:
         elif grupo == "repo" and sub == "edit":
             if (parecer.opcao(palavras[1:], "--visibility", "--visibility") or "").lower() == "public":
                 self.barrar(*publico)
+        elif grupo == "repo" and sub == "create":
+            if parecer.bandeira(palavras[1:], CRIAR_COM_VALOR, {"--public"}):
+                self.barrar(*publico)
+            if not parecer.bandeira(palavras[1:], CRIAR_COM_VALOR, {"--private", "--internal"}):
+                self.barrar(*publico)
         elif grupo == "api" and parecer.metodo_mutante(palavras[2:]):
             args = palavras[2:]
             if (parecer.opcao(args, "--method", "-X") or "").upper() == "DELETE" and REPO_APAGAR.match(
@@ -3383,6 +3401,32 @@ class Guarda:
                 self.barrar(*apagar)
             if VISIBILIDADE_PUBLICA.search(" ".join(args)) or self.input_publica(args, pasta):
                 self.barrar(*publico)
+            if self.api_publica(args, pasta):
+                self.barrar(*publico)
+
+    def api_publica(self, args, pasta):
+        """CONFORMIDADE-REPO-CREATE-PUBLICO (A2): `gh api` mutante que cria ou edita repositório sem a visibilidade privada
+        explícita. REST: criar (`user/repos`, `orgs/<o>/repos`, `repos/<o>/<r>/generate`) pede `private=true` ou
+        `visibility=private|internal`; criar e editar recusam o público lido de `campo=@arq` e falham fechado no valor
+        que o hook não lê. GraphQL: `visibility` fora de `PRIVATE`/`INTERNAL` literal (`$v`) e a criação sem ele."""
+        args = parecer.desagrupa_i(args)
+        endpoint = endpoint_normalizado(parecer.endpoint_da_api(args))
+        if e_graphql(endpoint):
+            texto = " ".join(args + self.textos_da_api(args, pasta)[0])
+            if not GRAPHQL_DO_REPO.search(texto):
+                return False
+            if GRAPHQL_NAO_PRIVADA.search(texto):
+                return True
+            return bool(GRAPHQL_CRIA_REPO.search(texto)) and not GRAPHQL_PRIVADA.search(texto)
+        cria = bool(API_CRIA_REPO.fullmatch(endpoint))
+        if not cria and not API_DO_REPO.fullmatch(endpoint):
+            return False
+        textos, legivel = parecer.textos_do_gh_api(args, pasta)
+        if not legivel:
+            return True
+        # `campo=@arq`: o texto do arquivo vem logo antes do argumento; junto, vira o `campo=<valor>` que o gh envia
+        textos += [f"{a.split('=@', 1)[0]}={textos[i - 1].strip()}" for i, a in enumerate(textos) if i and "=@" in a]
+        return any(map(VISIBILIDADE_PUBLICA.search, textos)) or cria and not any(map(VISIBILIDADE_PRIVADA.search, textos))
 
     @staticmethod
     def input_publica(args, pasta):

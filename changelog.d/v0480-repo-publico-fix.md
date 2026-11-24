@@ -1,0 +1,3 @@
+### Corrigido
+- conformidade: `gh repo create` recusa `--public` em toda forma (`--source`, `--push`, `--clone`, `--template`) e a criação sem `--private` nem `--internal` (R-CONFORMIDADE, CONFORMIDADE-REPO-CREATE-PUBLICO, A1 de v0480-repo-publico-diag)
+- conformidade: `gh api` que cria repositório (`user/repos`, `orgs/<org>/repos`, `repos/<o>/<r>/generate`) exige `private=true` ou `visibility=private|internal`; criar ou editar o repositório recusa o público lido de `campo=@arquivo` e falha fechado no valor por variável; no GraphQL, em `createRepository`, `cloneTemplateRepository` e `updateRepository`, a `visibility` que não é `PRIVATE` ou `INTERNAL` literal (`$v`) recusa, e criar exige uma delas (A2)

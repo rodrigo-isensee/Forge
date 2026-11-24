@@ -3067,6 +3067,13 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote), 40, "as fixtures do item")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_do_repo_publico(self):  # CONFORMIDADE-REPO-CREATE-PUBLICO (v0478 E141.2): A1 e A2, para a mutação
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("CONFORMIDADE-REPO-CREATE-PUBLICO")]
+        self.assertGreaterEqual(len(lote), 22, "as fixtures do item")
+        self.assertEqual({f.dados["esperado"]["codigo"] for _, f in lote}, {0, 2}, "o lote tem os dois lados")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_do_desenho(self):  # E5-0 (Q-B, PAR-P2): as pastas de arquitetura têm dono doc/aq no hook
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("E5-0")]
         self.assertGreaterEqual(len(lote), 16, "as fixtures do item")
