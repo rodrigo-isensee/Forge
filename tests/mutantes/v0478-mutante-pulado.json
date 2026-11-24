@@ -66,8 +66,8 @@
    "id": "P6",
    "guarda": "sem veredito sai 2, nunca 0",
    "arquivo": "bin/forge-mutante",
-   "de": "{linha} · {motivo}\", 2, True",
-   "para": "{linha} · {motivo}\", 0, True",
+   "de": "{onde} · {motivo}\", 2, True",
+   "para": "{onde} · {motivo}\", 0, True",
    "testes": [
     "tests.test_forge_mutante.Execucao.test_teste_pulado_sai_2_sem_veredito_e_o_sobrevivente_segue_1"
    ]

@@ -2774,7 +2774,7 @@ def texto_da_acao(hook, bruto):
 
 def marcado(hook, critico, bruto):
     """O texto da ação tem o marcador crítico? Calculado uma vez e guardado em `hook.marcado`: é o primeiro passo da
-    decisão, sob o vigia de prazo, e o prazo vencido só recusa com o marcador (`prazo_vencido`)."""
+    decisão, sob o vigia de prazo; o prazo vencido recusa com ou sem ele (`prazo_vencido`, VIGIA-PRAZO-TRAVA)."""
     if hook.marcado is None:
         try:
             texto = texto_da_acao(hook, bruto)  # HOOK-CONTINUACAO-LINHA: também a forma juntada
@@ -2814,9 +2814,9 @@ def barrar_sem_versao(hook, critico, bruto):
 
 # O vigia de prazo (bloco T da revalidação 10): o Claude Code mata o hook aos 10 s (`timeout` de hooks.json) e libera a
 # ação, então a decisão de um hook que recusa tem de vir antes. Um alarme do processo (`signal.setitimer`, na thread
-# principal) interrompe qualquer passo lento, de hoje ou futuro, inclusive a busca do `re`; com o marcador crítico na
-# chamada, o prazo vencido recusa, e sem o marcador nada muda. Não existe no Windows nativo (sem `SIGALRM`): lá a decisão
-# fica com os tetos de custo (`excede_o_teto` e o de `DonosDosHeredocs.montar`), sem outro prazo.
+# principal) interrompe qualquer passo lento, de hoje ou futuro, inclusive a busca do `re`; o prazo vencido recusa toda
+# linha que chegou à trava, com ou sem o marcador crítico (VIGIA-PRAZO-TRAVA). Não existe no Windows nativo (sem
+# `SIGALRM`): lá a decisão fica com os tetos de custo (`excede_o_teto` e o de `DonosDosHeredocs.montar`), sem outro prazo.
 PRAZO_DA_DECISAO_S = 3.0
 # O `gh pr merge` decide pelo `forge-check pr` (cerca de 2 s; mais com a máquina carregada): com 3 s ele caía no prazo com
 # o git respondendo rápido. A linha com `gh pr merge` ganha este prazo, abaixo do `timeout` do parecer no hooks.json (10 s)
@@ -2851,17 +2851,17 @@ def vigia_de_prazo(segundos, armar):
 
 
 def prazo_vencido(hook, critico, bruto, clone_do_forge, regra):
-    """O vigia venceu: com o marcador crítico (e `marcado` ainda desconhecido vale como marcado: a busca do próprio
-    marcador passou do prazo) ou com corpo de heredoc ainda por conferir (C-4: o último corpo é o que ninguém leu),
-    numa sessão vigiada e antes da ferramenta, recusa pela `regra` do hook; senão, libera, com a linha no erros.log.
-    Roda fora do vigia, e não refaz a busca do marcador."""
+    """O vigia venceu: numa sessão vigiada e antes da ferramenta, recusa pela `regra` do hook; senão, libera. Nos dois
+    casos, a linha no erros.log. VIGIA-PRAZO-TRAVA (decisão do dono, 24/11): toda linha que chega a uma trava que pode
+    recusar conta como crítica, com ou sem o marcador; o `marcado` só escolhe o texto (sem ele e com corpo de heredoc
+    por conferir, C-4, cita os corpos). Roda fora do vigia, e não refaz a busca do marcador."""
     prazo = hook.prazo_s or PRAZO_DA_DECISAO_S
     hook.registrar_erro(Aviso(f"prazo de {prazo:g} s da decisão vencido"))
-    if (critico is None or hook.entrada.get("hook_event_name") == "PostToolUse" or (hook.marcado is False and not hook.corpos_pendentes)
-            or not sessao_vigiada(hook, clone_do_forge)):
+    if critico is None or hook.entrada.get("hook_event_name") == "PostToolUse" or not sessao_vigiada(hook, clone_do_forge):
         return
-    quem, como = (("a chamada com ação crítica", hook.contorno_do_prazo or CONTORNO_DO_TETO) if hook.marcado is not False else
-                  (f"{hook.corpos_pendentes} corpo(s) de heredoc", "separe o comando em chamadas menores"))
+    quem, como = ((f"{hook.corpos_pendentes} corpo(s) de heredoc", "separe o comando em chamadas menores")
+                  if hook.marcado is False and hook.corpos_pendentes else
+                  ("a chamada com ação crítica", hook.contorno_do_prazo or CONTORNO_DO_TETO))
     bloquear(regra, f"o hook não decidiu em {prazo:g} s {quem} (texto longo ou lento demais, ou um `git` "
                     f"lento): recusa, em vez de deixar o timeout liberá-la. Corrigir: {como}")
 

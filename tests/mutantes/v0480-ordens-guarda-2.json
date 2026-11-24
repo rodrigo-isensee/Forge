@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-ordens-guarda",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M30",
+      "guarda": "CONFORMIDADE: a pasta das ordens do projeto é só do jarvis no mapa de donos (A4 da segurança E123.12)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "{\"caminho\": \".forge/ordens/\", \"quem\": [\"jarvis\"]",
+      "para": "{\"caminho\": \".forge/ordens/ordens-em-vigor.md\", \"quem\": [\"jarvis\"]",
+      "testes": [
+        "tests.test_hooks.GuardaDasOrdens.test_conformidade_recusa_curinga_no_nome_das_ordens_do_projeto"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "CONFORMIDADE: a pasta das ordens casa também relativa à cópia principal (A4 da segurança E123.12)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "PELA_COPIA_PRINCIPAL = (\".forge/ordens/\",)",
+      "para": "PELA_COPIA_PRINCIPAL = (\".forge/ordens/ordens-em-vigor.md\",)",
+      "testes": [
+        "tests.test_hooks.GuardaDasOrdens.test_conformidade_recusa_curinga_no_nome_das_ordens_do_projeto"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "CONFORMIDADE: entrada de caminhos que não é objeto invalida a política (E123.19, sem a função por campo)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if not isinstance(e, dict):\n        return False\n    caminho, motivo, quem =",
+      "para": "    if False:\n        return False\n    caminho, motivo, quem =",
+      "testes": [
+        "tests.test_hooks.Hooks.test_politica_de_conformidade_malformada_bloqueia"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "CONFORMIDADE: caminho vazio invalida a política (E123.19)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return (isinstance(caminho, str) and caminho != \"\"\n",
+      "para": "    return (isinstance(caminho, str)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_politica_de_conformidade_malformada_bloqueia"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "CONFORMIDADE: motivo vazio invalida a política (E123.19)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            and isinstance(motivo, str) and motivo != \"\"\n",
+      "para": "            and isinstance(motivo, str)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_politica_de_conformidade_malformada_bloqueia"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "CONFORMIDADE: quem com item que não é texto invalida a política (E123.19)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            and isinstance(quem, list) and all(isinstance(q, str) for q in quem)\n",
+      "para": "            and isinstance(quem, list)\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_politica_de_conformidade_malformada_bloqueia"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "CONFORMIDADE: so_forge que não é booleano invalida a política (E123.19)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            and isinstance(e.get(\"so_forge\", False), bool)\n            and (\"branch\" not in e",
+      "para": "            and True\n            and (\"branch\" not in e",
+      "testes": [
+        "tests.test_hooks.Hooks.test_politica_de_conformidade_malformada_bloqueia"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "CONFORMIDADE: branch vazia invalida a política (E123.19)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            and (\"branch\" not in e or isinstance(e[\"branch\"], str) and e[\"branch\"] != \"\"))\n",
+      "para": "            and (\"branch\" not in e or isinstance(e[\"branch\"], str)))\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_politica_de_conformidade_malformada_bloqueia"
+      ]
+    }
+  ]
+}

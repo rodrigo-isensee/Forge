@@ -2,7 +2,7 @@
 # Forge: fecha uma entrega na branch de integração com os passos mecânicos do integrador (TA-5, R-FLUXO, R-CONTRIB).
 # Uso: forge-fechar <pedido> --ref <branch> [--base origin/develop] [--titulo T] [--origem T] [--muda T]
 #                  [--medir RUN|ARQUIVO] [--espera SEGUNDOS] [--esperar-rotulo] [--limpar] [--sem-limpar] [--dry-run]
-#                  [--cartao ID ...] [--quadro PASTA]
+#                  [--cartao ID ...] [--quadro PASTA] [--principal PASTA]
 # Roda em ordem e para no primeiro erro: (1) forge-check pr; (1c) a árvore do sha conferido (base andou sem conflito: a do merge com ela) é promovível (scripts/promover-homolog.py
 # --conferir-ref, do diretório deste script; rc diferente de 0, prazo de 300 s ou script ausente param); (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto, também o rascunho do autor, um só e com o head conferido);
 # (2b) se a base andou desde o ponto de partida: com conflito real (`git merge-tree --write-tree`) ou falha de leitura, para e devolve ao agente; sem
@@ -19,7 +19,8 @@
 # efeito colateral). Rodado de dentro da worktree da própria branch, sai dela para a principal antes de remover. Só apaga a branch (local e remota) se o sha é o do PR mesclado ou já está na base; nunca usa a opção que força.
 # LIMPEZA-AO-FIM-DO-ITEM: --limpar sem PR MERGED nem aberto passa as cópias de $ref ao `forge-copia limpar` (PR fechado ou `vazio: sim`;
 # só limpas, sem stash e com tudo na origem; branch local e remota ficam); sai com 0 sem pendência, 3 com cópia que ficou.
-# Clones (MP6): o passo 7 também apaga os clones da branch em ~/.forge-contrib/wt (limpos, sem stash, tudo na origem, sha mesclado); campo `clone=`.
+# Clones (MP6): o passo 7 também apaga os clones da branch em ~/.forge-contrib/wt (limpos, sem stash, tudo na origem, sha mesclado ou ancestral
+# dele); campo `clone=`, sempre na linha `limpeza:` (`nenhum`: nenhum clone da branch).
 # FORGE-FECHAR-CLONE-LIMPAR: rodado num clone (ou na cópia principal) que está na própria branch, a árvore dela não é worktree ligada: o passo 7
 # não manda `git worktree remove` nem apaga a branch que ela usa ou a remota; limpa os outros clones e lista o resto como pendente (código 3),
 # com a leitura (commit sem merge) ou o caminho: clone em ~/.forge-contrib/wt, o --limpar de outra cópia (que o apaga só limpo e mesclado, e
@@ -46,6 +47,9 @@
 # `forge-check movimento ID --de <coluna atual> --para Pronto` no quadro de --quadro (padrão ~/.forge-contrib, o do Forge); a coluna atual é o
 # `Para` da última linha do cartão em docs/kanban/historico.md, senão a seção dele no KANBAN.md, senão `—`. Já em Pronto, nada grava;
 # o movimento que falha vira pendência (código 3) com o comando. ID fora de [A-Za-z0-9._-] ou quadro sem KANBAN.md param antes do passo 1.
+# --principal PASTA (FECHAR-BUSCA-PARECERES-CITADOS): antes do passo 1, os commits de `parecer conferido` do pedido que esta cópia não lê
+# vêm da origin pelo sha40 e depois desta cópia git (só leitura, sem ref nova); os que faltam em todas saem num aviso. Valor vazio e
+# --principal com --promover, --lote ou --limpar (que não buscam pareceres) são erro de uso.
 # --dry-run imprime cada passo (e avisa se o diff toca caminho que a catraca protege) e roda de verdade só o 1c (FECHAR-DRY-RUN-1C: o
 # --conferir-ref, só leitura, contra a origin/homolog local, sem busca; recusa para com código 1); não roda forge-check, git remoto nem gh.
 # Para teste, com FORGE_FECHAR_TESTE=1: FORGE_CHECK, FORGE_GH, FORGE_PROMOVER (substituem os comandos) e FORGE_FECHAR_INTERVALO
@@ -103,6 +107,7 @@ lote=0 item_de_lote=0 promover_sha="" espera_ci=3600 ci_falhou=0 ci_st="" ci_rui
 sha_1c="" arvore_1c=""  # FECHAR-1C-ANTES-DO-2B: o sha e o texto do 1c nascem vazios (nada herdado do ambiente)
 args_originais=("$@")  # H4: o recomeço da cadeia depois do merge da base (passo 2b) roda o mesmo comando com `--trazida`
 cartoes=() quadro="${HOME:-}/.forge-contrib" motivo_cartao="" cartao_pend=0  # FECHAR-MOVE-CARTAO
+copia_principal=""  # FECHAR-BUSCA-PARECERES-CITADOS
 while [ $# -gt 0 ]; do
   case "$1" in
     -h|--help) sed -n '2,/^set -euo pipefail$/{/^set -euo pipefail$/d;s/^# \{0,1\}//;p;}' "${BASH_SOURCE[0]}"; exit 0 ;;
@@ -117,6 +122,8 @@ while [ $# -gt 0 ]; do
     --armar) die "--armar recusado: o merge automático é proibido pelo dono (FECHAR-SEM-AUTO-MERGE, decisão de 21/11); o forge-fechar espera os checks obrigatórios verdes e mescla direto, preso ao head. Rode sem ele: forge-fechar <pedido> --ref <branch>" ;;
     --cartao) cartoes+=("${2-}"); shift 2 || die "--cartao pede o ID do cartão" ;;
     --quadro) quadro="${2-}"; shift 2 || die "--quadro pede a pasta do KANBAN.md" ;;
+    --principal) copia_principal="${2-}"; shift 2 || die "--principal pede a pasta de uma cópia git"
+      [ -n "$copia_principal" ] || die "--principal pede a pasta de uma cópia git (recebi o valor vazio)" ;;
     --limpar) limpar=1; shift ;;
     --sem-limpar) sem_limpar=1; shift ;;
     --dry-run) seco=1; shift ;;
@@ -132,7 +139,7 @@ done
 
 if [ "$lote" = 1 ]; then
   # Só os itens, --base, --espera, --espera-ci e --dry-run: o resto é de cada item, que o lote não repassa.
-  if [ -n "$ref$promover_sha$titulo$origem$muda$medir" ] || [ "$limpar$sem_limpar$esperar$item_de_lote" != 0000 ] || [ "${#cartoes[@]}" != 0 ]; then
+  if [ -n "$ref$promover_sha$titulo$origem$muda$medir$copia_principal" ] || [ "$limpar$sem_limpar$esperar$item_de_lote" != 0000 ] || [ "${#cartoes[@]}" != 0 ]; then
     die "--lote recebe só os itens <pedido>:<branch> e --base, --espera, --espera-ci ou --dry-run"
   fi
   { [ "${#posicionais[@]}" -ge 2 ] && [ "${#posicionais[@]}" -le 3 ]; } || die "--lote pede 2 ou 3 itens <pedido>:<branch> (diretriz 26); um item só vai sem --lote"
@@ -152,7 +159,7 @@ else
 fi
 [ -n "$pedido" ] || die "informe o pedido (forge-fechar <pedido> --ref <branch>)"
 if [ -n "$promover_sha" ]; then
-  if [ -n "$ref$titulo$origem$muda$medir" ] || [ "$limpar$sem_limpar$esperar$item_de_lote" != 0000 ] || [ "${#cartoes[@]}" != 0 ]; then
+  if [ -n "$copia_principal" ] || [ -n "$ref$titulo$origem$muda$medir" ] || [ "$limpar$sem_limpar$esperar$item_de_lote" != 0000 ] || [ "${#cartoes[@]}" != 0 ]; then
     die "--promover recebe só o pedido da release, o sha da marca e --espera, --espera-ci ou --dry-run"
   fi
   [[ "$promover_sha" =~ ^[0-9a-f]{40}$ ]] || die "--promover pede o sha de 40 hex do commit da marca (recebi: $promover_sha)"
@@ -164,12 +171,13 @@ fi
 [ "$lote" = 1 ] || [ -n "$ref" ] || die "informe --ref <branch>"
 if [ "$lote" = 1 ]; then ref="lote"; fi  # só para as checagens de nome abaixo
 [ "$limpar" = 0 ] || [ "$sem_limpar" = 0 ] || die "--limpar e --sem-limpar não combinam: um só roda a limpeza, o outro a pula"
+[ "$limpar" = 0 ] || [ -z "$copia_principal" ] || die "--principal não combina com --limpar: a busca dos pareceres é do passo 1, que o --limpar não roda"
 case "$ref" in main|master|develop|homolog) die "a branch da entrega não pode ser $ref (R-FLUXO, R-VERIFY)" ;; esac
 # Branch de integração do projeto: a primeira palavra entre crases na linha do CLAUDE.md da raiz que cita "integração"; sem a linha, só a lista fixa.
 raiz_proj=$(git rev-parse --show-toplevel 2>/dev/null || true)
 if [ -n "$raiz_proj" ] && [ -f "$raiz_proj/CLAUDE.md" ]; then
   # shellcheck disable=SC2016  # as crases são o padrão a procurar, não uma expansão
-  integracao=$(grep -i 'integra[cç][aã]o' "$raiz_proj/CLAUDE.md" 2>/dev/null | grep -o '`[^`]*`' | head -1 | tr -d '`' || true)
+  integracao=$(grep -iE 'integra(c|ç|Ç)(a|ã|Ã)o' "$raiz_proj/CLAUDE.md" 2>/dev/null | grep -o '`[^`]*`' | head -1 | tr -d '`' || true)
   [ -z "$integracao" ] || [ "$ref" != "$integracao" ] || die "a branch da entrega não pode ser $ref: é a branch de integração do CLAUDE.md (R-FLUXO, R-VERIFY)"
 fi
 git check-ref-format --branch "$ref" >/dev/null 2>&1 || die "--ref não é um nome de branch válido: $ref"
@@ -250,10 +258,16 @@ repetir() {
 # remoto_exato <branch> [prefixo...]: sha de refs/heads/<branch> no origin (vazio se não existe); falha se a leitura falha. O padrão do
 # `git ls-remote` casa pelo fim do nome (refs/heads/a/refs/heads/<branch> também sai): só vale a linha com a coluna 2 igual ao nome inteiro.
 # O prefixo (com_teto 10) roda na frente do git. A coluna 1 tem de ser um sha hexadecimal (40 ou 64 caracteres); linha que casa o nome com outra
-# coisa na coluna 1 é leitura que falhou (rc 1), nunca um valor que segue para os passos seguintes.
+# coisa na coluna 1 é leitura que falhou (rc 1), nunca um valor que segue para os passos seguintes. `remoto_exato --pontas` (origem_atual,
+# LIMPAR-CLONE-NAO-LISTADO) lê pela mesma chamada as pontas do origin: o sha de cada refs/heads/* e refs/tags/*, sem as descascadas (^{}).
 remoto_exato() {
   local nome="refs/heads/$1" saida_remota; shift
+  [ "$nome" != "refs/heads/--pontas" ] || nome="refs/*"
   saida_remota="$("$@" git ls-remote origin "$nome")" || return 1
+  if [ "$nome" = "refs/*" ]; then
+    printf '%s\n' "$saida_remota" | awk '$2 ~ /^refs\/(heads|tags)\// && $2 !~ /\^\{\}$/ { print $1 }'
+    return 0
+  fi
   printf '%s\n' "$saida_remota" | awk -v r="$nome" '$2 == r { if ((length($1) == 40 || length($1) == 64) && $1 ~ /^[0-9a-f]+$/) print $1; else ruim = 1; exit } END { exit ruim }'
 }
 # A linha que o teste do orçamento de heredocs imprime (tests/test_hooks.py, FORMATO_DO_ORCAMENTO); a mesma regex, em ERE.
@@ -568,14 +582,39 @@ podar_orfaos() {
   echo "registro: prune tirou $(grep -c '^Removing ' <<< "$prune_saida") registro(s) de worktree órfã"
   [ "$prune_rc" = 0 ] || echo "aviso: o prune saiu com código $prune_rc; a saída dele está no log: $log" >&2
 }
+# faltam: dos sha40 da entrada, os que esta cópia não lê. buscar_de <fonte> <sha>...: só por leitura (sem ref nova nem FETCH_HEAD), um fetch
+# com todos; se ele falha (um sha que a fonte não tem traz nada), as metades, e só a que falha se divide de novo (A1 do review E132.2: um sha
+# ausente entre 266 custa uns 16 fetches, não 267).
+faltam() { local s; while IFS= read -r s; do git cat-file -e "$s^{commit}" 2>/dev/null || echo "$s"; done; }
+buscar_de() {
+  local fonte="$1" meio; shift
+  [ "$#" -gt 0 ] || return 0  # sem sha, o fetch traria a refspec padrão
+  git fetch -q --no-tags --no-write-fetch-head --no-auto-maintenance "$fonte" "$@" >/dev/null 2>&1 && return 0
+  [ "$#" -gt 1 ] || return 0  # o sha sozinho que falhou: a fonte não o tem
+  meio=$(( $# / 2 ))
+  buscar_de "$fonte" "${@:1:meio}"
+  buscar_de "$fonte" "${@:meio+1}"
+}
 # limpar_clones (MP6): as cópias que são clones (o `.git` delas é pasta, não arquivo de worktree) em ~/.forge-contrib/wt, na branch $ref e com o
 # mesmo origin, saem só limpas (sem mudança, arquivo novo nem stash), sem worktree ligada (o rm levaria o repositório dela), sem commit fora das
-# refs do origin (`--all`: branch, tag, stash, nota) e com o sha mesclado; as outras ficam pendentes, com leitura no lugar de comando que apaga. As refs
-# remotas são as locais do clone, sem fetch: a de uma branch já apagada no origin ainda conta como "na origem". O git do clone roda sem
-# fsmonitor e sem trava opcional (o .git/config dele é gravável no sandbox; como o forge-adotar, C-46-2). Define `copia_st` (vazio: nenhum
-# clone da branch) e acrescenta a `pend_cmds`.
+# refs do origin (`--all`: branch, tag, stash, nota) e com o sha mesclado ou um ancestral dele; as outras ficam pendentes, com leitura no lugar de
+# comando que apaga. LIMPAR-CLONE-NAO-LISTADO (v0478 E132.6): o commit que as refs remotas do clone não cobrem (elas podem estar velhas, E128.2)
+# vale como "na origem" se as pontas lidas agora da origin (ls-remote) o alcançam; a busca é desta cópia, só por leitura (buscar_de), e o clone
+# não roda fetch (o .git/config dele poria comando no fetch). A ref remota de uma branch já apagada no origin ainda conta como "na origem". O git
+# do clone roda sem fsmonitor e sem trava opcional (o .git/config dele é gravável no sandbox; como o forge-adotar, C-46-2). Define `copia_st`
+# (`nenhum`: nenhum clone da branch) e acrescenta a `pend_cmds`.
+origem_atual() {  # define `pontas` (vazio se a leitura falha: o commit fora das refs do clone fica fora da origem) e busca o que falta delas e dos mesclados
+  local -a sem_busca
+  pontas="$(remoto_exato --pontas 2>/dev/null | sort -u)" || pontas=""
+  # shellcheck disable=SC2086  # uma ponta ou um sha por palavra
+  mapfile -t sem_busca < <(printf '%s\n' $pontas $merged_heads | grep -E '^[0-9a-f]{40}$' | sort -u | faltam)
+  buscar_de origin "${sem_busca[@]}"
+}
+# url_normal <url> (FECHAR-LIMPAR-URL-GIT, v0478 E166.1): a URL sem a barra final e depois sem o `.git` final, para `x`, `x/`, `x.git` e `x.git/`
+# casarem (o clone feito com outro formato da mesma origin não fica de fora da limpeza).
+url_normal() { local u="${1%/}"; printf '%s' "${u%.git}"; }
 limpar_clones() {
-  local d url_aqui url_dela sha_dela comum
+  local d url_aqui url_dela sha_dela comum fora h ancestral pontas="" lida=0
   local -a g
   copia_st=""
   url_aqui="$(git remote get-url origin 2>/dev/null || true)"
@@ -587,11 +626,26 @@ limpar_clones() {
     g=(git --no-optional-locks -c core.fsmonitor= -C "$d")
     [ "$("${g[@]}" symbolic-ref -q HEAD 2>/dev/null || true)" = "refs/heads/$ref" ] || continue
     url_dela="$("${g[@]}" remote get-url origin 2>/dev/null || true)"
-    if [ -z "$url_aqui" ] || [ "$url_dela" != "$url_aqui" ]; then continue; fi
+    if [ -z "$url_aqui" ] || [ "$(url_normal "$url_dela")" != "$(url_normal "$url_aqui")" ]; then
+      # o clone da branch com outro origin fica pendente, nunca em silêncio; a URL não sai na tela (pode levar credencial)
+      echo "aviso: o clone $d está na branch $ref, mas o origin dele não é o desta cópia; não o apaguei." >&2
+      copia_st=pendente
+      pend_cmds="$pend_cmds
+# confira o origin; só apague depois de decidir
+git -C $(printf '%q' "$d") remote -v"
+      continue
+    fi
     sha_dela="$("${g[@]}" rev-parse -q --verify HEAD || true)"
+    [ "$lida" = 1 ] || { origem_atual; lida=1; }
+    fora="$("${g[@]}" rev-list --all --not --remotes 2>/dev/null || echo erro)"
+    # o que as pontas de agora não alcançam; commit que esta cópia não lê (só do clone) faz o rev-list falhar: fica
+    # shellcheck disable=SC2086  # uma ponta por palavra
+    [ -z "$fora" ] || [ "$fora" = erro ] || fora="$({ printf '%s\n' $fora; printf '^%s\n' $pontas; } | git rev-list --stdin 2>/dev/null || echo erro)"
+    ancestral=1
+    for h in $merged_heads; do git merge-base --is-ancestor "$sha_dela" "$h" 2>/dev/null && ancestral=0; done
     if [ "$("${g[@]}" worktree list --porcelain 2>/dev/null | grep -c '^worktree ' || true)" != 1 ] \
       || [ -n "$("${g[@]}" status --porcelain 2>/dev/null || echo erro)" ] \
-      || [ -n "$("${g[@]}" rev-list --all --not --remotes 2>/dev/null || echo erro)" ] || ! sha_confere "$sha_dela"; then
+      || [ -n "$fora" ] || { [ "$ancestral" = 1 ] && ! sha_confere "$sha_dela"; }; then
       echo "aviso: o clone $d da branch $ref tem trabalho fora da origem ou worktree ligada (mudança, stash, commit não enviado ou não mesclado); não o apaguei." >&2
       copia_st=pendente
       pend_cmds="$pend_cmds
@@ -785,7 +839,7 @@ $rem_leitura"
   else pend_cmds="$pend_cmds
 git push origin --delete $(printf '%q' "refs/heads/$ref")"
   fi
-  echo "limpeza: remota=$rem_st worktree=$arv_st branch=$br_st${copia_st:+ clone=$copia_st}"
+  echo "limpeza: remota=$rem_st worktree=$arv_st branch=$br_st clone=${copia_st:-nenhum}"
   if [ -n "$pend_cmds" ]; then
     pendencia=1
     printf 'pendente, rode:%s\n' "$pend_cmds"
@@ -1410,6 +1464,31 @@ if [ -n "$arvore_lock" ] && [ -d "$arvore_lock" ]; then  # pasta já apagada (re
     die "parou antes do passo 1: há um lock do git na worktree de $ref: $pasta_git/index.lock (idade: $idade_lock). Nada foi apagado. Confira que nenhum git está rodando nela e, só então, rode: rm $(printf '%q' "$pasta_git/index.lock")"
   fi
 fi
+
+# FECHAR-BUSCA-PARECERES-CITADOS (v0478 E132.1): os commits de `parecer conferido <sha40>` do `## Histórico` do pedido (o de
+# ~/.forge-contrib, senão o da cópia principal deste repositório) que esta cópia não lê vêm só por leitura, sem ref nova nem FETCH_HEAD:
+# da origin pelo sha40, depois da cópia --principal (branch do parecer já apagada na origin). Os que faltam em todas viram aviso; o
+# veredito segue do forge-check pr (VOLTAS-REVISOR-WT).
+buscar_pareceres_citados() {
+  local d fonte falta=() fontes=(origin)
+  if [ -n "$copia_principal" ]; then
+    copia_principal="$(cd "$copia_principal" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)" \
+      || die "parou antes do passo 1: --principal pede a pasta de uma cópia git (nada foi aberto nem buscado)"
+    fontes+=("$copia_principal")
+  fi
+  for d in "${HOME:-}/.forge-contrib" "$(git rev-parse --path-format=absolute --git-common-dir)/.."; do
+    [ -f "$d/docs/pedidos/$pedido.md" ] || continue
+    mapfile -t falta < <(awk '/^##+[[:space:]]/{h = ($0 ~ /^##+[[:space:]]+Histórico[[:space:]]*$/)} h' "$d/docs/pedidos/$pedido.md" \
+      | sed -nE 's/^[[:space:]]*-[[:space:]](.*[^[:alnum:]_])?parecer conferido ([0-9a-f]{40})([^[:alnum:]_].*)?$/\2/p' | sort -u | faltam)
+    break
+  done
+  for fonte in "${fontes[@]}"; do
+    buscar_de "$fonte" "${falta[@]}"
+    mapfile -t falta < <(printf '%s\n' "${falta[@]}" | sed '/^$/d' | faltam)
+  done
+  [ "${#falta[@]}" = 0 ] || echo "aviso: parecer conferido do pedido sem commit aqui nem em ${fontes[*]}: ${falta[*]}" >&2
+}
+buscar_pareceres_citados
 
 passo 1 "pareceres: $check pr $pedido --ref $ref_check --base $base"
 # GH-VERSAO-MINIMA: o gh antigo (2.45 do apt do Ubuntu) não tem `gh pr checks --json`, e a espera do passo 4 dependeria dele; para aqui, antes de

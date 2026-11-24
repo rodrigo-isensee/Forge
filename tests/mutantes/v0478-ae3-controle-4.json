@@ -1,0 +1,46 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CTL22",
+      "guarda": "AE3.1 _salvar_travado: commit que falha",
+      "arquivo": "bin/forge_controle.py",
+      "de": "\"--only\", \"--\", *nomes)\n    if cod != 0:",
+      "para": "\"--only\", \"--\", *nomes)\n    if False:",
+      "testes": [
+        "tests.test_forge_controle.Falhas.test_commit_que_falha_e_erro"
+      ]
+    },
+    {
+      "id": "CTL23",
+      "guarda": "AE3.1 _git: na falha, a mensagem vem do stderr",
+      "arquivo": "bin/forge_controle.py",
+      "de": "(r.stdout if r.returncode == 0 else r.stderr)",
+      "para": "(r.stdout if True else r.stderr)",
+      "testes": [
+        "tests.test_forge_controle.Falhas.test_falha_do_git_traz_a_mensagem_de_erro"
+      ]
+    },
+    {
+      "id": "CTL24",
+      "guarda": "AE3.1 _hook_ativo: sem pasta de hooks",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    if hooks.is_dir():",
+      "para": "    if True:",
+      "testes": [
+        "tests.test_forge_controle.Ambiente.test_sem_pasta_de_hooks_salva"
+      ]
+    },
+    {
+      "id": "CTL25",
+      "guarda": "AE3.1 _mudados: item vazio do -z não vira caminho",
+      "arquivo": "bin/forge_controle.py",
+      "de": "if len(item) > 3}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_forge_controle.Salvar.test_so_os_caminhos_da_lista_entram_com_a_mensagem_fixa"
+      ]
+    }
+  ]
+}

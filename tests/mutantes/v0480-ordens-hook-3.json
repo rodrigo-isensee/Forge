@@ -1,0 +1,46 @@
+{
+  "pedido": "v0480-ordens-hook",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "ORDENS: só a pasta comum `.git` dá a cópia principal; repositório nu ou `.git` que não se resolve, nenhuma fonte (A2 da segurança E123.3)",
+      "arquivo": "hooks/ordens.py",
+      "de": "if comum is None or comum.name != \".git\":",
+      "para": "if comum is None:",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_worktree_de_repositorio_nu_cala"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "ORDENS: no projeto, a fonte é a cópia principal, nunca a worktree (A2 da segurança E123.3)",
+      "arquivo": "hooks/ordens.py",
+      "de": "return [(comum.parent / NO_PROJETO, comum.parent, NO_PROJETO)]",
+      "para": "return [(Path(os.path.realpath(raiz)) / NO_PROJETO, Path(os.path.realpath(raiz)), NO_PROJETO)]",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_na_worktree_le_so_a_copia_principal"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "ORDENS: no Forge, a base é docs/ordens/ (a pasta trocada por link sai da base; A1 da segurança E123.3)",
+      "arquivo": "hooks/ordens.py",
+      "de": "base = Path(os.path.realpath(contrib())) / Path(NO_FORGE).parent",
+      "para": "base = Path(os.path.realpath(contrib()))",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_no_forge_a_pasta_das_ordens_por_link_sai_da_base"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "ORDENS: cada sequência de controle vira um espaço só (A3 do review E123.4)",
+      "arquivo": "hooks/ordens.py",
+      "de": "\" \" if controle else \"\".join(g)",
+      "para": "\" \" if not controle else \"\".join(g)",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_sequencia_de_controles_vira_um_espaco_so"
+      ]
+    }
+  ]
+}

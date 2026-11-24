@@ -605,7 +605,8 @@ class HookDoutor(Base):
         for evento in ("SessionStart", "Stop"):
             comandos = {h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"][evento] for h in g["hooks"]}
             self.assertIn("doutor.py", comandos, evento)
-        self.assertNotIn("UserPromptSubmit", d["hooks"], "o stdout dele viraria contexto (ADR 0003)")
+        no_prompt = [h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"].get("UserPromptSubmit", []) for h in g["hooks"]]
+        self.assertEqual(no_prompt, ["ordens.py"], "o stdout dele viraria contexto: só o ordens (emenda \"ordens em vigor\" da ADR 0003)")
 
 
 class SempreAtualNoStop(Base):

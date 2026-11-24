@@ -174,9 +174,11 @@
    "cartao": "RELEASE-EM-1H"
   },
   "28": {
-   "onde": "pendente",
+   "onde": "fabrica",
    "resumo": "sessão sempre no modo automático e com o sandbox conferido",
-   "cartao": "SESSAO-AUTOMATICA"
+   "trechos": [
+    "Sandbox \\(diretriz 28\\): confira-o no primeiro comando; se falhar, pare e dê ao dono o comando para reabrir"
+   ]
   },
   "29": {
    "onde": "fabrica",

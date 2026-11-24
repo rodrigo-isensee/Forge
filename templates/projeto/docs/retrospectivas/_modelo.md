@@ -6,7 +6,7 @@ Autor: agile-coach, etapa <Ex.y>, AAAA-MM-DD. Janela: <início> a <fim>. Marcas 
 <!-- Cobre: as versões (tags vX.Y.Z da main) que esta retro cobre; uma retro de pedido pode cobrir várias. `forge-check retro --pendentes --agora <hora ISO>` lista a tag com mais de 24 h sem retro que a cubra. Não cobre: versão que não é tag da main (sai `aviso:`) e retro com uma das quatro seções abaixo sem corpo (comentário HTML não conta). Nome do arquivo: `AAAA-MM-DD-<pedido>.md`; o `_` deste modelo o deixa fora da contagem. -->
 
 ## 1. Dados do pedido
-<!-- Lead time, cycle time, vazão, retrabalho, bloqueios e as quatro métricas DORA, lendo velocidade e estabilidade juntas (skill `kanban-metricas`). -->
+<!-- Lead time, cycle time, vazão, retrabalho, bloqueios e as quatro métricas DORA, lendo velocidade e estabilidade juntas (skill `kanban-metricas`). Mais a tabela pedido × não entregue: pedido parado (aberto, sem movimento no quadro há 7 dias ou mais) e discovery sem código, com a idade e a marca de `R-DECISAO`; sem nenhum, uma linha `nenhum`. -->
 
 ## 2. O que funcionou
 <!-- Fatos, com a fonte. -->

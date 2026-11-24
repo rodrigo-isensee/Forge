@@ -1,0 +1,13 @@
+{
+  "descricao": "Projeto sem .forge/ordens/ordens-em-vigor.md: silêncio, saída 0 e nada gravado (custo zero de contexto).",
+  "entrada": {
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "prompt": "siga"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

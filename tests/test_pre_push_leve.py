@@ -6,7 +6,7 @@ Cada teste roda o hook de verdade num repositório descartável cujo teste, se r
 defeito: o envio voltar a rodar teste local (marca presente, trava criada) ou o bloqueio sumir junto com os testes.
 Variantes: teste quebrado e envio verde (nada roda), trava ausente, linha de duração `plano=leve`, sintaxe quebrada barra,
 branch protegida barra (main, homolog, develop), segredo no delta barra, envio não fast-forward barra, opt-in `afetados`
-ainda roda, valor inválido do opt-in recusado.
+ainda roda, valor inválido do opt-in recusado, suíte inteira (opt-in `1`) com processo morto por sinal sem prova.
 """
 import os
 import shutil
@@ -138,6 +138,20 @@ class EnvioLeve(unittest.TestCase):
         self.assertTrue((self.repo / "rodou").exists(), "o --suite à mão não é envio: roda a suíte")
         self.assertEqual(r.returncode, 1, r.stderr)  # o teste falha de propósito
         self.assertNotIn("envio leve", r.stderr)
+
+    def test_suite_inteira_com_processo_morto_nao_anota_prova_nem_carimbo(self):  # E137.4: o OOM killer no opt-in `1`
+        shutil.copy(RAIZ / "scripts" / "suite-paralela.py", self.repo / "scripts" / "suite-paralela.py")
+        for apoio in ("guarda_git.py", "ambiente_git.py"):  # apoios que a suíte paralela importa
+            shutil.copy(RAIZ / "tests" / apoio, self.repo / "tests" / apoio)
+        morto = "import os, signal, unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        os.kill(os.getpid(), signal.SIGKILL)\n"
+        self.commit("suite com teste que morre", **{"tests/test_a.py": morto})
+        codigo, _, erro = self.roda(FORGE_PREPUSH_SUITE="1")
+        self.assertEqual(codigo, 1, erro)
+        self.assertIn("morto pelo sinal 9", erro)
+        self.assertIn("testes do Forge falharam", erro)
+        self.assertNotIn("envio leve", erro)
+        self.assertEqual(list(self.run_dir.rglob("*.verde")), [], "suíte morta anotou a prova de árvore verde")
+        self.assertFalse((self.repo / ".git" / "forge-suite-verde").exists(), "suíte morta gravou o carimbo K6")
 
     def test_valor_invalido_do_opt_in_e_recusado(self):
         codigo, rodou, erro = self.roda(FORGE_PREPUSH_SUITE="sim")

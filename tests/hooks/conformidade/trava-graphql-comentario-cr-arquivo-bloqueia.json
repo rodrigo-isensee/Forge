@@ -1,0 +1,25 @@
+{
+  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (E141.11, S2 do review): CR na consulta falha fechado; isca em variável não usada.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "q2.graphql": "mutation{createRepository(input:{name:\"x\" #c\rvisibility:PUBLIC\n}){repository{id}}}"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api graphql -F query=@q2.graphql -f 'z[visibility]=PRIVATE'"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: tornar o repositório público"
+  }
+}

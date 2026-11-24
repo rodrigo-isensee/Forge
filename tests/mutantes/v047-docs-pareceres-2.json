@@ -26,8 +26,8 @@
       "id": "M11",
       "guarda": "v047 E1.252: pedido só conferido no estrito (pareceres antigos fora do delta passam)",
       "arquivo": "bin/forge-check",
-      "de": "        if estrito and (campos or {}).get(\"tipo\") in VALORES_DO_PARECER",
-      "para": "        if (campos or {}).get(\"tipo\") in VALORES_DO_PARECER",
+      "de": "        if estrito and (campos or {}).get(\"tipo\") in VALORES_DO_PARECER and (problema",
+      "para": "        if (campos or {}).get(\"tipo\") in VALORES_DO_PARECER and (problema",
       "testes": [
         "tests.test_forge.DocsPareceresPedidoECaminho.test_sem_arquivos_o_pedido_so_e_conferido_no_delta"
       ]
