@@ -3,32 +3,29 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-d2-portao-entrega
-commit: d64a506b4a01f13be0798ce2af2123cb3013a5bd
+commit: 5cac29190646ed60b36cfe8f704b948bc920ee69
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-24
 ---
-# Review de segurança: v0478 (E173.11, PR #864)
+# Review de segurança: v0478 (E173.24, PR #864, volta por delta)
 
-Escopo: diff `8a6f5907..d64a506b` (E173.2): `patches/d2-portao-entrega.patch` (patch do `.githooks/pre-push` para o dono aplicar), `tests/test_pre_push_d2.py`, `tests/pesos-d4.json` (peso) e o fragmento do changelog. O hook vivo não muda neste PR.
+Delta lido: `forge-check parecer delta` em `d64a506b..5cac2919` (E173.16). No domínio: `patches/d2-portao-entrega.patch` e `tests/test_pre_push_d2.py`; fora: o fragmento do changelog e `tests/mutantes/*.json`. Já lido e sem mudança: o resto do patch e a conclusão da rodada em `d64a506b` (no git). Achados anteriores: nenhum.
 
-## Gatilhos
 Gatilhos: hook de envio (portão local do pre-push, controle do Forge), chamada ao `gh` com corpo de PR vindo da rede
 
 ## Achados
-
-## Sondas
+- A1 (recomendado) patches/d2-portao-entrega.patch:50 · O comentário diz que a fronteira do `d2_so_avisa` é a do `so_parecer`, mas o filtro (`:59`) é mais largo: aceita docs/security/aceites/, docs/security/ameacas/, `_*` e apagar. Sem caminho de ataque (D2 não confere esses arquivos); alinhe o filtro às exclusões do so_parecer ou corrija o texto.
 
 ## Detalhe dos achados
-Conclusão por escrito: o patch **só aperta**; nenhuma checagem existente é afrouxada, e a falha aberta sem rede é avisada.
+Conclusão por escrito: em relação ao hook em vigor, o patch **só aperta** (o hook vivo não tem o PORTAO-D2); em relação à rodada anterior, o delta troca `falhas=1` por `d2_so_avisa || falhas=1` só nos dois blocos D2 (`:76`, `:88`), e o "só avisa" **não abre caminho para enviar outra coisa sem as checagens**:
 
-- **Só aperta.** O patch só acrescenta linhas: nenhuma linha `-` além do cabeçalho (`patches/d2-portao-entrega.patch:2`); 65 linhas `+`. Os dois blocos novos só levam `falhas=1` (`:63`, `:75`) ou aviso com saída 0; nada desliga, pula nem troca checagem anterior. A neutralidade segue barrando no hook remendado (`test_stack_no_nucleo_segue_barrando_no_remendado`). `git apply --check` no head: aplica limpo. Sem `--no-verify`, sem `--force`, sem teste local acrescentado (ENVIO-LEVE; `test_patch_nao_acrescenta_teste_local_ao_envio`).
-- **Falha aberta avisada.** Sem `gh`, sem rede, `gh` acima de 10 s ou resposta ilegível: `pr_da_branch` devolve motivo e o hook imprime `aviso: PR de <branch> não verificável (...)` e sai 0 (`patches/d2-portao-entrega.patch:30-33`; `test_sem_rede_avisa_e_segue`). Erro ao carregar `bin/forge-check`, `git diff --numstat` ilegível, `indice-forge.py` ou `pr-texto` com saída diferente de 0 e 1: aviso e saída 0 (`:20-26`, `:46-47`, `:64-65`). O CI do PR continua sendo o portão que vale (mesmo `pr-texto` e mesmo índice). Saídas sem aviso: sem `origin/develop` local ou `merge-base` falho (`:69`, `:74`), o mesmo padrão dos blocos vizinhos do hook (`.githooks/pre-push:280`, `:380`); sem efeito de segurança, porque o CI confere.
-- **Entrada da rede (corpo do PR).** O corpo vai ao `pr-texto` por variável de ambiente (`PR_BODY`), nunca por linha de comando nem pelo shell (`:40-41`); o `python3 -I` não lê o diretório corrente como caminho de módulo, e o `bin/` inserido é a árvore do próprio envio, já confiada pelo hook. O que volta ao terminal são textos fixos e caminhos do repositório (`tests/catraca.py:1693-1697` e o T1), não o corpo; a saída do índice passa por filtro de caracteres de controle (`:61`). Sem caminho de injeção.
-- **PR de outro dono com o mesmo nome de branch.** `gh pr view <branch>` com o nome sem `dono:` casa pelo rótulo da cabeça do PR (PR de fork leva o dono na frente; não provado nesta sessão sem rede), e o pior efeito de um PR casado por engano seria barrar o envio local do autor (aperta), nunca liberar; o CI confere o PR real. Sem caminho que afrouxe: sem achado.
-- **Execução de código da árvore.** O patch roda `bin/forge-check`, `bin/forge_tamanho.py`, `tests/catraca.py` e `scripts/indice-forge.py` do clone, com recusa de link simbólico nos três que o shell chama; é a mesma fronteira de confiança do hook atual (que já roda `scripts/verificar-contribuicao.sh` e `bin/forge-changelog` da árvore). Nenhuma fronteira nova.
-- **Disponibilidade.** O `gh` tem teto de 10 s (`TETO_DO_GH_S`) e `stdin` fechado; o `pr-texto` não chama rede no modo `pr-texto`.
-- **Testes dos arquivos tocados:** `python3 -m unittest tests.test_pre_push_d2` no head d64a506b: 15 testes, OK (13,2 s). Suíte inteira: só no CI do PR #864 (não conferível daqui: o `gh` não tem credencial no sandbox).
+- **Só o D2 é afrouxado.** Nenhuma outra checagem do hook passa a consultar o `d2_so_avisa`; neutralidade, não fast-forward (R-VERIFY, `.githooks/pre-push:144`), changelog e as demais barram igual.
+- **Todo ref é conferido.** O laço percorre todos os `envios` (`:55`), não só o do HEAD: um envio de duas refs, uma só de parecer e outra com código, barra. Remoção de ref não entra em `envios` (`.githooks/pre-push:142`) e não tem o que o D2 confira.
+- **Falha fechada.** Ref nova (remoto zero), sha remoto desconhecido ou `git diff` com erro dão delta vazio; a linha vazia casa o `grep -v` e barra (`:57-59`; `test_ref_nova_ou_sha_remoto_desconhecido_barra`). Nome com caractere de controle sai entre aspas pelo git e também barra. O delta é sobre ancestral provado (o hook já recusa o não fast-forward), então o que vai é só o diff de árvore lido.
+- **O que o D2 deixa de barrar já está no remoto.** Índice, teto e corpo do PR medem a branch (código já enviado e revisado); um delta só em `docs/{reviews,qa,security,devops}/` não muda `bin/`, `hooks/` nem `scripts/` (`scripts/indice-forge.py:21`) nem o corpo do PR. O CI do PR segue o portão que vale.
+- **A1, fronteira.** Sonda local: um envio só de `docs/security/aceites/x.md`, `docs/security/ameacas/x.md` ou `docs/qa/_modelo.md` sobre o PR com teto estourado sai 0 com o aviso. Não é caminho de ataque: o D2 nunca conferiu esses arquivos, que continuam sob o hook `conformidade`, o `forge-check docs` e o CI; é só divergência entre o comentário e o filtro.
+- **Testes dos arquivos tocados:** `python3 -m unittest tests.test_pre_push_d2` no head 5cac2919: 22 testes, OK (28,1 s); `git apply --check` do patch: aplica limpo. Suíte inteira: só no CI do PR #864 (não conferível daqui: o `gh` não tem credencial no sandbox).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura estática, `git apply --check`, testes do arquivo tocado; segredo não se aplica (sem credencial no diff). Lacuna: o analisador de shell e os varredores de segredo e de workflow não estão no PATH deste ambiente (o CI roda o analisador de shell).
+Nenhum risco aceito. Ferramentas: leitura estática do delta, `git apply --check`, testes do arquivo tocado e uma sonda local (subclasse do `SoParecer` em arquivo do scratchpad, entradas `docs/security/aceites/x.md`, `docs/security/ameacas/x.md`, `docs/qa/_modelo.md`; obtido: saída 0 com o aviso nas três). Lacuna: analisador de shell e varredores de segredo e de workflow fora do PATH (o CI roda o analisador de shell).
