@@ -3,40 +3,55 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-graphql-ilegivel
-commit: 433c3782d067b58ac85f481f6bd13c085f9704e7
-parecer: aprovado
-escopo: completo
+commit: 7afc147aec89b1efe69e77e63f9e0cc303c42f53
+parecer: reprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-24
 ---
-# QA: v0478 · E168.3 (PR #854, consulta GraphQL que o hook não lê)
+# QA: v0478 · E168.7 (PR #854, delta 433c3782..7afc147a)
 
-Obrigação testada: E168.1 (`GRAPHQL-CONSULTA-EM-VARIAVEL`, `R-CONFORMIDADE`). `gh api graphql` com consulta que o hook não lê recusa em todo papel, também na sessão do Forge; a consulta literal e o valor entre aspas de outro campo ou opção seguem livres.
+Obrigação testada: E168.5 (A1, A2 e A3 da segurança do #854): `gh` com opção antes do subcomando, entrada padrão por caminho e arquivo que não é regular, curinga fora de aspas num `gh api graphql` (`R-CONFORMIDADE`, `R-MAIN`). O parecer anterior (433c3782, aprovado) segue valendo para o que o delta não tocou.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| E168.1 expansão fora de aspas (`$Q`, `$(…)`, crase) em qualquer argumento recusa | fixtures `trava-graphql-consulta-variavel-nua`, `-valor-nu`, `-substituicao`, `-crase`, `-argumento-solto` (via `test_fixtures_do_repo_publico`) | palavra dividida pelo bash | passou |
-| E168.1 entre aspas duplas: recusa no campo `query`, no nome de campo e no endpoint | `-variavel-aspas`, `-chave-variavel`, `-endpoint-crase` | chave `query` em qualquer caixa, chave com expansão | passou |
-| E168.1 também na sessão do Forge | `-sessao-do-forge-bloqueia` | papel/sessão | passou |
-| E168.1 consulta literal e valor entre aspas de outro campo ou opção liberam | `-aspas-duplas-libera`, `-cabecalho-libera`, `-escape-libera`, `-formas-libera`, `-mutacao-legivel-libera`, `-sessao-do-forge-libera`, `trava-gh-leitura-graphql-variavel-libera` (ajustada) | `\$` escapado, aspas simples, `-H`, `--jq`, `-F n="$N"` | passou |
-| Orçamento de CPU do hook não piora | `test_hooks -k orcamento` (3 testes) | linha adversária, 3000 heredocs | passou, 0,94 s de CPU no pior caso (limite 3 s) |
+| A1 opção antes do subcomando passa pelas travas (`-X PUT api`, `-R o/r pr merge`, alias, opção longa, opção sem valor) | fixtures `trava-gh-opcao-antes-{alias,graphql,merge-rest,mutacao-literal}-bloqueia`, `trava-gh-opcao-longa-antes-bloqueia`, `trava-gh-opcao-sem-valor-antes-bloqueia`, `trava-gh-repo-antes-pr-merge-admin-bloqueia`; `test_ordem_do_gh` | `--` encerra; opção de 2 letras leva valor; `api`/`pr` como valor | passou |
+| A1 leitura com opção antes libera | `trava-gh-opcao-antes-leitura-libera` | falso positivo | passou |
+| A2 `/dev/stdin`, `/proc/self/fd/0` e FIFO são consulta ilegível | `trava-graphql-stdin-caminho-bloqueia`, `-stdin-input-…`, `-stdin-proc-…` (sessão do Forge); `test_graphql_arquivo_que_nao_e_regular_e_ilegivel` | não regular; `/dev` e `/proc` | passou |
+| A3 curinga fora de aspas recusa; entre aspas libera | `trava-graphql-curinga-bloqueia`, `-curinga-colado-bloqueia`, `-curinga-entre-aspas-libera` | `[ID!]` entre aspas | passou |
+| Orçamento de CPU do hook | `test_hooks -k orcamento` (3 testes) | linha adversária, 3000 heredocs | passou: pior caso 1,03 s de CPU (limite 3 s) |
 
 ## Cenários e resultado real
-Local, só o que o diff toca: `python3 -I -m unittest discover -s tests -p test_hooks.py -k test_fixtures_do_repo_publico` OK no head (11 s, 98 fixtures do item). A suíte inteira fica para o check-run `bateria` do CI do PR.
+Local, só o que o diff toca (sem suíte; a bateria fica para o check-run `bateria` do CI do PR).
 
-Vermelho antes do verde. `bin/forge-testes --vermelho 95b0978567ae…` sem `--modulos` abriu 116 módulos (teto de 139200 s) e foi interrompido; com `--modulos test_hooks` estourou meu prazo de 580 s (rc 124, sem veredito, não vale como vermelho). Recuo equivalente: cópia do head em `$TMPDIR` com só `hooks/conformidade.py` da base, mesmo comando acima. Resultado: `FAILED (failures=9)`, exatamente as 9 fixtures de recusa (`argumento-solto`, `chave-variavel`, `crase`, `endpoint-crase`, `sessao-do-forge`, `substituicao`, `valor-nu`, `variavel-aspas`, `variavel-nua`), todas `0 != 2`. No head: `OK`.
-
-Mutação, `forge-mutante --cobertura --base 95b0978567ae…`: toda condição Python mudada tem mutante declarado (`coberta`, linhas 360-375, 3481-3496, 3765; sem `não coberto`). Rodada dos 3 specs (`--processos 2`), 24 mutantes:
+Vermelho antes do verde. Cópia do head em `$TMPDIR` com `hooks/conformidade.py` e `hooks/parecer.py` de 433c3782; `python3 -I -m unittest discover -s tests -p test_hooks.py -k test_fixtures_do_repo_publico`:
 ```
-forge-mutante: pedido=v0480-graphql-ilegivel rev=433c3782d067 spec=dae61075… spec=f54ecd1e… spec=f64fee6b…
-GQ1 a GQ24 · morreu (24 de 24; nenhum sobrevivente, nenhum equivalente, nenhum sem veredito)
+FAILED (failures=11)   # as 11 fixtures novas de recusa, nenhuma de libera
+```
+A 12ª (`trava-gh-repo-antes-pr-merge-admin-bloqueia`) passa na base: `gh -R … pr merge --admin` já recusava por outra trava (a fixture guarda a regressão, não prova a correção). No head: `Ran 1 test … OK`.
+
+Mutação. `bin/forge-mutante tests/mutantes/v0480-graphql-ilegivel-4.json tests/mutantes/v0480-graphql-ilegivel-5.json --processos 2` no head:
+```
+forge-mutante: pedido=v0480-graphql-ilegivel rev=7afc147aec89 spec=746b3ce1… spec=7c1e7dff…
+GQ17 a GQ27 · morreu (11 de 11; GQ21 por erro do teste declarado sob o mutante, com controle verde)
 rc=0
 ```
+`forge-mutante --cobertura --base 433c3782` lista como `coberta` as condições mudadas (conformidade.py 369, 3214, 3217, 3496; parecer.py 398 a 406). A cobertura só olha condição; as quatro linhas que passam a chamar `ordem_do_gh` não são condição e ficaram sem mutante (A1).
 
-Sondagem de abuso (fora das fixtures do autor, em cópia descartável; a cópia foi apagada): 18 formas, entre elas `-f query=$Q`, `-f 'query'="$Q"`, `--field=query="$Q"`, `-X POST` antes do endpoint, `Query` maiúsculo, `$'…'`, `${Q}` com atribuição, `-- "$Q"`, chave por variável e endpoint `"$EP"`, `graphql$X`. Todas as formas que o hook não lê recusam (a regra nova ou R-CONTRIB, pelo endpoint com variável); as que devem liberar (`--jq ".. $F"`, `-f "n=$N"`, `-f v='$Q'`) liberam. Sem bypass encontrado.
+Mutação à mão nessas quatro chamadas (cópia descartável do head, o conserto trocado por identidade):
 
-Atenção ao revisor: o parecer de segurança do mesmo head (021ec802) está reprovado; os achados dele ficam no domínio dele e não os revalidei aqui.
+| Linha | Mutação | Fixtures do item | Testes `-k gh -k alias -k graphql -k ordem_do` |
+|---|---|---|---|
+| parecer.py `analisar` | `ordem_do_gh(sem)` → `sem` | morreu (6 fixtures) | n/a |
+| conformidade.py ~3339 (`gh_rotulo`) | sem `ordem_do_gh` | sobreviveu | sobreviveu (11 testes) |
+| conformidade.py ~3737 (`gh`) | sem `ordem_do_gh` | sobreviveu | sobreviveu (11 testes) |
+| parecer.py `alias_do_gh` | sem `ordem_do_gh` | sobreviveu | sobreviveu (11 testes) |
+
+Sonda extra no rótulo (`gh -R o/r pr edit 1 --add-label afrouxa-regra`, na sessão de outro projeto): recusa no head e nos três mutantes, ou seja, outra trava já cobre essa forma, e nenhum teste distingue a chamada nova. Não rodei a suíte inteira nos mutantes (módulo inteiro estoura meu prazo); os 3 sobreviventes valem contra as fixtures e esses 11 testes.
+
+## Achados
+- A1 (bloqueante) hooks/conformidade.py:3339 · `ordem_do_gh` chamada em gh_rotulo, gh (conformidade.py) e alias_do_gh (parecer.py): sem mutante, e trocada por identidade nada cai. Falta teste ou a linha é redundante: declare mutante com teste que o mate, ou equivalente justificado.
