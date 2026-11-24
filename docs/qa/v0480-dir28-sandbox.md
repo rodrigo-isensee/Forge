@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-dir28-sandbox
-commit: 4568c9b7276e6aa2edcbb4818e7ef09c08253aeb
+commit: 43d2f378e0b83258a958f24ec97a51c2bbeb9719
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -49,3 +49,17 @@ Rodada sem `--modulos` caía na suíte completa (o mapa não conhece `agents/jar
 - `test_orcamento_instrucao` 8 OK; `test_metricas_texto` 2 OK; `test_clareza` 9 OK; `test_skills_v0442` 4 OK.
 - Suíte inteira: só no CI do PR (`R-QA`); a citar o check-run `bateria` do mesmo sha. Não rodada localmente.
 - Diff conferido contra a obrigação: o commit tocou só os 5 arquivos acima; a linha 1 do passo "Registrar" e a linha das diretrizes 34 e 35 foram encurtadas para caber no teto, sem perder o ponteiro de leitura (testes de invariantes e de skill citada passam). Sem termo de projeto (neutro).
+
+## Volta por delta no head 43d2f378 (v0478 E151.8)
+`forge-check parecer delta` (intervalo 4568c9b7..43d2f378, sem o que veio da develop) lista dois arquivos no domínio: `changelog.d/v0480-dir28-sandbox.md` (tipo `Mudado` para `Alterado`, mais uma frase sobre a `fluxo-do-pedido`) e `skills/fluxo-do-pedido/SKILL.md` (o parágrafo da resposta curta (O4) vira ponteiro para `falar-com-o-dono/resposta-curta.md`).
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| O4 segue inteiro, só mudou de lugar | leitura: `resposta-curta.md` traz o parágrafo idêntico ao removido (código `1a)`, 3 marcas, `origem:`/`procurado:`/`seguir:`/`não seguir:`, `aprovo`) | texto sem perda (diretriz 25) | passou |
+| Ponteiro não quebra invariantes e modelos | `test_comando_pronto` 3 OK, `test_modelos_projeto` 25 OK | skill citada existe | passou |
+| Dentro do teto | `test_orcamento_instrucao` 8 OK | n/a | passou |
+| Jarvis e núcleo | `test_jarvis_nucleo` 45 OK | diretriz 28 | passou |
+| Métricas de texto | `test_metricas_texto` 2 OK | n/a | passou |
+| Fragmento do changelog com tipo válido | `Alterado` é tipo em uso nos demais fragmentos | tipo | passou |
+
+Suíte inteira: só no CI do PR; citar o check-run `bateria` do mesmo sha. `forge-changelog conferir --base origin/develop` local acusa fragmentos de outras branches e versão base 0.47.16 contra 0.47.15, por a `origin/develop` local estar defasada neste clone; artefato da simulação sem merge atualizado, não do delta. Sem guarda de controle, sem `forge-mutante`; sem gatilho de segurança.
