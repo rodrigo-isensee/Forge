@@ -1,0 +1,56 @@
+{
+  "pedido": "v0480-d4-corte-contador",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): PR da marca que não abre para no V5",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo V5: $ramo foi enviado",
+      "para": "|| true \"parou no passo V5: $ramo foi enviado",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_pr_da_marca_que_nao_abre_para"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): --corte vai ao corte e sai",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$corte\" = 1 ]; then corte_da_versao; exit 0; fi",
+      "para": "if [ \"$corte\" = 9 ]; then corte_da_versao; exit 0; fi",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_abaixo_do_teto_nada_faz"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "CORTE-PELO-CONTADOR (E174.26): versão ilegível em qualquer das três para no V1",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -z \"$v_dev\" ] || [ -z \"$v_hom\" ] || [ -z \"$v_main\" ]; then",
+      "para": "if [ -z \"$v_dev\" ] && [ -z \"$v_hom\" ] && [ -z \"$v_main\" ]; then",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_versao_ilegivel_ou_ramo_ausente_param"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "CORTE-PELO-CONTADOR (E174.26): main à frente da homolog para no V1",
+      "arquivo": "bin/forge-fechar",
+      "de": "| sort -V | tail -n 1)\" = \"$v_main\" ]; then",
+      "para": "| sort -V | tail -n 1)\" = \"$v_hom\" ]; then",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_main_a_frente_da_homolog_para"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "CORTE-PELO-CONTADOR (E174.26): main à frente da homolog para no V1 (o die)",
+      "arquivo": "bin/forge-fechar",
+      "de": "die \"parou no passo V1: a main ($v_main)",
+      "para": "true \"parou no passo V1: a main ($v_main)",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_main_a_frente_da_homolog_para"
+      ]
+    }
+  ]
+}
