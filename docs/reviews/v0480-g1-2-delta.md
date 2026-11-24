@@ -3,55 +3,51 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-g1-2-delta
-commit: 4182040651ad42a57cd8d047c4684946efbf659d
-parecer: aprovado
+commit: 55a57bdef7c790c1b35971abb8c1d91a6c89c3a3
+parecer: reprovado
 revisor: forge:tech-lead
-data: 2026-11-23
+data: 2026-11-24
 ---
-# Review: v0478 (E140.4), revalidação por delta do #812 no head 41820406
+# Review: v0478 (E140.15), revalidação por delta do #812 no head 55a57bde
 
-Revalidação por delta depois do merge da develop (216413c9) na branch, com conflito em `bin/forge-testes`. O parecer anterior é a revisão completa do corte G1.2 no head bdd44bc0 (E122.13), aprovada; o texto dele segue abaixo, em "Parecer anterior".
+Volta E140.12: leituras em lote em `parecer_anterior`, saída antecipada em `fora_do_delta`, mutantes FD23 a FD29 e o texto G1.2 encurtado em `R-REVIEW` e `R-SEGURANCA`. A rodada anterior (head 41820406, aprovada) fica no git.
 
 ## Achados
-- A1 (recomendado) bin/forge-check:4164 · herdado do A7 da g1-2-3: a repetição é reconhecida só por (id, arquivo), então um bloqueante novo no mesmo arquivo com um id antigo passa fora do delta. Vira cartão; meça nos pareceres recusados antes de apertar.
+- A1 (recomendado) bin/forge-check:4188 · herdado (A7 da g1-2-3): a repetição é reconhecida só por (id, arquivo). Estado: aberto, vira cartão.
+- A2 (bloqueante) bin/forge-check:4182 · a saída antecipada deixa o FD10 (guarda :4192) sobrevivente: o teste declarado, só com recomendado, sai antes do laço. A guarda segue viva (sonda S1). Correção: pôr o bloqueante repetido A1 src/a.py:5 no teste de :101.
 
-## Revalidação (head 41820406)
-**Delta lido:** `forge-check parecer delta docs/reviews/v0480-g1-2-delta.md`, intervalo bdd44bc0..41820406, sem o que veio da base. No domínio: `bin/forge-check`, `bin/forge-testes` e `tests/pesos-d4.json`. Em `bin/forge-check` e em `tests/pesos-d4.json`, o delta só traz o que veio da develop (`autorizacao gravar` do #810, `test_fechar_busca_pareceres`, `test_forge_copia_nome`), já revisado nos PRs de origem. Saída: `revalida: sim (bin/forge-testes mudou depois do parecer)`.
+## Sondas
+- S1 · rodada 2 com `- A1 (bloqueante) src/a.py:5` e `- A2 (recomendado) src/a.py:2`, `fora_do_delta` com e sem a troca do FD10 · espera: 0 recusas no original, 1 no mutante · obtido: original 0, mutante 1
 
-**Resolução do conflito em `bin/forge-testes`:** a tupla `FORGE_CHECK` (linha 160) ficou com os dois itens, `test_autorizacao_gravar` (da develop) e `test_parecer_fora_do_delta` (da branch). Cada um aparece uma vez, e os dois arquivos de teste existem. As linhas do `MAPA` que vieram da develop (`bin/forge-copia`, `test_fechar_busca_pareceres`) entraram sem conflito.
+## Revalidação (head 55a57bde)
+**Delta lido:** `forge-check parecer delta docs/reviews/v0480-g1-2-delta.md`, intervalo 41820406..55a57bde. Saída: `revalida: sim (desatualizado: agents/qa-engineer.md mudou depois do parecer)`. Os commits da branch no intervalo são 5c62c8ce, 05f5c9f9, 07b89dc8, fb9f4347 e 55a57bde; o resto veio dos merges da develop (806e59a1, c447f35b, b3998275, 17a44ed4).
 
-**O patch da branch não mudou com o merge.** Comparei, arquivo por arquivo, as linhas mudadas de `5cff9f6a..bdd44bc0` (o patch revisado) com as de `216413c9..41820406`. Os 16 arquivos de código, teste, regra e mutante são iguais. Em `bin/forge-testes`, a única mudança da branch sobre a develop continua sendo o acréscimo de `test_parecer_fora_do_delta` na tupla, a mesma linha revisada. O H1 não muda.
+**Patch da branch sobre a develop (701f5bfd..55a57bde) comparado com o revisado (216413c9..41820406), arquivo por arquivo:**
+- Iguais: `agents/tech-lead.md`, `bin/forge-testes`, `tests/pesos-d4.json`, `rigor-por-classe.md`, `tests/test_testes_tocados.py` e `v047-docs-pareceres-2.json`.
+- `agents/qa-engineer.md`: as mesmas trocas da branch, agora sobre o texto que a develop já tinha encurtado. Só muda o contexto do merge.
+- `agents/security-engineer.md`: "Em entrega de analisador ou hook" passa a "Em analisador ou hook" (fb9f4347). O alcance é o mesmo.
+- `bin/forge-check`, os mutantes e o teste: a volta E140.12, lida abaixo.
 
-**Verificadores no head 41820406:**
-- Testes dos arquivos tocados, `python3 -m unittest tests.test_testes_tocados tests.test_parecer_fora_do_delta`: 217 testes, OK. 1 pulado pelo sandbox.
-- `bin/forge-testes --listar bin/forge-testes` pede a suíte completa, porque o arquivo muda o mapa; ela fica com o CI do PR #812.
-- O merge não mudou nenhuma guarda, então não há mutante novo.
+**A decisão da checagem não muda:**
+- `versoes_em_lote` devolve o mesmo texto que o `git show <ref>:<rel>` em modo texto: troca `\r\n` e `\r` por `\n` e faz o `strip`. A versão apagada (` missing`), o lote que falha e a resposta truncada ou fora do protocolo dão `None`, que vira `{}` como o show que falhava. Os mesmos 30 commits do `log`, na mesma ordem.
+- A única diferença está no UTF-8 inválido: o show em modo texto estourava `UnicodeDecodeError`, e o lote troca o byte. Não muda nenhum caso válido.
+- A saída antecipada em `fora_do_delta` (:4182) devolve `[]` sem bloqueante. É o mesmo resultado de antes, já que o laço pulava todo achado não bloqueante. O lado ruim está no A2: ela tira do alcance o teste que matava o FD10.
+- As 21 recusas de `Revalidacao` seguem verdes.
+
+**O texto encurtado não afrouxa:**
+- `R-REVIEW.md:17`: "O bloqueante novo fora dele" passa a "Bloqueante novo fora dele". O sujeito, o alcance e o destino (cartão) são os mesmos.
+- `R-SEGURANCA.md:17`: "a nova vira cartão e o bloqueante pede `explorável: S<n>`" passa a "a nova vira cartão; o bloqueante pede `explorável: S<n>`". Continuam as duas condições.
+- Nenhum trecho de `invariantes` (`tests/config.json`) cita essas frases.
+
+**Tamanho (H1):** 92 linhas a mais em `bin/forge-check` sobre a develop, com as docstrings, e 1 em `bin/forge-testes`. Fica dentro do teto, com um comportamento só.
+
+**Verificadores no head 55a57bde:**
+- `python3 -m unittest tests.test_parecer_fora_do_delta`: 29 testes, OK. `forge-testes --listar` pede a suíte completa, porque o arquivo de teste não está no mapa.
+- `bin/forge-mutante --cobertura --base 701f5bfd`: rc=0. Toda guarda mudada (4127 a 4200) tem mutante declarado.
+- `bin/forge-mutante tests/mutantes/v0480-g1-2-delta-4.json --processos 1`: FD23 a FD29 mortos (o FD29 por erro do teste).
+- `v0480-g1-2-delta-3.json`: FD17 a FD22, FL1 e FL2 mortos.
+- `v0480-g1-2-delta-2.json`: **FD10 sobreviveu** (A2). O FD16 foi morto.
+- CI do #812 no head 55a57bde: as 5 partes da suíte, `catraca`, `instalação`, `passos` e `verificações longas` passaram. `bateria (pareceres)` falha porque os pareceres estão presos ao head anterior, como se espera numa volta.
 
 ## Parecer
-Aprovado.
-
-### Parecer anterior (head bdd44bc0)
-**O corte bate com o código revisado.** Comparei o patch de cada arquivo com o patch revisado (merge-base 7c4ee3c1..17c4ba57):
-- Sem nenhuma diferença: `agents/qa-engineer.md`, `agents/security-engineer.md`, `agents/tech-lead.md`, `bin/forge-testes`, `docs/regras/R-REVIEW.md`, `tests/test_parecer_fora_do_delta.py`, `tests/test_testes_tocados.py` e `tests/mutantes/v047-docs-pareceres-2.json`.
-- Em `bin/forge-check`, o bloco G1.2 inteiro é idêntico ao de 17c4ba57: constantes, `mesmo_commit`, `parecer_anterior`, `trechos_do_delta` e `fora_do_delta`. As chamadas em `cmd_docs` (`:480`) e em `cmd_pr` (`:2045`) também são as mesmas.
-- Mutantes: os 24 do G1.2, em `tests/mutantes/v0480-g1-2-delta*.json` (três arquivos de 8), vieram iguais aos revisados; só o campo `pedido` muda. Os do G1.3 ficaram de fora.
-
-**O corte não leva nada do G1.3.**
-- No diff não aparecem `so_texto_ou_so_teste`, `barreiras_do_leve` nem `cabecalho_do_md`, e `classe_das_mudancas` não foi tocada.
-- `isencoes_do_diff` e `isencoes_da_entrega` continuam como na base, que é o certo enquanto o G1.3 não entra.
-- Os arquivos que só o G1.3 tocava ficaram fora: `hooks/parecer.py`, `docs/hooks.md`, `R-QA.md`, `test_classe_risco`, `test_isencoes` e as fixtures do hook.
-- A frase "a T (G1.3), não" saiu de `R-SEGURANCA.md:13`, e a linha da T saiu de `rigor-por-classe.md`. O que ficou nos dois é só o G1.2 e o encurtamento do `verificada_por`, que já estavam aprovados.
-- `R-SEGURANCA.md:17` mantém o "que volta e é corrigida" (A1 da 1.ª rodada da g1-2-3).
-- Em `tests/pesos-d4.json`, só entra o `test_parecer_fora_do_delta`. Os pesos de `test_classe_risco` e `test_isencoes`, que são do G1.3, não vieram.
-
-**Tamanho (H1):** 65 linhas de código em `bin/forge-check` e 1 em `bin/forge-testes`, dentro do teto, para um comportamento só.
-
-**Classe:** `forge-check classe --base 5cff9f6a` dá C, com os pareceres de review, qa e revisao-seguranca (gatilho `docs/regras/`).
-
-**Changelog:** o fragmento `changelog.d/v0480-g1-2-delta.md` traz o critério de reversão (2 escapes em 14 dias).
-
-**Verificadores rodados no head bdd44bc0:**
-- Testes dos arquivos tocados, `python3 -m unittest tests.test_parecer_fora_do_delta tests.test_testes_tocados`: 217 testes, OK. 1 pulado pelo sandbox (namespace de pid).
-- `bin/forge-mutante --cobertura --base 5cff9f6a`: rc=0. Toda guarda mudada de `bin/forge-check` (4134 a 4172) tem mutante declarado.
-- `bin/forge-mutante --base 5cff9f6a --processos 1`, uma chamada por pedido: todos os 24 de v0480-g1-2-delta e os de v047 tocados no diff mortos, sem sobrevivente.
-- Suíte completa: fica com o CI do PR.
+Reprovado pelo A2: há uma guarda de controle com mutante sobrevivente. A correção é só no teste e não muda o código. Na volta, rode `bin/forge-mutante tests/mutantes/v0480-g1-2-delta-2.json --processos 1`.
