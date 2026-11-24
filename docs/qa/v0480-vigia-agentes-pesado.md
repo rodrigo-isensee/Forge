@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-vigia-agentes-pesado
-commit: e54654c906288892ddc3462ee4503c55f848692f
+commit: 25c60be778696f894a488b8a266d5874db63ef9b
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -50,3 +50,16 @@ M4 morreu · hooks/agentes.py:1426
 M5 morreu · hooks/pesado.py:466
 ```
 6 de 6 mortos. `forge-mutante --cobertura --base f82c7cc558ae`: as 4 condições de `_comum.py` mudadas têm mutante declarado e morto; a linha `apagada · _comum.py:2894(base)` é a condição removida (`and critico is not None`), coberta pelo M3. Nas linhas de `agentes.py`/`pesado.py` as trocas são M4/M5.
+
+## Revalidação por delta (v0478 E172.36, head 25c60be7)
+`forge-check parecer delta` lista no domínio: `tests/mutantes/v0455-prazo.json`, `tests/mutantes/v0480-vigia-trava-critica.json`, `tests/test_hooks_volta_propriedades.py` (e54654c9..25c60be7). Só teste e spec de mutantes mudaram; o código de produção do delta é nulo.
+- Os trechos `de`/`para` de P11 (v0455-prazo) e M1 (trava-crítica) acompanham as linhas atuais de `hooks/_comum.py` (a guarda do vigia sem o marcador); o teste do `git init` passou a usar `sem_manutencao` (ponto único), sem mudar o que o teste prova.
+- `test_hooks_volta_propriedades.py`: 12 testes, OK. `test_hooks.py -k test_vigia_prazo_trava -k test_prazo_do_merge`: 3 testes, OK (uma execução simultânea à rodada de mutantes deu 1 falha por carga; repetida sozinha, verde; sem reprodução, não vira achado).
+- Suíte inteira não rodada (CI do PR).
+```
+base=e54654c906288892ddc3462ee4503c55f848692f rev=25c60be77869
+v0455-prazo: P1..P13 morreu (13 de 13)
+v0480-vigia-trava-critica: M1..M5 morreu (5 de 5; M2 e M4 por erro do teste declarado, com controle verde)
+v0480-vigia-agentes-pesado: M1..M6 morreu (6 de 6)
+```
+Sem sobrevivente, sem achado, sem bug novo. Parecer anterior (aprovado) mantido.
