@@ -46,8 +46,8 @@
       "id": "CF5",
       "guarda": "E1.140: o de precisa aparecer uma vez (zero é desencontro)",
       "arquivo": "bin/forge-mutante",
-      "de": "(n := vezes_no_commit(rev, m[\"arquivo\"], m[\"de\"])) != 1]",
-      "para": "(n := vezes_no_commit(rev, m[\"arquivo\"], m[\"de\"])) > 1]",
+      "de": "(n := vezes_no_commit(rev, m[\"arquivo\"], de)) != 1]",
+      "para": "(n := vezes_no_commit(rev, m[\"arquivo\"], de)) > 1]",
       "testes": [
         "tests.test_forge_mutante.Conferir.test_de_no_lugar_sai_0_e_de_que_sumiu_depois_da_spec_sai_1_com_a_spec_e_o_trecho"
       ]
