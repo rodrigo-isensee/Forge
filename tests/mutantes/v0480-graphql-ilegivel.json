@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-graphql-ilegivel",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "GQ1",
+      "guarda": "E168.1: o gh api mutante com consulta ilegível recusa no fim do ramo api",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if parecer.metodo_mutante(args) and self.consulta_ilegivel(args):",
+      "para": "if False and parecer.metodo_mutante(args) and self.consulta_ilegivel(args):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ2",
+      "guarda": "E168.1: o endpoint com expansão (crase) pode ser o graphql",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not (e_graphql(endpoint) or parecer.expande(endpoint)):",
+      "para": "if not (e_graphql(endpoint) or False):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ3",
+      "guarda": "E168.1: a expansão fora de aspas (o bash divide em palavras) recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if nivel == 2:\n                return True",
+      "para": "            if False:\n                return True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ4",
+      "guarda": "E168.1: a palavra com expansão entre aspas segue para a conferência do campo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if nivel == 0 or opcao and opcao not in CAMPOS_DA_API:",
+      "para": "if True or opcao and opcao not in CAMPOS_DA_API:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ5",
+      "guarda": "E168.1: o valor entre aspas de uma opção que não é campo (-H) fica fora da consulta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if nivel == 0 or opcao and opcao not in CAMPOS_DA_API:",
+      "para": "if nivel == 0:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ6",
+      "guarda": "E168.1: argumento solto com expansão entre aspas (sem nome=valor) recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not igual or parecer.expande(chave) or chave.lower() == \"query\":",
+      "para": "if parecer.expande(chave) or chave.lower() == \"query\":",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ7",
+      "guarda": "E168.1: o nome do campo com expansão pode virar query e recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not igual or parecer.expande(chave) or chave.lower() == \"query\":",
+      "para": "if not igual or chave.lower() == \"query\":",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ8",
+      "guarda": "E168.1: o campo query com expansão entre aspas recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not igual or parecer.expande(chave) or chave.lower() == \"query\":",
+      "para": "if not igual or parecer.expande(chave):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    }
+  ]
+}
