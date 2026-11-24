@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-repo-publico-fix
-commit: 708c4bb09a6c74716b6897d37a2319575ae591b3
+commit: eebdfef67bdc1a2357ab54e65acd937484853afc
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-23
+data: 2026-11-24
 ---
 # QA: v0478 · E141.5 · PR #829 (CONFORMIDADE-REPO-CREATE-PUBLICO)
 
@@ -71,3 +71,21 @@ Escopo: léxico do GraphQL pela especificação (bloco `"""`, comentário até L
 - Orçamento de CPU do hook: `Ran 13 tests in 20.0s OK` (os 4 de orçamento, o das fixtures e `test_orcamento_instrucao`); pior caso `HEREDOC-DONOS python3 - a{i} x3000: 0.88 s de CPU (limite 3 s)`. A regex nova do bloco `"""` não degrada o tempo.
 - Review e segurança do head 708c4bb0 correm em paralelo e não são reabertos aqui.
 - Sem suíte local; a suíte inteira é do CI do PR.
+
+## Delta E141.18: volta 708c4bb0..eebdfef6
+Escopo: A8 da segurança (S18): string GraphQL sem fechamento e `query` repetido falham fechado, `gh repo create|new` e `gh api graphql|repos` entram no marcador crítico (visibilidade), 11 fixtures de prazo (`trava-prazo-*`, `trava-graphql-*prazo*`, `comentario-grande`), teste de tempo S18 em `test_fixtures_do_repo_publico` e specs RP52 a RP56 (`tests/mutantes/v0480-repo-publico-fix-8.json`). `forge-check parecer delta` lista 19 arquivos no domínio, sem merge da develop.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Mais de um `query` na mutação falha fechado | `trava-graphql-query-repetida-bloqueia` | o `gh` manda só o último `query` | passou |
+| String sem fechamento falha fechado, sem recomeçar a busca | `trava-graphql-string-aberta-bloqueia`, `-prazo-bloqueia` | aspas aberta com 40 KB à frente | passou |
+| Forma de visibilidade vai ao marcador crítico: o hook que estoura o prazo recusa em vez de liberar | `trava-prazo-{repo-create,repo-new,user-repos,orgs-repos,generate,patch,graphql,graphql-continuacao}-bloqueia`, `trava-graphql-s18-prazo-bloqueia` | prazo de 3 s estourado | passou |
+| Comentário grande não vira falso bloqueio | `trava-graphql-comentario-grande-bloqueia`, `-prazo-libera` | comentário de tamanho máximo | passou |
+| S18 decide em menos da metade do prazo (CPU) | `test_fixtures_do_repo_publico` (`medir_o_hook`) | custo de CPU, não o relógio | passou |
+
+- Head, da raiz: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures_do_repo_publico tests.test_hooks.Hooks.test_muitos_heredocs_recusam_dentro_do_orcamento tests.test_hooks.Hooks.test_linha_adversaria_de_crases_e_pastas_recusa_dentro_do_orcamento tests.test_orcamento_instrucao`: `Ran 11 tests in 35.679s OK`; `ORCAMENTO-TEMPO ... medido=0.97s limite=3s medida=cpu`.
+- Vermelho: cópia do head com `hooks/conformidade.py` de 708c4bb0, mesmo teste de fixtures: `FAILED (failures=10)`. Caem 9 fixtures com `AssertionError: 0 != 2` (`trava-graphql-query-repetida-bloqueia`, `trava-prazo-generate`, `-graphql`, `-graphql-continuacao`, `-orgs-repos`, `-patch`, `-repo-create`, `-repo-new`, `-user-repos`) e a asserção de tempo S18 (`medir_o_hook`). As fixtures `string-aberta-*` e `comentario-grande-*` não caem sozinhas na base (ela já recusava por outro caminho ou liberava); a de tempo S18 prova o prazo. Todas passam no head.
+- Mutação. `forge-mutante --base 708c4bb0 tests/mutantes/v0480-repo-publico-fix-8.json --processos 2`, rc 0: cabeçalho `base=708c4bb09a6c74716b6897d37a2319575ae591b3 mb=708c4bb09a6c74716b6897d37a2319575ae591b3 rev=eebdfef67bdc1a2357ab54e65acd937484853afc`, `todos os mutantes entram`; `RP52 morreu :3502`, `RP53 morreu :3504`, `RP54 morreu :348`, `RP56 morreu :3501`, `RP55 morreu :63`; nenhum sobrevivente.
+- Cobertura. `forge-mutante --cobertura --base 708c4bb0`, rc 0: linhas 3501 (RP56), 3502 (RP52) e 3504 (RP53) cobertas, nenhuma `não coberto`; as linhas 63 e 348 têm RP55 e RP54, provados acima.
+- `python3 -m unittest tests.test_hooks` inteiro (172 testes). Head: `Ran 172 tests in 1003.464s`, `FAILED (failures=1, skipped=11)`; a única falha é `test_prazo_do_merge` (`parecer/v0455-merge-com-git-lento-decide-no-prazo-longo`, `2 != 0`, prazo de 8 s), fixture de `parecer` fora do diff, que rodou sob a minha carga concorrente (vermelho e mutantes ao mesmo tempo); sozinho no head: `Ran 1 test in 25.491s OK`. `pesado/mesma-sessao-libera` não caiu no head. Base 708c4bb0 (cópia de `git archive`, sem `.git`): `Ran 172 tests in 1389.203s`, `FAILED (failures=2, errors=1, skipped=11)`; caem `test_fixtures_do_v0442` e `test_fixtures_fatia_1`, ambos em `pesado/mesma-sessao-libera`, e `EscritaPublica.test_nenhum_hook_nem_script_usa_a_funcao` (erro de `git grep` por falta do `.git` na cópia: artefato do meu método, não da base). `pesado/mesma-sessao-libera` é intermitente por carga: caiu na base, não no head; não é deste item.
+- Sem suíte local além dos arquivos tocados; a suíte inteira é do CI do PR.
