@@ -20,6 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from test_selo_e_entrega import PEDIDO as PEDIDO_DO_SELO, Repositorio  # noqa: E402
 from test_voltas import FORGE_CHECK, Raiz  # noqa: E402
+from test_decisor import commitar, parecer_da_seguranca  # noqa: E402
 
 PERGUNTA = ('# p\n\n## Decisões do usuário (registro literal)\nPERGUNTA AO DONO (2026-11-09 10:00): duas questões → '
             '"1a) usar a fila [recomendada] [reversível] 1b) usar o banco 2a) arquivar a branch velha [recomendada] [irreversível] 2b) manter"\n')
@@ -888,8 +889,7 @@ class SoApertaComSeguranca(unittest.TestCase):  # D5 (v0480, E173.3): o decisor 
         self.addCleanup(shutil.rmtree, self.tmp, True)
         self.decisor = SourceFileLoader("forge_decisor_d5", str(Path(FORGE_CHECK).parent / "forge_decisor.py")).load_module()
         self.seguranca = self.tmp / "docs" / "security"
-        self.seguranca.mkdir(parents=True)
-        (self.seguranca / "ok.md").write_text("parecer: aprovado\nO item só aperta a regra.\n", encoding="utf-8")
+        commitar(self.tmp, {"docs/security/ok.md": parecer_da_seguranca("Só aperta: nome\n", pedido="p")})  # A1 do #863: pelo git
 
     def registrar(self, **troca):
         campos = {"acao": "registrar", "pedido": "p", "porta": "nome", "criterio": "R-PROVA", "fato": "f", "porque": "p",
@@ -937,21 +937,22 @@ class SoApertaComSeguranca(unittest.TestCase):  # D5 (v0480, E173.3): o decisor 
     def test_pasta_da_seguranca_por_link_vira_pergunta(self):
         real = self.tmp / "fora"
         real.mkdir()
-        (real / "ok.md").write_text("só aperta\n", encoding="utf-8")
+        shutil.copy(self.seguranca / "ok.md", real / "ok.md")  # o mesmo parecer válido, só que pela pasta com link
         shutil.rmtree(self.seguranca)
         os.symlink(real, self.seguranca)
         self.pergunta("condição não atendida: seguranca")
 
     def test_confirmacao_sem_a_frase_ou_negada_vira_pergunta(self):
-        for texto in ("parecer: aprovado\n", "o item não só aperta, também afrouxa\n", "nao so aperta\n"):
-            with self.subTest(texto=texto):
-                (self.seguranca / "ok.md").write_text(texto, encoding="utf-8")
+        for corpo in ("parecer: aprovado\n", "o item não só aperta, também afrouxa\n", "nao so aperta\n", "Confirmo: SO APERTA.\n"):
+            with self.subTest(corpo=corpo):
+                commitar(self.tmp, {"docs/security/ok.md": parecer_da_seguranca(corpo, pedido="p")})
                 self.pergunta("condição não atendida: seguranca")
-        (self.seguranca / "ok.md").write_text("Confirmo: SO APERTA.\n", encoding="utf-8")
+        commitar(self.tmp, {"docs/security/ok.md": parecer_da_seguranca("Só aperta: nome\n", pedido="p")})
         self.assertEqual(self.registrar()[0], 0)
 
     def test_confirmacao_grande_demais_vira_pergunta(self):
-        (self.seguranca / "ok.md").write_text("só aperta\n" + "x" * self.decisor.TETO_DA_CONFIRMACAO, encoding="utf-8")
+        corpo = "Só aperta: nome\n" + "x" * self.decisor.TETO_DA_CONFIRMACAO
+        commitar(self.tmp, {"docs/security/ok.md": parecer_da_seguranca(corpo, pedido="p")})
         self.pergunta("condição não atendida: seguranca")
 
 

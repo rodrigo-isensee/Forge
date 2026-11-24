@@ -13,44 +13,54 @@
       ]
     },
     {
-      "id": "D5M2",
-      "guarda": "D5: a confirmação por link simbólico (arquivo ou pasta) não vale",
+      "id": "D5M18",
+      "guarda": "A1 do #863: sem o git, a confirmação não vale (falha fechada, sem exceção)",
       "arquivo": "bin/forge_decisor.py",
-      "de": "if any(p.is_symlink() for p in (arq, arq.parent, arq.parent.parent)) or not arq.is_file():",
-      "para": "if not arq.is_file():",
+      "de": "except (OSError, subprocess.SubprocessError):\n        return 1, b\"\"",
+      "para": "except ():\n        return 1, b\"\"",
       "testes": [
-        "tests.test_forge_dono.SoApertaComSeguranca.test_confirmacao_ausente_ou_link_vira_pergunta",
-        "tests.test_forge_dono.SoApertaComSeguranca.test_pasta_da_seguranca_por_link_vira_pergunta"
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_git_ausente_vira_pergunta"
       ]
     },
     {
-      "id": "D5M3",
-      "guarda": "D5: a confirmação acima de 1 MiB não vale",
+      "id": "D5M19",
+      "guarda": "A1 do #863: a raiz precisa ser a do repositório que o git lê",
       "arquivo": "bin/forge_decisor.py",
-      "de": "if arq.stat().st_size > TETO_DA_CONFIRMACAO:",
-      "para": "if False:",
+      "de": "if rc != 0 or Path(topo.decode(\"utf-8\", \"replace\").strip()).resolve() != Path(raiz).resolve():",
+      "para": "if rc != 0:",
       "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_raiz_que_nao_e_a_do_repositorio_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M20",
+      "guarda": "A1 do #863: o parecer no HEAD é arquivo comum (modo 100644), não executável nem link",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if rc != 0 or len(campos) != 5 or campos[0] != \"100644\":",
+      "para": "if rc != 0 or len(campos) != 5:",
+      "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_parecer_executavel_no_git_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M21",
+      "guarda": "A1 do #863: o parecer no HEAD acima de 1 MiB não vale",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if not campos[3].isdigit() or int(campos[3]) > TETO_DA_CONFIRMACAO:",
+      "para": "if not campos[3].isdigit():",
+      "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_parecer_acima_do_teto_vira_pergunta",
         "tests.test_forge_dono.SoApertaComSeguranca.test_confirmacao_grande_demais_vira_pergunta"
       ]
     },
     {
-      "id": "D5M4",
-      "guarda": "D5: a confirmação pede a frase só aperta escrita",
+      "id": "D5M22",
+      "guarda": "A1 do #863: parecer com diferença na árvore ou no índice não vale",
       "arquivo": "bin/forge_decisor.py",
-      "de": "return bool(SO_APERTA.search(arq.read_text(encoding=\"utf-8\", errors=\"replace\")))",
-      "para": "return True",
+      "de": "if _git(raiz, \"diff\", \"--quiet\", \"HEAD\", \"--\", caminho)[0] != 0:",
+      "para": "if False:",
       "testes": [
-        "tests.test_forge_dono.SoApertaComSeguranca.test_confirmacao_sem_a_frase_ou_negada_vira_pergunta"
-      ]
-    },
-    {
-      "id": "D5M5",
-      "guarda": "D5: não só aperta não é confirmação",
-      "arquivo": "bin/forge_decisor.py",
-      "de": "SO_APERTA = re.compile(r\"(?<!não )(?<!nao )\\bs[oó] aperta\\b\", re.I)",
-      "para": "SO_APERTA = re.compile(r\"\\bs[oó] aperta\\b\", re.I)",
-      "testes": [
-        "tests.test_forge_dono.SoApertaComSeguranca.test_confirmacao_sem_a_frase_ou_negada_vira_pergunta"
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_arquivo_mudado_na_arvore_ou_no_indice_vira_pergunta"
       ]
     },
     {
