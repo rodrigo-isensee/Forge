@@ -41,6 +41,16 @@
       "testes": [
         "tests.test_meta.NotasEntreFerramentas.test_marcas_guardadas_param_no_teto_e_sai_a_mais_velha"
       ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a marca da sessão sai e volta ao fim, e no teto sai a usada há mais tempo (mutante: get, fica na posição antiga e sai mesmo em uso)",
+      "arquivo": "hooks/meta.py",
+      "de": "vista = vistas.pop(str(transcrito), {})",
+      "para": "vista = vistas.get(str(transcrito), {})",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_sessao_que_volta_a_ser_usada_guarda_a_marca"
+      ]
     }
   ]
 }

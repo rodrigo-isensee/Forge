@@ -459,6 +459,19 @@ class NotasEntreFerramentas(unittest.TestCase):
         self.assertEqual(len(marcas), self.meta.MARCAS_GUARDADAS)
         self.assertNotIn(str(self.tmp / "s0.jsonl"), marcas)
 
+    # E137.21 (A1 de docs/qa/v0480-meta-notas-reconta.md): sai a marca usada há mais tempo, não a gravada primeiro.
+    def test_sessao_que_volta_a_ser_usada_guarda_a_marca(self):
+        teto = self.meta.MARCAS_GUARDADAS
+        for i in range(teto):
+            self.medir([self.dono("oi"), self.final(self.PT, f"u{i}")], nome=f"s{i}.jsonl")
+        self.medir([self.dono("oi"), self.final(self.PT, "u0")], nome="s0.jsonl")
+        for i in range(teto, 2 * teto - 1):
+            self.medir([self.dono("oi"), self.final(self.PT, f"u{i}")], nome=f"s{i}.jsonl")
+        marcas = json.loads((self.tmp / "run" / "notas.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(marcas), teto)
+        self.assertIn(str(self.tmp / "s0.jsonl"), marcas)
+        self.assertNotIn(str(self.tmp / "s1.jsonl"), marcas)
+
     def test_marca_ilegivel_ou_fora_da_forma_e_ignorada(self):
         (self.tmp / "run").mkdir(exist_ok=True)
         for conteudo in ("{quebrado", "[]"):
