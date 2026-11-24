@@ -1,0 +1,76 @@
+{
+  "pedido": "v0480-fechar-limpar-clone",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "busca por metades: a segunda metade tambem e buscada",
+      "arquivo": "bin/forge-fechar",
+      "de": "  buscar_de \"$fonte\" \"${@:meio+1}\"",
+      "para": "  :",
+      "testes": [
+        "tests.test_fechar_busca_pareceres.FecharBuscaPareceres.test_sha_ausente_entre_muitos_busca_por_metades"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "--principal vazio e erro de uso",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -n \"$copia_principal\" ] || die \"--principal pede a pasta de uma cópia git (recebi",
+      "para": "[ -n \"$copia_principal\" ] || true \"--principal pede a pasta de uma cópia git (recebi",
+      "testes": [
+        "tests.test_fechar_busca_pareceres.FecharBuscaPareceres.test_principal_vazio_e_erro_de_uso"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "--promover recusa --principal",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -n \"$copia_principal\" ] || [ -n \"$ref$titulo",
+      "para": "if [ -n \"$ref$titulo",
+      "testes": [
+        "tests.test_fechar_busca_pareceres.FecharBuscaPareceres.test_promover_recusa_principal"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "--limpar recusa --principal",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$limpar\" = 0 ] || [ -z \"$copia_principal\" ] || die",
+      "para": "[ \"$limpar\" = 0 ] || [ -z \"$copia_principal\" ] || true",
+      "testes": [
+        "tests.test_fechar_busca_pareceres.FecharBuscaPareceres.test_limpar_recusa_principal"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a origin e lida uma vez antes do primeiro clone",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$lida\" = 1 ] || { origem_atual; lida=1; }",
+      "para": "[ \"$lida\" = 0 ] || { origem_atual; lida=1; }",
+      "testes": [
+        "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_commit_que_a_origin_tem_com_ref_velha_no_clone_e_apagado"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "leitura da origin que falha nao para a limpeza",
+      "arquivo": "bin/forge-fechar",
+      "de": "| sort -u)\" || pontas=\"\"",
+      "para": "| sort -u)\"",
+      "testes": [
+        "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_leitura_da_origin_que_falha_deixa_o_clone"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "a busca da origin traz tambem os heads mesclados que esta copia nao le",
+      "arquivo": "bin/forge-fechar",
+      "de": "printf '%s\\n' $pontas $merged_heads | grep",
+      "para": "printf '%s\\n' $pontas | grep",
+      "testes": [
+        "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_head_mesclado_que_esta_copia_nao_le_e_buscado_e_o_clone_ancestral_sai"
+      ]
+    }
+  ]
+}
