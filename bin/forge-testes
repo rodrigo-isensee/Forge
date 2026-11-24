@@ -157,7 +157,7 @@ FORGE_CHECK = ("test_anotar", "test_comando_pronto", "test_promocao_por_marca", 
                "test_testes_tocados", "test_pre_envio_brief", "test_brief_tamanho", "test_trilha_forge_check", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08", "test_qa_lote_l09", "test_qa_lote_l10",
                "test_decisoes", "test_ordens", "test_fila_ocupacao", "test_proximo", "test_comportamento", "test_conferente_estavel", "test_historico_hora", "test_reval_delta", "test_revisor_wt", "test_governanca", "test_selo_e_entrega",
                "test_classe_risco", "test_parecer_conteudo", "test_pre_push_afetados", "test_aq5_parecer_novo", "test_brief_gerar_custo", "test_git_rede_config",
-               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_hooks_parecer_repo", "test_hooks_parecer_matriz", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo", "test_hook_destino_opaco", "test_conformidade_opaco", "test_conferencia_dois_pedidos", "test_pr_hook_rapido", "test_sessao_automatica", "test_autorizacao", "test_autorizacao_gravar", "test_conformidade_verde", "test_hooks_agentes_autor", "test_parecer_delta", "test_revisar_sha", "test_maquina", "test_maquina_teto", "test_meta85_entrega", "test_meta85_revalida", "test_meta85_item_arquivos", "test_conformidade_vscode_container", "test_forge_onde", "test_retro_pendentes", "test_comparar", "test_prepush_lote_pp1", "test_parecer_fora_do_delta", "test_forge_copia") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
+               "test_t1_codigo_sem_teste", "test_acao_da_reprovacao", "test_forge_dono", "test_decisor", "test_forge_run", "test_meta", "test_pesado_fila", "test_aq1_texto", "test_textos_034", "test_r_limites", "test_forge_dora", "test_hooks_fila27", "test_hooks_parecer_repo", "test_hooks_parecer_matriz", "test_metricas_portoes", "test_metricas_main_vermelha", "test_hook_git_comum", "test_pr_hook_prazo", "test_hook_destino_opaco", "test_conformidade_opaco", "test_conferencia_dois_pedidos", "test_pr_hook_rapido", "test_sessao_automatica", "test_autorizacao", "test_autorizacao_gravar", "test_conformidade_verde", "test_hooks_agentes_autor", "test_parecer_delta", "test_revisar_sha", "test_maquina", "test_maquina_teto", "test_meta85_entrega", "test_meta85_revalida", "test_meta85_item_arquivos", "test_conformidade_vscode_container", "test_forge_onde", "test_retro_pendentes", "test_comparar", "test_parecer_fora_do_delta", "test_forge_copia") + VOLTA_UNICA  # COBERTURA-P6: confere que o shellcheck pula o forge-check pelo shebang
 # E1.120 (v047): quem reaproveita `Hooks.executar_em_lote` sem herdar de `Hooks` (git grep; os VOLTA_UNICA pela base de
 # `tests/apoio_volta_unica.py`) quebra quando o test_hooks muda o lote; pedir tests/test_hooks.py pelo caminho os roda junto.
 REAPROVEITAM_O_LOTE = ("test_esperar_estado", "test_hook_ansi_c", "test_hook_git_comum", "test_hooks_fila27", "test_hooks_parecer_repo",
@@ -205,7 +205,7 @@ MAPA = [
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
     (r"bin/forge-sugerir", ("test_sugerir", "test_forge")),
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
-    (r"bin/forge-mutante", ("test_forge_mutante", "test_forge", "test_prepush_lote_pp1", "test_pre_push_patch")),  # v0478 E94.5: os dois rodam a cópia
+    (r"bin/forge-mutante", ("test_forge_mutante", "test_forge", "test_pre_push_patch")),  # v0478 E94.5: o test_pre_push_patch roda a cópia
     (r"bin/forge-status", ("test_forge_status", "test_maquina", "test_forge")),  # MP2: o --maquina
     (r"bin/forge-copia", ("test_forge_copia", "test_forge_copia_nome", "test_forge")),  # v0478 E111.13: o test_forge_copia_nome roda o script (CLONE-NOME-UNICO)
     # MAPA-FORGE-FECHAR (mp1311 E1.38): todos os test_fechar_* (a convenção só achava os que citam forge-fechar pelo nome; ficavam de fora
@@ -231,7 +231,7 @@ MAPA = [
     (r"hooks/.*", RODAM_OS_HOOKS),  # EST-M4: guarda C-2
     # v047 E6.5: as entradas do FORGE-SEMPRE-ATUAL (atalhos, trampolins, preparo do container) rodam nos testes do núcleo e no oráculo do QA
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge", "test_testes_tocados", "test_sempre_atual", "test_oraculo_sempre_atual", "test_sessao_automatica")),
-    (r"scripts/indice-fixtures\.py", ("test_indice_fixtures", "test_forge", "test_testes_tocados", "test_prepush_lote_pp1")),  # v0478 E94.1: o teste roda o script na cópia
+    (r"scripts/indice-fixtures\.py", ("test_indice_fixtures", "test_forge", "test_testes_tocados", "test_prepush_unico")),  # v0478 E94.1 e E174.9: o teste roda o script na cópia
     (r"scripts/preparar-estacao\.sh", ("test_forge", "test_pre_push_segredo", "test_pre_push_afetados", "test_testes_tocados", "test_salvar_desfazer", "test_pre_push_leve",
                                        "test_sempre_atual", "test_oraculo_sempre_atual", "test_sessao_automatica", "test_ferramentas_portoes",
                                        "test_ambiente_recriacao")),  # v047 E6.5: o postStart chama a ferramenta e refaz os atalhos
@@ -246,7 +246,7 @@ MAPA = [
     (r"templates/projeto/\.claude/settings\.json", PUBLICADO + ("test_sandbox_controle",)),  # v0478 E29.1: o teste lê o denyWrite do modelo
     (r"(migrations|templates)/.*", PUBLICADO),
     (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
-    (r"docs/hooks-fixtures\.md", CONTEUDO + ("test_indice_fixtures", "test_prepush_lote_pp1")),  # Fase C: o índice gerado confere em dia; v0478 E94.1: o envio leve o confere
+    (r"docs/hooks-fixtures\.md", CONTEUDO + ("test_indice_fixtures", "test_prepush_unico")),  # Fase C: o índice gerado confere em dia; v0478 E94.1 e E174.9: o envio leve o confere
     (r"docs/indice-forge\.md", CONTEUDO + ("test_indice_forge",)),  # H7 (v0478 E8.1): o índice gerado confere em dia
     (r"docs/(security|devops)/_modelo\.md", CONTEUDO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),
     (r"skills/esperar-estado/.*", CONTEUDO + ("test_esperar_estado", "test_comando_pronto")),  # v0478 E96.1: os dois leem a skill
@@ -256,7 +256,6 @@ MAPA = [
     (r"docs/devops/pp1-pre-push\.patch", CONTEUDO + ("test_pre_push_patch",)),  # v047 E2.567: o teste aplica o patch
     (r"docs/engineering/v0479-sandbox-controle\.patch", CONTEUDO + ("test_sandbox_controle",)),  # v0478 E29.1: o teste aplica o patch
     (r"docs/propostas/k152-pre-push\.md", CONTEUDO + ("test_prepush_k152",)),  # v0478 E81.1: o teste aplica o diff da proposta
-    (r"docs/propostas/prepush-lote-pp1\.md", CONTEUDO + ("test_prepush_lote_pp1",)),  # v0478 E94.1: o teste aplica o diff da proposta
     (r"(agents|skills|docs)/.*", CONTEUDO),
     (r"README\.md", ("test_forge", "test_doutor", "test_guia_varios_projetos")),  # PY-MINIMO: test_doutor confere o Python mínimo no README
     (r"CONTRIBUTING\.md", ("test_forge", "test_changelog")),
