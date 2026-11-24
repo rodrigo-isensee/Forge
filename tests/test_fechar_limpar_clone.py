@@ -5,7 +5,6 @@ main, com a origin/main do clone velha); a leitura da origin é desta cópia, s�
 Reaproveita o ambiente de `test_forge_fechar.LimparClones` (HOME temporário, git e gh falsos de `test_fechar.Fechar`).
 """
 import os
-import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -57,8 +56,8 @@ class LimparCloneNaoListado(unittest.TestCase):
         mesclado = self.git("rev-parse", "HEAD", cwd=outra)
         self.git("push", "-q", "origin", "--delete", "melhoria/x", cwd=outra)
         self.git("branch", "-q", "-D", "melhoria/x")  # a local, no head antigo, ficaria pendente: o teste é do clone
-        lido = subprocess.run(["git", "cat-file", "-e", f"{mesclado}^{{commit}}"], cwd=self.proj, env=self.env, capture_output=True)
-        self.assertNotEqual(lido.returncode, 0)  # esta cópia não o lê antes do fechamento
+        objetos = self.git("cat-file", "--batch-all-objects", "--batch-check=%(objectname)").split()
+        self.assertNotIn(mesclado, objetos)  # esta cópia não o lê antes do fechamento
         (self.estado / "lista_extra").write_text(f"234 MERGED develop {mesclado}\n")
         r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
