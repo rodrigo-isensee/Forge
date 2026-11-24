@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-vigia-agentes-pesado
-commit: 25c60be778696f894a488b8a266d5874db63ef9b
+commit: 995807ff250529e98107c0a1a014653dce85be99
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -63,3 +63,10 @@ v0480-vigia-trava-critica: M1..M5 morreu (5 de 5; M2 e M4 por erro do teste decl
 v0480-vigia-agentes-pesado: M1..M6 morreu (6 de 6)
 ```
 Sem sobrevivente, sem achado, sem bug novo. Parecer anterior (aprovado) mantido.
+
+## Revalidação por delta (v0478 E172.44, head 995807ff)
+`forge-check parecer delta` (intervalo 25c60be7..995807ff, sem o que veio da develop): no domínio só `docs/hooks-fixtures.md` (índice regerado após o merge) e `tests/test_hooks.py`; nenhum código de produção nem teste de autoria do pedido mudou (o merge traz o hook `decisao` e fixtures da develop).
+- `python3 scripts/indice-fixtures.py --conferir`: `docs/hooks-fixtures.md: em dia`, rc 0 (3576 fixtures).
+- `test_hooks.py` inteiro (1305 s, máquina carregada): 203 testes, 2 falhas, ambas `PrazoEstourado` de 120 s na fixture `pesado/mesma-sessao-libera` (fixture da base, fora do diff do pedido) em `test_fixtures_do_v0442` e `test_fixtures_fatia_4`. Repetidos sozinhos: `-k test_fixtures_do_v0442` OK (11 s) e `-k test_fixtures_fatia_4` OK (62 s, 1 skip pré-existente). Falha por carga, sem reprodução; não vira achado. Suíte inteira no CI do PR.
+- Mutantes e vermelho-antes-do-verde: código de produção do pedido idêntico ao head aprovado (25c60be7), sem rerrodar.
+Parecer anterior (aprovado) mantido.
