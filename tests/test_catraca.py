@@ -567,7 +567,7 @@ class TestesAfrouxados(Base):
         super().setUp()
         self.repo.escreve("tests/test_y.py", self.Y)
         self.repo.escreve("scripts/test_z.py", "def test_z():\n    assert 1\n")
-        self.repo.escreve("tests/catraca.py", "def test_q():\n    assert 1\n")
+        self.repo.escreve("tests/catraca.py", "def test_q():\n    assert 'só da catraca'\n")
         self.repo.commit()
         self.repo.git("tag", "-f", "base")
 
@@ -670,6 +670,7 @@ class TestesAfrouxados(Base):
 
     def test_so_a_mensagem_da_assercao_trocada_passa(self):
         self.assertEqual(self.afrouxados(self.Y.replace('msg="m"', 'msg="outra"')), [])
+        self.assertEqual(catraca.valores_para_conferir(self.repo.dir, "base"), [])
 
     def test_skip_no_teste_na_classe_ou_skiptest_barra(self):
         casos = {"decorador": ("    def test_b", "    @unittest.skip('x')\n    def test_b", ["T.test_b"]),
@@ -730,9 +731,9 @@ class TestesAfrouxados(Base):
         self.assertIn("tests/test_y.py::T.test_a perdeu asserção", achadas[0])
 
     def test_entre_copias_vale_a_que_so_trocou_valor(self):
-        """Duas cópias movidas: a que só trocou o valor ganha da que perdeu asserção (o critério conta as perdas que barram)."""
+        """Duas cópias movidas com uma perda cada: a que só trocou o valor ganha da pulada (o critério conta as perdas que barram)."""
         self.repo.escreve("tests/test_y.py", "")
-        self.repo.escreve("tests/test_v.py", self.Y.replace("        assert dobro(2) == 4\n", ""))
+        self.repo.escreve("tests/test_v.py", self.Y.replace("    def test_a", "    @unittest.skip('x')\n    def test_a"))
         self.assertEqual(self.afrouxados(self.Y.replace("== 4", "== 5"), "tests/test_w.py"), [])
 
     def test_copia_forte_em_outro_modulo_nao_libera_o_afrouxado_no_proprio(self):
