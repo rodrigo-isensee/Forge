@@ -11,6 +11,10 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--ids M1,M2] [--pra
             "mutantes": [{"id": "M1", "guarda": "<o que a linha protege>", "arquivo": "<caminho relativo>",
                           "de": "<trecho exato>", "para": "<troca>", "testes": ["tests.<módulo>.<Classe>.<teste>"]}]}
            `executor` é opcional: o leitor de veredito da stack (hoje só `unittest`).
+           Várias trocas num mutante (MUTANTE-VARIAS-TROCAS), para guardas que se cobrem uma à outra: `de` e `para` em
+           listas do mesmo tamanho (de 2 a 8 pares, o `de` sem repetir), aplicadas juntas no mesmo `arquivo`; cada `de`
+           uma vez no arquivo e sem sobrepor outro. A linha da saída é a do primeiro par. O `--conferir` confere cada
+           `de`; o `--cobertura` conta cada par como um mutante do mesmo id. A spec de uma troca (texto) segue igual.
            Mutante equivalente declarado: o campo `equivalente` com a justificativa (20+ caracteres; sem ela a spec é
            recusada). Sem `testes`, não roda nem dá rc 1; sai `equivalente: <id> · <justificativa>`. Com `testes`, roda
            como os outros: os testes passarem confirma (`<id> · equivalente`); o mutante morto por eles é inválido
@@ -126,6 +130,7 @@ PRAZO_MAXIMO = 3600
 MAXIMO_DE_MUTANTES = 16  # o pedido de 2 a 3 itens num lote: 21 dos 23 pedidos com spec cabem em um arquivo
 MAXIMO_DA_SPEC = 65536
 MAXIMO_DO_TRECHO = 4000
+MAXIMO_DE_TROCAS = 8  # MUTANTE-VARIAS-TROCAS: pares (de, para) aplicados juntos num mutante
 # Arquivo de teste ou dado de teste não se muta (mutar o teste "mata" qualquer mutante). Mesma lista do
 # `forge-testes --vermelho`; cada script tem a sua cópia, porque o `bin/` não ganha um módulo comum publicado.
 TESTE = re.compile(r"tests/(test_[a-z0-9_]+\.py|config\.json|(fixtures|hooks|transcricoes|migracoes|mutantes)/.+)")
@@ -354,13 +359,17 @@ def validar_spec(dados):
             continue
         vistos.add(m["id"])
         nome = m["id"]
-        if not all(isinstance(m[k], str) for k in ("guarda", "arquivo", "de", "para")):
-            problemas.append(f"{nome}: guarda, arquivo, de e para são texto")
+        pares = trocas(m)
+        if not all(isinstance(m[k], str) for k in ("guarda", "arquivo")) or not pares:
+            problemas.append(f"{nome}: guarda, arquivo, de e para são texto (ou de e para em listas do mesmo tamanho, "
+                             f"de 2 a {MAXIMO_DE_TROCAS})")
             continue
-        if not m["de"] or len(m["de"]) > MAXIMO_DO_TRECHO or len(m["para"]) > MAXIMO_DO_TRECHO:
+        if any(not de or len(de) > MAXIMO_DO_TRECHO or len(para) > MAXIMO_DO_TRECHO for de, para in pares):
             problemas.append(f"{nome}: de vazio ou trecho com mais de {MAXIMO_DO_TRECHO} caracteres")
-        if m["de"] == m["para"]:
+        if any(de == para for de, para in pares):
             problemas.append(f"{nome}: para igual ao de")
+        if len({de for de, _ in pares}) != len(pares):
+            problemas.append(f"{nome}: de repetido entre as trocas")
         problemas += [f"{nome}: {p}" for p in validar_caminho(m["arquivo"])]
         if "equivalente" in m:
             if not isinstance(m["equivalente"], str) or len(m["equivalente"].strip()) < 20:
@@ -390,14 +399,41 @@ def validar_isentas(lista):
     return problemas
 
 
+def trocas(m):
+    """Os pares (de, para) do mutante: um, com `de` e `para` em texto; vários, aplicados juntos, com os dois em listas do
+    mesmo tamanho, de 2 a MAXIMO_DE_TROCAS (MUTANTE-VARIAS-TROCAS). Fora dessas formas, ou par que não é texto: []."""
+    de, para = m["de"], m["para"]
+    if isinstance(de, list) and isinstance(para, list) and len(de) == len(para) and 2 <= len(de) <= MAXIMO_DE_TROCAS:
+        pares = list(zip(de, para))
+    else:
+        pares = [(de, para)]
+    return pares if all(isinstance(d, str) and isinstance(p, str) for d, p in pares) else []
+
+
+def vezes_fora_de_uma(texto, m):
+    """(vezes, trecho) do primeiro `de` do mutante que não aparece uma vez em `texto`, ou None se todos aparecem."""
+    for de, _ in trocas(m):
+        n = texto.count(de)
+        if n != 1:
+            return n, de
+    return None
+
+
+def sufixo_do_trecho(m, de):
+    """O trecho na mensagem, só no mutante de várias trocas (a de uma troca segue igual)."""
+    return f": {de[:60]!r}" if len(trocas(m)) > 1 else ""
+
+
 def linha_do_equivalente(sha, m):
-    """O equivalente declarado não roda: só confere que o `de` existe uma vez no arquivo do commit. (linha, válido)."""
+    """O equivalente declarado não roda: só confere que cada `de` existe uma vez no arquivo do commit. (linha, válido)."""
     try:
-        n = ler_no_commit(sha, m["arquivo"]).decode("utf-8").count(m["de"])
+        texto = ler_no_commit(sha, m["arquivo"]).decode("utf-8")
     except ValueError:  # ilegível ou fora do UTF-8
-        n = 0
-    if n != 1:
-        return f"{m['id']} · inválido · {m['arquivo']} · o trecho aparece {n} vezes no arquivo (precisa de exatamente uma)", False
+        texto = ""
+    fora = vezes_fora_de_uma(texto, m)
+    if fora:
+        return (f"{m['id']} · inválido · {m['arquivo']} · o trecho aparece {fora[0]} vezes no arquivo (precisa de exatamente "
+                f"uma){sufixo_do_trecho(m, fora[1])}"), False
     return f"equivalente: {m['id']} · {' '.join(m['equivalente'].split())}", True
 
 
@@ -463,21 +499,26 @@ def sintaxe_confere(alvo, texto):
 
 
 def mutar(copia, m):
-    """Aplica a troca. Devolve (linha, None) ou (None, motivo de mutante inválido)."""
+    """Aplica as trocas, todas juntas. Devolve (linha do primeiro par, None) ou (None, motivo de mutante inválido)."""
     try:
         alvo = alvo_seguro(copia, m["arquivo"])
         original = alvo.read_bytes().decode("utf-8")
     except (ValueError, UnicodeDecodeError, OSError) as erro:
         return None, str(erro)
-    ocorrencias = original.count(m["de"])
-    if ocorrencias != 1:
-        return None, f"o trecho aparece {ocorrencias} vezes no arquivo (precisa de exatamente uma)"
-    novo = original.replace(m["de"], m["para"])
+    fora = vezes_fora_de_uma(original, m)
+    if fora:
+        return None, f"o trecho aparece {fora[0]} vezes no arquivo (precisa de exatamente uma){sufixo_do_trecho(m, fora[1])}"
+    pares = sorted((original.index(de), de, para) for de, para in trocas(m))
+    if any(onde + len(de) > seguinte for (onde, de, _), (seguinte, _, _) in zip(pares, pares[1:])):
+        return None, "as trocas se sobrepõem no arquivo"
+    novo = original
+    for onde, de, para in reversed(pares):  # do fim para o começo: a troca não desloca a posição das anteriores
+        novo = novo[:onde] + para + novo[onde + len(de):]
     try:
         sintaxe_confere(alvo, novo)
     except SyntaxError as erro:
         return None, f"a troca quebra a sintaxe ({erro.msg})"
-    linha = original.count("\n", 0, original.index(m["de"])) + 1
+    linha = original.count("\n", 0, original.index(trocas(m)[0][0])) + 1
     alvo.write_bytes(novo.encode("utf-8"))
     return linha, None
 
@@ -711,7 +752,7 @@ def mutantes_do_diff(mudadas, rev):
         problemas = validar_spec(dados)
         if problemas:
             raise ValueError(f"{arquivo}: spec inválida ({'; '.join(problemas)})")
-        mutantes += [(arquivo, m) for m in dados["mutantes"]]
+        mutantes += [(arquivo, {**m, "de": de, "para": para}) for m in dados["mutantes"] for de, para in trocas(m)]
         isentas += [{**i, "spec": arquivo} for i in dados.get("isentas", [])]
     if len(isentas) > MAXIMO_DE_ISENTAS:
         raise ValueError(f"mais de {MAXIMO_DE_ISENTAS} isentas somadas nas specs do diff")
@@ -755,8 +796,8 @@ def linha_base_bate(isenta_, mb):
 
 def desencontros_da_spec(dados, mb, rev):
     """O `de` de cada mutante que não aparece uma vez no arquivo do `rev` e a `linha_base` que não bate na base."""
-    saida = [f"{m['id']} · o trecho aparece {n} vezes em {m['arquivo']} (precisa de uma) · {m['de'][:60]!r}"
-             for m in dados["mutantes"] if (n := vezes_no_commit(rev, m["arquivo"], m["de"])) != 1]
+    saida = [f"{m['id']} · o trecho aparece {n} vezes em {m['arquivo']} (precisa de uma) · {de[:60]!r}"
+             for m in dados["mutantes"] for de, _ in trocas(m) if (n := vezes_no_commit(rev, m["arquivo"], de)) != 1]
     return saida + [f"isenta {n} · linha_base {i['linha_base']} de {i['arquivo']} sem condição com o trecho na base · "
                     f"{i['trecho'][:60]!r}" for n, i in enumerate(dados.get("isentas", []), 1)
                     if "linha_base" in i and not linha_base_bate(i, mb)]
