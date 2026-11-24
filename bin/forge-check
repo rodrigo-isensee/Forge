@@ -7968,9 +7968,10 @@ def texto_da_etapa(texto):
 VERBO_DE_INICIO = re.compile(r"\b(?:delegad[ao]s?|iniciad[ao]s?|despachad[ao]s?|come[çc]ou|em curso|em andamento)\b", re.I)  # menção solta não inicia a etapa (L17, A7)
 
 
-def etapas_conferidas(raiz, caminho, historico):
+def etapas_conferidas(raiz, caminho, historico, selados=None):
     """A4 (0.43.2): as etapas do `Cobre:` de cada brief selado que uma linha `entrega conferida <sha40>` posterior do `## Histórico`
     cobre: o commit existe e está na `Branch:` do brief (o head local ou do origin). Brief ilegível ou sem `Cobre:` não conta.
+    Com `selados` ({(nome, sha256): texto} de `briefs_selados`), só conta o brief cujo conteúdo ainda é o do selo (D7, segurança A2).
     FORGE-CHECK-PROXIMO-LENTO: os commits de cada branch saem de um `rev-list` só, lido uma vez por branch (antes, dois `rev-parse`
     e um `merge-base` por par de conferida e brief: 25 mil processos no v047)."""
     pendentes, conferidas, raiz_pedido, alcance = [], set(), raiz_do_pedido(raiz, caminho), {}
@@ -7983,10 +7984,15 @@ def etapas_conferidas(raiz, caminho, historico):
 
     for linha in historico:
         if (m := BRIEF_SELADO.match(linha)):
-            try:
-                cabecalho = cabecalho_do_brief((raiz_pedido / m.group(1)).read_text(encoding="utf-8"))
-            except (OSError, UnicodeDecodeError):
-                continue
+            if selados is not None:
+                if (texto := selados.get((Path(m.group(1)).name, m.group(2)))) is None:
+                    continue
+            else:
+                try:
+                    texto = (raiz_pedido / m.group(1)).read_text(encoding="utf-8")
+                except (OSError, UnicodeDecodeError):
+                    continue
+            cabecalho = cabecalho_do_brief(texto)
             cobre, branch = grupo(r"\bCobre:\s*(\S+)", cabecalho), grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho)
             if cobre and branch:
                 pendentes.append((cobre, branch))
@@ -8184,8 +8190,8 @@ def provas_por_criterio(raiz, caminho, pedido_txt, historico):
     """D7: {"C-n": [(brief, "PQ-m")]} das linhas `PQ-m ... cobre: C-n` dos briefs selados do pedido cujo conteúdo ainda é o do selo
     (`briefs_selados` confere o sha256) e cuja etapa do `Cobre:` tem `entrega conferida` no `## Histórico` (A4, `etapas_conferidas`):
     prova de brief alterado depois do selo ou sem entrega conferida não conta."""
-    conferidas, provas = etapas_conferidas(raiz, caminho, historico), {}
     selados = {(arquivo.name, sha): texto for arquivo, texto, sha in briefs_selados(raiz, caminho, pedido_txt)}
+    conferidas, provas = etapas_conferidas(raiz, caminho, historico, selados), {}
     for rel, sha in dict.fromkeys(selos_do_pedido(pedido_txt)):  # na ordem do Histórico; o selo repetido conta uma vez
         if (texto := selados.get((Path(rel).name, sha))) is None:
             continue

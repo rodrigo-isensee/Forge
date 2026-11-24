@@ -115,6 +115,19 @@ class Criterios(unittest.TestCase):
             "criterios: C-1 · não entregue · Dado o pedido, quando roda, então sai a tabela · `confirmado`",
             "criterios: C-2 · não entregue · Dado um critério sem prova, então sai não entregue · `confirmado`"]))
 
+    def test_outro_brief_alterado_depois_do_selo_nao_confere_a_etapa(self):
+        """Segurança A2 (S2): o brief Y, de etapa já conferida, editado depois do selo para o `Cobre:` da etapa X não a torna conferida."""
+        y = BRIEF.format(provas="- PQ-1 (cmd): `true` · espera: rc=0").replace("Cobre: E1.1", "Cobre: E2.1")
+        sha_y = hashlib.sha256(y.encode("utf-8")).hexdigest()
+        self.montar(" 2026-10-19 10:00: aberto", f" 2026-10-19 10:30: brief selado docs/briefs/p1-dev-exemplo-2.md {sha_y}",
+                    self.conferida, self.selo)
+        self.gravar("docs/briefs/p1-dev-exemplo-2.md", y)
+        self.assertEqual(self.criterios()[1][0], "criterios: pedido p1 · 2 critérios · 0 entregues · 2 não entregues")  # Y intacto
+        self.gravar("docs/briefs/p1-dev-exemplo-2.md", y.replace("Cobre: E2.1", "Cobre: E1.1"))
+        rc, linhas = self.criterios()
+        self.assertEqual(rc, 1, linhas)
+        self.assertEqual(linhas[0], "criterios: pedido p1 · 2 critérios · 0 entregues · 2 não entregues")
+
     def test_cobre_de_criterio_fora_do_pedido_reprova_mesmo_com_todos_entregues(self):
         self.montar(" 2026-10-19 10:00: aberto", self.selo, self.conferida, provas="- PQ-1 (cmd): `true` · espera: rc=0 · cobre: C-1, C-2, C-9")
         rc, linhas = self.criterios()

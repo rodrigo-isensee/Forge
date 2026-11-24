@@ -11,6 +11,36 @@
       "testes": [
         "tests.test_criterios.Criterios.test_todos_entregues_sai_com_rc_zero"
       ]
+    },
+    {
+      "id": "D718",
+      "guarda": "E174.33 (segurança A2): com os selados, a etapa conferida sai só de brief intacto; sem eles, do brief cru",
+      "arquivo": "bin/forge-check",
+      "de": "            if selados is not None:\n                if (texto := selados.get(",
+      "para": "            if False:\n                if (texto := selados.get(",
+      "testes": [
+        "tests.test_criterios.Criterios.test_outro_brief_alterado_depois_do_selo_nao_confere_a_etapa"
+      ]
+    },
+    {
+      "id": "D719",
+      "guarda": "E174.33 (segurança A2): brief cujo selo não confere não entra nas conferidas",
+      "arquivo": "bin/forge-check",
+      "de": "if (texto := selados.get((Path(m.group(1)).name, m.group(2)))) is None:",
+      "para": "if (texto := selados.get((Path(m.group(1)).name, m.group(2))) or (raiz_pedido / m.group(1)).read_text(encoding=\"utf-8\")) is None:",
+      "testes": [
+        "tests.test_criterios.Criterios.test_outro_brief_alterado_depois_do_selo_nao_confere_a_etapa"
+      ]
+    },
+    {
+      "id": "D720",
+      "guarda": "E174.33 (segurança A2): o criterios passa os briefs selados às conferidas",
+      "arquivo": "bin/forge-check",
+      "de": "conferidas, provas = etapas_conferidas(raiz, caminho, historico, selados), {}",
+      "para": "conferidas, provas = etapas_conferidas(raiz, caminho, historico), {}",
+      "testes": [
+        "tests.test_criterios.Criterios.test_outro_brief_alterado_depois_do_selo_nao_confere_a_etapa"
+      ]
     }
   ]
 }
