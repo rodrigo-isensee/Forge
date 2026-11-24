@@ -6,8 +6,8 @@
       "id": "D3B1",
       "guarda": "a própria catraca fica fora da comparação",
       "arquivo": "tests/catraca.py",
-      "de": "if a.startswith(\"tests/\") and a.endswith(\".py\") and a != \"tests/catraca.py\"]",
-      "para": "if a.startswith(\"tests/\") and a.endswith(\".py\")]",
+      "de": "if a.endswith(\".py\") and a != \"tests/catraca.py\"]",
+      "para": "if a.endswith(\".py\")]",
       "testes": [
         "tests.test_catraca.TestesAfrouxados.test_acrescimos_ajudante_e_arquivo_fora_de_tests_passam"
       ]

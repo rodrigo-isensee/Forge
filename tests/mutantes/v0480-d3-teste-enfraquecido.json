@@ -8,7 +8,9 @@
       "arquivo": "tests/catraca.py",
       "de": "if depois[0] < antes[0]:",
       "para": "if depois[0] < antes[0] - 1:",
-      "testes": ["tests.test_catraca.TestesAfrouxados.test_assercao_levada_a_outro_teste_barra_com_a_soma_igual"]
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_assercao_levada_a_outro_teste_barra_com_a_soma_igual"
+      ]
     },
     {
       "id": "D3A2",
@@ -16,7 +18,9 @@
       "arquivo": "tests/catraca.py",
       "de": "if depois[1] > antes[1]:",
       "para": "if depois[1] > antes[1] + 1:",
-      "testes": ["tests.test_catraca.TestesAfrouxados.test_skip_no_teste_na_classe_ou_skiptest_barra"]
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_skip_no_teste_na_classe_ou_skiptest_barra"
+      ]
     },
     {
       "id": "D3A3",
@@ -24,7 +28,9 @@
       "arquivo": "tests/catraca.py",
       "de": "if depois[2] and not antes[2]:",
       "para": "if depois[2] and antes[2]:",
-      "testes": ["tests.test_catraca.TestesAfrouxados.test_teste_sem_assercao_esvaziado_barra"]
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_teste_sem_assercao_esvaziado_barra"
+      ]
     },
     {
       "id": "D3A4",
@@ -32,7 +38,9 @@
       "arquivo": "tests/catraca.py",
       "de": "if antes[3] - depois[3]:",
       "para": "if depois[3] - antes[3]:",
-      "testes": ["tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_barra"]
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_barra"
+      ]
     },
     {
       "id": "D3A5",
@@ -40,7 +48,9 @@
       "arquivo": "tests/catraca.py",
       "de": "perdas = [\"foi apagado ou renomeado\"]",
       "para": "perdas = []",
-      "testes": ["tests.test_catraca.TestesAfrouxados.test_teste_apagado_renomeado_ou_modulo_ilegivel_barra"]
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_teste_apagado_renomeado_ou_modulo_ilegivel_barra"
+      ]
     },
     {
       "id": "D3A6",
@@ -48,7 +58,9 @@
       "arquivo": "tests/catraca.py",
       "de": "            if perdas:\n                v.append(msg(\"R-CONFORMIDADE\", f\"o teste",
       "para": "            if perdas and False:\n                v.append(msg(\"R-CONFORMIDADE\", f\"o teste",
-      "testes": ["tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_barra"]
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_barra"
+      ]
     },
     {
       "id": "D3A7",
@@ -56,15 +68,9 @@
       "arquivo": "tests/catraca.py",
       "de": "k.arg != \"msg\"",
       "para": "k.arg != \"msgx\"",
-      "testes": ["tests.test_catraca.TestesAfrouxados.test_so_a_mensagem_da_assercao_trocada_passa"]
-    },
-    {
-      "id": "D3A8",
-      "guarda": "só módulos de tests/ entram na comparação",
-      "arquivo": "tests/catraca.py",
-      "de": "if a.startswith(\"tests/\") and a.endswith(\".py\") and a != \"tests/catraca.py\"]",
-      "para": "if a.endswith(\".py\") and a != \"tests/catraca.py\"]",
-      "testes": ["tests.test_catraca.TestesAfrouxados.test_acrescimos_ajudante_e_arquivo_fora_de_tests_passam"]
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_so_a_mensagem_da_assercao_trocada_passa"
+      ]
     }
   ]
 }

@@ -723,7 +723,7 @@ def _testes_por_modulo(raiz, ref, modulos):
 def regra_testes_afrouxados(raiz, b, h):
     """Cada `def test_*` da base num módulo tocado: apagado (sem o mesmo nome em outro módulo tocado), pulado, esvaziado,
     com asserção a menos ou valor esperado trocado barra. Teste movido de módulo passa se a cópia não afrouxou."""
-    modulos = [a for a in alterados(raiz, b, h) if a.startswith("tests/") and a.endswith(".py") and a != "tests/catraca.py"]
+    modulos = [a for a in alterados(raiz, b, h) if a.endswith(".py") and a != "tests/catraca.py"]  # fora de tests/: não lido
     tb, th = _testes_por_modulo(raiz, b, modulos), _testes_por_modulo(raiz, h, modulos)
     v = []
     for arq, testes in sorted(tb.items()):

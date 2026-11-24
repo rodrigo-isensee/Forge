@@ -584,7 +584,8 @@ class TestesAfrouxados(Base):
         self.assertFalse(any("asserções em tests/ caíram" in v for v in self.repo.violacoes()))
 
     def test_valor_esperado_trocado_barra(self):
-        for de, para in (("), 3,", "), 4,"), ("== 4", "== 5"), ("soma(1, 2)", "soma(1, 3)")):
+        for de, para in (("), 3,", "), 4,"), ("== 4", "== 5"), ("soma(1, 2)", "soma(1, 3)"),
+                         ("assertEqual(soma(1, 2), 3,", "assertTrue(soma(1, 2),")):
             with self.subTest(de):
                 self.repo.git("reset", "-q", "--hard", "base")
                 achadas = self.afrouxados(self.Y.replace(de, para))
