@@ -2,7 +2,12 @@
 
 Propósito: correção do `.githooks/pre-push` do Forge pronta para o dono aplicar (o arquivo é travado para os agentes). Público: o dono, `tech-lead`, `security-engineer`, `qa-engineer`. Revisão: 2026-12-21.
 
-Estado: proposta (v0478 E94.1; cartões PREPUSH-INDICE-E-PULOS, PREPUSH-LEVE-COBERTURA-CATRACA, PRE-PUSH-TEXTO-TRAVA-FD, FILA-INTERVALO-ZERO e PREPUSH-FORGE-AVISO-LISTA-VAZIA). Só aperta: nenhum envio que reprova hoje passa a passar; o envio leve continua sem teste nenhum.
+Estado: substituída (v0478 E174.9, decisão do dono de 2026-11-24 17:08) pelo ajuste único `patches/prepush-unico.patch`. **Não aplique o bloco `diff` abaixo**: ele não aplica por cima do ajuste único e nenhum teste o prova mais (o `tests/test_prepush_lote_pp1.py` saiu). Era: proposta (v0478 E94.1; cartões PREPUSH-INDICE-E-PULOS, PREPUSH-LEVE-COBERTURA-CATRACA, PRE-PUSH-TEXTO-TRAVA-FD, FILA-INTERVALO-ZERO e PREPUSH-FORGE-AVISO-LISTA-VAZIA).
+
+## 0. Por que fechou como substituída (2026-11-24)
+- **O que entrou no lugar:** o ajuste único do `.githooks/pre-push`, um patch só: primeiro o do envio local (PREPUSH-ENVIO-LOCAL-PATCH, decisão 6 de 24/11: PRE-PUSH-TEXTO-TRAVA-FD, FILA-INTERVALO-ZERO e PREPUSH-INDICE-E-PULOS, linha a linha as deste lote), depois o D2 (PORTAO-D2) por cima. Provas: `tests/test_prepush_unico.py` (o envio local, com as classes que eram deste lote) e `tests/test_pre_push_d2.py` (o D2), os dois sobre o mesmo patch; roteiro do dono em `patches/prepush-unico-roteiro.md`.
+- **O que deste lote não entra:** PREPUSH-LEVE-COBERTURA-CATRACA fechou sem mudança (decisão 7 de 24/11: o CI já barra e o ENVIO-LEVE tirou teste do envio local); PREPUSH-FORGE-AVISO-LISTA-VAZIA não está no patch aprovado do envio local e segue como cartão próprio.
+- **Por que não manter as duas:** as duas mexem nas mesmas linhas do hook (o fd da trava e o intervalo da fila); com o ajuste único aplicado, o `git apply` deste bloco recusa, e o teste dele ficaria vermelho ou provando um hook que não existe. O dono autorizou a saída do teste (rótulo `afrouxa-regra` no PR).
 
 ## 1. O que a `develop` já cobre (fb3b670b)
 | Cartão | Na `develop` hoje | Nesta proposta |

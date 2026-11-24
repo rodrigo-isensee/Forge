@@ -1,85 +1,85 @@
 {
-  "pedido": "v0479-prepush-lote-pp1-4",
+  "pedido": "v0480-prepush-ajuste-unico",
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M25",
+      "id": "M9",
       "guarda": "pre-push (patch): INDICE-E-PULOS: índice que não roda vira aviso",
-      "arquivo": "docs/propostas/prepush-lote-pp1.md",
+      "arquivo": "patches/prepush-unico.patch",
       "de": "+      elif [ \"$rc\" -ne 0 ]; then\n+        echo \"pre-push: aviso: scripts/indice-fixtures.py",
       "para": "+      elif [ \"$rc\" -ne 2 ]; then\n+        echo \"pre-push: aviso: scripts/indice-fixtures.py",
       "testes": [
-        "tests.test_prepush_lote_pp1.IndiceEPulos.test_indice_que_nao_roda_e_so_aviso"
+        "tests.test_prepush_unico.IndiceEPulos.test_indice_que_nao_roda_e_so_aviso"
       ]
     },
     {
-      "id": "M26",
+      "id": "M10",
       "guarda": "pre-push (patch): INDICE-E-PULOS: a conta de pulos roda com a base e a catraca",
-      "arquivo": "docs/propostas/prepush-lote-pp1.md",
+      "arquivo": "patches/prepush-unico.patch",
       "de": "+  if [ -n \"$base_dev\" ] && [ -f tests/catraca.py ] && [ ! -L tests/catraca.py ]; then",
       "para": "+  if false; then",
       "testes": [
-        "tests.test_prepush_lote_pp1.IndiceEPulos.test_skip_novo_em_teste_reprova"
+        "tests.test_prepush_unico.IndiceEPulos.test_skip_novo_em_teste_reprova"
       ]
     },
     {
-      "id": "M27",
+      "id": "M11",
       "guarda": "pre-push (patch): INDICE-E-PULOS: teste Python no diff dispara a conta",
-      "arquivo": "docs/propostas/prepush-lote-pp1.md",
+      "arquivo": "patches/prepush-unico.patch",
       "de": "tests/*.py) [ -f \"$arquivo\" ] && [ ! -L \"$arquivo\" ] && controle=1",
       "para": "tests/nada.py) [ -f \"$arquivo\" ] && [ ! -L \"$arquivo\" ] && controle=1",
       "testes": [
-        "tests.test_prepush_lote_pp1.IndiceEPulos.test_skip_novo_em_teste_reprova"
+        "tests.test_prepush_unico.IndiceEPulos.test_skip_novo_em_teste_reprova"
       ]
     },
     {
-      "id": "M28",
+      "id": "M12",
       "guarda": "pre-push (patch): INDICE-E-PULOS: com teste no diff a conta roda",
-      "arquivo": "docs/propostas/prepush-lote-pp1.md",
+      "arquivo": "patches/prepush-unico.patch",
       "de": "+    if [ \"$controle\" = 1 ] && ancora=\"$(git merge-base \"$base_dev\" HEAD 2>/dev/null)\"; then\n+      rc=0; saida=\"$(python3 -I -c \"$PULOS_FILTRO_PY\"",
       "para": "+    if [ \"$controle\" = 9 ] && ancora=\"$(git merge-base \"$base_dev\" HEAD 2>/dev/null)\"; then\n+      rc=0; saida=\"$(python3 -I -c \"$PULOS_FILTRO_PY\"",
       "testes": [
-        "tests.test_prepush_lote_pp1.IndiceEPulos.test_skip_novo_em_teste_reprova"
+        "tests.test_prepush_unico.IndiceEPulos.test_skip_novo_em_teste_reprova"
       ]
     },
     {
-      "id": "M29",
+      "id": "M13",
       "guarda": "pre-push (patch): INDICE-E-PULOS: pulo a mais reprova",
-      "arquivo": "docs/propostas/prepush-lote-pp1.md",
+      "arquivo": "patches/prepush-unico.patch",
       "de": "if depois > antes:",
       "para": "if depois > antes + 1:",
       "testes": [
-        "tests.test_prepush_lote_pp1.IndiceEPulos.test_skip_novo_em_teste_reprova"
+        "tests.test_prepush_unico.IndiceEPulos.test_skip_novo_em_teste_reprova"
       ]
     },
     {
-      "id": "M30",
+      "id": "M14",
       "guarda": "pre-push (patch): INDICE-E-PULOS: o filtro sai com 1 quando subiu",
-      "arquivo": "docs/propostas/prepush-lote-pp1.md",
+      "arquivo": "patches/prepush-unico.patch",
       "de": "subiram de {antes} para {depois}\")\n+    sys.exit(1)",
       "para": "subiram de {antes} para {depois}\")\n+    sys.exit(0)",
       "testes": [
-        "tests.test_prepush_lote_pp1.IndiceEPulos.test_skip_novo_em_teste_reprova"
+        "tests.test_prepush_unico.IndiceEPulos.test_skip_novo_em_teste_reprova"
       ]
     },
     {
-      "id": "M31",
+      "id": "M15",
       "guarda": "pre-push (patch): INDICE-E-PULOS: a conta exclui a própria catraca",
-      "arquivo": "docs/propostas/prepush-lote-pp1.md",
+      "arquivo": "patches/prepush-unico.patch",
       "de": " and a.endswith(\".py\") and a != \"tests/catraca.py\"]",
       "para": " and a.endswith(\".py\")]",
       "testes": [
-        "tests.test_prepush_lote_pp1.IndiceEPulos.test_skip_novo_na_propria_catraca_nao_barra"
+        "tests.test_prepush_unico.IndiceEPulos.test_skip_novo_na_propria_catraca_nao_barra"
       ]
     },
     {
-      "id": "M32",
+      "id": "M16",
       "guarda": "pre-push (patch): INDICE-E-PULOS: a conta só olha tests/",
-      "arquivo": "docs/propostas/prepush-lote-pp1.md",
+      "arquivo": "patches/prepush-unico.patch",
       "de": "a.startswith(\"tests/\") and a.endswith",
       "para": "a.endswith",
       "testes": [
-        "tests.test_prepush_lote_pp1.IndiceEPulos.test_skip_novo_fora_de_tests_nao_barra"
+        "tests.test_prepush_unico.IndiceEPulos.test_skip_novo_fora_de_tests_nao_barra"
       ]
     }
   ]
