@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "D6 (c): config fora de JSON sai None, sem erro que cale as ordens",
       "arquivo": "hooks/ordens.py",
-      "de": "    except (OSError, ValueError):",
-      "para": "    except OSError:",
+      "de": "    except (OSError, ValueError, RecursionError):",
+      "para": "    except (OSError, RecursionError):",
       "testes": [
         "tests.test_hooks.OrdensEmVigor.test_idioma_torto_sai_none_sem_erro"
       ]
@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "D6 (c): config que não é arquivo regular (FIFO) sai None, sem erro que cale as ordens",
       "arquivo": "hooks/ordens.py",
-      "de": "    except (OSError, ValueError):",
-      "para": "    except ValueError:",
+      "de": "    except (OSError, ValueError, RecursionError):",
+      "para": "    except (ValueError, RecursionError):",
       "testes": [
         "tests.test_hooks.OrdensEmVigor.test_idioma_torto_sai_none_sem_erro"
       ]
@@ -70,6 +70,16 @@
       "para": "DO_IDIOMA.format(nome=nome) if True else",
       "testes": [
         "tests.test_hooks.OrdensEmVigor.test_linha_fixa_com_e_sem_o_idioma"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "A1 do review E174.6: config aninhada (RecursionError) sai None, e as ordens seguem",
+      "arquivo": "hooks/ordens.py",
+      "de": "    except (OSError, ValueError, RecursionError):",
+      "para": "    except (OSError, ValueError):",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_idioma_torto_sai_none_sem_erro"
       ]
     }
   ]

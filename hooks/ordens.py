@@ -75,7 +75,7 @@ def idioma_do_dono(raiz):
     try:
         texto = ler_ordens(base / ".forge" / "config.json", base)
         config = json.loads(texto) if texto is not None else {}
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):  # aninhado demais levanta RecursionError (A1 do review E174.6)
         return None
     codigo = config.get("idioma_do_dono", IDIOMA_PADRAO) if isinstance(config, dict) else None
     return IDIOMAS.get(codigo) if isinstance(codigo, str) else None

@@ -4088,7 +4088,8 @@ class OrdensEmVigor(unittest.TestCase):
 
     def test_idioma_torto_sai_none_sem_erro(self):  # D6 (c): config torta não cala as ordens nem vira texto livre
         config = self.base / ".forge" / "config.json"
-        for texto in ("{x", "[]", '{"idioma_do_dono": ["pt"]}', '{"idioma_do_dono": "fr"}', '{"idioma_do_dono": null}'):
+        for texto in ("{x", "[]", '{"idioma_do_dono": ["pt"]}', '{"idioma_do_dono": "fr"}', '{"idioma_do_dono": null}',
+                      "[" * 20000 + "]" * 20000):  # aninhado abaixo de 64 KiB: RecursionError (A1 do review E174.6)
             with self.subTest(texto=texto):
                 config.write_text(texto, encoding="utf-8")
                 self.assertIsNone(self.ordens.idioma_do_dono(self.base))
