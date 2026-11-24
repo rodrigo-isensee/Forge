@@ -98,8 +98,9 @@ class Revalidacao(unittest.TestCase):
     def test_mesmo_id_em_outro_arquivo_nao_e_repeticao(self):
         self.assertEqual(len(self.rodadas(["- A1 (bloqueante) src/b.py:5 · outro arquivo"])), 1)
 
-    def test_recomendado_fora_do_delta_passa(self):
-        self.assertEqual(self.rodadas(["- A2 (recomendado) src/a.py:2 · sugestão"]), [])
+    def test_recomendado_fora_do_delta_passa(self):  # com o bloqueante repetido A1, o laço roda e chega ao recomendado (FD10)
+        achados = ["- A1 (bloqueante) src/a.py:5 · ainda aberto", "- A2 (recomendado) src/a.py:2 · sugestão"]
+        self.assertEqual(self.rodadas(achados), [])
 
     def test_primeira_rodada_nao_recusa(self):
         texto = self.parecer("review", self.c2[:7], ["- A2 (bloqueante) src/a.py:2 · novo"])
