@@ -3070,7 +3070,8 @@ class Hooks(unittest.TestCase):
     def test_fixtures_do_repo_publico(self):  # CONFORMIDADE-REPO-CREATE-PUBLICO (v0478 E141.2, E141.7): para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith("CONFORMIDADE-REPO-CREATE-PUBLICO")]
-        self.assertGreaterEqual(len(lote), 98, "as fixtures do item (E168.1: mais 15 da GRAPHQL-CONSULTA-EM-VARIAVEL)")
+        self.assertGreaterEqual(len(lote), 112, "as fixtures do item (E168.1: mais 15 da GRAPHQL-CONSULTA-EM-VARIAVEL; "
+                                                "E168.5: mais 14, opção antes do subcomando, stdin por caminho e curinga)")
         self.assertEqual({f.dados["esperado"]["codigo"] for _, f in lote}, {0, 2}, "o lote tem os dois lados")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
         # A8 da segurança (S18): 40 KB de string aberta à frente decidem bem antes do prazo de produção; E148.1 (A9):
@@ -3080,6 +3081,32 @@ class Hooks(unittest.TestCase):
             dados = json.loads((FIXTURES / "conformidade" / f"{caso}.json").read_text(encoding="utf-8"))
             custo, parede = self.medir_o_hook(dados, _comum.PRAZO_DA_DECISAO_S / 2)
             self.assertLess(custo, _comum.PRAZO_DA_DECISAO_S / 2, f"{caso} decide antes do prazo ({parede:.2f} s)")
+
+    def test_ordem_do_gh(self):  # E168.5 (A1 da segurança do #854): o subcomando como o gh o acha
+        parecer = modulos_dos_hooks()[2]
+        casos = {("gh", "-X", "PUT", "api", "x"): ["gh", "api", "-X", "PUT", "x"],
+                 ("gh", "--repo=o/r", "pr", "merge"): ["gh", "pr", "--repo=o/r", "merge"],
+                 ("gh", "-i", "api", "graphql"): ["gh", "api", "-i", "graphql"],  # incerto: o primeiro `api`
+                 ("gh", "--help"): ["gh", "--help"], ("gh", "-R"): ["gh", "-R"], ("gh", "--", "x"): ["gh", "--", "x"],
+                 ("gh", "api", "-X", "PUT"): ["gh", "api", "-X", "PUT"], ("git", "-C", "p", "merge"): ["git", "-C", "p", "merge"]}
+        for entrada, esperado in casos.items():
+            self.assertEqual(parecer.ordem_do_gh(list(entrada)), esperado, entrada)
+
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "sem FIFO no sistema")
+    def test_graphql_arquivo_que_nao_e_regular_e_ilegivel(self):  # E168.5 (A2 da segurança do #854)
+        """O `-F query=@fifo` e o `--input fifo` fora de /dev e /proc: o hook não espera o escritor nem toma o vazio por
+        consulta legível; o arquivo regular segue lido."""
+        _, conformidade, _ = modulos_dos_hooks()
+        pasta = self._pasta_temporaria()
+        os.mkfifo(pasta / "q.fifo")
+        (pasta / "q.graphql").write_text("query{viewer{login}}", encoding="utf-8")
+        ler = conformidade.Guarda.textos_da_api
+        self.assertTrue(ler(["-F", "query=@q.fifo"], pasta)[1])
+        self.assertTrue(ler(["--input", "q.fifo"], pasta)[1])
+        self.assertTrue(ler(["-F", "query=@/proc/self/status"], pasta)[1], "/proc é do processo do hook, não do gh")
+        textos, ilegivel = ler(["-F", "query=@q.graphql"], pasta)
+        self.assertFalse(ilegivel)
+        self.assertIn("query{viewer{login}}", textos)
 
     def test_fixtures_do_desenho(self):  # E5-0 (Q-B, PAR-P2): as pastas de arquitetura têm dono doc/aq no hook
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("E5-0")]

@@ -1,0 +1,24 @@
+{
+  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (GRAPHQL-CONSULTA-EM-VARIAVEL, E168.5, A1 da segurança do #854): `gh -i api graphql`: a opção de duas letras antes do subcomando tomaria o `api` como valor; o hook não sabe qual é o subcomando e lê o primeiro `api` (falha fechada).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh -i api graphql -f query=\"$Q\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: gh api graphql com consulta que o hook não lê"
+  }
+}

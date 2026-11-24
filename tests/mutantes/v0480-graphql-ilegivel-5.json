@@ -1,0 +1,16 @@
+{
+  "pedido": "v0480-graphql-ilegivel",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "GQ25",
+      "guarda": "E168.5 (A2): o que não é arquivo regular (FIFO, dispositivo) é ilegível, sem esperar o escritor",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):\n                            return textos, True",
+      "para": "                        if False:\n                            return textos, True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_graphql_arquivo_que_nao_e_regular_e_ilegivel"
+      ]
+    }
+  ]
+}

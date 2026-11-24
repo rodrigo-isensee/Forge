@@ -19,6 +19,7 @@ import json
 import os
 import re
 import signal
+import stat
 import tempfile
 import shlex
 import subprocess
@@ -365,7 +366,7 @@ def expansao_por_palavra(linha):
         elif c == "\\":  # o escapado é literal; entre aspas duplas o `shlex` só tira a barra antes de `"` e `\\`
             seguinte = next(letras, "")
             texto.append(("\\" if aspas and seguinte not in '"\\' else "") + seguinte)
-        elif c in "$`":
+        elif c in "$`" or not aspas and CURINGA.match(c):  # E168.5 (A3): o curinga fora de aspas o bash troca por nomes
             nivel = max(nivel, 1 if aspas else 2)
             texto.append(c)
         elif c == aspas:
@@ -3208,8 +3209,14 @@ class Guarda:
             if a == "--input" or a.startswith("--input=") or re.search(r"=@", a) or (
                     a in ("-F", "--field") and i + 1 < len(args) and "=@" in args[i + 1]):
                 arq = valor if a.startswith("--input") else (args[i + 1] if a in ("-F", "--field") else a).split("=@", 1)[-1]
-                try:
-                    textos.append(Path(expandir_home(str(pasta / os.path.expandvars(arq)))).read_text(encoding="utf-8"))
+                caminho = expandir_home(str(pasta / os.path.expandvars(arq)))
+                try:  # E168.5 (A2): `/dev/stdin`, `/proc/self/fd/0` e FIFO não são o arquivo que o gh lê: ilegível
+                    if any(p(caminho).startswith(("/dev/", "/proc/")) for p in (os.path.abspath, os.path.realpath)):
+                        return textos, True
+                    with open(os.open(caminho, os.O_RDONLY | os.O_NONBLOCK), "rb") as f:
+                        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+                            return textos, True
+                        textos.append(f.read().decode("utf-8"))
                 except (OSError, ValueError):
                     return textos, True
             else:
@@ -3329,7 +3336,7 @@ class Guarda:
                             self.rotulo_na_sessao_do_forge(p, pasta, nivel + 1)
                     prog = Path(palavras[0].lstrip("`")).name if palavras else ""
                     if prog == "gh":
-                        self.gh_rotulo(palavras, pasta, atras_do_xargs(escritas, palavras))
+                        self.gh_rotulo(parecer.ordem_do_gh(palavras), pasta, atras_do_xargs(escritas, palavras))
                         self.gh_pr_na_sessao_do_forge(palavras, pasta)
                     elif prog == "alias" and CITA_ROTULO.search(" ".join(palavras)):  # A5: o alias do shell guarda o rótulo
                         self.exigir_dono()
@@ -3486,7 +3493,7 @@ class Guarda:
             opcao = a if a in parecer.API_COM_VALOR else None
             if opcao:
                 a, j = (args[j] if j < len(args) else ""), j + 1
-            nivel = vistas.get(a, 2) if parecer.expande(a) else 0
+            nivel = vistas.get(a, 2) if parecer.expande(a) or CURINGA.search(a) else 0
             if nivel == 2:
                 return True
             if nivel == 0 or opcao and opcao not in CAMPOS_DA_API:
@@ -3727,6 +3734,7 @@ class Guarda:
         return bool(expansoes) and nome not in COMANDOS_DO_GH
 
     def gh(self, palavras, parte, pasta, repo_env=None, por_xargs=False, config_env=None, alias=True):
+        palavras = parecer.ordem_do_gh(palavras)  # E168.5: toda trava do gh lê o subcomando logo depois do `gh`
         if alias and self.gh_pelo_alias(palavras, pasta, repo_env, por_xargs, config_env):
             return
         self.gh_trava(palavras, pasta)

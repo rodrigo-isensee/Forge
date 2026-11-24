@@ -386,12 +386,34 @@ def globais(toks):
     return i, pastas, incertas
 
 
+GH_SEM_VALOR = {"--help", "-h", "--version"}  # as opções de `gh` antes do subcomando que não levam o valor seguinte
+GH_SUBCOMANDOS_CRITICOS = ("api", "pr")
+
+
+def ordem_do_gh(toks):
+    """E168.5 (A1 da segurança do #854): o gh aceita opção antes do subcomando (`gh -X PUT api …`, `gh -R o/r pr merge`),
+    e as roda como depois dele. Devolve `toks` com o subcomando logo depois do `gh`, achado como o gh acha: `--` para;
+    `--x` sem `=` e `-x` de duas letras levam o valor seguinte (salvo `GH_SEM_VALOR`). Palavra com expansão antes dele, ou
+    `api`/`pr` como valor de opção, deixam a leitura incerta: vale o primeiro `api` ou `pr` (falha fechada)."""
+    if not toks or Path(toks[0]).name != "gh" or not toks[1:2] or not toks[1].startswith("-"):
+        return toks
+    i = 1
+    while i < len(toks) and toks[i].startswith("-") and toks[i] != "--":
+        leva = "=" not in toks[i] and toks[i] not in GH_SEM_VALOR and (toks[i].startswith("--") or len(toks[i]) == 2)
+        i += 2 if leva else 1
+    if i >= len(toks) or toks[i] == "--" or any(expande(a) or a in GH_SUBCOMANDOS_CRITICOS for a in toks[1:i]):
+        i = next((j for j in range(1, len(toks)) if toks[j] in GH_SUBCOMANDOS_CRITICOS), i)
+    if i >= len(toks) or toks[i] == "--":
+        return toks
+    return [toks[0], toks[i], *toks[1:i], *toks[i + 1:]]
+
+
 def analisar(toks):
     """('cd', dir) | ('pr', None, base, head, rascunho, repo) | ('prmerge', repo, alvo) | ('prready', alvo, desfaz, repo)
     | ('api', args)
     | ('merge', dir, [(branch, [refs candidatas])]) | ('branch', dir, nome) | None."""
     sem = sem_atribuicoes(toks)
-    atribuicoes, toks = toks[: len(toks) - len(sem)], sem
+    atribuicoes, toks = toks[: len(toks) - len(sem)], ordem_do_gh(sem)
     if not toks:
         return None
     if toks[0] == "cd":
@@ -553,6 +575,7 @@ def alias_do_gh(atribuicoes, comando, analise):
     a própria `analise` se o comando não é `gh <nome>` ou se `nome` é comando do gh sem alias. GH_CONFIG_DIR e
     XDG_CONFIG_HOME de prefixo ou de lançador valem. Recusam, como no conformidade: alias de shell, expansão ou config.yml que o hook não lê; e o
     prefixo que muda a configuração sem valor literal (HOME, `$`, crase, `+=`) com nome fora dos comandos do gh."""
+    comando = ordem_do_gh(comando)  # E168.5: `gh -R o/r <alias>` roda o alias como `gh <alias> -R o/r`
     nome, do_gh = (comando + ["", ""])[1], leitor_do_alias().COMANDOS_DO_GH
     if Path((comando + [""])[0]).name != "gh" or not nome or nome.startswith("-"):
         return analise
