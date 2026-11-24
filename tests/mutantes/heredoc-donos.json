@@ -104,10 +104,10 @@
     },
     {
       "id": "D11",
-      "guarda": "C-4: o prazo vencido com corpo pendente recusa mesmo sem o marcador crítico",
+      "guarda": "C-4: o prazo vencido com corpo pendente recusa mesmo sem o marcador crítico (VIGIA-PRAZO-TRAVA: sem isenção pelo marcador)",
       "arquivo": "hooks/_comum.py",
-      "de": "(hook.marcado is False and not hook.corpos_pendentes)",
-      "para": "hook.marcado is False",
+      "de": "\"PostToolUse\" or not sessao_vigiada(hook, clone_do_forge):",
+      "para": "\"PostToolUse\" or hook.marcado is False or not sessao_vigiada(hook, clone_do_forge):",
       "testes": [
         "tests.test_hooks.Hooks.test_prazo_vencido_com_corpo_de_heredoc_pendente_recusa"
       ]
@@ -116,8 +116,8 @@
       "id": "D12",
       "guarda": "C-4: a mensagem do prazo diz os corpos pendentes e pede para separar o comando",
       "arquivo": "hooks/_comum.py",
-      "de": "if hook.marcado is not False else",
-      "para": "if True else",
+      "de": "if hook.marcado is False and hook.corpos_pendentes else",
+      "para": "if False else",
       "testes": [
         "tests.test_hooks.Hooks.test_prazo_vencido_com_corpo_de_heredoc_pendente_recusa"
       ]

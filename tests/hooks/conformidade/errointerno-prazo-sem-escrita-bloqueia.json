@@ -1,5 +1,5 @@
 {
-  "descricao": "HOOK-ERRO-LIBERA (C5): prazo vencido em linha que não escreve segue liberando, com a linha no erros.log.",
+  "descricao": "VIGIA-PRAZO-TRAVA (E169.1, decisão do dono de 24/11): prazo vencido em linha sem o marcador crítico recusa; antes, liberava (HOOK-ERRO-LIBERA C5).",
   "forcar": {
     "onde": "Guarda.bash",
     "como": "prazo"
@@ -14,7 +14,8 @@
     "tool_use_id": "toolu_1"
   },
   "esperado": {
-    "codigo": 0,
+    "codigo": 2,
+    "stderr": "não decidiu",
     "erros_log": "prazo de"
   }
 }
