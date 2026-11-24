@@ -1060,6 +1060,7 @@ class TestesNoCi(Base):
         proibidos = {"importlib", "__import__", "exec", "eval", "compile", "runpy", "TestLoader", "discover", "SourceFileLoader",
                      "import_module", "system", "popen", "execv", "execvp", "spawnv", "run_path", "run_module", "loadTestsFromName"}
         pendentes, vistas = ["regra_controles_enfraquecidos", "regra_testes_afrouxados", "regra_testes_no_ci", "deficits_do_ci"], set()
+        self.assertLessEqual(set(pendentes), set(funcoes), "raiz do I7 ou da T4 ausente em catraca.py")
         while pendentes:
             nome = pendentes.pop()
             vistas.add(nome)
