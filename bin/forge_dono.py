@@ -137,6 +137,26 @@ def ler_resposta(questoes, resposta):
     return escolhas, ambiguas
 
 
+# ---- D5 (v0480, E173.3): a pergunta ao dono declara o tipo e cada questão tem mais de uma opção ----
+
+TIPOS_DA_PERGUNTA = ("contradicao", "duas-leituras", "vale-o-achado", "nenhuma-serve", "afrouxa-regra", "main", "custo")
+
+
+def recusa_da_pergunta(tipo, literal):
+    """D5: o motivo da recusa da pergunta ao dono, ou None. O tipo é um de TIPOS_DA_PERGUNTA; o literal tem opções `1a)`, `1b)`
+    e nenhuma questão com uma opção só (uma porta só não se pergunta: decide-se pela regra, `forge-check decisoes registrar`)."""
+    if tipo not in TIPOS_DA_PERGUNTA:
+        return f"--tipo-pergunta {'|'.join(TIPOS_DA_PERGUNTA)} é obrigatório na pergunta ao dono (D5)"
+    por_questao = opcoes_da_pergunta(literal)
+    if not por_questao:
+        return "a pergunta não tem opções `1a)`, `1b)`; pergunte com as opções (D5)"
+    unicas = [str(n) for n, opcoes in sorted(por_questao.items()) if len(opcoes) < 2]
+    if unicas:
+        return (f"a questão {', '.join(unicas)} tem uma opção só; uma porta só não se pergunta: decida pela regra "
+                "(`forge-check decisoes registrar`) ou dê a alternativa (D5)")
+    return None
+
+
 # ---- E6, E7 e E8 (0.45.7): origem da recomendação de corte, recomendação revertida e conferência da decisão ----
 
 CAMPOS_DE_ORIGEM = {"origem": "origem", "procurado": "procurado", "seguir": "seguir", "nao seguir": "não seguir"}
@@ -268,7 +288,8 @@ def modelo_da_pergunta(literal, pedido_txt=""):
     """E8: as linhas do modelo da `PERGUNTA AO DONO` para a decisão que não passa no critério (`confere=nao-passa`); a alternativa é
     o texto da `[recomendada]` da última pergunta (sem ela, o Jarvis escreve a dele no lugar indicado)."""
     texto = alternativa(pedido_txt, literal) or "<a do Jarvis: a última pergunta não tem [recomendada]>"
-    return ["decisao: confere=nao-passa: antes de cumprir, pergunte ao dono com `forge-check anotar --tipo pergunta`; modelo:",
+    return ["decisao: confere=nao-passa: antes de cumprir, pergunte ao dono com `forge-check anotar --tipo pergunta "
+            "--tipo-pergunta <tipo>` (D5); modelo:",
             f"pergunta: 1a) alternativa: {texto} [recomendada] · origem: <ref> · procurado: <onde> · seguir: <custo> · "
             f"não seguir: <custo> · 1b) seguir a decisão \"{literal[:120]}\""]
 
