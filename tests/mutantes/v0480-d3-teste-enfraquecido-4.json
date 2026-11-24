@@ -47,7 +47,7 @@
       "guarda": "nome da base não serve de renomeado",
       "arquivo": "tests/catraca.py",
       "de": "for nome, t in sorted(testes.items()) if nome not in nomes_da_base]",
-      "para": "for nome, t in sorted(testes.items())]",
+      "para": "for nome, t in sorted(testes.items()) if nome not in ()]",
       "testes": [
         "tests.test_catraca.TestesAfrouxados.test_teste_de_nome_da_base_nao_serve_de_renomeado"
       ]

@@ -64,12 +64,22 @@
     },
     {
       "id": "D3F7",
-      "guarda": "vale a aprovação mais nova",
+      "guarda": "sem candidato, sem versão aprovada",
       "arquivo": "tests/catraca.py",
       "de": "return max(candidatos)[1] if candidatos else None",
-      "para": "return min(candidatos)[1] if candidatos else None",
+      "para": "return max(candidatos)[1] if not candidatos else None",
       "testes": [
-        "tests.test_catraca.TestesAfrouxados.test_na_volta_vale_a_versao_aprovada_mais_nova_de_qualquer_revisor"
+        "tests.test_catraca.TestesAfrouxados.test_valor_trocado_na_volta_contra_a_versao_aprovada_barra"
+      ]
+    },
+    {
+      "id": "D3F8",
+      "guarda": "o renomeado precisa das mesmas asserções",
+      "arquivo": "tests/catraca.py",
+      "de": "for i, n in enumerate(novos) if mesmas_assercoes(antes, n)), None)",
+      "para": "for i, n in enumerate(novos) if True), None)",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_teste_apagado_renomeado_afrouxado_ou_modulo_ilegivel_barra"
       ]
     }
   ]
