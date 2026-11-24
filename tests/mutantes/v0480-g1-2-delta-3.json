@@ -1,0 +1,87 @@
+{
+  "pedido": "v0480-g1-2-delta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "FD17",
+      "guarda": "G1.2: o trecho de uma linha só (sem contagem no @@) vale 1 linha",
+      "arquivo": "bin/forge-check",
+      "de": "int(c) + max(int(n or 1), 1) - 1",
+      "para": "int(c) + max(int(n), 1) - 1",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_diff_que_falha_devolve_none"
+      ]
+    },
+    {
+      "id": "FD18",
+      "guarda": "G1.2: sem ref, a rodada anterior vem do HEAD",
+      "arquivo": "bin/forge-check",
+      "de": "anterior = parecer_anterior(raiz, rel, ref or \"HEAD\", campos)",
+      "para": "anterior = parecer_anterior(raiz, rel, ref, campos)",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_bloqueante_novo_fora_do_delta_e_recusado"
+      ]
+    },
+    {
+      "id": "FD19",
+      "guarda": "G1.2: sem rodada anterior, não lê commit nenhum",
+      "arquivo": "bin/forge-check",
+      "de": "campos[\"commit\"])) if anterior else (None, None)",
+      "para": "campos[\"commit\"])) if not anterior else (None, None)",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_bloqueante_novo_fora_do_delta_e_recusado",
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_primeira_rodada_nao_recusa"
+      ]
+    },
+    {
+      "id": "FD20",
+      "guarda": "G1.2: só o bloqueante da rodada anterior conta como repetido",
+      "arquivo": "bin/forge-check",
+      "de": "for a in anterior[1] if a[\"gravidade\"] == \"bloqueante\"}",
+      "para": "for a in anterior[1] if a[\"gravidade\"] != \"bloqueante\"}",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_recomendado_anterior_promovido_fora_do_delta_e_recusado"
+      ]
+    },
+    {
+      "id": "FD21",
+      "guarda": "G1.2: o git log que falha não lista versão nenhuma",
+      "arquivo": "bin/forge-check",
+      "de": "refs = saida.split() if not cod else []",
+      "para": "refs = saida.split() if cod else []",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_bloqueante_novo_fora_do_delta_e_recusado"
+      ]
+    },
+    {
+      "id": "FD22",
+      "guarda": "G1.2: a versão que o lote não lê (apagada) dá frontmatter vazio",
+      "arquivo": "bin/forge-check",
+      "de": "antes = (ler_frontmatter(texto)[0] or {}) if texto is not None else {}",
+      "para": "antes = (ler_frontmatter(texto)[0] or {}) if texto is None else {}",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_bloqueante_novo_fora_do_delta_e_recusado"
+      ]
+    },
+    {
+      "id": "FL1",
+      "guarda": "E122.6 (QA A2): faixa larga não cruza o delta",
+      "arquivo": "bin/forge-check",
+      "de": "(not larga and any(",
+      "para": "(any(",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_faixa_larga_nao_cruza_o_delta"
+      ]
+    },
+    {
+      "id": "FL2",
+      "guarda": "E122.6: faixa de 20 linhas de largura já é larga",
+      "arquivo": "bin/forge-check",
+      "de": "int(ultima or primeira) - int(primeira) >= LARGURA_DA_FAIXA",
+      "para": "int(ultima or primeira) - int(primeira) > LARGURA_DA_FAIXA",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_faixa_larga_nao_cruza_o_delta"
+      ]
+    }
+  ]
+}

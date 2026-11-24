@@ -89,7 +89,7 @@ class Mapa(unittest.TestCase):
         extras = set(modulos) - minimo - set(self.f.oraculos(RAIZ)) - {"test_indice_forge"}
         self.assertEqual(sorted(extras), [], "módulo fora do FORGE_CHECK no plano do forge-check")
         for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
-                       "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_forge_medidas", "test_medida_cpu", "test_hook_ansi_c"):
+                       "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_forge_medidas", "test_medida_cpu", "test_hook_ansi_c", "test_parecer_fora_do_delta"):
             self.assertIn(modulo, modulos)
 
     def test_modulos_do_forge_check_rodam_os_testes_dele(self):  # FILA-31 F6: bin/forge_provas.py entra com os outros módulos
