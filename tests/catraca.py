@@ -766,10 +766,12 @@ def _msg_afrouxado(arq, nome, perdas):
 def regra_testes_afrouxados(raiz, b, h, aprovado=None):
     """Contra a base, barra o teste apagado (sem renomeado de mesmas asserções), pulado, esvaziado ou com asserção a menos. O valor
     esperado trocado só barra na volta, contra o commit `aprovado` pelos revisores; na primeira entrega, `valores_para_conferir`."""
-    v = [_msg_afrouxado(arq, nome, _duras(perdas)) for arq, nome, perdas in perdas_dos_testes(raiz, b, h) if _duras(perdas)]
-    if aprovado:
+    contra_a_base = perdas_dos_testes(raiz, b, h)
+    v = [_msg_afrouxado(arq, nome, _duras(perdas)) for arq, nome, perdas in contra_a_base if _duras(perdas)]
+    if aprovado:  # só o que a branch trocou: o valor que a base mudou e entrou por merge depois da aprovação não conta
+        da_branch = {(arq, nome) for arq, nome, perdas in contra_a_base if VALOR_TROCADO in perdas}
         v += [_msg_afrouxado(arq, nome, [f"{VALOR_TROCADO} depois da versão aprovada {aprovado[:12]}"])
-              for arq, nome, perdas in perdas_dos_testes(raiz, aprovado, h) if VALOR_TROCADO in perdas]
+              for arq, nome, perdas in perdas_dos_testes(raiz, aprovado, h) if VALOR_TROCADO in perdas and (arq, nome) in da_branch]
     return v
 
 

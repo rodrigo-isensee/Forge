@@ -635,6 +635,23 @@ class TestesAfrouxados(Base):
         self.assertEqual(len(achadas), 1, achadas)
         self.assertIn(f"::T.test_a trocou ou tirou valor esperado depois da versão aprovada {aprovado[:12]}.", achadas[0])
 
+    def test_valor_que_a_base_trocou_e_entrou_por_merge_depois_da_aprovacao_nao_barra(self):
+        """A1 do review e da segurança (S1): a develop troca o valor depois da aprovação, a branch a traz por merge."""
+        self.afrouxados(self.Y.replace("        f()\n    def ajuda", "        self.assertTrue(f())\n    def ajuda"))
+        self.aprova(self.head())
+        self.repo.git("checkout", "-q", "-B", "develop", "base")
+        self.afrouxados(self.Y.replace("== 4", "== 5"))
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("merge", "-q", "--no-edit", "develop")
+        self.assertIsNotNone(catraca.commit_aprovado(self.repo.dir, "develop", "HEAD"))
+        self.assertEqual([v for v in catraca.violacoes_das_regras(self.repo.dir, "develop", "HEAD") if " o teste " in v], [])
+
+    def test_volta_que_restaura_o_valor_da_base_barra_so_pela_perda_dura(self):
+        self.afrouxados(self.Y.replace("== 4", "== 5"))
+        self.aprova(self.head())
+        achadas = self.afrouxados(self.Y.replace("    def test_a", "    @unittest.skip('x')\n    def test_a"))
+        self.assertEqual([a.split(". Por quê")[0] for a in achadas], ["R-CONFORMIDADE: o teste tests/test_y.py::T.test_a ganhou skip/skipIf/skipUnless/expectedFailure/skipTest"])
+
     def test_na_volta_vale_a_versao_aprovada_mais_nova_de_qualquer_revisor(self):
         self.afrouxados(self.Y.replace("), 3,", "), 4,"))
         self.aprova(self.head())

@@ -6,8 +6,8 @@
       "id": "D3E1",
       "guarda": "contra a base, só a perda dura barra",
       "arquivo": "tests/catraca.py",
-      "de": "for arq, nome, perdas in perdas_dos_testes(raiz, b, h) if _duras(perdas)]",
-      "para": "for arq, nome, perdas in perdas_dos_testes(raiz, b, h) if perdas]",
+      "de": "for arq, nome, perdas in contra_a_base if _duras(perdas)]",
+      "para": "for arq, nome, perdas in contra_a_base if perdas]",
       "testes": [
         "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_na_primeira_entrega_nao_barra_e_fica_listado"
       ]
@@ -16,8 +16,8 @@
       "id": "D3E2",
       "guarda": "com versão aprovada, compara com ela",
       "arquivo": "tests/catraca.py",
-      "de": "    if aprovado:\n",
-      "para": "    if False:\n",
+      "de": "    if aprovado:  # só o que a branch trocou",
+      "para": "    if False:  # só o que a branch trocou",
       "testes": [
         "tests.test_catraca.TestesAfrouxados.test_valor_trocado_na_volta_contra_a_versao_aprovada_barra"
       ]
@@ -26,8 +26,8 @@
       "id": "D3E3",
       "guarda": "na volta, o valor trocado barra",
       "arquivo": "tests/catraca.py",
-      "de": "if VALOR_TROCADO in perdas]",
-      "para": "if VALOR_TROCADO not in perdas]",
+      "de": "if VALOR_TROCADO in perdas and (arq, nome) in da_branch]",
+      "para": "if VALOR_TROCADO not in perdas and (arq, nome) in da_branch]",
       "testes": [
         "tests.test_catraca.TestesAfrouxados.test_valor_trocado_na_volta_contra_a_versao_aprovada_barra"
       ]
