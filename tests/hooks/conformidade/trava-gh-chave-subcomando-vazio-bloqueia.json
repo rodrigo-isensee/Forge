@@ -1,0 +1,24 @@
+{
+  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (GRAPHQL-CONSULTA-EM-VARIAVEL, E168.13, A7 e S15 da segurança do #854): `gh {api,} graphql` o bash monta como `gh api graphql` (a alternativa vazia some); a chave no subcomando recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh {api,} graphql -f query=\"$Q\""
+    },
+    "agent_type": "forge:devops-engineer",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: gh com opção antes do subcomando que o hook não lê"
+  }
+}

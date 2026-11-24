@@ -1,0 +1,78 @@
+{
+  "pedido": "v0480-graphql-ilegivel",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "GQ17",
+      "guarda": "E168.5 (A1): só o gh com opção antes do subcomando é reordenado",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if not toks or Path(toks[0]).name != \"gh\" or not toks[1:2] or not toks[1].startswith(\"-\"):\n        return toks",
+      "para": "    if True:\n        return toks",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ordem_do_gh",
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ18",
+      "guarda": "E168.5 (A1): as opções antes do subcomando são puladas até o `--`",
+      "arquivo": "hooks/parecer.py",
+      "de": "    while i < len(toks) and toks[i].startswith(\"-\") and toks[i] != \"--\":",
+      "para": "    while False and i < len(toks) and toks[i].startswith(\"-\") and toks[i] != \"--\":",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ordem_do_gh",
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ19",
+      "guarda": "E168.5 (A1): a opção longa sem `=` leva o valor seguinte",
+      "arquivo": "hooks/parecer.py",
+      "de": "(opcao.startswith(\"--\") or len(opcao) == 2)",
+      "para": "(len(opcao) == 2)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ21",
+      "guarda": "E168.5 (A1): sem subcomando, a linha fica como veio",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if i >= len(toks) or toks[i] == \"--\":\n        return toks",
+      "para": "    if False:\n        return toks",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ordem_do_gh"
+      ]
+    },
+    {
+      "id": "GQ22",
+      "guarda": "E168.5 (A3): o curinga fora de aspas sobe a palavra ao nível 2",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif c in \"$`\" or fora and (CURINGA.match(c) or chave",
+      "para": "        elif c in \"$`\" or fora and (False or chave",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ23",
+      "guarda": "E168.5 (A3): a palavra com curinga é consultada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if parecer.expande(a) or CURINGA.search(a) or CHAVES",
+      "para": "if parecer.expande(a) or False or CHAVES",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ24",
+      "guarda": "E168.5 (A2): caminho em /dev ou /proc é do processo do hook: ilegível",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    if any(p(caminho).startswith((\"/dev/\", \"/proc/\")) for p in (os.path.abspath, os.path.realpath)):",
+      "para": "                    if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_graphql_arquivo_que_nao_e_regular_e_ilegivel"
+      ]
+    }
+  ]
+}

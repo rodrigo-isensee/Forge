@@ -620,5 +620,101 @@ class Projeto(Base):
         self.assertFalse((self.wt / "c1").exists())
 
 
+PEDIDO_DO_BRIEF = ("---\nid: {id}\n---\n# Pedido P\n\n## Escopo\n- E1. X · `confirmado`\n\n## Etapas\n- E1.1 (dev-exemplo): o recurso X.\n\n"
+                   "## Decisões do usuário (registro literal)\nDECISÃO DO DONO (2026-01-01): \"A\".\n")
+
+
+class BriefSugereACopia(unittest.TestCase):
+    """CLONE-NOME-UNICO (E172.7): o `brief gerar` sugere a cópia só do agente (branch e papel), livre na hora; e BRIEF-PEDIDO-ID-CRU:
+    o `id:` do pedido fora da forma sai como PREENCHER (ia cru, com crase, ao `comece por` e às `decisões:`), e o selo recusa PREENCHER."""
+
+    def setUp(self):
+        from test_pre_envio_brief import fc
+        self.fc = fc
+        t = tempfile.TemporaryDirectory()
+        self.addCleanup(t.cleanup)
+        self.tmp = Path(t.name).resolve()
+        self.home = self.tmp / "home"
+        self.home.mkdir()
+        self.raiz = self.tmp / "repo"
+        (self.raiz / "docs" / "pedidos").mkdir(parents=True)
+        ambiente = mock.patch.dict(os.environ, {"HOME": str(self.home)})
+        ambiente.start()
+        self.addCleanup(ambiente.stop)
+
+    def sugerida(self, forge, branch="melhoria/x", papel="tech-lead", raiz=None):
+        with mock.patch.object(self.fc, "e_o_forge", return_value=forge):
+            return self.fc.copia_sugerida(raiz or self.raiz, branch, papel)
+
+    def gerar(self, id_="p", branch="melhoria/x"):
+        (self.raiz / "docs" / "pedidos" / "p.md").write_text(PEDIDO_DO_BRIEF.format(id=id_), encoding="utf-8")
+        fc = self.fc
+        with mock.patch.object(fc, "e_o_forge", return_value=True), mock.patch.object(fc, "pareceres_da_etapa", return_value=[]), \
+                mock.patch.object(fc, "estado_da_branch", return_value=([], [])), mock.patch.object(fc, "pr_da_branch", return_value=({}, None)), \
+                mock.patch.object(fc, "portao_na_branch", return_value=(None, None)), \
+                mock.patch.object(fc, "base_sha_real", return_value="b" * 40), redirect_stderr(io.StringIO()):
+            return fc.montar_brief(self.raiz, "p", "forge:dev-exemplo", branch, "develop", etapa="codigo", cobre="E1.1")
+
+    def test_no_forge_o_nome_leva_branch_e_papel_na_pasta_das_copias(self):
+        self.assertEqual(self.sugerida(True), str(self.home / ".forge-contrib" / "wt" / "x-tech-lead"))
+
+    def test_nome_tomado_sugere_o_seguinte_livre(self):
+        tomada = self.home / ".forge-contrib" / "wt" / "x-tech-lead"
+        tomada.mkdir(parents=True)
+        (tomada / "a").write_text("")
+        self.assertEqual(self.sugerida(True), str(tomada) + "-2")
+
+    def test_papeis_diferentes_na_mesma_branch_tem_copias_diferentes(self):
+        self.assertNotEqual(self.sugerida(True, papel="qa"), self.sugerida(True, papel="tech-lead"))
+
+    def test_no_projeto_a_pasta_e_a_do_projeto_tambem_de_dentro_de_uma_copia(self):
+        esperado = str(self.raiz / ".forge" / "wt" / "x-qa")
+        self.assertEqual(self.sugerida(False, papel="qa"), esperado)
+        self.assertEqual(self.sugerida(False, papel="qa", raiz=self.raiz / ".forge" / "wt" / "outra"), esperado)
+
+    def test_branch_ou_papel_fora_da_forma_nao_sugere(self):
+        self.assertIsNone(self.sugerida(True, branch="-x"))
+        self.assertIsNone(self.sugerida(True, branch="melhoria/a..b"))
+        self.assertIsNone(self.sugerida(True, papel="Tech`lead"))
+        self.assertIsNone(self.sugerida(True, papel=None))
+
+    def test_sem_o_forge_copia_ao_lado_nao_sugere(self):
+        with mock.patch.object(self.fc, "PLUGIN", self.tmp):
+            self.assertIsNone(self.sugerida(True))
+
+    def test_brief_gerado_traz_a_copia_sugerida(self):
+        saida, rc, erros = self.gerar()
+        self.assertEqual(rc, 0, erros)
+        copia = self.home / ".forge-contrib" / "wt" / "x-dev-exemplo"
+        self.assertIn(f"- cópia só sua (novo) (CLONE-NOME-UNICO): `{copia}`, criada com `forge-copia clone {copia} --branch melhoria/x "
+                      "--papel dev-exemplo` e o --origem do repositório (no Forge, worktree no lugar de clone); nunca a cópia de outro agente", saida.split("## Ler", 1)[1].split("\n## ", 1)[0])
+
+    def test_brief_sem_a_linha_com_caminho_fora_da_forma(self):
+        os.environ["HOME"] = str(self.tmp / "com espaço")
+        saida, rc, erros = self.gerar()
+        self.assertEqual(rc, 0, erros)
+        self.assertNotIn("CLONE-NOME-UNICO", saida)
+
+    def test_brief_sem_branch_nao_sugere_copia(self):
+        saida, rc, erros = self.gerar(branch=None)
+        self.assertEqual(rc, 0, erros)
+        self.assertNotIn("CLONE-NOME-UNICO", saida)
+
+    def test_id_do_pedido_com_crase_nao_vai_cru_ao_brief(self):
+        saida, rc, erros = self.gerar(id_="p`rm")
+        self.assertEqual(rc, 0, erros)
+        self.assertNotIn("p`rm", saida)
+        self.assertIn(f"- comece por `forge-check proximo {self.fc.PREENCHER} --etapa E1.1`", saida)
+        self.assertIn(f"- decisões: pedido {self.fc.PREENCHER} até ", saida)
+
+    def test_id_do_pedido_com_hifen_no_inicio_nao_vira_opcao(self):
+        for id_ in ("--lote", "-h"):
+            with self.subTest(id_=id_):
+                saida, rc, erros = self.gerar(id_=id_)
+                self.assertEqual(rc, 0, erros)
+                self.assertNotIn(f"proximo {id_}", saida)
+                self.assertIn(f"- comece por `forge-check proximo {self.fc.PREENCHER} --etapa E1.1`", saida)
+
+
 if __name__ == "__main__":
     unittest.main()

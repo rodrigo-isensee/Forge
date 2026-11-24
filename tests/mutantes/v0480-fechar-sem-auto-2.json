@@ -1,0 +1,38 @@
+{
+  "pedido": "v0480-fechar-sem-auto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "N7",
+      "guarda": "check-run fora dos obrigatórios terminado fora de success para o merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "completed/*) die \"parou no passo $1: o check-run $nome",
+      "para": "completed/*) : \"parou no passo $1: o check-run $nome",
+      "testes": ["tests.test_fechar_sem_auto.TodoCheckRunDoHead.test_check_run_fora_dos_obrigatorios_terminado_fora_de_success_para"]
+    },
+    {
+      "id": "N8",
+      "guarda": "check-run fora dos obrigatórios pendente espera e, no prazo, para",
+      "arquivo": "bin/forge-fechar",
+      "de": "*) [ -n \"$falta\" ] || { falta=\"$nome\" falta_q=\"check-run\" falta_e=\"$ultima\"; } ;;",
+      "para": "*) : ;;",
+      "testes": ["tests.test_fechar_sem_auto.TodoCheckRunDoHead.test_check_run_fora_dos_obrigatorios_pendente_espera_e_para_no_prazo"]
+    },
+    {
+      "id": "N9",
+      "guarda": "a execução em skipped não conta para os check-runs fora dos obrigatórios",
+      "arquivo": "bin/forge-fechar",
+      "de": "'NF >= 4 && $4 != \"skipped\" && (!($1 in id)",
+      "para": "'NF >= 4 && (!($1 in id)",
+      "testes": ["tests.test_fechar_sem_auto.TodoCheckRunDoHead.test_skipped_e_execucao_antiga_vermelha_nao_param_e_mescla"]
+    },
+    {
+      "id": "N10",
+      "guarda": "de cada nome vale só a execução mais recente (id maior)",
+      "arquivo": "bin/forge-fechar",
+      "de": "$2 + 0 > id[$1]",
+      "para": "$2 + 0 < id[$1]",
+      "testes": ["tests.test_fechar_sem_auto.TodoCheckRunDoHead.test_skipped_e_execucao_antiga_vermelha_nao_param_e_mescla"]
+    }
+  ]
+}
