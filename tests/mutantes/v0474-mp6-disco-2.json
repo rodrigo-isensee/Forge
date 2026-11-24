@@ -6,10 +6,10 @@
       "id": "M9",
       "guarda": "so o clone do mesmo origin",
       "arquivo": "bin/forge-fechar",
-      "de": "    if [ -z \"$url_aqui\" ] || [ \"$url_dela\" != \"$url_aqui\" ]; then continue; fi",
-      "para": "    if false; then continue; fi",
+      "de": "    if [ -z \"$url_aqui\" ] || [ \"$(url_normal \"$url_dela\")\" != \"$(url_normal \"$url_aqui\")\" ]; then",
+      "para": "    if false; then",
       "testes": [
-        "tests.test_forge_fechar.LimparClones.test_clone_de_outra_branch_ou_de_outro_origin_nao_e_tocado"
+        "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_clone_de_outro_origin_fica_pendente_e_avisa"
       ]
     },
     {
