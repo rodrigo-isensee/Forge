@@ -26,8 +26,8 @@
       "id": "M27",
       "guarda": "INTEGRADOR-EM-LACO (E173.1): --dry-run não fecha",
       "arquivo": "bin/forge-fechar",
-      "de": "if [ \"$seco\" = 1 ]; then echo \"  rodaria",
-      "para": "if [ \"$seco\" = 9 ]; then echo \"  rodaria",
+      "de": "if [ \"$seco\" = 1 ]; then echo \"  rodaria: forge-fechar ${cmd[*]:1}\"",
+      "para": "if [ \"$seco\" = 9 ]; then echo \"  rodaria: forge-fechar ${cmd[*]:1}\"",
       "testes": [
         "tests.test_fechar_laco.Laco.test_dry_run_le_e_nao_fecha"
       ]

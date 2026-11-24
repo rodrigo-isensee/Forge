@@ -2857,7 +2857,10 @@ def prazo_vencido(hook, critico, bruto, clone_do_forge, regra):
     por conferir, C-4, cita os corpos). Roda fora do vigia, e não refaz a busca do marcador."""
     prazo = hook.prazo_s or PRAZO_DA_DECISAO_S
     hook.registrar_erro(Aviso(f"prazo de {prazo:g} s da decisão vencido"))
-    if critico is None or hook.entrada.get("hook_event_name") == "PostToolUse" or not sessao_vigiada(hook, clone_do_forge):
+    evento = hook.entrada.get("hook_event_name")
+    if evento == "PostToolUse" or not sessao_vigiada(hook, clone_do_forge):
+        return
+    if critico is None and evento != "PreToolUse":  # VIGIA-AGENTES-PESADO: sem marcador, só o PreToolUse recusa
         return
     quem, como = ((f"{hook.corpos_pendentes} corpo(s) de heredoc", "separe o comando em chamadas menores")
                   if hook.marcado is False and hook.corpos_pendentes else
@@ -2878,20 +2881,23 @@ def estender_prazo(hook, prazo_longo, inicio, relogio, armar):
     armar(signal.ITIMER_REAL, max(PRAZO_DO_MERGE_S - (relogio() - inicio), 0.001))
 
 
-def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None, prazo_longo=None, *,
+def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None, prazo_longo=None, prazo_do_hook=None, *,
              relogio=time.monotonic, armar=getattr(signal, "setitimer", None)):
     """Lê o JSON do stdin, chama `funcao(hook)` e sai com 0; `bloquear` sai com 2. `critico` (regex) liga a falha
     fechada seletiva (`clone_do_forge`: também no clone do Forge); `FORGE_GUARDA_ABERTA=1` no ambiente do processo
     (só o dono) abre a guarda desses hooks. `regra_do_prazo` (a regra que o hook cita ao recusar) liga o vigia de prazo:
     o marcador se calcula primeiro, e a decisão toda roda sob `PRAZO_DA_DECISAO_S`; com a linha casando `prazo_longo`
     (regex), sob `PRAZO_DO_MERGE_S` (`estender_prazo`). `relogio` e `armar` (BP1, só por palavra-chave): o relógio e o
-    alarme do vigia; só um teste em processo os troca (relógio falso), e nenhum hook nem o driver do lote os passa."""
+    alarme do vigia; só um teste em processo os troca (relógio falso), e nenhum hook nem o driver do lote os passa.
+    VIGIA-AGENTES-PESADO (decisão do dono, 24/11): o vigia arma também sem `critico` (`agentes`, `pesado`); lá o prazo
+    vencido recusa só no PreToolUse (`prazo_vencido`). `prazo_do_hook` (s) troca o prazo comum por um maior, abaixo do
+    `timeout` do hook no hooks.json; nunca o encurta."""
     hook = Hook(nome)
     bruto = sys.stdin.read()
     if critico is not None and os.environ.get("FORGE_GUARDA_ABERTA") == "1":
         sys.exit(0)
     try:
-        hook.prazo_s = PRAZO_DA_DECISAO_S if regra_do_prazo and critico is not None else None
+        hook.prazo_s = max(prazo_do_hook or 0, PRAZO_DA_DECISAO_S) if regra_do_prazo else None
         inicio = relogio()
         with vigia_de_prazo(hook.prazo_s, armar) as armado:
             entrada = json.loads(bruto or "{}")
