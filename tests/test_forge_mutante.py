@@ -219,6 +219,14 @@ class ValidacaoDaSpec(unittest.TestCase):
         self.assertTrue(self.problemas(mutante(de="a", para="a")))
         self.assertTrue(self.problemas(mutante(de="a" * 4001)))
 
+    def test_varias_trocas_em_listas_do_mesmo_tamanho_valem_e_o_resto_e_invalido(self):  # MUTANTE-VARIAS-TROCAS
+        self.assertEqual(self.problemas(mutante(de=["x > 10", "x >= 11"], para=["x > 99", "x >= 99"])), [])
+        for de, para in ((["a", "b"], ["c"]), (["a"], ["b"]), (["a", "b"], "c"), ("a", ["b", "c"]), ([], []),
+                         ([f"a{i}" for i in range(3)], [f"b{i}" for i in range(3)]), (["a", 1], ["b", "c"]),
+                         (["a", ""], ["b", "c"]), (["a", "b"], ["c", "b"]), (["a", "a"], ["b", "c"]), (5, "x"), ("x", None)):
+            with self.subTest(de=de, para=para):
+                self.assertTrue(self.problemas(mutante(de=de, para=para)))
+
     def test_id_repetido_ou_fora_do_padrao_e_invalido(self):
         self.assertTrue(self.problemas(mutante("M1"), mutante("M1")))
         self.assertTrue(self.problemas(mutante("M 1")))
@@ -391,6 +399,79 @@ class Execucao(unittest.TestCase):
         ajuda = self.rodar("--help")
         self.assertEqual(ajuda.returncode, 0)
         self.assertIn("--ids", ajuda.stdout)
+
+    def test_guardas_que_se_cobrem_so_morrem_com_as_trocas_juntas(self):  # MUTANTE-VARIAS-TROCAS
+        self.gravar("lib.py", "def limite(x):\n    if x > 10:\n        return 2\n    if x >= 11:\n        return 2\n    return 0\n")
+        self.salvar()
+        juntas = mutante("M3", de=["x > 10", "x >= 11"], para=["x > 99", "x >= 99"])
+        r = self.rodar(self.spec(mutante("M1", para="x > 99"), mutante("M2", de="x >= 11", para="x >= 99"), juntas))
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        for linha in ("M1 · sobreviveu · lib.py:2", "M2 · sobreviveu · lib.py:4", "M3 · morreu · lib.py:2"):
+            self.assertIn(linha, r.stdout)
+        self.assertEqual(list(self.tmp.iterdir()), [], "sobrou cópia em $TMPDIR")
+
+    def test_par_isca_que_morre_sozinho_torna_o_mutante_invalido(self):  # MUTANTE-VARIAS-TROCAS, sondas S2 e S3 (#846)
+        self.gravar("lib.py", "def limite(x, y=0):\n    if y > 500:\n        return 3\n    if x > 10:\n        return 2\n"
+                              "    return 0\n")
+        self.salvar()
+        iscas = {"S2": (["if y > 500:", "        return 2\n"], ["if y > 5000:", "        return 3\n"], 5),
+                 "S3": (["if y > 500:", "if x > 10:"], ["if y > 5000:", "if x > 99:"], 4)}
+        for sonda, (de, para, par) in iscas.items():
+            with self.subTest(sonda):
+                r = self.rodar(self.spec(mutante("M1", de="if y > 500:", para="if y > 5000:"),
+                                         mutante("M2", de=de, para=para)))
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("M1 · sobreviveu · lib.py:2", r.stdout)
+                self.assertIn(f"M2 · inválido · lib.py:2 (par com lib.py:{par}) · o par 2 morre sozinho: vira mutante próprio",
+                              r.stdout)
+                self.assertEqual(list(self.tmp.iterdir()), [], "sobrou cópia em $TMPDIR")
+
+    def test_isca_de_tres_pares_e_recusada_antes_de_rodar(self):  # MUTANTE-VARIAS-TROCAS, sonda S4 (#846)
+        self.gravar("lib.py", "def limite(x, y=0):\n    if y > 500:\n        return 3\n    if x < 0:\n        return 0\n"
+                              "    if x <= -1:\n        return 0\n    return x\n")
+        self.gravar("tests/test_lib.py", "import unittest\nimport lib\n\n\nclass T(unittest.TestCase):\n"
+                                         "    def test_negativo(self):\n        self.assertEqual(lib.limite(-5), 0)\n")
+        self.salvar()
+        isca = mutante("M2", de=["if y > 500:", "if x < 0:", "if x <= -1:"],
+                       para=["if y > 5000:", "if x < -100:", "if x <= -100:"], testes=("tests.test_lib.T.test_negativo",))
+        r = self.rodar(self.spec(isca))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("spec inválida; nada foi executado", r.stderr)
+        self.assertIn("M2: guarda, arquivo, de e para são texto (ou de e para em listas do mesmo tamanho, de 2 pares)",
+                      r.stderr)
+        self.assertNotIn("morreu", r.stdout)
+        self.assertEqual(list(self.tmp.iterdir()), [], "rodou o mutante recusado")
+
+    def test_par_escudo_que_morre_nomeia_as_duas_linhas(self):  # MUTANTE-VARIAS-TROCAS, sonda S7 e A3 da segurança (#846)
+        self.gravar("lib.py", "def limite(x, y=0):\n    if x < 0:\n        return 0\n    if y > 500:\n        return 3\n"
+                              "    return max(x, 0)\n")
+        self.gravar("tests/test_lib.py", "import unittest\nimport lib\n\n\nclass T(unittest.TestCase):\n"
+                                         "    def test_negativo(self):\n        self.assertEqual(lib.limite(-5), 0)\n")
+        self.salvar()
+        escudo = mutante("M2", de=["if y > 500:", "if x < 0:"], para=["if y < 500:", "if x < -100:"],
+                         testes=("tests.test_lib.T.test_negativo",))
+        r = self.rodar(self.spec(escudo))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("M2 · morreu · lib.py:4 (par com lib.py:2)", r.stdout)
+
+    def test_par_que_nao_roda_sozinho_torna_o_mutante_invalido(self):  # MUTANTE-VARIAS-TROCAS
+        self.gravar("lib.py", "def limite(x):\n    if (x > 10):\n        return 2\n    return 0\n")
+        self.salvar()
+        juntas = mutante(de=["(x >", "10)"], para=["[x >", "10]"], testes=("tests.test_lib.T.test_baixo",))
+        r = self.rodar(self.spec(juntas))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("M1 · inválido · lib.py:2 (par com lib.py:2) · o par 1 não roda sozinho: a troca quebra a sintaxe",
+                      r.stdout)
+
+    def test_varias_trocas_com_um_trecho_ausente_ou_sobreposto_sao_invalidas(self):  # MUTANTE-VARIAS-TROCAS
+        casos = {"ausente": (["x > 10", "x > 11"], ["x > 99", "x > 98"], "o trecho aparece 0 vezes no arquivo (precisa "
+                             "de exatamente uma): 'x > 11'"),
+                 "sobreposto": (["if x > 10", "x > 10:"], ["if x > 99", "x > 98:"], "as trocas se sobrepõem no arquivo")}
+        for nome, (de, para, motivo) in casos.items():
+            with self.subTest(nome):
+                r = self.rodar(self.spec(mutante(de=de, para=para)))
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn(f"M1 · inválido · lib.py · {motivo}", r.stdout)
 
     def test_de_com_zero_ou_duas_ocorrencias_sai_2(self):  # CA-14
         for de in ("x > 11", "return"):
@@ -830,6 +911,21 @@ class Cobertura(unittest.TestCase):
         r = self.cobertura()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("coberta · lib.py:2 · tests/mutantes/x.json:M1 · declarado, não provado", r.stdout)
+
+    def test_cada_troca_do_mutante_de_varias_cobre_a_sua_condicao(self):  # MUTANTE-VARIAS-TROCAS
+        duas = "x = 1\nif x > 100:\n    x = 2\nif x >= 101:\n    x = 2\n"
+        varias = mutante(de=["if x > 100:", "if x >= 101:"], para=["if x > 1000:", "if x >= 1000:"])
+        self.salvar({"lib.py": duas, "tests/mutantes/x.json": json.dumps({"pedido": "x", "mutantes": [varias]})})
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        for linha in ("coberta · lib.py:2 · tests/mutantes/x.json:M1 (par com lib.py:4) · ",
+                      "coberta · lib.py:4 · tests/mutantes/x.json:M1 (par com lib.py:2) · "):
+            self.assertIn(linha, r.stdout)
+
+    def test_par_com_nomeia_so_o_trecho_presente_e_some_sem_nenhum(self):  # MUTANTE-VARIAS-TROCAS, A3 da segurança (#846)
+        self.assertEqual(self.f.par_com("a\nb\nc\n", "lib.py", ["c", "zz"]), " (par com lib.py:3)")
+        self.assertEqual(self.f.par_com("a\nb\n", "lib.py", ["zz"]), "")
+        self.assertEqual(self.f.par_com("a\nb\n", "lib.py", []), "")
 
     def test_sem_mutante_diz_por_que_o_mutante_que_toca_o_no_nao_cobre(self):  # v047 E1.283
         repetido = "y = 'x > 100'\nif x > 100:\n    x = 2\n"  # a 1.ª ocorrência do `de` fica fora do nó
@@ -1346,6 +1442,15 @@ class Conferir(unittest.TestCase):
         self.assertIn("tests/mutantes/x.json: M1 · o trecho aparece 0 vezes em lib.py (precisa de uma) · 'if x > 100000:'",
                       r.stdout)
 
+    def test_varias_trocas_confere_cada_trecho(self):  # MUTANTE-VARIAS-TROCAS
+        varias = mutante(de=["x = 1\n", "if x > 100000:"], para=["x = 3\n", "if x > 1000:"])
+        self.salvar({"tests/mutantes/x.json": json.dumps({"pedido": "x", "mutantes": [varias]})})
+        self.assertEqual(self.conferir("--base", self.base).returncode, 0)
+        self.salvar({"lib.py": "x = 1\nif x > 100001:\n    x = 2\n"})  # só o 2.º trecho sai do lugar
+        r = self.conferir("--base", self.base)
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:]),
+                         (1, ["tests/mutantes/x.json: M1 · o trecho aparece 0 vezes em lib.py (precisa de uma) · 'if x > 100000:'"]))
+
     def test_arquivo_vigiado_que_sumiu_sai_1_sem_cair(self):
         self.salvar({"tests/mutantes/x.json": json.dumps({"pedido": "x", "mutantes": [mutante(arquivo="sumiu.py")]})})
         r = self.conferir("--base", self.base)
@@ -1558,6 +1663,21 @@ class PlacarDaRelease(unittest.TestCase):
                 self.assertEqual(len(avisos), 1 if esperado else 0, r.stdout)
                 if esperado:
                     self.assertIn(esperado, avisos[0])
+
+    def test_marca_anterior_na_develop_vale_como_a_tag_sem_aviso(self):  # PLACAR-DESDE-MARCA (v0478 E138.3)
+        git(self.dir, "tag", "v0.1.0", "HEAD~1")  # a tag da release anterior existe, mas não no commit da marca
+        (self.dir / ".claude-plugin").mkdir()
+        (self.dir / ".claude-plugin" / "plugin.json").write_text('{"version": "0.2.0"}\n', encoding="utf-8")
+        git(self.dir, "add", "-A")
+        git(self.dir, "commit", "-qm", "marca da 0.2.0 na develop")
+        marca = git(self.dir, "rev-parse", "HEAD").strip()
+        self.commit({self.m + "depois.json": ["morreu"]})
+        r, chamadas = self.placar("--desde", marca, "--versao", "0.3.0")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("aviso:", r.stdout)
+        self.assertEqual(chamadas, [["--", self.m + "placar.json"], ["--", self.m + "depois.json"]])
+        r, _ = self.placar("--desde", "HEAD", "--versao", "0.3.0")  # commit que não é a marca segue avisando
+        self.assertIn("aviso: --desde HEAD não é tag neste clone", r.stdout)
 
 
 class MedidaDaVagaPesada(unittest.TestCase):

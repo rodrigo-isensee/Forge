@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3383 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3516 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,13 +10,14 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3383 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 130 | 70 | 60 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2541 | 1877 | 664 | 100 |
+| `conformidade` | 2659 | 1967 | 692 | 102 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 33 | 13 | 20 | 15 |
+| `ordens` | 11 | 0 | 11 | 10 |
 | `parecer` | 583 | 448 | 135 | 27 |
 | `pesado` | 27 | 11 | 16 | 20 |
 | `quadro` | 7 | 2 | 5 | 7 |
-| `vigia` | 56 | 0 | 56 | 26 |
+| `vigia` | 60 | 0 | 60 | 27 |
 
 ## `agentes`
 
@@ -66,7 +67,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3383 fixtures) roda em `tests/test
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | `opaco-*` | 310 | 232 | 78 | `R-CONFORMIDADE` | `CONFORMIDADE-A9-DESTINO-OPACO`, `CONFORMIDADE-A10-OPERADOR-COLADO`, `CONFORMIDADE-REDIRECAO-NUMERO`, `CONFORMIDADE-DECLARE-N` e mais 1 | CONFORMIDADE-DECLARE-N (E2.179, v047, A19 da segurança E1.344): a atribuição do shell (no prefixo do comando) segue dando o valor escrito. |
-| `trava-*` | 190 | 120 | 70 | `R-CONFORMIDADE`, `R-VERIFY`, `R-MAIN` | `TMPDIR`, `CONFORMIDADE-REDIRECAO-NUMERO` | git branch -D develop. (perfil iniciante: com a consequência em linguagem simples) |
+| `trava-*` | 276 | 182 | 94 | `R-CONFORMIDADE`, `R-VERIFY`, `R-MAIN` | `CONFORMIDADE-REPO-CREATE-PUBLICO`, `TMPDIR`, `CONFORMIDADE-REDIRECAO-NUMERO` | git branch -D develop. (perfil iniciante: com a consequência em linguagem simples) |
 | `contrib-*` | 144 | 114 | 30 | `R-CONTRIB`, `R-CONFORMIDADE`, `R-MAIN` | `PR`, `FILA-22`, `PATCH`, `GET` | Comando aninhado que não dá para analisar (aspas abertas) e aponta para o Forge: falha fechado. |
 | `conferente-*` | 111 | 90 | 21 | — | `ADR`, `VV-2`, `AA2-01` | Citação ANSI-C $'...': o bash entrega --upload-pack ao git e o hook não vê a opção. |
 | `dir36-*` | 106 | 73 | 33 | `R-CONTRIB` | — | Diretriz 36 (R-CONTRIB): `git branch --contains <commit>` só lista: libera. |
@@ -89,7 +90,8 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3383 fixtures) roda em `tests/test
 | `n5-*` | 34 | 21 | 13 | `R-REVIEW` | — | N5 (L22, IMPL-FURO-HOOK-N): am na develop |
 | `nao-*` | 34 | 21 | 13 | `R-MAIN` | `ADR`, `AA2-01` | ADR 0011 (item 2): $' que o shlex lê como aspas abertas. |
 | `pn7-*` | 32 | 24 | 8 | `R-MAIN` | `PN7-DOLAR-INTERROG` | PN7-DOLAR-INTERROG (H1-1, ADR 0011): continua barrado. |
-| `errointerno-*` | 31 | 23 | 8 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA (E5, C3): erro interno com alvo opaco (`$(...)`) numa linha que escreve recusa, sem depender do nome do caminho. |
+| `errointerno-*` | 31 | 24 | 7 | — | `HOOK-ERRO-LIBERA`, `VIGIA-PRAZO-TRAVA` | HOOK-ERRO-LIBERA (E5, C3): erro interno com alvo opaco (`$(...)`) numa linha que escreve recusa, sem depender do nome do caminho. |
+| `ordens-*` | 31 | 26 | 5 | `R-CONFORMIDADE` | `ORDENS-SO-JARVIS` | ORDENS-SO-JARVIS (v0478 E123.14, A4 da segurança E123.12; R-CONFORMIDADE): projeto, dev com cwd na worktree: cp de vários arquivos para a pa… |
 | `rverify-*` | 29 | 22 | 7 | `R-VERIFY` | `HOOK-RVERIFY-FALSO-POSITIVO` | HOOK-RVERIFY-FALSO-POSITIVO: cat > $TMPDIR/x.py <<'EOF' com `*` e .githooks/pre-push só no corpo (dado, não destino); sessão do Forge, pasta… |
 | `n2-*` | 28 | 22 | 6 | `R-REVIEW` | — | N2 (L20b, IMPL-FURO-HOOK-N): GIT_OBJECT_DIRECTORY por declare -x |
 | `shell-*` | 28 | 20 | 8 | `R-CONFORMIDADE` | — | Contorno pelo shell: echo 9.9.9 >> .forge/versao |
@@ -165,6 +167,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3383 fixtures) roda em `tests/test
 | `rm-*` | 1 | 1 | 0 | `R-CONFORMIDADE` | — | A marca da sessão (`.git/forge/projeto-<hash da raiz>`) é protegida contra escrita e remoção pelos agentes. |
 | `so-*` | 1 | 0 | 1 | — | — | Sessão de projeto (externo) com plugin.json forjado na raiz: os caminhos so_forge não valem (C-5 c). |
 | `sparse-*` | 1 | 1 | 0 | — | — | A marca da sessão fica dentro do `.git/`: `git sparse-checkout set src` apaga o `.forge/versao` da árvore de trabalho e não a marca, então a… |
+| `vigia-*` | 1 | 1 | 0 | — | `VIGIA-PRAZO-TRAVA` | VIGIA-PRAZO-TRAVA (E169.1; política do vigia do parecer de segurança E141.13): `"g"h repo create --public` não casa o marcador crítico; com… |
 
 ## `doutor`
 
@@ -193,6 +196,21 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3383 fixtures) roda em `tests/test
 | `pausado-*` | 1 | 0 | 1 | — | — | S4: objetivo pausado não bloqueia o Stop. |
 | `pergunta-*` | 1 | 0 | 1 | — | — | S4: última linha do dono no pedido é PERGUNTA AO DONO: espera o dono. |
 | `quarta-*` | 1 | 0 | 1 | — | — | S4: o quarto "ainda não" igual seguido pausa sozinho e o Stop passa. |
+
+## `ordens`
+
+| Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| `teto-*` | 2 | 0 | 2 | — | — | 3 linhas de 900 caracteres (2702 com as quebras): injeta 2000 caracteres e avisa o corte. |
+| `arquivo-*` | 1 | 0 | 1 | — | — | Projeto sem .forge/ordens/ordens-em-vigor.md: silêncio, saída 0 e nada gravado (custo zero de contexto). |
+| `erro-*` | 1 | 0 | 1 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA: erro ao ler o arquivo de ordens: sai 0, sem contexto, e a linha vai ao erros.log. |
+| `injeta-*` | 1 | 0 | 1 | — | — | UserPromptSubmit: a linha fixa e as ordens em texto puro; tab e ESC viram espaço (sem_controle); só lê. |
+| `link-*` | 1 | 0 | 1 | — | — | O arquivo de ordens é link para fora da raiz do projeto: silêncio (o texto de fora não vira contexto). |
+| `s5-*` | 1 | 0 | 1 | — | — | S5 da segurança E123.8: projeto com worktree que traz arquivo de ordens forjado; a sessão do Jarvis (cwd na cópia principal) injeta só a ord… |
+| `sem-*` | 1 | 0 | 1 | — | — | Pasta sem .forge/versao nem manifesto do Forge: o ordens não lê nada, não escreve no contexto e não cria .forge/run/. |
+| `sessao-*` | 1 | 0 | 1 | — | — | Sessão do Forge (clone sem .forge/versao): lê ~/.forge-contrib/docs/ordens/ordens-em-vigor.md, não o da raiz. |
+| `sessionstart-*` | 1 | 0 | 1 | — | — | SessionStart depois da compactação (source compact): as ordens voltam ao contexto. |
+| `vazio-*` | 1 | 0 | 1 | — | — | Arquivo só com brancos e controles: silêncio, sem a linha fixa sozinha. |
 
 ## `parecer`
 
@@ -269,6 +287,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3383 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | `entrada-*` | 17 | 0 | 17 | — | `FALA-DO-DONO-RESUMO-COMPACTADO` | FALA-DO-DONO-RESUMO-COMPACTADO: registro user com origin de aviso de tarefa (kind diferente de human) não é fala do dono, mesmo sem começar… |
 | `d-*` | 4 | 0 | 4 | — | — | Achado D, cadeia 3: o `mv .git .g` é barrado pelo conformidade (o `.git` fica); sem o `.forge/versao`, o vigia avisa no Stop. |
+| `time-*` | 4 | 0 | 4 | — | `VIGIA-TIME-PARADO` | VIGIA-TIME-PARADO (emenda da ADR 0003, item 7): Stop do Jarvis, zero agentes e 2 cartões livres: decision block com o reason fixo, uma linha… |
 | `bloqueio-*` | 3 | 0 | 3 | — | — | Bloqueio de outra sessão não vale nesta. |
 | `contorno-*` | 3 | 0 | 3 | — | — | O bloqueio fica no estado: a nova tentativa em outro turno (outro Stop) também é contorno. |
 | `medida-*` | 3 | 0 | 3 | — | `AV3` | AV3 etapa 1: o SubagentStop grava em comandos.jsonl a forma de cada comando crítico com o papel (do agent_type no subagente; da sessão sem a… |

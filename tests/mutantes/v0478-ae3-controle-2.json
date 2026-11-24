@@ -1,0 +1,77 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CTL8",
+      "guarda": "AE3.1 _recusa: nome de segredo",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    if SEGREDO.search(nome):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_controle.Recusas.test_nome_de_segredo_e_recusado"
+      ]
+    },
+    {
+      "id": "CTL9",
+      "guarda": "AE3.1 _recusa: link no caminho",
+      "arquivo": "bin/forge_controle.py",
+      "de": "        if stat.S_ISLNK(info.st_mode):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge_controle.Recusas.test_link_para_fora_e_recusado_sem_commit_parcial",
+        "tests.test_forge_controle.Recusas.test_pasta_que_e_link_e_recusada"
+      ]
+    },
+    {
+      "id": "CTL10",
+      "guarda": "AE3.1 _recusa: não é arquivo comum",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    if not stat.S_ISREG(info.st_mode):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_controle.Recusas.test_repositorio_aninhado_nao_e_arquivo_comum"
+      ]
+    },
+    {
+      "id": "CTL11",
+      "guarda": "AE3.1 _recusa: acima do teto",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    if info.st_size > TETO_DE_BYTES:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_controle.Recusas.test_arquivo_acima_do_teto_e_recusado"
+      ]
+    },
+    {
+      "id": "CTL12",
+      "guarda": "AE3.1 _recusa: no teto entra",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    if info.st_size > TETO_DE_BYTES:",
+      "para": "    if info.st_size >= TETO_DE_BYTES:",
+      "testes": [
+        "tests.test_forge_controle.Recusas.test_arquivo_no_teto_entra"
+      ]
+    },
+    {
+      "id": "CTL13",
+      "guarda": "AE3.1 _mudados: git status que falha",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    if cod != 0:\n        return None",
+      "para": "    if False:\n        return None",
+      "testes": [
+        "tests.test_forge_controle.Falhas.test_status_que_falha_e_erro"
+      ]
+    },
+    {
+      "id": "CTL14",
+      "guarda": "AE3.1 salvar: pasta que não é a raiz",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    if cod != 0 or Path(raiz.strip()).resolve() != pasta:",
+      "para": "    if cod != 0:",
+      "testes": [
+        "tests.test_forge_controle.Ambiente.test_subpasta_nao_e_a_raiz"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "descricao": "VIGIA-PRAZO-TRAVA (E169.1; política do vigia do parecer de segurança E141.13): `\"g\"h repo create --public` não casa o marcador crítico; com o prazo vencido na trava, recusa, em vez de liberar.",
+  "forcar": {
+    "onde": "Guarda.bash",
+    "como": "prazo"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "\"g\"h repo create x --public"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "não decidiu",
+    "erros_log": "prazo de"
+  }
+}

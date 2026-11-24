@@ -58,8 +58,12 @@ FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CITA_PORTAO = re.compile(r"brief selado\s+\S*docs/briefs/\S+\s+[0-9a-f]{64}|entrega conferida\s+[0-9a-f]{40}")
 ESCRITA_NA_LINHA = re.compile(r">|<<|\b(?:tee|sed|dd|cp|mv|install|python\w*|perl\w*|ruby\w*|node|awk|gawk|nawk|printf)\b")
 LINHA_DE_PORTAO = re.compile(r"(?m)^-\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}: (?:brief selado docs/briefs/\S+ [0-9a-f]{64}|entrega conferida [0-9a-f]{40})")
+# TEMPO-FIXTURE-INSTAVEL (E164.1): o par "git/gh ... ação" parte do início da linha (`(?<![^\n])`) e o grupo atômico fixa
+# o 1.º programa dela, o que deixa mais linha para a ação: a decisão é a mesma, e a busca fica linear (sem isso, cada
+# `gh` repetido varria a linha até o fim; 8 KB de `gh repo ` custavam 0,14 s por busca).
 CRITICO = re.compile(
-    r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
+    r"(?<![^\n])(?>[^\n]*?\b(git|gh)\b)[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|"
+    r"\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
     r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|docs/devops|docs/security|CLAUDE\.md|\.git/|commondir|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
     re.I)
 # Variáveis definidas antes na linha que os comandos seguintes herdam; as `GIT_*_PATHSPECS` são as opções `--*-pathspecs`.
@@ -326,6 +330,41 @@ REFS_DE_TROCA = {"fetch", "pull", "push", "send-pack", "update-ref", "symbolic-r
 REPO_APAGAR = re.compile(r"^/?repos/[^/]+/[^/]+/?$")
 GRAPHQL_APAGAR = re.compile(r"mutation[^}]*deleteRepository", re.I)
 VISIBILIDADE_PUBLICA = re.compile(r"\bprivate[\"']?\s*[=:]\s*[\"']?false\b|\bvisibility[\"']?\s*[=:]\s*[\"']?public\b", re.I)
+# CONFORMIDADE-REPO-CREATE-PUBLICO (v0478 E141.2; A1 e A2 de docs/security/v0480-repo-publico-diag.md): criar repositório
+# só com a visibilidade privada explícita (o padrão da API é público; sem TTY o gh exige uma), pelo `gh repo create` e
+# pela API. Valor que o hook não lê (`$`, crase, arquivo ausente) no endpoint do repositório falha fechado. E141.7: a
+# decisão é pelo nome do campo (`-f`/`-F` separado, colado ou com `=`; chave do topo do `--input`), não pelo texto todo.
+REPO_CRIAR = {"create", "new"}  # `gh repo new` é alias de `gh repo create`
+CAMPO_COLADO = re.compile(r"(?:-[fF]=?|--(?:raw-)?field=)(.+)", re.S)  # `-Fk=v`, `-F=k=v`, `--field=k=v`
+CAMPOS_DA_API = {"-f", "-F", "--field", "--raw-field"}
+PRIVADO_REST = {"private": {"true"}, "visibility": {"private", "internal"}}  # o valor privado de cada nome
+CORPO_ILEGIVEL = [("", None)]  # o `--input` que o hook não lê (sentinela: comparado por identidade)
+API_SEGMENTO_ESTRANHO = re.compile(r"(^|/)\.{0,2}(/|$)")  # `user//repos`, `user/./repos`: o servidor pode normalizar
+CRIAR_COM_VALOR = {"-d", "--description", "-h", "--homepage", "-t", "--team", "-g", "--gitignore", "-l", "--license", "-p",
+                   "--template", "-r", "--remote", "-s", "--source"}  # as opções de `gh repo create` que levam valor
+API_CRIA_REPO = re.compile(r"user/repos|orgs/[^/]+/repos|repos/[^/]+/[^/]+/generate", re.I)  # endpoint normalizado
+API_DO_REPO = re.compile(r"repos/[^/]+/[^/]+", re.I)
+GRAPHQL_DO_REPO = re.compile(r"\b(createRepository|cloneTemplateRepository|updateRepository)\b")
+GRAPHQL_CRIA_REPO = re.compile(r"\b(createRepository|cloneTemplateRepository)\b")
+# E141.11 (A1 do review, A7 da segurança): strings e comentários pela especificação; no bloco `"""` só `\"""` escapa, e
+# o comentário fecha no LF ou no CR. CR, BOM e outro controle na consulta falham fechado, sem modelar mais léxico.
+GRAPHQL_SEM_TEXTO = re.compile(r'"""(?:\\"""|\\(?!""")|[^"\\]|"(?!""))*"""|"(?:\\.|[^"\\\n])*(?P<fecha>"?)|#[^\r\n]*')
+GRAPHQL_CONTROLE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f\ufeff]")  # todo controle, fora o TAB e o LF; e o BOM
+GRAPHQL_VISIBILIDADE = re.compile(r"\bvisibility\s*:\s*(\$?\w*)")  # com a vírgula já trocada por espaço
+# REPO-PUBLICO-REDESENHO (v0478 E148.1; A1 do review e A9 da segurança de v0480-repo-publico-fix): as formas do gh que
+# decidem a visibilidade marcam só o prazo vencido e o erro interno (`MarcadorDaPolitica.marca`), não o `CRITICO` das
+# recusas de construção: a leitura do gh com `$`, crase ou `\` + quebra segue livre. Cada termo é uma busca própria na
+# linha (a continuação já vem juntada numa das formas), então o custo é linear no texto.
+GH_DA_VISIBILIDADE = [[re.compile(p, re.I) for p in termos] for termos in (
+    (r"\bgh\b", r"\brepo\b", r"\b(?:create|new)\b"),  # gh repo create, gh repo new
+    (r"\bgh\b", r"\bapi\b", r"graphql|\brepos\b"))]  # user/repos, orgs/<o>/repos, .../generate, repos/<o>/<r>, graphql
+
+
+def visibilidade_do_gh(texto):
+    """Alguma linha do texto tem todos os termos de uma das formas de `GH_DA_VISIBILIDADE`?"""
+    return any(all(t.search(linha) for t in termos) for linha in texto.split("\n") for termos in GH_DA_VISIBILIDADE)
+
+
 CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem em arquivos do projeto
 # CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1; S1-S4 de docs/security/v0479-pv-a1-adr.md): gravam no índice o caminho
 # nomeado, com conteúdo que nunca esteve na árvore (`-c filter.*.clean`, `--chmod`, `--cacheinfo`).
@@ -1608,7 +1647,9 @@ class Guarda:
                 continue
             else:
                 achou = any(casa(r, c) for r in do_proj) or (
-                    not e["quem"] and not no_claude_do_home and em_qualquer_lugar(posix, c))
+                    not e["quem"] and not no_claude_do_home and em_qualquer_lugar(posix, c)) or (
+                    c in PELA_COPIA_PRINCIPAL and em_qualquer_lugar(posix, c)  # sem a pasta no texto, sem ler o disco
+                    and any(casa(r, c) for r in self.relativos_a_copia_principal(posix)))
             if not achou:
                 continue
             if self.papel in e["quem"]:
@@ -1632,6 +1673,16 @@ class Guarda:
             return ("R-CONTRIB", f"manifesto de plugin no projeto ({MANIFESTO}): só a sessão do Forge escreve",
                     "proponha a mudança ao usuário (R-DECISAO)")
         return None
+
+    def relativos_a_copia_principal(self, posix):
+        """[caminho relativo à cópia principal] do `posix` resolvido, ou []: a cópia principal é a pasta comum `.git`
+        da raiz lida do disco (`diretorio_comum`, o cálculo do `fontes` do hook ordens); nu ou `.git` que não se resolve,
+        nenhuma (A2 da segurança E123.8: o dev na worktree grava a cópia principal pelo caminho absoluto ou por `../`)."""
+        comum = diretorio_comum(self.h.raiz)
+        if comum is None or comum.name != ".git":
+            return []
+        rel = relativo_ao_pai(posix, comum.parent)
+        return [] if rel is None else [rel]
 
     def links_do_home(self, home):
         """(nome, realpath do alvo) de cada pasta do home citada nas regras `~/X/...` que é link para fora do home."""
@@ -3364,6 +3415,11 @@ class Guarda:
         elif grupo == "repo" and sub == "edit":
             if (parecer.opcao(palavras[1:], "--visibility", "--visibility") or "").lower() == "public":
                 self.barrar(*publico)
+        elif grupo == "repo" and sub in REPO_CRIAR:
+            if parecer.bandeira(palavras[1:], CRIAR_COM_VALOR, {"--public"}):
+                self.barrar(*publico)
+            if not parecer.bandeira(palavras[1:], CRIAR_COM_VALOR, {"--private", "--internal"}):
+                self.barrar(*publico)
         elif grupo == "api" and parecer.metodo_mutante(palavras[2:]):
             args = palavras[2:]
             if (parecer.opcao(args, "--method", "-X") or "").upper() == "DELETE" and REPO_APAGAR.match(
@@ -3371,6 +3427,113 @@ class Guarda:
                 self.barrar(*apagar)
             if VISIBILIDADE_PUBLICA.search(" ".join(args)) or self.input_publica(args, pasta):
                 self.barrar(*publico)
+            if self.api_publica(args, pasta):
+                self.barrar(*publico)
+
+    def api_publica(self, args, pasta):
+        """CONFORMIDADE-REPO-CREATE-PUBLICO (A2): `gh api` mutante que cria ou edita repositório sem a visibilidade privada
+        explícita, decidido pelo nome do campo (E141.7). REST: criar (`user/repos`, `orgs/<o>/repos`,
+        `repos/<o>/<r>/generate`) pede o campo `private=true` ou `visibility=private|internal` (com `--input`, no corpo);
+        criar e editar recusam o campo de visibilidade com outro valor e falham fechado no que o hook não lê e no
+        endpoint com segmento vazio ou de ponto. GraphQL: `graphql_publica`."""
+        args = parecer.desagrupa_i(args)
+        endpoint = endpoint_normalizado(parecer.endpoint_da_api(args))
+        campos, corpo = self.campos_da_api(args, pasta)
+        if e_graphql(endpoint):
+            texto = " ".join(args + self.textos_da_api(args, pasta)[0])
+            return bool(GRAPHQL_DO_REPO.search(texto)) and self.graphql_publica(campos, corpo, GRAPHQL_CRIA_REPO.search(texto))
+        if API_SEGMENTO_ESTRANHO.search(endpoint):
+            return True
+        cria = bool(API_CRIA_REPO.fullmatch(endpoint))
+        if not cria and not API_DO_REPO.fullmatch(endpoint):
+            return False
+        if not parecer.textos_do_gh_api(args, pasta)[1]:
+            return True
+        if not all(self.privado_rest(campos + (corpo or []))):
+            return True
+        return cria and not any(self.privado_rest(campos if corpo is None else corpo))
+
+    @staticmethod
+    def campos_da_api(args, pasta):
+        """(campos, corpo) que o `gh api` envia: os pares (chave, valor) de `-f`/`-F`/`--field`/`--raw-field`, separados,
+        colados (`-Fprivate=false`) ou com `=`, com o `@arq` lido (None se o hook não lê); e os do topo do JSON do
+        `--input` (None sem ele; [] se não é objeto). O valor de outra opção (`-H -Fx=y`) não é campo."""
+        campos, corpo, j = [], None, 0
+        while j < len(args):
+            a, j = args[j], j + 1
+            colado = CAMPO_COLADO.fullmatch(a)
+            if a in parecer.API_COM_VALOR:  # o valor vem separado: campo, corpo ou valor de outra opção
+                valor, j = (args[j] if j < len(args) else ""), j + 1
+                if a == "--input":
+                    corpo = Guarda.corpo_da_api(valor, pasta)
+                elif a in CAMPOS_DA_API:
+                    campos.append(Guarda.campo_da_api(valor, pasta))
+            elif a.startswith("--input="):
+                corpo = Guarda.corpo_da_api(a.split("=", 1)[1], pasta)
+            elif colado:
+                campos.append(Guarda.campo_da_api(colado[1], pasta))
+        return campos, corpo
+
+    @staticmethod
+    def campo_da_api(texto, pasta):
+        chave, _, valor = texto.partition("=")
+        if valor.startswith("@"):  # o gh lê o arquivo; a leitura é a de `textos_do_gh_api` (GH-API-LEITURA-UNICA)
+            lidos, legivel = parecer.textos_do_gh_api([texto], pasta)
+            valor = lidos[0] if legivel else None
+        return chave, valor
+
+    @staticmethod
+    def corpo_da_api(arq, pasta):
+        lidos, legivel = parecer.textos_do_gh_api(["--input", arq], pasta)
+        if not legivel:
+            return CORPO_ILEGIVEL
+        dados = json.loads(lidos[0], object_pairs_hook=tuple)  # objeto vira tupla de pares, com a chave repetida
+        return list(dados) if isinstance(dados, tuple) else []
+
+    @staticmethod
+    def privado_rest(pares):
+        """Para cada campo de visibilidade (`private`, `visibility`, também `private[x]` e com outra caixa), True só se
+        é o nome exato com o valor privado."""
+        saida = []
+        for chave, valor in pares:
+            nome = chave.split("[", 1)[0].lower()
+            if nome in PRIVADO_REST:
+                valor = "true" if valor is True else valor
+                saida.append(chave == nome and isinstance(valor, str) and valor.strip().lower() in PRIVADO_REST[nome])
+        return saida
+
+    @staticmethod
+    def graphql_publica(campos, corpo, cria):
+        """GraphQL: o `visibility` do input, literal na query (sem strings nem comentários, a vírgula como espaço) ou no
+        campo `<var>[visibility]` ou a chave `visibility` nas `variables` do `--input`, fora de PRIVATE e INTERNAL recusa,
+        e criar sem ele também. Falha fechado no valor ilegível, na expansão do shell num campo (vira outros argumentos),
+        em mais de um `query` e na string sem fechamento (A8)."""
+        if corpo is CORPO_ILEGIVEL or any(v is None for _, v in campos):
+            return True
+        if any(parecer.expande(f"{k}={v}") for k, v in campos if k != "query"):
+            return True
+        pares = campos + (corpo or [])
+        if any(GRAPHQL_CONTROLE.search(v) for k, v in pares if k == "query" and isinstance(v, str)):
+            return True
+        textos = [v for k, v in pares if isinstance(v, str) and k == "query"]
+        if len(textos) > 1:  # A8: o gh manda só o último `query`, e o hook não sabe qual vai ao servidor
+            return True
+        if any(m["fecha"] == "" for v in textos for m in GRAPHQL_SEM_TEXTO.finditer(v)):  # A8: string sem fechamento
+            return True
+        consulta = " ".join(GRAPHQL_SEM_TEXTO.sub(" ", v) for k, v in pares if k == "query" and isinstance(v, str))
+        valores = GRAPHQL_VISIBILIDADE.findall(consulta.replace(",", " "))
+        da_var = [(k.split("[")[0], v) for k, v in campos if "[visibility]" in k.lower()]
+        usados = [v for n, v in da_var if re.search(rf"\${re.escape(n)}\b", consulta)]  # A2: só a variável da consulta
+        valores += [x for k, v in corpo or [] if k == "variables" for x in Guarda.visibilidades_json(v)]
+        publica = any(v not in ("PRIVATE", "INTERNAL") for v in valores + [v for _, v in da_var])
+        return publica or bool(cria) and not valores + usados
+
+    @staticmethod
+    def visibilidades_json(valor):
+        """Os valores de toda chave `visibility` do objeto JSON lido em tuplas de pares, em qualquer nível."""
+        if not isinstance(valor, tuple):
+            return []
+        return [x for k, v in valor for x in ([v] if k == "visibility" else []) + Guarda.visibilidades_json(v)]
 
     @staticmethod
     def input_publica(args, pasta):
@@ -3589,12 +3752,16 @@ def com_trecho(rid, o_que, corrigir, palavras):
 
 
 def entrada_valida(e):
-    """Forma de uma entrada de `caminhos`: sem ela o hook cairia em KeyError/TypeError e liberaria (saída 0)."""
-    def texto(v):
-        return isinstance(v, str) and bool(v)
-    return (isinstance(e, dict) and texto(e.get("caminho")) and texto(e.get("motivo"))
-            and isinstance(e.get("quem"), list) and all(isinstance(q, str) for q in e["quem"])
-            and isinstance(e.get("so_forge", False), bool) and ("branch" not in e or texto(e["branch"])))
+    """Forma de uma entrada de `caminhos`: sem ela o hook cairia em KeyError/TypeError e liberaria (saída 0). Sem função
+    por campo: roda para cada entrada em toda chamada do hook (custo do corpus, CORPUS-CUSTO-CONTADOR)."""
+    if not isinstance(e, dict):
+        return False
+    caminho, motivo, quem = e.get("caminho"), e.get("motivo"), e.get("quem")
+    return (isinstance(caminho, str) and caminho != ""
+            and isinstance(motivo, str) and motivo != ""
+            and isinstance(quem, list) and all(isinstance(q, str) for q in quem)
+            and isinstance(e.get("so_forge", False), bool)
+            and ("branch" not in e or isinstance(e["branch"], str) and e["branch"] != ""))
 
 
 def lista_de_textos(v):
@@ -3803,13 +3970,17 @@ CAMINHOS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/securi
 PARECER_NO_TEXTO = re.compile(r"(?<![\w.-])docs/(?:reviews|qa|devops|security)(?![\w.-])", re.I)  # `${d,,}` baixa a caixa
 # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.1): na sessão do Forge, o pedido e o brief da pasta de controle são só do
 # jarvis, como as pastas de parecer: as linhas `entrega conferida`, `parecer conferido` e `DECISÃO DO DONO` vivem neles.
+# A2 da segurança E123.8: entradas com dono que casam também relativas à cópia principal (o hook ordens a lê de lá).
+PELA_COPIA_PRINCIPAL = (".forge/ordens/",)  # A4 da segurança E123.12: a pasta, que o curinga no nome não escapa
 CAMINHOS_DO_CONTROLE = ("~/.forge-contrib/docs/pedidos/", "~/.forge-contrib/*/docs/pedidos/",
-                        "~/.forge-contrib/docs/briefs/", "~/.forge-contrib/*/docs/briefs/")
+                        "~/.forge-contrib/docs/briefs/", "~/.forge-contrib/*/docs/briefs/",
+                        "~/.forge-contrib/docs/ordens/")  # A1 da segurança E123.8: a pasta das ordens, como pasta
 # A1 da E63.3: a pasta mãe numa variável (`d=~/.forge-contrib; echo x > $d/docs/pedidos/v1.md`) separa os dois nomes;
 # basta a linha citar os dois, em qualquer ordem e posição. Com a pasta corrente no controle, basta `pedidos` ou `briefs`.
-CONTROLE_NO_TEXTO = re.compile(r"forge-contrib[\s\S]*(?:pedidos|briefs)|(?:pedidos|briefs)[\s\S]*forge-contrib", re.I)
+CONTROLE_NO_TEXTO = re.compile(r"forge-contrib[\s\S]*(?:pedidos|briefs|ordens)|(?:pedidos|briefs|ordens)"
+                               r"[\s\S]*forge-contrib", re.I)
 CRITICO_COM_CONTROLE = re.compile(f"{CRITICO.pattern}|{CONTROLE_NO_TEXTO.pattern}", re.I)
-PEDIDO_OU_BRIEF = r"pedidos|briefs"  # compilado só na pasta do controle (`GuardaDaProva`): custo do corpus
+PEDIDO_OU_BRIEF = r"pedidos|briefs|ordens"  # compilado só na pasta do controle (`GuardaDaProva`): custo do corpus
 # A1 do review E63.6: a cópia de `wt/` pelo caminho literal (`cd ~/.forge-contrib/wt/x &&`, `f=~/.forge-contrib/wt/r.txt`)
 # não é a pasta mãe. Lista positiva em `sem_copia_de_wt`; textos, e não compilados no carregamento (custo do corpus).
 COPIA_DE_WT = (r"(?<![^\s;&|<>=])(~|\$HOME|/[^\s;&|<>'\"()=]*|)/\.forge-contrib/wt/(\w[\w.-]*(?:/\w[\w.-]*)*)/?"
@@ -4249,6 +4420,8 @@ class MarcadorDaPolitica:
             return True
         if hook.entrada.get("tool_name") in FERRAMENTAS_DE_ARQUIVO:
             return self.arquivo_marcado(hook, formas[0], termos)
+        if any(map(visibilidade_do_gh, formas)):  # E148.1: só no marcador, fora do `CRITICO`
+            return True
         return any(ESCREVE_NA_LINHA.search(t) and (termos.search(t) or ALVO_OPACO.search(t) or BASE_TROCADA.search(t))
                    for t in formas)
 

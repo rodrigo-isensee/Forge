@@ -1,0 +1,66 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "PV-A2 (E1): Commit fora do head com os pareceres aprovados recusa no gravar",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "([fora_do_revisado(raiz, campos)] if item else [])",
+      "para": "([fora_do_revisado(raiz, campos)] if False else [])",
+      "testes": [
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_commit_fora_do_head_com_os_pareceres_recusa_e_nada_grava"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "G1.2: o que o leitor recusaria não é gravado",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if any(achados):\n        raise Recusa(",
+      "para": "    if False:\n        raise Recusa(",
+      "testes": [
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_commit_fora_do_head_com_os_pareceres_recusa_e_nada_grava"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "G1.2 (item 1): pasta do registro que é link recusa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "        if pasta.parent.is_symlink() or pasta.is_symlink():",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_registro_que_e_link_recusa_e_nada_grava_fora"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "G1.2 (item 1): uma concessão por mensagem (marcador M-<uuid> com x)",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "            raise Recusa(\"a mensagem já gerou concessão\") from None",
+      "para": "            pass",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_a_mesma_mensagem_so_gera_uma_concessao"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "G1.2: forge-check autorizacao gravar chega ao gravar",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "cmd_gravar(raiz, a, ctx) if a.acao == \"gravar\" else",
+      "para": "cmd_gravar(raiz, a, ctx) if a.acao == \"x\" else",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_forge_check_autorizacao_gravar_grava_o_que_o_ler_aceita"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "PV-A2 (E1): sem a ref do origin, vale a local (linha movida para ponta_do_ramo)",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "            or git(raiz, \"rev-parse\", \"-q\", \"--verify\", f\"refs/heads/{ramo}^{{commit}}\") or \"\").strip()",
+      "para": "            or None or \"\").strip()",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_head_com_os_pareceres_aprovados_fica_ativa_e_o_parecer_pode_citar_o_sha_curto"
+      ]
+    }
+  ]
+}

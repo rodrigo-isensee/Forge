@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-g1-2-delta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "FD9",
+      "guarda": "G1.2: o git que falha no diff não recusa o achado",
+      "arquivo": "bin/forge-check",
+      "de": "if trechos is None or (not larga",
+      "para": "if (not larga",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_git_que_falha_nao_recusa"
+      ]
+    },
+    {
+      "id": "FD10",
+      "guarda": "G1.2: o recomendado fora do delta passa",
+      "arquivo": "bin/forge-check",
+      "de": "if a[\"gravidade\"] != \"bloqueante\" or (a[\"id\"], a[\"arquivo\"]) in repetidos:",
+      "para": "if (a[\"id\"], a[\"arquivo\"]) in repetidos:",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_recomendado_fora_do_delta_passa"
+      ]
+    },
+    {
+      "id": "FD11",
+      "guarda": "G1.2: o forge-check pr cobra o bloqueante fora do delta",
+      "arquivo": "bin/forge-check",
+      "de": "        saida += fora_do_delta(raiz, rel, texto, campos, ref)  # G1.2",
+      "para": "        saida += []  # G1.2",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_pr_recusa_pela_cli"
+      ]
+    },
+    {
+      "id": "FD12",
+      "guarda": "G1.2: o forge-check docs (estrito) cobra o bloqueante fora do delta",
+      "arquivo": "bin/forge-check",
+      "de": "            extra += fora_do_delta(raiz, rel, texto, campos, None)  # G1.2",
+      "para": "            extra += []  # G1.2",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_docs_recusa_pela_cli"
+      ]
+    },
+    {
+      "id": "FD13",
+      "guarda": "G1.2: a margem do trecho conta as duas pontas",
+      "arquivo": "bin/forge-check",
+      "de": "any(int(primeira) <= fim and int(ultima or primeira) >= ini for ini, fim in trechos)",
+      "para": "any(int(primeira) <= fim and int(primeira) >= ini for ini, fim in trechos)",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_bloqueante_no_trecho_mudado_ou_na_margem_passa"
+      ]
+    },
+    {
+      "id": "FD14",
+      "guarda": "G1.2: o docs só cobra no modo estrito (o parecer do delta ou dado)",
+      "arquivo": "bin/forge-check",
+      "de": "if estrito and (campos or {}).get(\"tipo\") in VALORES_DO_PARECER:\n            extra += fora_do_delta",
+      "para": "if (campos or {}).get(\"tipo\") in VALORES_DO_PARECER:\n            extra += fora_do_delta",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_docs_sem_base_nao_e_estrito_e_nao_recusa"
+      ]
+    },
+    {
+      "id": "FD15",
+      "guarda": "G1.2: o commit: curto e o longo do mesmo sha são o mesmo commit",
+      "arquivo": "bin/forge-check",
+      "de": "return bool(a) and bool(b) and (a.startswith(b) or b.startswith(a))",
+      "para": "return a == b",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_mesmo_commit_nao_e_rodada_anterior"
+      ]
+    },
+    {
+      "id": "FD16",
+      "guarda": "G1.2: a versão sem frontmatter é ignorada, sem quebrar",
+      "arquivo": "bin/forge-check",
+      "de": "antes = (ler_frontmatter(texto)[0] or {}) if texto is not None else {}",
+      "para": "antes = (ler_frontmatter(texto)[0] and {}) if texto is not None else {}",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.Revalidacao.test_versao_sem_frontmatter_e_ignorada"
+      ]
+    }
+  ]
+}

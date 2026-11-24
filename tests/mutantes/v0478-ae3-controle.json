@@ -1,0 +1,76 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CTL1",
+      "guarda": "AE3.1 _git: git ausente vira falha, não exceção",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    except (OSError, subprocess.SubprocessError) as erro:",
+      "para": "    except ValueError as erro:",
+      "testes": [
+        "tests.test_forge_controle.Falhas.test_git_ausente_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CTL2",
+      "guarda": "AE3.1 _git: sem as GIT_* herdadas",
+      "arquivo": "bin/forge_controle.py",
+      "de": "if not k.startswith(\"GIT_\")}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_forge_controle.Salvar.test_git_dir_herdado_nao_desvia_o_commit"
+      ]
+    },
+    {
+      "id": "CTL3",
+      "guarda": "AE3.1 _hook_ativo: core.hooksPath configurado",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    if _git(pasta, \"config\", \"--get\", \"core.hooksPath\")[0] == 0:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_controle.Ambiente.test_hooks_path_configurado_e_nao_verificavel_e_fica_como_estava"
+      ]
+    },
+    {
+      "id": "CTL4",
+      "guarda": "AE3.1 _hook_ativo: pasta de hooks ilegível",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    if cod != 0:\n        return \"pasta de hooks ilegível\"",
+      "para": "    if False:\n        return \"pasta de hooks ilegível\"",
+      "testes": [
+        "tests.test_forge_controle.Falhas.test_pasta_de_hooks_ilegivel_e_nao_verificavel"
+      ]
+    },
+    {
+      "id": "CTL5",
+      "guarda": "AE3.1 _hook_ativo: hook executável ativo",
+      "arquivo": "bin/forge_controle.py",
+      "de": "            if not arq.name.endswith(\".sample\") and arq.is_file() and os.access(arq, os.X_OK):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_forge_controle.Ambiente.test_hook_ativo_e_nao_verificavel_e_nao_roda"
+      ]
+    },
+    {
+      "id": "CTL6",
+      "guarda": "AE3.1 _hook_ativo: hook de exemplo não conta",
+      "arquivo": "bin/forge_controle.py",
+      "de": "            if not arq.name.endswith(\".sample\") and arq.is_file() and os.access(arq, os.X_OK):",
+      "para": "            if arq.is_file() and os.access(arq, os.X_OK):",
+      "testes": [
+        "tests.test_forge_controle.Ambiente.test_hook_de_exemplo_nao_conta"
+      ]
+    },
+    {
+      "id": "CTL7",
+      "guarda": "AE3.1 _recusa: caminho fora da lista positiva",
+      "arquivo": "bin/forge_controle.py",
+      "de": "    if not any(nome == c or (c.endswith(\"/\") and nome.startswith(c)) for c in CAMINHOS):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_controle.Recusas.test_caminho_fora_da_lista_e_recusado"
+      ]
+    }
+  ]
+}

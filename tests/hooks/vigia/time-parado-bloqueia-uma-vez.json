@@ -1,0 +1,24 @@
+{
+  "descricao": "VIGIA-TIME-PARADO (emenda da ADR 0003, item 7): Stop do Jarvis, zero agentes e 2 cartões livres: decision block com o reason fixo, uma linha, saída 0.",
+  "arquivos": {
+    "KANBAN.md": "# Quadro\n\n## Pronto para fazer (WIP 5)\n| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n| LIVRE-1 | cartão LIVRE-1 | p1 | dev | 2026-11-22 | 2026-11-22 | versão 1 |\n| LIVRE-2 | cartão LIVRE-2 | p1 | dev | 2026-11-22 | 2026-11-22 | versão 1 |\n\n## Pronto\n| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n"
+  },
+  "passos": [
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1"
+      }
+    }
+  ],
+  "entrada": {
+    "session_id": "s1",
+    "hook_event_name": "Stop",
+    "agent_type": "forge:jarvis"
+  },
+  "esperado": {
+    "codigo": 0,
+    "reason": "time parado: 2 cartões disponíveis, primeiro LIVRE-1; retome sem esperar o dono"
+  }
+}

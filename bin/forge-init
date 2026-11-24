@@ -217,8 +217,9 @@ elif [ ! -e "$destino/.forge/versao" ] || [ "$forcar" -eq 1 ]; then
   mkdir -p "$destino/.forge"; printf '%s\n' "$versao_forge" > "$destino/.forge/versao"
   echo "  criado   .forge/versao ($versao_forge)"
 fi
-# Estado de execução local e preferências da pessoa (perfil de experiência) não são versionados.
-ignorados=('.forge/run/' '.forge/perfil' '.forge/novo-projeto.json' '.forge/onboarding.md')
+# Estado de execução local, preferências da pessoa (perfil de experiência) e as ordens do dono (um commit de branch
+# chegaria à cópia do Jarvis pelo merge; A3 da segurança E123.8) não são versionados.
+ignorados=('.forge/run/' '.forge/perfil' '.forge/novo-projeto.json' '.forge/onboarding.md' '.forge/ordens/')
 if [ "$sem_versionar" -eq 1 ]; then
   # FILA-24 (D1 = B): o que o Forge criou fica fora do git pelo .git/info/exclude, que não é versionado; o .gitignore do
   # projeto não muda. Só entram os arquivos criados agora: o que o projeto já tinha continua como estava.

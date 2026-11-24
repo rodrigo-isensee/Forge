@@ -124,10 +124,29 @@ class Metricas(Base):
         self.assertEqual((dados["taxa_de_falha"], dados["recuperacao_h"]["n"]), ({"entregas": 1, "com_falha": 1}, 1))
         self.assertEqual(dados["vazao"]["semanas"], {})
 
-    def test_quadro_ausente_vale_vazio_sem_recusado(self):
-        with tempfile.TemporaryDirectory() as vazio:
-            dados = D.calcular(self.ex.pasta, Path(vazio), fuso=FUSO)
-        self.assertEqual((dados["vazao"]["n"], dados["recusados"], dados["taxa_de_falha"]["com_falha"]), (0, [], 0))
+    def test_quadro_ausente_ou_ilegivel_sai_nao_medido_e_nao_zero(self):
+        # FORGE-DORA-ZERO-FALSO: arquivo que falta (ou pasta no lugar, que ler_texto não lê) não é zero escape nem zero cartão
+        for criar in (lambda k: None, lambda k: (k / "historico.md").mkdir() or (k / "escapes.md").mkdir()):
+            with tempfile.TemporaryDirectory() as raiz:
+                kanban = Path(raiz) / "docs" / "kanban"
+                kanban.mkdir(parents=True)
+                criar(kanban)
+                dados = D.calcular(self.ex.pasta, Path(raiz), fuso=FUSO)
+            self.assertEqual(dados["vazao"], {"estado": "nao-medido", "motivo": "docs/kanban/historico.md ausente ou ilegível"})
+            escapes = {"estado": "nao-medido", "motivo": "docs/kanban/escapes.md ausente ou ilegível"}
+            self.assertEqual((dados["taxa_de_falha"], dados["recuperacao_h"], dados["recusados"]), (escapes, escapes, []))
+            self.assertEqual(dados["frequencia"]["n"], 3)
+
+    def test_quadro_vazio_existente_segue_zero(self):
+        with tempfile.TemporaryDirectory() as raiz:
+            kanban = Path(raiz) / "docs" / "kanban"
+            kanban.mkdir(parents=True)
+            (kanban / "historico.md").write_text("", encoding="utf-8")
+            (kanban / "escapes.md").write_text("", encoding="utf-8")
+            dados = D.calcular(self.ex.pasta, Path(raiz), fuso=FUSO)
+        self.assertEqual(dados["vazao"], {"n": 0, "semanas": {}})
+        self.assertEqual(dados["taxa_de_falha"], {"entregas": 3, "com_falha": 0})
+        self.assertEqual(dados["recuperacao_h"], {"n": 0, "brutos": [], "abertas": 0})
 
     def test_git_que_falha_da_aviso_e_nenhuma_release(self):
         with tempfile.TemporaryDirectory() as fora:
@@ -151,6 +170,8 @@ class Brutos(unittest.TestCase):
             lista = [(f"v0.0.{i}", base + datetime.timedelta(days=i)) for i in range(n)]
             with mock.patch.object(D, "releases", return_value=(lista, [])), \
                     mock.patch.object(D, "esperas_da_mudanca", return_value=[]), tempfile.TemporaryDirectory() as vazio:
+                (Path(vazio) / "docs" / "kanban").mkdir(parents=True)
+                (Path(vazio) / "docs" / "kanban" / "escapes.md").write_text("", encoding="utf-8")  # sem ele, nao-medido
                 self.assertEqual(D.calcular(Path(vazio), Path(vazio), fuso=FUSO)["taxa_de_falha"].get("taxa_pct"), esperado)
 
 
@@ -171,7 +192,7 @@ class Comando(Base):
         with tempfile.TemporaryDirectory(dir=self.ex.pasta) as vazio:  # dentro da raiz: o forge-check recusa fora dela
             r = self.rodar("--fuso", "+09:00", "--raiz-pedidos", vazio)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn('dora: vazao n=0 semanas={}', r.stdout)
+        self.assertIn('dora: vazao estado="nao-medido" motivo="docs/kanban/historico.md ausente ou ilegível"', r.stdout)
         self.assertIn('dora: frequencia n=3 ', r.stdout)
 
     def test_json(self):

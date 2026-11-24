@@ -1,0 +1,16 @@
+{
+  "pedido": "v0480-tempo-fixture",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "TF1",
+      "guarda": "E164.1: a ação pode vir depois de outras palavras do programa (`git -C x push`), não só colada a ele",
+      "arquivo": "hooks/conformidade.py",
+      "de": "r\"(?<![^\\n])(?>[^\\n]*?\\b(git|gh)\\b)[^\\n]*\\b(merge|push|edit|close|reopen|ready|review|label)\\b|\"",
+      "para": "r\"(?<![^\\n])(?>[^\\n]*?\\b(git|gh)\\b)\\b(merge|push|edit|close|reopen|ready|review|label)\\b|\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_marcador_critico_tambem_na_forma_juntada"
+      ]
+    }
+  ]
+}
