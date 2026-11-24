@@ -1,0 +1,70 @@
+{
+  "pedido": "v0480-comando-pronto-resto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "laço do PR com teto: `no checks reported` (PR recém-aberto, código 1) é pendente, não fim=checks:1 (E96.1 f)",
+      "arquivo": "skills/esperar-estado/SKILL.md",
+      "de": "c=$?; case $s in *\"no checks reported\"*) c=8;; esac; [ \"$c\" -eq 8 ] || { fim=",
+      "para": "c=$?; [ \"$c\" -eq 8 ] || { fim=",
+      "testes": ["tests.test_esperar_estado.LacoDoPr.test_pr_recem_aberto_sem_checks_e_pendente"]
+    },
+    {
+      "id": "M2",
+      "guarda": "laço do PR com teto: o erro do gh pr view não vaza para a saída (2>/dev/null; E96.1 f)",
+      "arquivo": "skills/esperar-estado/SKILL.md",
+      "de": "--jq .state 2>/dev/null) || { fim=erro",
+      "para": "--jq .state) || { fim=erro",
+      "testes": ["tests.test_esperar_estado.LacoDoPr.test_gh_que_falha_sai_com_erro"]
+    },
+    {
+      "id": "M3",
+      "guarda": "laço do PR sem teto: `no checks reported` é pendente (E96.1 f)",
+      "arquivo": "skills/esperar-estado/envio-longo.md",
+      "de": "c=$?; case $s in *\"no checks reported\"*) c=8;; esac; [ \"$c\" -eq 8 ] || { echo",
+      "para": "c=$?; [ \"$c\" -eq 8 ] || { echo",
+      "testes": ["tests.test_esperar_estado.LacoDoPr.test_pr_recem_aberto_sem_checks_e_pendente"]
+    },
+    {
+      "id": "M4",
+      "guarda": "laço do PR sem teto: o erro do gh pr view não vaza para a saída (E96.1 f)",
+      "arquivo": "skills/esperar-estado/envio-longo.md",
+      "de": "--jq .state 2>/dev/null) || { echo \"fim=erro\"",
+      "para": "--jq .state) || { echo \"fim=erro\"",
+      "testes": ["tests.test_esperar_estado.LacoDoPr.test_gh_que_falha_sai_com_erro"]
+    },
+    {
+      "id": "M5",
+      "guarda": "qa-testing: o vermelho vem com --modulos (sem ele pode rodar a suíte toda; E96.1 b)",
+      "arquivo": "skills/qa-testing/SKILL.md",
+      "de": "`bin/forge-testes --vermelho <base> --modulos test_x`",
+      "para": "`bin/forge-testes --vermelho <base>`",
+      "testes": ["tests.test_comando_pronto.TestComandoPronto.test_skills_tocadas_citam_comando_pronto"]
+    },
+    {
+      "id": "M6",
+      "guarda": "qa-testing: a rodada do QA passa o caminho da spec em tests/mutantes/ (E96.1 c)",
+      "arquivo": "skills/qa-testing/SKILL.md",
+      "de": "O QA roda `bin/forge-mutante tests/mutantes/<pedido>.json`, depois",
+      "para": "O QA roda `bin/forge-mutante <pedido>`, depois",
+      "testes": ["tests.test_comando_pronto.TestComandoPronto.test_skills_tocadas_citam_comando_pronto"]
+    },
+    {
+      "id": "M7",
+      "guarda": "comandos.md: o vermelho pronto para colar vem com --modulos (E96.1 b)",
+      "arquivo": "skills/qa-testing/comandos.md",
+      "de": "--vermelho <Base-sha> --modulos test_x`",
+      "para": "--vermelho <Base-sha>`",
+      "testes": ["tests.test_comando_pronto.TestComandoPronto.test_skills_tocadas_citam_comando_pronto"]
+    },
+    {
+      "id": "M8",
+      "guarda": "esperar-estado: o forge-fechar citado traz --ref, a opção obrigatória do uso",
+      "arquivo": "skills/esperar-estado/SKILL.md",
+      "de": "`bin/forge-fechar <pedido> --ref <branch> --espera <s>`",
+      "para": "`bin/forge-fechar <pedido> --espera <s>`",
+      "testes": ["tests.test_comando_pronto.TestComandoPronto.test_skills_tocadas_citam_comando_pronto"]
+    }
+  ]
+}

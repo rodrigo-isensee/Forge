@@ -248,8 +248,9 @@ MAPA = [
     (r"docs/hooks-fixtures\.md", CONTEUDO + ("test_indice_fixtures", "test_prepush_lote_pp1")),  # Fase C: o índice gerado confere em dia; v0478 E94.1: o envio leve o confere
     (r"docs/indice-forge\.md", CONTEUDO + ("test_indice_forge",)),  # H7 (v0478 E8.1): o índice gerado confere em dia
     (r"docs/(security|devops)/_modelo\.md", CONTEUDO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),
-    (r"skills/esperar-estado/.*|agents/tech-lead\.md", CONTEUDO + ("test_esperar_estado",)),
-    (r"skills/(briefs-e-conferencia|fluxo-do-pedido|trabalho-em-paralelo)/.*", CONTEUDO + ("test_comando_pronto",)),  # v0478 E66.1: o teste lê as três
+    (r"skills/esperar-estado/.*", CONTEUDO + ("test_esperar_estado", "test_comando_pronto")),  # v0478 E96.1: os dois leem a skill
+    (r"agents/tech-lead\.md", CONTEUDO + ("test_esperar_estado",)),
+    (r"skills/(briefs-e-conferencia|fluxo-do-pedido|trabalho-em-paralelo|qa-testing)/.*", CONTEUDO + ("test_comando_pronto",)),  # v0478 E66.1 e E96.1: o teste lê as cinco
     (r"skills/(produto-criterios|observabilidade-incidentes|explicar-para-o-leigo|modo-iniciante)/.*|agents/(jarvis|devops-engineer)\.md", CONTEUDO + ("test_skills_v0442",)),
     (r"docs/devops/pp1-pre-push\.patch", CONTEUDO + ("test_pre_push_patch",)),  # v047 E2.567: o teste aplica o patch
     (r"docs/engineering/v0479-sandbox-controle\.patch", CONTEUDO + ("test_sandbox_controle",)),  # v0478 E29.1: o teste aplica o patch
