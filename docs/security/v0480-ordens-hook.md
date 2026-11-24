@@ -3,23 +3,22 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ordens-hook
-commit: 35211762d50aec616625d3e7bd90ed88c7bb7f47
+commit: a6e0d1014e2643e21e1b261154a1ce9160c87662
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-23
 ---
-# Review de segurança: v0478 (E123.21, volta de CI do hook ordens)
+# Review de segurança: v0478 (E140.8, delta do #805 depois do merge da develop)
 
-Revalidação por delta (`forge-check parecer delta`, intervalo fe14fb1e..35211762, sem o merge da develop 51cb434d). No domínio: `hooks/conformidade.py:3602` (`entrada_valida`) e `tests/test_hooks.py:1790` (casos novos de política malformada). Fora do domínio, lidos por conferência: `tests/mutantes/v0479-conformidade-trilha-7.json` (U6 só atualiza o texto citado de `CONTROLE_NO_TEXTO`, já com `ordens`) e `tests/mutantes/v0480-ordens-hook-6.json` (M32 a M37). A rodada anterior (fb8a25f4, no head fe14fb1e) fica no git.
+Revalidação por delta (`forge-check parecer delta`, intervalo 35211762..a6e0d101, sem o que veio da base 216413c9). No domínio: `hooks/conformidade.py` e `tests/test_hooks.py`. Fora do domínio: `docs/indice-forge.md` e `tests/mutantes/v0480-ordens-hook-3.json` a `-6.json` (os mutantes da guarda saíram com ela para a develop, `-6` renomeado para `v0480-ordens-guarda-2.json`). A rodada anterior (no head 35211762) fica no git.
 
-Gatilhos: hook de controle (validação da política de conformidade, que falha fechada).
+Gatilhos: hook novo que injeta contexto na sessão principal (`ordens`) e hook de controle (`conformidade`).
 
-**Só aperta, por escrito:** a mudança de `entrada_valida` é equivalente na decisão (nem aperta nem afrouxa a política): a função interna `texto(v)` (`isinstance(v, str) and bool(v)`) virou a comparação inline `isinstance(v, str) and v != ""`, idêntica para `str` (o JSON só produz `str`); a precedência de `"branch" not in e or isinstance(...) and ... != ""` é `A or (B and C)`, a mesma de antes; o `return False` antecipado para não objeto é o `isinstance(e, dict) and ...` de antes. O teste ganha 5 casos recusados (caminho vazio, caminho não texto, motivo vazio, `quem` com item não texto, branch vazia) e 6 mutantes: só aperta a cobertura. O item, no delta, só aperta.
+**Lido no delta:** `git diff 216413c9 a6e0d101 -- hooks/conformidade.py hooks/_comum.py` vazio: o `conformidade` do PR é byte a byte o da develop. A única linha que muda nele desde 35211762 (`hooks/conformidade.py:1612`, o filtro `em_qualquer_lugar` antes de ler a cópia principal) veio do #814 pela develop, com o parecer próprio (`docs/security/v0480-develop-verde-ordens.md`, commit 6ce3a41a); a guarda das ordens veio do #811 (`docs/security/v0480-ordens-guarda.md`, commit 9e460e4f). Em `tests/test_hooks.py`, a do PR é só o comentário da linha 1791 (o nome novo do arquivo de mutantes); a classe `GuardaDasOrdens` vem da develop. `hooks/ordens.py` e `hooks/hooks.json` não mudam desde 35211762.
 
-Estado dos achados anteriores: A1 a A4 seguem resolvidos (o código fora de `entrada_valida` não mudou no delta). O cartão CONFORMIDADE-CURINGA-PASTA segue aberto, da base, sem relação com este delta.
+**Só aperta, por escrito (corte 2 sozinho, regra do dono até 27/11):** no controle de bloqueio, o corte 2 só aperta ou é neutro: não muda nenhuma guarda (o `conformidade` é o da develop), e o `ordens.py` sai sempre com 0 e não decide nada, então nenhuma entrada antes recusada passa a ser aceita. A proteção do arquivo que ele lê já está na develop: `.forge/ordens/` só do jarvis (`hooks/conformidade.json:66`), casada também relativa à cópia principal (`PELA_COPIA_PRINCIPAL`, `hooks/conformidade.py:3823`), e `~/.forge-contrib/docs/ordens/` no controle (`hooks/conformidade.py:3826` e `:3829`). Portanto, sozinho sobre a develop, o corte 2 não abre fonte sem dono. **Não é "só aperta" na regra normativa:** o corte 2 afrouxa o item 1 da ADR 0003 (um hook passa a injetar contexto no `SessionStart` e no `UserPromptSubmit`), como dizem a emenda e o fragmento do changelog. Esse afrouxamento é o motivo do rótulo `afrouxa-regra`, autorizado para este item pela DECISÃO DO DONO de 2026-11-23 15:25 (Decisão 2, opção 2a), e não pela confirmação de "só aperta".
 
-## Sondas
-- S1 · diferencial de `entrada_valida` fe14fb1e contra 35211762: 17 valores (ausente, None, vazio, textos, números, booleanos, listas, objetos) nos 5 campos, mais 7 não objetos · espera: 0 divergências · obtido: 1419864 casos, 0 divergências
+Estado dos achados anteriores: A1 a A4 seguem resolvidos (o `ordens.py` e a política não mudaram no PR; a parte da guarda está na develop com os pareceres citados). O cartão CONFORMIDADE-CURINGA-PASTA segue aberto, da base, sem relação com este delta.
 
 ## Riscos aceitos e ferramentas
-Riscos aceitos: nenhum. Ferramentas: leitura do delta; a sonda S1 (funções extraídas por `git show` de cada commit, fora do repositório); `python3 -m unittest tests.test_hooks.Hooks.test_politica_de_conformidade_malformada_bloqueia` no head: 1 teste, OK. A suíte inteira não foi rodada (brief: sem suíte local); vale o CI do PR.
+Riscos aceitos: nenhum. Ferramentas: `forge-check parecer delta`; `git diff` contra a base e contra 35211762; `python3 -m unittest tests.test_hooks.GuardaDasOrdens tests.test_doutor.HookDoutor` no head: 20 testes, OK; `python3 -m unittest tests.test_hooks.Hooks.test_hooks_json tests.test_hooks.Hooks.test_cada_hook_tem_caso_que_passa_e_que_bloqueia tests.test_hooks.Hooks.test_politica_de_conformidade_malformada_bloqueia`: 3 testes, OK. A suíte inteira não foi rodada (brief: sem suíte local); vale o CI do PR.
