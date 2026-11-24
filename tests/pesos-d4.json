@@ -204,6 +204,7 @@
   "test_ordens": 6.1,
   "test_parecer_conteudo": 21.4,
   "test_parecer_delta": 2.8,
+  "test_parecer_fora_do_delta": 12.6,
   "test_pedido_fora": 13.2,
   "test_pergunta_maior_menor": 0.2,
   "test_permissao_agentes_md": 0.2,

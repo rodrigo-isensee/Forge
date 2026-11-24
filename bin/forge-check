@@ -477,6 +477,8 @@ def cmd_docs(raiz, arquivos=(), base=None):
         extra, avisos = conferir_criterio(raiz, rel, texto, campos)
         if estrito and (campos or {}).get("tipo") in VALORES_DO_PARECER and (problema := problema_do_pedido(raiz, campos)):
             extra.append(f"{caminho_impresso(rel)}: pedido: {problema} ({CONTRATOS[campos['tipo']][1]})")
+        if estrito and (campos or {}).get("tipo") in VALORES_DO_PARECER:
+            extra += fora_do_delta(raiz, rel, texto, campos, None)  # G1.2
         prefixo = f"{caminho_impresso(rel)}:"
         saida += [f"{caminho_impresso(nome)}:{v[len(prefixo):]}" if v.startswith(prefixo) else v for v in violacoes + extra]
         for aviso in avisos:  # o aviso aponta o arquivo dado, não o `rel` virtual da cópia de fora
@@ -2041,6 +2043,7 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False, suite=N
             saida.append(f"{pasta}: {tipo}: {divergentes} ({rid})")
         extra, avisos = conferir_criterio(raiz, rel, texto, campos, ref)  # PAR-P2 E2a2: o desenho da mesma ref do parecer
         saida += viol + extra + (aceite_do_qa_sem_dono(raiz, pedido, rel, campos, branch) if tipo == "qa" else [])  # QA-ACEITE-FALSO
+        saida += fora_do_delta(raiz, rel, texto, campos, ref)  # G1.2: na revalidação, o bloqueante novo só no que mudou
         for aviso in avisos:
             print(aviso, file=sys.stderr)
         if dos_conferidos and rel not in dos_conferidos:  # T-1: com `parecer conferido` no pedido, a `data` não escolhe o vigente
@@ -4111,6 +4114,95 @@ def problemas_do_bloco(achados, erros, tem_bloco, campos, estrito):
         return []
     sem = [] if any(a["gravidade"] == "bloqueante" for a in achados) else ["parecer reprovado sem achado bloqueante em ## Achados"]
     return erros + (sem if campos.get("parecer") == "reprovado" else [])
+
+
+# G1.2 (ORDEM DO DONO de 21/11 22:13): na revalidação, o bloqueante fica no que mudou; o resto vira recomendado e cartão
+TRECHO_DO_DIFF = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", re.M)
+MARGEM_DO_DELTA = 3
+LARGURA_DA_FAIXA = 20  # E122.6 (QA A2): faixa mais larga que isso (`arquivo:1-99999`) não cruza o delta, vira cartão
+EXPLORAVEL = re.compile(r"\bexplorável: (S\d+)\b")
+
+
+def mesmo_commit(a, b):
+    return bool(a) and bool(b) and (a.startswith(b) or b.startswith(a))
+
+
+def versoes_em_lote(raiz, refs, rel):
+    """[texto ou None] de `<ref>:<rel>` para cada ref, num `cat-file --batch` só (E140.12: era um `git show` por versão). O texto
+    sai como o do `git show` em modo texto; a versão ausente, o lote que falha ou a saída truncada dão None (como o show que falha)."""
+    if not refs or "\n" in rel:  # o nome com quebra de linha não cabe no protocolo do lote
+        return [None] * len(refs)
+    cod, lote = git(raiz, "cat-file", "--batch", bruto=True, entrada="".join(":".join((r, rel)) + "\n" for r in refs).encode())
+    textos, pos = [], 0
+    for _ in refs if not cod else ():
+        fim = lote.find(b"\n", pos)
+        if fim < 0:
+            break
+        cabecalho = lote[pos:fim]
+        if cabecalho.endswith(b" missing"):  # a versão que apagou o arquivo
+            textos.append(None)
+            pos = fim + 1
+            continue
+        tamanho = cabecalho.rpartition(b" ")[2]
+        corpo = lote[fim + 1:fim + 1 + int(tamanho)] if tamanho.isdigit() else None
+        if corpo is None or len(corpo) != int(tamanho):
+            break  # resposta fora do protocolo ou truncada: o resto sai None, nunca um texto parcial
+        textos.append(corpo.decode("utf-8", "replace").replace("\r\n", "\n").replace("\r", "\n").strip())
+        pos = fim + 1 + len(corpo) + 1
+    return textos + [None] * (len(refs) - len(textos))
+
+
+def parecer_anterior(raiz, rel, ponta, campos):
+    """(commit, achados) da versão anterior de `rel` na `ponta` (a rodada anterior: mesmo pedido e branch, outro `commit:`), ou None."""
+    cod, saida = git(raiz, "log", "--format=%H", "-n", "30", ponta, "--", rel)
+    refs = saida.split() if not cod else []
+    for texto in versoes_em_lote(raiz, refs, rel):
+        antes = (ler_frontmatter(texto)[0] or {}) if texto is not None else {}
+        if (antes.get("pedido"), antes.get("branch")) != (campos.get("pedido"), campos.get("branch")):
+            continue
+        if antes.get("commit") and not mesmo_commit(antes["commit"], campos["commit"]):
+            return antes["commit"], achados_do_parecer(texto)[0]
+    return None
+
+
+def trechos_do_delta(raiz, de, ate, arquivo):
+    """[(primeira, última)] linhas do lado novo de cada trecho de `arquivo` em `de`..`ate`, com a margem; None se o git falha."""
+    cod, saida = git(raiz, "--literal-pathspecs", "diff", "-U0", "--no-color", "--no-ext-diff", "--no-textconv", de, ate, "--", arquivo)
+    if cod:
+        return None
+    return [(int(c) - MARGEM_DO_DELTA, int(c) + max(int(n or 1), 1) - 1 + MARGEM_DO_DELTA) for c, n in TRECHO_DO_DIFF.findall(saida)]
+
+
+def fora_do_delta(raiz, rel, texto, campos, ref):
+    """G1.2: numa revalidação, o bloqueante novo precisa cair num trecho mudado entre o `commit:` anterior e o atual (com a margem)
+    ou repetir um bloqueante da rodada anterior (mesmo id e arquivo); a segurança passa com `explorável: S<n>` e a sonda em
+    `## Sondas`. Sem rodada anterior, ou com o git que falha, nada é recusado (o achado fica bloqueante)."""
+    if campos.get("tipo") not in DOMINIO_DO_PARECER or not COMMIT.match(campos.get("commit") or ""):
+        return []
+    if not any(a["gravidade"] == "bloqueante" for a in achados_do_parecer(texto)[0]):
+        return []  # E140.12: sem bloqueante, nada a recusar; o git nem roda
+    anterior = parecer_anterior(raiz, rel, ref or "HEAD", campos)
+    de, ate = (sha_do_commit(raiz, anterior[0]), sha_do_commit(raiz, campos["commit"])) if anterior else (None, None)
+    if not de or not ate:
+        return []
+    repetidos = {(a["id"], a["arquivo"]) for a in anterior[1] if a["gravidade"] == "bloqueante"}
+    sondas = {s["id"] for s in sondas_do_parecer(texto)[0]}
+    saida = []
+    for a in achados_do_parecer(texto)[0]:
+        if a["gravidade"] != "bloqueante" or (a["id"], a["arquivo"]) in repetidos:
+            continue
+        marca = EXPLORAVEL.search(a["texto"])
+        if campos["tipo"] == "revisao-seguranca" and marca and marca.group(1) in sondas:
+            continue
+        trechos = trechos_do_delta(raiz, de, ate, a["arquivo"])
+        primeira, _, ultima = a["linha"].partition("-")
+        larga = int(ultima or primeira) - int(primeira) >= LARGURA_DA_FAIXA
+        if trechos is None or (not larga and any(int(primeira) <= fim and int(ultima or primeira) >= ini for ini, fim in trechos)):
+            continue
+        saida.append(f"{caminho_impresso(rel)}: achados: {a['id']} bloqueante novo fora do que mudou em {de[:7]}..{ate[:7]} "
+                     f"({caminho_impresso(a['arquivo'])}:{a['linha']}): vira recomendado e cartão; na segurança, só com "
+                     "`explorável: S<n>` e a sonda em ## Sondas (G1.2, R-REVIEW)")
+    return saida
 
 
 def blocos_literais(texto):
