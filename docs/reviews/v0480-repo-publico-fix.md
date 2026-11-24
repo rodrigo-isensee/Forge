@@ -3,41 +3,39 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-repo-publico-fix
-commit: 2806ca57ea41a48ea3e5ecaf1bda785b3f8c8dcb
+commit: 1265fa11ec5e75d16df8402d32664fd2d683538e
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-23
 ---
-# Review: v0480-repo-publico-fix (CONFORMIDADE-REPO-CREATE-PUBLICO, v0478 E141.3)
+# Review: v0480-repo-publico-fix (CONFORMIDADE-REPO-CREATE-PUBLICO, v0478 E141.8)
 
-Code review do PR #829 no head `2806ca57`, conserto de A1 e A2 de `docs/security/v0480-repo-publico-diag.md` (branch `melhoria/v0480-repo-publico-diag`). Diff: `hooks/conformidade.py` (+44 linhas de código, dentro do teto H1), 23 fixtures `trava-*`, `tests/test_hooks.py` (+7), dois arquivos de mutantes, índice de fixtures e fragmento do changelog.
+Revalidação por delta do PR #829 no head `1265fa11` (volta E141.7), contra o parecer anterior no head `2806ca57`. Delta lido: `forge-check parecer delta docs/reviews/v0480-repo-publico-fix.md` (revalida: sim, o parecer anterior barrou) e `git diff 2806ca57 1265fa11`: `hooks/conformidade.py` +94 −18, 34 fixtures `trava-*`, mutantes em seis arquivos, `tests/test_hooks.py` (mínimo de 22 para 57) e índice de fixtures.
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:3392 · `gh repo new` é alias de `gh repo create` (`gh repo create --help`, ALIASES, gh 2.105.0) e o ramo só casa `sub == "create"`: `gh repo new novo --public --source . --push` sai 0. Casar `sub in ("create", "new")` e uma fixture do alias.
-- A2 (bloqueante) hooks/conformidade.py:3429 · a opção colada `-Fprivate=false` ou `-fvisibility=public` (o gh aceita; `metodo_mutante` já a lê) não casa `\bprivate` depois de `-F`: PATCH em `repos/<o>/<r>` torna público com saída 0. Separar `-F`/`-f` do valor antes do regex, com fixture.
-- A3 (bloqueante) hooks/conformidade.py:3429 · a criação busca `private=true` em qualquer texto: `gh api user/repos -f name=novo -f "description=private: true"` (ou o mesmo no corpo do `--input`) sai 0 e cria público. Ler a chave do campo (`private`/`visibility` como nome do `-F`/`-f` ou chave do JSON), não o texto todo.
-- A4 (recomendado) hooks/conformidade.py:3395 · `gh repo create --help` sai 2 (sem `--private`, falha fechado); a ajuda não cria nada. Liberar `--help` sozinho, com fixture.
+- A1 (bloqueante) hooks/conformidade.py:345 · o GRAPHQL_SEM_TEXTO não lê a query como o lexer do GraphQL: no bloco `"""`, `\` só escapa `\"""` (o regex fecha em `\\"""`), e o comentário acaba em CR. Com isso, um `visibility:PUBLIC` escondido e um PRIVATE de isca saem 0; no head 2806ca57 saíam 2 (S1, S2). Regressão do delta.
+- A2 (recomendado) hooks/conformidade.py:3496 · o `<var>[visibility]` vale de qualquer campo, também de variável que a query não declara (`-f z[visibility]=PRIVATE`, isca de S2). Contar só a variável usada no `input` da mutação.
 
 ## Sondas
-- S1 · `gh repo new novo --public --source . --push` (projeto descartável, forge:node-backend) · espera: saída 2, R-CONFORMIDADE tornar o repositório público · obtido: saída 0
-- S2 · `gh repo new novo --public` · espera: saída 2 · obtido: saída 0
-- S3 · `gh api -X PATCH repos/dono/proj -Fprivate=false` · espera: saída 2 · obtido: saída 0 (no base `216413c9` também 0; a forma separada `-F private=false` sai 2 nos dois)
-- S4 · `gh api -X PATCH repos/dono/proj -fvisibility=public` · espera: saída 2 · obtido: saída 0
-- S5 · `gh api user/repos -f name=novo -f "description=private: true"` · espera: saída 2 (criação sem campo de visibilidade, padrão público) · obtido: saída 0
-- S6 · `gh api user/repos --input corpo-desc.json` (corpo `{"name":"x","description":"private: true"}`) · espera: saída 2 · obtido: saída 0
-- S7 · `gh api orgs/org/repos -f name=novo -f homepage=https://x/?private=true` · espera: saída 2 · obtido: saída 0
+- S1 · `gh api graphql -F query=@q1.graphql`, q1 = `mutation{createRepository(input:{name:"x", description:"""z\\""" visibility:PRIVATE """, visibility:PUBLIC # """` + LF + `}){repository{id}}}` · espera: saída 2, cria público · obtido: saída 0 (no 2806ca57: 2)
+- S2 · `gh api graphql -F query=@q2.graphql -f z[visibility]=PRIVATE`, q2 = `mutation{createRepository(input:{name:"x" #c` + CR + `visibility:PUBLIC` + LF + `}){repository{id}}}` · espera: saída 2 · obtido: saída 0 (no 2806ca57: 2)
 
 ## Parecer
-**Reprovado.** O desenho está certo (fail-closed na criação, leitura do `campo=@arq` pela fonte única `textos_do_gh_api`, GraphQL com `PRIVATE`/`INTERNAL` literal) e as formas 3 a 20 do diagnóstico saem como o diagnóstico pede; mas três formas de criar ou tornar público seguem abertas (A1 a A3), todas de segurança com gatilho e provadas por sonda.
+**Reprovado.** Os três bloqueantes do parecer anterior estão fechados no delta, mas a leitura nova do GraphQL abriu uma forma de criar repositório público que o head anterior barrava (A1).
 
-- **A1:** o alias `new` deixa toda a A1 do diagnóstico reproduzível com uma palavra trocada. Correção de uma linha em `gh_trava`.
-- **A2:** lacuna anterior ao PR (`VISIBILIDADE_PUBLICA` já não via o colado no base), mas é a mesma classe que o PR diz fechar ("criar e editar recusam o público"), e o `api_publica` novo herda o regex. Mesma classe de AR-11 (leitura de opção do `gh api` difere da do `gh`). Do lado da criação o colado falha fechado (`-fname=novo -Fprivate=true` sai 2), o que é falso positivo tolerável; a correção da A2 resolve os dois.
-- **A3:** a exigência "criar pede `private=true`" é um `search` no texto de todos os argumentos e arquivos, então o valor de outro campo satisfaz a guarda. Mesma família de AR-15 (guarda sobre texto cru). Sugestão: montar o dicionário `campo → valor` dos `-f`/`-F` (com o `@arq` já lido) e do JSON do `--input`, e decidir pela chave.
+**Bloqueantes anteriores, contra o delta (sondas S1 a S7 do parecer de 2806ca57 rerrodadas no 1265fa11, mesma montagem das fixtures, `forge:node-backend`):**
+- **A1 anterior (`gh repo new`):** fechado. `REPO_CRIAR = {"create", "new"}` em `gh_trava`; `gh repo new novo --public --source . --push` e `gh repo new novo --public` saem 2; `gh repo new novo --private --source . --push` sai 0. Fixtures `trava-repo-new-*` nos três lados.
+- **A2 anterior (opção colada):** fechado. `CAMPO_COLADO` lê `-Fk=v`, `-F=k=v` e `--field=k=v`; `-Fprivate=false`, `-fvisibility=public`, `--field=private=false`, `-F=private=false`, `--raw-field private=false` e `-XPATCH ... -F visibility=public` saem 2; `-fname=x -Fprivate=true` na criação, o falso positivo anterior, agora sai 0. O valor de outra opção (`-H 'X: -Fprivate=false'`) não vira campo, como deve.
+- **A3 anterior (texto em vez de campo):** fechado no REST. `privado_rest` decide pela chave: `description=private: true`, o mesmo no `--input` e `homepage=...?private=true` saem 2; `private=true` com `private=false` repetido, `Private=true`, `private=1`, `private[x]=false`, chave repetida no JSON, corpo em lista ou inválido saem 2 (falha fechada). Com `--input`, o campo `-F private=true` vai à query e não ao corpo, e o hook o recusa: certo.
 
-**Falsos positivos em comandos legítimos (o foco pedido):** saem 0, como devem: `gh repo create novo --private`, `--private --source . --push`, `--internal`, `--private -d "nao use --public"`, `--private --description=--public`; `gh api -X PATCH repos/dono/proj -f description=nova`; `gh api -X GET user/repos -f visibility=public`; `gh api graphql` de leitura e `updateRepository` só de descrição (com `visibility` no conjunto de seleção); `gh api -X PUT repos/dono/proj/topics`; `gh api user/repos --input` com `"private":true`; `gh api -X POST /user/repos -f name=x -F private=true`. Falsos positivos achados: `gh repo create --help` (A4); `-fname=x -Fprivate=true` (resolvido pela A2); e `-f "description=visibility: public por engano"` em PATCH, que é do regex anterior ao PR (sem achado).
+**Novo bloqueante (A1):** `graphql_publica` troca a busca no texto cru (`GRAPHQL_NAO_PRIVADA`, que barrava S1 e S2) por um léxico próprio que diverge da especificação do GraphQL em dois pontos: no bloco `"""`, a barra só é escape antes de `"""` (então `z\\"""` não fecha a string; o regex fecha), e LineTerminator inclui CR (o `#[^\n]*` engole a linha seguinte). Em S1, o hook vê só `visibility:PRIVATE` (dentro da descrição, para o servidor) e não vê `visibility:PUBLIC`; em S2, não vê o PUBLIC e aceita a isca do A2. Sugestão sem lexer novo: decidir o público no texto da query com strings e comentários (como o head anterior, falso positivo tolerável na descrição com `visibility:`) e usar o texto limpo só para exigir o PRIVATE na criação; ou falhar fechado quando a query de mutação do repositório tem `"""`, CR ou `#`. Fixture de cada forma, com mutante na linha. Não testei contra o servidor (seria criar público, `R-CONFORMIDADE`); a prova é a especificação do GraphQL (BlockStringCharacter e LineTerminator) e a saída do hook.
 
-**Limite aceito pelo autor:** PATCH e PUT em `repos/<o>/<r>` com `$` em qualquer argumento falham fechado, inclusive no endpoint (`gh api -X PATCH repos/$OWNER/proj -f description=nova` sai 2). É coerente com `textos_do_gh_api` (A-F27-2) e com R-CONFORMIDADE; o contorno é o valor literal. Aceito.
+**A4 anterior (`gh repo create --help`):** concordo que fique fora. Hoje falha fechado (falso positivo sem dano); liberar `--help` pela presença da palavra deixaria `gh repo create x --public -- --help` e afins na mão do parser do gh, o que afrouxa a guarda. Segue recomendado, sem cartão novo.
 
-**Ferramentas (citadas, não refeitas):** `bin/forge-mutante` nos dois arquivos: 16 de 16 mutantes mortos (8 em `tests/mutantes/v0480-repo-publico-fix.json`, 8 em `-2.json`), um por guarda mudada. Teste do item `tests.test_hooks.Hooks.test_fixtures_do_repo_publico`: OK (1 teste, 23 fixtures, os dois lados). CI do PR #829 no head: suíte 3.12 e 3.14 verdes nas partes listadas; `bateria`, `bateria (pareceres)` e `catraca` vermelhos à espera dos pareceres. Suíte inteira não rodada (fica no CI).
+**Falsos positivos (o foco anterior), no head:** saem 0 `gh repo create novo --private`, `gh api -X POST /user/repos -f name=x -F private=true`, `visibility=internal`, `--input` com `"private":true`, PATCH só de descrição (direto, `@arq` e `--input`), `GET user/repos -f visibility=public`, GraphQL de leitura, `updateRepository` só de descrição e `createRepository` com `visibility:PRIVATE` literal. Novo falso positivo aceito: GraphQL com `visibility:$v` e `-f v=PRIVATE` sai 2 (variável fora de `<var>[visibility]` falha fechado, coerente com o limite do item). `API_SEGMENTO_ESTRANHO` (A6 da segurança) barra `user//repos` no endpoint de repositório e não alcança `repos/o/r/issues//`, que sai 0.
 
-**Na volta:** cada uma das A1 a A3 ganha fixture `trava-*` com a descrição `CONFORMIDADE-REPO-CREATE-PUBLICO` e mutante declarado na linha mudada; revalido pelo delta do parecer.
+**Teto H1:** `hooks/conformidade.py` soma +94 −18 no delta e 120 linhas de código no item contra a base `216413c9` (`git diff --numstat`), dentro de 150; o resto são fixtures, mutantes e teste.
+
+**Ferramentas (citadas, não refeitas):** a mutação é do autor (46 mutantes declarados em seis arquivos, um por guarda mudada, segundo o commit `1265fa11`); não rerrodei. Teste do item `tests.test_hooks.Hooks.test_fixtures_do_repo_publico`: OK (1 teste, 57 fixtures, os dois lados). CI do PR #829 no head: `instalação`, `bateria (passos)` e `bateria (verificações longas)` verdes; suíte 3.12 e 3.14 pendentes; `bateria (pareceres)` e `catraca` vermelhos à espera dos pareceres. Suíte inteira não rodada (fica no CI).
+
+**Na volta:** A1 com fixtures `trava-graphql-*` das duas formas (S1 e S2) e mutante declarado na linha mudada; revalido pelo delta do parecer.
