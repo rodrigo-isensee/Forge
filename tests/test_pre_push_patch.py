@@ -3,7 +3,9 @@
 O `.githooks/pre-push` em vigor não muda neste pedido: o teste copia o hook para $TMPDIR, aplica o patch na cópia e prova cada
 conserto, com o hook original falhando e o remendado passando (PRE-PUSH-TEXTO-TRAVA-FD, FILA-INTERVALO-ZERO,
 PREPUSH-LEVE-COBERTURA-CATRACA). Depois que o dono aplicar o patch, o hook em vigor já é o remendado e `git apply` do patch
-recusa de novo: o teste então confere só o remendado e pula a comparação com o original.
+recusa de novo: o teste então confere só o remendado e pula a comparação com o original. Ajuste único (v0478 E174.9): com o
+`patches/prepush-unico.patch` já no hook, o teste o desfaz na cópia e prova o PP1 sobre o hook de antes dele (os dois trazem o
+fd e o intervalo; a cobertura da catraca, só do PP1, fechou sem mudança na decisão 7 de 24/11 e não entra no hook).
 """
 import os
 import re
@@ -20,13 +22,22 @@ from ambiente_git import sem_manutencao  # noqa: E402
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / ".githooks" / "pre-push"
 PATCH = RAIZ / "docs" / "devops" / "pp1-pre-push.patch"
+UNICO = RAIZ / "patches" / "prepush-unico.patch"
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_"))})
 ZERO = "0" * 40
 SUITE_VERDE = "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        pass\n"
 
 
 def aplicado(texto):
-    return "PRE-PUSH-TEXTO-TRAVA-FD" in texto
+    return "PREPUSH-LEVE-COBERTURA-CATRACA" in texto
+
+
+def sem_o_ajuste_unico(pasta):
+    """Desfaz na cópia o ajuste único, se o hook já o tem: o PP1 traz as mesmas linhas do fd e do intervalo e não aplica por cima."""
+    r = subprocess.run(["git", "apply", "-R", "--check", str(UNICO)], cwd=pasta, env=AMBIENTE, capture_output=True, text=True)
+    if r.returncode == 0:
+        r = subprocess.run(["git", "apply", "-R", str(UNICO)], cwd=pasta, env=AMBIENTE, capture_output=True, text=True)
+        assert r.returncode == 0, r.stderr
 
 
 class Base(unittest.TestCase):
@@ -45,6 +56,8 @@ class Base(unittest.TestCase):
         else:
             shutil.copy2(HOOK, orig / "pre-push")
             shutil.copy2(HOOK, novo / "pre-push")
+            for pasta in (raiz / "orig", raiz / "novo"):
+                sem_o_ajuste_unico(pasta)
             r = subprocess.run(["git", "apply", str(PATCH)], cwd=raiz / "novo", env=AMBIENTE, capture_output=True, text=True)
             assert r.returncode == 0, r.stderr
             cls.originais = [orig / "pre-push"]
