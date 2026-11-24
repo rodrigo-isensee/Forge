@@ -3,7 +3,8 @@
 O `.githooks/pre-push` em vigor é arquivo do dono e não muda neste item: o teste copia o hook para $TMPDIR, aplica o patch na cópia e
 roda o original e o remendado de verdade num repositório descartável, com um `gh` falso no PATH. Cada checagem nova barra no
 remendado e passa no original: o índice do Forge (bin/, hooks/, scripts/ tocados), o teto H1 com o PR aberto sem `teto: excedido` e o
-passo pr-texto da catraca (seções e T1). Sem PR, o teto só avisa; sem rede, tudo avisa e segue (o CI confere). A neutralidade já
+passo pr-texto da catraca (seções e T1). Sem PR, o teto só avisa; sem rede, tudo avisa e segue (o CI confere); o envio só de
+parecer (docs/{reviews,qa,security,devops}/) só avisa, para o revisor enviar o parecer que reprova (E173.16). A neutralidade já
 estava no hook (PARECER-NEUTRALIDADE-CEDO) e segue barrando no remendado. Nenhum teste local passa a rodar no envio (ENVIO-LEVE).
 Depois que o dono aplicar o patch, o hook em vigor já tem o PORTAO-D2: o teste confere só ele e pula a comparação com o original.
 """
@@ -130,10 +131,11 @@ class Base(unittest.TestCase):
         self.env["GH_FALSO_MODO"] = "json"
         self.pr_json.write_text(json.dumps({"number": 7, "state": estado, "headRefOid": "a" * 40, "body": corpo}))
 
-    def roda(self, hook):
-        sha = self.git("rev-parse", "HEAD")
+    def roda(self, hook, remoto=ZERO, ref=f"refs/heads/{BRANCH}", sha=None):
+        """Envio de uma ref: `sha` local (HEAD por padrão) sobre o `remoto` (ZERO: a ref ainda não existe no remoto)."""
+        sha = sha or self.git("rev-parse", "HEAD")
         r = subprocess.run([str(hook), "origin", "u"], cwd=self.repo, env=self.env, capture_output=True, text=True, timeout=120,
-                           input=f"refs/heads/{BRANCH} {sha} refs/heads/{BRANCH} {ZERO}\n")
+                           input=f"{ref} {sha} {ref} {remoto}\n")
         return r.returncode, r.stderr
 
     def compara(self, barra_com):
@@ -179,6 +181,7 @@ class Indice(Base):
     def test_codigo_novo_sem_indice_barra_e_com_indice_passa(self):
         for pasta in ("bin", "hooks", "scripts"):
             with self.subTest(pasta):
+                self.git("update-ref", "refs/remotes/origin/develop", "HEAD")  # cada pasta sozinha no delta (QA A1)
                 self.commit("ferramenta nova", indice=1, **{f"{pasta}/nova_{pasta}.py": codigo(3), "tests/test_nova.py": TESTE})
                 self.compara("docs/indice-forge.md fora de dia")
                 self.assertIn("docs/indice-forge.md: estado 1", self.roda(self.remendado)[1])
@@ -259,6 +262,81 @@ class TextoDoPr(Base):
         self.pr("")
         self.env["GH_FALSO_BRANCH"] = BRANCH + "-outra"  # o falso só responde ao nome exato: outro nome vira aviso, não reprova
         self.assertIn("não verificável", self.passa())
+
+
+class Ponta(Base):
+    """Só a ref de branch cuja ponta é o HEAD é conferida (QA A2 e A3): o teto e o corpo são os da branch do HEAD."""
+
+    def item_defeituoso(self, nome_no_gh):
+        self.commit("item grande", indice=0, **{"bin/grande.py": codigo(160), "tests/test_grande.py": TESTE})
+        self.pr(SECOES)  # sem `teto: excedido`: conferido, barraria
+        self.env["GH_FALSO_BRANCH"] = nome_no_gh
+
+    def test_branch_cuja_ponta_nao_e_o_head_nao_e_conferida(self):
+        anterior = self.git("rev-parse", "HEAD")
+        self.item_defeituoso("outra")
+        codigo_, erro = self.roda(self.remendado, ref="refs/heads/outra", sha=anterior)
+        self.assertEqual(codigo_, 0, erro)
+        self.assertNotIn("PR #7", erro)
+
+    def test_ref_fora_de_refs_heads_nao_e_conferida(self):
+        self.item_defeituoso("refs/tags/v1")
+        codigo_, erro = self.roda(self.remendado, ref="refs/tags/v1")
+        self.assertEqual(codigo_, 0, erro)
+        self.assertNotIn("PR #7", erro)
+
+
+class SoParecer(Base):
+    """O envio só de parecer sobre o PR defeituoso só avisa (review A1, S1 e S2): o revisor envia o parecer que reprova."""
+
+    AVISO = "envio só de parecer"
+
+    def envia_parecer(self, *arquivos):
+        anterior = self.git("rev-parse", "HEAD")
+        self.commit("parecer", **{nome: "parecer\n" for nome in arquivos})
+        return self.roda(self.remendado, remoto=anterior)
+
+    def test_teto_estourado_so_avisa(self):  # S1
+        self.commit("item grande", indice=0, **{"bin/grande.py": codigo(160), "tests/test_grande.py": TESTE})
+        self.pr(SECOES)
+        for pasta in ("reviews", "qa", "security", "devops"):
+            with self.subTest(pasta):
+                codigo_, erro = self.envia_parecer(f"docs/{pasta}/x.md")
+                self.assertEqual(codigo_, 0, erro)
+                self.assertIn("sem a linha `teto: excedido", erro)
+                self.assertIn(self.AVISO, erro)
+
+    def test_texto_do_pr_reprovado_so_avisa(self):  # S2
+        self.commit("texto", **{"docs/a.md": "texto\n"})
+        self.pr("## Projeto de origem\nFábrica.\n")
+        codigo_, erro = self.envia_parecer("docs/reviews/x.md")
+        self.assertEqual(codigo_, 0, erro)
+        self.assertIn("reprovado pelo pr-texto", erro)
+        self.assertIn(self.AVISO, erro)
+
+    def test_indice_fora_de_dia_so_avisa(self):
+        self.commit("ferramenta nova", indice=1, **{"bin/nova.py": codigo(3), "tests/test_nova.py": TESTE})
+        codigo_, erro = self.envia_parecer("docs/qa/x.md")
+        self.assertEqual(codigo_, 0, erro)
+        self.assertIn("docs/indice-forge.md fora de dia", erro)
+        self.assertIn(self.AVISO, erro)
+
+    def test_delta_com_arquivo_fora_dos_pareceres_barra(self):
+        self.commit("item grande", indice=0, **{"bin/grande.py": codigo(160), "tests/test_grande.py": TESTE})
+        self.pr(SECOES)
+        codigo_, erro = self.envia_parecer("docs/reviews/x.md", "docs/a.md")
+        self.assertEqual(codigo_, 1, erro)
+        self.assertNotIn(self.AVISO, erro)
+
+    def test_ref_nova_ou_sha_remoto_desconhecido_barra(self):
+        self.commit("item grande", indice=0, **{"bin/grande.py": codigo(160), "tests/test_grande.py": TESTE})
+        self.pr(SECOES)
+        self.commit("parecer", **{"docs/reviews/x.md": "parecer\n"})
+        for remoto in (ZERO, "b" * 40):
+            with self.subTest(remoto=remoto[:1]):
+                codigo_, erro = self.roda(self.remendado, remoto=remoto)
+                self.assertEqual(codigo_, 1, erro)
+                self.assertNotIn(self.AVISO, erro)
 
 
 class Neutralidade(Base):

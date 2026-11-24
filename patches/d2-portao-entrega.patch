@@ -1,7 +1,7 @@
 diff --git a/.githooks/pre-push b/.githooks/pre-push
 --- a/.githooks/pre-push
 +++ b/.githooks/pre-push
-@@ -329,6 +329,48 @@
+@@ -329,6 +329,61 @@ for rel in sys.argv[1:]:
                  falhas = 1
  sys.exit(falhas)
  '
@@ -47,10 +47,23 @@ diff --git a/.githooks/pre-push b/.githooks/pre-push
 +    print(f"pre-push: aviso: o pr-texto da catraca não conferiu o PR (saída {r.returncode}); o CI confere.", file=sys.stderr)
 +sys.exit(1 if falhas else 0)
 +'
++# PORTAO-D2: o envio só de parecer (todo ref enviado já existe no remoto e o delta só toca docs/{reviews,qa,security,devops}/,
++# a fronteira do so_parecer) não é barrado pelo portão D2, só avisado: o revisor envia o parecer que reprova o corpo ou o
++# tamanho, e o autor corrige na volta (R-REVIEW). Código 0: só avisar; 1: barrar.
++d2_so_avisa() {
++  local envio ponta remoto delta
++  for envio in "${envios[@]}"; do
++    read -r ponta remoto _ <<< "$envio"
++    # Ref nova (remoto zero), sha remoto que o git não tem ou delta vazio: o delta sai vazio, a linha vazia fica fora da fronteira e barra.
++    delta="$(git -c core.quotepath=false diff --name-only --no-renames "$remoto" "$ponta" -- 2>/dev/null)"
++    if printf '%s\n' "$delta" | grep -qvE '^docs/(reviews|qa|security|devops)/'; then return 1; fi
++  done
++  echo "pre-push: aviso: envio só de parecer (docs/reviews, qa, security ou devops): o portão D2 só avisa; o autor corrige na volta (R-REVIEW)." >&2
++}
  tipo_de_script() {
    local primeira
    case "$1" in *.py) echo python; return ;; *.sh) echo shell; return ;; esac
-@@ -389,6 +431,28 @@
+@@ -389,6 +444,28 @@ checagens_baratas() {
        break
      done
    fi
@@ -60,7 +73,7 @@ diff --git a/.githooks/pre-push b/.githooks/pre-push
 +    if [ "$rc" -eq 1 ]; then
 +      printf '%s\n' "$saida" | LC_ALL=C tr -d '\000-\011\013-\037\177' >&2
 +      echo "pre-push: docs/indice-forge.md fora de dia (o CI reprova igual); rode python3 scripts/indice-forge.py e commite." >&2
-+      falhas=1
++      d2_so_avisa || falhas=1
 +    elif [ "$rc" -ne 0 ]; then
 +      echo "pre-push: aviso: scripts/indice-forge.py --conferir não conferiu (saída ${rc}); o CI confere." >&2
 +    fi
@@ -72,7 +85,7 @@ diff --git a/.githooks/pre-push b/.githooks/pre-push
 +      case "$ref" in refs/heads/?*) ;; *) continue ;; esac
 +      [ "$ponta" = "$(git rev-parse HEAD 2>/dev/null)" ] || continue
 +      ancora="$(git merge-base "$base_dev" HEAD 2>/dev/null)" || break
-+      python3 -I -c "$PORTAO_D2_PY" "$ancora" "${ref#refs/heads/}" || { echo "pre-push: teto ou texto do PR reprovado (o CI reprova igual)." >&2; falhas=1; }
++      python3 -I -c "$PORTAO_D2_PY" "$ancora" "${ref#refs/heads/}" || { echo "pre-push: teto ou texto do PR reprovado (o CI reprova igual)." >&2; d2_so_avisa || falhas=1; }
 +      break
 +    done
 +  fi
