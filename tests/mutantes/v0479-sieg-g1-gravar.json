@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "G1.2 (ADR 0018 item 3): transcrição que é link ou não é .jsonl recusa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if (arq.is_symlink() or not arq.is_file() or arq.suffix != \".jsonl\" or",
+      "para": "    if (False or",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_so_a_mensagem_digitada_pelo_dono_na_sessao_principal"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "G1.2 (item 3): uuid repetido na transcrição recusa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "r = achados[0] if len(achados) == 1 else {}",
+      "para": "r = achados[0] if len(achados) >= 1 else {}",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_so_a_mensagem_digitada_pelo_dono_na_sessao_principal"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "G1.2 (item 3): só um bloco de texto vale como a mensagem inteira",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if isinstance(conteudo, list) and len(conteudo) == 1 and",
+      "para": "if isinstance(conteudo, list) and len(conteudo) >= 1 and",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_so_a_mensagem_digitada_pelo_dono_na_sessao_principal"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "G1.2 (item 3): registro que não é do usuário recusa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if (r.get(\"type\") != \"user\" or r.get(",
+      "para": "    if (False or r.get(",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_so_a_mensagem_digitada_pelo_dono_na_sessao_principal"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "G1.2 (item 3): meta, subagente e resultado de ferramenta recusam",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "any(r.get(c) for c in (\"isMeta\", \"isSidechain\",",
+      "para": "any(False for c in (\"isMeta\", \"isSidechain\",",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_so_a_mensagem_digitada_pelo_dono_na_sessao_principal"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "G1.2 (item 3): mensagem de outra sessão recusa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "or r.get(\"sessionId\") != arq.stem or",
+      "para": "or False or",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_so_a_mensagem_digitada_pelo_dono_na_sessao_principal"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "G1.2 (item 3): lembrete e comando do sistema recusam",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "or conteudo.lstrip().startswith(\"<\")",
+      "para": "or False",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_so_a_mensagem_digitada_pelo_dono_na_sessao_principal"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "G1.2 (item 3): mensagem vazia ou acima do teto recusa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "            or not conteudo.strip() or len(conteudo.encode(\"utf-8\")) > TETO_DA_MENSAGEM):",
+      "para": "            or False):",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_so_a_mensagem_digitada_pelo_dono_na_sessao_principal"
+      ]
+    }
+  ]
+}

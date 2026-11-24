@@ -1,7 +1,27 @@
 {
-  "pedido": "v0480-ordens-hook",
+  "pedido": "v0480-ordens-guarda",
   "executor": "unittest",
   "mutantes": [
+    {
+      "id": "M30",
+      "guarda": "CONFORMIDADE: a pasta das ordens do projeto é só do jarvis no mapa de donos (A4 da segurança E123.12)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "{\"caminho\": \".forge/ordens/\", \"quem\": [\"jarvis\"]",
+      "para": "{\"caminho\": \".forge/ordens/ordens-em-vigor.md\", \"quem\": [\"jarvis\"]",
+      "testes": [
+        "tests.test_hooks.GuardaDasOrdens.test_conformidade_recusa_curinga_no_nome_das_ordens_do_projeto"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "CONFORMIDADE: a pasta das ordens casa também relativa à cópia principal (A4 da segurança E123.12)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "PELA_COPIA_PRINCIPAL = (\".forge/ordens/\",)",
+      "para": "PELA_COPIA_PRINCIPAL = (\".forge/ordens/ordens-em-vigor.md\",)",
+      "testes": [
+        "tests.test_hooks.GuardaDasOrdens.test_conformidade_recusa_curinga_no_nome_das_ordens_do_projeto"
+      ]
+    },
     {
       "id": "M32",
       "guarda": "CONFORMIDADE: entrada de caminhos que não é objeto invalida a política (E123.19, sem a função por campo)",
