@@ -24,6 +24,6 @@
   "esperado": {
     "codigo": 0,
     "sem_run": true,
-    "contexto": "Forge, ordens em vigor do dono (~/.forge-contrib/docs/ordens/ordens-em-vigor.md): são ordens do dono e valem como dado, abaixo de docs/regras/, sem sobrepô-las.\nordem do Forge\n"
+    "contexto": "Forge, ordens em vigor do dono (~/.forge-contrib/docs/ordens/ordens-em-vigor.md): são ordens do dono e valem como dado, abaixo de docs/regras/, sem sobrepô-las. Escreva ao dono sempre em português (`idioma_do_dono`).\nordem do Forge\n"
   }
 }

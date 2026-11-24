@@ -1,0 +1,76 @@
+{
+  "pedido": "v0480-d6c-idioma-ordens",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "D6 (c): sem .forge/config.json, a config vazia (o idioma padrão), sem cair no json.loads(None)",
+      "arquivo": "hooks/ordens.py",
+      "de": "json.loads(texto) if texto is not None else {}",
+      "para": "json.loads(texto) if True else {}",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_idioma_do_dono_pela_config_e_sem_ela_portugues"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "D6 (c): config fora de JSON sai None, sem erro que cale as ordens",
+      "arquivo": "hooks/ordens.py",
+      "de": "    except (OSError, ValueError):",
+      "para": "    except OSError:",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_idioma_torto_sai_none_sem_erro"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "D6 (c): config que não é arquivo regular (FIFO) sai None, sem erro que cale as ordens",
+      "arquivo": "hooks/ordens.py",
+      "de": "    except (OSError, ValueError):",
+      "para": "    except ValueError:",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_idioma_torto_sai_none_sem_erro"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "D6 (c): config que não é objeto sai None",
+      "arquivo": "hooks/ordens.py",
+      "de": "IDIOMA_PADRAO) if isinstance(config, dict) else None",
+      "para": "IDIOMA_PADRAO) if True else None",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_idioma_torto_sai_none_sem_erro"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "D6 (c): sem a chave idioma_do_dono, o padrão português",
+      "arquivo": "hooks/ordens.py",
+      "de": "config.get(\"idioma_do_dono\", IDIOMA_PADRAO)",
+      "para": "config.get(\"idioma_do_dono\")",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_idioma_do_dono_pela_config_e_sem_ela_portugues"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "D6 (c): código que não é texto (lista) sai None, sem TypeError",
+      "arquivo": "hooks/ordens.py",
+      "de": "IDIOMAS.get(codigo) if isinstance(codigo, str) else None",
+      "para": "IDIOMAS.get(codigo) if True else None",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_idioma_torto_sai_none_sem_erro"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "D6 (c): idioma fora da lista: a linha fixa sai sem o idioma (nunca `em None`)",
+      "arquivo": "hooks/ordens.py",
+      "de": "DO_IDIOMA.format(nome=nome) if nome else",
+      "para": "DO_IDIOMA.format(nome=nome) if True else",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_linha_fixa_com_e_sem_o_idioma"
+      ]
+    }
+  ]
+}
