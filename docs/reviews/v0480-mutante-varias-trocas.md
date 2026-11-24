@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-mutante-varias-trocas
-commit: 3671c05271cd1760044a2bdc874b064cd28e835a
-parecer: reprovado
+commit: 191484effc2af5506ddfc05f3c44b3944efa2349
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-24
 ---
-# Review: v0478 (E162.2 e E162.6, PR #846, mutante com várias trocas)
+# Review: v0478 (E162.2, E162.6 e E162.10, PR #846, mutante com várias trocas)
 
 ## Escopo lido
 Diff `0733715a..e18a5b07`: `bin/forge-mutante` (+55/-22 no código, dentro do teto H1), duas specs novas (`v0480-mutante-varias-trocas.json` M1-M12 e `-2.json`), realinhamento de CF5 (`v047-mutante-avisos.json`) e M6 (`vel-p1p10.json`), 5 testes novos em `tests/test_forge_mutante.py` e o fragmento do changelog.
@@ -27,8 +27,11 @@ Delta lido: `forge-check parecer delta docs/reviews/v0480-mutante-varias-trocas.
 - **Guardas do delta:** uma por linha, M13 (`> 1`), M14 (`if sozinho`), M15 (`if motivo`), M16 (`!= "sobreviveu"`), M17 (`registro is None`), M18 (texto do motivo); `-2.json` fica em 8 mutantes e o resto foi para `-3.json`. O commit `3671c052` só tira a repetição de `m["testes"], trabalho / f"` para o trecho do M9 da v0457 seguir único.
 - **Ferramentas no head 3671c052:** `python3 -m unittest tests.test_forge_mutante` → `Ran 153 tests ... OK`; `bin/forge-mutante --conferir --base 0733715a` → `conferidas: o trecho de cada spec do diff está no lugar`; `bin/forge-mutante tests/mutantes/v0480-mutante-varias-trocas-2.json --ids M13,M14,M15,M16` → os quatro `morreu` (`:977`, `:979`, `:992`, `:996`); `bin/forge-mutante tests/mutantes/v0480-mutante-varias-trocas-3.json` → `M17 · morreu · bin/forge-mutante:995` e `M18 · morreu · bin/forge-mutante:997`; `--cobertura --base e18a5b07` rc 0. Nenhuma spec do repositório usa a forma em lista hoje, então a regra nova não invalida mutante existente. Código do delta: +20 linhas, dentro do teto H1. Suíte inteira: CI do PR #846.
 
-## Parecer
-Na E162.2 (head e18a5b07), aprovado: faz o que a E162.1 pede (várias trocas juntas para guardas que se cobrem), sem mudar a spec de uma troca; os realinhamentos de CF5 e M6 provam a mesma guarda com o mesmo teste, e os dois mutantes morrem no head revisado. Na revalidação E162.6, reprovado no head 3671c052: o par-isca de 2 pares está fechado, com teste de abuso e um mutante por guarda, mas a checagem só de cada par sozinho não prova que todo par é necessário com 3 ou mais pares (A1 abaixo, o mesmo defeito do A2 da segurança no mesmo head, `docs/security/v0480-mutante-varias-trocas.md`, sonda S4). Na volta, a correção mais simples é limitar `MAXIMO_DE_TROCAS` a 2, o que torna a checagem atual suficiente; se 3+ pares forem precisos, cada conjunto sem o par n também tem de sobreviver, com a S4 como teste em `Execucao` e mutante na guarda nova.
+## Revalidação E162.10 (2ª volta E162.9, head 191484ef)
+Delta lido: `forge-check parecer delta docs/reviews/v0480-mutante-varias-trocas.md`, intervalo `3671c052..191484ef`; no domínio: `bin/forge-mutante`, `changelog.d/v0480-mutante-varias-trocas.md`, `tests/mutantes/v0480-mutante-varias-trocas-3.json` (M19) e `tests/test_forge_mutante.py`.
+- **A1 da E162.6 (3+ pares), fechado:** `MAXIMO_DE_TROCAS` cai de 8 para 2 (`bin/forge-mutante:135`), a correção sugerida. Com 2 pares, o par sozinho é o conjunto sem o outro, e `par_que_nao_sobrevive` basta. Lista de 3 pares cai no `else` de `trocas()` (`:409`), vira par não texto e `[]`: `validar_spec` recusa a spec antes de qualquer execução. A S4 virou `test_isca_de_tres_pares_e_recusada_antes_de_rodar` (rc 2, `spec inválida; nada foi executado`, sem `morreu`, `$TMPDIR` vazio); no teste de validação o caso de 9 pares passou a 3 e o de 8 válidos saiu.
+- **Guarda do delta:** a única linha de guarda mudada é o teto; M19 (`= 2` → `= 3`) com os dois testes. Uso, mensagem de erro e changelog falam em 2 pares; o docstring de `trocas()` (`de 2 a MAXIMO_DE_TROCAS`) segue certo. Código do delta: +3/-3 linhas e um comentário, dentro do teto H1.
+- **Ferramentas no head 191484ef:** `python3 -m unittest tests.test_forge_mutante` → `Ran 154 tests in 138.318s OK`; `bin/forge-mutante tests/mutantes/v0480-mutante-varias-trocas-3.json --ids M19` → `M19 · morreu · bin/forge-mutante:135`; `bin/forge-mutante --conferir --base 0733715a` → `conferidas: o trecho de cada spec do diff está no lugar`. Suíte inteira: CI do PR #846 (no momento, suíte 3.12 parte 4/5, baterias e instalação verdes, demais partes pendentes, `bateria (pareceres)` vermelha até os pareceres do head); o merge segue preso ao CI verde (`R-FLUXO`).
 
-## Achados
-- A1 (bloqueante) bin/forge-mutante:989 · com 3+ pares [guarda sem teste, A, B], A e B se cobrindo, cada par sobrevive sozinho e o conjunto morre por A+B: sai `morreu` na linha da guarda sem teste (rc 0). Mesmo defeito do A2 da segurança (S4). Correção: limitar a 2 pares ou exigir que o conjunto sem cada par sobreviva.
+## Parecer
+Na E162.2 (head e18a5b07), aprovado: faz o que a E162.1 pede (várias trocas juntas para guardas que se cobrem), sem mudar a spec de uma troca; os realinhamentos de CF5 e M6 provam a mesma guarda com o mesmo teste. Na E162.6 (head 3671c052), reprovado pelo A1 (com 3+ pares, cada par sobreviver sozinho não prova que todos são necessários; mesmo defeito do A2 da segurança, sonda S4). Na E162.10, aprovado no head 191484ef: o teto de 2 pares fecha o A1, com a S4 como teste de abuso e o M19 morto na guarda do teto.
