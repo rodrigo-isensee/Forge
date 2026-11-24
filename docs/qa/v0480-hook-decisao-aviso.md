@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-hook-decisao-aviso
-commit: f2db561b4e2220f4ae8411f1f4432e3a35b813f0
+commit: c517dbe315987b500310e684b95a1cafee385d68
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -39,3 +39,10 @@ Delta `2ecd153c..f2db561b` (`forge-check parecer delta`): `bin/forge-testes`, `d
 - Mutantes no delta (`--base 2ecd153c`): M1 a M6 mortos; M6 morre por erro do teste declarado (vale como morte).
 - CI do head f2db561b (run 45436685276): suítes 3.12 e 3.14 (todas as partes), catraca, passos, longas, instalação e teto de pulados verdes; `bateria` e `bateria (pareceres)` vermelhas, esperado enquanto os pareceres do head não estão commitados.
 - Observação: `tests/pesos-d4.json` também reordenou `test_fechar_limpar_clone` (valor igual), sem efeito no teste.
+
+## Revalidação por delta (head c517dbe3, E172.41)
+Delta `f2db561b..c517dbe3` (`forge-check parecer delta`, sem o que veio da develop): só o merge da develop (ad113d80) e o índice `docs/hooks-fixtures.md` regerado (3570 fixtures); `forge-testes`, `pesos-d4.json` e `test_hooks.py` mudam pelo que a develop trouxe, sem tocar o hook `decisao`. Nenhum CA novo; os critérios do parecer anterior seguem passando.
+- `scripts/indice-fixtures.py --conferir`: `docs/hooks-fixtures.md: em dia`.
+- `test_hook_decisao` (`-I`, discover): 11 testes OK. `test_hooks -k decisao`: 1 OK. `test_indice_fixtures*`: 7 OK.
+- Sem mutante novo: nenhuma linha de guarda mudada no delta; M1 a M6 do parecer anterior valem (código do hook idêntico).
+- A suíte inteira fica para o check-run `bateria` do CI do PR, no mesmo sha.
