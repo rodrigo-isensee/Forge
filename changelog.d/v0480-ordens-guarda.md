@@ -1,2 +1,0 @@
-### Adicionado
-- Trava de escrita no arquivo de ordens do dono, antes do hook que o lê: o `conformidade` deixa só o Jarvis gravar `.forge/ordens/` (também pela cópia principal a partir da worktree e com curinga no nome) e `~/.forge-contrib/docs/ordens/` (como pasta de controle); o `forge-init` põe `.forge/ordens/` nos ignorados do git. A política do `conformidade` recusa também caminho, motivo e branch vazios e item de `quem` que não é texto.
