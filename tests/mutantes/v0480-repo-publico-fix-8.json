@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-repo-publico-fix",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "RP52",
+      "guarda": "E141.15 (A8): mais de um query na mutação de repositório falha fechado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if len(textos) > 1:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP53",
+      "guarda": "E141.15 (A8): string sem fechamento falha fechado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if any(m[\"fecha\"] == \"\" for v in textos",
+      "para": "if False and any(m[\"fecha\"] == \"\" for v in textos",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP54",
+      "guarda": "E141.15 (A8): a string sem fechamento não recomeça a busca",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(?P<fecha>\"?)",
+      "para": "(?P<fecha>\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP56",
+      "guarda": "E141.15 (A8): os textos são os de todo campo query, dos campos e do corpo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "isinstance(v, str) and k == \"query\"",
+      "para": "isinstance(v, str) and k == \"nenhum\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP57",
+      "guarda": "E148.1: as formas de visibilidade do gh marcam o prazo vencido (MarcadorDaPolitica.marca)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if any(map(visibilidade_do_gh, formas)):",
+      "para": "if False and any(map(visibilidade_do_gh, formas)):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP58",
+      "guarda": "E148.1: alguma linha com todos os termos de uma forma marca",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return any(all(t.search(linha) for t in termos)",
+      "para": "return False and any(all(t.search(linha) for t in termos)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP59",
+      "guarda": "E148.1: gh repo create e gh repo new estão no marcador",
+      "arquivo": "hooks/conformidade.py",
+      "de": "r\"\\b(?:create|new)\\b\"",
+      "para": "r\"\\b(?:nunca)\\b\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP60",
+      "guarda": "E148.1: gh api com graphql ou rota de repositório está no marcador",
+      "arquivo": "hooks/conformidade.py",
+      "de": "r\"graphql|\\brepos\\b\"",
+      "para": "r\"\\bnunca\\b\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    }
+  ]
+}

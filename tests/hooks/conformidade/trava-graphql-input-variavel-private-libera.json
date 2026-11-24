@@ -1,0 +1,23 @@
+{
+  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (A5 da segurança): input por variável com i[visibility]=PRIVATE é legítimo.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api graphql -f query='mutation($i: CreateRepositoryInput!) { createRepository(input:$i) { clientMutationId } }' -F 'i[name]=n' -F 'i[visibility]=PRIVATE'"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
