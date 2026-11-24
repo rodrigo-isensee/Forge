@@ -557,6 +557,7 @@ class TestesAfrouxados(Base):
             def test_b(self):
                 self.assertTrue(f())
             def test_c(self):
+                "Sem asserção: só chama."
                 f()
             def ajuda(self):
                 return 1
