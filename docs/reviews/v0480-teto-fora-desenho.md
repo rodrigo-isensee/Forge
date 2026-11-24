@@ -3,28 +3,27 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-teto-fora-desenho
-commit: 604f8c560274c5854ff3fc2fd42599b79ef39aa0
-parecer: reprovado
+commit: a660a3182eaef7eb7dd64efe30bde1381b2339ce
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-24
 ---
-# Review: v0478 · desenho TETO-FORA-DO-GIT, volta (E159.4, PR #842)
+# Review: v0478 · desenho TETO-FORA-DO-GIT, 2ª volta (E159.6, PR #842)
 
-Review por delta do head 604f8c56 (volta E159.3), base develop 789fc141. Delta lido por `forge-check parecer delta docs/reviews/v0480-teto-fora-desenho.md`: intervalo `2234208a..604f8c56`, no domínio só `docs/propostas/teto-fora-do-git.md` (13 linhas a mais, 8 a menos). Classe T, só texto: sem código, guarda nem mutante. Testes dos arquivos tocados: `test_clareza` e `test_changelog`, 100 testes, OK; a suíte inteira fica no CI do PR. Instância que não escreveu a volta.
+Review por delta do head a660a318 (2ª volta E159.5), base develop 789fc141. Delta lido por `forge-check parecer delta docs/reviews/v0480-teto-fora-desenho.md`: intervalo `604f8c56..a660a318`, no domínio só `docs/propostas/teto-fora-do-git.md` (9 linhas a mais, 8 a menos). Classe T, só texto: sem código, guarda nem mutante. Testes dos arquivos tocados: `test_clareza` e `test_changelog`, 100 testes, OK; a suíte inteira fica no CI do PR. Instância que não escreveu a volta. Decisões do dono conferidas em `docs/pedidos/v0478.md` ("b: o teto vai para um arquivo fora do controle de versão"; "a, com cartão para provar no sandbox real", citado em :90).
 
 ## Achados
-- A5 (bloqueante) docs/propostas/teto-fora-do-git.md:40 · "de uma cópia em `.forge/wt/<item>` chega à cópia principal" é falso: no projeto a cópia é clone (`bin/forge-copia:3`) e `diretorio_comum` de um clone é o `.git` dele (S2); o script lê o `limites.json` do clone. C1 (:79) e a medida (2) de :68 não fecham.
-- A6 (bloqueante) docs/propostas/teto-fora-do-git.md:80 · o `.git` forjado só dá None se for incoerente: um `gitdir:` para `<x>/.git/worktrees/w` com `gitdir` de volta e `commondir` `../..`, tudo em pasta gravável, passa em `diretorio_comum` (S3) e o leitor lê `<x>/.forge/limites.json`. Diga o que ancora a cópia principal.
+- A7 (recomendado) docs/propostas/teto-fora-do-git.md:40 · "na cópia principal e na worktree vinculada, o mesmo que o hook lê; noutra pasta, um arquivo que o hook não lê" omite o clone em `.forge/wt/<item>`, que pelo corte de :38 e pela C1 (h) de :49 também grava na cópia principal; a medida (2) de :68 omite a worktree vinculada. Alinhe as três listas.
 
 ## Sondas
-- S1 · `echo "CPD=${CLAUDE_PROJECT_DIR:-<vazio>}"` no Bash da sessão (de novo, no head 604f8c56) · espera: vazio, a premissa da volta para os scripts · obtido: `CPD=<vazio>`
-- S2 · `diretorio_comum("/root/.forge-contrib/wt/v0480-teto-fora-desenho-rev")` (um clone, `.git` pasta) · espera: a cópia principal `/workspaces/Forge/.git`, pela linha 40 · obtido: `/workspaces/.forge-contrib/wt/v0480-teto-fora-desenho-rev/.git`
-- S3 · `diretorio_comum(<scratch>/wt)` com `wt/.git` = `gitdir: <scratch>/evil/.git/worktrees/w`, `w/gitdir` = `<scratch>/wt/.git`, `w/commondir` = `../..` · espera: None, pela linha 80 · obtido: `<scratch>/evil/.git`
+- S2 · `diretorio_comum(<este clone em ~/.forge-contrib/wt>)` no head a660a318 · espera: o `.git` do próprio clone, pela :38 nova (valor informativo) · obtido: `/workspaces/.forge-contrib/wt/v0480-teto-fora-desenho-rev/.git`
+- S3 · `diretorio_comum(<s>/wt)`, `wt/.git` = `gitdir: <s>/evil/.git/worktrees/w`, `gitdir` de volta e `commondir` `../..` · espera: `<s>/evil/.git`, pelo caso de abuso de :80 · obtido: `<s>/evil/.git`
+- S4 · `diretorio_comum("/workspaces/Forge")` (a raiz da sessão, âncora do hook) · espera: `/workspaces/Forge/.git` · obtido: `/workspaces/Forge/.git`
 
 ## Conferência pedida no brief
-- **A1 (raiz fora da sessão):** fechado para a cópia principal e a worktree vinculada: o hook segue pela `raiz_declarada()` e os scripts partem de `git rev-parse --show-toplevel` (:37-38). S1 rodada de novo: o Bash segue sem `CLAUDE_PROJECT_DIR`, e a volta já parte disso. O resto do A1 (clone) virou A5.
-- **Worktree forjada impondo teto:** o hook não é alcançado (lê a raiz da sessão, que o subagente não muda). Os scripts sim: de um clone (A5) ou de uma worktree forjada coerente (A6), `forge-check fila`, `suite-partes` e `forge ritmo` leem um `limites.json` que o agente grava. Hoje o `forge-check` já lê o `config.json` da pasta (`bin/forge-check:497`), então não piora o que existe; mas o desenho diz que fecha (:40, :79, :80), e o caso de abuso escrito daí reprova a implementação. Sugestão: nos scripts, cortar `.forge/wt/` do topo como o `bin/forge-copia:36-45` (projeto) e dizer o que vale no clone do Forge, fora da cópia principal; ou declarar o valor do script só informativo, com o hook como autoridade, e reescrever C1 e a medida (2).
-- **A2 a A4:** fechados. A2: a linha "ficam" (:20) traz `meta.py:72`, `doutor.py:305`, `pre-push:231-248`, `forge-init:233-240` e a mensagem de `conformidade.py:4195` (linhas conferidas no head). A3: os padrões vão à `RESERVA` (:41) e a C2 diz que o modelo perde `pesados` e `ritmo` (:51). A4: a D1 (:72) diz que o `git clean -fdx` apaga o arquivo e que só o `denyWrite` protege, dentro do sandbox.
+- **A5 (clone):** fechado. A linha falsa saiu; :38 diz que o clone fora de `.forge/wt/` tem o `.git` próprio e lê outro arquivo, e o S2 rodado de novo dá exatamente isso. O clone dentro de `.forge/wt/` é tratado pelo corte do caminho, como o `bin/forge-copia:36-45`, e a C1 (h) pede a prova.
+- **A6 (`.git` forjado coerente):** fechado. :80 descreve o S3 como caso de abuso com o resultado que a sonda dá (o script lê `<x>/.forge/limites.json`), e o valor do script é rebaixado a informativo (:40, C1 (j)); quem barra é o hook pela `raiz_declarada()` (:37). Conferi a âncora do hook: o `.git` da raiz, pasta ou arquivo de worktree, é recusado a escrita para todo papel (`hooks/conformidade.json:40` e `:43`), então o subagente não forja o `.git` da raiz da sessão; S4 confirma a leitura na raiz.
+- **C1 e medida (2):** reescritos de acordo: (d) restrito ao hook, (f) restrito à cópia principal, (h) cobre worktree e clone em `.forge/wt/`, (j) novo; a medida (2) tira de fora as outras pastas.
 
 ## Parecer
-Reprovado por A5 e A6. A volta fecha o A1 para a cópia principal e a worktree e fecha A2 a A4; mas a frase que garante "o arquivo de uma cópia não vale" para os scripts é falsa no caso normal do projeto (a cópia em `.forge/wt/` é clone) e no `.git` forjado coerente, e os dois casos de abuso da C1 (:79, :80) foram escritos sobre ela. Basta o texto dizer qual pasta vale para o clone e o que ancora a cópia principal, ou rebaixar os scripts a informativos e ajustar C1 e a medida (2).
+Aprovado. A 2ª volta fecha A5 e A6 pelo caminho sugerido no parecer anterior (scripts informativos, hook como autoridade), e as sondas S2 e S3 rodadas de novo batem com o texto novo. O A7 é de consistência de texto e vira cartão.
