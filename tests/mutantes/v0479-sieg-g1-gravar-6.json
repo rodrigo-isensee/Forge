@@ -1,0 +1,93 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M39",
+      "guarda": "G1.2 (item 5): só a falha vira motivo de pendência",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "        if falha]",
+      "para": "        if not falha]",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_corpo_e_a_mensagem_inteira_byte_a_byte_e_o_leitor_a_le_ativa"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "G1.2 (item 6): sem fim calculado, a validade é uso único",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "f\"ate:{fim}\" if fim else \"uso-unico\"",
+      "para": "f\"ate:{fim}\" if motivos else \"uso-unico\"",
+      "testes": [
+        "tests.test_autorizacao_gravar.Validade.test_mapa_fechado_do_termo"
+      ]
+    },
+    {
+      "id": "M41",
+      "guarda": "G1.2 (item 6, A6): Validade-utc é o mesmo fim, ou uso-unico",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "\"Validade-utc\": fim or \"uso-unico\"",
+      "para": "\"Validade-utc\": fim and \"uso-unico\"",
+      "testes": [
+        "tests.test_autorizacao_gravar.Validade.test_mapa_fechado_do_termo"
+      ]
+    },
+    {
+      "id": "M42",
+      "guarda": "G1.2 (item 2): Origem-da-validade guarda o termo, ou \"sem termo\"",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "\"; \".join(termos) or \"sem termo\"",
+      "para": "\"; \".join(termos) and \"sem termo\"",
+      "testes": [
+        "tests.test_autorizacao_gravar.Validade.test_mapa_fechado_do_termo"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "G1.2 (item 2): Motivo-da-pendencia lista os gatilhos, ou \"nenhum\"",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "\"; \".join(motivos) or \"nenhum\"",
+      "para": "\"; \".join(motivos) and \"nenhum\"",
+      "testes": [
+        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_recorte_ou_ressalva_nasce_pendente_com_o_motivo"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "PV-A2 (E1): git grep sem achado (Ramo sem parecer de review) não derruba a leitura",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "PASTA_DO_TIPO[\"review\"]) or \"\"",
+      "para": "PASTA_DO_TIPO[\"review\"]) or None",
+      "testes": [
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_ramo_sem_pareceres_ou_sem_ramo_recusa"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "PV-A2 (E1): commit do parecer que não existe no clone fica sem Commit",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "f\"{curto}^{{commit}}\") or \"\"",
+      "para": "f\"{curto}^{{commit}}\") or None",
+      "testes": [
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_commit_do_parecer_que_nao_e_sha_ou_nao_existe_nao_vira_ref"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "G1.2 (item 1): o Id segue o maior A-<n> numérico; nome fora da forma não derruba a gravação",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if x.name[2:].isdigit()), default=0)",
+      "para": "if True), default=0)",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_linha_que_nao_e_objeto_nao_derruba_a_leitura_e_o_id_segue_o_maior_numerico"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge_autorizacao.py",
+      "trecho": "git(raiz, \"show\", arq) or \"\"",
+      "motivo": "o git show lê o arquivo que o git grep acabou de listar na mesma ref; o vazio só evita None no frente (falha fechada: sem commit, recusa)"
+    }
+  ]
+}

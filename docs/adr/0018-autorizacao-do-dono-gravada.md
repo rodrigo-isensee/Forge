@@ -41,6 +41,26 @@ A primeira versão deste desenho gravava um "trecho contíguo" da mensagem escol
 | G1.5 | devops-engineer | Job `autorizacao-main` com o texto fixo de forma (A5); o dono o põe na proteção da `main` (D3) | G1.4 |
 | G1.6 | tech-lead | Texto: `R-CONTRIB`, `R-DECISAO` e `R-MAIN` citam o registro; skill `falar-com-o-dono` e `agents/jarvis.md` (a confirmação mostra a leitura antes); só acréscimo em `invariantes` de `tests/config.json` | G1.3 |
 
+**G1.2a (v0478 E90.1), primeiro corte da G1.2, pelo teto de 150 linhas (H1):** entra o `gravar` no `forge-check`
+(`--mensagem --transcricao --ato --alvos --pedido`, e `--ramo` no alvo `item:`; nenhuma opção traz texto). O corpo é a mensagem lida da
+transcrição da sessão em curso, onde o Claude Code a grava (`~/.claude/projects/<pasta>/<CLAUDE_CODE_SESSION_ID>.jsonl`, sem link no
+caminho), num registro único `type: user` da sessão, com `origin` humano (classificador positivo: o resumo de compactação, `isCompactSummary`
+e `isVisibleInTranscriptOnly`, sem `origin`, recusa), sem meta, subagente, ferramenta nem lembrete, até 64 KiB, e com `Hora-da-fala` no
+máximo 48 h antes de agora e nunca no futuro;
+ato, alvos, validade e pendência saem do texto todo (item 5, com o `fora_do_vocabulario` do leitor); o `Commit` do alvo `item:` sai do
+parecer de review do `Ramo` e passa pelo `fora_do_revisado` (PV-A2); o que o leitor recusaria não é gravado. Prazo no fuso do dono (data,
+dia da semana, "esta noite") vale uso único e nasce `pendente-confirmacao` ("prazo local sem fuso nesta etapa"), para que data já passada
+nunca nasça ativa, e `Fuso` grava `UTC`. A volta dos portões (E90.6) fechou o resumo de compactação, o prazo local e a fala fora das
+48 h no `gravar`; a volta E90.10 fechou o resto do que o código alcança: a pasta das transcrições vem do banco de senhas
+(`pwd.getpwuid`), não do `HOME` do chamador; o `ler` trata fala no futuro como adulterada; emoji e letra de outra escrita contam como
+palavra fora do vocabulário; "até o fim deste pedido" só nasce ativa com o pedido em `docs/pedidos/` e sem o `F-<Pedido>`. Ponto final logo
+depois do alvo ("pr 5.", "0.47.3.") segue deixando a concessão pendente (decisão 3a do dono). A origem da transcrição **não** está provada: `CLAUDE_CODE_SESSION_ID` ainda vem do ambiente
+do chamador e escolhe outra transcrição real dentro de 48 h, e a pasta de concessões aceita escrita direta; só o corte do hook, que
+confere o `transcript_path` do evento e protege `.forge/autorizacoes/`, prova a origem. A cópia do
+classificador em `hooks/vigia.py` tem a mesma falta do resumo e é corrigida noutro item. Ficam para os cortes seguintes da
+G1.2: a leitura do fuso em `/etc/localtime` e o prazo local; `confirmar` e `retirar`; e, no hook (`hooks/conformidade.py`, em curso noutro
+item), a forma literal do comando, a conferência do `transcript_path` do evento e a proteção das três grafias de `.forge/autorizacoes/`.
+
 QA em todas as etapas (`qa-engineer`); parecer de segurança em G1.2 a G1.5 (gatilhos: hook, autorização, CI), com o modelo de ameaças e os casos de abuso do Critério de parada, inclusive o recorte com negação (A1) e o número solto (A2).
 
 ### Decisões em aberto, ao dono (`R-DECISAO`)

@@ -46,8 +46,8 @@
       "id": "M44",
       "guarda": "G1.1b (ADR 0018 item 7): a hora dada à leitura é a que se compara",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "agora or datetime.datetime.now(UTC)",
-      "para": "datetime.datetime.now(UTC)",
+      "de": "concessoes(raiz, ctx[\"gravador\"], agora or datetime.datetime.now(UTC))",
+      "para": "concessoes(raiz, ctx[\"gravador\"], datetime.datetime.now(UTC))",
       "testes": [
         "tests.test_autorizacao.Ler.test_integra_mostra_a_mensagem_inteira_validade_no_fuso_e_em_utc"
       ]

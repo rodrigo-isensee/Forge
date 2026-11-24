@@ -47,8 +47,8 @@
       "id": "M5",
       "guarda": "destino ocupado e recusado",
       "arquivo": "bin/forge-copia",
-      "de": "os.path.lexists(real) and (not os.path.isdir(real) or os.listdir(real))",
-      "para": "False",
+      "de": "    if ocupado(real):\n",
+      "para": "    if False:\n",
       "testes": [
         "tests.test_forge_copia.Recusa.test_destino_ocupado"
       ]

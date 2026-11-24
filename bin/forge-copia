@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Forge: cria a cópia de trabalho (clone ou worktree) SÓ na pasta liberada do sandbox (~/.forge-contrib; num projeto, <projeto>/.forge/wt).
 Projeto: tem .forge/config.json e não tem .claude-plugin/; lá, use clone (a worktree escreve em .git/worktrees, que o sandbox não libera).
-Uso: forge-copia clone    <destino> --branch <nome> --origem <url|caminho> [--base origin/develop] [--instalar]
-     forge-copia worktree <destino> --branch <nome> [--base origin/develop]   (rode dentro do clone de origem)
+Uso: forge-copia clone    <destino> --branch <nome> --origem <url|caminho> [--base origin/develop] [--papel <papel>] [--instalar]
+     forge-copia worktree <destino> --branch <nome> [--base origin/develop] [--papel <papel>]   (rode dentro do clone de origem)
      forge-copia limpar   <destino> [--base origin/develop]
 A branch de trabalho sai da base de integração com --no-track (o .git/config é protegido). No Forge, a pasta liberada é a do
 allowWrite da sessão; no projeto, fica dentro da pasta dele (gravável no sandbox), fora do git por um .gitignore `*`. Recusa destino fora dela (inclusive por `..` ou
 link simbólico), a própria pasta, destino já ocupado, e nome de branch ou base que pareça opção. Nunca força nada.
+CLONE-NOME-UNICO: destino já ocupado (cópia de outra branch ou em uso por outro agente) nunca é reusado; a recusa diz a branch dele
+e sugere um nome livre na mesma pasta, <branch-sem-prefixo>-<papel> (sem --papel, <branch-sem-prefixo>), com -2, -3... se já tomado.
 Com --instalar, depois de criar, roda na cópia os comandos de stacks/<stack>/instalar.json (lista de argv, sem shell) das stacks cujos
 arquivos de `detecta` (o lockfile) existem na cópia, com o ambiente sem credencial (GH_TOKEN e afins); sem stack detectada avisa e sai 0; comando ausente ou falho: sai 1 (a cópia fica).
 Disco (MP6): com o disco da pasta liberada acima do limiar de `forge_disco.py` (ou ilegível), recusa e manda limpar, antes de criar.
@@ -18,6 +20,7 @@ Saída: 0 criou (ou apagou); 1 git ou instalação falhou; 2 recusou."""
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -72,7 +75,33 @@ def recusa(motivo):
     return 2
 
 
-def destino_dentro(destino):
+def ocupado(caminho):
+    if os.path.islink(caminho):  # link nunca é livre: a sugestão não aponta para fora da pasta (A1 da segurança)
+        return True
+    return os.path.lexists(caminho) and (not os.path.isdir(caminho) or bool(os.listdir(caminho)))
+
+
+def nome_unico(pasta, branch, papel):
+    """Primeiro nome livre em `pasta`: <branch-sem-prefixo>-<papel>, depois com -2, -3... (CLONE-NOME-UNICO)."""
+    raiz_nome = "-".join(filter(None, [branch.split("/", 1)[-1].replace("/", "-"), papel]))
+    nome, n = raiz_nome, 1
+    while ocupado(os.path.join(pasta, nome)):
+        n += 1
+        nome = f"{raiz_nome}-{n}"
+    return os.path.join(pasta, nome)
+
+
+def tomado(real, branch, papel):
+    """Motivo da recusa do destino ocupado, com a branch da cópia que está lá e o nome único sugerido."""
+    rc, dona = 1, ""
+    if os.path.lexists(os.path.join(real, ".git")):  # só a cópia git dele, nunca o repositório em volta (a pasta do projeto)
+        rc, dona = ler(["git", "--no-optional-locks", "-c", "core.fsmonitor=", "-C", real, "branch", "--show-current"])
+    de_quem = f" (cópia da branch {dona.strip()})" if rc == 0 and dona.strip() else ""
+    return (f"o destino já existe e não está vazio{de_quem}; nunca reuse a cópia de outro agente: "
+            f"use o nome único {nome_unico(os.path.dirname(real), branch, papel)}")
+
+
+def destino_dentro(destino, branch="", papel=""):
     """Devolve (caminho real, None) se o destino fica dentro da pasta liberada; senão (None, motivo)."""
     if ".." in destino.replace("\\", "/").split("/"):
         return None, "o destino tem `..`"
@@ -82,8 +111,8 @@ def destino_dentro(destino):
         return None, "o destino é a própria pasta liberada"
     if os.path.commonpath([base, real]) != base:
         return None, f"o destino fica fora de {base}"
-    if os.path.lexists(real) and (not os.path.isdir(real) or os.listdir(real)):
-        return None, "o destino já existe e não está vazio"
+    if ocupado(real):
+        return None, tomado(real, branch, papel)
     return real, None
 
 
@@ -221,6 +250,7 @@ def main(argv=None):
     p.add_argument("--branch")
     p.add_argument("--base", default="origin/develop")
     p.add_argument("--origem")
+    p.add_argument("--papel", default="", help="papel do agente dono da cópia, para o nome único sugerido")
     p.add_argument("--instalar", action="store_true", help="instala as dependências da stack na cópia nova")
     a = p.parse_args(argv)
     if a.base.startswith("-"):
@@ -234,7 +264,9 @@ def main(argv=None):
             return recusa(f"{nome} começa com `-`")
     if subprocess.run(["git", "check-ref-format", "--branch", a.branch], capture_output=True).returncode != 0:
         return recusa("nome de branch inválido")
-    real, motivo = destino_dentro(a.destino)
+    if a.papel and not re.fullmatch(r"[a-z0-9][a-z0-9-]*", a.papel):
+        return recusa("papel inválido (só letras minúsculas, dígitos e `-`)")
+    real, motivo = destino_dentro(a.destino, a.branch, a.papel)
     if motivo:
         return recusa(motivo)
     try:
