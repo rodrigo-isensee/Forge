@@ -2602,7 +2602,8 @@ class Hooks(unittest.TestCase):
         self.assertFalse(_comum.corpo_so_lido(lidos[-1][0]))
 
     def test_prazo_vencido_com_corpo_de_heredoc_pendente_recusa(self):  # HEREDOC-DONOS, C-4 (variante A)
-        """O vigia vence no 2.o de 3 corpos: sem o marcador, recusa pelos 2 pendentes; sem pendente ou depois da ferramenta, libera."""
+        """O vigia vence no 2.o de 3 corpos: sem o marcador, recusa pelos 2 pendentes; sem pendente, recusa como ação crítica
+        (VIGIA-PRAZO-TRAVA); depois da ferramenta, libera."""
         _comum, conformidade, _ = modulos_dos_hooks()
         hook = _comum.Hook("conformidade")
         hook.raiz, hook.marcado, hook.entrada = RAIZ, False, {"hook_event_name": "PreToolUse"}
@@ -2615,9 +2616,27 @@ class Hooks(unittest.TestCase):
                 _comum.prazo_vencido(hook, re.compile("x"), "", False, "R-CONFORMIDADE")
             self.assertRegex(erro.getvalue(), "2 corpo.s. de heredoc.*separe o comando")
             hook.corpos_pendentes = 0
-            self.assertIsNone(_comum.prazo_vencido(hook, re.compile("x"), "", False, "R-CONFORMIDADE"))
+            with self.assertRaises(SystemExit):
+                _comum.prazo_vencido(hook, re.compile("x"), "", False, "R-CONFORMIDADE")
+            self.assertRegex(erro.getvalue(), "a chamada com ação crítica")
             hook.corpos_pendentes, hook.entrada = 2, {"hook_event_name": "PostToolUse"}
             self.assertIsNone(_comum.prazo_vencido(hook, re.compile("x"), "", False, "R-CONFORMIDADE"))
+
+    def test_vigia_prazo_trava_sem_marcador_recusa_e_fora_da_sessao_vigiada_libera(self):  # VIGIA-PRAZO-TRAVA, E169.1
+        """Prazo vencido sem o marcador crítico e sem corpo pendente: recusa numa sessão vigiada (antes, liberava);
+        fora da sessão vigiada, ou num hook sem marcador (`critico` None), só a linha no erros.log."""
+        _comum, _, _ = modulos_dos_hooks()
+        hook = _comum.Hook("parecer")
+        hook.raiz, hook.marcado, hook.entrada, hook.prazo_s = RAIZ, False, {"hook_event_name": "PreToolUse"}, 3.0
+        with contextlib.redirect_stderr(io.StringIO()) as erro:
+            with mock.patch.object(_comum, "sessao_vigiada", return_value=True):
+                with self.assertRaises(SystemExit) as saida:
+                    _comum.prazo_vencido(hook, re.compile("x"), "", False, "R-REVIEW")
+                self.assertEqual(saida.exception.code, 2)
+                self.assertRegex(erro.getvalue(), "R-REVIEW.*não decidiu em 3 s a chamada com ação crítica")
+                self.assertIsNone(_comum.prazo_vencido(hook, None, "", False, "R-REVIEW"))
+            with mock.patch.object(_comum, "sessao_vigiada", return_value=False):
+                self.assertIsNone(_comum.prazo_vencido(hook, re.compile("x"), "", False, "R-REVIEW"))
 
     def test_fronteira_limpa_so_se_os_comentarios_atravessam_o_prefixo(self):  # HEREDOC-DONOS-AJUSTES, S-A1
         _comum, _, _ = modulos_dos_hooks()
@@ -2818,6 +2837,11 @@ class Hooks(unittest.TestCase):
     def test_fixtures_da_medida_av3(self):  # v0457 E2.1: a medida dos comandos críticos por papel, para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("AV3 etapa 1")]
         self.assertGreaterEqual(len(lote), 2, "as fixtures da medida")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_do_vigia_prazo_trava(self):  # E169.1: prazo vencido sem o marcador recusa, para a mutação
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("VIGIA-PRAZO-TRAVA")]
+        self.assertGreaterEqual(len(lote), 2, "as fixtures do vigia")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
     def test_fixtures_da_trilha_034(self):  # trilha hooks/conformidade da 0.34: a descrição abre com o cartão, para a mutação
