@@ -123,6 +123,54 @@ class Teste(unittest.TestCase):
         self.assertIn(f"cartão K-1: depois do merge, forge-check movimento K-1 --de Em andamento --para Pronto --raiz {self.quadro}", r.stdout)
         self.assertEqual(self.movimentos(), [])
 
+    def com_corpo(self, *linhas):  # o `gh pr view --json title,body` falso devolve o título e o corpo (AE2)
+        (self.estado / "texto").write_text("feat: x\n" + "".join(f"{l}\n" for l in linhas))
+
+    def test_corpo_com_cartao_move_para_pronto_com_a_prova_do_merge(self):  # AE2 (v0481 E10.1)
+        self.com_corpo("## Objetivo", "Cartão: K-1", "  Cartão:K-2  ")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual([m.split(" --de ")[0] for m in self.movimentos()], ["forge-check movimento K-1", "forge-check movimento K-2"])
+        self.assertIn("--para Pronto --motivo mesclado em develop: PR #7, merge 0123456 --raiz", self.movimentos()[0])
+        chamadas = self.chamadas()
+        self.assertLess(chamadas.index(next(c for c in chamadas if c.startswith("gh pr merge"))), chamadas.index(self.movimentos()[0]))
+
+    def test_cartao_do_corpo_e_do_argumento_move_uma_vez(self):
+        self.com_corpo("Cartão: K-1")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--cartao", "K-1")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(len(self.movimentos()), 1)
+
+    def test_titulo_e_texto_que_so_cita_cartao_nao_movem(self):
+        (self.estado / "texto").write_text("Cartão: K-1\nVeja o Cartão: K-2 no quadro\n- Cartão: K-3\n")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.movimentos(), [])
+
+    def test_cartao_do_corpo_fora_da_forma_avisa_e_fecha(self):
+        self.com_corpo("Cartão: K-1;rm", "Cartão: K-2")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("aviso: Cartão do corpo fora da forma, ignorado: K-1;rm", r.stderr)
+        self.assertEqual([m.split(" --de ")[0] for m in self.movimentos()], ["forge-check movimento K-2"])
+
+    def test_cartao_do_corpo_sem_quadro_avisa_e_fecha(self):
+        (self.quadro / "KANBAN.md").unlink()
+        self.com_corpo("Cartão: K-1")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn(f"aviso: o corpo cita o cartão K-1, mas não há KANBAN.md em {self.quadro}; não movo", r.stderr)
+        self.assertEqual(self.movimentos(), [])
+        self.assertIn("Entrega p1 fechada em develop.", r.stdout)
+
+    def test_pr_ja_mesclado_nao_le_o_corpo(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"7 MERGED develop {sha} false\n")
+        self.com_corpo("Cartão: K-1")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.movimentos(), [])
+
     def test_armar_recusa_e_nao_move_o_cartao(self):
         # FECHAR-SEM-AUTO-MERGE: o --armar recusa antes de tudo; sem merge, o cartão fica onde está
         r = self.fechar("p1", "--ref", "melhoria/x", "--armar", "--cartao", "K-1")

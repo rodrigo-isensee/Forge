@@ -1,0 +1,106 @@
+{
+  "pedido": "v0481-ae2-quadro-anda",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE9",
+      "guarda": "AE2 (v0481 E10.1): quadro que não é arquivo regular (link) não é escrito",
+      "arquivo": "bin/forge-check",
+      "de": "            if erro:\n                return f\"KANBAN.md {erro}; quadro intacto\"",
+      "para": "            if False:\n                return f\"KANBAN.md {erro}; quadro intacto\"",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_quadro_por_link_nao_e_escrito"
+      ]
+    },
+    {
+      "id": "AE10",
+      "guarda": "AE2 (v0481 E10.1): sem texto novo, nada é escrito",
+      "arquivo": "bin/forge-check",
+      "de": "            if texto is None:\n                return aviso",
+      "para": "            if False:\n                return aviso",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_sem_secao_nem_bloqueado_avisa_e_o_quadro_fica"
+      ]
+    },
+    {
+      "id": "AE11",
+      "guarda": "AE2 (v0481 E10.1): erro de disco ou trava vira aviso, sem derrubar o movimento",
+      "arquivo": "bin/forge-check",
+      "de": "    except OSError as e:\n        return f\"{caminho_impresso(e.filename or 'KANBAN.md')}: {sem_controle(e.strerror or str(e))}; quadro intacto\"\n    return None",
+      "para": "    except ValueError as e:\n        return f\"{caminho_impresso(e.filename or 'KANBAN.md')}: {sem_controle(e.strerror or str(e))}; quadro intacto\"\n    return None",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_trava_que_nao_abre_avisa_sem_derrubar"
+      ]
+    },
+    {
+      "id": "AE12",
+      "guarda": "AE2 (v0481 E10.1): o · do título vira - (aceito)",
+      "arquivo": "bin/forge-check",
+      "de": "(v.replace(\"·\", \"-\") if k == \"titulo\" else v)",
+      "para": "v",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_cartao_novo_nasce_na_secao_sem_tabela_e_aceita_titulo_com_ponto"
+      ]
+    },
+    {
+      "id": "AE13",
+      "guarda": "AE2 (v0481 E10.1): só a linha inteira `Cartão: <ID>` cita o cartão",
+      "arquivo": "bin/forge-fechar",
+      "de": "[[ \"$linha\" =~ ^[[:space:]]*Cartão:",
+      "para": "[[ \"$linha\" =~ Cartão:",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_titulo_e_texto_que_so_cita_cartao_nao_movem"
+      ]
+    },
+    {
+      "id": "AE14",
+      "guarda": "AE2 (v0481 E10.1): ID do corpo fora da forma é ignorado",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! [[ \"$id\" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]]; then echo \"aviso: Cartão do corpo",
+      "para": "if false; then echo \"aviso: Cartão do corpo",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_cartao_do_corpo_fora_da_forma_avisa_e_fecha"
+      ]
+    },
+    {
+      "id": "AE15",
+      "guarda": "AE2 (v0481 E10.1): sem KANBAN.md, o cartão do corpo só avisa",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ ! -f \"$quadro/KANBAN.md\" ]; then echo \"aviso: o corpo",
+      "para": "if false; then echo \"aviso: o corpo",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_cartao_do_corpo_sem_quadro_avisa_e_fecha"
+      ]
+    },
+    {
+      "id": "AE16",
+      "guarda": "AE2 (v0481 E10.1): cartão do corpo já dado em --cartao não se repete",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$c\" != \"$id\" ] || continue 2",
+      "para": "true || continue 2",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_cartao_do_corpo_e_do_argumento_move_uma_vez"
+      ]
+    },
+    {
+      "id": "AE17",
+      "guarda": "AE2 (v0481 E10.1): o corpo só é lido quando o passo 5 o leu",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$ja_mesclado\" = 0 ]; then cartoes_do_corpo",
+      "para": "if true; then cartoes_do_corpo",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_pr_ja_mesclado_nao_le_o_corpo"
+      ]
+    },
+    {
+      "id": "AE18",
+      "guarda": "AE2 (v0481 E10.1): o título (1ª linha) não cita cartão",
+      "arquivo": "bin/forge-fechar",
+      "de": "done < <(printf '%s\\n' \"$1\" | tail -n +2)",
+      "para": "done < <(printf '%s\\n' \"$1\")",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_titulo_e_texto_que_so_cita_cartao_nao_movem"
+      ]
+    }
+  ]
+}

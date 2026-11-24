@@ -49,6 +49,8 @@
 # `forge-check movimento ID --de <coluna atual> --para Pronto` no quadro de --quadro (padrão ~/.forge-contrib, o do Forge); a coluna atual é o
 # `Para` da última linha do cartão em docs/kanban/historico.md, senão a seção dele no KANBAN.md, senão `—`. Já em Pronto, nada grava;
 # o movimento que falha vira pendência (código 3) com o comando. ID fora de [A-Za-z0-9._-] ou quadro sem KANBAN.md param antes do passo 1.
+# AE2: na develop, cada linha `Cartão: <ID>` do corpo do PR (lido no passo 5) soma-se aos --cartao; ID fora da forma ou quadro sem
+# KANBAN.md só avisam (o PR já foi conferido; o cartão do corpo não para o fechamento).
 # --principal PASTA (FECHAR-BUSCA-PARECERES-CITADOS): antes do passo 1, os commits de `parecer conferido` do pedido que esta cópia não lê
 # vêm da origin pelo sha40 e depois desta cópia git (só leitura, sem ref nova); os que faltam em todas saem num aviso. Valor vazio e
 # --principal com --promover, --lote ou --limpar (que não buscam pareceres) são erro de uso.
@@ -940,6 +942,19 @@ coluna_do_cartao() {
 }
 # mover_cartoes: só depois do merge provado; cada --cartao vai a Pronto pelo `forge-check movimento` (a hora real, o custo e a forma do
 # histórico ficam com ele). Já em Pronto não grava de novo (repetir não duplica). Falha não desfaz nada: vira `cartao_pend=1` e o comando.
+# cartoes_do_corpo <texto> (AE2): soma aos --cartao, sem repetir, os IDs das linhas `Cartão: <ID>` do corpo (o texto sem a 1ª linha,
+# o título). Fora da forma ou sem KANBAN.md no quadro: aviso, sem parar (o merge já está feito ou a caminho).
+cartoes_do_corpo() {
+  local linha id c
+  while IFS= read -r linha; do
+    [[ "$linha" =~ ^[[:space:]]*Cartão:[[:space:]]*([^[:space:]]+)[[:space:]]*$ ]] || continue
+    id="${BASH_REMATCH[1]}"
+    if ! [[ "$id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]]; then echo "aviso: Cartão do corpo fora da forma, ignorado: ${id:0:80}" >&2; continue; fi
+    if [ ! -f "$quadro/KANBAN.md" ]; then echo "aviso: o corpo cita o cartão $id, mas não há KANBAN.md em $quadro; não movo" >&2; continue; fi
+    for c in "${cartoes[@]}"; do [ "$c" != "$id" ] || continue 2; done
+    cartoes+=("$id")
+  done < <(printf '%s\n' "$1" | tail -n +2)
+}
 mover_cartoes() {
   local id de
   for id in "${cartoes[@]}"; do
@@ -1905,6 +1920,7 @@ if [ "$ja_mesclado" = 0 ]; then
   subida_extra="MERGED ${pr_merge:0:7} ${remoto_sha:0:7}"
 fi
 
+if [ "$ja_mesclado" = 0 ]; then cartoes_do_corpo "$texto"; fi
 if [ "$ja_mesclado" = 0 ]; then motivo_cartao="mesclado em $alvo: PR #$pr_n, merge ${pr_merge:0:7}"; else motivo_cartao="mesclado em $alvo: head ${remoto_sha:0:7}"; fi
 mover_cartoes
 passo 7 "limpeza (R-FLUXO, Depois do merge)"
