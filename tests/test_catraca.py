@@ -652,6 +652,20 @@ class TestesAfrouxados(Base):
         achadas = self.afrouxados(self.Y.replace("    def test_a", "    @unittest.skip('x')\n    def test_a"))
         self.assertEqual([a.split(". Por quê")[0] for a in achadas], ["R-CONFORMIDADE: o teste tests/test_y.py::T.test_a ganhou skip/skipIf/skipUnless/expectedFailure/skipTest"])
 
+    def test_assercao_so_de_constantes_nao_conta(self):
+        """A2 do review (S2) e da segurança (S3): `assert True` no lugar da asserção, ou teste trocado por um vácuo de mesmas constantes."""
+        casos = {"assert True": (self.Y.replace("dobro(2) == 4", "True"), "::T.test_a perdeu asserção"),
+                 "assertTrue(1)": (self.Y.replace("self.assertTrue(f())", "self.assertTrue(1)"), "::T.test_b perdeu asserção"),
+                 "vácuo renomeado": (self.Y.replace("    def test_a(self):\n", "    def test_novo(self):\n")
+                                     .replace("soma(1, 2), 3", "1 + 2, 3").replace("dobro(2) == 4", "(2 and 4)"), "::T.test_a foi apagado ou renomeado")}
+        for nome, (novo, esperado) in casos.items():
+            with self.subTest(nome):
+                self.repo.git("reset", "-q", "--hard", "base")
+                achadas = self.afrouxados(novo)
+                self.assertEqual(len(achadas), 1, achadas)
+                self.assertIn(esperado, achadas[0])
+        self.assertEqual(catraca._perfil_do_teste(ast.parse("def test_a(self):\n    self.assertTrue()\n    assert x\n").body[0], 0)[0], 2)
+
     def test_na_volta_vale_a_versao_aprovada_mais_nova_de_qualquer_revisor(self):
         self.afrouxados(self.Y.replace("), 3,", "), 4,"))
         self.aprova(self.head())

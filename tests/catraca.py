@@ -670,10 +670,21 @@ def _constantes(*nos):
     return Counter(repr(c.value) for no in nos for c in ast.walk(no) if isinstance(c, ast.Constant))
 
 
+def _so_constantes(*nos):
+    return bool(nos) and not any(isinstance(x, ast.Name) for no in nos for x in ast.walk(no))
+
+
+def _vacua(n):
+    """Asserção só sobre constantes (`assert True`, `assertEqual(1 + 2, 3)`) não prova nada: não conta nem tem valor esperado."""
+    if isinstance(n, ast.Assert):
+        return _so_constantes(n.test)
+    return isinstance(n, ast.Call) and _nome(n.func).startswith("assert") and _so_constantes(*n.args, *(k.value for k in n.keywords))
+
+
 def _perfil_do_teste(fn, pulos_da_classe):
     """(asserções, pulos, vazio, valores esperados) de um `def test_*`; o `msg=` da asserção não é valor esperado."""
     asserts, pulos, esperados = 0, pulos_da_classe + _pulos_dos_decoradores(fn), Counter()
-    for n in (n for c in fn.body for n in ast.walk(c)):
+    for n in (n for c in fn.body for n in ast.walk(c) if not _vacua(n)):
         if isinstance(n, ast.Assert):
             asserts += 1
             esperados += _constantes(n.test)
