@@ -604,12 +604,15 @@ def _alerta(quem, gasto, previsto):
     return f"{quem}: gasto {gasto} tokens passa do previsto {previsto} (+{round((gasto - previsto) * 100 / max(previsto, 1))}%)"
 
 
+CONTAGENS_DO_RESUMO = ("itens_prontos", "abertos", "voltas", "revalidacoes", "suites", "suites_falhas", "espera_dono_min")
+
+
 def resumo(itens, conferencias):
     tempos = [i["pronto_ate_develop_h"] for i in itens if i["pronto_ate_develop_h"] is not None]
     tempos_main = [i["pronto_ate_main_h"] for i in itens if i["pronto_ate_main_h"] is not None]
     classes, meritos = reprovacoes(conferencias)
     leads = [i["lead_develop_h"] for i in itens if i.get("lead_develop_h") is not None]
-    return {"itens_prontos": sum(1 for i in itens if i["pronto"]),
+    saida = {"itens_prontos": sum(1 for i in itens if i["pronto"]),
             "lead_develop_h_p50": round(statistics.median(leads), 2) if leads else None,
             "fatias_develop": somar_fatias([i.get("fatias_develop") for i in itens]),
             "fatias_main": somar_fatias([i.get("fatias_main") for i in itens]),
@@ -621,6 +624,9 @@ def resumo(itens, conferencias):
             "espera_dono_min": round(sum(i["espera_dono_min"] for i in itens), 1),
             "reprovacoes_por_classe": classes, "merito_declarado": meritos,
             "tokens": sum(i["tokens"] for i in itens if i.get("tokens") is not None) if any(i.get("tokens") is not None for i in itens) else None}
+    if not itens:  # E147.1: sem item com movimento no Histórico, as contagens saem nao-medido (None), não 0
+        saida.update(dict.fromkeys(CONTAGENS_DO_RESUMO))
+    return saida
 
 
 # ---- fatia por portão (0.45.6, AV4(c)): review, QA, segurança, CI e revalidação, por versão, lidos do Histórico ----
@@ -757,9 +763,9 @@ def linhas_de_texto(dados):
         saida.append(linha)
     for chave, grupo in (("pedido", dados["pedidos"]), ("periodo", dados["periodos"])):
         for r in grupo:
-            saida.append(f"metricas: {chave} {r[chave]} prontos={r['itens_prontos']} develop_h_p50={_n(r['pronto_ate_develop_h_p50'])}"
-                         f"(n={r['n_develop']}) main_h_p50={_n(r['pronto_ate_main_h_p50'])}(n={r['n_main']}) abertos={r['abertos']} "
-                         f"voltas={r['voltas']} revalidacoes={r['revalidacoes']} suites={r['suites']} falhas={r['suites_falhas']} "
+            saida.append(f"metricas: {chave} {r[chave]} prontos={_n(r['itens_prontos'])} develop_h_p50={_n(r['pronto_ate_develop_h_p50'])}"
+                         f"(n={r['n_develop']}) main_h_p50={_n(r['pronto_ate_main_h_p50'])}(n={r['n_main']}) abertos={_n(r['abertos'])} "
+                         f"voltas={_n(r['voltas'])} revalidacoes={_n(r['revalidacoes'])} suites={_n(r['suites'])} falhas={_n(r['suites_falhas'])} "
                          f"espera_dono_min={_n(r['espera_dono_min'])} reprovacoes={_contagem(r['reprovacoes_por_classe'])} "
                          f"merito(declarada)={_contagem(r['merito_declarado'])} lead_develop_h_p50={_n(r['lead_develop_h_p50'])} "
                          f"fatias_develop={_fatias(r['fatias_develop'])} fatias_main={_fatias(r['fatias_main'])} "
