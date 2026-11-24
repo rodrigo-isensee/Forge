@@ -1,0 +1,19 @@
+{
+  "descricao": "VIGIA-AGENTES-PESADO (E172.3): o prazo vencido fora do PreToolUse (PostToolUseFailure) não recusa: só registra no erros.log.",
+  "forcar": {
+    "onde": "pesados_da_raiz",
+    "como": "prazo"
+  },
+  "entrada": {
+    "hook_event_name": "PostToolUseFailure",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "npx playwright test"
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "prazo de"
+  }
+}
