@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-d1-integrador-laco
-commit: 8b056d4d81fc3c68596c10afb7ba41f8003efe19
+commit: 0ba10e549428ad4bafbc0139eacbfc870956c89a
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -40,6 +40,13 @@ Acessibilidade e E2E: n/a (CLI). Permissões: o laço só lê PRs e repassa o fe
   - `contagem: não prova (passa na base)=1; prova (asserção)=9`. O que passa na base é `test_sem_laco_o_fluxo_do_item_segue`, teste de regressão (o fluxo sem `--laco` deve ficar igual); não é teste de regra nova.
 - Mutantes (5 specs, 33 mutantes, `--processos 4`): `M1` a `M33` todos `morreu`, nenhum sobrevivente, nenhum equivalente (`rev=8b056d4d81fc`). Conferi a lista contra o diff: a recusa de argumentos (170, 172), o filtro de conflito/vermelho, o limite de 7200 s, `melhoria/*`, `check-ref-format`, a busca, o pedido único, o `forge-check pr`, o limite de 3, a interseção de arquivos, cada código de saída e a chamada em 1455 têm mutante. `forge-mutante --cobertura --base 8a6f5907` só devolve `não coberto: bin/forge-fechar` e `tests/pesos-d4.json`, o esperado para shell e JSON (cobertura manual acima).
 - Prova de suíte inteira: check-run `bateria` do CI do PR, no mesmo sha (não rerrodada aqui).
+
+## Delta 8b056d4d..0ba10e54 (E173.28)
+Domínio do QA no delta (`forge-check parecer delta`, base origin/develop a6e81a5, sem o que veio da base): `bin/forge-testes`, `docs/fechamento-integrador.md`, `tests/pesos-d4.json`. `bin/forge-fechar` e `tests/test_fechar_laco.py` não mudaram desde o parecer anterior, então o vermelho e os 33 mutantes de 8b056d4d seguem valendo.
+- Manual do `--laco` (`docs/fechamento-integrador.md:103`) conferido contra `bin/forge-fechar`: só `--base`, `--espera`, `--espera-ci`, `--dry-run`; `gh pr list --limit 100` (linha 1299); relógio `FORGE_FECHAR_AGORA` só com `FORGE_FECHAR_TESTE=1` (linha 231); `--espera` 0 a 7200 (linha 219); aviso de parado após 2 h coberto por `test_parado_ha_mais_de_2_h_avisa_e_nao_entra`. Os limites A2 e A3 do review estão descritos e o texto da reversão cita `fechar_laco`.
+- Merge da develop: `forge-testes` ganhou `test_forge_copia` (FORGE_CHECK e MAPA, o arquivo existe) e `pesos-d4.json` a entrada `test_hook_decisao` (JSON válido); resolução sem perda dos itens do laço.
+- Módulos dos arquivos tocados, local: `test_fechar_laco.py` `Ran 10 tests · OK`; `test_forge_copia.py` `Ran 77 tests · OK`; `test_hook_decisao.py` `Ran 11 tests · OK`; `bash -n bin/forge-fechar` ok.
+- Suíte inteira: check-run `bateria` do CI do PR no mesmo sha, não rerrodada aqui.
 
 ## Observação
 O laço pode pegar PR em rascunho aprovado; o passo 6 do item já converte rascunho em pronto, então não é defeito, só comportamento a saber.
