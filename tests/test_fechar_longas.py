@@ -21,9 +21,9 @@ class Teste(unittest.TestCase):
         self.git("branch", nome)
         self.git("push", "-q", "origin", nome)
 
-    def recusa(self, ref, *extra):
+    def recusa(self, ref, *extra, **env):
         antes = self.git("branch", "-a")
-        r = self.fechar("p1", "--ref", ref, *extra)
+        r = self.fechar("p1", "--ref", ref, *extra, **env)
         self.assertNotEqual(r.returncode, 0, f"{ref} {extra}: {r.stdout}")
         self.assertIn("branch da entrega não pode ser", r.stderr)
         self.assertEqual(self.git("branch", "-a"), antes, ref)
@@ -41,6 +41,18 @@ class Teste(unittest.TestCase):
         self.cria_branch_local("trunk")
         self.recusa("trunk")
         self.recusa("trunk", "--limpar")
+
+    def test_branch_de_integracao_e_recusada_fora_de_locale_utf8(self):
+        # E134.2: o colchete [cç] vira bytes soltos em LC_ALL=C e a linha do CLAUDE.md deixava de casar
+        for linha in ("- Branch de integração: `trunk`\n", "- INTEGRAÇÃO: `trunk`\n"):
+            (self.proj / "CLAUDE.md").write_text(linha, encoding="utf-8")
+            for loc in ("C", "POSIX", "C.UTF-8"):
+                with self.subTest(linha=linha, locale=loc):
+                    self.registro.write_text("")  # subteste isolado: a falha de um não suja o registro do próximo
+                    if not self.git("branch", "--list", "trunk"):
+                        self.cria_branch_local("trunk")
+                    self.recusa("trunk", LC_ALL=loc)
+                    self.recusa("trunk", "--limpar", LC_ALL=loc)
 
     def test_sem_a_linha_no_claude_md_branch_de_trabalho_segue_valida(self):
         (self.proj / "CLAUDE.md").write_text("# Projeto\n\nsem a linha\n", encoding="utf-8")
