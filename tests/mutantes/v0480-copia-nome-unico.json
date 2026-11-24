@@ -1,0 +1,66 @@
+{
+  "pedido": "v0480-copia-nome-unico",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "CLONE-NOME-UNICO: pasta vazia não está tomada (só a ocupada é recusada)",
+      "arquivo": "bin/forge-copia",
+      "de": "    return os.path.lexists(caminho) and (not os.path.isdir(caminho) or bool(os.listdir(caminho)))",
+      "para": "    return os.path.lexists(caminho)",
+      "testes": [
+        "tests.test_forge_copia_nome.NomeUnico.test_pasta_vazia_nao_esta_tomada"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "CLONE-NOME-UNICO: nome sugerido já tomado ganha sufixo numérico",
+      "arquivo": "bin/forge-copia",
+      "de": "    while ocupado(os.path.join(pasta, nome)):",
+      "para": "    while False:",
+      "testes": [
+        "tests.test_forge_copia_nome.NomeUnico.test_nome_sugerido_ja_tomado_ganha_sufixo_numerico"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "CLONE-NOME-UNICO: a branch dita é só a da cópia git, nunca a do repositório em volta",
+      "arquivo": "bin/forge-copia",
+      "de": "    if os.path.lexists(os.path.join(real, \".git\")):",
+      "para": "    if True:",
+      "testes": [
+        "tests.test_forge_copia_nome.NomeUnico.test_pasta_comum_dentro_de_repositorio_nao_diz_a_branch_do_repositorio"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "CLONE-NOME-UNICO: sem branch lida, a recusa não diz branch",
+      "arquivo": "bin/forge-copia",
+      "de": "if rc == 0 and dona.strip() else \"\"",
+      "para": "if True else \"\"",
+      "testes": [
+        "tests.test_forge_copia_nome.NomeUnico.test_pasta_comum_dentro_de_repositorio_nao_diz_a_branch_do_repositorio"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "CLONE-NOME-UNICO: papel fora do formato é recusado antes de criar",
+      "arquivo": "bin/forge-copia",
+      "de": "    if a.papel and not re.fullmatch(r\"[a-z0-9][a-z0-9-]*\", a.papel):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia_nome.NomeUnico.test_papel_invalido_recusa_sem_criar"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "CLONE-NOME-UNICO: link com o nome sugerido é ocupado (nunca oferecido como livre)",
+      "arquivo": "bin/forge-copia",
+      "de": "    if os.path.islink(caminho):  # link nunca é livre",
+      "para": "    if False:  # link nunca é livre",
+      "testes": [
+        "tests.test_forge_copia_nome.NomeUnico.test_link_com_o_nome_sugerido_nao_e_oferecido"
+      ]
+    }
+  ]
+}
