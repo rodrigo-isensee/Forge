@@ -1,0 +1,66 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E172.7 BRIEF-PEDIDO-ID-CRU: id do pedido fora da forma sai PREENCHER no brief gerar",
+      "arquivo": "bin/forge-check",
+      "de": "    if not ID_DE_PEDIDO.fullmatch(pedido_id):\n        print(f\"brief gerar: aviso: id do pedido fora da forma",
+      "para": "    if False:\n        print(f\"brief gerar: aviso: id do pedido fora da forma",
+      "testes": [
+        "tests.test_forge_copia.BriefSugereACopia.test_id_do_pedido_com_crase_nao_vai_cru_ao_brief"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E172.7 CLONE-NOME-UNICO: papel fora da forma não sugere cópia",
+      "arquivo": "bin/forge-check",
+      "de": "    if not (papel and re.fullmatch(r\"[a-z0-9][a-z0-9-]*\", papel)) or valor_de_shell_seguro(\"branch\", branch) is None:",
+      "para": "    if not papel or valor_de_shell_seguro(\"branch\", branch) is None:",
+      "testes": [
+        "tests.test_forge_copia.BriefSugereACopia.test_branch_ou_papel_fora_da_forma_nao_sugere"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E172.7 CLONE-NOME-UNICO: branch fora da forma não sugere cópia",
+      "arquivo": "bin/forge-check",
+      "de": "    if not (papel and re.fullmatch(r\"[a-z0-9][a-z0-9-]*\", papel)) or valor_de_shell_seguro(\"branch\", branch) is None:",
+      "para": "    if not (papel and re.fullmatch(r\"[a-z0-9][a-z0-9-]*\", papel)):",
+      "testes": [
+        "tests.test_forge_copia.BriefSugereACopia.test_branch_ou_papel_fora_da_forma_nao_sugere"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E172.7 CLONE-NOME-UNICO: forge-copia ausente ou ilegível não sugere e não derruba o brief",
+      "arquivo": "bin/forge-check",
+      "de": "        carregador.exec_module(copia)\n    except (OSError, ImportError, SyntaxError):",
+      "para": "        carregador.exec_module(copia)\n    except ZeroDivisionError:",
+      "testes": [
+        "tests.test_forge_copia.BriefSugereACopia.test_sem_o_forge_copia_ao_lado_nao_sugere"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E172.7 CLONE-NOME-UNICO: no projeto, a pasta das cópias é <projeto>/.forge/wt",
+      "arquivo": "bin/forge-check",
+      "de": "    if e_o_forge(Path(raiz)):\n        pasta = ",
+      "para": "    if True:\n        pasta = ",
+      "testes": [
+        "tests.test_forge_copia.BriefSugereACopia.test_no_projeto_a_pasta_e_a_do_projeto_tambem_de_dentro_de_uma_copia"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E172.7 CLONE-NOME-UNICO: caminho fora da forma de shell não vai ao brief",
+      "arquivo": "bin/forge-check",
+      "de": "        if copia and valor_de_shell_seguro(\"raiz\", copia):  # CLONE-NOME-UNICO",
+      "para": "        if copia:  # CLONE-NOME-UNICO",
+      "testes": [
+        "tests.test_forge_copia.BriefSugereACopia.test_brief_sem_a_linha_com_caminho_fora_da_forma"
+      ]
+    }
+  ]
+}
