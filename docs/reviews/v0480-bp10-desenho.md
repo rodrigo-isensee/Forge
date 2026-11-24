@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-bp10-desenho
-commit: 6273bbea116b987e02cb333d7af92627ca649d10
+commit: b7c3c707f8b99499bf39102a48996d042aca8618
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-23
@@ -23,6 +23,9 @@ Conferi o mérito no código da base:
 - A primeira passada (`.githooks/pre-push:212-234`) roda o `scripts/verificar-contribuicao.sh` lido da `develop` no delta de cada ref, com o script inteiro (segredo, `.env` e caminho pessoal, `scripts/verificar-contribuicao.sh:2-3`), e recusa o envio. A segunda passada roda o mesmo script, lido da árvore, no delta desde a `develop`; as duas rodam no envio leve padrão (antes do `exit 0` de `:401-405`).
 - A segunda só pega algo a mais quando a própria branch muda o script (padrão novo) ou quando a base não tem o script (só nos fixtures de `tests/test_pre_push_afetados.py:429-445`). O CI (`.github/workflows/ci.yml:727-737`) cobre esse resíduo, mas depois do envio: segredo do padrão novo já estaria no remoto (A1).
 - Conclusão: a trava que sai é quase toda redundante; a troca é legítima e o custo líquido cai no Forge. O teste da segunda passada (`tests/test_pre_push_afetados.py:429-445`) sai junto, e o pronto (g) já prevê a suíte do pre-push verde.
+
+## Revalidação (E139.15, head b7c3c707)
+Delta lido: `forge-check parecer delta docs/reviews/v0480-bp10-desenho.md`, intervalo `6273bbea..b7c3c707`, no domínio só `changelog.d/v0480-bp10-desenho.md` (novo, 2 linhas, seção `### Adicionado`). O nome bate com a branch sem prefixo e o texto descreve o que o PR entrega (proposta, sem mudança de hook). Ferramentas: `bin/forge-changelog conferir --base 0e59c446 --branch melhoria/v0480-bp10-desenho` saída 0 (`ok: 1 fragmento(s) novo(s)`); `python3 -m unittest tests.test_changelog` `Ran 89 tests`, `OK`. O delta não toca a proposta; os achados A1 a A5 seguem como estavam.
 
 ## Achados
 - A1 (recomendado) docs/propostas/bp10-higiene-segredo.md:39 · "a segunda só antecipa o que o CI barra" omite o resíduo: branch que muda scripts/verificar-contribuicao.sh e traz, no mesmo envio, segredo do padrão novo chega ao remoto antes do CI (a 1a passada lê o script da develop, .githooks/pre-push:215). Citar na pergunta ao dono.
