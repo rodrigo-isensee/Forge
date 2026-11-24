@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3579 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3583 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -18,6 +18,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3579 fixtures) roda em `tests/test
 | `parecer` | 587 | 452 | 135 | 28 |
 | `pesado` | 30 | 13 | 17 | 21 |
 | `quadro` | 7 | 2 | 5 | 7 |
+| `salvar` | 4 | 0 | 4 | 3 |
 | `vigia` | 60 | 0 | 60 | 27 |
 
 ## `agentes`
@@ -294,6 +295,14 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3579 fixtures) roda em `tests/test
 | `quadro-*` | 1 | 0 | 1 | — | — | Quadro no formato e dentro do WIP. |
 | `sem-*` | 1 | 0 | 1 | — | — | Projeto sem .forge/versao: o hook não age. |
 | `wip-*` | 1 | 1 | 0 | `R-WIP` | — | Coluna QA com 3 cartões e WIP 2: avisa o agente (saída 2). |
+
+## `salvar`
+
+| Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| `sem-*` | 2 | 0 | 2 | — | — | D6 (a), v0481 E11.2: pasta sem .forge/versao nem manifesto do Forge: o salvar não lê o transcrito, não faz commit e não cria .forge/run/. |
+| `erro-*` | 1 | 0 | 1 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA: erro ao achar o brief do agente: o salvar sai 0, sem stdout, e a linha vai ao erros.log. |
+| `stop-*` | 1 | 0 | 1 | — | — | D6 (a), v0481 E11.2: o Stop da sessão principal não é a parada de um agente: o salvar não age nem cria .forge/run/. |
 
 ## `vigia`
 

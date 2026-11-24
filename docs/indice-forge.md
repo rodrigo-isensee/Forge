@@ -75,6 +75,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `parecer.py` | parecer de review e de QA antes de PR e de merge (ADR 0003, R-REVIEW, R-QA). |
 | `pesado.py` | tarefa pesada uma de cada vez (ADR 0003, R-TETO). |
 | `quadro.py` | quadro válido após edição (ADR 0003, R-WIP). |
+| `salvar.py` | salvar (D6-SESSAO-NAO-PERDE, parte a; v0481 E11.2) - ao parar, o agente grava e envia o trabalho em andamento. |
 | `vigia.py` | vigia (ADR 0009, seção 8) - detecta o que escapou dos bloqueios e avisa o USUÁRIO, não o modelo. |
 
 ## `scripts/`

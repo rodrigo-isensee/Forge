@@ -1,0 +1,64 @@
+{
+  "pedido": "v0481-d6-resto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "D6 (a): add ou commit que falha para antes do envio",
+      "arquivo": "hooks/salvar.py",
+      "de": "        if rc:\n            raise RuntimeError(f\"git {args[0]}",
+      "para": "        if False:\n            raise RuntimeError(f\"git {args[0]}",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_add_que_falha_nao_faz_commit_nem_envia"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "D6 (a): envio recusado (sem --force) fica no salvar.log como falha",
+      "arquivo": "hooks/salvar.py",
+      "de": "(\"enviado\" if rc == 0 else",
+      "para": "(\"enviado\" if True else",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_envio_recusado_sem_force_fica_no_log"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "D6 (a): os hooks do git da cópia (código do agente) não rodam fora do sandbox",
+      "arquivo": "hooks/salvar.py",
+      "de": "\"-c\", \"core.hooksPath=/dev/null\", ",
+      "para": "",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_hooks_do_git_da_copia_nao_rodam"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "D6 (a): as GIT_* herdadas não desviam o git para outro repositório",
+      "arquivo": "hooks/salvar.py",
+      "de": "if not k.startswith(\"GIT_\")}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_git_herdado_nao_desvia_a_copia"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "D6 (a): a entrada vazia do fim da saída -z do git status fica de fora",
+      "arquivo": "hooks/salvar.py",
+      "de": "for e in saida.split(b\"\\0\") if e]",
+      "para": "for e in saida.split(b\"\\0\") if True]",
+      "equivalente": "a entrada vazia vira o caminho vazio, que nenhum item do escopo casa (nem prefixo nem exato) e cujo par XY vazio não é conflito: a lista a salvar sai igual"
+    },
+    {
+      "id": "M30",
+      "guarda": "D6 (a): o salvar no SubagentStop com 60 s, acima dos 40 s do envio",
+      "arquivo": "hooks/hooks.json",
+      "de": "hooks/salvar.py\"\n            ],\n            \"timeout\": 60",
+      "para": "hooks/salvar.py\"\n            ],\n            \"timeout\": 10",
+      "testes": [
+        "tests.test_hooks.Hooks.test_hooks_json"
+      ]
+    }
+  ]
+}

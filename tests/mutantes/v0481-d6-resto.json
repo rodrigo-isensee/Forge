@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-d6-resto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "D6 (a): só o SubagentStop age; o Stop da sessão principal não grava nada",
+      "arquivo": "hooks/salvar.py",
+      "de": "if hook.campo(\"hook_event_name\") != \"SubagentStop\" or",
+      "para": "if hook.campo(\"hook_event_name\") not in (\"SubagentStop\", \"Stop\") or",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_stop_da_sessao_nao_age"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "D6 (a): fora de projeto do Forge e do clone do Forge, o salvar não age",
+      "arquivo": "hooks/salvar.py",
+      "de": "clone_do_forge=True)) is None:",
+      "para": "clone_do_forge=True) or setattr(hook, \"raiz\", hook.cwd()) or hook.cwd()) is None:",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_fora_de_projeto_nao_age"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "D6 (a): sem brief de escrita citado, nada a planejar (sem erro interno)",
+      "arquivo": "hooks/salvar.py",
+      "de": "alvo = plano(hook, raiz, texto) if texto else None",
+      "para": "alvo = plano(hook, raiz, texto) if True else None",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_sem_brief_citado_nao_age"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "D6 (a): sem arquivo do escopo mudado, nem commit nem envio (git add sem caminho pegaria tudo)",
+      "arquivo": "hooks/salvar.py",
+      "de": "    if arquivos:\n",
+      "para": "    if True:\n",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_nada_no_escopo_nao_faz_commit"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "D6 (a): brief citado que não existe fica de fora, sem calar o brief que existe",
+      "arquivo": "hooks/salvar.py",
+      "de": "        except OSError:  # ausente",
+      "para": "        except ValueError:  # ausente",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_brief_ausente_fica_de_fora"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "D6 (a): brief de parecer (review, segurança, QA) não escreve a branch",
+      "arquivo": "hooks/salvar.py",
+      "de": "de_escrita(fc, fc.cabecalho_do_brief(texto := dados.decode(\"utf-8\", \"replace\")))",
+      "para": "(de_escrita(fc, fc.cabecalho_do_brief(texto := dados.decode(\"utf-8\", \"replace\"))) or True)",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_brief_de_parecer_nao_grava"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "D6 (a): mais de um brief de escrita citado é ambíguo: nada grava",
+      "arquivo": "hooks/salvar.py",
+      "de": "return achados[0] if len(achados) == 1 else None",
+      "para": "return achados[0] if achados else None",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_dois_briefs_de_escrita_nao_grava"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "D6 (a): item do escopo sem / no fim é caminho exato, não prefixo (a escolha do ramo)",
+      "arquivo": "hooks/salvar.py",
+      "de": "if item.endswith(\"/\") else",
+      "para": "if item.endswith(\"/\") or True else",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_salva_e_envia_so_o_escopo"
+      ]
+    }
+  ]
+}

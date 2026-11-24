@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-d6-resto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "D6 (a): sem plano (brief, cópia ou branch), nada a listar e sem erro interno",
+      "arquivo": "hooks/salvar.py",
+      "de": "if alvo else []",
+      "para": "if True else []",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_sem_brief_citado_nao_age"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "D6 (a): nunca grava nem envia branch de integração (main, master, develop, homolog)",
+      "arquivo": "hooks/salvar.py",
+      "de": "not escopo or branch.group(1) in INTEGRACAO or not",
+      "para": "not escopo or not",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_branch_de_integracao_nunca"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "D6 (a): só a cópia citada dentro da pasta das cópias (~/.forge-contrib/wt ou <projeto>/.forge/wt)",
+      "arquivo": "hooks/salvar.py",
+      "de": "if os.path.dirname(c) == base and os.path.isdir(c)",
+      "para": "if os.path.isdir(c)",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_copia_fora_da_pasta_das_copias_nao_grava"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "D6 (a): mais de uma cópia citada é ambígua: nada grava",
+      "arquivo": "hooks/salvar.py",
+      "de": "    if len(copias) != 1:\n",
+      "para": "    if not copias:\n",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_duas_copias_citadas_nao_grava"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "D6 (a): a cópia precisa estar na branch do brief",
+      "arquivo": "hooks/salvar.py",
+      "de": "if rc == 0 and atual.decode().strip() == branch.group(1) else None",
+      "para": "if rc == 0 else None",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_copia_em_outra_branch_nao_grava"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "D6 (a): mesclagem, rebase, cherry-pick ou revert em andamento: nada grava",
+      "arquivo": "hooks/salvar.py",
+      "de": "if rc or any(os.path.lexists(",
+      "para": "if rc or False and any(os.path.lexists(",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_mesclagem_em_andamento_nao_grava"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "D6 (a): git status que falha vai ao erros.log, em vez de sair calado",
+      "arquivo": "hooks/salvar.py",
+      "de": "    if rc:\n        raise RuntimeError(f\"git status",
+      "para": "    if False:\n        raise RuntimeError(f\"git status",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_status_que_falha_vai_ao_erros_log"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "D6 (a): conflito no índice: nada grava (o add marcaria o conflito como resolvido)",
+      "arquivo": "hooks/salvar.py",
+      "de": "if any(\"U\" in xy or xy in (\"AA\", \"DD\") for xy, _ in entradas):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_conflito_no_indice_nao_grava"
+      ]
+    }
+  ]
+}

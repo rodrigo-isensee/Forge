@@ -1528,7 +1528,7 @@ class Hooks(unittest.TestCase):
             codigos = {f.dados["esperado"]["codigo"] for f in self.fixtures if f.hook == hook}
             nomes = {f.caminho.stem for f in self.fixtures if f.hook == hook}
             with self.subTest(hook=hook):
-                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente", "ordens", "decisao") else {0, 2})  # o vigia, o doutor, o ambiente, o ordens (emenda "ordens em vigor" da ADR 0003) e o decisao (R-DECISAO, fatia L28a) avisam, nunca bloqueiam
+                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente", "ordens", "decisao", "salvar") else {0, 2})  # o vigia, o doutor, o ambiente, o ordens (emenda "ordens em vigor" da ADR 0003) e o decisao (R-DECISAO, fatia L28a) avisam, nunca bloqueiam; o salvar (D6 a) só grava e envia
                 self.assertIn("sem-forge-versao", nomes)
                 self.assertIn("erro-interno", nomes)
                 if hook == "ordens":  # a emenda pede também os casos do teto e do arquivo ausente
@@ -1557,7 +1557,9 @@ class Hooks(unittest.TestCase):
                     with self.subTest(evento=evento, matcher=g.get("matcher")):
                         self.assertEqual(h["command"], "python3", "forma exec, sem shell")
                         # 0.44.2: o pesado espera a vez no PreToolUse (orkastery 5, teto 240 s) e o meta roda as checagens no Stop (S4)
-                        espera = 300 if (evento, h["args"][-1].rsplit("/", 1)[-1]) in (("PreToolUse", "pesado.py"), ("Stop", "meta.py")) else 10
+                        # D6 (a), v0481 E11.2: o salvar envia a branch no SubagentStop (o envio tem 40 s)
+                        espera = {("PreToolUse", "pesado.py"): 300, ("Stop", "meta.py"): 300, ("SubagentStop", "salvar.py"): 60}.get(
+                            (evento, h["args"][-1].rsplit("/", 1)[-1]), 10)
                         self.assertEqual(h.get("timeout"), espera, "sem timeout, o padrão do Claude Code é 600 s")
                         # HOOK-ERRO-LIBERA (C6): sem o site do usuário (`usercustomize`, `.pth`) nem as PYTHON* do ambiente
                         self.assertEqual(h["args"][:-1], ["-s", "-E"], "python3 -s -E <hook>")
@@ -4182,6 +4184,283 @@ class OrdensEmVigor(unittest.TestCase):
         for caminho in (".forge/ordens/", "~/.forge-contrib/docs/ordens/"):
             self.assertEqual(donos.get(caminho), ["jarvis"], caminho)
 
+
+class SalvarAoParar(unittest.TestCase):
+    """D6-SESSAO-NAO-PERDE (a), v0481 E11.2: no SubagentStop, o hook `salvar` faz o commit WIP só dos arquivos do escopo do brief
+    na cópia citada por ele e o envia à branch do brief; nunca em branch de integração, nunca com cópia em outra branch, brief de
+    parecer, operação do git em andamento, e sem rodar os hooks do git da cópia. Mutantes: tests/mutantes/v0481-d6-resto*.json."""
+    _pasta_temporaria = Hooks._pasta_temporaria
+
+    def setUp(self):
+        self.tmp = self._pasta_temporaria()
+        self.remoto, self.raiz = self.tmp / "remoto.git", self.tmp / "proj"
+        git("init", "-q", "--bare", "-b", "develop", str(self.remoto), cwd=self.tmp)
+        repositorio_vazio(self.raiz, "develop")
+        for rel, texto in ((".forge/versao", "0.5.0\n"), (".gitignore", ".forge/run/\n.forge/wt/\ndocs/briefs/\n"), ("README.md", "r\n")):
+            (self.raiz / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.raiz / rel).write_text(texto, encoding="utf-8")
+        git("add", "-A", cwd=self.raiz)
+        git("commit", "-q", "-m", "base", cwd=self.raiz)
+        git("push", "-q", str(self.remoto), "develop", cwd=self.raiz)
+        self.copia = self.clonar(self.raiz / ".forge" / "wt" / "item")
+
+    def clonar(self, destino, branch="melhoria/x"):
+        git("clone", "-q", "-b", "develop", str(self.remoto), str(destino), cwd=self.tmp)
+        git("config", "user.email", "t@example.com", cwd=destino)
+        git("config", "user.name", "Teste", cwd=destino)
+        git("switch", "-q", "-c", branch, cwd=destino)
+        return destino
+
+    def brief(self, branch="melhoria/x", etapa="codigo", copias=("{copia}",), nome="p-tech-lead-1.md", pasta=None):
+        corpo = "".join(f"- cópia nova por bin/forge-copia clone a partir da develop atual, em {c} (E1.1)\n" for c in copias)
+        texto = (f"Agente destino: forge:tech-lead\nPedido: p\nTipo: codigo\nBranch: {branch}   Base: develop   Base-sha: {'a' * 40}\n"
+                 f"Etapa: {etapa}   Cobre: E1.1\n\n## Objetivo\nx\n\n## Entregar\n{corpo}- arquivos: hooks/, docs/a.md\n")
+        pasta = pasta or self.raiz / "docs" / "briefs"
+        pasta.mkdir(parents=True, exist_ok=True)
+        (pasta / nome).write_text(texto.replace("{copia}", str(self.copia)), encoding="utf-8")
+        self.citar(nome)
+
+    def citar(self, *nomes, antes=(), outros_blocos=()):
+        """O prompt do agente (primeiro registro `user` do transcrito dele) cita estes briefs de docs/briefs/; `antes`: registros
+        (JSON) antes dele; `outros_blocos`: blocos de conteúdo além do texto."""
+        texto = "Cumpra " + " e ".join(n if "/" in n else f"docs/briefs/{n}" for n in nomes)
+        conteudo = [{"type": "text", "text": texto}, *outros_blocos]
+        registro = {"type": "user", "isSidechain": True, "message": {"role": "user", "content": conteudo}}
+        linhas = [*antes, json.dumps(registro)]
+        (self.tmp / "agente.jsonl").write_text("\n".join(linhas) + "\n", encoding="utf-8")
+
+    def gravar(self, arquivos):
+        for rel, texto in arquivos.items():
+            (self.copia / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.copia / rel).write_text(texto, encoding="utf-8")
+
+    def parar(self, evento="SubagentStop", extra=None, erro=None):
+        entrada = {"hook_event_name": evento, "session_id": "s1", "transcript_path": str(self.tmp / "t.jsonl"),
+                   "agent_id": "a1", "agent_type": "forge:tech-lead", "agent_transcript_path": str(self.tmp / "agente.jsonl"),
+                   "stop_hook_active": False, "cwd": str(self.raiz)}
+        r = rodar("salvar", entrada, self.raiz, extra={"HOME": str(self.tmp / "home"), **(extra or {})})
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+        erros = self.raiz / ".forge" / "run" / "erros.log"
+        lido = erros.read_text(encoding="utf-8") if erros.exists() else ""
+        if erro is None:
+            self.assertEqual(lido.strip(), "", "sem erro interno")
+        else:
+            self.assertIn(erro, lido)
+
+    def no_remoto(self, branch="melhoria/x"):
+        r = subprocess.run(["git", "-C", str(self.remoto), "ls-tree", "-r", "--name-only", branch], env=ambiente_limpo(),
+                           capture_output=True, text=True)
+        return r.stdout.split() if r.returncode == 0 else None
+
+    def log(self):
+        caminho = self.raiz / ".forge" / "run" / "salvar.log"
+        return caminho.read_text(encoding="utf-8") if caminho.exists() else ""
+
+    def commits(self, copia=None):
+        return git("rev-list", "--count", "HEAD", cwd=copia or self.copia).stdout.strip()
+
+    def nada_salvo(self):
+        self.assertIsNone(self.no_remoto())
+        self.assertEqual((self.log(), self.commits()), ("", "1"))
+
+    def test_salva_e_envia_so_o_escopo(self):
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n", "docs/a.md": "a\n", "docs/a.md2": "fora\n", "docs/b.md": "fora\n",
+                     "README.md": "mudado fora\n"})
+        self.parar()
+        self.assertEqual(sorted(self.no_remoto() or []), [".forge/versao", ".gitignore", "README.md", "docs/a.md", "hooks/x.py"])
+        self.assertEqual(git("show", "HEAD:README.md", cwd=self.copia).stdout, "r\n", "o README mudado fica fora do commit")
+        self.assertEqual(git("status", "--porcelain", cwd=self.copia).stdout.splitlines(),
+                         [" M README.md", "?? docs/a.md2", "?? docs/b.md"], "arquivo exato do escopo não vale como prefixo")
+        self.assertIn("melhoria/x", self.log())
+        self.assertIn("2 arquivo(s) enviado", self.log())
+
+    def test_nada_no_escopo_nao_faz_commit(self):
+        self.brief()
+        self.gravar({"docs/b.md": "fora\n"})
+        self.parar()
+        self.nada_salvo()
+
+    def test_stop_da_sessao_nao_age(self):
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar(evento="Stop")
+        self.nada_salvo()
+
+    def test_fora_de_projeto_nao_age(self):
+        git("rm", "-q", ".forge/versao", cwd=self.raiz)
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.nada_salvo()
+
+    def test_sem_brief_citado_nao_age(self):
+        self.brief()
+        self.citar()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.nada_salvo()
+
+    def test_brief_ausente_fica_de_fora(self):
+        self.brief()
+        self.citar("nao-existe.md", "p-tech-lead-1.md")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.assertIn("hooks/x.py", self.no_remoto() or [])
+
+    def test_dois_briefs_de_escrita_nao_grava(self):
+        self.brief(nome="p-tech-lead-2.md")
+        self.brief()
+        self.citar("p-tech-lead-1.md", "p-tech-lead-2.md")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.nada_salvo()
+
+    def test_branch_de_integracao_nunca(self):
+        git("switch", "-q", "develop", cwd=self.copia)
+        self.brief(branch="develop")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.assertEqual(self.no_remoto("develop"), [".forge/versao", ".gitignore", "README.md"])
+        self.assertEqual(self.commits(), "1")
+
+    def test_copia_em_outra_branch_nao_grava(self):
+        self.brief(branch="melhoria/y")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.assertIsNone(self.no_remoto("melhoria/y"))
+        self.assertEqual(self.commits(), "1")
+
+    def test_brief_de_parecer_nao_grava(self):
+        self.brief(etapa="review")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.nada_salvo()
+
+    def test_mesclagem_em_andamento_nao_grava(self):
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        (self.copia / ".git" / "MERGE_HEAD").write_text(git("rev-parse", "HEAD", cwd=self.copia).stdout, encoding="utf-8")
+        self.parar()
+        self.nada_salvo()
+
+    def test_conflito_no_indice_nao_grava(self):
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        git("add", "hooks/x.py", cwd=self.copia)
+        git("commit", "-q", "-m", "um", cwd=self.copia)
+        git("switch", "-q", "-c", "outra", "develop", cwd=self.copia)
+        self.gravar({"hooks/x.py": "x = 2\n"})
+        git("add", "hooks/x.py", cwd=self.copia)
+        git("commit", "-q", "-m", "dois", cwd=self.copia)
+        git("switch", "-q", "melhoria/x", cwd=self.copia)
+        subprocess.run(["git", "-C", str(self.copia), "merge", "-q", "outra"], env=ambiente_limpo(), capture_output=True)
+        os.remove(self.copia / ".git" / "MERGE_HEAD")  # só o conflito no índice decide, sem a marca da mesclagem
+        self.gravar({"docs/a.md": "a\n"})
+        self.parar()
+        self.assertIsNone(self.no_remoto())
+        self.assertEqual(self.commits(), "2")
+
+    def test_duas_copias_citadas_nao_grava(self):
+        outra = self.clonar(self.raiz / ".forge" / "wt" / "outra")
+        self.brief(copias=("{copia}", str(outra)))
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        (outra / "hooks").mkdir()
+        (outra / "hooks" / "x.py").write_text("x = 1\n", encoding="utf-8")
+        self.parar()
+        self.nada_salvo()
+        self.assertEqual(self.commits(outra), "1")
+
+    def test_copia_fora_da_pasta_das_copias_nao_grava(self):
+        destino = self.clonar(self.tmp / "wt" / "item")
+        self.brief(copias=(str(destino),))
+        (destino / "hooks").mkdir()
+        (destino / "hooks" / "x.py").write_text("x = 1\n", encoding="utf-8")
+        self.parar()
+        self.assertIsNone(self.no_remoto())
+        self.assertEqual(self.commits(destino), "1")
+
+    def test_hooks_do_git_da_copia_nao_rodam(self):
+        self.brief()
+        gancho = self.copia / ".git" / "hooks" / "pre-commit"
+        gancho.write_text(f"#!/bin/sh\ntouch '{self.tmp / 'rodou'}'\nexit 1\n", encoding="utf-8")
+        gancho.chmod(0o755)
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.assertFalse((self.tmp / "rodou").exists(), "o hook do git da cópia rodaria fora do sandbox")
+        self.assertIn("hooks/x.py", self.no_remoto() or [])
+
+    def test_git_herdado_nao_desvia_a_copia(self):
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar(extra={"GIT_DIR": str(self.raiz / ".git"), "GIT_WORK_TREE": str(self.raiz)})
+        self.assertIn("hooks/x.py", self.no_remoto() or [])
+
+    def test_status_que_falha_vai_ao_erros_log(self):
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        (self.copia / ".git" / "index").write_bytes(b"lixo")
+        self.parar(erro="RuntimeError: git status saiu com 128")
+        self.assertIsNone(self.no_remoto())
+        self.assertEqual(self.log(), "")
+
+    def test_add_que_falha_nao_faz_commit_nem_envia(self):
+        self.brief()
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        (self.copia / ".git" / "index.lock").write_text("", encoding="utf-8")
+        self.parar(erro="RuntimeError: git add saiu com 128")
+        self.nada_salvo()
+
+    def test_so_o_primeiro_registro_user_e_so_os_blocos_de_texto(self):
+        self.brief(nome="p-tech-lead-2.md")
+        (self.raiz / "docs" / "briefs" / "p-tech-lead-2.md").rename(self.raiz / "docs" / "briefs" / "p-tech-lead-3.md")
+        self.brief()
+        outro = '{"type": "assistant", "message": {"content": "docs/briefs/p-tech-lead-3.md docs/briefs/p-tech-lead-1.md"}}'
+        self.citar("p-tech-lead-1.md", antes=["[]", "{", outro],
+                   outros_blocos=[{"type": "tool_result", "text": "docs/briefs/p-tech-lead-3.md"}, "solto"])
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.assertIn("hooks/x.py", self.no_remoto() or [], "o brief citado fora do texto do prompt não conta")
+
+    def test_registro_user_sem_mensagem_objeto_nao_age(self):
+        self.brief()
+        (self.tmp / "agente.jsonl").write_text('{"type": "user", "message": "docs/briefs/p-tech-lead-1.md"}\n', encoding="utf-8")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.nada_salvo()
+
+    def test_registro_user_sem_conteudo_nao_age(self):
+        self.brief()
+        (self.tmp / "agente.jsonl").write_text('{"type": "user", "message": {"role": "user"}}\n', encoding="utf-8")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.nada_salvo()
+
+    def test_clone_do_forge_usa_a_pasta_do_contrib(self):
+        git("rm", "-q", ".forge/versao", cwd=self.raiz)
+        (self.raiz / ".claude-plugin").mkdir()
+        (self.raiz / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
+        git("add", "-A", cwd=self.raiz)
+        git("commit", "-q", "-m", "forge", cwd=self.raiz)
+        contrib = self.tmp / "home" / ".forge-contrib"
+        self.copia = self.clonar(contrib / "wt" / "item")
+        self.brief(pasta=contrib / "docs" / "briefs")
+        self.citar("~/.forge-contrib/docs/briefs/p-tech-lead-1.md")
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.assertIn("hooks/x.py", self.no_remoto() or [])
+        self.assertIn("1 arquivo(s) enviado", self.log())
+
+    def test_envio_recusado_sem_force_fica_no_log(self):
+        self.brief()
+        (self.raiz / "README.md").write_text("outro\n", encoding="utf-8")
+        git("commit", "-q", "-am", "remoto andou", cwd=self.raiz)
+        git("push", "-q", str(self.remoto), "develop:refs/heads/melhoria/x", cwd=self.raiz)
+        self.gravar({"hooks/x.py": "x = 1\n"})
+        self.parar()
+        self.assertNotIn("hooks/x.py", self.no_remoto(), "sem --force: o remoto que andou não é sobrescrito")
+        self.assertIn("envio falhou", self.log())
+        self.assertEqual(git("show", "--name-only", "--format=", "HEAD", cwd=self.copia).stdout.split(), ["hooks/x.py"])
 
 if __name__ == "__main__":
     unittest.main()

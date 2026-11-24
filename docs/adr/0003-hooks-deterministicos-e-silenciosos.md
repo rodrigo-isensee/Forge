@@ -105,3 +105,31 @@ Critério de reversão da emenda: um caso em que texto que não veio do dono che
 |---|---|---|
 | Ordens perdidas depois de compactar (linhas do Histórico com "ordem esquecida" ou reclamação do dono) | 2 versões depois do PR do hook | `tech-lead` |
 | Tempo do hook e entradas do `ordens` em `erros.log` | no PR do hook e no fechamento de cada versão | `devops-engineer` |
+
+## Emenda: salvar ao parar (D6-SESSAO-NAO-PERDE, parte a; v0481 E11.2, ORDEM DO DONO 24/11)
+Estado da emenda: **vigente a partir do PR que traz o hook `salvar`**, com fixtures, mutantes e o parecer do `security-engineer`. Até esse PR, o item 2 segue como está escrito.
+
+**Exceção ao item 2**, só para o hook `salvar`, só no `SubagentStop`: ao parar, o trabalho em andamento do agente é gravado num commit WIP e enviado à branch do brief dele. Regras:
+1. **Só o que o brief diz:** o prompt do agente (primeiro registro `user` do transcrito dele) cita exatamente um brief de escrita em `docs/briefs/` (os de review, segurança e QA não escrevem a branch); dele saem a `Branch:`, o escopo (linha `- arquivos:`, caminho exato ou pasta com `/`) e a cópia citada, dentro da pasta das cópias (`~/.forge-contrib/wt/` no Forge, `<projeto>/.forge/wt/` no projeto) e nessa branch. Qualquer falta ou ambiguidade: nada acontece.
+2. **Só o escopo:** o commit leva só os arquivos mudados fora de commit dentro do escopo (`git commit --only`); o resto da cópia fica como está. Sem nada no escopo, nem commit nem envio (nenhum run de CI gasto à toa, `R-CUSTO`).
+3. **Rede só para o envio:** um `git push origin refs/heads/<branch>:refs/heads/<branch>`, sem `--force` (`R-VERIFY`), nunca em `main`, `master`, `develop` ou `homolog` (`R-MAIN`, `R-FLUXO`); envio recusado (o remoto andou) fica no `salvar.log` e o commit fica na cópia. Prazo do envio 40 s, dentro dos 60 s do hook no `hooks.json`.
+4. **Sem código do agente fora do sandbox:** o hook roda fora do sandbox, e os hooks do git da cópia (o `.git/hooks/` e o `.githooks/` versionado) são código que o agente escreve; o git do `salvar` roda com `core.hooksPath` vazio, sem `core.fsmonitor`, com `--literal-pathspecs`, sem as `GIT_*` herdadas e sem pedir senha. A guarda das branches de integração que o `pre-push` faria está no próprio hook (regra 3), e o CI do PR continua o portão. Não é o `--no-verify` de um agente: o agente não escolhe nada disso.
+5. **Não mexe em operação pela metade:** conflito no índice, mesclagem, rebase, cherry-pick ou revert em andamento: nada acontece.
+6. **Nunca bloqueia nem escreve no stdout:** sai sempre com 0; o resultado vai a `.forge/run/salvar.log` (branch, commit, arquivos, enviado ou falhou); erro interno, à linha do `erros.log` (item 4).
+
+### Por que o existente não basta
+- O `forge salvar` (`bin/forge-salvar`) é do terminal do dono: grava tudo o que mudou, não sabe o escopo do brief e só roda se alguém o chamar; o agente que cai (sessão encerrada, teto, compactação) não o chama.
+- O `R-FLUXO` manda o agente commitar e enviar, mas a regra em texto não cobre a parada fora do roteiro. Evidência: o estudo determinístico de 24/11 (D6) registra retomadas manuais e trabalho refeito depois de sessão que caiu com mudança só na cópia.
+
+### Afrouxa: sim, ADR 0003 item 2 e dois invariantes de teste
+O item 2 ("sem rede", decisão só pelo estado em disco e pelo git local) ganha a exceção acima. Mudam junto, no PR do hook, com o rótulo `afrouxa-regra`:
+- `tests/test_hooks.py`, `test_cada_hook_tem_caso_que_passa_e_que_bloqueia`: `salvar` entra no grupo que nunca bloqueia (códigos `{0}`), com os casos `sem-forge-versao` e `erro-interno`.
+- `tests/test_hooks.py`, `test_hooks_json`: o `salvar.py` no `SubagentStop` tem `timeout` 60 (os outros seguem com 10, menos os 300 do `pesado` e do `meta`).
+Nenhum trecho de `invariantes` em `tests/config.json` sai.
+
+Critério de reversão da emenda: um envio do `salvar` fora da branch do brief ou com arquivo fora do escopo, um commit WIP que leve marca de conflito, ou o hook passar dos 60 s no `erros.log`; também, se em 2 versões o `salvar.log` não registrar nenhum trabalho salvo que evitou retomada manual (a medida não se move, o hook sai).
+
+| Leitura | Quando | Quem |
+|---|---|---|
+| Linhas do `salvar.log` (enviado e falhou) e voltas por trabalho perdido no Histórico dos pedidos | 2 versões depois do PR do hook | `tech-lead` |
+| Tempo do hook e entradas do `salvar` em `erros.log` | no PR do hook e no fechamento de cada versão | `devops-engineer` |
