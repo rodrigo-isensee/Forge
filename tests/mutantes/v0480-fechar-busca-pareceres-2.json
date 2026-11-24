@@ -1,0 +1,37 @@
+{
+  "pedido": "v0480-fechar-busca-pareceres",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "--principal: o rev-parse so roda dentro da pasta dada",
+      "arquivo": "bin/forge-fechar",
+      "de": "cd \"$copia_principal\" 2>/dev/null && git rev-parse --show-toplevel",
+      "para": "cd \"$copia_principal\" 2>/dev/null; git rev-parse --show-toplevel",
+      "testes": [
+        "tests.test_fechar_busca_pareceres.FecharBuscaPareceres.test_principal_que_nao_e_repositorio_para_antes_do_passo_1"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "so o pedido que existe na raiz e lido",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -f \"$d/docs/pedidos/$pedido.md\" ] || continue",
+      "para": "[ -f \"$d/docs/pedidos/$pedido.md\" ] || true",
+      "testes": [
+        "tests.test_fechar_busca_pareceres.FecharBuscaPareceres.test_pedido_da_copia_principal_do_repositorio"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o aviso sai so com sha que falta em todas as fontes",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"${#falta[@]}\" = 0 ] || echo \"aviso: parecer conferido",
+      "para": "[ \"${#falta[@]}\" != 0 ] || echo \"aviso: parecer conferido",
+      "testes": [
+        "tests.test_fechar_busca_pareceres.FecharBuscaPareceres.test_busca_da_origin_e_da_principal_e_diz_o_que_nao_existe",
+        "tests.test_fechar_busca_pareceres.FecharBuscaPareceres.test_tudo_legivel_nao_busca_nada"
+      ]
+    }
+  ]
+}
