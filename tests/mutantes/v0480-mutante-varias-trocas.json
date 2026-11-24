@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-mutante-varias-trocas",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "MUTANTE-VARIAS-TROCAS: trocas: lista de 1 par não é a forma de várias trocas",
+      "arquivo": "bin/forge-mutante",
+      "de": "2 <= len(de) <= MAXIMO_DE_TROCAS:",
+      "para": "1 <= len(de) <= MAXIMO_DE_TROCAS:",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_varias_trocas_em_listas_do_mesmo_tamanho_valem_e_o_resto_e_invalido"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "MUTANTE-VARIAS-TROCAS: trocas: par que não é texto vira forma inválida",
+      "arquivo": "bin/forge-mutante",
+      "de": "all(isinstance(d, str) and isinstance(p, str) for d, p in pares)",
+      "para": "all(isinstance(d, str) or isinstance(p, str) for d, p in pares)",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_varias_trocas_em_listas_do_mesmo_tamanho_valem_e_o_resto_e_invalido"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "MUTANTE-VARIAS-TROCAS: validar_spec: sem par válido a spec é recusada",
+      "arquivo": "bin/forge-mutante",
+      "de": "isinstance(m[k], str) for k in (\"guarda\", \"arquivo\")) or not pares:",
+      "para": "isinstance(m[k], str) for k in (\"guarda\", \"arquivo\")):",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_varias_trocas_em_listas_do_mesmo_tamanho_valem_e_o_resto_e_invalido"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "MUTANTE-VARIAS-TROCAS: validar_spec: de vazio em qualquer par",
+      "arquivo": "bin/forge-mutante",
+      "de": "if any(not de or len(de) > MAXIMO_DO_TRECHO",
+      "para": "if any(len(de) > MAXIMO_DO_TRECHO",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_varias_trocas_em_listas_do_mesmo_tamanho_valem_e_o_resto_e_invalido"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "MUTANTE-VARIAS-TROCAS: validar_spec: para igual ao de em qualquer par",
+      "arquivo": "bin/forge-mutante",
+      "de": "if any(de == para for de, para in pares):",
+      "para": "if any(de == para for de, para in pares[:1]):",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_varias_trocas_em_listas_do_mesmo_tamanho_valem_e_o_resto_e_invalido"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "MUTANTE-VARIAS-TROCAS: validar_spec: de repetido entre as trocas",
+      "arquivo": "bin/forge-mutante",
+      "de": "if len({de for de, _ in pares}) != len(pares):",
+      "para": "if len({de for de, _ in pares}) > len(pares):",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_varias_trocas_em_listas_do_mesmo_tamanho_valem_e_o_resto_e_invalido"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "MUTANTE-VARIAS-TROCAS: vezes_fora_de_uma: cada de uma vez, o ausente também",
+      "arquivo": "bin/forge-mutante",
+      "de": "        n = texto.count(de)\n        if n != 1:",
+      "para": "        n = texto.count(de)\n        if n > 1:",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_varias_trocas_com_um_trecho_ausente_ou_sobreposto_sao_invalidas"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "MUTANTE-VARIAS-TROCAS: sufixo_do_trecho: o trecho só no mutante de várias trocas",
+      "arquivo": "bin/forge-mutante",
+      "de": "if len(trocas(m)) > 1 else \"\"",
+      "para": "if len(trocas(m)) > 9 else \"\"",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_varias_trocas_com_um_trecho_ausente_ou_sobreposto_sao_invalidas"
+      ]
+    }
+  ]
+}
