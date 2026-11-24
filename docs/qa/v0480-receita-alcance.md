@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-receita-alcance
-commit: f56597cbefd9f17b22078b21773cacbbdddc735c
+commit: 2338eca670100fc358a69fa34384c53e2b48e99e
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -37,3 +37,14 @@ Execução (raiz do clone, sem -I):
 - A receita passou a cobrir qualquer pasta de portão (`git add docs/<pasta do portão>/<pedido>.md`, `docs(<portão>)` com os quatro valores) e absorveu modelo, `forge-check docs` e validade presa ao domínio; os quatro agentes citam o caminho e a condição "atrás do remoto" volta ao `git pull --rebase origin <branch>`.
 - Sem o limite de 300 caracteres no texto dos agentes: segue na receita (passo 1) e no modelo; sem perda de obrigação.
 - Parecer de segurança do `security-engineer` mantém a restrição de `docs/security/aceites/`.
+
+## Delta f56597cb..2338eca6 (E146.7)
+`forge-check parecer delta` lista só `changelog.d/v0480-receita-alcance.md`: o título `### Mudado` virou `### Alterado`; o texto não mudou. `Mudado` não é tipo válido (`TIPOS` em `bin/forge-changelog`: Adicionado, Alterado, Corrigido), então a troca fecha a pendência do fragmento.
+
+| Obrigação | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Fragmento novo com tipo válido, sem editar o `CHANGELOG.md` | `bin/forge-changelog conferir --base 9d239ddadcd1429fdafb29715ebe70566ceb5c11`: `ok: 1 fragmento(s) novo(s) em changelog.d/` (versão base e do PR 0.47.15) | tipo fora da lista | passou |
+| Lógica do changelog | `python3 -m unittest tests.test_changelog`: `Ran 89 tests ... OK` | tipo inválido | passou |
+| Neutralidade e clareza do texto | `python3 -m unittest tests.test_forge.Neutralidade tests.test_clareza`: `Ran 12 tests ... OK` | termo proibido | passou |
+
+Os resultados do parecer anterior seguem valendo: o delta não toca agente, receita nem teste. Sem código, sem mutante, sem vermelho antes do verde (sem teste novo). Suíte inteira: check-run `bateria` do CI do PR no mesmo sha.
