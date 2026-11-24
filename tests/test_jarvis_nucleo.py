@@ -26,7 +26,8 @@ DIRETRIZES = json.loads((RAIZ / "tests" / "fixtures" / "diretrizes-do-dono.json"
 # A 29 virou de fábrica com o FOCO-NAS-DECISOES.
 # v047 (afrouxa, liberação do dono para o plano v047): 8 = as 7 da P4 menos a 26 (fábrica, INTEGRACAO-EM-LOTE) mais a 30 e a
 # 31, que nasceram depois da P4; não é regressão: a 27 segue pendente com o RELEASE-EM-1H. Só desce.
-MAX_PENDENTES = 8
+# DIR-28-SANDBOX-NO-JARVIS (v0478 E151.1): a 28 virou de fábrica (conferência do sandbox no agents/jarvis.md): 7.
+MAX_PENDENTES = 7
 # P3: a mensagem do núcleo manda mover, não reduzir (diretriz 25).
 MOVA = ("não apague nem resuma regra (diretriz 25): mova o detalhe para uma skill que o Jarvis manda ler e deixe o resumo; "
         "não suba o teto")
@@ -282,6 +283,24 @@ class FocoNasDecisoes(unittest.TestCase):
         modelo = next(l for l in ler("templates/projeto/CLAUDE.md").splitlines() if l.startswith("- `R-DECISAO`"))
         self.assertIn("Pedido de decisões do usuário: o Jarvis responde já, só com elas, por peso e uma a uma (skill `falar-com-o-dono`)",
                       modelo)
+
+
+class SandboxNoPrimeiroComando(unittest.TestCase):
+    """DIR-28-SANDBOX-NO-JARVIS (diretriz 28, v0478 E151.1): a conferência do sandbox no primeiro comando vive no agents/jarvis.md,
+    não só no modelo de projeto; o detalhe (como conferir, o comando de reabrir) fica em falar-com-o-dono/nao-trava.md."""
+
+    def test_o_jarvis_traz_a_regra_na_linha_que_manda_ler_o_detalhe(self):
+        linha = next(l for l in ler(JARVIS).splitlines() if l.startswith("- **Pedido de decisões** (diretriz 29):"))
+        regra = "Sandbox (diretriz 28): confira-o no primeiro comando; se falhar, pare e dê ao dono o comando para reabrir."
+        self.assertIn(regra, linha)
+        self.assertIn("skills/falar-com-o-dono/nao-trava.md", linha.split(regra, 1)[1])
+
+    def test_o_detalhe_traz_o_modo_automatico_e_o_comando_de_reabrir(self):
+        detalhe = " ".join(ler("skills/falar-com-o-dono/nao-trava.md").split())
+        for trecho in ("No primeiro comando da sessão o Jarvis confere o sandbox do Bash", "--permission-mode auto",
+                       "com o comando para reabrir a sessão", "O dono nunca aprova comando a comando"):
+            with self.subTest(trecho=trecho):
+                self.assertIn(trecho, detalhe)
 
 class MutantesDaPresenca(unittest.TestCase):
     """P4, item 7: cada mutante numa árvore sintética reprova (lista completa, AR-1)."""

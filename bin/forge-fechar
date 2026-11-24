@@ -625,6 +625,9 @@ origem_atual() {  # define `pontas` (vazio se a leitura falha: o commit fora das
   mapfile -t sem_busca < <(printf '%s\n' $pontas $merged_heads | grep -E '^[0-9a-f]{40}$' | sort -u | faltam)
   buscar_de origin "${sem_busca[@]}"
 }
+# url_normal <url> (FECHAR-LIMPAR-URL-GIT, v0478 E166.1): a URL sem a barra final e depois sem o `.git` final, para `x`, `x/`, `x.git` e `x.git/`
+# casarem (o clone feito com outro formato da mesma origin não fica de fora da limpeza).
+url_normal() { local u="${1%/}"; printf '%s' "${u%.git}"; }
 limpar_clones() {
   local d url_aqui url_dela sha_dela comum fora h ancestral pontas="" lida=0
   local -a g
@@ -638,7 +641,15 @@ limpar_clones() {
     g=(git --no-optional-locks -c core.fsmonitor= -C "$d")
     [ "$("${g[@]}" symbolic-ref -q HEAD 2>/dev/null || true)" = "refs/heads/$ref" ] || continue
     url_dela="$("${g[@]}" remote get-url origin 2>/dev/null || true)"
-    if [ -z "$url_aqui" ] || [ "$url_dela" != "$url_aqui" ]; then continue; fi
+    if [ -z "$url_aqui" ] || [ "$(url_normal "$url_dela")" != "$(url_normal "$url_aqui")" ]; then
+      # o clone da branch com outro origin fica pendente, nunca em silêncio; a URL não sai na tela (pode levar credencial)
+      echo "aviso: o clone $d está na branch $ref, mas o origin dele não é o desta cópia; não o apaguei." >&2
+      copia_st=pendente
+      pend_cmds="$pend_cmds
+# confira o origin; só apague depois de decidir
+git -C $(printf '%q' "$d") remote -v"
+      continue
+    fi
     sha_dela="$("${g[@]}" rev-parse -q --verify HEAD || true)"
     [ "$lida" = 1 ] || { origem_atual; lida=1; }
     fora="$("${g[@]}" rev-list --all --not --remotes 2>/dev/null || echo erro)"
