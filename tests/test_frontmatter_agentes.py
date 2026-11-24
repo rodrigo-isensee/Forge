@@ -59,5 +59,71 @@ class FrontmatterAgentes(unittest.TestCase):
         self.assertEqual(erros_do_frontmatter("---\nname: x\ndescription: 'a: b'\n---\n"), [])
 
 
+def _fm(*linhas: str) -> str:
+    """Frontmatter válido (name e description) mais as linhas dadas; o fechamento vem no fim."""
+    return "\n".join(["---", "name: x", "description: y", *linhas, "---", ""])
+
+
+class RamosDeErro(unittest.TestCase):
+    """Um caso por ramo de erro de erros_do_frontmatter; cada um cai se o seu ramo for removido."""
+
+    def test_sem_abertura(self):
+        self.assertEqual(erros_do_frontmatter("name: x\ndescription: y\n---\n"), ["sem abertura '---'"])
+
+    def test_sem_fechamento(self):
+        self.assertEqual(erros_do_frontmatter("---\nname: x\ndescription: y\n"), ["sem fechamento '---'"])
+
+    def test_linha_que_nao_e_chave_valor(self):
+        self.assertEqual(erros_do_frontmatter(_fm("- item")), ["linha 4: não é 'chave: valor'"])
+
+    def test_aspas_duplas_sem_fechar(self):
+        erros = erros_do_frontmatter(_fm('nota: "abc'))
+        self.assertEqual(len(erros), 1)
+        self.assertIn("aspas de 'nota' não fecham", erros[0])
+
+    def test_aspas_simples_sem_fechar(self):
+        erros = erros_do_frontmatter(_fm("nota: 'abc"))
+        self.assertEqual(len(erros), 1)
+        self.assertIn("aspas de 'nota' não fecham", erros[0])
+
+    def test_valor_de_uma_aspa_so(self):
+        erros = erros_do_frontmatter(_fm('nota: "'))
+        self.assertEqual(len(erros), 1)
+        self.assertIn("aspas de 'nota' não fecham", erros[0])
+
+    def test_aspa_simples_solta_dentro_de_aspas_simples(self):
+        erros = erros_do_frontmatter(_fm("nota: 'it's'"))
+        self.assertEqual(len(erros), 1)
+        self.assertIn("aspas de 'nota' não fecham", erros[0])
+        self.assertEqual(erros_do_frontmatter(_fm("nota: 'it''s'")), [])
+
+    def test_escalar_terminado_em_dois_pontos(self):
+        erros = erros_do_frontmatter(_fm("nota: abc:"))
+        self.assertEqual(len(erros), 1)
+        self.assertIn("'nota' tem ': ' ou ' #'", erros[0])
+
+    def test_escalar_com_espaco_e_cerquilha(self):
+        erros = erros_do_frontmatter(_fm("nota: abc #d"))
+        self.assertEqual(len(erros), 1)
+        self.assertIn("'nota' tem ': ' ou ' #'", erros[0])
+
+    def test_indicador_yaml_pula_a_checagem_de_escalar(self):
+        for valor in ("[a: b]", "{a: b}", "| a: b", "> a #b", "&a b: c", "*a b: c"):
+            with self.subTest(valor=valor):
+                self.assertEqual(erros_do_frontmatter(_fm(f"nota: {valor}")), [])
+
+    def test_comentario_e_linha_em_branco_sao_ignorados(self):
+        self.assertEqual(erros_do_frontmatter(_fm("# a: b: c", "", "   ", "  # d e")), [])
+
+    def test_falta_name(self):
+        self.assertEqual(erros_do_frontmatter("---\ndescription: y\n---\n"), ["falta 'name'"])
+
+    def test_falta_description(self):
+        self.assertEqual(erros_do_frontmatter("---\nname: x\n---\n"), ["falta 'description'"])
+
+    def test_obrigatorio_com_valor_vazio_conta_como_falta(self):
+        self.assertEqual(erros_do_frontmatter("---\nname:\ndescription: y\n---\n"), ["falta 'name'"])
+
+
 if __name__ == "__main__":
     unittest.main()

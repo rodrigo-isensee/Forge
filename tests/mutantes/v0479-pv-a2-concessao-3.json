@@ -76,8 +76,8 @@
       "id": "M24",
       "guarda": "PV-A2 (E1): a ref do origin vale antes da local",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "    ponta = (git(raiz, \"rev-parse\", \"-q\", \"--verify\", f\"refs/remotes/origin/{ramo}^{{commit}}\")",
-      "para": "    ponta = (None",
+      "de": "    return (git(raiz, \"rev-parse\", \"-q\", \"--verify\", f\"refs/remotes/origin/{ramo}^{{commit}}\")",
+      "para": "    return (None",
       "testes": [
         "tests.test_autorizacao.ItemPresoAoCommit.test_ramo_sem_parecer_dele_fica_inativo_e_a_ref_do_origin_vale_antes_da_local"
       ]
