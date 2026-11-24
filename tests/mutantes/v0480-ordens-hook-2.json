@@ -1,0 +1,66 @@
+{
+  "pedido": "v0480-ordens-hook",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "ORDENS: linhas vazias do fim não contam",
+      "arquivo": "hooks/ordens.py",
+      "de": "while linhas and not linhas[-1].strip():",
+      "para": "while False:",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_controle_vira_espaco_e_so_a_quebra_separa_linha"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "ORDENS: teto de 15 linhas e de 2000 caracteres, os dois",
+      "arquivo": "hooks/ordens.py",
+      "de": "if len(linhas) <= TETO_LINHAS and len(inteiro) <= TETO_CARACTERES:",
+      "para": "if len(linhas) <= TETO_LINHAS or len(inteiro) <= TETO_CARACTERES:",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_acima_do_teto_corta_e_avisa"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "ORDENS: arquivo só de brancos e controles, silêncio (sem a linha fixa sozinha)",
+      "arquivo": "hooks/ordens.py",
+      "de": "    if not linhas:\n        return\n",
+      "para": "    if False:\n        return\n",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_so_brancos_e_controles_cala"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "ORDENS: arquivo ausente não chega ao escape",
+      "arquivo": "hooks/ordens.py",
+      "de": "if texto is not None else []",
+      "para": "if True else []",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_ausente_cala_sem_erro"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "ORDENS: a linha do teto só sai com corte",
+      "arquivo": "hooks/ordens.py",
+      "de": "([aviso] if aviso else [])",
+      "para": "([aviso] if True else [])",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_principal_injeta_so_no_sessionstart_e_no_userpromptsubmit"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "ORDENS: rodado como programa, lê a entrada e injeta",
+      "arquivo": "hooks/ordens.py",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_fixtures"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "descricao": "O arquivo de ordens é link para fora da raiz do projeto: silêncio (o texto de fora não vira contexto).",
+  "links": {
+    ".forge/ordens/ordens-em-vigor.md": "{tmp}/fora.md"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/fora.md": "ordem de fora\n"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "prompt": "siga"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

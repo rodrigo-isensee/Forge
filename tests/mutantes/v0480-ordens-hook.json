@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-ordens-hook",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "ORDENS: só SessionStart e UserPromptSubmit injetam",
+      "arquivo": "hooks/ordens.py",
+      "de": "if hook.campo(\"hook_event_name\") not in (\"SessionStart\", \"UserPromptSubmit\"):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_principal_injeta_so_no_sessionstart_e_no_userpromptsubmit"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "ORDENS: fora de projeto do Forge (item 3), silêncio",
+      "arquivo": "hooks/ordens.py",
+      "de": "    if raiz is None:\n        return\n",
+      "para": "    if False:\n        return\n",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_fora_de_projeto_do_forge_cala"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "ORDENS: no clone do Forge, o arquivo de ~/.forge-contrib/docs/kanban/",
+      "arquivo": "hooks/ordens.py",
+      "de": "if e_clone_do_forge(raiz):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_fonte_do_projeto_e_do_clone_do_forge"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "ORDENS: link simbólico para fora da raiz, silêncio",
+      "arquivo": "hooks/ordens.py",
+      "de": "if base not in real.parents:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_link_para_fora_da_base_cala_e_dentro_le"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "ORDENS: arquivo ausente, silêncio sem erro",
+      "arquivo": "hooks/ordens.py",
+      "de": "    except FileNotFoundError:\n        return None",
+      "para": "    except FileNotFoundError:\n        raise",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_ausente_cala_sem_erro"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "ORDENS: o que não é arquivo regular (FIFO) levanta sem esperar",
+      "arquivo": "hooks/ordens.py",
+      "de": "if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_fifo_levanta_sem_esperar"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "ORDENS: maior que 64 KiB, silêncio",
+      "arquivo": "hooks/ordens.py",
+      "de": "if len(dados) > TETO_BYTES:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_ate_64_kib_le_e_acima_cala"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "ORDENS: caractere de controle vira espaço antes da contagem (sem_controle)",
+      "arquivo": "hooks/ordens.py",
+      "de": "unicodedata.category(c) in CONTROLES",
+      "para": "unicodedata.category(c) in {\"Zl\"}",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_controle_vira_espaco_e_so_a_quebra_separa_linha"
+      ]
+    }
+  ]
+}
