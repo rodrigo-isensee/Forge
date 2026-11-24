@@ -41,6 +41,46 @@
       "testes": [
         "tests.test_forge_tamanho.Funcoes.test_borda_dos_caracteres"
       ]
+    },
+    {
+      "id": "M13",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: a ordem que aponta etapa arquivada ainda acha a etapa",
+      "arquivo": "bin/forge-check",
+      "de": "e_etapa_do_pedido(alvo, ids_de_etapa(ler_pedido_brief(pedido_txt)))",
+      "para": "e_etapa_do_pedido(alvo, ler_pedido_brief(pedido_txt)[\"etapas\"])",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_brief_antigo_cita_a_etapa_arquivada_e_o_corte_aceita_o_item_arquivado"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: só a linha `=aprovado` fecha a etapa de parecer",
+      "arquivo": "bin/forge-check",
+      "de": "if \"=aprovado\" in linha for t in",
+      "para": "if \"=reprovado\" in linha for t in",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_arquiva_as_fechadas_e_o_brief_fica_abaixo_do_teto"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: só o cabeçalho `## Etapas` abre o bloco que se arquiva",
+      "arquivo": "bin/forge-check",
+      "de": "re.fullmatch(r\"##\\s+Etapas\\s*\", l)",
+      "para": "re.fullmatch(r\"#+\\s+Etapas\\s*\", l)",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_cabecalho_de_outro_nivel_nao_arquiva"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: o bloco de etapas acaba no cabeçalho seguinte",
+      "arquivo": "bin/forge-check",
+      "de": "if linhas[i].startswith(\"#\")), len(linhas))",
+      "para": "if linhas[i].startswith(\"#!\")), len(linhas))",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_so_o_bloco_de_etapas_muda"
+      ]
     }
   ]
 }

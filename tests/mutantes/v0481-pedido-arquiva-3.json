@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481-pedido-arquiva",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: a linha arquivada sai do pedido",
+      "arquivo": "bin/forge-check",
+      "de": "resto = [l for i, l in enumerate(linhas) if i not in saem]",
+      "para": "resto = [l for i, l in enumerate(linhas) if True]",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_arquiva_as_fechadas_e_o_brief_fica_abaixo_do_teto"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: a seção nova fica logo depois do ## Etapas",
+      "arquivo": "bin/forge-check",
+      "de": "if i == len(resto) or resto[i].startswith(\"#\"))",
+      "para": "if i == len(resto))",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_arquiva_as_fechadas_e_o_brief_fica_abaixo_do_teto"
+      ]
+    }
+  ]
+}

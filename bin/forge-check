@@ -8088,7 +8088,8 @@ def arquivar_etapas_fechadas(raiz, caminho):
                 a.write(f"# Arquivo do pedido {caminho.stem}\n\nEtapas fechadas que o `brief gerar` tirou de docs/pedidos/{caminho.name} "
                         "(PEDIDO-ARQUIVA-SOZINHO); o `## Histórico` fica no pedido.\n\n## Etapas\n")
             a.write("".join(linhas[i] + "\n" for i in movidas))
-        resto = [l for i, l in enumerate(linhas) if i not in set(movidas)]
+        saem = set(movidas)
+        resto = [l for i, l in enumerate(linhas) if i not in saem]
         novas = [f"- {', '.join(ids[i:i + IDS_POR_LINHA_DO_FORA])}" for i in range(0, len(ids), IDS_POR_LINHA_DO_FORA)]
         onde = fim_da_secao(resto, ETAPAS_ARQUIVADAS)
         if onde is None:

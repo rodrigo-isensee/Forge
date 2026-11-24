@@ -145,6 +145,8 @@ class ArquivaSozinho(ComRepositorio):
         dados = fcs.ler_pedido_brief(texto)
         self.assertEqual(list(dados["etapas"]), ["E20.1", "E20.2"])
         self.assertEqual(len(dados["arquivadas"]), fechadas)
+        self.assertLess(texto.index("\n## Etapas\n"), texto.index("\n## Etapas arquivadas\n"))
+        self.assertLess(texto.index("\n## Etapas arquivadas\n"), texto.index("\n## Decisões"))
         self.assertIn("- E1.1 (node-backend): etapa 1 do item 1\n", self.arquivo())
         self.assertEqual(self.arquivo().count("\n- E"), fechadas)
         # o que a entrega conferida, o selo e o `pr` leem não mudou
@@ -204,6 +206,14 @@ class ArquivaSozinho(ComRepositorio):
         self.assertEqual(fcs.arquivar_etapas_fechadas(self.proj, self.caminho())[0], 0)
         self.assertEqual(self.pedido(), texto)
         self.assertFalse((self.proj / "docs" / "pedidos" / "arquivo").exists())
+
+    def test_so_o_bloco_de_etapas_muda(self):
+        nota = "- E1.3 (tech-lead): suposição que cita a etapa com a forma de etapa\n"
+        texto = pedido_que_cresce(self.fechamentos()[0]).replace("## Decisões do usuário", f"## Suposições\n{nota}\n## Decisões do usuário")
+        self.gravar("docs/pedidos/exemplo.md", texto)
+        self.assertEqual(fcs.arquivar_etapas_fechadas(self.proj, self.caminho())[0], (ITENS - 1) * POR_ITEM)
+        self.assertIn(f"## Suposições\n{nota}", self.pedido())
+        self.assertEqual(self.arquivo().count("- E1.3 ("), 1)
 
     def test_cabecalho_de_outro_nivel_nao_arquiva(self):
         texto = pedido_que_cresce(self.fechamentos()[0]).replace("## Etapas\n", "### Etapas\n")
