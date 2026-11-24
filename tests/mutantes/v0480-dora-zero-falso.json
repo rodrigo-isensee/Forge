@@ -1,0 +1,54 @@
+{
+  "pedido": "v0480-dora-zero-falso",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "arquivo do quadro que nao se le devolve boas None",
+      "arquivo": "bin/forge_dora.py",
+      "de": "if texto is None:",
+      "para": "if texto is not None:",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_quadro_ausente_ou_ilegivel_sai_nao_medido_e_nao_zero"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "vazao sem historico sai nao-medido",
+      "arquivo": "bin/forge_dora.py",
+      "de": "    if boas is None:\n        return nao_medido(arq), recusadas",
+      "para": "    if boas is not None:\n        return nao_medido(arq), recusadas",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_quadro_ausente_ou_ilegivel_sai_nao_medido_e_nao_zero"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "falhas sem escapes devolve None",
+      "arquivo": "bin/forge_dora.py",
+      "de": "    if boas is None:\n        return None, None, None, recusadas",
+      "para": "    if boas is not None:\n        return None, None, None, recusadas",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_quadro_ausente_ou_ilegivel_sai_nao_medido_e_nao_zero"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "taxa e recuperacao nao-medido sem escapes",
+      "arquivo": "bin/forge_dora.py",
+      "de": "    if com_falha is None:",
+      "para": "    if com_falha is not None:",
+      "testes": [
+        "tests.test_forge_dora.Metricas.test_quadro_ausente_ou_ilegivel_sai_nao_medido_e_nao_zero",
+        "tests.test_forge_dora.Metricas.test_quadro_vazio_existente_segue_zero"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge_dora.py",
+      "trecho": "ler_texto(arq) or \"\"",
+      "motivo": "a condição saiu com o comportamento que ela dava (ausente vale vazio); a guarda nova é a M1, texto is None"
+    }
+  ]
+}
