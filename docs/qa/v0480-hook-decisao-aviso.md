@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-hook-decisao-aviso
-commit: 2ecd153cf6433fab911a286b4fb5bf19ede4cde6
+commit: f2db561b4e2220f4ae8411f1f4432e3a35b813f0
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -32,3 +32,10 @@ Obrigação: o hook `decisao` no Stop do Jarvis avisa o usuário (`systemMessage
 
 ## Cenários e resultado real
 Local: `test_hook_decisao.py` 11 testes OK. Vermelho (`forge-testes --vermelho 5f1c6e97 --modulos test_hook_decisao`): `vermelho: base=5f1c6e977230 head=2ecd153cf643`, 11 de 11 provam por asserção (H=ok, B=falha). Mutantes (`bin/forge-mutante tests/mutantes/v0480-hook-decisao-aviso.json`): M1 a M6 mortos; M6 morre por erro do teste declarado, que passa sem o mutante (vale como morte). `--cobertura --base 5f1c6e97`: as 6 condições Python mudadas têm mutante; `hooks.json` sai "não coberto" (JSON), guardado pelo teste de ligação. Documentação (`docs/hooks.md`, índice, changelog) conferida no diff. A suíte inteira fica para o check-run `bateria` do CI do PR.
+
+## Revalidação por delta (head f2db561b, E172.29)
+Delta `2ecd153c..f2db561b` (`forge-check parecer delta`): `bin/forge-testes`, `docs/hooks-fixtures.md`, 4 fixtures de `tests/hooks/decisao/`, `tests/pesos-d4.json`, `tests/test_hooks.py`. Fecha o que a review e a segurança reprovaram (A1 a A4): decisao na lista do Stop com checagem estática de `additionalContext`/`decision`, fixtures (aviso, silêncio, sem-forge-versao, erro-interno), peso do módulo e mapa de testes tocados. Os critérios do parecer anterior seguem passando; nenhum CA novo.
+- `test_hook_decisao` (`-I`, discover): 11 testes OK. `test_hooks_json`, `test_cada_hook_tem_caso_que_passa_e_que_bloqueia`, `PesosDaSuite.test_pr_nao_aumenta_os_modulos_sem_peso`, `MapaCobreOQueOsTestesLeem`: 9 OK; `test_hooks -k decisao`: OK.
+- Mutantes no delta (`--base 2ecd153c`): M1 a M6 mortos; M6 morre por erro do teste declarado (vale como morte).
+- CI do head f2db561b (run 45436685276): suítes 3.12 e 3.14 (todas as partes), catraca, passos, longas, instalação e teto de pulados verdes; `bateria` e `bateria (pareceres)` vermelhas, esperado enquanto os pareceres do head não estão commitados.
+- Observação: `tests/pesos-d4.json` também reordenou `test_fechar_limpar_clone` (valor igual), sem efeito no teste.
