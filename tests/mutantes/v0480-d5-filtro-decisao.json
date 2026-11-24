@@ -1,0 +1,78 @@
+{
+  "pedido": "v0480-d5-filtro-decisao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D5M1",
+      "guarda": "D5: a confirmação só vale em docs/security/<nome>.md",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if not (isinstance(caminho, str) and CONFIRMACAO.fullmatch(caminho)):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_dono.SoApertaComSeguranca.test_confirmacao_fora_de_docs_security_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M2",
+      "guarda": "D5: a confirmação por link simbólico (arquivo ou pasta) não vale",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if any(p.is_symlink() for p in (arq, arq.parent, arq.parent.parent)) or not arq.is_file():",
+      "para": "if not arq.is_file():",
+      "testes": [
+        "tests.test_forge_dono.SoApertaComSeguranca.test_confirmacao_ausente_ou_link_vira_pergunta",
+        "tests.test_forge_dono.SoApertaComSeguranca.test_pasta_da_seguranca_por_link_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M3",
+      "guarda": "D5: a confirmação acima de 1 MiB não vale",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if arq.stat().st_size > TETO_DA_CONFIRMACAO:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_dono.SoApertaComSeguranca.test_confirmacao_grande_demais_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M4",
+      "guarda": "D5: a confirmação pede a frase só aperta escrita",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "return bool(SO_APERTA.search(arq.read_text(encoding=\"utf-8\", errors=\"replace\")))",
+      "para": "return True",
+      "testes": [
+        "tests.test_forge_dono.SoApertaComSeguranca.test_confirmacao_sem_a_frase_ou_negada_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M5",
+      "guarda": "D5: não só aperta não é confirmação",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "SO_APERTA = re.compile(r\"(?<!não )(?<!nao )\\bs[oó] aperta\\b\", re.I)",
+      "para": "SO_APERTA = re.compile(r\"\\bs[oó] aperta\\b\", re.I)",
+      "testes": [
+        "tests.test_forge_dono.SoApertaComSeguranca.test_confirmacao_sem_a_frase_ou_negada_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M6",
+      "guarda": "D5: o decisor só decide com só aperta e a confirmação da segurança",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "(\"so_aperta\", so_aperta), (\"seguranca\", seguranca)):",
+      "para": "):",
+      "testes": [
+        "tests.test_forge_dono.SoApertaComSeguranca.test_nao_so_aperta_vira_pergunta",
+        "tests.test_forge_dono.SoApertaComSeguranca.test_confirmacao_fora_de_docs_security_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M7",
+      "guarda": "D5: --so-aperta sim|nao é fato obrigatório do registrar",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "\"erro_barato\", \"so_aperta\")}",
+      "para": "\"erro_barato\")}",
+      "testes": [
+        "tests.test_forge_dono.SoApertaComSeguranca.test_sem_so_aperta_nao_grava"
+      ]
+    }
+  ]
+}

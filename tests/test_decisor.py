@@ -14,7 +14,8 @@ from ambiente_git import sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = str(RAIZ / "bin" / "forge-check")
-FATOS_OK = {"irreversivel": "nao", "dinheiro": "nao", "escopo": "nao", "alternativas-piores": "sim", "reversivel": "sim", "erro-barato": "sim"}
+FATOS_OK = {"irreversivel": "nao", "dinheiro": "nao", "escopo": "nao", "alternativas-piores": "sim", "reversivel": "sim", "erro-barato": "sim",
+            "so-aperta": "sim", "seguranca": "docs/security/confirma.md"}  # D5: só aperta, com a confirmação escrita da segurança
 TEXTO = {"pedido": "p1", "porta": "nome do arquivo de teste", "criterio": "R-PROVA", "fato": "a convenção test_<modulo> já vale",
          "porque": "segue a convenção", "como-mudar": "renomear o arquivo", "custo-reverter": "um commit"}
 
@@ -23,6 +24,8 @@ class Decisor(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="forge-decisor-"))
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        (self.tmp / "docs" / "security").mkdir(parents=True)
+        (self.tmp / "docs" / "security" / "confirma.md").write_text("parecer: aprovado\nsó aperta\n", encoding="utf-8")
 
     def rodar(self, *args):
         r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(self.tmp), *args], capture_output=True, text=True,
@@ -73,7 +76,7 @@ class Decisor(unittest.TestCase):
         finally:
             sys.path.pop(0)
         fatos = {"irreversivel": False, "dinheiro": False, "escopo": False, "criterio": "R-PROVA", "alternativas_piores": True,
-                 "reversivel": True, "erro_barato": True}
+                 "reversivel": True, "erro_barato": True, "so_aperta": True, "seguranca": True}
         self.assertEqual(forge_decisor.decidir(**fatos), ("decidida", None))
         for extra in ("objetivo", "conversa"):
             with self.assertRaises(TypeError):

@@ -3,9 +3,11 @@
 Importado pelo `bin/forge-check` só quando um destes roda:
 - `decisoes registrar --pedido P --porta "<o quê>" --criterio <R-X|docs/...|ADR n> --fato "<fato>" --porque ... --como-mudar ...
   --custo-reverter ... --irreversivel sim|nao --dinheiro sim|nao --escopo sim|nao --alternativas-piores sim|nao
-  --reversivel sim|nao --erro-barato sim|nao`: o decisor lê SÓ os fatos (nunca o objetivo nem a conversa). Porta fechada
-  (irreversível, dinheiro, escopo/produto) ou condição que falta (critério escrito, alternativas piores, reversível, erro barato
-  e detectável) vira pergunta ao dono (rc 1); as quatro de pé, decidida (rc 0) e a linha `decidido:` sai pronta para o commit.
+  --reversivel sim|nao --erro-barato sim|nao --so-aperta sim|nao --seguranca docs/security/<parecer>.md`: o decisor lê SÓ os
+  fatos (nunca o objetivo nem a conversa). Porta fechada (irreversível, dinheiro, escopo/produto) ou condição que falta (critério
+  escrito, alternativas piores, reversível, erro barato e detectável; D5 da v0480: só aperta e a confirmação escrita `só aperta`
+  no parecer da segurança, regra do dono de 24/11) vira pergunta ao dono (rc 1); todas de pé, decidida (rc 0) e a linha
+  `decidido:` sai pronta para o commit.
   Tudo se grava em docs/kanban/decisoes-obvias.jsonl (o quê, porquê, como mudar, custo de reverter).
 - `decisoes reverter --id N --porque ...`: a decisão N foi desfeita; conta no placar.
 - `decisoes conferir --mensagem ARQ`: a mensagem de commit com linha `decidido:` fora da forma `<porta> — <critério> — <fato>`
@@ -25,9 +27,12 @@ SEP = " — "
 LINHA_DECIDIDO = re.compile(r"^\s*(?:- )?decidido:")
 FORMA_DECIDIDO = re.compile(r"^\s*(?:- )?decidido: (\S.{0,200}?) — (" + CRITERIO_ESCRITO.pattern + r") — (\S.{0,300})$")
 TETO_DO_CAMPO = 300
+CONFIRMACAO = re.compile(r"docs/security/[\w.-]{1,120}\.md")  # D5: o parecer da segurança, sem subpasta
+SO_APERTA = re.compile(r"(?<!não )(?<!nao )\bs[oó] aperta\b", re.I)
+TETO_DA_CONFIRMACAO = 1 << 20
 
 
-def decidir(*, irreversivel, dinheiro, escopo, criterio, alternativas_piores, reversivel, erro_barato):
+def decidir(*, irreversivel, dinheiro, escopo, criterio, alternativas_piores, reversivel, erro_barato, so_aperta, seguranca):
     """O decisor: só os fatos, por nome (não há parâmetro para objetivo nem conversa; um a mais é TypeError).
     Devolve ("decidida", None) ou ("pergunta", motivo)."""
     for nome, valor in (("irreversivel", irreversivel), ("dinheiro", dinheiro), ("escopo", escopo)):
@@ -35,10 +40,24 @@ def decidir(*, irreversivel, dinheiro, escopo, criterio, alternativas_piores, re
             return "pergunta", f"porta fechada: {nome}"
     if not (isinstance(criterio, str) and CRITERIO_ESCRITO.fullmatch(criterio.strip())):
         return "pergunta", "falta critério escrito (R-*, ADR n ou docs/...)"
-    for nome, valor in (("alternativas_piores", alternativas_piores), ("reversivel", reversivel), ("erro_barato", erro_barato)):
+    for nome, valor in (("alternativas_piores", alternativas_piores), ("reversivel", reversivel), ("erro_barato", erro_barato),
+                        ("so_aperta", so_aperta), ("seguranca", seguranca)):
         if valor is not True:
             return "pergunta", f"condição não atendida: {nome}"
     return "decidida", None
+
+
+def confirmacao_escrita(raiz, caminho):
+    """D5: True só se `caminho` é `docs/security/<nome>.md` na raiz, arquivo regular (ele, a pasta e a docs/ fora de link
+    simbólico), até 1 MiB, com a frase `só aperta` (ou `so aperta`) que não vem depois de `não`."""
+    if not (isinstance(caminho, str) and CONFIRMACAO.fullmatch(caminho)):
+        return False
+    arq = Path(raiz) / caminho
+    if any(p.is_symlink() for p in (arq, arq.parent, arq.parent.parent)) or not arq.is_file():
+        return False
+    if arq.stat().st_size > TETO_DA_CONFIRMACAO:
+        return False
+    return bool(SO_APERTA.search(arq.read_text(encoding="utf-8", errors="replace")))
 
 
 def linha_decidido(porta, criterio, fato):
@@ -118,17 +137,18 @@ def executar(a, raiz):
         print(f"decisoes: revertida {a.id}")
         return 0
     faltam = [n for n in ("pedido", "porta", "criterio", "fato", "porque", "como_mudar", "custo_reverter") if not _campo(getattr(a, n))]
-    fatos = {n: _sim_nao(getattr(a, n)) for n in PORTAS_FECHADAS + ("alternativas_piores", "reversivel", "erro_barato")}
+    fatos = {n: _sim_nao(getattr(a, n)) for n in PORTAS_FECHADAS + ("alternativas_piores", "reversivel", "erro_barato", "so_aperta")}
     faltam += [n for n, v in fatos.items() if v is None]
     if faltam:
         print("decisoes: registrar: falta ou inválido (sim|nao): " + ", ".join("--" + n.replace("_", "-") for n in faltam))
         return 2
-    resultado, motivo = decidir(criterio=_campo(a.criterio), **fatos)
+    seguranca = str(getattr(a, "seguranca", "") or "").strip()
+    resultado, motivo = decidir(criterio=_campo(a.criterio), seguranca=confirmacao_escrita(raiz, seguranca), **fatos)
     regs = ler_registro(raiz)
     ident = f"D{len(regs) + 1:04d}"
     _acrescentar(raiz, {"id": ident, "hora": agora, "pedido": _campo(a.pedido), "resultado": resultado, "motivo": motivo,
                         "o_que": _campo(a.porta), "criterio": _campo(a.criterio), "fato": _campo(a.fato), "porque": _campo(a.porque),
-                        "como_mudar": _campo(a.como_mudar), "custo_reverter": _campo(a.custo_reverter)})
+                        "como_mudar": _campo(a.como_mudar), "custo_reverter": _campo(a.custo_reverter), "seguranca": _campo(seguranca)})
     if resultado == "decidida":
         print(f"decisoes: decidida {ident}")
         print(linha_decidido(_campo(a.porta), _campo(a.criterio), _campo(a.fato)))

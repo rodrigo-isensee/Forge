@@ -1,0 +1,2 @@
+### Alterado
+- Filtro de decisão (D5, E173.3): `forge-check anotar --tipo pergunta` exige `--tipo-pergunta` (contradicao, duas-leituras, vale-o-achado, nenhuma-serve, afrouxa-regra, main ou custo), grava `tipo=<t>` na linha e recusa a pergunta sem opções `1a)` ou com uma opção só numa questão; `forge-check decisoes registrar` pede `--so-aperta sim|nao` e só decide com `--seguranca docs/security/<parecer>.md` que diga `só aperta` por escrito (regra do dono de 24/11). Só aperta.

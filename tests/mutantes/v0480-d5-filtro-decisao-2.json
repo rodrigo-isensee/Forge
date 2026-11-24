@@ -1,0 +1,77 @@
+{
+  "pedido": "v0480-d5-filtro-decisao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D5M8",
+      "guarda": "D5: a pergunta ao dono declara um tipo da lista",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if tipo not in TIPOS_DA_PERGUNTA:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_dono.FiltroDaPergunta.test_sem_tipo_ou_tipo_fora_da_lista_e_recusada"
+      ]
+    },
+    {
+      "id": "D5M9",
+      "guarda": "D5: a pergunta sem opções 1a) 1b) é recusada",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if not questoes:\n        return \"a pergunta não tem opções",
+      "para": "if False:\n        return \"a pergunta não tem opções",
+      "testes": [
+        "tests.test_forge_dono.FiltroDaPergunta.test_pergunta_sem_opcoes_e_recusada"
+      ]
+    },
+    {
+      "id": "D5M10",
+      "guarda": "D5: a questão com uma opção só é recusada",
+      "arquivo": "bin/forge_dono.py",
+      "de": "if unicas:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_dono.FiltroDaPergunta.test_questao_com_uma_opcao_so_e_recusada"
+      ]
+    },
+    {
+      "id": "D5M11",
+      "guarda": "D5: --tipo-pergunta só vale com --tipo pergunta",
+      "arquivo": "bin/forge-check",
+      "de": "if tipo != \"pergunta\" and tipo_pergunta is not None:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_dono.FiltroDaPergunta.test_tipo_pergunta_fora_da_pergunta_e_recusado"
+      ]
+    },
+    {
+      "id": "D5M12",
+      "guarda": "D5: o anotar aplica o filtro da pergunta",
+      "arquivo": "bin/forge-check",
+      "de": "recusa = dono.recusa_da_pergunta(tipo_pergunta, literal)",
+      "para": "recusa = None",
+      "testes": [
+        "tests.test_forge_dono.FiltroDaPergunta.test_sem_tipo_ou_tipo_fora_da_lista_e_recusada",
+        "tests.test_forge_dono.FiltroDaPergunta.test_cli_sem_tipo_pergunta_nao_grava"
+      ]
+    },
+    {
+      "id": "D5M13",
+      "guarda": "D5: a recusa do filtro não é trocada pela da E6",
+      "arquivo": "bin/forge-check",
+      "de": "if tipo == \"pergunta\" and not recusa and (motivos",
+      "para": "if tipo == \"pergunta\" and (motivos",
+      "testes": [
+        "tests.test_forge_dono.FiltroDaPergunta.test_o_corte_sem_origem_segue_recusado_com_o_tipo"
+      ]
+    },
+    {
+      "id": "D5M14",
+      "guarda": "D5: a linha da pergunta grava o tipo",
+      "arquivo": "bin/forge-check",
+      "de": "if tipo == \"pergunta\":\n            contexto = f\"tipo=",
+      "para": "if False:\n            contexto = f\"tipo=",
+      "testes": [
+        "tests.test_forge_dono.FiltroDaPergunta.test_cada_tipo_da_lista_grava_o_tipo_antes_do_contexto"
+      ]
+    }
+  ]
+}
