@@ -45,7 +45,7 @@ Volta E140.12: leituras em lote em `parecer_anterior`, saída antecipada em `for
 - `python3 -m unittest tests.test_parecer_fora_do_delta`: 29 testes, OK. `forge-testes --listar` pede a suíte completa, porque o arquivo de teste não está no mapa.
 - `bin/forge-mutante --cobertura --base 701f5bfd`: rc=0. Toda guarda mudada (4127 a 4200) tem mutante declarado.
 - `bin/forge-mutante tests/mutantes/v0480-g1-2-delta-4.json --processos 1`: FD23 a FD29 mortos (o FD29 por erro do teste).
-- `v0480-g1-2-delta-3.json`: FD17 a FD22, FL1 e FL2 mortos.
+- `v0480-g1-2-delta-3.json`: FD17 a FD22 e os dois mutantes da família FL mortos.
 - `v0480-g1-2-delta-2.json`: **FD10 sobreviveu** (A2). O FD16 foi morto.
 - CI do #812 no head 55a57bde: as 5 partes da suíte, `catraca`, `instalação`, `passos` e `verificações longas` passaram. `bateria (pareceres)` falha porque os pareceres estão presos ao head anterior, como se espera numa volta.
 
