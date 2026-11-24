@@ -923,8 +923,10 @@ class SoApertaComSeguranca(unittest.TestCase):  # D5 (v0480, E173.3): o decisor 
         self.assertFalse((self.tmp / "docs" / "kanban").exists())
 
     def test_confirmacao_fora_de_docs_security_vira_pergunta(self):
-        (self.tmp / "docs" / "outro.md").write_text("só aperta\n", encoding="utf-8")
-        for caminho in ("", "docs/outro.md", "docs/security/../outro.md", "/x/docs/security/ok.md", "docs/security/ok.txt"):
+        valido = parecer_da_seguranca("Só aperta: nome\n", pedido="p")  # o mesmo parecer válido, fora do lugar: só o caminho reprova
+        commitar(self.tmp, {"docs/outro.md": valido, "docs/security/ok.txt": valido, "docs/security/sub/ok.md": valido})
+        for caminho in ("", "docs/outro.md", "docs/security/../outro.md", "/x/docs/security/ok.md", "docs/security/ok.txt",
+                        "docs/security/sub/ok.md"):
             with self.subTest(caminho=caminho):
                 self.pergunta("condição não atendida: seguranca", seguranca=caminho)
 
