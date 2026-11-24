@@ -1,0 +1,16 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M63",
+      "guarda": "E90.10 (A6): o motivo da pendência do pedido não herda o \"nenhum\"",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": " if m != \"nenhum\"] + [\"pedido inexistente ou fechado\"]",
+      "para": " if True] + [\"pedido inexistente ou fechado\"]",
+      "testes": [
+        "tests.test_autorizacao_gravar.VoltaDosPortoes.test_fim_deste_pedido_so_com_o_pedido_aberto"
+      ]
+    }
+  ]
+}
