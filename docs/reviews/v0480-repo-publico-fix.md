@@ -3,39 +3,32 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-repo-publico-fix
-commit: 1265fa11ec5e75d16df8402d32664fd2d683538e
-parecer: reprovado
+commit: 708c4bb09a6c74716b6897d37a2319575ae591b3
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-23
 ---
-# Review: v0480-repo-publico-fix (CONFORMIDADE-REPO-CREATE-PUBLICO, v0478 E141.8)
+# Review: v0480-repo-publico-fix (CONFORMIDADE-REPO-CREATE-PUBLICO, v0478 E141.12)
 
-Revalidação por delta do PR #829 no head `1265fa11` (volta E141.7), contra o parecer anterior no head `2806ca57`. Delta lido: `forge-check parecer delta docs/reviews/v0480-repo-publico-fix.md` (revalida: sim, o parecer anterior barrou) e `git diff 2806ca57 1265fa11`: `hooks/conformidade.py` +94 −18, 34 fixtures `trava-*`, mutantes em seis arquivos, `tests/test_hooks.py` (mínimo de 22 para 57) e índice de fixtures.
+Revalidação por delta do PR #829 no head `708c4bb0` (2ª volta, E141.11), contra o parecer reprovado no head `1265fa11`. Delta lido: `forge-check parecer delta docs/reviews/v0480-repo-publico-fix.md` (revalida: sim, este parecer barrou) e `git diff 1265fa11 708c4bb0`: `hooks/conformidade.py` +10 −3, oito fixtures `trava-graphql-*`, mutantes em `-4.json`, `-6.json` e `-7.json` novo (RP49 a RP51), mínimo do teste de 57 para 65.
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:345 · o GRAPHQL_SEM_TEXTO não lê a query como o lexer do GraphQL: no bloco `"""`, `\` só escapa `\"""` (o regex fecha em `\\"""`), e o comentário acaba em CR. Com isso, um `visibility:PUBLIC` escondido e um PRIVATE de isca saem 0; no head 2806ca57 saíam 2 (S1, S2). Regressão do delta.
-- A2 (recomendado) hooks/conformidade.py:3496 · o `<var>[visibility]` vale de qualquer campo, também de variável que a query não declara (`-f z[visibility]=PRIVATE`, isca de S2). Contar só a variável usada no `input` da mutação.
+- A1 (recomendado) hooks/conformidade.py:348 · o CR está nas duas guardas (classe de controle, linha 348, e fim do comentário, linha 347), e cada uma sozinha cobre a outra: o mutante de cada linha sobrevive e só o par morre. Declarar um mutante que tire o CR das duas, para a mutação provar o par.
 
 ## Sondas
-- S1 · `gh api graphql -F query=@q1.graphql`, q1 = `mutation{createRepository(input:{name:"x", description:"""z\\""" visibility:PRIVATE """, visibility:PUBLIC # """` + LF + `}){repository{id}}}` · espera: saída 2, cria público · obtido: saída 0 (no 2806ca57: 2)
-- S2 · `gh api graphql -F query=@q2.graphql -f z[visibility]=PRIVATE`, q2 = `mutation{createRepository(input:{name:"x" #c` + CR + `visibility:PUBLIC` + LF + `}){repository{id}}}` · espera: saída 2 · obtido: saída 0 (no 2806ca57: 2)
+- S1 · `gh api graphql -F query=@q.graphql`, q = `mutation{createRepository(input:{name:"x", description:"""z\\""" visibility:PRIVATE """, visibility:PUBLIC # """` + LF + `}){repository{id}}}` · espera: saída 2 · obtido: saída 2 (no 1265fa11: 0)
+- S2 · `gh api graphql -F query=@q.graphql -f z[visibility]=PRIVATE`, q = `mutation{createRepository(input:{name:"x" #c` + CR + `visibility:PUBLIC` + LF + `}){repository{id}}}` · espera: saída 2 · obtido: saída 2 (no 1265fa11: 0)
+- S3 · mutante só da linha 347 (`#[^\n]*`) e só da 348 (sem `\x0d`) · espera: um deles morre · obtido: os dois sobrevivem ao `test_fixtures_do_repo_publico`; com os dois juntos, `trava-graphql-comentario-cr-bloqueia` falha (o par morre)
 
 ## Parecer
-**Reprovado.** Os três bloqueantes do parecer anterior estão fechados no delta, mas a leitura nova do GraphQL abriu uma forma de criar repositório público que o head anterior barrava (A1).
+**Aprovado.** Os dois achados do parecer anterior estão fechados no delta; nenhum bloqueante novo.
 
-**Bloqueantes anteriores, contra o delta (sondas S1 a S7 do parecer de 2806ca57 rerrodadas no 1265fa11, mesma montagem das fixtures, `forge:node-backend`):**
-- **A1 anterior (`gh repo new`):** fechado. `REPO_CRIAR = {"create", "new"}` em `gh_trava`; `gh repo new novo --public --source . --push` e `gh repo new novo --public` saem 2; `gh repo new novo --private --source . --push` sai 0. Fixtures `trava-repo-new-*` nos três lados.
-- **A2 anterior (opção colada):** fechado. `CAMPO_COLADO` lê `-Fk=v`, `-F=k=v` e `--field=k=v`; `-Fprivate=false`, `-fvisibility=public`, `--field=private=false`, `-F=private=false`, `--raw-field private=false` e `-XPATCH ... -F visibility=public` saem 2; `-fname=x -Fprivate=true` na criação, o falso positivo anterior, agora sai 0. O valor de outra opção (`-H 'X: -Fprivate=false'`) não vira campo, como deve.
-- **A3 anterior (texto em vez de campo):** fechado no REST. `privado_rest` decide pela chave: `description=private: true`, o mesmo no `--input` e `homepage=...?private=true` saem 2; `private=true` com `private=false` repetido, `Private=true`, `private=1`, `private[x]=false`, chave repetida no JSON, corpo em lista ou inválido saem 2 (falha fechada). Com `--input`, o campo `-F private=true` vai à query e não ao corpo, e o hook o recusa: certo.
+**A1 anterior (léxico do GraphQL):** fechado. O bloco `"""` agora só aceita `\"""` como escape (BlockStringCharacter da especificação), o comentário fecha no LF ou no CR, e CR, BOM e os demais controles (fora TAB e LF) na query falham fechado antes da leitura (`GRAPHQL_CONTROLE`, linha 3497). S1 e S2 rerrodadas em cópia do head (`git archive`, mesma montagem das fixtures, `forge:node-backend`): as duas saem 2. Extras na mesma rodada: `"""a""""` (quatro aspas fecham no primeiro trio, como o lexer) com `visibility:PUBLIC` depois sai 2; `"""a \""" b"""` com `visibility:PRIVATE` sai 0, sem falso positivo.
 
-**Novo bloqueante (A1):** `graphql_publica` troca a busca no texto cru (`GRAPHQL_NAO_PRIVADA`, que barrava S1 e S2) por um léxico próprio que diverge da especificação do GraphQL em dois pontos: no bloco `"""`, a barra só é escape antes de `"""` (então `z\\"""` não fecha a string; o regex fecha), e LineTerminator inclui CR (o `#[^\n]*` engole a linha seguinte). Em S1, o hook vê só `visibility:PRIVATE` (dentro da descrição, para o servidor) e não vê `visibility:PUBLIC`; em S2, não vê o PUBLIC e aceita a isca do A2. Sugestão sem lexer novo: decidir o público no texto da query com strings e comentários (como o head anterior, falso positivo tolerável na descrição com `visibility:`) e usar o texto limpo só para exigir o PRIVATE na criação; ou falhar fechado quando a query de mutação do repositório tem `"""`, CR ou `#`. Fixture de cada forma, com mutante na linha. Não testei contra o servidor (seria criar público, `R-CONFORMIDADE`); a prova é a especificação do GraphQL (BlockStringCharacter e LineTerminator) e a saída do hook.
+**A2 anterior (variável não declarada):** fechado. `usados` só conta o `<var>[visibility]` cuja variável aparece na consulta (linha 3502), e todo `[visibility]` público continua barrando (`publica` lê `da_var` inteiro). `createRepository(input:$z)` com `-f z[visibility]=PRIVATE` sai 0. Limite visto, sem dano: variável usada fora do `input` (`viewer(f:$z)`) e `createRepository` sem `visibility` sai 0; o `visibility` do `CreateRepositoryInput` é obrigatório no servidor, então a mutação falha lá sem criar repositório. Não vira achado.
 
-**A4 anterior (`gh repo create --help`):** concordo que fique fora. Hoje falha fechado (falso positivo sem dano); liberar `--help` pela presença da palavra deixaria `gh repo create x --public -- --help` e afins na mão do parser do gh, o que afrouxa a guarda. Segue recomendado, sem cartão novo.
+**Mutantes do CR (pergunta do brief):** concordo em parte. As duas guardas se cobrem de fato (S3): CR barrado na 348 nunca chega ao regex da 347, e sem a 348 a 347 lê o comentário certo. Por isso um mutante por linha seria equivalente, e a falta deles não bloqueia. Mas a catraca não prova o par hoje: um mutante que tire o CR das duas mataria `trava-graphql-comentario-cr-bloqueia` (A1, recomendado). RP49 (bloco), RP50 (variável da consulta), RP51 (criar sem visibilidade lida) e RP30 refeito cobrem as outras linhas mudadas; não rerrodei a mutação do autor.
 
-**Falsos positivos (o foco anterior), no head:** saem 0 `gh repo create novo --private`, `gh api -X POST /user/repos -f name=x -F private=true`, `visibility=internal`, `--input` com `"private":true`, PATCH só de descrição (direto, `@arq` e `--input`), `GET user/repos -f visibility=public`, GraphQL de leitura, `updateRepository` só de descrição e `createRepository` com `visibility:PRIVATE` literal. Novo falso positivo aceito: GraphQL com `visibility:$v` e `-f v=PRIVATE` sai 2 (variável fora de `<var>[visibility]` falha fechado, coerente com o limite do item). `API_SEGMENTO_ESTRANHO` (A6 da segurança) barra `user//repos` no endpoint de repositório e não alcança `repos/o/r/issues//`, que sai 0.
+**Teto H1:** `hooks/conformidade.py` soma 127 linhas de código no item contra a base `216413c9` (`git diff --numstat`), dentro de 150; o resto são fixtures, mutantes e teste.
 
-**Teto H1:** `hooks/conformidade.py` soma +94 −18 no delta e 120 linhas de código no item contra a base `216413c9` (`git diff --numstat`), dentro de 150; o resto são fixtures, mutantes e teste.
-
-**Ferramentas (citadas, não refeitas):** a mutação é do autor (46 mutantes declarados em seis arquivos, um por guarda mudada, segundo o commit `1265fa11`); não rerrodei. Teste do item `tests.test_hooks.Hooks.test_fixtures_do_repo_publico`: OK (1 teste, 57 fixtures, os dois lados). CI do PR #829 no head: `instalação`, `bateria (passos)` e `bateria (verificações longas)` verdes; suíte 3.12 e 3.14 pendentes; `bateria (pareceres)` e `catraca` vermelhos à espera dos pareceres. Suíte inteira não rodada (fica no CI).
-
-**Na volta:** A1 com fixtures `trava-graphql-*` das duas formas (S1 e S2) e mutante declarado na linha mudada; revalido pelo delta do parecer.
+**Ferramentas (citadas, não refeitas):** teste do item `tests.test_hooks.Hooks.test_fixtures_do_repo_publico` rodado no head com ambiente limpo: as 65 fixtures do item passam. CI do PR #829 no head `708c4bb0`: `bateria (passos)`, `instalação (python 3.14)` e `árvore já provada na develop` verdes; suíte 3.12 e 3.14 e `bateria (verificações longas)` pendentes; `bateria (pareceres)` e `catraca` vermelhos à espera dos pareceres. Suíte inteira não rodada (fica no CI). O merge segue o CI verde e os pareceres de QA e segurança no mesmo head.
