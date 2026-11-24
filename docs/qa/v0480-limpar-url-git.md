@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-limpar-url-git
-commit: da8e0173362e50b465f2d8485def99f19ccb2f5b
+commit: 2186affb75a57c4f74d07e10e0affac332f25be0
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -41,5 +41,12 @@ Mutantes (`bin/forge-mutante tests/mutantes/v0480-limpar-url-git.json`, rc 0): U
 Execução real do `--limpar`: os três testes `com_origins` rodam `forge-fechar --limpar` num clone real com `.git` na URL da cópia e sem ele no clone (e o inverso); saem `limpeza: remota=ok worktree=ok branch=ok clone=ok` e o clone é apagado.
 
 Testes dos arquivos tocados, locais: `test_fechar_limpar_clone.py` 9 testes OK; `test_forge_fechar.py` 34 testes OK. A suíte inteira fica para o check-run `bateria` do CI do PR.
+
+## Revalidação por delta (E166.8, head 2186affb)
+forge-check parecer delta: intervalo da8e0173..2186affb; no domínio só tests/mutantes/v0474-mp6-disco.json e v0474-mp6-disco-2.json (commit a5e738b1: M8 aponta o teste renomeado; M9 aponta a linha nova do origin com url_normal e o teste test_clone_de_outro_origin_fica_pendente_e_avisa).
+
+bin/forge-mutante tests/mutantes/v0474-mp6-disco.json tests/mutantes/v0474-mp6-disco-2.json: rev=2186affb75a5, M1 a M16 (sem M11) todos morreu; M8 (bin/forge-fechar:627) e M9 (bin/forge-fechar:629) mortos. Sem sobrevivente.
+
+ConferirTodas, test_fechar_limpar_clone e test_forge_fechar: 47 testes OK. A suíte inteira fica para o check-run bateria do CI.
 
 Observação sem bloqueio: com `url_aqui` vazio (leitura do origin da cópia falhou), o clone da branch agora também fica pendente com o aviso. Isso é mais seguro que o silêncio anterior e coerente com o objetivo.
