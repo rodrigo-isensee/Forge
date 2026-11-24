@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-repo-publico-fix
-commit: 2806ca57ea41a48ea3e5ecaf1bda785b3f8c8dcb
+commit: 1265fa11ec5e75d16df8402d32664fd2d683538e
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -36,3 +36,20 @@ Obrigações: A1 (`gh repo create` só com visibilidade privada explícita) e A2
 
 ## Limites
 O vermelho pela ferramenta fica sem veredito por prazo do módulo (`test_hooks` grande); a prova manual acima cobre o teste novo. Não é defeito do item.
+
+## Delta E141.10: volta 2806ca57..1265fa11
+Escopo: `repo new` como alias, REST decidido pelo nome do campo (colado, `=`, `--input`), GraphQL por `visibility` do input, endpoint com segmento vazio ou de ponto. `forge-check parecer delta` lista `hooks/conformidade.py`, `docs/hooks-fixtures.md`, o changelog e as fixtures novas; o plano (CA-n) não mudou.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| `repo new` público ou sem visibilidade bloqueia | `trava-repo-new-*` | alias de `create` | passou |
+| REST: campo decide (`-Fprivate=false`, `-fvisibility=public`, `--input`, maiúscula, `private=true` em outro campo) | `trava-api-criar-*`, `trava-api-patch-*` | campo colado, em outro campo, isca no input | passou |
+| GraphQL: visibility do input, `<var>[visibility]`; descrição com a palavra não bloqueia | `trava-graphql-*` | string, ilegível falha fechado | passou |
+| Endpoint com `//` ou `.` bloqueia | `trava-api-criar-endpoint-*` | segmento vazio e de ponto | passou |
+
+- Fixtures novas: 34 no intervalo. `python3 -m unittest tests.test_hooks.Hooks.test_fixtures_do_repo_publico` no head: OK. Vermelho: cópia do head com `hooks/conformidade.py` de 2806ca57, mesmo teste: `FAILED (failures=21)`, `AssertionError: 0 != 2`; as 21 que falham são todas do conjunto das 34 novas (o commit diz 18; a conta real é 21; as outras 13 são `libera` ou já bloqueadas na base). O teste prova.
+- Mutação. `forge-mutante --base 216413c9` com as 6 specs `v0480-repo-publico-fix{,-2..-6}.json`, `--processos 3`, rc 0: cabeçalho `base=216413c917b81b185dcc2db857e32b708a1c7515 ... rev=1265fa11ec5e`; RP1 a RP46 `morreu`, 46 de 46, nenhum sobrevivente.
+- Cobertura. `forge-mutante --cobertura --base 216413c9`, rc 0: nenhuma linha `não coberto`.
+- Orçamento de CPU do hook: `test_muitos_heredocs_recusam_dentro_do_orcamento`, `test_linha_adversaria_de_crases_e_pastas_recusa_dentro_do_orcamento`, `test_tirar_heredocs_em_tempo_linear`, `test_orcamento_sai_numa_linha_de_formato_fixo` e o das fixtures: `Ran 5 tests in 19.3s, OK`; pior caso `HEREDOC-DONOS python3 - a{i} x3000: 0.88 s de CPU (limite 3 s)`.
+- Fora do meu domínio: review (5f86c9a0) e segurança (1d160afd) reprovam o mesmo head por léxico do GraphQL (comentário); a volta é do autor. Não reabro; o QA do delta seguinte reconfere.
+- Sem suíte local; a suíte inteira é do CI do PR.
