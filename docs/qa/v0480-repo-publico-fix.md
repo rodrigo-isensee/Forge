@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-repo-publico-fix
-commit: 1265fa11ec5e75d16df8402d32664fd2d683538e
+commit: 708c4bb09a6c74716b6897d37a2319575ae591b3
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -52,4 +52,22 @@ Escopo: `repo new` como alias, REST decidido pelo nome do campo (colado, `=`, `-
 - Cobertura. `forge-mutante --cobertura --base 216413c9`, rc 0: nenhuma linha `não coberto`.
 - Orçamento de CPU do hook: `test_muitos_heredocs_recusam_dentro_do_orcamento`, `test_linha_adversaria_de_crases_e_pastas_recusa_dentro_do_orcamento`, `test_tirar_heredocs_em_tempo_linear`, `test_orcamento_sai_numa_linha_de_formato_fixo` e o das fixtures: `Ran 5 tests in 19.3s, OK`; pior caso `HEREDOC-DONOS python3 - a{i} x3000: 0.88 s de CPU (limite 3 s)`.
 - Fora do meu domínio: review (5f86c9a0) e segurança (1d160afd) reprovam o mesmo head por léxico do GraphQL (comentário); a volta é do autor. Não reabro; o QA do delta seguinte reconfere.
+- Sem suíte local; a suíte inteira é do CI do PR.
+
+## Delta E141.14: volta 1265fa11..708c4bb0
+Escopo: léxico do GraphQL pela especificação (bloco `"""`, comentário até LF ou CR), falha fechada com CR, BOM e controle, `<var>[visibility]` só vale se a consulta usa a variável. `forge-check parecer delta` lista `hooks/conformidade.py`, 8 fixtures, `tests/test_hooks.py` (mínimo do lote 57 para 65), specs de mutantes 4, 6 e 7, índice e changelog; o plano (CA-n) não mudou.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Bloco `"""` só escapa `\"""`; `private` dentro do bloco com escape não libera | `trava-graphql-bloco-escape-bloqueia`, `-private-libera` | fim de bloco por escape | passou |
+| Comentário fecha em LF ou CR; CR (também em arquivo) falha fechado | `trava-graphql-comentario-lf-bloqueia`, `-cr-bloqueia`, `-cr-arquivo-bloqueia` | `visibility` escondida depois do CR | passou |
+| BOM na consulta falha fechado | `trava-graphql-bom-bloqueia` | controle fora do léxico | passou |
+| `<var>[visibility]` com espaço ou sem uso na consulta não conta como privado | `trava-graphql-variavel-com-espaco-bloqueia`, `-variavel-nao-usada-bloqueia` | variável não referenciada | passou |
+
+- Teste no head: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures_do_repo_publico`: `Ran 1 test ... OK`.
+- Vermelho: cópia do head com `hooks/conformidade.py` de 1265fa11, mesmo teste: `FAILED (failures=5)`, `AssertionError: 0 != 2`; caem `bloco-escape-bloqueia`, `bom-bloqueia`, `comentario-cr-arquivo-bloqueia`, `comentario-cr-bloqueia`, `variavel-nao-usada-bloqueia`. As outras 3 das 8 passam também na base: `comentario-lf-bloqueia` e `variavel-com-espaco-bloqueia` (guardas de regressão do que o 1265fa11 já recusava) e `bloco-escape-private-libera` (lado libera). O teste prova; a morte dessas guardas está nos mutantes.
+- Mutação. `forge-mutante --base 1265fa11 tests/mutantes/v0480-repo-publico-fix-{4,6,7}.json --processos 3`, rc 0: cabeçalho `base=1265fa11ec5e75d16df8402d32664fd2d683538e mb=1265fa11ec5e75d16df8402d32664fd2d683538e rev=708c4bb09a6c74716b6897d37a2319575ae591b3`, `todos os mutantes entram`; 19 de 19 `morreu` (RP25 a RP32, RP41 a RP51, com RP30 e RP45 reancorados e RP47 a RP51 novos), nenhum sobrevivente.
+- Cobertura. `forge-mutante --cobertura --base 1265fa11`, rc 0, zero `não coberto`; as linhas 3497, 3502, 3504 e 3505 saem cobertas por RP47, RP50, RP30, RP31 e RP51.
+- Orçamento de CPU do hook: `Ran 13 tests in 20.0s OK` (os 4 de orçamento, o das fixtures e `test_orcamento_instrucao`); pior caso `HEREDOC-DONOS python3 - a{i} x3000: 0.88 s de CPU (limite 3 s)`. A regex nova do bloco `"""` não degrada o tempo.
+- Review e segurança do head 708c4bb0 correm em paralelo e não são reabertos aqui.
 - Sem suíte local; a suíte inteira é do CI do PR.
