@@ -985,14 +985,14 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
 def par_que_nao_sobrevive(m, sha, copia, trabalho, prazo):
     """MUTANTE-VARIAS-TROCAS: roda cada par do mutante sozinho, na mesma cópia restaurada e com os mesmos testes. O
     motivo de inválido do primeiro par que não sobrevive sozinho, ou None se todos sobrevivem."""
-    alvo, original = alvo_seguro(copia, m["arquivo"]), ler_no_commit(sha, m["arquivo"])
+    alvo, original, testes = alvo_seguro(copia, m["arquivo"]), ler_no_commit(sha, m["arquivo"]), m["testes"]
     for n, (de, para) in enumerate(trocas(m), 1):
         alvo.write_bytes(original)
         _, motivo = mutar(copia, {**m, "de": de, "para": para})
         if motivo:
             return f"o par {n} não roda sozinho: {motivo}"
-        registro = rodar(copia, m["testes"], trabalho / f"par-{m['id']}-{n}.jsonl", prazo, trabalho / f"pyc-{m['id']}-{n}")
-        classe = "sem veredito" if registro is None else veredito(m["testes"], registro, erro_mata=True)[0]
+        registro = rodar(copia, testes, trabalho / f"par-{m['id']}-{n}.jsonl", prazo, trabalho / f"pyc-{m['id']}-{n}")
+        classe = "sem veredito" if registro is None else veredito(testes, registro, erro_mata=True)[0]
         if classe != "sobreviveu":
             return f"o par {n} {'morre sozinho: vira mutante próprio' if classe == 'morreu' else 'sozinho sai ' + classe}"
     return None
