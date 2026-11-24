@@ -23,6 +23,7 @@ comando já com a tag anterior e lembra o bench da versão (`bench-versoes.md` e
 | 0.47.13 | `placar: 0.47.13 mortos=58 sobreviveu=0 equivalente=0 invalido=0 sem-veredito=0 sem-veredito-pulado=0 specs=9` |
 | 0.47.14 | `placar: 0.47.14 mortos=66 sobreviveu=0 equivalente=0 invalido=0 sem-veredito=0 sem-veredito-pulado=0 specs=9` |
 | 0.47.15 | `placar: 0.47.15 mortos=53 sobreviveu=0 equivalente=0 invalido=0 sem-veredito=0 sem-veredito-pulado=0 specs=9` |
+| 0.47.16 | `placar: 0.47.16 mortos=59 sobreviveu=0 equivalente=0 invalido=0 sem-veredito=0 sem-veredito-pulado=0 specs=9` |
 
 Nota da 0.47.0: o mutante inválido é da spec `v0457-escopo-ponto-2` (M10), cuja guarda foi movida pelo PR 536; a spec não muda nesta versão.
 
@@ -33,3 +34,5 @@ Nota da 0.47.13 (corte 178e2601): das specs novas desde a v0.47.12, 8 entraram n
 Nota da 0.47.14 (marca final com o #775, sobre ac544ac5): das specs novas desde a v0.47.13, 8 entraram na amostra (mais a spec fixa `tests/mutantes/placar.json`) e 56 ficaram fora pelo teto; nenhuma falha nem aviso.
 
 Nota da 0.47.15 (corte f4836717): das 42 specs novas desde a v0.47.14, 8 entraram na amostra (mais a spec fixa `tests/mutantes/placar.json`) e 34 ficaram fora pelo teto; nenhuma falha nem aviso.
+
+Nota da 0.47.16 (corte 35b05bd3): das 36 specs novas desde a v0.47.15, 8 entraram na amostra (mais a spec fixa `tests/mutantes/placar.json`) e 28 ficaram fora pelo teto; nenhuma falha nem aviso.
