@@ -82,4 +82,4 @@ D15 não é do delta: o teste declarado `tests.test_hooks.Hooks.test_fixtures` n
 Suíte inteira: do CI do PR (check-run `bateria` do mesmo sha), não rerrodada aqui.
 
 ## Achados
-- A1 (recomendado) tests/mutantes/heredoc-donos.json:D15 · `testes` cita `Hooks.test_fixtures`, que não existe desde as fatias (#785); o controle fica vermelho e o mutante nada prova. Trocar pelas fatias 1 a 4. Dívida da develop, fora do delta; vira cartão.
+- A1 (recomendado) tests/mutantes/heredoc-donos.json:152 · o mutante D15 cita Hooks.test_fixtures, que não existe desde as fatias (#785); o controle fica vermelho e nada prova. Trocar pelas fatias 1 a 4. Dívida da develop, fora do delta; vira cartão.
