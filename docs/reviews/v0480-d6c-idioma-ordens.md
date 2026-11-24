@@ -1,16 +1,18 @@
 ---
 tipo: review
 contrato: 1
-pedido: v0478
+pedido: v0481
 branch: melhoria/v0480-d6c-idioma-ordens
-commit: 0c7e8f0c09c3347f8f0e32cf02635ebb2fee359e
+commit: 66c9f9a1869ca39537b97be3a3e70c73456ec93b
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-24
 ---
-# Review: v0478 E174.13 (PR #866, revalidação por delta do item E174.12)
+# Review: v0481 E1.2 (PR #866, revalidação por delta do merge da develop)
 
-Segunda rodada. A primeira (E174.6, head `748f2975`) reprovou por A1 (RecursionError cala as ordens no clone do Forge). Esta lê só o delta que o `forge-check parecer delta` aponta: `748f2975..0c7e8f0c`, domínio código e testes, 5 arquivos (`hooks/ordens.py`, `tests/test_hooks.py`, `tests/mutantes/v0480-d6c-idioma-ordens.json`, a fixture nova `tests/hooks/ordens/idioma-config-aninhada-no-forge-ordens-seguem.json` e o índice gerado `docs/hooks-fixtures.md`). Uma linha de código mudada, dentro do teto H1.
+Terceira rodada, só o delta. `forge-check parecer delta` no head `66c9f9a1` deu `revalida: sim`: `docs/hooks-fixtures.md` mudou depois do parecer (base `origin/develop` a27eab7). Delta lido, `0c7e8f0c..66c9f9a1`: é o merge `66c9f9a1` de `a27eab7e` (#859, já revisado na develop). O patch do PR contra a develop (`git diff a27eab7e 66c9f9a1`) é o da rodada anterior; `hooks/ordens.py` e `tests/mutantes/v0480-d6c-idioma-ordens.json` não mudaram (`git diff 0c7e8f0c 66c9f9a1` vazio neles). O único arquivo do domínio que o merge tocou é o índice gerado: o conflito em `docs/hooks-fixtures.md` foi resolvido somando os dois lados (3579 fixtures; `ordens` 14, `agentes` 133, `pesado` 30; linha `idioma-*` presente), e `python3 -I scripts/indice-fixtures.py --conferir` no head dá "em dia" (rc 0). `python3 -m unittest tests.test_hooks.OrdensEmVigor` no head, ambiente limpo: 23 OK. CI do head na hora deste parecer: catraca, instalação e baterias verdes; a suíte em partes pendente, e o CI verde segue obrigatório para o merge. Parecer mantido: aprovado.
+
+Rodada anterior (E174.13, head `0c7e8f0c`), texto mantido abaixo. Segunda rodada. A primeira (E174.6, head `748f2975`) reprovou por A1 (RecursionError cala as ordens no clone do Forge). Esta lê só o delta que o `forge-check parecer delta` aponta: `748f2975..0c7e8f0c`, domínio código e testes, 5 arquivos (`hooks/ordens.py`, `tests/test_hooks.py`, `tests/mutantes/v0480-d6c-idioma-ordens.json`, a fixture nova `tests/hooks/ordens/idioma-config-aninhada-no-forge-ordens-seguem.json` e o índice gerado `docs/hooks-fixtures.md`). Uma linha de código mudada, dentro do teto H1.
 
 ## Achados
 - A2 (recomendado) hooks/ordens.py:80 · Sem mudança na volta: `{"idioma_do_dono": null}` dá None aqui e "pt" no meta.py:237, e a docstring (ordens.py:11) cita o critério do meta.py. Vira cartão depois do merge: alinhar (null como ausente) ou tirar a citação.
