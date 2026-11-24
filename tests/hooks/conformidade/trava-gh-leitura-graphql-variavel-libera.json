@@ -11,7 +11,7 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "gh api graphql -f query='query($n:Int!){viewer{login}}' -F n=$N"
+      "command": "gh api graphql -f query='query($n:Int!){viewer{login}}' -F n=\"$N\""
     },
     "agent_type": "forge:node-backend",
     "hook_event_name": "PreToolUse",
