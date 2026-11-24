@@ -173,7 +173,7 @@ def cmd_voltas(raiz, pedido, ctx, tempo=False):
         return 1
     escolhidos = [pedido.casefold()] if pedido else sorted(pedidos)
     pedidos.setdefault(pedido.casefold() if pedido else "", pedido or "")
-    soma = [0, 0, 0.0]
+    soma, nao_medidos = [0, 0, 0.0], 0
     for chave in escolhidos:
         voltas, construcao = voltas_do_cartao(sorted(por_cartao.get(chave, []), key=lambda m: m[0]), ctx)
         rodadas = rodadas_de_brief(raiz, chave)
@@ -182,7 +182,8 @@ def cmd_voltas(raiz, pedido, ctx, tempo=False):
         relogios = relogios_do_cartao(sorted(por_cartao.get(chave, []), key=lambda m: m[0]))  # L49 (D-4): os dois relógios
         if not linhas and not pedido and not relogios:
             continue  # o pedido que andou sem volta segue na lista pelo relógio
-        nome, contagem = pedidos[chave], {t: 0 for t in TIPOS_DE_VOLTA}
+        movimento = chave in por_cartao  # E147.1: sem cartão com movimento, o que vem do quadro é nao-medido, não 0
+        nome, contagem = pedidos[chave], {t: 0 if movimento or t == "brief" else "nao-medido" for t in TIPOS_DE_VOLTA}
         for tipo, inicio, minutos, ref in linhas:
             contagem[tipo] += 1
             print(f"voltas: {nome} {tipo} inicio={inicio or 'sem-hora'} minutos="
@@ -193,7 +194,7 @@ def cmd_voltas(raiz, pedido, ctx, tempo=False):
                                    for j in janelas if j[0]])
         razao = f"{total / construcao:.2f}" if construcao else "-"
         print(f"voltas: {nome} resumo: " + " ".join(f"{t}={n}" for t, n in contagem.items())
-              + f" minutos={_numero(total)} construcao={_numero(construcao) if construcao is not None else '-'} razao={razao}")
+              + f" minutos={_numero(total) if movimento or linhas else 'nao-medido'} construcao={_numero(construcao) if construcao is not None else '-'} razao={razao}")
         if relogios:
             aberto, pronto = relogios
             dentro = "-" if pronto is None else "sim" if pronto <= META_PRONTO_ATE_DEVELOP else "nao"
@@ -203,8 +204,13 @@ def cmd_voltas(raiz, pedido, ctx, tempo=False):
             print(linha_do_tempo(nome, sorted(por_cartao.get(chave, []), key=lambda m: m[0]), rodadas, ctx))
         if reversoes := reversoes_do_pedido(pasta / f"{nome}.md", ctx):  # L11 (OK-6): o placar da escolha provisória revertida pelo dono
             print(f"voltas: {nome} reversoes={reversoes}")
-        soma = [soma[0] + 1, soma[1] + len(linhas), soma[2] + total]
-    print(f"voltas: total: pedidos={soma[0]} voltas={soma[1]} minutos={_numero(soma[2])}")
+        if movimento or linhas:
+            soma = [soma[0] + 1, soma[1] + len(linhas), soma[2] + total]
+        else:
+            nao_medidos += 1
+    voltas, minutos = ("nao-medido", "nao-medido") if nao_medidos and not soma[0] else (soma[1], _numero(soma[2]))
+    print(f"voltas: total: pedidos={soma[0]} voltas={voltas} minutos={minutos}"
+          + (f" nao-medidos={nao_medidos}" if nao_medidos else ""))
     return 0
 
 

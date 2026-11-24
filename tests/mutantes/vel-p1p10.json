@@ -47,8 +47,8 @@
       "id": "M6",
       "guarda": "trecho do equivalente que nao aparece uma vez so e invalido",
       "arquivo": "bin/forge-mutante",
-      "de": "    if n != 1:\n        return f",
-      "para": "    if n < 1:\n        return f",
+      "de": "        n = texto.count(de)\n        if n != 1:",
+      "para": "        n = texto.count(de)\n        if n < 1:",
       "testes": [
         "tests.test_forge_mutante.Execucao.test_equivalente_com_o_trecho_ausente_ou_repetido_sai_2"
       ]

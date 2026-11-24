@@ -1,0 +1,23 @@
+{
+  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (A4): visibility: public dentro de string não é o campo.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api graphql -f query='mutation { createRepository(input:{name:\"n\", visibility:PRIVATE, description:\"# visibility: publicada no texto\"}) { clientMutationId } }'"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
