@@ -17,19 +17,23 @@ from test_hooks import Fixture  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 SKILL = RAIZ / "skills" / "esperar-estado" / "SKILL.md"
+DETALHE = RAIZ / "skills" / "esperar-estado" / "envio-longo.md"  # o laço sem teto (regra 6) mudou para cá (v0478 E96.1)
 TECH_LEAD = RAIZ / "agents" / "tech-lead.md"
 # Aos 180 s a ferramenta Bash passa a chamada para segundo plano (ESPERAR-ESTADO-180S): cada laço cabe em 170 s.
 TETO_S, VOLTAS = 170, 5
 BLOCOS = re.findall(r"```bash\n(.*?)```", SKILL.read_text(encoding="utf-8"), re.S)
+BLOCOS_DO_DETALHE = re.findall(r"```bash\n(.*?)```", DETALHE.read_text(encoding="utf-8"), re.S)
 
 # `gh` falso: `pr view` devolve a linha N de `estados` na N-ésima leitura (a última se repete) e anota a leitura;
-# `pr checks` sai com o código gravado em `checks`; com o arquivo `falha`, `pr view` sai com 1.
+# `pr checks` sai com o código gravado em `checks` e põe no stderr o texto de `saida`, se houver; com o arquivo `falha`,
+# `pr view` sai com 1.
 GH = """d=$(dirname "$0")
 if [ "$2" = view ]; then
   [ -f "$d/falha" ] && { echo 'gh falso: falhou' >&2; exit 1; }
   echo v >> "$d/vistas"; n=$(wc -l < "$d/vistas")
   e=$(sed -n "${n}p" "$d/estados"); [ -n "$e" ] || e=$(tail -n 1 "$d/estados"); echo "$e"; exit 0
 fi
+[ -f "$d/saida" ] && cat "$d/saida" >&2
 exit "$(cat "$d/checks")"
 """
 
@@ -42,7 +46,7 @@ def laco():
 
 def laco_longo():
     """ESPERA-CI-LONGA: o laço do PR sem teto, para o segundo plano da sessão principal."""
-    blocos = [b for b in BLOCOS if "gh pr view" in b and "seq 1" not in b]
+    blocos = [b for b in BLOCOS + BLOCOS_DO_DETALHE if "gh pr view" in b and "seq 1" not in b]
     assert len(blocos) == 1, "a skill tem um laço do PR sem teto só"
     return blocos[0]
 
@@ -65,17 +69,19 @@ def com_log(texto, caminho):
 
 
 class LacoDoPr(unittest.TestCase):
-    def rodar(self, estados, checks=8, falha=False):
+    def rodar(self, estados, checks=8, falha=False, saida=None, bloco=None):
         pasta = pasta_com_gh(GH)
         (pasta / "estados").write_text("\n".join(estados) + "\n", encoding="utf-8")
         (pasta / "checks").write_text(f"{checks}\n", encoding="utf-8")
+        if saida is not None:
+            (pasta / "saida").write_text(saida + "\n", encoding="utf-8")
         if falha:
             (pasta / "falha").write_text("", encoding="utf-8")
         sleep = pasta / "sleep"
         sleep.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         sleep.chmod(0o755)
         env = dict(os.environ, PATH=f"{pasta}{os.pathsep}{os.environ.get('PATH', '')}")
-        r = subprocess.run(["bash", "--norc", "--noprofile", "-c", laco()], env=env, capture_output=True, text=True,
+        r = subprocess.run(["bash", "--norc", "--noprofile", "-c", bloco or laco()], env=env, capture_output=True, text=True,
                            timeout=60)
         vistas = pasta / "vistas"
         return r, len(vistas.read_text(encoding="utf-8").splitlines()) if vistas.exists() else 0
@@ -103,6 +109,19 @@ class LacoDoPr(unittest.TestCase):
     def test_gh_que_falha_sai_com_erro(self):
         r, vistas = self.rodar(["OPEN"], falha=True)
         self.assertEqual((r.stdout, r.returncode, vistas), ("fim=erro\n", 0, 0))
+        self.assertEqual(r.stderr, "", "o erro do gh pr view não vaza para a saída do laço (2>/dev/null)")
+        r, vistas = self.rodar(["OPEN"], falha=True, bloco=laco_longo())
+        self.assertEqual((r.stdout, r.stderr, r.returncode, vistas), ("fim=erro\n", "", 0, 0))
+
+    def test_pr_recem_aberto_sem_checks_e_pendente(self):  # v0478 E96.1: `no checks reported` sai com 1 no gh
+        sem_checks = "no checks reported on the 'melhoria/x' branch"
+        r, vistas = self.rodar(["OPEN"], checks=1, saida=sem_checks)
+        self.assertEqual((r.stdout, vistas), ("fim=teto\n", VOLTAS))
+        self.assertNotEqual(r.returncode, 0)
+        r, vistas = self.rodar(["OPEN"] * 3 + ["MERGED"], checks=1, saida=sem_checks, bloco=laco_longo())
+        self.assertEqual((r.stdout, r.returncode, vistas), ("fim=MERGED\n", 0, 4))
+        r, vistas = self.rodar(["OPEN"], checks=1, saida="X  fail", bloco=laco_longo())
+        self.assertEqual((r.stdout, r.returncode, vistas), ("fim=checks:1\n", 0, 1))
 
     def test_laco_longo_espera_alem_de_5_leituras_e_sai_no_estado(self):  # CI de ~20 min: sem o teto de 170 s
         estados = ["OPEN"] * 12 + ["MERGED"]
@@ -205,13 +224,13 @@ class BlocosPassamPelosHooks(unittest.TestCase):
         for hook in ("parecer", "conformidade"):
             for nome, ambiente in self.AMBIENTES.items():
                 envio = lancamento().replace("<envio>", f"git push origin {ambiente['git'][0]['branch']}")
-                for i, bloco in enumerate([*BLOCOS, envio]):
+                for i, bloco in enumerate([*BLOCOS, *BLOCOS_DO_DETALHE, envio]):
                     bloco = com_log(bloco, self.LOG)
                     entrada = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_use_id": "toolu_9",
                                "agent_type": "forge:tech-lead", "tool_input": {"command": bloco.strip()}}
                     dados = dict(ambiente, env={"HOME": "{tmp}/home"}, entrada=entrada, esperado={"codigo": 0})
                     casos.append((f"{hook}/{nome}-{i}", Fixture(Path(hook) / f"esperar-{nome}-{i}.json", dados)))
-        self.assertEqual(len(casos), 4 * (len(BLOCOS) + 1))
+        self.assertEqual(len(casos), 4 * (len(BLOCOS) + len(BLOCOS_DO_DETALHE) + 1))
         self.assertEqual(self.executar_em_lote(casos), len(casos))
 
 
