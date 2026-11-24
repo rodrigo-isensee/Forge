@@ -43,6 +43,26 @@
       ]
     },
     {
+      "id": "M21",
+      "guarda": "PV-A2 (E1): Ramo sem parecer de review não tem Commit",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "curto = curtos[0] if curtos else \"\"",
+      "para": "curto = curtos[0] if True else \"\"",
+      "testes": [
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_ramo_sem_pareceres_ou_sem_ramo_recusa"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "PV-A2 (E1): commit do parecer que não é sha não vira ref nem opção do git",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": ".strip() if valido else \"\"",
+      "para": ".strip() if True else \"\"",
+      "testes": [
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_commit_do_parecer_que_nao_e_sha_ou_nao_existe_nao_vira_ref"
+      ]
+    },
+    {
       "id": "M23",
       "guarda": "G1.2 (item 1): --mensagem fora da forma de uuid recusa antes de ler (nome do marcador M-)",
       "arquivo": "bin/forge_autorizacao.py",
@@ -50,6 +70,16 @@
       "para": "    if False:",
       "testes": [
         "tests.test_autorizacao_gravar.MensagemInteira.test_mensagem_fora_da_forma_de_uuid_recusa_antes_de_ler"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "PV-A2 (E1): o alvo item: lê o Commit e o Ramo",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if item:\n        campos.update(",
+      "para": "    if False:\n        campos.update(",
+      "testes": [
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_head_com_os_pareceres_grava_o_commit_inteiro_e_nasce_ativa"
       ]
     }
   ]

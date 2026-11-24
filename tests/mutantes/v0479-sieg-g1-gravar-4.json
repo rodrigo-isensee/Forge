@@ -3,13 +3,23 @@
   "executor": "unittest",
   "mutantes": [
     {
+      "id": "M25",
+      "guarda": "PV-A2 (E1): Commit fora do head com os pareceres aprovados recusa no gravar",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "([fora_do_revisado(raiz, campos)] if item else [])",
+      "para": "([fora_do_revisado(raiz, campos)] if False else [])",
+      "testes": [
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_commit_fora_do_head_com_os_pareceres_recusa_e_nada_grava"
+      ]
+    },
+    {
       "id": "M26",
       "guarda": "G1.2: o que o leitor recusaria não é gravado",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "    if achados:\n        raise Recusa(\"; \".join(achados))",
-      "para": "    if False:\n        raise Recusa(\"; \".join(achados))",
+      "de": "    if any(achados):\n        raise Recusa(",
+      "para": "    if False:\n        raise Recusa(",
       "testes": [
-        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_o_que_o_leitor_recusaria_nao_e_gravado_alvo_item_nesta_etapa"
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_commit_fora_do_head_com_os_pareceres_recusa_e_nada_grava"
       ]
     },
     {
@@ -44,7 +54,7 @@
     },
     {
       "id": "M30",
-      "guarda": "PV-A2 (E1): sem a ref do origin, vale a local",
+      "guarda": "PV-A2 (E1): sem a ref do origin, vale a local (linha movida para ponta_do_ramo)",
       "arquivo": "bin/forge_autorizacao.py",
       "de": "            or git(raiz, \"rev-parse\", \"-q\", \"--verify\", f\"refs/heads/{ramo}^{{commit}}\") or \"\").strip()",
       "para": "            or None or \"\").strip()",

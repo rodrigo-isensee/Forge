@@ -1,8 +1,8 @@
 """ADR 0018, G1.2: o `gravar` da autorização do dono (`bin/forge_autorizacao.py`, `forge-check autorizacao gravar`).
 
 O corpo gravado é a mensagem inteira digitada pelo dono, lida da transcrição; ato, alvos, validade e pendência saem do texto
-todo, e a concessão nasce `ativa` só quando o leitor (G1.1) também a lê `ativa`. O alvo `item:` (PV-A2) fica para o G1.2b:
-nesta etapa ele recusa e nada grava."""
+todo, e a concessão nasce `ativa` só quando o leitor (G1.1) também a lê `ativa`. PV-A2: a concessão solta de alvo `item:`
+(sem marcador, fora da frase do ato, com ressalva ou com `Commit` fora do head com os pareceres) nunca nasce ativa."""
 import argparse
 import contextlib
 import datetime
@@ -29,6 +29,7 @@ SESSAO = "0b0c0d0e-0000-4000-8000-000000000001"
 FALA = "2026-11-18T00:00:00.000Z"  # 17/11 21:00 em São Paulo
 AGORA = datetime.datetime(2026, 11, 18, 0, 1, tzinfo=UTC)  # o gravar roda 1 min depois da fala
 U1 = "11111111-1111-4111-8111-111111111111"
+RAMO = "melhoria/pv-a2"
 MARCAS = ("nao", "nunca", "ainda", "antes", "depois", "so", "se", "exceto", "menos", "sem")  # lista de teste do item 5
 CASA_TROCADA = ("import pwd, runpy, sys, types; casa = sys.argv.pop(1); "
                 "pwd.getpwuid = lambda uid: types.SimpleNamespace(pw_dir=casa); sys.argv = sys.argv[1:]; "
@@ -79,11 +80,11 @@ class Base(unittest.TestCase):
     def falar(self, *registros):
         self.transcricao.write_text("".join(json.dumps(r) + "\n" for r in registros), encoding="utf-8")
 
-    def gravar(self, texto=None, ato="rotulo-afrouxa-regra", alvos="pr:5", uuid=U1, pedido="v0478", agora=AGORA,
+    def gravar(self, texto=None, ato="rotulo-afrouxa-regra", alvos="pr:5", uuid=U1, ramo="", pedido="v0478", agora=AGORA,
                pedidos=("v0478",)):
         if texto is not None:
             self.falar({"type": "assistant", "uuid": "x"}, registro(texto))
-        a = argparse.Namespace(mensagem=uuid, transcricao=str(self.transcricao), ato=ato, alvos=alvos, pedido=pedido)
+        a = argparse.Namespace(mensagem=uuid, transcricao=str(self.transcricao), ato=ato, alvos=alvos, ramo=ramo, pedido=pedido)
         ctx = {"gravador": GRAVADOR, "seguro": str, "pedido_existe": lambda p: p in pedidos}
         if pedidos is None:  # sem como conferir o pedido no registro (A6)
             del ctx["pedido_existe"]
@@ -336,11 +337,6 @@ class EscopoPeloTextoTodo(Base):
         self.nada_gravado(*self.gravar("pode aplicar no pr 5"))
         self.nada_gravado(*self.gravar("pode mesclar a main 0.47.3"))
 
-    def test_o_que_o_leitor_recusaria_nao_e_gravado_alvo_item_nesta_etapa(self):
-        rc, saida = self.gravar("pode aplicar o rótulo no item PV-A2", alvos="item:PV-A2")  # G1.2b: sem Commit, o do_item recusa
-        self.nada_gravado(rc, saida)
-        self.assertIn("Commit não é sha de 40 caracteres", saida)
-
     def test_recorte_ou_ressalva_nasce_pendente_com_o_motivo(self):
         casos = {"negacao": ("não mescle a main 0.47.3 ainda", "merge-main", "versao:0.47.3", "fora do vocabulário"),
                  "condicao": ("pode mesclar a main 0.47.3 só se o CI passar", "merge-main", "versao:0.47.3", "fora do vocabulário"),
@@ -434,6 +430,68 @@ class Validade(Base):
                 shutil.rmtree(self.raiz / fa.PASTA, ignore_errors=True)
                 validade = self.validade(texto)
                 self.assertEqual((validade[1], validade[4]), (fim, "pendente"))
+
+
+class ConcessaoSolta(Base):
+    """Oráculo `concessao-solta` (PV-A2): o alvo `item:` só nasce ativo preso ao head do Ramo com os pareceres aprovados."""
+    ITEM = "pode aplicar o rótulo afrouxa-regra no item PV-A2"
+
+    def setUp(self):
+        super().setUp()
+        git(self.raiz, "init", "-q", "-b", "develop")
+        (self.raiz / ".git" / "info" / "exclude").write_text(".forge/\n.claude/\n", encoding="utf-8")
+        self.commitar("base.txt", "base")
+        git(self.raiz, "switch", "-q", "-c", RAMO)
+        self.revisado = self.commitar("codigo.txt", "item")
+        for pasta, tipo in {"reviews": "review", "qa": "qa", "security": "revisao-seguranca"}.items():
+            self.commitar(f"docs/{pasta}/pv-a2.md", f"---\ntipo: {tipo}\nbranch: {RAMO}\ncommit: {self.revisado[:8]}\n"
+                                                     "parecer: aprovado\n---\n")
+
+    def commitar(self, nome, texto):
+        (self.raiz / nome).parent.mkdir(parents=True, exist_ok=True)
+        (self.raiz / nome).write_text(texto, encoding="utf-8")
+        git(self.raiz, "add", "-A")
+        git(self.raiz, "commit", "-q", "-m", nome)
+        return git(self.raiz, "rev-parse", "HEAD")
+
+    def item(self, texto=ITEM, uuid=U1):
+        self.falar(registro(texto, uuid=uuid))
+        return self.gravar(alvos="item:PV-A2", ramo=RAMO, uuid=uuid)
+
+    def test_head_com_os_pareceres_grava_o_commit_inteiro_e_nasce_ativa(self):
+        self.assertEqual(self.item()[0], 0)
+        (_, campos, _, est, motivo), = self.lidas()
+        self.assertEqual((campos["Commit"], campos["Ramo"], est, motivo), (self.revisado, RAMO, "ativa", ""))
+
+    def test_sem_marcador_fora_da_frase_ou_com_ressalva_nunca_nasce_ativa(self):
+        casos = ("pode aplicar o rótulo no PV-A2", "o item PV-A2 está pronto. Pode aplicar o rótulo",
+                 "pode aplicar o rótulo no item PV-A2 se o CI passar", "não aplique o rótulo no item PV-A2",
+                 "pode aplicar o rótulo no item PV-A2X")
+        for i, texto in enumerate(casos):
+            with self.subTest(texto=texto):
+                uuid = f"{i:08d}-3333-4000-8000-000000000000"
+                rc, saida = self.item(texto, uuid)
+                self.assertEqual(rc, 0, saida)
+                self.assertEqual(self.lidas()[-1][3], "pendente")
+
+    def test_commit_fora_do_head_com_os_pareceres_recusa_e_nada_grava(self):
+        self.commitar("codigo.txt", "mudou depois dos pareceres")
+        rc, saida = self.item()
+        self.nada_gravado(rc, saida)
+        self.assertIn("Commit não é o head", saida)
+
+    def test_commit_do_parecer_que_nao_e_sha_ou_nao_existe_nao_vira_ref(self):
+        for i, commit in enumerate(("HEAD", "deadbeef0")):
+            with self.subTest(commit=commit):
+                self.commitar("docs/reviews/pv-a2.md", f"---\ntipo: review\nbranch: {RAMO}\ncommit: {commit}\nparecer: aprovado\n---\n")
+                rc, saida = self.item(uuid=f"{i:08d}-4444-4000-8000-000000000000")
+                self.nada_gravado(rc, saida)
+                self.assertIn("Commit não é sha de 40 caracteres", saida)
+
+    def test_ramo_sem_pareceres_ou_sem_ramo_recusa(self):
+        self.nada_gravado(*self.gravar(self.ITEM, alvos="item:PV-A2", ramo="melhoria/outro"))
+        self.nada_gravado(*self.gravar(alvos="item:PV-A2", ramo=""))
+        self.nada_gravado(*self.gravar(alvos="item:PV-A2", ramo="-c"))
 
 
 if __name__ == "__main__":

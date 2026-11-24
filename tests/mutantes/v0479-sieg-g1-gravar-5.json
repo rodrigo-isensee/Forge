@@ -39,7 +39,8 @@
       "de": "f\"versao:{v}\" if v else",
       "para": "f\"versao:{v}\" if i else",
       "testes": [
-        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_alvos_pr_e_versao_com_marcador"
+        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_alvos_pr_e_versao_com_marcador",
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_head_com_os_pareceres_grava_o_commit_inteiro_e_nasce_ativa"
       ]
     },
     {

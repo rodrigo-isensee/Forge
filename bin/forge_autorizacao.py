@@ -184,14 +184,19 @@ def git(raiz, *args):
     return r.stdout if r.returncode == 0 else None
 
 
+def ponta_do_ramo(raiz, ramo):
+    """sha da ponta do `ramo` no clone (a ref do origin vale antes da local), ou ""."""
+    return (git(raiz, "rev-parse", "-q", "--verify", f"refs/remotes/origin/{ramo}^{{commit}}")
+            or git(raiz, "rev-parse", "-q", "--verify", f"refs/heads/{ramo}^{{commit}}") or "").strip()
+
+
 def fora_do_revisado(raiz, campos):
     """Por que o `Commit` não é o head do `Ramo` com os pareceres aprovados nele (E1); "" se é. Depois dele o `Ramo` só traz
     pareceres do próprio `Ramo` (renomeação conta como saída e entrada), os EXIGIDOS estão entre eles, e todo parecer do `Ramo`
     aprova o `Commit`, cada um na pasta do seu tipo. Parecer de devops, se houver, também tem de aprovar; a classe do diff segue
     conferida no merge."""
     ramo, commit = campos["Ramo"], campos["Commit"]
-    ponta = (git(raiz, "rev-parse", "-q", "--verify", f"refs/remotes/origin/{ramo}^{{commit}}")
-             or git(raiz, "rev-parse", "-q", "--verify", f"refs/heads/{ramo}^{{commit}}") or "").strip()
+    ponta = ponta_do_ramo(raiz, ramo)
     if not ponta:
         return "Ramo sem ref no clone"
     if git(raiz, "merge-base", "--is-ancestor", commit, ponta) is None:
@@ -355,6 +360,16 @@ def cmd_ler(raiz, ctx, agora=None):
     return 1 if erros or adulteradas else 0
 
 
+def commit_do_ramo(raiz, ramo):
+    """sha de 40 do commit que o parecer de review do `ramo` aprova (E1: o `gravar` lê o sha dos pareceres), ou "". Parecer de
+    outro ramo ou que não aprova esse commit cai depois, no `fora_do_revisado` (falha fechada)."""
+    achados = git(raiz, "grep", "-l", "-F", "-e", f"branch: {ramo}", ponta_do_ramo(raiz, ramo), "--", PASTA_DO_TIPO["review"]) or ""
+    curtos = sorted(frente(git(raiz, "show", arq) or "").get("commit", "") for arq in achados.splitlines())
+    curto = curtos[0] if curtos else ""
+    valido = re.fullmatch(r"[0-9a-f]{7,40}", curto)  # nunca opção do git nem nome de ref
+    return (git(raiz, "rev-parse", "-q", "--verify", f"{curto}^{{commit}}") or "").strip() if valido else ""
+
+
 def gravar_novo(arq, conteudo):
     """Arquivo novo aberto com `x`, sem seguir link (item 1): FileExistsError se já existe."""
     fd = os.open(arq, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
@@ -377,8 +392,11 @@ def concessao_lida(raiz, a, gravador, agora, pedido_existe=None):
     campos = {"Id": "A-0", "Ato": a.ato, "Alvos": a.alvos, **leitura(texto, a.ato, a.alvos, fala),
               "Mensagem": a.mensagem, "Hora-da-fala": carimbo, "Sessao": sessao, "Pedido": a.pedido, "Sha256": sha(texto),
               "Gravado-por": gravador, "Autoriza": AUTORIZA}
-    achados = problemas(campos, texto, gravador)  # alvo item: (PV-A2) fica no G1.2b: sem Commit, o do_item recusa
-    if achados:
+    item = campos["Alvos"].startswith("item:")
+    if item:
+        campos.update(Commit=commit_do_ramo(raiz, a.ramo), Ramo=a.ramo)  # ref sob refs/: nunca opção do git
+    achados = problemas(campos, texto, gravador) or ([fora_do_revisado(raiz, campos)] if item else [])
+    if any(achados):
         raise Recusa("; ".join(achados))
     if "pedido" in normal(campos["Origem-da-validade"]) and not pedido_aberto(raiz, a.pedido, pedido_existe):
         motivos = [m for m in (campos["Motivo-da-pendencia"],) if m != "nenhum"] + ["pedido inexistente ou fechado"]

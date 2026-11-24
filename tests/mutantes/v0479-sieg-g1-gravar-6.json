@@ -53,6 +53,26 @@
       ]
     },
     {
+      "id": "M44",
+      "guarda": "PV-A2 (E1): git grep sem achado (Ramo sem parecer de review) não derruba a leitura",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "PASTA_DO_TIPO[\"review\"]) or \"\"",
+      "para": "PASTA_DO_TIPO[\"review\"]) or None",
+      "testes": [
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_ramo_sem_pareceres_ou_sem_ramo_recusa"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "PV-A2 (E1): commit do parecer que não existe no clone fica sem Commit",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "f\"{curto}^{{commit}}\") or \"\"",
+      "para": "f\"{curto}^{{commit}}\") or None",
+      "testes": [
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_commit_do_parecer_que_nao_e_sha_ou_nao_existe_nao_vira_ref"
+      ]
+    },
+    {
       "id": "M46",
       "guarda": "G1.2 (item 1): o Id segue o maior A-<n> numérico; nome fora da forma não derruba a gravação",
       "arquivo": "bin/forge_autorizacao.py",
@@ -61,6 +81,13 @@
       "testes": [
         "tests.test_autorizacao_gravar.MensagemInteira.test_linha_que_nao_e_objeto_nao_derruba_a_leitura_e_o_id_segue_o_maior_numerico"
       ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge_autorizacao.py",
+      "trecho": "git(raiz, \"show\", arq) or \"\"",
+      "motivo": "o git show lê o arquivo que o git grep acabou de listar na mesma ref; o vazio só evita None no frente (falha fechada: sem commit, recusa)"
     }
   ]
 }

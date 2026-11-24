@@ -38,8 +38,8 @@
       "id": "M23",
       "guarda": "CONFORMIDADE: a entrada das ordens casa também relativa à cópia principal (A2 da segurança E123.8)",
       "arquivo": "hooks/conformidade.py",
-      "de": "c in PELA_COPIA_PRINCIPAL and any(casa(r, c) for r in self.relativos_a_copia_principal(posix)))",
-      "para": "False)",
+      "de": "c in PELA_COPIA_PRINCIPAL and em_qualquer_lugar(posix, c)",
+      "para": "False",
       "testes": [
         "tests.test_hooks.GuardaDasOrdens.test_conformidade_recusa_a_pasta_das_ordens_e_a_copia_principal"
       ]

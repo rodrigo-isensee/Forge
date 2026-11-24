@@ -10587,7 +10587,7 @@ def main():
     au = sub.add_parser("autorizacao", parents=[comum], help="as autorizações do dono gravadas em .forge/autorizacoes/ da cópia "
                         "principal (ADR 0018): ler (integridade, estado e mensagem inteira) e gravar (a mensagem inteira, da transcrição)")
     au.add_argument("acao", choices=("ler", "gravar"))
-    for opcao in ("--mensagem", "--transcricao", "--ato", "--alvos", "--pedido"):  # gravar (G1.2): nenhuma traz texto
+    for opcao in ("--mensagem", "--transcricao", "--ato", "--alvos", "--ramo", "--pedido"):  # gravar (G1.2): nenhuma traz texto
         au.add_argument(opcao, default="")
     ro = sub.add_parser("rodar", parents=[comum], help="execução capturada como prova (S5): roda sem shell e grava .forge/run/<slug>/run.json "
                         "(rc, tempo por passo, log completo); `;` sozinho separa passos; slug repetido recusa (rc 2)")
