@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-mutante-varias-trocas
-commit: e18a5b07c706a2e559c6dabb5b17fb357b51097e
+commit: 3671c05271cd1760044a2bdc874b064cd28e835a
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -56,3 +56,26 @@ Todos morreram, nenhum sobrevivente. Conferi a lista contra o diff: as linhas de
 ## Observações
 - A ordem das trocas no arquivo não importa: `mutar` ordena por posição e aplica do fim para o começo; a linha da saída é a do primeiro par declarado.
 - `mutantes_do_diff` expande cada par em um mutante com o mesmo id (cobertura); a spec de uma troca passa pelo mesmo caminho sem mudar de forma.
+
+## Delta da volta (E162.7): e18a5b07..3671c052
+Mudou no domínio do QA: `bin/forge-mutante` (`par_que_nao_sobrevive`: o mutante de várias trocas que morre só vale se cada par, sozinho e com os mesmos testes, sobrevive; senão `inválido`, rc 2), 2 testes novos em `tests/test_forge_mutante.py` (par-isca que morre sozinho, sondas S2 e S3 do #846; par que não roda sozinho) e as specs `v0480-mutante-varias-trocas-2.json` (M9 a M16) e `-3.json` (M17, M18). Sem UX nem contrato de API.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Par-isca que morre sozinho invalida o conjunto morto | `Execucao.test_par_isca_que_morre_sozinho_torna_o_mutante_invalido` | par 2 morre sozinho (S2: troca de retorno; S3: troca de outra guarda); sem cópia sobrando | passou; vermelho na base; M13 a M18 morreram |
+| Par que não roda sozinho (sintaxe quebrada) é inválido | `Execucao.test_par_que_nao_roda_sozinho_torna_o_mutante_invalido` | cada par é válido só junto | passou; vermelho na base |
+
+Vermelho: `bin/forge-testes --vermelho e18a5b07 --modulos test_forge_mutante` (base = head do parecer anterior, código sem a correção, testes mantidos). Saída: `contagem: não prova (passa na base)=151; prova (asserção)=2`; os 151 já existentes (incluindo os 5 do parecer anterior) seguem passando no HEAD, nenhum caiu.
+
+Mutação do delta: `bin/forge-mutante <spec-1> <spec-2> <spec-3> --processos 3 --ids M13,M14,M15,M16,M17,M18` (rev=3671c05271cd), rc 0:
+```
+M13 · morreu · bin/forge-mutante:977
+M14 · morreu · bin/forge-mutante:979
+M15 · morreu · bin/forge-mutante:992
+M16 · morreu · bin/forge-mutante:996
+M17 · morreu · bin/forge-mutante:995
+M18 · morreu · bin/forge-mutante:997
+```
+Conferi contra o diff: as linhas de guarda novas (condição `morreu` com mais de uma troca, retorno do motivo, `not motivo`, a classe do par, o texto de morre sozinho) têm mutante; sem sobrevivente.
+
+`forge-mutante --conferir --todas` no head: 26 linhas e rc 1, igual ao parecer anterior (as 26 specs antigas com `de` repetido, anteriores ao PR); nenhuma spec nova entrou. Sem suíte local; a inteira roda no CI do PR (`R-QA`).
