@@ -3,32 +3,33 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-repo-publico-fix
-commit: 708c4bb09a6c74716b6897d37a2319575ae591b3
-parecer: aprovado
+commit: eebdfef67bdc1a2357ab54e65acd937484853afc
+parecer: reprovado
 revisor: forge:tech-lead
-data: 2026-11-23
+data: 2026-11-24
 ---
-# Review: v0480-repo-publico-fix (CONFORMIDADE-REPO-CREATE-PUBLICO, v0478 E141.12)
+# Review: v0480-repo-publico-fix (CONFORMIDADE-REPO-CREATE-PUBLICO, v0478 E141.16)
 
-Revalidação por delta do PR #829 no head `708c4bb0` (2ª volta, E141.11), contra o parecer reprovado no head `1265fa11`. Delta lido: `forge-check parecer delta docs/reviews/v0480-repo-publico-fix.md` (revalida: sim, este parecer barrou) e `git diff 1265fa11 708c4bb0`: `hooks/conformidade.py` +10 −3, oito fixtures `trava-graphql-*`, mutantes em `-4.json`, `-6.json` e `-7.json` novo (RP49 a RP51), mínimo do teste de 57 para 65.
+Revalidação por delta do PR #829 no head `eebdfef6` (3ª volta, E141.15, A8 da segurança), contra o meu parecer aprovado no head `708c4bb0` (no git, `6ae3b857`). Delta lido: `forge-check parecer delta docs/reviews/v0480-repo-publico-fix.md`, intervalo `708c4bb0..eebdfef6`; no domínio, `hooks/conformidade.py` (+9 −2: `CRITICO` :63, `GRAPHQL_SEM_TEXTO` :348, `graphql_publica` :3502 e :3504), 14 fixtures (`trava-graphql-*` e `trava-prazo-*`), `tests/mutantes/v0480-repo-publico-fix-8.json` (RP52 a RP56), `tests/test_hooks.py:3073` (piso de 65 para 76 e a medida da S18 sob o prazo), o índice das fixtures e o fragmento do changelog.
 
 ## Achados
-- A1 (recomendado) hooks/conformidade.py:348 · o CR está nas duas guardas (classe de controle, linha 348, e fim do comentário, linha 347), e cada uma sozinha cobre a outra: o mutante de cada linha sobrevive e só o par morre. Declarar um mutante que tire o CR das duas, para a mutação provar o par.
+- A1 (bloqueante) hooks/conformidade.py:63 · O marcador novo pega todo `gh api` com `repos` ou `graphql`, inclusive leitura (GET), e o marcador crítico também liga a recusa de construção não modelada (:2101): `gh api repos/$OWNER/r/pulls`, `${R}`, crase, `\`+LF e `-F n=$N` numa query de leitura passam de 0 para 2 (S1 a S4).
 
 ## Sondas
-- S1 · `gh api graphql -F query=@q.graphql`, q = `mutation{createRepository(input:{name:"x", description:"""z\\""" visibility:PRIVATE """, visibility:PUBLIC # """` + LF + `}){repository{id}}}` · espera: saída 2 · obtido: saída 2 (no 1265fa11: 0)
-- S2 · `gh api graphql -F query=@q.graphql -f z[visibility]=PRIVATE`, q = `mutation{createRepository(input:{name:"x" #c` + CR + `visibility:PUBLIC` + LF + `}){repository{id}}}` · espera: saída 2 · obtido: saída 2 (no 1265fa11: 0)
-- S3 · mutante só da linha 347 (`#[^\n]*`) e só da 348 (sem `\x0d`) · espera: um deles morre · obtido: os dois sobrevivem ao `test_fixtures_do_repo_publico`; com os dois juntos, `trava-graphql-comentario-cr-bloqueia` falha (o par morre)
+- S1 · `gh api repos/$OWNER/r/pulls` (forge:node-backend e forge:tech-lead) · espera: saída 0, como no pai `789a1174` · obtido: saída 2, "`$OWNER` com ação crítica: o hook não modela"
+- S2 · `gh api "repos/${R}/pulls/1/files" --jq '.[].filename'` · espera: saída 0 · obtido: saída 2 (`${`)
+- S3 · `gh api graphql -f query='query($n:Int!){viewer{login}}' -F n=$N` · espera: saída 0 · obtido: saída 2 (`$N`)
+- S4 · `gh api repos/o/r/commits/` + crase `git rev-parse HEAD` crase, e `gh api repos/o/r/contents/README.md | jq -r .content \` + LF + `| base64 -d` · espera: saída 0 · obtido: saída 2 nas duas (crase; `\ + quebra de linha`)
 
 ## Parecer
-**Aprovado.** Os dois achados do parecer anterior estão fechados no delta; nenhum bloqueante novo.
+**Reprovado** pela A1, a pergunta do brief sobre a ampliação do marcador.
 
-**A1 anterior (léxico do GraphQL):** fechado. O bloco `"""` agora só aceita `\"""` como escape (BlockStringCharacter da especificação), o comentário fecha no LF ou no CR, e CR, BOM e os demais controles (fora TAB e LF) na query falham fechado antes da leitura (`GRAPHQL_CONTROLE`, linha 3497). S1 e S2 rerrodadas em cópia do head (`git archive`, mesma montagem das fixtures, `forge:node-backend`): as duas saem 2. Extras na mesma rodada: `"""a""""` (quatro aspas fecham no primeiro trio, como o lexer) com `visibility:PUBLIC` depois sai 2; `"""a \""" b"""` com `visibility:PRIVATE` sai 0, sem falso positivo.
+**A volta ficou só no A8:** sim. As três mudanças do código são as três correções que a segurança pediu no A8: (1) a string comum casa até o fim com o `"` final opcional (`(?P<fecha>"?)`, :348), então a busca não recomeça a cada `"`, e a string sem fechamento falha fechado (:3504); (2) mais de um `query` entre campos e corpo falha fechado (:3502); (3) o marcador crítico (:63). Nada fora do A8 no delta.
 
-**A2 anterior (variável não declarada):** fechado. `usados` só conta o `<var>[visibility]` cuja variável aparece na consulta (linha 3502), e todo `[visibility]` público continua barrando (`publica` lê `da_var` inteiro). `createRepository(input:$z)` com `-f z[visibility]=PRIVATE` sai 0. Limite visto, sem dano: variável usada fora do `input` (`viewer(f:$z)`) e `createRepository` sem `visibility` sai 0; o `visibility` do `CreateRepositoryInput` é obrigatório no servidor, então a mutação falha lá sem criar repositório. Não vira achado.
+**A1 (o marcador amplia demais).** Sondas com o hook do head e o do pai `789a1174` (`git archive`), montados pela `Fixture` da suíte, nos papéis `forge:node-backend` e `forge:tech-lead`: S1 a S4 saem 0 no pai e 2 no head; os controles `gh api repos/o/r/pulls`, `gh api graphql` com a query literal, `gh repo view ... && echo new` e `gh pr view` saem 0 nos dois. Causa: `CRITICO` não é só o marcador do prazo; ele também liga a recusa de construção não modelada (`nao_modelada` pelo `self.critico`, :2101) e as recusas de heredoc e reavaliação (:2182 a :2196), em todo projeto. A segurança pediu o marcador para as formas que decidem a visibilidade (`user/repos`, `orgs/<o>/repos`, `.../generate`, `repos/<o>/<r>` com PATCH ou PUT, e `gh api graphql`); o `\brepos\b` solto pega toda leitura REST de repositório. Correção sugerida, à escolha do autor com a segurança: estreitar o REST às rotas de criação e ao `repos/<o>/<r>` com método de escrita, e o GraphQL a `mutation` ou aos nomes `createRepository|cloneTemplateRepository|updateRepository`; ou pôr as formas de visibilidade só no marcador do prazo (`MarcadorDaPolitica.marca`, :4400), sem tocar o `CRITICO` das recusas de construção. Em qualquer caso, fixtures `-libera` com S1 a S3 e o mutante da linha.
 
-**Mutantes do CR (pergunta do brief):** concordo em parte. As duas guardas se cobrem de fato (S3): CR barrado na 348 nunca chega ao regex da 347, e sem a 348 a 347 lê o comentário certo. Por isso um mutante por linha seria equivalente, e a falta deles não bloqueia. Mas a catraca não prova o par hoje: um mutante que tire o CR das duas mataria `trava-graphql-comentario-cr-bloqueia` (A1, recomendado). RP49 (bloco), RP50 (variável da consulta), RP51 (criar sem visibilidade lida) e RP30 refeito cobrem as outras linhas mudadas; não rerrodei a mutação do autor.
+**Teste `pesado/mesma-sessao-libera` lento no local:** não vem do diff. O delta só muda `hooks/conformidade.py`; o hook `pesado` (`hooks/pesado.py`) não importa o `conformidade` (só `_comum`, `_maquina` e, no registro da recusa, `agentes`), e o comando da fixture (`docker compose up -d`) não passa pelo marcador. É lentidão da máquina local; o CI decide.
 
-**Teto H1:** `hooks/conformidade.py` soma 127 linhas de código no item contra a base `216413c9` (`git diff --numstat`), dentro de 150; o resto são fixtures, mutantes e teste.
+**Teto H1:** `hooks/conformidade.py` soma 134 linhas no item contra a base `216413c9` (`git diff --numstat`: 134 +, 0 −), dentro de 150; o resto são fixtures, mutantes e teste.
 
-**Ferramentas (citadas, não refeitas):** teste do item `tests.test_hooks.Hooks.test_fixtures_do_repo_publico` rodado no head com ambiente limpo: as 65 fixtures do item passam. CI do PR #829 no head `708c4bb0`: `bateria (passos)`, `instalação (python 3.14)` e `árvore já provada na develop` verdes; suíte 3.12 e 3.14 e `bateria (verificações longas)` pendentes; `bateria (pareceres)` e `catraca` vermelhos à espera dos pareceres. Suíte inteira não rodada (fica no CI). O merge segue o CI verde e os pareceres de QA e segurança no mesmo head.
+**Ferramentas (citadas, não refeitas):** `tests.test_hooks.Hooks.test_fixtures_do_repo_publico` rodado no head com ambiente limpo: OK (1 teste, 15,2 s; as 76 fixtures do item e a S18 abaixo de metade do prazo). CI do PR #829 no head `eebdfef6`, na leitura: `bateria (passos)`, `bateria (verificações longas)`, `instalação (python 3.14)` e `árvore já provada na develop` verdes; suíte 3.12 e 3.14 pendente; `bateria (pareceres)` e `catraca` vermelhos à espera dos pareceres. A mutação RP52 a RP56 não foi rerrodada (verificador do autor). O A1 recomendado do parecer anterior (mutante do par do CR) segue como cartão, fora desta volta.
