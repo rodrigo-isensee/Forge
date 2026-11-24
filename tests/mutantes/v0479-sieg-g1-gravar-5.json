@@ -1,0 +1,87 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M31",
+      "guarda": "G1.2 (item 3): linha da transcrição que não é objeto fica fora da busca, sem derrubar a leitura",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if isinstance(r, dict) and r.get(\"uuid\") == uuid]",
+      "para": "if True and r.get(\"uuid\") == uuid]",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_linha_que_nao_e_objeto_nao_derruba_a_leitura_e_o_id_segue_o_maior_numerico"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "G1.2 (item 3): registro com message que não é objeto recusa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if isinstance(r.get(\"message\"), dict) else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_so_a_mensagem_digitada_pelo_dono_na_sessao_principal"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "G1.2 (item 5, A2): o número com marcador de PR vira pr:<N>",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "f\"pr:{p}\" if p else",
+      "para": "f\"pr:{p}\" if v else",
+      "testes": [
+        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_alvos_pr_e_versao_com_marcador"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "G1.2 (item 5, E1): versão X.Y.Z vira versao:, item com marcador vira item:",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "f\"versao:{v}\" if v else",
+      "para": "f\"versao:{v}\" if i else",
+      "testes": [
+        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_alvos_pr_e_versao_com_marcador",
+        "tests.test_autorizacao_gravar.ConcessaoSolta.test_head_com_os_pareceres_grava_o_commit_inteiro_e_nasce_ativa"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "G1.2 (item 5): só termo do vocabulário do ato conta como ato",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if w in ATO_DO_TERMO}",
+      "para": "if w not in ATO_DO_TERMO}",
+      "testes": [
+        "tests.test_autorizacao_gravar.MensagemInteira.test_corpo_e_a_mensagem_inteira_byte_a_byte_e_o_leitor_a_le_ativa"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "G1.2 (item 6): \"até a sexta\" e \"sexta-feira\" se leem como \"ate sexta\"",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "\"ate \" if m[0] == \"ate a \" else \"\"",
+      "para": "\"ate \" if m[0] != \"ate a \" else \"\"",
+      "testes": [
+        "tests.test_autorizacao_gravar.Validade.test_mapa_fechado_do_termo"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "G1.2 (item 6, D1): sem termo de validade vale 48 h desde a fala",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "for t in termos or [\"sem termo\"]]",
+      "para": "for t in termos or []]",
+      "testes": [
+        "tests.test_autorizacao_gravar.Validade.test_mapa_fechado_do_termo"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "G1.2 (item 6): data, hora, \"amanhã\" sem \"até\" ou dia solto sobram como termo fora do mapa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "DATA_OU_HORA.search(resto) or {\"amanha\"",
+      "para": "DATA_OU_HORA.search(resto) and {\"amanha\"",
+      "testes": [
+        "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_recorte_ou_ressalva_nasce_pendente_com_o_motivo"
+      ]
+    }
+  ]
+}

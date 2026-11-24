@@ -1,4 +1,4 @@
-"""Forge: as autorizações do dono gravadas (ADR 0018, G1.1: formato, integridade e estado). Só biblioteca padrão; só leitura.
+"""Forge: as autorizações do dono gravadas (ADR 0018, G1.1: formato, integridade e estado; G1.2: gravar). Só biblioteca padrão.
 
 `forge-check autorizacao ler` lista cada concessão de `<raiz principal>/.forge/autorizacoes/` com o estado (ativa, pendente com o
 motivo, vencida, retirada, usada, adulterada, inativa), a validade no `Fuso` e em UTC e a mensagem inteira do dono. Gravar e
@@ -7,7 +7,9 @@ travar vêm no G1.2 em diante. O alvo `item:<CARTAO>` (Emenda PR-VERDE, E1; PV-A
 """
 import datetime
 import hashlib
+import json
 import os
+import pwd
 import re
 import stat
 import subprocess
@@ -152,7 +154,7 @@ def fora_do_vocabulario(texto, alvo=None):
     """Palavras do texto normalizado fora do VOCABULARIO (item 5 da ADR 0018), sem o trecho do `alvo` (regex do alvo com
     marcador) nem data ou hora; [] se toda palavra pertence a ele. Uma regra só para o leitor e o `gravar` da G1.2."""
     limpo = DATA_OU_HORA.sub(" ", alvo.sub(" ", normal(texto)) if alvo else normal(texto))
-    return sorted(set(re.findall(r"[a-z0-9]+", limpo)) - VOCABULARIO)
+    return sorted(set(re.findall(r"[a-z0-9]+|[^a-z0-9\s.,;:!?#/()\"'-]", limpo)) - VOCABULARIO)  # emoji e outra escrita contam (A5)
 
 
 def do_item(campos, corpo):
@@ -182,14 +184,19 @@ def git(raiz, *args):
     return r.stdout if r.returncode == 0 else None
 
 
+def ponta_do_ramo(raiz, ramo):
+    """sha da ponta do `ramo` no clone (a ref do origin vale antes da local), ou ""."""
+    return (git(raiz, "rev-parse", "-q", "--verify", f"refs/remotes/origin/{ramo}^{{commit}}")
+            or git(raiz, "rev-parse", "-q", "--verify", f"refs/heads/{ramo}^{{commit}}") or "").strip()
+
+
 def fora_do_revisado(raiz, campos):
     """Por que o `Commit` não é o head do `Ramo` com os pareceres aprovados nele (E1); "" se é. Depois dele o `Ramo` só traz
     pareceres do próprio `Ramo` (renomeação conta como saída e entrada), os EXIGIDOS estão entre eles, e todo parecer do `Ramo`
     aprova o `Commit`, cada um na pasta do seu tipo. Parecer de devops, se houver, também tem de aprovar; a classe do diff segue
     conferida no merge."""
     ramo, commit = campos["Ramo"], campos["Commit"]
-    ponta = (git(raiz, "rev-parse", "-q", "--verify", f"refs/remotes/origin/{ramo}^{{commit}}")
-             or git(raiz, "rev-parse", "-q", "--verify", f"refs/heads/{ramo}^{{commit}}") or "").strip()
+    ponta = ponta_do_ramo(raiz, ramo)
     if not ponta:
         return "Ramo sem ref no clone"
     if git(raiz, "merge-base", "--is-ancestor", commit, ponta) is None:
@@ -232,6 +239,8 @@ def estado(nome, nomes, lidos, gravador, agora, raiz):
     achados = problemas(campos, corpo, gravador)
     if achados:
         return "adulterada", "; ".join(achados)
+    if instante(campos["Hora-da-fala"]) > agora:  # A3: fala no futuro nunca autoriza, como no gravar
+        return "adulterada", "Hora-da-fala no futuro"
     if any(n.startswith("R-") and c.get("Retira") == nome for n, (c, _) in lidos.items()):
         return "retirada", ""
     if campos["Validade"] == "uso-unico" and f"U-{nome}" in nomes:
@@ -260,6 +269,81 @@ def concessoes(raiz, gravador, agora):
     return lista, erros
 
 
+# G1.2: o `gravar` (itens 1 a 6 e E1 da ADR 0018). O corpo é só a mensagem lida da transcrição: nenhum texto vem do comando.
+ATO_DO_TERMO = {"rotulo": "rotulo-afrouxa-regra", "afrouxa": "rotulo-afrouxa-regra", "main": "merge-main"}
+DIAS = ("segunda", "terca", "quarta", "quinta", "sexta", "sabado", "domingo")
+TETO_DA_MENSAGEM = 64 * 1024
+
+
+class Recusa(Exception):
+    pass
+
+
+def casa_do_dono():
+    """Pasta do usuário pelo banco de senhas (A4): o `HOME` do chamador não escolhe a pasta das transcrições."""
+    return Path(pwd.getpwuid(os.getuid()).pw_dir)
+
+
+def mensagem_do_dono(transcricao, uuid):
+    """(texto, Hora-da-fala, sessão) da mensagem `uuid` digitada pelo dono, inteira, lida da transcrição da sessão em curso onde o
+    Claude Code a grava, sem link; registro único, da sessão, com `origin` humano (positivo: resumo de compactação recusa)."""
+    arq = Path(transcricao)
+    if (arq.is_symlink() or not arq.is_file() or arq.suffix != ".jsonl" or arq.stem != os.environ.get("CLAUDE_CODE_SESSION_ID")
+            or arq.resolve().parent.parent != (casa_do_dono() / ".claude" / "projects").resolve()):
+        raise Recusa("transcrição não é o .jsonl comum da sessão em curso em ~/.claude/projects")
+    achados = [r for r in map(json.loads, filter(str.strip, arq.read_text(encoding="utf-8").splitlines()))
+               if isinstance(r, dict) and r.get("uuid") == uuid]
+    r = achados[0] if len(achados) == 1 else {}
+    conteudo = r["message"].get("content") if isinstance(r.get("message"), dict) else None
+    if isinstance(conteudo, list) and len(conteudo) == 1 and isinstance(conteudo[0], dict) and conteudo[0].get("type") == "text":
+        conteudo = conteudo[0].get("text")
+    if (r.get("type") != "user" or r.get("origin") != {"kind": "human"} or any(r.get(c) for c in ("isMeta", "isSidechain",
+            "isCompactSummary", "isVisibleInTranscriptOnly", "toolUseResult", "sourceToolUseID"))
+            or r.get("sessionId") != arq.stem or not isinstance(conteudo, str) or conteudo.lstrip().startswith("<")
+            or not conteudo.strip() or len(conteudo.encode("utf-8")) > TETO_DA_MENSAGEM):
+        raise Recusa("a mensagem não é uma só, digitada pelo dono nesta sessão")
+    return conteudo, r.get("timestamp", ""), arq.stem
+
+
+def fim_do_termo(termo, fala):
+    """Fim (UTC) do termo do item 6: 48 h sem prazo escrito, 7 dias no fim do pedido (que para também no `F-<Pedido>`). Data,
+    dia da semana e "esta noite" dão None: esta etapa não lê o fuso do dono, e o prazo local nasce pendente (uso único)."""
+    if termo in SEM_PRAZO_ESCRITO:
+        return fala + datetime.timedelta(hours=48)
+    return fala + datetime.timedelta(days=7) if "pedido" in termo else None
+
+
+def leitura(texto, ato, alvos, fala):
+    """Campos de escopo e validade lidos do texto todo (itens 5 e 6). Sem termo de ato ou com outro ato: Recusa."""
+    norm = normal(texto)
+    marcado = re.compile(rf"(?<![a-z0-9])(?:(?:pr|pull) ?#?|#)([1-9]\d*)(?![\w.])|(?<![\w.])(\d+\.\d+\.\d+)(?![\w.])"
+                         rf"|(?<![a-z0-9])item ?({CARTAO.lower()})(?![\w-])")
+    termo = re.compile(r"ate (?:o )?fim deste pedido|ate amanha|esta noite|\bhoje\b|\bhj\b|ate (?:a )?(?:" + "|".join(DIAS)
+                       + r")(?:[- ]feira)?|ate \d{1,2}/\d{1,2}(?: \d{1,2}(?::\d{2}|h(?:\d{2})?))?(?![\w/:])")
+    do_texto, fora_do_ato, atos = set(), False, set()
+    for frase in FRASE.split(norm):
+        achados = {f"pr:{p}" if p else f"versao:{v}" if v else f"item:{i}" for p, v, i in marcado.findall(frase)}
+        termos = {ATO_DO_TERMO[w] for w in re.findall(r"[a-z0-9]+", marcado.sub(" ", frase)) if w in ATO_DO_TERMO}
+        do_texto, atos, fora_do_ato = do_texto | achados, atos | termos, fora_do_ato or bool(achados and not termos)
+    if ato not in atos:
+        raise Recusa(f"o texto não tem termo do ato {ato}")
+    termos = [re.sub(r"ate a |-feira| feira", lambda m: "ate " if m[0] == "ate a " else "", t) for t in termo.findall(norm)]
+    resto = termo.sub(" ", norm)
+    fins = [fim_do_termo(t, fala) for t in termos or ["sem termo"]]
+    motivos = [m for falha, m in (
+        (len(atos) > 1, "mais de um ato"), (do_texto != {normal(a) for a in alvos.split(", ")}, "alvos do texto diferentes dos declarados"),
+        (fora_do_ato, "alvo fora da frase do ato"), (len(termos) > 1, "mais de um termo de validade"),
+        (None in fins, "prazo local sem fuso nesta etapa"),
+        (bool(DATA_OU_HORA.search(resto) or {"amanha", "noite", "fim", *DIAS} & set(re.findall(r"[a-z]+", resto))),
+         "termo de validade fora do mapa"),
+        (bool(fora_do_vocabulario(texto, marcado)), f"palavra fora do vocabulário: {', '.join(fora_do_vocabulario(texto, marcado))}"))
+        if falha]
+    fim = "" if None in fins or "termo de validade fora do mapa" in motivos else min(fins).strftime(DATA)
+    return {"Validade": f"ate:{fim}" if fim else "uso-unico", "Validade-utc": fim or "uso-unico", "Fuso": "UTC",
+            "Origem-da-validade": "; ".join(termos) or "sem termo",
+            "Estado-inicial": "pendente-confirmacao" if motivos else "ativa", "Motivo-da-pendencia": "; ".join(motivos) or "nenhum"}
+
+
 def cmd_ler(raiz, ctx, agora=None):
     seguro = ctx["seguro"]
     lista, erros = concessoes(raiz, ctx["gravador"], agora or datetime.datetime.now(UTC))
@@ -276,5 +360,71 @@ def cmd_ler(raiz, ctx, agora=None):
     return 1 if erros or adulteradas else 0
 
 
+def commit_do_ramo(raiz, ramo):
+    """sha de 40 do commit que o parecer de review do `ramo` aprova (E1: o `gravar` lê o sha dos pareceres), ou "". Parecer de
+    outro ramo ou que não aprova esse commit cai depois, no `fora_do_revisado` (falha fechada)."""
+    achados = git(raiz, "grep", "-l", "-F", "-e", f"branch: {ramo}", ponta_do_ramo(raiz, ramo), "--", PASTA_DO_TIPO["review"]) or ""
+    curtos = sorted(frente(git(raiz, "show", arq) or "").get("commit", "") for arq in achados.splitlines())
+    curto = curtos[0] if curtos else ""
+    valido = re.fullmatch(r"[0-9a-f]{7,40}", curto)  # nunca opção do git nem nome de ref
+    return (git(raiz, "rev-parse", "-q", "--verify", f"{curto}^{{commit}}") or "").strip() if valido else ""
+
+
+def gravar_novo(arq, conteudo):
+    """Arquivo novo aberto com `x`, sem seguir link (item 1): FileExistsError se já existe."""
+    fd = os.open(arq, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(conteudo)
+
+
+def pedido_aberto(raiz, pedido, pedido_existe):
+    """A6: o `Pedido` tem arquivo no registro de pedidos e não tem o `F-<Pedido>` gravado; sem como conferir, não está aberto."""
+    return bool(pedido_existe and pedido_existe(pedido)) and not os.path.lexists(Path(raiz) / PASTA / f"F-{pedido}")
+
+
+def concessao_lida(raiz, a, gravador, agora, pedido_existe=None):
+    """(campos, corpo) da concessão da mensagem `a.mensagem`, ou Recusa com o que o leitor (G1.1) recusaria."""
+    if not re.fullmatch(r"[0-9a-f]+(?:-[0-9a-f]+)*", a.mensagem):
+        raise Recusa("--mensagem não é um uuid")
+    texto, carimbo, sessao = mensagem_do_dono(a.transcricao, a.mensagem)
+    if not agora - datetime.timedelta(hours=48) <= (fala := instante(carimbo)) <= agora:
+        raise Recusa("Hora-da-fala no futuro ou fora da sessão (mais de 48 h)")
+    campos = {"Id": "A-0", "Ato": a.ato, "Alvos": a.alvos, **leitura(texto, a.ato, a.alvos, fala),
+              "Mensagem": a.mensagem, "Hora-da-fala": carimbo, "Sessao": sessao, "Pedido": a.pedido, "Sha256": sha(texto),
+              "Gravado-por": gravador, "Autoriza": AUTORIZA}
+    item = campos["Alvos"].startswith("item:")
+    if item:
+        campos.update(Commit=commit_do_ramo(raiz, a.ramo), Ramo=a.ramo)  # ref sob refs/: nunca opção do git
+    achados = problemas(campos, texto, gravador) or ([fora_do_revisado(raiz, campos)] if item else [])
+    if any(achados):
+        raise Recusa("; ".join(achados))
+    if "pedido" in normal(campos["Origem-da-validade"]) and not pedido_aberto(raiz, a.pedido, pedido_existe):
+        motivos = [m for m in (campos["Motivo-da-pendencia"],) if m != "nenhum"] + ["pedido inexistente ou fechado"]
+        campos.update({"Estado-inicial": "pendente-confirmacao", "Motivo-da-pendencia": "; ".join(motivos)})
+    return campos, texto
+
+
+def cmd_gravar(raiz, a, ctx, agora=None):
+    """Grava `A-<n>` com a mensagem inteira do dono (itens 1 a 6); `M-<uuid>` com `x` antes: uma concessão por mensagem."""
+    pasta = Path(raiz) / PASTA
+    try:
+        campos, texto = concessao_lida(raiz, a, ctx["gravador"], agora or datetime.datetime.now(UTC), ctx.get("pedido_existe"))
+        if pasta.parent.is_symlink() or pasta.is_symlink():
+            raise Recusa(f"{PASTA}: não é pasta comum")
+        pasta.mkdir(parents=True, exist_ok=True, mode=0o700)
+        try:
+            gravar_novo(pasta / f"M-{a.mensagem}", "")
+        except FileExistsError:
+            raise Recusa("a mensagem já gerou concessão") from None
+        campos["Id"] = f"A-{1 + max((int(x.name[2:]) for x in pasta.glob('A-*') if x.name[2:].isdigit()), default=0)}"
+        gravar_novo(pasta / campos["Id"], "".join(f"{k}: {v}\n" for k, v in campos.items()) + "\n" + texto)  # corrida: recusa
+    except (Recusa, ValueError, OSError) as e:  # JSON, UTF-8 e carimbo ilegíveis são ValueError; A-<n> que já existe, OSError
+        print(ctx["seguro"](f"autorizacao: recusada: {e}"))
+        return 1
+    print(ctx["seguro"](f"autorizacao: {campos['Id']} gravada · {campos['Estado-inicial']} ({campos['Motivo-da-pendencia']}) · "
+                        f"{campos['Ato']} · {campos['Alvos']} · validade {campos['Validade']} {campos['Fuso']}"))
+    return 0
+
+
 def executar(a, raiz, ctx):
-    return cmd_ler(raiz, ctx)
+    return cmd_gravar(raiz, a, ctx) if a.acao == "gravar" else cmd_ler(raiz, ctx)
