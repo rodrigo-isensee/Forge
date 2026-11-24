@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-mutante-varias-trocas
-commit: 191484effc2af5506ddfc05f3c44b3944efa2349
+commit: c102d6403eeccd5c7dce72fd6ca72abdabb51d0a
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -99,3 +99,29 @@ M19 · morreu · bin/forge-mutante:135
 Conferi contra o diff: a única linha de guarda mudada é o teto (L135); a mensagem de L367 é texto e o teste novo a afirma. Sem sobrevivente.
 
 `forge-mutante --conferir --todas` no head: 26 linhas e rc 1, igual ao parecer anterior (as 26 specs antigas com `de` repetido); nenhuma spec nova entrou. Sem suíte local; a inteira roda no CI do PR (`R-QA`).
+
+## Delta da 3ª volta (E162.15): 191484ef..c102d640
+Mudou no domínio do QA: `bin/forge-mutante` (`par_com`: a saída do mutante de 2 pares e a `coberta` do `--cobertura` nomeiam o outro par, `(par com <arquivo>:<linha>)`, A3 da segurança do #846), 1 teste novo e 3 ajustados em `tests/test_forge_mutante.py`, specs `v0480-mutante-varias-trocas-3.json` (M20 a M23) e `v0478-mutante-pulado.json` (P6 realinhado a `{onde}`). Sem UX nem contrato de API.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| `par_com` nomeia só o trecho presente e some sem nenhum | `Cobertura.test_par_com_nomeia_so_o_trecho_presente_e_some_sem_nenhum` | trecho ausente, só ausentes, lista vazia | passou; vermelho (API ausente na base); M20 e M21 morreram |
+| Mutante de 2 pares que morre nomeia as duas linhas | `Execucao.test_par_escudo_que_morre_nomeia_as_duas_linhas` | par-escudo (outra condição) sai com as duas linhas | passou; vermelho na base; M20 e M22 morreram |
+| `coberta` do `--cobertura` nomeia o outro par | `Cobertura.test_cada_troca_do_mutante_de_varias_cobre_a_sua_condicao` (ajustado) | o par é o outro, não o próprio | passou; vermelho na base; M23 morreu |
+| Saídas inválidas e sem veredito mantêm o sufixo | `test_par_isca_que_morre_sozinho...`, `test_par_que_nao_roda_sozinho...` (ajustados) | linha com `(par com ...)` em inválido | passaram; vermelho na base; P6 morreu |
+
+Vermelho: `bin/forge-testes --vermelho 191484ef --modulos test_forge_mutante` (165 s). A saída abre com `vermelho: base=191484effc2a head=c102d6403eec módulos=test_forge_mutante (restrito por --modulos)` e fecha com `contagem: não prova (passa na base)=151; prova (API ausente)=1; prova (asserção)=4`, rc 0; nenhum teste caiu no HEAD.
+
+Mutação do delta, rc 0 nas duas chamadas (uma por pedido):
+```
+forge-mutante: pedido=v0480-mutante-varias-trocas rev=c102d6403eec spec=f478fa67… spec=3b9ea228… spec=8b7d2b65…
+M20 · morreu · bin/forge-mutante:436
+M21 · morreu · bin/forge-mutante:437
+M22 · morreu · bin/forge-mutante:981
+M23 · morreu · bin/forge-mutante:768
+forge-mutante: pedido=v0478-mutante-pulado rev=c102d6403eec spec=06898d33…
+P6 · morreu · bin/forge-mutante:988
+```
+Conferi contra o diff: as linhas de guarda novas (`par_com` com filtro e retorno vazio, `onde` só com par, `par` da expansão no `--cobertura`) têm mutante; sem sobrevivente.
+
+`forge-mutante --conferir --todas`: head c102d640 e base 191484ef dão a mesma saída (`diff` vazio), 26 linhas e rc 1 nos dois; são as 26 specs antigas com `de` repetido, anteriores ao PR. Sem suíte local; a inteira roda no CI do PR (`R-QA`).
