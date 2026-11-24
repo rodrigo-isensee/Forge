@@ -3,12 +3,19 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0480-prepush-ajuste-unico
-commit: 13063422d1fcf3ecb8a657ee83f573af5c139085
+commit: 61997e21f1b1b2164fa943cef707b7c634148ef4
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-24
 ---
-# Review: v0481 (E4.2, code review do PR #871, ajuste único do pre-push)
+# Review: v0481 (E4.2 e E4.7, code review do PR #871, ajuste único do pre-push)
+
+## Revalidação (E4.7, delta 082f1f9e..61997e21)
+- Delta lido: `forge-check parecer delta` deu `revalida: sim` porque `bin/forge-testes` mudou depois do parecer (merges 6a1ffa85 e 61997e21 da `develop`, base bbbe2d8, com o D7 #868, o D4 #869 e o #866).
+- Conflito em `bin/forge-testes` (tupla `FORGE_CHECK`): a resolução une os dois lados; entra o `test_criterios` da `develop` (o arquivo existe) e segue fora o `test_prepush_lote_pp1`, cujo arquivo saiu nesta branch. Nenhuma outra linha mudou no arquivo.
+- Fora do que veio da `develop`, nada mudou: as linhas `+`/`-` de `git diff a27eab7e 082f1f9e` e de `git diff bbbe2d88 61997e21` são idênticas (diff vazio). `git grep test_prepush_lote_pp1` em `bin/` e `tests/*.py` acha só a nota histórica do `tests/test_prepush_unico.py:8`.
+- Prova no head 61997e21: `python3 -m unittest tests.test_testes_tocados` (confere o mapa do `bin/forge-testes`): `Ran 196 tests`, `OK (skipped=1)`. Suíte inteira só no CI do PR.
+- Veredito mantido; os achados A1 e A2 seguem recomendados. O texto abaixo é o da primeira rodada (head 13063422).
 
 Base a27eab7e, head 13063422 (PR #871, rascunho). Primeira rodada: não havia parecer anterior na branch. O `.githooks/pre-push` não muda aqui; o PR entrega o patch, o roteiro do dono e os testes.
 
