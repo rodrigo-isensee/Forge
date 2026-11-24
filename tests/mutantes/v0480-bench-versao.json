@@ -1,0 +1,18 @@
+{"pedido": "v0480-bench-versao", "executor": "unittest", "mutantes": [
+ {"id": "M1", "guarda": "recusa com variável proibida", "arquivo": "tests/bancada/versao.py",
+  "de": "    if proibidas:\n", "para": "    if False:\n", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M2", "guarda": "limite de agentes estrito", "arquivo": "tests/bancada/versao.py",
+  "de": "len(medida[\"agentes\"]) > LIMITES", "para": "len(medida[\"agentes\"]) >= LIMITES", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M3", "guarda": "voltas esgotadas", "arquivo": "tests/bancada/versao.py",
+  "de": "if voltas == LIMITES[\"voltas\"]:", "para": "if voltas == LIMITES[\"voltas\"] + 1:", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M4", "guarda": "remoto não vazio", "arquivo": "tests/bancada/versao.py",
+  "de": "    if rodar([\"git\", \"ls-remote\", url]).stdout.strip():", "para": "    if False:", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M5", "guarda": "marca na árvore da tag", "arquivo": "tests/bancada/versao.py",
+  "de": "args.tag]).returncode == 0:", "para": "args.tag]).returncode == 5:", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M6", "guarda": "prazo encerra a sessão", "arquivo": "tests/bancada/versao.py",
+  "de": "                proc.terminate()\n", "para": "                pass\n", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M7", "guarda": "mensagem repetida não soma", "arquivo": "tests/bancada/versao.py",
+  "de": "if msg.get(\"id\") and msg[\"id\"] not in medida[\"mensagens\"]:", "para": "if msg.get(\"id\"):", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M8", "guarda": "forge instalado sai das configurações", "arquivo": "tests/bancada/versao.py",
+  "de": "        dados.pop(\"enabledPlugins\", None)\n", "para": "", "testes": ["tests.test_bancada_versao"]}
+]}
