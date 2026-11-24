@@ -234,6 +234,21 @@ class ConfirmacaoDaSeguranca(ComRaiz):
         self.tmp = de_fora / "sub"
         self.pergunta("subpasta de outro repositório")
 
+    def test_git_dir_de_outro_repositorio_no_ambiente_vira_pergunta(self):  # A3 do QA no #863
+        """O parecer está só na árvore da raiz; outro repositório tem o mesmo texto no HEAD. Um `GIT_DIR` herdado apontando
+        para ele não pode fazer o git ler o HEAD de lá e confirmar um parecer que não está no git da raiz."""
+        texto = parecer_da_seguranca(f"Só aperta: {self.PORTA}\n")
+        (self.tmp / "docs" / "security" / "f.md").write_text(texto, encoding="utf-8")
+        outro = Path(tempfile.mkdtemp(prefix="forge-decisor-outro-")).resolve()
+        self.addCleanup(shutil.rmtree, outro, ignore_errors=True)
+        commitar(outro, {"docs/security/f.md": texto})
+        campos = {**TEXTO, **FATOS_OK, "seguranca": "docs/security/f.md"}
+        r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.tmp), "decisoes", "registrar",
+                            *[x for k, v in campos.items() for x in (f"--{k}", v)]], capture_output=True, text=True,
+                           env=sem_git_herdado(HOME=str(self.tmp / "home"), GIT_DIR=str(outro / ".git")))
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("condição não atendida: seguranca", r.stdout)
+
     def test_git_ausente_vira_pergunta(self):
         sys.path.insert(0, str(RAIZ / "bin"))
         try:

@@ -62,6 +62,16 @@
       "testes": [
         "tests.test_decisor.ConfirmacaoDaSeguranca.test_frase_solta_pergunta_ou_negacao_vira_pergunta"
       ]
+    },
+    {
+      "id": "D5M29",
+      "guarda": "A3 do QA no #863: o git do decisor não herda as GIT_* (um GIT_DIR de outro repositório venceria o -C)",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if not k.startswith(\"GIT_\")}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_git_dir_de_outro_repositorio_no_ambiente_vira_pergunta"
+      ]
     }
   ]
 }
