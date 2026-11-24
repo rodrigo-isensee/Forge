@@ -66,6 +66,13 @@
 # topo da develop no servidor depois do último item, é acompanhado até o fim (sem a leitura, o do último merge). Vermelho imprime a reversão do
 # lote inteiro e sai com 5; item que para encerra o lote (os de antes ficam, e o CI deles é acompanhado). --item-de-lote é só do --lote: sem a
 # marca FORGE_FECHAR_LOTE_PAI igual ao processo pai, que só o lote põe no ambiente do filho, é recusado.
+# --laco (INTEGRADOR-EM-LACO, D1 do estudo determinístico): lê os PRs abertos do próprio repositório para a develop (só leitura); avisa o vermelho
+# ou em conflito sem commit há mais de 2 h (decisão do dono de 24/11; só aviso); dos outros melhoria/*, fica com os que passam no forge-check pr
+# (pedido lido do `pedido:` do parecer de review com `branch:` igual à do PR, no head buscado) e os fecha em ordem de chegada, em grupos de até 3
+# sem arquivo em comum pelo --lote (um só, sem ele); cada item segue os passos de sempre. Grupo que para (1) não para o laço; CI não verde (5)
+# para. Sai com 5, 1 (algum grupo parou), 3 (limpeza pendente) ou 0. Aceita só --base, --espera, --espera-ci e --dry-run; com --dry-run, faz
+# as leituras (lista, busca das branches, forge-check pr) e imprime os grupos sem fechar nenhum. FORGE_FECHAR_AGORA (segundos desde 1970, só
+# com FORGE_FECHAR_TESTE=1) fixa o relógio do aviso.
 # --promover <sha> (RELEASE-EM-1H, diretriz 27; o <pedido> é release-<versão>): promove para a homolog exatamente o commit da marca, nunca o
 # topo da develop: o sha está na develop do servidor, é promovível (1c), o CI do push nele é verde (a prova da develop, reaproveitada); o ramo
 # promocao/<versão> nasce nesse sha (o par promocao/<versão> -> homolog tem de estar em PROMOCOES de tests/catraca.py, a tabela do CI) e o PR
@@ -105,7 +112,7 @@ exigidos=("${CHECKS_EXIGIDOS[@]}")  # E3.45: mais os do ruleset e da proteção 
 
 pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 trazida=0 so_remota=0 base_2b="" arvore_mt="" dorme_pid="" promover_teste="" subida_n="" subida_ini="" subida_extra=""  # nascem vazios: o fim nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
 estado_lido=0
-lote=0 item_de_lote=0 promover_sha="" espera_ci=3600 ci_falhou=0 ci_st="" ci_ruins="" ja_mesclado=1 posicionais=()  # lote, promoção pela marca e espera do CI da develop
+laco=0 agora_teste="" lote=0 item_de_lote=0 promover_sha="" espera_ci=3600 ci_falhou=0 ci_st="" ci_ruins="" ja_mesclado=1 posicionais=()  # lote, promoção pela marca e espera do CI da develop
 sha_1c="" arvore_1c=""  # FECHAR-1C-ANTES-DO-2B: o sha e o texto do 1c nascem vazios (nada herdado do ambiente)
 args_originais=("$@")  # H4: o recomeço da cadeia depois do merge da base (passo 2b) roda o mesmo comando com `--trazida`
 cartoes=() quadro="${HOME:-}/.forge-contrib" motivo_cartao="" cartao_pend=0  # FECHAR-MOVE-CARTAO
@@ -131,6 +138,7 @@ while [ $# -gt 0 ]; do
     --dry-run) seco=1; shift ;;
     --trazida) trazida=1; shift ;;  # interno (H4): esta cadeia já trouxe a base uma vez (passo 2b)
     --lote) lote=1; shift ;;
+    --laco) laco=1; shift ;;
     --item-de-lote) item_de_lote=1; shift ;;
     --promover) promover_sha="${2-}"; shift 2 || die "--promover pede o sha do commit da marca" ;;
     --espera-ci) espera_ci="${2-}"; shift 2 || die "--espera-ci pede os segundos" ;;
@@ -158,6 +166,13 @@ if [ "$lote" = 1 ]; then
 else
   [ "${#posicionais[@]}" -le 1 ] || die "pedido repetido: ${posicionais[1]}"
   pedido="${posicionais[0]-}"
+fi
+if [ "$laco" = 1 ]; then
+  # Os itens e o resto vêm da lista de PRs; o laço só repassa --base, --espera e --espera-ci a cada grupo.
+  if [ "${#posicionais[@]}" != 0 ] || [ -n "$ref$promover_sha$titulo$origem$muda$copia_principal$medir" ] || [ "$lote$limpar$sem_limpar$esperar$item_de_lote" != 00000 ] || [ "${#cartoes[@]}" != 0 ]; then
+    die "--laco recebe só --base, --espera, --espera-ci ou --dry-run (os itens vêm dos PRs abertos)"
+  fi
+  pedido=laco ref=laco  # só para as checagens de nome abaixo
 fi
 [ -n "$pedido" ] || die "informe o pedido (forge-fechar <pedido> --ref <branch>)"
 if [ -n "$promover_sha" ]; then
@@ -213,6 +228,7 @@ if [ "${FORGE_FECHAR_TESTE:-}" = 1 ]; then
   gh="${FORGE_GH:-gh}"
   promover_teste="${FORGE_PROMOVER:-}"
   item_cmd="${FORGE_FECHAR_ITEM:-$eu}"
+  agora_teste="${FORGE_FECHAR_AGORA:-}"  # o relógio do aviso de PR parado do --laco (segundos desde 1970)
 else
   item_cmd="$eu"
   if [ -n "${FORGE_CHECK:-}${FORGE_GH:-}${FORGE_PROMOVER:-}${FORGE_FECHAR_ITEM:-}" ]; then
@@ -1256,6 +1272,77 @@ $comuns"
   exit "$rc_lote"
 }
 
+# Lista do laço, uma linha por PR do próprio repositório, em ordem de chegada: número, branch, mergeable e quantos checks terminaram mal.
+# CheckRun tem `conclusion` (vazia enquanto roda); StatusContext, `state`. Os commits ficam fora da lista (o GitHub recusa a consulta com 100 PRs).
+readonly JQ_LACO='sort_by(.number) | .[] | select(.isCrossRepository | not) | [.number, .headRefName, .mergeable, ([.statusCheckRollup[]? | (.conclusion // .state // "")] | map(select(test("^(FAILURE|ERROR|CANCELLED|TIMED_OUT|ACTION_REQUIRED|STARTUP_FAILURE)$"))) | length)] | @tsv'
+# segundos_de <data ISO 8601 em UTC>: a data em segundos desde 1970 (GNU date, senão BSD); falha se nenhum a lê e na data vazia (que o
+# GNU date leria como a meia-noite de hoje).
+segundos_de() {
+  [ -n "$1" ] || return 1
+  date -u -d "$1" +%s 2>/dev/null || date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$1" +%s 2>/dev/null
+}
+# pedido_da_branch <branch>: o único `pedido:` dos pareceres de review do head buscado (refs/remotes/origin/<branch>) com `branch:` igual a ela.
+pedido_da_branch() {
+  local arqs peds
+  arqs="$(git grep -lF -e "branch: $1" "refs/remotes/origin/$1" -- docs/reviews/ 2>/dev/null)"
+  peds="$(while IFS= read -r a; do git show "$a" 2>/dev/null | awk -v b="branch: $1" 'NR == 1 && $0 != "---" {exit} NR > 1 && $0 == "---" {exit}
+    /^pedido: / {p = $2} $0 == b {ok = 1} END {if (ok && p != "") print p}'; done <<<"$arqs" | sort -u)"
+  # um nome só: vazio e mais de um (a quebra de linha fica fora da classe) não casam
+  [[ "$peds" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]] || return 1
+  printf '%s' "$peds"
+}
+# fechar_laco (INTEGRADOR-EM-LACO): o aviso de PR parado, a escolha dos aprovados e os grupos pelo --lote; não volta (ver o cabeçalho).
+fechar_laco() {
+  local lista n br mergeable ruins data seg ped arqs g rc rc_laco=0 grupo_arqs="" agora
+  local -a aprovados=() grupo=() grupos=() itens=() cmd=()
+  passo C1 "PRs abertos para a $alvo: aviso do parado há mais de 2 h e escolha dos que têm os pareceres aprovados"
+  lista="$(ler "$gh" pr list --base "$alvo" --state open --limit 100 --json number,headRefName,isCrossRepository,mergeable,statusCheckRollup --jq "$JQ_LACO")" \
+    || die "parou no passo C1: não consegui ler os PRs abertos para a $alvo (nada foi mesclado)"
+  agora="${agora_teste:-$(date -u +%s)}"
+  while IFS=$'\t' read -r n br mergeable ruins; do
+    if [ "$mergeable" = CONFLICTING ] || [ "${ruins:-0}" != 0 ]; then
+      data="$(ler "$gh" pr view "$n" --json commits --jq '.commits[-1].committedDate // ""')" || data=""
+      seg="$(segundos_de "$data")" || seg=""
+      if [ -z "$seg" ] || [ $((agora - seg)) -gt 7200 ]; then
+        echo "aviso: PR #$n ($br) parado: $([ "$mergeable" = CONFLICTING ] && echo "em conflito" || echo "vermelho") e sem commit há mais de 2 h (último: ${data:-desconhecido}); trabalhe nele ou corte o item e reabra menor (decisão do dono de 24/11)" >&2
+      fi
+      continue
+    fi
+    case "$br" in melhoria/*) ;; *) continue ;; esac
+    git check-ref-format --branch "$br" >/dev/null 2>&1 || continue
+    if ! git fetch -q --no-tags origin "+refs/heads/$br:refs/remotes/origin/$br" >/dev/null 2>&1; then echo "aviso: PR #$n: não busquei $br; fica para a próxima volta." >&2; continue; fi
+    if ! ped="$(pedido_da_branch "$br")"; then echo "PR #$n ($br): sem um pedido só nos pareceres de review da branch; fica de fora."; continue; fi
+    if ! "$check" pr "$ped" --ref "refs/remotes/origin/$br" --base "$base" >/dev/null 2>&1; then echo "PR #$n ($br): pareceres do pedido $ped não aprovados no head ($check pr $ped --ref origin/$br); fica de fora."; continue; fi
+    aprovados+=("$ped:$br")
+  done <<<"$lista"
+  for g in "${aprovados[@]}"; do
+    arqs="$(git diff --name-only --no-renames "$base...refs/remotes/origin/${g#*:}")" || { echo "aviso: não li o diff de ${g#*:} contra $base; fica para a próxima volta." >&2; continue; }
+    if [ "${#grupo[@]}" -ge 3 ] || awk 'NR == FNR {if (NF) d[$0] = 1; next} ($0 in d) {c = 1} END {exit !c}' <(printf '%s\n' "$grupo_arqs") <(printf '%s\n' "$arqs"); then
+      grupos+=("${grupo[*]}"); grupo=() grupo_arqs=""
+    fi
+    grupo+=("$g") grupo_arqs="$grupo_arqs$arqs"$'\n'
+  done
+  [ "${#grupo[@]}" = 0 ] || grupos+=("${grupo[*]}")
+  passo C2 "${#grupos[@]} grupo(s) com os pareceres aprovados, em ordem de chegada (até 3 sem arquivo em comum)"
+  for g in "${grupos[@]}"; do
+    read -ra itens <<<"$g"
+    if [ "${#itens[@]}" = 1 ]; then cmd=("$item_cmd" "${itens[0]%%:*}" --ref "${itens[0]#*:}"); else cmd=("$item_cmd" --lote "${itens[@]}"); fi
+    cmd+=(--base "$base" --espera "$espera" --espera-ci "$espera_ci")
+    echo "grupo: ${itens[*]}"
+    if [ "$seco" = 1 ]; then echo "  rodaria: forge-fechar ${cmd[*]:1}"; continue; fi
+    rc=0
+    "${cmd[@]}" || rc=$?
+    case "$rc" in
+      0) ;;
+      3) [ "$rc_laco" = 1 ] || rc_laco=3 ;;
+      5) echo "laço parado: o CI da $alvo não ficou verde depois do grupo ${itens[*]} (código 5); os grupos seguintes ficam para a próxima volta." >&2; exit 5 ;;
+      *) rc_laco=1; echo "aviso: o grupo ${itens[*]} parou com código $rc; sigo para o próximo." >&2 ;;
+    esac
+  done
+  echo "Laço: ${#grupos[@]} grupo(s), código $rc_laco."
+  exit "$rc_laco"
+}
+
 # par_de_promocao <head> <base>: rc 0 só se o par está em PROMOCOES de tests/catraca.py, a tabela única do CI, da catraca e do arvore-testada.
 par_de_promocao() {
   python3 -I - "$catraca" "$1" "$2" 2>/dev/null <<'PY'
@@ -1365,6 +1452,7 @@ Tempo do commit da marca até o PR para a main pronto, por versão (diretriz 27,
 # ci_do_item: o passo 8 do item que este script mesclou; o item de lote deixa o CI para o lote, e o head já na base não trouxe merge novo.
 ci_do_item() { if [ "$ja_mesclado" = 0 ] && [ "$item_de_lote" = 0 ]; then ci_no_merge "$pr_merge" "$pr_merge"; fi; }
 
+if [ "$laco" = 1 ]; then fechar_laco; fi
 if [ "$seco" = 0 ] && [ "$lote" = 1 ]; then fechar_lote; fi
 if [ "$seco" = 0 ] && [ -n "$promover_sha" ]; then promover_marca; fi
 
