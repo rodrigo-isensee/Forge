@@ -1,17 +1,21 @@
 ---
 tipo: review
 contrato: 1
-pedido: v0478
+pedido: v0481
 branch: melhoria/v0480-d7-rastreio-criterio
-commit: 334af9c91abe5c6bbb4a4abe2a5fb4f20933a2bb
+commit: e2913240f744397a877fae759260d30be43db911
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-24
 ---
-# Review: v0478 (E174.35, D7, PR #868, `forge-check criterios`), volta 2
+# Review: v0481 (E1.7, D7, PR #868, `forge-check criterios`), regravado no head com a develop atual
 
 ## Parecer
-Aprovado no head 334af9c9.
+Aprovado no head e2913240; veredito da volta 2 (334af9c9) mantido.
+
+- Regravação (v0481 E1.7): `forge-check parecer delta` deste arquivo, intervalo 334af9c9..e2913240, sem o que veio da develop: `tests/test_criterios.py` e `tests/mutantes/v0480-d7-rastreio-criterio.json` dispensados (teste do QA aprovado em 1467c34); no domínio só `tests/pesos-d4.json` (+1 linha `test_fechar_corte`, igual à develop 8d7914bc). Saída: `revalida: não`. `bin/forge-check` sem mudança desde 3636a36b; o merge e2913240 só traz a base. Rodei `python3 -m unittest tests.test_criterios`: 10 testes OK.
+
+### Volta 2 (v0478 E174.35, head 334af9c9)
 
 - Delta lido: `forge-check parecer delta` deste arquivo, intervalo 3ed7a573..334af9c9, 3 arquivos no domínio (bin/forge-check, tests/mutantes/v0480-d7-rastreio-criterio-3.json, tests/test_criterios.py); cerca de 12 linhas de código, dentro do H1.
 - Segurança A2 (S2) resolvido: `etapas_conferidas` ganhou `selados` opcional; com ele, o `Cobre:` e a `Branch:` saem só do texto de `briefs_selados` pela chave (nome, sha256 do selo), e brief sem selo que confere é pulado. `provas_por_criterio` monta os selados antes e os passa; um conjunto só, sem leitura crua nova.
