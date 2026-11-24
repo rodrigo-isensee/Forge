@@ -686,8 +686,8 @@ class BriefSugereACopia(unittest.TestCase):
         saida, rc, erros = self.gerar()
         self.assertEqual(rc, 0, erros)
         copia = self.home / ".forge-contrib" / "wt" / "x-dev-exemplo"
-        self.assertIn(f"- cópia só sua (novo) (CLONE-NOME-UNICO): `{copia}`, criada com `forge-copia clone|worktree {copia} --branch melhoria/x "
-                      "--papel dev-exemplo`; nunca a cópia de outro agente", saida.split("## Ler", 1)[1].split("\n## ", 1)[0])
+        self.assertIn(f"- cópia só sua (novo) (CLONE-NOME-UNICO): `{copia}`, criada com `forge-copia clone {copia} --branch melhoria/x "
+                      "--papel dev-exemplo` e o --origem do repositório (no Forge, worktree no lugar de clone); nunca a cópia de outro agente", saida.split("## Ler", 1)[1].split("\n## ", 1)[0])
 
     def test_brief_sem_a_linha_com_caminho_fora_da_forma(self):
         os.environ["HOME"] = str(self.tmp / "com espaço")
@@ -706,6 +706,14 @@ class BriefSugereACopia(unittest.TestCase):
         self.assertNotIn("p`rm", saida)
         self.assertIn(f"- comece por `forge-check proximo {self.fc.PREENCHER} --etapa E1.1`", saida)
         self.assertIn(f"- decisões: pedido {self.fc.PREENCHER} até ", saida)
+
+    def test_id_do_pedido_com_hifen_no_inicio_nao_vira_opcao(self):
+        for id_ in ("--lote", "-h"):
+            with self.subTest(id_=id_):
+                saida, rc, erros = self.gerar(id_=id_)
+                self.assertEqual(rc, 0, erros)
+                self.assertNotIn(f"proximo {id_}", saida)
+                self.assertIn(f"- comece por `forge-check proximo {self.fc.PREENCHER} --etapa E1.1`", saida)
 
 
 if __name__ == "__main__":

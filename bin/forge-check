@@ -9564,7 +9564,7 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
     pedido_id = m.group(1) if m else caminho_do_pedido(raiz, pedido).stem
     id_impresso = pedido_id  # BRIEF-PEDIDO-ID-CRU: o id ia cru (crase forja comando) ao `comece por`, às `decisões:` e ao `forge-fechar`
-    if not ID_DE_PEDIDO.fullmatch(pedido_id):
+    if valor_de_shell_seguro("pedido", pedido_id) is None:  # sem `-` no início: `--lote` viraria opção do forge-fechar
         print(f"brief gerar: aviso: id do pedido fora da forma ({caminho_impresso(pedido_id)}): sai {PREENCHER} no lugar dele", file=sys.stderr)
         id_impresso = PREENCHER
     historico = secoes_por(pedido_txt, CABECALHO_PEDIDO).get("Histórico", [])
@@ -9626,8 +9626,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
                      "nunca o pedido inteiro (docs/economia-de-tokens.md, regra 4)")
         copia = copia_sugerida(raiz, branch, papel_destino) if branch else None
         if copia and valor_de_shell_seguro("raiz", copia):  # CLONE-NOME-UNICO: dois agentes nunca na mesma cópia
-            saida.append(f"- cópia só sua {NOVO} (CLONE-NOME-UNICO): `{copia}`, criada com `forge-copia clone|worktree {copia} --branch {branch} "
-                         f"--papel {papel_destino}`; nunca a cópia de outro agente")
+            saida.append(f"- cópia só sua {NOVO} (CLONE-NOME-UNICO): `{copia}`, criada com `forge-copia clone {copia} --branch {branch} "
+                         f"--papel {papel_destino}` e o --origem do repositório (no Forge, worktree no lugar de clone); nunca a cópia de outro agente")
         if revalidacao:
             saida.append(revalidacao)
         if existe_achados:

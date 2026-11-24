@@ -6,10 +6,20 @@
       "id": "M1",
       "guarda": "E172.7 BRIEF-PEDIDO-ID-CRU: id do pedido fora da forma sai PREENCHER no brief gerar",
       "arquivo": "bin/forge-check",
-      "de": "    if not ID_DE_PEDIDO.fullmatch(pedido_id):\n        print(f\"brief gerar: aviso: id do pedido fora da forma",
-      "para": "    if False:\n        print(f\"brief gerar: aviso: id do pedido fora da forma",
+      "de": "    if valor_de_shell_seguro(\"pedido\", pedido_id) is None:  # sem `-` no início",
+      "para": "    if False:  # sem `-` no início",
       "testes": [
         "tests.test_forge_copia.BriefSugereACopia.test_id_do_pedido_com_crase_nao_vai_cru_ao_brief"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "E172.22 BRIEF-PEDIDO-ID-CRU: id do pedido com hífen no início sai PREENCHER (não vira opção do forge-fechar)",
+      "arquivo": "bin/forge-check",
+      "de": "    if valor_de_shell_seguro(\"pedido\", pedido_id) is None:  # sem `-` no início",
+      "para": "    if not ID_DE_PEDIDO.fullmatch(pedido_id):  # sem `-` no início",
+      "testes": [
+        "tests.test_forge_copia.BriefSugereACopia.test_id_do_pedido_com_hifen_no_inicio_nao_vira_opcao"
       ]
     },
     {
