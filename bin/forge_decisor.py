@@ -142,7 +142,7 @@ def executar(a, raiz):
     if faltam:
         print("decisoes: registrar: falta ou inválido (sim|nao): " + ", ".join("--" + n.replace("_", "-") for n in faltam))
         return 2
-    seguranca = str(getattr(a, "seguranca", "") or "").strip()
+    seguranca = str(getattr(a, "seguranca", "")).strip()  # ausente ou None não casa com CONFIRMACAO: vira pergunta
     resultado, motivo = decidir(criterio=_campo(a.criterio), seguranca=confirmacao_escrita(raiz, seguranca), **fatos)
     regs = ler_registro(raiz)
     ident = f"D{len(regs) + 1:04d}"
