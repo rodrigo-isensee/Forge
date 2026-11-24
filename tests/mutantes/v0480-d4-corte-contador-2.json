@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-d4-corte-contador",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): versão ilegível para no V1",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo V1: versão X.Y.Z ilegível",
+      "para": "|| true \"parou no passo V1: versão X.Y.Z ilegível",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_versao_ilegivel_ou_ramo_ausente_param"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): lista do PR da main ilegível para no V1",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo V1: não li o PR homolog",
+      "para": "|| true \"parou no passo V1: não li o PR homolog",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_leituras_que_falham_param"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): develop à frente da homolog promove",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$v_dev\" != \"$v_hom\" ]; then",
+      "para": "if [ \"$v_dev\" = \"$v_hom\" ]; then",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_marca_mesclada_promove_e_abre_o_pr_da_main"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): homolog à frente da develop para",
+      "arquivo": "bin/forge-fechar",
+      "de": "= \"$v_dev\" ] || die \"parou no passo V1: a homolog",
+      "para": "= \"$v_dev\" ] || true \"parou no passo V1: a homolog",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_homolog_a_frente_da_develop_para"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): com o PR da main aberto, a promoção espera o dono",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -n \"$pr_main\" ]; then echo \"corte: a marca",
+      "para": "if [ -z \"$pr_main\" ]; then echo \"corte: a marca",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_pr_da_main_aberto_espera_o_dono"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): busca da marca que falha não derruba o script sem mensagem",
+      "arquivo": "bin/forge-fechar",
+      "de": "-- .claude-plugin/plugin.json)\" || marca=\"\"",
+      "para": "-- .claude-plugin/plugin.json)\"",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_leituras_que_falham_param"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): marca não achada para no V2",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -n \"$marca\" ] || die",
+      "para": "[ -n \"$marca\" ] || true",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_leituras_que_falham_param"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): --dry-run não promove",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$seco\" = 1 ]; then echo \"  rodaria: forge-fechar release-",
+      "para": "if [ \"$seco\" = 9 ]; then echo \"  rodaria: forge-fechar release-",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_dry_run_le_e_nao_age"
+      ]
+    }
+  ]
+}

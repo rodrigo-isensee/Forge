@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-d4-corte-contador",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): o código da promoção é lido",
+      "arquivo": "bin/forge-fechar",
+      "de": "--espera-ci \"$espera_ci\" || rc=$?",
+      "para": "--espera-ci \"$espera_ci\" || true",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_promocao_que_para_sai_com_o_codigo_dela"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): promoção que para sai com o código dela",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$rc\" = 0 ] || [ \"$rc\" = 3 ] ||",
+      "para": "[ \"$rc\" = 0 ] || [ \"$rc\" != 99 ] ||",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_promocao_que_para_sai_com_o_codigo_dela"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): promoção com limpeza pendente (3) segue para o PR da main",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$rc\" = 0 ] || [ \"$rc\" = 3 ] ||",
+      "para": "[ \"$rc\" = 0 ] || [ \"$rc\" = 33 ] ||",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_marca_mesclada_promove_e_abre_o_pr_da_main"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): o PR da main abre uma vez só",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$v_hom\" != \"$v_main\" ] && [ -z \"$pr_main\" ]; then",
+      "para": "if [ \"$v_hom\" != \"$v_main\" ]; then",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_homolog_promovida_abre_so_o_pr_da_main_e_uma_vez"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): --dry-run não abre o PR da main",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$seco\" = 1 ]; then echo \"  rodaria: $gh pr create --base main",
+      "para": "if [ \"$seco\" = 9 ]; then echo \"  rodaria: $gh pr create --base main",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_dry_run_le_e_nao_age"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): PR da main que não abre para no V3",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo V3",
+      "para": "|| true \"parou no passo V3",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_pr_da_main_que_nao_abre_para"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): contador que falha para no V4",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo V4",
+      "para": "|| true \"parou no passo V4",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_contador_que_falha_ou_sem_contagem"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): contagem ilegível não corta",
+      "arquivo": "bin/forge-fechar",
+      "de": " || { echo \"corte: sem contagem legível",
+      "para": " || true || { echo \"corte: sem contagem legível",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_contador_que_falha_ou_sem_contagem"
+      ]
+    }
+  ]
+}
