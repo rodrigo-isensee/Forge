@@ -1,33 +1,34 @@
 ---
 tipo: review
 contrato: 1
-pedido: v0478
+pedido: v0481
 branch: melhoria/v0480-d3-teste-enfraquecido
-commit: e7a71a8e2f87ef83fc7cb3708396ac05e87ba65d
-parecer: reprovado
+commit: 8daa161194a94fffbeba29e5a1a087aa0a9343fb
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-24
 ---
-# Review: v0478 E174.22 (D3, catraca recusa teste afrouxado; PR #867)
+# Review: v0481 E2.2 (D3, catraca recusa teste afrouxado; PR #867), revalidação por delta
 
-Diff revisado: `aabc476c..e7a71a8e` (6 commits; `tests/catraca.py` +159, `tests/test_catraca.py` +205, 7 arquivos em `tests/mutantes/`, fragmento em `changelog.d/`). Primeiro parecer da branch. H1: `tests/` fica fora da contagem; dentro do teto.
+Delta revisado: `e7a71a8e..8daa1611` (`forge-check parecer delta`: "revalida: sim (este parecer barrou: o último parecer não é aprovado)"). Código: `tests/catraca.py` +21/-4 (`_so_constantes`, `_vacua`, cruzamento `da_branch` em `regra_testes_afrouxados`), `tests/test_catraca.py` +32, mutantes `-5` (de/para ajustados), `-8` e `-9` (novos), fragmento em `changelog.d/`. Pareceres de QA e segurança da rodada anterior entram no delta sem código. H1: dentro do teto.
 
 ## Ferramenta (citada, sem refazer)
-- CI do PR no head e7a71a8e: as 10 partes da suíte (3.12 e 3.14), passos, verificações longas, instalação e teto de pulados verdes. `catraca` vermelha só por `R-CONFORMIDADE: mudança em tests/catraca.py` (pede o rótulo do dono, coberto pela DECISÃO DO DONO de 24/11 17:24); `bateria (pareceres)` vermelha pela falta dos pareceres.
-- Mutação: 46 mutantes em `tests/mutantes/v0480-d3-teste-enfraquecido{,-2..-7}.json`, todos mortos, e `forge-mutante --cobertura --base aabc476c` sem linha descoberta, pelo PR do autor; não refeito.
-- Teste do item rodado aqui: `python3 -m unittest tests.test_catraca.TestesAfrouxados`: 20 testes, OK.
+- CI do PR (#867): `catraca` vermelha só por `R-CONFORMIDADE: mudança em tests/catraca.py` (rótulo do dono, decisão de 24/11); `bateria (pareceres)` vermelha pela falta dos pareceres; suíte em andamento na leitura, o merge espera o verde.
+- Mutação do delta rodada aqui: `bin/forge-mutante --processos 1` em `-5`, `-8` e `-9`: 15 mutantes, todos mortos (D3H1 a D3H7, D3E1 a D3E8).
+- Testes do item: `python3 -m unittest tests.test_catraca.TestesAfrouxados tests.test_catraca.TestesNoCi`: 41 testes, OK.
 
 ## Leitura
-- Atende a decisão do dono de 24/11 17:24: asserção a menos, pulo, esvaziado e apagado barram sempre; valor trocado na primeira entrega só é listado (saída e resumo, código de saída inalterado); renomeado de mesmas asserções passa.
-- O `TestesNoCi` passa a vigiar `regra_testes_afrouxados` contra import e exec; o `forge_check()` de `commit_aprovado` carrega o `bin/forge-check` ao lado da catraca (no CI, o da base), sem código do head.
+- A1 corrigido: na volta, só barra o teste que também tem valor trocado contra a base (`da_branch`). O teste novo reproduz a S1 do parecer anterior (develop troca `== 4` por `== 5` depois da aprovação, merge na branch) e não acha violação; D3H1 prova que o cruzamento é o que o faz passar. Valor trocado de novo pela branch na volta segue barrando (`test_valor_trocado_na_volta_contra_a_versao_aprovada_barra`); valor restaurado ao da base não barra, coberto por `test_volta_que_restaura_o_valor_da_base_barra_so_pela_perda_dura` (D3H2).
+- A2 (recomendado anterior) adiantado pelo autor: asserção só de constantes não conta nem tem valor esperado; `assert True` no lugar da asserção barra como asserção a menos.
+- `TestesNoCi` ganha a guarda de raiz ausente (8daa1611): falha por asserção, não por erro.
+- Changelog atualizado com o comportamento novo.
 
 ## Achados
-- A1 (bloqueante) tests/catraca.py:772 · a volta compara aprovado..head inteiro: o valor trocado por outro PR da develop, que entra por merge depois da aprovação (R-FLUXO), barra esta branch e pede rótulo (S1). Sugestão: só barrar o teste que também aparece em perdas_dos_testes(b, h) com valor trocado; teste espelho da S1.
-- A2 (recomendado) tests/catraca.py:716 · asserção trocada por tautologia (assert dobro(2) == 4 vira assert True) conta como valor trocado e só é listada na primeira entrega (S2), embora seja asserção removida na prática; cartão para contar asserção de constante pura como perda.
+- A1 (recomendado) tests/catraca.py:681 · `_vacua` lê o `msg=` como argumento: `self.assertTrue(True, msg=m)` conta como asserção (S1), embora o `msg=` não seja valor esperado (docstring de `_perfil_do_teste`). Cartão: excluir o keyword `msg` de `_so_constantes`.
 
 ## Sondas
-- S1 · sonda_d3.py test_s1: branch aprovada no head, develop troca == 4 por == 5 em tests/test_y.py, git merge develop, violacoes_das_regras(develop, HEAD) · espera: [] · obtido: 1 violação "T.test_a trocou ou tirou valor esperado depois da versão aprovada"
-- S2 · sonda_d3.py test_s2: assert dobro(2) == 4 vira assert True · espera: perdeu asserção · obtido: nenhuma violação; valores_para_conferir lista tests/test_y.py::T.test_a
+- S1 · `_perfil_do_teste` de `def test_a(self): m='x'; self.assertTrue(True, msg=m)` · espera: 0 asserções · obtido: 1
+- S2 · `_perfil_do_teste` de `def test_a(self): self.assertTrue(True)` · espera: 0 asserções · obtido: 0
 
 ## Parecer
-Reprovado por A1: no fluxo normal (pareceres aprovados, depois a develop entra na branch na hora do merge), qualquer valor esperado que a develop tenha mudado desde a aprovação vira violação desta regra e exige o rótulo do dono; é um falso positivo com gatilho certo (a `tests/test_catraca.py` muda a cada poucos PRs). Correção pequena em `regra_testes_afrouxados`: cruzar o achado da volta com o da base efetiva, para que só conte o que a própria branch trocou. A2 vira cartão depois do merge.
+Aprovado no head 8daa1611: o bloqueante A1 anterior está corrigido, com teste espelho da sonda e mutante morto; o delta não quebra os testes do item. O A1 desta rodada é recomendado (o caso exige `msg=` com variável numa asserção vácua) e vira cartão depois do merge.
