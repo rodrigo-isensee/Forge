@@ -4,8 +4,12 @@ Mede se cada versão do Forge melhora ou piora: a mesma entrega pequena, feita p
 (ordem do dono de 24/11; desenho do arquiteto na etapa E175.1 do pedido v0478). Complementa o bench mecânico
 (`docs/kanban/bench-versoes.md` do quadro), que mede o processo sem chamar agentes.
 
-**Só o dono roda**, na máquina dele e com a assinatura (`R-CUSTO`): o roteiro recusa com `CI`, `GITHUB_ACTIONS` ou
-`ANTHROPIC_API_KEY` definidas e nunca entra no CI. Os testes dele usam `claude` e `gh` falsos.
+**Só o dono roda**, na máquina dele, num terminal comum e com a assinatura (`R-CUSTO`): o roteiro recusa com `CI`,
+`GITHUB_ACTIONS` ou qualquer credencial ou provedor pago definido (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`,
+`ANTHROPIC_BASE_URL`, `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX`, `CLAUDE_CODE_USE_FOUNDRY`), recusa o
+`--executar` dentro de uma sessão de agente (`CLAUDECODE` ou `CLAUDE_CODE_ENTRYPOINT`; nem pelo `!` do Claude Code) e
+nunca entra no CI. A sessão não herda essas variáveis e é encerrada se o `init` dela trouxer `apiKeySource` diferente de
+`none` (`apiKeyHelper`, chave): limite `api-paga`. Os testes do roteiro usam `claude` e `gh` falsos.
 
 ## Peças
 | Peça | Onde | Por quê |

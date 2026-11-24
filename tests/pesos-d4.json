@@ -21,6 +21,7 @@
   "test_autorizacao": 3.3,
   "test_autorizacao_gravar": 3.7,
   "test_bancada": 0.2,
+  "test_bancada_versao": 10.6,
   "test_brief_forma_aceita": 12.1,
   "test_brief_gerar_custo": 0.2,
   "test_brief_gravar": 4.6,

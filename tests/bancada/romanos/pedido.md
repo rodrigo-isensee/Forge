@@ -7,7 +7,7 @@ Critérios de aceite:
 2. `de_romano(texto)` em `src/romanos.py` converte um numeral na forma canônica de volta para o inteiro; aceita minúsculas e espaços nas pontas.
 3. Entrada inválida levanta `ValueError`: inteiro fora de 1 a 3999; valor de tipo errado (em `para_romano`, o que não é `int`, inclusive `bool` e `float`; em `de_romano`, o que não é texto); texto vazio; símbolo desconhecido; ou forma que não é a canônica (por exemplo IIII, VV, IC, MMMM).
 4. Linha de comando `python3 src/romanos.py <valor>`: um número vira romano e um romano vira número, impresso numa linha na saída padrão, com código 0. Entrada inválida, sem argumento ou com mais de um argumento escreve o erro na saída de erro e sai com código 2, sem nada na saída padrão.
-5. Testes do projeto em `tests/` cobrindo os quatro critérios acima e um `README.md` com o uso da linha de comando.
+5. Testes do projeto em `tests/` cobrindo os quatro critérios acima e, na raiz, um README em Markdown (extensão `.md`) com o uso da linha de comando.
 
 Decisões já tomadas pelo dono (valem como respondidas):
 - Python 3.10 ou mais novo, só a biblioteca padrão; nenhuma dependência nova.

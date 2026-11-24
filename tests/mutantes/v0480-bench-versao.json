@@ -10,9 +10,9 @@
  {"id": "M5", "guarda": "marca na árvore da tag", "arquivo": "tests/bancada/versao.py",
   "de": "args.tag]).returncode == 0:", "para": "args.tag]).returncode == 5:", "testes": ["tests.test_bancada_versao"]},
  {"id": "M6", "guarda": "prazo encerra a sessão", "arquivo": "tests/bancada/versao.py",
-  "de": "                proc.terminate()\n", "para": "                pass\n", "testes": ["tests.test_bancada_versao"]},
+  "de": "                encerrar(proc)\n", "para": "                pass\n", "testes": ["tests.test_bancada_versao"]},
  {"id": "M7", "guarda": "mensagem repetida não soma", "arquivo": "tests/bancada/versao.py",
   "de": "if msg.get(\"id\") and msg[\"id\"] not in medida[\"mensagens\"]:", "para": "if msg.get(\"id\"):", "testes": ["tests.test_bancada_versao"]},
  {"id": "M8", "guarda": "forge instalado sai das configurações", "arquivo": "tests/bancada/versao.py",
-  "de": "        dados.pop(\"enabledPlugins\", None)\n", "para": "", "testes": ["tests.test_bancada_versao"]}
+  "de": "    dados.pop(\"enabledPlugins\", None)\n", "para": "", "testes": ["tests.test_bancada_versao"]}
 ]}

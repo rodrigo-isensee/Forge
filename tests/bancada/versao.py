@@ -15,7 +15,9 @@ Uso: python3 tests/bancada/versao.py --tag v0.47.16 --repo <dono>/<repositório-
   4 h e 80 M tokens processados; o que passa encerra a sessão e fica na linha. Depois roda os testes escondidos no commit
   do PR (na `develop`, se integrado), procura a marca no projeto e nos registros, grava <rodada>/rodada.json e acrescenta
   a linha ao quadro, com a fonte de cada medida e a carga da máquina (o tempo é indicativo: o time segue trabalhando).
-- Recusa (saída 2) com CI, GITHUB_ACTIONS ou ANTHROPIC_API_KEY definidas: nunca roda no CI nem pela API paga.
+- Recusa (saída 2) com CI, GITHUB_ACTIONS ou qualquer credencial ou provedor pago (AMBIENTE_PROIBIDO) definidos, e o
+  `--executar` dentro de uma sessão de agente (CLAUDECODE, CLAUDE_CODE_ENTRYPOINT): nunca roda no CI, pela API paga nem
+  por um agente. A sessão que se apresenta com `apiKeySource` diferente de `none` é encerrada (limite `api-paga`).
 Saída: 0 válido (ou rodada concluída e linha gravada); 1 validação, preparação ou avaliação falhou; 2 uso ou recusa."""
 import argparse
 import hashlib
@@ -25,6 +27,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from datetime import datetime
@@ -39,7 +42,10 @@ CONGELADOS = {"test_escondido.py": "8ccf13928cd5a3a62d5c4981640c76897dec611c40b3
               "marca.txt": "85fe16b718096050ea1de147284b610c56604a1db874c6865398a1a91244334a"}
 MARCA_SHA256 = "3d518989252aee08ea77b7d9fc207402e796a1f4bbb71d27343ebcd32fc3de50"  # também em termos_proibidos_hash
 LIMITES = {"agentes": 20, "voltas": 3, "segundos": 4 * 3600, "tokens": 80_000_000}
-AMBIENTE_PROIBIDO = ("CI", "GITHUB_ACTIONS", "ANTHROPIC_API_KEY")
+AMBIENTE_PROIBIDO = ("CI", "GITHUB_ACTIONS", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
+                     "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY")
+SESSAO_DE_AGENTE = ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")  # o --executar é do dono, nunca de um agente (A1 do #870)
+ESPERA_KILL = 10  # segundos entre o SIGTERM e o SIGKILL da sessão encerrada
 ESTIMATIVA = ("cota por rodada (E175.1): típico ~1,0 M tokens novos e 1h50 (~28 M processados com cache); mínimo ~0,5 M "
               "e 45 min; máximo ~2,5 M e 3h30")
 PRONTO = "python3 -m unittest discover -s tests -t ."
@@ -73,6 +79,8 @@ def validar(args):
     erros = [f"falta {p}" for p in (PEDIDO, RESPOSTA) if not p.is_file()]
     if not REPO.fullmatch(args.repo):
         erros.append(f"--repo deve ser <dono>/<nome>: {args.repo!r}")
+    if args.remoto_url and not Path(args.remoto_url).is_dir():
+        erros.append(f"--remoto-url só aceita uma pasta local (testes): {args.remoto_url!r}")
     pasta = args.bench / "escondidos" / VERSAO_ESCONDIDOS
     for nome, esperado in CONGELADOS.items():
         if not (pasta / nome).is_file():
@@ -115,14 +123,29 @@ def exportar(forge, ref, destino):
         raise RuntimeError(f"exportar {ref}: git archive ou tar falhou")
 
 
-def preparar_projeto(projeto, forge_dir, url):
+def repo_descartavel(repo):
+    """Erro se o --repo não é público, vazio e da conta logada no gh; None se é (A3 da segurança no #870)."""
+    r = rodar(["gh", "repo", "view", repo, "--json", "visibility,isEmpty,owner"])
+    eu = rodar(["gh", "api", "user", "--jq", ".login"]).stdout.strip()
+    try:
+        dados = json.loads(r.stdout) if r.returncode == 0 else {}
+    except ValueError:
+        dados = {}
+    dados = dados if isinstance(dados, dict) else {}
+    dono = dados["owner"].get("login") if isinstance(dados.get("owner"), dict) else None
+    if dados.get("visibility") != "PUBLIC" or dados.get("isEmpty") is not True or not eu or dono != eu:
+        return f"--repo {repo} precisa ser público, vazio e da conta logada no gh ({eu or 'sem login'})"
+    return None
+
+
+def preparar_projeto(projeto, forge_dir, url, bench):
     if rodar(["git", "ls-remote", url]).stdout.strip():
         raise RuntimeError(f"o remoto {url} não está vazio: use um repositório novo por rodada")
     git = ["git", "-C", str(projeto), "-c", "user.name=forge-bench", "-c", "user.email=forge-bench@localhost"]
     passos([["git", "init", "-q", "-b", "main", str(projeto)],
             ["bash", str(forge_dir / "bin" / "forge-init"), "--nome", "romanos", "--descricao",
              "Conversor de numerais romanos (bench de versões)", "--stack", "python", "--pronto", PRONTO, str(projeto)]])
-    so_a_tag(projeto)
+    so_a_tag(projeto, bench)
     passos([git + ["add", "-A"], git + ["commit", "-q", "-m", "chore: projeto do bench"], git + ["branch", "develop"],
             git + ["remote", "add", "origin", url], git + ["push", "-q", "origin", "main", "develop"]])
 
@@ -134,14 +157,22 @@ def passos(cmds):
             raise RuntimeError(f"preparar o projeto: {' '.join(cmd[:6])} falhou: {r.stderr.strip()[-300:]}")
 
 
-def so_a_tag(projeto):
-    """Tira o forge instalado das configurações do projeto: o plugin da sessão é só a árvore da tag (--plugin-dir)."""
+def so_a_tag(projeto, bench):
+    """Tira o forge instalado das configurações do projeto (o plugin da sessão é só a árvore da tag, por --plugin-dir) e
+    nega à sessão medida ler e escrever os testes escondidos: `<bench>/escondidos` no sandbox e nas permissões. Só essa
+    pasta, porque o próprio projeto mora em `<bench>/rodadas` (A2 da segurança no #870)."""
     arq = projeto / ".claude" / "settings.json"
-    if arq.is_file():
-        dados = json.loads(arq.read_text(encoding="utf-8"))
-        dados.pop("enabledPlugins", None)
-        dados.pop("extraKnownMarketplaces", None)
-        arq.write_text(json.dumps(dados, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    dados = json.loads(arq.read_text(encoding="utf-8")) if arq.is_file() else {}
+    dados.pop("enabledPlugins", None)
+    dados.pop("extraKnownMarketplaces", None)
+    pasta = str(Path(bench).expanduser().resolve() / "escondidos")
+    fs = dados.setdefault("sandbox", {}).setdefault("filesystem", {})
+    for chave in ("denyRead", "denyWrite"):
+        fs[chave] = fs.get(chave, []) + [pasta]
+    permissoes = dados.setdefault("permissions", {})
+    permissoes["deny"] = permissoes.get("deny", []) + [f"{f}(/{pasta}/**)" for f in ("Read", "Edit", "Write")]
+    arq.parent.mkdir(parents=True, exist_ok=True)
+    arq.write_text(json.dumps(dados, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def ler_evento(linha, medida):
@@ -155,6 +186,9 @@ def ler_evento(linha, medida):
         medida["sessao"] = ev["session_id"]
     if ev.get("type") == "system" and ev.get("subtype") == "init":
         medida["plugins"] = [p for p in ev.get("plugins") or [] if isinstance(p, dict) and p.get("name") == "forge"]
+        medida["api"] = ev.get("apiKeySource")
+        if ev.get("apiKeySource") != "none":  # chave, apiKeyHelper ou provedor: cobrança por token (R-CUSTO)
+            medida["limite"] = "api-paga"
     msg = ev.get("message") if ev.get("type") == "assistant" else None
     if isinstance(msg, dict):
         uso = msg.get("usage") if isinstance(msg.get("usage"), dict) else {}
@@ -181,16 +215,32 @@ def estourou(medida, prazo):
     return "tempo" if time.monotonic() > prazo else None
 
 
+def encerrar(proc):
+    """SIGTERM e, se a sessão não sair em ESPERA_KILL segundos, SIGKILL (A8 do review no #870)."""
+    proc.terminate()
+    try:
+        proc.wait(timeout=ESPERA_KILL)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+
+
+def ambiente_da_sessao():
+    """O ambiente do dono sem credencial nem provedor pago e sem as marcas de sessão de agente."""
+    return {k: v for k, v in os.environ.items() if k not in AMBIENTE_PROIBIDO + SESSAO_DE_AGENTE}
+
+
 def sessao(cmd, cwd, medida, prazo, log):
     """Roda uma sessão, lê o stream-json enquanto ele chega e a encerra ao passar de um limite."""
     with open(log, "a", encoding="utf-8") as saida:
         proc = subprocess.Popen(cmd, cwd=str(cwd), stdout=subprocess.PIPE, stderr=saida, stdin=subprocess.DEVNULL,
-                                text=True)
+                                text=True, env=ambiente_da_sessao())
 
         def ler():
             for linha in proc.stdout:
                 saida.write(linha)
                 ler_evento(linha, medida)
+                if medida["limite"] == "api-paga":  # sem esperar o intervalo: cada segundo é cobrado
+                    proc.kill()
 
         leitor = threading.Thread(target=ler, daemon=True)
         leitor.start()
@@ -198,11 +248,11 @@ def sessao(cmd, cwd, medida, prazo, log):
             medida["carga"].append(os.getloadavg()[0])
             medida["limite"] = medida["limite"] or estourou(medida, prazo)
             if medida["limite"]:
-                proc.terminate()
+                encerrar(proc)
                 break
             time.sleep(INTERVALO)
         proc.wait()
-        leitor.join()
+        leitor.join(ESPERA_KILL)
     medida["limite"] = medida["limite"] or estourou(medida, prazo)
 
 
@@ -227,12 +277,21 @@ def avaliar(projeto, escondidos, pr, destino):
         exportar(projeto, commit, destino)
     except (RuntimeError, OSError):
         return {"commit": commit, "resultado": "exportação falhou"}
-    try:
-        r = rodar([sys.executable, "-I", str(escondidos / "test_escondido.py")], timeout=600,
-                  env={"PATH": os.environ.get("PATH", ""), "ROMANOS_PROJETO": str(destino)})
-        achado = re.findall(r"^resultado: (\d+/\d+)$", r.stdout, re.M)
-    except subprocess.TimeoutExpired:
-        achado = []
+    with tempfile.TemporaryDirectory(prefix="forge-bench-") as copia:  # a sessão não alcança a cópia (A2 da segurança)
+        for nome, esperado in CONGELADOS.items():
+            alvo = Path(copia) / nome
+            try:
+                shutil.copyfile(escondidos / nome, alvo)
+            except OSError:
+                return {"commit": commit, "resultado": "escondido ausente"}
+            if sha256(alvo) != esperado:
+                return {"commit": commit, "resultado": "escondido alterado"}
+        try:
+            r = rodar([sys.executable, "-I", str(Path(copia) / "test_escondido.py")], timeout=600,
+                      env={"PATH": os.environ.get("PATH", ""), "ROMANOS_PROJETO": str(destino)})
+            achado = re.findall(r"^resultado: (\d+/\d+)$", r.stdout, re.M)
+        except subprocess.TimeoutExpired:
+            achado = []
     return {"commit": commit, "resultado": achado[-1] if achado else "sem resultado"}
 
 
@@ -293,12 +352,12 @@ def rodada(args, rodadas, marca):
     url = args.remoto_url or f"https://github.com/{args.repo}.git"
     try:
         exportar(args.forge, args.tag, forge_dir)
-        preparar_projeto(projeto, forge_dir, url)
+        preparar_projeto(projeto, forge_dir, url, args.bench)
     except (RuntimeError, OSError) as e:
         print(f"versao: {e}", file=sys.stderr)
         return 1
     medida = {"mensagens": set(), "agentes": set(), "stream": {"novos": 0, "processados": 0}, "carga": [],
-              "sessao": None, "plugins": None, "limite": None}
+              "sessao": None, "plugins": None, "api": None, "limite": None}
     inicio, carga0 = time.monotonic(), os.getloadavg()[0]
     prazo, voltas, pr = inicio + LIMITES["segundos"], 0, None
     texto = PEDIDO.read_text(encoding="utf-8")
@@ -320,7 +379,7 @@ def rodada(args, rodadas, marca):
                 "tokens": tokens_das_transcricoes(projeto) or medida["stream"], "tokens_stream": medida["stream"],
                 "agentes": len(medida["agentes"]), "voltas": voltas, "minutos": minutos, "limite": medida["limite"],
                 "carga": {"inicio": carga0, "max": max(medida["carga"] + [carga0]), "fim": os.getloadavg()[0]},
-                "plugin_forge": medida["plugins"], "sessao": medida["sessao"],
+                "plugin_forge": medida["plugins"], "api_key_source": medida["api"], "sessao": medida["sessao"],
                 "marca": marca_em([projeto, log], marca) if marca else None, "registro": str(pasta / "rodada.json")}
     registro["carga"] = {k: round(v, 2) for k, v in registro["carga"].items()}
     (pasta / "rodada.json").write_text(json.dumps(registro, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -345,9 +404,11 @@ def principal(argv=None, env=None):
     ap.add_argument("--remoto-url", help="URL do remoto no lugar de https://github.com/<repo>.git")
     args = ap.parse_args(argv)
     proibidas = [v for v in AMBIENTE_PROIBIDO if v in env]
+    if args.executar:
+        proibidas += [v for v in SESSAO_DE_AGENTE if v in env]
     if proibidas:
-        print(f"versao: recusado com {', '.join(proibidas)} definida(s): só o dono roda, fora do CI e sem API paga",
-              file=sys.stderr)
+        print(f"versao: recusado com {', '.join(proibidas)} definida(s): só o dono roda, num terminal fora de sessão de "
+              "agente, fora do CI e sem API paga", file=sys.stderr)
         return 2
     erros = validar(args)
     for erro in erros:
@@ -361,6 +422,10 @@ def principal(argv=None, env=None):
         return 0
     if not shutil.which("claude"):
         print("versao: claude não está no PATH", file=sys.stderr)
+        return 1
+    erro = repo_descartavel(args.repo)
+    if erro:
+        print(f"versao: {erro}", file=sys.stderr)
         return 1
     return executar(args)
 
