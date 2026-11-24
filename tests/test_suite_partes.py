@@ -395,6 +395,23 @@ class Brinquedo5(unittest.TestCase):
         self.assertIn("id fora de toda parte (forçado)", r.stderr)
         self.assertEqual(r.stdout.strip().splitlines()[-1], "FAILED (divisão)")
 
+    def test_modulo_que_tira_github_actions_no_import_nao_cala_as_anotacoes(self):
+        """CI-ANOTACAO-CALADA (E137.2): o tests/test_catraca.py tira GITHUB_ACTIONS do os.environ no import, e o discover
+        da divisão importa todos os módulos; a anotação de tempos (verde) e a de falha (vermelha) saem mesmo assim."""
+        tira = "os.environ.pop('GITHUB_ACTIONS', None)\n"
+        (self.dir / "tests" / "test_a.py").write_text(MODULO.format(nome="a", corpo="pass") + tira)
+        self.modulo("b", "self.fail('de propósito')")
+        saidas = {}
+        with unittest.mock.patch.dict(AMBIENTE, {"GITHUB_ACTIONS": "true"}):
+            for k in (1, 2, 3, 4, 5):
+                r, _ = self.roda("--parte", f"{k}/5", ci=True)
+                saidas[k] = (r.returncode, r.stdout)
+        verdes = [s for rc, s in saidas.values() if rc == 0]
+        vermelhas = [s for rc, s in saidas.values() if rc == 1]
+        self.assertEqual((len(verdes), len(vermelhas)), (4, 1), saidas)
+        self.assertTrue(all("::notice title=forge-tempos " in s for s in verdes), saidas)
+        self.assertIn("::error title=forge-suite parte ", vermelhas[0])
+
     def test_anotacao_de_tempos_so_no_ci_e_so_com_a_parte_verde(self):
         com_ci = {"GITHUB_ACTIONS": "true"}
         with unittest.mock.patch.dict(AMBIENTE, com_ci):
