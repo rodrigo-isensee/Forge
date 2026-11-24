@@ -1,0 +1,2 @@
+### Mudado
+- Jarvis (diretriz 28): a conferência do sandbox do Bash no primeiro comando vive no `agents/jarvis.md` (se falhar, para e dá ao dono o comando para reabrir), com o detalhe em `skills/falar-com-o-dono/nao-trava.md`; antes só estava no modelo de projeto. A diretriz 28 passa de pendente a de fábrica (teto de pendentes 8 → 7), com teste em `tests/test_jarvis_nucleo.py`. Para caber no teto do núcleo, o resumo de "vários projetos" e a menção ao conteúdo de `fluxo-do-pedido` encurtaram no Jarvis; o detalhe segue em `varios-projetos.md` e nas skills.
