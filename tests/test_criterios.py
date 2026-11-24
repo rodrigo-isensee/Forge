@@ -1,5 +1,7 @@
 """D7 (v0478 E174.2): `forge-check criterios <pedido>` monta a tabela pedido × entregue. Cada `C-n` do `## Critério de pronto` sai
-`entregue` só com um `PQ-m ... cobre: C-n` de brief selado cuja etapa do `Cobre:` tem `entrega conferida`; senão, `não entregue`."""
+`entregue` só com um `PQ-m ... cobre: C-n` de brief selado (o sha256 do selo confere) cuja etapa do `Cobre:` tem `entrega conferida`;
+senão, `não entregue`."""
+import hashlib
 import os
 import shutil
 import subprocess
@@ -56,7 +58,7 @@ class Criterios(unittest.TestCase):
         self.git("commit", "-q", "--allow-empty", "-m", "base")
         self.git("switch", "-q", "-c", "melhoria/p1")
         self.head = self.commitar("entrega")
-        self.selo = f" 2026-10-19 11:00: brief selado docs/briefs/p1-dev-exemplo-1.md {'a' * 64}"
+        self.selo = " 2026-10-19 11:00: brief selado docs/briefs/p1-dev-exemplo-1.md {sha}"  # o sha256 real do brief, posto pelo `montar`
         self.conferida = f" 2026-10-19 12:00: entrega conferida {self.head}"
 
     def git(self, *args):
@@ -72,8 +74,10 @@ class Criterios(unittest.TestCase):
         arq.write_text(texto, encoding="utf-8")
 
     def montar(self, *historico, criterios=CRITERIOS, provas=PROVAS):
-        self.gravar("docs/pedidos/p1.md", PEDIDO.format(criterios=criterios, historico="".join(f"-{l}\n" for l in historico)))
-        self.gravar("docs/briefs/p1-dev-exemplo-1.md", BRIEF.format(provas=provas))
+        brief = BRIEF.format(provas=provas)
+        sha = hashlib.sha256(brief.encode("utf-8")).hexdigest()
+        self.gravar("docs/briefs/p1-dev-exemplo-1.md", brief)
+        self.gravar("docs/pedidos/p1.md", PEDIDO.format(criterios=criterios, historico="".join(f"-{l.replace('{sha}', sha)}\n" for l in historico)))
 
     def criterios(self, pedido="p1"):
         r = subprocess.run([sys.executable, "-I", FORGE_CHECK, "--raiz", str(self.tmp), "criterios", pedido], capture_output=True, text=True,
@@ -103,6 +107,14 @@ class Criterios(unittest.TestCase):
         self.assertEqual(rc, 1, linhas)
         self.assertEqual(linhas[0], "criterios: pedido p1 · 2 critérios · 0 entregues · 2 não entregues")
 
+    def test_brief_alterado_depois_do_selo_nao_prova(self):
+        self.montar(" 2026-10-19 10:00: aberto", self.selo, self.conferida)
+        self.gravar("docs/briefs/p1-dev-exemplo-1.md", BRIEF.format(provas=PROVAS.replace("cobre: C-1", "cobre: C-1, C-2")))
+        self.assertEqual(self.criterios(), (1, [
+            "criterios: pedido p1 · 2 critérios · 0 entregues · 2 não entregues",
+            "criterios: C-1 · não entregue · Dado o pedido, quando roda, então sai a tabela · `confirmado`",
+            "criterios: C-2 · não entregue · Dado um critério sem prova, então sai não entregue · `confirmado`"]))
+
     def test_cobre_de_criterio_fora_do_pedido_reprova_mesmo_com_todos_entregues(self):
         self.montar(" 2026-10-19 10:00: aberto", self.selo, self.conferida, provas="- PQ-1 (cmd): `true` · espera: rc=0 · cobre: C-1, C-2, C-9")
         rc, linhas = self.criterios()
@@ -121,7 +133,10 @@ class Criterios(unittest.TestCase):
     def test_linha_id_do_pedido_da_o_nome_da_tabela(self):
         self.montar(" 2026-10-19 10:00: aberto")
         self.gravar("docs/pedidos/p1.md", "id: p1-real\n" + (self.tmp / "docs/pedidos/p1.md").read_text(encoding="utf-8"))
-        self.assertEqual(self.criterios()[1][0], "criterios: pedido p1-real · 2 critérios · 0 entregues · 2 não entregues")
+        self.assertEqual(self.criterios()[1], [
+            "criterios: pedido p1-real · 2 critérios · 0 entregues · 2 não entregues",
+            "criterios: C-1 · não entregue · Dado o pedido, quando roda, então sai a tabela · `confirmado`",
+            "criterios: C-2 · não entregue · Dado um critério sem prova, então sai não entregue · `confirmado`"])
 
     def test_pedido_sem_criterio_c_n_ou_ilegivel_sai_nao_verificavel(self):
         self.montar(" 2026-10-19 10:00: aberto", criterios="- PQ-1 critério antigo · prova: cmd")

@@ -24,20 +24,20 @@
     },
     {
       "id": "D73",
-      "guarda": "E174.2: só a linha de brief selado do Histórico abre brief",
+      "guarda": "E174.2 (segurança A1): só o brief cujo conteúdo ainda é o do selo prova; o lido cru, não",
       "arquivo": "bin/forge-check",
-      "de": "if not (m := BRIEF_SELADO.match(linha)) or m.group(1) in vistos:",
-      "para": "if False or m.group(1) in vistos:",
+      "de": "if (texto := selados.get((Path(rel).name, sha))) is None:",
+      "para": "if (texto := (raiz_do_pedido(raiz, caminho) / rel).read_text(encoding=\"utf-8\")) is None:",
       "testes": [
-        "tests.test_criterios.Criterios.test_criterio_com_prova_conferida_entregue_e_sem_prova_nao_entregue"
+        "tests.test_criterios.Criterios.test_brief_alterado_depois_do_selo_nao_prova"
       ]
     },
     {
       "id": "D74",
       "guarda": "E174.2: brief selado duas vezes não duplica a prova",
       "arquivo": "bin/forge-check",
-      "de": "if not (m := BRIEF_SELADO.match(linha)) or m.group(1) in vistos:",
-      "para": "if not (m := BRIEF_SELADO.match(linha)):",
+      "de": "for rel, sha in dict.fromkeys(selos_do_pedido(pedido_txt)):",
+      "para": "for rel, sha in selos_do_pedido(pedido_txt):",
       "testes": [
         "tests.test_criterios.Criterios.test_criterio_com_prova_conferida_entregue_e_sem_prova_nao_entregue"
       ]

@@ -8180,24 +8180,21 @@ def criterios_do_pedido(pedido_txt):
     return criterios, repetidos
 
 
-def provas_por_criterio(raiz, caminho, historico):
-    """D7: {"C-n": [(brief, "PQ-m")]} das linhas `PQ-m ... cobre: C-n` dos briefs selados do pedido cuja etapa do `Cobre:` tem
-    `entrega conferida` no `## Histórico` (A4, `etapas_conferidas`): prova de brief sem entrega conferida não conta."""
-    conferidas, raiz_pedido, provas, vistos = etapas_conferidas(raiz, caminho, historico), raiz_do_pedido(raiz, caminho), {}, set()
-    for linha in historico:
-        if not (m := BRIEF_SELADO.match(linha)) or m.group(1) in vistos:
-            continue
-        vistos.add(m.group(1))
-        try:
-            texto = (raiz_pedido / m.group(1)).read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
+def provas_por_criterio(raiz, caminho, pedido_txt, historico):
+    """D7: {"C-n": [(brief, "PQ-m")]} das linhas `PQ-m ... cobre: C-n` dos briefs selados do pedido cujo conteúdo ainda é o do selo
+    (`briefs_selados` confere o sha256) e cuja etapa do `Cobre:` tem `entrega conferida` no `## Histórico` (A4, `etapas_conferidas`):
+    prova de brief alterado depois do selo ou sem entrega conferida não conta."""
+    conferidas, provas = etapas_conferidas(raiz, caminho, historico), {}
+    selados = {(arquivo.name, sha): texto for arquivo, texto, sha in briefs_selados(raiz, caminho, pedido_txt)}
+    for rel, sha in dict.fromkeys(selos_do_pedido(pedido_txt)):  # na ordem do Histórico; o selo repetido conta uma vez
+        if (texto := selados.get((Path(rel).name, sha))) is None:
             continue
         if grupo(r"\bCobre:\s*(\S+)", cabecalho_do_brief(texto)) not in conferidas:
             continue
         for pq in secoes_por(texto, CABECALHO_BRIEF).get("Pronto quando", []):
             if (n := PQ_NO_INICIO.match(pq)) and (c := COBRE_DA_PQ.search(pq)):
                 for cid in dict.fromkeys(f"C-{int(x)}" for x in re.findall(r"C-(\d+)", c.group(1))):
-                    provas.setdefault(cid, []).append((m.group(1), f"PQ-{n.group(1)}"))
+                    provas.setdefault(cid, []).append((rel, f"PQ-{n.group(1)}"))
     return provas
 
 
@@ -8215,7 +8212,7 @@ def cmd_criterios(raiz, pedido):
     if not criterios:
         return [f"criterios: pedido {caminho_impresso(pedido_id)}: {NAO_VERIFICAVEL} (sem item `C-n` no `## Critério de pronto`)"], 2
     secoes = secoes_por(pedido_txt, CABECALHO_PEDIDO)
-    provas = provas_por_criterio(raiz, caminho, secoes.get("Histórico", []))
+    provas = provas_por_criterio(raiz, caminho, pedido_txt, secoes.get("Histórico", []))
     linhas = [f"criterios: {cid} repetido no pedido; vale o primeiro" for cid in repetidos]
     for cid, texto in criterios.items():
         quem = ", ".join(f"{caminho_impresso(b)} {pq}" for b, pq in provas.get(cid, []))
