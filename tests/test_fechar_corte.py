@@ -80,6 +80,9 @@ class Corte(unittest.TestCase):
     def no_origin(self, ramo):
         return self.git("ls-remote", "origin", f"refs/heads/{ramo}")
 
+    def sem_merge(self):  # R-MAIN: o --corte só abre PR; nenhum caminho dele chama `pr merge` nem `--auto`
+        self.assertEqual([c for c in self.chamadas() if "pr merge" in c or "--auto" in c], [])
+
     def test_abaixo_do_teto_nada_faz(self):
         self.fragmentos(1)
         r = self.fechar("--corte")
@@ -148,6 +151,7 @@ class Corte(unittest.TestCase):
                 self.assertEqual(self.gh("item"), [f"item release-0.9.1 --promover {self.marca} --espera 1800 --espera-ci 3600"])
                 self.assertEqual(len(self.gh("gh pr create --base main --head homolog --title release 0.9.1 ")), 1)
                 self.assertIn("contador: 0.9.2: 0 de 2", r.stdout)
+                self.sem_merge()
 
     def test_promocao_que_para_sai_com_o_codigo_dela(self):
         self.versao("0.9.1", "chore(release): marca da 0.9.1 na develop")
@@ -181,6 +185,7 @@ class Corte(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual(self.gh("gh pr create"), [])
         self.assertIn("PR #62 homolog -> main aberto", r.stdout)
+        self.sem_merge()
 
     def test_pr_da_main_que_nao_abre_para(self):
         self.versao("0.9.1", "chore(release): marca da 0.9.1 na develop")
@@ -200,6 +205,19 @@ class Corte(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("parou no passo V1: a homolog (0.9.2) está à frente da develop (0.9.0)", r.stderr)
         self.assertEqual(self.gh("item"), [])
+
+    def test_main_a_frente_da_homolog_para(self):  # v0478 E174.26 (QA A1, segurança A2): não abre PR de versão velha para a main
+        self.git("push", "-q", "origin", "develop:homolog")
+        self.git("switch", "-q", "-c", "outra")
+        (self.proj / ".claude-plugin" / "plugin.json").write_text(json.dumps({"name": "forge", "version": "0.9.1"}, indent=2) + "\n")
+        self.git("commit", "-q", "-am", "chore: 0.9.1 só na main")
+        self.git("push", "-q", "origin", "outra:main")
+        self.git("switch", "-q", "develop")
+        r = self.fechar("--corte")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("parou no passo V1: a main (0.9.1) está à frente da homolog (0.9.0)", r.stderr)
+        self.assertEqual(self.gh("item"), [])
+        self.assertEqual(self.gh("gh pr create"), [])
 
     def test_leituras_que_falham_param(self):
         casos = (("lista_falha", "parou no passo V1: não li o PR homolog -> main"),

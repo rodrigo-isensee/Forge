@@ -6,8 +6,8 @@
       "id": "M9",
       "guarda": "CORTE-PELO-CONTADOR (E174.4): versão ilegível para no V1",
       "arquivo": "bin/forge-fechar",
-      "de": "|| die \"parou no passo V1: versão X.Y.Z ilegível",
-      "para": "|| true \"parou no passo V1: versão X.Y.Z ilegível",
+      "de": "die \"parou no passo V1: versão X.Y.Z ilegível",
+      "para": "true \"parou no passo V1: versão X.Y.Z ilegível",
       "testes": [
         "tests.test_fechar_corte.Corte.test_versao_ilegivel_ou_ramo_ausente_param"
       ]

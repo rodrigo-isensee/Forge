@@ -1481,10 +1481,15 @@ corte_da_versao() {
   git fetch -q --no-tags origin "+refs/heads/develop:refs/remotes/origin/develop" "+refs/heads/homolog:refs/remotes/origin/homolog" \
     "+refs/heads/main:refs/remotes/origin/main" || die "parou no passo V1: não busquei develop, homolog e main do origin (nada foi feito)"
   v_dev="$(versao_em develop)" v_hom="$(versao_em homolog)" v_main="$(versao_em main)"
-  [ -n "$v_dev" ] && [ -n "$v_hom" ] && [ -n "$v_main" ] || die "parou no passo V1: versão X.Y.Z ilegível no plugin.json (develop '$v_dev', homolog '$v_hom', main '$v_main'; nada foi feito)"
+  if [ -z "$v_dev" ] || [ -z "$v_hom" ] || [ -z "$v_main" ]; then
+    die "parou no passo V1: versão X.Y.Z ilegível no plugin.json (develop '$v_dev', homolog '$v_hom', main '$v_main'; nada foi feito)"
+  fi
   pr_main="$(ler "$gh" pr list --base main --head homolog --state open --json number --jq '.[0].number // empty')" \
     || die "parou no passo V1: não li o PR homolog -> main (nada foi feito)"
   echo "develop $v_dev, homolog $v_hom, main $v_main${pr_main:+; PR #$pr_main homolog -> main aberto}"
+  if [ "$v_hom" != "$v_main" ] && [ "$(printf '%s\n%s\n' "$v_hom" "$v_main" | sort -V | tail -n 1)" = "$v_main" ]; then
+    die "parou no passo V1: a main ($v_main) está à frente da homolog ($v_hom); confira à mão (nada foi feito)"
+  fi
   if [ "$v_dev" != "$v_hom" ]; then
     [ "$(printf '%s\n%s\n' "$v_hom" "$v_dev" | sort -V | tail -n 1)" = "$v_dev" ] || die "parou no passo V1: a homolog ($v_hom) está à frente da develop ($v_dev); confira à mão (nada foi feito)"
     if [ -n "$pr_main" ]; then echo "corte: a marca da $v_dev espera o dono mesclar o PR #$pr_main da main (R-MAIN); nada a promover agora."; return 0; fi

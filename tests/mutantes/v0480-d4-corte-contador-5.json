@@ -21,6 +21,36 @@
       "testes": [
         "tests.test_fechar_corte.Corte.test_abaixo_do_teto_nada_faz"
       ]
+    },
+    {
+      "id": "M35",
+      "guarda": "CORTE-PELO-CONTADOR (E174.26): versão ilegível em qualquer das três para no V1",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -z \"$v_dev\" ] || [ -z \"$v_hom\" ] || [ -z \"$v_main\" ]; then",
+      "para": "if [ -z \"$v_dev\" ] && [ -z \"$v_hom\" ] && [ -z \"$v_main\" ]; then",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_versao_ilegivel_ou_ramo_ausente_param"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "CORTE-PELO-CONTADOR (E174.26): main à frente da homolog para no V1",
+      "arquivo": "bin/forge-fechar",
+      "de": "| sort -V | tail -n 1)\" = \"$v_main\" ]; then",
+      "para": "| sort -V | tail -n 1)\" = \"$v_hom\" ]; then",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_main_a_frente_da_homolog_para"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "CORTE-PELO-CONTADOR (E174.26): main à frente da homolog para no V1 (o die)",
+      "arquivo": "bin/forge-fechar",
+      "de": "die \"parou no passo V1: a main ($v_main)",
+      "para": "true \"parou no passo V1: a main ($v_main)",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_main_a_frente_da_homolog_para"
+      ]
     }
   ]
 }
