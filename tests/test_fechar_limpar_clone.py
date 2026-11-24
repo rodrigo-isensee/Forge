@@ -5,6 +5,7 @@ main, com a origin/main do clone velha); a leitura da origin é desta cópia, s�
 Reaproveita o ambiente de `test_forge_fechar.LimparClones` (HOME temporário, git e gh falsos de `test_fechar.Fechar`).
 """
 import os
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -43,6 +44,25 @@ class LimparCloneNaoListado(unittest.TestCase):
         r = self.limpar()
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=ok"])
+        self.assertFalse(d.exists())
+
+    def test_head_mesclado_que_esta_copia_nao_le_e_buscado_e_o_clone_ancestral_sai(self):
+        # o head mesclado veio de outra cópia e a branch já saiu da origin: só a busca dos mesclados o traz para o merge-base
+        d = self.clone()
+        outra = self.tmp / "outra"
+        self.git("clone", "-q", str(self.remoto), str(outra), cwd=self.tmp)
+        self.git("switch", "-q", "melhoria/x", cwd=outra)
+        self.git("commit", "-q", "--allow-empty", "-m", "feat: de outra cópia", cwd=outra)
+        self.git("push", "-q", "origin", "melhoria/x", cwd=outra)
+        mesclado = self.git("rev-parse", "HEAD", cwd=outra)
+        self.git("push", "-q", "origin", "--delete", "melhoria/x", cwd=outra)
+        self.git("branch", "-q", "-D", "melhoria/x")  # a local, no head antigo, ficaria pendente: o teste é do clone
+        lido = subprocess.run(["git", "cat-file", "-e", f"{mesclado}^{{commit}}"], cwd=self.proj, env=self.env, capture_output=True)
+        self.assertNotEqual(lido.returncode, 0)  # esta cópia não o lê antes do fechamento
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {mesclado}\n")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertTrue(self.resumo(r)[0].endswith(" clone=ok"), r.stdout)
         self.assertFalse(d.exists())
 
     def test_commit_que_a_origin_tem_com_ref_velha_no_clone_e_apagado(self):

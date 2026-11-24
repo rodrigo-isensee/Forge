@@ -101,7 +101,7 @@ class Teste(unittest.TestCase):
         self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok config=pendente clone=nenhum"])
         self.assertIn("git config --local --list", r.stdout.split("pendente, rode:\n")[1].splitlines())
 
-    def test_c3_sem_aviso_e_sem_secao_a_linha_da_limpeza_nao_ganha_campo(self):
+    def test_c3_sem_aviso_e_sem_secao_a_linha_da_limpeza_nao_ganha_config_e_sai_clone_nenhum(self):
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=nenhum"])
 

@@ -604,11 +604,11 @@ buscar_de() {
 # do clone roda sem fsmonitor e sem trava opcional (o .git/config dele é gravável no sandbox; como o forge-adotar, C-46-2). Define `copia_st`
 # (`nenhum`: nenhum clone da branch) e acrescenta a `pend_cmds`.
 origem_atual() {  # define `pontas` (vazio se a leitura falha: o commit fora das refs do clone fica fora da origem) e busca o que falta delas e dos mesclados
-  local -a sem
+  local -a sem_busca
   pontas="$(remoto_exato --pontas 2>/dev/null | sort -u)" || pontas=""
   # shellcheck disable=SC2086  # uma ponta ou um sha por palavra
-  mapfile -t sem < <(printf '%s\n' $pontas $merged_heads | grep -E '^[0-9a-f]{40}$' | sort -u | faltam)
-  buscar_de origin "${sem[@]}"
+  mapfile -t sem_busca < <(printf '%s\n' $pontas $merged_heads | grep -E '^[0-9a-f]{40}$' | sort -u | faltam)
+  buscar_de origin "${sem_busca[@]}"
 }
 limpar_clones() {
   local d url_aqui url_dela sha_dela comum fora h ancestral pontas="" lida=0

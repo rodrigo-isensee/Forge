@@ -61,6 +61,16 @@
       "testes": [
         "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_leitura_da_origin_que_falha_deixa_o_clone"
       ]
+    },
+    {
+      "id": "M13",
+      "guarda": "a busca da origin traz tambem os heads mesclados que esta copia nao le",
+      "arquivo": "bin/forge-fechar",
+      "de": "printf '%s\\n' $pontas $merged_heads | grep",
+      "para": "printf '%s\\n' $pontas | grep",
+      "testes": [
+        "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_head_mesclado_que_esta_copia_nao_le_e_buscado_e_o_clone_ancestral_sai"
+      ]
     }
   ]
 }
