@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-zero-nao-medido
-commit: 2cfb734c5d8e26e47cc794b4256c985a02aa7cd2
+commit: 099850609cd17b04189cdfd49281ae3b8da6d810
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -48,3 +48,9 @@ M7 · morreu · bin/forge_governanca.py:627
 Saída 0, nenhum sobrevivente.
 
 Sem bug aberto, sem acessibilidade aplicável (CLI sem tela).
+
+## Revalidação por delta (head 09985060)
+`forge-check parecer delta` lista no domínio do QA só `tests/mutantes/v0457-f6-4-5.json` (M38 alinhado à linha nova do resumo de voltas, minutos com `nao-medido`); base origin/develop 998e2e4, sem o que veio da develop.
+- `bin/forge-mutante tests/mutantes/v0457-f6-4-5.json --base 2cfb734c5d8e26e47cc794b4256c985a02aa7cd2`: `base=2cfb734c... rev=09985060...`; M33 a M40 `morreu`, inclusive `M38 · morreu · bin/forge_voltas.py:197`. Saída 0, nenhum sobrevivente.
+- `python3 -I -m unittest discover -s tests -p test_forge_mutante.py -k ConferirTodas`: 4 testes OK (a catraca de specs segue verde com a spec alterada).
+- O resto do domínio (código e testes do E147.1) não mudou desde o parecer anterior. A suíte inteira fica no check-run `bateria` do CI do PR; na consulta, `gh pr checks 834` mostrava `bateria (pareceres)` e `catraca` em fail e as partes da suíte pendentes (log ilegível no sandbox); não cito como prova.
