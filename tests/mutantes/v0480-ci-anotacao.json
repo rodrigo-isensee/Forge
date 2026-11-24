@@ -1,0 +1,16 @@
+{
+  "pedido": "v0480-ci-anotacao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E137.2 CI-ANOTACAO-CALADA: o ambiente é copiado antes do discover, e o módulo que tira GITHUB_ACTIONS no import não cala as anotações",
+      "arquivo": "scripts/suite-partes.py",
+      "de": "    environ = dict(os.environ) if environ is None else environ",
+      "para": "    environ = os.environ if environ is None else environ",
+      "testes": [
+        "tests.test_suite_partes.Brinquedo5.test_modulo_que_tira_github_actions_no_import_nao_cala_as_anotacoes"
+      ]
+    }
+  ]
+}

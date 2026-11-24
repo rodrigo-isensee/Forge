@@ -277,9 +277,12 @@ def avisar_medidas(raiz, versao):
     versão, aqui na release, nunca no PR. Só no clone do Forge, onde mora o placar; só avisa, nunca muda a saída."""
     if not (raiz / "scripts" / "placar-mutacao.py").is_file():
         return
-    tag = subprocess.run(["git", "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*"], cwd=raiz,
-                         capture_output=True, text=True)
-    anterior = shlex.quote(tag.stdout.strip()) if tag.returncode == 0 and tag.stdout.strip() else "<tag da release anterior>"
+    # PLACAR-DESDE-MARCA (v0478 E138.3): a janela começa na marca anterior, o último commit do HEAD que mudou a versão do
+    # manifesto; a tag só entra se está nesse commit (na develop, a tag fica no merge da main, fora do histórico).
+    rodar = lambda *args: subprocess.run(["git", *args], cwd=raiz, capture_output=True, text=True).stdout.split()
+    marca = rodar("log", "-1", "--format=%H", "-G", '"version"', "HEAD", "--", ".claude-plugin/plugin.json")
+    tags = rodar("tag", "--points-at", marca[0], "--sort=-v:refname", "--list", "v[0-9]*") if marca else []
+    anterior = shlex.quote((tags or marca)[0]) if tags or marca else "<marca da release anterior>"
     print(f"medida da versão {versao} (uma vez por versão, não é portão; R-TETO):")
     print(f"  placar: scripts/placar-mutacao.py --desde {anterior} --versao {versao} (docs/engineering/placar-mutacao.md)")
     print(f"  bench: a linha da {versao} em bench-versoes.md e metricas-velocidade.md, na área do Jarvis")

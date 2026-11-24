@@ -16,10 +16,10 @@
    "id": "M10",
    "guarda": "sem tag anterior, o comando do placar pede a tag em vez de sair vazio",
    "arquivo": "bin/forge-changelog",
-   "de": "if tag.returncode == 0 and tag.stdout.strip() else",
-   "para": "if True else",
+   "de": "[0]) if tags or marca else",
+   "para": "[0]) if True else",
    "testes": [
-    "tests.test_changelog.ReleaseAvisaMedidasDaVersao.test_sem_tag_pede_a_tag_anterior_a_mao"
+    "tests.test_changelog.ReleaseAvisaMedidasDaVersao.test_sem_marca_pede_a_marca_anterior_a_mao"
    ]
   },
   {
