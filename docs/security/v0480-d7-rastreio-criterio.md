@@ -1,27 +1,24 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: v0478
+pedido: v0481
 branch: melhoria/v0480-d7-rastreio-criterio
-commit: 334af9c91abe5c6bbb4a4abe2a5fb4f20933a2bb
+commit: e2913240f744397a877fae759260d30be43db911
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-24
 ---
-# Review de segurança: v0478 (E174.37, PR #868, D7), revalidação 2
+# Review de segurança: v0481 (E1.9, PR #868, D7), regravação no head com a develop atual
 
-Volta por delta. Lido: `forge-check parecer delta` de `3ed7a573..334af9c9` (no domínio: `bin/forge-check` em `etapas_conferidas` e `provas_por_criterio`; fora: `tests/test_criterios.py` e `tests/mutantes/v0480-d7-rastreio-criterio-3.json`, lidos para conferir o teste da S2). Já lido nas rodadas anteriores: o resto do diff `aabc476c..3ed7a573`.
+Volta por delta. Lido: `forge-check parecer delta` de `334af9c9..e2913240` (base trazida de `a27eab7` para `8d7914b`, sem o que veio da develop): nenhum arquivo do domínio mudou, `revalida: não`. Fora do domínio, lidos: `tests/test_criterios.py` e `tests/mutantes/v0480-d7-rastreio-criterio.json` (1467c342, o teste novo do QA para o mutante D73, que só aperta), `tests/pesos-d4.json` (peso do `test_criterios`). O merge `e2913240` é limpo (`git diff-tree --cc` sem trecho de conflito). Já lido nas rodadas anteriores (v0478, E174.37): o diff `aabc476c..334af9c9`.
 
 Gatilhos: controle do Forge que lê registro de pedido e brief (forge-check), integridade do selo do brief.
 
-**Só aperta ou neutro:** só aperta. `etapas_conferidas` ganha o parâmetro opcional `selados`; com ele (só no `criterios`, `bin/forge-check:8194`), o brief cujo sha256 não confere com o selo deixa de contar. Sem ele (`bin/forge-check:8252` e `:9647`), o caminho é o de antes, sem mudança. Nenhuma guarda, hook, regra ou invariante foi afrouxada.
+**Só aperta ou neutro:** só aperta, inalterado desde a rodada anterior. `etapas_conferidas` com `selados` (só no `criterios`) descarta o brief cujo sha256 não confere com o selo; `proximo` e `brief gerar` seguem pelo caminho de antes. O delta desta rodada é neutro (base trazida) ou aperta (teste novo). Nenhuma guarda, hook, regra ou invariante foi afrouxada.
 
 ## Achados anteriores
-- A1 (bloqueante): corrigido na rodada 2; S1 de novo no head 334af9c9: rc 1, 0 entregues, 2 não entregues.
-- A2 (bloqueante): corrigido. `bin/forge-check:7986-7988` com `selados` pula o brief cujo par (nome, sha256 do selo) não está em `briefs_selados`, que recalcula o sha256 dos bytes (`bin/forge-check:10121`). S2 de novo no head 334af9c9 (`python3 -I sonda_d7.py <caminho absoluto>/bin/forge-check`): antes da edição de Y, C-1 não entregue e C-2 entregue (p1-y.md PQ-1); depois da edição de Y para `Cobre: E1.1`, rc 1, 0 entregues, 2 não entregues (C-1 não entregue, como esperado). Teste: `test_outro_brief_alterado_depois_do_selo_nao_confere_a_etapa` em `tests/test_criterios.py` (o cenário da S2).
-
-## Detalhe
-Recomendação não bloqueante, fora do escopo desta entrega: `proximo` (`bin/forge-check:8252`) e `brief gerar` (`bin/forge-check:9647`, K-166) continuam a ler o `Cobre:` do brief cru. Ali o efeito de um brief editado é de planejamento (a etapa some da lista de próximas ou o aviso de etapa coberta aparece), não de prova de critério; o portão do D7 (`criterios`) está fechado. Fica como melhoria, sem achado.
+- A1 (bloqueante): corrigido (rodada 2), sem mudança no domínio desde então.
+- A2 (bloqueante): corrigido (rodada 3), sem mudança no domínio; o teste novo `test_brief_alterado_nao_prova_mesmo_com_outro_brief_intacto_conferindo_a_etapa` reforça o mesmo portão.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. CI do head 334af9c9 no momento da leitura: `bateria (passos)`, `bateria (verificações longas)`, `instalação` e `árvore já provada na develop` verdes; `bateria (pareceres)` e `catraca` vermelhos (o parecer reprovado anterior estava na branch); suíte pendente. O merge segue preso ao CI verde. Rodados: `python3 -m unittest tests.test_criterios` (9 OK), S1 e S2. Sem ferramenta externa de varredura (diff só de Python da biblioteca padrão).
+Nenhum risco aceito. CI do head e2913240 no momento da leitura: `bateria (passos)`, `catraca` e `instalação` verdes; `bateria (verificações longas)`, `bateria (pareceres)` e `árvore já provada na develop` pendentes. O merge segue preso a todos os checks verdes. Rodado: `python3 -m unittest tests.test_criterios` (10 OK). Sem ferramenta externa de varredura (diff só de Python da biblioteca padrão).
