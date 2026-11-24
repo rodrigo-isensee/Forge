@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-mutante-varias-trocas
-commit: 191484effc2af5506ddfc05f3c44b3944efa2349
+commit: c102d6403eeccd5c7dce72fd6ca72abdabb51d0a
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-24
 ---
-# Review: v0478 (E162.2, E162.6 e E162.10, PR #846, mutante com várias trocas)
+# Review: v0478 (E162.2, E162.6, E162.10 e E162.14, PR #846, mutante com várias trocas)
 
 ## Escopo lido
 Diff `0733715a..e18a5b07`: `bin/forge-mutante` (+55/-22 no código, dentro do teto H1), duas specs novas (`v0480-mutante-varias-trocas.json` M1-M12 e `-2.json`), realinhamento de CF5 (`v047-mutante-avisos.json`) e M6 (`vel-p1p10.json`), 5 testes novos em `tests/test_forge_mutante.py` e o fragmento do changelog.
@@ -33,5 +33,13 @@ Delta lido: `forge-check parecer delta docs/reviews/v0480-mutante-varias-trocas.
 - **Guarda do delta:** a única linha de guarda mudada é o teto; M19 (`= 2` → `= 3`) com os dois testes. Uso, mensagem de erro e changelog falam em 2 pares; o docstring de `trocas()` (`de 2 a MAXIMO_DE_TROCAS`) segue certo. Código do delta: +3/-3 linhas e um comentário, dentro do teto H1.
 - **Ferramentas no head 191484ef:** `python3 -m unittest tests.test_forge_mutante` → `Ran 154 tests in 138.318s OK`; `bin/forge-mutante tests/mutantes/v0480-mutante-varias-trocas-3.json --ids M19` → `M19 · morreu · bin/forge-mutante:135`; `bin/forge-mutante --conferir --base 0733715a` → `conferidas: o trecho de cada spec do diff está no lugar`. Suíte inteira: CI do PR #846 (no momento, suíte 3.12 parte 4/5, baterias e instalação verdes, demais partes pendentes, `bateria (pareceres)` vermelha até os pareceres do head); o merge segue preso ao CI verde (`R-FLUXO`).
 
+## Revalidação E162.14 (3ª volta E162.13, head c102d640)
+Delta lido: `forge-check parecer delta docs/reviews/v0480-mutante-varias-trocas.md`, intervalo `191484ef..c102d640`; no domínio: `bin/forge-mutante`, `changelog.d/v0480-mutante-varias-trocas.md`, `tests/mutantes/v0478-mutante-pulado.json` (P6), `tests/mutantes/v0480-mutante-varias-trocas-3.json` (M20-M23) e `tests/test_forge_mutante.py`.
+- **Só o A3 da segurança:** a volta acrescenta `par_com` (`bin/forge-mutante:433`) e a usa na `coberta` do `--cobertura` (`:708`, com o `par` de cada troca preenchido em `mutantes_do_diff`, `:768`) e na linha da rodada em `provar` (`:981`). Nenhum veredito nem código de saída mudou; o uso documenta que o par só vale se as duas guardas cobrem a mesma condição, conferido na spec por quem revisa. Nenhum outro script lê a linha `coberta` (grep em `bin/`, `hooks/`, `scripts/`), então o sufixo não quebra consumidor. Código do delta: +15 linhas, dentro do teto H1.
+- **Testes ajustados só ficaram mais estritos:** em `test_par_isca_que_morre_sozinho_torna_o_mutante_invalido`, `test_par_que_nao_roda_sozinho_torna_o_mutante_invalido` e `test_cada_troca_do_mutante_de_varias_cobre_a_sua_condicao`, o `assertIn` passou a exigir a mesma linha de antes mais o `(par com <arquivo>:<linha>)` (e, na coberta, o ` · ` seguinte); nenhuma asserção saiu. Novos: `test_par_escudo_que_morre_nomeia_as_duas_linhas` (S7) e `test_par_com_nomeia_so_o_trecho_presente_e_some_sem_nenhum`.
+- **P6 realinhado:** mesma guarda (sem veredito sai 2, nunca 0), mesma troca (`2` → `0`) e o mesmo teste; só o `{linha}` virou `{onde}`. Rodado: `P6 · morreu · bin/forge-mutante:988`.
+- **Guardas do delta:** uma por linha, M20 (`if de in texto`), M21 (`if linhas`), M22 (`if par`), M23 (`d != de`), cada uma com teste de comportamento.
+- **Ferramentas no head c102d640:** `python3 -m unittest tests.test_forge_mutante` → `Ran 156 tests in 83.796s OK`; `bin/forge-mutante tests/mutantes/v0480-mutante-varias-trocas-3.json --ids M20,M21,M22,M23` → os quatro `morreu` (`:436`, `:437`, `:981`, `:768`); `bin/forge-mutante --conferir --base 0733715a` → `conferidas: o trecho de cada spec do diff está no lugar`; `bin/forge-mutante --cobertura --base 191484ef` rc 0, as quatro linhas `coberta`. Suíte inteira: CI do PR #846 (no momento, baterias e instalação verdes, partes da suíte pendentes); o merge segue preso ao CI verde (`R-FLUXO`).
+
 ## Parecer
-Na E162.2 (head e18a5b07), aprovado: faz o que a E162.1 pede (várias trocas juntas para guardas que se cobrem), sem mudar a spec de uma troca; os realinhamentos de CF5 e M6 provam a mesma guarda com o mesmo teste. Na E162.6 (head 3671c052), reprovado pelo A1 (com 3+ pares, cada par sobreviver sozinho não prova que todos são necessários; mesmo defeito do A2 da segurança, sonda S4). Na E162.10, aprovado no head 191484ef: o teto de 2 pares fecha o A1, com a S4 como teste de abuso e o M19 morto na guarda do teto.
+Na E162.2 (head e18a5b07), aprovado: faz o que a E162.1 pede (várias trocas juntas para guardas que se cobrem), sem mudar a spec de uma troca; os realinhamentos de CF5 e M6 provam a mesma guarda com o mesmo teste. Na E162.6 (head 3671c052), reprovado pelo A1 (com 3+ pares, cada par sobreviver sozinho não prova que todos são necessários; mesmo defeito do A2 da segurança, sonda S4). Na E162.10, aprovado no head 191484ef: o teto de 2 pares fecha o A1, com a S4 como teste de abuso e o M19 morto na guarda do teto. Na E162.14, aprovado no head c102d640: a volta ficou só no A3 (a saída nomeia as duas linhas do par, sem mudar veredito), os testes ajustados só ficaram mais estritos e o P6 prova a mesma guarda.
