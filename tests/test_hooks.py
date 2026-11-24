@@ -3105,6 +3105,7 @@ class Hooks(unittest.TestCase):
         parecer = modulos_dos_hooks()[2]
         casos = {("gh", "-X", "PUT", "api", "x"): ["gh", "api", "-X", "PUT", "x"],
                  ("gh", "--repo=o/r", "pr", "merge"): ["gh", "pr", "--repo=o/r", "merge"],
+                 ("gh", "--repo=o/r", "issue", "list"): ["gh", "issue", "--repo=o/r", "list"],
                  ("gh", "-i", "api", "graphql"): ["gh", "api", "-i", "graphql"],  # incerto: o primeiro `api`
                  ("gh", "--help"): ["gh", "--help"], ("gh", "-R"): ["gh", "-R"], ("gh", "--", "x"): ["gh", "--", "x"],
                  ("gh", "api", "-X", "PUT"): ["gh", "api", "-X", "PUT"], ("git", "-C", "p", "merge"): ["git", "-C", "p", "merge"]}
