@@ -246,6 +246,25 @@ class ArquivaSozinho(ComRepositorio):
         self.assertIn("- E1.1 (node-backend), E1.3 (node-backend), E1.5 (node-backend), E1.7 (node-backend)\n", self.pedido())
         self.assertIn("E1.2", fcs.ler_pedido_brief(self.pedido())["etapas"])
 
+    # 2ª volta do #874 (A2 do review, A1 do QA, A4 da segurança): só a forma estrita `<id> entregue` fecha a etapa.
+    def test_forma_estrita_de_entregue_fecha(self):
+        for linha in ("E1.1 entregue", "volta (E1.1) entregue no abc", "E1.1 (tech-lead) entregue no #9", "E1.1 ENTREGUE (2026-01-01)",
+                      "E1.1 entregue; review (E1.2) despachado"):
+            with self.subTest(linha=linha):
+                self.assertEqual(fcs.etapa_entregue_na_linha(linha), "E1.1")
+
+    def test_negacao_futuro_e_texto_livre_de_entregue_nao_fecham(self):
+        for linha in ("E1.1 não foi entregue", "E1.1 nunca entregue", "E1.1 a ser entregue amanhã", "E1.1 será entregue na volta",
+                      "E1.1 não-entregue", "E1.1 sem ser entregue", "E1.1 despachada para corrigir o que foi entregue no #5",
+                      "E1.1 reprovada, volta entregue pelo dev", "E1.1 ainda não entregue"):
+            with self.subTest(linha=linha):
+                self.assertIsNone(fcs.etapa_entregue_na_linha(linha))
+
+    def test_entregue_com_interrogacao_nao_fecha(self):
+        for linha in ("E1.1 Entregue? não, volta pendente", "(E1.1) entregue? falta o teste"):
+            with self.subTest(linha=linha):
+                self.assertIsNone(fcs.etapa_entregue_na_linha(linha))
+
     # A2 do QA e S2 da segurança: o --cobre e as etapas citadas no Entregar nunca saem do pedido, mesmo entregues.
     def test_cobre_entregue_fica_no_pedido_e_o_brief_sai(self):
         historico, _ = self.fechamentos()

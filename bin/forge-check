@@ -8055,19 +8055,22 @@ def com_branch_mesclada(raiz, etapas):
 ETAPAS_ARQUIVADAS = "Etapas arquivadas"  # PEDIDO-ARQUIVA-SOZINHO (ordem do dono 24/11): a seção do pedido com os ids que saíram do `## Etapas`
 PASTA_DO_ARQUIVO = "arquivo"  # docs/pedidos/arquivo/<id>.md: fora do glob `docs/pedidos/*.md`, que acha os pedidos
 ID_DE_ETAPA_ARQUIVADA = r"(?<![\w.])E\d+\.\d+[a-z]?(?![\w.])"
-ETAPA_ARQUIVADA = re.compile(rf"({ID_DE_ETAPA_ARQUIVADA})(?:\s*\(([^()]*)\))?")  # `E1.1 (node-backend)` em `## Etapas arquivadas`
+ETAPA_ARQUIVADA = re.compile(rf"({ID_DE_ETAPA_ARQUIVADA})(?:\s*\(([^()]*)\))?")  # `E1.1 (tech-lead)` em `## Etapas arquivadas`
 ETAPA_DE_UMA_LINHA = re.compile(r"^- (E\d+\.\d+[a-z]?) \(([^)]*)\)")
 APROVADO_DA_ETAPA = re.compile(rf"=aprovado(?: por delta)? \(({ID_DE_ETAPA_ARQUIVADA})")  # o id logo depois do parêntese do parecer
+ENTREGUE_DA_ETAPA = re.compile(r"\)?\s*(?:\([^()]*\)\s*)?entregue(?![\w?])", re.I)  # só `E1.1 entregue`, `(E1.1) entregue`, `E1.1 (papel) entregue`
 
 
 def etapa_entregue_na_linha(linha):
-    """A etapa que a linha do `## Histórico` dá como entregue: a primeira da linha, com `entregue` depois dela e antes de outra etapa
-    ou de `;` (`G4 (E7.1) entregue ...; review (E7.3) despachado` só entrega a E7.1). Linha de parecer (`.md=`) não entrega nada."""
+    """A etapa que a linha do `## Histórico` dá como entregue: a primeira da linha, com `entregue` logo depois dela (o papel entre
+    parênteses pode vir no meio) e antes de outra etapa ou de `;` (`G4 (E7.1) entregue ...; review (E7.3) despachado` só entrega a
+    E7.1). Negação, futuro e texto livre não fecham (`não foi entregue`, `a ser entregue`, `Entregue? não`, `volta entregue`: A2 do
+    #874). Linha de parecer (`.md=`) não entrega nada."""
     ids = list(re.finditer(ID_DE_ETAPA_ARQUIVADA, linha))
     if not ids or ".md=" in linha:
         return None
     trecho = linha[ids[0].end():ids[1].start() if len(ids) > 1 else len(linha)].split(";")[0]
-    return ids[0].group(0) if re.search(r"(?<!não )\bentregue\b", trecho, re.I) else None
+    return ids[0].group(0) if ENTREGUE_DA_ETAPA.match(trecho) else None
 
 
 def etapas_fechadas(raiz, caminho, texto, protegidas=frozenset()):

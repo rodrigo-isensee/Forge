@@ -54,12 +54,12 @@
     },
     {
       "id": "M22",
-      "guarda": "PEDIDO-ARQUIVA-SOZINHO: `não entregue` não fecha",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: `entregue` só fecha logo depois do id, nunca no meio do texto livre (2ª volta do #874)",
       "arquivo": "bin/forge-check",
-      "de": "re.search(r\"(?<!não )\\bentregue\\b\", trecho, re.I)",
-      "para": "re.search(r\"\\bentregue\\b\", trecho, re.I)",
+      "de": "ENTREGUE_DA_ETAPA.match(trecho)",
+      "para": "ENTREGUE_DA_ETAPA.search(trecho)",
       "testes": [
-        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida"
+        "tests.test_brief_tamanho.ArquivaSozinho.test_negacao_futuro_e_texto_livre_de_entregue_nao_fecham"
       ]
     },
     {
