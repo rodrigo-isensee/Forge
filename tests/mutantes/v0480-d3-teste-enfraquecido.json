@@ -39,7 +39,7 @@
       "de": "if antes[3] - depois[3]:",
       "para": "if depois[3] - antes[3]:",
       "testes": [
-        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_barra"
+        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_na_primeira_entrega_nao_barra_e_fica_listado"
       ]
     },
     {
@@ -49,17 +49,17 @@
       "de": "perdas = [\"foi apagado ou renomeado\"]",
       "para": "perdas = []",
       "testes": [
-        "tests.test_catraca.TestesAfrouxados.test_teste_apagado_renomeado_ou_modulo_ilegivel_barra"
+        "tests.test_catraca.TestesAfrouxados.test_teste_apagado_renomeado_afrouxado_ou_modulo_ilegivel_barra"
       ]
     },
     {
       "id": "D3A6",
       "guarda": "perda achada vira violação",
       "arquivo": "tests/catraca.py",
-      "de": "            if perdas:\n                v.append(msg(\"R-CONFORMIDADE\", f\"o teste",
-      "para": "            if perdas and False:\n                v.append(msg(\"R-CONFORMIDADE\", f\"o teste",
+      "de": "            if perdas:\n                achados.append((arq, nome, perdas))",
+      "para": "            if perdas and False:\n                achados.append((arq, nome, perdas))",
       "testes": [
-        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_barra"
+        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_na_primeira_entrega_nao_barra_e_fica_listado"
       ]
     },
     {

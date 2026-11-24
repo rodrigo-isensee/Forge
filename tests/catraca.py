@@ -701,6 +701,9 @@ def testes_da_arvore(arvore):
     return testes
 
 
+VALOR_TROCADO = "trocou ou tirou valor esperado"
+
+
 def afrouxamentos(antes, depois):
     """O que o teste perdeu de `antes` para `depois` (perfis); vazio se não afrouxou."""
     perdas = []
@@ -711,8 +714,18 @@ def afrouxamentos(antes, depois):
     if depois[2] and not antes[2]:
         perdas.append("ficou vazio")
     if antes[3] - depois[3]:
-        perdas.append("trocou ou tirou valor esperado")
+        perdas.append(VALOR_TROCADO)
     return perdas
+
+
+def _duras(perdas):
+    """As perdas que barram sempre (decisão do dono de 24/11): todas menos o valor esperado trocado."""
+    return [p for p in perdas if p != VALOR_TROCADO]
+
+
+def mesmas_assercoes(antes, depois):
+    """Teste renomeado não conta quando o novo tem as mesmas asserções: a mesma quantidade e os mesmos valores esperados."""
+    return depois[0] == antes[0] and depois[3] == antes[3] and not afrouxamentos(antes, depois)
 
 
 def _testes_por_modulo(raiz, ref, modulos):
@@ -720,25 +733,89 @@ def _testes_por_modulo(raiz, ref, modulos):
     return {arq: testes_da_arvore(a) for arq in modulos if (a := _arvore_do_modulo(raiz, ref, arq, presentes)) is not None}
 
 
-def regra_testes_afrouxados(raiz, b, h):
-    """Cada `def test_*` da base num módulo tocado: apagado (sem o mesmo nome em outro módulo tocado), pulado, esvaziado,
-    com asserção a menos ou valor esperado trocado barra. Teste movido de módulo passa se a cópia não afrouxou."""
+def perdas_dos_testes(raiz, b, h):
+    """[(módulo, teste, perdas)] de cada `def test_*` de `b` num módulo tocado que afrouxou em `h`. Movido de módulo vale pela
+    cópia menos afrouxada; sem cópia, o teste novo de `h` com as mesmas asserções é o renomeado (cada novo serve a um só)."""
     modulos = [a for a in alterados(raiz, b, h) if a.endswith(".py") and a != "tests/catraca.py"]  # fora de tests/: não lido
     tb, th = _testes_por_modulo(raiz, b, modulos), _testes_por_modulo(raiz, h, modulos)
-    v = []
+    nomes_da_base = {nome for testes in tb.values() for nome in testes}
+    novos = [t for testes in th.values() for nome, t in sorted(testes.items()) if nome not in nomes_da_base]
+    achados = []
     for arq, testes in sorted(tb.items()):
         for nome, antes in sorted(testes.items()):
             junto = th.get(arq, {}).get(nome)
             copias = [junto] if junto else [t[nome] for t in th.values() if nome in t]
-            if not copias:
-                perdas = ["foi apagado ou renomeado"]
+            if copias:
+                perdas = min((afrouxamentos(antes, c) for c in copias), key=lambda p: (len(_duras(p)), len(p)))
             else:
-                perdas = min((afrouxamentos(antes, c) for c in copias), key=len)
+                gemeo = next((i for i, n in enumerate(novos) if mesmas_assercoes(antes, n)), None)
+                perdas = ["foi apagado ou renomeado"] if gemeo is None else []
+                if gemeo is not None:
+                    del novos[gemeo]
             if perdas:
-                v.append(msg("R-CONFORMIDADE", f"o teste {arq}::{nome} {', '.join(perdas)}",
-                             "teste existente afrouxado deixa a regra sem proteção com o CI verde, e as somas se compensam entre testes",
-                             f"restaure o teste como na base ou peça o rótulo `{ROTULO}` ao dono", "docs/regras/R-CONFORMIDADE.md"))
+                achados.append((arq, nome, perdas))
+    return achados
+
+
+def _msg_afrouxado(arq, nome, perdas):
+    return msg("R-CONFORMIDADE", f"o teste {arq}::{nome} {', '.join(perdas)}",
+               "teste existente afrouxado deixa a regra sem proteção com o CI verde, e as somas se compensam entre testes",
+               f"restaure o teste como na base ou peça o rótulo `{ROTULO}` ao dono", "docs/regras/R-CONFORMIDADE.md")
+
+
+def regra_testes_afrouxados(raiz, b, h, aprovado=None):
+    """Contra a base, barra o teste apagado (sem renomeado de mesmas asserções), pulado, esvaziado ou com asserção a menos. O valor
+    esperado trocado só barra na volta, contra o commit `aprovado` pelos revisores; na primeira entrega, `valores_para_conferir`."""
+    v = [_msg_afrouxado(arq, nome, _duras(perdas)) for arq, nome, perdas in perdas_dos_testes(raiz, b, h) if _duras(perdas)]
+    if aprovado:
+        v += [_msg_afrouxado(arq, nome, [f"{VALOR_TROCADO} depois da versão aprovada {aprovado[:12]}"])
+              for arq, nome, perdas in perdas_dos_testes(raiz, aprovado, h) if VALOR_TROCADO in perdas]
     return v
+
+
+def valores_para_conferir(raiz, base, head="HEAD"):
+    """Os testes da base cuja única perda é o valor esperado trocado: na primeira entrega não barram, e o revisor os confere."""
+    return [f"{arq}::{nome}" for arq, nome, perdas in perdas_dos_testes(raiz, base_efetiva(raiz, base, head), head)
+            if perdas == [VALOR_TROCADO]]
+
+
+def listar_valores_para_conferir(raiz, base, head):
+    """Imprime (e põe no resumo) os valores esperados trocados que não barram, para o revisor conferir no parecer."""
+    try:
+        casos = valores_para_conferir(raiz, base, head)
+    except FALHAS_DO_GIT:  # a falha do git já é violação das regras (falha fechada lá)
+        return
+    for caso in casos:
+        print(f"catraca: confira no parecer (valor esperado trocado; não barra na primeira entrega): {caso}")
+    if casos:
+        resumo("valores esperados trocados (confira no parecer)", casos)
+
+
+SHA = re.compile(r"[0-9a-f]{7,40}")
+
+
+def commit_aprovado(raiz, b, h):
+    """O commit mais novo de `b..h` citado em `commit:` por um parecer aprovado que a branch toca (pastas do `PASTA_E_REGRA`
+    do forge-check); None sem ele (primeira entrega). Parecer de tipo trocado ou SHA fora de `b..h` não vale."""
+    pastas, candidatos = None, []
+    for rel in alterados(raiz, b, h):
+        if not (rel.startswith("docs/") and rel.endswith(".md")):
+            continue
+        if pastas is None:
+            fc = forge_check()
+            pastas = {p: t for t, (p, _) in fc.PASTA_E_REGRA.items()}
+        texto = ler(raiz, h, rel)
+        campos = fc.ler_frontmatter(texto)[0] if texto else None
+        if not campos or campos.get("tipo") != pastas.get(rel.rsplit("/", 1)[0]) or campos.get("parecer") != "aprovado":
+            continue
+        if not SHA.fullmatch(campos.get("commit", "")):
+            continue
+        cod, sha = git(raiz, "rev-parse", "--verify", "--quiet", campos["commit"] + "^{commit}")
+        sha = sha.strip()
+        if cod or git(raiz, "merge-base", "--is-ancestor", sha, h)[0] or not git(raiz, "merge-base", "--is-ancestor", sha, b)[0]:
+            continue
+        candidatos.append((int(git(raiz, "rev-list", "--count", sha)[1]), sha))
+    return max(candidatos)[1] if candidatos else None
 
 
 def modulos_descobriveis(raiz, ref, arquivos=None):
@@ -1173,7 +1250,7 @@ def _violacoes_das_regras(raiz, base, head):
     permitido = (ch or {}).get("custo_permitido", {})
     return (regras_de_config(cb, ch or {}) + regra_arquivos_de_regras(raiz, b, head, cb or {}) + regra_hooks(raiz, b, head) + regra_testes(raiz, b, head)
             + regra_testes_enfraquecidos(raiz, b, head) + regra_controles_enfraquecidos(raiz, b, head)
-            + regra_testes_afrouxados(raiz, b, head)
+            + regra_testes_afrouxados(raiz, b, head, commit_aprovado(raiz, b, head))
             + regra_testes_no_ci(raiz, b, head, cb, ch) + regra_teto_pulados(cb, ch) + regra_guardas_dos_hooks(raiz, b, head)
             + regra_politica(raiz, b, head)
             + regra_custo(raiz, head, permitido) + regra_protegidos(raiz, b, head) + regra_compilados(raiz, b, head))
@@ -2076,6 +2153,7 @@ def _main(a):
                                           os.environ.get("HEAD_REPO", ""), os.environ.get("BASE_REPO", "")), "pareceres"
     else:
         viol, titulo = violacoes_das_regras(raiz, a.base, a.head), "catraca"
+        listar_valores_para_conferir(raiz, a.base, a.head)
         if viol:
             if a.eventos:
                 eventos, push = json_raso(Path(a.eventos).read_text(encoding="utf-8")), a.ultimo_push

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-d3-teste-enfraquecido",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D3D1",
+      "guarda": "valor trocado não é perda dura",
+      "arquivo": "tests/catraca.py",
+      "de": "if p != VALOR_TROCADO]",
+      "para": "if p == VALOR_TROCADO]",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_valor_trocado_com_outra_perda_barra_pela_outra_e_nao_fica_listado"
+      ]
+    },
+    {
+      "id": "D3D2",
+      "guarda": "renomeado exige a mesma quantidade de asserções",
+      "arquivo": "tests/catraca.py",
+      "de": "return depois[0] == antes[0] and",
+      "para": "return depois[0] >= antes[0] and",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_teste_apagado_renomeado_afrouxado_ou_modulo_ilegivel_barra"
+      ]
+    },
+    {
+      "id": "D3D3",
+      "guarda": "renomeado exige os mesmos valores esperados",
+      "arquivo": "tests/catraca.py",
+      "de": "and depois[3] == antes[3] and not afrouxamentos",
+      "para": "and True and not afrouxamentos",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_teste_apagado_renomeado_afrouxado_ou_modulo_ilegivel_barra"
+      ]
+    },
+    {
+      "id": "D3D4",
+      "guarda": "renomeado não pode ter afrouxado",
+      "arquivo": "tests/catraca.py",
+      "de": "and not afrouxamentos(antes, depois)\n",
+      "para": "and True\n",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_teste_apagado_renomeado_afrouxado_ou_modulo_ilegivel_barra"
+      ]
+    },
+    {
+      "id": "D3D5",
+      "guarda": "nome da base não serve de renomeado",
+      "arquivo": "tests/catraca.py",
+      "de": "for nome, t in sorted(testes.items()) if nome not in nomes_da_base]",
+      "para": "for nome, t in sorted(testes.items())]",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_teste_de_nome_da_base_nao_serve_de_renomeado"
+      ]
+    },
+    {
+      "id": "D3D6",
+      "guarda": "entre cópias vale a de menos perdas duras",
+      "arquivo": "tests/catraca.py",
+      "de": "key=lambda p: (len(_duras(p)), len(p)))",
+      "para": "key=len)",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_entre_copias_vale_a_que_so_trocou_valor"
+      ]
+    },
+    {
+      "id": "D3D7",
+      "guarda": "sem gêmeo de mesmas asserções, apagado",
+      "arquivo": "tests/catraca.py",
+      "de": "if gemeo is None else []",
+      "para": "if gemeo is None or True else []",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_teste_renomeado_com_as_mesmas_assercoes_passa"
+      ]
+    },
+    {
+      "id": "D3D8",
+      "guarda": "o gêmeo serve a um teste só",
+      "arquivo": "tests/catraca.py",
+      "de": "                if gemeo is not None:\n",
+      "para": "                if False:\n",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_teste_novo_serve_de_renomeado_a_um_teste_so"
+      ]
+    }
+  ]
+}

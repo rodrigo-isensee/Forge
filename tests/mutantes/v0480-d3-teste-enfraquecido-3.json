@@ -19,7 +19,7 @@
       "de": "for c in ast.walk(no) if isinstance(c, ast.Constant))",
       "para": "for c in ast.walk(no) if isinstance(c, ast.Name))",
       "testes": [
-        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_barra"
+        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_na_primeira_entrega_nao_barra_e_fica_listado"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "de": "if isinstance(n, ast.Assert):\n            asserts += 1\n            esperados",
       "para": "if isinstance(n, ast.Pass):\n            asserts += 1\n            esperados",
       "testes": [
-        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_barra"
+        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_na_primeira_entrega_nao_barra_e_fica_listado"
       ]
     },
     {

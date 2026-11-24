@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-d3-teste-enfraquecido",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D3E1",
+      "guarda": "contra a base, só a perda dura barra",
+      "arquivo": "tests/catraca.py",
+      "de": "for arq, nome, perdas in perdas_dos_testes(raiz, b, h) if _duras(perdas)]",
+      "para": "for arq, nome, perdas in perdas_dos_testes(raiz, b, h) if perdas]",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_na_primeira_entrega_nao_barra_e_fica_listado"
+      ]
+    },
+    {
+      "id": "D3E2",
+      "guarda": "com versão aprovada, compara com ela",
+      "arquivo": "tests/catraca.py",
+      "de": "    if aprovado:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_valor_trocado_na_volta_contra_a_versao_aprovada_barra"
+      ]
+    },
+    {
+      "id": "D3E3",
+      "guarda": "na volta, o valor trocado barra",
+      "arquivo": "tests/catraca.py",
+      "de": "if VALOR_TROCADO in perdas]",
+      "para": "if VALOR_TROCADO not in perdas]",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_valor_trocado_na_volta_contra_a_versao_aprovada_barra"
+      ]
+    },
+    {
+      "id": "D3E4",
+      "guarda": "só o valor trocado sozinho vai à lista",
+      "arquivo": "tests/catraca.py",
+      "de": "if perdas == [VALOR_TROCADO]]",
+      "para": "if VALOR_TROCADO in perdas]",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_valor_trocado_com_outra_perda_barra_pela_outra_e_nao_fica_listado"
+      ]
+    },
+    {
+      "id": "D3E5",
+      "guarda": "git falho na lista fica calado",
+      "arquivo": "tests/catraca.py",
+      "de": "    except FALHAS_DO_GIT:  # a falha do git já é violação",
+      "para": "    except ():  # a falha do git já é violação",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_lista_dos_valores_com_git_falho_fica_calada"
+      ]
+    },
+    {
+      "id": "D3E6",
+      "guarda": "sem caso, nada no resumo",
+      "arquivo": "tests/catraca.py",
+      "de": "    if casos:\n        resumo(\"valores",
+      "para": "    if True:\n        resumo(\"valores",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_lista_dos_valores_sai_na_catraca_e_no_resumo_sem_mudar_o_codigo_de_saida"
+      ]
+    },
+    {
+      "id": "D3E7",
+      "guarda": "só .md vale como parecer",
+      "arquivo": "tests/catraca.py",
+      "de": "and rel.endswith(\".md\")):",
+      "para": "and True):",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_parecer_que_nao_e_aprovacao_da_branch_nao_vale_como_volta"
+      ]
+    },
+    {
+      "id": "D3E8",
+      "guarda": "o forge-check carrega no primeiro parecer",
+      "arquivo": "tests/catraca.py",
+      "de": "        if pastas is None:\n",
+      "para": "        if pastas is not None:\n",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_valor_trocado_na_volta_contra_a_versao_aprovada_barra"
+      ]
+    }
+  ]
+}

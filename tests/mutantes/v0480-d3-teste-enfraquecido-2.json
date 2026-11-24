@@ -39,7 +39,7 @@
       "de": "if isinstance(filho, ast.ClassDef):",
       "para": "if False:",
       "testes": [
-        "tests.test_catraca.TestesAfrouxados.test_teste_apagado_renomeado_ou_modulo_ilegivel_barra"
+        "tests.test_catraca.TestesAfrouxados.test_teste_apagado_renomeado_afrouxado_ou_modulo_ilegivel_barra"
       ]
     },
     {
@@ -59,7 +59,7 @@
       "de": "(a := _arvore_do_modulo(raiz, ref, arq, presentes)) is not None}",
       "para": "(a := _arvore_do_modulo(raiz, ref, arq, presentes)) is None}",
       "testes": [
-        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_barra"
+        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_na_primeira_entrega_nao_barra_e_fica_listado"
       ]
     },
     {
@@ -76,10 +76,10 @@
       "id": "D3B8",
       "guarda": "sem cópia no head vai ao ramo do apagado",
       "arquivo": "tests/catraca.py",
-      "de": "if not copias:",
-      "para": "if not copias and False:",
+      "de": "            if copias:\n                perdas = min(",
+      "para": "            if copias and False:\n                perdas = min(",
       "testes": [
-        "tests.test_catraca.TestesAfrouxados.test_teste_apagado_renomeado_ou_modulo_ilegivel_barra"
+        "tests.test_catraca.TestesAfrouxados.test_teste_movido_de_modulo_passa_e_afrouxado_na_mudanca_barra"
       ]
     }
   ]

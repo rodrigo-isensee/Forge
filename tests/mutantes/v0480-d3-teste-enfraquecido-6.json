@@ -1,0 +1,76 @@
+{
+  "pedido": "v0480-d3-teste-enfraquecido",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D3F1",
+      "guarda": "parecer apagado não é lido",
+      "arquivo": "tests/catraca.py",
+      "de": "fc.ler_frontmatter(texto)[0] if texto else None",
+      "para": "fc.ler_frontmatter(texto)[0] if not texto else None",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_parecer_apagado_pela_branch_nao_quebra_a_busca_da_aprovacao"
+      ]
+    },
+    {
+      "id": "D3F2",
+      "guarda": "o tipo do parecer bate com a pasta",
+      "arquivo": "tests/catraca.py",
+      "de": "campos.get(\"tipo\") != pastas.get(rel.rsplit(\"/\", 1)[0]) or",
+      "para": "False or",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_parecer_que_nao_e_aprovacao_da_branch_nao_vale_como_volta"
+      ]
+    },
+    {
+      "id": "D3F3",
+      "guarda": "só o parecer aprovado vale",
+      "arquivo": "tests/catraca.py",
+      "de": "or campos.get(\"parecer\") != \"aprovado\":",
+      "para": "or False:",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_parecer_que_nao_e_aprovacao_da_branch_nao_vale_como_volta"
+      ]
+    },
+    {
+      "id": "D3F4",
+      "guarda": "commit com forma de SHA",
+      "arquivo": "tests/catraca.py",
+      "de": "        if not SHA.fullmatch(campos.get(\"commit\", \"\")):\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_parecer_que_nao_e_aprovacao_da_branch_nao_vale_como_volta"
+      ]
+    },
+    {
+      "id": "D3F5",
+      "guarda": "commit aprovado é ancestral do head",
+      "arquivo": "tests/catraca.py",
+      "de": "if cod or git(raiz, \"merge-base\", \"--is-ancestor\", sha, h)[0] or not",
+      "para": "if cod or not",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_parecer_que_nao_e_aprovacao_da_branch_nao_vale_como_volta"
+      ]
+    },
+    {
+      "id": "D3F6",
+      "guarda": "commit aprovado não é da base",
+      "arquivo": "tests/catraca.py",
+      "de": " or not git(raiz, \"merge-base\", \"--is-ancestor\", sha, b)[0]:",
+      "para": ":",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_parecer_que_nao_e_aprovacao_da_branch_nao_vale_como_volta"
+      ]
+    },
+    {
+      "id": "D3F7",
+      "guarda": "vale a aprovação mais nova",
+      "arquivo": "tests/catraca.py",
+      "de": "return max(candidatos)[1] if candidatos else None",
+      "para": "return min(candidatos)[1] if candidatos else None",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_na_volta_vale_a_versao_aprovada_mais_nova_de_qualquer_revisor"
+      ]
+    }
+  ]
+}
