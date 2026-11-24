@@ -61,6 +61,16 @@
       "testes": [
         "tests.test_forge_copia.BriefSugereACopia.test_brief_sem_a_linha_com_caminho_fora_da_forma"
       ]
+    },
+    {
+      "id": "M7",
+      "guarda": "E172.7 CLONE-NOME-UNICO: brief sem --branch não sugere cópia",
+      "arquivo": "bin/forge-check",
+      "de": "        copia = copia_sugerida(raiz, branch, papel_destino) if branch else None",
+      "para": "        copia = copia_sugerida(raiz, branch, papel_destino) if True else None",
+      "testes": [
+        "tests.test_forge_copia.BriefSugereACopia.test_brief_sem_branch_nao_sugere_copia"
+      ]
     }
   ]
 }

@@ -646,14 +646,14 @@ class BriefSugereACopia(unittest.TestCase):
         with mock.patch.object(self.fc, "e_o_forge", return_value=forge):
             return self.fc.copia_sugerida(raiz or self.raiz, branch, papel)
 
-    def gerar(self, id_="p"):
+    def gerar(self, id_="p", branch="melhoria/x"):
         (self.raiz / "docs" / "pedidos" / "p.md").write_text(PEDIDO_DO_BRIEF.format(id=id_), encoding="utf-8")
         fc = self.fc
         with mock.patch.object(fc, "e_o_forge", return_value=True), mock.patch.object(fc, "pareceres_da_etapa", return_value=[]), \
                 mock.patch.object(fc, "estado_da_branch", return_value=([], [])), mock.patch.object(fc, "pr_da_branch", return_value=({}, None)), \
                 mock.patch.object(fc, "portao_na_branch", return_value=(None, None)), \
                 mock.patch.object(fc, "base_sha_real", return_value="b" * 40), redirect_stderr(io.StringIO()):
-            return fc.montar_brief(self.raiz, "p", "forge:dev-exemplo", "melhoria/x", "develop", etapa="codigo", cobre="E1.1")
+            return fc.montar_brief(self.raiz, "p", "forge:dev-exemplo", branch, "develop", etapa="codigo", cobre="E1.1")
 
     def test_no_forge_o_nome_leva_branch_e_papel_na_pasta_das_copias(self):
         self.assertEqual(self.sugerida(True), str(self.home / ".forge-contrib" / "wt" / "x-tech-lead"))
@@ -692,6 +692,11 @@ class BriefSugereACopia(unittest.TestCase):
     def test_brief_sem_a_linha_com_caminho_fora_da_forma(self):
         os.environ["HOME"] = str(self.tmp / "com espaço")
         saida, rc, erros = self.gerar()
+        self.assertEqual(rc, 0, erros)
+        self.assertNotIn("CLONE-NOME-UNICO", saida)
+
+    def test_brief_sem_branch_nao_sugere_copia(self):
+        saida, rc, erros = self.gerar(branch=None)
         self.assertEqual(rc, 0, erros)
         self.assertNotIn("CLONE-NOME-UNICO", saida)
 
