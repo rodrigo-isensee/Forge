@@ -43,5 +43,12 @@
         "tests.test_forge_dora.Metricas.test_quadro_vazio_existente_segue_zero"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge_dora.py",
+      "trecho": "ler_texto(arq) or \"\"",
+      "motivo": "a condição saiu com o comportamento que ela dava (ausente vale vazio); a guarda nova é a M1, texto is None"
+    }
   ]
 }
