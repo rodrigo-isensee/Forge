@@ -1,2 +1,0 @@
-### Alterado
-- Skill qa-testing (TESTES-SEM-I-NA-RAIZ, v0478 E161.1): a forma de rodar os testes do item na raiz é `python3 -m unittest tests.<mod>`, sem `-I`, dita uma vez só em `skills/qa-testing/comandos.md`; as skills qa-testing, briefs-e-conferencia e contribuir-com-o-forge apontam para ela. O `-I` continua valendo onde protege: no subprocesso que o teste roda e no script que lê dado de fora (guardas do diff do tech-lead).
