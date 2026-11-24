@@ -3,30 +3,23 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-d5-filtro-decisao
-commit: 6c4a7dcc9856c3718599c0bdb06185a58afcbdcf
-parecer: reprovado
+commit: 8916a422b5b7b811f858847881a686e7f3108f19
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-24
 ---
-# Review: v0478 (E173.5, D5, PR #863)
+# Review: v0478 (E173.19, D5, PR #863, volta E173.12)
 
 ## Achados
-- A1 (bloqueante) bin/forge_decisor.py:60 · A confirmação da segurança não se prende à decisão: qualquer parecer em docs/security/ que diga "só aperta" de passagem (heredoc-donos.md, lote-l10.md) confirma qualquer porta (S1). Exigir no parecer o pedido do --pedido e a porta registrada, ou o id da decisão.
-- A2 (recomendado) bin/forge_decisor.py:31 · A negação só pega `não ` colado: "Não, só aperta?", "não\nsó aperta", "nem só aperta" e "verificar se só aperta" casam (S2). Com A1 resolvido por linha própria da confirmação, a busca solta pode sair.
-- A3 (recomendado) skills/falar-com-o-dono/SKILL.md:1 · A skill não cita `--tipo-pergunta` nem os 7 tipos, e o R-DECISAO não cita `--so-aperta`/`--seguranca`; o PR aponta como cartão. Quem pergunta ao dono descobre a flag pela recusa (rc 2).
-
-## Sondas
-- S1 · confirmacao_escrita(raiz, "docs/security/heredoc-donos.md") (parecer de outro item, frase "o que só aperta" sobre um contador) · espera: False · obtido: True
-- S2 · SO_APERTA.search("Não, só aperta?") e "não\nsó aperta" · espera: None · obtido: casa nos dois
+- A1 (recomendado) skills/falar-com-o-dono/SKILL.md:1 · Segue o A3 do 6c4a7dcc: a skill não cita `--tipo-pergunta` nem os 7 tipos, e o R-DECISAO não cita `--so-aperta`/`--seguranca` nem a linha `Só aperta: <porta>`. Vira cartão depois do merge.
 
 ## Parecer
-Reprovado por A1. O D5 tem três partes; duas estão corretas:
+Aprovado. Revalidação por delta: li `forge-check parecer delta docs/reviews/v0480-d5-filtro-decisao.md` (revalida: sim, o parecer anterior barrou) e o diff 6c4a7dcc..8916a422 em `bin/forge_decisor.py`, nos testes e nos mutantes.
 
-- `anotar --tipo pergunta`: `recusa_da_pergunta` (tipo da lista fechada, ao menos uma questão, nenhuma com opção só) roda antes da E6, e `--tipo-pergunta` fora da pergunta é recusado sem gravar. O `tipo=<t>` entra no contexto, com valor da lista, e o O4 segue lendo a linha (`test_cada_tipo_da_lista_grava_o_tipo_antes_do_contexto`). Nenhum outro chamador de `cmd_anotar` ou `decidir` fica sem os argumentos novos (grep em bin, hooks, tests).
-- `decisoes registrar`: `--so-aperta sim|nao` é obrigatório (rc 2 sem ele) e as duas condições novas só apertam. Caminho restrito a `docs/security/<nome>.md` sem link no arquivo, na pasta e na `docs/`, teto de 1 MiB.
+- A1 anterior (bloqueante) resolvido: `confirmacao_escrita(raiz, caminho, pedido, porta)` lê o parecer pelo git no HEAD (`parecer_no_git`: raiz igual ao `--show-toplevel`, modo 100644, até 1 MiB, sem diferença no índice nem na árvore), exige o frontmatter `tipo: revisao-seguranca`, `parecer: aprovado`, `revisor: forge:security-engineer` e `pedido:` igual ao `--pedido`, e uma linha inteira `Só aperta: <porta>` com a porta registrada (espaços normalizados por `_campo`, dos dois lados). A S1 da volta anterior virou caso: `test_parecer_de_outro_item_ja_na_develop_vira_pergunta` usa `heredoc-donos.md` e `release-0.47.15.md` reais.
+- A2 anterior (recomendado) resolvido: a busca solta saiu; a `fullmatch` por linha recusa negação, pergunta, recuo e minúscula (`test_frase_solta_pergunta_ou_negacao_vira_pergunta`, inclui a S2).
+- Falha fechada: frontmatter sem abertura, sem fechamento, com linha fora de `chave: valor` ou chave repetida devolve `None`; `_git` limpa as `GIT_*` herdadas e devolve `(1, b"")` sem o git. O teste de subprocesso usa `-I` e `sem_git_herdado`.
 
-O defeito está na terceira parte. A regra do dono de 24/11 07:43 pede que a segurança confirme por escrito que **a opção recomendada** só aperta. `confirmacao_escrita` só procura a frase em qualquer lugar do arquivo. Dez pareceres da `docs/security/` já trazem "só aperta" sobre outros itens; S1 mostra que um deles confirma qualquer porta. Como `--so-aperta` e `--reversivel` são declarados por quem registra, essa é a única condição com âncora fora do agente, e ela não segura. Sugestão de correção (o autor escolhe): o parecer passa a valer só com o `pedido:` do frontmatter igual ao `--pedido` e uma linha que traga a porta registrada (ou o id `D<n>`) junto de "só aperta". Precisa também de teste do ramo de falha (parecer de outro pedido e parecer sem a porta) e de mutante para a guarda nova.
+Tamanho (H1): `bin/` soma 114 linhas acrescidas desde a base 8a6f5907 (forge_decisor 78, forge_dono 22, forge-check 14), dentro do teto. Guardas novas com um mutante cada (D5M18 a D5M22 na spec principal, D5M23 a D5M28 na `-4`); rodei a `-4` aqui: 6 de 6 mortos no 8916a422. As guardas trocadas (D5M2 a D5M5 antigos) saíram com o código que guardavam.
 
-Tamanho (H1): 64 linhas de código em `bin/`, dentro do teto. Mutantes D5M1 a D5M17, um por guarda nas três specs; cito o autor (`bin/forge-mutante`, 17 de 17 mortos; `--cobertura --base 8a6f5907` rc 0), sem refazer. Commits em Conventional Commits, com o fragmento `changelog.d/` presente.
-
-Suíte: no CI do head 6c4a7dcc a suíte ainda estava pendente; `catraca` e `bateria (pareceres)` falham, como se espera com os pareceres pendentes. Cito o PQ local do autor (214 + 203 testes OK). Rodei aqui só os testes tocados: `tests.test_forge_dono.FiltroDaPergunta`, `tests.test_forge_dono.SoApertaComSeguranca`, `tests.test_decisor` e `tests.test_anotar`, 42 testes OK.
+Suíte: no CI do 8916a422 as 10 partes da suíte (3.12 e 3.14), a instalação e o teto de pulados estão verdes; `bateria`, `bateria (pareceres)` e `catraca` falham, como se espera com os pareceres desta volta pendentes. Rodei só os testes tocados: `tests.test_decisor`, `tests.test_forge_dono.SoApertaComSeguranca` e `tests.test_forge_dono.FiltroDaPergunta`, 35 testes OK.
