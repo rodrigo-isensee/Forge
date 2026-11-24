@@ -23,6 +23,7 @@ from apoio_volta_unica import (  # noqa: E402
     corpus_da_volta_unica,
     modulos_dos_hooks,
     texto)
+from ambiente_git import sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 import test_hooks  # noqa: E402
 
@@ -310,7 +311,7 @@ class VigiaAgentesPesado(unittest.TestCase):
         raiz = Path(tempfile.mkdtemp(prefix="forge-vigia-ap-"))
         self.addCleanup(shutil.rmtree, raiz, ignore_errors=True)
         subprocess.run(["git", "init", "-q", "-b", "develop", str(raiz)], check=True, stdin=subprocess.DEVNULL,
-                       env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(raiz)})
+                       env=sem_manutencao({"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(raiz)}))
         (raiz / ".forge").mkdir()
         (raiz / ".forge" / "versao").write_text("0.0.0\n", encoding="utf-8")
         ambiente = {k: v for k, v in os.environ.items() if k != "FORGE_GUARDA_ABERTA"}
