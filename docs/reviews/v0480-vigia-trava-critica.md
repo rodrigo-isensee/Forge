@@ -3,28 +3,37 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-vigia-trava-critica
-commit: cf8b8f696d2acb4431d62506b5f0667f25fad698
+commit: aa0f55f8ae0829ad1e958c543e259d5ff6cb6b92
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-24
 ---
-# Review: v0478 (E169.3, PR #853, VIGIA-PRAZO-TRAVA)
+# Review: v0478 (E169.7, PR #853, VIGIA-PRAZO-TRAVA, revisão por delta)
 
-Diff revisado: `0f4a7791..cf8b8f69` (o merge da `develop` só traz commits já integrados; diff líquido de 9 arquivos, 24 linhas em `hooks/_comum.py`, dentro do teto H1).
+Diff revisado nesta volta: `cf8b8f69..aa0f55f8`, sem o que veio da `develop`. Delta lido: `forge-check parecer delta`. Commit de autor: `160ab342` (E169.6), 3 arquivos, nenhuma linha de código de hook. O merge `aa0f55f8` traz a `develop` em `fde1e76b`. O review anterior (E169.3, head `cf8b8f69`) cobre o resto e segue valendo.
 
 ## Achados
-- A1 (recomendado) hooks/agentes.py:1421 · `agentes` e `pesado` também recusam e rodam sem `regra_do_prazo`: o timeout de 10 s do Claude Code ainda os libera. A decisão fala em "toda trava que pode recusar"; vale um cartão para decidir se o vigia se estende a eles.
-- A2 (recomendado) hooks/_comum.py:2863 · Sem o marcador e sem corpo pendente, a recusa diz "a chamada com ação crítica", e a linha não tem ação crítica. Um texto neutro ("a chamada") evita confundir quem lê o stderr.
-
-## Sondas
+- A1 (recomendado) hooks/agentes.py:1421 · `agentes` e `pesado` também recusam e rodam sem `regra_do_prazo`: o timeout de 10 s do Claude Code ainda os libera. A decisão fala em "toda trava que pode recusar"; vale um cartão para decidir se o vigia se estende a eles (de E169.3, mantido).
+- A2 (recomendado) hooks/_comum.py:2863 · Sem o marcador e sem corpo pendente, a recusa diz "a chamada com ação crítica", e a linha não tem ação crítica. Um texto neutro ("a chamada") evita confundir quem lê o stderr (de E169.3, mantido).
 
 ## Parecer
-Aprovado. O vigia de prazo segue a DECISÃO DO DONO de 2026-11-24 07:43 (`docs/pedidos/v0478.md:986`): em `prazo_vencido`, sai a isenção `hook.marcado is False and not hook.corpos_pendentes`. A linha sem o marcador passa a recusar numa sessão vigiada, antes da ferramenta. Continuam liberando o hook sem `critico`, o `PostToolUse` e a sessão não vigiada. A mudança só aperta.
+Aprovado no head `aa0f55f8`.
 
-- **Fixture renomeada** (`errointerno-prazo-sem-escrita-libera` → `-bloqueia`): só mudam `descricao`, `codigo` (0 → 2) e o `stderr` esperado. `forcar` e `entrada` estão iguais, então nenhuma outra mudança vem junto. O nome antigo não aparece em mais nenhum lugar do repositório. `tests.test_hook_erro_libera` (glob `errointerno-prazo-*`, mínimo 7) segue verde, com 11 testes OK.
-- **Fixture nova** `vigia-prazo-trava-gh-com-aspas-bloqueia.json`: é o caso `"g"h repo create --public` do parecer de segurança. Esperado: código 2.
-- **ADRs 0003 e 0009 e `docs/hooks.md`:** o word-diff troca só o comportamento do prazo vencido ("segue o mesmo marcador"/"libera" → "recusa com ou sem o marcador", com o ID VIGIA-PRAZO-TRAVA). As ADRs só se alinham ao código e não mudam outro ponto.
-- **Testes do item, rodados no head:** `test_vigia_prazo_trava_sem_marcador_recusa_e_fora_da_sessao_vigiada_libera`, `test_fixtures_do_vigia_prazo_trava` e `test_prazo_vencido_com_corpo_de_heredoc_pendente_recusa` passaram (3 OK).
-- **Mutantes** (`bin/forge-mutante tests/mutantes/v0480-vigia-trava-critica.json`, rev cf8b8f696d2a): M1 a M5 morreram, um por guarda mudada. M2 a M4 morreram por erro (`SystemExit` não esperado), que é uma falha de comportamento do ramo.
-- **CI do PR #853 no head:** suíte pendente. `bateria (pareceres)` e `catraca` estão vermelhos porque faltam os pareceres deste head. A suíte inteira fica com o CI (R-REVIEW) e não foi rodada de novo aqui.
-- **Commits:** dois commits de autor, em Conventional Commits em português e com a etapa citada, e o merge da base. O fragmento `changelog.d` está presente.
+- **Delta lido:** no domínio, o `forge-check parecer delta` lista `tests/test_hooks_volta_propriedades.py`, `tests/mutantes/heredoc-donos.json` e `docs/hooks-fixtures.md`. A ADR 0003 e `tests/test_hooks.py` também aparecem, mas o que mudou neles veio da `develop` (`fde1e76b`, hook `ordens`, PR #805). Contra a base atual (`git diff fde1e76b aa0f55f8`), o PR toca os 15 arquivos já revisados, que incluem esses 3.
+- **O merge não mexe no código revisado:** as linhas `+/-` de `hooks/_comum.py` são idênticas em `0f4a7791..cf8b8f69` e em `fde1e76b..aa0f55f8`, conferidas com `diff`.
+- **Esperado trocado em `test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem`** (`tests/test_hooks_volta_propriedades.py:224-227`): no caso "sem marcador", o teste esperava `(0, "")` e agora espera código 2 e o stderr `^<regra>: o hook não decidiu`. A troca segue a DECISÃO DO DONO de 2026-11-24 07:43 (`docs/pedidos/v0478.md:1009`): prazo vencido numa trava recusa, nunca libera. Não afrouxa nada:
+  - a asserção ficou mais estrita: exige a recusa pela regra do próprio hook (R-CONFORMIDADE ou R-REVIEW);
+  - o teto `< PRAZO_DO_CLAUDE_CODE_S` continua;
+  - os casos "sem passo lento" (libera) e "com marcador" (recusa antes de 10 s) estão intactos.
+  O nome antigo do teste fica porque `tests/mutantes/lote-unico-032-l31.json` o cita; a docstring diz isso.
+- **D11 e D12** (`tests/mutantes/heredoc-donos.json`) foram realinhados à fonte: o trecho antigo `hook.marcado is False and not hook.corpos_pendentes` já não existe.
+  - O novo D11 põe de volta a isenção pelo marcador no retorno antecipado (`_comum.py:2860`), justamente o afrouxamento que a decisão proíbe.
+  - O D12 anula o ramo da mensagem dos corpos pendentes (`:2863`).
+  - `bin/forge-mutante --ids D11,D12 tests/mutantes/heredoc-donos.json` (rev `aa0f55f8ae08`): D11 morreu em `:2860`, D12 morreu em `:2863`.
+- **`docs/hooks-fixtures.md`:** contra a `develop`, mudam só a contagem (3515 → 3516), a linha `conformidade`, a linha `errointerno-*` (uma fixture passa de libera a recusa, com `VIGIA-PRAZO-TRAVA`) e a linha nova `vigia-*`. Tudo bate com as fixtures já revisadas.
+- **Testes do arquivo tocado, no head:** `test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem` e `test_prazo_vencido_com_corpo_de_heredoc_pendente_recusa` passaram (2 OK, 19,6 s).
+- **CI do PR #853 no head `aa0f55f8`** (run 45394038493):
+  - verdes: as 10 partes da suíte (3.12 e 3.14), `bateria (passos)`, `bateria (verificações longas)`, `instalação`, `teto de pulados` e `árvore já provada na develop`;
+  - vermelhos à espera dos pareceres deste head: `bateria`, `bateria (pareceres)` e `catraca`.
+  A suíte não foi rodada de novo aqui (R-REVIEW).
+- **Commit:** `test(hooks): ...`, em Conventional Commits em português, cita a etapa E169.6. A base entrou por merge, sem `--force`.
