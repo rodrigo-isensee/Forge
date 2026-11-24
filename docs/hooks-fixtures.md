@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3576 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3579 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -14,7 +14,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3576 fixtures) roda em `tests/test
 | `decisao` | 4 | 0 | 4 | 4 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 33 | 13 | 20 | 15 |
-| `ordens` | 11 | 0 | 11 | 10 |
+| `ordens` | 14 | 0 | 14 | 11 |
 | `parecer` | 587 | 452 | 135 | 28 |
 | `pesado` | 30 | 13 | 17 | 21 |
 | `quadro` | 7 | 2 | 5 | 7 |
@@ -212,6 +212,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3576 fixtures) roda em `tests/test
 
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
+| `idioma-*` | 3 | 0 | 3 | — | — | A1 do review E174.6 (v0478 E174.12): clone do Forge com .forge/config.json aninhado abaixo de 64 KiB (RecursionError no json.loads): a linha… |
 | `teto-*` | 2 | 0 | 2 | — | — | 3 linhas de 900 caracteres (2702 com as quebras): injeta 2000 caracteres e avisa o corte. |
 | `arquivo-*` | 1 | 0 | 1 | — | — | Projeto sem .forge/ordens/ordens-em-vigor.md: silêncio, saída 0 e nada gravado (custo zero de contexto). |
 | `erro-*` | 1 | 0 | 1 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA: erro ao ler o arquivo de ordens: sai 0, sem contexto, e a linha vai ao erros.log. |
