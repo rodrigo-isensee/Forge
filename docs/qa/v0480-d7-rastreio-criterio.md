@@ -1,9 +1,9 @@
 ---
 tipo: qa
 contrato: 1
-pedido: v0478
+pedido: v0481
 branch: melhoria/v0480-d7-rastreio-criterio
-commit: 1467c3425e822ef75901c1dbc8c607635eba75f8
+commit: e2913240f744397a877fae759260d30be43db911
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -34,3 +34,6 @@ O teste novo guarda um mutante, não uma correção de código: contra a base 33
 Check-run `bateria` do head 1467c342 ainda em andamento na leitura (suíte 1 a 5/5 pendentes); `bateria (pareceres)` falha por ler o parecer reprovado anterior, que este substitui, e `Catraca` falha por gate de governança do ADR 0008 (rótulo do dono), não defeito de código. A suíte inteira vale pelo `bateria` do mesmo sha.
 
 A1 do parecer anterior: fechado.
+
+## Regravação no pedido v0481 (E1.8)
+Head e2913240 (develop atual trazida). `forge-check parecer delta`: revalida não. Conferi `git diff 1467c342 e2913240` em `bin/forge-check`, `tests/test_criterios.py` e nas specs de mutante do D7: sem alteração (só a base trazida e o parecer). `test_criterios` local no head: 10 testes OK. Veredito mantido: aprovado; frontmatter com `pedido: v0481` e `commit:` no `Revisar-sha`.
