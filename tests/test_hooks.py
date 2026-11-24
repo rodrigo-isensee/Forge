@@ -3113,9 +3113,10 @@ class Hooks(unittest.TestCase):
     def test_fixtures_do_repo_publico(self):  # CONFORMIDADE-REPO-CREATE-PUBLICO (v0478 E141.2, E141.7): para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith("CONFORMIDADE-REPO-CREATE-PUBLICO")]
-        self.assertGreaterEqual(len(lote), 123,"as fixtures do item (E168.1: mais 15 da GRAPHQL-CONSULTA-EM-VARIAVEL; "
+        self.assertGreaterEqual(len(lote), 133,"as fixtures do item (E168.1: mais 15 da GRAPHQL-CONSULTA-EM-VARIAVEL; "
                                                 "E168.5: mais 14, opção antes do subcomando, stdin por caminho e curinga; "
-                                                "E168.9: mais 11, dúvida do subcomando, ordem do gh nas travas e chaves)")
+                                                "E168.9: mais 11, dúvida do subcomando, ordem do gh nas travas e chaves; "
+                                                "E168.13: mais 10, chave antes do subcomando, nele e no endpoint)")
         self.assertEqual({f.dados["esperado"]["codigo"] for _, f in lote}, {0, 2}, "o lote tem os dois lados")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
         # A8 da segurança (S18): 40 KB de string aberta à frente decidem bem antes do prazo de produção; E148.1 (A9):
@@ -3145,6 +3146,17 @@ class Hooks(unittest.TestCase):
             self.assertTrue(parecer.gh_incerto(list(toks)), toks)
         for toks in (("gh", "-R", "o/r", "pr", "merge"), ("gh", "pr", "merge", "-b", "api"), ("gh", "--help", "api"),
                      ("gh", "-X", "PUT", "api", "$E"), ("git", "-C", "$p", "merge"), ("gh",), ()):
+            self.assertFalse(parecer.gh_incerto(list(toks)), toks)
+
+    def test_gh_incerto_chave(self):  # E168.13 (A7 da segurança do #854): chave antes do subcomando, nele ou no endpoint
+        parecer = modulos_dos_hooks()[2]
+        for toks in (("gh", "-R", "{o/r,api}", "graphql"), ("gh", "{api,graphql}", "-f", "query=$Q"),
+                     ("gh", "{-t,pr}", "api", "graphql"), ("gh", "api", "{graphq,-Hx:}l", "-f", "query=$Q"),
+                     ("gh", "api", "-X", "POST", "graph{q..q}l"), ("gh", "api", "{owner}/{a,b}")):
+            self.assertTrue(parecer.gh_incerto(list(toks)), toks)
+        for toks in (("gh", "api", "repos/{owner}/{repo}/compare/a...b"), ("gh", "api", "repos/{owner}/{repo}/issues?l=a,b"),
+                     ("gh", "api", "graphql", "-f", "query=query{viewer{login,name}}"), ("gh", "pr", "view", "{a,b}"),
+                     ("gh", "api", "graphql", "-H", "Accept: {a,b}"), ("gh", "issue", "{a,b}")):
             self.assertFalse(parecer.gh_incerto(list(toks)), toks)
 
     def test_analisar_pula_a_opcao_entre_pr_e_o_subcomando(self):  # E168.9 (A1 do review do #854)

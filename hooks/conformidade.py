@@ -341,7 +341,7 @@ CAMPOS_DA_API = {"-f", "-F", "--field", "--raw-field"}
 PRIVADO_REST = {"private": {"true"}, "visibility": {"private", "internal"}}  # o valor privado de cada nome
 CORPO_ILEGIVEL = [("", None)]  # o `--input` que o hook não lê (sentinela: comparado por identidade)
 API_SEGMENTO_ESTRANHO = re.compile(r"(^|/)\.{0,2}(/|$)")  # `user//repos`, `user/./repos`: o servidor pode normalizar
-CHAVES = re.compile(r"\{.*(?:,|\.\.)", re.S)  # E168.9 (A5): a palavra que pode ter expansão de chaves (`expansao_por_palavra`)
+CHAVES = parecer.CHAVES  # E168.9 (A5): a palavra que pode ter expansão de chaves (`expansao_por_palavra`); fonte única
 GRAPHQL_ILEGIVEL = ("R-CONFORMIDADE", "gh api graphql com consulta que o hook não lê (variável, expansão do shell, "
                     "arquivo ou entrada padrão)", "escreva a consulta literal entre aspas simples "
                     "(gh api graphql -f query='...') e cada valor em -F \"nome=$valor\", com aspas")

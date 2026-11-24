@@ -388,8 +388,18 @@ def globais(toks):
 
 GH_SEM_VALOR = {"--help", "-h", "--version"}  # as opções de `gh` antes do subcomando que não levam o valor seguinte
 GH_SUBCOMANDOS_CRITICOS = ("api", "pr")
-GH_INCERTO = ("gh com opção antes do subcomando que o hook não lê (expansão do shell, ou api/pr como valor de opção)",
-              "escreva o subcomando logo depois do gh e as opções depois dele (gh pr view 1 -R dono/repo)")
+GH_INCERTO = ("gh com opção antes do subcomando que o hook não lê (expansão do shell, ou api/pr como valor de opção), ou "
+              "com chave ({a,b}, {a..c}) até o endpoint",
+              "escreva o subcomando logo depois do gh e as opções depois dele (gh pr view 1 -R dono/repo), sem chave")
+# E168.9 (A5) e E168.13 (A7 da segurança do #854): a palavra que pode ter expansão de chaves (o bash a divide em várias)
+CHAVES = re.compile(r"\{.*(?:,|\.\.)", re.S)
+MARCADOR_DO_GH = re.compile(r"\{(?:owner|repo|branch)\}")  # o gh troca no endpoint; sem vírgula, o bash não expande
+
+
+def chave_incerta(palavra):
+    """E168.13 (A7): a palavra pode ter chave que o bash expande (`{api,graphql}`, `{graphq,-Hx:}l`). Sem as aspas do
+    texto, a chave entre aspas também conta: na dúvida, recusa. Os marcadores do gh (`{owner}`) saem antes."""
+    return bool(CHAVES.search(MARCADOR_DO_GH.sub("", palavra)))
 
 
 def leva_valor(opcao):
@@ -410,10 +420,15 @@ def subcomando_do_gh(toks):
 def gh_incerto(toks):
     """E168.9 (A1 e A2 do review, A4 da segurança do #854): `gh` com opção antes do subcomando que o hook não lê com
     certeza: palavra com expansão antes dele (o bash a divide ou a apaga: `gh -X $M graphql`) ou `api`/`pr` como valor de
-    opção (`gh -b api pr merge`, que o gh roda como `pr merge`). Quem chama recusa (`GH_INCERTO`), sem escolher leitura."""
+    opção (`gh -b api pr merge`, que o gh roda como `pr merge`). Quem chama recusa (`GH_INCERTO`), sem escolher leitura.
+    E168.13 (A7 da segurança do #854): chave antes do subcomando, nele ou no endpoint do `gh api` (`chave_incerta`)."""
     if not toks or Path(toks[0]).name != "gh":
         return False
-    return any(expande(a) or a in GH_SUBCOMANDOS_CRITICOS for a in toks[1:subcomando_do_gh(toks)])
+    i = subcomando_do_gh(toks)
+    sub = toks[i:i + 1]
+    endpoint = [endpoint_da_api(toks[i + 1:])] if sub == ["api"] else []
+    return (any(expande(a) or a in GH_SUBCOMANDOS_CRITICOS or chave_incerta(a) for a in toks[1:i])
+            or any(map(chave_incerta, sub + endpoint)))
 
 
 def ordem_do_gh(toks):

@@ -6,8 +6,8 @@
       "id": "GQ28",
       "guarda": "E168.9 (A1 e A2 do review): expansão ou api/pr antes do subcomando é leitura incerta",
       "arquivo": "hooks/parecer.py",
-      "de": "    return any(expande(a) or a in GH_SUBCOMANDOS_CRITICOS for a in toks[1:subcomando_do_gh(toks)])",
-      "para": "    return any(False for a in toks[1:subcomando_do_gh(toks)])",
+      "de": "    return (any(expande(a) or a in GH_SUBCOMANDOS_CRITICOS or chave_incerta(a) for a in toks[1:i])",
+      "para": "    return (any(chave_incerta(a) for a in toks[1:i])",
       "testes": [
         "tests.test_hooks.Hooks.test_gh_incerto",
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
@@ -17,8 +17,8 @@
       "id": "GQ29",
       "guarda": "E168.9: só o gh tem a leitura incerta (o git com -C $p não)",
       "arquivo": "hooks/parecer.py",
-      "de": "    if not toks or Path(toks[0]).name != \"gh\":\n        return False\n    return any(",
-      "para": "    if not toks:\n        return False\n    return any(",
+      "de": "    if not toks or Path(toks[0]).name != \"gh\":\n        return False\n    i = subcomando_do_gh(toks)",
+      "para": "    if not toks:\n        return False\n    i = subcomando_do_gh(toks)",
       "testes": [
         "tests.test_hooks.Hooks.test_gh_incerto"
       ]
