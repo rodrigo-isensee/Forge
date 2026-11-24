@@ -61,7 +61,8 @@ class Base(unittest.TestCase):
         fc.datetime = RelogioFixo
         try:
             return fc.cmd_anotar(self.tmp, "exemplo", tipo, literal, contexto, confere="mede" if tipo == "decisao" else None,
-                                 cartao="E1.1" if tipo == "ordem" else None)  # AE4.1: a ordem aponta para a etapa
+                                 cartao="E1.1" if tipo == "ordem" else None,  # AE4.1: a ordem aponta para a etapa
+                                 tipo_pergunta="custo" if tipo == "pergunta" else None)  # D5: a pergunta declara o tipo
         finally:
             fc.datetime = original
 
@@ -100,10 +101,10 @@ class Anotar(Base):
 
     def test_pergunta_e_ordem_tem_frase_propria(self):
         self.com(COM_SECAO)
-        self.anotar("pergunta", "posso?")
+        self.anotar("pergunta", "1a) posso 1b) não posso")
         self.anotar("ordem", "toque tudo")
         texto = self.pedido.read_text(encoding="utf-8")
-        self.assertIn('PERGUNTA AO DONO (2030-05-06 07:08): "posso?"', texto)
+        self.assertIn('PERGUNTA AO DONO (2030-05-06 07:08): tipo=custo → "1a) posso 1b) não posso"', texto)
         self.assertIn('ORDEM DO DONO (2030-05-06 07:08): "toque tudo"', texto)
 
     def test_historico_acrescenta_no_fim(self):
@@ -213,7 +214,9 @@ class Propagar(Base):
         original = fc.datetime
         fc.datetime = RelogioFixo
         try:
-            return fc.cmd_anotar(self.tmp, "exemplo", tipo, "B", None, propagar, "mede" if tipo == "decisao" else None)
+            pergunta = tipo == "pergunta"  # D5: a pergunta declara o tipo e tem mais de uma opção
+            return fc.cmd_anotar(self.tmp, "exemplo", tipo, "1a) B 1b) C" if pergunta else "B", None, propagar,
+                                 "mede" if tipo == "decisao" else None, tipo_pergunta="custo" if pergunta else None)
         finally:
             fc.datetime = original
 
