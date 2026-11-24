@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "arquivo do quadro que nao se le devolve boas None",
       "arquivo": "bin/forge_dora.py",
-      "de": "    if texto is None:\n        return None, []",
-      "para": "    if texto is None:\n        texto = \"\"",
+      "de": "if texto is None:",
+      "para": "if texto is not None:",
       "testes": [
         "tests.test_forge_dora.Metricas.test_quadro_ausente_ou_ilegivel_sai_nao_medido_e_nao_zero"
       ]
@@ -17,7 +17,7 @@
       "guarda": "vazao sem historico sai nao-medido",
       "arquivo": "bin/forge_dora.py",
       "de": "    if boas is None:\n        return nao_medido(arq), recusadas",
-      "para": "    if boas is None:\n        boas = []",
+      "para": "    if boas is not None:\n        return nao_medido(arq), recusadas",
       "testes": [
         "tests.test_forge_dora.Metricas.test_quadro_ausente_ou_ilegivel_sai_nao_medido_e_nao_zero"
       ]
@@ -27,7 +27,7 @@
       "guarda": "falhas sem escapes devolve None",
       "arquivo": "bin/forge_dora.py",
       "de": "    if boas is None:\n        return None, None, None, recusadas",
-      "para": "    if boas is None:\n        boas = []",
+      "para": "    if boas is not None:\n        return None, None, None, recusadas",
       "testes": [
         "tests.test_forge_dora.Metricas.test_quadro_ausente_ou_ilegivel_sai_nao_medido_e_nao_zero"
       ]
