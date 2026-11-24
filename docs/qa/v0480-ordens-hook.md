@@ -3,14 +3,14 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ordens-hook
-commit: a6e0d1014e2643e21e1b261154a1ce9160c87662
+commit: a9187ffe255cf7ba75af7490340d882cc651079b
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-23
+data: 2026-11-24
 ---
 # QA: hook ordens e laço das fixtures do vigia (v0478 E123.5)
 
@@ -121,4 +121,20 @@ Delta no domínio (`forge-check parecer delta`, sem o que veio da develop): a gu
 - `bin/forge-mutante tests/mutantes/v0480-ordens-hook.json … -2 … -3 … -4 … -5.json --processos 3` (`pedido=v0480-ordens-hook rev=a6e0d1014e26`): M1 a M14, M17 a M21 e M29 `morreu` (M2, M5, M12, M13 por erro do teste sob o mutante com o controle verde), nenhum sobrevivente; rc=0.
 - `bin/forge-mutante tests/mutantes/v0480-ordens-guarda.json tests/mutantes/v0480-ordens-guarda-2.json --processos 3` (`pedido=v0480-ordens-guarda rev=a6e0d1014e26`): M15, M16, M22 a M26, M28, M30 a M37 `morreu` (M26 por erro com o controle verde), nenhum sobrevivente; rc=0. As duas famílias de specs são de pedidos diferentes e saem em chamadas separadas (uma chamada com as sete sai 2, "spec inválida").
 - Fixture `pesado/mesma-sessao-libera`: no head, 8 rodadas isoladas pelo `Hooks.executar_em_lote`: 7 OK (0,1 s) e 1 `TimeoutExpired` de 120 s (`hooks/pesado.py`, espera da vez). Na develop (`origin/develop` e694510844, árvore extraída por `git archive`), as mesmas 8 rodadas: 7 OK e 1 `TimeoutExpired` igual. `hooks/pesado.py` e `tests/hooks/pesado` sem diff entre develop e head (`git diff --quiet`). Falha igual na develop, intermitente, fora do delta: causa já registrada em `tests/provas/v0479-testes-prazo.md` (pid do pai lido de outro namespace no sandbox); a bateria do CI é a prova do sha.
+- Suíte inteira: no CI do PR (check-run `bateria` do mesmo sha), sem suíte local.
+
+## Revalidação do delta (E140.14, head a9187ffe, base do delta a6e0d101)
+Delta no domínio (`forge-check parecer delta`, sem o que veio da develop): `docs/hooks-fixtures.md` (contagem do corpus, 3429 para 3515, e a linha `trava-*`) e `tests/test_hooks.py` (`test_fixtures_do_repo_publico`, vindo do merge da develop). `hooks/ordens.py`, `tests/hooks/ordens`, `tests/hooks/vigia` e as specs `v0480-ordens-hook*.json` sem diff no delta.
+
+| Mudança do delta | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Índice do corpus em dia com as fixtures | `scripts/indice-fixtures.py --conferir` | contagem do corpus | passou |
+| Hook de ordens e guarda, sem mudança | `OrdensEmVigor`, `GuardaDasOrdens` | ausente, vazio, teto, link, permissão | passou |
+| Lote do repo público (herdado da develop, fora do pedido) | `test_fixtures_do_repo_publico` | os dois lados (0 e 2), prazo | passou |
+
+## Provas (E140.14)
+- `python3 scripts/indice-fixtures.py --conferir`: `docs/hooks-fixtures.md: em dia`.
+- `python3 -m unittest tests.test_hooks.OrdensEmVigor tests.test_hooks.GuardaDasOrdens`: `Ran 24 tests in 18.289s`, OK.
+- `python3 -m unittest tests.test_hooks.Hooks.test_fixtures_do_repo_publico`: `Ran 1 test in 22.812s`, OK.
+- `bin/forge-mutante --base a6e0d1014e2643e21e1b261154a1ce9160c87662` sobre as 5 specs `v0480-ordens-hook*.json` (`--processos 3`, rev=a9187ffe255c): rc=0, M13, M14, M17 a M21 e M29 `morreu` no delta, nenhum sobrevivente.
 - Suíte inteira: no CI do PR (check-run `bateria` do mesmo sha), sem suíte local.
