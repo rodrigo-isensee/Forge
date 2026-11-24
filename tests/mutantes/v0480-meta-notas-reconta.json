@@ -1,0 +1,56 @@
+{
+  "pedido": "v0480-meta-notas-reconta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o pré-filtro pula o resultado de ferramenta, não a linha do assistente cujo input traz o par \"type\":\"tool_result\" (mutante: pula)",
+      "arquivo": "hooks/meta.py",
+      "de": "'\"type\":\"tool_result\"' in linha and '\"type\":\"assistant\"' not in linha)",
+      "para": "'\"type\":\"tool_result\"' in linha)",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_nota_cuja_entrada_traz_o_par_type_tool_result_ainda_conta"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a marca de um transcrito fora da forma (não objeto) fica de fora (mutante: entra e a medida se perde)",
+      "arquivo": "hooks/meta.py",
+      "de": " if isinstance(v, dict)}",
+      "para": " if True}",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_marca_do_transcrito_fora_da_forma_e_ignorada"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o Stop grava a marca do seu transcrito sem apagar a das outras sessões (mutante: só a dele)",
+      "arquivo": "hooks/meta.py",
+      "de": "    vistas[str(transcrito)] = {",
+      "para": "    vistas = {}\n    vistas[str(transcrito)] = {",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_stop_de_outra_sessao_no_meio_nao_faz_recontar"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o arquivo guarda até MARCAS_GUARDADAS marcas e sai a mais velha (mutante: fica a mais velha)",
+      "arquivo": "hooks/meta.py",
+      "de": "[-MARCAS_GUARDADAS:]",
+      "para": "[:MARCAS_GUARDADAS]",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_marcas_guardadas_param_no_teto_e_sai_a_mais_velha"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a marca da sessão sai e volta ao fim, e no teto sai a usada há mais tempo (mutante: get, fica na posição antiga e sai mesmo em uso)",
+      "arquivo": "hooks/meta.py",
+      "de": "vista = vistas.pop(str(transcrito), {})",
+      "para": "vista = vistas.get(str(transcrito), {})",
+      "testes": [
+        "tests.test_meta.NotasEntreFerramentas.test_sessao_que_volta_a_ser_usada_guarda_a_marca"
+      ]
+    }
+  ]
+}

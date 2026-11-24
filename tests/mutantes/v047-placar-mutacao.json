@@ -54,8 +54,8 @@
       "id": "M7",
       "guarda": "E1.101: o aviso do --desde é impresso",
       "arquivo": "scripts/placar-mutacao.py",
-      "de": "    if aviso := aviso_do_desde(raiz, a.desde, a.versao):",
-      "para": "    if (aviso := aviso_do_desde(raiz, a.desde, a.versao)) and False:",
+      "de": "    if aviso := aviso_do_desde(raiz, a.desde, a.versao, base.stdout.strip()):",
+      "para": "    if (aviso := aviso_do_desde(raiz, a.desde, a.versao, base.stdout.strip())) and False:",
       "testes": ["tests.test_forge_mutante.PlacarDaRelease.test_desde_que_nao_e_a_tag_anterior_ou_nao_e_tag_avisa_sem_mudar_o_rc"]
     }
   ]

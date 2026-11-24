@@ -1,0 +1,86 @@
+{
+  "pedido": "v0478",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M55",
+      "guarda": "E90.10 (A3 da segurança): o ler recusa fala no futuro, como o gravar",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if instante(campos[\"Hora-da-fala\"]) > agora:  # A3",
+      "para": "    if False:  # A3",
+      "testes": [
+        "tests.test_autorizacao_gravar.VoltaDosPortoes.test_fala_no_futuro_escrita_na_pasta_nao_fica_ativa_no_ler"
+      ]
+    },
+    {
+      "id": "M56",
+      "guarda": "E90.10 (A5): emoji e outra escrita contam como fora do vocabulário",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "r\"[a-z0-9]+|[^a-z0-9\\s.,;:!?#/()\\\"'-]\"",
+      "para": "r\"[a-z0-9]+\"",
+      "testes": [
+        "tests.test_autorizacao_gravar.VoltaDosPortoes.test_emoji_ou_negacao_em_outra_escrita_nasce_pendente"
+      ]
+    },
+    {
+      "id": "M57",
+      "guarda": "E90.10 (A4): a casa das transcrições vem do banco de senhas, não da variável de ambiente",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "return Path(pwd.getpwuid(os.getuid()).pw_dir)",
+      "para": "return Path.home()",
+      "testes": [
+        "tests.test_autorizacao_gravar.TranscricaoDaSessaoEmCurso.test_home_e_sessao_do_chamador_nao_escolhem_a_transcricao"
+      ]
+    },
+    {
+      "id": "M58",
+      "guarda": "E90.14 (decisão 3a do dono): ponto final logo depois do número do PR deixa a concessão pendente",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "([1-9]\\d*)(?![\\w.])",
+      "para": "([1-9]\\d*)(?!\\w|\\.\\w)",
+      "testes": [
+        "tests.test_autorizacao_gravar.VoltaDosPortoes.test_ponto_final_logo_depois_do_alvo_deixa_pendente"
+      ]
+    },
+    {
+      "id": "M59",
+      "guarda": "E90.14 (decisão 3a do dono): ponto final logo depois da versão deixa a concessão pendente",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(\\d+\\.\\d+\\.\\d+)(?![\\w.])",
+      "para": "(\\d+\\.\\d+\\.\\d+)(?!\\w|\\.\\w)",
+      "testes": [
+        "tests.test_autorizacao_gravar.VoltaDosPortoes.test_ponto_final_logo_depois_do_alvo_deixa_pendente"
+      ]
+    },
+    {
+      "id": "M60",
+      "guarda": "E90.10 (A6): fim deste pedido sem o pedido aberto nasce pendente",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": " and not pedido_aberto(raiz, a.pedido, pedido_existe):",
+      "para": " and False:",
+      "testes": [
+        "tests.test_autorizacao_gravar.VoltaDosPortoes.test_fim_deste_pedido_so_com_o_pedido_aberto"
+      ]
+    },
+    {
+      "id": "M61",
+      "guarda": "E90.10 (A6): o F-<Pedido> gravado fecha o pedido no gravar",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "pedido_existe(pedido)) and not os.path.lexists(Path(raiz) / PASTA / f\"F-{pedido}\")",
+      "para": "pedido_existe(pedido))",
+      "testes": [
+        "tests.test_autorizacao_gravar.VoltaDosPortoes.test_fim_deste_pedido_so_com_o_pedido_aberto"
+      ]
+    },
+    {
+      "id": "M62",
+      "guarda": "E90.10 (A6): o forge-check confere o pedido no registro de pedidos",
+      "arquivo": "bin/forge-check",
+      "de": "\"pedido_existe\": lambda pedido: pedido_para_anotar(raiz, pedido) is not None}",
+      "para": "\"pedido_existe\": lambda pedido: True}",
+      "testes": [
+        "tests.test_autorizacao_gravar.VoltaDosPortoes.test_forge_check_confere_o_pedido_no_registro"
+      ]
+    }
+  ]
+}
