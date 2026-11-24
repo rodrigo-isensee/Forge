@@ -49,8 +49,8 @@
       "id": "FCK-M5",
       "guarda": "FECHAR-SEM-AUTO-MERGE: execução mais recente rodando ou ausente não conta como verde",
       "arquivo": "bin/forge-fechar",
-      "de": "        *) [ -n \"$falta\" ] || { falta=",
-      "para": "        *) true || { falta=",
+      "de": "        *) [ -n \"$falta\" ] || { falta=\"$nome\" falta_q=\"check obrigatório\"",
+      "para": "        *) true || { falta=\"$nome\" falta_q=\"check obrigatório\"",
       "testes": [
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_rodando_ou_ausente_espera_e_para_no_prazo_sem_merge"
       ]
@@ -59,8 +59,8 @@
       "id": "FCK-M6",
       "guarda": "pendente no fim do prazo para, sem merge (FECHAR-CHECKS-ANTES-DO-MERGE, FECHAR-SEM-AUTO-MERGE)",
       "arquivo": "bin/forge-fechar",
-      "de": "      || die \"parou no passo $1: o check obrigatório $falta do head",
-      "para": "      || { break; } && : \"parou no passo $1: o check obrigatório $falta do head",
+      "de": "      || die \"parou no passo $1: o $falta_q $falta do head",
+      "para": "      || { break; } && : \"parou no passo $1: o $falta_q $falta do head",
       "testes": [
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_exigido_vermelho_rodando_ou_ausente_recusa_o_merge",
         "tests.test_fechar_checks_do_head.FecharChecksDoHead.test_nome_mais_longo_verde_nao_vale_pelo_exigido"

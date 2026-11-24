@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-graphql-ilegivel",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "GQ17",
+      "guarda": "E168.1: toda palavra do gh api é conferida, até a última",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        while j < len(args):\n            a, j = args[j], j + 1\n            opcao =",
+      "para": "        while j < len(args) - 1:\n            a, j = args[j], j + 1\n            opcao =",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ18",
+      "guarda": "E168.1: toda opção do gh api que leva valor (não só os campos) consome a palavra seguinte",
+      "arquivo": "hooks/conformidade.py",
+      "de": "opcao = a if a in parecer.API_COM_VALOR else None",
+      "para": "opcao = a if a in CAMPOS_DA_API else None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ19",
+      "guarda": "E168.1: depois da opção, a palavra conferida é o valor dela",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if opcao:\n                a, j = (args[j]",
+      "para": "            if False:\n                a, j = (args[j]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ20",
+      "guarda": "E168.1: a opção sem valor no fim não lê fora da lista",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(args[j] if j < len(args) else \"\"), j + 1\n            nivel",
+      "para": "(args[j] if j <= len(args) else \"\"), j + 1\n            nivel",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ21",
+      "guarda": "E168.1: a palavra sem $ nem crase é literal, mesmo fora da releitura (-i agrupado)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "nivel = vistas.get(a, 2) if parecer.expande(a) or CURINGA.search(a) or CHAVES.search(a) else 0",
+      "para": "nivel = vistas.get(a, 2) if True else 0",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ22",
+      "guarda": "E168.1: o valor de -f/-F é o campo nome=valor",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(a if opcao else colado[1] if colado else \"\")",
+      "para": "(a if not opcao else colado[1] if colado else \"\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ23",
+      "guarda": "E168.1: o campo colado (-F\"n=$N\") é lido pelo nome",
+      "arquivo": "hooks/conformidade.py",
+      "de": "colado[1] if colado else \"\")",
+      "para": "colado[1] if not colado else \"\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ24",
+      "guarda": "E168.1: a crase é expansão como o $",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif c in \"$`\" or fora and (CURINGA.match(c)",
+      "para": "        elif c in \"$\" or fora and (CURINGA.match(c)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    }
+  ]
+}
