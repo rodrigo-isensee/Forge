@@ -1,0 +1,56 @@
+{
+  "pedido": "v0480-repo-publico-fix",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "RP52",
+      "guarda": "E141.15 (A8): mais de um query na mutação de repositório falha fechado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if len(textos) > 1:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP53",
+      "guarda": "E141.15 (A8): string sem fechamento falha fechado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if any(m[\"fecha\"] == \"\" for v in textos",
+      "para": "if False and any(m[\"fecha\"] == \"\" for v in textos",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP54",
+      "guarda": "E141.15 (A8): a string sem fechamento não recomeça a busca",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(?P<fecha>\"?)",
+      "para": "(?P<fecha>\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP56",
+      "guarda": "E141.15 (A8): os textos são os de todo campo query, dos campos e do corpo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "isinstance(v, str) and k == \"query\"",
+      "para": "isinstance(v, str) and k == \"nenhum\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP55",
+      "guarda": "E141.15 (A8): as formas de visibilidade do gh_trava levam o marcador crítico",
+      "arquivo": "hooks/conformidade.py",
+      "de": "r\"\\bgh\\b(?:[^\\n]|\\\\\\n)*\\b(?:repo",
+      "para": "r\"\\bgh_nunca\\b(?:[^\\n]|\\\\\\n)*\\b(?:repo",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    }
+  ]
+}

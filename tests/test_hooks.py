@@ -3070,9 +3070,15 @@ class Hooks(unittest.TestCase):
     def test_fixtures_do_repo_publico(self):  # CONFORMIDADE-REPO-CREATE-PUBLICO (v0478 E141.2, E141.7): para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith("CONFORMIDADE-REPO-CREATE-PUBLICO")]
-        self.assertGreaterEqual(len(lote), 65, "as fixtures do item")
+        self.assertGreaterEqual(len(lote), 76, "as fixtures do item")
         self.assertEqual({f.dados["esperado"]["codigo"] for _, f in lote}, {0, 2}, "o lote tem os dois lados")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
+        # A8 da segurança (S18): 40 KB de string aberta à frente decidem bem antes do prazo de produção
+        _comum = modulos_dos_hooks()[0]
+        dados = json.loads((FIXTURES / "conformidade" / "trava-graphql-string-aberta-prazo-bloqueia.json")
+                           .read_text(encoding="utf-8"))
+        custo, parede = self.medir_o_hook(dados, _comum.PRAZO_DA_DECISAO_S / 2)
+        self.assertLess(custo, _comum.PRAZO_DA_DECISAO_S / 2, f"S18 decide antes do prazo ({parede:.2f} s de parede)")
 
     def test_fixtures_do_desenho(self):  # E5-0 (Q-B, PAR-P2): as pastas de arquitetura têm dono doc/aq no hook
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("E5-0")]

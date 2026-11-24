@@ -60,6 +60,7 @@ ESCRITA_NA_LINHA = re.compile(r">|<<|\b(?:tee|sed|dd|cp|mv|install|python\w*|per
 LINHA_DE_PORTAO = re.compile(r"(?m)^-\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}: (?:brief selado docs/briefs/\S+ [0-9a-f]{64}|entrega conferida [0-9a-f]{40})")
 CRITICO = re.compile(
     r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
+    r"\bgh\b(?:[^\n]|\\\n)*\b(?:repo\b(?:[^\n]|\\\n)*\b(?:create|new)\b|api\b(?:[^\n]|\\\n)*(?:graphql|\brepos\b))|"  # A8
     r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|docs/devops|docs/security|CLAUDE\.md|\.git/|commondir|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
     re.I)
 # Variáveis definidas antes na linha que os comandos seguintes herdam; as `GIT_*_PATHSPECS` são as opções `--*-pathspecs`.
@@ -344,7 +345,7 @@ GRAPHQL_DO_REPO = re.compile(r"\b(createRepository|cloneTemplateRepository|updat
 GRAPHQL_CRIA_REPO = re.compile(r"\b(createRepository|cloneTemplateRepository)\b")
 # E141.11 (A1 do review, A7 da segurança): strings e comentários pela especificação; no bloco `"""` só `\"""` escapa, e
 # o comentário fecha no LF ou no CR. CR, BOM e outro controle na consulta falham fechado, sem modelar mais léxico.
-GRAPHQL_SEM_TEXTO = re.compile(r'"""(?:\\"""|\\(?!""")|[^"\\]|"(?!""))*"""|"(?:\\.|[^"\\\n])*"|#[^\r\n]*')
+GRAPHQL_SEM_TEXTO = re.compile(r'"""(?:\\"""|\\(?!""")|[^"\\]|"(?!""))*"""|"(?:\\.|[^"\\\n])*(?P<fecha>"?)|#[^\r\n]*')
 GRAPHQL_CONTROLE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f\ufeff]")  # todo controle, fora o TAB e o LF; e o BOM
 GRAPHQL_VISIBILIDADE = re.compile(r"\bvisibility\s*:\s*(\$?\w*)")  # com a vírgula já trocada por espaço
 CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem em arquivos do projeto
@@ -3488,13 +3489,19 @@ class Guarda:
     def graphql_publica(campos, corpo, cria):
         """GraphQL: o `visibility` do input, literal na query (sem strings nem comentários, a vírgula como espaço) ou no
         campo `<var>[visibility]` ou a chave `visibility` nas `variables` do `--input`, fora de PRIVATE e INTERNAL recusa,
-        e criar sem ele também. Falha fechado no valor ilegível e na expansão do shell num campo (vira outros argumentos)."""
+        e criar sem ele também. Falha fechado no valor ilegível, na expansão do shell num campo (vira outros argumentos),
+        em mais de um `query` e na string sem fechamento (A8)."""
         if corpo is CORPO_ILEGIVEL or any(v is None for _, v in campos):
             return True
         if any(parecer.expande(f"{k}={v}") for k, v in campos if k != "query"):
             return True
         pares = campos + (corpo or [])
         if any(GRAPHQL_CONTROLE.search(v) for k, v in pares if k == "query" and isinstance(v, str)):
+            return True
+        textos = [v for k, v in pares if isinstance(v, str) and k == "query"]
+        if len(textos) > 1:  # A8: o gh manda só o último `query`, e o hook não sabe qual vai ao servidor
+            return True
+        if any(m["fecha"] == "" for v in textos for m in GRAPHQL_SEM_TEXTO.finditer(v)):  # A8: string sem fechamento
             return True
         consulta = " ".join(GRAPHQL_SEM_TEXTO.sub(" ", v) for k, v in pares if k == "query" and isinstance(v, str))
         valores = GRAPHQL_VISIBILIDADE.findall(consulta.replace(",", " "))
