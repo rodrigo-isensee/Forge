@@ -1,0 +1,89 @@
+{
+  "pedido": "v0480-graphql-ilegivel",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "GQ28",
+      "guarda": "E168.9 (A1 e A2 do review): expansão ou api/pr antes do subcomando é leitura incerta",
+      "arquivo": "hooks/parecer.py",
+      "de": "    return any(expande(a) or a in GH_SUBCOMANDOS_CRITICOS for a in toks[1:subcomando_do_gh(toks)])",
+      "para": "    return any(False for a in toks[1:subcomando_do_gh(toks)])",
+      "testes": [
+        "tests.test_hooks.Hooks.test_gh_incerto",
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ29",
+      "guarda": "E168.9: só o gh tem a leitura incerta (o git com -C $p não)",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if not toks or Path(toks[0]).name != \"gh\":\n        return False\n    return any(",
+      "para": "    if not toks:\n        return False\n    return any(",
+      "testes": [
+        "tests.test_hooks.Hooks.test_gh_incerto"
+      ]
+    },
+    {
+      "id": "GQ30",
+      "guarda": "E168.9 (A1 do review): o parecer recusa a leitura incerta",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if gh_incerto(comando):  # E168.9",
+      "para": "    if False:  # E168.9",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ31",
+      "guarda": "E168.9 (A1 do review): toda opção entre pr e o subcomando é pulada, não só o -R",
+      "arquivo": "hooks/parecer.py",
+      "de": "        while j < len(toks) and toks[j].startswith(\"-\") and toks[j] != \"--\":",
+      "para": "        while j < len(toks) and toks[j].startswith(\"-R\") and toks[j] != \"--\":",
+      "testes": [
+        "tests.test_hooks.Hooks.test_analisar_pula_a_opcao_entre_pr_e_o_subcomando",
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ32",
+      "guarda": "E168.9: o -- entre pr e o subcomando para a leitura das opções",
+      "arquivo": "hooks/parecer.py",
+      "de": "        while j < len(toks) and toks[j].startswith(\"-\") and toks[j] != \"--\":",
+      "para": "        while j < len(toks) and toks[j].startswith(\"-\") and True:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_analisar_pula_a_opcao_entre_pr_e_o_subcomando"
+      ]
+    },
+    {
+      "id": "GQ33",
+      "guarda": "E168.9: o -R colado entre pr e o subcomando segue dando o repositório",
+      "arquivo": "hooks/parecer.py",
+      "de": "            elif toks[j].startswith((\"--repo=\", \"-R\")):",
+      "para": "            elif False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_analisar_pula_a_opcao_entre_pr_e_o_subcomando"
+      ]
+    },
+    {
+      "id": "GQ34",
+      "guarda": "E168.9: a opção com valor entre pr e o subcomando pula o valor",
+      "arquivo": "hooks/parecer.py",
+      "de": "            j += 2 if leva_valor(toks[j]) else 1",
+      "para": "            j += 2 if False else 1",
+      "testes": [
+        "tests.test_hooks.Hooks.test_analisar_pula_a_opcao_entre_pr_e_o_subcomando",
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ35",
+      "guarda": "E168.9 (A1 do QA): o alias com opção antes do nome é lido na ordem do gh",
+      "arquivo": "hooks/parecer.py",
+      "de": "    comando = ordem_do_gh(comando)  # E168.5",
+      "para": "    comando = comando  # E168.5",
+      "testes": [
+        "tests.test_hooks.Hooks.test_alias_do_gh_com_opcao_antes_do_nome"
+      ]
+    }
+  ]
+}

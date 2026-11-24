@@ -341,6 +341,7 @@ CAMPOS_DA_API = {"-f", "-F", "--field", "--raw-field"}
 PRIVADO_REST = {"private": {"true"}, "visibility": {"private", "internal"}}  # o valor privado de cada nome
 CORPO_ILEGIVEL = [("", None)]  # o `--input` que o hook não lê (sentinela: comparado por identidade)
 API_SEGMENTO_ESTRANHO = re.compile(r"(^|/)\.{0,2}(/|$)")  # `user//repos`, `user/./repos`: o servidor pode normalizar
+CHAVES = re.compile(r"\{.*(?:,|\.\.)", re.S)  # E168.9 (A5): a palavra que pode ter expansão de chaves (`expansao_por_palavra`)
 GRAPHQL_ILEGIVEL = ("R-CONFORMIDADE", "gh api graphql com consulta que o hook não lê (variável, expansão do shell, "
                     "arquivo ou entrada padrão)", "escreva a consulta literal entre aspas simples "
                     "(gh api graphql -f query='...') e cada valor em -F \"nome=$valor\", com aspas")
@@ -352,12 +353,14 @@ def expansao_por_palavra(linha):
     entre aspas duplas (o valor fica numa palavra só); 2: fora de aspas (o bash divide o valor em palavras). A palavra
     que esta leitura não reproduz fica fora, e quem consulta a toma por 2."""
     saida, texto, nivel, aspas, letras = {}, [], 0, None, iter(linha)
+    chave, anterior = False, ""  # E168.9 (A5): `{` fora de aspas na palavra; a letra anterior fora de aspas
 
     def juntar():  # a palavra vazia (`""`) entra e não pesa: só a palavra com `$` ou crase é consultada
         palavra = "".join(texto)
         saida[palavra] = max(saida.get(palavra, 0), nivel)
 
     for c in letras:
+        fora = aspas is None
         if aspas == "'":
             if c == "'":
                 aspas = None
@@ -366,7 +369,9 @@ def expansao_por_palavra(linha):
         elif c == "\\":  # o escapado é literal; entre aspas duplas o `shlex` só tira a barra antes de `"` e `\\`
             seguinte = next(letras, "")
             texto.append(("\\" if aspas and seguinte not in '"\\' else "") + seguinte)
-        elif c in "$`" or not aspas and CURINGA.match(c):  # E168.5 (A3): o curinga fora de aspas o bash troca por nomes
+        elif c in "$`" or fora and (CURINGA.match(c) or chave and (c == "," or c == "." == anterior)):
+            # E168.5 (A3): o curinga fora de aspas o bash troca por nomes; E168.9 (A5): a chave com `,` ou `..` fora de
+            # aspas (`{'…mergePull','-Hx:'}'Request…'`), por várias palavras remontadas
             nivel = max(nivel, 1 if aspas else 2)
             texto.append(c)
         elif c == aspas:
@@ -377,7 +382,8 @@ def expansao_por_palavra(linha):
             aspas = c
         else:
             juntar()
-            texto, nivel = [], 0
+            texto, nivel, chave = [], 0, False
+        chave, anterior = (chave or c == "{", c) if fora else (chave, "")
     juntar()
     return saida
 
@@ -3336,6 +3342,8 @@ class Guarda:
                             self.rotulo_na_sessao_do_forge(p, pasta, nivel + 1)
                     prog = Path(palavras[0].lstrip("`")).name if palavras else ""
                     if prog == "gh":
+                        if parecer.gh_incerto(palavras):  # E168.9: o subcomando incerto pode aplicar o rótulo
+                            self.exigir_dono()
                         self.gh_rotulo(parecer.ordem_do_gh(palavras), pasta, atras_do_xargs(escritas, palavras))
                         self.gh_pr_na_sessao_do_forge(palavras, pasta)
                     elif prog == "alias" and CITA_ROTULO.search(" ".join(palavras)):  # A5: o alias do shell guarda o rótulo
@@ -3493,7 +3501,7 @@ class Guarda:
             opcao = a if a in parecer.API_COM_VALOR else None
             if opcao:
                 a, j = (args[j] if j < len(args) else ""), j + 1
-            nivel = vistas.get(a, 2) if parecer.expande(a) or CURINGA.search(a) else 0
+            nivel = vistas.get(a, 2) if parecer.expande(a) or CURINGA.search(a) or CHAVES.search(a) else 0
             if nivel == 2:
                 return True
             if nivel == 0 or opcao and opcao not in CAMPOS_DA_API:
@@ -3734,6 +3742,8 @@ class Guarda:
         return bool(expansoes) and nome not in COMANDOS_DO_GH
 
     def gh(self, palavras, parte, pasta, repo_env=None, por_xargs=False, config_env=None, alias=True):
+        if parecer.gh_incerto(palavras):  # E168.9: na dúvida sobre o subcomando, recusa, sem escolher leitura
+            self.barrar("R-CONFORMIDADE", *parecer.GH_INCERTO)
         palavras = parecer.ordem_do_gh(palavras)  # E168.5: toda trava do gh lê o subcomando logo depois do `gh`
         if alias and self.gh_pelo_alias(palavras, pasta, repo_env, por_xargs, config_env):
             return
@@ -3770,7 +3780,9 @@ class Guarda:
                             "use gh pr/git pelo papel certo ou leve ao usuário (R-DECISAO)")
             if parecer.metodo_mutante(args):
                 self.gh_api_de_merge(args, pasta)
-            if parecer.metodo_mutante(args) and self.consulta_ilegivel(args):  # por último: a regra do gh fala antes
+            # por último: a regra do gh fala antes. E168.9 (A5): no GraphQL, também sem campo à vista (a chave fora de
+            # aspas esconde o `-f` que o bash remonta)
+            if (parecer.metodo_mutante(args) or e_graphql(parecer.endpoint_da_api(args))) and self.consulta_ilegivel(args):
                 self.barrar(*GRAPHQL_ILEGIVEL, trava=TRAVA)  # também na sessão do Forge: a consulta pode ser um merge
 
     # Pacotes ----------------------------------------------------------------------------------------

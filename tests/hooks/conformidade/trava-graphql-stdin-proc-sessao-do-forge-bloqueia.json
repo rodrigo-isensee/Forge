@@ -1,15 +1,17 @@
 {
-  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (GRAPHQL-CONSULTA-EM-VARIAVEL, E168.5, S5 da segurança do #854): na sessão do Forge, `-F query=@/proc/self/fd/0` é a entrada padrão do gh; recusa (R-MAIN).",
+  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (GRAPHQL-CONSULTA-EM-VARIAVEL, E168.5, S5 da segurança do #854): na sessão do Forge, `-F query=@/proc/self/fd/0` é a entrada padrão do gh; recusa (R-MAIN). O gh falso da conta do dono (E168.9, A3 do review): o R-MAIN não depende da credencial da máquina.",
   "arquivos": {
     "src/app.js": "v1\n",
     "q.graphql": "mutation{mergePullRequest(input:{pullRequestId:\"PR_x\"}){clientMutationId}}\n",
     "docs/pedidos/p1.md": "# Pedido p1\n\n## Histórico\n- 2026-10-30: aberto\n- 2026-11-09 10:00: brief selado docs/briefs/p1-dev-1.md aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
-    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    "bin/gh": "#!/bin/sh\necho Rodrigo-Isensee\n"
   },
   "forge": false,
   "env": {
     "HOME": "{tmp}/home",
-    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj",
+    "PATH": "{tmp}/proj/bin:/usr/bin:/bin"
   },
   "entrada": {
     "tool_name": "Bash",
@@ -23,5 +25,8 @@
   "esperado": {
     "codigo": 2,
     "stderr": "R-MAIN: gh api que mescla PR"
-  }
+  },
+  "executaveis": [
+    "bin/gh"
+  ]
 }

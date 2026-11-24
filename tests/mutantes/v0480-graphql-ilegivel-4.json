@@ -28,20 +28,9 @@
       "id": "GQ19",
       "guarda": "E168.5 (A1): a opção longa sem `=` leva o valor seguinte",
       "arquivo": "hooks/parecer.py",
-      "de": "(toks[i].startswith(\"--\") or len(toks[i]) == 2)",
-      "para": "(len(toks[i]) == 2)",
+      "de": "(opcao.startswith(\"--\") or len(opcao) == 2)",
+      "para": "(len(opcao) == 2)",
       "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
-      ]
-    },
-    {
-      "id": "GQ20",
-      "guarda": "E168.5 (A1): leitura incerta (expansão, `api` ou `pr` como valor de opção) toma o primeiro `api` ou `pr`",
-      "arquivo": "hooks/parecer.py",
-      "de": "    if i >= len(toks) or toks[i] == \"--\" or any(expande(a) or a in GH_SUBCOMANDOS_CRITICOS for a in toks[1:i]):",
-      "para": "    if False:",
-      "testes": [
-        "tests.test_hooks.Hooks.test_ordem_do_gh",
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]
     },
@@ -59,8 +48,8 @@
       "id": "GQ22",
       "guarda": "E168.5 (A3): o curinga fora de aspas sobe a palavra ao nível 2",
       "arquivo": "hooks/conformidade.py",
-      "de": "        elif c in \"$`\" or not aspas and CURINGA.match(c):",
-      "para": "        elif c in \"$`\":",
+      "de": "        elif c in \"$`\" or fora and (CURINGA.match(c) or chave",
+      "para": "        elif c in \"$`\" or fora and (False or chave",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]
@@ -69,8 +58,8 @@
       "id": "GQ23",
       "guarda": "E168.5 (A3): a palavra com curinga é consultada",
       "arquivo": "hooks/conformidade.py",
-      "de": "if parecer.expande(a) or CURINGA.search(a) else 0",
-      "para": "if parecer.expande(a) else 0",
+      "de": "if parecer.expande(a) or CURINGA.search(a) or CHAVES",
+      "para": "if parecer.expande(a) or False or CHAVES",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]

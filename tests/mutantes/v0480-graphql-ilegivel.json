@@ -6,8 +6,8 @@
       "id": "GQ1",
       "guarda": "E168.1: o gh api mutante com consulta ilegível recusa no fim do ramo api",
       "arquivo": "hooks/conformidade.py",
-      "de": "if parecer.metodo_mutante(args) and self.consulta_ilegivel(args):",
-      "para": "if False and parecer.metodo_mutante(args) and self.consulta_ilegivel(args):",
+      "de": "and self.consulta_ilegivel(args):",
+      "para": "and False:",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]

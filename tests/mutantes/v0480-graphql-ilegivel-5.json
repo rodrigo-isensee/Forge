@@ -16,19 +16,8 @@
       "id": "GQ26",
       "guarda": "E168.5 (A1): só a opção que leva valor pula a palavra seguinte",
       "arquivo": "hooks/parecer.py",
-      "de": "        i += 2 if leva else 1",
+      "de": "        i += 2 if leva_valor(toks[i]) else 1",
       "para": "        i += 2 if False else 1",
-      "testes": [
-        "tests.test_hooks.Hooks.test_ordem_do_gh",
-        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
-      ]
-    },
-    {
-      "id": "GQ27",
-      "guarda": "E168.5 (A1): na leitura incerta vale o primeiro `api` ou `pr`",
-      "arquivo": "hooks/parecer.py",
-      "de": "        i = next((j for j in range(1, len(toks)) if toks[j] in GH_SUBCOMANDOS_CRITICOS), i)",
-      "para": "        i = next((j for j in range(1, len(toks)) if False), i)",
       "testes": [
         "tests.test_hooks.Hooks.test_ordem_do_gh",
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"

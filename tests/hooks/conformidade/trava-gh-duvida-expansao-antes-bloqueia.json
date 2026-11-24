@@ -1,0 +1,24 @@
+{
+  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (GRAPHQL-CONSULTA-EM-VARIAVEL, E168.9, A2 do review e S11 da segurança do #854): `gh -X $M graphql …`: a expansão antes do subcomando o bash divide (M='POST api' vira `-X POST api graphql`); recusa sem `api` literal adiante.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh -X $M graphql -f query=\"$Q\""
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: gh com opção antes do subcomando que o hook não lê"
+  }
+}

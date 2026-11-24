@@ -46,7 +46,7 @@
       "id": "GQ21",
       "guarda": "E168.1: a palavra sem $ nem crase é literal, mesmo fora da releitura (-i agrupado)",
       "arquivo": "hooks/conformidade.py",
-      "de": "nivel = vistas.get(a, 2) if parecer.expande(a) else 0",
+      "de": "nivel = vistas.get(a, 2) if parecer.expande(a) or CURINGA.search(a) or CHAVES.search(a) else 0",
       "para": "nivel = vistas.get(a, 2) if True else 0",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
@@ -76,8 +76,8 @@
       "id": "GQ24",
       "guarda": "E168.1: a crase é expansão como o $",
       "arquivo": "hooks/conformidade.py",
-      "de": "        elif c in \"$`\":\n            nivel",
-      "para": "        elif c in \"$\":\n            nivel",
+      "de": "        elif c in \"$`\" or fora and (CURINGA.match(c)",
+      "para": "        elif c in \"$\" or fora and (CURINGA.match(c)",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]

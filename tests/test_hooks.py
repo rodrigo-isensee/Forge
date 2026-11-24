@@ -3089,8 +3089,9 @@ class Hooks(unittest.TestCase):
     def test_fixtures_do_repo_publico(self):  # CONFORMIDADE-REPO-CREATE-PUBLICO (v0478 E141.2, E141.7): para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith("CONFORMIDADE-REPO-CREATE-PUBLICO")]
-        self.assertGreaterEqual(len(lote), 112, "as fixtures do item (E168.1: mais 15 da GRAPHQL-CONSULTA-EM-VARIAVEL; "
-                                                "E168.5: mais 14, opção antes do subcomando, stdin por caminho e curinga)")
+        self.assertGreaterEqual(len(lote), 123,"as fixtures do item (E168.1: mais 15 da GRAPHQL-CONSULTA-EM-VARIAVEL; "
+                                                "E168.5: mais 14, opção antes do subcomando, stdin por caminho e curinga; "
+                                                "E168.9: mais 11, dúvida do subcomando, ordem do gh nas travas e chaves)")
         self.assertEqual({f.dados["esperado"]["codigo"] for _, f in lote}, {0, 2}, "o lote tem os dois lados")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
         # A8 da segurança (S18): 40 KB de string aberta à frente decidem bem antes do prazo de produção; E148.1 (A9):
@@ -3106,11 +3107,48 @@ class Hooks(unittest.TestCase):
         casos = {("gh", "-X", "PUT", "api", "x"): ["gh", "api", "-X", "PUT", "x"],
                  ("gh", "--repo=o/r", "pr", "merge"): ["gh", "pr", "--repo=o/r", "merge"],
                  ("gh", "--repo=o/r", "issue", "list"): ["gh", "issue", "--repo=o/r", "list"],
-                 ("gh", "-i", "api", "graphql"): ["gh", "api", "-i", "graphql"],  # incerto: o primeiro `api`
+                 ("gh", "-i", "api", "graphql"): ["gh", "graphql", "-i", "api"],  # como o gh: o `-i` toma o `api`
+                 ("gh", "-b", "api", "pr", "merge"): ["gh", "pr", "-b", "api", "merge"],
                  ("gh", "--help"): ["gh", "--help"], ("gh", "-R"): ["gh", "-R"], ("gh", "--", "x"): ["gh", "--", "x"],
                  ("gh", "api", "-X", "PUT"): ["gh", "api", "-X", "PUT"], ("git", "-C", "p", "merge"): ["git", "-C", "p", "merge"]}
         for entrada, esperado in casos.items():
             self.assertEqual(parecer.ordem_do_gh(list(entrada)), esperado, entrada)
+
+    def test_gh_incerto(self):  # E168.9 (A1 e A2 do review, A4 da segurança do #854): na dúvida, quem chama recusa
+        parecer = modulos_dos_hooks()[2]
+        for toks in (("gh", "-b", "api", "pr", "merge", "1"), ("gh", "-t", "pr", "api", "graphql"),
+                     ("gh", "-X", "$M", "graphql"), ("gh", "-i", "api", "graphql"), ("/usr/bin/gh", "--repo", "`r`", "pr")):
+            self.assertTrue(parecer.gh_incerto(list(toks)), toks)
+        for toks in (("gh", "-R", "o/r", "pr", "merge"), ("gh", "pr", "merge", "-b", "api"), ("gh", "--help", "api"),
+                     ("gh", "-X", "PUT", "api", "$E"), ("git", "-C", "$p", "merge"), ("gh",), ()):
+            self.assertFalse(parecer.gh_incerto(list(toks)), toks)
+
+    def test_analisar_pula_a_opcao_entre_pr_e_o_subcomando(self):  # E168.9 (A1 do review do #854)
+        """`gh -b x pr merge 1` vira `gh pr -b x merge 1` (`ordem_do_gh`): a opção com valor entre `pr` e o subcomando é
+        pulada como o gh pula, e o `-R` dali segue valendo."""
+        parecer = modulos_dos_hooks()[2]
+        self.assertEqual(parecer.analisar(["gh", "-b", "x", "pr", "merge", "1"]), ("prmerge", None, "1"))
+        self.assertEqual(parecer.analisar(["gh", "-R", "o/r", "-t", "x", "pr", "merge", "1"]), ("prmerge", "o/r", "1"))
+        self.assertEqual(parecer.analisar(["gh", "pr", "--repo=o/r", "--body", "x", "merge", "f"]), ("prmerge", "o/r", "f"))
+        self.assertEqual(parecer.analisar(["gh", "pr", "-Ro/r", "merge", "f"]), ("prmerge", "o/r", "f"))
+        self.assertIsNone(parecer.analisar(["gh", "pr", "--", "x", "merge", "f"]), "o `--` para: não é opção com valor")
+
+    def test_expansao_por_palavra_chaves(self):  # E168.9 (A5 da segurança do #854): a chave que o bash expande
+        _, conformidade, _ = modulos_dos_hooks()
+        casos = {"{a,b}": ("{a,b}", 2), "x{'a','b'}": ("x{a,b}", 2), "{1..3}": ("{1..3}", 2), "'{a,b}'": ("{a,b}", 0),
+                 "\"{a,b}\"": ("{a,b}", 0), "\\{a,b}": ("{a,b}", 0), "a,b": ("a,b", 0), "{a.b}": ("{a.b}", 0),
+                 "x{ a,b": ("a,b", 0), "x{; a,b": ("a,b", 0), "'{'a,b": ("{a,b", 0)}
+        for linha, (palavra, nivel) in casos.items():
+            self.assertEqual(conformidade.expansao_por_palavra(linha).get(palavra), nivel, linha)
+
+    def test_alias_do_gh_com_opcao_antes_do_nome(self):  # E168.9 (A1 do QA do #854): `ordem_do_gh` no `alias_do_gh`
+        """`gh -R o/r junta feature/x`, com `junta: pr merge`, roda o alias: o parecer lê a expansão (o merge)."""
+        parecer = modulos_dos_hooks()[2]
+        pasta = self._pasta_temporaria()
+        (pasta / "config.yml").write_text("aliases:\n    junta: pr merge\n", encoding="utf-8")
+        analise = parecer.alias_do_gh([f"GH_CONFIG_DIR={pasta}"], ["gh", "-R", "o/r", "junta", "feature/x"], None)
+        self.assertEqual((analise or ())[:2], ("alias", "junta"))
+        self.assertIn(("prmerge", "o/r", "feature/x"), analise[2])
 
     @unittest.skipUnless(hasattr(os, "mkfifo"), "sem FIFO no sistema")
     def test_graphql_arquivo_que_nao_e_regular_e_ilegivel(self):  # E168.5 (A2 da segurança do #854)

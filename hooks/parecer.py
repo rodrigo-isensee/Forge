@@ -388,21 +388,41 @@ def globais(toks):
 
 GH_SEM_VALOR = {"--help", "-h", "--version"}  # as opções de `gh` antes do subcomando que não levam o valor seguinte
 GH_SUBCOMANDOS_CRITICOS = ("api", "pr")
+GH_INCERTO = ("gh com opção antes do subcomando que o hook não lê (expansão do shell, ou api/pr como valor de opção)",
+              "escreva o subcomando logo depois do gh e as opções depois dele (gh pr view 1 -R dono/repo)")
+
+
+def leva_valor(opcao):
+    """A opção do gh que toma a palavra seguinte como valor, pela regra do cobra: `--x` sem `=` e `-x` de duas letras,
+    salvo `GH_SEM_VALOR`."""
+    return "=" not in opcao and opcao not in GH_SEM_VALOR and (opcao.startswith("--") or len(opcao) == 2)
+
+
+def subcomando_do_gh(toks):
+    """A posição do subcomando de `gh …`, achado como o gh acha: as opções antes dele e os valores delas ficam para trás;
+    `--` para."""
+    i = 1
+    while i < len(toks) and toks[i].startswith("-") and toks[i] != "--":
+        i += 2 if leva_valor(toks[i]) else 1
+    return i
+
+
+def gh_incerto(toks):
+    """E168.9 (A1 e A2 do review, A4 da segurança do #854): `gh` com opção antes do subcomando que o hook não lê com
+    certeza: palavra com expansão antes dele (o bash a divide ou a apaga: `gh -X $M graphql`) ou `api`/`pr` como valor de
+    opção (`gh -b api pr merge`, que o gh roda como `pr merge`). Quem chama recusa (`GH_INCERTO`), sem escolher leitura."""
+    if not toks or Path(toks[0]).name != "gh":
+        return False
+    return any(expande(a) or a in GH_SUBCOMANDOS_CRITICOS for a in toks[1:subcomando_do_gh(toks)])
 
 
 def ordem_do_gh(toks):
     """E168.5 (A1 da segurança do #854): o gh aceita opção antes do subcomando (`gh -X PUT api …`, `gh -R o/r pr merge`),
-    e as roda como depois dele. Devolve `toks` com o subcomando logo depois do `gh`, achado como o gh acha: `--` para;
-    `--x` sem `=` e `-x` de duas letras levam o valor seguinte (salvo `GH_SEM_VALOR`). Palavra com expansão antes dele, ou
-    `api`/`pr` como valor de opção, deixam a leitura incerta: vale o primeiro `api` ou `pr` (falha fechada)."""
+    e as roda como depois dele. Devolve `toks` com o subcomando logo depois do `gh` (`subcomando_do_gh`) e as opções de
+    antes logo atrás dele, na ordem. A leitura incerta (`gh_incerto`) quem chama recusa antes."""
     if not toks or Path(toks[0]).name != "gh" or not toks[1:2] or not toks[1].startswith("-"):
         return toks
-    i = 1
-    while i < len(toks) and toks[i].startswith("-") and toks[i] != "--":
-        leva = "=" not in toks[i] and toks[i] not in GH_SEM_VALOR and (toks[i].startswith("--") or len(toks[i]) == 2)
-        i += 2 if leva else 1
-    if i >= len(toks) or toks[i] == "--" or any(expande(a) or a in GH_SUBCOMANDOS_CRITICOS for a in toks[1:i]):
-        i = next((j for j in range(1, len(toks)) if toks[j] in GH_SUBCOMANDOS_CRITICOS), i)
+    i = subcomando_do_gh(toks)
     if i >= len(toks) or toks[i] == "--":
         return toks
     return [toks[0], toks[i], *toks[1:i], *toks[i + 1:]]
@@ -425,12 +445,14 @@ def analisar(toks):
             return None
         i = toks.index("pr")
         j, repo_pr = i + 1, None
-        while j < len(toks) and (toks[j] in ("-R", "--repo") or toks[j].startswith(("--repo=", "-R"))):
-            # `-R`/`--repo` persistente do `gh pr`, que o gh aceita entre `pr` e o subcomando
+        while j < len(toks) and toks[j].startswith("-") and toks[j] != "--":
+            # a opção entre `pr` e o subcomando: `-R`/`--repo` persistente do `gh pr` e a que veio de antes do `pr`
+            # (`ordem_do_gh`: `gh -b x pr merge` é `gh pr -b x merge`); pula o valor como o gh (E168.9)
             if toks[j] in ("-R", "--repo"):
-                repo_pr, j = (toks[j + 1] if j + 1 < len(toks) else None), j + 2
-            else:
-                repo_pr, j = toks[j].split("=", 1)[-1].removeprefix("-R"), j + 1
+                repo_pr = toks[j + 1] if j + 1 < len(toks) else None
+            elif toks[j].startswith(("--repo=", "-R")):
+                repo_pr = toks[j].split("=", 1)[-1].removeprefix("-R")
+            j += 2 if leva_valor(toks[j]) else 1
         args = toks[j + 1:]
         repo = repo_pr or opcao(args, "--repo", "-R") or next((a.split("=", 1)[1] for a in atribuicoes
                                                                if a.startswith("GH_REPO=")), None)
@@ -481,6 +503,8 @@ def analise_do_comando(palavras):
     if comando and nome_incerto(comando[0]) and critico_ou_alias(" ".join(comando)):  # D2 e D3: `$c gh`, `env $(…) gh`
         bloquear("R-REVIEW", f"`{comando[0]}` como nome do comando com gh pr, gh api, merge ou pull: o hook não sabe o "
                              "que ele roda. Corrigir: escreva o comando por extenso, sem variável nem $( no nome")
+    if gh_incerto(comando):  # E168.9: na dúvida sobre o subcomando, recusa (R-CONFORMIDADE), sem escolher leitura
+        bloquear("R-CONFORMIDADE", f"{GH_INCERTO[0]}. Corrigir: {GH_INCERTO[1]}")
     nome = next((Path(c).name for c in comando[:1]), "")
     if nome in OUTROS_LANCADORES or nome == "find" and EXEC_DO_FIND & set(comando):
         bloquear("R-REVIEW", f"`{nome}` na chamada com gh pr, gh api, merge ou pull: o hook não lê o que ele roda. "
