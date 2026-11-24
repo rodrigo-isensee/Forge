@@ -4132,7 +4132,7 @@ def versoes_em_lote(raiz, refs, rel):
     sai como o do `git show` em modo texto; a versão ausente, o lote que falha ou a saída truncada dão None (como o show que falha)."""
     if not refs or "\n" in rel:  # o nome com quebra de linha não cabe no protocolo do lote
         return [None] * len(refs)
-    cod, lote = git(raiz, "cat-file", "--batch", bruto=True, entrada="".join(f"{r}:{rel}\n" for r in refs).encode())
+    cod, lote = git(raiz, "cat-file", "--batch", bruto=True, entrada="".join(":".join((r, rel)) + "\n" for r in refs).encode())
     textos, pos = [], 0
     for _ in refs if not cod else ():
         fim = lote.find(b"\n", pos)
