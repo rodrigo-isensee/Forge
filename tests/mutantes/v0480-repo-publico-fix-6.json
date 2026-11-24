@@ -6,8 +6,8 @@
       "id": "RP41",
       "guarda": "A3: o último argumento também é lido",
       "arquivo": "hooks/conformidade.py",
-      "de": "while j < len(args):\n            a, j",
-      "para": "while j < len(args) - 1:\n            a, j",
+      "de": "while j < len(args):\n            a, j = args[j], j + 1\n            colado",
+      "para": "while j < len(args) - 1:\n            a, j = args[j], j + 1\n            colado",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]
@@ -16,8 +16,8 @@
       "id": "RP42",
       "guarda": "A3: -F sem valor no fim não é campo privado",
       "arquivo": "hooks/conformidade.py",
-      "de": "(args[j] if j < len(args) else \"\")",
-      "para": "(args[j] if j < len(args) - 1 else \"\")",
+      "de": "valor, j = (args[j] if j < len(args) else \"\")",
+      "para": "valor, j = (args[j] if j < len(args) - 1 else \"\")",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]

@@ -31,7 +31,7 @@ Formato do fixture:
               {"git": [argumentos]} roda o git no projeto (como um comando que o hook não viu, ex.: sparse-checkout)
               Em caminhos e textos, {marca} e {marca_wt} valem pela marca da sessão (`.git/forge/projeto-<hash da raiz>`) do
               projeto e da worktree `{tmp}/wt`
-  esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), pergunta (trecho do motivo: só o
+  esperado    codigo, saida (trecho do systemMessage; só o `vigia` e o `decisao`, no Stop, escrevem no stdout), pergunta (trecho do motivo: só o
               `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), stderr_sem ([trechos] que a recusa não pode ter), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
               aviso (trecho; só o `agentes`, código 0: a linha no stderr e o mesmo trecho no `systemMessage` do stdout)
@@ -856,7 +856,8 @@ class Hooks(unittest.TestCase):
         r = rodar(f.hook, entrada, raiz, proc, extra, producao=producao, forcar=f.dados.get("forcar"))
         esperado = f.dados["esperado"]
         if "saida" in esperado or "reason" in esperado:  # só o vigia: aviso ao usuário; contexto só no reason fixo do Stop (emenda da ADR 0003, item 7)
-            self.assertEqual(f.hook, "vigia")
+            self.assertIn(f.hook, ("vigia", "decisao"))  # o decisao: só o systemMessage, só no Stop (R-DECISAO, E172.15)
+            self.assertTrue(f.hook == "vigia" or ("reason" not in esperado and entrada.get("hook_event_name") == "Stop"))
             self.assertNotEqual(entrada.get("hook_event_name"), "SessionStart", "SessionStart é silencioso")
             saida = json.loads(r.stdout)
             chaves = ["systemMessage"] * ("saida" in esperado) + ["decision", "reason"] * ("reason" in esperado)
@@ -871,7 +872,7 @@ class Hooks(unittest.TestCase):
                 self.assertEqual(saida["reason"], esperado["reason"])
             if "saida" in esperado:
                 self.assertNotIn("\n", saida["systemMessage"], "uma linha só")
-                self.assertRegex(saida["systemMessage"], r"^Forge: \d+ (violação\(ões\)|aviso\(s\)|mudança\(s\))(, \d+ \S+)* — ")
+                self.assertRegex(saida["systemMessage"], r"^Forge decisao: " if f.hook == "decisao" else r"^Forge: \d+ (violação\(ões\)|aviso\(s\)|mudança\(s\))(, \d+ \S+)* — ")
                 self.assertIn(esperado["saida"], saida["systemMessage"])
         elif "pergunta" in esperado:  # só o conformidade: pede a confirmação da pessoa, com a consequência
             self.assertEqual(f.hook, "conformidade")
@@ -1527,7 +1528,7 @@ class Hooks(unittest.TestCase):
             codigos = {f.dados["esperado"]["codigo"] for f in self.fixtures if f.hook == hook}
             nomes = {f.caminho.stem for f in self.fixtures if f.hook == hook}
             with self.subTest(hook=hook):
-                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente", "ordens") else {0, 2})  # o vigia, o doutor, o ambiente e o ordens (emenda "ordens em vigor" da ADR 0003) avisam, nunca bloqueiam
+                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente", "ordens", "decisao") else {0, 2})  # o vigia, o doutor, o ambiente, o ordens (emenda "ordens em vigor" da ADR 0003) e o decisao (R-DECISAO, fatia L28a) avisam, nunca bloqueiam
                 self.assertIn("sem-forge-versao", nomes)
                 self.assertIn("erro-interno", nomes)
                 if hook == "ordens":  # a emenda pede também os casos do teto e do arquivo ausente
@@ -1542,9 +1543,12 @@ class Hooks(unittest.TestCase):
             "nunca `additionalContext`", ""), "o vigia só avisa o usuário (systemMessage)")
         for evento in ("SessionStart", "Stop"):  # SessionStart: o stdout vira contexto do modelo (ADR 0003, item 1)
             comandos = {h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"].get(evento, []) for h in g["hooks"]}
-            permitidos = {"vigia.py", "doutor.py", "_maquina.py"} | ({"ambiente.py", "ordens.py"} if evento == "SessionStart" else set()) | ({"meta.py"} if evento == "Stop" else set())  # 0.44.2: S4/S6, sem stdout
-            self.assertLessEqual(comandos, permitidos, f"só o vigia e o doutor (sem stdout no SessionStart), o ambiente (exceção da emenda da ADR 0003, E2.54), o ordens (emenda \"ordens em vigor\" da ADR 0003) e o meta no Stop ficam em {evento}")
+            permitidos = {"vigia.py", "doutor.py", "_maquina.py"} | ({"ambiente.py", "ordens.py"} if evento == "SessionStart" else set()) | ({"meta.py", "decisao.py"} if evento == "Stop" else set())  # 0.44.2: S4/S6, sem stdout; E172.15: o decisao só com systemMessage
+            self.assertLessEqual(comandos, permitidos, f"só o vigia e o doutor (sem stdout no SessionStart), o ambiente (exceção da emenda da ADR 0003, E2.54), o ordens (emenda \"ordens em vigor\" da ADR 0003) e, no Stop, o meta e o decisao (só aviso ao usuário, R-DECISAO; ADR 0003, item 1) ficam em {evento}")
         self.assertNotIn("print(", (HOOKS / "meta.py").read_text(encoding="utf-8"), "o meta não escreve no stdout: recusa só pelo stderr")
+        decisao = (HOOKS / "decisao.py").read_text(encoding="utf-8").replace("nunca `additionalContext` nem `decision`", "")
+        for chave in ("additionalContext", "decision"):  # o decisao só avisa o usuário (systemMessage): nem contexto nem bloqueio
+            self.assertNotIn(chave, decisao, f"o decisao não devolve {chave} (ADR 0003, item 1)")
         self.assertNotIn("meta.py", {h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"].get("SessionStart", []) for h in g["hooks"]})
         usados = set()
         for evento, grupos in d["hooks"].items():
@@ -3113,7 +3117,10 @@ class Hooks(unittest.TestCase):
     def test_fixtures_do_repo_publico(self):  # CONFORMIDADE-REPO-CREATE-PUBLICO (v0478 E141.2, E141.7): para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith("CONFORMIDADE-REPO-CREATE-PUBLICO")]
-        self.assertGreaterEqual(len(lote), 83, "as fixtures do item")
+        self.assertGreaterEqual(len(lote), 133,"as fixtures do item (E168.1: mais 15 da GRAPHQL-CONSULTA-EM-VARIAVEL; "
+                                                "E168.5: mais 14, opção antes do subcomando, stdin por caminho e curinga; "
+                                                "E168.9: mais 11, dúvida do subcomando, ordem do gh nas travas e chaves; "
+                                                "E168.13: mais 10, chave antes do subcomando, nele e no endpoint)")
         self.assertEqual({f.dados["esperado"]["codigo"] for _, f in lote}, {0, 2}, "o lote tem os dois lados")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
         # A8 da segurança (S18): 40 KB de string aberta à frente decidem bem antes do prazo de produção; E148.1 (A9):
@@ -3123,6 +3130,81 @@ class Hooks(unittest.TestCase):
             dados = json.loads((FIXTURES / "conformidade" / f"{caso}.json").read_text(encoding="utf-8"))
             custo, parede = self.medir_o_hook(dados, _comum.PRAZO_DA_DECISAO_S / 2)
             self.assertLess(custo, _comum.PRAZO_DA_DECISAO_S / 2, f"{caso} decide antes do prazo ({parede:.2f} s)")
+
+    def test_ordem_do_gh(self):  # E168.5 (A1 da segurança do #854): o subcomando como o gh o acha
+        parecer = modulos_dos_hooks()[2]
+        casos = {("gh", "-X", "PUT", "api", "x"): ["gh", "api", "-X", "PUT", "x"],
+                 ("gh", "--repo=o/r", "pr", "merge"): ["gh", "pr", "--repo=o/r", "merge"],
+                 ("gh", "--repo=o/r", "issue", "list"): ["gh", "issue", "--repo=o/r", "list"],
+                 ("gh", "-i", "api", "graphql"): ["gh", "graphql", "-i", "api"],  # como o gh: o `-i` toma o `api`
+                 ("gh", "-b", "api", "pr", "merge"): ["gh", "pr", "-b", "api", "merge"],
+                 ("gh", "--help"): ["gh", "--help"], ("gh", "-R"): ["gh", "-R"], ("gh", "--", "x"): ["gh", "--", "x"],
+                 ("gh", "api", "-X", "PUT"): ["gh", "api", "-X", "PUT"], ("git", "-C", "p", "merge"): ["git", "-C", "p", "merge"]}
+        for entrada, esperado in casos.items():
+            self.assertEqual(parecer.ordem_do_gh(list(entrada)), esperado, entrada)
+
+    def test_gh_incerto(self):  # E168.9 (A1 e A2 do review, A4 da segurança do #854): na dúvida, quem chama recusa
+        parecer = modulos_dos_hooks()[2]
+        for toks in (("gh", "-b", "api", "pr", "merge", "1"), ("gh", "-t", "pr", "api", "graphql"),
+                     ("gh", "-X", "$M", "graphql"), ("gh", "-i", "api", "graphql"), ("/usr/bin/gh", "--repo", "`r`", "pr")):
+            self.assertTrue(parecer.gh_incerto(list(toks)), toks)
+        for toks in (("gh", "-R", "o/r", "pr", "merge"), ("gh", "pr", "merge", "-b", "api"), ("gh", "--help", "api"),
+                     ("gh", "-X", "PUT", "api", "$E"), ("git", "-C", "$p", "merge"), ("gh",), ()):
+            self.assertFalse(parecer.gh_incerto(list(toks)), toks)
+
+    def test_gh_incerto_chave(self):  # E168.13 (A7 da segurança do #854): chave antes do subcomando, nele ou no endpoint
+        parecer = modulos_dos_hooks()[2]
+        for toks in (("gh", "-R", "{o/r,api}", "graphql"), ("gh", "{api,graphql}", "-f", "query=$Q"),
+                     ("gh", "{-t,pr}", "api", "graphql"), ("gh", "api", "{graphq,-Hx:}l", "-f", "query=$Q"),
+                     ("gh", "api", "-X", "POST", "graph{q..q}l"), ("gh", "api", "{owner}/{a,b}")):
+            self.assertTrue(parecer.gh_incerto(list(toks)), toks)
+        for toks in (("gh", "api", "repos/{owner}/{repo}/compare/a...b"), ("gh", "api", "repos/{owner}/{repo}/issues?l=a,b"),
+                     ("gh", "api", "graphql", "-f", "query=query{viewer{login,name}}"), ("gh", "pr", "view", "{a,b}"),
+                     ("gh", "api", "graphql", "-H", "Accept: {a,b}"), ("gh", "issue", "{a,b}")):
+            self.assertFalse(parecer.gh_incerto(list(toks)), toks)
+
+    def test_analisar_pula_a_opcao_entre_pr_e_o_subcomando(self):  # E168.9 (A1 do review do #854)
+        """`gh -b x pr merge 1` vira `gh pr -b x merge 1` (`ordem_do_gh`): a opção com valor entre `pr` e o subcomando é
+        pulada como o gh pula, e o `-R` dali segue valendo."""
+        parecer = modulos_dos_hooks()[2]
+        self.assertEqual(parecer.analisar(["gh", "-b", "x", "pr", "merge", "1"]), ("prmerge", None, "1"))
+        self.assertEqual(parecer.analisar(["gh", "-R", "o/r", "-t", "x", "pr", "merge", "1"]), ("prmerge", "o/r", "1"))
+        self.assertEqual(parecer.analisar(["gh", "pr", "--repo=o/r", "--body", "x", "merge", "f"]), ("prmerge", "o/r", "f"))
+        self.assertEqual(parecer.analisar(["gh", "pr", "-Ro/r", "merge", "f"]), ("prmerge", "o/r", "f"))
+        self.assertIsNone(parecer.analisar(["gh", "pr", "--", "x", "merge", "f"]), "o `--` para: não é opção com valor")
+
+    def test_expansao_por_palavra_chaves(self):  # E168.9 (A5 da segurança do #854): a chave que o bash expande
+        _, conformidade, _ = modulos_dos_hooks()
+        casos = {"{a,b}": ("{a,b}", 2), "x{'a','b'}": ("x{a,b}", 2), "{1..3}": ("{1..3}", 2), "'{a,b}'": ("{a,b}", 0),
+                 "\"{a,b}\"": ("{a,b}", 0), "\\{a,b}": ("{a,b}", 0), "a,b": ("a,b", 0), "{a.b}": ("{a.b}", 0),
+                 "x{ a,b": ("a,b", 0), "x{; a,b": ("a,b", 0), "'{'a,b": ("{a,b", 0)}
+        for linha, (palavra, nivel) in casos.items():
+            self.assertEqual(conformidade.expansao_por_palavra(linha).get(palavra), nivel, linha)
+
+    def test_alias_do_gh_com_opcao_antes_do_nome(self):  # E168.9 (A1 do QA do #854): `ordem_do_gh` no `alias_do_gh`
+        """`gh -R o/r junta feature/x`, com `junta: pr merge`, roda o alias: o parecer lê a expansão (o merge)."""
+        parecer = modulos_dos_hooks()[2]
+        pasta = self._pasta_temporaria()
+        (pasta / "config.yml").write_text("aliases:\n    junta: pr merge\n", encoding="utf-8")
+        analise = parecer.alias_do_gh([f"GH_CONFIG_DIR={pasta}"], ["gh", "-R", "o/r", "junta", "feature/x"], None)
+        self.assertEqual((analise or ())[:2], ("alias", "junta"))
+        self.assertIn(("prmerge", "o/r", "feature/x"), analise[2])
+
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "sem FIFO no sistema")
+    def test_graphql_arquivo_que_nao_e_regular_e_ilegivel(self):  # E168.5 (A2 da segurança do #854)
+        """O `-F query=@fifo` e o `--input fifo` fora de /dev e /proc: o hook não espera o escritor nem toma o vazio por
+        consulta legível; o arquivo regular segue lido."""
+        _, conformidade, _ = modulos_dos_hooks()
+        pasta = self._pasta_temporaria()
+        os.mkfifo(pasta / "q.fifo")
+        (pasta / "q.graphql").write_text("query{viewer{login}}", encoding="utf-8")
+        ler = conformidade.Guarda.textos_da_api
+        self.assertTrue(ler(["-F", "query=@q.fifo"], pasta)[1])
+        self.assertTrue(ler(["--input", "q.fifo"], pasta)[1])
+        self.assertTrue(ler(["-F", "query=@/proc/self/status"], pasta)[1], "/proc é do processo do hook, não do gh")
+        textos, ilegivel = ler(["-F", "query=@q.graphql"], pasta)
+        self.assertFalse(ilegivel)
+        self.assertIn("query{viewer{login}}", textos)
 
     def test_fixtures_do_desenho(self):  # E5-0 (Q-B, PAR-P2): as pastas de arquitetura têm dono doc/aq no hook
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("E5-0")]
