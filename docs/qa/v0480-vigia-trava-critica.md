@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-vigia-trava-critica
-commit: cf8b8f696d2acb4431d62506b5f0667f25fad698
+commit: aa0f55f8ae0829ad1e958c543e259d5ff6cb6b92
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -54,3 +54,32 @@ M5 · morreu · hooks/_comum.py:2863
 
 ## Observações
 - M2 a M4 morrem por erro do teste sob o mutante (o controle sem o mutante passa), não por falha de asserção; vale como morte pela regra do `forge-mutante`, e o teste exercita as três saídas (sessão, `None`, PostToolUse), por isso sem achado.
+
+## Revalidação por delta (v0478 E169.8, head aa0f55f8)
+`forge-check parecer delta` (cf8b8f69..aa0f55f8, sem o que veio da develop): domínio do QA em `docs/hooks-fixtures.md`, `tests/mutantes/heredoc-donos.json` e `tests/test_hooks_volta_propriedades.py` (do commit 160ab342, E169.6); `test_hooks.py` e o ADR 0003 vieram da develop, fora do pedido.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Prazo vencido sem marcador recusa (E169.1), agora também no teste da develop | `test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem`, subteste "sem marcador": rc 2 e regra do hook | marcador ausente, passo lento de 60 s | passou (`-k vigia`: Ran 2 tests, OK) |
+| D11 e D12 realinhados à fonte morrem | `heredoc-donos.json` D11 e D12 | `hook.marcado is False` (linha 2860) e texto da mensagem (linha 2863) | morreram |
+| Índice de fixtures em dia | `scripts/indice-fixtures.py --conferir` | contagem 3516 e linhas de `conformidade`, `errointerno`, `vigia` | em dia, rc 0 |
+
+Sem `skip`, `skipIf` nem `expectedFailure` nas linhas do delta. O subteste só passou a exigir a recusa: sem o código de E169.1 ele cai (rc 0 em vez de 2), o mesmo vermelho já registrado acima.
+
+Saída de `bin/forge-mutante tests/mutantes/heredoc-donos.json` no head:
+```
+forge-mutante: pedido=HEREDOC-DONOS rev=aa0f55f8ae08 spec=bd184f80f14fe65bf246b91fc249589c2b6d7079884d23634a1ddbbd87d293b6
+D1 a D10 · morreu
+D11 · morreu · hooks/_comum.py:2860
+D12 · morreu · hooks/_comum.py:2863
+D13 · morreu · hooks/conformidade.py:2141
+D14 · morreu · hooks/conformidade.py:2193
+D15 · controle vermelho · hooks/conformidade.py
+D16 · morreu · hooks/_comum.py:1665
+```
+D15 não é do delta: o teste declarado `tests.test_hooks.Hooks.test_fixtures` não existe desde as fatias da develop (#785, `test_fixtures_fatia_1` a `_4`); o controle cai em 6,8 s por teste inexistente (`errors=1`), igual em `origin/develop`. Com as quatro fatias, numa spec em `$TMPDIR`, a rodada passou de 9 min e estourou meu limite: sem veredito, não afirmo que D15 morre. Em `test_hooks.py -k test_fixtures` no head: `Ran 41 tests in 1185.836s, OK (skipped=4)`, as skips herdadas da develop.
+
+Suíte inteira: do CI do PR (check-run `bateria` do mesmo sha), não rerrodada aqui.
+
+## Achados
+- A1 (recomendado) tests/mutantes/heredoc-donos.json:D15 · `testes` cita `Hooks.test_fixtures`, que não existe desde as fatias (#785); o controle fica vermelho e o mutante nada prova. Trocar pelas fatias 1 a 4. Dívida da develop, fora do delta; vira cartão.
