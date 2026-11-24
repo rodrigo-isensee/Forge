@@ -3,38 +3,40 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-mutante-varias-trocas
-commit: e18a5b07c706a2e559c6dabb5b17fb357b51097e
+commit: 3671c05271cd1760044a2bdc874b064cd28e835a
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-11-24
 ---
-# Review de segurança: v0478 E162.4 (PR #846, melhoria/v0480-mutante-varias-trocas)
+# Review de segurança: v0478 E162.8 (PR #846, revalidação por delta)
 
-Escopo: diff `0733715a..e18a5b07` (base = develop), 7 arquivos: `bin/forge-mutante` (MUTANTE-VARIAS-TROCAS), `tests/test_forge_mutante.py` (5 testes novos), specs `tests/mutantes/v0480-mutante-varias-trocas{,-2}.json` (M1 a M12, 1 isenta), realinhamento de CF5 (`v047-mutante-avisos.json`) e M6 (`vel-p1p10.json`), fragmento do changelog.
+Delta lido: `forge-check parecer delta` de `e18a5b07..3671c052`. No domínio, só `bin/forge-mutante` (`provar` e a nova `par_que_nao_sobrevive`, `bin/forge-mutante:977-998`, e o texto do uso). Fora do domínio, mas lidos porque são a prova da correção: `tests/test_forge_mutante.py` (2 testes novos) e as specs `-2` e `-3`. Já lido na rodada anterior (no git, `786cd40c`): o resto do diff `0733715a..e18a5b07`.
 
-## Gatilhos
-Gatilhos: controle do Forge (ferramenta do portão de mutação: a rodada que o QA usa como prova e a `--cobertura` do autor e do envio).
+Gatilhos: controle do Forge (ferramenta do portão de mutação).
 
 ## Só aperta ou neutro
-- Isenção: neutra. O mecanismo das `isentas` (`validar_isentas`, `cruza`, `isenta`, `MAXIMO_DE_ISENTAS`) não muda no diff. A única isenta nova (`v0480-mutante-varias-trocas-2.json`) cruza só a condição apagada `ocorrencias != 1` (`bin/forge-mutante:473(base)`), cuja guarda foi para `vezes_fora_de_uma` (`bin/forge-mutante:413`), provada por M7 e M10; `--cobertura --base 0733715a --rev e18a5b07` sai rc 0 com ela usada e nenhuma `isenta velha`.
-- Validação da spec: aperta. A forma em lista fecha na dúvida (`trocas`, `bin/forge-mutante:402`): tamanho diferente, lista de 1 ou de 9+, par não texto, `de` vazio, `para == de` em qualquer par e `de` repetido são spec inválida (`ValidacaoDaSpec.test_varias_trocas_...`). Cada `de` uma vez no arquivo e sem sobreposição em `mutar` (`bin/forge-mutante:508-513`). A spec de uma troca segue com as mesmas mensagens.
-- CF5 e M6: neutros. Mesma guarda na linha nova (AR-12); os dois morrem no head.
-- Troca que não muda nada: na `--cobertura`, o par que não muda o ast da condição segue barrado por `casa` (`bin/forge-mutante:617`), por par.
-- **Não fica neutro: a morte de graça** (A1). O mutante de várias trocas morre se qualquer par sozinho é morto pelo teste; a rodada reporta a morte na linha do 1.º par e a `--cobertura` credita cada par. Um par-isca que o teste mata empresta a morte a uma guarda sem teste.
+- Par que morre sozinho, ou que não roda sozinho: aperta. Um mutante de lista morto passa a ser `inválido` (rc 2) se algum par sozinho não sobrevive (`bin/forge-mutante:977-980`), e na dúvida fecha: `sem veredito` ou `inválido` do par sozinho também invalidam (`bin/forge-mutante:995-996`).
+- Spec de uma troca, `equivalente` e mutante de lista que sobrevive: neutros. A checagem só roda com `morreu` e mais de um par.
+- `--cobertura`: neutra. Segue creditando cada par, mas com `declarado, não provado`. A prova continua sendo a rodada, que agora recusa a isca de 2 pares.
+- **Não fica neutro: com 3 ou mais pares** (A2). Cada par sobreviver sozinho não prova que todos são necessários. Uma guarda sem teste ainda entra como 1.º par ao lado de um par legítimo de guardas que se cobrem.
 
 ## Achados
-- A1 (bloqueante) bin/forge-mutante:755 · par-isca dá morte de graça: [guarda sem teste, troca que o teste mata] sai `morreu` na linha da guarda (rodada rc 0) e `coberta` na --cobertura (rc 0); o mesmo par sozinho sobrevive. Correção: cada par roda só e precisa sobreviver; senão o mutante é inválido.
+- A1 (bloqueante) bin/forge-mutante:755 · par-isca dá morte de graça. Estado: corrigido para o par que morre sozinho (S1 a S3 refeitas); resta a forma de 3 pares, aberta como A2.
+- A2 (bloqueante) bin/forge-mutante:989 · com 3+ pares, [guarda sem teste, guarda A, guarda B], onde A e B se cobrem, todo par sobrevive sozinho e o conjunto morre: a rodada sai `morreu` na linha da guarda sem teste (rc 0). Correção: cada conjunto sem um dos pares também precisa sobreviver.
 
 ## Sondas
-- S1 · spec M2 de=["if y > 500:","        return 2\n"] para=["if y > 5000:","        return 3\n"] (lib.py:8 sem teste, return 2 testado); forge-mutante --cobertura --base develop · espera: sem mutante · lib.py:8 · obtido: coberta · lib.py:8 · x.json:M2, rc 0
-- S2 · mesma spec; forge-mutante tests/mutantes/x.json · espera: M2 inválido ou sobreviveu (a guarda de lib.py:8 não tem teste) · obtido: M2 · morreu · lib.py:8, rc 0
-- S3 · spec M1 de="if y > 500:" para="if y > 5000:" e M2 de=["if y > 500:","if x > 10:"] para=["if y > 5000:","if x > 99:"] · espera: M2 não morre se M1 sobrevive · obtido: M1 · sobreviveu · lib.py:8 e M2 · morreu · lib.py:8
+- S1 · spec M2 de=["if y > 500:","        return 2\n"] para=["if y > 5000:","        return 3\n"]; forge-mutante --cobertura --base <base> · espera: a rodada recusa (a cobertura é declarativa) · obtido: coberta · lib.py:2 · s.json:M2 · declarado, não provado, rc 0 (neutro)
+- S2 · mesma spec com M1 de="if y > 500:"; forge-mutante spec.json · espera: M2 inválido · obtido: M2 · inválido · lib.py:2 · o par 2 morre sozinho: vira mutante próprio, rc 2
+- S3 · M2 de=["if y > 500:","if x > 10:"] para=["if y > 5000:","if x > 99:"] · espera: M2 inválido · obtido: M2 · inválido · lib.py:2 · o par 2 morre sozinho, rc 2
+- S4 · guarda `if y > 500:` sem teste e redundantes `if x < 0:`/`if x <= -1:` (teste limite(-5)==0); M2 de=["if y > 500:","if x < 0:","if x <= -1:"] para=["if y > 5000:","if x < -100:","if x <= -100:"] · espera: M2 inválido · obtido: M2 · morreu · lib.py:2, rc 0
+- S5 · isca de comentário: M2 de=["if y > 500:","# limite de x"] para=["if y > 5000:","# limite de y"] · espera: sem morte · obtido: M2 · sobreviveu · lib.py:2, rc 1 (não é isca)
+- S6 · o mesmo par em outra ordem: M2=[guarda, `return x`→`return -x`] e M3=[`return x`→`return -x`, guarda] · espera: os dois inválidos · obtido: M2 · inválido · o par 2 morre sozinho; M3 · inválido · o par 1 morre sozinho, rc 2
 
 ## Detalhe dos achados
-**A1.** Evidência: `trocas` (`bin/forge-mutante:402`) aceita pares em qualquer ponto do arquivo, sem relação entre eles; `mutar` (`bin/forge-mutante:501-523`) aplica todos e devolve a linha do 1.º par; a rodada classifica o mutante pelo teste da cópia com todas as trocas; `mutantes_do_diff` (`bin/forge-mutante:755`) parte o mutante em pares com o mesmo id, e `casa` credita cada par que toca uma condição do diff. Nada exige que a morte venha da combinação.
-Caminho de ataque: o agente autor (atacante interno do portão, o mesmo modelo dos pareceres anteriores do mutante) quer o merge de uma guarda sem teste. Põe na spec um mutante de lista: o 1.º par muta a guarda sem teste, o 2.º muta uma linha que um teste já cobre (um `return`, outra condição). A `--cobertura` sai `coberta · arq:L` (rc 0), a rodada do QA sai `M · morreu · arq:L` (rc 0) na linha da guarda: a prova lida pelo review e pelo QA aponta a guarda certa e é falsa. Com uma troca só, isso não sai: a troca precisa cair no nó da condição e é ela que tem de ser morta. A forma legítima (guardas que se cobrem) e a isca são, hoje, indistinguíveis na saída.
-Severidade: alta (anula a prova do portão de mutação para a guarda escolhida, sem rastro na saída; exige spec escrita pelo autor, que passa por review, por isso não crítica).
-Correção mínima (dono: o autor da E162.1, `bin/forge-mutante`): no mutante de várias trocas, rodar também cada par sozinho com os mesmos `testes`; o mutante só vale se **todo** par sozinho sobrevive (é o que "se cobrem uma à outra" significa) e o conjunto morre. Par que morre sozinho: `inválido · o par <n> morre sozinho: vira mutante próprio` (rc 2). Teste de abuso: as sondas S2 e S3 como teste em `Execucao` (isca morta sozinha → rc 2), e a guarda nova ganha mutante na spec do PR. Custo: N+1 rodadas por mutante de lista, limitado por `MAXIMO_DE_TROCAS` (8) e `MAXIMO_DE_MUTANTES` (16); se o custo pesar, a alternativa é a `--cobertura` não creditar par cujo mutante não provou a sobrevivência individual, mas a rodada do QA segue falsa sem a primeira correção. Esforço: P/M.
+**A2.** Evidência: `par_que_nao_sobrevive` (`bin/forge-mutante:985-998`) testa só os conjuntos de um par. Com 2 pares, "o outro par sozinho" é o mesmo que "o conjunto sem este par", e a checagem basta. Com 3 a `MAXIMO_DE_TROCAS` (8, `bin/forge-mutante:135`) pares, não basta: o par 1 pode ser dispensável (o conjunto sem ele também morre) e mesmo assim recebe a morte na linha da saída (a do 1.º par) e o crédito da `--cobertura`. Na S4, a `--cobertura` sai `coberta · lib.py:2 · s.json:M2`.
+Caminho de ataque: é o mesmo do A1. O agente autor quer o merge de uma guarda sem teste e a põe como 1.º par de uma lista em que os outros pares são guardas redundantes já testadas. A redundância é a forma legítima do recurso, por isso a isca não chama atenção no review. A rodada do QA sai `M2 · morreu · lib.py:<guarda>` (rc 0).
+Severidade: alta (a mesma do A1: anula a prova do portão para a guarda escolhida e não deixa rastro na saída).
+Correção mínima (dono: o autor da E162.5, `bin/forge-mutante`): em `par_que_nao_sobrevive`, além de rodar cada par sozinho, rodar cada conjunto sem o par n (os outros N−1 pares juntos), que também precisa sobreviver. Se morrer: `inválido · o par <n> não é necessário: o conjunto sem ele morre`. Com N=2 os dois testes coincidem, e dá para pular o repetido. O custo fica em 2N+1 rodadas, até 17 com 8 pares. Outra saída, mais simples: limitar `MAXIMO_DE_TROCAS` a 2, o que torna a checagem atual suficiente. Teste de abuso: S4 como teste em `Execucao` (rc 2 e a mensagem do par 1).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Testes do arquivo tocado: `python3 -m unittest tests.test_forge_mutante` no head, 151 testes, OK (local; a suíte inteira é do CI do PR #846). Sondas S1 a S3 em repositório descartável no diretório temporário da sessão, só a ferramenta local. Sem segredo no diff (revisão manual; o diff não toca configuração nem credencial).
+Nenhum risco aceito. Testes do arquivo tocado: `python3 -m unittest tests.test_forge_mutante` no head 3671c052, 153 testes, OK (local; a suíte inteira roda no CI do PR #846). As sondas S1 a S6 rodaram em repositório descartável (fixture `Execucao`) no diretório temporário da sessão, só com a ferramenta local. O delta não tem segredo (revisão manual).
