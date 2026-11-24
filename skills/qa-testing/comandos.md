@@ -4,11 +4,13 @@ Parte da skill `qa-testing`, num arquivo próprio porque o texto inteiro não ca
 (diretriz 25 do dono: regra existente não se apaga nem se resume; o que não cabe muda de arquivo, com ponteiro). Cada
 comando roda da raiz do repositório; troque só o que está entre `<>`. Rodados numa cópia na v0478 E96.1.
 
-## Um módulo de teste com `-I`
-- O módulo inteiro: `python3 -I -m unittest discover -s tests -p test_x.py`.
-- Uma classe: `python3 -I tests/test_x.py <Classe>` (vale para o módulo que põe a própria pasta no `sys.path`, como os
-  do Forge que importam um vizinho).
+## Um módulo de teste (a forma única; as outras skills apontam para cá)
+- Na raiz, sem `-I`: `python3 -m unittest tests.test_x`. Uma classe: `tests.test_x.Classe`; um teste:
+  `tests.test_x.Classe.test_y`; vários módulos na mesma linha. É o nome que o PQ e o `--modulos` ('Vermelho antes do
+  verde') leem; o módulo do Forge que importa um vizinho põe a própria pasta no `sys.path`.
 - `python3 -I -m unittest tests.test_x` falha: sob `-I` a raiz sai do `sys.path` e `tests.test_x` não importa.
+- O `-I` continua valendo dentro do teste, onde ele protege: o subprocesso que o teste roda e o script que lê dado de
+  fora chamam Python com `-I` e ambiente limpo (guardas do diff, `agents/tech-lead.md`).
 
 ## Pasta temporária e comando longo
 A pasta temporária nasce no mesmo comando, fora de `~/.forge-contrib` (o `mktemp -d` usa o `TMPDIR` da sessão). O
