@@ -4,12 +4,12 @@
   "mutantes": [
     {
       "id": "M15",
-      "guarda": "o pré-filtro pula só o registro de resultado (\"type\":\"tool_result\"), não a nota cuja chamada traz o texto",
+      "guarda": "o pré-filtro pula o registro de resultado (\"type\":\"tool_result\") sem decodificar (mutante: decodifica); E137.1: a nota do assistente é a M1 de v0480-meta-notas-reconta",
       "arquivo": "hooks/meta.py",
-      "de": "'\"type\":\"tool_result\"' in linha",
-      "para": "'\"tool_result\"' in linha",
+      "de": "if ('\"type\":\"tool_result\"' in linha and",
+      "para": "if (False and",
       "testes": [
-        "tests.test_meta.NotasEntreFerramentas.test_nota_cuja_chamada_traz_tool_result_ainda_conta"
+        "tests.test_meta.NotasEntreFerramentas.test_resultado_de_ferramenta_nem_se_decodifica"
       ]
     },
     {
@@ -54,20 +54,20 @@
     },
     {
       "id": "M20",
-      "guarda": "a marca de outro transcrito não vale (mutante: vale)",
+      "guarda": "marca fora da forma (não objeto) vale como sem marca (mutante: lida como objeto); E137.1: a marca é por transcrito",
       "arquivo": "hooks/meta.py",
-      "de": " and vista.get(\"transcrito\") == str(transcrito) else {}",
-      "para": " else {}",
+      "de": " if isinstance(vista, dict) else {}",
+      "para": " if True else {}",
       "testes": [
-        "tests.test_meta.NotasEntreFerramentas.test_marca_de_outro_transcrito_nao_vale"
+        "tests.test_meta.NotasEntreFerramentas.test_marca_ilegivel_ou_fora_da_forma_e_ignorada"
       ]
     },
     {
       "id": "M21",
       "guarda": "marca ilegível vale como sem marca (mutante: a exceção sobe e a medida se perde)",
       "arquivo": "hooks/meta.py",
-      "de": "    except (OSError, ValueError):\n        return {}\n    return vista if",
-      "para": "    except (OSError, ValueError):\n        raise\n    return vista if",
+      "de": "    except (OSError, ValueError):\n        return {}\n    return {t: v",
+      "para": "    except (OSError, ValueError):\n        raise\n    return {t: v",
       "testes": [
         "tests.test_meta.NotasEntreFerramentas.test_marca_ilegivel_ou_fora_da_forma_e_ignorada"
       ]

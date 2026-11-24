@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "pré-filtro: só linhas de user ou assistant são lidas (mutante: and vira or, a nota some)",
       "arquivo": "hooks/meta.py",
-      "de": "('\"user\"' not in linha and '\"assistant\"' not in linha)",
-      "para": "('\"user\"' not in linha or '\"assistant\"' not in linha)",
+      "de": "'\"user\"' not in linha and '\"assistant\"' not in linha):",
+      "para": "'\"user\"' not in linha or '\"assistant\"' not in linha):",
       "testes": [
         "tests.test_meta.NotasEntreFerramentas.test_nota_em_outro_idioma_na_rodada_acusa"
       ]

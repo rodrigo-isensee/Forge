@@ -24,4 +24,4 @@ O `forge:conferente` é opcional: chame-o só com dúvida de conteúdo que a fer
 Os bloqueantes de review, segurança, QA, o recomendado da segurança e o CI vermelho viram **um** brief de volta. Ele vai ao autor da branch, retomado por `SendMessage` até o merge (H2; comando e detalhe em `autor-ate-o-merge.md` nesta skill), revalidação inclusa. Sem `gh run rerun` à toa (`R-CUSTO`).
 
 ## Brief que manda escrever parecer
-Avise que o achado tem até 300 caracteres e que regra se cita pelo ID, não copiada.
+Avise da receita de `envio-de-parecer.md` nesta skill (achado, ID de regra, envio).
