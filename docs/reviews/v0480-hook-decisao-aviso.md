@@ -3,23 +3,25 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-hook-decisao-aviso
-commit: f2db561b4e2220f4ae8411f1f4432e3a35b813f0
+commit: c517dbe315987b500310e684b95a1cafee385d68
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-24
 ---
-# Review: v0478 E172.28 (PR #857, hook decisao só avisa no Stop do Jarvis; revalidação por delta)
+# Review: v0478 E172.40 (PR #857, hook decisao só avisa no Stop do Jarvis; revalidação por delta após trazer a develop)
 
-Revalidação pelo delta do parecer anterior (E172.10, reprovado no head `2ecd153c`). Delta lido: `forge-check parecer delta docs/reviews/v0480-hook-decisao-aviso.md`, intervalo `2ecd153c..f2db561b`, no domínio: `bin/forge-testes`, `docs/hooks-fixtures.md`, `tests/hooks/decisao/` (4 fixtures), `tests/pesos-d4.json`, `tests/test_hooks.py`. Nenhum arquivo de produção (`hooks/decisao.py`, `hooks/hooks.json`) mudou no delta.
+Revalidação pelo delta do parecer anterior (E172.28, aprovado no head `f2db561b`). Delta lido: `forge-check parecer delta docs/reviews/v0480-hook-decisao-aviso.md`, intervalo `f2db561b..c517dbe3`; motivo apontado: `docs/hooks-fixtures.md` mudou depois do parecer (base `origin/develop` `ad113d8`).
+
+## O que o delta traz
+- `c517dbe3` é o merge de `origin/develop` (`ad113d80`) na branch. O `git show --cc c517dbe3` mostra conflito resolvido só em `docs/hooks-fixtures.md`; os demais arquivos vieram da develop sem resolução manual.
+- O patch do PR contra a base (`git diff --stat ad113d80 c517dbe3`) segue o mesmo do parecer anterior: `hooks/decisao.py`, `hooks/hooks.json`, os 4 fixtures de `tests/hooks/decisao/`, `tests/test_hook_decisao.py`, `tests/test_hooks.py`, `tests/pesos-d4.json`, `bin/forge-testes`, docs e pareceres; nenhuma linha de produção mudou pela resolução.
+- Índice regenerado: 3566 fixtures da develop mais 4 do decisao = 3570; a linha `conformidade` vem da develop (2705) e a linha `decisao` (4) da branch. `python3 -I scripts/indice-fixtures.py --conferir`: "docs/hooks-fixtures.md: em dia" (rc 0); regenerar na cópia deu arquivo idêntico ao commitado.
 
 ## Achados anteriores
-- A1 fechado: `tests/test_hooks.py:1546` admite `decisao.py` só no Stop, com o motivo (só aviso ao usuário, R-DECISAO; ADR 0003, item 1) no texto do assert; a checagem de saída (`tests/test_hooks.py:860`) exige Stop e nenhum `reason` para o decisao.
-- A2 fechado: `tests/hooks/decisao/` traz `sem-forge-versao`, `erro-interno`, `duas-decisoes-avisa` e `uma-com-recomendo-silencio`; o decisao entrou na tupla dos que só avisam (`tests/test_hooks.py:1531`); o índice `docs/hooks-fixtures.md` foi regenerado (3520 fixtures).
-- A3 fechado: `test_hook_decisao` com peso 0.7 em `tests/pesos-d4.json` (a troca de lugar de `test_fechar_limpar_clone` é só ordenação).
-- A4 fechado: `bin/forge-testes:227` liga `hooks/decisao.py` e `hooks/hooks.json` a `RODAM_OS_HOOKS + test_hook_decisao`.
-- A5 (recomendado, corte em 20.000 caracteres antes do `Recomendo`) segue aberto no código (`hooks/decisao.py:28`); vira cartão depois do merge, sem bloquear.
+- A1 a A4 seguem fechados (nenhum arquivo deles mudou no delta além do índice).
+- A5 (recomendado, corte em 20.000 caracteres antes do `Recomendo`, `hooks/decisao.py:28`) segue aberto; vira cartão depois do merge, sem bloquear.
 
-## CI do head f2db561b
-Run 45436685276 (headSha `f2db561b`): as cinco partes da suíte nas duas versões do Python, `bateria (passos)`, `bateria (verificações longas)`, `instalação`, `teto de pulados` e `catraca` verdes. O `bateria` agregado está vermelho só por `PARECERES: failure` (log do job 138602195146: "passos: success; pareceres: failure; verificações: success; partes: success; pulados: success"), esperado com pareceres pendentes; o de segurança está reprovado e é do `security-engineer`.
+## CI do head c517dbe3
+Run 45453207653 (headSha `c517dbe3`): as cinco partes da suíte nas duas versões do Python, `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)`, `instalação`, `teto de pulados` e `árvore já provada na develop` verdes; `Catraca` (run 45453207826) verde. O `bateria` agregado está vermelho só por `bateria (pareceres)`, esperado com os pareceres desatualizados pelo merge.
 
-Testes dos arquivos tocados, rodados aqui em `tests/` (com o `TMPDIR` do sandbox): `test_hook_decisao`, `test_hooks.Hooks.test_hooks_json`, `test_hooks.Hooks.test_cada_hook_tem_caso_que_passa_e_que_bloqueia`, `test_forge.PesosDaSuite.test_pr_nao_aumenta_os_modulos_sem_peso`: `Ran 14 tests ... OK`; `test_testes_tocados.MapaCobreOQueOsTestesLeem`: `Ran 6 tests ... OK`.
+Testes dos arquivos tocados, rodados aqui em `tests/` (com o `TMPDIR` do sandbox): `test_hook_decisao`, `test_hooks.Hooks.test_hooks_json`, `test_hooks.Hooks.test_cada_hook_tem_caso_que_passa_e_que_bloqueia`: `Ran 13 tests ... OK`.
