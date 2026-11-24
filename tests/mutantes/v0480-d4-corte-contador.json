@@ -63,16 +63,6 @@
       ]
     },
     {
-      "id": "M7",
-      "guarda": "CORTE-PELO-CONTADOR (E174.4): plugin.json ausente dá versão vazia, não derruba o script",
-      "arquivo": "bin/forge-fechar",
-      "de": ".claude-plugin/plugin.json\" 2>/dev/null)\" || return 0",
-      "para": ".claude-plugin/plugin.json\" 2>/dev/null)\"",
-      "testes": [
-        "tests.test_fechar_corte.Corte.test_versao_ilegivel_ou_ramo_ausente_param"
-      ]
-    },
-    {
       "id": "M8",
       "guarda": "CORTE-PELO-CONTADOR (E174.4): busca que falha para no V1",
       "arquivo": "bin/forge-fechar",

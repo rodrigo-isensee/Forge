@@ -1467,10 +1467,11 @@ Tempo do commit da marca até o PR para a main pronto, por versão (diretriz 27,
   exit 3
 }
 
-# versao_em <branch>: a versão X.Y.Z do .claude-plugin/plugin.json da origin/<branch> já buscada; vazia se ilegível.
+# versao_em <branch>: a versão X.Y.Z do .claude-plugin/plugin.json da origin/<branch> já buscada; vazia se ilegível. Roda só dentro de
+# $(...), onde o bash (fora do modo POSIX) não herda o set -e: a leitura que falha deixa o texto vazio, e o status é o do printf | sed.
 versao_em() {
   local texto
-  texto="$(git show "refs/remotes/origin/$1:.claude-plugin/plugin.json" 2>/dev/null)" || return 0
+  texto="$(git show "refs/remotes/origin/$1:.claude-plugin/plugin.json" 2>/dev/null)"
   printf '%s\n' "$texto" | sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([0-9]\{1,9\}\.[0-9]\{1,9\}\.[0-9]\{1,9\}\)".*/\1/p' | head -n 1
 }
 # corte_da_versao (CORTE-PELO-CONTADOR, D4 do estudo determinístico): ver o cabeçalho. Volta com 0; o que para sai pelo die ou pelo código do --promover.
