@@ -8,6 +8,10 @@ Autor: agile-coach, etapa <Ex.y>, AAAA-MM-DD. Janela: <início> a <fim>. Marcas 
 ## 1. Dados do pedido
 <!-- Lead time, cycle time, vazão, retrabalho, bloqueios e as quatro métricas DORA, lendo velocidade e estabilidade juntas (skill `kanban-metricas`). -->
 
+| Pedido | Situação (parado, discovery sem código) | Idade | Marca |
+|---|---|---|---|
+| <pedido> | <situação> | <dias> | `medido`, `estimado` ou `não medido` |
+
 ## 2. O que funcionou
 <!-- Fatos, com a fonte. -->
 
