@@ -5214,13 +5214,14 @@ def erro_dos_atributos(motivo, atributos):
 def cmd_movimento(raiz, cartao, de, para, motivo, atributos):
     """Anota um movimento do quadro em docs/kanban/historico.md (PA-9): hora real ISO 8601 com fuso, cartão,
     coluna de origem e de destino. Só acrescenta; cria o arquivo com o cabeçalho se não existir. Ao parar o cartão (EXT-3), o motivo leva
-    `custo do trecho: N tokens` (ou `lacuna`); no Pronto, `custo total`. Os atributos (EST-M12) vão por último, na marca `· atributos:`."""
+    `custo do trecho: N tokens` (ou `lacuna`); no Pronto, `custo total`. Os atributos (EST-M12) vão por último, na marca `· atributos:`;
+    o `·` do --titulo vira `-` (o `·` separa a marca). AE2: gravado o histórico, a linha do cartão muda de seção no KANBAN.md."""
     def limpo(t):
         return re.sub(r"[\x00-\x1f\x7f]", "", re.sub(r"\s+", " ", t.replace("|", "/"))).strip()
     campos = [limpo(x) for x in (cartao, de, para)]
     if not all(campos):
         return ["movimento: cartão, --de e --para não podem ser vazios"]
-    atributos = {k: v for k, v in atributos.items() if v is not None}
+    atributos = {k: (v.replace("·", "-") if k == "titulo" else v) for k, v in atributos.items() if v is not None}
     if erro := erro_dos_atributos(limpo(motivo), atributos):
         return [f"movimento: {erro}; nada gravado"]
     if not (raiz / "KANBAN.md").is_file():
@@ -5241,7 +5242,73 @@ def cmd_movimento(raiz, cartao, de, para, motivo, atributos):
         MARCA_DE_ATRIBUTOS + "; ".join(f"{k}={limpo(v)}" for k, v in atributos.items()) if atributos else "")  # a marca sempre por último
     linha = f"| {hora} | {campos[0]} | {campos[1]} | {campos[2]} | {motivo} |\n"
     acrescentar_ao_arquivo(arq, linha, "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n")
-    return [linha.rstrip("\n")]
+    obs = motivo.partition(MARCA_DE_ATRIBUTOS)[0]
+    aviso = mover_no_quadro(raiz, campos[0], campos[2], hora, obs, {k: limpo(v) for k, v in atributos.items()})
+    return [linha.rstrip("\n")] + ([f"movimento: aviso: {aviso}; o histórico foi gravado (kanban --gerar refaz o quadro)"] if aviso else [])
+
+
+def secao_de_destino(secoes, para):
+    """AE2: a seção do KANBAN.md que recebe a linha (como o `montar_quadro`, C-5): a de mesmo nome, senão a do estado, senão Bloqueado."""
+    canonicas = {_sem_acento(s): s for s in secoes}
+    return canonicas.get(_sem_acento(para)) or canonicas.get(_sem_acento(COLUNA_DO_ESTADO.get(_sem_acento(para), "Bloqueado")))
+
+
+def linha_movida(texto, cartao, para, hora, obs, atributos):
+    """AE2, sem IO: (KANBAN.md com a linha do cartão tirada de onde está e posta no fim da tabela da seção de destino, ou None; aviso).
+    Cartão sem linha nasce com `—` nos atributos não dados; seção sem tabela ganha a tabela. Entrou fica; Na coluna desde e Obs. mudam."""
+    linhas, secoes, secao, achada = texto.split("\n"), set(), None, None
+    for i, l in enumerate(linhas):
+        secao = nome_da_secao(l[3:]) if l.startswith("## ") else secao
+        c = [x.strip() for x in l.strip().strip("|").split("|")]
+        if l.startswith("## "):
+            secoes.add(secao)
+        elif secao and l.startswith("|") and len(c) == len(COLUNAS) and chave_do_cartao(c[0]) == chave_do_cartao(cartao):
+            achada = (i, c)
+    destino = secao_de_destino(secoes, para)
+    if destino is None:
+        return None, f"{nome_seguro(para)} sem seção no KANBAN.md e o quadro sem \"Bloqueado\"; a linha do cartão fica onde está"
+    c = achada[1] if achada else [cartao, "—", "—", "—", hora[:10]]
+    for n, chave in ((1, "titulo"), (2, "pedido"), (3, "responsavel")):
+        c[n] = atributos.get(chave) or c[n]
+    nova = "| " + " | ".join([*c[:5], hora, obs]) + " |"
+    if achada:
+        del linhas[achada[0]]
+    inicio = next(i for i, l in enumerate(linhas) if l.startswith("## ") and nome_da_secao(l[3:]) == destino)
+    fim = next((i for i in range(inicio + 1, len(linhas)) if linhas[i].startswith("## ")), len(linhas))
+    tabela = [i for i in range(inicio + 1, fim) if linhas[i].startswith("|")]
+    if tabela:
+        linhas.insert(tabela[-1] + 1, nova)
+    else:
+        linhas[inicio + 1:inicio + 1] = ["| " + " | ".join(COLUNAS) + " |", "|" + "---|" * len(COLUNAS), nova]
+    return "\n".join(linhas), None
+
+
+def mover_no_quadro(raiz, cartao, para, hora, obs, atributos):
+    """AE2: move a linha do cartão no KANBAN.md sob a trava do quadro (C-10), lendo sem seguir link (C-1) e trocando por temporário e
+    `os.replace` (C-2), como o `kanban --gerar`. Devolve o aviso (o quadro fica intacto) ou None."""
+    try:
+        fd = travar_o_quadro(raiz)
+        try:
+            atual, erro = _ler_regular(raiz / "KANBAN.md")
+            if erro:
+                return f"KANBAN.md {erro}; quadro intacto"
+            texto, aviso = linha_movida(atual, cartao, para, hora, obs, atributos)
+            if texto is None:
+                return aviso
+            tmp_fd, tmp = tempfile.mkstemp(dir=raiz, prefix=".KANBAN.")
+            try:
+                with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+                    f.write(texto)
+                os.chmod(tmp, 0o644)
+                os.replace(tmp, raiz / "KANBAN.md")
+            except BaseException:
+                os.unlink(tmp)
+                raise
+        finally:
+            os.close(fd)
+    except OSError as e:
+        return f"{caminho_impresso(e.filename or 'KANBAN.md')}: {sem_controle(e.strerror or str(e))}; quadro intacto"
+    return None
 
 
 FRASES_DO_ANOTAR = {"decisao": "DECISÃO DO DONO", "pergunta": "PERGUNTA AO DONO", "ordem": "ORDEM DO DONO"}
@@ -10878,7 +10945,7 @@ def main():
     rg.add_argument("--estrito", action="store_true", help="reprova (rc 1) se alguma regra tem aviso")
     rg.add_argument("--hoje", help="AAAA-MM-DD (padrão: hoje; serve para reproduzir)")
     rg.add_argument("--json", action="store_true", help="saída em JSON")
-    mv = sub.add_parser("movimento", parents=[comum], help="anota um movimento do quadro em docs/kanban/historico.md, com a hora real")
+    mv = sub.add_parser("movimento", parents=[comum], help="anota um movimento do quadro em docs/kanban/historico.md, com a hora real, e move a linha do cartão no KANBAN.md")
     mv.add_argument("cartao")
     mv.add_argument("--de", required=True, help="coluna de origem (Bloqueado exige a linha de entrada do cartão em Bloqueado; sem ela, rc 2: K170)")
     mv.add_argument("--para", required=True, help="coluna de destino")

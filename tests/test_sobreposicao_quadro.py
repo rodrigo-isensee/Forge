@@ -395,7 +395,7 @@ class MovimentoGeraQuadro(unittest.TestCase):  # EST-M12, E3-2a: o `movimento` g
 
     def test_valor_fora_da_forma_ou_acima_do_teto_recusa(self):  # caso de abuso 7 e os tetos do C-8
         for args in (("--responsavel", "forge:x; pedido=y"), ("--responsavel", "fulano"), ("--pedido", "../../segredo"), ("--pedido", "p/../segredo"), ("--titulo", "a; b"), ("--titulo", "a=b"),
-                     ("--titulo", "a\u200bb"), ("--titulo", "a\x07b"), ("--titulo", "a · b"), ("--titulo", "a|b"), ("--titulo", " "), ("--titulo", "t" * 121), ("--motivo", "m" * 501)):
+                     ("--titulo", "a\u200bb"), ("--titulo", "a\x07b"), ("--titulo", "a|b"), ("--titulo", " "), ("--titulo", "t" * 121), ("--motivo", "m" * 501)):
             rc, saida, _ = self.mover("--de", "—", "--para", "Entrada", *args)
             self.assertEqual((rc, "nada gravado" in saida), (1, True), args)
         self.assertFalse(self.arq.exists())
@@ -411,6 +411,92 @@ class MovimentoGeraQuadro(unittest.TestCase):  # EST-M12, E3-2a: o `movimento` g
             saidas.append([checar(self.raiz, cmd) for cmd in ("voltas", "esperas")])
         self.assertIn("esperas: K-1 dono", saidas[0][1][1])
         self.assertEqual(saidas[0], saidas[1])
+
+
+CAB = "| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n"
+ISO = r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d"
+
+
+class MovimentoMoveALinha(unittest.TestCase):  # AE2 (v0481 E10.1): gravado o histórico, a linha do cartão muda de seção no KANBAN.md
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.raiz = Path(self._tmp.name)
+        self.quadro = self.raiz / "KANBAN.md"
+        self.quadro.write_text("# Q\n\n## Em andamento (WIP 1 por agente)\n" + CAB + "| K-1 | um | p1 | forge:tech-lead | 2026-11-01 | 2026-11-01 | — |\n"
+                               "| K-2 | dois | p1 | forge:qa | 2026-11-02 | 2026-11-02 | — |\n\n## Code review (WIP 2)\n" + CAB +
+                               "| K-3 | três | p2 | forge:qa | 2026-11-03 | 2026-11-03 | — |\n\nnota da seção\n\n## Pronto\n", encoding="utf-8")
+        self.arq = self.raiz / "docs" / "kanban" / "historico.md"
+
+    def mover(self, cartao, *args):
+        env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.raiz / "home"), "LANG": "C.UTF-8"}  # ambiente limpo
+        r = subprocess.run([sys.executable, "-I", str(FERRAMENTA), "--raiz", str(self.raiz), "movimento", cartao, *args],
+                           capture_output=True, text=True, env=env)
+        return r.returncode, r.stdout + r.stderr
+
+    def secoes(self):
+        return {s.split("\n", 1)[0]: s for s in self.quadro.read_text(encoding="utf-8").split("\n## ")}
+
+    def test_linha_sai_da_origem_e_entra_no_fim_da_tabela_do_destino(self):
+        rc, saida = self.mover("K-1", "--de", "Em andamento", "--para", "Code review", "--motivo", "PR #9")
+        self.assertEqual(rc, 0, saida)
+        self.assertNotIn("aviso", saida)
+        secoes = self.secoes()
+        self.assertNotIn("| K-1 |", secoes["Em andamento (WIP 1 por agente)"])
+        self.assertIn("| K-2 | dois |", secoes["Em andamento (WIP 1 por agente)"])  # o outro cartão fica
+        revisao = secoes["Code review (WIP 2)"].split("\n")
+        self.assertIn("| K-3 |", revisao[3])
+        self.assertRegex(revisao[4], rf"^\| K-1 \| um \| p1 \| forge:tech-lead \| 2026-11-01 \| {ISO} \| PR #9 \|$")  # Entrou fica
+        self.assertEqual(revisao[5:7], ["", "nota da seção"])
+        self.assertRegex(self.arq.read_text(encoding="utf-8").splitlines()[-1], rf"^\| {ISO} \| K-1 \| Em andamento \| Code review \| PR #9 \|$")
+
+    def test_cartao_novo_nasce_na_secao_sem_tabela_e_aceita_titulo_com_ponto(self):
+        rc, saida = self.mover("K-9", "--de", "—", "--para", "Pronto", "--titulo", "AE2 · quadro", "--pedido", "v1", "--responsavel", "forge:dev")
+        self.assertEqual(rc, 0, saida)
+        pronto = self.secoes()["Pronto"].split("\n")
+        self.assertEqual(pronto[1:3], CAB.rstrip("\n").split("\n"))
+        self.assertRegex(pronto[3], rf"^\| K-9 \| AE2 - quadro \| v1 \| forge:dev \| \d{{4}}-\d\d-\d\d \| {ISO} \| custo total: lacuna \|$")
+        self.assertIn("atributos: titulo=AE2 - quadro; pedido=v1; responsavel=forge:dev |", self.arq.read_text(encoding="utf-8"))
+
+    def test_atributo_dado_troca_a_celula_e_o_resto_fica(self):
+        rc, saida = self.mover("k-2", "--de", "Em andamento", "--para", "Em andamento", "--responsavel", "forge:dev")  # caixa não conta
+        self.assertEqual(rc, 0, saida)
+        self.assertRegex(self.secoes()["Em andamento (WIP 1 por agente)"], rf"\| K-2 \| dois \| p1 \| forge:dev \| 2026-11-02 \| {ISO} \| — \|")
+        self.assertEqual(self.quadro.read_text(encoding="utf-8").count("| K-2 |"), 1)
+
+    def test_estado_fora_do_quadro_vai_a_secao_do_estado(self):
+        rc, saida = self.mover("K-1", "--de", "Em andamento", "--para", "Conferência")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("| K-1 | um |", self.secoes()["Code review (WIP 2)"])
+
+    def test_sem_secao_nem_bloqueado_avisa_e_o_quadro_fica(self):
+        antes = self.quadro.read_text(encoding="utf-8")
+        rc, saida = self.mover("K-1", "--de", "Em andamento", "--para", "Sem credencial")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn('movimento: aviso: "Sem credencial" sem seção no KANBAN.md e o quadro sem "Bloqueado"; a linha do cartão fica onde está', saida)
+        self.assertEqual(self.quadro.read_text(encoding="utf-8"), antes)
+        self.assertIn("| K-1 | Em andamento | Sem credencial |", self.arq.read_text(encoding="utf-8"))  # o histórico grava
+
+    def test_quadro_por_link_nao_e_escrito(self):
+        alvo = self.raiz / "alvo.md"
+        alvo.write_text(self.quadro.read_text(encoding="utf-8"), encoding="utf-8")
+        self.quadro.unlink()
+        self.quadro.symlink_to(alvo)
+        antes = alvo.read_text(encoding="utf-8")
+        rc, saida = self.mover("K-1", "--de", "Em andamento", "--para", "Code review")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("movimento: aviso: KANBAN.md é link simbólico; quadro intacto", saida)
+        self.assertEqual(alvo.read_text(encoding="utf-8"), antes)
+        self.assertTrue(self.quadro.is_symlink())
+
+    def test_trava_que_nao_abre_avisa_sem_derrubar(self):
+        (self.raiz / ".forge").mkdir()
+        (self.raiz / ".forge" / "run").write_text("não é pasta")
+        antes = self.quadro.read_text(encoding="utf-8")
+        rc, saida = self.mover("K-1", "--de", "Em andamento", "--para", "Code review")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("quadro intacto; o histórico foi gravado", saida)
+        self.assertEqual(self.quadro.read_text(encoding="utf-8"), antes)
 
 
 class RegrasEmTexto(unittest.TestCase):
