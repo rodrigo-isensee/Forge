@@ -58,8 +58,12 @@ FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CITA_PORTAO = re.compile(r"brief selado\s+\S*docs/briefs/\S+\s+[0-9a-f]{64}|entrega conferida\s+[0-9a-f]{40}")
 ESCRITA_NA_LINHA = re.compile(r">|<<|\b(?:tee|sed|dd|cp|mv|install|python\w*|perl\w*|ruby\w*|node|awk|gawk|nawk|printf)\b")
 LINHA_DE_PORTAO = re.compile(r"(?m)^-\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}: (?:brief selado docs/briefs/\S+ [0-9a-f]{64}|entrega conferida [0-9a-f]{40})")
+# TEMPO-FIXTURE-INSTAVEL (E164.1): o par "git/gh ... ação" parte do início da linha (`(?<![^\n])`) e o grupo atômico fixa
+# o 1.º programa dela, o que deixa mais linha para a ação: a decisão é a mesma, e a busca fica linear (sem isso, cada
+# `gh` repetido varria a linha até o fim; 8 KB de `gh repo ` custavam 0,14 s por busca).
 CRITICO = re.compile(
-    r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
+    r"(?<![^\n])(?>[^\n]*?\b(git|gh)\b)[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|"
+    r"\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
     r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|docs/devops|docs/security|CLAUDE\.md|\.git/|commondir|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
     re.I)
 # Variáveis definidas antes na linha que os comandos seguintes herdam; as `GIT_*_PATHSPECS` são as opções `--*-pathspecs`.
