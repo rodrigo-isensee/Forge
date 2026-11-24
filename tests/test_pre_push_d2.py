@@ -1,4 +1,7 @@
-"""PORTAO-D2 (E173.2, estudo determinístico de 24/11): o patch `patches/d2-portao-entrega.patch` do `.githooks/pre-push`, provado à parte.
+"""PORTAO-D2 (E173.2, estudo determinístico de 24/11): o D2 do `.githooks/pre-push`, provado pelo ajuste único.
+
+Ajuste único (v0478 E174.9, decisão do dono de 24/11): o D2 vai por cima do patch do envio local, num patch só,
+`patches/prepush-unico.patch`; este módulo prova o D2 nele e o `tests/test_prepush_unico.py` prova o envio local.
 
 O `.githooks/pre-push` em vigor é arquivo do dono e não muda neste item: o teste copia o hook para $TMPDIR, aplica o patch na cópia e
 roda o original e o remendado de verdade num repositório descartável, com um `gh` falso no PATH. Cada checagem nova barra no
@@ -23,7 +26,7 @@ from ambiente_git import sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / ".githooks" / "pre-push"
-PATCH = RAIZ / "patches" / "d2-portao-entrega.patch"
+PATCH = RAIZ / "patches" / "prepush-unico.patch"
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "GH_", "GITHUB_"))})
 ZERO = "0" * 40
 BRANCH = "melhoria/x"
