@@ -1,7 +1,7 @@
 ---
 tipo: revisao-devops
 contrato: 1
-pedido: v0480-ci-anotacao
+pedido: v0478
 branch: melhoria/v0480-ci-anotacao
 commit: 3487d89164ca7a88c317a071707d168196fa08f3
 parecer: aprovado
