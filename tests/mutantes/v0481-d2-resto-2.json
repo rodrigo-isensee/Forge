@@ -1,0 +1,56 @@
+{
+  "pedido": "v0481-d2-resto-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "cmd_pronto: merge-base que falha não lê o diff",
+      "arquivo": "bin/forge-check",
+      "de": "    contagens = None if cod else contagens_do_intervalo(raiz, ancora",
+      "para": "    contagens = None if False else contagens_do_intervalo(raiz, ancora",
+      "testes": [
+        "tests.test_forge_pronto.CmdPronto.test_base_ausente_sai_2"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "cmd_pronto: --corpo ilegível sai 2",
+      "arquivo": "bin/forge-check",
+      "de": "ilegível ({type(erro).__name__})\", file=sys.stderr)\n            return 2",
+      "para": "ilegível ({type(erro).__name__})\", file=sys.stderr)\n            return 0",
+      "testes": [
+        "tests.test_forge_pronto.CmdPronto.test_corpo_ilegivel_sai_2"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "cmd_pronto: --corpo dado é lido do arquivo",
+      "arquivo": "bin/forge-check",
+      "de": "    if corpo_arquivo:\n        try:\n            corpo = Path(corpo_arquivo)",
+      "para": "    if not corpo_arquivo:\n        try:\n            corpo = Path(corpo_arquivo)",
+      "testes": [
+        "tests.test_forge_pronto.CmdPronto.test_corpo_do_arquivo_chega_ao_portao"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "cmd_pronto: sem branch não consulta o gh",
+      "arquivo": "bin/forge-check",
+      "de": "corpo=True) if branch else (None, None)",
+      "para": "corpo=True) if not branch else (None, None)",
+      "testes": [
+        "tests.test_forge_pronto.CmdPronto.test_pr_aberto_da_o_corpo_e_fechado_nao"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "cmd_pronto: só o PR aberto dá o corpo",
+      "arquivo": "bin/forge-check",
+      "de": "if pr and pr.get(\"state\") == \"OPEN\" else None",
+      "para": "if pr and pr.get(\"state\") in (\"OPEN\", \"CLOSED\") else None",
+      "testes": [
+        "tests.test_forge_pronto.CmdPronto.test_pr_aberto_da_o_corpo_e_fechado_nao"
+      ]
+    }
+  ]
+}

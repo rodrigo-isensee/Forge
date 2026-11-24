@@ -6,6 +6,9 @@ Fora do `--previo` e do `--pr`, o `pr` grava o resultado do head em `<diretório
 
 H1 (v0474 E2.13): o `pr` avisa no stderr do item acima de 150 linhas de código (testes e documentação não contam) e, com o PR da branch aberto, reprova o corpo sem `teto: excedido, <n> linhas, <motivo>`; o `brief gerar` avisa do pedido com mais de 50 etapas e do brief a 90% do teto de caracteres (bin/forge_tamanho.py).
 
+D2-PORTAO-ENTREGA-AUTOR (v0481 E11.1): `pronto [--base REF] [--corpo ARQUIVO]` é o portão de entrega do autor, rodado antes das
+revisões: registros, neutralidade com os dois detectores, tetos de texto, testes afetados, teto H1 e corpo do PR (bin/forge_pronto.py).
+
 E3.45 (v0474): com o PR da branch aberto e fora do rascunho no head, o `pr` só aprova com cada check do head concluído e verde e cada
 exigido do destino (ruleset e proteção; no Forge, também os pares do `forge-fechar`) em pass; pendente ou vermelho reprova, com a lista.
 
@@ -1216,6 +1219,28 @@ def portoes_da_classe(classe, infra):
     """A linha dos portões: autor, os paralelos (mesmo head) e o CI; devops entra entre os paralelos com pipeline ou infraestrutura."""
     paralelos = PARALELOS_DA_CLASSE[classe] + (("devops",) if infra else ())
     return ["autor", list(paralelos), "CI"]
+
+
+def cmd_pronto(raiz, base, corpo_arquivo=None):
+    """D2-PORTAO-ENTREGA-AUTOR (v0481 E11.1): o portão de entrega do autor (bin/forge_pronto.py) na branch do HEAD contra a base comum
+    com `base`. O corpo vem do `--corpo` (o arquivo do --body-file) ou do PR aberto da branch. Saída 0 ou 1; 2 sem base comum ou diff."""
+    cod, ancora = git(raiz, "merge-base", base, "HEAD")
+    contagens = None if cod else contagens_do_intervalo(raiz, ancora, "HEAD", estrito=True)
+    if contagens is None:
+        print(f"pronto: {NAO_VERIFICAVEL}: o git não leu a base comum de HEAD com {base} nem o diff", file=sys.stderr)
+        return 2
+    if corpo_arquivo:
+        try:
+            corpo = Path(corpo_arquivo).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as erro:
+            print(f"pronto: --corpo {caminho_impresso(corpo_arquivo)} ilegível ({type(erro).__name__})", file=sys.stderr)
+            return 2
+    else:
+        _, branch = git(raiz, "branch", "--show-current")
+        pr, _ = pr_da_branch(raiz, branch, corpo=True) if branch else (None, None)
+        corpo = pr["body"] if pr and pr.get("state") == "OPEN" else None
+    pronto = modulo_do_bin("forge_pronto")
+    return pronto.conferir(raiz, base, ancora, modulo_do_bin("forge_tamanho").linhas_de_codigo(contagens, e_codigo), corpo)
 
 
 def cmd_classe(raiz, base=None, head=None, como_json=False):
@@ -10921,6 +10946,10 @@ def main():
     cs.add_argument("--base", help="base do diff (padrão: origin/develop, develop, origin/main ou main, a primeira que existe)")
     cs.add_argument("--head", help="ref da entrega (padrão: HEAD)")
     cs.add_argument("--json", action="store_true", dest="como_json", help="uma linha JSON: classe, motivos, arquivos, portoes, pareceres, gatilhos_de_seguranca")
+    pt = sub.add_parser("pronto", parents=[comum], help="D2: o portão de entrega do autor; registros, neutralidade, tetos de texto, testes "
+                        "afetados, teto H1 e corpo do PR num comando só; rc 0 passa, 1 reprova, 2 não verificável")
+    pt.add_argument("--base", default="origin/develop", help="base da comparação (padrão: origin/develop)")
+    pt.add_argument("--corpo", help="o arquivo do corpo do PR (o do --body-file); sem ele, o corpo do PR aberto da branch")
     pr = sub.add_parser("pr", parents=[comum], help="pareceres de review e QA de um pedido; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD")
     pr.add_argument("pedido")
     pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD)")
@@ -11052,6 +11081,8 @@ def executar(a, raiz):
         return cmd_parecer_novo(raiz, a)
     if a.cmd == "parecer" and a.acao == "delta":
         return cmd_parecer_delta(raiz, a.arquivo, a.ate, a.base)
+    if a.cmd == "pronto":
+        return cmd_pronto(raiz, a.base, a.corpo)
     if a.cmd == "classe":
         return cmd_classe(raiz, a.base, a.head, a.como_json)
     if a.cmd == "delta":
