@@ -328,17 +328,22 @@ GRAPHQL_APAGAR = re.compile(r"mutation[^}]*deleteRepository", re.I)
 VISIBILIDADE_PUBLICA = re.compile(r"\bprivate[\"']?\s*[=:]\s*[\"']?false\b|\bvisibility[\"']?\s*[=:]\s*[\"']?public\b", re.I)
 # CONFORMIDADE-REPO-CREATE-PUBLICO (v0478 E141.2; A1 e A2 de docs/security/v0480-repo-publico-diag.md): criar repositório
 # só com a visibilidade privada explícita (o padrão da API é público; sem TTY o gh exige uma), pelo `gh repo create` e
-# pela API. Valor que o hook não lê (`$`, crase, arquivo ausente) no endpoint do repositório falha fechado.
-VISIBILIDADE_PRIVADA = re.compile(r"\bprivate[\"']?\s*[=:]\s*[\"']?true\b|\bvisibility[\"']?\s*[=:]\s*[\"']?(private|internal)\b",
-                                  re.I)
+# pela API. Valor que o hook não lê (`$`, crase, arquivo ausente) no endpoint do repositório falha fechado. E141.7: a
+# decisão é pelo nome do campo (`-f`/`-F` separado, colado ou com `=`; chave do topo do `--input`), não pelo texto todo.
+REPO_CRIAR = {"create", "new"}  # `gh repo new` é alias de `gh repo create`
+CAMPO_COLADO = re.compile(r"(?:-[fF]=?|--(?:raw-)?field=)(.+)", re.S)  # `-Fk=v`, `-F=k=v`, `--field=k=v`
+CAMPOS_DA_API = {"-f", "-F", "--field", "--raw-field"}
+PRIVADO_REST = {"private": {"true"}, "visibility": {"private", "internal"}}  # o valor privado de cada nome
+CORPO_ILEGIVEL = [("", None)]  # o `--input` que o hook não lê (sentinela: comparado por identidade)
+API_SEGMENTO_ESTRANHO = re.compile(r"(^|/)\.{0,2}(/|$)")  # `user//repos`, `user/./repos`: o servidor pode normalizar
 CRIAR_COM_VALOR = {"-d", "--description", "-h", "--homepage", "-t", "--team", "-g", "--gitignore", "-l", "--license", "-p",
                    "--template", "-r", "--remote", "-s", "--source"}  # as opções de `gh repo create` que levam valor
 API_CRIA_REPO = re.compile(r"user/repos|orgs/[^/]+/repos|repos/[^/]+/[^/]+/generate", re.I)  # endpoint normalizado
 API_DO_REPO = re.compile(r"repos/[^/]+/[^/]+", re.I)
 GRAPHQL_DO_REPO = re.compile(r"\b(createRepository|cloneTemplateRepository|updateRepository)\b")
 GRAPHQL_CRIA_REPO = re.compile(r"\b(createRepository|cloneTemplateRepository)\b")
-GRAPHQL_PRIVADA = re.compile(r"\bvisibility[\"']?\s*:\s*[\"']?(PRIVATE|INTERNAL)\b")
-GRAPHQL_NAO_PRIVADA = re.compile(r"\bvisibility[\"']?\s*:(?!\s*[\"']?(PRIVATE|INTERNAL)\b)")  # PUBLIC, `$v`, outro valor
+GRAPHQL_SEM_TEXTO = re.compile(r'"""(?:\\.|[^\\])*?"""|"(?:\\.|[^"\\\n])*"|#[^\n]*')  # strings e comentários
+GRAPHQL_VISIBILIDADE = re.compile(r"\bvisibility\s*:\s*(\$?\w*)")  # com a vírgula já trocada por espaço
 CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem em arquivos do projeto
 # CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1; S1-S4 de docs/security/v0479-pv-a1-adr.md): gravam no índice o caminho
 # nomeado, com conteúdo que nunca esteve na árvore (`-c filter.*.clean`, `--chmod`, `--cacheinfo`).
@@ -3389,7 +3394,7 @@ class Guarda:
         elif grupo == "repo" and sub == "edit":
             if (parecer.opcao(palavras[1:], "--visibility", "--visibility") or "").lower() == "public":
                 self.barrar(*publico)
-        elif grupo == "repo" and sub == "create":
+        elif grupo == "repo" and sub in REPO_CRIAR:
             if parecer.bandeira(palavras[1:], CRIAR_COM_VALOR, {"--public"}):
                 self.barrar(*publico)
             if not parecer.bandeira(palavras[1:], CRIAR_COM_VALOR, {"--private", "--internal"}):
@@ -3406,27 +3411,98 @@ class Guarda:
 
     def api_publica(self, args, pasta):
         """CONFORMIDADE-REPO-CREATE-PUBLICO (A2): `gh api` mutante que cria ou edita repositório sem a visibilidade privada
-        explícita. REST: criar (`user/repos`, `orgs/<o>/repos`, `repos/<o>/<r>/generate`) pede `private=true` ou
-        `visibility=private|internal`; criar e editar recusam o público lido de `campo=@arq` e falham fechado no valor
-        que o hook não lê. GraphQL: `visibility` fora de `PRIVATE`/`INTERNAL` literal (`$v`) e a criação sem ele."""
+        explícita, decidido pelo nome do campo (E141.7). REST: criar (`user/repos`, `orgs/<o>/repos`,
+        `repos/<o>/<r>/generate`) pede o campo `private=true` ou `visibility=private|internal` (com `--input`, no corpo);
+        criar e editar recusam o campo de visibilidade com outro valor e falham fechado no que o hook não lê e no
+        endpoint com segmento vazio ou de ponto. GraphQL: `graphql_publica`."""
         args = parecer.desagrupa_i(args)
         endpoint = endpoint_normalizado(parecer.endpoint_da_api(args))
+        campos, corpo = self.campos_da_api(args, pasta)
         if e_graphql(endpoint):
             texto = " ".join(args + self.textos_da_api(args, pasta)[0])
-            if not GRAPHQL_DO_REPO.search(texto):
-                return False
-            if GRAPHQL_NAO_PRIVADA.search(texto):
-                return True
-            return bool(GRAPHQL_CRIA_REPO.search(texto)) and not GRAPHQL_PRIVADA.search(texto)
+            return bool(GRAPHQL_DO_REPO.search(texto)) and self.graphql_publica(campos, corpo, GRAPHQL_CRIA_REPO.search(texto))
+        if API_SEGMENTO_ESTRANHO.search(endpoint):
+            return True
         cria = bool(API_CRIA_REPO.fullmatch(endpoint))
         if not cria and not API_DO_REPO.fullmatch(endpoint):
             return False
-        textos, legivel = parecer.textos_do_gh_api(args, pasta)
-        if not legivel:
+        if not parecer.textos_do_gh_api(args, pasta)[1]:
             return True
-        # `campo=@arq`: o texto do arquivo vem logo antes do argumento; junto, vira o `campo=<valor>` que o gh envia
-        textos += [f"{a.split('=@', 1)[0]}={textos[i - 1].strip()}" for i, a in enumerate(textos) if i and "=@" in a]
-        return any(map(VISIBILIDADE_PUBLICA.search, textos)) or cria and not any(map(VISIBILIDADE_PRIVADA.search, textos))
+        if not all(self.privado_rest(campos + (corpo or []))):
+            return True
+        return cria and not any(self.privado_rest(campos if corpo is None else corpo))
+
+    @staticmethod
+    def campos_da_api(args, pasta):
+        """(campos, corpo) que o `gh api` envia: os pares (chave, valor) de `-f`/`-F`/`--field`/`--raw-field`, separados,
+        colados (`-Fprivate=false`) ou com `=`, com o `@arq` lido (None se o hook não lê); e os do topo do JSON do
+        `--input` (None sem ele; [] se não é objeto). O valor de outra opção (`-H -Fx=y`) não é campo."""
+        campos, corpo, j = [], None, 0
+        while j < len(args):
+            a, j = args[j], j + 1
+            colado = CAMPO_COLADO.fullmatch(a)
+            if a in parecer.API_COM_VALOR:  # o valor vem separado: campo, corpo ou valor de outra opção
+                valor, j = (args[j] if j < len(args) else ""), j + 1
+                if a == "--input":
+                    corpo = Guarda.corpo_da_api(valor, pasta)
+                elif a in CAMPOS_DA_API:
+                    campos.append(Guarda.campo_da_api(valor, pasta))
+            elif a.startswith("--input="):
+                corpo = Guarda.corpo_da_api(a.split("=", 1)[1], pasta)
+            elif colado:
+                campos.append(Guarda.campo_da_api(colado[1], pasta))
+        return campos, corpo
+
+    @staticmethod
+    def campo_da_api(texto, pasta):
+        chave, _, valor = texto.partition("=")
+        if valor.startswith("@"):  # o gh lê o arquivo; a leitura é a de `textos_do_gh_api` (GH-API-LEITURA-UNICA)
+            lidos, legivel = parecer.textos_do_gh_api([texto], pasta)
+            valor = lidos[0] if legivel else None
+        return chave, valor
+
+    @staticmethod
+    def corpo_da_api(arq, pasta):
+        lidos, legivel = parecer.textos_do_gh_api(["--input", arq], pasta)
+        if not legivel:
+            return CORPO_ILEGIVEL
+        dados = json.loads(lidos[0], object_pairs_hook=tuple)  # objeto vira tupla de pares, com a chave repetida
+        return list(dados) if isinstance(dados, tuple) else []
+
+    @staticmethod
+    def privado_rest(pares):
+        """Para cada campo de visibilidade (`private`, `visibility`, também `private[x]` e com outra caixa), True só se
+        é o nome exato com o valor privado."""
+        saida = []
+        for chave, valor in pares:
+            nome = chave.split("[", 1)[0].lower()
+            if nome in PRIVADO_REST:
+                valor = "true" if valor is True else valor
+                saida.append(chave == nome and isinstance(valor, str) and valor.strip().lower() in PRIVADO_REST[nome])
+        return saida
+
+    @staticmethod
+    def graphql_publica(campos, corpo, cria):
+        """GraphQL: o `visibility` do input, literal na query (sem strings nem comentários, a vírgula como espaço) ou no
+        campo `<var>[visibility]` ou a chave `visibility` nas `variables` do `--input`, fora de PRIVATE e INTERNAL recusa,
+        e criar sem ele também. Falha fechado no valor ilegível e na expansão do shell num campo (vira outros argumentos)."""
+        if corpo is CORPO_ILEGIVEL or any(v is None for _, v in campos):
+            return True
+        if any(parecer.expande(f"{k}={v}") for k, v in campos if k != "query"):
+            return True
+        pares = campos + (corpo or [])
+        consulta = " ".join(GRAPHQL_SEM_TEXTO.sub(" ", v) for k, v in pares if k == "query" and isinstance(v, str))
+        valores = GRAPHQL_VISIBILIDADE.findall(consulta.replace(",", " "))
+        valores += [v for k, v in campos if "[visibility]" in k.lower()]
+        valores += [x for k, v in corpo or [] if k == "variables" for x in Guarda.visibilidades_json(v)]
+        return any(v not in ("PRIVATE", "INTERNAL") for v in valores) or bool(cria) and not valores
+
+    @staticmethod
+    def visibilidades_json(valor):
+        """Os valores de toda chave `visibility` do objeto JSON lido em tuplas de pares, em qualquer nível."""
+        if not isinstance(valor, tuple):
+            return []
+        return [x for k, v in valor for x in ([v] if k == "visibility" else []) + Guarda.visibilidades_json(v)]
 
     @staticmethod
     def input_publica(args, pasta):

@@ -4,16 +4,26 @@
   "mutantes": [
     {
       "id": "RP1",
-      "guarda": "A1: gh repo create entra na trava",
+      "guarda": "A1 (E141.7): gh repo new é alias de create",
       "arquivo": "hooks/conformidade.py",
-      "de": "elif grupo == \"repo\" and sub == \"create\":",
-      "para": "elif grupo == \"repo\" and sub == \"criar\":",
+      "de": "REPO_CRIAR = {\"create\", \"new\"}",
+      "para": "REPO_CRIAR = {\"create\"}",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]
     },
     {
       "id": "RP2",
+      "guarda": "A1: gh repo create/new entra na trava",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif grupo == \"repo\" and sub in REPO_CRIAR:",
+      "para": "elif grupo == \"repo\" and sub in REPO_CRIAR and False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP3",
       "guarda": "A1: --public recusa mesmo ao lado de --private",
       "arquivo": "hooks/conformidade.py",
       "de": "if parecer.bandeira(palavras[1:], CRIAR_COM_VALOR, {\"--public\"}):",
@@ -23,7 +33,7 @@
       ]
     },
     {
-      "id": "RP3",
+      "id": "RP4",
       "guarda": "A1: sem --private nem --internal falha fechado",
       "arquivo": "hooks/conformidade.py",
       "de": "if not parecer.bandeira(palavras[1:], CRIAR_COM_VALOR, {\"--private\", \"--internal\"}):",
@@ -33,7 +43,7 @@
       ]
     },
     {
-      "id": "RP4",
+      "id": "RP5",
       "guarda": "A1: --internal vale como privado",
       "arquivo": "hooks/conformidade.py",
       "de": "CRIAR_COM_VALOR, {\"--private\", \"--internal\"}):",
@@ -43,7 +53,7 @@
       ]
     },
     {
-      "id": "RP5",
+      "id": "RP6",
       "guarda": "A2: a criação ou edição pela API sem privado explícito recusa",
       "arquivo": "hooks/conformidade.py",
       "de": "if self.api_publica(args, pasta):",
@@ -53,31 +63,21 @@
       ]
     },
     {
-      "id": "RP6",
-      "guarda": "A2: o GraphQL é lido à parte do REST",
-      "arquivo": "hooks/conformidade.py",
-      "de": "if e_graphql(endpoint):\n            texto = ",
-      "para": "if e_graphql(endpoint) and False:\n            texto = ",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
-      ]
-    },
-    {
       "id": "RP7",
-      "guarda": "A2: só a mutação de repositório do GraphQL entra",
+      "guarda": "A4: o GraphQL decide só nas mutações do repositório",
       "arquivo": "hooks/conformidade.py",
-      "de": "if not GRAPHQL_DO_REPO.search(texto):",
-      "para": "if GRAPHQL_DO_REPO.search(texto):",
+      "de": "return bool(GRAPHQL_DO_REPO.search(texto)) and self.graphql_publica",
+      "para": "return not GRAPHQL_DO_REPO.search(texto) and self.graphql_publica",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]
     },
     {
       "id": "RP8",
-      "guarda": "A2 (S7): visibility do GraphQL fora de PRIVATE/INTERNAL literal recusa",
+      "guarda": "A4: o endpoint do GraphQL vai à decisão do GraphQL",
       "arquivo": "hooks/conformidade.py",
-      "de": "if GRAPHQL_NAO_PRIVADA.search(texto):",
-      "para": "if GRAPHQL_NAO_PRIVADA.search(texto) and False:",
+      "de": "if e_graphql(endpoint):\n            texto =",
+      "para": "if e_graphql(endpoint) and False:\n            texto =",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]

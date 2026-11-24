@@ -4,27 +4,27 @@
   "mutantes": [
     {
       "id": "RP9",
-      "guarda": "A2: criar pelo GraphQL sem PRIVATE literal recusa",
+      "guarda": "A6 (segurança): endpoint com segmento vazio ou de ponto falha fechado",
       "arquivo": "hooks/conformidade.py",
-      "de": "return bool(GRAPHQL_CRIA_REPO.search(texto)) and not",
-      "para": "return False and not",
+      "de": "if API_SEGMENTO_ESTRANHO.search(endpoint):",
+      "para": "if False:",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]
     },
     {
       "id": "RP10",
-      "guarda": "A2: criar pelo GraphQL com PRIVATE literal segue livre",
+      "guarda": "A6: o segmento vazio (`//`) também",
       "arquivo": "hooks/conformidade.py",
-      "de": "and not GRAPHQL_PRIVADA.search(texto)",
-      "para": "and True",
+      "de": "API_SEGMENTO_ESTRANHO = re.compile(r\"(^|/)\\.{0,2}(/|$)\")",
+      "para": "API_SEGMENTO_ESTRANHO = re.compile(r\"(^|/)\\.{1,2}(/|$)\")",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]
     },
     {
       "id": "RP11",
-      "guarda": "A2: o endpoint de editar o repositório entra",
+      "guarda": "A2: fora dos endpoints do repositório não decide",
       "arquivo": "hooks/conformidade.py",
       "de": "if not cria and not API_DO_REPO.fullmatch(endpoint):",
       "para": "if not cria and API_DO_REPO.fullmatch(endpoint):",
@@ -34,50 +34,50 @@
     },
     {
       "id": "RP12",
-      "guarda": "A2: o endpoint de criar entra",
+      "guarda": "REST: o que o hook não lê (expansão do shell) falha fechado",
       "arquivo": "hooks/conformidade.py",
-      "de": "if not cria and not API_DO_REPO",
-      "para": "if True and not API_DO_REPO",
+      "de": "if not parecer.textos_do_gh_api(args, pasta)[1]:",
+      "para": "if False:",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]
     },
     {
       "id": "RP13",
-      "guarda": "A2 (S6): valor que o hook não lê falha fechado",
+      "guarda": "A2/A3: campo de visibilidade com valor não privado recusa",
       "arquivo": "hooks/conformidade.py",
-      "de": "if not legivel:\n            return True",
-      "para": "if False:\n            return True",
+      "de": "if not all(self.privado_rest(campos + (corpo or []))):",
+      "para": "if False:",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]
     },
     {
       "id": "RP14",
-      "guarda": "A2 (S5): campo=@arq vira o campo=valor que o gh envia",
+      "guarda": "A3: criar exige o campo privado",
       "arquivo": "hooks/conformidade.py",
-      "de": "if i and \"=@\" in a]",
-      "para": "if i and \"=@\" in a and False]",
+      "de": "return cria and not any(self.privado_rest(",
+      "para": "return False and not any(self.privado_rest(",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]
     },
     {
       "id": "RP15",
-      "guarda": "A2: o público lido do arquivo recusa",
+      "guarda": "A3: com --input, o privado vem do corpo, não do campo (que vai à URL)",
       "arquivo": "hooks/conformidade.py",
-      "de": "return any(map(VISIBILIDADE_PUBLICA.search, textos)) or cria",
-      "para": "return False or cria",
+      "de": "campos if corpo is None else corpo))",
+      "para": "campos + (corpo or [])))",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]
     },
     {
       "id": "RP16",
-      "guarda": "A2 (S4): criar sem private=true nem visibility privada recusa; com eles segue livre",
+      "guarda": "A3: o valor de outra opção (-H -Fx=y) não é campo",
       "arquivo": "hooks/conformidade.py",
-      "de": "or cria and not any(map(VISIBILIDADE_PRIVADA.search, textos))",
-      "para": "or cria and True",
+      "de": "if a in parecer.API_COM_VALOR:",
+      "para": "if a in CAMPOS_DA_API | {\"--input\"}:",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]
