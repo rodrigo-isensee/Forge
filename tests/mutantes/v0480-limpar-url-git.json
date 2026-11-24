@@ -1,0 +1,62 @@
+{
+  "pedido": "v0480-limpar-url-git",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "U1",
+      "guarda": "a comparação do origin usa a URL normalizada (sem ela, o clone sem .git fica de fora)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -z \"$url_aqui\" ] || [ \"$(url_normal \"$url_dela\")\" != \"$(url_normal \"$url_aqui\")\" ]; then",
+      "para": "if [ -z \"$url_aqui\" ] || [ \"$url_dela\" != \"$url_aqui\" ]; then",
+      "testes": ["tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_clone_sem_ponto_git_e_da_mesma_origin"]
+    },
+    {
+      "id": "U2",
+      "guarda": "o clone de outro origin não segue para a limpeza",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -z \"$url_aqui\" ] || [ \"$(url_normal \"$url_dela\")\" != \"$(url_normal \"$url_aqui\")\" ]; then",
+      "para": "if false; then",
+      "testes": ["tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_clone_de_outro_origin_fica_pendente_e_avisa"]
+    },
+    {
+      "id": "U3",
+      "guarda": "a normalização tira o .git final",
+      "arquivo": "bin/forge-fechar",
+      "de": "printf '%s' \"${u%.git}\"; }",
+      "para": "printf '%s' \"$u\"; }",
+      "testes": ["tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_clone_sem_ponto_git_e_da_mesma_origin"]
+    },
+    {
+      "id": "U4",
+      "guarda": "a normalização tira a barra final",
+      "arquivo": "bin/forge-fechar",
+      "de": "url_normal() { local u=\"${1%/}\";",
+      "para": "url_normal() { local u=\"$1\";",
+      "testes": ["tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_clone_com_barra_final_e_da_mesma_origin"]
+    },
+    {
+      "id": "U5",
+      "guarda": "o clone pulado por origin diferente fica pendente, não em silêncio",
+      "arquivo": "bin/forge-fechar",
+      "de": "      copia_st=pendente\n      pend_cmds=\"$pend_cmds\n# confira o origin;",
+      "para": "      pend_cmds=\"$pend_cmds\n# confira o origin;",
+      "testes": ["tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_clone_de_outro_origin_fica_pendente_e_avisa"]
+    },
+    {
+      "id": "U6",
+      "guarda": "o clone pulado por origin diferente avisa na saída de erro",
+      "arquivo": "bin/forge-fechar",
+      "de": "      echo \"aviso: o clone $d está na branch $ref, mas o origin dele não é o desta cópia; não o apaguei.\" >&2\n",
+      "para": "",
+      "testes": ["tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_clone_de_outro_origin_fica_pendente_e_avisa"]
+    },
+    {
+      "id": "U7",
+      "guarda": "o clone de outro origin sai do laço antes das checagens que apagam",
+      "arquivo": "bin/forge-fechar",
+      "de": "git -C $(printf '%q' \"$d\") remote -v\"\n      continue\n",
+      "para": "git -C $(printf '%q' \"$d\") remote -v\"\n",
+      "testes": ["tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_clone_de_outro_origin_fica_pendente_e_avisa"]
+    }
+  ]
+}

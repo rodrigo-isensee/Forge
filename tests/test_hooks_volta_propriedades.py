@@ -204,9 +204,10 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
 
     def test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem(self):  # item 3 do critério de fim do bloco T
         """Um passo lento injetado (`lancador(lento=True)`: o 2.o `Hook.campo`, depois do marcador, dorme 60 s) faz os dois hooks
-        recusarem a chamada com o marcador antes de 10 s, com a regra do hook (R-CONFORMIDADE, R-REVIEW), e liberarem a
-        sem marcador. Sem o passo lento, a mesma chamada com marcador passa: o que recusa é o vigia, e é por construção,
-        para qualquer passo lento, e não só para os que o teste 1 gera."""
+        recusarem a chamada com o marcador antes de 10 s, com a regra do hook (R-CONFORMIDADE, R-REVIEW), e também a sem
+        marcador (VIGIA-PRAZO-TRAVA, decisão do dono de 24/11: o prazo vencido numa trava recusa com ou sem o marcador; o
+        nome do teste é o antigo, citado em tests/mutantes/). Sem o passo lento, a mesma chamada com marcador passa: o que
+        recusa é o vigia, e é por construção, para qualquer passo lento, e não só para os que o teste 1 gera."""
         montados = self.modelos_montados()
         linhas = {"conformidade": ("git push origin feature/x", "R-CONFORMIDADE"),
                   "parecer": ("gh pr create --draft --base develop --title x --body y", "R-REVIEW")}
@@ -222,7 +223,8 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
                 self.assertLess(cpu, PRAZO_DO_CLAUDE_CODE_S / 2, "o passo lento dorme: o vigia não gasta CPU")
             with self.subTest(hook=hook, caso="sem marcador"):
                 codigo, erro, segundos, _ = self.decidir_medido(montados, hook, "echo oi", lento=True)
-                self.assertEqual((codigo, erro), (0, ""))
+                self.assertEqual(codigo, 2, erro)
+                self.assertRegex(erro, f"^{regra}: o hook não decidiu")
                 self.assertLess(segundos, PRAZO_DO_CLAUDE_CODE_S)
 
     def test_t_vigia_cobre_a_busca_do_proprio_marcador(self):
