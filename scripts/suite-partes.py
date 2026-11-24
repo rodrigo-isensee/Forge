@@ -478,7 +478,9 @@ def somar_pulados(sp, texto_n, pasta):
 
 def main(argv=None, environ=None):
     argv = sys.argv[1:] if argv is None else argv
-    environ = os.environ if environ is None else environ
+    # cópia antes do discover: um módulo de teste que mexe no os.environ no import (o test_catraca.py tira GITHUB_ACTIONS)
+    # não pode calar as anotações da parte (CI-ANOTACAO-CALADA, E137.2)
+    environ = dict(os.environ) if environ is None else environ
     if argv[:1] == ["--somar-pulados"] and len(argv) == 3:
         return somar_pulados(carregar_paralela(), argv[1], argv[2])
     if argv == ["--duas-partes"]:
