@@ -17,7 +17,7 @@
       "guarda": "D5: sem contexto, a linha é tipo=<t> seguida do literal",
       "arquivo": "bin/forge-check",
       "de": "(f\" · {contexto}\" if contexto else \"\")",
-      "para": "(f\" · {contexto}\")",
+      "para": "(f\" · {contexto}\" if True else \"\")",
       "testes": [
         "tests.test_anotar.Anotar.test_pergunta_e_ordem_tem_frase_propria"
       ]
