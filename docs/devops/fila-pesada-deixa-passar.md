@@ -1,3 +1,13 @@
+---
+tipo: revisao-devops
+contrato: 1
+pedido: fila-pesada-deixa-passar
+branch: melhoria/v0480-fila-pesada-diag
+commit: 0e59c44642a8f388649cb794072fd347ebebd8aa
+parecer: aprovado
+revisor: forge:devops-engineer
+data: 2026-11-23
+---
 # Fila pesada deixa passar mais de 2 baterias (E138.5)
 
 Diagnóstico só, sem código. Leitura de `hooks/pesado.py` e `bin/forge-pesado` (develop 0e59c446) e sonda local
