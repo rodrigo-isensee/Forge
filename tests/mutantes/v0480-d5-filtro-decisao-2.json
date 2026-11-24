@@ -16,8 +16,8 @@
       "id": "D5M9",
       "guarda": "D5: a pergunta sem opções 1a) 1b) é recusada",
       "arquivo": "bin/forge_dono.py",
-      "de": "if not questoes:\n        return \"a pergunta não tem opções",
-      "para": "if False:\n        return \"a pergunta não tem opções",
+      "de": "if not por_questao:",
+      "para": "if False:",
       "testes": [
         "tests.test_forge_dono.FiltroDaPergunta.test_pergunta_sem_opcoes_e_recusada"
       ]

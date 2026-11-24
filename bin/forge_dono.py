@@ -147,10 +147,10 @@ def recusa_da_pergunta(tipo, literal):
     e nenhuma questão com uma opção só (uma porta só não se pergunta: decide-se pela regra, `forge-check decisoes registrar`)."""
     if tipo not in TIPOS_DA_PERGUNTA:
         return f"--tipo-pergunta {'|'.join(TIPOS_DA_PERGUNTA)} é obrigatório na pergunta ao dono (D5)"
-    questoes = opcoes_da_pergunta(literal)
-    if not questoes:
+    por_questao = opcoes_da_pergunta(literal)
+    if not por_questao:
         return "a pergunta não tem opções `1a)`, `1b)`; pergunte com as opções (D5)"
-    unicas = [str(n) for n, opcoes in sorted(questoes.items()) if len(opcoes) < 2]
+    unicas = [str(n) for n, opcoes in sorted(por_questao.items()) if len(opcoes) < 2]
     if unicas:
         return (f"a questão {', '.join(unicas)} tem uma opção só; uma porta só não se pergunta: decida pela regra "
                 "(`forge-check decisoes registrar`) ou dê a alternativa (D5)")
