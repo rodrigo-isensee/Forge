@@ -1,0 +1,67 @@
+{
+  "pedido": "v0480-fechar-limpar-clone",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M7",
+      "guarda": "o que as pontas de agora alcancam sai da lista",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -z \"$fora\" ] || [ \"$fora\" = erro ] || fora=",
+      "para": "[ -z \"$fora\" ] || [ \"$fora\" != erro ] || fora=",
+      "testes": [
+        "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_commit_que_a_origin_tem_com_ref_velha_no_clone_e_apagado"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "HEAD ancestral do mesclado conta como mesclado",
+      "arquivo": "bin/forge-fechar",
+      "de": "2>/dev/null && ancestral=0; done",
+      "para": "2>/dev/null || ancestral=0; done",
+      "testes": [
+        "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_head_ancestral_do_mesclado_e_apagado"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "so o HEAD que nao e ancestral passa pelo sha_confere",
+      "arquivo": "bin/forge-fechar",
+      "de": "{ [ \"$ancestral\" = 1 ] && ! sha_confere",
+      "para": "{ [ \"$ancestral\" = 0 ] && ! sha_confere",
+      "testes": [
+        "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_head_ancestral_do_mesclado_e_apagado",
+        "tests.test_forge_fechar.LimparClones.test_clone_limpo_e_mesclado_e_apagado"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "remoto_exato --pontas le todas as refs, nao a branch de nome --pontas",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$nome\" != \"refs/heads/--pontas\" ] || nome=\"refs/*\"",
+      "para": "[ \"$nome\" != \"refs/heads/--pontas\" ] || :",
+      "testes": [
+        "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_commit_que_a_origin_tem_com_ref_velha_no_clone_e_apagado"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "as pontas saem pelo filtro de heads e tags, nao pelo do nome exato",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ \"$nome\" = \"refs/*\" ]; then",
+      "para": "  if false; then",
+      "testes": [
+        "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_commit_que_a_origin_tem_com_ref_velha_no_clone_e_apagado"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a linha de integracao do CLAUDE.md casa em qualquer locale (alternancia, nao colchete de letra acentuada)",
+      "arquivo": "bin/forge-fechar",
+      "de": "grep -iE 'integra(c|ç|Ç)(a|ã|Ã)o'",
+      "para": "grep -i 'integra[cç][aã]o'",
+      "testes": [
+        "tests.test_fechar_longas.Teste.test_branch_de_integracao_e_recusada_fora_de_locale_utf8"
+      ]
+    }
+  ]
+}

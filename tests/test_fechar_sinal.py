@@ -81,7 +81,7 @@ class Teste(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual((self.criacoes(), self.merges()), ([], []))
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=nenhum"])
         self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))
 
     def test_o_sleep_das_esperas_roda_em_segundo_plano_com_wait(self):

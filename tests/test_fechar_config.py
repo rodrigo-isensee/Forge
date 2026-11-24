@@ -52,7 +52,7 @@ class Teste(unittest.TestCase):
         self.branch_com_config_travado("melhoria/x")
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok config=ok (aviso do git sem efeito)"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok config=ok (aviso do git sem efeito) clone=nenhum"])
         self.assertIn("could not lock config file", self.log_de(r).read_text())
         self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
 
@@ -62,7 +62,7 @@ class Teste(unittest.TestCase):
         self.branch_com_config_travado("melhoria/x")
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok config=pendente"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok config=pendente clone=nenhum"])
         self.assertIn("git config --local --remove-section branch.melhoria/x", r.stdout.split("pendente, rode:\n")[1].splitlines())
         self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 3"))
 
@@ -73,7 +73,7 @@ class Teste(unittest.TestCase):
         self.branch_com_config_travado("a")
         r = self.fechar("p1", "--ref", "a")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok config=ok (aviso do git sem efeito)"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok config=ok (aviso do git sem efeito) clone=nenhum"])
 
     def test_c3_secao_de_branch_com_ponto_no_nome_casa_pelo_nome_exato(self):
         # ref `a.b` com a seção dela: pendente (um regex com o `.` do nome também casaria branch.aXb; o texto fixo não)
@@ -82,7 +82,7 @@ class Teste(unittest.TestCase):
         self.branch_com_config_travado("a.b")
         r = self.fechar("p1", "--ref", "a.b")
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok config=pendente"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok config=pendente clone=nenhum"])
         self.assertIn("git config --local --remove-section branch.a.b", r.stdout.split("pendente, rode:\n")[1].splitlines())
 
     def test_c3_secao_de_nome_parecido_nao_e_a_desta_branch(self):
@@ -91,19 +91,19 @@ class Teste(unittest.TestCase):
         self.branch_com_config_travado("a.c")
         r = self.fechar("p1", "--ref", "a.c")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok config=ok (aviso do git sem efeito)"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok config=ok (aviso do git sem efeito) clone=nenhum"])
 
     def test_c3_config_ilegivel_depois_do_branch_d_nunca_vira_ok(self):
         self.branch_com_config_travado("melhoria/x")
         (self.estado / "config_ilegivel").write_text("1")
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok config=pendente"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok config=pendente clone=nenhum"])
         self.assertIn("git config --local --list", r.stdout.split("pendente, rode:\n")[1].splitlines())
 
-    def test_c3_sem_aviso_e_sem_secao_a_linha_da_limpeza_nao_ganha_campo(self):
+    def test_c3_sem_aviso_e_sem_secao_a_linha_da_limpeza_nao_ganha_config_e_sai_clone_nenhum(self):
         r = self.fechar("p1", "--ref", "melhoria/x")
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=nenhum"])
 
 
 if __name__ == "__main__":
