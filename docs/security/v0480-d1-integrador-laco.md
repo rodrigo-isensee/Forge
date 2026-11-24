@@ -3,35 +3,25 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-d1-integrador-laco
-commit: 8b056d4d81fc3c68596c10afb7ba41f8003efe19
+commit: 0ba10e549428ad4bafbc0139eacbfc870956c89a
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-24
 ---
-# Review de segurança: v0478 (E173.15, D1 INTEGRADOR-EM-LACO, PR #865)
+# Review de segurança: v0478 (E173.29, D1 INTEGRADOR-EM-LACO, PR #865), volta por delta
 
-Escopo: diff `8a6f5907..8b056d4d` (`bin/forge-fechar`, `bin/forge-testes`, `tests/test_fechar_laco.py`, mutantes, pesos, fragmento do changelog). Pergunta do brief: o `--laco` nunca mescla sem pareceres aprovados e todos os checks do head verdes, e nunca usa merge automático. Resposta: sim; o efeito na postura é **neutro** (nenhum portão afrouxado; o laço só escolhe e delega ao caminho do item, que continua sendo o único que mescla).
+Revalidação do parecer anterior (E173.15, `commit: 8b056d4d`, aprovado; o texto dele fica no git). Delta lido: `forge-check parecer delta` de `8b056d4d..0ba10e54`, sem o que veio da base. Efeito na postura: **neutro**.
 
-## Gatilhos
 Gatilhos: controle do fluxo de merge (forge-fechar), leitura de dado do GitHub que decide argumento de comando, variável de ambiente de teste.
 
-## Achados
+## Delta lido
+- **`docs/fechamento-integrador.md` (5f6c5db0, E173.17):** sinopse do `--laco`, item "Laço" e parágrafo de reversão. Conferido contra o código, sem promessa que o script não cumpra: só `--base`, `--espera`, `--espera-ci` e `--dry-run`; lista até 100 (`bin/forge-fechar:1299`) sem fork (`:1277`); aviso de parado só em stderr, sem rótulo nem comentário, e o PR sai da volta (`:1303-1309`); só `melhoria/*` com `check-ref-format` (`:1311-1312`); código 5 para o laço (`:1338`); `FORGE_FECHAR_AGORA` só com `FORGE_FECHAR_TESTE=1` (`:231`). Os limites citados (A2 e A3 do review: `UNKNOWN` sem aviso, `bateria (pareceres)` contada como vermelho) só afetam o aviso, que não decide merge; nenhum abre caminho de merge.
+- **Merge de `origin/develop` (0ba10e54, a6e81a54):** limpo; a árvore do commit (`e294e6c3`) é a mesma do `git merge-tree --write-tree 8d373111 a6e81a54`, então não há resolução manual. As linhas de `bin/forge-testes` que o delta mostra (`test_forge_copia`, a regra de `hooks/decisao.py`) vieram da develop; `bin/forge-fechar` e `tests/test_fechar_laco.py` não mudaram desde `8b056d4d` (diff vazio).
+- Fora do domínio: `tests/pesos-d4.json`; pareceres de review e QA da própria branch.
 
-## Sondas
+Achados anteriores: nenhum (o parecer E173.15 não tinha achado); nenhum novo.
 
-## Detalhe dos achados
-Sem achado. O que foi conferido, com evidência:
-
-- **Sem merge novo, sem merge automático.** O diff não acrescenta nenhuma chamada de merge do `gh` nem opção de merge automático; o laço só roda o próprio script por item ou por `--lote` (`bin/forge-fechar:1334`). O único merge do script segue em `mesclar_direto`, preso ao head (`--match-head-commit`), depois de `checks_do_head_verdes 6` (`bin/forge-fechar:1793`, `:1802`), que exige todo check-run do head em completed/success (FECHAR-NUNCA-AUTO) e para no terminado fora dele. Sonda S1 abaixo.
-- **Pareceres:** o filtro do laço (`forge-check pr` no head buscado, `bin/forge-fechar:1315`) é só pré-seleção; o item refaz o passo 1 (`forge-check pr` no sha conferido, head relido depois) e o merge sai preso a esse sha. Um PR que o filtro deixasse passar por engano ainda pararia no item.
-- **Entrada do GitHub:** PR de fork fica fora pelo `isCrossRepository` (`bin/forge-fechar:1277`); só `melhoria/*` com `git check-ref-format --branch` (`:1312`, recusa `:`, espaço e controle, então o `pedido:branch` do lote e o `read -ra` não se partem); o pedido vem do frontmatter do parecer de review com `branch:` igual e passa por `^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$` (`:1285`). Todos os argumentos vão em array, sem `eval`.
-- **Base:** só `origin/develop` (a main e o resto são recusados antes, `bin/forge-fechar:201-205`); o `--laco` recusa pedido, ref, lote, limpeza e cartões (`:173`).
-- **Códigos:** CI da develop não verde depois de um grupo (5) para o laço (`:1338`); grupo que para (1) não mesclou nada daquele item e o laço segue.
-- **Falsos de teste:** `FORGE_FECHAR_AGORA` e `FORGE_FECHAR_ITEM` só valem com `FORGE_FECHAR_TESTE=1` (`:231`); fora dele, o item é o próprio script.
-
-Sonda (fora do bloco por não provar bloqueante): S1, script em arquivo, sobre as linhas adicionadas de `bin/forge-fechar`: chamadas de merge novas 0, opção de merge automático 0, delegação ao item 1; merge do `gh` no script inteiro 1 (o `mesclar_direto`).
-
-Testes: `tests/test_fechar_laco.py` rodado neste head, 10 testes, OK (os de seleção cobrem vermelho e em conflito fora do merge, reprovado no `forge-check pr`, pedido ambíguo, fork de nome, branch fora de `melhoria/*`). A suíte inteira fica com o CI do PR #865, em andamento no head 8b056d4d quando este parecer foi escrito.
+Testes: `tests/test_fechar_laco.py` (10, OK) e `tests.test_forge.GuiaDaPromocao` (o que lê `docs/fechamento-integrador.md`, 1, OK), rodados neste head. A suíte inteira fica com o CI do PR #865, em andamento no head 0ba10e54 quando este parecer foi escrito (`bateria (pareceres)` vermelha à espera dos pareceres deste head).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura estática, `git diff`, sonda local em arquivo, o teste do arquivo tocado e leitura dos checks do PR pelo `gh` (só leitura). Varreduras de segredo e de workflow não se aplicam (o diff não toca workflow nem configuração).
+Nenhum risco aceito. Ferramentas: leitura estática, `forge-check parecer delta`, `git diff`, `git merge-tree`, os testes acima e a leitura dos checks do PR pelo `gh` (só leitura). Varreduras de segredo e de workflow não se aplicam (o delta não toca workflow nem configuração).
