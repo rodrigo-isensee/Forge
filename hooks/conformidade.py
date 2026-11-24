@@ -342,7 +342,10 @@ API_CRIA_REPO = re.compile(r"user/repos|orgs/[^/]+/repos|repos/[^/]+/[^/]+/gener
 API_DO_REPO = re.compile(r"repos/[^/]+/[^/]+", re.I)
 GRAPHQL_DO_REPO = re.compile(r"\b(createRepository|cloneTemplateRepository|updateRepository)\b")
 GRAPHQL_CRIA_REPO = re.compile(r"\b(createRepository|cloneTemplateRepository)\b")
-GRAPHQL_SEM_TEXTO = re.compile(r'"""(?:\\.|[^\\])*?"""|"(?:\\.|[^"\\\n])*"|#[^\n]*')  # strings e comentários
+# E141.11 (A1 do review, A7 da segurança): strings e comentários pela especificação; no bloco `"""` só `\"""` escapa, e
+# o comentário fecha no LF ou no CR. CR, BOM e outro controle na consulta falham fechado, sem modelar mais léxico.
+GRAPHQL_SEM_TEXTO = re.compile(r'"""(?:\\"""|\\(?!""")|[^"\\]|"(?!""))*"""|"(?:\\.|[^"\\\n])*"|#[^\r\n]*')
+GRAPHQL_CONTROLE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f\ufeff]")  # todo controle, fora o TAB e o LF; e o BOM
 GRAPHQL_VISIBILIDADE = re.compile(r"\bvisibility\s*:\s*(\$?\w*)")  # com a vírgula já trocada por espaço
 CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem em arquivos do projeto
 # CONFORMIDADE-ESCRITA-NO-INDICE (v0478 E63.1; S1-S4 de docs/security/v0479-pv-a1-adr.md): gravam no índice o caminho
@@ -3491,11 +3494,15 @@ class Guarda:
         if any(parecer.expande(f"{k}={v}") for k, v in campos if k != "query"):
             return True
         pares = campos + (corpo or [])
+        if any(GRAPHQL_CONTROLE.search(v) for k, v in pares if k == "query" and isinstance(v, str)):
+            return True
         consulta = " ".join(GRAPHQL_SEM_TEXTO.sub(" ", v) for k, v in pares if k == "query" and isinstance(v, str))
         valores = GRAPHQL_VISIBILIDADE.findall(consulta.replace(",", " "))
-        valores += [v for k, v in campos if "[visibility]" in k.lower()]
+        da_var = [(k.split("[")[0], v) for k, v in campos if "[visibility]" in k.lower()]
+        usados = [v for n, v in da_var if re.search(rf"\${re.escape(n)}\b", consulta)]  # A2: só a variável da consulta
         valores += [x for k, v in corpo or [] if k == "variables" for x in Guarda.visibilidades_json(v)]
-        return any(v not in ("PRIVATE", "INTERNAL") for v in valores) or bool(cria) and not valores
+        publica = any(v not in ("PRIVATE", "INTERNAL") for v in valores + [v for _, v in da_var])
+        return publica or bool(cria) and not valores + usados
 
     @staticmethod
     def visibilidades_json(valor):

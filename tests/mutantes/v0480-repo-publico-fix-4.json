@@ -56,8 +56,8 @@
       "id": "RP30",
       "guarda": "A4: visibility fora de PRIVATE/INTERNAL recusa",
       "arquivo": "hooks/conformidade.py",
-      "de": "return any(v not in (\"PRIVATE\", \"INTERNAL\") for v in valores) or",
-      "para": "return False or",
+      "de": "publica = any(v not in (\"PRIVATE\", \"INTERNAL\")",
+      "para": "publica = any(v in (\"PRIVATE\", \"INTERNAL\")",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]

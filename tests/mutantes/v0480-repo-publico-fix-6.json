@@ -46,8 +46,8 @@
       "id": "RP45",
       "guarda": "A4: só o campo query é a consulta",
       "arquivo": "hooks/conformidade.py",
-      "de": "for k, v in pares if k == \"query\" and isinstance(v, str)",
-      "para": "for k, v in pares if k == \"consulta\" and isinstance(v, str)",
+      "de": "\" \", v) for k, v in pares if k == \"query\"",
+      "para": "\" \", v) for k, v in pares if k == \"consulta\"",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]
@@ -58,6 +58,26 @@
       "arquivo": "hooks/conformidade.py",
       "de": "for k, v in corpo or [] if k == \"variables\"",
       "para": "for k, v in [] or [] if k == \"variables\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP47",
+      "guarda": "E141.11 (A7): CR, BOM ou controle na consulta falha fechado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if any(GRAPHQL_CONTROLE.search(v)",
+      "para": "if False and any(GRAPHQL_CONTROLE.search(v)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "RP48",
+      "guarda": "E141.11 (A7): o BOM é controle",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\\x7f-\\x9f\\ufeff]",
+      "para": "\\x7f-\\x9f]",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
       ]
