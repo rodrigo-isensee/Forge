@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-bp12-dado-real
-commit: 82277931ea878065aea1c2edfa5f14fbbd41759f
+commit: 0fedb7b6886125f54f600c9d1f569005621f4a1a
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -28,3 +28,15 @@ Head 82277931. Mudança só de texto (skill `ux-design`, constituição do model
 Comandos: `python3 -I -m unittest discover -s tests -p <arquivo>` para cada módulo acima (todos `OK`); `python3 -m unittest tests.test_forge.Neutralidade`: `Ran 3 tests ... OK`.
 
 Observação sem bloqueio: "dados de exemplo realistas" na linha Prototipar segue valendo e não contradiz o portão novo (o protótipo continua com dado de exemplo; o portão exige a prova antes da validação).
+
+## Delta da volta (E144.8, head 0fedb7b6)
+
+Intervalo 82277931..0fedb7b6 no domínio do QA: só skills/ux-design/SKILL.md, texto (A1 da segurança: "ou amostra anonimizada" na prova do discovery; enxugamento de palavras em Idear, Prototipar, Regras e Necessidades de dados). Sentido preservado; a regra de dado real do 01-empatia.md ganhou a alternativa da amostra anonimizada, coerente com E144.1.
+
+| Obrigação | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Teto de instrução da skill | test_orcamento_instrucao (8) | skill não passa do orçamento | passou |
+| Teto de métricas | test_metricas_texto (2) | métricas de texto | passou |
+| R-NEUTRO | tests.test_forge.Neutralidade (3) | sem termo de projeto | passou |
+
+Sem teste novo: vermelho antes do verde e mutação não se aplicam. A bateria inteira é o check-run bateria do CI do mesmo sha.
