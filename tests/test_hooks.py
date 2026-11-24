@@ -2643,7 +2643,8 @@ class Hooks(unittest.TestCase):
 
     def test_vigia_prazo_trava_sem_marcador_recusa_e_fora_da_sessao_vigiada_libera(self):  # VIGIA-PRAZO-TRAVA, E169.1
         """Prazo vencido sem o marcador crítico e sem corpo pendente: recusa numa sessão vigiada (antes, liberava);
-        fora da sessão vigiada, ou num hook sem marcador (`critico` None), só a linha no erros.log."""
+        fora da sessão vigiada, só a linha no erros.log. Num hook sem marcador (`critico` None: `agentes`, `pesado`), recusa
+        no PreToolUse e só registra nos outros eventos (VIGIA-AGENTES-PESADO, E172.3, decisão do dono de 24/11)."""
         _comum, _, _ = modulos_dos_hooks()
         hook = _comum.Hook("parecer")
         hook.raiz, hook.marcado, hook.entrada, hook.prazo_s = RAIZ, False, {"hook_event_name": "PreToolUse"}, 3.0
@@ -2653,7 +2654,12 @@ class Hooks(unittest.TestCase):
                     _comum.prazo_vencido(hook, re.compile("x"), "", False, "R-REVIEW")
                 self.assertEqual(saida.exception.code, 2)
                 self.assertRegex(erro.getvalue(), "R-REVIEW.*não decidiu em 3 s a chamada com ação crítica")
-                self.assertIsNone(_comum.prazo_vencido(hook, None, "", False, "R-REVIEW"))
+                with self.assertRaises(SystemExit) as saida:
+                    _comum.prazo_vencido(hook, None, "", False, "R-TETO")
+                self.assertEqual(saida.exception.code, 2)
+                hook.entrada = {"hook_event_name": "SubagentStop"}
+                self.assertIsNone(_comum.prazo_vencido(hook, None, "", False, "R-TETO"))
+                hook.entrada = {"hook_event_name": "PreToolUse"}
             with mock.patch.object(_comum, "sessao_vigiada", return_value=False):
                 self.assertIsNone(_comum.prazo_vencido(hook, re.compile("x"), "", False, "R-REVIEW"))
 
