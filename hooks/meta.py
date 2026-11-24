@@ -20,7 +20,8 @@ frequentes de PALAVRAS_DO_IDIOMA, fora de código e citação) e `outro_idioma`,
 E25.1 (0.47.9): o idioma vale também para as notas entre chamadas de ferramenta da rodada (desde a última fala do dono,
 do transcrito, até TETO_DA_MEDIDA caracteres): `notas_em_outro_idioma` conta as que diferem, e `outro_idioma` as inclui.
 E109.1: num segundo Stop sem fala nova do dono, a rodada para no registro mais novo já lido e pula a final anterior
-(MARCA_DAS_NOTAS, só o uuid e o sha256, nunca o texto): nada se reconta.
+(MARCA_DAS_NOTAS, só o uuid e o sha256, nunca o texto): nada se reconta. E137.1: uma marca por transcrito (até
+MARCAS_GUARDADAS), pois o .forge/run é um só para as sessões do projeto.
 Erro interno: libera e vai ao erros.log.
 """
 import datetime
@@ -267,6 +268,7 @@ def medida_do_projeto(hook, raiz, texto):
 
 
 MARCA_DAS_NOTAS = "notas.json"  # E109.1: em .forge/run, o que o Stop anterior leu (uuid e sha256 da final, nunca o texto)
+MARCAS_GUARDADAS = 8  # E137.1: transcritos com marca própria em MARCA_DAS_NOTAS; o mais velho sai (o arquivo não cresce)
 
 
 def resumo(texto):
@@ -280,8 +282,10 @@ def notas_da_rodada(transcrito, final, marca=None, final_anterior=None):
     `final_anterior`. Devolve (notas, uuid do registro mais novo lido)."""
     notas, total, final, nova = [], 0, (final or "").strip(), None
     for linha in linhas_do_fim(transcrito):
-        if '"type":"tool_result"' in linha or ('"user"' not in linha and '"assistant"' not in linha):
-            continue  # resultado de ferramenta nunca é fala do dono nem nota: nem se decodifica (custo)
+        if ('"type":"tool_result"' in linha and '"type":"assistant"' not in linha) or (
+                '"user"' not in linha and '"assistant"' not in linha):
+            continue  # resultado de ferramenta nunca é fala do dono nem nota: nem se decodifica (custo); E137.1: na linha do
+            # assistente o input da chamada é objeto (aspas sem escape) e pode trazer o par: ela ainda é nota
         try:
             obj = json.loads(linha)
         except (ValueError, RecursionError):
@@ -304,13 +308,14 @@ def notas_da_rodada(transcrito, final, marca=None, final_anterior=None):
     return notas, nova
 
 
-def vista_anterior(arquivo, transcrito):
-    """E109.1: o que o Stop anterior do mesmo `transcrito` leu; {} sem ele, de outro transcrito ou ilegível."""
+def vistas_anteriores(arquivo):
+    """E109.1 e E137.1: {transcrito: o que o Stop anterior dele leu}, uma marca por sessão (o .forge/run é um só para as
+    sessões do projeto); {} sem o arquivo ou ilegível, e a entrada fora da forma fica de fora."""
     try:
         vista = ler_json(arquivo, {})
     except (OSError, ValueError):
         return {}
-    return vista if isinstance(vista, dict) and vista.get("transcrito") == str(transcrito) else {}
+    return {t: v for t, v in vista.items() if isinstance(v, dict)} if isinstance(vista, dict) else {}
 
 
 def notas_em_outro_idioma(hook, final, dono):
@@ -318,10 +323,12 @@ def notas_em_outro_idioma(hook, final, dono):
     if dono is None:
         return 0
     transcrito, arquivo = hook.campo("transcript_path"), hook.run() / MARCA_DAS_NOTAS
-    vista = vista_anterior(arquivo, transcrito)
+    vistas = vistas_anteriores(arquivo)
+    vista = vistas.pop(str(transcrito), {})  # sai e volta no fim: a ordem do dict é a do uso mais recente
     notas, marca = notas_da_rodada(transcrito, final, vista.get("marca"), vista.get("final"))
+    vistas[str(transcrito)] = {"marca": marca, "final": resumo(final)}
     try:
-        gravar_json(arquivo, {"transcrito": str(transcrito), "marca": marca, "final": resumo(final)})
+        gravar_json(arquivo, dict(list(vistas.items())[-MARCAS_GUARDADAS:]))
     except OSError as erro:  # A1 da segurança (E109.7): sem a marca gravada, a contagem e a linha da medida seguem
         hook.registrar_erro(erro)
     return sum(idioma_da_mensagem(fora_de_codigo_e_citacao(n)) not in (None, dono) for n in notas)

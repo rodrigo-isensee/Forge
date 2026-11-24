@@ -7,7 +7,8 @@ Dá só o que `voltas`, `esperas` e `metricas` ainda não dão (o lead por item 
 - recuperação: horas do escape até a release seguinte (`abertas`: escapes sem release depois);
 - vazão: cartões que chegaram a "Pronto" em docs/kanban/historico.md (o primeiro movimento de cada um), por semana ISO.
 Abaixo de MINIMO_PARA_RESUMO valores, a saída traz os números brutos e nenhuma taxa, média ou percentil. Linha do quadro
-incompleta (sem cartão, coluna vazia, data ilegível ou sem fuso) não entra na conta e sai `recusado` com o motivo."""
+incompleta (sem cartão, coluna vazia, data ilegível ou sem fuso) não entra na conta e sai `recusado` com o motivo. Quadro que não
+existe ou não se lê sai `nao-medido` com o motivo, e não 0; quadro que existe e está vazio segue 0."""
 import datetime
 import json
 import re
@@ -24,6 +25,10 @@ FONTES = ("frequencia e espera_da_mudanca: tags vX.Y.Z e commits do git; taxa_de
 
 class SemFuso(ValueError):
     pass
+
+
+def nao_medido(arq):
+    return {"estado": "nao-medido", "motivo": f"docs/kanban/{arq.name} ausente ou ilegível"}
 
 
 def releases(raiz):
@@ -59,9 +64,12 @@ def iso_com_fuso(texto):
 
 def linhas_do_quadro(arq, colunas, ler_data):
     """[(número da linha, data, células)] das linhas de tabela que começam por data, e [(fonte, cartão, motivo)] das recusadas:
-    data que `ler_data` não lê ou alguma das `colunas` primeiras células vazia."""
+    data que `ler_data` não lê ou alguma das `colunas` primeiras células vazia. Boas None: o arquivo não existe ou não se lê."""
+    texto = ler_texto(arq)
+    if texto is None:
+        return None, []
     boas, recusadas = [], []
-    for n, linha in enumerate((ler_texto(arq) or "").splitlines(), 1):
+    for n, linha in enumerate(texto.splitlines(), 1):
         c = [x.strip() for x in linha.strip().strip("|").split("|")] + [""] * colunas
         if not linha.lstrip().startswith("|") or not COMECA_COM_DATA.match(c[0]):
             continue
@@ -82,8 +90,11 @@ def linhas_do_quadro(arq, colunas, ler_data):
 
 
 def vazao(raiz_pedidos, janela):
-    """({semana: cartões}, recusadas): cada cartão conta uma vez, na semana do primeiro movimento para "Pronto"."""
-    boas, recusadas = linhas_do_quadro(raiz_pedidos / "docs" / "kanban" / "historico.md", 4, iso_com_fuso)
+    """(por_semana ou nao_medido, recusadas): cada cartão conta uma vez, na semana do primeiro movimento para "Pronto"."""
+    arq = raiz_pedidos / "docs" / "kanban" / "historico.md"
+    boas, recusadas = linhas_do_quadro(arq, 4, iso_com_fuso)
+    if boas is None:
+        return nao_medido(arq), recusadas
     primeiro = {}
     for _, data, c in boas:
         cartao = c[1].casefold()
@@ -92,14 +103,17 @@ def vazao(raiz_pedidos, janela):
     semanas = {}
     for data in filter(janela, primeiro.values()):
         semanas[periodo_de(data, "semana")] = semanas.get(periodo_de(data, "semana"), 0) + 1
-    return dict(sorted(semanas.items())), recusadas
+    return por_semana(dict(sorted(semanas.items()))), recusadas
 
 
 def falhas(raiz_pedidos, lista, janela, fuso):
-    """(releases com escape, horas de recuperação, abertas, recusadas). O escape cai na última release até a hora dele."""
+    """(releases com escape, horas de recuperação, abertas, recusadas); as três primeiras None sem o arquivo de escapes legível.
+    O escape cai na última release até a hora dele."""
     def ler(texto):
         return datetime.datetime.strptime(texto, "%Y-%m-%d %H:%M").replace(tzinfo=fuso)
     boas, recusadas = linhas_do_quadro(raiz_pedidos / "docs" / "kanban" / "escapes.md", 2, ler)
+    if boas is None:
+        return None, None, None, recusadas
     com_falha, horas, abertas = set(), [], 0
     for n, data, c in filter(lambda b: janela(b[1]), boas):
         ultima = next((nome for nome, d in reversed(lista) if d <= data), None)
@@ -142,12 +156,16 @@ def calcular(raiz, raiz_pedidos, desde=None, ate=None, fuso=None):
     for d in na_janela:
         freq[periodo_de(d, "semana")] = freq.get(periodo_de(d, "semana"), 0) + 1
     com_falha, recuperacao, abertas, recusadas = falhas(raiz_pedidos, lista, janela, fuso)
-    semanas, mais = vazao(raiz_pedidos, janela)
-    taxa = {"entregas": len(na_janela), "com_falha": len(com_falha)}
-    if len(na_janela) >= MINIMO_PARA_RESUMO:
-        taxa["taxa_pct"] = round(100 * len(com_falha) / len(na_janela), 1)
+    medida_vazao, mais = vazao(raiz_pedidos, janela)
+    if com_falha is None:
+        taxa = recuperacao_h = nao_medido(raiz_pedidos / "docs" / "kanban" / "escapes.md")
+    else:
+        taxa = {"entregas": len(na_janela), "com_falha": len(com_falha)}
+        if len(na_janela) >= MINIMO_PARA_RESUMO:
+            taxa["taxa_pct"] = round(100 * len(com_falha) / len(na_janela), 1)
+        recuperacao_h = {**resumir(recuperacao), "abertas": abertas}
     return {"frequencia": por_semana(dict(sorted(freq.items()))), "espera_da_mudanca_h": resumir(esperas_da_mudanca(raiz, lista, janela)),
-            "taxa_de_falha": taxa, "recuperacao_h": {**resumir(recuperacao), "abertas": abertas}, "vazao": por_semana(semanas),
+            "taxa_de_falha": taxa, "recuperacao_h": recuperacao_h, "vazao": medida_vazao,
             "recusados": [{"fonte": f, "cartao": c, "motivo": m} for f, c, m in recusadas + mais], "avisos": avisos}
 
 

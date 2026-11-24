@@ -12,6 +12,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho ta
 import test_fechar_sha_conferido as sc  # noqa: E402  (o módulo, não a classe: a classe seria coletada de novo aqui)
 
 INEXISTENTE, FORA_DO_HISTORICO = "c" * 40, "d" * 40
+# registra cada `git fetch` desta cópia que leva um sha40 e segue para o git falso de baixo
+FETCH_REGISTRADO = r'''#!/usr/bin/env bash
+if [ "$1" = fetch ] && [[ " $* " =~ \ [0-9a-f]{40}\  ]]; then echo "$*" >> "$FETCHES"; fi
+exec "$GIT_DE_BAIXO" "$@"
+'''
 
 
 class FecharBuscaPareceres(unittest.TestCase):
@@ -97,6 +102,40 @@ class FecharBuscaPareceres(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", "--principal")
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("--principal pede a pasta de uma cópia git", r.stderr)
+        self.assertEqual(self.chamadas(), [])
+
+    def test_sha_ausente_entre_muitos_busca_por_metades(self):  # A1 do review E132.2: só a metade que falha se divide de novo
+        for i in range(14):
+            self.git("-C", str(self.outra), "commit", "-q", "--allow-empty", "-m", f"docs(review): parecer A{i}")
+        self.git("-C", str(self.outra), "push", "-q", "origin", "parecer/a")
+        bons = self.git("-C", str(self.outra), "rev-list", "-15", "parecer/a").split()
+        self.pedido(*bons, INEXISTENTE)
+        embrulho, fetches = self.tmp / "bin2", self.tmp / "fetches"
+        embrulho.mkdir()
+        (embrulho / "git").write_text(FETCH_REGISTRADO, encoding="utf-8")
+        (embrulho / "git").chmod(0o755)
+        r = self.fechar("p1", "--ref", "melhoria/x", FETCHES=str(fetches), GIT_DE_BAIXO=str(self.tmp / "bin" / "git"),
+                        PATH=f"{embrulho}:{self.env['PATH']}")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertTrue(all(self.le(s) for s in bons), r.stderr)
+        self.assertIn(f"sem commit aqui nem em origin: {INEXISTENTE}", r.stderr)
+        self.assertEqual(len(fetches.read_text().splitlines()), 9)  # 16, 8 e 8, 4 e 4, 2 e 2, 1 e 1; um por sha seriam 17
+
+    def test_principal_vazio_e_erro_de_uso(self):  # A2 do review E132.2
+        r = self.fechar("p1", "--ref", "melhoria/x", "--principal", "")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("--principal pede a pasta de uma cópia git (recebi o valor vazio)", r.stderr)
+        self.assertEqual(self.chamadas(), [])
+
+    def test_promover_recusa_principal(self):
+        r = self.fechar("v9", "--promover", "a" * 40, "--principal", str(self.principal))
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("--promover recebe só", r.stderr)
+
+    def test_limpar_recusa_principal(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar", "--principal", str(self.principal))
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("--principal não combina com --limpar", r.stderr)
         self.assertEqual(self.chamadas(), [])
 
     def test_lote_recusa_principal(self):
