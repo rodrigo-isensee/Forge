@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ordens-hook
-commit: 35211762d50aec616625d3e7bd90ed88c7bb7f47
+commit: a6e0d1014e2643e21e1b261154a1ce9160c87662
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -105,4 +105,20 @@ Delta no domínio (`forge-check parecer delta`): `hooks/conformidade.py` (`entra
 - `bin/forge-mutante --base fe14fb1ea179e325195005e2cab46a2bc95d4eaa tests/mutantes/v0480-ordens-hook-6.json --processos 2` (rev=35211762d50a): M32 a M37 `morreu`, nenhum sobrevivente.
 - `bin/forge-mutante --base fe14fb1ea179e325195005e2cab46a2bc95d4eaa tests/mutantes/v0479-conformidade-trilha-7.json --processos 2`: U1 a U8 `morreu`, U6 com a guarda atual.
 - `bin/forge-mutante --cobertura --base fe14fb1ea179`: linhas 3605 e 3608 de `hooks/conformidade.py` cobertas por M32 a M37; `tests/pesos-d4.json` `não coberto` (dado, não guarda).
+- Suíte inteira: no CI do PR (check-run `bateria` do mesmo sha), sem suíte local.
+
+## Revalidação do delta (E140.9, head a6e0d101, base do delta 35211762)
+Delta no domínio (`forge-check parecer delta`, sem o que veio da develop): a guarda das ordens saiu de `OrdensEmVigor` para a classe nova `GuardaDasOrdens` (4 testes movidos, `worktree` compartilhado), os mutantes M15 a M26, M28 e M30 a M37 passaram para `v0480-ordens-guarda*.json` (pedido `v0480-ordens-guarda`) e os de `hooks/ordens.py` ficaram em `v0480-ordens-hook*.json`. `hooks/conformidade.py:1612` (`em_qualquer_lugar(posix, c)` antes de ler o disco, vindo do #814) está na árvore e coberto por M23. `hooks/ordens.py` não mudou no delta.
+
+| Mudança do delta | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Guarda das ordens na classe própria, mesmos 4 testes | `GuardaDasOrdens` (recusa na sessão do Forge, pasta e cópia principal, curinga A4, cópia principal pela worktree) | permissão por papel; worktree; repositório nu | passou |
+| Leitura do hook de ordens, sem a guarda | `OrdensEmVigor` | ausente, vazio, teto, link, erro interno | passou |
+| Guarda lê o disco só se o texto cita a pasta (#814) | `test_conformidade_recusa_a_pasta_das_ordens_e_a_copia_principal`, mutante M23 | destino sem a pasta no texto | passou |
+
+## Provas (E140.9)
+- `python3 -m unittest tests.test_hooks.OrdensEmVigor tests.test_hooks.GuardaDasOrdens` (da raiz, sem `-I`): `Ran 24 tests in 5.470s`, OK.
+- `bin/forge-mutante tests/mutantes/v0480-ordens-hook.json … -2 … -3 … -4 … -5.json --processos 3` (`pedido=v0480-ordens-hook rev=a6e0d1014e26`): M1 a M14, M17 a M21 e M29 `morreu` (M2, M5, M12, M13 por erro do teste sob o mutante com o controle verde), nenhum sobrevivente; rc=0.
+- `bin/forge-mutante tests/mutantes/v0480-ordens-guarda.json tests/mutantes/v0480-ordens-guarda-2.json --processos 3` (`pedido=v0480-ordens-guarda rev=a6e0d1014e26`): M15, M16, M22 a M26, M28, M30 a M37 `morreu` (M26 por erro com o controle verde), nenhum sobrevivente; rc=0. As duas famílias de specs são de pedidos diferentes e saem em chamadas separadas (uma chamada com as sete sai 2, "spec inválida").
+- Fixture `pesado/mesma-sessao-libera`: no head, 8 rodadas isoladas pelo `Hooks.executar_em_lote`: 7 OK (0,1 s) e 1 `TimeoutExpired` de 120 s (`hooks/pesado.py`, espera da vez). Na develop (`origin/develop` e694510844, árvore extraída por `git archive`), as mesmas 8 rodadas: 7 OK e 1 `TimeoutExpired` igual. `hooks/pesado.py` e `tests/hooks/pesado` sem diff entre develop e head (`git diff --quiet`). Falha igual na develop, intermitente, fora do delta: causa já registrada em `tests/provas/v0479-testes-prazo.md` (pid do pai lido de outro namespace no sandbox); a bateria do CI é a prova do sha.
 - Suíte inteira: no CI do PR (check-run `bateria` do mesmo sha), sem suíte local.
