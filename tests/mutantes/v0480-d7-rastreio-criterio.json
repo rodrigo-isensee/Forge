@@ -29,7 +29,8 @@
       "de": "if (texto := selados.get((Path(rel).name, sha))) is None:",
       "para": "if (texto := (raiz_do_pedido(raiz, caminho) / rel).read_text(encoding=\"utf-8\")) is None:",
       "testes": [
-        "tests.test_criterios.Criterios.test_brief_alterado_depois_do_selo_nao_prova"
+        "tests.test_criterios.Criterios.test_brief_alterado_depois_do_selo_nao_prova",
+        "tests.test_criterios.Criterios.test_brief_alterado_nao_prova_mesmo_com_outro_brief_intacto_conferindo_a_etapa"
       ]
     },
     {
