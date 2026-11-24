@@ -41,6 +41,46 @@
       "testes": [
         "tests.test_forge_mutante.Conferir.test_varias_trocas_confere_cada_trecho"
       ]
+    },
+    {
+      "id": "M13",
+      "guarda": "MUTANTE-VARIAS-TROCAS: provar: o mutante de várias trocas morto confere cada par sozinho",
+      "arquivo": "bin/forge-mutante",
+      "de": "len(trocas(m)) > 1:  # a morte",
+      "para": "len(trocas(m)) > 9:  # a morte",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_par_isca_que_morre_sozinho_torna_o_mutante_invalido"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "MUTANTE-VARIAS-TROCAS: provar: par que não sobrevive sozinho torna o mutante inválido",
+      "arquivo": "bin/forge-mutante",
+      "de": "        if sozinho:\n",
+      "para": "        if not sozinho:\n",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_par_isca_que_morre_sozinho_torna_o_mutante_invalido"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "MUTANTE-VARIAS-TROCAS: par_que_nao_sobrevive: par que não roda sozinho é inválido",
+      "arquivo": "bin/forge-mutante",
+      "de": "if motivo:\n            return f\"o par {n}",
+      "para": "if not motivo:\n            return f\"o par {n}",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_par_que_nao_roda_sozinho_torna_o_mutante_invalido"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "MUTANTE-VARIAS-TROCAS: par_que_nao_sobrevive: par morto sozinho é inválido",
+      "arquivo": "bin/forge-mutante",
+      "de": "if classe != \"sobreviveu\":\n            return f\"o par",
+      "para": "if classe == \"inválido\":\n            return f\"o par",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_par_isca_que_morre_sozinho_torna_o_mutante_invalido"
+      ]
     }
   ],
   "isentas": [

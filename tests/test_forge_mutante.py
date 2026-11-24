@@ -411,6 +411,29 @@ class Execucao(unittest.TestCase):
             self.assertIn(linha, r.stdout)
         self.assertEqual(list(self.tmp.iterdir()), [], "sobrou cópia em $TMPDIR")
 
+    def test_par_isca_que_morre_sozinho_torna_o_mutante_invalido(self):  # MUTANTE-VARIAS-TROCAS, sondas S2 e S3 (#846)
+        self.gravar("lib.py", "def limite(x, y=0):\n    if y > 500:\n        return 3\n    if x > 10:\n        return 2\n"
+                              "    return 0\n")
+        self.salvar()
+        iscas = {"S2": (["if y > 500:", "        return 2\n"], ["if y > 5000:", "        return 3\n"]),
+                 "S3": (["if y > 500:", "if x > 10:"], ["if y > 5000:", "if x > 99:"])}
+        for sonda, (de, para) in iscas.items():
+            with self.subTest(sonda):
+                r = self.rodar(self.spec(mutante("M1", de="if y > 500:", para="if y > 5000:"),
+                                         mutante("M2", de=de, para=para)))
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("M1 · sobreviveu · lib.py:2", r.stdout)
+                self.assertIn("M2 · inválido · lib.py:2 · o par 2 morre sozinho: vira mutante próprio", r.stdout)
+                self.assertEqual(list(self.tmp.iterdir()), [], "sobrou cópia em $TMPDIR")
+
+    def test_par_que_nao_roda_sozinho_torna_o_mutante_invalido(self):  # MUTANTE-VARIAS-TROCAS
+        self.gravar("lib.py", "def limite(x):\n    if (x > 10):\n        return 2\n    return 0\n")
+        self.salvar()
+        juntas = mutante(de=["(x >", "10)"], para=["[x >", "10]"], testes=("tests.test_lib.T.test_baixo",))
+        r = self.rodar(self.spec(juntas))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("M1 · inválido · lib.py:2 · o par 1 não roda sozinho: a troca quebra a sintaxe", r.stdout)
+
     def test_varias_trocas_com_um_trecho_ausente_ou_sobreposto_sao_invalidas(self):  # MUTANTE-VARIAS-TROCAS
         casos = {"ausente": (["x > 10", "x > 11"], ["x > 99", "x > 98"], "o trecho aparece 0 vezes no arquivo (precisa "
                              "de exatamente uma): 'x > 11'"),

@@ -13,7 +13,9 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--ids M1,M2] [--pra
            `executor` é opcional: o leitor de veredito da stack (hoje só `unittest`).
            Várias trocas num mutante (MUTANTE-VARIAS-TROCAS), para guardas que se cobrem uma à outra: `de` e `para` em
            listas do mesmo tamanho (de 2 a 8 pares, o `de` sem repetir), aplicadas juntas no mesmo `arquivo`; cada `de`
-           uma vez no arquivo e sem sobrepor outro. A linha da saída é a do primeiro par. O `--conferir` confere cada
+           uma vez no arquivo e sem sobrepor outro. A linha da saída é a do primeiro par. O conjunto morto só vale se
+           cada par, sozinho e com os mesmos testes, sobrevive; o par que morre sozinho (ou não roda sozinho) dá
+           `inválido · ... · o par <n> morre sozinho: vira mutante próprio` (rc 2). O `--conferir` confere cada
            `de`; o `--cobertura` conta cada par como um mutante do mesmo id. A spec de uma troca (texto) segue igual.
            Mutante equivalente declarado: o campo `equivalente` com a justificativa (20+ caracteres; sem ela a spec é
            recusada). Sem `testes`, não roda nem dá rc 1; sai `equivalente: <id> · <justificativa>`. Com `testes`, roda
@@ -972,8 +974,28 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
     if "equivalente" in m and classe != "inválido":  # o teste listado que o mata desmente o equivalente
         classe, motivo = ("equivalente", "") if classe == "sobreviveu" else (
             "inválido", "declarado equivalente, mas os testes listados o matam")
+    if classe == "morreu" and len(trocas(m)) > 1:  # a morte tem de vir da combinação, não de um par-isca
+        sozinho = par_que_nao_sobrevive(m, sha, copia, trabalho, prazo)
+        if sozinho:
+            classe, motivo = "inválido", sozinho
     texto = f"{m['id']} · {classe} · {m['arquivo']}:{linha}" + (f" · {motivo}" if motivo else "")
     return texto, {"inválido": 2, "sobreviveu": 1}.get(classe, 0), True
+
+
+def par_que_nao_sobrevive(m, sha, copia, trabalho, prazo):
+    """MUTANTE-VARIAS-TROCAS: roda cada par do mutante sozinho, na mesma cópia restaurada e com os mesmos testes. O
+    motivo de inválido do primeiro par que não sobrevive sozinho, ou None se todos sobrevivem."""
+    alvo, original = alvo_seguro(copia, m["arquivo"]), ler_no_commit(sha, m["arquivo"])
+    for n, (de, para) in enumerate(trocas(m), 1):
+        alvo.write_bytes(original)
+        _, motivo = mutar(copia, {**m, "de": de, "para": para})
+        if motivo:
+            return f"o par {n} não roda sozinho: {motivo}"
+        registro = rodar(copia, m["testes"], trabalho / f"par-{m['id']}-{n}.jsonl", prazo, trabalho / f"pyc-{m['id']}-{n}")
+        classe = "sem veredito" if registro is None else veredito(m["testes"], registro, erro_mata=True)[0]
+        if classe != "sobreviveu":
+            return f"o par {n} {'morre sozinho: vira mutante próprio' if classe == 'morreu' else 'sozinho sai ' + classe}"
+    return None
 
 
 class ArvoreMudou(Exception):
