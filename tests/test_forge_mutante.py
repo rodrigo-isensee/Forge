@@ -1559,6 +1559,21 @@ class PlacarDaRelease(unittest.TestCase):
                 if esperado:
                     self.assertIn(esperado, avisos[0])
 
+    def test_marca_anterior_na_develop_vale_como_a_tag_sem_aviso(self):  # PLACAR-DESDE-MARCA (v0478 E138.3)
+        git(self.dir, "tag", "v0.1.0", "HEAD~1")  # a tag da release anterior existe, mas não no commit da marca
+        (self.dir / ".claude-plugin").mkdir()
+        (self.dir / ".claude-plugin" / "plugin.json").write_text('{"version": "0.2.0"}\n', encoding="utf-8")
+        git(self.dir, "add", "-A")
+        git(self.dir, "commit", "-qm", "marca da 0.2.0 na develop")
+        marca = git(self.dir, "rev-parse", "HEAD").strip()
+        self.commit({self.m + "depois.json": ["morreu"]})
+        r, chamadas = self.placar("--desde", marca, "--versao", "0.3.0")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("aviso:", r.stdout)
+        self.assertEqual(chamadas, [["--", self.m + "placar.json"], ["--", self.m + "depois.json"]])
+        r, _ = self.placar("--desde", "HEAD", "--versao", "0.3.0")  # commit que não é a marca segue avisando
+        self.assertIn("aviso: --desde HEAD não é tag neste clone", r.stdout)
+
 
 class MedidaDaVagaPesada(unittest.TestCase):
     """MAQ-A7: a cópia do contexto no forge-mutante faz o mesmo que a do forge-testes."""

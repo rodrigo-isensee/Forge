@@ -462,8 +462,29 @@ class ReleaseAvisaMedidasDaVersao(Base):
         self.assertIn("placar: scripts/placar-mutacao.py --desde v0.1.0 --versao 0.2.0", saida)
         self.assertIn("bench: a linha da 0.2.0 em bench-versoes.md e metricas-velocidade.md", saida)
 
-    def test_sem_tag_pede_a_tag_anterior_a_mao(self):
-        self.assertIn("--desde <tag da release anterior> --versao 0.2.0", self.preparar(tag=None))
+    def test_sem_tag_na_marca_sugere_o_commit_da_marca(self):
+        marca = git(self.dir, "rev-parse", "HEAD").strip()  # o commit "base" pôs a versão 0.1.0 no manifesto
+        self.assertIn(f"--desde {marca} --versao 0.2.0", self.preparar(tag=None))
+
+    def test_sem_marca_pede_a_marca_anterior_a_mao(self):
+        git(self.dir, "checkout", "-q", "--orphan", "sem-historia")  # histórico sem manifesto: não há marca
+        git(self.dir, "rm", "-q", "-f", ".claude-plugin/plugin.json")
+        self.commitar()
+        self.assertIn("--desde <marca da release anterior> --versao 0.2.0", self.preparar(tag=None))
+
+    def test_tag_fora_da_develop_cede_a_marca_anterior_na_develop(self):  # PLACAR-DESDE-MARCA (v0478 E138.3)
+        git(self.dir, "tag", "v0.0.9")  # tag antiga e ancestral: o describe de antes a sugeria
+        (self.dir / ".claude-plugin" / "plugin.json").write_text('{"version": "0.1.1"}\n', encoding="utf-8")
+        self.commitar()
+        marca = git(self.dir, "rev-parse", "HEAD").strip()
+        git(self.dir, "switch", "-q", "-c", "main")  # o merge da main leva a tag, fora do histórico da develop
+        (self.dir / "agents" / "a.md").write_text("main\n", encoding="utf-8")
+        self.commitar()
+        git(self.dir, "tag", "v0.1.1")
+        git(self.dir, "switch", "-q", "melhoria/minha-mudanca")
+        (self.dir / "agents" / "a.md").write_text("depois da marca\n", encoding="utf-8")
+        self.commitar()
+        self.assertIn(f"placar: scripts/placar-mutacao.py --desde {marca} --versao 0.2.0", self.preparar(tag=None))
 
     def test_tag_com_metacaractere_sai_citada_no_comando(self):  # segurança A3 da v046 E7
         self.assertIn("--desde 'v9$(id)' --versao 0.2.0", self.preparar(tag="v9$(id)"))
