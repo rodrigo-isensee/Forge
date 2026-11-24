@@ -66,7 +66,7 @@ class Teste(unittest.TestCase):
         (self.estado / "prune_nega").write_text("1")
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente clone=nenhum"])
         pendentes = r.stdout.split("pendente, rode:\n")[1].splitlines()
         self.assertIn("git worktree prune", pendentes)
         self.assertFalse(any(l.startswith("git worktree remove") for l in pendentes), pendentes)
@@ -100,7 +100,7 @@ class Teste(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertNotIn("orfa-", r.stdout + r.stderr)
         linhas = r.stdout.splitlines()
-        i = linhas.index("limpeza: remota=ok worktree=ok branch=ok")
+        i = linhas.index("limpeza: remota=ok worktree=ok branch=ok clone=nenhum")
         fim = [l for l in linhas[i + 1:] if not l.startswith(("[8] ", "CI do push na develop verde"))]  # o passo 8 vem depois da limpeza
         self.assertEqual(fim, ["Entrega p1 fechada em develop.", "fim: código 0"])
         self.assertIn("registro: prune tirou 301 registro(s) de worktree órfã", linhas[:i])
@@ -119,7 +119,7 @@ class Teste(unittest.TestCase):
         self.assertNotIn("prune tirou", r.stdout)
         self.assertNotIn("[prune]", self.log_de(r).read_text())
         self.assertTrue(wt.exists())
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente clone=nenhum"])
         self.assertIn(f"git worktree remove {wt}", r.stdout.split("pendente, rode:\n")[1].splitlines())
 
     def argumentos_da_linha(self, linha):
@@ -143,7 +143,7 @@ class Teste(unittest.TestCase):
         (self.estado / "falha_delete").write_text("3")
         r = self.fechar("p1", "--ref", ref)
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=pendente branch=pendente"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=pendente branch=pendente clone=nenhum"])
         linhas = [l for l in r.stdout.split("pendente, rode:\n")[1].splitlines() if l.startswith("git ")]
         esperado = [["worktree", "remove", str(wt)], ["branch", "-D", ref], ["push", "origin", "--delete", f"refs/heads/{ref}"]]
         self.assertEqual([self.argumentos_da_linha(l) for l in linhas], esperado)
@@ -158,7 +158,7 @@ class Teste(unittest.TestCase):
         r = base.subprocess.run(["bash", str(SCRIPT), "p1", "--ref", "melhoria/x"], cwd=wt, env=self.env,
                                 capture_output=True, text=True, timeout=60)
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=nenhum"])
         self.assertIn(f"registro: saí da worktree de melhoria/x para a principal: {self.proj}", r.stdout)
         self.assertNotIn("saia dela", r.stderr)
         self.assertFalse(wt.exists())
@@ -176,7 +176,7 @@ class Teste(unittest.TestCase):
         self.git("commit", "-q", "-m", "feat: c", cwd=wt)
         r = self.fechar_em(wt, "p1", "--ref", "melhoria/x", "--limpar")
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente clone=nenhum"])
         self.assertIn("tem commit que não foi mesclado", r.stderr)
         self.assertEqual(self.marcas("git worktree remove"), [])
         self.assertTrue(wt.exists())
@@ -188,7 +188,7 @@ class Teste(unittest.TestCase):
         r = base.subprocess.run(["bash", str(SCRIPT), "p1", "--ref", "melhoria/x"], cwd=wt, capture_output=True, text=True, timeout=60,
                                 env=dict(self.env, FORGE_FECHAR_LOG_DIR="../x/../logrel"))
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=nenhum"])
         log = self.log_de(r)
         self.assertEqual(log.parent, self.tmp.resolve() / "logrel")  # absoluto e normalizado
         self.assertTrue(log.read_text().splitlines()[-1].endswith(" fim: código 0"))
@@ -218,7 +218,7 @@ class Teste(unittest.TestCase):
         self.assertEqual(len([c for c in self.chamadas() if c.startswith("git push origin --delete")]), 3)
         self.assertIn("apagando a branch remota melhoria/x (até 1s por tentativa", r.stdout)
         self.assertIn("a branch remota continua viva", r.stderr)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=ok clone=nenhum"])
         self.assertIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
 
     def test_corte_depois_que_o_servidor_apagou_a_remota_confere_e_nao_diz_que_ela_continua_viva(self):
@@ -227,7 +227,7 @@ class Teste(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertNotIn("continua viva", r.stderr + r.stdout)
         self.assertIn("já não existe no servidor", r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=nenhum"])
         self.assertEqual(self.git("ls-remote", "origin", "refs/heads/melhoria/x").strip(), "")
 
     def test_corte_com_a_remota_ainda_no_servidor_segue_dizendo_que_ela_continua_viva(self):
@@ -235,7 +235,7 @@ class Teste(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", FORGE_FECHAR_TETO_DELETE="1")
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
         self.assertIn("a branch remota continua viva", r.stderr)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=ok clone=nenhum"])
 
     def test_corte_com_a_conferencia_da_remota_falhando_fica_pendente_sem_afirmar_que_esta_viva(self):
         (self.estado / "delete_apaga_e_trava").write_text("")
@@ -244,7 +244,7 @@ class Teste(unittest.TestCase):
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
         self.assertIn("não consegui conferir a branch remota melhoria/x", r.stderr)
         self.assertNotIn("continua viva", r.stderr)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=ok clone=nenhum"])
 
     def test_teto_do_delete_fora_da_faixa_e_recusado_e_o_pior_caso_das_tres_tentativas_fica_em_300s(self):
         # pior caso: 3 tentativas no teto + 2 pausas no máximo (30 s) + a conferência da remota (10 s); o teto máximo é o maior que cabe em 300 s

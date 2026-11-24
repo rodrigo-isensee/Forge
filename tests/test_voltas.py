@@ -213,9 +213,26 @@ class RodadasDeBrief(SemQueda, Raiz):
     def test_pedido_so_em_docs_pedidos_existe_sem_historico(self):  # F6, E5.4
         self.gravar("docs/pedidos/P1.md", "# p\n")
         self.gravar("docs/kanban/historico.md", "")
-        self.assertEqual(self.rodar("voltas", "--pedido", "p1")[:2], (0, [
-            "voltas: P1 resumo: brief=0 conferencia=0 review=0 revalidacao=0 barrada=0 nao-classificado=0 minutos=0 construcao=- razao=-",
-            "voltas: total: pedidos=1 voltas=0 minutos=0"]))
+        self.assertEqual(self.rodar("voltas", "--pedido", "p1")[:2], (0, [  # E147.1: sem cartão com movimento é nao-medido, não 0
+            "voltas: P1 resumo: brief=0 conferencia=nao-medido review=nao-medido revalidacao=nao-medido barrada=nao-medido "
+            "nao-classificado=nao-medido minutos=nao-medido construcao=- razao=-",
+            "voltas: total: pedidos=0 voltas=nao-medido minutos=nao-medido nao-medidos=1"]))
+
+    def test_sem_cartao_com_movimento_a_reversao_do_pedido_segue_na_saida(self):  # E147.1
+        self.gravar("docs/pedidos/P2.md", "# p\n\n## Histórico\n- 2026-10-17 11:00: suposição revertida: a fila\n")
+        self.gravar("docs/kanban/historico.md", "")
+        cod, linhas, _ = self.rodar("voltas", "--pedido", "p2")
+        self.assertEqual(cod, 0)
+        self.assertIn("voltas: P2 reversoes=1", linhas)
+        self.assertIn(" minutos=nao-medido ", linhas[0])
+
+    def test_rodada_extra_sem_cartao_conta_o_brief_e_nao_mede_o_quadro(self):  # E147.1: o brief vem do registro, não do quadro
+        self.gravar("docs/kanban/conferencias.md", CONFERENCIAS)
+        self.gravar("docs/kanban/historico.md", "")
+        _, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        self.assertIn("voltas: xpto resumo: brief=1 conferencia=nao-medido review=nao-medido revalidacao=nao-medido barrada=nao-medido "
+                      "nao-classificado=nao-medido minutos=7 construcao=- razao=-", linhas)
+        self.assertEqual(linhas[-1], "voltas: total: pedidos=1 voltas=1 minutos=7")
 
     def test_sem_conferencias_vale_o_disco_dos_briefs_por_destino(self):
         for nome in ("xpto-tech-lead-1", "xpto-tech-lead-2", "xpto-tech-lead-3", "xpto-qa-engineer-1", "xptoz-tech-lead-1", "xpto-2-tech-lead-1"):

@@ -215,7 +215,7 @@ MAPA = [
                            "test_fechar_move_cartao", "test_fechar_orfao", "test_fechar_prune_sandbox", "test_fechar_r1_worktree",
                            "test_fechar_rascunho", "test_fechar_ref_por_nome", "test_fechar_sha_arvore", "test_fechar_sha_conferido",
                            "test_fechar_sinal", "test_fechar_aviso_rotulo", "test_fechar_corrida_rotulo", "test_fechar_espera_catraca",
-                           "test_fechar_pr_numero", "test_fechar_busca_pareceres", "test_fechar_tmp", "test_fechar_vars_vazias", "test_conf_escopo", "test_entrega_git_falha", "test_erros_no_brief", "test_forge", "test_hooks",
+                           "test_fechar_pr_numero", "test_fechar_busca_pareceres", "test_fechar_limpar_clone", "test_fechar_tmp", "test_fechar_vars_vazias", "test_conf_escopo", "test_entrega_git_falha", "test_erros_no_brief", "test_forge", "test_hooks",
                            "test_pre_push_afetados", "test_qa_lote_l08", "test_revisor_wt")),
     # E14.1: o módulo comum é carregado pelo forge-testes e pelo forge-mutante, e os testes do forge-mutante não o citam
     (r"bin/forge_apoio_testes\.py", ("test_testes_tocados", "test_forge_mutante", "test_pre_push_afetados",
@@ -248,8 +248,9 @@ MAPA = [
     (r"docs/hooks-fixtures\.md", CONTEUDO + ("test_indice_fixtures", "test_prepush_lote_pp1")),  # Fase C: o índice gerado confere em dia; v0478 E94.1: o envio leve o confere
     (r"docs/indice-forge\.md", CONTEUDO + ("test_indice_forge",)),  # H7 (v0478 E8.1): o índice gerado confere em dia
     (r"docs/(security|devops)/_modelo\.md", CONTEUDO + ("test_volta_por_delta", "test_modelos_parecer_avisos_2", "test_textos_034")),
-    (r"skills/esperar-estado/.*|agents/tech-lead\.md", CONTEUDO + ("test_esperar_estado",)),
-    (r"skills/(briefs-e-conferencia|fluxo-do-pedido|trabalho-em-paralelo)/.*", CONTEUDO + ("test_comando_pronto",)),  # v0478 E66.1: o teste lê as três
+    (r"skills/esperar-estado/.*", CONTEUDO + ("test_esperar_estado", "test_comando_pronto")),  # v0478 E96.1: os dois leem a skill
+    (r"agents/tech-lead\.md", CONTEUDO + ("test_esperar_estado",)),
+    (r"skills/(briefs-e-conferencia|fluxo-do-pedido|trabalho-em-paralelo|qa-testing)/.*", CONTEUDO + ("test_comando_pronto",)),  # v0478 E66.1 e E96.1: o teste lê as cinco
     (r"skills/(produto-criterios|observabilidade-incidentes|explicar-para-o-leigo|modo-iniciante)/.*|agents/(jarvis|devops-engineer)\.md", CONTEUDO + ("test_skills_v0442",)),
     (r"docs/devops/pp1-pre-push\.patch", CONTEUDO + ("test_pre_push_patch",)),  # v047 E2.567: o teste aplica o patch
     (r"docs/engineering/v0479-sandbox-controle\.patch", CONTEUDO + ("test_sandbox_controle",)),  # v0478 E29.1: o teste aplica o patch

@@ -172,7 +172,7 @@ class LimparClones(unittest.TestCase):
         self.git("remote", "set-url", "origin", str(self.tmp / "outro.git"), cwd=alheio)
         r = self.limpar()
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=nenhum"])
         self.assertTrue(outra.is_dir() and alheio.is_dir())
 
     def test_worktree_que_ficou_nao_e_apagada_como_clone(self):
@@ -183,7 +183,7 @@ class LimparClones(unittest.TestCase):
         r = self.limpar()
         self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
         self.assertTrue(wt.is_dir())
-        self.assertNotIn("clone=", self.resumo(r)[0])
+        self.assertTrue(self.resumo(r)[0].endswith(" clone=nenhum"), r.stdout)  # LIMPAR-CLONE-NAO-LISTADO: o campo sempre sai
 
     # FORGE-FECHAR-CLONE-LIMPAR (v0478 E15.1): o --limpar rodado no clone que está na branch não o trata como worktree.
     def remota(self):

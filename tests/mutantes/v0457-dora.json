@@ -63,16 +63,6 @@
       ]
     },
     {
-      "id": "M7",
-      "guarda": "quadro ausente vale vazio",
-      "arquivo": "bin/forge_dora.py",
-      "de": "(ler_texto(arq) or \"\")",
-      "para": "(ler_texto(arq) or \"| 2026-01-01 | x |\")",
-      "testes": [
-        "tests.test_forge_dora.Metricas.test_quadro_ausente_vale_vazio_sem_recusado"
-      ]
-    },
-    {
       "id": "M8",
       "guarda": "so linha de tabela que comeca por data e lida",
       "arquivo": "bin/forge_dora.py",

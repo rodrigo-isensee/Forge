@@ -59,7 +59,8 @@ reprovou, revalidação, escrita barrada, retorno de coluna fora do vocabulário
 uma, lidas das linhas de tabela de docs/kanban/historico.md (hora ISO), de docs/kanban/conferencias.md e de docs/briefs. Do cartão que
 chegou à develop (primeiro movimento para "Aguardando sua validação" ou "Pronto") traz também `relogios:` (L49, D-4): minutos de
 `aberto_ate_develop` (primeiro movimento do cartão) e de `pronto_ate_develop` (entrada em "Pronto para fazer"; `-` se nunca esteve),
-com a `meta=30` do segundo e `dentro=sim|nao|-`.
+com a `meta=30` do segundo e `dentro=sim|nao|-`. Pedido sem cartão com movimento no quadro (E147.1): as voltas do quadro e os
+minutos saem `nao-medido`, não 0, e o total ganha `nao-medidos=N`; o `metricas` faz o mesmo nas contagens do pedido sem item no Histórico.
 `esperas` (M14b; só leitura) lista, por cartão de docs/kanban/historico.md, cada espera (`dono`: coluna ou motivo "Aguardando o dono";
 `credencial`: "Sem credencial"; `outra`: "Bloqueado" sem dizer por quê) e os minutos até o próximo movimento do cartão (`aberta` se não houve),
 mais o total por tipo; `--pedido` casa os cartões do pedido como o `transcricao custo --pedido` (e pelo motivo do movimento que cita o pedido), lista os casados e aceita `--kanban`.

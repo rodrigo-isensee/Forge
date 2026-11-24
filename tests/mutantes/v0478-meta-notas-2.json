@@ -16,7 +16,7 @@
       "id": "M10",
       "guarda": "resultado de ferramenta é pulado antes do json.loads (mutante: decodifica)",
       "arquivo": "hooks/meta.py",
-      "de": "if '\"type\":\"tool_result\"' in linha or (",
+      "de": "if ('\"type\":\"tool_result\"' in linha and '\"type\":\"assistant\"' not in linha) or (",
       "para": "if False or (",
       "testes": [
         "tests.test_meta.NotasEntreFerramentas.test_resultado_de_ferramenta_nem_se_decodifica"
