@@ -8161,6 +8161,72 @@ def vereditos_do_proximo(raiz, ids):
     return saida
 
 
+CRITERIO_DO_PEDIDO = re.compile(r"\*{0,2}C-(\d{1,3})\b\*{0,2}\s*[:.·-]?\s*(.*)")  # D7: o item `C-n <critério>` do `## Critério de pronto`
+PQ_NO_INICIO = re.compile(r"^\s*(?:[-*]\s+)?(?:\*\*)?PQ-(\d+)\b")  # a linha da prova, não a menção solta a um PQ (como em `conferir_pq`)
+COBRE_DA_PQ = re.compile(r"\bcobre:\s*(C-\d{1,3}(?:\s*,\s*C-\d{1,3})*)")  # D7: `PQ-n (<tipo>): ... · cobre: C-1, C-2`
+
+
+def criterios_do_pedido(pedido_txt):
+    """D7: ({"C-n": texto}, [repetidos]) dos itens `C-n` do `## Critério de pronto`, na ordem; o id é estável e nunca se renumera."""
+    criterios, repetidos = {}, []
+    for item in itens_de(secoes_por(pedido_txt, CABECALHO_PEDIDO).get("Critério de pronto", [])):
+        if not (m := CRITERIO_DO_PEDIDO.match(item)):
+            continue
+        cid = f"C-{int(m.group(1))}"
+        if cid in criterios:
+            repetidos.append(cid)
+        else:
+            criterios[cid] = m.group(2).strip()
+    return criterios, repetidos
+
+
+def provas_por_criterio(raiz, caminho, historico):
+    """D7: {"C-n": [(brief, "PQ-m")]} das linhas `PQ-m ... cobre: C-n` dos briefs selados do pedido cuja etapa do `Cobre:` tem
+    `entrega conferida` no `## Histórico` (A4, `etapas_conferidas`): prova de brief sem entrega conferida não conta."""
+    conferidas, raiz_pedido, provas, vistos = etapas_conferidas(raiz, caminho, historico), raiz_do_pedido(raiz, caminho), {}, set()
+    for linha in historico:
+        if not (m := BRIEF_SELADO.match(linha)) or m.group(1) in vistos:
+            continue
+        vistos.add(m.group(1))
+        try:
+            texto = (raiz_pedido / m.group(1)).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if grupo(r"\bCobre:\s*(\S+)", cabecalho_do_brief(texto)) not in conferidas:
+            continue
+        for pq in secoes_por(texto, CABECALHO_BRIEF).get("Pronto quando", []):
+            if (n := PQ_NO_INICIO.match(pq)) and (c := COBRE_DA_PQ.search(pq)):
+                for cid in dict.fromkeys(f"C-{int(x)}" for x in re.findall(r"C-(\d+)", c.group(1))):
+                    provas.setdefault(cid, []).append((m.group(1), f"PQ-{n.group(1)}"))
+    return provas
+
+
+def cmd_criterios(raiz, pedido):
+    """D7 (rastreio leve do critério à prova): a tabela pedido × entregue, só leitura e sem rede. Cada `C-n` do `## Critério de pronto`
+    sai `entregue`, com o brief e o `PQ-m` que o cobrem, ou `não entregue`. rc 0 com todos entregues; 1 com algum não entregue, id
+    repetido ou `cobre:` de prova conferida fora dos critérios; 2 sem pedido legível ou sem critério `C-n`."""
+    try:
+        caminho = caminho_do_pedido(raiz, pedido)
+        pedido_txt = caminho.read_text(encoding="utf-8")
+    except (PedidoFora, OSError, UnicodeDecodeError):
+        return [f"criterios: pedido {nome_seguro(sem_controle(pedido))}: {NAO_VERIFICAVEL} (o arquivo do pedido não abre)"], 2
+    pedido_id = (re.search(r"^id:\s*(\S+)", pedido_txt, re.M) or [None, caminho.stem])[1]
+    criterios, repetidos = criterios_do_pedido(pedido_txt)
+    if not criterios:
+        return [f"criterios: pedido {caminho_impresso(pedido_id)}: {NAO_VERIFICAVEL} (sem item `C-n` no `## Critério de pronto`)"], 2
+    secoes = secoes_por(pedido_txt, CABECALHO_PEDIDO)
+    provas = provas_por_criterio(raiz, caminho, secoes.get("Histórico", []))
+    linhas = [f"criterios: {cid} repetido no pedido; vale o primeiro" for cid in repetidos]
+    for cid, texto in criterios.items():
+        quem = ", ".join(f"{caminho_impresso(b)} {pq}" for b, pq in provas.get(cid, []))
+        linhas.append(f"criterios: {cid} · {'entregue · ' + quem if quem else 'não entregue'} · {sem_controle(texto)[:160]}")
+    fora = [cid for cid in provas if cid not in criterios]
+    linhas += [f"criterios: {cid}: `cobre:` de prova conferida fora do `## Critério de pronto`" for cid in fora]
+    faltam = sum(cid not in provas for cid in criterios)
+    cabeca = f"criterios: pedido {caminho_impresso(pedido_id)} · {len(criterios)} critérios · {len(criterios) - faltam} entregues · {faltam} não entregues"
+    return [cabeca] + linhas, 1 if faltam or fora or repetidos else 0
+
+
 def cmd_proximo(raiz, pedido, item=None, etapa=None):
     """L17 (AQ-2): o ponto em que o pedido está, só leitura e sem rede: etapas com o estado que o Histórico prova, branch, último veredito dos
     pareceres, próximo passo e bloqueios. O texto do pedido é DADO: cada linha sai por `sem_controle`, limitada em largura, e o próximo
@@ -10685,6 +10751,9 @@ def main():
     px.add_argument("pedido", help="id de docs/pedidos/<id>.md")
     px.add_argument("--item", help="E<n> (até 3 dígitos): passo, dono e comando do item, lidos da marca do brief de implementação e do registro (V1)")
     px.add_argument("--etapa", help="E<n>.<m>: só esta etapa, entregue ou não; sem ela, só as etapas sem registro de entrega (PROXIMO-POR-ETAPA)")
+    cr = sub.add_parser("criterios", parents=[comum], help="D7: a tabela pedido × entregue; cada `C-n` do `## Critério de pronto` sai "
+                        "entregue (PQ com `cobre: C-n` de brief com entrega conferida) ou não entregue; só leitura")
+    cr.add_argument("pedido", help="id de docs/pedidos/<id>.md")
     de = sub.add_parser("decisoes", parents=[comum], help="registro das linhas DECISÃO DO DONO dos pedidos (data, decisão, motivo, reabre se); só leitura, no stdout (EXT-2)")
     de.add_argument("acao", nargs="?", choices=("registrar", "reverter", "conferir"), help="decisão óbvia por regra fixa (orkastery 3): "
                     "registrar (só os fatos; porta fechada ou condição faltando vira pergunta, rc 1), reverter --id, conferir --mensagem")
@@ -11041,8 +11110,8 @@ def executar(a, raiz):
         if a.alvo == "selar":
             return cmd_brief_selar(raiz, a)
         return cmd_brief_conferir(raiz, a.alvo, a.pedido, a.destino, a.anterior, a.ref, a.parecer)
-    if a.cmd == "proximo":
-        linhas, codigo = cmd_proximo(raiz, a.pedido, a.item, a.etapa)
+    if a.cmd in ("proximo", "criterios"):
+        linhas, codigo = cmd_proximo(raiz, a.pedido, a.item, a.etapa) if a.cmd == "proximo" else cmd_criterios(raiz, a.pedido)
         for linha in linhas:
             print(linha)
         return codigo

@@ -1,0 +1,16 @@
+{
+  "pedido": "v0480-d7-rastreio-criterio",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D717",
+      "guarda": "E174.2: o subcomando criterios chega ao cmd_criterios",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd in (\"proximo\", \"criterios\"):",
+      "para": "    if a.cmd == \"proximo\":",
+      "testes": [
+        "tests.test_criterios.Criterios.test_todos_entregues_sai_com_rc_zero"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-d7-rastreio-criterio",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D71",
+      "guarda": "E174.2: item do Critério de pronto sem id C-n fica fora da tabela",
+      "arquivo": "bin/forge-check",
+      "de": "if not (m := CRITERIO_DO_PEDIDO.match(item)):",
+      "para": "if (m := CRITERIO_DO_PEDIDO.match(item)) and False:",
+      "testes": [
+        "tests.test_criterios.Criterios.test_criterio_com_prova_conferida_entregue_e_sem_prova_nao_entregue"
+      ]
+    },
+    {
+      "id": "D72",
+      "guarda": "E174.2: id C-n repetido é apontado e vale o primeiro",
+      "arquivo": "bin/forge-check",
+      "de": "        if cid in criterios:\n            repetidos.append(cid)",
+      "para": "        if False:\n            repetidos.append(cid)",
+      "testes": [
+        "tests.test_criterios.Criterios.test_id_repetido_reprova_e_vale_o_primeiro"
+      ]
+    },
+    {
+      "id": "D73",
+      "guarda": "E174.2: só a linha de brief selado do Histórico abre brief",
+      "arquivo": "bin/forge-check",
+      "de": "if not (m := BRIEF_SELADO.match(linha)) or m.group(1) in vistos:",
+      "para": "if False or m.group(1) in vistos:",
+      "testes": [
+        "tests.test_criterios.Criterios.test_criterio_com_prova_conferida_entregue_e_sem_prova_nao_entregue"
+      ]
+    },
+    {
+      "id": "D74",
+      "guarda": "E174.2: brief selado duas vezes não duplica a prova",
+      "arquivo": "bin/forge-check",
+      "de": "if not (m := BRIEF_SELADO.match(linha)) or m.group(1) in vistos:",
+      "para": "if not (m := BRIEF_SELADO.match(linha)):",
+      "testes": [
+        "tests.test_criterios.Criterios.test_criterio_com_prova_conferida_entregue_e_sem_prova_nao_entregue"
+      ]
+    },
+    {
+      "id": "D75",
+      "guarda": "E174.2: brief sem entrega conferida não prova critério",
+      "arquivo": "bin/forge-check",
+      "de": "        if grupo(r\"\\bCobre:\\s*(\\S+)\", cabecalho_do_brief(texto)) not in conferidas:\n            continue\n        for pq in",
+      "para": "        if False:\n            continue\n        for pq in",
+      "testes": [
+        "tests.test_criterios.Criterios.test_brief_sem_entrega_conferida_nao_prova"
+      ]
+    },
+    {
+      "id": "D76",
+      "guarda": "E174.2: só a linha que começa com PQ-n é prova; a menção solta não",
+      "arquivo": "bin/forge-check",
+      "de": "if (n := PQ_NO_INICIO.match(pq)) and (c := COBRE_DA_PQ.search(pq)):",
+      "para": "if (n := PQ_NO_INICIO.match(pq) or PQ.search(pq)) and (c := COBRE_DA_PQ.search(pq)):",
+      "testes": [
+        "tests.test_criterios.Criterios.test_criterio_com_prova_conferida_entregue_e_sem_prova_nao_entregue"
+      ]
+    },
+    {
+      "id": "D77",
+      "guarda": "E174.2: PQ sem campo cobre: não cobre critério",
+      "arquivo": "bin/forge-check",
+      "de": "if (n := PQ_NO_INICIO.match(pq)) and (c := COBRE_DA_PQ.search(pq)):",
+      "para": "if (n := PQ_NO_INICIO.match(pq)) and ((c := COBRE_DA_PQ.search(pq)) or True):",
+      "testes": [
+        "tests.test_criterios.Criterios.test_criterio_com_prova_conferida_entregue_e_sem_prova_nao_entregue"
+      ]
+    },
+    {
+      "id": "D78",
+      "guarda": "E174.2: pedido que não abre sai com rc 2",
+      "arquivo": "bin/forge-check",
+      "de": "        return [f\"criterios: pedido {nome_seguro(sem_controle(pedido))}: {NAO_VERIFICAVEL} (o arquivo do pedido não abre)\"], 2",
+      "para": "        return [f\"criterios: pedido {nome_seguro(sem_controle(pedido))}: {NAO_VERIFICAVEL} (o arquivo do pedido não abre)\"], 0",
+      "testes": [
+        "tests.test_criterios.Criterios.test_pedido_sem_criterio_c_n_ou_ilegivel_sai_nao_verificavel"
+      ]
+    }
+  ]
+}
