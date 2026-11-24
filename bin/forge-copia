@@ -9,6 +9,7 @@ allowWrite da sessão; no projeto, fica dentro da pasta dele (gravável no sandb
 link simbólico), a própria pasta, destino já ocupado, e nome de branch ou base que pareça opção. Nunca força nada.
 CLONE-NOME-UNICO: destino já ocupado (cópia de outra branch ou em uso por outro agente) nunca é reusado; a recusa diz a branch dele
 e sugere um nome livre na mesma pasta, <branch-sem-prefixo>-<papel> (sem --papel, <branch-sem-prefixo>), com -2, -3... se já tomado.
+O `forge-check brief gerar` usa o mesmo `nome_unico` e já põe no brief a cópia só do agente destino (branch e papel; E172.7).
 Com --instalar, depois de criar, roda na cópia os comandos de stacks/<stack>/instalar.json (lista de argv, sem shell) das stacks cujos
 arquivos de `detecta` (o lockfile) existem na cópia, com o ambiente sem credencial (GH_TOKEN e afins); sem stack detectada avisa e sai 0; comando ausente ou falho: sai 1 (a cópia fica).
 Disco (MP6): com o disco da pasta liberada acima do limiar de `forge_disco.py` (ou ilegível), recusa e manda limpar, antes de criar.

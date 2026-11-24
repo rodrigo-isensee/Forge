@@ -1,0 +1,24 @@
+{
+  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (GRAPHQL-CONSULTA-EM-VARIAVEL, E168.5, A1 da segurança do #854): `gh -R o/r pr merge … --admin`, com o repositório antes do subcomando, recusa como `gh pr merge -R o/r … --admin`.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh -R o/r pr merge feature/x --admin"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-MAIN: gh pr merge com --admin desvia a proteção da branch"
+  }
+}

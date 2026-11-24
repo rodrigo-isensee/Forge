@@ -19,6 +19,7 @@ import json
 import os
 import re
 import signal
+import stat
 import tempfile
 import shlex
 import subprocess
@@ -340,6 +341,53 @@ CAMPOS_DA_API = {"-f", "-F", "--field", "--raw-field"}
 PRIVADO_REST = {"private": {"true"}, "visibility": {"private", "internal"}}  # o valor privado de cada nome
 CORPO_ILEGIVEL = [("", None)]  # o `--input` que o hook não lê (sentinela: comparado por identidade)
 API_SEGMENTO_ESTRANHO = re.compile(r"(^|/)\.{0,2}(/|$)")  # `user//repos`, `user/./repos`: o servidor pode normalizar
+CHAVES = parecer.CHAVES  # E168.9 (A5): a palavra que pode ter expansão de chaves (`expansao_por_palavra`); fonte única
+GRAPHQL_ILEGIVEL = ("R-CONFORMIDADE", "gh api graphql com consulta que o hook não lê (variável, expansão do shell, "
+                    "arquivo ou entrada padrão)", "escreva a consulta literal entre aspas simples "
+                    "(gh api graphql -f query='...') e cada valor em -F \"nome=$valor\", com aspas")
+
+
+def expansao_por_palavra(linha):
+    """GRAPHQL-CONSULTA-EM-VARIAVEL (E168.1): {palavra sem aspas, como o `shlex` a devolve: a maior expansão vista nela}.
+    0: `$` e crase literais (aspas simples, barra; entre aspas duplas, `\\$` fica como o `shlex` o lê); 1: expansão
+    entre aspas duplas (o valor fica numa palavra só); 2: fora de aspas (o bash divide o valor em palavras). A palavra
+    que esta leitura não reproduz fica fora, e quem consulta a toma por 2."""
+    saida, texto, nivel, aspas, letras = {}, [], 0, None, iter(linha)
+    chave, anterior = False, ""  # E168.9 (A5): `{` fora de aspas na palavra; a letra anterior fora de aspas
+
+    def juntar():  # a palavra vazia (`""`) entra e não pesa: só a palavra com `$` ou crase é consultada
+        palavra = "".join(texto)
+        saida[palavra] = max(saida.get(palavra, 0), nivel)
+
+    for c in letras:
+        fora = aspas is None
+        if aspas == "'":
+            if c == "'":
+                aspas = None
+            else:
+                texto.append(c)
+        elif c == "\\":  # o escapado é literal; entre aspas duplas o `shlex` só tira a barra antes de `"` e `\\`
+            seguinte = next(letras, "")
+            texto.append(("\\" if aspas and seguinte not in '"\\' else "") + seguinte)
+        elif c in "$`" or fora and (CURINGA.match(c) or chave and (c == "," or c == "." == anterior)):
+            # E168.5 (A3): o curinga fora de aspas o bash troca por nomes; E168.9 (A5): a chave com `,` ou `..` fora de
+            # aspas (`{'…mergePull','-Hx:'}'Request…'`), por várias palavras remontadas
+            nivel = max(nivel, 1 if aspas else 2)
+            texto.append(c)
+        elif c == aspas:
+            aspas = None
+        elif aspas or not (c in "'\";&|" or c.isspace()):
+            texto.append(c)
+        elif c in "'\"":
+            aspas = c
+        else:
+            juntar()
+            texto, nivel, chave = [], 0, False
+        chave, anterior = (chave or c == "{", c) if fora else (chave, "")
+    juntar()
+    return saida
+
+
 CRIAR_COM_VALOR = {"-d", "--description", "-h", "--homepage", "-t", "--team", "-g", "--gitignore", "-l", "--license", "-p",
                    "--template", "-r", "--remote", "-s", "--source"}  # as opções de `gh repo create` que levam valor
 API_CRIA_REPO = re.compile(r"user/repos|orgs/[^/]+/repos|repos/[^/]+/[^/]+/generate", re.I)  # endpoint normalizado
@@ -3167,8 +3215,14 @@ class Guarda:
             if a == "--input" or a.startswith("--input=") or re.search(r"=@", a) or (
                     a in ("-F", "--field") and i + 1 < len(args) and "=@" in args[i + 1]):
                 arq = valor if a.startswith("--input") else (args[i + 1] if a in ("-F", "--field") else a).split("=@", 1)[-1]
-                try:
-                    textos.append(Path(expandir_home(str(pasta / os.path.expandvars(arq)))).read_text(encoding="utf-8"))
+                caminho = expandir_home(str(pasta / os.path.expandvars(arq)))
+                try:  # E168.5 (A2): `/dev/stdin`, `/proc/self/fd/0` e FIFO não são o arquivo que o gh lê: ilegível
+                    if any(p(caminho).startswith(("/dev/", "/proc/")) for p in (os.path.abspath, os.path.realpath)):
+                        return textos, True
+                    with open(os.open(caminho, os.O_RDONLY | os.O_NONBLOCK), "rb") as f:
+                        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+                            return textos, True
+                        textos.append(f.read().decode("utf-8"))
                 except (OSError, ValueError):
                     return textos, True
             else:
@@ -3288,7 +3342,9 @@ class Guarda:
                             self.rotulo_na_sessao_do_forge(p, pasta, nivel + 1)
                     prog = Path(palavras[0].lstrip("`")).name if palavras else ""
                     if prog == "gh":
-                        self.gh_rotulo(palavras, pasta, atras_do_xargs(escritas, palavras))
+                        if parecer.gh_incerto(palavras):  # E168.9: o subcomando incerto pode aplicar o rótulo
+                            self.exigir_dono()
+                        self.gh_rotulo(parecer.ordem_do_gh(palavras), pasta, atras_do_xargs(escritas, palavras))
                         self.gh_pr_na_sessao_do_forge(palavras, pasta)
                     elif prog == "alias" and CITA_ROTULO.search(" ".join(palavras)):  # A5: o alias do shell guarda o rótulo
                         self.exigir_dono()
@@ -3429,6 +3485,32 @@ class Guarda:
                 self.barrar(*publico)
             if self.api_publica(args, pasta):
                 self.barrar(*publico)
+
+    def consulta_ilegivel(self, args):
+        """GRAPHQL-CONSULTA-EM-VARIAVEL (E168.1, decisão do dono de 24/11, opção a; C1 de v0480-repo-publico-v2): o `gh api`
+        do GraphQL (ou de endpoint com expansão) com palavra que o hook não lê, em todo papel: a expansão fora de aspas
+        (o bash a divide em palavras) e, entre aspas duplas, fora do valor de uma opção ou de um campo de nome literal que
+        não é `query`. O arquivo e a entrada padrão que o hook não lê já recusam antes (GH-MERGE-ADMIN, R-CONTRIB)."""
+        args = parecer.desagrupa_i(args)
+        endpoint = parecer.endpoint_da_api(args)
+        if not (e_graphql(endpoint) or parecer.expande(endpoint)):
+            return False
+        vistas, j = expansao_por_palavra(self.texto_da_linha), 0
+        while j < len(args):
+            a, j = args[j], j + 1
+            opcao = a if a in parecer.API_COM_VALOR else None
+            if opcao:
+                a, j = (args[j] if j < len(args) else ""), j + 1
+            nivel = vistas.get(a, 2) if parecer.expande(a) or CURINGA.search(a) or CHAVES.search(a) else 0
+            if nivel == 2:
+                return True
+            if nivel == 0 or opcao and opcao not in CAMPOS_DA_API:
+                continue  # literal, ou o valor entre aspas de -H, --jq, -X: uma palavra só, fora da consulta
+            colado = CAMPO_COLADO.fullmatch(a)
+            chave, igual, _ = (a if opcao else colado[1] if colado else "").partition("=")
+            if not igual or parecer.expande(chave) or chave.lower() == "query":
+                return True
+        return False
 
     def api_publica(self, args, pasta):
         """CONFORMIDADE-REPO-CREATE-PUBLICO (A2): `gh api` mutante que cria ou edita repositório sem a visibilidade privada
@@ -3660,6 +3742,9 @@ class Guarda:
         return bool(expansoes) and nome not in COMANDOS_DO_GH
 
     def gh(self, palavras, parte, pasta, repo_env=None, por_xargs=False, config_env=None, alias=True):
+        if parecer.gh_incerto(palavras):  # E168.9: na dúvida sobre o subcomando, recusa, sem escolher leitura
+            self.barrar("R-CONFORMIDADE", *parecer.GH_INCERTO)
+        palavras = parecer.ordem_do_gh(palavras)  # E168.5: toda trava do gh lê o subcomando logo depois do `gh`
         if alias and self.gh_pelo_alias(palavras, pasta, repo_env, por_xargs, config_env):
             return
         self.gh_trava(palavras, pasta)
@@ -3695,6 +3780,10 @@ class Guarda:
                             "use gh pr/git pelo papel certo ou leve ao usuário (R-DECISAO)")
             if parecer.metodo_mutante(args):
                 self.gh_api_de_merge(args, pasta)
+            # por último: a regra do gh fala antes. E168.9 (A5): no GraphQL, também sem campo à vista (a chave fora de
+            # aspas esconde o `-f` que o bash remonta)
+            if (parecer.metodo_mutante(args) or e_graphql(parecer.endpoint_da_api(args))) and self.consulta_ilegivel(args):
+                self.barrar(*GRAPHQL_ILEGIVEL, trava=TRAVA)  # também na sessão do Forge: a consulta pode ser um merge
 
     # Pacotes ----------------------------------------------------------------------------------------
     @staticmethod

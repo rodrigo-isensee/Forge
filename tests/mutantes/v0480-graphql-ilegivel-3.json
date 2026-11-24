@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-graphql-ilegivel",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "GQ9",
+      "guarda": "E168.1: expansão fora de aspas vale 2, entre aspas duplas 1",
+      "arquivo": "hooks/conformidade.py",
+      "de": "nivel = max(nivel, 1 if aspas else 2)",
+      "para": "nivel = max(nivel, 1 if not aspas else 2)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ10",
+      "guarda": "E168.1: a barra torna literal o caractere seguinte",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif c == \"\\\\\":  # o escapado",
+      "para": "        elif False:  # o escapado",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ11",
+      "guarda": "E168.1: entre aspas duplas a barra fica antes do $, como o shlex a lê",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if aspas and seguinte not in '\"\\\\' else",
+      "para": "if aspas and seguinte in '\"\\\\' else",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ12",
+      "guarda": "E168.1: entre aspas simples o $ é literal",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if aspas == \"'\":\n            if c == \"'\":",
+      "para": "        if False:\n            if c == \"'\":",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ13",
+      "guarda": "E168.1: a aspa simples fecha o trecho literal",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if c == \"'\":\n                aspas = None",
+      "para": "            if False:\n                aspas = None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ14",
+      "guarda": "E168.1: a aspa dupla fecha o trecho entre aspas duplas",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif c == aspas:\n            aspas = None",
+      "para": "        elif False:\n            aspas = None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ15",
+      "guarda": "E168.1: o espaço fora de aspas separa as palavras",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif aspas or not (c in \"'\\\";&|\" or c.isspace()):",
+      "para": "elif True:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ16",
+      "guarda": "E168.1: a aspa fora de aspas abre o trecho",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif c in \"'\\\"\":\n            aspas = c",
+      "para": "        elif False:\n            aspas = c",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    }
+  ]
+}

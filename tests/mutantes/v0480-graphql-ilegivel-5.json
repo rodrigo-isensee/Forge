@@ -1,0 +1,27 @@
+{
+  "pedido": "v0480-graphql-ilegivel",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "GQ25",
+      "guarda": "E168.5 (A2): o que não é arquivo regular (FIFO, dispositivo) é ilegível, sem esperar o escritor",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):\n                            return textos, True",
+      "para": "                        if False:\n                            return textos, True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_graphql_arquivo_que_nao_e_regular_e_ilegivel"
+      ]
+    },
+    {
+      "id": "GQ26",
+      "guarda": "E168.5 (A1): só a opção que leva valor pula a palavra seguinte",
+      "arquivo": "hooks/parecer.py",
+      "de": "        i += 2 if leva_valor(toks[i]) else 1",
+      "para": "        i += 2 if False else 1",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ordem_do_gh",
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    }
+  ]
+}

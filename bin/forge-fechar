@@ -14,6 +14,8 @@
 # FECHAR-SEM-AUTO-MERGE (decisão do dono de 21/11): o merge é sempre direto, pelo script, preso ao head conferido
 # (`gh pr merge <branch> --squash --match-head-commit <sha>`), e só depois da conferência acima; nenhum caminho entrega o merge ao GitHub.
 # --armar: recusado (código 1, sem nada feito): o merge automático é proibido pelo dono; rode sem ele, que o script espera os checks e mescla.
+# FECHAR-NUNCA-AUTO (decisão do dono de 24/11): antes de tudo (também --dry-run e --limpar), busca a origin/develop e recusa (código 1, nada feito)
+# se este arquivo difere do bin/forge-fechar dela (cópia velha); e o merge exige todo check-run do head verde, não só os obrigatórios.
 # Código de saída: 0 fechado e limpo; 1 parou; 3 fechado (o merge ocorreu) com limpeza pendente (o resumo "limpeza: ..." lista o comando de cada parte).
 # --limpar: roda só o passo 7, sem forge-check nem merge, e só com prova de PR MERGED na develop para a branch; cada parte é "se existe" (repete sem
 # efeito colateral). Rodado de dentro da worktree da própria branch, sai dela para a principal antes de remover. Só apaga a branch (local e remota) se o sha é o do PR mesclado ou já está na base; nunca usa a opção que força.
@@ -321,6 +323,19 @@ cd "$(git rev-parse --show-toplevel)"
 if ! grep -qE '"name"[[:space:]]*:[[:space:]]*"forge"' .claude-plugin/plugin.json 2>/dev/null; then
   die "este não é o repositório do Forge (sem .claude-plugin/plugin.json com name forge); o fechamento é do tech-lead no Forge (R-CONTRIB)"
 fi
+# FECHAR-NUNCA-AUTO (decisão do dono de 24/11): cópia velha (a da cópia principal, com o passo 6 antigo) mescla pela regra antiga. Antes de tudo,
+# também no --dry-run e no --limpar, busca a origin/develop e exige que este arquivo seja, byte a byte, o bin/forge-fechar dela; busca que falha,
+# develop sem o arquivo ou blob diferente param, sem nada feito. Só com FORGE_FECHAR_TESTE=1 e FORGE_FECHAR_COPIA_LIVRE=1 (os testes) a conferência cai.
+copia_da_develop() {
+  local meu dela wt="${HOME:-}/.forge-contrib/wt/fechar-develop"
+  if [ "${FORGE_FECHAR_TESTE:-}" = 1 ] && [ "${FORGE_FECHAR_COPIA_LIVRE:-}" = 1 ]; then return 0; fi
+  git fetch -q --no-tags origin "+refs/heads/develop:refs/remotes/origin/develop" >/dev/null 2>&1 \
+    || die "recusado: não consegui buscar a origin/develop (git fetch origin develop) para conferir esta cópia ($eu); nada foi feito"
+  dela="$(git rev-parse -q --verify "refs/remotes/origin/develop:bin/forge-fechar")" || die "recusado: a origin/develop não tem bin/forge-fechar para conferir esta cópia ($eu); nada foi feito"
+  meu="$(git hash-object --no-filters -- "$eu")"
+  [ "$meu" = "$dela" ] || die "recusado: esta cópia ($eu, blob ${meu:0:12}) difere do bin/forge-fechar da origin/develop (blob ${dela:0:12}): cópia velha mescla pela regra antiga (FECHAR-NUNCA-AUTO); nada foi feito. Use a da develop: git worktree add --detach $wt origin/develop (se já existe: git -C $wt switch --detach origin/develop) e rode $wt/bin/forge-fechar com os mesmos argumentos"
+}
+copia_da_develop
 
 # Log em arquivo: stdout e stderr continuam na tela; cada linha também vai ao arquivo, com hora e sem segredo (ver `mascarar`).
 # A pasta é por usuário e só é aceita se for diretório de verdade (sem link simbólico) e do próprio usuário; o modo é ajustado para 700 (com aviso), setgid incluído.
@@ -916,9 +931,10 @@ mover_cartoes() {
 # ao lado da nova (E75.6). A execução em skipped não conta (nem verde nem falha): no commit da marca, o push na develop deixa a bateria em
 # skipped antes de o CI do PR criar a dele; o exigido só em skipped fica ausente. Terminada fora de success (failure, cancelled, timed_out...)
 # para; pendente ou ausente espera (a cada FORGE_FECHAR_INTERVALO, até --espera contado de <início>, o do passo 4 no passo 6) e relê tudo; sem
-# todos verdes, nada mescla. Leitura que falha para.
+# todos verdes, nada mescla. Leitura que falha para. FECHAR-NUNCA-AUTO (decisão do dono de 24/11): além dos exigidos, todo outro check-run do
+# head (a mais recente de cada nome, fora de skipped) tem de estar em completed/success: terminado fora dele para; pendente espera do mesmo jeito.
 checks_do_head_verdes() {
-  local runs par nome ultima falta falta_e ini="$2"
+  local runs par nome ultima falta falta_q falta_e ini="$2"
   while :; do
     runs="$(ler "$gh" api "repos/{owner}/{repo}/commits/$remoto_sha/check-runs?filter=latest&per_page=100" --jq '.check_runs[] | [.name, .id, .status, (.conclusion // "-")] | @tsv')" \
       || die "parou no passo $1: não consegui ler os check-runs do head $remoto_sha; nada foi mesclado"
@@ -929,16 +945,24 @@ checks_do_head_verdes() {
       case "$ultima" in
         completed/success) ;;
         completed/*) die "parou no passo $1: o check obrigatório $nome do head ${remoto_sha:0:12} terminou em ${ultima#completed/} na execução mais recente; nada foi mesclado (o bypass do ruleset deixaria a conta do dono mesclar)" ;;
-        *) [ -n "$falta" ] || { falta="$nome" falta_e="${ultima:-ausente}"; } ;;
+        *) [ -n "$falta" ] || { falta="$nome" falta_q="check obrigatório" falta_e="${ultima:-ausente}"; } ;;
       esac
     done
+    # FECHAR-NUNCA-AUTO: depois dos exigidos, todo outro nome do head, pela mesma execução mais recente fora de skipped
+    while IFS=$'\t' read -r nome ultima; do
+      case "$ultima" in
+        ""|completed/success) ;;
+        completed/*) die "parou no passo $1: o check-run $nome do head ${remoto_sha:0:12} terminou em ${ultima#completed/} na execução mais recente; nada foi mesclado (FECHAR-NUNCA-AUTO: todo check-run do head, não só os obrigatórios, tem de estar verde)" ;;
+        *) [ -n "$falta" ] || { falta="$nome" falta_q="check-run" falta_e="$ultima"; } ;;
+      esac
+    done < <(printf '%s\n' "$runs" | awk -F'\t' 'NF >= 4 && $4 != "skipped" && (!($1 in id) || $2 + 0 > id[$1]) {id[$1] = $2 + 0; e[$1] = $3 "/" $4} END {for (n in e) print n "\t" e[n]}' | LC_ALL=C sort)
     [ -n "$falta" ] || break
     [ $((SECONDS - ini)) -lt "$espera" ] \
-      || die "parou no passo $1: o check obrigatório $falta do head ${remoto_sha:0:12} não está verde (completed/success) na execução mais recente (lida: $falta_e) após ${espera}s; nada foi mesclado (o bypass do ruleset deixaria a conta do dono mesclar)"
+      || die "parou no passo $1: o $falta_q $falta do head ${remoto_sha:0:12} não está verde (completed/success) na execução mais recente (lida: $falta_e) após ${espera}s; nada foi mesclado (o bypass do ruleset deixaria a conta do dono mesclar)"
     echo "check-runs do head ${remoto_sha:0:12}: espero $falta ($falta_e); releio em ${intervalo}s."
     dormir "$intervalo"
   done
-  echo "check-runs obrigatórios do head ${remoto_sha:0:12} verdes: ${exigidos[*]}."
+  echo "check-runs obrigatórios do head ${remoto_sha:0:12} verdes: ${exigidos[*]}; todo outro check-run do head também (FECHAR-NUNCA-AUTO)."
 }
 # mesclar_direto <método> <head> [--subject T --body C]: o único `gh pr merge` do script (passo 6 e P6), por nome de branch ($ref, que o hook
 # `parecer` exige), direto e preso ao head, sempre depois de checks_do_head_verdes (FECHAR-SEM-AUTO-MERGE). FECHAR-PROMOVER-MENSAGEM-PT: o merge
@@ -1385,7 +1409,7 @@ if [ "$seco" = 1 ]; then
   passo 5 "$gh pr view <número do PR, lido no passo 3> --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
   passo "6a" "git ls-remote origin refs/heads/$alvo (a base que o passo 2b leu? se andou durante os checks: com conflito no git merge-tree --write-tree para sem mesclar; sem conflito segue, sem trazer a base (E8); base local velha: busca a base uma vez, só leitura, e confere o merge com ela)"
   [ "$item_de_lote" = 1 ] || passo "6b" "$gh run list --branch $alvo --event push --commit <topo da $alvo>: verde antes do merge (pendente espera até ${espera_ci}s; vermelho para)"
-  passo 6 "check-runs obrigatórios do head verdes (${CHECKS_EXIGIDOS[*]} e os do ruleset ou da proteção de $alvo; skipped não conta; falha para; pendente espera até o fim do --espera do passo 4); relê o PR e a base de $alvo; $gh pr merge $ref $metodo --match-head-commit <head conferido> (merge direto, nunca automático; base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge)"
+  passo 6 "check-runs obrigatórios do head verdes (${CHECKS_EXIGIDOS[*]} e os do ruleset ou da proteção de $alvo; e todo outro check-run do head, FECHAR-NUNCA-AUTO; skipped não conta; falha para; pendente espera até o fim do --espera do passo 4); relê o PR e a base de $alvo; $gh pr merge $ref $metodo --match-head-commit <head conferido> (merge direto, nunca automático; base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge)"
   for c in "${cartoes[@]}"; do echo "cartão $c: depois do merge, forge-check movimento $c --de $(coluna_do_cartao "$c") --para Pronto --raiz $quadro"; done
   [ "$sem_limpar" = 0 ] || echo "--sem-limpar: o passo 7 é pulado; imprime os comandos da limpeza e sai com código 3 depois do merge."
   passo 7 "git worktree remove <worktree de $ref> (prune se o diretório já sumiu); git branch -D $ref (só com o sha mesclado); clones da branch em ~/.forge-contrib/wt (só limpos, com tudo na origem e mesclados); git push origin --delete $ref (até 3 tentativas, por último); sai com código 3 se algo ficar pendente"
