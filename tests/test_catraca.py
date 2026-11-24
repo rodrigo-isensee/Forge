@@ -774,7 +774,7 @@ class TestesAfrouxados(Base):
 
     def test_acrescimos_ajudante_e_arquivo_fora_de_tests_passam(self):
         novo = (self.Y.replace("        f()\n    def ajuda", "        self.assertIsNone(f(), 7)\n    def ajuda")
-                .replace("    def ajuda(self):\n        return 1\n", "") + "    def test_d(self):\n        assert 1\n")
+                .replace("    def ajuda(self):\n        return 1\n", "") + "    def test_d(self):\n        assert self\n")
         self.assertEqual(self.afrouxados(novo), [])
         self.assertEqual(self.afrouxados("", "scripts/test_z.py"), [])
         self.assertEqual(self.afrouxados("", "tests/catraca.py"), [])
