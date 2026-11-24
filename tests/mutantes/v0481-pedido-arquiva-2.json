@@ -4,7 +4,7 @@
   "mutantes": [
     {
       "id": "M9",
-      "guarda": "PEDIDO-ARQUIVA-SOZINHO: a seção `## Etapas arquivadas` existente recebe os ids, sem outra seção",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: a segunda rodada acrescenta à seção existente",
       "arquivo": "bin/forge-check",
       "de": "if onde is None:",
       "para": "if True:",
@@ -14,7 +14,7 @@
     },
     {
       "id": "M10",
-      "guarda": "PEDIDO-ARQUIVA-SOZINHO: o brief gerar só arquiva na margem de 80% do teto",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: brief abaixo da margem não arquiva",
       "arquivo": "bin/forge-check",
       "de": "if not rc and texto is not None and modulo_do_bin(\"forge_tamanho\").aviso_de_caracteres(len(texto), TETO_DE_CARACTERES_DO_BRIEF):",
       "para": "if not rc and texto is not None:",
@@ -24,7 +24,7 @@
     },
     {
       "id": "M11",
-      "guarda": "PEDIDO-ARQUIVA-SOZINHO: sem etapa arquivada, nem aviso nem brief remontado",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: sem etapa arquivada, nada de aviso de arquivamento",
       "arquivo": "bin/forge-check",
       "de": "            if quantas:",
       "para": "            if True:",
@@ -34,7 +34,7 @@
     },
     {
       "id": "M12",
-      "guarda": "PEDIDO-ARQUIVA-SOZINHO: o aviso e o arquivamento a partir de 80% do teto",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: a margem do aviso é 80% do teto",
       "arquivo": "bin/forge_tamanho.py",
       "de": "MARGEM_DO_BRIEF = 0.8",
       "para": "MARGEM_DO_BRIEF = 0.9",
@@ -44,7 +44,7 @@
     },
     {
       "id": "M13",
-      "guarda": "PEDIDO-ARQUIVA-SOZINHO: a ordem que aponta etapa arquivada ainda acha a etapa",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: o apontador --cartao aceita a etapa arquivada",
       "arquivo": "bin/forge-check",
       "de": "e_etapa_do_pedido(alvo, ids_de_etapa(ler_pedido_brief(pedido_txt)))",
       "para": "e_etapa_do_pedido(alvo, ler_pedido_brief(pedido_txt)[\"etapas\"])",
@@ -54,17 +54,17 @@
     },
     {
       "id": "M14",
-      "guarda": "PEDIDO-ARQUIVA-SOZINHO: só a linha `=aprovado` fecha a etapa de parecer",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: parecer aprovado fecha só o id logo após o parêntese, não todo id da linha (A1)",
       "arquivo": "bin/forge-check",
-      "de": "if \"=aprovado\" in linha for t in",
-      "para": "if \"=reprovado\" in linha for t in",
+      "de": "pela_linha = {m.group(1) for linha in historico for m in APROVADO_DA_ETAPA.finditer(linha)}",
+      "para": "pela_linha = {m.group(0) for linha in historico if \"=aprovado\" in linha for m in re.finditer(ID_DE_ETAPA_ARQUIVADA, linha)}",
       "testes": [
-        "tests.test_brief_tamanho.ArquivaSozinho.test_arquiva_as_fechadas_e_o_brief_fica_abaixo_do_teto"
+        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida"
       ]
     },
     {
       "id": "M15",
-      "guarda": "PEDIDO-ARQUIVA-SOZINHO: só o cabeçalho `## Etapas` abre o bloco que se arquiva",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: só o `## Etapas` de nível 2",
       "arquivo": "bin/forge-check",
       "de": "re.fullmatch(r\"##\\s+Etapas\\s*\", l)",
       "para": "re.fullmatch(r\"#+\\s+Etapas\\s*\", l)",
@@ -74,7 +74,7 @@
     },
     {
       "id": "M16",
-      "guarda": "PEDIDO-ARQUIVA-SOZINHO: o bloco de etapas acaba no cabeçalho seguinte",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: o bloco de etapas acaba no próximo cabeçalho",
       "arquivo": "bin/forge-check",
       "de": "if linhas[i].startswith(\"#\")), len(linhas))",
       "para": "if linhas[i].startswith(\"#!\")), len(linhas))",

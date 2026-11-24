@@ -3,6 +3,7 @@ ids), manda o `forge-check proximo` só da etapa do Cobre (o pedido inteiro leva
 bloco `## Achados` do `_modelo.md`. Sem rede: o `gh`, a branch e o pre-push não rodam; a decisão é lida no brief montado."""
 import hashlib
 import io
+import os
 import shutil
 import sys
 import tempfile
@@ -110,7 +111,7 @@ class ArquivaSozinho(ComRepositorio):
                   f"- 2026-01-01 09:02: entrega conferida {sha}\n",
                   "- 2026-01-01 09:03: docs/reviews/exemplo.md=aprovado (E1.2) conferido pelo Jarvis\n",
                   f"- 2026-01-01 09:03: parecer conferido {sha}\n",
-                  f"- 2026-01-01 09:04: docs/reviews/exemplo.md=aprovado ({', '.join(f'E2.{m}' for m in range(1, POR_ITEM + 1))})\n"]
+                  *(f"- 2026-01-01 09:04: docs/reviews/exemplo.md=aprovado por delta (E2.{m}, head abc)\n" for m in range(1, POR_ITEM + 1))]
         linhas += [f"- 2026-01-01 09:05: E{n}.{m} entregue\n" for n in range(3, ITENS) for m in range(1, POR_ITEM + 1)]
         linhas += [f"- 2026-01-01 09:05: E1.{m} entregue\n" for m in range(3, POR_ITEM + 1)]
         return "".join(linhas), sha
@@ -226,6 +227,98 @@ class ArquivaSozinho(ComRepositorio):
         antes = self.pedido()
         self.assertEqual(fcs.arquivar_etapas_fechadas(self.proj, self.caminho())[0], 0)
         self.assertEqual(self.pedido(), antes)
+
+    # Volta do #874 (A1 do review, do QA e da segurança): só a etapa que a própria linha fecha conta como fechada.
+    def test_linha_que_cita_outra_etapa_so_fecha_a_atribuida(self):
+        linhas = ["volta (E1.1) entregue no abc; review (E1.2) despachado",
+                  "docs/qa/x.md=aprovado (E1.3); segurança (E1.4) despachada",
+                  "docs/reviews/x.md=aprovado por delta (E1.5); docs/qa/x.md=reprovado por delta (E1.6, A1 bloqueante)",
+                  "docs/qa/x.md=aprovado (E1.7, head abc; a volta E1.8 da segurança segue)",
+                  "G2.0 entregue no #872; review (E1.9) despachado",
+                  "E1.10 ainda não entregue",
+                  "docs/reviews/x.md=reprovado (E1.11, o entregue segue com A1)",
+                  "E1.12 despachado; item entregue no #9",
+                  "review (E1.13) despachado e volta (E1.14) entregue"]
+        texto = pedido_que_cresce("".join(f"- 2026-01-01 09:0{i % 10}: {l}\n" for i, l in enumerate(linhas)))
+        self.gravar("docs/pedidos/exemplo.md", texto)
+        self.assertEqual(fcs.etapas_fechadas(self.proj, self.caminho(), texto), {"E1.1", "E1.3", "E1.5", "E1.7"})
+        self.assertEqual(fcs.arquivar_etapas_fechadas(self.proj, self.caminho())[0], 4)
+        self.assertIn("- E1.1 (node-backend), E1.3 (node-backend), E1.5 (node-backend), E1.7 (node-backend)\n", self.pedido())
+        self.assertIn("E1.2", fcs.ler_pedido_brief(self.pedido())["etapas"])
+
+    # A2 do QA e S2 da segurança: o --cobre e as etapas citadas no Entregar nunca saem do pedido, mesmo entregues.
+    def test_cobre_entregue_fica_no_pedido_e_o_brief_sai(self):
+        historico, _ = self.fechamentos()
+        self.gravar("docs/pedidos/exemplo.md", pedido_que_cresce(historico + "- 2026-01-01 09:06: E20.1 entregue\n"))
+        rc, saida, erro = self.gerar()
+        self.assertEqual(rc, 0, erro)
+        self.assertIn("Cobre: E20.1", saida)
+        self.assertEqual(list(fcs.ler_pedido_brief(self.pedido())["etapas"]), ["E20.1", "E20.2"])
+
+    # A2 do review e S3/S5 da segurança: junta delegações, papel errado e a contradição com o Fora do escopo barram igual depois.
+    def test_corte_barra_igual_antes_e_depois_do_arquivo(self):
+        texto = pedido_que_cresce(self.fechamentos()[0]).replace("## Decisões do usuário", "## Fora do escopo\n- E1.3 fica fora\n\n## Decisões do usuário")
+        self.gravar("docs/pedidos/exemplo.md", texto)
+        casos = [(["- a (E20.1)", "- b (E1.1)"], "etapa: junta delegações E1.1, E20.1 (R-BRIEF)"),
+                 (["- a (E1.2)"], "etapa: papel errado E1.2"),
+                 (["- c (E1.3)"], "contradição: o Entregar manda E1.3"),
+                 (["- d (E1.1)"], None)]  # o papel arquivado (node-backend) é o do destino: nada reprova, antes e depois
+
+        def reprovas():
+            dados = fcs.ler_pedido_brief(self.pedido())
+            saida = []
+            for entregar, _ in casos:
+                secoes = {"Entregar": entregar, "Fora do escopo": ["- E20.2 · outras delegações"]}
+                saida.append([l for l, r in fcs.conferir_corte(secoes, dados, "forge:node-backend", "E20.1")
+                              + fcs.conferir_pedido_contraditorio(secoes, dados) if r and l.startswith(("etapa:", "contradição:"))])
+            return saida
+
+        antes = reprovas()
+        self.assertGreater(fcs.arquivar_etapas_fechadas(self.proj, self.caminho())[0], 0)
+        self.assertEqual(set(fcs.ler_pedido_brief(self.pedido())["etapas"]), {"E20.1", "E20.2"})
+        self.assertEqual(reprovas(), antes)
+        for (_, esperado), achadas in zip(casos, antes):
+            self.assertTrue(any(l.startswith(esperado) for l in achadas) if esperado else not achadas, (esperado, achadas))
+
+    def test_corte_de_pedido_so_com_arquivadas_ainda_barra(self):
+        dados = {"escopo": {}, "etapas": {}, "arquivadas": {"E1.1": "tech-lead", "E1.2": "tech-lead"}, "texto": "", "fora": []}
+        corte = fcs.conferir_corte({"Entregar": ["- a (E1.1)", "- b (E1.2)"]}, dados, "forge:tech-lead")
+        self.assertIn(("etapa: junta delegações E1.1, E1.2 (R-BRIEF)", True), corte)
+        dados["arquivadas"] = {"E1.1": None}  # arquivada sem papel: papel errado, com o papel vazio na mensagem
+        corte = fcs.conferir_corte({"Entregar": ["- a (E1.1)"]}, dados, "forge:tech-lead")
+        self.assertIn(("etapa: papel errado E1.1 (o pedido a põe em \"\", o destino é \"tech-lead\") (R-BRIEF)", True), corte)
+
+    # A3 da segurança: a pasta e o arquivo do arquivo não seguem link nem escrevem em fifo; nada sai do pedido.
+    def arquivar_recusado(self):
+        texto = pedido_que_cresce(self.fechamentos()[0])
+        self.gravar("docs/pedidos/exemplo.md", texto)
+        self.assertEqual(fcs.arquivar_etapas_fechadas(self.proj, self.caminho())[0], 0)
+        self.assertEqual(self.pedido(), texto)
+
+    def test_pasta_do_arquivo_que_e_link_nao_recebe_nada(self):
+        fora = self.proj / "fora"
+        fora.mkdir()
+        (self.proj / "docs" / "pedidos").mkdir(parents=True, exist_ok=True)
+        (self.proj / "docs" / "pedidos" / "arquivo").symlink_to(fora)
+        self.arquivar_recusado()
+        self.assertEqual(list(fora.iterdir()), [])
+
+    def test_arquivo_que_e_link_nao_recebe_nada(self):
+        alvo = self.proj / "alvo.md"
+        alvo.write_text("intacto\n", encoding="utf-8")
+        (self.proj / "docs" / "pedidos" / "arquivo").mkdir(parents=True)
+        (self.proj / "docs" / "pedidos" / "arquivo" / "exemplo.md").symlink_to(alvo)
+        self.arquivar_recusado()
+        self.assertEqual(alvo.read_text(encoding="utf-8"), "intacto\n")
+
+    def test_arquivo_que_e_fifo_nao_recebe_nada(self):
+        fifo = self.proj / "docs" / "pedidos" / "arquivo" / "exemplo.md"
+        fifo.parent.mkdir(parents=True)
+        os.mkfifo(fifo)
+        leitor = os.open(fifo, os.O_RDONLY | os.O_NONBLOCK)
+        self.addCleanup(os.close, leitor)
+        self.arquivar_recusado()
+        self.assertEqual(os.read(leitor, 100), b"")
 
 
 if __name__ == "__main__":

@@ -64,6 +64,7 @@ class Funcoes(unittest.TestCase):
 
     def test_borda_dos_caracteres(self):
         self.assertIsNone(tam().aviso_de_caracteres(7999, 10000))
+        self.assertIsNotNone(tam().aviso_de_caracteres(8000, 10000))  # a base (90%) falha aqui por asserção, não por erro (QA A3)
         self.assertIn("o brief tem 8000 caracteres, perto do teto de 10000", tam().aviso_de_caracteres(8000, 10000))
         self.assertIn("pedido de continuação", tam().aviso_de_caracteres(10500, 10000))
 
