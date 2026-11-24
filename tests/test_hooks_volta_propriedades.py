@@ -283,5 +283,37 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         self.assertGreaterEqual(len(reais), 800)
 
 
+class VigiaAgentesPesado(unittest.TestCase):
+    """VIGIA-AGENTES-PESADO (E172.3, decisão do dono de 24/11): o `agentes` e o `pesado` também recusam quando o vigia de
+    prazo vence, sem marcador crítico, no PreToolUse (no projeto e no clone do Forge), e só registram nos outros eventos.
+    Os casos são as fixtures cuja descrição abre com o cartão; o prazo vencido é forçado no processo do hook (`forcar`)."""
+    executar_em_lote = test_hooks.Hooks.executar_em_lote
+    executar_fixture = test_hooks.Hooks.executar_fixture
+    _pasta_temporaria = test_hooks.Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(test_hooks.Hooks.depende_de_pid_ou_trava)
+
+    def test_fixtures_do_vigia_agentes_pesado(self):
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in map(test_hooks.Fixture, sorted(test_hooks.FIXTURES.glob("*/*.json")))
+                if f.dados.get("descricao", "").startswith("VIGIA-AGENTES-PESADO")]
+        self.assertGreaterEqual(len(lote), 6, "as fixtures do vigia nos dois hooks")
+        self.assertEqual({f.hook for _, f in lote}, {"agentes", "pesado"})
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_prazo_de_cada_hook_abaixo_do_timeout_do_hooks_json(self):
+        """O prazo do vigia de cada hook passa do prazo comum (e, no `pesado`, da espera na fila) e fica abaixo do menor
+        `timeout` do PreToolUse dele no hooks.json, com folga de 2 s: senão o Claude Code mata o hook e libera a ação."""
+        _comum, _, _ = modulos_dos_hooks()
+        import agentes
+        import pesado
+        d = json.loads((test_hooks.HOOKS / "hooks.json").read_text(encoding="utf-8"))
+        for modulo, piso in ((agentes, _comum.PRAZO_DA_DECISAO_S), (pesado, pesado.ESPERA_S)):
+            limites = [h["timeout"] for g in d["hooks"]["PreToolUse"] for h in g["hooks"]
+                       if any(a.endswith(f"/hooks/{modulo.__name__}.py") for a in h.get("args", []))]
+            with self.subTest(hook=modulo.__name__):
+                self.assertTrue(limites, f"o {modulo.__name__}.py no PreToolUse do hooks.json")
+                self.assertGreater(modulo.PRAZO_DO_HOOK_S, piso)
+                self.assertLessEqual(modulo.PRAZO_DO_HOOK_S, min(limites) - 2)
+
+
 if __name__ == "__main__":
     unittest.main()

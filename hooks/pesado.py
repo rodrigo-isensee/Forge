@@ -458,5 +458,9 @@ def esperar_a_vez(hook, raiz, arquivo, comando, uso):
         senha.unlink(missing_ok=True)
 
 
+# VIGIA-AGENTES-PESADO (decisão do dono, 24/11): a espera na fila (ESPERA_S) mais a folga da decisão, abaixo do timeout de
+# 300 s do PreToolUse no hooks.json; vencido, o vigia do `_comum` recusa (R-TETO), em vez de o timeout liberar a tarefa.
+PRAZO_DO_HOOK_S = ESPERA_S + 50
+
 if __name__ == "__main__":
-    executar("pesado", principal)
+    executar("pesado", principal, clone_do_forge=True, regra_do_prazo="R-TETO", prazo_do_hook=PRAZO_DO_HOOK_S)
