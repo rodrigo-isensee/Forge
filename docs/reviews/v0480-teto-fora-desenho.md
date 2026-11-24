@@ -3,29 +3,28 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-teto-fora-desenho
-commit: 2234208a6e338811ee6f658b8ad6be1372146c2d
+commit: 604f8c560274c5854ff3fc2fd42599b79ef39aa0
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-24
 ---
-# Review: v0478 · desenho TETO-FORA-DO-GIT (E159.2, PR #842)
+# Review: v0478 · desenho TETO-FORA-DO-GIT, volta (E159.4, PR #842)
 
-Review do head 2234208a, base develop 789fc141. Diff: `docs/propostas/teto-fora-do-git.md` (novo, 84 linhas) e o fragmento `changelog.d/v0480-teto-fora-desenho.md`. Classe T, só texto: sem código, guarda nem mutante. Testes dos arquivos tocados: `test_changelog` e `test_clareza`, 100 testes, OK; a suíte inteira fica no CI do PR.
+Review por delta do head 604f8c56 (volta E159.3), base develop 789fc141. Delta lido por `forge-check parecer delta docs/reviews/v0480-teto-fora-desenho.md`: intervalo `2234208a..604f8c56`, no domínio só `docs/propostas/teto-fora-do-git.md` (13 linhas a mais, 8 a menos). Classe T, só texto: sem código, guarda nem mutante. Testes dos arquivos tocados: `test_clareza` e `test_changelog`, 100 testes, OK; a suíte inteira fica no CI do PR. Instância que não escreveu a volta.
 
 ## Achados
-- A1 (bloqueante) docs/propostas/teto-fora-do-git.md:36 · o leitor único lê `raiz_declarada()` (`CLAUDE_PROJECT_DIR`), que não existe no Bash nem no terminal do dono (S1; `hooks/_comum.py:147-148`): `forge-check`, `suite-partes` e `forge-ritmo` não acham o `limites.json`, e a C1 (e) e (f) não fecham. Diga a raiz dos scripts sem a sessão.
-- A2 (recomendado) docs/propostas/teto-fora-do-git.md:20 · a linha "ficam" omite leitores do `config.json` na develop: `arquivos_do_forge_no_git` (`bin/forge-init:233-240`), `caminhos_extra` em `templates/projeto/.githooks/pre-push:231-248`, `hooks/doutor.py:305` e `hooks/meta.py:72`, e a mensagem de `hooks/conformidade.py:4195`.
-- A3 (recomendado) docs/propostas/teto-fora-do-git.md:47 · a C2 não diz que o modelo `templates/projeto/.forge/config.json` perde `pesados` e `ritmo`, e `Hook.config` o usa como base dos padrões (`hooks/_comum.py:2652`); "padrões do modelo" (:37) fica sem fonte. Diga de onde vêm os padrões depois da C1.
-- A4 (recomendado) docs/propostas/teto-fora-do-git.md:68 · o argumento da D1 está invertido: `git clean -fdx` apaga justamente os ignorados (`-x`); só o `denyWrite` protege, e só dentro do sandbox. Corrija o motivo; a recomendação (a) se sustenta pelos outros dois.
+- A5 (bloqueante) docs/propostas/teto-fora-do-git.md:40 · "de uma cópia em `.forge/wt/<item>` chega à cópia principal" é falso: no projeto a cópia é clone (`bin/forge-copia:3`) e `diretorio_comum` de um clone é o `.git` dele (S2); o script lê o `limites.json` do clone. C1 (:79) e a medida (2) de :68 não fecham.
+- A6 (bloqueante) docs/propostas/teto-fora-do-git.md:80 · o `.git` forjado só dá None se for incoerente: um `gitdir:` para `<x>/.git/worktrees/w` com `gitdir` de volta e `commondir` `../..`, tudo em pasta gravável, passa em `diretorio_comum` (S3) e o leitor lê `<x>/.forge/limites.json`. Diga o que ancora a cópia principal.
 
 ## Sondas
-- S1 · `echo "CPD=${CLAUDE_PROJECT_DIR:-<vazio>}"` no Bash da sessão · espera: a raiz da sessão, para o leitor da linha 36 achar o arquivo · obtido: `CPD=<vazio>`
+- S1 · `echo "CPD=${CLAUDE_PROJECT_DIR:-<vazio>}"` no Bash da sessão (de novo, no head 604f8c56) · espera: vazio, a premissa da volta para os scripts · obtido: `CPD=<vazio>`
+- S2 · `diretorio_comum("/root/.forge-contrib/wt/v0480-teto-fora-desenho-rev")` (um clone, `.git` pasta) · espera: a cópia principal `/workspaces/Forge/.git`, pela linha 40 · obtido: `/workspaces/.forge-contrib/wt/v0480-teto-fora-desenho-rev/.git`
+- S3 · `diretorio_comum(<scratch>/wt)` com `wt/.git` = `gitdir: <scratch>/evil/.git/worktrees/w`, `w/gitdir` = `<scratch>/wt/.git`, `w/commondir` = `../..` · espera: None, pela linha 80 · obtido: `<scratch>/evil/.git`
 
 ## Conferência pedida no brief
-- **Leitores do `.forge/config.json` contra a develop:** `git grep -n 'config\.json' 789fc141 -- hooks bin scripts templates/projeto .claude/settings.json .gitignore` e o grep das chaves (`teto_agentes`, `piso_memoria_gb`, `pesados`, `expiracao_horas`, `ritmo`, `.config()`). Todos os leitores das chaves que saem estão na tabela (`Hook.config`, `agentes`, `pesado`, `forge-check` 490-503/4745/4760-4771, `suite-partes:259`, `forge-ritmo`, `forge-init`); as linhas citadas conferem no head. Faltam só leitores de chaves que ficam (A2). `vigia.py` e `forge-pesado` citam `expiracao_horas` só em texto ou pela `Hook.config`.
-- **Decisão do dono de 19/11 08:28 (b):** `docs/pedidos/v0478.md:782`, "b: o teto vai para um arquivo fora do controle de versão". O desenho a segue (§3) e cita a de 08:28 (a), prova no sandbox real, como cartão à parte (§8, linha 783 do pedido).
-- **Decisões com recomendação:** D1 a D4 trazem opções e "Recomendo" com motivo; a D1 com o motivo a corrigir (A4).
-- **R-DECISAO:** critério de reversão com prazo, como e medida (§5); cada fatia diz se é trava e qual sai (regra do dono de 21/11, item 3). Custo zero (`R-CUSTO`).
+- **A1 (raiz fora da sessão):** fechado para a cópia principal e a worktree vinculada: o hook segue pela `raiz_declarada()` e os scripts partem de `git rev-parse --show-toplevel` (:37-38). S1 rodada de novo: o Bash segue sem `CLAUDE_PROJECT_DIR`, e a volta já parte disso. O resto do A1 (clone) virou A5.
+- **Worktree forjada impondo teto:** o hook não é alcançado (lê a raiz da sessão, que o subagente não muda). Os scripts sim: de um clone (A5) ou de uma worktree forjada coerente (A6), `forge-check fila`, `suite-partes` e `forge ritmo` leem um `limites.json` que o agente grava. Hoje o `forge-check` já lê o `config.json` da pasta (`bin/forge-check:497`), então não piora o que existe; mas o desenho diz que fecha (:40, :79, :80), e o caso de abuso escrito daí reprova a implementação. Sugestão: nos scripts, cortar `.forge/wt/` do topo como o `bin/forge-copia:36-45` (projeto) e dizer o que vale no clone do Forge, fora da cópia principal; ou declarar o valor do script só informativo, com o hook como autoridade, e reescrever C1 e a medida (2).
+- **A2 a A4:** fechados. A2: a linha "ficam" (:20) traz `meta.py:72`, `doutor.py:305`, `pre-push:231-248`, `forge-init:233-240` e a mensagem de `conformidade.py:4195` (linhas conferidas no head). A3: os padrões vão à `RESERVA` (:41) e a C2 diz que o modelo perde `pesados` e `ritmo` (:51). A4: a D1 (:72) diz que o `git clean -fdx` apaga o arquivo e que só o `denyWrite` protege, dentro do sandbox.
 
 ## Parecer
-Reprovado por A1. O desenho segue a decisão (b), cobre os leitores das chaves que saem e tem reversão e recomendações; mas a peça central, o leitor único pela raiz da sessão, não funciona para os três scripts que a tabela manda importá-lo: no Bash e no terminal não há `CLAUDE_PROJECT_DIR` (S1), e o `forge ritmo` roda no terminal do dono (linha 39). Sugestão: para os scripts, a raiz é a cópia principal do diretório comum do git (`diretorio_comum`, `hooks/_comum.py:153`), como o `bin/forge-copia` acha o projeto de dentro de uma cópia; e a C1 ganha o caso "fora da sessão". A2 a A4 são texto e viram cartão se não entrarem na volta.
+Reprovado por A5 e A6. A volta fecha o A1 para a cópia principal e a worktree e fecha A2 a A4; mas a frase que garante "o arquivo de uma cópia não vale" para os scripts é falsa no caso normal do projeto (a cópia em `.forge/wt/` é clone) e no `.git` forjado coerente, e os dois casos de abuso da C1 (:79, :80) foram escritos sobre ela. Basta o texto dizer qual pasta vale para o clone e o que ancora a cópia principal, ou rebaixar os scripts a informativos e ajustar C1 e a medida (2).
