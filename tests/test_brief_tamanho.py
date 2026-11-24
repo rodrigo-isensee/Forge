@@ -1,6 +1,7 @@
 """v0474 E3.48: o `brief gerar` num pedido grande fica abaixo do teto de 10.000 caracteres do R-BRIEF (o Fora do escopo vai só pelos
 ids), manda o `forge-check proximo` só da etapa do Cobre (o pedido inteiro levava minutos) e o brief de portão traz o formato do
 bloco `## Achados` do `_modelo.md`. Sem rede: o `gh`, a branch e o pre-push não rodam; a decisão é lida no brief montado."""
+import hashlib
 import io
 import shutil
 import sys
@@ -61,6 +62,160 @@ class BriefDePedidoGrande(unittest.TestCase):
         for trecho in ("- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>", "até 300 caracteres", '"nenhum"', '"informativo"'):
             self.assertIn(trecho, fc.LINHA_DOS_ACHADOS)
         self.assertNotIn(fc.LINHA_DOS_ACHADOS, self.gerar("codigo", "E1.1", "forge:dev-exemplo"))
+
+
+# PEDIDO-ARQUIVA-SOZINHO (ordem do dono 24/11): o pedido que cresce até o brief gerado passar do teto arquiva sozinho, na margem de
+# 80% do teto, as etapas fechadas (entrega conferida, parecer aprovado ou `entregue`) em docs/pedidos/arquivo/<id>.md; o brief volta
+# para baixo do teto, e a entrega conferida, os selos e os `parecer conferido` que o `pr` lê seguem no `## Histórico`. De ponta a
+# ponta: `python3 -I`, ambiente limpo, `gh` falso (o `ComRepositorio` de test_forge_tamanho).
+from test_forge_tamanho import ComRepositorio  # noqa: E402
+from test_selo_e_entrega import fc as fcs  # noqa: E402
+
+ITENS, POR_ITEM = 20, 60  # 19 itens fechados de 60 etapas e o E20 aberto: o Fora do escopo sozinho passa do teto
+
+
+def pedido_que_cresce(historico):
+    escopo = "".join(f"- E{n}. Item {n} · `confirmado`\n" for n in range(1, ITENS + 1))
+    etapas = "".join(f"- E{n}.{m} ({'node-backend' if m % 2 else 'tech-lead'}): etapa {m} do item {n}\n"
+                     for n in range(1, ITENS) for m in range(1, POR_ITEM + 1))
+    etapas += "- E20.1 (node-backend): a etapa aberta\n- E20.2 (tech-lead): review da etapa aberta\n"
+    return (f"---\nid: exemplo\n---\n# Pedido EXEMPLO\n\n## Escopo\n{escopo}\n## Etapas\n{etapas}\n"
+            "## Decisões do usuário (registro literal)\nDECISÃO DO DONO (2026-01-01 10:00): \"regra geral A\".\n\n"
+            f"## Histórico\n- 2026-01-01 09:00: aberto\n{historico}")
+
+
+class ArquivaSozinho(ComRepositorio):
+    def gerar(self):
+        return self.rodar3("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:node-backend", "--cobre", "E20.1",
+                           "--etapa", "codigo")
+
+    def caminho(self):
+        return self.proj / "docs" / "pedidos" / "exemplo.md"
+
+    def arquivo(self):
+        return (self.proj / "docs" / "pedidos" / "arquivo" / "exemplo.md").read_text(encoding="utf-8")
+
+    def historico(self):
+        return fcs.secoes_por(self.pedido(), fcs.CABECALHO_PEDIDO)["Histórico"]
+
+    def fechamentos(self):
+        """E1.1 pela entrega conferida do brief selado; E1.2 e E2.* por parecer aprovado; o resto por `entregue`; e um parecer conferido."""
+        brief = self.gravar("docs/briefs/exemplo-node-backend-1.md", "Agente destino: forge:node-backend\nPedido: exemplo\nTipo: codigo\n"
+                            f"Branch: melhoria/x   Base: develop   Base-sha: {self.base}\nEtapa: codigo   Cobre: E1.1\n\n## Entregar\n- x (E1.1)\n")
+        self.gravar("docs/reviews/exemplo.md", "---\ntipo: review\nbranch: melhoria/x\n---\nparecer\n")
+        self.git("add", "docs/reviews/exemplo.md")
+        sha = self.commit("docs(review): parecer")
+        selo = hashlib.sha256(brief.read_bytes()).hexdigest()
+        linhas = [f"- 2026-01-01 09:01: brief selado docs/briefs/exemplo-node-backend-1.md {selo}\n",
+                  f"- 2026-01-01 09:02: entrega conferida {sha}\n",
+                  "- 2026-01-01 09:03: docs/reviews/exemplo.md=aprovado (E1.2) conferido pelo Jarvis\n",
+                  f"- 2026-01-01 09:03: parecer conferido {sha}\n",
+                  f"- 2026-01-01 09:04: docs/reviews/exemplo.md=aprovado ({', '.join(f'E2.{m}' for m in range(1, POR_ITEM + 1))})\n"]
+        linhas += [f"- 2026-01-01 09:05: E{n}.{m} entregue\n" for n in range(3, ITENS) for m in range(1, POR_ITEM + 1)]
+        linhas += [f"- 2026-01-01 09:05: E1.{m} entregue\n" for m in range(3, POR_ITEM + 1)]
+        return "".join(linhas), sha
+
+    def test_sem_etapa_fechada_o_brief_passa_do_teto_e_avisa(self):
+        self.gravar("docs/pedidos/exemplo.md", pedido_que_cresce(""))
+        rc, saida, erro = self.gerar()
+        self.assertEqual(rc, 0, erro)
+        self.assertGreater(len(saida), TETO_DO_BRIEF)
+        self.assertIn(f"brief gerar: aviso: o brief tem {len(saida)} caracteres, perto do teto de {TETO_DO_BRIEF}", erro)
+        self.assertNotIn("arquivadas", erro)
+        self.assertFalse((self.proj / "docs" / "pedidos" / "arquivo").exists())
+
+    def test_arquiva_as_fechadas_e_o_brief_fica_abaixo_do_teto(self):
+        historico, sha = self.fechamentos()
+        self.gravar("docs/pedidos/exemplo.md", pedido_que_cresce(historico))
+        antes = self.historico()
+        conferidas = fcs.etapas_conferidas(self.proj, self.caminho(), antes)
+        pareceres = fcs.ultimos_do_historico(self.proj, self.pedido(), "melhoria/x", "HEAD")
+        self.assertIn("E1.1", conferidas)
+        self.assertTrue(pareceres[0])
+        rc, saida, erro = self.gerar()
+        self.assertEqual(rc, 0, erro)
+        fechadas = (ITENS - 1) * POR_ITEM
+        self.assertIn(f"brief gerar: {fechadas} etapas fechadas arquivadas em docs/pedidos/arquivo/exemplo.md", erro)
+        self.assertLess(len(saida), TETO_DO_BRIEF * 0.8)
+        self.assertNotIn("caracteres, perto", erro)
+        fora = saida.split("## Fora do escopo", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("E20.2", fora)
+        self.assertNotIn("E1.2,", fora)
+        texto = self.pedido()
+        dados = fcs.ler_pedido_brief(texto)
+        self.assertEqual(list(dados["etapas"]), ["E20.1", "E20.2"])
+        self.assertEqual(len(dados["arquivadas"]), fechadas)
+        self.assertIn("- E1.1 (node-backend): etapa 1 do item 1\n", self.arquivo())
+        self.assertEqual(self.arquivo().count("\n- E"), fechadas)
+        # o que a entrega conferida, o selo e o `pr` leem não mudou
+        self.assertEqual(self.historico(), antes)
+        self.assertIn("DECISÃO DO DONO (2026-01-01 10:00)", texto)
+        self.assertEqual(fcs.etapas_conferidas(self.proj, self.caminho(), self.historico()), conferidas)
+        self.assertIn(sha, fcs.entregas_conferidas(texto))
+        self.assertEqual(fcs.ultimos_do_historico(self.proj, texto, "melhoria/x", "HEAD"), pareceres)
+
+    def test_brief_antigo_cita_a_etapa_arquivada_e_o_corte_aceita_o_item_arquivado(self):
+        self.gravar("docs/pedidos/exemplo.md", pedido_que_cresce(self.fechamentos()[0]))
+        self.assertEqual(self.gerar()[0], 0)
+        dados = fcs.ler_pedido_brief(self.pedido())
+        citacoes = fcs.conferir_citacoes(self.proj, "", {"Entregar": ["- x (E1.1)"], "Fora do escopo": []}, dados)
+        self.assertFalse([l for l, reprova in citacoes if reprova], citacoes)
+        corte = fcs.conferir_corte({"Entregar": ["- a (E20.1)"], "Fora do escopo": ["- E20.2 · outras delegações"]}, dados,
+                                   "forge:node-backend", "E20.1")
+        self.assertFalse([l for l, reprova in corte if reprova], corte)
+        self.assertIn(("corte: ok \"E1\" com as etapas arquivadas (PEDIDO-ARQUIVA-SOZINHO)", False), corte)
+        self.assertIsNone(fcs.recusa_do_apontador(self.proj, "exemplo", self.pedido(), "E1.1"))
+
+    def test_etapa_de_varias_linhas_fica_no_pedido(self):
+        texto = pedido_que_cresce(self.fechamentos()[0]).replace("- E3.1 (node-backend): etapa 1 do item 3\n",
+                                                                 "- E3.1 (node-backend): etapa 1 do item 3\n  continuação da etapa\n")
+        self.gravar("docs/pedidos/exemplo.md", texto)
+        self.assertEqual(self.gerar()[0], 0)
+        self.assertEqual(set(fcs.ler_pedido_brief(self.pedido())["etapas"]), {"E3.1", "E20.1", "E20.2"})
+
+    def test_segunda_rodada_acrescenta_ao_arquivo_e_a_secao(self):
+        self.gravar("docs/pedidos/exemplo.md", pedido_que_cresce(self.fechamentos()[0]))
+        self.assertEqual(self.gerar()[0], 0)
+        texto = self.pedido().replace("- E20.2 (tech-lead): review da etapa aberta\n",
+                                      "- E20.2 (tech-lead): review da etapa aberta\n- E20.3 (tech-lead): outra\n")
+        self.caminho().write_text(texto + "- 2026-01-01 09:09: E20.2 entregue\n", encoding="utf-8")
+        self.assertEqual(fcs.arquivar_etapas_fechadas(self.proj, self.caminho())[0], 1)
+        dados = fcs.ler_pedido_brief(self.pedido())
+        self.assertEqual(self.pedido().count("## Etapas arquivadas"), 1)
+        self.assertIn("E20.2", dados["arquivadas"])
+        self.assertEqual(list(dados["etapas"]), ["E20.1", "E20.3"])
+        self.assertEqual(self.arquivo().count("# Arquivo do pedido"), 1)
+        self.assertTrue(self.arquivo().endswith("- E20.2 (tech-lead): review da etapa aberta\n"))
+
+    def test_brief_curto_nao_arquiva(self):
+        self.gravar("docs/pedidos/exemplo.md", pedido_que_cresce("- 2026-01-01 09:05: E20.2 entregue\n").split("- E1.1 (")[0]
+                    + "- E20.1 (node-backend): a etapa aberta\n- E20.2 (tech-lead): review\n\n## Histórico\n- 2026-01-01 09:05: E20.2 entregue\n")
+        rc, saida, erro = self.gerar()
+        self.assertEqual(rc, 0, erro)
+        self.assertLess(len(saida), TETO_DO_BRIEF * 0.8)
+        self.assertNotIn("arquivadas", erro)
+        self.assertIn("- E20.2 (tech-lead): review\n", self.pedido())
+        self.assertFalse((self.proj / "docs" / "pedidos" / "arquivo").exists())
+
+    def test_so_fechada_de_varias_linhas_nao_cria_o_arquivo(self):
+        texto = pedido_que_cresce("- 2026-01-01 09:05: E3.1 entregue\n").replace(
+            "- E3.1 (node-backend): etapa 1 do item 3\n", "- E3.1 (node-backend): etapa 1 do item 3\n  continuação da etapa\n")
+        self.gravar("docs/pedidos/exemplo.md", texto)
+        self.assertEqual(fcs.arquivar_etapas_fechadas(self.proj, self.caminho())[0], 0)
+        self.assertEqual(self.pedido(), texto)
+        self.assertFalse((self.proj / "docs" / "pedidos" / "arquivo").exists())
+
+    def test_cabecalho_de_outro_nivel_nao_arquiva(self):
+        texto = pedido_que_cresce(self.fechamentos()[0]).replace("## Etapas\n", "### Etapas\n")
+        self.gravar("docs/pedidos/exemplo.md", texto)
+        self.assertEqual(fcs.arquivar_etapas_fechadas(self.proj, self.caminho())[0], 0)
+        self.assertEqual(self.pedido(), texto)
+
+    def test_sem_fechada_nada_muda(self):
+        self.gravar("docs/pedidos/exemplo.md", pedido_que_cresce(""))
+        antes = self.pedido()
+        self.assertEqual(fcs.arquivar_etapas_fechadas(self.proj, self.caminho())[0], 0)
+        self.assertEqual(self.pedido(), antes)
 
 
 if __name__ == "__main__":

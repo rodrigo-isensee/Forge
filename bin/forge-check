@@ -4,7 +4,7 @@
 `pr` aprovado sai com rc 0 e uma linha `pr: veredito: aprovado · <pedido> · exigidos <pareceres> · head <sha7> · base <origin/x|diff literal|estrita>`; com violação, só as violações e rc 1.
 Fora do `--previo` e do `--pr`, o `pr` grava o resultado do head em `<diretório comum do git>/forge/pr/<head>/`: o hook `parecer` o lê no `gh pr create` (PR-HOOK-PRAZO) e, como atalho, no `gh pr ready` e no `gh pr merge` (PR-HOOK-RAPIDO: o reprovado recusa; o aprovado libera só no clone do Forge).
 
-H1 (v0474 E2.13): o `pr` avisa no stderr do item acima de 150 linhas de código (testes e documentação não contam) e, com o PR da branch aberto, reprova o corpo sem `teto: excedido, <n> linhas, <motivo>`; o `brief gerar` avisa do pedido com mais de 50 etapas e do brief a 90% do teto de caracteres (bin/forge_tamanho.py).
+H1 (v0474 E2.13): o `pr` avisa no stderr do item acima de 150 linhas de código (testes e documentação não contam) e, com o PR da branch aberto, reprova o corpo sem `teto: excedido, <n> linhas, <motivo>`; o `brief gerar` avisa do pedido com mais de 50 etapas e do brief a 80% do teto de caracteres (bin/forge_tamanho.py); nessa margem arquiva antes as etapas fechadas do pedido em docs/pedidos/arquivo/<id>.md, com os ids em `## Etapas arquivadas` (PEDIDO-ARQUIVA-SOZINHO).
 
 E3.45 (v0474): com o PR da branch aberto e fora do rascunho no head, o `pr` só aprova com cada check do head concluído e verde e cada
 exigido do destino (ruleset e proteção; no Forge, também os pares do `forge-fechar`) em pass; pendente ou vermelho reprova, com a lista.
@@ -5319,7 +5319,7 @@ def recusa_do_apontador(raiz_pedido, pedido_id, pedido_txt, alvo):
     da raiz do pedido fora de `Fechado sem entrega` (a ordem gravada agora é posterior ao fechamento); senão o motivo. Quadro que é
     link, não é arquivo regular, passa do teto ou sai de UTF-8 não confere: uma abertura só, por `_ler_regular` (A1, A3, A4)."""
     if re.fullmatch(ETAPA_APONTADA, alvo):
-        return None if e_etapa_do_pedido(alvo, ler_pedido_brief(pedido_txt)["etapas"]) else f"--cartao {sem_controle(alvo)}: etapa fora do `## Etapas` do pedido"
+        return None if e_etapa_do_pedido(alvo, ids_de_etapa(ler_pedido_brief(pedido_txt))) else f"--cartao {sem_controle(alvo)}: etapa fora do `## Etapas` do pedido"
     texto, erro = _ler_regular(Path(raiz_pedido) / "KANBAN.md")
     if texto is None:
         return f"--cartao: KANBAN.md {erro}; não confiro o cartão (use a etapa E<n> do pedido)"
@@ -7457,8 +7457,14 @@ def ler_pedido_brief(texto):
         etapas[f"E{m.group(1)}.{m.group(2)}{m.group(3)}"] = (papel, corpo[m.start():fim].strip(" -"))
     etapas = dict(sorted(etapas.items(), key=lambda par: ordem_do_id(par[0])))
     decisoes = [l.strip() for l in texto.splitlines() if e_linha_de_decisao(l)]
+    arquivadas = set(re.findall(ID_DE_ETAPA_ARQUIVADA, " ".join(secoes.get(ETAPAS_ARQUIVADAS, [])))) - set(etapas)
     return {"escopo": escopo, "etapas": etapas, "decisoes": decisoes, "fora": itens_de(secoes.get("Fora do escopo", [])),
-            "texto": normalizar_espacos(texto)}
+            "texto": normalizar_espacos(texto), "arquivadas": arquivadas}
+
+
+def ids_de_etapa(pedido):
+    """As etapas vivas e as arquivadas (PEDIDO-ARQUIVA-SOZINHO): o brief selado antes do arquivamento ainda cita a sua etapa."""
+    return set(pedido["etapas"]) | pedido.get("arquivadas", set())
 
 
 def ordem_do_id(id_):
@@ -7684,6 +7690,9 @@ def conferir_corte(brief_secoes, pedido, destino, cobre=None):
     for n in sorted(pedido["escopo"]):
         chave = f"E{n}"
         filhas = [e for e in pedido["etapas"] if item_da_etapa(e) == chave]
+        if not filhas and chave not in citados and any(item_da_etapa(e) == chave for e in pedido.get("arquivadas", ())):
+            saida.append((f"corte: ok \"{chave}\" com as etapas arquivadas (PEDIDO-ARQUIVA-SOZINHO)", False))
+            continue
         if chave in citados or any(e in citados for e in filhas):
             cobertos.add(chave)
             saida.append((f"corte: ok \"{chave}\" no Entregar", False))
@@ -8036,6 +8045,62 @@ def com_branch_mesclada(raiz, etapas):
             for e, papel, texto, estado in etapas]
 
 
+ETAPAS_ARQUIVADAS = "Etapas arquivadas"  # PEDIDO-ARQUIVA-SOZINHO (ordem do dono 24/11): a seção do pedido com os ids que saíram do `## Etapas`
+PASTA_DO_ARQUIVO = "arquivo"  # docs/pedidos/arquivo/<id>.md: fora do glob `docs/pedidos/*.md`, que acha os pedidos
+ID_DE_ETAPA_ARQUIVADA = r"(?<![\w.])E\d+\.\d+[a-z]?(?![\w.])"
+ETAPA_DE_UMA_LINHA = re.compile(r"^- (E\d+\.\d+[a-z]?) \(")
+
+
+def etapas_fechadas(raiz, caminho, texto):
+    """PEDIDO-ARQUIVA-SOZINHO: as etapas fechadas do pedido, as `FECHADAS` do `proximo` (entrega conferida do brief selado, linha
+    `entregue` ou PR mesclado) e as de parecer aprovado (`=aprovado` na linha do `## Histórico` que cita o id)."""
+    historico = secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", [])
+    etapas = com_branch_mesclada(raiz, etapas_do_proximo(texto, historico, etapas_conferidas(raiz, caminho, historico)))
+    aprovadas = {t for linha in historico if "=aprovado" in linha for t in re.findall(ID_DE_ETAPA_ARQUIVADA, linha)}
+    return {e for e, _, _, estado in etapas if estado in FECHADAS or e in aprovadas}
+
+
+def arquivar_etapas_fechadas(raiz, caminho):
+    """PEDIDO-ARQUIVA-SOZINHO: move as etapas fechadas de uma linha só do `## Etapas` do pedido para `docs/pedidos/arquivo/<id>.md`
+    e lista os ids em `## Etapas arquivadas` do pedido: o Fora do escopo do `brief gerar` deixa de listá-las, e as citações e o corte
+    do `brief conferir` ainda as conhecem. O `## Histórico` (selos, entrega conferida, parecer conferido) e as linhas `DECISÃO DO DONO`
+    não mudam. Sob a trava do pedido; o arquivo recebe as linhas antes de o pedido perdê-las. Devolve (quantas, arquivo)."""
+    caminho = Path(caminho)
+    arquivo = caminho.parent / PASTA_DO_ARQUIVO / caminho.name
+    fechadas = etapas_fechadas(raiz, caminho, caminho.read_text(encoding="utf-8"))
+    if not fechadas:
+        return 0, arquivo
+    with open(caminho, "r+", encoding="utf-8") as f:
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        linhas = f.read().split("\n")
+        inicio = next((i for i, l in enumerate(linhas) if re.fullmatch(r"##\s+Etapas\s*", l)), None)
+        if inicio is None:
+            return 0, arquivo
+        fim = next((i for i in range(inicio + 1, len(linhas)) if linhas[i].startswith("#")), len(linhas))
+        movidas = [i for i in range(inicio + 1, fim) if (m := ETAPA_DE_UMA_LINHA.match(linhas[i])) and m.group(1) in fechadas
+                   and (i + 1 == fim or not linhas[i + 1].strip() or linhas[i + 1].startswith("- "))]
+        if not movidas:
+            return 0, arquivo
+        ids = [ETAPA_DE_UMA_LINHA.match(linhas[i]).group(1) for i in movidas]
+        arquivo.parent.mkdir(exist_ok=True)
+        with open(arquivo, "a", encoding="utf-8") as a:
+            if not a.tell():
+                a.write(f"# Arquivo do pedido {caminho.stem}\n\nEtapas fechadas que o `brief gerar` tirou de docs/pedidos/{caminho.name} "
+                        "(PEDIDO-ARQUIVA-SOZINHO); o `## Histórico` fica no pedido.\n\n## Etapas\n")
+            a.write("".join(linhas[i] + "\n" for i in movidas))
+        resto = [l for i, l in enumerate(linhas) if i not in set(movidas)]
+        novas = [f"- {', '.join(ids[i:i + IDS_POR_LINHA_DO_FORA])}" for i in range(0, len(ids), IDS_POR_LINHA_DO_FORA)]
+        onde = fim_da_secao(resto, ETAPAS_ARQUIVADAS)
+        if onde is None:
+            onde = next(i for i in range(inicio + 1, len(resto) + 1) if i == len(resto) or resto[i].startswith("#"))
+            novas = [f"## {ETAPAS_ARQUIVADAS}", f"Fechadas, com o texto em docs/pedidos/{PASTA_DO_ARQUIVO}/{caminho.name}.", *novas, ""]
+        resto[onde:onde] = novas
+        f.seek(0)
+        f.write("\n".join(resto))
+        f.truncate()
+    return len(ids), arquivo
+
+
 def branch_do_proximo(raiz, pedido):
     """(branch, head sha7 ou None) pela linha `Branch:` dos briefs do pedido, se for uma só; senão (None, None)."""
     branches = set()
@@ -8248,7 +8313,7 @@ def cmd_decisoes(raiz, pedido=None, sem_cartao=False, desde=None, frase=FRASE_DO
             saida.append(f"{rotulo}: aviso: {nome}: pedido {motivo_de_falha}; nada lido")
             avisos += 1
             continue
-        etapas = ler_pedido_brief(texto)["etapas"] if ordem else None
+        etapas = ids_de_etapa(ler_pedido_brief(texto)) if ordem else None
         for n, linha in linhas_de_decisao(texto, frase):
             m = registro.match(linha)
             if not m:
@@ -8656,7 +8721,7 @@ def conferir_citacoes(raiz, texto, secoes, pedido, copias=frozenset(), proprio=N
     `"<trecho>" (<arquivo>:<n>[-<m>])` ou `"<trecho>" (R-<ID>)`, existe literalmente nela (espaços normalizados, reticências cortam);
     (c) `tipo:` e `--etapa` do vocabulário fechado. Offline, só leitura. Lista de (linha, reprova)."""
     saida = []
-    ids = set(f"E{n}" for n in pedido["escopo"]) | set(pedido["etapas"])
+    ids = set(f"E{n}" for n in pedido["escopo"]) | ids_de_etapa(pedido)
     if ids:
         citados = ids_em_citacao(" ".join(secoes.get("Entregar", []) + secoes.get("Fora do escopo", [])))
         for id_ in sorted(citados - ids, key=ordem_do_id):
@@ -9743,6 +9808,11 @@ def cmd_brief_gerar(raiz, pedido, destinos, branch, base, etapa=None, volta=None
     gerados = []
     for destino in destinos:
         texto, rc, mensagens = montar_brief(raiz, pedido, destino, branch, base, etapa, volta, cobre, citar)
+        if not rc and texto is not None and modulo_do_bin("forge_tamanho").aviso_de_caracteres(len(texto), TETO_DE_CARACTERES_DO_BRIEF):
+            quantas, arquivo = arquivar_etapas_fechadas(raiz, caminho_do_pedido(raiz, pedido))  # PEDIDO-ARQUIVA-SOZINHO, antes do teto
+            if quantas:
+                print(f"brief gerar: {quantas} etapas fechadas arquivadas em docs/pedidos/{PASTA_DO_ARQUIVO}/{caminho_impresso(arquivo.name)} (PEDIDO-ARQUIVA-SOZINHO)", file=sys.stderr)
+                texto, rc, mensagens = montar_brief(raiz, pedido, destino, branch, base, etapa, volta, cobre, citar)
         if rc or texto is None:
             print("\n".join(mensagens))
             return rc or 1

@@ -1,0 +1,46 @@
+{
+  "pedido": "v0481-pedido-arquiva",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: a seção `## Etapas arquivadas` existente recebe os ids, sem outra seção",
+      "arquivo": "bin/forge-check",
+      "de": "if onde is None:",
+      "para": "if True:",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_segunda_rodada_acrescenta_ao_arquivo_e_a_secao"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: o brief gerar só arquiva na margem de 80% do teto",
+      "arquivo": "bin/forge-check",
+      "de": "if not rc and texto is not None and modulo_do_bin(\"forge_tamanho\").aviso_de_caracteres(len(texto), TETO_DE_CARACTERES_DO_BRIEF):",
+      "para": "if not rc and texto is not None:",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_brief_curto_nao_arquiva"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: sem etapa arquivada, nem aviso nem brief remontado",
+      "arquivo": "bin/forge-check",
+      "de": "            if quantas:",
+      "para": "            if True:",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_sem_etapa_fechada_o_brief_passa_do_teto_e_avisa"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: o aviso e o arquivamento a partir de 80% do teto",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "MARGEM_DO_BRIEF = 0.8",
+      "para": "MARGEM_DO_BRIEF = 0.9",
+      "testes": [
+        "tests.test_forge_tamanho.Funcoes.test_borda_dos_caracteres"
+      ]
+    }
+  ]
+}
