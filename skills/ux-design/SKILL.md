@@ -10,18 +10,18 @@ Estrutura em `docs/ux/<demanda>/`:
 
 | Etapa | Arquivo | Conteúdo mínimo |
 |---|---|---|
-| Empatizar | `01-empatia.md` | Personas (objetivo, contexto, dores, frequência de uso); mapa de empatia (pensa, sente, vê, ouve, faz, dores, ganhos); jornada atual com momentos de atrito; hipóteses e perguntas abertas |
+| Empatizar | `01-empatia.md` | Personas (objetivo, contexto, dores, frequência de uso); mapa de empatia (pensa, sente, vê, ouve, faz, dores, ganhos); jornada atual com momentos de atrito; hipóteses e perguntas abertas; prova de dado real antes de painel simulado |
 | Definir | `02-definicao.md` | Declaração do problema: "[persona] precisa de [necessidade] porque [insight]"; 3 a 5 perguntas "Como podemos...?"; critérios de sucesso mensuráveis |
 | Idear | `03-ideacao.md` | ≥ 3 alternativas (esboço em texto ou ASCII), prós, contras, esforço; matriz impacto × esforço; alternativa escolhida e por quê |
 | Prototipar | `04-prototipo/index.html` | HTML + CSS estáticos, sem build e sem dependências externas; fluxos principais navegáveis; dados de exemplo realistas; aviso "protótipo" visível |
-| Validar | `05-validacao.md` | Roteiro: tarefas que o usuário deve conseguir fazer e perguntas; registro do retorno; decisão: aprovado, ajustar (voltar à etapa X) ou descartar |
-| Especificar | `especificacao.md` | Formato da seção "Formato da especificação" abaixo, referenciando as etapas anteriores |
+| Validar | `05-validacao.md` | Roteiro: tarefas que o usuário deve fazer e perguntas; registro do retorno; decisão: aprovado, ajustar (voltar à etapa X) ou descartar |
+| Especificar | `especificacao.md` | Seção "Formato da especificação", citando as etapas anteriores |
 
 Regras:
 - Diverge antes de convergir: nunca uma única alternativa.
 - Hipótese não validada fica marcada como hipótese até o usuário confirmar.
 - **A validação do usuário no protótipo é o ponto de compromisso** do quadro Kanban: só então a demanda passa para "Pronto para fazer".
-- Correções e tarefas técnicas sem impacto de interface não passam pelo upstream de UX.
+- Trabalho técnico sem impacto de interface não passa pelo upstream de UX.
 
 ## Formato da especificação (`docs/ux/<demanda>/especificacao.md`)
 
