@@ -1,0 +1,49 @@
+---
+tipo: qa
+contrato: 1
+pedido: v0481
+branch: melhoria/v0480-bench-versao
+commit: d2bdd9ab9e68015620a02188909ecf5453ff5b50
+parecer: reprovado
+escopo: completo
+bugs_criticos: 0
+bugs_altos: 1
+bugs_medios: 0
+bugs_baixos: 0
+data: 2026-11-24
+---
+# QA: bench de versões com agentes (#870, E175.3)
+
+Escopo: `tests/bancada/versao.py`, `tests/test_bancada_versao.py`, `tests/mutantes/v0480-bench-versao.json`, `docs/bench-versao.md`, pedido e resposta fixos. Sem UI. A rodada real não foi executada (custo do dono, `R-CUSTO`): só os testes com `claude` e `gh` falsos e o roteiro sem `--executar`.
+
+## Achados
+- A1 (bloqueante) tests/pesos-d4.json:23 · test_forge.PesosDaSuite.test_pr_nao_aumenta_os_modulos_sem_peso falha: o módulo novo test_bancada_versao não tem peso. Medir com scripts/suite-paralela.py --medir test_bancada_versao e gravar no pesos-d4.json.
+- A2 (recomendado) tests/bancada/versao.py:201 · `proc.terminate()` manda SIGTERM e `proc.wait()` espera sem prazo: sessão que ignora o sinal, ou deixa neto vivo, trava o roteiro e a trava `.trava`. Usar `kill()` após alguns segundos.
+- A3 (recomendado) tests/mutantes/v0480-bench-versao.json:1 · `--cobertura` lista condições sem mutante (versao.py:330, 336, 359, 362); o roteiro é de dono e a rodada é cara, então vale mutante para `--executar` e para `claude` ausente.
+
+## Critério → teste → resultado
+| Critério (docs/bench-versao.md) | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Só o dono roda: recusa com CI, GITHUB_ACTIONS, ANTHROPIC_API_KEY (`R-CUSTO`) | test_recusa_com_ci_github_actions_ou_chave_da_api; M1 | variável definida e vazia; com e sem `--executar` | passou |
+| Padrão não chama o modelo, só valida e estima | test_sem_executar_so_valida_e_estima_sem_chamar | nenhuma chamada, nenhuma pasta criada | passou |
+| Testes escondidos congelados pelo sha256 | test_teste_escondido_alterado_ou_ausente_recusa | alterado; ausente | passou |
+| Marca em termos_proibidos_hash e na árvore da tag | test_marca_fora_do_config_ou_que_nao_bate_recusa, test_marca_na_arvore_da_tag_recusa; M5 | maiúsculas; hash que não bate | passou |
+| Tag e `--repo` válidos | test_tag_inexistente_e_repo_malformado_recusam | tag ausente; repo sem barra | passou |
+| Remoto vazio; uma rodada por vez | test_remoto_nao_vazio_recusa_antes_da_sessao, test_trava_de_outra_rodada_recusa; M4 | remoto com ref; trava existente | passou |
+| Sessão `--permission-mode auto`, nunca bypass; retoma com a resposta fixa | test_rodada_retoma_com_a_resposta_fixa_avalia_o_pr_e_grava_a_linha | argv de cada chamada; `--resume` só na 2ª | passou |
+| Forge instalado sai das configurações do projeto | mesmo teste; M8 | `enabledPlugins` removido | passou |
+| Limites: 20 agentes, 3 voltas, tempo, tokens | test_mais_de_20_agentes_encerra_sem_retomar, test_20_agentes_ainda_cabem, test_sem_pr_para_nas_3_voltas_e_avalia_o_head, test_tokens_acima_do_limite_encerram, test_prazo_vencido_encerra_a_sessao_em_curso; M2, M3, M6 | 20 cabe, 21 estoura; 3 voltas; sessão em curso morre | passou |
+| Tokens: usage por mensagem sem repetir; transcrições com subagentes | test_tokens_das_transcricoes_somam_subagentes_sem_repetir; M7 | id repetido, linha lixo, pasta ausente | passou |
+| Linha do quadro, cabeçalho uma vez, marca no projeto | test_segunda_rodada_acrescenta_linha_sem_repetir_cabecalho, test_marca_no_projeto_aparece_na_linha | quadro existente | passou |
+
+## Provas
+- Testes do módulo: `python3 -I -m unittest discover -s tests -p test_bancada_versao.py`: Ran 17 tests, OK (3,9 s); nenhum `skip`.
+- Mutantes: `bin/forge-mutante tests/mutantes/v0480-bench-versao.json`: M1 a M8 `morreu` (rev=d2bdd9ab9e68), nenhum sobrevivente. Os 8 mutantes cobrem as guardas de decisão do diff; o que falta está em A3.
+- Vermelho antes do verde: arquivo e testes novos, ausentes na base a27eab7e; sob cada mutante o teste cai (saída acima).
+- Roteiro real sem `--executar` e sem a pasta do dono: `versao: teste escondido ausente: ~/.forge-bench/escondidos/romanos-v1/test_escondido.py` e `marca.txt`, rc 1; com `CI=1`: `recusado com CI definida(s)`, rc 2. Nada foi chamado e `~/.forge-bench` não foi criado.
+- Vizinhos: test_bancada (19), test_comportamento (6), test_catraca (385) OK localmente.
+- Falha reproduzida local (A1): `python3 -I -m unittest discover -s tests -p test_forge.py` no d2bdd9ab: `AssertionError: Lists differ: ['test_bancada_versao'] != []` em test_pr_nao_aumenta_os_modulos_sem_peso (test_forge.py:7313). Outra falha local, test_raiz_depois_do_subcomando_e_git_isolado, é do sandbox (gh sem rede). Severidade alta (bloqueia o CI); o relatório de bug fica neste achado, o brief pede só o parecer no commit.
+- CI do mesmo sha (`gh pr checks 870`): `bateria` e as partes 3/5, 4/5, 5/5 (py 3.12) e 3/5, 5/5 (py 3.14) em `fail`; os logs não eram legíveis daqui, a ligação com A1 é provável, não confirmada.
+
+## Limites
+Não avaliei o comportamento do `claude` real (stream-json, `--resume`, caminho das transcrições): o roteiro depende do formato dele e só a primeira rodada do dono prova. O `docs/bench-versao.md` bate com o código (limites, cota, passos).
