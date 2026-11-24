@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3516 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3520 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -11,6 +11,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3516 fixtures) roda em `tests/test
 | `agentes` | 130 | 70 | 60 | 30 |
 | `ambiente` | 3 | 0 | 3 | 3 |
 | `conformidade` | 2659 | 1967 | 692 | 102 |
+| `decisao` | 4 | 0 | 4 | 4 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 33 | 13 | 20 | 15 |
 | `ordens` | 11 | 0 | 11 | 10 |
@@ -168,6 +169,15 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3516 fixtures) roda em `tests/test
 | `so-*` | 1 | 0 | 1 | — | — | Sessão de projeto (externo) com plugin.json forjado na raiz: os caminhos so_forge não valem (C-5 c). |
 | `sparse-*` | 1 | 1 | 0 | — | — | A marca da sessão fica dentro do `.git/`: `git sparse-checkout set src` apaga o `.forge/versao` da árvore de trabalho e não a marca, então a… |
 | `vigia-*` | 1 | 1 | 0 | — | `VIGIA-PRAZO-TRAVA` | VIGIA-PRAZO-TRAVA (E169.1; política do vigia do parecer de segurança E141.13): `"g"h repo create --public` não casa o marcador crítico; com… |
+
+## `decisao`
+
+| Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| `duas-*` | 1 | 0 | 1 | — | `ANTI-ALUC-F4-HOOK-DECISAO` | ANTI-ALUC-F4-HOOK-DECISAO (E172.15, R-DECISAO): dois grupos de opções na mensagem do Jarvis: só o systemMessage ao usuário, código 0, nunca… |
+| `erro-*` | 1 | 0 | 1 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA (E172.15): erro ao medir a mensagem: o decisao sai 0, não avisa e registra em erros.log. |
+| `sem-*` | 1 | 0 | 1 | — | `ANTI-ALUC-F4-HOOK-DECISAO` | ANTI-ALUC-F4-HOOK-DECISAO (E172.15): projeto sem .forge/versao: o decisao não age, mesmo com duas decisões na mensagem do Jarvis (nem cria .… |
+| `uma-*` | 1 | 0 | 1 | — | `ANTI-ALUC-F4-HOOK-DECISAO` | ANTI-ALUC-F4-HOOK-DECISAO (E172.15, R-DECISAO): um grupo de opções com "Recomendo": o decisao cala, código 0, sem stdout. |
 
 ## `doutor`
 

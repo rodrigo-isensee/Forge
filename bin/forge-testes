@@ -224,6 +224,7 @@ MAPA = [
     (r"bin/(forge-sempre-atual|forge_sempre_atual\.py)", ("test_sempre_atual", "test_oraculo_sempre_atual", "test_forge")),
     (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge", "test_atualizar", "test_sempre_atual")),  # v047 E2.532: test_sempre_atual roda o trampolim ~/.local/bin/forge
     (r"hooks/doutor\.py", ("test_atualizar", "test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor") + VOLTA_UNICA),
+    (r"hooks/(decisao\.py|hooks\.json)", RODAM_OS_HOOKS + ("test_hook_decisao",)),  # v0478 E172.15: o teste roda o hook e lê o hooks.json
     # hooks/agentes.py e hooks/_comum.py: o teto de agentes (R-TETO), o hash do brief (R-BRIEF) e a liberação do agente morto
     # (test_trava_agente_morto) rodam o script nos testes abaixo;
     # hooks/vigia.py: test_textos_dono_f10 lê o texto. O resto de hooks/ é coberto pela regra larga seguinte.
