@@ -5,8 +5,6 @@ description: Métricas de fluxo e DORA do time, medição do retrabalho, retrosp
 
 # Métricas e retrospectiva do time
 
-Trechos movidos inteiros da skill `kanban-scrum` e do `agile-coach` (diretriz 25, na skill `fluxo-do-pedido`).
-
 ## Métricas de fluxo do time
 - **Lead time:** entrada no Backlog → Pronto. **Cycle time:** entrada em "Em andamento" → Pronto.
 - **Vazão:** Pronto por semana. **Idade do WIP:** desde "Em andamento". **Bloqueio:** tempo e motivos.
@@ -31,7 +29,7 @@ Mesma regra de amostra das métricas de fluxo. Taxa de falha e tempo de recupera
 - Achados por parecer e por severidade, para ver a tendência rodada a rodada. Poucos itens: mostrar os valores brutos.
 
 ## Retrospectiva (`docs/retrospectivas/AAAA-MM-DD-<pedido>.md`)
-1. Dados do pedido: lead time, cycle time, vazão, retrabalho, bloqueios e as quatro métricas DORA, lendo velocidade e estabilidade juntas. Mais a tabela **pedido × não entregue**: pedido parado (sem movimento no quadro) e discovery sem código, com a idade e a marca de `R-DECISAO`; sem nenhum, a linha diz `nenhum`.
+1. Dados do pedido: lead time, cycle time, vazão, retrabalho, bloqueios e as quatro métricas DORA, lendo velocidade e estabilidade juntas. Mais a tabela pedido × não entregue (idade e marca; sem nenhum, `nenhum`).
 2. O que funcionou.
 3. O que atrapalhou (fatos, não pessoas).
 4. **No máximo 1 causa nova**, escolhida por `forge-placar` e `forge-placar propostas` (o checklist: métrica, `Mudança: código:` ou `Mudança: texto:`, critério de reversão, Início e Revisão de 1 a 30 dias; uma proposta aberta por vez), mais a tabela das linhas `MELHORIA:` (`R-DECISAO`), que são só candidatas. O ciclo é do `agile-coach` com o `tech-lead`, sem a pessoa.
