@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "INTEGRADOR-EM-LACO (E173.1): --laco recusa item, --ref, --lote e as opções do item",
       "arquivo": "bin/forge-fechar",
-      "de": "  if [ \"${#posicionais[@]}\" != 0 ] || [ -n \"$ref$promover_sha",
-      "para": "  if [ \"${#posicionais[@]}\" = 99 ] || [ -n \"$ref$promover_sha",
+      "de": "a cada grupo.\n  if [ \"${#posicionais[@]}\" != 0 ]",
+      "para": "a cada grupo.\n  if [ \"${#posicionais[@]}\" = 99 ]",
       "testes": [
         "tests.test_fechar_laco.Laco.test_recusa_o_que_nao_e_do_laco"
       ]
