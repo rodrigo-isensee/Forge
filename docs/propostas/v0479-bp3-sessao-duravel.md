@@ -1,6 +1,6 @@
 # Como o Jarvis sobrevive à queda da sessão e retoma sozinho os agentes? (BP3, desenho)
 
-Propósito: desenhar a BP3 de `boas-praticas-1911.md` (sessão durável), sem código: o Jarvis roda sempre em `tmux`, no atalho e no modelo de projeto, inclusive para quem usa pelo VS Code; ao voltar, retoma sozinho os agentes interrompidos a partir de um registro por item, com os mesmos briefs selados. Público: dono, Jarvis, `tech-lead`, `devops-engineer`, `python-backend`, `qa-engineer`, `security-engineer`. Revisão: 2026-11-19.
+Propósito: desenhar a BP3 de `boas-praticas-1911.md` (sessão durável), sem código: o Jarvis roda sempre em `tmux`, no atalho e no modelo de projeto, inclusive para quem usa pelo VS Code; ao voltar, retoma sozinho os agentes interrompidos a partir de um registro por item, com os mesmos briefs selados. Público: dono, Jarvis, `tech-lead`, `devops-engineer`, o backend da stack, `qa-engineer`, `security-engineer`. Revisão: 2026-11-19.
 
 Estado: proposta (pedido v0478, E39.1). Afrouxa: não (nenhum texto de `docs/regras/`, item de `tests/config.json` ou controle sai ou troca; o registro novo nunca recusa nem libera disparo, e o relançamento passa pelo R-TETO e pelo R-BRIEF como hoje).
 
@@ -163,9 +163,9 @@ Legenda: o tipo de cada caixa está no rótulo; as setas dizem quem chama ou lê
 |---|---|---|---|---|
 | S1 atalho durável: aviso sem `tmux` e com `--sem-tmux`, laço supervisor, `quedas.log` | `devops-engineer` | `scripts/jarvis`, `scripts/jarvis-forge`, `tests/test_atalho_duravel.py`, `README.md`, `changelog.d/<branch>.md` | ~110 | — |
 | S2 modelo e container: `.vscode/tasks.json`, `shutdownAction`, `tmux` no preparo | `devops-engineer` | `templates/projeto/.vscode/tasks.json`, `templates/projeto/.devcontainer/devcontainer.json`, `templates/projeto/.devcontainer/preparar-ambiente.sh`, `.devcontainer/devcontainer.json`, `tests/test_forge.py` (ou teste do modelo), `changelog.d/<branch>.md` | ~50 | D2, D3 |
-| S3 registro por item: `briefs` na reserva, `interrompidos`, fechamento | `python-backend` | `hooks/agentes.py`, `tests/test_agentes_interrompidos.py`, `tests/mutantes/<item>.json`, `changelog.d/<branch>.md` | ~120 | — |
-| S4 `forge-check retomada` | `python-backend` | `bin/forge_retomada.py` (módulo novo, para não crescer o `forge-check`), `bin/forge-check` (registro do subcomando), `tests/test_forge_check_retomada.py`, `tests/mutantes/<item>.json`, `changelog.d/<branch>.md` | ~140 | S3 |
-| S5 prompt inicial de retomada e aviso fora do `tmux` | `devops-engineer` (atalho) e `python-backend` (hook) no mesmo branch, um depois do outro | `scripts/jarvis`, `scripts/jarvis-forge`, `hooks/doutor.py`, `tests/test_atalho_duravel.py`, `tests/test_doutor.py`, `changelog.d/<branch>.md` | ~60 | S1, S4 |
+| S3 registro por item: `briefs` na reserva, `interrompidos`, fechamento | backend da stack | `hooks/agentes.py`, `tests/test_agentes_interrompidos.py`, `tests/mutantes/<item>.json`, `changelog.d/<branch>.md` | ~120 | — |
+| S4 `forge-check retomada` | backend da stack | `bin/forge_retomada.py` (módulo novo, para não crescer o `forge-check`), `bin/forge-check` (registro do subcomando), `tests/test_forge_check_retomada.py`, `tests/mutantes/<item>.json`, `changelog.d/<branch>.md` | ~140 | S3 |
+| S5 prompt inicial de retomada e aviso fora do `tmux` | `devops-engineer` (atalho) e o backend da stack (hook) no mesmo branch, um depois do outro | `scripts/jarvis`, `scripts/jarvis-forge`, `hooks/doutor.py`, `tests/test_atalho_duravel.py`, `tests/test_doutor.py`, `changelog.d/<branch>.md` | ~60 | S1, S4 |
 | S6 texto: Jarvis, skill, especificação do diário, invariante | `software-architect` | `agents/jarvis.md`, `skills/trabalho-em-paralelo/SKILL.md`, `docs/retomada-de-sessao.md`, `tests/config.json`, `changelog.d/<branch>.md` | 0 (texto) | S4, D5 |
 | S7 queda de ponta a ponta, sem IA | `qa-engineer` | `tests/test_queda_ponta_a_ponta.py` | 0 (teste) | S3, S4, S5 |
 
