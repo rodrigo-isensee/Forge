@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-mutante-varias-trocas
-commit: 3671c05271cd1760044a2bdc874b064cd28e835a
+commit: 191484effc2af5506ddfc05f3c44b3944efa2349
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -79,3 +79,23 @@ M18 · morreu · bin/forge-mutante:997
 Conferi contra o diff: as linhas de guarda novas (condição `morreu` com mais de uma troca, retorno do motivo, `not motivo`, a classe do par, o texto de morre sozinho) têm mutante; sem sobrevivente.
 
 `forge-mutante --conferir --todas` no head: 26 linhas e rc 1, igual ao parecer anterior (as 26 specs antigas com `de` repetido, anteriores ao PR); nenhuma spec nova entrou. Sem suíte local; a inteira roda no CI do PR (`R-QA`).
+
+## Delta da 2ª volta (E162.11): 3671c052..191484ef
+Mudou no domínio do QA: `bin/forge-mutante` (`MAXIMO_DE_TROCAS` de 8 para 2, mensagem "de 2 pares"), o teste de validação ajustado (3 pares agora inválido, 8 pares removido), 1 teste novo (`Execucao.test_isca_de_tres_pares_e_recusada_antes_de_rodar`, sonda S4 do #846: rc 2, "spec inválida; nada foi executado", nada rodou) e o M19 na spec `-3`. Sem UX nem contrato de API.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Isca de 3 pares (cada par sobrevive sozinho, o conjunto morre) é recusada antes de rodar | `Execucao.test_isca_de_tres_pares_e_recusada_antes_de_rodar` | 3 pares, logo acima do teto; sem cópia em `$TMPDIR`; sem "morreu" | passou; vermelho na base; M19 morreu |
+| Só 2 pares valem; 1, 3, tamanhos diferentes e o resto são inválidos | `ValidacaoDaSpec.test_varias_trocas_em_listas_do_mesmo_tamanho_valem_e_o_resto_e_invalido` | 1, 2 e 3 pares | passou; vermelho na base; M19 e M1 morreram |
+
+Vermelho: `bin/forge-testes --vermelho 3671c052 --modulos test_forge_mutante` (4 min 2 s; base = head do parecer anterior). Fim da saída: `contagem: não prova (passa na base)=152; prova (asserção)=2`; um deles: `tests.test_forge_mutante.ValidacaoDaSpec.test_varias_trocas_em_listas_do_mesmo_tamanho_valem_e_o_resto_e_invalido · H=ok · B=falha · prova (asserção)`; o outro é o teste novo da isca de 3 (os dois únicos novos ou mudados). Nenhum caiu no HEAD.
+
+Mutação: `bin/forge-mutante <spec-1> <spec-2> <spec-3> --processos 3 --ids M1,M19`, rc 0:
+```
+forge-mutante: pedido=v0480-mutante-varias-trocas rev=191484effc2a spec=f478fa67… spec=3b9ea228… spec=626e3bfe…
+M1 · morreu · bin/forge-mutante:409
+M19 · morreu · bin/forge-mutante:135
+```
+Conferi contra o diff: a única linha de guarda mudada é o teto (L135); a mensagem de L367 é texto e o teste novo a afirma. Sem sobrevivente.
+
+`forge-mutante --conferir --todas` no head: 26 linhas e rc 1, igual ao parecer anterior (as 26 specs antigas com `de` repetido); nenhuma spec nova entrou. Sem suíte local; a inteira roda no CI do PR (`R-QA`).
