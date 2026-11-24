@@ -414,15 +414,16 @@ class Execucao(unittest.TestCase):
         self.gravar("lib.py", "def limite(x, y=0):\n    if y > 500:\n        return 3\n    if x > 10:\n        return 2\n"
                               "    return 0\n")
         self.salvar()
-        iscas = {"S2": (["if y > 500:", "        return 2\n"], ["if y > 5000:", "        return 3\n"]),
-                 "S3": (["if y > 500:", "if x > 10:"], ["if y > 5000:", "if x > 99:"])}
-        for sonda, (de, para) in iscas.items():
+        iscas = {"S2": (["if y > 500:", "        return 2\n"], ["if y > 5000:", "        return 3\n"], 5),
+                 "S3": (["if y > 500:", "if x > 10:"], ["if y > 5000:", "if x > 99:"], 4)}
+        for sonda, (de, para, par) in iscas.items():
             with self.subTest(sonda):
                 r = self.rodar(self.spec(mutante("M1", de="if y > 500:", para="if y > 5000:"),
                                          mutante("M2", de=de, para=para)))
                 self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
                 self.assertIn("M1 · sobreviveu · lib.py:2", r.stdout)
-                self.assertIn("M2 · inválido · lib.py:2 · o par 2 morre sozinho: vira mutante próprio", r.stdout)
+                self.assertIn(f"M2 · inválido · lib.py:2 (par com lib.py:{par}) · o par 2 morre sozinho: vira mutante próprio",
+                              r.stdout)
                 self.assertEqual(list(self.tmp.iterdir()), [], "sobrou cópia em $TMPDIR")
 
     def test_isca_de_tres_pares_e_recusada_antes_de_rodar(self):  # MUTANTE-VARIAS-TROCAS, sonda S4 (#846)
@@ -441,13 +442,26 @@ class Execucao(unittest.TestCase):
         self.assertNotIn("morreu", r.stdout)
         self.assertEqual(list(self.tmp.iterdir()), [], "rodou o mutante recusado")
 
+    def test_par_escudo_que_morre_nomeia_as_duas_linhas(self):  # MUTANTE-VARIAS-TROCAS, sonda S7 e A3 da segurança (#846)
+        self.gravar("lib.py", "def limite(x, y=0):\n    if x < 0:\n        return 0\n    if y > 500:\n        return 3\n"
+                              "    return max(x, 0)\n")
+        self.gravar("tests/test_lib.py", "import unittest\nimport lib\n\n\nclass T(unittest.TestCase):\n"
+                                         "    def test_negativo(self):\n        self.assertEqual(lib.limite(-5), 0)\n")
+        self.salvar()
+        escudo = mutante("M2", de=["if y > 500:", "if x < 0:"], para=["if y < 500:", "if x < -100:"],
+                         testes=("tests.test_lib.T.test_negativo",))
+        r = self.rodar(self.spec(escudo))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("M2 · morreu · lib.py:4 (par com lib.py:2)", r.stdout)
+
     def test_par_que_nao_roda_sozinho_torna_o_mutante_invalido(self):  # MUTANTE-VARIAS-TROCAS
         self.gravar("lib.py", "def limite(x):\n    if (x > 10):\n        return 2\n    return 0\n")
         self.salvar()
         juntas = mutante(de=["(x >", "10)"], para=["[x >", "10]"], testes=("tests.test_lib.T.test_baixo",))
         r = self.rodar(self.spec(juntas))
         self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
-        self.assertIn("M1 · inválido · lib.py:2 · o par 1 não roda sozinho: a troca quebra a sintaxe", r.stdout)
+        self.assertIn("M1 · inválido · lib.py:2 (par com lib.py:2) · o par 1 não roda sozinho: a troca quebra a sintaxe",
+                      r.stdout)
 
     def test_varias_trocas_com_um_trecho_ausente_ou_sobreposto_sao_invalidas(self):  # MUTANTE-VARIAS-TROCAS
         casos = {"ausente": (["x > 10", "x > 11"], ["x > 99", "x > 98"], "o trecho aparece 0 vezes no arquivo (precisa "
@@ -904,8 +918,14 @@ class Cobertura(unittest.TestCase):
         self.salvar({"lib.py": duas, "tests/mutantes/x.json": json.dumps({"pedido": "x", "mutantes": [varias]})})
         r = self.cobertura()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        for linha in ("coberta · lib.py:2 · tests/mutantes/x.json:M1", "coberta · lib.py:4 · tests/mutantes/x.json:M1"):
+        for linha in ("coberta · lib.py:2 · tests/mutantes/x.json:M1 (par com lib.py:4) · ",
+                      "coberta · lib.py:4 · tests/mutantes/x.json:M1 (par com lib.py:2) · "):
             self.assertIn(linha, r.stdout)
+
+    def test_par_com_nomeia_so_o_trecho_presente_e_some_sem_nenhum(self):  # MUTANTE-VARIAS-TROCAS, A3 da segurança (#846)
+        self.assertEqual(self.f.par_com("a\nb\nc\n", "lib.py", ["c", "zz"]), " (par com lib.py:3)")
+        self.assertEqual(self.f.par_com("a\nb\n", "lib.py", ["zz"]), "")
+        self.assertEqual(self.f.par_com("a\nb\n", "lib.py", []), "")
 
     def test_sem_mutante_diz_por_que_o_mutante_que_toca_o_no_nao_cobre(self):  # v047 E1.283
         repetido = "y = 'x > 100'\nif x > 100:\n    x = 2\n"  # a 1.ª ocorrência do `de` fica fora do nó

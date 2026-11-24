@@ -13,7 +13,10 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--ids M1,M2] [--pra
            `executor` é opcional: o leitor de veredito da stack (hoje só `unittest`).
            Várias trocas num mutante (MUTANTE-VARIAS-TROCAS), para guardas que se cobrem uma à outra: `de` e `para` em
            listas de 2 pares (o `de` sem repetir; 3 ou mais são recusados), aplicados juntos no mesmo `arquivo`; cada
-           `de` uma vez no arquivo e sem sobrepor outro. A linha da saída é a do primeiro par. O conjunto morto só vale se
+           `de` uma vez no arquivo e sem sobrepor outro. A linha da saída é a do primeiro par, seguida de `(par com
+           <arquivo>:<linha>)`, também na `coberta` do `--cobertura`. O par só vale se as duas guardas cobrirem a mesma
+           condição, e quem revisa confere isso na spec: a guarda de outra condição pode desviar o teste da guarda sem
+           teste (par-escudo), e a ferramenta não a separa da redundância legítima. O conjunto morto só vale se
            cada par, sozinho e com os mesmos testes, sobrevive; o par que morre sozinho (ou não roda sozinho) dá
            `inválido · ... · o par <n> morre sozinho: vira mutante próprio` (rc 2). O `--conferir` confere cada
            `de`; o `--cobertura` conta cada par como um mutante do mesmo id. A spec de uma troca (texto) segue igual.
@@ -427,6 +430,13 @@ def sufixo_do_trecho(m, de):
     return f": {de[:60]!r}" if len(trocas(m)) > 1 else ""
 
 
+def par_com(texto, arquivo, des):
+    """MUTANTE-VARIAS-TROCAS: ` (par com <arquivo>:<linha>)` com as linhas dos trechos `des` em `texto`, para quem revisa
+    conferir na spec que as guardas cobrem a mesma condição (par-escudo, A3 da segurança do #846); "" sem trecho."""
+    linhas = [texto.count("\n", 0, texto.index(de)) + 1 for de in des if de in texto]
+    return f" (par com {', '.join(f'{arquivo}:{n}' for n in linhas)})" if linhas else ""
+
+
 def linha_do_equivalente(sha, m):
     """O equivalente declarado não roda: só confere que cada `de` existe uma vez no arquivo do commit. (linha, válido)."""
     try:
@@ -695,8 +705,8 @@ def analisar_com_textos(arquivo, hunks, antes, depois, mutantes, isentas, usadas
                 falta[v[0]] -= 1
     textos = {}
     for texto, ini, _fim, de, ate in mudadas:
-        casados = [(f"{espec}:{m['id']}", "equivalente" in m) for espec, m in mutantes
-                   if casa(m, arquivo, depois, de, ate)]
+        casados = [(f"{espec}:{m['id']}{par_com(depois, arquivo, m.get('par', ()))}", "equivalente" in m)
+                   for espec, m in mutantes if casa(m, arquivo, depois, de, ate)]
         cobrem = [nome for nome, equivalente in casados if not equivalente]
         irmas = [(c[3], c[4]) for c in mudadas if c[0] == texto]  # as cópias da mesma condição nova
         motivo = None if cobrem else isenta(isentas, usadas, arquivo, depois, de, ate, False, nova=irmas)
@@ -755,7 +765,8 @@ def mutantes_do_diff(mudadas, rev):
         problemas = validar_spec(dados)
         if problemas:
             raise ValueError(f"{arquivo}: spec inválida ({'; '.join(problemas)})")
-        mutantes += [(arquivo, {**m, "de": de, "para": para}) for m in dados["mutantes"] for de, para in trocas(m)]
+        mutantes += [(arquivo, {**m, "de": de, "para": para, "par": [d for d, _ in trocas(m) if d != de]})
+                     for m in dados["mutantes"] for de, para in trocas(m)]
         isentas += [{**i, "spec": arquivo} for i in dados.get("isentas", [])]
     if len(isentas) > MAXIMO_DE_ISENTAS:
         raise ValueError(f"mais de {MAXIMO_DE_ISENTAS} isentas somadas nas specs do diff")
@@ -966,12 +977,15 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
     linha, motivo = mutar(copia, m)
     if motivo:
         return f"{m['id']} · inválido · {m['arquivo']} · {motivo}", 2, False
+    par = [de for de, _ in trocas(m)[1:]]
+    onde = f"{m['arquivo']}:{linha}" + (par_com(ler_no_commit(sha, m["arquivo"]).decode("utf-8"), m["arquivo"], par)
+                                        if par else "")
     registro = rodar(copia, m["testes"], trabalho / f"mutante-{m['id']}.jsonl", prazo, trabalho / f"pyc-{m['id']}")
     if registro is None:
-        return f"{m['id']} · sem veredito · {m['arquivo']}:{linha}", 2, False
+        return f"{m['id']} · sem veredito · {onde}", 2, False
     classe, motivo = veredito(m["testes"], registro, erro_mata=True)  # o controle passou: erro agora é do mutante
     if classe == "sem veredito":  # o teste pulado não confirma o equivalente nem prova a sobrevivência
-        return f"{m['id']} · sem veredito · {m['arquivo']}:{linha} · {motivo}", 2, True
+        return f"{m['id']} · sem veredito · {onde} · {motivo}", 2, True
     if "equivalente" in m and classe != "inválido":  # o teste listado que o mata desmente o equivalente
         classe, motivo = ("equivalente", "") if classe == "sobreviveu" else (
             "inválido", "declarado equivalente, mas os testes listados o matam")
@@ -979,7 +993,7 @@ def provar(m, sha, raiz, trabalho, prazo, controles):
         sozinho = par_que_nao_sobrevive(m, sha, copia, trabalho, prazo)
         if sozinho:
             classe, motivo = "inválido", sozinho
-    texto = f"{m['id']} · {classe} · {m['arquivo']}:{linha}" + (f" · {motivo}" if motivo else "")
+    texto = f"{m['id']} · {classe} · {onde}" + (f" · {motivo}" if motivo else "")
     return texto, {"inválido": 2, "sobreviveu": 1}.get(classe, 0), True
 
 
