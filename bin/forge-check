@@ -4127,12 +4127,37 @@ def mesmo_commit(a, b):
     return bool(a) and bool(b) and (a.startswith(b) or b.startswith(a))
 
 
+def versoes_em_lote(raiz, refs, rel):
+    """[texto ou None] de `<ref>:<rel>` para cada ref, num `cat-file --batch` só (E140.12: era um `git show` por versão). O texto
+    sai como o do `git show` em modo texto; a versão ausente, o lote que falha ou a saída truncada dão None (como o show que falha)."""
+    if not refs or "\n" in rel:  # o nome com quebra de linha não cabe no protocolo do lote
+        return [None] * len(refs)
+    cod, lote = git(raiz, "cat-file", "--batch", bruto=True, entrada="".join(f"{r}:{rel}\n" for r in refs).encode())
+    textos, pos = [], 0
+    for _ in refs if not cod else ():
+        fim = lote.find(b"\n", pos)
+        if fim < 0:
+            break
+        cabecalho = lote[pos:fim]
+        if cabecalho.endswith(b" missing"):  # a versão que apagou o arquivo
+            textos.append(None)
+            pos = fim + 1
+            continue
+        tamanho = cabecalho.rpartition(b" ")[2]
+        corpo = lote[fim + 1:fim + 1 + int(tamanho)] if tamanho.isdigit() else None
+        if corpo is None or len(corpo) != int(tamanho):
+            break  # resposta fora do protocolo ou truncada: o resto sai None, nunca um texto parcial
+        textos.append(corpo.decode("utf-8", "replace").replace("\r\n", "\n").replace("\r", "\n").strip())
+        pos = fim + 1 + len(corpo) + 1
+    return textos + [None] * (len(refs) - len(textos))
+
+
 def parecer_anterior(raiz, rel, ponta, campos):
     """(commit, achados) da versão anterior de `rel` na `ponta` (a rodada anterior: mesmo pedido e branch, outro `commit:`), ou None."""
     cod, saida = git(raiz, "log", "--format=%H", "-n", "30", ponta, "--", rel)
-    for ref in saida.split() if not cod else ():
-        cod, texto = git(raiz, "show", f"{ref}:{rel}")  # argumento do git, não vai à saída
-        antes = (ler_frontmatter(texto)[0] or {}) if not cod else {}
+    refs = saida.split() if not cod else []
+    for texto in versoes_em_lote(raiz, refs, rel):
+        antes = (ler_frontmatter(texto)[0] or {}) if texto is not None else {}
         if (antes.get("pedido"), antes.get("branch")) != (campos.get("pedido"), campos.get("branch")):
             continue
         if antes.get("commit") and not mesmo_commit(antes["commit"], campos["commit"]):
@@ -4154,6 +4179,8 @@ def fora_do_delta(raiz, rel, texto, campos, ref):
     `## Sondas`. Sem rodada anterior, ou com o git que falha, nada é recusado (o achado fica bloqueante)."""
     if campos.get("tipo") not in DOMINIO_DO_PARECER or not COMMIT.match(campos.get("commit") or ""):
         return []
+    if not any(a["gravidade"] == "bloqueante" for a in achados_do_parecer(texto)[0]):
+        return []  # E140.12: sem bloqueante, nada a recusar; o git nem roda
     anterior = parecer_anterior(raiz, rel, ref or "HEAD", campos)
     de, ate = (sha_do_commit(raiz, anterior[0]), sha_do_commit(raiz, campos["commit"])) if anterior else (None, None)
     if not de or not ate:

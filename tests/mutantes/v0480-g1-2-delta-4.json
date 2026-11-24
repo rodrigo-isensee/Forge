@@ -1,0 +1,76 @@
+{
+  "pedido": "v0480-g1-2-delta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "FD23",
+      "guarda": "E140.12: parecer sem bloqueante não roda git",
+      "arquivo": "bin/forge-check",
+      "de": "if not any(a[\"gravidade\"] == \"bloqueante\" for a in achados_do_parecer(texto)[0]):",
+      "para": "if False and not any(a[\"gravidade\"] == \"bloqueante\" for a in achados_do_parecer(texto)[0]):",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.LeiturasEmLote.test_sem_bloqueante_nao_roda_git"
+      ]
+    },
+    {
+      "id": "FD24",
+      "guarda": "E140.12: nome com quebra de linha não vai ao lote",
+      "arquivo": "bin/forge-check",
+      "de": "if not refs or \"\\n\" in rel:",
+      "para": "if not refs:",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.LeiturasEmLote.test_nome_com_quebra_de_linha_nao_vai_ao_lote"
+      ]
+    },
+    {
+      "id": "FD25",
+      "guarda": "E140.12: o lote que falha não é lido",
+      "arquivo": "bin/forge-check",
+      "de": "for _ in refs if not cod else ():",
+      "para": "for _ in refs:",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.LeiturasEmLote.test_lote_que_falha_nao_le_nada"
+      ]
+    },
+    {
+      "id": "FD26",
+      "guarda": "E140.12: cabeçalho sem fim de linha encerra o lote",
+      "arquivo": "bin/forge-check",
+      "de": "        if fim < 0:",
+      "para": "        if fim < -1:",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.LeiturasEmLote.test_cabecalho_sem_fim_de_linha_nao_vira_texto"
+      ]
+    },
+    {
+      "id": "FD27",
+      "guarda": "E140.12: a versão apagada sai None e o lote segue",
+      "arquivo": "bin/forge-check",
+      "de": "if cabecalho.endswith(b\" missing\"):",
+      "para": "if cabecalho.endswith(b\" ausente\"):",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.LeiturasEmLote.test_versao_apagada_sai_none_e_o_lote_segue"
+      ]
+    },
+    {
+      "id": "FD28",
+      "guarda": "E140.12: corpo truncado nunca vira texto parcial",
+      "arquivo": "bin/forge-check",
+      "de": "if corpo is None or len(corpo) != int(tamanho):",
+      "para": "if corpo is None:",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.LeiturasEmLote.test_corpo_truncado_nao_vira_texto_parcial"
+      ]
+    },
+    {
+      "id": "FD29",
+      "guarda": "E140.12: cabeçalho fora do protocolo não é lido",
+      "arquivo": "bin/forge-check",
+      "de": "int(tamanho)] if tamanho.isdigit() else None",
+      "para": "int(tamanho)] if True else None",
+      "testes": [
+        "tests.test_parecer_fora_do_delta.LeiturasEmLote.test_cabecalho_fora_do_protocolo_nao_le_nada"
+      ]
+    }
+  ]
+}

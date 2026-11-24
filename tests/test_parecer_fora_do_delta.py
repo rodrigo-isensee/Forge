@@ -189,5 +189,72 @@ class Revalidacao(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
 
 
+class LeiturasEmLote(unittest.TestCase):
+    """E140.12 (ORDEM DO DONO de 24/11): as versões anteriores do parecer saem num `cat-file --batch` só, e o parecer sem bloqueante
+    não roda git nenhum; o que a checagem decide não muda (as recusas de `Revalidacao` seguem as mesmas)."""
+    setUp, commitar, parecer = Revalidacao.setUp, Revalidacao.commitar, Revalidacao.parecer
+    REL = "docs/reviews/p1.md"
+
+    def contar_git(self):
+        chamadas, original = [], fc.git
+
+        def contado(raiz, *args, **kw):
+            chamadas.append(args[1] if args[0] == "--literal-pathspecs" else args[0])
+            return original(raiz, *args, **kw)
+        fc.git = contado
+        self.addCleanup(setattr, fc, "git", original)
+        return chamadas
+
+    def falso_git(self, cod, lote):
+        original = fc.git
+        fc.git = lambda *a, **kw: (cod, lote)
+        self.addCleanup(setattr, fc, "git", original)
+
+    def revalidar(self, achado):
+        texto = self.parecer("review", self.c2[:7], [achado])
+        return fc.fora_do_delta(self.tmp, self.REL, texto, fc.ler_frontmatter(texto)[0], None)
+
+    def test_sem_bloqueante_nao_roda_git(self):
+        self.commitar({self.REL: self.parecer("review", self.c1[:7], ["- A1 (bloqueante) src/a.py:5 · x"])})
+        chamadas = self.contar_git()
+        self.assertEqual(self.revalidar("- A2 (recomendado) src/a.py:2 · sugestão"), [])
+        self.assertEqual(chamadas, [])
+
+    def test_varias_versoes_num_lote_so(self):
+        self.commitar({self.REL: self.parecer("review", self.c1[:7], ["- A1 (bloqueante) src/a.py:5 · x"])})
+        for n in range(3):  # versões do mesmo commit (não são a rodada anterior): o laço passa por todas
+            self.commitar({self.REL: self.parecer("review", self.c2[:7], [f"- A{n + 5} (recomendado) src/a.py:2 · v{n}"])})
+        chamadas = self.contar_git()
+        self.assertEqual(len(self.revalidar("- A2 (bloqueante) src/a.py:2 · novo")), 1)
+        self.assertEqual((chamadas.count("cat-file"), chamadas.count("show"), len(chamadas)), (1, 0, 5), chamadas)
+
+    def test_versao_apagada_sai_none_e_o_lote_segue(self):
+        com = self.commitar({self.REL: "um\n"})
+        git("rm", "-q", self.REL, cwd=self.tmp)
+        git("commit", "-q", "-m", "apaga", cwd=self.tmp)
+        sem = git("rev-parse", "HEAD", cwd=self.tmp)
+        self.assertEqual(fc.versoes_em_lote(self.tmp, [com, sem, com], self.REL), ["um", None, "um"])
+
+    def test_nome_com_quebra_de_linha_nao_vai_ao_lote(self):
+        com = self.commitar({self.REL: "um\n"})
+        self.assertEqual(fc.versoes_em_lote(self.tmp, [com, com], self.REL + "\nx"), [None, None])
+
+    def test_lote_que_falha_nao_le_nada(self):
+        self.falso_git(1, b"abc blob 5\nhello\n")
+        self.assertEqual(fc.versoes_em_lote(self.tmp, ["a"], "r.md"), [None])
+
+    def test_cabecalho_sem_fim_de_linha_nao_vira_texto(self):
+        self.falso_git(0, b"x blob 5\nhello\nabc blob 12")
+        self.assertEqual(fc.versoes_em_lote(self.tmp, ["a", "b"], "r.md"), ["hello", None])
+
+    def test_corpo_truncado_nao_vira_texto_parcial(self):
+        self.falso_git(0, b"x blob 9\nhel")
+        self.assertEqual(fc.versoes_em_lote(self.tmp, ["a"], "r.md"), [None])
+
+    def test_cabecalho_fora_do_protocolo_nao_le_nada(self):
+        self.falso_git(0, b"lixo\nhello\n")
+        self.assertEqual(fc.versoes_em_lote(self.tmp, ["a"], "r.md"), [None])
+
+
 if __name__ == "__main__":
     unittest.main()
