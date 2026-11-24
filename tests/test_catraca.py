@@ -545,6 +545,103 @@ class TestesEnfraquecidos(Base):
         self.assertFalse(any("asserções" in v for v in self.repo.violacoes()))
 
 
+class TestesAfrouxados(Base):
+    """D3 (decisão do dono de 24/11): cada `def test_*` da base comparado com ele mesmo no head; só o rótulo do dono libera."""
+
+    Y = textwrap.dedent("""\
+        import unittest
+        class T(unittest.TestCase):
+            def test_a(self):
+                self.assertEqual(soma(1, 2), 3, msg="m")
+                assert dobro(2) == 4
+            def test_b(self):
+                self.assertTrue(f())
+            def test_c(self):
+                f()
+            def ajuda(self):
+                return 1
+        """)
+
+    def setUp(self):
+        super().setUp()
+        self.repo.escreve("tests/test_y.py", self.Y)
+        self.repo.escreve("scripts/test_z.py", "def test_z():\n    assert 1\n")
+        self.repo.escreve("tests/catraca.py", "def test_q():\n    assert 1\n")
+        self.repo.commit()
+        self.repo.git("tag", "-f", "base")
+
+    def afrouxados(self, novo, arq="tests/test_y.py"):
+        self.repo.escreve(arq, novo)
+        self.repo.commit()
+        return [v for v in self.repo.violacoes() if v.startswith("R-CONFORMIDADE: o teste ")]
+
+    def test_assercao_levada_a_outro_teste_barra_com_a_soma_igual(self):
+        novo = self.Y.replace("        self.assertTrue(f())\n", "        f()\n").replace("        f()\n    def ajuda", "        self.assertTrue(f())\n    def ajuda")
+        achadas = self.afrouxados(novo)
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn("tests/test_y.py::T.test_b perdeu asserção.", achadas[0])
+        self.assertFalse(any("asserções em tests/ caíram" in v for v in self.repo.violacoes()))
+
+    def test_valor_esperado_trocado_barra(self):
+        for de, para in (("), 3,", "), 4,"), ("== 4", "== 5"), ("soma(1, 2)", "soma(1, 3)")):
+            with self.subTest(de):
+                self.repo.git("reset", "-q", "--hard", "base")
+                achadas = self.afrouxados(self.Y.replace(de, para))
+                self.assertEqual([a.split(". Por quê")[0] for a in achadas],
+                                 ["R-CONFORMIDADE: o teste tests/test_y.py::T.test_a trocou ou tirou valor esperado"])
+
+    def test_so_a_mensagem_da_assercao_trocada_passa(self):
+        self.assertEqual(self.afrouxados(self.Y.replace('msg="m"', 'msg="outra"')), [])
+
+    def test_skip_no_teste_na_classe_ou_skiptest_barra(self):
+        casos = {"decorador": ("    def test_b", "    @unittest.skip('x')\n    def test_b", ["T.test_b"]),
+                 "classe": ("class T(", "@unittest.skip('x')\nclass T(", ["T.test_a", "T.test_b", "T.test_c"]),
+                 "skipTest": ("        f()\n    def ajuda", "        self.skipTest('x')\n        f()\n    def ajuda", ["T.test_c"])}
+        for nome, (de, para, testes) in casos.items():
+            with self.subTest(nome):
+                self.repo.git("reset", "-q", "--hard", "base")
+                achadas = self.afrouxados(self.Y.replace(de, para))
+                self.assertEqual(len(achadas), len(testes), achadas)
+                for t, a in zip(testes, achadas):
+                    self.assertIn(f"::{t} ganhou skip", a)
+
+    def test_teste_sem_assercao_esvaziado_barra(self):
+        achadas = self.afrouxados(self.Y.replace("        f()\n    def ajuda", "        pass\n    def ajuda"))
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn("::T.test_c ficou vazio", achadas[0])
+
+    def test_teste_apagado_renomeado_ou_modulo_ilegivel_barra(self):
+        for nome, novo, quantos in (("apagado", self.Y.replace("    def test_b(self):\n        self.assertTrue(f())\n", ""), 1),
+                                    ("renomeado", self.Y.replace("def test_b", "def test_b2"), 1),
+                                    ("ilegível", self.Y + ")\n", 3)):
+            with self.subTest(nome):
+                self.repo.git("reset", "-q", "--hard", "base")
+                achadas = self.afrouxados(novo)
+                self.assertEqual(len(achadas), quantos, achadas)
+                self.assertIn("::T.test_b foi apagado ou renomeado", "".join(achadas))
+
+    def test_teste_movido_de_modulo_passa_e_afrouxado_na_mudanca_barra(self):
+        self.repo.escreve("tests/test_y.py", "")
+        self.assertEqual(self.afrouxados(self.Y, "tests/test_w.py"), [])
+        self.repo.git("reset", "-q", "--hard", "base")
+        self.repo.escreve("tests/test_y.py", "")
+        achadas = self.afrouxados(self.Y.replace("), 3,", "), 4,"), "tests/test_w.py")
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn("tests/test_y.py::T.test_a trocou ou tirou valor esperado", achadas[0])
+
+    def test_copia_forte_em_outro_modulo_nao_libera_o_afrouxado_no_proprio(self):
+        self.repo.escreve("tests/test_w.py", self.Y)
+        achadas = self.afrouxados(self.Y.replace("), 3,", "), 4,"))
+        self.assertEqual(len(achadas), 1, achadas)
+
+    def test_acrescimos_ajudante_e_arquivo_fora_de_tests_passam(self):
+        novo = (self.Y.replace("        f()\n    def ajuda", "        self.assertIsNone(f(), 7)\n    def ajuda")
+                .replace("    def ajuda(self):\n        return 1\n", "") + "    def test_d(self):\n        assert 1\n")
+        self.assertEqual(self.afrouxados(novo), [])
+        self.assertEqual(self.afrouxados("", "scripts/test_z.py"), [])
+        self.assertEqual(self.afrouxados("", "tests/catraca.py"), [])
+
+
 class ControlesEnfraquecidos(Base):
     """MAQ-I7a: a força conta por módulo de controle; ilegível, grande demais ou renomeado conta zero."""
     HOOKS_PY = "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        self.assertTrue(1)\n        assert 2\n"
@@ -824,7 +921,7 @@ class TestesNoCi(Base):
         funcoes = {n.name: n for n in ast.parse((AQUI / "catraca.py").read_text(encoding="utf-8")).body if isinstance(n, ast.FunctionDef)}
         proibidos = {"importlib", "__import__", "exec", "eval", "compile", "runpy", "TestLoader", "discover", "SourceFileLoader",
                      "import_module", "system", "popen", "execv", "execvp", "spawnv", "run_path", "run_module", "loadTestsFromName"}
-        pendentes, vistas = ["regra_controles_enfraquecidos", "regra_testes_no_ci", "deficits_do_ci"], set()
+        pendentes, vistas = ["regra_controles_enfraquecidos", "regra_testes_afrouxados", "regra_testes_no_ci", "deficits_do_ci"], set()
         while pendentes:
             nome = pendentes.pop()
             vistas.add(nome)

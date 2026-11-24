@@ -1,0 +1,54 @@
+{
+  "pedido": "v0480-d3-teste-enfraquecido",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D3B1",
+      "guarda": "a própria catraca fica fora da comparação",
+      "arquivo": "tests/catraca.py",
+      "de": "if a.startswith(\"tests/\") and a.endswith(\".py\") and a != \"tests/catraca.py\"]",
+      "para": "if a.startswith(\"tests/\") and a.endswith(\".py\")]",
+      "testes": ["tests.test_catraca.TestesAfrouxados.test_acrescimos_ajudante_e_arquivo_fora_de_tests_passam"]
+    },
+    {
+      "id": "D3B2",
+      "guarda": "a cópia no próprio módulo vale antes da de outro módulo",
+      "arquivo": "tests/catraca.py",
+      "de": "copias = [junto] if junto else [t[nome] for t in th.values() if nome in t]",
+      "para": "copias = [t[nome] for t in th.values() if nome in t]",
+      "testes": ["tests.test_catraca.TestesAfrouxados.test_copia_forte_em_outro_modulo_nao_libera_o_afrouxado_no_proprio"]
+    },
+    {
+      "id": "D3B3",
+      "guarda": "chamada assert* conta como asserção",
+      "arquivo": "tests/catraca.py",
+      "de": "            if nome.startswith(\"assert\") and nome != \"assert\":\n                asserts += 1\n                esperados",
+      "para": "            if nome.startswith(\"assertX\") and nome != \"assert\":\n                asserts += 1\n                esperados",
+      "testes": ["tests.test_catraca.TestesAfrouxados.test_assercao_levada_a_outro_teste_barra_com_a_soma_igual"]
+    },
+    {
+      "id": "D3B4",
+      "guarda": "os testes dentro das classes são vistos",
+      "arquivo": "tests/catraca.py",
+      "de": "if isinstance(filho, ast.ClassDef):",
+      "para": "if False:",
+      "testes": ["tests.test_catraca.TestesAfrouxados.test_teste_apagado_renomeado_ou_modulo_ilegivel_barra"]
+    },
+    {
+      "id": "D3B5",
+      "guarda": "só def test_* é teste; o ajudante apagado não barra",
+      "arquivo": "tests/catraca.py",
+      "de": "ast.AsyncFunctionDef)) and filho.name.startswith(\"test_\"):",
+      "para": "ast.AsyncFunctionDef)) and filho.name.startswith(\"\"):",
+      "testes": ["tests.test_catraca.TestesAfrouxados.test_acrescimos_ajudante_e_arquivo_fora_de_tests_passam"]
+    },
+    {
+      "id": "D3B6",
+      "guarda": "módulo ausente ou ilegível fica de fora do mapa",
+      "arquivo": "tests/catraca.py",
+      "de": "(a := _arvore_do_modulo(raiz, ref, arq, presentes)) is not None}",
+      "para": "(a := _arvore_do_modulo(raiz, ref, arq, presentes)) is not None or False}",
+      "equivalente": "módulo fora do mapa e módulo com mapa vazio dão o mesmo resultado (sem teste na base, nada a comparar; no head, o teste da base sai como apagado); a falha da leitura do git levanta antes, em _arvore_do_modulo"
+    }
+  ]
+}

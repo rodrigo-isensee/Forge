@@ -659,6 +659,88 @@ def regra_controles_enfraquecidos(raiz, b, h):
             for arq in modulos if any(_piora(fb[arq], fh[arq]))]
 
 
+# --- D3 do estudo determinístico (decisão do dono de 24/11): teste existente afrouxado, por função -------------------------
+# As somas de cima se compensam entre testes (asserção tirada de um e posta em outro) e não veem o valor esperado trocado.
+# Aqui cada `def test_*` da base nos módulos que o PR toca é comparado com ele mesmo no head; só o rótulo do dono libera.
+def _pulos_dos_decoradores(no):
+    return sum(_nome(d.func if isinstance(d, ast.Call) else d) in PULOS for d in no.decorator_list)
+
+
+def _constantes(*nos):
+    return Counter(repr(c.value) for no in nos for c in ast.walk(no) if isinstance(c, ast.Constant))
+
+
+def _perfil_do_teste(fn, pulos_da_classe):
+    """(asserções, pulos, vazio, valores esperados) de um `def test_*`; o `msg=` da asserção não é valor esperado."""
+    asserts, pulos, esperados = 0, pulos_da_classe + _pulos_dos_decoradores(fn), Counter()
+    for n in (n for c in fn.body for n in ast.walk(c)):
+        if isinstance(n, ast.Assert):
+            asserts += 1
+            esperados += _constantes(n.test)
+        elif isinstance(n, ast.Call):
+            nome = _nome(n.func)
+            if nome.startswith("assert") and nome != "assert":
+                asserts += 1
+                esperados += _constantes(*n.args, *(k.value for k in n.keywords if k.arg != "msg"))
+            pulos += nome in PULOS
+    corpo = [c for c in fn.body if not (isinstance(c, ast.Expr) and isinstance(c.value, ast.Constant))]
+    return asserts, pulos, all(isinstance(c, ast.Pass) for c in corpo), esperados
+
+
+def testes_da_arvore(arvore):
+    """{`Classe.test_x` ou `test_x`: perfil} dos testes no corpo do módulo e das classes (aninhadas inclusive)."""
+    testes = {}
+
+    def visita(no, prefixo, pulos_da_classe):
+        for filho in ast.iter_child_nodes(no):
+            if isinstance(filho, ast.ClassDef):
+                visita(filho, prefixo + filho.name + ".", pulos_da_classe + _pulos_dos_decoradores(filho))
+            elif isinstance(filho, (ast.FunctionDef, ast.AsyncFunctionDef)) and filho.name.startswith("test_"):
+                testes[prefixo + filho.name] = _perfil_do_teste(filho, pulos_da_classe)
+    visita(arvore, "", 0)
+    return testes
+
+
+def afrouxamentos(antes, depois):
+    """O que o teste perdeu de `antes` para `depois` (perfis); vazio se não afrouxou."""
+    perdas = []
+    if depois[0] < antes[0]:
+        perdas.append("perdeu asserção")
+    if depois[1] > antes[1]:
+        perdas.append("ganhou skip/skipIf/skipUnless/expectedFailure/skipTest")
+    if depois[2] and not antes[2]:
+        perdas.append("ficou vazio")
+    if antes[3] - depois[3]:
+        perdas.append("trocou ou tirou valor esperado")
+    return perdas
+
+
+def _testes_por_modulo(raiz, ref, modulos):
+    presentes = set(listar(raiz, ref, "tests"))
+    return {arq: testes_da_arvore(a) for arq in modulos if (a := _arvore_do_modulo(raiz, ref, arq, presentes)) is not None}
+
+
+def regra_testes_afrouxados(raiz, b, h):
+    """Cada `def test_*` da base num módulo tocado: apagado (sem o mesmo nome em outro módulo tocado), pulado, esvaziado,
+    com asserção a menos ou valor esperado trocado barra. Teste movido de módulo passa se a cópia não afrouxou."""
+    modulos = [a for a in alterados(raiz, b, h) if a.startswith("tests/") and a.endswith(".py") and a != "tests/catraca.py"]
+    tb, th = _testes_por_modulo(raiz, b, modulos), _testes_por_modulo(raiz, h, modulos)
+    v = []
+    for arq, testes in sorted(tb.items()):
+        for nome, antes in sorted(testes.items()):
+            junto = th.get(arq, {}).get(nome)
+            copias = [junto] if junto else [t[nome] for t in th.values() if nome in t]
+            if not copias:
+                perdas = ["foi apagado ou renomeado"]
+            else:
+                perdas = min((afrouxamentos(antes, c) for c in copias), key=len)
+            if perdas:
+                v.append(msg("R-CONFORMIDADE", f"o teste {arq}::{nome} {', '.join(perdas)}",
+                             "teste existente afrouxado deixa a regra sem proteção com o CI verde, e as somas se compensam entre testes",
+                             f"restaure o teste como na base ou peça o rótulo `{ROTULO}` ao dono", "docs/regras/R-CONFORMIDADE.md"))
+    return v
+
+
 def modulos_descobriveis(raiz, ref, arquivos=None):
     """Módulos que o `discover -s tests` carrega em `ref` (o que `scripts/suite-partes.py` divide no CI): `test*.py` de nome
     importável na raiz de tests/ ou em pacote com `__init__.py` em cada pasta, pela árvore do git."""
@@ -1091,6 +1173,7 @@ def _violacoes_das_regras(raiz, base, head):
     permitido = (ch or {}).get("custo_permitido", {})
     return (regras_de_config(cb, ch or {}) + regra_arquivos_de_regras(raiz, b, head, cb or {}) + regra_hooks(raiz, b, head) + regra_testes(raiz, b, head)
             + regra_testes_enfraquecidos(raiz, b, head) + regra_controles_enfraquecidos(raiz, b, head)
+            + regra_testes_afrouxados(raiz, b, head)
             + regra_testes_no_ci(raiz, b, head, cb, ch) + regra_teto_pulados(cb, ch) + regra_guardas_dos_hooks(raiz, b, head)
             + regra_politica(raiz, b, head)
             + regra_custo(raiz, head, permitido) + regra_protegidos(raiz, b, head) + regra_compilados(raiz, b, head))

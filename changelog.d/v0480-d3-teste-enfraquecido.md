@@ -1,0 +1,2 @@
+### Adicionado
+- Catraca: cada `def test_*` da base num módulo tocado é comparado com ele mesmo no head (asserção a menos, valor esperado trocado ou tirado, pulo novo, teste vazio, apagado ou renomeado) e barra sem o rótulo `afrouxa-regra` do dono, sem ressalva do QA; as somas por pasta e por módulo de controle se compensavam entre testes (D3 do estudo determinístico, decisão do dono de 24/11, E174.3)
