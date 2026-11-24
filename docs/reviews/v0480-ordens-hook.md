@@ -3,26 +3,31 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-ordens-hook
-commit: 35211762d50aec616625d3e7bd90ed88c7bb7f47
+commit: a6e0d1014e2643e21e1b261154a1ce9160c87662
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-23
 ---
-# Review: v0478 (E123.20, volta de CI do hook ordens)
+# Review: v0478 (E140.7, revalidação do #805 depois do merge da develop)
 
-Revalidação por delta (H3, `R-REVIEW`): `forge-check parecer delta docs/reviews/v0480-ordens-hook.md`, intervalo `fe14fb1e..35211762`, sem o merge da develop `51cb434d`. Parecer anterior: aprovado em `fe14fb1e` (`0637c6da`). Li só o commit do autor `35211762` (E123.19). A linha do `docs/indice-forge.md` que o delta lista (`forge_controle.py`) veio da develop (`ba201c86`) e fica fora do escopo.
+Revalidação por delta (H3, `R-REVIEW`): `forge-check parecer delta docs/reviews/v0480-ordens-hook.md`, intervalo `35211762..a6e0d101`, sem o que veio da base. Parecer anterior: aprovado em `35211762` (`b8443170`). O único commit novo do intervalo é o merge `a6e0d101` da develop `216413c9`, que já traz o corte 1 (a guarda das ordens no `conformidade`, `GuardaDasOrdens` e as specs `v0480-ordens-guarda*.json`).
 
 ## Delta lido
-- **U6** (`tests/mutantes/v0479-conformidade-trilha-7.json`): o `de` passa a citar o texto atual de `CONTROLE_NO_TEXTO` (`hooks/conformidade.py:3828-3829`, com `ordens`), e o `para` ganha `ordens` também. Assim o mutante segue apertando só a posição, sem tirar a pasta nova.
-- **`entrada_valida`** (`hooks/conformidade.py:3602-3612`): a função interna `texto` sai e as checagens ficam em linha. É equivalente: `isinstance(v, str) and bool(v)` vira `isinstance(v, str) and v != ""`. Na branch, `A or B and C` agrupa como `A or (B and C)`, que é o mesmo de antes. As entradas aceitas e recusadas não mudam. O motivo (custo do corpus) está na docstring.
-- **Testes**: há 5 casos de falha novos em `test_politica_de_conformidade_malformada_bloqueia`: caminho vazio, caminho que não é texto, motivo vazio, item de `quem` que não é texto e branch vazia. Cada guarda tem um ramo de falha por comportamento, e nenhum teste foi afrouxado.
-- **Mutantes**: M32 a M37 (`tests/mutantes/v0480-ordens-hook-6.json`), um por linha de guarda mudada.
+- **`hooks/conformidade.py:1612`**: a linha que o delta lista é a resolução do merge e fica igual à da develop. `git diff 216413c9 a6e0d101 -- hooks/conformidade.py hooks/conformidade.json bin/forge-init` sai vazio.
+- **Mutantes retirados** (os 10 da guarda nas specs `v0480-ordens-hook-3.json`, `-4.json` e `-5.json`, e os 6 da spec `-6.json`, apagada): cada um está na develop `216413c9`, com o mesmo alvo. Os mutantes das pastas das ordens, da cópia principal e dos ignorados do `forge-init` estão em `tests/mutantes/v0480-ordens-guarda.json`. Os do mapa de donos do projeto e de `entrada_valida` estão em `tests/mutantes/v0480-ordens-guarda-2.json`. O mutante da cópia principal já cita o texto novo, com `em_qualquer_lugar`. Nenhuma guarda perde mutante. As specs que ficam na branch (`v0480-ordens-hook*.json`, 20 mutantes) miram só `hooks/ordens.py`, e nenhum ID repete os da guarda.
+- **Testes retirados de `OrdensEmVigor`**: os 4 `test_conformidade_*` e `worktree` passam para `GuardaDasOrdens` (`tests/test_hooks.py:3804`), igual à develop, com uma classe só e sem duplicata. `OrdensEmVigor` reusa `worktree = GuardaDasOrdens.worktree` (`tests/test_hooks.py:3969`). O comentário de `entrada_valida` aponta a spec `-guarda-2.json`. Nenhuma asserção foi afrouxada.
+- **Índices**: `docs/indice-forge.md` e `docs/hooks-fixtures.md` só acrescentam as linhas do `ordens` (11 fixtures) e do `vigia` (`time-*`, 4 fixtures do commit `c63e9615`, já no escopo aprovado antes).
+
+## Escopo contra a develop
+`git diff --stat 216413c9 a6e0d101` mostra só o corte 2: `hooks/ordens.py`, `hooks/hooks.json`, a emenda da ADR 0003, `changelog.d/`, os pareceres, as fixtures `tests/hooks/ordens/`, as 4 fixtures `vigia/time-parado-*`, as specs `v0480-ordens-hook*.json`, `tests/test_hooks.py`, `tests/test_doutor.py`, `tests/test_vigia_parado.py` (sai um `import subprocess` sem uso) e os dois índices.
+
+## Teto H1
+`git diff --numstat 216413c9 a6e0d101 -- hooks/` dá `hooks/ordens.py` 107+ e `hooks/hooks.json` 32+/1-, ou seja 140 linhas de código. Fica dentro do teto de 150 e é um comportamento só: o hook `ordens`.
 
 ## Provas
-- `python3 -m unittest tests.test_hooks.Hooks.test_politica_de_conformidade_malformada_bloqueia tests.test_hooks.Hooks.test_fixtures_do_controle_so_jarvis` (`env -i`): `Ran 2 tests in 22.000s OK`.
-- `bin/forge-mutante tests/mutantes/v0480-ordens-hook-6.json --processos 1`: M32 a M37 `morreu` (linhas 3605 a 3612). `--ids U6` na spec `trilha-7`: `U6 · morreu · hooks/conformidade.py:3828`.
-- `bin/forge-mutante --conferir --base fe14fb1e`: `conferidas: o trecho de cada spec do diff está no lugar`.
-- CI do PR #805 no head `35211762`: suíte 5/5 verde. Falham só `catraca` (`R-CONFORMIDADE`: falta o rótulo `afrouxa-regra`, autorizado pelo dono em 2026-11-23 15:25 e aplicado depois do último push), `bateria (pareceres)` (pareceres ainda não estão no head) e o agregado `bateria`. Nenhuma das falhas vem do código.
+- `bin/forge-mutante --conferir --base 216413c9`: `conferidas: o trecho de cada spec do diff está no lugar`.
+- `python3 -m unittest tests.test_hooks.OrdensEmVigor tests.test_hooks.GuardaDasOrdens tests.test_doutor.HookDoutor.test_hooks_json_registra_o_doutor_so_em_sessionstart_e_stop tests.test_hooks.Hooks.test_hooks_json` (`env -i`): `Ran 26 tests in 10.388s OK`.
+- CI do PR #805 no head `a6e0d101`: `catraca` verde (rótulo `afrouxa-regra` aplicado). `bateria (pareceres)` está vermelha porque os pareceres ainda não estão no head. A suíte 10/10 estava pendente na hora da leitura. O merge espera tudo verde.
 
 ## Parecer
-Aprovado. A volta de CI só refatora `entrada_valida` para uma forma equivalente e atualiza a spec U6 para o texto atual da guarda. Cada guarda tem caso de falha e mutante que morre.
+Aprovado. O merge da develop só tira da branch o que o corte 1 já levou para a develop, com os mesmos mutantes e testes. O diff restante é o corte 2, com 140 linhas de código.
