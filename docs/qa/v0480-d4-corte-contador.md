@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-d4-corte-contador
-commit: bf598d2f872df03c42fc799367453eea98b558e9
+commit: c9b5d269018c90f24d6414aa5e523adb88fbd41e
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -16,8 +16,14 @@ data: 2026-11-24
 
 Sem especificação de UX nem contrato de API: as obrigações são a ordem do dono de 24/11 (corte ao chegar a 20 itens) e `R-MAIN` (o merge da main é só do dono), lidas em `docs/fechamento-integrador.md` e no cabeçalho do `bin/forge-fechar`.
 
-## Achados
-- A1 (recomendado) bin/forge-fechar:1499 · main à frente da homolog (hotfix) sem PR da main aberto: `v_hom != v_main` abre o PR homolog -> main com a versão velha; falta a guarda de ordem que o V1 tem para homolog > develop. Visto na leitura do código, sem teste.
+## Revalidação (delta bf598d2f..c9b5d269, escopo incremental)
+O A1 do parecer anterior (main à frente da homolog) foi corrigido: guarda no V1 (bin/forge-fechar:1490) e test_main_a_frente_da_homolog_para. Os achados A1 e A2 do review (SC2015 e README.md sintético) estão corrigidos; o A3 do review (PR fechado sem mesclar) é do review e segue recomendado, fora deste parecer.
+- forge-check parecer delta: base bf598d2f872d; domínio com bin/forge-fechar, doc, specs 2 e 5, test_fechar_corte.py e test_reval_delta.py; reteste só disso.
+- test_fechar_corte (18 testes, com -I): OK. Os dois testes que o review viu vermelhos (test_fechar_sem_a_e_b_ou_c_solto e test_caminho_de_texto_so_e_citado_como_a_lista_conhece): OK.
+- Vermelho antes do verde (forge-testes --vermelho aabc476c5dba --modulos test_fechar_corte,test_fechar_laco): contagem: não prova (passa na base)=11; prova (asserção)=18. O teste novo test_main_a_frente_da_homolog_para entra nos que provam.
+- Mutação (forge-mutante --base bf598d2f872d --processos 4, 5 specs): rc 0, 36 mutantes morreu, nenhum sobrevivente; M35 (:1484), M36 (:1490) e M37 (:1491) cobrem as 2 guardas novas; conferi as linhas de guarda do delta contra a lista.
+- sem_merge() (R-MAIN) nos testes de PR da main: nenhuma chamada pr merge nem --auto.
+- shellcheck não existe nesta máquina: o SC2015 foi conferido pelo teste estrutural do repositório; o CI do mesmo sha segue pendente na hora da leitura (só catraca verde), então este parecer não o cita como verde.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
