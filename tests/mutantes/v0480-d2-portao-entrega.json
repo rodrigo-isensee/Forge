@@ -1,0 +1,88 @@
+{
+  "pedido": "v0480-d2-portao-entrega",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "PORTAO-D2 índice: hooks/ sozinho no delta confere o índice (QA A1)",
+      "arquivo": "patches/d2-portao-entrega.patch",
+      "de": "'^(bin|hooks|scripts)/'",
+      "para": "'^(bin|scripts)/'",
+      "testes": [
+        "tests.test_pre_push_d2.Indice.test_codigo_novo_sem_indice_barra_e_com_indice_passa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "PORTAO-D2 índice: scripts/ sozinho no delta confere o índice (QA A1)",
+      "arquivo": "patches/d2-portao-entrega.patch",
+      "de": "'^(bin|hooks|scripts)/'",
+      "para": "'^(bin|hooks)/'",
+      "testes": [
+        "tests.test_pre_push_d2.Indice.test_codigo_novo_sem_indice_barra_e_com_indice_passa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "PORTAO-D2 teto e PR: só a ref cuja ponta é o HEAD (QA A2)",
+      "arquivo": "patches/d2-portao-entrega.patch",
+      "de": "[ \"$ponta\" = \"$(git rev-parse HEAD 2>/dev/null)\" ] || continue",
+      "para": ":",
+      "testes": [
+        "tests.test_pre_push_d2.Ponta.test_branch_cuja_ponta_nao_e_o_head_nao_e_conferida"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "PORTAO-D2 teto e PR: só ref de refs/heads/ (QA A3)",
+      "arquivo": "patches/d2-portao-entrega.patch",
+      "de": "case \"$ref\" in refs/heads/?*) ;; *) continue ;; esac",
+      "para": ":",
+      "testes": [
+        "tests.test_pre_push_d2.Ponta.test_ref_fora_de_refs_heads_nao_e_conferida"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "PORTAO-D2 só parecer: arquivo fora de docs/{reviews,qa,security,devops}/ ou delta vazio barra (review A1)",
+      "arquivo": "patches/d2-portao-entrega.patch",
+      "de": "grep -qvE '^docs/(reviews|qa|security|devops)/'; then return 1; fi",
+      "para": "grep -qvE '^docs/(reviews|qa|security|devops)/'; then :; fi",
+      "testes": [
+        "tests.test_pre_push_d2.SoParecer.test_delta_com_arquivo_fora_dos_pareceres_barra",
+        "tests.test_pre_push_d2.SoParecer.test_ref_nova_ou_sha_remoto_desconhecido_barra"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "PORTAO-D2 só parecer: o índice fora de dia só avisa (review A1)",
+      "arquivo": "patches/d2-portao-entrega.patch",
+      "de": "      d2_so_avisa || falhas=1",
+      "para": "      falhas=1",
+      "testes": [
+        "tests.test_pre_push_d2.SoParecer.test_indice_fora_de_dia_so_avisa"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "PORTAO-D2 só parecer: teto e texto do PR só avisam (review A1, S1 e S2)",
+      "arquivo": "patches/d2-portao-entrega.patch",
+      "de": ">&2; d2_so_avisa || falhas=1; }",
+      "para": ">&2; falhas=1; }",
+      "testes": [
+        "tests.test_pre_push_d2.SoParecer.test_teto_estourado_so_avisa",
+        "tests.test_pre_push_d2.SoParecer.test_texto_do_pr_reprovado_so_avisa"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "PORTAO-D2: PR fechado ou mesclado não é conferido",
+      "arquivo": "patches/d2-portao-entrega.patch",
+      "de": "if pr.get(\"state\") != \"OPEN\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_pre_push_d2.TextoDoPr.test_pr_fechado_ou_mesclado_nao_e_conferido"
+      ]
+    }
+  ]
+}
