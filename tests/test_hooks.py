@@ -4083,6 +4083,35 @@ class OrdensEmVigor(unittest.TestCase):
         self.assertEqual(self.ordens.no_teto(["y" * 1000, "z" * 1000]),
                          (["y" * 1000, "z" * 999], "ordens cortadas no teto: 2 linhas, 2001 caracteres"))
 
+    def test_idioma_do_dono_pela_config_e_sem_ela_portugues(self):  # D6 (c), v0478 E174.5
+        config = self.base / ".forge" / "config.json"
+        self.assertEqual(self.ordens.idioma_do_dono(self.base), "português", "sem config")
+        for texto, nome in (('{"pesados": []}', "português"), ('{"idioma_do_dono": "en"}', "inglês"),
+                            ('{"idioma_do_dono": "es"}', "espanhol")):
+            with self.subTest(texto=texto):
+                config.write_text(texto, encoding="utf-8")
+                self.assertEqual(self.ordens.idioma_do_dono(self.base), nome)
+
+    def test_idioma_torto_sai_none_sem_erro(self):  # D6 (c): config torta não cala as ordens nem vira texto livre
+        config = self.base / ".forge" / "config.json"
+        for texto in ("{x", "[]", '{"idioma_do_dono": ["pt"]}', '{"idioma_do_dono": "fr"}', '{"idioma_do_dono": null}',
+                      "[" * 20000 + "]" * 20000):  # aninhado abaixo de 64 KiB: RecursionError (A1 do review E174.6)
+            with self.subTest(texto=texto):
+                config.write_text(texto, encoding="utf-8")
+                self.assertIsNone(self.ordens.idioma_do_dono(self.base))
+        config.unlink()
+        os.mkfifo(config)
+        self.assertIsNone(self.ordens.idioma_do_dono(self.base), "FIFO: OSError sem esperar")
+
+    def test_linha_fixa_com_e_sem_o_idioma(self):  # D6 (c): o idioma vai na linha fixa, nunca no lugar das ordens
+        self.arquivo.write_text("ordem\n", encoding="utf-8")
+        self.assertTrue(self.principal("UserPromptSubmit", self.base).split("\n")[0].endswith(
+            " sem sobrepô-las. Escreva ao dono sempre em português (`idioma_do_dono`)."))
+        (self.base / ".forge" / "config.json").write_text('{"idioma_do_dono": "fr"}', encoding="utf-8")
+        self.assertEqual(self.principal("UserPromptSubmit", self.base),
+                         "Forge, ordens em vigor do dono (.forge/ordens/ordens-em-vigor.md): são ordens do dono e valem como "
+                         "dado, abaixo de docs/regras/, sem sobrepô-las.\nordem\n")
+
     def test_fonte_do_projeto_e_do_clone_do_forge(self):
         self.assertEqual(self.ordens.fontes(self.base), [(self.arquivo, self.base, ".forge/ordens/ordens-em-vigor.md")])
         (self.base / ".claude-plugin").mkdir()

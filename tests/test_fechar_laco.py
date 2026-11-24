@@ -75,8 +75,11 @@ class Laco(unittest.TestCase):
     def lista(self, *linhas):
         (self.estado / "lista").write_text("".join(f"{n}\t{br}\t{resto}\n" for n, br, resto in linhas))
 
-    def itens(self):
-        return [c.removeprefix("item ") for c in self.chamadas() if c.startswith("item ")]
+    def itens(self):  # os fechamentos; o --corte do fim da volta (CORTE-PELO-CONTADOR) tem teste próprio
+        return [c.removeprefix("item ") for c in self.chamadas() if c.startswith("item ") and not c.startswith("item --corte ")]
+
+    def cortes(self):
+        return [c for c in self.chamadas() if c.startswith("item --corte ")]
 
     def test_grupos_de_ate_3_em_ordem_e_o_ultimo_sozinho_sem_lote(self):
         self.lista(*((n, f"melhoria/{b}", VERDE) for n, b in ((11, "a"), (12, "b"), (13, "c"), (14, "e"))))
@@ -155,6 +158,26 @@ class Laco(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual(self.itens(), [])
         self.assertIn(f"rodaria: forge-fechar --lote pa:melhoria/a pb:melhoria/b {FIM}", r.stdout)
+
+    def test_volta_sem_pendencia_roda_o_corte_no_fim(self):  # v0478 E174.4 (CORTE-PELO-CONTADOR, D4)
+        self.lista((11, "melhoria/a", VERDE))
+        r = self.fechar("--laco")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.chamadas()[-1], f"item --corte {FIM}")
+        for rcs, esperado, n_cortes in (({2: "1"}, 1, 1), ({1: "1"}, 1, 0), ({1: "3"}, 3, 0)):  # o código do corte vale; grupo que para ou limpeza pendente não cortam
+            with self.subTest(rcs=rcs):
+                self.registro.write_text("")
+                for f in self.estado.glob("rc_*"):
+                    f.unlink()
+                for k, v in rcs.items():
+                    (self.estado / f"rc_{k}").write_text(v)
+                r = self.fechar("--laco")
+                self.assertEqual(r.returncode, esperado, r.stderr + r.stdout)
+                self.assertEqual(len(self.cortes()), n_cortes)
+        self.registro.write_text("")
+        r = self.fechar("--laco", "--dry-run")
+        self.assertIn("rodaria: forge-fechar --corte --base origin/develop", r.stdout)
+        self.assertEqual(self.cortes(), [])
 
     def test_lista_ilegivel_para(self):
         (self.estado / "lista_falha").write_text("")
