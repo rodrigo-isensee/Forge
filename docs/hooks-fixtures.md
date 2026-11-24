@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3500 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3515 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -13,10 +13,11 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3500 fixtures) roda em `tests/test
 | `conformidade` | 2658 | 1965 | 693 | 101 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 33 | 13 | 20 | 15 |
+| `ordens` | 11 | 0 | 11 | 10 |
 | `parecer` | 583 | 448 | 135 | 27 |
 | `pesado` | 27 | 11 | 16 | 20 |
 | `quadro` | 7 | 2 | 5 | 7 |
-| `vigia` | 56 | 0 | 56 | 26 |
+| `vigia` | 60 | 0 | 60 | 27 |
 
 ## `agentes`
 
@@ -195,6 +196,21 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3500 fixtures) roda em `tests/test
 | `pergunta-*` | 1 | 0 | 1 | — | — | S4: última linha do dono no pedido é PERGUNTA AO DONO: espera o dono. |
 | `quarta-*` | 1 | 0 | 1 | — | — | S4: o quarto "ainda não" igual seguido pausa sozinho e o Stop passa. |
 
+## `ordens`
+
+| Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| `teto-*` | 2 | 0 | 2 | — | — | 3 linhas de 900 caracteres (2702 com as quebras): injeta 2000 caracteres e avisa o corte. |
+| `arquivo-*` | 1 | 0 | 1 | — | — | Projeto sem .forge/ordens/ordens-em-vigor.md: silêncio, saída 0 e nada gravado (custo zero de contexto). |
+| `erro-*` | 1 | 0 | 1 | — | `HOOK-ERRO-LIBERA` | HOOK-ERRO-LIBERA: erro ao ler o arquivo de ordens: sai 0, sem contexto, e a linha vai ao erros.log. |
+| `injeta-*` | 1 | 0 | 1 | — | — | UserPromptSubmit: a linha fixa e as ordens em texto puro; tab e ESC viram espaço (sem_controle); só lê. |
+| `link-*` | 1 | 0 | 1 | — | — | O arquivo de ordens é link para fora da raiz do projeto: silêncio (o texto de fora não vira contexto). |
+| `s5-*` | 1 | 0 | 1 | — | — | S5 da segurança E123.8: projeto com worktree que traz arquivo de ordens forjado; a sessão do Jarvis (cwd na cópia principal) injeta só a ord… |
+| `sem-*` | 1 | 0 | 1 | — | — | Pasta sem .forge/versao nem manifesto do Forge: o ordens não lê nada, não escreve no contexto e não cria .forge/run/. |
+| `sessao-*` | 1 | 0 | 1 | — | — | Sessão do Forge (clone sem .forge/versao): lê ~/.forge-contrib/docs/ordens/ordens-em-vigor.md, não o da raiz. |
+| `sessionstart-*` | 1 | 0 | 1 | — | — | SessionStart depois da compactação (source compact): as ordens voltam ao contexto. |
+| `vazio-*` | 1 | 0 | 1 | — | — | Arquivo só com brancos e controles: silêncio, sem a linha fixa sozinha. |
+
 ## `parecer`
 
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
@@ -270,6 +286,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3500 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | `entrada-*` | 17 | 0 | 17 | — | `FALA-DO-DONO-RESUMO-COMPACTADO` | FALA-DO-DONO-RESUMO-COMPACTADO: registro user com origin de aviso de tarefa (kind diferente de human) não é fala do dono, mesmo sem começar… |
 | `d-*` | 4 | 0 | 4 | — | — | Achado D, cadeia 3: o `mv .git .g` é barrado pelo conformidade (o `.git` fica); sem o `.forge/versao`, o vigia avisa no Stop. |
+| `time-*` | 4 | 0 | 4 | — | `VIGIA-TIME-PARADO` | VIGIA-TIME-PARADO (emenda da ADR 0003, item 7): Stop do Jarvis, zero agentes e 2 cartões livres: decision block com o reason fixo, uma linha… |
 | `bloqueio-*` | 3 | 0 | 3 | — | — | Bloqueio de outra sessão não vale nesta. |
 | `contorno-*` | 3 | 0 | 3 | — | — | O bloqueio fica no estado: a nova tentativa em outro turno (outro Stop) também é contorno. |
 | `medida-*` | 3 | 0 | 3 | — | `AV3` | AV3 etapa 1: o SubagentStop grava em comandos.jsonl a forma de cada comando crítico com o papel (do agent_type no subagente; da sessão sem a… |

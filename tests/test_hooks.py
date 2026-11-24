@@ -855,14 +855,24 @@ class Hooks(unittest.TestCase):
         f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra, producao=producao))
         r = rodar(f.hook, entrada, raiz, proc, extra, producao=producao, forcar=f.dados.get("forcar"))
         esperado = f.dados["esperado"]
-        if "saida" in esperado:  # só o vigia: aviso ao usuário, nunca contexto para o modelo
+        if "saida" in esperado or "reason" in esperado:  # só o vigia: aviso ao usuário; contexto só no reason fixo do Stop (emenda da ADR 0003, item 7)
             self.assertEqual(f.hook, "vigia")
             self.assertNotEqual(entrada.get("hook_event_name"), "SessionStart", "SessionStart é silencioso")
             saida = json.loads(r.stdout)
-            self.assertEqual(list(saida), ["systemMessage"])
-            self.assertNotIn("\n", saida["systemMessage"], "uma linha só")
-            self.assertRegex(saida["systemMessage"], r"^Forge: \d+ (violação\(ões\)|aviso\(s\)|mudança\(s\))(, \d+ \S+)* — ")
-            self.assertIn(esperado["saida"], saida["systemMessage"])
+            chaves = ["systemMessage"] * ("saida" in esperado) + ["decision", "reason"] * ("reason" in esperado)
+            self.assertEqual(list(saida), chaves)
+            if "reason" in esperado:  # o Stop sem `stop_hook_active` (uma vez por vez), com o texto fixo e curto
+                self.assertEqual(entrada.get("hook_event_name"), "Stop")
+                self.assertIsNot(entrada.get("stop_hook_active"), True, "o Stop que segue o bloqueio não bloqueia")
+                self.assertEqual(saida["decision"], "block")
+                self.assertIsNotNone(re.fullmatch(
+                    r"time parado: \d+ cartões disponíveis(, primeiro [A-Za-z0-9.-]{1,16})?; retome sem esperar o dono",
+                    saida["reason"]), saida["reason"])
+                self.assertEqual(saida["reason"], esperado["reason"])
+            if "saida" in esperado:
+                self.assertNotIn("\n", saida["systemMessage"], "uma linha só")
+                self.assertRegex(saida["systemMessage"], r"^Forge: \d+ (violação\(ões\)|aviso\(s\)|mudança\(s\))(, \d+ \S+)* — ")
+                self.assertIn(esperado["saida"], saida["systemMessage"])
         elif "pergunta" in esperado:  # só o conformidade: pede a confirmação da pessoa, com a consequência
             self.assertEqual(f.hook, "conformidade")
             saida = json.loads(r.stdout)["hookSpecificOutput"]
@@ -878,6 +888,11 @@ class Hooks(unittest.TestCase):
             self.assertIn(esperado["aviso"], r.stderr)
             for linha in r.stderr.splitlines():
                 self.assertRegex(linha, r"^R-[A-Z]+: aviso: ", "só linhas de aviso no stderr")
+        elif "contexto" in esperado:  # só o ordens: texto puro no stdout (emenda "ordens em vigor" da ADR 0003)
+            self.assertEqual(f.hook, "ordens")
+            self.assertIn(entrada.get("hook_event_name"), ("SessionStart", "UserPromptSubmit"))
+            self.assertTrue(r.stdout.startswith("Forge, ordens em vigor do dono ("), "linha fixa primeiro")
+            self.assertEqual(r.stdout, esperado["contexto"])
         else:
             self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
         self.assertEqual(r.returncode, esperado["codigo"], r.stderr)
@@ -1512,19 +1527,23 @@ class Hooks(unittest.TestCase):
             codigos = {f.dados["esperado"]["codigo"] for f in self.fixtures if f.hook == hook}
             nomes = {f.caminho.stem for f in self.fixtures if f.hook == hook}
             with self.subTest(hook=hook):
-                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente") else {0, 2})  # o vigia, o doutor e o ambiente avisam, nunca bloqueiam
+                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente", "ordens") else {0, 2})  # o vigia, o doutor, o ambiente e o ordens (emenda "ordens em vigor" da ADR 0003) avisam, nunca bloqueiam
                 self.assertIn("sem-forge-versao", nomes)
                 self.assertIn("erro-interno", nomes)
+                if hook == "ordens":  # a emenda pede também os casos do teto e do arquivo ausente
+                    self.assertLessEqual({"teto-linhas-corta-e-avisa", "teto-caracteres-corta-e-avisa",
+                                          "arquivo-ausente-silencio"}, nomes)
 
     def test_hooks_json(self):
         d = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))
-        self.assertNotIn("UserPromptSubmit", d["hooks"], "hook não injeta contexto")
+        no_prompt = {h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"].get("UserPromptSubmit", []) for h in g["hooks"]}
+        self.assertEqual(no_prompt, {"ordens.py"}, "no UserPromptSubmit só o ordens injeta contexto (emenda \"ordens em vigor\" da ADR 0003)")
         self.assertNotIn("additionalContext", (HOOKS / "vigia.py").read_text(encoding="utf-8").replace(
             "nunca `additionalContext`", ""), "o vigia só avisa o usuário (systemMessage)")
         for evento in ("SessionStart", "Stop"):  # SessionStart: o stdout vira contexto do modelo (ADR 0003, item 1)
             comandos = {h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"].get(evento, []) for h in g["hooks"]}
-            permitidos = {"vigia.py", "doutor.py", "_maquina.py"} | ({"ambiente.py"} if evento == "SessionStart" else set()) | ({"meta.py"} if evento == "Stop" else set())  # 0.44.2: S4/S6, sem stdout
-            self.assertLessEqual(comandos, permitidos, f"só o vigia e o doutor (sem stdout no SessionStart), o ambiente (exceção da emenda da ADR 0003, E2.54) e o meta no Stop ficam em {evento}")
+            permitidos = {"vigia.py", "doutor.py", "_maquina.py"} | ({"ambiente.py", "ordens.py"} if evento == "SessionStart" else set()) | ({"meta.py"} if evento == "Stop" else set())  # 0.44.2: S4/S6, sem stdout
+            self.assertLessEqual(comandos, permitidos, f"só o vigia e o doutor (sem stdout no SessionStart), o ambiente (exceção da emenda da ADR 0003, E2.54), o ordens (emenda \"ordens em vigor\" da ADR 0003) e o meta no Stop ficam em {evento}")
         self.assertNotIn("print(", (HOOKS / "meta.py").read_text(encoding="utf-8"), "o meta não escreve no stdout: recusa só pelo stderr")
         self.assertNotIn("meta.py", {h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"].get("SessionStart", []) for h in g["hooks"]})
         usados = set()
@@ -3752,6 +3771,50 @@ class HookSessaoDoForge(unittest.TestCase):
         self.rodar("vigia", 2, {0})
 
 
+class VigiaTimeParadoNasFixtures(unittest.TestCase):
+    """VIGIA-TIME-PARADO (emenda da ADR 0003, item 7; v0478 E123.1): as fixtures `vigia/time-parado-*` pelo laço das
+    fixtures, que aceita `decision` e `reason` só no `Stop` sem `stop_hook_active` e com o texto fixo."""
+    executar_em_lote = Hooks.executar_em_lote
+    executar_fixture = Hooks.executar_fixture
+    _pasta_temporaria = Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+
+    def fixtures(self):
+        return minimo([Fixture(p) for p in sorted((FIXTURES / "vigia").glob("time-parado-*.json"))], 4, "vigia/time-parado-*")
+
+    def test_fixtures(self):
+        fixtures = self.fixtures()
+        self.assertEqual(sum("reason" in f.dados["esperado"] for f in fixtures), 2, "bloqueia com e sem o ID")
+        self.assertEqual(self.executar_em_lote([(f"vigia/{f.caminho.stem}", f) for f in fixtures]), len(fixtures))
+
+    def test_laco_recusa_reason_fora_do_stop_ou_fora_do_formato(self):
+        """O laço, e não o hook, reprova: o hook falso devolve o bloqueio num evento que não é o `Stop`, com
+        `stop_hook_active`, com `decision` diferente de `block` ou com texto livre; o mesmo bloqueio no `Stop` passa."""
+        base = json.loads((FIXTURES / "vigia/time-parado-bloqueia-uma-vez.json").read_text(encoding="utf-8"))
+        certo = base["esperado"]["reason"]
+        casos = {"stop": ({}, "block", certo, True),
+                 "subagentstop": ({"entrada": {**base["entrada"], "hook_event_name": "SubagentStop"}}, "block", certo, False),
+                 "stop-hook-active": ({"entrada": {**base["entrada"], "stop_hook_active": True}}, "block", certo, False),
+                 "decision-approve": ({}, "approve", certo, False),
+                 "texto-livre": ({"esperado": {"codigo": 0, "reason": "time parado: leia o cartão X"}}, "block",
+                                 "time parado: leia o cartão X", False)}
+        for nome, (troca, decisao, reason, passa) in casos.items():
+            def falso(_hook, entrada, *_a, **_k):
+                saida = "" if entrada.get("hook_event_name") == "SessionStart" else json.dumps(
+                    {"decision": decisao, "reason": reason}, ensure_ascii=False)
+                return subprocess.CompletedProcess([], 0, saida, "")
+            with self.subTest(caso=nome), mock.patch(f"{__name__}.rodar", falso):
+                tmp = self._pasta_temporaria()
+                arquivo = tmp / "vigia" / "caso.json"
+                arquivo.parent.mkdir()
+                arquivo.write_text(json.dumps({**base, **troca}), encoding="utf-8")
+                if passa:
+                    self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+                else:
+                    with self.assertRaises(AssertionError):
+                        self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+
+
 class GuardaDasOrdens(unittest.TestCase):
     """ORDENS-SO-JARVIS (v0478 E123.25, corte do hook de ordens pelo teto H1, item 1): o `conformidade` recusa a escrita do
     arquivo de ordens fora do jarvis, na pasta do Forge e na cópia principal do projeto. Só a guarda: o hook `ordens` vem
@@ -3811,6 +3874,172 @@ class GuardaDasOrdens(unittest.TestCase):
         self.assertEqual(relativos(guarda, alvo), [])
         guarda.h.raiz = self.worktree(comum=self.base / "nu.git")  # repositório nu: nenhuma cópia principal
         self.assertEqual(relativos(guarda, alvo), [])
+
+
+class OrdensEmVigor(unittest.TestCase):
+    """ORDENS-EM-VIGOR (v0478 E123.1; emenda "ordens em vigor" da ADR 0003): o hook `ordens` só lê o arquivo de ordens e o
+    injeta em texto puro, no teto. As fixtures de `tests/hooks/ordens/` rodam pela máquina do `Hooks`; as guardas da leitura e
+    do teto, em processo, para os mutantes de `tests/mutantes/v0480-ordens-hook*.json`."""
+    executar_em_lote = Hooks.executar_em_lote
+    executar_fixture = Hooks.executar_fixture
+    _pasta_temporaria = Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(HOOKS))
+        import ordens
+        cls.ordens = ordens
+
+    def setUp(self):
+        self.base = Path(os.path.realpath(self._pasta_temporaria()))
+        self.arquivo = self.base / ".forge" / "ordens" / "ordens-em-vigor.md"
+        self.arquivo.parent.mkdir(parents=True)
+        (self.base / ".git").mkdir()  # cópia principal: a fonte é a pasta comum do git (A2 da segurança E123.3)
+
+    def principal(self, evento, raiz):
+        """Roda `ordens.principal` com um hook falso: (stdout, raiz pedida)."""
+        hook = mock.Mock()
+        hook.campo.side_effect = lambda chave: {"hook_event_name": evento}.get(chave)
+        hook.projeto.return_value = raiz
+        saida = io.StringIO()
+        with contextlib.redirect_stdout(saida):
+            self.ordens.principal(hook)
+        return saida.getvalue()
+
+    def test_fixtures(self):
+        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / "ordens").glob("*.json"))], 10, "ordens/*")
+        self.assertEqual({f.dados["esperado"]["codigo"] for f in fixtures}, {0}, "o ordens nunca bloqueia")
+        self.assertEqual(self.executar_em_lote([(f"ordens/{f.caminho.stem}", f) for f in fixtures]), len(fixtures))
+
+    def test_principal_injeta_so_no_sessionstart_e_no_userpromptsubmit(self):
+        self.arquivo.write_text("ordem\n", encoding="utf-8")
+        for evento in ("SessionStart", "UserPromptSubmit"):
+            self.assertTrue(self.principal(evento, self.base).endswith("\nordem\n"), evento)
+        for evento in ("Stop", "PreToolUse", "SubagentStop", None):
+            self.assertEqual(self.principal(evento, self.base), "", evento)
+
+    def test_fora_de_projeto_do_forge_cala(self):
+        self.arquivo.write_text("ordem\n", encoding="utf-8")
+        self.assertEqual(self.principal("UserPromptSubmit", None), "")
+
+    def test_so_brancos_e_controles_cala(self):
+        self.arquivo.write_text("\n \t\n\x1b\n", encoding="utf-8")
+        self.assertEqual(self.principal("UserPromptSubmit", self.base), "")
+
+    def test_ausente_cala_sem_erro(self):
+        self.assertIsNone(self.ordens.ler_ordens(self.arquivo, self.base))
+        self.assertEqual(self.principal("UserPromptSubmit", self.base), "")
+
+    def test_ate_64_kib_le_e_acima_cala(self):
+        self.arquivo.write_bytes(b"a" * (64 * 1024))
+        self.assertEqual(len(self.ordens.ler_ordens(self.arquivo, self.base)), 64 * 1024)
+        self.arquivo.write_bytes(b"a" * (64 * 1024 + 1))
+        self.assertIsNone(self.ordens.ler_ordens(self.arquivo, self.base))
+
+    def test_link_para_fora_da_base_cala_e_dentro_le(self):
+        fora = Path(os.path.realpath(self._pasta_temporaria())) / "fora.md"
+        fora.write_text("de fora\n", encoding="utf-8")
+        self.arquivo.symlink_to(fora)
+        self.assertIsNone(self.ordens.ler_ordens(self.arquivo, self.base))
+        dentro = self.base / "dentro.md"
+        dentro.write_text("de dentro\n", encoding="utf-8")
+        self.arquivo.unlink()
+        self.arquivo.symlink_to(dentro)
+        self.assertEqual(self.ordens.ler_ordens(self.arquivo, self.base), "de dentro\n")
+
+    def test_fifo_levanta_sem_esperar(self):
+        os.mkfifo(self.arquivo)
+        with self.assertRaisesRegex(OSError, "não é arquivo regular"):
+            self.ordens.ler_ordens(self.arquivo, self.base)
+
+    def test_sequencia_de_controles_vira_um_espaco_so(self):  # A3 do review E123.4: o critério do `sem_controle`
+        self.assertEqual(self.ordens.escapadas("a\t\x1b\u2028b\n"), ["a b"])
+
+    def test_controle_vira_espaco_e_so_a_quebra_separa_linha(self):
+        self.assertEqual(self.ordens.escapadas("a\rb c\x00d\te​f\n\n \n"), ["a b c d e f"])
+
+    def test_no_limite_nao_corta(self):
+        linhas = ["x"] * 15
+        self.assertEqual(self.ordens.no_teto(linhas), (linhas, None))
+        uma = ["y" * 2000]
+        self.assertEqual(self.ordens.no_teto(uma), (uma, None))
+
+    def test_acima_do_teto_corta_e_avisa(self):
+        self.assertEqual(self.ordens.no_teto(["x"] * 16), (["x"] * 15, "ordens cortadas no teto: 16 linhas, 31 caracteres"))
+        self.assertEqual(self.ordens.no_teto(["y" * 2001]), (["y" * 2000], "ordens cortadas no teto: 1 linhas, 2001 caracteres"))
+        self.assertEqual(self.ordens.no_teto(["y" * 1000, "z" * 1000]),
+                         (["y" * 1000, "z" * 999], "ordens cortadas no teto: 2 linhas, 2001 caracteres"))
+
+    def test_fonte_do_projeto_e_do_clone_do_forge(self):
+        self.assertEqual(self.ordens.fontes(self.base), [(self.arquivo, self.base, ".forge/ordens/ordens-em-vigor.md")])
+        (self.base / ".claude-plugin").mkdir()
+        (self.base / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
+        with mock.patch.object(self.ordens, "contrib", lambda: self.base / "contrib"):
+            [(arquivo, base, origem)] = self.ordens.fontes(self.base)
+        self.assertEqual((arquivo, base), (self.base / "contrib/docs/ordens/ordens-em-vigor.md", self.base / "contrib/docs/ordens"))
+        self.assertEqual(origem, "~/.forge-contrib/docs/ordens/ordens-em-vigor.md")
+
+    worktree = GuardaDasOrdens.worktree
+
+    def test_na_worktree_le_so_a_copia_principal(self):  # A2 da segurança E123.3
+        wt = self.worktree()
+        self.assertEqual(self.ordens.fontes(wt), [(self.arquivo, self.base, ".forge/ordens/ordens-em-vigor.md")])
+        self.assertEqual(self.principal("UserPromptSubmit", wt), "")
+        self.arquivo.write_text("ordem do dono\n", encoding="utf-8")
+        self.assertTrue(self.principal("UserPromptSubmit", wt).endswith("\nordem do dono\n"))
+
+    def test_git_que_nao_se_resolve_cala(self):  # A2 da segurança E123.3: sem a cópia principal, nenhuma fonte
+        wt = self.worktree()
+        (wt / ".git").write_text("gitdir: /nao/existe\n", encoding="utf-8")
+        self.assertEqual(self.ordens.fontes(wt), [])
+        self.assertEqual(self.principal("UserPromptSubmit", wt), "")
+        (self.base / ".git" / "commondir").write_text("x\n", encoding="utf-8")  # cópia principal com `commondir`: desvio
+        self.arquivo.write_text("ordem\n", encoding="utf-8")
+        self.assertEqual(self.principal("UserPromptSubmit", self.base), "")
+
+    def test_worktree_de_repositorio_nu_cala(self):  # A2 da segurança E123.3: sem `.git`, nenhuma cópia principal
+        nu = self.base / "nu.git"
+        self.arquivo.write_text("ordem da pasta do repositório nu\n", encoding="utf-8")
+        wt = self.worktree(comum=nu)
+        self.assertEqual(self.ordens.fontes(wt), [])
+        self.assertEqual(self.principal("UserPromptSubmit", wt), "")
+
+    def test_no_forge_a_pasta_das_ordens_por_link_sai_da_base(self):  # A1 da segurança E123.3: `ln -sfn <wt> docs/ordens`
+        contrib = self.base / "contrib"
+        copia = contrib / "wt" / "x"
+        copia.mkdir(parents=True)
+        (copia / "ordens-em-vigor.md").write_text("ordem do dev\n", encoding="utf-8")
+        (contrib / "docs").mkdir()
+        (contrib / "docs" / "ordens").symlink_to(copia)
+        (self.base / ".claude-plugin").mkdir()
+        (self.base / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
+        with mock.patch.object(self.ordens, "contrib", lambda: contrib):
+            self.assertEqual(self.principal("UserPromptSubmit", self.base), "")
+            (contrib / "docs" / "ordens").unlink()
+            (contrib / "docs" / "ordens").mkdir()
+            (contrib / "docs" / "ordens" / "ordens-em-vigor.md").write_text("ordem do dono\n", encoding="utf-8")
+            self.assertTrue(self.principal("UserPromptSubmit", self.base).endswith("\nordem do dono\n"))
+
+    def test_o_modelo_de_projeto_nao_traz_o_arquivo_de_ordens(self):  # A1 do review E123.4: ausente custa zero
+        modelo = HOOKS.parent / "templates" / "projeto" / ".forge"
+        self.assertTrue((modelo / "config.json").is_file())
+        self.assertFalse((modelo / "ordens").exists())
+        self.assertFalse((modelo / "ordens-em-vigor.md").exists())
+
+    def test_hooks_json_registra_o_ordens_nos_matchers_da_emenda(self):
+        d = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))
+        grupos = {evento: [g for g in d["hooks"].get(evento, []) for h in g["hooks"] if h["args"][-1].endswith("/ordens.py")]
+                  for evento in d["hooks"]}
+        self.assertEqual({e for e, g in grupos.items() if g}, {"SessionStart", "UserPromptSubmit"})
+        self.assertEqual([g.get("matcher") for g in grupos["SessionStart"]], ["startup|resume|compact"])
+        self.assertEqual([g.get("matcher") for g in grupos["UserPromptSubmit"]], [None])
+
+    def test_so_o_jarvis_escreve_o_arquivo_de_ordens(self):
+        politica = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))
+        donos = {c["caminho"]: c["quem"] for c in politica["caminhos"]}
+        for caminho in (".forge/ordens/", "~/.forge-contrib/docs/ordens/"):
+            self.assertEqual(donos.get(caminho), ["jarvis"], caminho)
 
 
 if __name__ == "__main__":

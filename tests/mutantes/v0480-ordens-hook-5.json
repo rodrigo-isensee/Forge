@@ -1,0 +1,16 @@
+{
+  "pedido": "v0480-ordens-hook",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M29",
+      "guarda": "ORDENS: a fonte do projeto mora na pasta própria .forge/ordens/ (A4 da segurança E123.12)",
+      "arquivo": "hooks/ordens.py",
+      "de": "NO_PROJETO = \".forge/ordens/ordens-em-vigor.md\"",
+      "para": "NO_PROJETO = \".forge/ordens-em-vigor.md\"",
+      "testes": [
+        "tests.test_hooks.OrdensEmVigor.test_fonte_do_projeto_e_do_clone_do_forge"
+      ]
+    }
+  ]
+}

@@ -83,6 +83,39 @@ class LimparCloneNaoListado(unittest.TestCase):
         self.env.update(GIT_DE_BAIXO=str(self.tmp / "bin" / "git"), PATH=f"{embrulho}{os.pathsep}{self.env['PATH']}")
         self.fica(d, self.limpar())
 
+    # FECHAR-LIMPAR-URL-GIT (v0478 E166.1): o origin do clone casa com o desta cópia sem o `.git` e sem a barra finais; o de outro origin
+    # fica pendente, com aviso e leitura, nunca em silêncio.
+    def com_origins(self, aqui, dela):  # o remoto do ambiente é `remoto.git`; `base` é ele sem o `.git`
+        base = str(self.remoto)[:-len(".git")]
+        d = self.clone()
+        self.git("remote", "set-url", "origin", base + aqui)
+        self.git("remote", "set-url", "origin", base + dela, cwd=d)
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=ok"])
+        self.assertFalse(d.exists())
+
+    def test_clone_sem_ponto_git_e_da_mesma_origin(self):
+        self.com_origins(".git", "")
+
+    def test_clone_com_barra_final_e_da_mesma_origin(self):
+        self.com_origins(".git", ".git/")
+
+    def test_copia_com_ponto_git_e_barra_casa_com_o_clone_sem_os_dois(self):
+        self.com_origins(".git/", "")
+
+    def test_clone_de_outro_origin_fica_pendente_e_avisa(self):
+        d = self.clone()
+        self.git("remote", "set-url", "origin", str(self.tmp / "outro.git"), cwd=d)
+        r = self.limpar()
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertTrue(d.is_dir())
+        self.assertTrue(self.resumo(r)[0].endswith(" clone=pendente"), r.stdout)
+        self.assertIn(f"o clone {d} está na branch melhoria/x, mas o origin dele não é o desta cópia", r.stderr)
+        self.assertIn(f"git -C {d} remote -v", r.stdout)
+        self.assertNotIn("rm -rf", r.stdout)
+        self.assertNotIn("outro.git", r.stdout + r.stderr)  # a URL não sai na tela
+
     def test_sem_clone_o_campo_sai_nenhum(self):
         r = self.limpar()
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)

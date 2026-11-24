@@ -37,7 +37,7 @@ O Jarvis pergunta o que é da pessoa (produto, escopo, custo, risco), sem jargã
 
 **Custo e origem:** cada opção leva tokens e velocidade; cada pergunta, a origem; decisão ruim do dono volta a ele.
 
-**Resposta curta (O4):** opção com código `1a)` e marca `[recomendada]`, `[reversível]` ou `[irreversível]`; `decisoes --resposta` a lê; corte recomendado leva `origem:`, `procurado:`, `seguir:`, `não seguir:`; `aprovo` só vale para a recomendada `[reversível]`.
+**Resposta curta (O4):** em `${CLAUDE_PLUGIN_ROOT}/skills/falar-com-o-dono/resposta-curta.md`.
 
 **Ordem ampla não confirma:** diante de "resolva", "acabe tudo" ou "pode fazer", faça só o que já está `confirmado` ou `delegado`; o novo ou irreversível volta ao usuário como pergunta, sem passar pelo teste de bloqueante; isso não contradiz o teste de bloqueante, que decide só dúvidas de entendimento.
 
