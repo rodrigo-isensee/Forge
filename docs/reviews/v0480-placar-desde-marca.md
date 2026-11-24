@@ -3,28 +3,27 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-placar-desde-marca
-commit: 752cf974ae6918a4e3103c4bc05f2fed13d293e6
-parecer: reprovado
+commit: 19c1c2a6063d1600c19ef8a88aee1979cda4b15b
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-23
 ---
-# Review: v0478 (E138.3, placar desde a marca; PR #825)
+# Review: v0478 (E139.10, placar desde a marca; PR #825, revalidação por delta)
 
-Escopo: diff `0e59c446..752cf974` (6 arquivos, cerca de 20 linhas de código; H1 dentro do teto). Não há regra "decidida por: leitura" no `docs/engineering/praticas.md` que alcance o diff.
+Escopo: delta lido por `forge-check parecer delta`, intervalo `752cf974..19c1c2a6`. No domínio entram só três specs: `tests/mutantes/v046-mutacao-bench-2.json`, `tests/mutantes/v047-placar-mutacao.json` e `tests/mutantes/v0480-placar-desde-marca.json`. O código não mudou desde o parecer anterior. Os outros arquivos do intervalo são pareceres (6f2131b4 e 59582674).
 
 Verificado nesta revisão:
-- Classes tocadas, `python3 -m unittest tests.test_forge_mutante.PlacarDaRelease tests.test_changelog.ReleaseAvisaMedidasDaVersao`: 14 testes, OK.
-- Spec do item, `bin/forge-mutante -- tests/mutantes/v0480-placar-desde-marca.json`: rc=0, 6 mutantes, todos mortos (placar-mutacao.py:61 e :95; forge-changelog:284 e :285).
-- Na develop real, o `git log -1 -G '"version"' HEAD -- .claude-plugin/plugin.json` acha 2b9cd322 (marca da 0.47.15), sem tag nele: o caso que o item corrige existe.
-- CI do PR no head 752cf974 vermelho (citado, não rerrodado): suíte parte 4/5 (run 45296945035, Python 3.12 e 3.14) e catraca (run 45296944993); o job de pareceres falta só pelos pareceres.
+- A1 resolvido: o M7 de `v047-placar-mutacao.json` usa `de` e `para` alinhados a `scripts/placar-mutacao.py:95`, e `bin/forge-mutante -- tests/mutantes/v047-placar-mutacao.json` dá rc=0, com o M7 morto na linha 95.
+- A2 resolvido: o M10 de `v046-mutacao-bench-2.json` foi realinhado a `[0]) if tags or marca else` (`bin/forge-changelog:285`, ocorrência única) e aponta para o teste renomeado `test_sem_marca_pede_a_marca_anterior_a_mao`. A spec dá rc=0 com 7 mutantes mortos, entre eles o M10 em `bin/forge-changelog:285`.
+- A3 resolvido: a isenção da guarda apagada `tag.returncode == 0 and tag.stdout.strip()` traz motivo, e a guarda que a substitui é coberta por PDM4 e M10. `bin/forge-mutante --cobertura --base 0e59c446` dá rc=0, com `isenta · bin/forge-changelog:282(base)` e todas as linhas tocadas cobertas. A catraca no head passou (run 45300763344, success, headSha 19c1c2a6).
+- `bin/forge-mutante -- tests/mutantes/v0480-placar-desde-marca.json` dá rc=0, com os mutantes do item mortos.
+- `python3 -m unittest tests.test_forge_mutante.ConferirTodas`: 4 testes, OK. É o teste que falhava na suíte parte 4/5 do head anterior.
+- CI do PR no head 19c1c2a6 (run 45300763304): a bateria ainda roda e o job de pareceres falta só pelos pareceres. Ela é citada aqui e não foi rerrodada, e o merge segue dependendo dela verde.
 
 ## Achados
-- A1 (bloqueante) tests/mutantes/v047-placar-mutacao.json:57 · O `de` do mutante "o aviso do --desde é impresso" saiu da fonte: a chamada ganhou o argumento `commit`. A suíte parte 4/5 falha em `ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes` (run 45296945035). Alinhe `de` e `para` à linha nova no mesmo commit.
-- A2 (bloqueante) tests/mutantes/v046-mutacao-bench-2.json:19 · O `de` do mutante "sem tag anterior, o comando do placar pede a tag" foi apagado de bin/forge-changelog, e o teste citado (`test_sem_tag_pede_a_tag_anterior_a_mao`) foi renomeado; mesma falha da suíte (run 45296945035). Realinhe-o à guarda nova ou aposente-o com motivo.
-- A3 (bloqueante) bin/forge-changelog:282 · Catraca (run 45296944993) recusa por R-QA: a guarda `tag.returncode == 0 and tag.stdout.strip()` (linha 282 da base) foi apagada sem mutante declarado nem isenção. `bin/forge-mutante --cobertura --base 0e59c446` lista o que falta; declare ou isente com motivo.
-- A4 (recomendado) scripts/placar-mutacao.py:61 · A isenção compara com a marca do HEAD no momento da rodada: se o placar rodar depois do commit da marca nova, a marca anterior passada em --desde volta a avisar "não é tag". Sugestão: aceitar o commit que mudou a versão do manifesto antes da marca do HEAD.
+- A4 (recomendado) scripts/placar-mutacao.py:61 · Segue do parecer anterior, sem mudança. A isenção compara com a marca do HEAD no momento da rodada; depois do commit da marca nova, a marca anterior passada em --desde volta a avisar "não é tag". Vira cartão depois do merge.
 
 ## Sondas
 
 ## Parecer
-Reprovado. A lógica está correta e os testes novos matam os 6 mutantes do item, mas o diff deixou duas specs antigas com o `de` fora da fonte (A1, A2) e uma guarda apagada sem mutante nem isenção (A3). Por isso a suíte do CI e a catraca estão vermelhas no head, e o merge não passa. O conserto fica só nas specs: alinhar as duas e declarar ou isentar a guarda apagada. Depois disso, `bin/forge-mutante --cobertura --base 0e59c446` e as duas specs rodadas pelo autor fecham a volta. A4 não bloqueia e vira cartão depois do merge.
+Aprovado. Os três bloqueantes da rodada anterior (A1 a A3) foram resolvidos só nas specs, como pedido: as duas specs antigas estão alinhadas à fonte nova e a guarda apagada tem isenção com motivo e substituta coberta. O A4 continua recomendado.
