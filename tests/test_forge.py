@@ -8051,41 +8051,48 @@ class DocsPareceresPedidoECaminho(unittest.TestCase):
 
 
 class RodarUmModuloComIsolamento(unittest.TestCase):
-    """E1.255 (v047): UNITTEST-I-NAO-IMPORTA, BRIEF-UNITTEST-DISCOVER e CONTRIB-TESTE-NICE (Q6 do dono). Sob `-I`,
-    `-m unittest tests.<mod>` não importa (a raiz sai do sys.path); a forma das skills roda, e a da contribuição em `nice`."""
-    FORMA = re.compile(r"`((?:nice -n 19 )?python3 -I -m unittest discover -s tests -p test_x\.py)`")
-    SKILLS_COM_A_FORMA = ("skills/qa-testing/SKILL.md", "skills/briefs-e-conferencia/SKILL.md",
-                          "skills/contribuir-com-o-forge/SKILL.md")
-
-    def formas(self):
-        return {rel: self.FORMA.findall((RAIZ / rel).read_text(encoding="utf-8")) for rel in self.SKILLS_COM_A_FORMA}
+    """E1.255 (v047) e E161.1 (v0478, TESTES-SEM-I-NA-RAIZ): a forma de rodar um módulo na raiz é
+    `python3 -m unittest tests.<mod>`, sem `-I`, dita uma vez só em `skills/qa-testing/comandos.md`; as outras skills
+    apontam para lá. Sob `-I`, `tests.<mod>` não importa (a raiz sai do sys.path); a contribuição segue em `nice`."""
+    COMANDOS = "skills/qa-testing/comandos.md"
+    FORMA = re.compile(r"`(python3 -m unittest tests\.test_x)`")
+    FORMA_ANTIGA = "-I -m unittest discover"
+    APONTAM = ("skills/qa-testing/SKILL.md", "skills/briefs-e-conferencia/SKILL.md",
+               "skills/contribuir-com-o-forge/SKILL.md")
 
     def rodar(self, comando):
-        """Um projeto mínimo como o Forge (tests/ sem __init__.py, teste que importa um vizinho), ambiente limpo."""
+        """Um projeto mínimo como o Forge (tests/ sem __init__.py; o teste põe a própria pasta no sys.path e importa um
+        vizinho), ambiente limpo."""
         with tempfile.TemporaryDirectory() as tmp:
             (Path(tmp) / "tests").mkdir()
             (Path(tmp) / "tests" / "vizinho.py").write_text("VALOR = 1\n", encoding="utf-8")
             (Path(tmp) / "tests" / "test_x.py").write_text(
-                "import unittest\nfrom vizinho import VALOR\n\n\nclass T(unittest.TestCase):\n"
-                "    def test_v(self):\n        self.assertEqual(VALOR, 1)\n", encoding="utf-8")
+                "import sys\nimport unittest\nfrom pathlib import Path\n"
+                "sys.path.insert(0, str(Path(__file__).resolve().parent))\nfrom vizinho import VALOR\n\n\n"
+                "class T(unittest.TestCase):\n    def test_v(self):\n        self.assertEqual(VALOR, 1)\n", encoding="utf-8")
             argv = [sys.executable if p == "python3" else p for p in comando.split()]
             return subprocess.run(argv, cwd=tmp, env={"PATH": os.environ.get("PATH", "/usr/bin:/bin")},
                                   capture_output=True, text=True, timeout=60)
 
-    def test_cada_skill_traz_a_forma_e_a_contribuicao_em_nice_um_por_vez(self):
-        formas = self.formas()
-        self.assertEqual({rel: len(f) for rel, f in formas.items()}, dict.fromkeys(self.SKILLS_COM_A_FORMA, 1))
-        self.assertTrue(formas["skills/contribuir-com-o-forge/SKILL.md"][0].startswith("nice -n 19 "))
-        secao5 = (RAIZ / "skills/contribuir-com-o-forge/SKILL.md").read_text(encoding="utf-8").split("## 5.")[1].split("## 6.")[0]
-        self.assertIn("em `nice` e um arquivo por vez", secao5)
+    def test_a_forma_e_dita_uma_vez_e_as_skills_apontam_para_ela(self):
+        self.assertEqual(self.FORMA.findall((RAIZ / self.COMANDOS).read_text(encoding="utf-8")),
+                         ["python3 -m unittest tests.test_x"])
+        textos = {p.relative_to(RAIZ).as_posix(): p.read_text(encoding="utf-8")
+                  for pasta in ("skills", "agents") for p in sorted((RAIZ / pasta).rglob("*.md"))}
+        self.assertGreater(len(textos), 40)
+        self.assertEqual([rel for rel, t in textos.items() if self.FORMA_ANTIGA in t], [])
+        for rel in self.APONTAM:
+            with self.subTest(rel):
+                self.assertIn("comandos.md", textos[rel])
+        secao5 = textos["skills/contribuir-com-o-forge/SKILL.md"].split("## 5.")[1].split("## 6.")[0]
+        self.assertIn("em `nice` e um arquivo por vez: `nice -n 19` antes da forma", secao5)
         self.assertIn("**não roda a suíte inteira do Forge**", secao5)
 
-    def test_a_forma_das_skills_roda_com_menos_i(self):
-        for rel, (forma,) in self.formas().items():
-            with self.subTest(rel):
-                r = self.rodar(forma)
-                self.assertEqual(r.returncode, 0, r.stderr)
-                self.assertIn("Ran 1 test", r.stderr)
+    def test_a_forma_roda_na_raiz_sem_menos_i(self):
+        (forma,) = self.FORMA.findall((RAIZ / self.COMANDOS).read_text(encoding="utf-8"))
+        r = self.rodar(forma)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("Ran 1 test", r.stderr)
 
     def test_tests_ponto_modulo_com_menos_i_nao_importa(self):
         r = self.rodar("python3 -I -m unittest tests.test_x")
