@@ -1,0 +1,198 @@
+diff --git a/.githooks/pre-push b/.githooks/pre-push
+index f944360..44dfc9f 100755
+--- a/.githooks/pre-push
++++ b/.githooks/pre-push
+@@ -56,8 +56,10 @@ trava_arquivo() {
+   return 1
+ }
+ # Texto da trava (de outro processo): até 200 bytes, só imprimíveis, para um escape gravado nela não chegar ao terminal (C-14).
++# PRE-PUSH-TEXTO-TRAVA-FD: lê o arquivo já aberto e conferido no descritor 9 (/proc/self/fd/9), não o caminho: trocar o caminho por
++# um link depois da conferência não desvia a leitura. Sem o descritor aberto o head falha em silêncio e o texto sai vazio (falha fechada).
+ texto_da_trava() {
+-  head -c 200 -- "$trava" 2>/dev/null | LC_ALL=C tr -cd '[:print:]' || true
++  head -c 200 -- /proc/self/fd/9 2>/dev/null | LC_ALL=C tr -cd '[:print:]' || true
+ }
+ # Confere o arquivo já aberto no descritor 9 (não o caminho): do próprio usuário e não é link no caminho.
+ trava_confere() {
+@@ -329,6 +331,87 @@ for rel in sys.argv[1:]:
+                 falhas = 1
+ sys.exit(falhas)
+ '
++# PREPUSH-INDICE-E-PULOS: skip novo em tests/ (R-VERIFY). Argumentos: a âncora e os arquivos alterados; conta os pulos (skip, skipIf,
++# skipUnless, expectedFailure, skipTest: a mesma conta da catraca, AST, sem executar nada) só nos arquivos de teste tocados, na âncora
++# e no HEAD. Saída 0 = não subiram, 1 = subiram (impresso), 2 = não consegui contar (aviso; o CI confere).
++PULOS_FILTRO_PY='import ast, sys
++sys.path.insert(0, "tests")
++try:
++    import catraca
++    arqs = [a for a in sys.argv[2:] if a.startswith("tests/") and a.endswith(".py") and a != "tests/catraca.py"]
++    def pulos(ref):
++        arvores = []
++        for a in arqs:
++            texto = catraca.ler(".", ref, a)
++            if texto is None:
++                continue
++            try:
++                arvores.append(ast.parse(texto))
++            except SyntaxError:
++                pass
++        return catraca._forca_das_arvores(arvores)[1]
++    antes, depois = pulos(sys.argv[1]), pulos("HEAD")
++except Exception:
++    sys.exit(2)
++if depois > antes:
++    print(f"skip/skipIf/skipUnless/expectedFailure/skipTest em tests/ subiram de {antes} para {depois}")
++    sys.exit(1)
++'
++# PORTAO-D2 (portão de entrega do autor, estudo determinístico de 24/11, E173.2): o teto H1 e o texto do PR, com as regras da
++# árvore (bin/forge-check, bin/forge_tamanho.py e o passo pr-texto de tests/catraca.py), sem regra nova. Sem PR aberto da branch, o
++# teto só avisa (o corpo nasce depois); com ele, o corpo sem `teto: excedido` acima do teto e o pr-texto reprovado barram. Sem gh,
++# sem rede ou ferramenta ilegível: aviso e saída 0 (o CI confere). Argumentos: a base comum com a develop e a branch.
++PORTAO_D2_PY='import importlib.machinery, importlib.util, os, subprocess, sys
++ancora, branch = sys.argv[1:3]
++sys.path.insert(0, "bin")
++try:
++    carregador = importlib.machinery.SourceFileLoader("forge_check_d2", "bin/forge-check")
++    fc = importlib.util.module_from_spec(importlib.util.spec_from_loader(carregador.name, carregador))
++    carregador.exec_module(fc)
++    import forge_tamanho
++except Exception as erro:
++    print(f"pre-push: aviso: teto e texto do PR não conferidos ({type(erro).__name__} ao ler bin/forge-check); o CI confere.", file=sys.stderr)
++    sys.exit(0)
++numstat = fc.contagens_do_intervalo(".", ancora, "HEAD", estrito=True)
++if numstat is None:
++    print("pre-push: aviso: o git não leu o diff --numstat; teto e texto do PR não conferidos (o CI confere).", file=sys.stderr)
++    sys.exit(0)
++total = forge_tamanho.linhas_de_codigo(numstat, fc.e_codigo)
++if aviso := forge_tamanho.aviso_de_linhas(total):
++    print(f"pre-push: {aviso}", file=sys.stderr)
++pr, motivo = fc.pr_da_branch(".", branch, corpo=True)
++if pr is None:
++    print(f"pre-push: aviso: PR de {branch} não verificável ({motivo}); teto e texto do PR ficam para o CI.", file=sys.stderr)
++    sys.exit(0)
++if pr.get("state") != "OPEN":
++    sys.exit(0)
++numero, corpo = pr["number"], pr["body"]
++falhas = [f for f in [forge_tamanho.falta_de_motivo(total, corpo, numero)] if f]
++for f in falhas:
++    print(f"pre-push: {f}", file=sys.stderr)
++r = subprocess.run([sys.executable, "-I", "tests/catraca.py", "--modo", "pr-texto", "--base", ancora], capture_output=True,
++                   text=True, env=dict(os.environ, PR_BODY=corpo), stdin=subprocess.DEVNULL)
++if r.returncode == 1:
++    sys.stderr.write(r.stdout)
++    print(f"pre-push: texto do PR #{numero} reprovado pelo pr-texto da catraca (o CI reprova igual); corrija o corpo do PR.", file=sys.stderr)
++    falhas.append("pr-texto")
++elif r.returncode:
++    print(f"pre-push: aviso: o pr-texto da catraca não conferiu o PR (saída {r.returncode}); o CI confere.", file=sys.stderr)
++sys.exit(1 if falhas else 0)
++'
++# PORTAO-D2: o envio só de parecer (todo ref enviado já existe no remoto e o delta só toca docs/{reviews,qa,security,devops}/,
++# a fronteira do so_parecer) não é barrado pelo portão D2, só avisado: o revisor envia o parecer que reprova o corpo ou o
++# tamanho, e o autor corrige na volta (R-REVIEW). Código 0: só avisar; 1: barrar.
++d2_so_avisa() {
++  local envio ponta remoto delta
++  for envio in "${envios[@]}"; do
++    read -r ponta remoto _ <<< "$envio"
++    # Ref nova (remoto zero), sha remoto que o git não tem ou delta vazio: o delta sai vazio, a linha vazia fica fora da fronteira e barra.
++    delta="$(git -c core.quotepath=false diff --name-only --no-renames "$remoto" "$ponta" -- 2>/dev/null)"
++    if printf '%s\n' "$delta" | grep -qvE '^docs/(reviews|qa|security|devops)/'; then return 1; fi
++  done
++  echo "pre-push: aviso: envio só de parecer (docs/reviews, qa, security ou devops): o portão D2 só avisa; o autor corrige na volta (R-REVIEW)." >&2
++}
+ tipo_de_script() {
+   local primeira
+   case "$1" in *.py) echo python; return ;; *.sh) echo shell; return ;; esac
+@@ -336,7 +419,7 @@ tipo_de_script() {
+   case "$primeira" in '#!'*python*) echo python ;; '#!'*bash*|'#!'*/sh|'#!'*' sh') echo shell ;; esac
+ }
+ checagens_baratas() {
+-  local arquivo falhas=0 shell=() ancora branch envio ponta ref saida rc
++  local arquivo falhas=0 shell=() ancora branch envio ponta ref saida rc controle
+   for arquivo in "${alterados[@]}"; do
+     if [ ! -f "$arquivo" ] || [ -L "$arquivo" ]; then continue; fi
+     n_baratas=$((n_baratas + 1))
+@@ -370,6 +453,41 @@ checagens_baratas() {
+       echo "pre-push: aviso: scripts/verificar-contribuicao.sh não conferiu o delta (saída ${rc}); o CI confere." >&2
+     fi
+   fi
++  # PREPUSH-INDICE-E-PULOS: (1) o índice das fixtures (docs/hooks-fixtures.md) em dia quando o envio toca o corpus, o gerador ou a
++  # config de neutralidade (`scripts/indice-fixtures.py --conferir`, sem teste, segundos); (2) teste pulado novo em tests/ reprova
++  # (R-VERIFY; o CI reprova igual em regra_testes_enfraquecidos). Ferramenta que não roda: aviso, o CI confere.
++  if [ -f scripts/indice-fixtures.py ] && [ ! -L scripts/indice-fixtures.py ]; then
++    controle=0
++    for arquivo in "${alterados[@]}"; do
++      case "$arquivo" in tests/hooks/*|scripts/indice-fixtures.py|docs/hooks-fixtures.md|tests/config.json) controle=1; break ;; esac
++    done
++    if [ "$controle" = 1 ]; then
++      rc=0; saida="$(python3 -I scripts/indice-fixtures.py --conferir 2>&1)" || rc=$?
++      if [ "$rc" -eq 1 ]; then
++        printf '%s\n' "$saida" | LC_ALL=C tr -d '\000-\011\013-\037\177' >&2
++        echo "pre-push: docs/hooks-fixtures.md desatualizado (o CI reprova igual); rode scripts/indice-fixtures.py e inclua o arquivo." >&2
++        falhas=1
++      elif [ "$rc" -ne 0 ]; then
++        echo "pre-push: aviso: scripts/indice-fixtures.py --conferir não conferiu o índice (saída ${rc}); o CI confere." >&2
++      fi
++    fi
++  fi
++  if [ -n "$base_dev" ] && [ -f tests/catraca.py ] && [ ! -L tests/catraca.py ]; then
++    controle=0
++    for arquivo in "${alterados[@]}"; do
++      case "$arquivo" in tests/*.py) [ -f "$arquivo" ] && [ ! -L "$arquivo" ] && controle=1 ;; esac
++    done
++    if [ "$controle" = 1 ] && ancora="$(git merge-base "$base_dev" HEAD 2>/dev/null)"; then
++      rc=0; saida="$(python3 -I -c "$PULOS_FILTRO_PY" "$ancora" "${alterados[@]}" 2>&1)" || rc=$?
++      if [ "$rc" -eq 1 ]; then
++        printf '%s\n' "$saida" | LC_ALL=C tr -d '\000-\011\013-\037\177' >&2
++        echo "pre-push: teste pulado novo em tests/ (R-VERIFY; o CI reprova igual); conserte o teste em vez de pular." >&2
++        falhas=1
++      elif [ "$rc" -ne 0 ]; then
++        echo "pre-push: aviso: a contagem de testes pulados não rodou (saída ${rc}); o CI confere." >&2
++      fi
++    fi
++  fi
+   # O changelog é o do HEAD: confere quando o HEAD é a ponta de uma branch enviada (o nome da branch decide o fragmento).
+   if [ -n "$base_dev" ] && [ -f bin/forge-changelog ] && [ ! -L bin/forge-changelog ] && [ -f .claude-plugin/plugin.json ]; then
+     for envio in "${envios[@]}"; do
+@@ -389,6 +507,28 @@ checagens_baratas() {
+       break
+     done
+   fi
++  # PORTAO-D2: o índice do Forge (docs/indice-forge.md, o que o test_indice_forge confere) quando o envio toca bin/, hooks/ ou scripts/.
++  if [ -f scripts/indice-forge.py ] && [ ! -L scripts/indice-forge.py ] && printf '%s\n' "${alterados[@]}" | grep -qE '^(bin|hooks|scripts)/'; then
++    rc=0; saida="$(python3 -I scripts/indice-forge.py --conferir 2>&1)" || rc=$?
++    if [ "$rc" -eq 1 ]; then
++      printf '%s\n' "$saida" | LC_ALL=C tr -d '\000-\011\013-\037\177' >&2
++      echo "pre-push: docs/indice-forge.md fora de dia (o CI reprova igual); rode python3 scripts/indice-forge.py e commite." >&2
++      d2_so_avisa || falhas=1
++    elif [ "$rc" -ne 0 ]; then
++      echo "pre-push: aviso: scripts/indice-forge.py --conferir não conferiu (saída ${rc}); o CI confere." >&2
++    fi
++  fi
++  # PORTAO-D2: teto H1 e texto do PR da branch do HEAD (PORTAO_D2_PY, acima).
++  if [ -n "$base_dev" ] && [ -f bin/forge-check ] && [ ! -L bin/forge-check ] && [ -f tests/catraca.py ] && [ ! -L tests/catraca.py ]; then
++    for envio in "${envios[@]}"; do
++      read -r ponta _ ref <<< "$envio"
++      case "$ref" in refs/heads/?*) ;; *) continue ;; esac
++      [ "$ponta" = "$(git rev-parse HEAD 2>/dev/null)" ] || continue
++      ancora="$(git merge-base "$base_dev" HEAD 2>/dev/null)" || break
++      python3 -I -c "$PORTAO_D2_PY" "$ancora" "${ref#refs/heads/}" || { echo "pre-push: teto ou texto do PR reprovado (o CI reprova igual)." >&2; d2_so_avisa || falhas=1; }
++      break
++    done
++  fi
+   return "$falhas"
+ }
+ n_baratas=0
+@@ -406,7 +546,12 @@ fi
+ espera="${FORGE_TRAVA_ESPERA:-1200}"
+ case "$espera" in ''|*[!0-9]*) echo "pre-push: FORGE_TRAVA_ESPERA deve ser um número de segundos inteiro (veio '${espera}')." >&2; exit 1 ;; esac
+ intervalo="${FORGE_FILA_INTERVALO:-60}"
+-case "$intervalo" in ''|*[!0-9]*) echo "pre-push: FORGE_FILA_INTERVALO deve ser um número de segundos inteiro (veio '${intervalo}')." >&2; exit 1 ;; esac
++# FILA-INTERVALO-ZERO: 0 (ou 00...) imprimiria a fila a cada 0,2 s; recusado como o valor inválido.
++case "$intervalo" in ''|*[!0-9]*) echo "pre-push: FORGE_FILA_INTERVALO deve ser um número de segundos inteiro maior que zero (veio '${intervalo}')." >&2; exit 1 ;; esac
++# O 10# lê em base 10 ("08" e "09" não são octal inválido); o valor decimal segue para a conta da espera (a_cada_intervalo).
++intervalo_dec=$((10#$intervalo))
++[ "$intervalo_dec" -gt 0 ] || { echo "pre-push: FORGE_FILA_INTERVALO deve ser um número de segundos inteiro maior que zero (veio '${intervalo}')." >&2; exit 1; }
++intervalo="$intervalo_dec"
+ trava="$(trava_arquivo criar)" || exit 1
+ if [ -L "$trava" ]; then
+   echo "pre-push: ${trava} é link simbólico ou não é do próprio usuário; recusado. Apague-o e tente de novo." >&2
