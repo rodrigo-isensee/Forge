@@ -12,8 +12,8 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--base SHA] [--ids M1,M2] [--pra
                           "de": "<trecho exato>", "para": "<troca>", "testes": ["tests.<módulo>.<Classe>.<teste>"]}]}
            `executor` é opcional: o leitor de veredito da stack (hoje só `unittest`).
            Várias trocas num mutante (MUTANTE-VARIAS-TROCAS), para guardas que se cobrem uma à outra: `de` e `para` em
-           listas do mesmo tamanho (de 2 a 8 pares, o `de` sem repetir), aplicadas juntas no mesmo `arquivo`; cada `de`
-           uma vez no arquivo e sem sobrepor outro. A linha da saída é a do primeiro par. O conjunto morto só vale se
+           listas de 2 pares (o `de` sem repetir; 3 ou mais são recusados), aplicados juntos no mesmo `arquivo`; cada
+           `de` uma vez no arquivo e sem sobrepor outro. A linha da saída é a do primeiro par. O conjunto morto só vale se
            cada par, sozinho e com os mesmos testes, sobrevive; o par que morre sozinho (ou não roda sozinho) dá
            `inválido · ... · o par <n> morre sozinho: vira mutante próprio` (rc 2). O `--conferir` confere cada
            `de`; o `--cobertura` conta cada par como um mutante do mesmo id. A spec de uma troca (texto) segue igual.
@@ -132,7 +132,8 @@ PRAZO_MAXIMO = 3600
 MAXIMO_DE_MUTANTES = 16  # o pedido de 2 a 3 itens num lote: 21 dos 23 pedidos com spec cabem em um arquivo
 MAXIMO_DA_SPEC = 65536
 MAXIMO_DO_TRECHO = 4000
-MAXIMO_DE_TROCAS = 8  # MUTANTE-VARIAS-TROCAS: pares (de, para) aplicados juntos num mutante
+MAXIMO_DE_TROCAS = 2  # MUTANTE-VARIAS-TROCAS: pares juntos; com 2, cada par sozinho prova que o outro é necessário
+# (com 3+, o conjunto sem um par também teria de sobreviver: A1 do review e A2 da segurança do #846, sonda S4)
 # Arquivo de teste ou dado de teste não se muta (mutar o teste "mata" qualquer mutante). Mesma lista do
 # `forge-testes --vermelho`; cada script tem a sua cópia, porque o `bin/` não ganha um módulo comum publicado.
 TESTE = re.compile(r"tests/(test_[a-z0-9_]+\.py|config\.json|(fixtures|hooks|transcricoes|migracoes|mutantes)/.+)")
@@ -364,7 +365,7 @@ def validar_spec(dados):
         pares = trocas(m)
         if not all(isinstance(m[k], str) for k in ("guarda", "arquivo")) or not pares:
             problemas.append(f"{nome}: guarda, arquivo, de e para são texto (ou de e para em listas do mesmo tamanho, "
-                             f"de 2 a {MAXIMO_DE_TROCAS})")
+                             f"de {MAXIMO_DE_TROCAS} pares)")
             continue
         if any(not de or len(de) > MAXIMO_DO_TRECHO or len(para) > MAXIMO_DO_TRECHO for de, para in pares):
             problemas.append(f"{nome}: de vazio ou trecho com mais de {MAXIMO_DO_TRECHO} caracteres")

@@ -221,9 +221,8 @@ class ValidacaoDaSpec(unittest.TestCase):
 
     def test_varias_trocas_em_listas_do_mesmo_tamanho_valem_e_o_resto_e_invalido(self):  # MUTANTE-VARIAS-TROCAS
         self.assertEqual(self.problemas(mutante(de=["x > 10", "x >= 11"], para=["x > 99", "x >= 99"])), [])
-        self.assertEqual(self.problemas(mutante(de=[f"a{i}" for i in range(8)], para=[f"b{i}" for i in range(8)])), [])
         for de, para in ((["a", "b"], ["c"]), (["a"], ["b"]), (["a", "b"], "c"), ("a", ["b", "c"]), ([], []),
-                         ([f"a{i}" for i in range(9)], [f"b{i}" for i in range(9)]), (["a", 1], ["b", "c"]),
+                         ([f"a{i}" for i in range(3)], [f"b{i}" for i in range(3)]), (["a", 1], ["b", "c"]),
                          (["a", ""], ["b", "c"]), (["a", "b"], ["c", "b"]), (["a", "a"], ["b", "c"]), (5, "x"), ("x", None)):
             with self.subTest(de=de, para=para):
                 self.assertTrue(self.problemas(mutante(de=de, para=para)))
@@ -425,6 +424,22 @@ class Execucao(unittest.TestCase):
                 self.assertIn("M1 · sobreviveu · lib.py:2", r.stdout)
                 self.assertIn("M2 · inválido · lib.py:2 · o par 2 morre sozinho: vira mutante próprio", r.stdout)
                 self.assertEqual(list(self.tmp.iterdir()), [], "sobrou cópia em $TMPDIR")
+
+    def test_isca_de_tres_pares_e_recusada_antes_de_rodar(self):  # MUTANTE-VARIAS-TROCAS, sonda S4 (#846)
+        self.gravar("lib.py", "def limite(x, y=0):\n    if y > 500:\n        return 3\n    if x < 0:\n        return 0\n"
+                              "    if x <= -1:\n        return 0\n    return x\n")
+        self.gravar("tests/test_lib.py", "import unittest\nimport lib\n\n\nclass T(unittest.TestCase):\n"
+                                         "    def test_negativo(self):\n        self.assertEqual(lib.limite(-5), 0)\n")
+        self.salvar()
+        isca = mutante("M2", de=["if y > 500:", "if x < 0:", "if x <= -1:"],
+                       para=["if y > 5000:", "if x < -100:", "if x <= -100:"], testes=("tests.test_lib.T.test_negativo",))
+        r = self.rodar(self.spec(isca))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("spec inválida; nada foi executado", r.stderr)
+        self.assertIn("M2: guarda, arquivo, de e para são texto (ou de e para em listas do mesmo tamanho, de 2 pares)",
+                      r.stderr)
+        self.assertNotIn("morreu", r.stdout)
+        self.assertEqual(list(self.tmp.iterdir()), [], "rodou o mutante recusado")
 
     def test_par_que_nao_roda_sozinho_torna_o_mutante_invalido(self):  # MUTANTE-VARIAS-TROCAS
         self.gravar("lib.py", "def limite(x):\n    if (x > 10):\n        return 2\n    return 0\n")
