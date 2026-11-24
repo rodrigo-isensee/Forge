@@ -463,6 +463,69 @@ class NeutralidadeECaminhoCedo(Base):
         self.assertEqual(codigo, 0, erro)
 
 
+class IntervaloDaFila(Base):
+    """FILA-INTERVALO-ZERO (v0478 E152.2): FORGE_FILA_INTERVALO=0 (ou 00) imprimiria a fila a cada 0,2 s; o hook o recusa
+    como o valor inválido, antes da trava e sem rodar teste. O valor é lido em base 10: 08 e 09 valem (não são octal
+    inválido). Vermelho até o dono aplicar o patch do hook."""
+
+    def roda_com(self, intervalo):
+        self.env = dict(self.env, FORGE_FILA_INTERVALO=intervalo)
+        self.commit(f"toca a ferramenta {intervalo}", bin__forge_sugerir=f"x = '{intervalo}'\n")
+        return self.roda()
+
+    def test_zero_e_recusado_antes_da_trava(self):
+        for valor in ("0", "00"):
+            with self.subTest(valor):
+                codigo, marcas, erro = self.roda_com(valor)
+                self.assertEqual((codigo, marcas), (1, set()), erro)
+                self.assertIn(f"FORGE_FILA_INTERVALO deve ser um número de segundos inteiro maior que zero (veio '{valor}')", erro)
+                self.assertNotIn("pre-push: entrou", erro)
+                self.assertEqual(list(self.run_dir.rglob("*.lock")), [], "o 0 é recusado antes de criar a trava")
+
+    def test_invalido_segue_recusado(self):
+        codigo, marcas, erro = self.roda_com("1m")
+        self.assertEqual((codigo, marcas), (1, set()), erro)
+        self.assertIn("FORGE_FILA_INTERVALO deve ser um número de segundos inteiro maior que zero (veio '1m')", erro)
+
+    def test_valor_com_zero_a_esquerda_vale_em_base_10(self):  # sem o 10#, 08 e 09 quebram a conta como octal
+        for valor in ("08", "09", "1"):
+            with self.subTest(valor):
+                codigo, marcas, erro = self.roda_com(valor)
+                self.assertEqual((codigo, marcas), (0, AFETADOS), erro)
+                self.assertNotIn("FORGE_FILA_INTERVALO", erro)
+
+
+class TextoDaTravaPorFd(unittest.TestCase):
+    """PRE-PUSH-TEXTO-TRAVA-FD (v0478 E152.2): `texto_da_trava` lê o arquivo já aberto e conferido no descritor 9, não o
+    caminho; trocar o caminho por um link depois da conferência não desvia a leitura, e sem o descritor o texto sai vazio.
+    Roda a função do hook de verdade num bash limpo. Vermelho até o dono aplicar o patch do hook."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.base = Path(self._tmp.name)
+        texto = HOOK.read_text(encoding="utf-8")
+        inicio = texto.index("texto_da_trava() {\n")
+        self.funcao = texto[inicio:texto.index("\n}\n", inicio) + 3]
+        (self.base / "aberta").write_text("pid 1 ns 2 desde dono-do-fd\n")
+        (self.base / "desviada").write_text("TEXTO-DE-OUTRO-ARQUIVO\n")
+        (self.base / "trava").symlink_to(self.base / "desviada")  # o caminho trocado por link depois da conferência
+
+    def texto(self, abrir_fd):
+        script = 'trava="$1"\n' + self.funcao + ('exec 9<"$2"\n' if abrir_fd else "exec 9<&-\n") + "texto_da_trava\n"
+        r = subprocess.run(["bash", "--noprofile", "--norc", "-c", script, "t", str(self.base / "trava"),
+                            str(self.base / "aberta")], env={"PATH": os.environ.get("PATH", "/usr/bin:/bin")},
+                           capture_output=True, text=True, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout
+
+    def test_le_o_descritor_e_nao_o_caminho(self):
+        self.assertEqual(self.texto(abrir_fd=True), "pid 1 ns 2 desde dono-do-fd")
+
+    def test_sem_o_descritor_o_texto_sai_vazio(self):
+        self.assertEqual(self.texto(abrir_fd=False), "")
+
+
 class NaoRecuaDoHook(unittest.TestCase):
     """O texto do hook guarda a falha fechada que os testes acima exercitam."""
 

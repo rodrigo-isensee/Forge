@@ -159,5 +159,121 @@ class EnvioLeve(unittest.TestCase):
         self.assertIn("FORGE_PREPUSH_SUITE vale 0", erro)
 
 
+# Índice falso no lugar de scripts/indice-fixtures.py: grava a marca `indice-chamado` e sai com o código de INDICE_RC (o
+# índice de verdade lê o corpus inteiro; aqui só importa o que o hook faz com cada saída).
+INDICE_FALSO = ("import os, pathlib, sys\npathlib.Path('indice-chamado').write_text(' '.join(sys.argv[1:]))\n"
+                "print('docs/hooks-fixtures.md: desatualizado; rode scripts/indice-fixtures.py')\n"
+                "sys.exit(int(os.environ.get('INDICE_RC', '0')))\n")
+PULADO = "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        self.skipTest('depois')\n"
+VERDE = "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        pass\n"
+
+
+class IndiceEPulos(EnvioLeve):
+    """PREPUSH-INDICE-E-PULOS (v0478 E152.2): o envio leve, sem teste nenhum, roda o `scripts/indice-fixtures.py --conferir`
+    quando o diff toca o corpus de fixtures, o gerador, o índice ou a config, e conta os pulos (skip, skipIf, skipUnless,
+    expectedFailure, skipTest) nos testes tocados, na âncora e no HEAD, pela conta da catraca. Índice desatualizado ou
+    pulo novo reprova; ferramenta que não roda é aviso (o CI confere). Vermelho até o dono aplicar o patch do hook."""
+
+    def setUp(self):
+        super().setUp()
+        (self.repo / ".gitignore").write_text("rodou\nindice-chamado\n__pycache__/\n")
+        apoios = {f"tests/{n}": (RAIZ / "tests" / n).read_text(encoding="utf-8") for n in ("catraca.py", "neutralidade.py")}
+        self.commit("apoios", **apoios, **{"scripts/indice-fixtures.py": INDICE_FALSO, "tests/test_c.py": VERDE})
+        self.git("update-ref", "refs/remotes/origin/develop", "HEAD")
+        self.marca = self.repo / "indice-chamado"
+
+    def test_indice_desatualizado_reprova_o_envio_leve(self):
+        self.commit("fixture nova", **{"tests/hooks/caso/nova.json": "{}\n"})
+        codigo, rodou, erro = self.roda(INDICE_RC="1")
+        self.assertEqual((codigo, rodou), (1, False), erro)
+        self.assertEqual(self.marca.read_text(), "--conferir", "o hook confere o índice, não o regrava")
+        self.assertIn("docs/hooks-fixtures.md desatualizado", erro)
+        self.assertIn("checagens baratas reprovadas", erro)
+        self.assertNotIn("envio leve", erro)
+
+    def test_cada_caminho_do_corpus_dispara_o_indice(self):
+        for caminho in ("tests/hooks/caso/x.json", "scripts/indice-fixtures.py", "docs/hooks-fixtures.md", "tests/config.json"):
+            with self.subTest(caminho):
+                self.marca.unlink(missing_ok=True)
+                texto = INDICE_FALSO + "# x\n" if caminho == "scripts/indice-fixtures.py" else "{}\n"
+                self.commit(f"toca {caminho}", **{caminho: texto})
+                codigo, _, erro = self.roda(INDICE_RC="1")
+                self.assertEqual(codigo, 1, erro)
+                self.assertTrue(self.marca.exists(), f"{caminho} no diff não chamou o índice")
+                self.git("reset", "-q", "--hard", "refs/remotes/origin/develop")
+
+    def test_indice_em_dia_segue_leve(self):
+        self.commit("fixture nova", **{"tests/hooks/caso/nova.json": "{}\n"})
+        codigo, rodou, erro = self.roda(INDICE_RC="0")
+        self.assertEqual((codigo, rodou), (0, False), erro)
+        self.assertTrue(self.marca.exists())
+        self.assertIn("plano=leve rc=0", erro)
+
+    def test_diff_fora_do_corpus_nao_chama_o_indice(self):
+        self.commit("toca codigo", **{"bin/ferramenta": "x = 1\n"})
+        codigo, _, erro = self.roda(INDICE_RC="1")
+        self.assertEqual(codigo, 0, erro)
+        self.assertFalse(self.marca.exists(), "o índice só roda com o corpus, o gerador, o índice ou a config no diff")
+
+    def test_indice_que_nao_roda_e_so_aviso(self):
+        self.commit("fixture nova", **{"tests/hooks/caso/nova.json": "{}\n"})
+        codigo, _, erro = self.roda(INDICE_RC="2")
+        self.assertEqual(codigo, 0, erro)
+        self.assertIn("aviso: scripts/indice-fixtures.py --conferir não conferiu o índice (saída 2)", erro)
+
+    def test_indice_que_e_link_nao_roda(self):  # a metade `! -L` da guarda
+        (self.repo / "scripts" / "indice-real.py").write_text(INDICE_FALSO)
+        (self.repo / "scripts" / "indice-fixtures.py").unlink()
+        (self.repo / "scripts" / "indice-fixtures.py").symlink_to("indice-real.py")
+        self.commit("indice vira link", **{"tests/hooks/caso/nova.json": "{}\n"})
+        codigo, _, erro = self.roda(INDICE_RC="1")
+        self.assertEqual(codigo, 0, erro)
+        self.assertFalse(self.marca.exists(), "o hook não segue link no lugar do índice")
+
+    def test_skip_novo_em_teste_tocado_reprova(self):
+        self.commit("pula", **{"tests/test_c.py": PULADO})
+        codigo, rodou, erro = self.roda()
+        self.assertEqual((codigo, rodou), (1, False), erro)
+        self.assertIn("subiram de 0 para 1", erro)
+        self.assertIn("teste pulado novo em tests/", erro)
+        self.assertNotIn("envio leve", erro)
+
+    def test_skip_em_teste_novo_tambem_reprova(self):  # o arquivo não existe na âncora: conta 0 antes
+        self.commit("teste novo ja pulado", **{"tests/test_d.py": PULADO})
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 1, erro)
+        self.assertIn("teste pulado novo em tests/", erro)
+
+    def test_teste_tocado_sem_pulo_novo_segue_leve(self):
+        self.commit("pulo na base", **{"tests/test_c.py": PULADO})
+        self.git("update-ref", "refs/remotes/origin/develop", "HEAD")
+        self.commit("mexe sem pular mais", **{"tests/test_c.py": PULADO + "# x\n"})
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+        self.assertNotIn("teste pulado", erro)
+        self.assertIn("plano=leve rc=0", erro)
+
+    def test_pulo_que_sai_nao_reprova(self):
+        self.commit("pulo na base", **{"tests/test_c.py": PULADO})
+        self.git("update-ref", "refs/remotes/origin/develop", "HEAD")
+        self.commit("conserta", **{"tests/test_c.py": VERDE})
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+
+    def test_sem_a_base_nao_conta(self):  # sem a base nada a comparar (o CI conta); tirar o `-n "$base_dev"` é equivalente: o merge-base falha
+        self.commit("pula", **{"tests/test_c.py": PULADO})
+        self.git("update-ref", "-d", "refs/remotes/origin/develop")
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+        self.assertNotIn("teste pulado", erro)
+
+    def test_catraca_ilegivel_e_so_aviso(self):
+        self.commit("pula e quebra a catraca", **{"tests/test_c.py": PULADO, "tests/neutralidade.py": "raise SystemExit(5)\n"})
+        codigo, _, erro = self.roda()
+        self.assertNotIn("teste pulado novo", erro)
+        self.assertIn("aviso: a contagem de testes pulados não rodou", erro)
+        self.assertEqual(codigo, 0, erro)
+
+
 if __name__ == "__main__":
     unittest.main()
