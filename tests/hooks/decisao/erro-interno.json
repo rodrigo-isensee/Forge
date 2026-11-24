@@ -1,0 +1,18 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA (E172.15): erro ao medir a mensagem: o decisao sai 0, não avisa e registra em erros.log.",
+  "forcar": {
+    "onde": "viola",
+    "como": "erro"
+  },
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "agent_type": "forge:jarvis",
+    "transcript_path": "{tmp}/t.jsonl",
+    "last_assistant_message": "Qual caminho?\nA) manter\nB) trocar"
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "decisao RuntimeError"
+  }
+}

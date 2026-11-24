@@ -31,7 +31,7 @@ Formato do fixture:
               {"git": [argumentos]} roda o git no projeto (como um comando que o hook não viu, ex.: sparse-checkout)
               Em caminhos e textos, {marca} e {marca_wt} valem pela marca da sessão (`.git/forge/projeto-<hash da raiz>`) do
               projeto e da worktree `{tmp}/wt`
-  esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), pergunta (trecho do motivo: só o
+  esperado    codigo, saida (trecho do systemMessage; só o `vigia` e o `decisao`, no Stop, escrevem no stdout), pergunta (trecho do motivo: só o
               `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), stderr_sem ([trechos] que a recusa não pode ter), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
               aviso (trecho; só o `agentes`, código 0: a linha no stderr e o mesmo trecho no `systemMessage` do stdout)
@@ -856,7 +856,8 @@ class Hooks(unittest.TestCase):
         r = rodar(f.hook, entrada, raiz, proc, extra, producao=producao, forcar=f.dados.get("forcar"))
         esperado = f.dados["esperado"]
         if "saida" in esperado or "reason" in esperado:  # só o vigia: aviso ao usuário; contexto só no reason fixo do Stop (emenda da ADR 0003, item 7)
-            self.assertEqual(f.hook, "vigia")
+            self.assertIn(f.hook, ("vigia", "decisao"))  # o decisao: só o systemMessage, só no Stop (R-DECISAO, E172.15)
+            self.assertTrue(f.hook == "vigia" or ("reason" not in esperado and entrada.get("hook_event_name") == "Stop"))
             self.assertNotEqual(entrada.get("hook_event_name"), "SessionStart", "SessionStart é silencioso")
             saida = json.loads(r.stdout)
             chaves = ["systemMessage"] * ("saida" in esperado) + ["decision", "reason"] * ("reason" in esperado)
@@ -871,7 +872,7 @@ class Hooks(unittest.TestCase):
                 self.assertEqual(saida["reason"], esperado["reason"])
             if "saida" in esperado:
                 self.assertNotIn("\n", saida["systemMessage"], "uma linha só")
-                self.assertRegex(saida["systemMessage"], r"^Forge: \d+ (violação\(ões\)|aviso\(s\)|mudança\(s\))(, \d+ \S+)* — ")
+                self.assertRegex(saida["systemMessage"], r"^Forge decisao: " if f.hook == "decisao" else r"^Forge: \d+ (violação\(ões\)|aviso\(s\)|mudança\(s\))(, \d+ \S+)* — ")
                 self.assertIn(esperado["saida"], saida["systemMessage"])
         elif "pergunta" in esperado:  # só o conformidade: pede a confirmação da pessoa, com a consequência
             self.assertEqual(f.hook, "conformidade")
@@ -1527,7 +1528,7 @@ class Hooks(unittest.TestCase):
             codigos = {f.dados["esperado"]["codigo"] for f in self.fixtures if f.hook == hook}
             nomes = {f.caminho.stem for f in self.fixtures if f.hook == hook}
             with self.subTest(hook=hook):
-                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente", "ordens") else {0, 2})  # o vigia, o doutor, o ambiente e o ordens (emenda "ordens em vigor" da ADR 0003) avisam, nunca bloqueiam
+                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente", "ordens", "decisao") else {0, 2})  # o vigia, o doutor, o ambiente, o ordens (emenda "ordens em vigor" da ADR 0003) e o decisao (R-DECISAO, fatia L28a) avisam, nunca bloqueiam
                 self.assertIn("sem-forge-versao", nomes)
                 self.assertIn("erro-interno", nomes)
                 if hook == "ordens":  # a emenda pede também os casos do teto e do arquivo ausente
@@ -1542,9 +1543,12 @@ class Hooks(unittest.TestCase):
             "nunca `additionalContext`", ""), "o vigia só avisa o usuário (systemMessage)")
         for evento in ("SessionStart", "Stop"):  # SessionStart: o stdout vira contexto do modelo (ADR 0003, item 1)
             comandos = {h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"].get(evento, []) for h in g["hooks"]}
-            permitidos = {"vigia.py", "doutor.py", "_maquina.py"} | ({"ambiente.py", "ordens.py"} if evento == "SessionStart" else set()) | ({"meta.py"} if evento == "Stop" else set())  # 0.44.2: S4/S6, sem stdout
-            self.assertLessEqual(comandos, permitidos, f"só o vigia e o doutor (sem stdout no SessionStart), o ambiente (exceção da emenda da ADR 0003, E2.54), o ordens (emenda \"ordens em vigor\" da ADR 0003) e o meta no Stop ficam em {evento}")
+            permitidos = {"vigia.py", "doutor.py", "_maquina.py"} | ({"ambiente.py", "ordens.py"} if evento == "SessionStart" else set()) | ({"meta.py", "decisao.py"} if evento == "Stop" else set())  # 0.44.2: S4/S6, sem stdout; E172.15: o decisao só com systemMessage
+            self.assertLessEqual(comandos, permitidos, f"só o vigia e o doutor (sem stdout no SessionStart), o ambiente (exceção da emenda da ADR 0003, E2.54), o ordens (emenda \"ordens em vigor\" da ADR 0003) e, no Stop, o meta e o decisao (só aviso ao usuário, R-DECISAO; ADR 0003, item 1) ficam em {evento}")
         self.assertNotIn("print(", (HOOKS / "meta.py").read_text(encoding="utf-8"), "o meta não escreve no stdout: recusa só pelo stderr")
+        decisao = (HOOKS / "decisao.py").read_text(encoding="utf-8").replace("nunca `additionalContext` nem `decision`", "")
+        for chave in ("additionalContext", "decision"):  # o decisao só avisa o usuário (systemMessage): nem contexto nem bloqueio
+            self.assertNotIn(chave, decisao, f"o decisao não devolve {chave} (ADR 0003, item 1)")
         self.assertNotIn("meta.py", {h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"].get("SessionStart", []) for h in g["hooks"]})
         usados = set()
         for evento, grupos in d["hooks"].items():
