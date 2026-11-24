@@ -1,2 +1,0 @@
-### Alterado
-- A receita do envio de parecer (`skills/briefs-e-conferencia/envio-de-parecer.md`) chega aos quatro portões (review, QA, segurança e, agora, devops) por ponteiro com o caminho `${CLAUDE_PLUGIN_ROOT}`, com a condição "atrás do remoto" de volta ao `git pull --rebase origin <branch>`; o `git add` e o commit da receita servem a qualquer pasta de portão; validade presa ao domínio, modelo e `forge-check docs` saíram dos agentes para a receita, dentro dos tetos, sem subir teto (v0478 E146.1, achados A1 a A4 do review do #816).

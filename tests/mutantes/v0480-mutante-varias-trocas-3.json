@@ -1,0 +1,78 @@
+{
+  "pedido": "v0480-mutante-varias-trocas",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "MUTANTE-VARIAS-TROCAS: par_que_nao_sobrevive: par sem registro não conta como sobrevivente",
+      "arquivo": "bin/forge-mutante",
+      "de": "classe = \"sem veredito\" if registro is None else",
+      "para": "classe = \"sem veredito\" if registro is not None else",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_par_isca_que_morre_sozinho_torna_o_mutante_invalido"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "MUTANTE-VARIAS-TROCAS: par_que_nao_sobrevive: o par morto sozinho diz que vira mutante próprio",
+      "arquivo": "bin/forge-mutante",
+      "de": "if classe == 'morreu' else 'sozinho sai '",
+      "para": "if classe != 'morreu' else 'sozinho sai '",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_par_isca_que_morre_sozinho_torna_o_mutante_invalido"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "MUTANTE-VARIAS-TROCAS: o teto de 2 pares recusa a isca de 3 (S4 do #846), em que cada par sobrevive sozinho e o conjunto morre",
+      "arquivo": "bin/forge-mutante",
+      "de": "MAXIMO_DE_TROCAS = 2  #",
+      "para": "MAXIMO_DE_TROCAS = 3  #",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_isca_de_tres_pares_e_recusada_antes_de_rodar",
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_varias_trocas_em_listas_do_mesmo_tamanho_valem_e_o_resto_e_invalido"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "MUTANTE-VARIAS-TROCAS: par_com nomeia só o trecho presente no texto (A3 da segurança do #846)",
+      "arquivo": "bin/forge-mutante",
+      "de": "for de in des if de in texto]",
+      "para": "for de in des if de not in texto]",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_par_com_nomeia_so_o_trecho_presente_e_some_sem_nenhum",
+        "tests.test_forge_mutante.Execucao.test_par_escudo_que_morre_nomeia_as_duas_linhas"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "MUTANTE-VARIAS-TROCAS: par_com sem trecho presente não acrescenta nada à linha",
+      "arquivo": "bin/forge-mutante",
+      "de": "for n in linhas)})\" if linhas else \"\"",
+      "para": "for n in linhas)})\" if not linhas else \"\"",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_par_com_nomeia_so_o_trecho_presente_e_some_sem_nenhum"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "MUTANTE-VARIAS-TROCAS: a saída do mutante de 2 pares nomeia a linha do par (par-escudo, S7)",
+      "arquivo": "bin/forge-mutante",
+      "de": "m[\"arquivo\"], par)\n                                        if par else \"\")",
+      "para": "m[\"arquivo\"], par)\n                                        if not par else \"\")",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_par_escudo_que_morre_nomeia_as_duas_linhas"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "MUTANTE-VARIAS-TROCAS: a coberta do --cobertura nomeia o outro par, não o próprio",
+      "arquivo": "bin/forge-mutante",
+      "de": "for d, _ in trocas(m) if d != de]",
+      "para": "for d, _ in trocas(m) if d == de]",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_cada_troca_do_mutante_de_varias_cobre_a_sua_condicao"
+      ]
+    }
+  ]
+}

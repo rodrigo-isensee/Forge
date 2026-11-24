@@ -1,3 +1,0 @@
-### Alterado
-- Branches paradas sem PR, terceira parte: ordem de integração das 18 com pareceres aprovados (os 7 pareceres das 6 pós-merge entram pelo blob de cada um, sem mesclar a branch) e os 7 cartões que faltavam (v0478 E117.3)
-- Os 7 pareceres pós-merge que só existiam nas 6 branches paradas entram na develop pelo blob de cada parecer, sem mesclar a branch: os 2 de review (`v0457-e3cfg`, `v0474-pos-merge-631`) pelo PR 807, e os 3 de QA (`v046-forge-pesado-m12`, `v047-h4-atualiza-branch`, `v0479-conformidade-sessao-forge`) e os 2 de segurança (`v0476-mp2-mp4`, `v0474-pos-merge-631`) num segundo PR (v0478 E117.4, E149.1)
