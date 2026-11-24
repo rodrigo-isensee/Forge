@@ -3,26 +3,28 @@ tipo: review
 contrato: 1
 pedido: v0478
 branch: melhoria/v0480-bp14-retro
-commit: dbc33e5ab8c11b08e9f14faee40f78e64aa8baeb
-parecer: reprovado
+commit: 1df3df9ae7715dcf602b6cf7bff8159ecdbc0bf0
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-23
 ---
-# Review: v0478 (E145.2, PR #833, BP14: tabela pedido × não entregue na retro)
+# Review: v0478 (E145.6, PR #833, BP14: tabela pedido × não entregue na retro), revalidação
 
-Base `0ed441e9`, head revisado `dbc33e5a`; diff de 3 arquivos (+7/-1): `skills/kanban-metricas/SKILL.md`, `templates/projeto/docs/retrospectivas/_modelo.md` e o fragmento `changelog.d/v0480-bp14-retro.md`.
+Base `0ed441e9`, head revisado `1df3df9a` (volta E145.5). Revalidação por delta: `forge-check parecer delta docs/reviews/v0480-bp14-retro.md` deu o intervalo `dbc33e5a..1df3df9a` com 3 arquivos no domínio: `docs/retrospectivas/_modelo.md`, `skills/kanban-metricas/SKILL.md` e `templates/projeto/docs/retrospectivas/_modelo.md`. Li só esse delta.
 
 ## Achados
-- A1 (bloqueante) tests/test_retro_pendentes.py:115 · o modelo de `templates/` mudou e o gêmeo `docs/retrospectivas/_modelo.md` não; o teste que exige os dois iguais falha no head (reproduzido). Aplicar a mesma mudança nos dois modelos.
-- A2 (bloqueante) templates/projeto/docs/retrospectivas/_modelo.md:11 · a tabela de exemplo fora de comentário conta como corpo da seção 1: retro com a seção 1 sem preencher passa a cobrir a versão no `retro --pendentes` (AE5.1; sonda S1). Pôr a linha de exemplo no comentário HTML.
-- A3 (recomendado) templates/projeto/docs/retrospectivas/_modelo.md:11 · a skill manda a linha `nenhum` quando não há pedido parado; o modelo não diz; citar no comentário da seção 1.
+- A1 (recomendado) skills/kanban-metricas/SKILL.md:32 · o corte para caber no teto tirou a definição de pedido parado ("sem movimento no quadro"), que não está em nenhum dos dois modelos; recolocar no comentário da seção 1 dos dois `_modelo.md`.
 
 ## Sondas
-- S1 · modelo do head com `Cobre: v1.0.0`, seções 2 a 4 com uma linha e a seção 1 intacta, em `versoes_que_a_retro_cobre` · espera: secao sem corpo: dados do pedido; nao cobre · obtido: ({'v1.0.0'}, []) (o modelo da base dá o aviso esperado)
+- S1 · modelo do head com `Cobre: v1.0.0`, seções 2 a 4 com uma linha e a seção 1 intacta, em `versoes_que_a_retro_cobre` · espera: secao sem corpo: dados do pedido; nao cobre · obtido: (set(), ['"2026-01-01-x.md": secao sem corpo: dados do pedido; nao cobre'])
 
 ## Parecer
-Reprovado. O item segue o BP14 de `boas-praticas-1911.md` (pedido parado e discovery sem código), a marca usa os valores de `R-DECISAO` e o texto é neutro (`R-NEUTRO`). Orçamento da skill `kanban-metricas`: 45 linhas, teto 133 (`limite_linhas.skill`), sem linha nova. Fragmento de changelog presente.
+Aprovado. Achados da rodada anterior:
+- A1 (modelos diferentes): resolvido; os dois `_modelo.md` são iguais byte a byte (`cmp`) e `test_retro_pendentes` passa (20 de 20).
+- A2 (tabela de exemplo como corpo da seção 1): resolvido; a tabela saiu e a instrução foi para o comentário HTML; a sonda S1 volta a dar o aviso de seção sem corpo.
+- A3 (linha `nenhum`): resolvido no comentário da seção 1.
+- A1 do QA (teto de caracteres da skill): resolvido; `test_metricas_texto` passa (2 de 2).
 
-Testes dos arquivos tocados (`test_retro_pendentes`, `test_jarvis_nucleo`, `test_reval_delta`, `test_medidas_m14b`): 146 rodados, 1 falha (A1). CI do PR #833 no head ainda pendente na hora do parecer.
+Linha removida da `kanban-metricas` ("Trechos movidos inteiros da skill `kanban-scrum` e do `agile-coach` (diretriz 25, …)"): é nota de procedência, sem regra, sem ID e sem invariante; nenhum teste nem `tests/config.json` a cita, e a diretriz 25 segue na skill `fluxo-do-pedido`. A regra da tabela continua na skill (item 1 da retrospectiva), com a idade, a marca e o `nenhum`.
 
-Correção sugerida, uma só para A1 e A2: a tabela de exemplo entra dentro do comentário HTML da seção 1 (com a linha `nenhum` do A3), e o mesmo texto vai para os dois `_modelo.md`; o teste `test_modelo_preenchido_cobre_e_os_dois_modelos_sao_iguais` volta a passar e o `retro --pendentes` volta a cobrar a seção 1.
+Testes dos arquivos tocados no head: `test_retro_pendentes` (20), `test_metricas_texto` (2), `test_orcamento_instrucao` (8), `test_modelos_projeto` (25), `test_modelos_citados` (3), `test_jarvis_nucleo` (43), `test_medidas_m14b` (73), `test_forge -k Neutral` (6): todos OK. Suíte inteira: CI do PR #833, pendente na hora do parecer; `bateria (pareceres)` vermelha pelos pareceres reprovados no head anterior, que esta revalidação e as do QA e da segurança atualizam.
