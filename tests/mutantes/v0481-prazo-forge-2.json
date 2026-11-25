@@ -26,7 +26,7 @@
       "id": "M11",
       "guarda": "E7.27 (A4 da segurança no #888): no erro interno, o registro roda sob o vigia próprio e não leva ao corte de 10 s",
       "arquivo": "hooks/_comum.py",
-      "de": "        registrar_sob_vigia(hook, erro, armar)  # A4 da segurança no #888: o registro não leva ao corte que libera",
+      "de": "        registrar_sob_vigia(hook, erro, armar, prazo_da_etapa(resta if hook.prazo_s else None))",
       "para": "        hook.registrar_erro(erro)",
       "testes": [
         "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_erro_interno_com_registro_lento_nao_espera_o_corte"

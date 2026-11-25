@@ -2823,11 +2823,11 @@ PRAZO_DA_DECISAO_S = 3.0
 # com folga; estourado, recusa como o de 3 s. O resultado gravado pelo `forge-check pr` é um arquivo que o agente pode escrever
 # (v0455): o `gh pr create` o lê (PR-HOOK-PRAZO, v046); no `gh pr ready` e no `gh pr merge` (E2.117) o aprovado libera só no
 # clone do Forge, onde o CI de pareceres é o segundo portão, e o reprovado recusa em todo lugar; no projeto, o merge confere.
-# 7,5 s (A5 da segurança no #888): somado aos dois vigias abaixo, deixa 1,5 s de parede para a partida do Python e a saída.
+# 7,5 s (A5 da segurança no #888): somado aos dois vigias abaixo, deixa 1,5 s de parede para a saída do processo.
 PRAZO_DO_MERGE_S = 7.5
-# E7.23: com o prazo vencido, a decisão da sessão (leitura do disco) e, depois, o registro têm cada um este prazo. Conta
-# de parede, não só dos prazos: partida + maior prazo + 0,5 + 0,5 abaixo dos 10 s do `timeout` do hooks.json, com folga
-# (com 8 s, a CPU carregada levou a recusa a 10,1 s e o corte a liberou; `test_recusa_do_prazo_longo_presa_deixa_folga`).
+# E7.23: com o prazo vencido, a decisão da sessão (leitura do disco) e, depois, o registro têm cada um este prazo, limitado
+# ao que resta do teto (prazo do hook + 0,5 + 0,5), e todos contam da partida do processo (`idade_do_processo`), e não de
+# depois do Python e dos imports: sob carga, essa parte passava da folga e o corte de 10 s liberava (A6 e A1 no #888).
 PRAZO_DA_SESSAO_S = 0.5
 
 
@@ -2864,35 +2864,61 @@ def recusa_no_prazo(hook, critico, clone_do_forge):
     return sessao_vigiada(hook, clone_do_forge)
 
 
-def registrar_sob_vigia(hook, erro, armar):
-    """A linha no erros.log sob um vigia próprio de `PRAZO_DA_SESSAO_S` (o `git` do `Hook.run` sob carga, ou um FIFO no
-    `.git`, não leva a espera ao corte de 10 s, que libera); o registro que não termina ou falha fica sem a linha e nunca
-    muda a decisão de quem chama."""
+def idade_do_processo(nome):
+    """Segundos desde a partida do processo (o fork, antes do Python e dos imports), quando ele é o do hook `nome` (o
+    `sys.argv[0]` é o `<nome>.py`): `/proc/self/stat`, campo 22, contra o `CLOCK_BOOTTIME`. Fora dele (o driver do lote,
+    um teste em processo) ou sem `/proc`, 0: o prazo conta do `inicio`, como antes (A6 da segurança no #888)."""
+    if not sys.argv or Path(sys.argv[0]).name != f"{nome}.py":
+        return 0.0
     try:
-        with vigia_de_prazo(PRAZO_DA_SESSAO_S, armar):
+        campos = Path("/proc/self/stat").read_text(encoding="ascii").rpartition(")")[2].split()
+        return max(time.clock_gettime(time.CLOCK_BOOTTIME) - int(campos[19]) / os.sysconf("SC_CLK_TCK"), 0.0)
+    except (OSError, ValueError, IndexError, AttributeError):
+        return 0.0
+
+
+def prazo_da_etapa(resta):
+    """O vigia de uma etapa depois do prazo vencido ou do erro interno (a sessão, o registro): `PRAZO_DA_SESSAO_S`,
+    limitado ao que `resta()` (s) até o teto do hook; 0 quando nada resta, e a etapa não roda. `resta` None: sem teto."""
+    return PRAZO_DA_SESSAO_S if resta is None else min(PRAZO_DA_SESSAO_S, max(resta(), 0.0))
+
+
+def registrar_sob_vigia(hook, erro, armar, segundos=PRAZO_DA_SESSAO_S):
+    """A linha no erros.log sob um vigia próprio de `segundos` (o `git` do `Hook.run` sob carga, ou um FIFO no `.git`,
+    não leva a espera ao corte de 10 s, que libera); sem tempo (`prazo_da_etapa` 0), não registra. O registro que não
+    termina ou falha fica sem a linha e nunca muda a decisão de quem chama."""
+    if segundos <= 0:
+        return
+    try:
+        with vigia_de_prazo(segundos, armar):
             hook.registrar_erro(erro)
     except (PrazoVencido, Exception):  # noqa: BLE001 - sem a linha no erros.log, a decisão segue a mesma
         pass
 
 
-def prazo_vencido(hook, critico, bruto, clone_do_forge, regra, armar=getattr(signal, "setitimer", None)):
+def prazo_vencido(hook, critico, bruto, clone_do_forge, regra, armar=getattr(signal, "setitimer", None), resta=None):
     """O vigia venceu: onde o prazo recusa (`recusa_no_prazo`) e antes da ferramenta, recusa pela `regra` do hook; senão,
     libera. Nos dois casos, a linha no erros.log. VIGIA-PRAZO-TRAVA (decisão do dono, 24/11): toda linha que chega a uma
     trava que pode recusar conta como crítica, com ou sem o marcador; o `marcado` só escolhe o texto (sem ele e com corpo
     de heredoc por conferir, C-4, cita os corpos). Roda fora do vigia da decisão, e não refaz a busca do marcador; a
     sessão (leitura do disco, que espera um FIFO no `.git`: E7.23) e o registro rodam cada um sob um vigia próprio de
     `PRAZO_DA_SESSAO_S`, e a sessão que não se decide nele recusa onde o evento pode recusar. A sessão se decide antes do
-    registro, e o registro tem o seu vigia (`registrar_sob_vigia`), que nunca muda a decisão (A1 da segurança no #888)."""
+    registro, e o registro tem o seu vigia (`registrar_sob_vigia`), que nunca muda a decisão (A1 da segurança no #888).
+    `resta` (A6 no #888): os dois vigias cabem no que sobra do teto (`prazo_da_etapa`); sem tempo, a sessão não se decide
+    e recusa, e o registro não roda."""
     prazo = hook.prazo_s or PRAZO_DA_DECISAO_S
     evento = hook.entrada.get("hook_event_name")
     # VIGIA-AGENTES-PESADO: sem marcador, só o PreToolUse recusa; depois da ferramenta, nunca
     recusa = evento != "PostToolUse" and (critico is not None or evento == "PreToolUse")
     try:
-        with vigia_de_prazo(PRAZO_DA_SESSAO_S, armar):
+        segundos = prazo_da_etapa(resta)
+        if segundos <= 0:
+            raise PrazoVencido()
+        with vigia_de_prazo(segundos, armar):
             recusa = recusa and recusa_no_prazo(hook, critico, clone_do_forge)
     except (PrazoVencido, Exception):  # noqa: BLE001 - a sessão que não se decide recusa (falha fechado)
         pass
-    registrar_sob_vigia(hook, Aviso(f"prazo de {prazo:g} s da decisão vencido"), armar)
+    registrar_sob_vigia(hook, Aviso(f"prazo de {prazo:g} s da decisão vencido"), armar, prazo_da_etapa(resta))
     if not recusa:
         return
     quem, como = ((f"{hook.corpos_pendentes} corpo(s) de heredoc", "separe o comando em chamadas menores")
@@ -2915,7 +2941,7 @@ def estender_prazo(hook, prazo_longo, inicio, relogio, armar):
 
 
 def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None, prazo_longo=None, prazo_do_hook=None, *,
-             relogio=time.monotonic, armar=getattr(signal, "setitimer", None)):
+             relogio=time.monotonic, armar=getattr(signal, "setitimer", None), idade=None):
     """Lê o JSON do stdin, chama `funcao(hook)` e sai com 0; `bloquear` sai com 2. `critico` (regex) liga a falha
     fechada seletiva (`clone_do_forge`: também no clone do Forge); `FORGE_GUARDA_ABERTA=1` no ambiente do processo
     (só o dono) abre a guarda desses hooks. `regra_do_prazo` (a regra que o hook cita ao recusar) liga o vigia de prazo:
@@ -2924,15 +2950,20 @@ def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=No
     alarme do vigia; só um teste em processo os troca (relógio falso), e nenhum hook nem o driver do lote os passa.
     VIGIA-AGENTES-PESADO (decisão do dono, 24/11): o vigia arma também sem `critico` (`agentes`, `pesado`); lá o prazo
     vencido recusa só no PreToolUse (`prazo_vencido`). `prazo_do_hook` (s) troca o prazo comum por um maior, abaixo do
-    `timeout` do hook no hooks.json; nunca o encurta."""
+    `timeout` do hook no hooks.json; nunca o encurta. O prazo conta da partida do processo do hook (`idade`, s; None:
+    `idade_do_processo`, A6 da segurança no #888), e a sessão e o registro depois dele cabem no teto do prazo mais
+    2 x `PRAZO_DA_SESSAO_S` contado dela (`prazo_da_etapa`)."""
     hook = Hook(nome)
+    inicio = relogio() - (idade_do_processo(nome) if idade is None else idade)
+
+    def resta():
+        return (hook.prazo_s or PRAZO_DA_DECISAO_S) + 2 * PRAZO_DA_SESSAO_S - (relogio() - inicio)
     bruto = sys.stdin.read()
     if critico is not None and os.environ.get("FORGE_GUARDA_ABERTA") == "1":
         sys.exit(0)
     try:
         hook.prazo_s = max(prazo_do_hook or 0, PRAZO_DA_DECISAO_S) if regra_do_prazo else None
-        inicio = relogio()
-        with vigia_de_prazo(hook.prazo_s, armar) as armado:
+        with vigia_de_prazo(hook.prazo_s and max(hook.prazo_s - (relogio() - inicio), 0.001), armar) as armado:
             entrada = json.loads(bruto or "{}")
             if isinstance(entrada, dict):
                 hook.entrada = entrada
@@ -2943,8 +2974,9 @@ def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=No
                     barrar_sem_versao(hook, critico, bruto)
                 funcao(hook)
     except PrazoVencido:
-        prazo_vencido(hook, critico, bruto, clone_do_forge, regra_do_prazo, armar)
+        prazo_vencido(hook, critico, bruto, clone_do_forge, regra_do_prazo, armar, resta)
     except Exception as erro:  # noqa: BLE001 - ADR 0003: erro interno libera e fica no erros.log
-        registrar_sob_vigia(hook, erro, armar)  # A4 da segurança no #888: o registro não leva ao corte que libera
+        # A4 da segurança no #888: o registro não leva ao corte que libera
+        registrar_sob_vigia(hook, erro, armar, prazo_da_etapa(resta if hook.prazo_s else None))
         falhar_fechado(hook, critico, bruto, clone_do_forge)
     sys.exit(0)

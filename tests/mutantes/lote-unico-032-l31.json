@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "o hook lento em CPU depois do vigia estoura a parede e a CPU do teste (C-31)",
       "arquivo": "hooks/_comum.py",
-      "de": "    registrar_sob_vigia(hook, Aviso(f\"prazo de {prazo:g} s da decisão vencido\"), armar)\n",
-      "para": "    _t = time.monotonic()\n    while time.monotonic() - _t < 8:\n        pass\n    registrar_sob_vigia(hook, Aviso(f\"prazo de {prazo:g} s da decisão vencido\"), armar)\n",
+      "de": "    registrar_sob_vigia(hook, Aviso(f\"prazo de {prazo:g} s da decisão vencido\"), armar, prazo_da_etapa(resta))\n",
+      "para": "    _t = time.monotonic()\n    while time.monotonic() - _t < 8:\n        pass\n    registrar_sob_vigia(hook, Aviso(f\"prazo de {prazo:g} s da decisão vencido\"), armar, prazo_da_etapa(resta))\n",
       "testes": [
         "tests.test_hooks_volta_propriedades.PropriedadesDaVoltaUnica.test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem",
         "tests.test_hooks_volta_propriedades.PropriedadesDaVoltaUnica.test_t_vigia_cobre_a_busca_do_proprio_marcador"
@@ -17,8 +17,8 @@
       "id": "M2",
       "guarda": "o hook lento em espera depois do vigia estoura a parede do teste (C-31)",
       "arquivo": "hooks/_comum.py",
-      "de": "    registrar_sob_vigia(hook, Aviso(f\"prazo de {prazo:g} s da decisão vencido\"), armar)\n",
-      "para": "    time.sleep(8)\n    registrar_sob_vigia(hook, Aviso(f\"prazo de {prazo:g} s da decisão vencido\"), armar)\n",
+      "de": "    registrar_sob_vigia(hook, Aviso(f\"prazo de {prazo:g} s da decisão vencido\"), armar, prazo_da_etapa(resta))\n",
+      "para": "    time.sleep(8)\n    registrar_sob_vigia(hook, Aviso(f\"prazo de {prazo:g} s da decisão vencido\"), armar, prazo_da_etapa(resta))\n",
       "testes": [
         "tests.test_hooks_volta_propriedades.PropriedadesDaVoltaUnica.test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem"
       ]

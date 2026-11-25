@@ -1227,7 +1227,7 @@ class Hooks(unittest.TestCase):
 
     def test_prazo_do_merge(self):  # v0455: o `gh pr merge` decide com PRAZO_DO_MERGE_S; o resto, com os 3 s
         """Os fixtures com `prazo_de_producao` (tests/hooks/parecer/v0455-*.json), com o vigia de produção e um `git` lento
-        no PATH: o merge com 4 s de git libera; o `gh pr create` e o `git merge` com o mesmo git recusam em 3 s; o merge
+        no PATH: o merge com 3,5 s de git libera; o `gh pr create` e o `git merge` com o mesmo git recusam em 3 s; o merge
         com 9 s recusa em 7,5 s, antes do timeout do hooks.json. Os merges que liberam rodam em série, depois, com a CPU de
         cada hook medida sozinha (`liberar_ou_provar_a_carga`, DEFEITO-TESTES-DE-PRAZO-SOB-CARGA)."""
         casos = [(f"{f.hook}/{f.caminho.stem}", f) for f in minimo(self.de_prazo, 4, "fixtures de prazo de produção")]
@@ -1370,7 +1370,7 @@ class Hooks(unittest.TestCase):
         """A sonda S1 do review, de verdade e só na direção da recusa (BP1, E37.16): o 1.o git dorme 12 s a mais que os 3,5 s
         do fixture, o vigia de 7,5 s recusa e a recusa não passa como carga (o tempo a mais é sono, não fila da CPU: o hook não
         aproveita a parcela da referência). Com os 3,8 s de antes, a folga de 0,2 s deixava a máquina rápida liberar
-        ('AssertionError not raised' no CI); a carga só alonga o sono, e a fronteira dos 8 s fica com a S1 pequena
+        ('AssertionError not raised' no CI); a carga só alonga o sono, e a fronteira do prazo longo fica com a S1 pequena
         (`SondaS1ComRelogioFalso`, relógio falso). O sono a mais não segura os tubos do hook (redirecionado).
         O hook e a recusa do vigia são reais; a parcela da referência, a CPU e o relógio do hook são os da S1 medidos no
         review (`PAREDE_DA_S1_S`, `CPU_DA_S1_S`, `PARCELA_DA_S1`), não os da hora (E33.6): o mínimo de aproveitamento com
@@ -3319,17 +3319,18 @@ class Hooks(unittest.TestCase):
         self.assertEqual((r.returncode, "invalid choice" in r.stderr), (2, True), r.stderr)
 
 
-# A5 da segurança no #888: a parede que o relógio do hook não vê (partida do Python, leitura da entrada, saída), entre a
-# soma dos prazos e o `timeout` do hooks.json; medida na S3 com a CPU carregada, 1,1 s.
+# A5 da segurança no #888: a parede entre a soma dos prazos e o `timeout` do hooks.json; medida na S3 com a CPU carregada,
+# 1,1 s. Desde o E7.40 a partida do Python e os imports contam no prazo (`idade_do_processo`); a folga fica para a saída.
 FOLGA_DE_PAREDE_S = 1.5
 
 
 class RelogioFalso:
     """BP1 (E37.16): o relógio e o alarme do vigia para `_comum.executar(relogio=..., armar=...)` num teste em processo. O
-    `dormir` do git falso avança o relógio; chegar ao prazo armado lança `PrazoVencido`, como o SIGALRM do alarme real."""
+    `dormir` do git falso avança o relógio; chegar ao prazo armado lança `PrazoVencido`, como o SIGALRM do alarme real, que
+    interrompe o sono no prazo, ou `atraso` s depois dele (a CPU carregada que entrega o sinal tarde)."""
 
-    def __init__(self, vencido):
-        self.agora, self.prazo, self.armados, self.vencido = 0.0, None, [], vencido
+    def __init__(self, vencido, atraso=0.0):
+        self.agora, self.prazo, self.armados, self.vencido, self.atraso = 0.0, None, [], vencido, atraso
 
     def __call__(self):
         return self.agora
@@ -3341,6 +3342,7 @@ class RelogioFalso:
     def dormir(self, segundos):
         self.agora += segundos
         if self.prazo is not None and self.agora >= self.prazo:
+            self.agora = self.prazo + self.atraso
             raise self.vencido()
 
 
@@ -3356,8 +3358,9 @@ class SondaS1ComRelogioFalso(unittest.TestCase):
         (self.raiz / ".forge").mkdir()
         (self.raiz / ".forge" / "versao").write_text("0.0.0\n", encoding="utf-8")
 
-    def decidir(self, comando, passos, relogio=None):
-        """(código, stderr, relógio) do `executar` com o `principal` trocado pelo git falso, que dorme `passos` s em ordem."""
+    def decidir(self, comando, passos, relogio=None, idade=0.0):
+        """(código, stderr, relógio) do `executar` com o `principal` trocado pelo git falso, que dorme `passos` s em ordem;
+        `idade`: os segundos do processo antes do `executar` (a partida do Python e os imports)."""
         _comum, _, parecer = modulos_dos_hooks()
         relogio = relogio or RelogioFalso(_comum.PrazoVencido)
         entrada = {"tool_name": "Bash", "tool_input": {"command": comando}, "hook_event_name": "PreToolUse",
@@ -3368,7 +3371,7 @@ class SondaS1ComRelogioFalso(unittest.TestCase):
                 contextlib.redirect_stderr(io.StringIO()) as erro, self.assertRaises(SystemExit) as saida:
             _comum.executar("parecer", lambda hook: [relogio.dormir(s) for s in passos], parecer.CriticoOuAlias,
                             clone_do_forge=True, regra_do_prazo="R-REVIEW", prazo_longo=parecer.MERGE_DE_PR,
-                            relogio=relogio, armar=relogio.armar)
+                            relogio=relogio, armar=relogio.armar, idade=idade)
         return saida.exception.code, erro.getvalue(), relogio
 
     def test_s1_recusa_no_prazo_longo_libera_dentro_e_recusa_na_fronteira(self):
@@ -3414,6 +3417,88 @@ class SondaS1ComRelogioFalso(unittest.TestCase):
         self.assertRegex(erro, f"^R-REVIEW: o hook não decidiu em {_comum.PRAZO_DO_MERGE_S:g} s ")
         self.assertEqual(relogio.agora, _comum.PRAZO_DO_MERGE_S + 2 * _comum.PRAZO_DA_SESSAO_S, "os dois vigias venceram")
         self.assertLessEqual(relogio.agora, min(limites) - FOLGA_DE_PAREDE_S)
+
+    def test_prazo_conta_da_partida_do_processo(self):
+        """A6 da segurança e A1 do review no #888 (E7.40): os 2 s do processo antes do `executar` (partida e imports, que
+        a carga estica) saem do prazo: o vigia arma 1 s, o prazo longo rearma 5,5 s, e o git que passaria sem a idade
+        recusa; o que cabe no que sobra libera."""
+        _comum, _, _ = modulos_dos_hooks()
+        merge, resto = "gh pr merge feature/x --squash", _comum.PRAZO_DO_MERGE_S - 2.0 - 4.0
+        for passos, codigo in (((4.0, resto - 0.1), 0), ((4.0, resto + 0.4), 2)):
+            with self.subTest(passos=passos):
+                saiu, erro, relogio = self.decidir(merge, passos, idade=2.0)
+                self.assertEqual(saiu, codigo, erro)
+                sessao = [_comum.PRAZO_DA_SESSAO_S, 0] * 2 if codigo else []
+                self.assertEqual(relogio.armados, [_comum.PRAZO_DA_DECISAO_S - 2.0, _comum.PRAZO_DO_MERGE_S - 2.0, 0, *sessao])
+        saiu, erro, relogio = self.decidir("gh pr create --draft --base develop --title x --body y", (1.5,), idade=2.0)
+        self.assertEqual(saiu, 2, erro)
+        self.assertEqual(relogio.agora, _comum.PRAZO_DA_DECISAO_S - 2.0)
+
+    def test_alarme_atrasado_encurta_a_sessao_e_pula_o_registro(self):
+        """A6 da segurança no #888 (E7.40): o alarme do prazo longo entregue 0,8 s tarde (CPU carregada) deixa 0,2 s do
+        teto (prazo + 0,5 + 0,5): a sessão presa ganha só esse vigia, e o registro, sem tempo, não roda; recusa igual."""
+        _comum, _, _ = modulos_dos_hooks()
+        relogio = RelogioFalso(_comum.PrazoVencido, atraso=0.8)
+        registros = []
+
+        def preso(*_args, **_kwargs):
+            relogio.dormir(relogio.prazo - relogio.agora)
+
+        with mock.patch.object(_comum, "recusa_no_prazo", preso), \
+                mock.patch.object(_comum.Hook, "registrar_erro", lambda *a: registros.append(a)):
+            saiu, erro, _ = self.decidir("gh pr merge feature/x --squash", (4.0, _comum.PRAZO_DO_MERGE_S - 4.0), relogio)
+        self.assertEqual(saiu, 2, erro)
+        self.assertRegex(erro, f"^R-REVIEW: o hook não decidiu em {_comum.PRAZO_DO_MERGE_S:g} s ")
+        self.assertEqual(relogio.armados[:3], [_comum.PRAZO_DA_DECISAO_S, _comum.PRAZO_DO_MERGE_S, 0])
+        self.assertEqual(len(relogio.armados), 5, relogio.armados)
+        self.assertAlmostEqual(relogio.armados[3], 2 * _comum.PRAZO_DA_SESSAO_S - 0.8)
+        self.assertEqual((relogio.armados[4], registros), (0, []))
+
+    def test_alarme_que_passa_do_teto_recusa_sem_ler_a_sessao(self):
+        """A6 da segurança no #888 (E7.40): o alarme entregue 1,2 s tarde já passa do teto: a sessão não é lida (nem sob
+        vigia, nem sem ele), o registro não roda, e a linha crítica recusa (falha fechado)."""
+        _comum, _, _ = modulos_dos_hooks()
+        relogio, lidas, registros = RelogioFalso(_comum.PrazoVencido, atraso=1.2), [], []
+        with mock.patch.object(_comum, "recusa_no_prazo", lambda *a: lidas.append(a) or False), \
+                mock.patch.object(_comum.Hook, "registrar_erro", lambda *a: registros.append(a)):
+            saiu, erro, _ = self.decidir("gh pr merge feature/x --squash", (4.0, _comum.PRAZO_DO_MERGE_S - 4.0), relogio)
+        self.assertEqual(saiu, 2, erro)
+        self.assertEqual((relogio.armados, lidas, registros), ([_comum.PRAZO_DA_DECISAO_S, _comum.PRAZO_DO_MERGE_S, 0], [], []))
+
+    def test_erro_interno_sem_vigia_registra_mesmo_tarde(self):
+        """E7.40: o teto do prazo só vale para o hook com vigia; o erro interno de um hook sem `regra_do_prazo`, depois de
+        10 s de relógio, ainda grava a linha no erros.log (sob o vigia de 0,5 s)."""
+        _comum, _, _ = modulos_dos_hooks()
+        relogio, registros = RelogioFalso(_comum.PrazoVencido), []
+
+        def lento_e_quebra(_hook):
+            relogio.dormir(10.0)
+            raise ValueError("interno")
+        entrada = {"tool_name": "Bash", "tool_input": {"command": "ls"}, "hook_event_name": "PreToolUse", "cwd": str(self.raiz)}
+        ambiente = {k: v for k, v in os.environ.items() if k != "FORGE_GUARDA_ABERTA"}
+        with mock.patch.dict(os.environ, {**ambiente, "CLAUDE_PROJECT_DIR": str(self.raiz)}, clear=True), \
+                mock.patch("sys.stdin", io.StringIO(json.dumps(entrada))), \
+                mock.patch.object(_comum.Hook, "registrar_erro", lambda *a: registros.append(a)), \
+                contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as saida:
+            _comum.executar("conformidade", lento_e_quebra, relogio=relogio, armar=relogio.armar, idade=0.0)
+        self.assertEqual((saida.exception.code, len(registros)), (0, 1))
+        self.assertEqual(relogio.armados, [_comum.PRAZO_DA_SESSAO_S, 0])
+
+    def test_idade_do_processo_so_no_processo_do_hook_e_zero_sem_proc(self):
+        """E7.40: a idade conta só quando o `sys.argv[0]` é o script do hook; sem `/proc` ou com ele ilegível (outro
+        sistema), ou sem o `CLOCK_BOOTTIME`, é 0 e o prazo conta do `inicio`, como antes."""
+        _comum, _, _ = modulos_dos_hooks()
+        with mock.patch.object(sys, "argv", ["/x/hooks/parecer.py"]):
+            self.assertGreater(_comum.idade_do_processo("parecer"), 0.0)
+            self.assertEqual(_comum.idade_do_processo("conformidade"), 0.0)
+            for nome, troca in {"sem /proc": mock.patch.object(_comum.Path, "read_text", side_effect=OSError("proc")),
+                                "ilegível": mock.patch.object(_comum.Path, "read_text", return_value="1 (x) R"),
+                                "lixo": mock.patch.object(_comum.Path, "read_text", return_value="1 (x) " + "z " * 30),
+                                "sem boottime": mock.patch.object(_comum.time, "clock_gettime", side_effect=AttributeError)}.items():
+                with self.subTest(caso=nome), troca:
+                    self.assertEqual(_comum.idade_do_processo("parecer"), 0.0)
+        with mock.patch.object(sys, "argv", []):
+            self.assertEqual(_comum.idade_do_processo("parecer"), 0.0)
 
     def test_fora_da_thread_principal_o_vigia_nao_arma_nem_estende(self):
         """Fora da thread principal não há SIGALRM: o vigia não arma, o prazo longo não rearma, e o hook decide sem prazo
@@ -3968,6 +4053,26 @@ class PrazoVencidoNaSessaoDoForge(unittest.TestCase):  # v0481 E7.23: segurança
             with self.subTest(sessao="forge" if forge else "projeto", marca=marca, raiz=raiz.name, comando=comando):
                 self.assertEqual(r.returncode, 2, r.stderr[:200])
                 self.assertRegex(r.stderr, r"^R-[A-Z]+: ")
+
+    def test_partida_lenta_recusa_o_merge_antes_do_corte(self):
+        """A6 da segurança e A1 do review no #888 (E7.40), na parede real: o `parecer.py` de produção (`-s -E`, como no
+        hooks.json), com FIFO no `commondir` da worktree do Forge e `gh pr merge`, parte 3 s atrasado (o `sleep` antes do
+        `exec`, a mesma idade do processo que a CPU carregada dá à partida e aos imports, sem depender da carga da máquina)
+        e ainda recusa antes do corte de 10 s contado do fork. Contando o prazo de depois dos imports, o corte o mataria e
+        liberaria (3 + 7,5 + 0,5 + 0,5 s)."""
+        _, copia = self.worktree(True, "commondir")
+        entrada = {"tool_name": "Bash", "tool_input": {"command": "gh pr merge melhoria/x --squash"}, "cwd": str(copia),
+                   "agent_type": "forge:tech-lead", "hook_event_name": "PreToolUse", "session_id": "s1"}
+        env = {**ambiente_limpo(), "CLAUDE_PROJECT_DIR": str(copia), "HOME": str(copia.parent)}
+        env.pop("FORGE_GUARDA_ABERTA", None)
+        comando = ["sh", "-c", 'sleep 3; exec "$0" -s -E "$1"', sys.executable, str(HOOKS / "parecer.py")]
+        try:
+            r = subprocess.run(comando, input=json.dumps(entrada), cwd=copia, env=env, capture_output=True, text=True,
+                               timeout=PRAZO_DO_CLAUDE_CODE_S)
+        except subprocess.TimeoutExpired:
+            self.fail(f"o corte de {PRAZO_DO_CLAUDE_CODE_S} s matou o hook, e o Claude Code liberaria o merge")
+        self.assertEqual(r.returncode, 2, r.stderr[:300])
+        self.assertRegex(r.stderr, r"^R-REVIEW: o hook não decidiu em 7\.5 s ")
 
     def vencer(self, hook, critico=re.compile("x")):
         _comum, _, _ = modulos_dos_hooks()

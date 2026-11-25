@@ -131,27 +131,28 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         self.assertIn('os.chdir(dados["raizes"][hook])', self.DRIVER_DOS_HOOKS)  # a pasta de cada hook, não a do conformidade
 
     def test_hooks_reais_e_driver_nao_passam_relogio_nem_armar(self):  # BP1, E37.16
-        """`relogio` e `armar` do `_comum.executar` são só por palavra-chave, com o relógio e o alarme reais por padrão, e
-        só um teste em processo os troca: nenhuma chamada a `executar` dos hooks os passa, nem por `**`, e o driver do lote
-        (`DRIVER_DOS_HOOKS`) não os tem nos argumentos que repassa."""
+        """`relogio`, `armar` e `idade` do `_comum.executar` são só por palavra-chave, com o relógio, o alarme e a idade do
+        processo reais por padrão, e só um teste em processo os troca: nenhuma chamada a `executar` dos hooks os passa, nem
+        por `**`, e o driver do lote (`DRIVER_DOS_HOOKS`) não os tem nos argumentos que repassa."""
         _comum, _, _ = modulos_dos_hooks()
         assinatura = inspect.signature(_comum.executar).parameters
-        self.assertEqual([(assinatura[n].kind, assinatura[n].default) for n in ("relogio", "armar")],
-                         [(inspect.Parameter.KEYWORD_ONLY, time.monotonic), (inspect.Parameter.KEYWORD_ONLY, signal.setitimer)])
+        self.assertEqual([(assinatura[n].kind, assinatura[n].default) for n in ("relogio", "armar", "idade")],
+                         [(inspect.Parameter.KEYWORD_ONLY, time.monotonic), (inspect.Parameter.KEYWORD_ONLY, signal.setitimer),
+                          (inspect.Parameter.KEYWORD_ONLY, None)])
         chamadas = []
         for script in sorted(HOOKS.glob("*.py")):
             arvore = ast.parse(script.read_text(encoding="utf-8"))
             for n in chamadas_do_executar(arvore):
                 chamadas.append(script.name)
                 with self.subTest(hook=script.name):
-                    self.assertEqual([k.arg for k in n.keywords if k.arg is None or k.arg in ("relogio", "armar")], [])
+                    self.assertEqual([k.arg for k in n.keywords if k.arg is None or k.arg in ("relogio", "armar", "idade")], [])
         self.assertGreaterEqual(len(chamadas), 10, "chamadas a `executar` nos hooks")
         self.assertEqual(len(chamadas), len(set(chamadas)), "uma chamada por hook")
         driver = ast.parse(self.DRIVER_DOS_HOOKS)
         repassados = {ast.literal_eval(k) for n in ast.walk(driver) if isinstance(n, ast.Dict) for k in n.keys
                       if isinstance(k, ast.Constant)}
         self.assertTrue({"regra_do_prazo", "prazo_longo"} <= repassados, repassados)
-        self.assertEqual(repassados & {"relogio", "armar"}, set())
+        self.assertEqual(repassados & {"relogio", "armar", "idade"}, set())
 
     def test_chamada_com_apelido_do_import_e_pega_com_relogio(self):  # BP1, A1 da segurança (E37.31)
         """Um hook de exemplo que importa `executar` com apelido, ou chama `c.executar` pelo módulo, e passa `relogio=` ou

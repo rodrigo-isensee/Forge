@@ -1771,8 +1771,10 @@ class Guarda:
 
     def especial_no_git(self, caminho, pasta):
         """E7.23 (segurança no #885 e no #886): o FIFO ou o nó no `.git` ou sob ele (`commondir`, `gitdir`) prende o `git`
-        do hook e a leitura do disco até o prazo vencer. Trava nas duas sessões: o alvo opaco, o que cita o `.git`
-        (palavra, componente, curinga) e o resolvido com `.git` no caminho."""
+        do hook e a leitura do disco até o prazo vencer. Trava nas duas sessões: o `mkfifo` ou `mknod` com alvo opaco, o
+        que cita o `.git` (palavra, componente, curinga) e o resolvido com `.git` no caminho. Na sessão do Forge seguem
+        livres (o prazo vencido é quem recusa a linha crítica): o FIFO por interpretador (`python3 -c`, `perl -e`), o
+        alvo por `xargs` de pipe ou here-string, e o FIFO criado fora e levado ao `.git` por `mv`, `ln` ou `cp -a`."""
         if (ALVO_OPACO.search(caminho) or cita_o_dir_do_git(caminho)
                 or ".git" in (p.lower() for p in self.resolver(self.expandir(caminho, pasta), pasta).parts)):
             self.barrar("R-CONFORMIDADE", f"FIFO ou nó (mkfifo, mknod) no .git ou sob ele, ou alvo opaco: {caminho}",
