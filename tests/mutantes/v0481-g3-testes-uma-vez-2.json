@@ -1,0 +1,87 @@
+{
+  "pedido": "v0481-g3-testes-uma-vez",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "linha_do_ci_do_parecer: só review e QA leem o CI (a segurança e o autor ficam como antes)",
+      "arquivo": "bin/forge-check",
+      "de": "le_o_ci = etapa in PORTOES_QUE_LEEM_O_CI",
+      "para": "le_o_ci = True",
+      "testes": [
+        "tests.test_pre_envio_brief.LeOCiNoBrief.test_seguranca_e_autor_sem_a_linha"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "linha_do_ci_do_parecer: review e QA recebem a linha que manda ler o CI",
+      "arquivo": "bin/forge-check",
+      "de": "extra = [LINHA_LE_O_CI] if le_o_ci else []",
+      "para": "extra = [LINHA_LE_O_CI] if False else []",
+      "testes": [
+        "tests.test_pre_envio_brief.LeOCiNoBrief.test_review_e_qa_leem_o_ci_com_e_sem_gh"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "linha_do_ci_do_parecer: review e QA sem PR não aprovam",
+      "arquivo": "bin/forge-check",
+      "de": "return [SEM_PR_NO_PORTAO if le_o_ci else",
+      "para": "return [SEM_PR_NO_PORTAO if False else",
+      "testes": [
+        "tests.test_pre_envio_brief.LeOCiNoBrief.test_review_e_qa_sem_pr_nao_aprovam"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "brief gerar: a etapa chega à linha do CI do parecer",
+      "arquivo": "bin/forge-check",
+      "de": "saida += linha_do_ci_do_parecer(raiz, branch, etapa)",
+      "para": "saida += linha_do_ci_do_parecer(raiz, branch)",
+      "testes": [
+        "tests.test_pre_envio_brief.LeOCiNoBrief.test_review_e_qa_leem_o_ci_com_e_sem_gh"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "leu_o_ci: o parecer sem `commit:` não casa a linha `- ci:` (nem quebra)",
+      "arquivo": "bin/forge-check",
+      "de": "    commit = campos.get(\"commit\") or \"\"\n    return bool(COMMIT.match(commit)) and any(",
+      "para": "    commit = campos.get(\"commit\")\n    return bool(COMMIT.match(commit)) and any(",
+      "testes": [
+        "tests.test_forge_check_pr.LeuOCi.test_sem_linha_outro_sha_outro_estado_ou_commit_invalido_nao_vale"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "suite_do_parecer: só a prova que vale encerra antes de ler o CI do head",
+      "arquivo": "bin/forge-check",
+      "de": "falta_na_prova(raiz, base, campos, texto)) is None:\n        return sem_ci",
+      "para": "falta_na_prova(raiz, base, campos, texto)) is not None:\n        return sem_ci",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_a_linha_nao_dispensa_o_ci_verde_do_head",
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_sem_a_linha_e_sem_ci_verde_saem_as_duas"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "suite_do_parecer: o parecer de commit anterior à regra não é cobrado da linha `- ci:` (transição, A3 do #893)",
+      "arquivo": "bin/forge-check",
+      "de": "if leu_o_ci(campos, texto) or not cobra_a_linha_do_ci(raiz, campos) else [",
+      "para": "if leu_o_ci(campos, texto) else [",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_commit_anterior_a_regra_nao_cobra_a_linha"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "cobra_a_linha_do_ci: só o \"não achou\" do git grep (rc 1) isenta; erro do git cobra",
+      "arquivo": "bin/forge-check",
+      "de": "commit, \"--\", \"bin/forge-check\")[0] != 1",
+      "para": "commit, \"--\", \"bin/forge-check\")[0] == 0",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_cobra_a_linha_com_commit_fora_da_forma_ou_erro_do_git"
+      ]
+    }
+  ]
+}

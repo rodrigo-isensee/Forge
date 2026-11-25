@@ -46,8 +46,8 @@
       "id": "D3B5",
       "guarda": "só def test_* é teste; o ajudante apagado não barra",
       "arquivo": "tests/catraca.py",
-      "de": "ast.AsyncFunctionDef)) and filho.name.startswith(\"test_\"):",
-      "para": "ast.AsyncFunctionDef)) and filho.name.startswith(\"\"):",
+      "de": "elif isinstance(filho, FUNCOES) and filho.name.startswith(\"test_\"):",
+      "para": "elif isinstance(filho, FUNCOES) and filho.name.startswith(\"\"):",
       "testes": [
         "tests.test_catraca.TestesAfrouxados.test_acrescimos_ajudante_e_arquivo_fora_de_tests_passam"
       ]
