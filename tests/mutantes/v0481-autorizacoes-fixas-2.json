@@ -4,9 +4,9 @@
   "mutantes": [
     {
       "id": "M9",
-      "guarda": "AUTORIZACOES-FIXAS F3: o forge-check autorizacao corte vai ao cmd_corte",
+      "guarda": "AUTORIZACOES-FIXAS F3: o forge-check autorizacao ler --ato corte-diario vai ao cmd_corte",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "    if a.acao == \"corte\":",
+      "de": "    if a.acao == \"ler\" and a.ato == \"corte-diario\":",
       "para": "    if False:",
       "testes": [
         "tests.test_autorizacao.AtosFixos.test_forge_check_autorizacao_corte"

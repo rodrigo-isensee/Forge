@@ -89,7 +89,7 @@
 # release-<versão>, e a tela, a classe; com o ramo já no origin, o fragmento novo da develop entra na seção (--anexar) antes do merge da
 # marca; o V3 imprime o pedido do rótulo afrouxa-regra ao dono quando a promoção o levou.
 # AUTORIZACOES-FIXAS (v0481 E14.52, emenda da ADR 0018): abaixo do teto, o V4 corta uma vez por dia a partir das 06:00 locais, com ao
-# menos 1 item, só com uma corte-diario ativa (forge-check autorizacao corte), gravada no corpo do PR da marca (corte_diario).
+# menos 1 item, só com uma corte-diario ativa (forge-check autorizacao ler --ato corte-diario), gravada no corpo do PR da marca (corte_diario).
 # Aceita só --base, --espera, --espera-ci e --dry-run (lê e imprime o que faria). O --laco que termina com 0 roda o --corte no fim.
 # FORGE_FECHAR_PAUSA (segundos, padrão 3) é a espera entre as tentativas de leitura repetida.
 # Faixas (recusadas antes do passo 1, com a faixa na mensagem): FORGE_FECHAR_PAUSA 1 a 30; FORGE_FECHAR_INTERVALO 5 a 120 (o piso cai
@@ -1590,7 +1590,7 @@ corte_diario() {
   if [ "$ultima" = "$hoje" ] || [ "$ultima" = erro ]; then
     echo "corte: a develop já tem versão de hoje ($hoje) ou o CHANGELOG.md não foi lido; um corte diário por dia." >&2; return 1
   fi
-  saida="$("$check" autorizacao corte)" || { echo "corte: ${saida:-a leitura da autorização falhou}" >&2; return 1; }
+  saida="$("$check" autorizacao ler --ato corte-diario)" || { echo "corte: ${saida:-a leitura da autorização falhou}" >&2; return 1; }
   [[ "$saida" =~ ^autorizacao:\ (A-[0-9]+\ sha256\ [0-9a-f]{64}\ ·\ corte-diario\ ·\ fixo)$ ]] || { echo "corte: autorização corte-diario fora da forma." >&2; return 1; }
   printf '%s\n' "${BASH_REMATCH[1]}"
 }

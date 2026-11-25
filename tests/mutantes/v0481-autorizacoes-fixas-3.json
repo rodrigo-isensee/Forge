@@ -6,8 +6,8 @@
       "id": "M17",
       "guarda": "AUTORIZACOES-FIXAS F3: o forge-check que falha não autoriza (e diz por quê)",
       "arquivo": "bin/forge-fechar",
-      "de": "  saida=\"$(\"$check\" autorizacao corte)\" ||",
-      "para": "  saida=\"$(\"$check\" autorizacao corte)\" || true ||",
+      "de": "  saida=\"$(\"$check\" autorizacao ler --ato corte-diario)\" ||",
+      "para": "  saida=\"$(\"$check\" autorizacao ler --ato corte-diario)\" || true ||",
       "testes": [
         "tests.test_fechar_corte.CorteDiario.test_sem_corte_diario_ativa_ou_saida_fora_da_forma_nao_corta"
       ]
