@@ -1660,22 +1660,32 @@ if [ "$seco" = 1 ] && [ -n "$promover_sha" ]; then
   passo P6 "check-runs obrigatórios de $promover_sha verdes (falha para; pendente espera até ${espera}s); $gh pr merge promocao/<versão> --merge --match-head-commit $promover_sha --subject 'chore(promoção): <versão> para a homolog (#<n>)' --body <corpo em português>; espera o MERGED até ${espera}s; apaga o ramo"
   exit 0
 fi
+if [ "$seco" = 1 ] && [ "$limpar" = 1 ]; then  # o --limpar roda só o passo 7 (sem 1c): a branch já pode ter sumido daqui e do origin
+  echo "forge-fechar --limpar --dry-run: nada será executado."
+  for c in "${cartoes[@]}"; do echo "cartão $c: forge-check movimento $c --de $(coluna_do_cartao "$c") --para Pronto --raiz $quadro"; done
+  passo 7 "com prova de PR MERGED em $alvo ($gh pr list --head $ref; sem prova, recusa): git worktree remove <worktree de $ref>; git branch -D $ref (só com o sha mesclado); clones da branch em ~/.forge-contrib/wt; git push origin --delete $ref; sai com código 3 se algo ficar pendente"
+  exit 0
+fi
 if [ "$seco" = 1 ]; then
-  echo "forge-fechar --dry-run: nada será executado além do 1c, que só lê."
+  echo "forge-fechar --dry-run: nada será executado além do 1c, que só lê (sem a branch local, ela nasce da origin/$ref só para o 1c e sai no fim)."
   # Só leitura local: o passo 1 real passa o nome da branch local (FECHAR-REF-POR-NOME), o número do PR só existe depois do passo 3 (o --dry-run não chama gh nem o servidor).
-  ref_dry="refs/heads/$ref"
-  sha_dry="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)" || { sha_dry="<sha não lido: a branch local não existe>"; ref_dry="$sha_dry"; }
-  passo 1 "$check pr $pedido --ref $ref_dry --base $base"
+  # FECHAR-DRYRUN-SEM-BRANCH (v0481 E14.32): sem a branch local (clone separado), cria-a sem rastreio na origin/<branch> deste clone
+  # (sem busca) e o 1c roda; sem a origin/<branch>, para com 1: o 1c que não roda nunca sai com 0. A ref criada sai no fim()
+  # (branch_criada, FECHAR-CRIA-BRANCH): deixada, o passo real seguinte usaria a origin/<branch> velha em vez do servidor.
+  if ! sha_dry="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)"; then
+    sha_dry="$(git rev-parse --verify -q "refs/remotes/origin/$ref^{commit}" 2>/dev/null)" \
+      || die "parou no --dry-run: sem a branch local $ref e sem a origin/$ref neste clone, o 1c não roda (o --dry-run não busca no servidor); rode git fetch origin $ref e repita"
+    git branch --no-track "$ref" "$sha_dry" >/dev/null 2>&1 || die "parou no --dry-run: não consegui criar a branch local $ref na origin/$ref (${sha_dry:0:12}); o 1c não rodou"
+    branch_criada="$sha_dry"
+    echo "registro: criei a branch local $ref na origin/$ref (${sha_dry:0:12}, sem rastreio); ela sai no fim do --dry-run e o passo real lê o servidor (para conferir um head mais novo, git fetch origin $ref e repita)"
+  fi
+  passo 1 "$check pr $pedido --ref refs/heads/$ref --base $base"
   passo "1c" "python3 -I $promover --conferir-ref $sha_dry (a árvore que entra na $alvo é promovível; rc diferente de 0, prazo de 300 s ou script ausente param; o passo real antes busca a origin/homolog)"
   # FECHAR-DRY-RUN-1C (v0478): o --conferir-ref roda de verdade (só leitura), contra a origin/homolog local, sem busca (o --dry-run não fala com o servidor).
-  if [ "$ref_dry" = "refs/heads/$ref" ]; then
-    homolog_dry="$(git rev-parse -q --verify "refs/remotes/origin/homolog^{commit}" 2>/dev/null || echo ausente)"
-    conferir_1c "$sha_dry" "
+  homolog_dry="$(git rev-parse -q --verify "refs/remotes/origin/homolog^{commit}" 2>/dev/null || echo ausente)"
+  conferir_1c "$sha_dry" "
 --dry-run: conferido contra a origin/homolog local (${homolog_dry:0:12}), sem busca; se ela estiver velha, rode git fetch origin homolog e repita"
-    echo "1c: promovível (contra a origin/homolog local ${homolog_dry:0:12}, sem busca)."
-  else
-    echo "1c: não rodou: sem a branch local $ref."
-  fi
+  echo "1c: promovível (contra a origin/homolog local ${homolog_dry:0:12}, sem busca)."
   passo 2 "git ls-remote origin refs/heads/$ref (igual ao head local de $ref; ausente com o head já em $alvo, PR MERGED ou na base, segue sem pedir push)"
   passo "2b" "git ls-remote origin refs/heads/$alvo (igual a $base; senão, git fetch origin $alvo); se a base andou, git merge-tree --write-tree do head com ela: com conflito para e lista os arquivos; sem conflito, em melhoria/* faz o merge da base (árvore do merge-tree), git push origin $ref e recomeça a cadeia no head novo (H4), fora dela avisa e segue sem trazer a base (E8) (não roda quando o head já está em $base ou o PR já está MERGED)"
   passo 3 "$gh pr create --base $alvo --head $ref --title '$titulo' (se não houver PR aberto; não abre se o head já está em $base ou já tem PR MERGED)"
@@ -1688,7 +1698,6 @@ if [ "$seco" = 1 ]; then
   [ "$sem_limpar" = 0 ] || echo "--sem-limpar: o passo 7 é pulado; imprime os comandos da limpeza e sai com código 3 depois do merge."
   passo 7 "git worktree remove <worktree de $ref> (prune se o diretório já sumiu); git branch -D $ref (só com o sha mesclado); clones da branch em ~/.forge-contrib/wt (só limpos, com tudo na origem e mesclados); git push origin --delete $ref (até 3 tentativas, por último); sai com código 3 se algo ficar pendente"
   [ "$item_de_lote" = 1 ] || passo 8 "CI do push na $alvo no commit de merge, até o fim (até ${espera_ci}s); não verde sai com 5 (vermelho imprime a reversão)"
-  [ "$limpar" = 0 ] || echo "--limpar: só o passo 7, com prova de PR MERGED em $alvo ($gh pr list --head $ref); sem prova, recusa."
   # Aviso: os caminhos de controle vêm da lista PROTEGIDOS da própria catraca (tests/catraca.py), sem cópia aqui.
   if ! controles="$(python3 -I - "$(dirname "$catraca")" "$PWD" "$base" "refs/heads/$ref" 2>/dev/null <<'PY'
 import importlib.util, sys
