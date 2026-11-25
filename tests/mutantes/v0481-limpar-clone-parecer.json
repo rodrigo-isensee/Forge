@@ -4,12 +4,22 @@
   "mutantes": [
     {
       "id": "M1",
-      "guarda": "forge-fechar limpar_clones: LIMPAR-CLONE-PARECER: a tag local fica fora da conta do trabalho fora da origem",
+      "guarda": "forge-fechar limpar_clones: LIMPAR-CLONE-PARECER: a tag arquivo/* (da origin) fica fora da conta do trabalho fora da origem",
       "arquivo": "bin/forge-fechar",
-      "de": "rev-list --exclude='refs/tags/*' --all --not --remotes",
+      "de": "rev-list --exclude='refs/tags/arquivo/*' --all --not --remotes",
       "para": "rev-list --all --not --remotes",
       "testes": [
-        "tests.test_forge_fechar.LimparClones.test_commit_so_em_tag_local_nao_prende_o_clone"
+        "tests.test_forge_fechar.LimparClones.test_commit_so_em_tag_arquivo_nao_prende_o_clone"
+      ]
+    },
+    {
+      "id": "M1b",
+      "guarda": "forge-fechar limpar_clones: LIMPAR-CLONE-PARECER: só a tag arquivo/* sai da conta; outra tag local prende o clone",
+      "arquivo": "bin/forge-fechar",
+      "de": "rev-list --exclude='refs/tags/arquivo/*' --all --not --remotes",
+      "para": "rev-list --exclude='refs/tags/*' --all --not --remotes",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_commit_so_em_tag_local_fica"
       ]
     },
     {

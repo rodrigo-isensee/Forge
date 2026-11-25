@@ -1,6 +1,6 @@
 """LIMPAR-CLONE-NAO-LISTADO (v0478 E132.6): o --limpar do forge-fechar apaga o clone sem trabalho cujo HEAD é ancestral do head mesclado
-(E128.2) e o que tem commit fora das refs remotas velhas dele, mas que as pontas lidas agora da origin alcançam (a branch local de um commit da
-origin, com a ref remota do clone velha); a leitura da origin é desta cópia, só por leitura. O campo `clone=` sai sempre (`nenhum` sem clone).
+(E128.2) e o que tem commit fora das refs remotas velhas dele, mas que as pontas lidas agora da origin alcançam (a tag local de um commit da
+main, com a origin/main do clone velha); a leitura da origin é desta cópia, só por leitura. O campo `clone=` sai sempre (`nenhum` sem clone).
 
 Reaproveita o ambiente de `test_forge_fechar.LimparClones` (HOME temporário, git e gh falsos de `test_fechar.Fechar`).
 """
@@ -29,10 +29,10 @@ class LimparCloneNaoListado(unittest.TestCase):
         self.git("push", "-q", "origin", "melhoria/x")
         self.git("switch", "-q", "develop")
 
-    def tag_com_ref_velha(self, d):  # E128.2: a branch local de um commit que a origin tem, que a ref remota do clone não cobre (a tag não conta, E14.1)
+    def tag_com_ref_velha(self, d):  # E128.2: a tag local de um commit que a origin tem, numa branch que a ref remota do clone não cobre
         self.git("switch", "-q", "--detach", cwd=d)
         self.git("commit", "-q", "--allow-empty", "-m", "release", cwd=d)
-        self.git("branch", "v9", cwd=d)
+        self.git("tag", "v9", cwd=d)
         self.git("push", "-q", "origin", "HEAD:refs/heads/outra", cwd=d)
         self.git("update-ref", "-d", "refs/remotes/origin/outra", cwd=d)
         self.git("switch", "-q", "melhoria/x", cwd=d)
