@@ -3,32 +3,27 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-d6-resto
-commit: 1afd54b5fe5b5a25dd2a96fd490c57469228e9bb
-parecer: reprovado
+commit: 50a40e28844435d4bf43c8b23d3880e1b37af7b9
+parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-24
+data: 2026-11-25
 ---
-# Code review: hook salvar grava e envia ao parar, volta E11.6 (D6 parte a; v0481 E11.7, PR #877)
+# Code review: hook salvar só grava na cópia local, volta E11.18 (D6 parte a; v0481 E11.19, PR #877)
 
-Revisado por delta: `9a708f86..1afd54b5` (um commit de código, `fix(hooks)`, E11.6), lido pelo `forge-check parecer delta` (revalida: sim, este parecer barrou). Parecer anterior: reprovado no `9a708f86` por A1 e A2, com A3 recomendado.
-
-## Achados
-- A1 (bloqueante) hooks/salvar.py:145 · Branch nova: a varredura vai de HEAD^ a HEAD, mas o push leva todos os commits locais; segredo em commit anterior sai sem varredura (S1). O pre-push usa o merge-base com a develop. Sugestão: base = merge-base com origin/<Base do brief>, com teste e mutante.
-
-## Sondas
-- S1 · sonda_branch_nova.py: na cópia, branch melhoria/x sem envio, commit local de docs/b.md com SEGREDO dos testes, depois hooks/x.py mudado no escopo e SubagentStop · espera: não enviado: varredura de segredo · obtido: "melhoria/x 6764af8 1 arquivo(s) enviado", docs/b.md presente no remoto
+Revisado por delta: `1afd54b5..50a40e28`, lido pelo `forge-check parecer delta` sem o que veio da develop (merge `9f264141d`). Domínio lido: `changelog.d/v0481-d6-resto.md`, `docs/adr/0003-hooks-deterministicos-e-silenciosos.md`, `docs/indice-forge.md`, `docs/regras/R-LIMITES.md`, `hooks/hooks.json`, `hooks/salvar.py`, `tests/mutantes/v0481-d6-resto{,-2,-4,-5,-6}.json` e `tests/test_hooks.py`. Os commits do item são `cfd24cee5`, `b6c98cb27`, `88fc382a7` e `50a40e288`. O `docs/hooks-fixtures.md` mudou só pelo merge da develop. Parecer anterior: reprovado no `1afd54b5`, por A1.
 
 ## Parecer
-**Reprovado**, por A1. Os três achados anteriores estão resolvidos; o novo é da própria correção do A2.
+**Aprovado.** A volta segue a DECISÃO DO DONO de 25/11, opção (b): o hook só faz o commit na cópia local, sem rede, e o envio fica com o fechamento.
 
-**A1 anterior (config da cópia): resolvido.** `config_permitida` lê `git config --local --no-includes --list -z` antes de qualquer outro git na cópia (está no `plano`, antes do `symbolic-ref`), recusa chave fora da lista positiva e exige `remote.origin.url` igual ao da cópia principal. Conferi as bordas: o `--list` devolve seção e nome em minúsculas, então `Filter.X.Clean` não escapa da regex; `include.path`, `includeIf` e `extensions.worktreeConfig` aparecem como chave e são recusados; `branch.<nome>.remote` com URL não alcança nada, porque o envio nomeia `origin`. `XDG_CONFIG_HOME`, `BASH_ENV`, `ENV` e as `GIT_*` saem do ambiente. Minha sonda S1 anterior (filtro clean) virou subteste de `test_config_local_fora_da_lista_nao_age` com mais 10 chaves; rodei a classe e ela passa.
+**A1 anterior (segredo em commit anterior levado pelo push): saiu junto com o envio.** O `hooks/salvar.py` não tem mais `push`, `fetch`, `ls-remote`, `VARREDURA` nem `HEAD^`. As únicas menções a `remote` restantes são a leitura da config (`remote.origin.url` na lista `PERMITIDAS` e a comparação com a cópia principal, linhas 32 e 61-62). Sem envio, o pre-push roda inteiro no envio de sempre, e o segredo fica barrado ali. A base da varredura lida de ref local (`refs/remotes/origin/<branch>`), apontada pela segurança, saiu pelo mesmo motivo.
 
-**A2 anterior (R-VERIFY): resolvido.** A exceção está escrita em `docs/regras/R-LIMITES.md` só para o hook `salvar`, "à espera do dono", e o título do PR traz `R-VERIFY core.hooksPath` ao lado da ADR 0003 item 2. A emenda diz o que se perde (o `pre-commit` do projeto) e quem cobre (o CI). Não rastreado fora do commit (`--untracked-files=no`), com teste. **Script do plugin em vez do da origin/develop:** aceito. Os três motivos do PR se sustentam: o agente não grava a pasta do plugin, a `refs/remotes/origin/develop` da cópia é gravável por ele, e nos projetos a develop não tem o script. O script roda com `--no-ext-diff --no-textconv`, sob a config já filtrada. Nos projetos, o padrão "caminho pessoal" do Forge pode segurar um envio legítimo; isso falha fechado (o commit fica na cópia e o motivo vai ao log), então é aceitável.
+**M8 e M9 vivos pelo fixture não rastreado (QA): resolvido.** O `docs/a.md2` agora é rastreado no `setUp`. Em `test_salva_so_o_escopo_na_copia`, ele aparece como ` M docs/a.md2` fora do commit, e isso mata o mutante do prefixo, que antes passava porque o arquivo não era rastreado.
 
-**A3 anterior (prazo): resolvido.** `FIM` é fixado uma vez por processo e cada `rodar` usa o que resta; com prazo esgotado, `subprocess` levanta `TimeoutExpired` e o `executar` grava a linha no `erros.log`. 50 s cabem nos 60 s do `hooks.json`.
+**Testes.** Os testes do envio e da varredura saíram. `salvo()` lê o commit WIP no HEAD da cópia. O teste novo, `test_branch_ja_no_remoto_fica_como_esta`, prova que o hook não envia nem busca: a ref do remoto e a `origin/melhoria/x` da cópia ficam iguais. O caso da branch de integração passou a conferir que não há commit nem linha no log. `88fc382a7` aplica o `remoto_sem_manutencao` aos três bare que o `test_ambiente_git` exigia, e `50a40e288` troca o `README.md` da fixture por `notas.txt`, para o `test_reval_delta.Guarda` não contar citações a mais. Nenhuma das duas trocas muda o que a asserção prova.
 
-**A1 novo.** A varredura é a reposição do `pre-push` que o `core.hooksPath` vazio desliga, e é o argumento da exceção ao R-VERIFY. Na branch já enviada, a base `origin/<branch>` cobre o delta, e isso está testado. Na branch nova, a base é só `HEAD^`, mas o push leva a branch inteira. O `.githooks/pre-push` usa `merge-base` com a develop nesse caso (linha 222). O teste `test_varredura_vai_da_origin_da_branch` cobre só o ramo da branch já enviada. O caso da branch nova fica sem teste e sem mutante.
+**Mutantes.** Saíram M26, M36 e M37, porque as guardas deles saíram do código. O M34 segue o novo `fora = ("XDG_CONFIG_HOME",)`. As specs que citavam testes renomeados apontam para os nomes novos. Não há guarda nova no delta: o `salvar()` perdeu ramos e não ganhou nenhum.
 
-**Teto.** `teto: excedido, 182 linhas`, aceito: as três correções fecham bloqueantes do mesmo hook, e nenhum corte fica mesclável sozinho. A correção do A1 deve caber em poucas linhas.
+**ADR 0003 e R-LIMITES.** A emenda D6 diz que o item 2 vale sem exceção e põe "qualquer chamada de rede dele" no critério de reversão. A exceção ao R-VERIFY fica só na regra 4 da emenda, e o `R-LIMITES.md` volta ao texto da base: no diff contra a `develop` ele não muda. O motivo dado (o orçamento do núcleo do Jarvis) é aceitável, e o título do PR segue com `[afrouxa-regra: R-VERIFY core.hooksPath]`.
 
-**Verificadores.** Rodei `python3 -m unittest tests.test_hooks.SalvarAoParar` no `1afd54b5`, com ambiente limpo: 31 testes, OK. A sonda S1 roda com `python3 -I`, sobre a fixture da classe. Os mutantes M31 a M39 em `tests/mutantes/v0481-d6-resto-5.json` e `-6.json` são citados, não refeitos. A suíte inteira roda no CI do PR #877, e não rerrodei o SHA. O merge espera também a decisão do dono sobre os dois afrouxamentos.
+**Verificadores.** No `50a40e28`, `python3 -m unittest tests.test_hooks.SalvarAoParar` com ambiente limpo: 29 testes, OK. Não rodei a bateria inteira. O CI do head tem verdes as 5 partes da suíte em python 3.12 e 3.14, `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)`, `instalação`, `teto de pulados` e `árvore já provada na develop`. `bateria` e `bateria (pareceres)` falham porque os pareceres de review e de QA ainda estão reprovados (lido no log do run 45652375754). A `catraca` (run 45652375891) falha por `R-QA: guarda de hooks/salvar.py mudada sem mutante declarado`: o M29 só tem nota de equivalente (`salvar.py:127`) e a linha `__name__ == '__main__'` (`salvar.py:156`) não tem mutante. A mesma causa já aparecia no `1afd54b5` (linhas 130 e 165), então não vem do delta. A catraca aceita o rótulo `afrouxa-regra`, que só o dono aplica e de que este PR já precisa pelo R-VERIFY.
+- ci: 50a40e28844435d4bf43c8b23d3880e1b37af7b9 verde
