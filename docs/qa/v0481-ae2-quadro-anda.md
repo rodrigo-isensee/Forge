@@ -3,45 +3,48 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-ae2-quadro-anda
-commit: cbf24de557ea23a5bf6a5c7e43942a239b3f8aba
+commit: 8087e23dbec99aefc234a9735132c8c5721d164d
 parecer: reprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 1
-bugs_baixos: 1
+bugs_medios: 0
+bugs_baixos: 0
 data: 2026-11-24
 ---
-# QA: v0481 E10.3 (AE2: o quadro anda sozinho com o merge; PR #875, classe C)
+# QA: v0481 E10.7 (AE2: o quadro anda sozinho com o merge; PR #875, classe C), delta cbf24de..8087e23
 
-Escopo: `forge-check movimento` move a linha do cartão no `KANBAN.md` e aceita `·` no `--titulo`; `forge-fechar` move para Pronto, depois do merge provado, o cartão de cada linha `Cartão: <ID>` do corpo do PR. Sem UI: acessibilidade e E2E de navegador não se aplicam. Revisado o diff `bbbe2d8..cbf24de` (9 arquivos).
+Escopo: volta E10.5 sobre o meu parecer anterior (cbf24de, reprovado por A1 a A3). Lido `git diff cbf24de5..8087e23d` (bin/forge-check, bin/forge-fechar, testes, specs de mutante 3 e 4, doc e skill). Sem UI: acessibilidade e E2E de navegador não se aplicam.
 
 ## Achados
-- A1 (bloqueante) bin/forge-check:5265 · o casamento por ID também pega a linha de cabeçalho: `movimento ID --para Pronto` (ou `Cartão`) leva o cabeçalho da tabela para Pronto e deixa a seção de origem sem cabeçalho. O quadro sai corrompido por ID legal. Pular o cabeçalho e o separador.
-- A2 (recomendado) bin/forge-check:5204 · a mensagem de recusa do `--titulo` ainda lista `·` como proibido, mas o `·` agora vira `-` antes da checagem e o texto engana. Tirar o `·` da frase (vale para `--pedido` e `--responsavel`, que seguem recusando).
-- A3 (recomendado) bin/forge-check:5265 · com o mesmo ID em duas seções, só a última ocorrência move; a outra fica no quadro e o cartão aparece duplicado. Sondado (ID em Em andamento e Code review). Mover todas, ou avisar da duplicata.
+- A1 (bloqueante) tests/test_fechar_move_cartao.py:145 · AE13 sobreviveu: sem `^[[:space:]]*` em `cartoes_do_corpo` (bin/forge-fechar:951) o teste de "só a linha inteira" segue verde. O guarda novo (cartão sem coluna) engole K-1, K-2 e K-3 antes de o teste ver o movimento. Dar histórico a K-1..K-3 nesse teste.
+- A2 (bloqueante) tests/mutantes/v0481-ae2-quadro-anda.json:AE3 · AE3, AE5, AE7 e AE14 saíram `inválido` (trecho 0 vezes: o código mudou). As guardas casamento por ID, atributos da linha achada, remoção da origem e ID fora da forma ficam sem mutante declarado. Reescrever os 4 trechos.
+
+## Fechamento dos achados do parecer anterior
+| Anterior | Estado | Prova |
+|---|---|---|
+| A1 cabeçalho corrompido por ID legal | resolvido | `celulas_de_cartao` único; `test_cartao_com_nome_de_cabecalho_ou_separador_nao_casa_a_moldura` (ID, id, ---); AE19, AE20, AE26, AE27 e AE28 morreram |
+| A2 mensagem do `--titulo` | resolvido | `test_recusa_do_titulo_nao_lista_o_ponto_e_a_dos_outros_lista`; AE23 e AE30 morreram |
+| A3 ID em duas seções | resolvido | `test_cartao_em_duas_secoes_sai_das_duas`; AE31 e AE32 morreram; a última linha achada é a que anda |
 
 ## Critério → teste → resultado
-| Critério (do brief) | Teste | Fronteira protegida | Resultado |
+| Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| A linha move de seção e entra no fim da tabela do destino | `MovimentoMoveALinha.test_linha_sai_da_origem_e_entra_no_fim_da_tabela_do_destino` | nota depois da tabela; outro cartão fica | passou |
-| Cartão novo e seção sem tabela | `test_cartao_novo_nasce_na_secao_sem_tabela_e_aceita_titulo_com_ponto` | seção vazia | passou |
-| Estado fora do quadro e sem seção | `test_estado_fora_do_quadro_vai_a_secao_do_estado`, `test_sem_secao_nem_bloqueado_avisa_e_o_quadro_fica` | quadro intacto | passou |
-| Não corrompe o quadro | `test_quadro_por_link_nao_e_escrito`, `test_trava_que_nao_abre_avisa_sem_derrubar`, sonda de cabeçalho | link, trava, cabeçalho | falhou na sonda (A1) |
-| Não move cartão errado | `test_atributo_dado_troca_a_celula_e_o_resto_fica`, sonda de duplicata | caixa do ID, duplicata | passou nos testes; sonda mostra A3 |
-| `·` no título vira `-` | `test_cartao_novo_nasce...` e sonda `a · atributos: pedido=zz` (recusado por `=`) | marca `· atributos:` não forjável | passou |
-| forge-fechar move só depois do merge | `test_corpo_com_cartao_move_para_pronto_com_a_prova_do_merge` (ordem `gh pr merge` antes do movimento), `test_pr_ja_mesclado_nao_le_o_corpo` | PR já mesclado, `--armar` | passou |
-| Corpo: só a linha inteira `Cartão: ID` | `test_titulo_e_texto_que_so_cita_cartao_nao_movem`, `test_cartao_do_corpo_fora_da_forma_avisa_e_fecha`, `test_cartao_do_corpo_sem_quadro_avisa_e_fecha`, `test_cartao_do_corpo_e_do_argumento_move_uma_vez` | título, item de lista, ID com `;`, duplicata | passou |
-
-## O caso "a · b" saiu da lista de recusas
-Não afrouxa nada que importe. A recusa existia porque `·` separa a marca `· atributos:` no histórico; o valor agora troca `·` por `-` antes de `erro_dos_atributos` e só no `titulo`. `;`, `=`, `|`, controle e invisível seguem recusados (testes mantidos), `--pedido` e `--responsavel` seguem recusando `·` pela forma, e a sonda `a · atributos: pedido=zz` sai rc 1. O caso novo (`AE2 · quadro` vira `AE2 - quadro`, com `atributos: ...` íntegro no histórico) o cobre, e o mutante AE12 morre. Só a mensagem ficou velha (A2).
+| Cabeçalho, separador (inclusive alinhado `:--`) e outra largura não são cartão | `test_cartao_com_nome_de_cabecalho_ou_separador_nao_casa_a_moldura`, `test_separador_alinhado_nao_conta_como_cartao_editado` | nome `ID`/`---` | passou |
+| Cartão repetido em duas seções sai de todas | `test_cartao_em_duas_secoes_sai_das_duas` | duplicata | passou |
+| UTF-8 inválido só avisa, quadro intacto byte a byte | `test_quadro_com_utf8_invalido_nao_e_reescrito` | byte `\xff` | passou |
+| `Cartão:` fora do quadro só avisa e não nasce em Pronto | `test_cartao_do_corpo_sem_coluna_avisa_e_nao_nasce_em_pronto` | ID desconhecido | passou |
+| Aviso sem caractere de controle | `test_cartao_do_corpo_fora_da_forma_avisa_e_fecha` (ESC) | `\x1b` | passou; Q7 morreu |
+| Só a linha inteira `Cartão: ID` do corpo move | `test_titulo_e_texto_que_so_cita_cartao_nao_movem` | título, item de lista, texto antes | prova fraca (A1): Q5 e AE13 sobrevivem |
+| Mensagem de recusa do `--titulo` sem `·` | `test_recusa_do_titulo_nao_lista_o_ponto_e_a_dos_outros_lista` | `--pedido` mantém `·` | passou |
 
 ## Provas
-- Local: `test_fechar_move_cartao` 18 testes OK; `test_sobreposicao_quadro` 72 testes OK.
-- Vermelho: `bin/forge-testes --vermelho bbbe2d8871c0ecb4a07c4c065361f14adbe0e1b2 --modulos test_fechar_move_cartao,test_sobreposicao_quadro` abriu com `vermelho: base=bbbe2d8871c0 head=cbf24de557ea`; 10 testes "prova (asserção)" (H=ok, B=falha), nenhum cai no HEAD; os demais 80 já existiam e passam nos dois.
-- Mutantes do autor: `bin/forge-mutante tests/mutantes/v0481-ae2-quadro-anda.json tests/mutantes/v0481-ae2-quadro-anda-2.json` rodou AE1 a AE18, todos `morreu`.
-- A `--cobertura --base` lista como "sem mutante" as linhas 5224, 5261, 5263, 5270, 5276 a 5278 e 5310. Somei 4 mutantes meus (spec fora da árvore): Q1 fim da seção (`bin/forge-check:5277`), Q2 `del` da linha achada (5274), Q3 troca do `·` (5224), Q4 tabela da seção (5279): todos `morreu`. Sem sobrevivente.
-- CI do head `cbf24de`: `bateria (passos)` e `bateria (verificações longas)` success; `catraca` e `bateria (pareceres)` failure (faltam pareceres do pedido, esperado antes deste); as suítes python 3.12 e 3.14 estavam em andamento na leitura. O `bateria` final do mesmo sha fica para a volta.
+- Local no head 8087e23: `test_fechar_move_cartao` 19 testes OK; `test_sobreposicao_quadro` 77 testes OK.
+- Vermelho: `bin/forge-testes --vermelho bbbe2d8871c0ecb4a07c4c065361f14adbe0e1b2 --modulos test_fechar_move_cartao,test_sobreposicao_quadro`: saída 0 (árvore limpa; a 1ª rodada, com o parecer ainda sem commit, saiu 2 e não vale). Cabeçalho `vermelho: base=bbbe2d8871c0 head=69dbfb40fa60` (o head é este commit do parecer sobre 8087e23); `contagem: não prova (passa na base)=81; prova (asserção)=15`, todos H=ok e B=falha, nenhum cai no HEAD. Os 15 incluem os testes novos da volta (cabeçalho/separador, duas seções, UTF-8, recusa do `--titulo`, cartão sem coluna).
+- Mutantes do autor (4 specs, `--processos 2`): AE1 a AE32. Morreram todos exceto AE13 (`sobreviveu`) e AE3, AE5, AE7, AE14 (`inválido`, trecho 0 vezes). AE19 a AE32 morreram, como diz a volta.
+- Mutantes meus, spec fora da árvore, sobre o código novo: Q1 casamento por ID (forge-check:5277), Q2 atributos da linha achada (5282), Q3 remoção da origem (5286), Q4 ID fora da forma (forge-fechar:953), Q6 UTF-8 estrito (5304) e Q7 tira controle (forge-fechar:954) morreram; Q5 (tira a âncora `^` da linha `Cartão:`, forge-fechar:951) sobreviveu, o mesmo mutante do AE13.
+- `forge-mutante --cobertura --base bbbe2d8`: sem mutante só 5288 a 5290 (busca da seção de destino, comportamento não mudou na volta) e 5322 (mensagem de erro); `bin/forge-fechar` sai `não coberto` (shell; AE13 a AE18, AE24 e AE25 o cobrem à mão).
+- CI: o `CI` do head 8087e23 foi cancelado (supersedido) e a `Catraca` falhou; o PR já tem commits mais novos (4c690aa, d398aff). Não há check-run `bateria` concluído para 8087e23, então não cito verde para ele. `bateria (pareceres)` falha enquanto faltam os pareceres do pedido.
 
-## Cenários e resultado real
-Sondas em arquivo, quadro descartável: ID duplicado (A3), ID `ID` e `Cartão` (A1; `---` nem chega ao subcomando, rc 2 do argparse), título com `·` e `•` (o `•` passa como já passava). Medida que o item espera mover (tempo por item): não medida aqui; o ganho é a remoção do `kanban --gerar` manual, sem custo medido.
+## Revalidação
+Voltam ao autor os dois achados. Depois deles o delta é o teste `test_titulo_e_texto_que_so_cita_cartao_nao_movem` e a spec `v0481-ae2-quadro-anda.json` (AE3, AE5, AE7, AE14); eu rodo `forge-mutante --base <novo head>` e o Q5.
