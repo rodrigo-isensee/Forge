@@ -1,0 +1,19 @@
+{
+  "descricao": "E7.23: no projeto, mknod de FIFO no gitdir de uma worktree (sob o .git) recusa com a causa.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "mknod .git/worktrees/w/gitdir p"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: FIFO ou nó (mkfifo, mknod) no .git"
+  }
+}

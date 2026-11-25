@@ -1,0 +1,2 @@
+### Corrigido
+- Hook conformidade (v0481 E7.23, segurança no #885 e no #886): na sessão do Forge, o prazo vencido recusa a linha com ação crítica (push na main, --force, --no-verify, caminho de controle), e o registro e a decisão da sessão rodam sob um vigia próprio de 0,5 s; FIFO no commondir ou no gitdir de uma worktree prendia a leitura do disco e liberava pelo corte de 10 s, também no projeto. mkfifo e mknod no .git (ou com alvo opaco) recusam nas duas sessões.

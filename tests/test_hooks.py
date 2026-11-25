@@ -3374,7 +3374,8 @@ class SondaS1ComRelogioFalso(unittest.TestCase):
             with self.subTest(passos=passos):
                 saiu, erro, relogio = self.decidir(merge, passos)
                 self.assertEqual(saiu, codigo, erro)
-                self.assertEqual(relogio.armados, [_comum.PRAZO_DA_DECISAO_S, _comum.PRAZO_DO_MERGE_S, 0])
+                sessao = [_comum.PRAZO_DA_SESSAO_S, 0] if codigo else []  # E7.23: o vigia próprio do prazo vencido
+                self.assertEqual(relogio.armados, [_comum.PRAZO_DA_DECISAO_S, _comum.PRAZO_DO_MERGE_S, 0, *sessao])
                 if codigo:
                     self.assertRegex(erro, f"^R-REVIEW: o hook não decidiu em {_comum.PRAZO_DO_MERGE_S:g} s a chamada com ação crítica")
                 else:
@@ -3382,7 +3383,7 @@ class SondaS1ComRelogioFalso(unittest.TestCase):
         saiu, erro, relogio = self.decidir("gh pr create --draft --base develop --title x --body y", (4.0,))
         self.assertEqual(saiu, 2, erro)
         self.assertRegex(erro, f"^R-REVIEW: o hook não decidiu em {_comum.PRAZO_DA_DECISAO_S:g} s ")
-        self.assertEqual(relogio.armados, [_comum.PRAZO_DA_DECISAO_S, 0])
+        self.assertEqual(relogio.armados, [_comum.PRAZO_DA_DECISAO_S, 0, _comum.PRAZO_DA_SESSAO_S, 0])
 
     def test_fora_da_thread_principal_o_vigia_nao_arma_nem_estende(self):
         """Fora da thread principal não há SIGALRM: o vigia não arma, o prazo longo não rearma, e o hook decide sem prazo
@@ -3881,6 +3882,103 @@ class HookSessaoDoForge(unittest.TestCase):
 
     def test_vigia_registra(self):
         self.rodar("vigia", 2, {0})
+
+
+class PrazoVencidoNaSessaoDoForge(unittest.TestCase):  # v0481 E7.23: segurança no #885 (A2) e no #886 (fora do delta)
+    """Na sessão do Forge, o prazo vencido recusa a linha com o marcador crítico: FIFO no `commondir` ou no `gitdir` de uma
+    worktree prendia o `git` do hook e a leitura do disco, e push na main, `--force` e `--no-verify` passavam pelo corte de
+    10 s. O FIFO ou o nó no `.git` é trava nas duas sessões (fixtures `fifo-*`)."""
+    executar_em_lote = Hooks.executar_em_lote
+    executar_fixture = Hooks.executar_fixture
+    _pasta_temporaria = Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+    rodar_prefixo = HookDir36.rodar_prefixo
+    COMANDOS = ("git push origin feature/x:main", "git push --force origin feature/x", "git commit --no-verify -m x")
+
+    def test_fixtures_fifo(self):
+        self.rodar_prefixo("fifo", 6)
+
+    def pasta(self, forge):
+        raiz = Path(os.path.realpath(tempfile.mkdtemp(prefix="forge-prazo-")))
+        self.addCleanup(shutil.rmtree, raiz, True)
+        nome, texto = (".claude-plugin/plugin.json", '{"name": "forge"}\n') if forge else (".forge/versao", "0.5.0\n")
+        (raiz / nome).parent.mkdir(parents=True)
+        (raiz / nome).write_text(texto, encoding="utf-8")
+        return raiz
+
+    def worktree(self, forge, marca):
+        """Cópia principal (Forge ou projeto) e uma worktree dela, com FIFO no lugar da `marca` da worktree."""
+        principal = self.pasta(forge)
+        git("init", "-q", "-b", "feature/x", cwd=principal)
+        git("add", "-A", cwd=principal)
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "x", cwd=principal)
+        copia = principal.parent / f"{principal.name}-wt"
+        self.addCleanup(shutil.rmtree, copia, True)
+        git("worktree", "add", "-q", "--detach", str(copia), cwd=principal)
+        fifo = principal / ".git" / "worktrees" / copia.name / marca
+        fifo.unlink()
+        os.mkfifo(fifo)
+        return principal, copia
+
+    @staticmethod
+    def chamar(raiz, pasta, comando):
+        entrada = {"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": str(pasta),
+                   "agent_type": "forge:tech-lead", "hook_event_name": "PreToolUse", "session_id": "s1"}
+        return rodar("conformidade", entrada, pasta, extra={"CLAUDE_PROJECT_DIR": str(raiz)}, como_o_claude_code=True)
+
+    def test_fifo_no_commondir_e_no_gitdir_recusa_nas_duas_sessoes(self):
+        casos = []
+        for forge, marca in itertools.product((True, False), ("commondir", "gitdir")):
+            principal, copia = self.worktree(forge, marca)
+            casos += [(forge, marca, copia, copia, c) for c in self.COMANDOS]
+            casos.append((forge, marca, principal, copia, self.COMANDOS[1]))  # raiz na principal (S2 do #886)
+        with concurrent.futures.ThreadPoolExecutor(trabalhadores_do_pool(nucleos_do_processo())) as pool:
+            resultados = list(pool.map(lambda c: self.chamar(*c[2:]), casos))
+        for (forge, marca, raiz, _, comando), r in zip(casos, resultados):
+            with self.subTest(sessao="forge" if forge else "projeto", marca=marca, raiz=raiz.name, comando=comando):
+                self.assertEqual(r.returncode, 2, r.stderr[:200])
+                self.assertRegex(r.stderr, r"^R-[A-Z]+: ")
+
+    def vencer(self, hook, critico=re.compile("x")):
+        _comum, _, _ = modulos_dos_hooks()
+        with contextlib.redirect_stderr(io.StringIO()) as erro:
+            try:
+                _comum.prazo_vencido(hook, critico, "", False, "R-CONFORMIDADE")
+            except SystemExit as saida:
+                return saida.code, erro.getvalue()
+        return None, ""
+
+    def hook(self, raiz, marcado):
+        _comum, _, _ = modulos_dos_hooks()
+        hook = _comum.Hook("conformidade")
+        hook.raiz, hook.marcado, hook.entrada, hook.prazo_s = raiz, marcado, {"hook_event_name": "PreToolUse"}, 3.0
+        return hook
+
+    def test_sessao_do_forge_recusa_so_a_linha_marcada(self):
+        _comum, _, _ = modulos_dos_hooks()
+        forge, outra = self.pasta(True), self.pasta(False)
+        (outra / ".forge" / "versao").unlink()  # nem projeto nem Forge
+        with mock.patch.object(_comum, "sessao_vigiada", return_value=False):
+            with mock.patch.dict(os.environ, {"CLAUDE_PROJECT_DIR": str(forge)}):
+                for marcado, esperado in ((True, 2), (None, 2), (False, None)):
+                    with self.subTest(marcado=marcado):
+                        codigo, texto = self.vencer(self.hook(forge, marcado))
+                        self.assertEqual(codigo, esperado)
+                        self.assertTrue(texto.startswith("R-CONFORMIDADE: ") or esperado is None, texto)
+                self.assertIsNone(self.vencer(self.hook(forge, True), None)[0], "sem marcador, a sessão decide")
+                hook = self.hook(forge, True)
+                hook.entrada = {"hook_event_name": "PostToolUse"}
+                self.assertIsNone(self.vencer(hook)[0], "depois da ferramenta, libera")
+            with mock.patch.dict(os.environ, {"CLAUDE_PROJECT_DIR": str(outra)}):
+                self.assertIsNone(self.vencer(self.hook(outra, True))[0], "fora do Forge, a sessão decide")
+
+    def test_sessao_que_nao_se_decide_recusa(self):
+        _comum, _, _ = modulos_dos_hooks()
+        raiz = self.pasta(False)
+        for efeito in (_comum.PrazoVencido(), OSError("disco")):
+            with self.subTest(efeito=type(efeito).__name__), \
+                    mock.patch.object(_comum, "sessao_vigiada", side_effect=efeito):
+                self.assertEqual(self.vencer(self.hook(raiz, False))[0], 2)
 
 
 class VigiaTimeParadoNasFixtures(unittest.TestCase):

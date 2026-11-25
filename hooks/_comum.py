@@ -2824,6 +2824,9 @@ PRAZO_DA_DECISAO_S = 3.0
 # (v0455): o `gh pr create` o lê (PR-HOOK-PRAZO, v046); no `gh pr ready` e no `gh pr merge` (E2.117) o aprovado libera só no
 # clone do Forge, onde o CI de pareceres é o segundo portão, e o reprovado recusa em todo lugar; no projeto, o merge confere.
 PRAZO_DO_MERGE_S = 8.0
+# E7.23: com o prazo vencido, o registro e a decisão da sessão (leitura do disco) têm este prazo; somado ao maior acima,
+# fica abaixo dos 10 s do `timeout` do hooks.json.
+PRAZO_DA_SESSAO_S = 0.5
 
 
 class PrazoVencido(BaseException):
@@ -2850,17 +2853,33 @@ def vigia_de_prazo(segundos, armar):
         signal.signal(signal.SIGALRM, anterior)
 
 
-def prazo_vencido(hook, critico, bruto, clone_do_forge, regra):
-    """O vigia venceu: numa sessão vigiada e antes da ferramenta, recusa pela `regra` do hook; senão, libera. Nos dois
-    casos, a linha no erros.log. VIGIA-PRAZO-TRAVA (decisão do dono, 24/11): toda linha que chega a uma trava que pode
-    recusar conta como crítica, com ou sem o marcador; o `marcado` só escolhe o texto (sem ele e com corpo de heredoc
-    por conferir, C-4, cita os corpos). Roda fora do vigia, e não refaz a busca do marcador."""
+def recusa_no_prazo(hook, critico, clone_do_forge):
+    """O prazo vencido recusa nesta sessão? Na vigiada, sim; na do Forge (raiz no clone), também a linha com o marcador
+    crítico ou sem ele calculado (E7.23: FIFO no `commondir` ou no `gitdir` liberava push na main, `--force` e
+    `--no-verify` pelo corte de 10 s)."""
+    if critico is not None and hook.marcado is not False and e_clone_do_forge(raiz_declarada()):
+        return True
+    return sessao_vigiada(hook, clone_do_forge)
+
+
+def prazo_vencido(hook, critico, bruto, clone_do_forge, regra, armar=getattr(signal, "setitimer", None)):
+    """O vigia venceu: onde o prazo recusa (`recusa_no_prazo`) e antes da ferramenta, recusa pela `regra` do hook; senão,
+    libera. Nos dois casos, a linha no erros.log. VIGIA-PRAZO-TRAVA (decisão do dono, 24/11): toda linha que chega a uma
+    trava que pode recusar conta como crítica, com ou sem o marcador; o `marcado` só escolhe o texto (sem ele e com corpo
+    de heredoc por conferir, C-4, cita os corpos). Roda fora do vigia da decisão, e não refaz a busca do marcador; o
+    registro e a sessão (leitura do disco, que espera um FIFO no `.git`: E7.23) rodam sob um vigia próprio de
+    `PRAZO_DA_SESSAO_S`, e o que não termina nele recusa onde o evento pode recusar."""
     prazo = hook.prazo_s or PRAZO_DA_DECISAO_S
-    hook.registrar_erro(Aviso(f"prazo de {prazo:g} s da decisão vencido"))
     evento = hook.entrada.get("hook_event_name")
-    if evento == "PostToolUse" or not sessao_vigiada(hook, clone_do_forge):
-        return
-    if critico is None and evento != "PreToolUse":  # VIGIA-AGENTES-PESADO: sem marcador, só o PreToolUse recusa
+    # VIGIA-AGENTES-PESADO: sem marcador, só o PreToolUse recusa; depois da ferramenta, nunca
+    recusa = evento != "PostToolUse" and (critico is not None or evento == "PreToolUse")
+    try:
+        with vigia_de_prazo(PRAZO_DA_SESSAO_S, armar):
+            hook.registrar_erro(Aviso(f"prazo de {prazo:g} s da decisão vencido"))
+            recusa = recusa and recusa_no_prazo(hook, critico, clone_do_forge)
+    except (PrazoVencido, Exception):  # noqa: BLE001 - o registro ou a sessão que não termina recusa (falha fechado)
+        pass
+    if not recusa:
         return
     quem, como = ((f"{hook.corpos_pendentes} corpo(s) de heredoc", "separe o comando em chamadas menores")
                   if hook.marcado is False and hook.corpos_pendentes else
@@ -2910,7 +2929,7 @@ def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=No
                     barrar_sem_versao(hook, critico, bruto)
                 funcao(hook)
     except PrazoVencido:
-        prazo_vencido(hook, critico, bruto, clone_do_forge, regra_do_prazo)
+        prazo_vencido(hook, critico, bruto, clone_do_forge, regra_do_prazo, armar)
     except Exception as erro:  # noqa: BLE001 - ADR 0003: erro interno libera e fica no erros.log
         hook.registrar_erro(erro)
         falhar_fechado(hook, critico, bruto, clone_do_forge)

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-prazo-forge",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E7.23: na sessão do Forge, o prazo vencido recusa a linha com o marcador crítico (ou sem ele calculado)",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if critico is not None and hook.marcado is not False and e_clone_do_forge(raiz_declarada()):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_sessao_do_forge_recusa_so_a_linha_marcada"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E7.23: depois da ferramenta o prazo vencido nunca recusa; sem marcador, só o PreToolUse",
+      "arquivo": "hooks/_comum.py",
+      "de": "    recusa = evento != \"PostToolUse\" and (critico is not None or evento == \"PreToolUse\")",
+      "para": "    recusa = True",
+      "testes": [
+        "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_sessao_do_forge_recusa_so_a_linha_marcada"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E7.23: a decisão da sessão só recusa onde o evento pode recusar",
+      "arquivo": "hooks/_comum.py",
+      "de": "            recusa = recusa and recusa_no_prazo(hook, critico, clone_do_forge)",
+      "para": "            recusa = recusa_no_prazo(hook, critico, clone_do_forge)",
+      "testes": [
+        "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_sessao_do_forge_recusa_so_a_linha_marcada"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E7.23: o registro ou a sessão que não termina no vigia próprio (ou falha) recusa",
+      "arquivo": "hooks/_comum.py",
+      "de": "    except (PrazoVencido, Exception):  # noqa: BLE001 - o registro ou a sessão que não termina recusa (falha fechado)",
+      "para": "    except ZeroDivisionError:",
+      "testes": [
+        "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_sessao_que_nao_se_decide_recusa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E7.23: onde o prazo não recusa, libera (só a linha no erros.log)",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if not recusa:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_sessao_do_forge_recusa_so_a_linha_marcada"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E7.23: mkfifo e mknod têm os alvos conferidos (FIFO ou nó no .git é trava)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif prog in ARQUIVO_ESPECIAL:  # toda palavra conta como alvo (a opção que cita o .git também recusa)",
+      "para": "        elif False:  # toda palavra conta como alvo (a opção que cita o .git também recusa)",
+      "testes": [
+        "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_fixtures_fifo"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "E7.23: o alvo opaco ou que cita o .git (palavra, componente, curinga) do mkfifo é trava",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if (ALVO_OPACO.search(caminho) or cita_o_dir_do_git(caminho)",
+      "para": "        if (False",
+      "testes": [
+        "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_fixtures_fifo"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "E7.23: o alvo do mkfifo resolvido com .git no caminho (cd .git, link) é trava",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                or \".git\" in (p.lower() for p in self.resolver(self.expandir(caminho, pasta), pasta).parts)):",
+      "para": "                or False):",
+      "testes": [
+        "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_fixtures_fifo"
+      ]
+    }
+  ]
+}

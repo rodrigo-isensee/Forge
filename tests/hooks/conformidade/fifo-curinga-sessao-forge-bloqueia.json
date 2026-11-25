@@ -1,0 +1,26 @@
+{
+  "descricao": "E7.23: sessão do Forge, mkfifo com curinga que o bash expande para o .git (`.gi?`): trava.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "mkfifo .gi?/worktrees/w/commondir"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{raiz}",
+    "agent_type": "forge:dev"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: FIFO ou nó (mkfifo, mknod) no .git"
+  }
+}
