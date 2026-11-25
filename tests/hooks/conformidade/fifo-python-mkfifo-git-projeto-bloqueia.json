@@ -1,0 +1,19 @@
+{
+  "descricao": "E7.27 (A2 do review no #888): no projeto, o FIFO no .git por interpretador (`python3 -c` com `os.mkfifo`) recusa como o `os.remove` do .git.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 -c \"import os; os.mkfifo('.git/x')\""
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

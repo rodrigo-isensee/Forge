@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "VIGIA-PRAZO-TRAVA (E169.1): prazo vencido sem o marcador e sem corpo pendente recusa (a isenção antiga volta)",
       "arquivo": "hooks/_comum.py",
-      "de": "    if evento == \"PostToolUse\" or not sessao_vigiada(hook, clone_do_forge):\n        return\n    if critico",
-      "para": "    if evento == \"PostToolUse\" or (hook.marcado is False and not hook.corpos_pendentes) or not sessao_vigiada(hook, clone_do_forge):\n        return\n    if critico",
+      "de": "    recusa = evento != \"PostToolUse\" and (critico is not None or evento == \"PreToolUse\")",
+      "para": "    recusa = evento != \"PostToolUse\" and not (hook.marcado is False and not hook.corpos_pendentes) and (critico is not None or evento == \"PreToolUse\")",
       "testes": [
         "tests.test_hooks.Hooks.test_vigia_prazo_trava_sem_marcador_recusa_e_fora_da_sessao_vigiada_libera",
         "tests.test_hooks.Hooks.test_fixtures_do_vigia_prazo_trava"
@@ -17,8 +17,8 @@
       "id": "M2",
       "guarda": "VIGIA-PRAZO-TRAVA: fora da sessão vigiada o prazo vencido libera",
       "arquivo": "hooks/_comum.py",
-      "de": "== \"PostToolUse\" or not sessao_vigiada(hook, clone_do_forge):\n        return\n    if critico",
-      "para": "== \"PostToolUse\" or False:\n        return\n    if critico",
+      "de": "    return sessao_vigiada(hook, clone_do_forge)",
+      "para": "    return True",
       "testes": [
         "tests.test_hooks.Hooks.test_vigia_prazo_trava_sem_marcador_recusa_e_fora_da_sessao_vigiada_libera"
       ]
@@ -27,8 +27,8 @@
       "id": "M3",
       "guarda": "VIGIA-PRAZO-TRAVA: hook sem marcador (critico None) só recusa pelo prazo no PreToolUse (VIGIA-AGENTES-PESADO, E172.3)",
       "arquivo": "hooks/_comum.py",
-      "de": "    if critico is None and evento != \"PreToolUse\":",
-      "para": "    if critico is None and evento == \"PreToolUse\":",
+      "de": "critico is not None or evento == \"PreToolUse\"",
+      "para": "critico is not None or evento != \"PreToolUse\"",
       "testes": [
         "tests.test_hooks.Hooks.test_vigia_prazo_trava_sem_marcador_recusa_e_fora_da_sessao_vigiada_libera"
       ]
@@ -37,8 +37,8 @@
       "id": "M4",
       "guarda": "VIGIA-PRAZO-TRAVA: depois da ferramenta o prazo vencido libera",
       "arquivo": "hooks/_comum.py",
-      "de": "    if evento == \"PostToolUse\" or not sessao_vigiada(hook, clone_do_forge):",
-      "para": "    if evento == \"PostToolUseX\" or not sessao_vigiada(hook, clone_do_forge):",
+      "de": "evento != \"PostToolUse\" and (",
+      "para": "evento != \"PostToolUseX\" and (",
       "testes": [
         "tests.test_hooks.Hooks.test_prazo_vencido_com_corpo_de_heredoc_pendente_recusa"
       ]

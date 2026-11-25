@@ -3374,7 +3374,7 @@ class SondaS1ComRelogioFalso(unittest.TestCase):
             with self.subTest(passos=passos):
                 saiu, erro, relogio = self.decidir(merge, passos)
                 self.assertEqual(saiu, codigo, erro)
-                sessao = [_comum.PRAZO_DA_SESSAO_S, 0] if codigo else []  # E7.23: o vigia próprio do prazo vencido
+                sessao = [_comum.PRAZO_DA_SESSAO_S, 0] * 2 if codigo else []  # E7.23: a sessão e depois o registro (E7.27)
                 self.assertEqual(relogio.armados, [_comum.PRAZO_DA_DECISAO_S, _comum.PRAZO_DO_MERGE_S, 0, *sessao])
                 if codigo:
                     self.assertRegex(erro, f"^R-REVIEW: o hook não decidiu em {_comum.PRAZO_DO_MERGE_S:g} s a chamada com ação crítica")
@@ -3383,7 +3383,7 @@ class SondaS1ComRelogioFalso(unittest.TestCase):
         saiu, erro, relogio = self.decidir("gh pr create --draft --base develop --title x --body y", (4.0,))
         self.assertEqual(saiu, 2, erro)
         self.assertRegex(erro, f"^R-REVIEW: o hook não decidiu em {_comum.PRAZO_DA_DECISAO_S:g} s ")
-        self.assertEqual(relogio.armados, [_comum.PRAZO_DA_DECISAO_S, 0, _comum.PRAZO_DA_SESSAO_S, 0])
+        self.assertEqual(relogio.armados, [_comum.PRAZO_DA_DECISAO_S, 0, *[_comum.PRAZO_DA_SESSAO_S, 0] * 2])
 
     def test_fora_da_thread_principal_o_vigia_nao_arma_nem_estende(self):
         """Fora da thread principal não há SIGALRM: o vigia não arma, o prazo longo não rearma, e o hook decide sem prazo
@@ -3896,7 +3896,7 @@ class PrazoVencidoNaSessaoDoForge(unittest.TestCase):  # v0481 E7.23: segurança
     COMANDOS = ("git push origin feature/x:main", "git push --force origin feature/x", "git commit --no-verify -m x")
 
     def test_fixtures_fifo(self):
-        self.rodar_prefixo("fifo", 6)
+        self.rodar_prefixo("fifo", 7)
 
     def pasta(self, forge):
         raiz = Path(os.path.realpath(tempfile.mkdtemp(prefix="forge-prazo-")))
@@ -3979,6 +3979,43 @@ class PrazoVencidoNaSessaoDoForge(unittest.TestCase):  # v0481 E7.23: segurança
             with self.subTest(efeito=type(efeito).__name__), \
                     mock.patch.object(_comum, "sessao_vigiada", side_effect=efeito):
                 self.assertEqual(self.vencer(self.hook(raiz, False))[0], 2)
+
+    def test_registro_que_nao_termina_nao_muda_a_decisao(self):
+        """A1 da segurança no #888 (E7.27): a sessão se decide antes do registro, e o registro no erros.log que passa do seu
+        vigia (o `git` do `Hook.run` sob carga) ou falha não muda a decisão: na sessão do Forge, a linha sem o marcador
+        libera e a marcada recusa. O sono de 5 s só acaba pelo vigia real de 0,5 s."""
+        _comum, _, _ = modulos_dos_hooks()
+        forge = self.pasta(True)
+        efeitos = {"lento": lambda *_: time.sleep(5), "falha": OSError("disco")}
+        with mock.patch.object(_comum, "sessao_vigiada", return_value=False), \
+                mock.patch.dict(os.environ, {"CLAUDE_PROJECT_DIR": str(forge)}):
+            for (nome, efeito), (marcado, esperado) in itertools.product(efeitos.items(), ((False, None), (True, 2))):
+                with self.subTest(registro=nome, marcado=marcado), \
+                        mock.patch.object(_comum.Hook, "registrar_erro", side_effect=efeito) as registro:
+                    inicio = time.monotonic()
+                    self.assertEqual(self.vencer(self.hook(forge, marcado))[0], esperado)
+                    self.assertLess(time.monotonic() - inicio, 4)
+                    registro.assert_called_once()
+
+    def test_erro_interno_com_registro_lento_nao_espera_o_corte(self):
+        """A4 da segurança no #888 (E7.27): no erro interno, o registro no erros.log roda sob o vigia próprio; o que não
+        termina nele não leva a espera ao corte de 10 s, e a falha fechada decide como sem ele (aqui, sem marcador, libera)."""
+        _comum, _, _ = modulos_dos_hooks()
+        raiz = self.pasta(False)
+        entrada = {"tool_name": "Bash", "tool_input": {"command": "ls"}, "hook_event_name": "PreToolUse", "cwd": str(raiz)}
+
+        def quebra(_hook):
+            raise ValueError("interno")
+        ambiente = {k: v for k, v in os.environ.items() if k != "FORGE_GUARDA_ABERTA"}
+        with mock.patch.dict(os.environ, {**ambiente, "CLAUDE_PROJECT_DIR": str(raiz)}, clear=True), \
+                mock.patch("sys.stdin", io.StringIO(json.dumps(entrada))), \
+                mock.patch.object(_comum.Hook, "registrar_erro", side_effect=lambda *_: time.sleep(5)) as registro, \
+                contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as saida:
+            inicio = time.monotonic()
+            _comum.executar("conformidade", quebra)
+        self.assertLess(time.monotonic() - inicio, 4)
+        self.assertEqual(saida.exception.code, 0)
+        registro.assert_called_once()
 
 
 class VigiaTimeParadoNasFixtures(unittest.TestCase):

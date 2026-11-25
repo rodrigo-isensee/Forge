@@ -2824,8 +2824,8 @@ PRAZO_DA_DECISAO_S = 3.0
 # (v0455): o `gh pr create` o lê (PR-HOOK-PRAZO, v046); no `gh pr ready` e no `gh pr merge` (E2.117) o aprovado libera só no
 # clone do Forge, onde o CI de pareceres é o segundo portão, e o reprovado recusa em todo lugar; no projeto, o merge confere.
 PRAZO_DO_MERGE_S = 8.0
-# E7.23: com o prazo vencido, o registro e a decisão da sessão (leitura do disco) têm este prazo; somado ao maior acima,
-# fica abaixo dos 10 s do `timeout` do hooks.json.
+# E7.23: com o prazo vencido, a decisão da sessão (leitura do disco) e, depois, o registro têm cada um este prazo; os
+# dois somados ao maior acima ficam abaixo dos 10 s do `timeout` do hooks.json.
 PRAZO_DA_SESSAO_S = 0.5
 
 
@@ -2862,23 +2862,35 @@ def recusa_no_prazo(hook, critico, clone_do_forge):
     return sessao_vigiada(hook, clone_do_forge)
 
 
+def registrar_sob_vigia(hook, erro, armar):
+    """A linha no erros.log sob um vigia próprio de `PRAZO_DA_SESSAO_S` (o `git` do `Hook.run` sob carga, ou um FIFO no
+    `.git`, não leva a espera ao corte de 10 s, que libera); o registro que não termina ou falha fica sem a linha e nunca
+    muda a decisão de quem chama."""
+    try:
+        with vigia_de_prazo(PRAZO_DA_SESSAO_S, armar):
+            hook.registrar_erro(erro)
+    except (PrazoVencido, Exception):  # noqa: BLE001 - sem a linha no erros.log, a decisão segue a mesma
+        pass
+
+
 def prazo_vencido(hook, critico, bruto, clone_do_forge, regra, armar=getattr(signal, "setitimer", None)):
     """O vigia venceu: onde o prazo recusa (`recusa_no_prazo`) e antes da ferramenta, recusa pela `regra` do hook; senão,
     libera. Nos dois casos, a linha no erros.log. VIGIA-PRAZO-TRAVA (decisão do dono, 24/11): toda linha que chega a uma
     trava que pode recusar conta como crítica, com ou sem o marcador; o `marcado` só escolhe o texto (sem ele e com corpo
-    de heredoc por conferir, C-4, cita os corpos). Roda fora do vigia da decisão, e não refaz a busca do marcador; o
-    registro e a sessão (leitura do disco, que espera um FIFO no `.git`: E7.23) rodam sob um vigia próprio de
-    `PRAZO_DA_SESSAO_S`, e o que não termina nele recusa onde o evento pode recusar."""
+    de heredoc por conferir, C-4, cita os corpos). Roda fora do vigia da decisão, e não refaz a busca do marcador; a
+    sessão (leitura do disco, que espera um FIFO no `.git`: E7.23) e o registro rodam cada um sob um vigia próprio de
+    `PRAZO_DA_SESSAO_S`, e a sessão que não se decide nele recusa onde o evento pode recusar. A sessão se decide antes do
+    registro, e o registro tem o seu vigia (`registrar_sob_vigia`), que nunca muda a decisão (A1 da segurança no #888)."""
     prazo = hook.prazo_s or PRAZO_DA_DECISAO_S
     evento = hook.entrada.get("hook_event_name")
     # VIGIA-AGENTES-PESADO: sem marcador, só o PreToolUse recusa; depois da ferramenta, nunca
     recusa = evento != "PostToolUse" and (critico is not None or evento == "PreToolUse")
     try:
         with vigia_de_prazo(PRAZO_DA_SESSAO_S, armar):
-            hook.registrar_erro(Aviso(f"prazo de {prazo:g} s da decisão vencido"))
             recusa = recusa and recusa_no_prazo(hook, critico, clone_do_forge)
-    except (PrazoVencido, Exception):  # noqa: BLE001 - o registro ou a sessão que não termina recusa (falha fechado)
+    except (PrazoVencido, Exception):  # noqa: BLE001 - a sessão que não se decide recusa (falha fechado)
         pass
+    registrar_sob_vigia(hook, Aviso(f"prazo de {prazo:g} s da decisão vencido"), armar)
     if not recusa:
         return
     quem, como = ((f"{hook.corpos_pendentes} corpo(s) de heredoc", "separe o comando em chamadas menores")
@@ -2931,6 +2943,6 @@ def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=No
     except PrazoVencido:
         prazo_vencido(hook, critico, bruto, clone_do_forge, regra_do_prazo, armar)
     except Exception as erro:  # noqa: BLE001 - ADR 0003: erro interno libera e fica no erros.log
-        hook.registrar_erro(erro)
+        registrar_sob_vigia(hook, erro, armar)  # A4 da segurança no #888: o registro não leva ao corte que libera
         falhar_fechado(hook, critico, bruto, clone_do_forge)
     sys.exit(0)

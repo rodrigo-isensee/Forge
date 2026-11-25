@@ -327,7 +327,7 @@ class VigiaAgentesPesado(unittest.TestCase):
                         _comum.executar(modulo.__name__, lambda hook, s=passo: relogio.dormir(s), clone_do_forge=True,
                                         regra_do_prazo="R-TETO", prazo_do_hook=prazo, relogio=relogio, armar=relogio.armar)
                     self.assertEqual(saida.exception.code, codigo, erro.getvalue())
-                    sessao = [_comum.PRAZO_DA_SESSAO_S, 0] if codigo else []  # E7.23: o vigia próprio do prazo vencido
+                    sessao = [_comum.PRAZO_DA_SESSAO_S, 0] * 2 if codigo else []  # E7.23: a sessão e o registro (E7.27)
                     self.assertEqual(relogio.armados, [prazo, 0, *sessao])
                     if codigo:
                         self.assertRegex(erro.getvalue(), f"^R-TETO: o hook não decidiu em {prazo:g} s ")

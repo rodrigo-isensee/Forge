@@ -34,9 +34,9 @@
     },
     {
       "id": "M4",
-      "guarda": "E7.23: o registro ou a sessão que não termina no vigia próprio (ou falha) recusa",
+      "guarda": "E7.23: a sessão que não se decide no vigia próprio (ou falha) recusa",
       "arquivo": "hooks/_comum.py",
-      "de": "    except (PrazoVencido, Exception):  # noqa: BLE001 - o registro ou a sessão que não termina recusa (falha fechado)",
+      "de": "    except (PrazoVencido, Exception):  # noqa: BLE001 - a sessão que não se decide recusa (falha fechado)",
       "para": "    except ZeroDivisionError:",
       "testes": [
         "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_sessao_que_nao_se_decide_recusa"
