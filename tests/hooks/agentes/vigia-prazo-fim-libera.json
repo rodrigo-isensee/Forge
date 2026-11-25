@@ -1,0 +1,16 @@
+{
+  "descricao": "VIGIA-AGENTES-PESADO (E172.3): o prazo vencido fora do PreToolUse (SubagentStop) não recusa: só registra no erros.log (sair com 2 ali prenderia o agente).",
+  "forcar": {
+    "onde": "atualizar_estado",
+    "como": "prazo"
+  },
+  "entrada": {
+    "hook_event_name": "SubagentStop",
+    "agent_id": "a2",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "prazo de"
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "pedido": "v0480-graphql-ilegivel",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "GQ36",
+      "guarda": "E168.9 (A4 da segurança): o conformidade recusa a leitura incerta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if parecer.gh_incerto(palavras):  # E168.9: na dúvida sobre o subcomando",
+      "para": "        if False:  # E168.9: na dúvida sobre o subcomando",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ37",
+      "guarda": "E168.9 (A4 da segurança): na sessão do Forge, a leitura incerta exige a conta do dono",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                        if parecer.gh_incerto(palavras):  # E168.9: o subcomando incerto",
+      "para": "                        if False:  # E168.9: o subcomando incerto",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ38",
+      "guarda": "E168.9 (A1 do QA): o rótulo na sessão do Forge é lido na ordem do gh",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self.gh_rotulo(parecer.ordem_do_gh(palavras), pasta, atras_do_xargs(escritas, palavras))",
+      "para": "self.gh_rotulo(palavras, pasta, atras_do_xargs(escritas, palavras))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ39",
+      "guarda": "E168.9 (A1 do QA): as travas do gh leem o subcomando na ordem do gh",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        palavras = parecer.ordem_do_gh(palavras)  # E168.5",
+      "para": "        palavras = palavras  # E168.5",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ40",
+      "guarda": "E168.9 (A5 da segurança): a chave com vírgula fora de aspas é expansão",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(CURINGA.match(c) or chave and (c == \",\" or c == \".\" == anterior))",
+      "para": "(CURINGA.match(c) or chave and (False or c == \".\" == anterior))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_expansao_por_palavra_chaves",
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ41",
+      "guarda": "E168.9 (A5 da segurança): a sequência {a..b} fora de aspas é expansão",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(CURINGA.match(c) or chave and (c == \",\" or c == \".\" == anterior))",
+      "para": "(CURINGA.match(c) or chave and (c == \",\" or False))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_expansao_por_palavra_chaves",
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ42",
+      "guarda": "E168.9 (A5): a chave só conta fora de aspas e depois do { na mesma palavra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        chave, anterior = (chave or c == \"{\", c) if fora else (chave, \"\")",
+      "para": "        chave, anterior = (chave, c) if fora else (chave, \"\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_expansao_por_palavra_chaves",
+        "tests.test_hooks.Hooks.test_fixtures_do_repo_publico"
+      ]
+    },
+    {
+      "id": "GQ43",
+      "guarda": "E168.9 (A5): a palavra nova começa sem chave aberta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            texto, nivel, chave = [], 0, False",
+      "para": "            texto, nivel, chave = [], 0, chave",
+      "testes": [
+        "tests.test_hooks.Hooks.test_expansao_por_palavra_chaves"
+      ]
+    }
+  ]
+}

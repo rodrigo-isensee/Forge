@@ -1,0 +1,28 @@
+{
+  "descricao": "CONFORMIDADE-REPO-CREATE-PUBLICO (GRAPHQL-CONSULTA-EM-VARIAVEL, E168.5, S8 da segurança do #854): o alias `qp: -X POST api graphql` expande com a opção antes do `api`; a consulta numa variável recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "../home/.config/gh/config.yml": "aliases:\n    qp: -X POST api graphql\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh qp -f query=\"$Q\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: gh api graphql com consulta que o hook não lê"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  }
+}

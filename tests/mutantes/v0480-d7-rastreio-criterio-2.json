@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-d7-rastreio-criterio",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D79",
+      "guarda": "E174.2: pedido sem item C-n sai não verificável, rc 2",
+      "arquivo": "bin/forge-check",
+      "de": "    if not criterios:\n        return [f\"criterios: pedido",
+      "para": "    if False:\n        return [f\"criterios: pedido",
+      "testes": [
+        "tests.test_criterios.Criterios.test_pedido_sem_criterio_c_n_ou_ilegivel_sai_nao_verificavel"
+      ]
+    },
+    {
+      "id": "D710",
+      "guarda": "E174.2: critério não entregue sai com rc 1",
+      "arquivo": "bin/forge-check",
+      "de": "return [cabeca] + linhas, 1 if faltam or fora or repetidos else 0",
+      "para": "return [cabeca] + linhas, 1 if fora or repetidos else 0",
+      "testes": [
+        "tests.test_criterios.Criterios.test_brief_sem_entrega_conferida_nao_prova"
+      ]
+    },
+    {
+      "id": "D711",
+      "guarda": "E174.2: cobre: de critério fora do pedido sai com rc 1",
+      "arquivo": "bin/forge-check",
+      "de": "return [cabeca] + linhas, 1 if faltam or fora or repetidos else 0",
+      "para": "return [cabeca] + linhas, 1 if faltam or repetidos else 0",
+      "testes": [
+        "tests.test_criterios.Criterios.test_cobre_de_criterio_fora_do_pedido_reprova_mesmo_com_todos_entregues"
+      ]
+    },
+    {
+      "id": "D712",
+      "guarda": "E174.2: id repetido sai com rc 1",
+      "arquivo": "bin/forge-check",
+      "de": "return [cabeca] + linhas, 1 if faltam or fora or repetidos else 0",
+      "para": "return [cabeca] + linhas, 1 if faltam or fora else 0",
+      "testes": [
+        "tests.test_criterios.Criterios.test_id_repetido_reprova_e_vale_o_primeiro"
+      ]
+    },
+    {
+      "id": "D713",
+      "guarda": "E174.2: a linha id: do pedido dá o nome; sem ela, o nome do arquivo",
+      "arquivo": "bin/forge-check",
+      "de": "    pedido_id = (re.search(r\"^id:\\s*(\\S+)\", pedido_txt, re.M) or [None, caminho.stem])[1]\n    criterios, repetidos",
+      "para": "    pedido_id = ([None, caminho.stem])[1]\n    criterios, repetidos",
+      "testes": [
+        "tests.test_criterios.Criterios.test_linha_id_do_pedido_da_o_nome_da_tabela"
+      ]
+    },
+    {
+      "id": "D714",
+      "guarda": "E174.2: critério sem prova sai não entregue, não entregue com lista vazia",
+      "arquivo": "bin/forge-check",
+      "de": "{'entregue · ' + quem if quem else 'não entregue'}",
+      "para": "{'entregue · ' + quem if True else 'não entregue'}",
+      "testes": [
+        "tests.test_criterios.Criterios.test_criterio_com_prova_conferida_entregue_e_sem_prova_nao_entregue"
+      ]
+    },
+    {
+      "id": "D715",
+      "guarda": "E174.2: só o cobre: de critério ausente do pedido sai como fora",
+      "arquivo": "bin/forge-check",
+      "de": "fora = [cid for cid in provas if cid not in criterios]",
+      "para": "fora = [cid for cid in provas if True]",
+      "testes": [
+        "tests.test_criterios.Criterios.test_todos_entregues_sai_com_rc_zero"
+      ]
+    },
+    {
+      "id": "D716",
+      "guarda": "E174.2: conta como não entregue só o critério sem prova",
+      "arquivo": "bin/forge-check",
+      "de": "faltam = sum(cid not in provas for cid in criterios)",
+      "para": "faltam = sum(cid in provas for cid in criterios)",
+      "testes": [
+        "tests.test_criterios.Criterios.test_brief_sem_entrega_conferida_nao_prova"
+      ]
+    }
+  ]
+}

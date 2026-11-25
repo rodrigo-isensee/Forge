@@ -1,0 +1,15 @@
+{
+  "descricao": "ANTI-ALUC-F4-HOOK-DECISAO (E172.15): projeto sem .forge/versao: o decisao não age, mesmo com duas decisões na mensagem do Jarvis (nem cria .forge/run).",
+  "forge": false,
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "agent_type": "forge:jarvis",
+    "transcript_path": "{tmp}/t.jsonl",
+    "last_assistant_message": "Primeira:\nA) manter\nB) trocar\nRecomendo A.\n\nSegunda:\nA) agora\nB) depois\nRecomendo A."
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

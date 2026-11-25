@@ -46,8 +46,8 @@
       "id": "M5",
       "guarda": "E6: a pergunta de corte passa pela trava",
       "arquivo": "bin/forge-check",
-      "de": "if tipo == \"pergunta\" and (motivos := dono.recusa_de_corte(",
-      "para": "if tipo != \"pergunta\" and (motivos := dono.recusa_de_corte(",
+      "de": "if tipo == \"pergunta\" and not recusa and (motivos := dono.recusa_de_corte(",
+      "para": "if tipo != \"pergunta\" and not recusa and (motivos := dono.recusa_de_corte(",
       "testes": [
         "tests.test_forge_dono.TravaDeOrigem.test_corte_recomendado_sem_campos_e_recusado_sem_gravar"
       ]

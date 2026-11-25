@@ -1,0 +1,16 @@
+{
+  "pedido": "v0480-d1-integrador-laco",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): --laco chama o laço antes do resto",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$laco\" = 1 ]; then fechar_laco; fi",
+      "para": "if [ \"$laco\" = 9 ]; then fechar_laco; fi",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_grupos_de_ate_3_em_ordem_e_o_ultimo_sozinho_sem_lote"
+      ]
+    }
+  ]
+}

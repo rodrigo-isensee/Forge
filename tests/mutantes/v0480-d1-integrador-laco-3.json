@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-d1-integrador-laco",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): só melhoria/* entra",
+      "arquivo": "bin/forge-fechar",
+      "de": "melhoria/*) ;; *) continue ;; esac",
+      "para": "melhoria/*) ;; *) ;; esac",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_so_entram_os_aprovados_com_um_pedido_so"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): nome de branch inválido nem chega à busca",
+      "arquivo": "bin/forge-fechar",
+      "de": "git check-ref-format --branch \"$br\" >/dev/null 2>&1 || continue",
+      "para": "git check-ref-format --branch \"$br\" >/dev/null 2>&1 || true",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_so_entram_os_aprovados_com_um_pedido_so"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): busca que falha deixa o PR de fora",
+      "arquivo": "bin/forge-fechar",
+      "de": ">/dev/null 2>&1; then echo \"aviso: PR #$n: não busquei",
+      "para": ">/dev/null 2>&1 || true; then echo \"aviso: PR #$n: não busquei",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_so_entram_os_aprovados_com_um_pedido_so"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): sem um pedido só, o PR fica de fora",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! ped=\"$(pedido_da_branch \"$br\")\"; then",
+      "para": "if ! ped=\"$(pedido_da_branch \"$br\")\" && false; then",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_so_entram_os_aprovados_com_um_pedido_so"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): só entra quem passa no forge-check pr",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! \"$check\" pr \"$ped\"",
+      "para": "if false && ! \"$check\" pr \"$ped\"",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_so_entram_os_aprovados_com_um_pedido_so"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): diff ilegível deixa o item de fora",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| { echo \"aviso: não li o diff",
+      "para": "|| true || { echo \"aviso: não li o diff",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_diff_ilegivel_fica_de_fora_e_o_laco_segue"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): grupo de no máximo 3",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"${#grupo[@]}\" -ge 3 ]",
+      "para": "if [ \"${#grupo[@]}\" -ge 4 ]",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_grupos_de_ate_3_em_ordem_e_o_ultimo_sozinho_sem_lote"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "INTEGRADOR-EM-LACO (E173.1): arquivo em comum abre grupo novo",
+      "arquivo": "bin/forge-fechar",
+      "de": "($0 in d) {c = 1}",
+      "para": "($0 in d) {c = 0}",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_arquivo_em_comum_abre_grupo_novo"
+      ]
+    }
+  ]
+}

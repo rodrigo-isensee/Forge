@@ -1,0 +1,68 @@
+{
+  "pedido": "v0480-hook-decisao-aviso",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "decisao: só o Stop avisa",
+      "arquivo": "hooks/decisao.py",
+      "de": "    if hook.campo(\"hook_event_name\") != \"Stop\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hook_decisao.HookDecisao.test_outro_evento_cala"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "decisao: fora de projeto do Forge e do clone do Forge, silêncio",
+      "arquivo": "hooks/decisao.py",
+      "de": "    if hook.projeto(hook.cwd(), clone_do_forge=True) is None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hook_decisao.HookDecisao.test_fora_de_projeto_do_forge_cala"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "decisao: só a sessão do Jarvis",
+      "arquivo": "hooks/decisao.py",
+      "de": "    if not sessao_do_jarvis(hook):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hook_decisao.HookDecisao.test_sessao_que_nao_e_do_jarvis_cala",
+        "tests.test_hook_decisao.HookDecisao.test_sessao_sem_agent_type_cala"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "decisao: avisa só a mensagem que fere a regra do forge-check transcricao decisoes",
+      "arquivo": "hooks/decisao.py",
+      "de": "    if texto and viola(texto):",
+      "para": "    if texto:",
+      "testes": [
+        "tests.test_hook_decisao.HookDecisao.test_um_grupo_com_recomendo_cala",
+        "tests.test_hook_decisao.HookDecisao.test_lista_de_pendencias_sem_opcoes_cala"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "decisao: violação é contagem maior que zero do medir_decisoes",
+      "arquivo": "hooks/decisao.py",
+      "de": "[\"stop\"][2] > 0",
+      "para": "[\"stop\"][2] >= 0",
+      "testes": [
+        "tests.test_hook_decisao.HookDecisao.test_um_grupo_com_recomendo_cala"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "decisao: rodado como script (o hooks.json), o executar decide",
+      "arquivo": "hooks/decisao.py",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hook_decisao.HookDecisao.test_dois_grupos_de_opcoes_avisam_e_nao_bloqueiam"
+      ]
+    }
+  ]
+}

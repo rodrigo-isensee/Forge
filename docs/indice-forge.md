@@ -46,6 +46,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `forge_medidas.py` | `forge-check medida` (D12, E3a e E3b) e `forge-check escape registrar\|resumo` (M14b) (FILA-31 F6, 0.45.7 E5.5): a medida de um |
 | `forge_meta.py` | arma o objetivo que o hook de Stop (hooks/meta.py) confere (S4, 0.44.2). Só biblioteca padrão. |
 | `forge_onde.py` | `forge-check onde <alvo>` (AE1.1, v0478 E58.1): onde está uma versão, um PR, um commit, uma branch ou um cartão, lido |
+| `forge_pronto.py` | `forge-check pronto`, o portão de entrega do autor (D2-PORTAO-ENTREGA-AUTOR, v0481 E11.1; estudo determinístico de 24/11). |
 | `forge_provas.py` | o arquivo de provas da branch, gerado do brief pela lista do script que o CI roda (M15 E5a1; FILA-31 F6, 0.45.5). |
 | `forge_quarentena.py` | a quarentena de teste instável (BP1 Q1, pedido v0478). Só biblioteca padrão; só leitura. |
 | `forge_run.py` | execução capturada como prova (S5, 0.44.2). Só biblioteca padrão. |
@@ -67,6 +68,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `ambiente.py` | ambiente (E2.54, ordem do dono) - ao abrir a sessão no container, confere o ambiente e põe as linhas `falta:` no contexto. |
 | `conformidade.json` | — |
 | `conformidade.py` | conformidade dos agentes por papel (ADR 0009, seções 2, 3, 6 e 7; R-CONFORMIDADE). |
+| `decisao.py` | decisao (ANTI-ALUC-F4-HOOK-DECISAO, fatia L28a; v0478 E172.6) - avisa a mensagem ao dono com mais de uma decisão. |
 | `doutor.py` | doutor (primeiro uso, F3) - roda as conferências rápidas do `forge doutor` ao abrir a sessão e uma vez por dia. |
 | `hooks.json` | — |
 | `meta.py` | objetivo armado no Stop (S4) e medida da mensagem ao dono (S6), 0.44.2. Só biblioteca padrão. |
