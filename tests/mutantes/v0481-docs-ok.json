@@ -1,0 +1,56 @@
+{
+  "pedido": "v0481-docs-ok",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "PQ-DOCS-SILENCIOSO: o docs sem violação diz docs: ok",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"docs\" and not violacoes:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_docs_validos_e_ignorados"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "PQ-DOCS-SILENCIOSO: o docs com violação não diz ok",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"docs\" and not violacoes:",
+      "para": "    if a.cmd == \"docs\":",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_docs_invalidos"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "COPIA-REVISAO: o brief de parecer cria o clone com --revisao",
+      "arquivo": "bin/forge-check",
+      "de": "        if copia and valor_de_shell_seguro(\"raiz\", copia) and etapa in ETAPAS_DE_PARECER:",
+      "para": "        if copia and valor_de_shell_seguro(\"raiz\", copia) and False:",
+      "testes": [
+        "tests.test_forge_copia.BriefSugereACopia.test_brief_de_parecer_cria_o_clone_de_revisao"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "COPIA-REVISAO: o brief de código segue com a cópia comum",
+      "arquivo": "bin/forge-check",
+      "de": "        elif copia and valor_de_shell_seguro(\"raiz\", copia):",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_forge_copia.BriefSugereACopia.test_brief_gerado_traz_a_copia_sugerida"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "COPIA-REVISAO: o brief de parecer recusa a cópia fora da forma de shell",
+      "arquivo": "bin/forge-check",
+      "de": "        if copia and valor_de_shell_seguro(\"raiz\", copia) and etapa in ETAPAS_DE_PARECER:",
+      "para": "        if copia and etapa in ETAPAS_DE_PARECER:",
+      "testes": [
+        "tests.test_forge_copia.BriefSugereACopia.test_brief_de_parecer_sem_a_linha_com_caminho_fora_da_forma"
+      ]
+    }
+  ]
+}
