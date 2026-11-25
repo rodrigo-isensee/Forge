@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-d6-resto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M31",
+      "guarda": "A1 do #877: config local da cópia com chave fora da lista de permitidas: o hook não age (nada do agente roda fora do sandbox)",
+      "arquivo": "hooks/salvar.py",
+      "de": "if rc or not all(PERMITIDAS.fullmatch(chave) for chave, _, _ in pares):",
+      "para": "if rc:",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_config_local_fora_da_lista_nao_age"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "A1 do #877: a origin da cópia tem de ser a da cópia principal",
+      "arquivo": "hooks/salvar.py",
+      "de": "return rc == 0 and [v for chave, _, v in pares if chave == \"remote.origin.url\"] == [url.decode(\"utf-8\", \"replace\")[:-1]]",
+      "para": "return rc == 0",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_origin_diferente_da_principal_nao_age"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "A1 do #877: a config confere antes de qualquer outro git na cópia",
+      "arquivo": "hooks/salvar.py",
+      "de": " or not config_permitida(copias[0], hook.copia_principal()):",
+      "para": ":",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_config_so_com_gpgsign_nao_age"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "A1 do #877: config global e de sistema de fora do HOME do dono (XDG_CONFIG_HOME) não vale",
+      "arquivo": "hooks/salvar.py",
+      "de": "fora = (\"XDG_CONFIG_HOME\", \"BASH_ENV\", \"ENV\")",
+      "para": "fora = (\"BASH_ENV\", \"ENV\")",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_config_global_de_fora_nao_roda"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "A2 do #877: arquivo não rastreado não vai ao commit nem ao remoto",
+      "arquivo": "hooks/salvar.py",
+      "de": "\"--untracked-files=no\"",
+      "para": "\"--untracked-files=all\"",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_nao_rastreado_fica_de_fora"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "A2 do #877: achado da varredura de segredo deixa o commit na cópia, sem envio",
+      "arquivo": "hooks/salvar.py",
+      "de": "    if rc:\n        return f\"{branch} {sha}",
+      "para": "    if False:\n        return f\"{branch} {sha}",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_segredo_no_escopo_fica_na_copia"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "A2 do #877: com a branch no remoto, a varredura cobre todo o delta enviado",
+      "arquivo": "hooks/salvar.py",
+      "de": "if rc == 0 else \"HEAD^\"",
+      "para": "if rc == 99 else \"HEAD^\"",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_varredura_vai_da_origin_da_branch"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "A3 do #877: um prazo só para todos os comandos, descontado a cada chamada",
+      "arquivo": "hooks/salvar.py",
+      "de": "timeout=FIM - time.monotonic(),",
+      "para": "timeout=10,",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_prazo_total_dividido_entre_os_comandos"
+      ]
+    }
+  ]
+}

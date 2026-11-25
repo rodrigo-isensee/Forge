@@ -7,33 +7,62 @@ a cópia citada (em `~/.forge-contrib/wt/` no Forge, `<projeto>/.forge/wt/` no p
 mudança fora de commit dentro do escopo vira um commit WIP só dela (`--only`), enviado por `git push origin <branch>`, sem
 `--force` e nunca em branch de integração. Não age com conflito ou operação do git em andamento, nem com cópia ou brief
 ambíguo. O git roda fora do sandbox: sem os hooks do git da cópia (o agente escreve o código deles) nem `core.fsmonitor`,
-sem as GIT_* herdadas e sem pedir senha; a guarda da branch é a deste arquivo. Resultado em `.forge/run/salvar.log`; nunca
-bloqueia nem escreve no stdout; erro interno: silêncio e uma linha no erros.log (o `executar`). Só biblioteca padrão."""
+sem as GIT_* herdadas e sem pedir senha; a config local da cópia (que o agente grava) só com as chaves de PERMITIDAS e a
+origin da cópia principal. Arquivo não rastreado fica de fora; antes do envio, a varredura de segredo do pre-push, pelo
+script do plugin (fora da cópia). Todos os comandos dividem um prazo só, abaixo dos 60 s do hook. A guarda da branch é a
+deste arquivo. Resultado em `.forge/run/salvar.log`; nunca bloqueia nem escreve no stdout; erro interno: silêncio e uma
+linha no erros.log (o `executar`). Só biblioteca padrão."""
 import json
 import os
 import re
 import subprocess
 import time
+from pathlib import Path
 
 from _comum import INTEGRACAO, contrib, e_clone_do_forge, executar, expandir_home, forge_check
 from agentes import caminhos_de_brief, de_escrita, ler_brief
 
 LEITURA_DO_PROMPT = 1024 * 1024  # bytes do início do transcrito do agente
-PRAZO_GIT_S = 10
-PRAZO_DO_ENVIO_S = 40  # abaixo dos 60 s do hook no hooks.json
+PRAZO_TOTAL_S = 50  # todos os comandos juntos, abaixo dos 60 s do hook no hooks.json
+FIM = time.monotonic() + PRAZO_TOTAL_S
 GIT_SEGURO = ("-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "--literal-pathspecs")
 BRANCH_VALIDA = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,200}")
 ESCOPO = re.compile(r"^- arquivos:[ \t]*(.+)$", re.M)
 COPIA_CITADA = re.compile(r"(?:~|/)[^\s`'\"(),;]*/wt/[A-Za-z0-9._-]+")
 EM_ANDAMENTO = ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply")
+PERMITIDAS = re.compile(r"core\.(?:repositoryformatversion|filemode|bare|logallrefupdates|ignorecase|precomposeunicode|symlinks)"
+                        r"|extensions\.objectformat|remote\.origin\.(?:url|fetch)|branch\..+\.(?:remote|merge)|user\.(?:name|email)")
+VARREDURA = Path(__file__).resolve().parent.parent / "scripts" / "verificar-contribuicao.sh"  # a do plugin, nunca a da cópia
 
 
-def git_da_copia(copia, *args, prazo=PRAZO_GIT_S):
-    """(código, stdout em bytes) do git na cópia, com GIT_SEGURO, sem as GIT_* herdadas e sem pedir senha."""
-    env = {**{k: v for k, v in os.environ.items() if not k.startswith("GIT_")}, "GIT_TERMINAL_PROMPT": "0"}
-    r = subprocess.run(["git", *GIT_SEGURO, "-C", str(copia), *args], capture_output=True, env=env, timeout=prazo,
+def ambiente():
+    """Sem as GIT_* herdadas (GIT_CONFIG_GLOBAL, GIT_CONFIG_COUNT...) nem XDG_CONFIG_HOME: a config global é a do HOME do
+    dono e a de sistema, a da máquina; sem BASH_ENV/ENV para o bash da varredura; sem pedir senha."""
+    fora = ("XDG_CONFIG_HOME", "BASH_ENV", "ENV")
+    return {**{k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k not in fora}, "GIT_TERMINAL_PROMPT": "0"}
+
+
+def rodar(comando, cwd=None):
+    """(código, stdout em bytes); o prazo é o que resta de PRAZO_TOTAL_S (esgotado: TimeoutExpired, ao erros.log)."""
+    r = subprocess.run(comando, cwd=cwd, capture_output=True, env=ambiente(), timeout=FIM - time.monotonic(),
                        stdin=subprocess.DEVNULL)
     return r.returncode, r.stdout
+
+
+def git_da_copia(copia, *args):
+    """O git na cópia, com GIT_SEGURO, pelo `rodar`."""
+    return rodar(["git", *GIT_SEGURO, "-C", str(copia), *args])
+
+
+def config_permitida(copia, principal):
+    """A config local da cópia (lida sem includes; ler não executa nada) só com chaves de PERMITIDAS e a origin igual à da
+    cópia principal. Outra chave (filtro, sshCommand, gpg.program, receivepack, include...) rodaria código do agente aqui."""
+    rc, saida = git_da_copia(copia, "config", "--local", "--no-includes", "--list", "-z")
+    pares = [item.decode("utf-8", "replace").partition("\n") for item in saida.split(b"\0") if item]
+    if rc or not all(PERMITIDAS.fullmatch(chave) for chave, _, _ in pares):
+        return False
+    rc, url = git_da_copia(principal, "config", "--local", "--no-includes", "--get", "remote.origin.url")
+    return rc == 0 and [v for chave, _, v in pares if chave == "remote.origin.url"] == [url.decode("utf-8", "replace")[:-1]]
 
 
 def prompt_do_agente(transcrito):
@@ -84,7 +113,7 @@ def plano(hook, raiz, texto):
     base = os.path.realpath(contrib() / "wt" if e_clone_do_forge(raiz) else hook.copia_principal() / ".forge" / "wt")
     copias = {os.path.realpath(expandir_home(c)) for c in COPIA_CITADA.findall(texto)}
     copias = [c for c in copias if os.path.dirname(c) == base and os.path.isdir(c)]
-    if len(copias) != 1:
+    if len(copias) != 1 or not config_permitida(copias[0], hook.copia_principal()):
         return None
     rc, atual = git_da_copia(copias[0], "symbolic-ref", "-q", "--short", "HEAD")
     return (copias[0], branch.group(1), itens) if rc == 0 and atual.decode().strip() == branch.group(1) else None
@@ -95,7 +124,7 @@ def arquivos_a_salvar(copia, escopo):
     rc, pasta = git_da_copia(copia, "rev-parse", "--absolute-git-dir")
     if rc or any(os.path.lexists(os.path.join(pasta.decode().strip(), n)) for n in EM_ANDAMENTO):
         return []
-    rc, saida = git_da_copia(copia, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames")
+    rc, saida = git_da_copia(copia, "status", "--porcelain=v1", "-z", "--untracked-files=no", "--no-renames")
     if rc:
         raise RuntimeError(f"git status saiu com {rc}")
     entradas = [(e[:2].decode(), e[3:].decode("utf-8", "surrogateescape")) for e in saida.split(b"\0") if e]
@@ -112,7 +141,12 @@ def salvar(copia, branch, arquivos):
         if rc:
             raise RuntimeError(f"git {args[0]} saiu com {rc}")
     sha = git_da_copia(copia, "rev-parse", "--short", "HEAD")[1].decode().strip()
-    rc, _ = git_da_copia(copia, "push", "origin", f"refs/heads/{branch}:refs/heads/{branch}", prazo=PRAZO_DO_ENVIO_S)
+    rc, _ = git_da_copia(copia, "rev-parse", "--verify", "-q", f"refs/remotes/origin/{branch}^{{commit}}")
+    base = f"refs/remotes/origin/{branch}" if rc == 0 else "HEAD^"  # branch nova: só o commit WIP
+    rc, _ = rodar(["bash", "--noprofile", "--norc", str(VARREDURA), base, "HEAD"], cwd=copia)
+    if rc:
+        return f"{branch} {sha} {len(arquivos)} arquivo(s) não enviado: varredura de segredo (rc={rc})"
+    rc, _ = git_da_copia(copia, "push", "origin", f"refs/heads/{branch}:refs/heads/{branch}")
     return f"{branch} {sha} {len(arquivos)} arquivo(s) " + ("enviado" if rc == 0 else f"envio falhou (rc={rc})")
 
 

@@ -36,8 +36,8 @@
       "id": "M20",
       "guarda": "D6 (a): mais de uma cópia citada é ambígua: nada grava",
       "arquivo": "hooks/salvar.py",
-      "de": "    if len(copias) != 1:\n",
-      "para": "    if not copias:\n",
+      "de": "    if len(copias) != 1 or",
+      "para": "    if not copias or",
       "testes": [
         "tests.test_hooks.SalvarAoParar.test_duas_copias_citadas_nao_grava"
       ]

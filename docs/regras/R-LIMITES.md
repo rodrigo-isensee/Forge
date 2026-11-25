@@ -30,7 +30,7 @@ verificada_por: `permissions.deny` do modelo de projeto (`templates/projeto/.cla
 Medida: 9 pontos de recusa `barrar("R-VERIFY"` em `hooks/conformidade.py` (vale por permissão negada, sem custo de processo)
 
 - Nunca `--no-verify` nem `--force`: hooks e checagens não se contornam. O `--no-verify` é proibido em qualquer comando git; `--force` (e `-f`, `--force-with-lease`) em qualquer push, em qualquer branch.
-- Não desative nem troque o caminho dos hooks (`core.hooksPath`).
+- Não desative nem troque o caminho dos hooks (`core.hooksPath`). Exceção, à espera do dono: o hook `salvar` (emenda D6 da ADR 0003), que não roda os hooks do git da cópia e repõe a varredura de segredo.
 - Hook ou teste falhou: corrija a causa e rode de novo.
 - Confirme com o usuário antes de apagar ou reescrever uma branch já enviada. Exceção: a limpeza da branch de trabalho depois do merge (`R-FLUXO`), nunca de `main`, `master`, `develop`, `homolog` nem da integração.
 
