@@ -63,6 +63,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RAIZ, ambiente_limpo, git, minimo  # noqa: E402
+from ambiente_git import remoto_sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 from modelo_git import copiar_modelo  # noqa: E402
 from prova_de_carga import (APROVEITAMENTO_MINIMO, FOLGA_DA_CPU_NO_PRAZO_S, PARCELA_DE_DISPUTA,  # noqa: E402
@@ -4196,6 +4197,7 @@ class SalvarAoParar(unittest.TestCase):
         self.tmp = self._pasta_temporaria()
         self.remoto, self.raiz = self.tmp / "remoto.git", self.tmp / "proj"
         git("init", "-q", "--bare", "-b", "develop", str(self.remoto), cwd=self.tmp)
+        remoto_sem_manutencao(self.remoto)
         repositorio_vazio(self.raiz, "develop")
         for rel, texto in ((".forge/versao", "0.5.0\n"), (".gitignore", ".forge/run/\n.forge/wt/\ndocs/briefs/\n"), ("README.md", "r\n"),
                            ("hooks/x.py", "x = 0\n"), ("docs/a.md", "a0\n"), ("docs/a.md2", "b0\n")):  # a.md2 rastreado: M8/M9
@@ -4487,6 +4489,7 @@ class SalvarAoParar(unittest.TestCase):
         self.gravar({"hooks/x.py": "x = 1\n", ".gitattributes": "* filter=x\n"})
         outro = self.tmp / "outro.git"
         git("init", "-q", "--bare", str(outro), cwd=self.tmp)
+        remoto_sem_manutencao(outro)
         for chave, valor in self.CONFIG_DO_AGENTE:
             with self.subTest(chave=chave):
                 marca = self.tmp / f"marca-{chave}"
@@ -4508,6 +4511,7 @@ class SalvarAoParar(unittest.TestCase):
     def test_origin_diferente_da_principal_nao_age(self):
         outro = self.tmp / "outro.git"
         git("clone", "-q", "--bare", str(self.remoto), str(outro), cwd=self.tmp)
+        remoto_sem_manutencao(outro)
         git("remote", "set-url", "origin", str(outro), cwd=self.copia)
         self.brief()
         self.gravar({"hooks/x.py": "x = 1\n"})
