@@ -3,38 +3,34 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-prazo-forge
-commit: 21a96c1ab06722ed0e7b9cc7c3276912ea841b49
-parecer: aprovado
+commit: 1d6692f507ac6bf65faf1b5be6cff0de3403c9dc
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-25
 ---
 # Review: v0481
 
-Review por delta (E7.28) de a4d12870 a 21a96c1a. Li o delta pelo `forge-check parecer delta docs/reviews/v0481-prazo-forge.md` (`revalida: sim`, porque o parecer anterior reprovou; no domínio: `hooks/_comum.py`, `hooks/conformidade.py`, a fixture nova, as 6 specs, `tests/test_hooks.py`, `tests/test_hooks_volta_propriedades.py`, o índice das fixtures e o fragmento do changelog).
+Review por delta (E7.37) de 21a96c1a a 1d6692f5. Li o delta pelo `forge-check parecer delta docs/reviews/v0481-prazo-forge.md`: `revalida: sim` (o `changelog.d/v0481-prazo-forge.md`, do domínio do parecer, mudou). O diff de código é `hooks/_comum.py` (`PRAZO_DO_MERGE_S` de 8.0 para 7.5 e o comentário), as 4 fixtures de merge, a spec P1, o M13, `tests/prova_de_carga.py` e `tests/test_hooks.py`.
 
 ## Achados
-- A1 (recomendado) hooks/_comum.py:2898 · Continua o A3 do parecer anterior. Com FIFO no .git, na sessão do Forge, `ls` recusa (S4) com o texto "a chamada com ação crítica". Quando `hook.marcado is None`, cite o .git que não respondeu.
-- A2 (recomendado) hooks/_comum.py:2947 · No erro interno, o `falhar_fechado` depois do registro lê a sessão sem vigia; com FIFO no .git pode ir ao corte de 10 s, que libera. Já era assim antes do diff e exige erro interno e FIFO juntos. Vira cartão.
+- A1 (bloqueante) hooks/_comum.py:2827 · O A5 não fecha: com 7,5 s, o hook parecer com `gh pr merge` e FIFO no commondir, na sessão do Forge e com 48 laços de CPU, ainda é morto pelo corte de 10 s (libera) em 3 de 7 rodadas (S1). A parede fora do relógio do hook passa de 1,5 s sob carga (S2).
+- A2 (recomendado) tests/test_hooks.py:1230 · A docstring de `test_prazo_do_merge` ainda diz "o merge com 4 s de git libera", e a da linha 1373 diz "a fronteira dos 8 s". A fixture `v0455-merge-com-git-muito-lento-recusa-em-8s.json` também guarda o 8 s no nome.
 
 ## Sondas
-- S1 · hook real, FIFO no commondir e no gitdir da worktree, sessões Forge e projeto, raiz na worktree e na principal, push na main, `--force` e `--no-verify` (24 casos) · espera: 2 · obtido: 2 nos 24 (R-CONFORMIDADE de 3,7 a 4,3 s, ou R-MAIN e R-VERIFY direto)
-- S2 · sessão de projeto, `python3 -c "import os; os.mkfifo('.git/x')"`, e também com `os.mknod` e com o `mkfifo` do perl · espera: 2 · obtido: 2 R-CONFORMIDADE (antes do diff, o mkfifo dava 0)
-- S3 · sessão de projeto, `python3 -c "import os; os.mkfifo('fila')"` e `python3 -c "print('mkfifo')"` · espera: 0 · obtido: 0
-- S4 · `ls` com FIFO no .git · espera: 0 no projeto · obtido: 0 no projeto; 2 na sessão do Forge (já era assim, A1)
-- S5 · carga: `prazo_vencido`, sessão do Forge, linha sem marcador (sessão e registro, cada um com o seu vigia), 50 voltas, loadavg 9,9 em 12 núcleos · espera: bem abaixo de 0,5 s, e libera · obtido: mediana de 0,39 ms, pior caso de 0,66 ms, liberou nas 50
-- S6 · `gh pr merge 12 --squash` e `gh pr ready 12` com FIFO, nas duas sessões (24 casos), contra o corte de 10 s · espera: decisão antes de 10 s · obtido: pior parede de 5,3 s, sem nenhum corte
+- S1 · FIFO no commondir de worktree, Forge, parecer.py real, `gh pr merge melhoria/x --squash`, `timeout 10`, 48 laços de CPU, 7 rodadas · espera: 2 antes de 10 s nas 7 · obtido: 3 de 7 com 124 (10,09 a 10,11 s; em 2 a mensagem já tinha saído); 4 com 2, em 9,0 a 9,2 s
+- S2 · a mesma sonda, 7,5 s contra 8 s (21a96c1a) em seguida, 6 rodadas cada, loadavg de 32 a 140 · espera: 7,5 s sem corte · obtido: 21a96c1a com 5 de 6 cortadas; 1d6692f5 com 4 de 6 cortadas; as que decidiram levaram de 9,5 a 9,8 s, contra 8,5 s nominais
+- S3 · a mesma sonda com FIFO em `.git/HEAD` de um clone, 1d6692f5, 8 rodadas, loadavg até 109 · espera: código 2 antes de 10 s · obtido: 2 nas 8, pelo erro interno (`falhar_fechado`), em 6,9 a 9,5 s; é o caminho do A2 do parecer anterior, fora do diff, a 0,5 s do corte
 
 ## Parecer
-Aprovado: os dois bloqueantes do parecer anterior foram resolvidos.
+Reprovado: o diff faz o que a opção (a) do A5 da segurança pedia, mas a medida não fecha o A5 (A1).
 
-- **A1 anterior (specs).** As 7 specs voltaram a casar com a fonte, e a `lote-unico-032-l31` também foi alinhada. `tests.test_forge_mutante -k test_toda_spec_do_forge_confere` dá OK. `bin/forge-mutante --conferir --todas` dá 26 linhas, o mesmo número da base. Nenhuma delas é de spec tocada pelo diff: as 2 que casam pelo nome são `lote-unico-032-l32-2` e `-l49`, que já estavam lá.
-- **A2 anterior (mkfifo por interpretador).** `mkfifo|mknod` entrou em `ESCRITA_NO_TEXTO`, com a fixture `fifo-python-mkfifo-git-projeto-bloqueia` e o M12. Na sessão do Forge, o texto de um interpretador escrevendo no `.git` segue livre, e o `os.remove('.git/x')` também. É a política de antes, e o efeito do FIFO lá agora é recusar, não liberar.
-- **Ordem nova no `prazo_vencido`.** A sessão se decide primeiro, sob o seu vigia, e o registro vem depois, em `registrar_sob_vigia`, com outro vigia. O registro não muda a decisão: o `recusa` já foi calculado antes, e o `except` do registro só descarta a linha. Nos dois piores casos, o tempo total fica em 8 + 0,5 + 0,5 s, abaixo dos 10 s, e na prática ficou em 5,3 s (S6). O erro interno usa o mesmo caminho (M11). Do restante desse caminho trata o A2.
-- **Testes novos.** `test_registro_que_nao_termina_nao_muda_a_decisao` usa um vigia real com sono de 5 s e confere lento e falha, com e sem marcador. `test_erro_interno_com_registro_lento_nao_espera_o_corte` confere a parede abaixo de 4 s. As sequências de alarmes armados nos testes do relógio falso passaram a esperar dois pares (sessão e registro), o que bate com o código.
+- **O que está certo.** O 7,5 s entrou em todos os lugares onde o 8 s aparecia: as specs, as fixtures (3,5 s de git deixam os mesmos 4 s de resto), a tabela de `prova_de_carga.py` e o changelog. O teste `test_s1_...` agora deriva os passos de `PRAZO_DO_MERGE_S`, sem número fixo. Nada que barra hoje deixa de barrar: o prazo menor só adianta a recusa. O preço é recusar antes um merge legítimo em máquina carregada, o que falha fechado.
+- **Por que o A5 não fecha.** O `test_recusa_do_prazo_longo_presa_deixa_folga` confere, no relógio falso, que 7,5 + 0,5 + 0,5 fica 1,5 s abaixo do `timeout`. Mas os 1,5 s são uma constante (`FOLGA_DE_PAREDE_S`) baseada em uma medida (1,1 s), e a parede que o relógio do hook não vê cresce com a carga: partida do Python antes de `inicio`, saída depois do `bloquear` (S1 mostra rodadas cortadas com a mensagem já escrita). Sob a mesma carga da S3 da segurança (48 laços), o corte ainda libera (S1). Tirar 0,5 s só desloca o limiar, como mostra a S2.
+- **Correção sugerida (decisão do autor com a segurança).** Tirar a corrida com o relógio em vez de afinar o número: (1) não esperar o FIFO, conferindo com `os.stat` e `S_ISFIFO` (ou abrindo com `O_NONBLOCK`) o `.git`, o `gitdir` e o `commondir` antes da leitura da sessão e antes do `git` do registro, e recusando direto, sem precisar do vigia; ou (2) a opção (b) da segurança com a origem na partida do processo (`/proc/self/stat`, campo 22, ou `time.monotonic()` lido antes do `import` pesado): um teto total de cerca de 8 s, com o vigia da sessão e o do registro armados com o tempo que sobra. Nos dois casos, o teste de parede deve ser real (subprocesso sob carga, como a S1) ou sair do relógio falso com a partida contada.
 
 Verificadores que rodei no Revisar-sha:
-- `PrazoVencidoNaSessaoDoForge`, `SondaS1ComRelogioFalso` e `VigiaAgentesPesado`: 11 testes, OK.
-- `bin/forge-mutante --processos 1` em `v0481-prazo-forge.json` (M1 a M8) e em `v0481-prazo-forge-2.json` (M9 a M12): todos morreram. O M4 e o M9 morreram por erro do teste declarado sob o mutante, que passa sem ele.
-- `--cobertura --base a4d12870`: as specs editadas foram reconhecidas, e a da base ficou isenta fora do diff. Nenhuma guarda ficou descoberta.
-- CI do #888 no 21a96c1a ainda em andamento quando escrevi. A suíte 4/5 passou nas duas versões do Python, e era ela que o A1 anterior deixava vermelha. A `catraca` espera o rótulo do dono (mudança em hooks), e a `bateria (pareceres)` espera os pareceres.
-- Tamanho H1: 59 linhas de código adicionadas no item todo (base 5fb8e328), dentro do teto.
+- `SondaS1ComRelogioFalso`: 3 testes OK, com o novo.
+- `bin/forge-mutante --processos 1 --ids M13` em `v0481-prazo-forge-2.json`: o M13 morreu.
+- `bin/forge-mutante --ids P1` em `v0455-prazo.json`: `controle vermelho`. O `test_prazo_do_merge` sem mutante, com loadavg de 30 a 45, recusou o merge com git de 3,5 s ("não decidiu em 7.5 s"), e a prova de carga não o aceitou. É a mesma classe das 2 falhas sob carga que o autor relata. O CI decide.
+- CI: o 1d6692f5 não tem run no #888 (`gh run list`: o último CI é do f17ee6f4, com as 10 partes da suíte verdes e a `bateria (pareceres)` vermelha por faltar parecer). Não gravo `- ci:`. As partes de `test_hooks` sob carga ficam para o CI deste head.
+- Tamanho H1: o delta tem 2 linhas de código em `hooks/`, e o item segue dentro do teto.
