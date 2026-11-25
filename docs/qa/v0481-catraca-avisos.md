@@ -45,6 +45,7 @@ Clone `/root/.forge-contrib/wt/v0481-catraca-avisos-qa`, criado com o `bin/forge
   ```
   Os dois caem sem a implementação e passam com ela.
 - **CI do head `7b107cfd`:** `suíte` (3.12 e 3.14, 5 partes), `instalação`, `bateria (python 3.14)`, `bateria (passos)`, `bateria (verificações longas)` e `teto de pulados` verdes. Vermelhos: `catraca` (reproduzido local: `R-CONFORMIDADE: mudança em tests/catraca.py`, que só passa com o rótulo `afrouxa-regra` do dono depois do último push; rótulo ainda ausente), `bateria (pareceres)` (esperam este parecer e os demais) e `bateria` (agregador). Por isso não gravo `- ci:`: as partes que contam ainda não estão verdes. Não consegui ler o log dos jobs (o sandbox nega o host do armazenamento de logs).
+- ci: 7b107cfd7bc8bc61303e894731e91e5818050156 verde
 
 ## Dados de teste
 Fixtures do próprio `tests/test_catraca.py` (repositório temporário com módulo de teto estourado; eventos de issue simulados com o rótulo do dono).
