@@ -972,7 +972,7 @@ class ForgeUpgrade(unittest.TestCase):
             self.assertEqual((self.tmp / rel).read_bytes().decode("utf-8"), texto, rel)
         docs = subprocess.run([str(RAIZ / "bin/forge-check"), "--raiz", str(self.tmp), "docs"],
                               env=ambiente_limpo(), capture_output=True, text=True)
-        self.assertEqual((docs.returncode, docs.stdout), (0, ""))
+        self.assertEqual((docs.returncode, docs.stdout), (0, "docs: ok\n"))
         self.assertEqual(git("log", "--format=%s", "develop..HEAD", cwd=self.tmp).stdout.strip(),
                          "chore(forge): migração 0.5.0")
         antes = git("rev-parse", "HEAD", cwd=self.tmp).stdout
@@ -3261,7 +3261,7 @@ class ForgeCheck(unittest.TestCase):
         self.escrever("docs/reviews/_modelo.md", "sem frontmatter\n")
         self.escrever("docs/architecture/features/f.md", "---\ntipo: plano-tecnico\ncontrato: 1\npedido: p1\n"
                       "estado: vigente\nux: docs/ux/f.md\nadrs: [0001, 0002]\nagentes: [node-backend]\n---\n")
-        self.assertEqual(self.check("docs"), (0, ""))
+        self.assertEqual(self.check("docs"), (0, "docs: ok\n"))
 
     def test_docs_invalidos(self):
         casos = {
@@ -3283,16 +3283,17 @@ class ForgeCheck(unittest.TestCase):
                 self.assertEqual(codigo, 1)
                 self.assertIn(trecho, saida)
                 self.assertRegex(saida, r"^\S+\.md: \S+: .+ \((R-[A-Z]+|ADR-0004)\)$".replace("^", "(?m)^", 1))
+                self.assertNotIn("docs: ok", saida)  # PQ-DOCS-SILENCIOSO: o ok só sai sem violação
                 (self.tmp / rel).unlink()
 
     def test_qa_medio_com_aceite_vale(self):
         self.pareceres(self.head(), m=2, extra="aceite_usuario: sim\n")
-        self.assertEqual(self.check("docs"), (0, ""))
+        self.assertEqual(self.check("docs"), (0, "docs: ok\n"))
 
     def test_qa_medio_sem_aceite_vale(self):
         """BUR-B4 (R-QA): médio ou baixo aberto vira cartão; o parecer aprovado vale sem `aceite_usuario`."""
         self.pareceres(self.head(), m=2)
-        self.assertEqual(self.check("docs"), (0, ""))
+        self.assertEqual(self.check("docs"), (0, "docs: ok\n"))
 
     def kanban(self, corpo):
         cab = "| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n"
@@ -8041,7 +8042,7 @@ class DocsPareceresPedidoECaminho(unittest.TestCase):
         arq.write_text(self.parecer(), encoding="utf-8")
         r = subprocess.run([sys.executable, "-I", str(RAIZ / "bin/forge-check"), "--raiz", str(self.raiz), "docs", str(arq)],
                            capture_output=True, text=True, env=env, timeout=60)
-        self.assertEqual((r.returncode, r.stdout), (0, ""), r.stderr)
+        self.assertEqual((r.returncode, r.stdout), (0, "docs: ok\n"), r.stderr)
 
     def test_modelo_do_review_diz_o_id_do_pedido_e_o_parecer_sem_achados(self):
         modelo = (RAIZ / "templates/projeto/docs/reviews/_modelo.md").read_text(encoding="utf-8")

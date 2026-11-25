@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "MP1 (diretriz 35): só arquivo regular é lido (segurança A1)",
       "arquivo": "hooks/_comum.py",
-      "de": "if not stat.S_ISREG(os.fstat(fd).st_mode):",
-      "para": "if False:",
+      "de": "        if not stat.S_ISREG(os.fstat(fd).st_mode):\n            return None",
+      "para": "        if False:\n            return None",
       "testes": [
         "tests.test_meta.VariosProjetos.test_ativos_em_link_fifo_grande_ou_com_nomes_demais_nao_mede",
         "tests.test_meta.VariosProjetos.test_ativos_em_fifo_com_escritor_e_json_valido_nao_vale"

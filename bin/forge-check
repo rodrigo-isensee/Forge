@@ -6,6 +6,9 @@ Fora do `--previo` e do `--pr`, o `pr` grava o resultado do head em `<diretório
 
 H1 (v0474 E2.13): o `pr` avisa no stderr do item acima de 150 linhas de código (testes e documentação não contam) e, com o PR da branch aberto, reprova o corpo sem `teto: excedido, <n> linhas, <motivo>`; o `brief gerar` avisa do pedido com mais de 50 etapas e do brief a 80% do teto de caracteres (bin/forge_tamanho.py); nessa margem arquiva antes as etapas fechadas do pedido em docs/pedidos/arquivo/<id>.md, com os ids em `## Etapas arquivadas` (PEDIDO-ARQUIVA-SOZINHO).
 
+D2-PORTAO-ENTREGA-AUTOR (v0481 E11.1): `pronto [--base REF] [--corpo ARQUIVO]` é o portão de entrega do autor, rodado antes das
+revisões: registros, neutralidade com os dois detectores, tetos de texto, testes afetados, teto H1 e corpo do PR (bin/forge_pronto.py).
+
 E3.45 (v0474): com o PR da branch aberto e fora do rascunho no head, o `pr` só aprova com cada check do head concluído e verde e cada
 exigido do destino (ruleset e proteção; no Forge, também os pares do `forge-fechar`) em pass; pendente ou vermelho reprova, com a lista.
 
@@ -1218,6 +1221,30 @@ def portoes_da_classe(classe, infra):
     return ["autor", list(paralelos), "CI"]
 
 
+def cmd_pronto(raiz, base, corpo_arquivo=None):
+    """D2-PORTAO-ENTREGA-AUTOR (v0481 E11.1): o portão de entrega do autor (bin/forge_pronto.py) na branch do HEAD contra a base comum
+    com `base`. O corpo vem do `--corpo` (o arquivo do --body-file) ou do PR aberto da branch. Saída 0 ou 1; 2 sem base comum ou diff,
+    ou não verificável no portão (passo que sai 2, gh em erro sem --corpo)."""
+    cod, ancora = git(raiz, "merge-base", base, "HEAD")
+    numstat = None if cod else contagens_do_intervalo(raiz, ancora, "HEAD", estrito=True)
+    if numstat is None:
+        print(f"pronto: {NAO_VERIFICAVEL}: o git não leu a base comum de HEAD com {base} nem o diff", file=sys.stderr)
+        return 2
+    motivo = None  # o motivo do gh em erro: sem --corpo, o corpo fica não verificável em vez de reprovado
+    if corpo_arquivo:
+        try:
+            corpo = Path(corpo_arquivo).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as erro:
+            print(f"pronto: --corpo {caminho_impresso(corpo_arquivo)} ilegível ({type(erro).__name__})", file=sys.stderr)
+            return 2
+    else:
+        _, branch = git(raiz, "branch", "--show-current")
+        pr, motivo = pr_da_branch(raiz, branch, corpo=True) if branch else (None, None)
+        corpo = pr["body"] if pr and pr.get("state") == "OPEN" else None
+    pronto = modulo_do_bin("forge_pronto")
+    return pronto.conferir(raiz, base, ancora, modulo_do_bin("forge_tamanho").linhas_de_codigo(numstat, e_codigo), corpo, sem_corpo=motivo)
+
+
 def cmd_classe(raiz, base=None, head=None, como_json=False):
     """`forge-check classe` (P5; só leitura, sem rede): a classe do diff `base...head`, os motivos e os portões e pareceres exigidos
     pelo diff (o `pr` soma o que o plano técnico do pedido marca). rc 0 com classe; rc 1 com o item acima de TETO_DE_ARQUIVOS (META85);
@@ -2137,20 +2164,52 @@ def falta_na_prova(raiz, base, campos, texto):
     return f"a prova não cobre os módulos de teste do diff: falta {','.join(sorted(tocados - set(provas[-1])))}"
 
 
+# PARECER-LE-O-CI (G3, v0481 E8.1): no Forge, o review e o QA aprovados trazem `- ci: <sha40 do commit:> verde`: o portão leu o CI do
+# PR no sha que revisou (`gh pr checks`, concluídos e verdes fora os `CHECKS_FORA_DA_LINHA_DO_CI`) em vez de rodar a bateria. Sem a
+# linha, o `pr` recusa, também no `--previo` e no passo 1 do `forge-fechar` (a linha é do texto do parecer, não do gh). A suíte inteira
+# e todos os checks, estes inclusos, seguem exigidos no CI do PR para o merge (`checks_do_head`, passos 4 e 6 do `forge-fechar`).
+PROVA_DO_CI = re.compile(r"^- ci: ([0-9a-f]{40}) verde[ \t]*$", re.M)
+# Os checks vermelhos por construção no sha revisado (A1 do #893): `bateria (pareceres)` e o agregador `bateria` esperam o próprio
+# parecer, e a `catraca`, o rótulo do dono aplicado depois do último push. Fonte única do texto do brief, do esqueleto e das skills.
+CHECKS_FORA_DA_LINHA_DO_CI = ("bateria (pareceres)", "bateria", "catraca")
+FORA_DA_LINHA_DO_CI = ("fora " + ", ".join(f"`{c}`" for c in CHECKS_FORA_DA_LINHA_DO_CI[:-1])
+                       + f" e `{CHECKS_FORA_DA_LINHA_DO_CI[-1]}`, que esperam o parecer ou o rótulo (o merge exige todos)")
+
+
+def leu_o_ci(campos, texto):
+    """True se o `texto` do parecer traz a linha `- ci:` do sha do `commit:` dele (o `commit:` curto casa o prefixo; vazio não casa)."""
+    commit = campos.get("commit") or ""
+    return bool(COMMIT.match(commit)) and any(m.group(1).startswith(commit) for m in PROVA_DO_CI.finditer(texto))
+
+
+def cobra_a_linha_do_ci(raiz, campos):
+    """PARECER-LE-O-CI, transição (A3 do #893): a linha só é cobrada do parecer cujo `commit:` já traz a regra no `bin/forge-check`,
+    pois o brief dele a pediu; o de commit anterior segue com a PARECER-SO-COM-CI-VERDE inteira. `commit:` fora da forma ou erro do
+    `git grep` (rc diferente de 1, o "não achou"): cobra."""
+    commit = campos.get("commit") or ""
+    return not COMMIT.match(commit) or git(raiz, "grep", "-q", "-F", "-e", "PARECER-LE-O-CI", commit, "--", "bin/forge-check")[0] != 1
+
+
 def suite_do_parecer(raiz, ref, base, branch, rel, campos, texto, rid, adiar, ci):
     """PARECER-SO-COM-CI-VERDE: [] se o parecer aprovado traz a prova da suíte (`falta_na_prova`) ou, sem ela, o CI do head está verde
     (lido uma vez por `cmd_pr`, em `ci`); senão a linha de violação. Fora do Forge, nada. `adiar` (o `--previo` e o passo 1 do
-    `forge-fechar`, cujos passos 4 e 6 exigem o CI verde): sem a prova, só o aviso no stderr, sem ler o gh."""
-    if not e_o_forge(Path(raiz)) or (falta := falta_na_prova(raiz, base, campos, texto)) is None:
+    `forge-fechar`, cujos passos 4 e 6 exigem o CI verde): sem a prova, só o aviso no stderr, sem ler o gh. PARECER-LE-O-CI: sem a
+    linha `- ci:` (`leu_o_ci`) e com a regra no `commit:` (`cobra_a_linha_do_ci`), a violação dela vem antes, com ou sem `adiar`."""
+    if not e_o_forge(Path(raiz)):
         return []
+    sem_ci = [] if leu_o_ci(campos, texto) or not cobra_a_linha_do_ci(raiz, campos) else [
+        f"{caminho_impresso(rel)}: ci: o parecer aprovado traz a linha `- ci: <sha40 do commit:> verde`, lida em `gh pr checks` no "
+        f"sha revisado, os checks concluídos e verdes {FORA_DA_LINHA_DO_CI}; sem CI verde, não aprove (PARECER-LE-O-CI, {rid})"]
+    if (falta := falta_na_prova(raiz, base, campos, texto)) is None:
+        return sem_ci
     linha = (f"{caminho_impresso(rel)}: suíte: o parecer aprovado só conta com o CI verde no head ou com a prova da suíte dos "
              f"módulos tocados no `commit:` ({falta}) (PARECER-SO-COM-CI-VERDE, {rid})")
     if adiar:
         print(f"aviso: {linha}; o CI do head fica para os passos seguintes", file=sys.stderr)
-        return []
+        return sem_ci
     if "verde" not in ci:
         ci["verde"] = ci_verde_no_head(raiz, branch, sha_do_commit(raiz, ref or "HEAD"))
-    return [] if ci["verde"] else [linha]
+    return sem_ci + ([] if ci["verde"] else [linha])
 
 
 def pareceres_divergentes(achados, vigente):
@@ -3668,14 +3727,17 @@ TIPO_DO_PARECER_NOVO = {"review": ("review", "forge:tech-lead", "Review"), "qa":
 
 
 PROVA_NO_ESQUELETO = "- suíte: {0} rc=0 módulos={0}"  # PARECER-SO-COM-CI-VERDE: sem o CI verde no head, o sha40 do `commit:` e os módulos
+CI_NO_ESQUELETO = "- ci: {0} verde"  # PARECER-LE-O-CI: o sha40 do `commit:`, com o `gh pr checks` dele verde fora os da nota abaixo
+NOTA_NO_ESQUELETO = f"{{0}}: a linha `- ci:` vale com os checks do `commit:` concluídos e verdes {FORA_DA_LINHA_DO_CI}"
 
 
 def secoes_do_parecer_novo(tipo, marca):
     """As seções do modelo de cada tipo, depois do `## Achados` (Z7)."""
+    do_ci, prova = [CI_NO_ESQUELETO.format(marca), NOTA_NO_ESQUELETO.format(marca)], PROVA_NO_ESQUELETO.format(marca)
     return {
-        "review": ["## Sondas", "", "## Parecer", f"{marca}: a síntese; cada ajuste em `## Achados`", PROVA_NO_ESQUELETO.format(marca)],
+        "review": ["## Sondas", "", "## Parecer", f"{marca}: a síntese; cada ajuste em `## Achados`", *do_ci, prova],
         "qa": ["## Critério → teste → resultado", "| Critério | Teste | Fronteira protegida | Resultado |", "|---|---|---|---|",
-               f"| {marca} | {marca} | {marca} | {marca} |", "", "## Cenários e resultado real", f"{marca}", PROVA_NO_ESQUELETO.format(marca)],
+               f"| {marca} | {marca} | {marca} | {marca} |", "", "## Cenários e resultado real", f"{marca}", *do_ci, prova],
         "revisao-seguranca": ["## Sondas", "", "## Gatilhos", f"{marca}: os gatilhos da `R-SEGURANCA` que a entrega toca", "",
                               "## Detalhe dos achados", f"{marca}", "", "## Riscos aceitos e ferramentas", f"{marca}"],
         "revisao-devops": ["## Detalhes", f"{marca}: a síntese e as ferramentas usadas", "", "## Custo e rollback", f"{marca}"],
@@ -7984,9 +8046,10 @@ def texto_da_etapa(texto):
 VERBO_DE_INICIO = re.compile(r"\b(?:delegad[ao]s?|iniciad[ao]s?|despachad[ao]s?|come[çc]ou|em curso|em andamento)\b", re.I)  # menção solta não inicia a etapa (L17, A7)
 
 
-def etapas_conferidas(raiz, caminho, historico):
+def etapas_conferidas(raiz, caminho, historico, selados=None):
     """A4 (0.43.2): as etapas do `Cobre:` de cada brief selado que uma linha `entrega conferida <sha40>` posterior do `## Histórico`
     cobre: o commit existe e está na `Branch:` do brief (o head local ou do origin). Brief ilegível ou sem `Cobre:` não conta.
+    Com `selados` ({(nome, sha256): texto} de `briefs_selados`), só conta o brief cujo conteúdo ainda é o do selo (D7, segurança A2).
     FORGE-CHECK-PROXIMO-LENTO: os commits de cada branch saem de um `rev-list` só, lido uma vez por branch (antes, dois `rev-parse`
     e um `merge-base` por par de conferida e brief: 25 mil processos no v047)."""
     pendentes, conferidas, raiz_pedido, alcance = [], set(), raiz_do_pedido(raiz, caminho), {}
@@ -7999,10 +8062,15 @@ def etapas_conferidas(raiz, caminho, historico):
 
     for linha in historico:
         if (m := BRIEF_SELADO.match(linha)):
-            try:
-                cabecalho = cabecalho_do_brief((raiz_pedido / m.group(1)).read_text(encoding="utf-8"))
-            except (OSError, UnicodeDecodeError):
-                continue
+            if selados is not None:
+                if (texto := selados.get((Path(m.group(1)).name, m.group(2)))) is None:
+                    continue
+            else:
+                try:
+                    texto = (raiz_pedido / m.group(1)).read_text(encoding="utf-8")
+                except (OSError, UnicodeDecodeError):
+                    continue
+            cabecalho = cabecalho_do_brief(texto)
             cobre, branch = grupo(r"\bCobre:\s*(\S+)", cabecalho), grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho)
             if cobre and branch:
                 pendentes.append((cobre, branch))
@@ -8265,6 +8333,69 @@ def vereditos_do_proximo(raiz, ids):
             _, rel, campos = sorted(achados, key=lambda a: a[:2])[-1]
             saida.append((tipo, rel, campos.get("parecer", "?"), campos.get("commit", "?"), parecer_commitado(raiz, rel)))
     return saida
+
+
+CRITERIO_DO_PEDIDO = re.compile(r"\*{0,2}C-(\d{1,3})\b\*{0,2}\s*[:.·-]?\s*(.*)")  # D7: o item `C-n <critério>` do `## Critério de pronto`
+PQ_NO_INICIO = re.compile(r"^\s*(?:[-*]\s+)?(?:\*\*)?PQ-(\d+)\b")  # a linha da prova, não a menção solta a um PQ (como em `conferir_pq`)
+COBRE_DA_PQ = re.compile(r"\bcobre:\s*(C-\d{1,3}(?:\s*,\s*C-\d{1,3})*)")  # D7: `PQ-n (<tipo>): ... · cobre: C-1, C-2`
+
+
+def criterios_do_pedido(pedido_txt):
+    """D7: ({"C-n": texto}, [repetidos]) dos itens `C-n` do `## Critério de pronto`, na ordem; o id é estável e nunca se renumera."""
+    criterios, repetidos = {}, []
+    for item in itens_de(secoes_por(pedido_txt, CABECALHO_PEDIDO).get("Critério de pronto", [])):
+        if not (m := CRITERIO_DO_PEDIDO.match(item)):
+            continue
+        cid = f"C-{int(m.group(1))}"
+        if cid in criterios:
+            repetidos.append(cid)
+        else:
+            criterios[cid] = m.group(2).strip()
+    return criterios, repetidos
+
+
+def provas_por_criterio(raiz, caminho, pedido_txt, historico):
+    """D7: {"C-n": [(brief, "PQ-m")]} das linhas `PQ-m ... cobre: C-n` dos briefs selados do pedido cujo conteúdo ainda é o do selo
+    (`briefs_selados` confere o sha256) e cuja etapa do `Cobre:` tem `entrega conferida` no `## Histórico` (A4, `etapas_conferidas`):
+    prova de brief alterado depois do selo ou sem entrega conferida não conta."""
+    selados = {(arquivo.name, sha): texto for arquivo, texto, sha in briefs_selados(raiz, caminho, pedido_txt)}
+    conferidas, provas = etapas_conferidas(raiz, caminho, historico, selados), {}
+    for rel, sha in dict.fromkeys(selos_do_pedido(pedido_txt)):  # na ordem do Histórico; o selo repetido conta uma vez
+        if (texto := selados.get((Path(rel).name, sha))) is None:
+            continue
+        if grupo(r"\bCobre:\s*(\S+)", cabecalho_do_brief(texto)) not in conferidas:
+            continue
+        for pq in secoes_por(texto, CABECALHO_BRIEF).get("Pronto quando", []):
+            if (n := PQ_NO_INICIO.match(pq)) and (c := COBRE_DA_PQ.search(pq)):
+                for cid in dict.fromkeys(f"C-{int(x)}" for x in re.findall(r"C-(\d+)", c.group(1))):
+                    provas.setdefault(cid, []).append((rel, f"PQ-{n.group(1)}"))
+    return provas
+
+
+def cmd_criterios(raiz, pedido):
+    """D7 (rastreio leve do critério à prova): a tabela pedido × entregue, só leitura e sem rede. Cada `C-n` do `## Critério de pronto`
+    sai `entregue`, com o brief e o `PQ-m` que o cobrem, ou `não entregue`. rc 0 com todos entregues; 1 com algum não entregue, id
+    repetido ou `cobre:` de prova conferida fora dos critérios; 2 sem pedido legível ou sem critério `C-n`."""
+    try:
+        caminho = caminho_do_pedido(raiz, pedido)
+        pedido_txt = caminho.read_text(encoding="utf-8")
+    except (PedidoFora, OSError, UnicodeDecodeError):
+        return [f"criterios: pedido {nome_seguro(sem_controle(pedido))}: {NAO_VERIFICAVEL} (o arquivo do pedido não abre)"], 2
+    pedido_id = (re.search(r"^id:\s*(\S+)", pedido_txt, re.M) or [None, caminho.stem])[1]
+    criterios, repetidos = criterios_do_pedido(pedido_txt)
+    if not criterios:
+        return [f"criterios: pedido {caminho_impresso(pedido_id)}: {NAO_VERIFICAVEL} (sem item `C-n` no `## Critério de pronto`)"], 2
+    secoes = secoes_por(pedido_txt, CABECALHO_PEDIDO)
+    provas = provas_por_criterio(raiz, caminho, pedido_txt, secoes.get("Histórico", []))
+    linhas = [f"criterios: {cid} repetido no pedido; vale o primeiro" for cid in repetidos]
+    for cid, texto in criterios.items():
+        quem = ", ".join(f"{caminho_impresso(b)} {pq}" for b, pq in provas.get(cid, []))
+        linhas.append(f"criterios: {cid} · {'entregue · ' + quem if quem else 'não entregue'} · {sem_controle(texto)[:160]}")
+    fora = [cid for cid in provas if cid not in criterios]
+    linhas += [f"criterios: {cid}: `cobre:` de prova conferida fora do `## Critério de pronto`" for cid in fora]
+    faltam = sum(cid not in provas for cid in criterios)
+    cabeca = f"criterios: pedido {caminho_impresso(pedido_id)} · {len(criterios)} critérios · {len(criterios) - faltam} entregues · {faltam} não entregues"
+    return [cabeca] + linhas, 1 if faltam or fora or repetidos else 0
 
 
 def cmd_proximo(raiz, pedido, item=None, etapa=None):
@@ -9622,16 +9753,29 @@ def portao_na_branch(raiz, pedido_id, etapa, branch, base):
     return None, f"o parecer de {tipo} da branch está aprovado e em dia no head (`forge-check pr`): a etapa {etapa} não precisa de agente (H3)"
 
 
-def linha_do_ci_do_parecer(raiz, branch):
+# PARECER-LE-O-CI (G3, v0481 E8.1): o review e o QA leem o CI do head em vez de rodar a bateria, e só eles (o `pr` confere a linha)
+PORTOES_QUE_LEEM_O_CI = ("review", "qa")
+LINHA_LE_O_CI = ("- G3 (PARECER-LE-O-CI): não rode a suíte inteira; leia `gh pr checks` do PR, concluídos e verdes no `Revisar-sha` "
+                 f"{FORA_DA_LINHA_DO_CI}, e grave no parecer `- ci: <sha40 do Revisar-sha> verde` (sem ela, o `forge-check pr` recusa o aprovado); à mão, só os "
+                 "testes que o diff toca e os mutantes declarados")
+SEM_PR_NO_PORTAO = "- sem PR para a branch: o CI só roda no PR; review e QA não aprovam sem o CI do head verde: peça ao autor o PR em rascunho"
+
+
+def linha_do_ci_do_parecer(raiz, branch, etapa=None):
     """PRE-ENVIO-RAPIDO (mp1311, diretriz 23, parte d; item 3): o parecer só aprova com o CI do head todo verde, e2e incluso, quando há PR;
-    sem PR, a suíte fica para o CI do PR. Sem `gh` ou sem rede, a regra vale e o número fica para o revisor achar."""
+    sem PR, a suíte fica para o CI do PR. Sem `gh` ou sem rede, a regra vale e o número fica para o revisor achar. PARECER-LE-O-CI:
+    na etapa de review e de QA, mais a `LINHA_LE_O_CI`, e sem PR não há aprovação (`SEM_PR_NO_PORTAO`)."""
+    le_o_ci = etapa in PORTOES_QUE_LEEM_O_CI
+    extra = [LINHA_LE_O_CI] if le_o_ci else []
     pr, _ = pr_da_branch(raiz, branch)
     if pr:
-        return (f"- PQ-N (cmd): `gh pr checks {pr['number']}` · espera: rc=0 · aprova só com o CI do head todo verde, e2e incluso; "
-                "check pendente ou vermelho não aprova")
+        return [f"- PQ-N (cmd): `gh pr checks {pr['number']}` · espera: rc=0 · aprova só com o CI do head todo verde, e2e incluso; "
+                "check pendente ou vermelho não aprova", *extra]
     if pr == {}:
-        return "- sem PR para a branch: a suíte inteira fica para o CI do PR; o parecer cita o PQ do autor e não afirma CI verde"
-    return "- aprova só com o CI do head todo verde, e2e incluso (`gh pr checks <n>`), quando houver PR; sem PR, a suíte fica para o CI do PR"
+        return [SEM_PR_NO_PORTAO if le_o_ci else
+                "- sem PR para a branch: a suíte inteira fica para o CI do PR; o parecer cita o PQ do autor e não afirma CI verde", *extra]
+    return ["- aprova só com o CI do head todo verde, e2e incluso (`gh pr checks <n>`), quando houver PR; sem PR, a suíte fica para o CI do PR",
+            *extra]
 
 
 def copia_sugerida(raiz, branch, papel):
@@ -9738,7 +9882,11 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
         saida.append(f"- docs/pedidos/{sem_controle(caminho_pedido.name)}: só `## Escopo`, `## Etapas` e `## Decisões` e, do `## Histórico`, só as linhas que este brief cita; "
                      "nunca o pedido inteiro (docs/economia-de-tokens.md, regra 4)")
         copia = copia_sugerida(raiz, branch, papel_destino) if branch else None
-        if copia and valor_de_shell_seguro("raiz", copia):  # CLONE-NOME-UNICO: dois agentes nunca na mesma cópia
+        if copia and valor_de_shell_seguro("raiz", copia) and etapa in ETAPAS_DE_PARECER:  # COPIA-REVISAO: o revisor parte do head remoto
+            saida.append(f"- cópia só sua {NOVO} (CLONE-NOME-UNICO): `{copia}`, criada com `forge-copia clone {copia} --branch {branch} "
+                         f"--papel {papel_destino} --revisao` e o --origem do repositório (o head remoto da branch, nunca git clone à mão); "
+                         "nunca a cópia de outro agente")
+        elif copia and valor_de_shell_seguro("raiz", copia):  # CLONE-NOME-UNICO: dois agentes nunca na mesma cópia
             saida.append(f"- cópia só sua {NOVO} (CLONE-NOME-UNICO): `{copia}`, criada com `forge-copia clone {copia} --branch {branch} "
                          f"--papel {papel_destino}` e o --origem do repositório (no Forge, worktree no lugar de clone); nunca a cópia de outro agente")
         if revalidacao:
@@ -9772,7 +9920,7 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
         saida.append(f"- PQ-N (push): `git ls-remote origin refs/heads/{branch}` igual ao head local · {PREENCHER}")
     saida += pqs_de_pre_envio(raiz, etapa, dados["etapas"][coberta][1] if coberta else "")
     if branch and etapa in ETAPAS_DE_PARECER:
-        saida.append(linha_do_ci_do_parecer(raiz, branch))
+        saida += linha_do_ci_do_parecer(raiz, branch, etapa)
     if etapa == "codigo" and not branch:  # B1 (E2, versao-075): sem a branch não há o que o executor confira
         print("brief gerar: aviso: sem --branch, o brief sai sem o PQ do executor (forge-check entrega); passe --branch (B1)", file=sys.stderr)
     elif etapa == "codigo":  # B1 e E14: a mesma linha que o conferente roda, rodada antes pelo executor, só com valores seguros (G-5)
@@ -10797,6 +10945,9 @@ def main():
     px.add_argument("pedido", help="id de docs/pedidos/<id>.md")
     px.add_argument("--item", help="E<n> (até 3 dígitos): passo, dono e comando do item, lidos da marca do brief de implementação e do registro (V1)")
     px.add_argument("--etapa", help="E<n>.<m>: só esta etapa, entregue ou não; sem ela, só as etapas sem registro de entrega (PROXIMO-POR-ETAPA)")
+    cr = sub.add_parser("criterios", parents=[comum], help="D7: a tabela pedido × entregue; cada `C-n` do `## Critério de pronto` sai "
+                        "entregue (PQ com `cobre: C-n` de brief com entrega conferida) ou não entregue; só leitura")
+    cr.add_argument("pedido", help="id de docs/pedidos/<id>.md")
     de = sub.add_parser("decisoes", parents=[comum], help="registro das linhas DECISÃO DO DONO dos pedidos (data, decisão, motivo, reabre se); só leitura, no stdout (EXT-2)")
     de.add_argument("acao", nargs="?", choices=("registrar", "reverter", "conferir"), help="decisão óbvia por regra fixa (orkastery 3): "
                     "registrar (só os fatos; porta fechada ou condição faltando vira pergunta, rc 1), reverter --id, conferir --mensagem")
@@ -10961,6 +11112,10 @@ def main():
     cs.add_argument("--base", help="base do diff (padrão: origin/develop, develop, origin/main ou main, a primeira que existe)")
     cs.add_argument("--head", help="ref da entrega (padrão: HEAD)")
     cs.add_argument("--json", action="store_true", dest="como_json", help="uma linha JSON: classe, motivos, arquivos, portoes, pareceres, gatilhos_de_seguranca")
+    pt = sub.add_parser("pronto", parents=[comum], help="D2: o portão de entrega do autor; registros, neutralidade, tetos de texto, testes "
+                        "afetados, teto H1 e corpo do PR num comando só; rc 0 passa, 1 reprova, 2 não verificável")
+    pt.add_argument("--base", default="origin/develop", help="base da comparação (padrão: origin/develop)")
+    pt.add_argument("--corpo", help="o arquivo do corpo do PR (o do --body-file); sem ele, o corpo do PR aberto da branch")
     pr = sub.add_parser("pr", parents=[comum], help="pareceres de review e QA de um pedido; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD")
     pr.add_argument("pedido")
     pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD)")
@@ -11092,6 +11247,8 @@ def executar(a, raiz):
         return cmd_parecer_novo(raiz, a)
     if a.cmd == "parecer" and a.acao == "delta":
         return cmd_parecer_delta(raiz, a.arquivo, a.ate, a.base)
+    if a.cmd == "pronto":
+        return cmd_pronto(raiz, a.base, a.corpo)
     if a.cmd == "classe":
         return cmd_classe(raiz, a.base, a.head, a.como_json)
     if a.cmd == "delta":
@@ -11153,8 +11310,8 @@ def executar(a, raiz):
         if a.alvo == "selar":
             return cmd_brief_selar(raiz, a)
         return cmd_brief_conferir(raiz, a.alvo, a.pedido, a.destino, a.anterior, a.ref, a.parecer)
-    if a.cmd == "proximo":
-        linhas, codigo = cmd_proximo(raiz, a.pedido, a.item, a.etapa)
+    if a.cmd in ("proximo", "criterios"):
+        linhas, codigo = cmd_proximo(raiz, a.pedido, a.item, a.etapa) if a.cmd == "proximo" else cmd_criterios(raiz, a.pedido)
         for linha in linhas:
             print(linha)
         return codigo
@@ -11239,6 +11396,8 @@ def executar(a, raiz):
                                           previo=getattr(a, "previo", False), sem_checks=sem_checks)}[a.cmd]()
     for v in violacoes:
         print(v)
+    if a.cmd == "docs" and not violacoes:  # PQ-DOCS-SILENCIOSO: a aprovação se diz numa linha, sem mudar o rc
+        print("docs: ok")
     gravar = not getattr(a, "previo", False) and not sem_checks and branch_do_pr is None  # E3.80: sem os checks, nada para o hook
     if a.cmd == "pr" and gravar:  # PR-HOOK-PRAZO: o resultado do head, para o hook; o PR não lido (CHECKS_NAO_CONFERIDOS) grava reprovado
         gravar_resultado_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None),

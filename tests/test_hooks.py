@@ -3603,6 +3603,120 @@ class CaminhosExtra(unittest.TestCase):
         self.assertIn("nem as pastas acima", avisos[0])
 
 
+class TravouNoPerfil(BaseException):
+    """O alarme de `RecusaComFifoNoPerfil.sem_travar` venceu."""
+
+
+class RecusaComFifoNoPerfil(unittest.TestCase):  # A2 e S3 da segurança no #885 (v0481 E7.15), nas duas sessões
+    """Com um FIFO em `.forge/perfil`, a escolha do texto da recusa não espera nem chama `git`, e o prazo vencido nela não
+    troca a recusa: na sessão do Forge (não vigiada) o prazo vencido liberava push na main e `--force`."""
+    COMANDOS = (("git push origin feature/x:main", "R-MAIN"), ("git push --force origin feature/x", "R-VERIFY"),
+                ("git commit --no-verify -m x", "R-VERIFY"))
+
+    def montar(self, forge, fifo=True):
+        raiz = Path(os.path.realpath(tempfile.mkdtemp(prefix="forge-perfil-")))
+        self.addCleanup(shutil.rmtree, raiz, True)
+        git("init", "-q", "-b", "feature/x", cwd=raiz)
+        if forge:
+            (raiz / ".claude-plugin").mkdir()
+            (raiz / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}\n', encoding="utf-8")
+        (raiz / ".forge" / "run").mkdir(parents=True)
+        if not forge:
+            (raiz / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        if fifo:
+            os.mkfifo(raiz / ".forge" / "perfil")
+        return raiz
+
+    def recusa(self, raiz, comando, forcar=None):
+        entrada = {"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": str(raiz),
+                   "agent_type": "forge:tech-lead", "hook_event_name": "PreToolUse", "session_id": "s1"}
+        return rodar("conformidade", entrada, raiz, extra={"CLAUDE_PROJECT_DIR": str(raiz)}, producao=True, forcar=forcar)
+
+    def sem_travar(self, funcao, *args):
+        def venceu(*_):
+            raise TravouNoPerfil()
+        antes = signal.signal(signal.SIGALRM, venceu)
+        signal.setitimer(signal.ITIMER_REAL, 5)
+        try:
+            return funcao(*args)
+        except TravouNoPerfil:
+            self.fail("a leitura do perfil esperou o FIFO")
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, antes)
+
+    def test_recusa_com_a_regra_dela_e_sem_prazo_vencido(self):
+        for forge in (True, False):
+            raiz = self.montar(forge)
+            for comando, regra in self.COMANDOS:
+                with self.subTest(sessao="forge" if forge else "projeto", comando=comando):
+                    r = self.recusa(raiz, comando)
+                    self.assertEqual(r.returncode, 2, r.stderr[:200])
+                    self.assertTrue(r.stderr.startswith(f"{regra}: "), r.stderr[:200])
+                    self.assertNotIn("não decidiu", r.stderr)
+
+    def test_prazo_vencido_na_escolha_do_texto_recusa_com_o_texto_tecnico(self):
+        raiz = self.montar(True, fifo=False)
+        r = self.recusa(raiz, "git push --force origin feature/x", {"onde": "perfil_iniciante", "como": "prazo"})
+        self.assertEqual(r.returncode, 2, r.stderr[:200])
+        self.assertTrue(r.stderr.startswith("R-VERIFY: "), r.stderr[:200])
+
+    def test_perfil_iniciante_recebe_o_texto_simples(self):
+        _, conformidade, _ = modulos_dos_hooks()
+        raiz = self.montar(True, fifo=False)
+        (raiz / ".forge" / "perfil").write_text("iniciante\n", encoding="utf-8")
+        r = self.recusa(raiz, "git push --force origin feature/x")
+        self.assertEqual((r.returncode, r.stderr.strip()), (2, f"R-VERIFY: {conformidade.SIMPLES['forca']}"))
+
+    def test_fifo_no_perfil_nao_espera_e_vale_experiente(self):
+        _, conformidade, _ = modulos_dos_hooks()
+        raiz = self.montar(True)
+        with mock.patch.object(subprocess, "Popen", side_effect=AssertionError("git no texto da recusa")):
+            self.assertFalse(self.sem_travar(conformidade.perfil_iniciante, raiz))
+        (raiz / ".forge" / "perfil").unlink()
+        (raiz / ".forge" / "perfil").write_text("Iniciante\n", encoding="utf-8")
+        self.assertTrue(conformidade.perfil_iniciante(raiz))
+
+    def worktree(self):
+        """Cópia principal com perfil `iniciante` e uma worktree dela sem perfil próprio."""
+        principal = self.montar(True, fifo=False)
+        (principal / ".forge" / "perfil").write_text("iniciante\n", encoding="utf-8")
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x", cwd=principal)
+        copia = principal.parent / f"{principal.name}-wt"
+        self.addCleanup(shutil.rmtree, copia, True)
+        git("worktree", "add", "-q", "--detach", str(copia), cwd=principal)
+        (copia / ".forge").mkdir()
+        return principal, copia
+
+    def test_worktree_com_fifo_le_o_perfil_da_copia_principal(self):
+        _, conformidade, _ = modulos_dos_hooks()
+        _, copia = self.worktree()
+        os.mkfifo(copia / ".forge" / "perfil")
+        self.assertTrue(self.sem_travar(conformidade.perfil_iniciante, copia))
+
+    def test_fifo_no_ponto_git_da_worktree_nao_espera(self):  # A1 da segurança no #886
+        _, conformidade, _ = modulos_dos_hooks()
+        _, copia = self.worktree()
+        (copia / ".git").unlink()
+        os.mkfifo(copia / ".git")
+        self.assertIsNone(self.sem_travar(conformidade.diretorio_comum, copia))
+        self.assertFalse(self.sem_travar(conformidade.perfil_iniciante, copia))
+
+    def test_fifo_com_conteudo_no_gitdir_nao_vale(self):  # A1 da segurança no #886: só arquivo regular
+        _, conformidade, _ = modulos_dos_hooks()
+        principal, copia = self.worktree()
+        volta = principal / ".git" / "worktrees" / copia.name / "gitdir"
+        conteudo = volta.read_bytes()
+        self.assertTrue(conformidade.perfil_iniciante(copia))
+        volta.unlink()
+        os.mkfifo(volta)
+        escrita = os.open(volta, os.O_RDWR | os.O_NONBLOCK)  # o FIFO já traz o conteúdo certo na leitura
+        self.addCleanup(os.close, escrita)
+        os.write(escrita, conteudo)
+        self.assertIsNone(self.sem_travar(conformidade.diretorio_comum, copia))
+        self.assertFalse(self.sem_travar(conformidade.perfil_iniciante, copia))
+
+
 class PoolDosFixtures(unittest.TestCase):
     """O pool de threads dos fixtures e do corpus: uma fonte só (N-CI, C-1), por subprocesso (espera, não CPU)."""
 

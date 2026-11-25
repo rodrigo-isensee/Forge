@@ -5,7 +5,7 @@
     {
       "id": "M1",
       "guarda": "PORTAO-D2 índice: hooks/ sozinho no delta confere o índice (QA A1)",
-      "arquivo": "patches/d2-portao-entrega.patch",
+      "arquivo": "patches/prepush-unico.patch",
       "de": "'^(bin|hooks|scripts)/'",
       "para": "'^(bin|scripts)/'",
       "testes": [
@@ -15,7 +15,7 @@
     {
       "id": "M2",
       "guarda": "PORTAO-D2 índice: scripts/ sozinho no delta confere o índice (QA A1)",
-      "arquivo": "patches/d2-portao-entrega.patch",
+      "arquivo": "patches/prepush-unico.patch",
       "de": "'^(bin|hooks|scripts)/'",
       "para": "'^(bin|hooks)/'",
       "testes": [
@@ -25,7 +25,7 @@
     {
       "id": "M3",
       "guarda": "PORTAO-D2 teto e PR: só a ref cuja ponta é o HEAD (QA A2)",
-      "arquivo": "patches/d2-portao-entrega.patch",
+      "arquivo": "patches/prepush-unico.patch",
       "de": "[ \"$ponta\" = \"$(git rev-parse HEAD 2>/dev/null)\" ] || continue",
       "para": ":",
       "testes": [
@@ -35,7 +35,7 @@
     {
       "id": "M4",
       "guarda": "PORTAO-D2 teto e PR: só ref de refs/heads/ (QA A3)",
-      "arquivo": "patches/d2-portao-entrega.patch",
+      "arquivo": "patches/prepush-unico.patch",
       "de": "case \"$ref\" in refs/heads/?*) ;; *) continue ;; esac",
       "para": ":",
       "testes": [
@@ -45,7 +45,7 @@
     {
       "id": "M5",
       "guarda": "PORTAO-D2 só parecer: arquivo fora de docs/{reviews,qa,security,devops}/ ou delta vazio barra (review A1)",
-      "arquivo": "patches/d2-portao-entrega.patch",
+      "arquivo": "patches/prepush-unico.patch",
       "de": "grep -qvE '^docs/(reviews|qa|security|devops)/'; then return 1; fi",
       "para": "grep -qvE '^docs/(reviews|qa|security|devops)/'; then :; fi",
       "testes": [
@@ -56,7 +56,7 @@
     {
       "id": "M6",
       "guarda": "PORTAO-D2 só parecer: o índice fora de dia só avisa (review A1)",
-      "arquivo": "patches/d2-portao-entrega.patch",
+      "arquivo": "patches/prepush-unico.patch",
       "de": "      d2_so_avisa || falhas=1",
       "para": "      falhas=1",
       "testes": [
@@ -66,7 +66,7 @@
     {
       "id": "M7",
       "guarda": "PORTAO-D2 só parecer: teto e texto do PR só avisam (review A1, S1 e S2)",
-      "arquivo": "patches/d2-portao-entrega.patch",
+      "arquivo": "patches/prepush-unico.patch",
       "de": ">&2; d2_so_avisa || falhas=1; }",
       "para": ">&2; falhas=1; }",
       "testes": [
@@ -77,7 +77,7 @@
     {
       "id": "M8",
       "guarda": "PORTAO-D2: PR fechado ou mesclado não é conferido",
-      "arquivo": "patches/d2-portao-entrega.patch",
+      "arquivo": "patches/prepush-unico.patch",
       "de": "if pr.get(\"state\") != \"OPEN\":",
       "para": "if False:",
       "testes": [

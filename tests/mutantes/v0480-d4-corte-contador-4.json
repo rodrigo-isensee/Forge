@@ -16,8 +16,8 @@
       "id": "M26",
       "guarda": "CORTE-PELO-CONTADOR (E174.4): ramo da marca já no origin não é refeito",
       "arquivo": "bin/forge-fechar",
-      "de": "[ -z \"$(remoto_exato \"$ramo\" || echo erro)\" ] ||",
-      "para": "true ||",
+      "de": "r=\"$(remoto_exato \"$ramo\" || echo erro)\"",
+      "para": "r=\"\"",
       "testes": [
         "tests.test_fechar_corte.Corte.test_ramo_da_marca_ja_no_origin_nada_faz"
       ]
@@ -36,7 +36,7 @@
       "id": "M28",
       "guarda": "CORTE-PELO-CONTADOR (E174.4): a marca junta os fragmentos e sobe a versão",
       "arquivo": "bin/forge-fechar",
-      "de": "&& python3 -I \"$(dirname \"$eu\")/forge-changelog\" release \"$v\" \"$(date -u +%F)\"",
+      "de": "&& python3 -I \"$(dirname \"$eu\")/forge-changelog\" release \"$v\" \"$(date +%F)\"",
       "para": "&& true",
       "testes": [
         "tests.test_fechar_corte.Corte.test_no_teto_grava_a_marca_e_abre_o_pr_em_rascunho"
@@ -56,8 +56,8 @@
       "id": "M30",
       "guarda": "CORTE-PELO-CONTADOR (E174.4): a marca é enviada",
       "arquivo": "bin/forge-fechar",
-      "de": "&& git push -q origin \"HEAD:refs/heads/$ramo\"); }; then",
-      "para": "&& true); }; then",
+      "de": "\"$tmp/medida\" && git push -q origin \"HEAD:refs/heads/$ramo\"); }; then",
+      "para": "\"$tmp/medida\" && true); }; then",
       "testes": [
         "tests.test_fechar_corte.Corte.test_no_teto_grava_a_marca_e_abre_o_pr_em_rascunho"
       ]
@@ -76,8 +76,8 @@
       "id": "M32",
       "guarda": "CORTE-PELO-CONTADOR (E174.4): a worktree da marca sai",
       "arquivo": "bin/forge-fechar",
-      "de": "git worktree remove \"$tmp/marca\" ||",
-      "para": "true ||",
+      "de": "git worktree remove \"$tmp/marca\" || echo \"aviso: não removi a cópia $tmp/marca; rode:",
+      "para": "true || echo \"aviso: não removi a cópia $tmp/marca; rode:",
       "testes": [
         "tests.test_fechar_corte.Corte.test_no_teto_grava_a_marca_e_abre_o_pr_em_rascunho"
       ]
