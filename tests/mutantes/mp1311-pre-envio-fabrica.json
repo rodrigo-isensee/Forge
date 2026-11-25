@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "sem PR, o parecer diz que a suíte fica para o CI do PR",
       "arquivo": "bin/forge-check",
-      "de": "    if pr == {}:\n        return \"- sem PR para a branch",
-      "para": "    if False:\n        return \"- sem PR para a branch",
+      "de": "    if pr == {}:\n        return [SEM_PR_NO_PORTAO if le_o_ci else",
+      "para": "    if False:\n        return [SEM_PR_NO_PORTAO if le_o_ci else",
       "testes": [
         "tests.test_pre_envio_brief.Gerar.test_parecer_sem_pr_diz_que_a_suite_fica_para_o_ci"
       ]
@@ -66,8 +66,8 @@
       "id": "M7",
       "guarda": "a linha do CI do head é só dos briefs de parecer",
       "arquivo": "bin/forge-check",
-      "de": "    if branch and etapa in ETAPAS_DE_PARECER:\n        saida.append(linha_do_ci_do_parecer",
-      "para": "    if branch and etapa in ETAPAS_DE_PARECER + (\"codigo\",):\n        saida.append(linha_do_ci_do_parecer",
+      "de": "    if branch and etapa in ETAPAS_DE_PARECER:\n        saida += linha_do_ci_do_parecer",
+      "para": "    if branch and etapa in ETAPAS_DE_PARECER + (\"codigo\",):\n        saida += linha_do_ci_do_parecer",
       "testes": [
         "tests.test_pre_envio_brief.Gerar.test_codigo_traz_descricao_texto_e_testes_afetados"
       ]

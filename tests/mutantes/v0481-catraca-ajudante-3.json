@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-catraca-ajudante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CA14",
+      "guarda": "E14.23: o orçamento estourado interrompe a expansão",
+      "arquivo": "tests/catraca.py",
+      "de": "if ajudantes[\"orcamento\"][0] < 0:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_catraca.AssercaoNoAjudante.test_modulo_que_estoura_o_teto_conta_so_as_diretas_e_barra_quem_perde_as_dos_ajudantes"
+      ]
+    },
+    {
+      "id": "CA15",
+      "guarda": "E14.23: estourado, o módulo conta só as asserções diretas",
+      "arquivo": "tests/catraca.py",
+      "de": "return testes_da_arvore(arvore, 0, math.inf)",
+      "para": "return testes_da_arvore(arvore, FUNDO_DOS_AJUDANTES, math.inf)",
+      "testes": [
+        "tests.test_catraca.AssercaoNoAjudante.test_modulo_que_estoura_o_teto_conta_so_as_diretas_e_barra_quem_perde_as_dos_ajudantes"
+      ]
+    },
+    {
+      "id": "CA16",
+      "guarda": "E14.23: a mensagem cita o ajudante só quando ele sumiu",
+      "arquivo": "tests/catraca.py",
+      "de": "if sumiu else \"\"",
+      "para": "if True else \"\"",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_valor_trocado_com_outra_perda_barra_pela_outra_e_nao_fica_listado"
+      ]
+    },
+    {
+      "id": "CA17",
+      "guarda": "E14.23: só a chave de ajudante entra na mensagem",
+      "arquivo": "tests/catraca.py",
+      "de": "if k.startswith(\"ajudante \")",
+      "para": "if k.startswith(\"\")",
+      "testes": [
+        "tests.test_catraca.AssercaoNoAjudante.test_chamada_ao_ajudante_tirada_ou_ajudante_sem_assercao_barra"
+      ]
+    },
+    {
+      "id": "CA18",
+      "guarda": "E14.23 (Q1): os valores do ajudante viram valor esperado do teste",
+      "arquivo": "tests/catraca.py",
+      "de": "e + _constantes(*n.args, *(k.value for k in n.keywords))",
+      "para": "_constantes(*n.args, *(k.value for k in n.keywords))",
+      "testes": [
+        "tests.test_catraca.AssercaoNoAjudante.test_argumentos_constantes_e_o_corpo_do_ajudante_contam_como_valor_esperado"
+      ]
+    },
+    {
+      "id": "CA19",
+      "guarda": "E14.23 (Q2): o argumento posicional constante é valor esperado",
+      "arquivo": "tests/catraca.py",
+      "de": "e + _constantes(*n.args, *(k.value for k in n.keywords))",
+      "para": "e + _constantes(*(k.value for k in n.keywords))",
+      "testes": [
+        "tests.test_catraca.AssercaoNoAjudante.test_argumentos_constantes_e_o_corpo_do_ajudante_contam_como_valor_esperado"
+      ]
+    },
+    {
+      "id": "CA20",
+      "guarda": "E14.23 (Q7): o argumento nomeado constante é valor esperado",
+      "arquivo": "tests/catraca.py",
+      "de": "e + _constantes(*n.args, *(k.value for k in n.keywords))",
+      "para": "e + _constantes(*n.args)",
+      "testes": [
+        "tests.test_catraca.AssercaoNoAjudante.test_argumentos_constantes_e_o_corpo_do_ajudante_contam_como_valor_esperado"
+      ]
+    },
+    {
+      "id": "CA21",
+      "guarda": "E14.23 (Q4): ajudante em cadeia segue além de um nível",
+      "arquivo": "tests/catraca.py",
+      "de": "FUNDO_DOS_AJUDANTES = 8",
+      "para": "FUNDO_DOS_AJUDANTES = 1",
+      "testes": [
+        "tests.test_catraca.AssercaoNoAjudante.test_ajudante_em_cadeia_conta_ate_o_fim"
+      ]
+    }
+  ]
+}

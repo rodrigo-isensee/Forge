@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3586 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3587 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,7 +10,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3586 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 133 | 72 | 61 | 31 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2712 | 2009 | 703 | 103 |
+| `conformidade` | 2713 | 2010 | 703 | 103 |
 | `decisao` | 4 | 0 | 4 | 4 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 33 | 13 | 20 | 15 |
@@ -68,7 +68,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3586 fixtures) roda em `tests/test
 
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
-| `trava-*` | 320 | 216 | 104 | `R-CONFORMIDADE`, `R-VERIFY`, `R-MAIN`, `R-CONTRIB` | `CONFORMIDADE-REPO-CREATE-PUBLICO`, `TMPDIR`, `CONFORMIDADE-REDIRECAO-NUMERO` | git branch -D develop. (perfil iniciante: com a consequência em linguagem simples) |
+| `trava-*` | 321 | 217 | 104 | `R-CONFORMIDADE`, `R-VERIFY`, `R-MAIN`, `R-CONTRIB` | `CONFORMIDADE-REPO-CREATE-PUBLICO`, `TMPDIR`, `CONFORMIDADE-REDIRECAO-NUMERO`, `E7.15` | git branch -D develop. (perfil iniciante: com a consequência em linguagem simples) |
 | `opaco-*` | 310 | 232 | 78 | `R-CONFORMIDADE` | `CONFORMIDADE-A9-DESTINO-OPACO`, `CONFORMIDADE-A10-OPERADOR-COLADO`, `CONFORMIDADE-REDIRECAO-NUMERO`, `CONFORMIDADE-DECLARE-N` e mais 1 | CONFORMIDADE-DECLARE-N (E2.179, v047, A19 da segurança E1.344): a atribuição do shell (no prefixo do comando) segue dando o valor escrito. |
 | `contrib-*` | 144 | 114 | 30 | `R-CONTRIB`, `R-CONFORMIDADE`, `R-MAIN` | `PR`, `FILA-22`, `PATCH`, `GET` | Comando aninhado que não dá para analisar (aspas abertas) e aponta para o Forge: falha fechado. |
 | `conferente-*` | 111 | 90 | 21 | — | `ADR`, `VV-2`, `AA2-01` | Citação ANSI-C $'...': o bash entrega --upload-pack ao git e o hook não vê a opção. |
@@ -245,7 +245,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3586 fixtures) roda em `tests/test
 | `merge-*` | 6 | 3 | 3 | — | `FURO-HOOK-A` | git merge --abort não mescla nada. |
 | `api-*` | 5 | 3 | 2 | `R-CONTRIB` | — | gh api só lendo o PR: libera. |
 | `checkout-*` | 5 | 2 | 3 | — | — | `git checkout develop --` sem caminho é troca de branch; o merge na develop sem parecer bloqueia. |
-| `v0456-*` | 5 | 3 | 2 | `R-REVIEW` | — | gh pr merge depois de `env VAR=1` (as palavras gh pr merge fora do início do comando) com o git lento de 4 s: segue com o prazo longo de 8 s… |
+| `v0456-*` | 5 | 3 | 2 | `R-REVIEW` | — | gh pr merge depois de `env VAR=1` (as palavras gh pr merge fora do início do comando) com o git lento de 3,5 s: segue com o prazo longo de 7… |
 | `v0455-*` | 4 | 3 | 1 | `R-REVIEW` | — | gh pr create (sem gh pr merge na linha) com o mesmo git lento de 4 s: segue o prazo de 3 s e recusa por prazo. |
 | `v0480-*` | 4 | 4 | 0 | `R-CONFORMIDADE` | `CONFORMIDADE-REPO-CREATE-PUBLICO` | CONFORMIDADE-REPO-CREATE-PUBLICO (GRAPHQL-CONSULTA-EM-VARIAVEL, E168.13, A7 da segurança do #854): no parecer, `gh -R {o/r,api} graphql` (o… |
 | `gh-*` | 3 | 3 | 0 | `R-CONTRIB`, `R-REVIEW` | `GH-MERGE-ADMIN` | GH-MERGE-ADMIN: o -R do Forge entre pr e o subcomando também é o repositório do Forge |

@@ -46,8 +46,8 @@
       "id": "D3H7",
       "guarda": "asserção vácua não conta",
       "arquivo": "tests/catraca.py",
-      "de": "for n in ast.walk(c) if not _vacua(n)):",
-      "para": "for n in ast.walk(c) if True):",
+      "de": "for n in ast.walk(c) if not _vacua(n)]",
+      "para": "for n in ast.walk(c) if True]",
       "testes": [
         "tests.test_catraca.TestesAfrouxados.test_assercao_so_de_constantes_nao_conta"
       ]

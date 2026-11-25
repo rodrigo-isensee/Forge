@@ -6,8 +6,8 @@
       "id": "M17",
       "guarda": "suite_do_parecer: sem prova e sem CI verde reprova",
       "arquivo": "bin/forge-check",
-      "de": "    return [] if ci[\"verde\"] else [linha]\n",
-      "para": "    return [] if True else [linha]\n",
+      "de": "    return sem_ci + ([] if ci[\"verde\"] else [linha])\n",
+      "para": "    return sem_ci + ([] if True else [linha])\n",
       "testes": [
         "tests.test_forge_check_pr.SuiteNoCmdPr.test_sem_prova_e_sem_ci_verde_reprova",
         "tests.test_forge_check_pr.SuitePeloPrDaCli.test_o_pr_reprova"

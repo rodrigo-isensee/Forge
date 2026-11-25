@@ -85,6 +85,9 @@
 # PR aberto: V3 abre o PR homolog -> main (o merge é só do dono). V4 lê o bin/forge-contador da origin/develop; com N de teto ou mais, V5
 # grava a marca (forge-changelog release <versão> numa worktree sobre a origin/develop), envia melhoria/marca-<versão> e abre o PR em
 # rascunho para a develop, que segue o fluxo de sempre (pareceres e --laco). Ramo da marca já no origin, nada faz. Rodar de novo retoma.
+# CORTE-MARCA-PRONTA (v0481 E13.15): a seção sai com o dia local; o corpo do PR da marca traz a linha de teto que o 1c cobra e os pareceres
+# release-<versão>, e a tela, a classe; com o ramo já no origin, o fragmento novo da develop entra na seção (--anexar) antes do merge da
+# marca; o V3 imprime o pedido do rótulo afrouxa-regra ao dono quando a promoção o levou.
 # Aceita só --base, --espera, --espera-ci e --dry-run (lê e imprime o que faria). O --laco que termina com 0 roda o --corte no fim.
 # FORGE_FECHAR_PAUSA (segundos, padrão 3) é a espera entre as tentativas de leitura repetida.
 # Faixas (recusadas antes do passo 1, com a faixa na mensagem): FORGE_FECHAR_PAUSA 1 a 30; FORGE_FECHAR_INTERVALO 5 a 120 (o piso cai
@@ -645,7 +648,7 @@ buscar_de() {
 }
 # limpar_clones (MP6): as cópias que são clones (o `.git` delas é pasta, não arquivo de worktree) em ~/.forge-contrib/wt, na branch $ref e com o
 # mesmo origin, saem só limpas (sem mudança, arquivo novo nem stash), sem worktree ligada (o rm levaria o repositório dela), sem commit fora das
-# refs do origin (`--all`: branch, tag, stash, nota) e com o sha mesclado ou um ancestral dele; as outras ficam pendentes, com leitura no lugar de
+# refs do origin (`--all` sem `refs/tags/arquivo/*`: branch, tag, stash, nota) e com o sha mesclado ou um ancestral dele; as outras ficam pendentes, com leitura no lugar de
 # comando que apaga. LIMPAR-CLONE-NAO-LISTADO (v0478 E132.6): o commit que as refs remotas do clone não cobrem (elas podem estar velhas, E128.2)
 # vale como "na origem" se as pontas lidas agora da origin (ls-remote) o alcançam; a busca é desta cópia, só por leitura (buscar_de), e o clone
 # não roda fetch (o .git/config dele poria comando no fetch). A ref remota de uma branch já apagada no origin ainda conta como "na origem". O git
@@ -685,10 +688,13 @@ git -C $(printf '%q' "$d") remote -v"
     fi
     sha_dela="$("${g[@]}" rev-parse -q --verify HEAD || true)"
     [ "$lida" = 1 ] || { origem_atual; lida=1; }
-    fora="$("${g[@]}" rev-list --all --not --remotes 2>/dev/null || echo erro)"
-    # o que as pontas de agora não alcançam; commit que esta cópia não lê (só do clone) faz o rev-list falhar: fica
+    # LIMPAR-CLONE-PARECER (v0481 E14.1): só as tags arquivo/* (da origin, apagadas lá) ficam fora da conta; outra tag local, o stash e a nota
+    # contam (a tag que a origin ainda tem já sai pelas pontas)
+    fora="$("${g[@]}" rev-list --exclude='refs/tags/arquivo/*' --all --not --remotes 2>/dev/null || echo erro)"
+    # o que as pontas de agora e os heads mesclados não alcançam (o commit da branch já mesclada por squash, com a ref remota dela apagada,
+    # é ancestral do head mesclado); commit que esta cópia não lê (só do clone) faz o rev-list falhar: fica
     # shellcheck disable=SC2086  # uma ponta por palavra
-    [ -z "$fora" ] || [ "$fora" = erro ] || fora="$({ printf '%s\n' $fora; printf '^%s\n' $pontas; } | git rev-list --stdin 2>/dev/null || echo erro)"
+    [ -z "$fora" ] || [ "$fora" = erro ] || fora="$({ printf '%s\n' $fora; printf '^%s\n' $pontas $merged_heads; } | git rev-list --stdin 2>/dev/null || echo erro)"
     ancestral=1
     for h in $merged_heads; do git merge-base --is-ancestor "$sha_dela" "$h" 2>/dev/null && ancestral=0; done
     if [ "$("${g[@]}" worktree list --porcelain 2>/dev/null | grep -c '^worktree ' || true)" != 1 ] \
@@ -1488,9 +1494,84 @@ versao_em() {
   texto="$(git show "refs/remotes/origin/$1:.claude-plugin/plugin.json" 2>/dev/null)"
   printf '%s\n' "$texto" | sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([0-9]\{1,9\}\.[0-9]\{1,9\}\.[0-9]\{1,9\}\)".*/\1/p' | head -n 1
 }
+# medir_a_marca (CORTE-MARCA-PRONTA, v0481 E13.15): na cópia da marca (cwd), a classe do PR (contra a develop) e a linha de teto que o 1c
+# da marca exige do corpo (forge-check pr release-<versão> --base main mede origin/main...HEAD, H1), vazia abaixo do teto; as duas pelas
+# funções do próprio forge-check, para a conta ser a dele.
+medir_a_marca() {
+  python3 -I - "$(dirname "$eu")/forge-check" <<'PY'
+import importlib.machinery, importlib.util, pathlib, sys
+carregador = importlib.machinery.SourceFileLoader("forge_check", sys.argv[1])
+fc = importlib.util.module_from_spec(importlib.util.spec_from_loader("forge_check", carregador))
+carregador.exec_module(fc)
+raiz = pathlib.Path.cwd()
+numstat = fc.contagens_do_intervalo(raiz, "refs/remotes/origin/main", "HEAD", tres_pontos=True, estrito=True)
+if numstat is None:
+    sys.exit("medir_a_marca: o git não leu o diff --numstat da origin/main")
+tamanho = fc.modulo_do_bin("forge_tamanho")
+total = tamanho.linhas_de_codigo(numstat, fc.e_codigo)
+print(fc.classe_da_entrega(raiz, "HEAD", "develop")[0])
+print(f"teto: excedido, {total} linhas, marca de versão" if tamanho.aviso_de_linhas(total) else "")
+PY
+}
+# corpo_da_marca <versão> <linha do contador> <arquivo da medida>: o corpo do PR da marca, já com a linha de teto e os pareceres
+# release-<versão> que a promoção exige (o 1c roda forge-check pr release-<versão> --base main).
+corpo_da_marca() {
+  local classe="" teto=""
+  { read -r classe; read -r teto; } < "$3"
+  printf '%s\n' "## Projeto de origem
+Forge (corte da versão $1 pelo contador, forge-fechar --corte, D4 do estudo determinístico).
+
+## O que muda
+forge-changelog release $1: os fragmentos de changelog.d/ juntados no CHANGELOG.md e a versão nos plugin.json ($2). Classe do PR: $classe.
+${teto:+
+$teto
+}
+## Pareceres que a promoção exige (pedido release-$1, contra a main)
+- docs/reviews/release-$1.md (review)
+- docs/qa/release-$1.md (QA)
+- docs/security/release-$1.md (segurança)
+
+## Como medir
+Tempo do 20º item na develop até o PR da main aberto."
+}
+fragmentos_em() { git ls-tree --name-only "$1" changelog.d/ | grep -v -i '/readme\.md$' | grep '\.md$' | LC_ALL=C sort; }
+# anexar_na_marca <versão> <ramo> <linha do contador> (CORTE-ANEXAR, v0481 E13.15): o fragmento que a develop recebeu depois do corte
+# (ausente da base comum dela com o ramo da marca) entra na seção da versão antes do merge da marca: merge da origin/develop no ramo,
+# forge-changelog release --anexar, envio (só avanço) e o corpo do PR com o teto medido de novo; o head novo pede revalidar os pareceres.
+anexar_na_marca() {
+  local v="$1" ramo="$2" mb novos tmp
+  git fetch -q --no-tags origin "+refs/heads/$ramo:refs/remotes/origin/$ramo" || die "parou no passo V5: não busquei $ramo (nada foi anexado)"
+  mb="$(git merge-base refs/remotes/origin/develop "refs/remotes/origin/$ramo")" || die "parou no passo V5: sem base comum entre a develop e $ramo (nada foi anexado)"
+  novos="$(LC_ALL=C comm -23 <(fragmentos_em refs/remotes/origin/develop) <(fragmentos_em "$mb") | tr '\n' ' ')"
+  [ -n "$novos" ] || return 0
+  echo "aviso: a develop recebeu fragmento depois do corte da $v, que ficaria fora da seção: ${novos% }; junto com forge-changelog release --anexar $v." >&2
+  if [ "$seco" = 1 ]; then echo "  rodaria: merge da origin/develop em $ramo, forge-changelog release --anexar $v, commit, git push origin HEAD:refs/heads/$ramo e $gh pr edit $ramo --body"; return 0; fi
+  tmp="$(mktemp -d)"
+  if ! { git worktree add -q --detach "$tmp/marca" "refs/remotes/origin/$ramo" && (cd "$tmp/marca" \
+      && git merge -q --no-edit -m "chore(release): develop na marca da $v" refs/remotes/origin/develop \
+      && python3 -I "$(dirname "$eu")/forge-changelog" release --anexar "$v" \
+      && git commit -q -a -m "chore(release): fragmento novo na seção da $v" -m "Depois do corte: ${novos% } (forge-fechar --corte)." \
+      && medir_a_marca > "$tmp/nova-medida" && git push -q origin "HEAD:refs/heads/$ramo"); }; then
+    die "parou no passo V5: o fragmento novo não entrou na marca da $v; a cópia fica em $tmp/marca para conferir"
+  fi
+  git worktree remove "$tmp/marca" || echo "aviso: não removi a cópia $tmp/marca do anexar; rode: git worktree remove $tmp/marca" >&2
+  "$gh" pr edit "$ramo" --body "$(corpo_da_marca "$v" "$3" "$tmp/nova-medida")" >/dev/null \
+    || die "parou no passo V5: o fragmento entrou em $ramo, mas o corpo do PR não foi refeito (o mesmo comando não o refaz); ajuste o corpo à mão com a medida em $tmp/nova-medida"
+  echo "corte: fragmento novo anexado à marca da $v em $ramo; os pareceres revalidam o head novo (forge-check parecer delta)."
+}
+# rotulo_da_promocao <versão> <url do PR da main> (v0481 E13.15): a promoção que levou o rótulo afrouxa-regra (nome exato) faz o PR da main
+# pedir o mesmo ao dono, que é quem aplica rótulo (R-CONTRIB, R-MAIN): imprime o comando pronto que abre o PR para ele (o script não traz
+# comando de rótulo nem no texto: test_script_nunca_usa_force_no_verify_nem_rotulo). A leitura que falha só avisa.
+rotulo_da_promocao() {
+  local nomes
+  nomes="$(ler "$gh" pr list --head "promocao/$1" --base homolog --state merged --json labels --jq '.[].labels[].name')" \
+    || { echo "aviso: não li os rótulos da promoção da $1; confira se o PR da main pede afrouxa-regra." >&2; return 0; }
+  grep -qxF afrouxa-regra <<<"$nomes" || return 0
+  echo "rótulo: a promoção da $1 levou afrouxa-regra; o PR da main vai pedir o mesmo rótulo ao dono, que o aplica no PR: gh pr view $2 --web"
+}
 # corte_da_versao (CORTE-PELO-CONTADOR, D4 do estudo determinístico): ver o cabeçalho. Volta com 0; o que para sai pelo die ou pelo código do --promover.
 corte_da_versao() {
-  local v_dev v_hom v_main pr_main marca linha v rc=0 tmp url ramo
+  local v_dev v_hom v_main pr_main marca linha v rc=0 tmp url ramo r
   passo V1 "versões da develop, da homolog e da main no servidor e o PR homolog -> main aberto"
   git fetch -q --no-tags origin "+refs/heads/develop:refs/remotes/origin/develop" "+refs/heads/homolog:refs/remotes/origin/homolog" \
     "+refs/heads/main:refs/remotes/origin/main" || die "parou no passo V1: não busquei develop, homolog e main do origin (nada foi feito)"
@@ -1521,6 +1602,7 @@ corte_da_versao() {
     url="$("$gh" pr create --base main --head homolog --title "release $v_hom" --body "Versão $v_hom, promovida para a homolog pelo commit da marca (forge-fechar --corte). O merge é só do dono (R-MAIN).")" \
       || die "parou no passo V3: não abri o PR homolog -> main da $v_hom; rode o mesmo comando"
     echo "PR da main aberto: $url (só o dono mescla)"
+    rotulo_da_promocao "$v_hom" "$url"
   fi
   passo V4 "contador da versão na develop (bin/forge-contador)"
   linha="$(python3 -I "$(dirname "$eu")/forge-contador" --raiz . --ref refs/remotes/origin/develop)" || die "parou no passo V4: o forge-contador falhou (nada foi cortado)"
@@ -1530,24 +1612,25 @@ corte_da_versao() {
   [ "${BASH_REMATCH[2]}" -ge "${BASH_REMATCH[3]}" ] || { echo "corte: a $v ainda não fecha."; return 0; }
   ramo="melhoria/marca-$v"
   passo V5 "PR da marca da $v em rascunho ($ramo, forge-changelog release)"
-  [ -z "$(remoto_exato "$ramo" || echo erro)" ] || { echo "corte: $ramo já existe no origin (ou a leitura falhou); o PR da marca segue o fluxo de sempre (pareceres e o --laco)."; return 0; }
+  r="$(remoto_exato "$ramo" || echo erro)"
+  if [ -n "$r" ]; then
+    echo "corte: $ramo já existe no origin (ou a leitura falhou); o PR da marca segue o fluxo de sempre (pareceres e o --laco)."
+    if [ "$r" != erro ]; then anexar_na_marca "$v" "$ramo" "$linha"; fi
+    return 0
+  fi
   if [ "$seco" = 1 ]; then echo "  rodaria: forge-changelog release $v <hoje> sobre a origin/develop, commit, git push origin HEAD:refs/heads/$ramo e $gh pr create --draft"; return 0; fi
   tmp="$(mktemp -d)"
+  # A data da seção é o dia local (TZ do ambiente), não o UTC: o corte da noite não sai com o dia seguinte (v0481 E13.15).
   if ! { git worktree add -q --detach "$tmp/marca" refs/remotes/origin/develop && (cd "$tmp/marca" \
-      && python3 -I "$(dirname "$eu")/forge-changelog" release "$v" "$(date -u +%F)" \
+      && python3 -I "$(dirname "$eu")/forge-changelog" release "$v" "$(date +%F)" \
       && git commit -q -a -m "chore(release): marca da $v na develop" -m "Corte pelo contador ($linha), forge-fechar --corte (D4)." \
-      && git push -q origin "HEAD:refs/heads/$ramo"); }; then
-    die "parou no passo V5: a marca da $v não foi gravada nem enviada; a cópia fica em $tmp/marca para conferir (nenhum PR aberto)"
+      && medir_a_marca > "$tmp/medida" && git push -q origin "HEAD:refs/heads/$ramo"); }; then
+    die "parou no passo V5: a marca da $v não foi gravada nem enviada (ou não foi medida); a cópia fica em $tmp/marca para conferir (nenhum PR aberto)"
   fi
   git worktree remove "$tmp/marca" || echo "aviso: não removi a cópia $tmp/marca; rode: git worktree remove $tmp/marca" >&2
-  url="$("$gh" pr create --draft --base develop --head "$ramo" --title "chore(release): marca da $v na develop" --body "## Projeto de origem
-Forge (corte da versão $v pelo contador, forge-fechar --corte, D4 do estudo determinístico).
-
-## O que muda
-forge-changelog release $v: os fragmentos de changelog.d/ juntados no CHANGELOG.md e a versão nos plugin.json ($linha).
-
-## Como medir
-Tempo do 20º item na develop até o PR da main aberto.")" || die "parou no passo V5: $ramo foi enviado, mas o PR não foi aberto; abra-o com $gh pr create --draft --base develop --head $ramo"
+  echo "classe do PR da marca: $(head -n 1 "$tmp/medida"); a promoção exige os pareceres release-$v (review, QA e segurança)."
+  url="$("$gh" pr create --draft --base develop --head "$ramo" --title "chore(release): marca da $v na develop" --body "$(corpo_da_marca "$v" "$linha" "$tmp/medida")")" \
+    || die "parou no passo V5: $ramo foi enviado, mas o PR não foi aberto; abra-o com $gh pr create --draft --base develop --head $ramo"
   echo "PR da marca em rascunho: $url; segue o fluxo de sempre (pareceres da classe e o --laco)."
 }
 
