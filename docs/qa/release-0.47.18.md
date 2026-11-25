@@ -35,3 +35,4 @@ QA da versão inteira para a promoção: `git diff 5fb8e328..217e73ed` (5 commit
 - Sem código novo nesta junção além dos 4 itens; a prova de cada um está no parecer do próprio pedido.
 - Corte de 4 itens, abaixo dos 20, autorizado pela ordem do dono de 24/11 20:46, citada no corpo do #894 com `teto: excedido, 1349 linhas, marca de versão`.
 - Segurança e acessibilidade: sem tela; a segurança tem parecer próprio (`docs/security/release-0.47.18.md`).
+- ci: 217e73ed2e9bc41ac0ba09550b76721fbd36359d verde

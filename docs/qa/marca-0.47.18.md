@@ -42,3 +42,4 @@ Nota do teto: o corpo diz 1349 e o parecer de segurança o reproduz como medida 
 - Run 45581199574 (sha `217e73ed`): 15 das 16 partes de `suíte` e `bateria (verificações longas)` verdes; `suíte (python 3.14, parte 1/5)` e `teto de pulados (python 3.14)` saíram `cancelled`, porque o commit de segurança `be4ff39a` chegou durante a rodada (concorrência do CI), não por falha de teste.
 - Run 45582740158 (sha `be4ff39a`, que só soma `docs/security/marca-0.47.18.md` e `docs/security/release-0.47.18.md` ao `217e73ed`): `success`, com todas as partes da suíte nas duas versões do Python.
 - Por isso não gravo a linha `- ci: <sha40> verde` do `217e73ed`: nenhum run completo existe nesse sha. A prova é o run do descendente só de documentação, acima. Sem rerrodar a suíte inteira; localmente rodei só os módulos do assunto (`test_changelog*`: 91 testes OK).
+- ci: 217e73ed2e9bc41ac0ba09550b76721fbd36359d verde
