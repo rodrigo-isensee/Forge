@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-fechar-ci-topo
-commit: dd2fcada2719cafad4eee2d8e31f3aaec2e8d5c3
-parecer: reprovado
-escopo: completo
+commit: 58852bf22fd6dcd4912d14b65813f701995cb38e
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -15,9 +15,6 @@ data: 2026-11-24
 # QA: v0481 forge-fechar (CI do topo, branch criada do servidor, cópia certa)
 
 Links: pedido v0481 (E13.1, QA E13.8), `docs/fechamento-integrador.md`, `bin/forge-fechar`. Sem UX nem API. As obrigações são as do brief: nenhum caminho mescla sem os checks verdes do head, o CI do topo só vale quando contém o merge, nada que barra hoje deixa de barrar. Offline, `gh` e `git` falsos (`R-CUSTO`).
-
-## Achados
-- A1 (bloqueante) tests/mutantes/mp1311-fechar-cartao.json:16 · o M2: o diff reescreve o `ref_check="$sha_conferido"` de bin/forge-fechar (agora dentro de `else`); o `de` do M2 deixou de existir e a bateria do CI (dd2fcad) cai em ConferirTodas (AR-12). Alinhe a spec no mesmo commit.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -33,23 +30,27 @@ Links: pedido v0481 (E13.1, QA E13.8), `docs/fechamento-integrador.md`, `bin/for
 | Worktree ligada na branch não é a cópia principal | `CopiaCerta.test_worktree_ligada_na_branch_nao_e_a_copia_principal` | worktree | passou |
 | Nenhum caminho mescla sem checks verdes do head | passo 6b (`ci_antes_do_merge`) e `--match-head-commit` não estão no diff; o diff de bin/forge-fechar só toca `ci_no_merge` (passo 8, depois do merge), o passo 1 e a guarda da cópia | n/a | conferido por leitura do diff |
 
+## Revalidação por delta (dd2fcada..58852bf2)
+`forge-check parecer delta` listou no domínio: bin/forge-fechar, specs de mutante (mp1311, v047-integracao-em-lote-3, v0481-fechar-ci-topo, novo `-2`), `test_fechar_ci_topo.py`, `test_fechar_sha_conferido.py`, doc e changelog. O A1 do parecer anterior está resolvido: o `de` do M2 do mp1311 e o IL-M21 agora existem na fonte; o teste devolveu o nome `test_commit_que_falta_aqui_pede_o_fetch`. Obrigações novas do delta, com teste e mutante:
+| Obrigação | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Branch criada no passo 1 sai se o fechamento para antes do passo 3 | `SoBranchRemota.test_branch_criada_sai_se_o_passo_1_para` | parada no passo 1 | passou; M9 morre; prova (cai na base) |
+| Passou do passo 2, a branch criada fica | `test_commit_que_falta_aqui_cria_a_branch_local_no_sha_do_servidor` | passo 3 em diante | passou; M10 morre |
+| Vermelho do próprio merge não fala do topo; vermelho do topo avisa | `CiDoTopo.test_vermelho_do_proprio_merge_nao_fala_do_topo` e o reforço do `test_topo_vermelho_continua_5...` | topo == merge | passou; M11 morre (o teste é negativo, passa na base) |
+| `--sem-limpar` na cópia principal na branch segue (rc 3 do passo 7 pulado) | `CopiaCerta.test_copia_principal_na_branch_com_sem_limpar_segue` | flag | passou; M12 morre |
+
 ## Provas
-- Pacote `test_fechar*.py` no head dd2fcad: 481 testes, OK (skipped=1), 440 s.
-- `bin/forge-mutante tests/mutantes/v0481-fechar-ci-topo.json`: M1 (:1235), M2 (:1236), M3 (:1241), M4 (:1687), M5 (:1688), M6 (:1655), M7 (:1662), M8 (:1663), todos `morreu`. A lista cobre cada linha de guarda mudada no diff.
-- Sondas minhas (arquivo, `gh` e `git` falsos): `--dry-run` na cópia principal na branch sai 0 sem parar; o topo cujo CI também é cancelado sai 5 com o aviso do topo novo (o laço não gira sem fim); `--sem-limpar` na cópia principal na branch agora para com 1 antes do passo 1 (antes mesclava e saía 3): barra mais, não menos.
-- CI do mesmo sha: run 45527336208, check `bateria` = failure. Causa: `suíte (python 3.14, parte 4/5)`, `test_forge_mutante.ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes`; reproduzido aqui com `bin/forge-mutante --conferir --todas`: `tests/mutantes/mp1311-fechar-cartao.json: M2 · o trecho aparece 0 vezes em bin/forge-fechar`.
+- `bin/forge-mutante --conferir --todas` no head: rc 1 com 26 linhas, todas pendentes herdadas (nenhuma de mp1311, v047-integracao-em-lote-3 nem v0481); o teste que o CI roda, `test_forge_mutante.ConferirTodas` (4 testes), passou: OK. A causa da falha do parecer anterior sumiu.
+- `bin/forge-mutante tests/mutantes/v0481-fechar-ci-topo.json tests/mutantes/v0481-fechar-ci-topo-2.json --processos 4` (rev=58852bf22fd6): M1 :1238, M2 :1239, M3 :1244, M4 :1693, M5 :1694, M6 :1660, M7 :1667, M8 :1668, M9 :444, M10 :1755, M11 :1246, M12 :1693, todos `morreu`. Cada linha de guarda nova do diff (fim, `branch_criada=""`, aviso do topo, `sem_limpar`) tem mutante.
+- Pacote `test_fechar*.py` no head: 484 testes, OK (skipped=1), 566 s.
+- Sondas minhas (`gh` e `git` falsos): (A) branch local movida por outro agente durante o passo 1 e parada em seguida: o `update-ref -d` com o valor antigo não apaga a branch alheia; (B) `--dry-run` com a branch só no servidor sai 0 sem criar branch; (C) parada no passo 2 (remoto difere) apaga a branch criada e imprime o registro. Sem achado.
+- CI: a run 45530565296 do sha 58852bf foi cancelada pelo push seguinte (o parecer do review); `bateria (pareceres)` falhou nela por parecer ainda não regravado no head. A prova de QA é a local acima; a bateria do head final é do CI do PR.
 
 ## Vermelho antes do verde
-`forge-testes --vermelho d49accf8c5d7575bc02354a1bd0014d8c954600c --modulos test_fechar_ci_topo,test_fechar_sha_conferido`, rc=0:
-```
-vermelho: base=d49accf8c5d7 head=dd2fcada2719 módulos=test_fechar_ci_topo,test_fechar_sha_conferido (restrito por --modulos)
-revertidos à base: bin/forge-fechar, changelog.d/v0481-fechar-ci-topo.md, docs/fechamento-integrador.md, tests/pesos-d4.json
-contagem: não prova (passa na base)=12; prova (asserção)=6
-```
-Provam (caem na base): `test_topo_verde_que_contem_o_merge_fecha_com_0`, `test_topo_vermelho_continua_5_com_a_reversao_do_merge`, `test_topo_identico_ao_merge_tambem_decide`, `test_copia_principal_na_branch_para_antes_do_passo_1`, `test_commit_que_falta_aqui_cria_a_branch_local_no_sha_do_servidor`, `test_branch_local_que_nao_se_cria_para_antes_do_passo_1`. Os 12 que passam na base guardam o que já barrava (diverged, topo igual, worktree, servidor que anda) ou o ramo que a base já cumpria; as guardas novas deles são provadas pelos mutantes M2, M6 e M7.
+`forge-testes --vermelho dd2fcada2719cafad4eee2d8e31f3aaec2e8d5c3 --modulos test_fechar_ci_topo,test_fechar_sha_conferido`, rc=0, `contagem: não prova (passa na base)=18; prova (asserção)=3`. Provam: `test_branch_criada_sai_se_o_passo_1_para`, `test_topo_vermelho_continua_5_com_a_reversao_do_merge` (o aviso novo do topo) e `test_copia_principal_na_branch_com_sem_limpar_segue`; `test_vermelho_do_proprio_merge_nao_fala_do_topo` passa na base (guarda negativa, provada pelo M11); os 18 restantes guardam o que a base já cumpria e as guardas deles seguem provadas pelos mutantes. Do parecer anterior segue valendo o vermelho contra d49accf8 (6 provas).
 
 ## Bugs
-Nenhum de comportamento do `forge-fechar`; o único defeito é o A1 (spec de mutante desalinhada, bateria vermelha).
+Nenhum.
 
 ## Veredito
-Reprovado em dd2fcad só pelo A1: a lógica nova do passo 8, do passo 1 e da cópia certa está correta e protegida; falta alinhar a spec `mp1311-fechar-cartao.json` M2 (o `de` de `ref_check="$sha_conferido"` no novo `else`, com 4 espaços de indentação) e ver a bateria verde. Na volta, `forge-check parecer delta docs/qa/v0481-fechar-ci-topo.md`.
+Aprovado em 58852bf: o A1 foi corrigido, as quatro guardas novas têm teste e mutante, 12 mutantes mortos, pacote verde e sondas sem achado.
