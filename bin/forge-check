@@ -4,7 +4,7 @@
 `pr` aprovado sai com rc 0 e uma linha `pr: veredito: aprovado · <pedido> · exigidos <pareceres> · head <sha7> · base <origin/x|diff literal|estrita>`; com violação, só as violações e rc 1.
 Fora do `--previo` e do `--pr`, o `pr` grava o resultado do head em `<diretório comum do git>/forge/pr/<head>/`: o hook `parecer` o lê no `gh pr create` (PR-HOOK-PRAZO) e, como atalho, no `gh pr ready` e no `gh pr merge` (PR-HOOK-RAPIDO: o reprovado recusa; o aprovado libera só no clone do Forge).
 
-H1 (v0474 E2.13): o `pr` avisa no stderr do item acima de 150 linhas de código (testes e documentação não contam) e, com o PR da branch aberto, reprova o corpo sem `teto: excedido, <n> linhas, <motivo>`; o `brief gerar` avisa do pedido com mais de 50 etapas e do brief a 90% do teto de caracteres (bin/forge_tamanho.py).
+H1 (v0474 E2.13): o `pr` avisa no stderr do item acima de 150 linhas de código (testes e documentação não contam) e, com o PR da branch aberto, reprova o corpo sem `teto: excedido, <n> linhas, <motivo>`; o `brief gerar` avisa do pedido com mais de 50 etapas e do brief a 80% do teto de caracteres (bin/forge_tamanho.py); nessa margem arquiva antes as etapas fechadas do pedido em docs/pedidos/arquivo/<id>.md, com os ids em `## Etapas arquivadas` (PEDIDO-ARQUIVA-SOZINHO).
 
 D2-PORTAO-ENTREGA-AUTOR (v0481 E11.1): `pronto [--base REF] [--corpo ARQUIVO]` é o portão de entrega do autor, rodado antes das
 revisões: registros, neutralidade com os dois detectores, tetos de texto, testes afetados, teto H1 e corpo do PR (bin/forge_pronto.py).
@@ -5424,7 +5424,7 @@ def recusa_do_apontador(raiz_pedido, pedido_id, pedido_txt, alvo):
     da raiz do pedido fora de `Fechado sem entrega` (a ordem gravada agora é posterior ao fechamento); senão o motivo. Quadro que é
     link, não é arquivo regular, passa do teto ou sai de UTF-8 não confere: uma abertura só, por `_ler_regular` (A1, A3, A4)."""
     if re.fullmatch(ETAPA_APONTADA, alvo):
-        return None if e_etapa_do_pedido(alvo, ler_pedido_brief(pedido_txt)["etapas"]) else f"--cartao {sem_controle(alvo)}: etapa fora do `## Etapas` do pedido"
+        return None if e_etapa_do_pedido(alvo, ids_de_etapa(ler_pedido_brief(pedido_txt))) else f"--cartao {sem_controle(alvo)}: etapa fora do `## Etapas` do pedido"
     texto, erro = _ler_regular(Path(raiz_pedido) / "KANBAN.md")
     if texto is None:
         return f"--cartao: KANBAN.md {erro}; não confiro o cartão (use a etapa E<n> do pedido)"
@@ -7562,8 +7562,20 @@ def ler_pedido_brief(texto):
         etapas[f"E{m.group(1)}.{m.group(2)}{m.group(3)}"] = (papel, corpo[m.start():fim].strip(" -"))
     etapas = dict(sorted(etapas.items(), key=lambda par: ordem_do_id(par[0])))
     decisoes = [l.strip() for l in texto.splitlines() if e_linha_de_decisao(l)]
+    # id -> papel (None sem papel): o corte barra igual depois do arquivo (A2 do #874); a viva de mesmo id prevalece no corte
+    arquivadas = {m.group(1): nome_do_papel(m.group(2)) for m in ETAPA_ARQUIVADA.finditer(" ".join(secoes.get(ETAPAS_ARQUIVADAS, [])))}
     return {"escopo": escopo, "etapas": etapas, "decisoes": decisoes, "fora": itens_de(secoes.get("Fora do escopo", [])),
-            "texto": normalizar_espacos(texto)}
+            "texto": normalizar_espacos(texto), "arquivadas": arquivadas}
+
+
+def ids_de_etapa(pedido):
+    """As etapas vivas e as arquivadas (PEDIDO-ARQUIVA-SOZINHO): o brief selado antes do arquivamento ainda cita a sua etapa."""
+    return set(pedido["etapas"]) | set(pedido.get("arquivadas", {}))
+
+
+def papeis_das_etapas(pedido):
+    """id -> papel das etapas vivas e das arquivadas: `junta delegações` e `papel errado` barram igual antes e depois do arquivo."""
+    return {**pedido.get("arquivadas", {}), **{e: papel for e, (papel, _) in pedido["etapas"].items()}}
 
 
 def ordem_do_id(id_):
@@ -7747,7 +7759,7 @@ def conferir_corte(brief_secoes, pedido, destino, cobre=None):
     `Fora do escopo`, sem a marca (continua no pedido) ou com a marca completa (sai do pedido, `R-DECISAO`). Um brief delega uma
     só etapa: duas ou mais citadas no Entregar reprovam (`etapa: junta delegações`). G1: a etapa do `Cobre:` do cabeçalho, do papel do
     destino, no `Fora do escopo` sem a marca é a própria delegação cortada e reprova."""
-    if not pedido["escopo"] and not pedido["etapas"]:
+    if not pedido["escopo"] and not ids_de_etapa(pedido):
         return [("corte: não verificável (pedido sem IDs)", False)]
     entregar = " ".join(brief_secoes.get("Entregar", []))
     citados = ids_em_citacao(entregar)
@@ -7775,13 +7787,14 @@ def conferir_corte(brief_secoes, pedido, destino, cobre=None):
             return [(f"corte: trecho fora do pedido \"{rotulo}\" ({fora_do_pedido[0][:60]})", True)]
         return [(f"corte: real (marca completa) \"{rotulo}\"", False)]
 
-    etapas_citadas = [e for e in pedido["etapas"] if e in citados]
+    papeis = papeis_das_etapas(pedido)  # vivas e arquivadas: o arquivo não afrouxa as duas recusas (A2 do #874)
+    etapas_citadas = sorted((e for e in papeis if e in citados), key=ordem_do_id)
     if len(etapas_citadas) > 1:
         saida.append((f"etapa: junta delegações {', '.join(etapas_citadas)} (R-BRIEF)", True))
     for etapa in etapas_citadas:  # M1: o destino não tem a etapa que o Entregar cita (papel errado)
-        papel = pedido["etapas"][etapa][0]
+        papel = papeis[etapa]
         if papel_destino and nome_do_papel(papel) != papel_destino:
-            saida.append((f"etapa: papel errado {etapa} (o pedido a põe em \"{sem_controle(papel)[:40]}\", o destino é \"{sem_controle(papel_destino)[:40]}\") (R-BRIEF)", True))
+            saida.append((f"etapa: papel errado {etapa} (o pedido a põe em \"{sem_controle(papel or '')[:40]}\", o destino é \"{sem_controle(papel_destino)[:40]}\") (R-BRIEF)", True))
     if (cobre in pedido["etapas"] and cobre not in citados and not marca_de(cobre) and any(cobre in i["refs"] for i in itens)
             and papel_destino and nome_do_papel(pedido["etapas"][cobre][0]) == papel_destino):
         saida.append((f"corte: sem marca \"{cobre}\" (etapa do próprio papel cortada: o cabeçalho a delega em Cobre) (R-BRIEF)", True))
@@ -7789,6 +7802,9 @@ def conferir_corte(brief_secoes, pedido, destino, cobre=None):
     for n in sorted(pedido["escopo"]):
         chave = f"E{n}"
         filhas = [e for e in pedido["etapas"] if item_da_etapa(e) == chave]
+        if not filhas and chave not in citados and any(item_da_etapa(e) == chave for e in pedido.get("arquivadas", ())):
+            saida.append((f"corte: ok \"{chave}\" com as etapas arquivadas (PEDIDO-ARQUIVA-SOZINHO)", False))
+            continue
         if chave in citados or any(e in citados for e in filhas):
             cobertos.add(chave)
             saida.append((f"corte: ok \"{chave}\" no Entregar", False))
@@ -7841,7 +7857,7 @@ def conferir_pedido_contraditorio(secoes, pedido):
     escopo` e trechos entre aspas de 20 caracteres ou mais que o `Entregar` cita ou copia. Só o que o script decide; o resto é do conferente."""
     entregar = " ".join(secoes.get("Entregar", []))
     citados, texto = ids_em_citacao(entregar), normalizar_espacos(entregar)
-    existentes = {f"E{n}" for n in pedido["escopo"]} | set(pedido["etapas"])
+    existentes = {f"E{n}" for n in pedido["escopo"]} | ids_de_etapa(pedido)
     saida = []
     for item in pedido["fora"]:
         excluidos = sorted(ids_do_fora(item) & existentes & citados, key=ordem_do_id)
@@ -8147,6 +8163,96 @@ def com_branch_mesclada(raiz, etapas):
             for e, papel, texto, estado in etapas]
 
 
+ETAPAS_ARQUIVADAS = "Etapas arquivadas"  # PEDIDO-ARQUIVA-SOZINHO (ordem do dono 24/11): a seção do pedido com os ids que saíram do `## Etapas`
+PASTA_DO_ARQUIVO = "arquivo"  # docs/pedidos/arquivo/<id>.md: fora do glob `docs/pedidos/*.md`, que acha os pedidos
+ID_DE_ETAPA_ARQUIVADA = r"(?<![\w.])E\d+\.\d+[a-z]?(?![\w.])"
+ETAPA_ARQUIVADA = re.compile(rf"({ID_DE_ETAPA_ARQUIVADA})(?:\s*\(([^()]*)\))?")  # `E1.1 (tech-lead)` em `## Etapas arquivadas`
+ETAPA_DE_UMA_LINHA = re.compile(r"^- (E\d+\.\d+[a-z]?) \(([^)]*)\)")
+APROVADO_DA_ETAPA = re.compile(rf"=aprovado(?: por delta)? \(({ID_DE_ETAPA_ARQUIVADA})")  # o id logo depois do parêntese do parecer
+ENTREGUE_DA_ETAPA = re.compile(r"\)?\s*(?:\([^()]*\)\s*)?entregue(?![\w?-])", re.I)  # só `E1.1 entregue`, `(E1.1) entregue`, `E1.1 (papel) entregue`
+
+
+def etapa_entregue_na_linha(linha):
+    """A etapa que a linha do `## Histórico` dá como entregue: a primeira da linha, com `entregue` logo depois dela (o papel entre
+    parênteses pode vir no meio) e antes de outra etapa ou de `;` (`G4 (E7.1) entregue ...; review (E7.3) despachado` só entrega a
+    E7.1). Negação, futuro e texto livre não fecham (`não foi entregue`, `a ser entregue`, `Entregue? não`, `volta entregue`: A2 do
+    #874). Linha de parecer (`.md=`) não entrega nada."""
+    ids = list(re.finditer(ID_DE_ETAPA_ARQUIVADA, linha))
+    if not ids or ".md=" in linha:
+        return None
+    trecho = linha[ids[0].end():ids[1].start() if len(ids) > 1 else len(linha)].split(";")[0]
+    return ids[0].group(0) if ENTREGUE_DA_ETAPA.match(trecho) else None
+
+
+def etapas_fechadas(raiz, caminho, texto, protegidas=frozenset()):
+    """PEDIDO-ARQUIVA-SOZINHO: as etapas que o próprio registro fecha, fora das `protegidas` (o --cobre e as citadas do brief em
+    geração): a entrega conferida do brief selado que a cobre, o PR mesclado da sua `[branch]`, o parecer `=aprovado (E<id>` com o id
+    logo após o parêntese e a linha que a dá como entregue (`etapa_entregue_na_linha`). Id só citado numa linha não a fecha (A1 do #874)."""
+    historico = secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", [])
+    etapas = com_branch_mesclada(raiz, etapas_do_proximo(texto, [], etapas_conferidas(raiz, caminho, historico)))
+    pela_linha = {m.group(1) for linha in historico for m in APROVADO_DA_ETAPA.finditer(linha)}
+    pela_linha |= {etapa_entregue_na_linha(linha) for linha in historico}  # o None das linhas sem entrega não casa etapa
+    return {e for e, _, _, estado in etapas if estado in FECHADAS or e in pela_linha} - set(protegidas)
+
+
+def abrir_o_arquivo(arquivo):
+    """fd de escrita no fim de docs/pedidos/arquivo/<id>.md, ou None: a pasta tem de ser pasta real e o arquivo regular, sem seguir
+    link (A3 da segurança do #874: um link plantado ali levaria as linhas para fora de docs/pedidos/)."""
+    try:
+        if not os.path.lexists(arquivo.parent):
+            os.mkdir(arquivo.parent)
+        if not stat.S_ISDIR(os.lstat(arquivo.parent).st_mode):
+            return None
+        fd = os.open(arquivo, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o644)
+    except OSError:
+        return None
+    if not stat.S_ISREG(os.fstat(fd).st_mode):
+        os.close(fd)
+        return None
+    return fd
+
+
+def arquivar_etapas_fechadas(raiz, caminho, protegidas=frozenset()):
+    """PEDIDO-ARQUIVA-SOZINHO: move as etapas fechadas (`etapas_fechadas`) de uma linha só do `## Etapas` do pedido para
+    `docs/pedidos/arquivo/<id>.md` e lista id e papel em `## Etapas arquivadas` do pedido: o Fora do escopo do `brief gerar` deixa de
+    listá-las, e as citações e o corte do `brief conferir` ainda as conhecem. O `## Histórico` (selos, entrega conferida, parecer
+    conferido) e as linhas `DECISÃO DO DONO` não mudam. Lê e escreve sob a trava do pedido; o arquivo recebe as linhas antes de o
+    pedido perdê-las, e arquivo que não abre (link, não regular) não arquiva nada. Devolve (quantas, arquivo)."""
+    caminho = Path(caminho)
+    arquivo = caminho.parent / PASTA_DO_ARQUIVO / caminho.name
+    with open(caminho, "r+", encoding="utf-8") as f:
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        texto = f.read()
+        fechadas = etapas_fechadas(raiz, caminho, texto, protegidas)
+        linhas = texto.split("\n")
+        inicio = next((i for i, l in enumerate(linhas) if re.fullmatch(r"##\s+Etapas\s*", l)), None)
+        if inicio is None:
+            return 0, arquivo
+        fim = next((i for i in range(inicio + 1, len(linhas)) if linhas[i].startswith("#")), len(linhas))
+        movidas = [i for i in range(inicio + 1, fim) if (m := ETAPA_DE_UMA_LINHA.match(linhas[i])) and m.group(1) in fechadas
+                   and (i + 1 == fim or not linhas[i + 1].strip() or linhas[i + 1].startswith("- "))]
+        if not movidas or (fd := abrir_o_arquivo(arquivo)) is None:
+            return 0, arquivo
+        with os.fdopen(fd, "a", encoding="utf-8") as a:
+            if not os.fstat(fd).st_size:
+                a.write(f"# Arquivo do pedido {caminho_impresso(caminho.stem)}\n\nEtapas fechadas que o `brief gerar` tirou de docs/pedidos/{caminho_impresso(caminho.name)} "
+                        "(PEDIDO-ARQUIVA-SOZINHO); o `## Histórico` fica no pedido.\n\n## Etapas\n")
+            a.write("".join(linhas[i] + "\n" for i in movidas))
+        ids = [f"{m.group(1)} ({m.group(2).split(',')[0].strip()})" for m in (ETAPA_DE_UMA_LINHA.match(linhas[i]) for i in movidas)]
+        saem = set(movidas)
+        resto = [l for i, l in enumerate(linhas) if i not in saem]
+        novas = [f"- {', '.join(ids[j:j + IDS_POR_LINHA_DO_FORA])}" for j in range(0, len(ids), IDS_POR_LINHA_DO_FORA)]
+        onde = fim_da_secao(resto, ETAPAS_ARQUIVADAS)
+        if onde is None:
+            onde = next(i for i in range(inicio + 1, len(resto) + 1) if i == len(resto) or resto[i].startswith("#"))
+            novas = [f"## {ETAPAS_ARQUIVADAS}", f"Fechadas, com o texto em docs/pedidos/{PASTA_DO_ARQUIVO}/{caminho_impresso(caminho.name)}.", *novas, ""]
+        resto[onde:onde] = novas
+        f.seek(0)
+        f.write("\n".join(resto))
+        f.truncate()
+    return len(ids), arquivo
+
+
 def branch_do_proximo(raiz, pedido):
     """(branch, head sha7 ou None) pela linha `Branch:` dos briefs do pedido, se for uma só; senão (None, None)."""
     branches = set()
@@ -8422,7 +8528,7 @@ def cmd_decisoes(raiz, pedido=None, sem_cartao=False, desde=None, frase=FRASE_DO
             saida.append(f"{rotulo}: aviso: {nome}: pedido {motivo_de_falha}; nada lido")
             avisos += 1
             continue
-        etapas = ler_pedido_brief(texto)["etapas"] if ordem else None
+        etapas = ids_de_etapa(ler_pedido_brief(texto)) if ordem else None
         for n, linha in linhas_de_decisao(texto, frase):
             m = registro.match(linha)
             if not m:
@@ -8830,7 +8936,7 @@ def conferir_citacoes(raiz, texto, secoes, pedido, copias=frozenset(), proprio=N
     `"<trecho>" (<arquivo>:<n>[-<m>])` ou `"<trecho>" (R-<ID>)`, existe literalmente nela (espaços normalizados, reticências cortam);
     (c) `tipo:` e `--etapa` do vocabulário fechado. Offline, só leitura. Lista de (linha, reprova)."""
     saida = []
-    ids = set(f"E{n}" for n in pedido["escopo"]) | set(pedido["etapas"])
+    ids = set(f"E{n}" for n in pedido["escopo"]) | ids_de_etapa(pedido)
     if ids:
         citados = ids_em_citacao(" ".join(secoes.get("Entregar", []) + secoes.get("Fora do escopo", [])))
         for id_ in sorted(citados - ids, key=ordem_do_id):
@@ -9819,7 +9925,11 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
         saida.append(f"- docs/pedidos/{sem_controle(caminho_pedido.name)}: só `## Escopo`, `## Etapas` e `## Decisões` e, do `## Histórico`, só as linhas que este brief cita; "
                      "nunca o pedido inteiro (docs/economia-de-tokens.md, regra 4)")
         copia = copia_sugerida(raiz, branch, papel_destino) if branch else None
-        if copia and valor_de_shell_seguro("raiz", copia):  # CLONE-NOME-UNICO: dois agentes nunca na mesma cópia
+        if copia and valor_de_shell_seguro("raiz", copia) and etapa in ETAPAS_DE_PARECER:  # COPIA-REVISAO: o revisor parte do head remoto
+            saida.append(f"- cópia só sua {NOVO} (CLONE-NOME-UNICO): `{copia}`, criada com `forge-copia clone {copia} --branch {branch} "
+                         f"--papel {papel_destino} --revisao` e o --origem do repositório (o head remoto da branch, nunca git clone à mão); "
+                         "nunca a cópia de outro agente")
+        elif copia and valor_de_shell_seguro("raiz", copia):  # CLONE-NOME-UNICO: dois agentes nunca na mesma cópia
             saida.append(f"- cópia só sua {NOVO} (CLONE-NOME-UNICO): `{copia}`, criada com `forge-copia clone {copia} --branch {branch} "
                          f"--papel {papel_destino}` e o --origem do repositório (no Forge, worktree no lugar de clone); nunca a cópia de outro agente")
         if revalidacao:
@@ -9930,6 +10040,12 @@ def cmd_brief_gerar(raiz, pedido, destinos, branch, base, etapa=None, volta=None
     gerados = []
     for destino in destinos:
         texto, rc, mensagens = montar_brief(raiz, pedido, destino, branch, base, etapa, volta, cobre, citar)
+        if not rc and texto is not None and modulo_do_bin("forge_tamanho").aviso_de_caracteres(len(texto), TETO_DE_CARACTERES_DO_BRIEF):
+            protegidas = ids_do_texto(" ".join([str(cobre), *secoes_por(texto, CABECALHO_BRIEF).get("Entregar", [])]))  # A2 do QA
+            quantas, arquivo = arquivar_etapas_fechadas(raiz, caminho_do_pedido(raiz, pedido), protegidas)  # PEDIDO-ARQUIVA-SOZINHO
+            if quantas:
+                print(f"brief gerar: {quantas} etapas fechadas arquivadas em docs/pedidos/{PASTA_DO_ARQUIVO}/{caminho_impresso(arquivo.name)} (PEDIDO-ARQUIVA-SOZINHO)", file=sys.stderr)
+                texto, rc, mensagens = montar_brief(raiz, pedido, destino, branch, base, etapa, volta, cobre, citar)
         if rc or texto is None:
             print("\n".join(mensagens))
             return rc or 1
@@ -11327,6 +11443,8 @@ def executar(a, raiz):
                                           previo=getattr(a, "previo", False), sem_checks=sem_checks)}[a.cmd]()
     for v in violacoes:
         print(v)
+    if a.cmd == "docs" and not violacoes:  # PQ-DOCS-SILENCIOSO: a aprovação se diz numa linha, sem mudar o rc
+        print("docs: ok")
     gravar = not getattr(a, "previo", False) and not sem_checks and branch_do_pr is None  # E3.80: sem os checks, nada para o hook
     if a.cmd == "pr" and gravar:  # PR-HOOK-PRAZO: o resultado do head, para o hook; o PR não lido (CHECKS_NAO_CONFERIDOS) grava reprovado
         gravar_resultado_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None),

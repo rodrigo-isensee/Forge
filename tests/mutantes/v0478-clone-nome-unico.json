@@ -66,8 +66,8 @@
       "id": "M6",
       "guarda": "E172.7 CLONE-NOME-UNICO: caminho fora da forma de shell não vai ao brief",
       "arquivo": "bin/forge-check",
-      "de": "        if copia and valor_de_shell_seguro(\"raiz\", copia):  # CLONE-NOME-UNICO",
-      "para": "        if copia:  # CLONE-NOME-UNICO",
+      "de": "        elif copia and valor_de_shell_seguro(\"raiz\", copia):  # CLONE-NOME-UNICO",
+      "para": "        elif copia:  # CLONE-NOME-UNICO",
       "testes": [
         "tests.test_forge_copia.BriefSugereACopia.test_brief_sem_a_linha_com_caminho_fora_da_forma"
       ]

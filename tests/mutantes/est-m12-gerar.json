@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "so arquivo regular, conferido antes de ler (C-1)",
       "arquivo": "bin/forge-check",
-      "de": "    if not stat.S_ISREG(os.fstat(fd).st_mode):",
-      "para": "    if False:",
+      "de": "    if not stat.S_ISREG(os.fstat(fd).st_mode):  # antes do fdopen",
+      "para": "    if False:  # antes do fdopen",
       "testes": [
         "tests.test_sobreposicao_quadro.KanbanGerar.test_link_grande_fifo_ou_ausente_recusa_com_o_quadro_e_o_alvo_intactos"
       ]

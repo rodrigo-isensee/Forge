@@ -16,8 +16,8 @@
       "id": "M16",
       "guarda": "brief gerar mede os caracteres do brief",
       "arquivo": "bin/forge-check",
-      "de": "aviso_de_caracteres(len(texto), TETO_DE_CARACTERES_DO_BRIEF)",
-      "para": "aviso_de_caracteres(0, TETO_DE_CARACTERES_DO_BRIEF)",
+      "de": "aviso_de_caracteres(len(texto), TETO_DE_CARACTERES_DO_BRIEF):  # PEDIDO-TETO-BRIEF",
+      "para": "aviso_de_caracteres(0, TETO_DE_CARACTERES_DO_BRIEF):  # PEDIDO-TETO-BRIEF",
       "testes": [
         "tests.test_forge_tamanho.NoBriefGerar.test_brief_perto_do_teto_de_caracteres_avisa"
       ]
