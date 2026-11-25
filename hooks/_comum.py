@@ -2823,9 +2823,11 @@ PRAZO_DA_DECISAO_S = 3.0
 # com folga; estourado, recusa como o de 3 s. O resultado gravado pelo `forge-check pr` é um arquivo que o agente pode escrever
 # (v0455): o `gh pr create` o lê (PR-HOOK-PRAZO, v046); no `gh pr ready` e no `gh pr merge` (E2.117) o aprovado libera só no
 # clone do Forge, onde o CI de pareceres é o segundo portão, e o reprovado recusa em todo lugar; no projeto, o merge confere.
-PRAZO_DO_MERGE_S = 8.0
-# E7.23: com o prazo vencido, a decisão da sessão (leitura do disco) e, depois, o registro têm cada um este prazo; os
-# dois somados ao maior acima ficam abaixo dos 10 s do `timeout` do hooks.json.
+# 7,5 s (A5 da segurança no #888): somado aos dois vigias abaixo, deixa 1,5 s de parede para a partida do Python e a saída.
+PRAZO_DO_MERGE_S = 7.5
+# E7.23: com o prazo vencido, a decisão da sessão (leitura do disco) e, depois, o registro têm cada um este prazo. Conta
+# de parede, não só dos prazos: partida + maior prazo + 0,5 + 0,5 abaixo dos 10 s do `timeout` do hooks.json, com folga
+# (com 8 s, a CPU carregada levou a recusa a 10,1 s e o corte a liberou; `test_recusa_do_prazo_longo_presa_deixa_folga`).
 PRAZO_DA_SESSAO_S = 0.5
 
 

@@ -41,6 +41,16 @@
       "testes": [
         "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_fixtures_fifo"
       ]
+    },
+    {
+      "id": "M13",
+      "guarda": "E7.32 (A5 da segurança no #888): o prazo longo mais a sessão e o registro presos deixam a folga de parede antes do corte de 10 s",
+      "arquivo": "hooks/_comum.py",
+      "de": "PRAZO_DO_MERGE_S = 7.5",
+      "para": "PRAZO_DO_MERGE_S = 8.0",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_recusa_do_prazo_longo_presa_deixa_folga"
+      ]
     }
   ]
 }
