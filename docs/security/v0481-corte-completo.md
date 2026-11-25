@@ -3,32 +3,27 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-corte-completo
-commit: 036a78a16d09a3abf29ae94c02d4e6665e2b5227
-parecer: reprovado
+commit: 8e814a7337637b561c53fe9b66ba4fd54966b1ec
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-25
 ---
-# Review de segurança: v0481 (E13.18, #887, forge-fechar --corte: marca pronta para a promoção; classe C)
+# Review de segurança: v0481 (E13.22, #887, forge-fechar --corte: marca pronta para a promoção; classe C), revalidação por delta
 
 ## Gatilhos
 Gatilhos: controle do fluxo de merge e de release (`forge-fechar --corte`, R-FLUXO, R-MAIN), envio a ramo no origin, rótulo do dono (R-CONTRIB).
 
 ## Lido
-`git diff 5fb8e328..036a78a1`: `bin/forge-fechar` (+92/-14: `medir_a_marca`, `corpo_da_marca`, `fragmentos_em`, `anexar_na_marca`, `rotulo_da_promocao` e as chamadas no `corte_da_versao`), `tests/test_fechar_corte.py`, as specs de mutante, `tests/pesos-d4.json`, `docs/fechamento-integrador.md` e o fragmento. Sem parecer anterior nesta branch.
+Delta `git diff 036a78a1..8e814a73` (volta E13.19): `bin/forge-fechar:1556` (só o texto do `die` do V5), `docs/fechamento-integrador.md` (o limite do `--laco` e como refazer o corpo), `tests/test_fechar_corte.py` (`test_leitura_do_origin_que_falha_nao_anexa` e a asserção da mensagem nova), `tests/mutantes/v0481-corte-completo-3.json` (M17), `tests/test_reval_delta.py:124` (contagem 2 para 3) e os pareceres de review e QA. A rodada anterior (no git, sobre 036a78a1) já leu o resto do `bin/forge-fechar` do item; não a recopio.
 
-## Achados
-- A1 (bloqueante) tests/test_fechar_corte.py:369 · CI vermelho no Revisar-sha: test_reval_delta.Guarda acusa README.md citado 3 vezes em tests/test_fechar_corte.py e a lista CITACOES_CONHECIDAS (tests/test_reval_delta.py:124) diz 2; sem CI verde não atesto o head. Correção: atualizar a contagem (ou reaproveitar a citação). Dono: autor.
-
-## Sondas
-- S1 · sonda (subclasse de Corte): marca cortada, item-0.md editado e novo.md na develop, --corte · espera: para no V5 sem enviar · obtido: rc 1, "parou no passo V5", ramo igual, sem pr edit
-- S2 · sonda: marca 0.9.1 mesclada, ramo deixado no origin, fragmento novo, --corte · espera: ramo velho intocado · obtido: rc 0, "contador: 0.9.2: 1 de 2", ramo 0.9.1 igual, sem pr edit
+## Achados anteriores
+- A1 (bloqueante, corrigido): `tests/test_reval_delta.py:124` agora diz 3, igual às citações reais; `python3 -I tests/test_reval_delta.py` passa e a suíte parte 3/5 está verde no CI (abaixo).
 
 ## Detalhe (só aperta ou neutro, por escrito)
-- **Nenhum merge sem checks verdes.** O diff não acrescenta `gh pr merge` nem `--auto`; o único merge novo é o `git merge` local da `origin/develop` na cópia temporária do ramo `melhoria/marca-<v>` (bin/forge-fechar:1549-1551), enviado só por avanço (`git push origin HEAD:refs/heads/$ramo`, sem `--force`). O PR da marca segue pelo `--laco`, que exige pareceres no head e checks verdes; o head novo invalida os pareceres anteriores (aperta). O `test_fechar_corte.sem_merge` cobre os caminhos do corte.
-- **O anexo não leva fragmento de outra versão.** `v` sai do contador da `origin/develop` (versão do `plugin.json` + 1), então o ramo da marca mesclada não é mais o da versão corrente (S2). Novos = fragmentos da `origin/develop` ausentes da base comum dela com o ramo (:1541-1542), que é exatamente o que entrou na develop depois do corte; depois do anexo a base comum vira a ponta da develop e a volta seguinte não faz nada (teste). Fragmento já cortado e editado na develop conflita (modificado × apagado) e para sem enviar (S1).
-- **Nada que barra deixa de barrar.** A medida roda antes do envio e a falha dela para sem enviar (:1624, `test_marca_que_nao_mede_nao_envia`): aperta. Ramo já no origin: antes voltava 0; agora anexa ou para, e a leitura em erro (`r=erro`) segue sem anexar (:1614): neutro ou aperta. `forge-check` e `forge-changelog` vêm do `bin/` do script com `python3 -I`, não da cópia mesclada: o código do ramo não executa. A linha `teto: excedido, <n> linhas, marca de versão` é escrita só quando o teto é excedido, com `<n>` medido pelas funções do próprio `forge-check` (`contagens_do_intervalo` e `forge_tamanho`); o 1c continua exigindo `<n>` de pelo menos o total medido na promoção, e a medida refeita no anexo acompanha o head: neutro (a guarda confere uma declaração; quem a escreve agora é o script, com o número real).
-- **Rótulo.** `rotulo_da_promocao` (:1562-1568) só lê os rótulos (`gh pr list ... --json labels`) e imprime `gh pr view <url> --web`; não aplica rótulo nem traz o comando dele, e a leitura que falha só avisa: neutro (R-CONTRIB intacto).
-- **Data local** (:1622): `date +%F` muda só o texto da seção; neutro.
+- **Contagem 2 para 3:** a guarda continua exigindo o número exato de citações de `README.md` no arquivo; a lista só passa a refletir a citação sintética já revisada na rodada anterior: neutro.
+- **Teste e M17:** o ramo de falha `[ "$r" != erro ]` (bin/forge-fechar:1615) ganhou teste: ls-remote em erro sai em 0, sem aviso de anexo, ramo no origin igual, sem `pr edit` nem `pr create`. `bin/forge-mutante tests/mutantes/v0481-corte-completo-3.json`: M17 morreu. Aperta (o que já barrava ganhou prova).
+- **Mensagem do V5:** só texto; aponta para `$tmp/nova-medida`, que continua existindo depois do `die` (o `fim` do EXIT não apaga o `mktemp -d` do anexo, modo 0700, que guarda só a medida, sem segredo). Não sugere `--force`, rótulo nem merge: neutro.
+- **Documentação:** registra o limite (item e marca mesclados na mesma volta do `--laco` deixam o fragmento para a versão seguinte; nada passa sem parecer) e que o corpo se ajusta à mão: neutro.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. CI do Revisar-sha: suíte parte 3/5 vermelha nas duas versões do Python (A1), demais partes verdes. Rodei `python3 -m unittest tests.test_fechar_corte` (28 testes, OK) e as sondas S1 e S2. gitleaks, shellcheck, zizmor, actionlint e semgrep ausentes no PATH (lacuna; o delta não toca workflow nem segredo). Revalidação: com A1 corrigido e o CI verde, o delta só de teste não muda a análise acima.
+Nenhum risco aceito. CI: o run do Revisar-sha (45554026272) foi cancelado pelos envios dos pareceres de QA e review (a parte 3/5 do Python 3.14 chegou a terminar verde); no run 45555102260, do head 7f4d4fa2 (o Revisar-sha mais só `docs/qa` e `docs/reviews`), a suíte parte 3/5 está verde nas duas versões do Python, com as demais partes verdes ou em andamento na leitura. A `bateria (pareceres)` vermelha é a falta deste parecer no head. Rodei `python3 -I tests/test_fechar_corte.py` (29 testes, OK), `python3 -I tests/test_reval_delta.py` (10 testes, OK) e o M17 (morreu). gitleaks, shellcheck, zizmor, actionlint e semgrep ausentes no PATH (lacuna; o delta não toca workflow nem segredo).
