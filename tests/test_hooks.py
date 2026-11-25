@@ -4188,11 +4188,12 @@ class PrazoVencidoNaSessaoDoForge(unittest.TestCase):  # v0481 E7.23: segurança
 
     def test_partida_lenta_recusa_o_merge_antes_do_corte(self):
         """A6 da segurança e A1 do review no #888 (E7.40), na parede real: o `parecer.py` de produção (`-s -E`, como no
-        hooks.json), com FIFO no `commondir` da worktree do Forge e `gh pr merge`, parte 3 s atrasado (o `sleep` antes do
-        `exec`, a mesma idade do processo que a CPU carregada dá à partida e aos imports, sem depender da carga da máquina)
-        e ainda recusa antes do corte de 10 s contado do fork. Contando o prazo de depois dos imports, o corte o mataria e
-        liberaria (3 + 7,5 + 0,5 + 0,5 s)."""
-        _, copia = self.worktree(True, "commondir")
+        hooks.json), com FIFO no `HEAD` da worktree do Forge (o `git` do hook espera; o FIFO no `commondir` já recusa
+        antes, sem esperar, desde o #886) e `gh pr merge`, parte 3 s atrasado (o `sleep` antes do `exec`, a mesma idade do
+        processo que a CPU carregada dá à partida e aos imports, sem depender da carga da máquina) e ainda recusa antes do
+        corte de 10 s contado do fork. Contando o prazo de depois dos imports, o corte o mataria e liberaria
+        (3 + 7,5 + 0,5 + 0,5 s)."""
+        _, copia = self.worktree(True, "HEAD")
         entrada = {"tool_name": "Bash", "tool_input": {"command": "gh pr merge melhoria/x --squash"}, "cwd": str(copia),
                    "agent_type": "forge:tech-lead", "hook_event_name": "PreToolUse", "session_id": "s1"}
         env = {**ambiente_limpo(), "CLAUDE_PROJECT_DIR": str(copia), "HOME": str(copia.parent)}
