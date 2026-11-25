@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481-limpar-clone-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "forge-fechar limpar_clones: LIMPAR-CLONE-PARECER: a tag local fica fora da conta do trabalho fora da origem",
+      "arquivo": "bin/forge-fechar",
+      "de": "rev-list --exclude='refs/tags/*' --all --not --remotes",
+      "para": "rev-list --all --not --remotes",
+      "testes": [
+        "tests.test_forge_fechar.LimparClones.test_commit_so_em_tag_local_nao_prende_o_clone"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "forge-fechar limpar_clones: LIMPAR-CLONE-PARECER: o commit ancestral do head mesclado vale como mesclado",
+      "arquivo": "bin/forge-fechar",
+      "de": "printf '^%s\\n' $pontas $merged_heads; }",
+      "para": "printf '^%s\\n' $pontas; }",
+      "testes": [
+        "tests.test_fechar_limpar_clone.LimparCloneNaoListado.test_parecer_ancestral_do_head_mesclado_sai_sem_a_ref_remota"
+      ]
+    }
+  ]
+}
