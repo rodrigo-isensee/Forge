@@ -3,7 +3,7 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "AE33",
+      "id": "AE35",
       "guarda": "AE2 (v0481 E10.10): a linha que abre seção (## ) muda a seção corrente",
       "arquivo": "bin/forge-check",
       "de": "secao = nome_da_secao(l[3:]) if l.startswith(\"## \") else secao",
@@ -13,7 +13,7 @@
       ]
     },
     {
-      "id": "AE34",
+      "id": "AE36",
       "guarda": "AE2 (v0481 E10.10): toda seção do quadro entra no conjunto de destinos",
       "arquivo": "bin/forge-check",
       "de": "        if l.startswith(\"## \"):\n            secoes.add(secao)",
@@ -23,7 +23,7 @@
       ]
     },
     {
-      "id": "AE35",
+      "id": "AE37",
       "guarda": "AE2 (v0481 E10.10): a inserção começa na seção de destino",
       "arquivo": "bin/forge-check",
       "de": "if l.startswith(\"## \") and nome_da_secao(l[3:]) == destino)",
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "id": "AE36",
+      "id": "AE38",
       "guarda": "AE2 (v0481 E10.10): a seção de destino acaba na próxima seção",
       "arquivo": "bin/forge-check",
       "de": "fim = next((i for i in range(inicio + 1, len(linhas)) if linhas[i].startswith(\"## \")), len(linhas))\n    tabela = ",
@@ -43,7 +43,7 @@
       ]
     },
     {
-      "id": "AE37",
+      "id": "AE39",
       "guarda": "AE2 (v0481 E10.10): a linha nova entra depois da última linha da tabela da seção",
       "arquivo": "bin/forge-check",
       "de": "range(inicio + 1, fim) if linhas[i].startswith(\"|\")]",
@@ -53,7 +53,7 @@
       ]
     },
     {
-      "id": "AE38",
+      "id": "AE40",
       "guarda": "AE2 (v0481 E10.10): o aviso do OSError no movimento diz o caminho que falhou",
       "arquivo": "bin/forge-check",
       "de": "return f\"{caminho_impresso(e.filename or 'KANBAN.md')}: {sem_controle(e.strerror or str(e))}; quadro intacto\"",
@@ -63,7 +63,7 @@
       ]
     },
     {
-      "id": "AE39",
+      "id": "AE41",
       "guarda": "AE2 (v0481 E10.10): o aviso do OSError no movimento diz a causa, sem o número do erro",
       "arquivo": "bin/forge-check",
       "de": "return f\"{caminho_impresso(e.filename or 'KANBAN.md')}: {sem_controle(e.strerror or str(e))}; quadro intacto\"",
