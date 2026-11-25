@@ -16,7 +16,10 @@ data: 2026-11-25
 
 Links: pedido v0481 (E14.45 correção, QA E14.54), `docs/fechamento-integrador.md`, `bin/forge-fechar`. Delta lido: `git diff 1bf95225..432ac20d`. Sem UX nem API. Offline, `gh` e `git` falsos (`R-CUSTO`). Clone no head do remoto (432ac20d).
 
-- ci: 432ac20dda60577b3ff69c649deb5d44a89931fc verde (`gh pr checks 898`: suíte 3.12 e 3.14 nas 5 partes, teto de pulados, passos, verificações longas, instalação e árvore provada verdes; fora `bateria (pareceres)`, `bateria` e `catraca`, que o parecer reprovado do head faz falhar; não li o log, o cache do gh é somente leitura)
+- ci: 432ac20dda60577b3ff69c649deb5d44a89931fc verde
+- suíte: 432ac20dda60577b3ff69c649deb5d44a89931fc rc=0 módulos=test_fechar
+
+Sobre o ci acima (`gh pr checks 898` e check-runs do sha 432ac20d, concluídos): suíte 3.12 e 3.14 nas 5 partes, teto de pulados, passos, verificações longas, instalação e árvore provada verdes; fora `bateria (pareceres)`, `bateria` e `catraca`, que o parecer reprovado do head faz falhar; não li o log, o cache do gh é somente leitura)
 
 ## Achados
 - A1 (parecer anterior, bloqueante) resolvido: as quatro specs (mp1311 M3 e M5, v0478-fechar-lote-2 FL-M11 e FL-M12) apontam linhas que existem; M3 e FL-M12 saíram junto com a guarda que o código não tem mais (o caso "sem branch local, sai 0"), M5 e FL-M11 foram reapontados.
