@@ -3745,6 +3745,49 @@ def cmd_parecer_novo(raiz, a):
     return 0
 
 
+def recusa_do_publicar(raiz, arquivo):
+    """G2.1: (campos, texto, sha, violações) do `.forge/pareceres/<pedido>/<tipo>.md` igual ao frontmatter: contrato estrito e G1.2,
+    aceite do dono (M14.1), autoria do papel com o sha256 do texto (sem registro, recusa: M9.1) e o `commit:` resolvido na cópia."""
+    p, nome = Path(arquivo) if Path(arquivo).is_absolute() else raiz / arquivo, caminho_impresso(arquivo)
+    m = re.search(r"(?:^|/)\.forge/pareceres/([A-Za-z0-9][A-Za-z0-9._-]*)/([a-z-]+)\.md$", p.as_posix())  # ADR 0019, 1.2
+    texto = p.read_text(encoding="utf-8") if m and p.is_file() else None
+    campos = (ler_frontmatter(texto)[0] or {}) if texto is not None else {}
+    if not m or campos.get("pedido") != m.group(1) or campos.get("tipo") != m.group(2) or m.group(2) not in PAPEL_DO_PARECER:
+        return None, None, None, [f"{nome}: use .forge/pareceres/<pedido>/<tipo>.md, com `pedido:` e `tipo:` iguais ao caminho"]
+    rel = f"{CONTRATOS[campos['tipo']][0]}/{campos['pedido']}.md"
+    saida = validar_documento(rel, texto, estrito=True)[1] + fora_do_delta(raiz, rel, texto, campos, None)
+    sha = sha_do_commit(raiz, campos.get("commit"))
+    if not sha:
+        saida.append(f"{nome}: commit: `{campos.get('commit')}` não é commit desta cópia")
+    if campos.get("parecer") == "riscos-aceitos" and not aceite_do_usuario(raiz, campos["pedido"], campos.get("commit"), sha):
+        saida.append(f"{nome}: parecer: `riscos-aceitos` sem o aceite do dono no head com o mesmo `commit:` (M14.1, R-SEGURANCA)")
+    hash_atual, papel = hashlib.sha256(texto.strip().encode()).hexdigest(), PAPEL_DO_PARECER[campos["tipo"]]
+    if not any(r.get("sha256") == hash_atual and r.get("papel") == papel for r in autorias(raiz) or []):
+        saida.append(f"{nome}: autoria: sem registro de que o papel `{papel}` gravou este texto (M9.1)")
+    return campos, texto, sha, saida
+
+
+def cmd_parecer_publicar(raiz, arquivo):
+    """`forge-check parecer publicar <arquivo>` (G2.1, ADR 0019): confere o parecer local e o publica como comentário do PR aberto
+    da `branch:` cujo head é o `commit:`, com o status do contexto do papel e o agregado `pareceres`. rc 0 publicado, 1 recusado."""
+    campos, texto, sha, violacoes = recusa_do_publicar(raiz, arquivo)
+    if violacoes:
+        print("\n".join(["parecer publicar: recusado; nada gravado", *violacoes]))
+        return 1
+    pareceres = modulo_do_bin("forge_pareceres")
+    contagem = [sum(a["gravidade"] == g for a in achados_do_parecer(texto)[0]) for g in ("bloqueante", "recomendado")]
+    try:
+        exigidos = exigidos_do_pr(raiz, campos["pedido"], sha, base_do_delta(raiz, "develop", sha)[0])[0]
+        url, (estado, motivo) = pareceres.publicar(raiz, campos["tipo"], campos["parecer"], texto, sha, campos["branch"],
+                                                  *contagem, exigidos)
+    except (pareceres.Recusa, KeyError, TypeError, AttributeError, ValueError) as e:
+        print(f"parecer publicar: recusado: {e}")
+        return 1
+    print(f"parecer publicado: {pareceres.CONTEXTOS[campos['tipo']]} {campos['parecer']} {sha[:7]} {url}\n"
+          f"parecer publicar: agregado {pareceres.AGREGADO} {estado} ({motivo})")
+    return 0
+
+
 def documento_sem_parecer(raiz, commit, nome):
     """E3.49: `.md` de `docs/devops/` sem frontmatter em `commit` (runbook, postura; PASTAS_LIVRES) é documento, não parecer: fica no
     delta. O apagado (sem blob) também fica."""
@@ -10828,6 +10871,8 @@ def main():
     pd.add_argument("arquivo", help="o parecer (docs/reviews, qa, devops ou security)")
     pd.add_argument("--ate", help="o fim do intervalo (padrão HEAD)")
     pd.add_argument("--base", default="develop", help="develop (padrão) ou homolog: o que veio dela por merge na branch sai do delta (FC-DELTA-APOS-MERGE-BASE)")
+    pp = psub.add_parser("publicar", parents=[comum], help="publica o parecer local como comentário do PR e status do commit (G2.1, ADR 0019)")
+    pp.add_argument("arquivo", help=".forge/pareceres/<pedido>/<tipo>.md")
     pn = psub.add_parser("novo", parents=[comum], help="imprime o esqueleto válido do parecer com o `commit:` do sha a revisar (Z7, AQ-5); só leitura")
     pn.add_argument("--tipo", required=True, choices=tuple(TIPO_DO_PARECER_NOVO))
     pn.add_argument("--pedido", required=True)
@@ -11050,6 +11095,8 @@ def executar(a, raiz):
         return cmd_provas_gerar(raiz, a.brief)
     if a.cmd == "parecer" and a.acao == "novo":
         return cmd_parecer_novo(raiz, a)
+    if a.cmd == "parecer" and a.acao == "publicar":
+        return cmd_parecer_publicar(raiz, a.arquivo)
     if a.cmd == "parecer" and a.acao == "delta":
         return cmd_parecer_delta(raiz, a.arquivo, a.ate, a.base)
     if a.cmd == "classe":

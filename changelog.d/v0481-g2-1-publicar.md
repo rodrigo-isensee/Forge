@@ -1,0 +1,2 @@
+### Adicionado
+- `forge-check parecer publicar <arquivo>` (G2.1, ADR 0019): confere o parecer local em `.forge/pareceres/<pedido>/<tipo>.md` (contrato estrito, G1.2, aceite do dono, autoria do papel) e o publica como comentário do PR aberto cujo head é o `commit:`, com o status do contexto do papel (`parecer-review`, `parecer-qa`, `parecer-seguranca`, `parecer-devops`) e o agregado `pareceres`; módulo novo `bin/forge_pareceres.py`, em `PROTEGIDOS` da catraca. Só a escrita: a leitura é o G2.2 (E6.11)
