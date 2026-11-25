@@ -1,0 +1,18 @@
+{"pedido": "v0480-bench-versao", "executor": "unittest", "mutantes": [
+ {"id": "M17", "guarda": "init com apiKeySource pago encerra", "arquivo": "tests/bancada/versao.py",
+  "de": "        if ev.get(\"apiKeySource\") != \"none\":", "para": "        if False:", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M18", "guarda": "escondido reconferido antes de avaliar", "arquivo": "tests/bancada/versao.py",
+  "de": "            if sha256(alvo) != esperado:\n", "para": "            if False:\n", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M19", "guarda": "kill depois do SIGTERM ignorado", "arquivo": "tests/bancada/versao.py",
+  "de": "    except subprocess.TimeoutExpired:\n        proc.kill()\n", "para": "    except subprocess.TimeoutExpired:\n        pass\n", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M20", "guarda": "api paga mata a sessão sem esperar o intervalo", "arquivo": "tests/bancada/versao.py",
+  "de": "                if medida[\"limite\"] == \"api-paga\":", "para": "                if False:", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M21", "guarda": "repo público, vazio e do dono", "arquivo": "tests/bancada/versao.py",
+  "de": "    if dados.get(\"visibility\") != \"PUBLIC\" or dados.get(\"isEmpty\") is not True or not eu or dono != eu:\n", "para": "    if False:\n", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M22", "guarda": "--remoto-url só pasta local", "arquivo": "tests/bancada/versao.py",
+  "de": "    if args.remoto_url and not Path(args.remoto_url).is_dir():\n", "para": "    if False:\n", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M23", "guarda": "sandbox nega a pasta dos escondidos", "arquivo": "tests/bancada/versao.py",
+  "de": "        fs[chave] = fs.get(chave, []) + [pasta]\n", "para": "        fs[chave] = fs.get(chave, [])\n", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M24", "guarda": "sessão sem credencial paga herdada", "arquivo": "tests/bancada/versao.py",
+  "de": "text=True, env=ambiente_da_sessao())", "para": "text=True)", "testes": ["tests.test_bancada_versao"]}
+]}
