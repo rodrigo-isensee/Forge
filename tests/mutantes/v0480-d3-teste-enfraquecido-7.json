@@ -1,0 +1,16 @@
+{
+  "pedido": "v0480-d3-teste-enfraquecido",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D3G1",
+      "guarda": "vale a aprovação mais nova",
+      "arquivo": "tests/catraca.py",
+      "de": "return max(candidatos)[1] if candidatos else None",
+      "para": "return min(candidatos)[1] if candidatos else None",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_na_volta_vale_a_versao_aprovada_mais_nova_de_qualquer_revisor"
+      ]
+    }
+  ]
+}
