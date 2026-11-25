@@ -69,7 +69,7 @@
       "de": "2>/dev/null || die \"parou no passo 1: sem a branch local e sem o commit",
       "para": "2>/dev/null || true || die \"parou no passo 1: sem a branch local e sem o commit",
       "testes": [
-        "tests.test_fechar_sha_conferido.SoBranchRemota.test_commit_que_a_busca_nao_traz_pede_o_fetch"
+        "tests.test_fechar_sha_conferido.SoBranchRemota.test_commit_que_falta_aqui_pede_o_fetch"
       ]
     },
     {

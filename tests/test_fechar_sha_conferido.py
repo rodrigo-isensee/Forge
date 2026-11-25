@@ -119,7 +119,7 @@ class SoBranchRemota(unittest.TestCase):
         self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {novo}", self.chamadas())
         self.assertEqual(self.git("rev-parse", "refs/heads/melhoria/x"), novo)
 
-    def test_commit_que_a_busca_nao_traz_pede_o_fetch(self):
+    def test_commit_que_falta_aqui_pede_o_fetch(self):
         self.commit_so_no_servidor()
         (self.estado / "falha_fetch").write_text("")
         r = self.fechar("p1", "--ref", "melhoria/x")
@@ -135,6 +135,15 @@ class SoBranchRemota(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn(f"parou no passo 1: não consegui criar a branch local melhoria/x no {novo}", r.stderr)
         self.assertEqual(self.chamadas(), [])
+
+    def test_branch_criada_sai_se_o_passo_1_para(self):
+        # A1 do review do #880: a branch criada não fica num sha que a próxima rodada leria velho
+        self.commit_so_no_servidor()
+        r = self.fechar("p1", "--ref", "melhoria/x", CHECK_RC="1")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("parou no passo 1: forge-check pr acusou violação", r.stderr)
+        self.assertIn("registro: apaguei a branch local melhoria/x que o passo 1 criou", r.stderr)
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
 
     def test_base_que_andou_com_conflito_para_sem_envio_nem_branch_local(self):  # E8: o fechamento não traz a base
         self.git("switch", "-q", "develop")

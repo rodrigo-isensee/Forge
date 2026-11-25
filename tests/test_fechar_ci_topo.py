@@ -49,6 +49,14 @@ class CiDoTopo(Ambiente):
         self.assertEqual(r.returncode, 5, r.stderr + r.stdout)
         self.assertIn(f"aviso: a develop está vermelha no {TOPO[:7]} (run 94 failure)", r.stderr)
         self.assertIn(f"git revert --no-edit {MERGE} ", r.stderr)
+        self.assertIn(f"aviso: o vermelho é do topo {TOPO[:7]}, que traz commits depois do merge {MERGE[:7]}", r.stderr)
+
+    def test_vermelho_do_proprio_merge_nao_fala_do_topo(self):
+        (self.estado / f"runs_{MERGE}").write_text("95\tcompleted\tfailure\n")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 5, r.stderr + r.stdout)
+        self.assertIn(f"git revert --no-edit {MERGE} ", r.stderr)
+        self.assertNotIn("o vermelho é do topo", r.stderr)
 
     def test_topo_que_nao_contem_o_merge_fica_cancelado(self):
         r = self.merge_cancelado_e_develop_andou(status="diverged")
@@ -74,6 +82,13 @@ class CopiaCerta(Ambiente):
         self.assertIn(f"parou antes do passo 1: a cópia {self.proj.resolve()} está na branch melhoria/x", r.stderr)
         self.assertIn("bin/forge-copia clone <pasta> --base origin/develop", r.stderr)
         self.assertEqual(self.chamadas(), [])
+
+    def test_copia_principal_na_branch_com_sem_limpar_segue(self):
+        # A3 do review do #880: com --sem-limpar o passo 7 não roda, e a parada não tem motivo
+        self.git("switch", "-q", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertNotIn("parou antes do passo 1", r.stderr)
 
     def test_worktree_ligada_na_branch_nao_e_a_copia_principal(self):
         wt = self.tmp / "wt-x"

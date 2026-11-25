@@ -117,7 +117,7 @@ readonly CHECKS_EXIGIDOS=("CI/bateria" "CI/bateria (python 3.14)" "Catraca/catra
 [ "${#CHECKS_EXIGIDOS[@]}" -gt 0 ] || die "CHECKS_EXIGIDOS vazia: o merge sem check exigido é recusado (I4)"
 exigidos=("${CHECKS_EXIGIDOS[@]}")  # E3.45: mais os do ruleset e da proteção do destino (ler_exigidos_do_destino); os pares nunca saem
 
-pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 trazida=0 so_remota=0 base_2b="" arvore_mt="" dorme_pid="" promover_teste="" subida_n="" subida_ini="" subida_extra=""  # nascem vazios: o fim nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
+pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 trazida=0 so_remota=0 base_2b="" arvore_mt="" dorme_pid="" promover_teste="" subida_n="" subida_ini="" subida_extra="" branch_criada=""  # nascem vazios: o fim nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
 estado_lido=0
 laco=0 corte=0 agora_teste="" lote=0 item_de_lote=0 promover_sha="" espera_ci=3600 ci_falhou=0 ci_st="" ci_ruins="" ja_mesclado=1 posicionais=()  # lote, promoção pela marca e espera do CI da develop
 sha_1c="" arvore_1c=""  # FECHAR-1C-ANTES-DO-2B: o sha e o texto do 1c nascem vazios (nada herdado do ambiente)
@@ -440,6 +440,9 @@ fim() {
   trap - EXIT
   trap '' TERM INT HUP
   [ -z "${dorme_pid:-}" ] || kill "$dorme_pid" 2>/dev/null || true
+  # FECHAR-CRIA-BRANCH: parou antes do passo 3, a branch criada no passo 1 sai (só se segue no sha criado); a próxima rodada relê o servidor.
+  [ -z "${branch_criada:-}" ] || ! git update-ref -d "refs/heads/$ref" "$branch_criada" 2>/dev/null \
+    || echo "registro: apaguei a branch local $ref que o passo 1 criou; a próxima rodada a lê do servidor" >&2
   exec 2>&-
   wait "$pid_err" 2>/dev/null || true
   subida_fecha "rc $rc"
@@ -1240,6 +1243,8 @@ ci_no_merge() {
   done
   if [ "$ci_st" = verde ]; then echo "CI do push na $alvo verde no ${sha_ci:0:7}."; return 0; fi
   echo "aviso: $(msg_ci "$alvo" "$sha_ci")" >&2
+  [ "$ci_st" != vermelho ] || [ "$sha_ci" = "$1" ] \
+    || echo "aviso: o vermelho é do topo ${sha_ci:0:7}, que traz commits depois do merge ${1:0:7}; confira qual deles quebrou antes de reverter" >&2
   shift
   [ "$ci_st" != vermelho ] || echo "para reverter: $(reversao "$@")" >&2
   ci_falhou=1
@@ -1662,7 +1667,7 @@ if sha_conferido="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/
     git cat-file -e "$sha_conferido^{commit}" 2>/dev/null || die "parou no passo 1: sem a branch local e sem o commit $sha_conferido; rode git fetch origin $ref, e rode de novo"
     git branch --no-track "$ref" "$sha_conferido" >/dev/null 2>&1 || die "parou no passo 1: não consegui criar a branch local $ref no $sha_conferido (nada foi aberto)"
     echo "registro: criei a branch local $ref no head do servidor ($sha_conferido)"
-    so_remota=0 ref_check="refs/heads/$ref"
+    so_remota=0 ref_check="refs/heads/$ref" branch_criada="$sha_conferido"
   fi
 fi
 # head_atual: o head de $ref onde ele vale (a branch local; no modo só remota, o servidor). Falha de leitura sai com rc 1.
@@ -1684,7 +1689,8 @@ if [ -n "$arvore_lock" ] && [ -d "$arvore_lock" ]; then  # pasta já apagada (re
   fi
   # FECHAR-COPIA-CERTA (v0481 E13.1): a árvore de $ref é a cópia principal deste repositório (o clone da própria branch); o passo 7 não sairia
   # dela e terminaria com código 3 e um --limpar de outra cópia. Diz antes do passo 1 de onde rodar; de outra cópia, o limpar_clones a apaga.
-  if [ "$(cd "$arvore_lock" && pwd -P)/.git" = "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)" ]; then
+  # Com --sem-limpar o passo 7 não roda e o motivo não vale: segue.
+  if [ "$(cd "$arvore_lock" && pwd -P)/.git" = "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)" ] && [ "$sem_limpar" = 0 ]; then
     die "parou antes do passo 1: a cópia $arvore_lock está na branch $ref e daqui a limpeza ficaria pendente (código 3). Rode o mesmo comando de outra cópia do Forge que não seja worktree desta (a principal ou um clone da develop: bin/forge-copia clone <pasta> --base origin/develop); de lá o passo 1 lê a branch do servidor e o passo 7 apaga este clone, se limpo e mesclado. Nada foi feito."
   fi
 fi
@@ -1746,6 +1752,7 @@ fi
 [ -n "$remoto_sha" ] || die "parou no passo 2: $ref não está no origin (git push origin $ref, sem -u)"
 [ "$remoto_sha" = "$sha_conferido" ] || die "parou no passo 2: o head local ($sha_conferido) difere do remoto ($remoto_sha); envie a branch"
 
+branch_criada=""  # passou do passo 2: a branch criada fica (o merge e a limpeza a usam)
 passo 3 "PR para $alvo"
 ja_mesclado=0
 if git merge-base --is-ancestor "$remoto_sha" "$base" 2>/dev/null; then
