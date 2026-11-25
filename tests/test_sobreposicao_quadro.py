@@ -496,6 +496,7 @@ class MovimentoMoveALinha(unittest.TestCase):  # AE2 (v0481 E10.1): gravado o hi
         rc, saida = self.mover("K-1", "--de", "Em andamento", "--para", "Code review")
         self.assertEqual(rc, 0, saida)
         self.assertIn("quadro intacto; o histórico foi gravado", saida)
+        self.assertRegex(saida, r"aviso: \S*/\.forge/run: [^\[;]+; quadro intacto")  # o caminho e a causa, sem o [Errno n] (AE38, AE39)
         self.assertEqual(self.quadro.read_text(encoding="utf-8"), antes)
 
     def test_cartao_com_nome_de_cabecalho_ou_separador_nao_casa_a_moldura(self):  # A1 dos três pareceres do #875

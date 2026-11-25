@@ -36,8 +36,8 @@
       "id": "AE12",
       "guarda": "AE2 (v0481 E10.1): o · do título vira - (aceito)",
       "arquivo": "bin/forge-check",
-      "de": "(v.replace(\"·\", \"-\") if k == \"titulo\" else v)",
-      "para": "v",
+      "de": "if k == \"titulo\" else v)",
+      "para": "if k == \"titulo_\" else v)",
       "testes": [
         "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_cartao_novo_nasce_na_secao_sem_tabela_e_aceita_titulo_com_ponto"
       ]
