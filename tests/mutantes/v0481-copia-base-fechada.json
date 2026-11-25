@@ -1,0 +1,27 @@
+{
+  "pedido": "v0481-copia-base-fechada",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "COPIA-SHA: o sha dito é o do HEAD em que a branch nasceu",
+      "arquivo": "bin/forge-copia",
+      "de": "    sha = ler([\"git\", \"-C\", real, \"rev-parse\", \"HEAD\"])[1].strip()",
+      "para": "    sha = ler([\"git\", \"-C\", real, \"rev-parse\", \"HEAD~0^{tree}\"])[1].strip()",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_branch_do_remoto_com_base_curta_nasce_no_head_dela_e_diz_o_sha",
+        "tests.test_forge_copia.Cria.test_clone_pela_base_diz_o_sha_dela"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "COPIA-SHA: a mensagem diz a ref de onde a branch veio",
+      "arquivo": "bin/forge-copia",
+      "de": "(de {ponto.removeprefix('refs/remotes/')})",
+      "para": "(de {a.base})",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_branch_do_remoto_com_base_curta_nasce_no_head_dela_e_diz_o_sha"
+      ]
+    }
+  ]
+}
