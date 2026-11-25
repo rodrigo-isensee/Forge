@@ -16,8 +16,8 @@
       "id": "M18",
       "guarda": "commit so em tag local fica (rev-list --all)",
       "arquivo": "bin/forge-fechar",
-      "de": "rev-list --all --not --remotes",
-      "para": "rev-list --branches --not --remotes",
+      "de": "rev-list --exclude='refs/tags/arquivo/*' --all --not --remotes",
+      "para": "rev-list --exclude='refs/tags/arquivo/*' --branches --not --remotes",
       "testes": [
         "tests.test_forge_fechar.LimparClones.test_commit_so_em_tag_local_fica"
       ]
