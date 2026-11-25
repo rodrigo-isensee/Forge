@@ -681,10 +681,53 @@ def _vacua(n):
     return isinstance(n, ast.Call) and _nome(n.func).startswith("assert") and _so_constantes(*n.args, *(k.value for k in n.keywords))
 
 
-def _perfil_do_teste(fn, pulos_da_classe):
-    """(asserções, pulos, vazio, valores esperados) de um `def test_*`; o `msg=` da asserção não é valor esperado."""
-    asserts, pulos, esperados = 0, pulos_da_classe + _pulos_dos_decoradores(fn), Counter()
-    for n in (n for c in fn.body for n in ast.walk(c) if not _vacua(n)):
+FUNCOES = (ast.FunctionDef, ast.AsyncFunctionDef)
+FUNDO_DOS_AJUDANTES = 8  # ajudante que chama ajudante: além disso não segue (a recursão conta até aqui, sempre igual)
+TETO_DAS_EXPANSOES = 2_000_000  # nós lidos e chaves somadas por módulo; acima, o módulo conta só as asserções diretas
+
+
+class AjudantesDemais(Exception):
+    """O módulo estourou `TETO_DAS_EXPANSOES` (ajudantes que se chamam em leque crescem perto do quadrado do tamanho)."""
+
+
+def _metodos(classe, classes, vistas=frozenset()):
+    """{nome: def} da classe e das bases dela no mesmo módulo; o da derivada prevalece, como na resolução do Python."""
+    metodos, vistas = {}, vistas | {classe.name}
+    for base in reversed(classe.bases):
+        if (b := classes.get(_nome(base))) is not None and b.name not in vistas:
+            metodos.update(_metodos(b, classes, vistas))
+    metodos.update({f.name: f for f in classe.body if isinstance(f, FUNCOES)})
+    return metodos
+
+
+def _alvo(func, ajudantes):
+    """O `def` chamado: `self.x()` ou `cls.x()` entre os métodos da classe, `x()` entre as funções do módulo."""
+    if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name) and func.value.id in ("self", "cls"):
+        return ajudantes["self"].get(func.attr)
+    return ajudantes["modulo"].get(func.id) if isinstance(func, ast.Name) else None
+
+
+def _ajudantes(metodos, funcoes, orcamento):
+    """Onde `_assercoes` acha os ajudantes, com o corpo de cada um contado uma vez por fundo (a classe tem o seu: `self.x` muda).
+    `orcamento` é `[resta]`, um só para o módulo inteiro."""
+    ajudantes = {"self": metodos, "modulo": funcoes, "orcamento": orcamento}
+    ajudantes["corpo"] = functools.cache(lambda alvo, fundo: _assercoes(alvo.body, ajudantes, fundo))
+    return ajudantes
+
+
+def _gasta(ajudantes, n):
+    ajudantes["orcamento"][0] -= n
+    if ajudantes["orcamento"][0] < 0:
+        raise AjudantesDemais
+
+
+def _assercoes(corpo, ajudantes, fundo):
+    """(asserções, pulos, valores esperados) do corpo. A chamada a ajudante da classe ou do módulo que faz asserção soma as
+    dele, e o nome e os argumentos constantes dela viram valor esperado (trocar `self.fica` por `self.sai` aparece)."""
+    asserts, pulos, esperados = 0, 0, Counter()
+    nos = [n for c in corpo for n in ast.walk(c) if not _vacua(n)]
+    _gasta(ajudantes, len(nos))
+    for n in nos:
         if isinstance(n, ast.Assert):
             asserts += 1
             esperados += _constantes(n.test)
@@ -693,22 +736,44 @@ def _perfil_do_teste(fn, pulos_da_classe):
             if nome.startswith("assert") and nome != "assert":
                 asserts += 1
                 esperados += _constantes(*n.args, *(k.value for k in n.keywords if k.arg != "msg"))
+            elif fundo and (alvo := _alvo(n.func, ajudantes)) is not None:
+                a, _, e = ajudantes["corpo"](alvo, fundo - 1)
+                if a:
+                    _gasta(ajudantes, len(e))
+                    asserts += a
+                    esperados += e + _constantes(*n.args, *(k.value for k in n.keywords))
+                    esperados[f"ajudante {nome}"] += 1
             pulos += nome in PULOS
+    return asserts, pulos, esperados
+
+
+def _perfil_do_teste(fn, pulos_da_classe, ajudantes=None, fundo=FUNDO_DOS_AJUDANTES):
+    """(asserções, pulos, vazio, valores esperados) de um `def test_*`; o `msg=` da asserção não é valor esperado."""
+    asserts, pulos, esperados = _assercoes(fn.body, ajudantes or _ajudantes({}, {}, [math.inf]), fundo)
     corpo = [c for c in fn.body if not (isinstance(c, ast.Expr) and isinstance(c.value, ast.Constant))]
-    return asserts, pulos, all(isinstance(c, ast.Pass) for c in corpo), esperados
+    return asserts, pulos_da_classe + _pulos_dos_decoradores(fn) + pulos, all(isinstance(c, ast.Pass) for c in corpo), esperados
 
 
-def testes_da_arvore(arvore):
-    """{`Classe.test_x` ou `test_x`: perfil} dos testes no corpo do módulo e das classes (aninhadas inclusive)."""
-    testes = {}
+def testes_da_arvore(arvore, fundo=FUNDO_DOS_AJUDANTES, teto=TETO_DAS_EXPANSOES, onde="o módulo"):
+    """{`Classe.test_x` ou `test_x`: perfil} dos testes no corpo do módulo e das classes (aninhadas inclusive). O módulo que
+    estoura o teto conta só as asserções diretas, como antes dos ajudantes: nada do que barrava deixa de barrar, e o lado que
+    perde as dos ajudantes barra como "perdeu asserção" (falha fechada; tratá-lo como ilegível soltaria os testes da base)."""
+    testes, orcamento = {}, [teto]
+    classes = {c.name: c for c in ast.walk(arvore) if isinstance(c, ast.ClassDef)}
+    funcoes = {f.name: f for f in arvore.body if isinstance(f, FUNCOES)}
 
-    def visita(no, prefixo, pulos_da_classe):
+    def visita(no, prefixo, pulos_da_classe, metodos):
+        ajudantes = _ajudantes(metodos, funcoes, orcamento)
         for filho in ast.iter_child_nodes(no):
             if isinstance(filho, ast.ClassDef):
-                visita(filho, prefixo + filho.name + ".", pulos_da_classe + _pulos_dos_decoradores(filho))
-            elif isinstance(filho, (ast.FunctionDef, ast.AsyncFunctionDef)) and filho.name.startswith("test_"):
-                testes[prefixo + filho.name] = _perfil_do_teste(filho, pulos_da_classe)
-    visita(arvore, "", 0)
+                visita(filho, prefixo + filho.name + ".", pulos_da_classe + _pulos_dos_decoradores(filho), _metodos(filho, classes))
+            elif isinstance(filho, FUNCOES) and filho.name.startswith("test_"):
+                testes[prefixo + filho.name] = _perfil_do_teste(filho, pulos_da_classe, ajudantes, fundo)
+    try:
+        visita(arvore, "", 0, {})
+    except AjudantesDemais:
+        print(f"catraca: {onde} estourou o teto de {teto} expansões dos ajudantes; contou só as asserções diretas.")
+        return testes_da_arvore(arvore, 0, math.inf)
     return testes
 
 
@@ -719,7 +784,8 @@ def afrouxamentos(antes, depois):
     """O que o teste perdeu de `antes` para `depois` (perfis); vazio se não afrouxou."""
     perdas = []
     if depois[0] < antes[0]:
-        perdas.append("perdeu asserção")
+        sumiu = sorted(k.removeprefix("ajudante ") for k in antes[3] - depois[3] if k.startswith("ajudante "))
+        perdas.append("perdeu asserção" + (f" (estava no ajudante {', '.join(sumiu)})" if sumiu else ""))
     if depois[1] > antes[1]:
         perdas.append("ganhou skip/skipIf/skipUnless/expectedFailure/skipTest")
     if depois[2] and not antes[2]:
@@ -735,13 +801,15 @@ def _duras(perdas):
 
 
 def mesmas_assercoes(antes, depois):
-    """Teste renomeado não conta quando o novo tem as mesmas asserções: a mesma quantidade e os mesmos valores esperados."""
-    return depois[0] == antes[0] and depois[3] == antes[3] and not afrouxamentos(antes, depois)
+    """Teste renomeado não conta quando o novo tem as mesmas asserções: a mesma quantidade e os mesmos valores esperados.
+    Sem asserção não há o que parear: qualquer teste novo sem asserção casaria, e o apagado sumiria sem o rótulo."""
+    return antes[0] > 0 and depois[0] == antes[0] and depois[3] == antes[3] and not afrouxamentos(antes, depois)
 
 
 def _testes_por_modulo(raiz, ref, modulos):
     presentes = set(listar(raiz, ref, "tests"))
-    return {arq: testes_da_arvore(a) for arq in modulos if (a := _arvore_do_modulo(raiz, ref, arq, presentes)) is not None}
+    return {arq: testes_da_arvore(a, onde=f"{arq} em {ref}") for arq in modulos
+            if (a := _arvore_do_modulo(raiz, ref, arq, presentes)) is not None}
 
 
 def perdas_dos_testes(raiz, b, h):
@@ -2193,6 +2261,8 @@ def _main(a):
             if liberado:
                 resumo(titulo, [f"liberado pelo rótulo `{ROTULO}` do dono ({liberado}): {len(viol)} violação(ões) aceita(s)"] + viol)
                 print(f"catraca: {len(viol)} violação(ões) liberada(s) pelo rótulo `{ROTULO}` do dono ({liberado}).")
+                for v in viol:
+                    print(f"catraca: liberada: {v}")
                 return 0
     for v in viol:
         print(v)

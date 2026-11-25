@@ -1,0 +1,31 @@
+{
+  "descricao": "E7.15 (A2 da segurança no #885): sessão do Forge, perfil iniciante e prazo vencido na escolha do texto da recusa: git push --force recusa com o texto técnico (R-VERIFY), sem cair no prazo vencido que libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    ".forge/perfil": "iniciante\n"
+  },
+  "forge": false,
+  "forcar": {
+    "onde": "perfil_iniciante",
+    "como": "prazo"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push --force origin melhoria/x"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{raiz}",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-VERIFY: git push --force"
+  }
+}

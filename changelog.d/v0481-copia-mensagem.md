@@ -1,2 +1,0 @@
-### Corrigido
-- forge-copia clone: a mensagem de falha cita as refs de fato tentadas (a branch remota, a base e, só sem o prefixo, origin/<base>; nunca origin/origin/develop) ou a ref de onde o `git switch` falhou; `--revisao` cria o clone de revisão (o caminho -rev, -qa ou -sec do brief) no head remoto da branch, sem upstream e sem cair na base; branch fora do remoto apaga o clone e sai 1 (v0481 E14.2)

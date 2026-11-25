@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3579 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3580 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,7 +10,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3579 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 133 | 72 | 61 | 31 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2705 | 2003 | 702 | 102 |
+| `conformidade` | 2706 | 2004 | 702 | 102 |
 | `decisao` | 4 | 0 | 4 | 4 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 33 | 13 | 20 | 15 |
@@ -68,7 +68,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3579 fixtures) roda em `tests/test
 
 | Prefixo | Fixtures | Recusa | Libera | Regras | Cartões | O que prova (exemplo) |
 | --- | ---: | ---: | ---: | --- | --- | --- |
-| `trava-*` | 320 | 216 | 104 | `R-CONFORMIDADE`, `R-VERIFY`, `R-MAIN`, `R-CONTRIB` | `CONFORMIDADE-REPO-CREATE-PUBLICO`, `TMPDIR`, `CONFORMIDADE-REDIRECAO-NUMERO` | git branch -D develop. (perfil iniciante: com a consequência em linguagem simples) |
+| `trava-*` | 321 | 217 | 104 | `R-CONFORMIDADE`, `R-VERIFY`, `R-MAIN`, `R-CONTRIB` | `CONFORMIDADE-REPO-CREATE-PUBLICO`, `TMPDIR`, `CONFORMIDADE-REDIRECAO-NUMERO`, `E7.15` | git branch -D develop. (perfil iniciante: com a consequência em linguagem simples) |
 | `opaco-*` | 310 | 232 | 78 | `R-CONFORMIDADE` | `CONFORMIDADE-A9-DESTINO-OPACO`, `CONFORMIDADE-A10-OPERADOR-COLADO`, `CONFORMIDADE-REDIRECAO-NUMERO`, `CONFORMIDADE-DECLARE-N` e mais 1 | CONFORMIDADE-DECLARE-N (E2.179, v047, A19 da segurança E1.344): a atribuição do shell (no prefixo do comando) segue dando o valor escrito. |
 | `contrib-*` | 144 | 114 | 30 | `R-CONTRIB`, `R-CONFORMIDADE`, `R-MAIN` | `PR`, `FILA-22`, `PATCH`, `GET` | Comando aninhado que não dá para analisar (aspas abertas) e aponta para o Forge: falha fechado. |
 | `conferente-*` | 111 | 90 | 21 | — | `ADR`, `VV-2`, `AA2-01` | Citação ANSI-C $'...': o bash entrega --upload-pack ao git e o hook não vê a opção. |
