@@ -76,8 +76,8 @@
       "id": "M16",
       "guarda": "G4 F1: no perfil iniciante a recusa usa o texto simples",
       "arquivo": "hooks/conformidade.py",
-      "de": "        texto = SIMPLES[simples] if simples and self.h.iniciante() else",
-      "para": "        texto = SIMPLES[simples] if False else",
+      "de": "            if simples and perfil_iniciante(self.h.raiz):",
+      "para": "            if False:",
       "testes": [
         "tests.test_hooks.ModoPorGrupo.test_iniciante_recebe_o_texto_simples"
       ]
