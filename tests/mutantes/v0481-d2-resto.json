@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-d2-resto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "forge_pronto: o comando que não abre sai 2",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "        return 2, f\"{type(erro).__name__}: {erro}\"",
+      "para": "        return 0, f\"{type(erro).__name__}: {erro}\"",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_comando_que_nao_abre_sai_2"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "forge_pronto: sem corpo reprova",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "    if corpo is None:",
+      "para": "    if corpo is False:",
+      "testes": [
+        "tests.test_forge_pronto.TamanhoECorpo.test_sem_corpo_reprova_sem_rodar_a_catraca"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "forge_pronto: o motivo `teto: excedido` libera o teto",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "    if not forge_tamanho.tem_motivo(corpo, total) and (aviso",
+      "para": "    if (aviso",
+      "testes": [
+        "tests.test_forge_pronto.TamanhoECorpo.test_acima_do_teto_com_motivo_e_no_teto_passam"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "forge_pronto: pr-texto reprovado reprova",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "    if rc:\n        falhas.append(f\"pr-texto",
+      "para": "    if not rc:\n        falhas.append(f\"pr-texto",
+      "testes": [
+        "tests.test_forge_pronto.TamanhoECorpo.test_pr_texto_reprovado_reprova_com_o_corpo_no_ambiente"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "forge_pronto: checagem reprovada entra na lista",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "        if rc:\n            print(\"\\n\".join",
+      "para": "        if False:\n            print(\"\\n\".join",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_uma_checagem_reprovada_sai_1_e_mostra_a_saida"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "forge_pronto: o passo que sai 2 fica não verificável, não reprovado",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "(nao_verificaveis if rc == 2 else reprovadas).append(nome)",
+      "para": "(nao_verificaveis if rc == 3 else reprovadas).append(nome)",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_passo_que_sai_2_fica_nao_verificavel_e_sai_2"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "forge_pronto: não verificável sai 2, não 0",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "else 2 if nao_verificaveis else 0",
+      "para": "else 2 if False else 0",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_passo_que_sai_2_fica_nao_verificavel_e_sai_2"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "cmd_pronto: base comum ou diff ilegível sai 2",
+      "arquivo": "bin/forge-check",
+      "de": "    if numstat is None:\n        print(f\"pronto: {NAO_VERIFICAVEL}",
+      "para": "    if numstat is False:\n        print(f\"pronto: {NAO_VERIFICAVEL}",
+      "testes": [
+        "tests.test_forge_pronto.CmdPronto.test_base_ausente_sai_2"
+      ]
+    }
+  ]
+}

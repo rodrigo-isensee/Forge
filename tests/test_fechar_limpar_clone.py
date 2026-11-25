@@ -116,6 +116,35 @@ class LimparCloneNaoListado(unittest.TestCase):
         self.assertNotIn("rm -rf", r.stdout)
         self.assertNotIn("outro.git", r.stdout + r.stderr)  # a URL não sai na tela
 
+    # LIMPAR-CLONE-PARECER (v0481 E14.1): o commit da branch já mesclada, com a ref remota dela apagada no clone, vale como mesclado se é
+    # ancestral do head do PR MERGED; trabalho de verdade continua pendente (a tag local: test_forge_fechar.LimparClones).
+    def parecer_mesclado(self, d, depois=False):  # o parecer do clone vai à origin, o autor avança, a branch sai da origin e do clone
+        self.git("commit", "-q", "--allow-empty", "-m", "docs: parecer", cwd=d)
+        self.git("push", "-q", "origin", "melhoria/x", cwd=d)
+        self.git("fetch", "-q", "origin", "melhoria/x")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("merge", "-q", "--ff-only", "origin/melhoria/x")
+        self.git("commit", "-q", "--allow-empty", "-m", "fix: volta do autor")
+        self.git("push", "-q", "origin", "melhoria/x")
+        self.git("switch", "-q", "develop")
+        self.git("push", "-q", "origin", "--delete", "melhoria/x")
+        self.git("update-ref", "-d", "refs/remotes/origin/melhoria/x", cwd=d)
+        if depois:
+            self.git("commit", "-q", "--allow-empty", "-m", "trabalho do clone", cwd=d)
+
+    def test_parecer_ancestral_do_head_mesclado_sai_sem_a_ref_remota(self):
+        d = self.clone()
+        self.parecer_mesclado(d)
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertTrue(self.resumo(r)[0].endswith(" clone=ok"), r.stdout)
+        self.assertFalse(d.exists())
+
+    def test_commit_do_clone_depois_do_head_mesclado_fica(self):
+        d = self.clone()
+        self.parecer_mesclado(d, depois=True)
+        self.fica(d, self.limpar())
+
     def test_sem_clone_o_campo_sai_nenhum(self):
         r = self.limpar()
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)

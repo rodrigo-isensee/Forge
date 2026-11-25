@@ -1,0 +1,36 @@
+{
+  "pedido": "v0481-g3-testes-uma-vez",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "cobra_a_linha_do_ci: `commit:` fora da forma de sha cobra a linha e nunca vira opção do git grep",
+      "arquivo": "bin/forge-check",
+      "de": "return not COMMIT.match(commit) or git(",
+      "para": "return git(",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_cobra_a_linha_com_commit_fora_da_forma_ou_erro_do_git"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "CHECKS_FORA_DA_LINHA_DO_CI: o texto citado pelo brief, pelo esqueleto e pelas skills sai da constante",
+      "arquivo": "bin/forge-check",
+      "de": "CHECKS_FORA_DA_LINHA_DO_CI = (\"bateria (pareceres)\", \"bateria\", \"catraca\")",
+      "para": "CHECKS_FORA_DA_LINHA_DO_CI = (\"bateria (pareceres)\", \"bateria\", \"catraca\", \"suíte\")",
+      "testes": [
+        "tests.test_pre_envio_brief.ChecksForaDaLinhaDoCi.test_as_skills_citam_os_checks"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "cobra_a_linha_do_ci: o parecer sem `commit:` cobra a linha (nem quebra)",
+      "arquivo": "bin/forge-check",
+      "de": "    commit = campos.get(\"commit\") or \"\"\n    return not COMMIT.match(commit)",
+      "para": "    commit = campos.get(\"commit\")\n    return not COMMIT.match(commit)",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_cobra_a_linha_com_commit_fora_da_forma_ou_erro_do_git"
+      ]
+    }
+  ]
+}

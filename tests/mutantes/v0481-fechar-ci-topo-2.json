@@ -1,0 +1,46 @@
+{
+  "pedido": "v0481-fechar-ci-topo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "a branch criada no passo 1 sai se o fechamento para antes do passo 3",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -z \"${branch_criada:-}\" ] || ! git update-ref -d",
+      "para": "true || ! git update-ref -d",
+      "testes": [
+        "tests.test_fechar_sha_conferido.SoBranchRemota.test_branch_criada_sai_se_o_passo_1_para"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "passou do passo 2, a branch criada fica",
+      "arquivo": "bin/forge-fechar",
+      "de": "branch_criada=\"\"  # passou do passo 2",
+      "para": ":  # passou do passo 2",
+      "testes": [
+        "tests.test_fechar_sha_conferido.SoBranchRemota.test_commit_que_falta_aqui_cria_a_branch_local_no_sha_do_servidor"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "só o vermelho do topo (não o do próprio merge) avisa que pode vir de commit posterior",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$sha_ci\" = \"$1\" ] \\\n    || echo \"aviso: o vermelho",
+      "para": "false \\\n    || echo \"aviso: o vermelho",
+      "testes": [
+        "tests.test_fechar_ci_topo.CiDoTopo.test_vermelho_do_proprio_merge_nao_fala_do_topo"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "com --sem-limpar a cópia principal na branch segue",
+      "arquivo": "bin/forge-fechar",
+      "de": " && [ \"$sem_limpar\" = 0 ]; then\n    die \"parou antes do passo 1: a cópia",
+      "para": "; then\n    die \"parou antes do passo 1: a cópia",
+      "testes": [
+        "tests.test_fechar_ci_topo.CopiaCerta.test_copia_principal_na_branch_com_sem_limpar_segue"
+      ]
+    }
+  ]
+}

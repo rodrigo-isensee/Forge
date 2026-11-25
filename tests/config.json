@@ -99,7 +99,8 @@
     {"tipo": "trecho", "n": 7, "sha256": "6bff709e40e583c408e0585e149a68b4f368268b384189bce6194ebcf3800684"},
     {"tipo": "palavra", "n": 3, "sha256": "887539ae032b612757c3db85abb59a5021d6258e6238fe40556103f404d33dc0"},
     {"tipo": "palavra", "n": 3, "sha256": "227467f082ea66c3f9419cc76615ad680d56c5c167a7accbee3b4a9c94cb196e"},
-    {"tipo": "palavra", "n": 3, "sha256": "12c243f2ea0b6bc32902e349799d84f41c84822a39f2ce447bb1831eb4102ab7"}
+    {"tipo": "palavra", "n": 3, "sha256": "12c243f2ea0b6bc32902e349799d84f41c84822a39f2ce447bb1831eb4102ab7"},
+    {"tipo": "trecho", "n": 26, "sha256": "3d518989252aee08ea77b7d9fc207402e796a1f4bbb71d27343ebcd32fc3de50"}
   ],
   "anti_duplicacao": {
     "palavras": 12,

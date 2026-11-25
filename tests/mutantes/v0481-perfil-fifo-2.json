@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481-perfil-fifo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M8",
+      "guarda": "MARCA-GIT-FIFO: o .git, gitdir e commondir abrem sem esperar FIFO (O_NONBLOCK)",
+      "arquivo": "hooks/_comum.py",
+      "de": "fd = os.open(caminho, os.O_RDONLY | os.O_NONBLOCK)",
+      "para": "fd = os.open(caminho, os.O_RDONLY)",
+      "testes": [
+        "tests.test_hooks.RecusaComFifoNoPerfil.test_fifo_no_ponto_git_da_worktree_nao_espera"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "MARCA-GIT-FIFO: só arquivo regular dá o .git, gitdir e commondir; o especial levanta",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if not stat.S_ISREG(os.fstat(fd).st_mode):\n            raise OSError(f\"{caminho} não é arquivo regular\")",
+      "para": "        if False:\n            raise OSError(f\"{caminho} não é arquivo regular\")",
+      "testes": [
+        "tests.test_hooks.RecusaComFifoNoPerfil.test_fifo_com_conteudo_no_gitdir_nao_vale"
+      ]
+    }
+  ]
+}
