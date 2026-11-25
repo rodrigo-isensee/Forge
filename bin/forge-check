@@ -2165,9 +2165,15 @@ def falta_na_prova(raiz, base, campos, texto):
 
 
 # PARECER-LE-O-CI (G3, v0481 E8.1): no Forge, o review e o QA aprovados trazem `- ci: <sha40 do commit:> verde`: o portão leu o CI do
-# PR no sha que revisou (`gh pr checks`, todos concluídos e verdes) em vez de rodar a bateria. Sem a linha, o `pr` recusa, também no
-# `--previo` e no passo 1 do `forge-fechar` (a linha é do texto do parecer, não do gh). A suíte inteira segue no CI do PR para o merge.
+# PR no sha que revisou (`gh pr checks`, concluídos e verdes fora os `CHECKS_FORA_DA_LINHA_DO_CI`) em vez de rodar a bateria. Sem a
+# linha, o `pr` recusa, também no `--previo` e no passo 1 do `forge-fechar` (a linha é do texto do parecer, não do gh). A suíte inteira
+# e todos os checks, estes inclusos, seguem exigidos no CI do PR para o merge (`checks_do_head`, passos 4 e 6 do `forge-fechar`).
 PROVA_DO_CI = re.compile(r"^- ci: ([0-9a-f]{40}) verde[ \t]*$", re.M)
+# Os checks vermelhos por construção no sha revisado (A1 do #893): `bateria (pareceres)` e o agregador `bateria` esperam o próprio
+# parecer, e a `catraca`, o rótulo do dono aplicado depois do último push. Fonte única do texto do brief, do esqueleto e das skills.
+CHECKS_FORA_DA_LINHA_DO_CI = ("bateria (pareceres)", "bateria", "catraca")
+FORA_DA_LINHA_DO_CI = ("fora " + ", ".join(f"`{c}`" for c in CHECKS_FORA_DA_LINHA_DO_CI[:-1])
+                       + f" e `{CHECKS_FORA_DA_LINHA_DO_CI[-1]}`, que esperam o parecer ou o rótulo (o merge exige todos)")
 
 
 def leu_o_ci(campos, texto):
@@ -2176,16 +2182,24 @@ def leu_o_ci(campos, texto):
     return bool(COMMIT.match(commit)) and any(m.group(1).startswith(commit) for m in PROVA_DO_CI.finditer(texto))
 
 
+def cobra_a_linha_do_ci(raiz, campos):
+    """PARECER-LE-O-CI, transição (A3 do #893): a linha só é cobrada do parecer cujo `commit:` já traz a regra no `bin/forge-check`,
+    pois o brief dele a pediu; o de commit anterior segue com a PARECER-SO-COM-CI-VERDE inteira. `commit:` fora da forma ou erro do
+    `git grep` (rc diferente de 1, o "não achou"): cobra."""
+    commit = campos.get("commit") or ""
+    return not COMMIT.match(commit) or git(raiz, "grep", "-q", "-F", "-e", "PARECER-LE-O-CI", commit, "--", "bin/forge-check")[0] != 1
+
+
 def suite_do_parecer(raiz, ref, base, branch, rel, campos, texto, rid, adiar, ci):
     """PARECER-SO-COM-CI-VERDE: [] se o parecer aprovado traz a prova da suíte (`falta_na_prova`) ou, sem ela, o CI do head está verde
     (lido uma vez por `cmd_pr`, em `ci`); senão a linha de violação. Fora do Forge, nada. `adiar` (o `--previo` e o passo 1 do
     `forge-fechar`, cujos passos 4 e 6 exigem o CI verde): sem a prova, só o aviso no stderr, sem ler o gh. PARECER-LE-O-CI: sem a
-    linha `- ci:` (`leu_o_ci`), a violação dela vem antes, com ou sem `adiar`."""
+    linha `- ci:` (`leu_o_ci`) e com a regra no `commit:` (`cobra_a_linha_do_ci`), a violação dela vem antes, com ou sem `adiar`."""
     if not e_o_forge(Path(raiz)):
         return []
-    sem_ci = [] if leu_o_ci(campos, texto) else [
+    sem_ci = [] if leu_o_ci(campos, texto) or not cobra_a_linha_do_ci(raiz, campos) else [
         f"{caminho_impresso(rel)}: ci: o parecer aprovado traz a linha `- ci: <sha40 do commit:> verde`, lida em `gh pr checks` no "
-        f"sha revisado, todos os checks concluídos e verdes; sem CI verde, não aprove (PARECER-LE-O-CI, {rid})"]
+        f"sha revisado, os checks concluídos e verdes {FORA_DA_LINHA_DO_CI}; sem CI verde, não aprove (PARECER-LE-O-CI, {rid})"]
     if (falta := falta_na_prova(raiz, base, campos, texto)) is None:
         return sem_ci
     linha = (f"{caminho_impresso(rel)}: suíte: o parecer aprovado só conta com o CI verde no head ou com a prova da suíte dos "
@@ -3713,16 +3727,17 @@ TIPO_DO_PARECER_NOVO = {"review": ("review", "forge:tech-lead", "Review"), "qa":
 
 
 PROVA_NO_ESQUELETO = "- suíte: {0} rc=0 módulos={0}"  # PARECER-SO-COM-CI-VERDE: sem o CI verde no head, o sha40 do `commit:` e os módulos
-CI_NO_ESQUELETO = "- ci: {0} verde"  # PARECER-LE-O-CI: o sha40 do `commit:`, com o `gh pr checks` dele todo verde
+CI_NO_ESQUELETO = "- ci: {0} verde"  # PARECER-LE-O-CI: o sha40 do `commit:`, com o `gh pr checks` dele verde fora os da nota abaixo
+NOTA_NO_ESQUELETO = f"{{0}}: a linha `- ci:` vale com os checks do `commit:` concluídos e verdes {FORA_DA_LINHA_DO_CI}"
 
 
 def secoes_do_parecer_novo(tipo, marca):
     """As seções do modelo de cada tipo, depois do `## Achados` (Z7)."""
-    do_ci, prova = CI_NO_ESQUELETO.format(marca), PROVA_NO_ESQUELETO.format(marca)
+    do_ci, prova = [CI_NO_ESQUELETO.format(marca), NOTA_NO_ESQUELETO.format(marca)], PROVA_NO_ESQUELETO.format(marca)
     return {
-        "review": ["## Sondas", "", "## Parecer", f"{marca}: a síntese; cada ajuste em `## Achados`", do_ci, prova],
+        "review": ["## Sondas", "", "## Parecer", f"{marca}: a síntese; cada ajuste em `## Achados`", *do_ci, prova],
         "qa": ["## Critério → teste → resultado", "| Critério | Teste | Fronteira protegida | Resultado |", "|---|---|---|---|",
-               f"| {marca} | {marca} | {marca} | {marca} |", "", "## Cenários e resultado real", f"{marca}", do_ci, prova],
+               f"| {marca} | {marca} | {marca} | {marca} |", "", "## Cenários e resultado real", f"{marca}", *do_ci, prova],
         "revisao-seguranca": ["## Sondas", "", "## Gatilhos", f"{marca}: os gatilhos da `R-SEGURANCA` que a entrega toca", "",
                               "## Detalhe dos achados", f"{marca}", "", "## Riscos aceitos e ferramentas", f"{marca}"],
         "revisao-devops": ["## Detalhes", f"{marca}: a síntese e as ferramentas usadas", "", "## Custo e rollback", f"{marca}"],
@@ -9634,8 +9649,8 @@ def portao_na_branch(raiz, pedido_id, etapa, branch, base):
 
 # PARECER-LE-O-CI (G3, v0481 E8.1): o review e o QA leem o CI do head em vez de rodar a bateria, e só eles (o `pr` confere a linha)
 PORTOES_QUE_LEEM_O_CI = ("review", "qa")
-LINHA_LE_O_CI = ("- G3 (PARECER-LE-O-CI): não rode a suíte inteira; leia `gh pr checks` do PR, todos concluídos e verdes no `Revisar-sha`, "
-                 "e grave no parecer `- ci: <sha40 do Revisar-sha> verde` (sem ela, o `forge-check pr` recusa o aprovado); à mão, só os "
+LINHA_LE_O_CI = ("- G3 (PARECER-LE-O-CI): não rode a suíte inteira; leia `gh pr checks` do PR, concluídos e verdes no `Revisar-sha` "
+                 f"{FORA_DA_LINHA_DO_CI}, e grave no parecer `- ci: <sha40 do Revisar-sha> verde` (sem ela, o `forge-check pr` recusa o aprovado); à mão, só os "
                  "testes que o diff toca e os mutantes declarados")
 SEM_PR_NO_PORTAO = "- sem PR para a branch: o CI só roda no PR; review e QA não aprovam sem o CI do head verde: peça ao autor o PR em rascunho"
 

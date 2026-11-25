@@ -139,6 +139,47 @@ class LeOCiNoBrief(unittest.TestCase):
         self.assertNotIn(fc.SEM_PR_NO_PORTAO, self.gerar("seguranca", "E1.4", destino="forge:revisor-exemplo"))
 
 
+class ChecksForaDaLinhaDoCi(unittest.TestCase):
+    """A1 do #893: no `Revisar-sha`, `bateria (pareceres)`, `bateria` e `catraca` ficam vermelhos por construção (esperam o parecer
+    ou o rótulo). A constante `CHECKS_FORA_DA_LINHA_DO_CI` é a fonte única: o brief, o esqueleto do parecer e as duas skills citam
+    cada um; e cada um é um job de verdade dos workflows, para a lista não divergir do CI."""
+    setUp, gerar = Gerar.setUp, Gerar.gerar
+
+    def citados(self, texto, onde):
+        self.assertEqual(len(fc.CHECKS_FORA_DA_LINHA_DO_CI), 3)
+        for check in fc.CHECKS_FORA_DA_LINHA_DO_CI:
+            with self.subTest(onde=onde, check=check):
+                self.assertIn(f"`{check}`", texto)
+
+    def test_o_brief_de_review_e_qa_cita_os_checks(self):
+        for etapa in fc.PORTOES_QUE_LEEM_O_CI:
+            linha = [l for l in self.gerar(etapa, "E1.4", destino="forge:revisor-exemplo", pr=LeOCiNoBrief.COM_PR).splitlines()
+                     if l.startswith("- G3 (PARECER-LE-O-CI)")]
+            self.assertEqual(len(linha), 1, etapa)
+            self.citados(linha[0], f"brief {etapa}")
+
+    def test_o_esqueleto_do_parecer_cita_os_checks(self):
+        for tipo in fc.PORTOES_QUE_LEEM_O_CI:
+            texto = fc.esqueleto_do_parecer(tipo, "p1", "melhoria/x", "a" * 40, "aprovado", "2026-01-01")
+            nota = [l for l in texto.splitlines() if "a linha `- ci:` vale" in l]
+            self.assertEqual(len(nota), 1, tipo)
+            self.citados(nota[0], f"esqueleto {tipo}")
+
+    def test_as_skills_citam_os_checks(self):
+        for skill in ("engineering-practices", "qa-testing"):
+            linhas = [l for l in (RAIZ / "skills" / skill / "SKILL.md").read_text(encoding="utf-8").splitlines() if "PARECER-LE-O-CI" in l]
+            self.assertEqual(len(linhas), 1, skill)
+            self.citados(linhas[0], skill)
+
+    def test_cada_check_e_um_job_dos_workflows(self):
+        nomes = set()
+        for yml in (RAIZ / ".github" / "workflows").glob("*.yml"):
+            nomes |= {l.split("name:", 1)[1].split("#")[0].strip() for l in yml.read_text(encoding="utf-8").splitlines()
+                      if l.startswith("    name:")}
+        self.assertGreater(len(nomes), 10)
+        self.assertLessEqual(set(fc.CHECKS_FORA_DA_LINHA_DO_CI), nomes)
+
+
 DESATUALIZADO = ("docs/reviews/exemplo.md: commit: desatualizado: bin/forge-x mudou depois de aaaaaaa; peça novo parecer; o que mudou no "
                  "domínio: forge-check parecer delta docs/reviews/exemplo.md (R-REVIEW)")
 REPROVADO = "docs/qa/exemplo.md: parecer: o último parecer não é aprovado (R-QA)"

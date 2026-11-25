@@ -452,8 +452,10 @@ class LeuOCi(unittest.TestCase):
 
 
 class LeOCiNoCmdPr(ProvaDaSuiteBase):
-    def violacoes(self, prova, suite=False, verde=True, forge=True, marca="PARECER-LE-O-CI"):
+    def violacoes(self, prova, suite=False, verde=True, forge=True, marca="PARECER-LE-O-CI", regra=True):
         head = self.entregar()
+        if regra:  # o `commit:` revisado já traz a regra no bin/forge-check (`cobra_a_linha_do_ci`)
+            head = self.commitar({"bin/forge-check": "# PARECER-LE-O-CI\n"}, "regra")
         if not forge:
             git("rm", "-q", ".claude-plugin/plugin.json", cwd=self.tmp)
             git("commit", "-q", "-m", "sem forge", cwd=self.tmp)
@@ -499,6 +501,24 @@ class LeOCiNoCmdPr(ProvaDaSuiteBase):
         self.assertEqual(self.violacoes("", suite=None), [])  # a catraca: o próprio CI
         self.setUp()
         self.assertEqual(self.violacoes("", forge=False), [])
+
+    # A3 do #893 (transição): o parecer cujo `commit:` é anterior à regra (as branches abertas) não é cobrado da linha, e a
+    # PARECER-SO-COM-CI-VERDE segue inteira nele: nada que barrava antes deixa de barrar.
+    def test_commit_anterior_a_regra_nao_cobra_a_linha(self):
+        for suite in (False, True):
+            with self.subTest(suite=suite):
+                self.setUp()
+                self.assertEqual(self.violacoes("", suite=suite, regra=False), [])
+
+    def test_commit_anterior_a_regra_segue_com_o_ci_verde_do_head(self):
+        self.assertEqual(len(self.violacoes("", verde=False, regra=False, marca="PARECER-SO-COM-CI-VERDE")), 1)
+
+    def test_cobra_a_linha_com_commit_fora_da_forma_ou_erro_do_git(self):
+        self.entregar()
+        self.assertFalse(fc.cobra_a_linha_do_ci(self.tmp, {"commit": git("rev-parse", "HEAD", cwd=self.tmp)}))  # sem a regra
+        self.assertTrue(fc.cobra_a_linha_do_ci(self.tmp, {"commit": "f" * 40}))  # sha que não existe: o git falha, cobra
+        self.assertTrue(fc.cobra_a_linha_do_ci(self.tmp, {"commit": "--cached"}))  # não vira opção do git grep
+        self.assertTrue(fc.cobra_a_linha_do_ci(self.tmp, {}))
 
 
 if __name__ == "__main__":
