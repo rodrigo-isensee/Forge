@@ -3,39 +3,38 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-prazo-forge
-commit: a4d1287031926560dc2742f125b5456cccaa149a
-parecer: reprovado
+commit: 21a96c1ab06722ed0e7b9cc7c3276912ea841b49
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-25
 ---
 # Review: v0481
 
+Review por delta (E7.28) de a4d12870 a 21a96c1a. Li o delta pelo `forge-check parecer delta docs/reviews/v0481-prazo-forge.md` (`revalida: sim`, porque o parecer anterior reprovou; no domínio: `hooks/_comum.py`, `hooks/conformidade.py`, a fixture nova, as 6 specs, `tests/test_hooks.py`, `tests/test_hooks_volta_propriedades.py`, o índice das fixtures e o fragmento do changelog).
+
 ## Achados
-- A1 (bloqueante) hooks/_comum.py:2875 · AR-12: o diff muda as linhas que 7 specs antigas mutam (heredoc-donos D11; v0480-vigia-agentes-pesado M1-M2; v0480-vigia-trava-critica M1-M4), e test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes falha (S2; suíte 4/5 do CI). Alinhe o `de` delas.
-- A2 (bloqueante) hooks/conformidade.py:127 · ESCRITA_NO_TEXTO não tem mkfifo nem mknod. Na sessão de projeto, `python3 -c "import os; os.mkfifo('.git/x')"` libera, e o `os.remove('.git/x')` da mesma linha recusa. O pedido diz que o FIFO no .git recusa nas duas sessões (S1). Inclua `mkfifo|mknod` e ponha uma fixture.
-- A3 (recomendado) hooks/_comum.py:2884 · Com FIFO no .git, na sessão do Forge, `ls` também recusa (o marcador não foi calculado), mas o texto diz "a chamada com ação crítica" e "um `git` lento". Quando `hook.marcado is None`, cite o .git que não respondeu.
+- A1 (recomendado) hooks/_comum.py:2898 · Continua o A3 do parecer anterior. Com FIFO no .git, na sessão do Forge, `ls` recusa (S4) com o texto "a chamada com ação crítica". Quando `hook.marcado is None`, cite o .git que não respondeu.
+- A2 (recomendado) hooks/_comum.py:2947 · No erro interno, o `falhar_fechado` depois do registro lê a sessão sem vigia; com FIFO no .git pode ir ao corte de 10 s, que libera. Já era assim antes do diff e exige erro interno e FIFO juntos. Vira cartão.
 
 ## Sondas
-- S1 · sessão de projeto, PreToolUse Bash `python3 -c "import os; os.mkfifo('.git/x')"` no hook real · espera: 2 R-CONFORMIDADE (como `os.remove('.git/x')`, que dá 2) · obtido: 0 (libera)
-- S2 · `python3 -m unittest tests.test_forge_mutante -k test_toda_spec_do_forge_confere` no a4d12870 · espera: OK · obtido: FAILED, 7 specs com o `de` fora da fonte (D11, v0480-vigia-agentes-pesado M1-M2, v0480-vigia-trava-critica M1-M4)
+- S1 · hook real, FIFO no commondir e no gitdir da worktree, sessões Forge e projeto, raiz na worktree e na principal, push na main, `--force` e `--no-verify` (24 casos) · espera: 2 · obtido: 2 nos 24 (R-CONFORMIDADE de 3,7 a 4,3 s, ou R-MAIN e R-VERIFY direto)
+- S2 · sessão de projeto, `python3 -c "import os; os.mkfifo('.git/x')"`, e também com `os.mknod` e com o `mkfifo` do perl · espera: 2 · obtido: 2 R-CONFORMIDADE (antes do diff, o mkfifo dava 0)
+- S3 · sessão de projeto, `python3 -c "import os; os.mkfifo('fila')"` e `python3 -c "print('mkfifo')"` · espera: 0 · obtido: 0
+- S4 · `ls` com FIFO no .git · espera: 0 no projeto · obtido: 0 no projeto; 2 na sessão do Forge (já era assim, A1)
+- S5 · carga: `prazo_vencido`, sessão do Forge, linha sem marcador (sessão e registro, cada um com o seu vigia), 50 voltas, loadavg 9,9 em 12 núcleos · espera: bem abaixo de 0,5 s, e libera · obtido: mediana de 0,39 ms, pior caso de 0,66 ms, liberou nas 50
+- S6 · `gh pr merge 12 --squash` e `gh pr ready 12` com FIFO, nas duas sessões (24 casos), contra o corte de 10 s · espera: decisão antes de 10 s · obtido: pior parede de 5,3 s, sem nenhum corte
 
 ## Parecer
-Reprovado: há dois bloqueantes, A1 e A2. O núcleo da correção está certo e entra assim que os dois forem resolvidos.
+Aprovado: os dois bloqueantes do parecer anterior foram resolvidos.
 
-O que conferi com o hook real (`hooks/conformidade.py` em subprocesso, ambiente limpo, corte de 10 s que libera como o Claude Code), lado a lado com a base 5fb8e328:
-- Pedi um FIFO no `commondir` e outro no `gitdir` da worktree, nas duas sessões (Forge e projeto), com a raiz na worktree e também na cópia principal. Testei `git push origin feature/x:main`, `git push --force` e `git commit --no-verify`: 28 casos. Na base, os 12 casos da sessão do Forge liberavam pelo corte de 10 s. No head, os 28 recusam: R-CONFORMIDADE em cerca de 3,7 s, ou R-MAIN e R-VERIFY direto quando o git responde. A liberação indevida está fechada.
-- Nada que a base barrava deixou de barrar: todos os casos com 2 na base dão 2 no head. O `ls` na sessão de projeto com FIFO segue livre nas duas versões.
-- Testei 21 formas de mkfifo e mknod nas duas sessões: `.git/x`, `-m`, `--`, `env`, `command`, `busybox`, `sudo`, `nice`, `timeout`, `find -exec`, `bash -c`, `./.GIT`, `.gi?`, `$(git rev-parse --git-dir)` e `cd .git && mkfifo x`. Todas recusam no head e liberavam na base. O FIFO fora do `.git` (`minha-fila`, `/tmp/...`) segue livre. Duas ficam passando: `echo .git/x | xargs mkfifo`, que tem o mesmo limite antigo de `xargs rm` e `xargs touch` e não é deste diff, e o caminho do interpretador (A2).
-- Vigia de 0,5 s sob carga: ele só arma depois que a decisão já passou do prazo de 3 s, ou de 8 s no merge. Na sessão vigiada, recusar já era o resultado. Na do Forge, a linha marcada já recusava pelo `recusa_no_prazo`. Sobra a linha sem marcador na sessão do Forge: ela recusa se `registrar_erro` mais `sessao_vigiada` passarem de 0,5 s. No Forge, `registrar_erro` volta antes do git, porque a raiz não é de projeto, e `recusa_no_prazo` só faz stat. Medi a mediana em 0,35 ms e o pior caso em 0,79 ms (50 voltas, loadavg 9,3 em 12 núcleos). A folga é de cerca de 600 vezes, e quando falha, falha fechado (ADR 0009, seção 7). Não abro achado. O total fica em 8 + 0,5 s, abaixo dos 10 s do hooks.json.
-- O `except (PrazoVencido, Exception)` mantém o `recusa` calculado antes, então a sessão que não se decide recusa. O alarme é de disparo único, e o `finally` restaura o sinal mesmo quando o vigia vence no meio do desarme.
+- **A1 anterior (specs).** As 7 specs voltaram a casar com a fonte, e a `lote-unico-032-l31` também foi alinhada. `tests.test_forge_mutante -k test_toda_spec_do_forge_confere` dá OK. `bin/forge-mutante --conferir --todas` dá 26 linhas, o mesmo número da base. Nenhuma delas é de spec tocada pelo diff: as 2 que casam pelo nome são `lote-unico-032-l32-2` e `-l49`, que já estavam lá.
+- **A2 anterior (mkfifo por interpretador).** `mkfifo|mknod` entrou em `ESCRITA_NO_TEXTO`, com a fixture `fifo-python-mkfifo-git-projeto-bloqueia` e o M12. Na sessão do Forge, o texto de um interpretador escrevendo no `.git` segue livre, e o `os.remove('.git/x')` também. É a política de antes, e o efeito do FIFO lá agora é recusar, não liberar.
+- **Ordem nova no `prazo_vencido`.** A sessão se decide primeiro, sob o seu vigia, e o registro vem depois, em `registrar_sob_vigia`, com outro vigia. O registro não muda a decisão: o `recusa` já foi calculado antes, e o `except` do registro só descarta a linha. Nos dois piores casos, o tempo total fica em 8 + 0,5 + 0,5 s, abaixo dos 10 s, e na prática ficou em 5,3 s (S6). O erro interno usa o mesmo caminho (M11). Do restante desse caminho trata o A2.
+- **Testes novos.** `test_registro_que_nao_termina_nao_muda_a_decisao` usa um vigia real com sono de 5 s e confere lento e falha, com e sem marcador. `test_erro_interno_com_registro_lento_nao_espera_o_corte` confere a parede abaixo de 4 s. As sequências de alarmes armados nos testes do relógio falso passaram a esperar dois pares (sessão e registro), o que bate com o código.
 
 Verificadores que rodei no Revisar-sha:
-- `PrazoVencidoNaSessaoDoForge`, `SondaS1ComRelogioFalso` e `VigiaAgentesPesado`: 9 testes, OK.
-- `bin/forge-mutante --processos 1 tests/mutantes/v0481-prazo-forge.json`: M1 a M8 morreram.
-- `--cobertura --base 5fb8e328`: todas as guardas do diff estão cobertas.
-- `--conferir --todas` (rc 1, 33 linhas, contra 26 na base): as 7 linhas novas são as do A1.
-
-Mais pontos:
-- CI do #888: `catraca` vermelha, à espera do rótulo do dono (mudança em hooks); `bateria (pareceres)` vermelha, à espera dos pareceres; suíte 4/5 vermelha nas duas versões de Python, o que bate com o A1.
-- Tamanho H1: cerca de 34 linhas de código, dentro do teto.
-- O A1 é a 6.a ocorrência do AR-12. A linha de `docs/engineering/achados-recorrentes.md` fica para o commit do autor, porque este envio leva só o parecer (brief).
+- `PrazoVencidoNaSessaoDoForge`, `SondaS1ComRelogioFalso` e `VigiaAgentesPesado`: 11 testes, OK.
+- `bin/forge-mutante --processos 1` em `v0481-prazo-forge.json` (M1 a M8) e em `v0481-prazo-forge-2.json` (M9 a M12): todos morreram. O M4 e o M9 morreram por erro do teste declarado sob o mutante, que passa sem ele.
+- `--cobertura --base a4d12870`: as specs editadas foram reconhecidas, e a da base ficou isenta fora do diff. Nenhuma guarda ficou descoberta.
+- CI do #888 no 21a96c1a ainda em andamento quando escrevi. A suíte 4/5 passou nas duas versões do Python, e era ela que o A1 anterior deixava vermelha. A `catraca` espera o rótulo do dono (mudança em hooks), e a `bateria (pareceres)` espera os pareceres.
+- Tamanho H1: 59 linhas de código adicionadas no item todo (base 5fb8e328), dentro do teto.
