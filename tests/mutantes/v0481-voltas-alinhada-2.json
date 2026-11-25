@@ -24,12 +24,22 @@
     },
     {
       "id": "VA-M11",
-      "guarda": "a conferência da entrega de código mede os testes da volta",
+      "guarda": "a conferência da entrega mede os testes da volta",
       "arquivo": "bin/forge-check",
-      "de": "    linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio, head) if etapa == \"codigo\" else []",
-      "para": "    linhas += []",
+      "de": "    linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio, head)  # R-QA",
+      "para": "    linhas += []  # R-QA",
       "testes": [
         "tests.test_volta_alinhada.TerceiraVoltaNaConferencia.test_terceira_volta_que_remove_teste_nao_cumpre"
+      ]
+    },
+    {
+      "id": "VA-M12",
+      "guarda": "a ponta lida é a --ref, quando dada; sem ela, a origin/<branch>",
+      "arquivo": "bin/forge-check",
+      "de": "    ponta = sha_do_commit(raiz, ref or f\"origin/{branch}\")",
+      "para": "    ponta = sha_do_commit(raiz, f\"origin/{branch}\")",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_brief_de_codigo_na_branch_com_parecer_reprovado_e_volta"
       ]
     }
   ]

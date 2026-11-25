@@ -4452,7 +4452,7 @@ def voltas_autorizadas(cobradas, branch):
 def reprovados_da_branch(raiz, branch, ref=None):
     """R-QA (contagem das voltas): os pareceres `reprovado` com `branch: <branch>` na ponta dela (a `ref` ou `origin/<branch>`);
     brief de código novo numa branch assim é volta e sai por `brief gerar --volta`, para contar no teto."""
-    ponta = sha_do_commit(raiz, ref or f"origin/{branch}") if branch else None
+    ponta = sha_do_commit(raiz, ref or f"origin/{branch}")
     if not ponta:
         return []
     return [rel for tipo in PASTA_E_REGRA for rel, texto in documentos(Path(raiz), tipo, ponta)
@@ -4503,7 +4503,7 @@ def recusa_da_volta(n, cobradas, branch):
     """G1.1: o motivo de recusar a volta `n` sem a decisão do dono (R-DECISAO), com o que fazer; None se ela cabe no teto."""
     if n <= voltas_autorizadas(cobradas, branch):
         return None
-    return (f"volta {n} recusada para {nome_seguro(sem_controle(branch or '<branch>'))}: no máximo {VOLTAS_SEM_O_DONO if branch else 1} voltas por item sem o dono (R-QA; CI vermelho e conflito com a base entram no mesmo brief "
+    return (f"volta {n} recusada para {nome_seguro(sem_controle(branch or '<branch>'))}: no máximo {VOLTAS_SEM_O_DONO} voltas por item sem o dono, 1 sem a branch (R-QA; CI vermelho e conflito com a base entram no mesmo brief "
             "de volta e não contam). Corrigir: leve ao dono como decisão (R-DECISAO), com três opções: (a) cortar o item e reabrir menor; "
             "(b) aceitar com cartão, só sem bloqueante de segurança; (c) autorizar mais uma volta, gravada no pedido como "
             "`- AAAA-MM-DD HH:MM: DECISÃO DO DONO: mais uma volta para <a branch acima>` (só essa forma canônica conta; uma linha por volta a mais)")
@@ -10506,7 +10506,7 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
     cod, contagem = git(raiz, "rev-list", "--count", f"{inicio}..{head}")
     linhas.append((f"commits: {contagem if not cod else '?'} em {inicio[:12]}..{head[:12]}", bool(cod)))
     linhas += conferir_provas(raiz, brief, branch, head, pasta, so_leitura)
-    linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio, head) if etapa == "codigo" else []  # R-QA: a 3ª volta
+    linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio, head)  # R-QA: a 3ª volta (só o brief com `(volta N)`)
     if etapa == "codigo" and not cod:  # T1: código sem teste no intervalo da delegação, sinalizado sem reprovar (a classe T isenta)
         aviso = aviso_de_codigo_sem_teste(raiz, f"{inicio}..{head}", nomes_do_intervalo(raiz, inicio, head),
                                           classe_para_o_t1(raiz, head, base))
