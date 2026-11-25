@@ -1,0 +1,2 @@
+### Alterado
+- `forge-fechar --corte`: a marca já nasce pronta para a promoção. O PR da marca traz a linha de teto que o 1c cobra e a lista dos pareceres `release-<versão>` (review, QA e segurança), e a tela imprime a classe dele; o fragmento que a develop recebe depois do corte entra na seção da versão (`forge-changelog release --anexar`) antes do merge da marca; a data da seção é o dia local, não o UTC; e o V3 avisa, com o comando pronto, que o PR da main vai pedir ao dono o rótulo `afrouxa-regra` quando a promoção o levou (v0481 E13.15).
