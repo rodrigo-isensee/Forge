@@ -1384,6 +1384,8 @@ def ultima_raiz(args):
     """A `--raiz` que o argparse do `forge-check` usa: a última da linha, antes ou depois do subcomando (review A1 do E6.18)."""
     raiz = None
     for i, a in enumerate(args):
+        if a == "--":  # o argparse toma o resto como posicional, nunca como --raiz (A1 do E6.22)
+            break
         if a == "--raiz" and i + 1 < len(args):
             raiz = args[i + 1]
         elif a.startswith("--raiz="):
