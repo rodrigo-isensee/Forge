@@ -1,0 +1,2 @@
+### Alterado
+- R-QA: até 3 voltas por item sem o dono (ORDEM DO DONO 25/11 07:31); a 3ª só corrige o que o portão apontou: o brief gerar --volta traz a restrição, a conferência do brief a cobra e a conferência da entrega recusa teste removido ou enfraquecido no diff da volta (medidas da catraca); brief de código numa branch com parecer reprovado é volta e sai por --volta, para contar no teto (v0481 E14.44).

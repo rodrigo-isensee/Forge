@@ -1,0 +1,88 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "VA-M1",
+      "guarda": "o teto sem o dono é 3 voltas por item (R-QA, ORDEM DO DONO 25/11 07:31)",
+      "arquivo": "bin/forge-check",
+      "de": "VOLTAS_SEM_O_DONO = 3  # R-QA",
+      "para": "VOLTAS_SEM_O_DONO = 2  # R-QA",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_sem_branch_nenhuma_decisao_autoriza",
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_quatro_so_com_decisao_do_dono_que_cita_a_branch"
+      ]
+    },
+    {
+      "id": "VA-M2",
+      "guarda": "sem a ponta da branch, nenhum parecer é lido (nunca o disco do Jarvis)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not ponta:\n        return []\n    return [rel for tipo in PASTA_E_REGRA",
+      "para": "    if False:\n        return []\n    return [rel for tipo in PASTA_E_REGRA",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_brief_de_codigo_na_branch_com_parecer_reprovado_e_volta"
+      ]
+    },
+    {
+      "id": "VA-M3",
+      "guarda": "só o parecer da mesma branch conta",
+      "arquivo": "bin/forge-check",
+      "de": "(campos := ler_frontmatter(texto)[0] or {}).get(\"branch\") == branch and",
+      "para": "(campos := ler_frontmatter(texto)[0] or {}).get(\"branch\") is not None and",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_brief_de_codigo_na_branch_com_parecer_reprovado_e_volta"
+      ]
+    },
+    {
+      "id": "VA-M4",
+      "guarda": "só o parecer `reprovado` faz do brief de código uma volta",
+      "arquivo": "bin/forge-check",
+      "de": "campos.get(\"parecer\") == \"reprovado\"]",
+      "para": "campos.get(\"parecer\") != \"aprovado\"]",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_brief_de_codigo_na_branch_com_parecer_reprovado_e_volta"
+      ]
+    },
+    {
+      "id": "VA-M5",
+      "guarda": "só o brief de código numa branch com parecer reprovado é recusado sem Volta-de",
+      "arquivo": "bin/forge-check",
+      "de": "    elif tipo_do_brief(texto) == \"codigo\" and (reprovados := reprovados_da_branch(",
+      "para": "    elif tipo_do_brief(texto) != \"volta\" and (reprovados := reprovados_da_branch(",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_brief_de_codigo_na_branch_com_parecer_reprovado_e_volta"
+      ]
+    },
+    {
+      "id": "VA-M6",
+      "guarda": "antes da 3ª volta, a conferência não mede os testes da volta",
+      "arquivo": "bin/forge-check",
+      "de": "    if numero_da_volta(blocos_literais(brief)) < VOLTA_SO_DO_APONTADO:\n        return []",
+      "para": "    if False:\n        return []",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_recusa_teste_removido_ou_enfraquecido",
+        "tests.test_volta_alinhada.TerceiraVoltaNaConferencia.test_segunda_volta_nao_tem_a_restricao"
+      ]
+    },
+    {
+      "id": "VA-M7",
+      "guarda": "sem a catraca carregada, a 3ª volta reprova (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if catraca is None:  # falha fechada: sem a medida",
+      "para": "    if False:  # falha fechada: sem a medida",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_recusa_teste_removido_ou_enfraquecido"
+      ]
+    },
+    {
+      "id": "VA-M8",
+      "guarda": "o git da catraca que falha reprova a 3ª volta (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "        return [(f\"volta: o git falhou ao medir os testes do diff da volta ({sem_controle(str(e))[:120]})\", True)]",
+      "para": "        return []",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_recusa_teste_removido_ou_enfraquecido"
+      ]
+    }
+  ]
+}

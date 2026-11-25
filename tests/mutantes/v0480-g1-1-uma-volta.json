@@ -39,7 +39,7 @@
       "de": "    if n <= voltas_autorizadas(cobradas, branch):",
       "para": "    if True:",
       "testes": [
-        "tests.test_volta_por_delta.BriefDeVolta.test_volta_dois_so_com_decisao_do_dono_que_cita_a_branch"
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_quatro_so_com_decisao_do_dono_que_cita_a_branch"
       ]
     },
     {
@@ -49,7 +49,7 @@
       "de": "    if recusa := recusa_da_volta(n, cobradas, do_item):  # G1.1: nada gerado acima do teto",
       "para": "    if False:  # G1.1: nada gerado acima do teto",
       "testes": [
-        "tests.test_volta_por_delta.BriefDeVolta.test_volta_dois_so_com_decisao_do_dono_que_cita_a_branch"
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_quatro_so_com_decisao_do_dono_que_cita_a_branch"
       ]
     },
     {

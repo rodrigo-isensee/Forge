@@ -980,13 +980,22 @@ class BriefDeVolta(Repositorio):
     def autorizar(self, linha):
         self.pedido.write_text(self.pedido.read_text(encoding="utf-8") + linha, encoding="utf-8")
 
-    def test_volta_dois_so_com_decisao_do_dono_que_cita_a_branch(self):  # G1.1 (ORDEM DO DONO 21/11 22:13)
-        rc, saida = self.gerar()
-        segundo = self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md"
-        segundo.write_text(saida, encoding="utf-8")
-        rc, recusa = self.gerar(volta="docs/briefs/pedido-sintetico-dev-exemplo-2.md")
+    def cadeia(self, ate):
+        """Gera as voltas 1..`ate` em cadeia (cada uma do brief da anterior) e devolve (rel do último, texto do último)."""
+        rel, saida = self.rel_anterior, ""
+        for n in range(1, ate + 1):
+            rc, saida = self.gerar(volta=rel)
+            self.assertEqual(rc, 0, saida)
+            self.assertIn(f"## Entregar (volta {n})\n", saida)
+            rel = f"docs/briefs/pedido-sintetico-dev-exemplo-{n + 1}.md"
+            (self.repo / rel).write_text(saida, encoding="utf-8")
+        return rel, saida
+
+    def test_volta_quatro_so_com_decisao_do_dono_que_cita_a_branch(self):  # R-QA (ORDEM DO DONO 25/11 07:31): 3 voltas sem o dono
+        rel, saida = self.cadeia(3)
+        rc, recusa = self.gerar(volta=rel)
         self.assertEqual(rc, 1, recusa)
-        self.assertIn("volta 2 recusada para \"melhoria/x\"", recusa)
+        self.assertIn("volta 4 recusada para \"melhoria/x\": no máximo 3 voltas por item sem o dono", recusa)
         self.assertIn("cortar o item e reabrir menor", recusa)
         self.assertNotIn("## Entregar", recusa)
         for linha in ("- DECISÃO DO DONO (2026-11-21): mais uma volta para melhoria/xy\n",  # nome parecido não vale
@@ -994,17 +1003,32 @@ class BriefDeVolta(Repositorio):
                       "- DECISÃO DO DONO (2026-11-21): melhoria/x segue sem pressa\n"):  # cita a branch, não a volta
             with self.subTest(linha):
                 self.autorizar(linha)
-                self.assertEqual(self.gerar(volta="docs/briefs/pedido-sintetico-dev-exemplo-2.md")[0], 1)
+                self.assertEqual(self.gerar(volta=rel)[0], 1)
         self.autorizar("- DECISÃO DO DONO (2026-11-21): mais uma volta para melhoria/x.\n")
-        rc, saida = self.gerar(volta="docs/briefs/pedido-sintetico-dev-exemplo-2.md")
+        rc, saida = self.gerar(volta=rel)
         self.assertEqual(rc, 0, saida)
-        self.assertIn("## Entregar (volta 2)\n", saida)
+        self.assertIn("## Entregar (volta 4)\n", saida)
         self.assertIn("- PQ-5 (cmd, do autor)", saida)
-        terceiro = self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-3.md"
-        terceiro.write_text(saida, encoding="utf-8")
-        rc, recusa = self.gerar(volta="docs/briefs/pedido-sintetico-dev-exemplo-3.md")  # uma decisão, uma volta a mais
+        quinto = self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-5.md"
+        quinto.write_text(saida, encoding="utf-8")
+        rc, recusa = self.gerar(volta="docs/briefs/pedido-sintetico-dev-exemplo-5.md")  # uma decisão, uma volta a mais
         self.assertEqual(rc, 1, recusa)
-        self.assertIn("volta 3 recusada", recusa)
+        self.assertIn("volta 5 recusada", recusa)
+
+    def test_terceira_volta_traz_a_restricao_e_a_conferencia_a_cobra(self):  # R-QA: a 3ª só corrige o apontado
+        restricao = "só corrige o que o portão apontou, sem mudar lógica nem enfraquecer teste"
+        rel, segunda = self.cadeia(2)
+        self.assertNotIn(restricao, segunda)
+        rc, terceira = self.gerar(volta=rel)
+        self.assertEqual(rc, 0, terceira)
+        self.assertIn(f"- Restrição da volta 3 (R-QA): {restricao}; teste removido ou enfraquecido no diff da volta reprova a entrega.\n",
+                      terceira)
+        _, conferencia = self.conferir(terceira, nome="pedido-sintetico-dev-exemplo-4.md", ref=None)
+        self.assertNotIn("sem a restrição", conferencia)
+        sem = "".join(l for l in terceira.splitlines(keepends=True) if restricao not in l)
+        rc, conferencia = self.conferir(sem, nome="pedido-sintetico-dev-exemplo-4.md", ref=None)
+        self.assertEqual(rc, 1, conferencia)
+        self.assertIn(f"volta: Entregar (volta 3) sem a restrição \"{restricao}\" (R-QA)", conferencia)
 
     def test_conferencia_recusa_a_numeracao_contornada(self):  # G1.1: o brief à mão não volta a contar do 1 nem pula o teto
         rc, saida = self.gerar()
@@ -1016,10 +1040,16 @@ class BriefDeVolta(Repositorio):
         self.assertIn("volta: numeração contornada", conferencia)
         rc, conferencia = self.conferir(texto.replace("## Entregar (volta 1)", "## Entregar (volta 2)"), nome="pedido-sintetico-dev-exemplo-3.md", ref=None)
         self.assertNotIn("numeração contornada", conferencia)
-        self.assertIn("volta: volta 2 recusada para \"melhoria/x\"", conferencia)
+        self.assertNotIn("recusada", conferencia)  # R-QA: a 2ª volta vai sem o dono
+        terceira = saida.replace("## Entregar (volta 1)", "## Entregar (volta 3)")
+        segundo.write_text(terceira, encoding="utf-8")
+        quarta = self.volta_de(saida, "docs/briefs/pedido-sintetico-dev-exemplo-2.md", terceira.encode()).replace("## Entregar (volta 1)", "## Entregar (volta 4)")
+        rc, conferencia = self.conferir(quarta, nome="pedido-sintetico-dev-exemplo-3.md", ref=None)
+        self.assertIn("volta: volta 4 recusada para \"melhoria/x\"", conferencia)
         self.autorizar("- DECISÃO DO DONO (2026-11-21): mais uma volta para melhoria/x\n")
-        rc, conferencia = self.conferir(texto.replace("## Entregar (volta 1)", "## Entregar (volta 2)"), nome="pedido-sintetico-dev-exemplo-3.md", ref=None)
+        rc, conferencia = self.conferir(quarta, nome="pedido-sintetico-dev-exemplo-3.md", ref=None)
         self.assertNotIn("recusada", conferencia)
+        segundo.write_text(saida, encoding="utf-8")
         rc, conferencia = self.conferir(saida, ref=None)  # a volta 1 segue sem decisão
         self.assertNotIn("recusada", conferencia)
         self.assertNotIn("já tem volta", conferencia)  # o próprio brief não é sucessor de si
@@ -1028,7 +1058,10 @@ class BriefDeVolta(Repositorio):
     def test_sem_branch_nenhuma_decisao_autoriza(self):  # G1.1: sem nome lido, o teto fica em 1 (falha fechada)
         modulo = carregar_forge_check()
         cobradas = {"fontes": [("p", [(1, "DECISÃO DO DONO: mais uma volta para melhoria/x")])]}
-        self.assertEqual(modulo.voltas_autorizadas(cobradas, "melhoria/x"), 2)
+        self.assertEqual(modulo.voltas_autorizadas(cobradas, "melhoria/x"), 4)
+        self.assertEqual(modulo.voltas_autorizadas({"fontes": []}, "melhoria/x"), 3)
+        self.assertIsNone(modulo.recusa_da_volta(3, {"fontes": []}, "melhoria/x"))
+        self.assertIn('volta 4 recusada para "melhoria/x"', modulo.recusa_da_volta(4, {"fontes": []}, "melhoria/x"))
         for vazio in (None, ""):
             self.assertEqual(modulo.voltas_autorizadas(cobradas, vazio), 1)
         self.assertIn('volta 2 recusada para "<branch>"', modulo.recusa_da_volta(2, cobradas, None))
@@ -1042,7 +1075,7 @@ class BriefDeVolta(Repositorio):
         for linha in ("DECISÃO DO DONO: mais uma volta para melhoria/x", "- DECISÃO DO DONO: mais uma volta para `melhoria/x`.",
                       "- 2026-11-21 23:00: DECISÃO DO DONO: mais uma volta para melhoria/x.  "):
             with self.subTest(linha):
-                self.assertEqual(voltas(linha), 2)
+                self.assertEqual(voltas(linha), 4)
         for linha, branch in (("DECISÃO DO DONO: nenhuma volta a mais para melhoria/x", "melhoria/x"),  # review S2
                               ("- 2026-11-21 23:00: DECISÃO DO DONO: sem nova volta para melhoria/v1-x; cortar e reabrir menor", "melhoria/v1-x"),
                               ("DECISÃO DO DONO (2026-11-21 23:00): melhoria/v1-x aceita com cartão, nada de voltas", "melhoria/v1-x"),
@@ -1054,10 +1087,10 @@ class BriefDeVolta(Repositorio):
                               ("DECISÃO DO DONO: mais uma volta para melhoria/x foi negada", "melhoria/x"),  # review A4: até o fim da linha
                               ("DECISÃO DO DONO (2026-11-21 23:00): mais uma volta para melhoria/x → \"não\"", "melhoria/x")):
             with self.subTest(linha):
-                self.assertEqual(voltas(linha, branch=branch), 1)
-        self.assertEqual(voltas("DECISÃO DO DONO: mais uma volta para melhoria/x", fontes=2), 2)  # review S3: a mesma linha em duas fontes
+                self.assertEqual(voltas(linha, branch=branch), 3)
+        self.assertEqual(voltas("DECISÃO DO DONO: mais uma volta para melhoria/x", fontes=2), 4)  # review S3: a mesma linha em duas fontes
         self.assertEqual(voltas("- 2026-11-21 23:00: DECISÃO DO DONO: mais uma volta para melhoria/x",
-                                "- 2026-11-22 09:00: DECISÃO DO DONO: mais uma volta para melhoria/x"), 3)
+                                "- 2026-11-22 09:00: DECISÃO DO DONO: mais uma volta para melhoria/x"), 5)
 
     def com_branch(self, nome, branch="melhoria/x", volta_de=None):
         """Um brief do item em docs/briefs: o anterior sintético com `Branch:` e, se pedido, um `Volta-de:` (sem ser volta gerada)."""
@@ -1084,16 +1117,18 @@ class BriefDeVolta(Repositorio):
         rc, conferencia = self.conferir(saida, nome="pedido-sintetico-dev-exemplo-3.md", ref=None)  # a mesma volta escrita de novo
         self.assertIn('volta: o anterior "docs/briefs/pedido-sintetico-dev-exemplo-1.md" já tem volta', conferencia)
         (self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-3.md").unlink()
+        self.com_branch("pedido-sintetico-dev-exemplo-v2.md", volta_de="docs/briefs/pedido-sintetico-dev-exemplo-0.md")
+        self.com_branch("pedido-sintetico-dev-exemplo-v3.md", volta_de="docs/briefs/pedido-sintetico-dev-exemplo-0.md")
         outro = self.com_branch("pedido-sintetico-review-1.md")  # um brief do item sem `Volta-de:` não recomeça a conta
         rc, recusa = self.gerar("--branch", "melhoria/outra", volta=outro)
         self.assertEqual(rc, 1, recusa)
         self.assertIn('é de "melhoria/x", não de "melhoria/outra"', recusa)  # segurança A2: --branch diferente do anterior
-        self.assertEqual(self.gerar(volta=outro)[0], 1)  # sem --branch, a do anterior: volta 2 sem decisão
+        self.assertEqual(self.gerar(volta=outro)[0], 1)  # sem --branch, a do anterior: volta 4 sem decisão
         self.autorizar("- DECISÃO DO DONO (2026-11-21): mais uma volta para melhoria/outra\n")
         self.assertEqual(self.gerar("--branch", "melhoria/outra", volta=outro)[0], 1)
         texto = self.volta_de(saida, outro, (self.repo / outro).read_bytes())
         rc, conferencia = self.conferir(texto, nome="pedido-sintetico-dev-exemplo-3.md", ref=None)
-        self.assertIn('volta: volta 2 recusada para "melhoria/x"', conferencia)
+        self.assertIn('volta: volta 4 recusada para "melhoria/x"', conferencia)
         self.assertNotIn("numeração contornada", conferencia)
 
     def test_volta_de_outro_item_nao_conta(self):  # G1.1: só a mesma `Branch:` conta; brief sem `Branch:` não conta para ninguém
@@ -1112,6 +1147,49 @@ class BriefDeVolta(Repositorio):
         self.assertIn("volta: Entregar (volta N) sem a linha Volta-de", conferencia)
         rc, conferencia = self.conferir(self.ANTERIOR.read_text(encoding="utf-8"), ref=None)  # o brief da entrega original segue
         self.assertNotIn("sem a linha Volta-de", conferencia)
+
+    def test_brief_de_codigo_na_branch_com_parecer_reprovado_e_volta(self):  # R-QA: a volta sem a marca Volta-de conta
+        texto = self.ANTERIOR.read_text(encoding="utf-8").replace("Branch: melhoria/x", "Tipo: codigo\nBranch: melhoria/x", 1)
+        rc, conferencia = self.conferir(texto, ref="melhoria/x")
+        self.assertEqual(rc, 1, conferencia)
+        self.assertIn('volta: a branch "melhoria/x" já tem parecer reprovado (docs/reviews/p1.md)', conferencia)
+        _, conferencia = self.conferir(texto, ref=None)  # sem a origin/melhoria/x, nada lido
+        self.assertNotIn("já tem parecer reprovado", conferencia)
+        _, conferencia = self.conferir(texto.replace("Tipo: codigo", "Tipo: review"), ref="melhoria/x")  # o parecer não é volta
+        self.assertNotIn("já tem parecer reprovado", conferencia)
+        modulo = carregar_forge_check()
+        self.assertEqual(modulo.reprovados_da_branch(self.repo, "melhoria/x", "melhoria/x"), ["docs/reviews/p1.md"])
+        self.assertEqual(modulo.reprovados_da_branch(self.repo, "melhoria/y", "melhoria/x"), [])  # outra branch no parecer
+        self.assertEqual(modulo.reprovados_da_branch(self.repo, None, "melhoria/x"), [])
+        self.parecer("aprovado", "")
+        self.assertEqual(modulo.reprovados_da_branch(self.repo, "melhoria/x", "melhoria/x"), [])
+        self.parecer("revalidar", self.ACHADOS)  # só `reprovado` conta
+        self.assertEqual(modulo.reprovados_da_branch(self.repo, "melhoria/x", "melhoria/x"), [])
+
+    def test_terceira_volta_recusa_teste_removido_ou_enfraquecido(self):  # R-QA: as medidas da catraca no diff da volta
+        modulo = carregar_forge_check()
+        de = self.commitar({"tests/test_a.py": "def test_a():\n    assert 1\n\ndef test_b():\n    assert 2\n"}, "teste")
+        menos = self.commitar({"tests/test_a.py": "def test_a():\n    assert 1\n"}, "remove")
+        git("reset", "-q", "--hard", de, cwd=self.repo)
+        fraco = self.commitar({"tests/test_a.py": "def test_a():\n    assert 1\n\ndef test_b():\n    pass\n"}, "esvazia")
+        git("reset", "-q", "--hard", de, cwd=self.repo)
+        so_codigo = self.commitar({"src/app.txt": "v3\n"}, "corrige")
+        volta = lambda n: f"## Entregar (volta {n})\n- corrige\n"
+        for head, oque in ((menos, "caíram de 2 para 1"), (fraco, "asserções em tests/ caíram de 2 para 1")):
+            with self.subTest(oque):
+                linhas = modulo.testes_enfraquecidos_da_volta(self.repo, volta(3), de, head)
+                self.assertTrue(linhas and all(r for _, r in linhas), linhas)
+                self.assertTrue(any(oque in l and "(R-QA)" in l for l, _ in linhas), linhas)
+                self.assertEqual(modulo.testes_enfraquecidos_da_volta(self.repo, volta(2), de, head), [])  # a 2ª não tem a restrição
+        self.assertEqual(modulo.testes_enfraquecidos_da_volta(self.repo, volta(3), de, so_codigo), [])
+        self.assertTrue(modulo.testes_enfraquecidos_da_volta(self.repo, volta(4), de, menos))
+        linhas = modulo.testes_enfraquecidos_da_volta(self.repo, volta(3), de, "0" * 40)  # o git falha: falha fechada
+        self.assertEqual([r for _, r in linhas], [True], linhas)
+        self.assertIn("o git falhou", linhas[0][0])
+        modulo.catraca_da_classe = lambda: None
+        linhas = modulo.testes_enfraquecidos_da_volta(self.repo, volta(3), de, so_codigo)
+        self.assertEqual([r for _, r in linhas], [True], linhas)
+        self.assertIn("não carreguei tests/catraca.py", linhas[0][0])
 
     def test_conferencia_sem_branch_no_anterior_e_teto_um(self):  # QA A1: a conferência com o anterior sem `Branch:`
         rc, saida = self.gerar()
@@ -1160,15 +1238,16 @@ class BriefDeVolta(Repositorio):
 
     def test_conferencia_sem_cobradas_le_as_decisoes_do_pedido(self):  # QA A2: o fallback `cobradas or` do conferir_volta
         rc, saida = self.gerar()
-        (self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md").write_text(saida, encoding="utf-8")
-        texto = self.volta_de(saida, "docs/briefs/pedido-sintetico-dev-exemplo-2.md", saida.encode()).replace("## Entregar (volta 1)", "## Entregar (volta 2)")
+        terceira = saida.replace("## Entregar (volta 1)", "## Entregar (volta 3)")
+        (self.repo / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-2.md").write_text(terceira, encoding="utf-8")
+        texto = self.volta_de(saida, "docs/briefs/pedido-sintetico-dev-exemplo-2.md", terceira.encode()).replace("## Entregar (volta 1)", "## Entregar (volta 4)")
         modulo = carregar_forge_check()
         pedido = self.pedido.read_text(encoding="utf-8")
         autorizado = pedido + "- DECISÃO DO DONO (2026-11-21): mais uma volta para melhoria/x\n"
         for pedido_txt, recusada in ((pedido, True), (autorizado, False)):
             with self.subTest(recusada=recusada):
                 linhas = [l for l, _ in modulo.conferir_volta(self.repo, texto, pedido_txt, "pedido-sintetico", None, None)]
-                self.assertEqual(any("volta 2 recusada" in l for l in linhas), recusada, linhas)
+                self.assertEqual(any("volta 4 recusada" in l for l in linhas), recusada, linhas)
 
     def test_etapa_de_merge_acrescenta_o_pq_por_ancestralidade(self):  # E5 na volta
         rc, saida = self.gerar("--etapa", "merge-integracao")

@@ -1,0 +1,36 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "VA-M9",
+      "guarda": "o brief gerado da 3ª volta traz a restrição",
+      "arquivo": "bin/forge-check",
+      "de": "    if n >= VOLTA_SO_DO_APONTADO:  # R-QA: a conferência da entrega recusa",
+      "para": "    if n > VOLTA_SO_DO_APONTADO:  # R-QA: a conferência da entrega recusa",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_traz_a_restricao_e_a_conferencia_a_cobra"
+      ]
+    },
+    {
+      "id": "VA-M10",
+      "guarda": "a conferência do brief da 3ª volta sem a restrição reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    if n >= VOLTA_SO_DO_APONTADO and RESTRICAO_DA_VOLTA not in",
+      "para": "    if False and RESTRICAO_DA_VOLTA not in",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_traz_a_restricao_e_a_conferencia_a_cobra"
+      ]
+    },
+    {
+      "id": "VA-M11",
+      "guarda": "a conferência da entrega de código mede os testes da volta",
+      "arquivo": "bin/forge-check",
+      "de": "    linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio, head) if etapa == \"codigo\" else []",
+      "para": "    linhas += []",
+      "testes": [
+        "tests.test_volta_alinhada.TerceiraVoltaNaConferencia.test_terceira_volta_que_remove_teste_nao_cumpre"
+      ]
+    }
+  ]
+}

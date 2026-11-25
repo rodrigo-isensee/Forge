@@ -14,4 +14,4 @@ Medida: 27 de 52 bloqueantes dos pareceres eram defeito provado; 4 escapes (estu
 - Documentação não passa por QA, só o código que a verifica.
 - Guarda mudada em código de controle (classe C) pede mutante em `tests/mutantes/` no próprio diff (catraca do CI).
 - Bug bloqueante, crítico ou alto bloqueia a entrega e nunca segue aberto (ou vai ao usuário como decisão). Médio e baixo viram cartão no quadro, sem aceite do usuário caso a caso (BUR-B4).
-- No máximo 1 volta por item; na 2.ª reprovação, o Jarvis leva a decisão ao usuário.
+- Até 3 voltas por item sem perguntar ao usuário (ORDEM DO DONO 25/11 07:31); a 3.ª só corrige o que o portão apontou, sem mudar lógica nem enfraquecer teste (a conferência da entrega recusa teste removido ou enfraquecido no diff da volta). Da 4.ª em diante, o Jarvis leva a decisão ao usuário. Brief de código numa branch com parecer reprovado é volta e conta (`forge-check brief gerar --volta`).

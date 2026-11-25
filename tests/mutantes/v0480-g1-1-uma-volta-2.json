@@ -26,8 +26,8 @@
       "id": "M10",
       "guarda": "a mesma linha em duas fontes vale uma volta",
       "arquivo": "bin/forge-check",
-      "de": "1 + len({linha for _, linhas in cobradas[\"fontes\"] for _, linha in linhas if canonica.match(linha)})",
-      "para": "1 + len([linha for _, linhas in cobradas[\"fontes\"] for _, linha in linhas if canonica.match(linha)])",
+      "de": "VOLTAS_SEM_O_DONO + len({linha for _, linhas in cobradas[\"fontes\"] for _, linha in linhas if canonica.match(linha)})",
+      "para": "VOLTAS_SEM_O_DONO + len([linha for _, linhas in cobradas[\"fontes\"] for _, linha in linhas if canonica.match(linha)])",
       "testes": [
         "tests.test_volta_por_delta.BriefDeVolta.test_so_a_forma_canonica_autoriza_e_uma_linha_vale_uma_volta"
       ]

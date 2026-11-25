@@ -4434,13 +4434,44 @@ def numero_da_volta(blocos):
     return int(grupo(VOLTA_NO_ENTREGAR, (blocos.get("Entregar") or [""])[0]) or 0)
 
 
+VOLTAS_SEM_O_DONO = 3  # R-QA (ORDEM DO DONO 25/11 07:31): a 2ª e a 3ª voltas vão sem perguntar ao dono
+VOLTA_SO_DO_APONTADO = 3  # R-QA: desta volta em diante, só corrige o que o portão apontou
+RESTRICAO_DA_VOLTA = "só corrige o que o portão apontou, sem mudar lógica nem enfraquecer teste"
+
+
 def voltas_autorizadas(cobradas, branch):
-    """G1.1 (ORDEM DO DONO 21/11 22:13): 1 volta por item, mais uma por linha `DECISÃO DO DONO` das fontes de `decisoes_cobradas`
-    na forma canônica `DECISÃO DO DONO[ (data)]: mais uma volta para <branch>`, com o nome exato; a mesma linha em duas fontes vale uma."""
+    """G1.1 (R-QA, ORDEM DO DONO 25/11 07:31): 3 voltas por item, mais uma por linha `DECISÃO DO DONO` das fontes de `decisoes_cobradas`
+    na forma canônica `DECISÃO DO DONO[ (data)]: mais uma volta para <branch>`, com o nome exato; a mesma linha em duas fontes vale uma.
+    Sem branch, 1 (falha fechada)."""
     if not branch:
         return 1
     canonica = re.compile(ABRE_A_DECISAO + VOLTA_NA_DECISAO.format(re.escape(branch)))
-    return 1 + len({linha for _, linhas in cobradas["fontes"] for _, linha in linhas if canonica.match(linha)})
+    return VOLTAS_SEM_O_DONO + len({linha for _, linhas in cobradas["fontes"] for _, linha in linhas if canonica.match(linha)})
+
+
+def reprovados_da_branch(raiz, branch, ref=None):
+    """R-QA (contagem das voltas): os pareceres `reprovado` com `branch: <branch>` na ponta dela (a `ref` ou `origin/<branch>`);
+    brief de código novo numa branch assim é volta e sai por `brief gerar --volta`, para contar no teto."""
+    ponta = sha_do_commit(raiz, ref or f"origin/{branch}") if branch else None
+    if not ponta:
+        return []
+    return [rel for tipo in PASTA_E_REGRA for rel, texto in documentos(Path(raiz), tipo, ponta)
+            if (campos := ler_frontmatter(texto)[0] or {}).get("branch") == branch and campos.get("parecer") == "reprovado"]
+
+
+def testes_enfraquecidos_da_volta(raiz, brief, de, head):
+    """R-QA: da `VOLTA_SO_DO_APONTADO`ª volta em diante, teste removido ou enfraquecido em `de..head` (as medidas da catraca:
+    `regra_testes` e `regra_testes_enfraquecidos`) reprova a entrega. Lista de (linha, reprova)."""
+    if numero_da_volta(blocos_literais(brief)) < VOLTA_SO_DO_APONTADO:
+        return []
+    catraca = catraca_da_classe()
+    if catraca is None:  # falha fechada: sem a medida, a volta não prova que não enfraqueceu teste
+        return [(f"volta: não carreguei tests/catraca.py; a entrega da volta não prova que {RESTRICAO_DA_VOLTA}", True)]
+    try:
+        violacoes = catraca.regra_testes(raiz, de, head) + catraca.regra_testes_enfraquecidos(raiz, de, head)
+    except catraca.FALHAS_DO_GIT as e:
+        return [(f"volta: o git falhou ao medir os testes do diff da volta ({sem_controle(str(e))[:120]})", True)]
+    return [(f"volta: a volta {VOLTA_SO_DO_APONTADO} em diante {RESTRICAO_DA_VOLTA} (R-QA): {sem_controle(v)[:200]}", True) for v in violacoes]
 
 
 def voltas_da_branch(pasta, branch, anterior, proprio=None):
@@ -4472,7 +4503,7 @@ def recusa_da_volta(n, cobradas, branch):
     """G1.1: o motivo de recusar a volta `n` sem a decisão do dono (R-DECISAO), com o que fazer; None se ela cabe no teto."""
     if n <= voltas_autorizadas(cobradas, branch):
         return None
-    return (f"volta {n} recusada para {nome_seguro(sem_controle(branch or '<branch>'))}: no máximo 1 volta por item (R-QA; CI vermelho e conflito com a base entram no mesmo brief "
+    return (f"volta {n} recusada para {nome_seguro(sem_controle(branch or '<branch>'))}: no máximo {VOLTAS_SEM_O_DONO if branch else 1} voltas por item sem o dono (R-QA; CI vermelho e conflito com a base entram no mesmo brief "
             "de volta e não contam). Corrigir: leve ao dono como decisão (R-DECISAO), com três opções: (a) cortar o item e reabrir menor; "
             "(b) aceitar com cartão, só sem bloqueante de segurança; (c) autorizar mais uma volta, gravada no pedido como "
             "`- AAAA-MM-DD HH:MM: DECISÃO DO DONO: mais uma volta para <a branch acima>` (só essa forma canônica conta; uma linha por volta a mais)")
@@ -4559,6 +4590,8 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     cobertos = sorted(ids_em_citacao(anteriores), key=ordem_do_id)
     if cobertos:
         entregar.append(f"- Escopo da entrega original, já conferido e inalterado; esta volta só corrige os achados abaixo ({', '.join(cobertos)}).\n")
+    if n >= VOLTA_SO_DO_APONTADO:  # R-QA: a conferência da entrega recusa teste removido ou enfraquecido no diff da volta
+        entregar.append(f"- Restrição da volta {n} (R-QA): {RESTRICAO_DA_VOLTA}; teste removido ou enfraquecido no diff da volta reprova a entrega.\n")
     bloqueantes = recomendados = 0
     for p in pareceres:
         if not p["tem_bloco"]:
@@ -4639,6 +4672,8 @@ def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=N
         saida.append((f"volta: o anterior {nome_seguro(m.group(1))} já tem volta; Corrigir: gere a partir do último brief da branch", True))
     if recusa := recusa_da_volta(max(n_anterior, voltas) + 1, cobradas or {"fontes": [("", linhas_de_decisao(pedido_txt))]}, do_item):
         saida.append((f"volta: {recusa}", True))
+    if n >= VOLTA_SO_DO_APONTADO and RESTRICAO_DA_VOLTA not in "".join(novos.get("Entregar", [])):  # R-QA
+        saida.append((f"volta: Entregar (volta {n}) sem a restrição \"{RESTRICAO_DA_VOLTA}\" (R-QA); Corrigir: gere com `forge-check brief gerar --volta`", True))
     for linha in [l for l in antigos.get("Fora do escopo", []) if MARCA_DE_CORTE in l]:  # o corte do dono não some na volta
         if linha.rstrip("\n") not in [l.rstrip("\n") for l in novos.get("Fora do escopo", [])]:
             saida.append((f"volta: bloco \"Fora do escopo\" perdeu o corte \"{normalizar_espacos(sem_controle(linha))[:60]}\"", True))
@@ -9003,6 +9038,10 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
         linhas += conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, pareceres, cobradas, Path(brief).resolve())
     elif numero_da_volta(blocos_literais(texto)):  # G1.1: a volta sem `Volta-de:` fugiria da contagem
         linhas.append(("volta: Entregar (volta N) sem a linha Volta-de; Corrigir: gere com `forge-check brief gerar --volta`", True))
+    elif tipo_do_brief(texto) == "codigo" and (reprovados := reprovados_da_branch(
+            raiz, branch := grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(texto)), ref)):  # R-QA: a volta sem a marca conta
+        linhas.append((f"volta: a branch {nome_seguro(sem_controle(branch))} já tem parecer reprovado ({caminho_impresso(reprovados[0])}): brief de código "
+                       "nela é volta e conta no teto (R-QA); Corrigir: gere com `forge-check brief gerar --volta`", True))
     return pedido_id, linhas
 
 
@@ -10467,6 +10506,7 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
     cod, contagem = git(raiz, "rev-list", "--count", f"{inicio}..{head}")
     linhas.append((f"commits: {contagem if not cod else '?'} em {inicio[:12]}..{head[:12]}", bool(cod)))
     linhas += conferir_provas(raiz, brief, branch, head, pasta, so_leitura)
+    linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio, head) if etapa == "codigo" else []  # R-QA: a 3ª volta
     if etapa == "codigo" and not cod:  # T1: código sem teste no intervalo da delegação, sinalizado sem reprovar (a classe T isenta)
         aviso = aviso_de_codigo_sem_teste(raiz, f"{inicio}..{head}", nomes_do_intervalo(raiz, inicio, head),
                                           classe_para_o_t1(raiz, head, base))
