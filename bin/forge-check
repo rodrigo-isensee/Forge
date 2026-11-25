@@ -10976,8 +10976,9 @@ def main():
                       "sessão de outra raiz, versão diferente ou sha256 que não bate recusa (rc 1)")
     rc_.add_argument("--texto", default="", help="com --para: o recado")
     au = sub.add_parser("autorizacao", parents=[comum], help="as autorizações do dono gravadas em .forge/autorizacoes/ da cópia "
-                        "principal (ADR 0018): ler (integridade, estado e mensagem inteira) e gravar (a mensagem inteira, da transcrição)")
-    au.add_argument("acao", choices=("ler", "gravar"))
+                        "principal (ADR 0018): ler (integridade, estado e mensagem inteira), gravar (a mensagem inteira, da transcrição) "
+                        "e corte (a corte-diario ativa, para o forge-fechar --corte)")
+    au.add_argument("acao", choices=("ler", "gravar", "corte"))
     for opcao in ("--mensagem", "--transcricao", "--ato", "--alvos", "--ramo", "--pedido"):  # gravar (G1.2): nenhuma traz texto
         au.add_argument(opcao, default="")
     ro = sub.add_parser("rodar", parents=[comum], help="execução capturada como prova (S5): roda sem shell e grava .forge/run/<slug>/run.json "
