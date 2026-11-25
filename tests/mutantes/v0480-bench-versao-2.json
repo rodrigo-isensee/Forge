@@ -1,0 +1,18 @@
+{"pedido": "v0480-bench-versao", "executor": "unittest", "mutantes": [
+ {"id": "M9", "guarda": "limite de tokens encerra", "arquivo": "tests/bancada/versao.py",
+  "de": "    if medida[\"stream\"][\"processados\"] > LIMITES[\"tokens\"]:\n", "para": "    if False:\n", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M10", "guarda": "prazo vencido", "arquivo": "tests/bancada/versao.py",
+  "de": "return \"tempo\" if time.monotonic() > prazo else None", "para": "return None", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M11", "guarda": "teste escondido alterado na validação", "arquivo": "tests/bancada/versao.py",
+  "de": "        elif sha256(pasta / nome) != esperado:\n", "para": "        elif False:\n", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M12", "guarda": "marca fora de termos_proibidos_hash", "arquivo": "tests/bancada/versao.py",
+  "de": "    if MARCA_SHA256 not in {", "para": "    if False and MARCA_SHA256 not in {", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M13", "guarda": "tag inexistente", "arquivo": "tests/bancada/versao.py",
+  "de": "    if rodar([\"git\", \"-C\", str(args.forge), \"rev-parse\",", "para": "    if False and rodar([\"git\", \"-C\", str(args.forge), \"rev-parse\",", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M14", "guarda": "trava de uma rodada por vez", "arquivo": "tests/bancada/versao.py",
+  "de": "os.O_CREAT | os.O_EXCL | os.O_WRONLY", "para": "os.O_CREAT | os.O_WRONLY", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M15", "guarda": "claude fora do PATH", "arquivo": "tests/bancada/versao.py",
+  "de": "    if not shutil.which(\"claude\"):\n", "para": "    if False:\n", "testes": ["tests.test_bancada_versao"]},
+ {"id": "M16", "guarda": "--executar recusado numa sessão de agente", "arquivo": "tests/bancada/versao.py",
+  "de": "    if args.executar:\n        proibidas +=", "para": "    if False:\n        proibidas +=", "testes": ["tests.test_bancada_versao"]}
+]}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0480-prepush-ajuste-unico",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "pre-push (patch): PRE-PUSH-TEXTO-TRAVA-FD: o texto da trava vem do descritor 9, não do caminho",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "+  head -c 200 -- /proc/self/fd/9",
+      "para": "+  head -c 200 -- \"$trava\"",
+      "testes": [
+        "tests.test_prepush_unico.TextoDaTravaPorFd.test_le_o_arquivo_do_descritor_e_nao_o_do_caminho"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "pre-push (patch): FILA-INTERVALO-ZERO: valor que não é inteiro segue recusado",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "+case \"$intervalo\" in ''|*[!0-9]*) echo",
+      "para": "+case \"$intervalo\" in ''|*[!0-9]x*) echo",
+      "testes": [
+        "tests.test_prepush_unico.IntervaloDaFila.test_invalido_segue_recusado_e_o_valor_bom_passa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "pre-push (patch): FILA-INTERVALO-ZERO: o 0 é recusado antes da fila",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "+[ \"$intervalo_dec\" -gt 0 ] ||",
+      "para": "+[ \"$intervalo_dec\" -ge 0 ] ||",
+      "testes": [
+        "tests.test_prepush_unico.IntervaloDaFila.test_zero_e_zeros_sao_recusados_antes_da_fila"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "pre-push (patch): FILA-INTERVALO-ZERO: o valor é lido em base 10",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "+intervalo_dec=$((10#$intervalo))",
+      "para": "+intervalo_dec=$((intervalo))",
+      "testes": [
+        "tests.test_prepush_unico.IntervaloDaFila.test_zeros_a_esquerda_em_base_dez_sao_aceitos"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "pre-push (patch): INDICE-E-PULOS: o índice confere quando o script existe",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "+  if [ -f scripts/indice-fixtures.py ] && [ ! -L scripts/indice-fixtures.py ]; then",
+      "para": "+  if false; then",
+      "testes": [
+        "tests.test_prepush_unico.IndiceEPulos.test_fixture_nova_sem_regerar_o_indice_reprova"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "pre-push (patch): INDICE-E-PULOS: todo caminho do corpus dispara o índice",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "tests/hooks/*|scripts/indice-fixtures.py|docs/hooks-fixtures.md|tests/config.json) controle=1",
+      "para": "tests/hooks/*|scripts/indice-fixtures.py) controle=1",
+      "testes": [
+        "tests.test_prepush_unico.IndiceEPulos.test_cada_caminho_do_corpus_dispara_o_indice"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "pre-push (patch): INDICE-E-PULOS: com o corpus no diff o índice roda",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "+    if [ \"$controle\" = 1 ]; then\n+      rc=0; saida=\"$(python3 -I scripts/indice-fixtures.py",
+      "para": "+    if [ \"$controle\" = 9 ]; then\n+      rc=0; saida=\"$(python3 -I scripts/indice-fixtures.py",
+      "testes": [
+        "tests.test_prepush_unico.IndiceEPulos.test_fixture_nova_sem_regerar_o_indice_reprova"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "pre-push (patch): INDICE-E-PULOS: índice desatualizado (saída 1) reprova",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "--conferir 2>&1)\" || rc=$?\n+      if [ \"$rc\" -eq 1 ]; then",
+      "para": "--conferir 2>&1)\" || rc=$?\n+      if [ \"$rc\" -eq 9 ]; then",
+      "testes": [
+        "tests.test_prepush_unico.IndiceEPulos.test_fixture_nova_sem_regerar_o_indice_reprova"
+      ]
+    }
+  ]
+}

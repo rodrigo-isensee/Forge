@@ -104,12 +104,20 @@ case "$1 $2" in
       [[ "$*" == *"--match-head-commit $(cat "$ESTADO/head")"* ]] || exit 1
     fi
     [[ "$*" == *--match-head-commit* ]] || exit 1
+    # topo_apos_merge (FECHAR-CI-TOPO): a develop do servidor anda para esse sha depois do merge (outro item entrou em seguida)
+    [ -f "$ESTADO/topo_apos_merge" ] && cp "$ESTADO/topo_apos_merge" "$ESTADO/develop_no_servidor"
     # merged_apos N: o merge direto deu certo, mas o GitHub só mostra o MERGED na N-ésima leitura do estado
     if [ -f "$ESTADO/merged_apos" ]; then : > "$ESTADO/mergeado"; exit 0; fi
     echo MERGED > "$ESTADO/estado"; exit 0 ;;
   "api repos/{owner}/{repo}/rules/branches/"*)
     # E114.5 (A3 da segurança): exigidos_<branch> traz os contextos que o ruleset da branch exige (a saída do --jq); sem ele, a leitura falha (404)
     cat "$ESTADO/exigidos_${2##*/}" 2>/dev/null || exit 1
+    exit 0 ;;
+  "api repos/{owner}/{repo}/compare/"*)
+    # FECHAR-CI-TOPO: só a forma que o script pede (dois sha40 e o --jq .status); a saída é compare_<base>_<head>, sem ele a leitura falha (404)
+    [[ "$2" =~ ^repos/\{owner\}/\{repo\}/compare/([0-9a-f]{40})\.\.\.([0-9a-f]{40})$ ]] || exit 64
+    [ "${*:3}" = "--jq .status" ] || exit 64
+    cat "$ESTADO/compare_${BASH_REMATCH[1]}_${BASH_REMATCH[2]}" 2>/dev/null || exit 1
     exit 0 ;;
   "api repos/{owner}/{repo}/commits/"*)
     # FECHAR-CHECKS-ANTES-DO-MERGE: só a forma que o script pede (sha de 40 hex, os mais recentes, 100 por página, o --jq dele); a saída é a do
@@ -159,6 +167,8 @@ fi
 if [ "$1 $2 $3" = "ls-remote origin refs/heads/develop" ] && [ -f "$ESTADO/develop_no_servidor" ]; then
   printf '%s\trefs/heads/develop\n' "$(cat "$ESTADO/develop_no_servidor")"; exit 0
 fi
+# $ESTADO/falha_fetch (FECHAR-CRIA-BRANCH): toda busca falha, como o servidor fora do ar
+[ "$1" = fetch ] && [ -f "$ESTADO/falha_fetch" ] && { echo "fatal: unable to access" >&2; exit 128; }
 case "$1 $2" in
   "worktree remove")
     echo "git $*" >> "$REGISTRO"
@@ -200,7 +210,7 @@ class Fechar(unittest.TestCase):
         self.env.update(HOME=str(self.tmp), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.tmp / "gitconfig"),
                         FORGE_GH=str(self.tmp / "gh"), FORGE_CHECK=str(self.tmp / "check"),
                         REGISTRO=str(self.registro), ESTADO=str(self.estado), FORGE_FECHAR_INTERVALO="0",
-                        FORGE_FECHAR_TESTE="1", FORGE_FECHAR_LOG_DIR=str(self.tmp / "logs"), CATRACA_REAL=str(RAIZ / "tests" / "catraca.py"),
+                        FORGE_FECHAR_TESTE="1", FORGE_FECHAR_COPIA_LIVRE="1", FORGE_FECHAR_LOG_DIR=str(self.tmp / "logs"), CATRACA_REAL=str(RAIZ / "tests" / "catraca.py"),
                         FORGE_PROMOVER=promover_falso(self.tmp / "promover.py", "promover"))
         (self.tmp / "bin").mkdir()
         (self.tmp / "bin" / "git").write_text(GIT_FALSO, encoding="utf-8")
@@ -317,6 +327,12 @@ class Fechar(unittest.TestCase):
         env = {k: v for k, v in self.env.items() if k not in ("FORGE_FECHAR_TESTE", "FORGE_CHECK", "FORGE_GH",
                                                               "FORGE_FECHAR_INTERVALO", "FORGE_FECHAR_PAUSA")}
         env.update(PATH=f"{caminho}:{env['PATH']}", FORGE_PROMOVER=promover_falso(self.tmp / "falso.py", "falso", rc=0))
+        # FECHAR-NUNCA-AUTO: fora do modo de teste a cópia tem de ser a da origin/develop; o servidor recebe este bin/forge-fechar
+        (self.proj / "bin").mkdir()
+        shutil.copy(SCRIPT, self.proj / "bin" / "forge-fechar")
+        self.git("add", "bin/forge-fechar")
+        self.git("commit", "-q", "-m", "chore: fechar")
+        self.git("push", "-q", "origin", "develop")
         r = subprocess.run(["bash", str(self.fabrica_copiada()), "p1", "--ref", "melhoria/x"], cwd=self.proj, env=env,
                            capture_output=True, text=True, timeout=60)
         self.assertIn("FORGE_PROMOVER só valem com FORGE_FECHAR_TESTE=1", r.stderr)

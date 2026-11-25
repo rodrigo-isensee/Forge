@@ -1417,5 +1417,10 @@ def atualizar_estado(hook, evento, ferramenta, lidos, recusa=None):
         avisar([aviso_de_brief_vencido(vencido), aviso_de_autor(autores_retomaveis(autores, agentes, lapides, escrita))])
 
 
+# VIGIA-AGENTES-PESADO (decisão do dono, 24/11): o vigia de prazo do `_comum` recusa o disparo e a retomada que não decidem
+# até aqui (R-TETO), em vez de o timeout de 10 s do hooks.json liberá-los; só a leitura do transcript tem 2 s
+# (PRAZO_DA_LEITURA_S), então o prazo comum de 3 s não basta.
+PRAZO_DO_HOOK_S = 8.0
+
 if __name__ == "__main__":
-    executar("agentes", principal)
+    executar("agentes", principal, clone_do_forge=True, regra_do_prazo="R-TETO", prazo_do_hook=PRAZO_DO_HOOK_S)

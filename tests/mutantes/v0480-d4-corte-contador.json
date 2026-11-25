@@ -1,0 +1,76 @@
+{
+  "pedido": "v0480-d4-corte-contador",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): --corte entra no bloco de recusa do que não é dele",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$corte\" = 1 ]; then\n  if [ \"${#posicionais[@]}\" != 0 ]",
+      "para": "if [ \"$corte\" = 9 ]; then\n  if [ \"${#posicionais[@]}\" != 0 ]",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_recusa_o_que_nao_e_do_corte"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): --corte com --limpar é recusado",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$lote$limpar$sem_limpar$esperar$item_de_lote\" != 00000 ] || [ \"${#cartoes[@]}\" != 0 ]; then\n    die \"--corte",
+      "para": "[ \"$lote$limpar$sem_limpar$esperar$item_de_lote\" = 99999 ] || [ \"${#cartoes[@]}\" != 0 ]; then\n    die \"--corte",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_recusa_o_que_nao_e_do_corte"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): a recusa do --corte para",
+      "arquivo": "bin/forge-fechar",
+      "de": "    die \"--corte recebe só",
+      "para": "    true \"--corte recebe só",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_recusa_o_que_nao_e_do_corte"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): o laço só corta com a volta sem pendência",
+      "arquivo": "bin/forge-fechar",
+      "de": "elif [ \"$rc_laco\" = 0 ]; then",
+      "para": "elif [ \"$rc_laco\" != 99 ]; then",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_volta_sem_pendencia_roda_o_corte_no_fim"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): o laço em --dry-run não corta",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$seco\" = 1 ]; then echo \"  rodaria: forge-fechar --corte",
+      "para": "if [ \"$seco\" = 9 ]; then echo \"  rodaria: forge-fechar --corte",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_volta_sem_pendencia_roda_o_corte_no_fim"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): o código do corte vale para o laço",
+      "arquivo": "bin/forge-fechar",
+      "de": "--espera-ci \"$espera_ci\" || rc_laco=$?",
+      "para": "--espera-ci \"$espera_ci\" || true",
+      "testes": [
+        "tests.test_fechar_laco.Laco.test_volta_sem_pendencia_roda_o_corte_no_fim"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "CORTE-PELO-CONTADOR (E174.4): busca que falha para no V1",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo V1: não busquei",
+      "para": "|| true \"parou no passo V1: não busquei",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_versao_ilegivel_ou_ramo_ausente_param"
+      ]
+    }
+  ]
+}

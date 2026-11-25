@@ -1,0 +1,77 @@
+{
+  "pedido": "v0480-d5-filtro-decisao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D5M23",
+      "guarda": "A1 do #863: o frontmatter abre na primeira linha",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if linhas[0].strip() != \"---\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_frontmatter_que_nao_e_da_seguranca_aprovada_do_pedido_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M24",
+      "guarda": "A1 do #863: o --- fecha o frontmatter e o corpo vem depois dele",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if linha.strip() == \"---\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_confirmacao_valida_decide_com_a_porta_de_espacos_normalizados"
+      ]
+    },
+    {
+      "id": "D5M25",
+      "guarda": "A1 do #863: chave repetida no frontmatter não vale (a última não vence)",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if not m or m.group(1) in campos:",
+      "para": "if not m:",
+      "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_frontmatter_que_nao_e_da_seguranca_aprovada_do_pedido_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M26",
+      "guarda": "A1 e A2 do #863: tipo, parecer aprovado, revisor da segurança e pedido igual ao --pedido",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if campos is None or any(campos.get(k) != v for k, v in {**QUEM_CONFIRMA, \"pedido\": pedido}.items()):",
+      "para": "if campos is None:",
+      "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_frontmatter_que_nao_e_da_seguranca_aprovada_do_pedido_vira_pergunta",
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_parecer_de_outro_item_ja_na_develop_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M27",
+      "guarda": "A2 do #863: a linha Só aperta nomeia a porta registrada",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "m is not None and _campo(m.group(1)) == porta",
+      "para": "m is not None",
+      "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_frase_solta_pergunta_ou_negacao_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M28",
+      "guarda": "A3 do #863: a linha Só aperta é a linha inteira, sem nada antes (negação ou recuo)",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "LINHA_SO_APERTA = re.compile(r\"Só aperta: (\\S.{0,299})\")",
+      "para": "LINHA_SO_APERTA = re.compile(r\".*Só aperta: (\\S.{0,299})\")",
+      "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_frase_solta_pergunta_ou_negacao_vira_pergunta"
+      ]
+    },
+    {
+      "id": "D5M29",
+      "guarda": "A3 do QA no #863: o git do decisor não herda as GIT_* (um GIT_DIR de outro repositório venceria o -C)",
+      "arquivo": "bin/forge_decisor.py",
+      "de": "if not k.startswith(\"GIT_\")}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_decisor.ConfirmacaoDaSeguranca.test_git_dir_de_outro_repositorio_no_ambiente_vira_pergunta"
+      ]
+    }
+  ]
+}

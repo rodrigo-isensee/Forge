@@ -1,0 +1,87 @@
+{
+  "pedido": "v0480-d2-portao-entrega",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "PORTAO-D2: o pr-texto reprovado (saída 1) barra",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "if r.returncode == 1:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_pre_push_d2.TextoDoPr.test_pr_aberto_sem_como_medir_barra"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "PORTAO-D2: PR não verificável (sem rede) avisa e segue",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "if pr is None:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_pre_push_d2.TextoDoPr.test_sem_rede_avisa_e_segue"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "PORTAO-D2: falha do teto ou do pr-texto sai 1",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "sys.exit(1 if falhas else 0)",
+      "para": "sys.exit(0)",
+      "testes": [
+        "tests.test_pre_push_d2.Teto.test_pr_aberto_sem_teto_excedido_barra_e_com_ele_passa"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "PORTAO-D2 índice: saída 1 do --conferir barra",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "indice-forge.py --conferir 2>&1)\" || rc=$?\n+    if [ \"$rc\" -eq 1 ]; then",
+      "para": "indice-forge.py --conferir 2>&1)\" || rc=$?\n+    if false; then",
+      "testes": [
+        "tests.test_pre_push_d2.Indice.test_codigo_novo_sem_indice_barra_e_com_indice_passa"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "PORTAO-D2 índice: saída fora de 0 e 1 avisa",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "d2_so_avisa || falhas=1\n+    elif [ \"$rc\" -ne 0 ]; then",
+      "para": "d2_so_avisa || falhas=1\n+    elif false; then",
+      "testes": [
+        "tests.test_pre_push_d2.Indice.test_indice_que_nao_conferiu_avisa_e_segue"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "PORTAO-D2 teto: acima de 150 linhas avisa mesmo sem PR",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "if aviso := forge_tamanho.aviso_de_linhas(total):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_pre_push_d2.Teto.test_sem_pr_aberto_o_teto_so_avisa"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "PORTAO-D2 teto: PR aberto sem `teto: excedido` com o número medido barra",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "falhas = [f for f in [forge_tamanho.falta_de_motivo(total, corpo, numero)] if f]",
+      "para": "falhas = []",
+      "testes": [
+        "tests.test_pre_push_d2.Teto.test_pr_aberto_sem_teto_excedido_barra_e_com_ele_passa",
+        "tests.test_pre_push_d2.Teto.test_numero_menor_que_o_medido_nao_libera"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "PORTAO-D2: o teto e o texto do PR rodam com a base da develop e as ferramentas da árvore",
+      "arquivo": "patches/prepush-unico.patch",
+      "de": "if [ -n \"$base_dev\" ] && [ -f bin/forge-check ]",
+      "para": "if false && [ -f bin/forge-check ]",
+      "testes": [
+        "tests.test_pre_push_d2.TextoDoPr.test_pr_aberto_sem_como_medir_barra"
+      ]
+    }
+  ]
+}
