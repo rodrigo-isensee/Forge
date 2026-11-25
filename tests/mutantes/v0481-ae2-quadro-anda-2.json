@@ -56,8 +56,8 @@
       "id": "AE14",
       "guarda": "AE2 (v0481 E10.1): ID do corpo fora da forma é ignorado",
       "arquivo": "bin/forge-fechar",
-      "de": "if ! [[ \"$id\" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]]; then echo \"aviso: Cartão do corpo",
-      "para": "if false; then echo \"aviso: Cartão do corpo",
+      "de": "if ! [[ \"$id\" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]]; then\n      echo \"aviso: Cartão do corpo",
+      "para": "if false; then\n      echo \"aviso: Cartão do corpo",
       "testes": [
         "tests.test_fechar_move_cartao.Teste.test_cartao_do_corpo_fora_da_forma_avisa_e_fecha"
       ]

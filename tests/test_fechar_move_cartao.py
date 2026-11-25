@@ -143,7 +143,10 @@ class Teste(unittest.TestCase):
         self.assertEqual(len(self.movimentos()), 1)
 
     def test_titulo_e_texto_que_so_cita_cartao_nao_movem(self):
-        (self.estado / "texto").write_text("Cartão: K-1\nVeja o Cartão: K-2 no quadro\n- Cartão: K-3\n")
+        # K-1 está no quadro e K-2 e K-3 no histórico: a guarda do cartão sem coluna não esconde a âncora da linha (A1 do QA, AE13)
+        self.com_historico("2026-11-01T10:00:00-03:00 | K-2 | Em andamento | Code review | —",
+                           "2026-11-01T10:00:00-03:00 | K-3 | Em andamento | Code review | —")
+        (self.estado / "texto").write_text("Cartão: K-1\nVeja o Cartão: K-2 no quadro\nVeja o Cartão: K-2\n- Cartão: K-3\n")
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual(self.movimentos(), [])
@@ -164,6 +167,17 @@ class Teste(unittest.TestCase):
         self.assertIn("aviso: o corpo cita o cartão K-9, que não está no quadro nem no histórico; não movo", r.stderr)
         self.assertEqual([m.split(" --de ")[0] for m in self.movimentos()], ["forge-check movimento K-1"])
         self.assertIn("Entrega p1 fechada em develop.", r.stdout)
+
+    def test_cabecalho_e_linha_de_outra_largura_nao_dao_coluna_ao_cartao_do_corpo(self):  # A5 da segurança, A1 do review
+        kanban = self.quadro / "KANBAN.md"
+        kanban.write_text(kanban.read_text(encoding="utf-8").replace("## Pronto\n", "## Pronto\n| K-5 | seis | p | r | d | d |\n"),
+                          encoding="utf-8")
+        self.com_corpo("Cartão: ID", "Cartão: K-5", "Cartão: K-1")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        for id_ in ("ID", "K-5"):
+            self.assertIn(f"aviso: o corpo cita o cartão {id_}, que não está no quadro nem no histórico; não movo", r.stderr)
+        self.assertEqual([m.split(" --de ")[0] for m in self.movimentos()], ["forge-check movimento K-1"])
 
     def test_cartao_do_corpo_sem_quadro_avisa_e_fecha(self):
         (self.quadro / "KANBAN.md").unlink()

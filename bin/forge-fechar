@@ -931,12 +931,16 @@ git -C $(printf '%q' "$d") status --short --branch"; fi
 }
 
 # coluna_do_cartao <id>: a coluna atual do cartão no quadro: o `Para` da última linha dele no histórico, senão a seção do KANBAN.md
-# (o título `## ` cortado no primeiro ` (`), senão `—` (cartão sem registro). Só leitura.
+# (o título `## ` cortado no primeiro ` (`), senão `—` (cartão sem registro). Só leitura. No KANBAN.md, a linha de cartão segue o filtro
+# único `celulas_de_cartao` do forge-check (A5 da segurança): 7 células e não o cabeçalho (COLUNAS); `Cartão: ID` não acha a moldura.
 coluna_do_cartao() {
   local col
   col="$(awk -F'|' -v id="$1" '{ for (i = 2; i <= 5; i++) gsub(/^[ \t]+|[ \t]+$/, "", $i) } $3 == id && $2 ~ /^[0-9][0-9][0-9][0-9]-/ { p = $5 } END { print p }' \
     "$quadro/docs/kanban/historico.md" 2>/dev/null || true)"
-  [ -n "$col" ] || col="$(awk -v id="$1" '/^## / { s = substr($0, 4); sub(/ +\(.*/, "", s) } /^\|/ { split($0, c, "|"); gsub(/^[ \t]+|[ \t]+$/, "", c[2]); if (c[2] == id) { print s; exit } }' \
+  [ -n "$col" ] || col="$(awk -v id="$1" '/^## / { s = substr($0, 4); sub(/ +\(.*/, "", s) }
+    /^\|/ { t = $0; gsub(/^[ \t]+|[ \t]+$/, "", t); gsub(/^\|+|\|+$/, "", t); n = split(t, c, "|"); l = ""
+      for (i = 1; i <= n; i++) { gsub(/^[ \t]+|[ \t]+$/, "", c[i]); l = l (i > 1 ? "|" : "") c[i] }
+      if (n == 7 && c[1] == id && l != "ID|Cartão|Pedido|Responsável|Entrou|Na coluna desde|Obs.") { print s; exit } }' \
     "$quadro/KANBAN.md" 2>/dev/null || true)"
   printf '%s' "${col:-—}"
 }

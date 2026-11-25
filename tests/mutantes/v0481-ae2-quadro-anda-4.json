@@ -61,6 +61,26 @@
       "testes": [
         "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_linha_sai_da_origem_e_entra_no_fim_da_tabela_do_destino"
       ]
+    },
+    {
+      "id": "AE33",
+      "guarda": "AE2 (v0481 E10.9): coluna_do_cartao só lê linha de 7 células (filtro único, A5 da segurança)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if (n == 7 && c[1] == id &&",
+      "para": "if (c[1] == id &&",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_cabecalho_e_linha_de_outra_largura_nao_dao_coluna_ao_cartao_do_corpo"
+      ]
+    },
+    {
+      "id": "AE34",
+      "guarda": "AE2 (v0481 E10.9): o cabeçalho do KANBAN.md não dá coluna a `Cartão: ID` (A5 da segurança)",
+      "arquivo": "bin/forge-fechar",
+      "de": "&& l != \"ID|Cartão|Pedido|Responsável|Entrou|Na coluna desde|Obs.\") { print s",
+      "para": "&& 1) { print s",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_cabecalho_e_linha_de_outra_largura_nao_dao_coluna_ao_cartao_do_corpo"
+      ]
     }
   ]
 }

@@ -26,8 +26,8 @@
       "id": "AE3",
       "guarda": "AE2 (v0481 E10.1): só a linha do próprio cartão é a achada",
       "arquivo": "bin/forge-check",
-      "de": "and len(c) == len(COLUNAS) and chave_do_cartao(c[0]) == chave_do_cartao(cartao):\n            achada",
-      "para": "and len(c) == len(COLUNAS):\n            achada",
+      "de": "and chave_do_cartao(c[0]) == chave_do_cartao(cartao):\n            achadas.append((i, c))",
+      "para": ":\n            achadas.append((i, c))",
       "testes": [
         "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_linha_sai_da_origem_e_entra_no_fim_da_tabela_do_destino"
       ]
@@ -46,8 +46,8 @@
       "id": "AE5",
       "guarda": "AE2 (v0481 E10.1): a linha achada guarda título, pedido, responsável e Entrou",
       "arquivo": "bin/forge-check",
-      "de": "c = achada[1] if achada else [cartao,",
-      "para": "c = None if achada else [cartao,",
+      "de": "c = achadas[-1][1] if achadas else [cartao,",
+      "para": "c = [cartao, \"—\", \"—\", \"—\", hora[:10]] if achadas else [cartao,",
       "testes": [
         "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_linha_sai_da_origem_e_entra_no_fim_da_tabela_do_destino"
       ]
@@ -66,8 +66,8 @@
       "id": "AE7",
       "guarda": "AE2 (v0481 E10.1): a linha sai da origem (sem duplicar)",
       "arquivo": "bin/forge-check",
-      "de": "    if achada:\n        del linhas[achada[0]]",
-      "para": "    if False:\n        del linhas[achada[0]]",
+      "de": "    for i, _ in reversed(achadas):  # o cartão repetido",
+      "para": "    for i, _ in reversed(achadas[:0]):  # o cartão repetido",
       "testes": [
         "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_atributo_dado_troca_a_celula_e_o_resto_fica"
       ]
