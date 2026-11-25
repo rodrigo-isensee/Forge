@@ -26,7 +26,7 @@ a = sys.argv[1:]
 open(os.path.join(d, "chamadas.log"), "a").write(json.dumps(a) + "\n")
 def sai(obj):
     json.dump(estado, open(os.path.join(d, "estado.json"), "w")); print(json.dumps(obj)); sys.exit(0)
-if estado.get("falha"):
+if estado.get("falha") or estado.get("falha_em") in a:
     sys.exit(1)
 if a[:2] == ["pr", "list"]:
     sai(estado["prs"])
@@ -114,6 +114,28 @@ class Publicar(GhFalso):
         self.assertEqual((review["context"], review["state"], review["target_url"]), ("parecer-review", "success", url))
         self.assertEqual(review["description"], f"aprovado · sha256 {texto_sha} · 0 bloqueantes · 0 recomendados")
         self.assertEqual((agreg["context"], agreg["state"]), ("pareceres", "success"))
+        self.assertNotIn("target_url", agreg)  # o agregado não aponta para um comentário
+        pendente = self.estado()["statuses"][2]  # QA A1 do #878: o agregado sai de `success` antes do status do papel
+        self.assertEqual((pendente["context"], pendente["state"]), ("pareceres", "pending"))
+
+    def test_falha_entre_o_papel_e_o_agregado_nao_deixa_success(self):
+        """QA A1 do #878 (sonda S2): o `pareceres` velho em `success`, a API cai depois do status do papel `reprovado`."""
+        self.estado(statuses=[{"context": "pareceres", "state": "success", "creator": {"login": "conta"}}], falha_em="user")
+        with self.assertRaisesRegex(fp().Recusa, "já gravado: o comentário no PR #7, pareceres pending, parecer-review failure"):
+            self.publicar(veredito="reprovado")
+        agregados = [s for s in self.estado()["statuses"] if s["context"] == "pareceres"]
+        self.assertEqual(agregados[0]["state"], "pending", "o mais novo do agregado nunca fica success velho")
+
+    def test_falha_antes_do_status_diz_o_que_ficou(self):
+        self.estado(falha_em=f"repos/{{owner}}/{{repo}}/issues/comments/501")
+        with self.assertRaisesRegex(fp().Recusa, "já gravado: o comentário no PR #7$"):
+            self.publicar()
+        self.assertEqual(self.gravou_status(), [])
+
+    def test_lista_de_prs_ilegivel(self):
+        self.estado(prs=7)
+        with self.assertRaisesRegex(fp().Recusa, "0 PR aberto"):
+            self.publicar()
 
     def test_reprovado_grava_failure_e_agregado_pending(self):
         _, agregado = self.publicar(veredito="reprovado")
@@ -128,7 +150,7 @@ class Publicar(GhFalso):
 
     def test_crlf_devolvido_vale(self):
         self.publicar(texto=parecer(self.sha).replace("\n", "\r\n"))
-        self.assertEqual(len(self.gravou_status()), 2)
+        self.assertEqual(len(self.gravou_status()), 3)
 
     def test_comentario_de_outro_pr(self):
         self.estado(url_lida="https://github.com/dono/repo/pull/8#issuecomment-501")
@@ -196,6 +218,9 @@ class Agregado(GhFalso):
         for nome, statuses in casos.items():
             with self.subTest(nome):
                 self.assertEqual(self.agregado(*statuses), ("pending", "faltam: parecer-qa"))
+
+    def test_item_que_nao_e_objeto_fica_de_fora(self):
+        self.assertEqual(self.agregado(5, "x", self.status("parecer-review"), exigidos=("review",)), ("success", "todos os exigidos"))
 
     def test_statuses_ilegiveis_recusam(self):
         self.estado(statuses={"x": 1})
@@ -283,6 +308,9 @@ class Comando(GhFalso):
     def test_arquivo_ausente(self):
         self.recusa(self.repo / ".forge" / "pareceres" / PEDIDO / "review.md", "use .forge/pareceres/")
 
+    def test_sem_frontmatter(self):
+        self.recusa(self.grava("# Review sem frontmatter\n"), "use .forge/pareceres/")
+
     def test_contrato_quebrado(self):
         self.recusa(self.grava(parecer(self.sha, achados="## Achados\n- solto sem formato\n\n")), "achados:")
 
@@ -296,6 +324,18 @@ class Comando(GhFalso):
     def test_c15_riscos_aceitos_sem_aceite(self):
         texto = parecer(self.sha, veredito="riscos-aceitos", tipo="revisao-seguranca")
         self.recusa(self.grava(texto, papel="seguranca", tipo="revisao-seguranca"), "riscos-aceitos")
+
+    def test_c15_aceite_de_outro_commit(self):
+        """M14.1 (segurança A2 do #878): o aceite do dono no commit do parecer, com `commit:` de outro commit, não vale."""
+        aceite = self.repo / "docs" / "security" / "aceites" / f"{PEDIDO}.md"
+        aceite.parent.mkdir(parents=True)
+        aceite.write_text(f"---\npedido: {PEDIDO}\naceite: sim\ncommit: {self.sha}\n---\n", encoding="utf-8")
+        env = {"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"}
+        for args in (["add", "-A"], ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "aceite"]):
+            subprocess.run(["git", *args], cwd=self.repo, env=env, check=True)
+        novo = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, env=env, capture_output=True, text=True).stdout.strip()
+        texto = parecer(novo, veredito="riscos-aceitos", tipo="revisao-seguranca")
+        self.recusa(self.grava(texto, papel="seguranca", tipo="revisao-seguranca"), "sem o aceite do dono")
 
 
 class Politica(unittest.TestCase):

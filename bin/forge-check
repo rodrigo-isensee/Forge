@@ -3748,10 +3748,10 @@ def cmd_parecer_novo(raiz, a):
 def recusa_do_publicar(raiz, arquivo):
     """G2.1: (campos, texto, sha, violações) do `.forge/pareceres/<pedido>/<tipo>.md` igual ao frontmatter: contrato estrito e G1.2,
     aceite do dono (M14.1), autoria do papel com o sha256 do texto (sem registro, recusa: M9.1) e o `commit:` resolvido na cópia."""
-    p, nome = Path(arquivo) if Path(arquivo).is_absolute() else raiz / arquivo, caminho_impresso(arquivo)
+    p, nome = raiz / arquivo, caminho_impresso(arquivo)  # caminho absoluto em `arquivo` troca a raiz (pathlib)
     m = re.search(r"(?:^|/)\.forge/pareceres/([A-Za-z0-9][A-Za-z0-9._-]*)/([a-z-]+)\.md$", p.as_posix())  # ADR 0019, 1.2
-    texto = p.read_text(encoding="utf-8") if m and p.is_file() else None
-    campos = (ler_frontmatter(texto)[0] or {}) if texto is not None else {}
+    texto = p.read_text(encoding="utf-8") if m and p.is_file() else ""
+    campos = ler_frontmatter(texto)[0] or {}
     if not m or campos.get("pedido") != m.group(1) or campos.get("tipo") != m.group(2) or m.group(2) not in PAPEL_DO_PARECER:
         return None, None, None, [f"{nome}: use .forge/pareceres/<pedido>/<tipo>.md, com `pedido:` e `tipo:` iguais ao caminho"]
     rel = f"{CONTRATOS[campos['tipo']][0]}/{campos['pedido']}.md"

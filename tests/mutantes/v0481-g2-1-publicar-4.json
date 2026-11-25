@@ -6,8 +6,8 @@
       "id": "M21",
       "guarda": "parecer publicar: arquivo ausente recusa sem ler",
       "arquivo": "bin/forge-check",
-      "de": "    texto = p.read_text(encoding=\"utf-8\") if m and p.is_file() else None",
-      "para": "    texto = p.read_text(encoding=\"utf-8\") if m else None",
+      "de": "    texto = p.read_text(encoding=\"utf-8\") if m and p.is_file() else \"\"",
+      "para": "    texto = p.read_text(encoding=\"utf-8\") if m else \"\"",
       "testes": ["tests.test_forge_pareceres.Comando.test_arquivo_ausente"]
     },
     {

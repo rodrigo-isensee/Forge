@@ -76,19 +76,28 @@ def agregado(raiz, sha, exigidos):
 
 
 def publicar(raiz, tipo, veredito, texto, sha, branch, bloqueantes, recomendados, exigidos):
-    """Comentário no PR, releitura do corpo, status do contexto do papel e o agregado. Devolve (url do comentário, agregado)."""
+    """Comentário no PR, releitura do corpo, o agregado em `pending`, o status do contexto do papel e o agregado recalculado:
+    falha em qualquer passo nunca deixa um `success` velho no agregado. Recusa depois do PR diz o que já ficou gravado.
+    Devolve (url do comentário, agregado)."""
     if tipo not in CONTEXTOS or veredito not in ESTADOS or not re.fullmatch(r"[0-9a-f]{40}", sha or ""):
         raise Recusa(f"tipo `{tipo}`, veredito `{veredito}` ou commit fora da lista")
     desc = descricao(veredito, texto, bloqueantes, recomendados)  # antes de gravar qualquer coisa
-    pr = pr_aberto(raiz, branch, sha)
-    criado = gh(raiz, ["api", "-X", "POST", f"repos/{{owner}}/{{repo}}/issues/{pr['number']}/comments", "--input", "-"],
-                {"body": texto})
-    lido = gh(raiz, ["api", f"repos/{{owner}}/{{repo}}/issues/comments/{int(criado['id'])}"])
-    if normalizar(str(lido.get("body"))) != normalizar(texto):
-        raise Recusa("o corpo devolvido pela API difere do arquivo local; status não gravado (M5.3)")
-    if (url := lido.get("html_url")) != f"{pr['url']}#issuecomment-{int(criado['id'])}":
-        raise Recusa(f"o comentário não é do PR #{pr['number']}: {url}")
-    gravar_status(raiz, sha, CONTEXTOS[tipo], ESTADOS[veredito], desc, url)
-    estado = agregado(raiz, sha, exigidos)
-    gravar_status(raiz, sha, AGREGADO, *estado)
+    pr, gravado = pr_aberto(raiz, branch, sha), "nada"
+    try:
+        criado = gh(raiz, ["api", "-X", "POST", f"repos/{{owner}}/{{repo}}/issues/{pr['number']}/comments", "--input", "-"],
+                    {"body": texto})
+        gravado = f"o comentário no PR #{pr['number']}"
+        lido = gh(raiz, ["api", f"repos/{{owner}}/{{repo}}/issues/comments/{int(criado['id'])}"])
+        if normalizar(str(lido.get("body"))) != normalizar(texto):
+            raise Recusa("o corpo devolvido pela API difere do arquivo local; status não gravado (M5.3)")
+        if (url := lido.get("html_url")) != f"{pr['url']}#issuecomment-{int(criado['id'])}":
+            raise Recusa(f"o comentário não é do PR #{pr['number']}: {url}")
+        gravar_status(raiz, sha, AGREGADO, "pending", f"recalculando depois de {CONTEXTOS[tipo]}")  # QA A1 do #878
+        gravado += f", {AGREGADO} pending"
+        gravar_status(raiz, sha, CONTEXTOS[tipo], ESTADOS[veredito], desc, url)
+        gravado += f", {CONTEXTOS[tipo]} {ESTADOS[veredito]}"
+        estado = agregado(raiz, sha, exigidos)
+        gravar_status(raiz, sha, AGREGADO, *estado)
+    except (Recusa, KeyError, TypeError, AttributeError, ValueError) as e:
+        raise Recusa(f"{e}; já gravado: {gravado}") from None
     return url, estado
