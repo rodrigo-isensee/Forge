@@ -27,7 +27,7 @@
       "guarda": "E7.40 (A6 da segurança no #888): o vigia da sessão e o do registro cabem no que resta do teto",
       "arquivo": "hooks/_comum.py",
       "de": "    return PRAZO_DA_SESSAO_S if resta is None else min(PRAZO_DA_SESSAO_S, max(resta(), 0.0))",
-      "para": "    return PRAZO_DA_SESSAO_S",
+      "para": "    return PRAZO_DA_SESSAO_S if True else min(PRAZO_DA_SESSAO_S, max(resta(), 0.0))",
       "testes": [
         "tests.test_hooks.SondaS1ComRelogioFalso.test_alarme_atrasado_encurta_a_sessao_e_pula_o_registro"
       ]
@@ -67,7 +67,7 @@
       "guarda": "E7.40: a idade dada pelo teste em processo vale no lugar da do processo",
       "arquivo": "hooks/_comum.py",
       "de": "(idade_do_processo(nome) if idade is None else idade)",
-      "para": "(idade_do_processo(nome))",
+      "para": "(idade_do_processo(nome) if True else idade)",
       "testes": [
         "tests.test_hooks.SondaS1ComRelogioFalso.test_prazo_conta_da_partida_do_processo"
       ]
@@ -77,7 +77,7 @@
       "guarda": "E7.40: o teto só vale para o hook com vigia; o erro interno sem prazo registra mesmo tarde",
       "arquivo": "hooks/_comum.py",
       "de": "prazo_da_etapa(resta if hook.prazo_s else None)",
-      "para": "prazo_da_etapa(resta)",
+      "para": "prazo_da_etapa(resta if True else None)",
       "testes": [
         "tests.test_hooks.SondaS1ComRelogioFalso.test_erro_interno_sem_vigia_registra_mesmo_tarde"
       ]

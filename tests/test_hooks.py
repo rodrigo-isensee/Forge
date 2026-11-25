@@ -3484,6 +3484,24 @@ class SondaS1ComRelogioFalso(unittest.TestCase):
         self.assertEqual((saida.exception.code, len(registros)), (0, 1))
         self.assertEqual(relogio.armados, [_comum.PRAZO_DA_SESSAO_S, 0])
 
+    def test_prazo_vencido_sem_prazo_do_hook_registra(self):
+        """E7.40: o `PrazoVencido` num hook sem `regra_do_prazo` (o `forcar` dos fixtures HOOK-ERRO-LIBERA) conta o teto
+        pelo prazo comum: depois da ferramenta, libera e grava a linha sob o vigia de 0,5 s."""
+        _comum, _, _ = modulos_dos_hooks()
+        relogio, registros = RelogioFalso(_comum.PrazoVencido), []
+
+        def vence(_hook):
+            raise _comum.PrazoVencido()
+        entrada = {"tool_name": "Bash", "tool_input": {"command": "ls"}, "hook_event_name": "PostToolUse", "cwd": str(self.raiz)}
+        ambiente = {k: v for k, v in os.environ.items() if k != "FORGE_GUARDA_ABERTA"}
+        with mock.patch.dict(os.environ, {**ambiente, "CLAUDE_PROJECT_DIR": str(self.raiz)}, clear=True), \
+                mock.patch("sys.stdin", io.StringIO(json.dumps(entrada))), \
+                mock.patch.object(_comum.Hook, "registrar_erro", lambda *a: registros.append(a)), \
+                contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as saida:
+            _comum.executar("conformidade", vence, relogio=relogio, armar=relogio.armar, idade=0.0)
+        self.assertEqual((saida.exception.code, len(registros)), (0, 1))
+        self.assertEqual(relogio.armados, [_comum.PRAZO_DA_SESSAO_S, 0, _comum.PRAZO_DA_SESSAO_S, 0])
+
     def test_idade_do_processo_so_no_processo_do_hook_e_zero_sem_proc(self):
         """E7.40: a idade conta só quando o `sys.argv[0]` é o script do hook; sem `/proc` ou com ele ilegível (outro
         sistema), ou sem o `CLOCK_BOOTTIME`, é 0 e o prazo conta do `inicio`, como antes."""

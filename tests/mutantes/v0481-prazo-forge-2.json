@@ -51,6 +51,16 @@
       "testes": [
         "tests.test_hooks.SondaS1ComRelogioFalso.test_recusa_do_prazo_longo_presa_deixa_folga"
       ]
+    },
+    {
+      "id": "M22",
+      "guarda": "E7.40: o prazo vencido sem prazo do hook (forçado, sem regra_do_prazo) conta o teto pelo prazo comum, sem quebrar",
+      "arquivo": "hooks/_comum.py",
+      "de": "        return (hook.prazo_s or PRAZO_DA_DECISAO_S) + 2 * PRAZO_DA_SESSAO_S",
+      "para": "        return (hook.prazo_s) + 2 * PRAZO_DA_SESSAO_S",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_prazo_vencido_sem_prazo_do_hook_registra"
+      ]
     }
   ]
 }
