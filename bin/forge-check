@@ -9728,7 +9728,11 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
         saida.append(f"- docs/pedidos/{sem_controle(caminho_pedido.name)}: só `## Escopo`, `## Etapas` e `## Decisões` e, do `## Histórico`, só as linhas que este brief cita; "
                      "nunca o pedido inteiro (docs/economia-de-tokens.md, regra 4)")
         copia = copia_sugerida(raiz, branch, papel_destino) if branch else None
-        if copia and valor_de_shell_seguro("raiz", copia):  # CLONE-NOME-UNICO: dois agentes nunca na mesma cópia
+        if copia and valor_de_shell_seguro("raiz", copia) and etapa in ETAPAS_DE_PARECER:  # COPIA-REVISAO: o revisor parte do head remoto
+            saida.append(f"- cópia só sua {NOVO} (CLONE-NOME-UNICO): `{copia}`, criada com `forge-copia clone {copia} --branch {branch} "
+                         f"--papel {papel_destino} --revisao` e o --origem do repositório (o head remoto da branch, nunca git clone à mão); "
+                         "nunca a cópia de outro agente")
+        elif copia and valor_de_shell_seguro("raiz", copia):  # CLONE-NOME-UNICO: dois agentes nunca na mesma cópia
             saida.append(f"- cópia só sua {NOVO} (CLONE-NOME-UNICO): `{copia}`, criada com `forge-copia clone {copia} --branch {branch} "
                          f"--papel {papel_destino}` e o --origem do repositório (no Forge, worktree no lugar de clone); nunca a cópia de outro agente")
         if revalidacao:
@@ -11232,7 +11236,9 @@ def executar(a, raiz):
                                           previo=getattr(a, "previo", False), sem_checks=sem_checks)}[a.cmd]()
     for v in violacoes:
         print(v)
-    gravar = not getattr(a, "previo", False) and not sem_checks and branch_do_pr is None  # E3.80: sem os checks, nada para o hook
+    if a.cmd == "docs" and not violacoes:  # PQ-DOCS-SILENCIOSO: a aprovação se diz numa linha, sem mudar o rc
+        print("docs: ok")
+    gravar =not getattr(a, "previo", False) and not sem_checks and branch_do_pr is None  # E3.80: sem os checks, nada para o hook
     if a.cmd == "pr" and gravar:  # PR-HOOK-PRAZO: o resultado do head, para o hook; o PR não lido (CHECKS_NAO_CONFERIDOS) grava reprovado
         gravar_resultado_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None),
                                violacoes + CHECKS_NAO_CONFERIDOS)

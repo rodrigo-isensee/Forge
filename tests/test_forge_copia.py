@@ -731,14 +731,14 @@ class BriefSugereACopia(unittest.TestCase):
         with mock.patch.object(self.fc, "e_o_forge", return_value=forge):
             return self.fc.copia_sugerida(raiz or self.raiz, branch, papel)
 
-    def gerar(self, id_="p", branch="melhoria/x"):
+    def gerar(self, id_="p", branch="melhoria/x", etapa="codigo"):
         (self.raiz / "docs" / "pedidos" / "p.md").write_text(PEDIDO_DO_BRIEF.format(id=id_), encoding="utf-8")
         fc = self.fc
         with mock.patch.object(fc, "e_o_forge", return_value=True), mock.patch.object(fc, "pareceres_da_etapa", return_value=[]), \
                 mock.patch.object(fc, "estado_da_branch", return_value=([], [])), mock.patch.object(fc, "pr_da_branch", return_value=({}, None)), \
                 mock.patch.object(fc, "portao_na_branch", return_value=(None, None)), \
                 mock.patch.object(fc, "base_sha_real", return_value="b" * 40), redirect_stderr(io.StringIO()):
-            return fc.montar_brief(self.raiz, "p", "forge:dev-exemplo", branch, "develop", etapa="codigo", cobre="E1.1")
+            return fc.montar_brief(self.raiz, "p", "forge:dev-exemplo", branch, "develop", etapa=etapa, cobre="E1.1")
 
     def test_no_forge_o_nome_leva_branch_e_papel_na_pasta_das_copias(self):
         self.assertEqual(self.sugerida(True), str(self.home / ".forge-contrib" / "wt" / "x-tech-lead"))
@@ -773,6 +773,19 @@ class BriefSugereACopia(unittest.TestCase):
         copia = self.home / ".forge-contrib" / "wt" / "x-dev-exemplo"
         self.assertIn(f"- cópia só sua (novo) (CLONE-NOME-UNICO): `{copia}`, criada com `forge-copia clone {copia} --branch melhoria/x "
                       "--papel dev-exemplo` e o --origem do repositório (no Forge, worktree no lugar de clone); nunca a cópia de outro agente", saida.split("## Ler", 1)[1].split("\n## ", 1)[0])
+
+    def test_brief_de_parecer_cria_o_clone_de_revisao(self):
+        """COPIA-REVISAO (A1 do review do #889): o portão parte do head remoto da branch, pelo `--revisao`, sem git clone à mão."""
+        copia = self.home / ".forge-contrib" / "wt" / "x-dev-exemplo"
+        for etapa in ("review", "seguranca", "qa"):
+            with self.subTest(etapa):
+                saida, rc, erros = self.gerar(etapa=etapa)
+                self.assertEqual(rc, 0, erros)
+                ler = saida.split("## Ler", 1)[1].split("\n## ", 1)[0]
+                self.assertIn(f"`forge-copia clone {copia} --branch melhoria/x --papel dev-exemplo --revisao` e o --origem do repositório "
+                              "(o head remoto da branch, nunca git clone à mão)", ler)
+                self.assertNotIn("worktree no lugar de clone", ler)
+        self.assertNotIn("--revisao", self.gerar(etapa="codigo")[0])
 
     def test_brief_sem_a_linha_com_caminho_fora_da_forma(self):
         os.environ["HOME"] = str(self.tmp / "com espaço")
