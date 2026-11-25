@@ -2191,11 +2191,12 @@ PASTAS_DOS_PARECERES = ("docs/reviews/", "docs/qa/", "docs/security/")
 
 def so_pareceres_ate(raiz, sha, via):
     """True se `via` descende de `sha` e o diff entre eles (sem detectar renomeação, que esconderia a origem) só toca
-    `PASTAS_DOS_PARECERES`; erro do git ou outro caminho: False (falha fechada)."""
+    `PASTAS_DOS_PARECERES`; erro do git ou outro caminho: False (falha fechada). Saída em bytes (o `strip` cortaria o branco
+    inicial do 1º caminho) e gitlink sempre listado (`diff.ignoreSubmodules` da configuração o esconderia)."""
     if git(raiz, "merge-base", "--is-ancestor", sha, via)[0] != 0:
         return False
-    rc, saida = git(raiz, "diff", "--name-only", "--no-renames", "-z", sha, via, "--")
-    return rc == 0 and all(c.startswith(PASTAS_DOS_PARECERES) for c in saida.split("\0") if c)
+    rc, saida = git(raiz, "diff", "--name-only", "--no-renames", "--ignore-submodules=none", "-z", sha, via, "--", bruto=True)
+    return rc == 0 and all(c.startswith(PASTAS_DOS_PARECERES) for c in nomes_z(saida))
 
 
 def leu_o_ci_via(raiz, campos, texto):

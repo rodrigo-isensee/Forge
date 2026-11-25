@@ -546,6 +546,23 @@ class LeOCiVia(ProvaDaSuiteBase):
         self.preparar({"docs/reviews/p0.md": "r\n", "bin/forge-x": "print(2)\n"})
         self.assertFalse(self.vale(f"- ci: {self.head} verde via {self.desc}\n"))
 
+    def test_branco_no_inicio_do_caminho_nao_vale(self):
+        # A1 do #895: o 1º caminho do `-z` não perde o espaço, o tab nem a quebra de linha iniciais (pasta fora das três)
+        self.preparar()
+        for nome in (" docs/reviews/x.py", "\tdocs/security/x.py", "\ndocs/qa/x.py"):
+            with self.subTest(nome=nome):
+                git("reset", "-q", "--hard", self.head, cwd=self.tmp)  # um caminho por vez, sobre o `commit:`
+                desc = self.commitar({nome: "print(1)\n"}, "branco")
+                self.assertFalse(fc.so_pareceres_ate(self.tmp, self.head, desc))
+
+    def test_gitlink_fora_das_pastas_nao_some(self):
+        # recomendado do QA no #895: `diff.ignoreSubmodules=all` na configuração não esconde o gitlink
+        self.preparar()
+        git("config", "diff.ignoreSubmodules", "all", cwd=self.tmp)
+        git("update-index", "--add", "--cacheinfo", f"160000,{self.base},bin/sub", cwd=self.tmp)
+        git("commit", "-q", "-m", "gitlink", cwd=self.tmp)
+        self.assertFalse(fc.so_pareceres_ate(self.tmp, self.head, git("rev-parse", "HEAD", cwd=self.tmp)))
+
     def test_renomeacao_para_a_pasta_do_parecer_nao_vale(self):
         self.preparar()
         git("mv", "bin/forge-x", "docs/reviews/forge-x", cwd=self.tmp)
@@ -575,7 +592,7 @@ class LeOCiVia(ProvaDaSuiteBase):
         real = fc.git
 
         def git_falso(raiz, *args, **kw):
-            return (128, "") if args[0] == "diff" else real(raiz, *args, **kw)
+            return (128, b"") if args[0] == "diff" else real(raiz, *args, **kw)
         with mock.patch.object(fc, "git", git_falso):
             self.assertFalse(fc.so_pareceres_ate(self.tmp, self.head, self.desc))
 
