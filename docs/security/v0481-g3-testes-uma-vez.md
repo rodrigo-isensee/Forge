@@ -3,38 +3,41 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-g3-testes-uma-vez
-commit: ef45eec579f148d70ee8b885b183087351817fbc
-parecer: reprovado
+commit: 55f87ffd19d79ad27a20521c45ee65004521bc00
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-25
 ---
-# Review de segurança: v0481 (E8.4, #893, G3 primeira fatia: review e QA leem o CI do head; classe C)
-
-## Achados
-- A1 (bloqueante) bin/forge-check:9637 · A linha G3 (e skills engineering-practices:54, qa-testing:46, CI_NO_ESQUELETO :3716) exige `gh pr checks` todo verde no Revisar-sha, mas nele `bateria (pareceres)`, `bateria` e a catraca de controle ficam vermelhos por construção (S1): só se grava `- ci:` mentindo
+# Review de segurança: v0481 (E8.8, #893, G3 primeira fatia, revalidação por delta ef45eec5..55f87ffd; classe C)
 
 ## Sondas
-- S1 · `gh pr checks 893` (head do PR = ef45eec5, o Revisar-sha) · espera: todos verdes possíveis antes do parecer · obtido: `bateria (pareceres)` fail (pareceres ausentes), `catraca` fail (R-CONFORMIDADE: bin/forge-check pede o rótulo `afrouxa-regra`), suíte pending
-- S2 · `bin/forge-mutante tests/mutantes/mp1311-pre-envio-fabrica.json --ids M6,M7` · espera: morrem · obtido: M6 e M7 morreram
-- S3 · `bin/forge-mutante tests/mutantes/v0479-forge-check-ci-verde-2.json tests/mutantes/v0479-forge-check-ci-verde-3.json --ids M13,M16,M17` · espera: morrem · obtido: os três morreram
-- S4 · `bin/forge-mutante tests/mutantes/v0481-g3-testes-uma-vez.json tests/mutantes/v0481-g3-testes-uma-vez-2.json` · espera: M1 a M14 morrem · obtido: todos morreram (M13 por erro do teste declarado, não por asserção)
-- S5 · `python3 -m unittest tests.test_forge_check_pr tests.test_pre_envio_brief tests.test_fechar_forge_check_real` · espera: OK · obtido: 87 testes, OK
-- S6 · `bash /root/.forge-contrib/wt/_sec-v0481-g3-sonda.sh` (review e QA aprovados nas branches v0481 com PR aberto) · espera: inventário · obtido: 14 pareceres sem `- ci:` em 8 branches; catraca-ajudante não lida
+- S1 · `gh pr checks 893` (head 55f87ffd, o Revisar-sha) · espera: verdes fora `bateria (pareceres)`, `bateria` e `catraca` · obtido: os três fail, os outros 17 pass (suíte 3.12 e 3.14 nas 5 partes, teto de pulados, bateria (passos), (python 3.14), (verificações longas), instalação, árvore)
+- S2 · `bin/forge-mutante tests/mutantes/v0481-g3-testes-uma-vez.json tests/mutantes/v0481-g3-testes-uma-vez-2.json tests/mutantes/v0481-g3-testes-uma-vez-3.json --ids M5,M15,M16,M17,M18,M19` · espera: morrem · obtido: todos morreram (M19 por erro do teste declarado)
+- S3 · `python3 <scratchpad>/sonda_forja.py <clone>` (parecer novo com `commit:` anterior à regra) · espera: não foge do portão · obtido: com código depois do `commit:`, `commit: desatualizado` (R-REVIEW); sem código depois e sem CI verde, PARECER-SO-COM-CI-VERDE
+- S4 · `bin/forge-mutante --conferir --todas --rev` em 55f87ffd, ef45eec5 e 220ba3fa · espera: igual à base · obtido: as mesmas 26 linhas nos três (pendências antigas v0457 e z075)
+- S5 · `python3 -m unittest tests.test_forge_check_pr tests.test_pre_envio_brief` · espera: OK · obtido: 89 testes, OK; `tests.test_forge -k nvariant -k eto -k Neutral`: 76 testes, OK
+- S6 · invariantes de `tests/config.json` (todas as strings, como regex) contra skills/qa-testing e engineering-practices em ef45eec5 e no head · espera: nenhum some · obtido: 41 e 34 padrões casavam na base, todos seguem casando
+
+## Parecer
+Delta lido: bin/forge-check, as duas skills, tests/test_forge_check_pr.py, tests/test_pre_envio_brief.py, os mutantes e o fragmento. A1 da rodada anterior (checks vermelhos por construção): resolvido, ver abaixo.
+- ci: 55f87ffd19d79ad27a20521c45ee65004521bc00 verde
 
 ## Gatilhos
 Gatilhos: controle do portão de merge (`forge-check pr`, `--previo`, passo 1 do `forge-fechar`; R-REVIEW, R-QA, R-CONFORMIDADE), texto dos briefs de parecer e skills de portão.
 
 ## Detalhe dos achados
-**A1 (bloqueante, dono: autor do #893, dono de `bin/forge-check`).** Caminho: o revisor de review ou QA recebe o brief com a `LINHA_LE_O_CI` (bin/forge-check:9637-9639), que manda ler `gh pr checks` "todos concluídos e verdes no `Revisar-sha`" e gravar `- ci: <sha40 do Revisar-sha> verde`; o `leu_o_ci` (:2173-2176) só aceita a linha com o sha do `commit:`, que é o Revisar-sha. Nesse sha, em toda 1ª rodada, o job `bateria (pareceres)` é vermelho porque os pareceres ainda não existem (.github/workflows/ci.yml:739-777), o agregador `bateria` herda o vermelho e, em entrega que toca controle, a `catraca` é vermelha até o rótulo do dono, aplicado depois do último push (S1, run 45572219425; o parecer v0481-fechar-ci-topo já registra o mesmo vermelho de pareceres no Revisar-sha). O revisor honesto não aprova nunca; o que aprova grava uma linha falsa. A regra que pede a declaração a torna sistematicamente falsa, e a linha `- ci:` deixa de valer como prova, que é o que o pedido quer dela. Não abre merge indevido: o `checks_do_head` e os passos 4 e 6 do `forge-fechar` seguem lendo o CI do head real. Correção mínima: o texto da linha G3, o comentário do `CI_NO_ESQUELETO` e as duas skills dizem quais checks contam no Revisar-sha e excluem nomeadamente os que esperam o próprio parecer ou o rótulo: `bateria (pareceres)`, `bateria` (o agregador) e `catraca`. A lista sai de uma constante em `bin/forge-check`, citada pelos três textos e por um teste, para não divergir de `.github/workflows/ci.yml`. Esforço P.
+**A1 (anterior, bloqueante): resolvido.** `CHECKS_FORA_DA_LINHA_DO_CI` (bin/forge-check:2174) é só texto: entra no brief (:9652), no esqueleto (:3731), na violação (:2202) e nas skills (engineering-practices:54, qa-testing:46), e nada a usa para filtrar checks. O `checks_do_head` e os passos 4 e 6 do `forge-fechar` não mudaram e seguem exigindo todos os checks para o merge. O agregador `bateria` depende de `bateria (passos)`, `bateria (pareceres)`, `bateria (verificações longas)`, suíte 3.12 e teto 3.12 (.github/workflows/ci.yml:856), e cada um deles, fora `pareceres`, aparece com nome próprio no `gh pr checks`, de modo que tirar o agregador da linha não esconde nenhum check (S1). O `test_cada_check_e_um_job_dos_workflows` prende os nomes aos workflows.
 
-**O que aperta, o que é neutro, o que afrouxa (pergunta 1).**
-- Aperta: `suite_do_parecer` (:2179-2198) só soma a violação `sem_ci` aos retornos de antes. Os quatro caminhos antigos (fora do Forge, prova da suíte que vale, `adiar`, CI do head lido) devolvem o mesmo que na develop mais `sem_ci`; nenhum `return []` antigo sobrevive fora do "fora do Forge". O `test_a_linha_nao_dispensa_o_ci_verde_do_head` prova que a linha não substitui o CI verde nem a prova `- suíte:`. Também aperta: sem PR, o brief de review e QA passa de "cita o PQ do autor" a "não aprova" (`SEM_PR_NO_PORTAO`, :9640); as skills deixam de aceitar "o PQ do autor" no lugar do CI.
-- Neutro: a linha `- ci:` é texto declarado e pode ser escrita sem o CI verde. Com a prova `- suíte:` válida, o `suite_do_parecer` não lê o gh, como antes; quem forjaria a linha já podia forjar a `- suíte:`. O merge exige o CI verde pelo `checks_do_head` (fora do rascunho), pelos passos 4 e 6 do `forge-fechar` e pela proteção da develop, que esta entrega não toca. A catraca do CI (`suite=None`) e a promoção não cobram a linha: o portão do CI não muda. O brief da segurança e o do autor seguem como antes (M9, M12 e `test_seguranca_e_autor_sem_a_linha`).
-- Afrouxa: nada no código. No processo, "não rode a suíte inteira" troca a rodada do revisor pela leitura do CI; a suíte já era só do CI pelas skills na develop, então o efeito é neutro.
+**A3, transição (`cobra_a_linha_do_ci`, :2185-2190).**
+- Não solta o que a develop barra hoje: o parecer isento só deixa de receber a violação `sem_ci`, que não existe na develop. Ele continua na PARECER-SO-COM-CI-VERDE inteira (`falta_na_prova` / CI do head; `test_commit_anterior_a_regra_segue_com_o_ci_verde_do_head`, S3), como na develop.
+- Forjar um `commit:` antigo num parecer novo não fura o portão. O `commit_vale` (R-REVIEW) dá por desatualizado o parecer cujo `commit:` tem código do domínio mudado depois dele, fora o que veio da base (S3). Para fugir, o `commit:` precisa ser o patch da branch sobre uma base anterior à regra, que é justamente o caso legítimo da transição. O ganho máximo é cair na regra da develop, e quem escreve o parecer já poderia declarar uma `- ci:` falsa, que é texto (neutro, como na rodada anterior).
+- Fecha por padrão: `commit:` ausente ou fora da forma hex (o `COMMIT` só aceita `[0-9a-f]{7,40}`, então não entra opção no `git grep`, M17, `--cached` no teste), sha inexistente ou sha curto ambíguo (rc 128) cobram a linha. Só o rc 1 isenta (M16). `-F -e` e o `--` antes do caminho isolam padrão e caminho.
+- O resultado depende do texto `PARECER-LE-O-CI` em `bin/forge-check` no `commit:`, e esse texto só existe a partir do commit E8.1 desta branch.
 
-**Branches em andamento (pergunta 2).** S6 achou 14 pareceres aprovados sem a linha: docs-ok 2, limpar-clone-parecer 2, prazo-forge 2, perfil-fifo 2, g4-f1-aviso 2, g2-1-publicar 1, ae2-quadro-anda 1, pedido-arquiva 1 (catraca-ajudante: fetch falhou). Quando o `forge-check` com este diff roda numa delas (depois de trazer a develop, ou pelo `forge-fechar` da develop), esses pareceres passam a ser recusados no `pr`, no `--previo` (pre-push) e no passo 1 do fechar. O conserto descrito no PR é regravar o parecer com a linha, num commit só dele. Isso muda o blob, e o parecer com `parecer conferido` no Histórico do pedido pede o registro novo. Com A1 aberto, esse conserto também só sai com linha falsa. Corrigido A1, o custo é um commit de parecer por portão, e nada passa sem o portão regravar.
-
-**Mutantes realinhados (pergunta 3).** mp1311 M6: o teste passou de `qa` para `seguranca`, que segue com o texto antigo; a guarda "sem PR, a suíte fica para o CI do PR" continua viva para a segurança, e o caminho novo de review e QA ganhou M11. mp1311 M7, v0479 M13, M16 e M17: só o `de`/`para` acompanha a forma nova (`saida +=`, `sem_ci +`); a troca é a mesma e os testes declarados são os mesmos. Todos morrem (S2, S3).
+**O que aperta, o que é neutro, o que afrouxa.**
+- Aperta: nada de novo neste delta além do que já apertava na rodada anterior. A isenção fecha por padrão.
+- Neutro: a exclusão dos três checks, porque é só texto, não filtra checks e o merge exige todos. A isenção de transição, porque o parecer isento fica exatamente na regra da develop. O enxugamento da qa-testing manteve a substância (o QA lê o `gh pr checks` do `commit:` e o teste novo vira achado ou commit do autor) e todas as invariantes (S6). A isenção fica permanente no código, mas perde efeito sozinha quando as branches abertas antes da regra fecharem, porque um parecer novo com `commit:` antigo cai em desatualizado.
+- Afrouxa: nada contra a develop. Contra a rodada anterior, o review e o QA podem gravar `- ci:` com `catraca` vermelha sem saber se o vermelho é só o rótulo. O merge segue barrado por ela.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. O CI do Revisar-sha não estava verde no momento do parecer (S1: `bateria (pareceres)` e `catraca` fail, suíte pending); por isso este parecer não grava a linha `- ci:`, e a regra também não cobra o parecer de segurança. gitleaks, zizmor, actionlint, semgrep e shellcheck não estão no PATH; o diff não toca workflow nem segredo.
+Nenhum risco aceito. gitleaks, zizmor, actionlint, semgrep e shellcheck não estão no PATH. O diff não toca workflow nem segredo.
