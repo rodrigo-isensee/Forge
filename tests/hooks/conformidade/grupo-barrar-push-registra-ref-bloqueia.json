@@ -1,0 +1,36 @@
+{
+  "descricao": "G4-TRAVA-REAL-BP8 (F1, R-MAIN): push direto na main recusa como antes e registra a ref protegida como alvo.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "estado": {
+    "comandos.jsonl": ""
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin feature/x:main"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-MAIN: ",
+    "estado": {
+      "comandos.jsonl": {
+        "contem": [
+          "\"barrado\": \"R-MAIN\"",
+          "\"grupo\": \"R-MAIN\"",
+          "\"alvo\": \"main\""
+        ]
+      }
+    }
+  }
+}

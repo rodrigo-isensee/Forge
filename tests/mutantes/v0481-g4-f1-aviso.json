@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-g4-f1-aviso",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "G4 F1: o grupo dado vale sobre o ID da regra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        grupo = grupo or rid\n",
+      "para": "        grupo = rid\n",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_grupo_dado_vale_sobre_o_id_da_regra"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "G4 F1: mapa que não é objeto barra (falha fechada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        avisar = isinstance(modos, dict) and modos.get(grupo) == \"avisar\"",
+      "para": "        avisar = modos.get(grupo) == \"avisar\"",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_grupo_fora_do_mapa_mapa_ilegivel_ou_valor_desconhecido_barra_e_registra"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "G4 F1: o aviso grava teria_barrado, não barrado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        registrar_recusa(self.h, \"teria_barrado\" if avisar else \"barrado\", rid, grupo, alvo)",
+      "para": "        registrar_recusa(self.h, \"teria_barrado\" if not avisar else \"barrado\", rid, grupo, alvo)",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_grupo_em_avisar_deixa_passar_imprime_a_forma_certa_e_registra_teria_barrado"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "G4 F1: grupo em avisar deixa passar",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if avisar:\n            print(",
+      "para": "        if False:\n            print(",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_grupo_em_avisar_deixa_passar_imprime_a_forma_certa_e_registra_teria_barrado"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "G4 F1: o registro vai à pasta run já resolvida pelo hook",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        run = hook._run or hook.copia_principal() / \".forge\" / \"run\"",
+      "para": "        run = hook.copia_principal() / \".forge\" / \"run\"",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_registro_vai_a_pasta_run_do_hook_ou_a_do_clone_e_nunca_cria_pasta"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "G4 F1: sem .forge/run, o registro vai ao diretório comum do clone",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not run.is_dir():\n            run = diretorio_comum(hook.raiz)",
+      "para": "        if False:\n            run = diretorio_comum(hook.raiz)",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_registro_vai_a_pasta_run_do_hook_ou_a_do_clone_e_nunca_cria_pasta"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "G4 F1: o alvo nulo fica null no registro (a recusa falsa a medir)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                 \"alvo\": None if alvo is None else str(alvo)[:300]}",
+      "para": "                 \"alvo\": None if alvo is not None else str(alvo)[:300]}",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_grupo_em_avisar_deixa_passar_imprime_a_forma_certa_e_registra_teria_barrado"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "G4 F1: qualquer erro do registro não muda a decisão",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    except Exception:  # noqa: BLE001 - o registro é medida",
+      "para": "    except OSError:  # noqa: BLE001 - o registro é medida",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_registro_nao_segue_link_e_erro_dele_nao_muda_a_decisao"
+      ]
+    }
+  ]
+}

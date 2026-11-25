@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481-g4-f1-aviso",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "G4 F1: o registro não segue link plantado em comandos.jsonl",
+      "arquivo": "hooks/conformidade.py",
+      "de": "os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o666)",
+      "para": "os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o666)",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_registro_nao_segue_link_e_erro_dele_nao_muda_a_decisao"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "G4 F1: a política entregue tem todo grupo em barrar (nenhum afrouxa nesta fatia)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "    \"R-VERIFY\": \"barrar\"",
+      "para": "    \"R-VERIFY\": \"avisar\"",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_a_politica_entregue_tem_todo_grupo_em_barrar"
+      ]
+    }
+  ]
+}

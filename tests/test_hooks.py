@@ -4183,5 +4183,93 @@ class OrdensEmVigor(unittest.TestCase):
             self.assertEqual(donos.get(caminho), ["jarvis"], caminho)
 
 
+class ModoPorGrupo(unittest.TestCase):  # G4-TRAVA-REAL-BP8, F1 (v0481 E7.7): o modo aviso por grupo, todos em barrar
+    """O `barrar` consulta `modo_por_grupo`; só `avisar` deixa passar. Nos dois modos, `comandos.jsonl` ganha grupo e alvo."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.run_ = self.tmp / ".forge" / "run"
+        self.run_.mkdir(parents=True)
+        _, self.conformidade, _ = modulos_dos_hooks()
+        self.pol = self.conformidade.politica()
+
+    def guarda(self, modos, run=True):
+        _comum, conformidade, _ = modulos_dos_hooks()
+        hook = _comum.Hook("conformidade")
+        hook.raiz, hook._run = self.tmp, (self.run_ if run else None)
+        hook.entrada = {"session_id": "s1", "agent_type": "forge:tech-lead", "hook_event_name": "PreToolUse"}
+        return conformidade.Guarda(hook, {**self.pol, "modo_por_grupo": modos}, "tech-lead")
+
+    def linhas(self, run=None):
+        arquivo = (run or self.run_) / "comandos.jsonl"
+        return [json.loads(l) for l in arquivo.read_text(encoding="utf-8").splitlines()] if arquivo.exists() else []
+
+    def barra(self, guarda, *args, **kw):
+        with contextlib.redirect_stderr(io.StringIO()) as erro, self.assertRaises(SystemExit) as saida:
+            guarda.barrar("R-VERIFY", "git commit --no-verify", "corrija a causa", *args, **kw)
+        self.assertEqual(saida.exception.code, 2)
+        self.assertRegex(erro.getvalue(), r"^R-VERIFY: git commit --no-verify")
+
+    def test_a_politica_entregue_tem_todo_grupo_em_barrar(self):
+        modos = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))["modo_por_grupo"]
+        self.assertEqual(set(modos.values()), {"barrar"}, "nenhum grupo passa a aviso na F1 (afrouxaria)")
+        self.assertLessEqual({"R-CONFORMIDADE", "R-CONTRIB", "R-FLUXO", "R-MAIN", "R-REVIEW", "R-VERIFY"}, set(modos))
+
+    def test_grupo_em_avisar_deixa_passar_imprime_a_forma_certa_e_registra_teria_barrado(self):
+        guarda = self.guarda({"R-VERIFY": "avisar"})
+        with contextlib.redirect_stderr(io.StringIO()) as erro:
+            self.assertIsNone(guarda.barrar("R-VERIFY", "git commit --no-verify", "corrija a causa"))
+        self.assertEqual(erro.getvalue(), "R-VERIFY: aviso: teria barrado: git commit --no-verify. Corrigir: corrija a causa\n")
+        [linha] = self.linhas()
+        self.assertEqual({k: linha[k] for k in ("sessao", "agente", "fonte", "teria_barrado", "grupo", "alvo")},
+                         {"sessao": "s1", "agente": "forge:tech-lead", "fonte": "conformidade", "teria_barrado": "R-VERIFY",
+                          "grupo": "R-VERIFY", "alvo": None})
+        self.assertNotIn("barrado", linha)
+
+    def test_grupo_dado_vale_sobre_o_id_da_regra(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertIsNone(self.guarda({"tag-mover": "avisar"}).barrar("R-FLUXO", "x", "y", grupo="tag-mover", alvo="v1"))
+        self.barra(self.guarda({"R-VERIFY": "avisar"}), grupo="tag-mover")
+        self.assertEqual([(l.get("teria_barrado"), l.get("barrado"), l["grupo"], l["alvo"]) for l in self.linhas()],
+                         [("R-FLUXO", None, "tag-mover", "v1"), (None, "R-VERIFY", "tag-mover", None)])
+
+    def test_grupo_fora_do_mapa_mapa_ilegivel_ou_valor_desconhecido_barra_e_registra(self):
+        casos = ({"R-MAIN": "avisar"}, "avisar", None, ["R-VERIFY"], {"R-VERIFY": "Avisar"}, {"R-VERIFY": "aviso"},
+                 {"R-VERIFY": True}, {"R-VERIFY": "barrar"})
+        for modos in casos:
+            with self.subTest(modos=modos):
+                self.barra(self.guarda(modos), alvo=Path("/x/.claude/settings.json"))
+        self.assertEqual([(l["barrado"], l["grupo"], l["alvo"]) for l in self.linhas()],
+                         [("R-VERIFY", "R-VERIFY", "/x/.claude/settings.json")] * len(casos))
+
+    def test_registro_vai_a_pasta_run_do_hook_ou_a_do_clone_e_nunca_cria_pasta(self):
+        outra = self.tmp / "outra"
+        outra.mkdir()
+        guarda = self.guarda({})
+        guarda.h._run = outra
+        self.barra(guarda)
+        self.assertEqual((len(self.linhas(outra)), self.linhas()), (1, []), "a pasta `run` já resolvida pelo hook")
+        shutil.rmtree(self.tmp / ".forge")
+        self.barra(self.guarda({}, run=False))
+        self.assertEqual(os.listdir(self.tmp), ["outra"], "sem pasta `run`, nada é criado")
+        clone = self.tmp / ".git" / "forge" / "run"
+        clone.mkdir(parents=True)
+        self.barra(self.guarda({}, run=False))
+        self.assertEqual(len(self.linhas(clone)), 1, "no clone do Forge sem `.forge/`, a pasta do diretório comum")
+
+    def test_registro_nao_segue_link_e_erro_dele_nao_muda_a_decisao(self):
+        fora = self.tmp / "fora.txt"
+        fora.write_text("", encoding="utf-8")
+        (self.run_ / "comandos.jsonl").symlink_to(fora)
+        self.barra(self.guarda({}))
+        self.assertEqual(fora.read_text(encoding="utf-8"), "")
+        _, conformidade, _ = modulos_dos_hooks()
+        guarda = conformidade.Guarda(mock.Mock(raiz=self.tmp, _run=self.tmp, campo=mock.Mock(side_effect=TypeError)),
+                                     self.pol, "tech-lead")
+        guarda.h.iniciante.return_value = False
+        self.barra(guarda)
+
+
 if __name__ == "__main__":
     unittest.main()
