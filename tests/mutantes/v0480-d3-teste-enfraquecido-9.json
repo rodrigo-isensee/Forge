@@ -1,0 +1,56 @@
+{
+  "pedido": "v0480-d3-teste-enfraquecido",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D3H3",
+      "guarda": "asserção sem argumento não é vácua",
+      "arquivo": "tests/catraca.py",
+      "de": "return bool(nos) and not any(",
+      "para": "return not any(",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_assercao_so_de_constantes_nao_conta"
+      ]
+    },
+    {
+      "id": "D3H4",
+      "guarda": "vácua é a que não lê nome",
+      "arquivo": "tests/catraca.py",
+      "de": "return bool(nos) and not any(isinstance(x, ast.Name)",
+      "para": "return bool(nos) and not any(isinstance(x, ast.Constant)",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_assercao_so_de_constantes_nao_conta"
+      ]
+    },
+    {
+      "id": "D3H5",
+      "guarda": "assert de constante é vácuo",
+      "arquivo": "tests/catraca.py",
+      "de": "    if isinstance(n, ast.Assert):\n        return _so_constantes(n.test)",
+      "para": "    if False:\n        return _so_constantes(n.test)",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_assercao_so_de_constantes_nao_conta"
+      ]
+    },
+    {
+      "id": "D3H6",
+      "guarda": "só chamada assert* é asserção vácua",
+      "arquivo": "tests/catraca.py",
+      "de": "and _nome(n.func).startswith(\"assert\") and _so_constantes(",
+      "para": "and _so_constantes(",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_skip_no_teste_na_classe_ou_skiptest_barra"
+      ]
+    },
+    {
+      "id": "D3H7",
+      "guarda": "asserção vácua não conta",
+      "arquivo": "tests/catraca.py",
+      "de": "for n in ast.walk(c) if not _vacua(n)):",
+      "para": "for n in ast.walk(c) if True):",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_assercao_so_de_constantes_nao_conta"
+      ]
+    }
+  ]
+}

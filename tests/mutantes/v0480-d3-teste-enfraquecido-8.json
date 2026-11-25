@@ -1,0 +1,26 @@
+{
+  "pedido": "v0480-d3-teste-enfraquecido",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D3H1",
+      "guarda": "na volta, só o valor que a própria branch trocou",
+      "arquivo": "tests/catraca.py",
+      "de": "and (arq, nome) in da_branch]",
+      "para": "]",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_valor_que_a_base_trocou_e_entrou_por_merge_depois_da_aprovacao_nao_barra"
+      ]
+    },
+    {
+      "id": "D3H2",
+      "guarda": "o que a branch trocou contra a base é só o valor trocado",
+      "arquivo": "tests/catraca.py",
+      "de": "for arq, nome, perdas in contra_a_base if VALOR_TROCADO in perdas}",
+      "para": "for arq, nome, perdas in contra_a_base}",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_volta_que_restaura_o_valor_da_base_barra_so_pela_perda_dura"
+      ]
+    }
+  ]
+}

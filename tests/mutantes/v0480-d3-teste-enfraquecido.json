@@ -1,0 +1,76 @@
+{
+  "pedido": "v0480-d3-teste-enfraquecido",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D3A1",
+      "guarda": "asserção a menos no mesmo teste barra",
+      "arquivo": "tests/catraca.py",
+      "de": "if depois[0] < antes[0]:",
+      "para": "if depois[0] < antes[0] - 1:",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_assercao_levada_a_outro_teste_barra_com_a_soma_igual"
+      ]
+    },
+    {
+      "id": "D3A2",
+      "guarda": "pulo novo no teste, na classe ou por skipTest barra",
+      "arquivo": "tests/catraca.py",
+      "de": "if depois[1] > antes[1]:",
+      "para": "if depois[1] > antes[1] + 1:",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_skip_no_teste_na_classe_ou_skiptest_barra"
+      ]
+    },
+    {
+      "id": "D3A3",
+      "guarda": "teste que fica vazio barra",
+      "arquivo": "tests/catraca.py",
+      "de": "if depois[2] and not antes[2]:",
+      "para": "if depois[2] and antes[2]:",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_teste_sem_assercao_esvaziado_barra"
+      ]
+    },
+    {
+      "id": "D3A4",
+      "guarda": "valor esperado que sai do teste barra",
+      "arquivo": "tests/catraca.py",
+      "de": "if antes[3] - depois[3]:",
+      "para": "if depois[3] - antes[3]:",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_na_primeira_entrega_nao_barra_e_fica_listado"
+      ]
+    },
+    {
+      "id": "D3A5",
+      "guarda": "teste sem cópia no head (apagado ou renomeado) barra",
+      "arquivo": "tests/catraca.py",
+      "de": "perdas = [\"foi apagado ou renomeado\"]",
+      "para": "perdas = []",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_teste_apagado_renomeado_afrouxado_ou_modulo_ilegivel_barra"
+      ]
+    },
+    {
+      "id": "D3A6",
+      "guarda": "perda achada vira violação",
+      "arquivo": "tests/catraca.py",
+      "de": "            if perdas:\n                achados.append((arq, nome, perdas))",
+      "para": "            if perdas and False:\n                achados.append((arq, nome, perdas))",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_valor_esperado_trocado_na_primeira_entrega_nao_barra_e_fica_listado"
+      ]
+    },
+    {
+      "id": "D3A7",
+      "guarda": "o msg= da asserção não é valor esperado",
+      "arquivo": "tests/catraca.py",
+      "de": "k.arg != \"msg\"",
+      "para": "k.arg != \"msgx\"",
+      "testes": [
+        "tests.test_catraca.TestesAfrouxados.test_so_a_mensagem_da_assercao_trocada_passa"
+      ]
+    }
+  ]
+}
