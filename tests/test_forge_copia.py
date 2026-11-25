@@ -89,6 +89,30 @@ class Cria(Base):
         cfg = subprocess.run(["git", "config", "--get", "branch.melhoria/x.remote"], cwd=d, env=self.env, capture_output=True)
         self.assertNotEqual(cfg.returncode, 0)  # --no-track: sem upstream
 
+    def test_branch_do_remoto_com_base_curta_nasce_no_head_dela_e_diz_o_sha(self):
+        """v0481 E14.33: origem na main, --base develop e a branch já no remoto: nasce no head remoto e diz o sha."""
+        remoto = self.commit_em("melhoria/y")
+        self.commit_em("main")
+        d = self.pasta / "c8"
+        r = self.copia("clone", str(d), "--branch", "melhoria/y", "--origem", str(self.origem), "--base", "develop")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.git(d, "rev-parse", "HEAD").stdout.strip(), remoto)
+        self.assertIn(f"criei melhoria/y em {remoto} (de origin/melhoria/y)", r.stderr)
+
+    def test_clone_pela_base_diz_o_sha_dela(self):
+        dev = self.git(self.origem, "rev-parse", "develop").stdout.strip()
+        self.commit_em("main")  # o clone nasce na main: `develop` só existe como origin/develop
+        r = self.copia("clone", str(self.pasta / "c9"), "--branch", "melhoria/z", "--origem", str(self.origem), "--base", "develop")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(f"criei melhoria/z em {dev} (de origin/develop)", r.stderr)
+
+    def test_base_curta_que_nao_resolve_falha_fechado_sem_clone(self):
+        d = self.pasta / "c10"
+        r = self.copia("clone", str(d), "--branch", "melhoria/x", "--origem", str(self.origem), "--base", "nada")
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertFalse(d.exists(), "base que não resolve: o clone não fica")
+        self.assertNotIn("forge-copia: criei", r.stderr)
+
     def test_clone_que_falha_sai_1_antes_de_procurar_a_base(self):
         r = self.copia("clone", str(self.pasta / "c7"), "--branch", "melhoria/x", "--origem", str(self.fora / "nada"))
         self.assertEqual(r.returncode, 1, r.stderr)
