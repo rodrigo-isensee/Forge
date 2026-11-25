@@ -3,40 +3,41 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-limpar-clone-parecer
-commit: fe1f22755cdaf735ba4738b0f59cb7e1b0eb2068
-parecer: reprovado
+commit: 86f50b244f7b814d8733a656aae8c1d9111c1df5
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-25
 ---
-# Review: v0481 (E14.6, #890: forge-fechar --limpar reconhece o clone de parecer já mesclado)
+# Review: v0481 (E14.11, #890, revalidação por delta da volta E14.10)
 
-Diff lido: `8833d0f6..fe1f2275`, um commit (E14.1), 6 arquivos, +74 e -12. Código: `bin/forge-fechar:691-696` (5 linhas, dentro do H1). Clone de revisão: `/root/.forge-contrib/wt/v0481-limpar-clone-parecer-rev` (o `forge-copia` da develop local não tem `--revisao`; criado com `clone --branch --origem`).
+Delta lido: `fe1f2275..86f50b24`, o commit E14.10 (código, doc, changelog, testes e specs; os pareceres de QA, segurança e review que vieram no meio não entram na leitura). Código: `bin/forge-fechar:651` e `:691-693` (3 linhas, dentro do H1). Clone de revisão: `/root/.forge-contrib/wt/v0481-limpar-clone-parecer-rev`, no head `86f50b24`.
 
-## Achados
-- A1 (bloqueante) bin/forge-fechar:692 · `--exclude='refs/tags/*'` tira da conta toda tag, não só a `arquivo/*` que o comentário e o teste citam: commit único numa tag local qualquer, nunca enviado, some no `rm -rf` (S1). Afrouxa o MP6. Estreite para `refs/tags/arquivo/*` e mantenha o teste antigo.
-- A2 (bloqueante) tests/mutantes/v0474-mp6-disco-3.json:19 · AR-12: o M18 (guarda "commit só em tag local fica") ficou com o trecho `rev-list --all --not --remotes` 0 vezes no fonte e aponta para `test_commit_so_em_tag_local_fica`, que o diff renomeou; `forge-mutante --conferir --todas` acusa só no head. Atualize o M18.
-- A3 (recomendado) tests/test_forge_fechar.py:152 · o teste renomeado usa `arquivo/t-local` e prova só esse nome; com o código amplo, nenhum teste diz o que acontece com a tag de outro nome. Com o A1, um teste para cada lado: `arquivo/*` sai, outro nome fica.
+## Delta contra o parecer anterior (fe1f2275, reprovado)
+- A1 (bloqueante) resolvido: `bin/forge-fechar:693` passou a `--exclude='refs/tags/arquivo/*'`. O comentário das linhas 691-692, o da 651, o passo 7 de `docs/fechamento-integrador.md` e o fragmento do changelog dizem a mesma coisa: só a `arquivo/*` sai da conta, e outra tag local prende o clone.
+- A2 (bloqueante) resolvido: o M18 de `tests/mutantes/v0474-mp6-disco-3.json` tem o `de` novo (1 ocorrência no fonte) e aponta de novo para `test_commit_so_em_tag_local_fica`. Ele morre (`:693`). `forge-mutante --conferir --todas` dá a mesma saída no head e na base `8833d0f6` (`diff` vazio, 26 linhas, todas de specs de fora deste diff).
+- A3 (recomendado) atendido: `test_commit_so_em_tag_local_fica` voltou idêntico ao da base (o `git diff 8833d0f6..86f50b24` desse teste é vazio), e `test_commit_so_em_tag_arquivo_nao_prende_o_clone` cobre o outro lado. O M1b (exclusão ampla) morre por esse teste, e com isso o afrouxamento do A1 fica coberto por mutante declarado.
+- `tests/test_fechar_limpar_clone.py`: o `tag_com_ref_velha` e a docstring voltaram ao texto da base (tag `v9`, que sai pelas pontas). O diff contra a base fica só com os 2 testes do parecer mesclado.
 
 ## Sondas
-- S1 · clone em melhoria/x, commit com arquivo novo só na tag leve ou anotada `wip-meu` (sem push), `--limpar` (sonda no scratchpad, ambiente de `LimparClones`) · espera: rc=3, clone=pendente, clone existe (como na base 8833d0f6) · obtido: rc=0, clone=ok, clone apagado
+- S1 · clone em melhoria/x, commit com arquivo novo só na tag leve `wip-meu`, `--limpar` · espera: rc=3, clone=pendente, clone existe (como na base) · obtido: rc=3, clone=pendente, clone existe
+- S2 · igual à S1, com a tag `wip-meu` anotada · espera: fica · obtido: fica
+- S3 · tag `arquivoX` (prefixo parecido sem a barra) · espera: fica · obtido: fica
+- S4 · tag `meu/arquivo/x` (o `arquivo/` no meio do nome) · espera: fica · obtido: fica
+- S5 · tag anotada `arquivo/a/b` (aninhada) · espera: rc=0, clone apagado · obtido: rc=0, clone apagado
+- S6 · tag `arquivo/z` e um stash · espera: fica (o stash segue na conta) · obtido: fica
 
 ## Parecer
-Reprovado.
+Aprovado.
 
-**Afrouxa regra?** Sim. O MP6 garantia que o clone com "commit fora das refs do origin (branch, tag, stash, nota)" fica pendente, e o M18 da `v0474-mp6-disco-3.json` guardava esse ramo da tag. Com o diff, a tag sai inteira da conta: a S1 mostra o mesmo cenário que fica na base e é apagado no head. O PR diz que "as tags são da origin" e que o fluxo não cria tag em clone de parecer. Mas o `limpar_clones` alcança todo clone da branch em `~/.forge-contrib/wt` (o do autor também), e a tag que ainda está na origin já sai pelas `pontas` (o `remoto_exato --pontas` lê `refs/tags/*`). Então a exclusão só muda o resultado para a tag que a origin não tem: a `arquivo/*` apagada lá (o caso do cartão) ou a criada só no clone (trabalho perdido). Estreitar para `refs/tags/arquivo/*` resolve o caso medido (as 9 tags do `v0481-d2-resto-rev`) e mantém a garantia para o resto.
+As sondas estão em `sonda_v0481_rev2.py`, no scratchpad da sessão, e herdam o ambiente de `LimparClones`. Rodaram 6 testes, OK.
 
-**A catraca pede o rótulo?** Não. `tests/catraca.py --modo regras --base origin/develop --head HEAD` local sai com rc 0 e sem violação: o teste foi renomeado e não removido (a contagem de `test_*` sobe 2), as asserções crescem, e `bin/forge-fechar` e `docs/fechamento-integrador.md` não estão em `invariantes` nem nos protegidos. O afrouxamento passa pela catraca sem sinal. Se o dono quiser a exclusão ampla, a decisão é dele (`R-DECISAO`), com o destaque `afrouxa-regra` no título, e o M18 fica aposentado de forma explícita.
-
-**O que está certo:** a segunda parte, `$merged_heads` no `rev-list --stdin` (linha 696), está correta e não afrouxa nada. O commit que vale como mesclado é ancestral de um `headRefOid` de PR MERGED que esta cópia já buscou. O commit feito depois do head fica pendente, como prova `test_commit_do_clone_depois_do_head_mesclado_fica`. O stash continua na conta (`--exclude` antes de `--all` não toca `refs/stash`). A doc do passo 7 e o fragmento do changelog acompanham a mudança. O commit é único e a mensagem está em Conventional Commits.
+**Afrouxa regra?** Não, no escopo que o cartão pede. A garantia do MP6 para a tag local de qualquer outro nome voltou a ser a da base (S1 a S4, teste restaurado, M18 e M1b mortos). Só a `arquivo/*` sai da conta, e esse é o caso medido. Resta um caso de borda que o desenho aceita: um commit só numa tag `arquivo/*` criada à mão no clone, nunca enviada, seria apagado. O prefixo pertence ao fluxo de arquivamento da origin e não ao trabalho do clone, a doc diz isso no passo 7, e não vejo gatilho no fluxo que crie essa tag no clone. Por isso não é achado.
 
 **Verificadores:**
-- `bin/forge-mutante tests/mutantes/v0481-limpar-clone-parecer.json`: rc 0, M1 morreu (`bin/forge-fechar:692`), M2 morreu (`:696`).
-- `bin/forge-mutante --conferir --todas`: rc 1 com 25 linhas no head e 24 na base 8833d0f6. A diferença é só o M18 do A2; as outras 24 já falhavam na base e não são deste diff.
-- Testes do item, `python3 -m unittest tests.test_fechar_limpar_clone tests.test_forge_fechar.LimparClones` em ambiente limpo: 28 testes, OK.
-- Suíte inteira: só no CI. No momento da leitura, o #890 (rascunho) tinha o `catraca` pendente e nenhum resultado da bateria. O `shellcheck` não está instalado nesta máquina; fica com o CI.
+- `bin/forge-mutante tests/mutantes/v0481-limpar-clone-parecer.json`: M1, M1b (`:693`) e M2 (`:697`) morreram. Em `v0474-mp6-disco-3.json`, o M18 (`:693`) morreu.
+- `bin/forge-mutante --conferir --todas`: rc 1, saída idêntica à da base `8833d0f6`. O A2 saiu.
+- Testes do item, `python3 -m unittest tests.test_fechar_limpar_clone tests.test_forge_fechar.LimparClones` em ambiente limpo: 29 testes, OK.
+- `tests/catraca.py --modo regras --base 8833d0f6 --head HEAD`: rc 0, sem violação.
+- Suíte inteira: só no CI. Na leitura, o #890 (rascunho, head `86f50b24`) tinha a `catraca` verde e a `bateria (passos)` verde. A suíte estava em andamento, e a `bateria (pareceres)` estava vermelha porque os pareceres do head ainda eram os reprovados de `fe1f2275`. O merge espera o CI verde no head com os três pareceres. O `shellcheck` fica com o CI.
 
-**Volta (autor):**
-1. A1: linha 692 com `--exclude='refs/tags/arquivo/*'`, o comentário da 691 e o passo 7 da doc alinhados.
-2. Restaurar `test_commit_so_em_tag_local_fica` (tag `t-local` fica) e manter o teste novo com `arquivo/t-local` (sai).
-3. M1 da spec nova com o trecho estreito.
-4. A2: M18 da `v0474-mp6-disco-3.json` com o `de` novo e o teste certo.
+**Commits:** um commit de volta, `fix(fechar): ...` em Conventional Commits, com a etapa na mensagem.
