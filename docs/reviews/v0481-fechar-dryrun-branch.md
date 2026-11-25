@@ -27,6 +27,7 @@ O que o brief pede conferir:
 - **Testes:** `test_dry_run_sem_a_branch_local_nao_prende_o_passo_real_na_origin_velha` reproduz o A1 (servidor adiante, `origin/<b>` velha) e confere que o passo real usa o sha do servidor; a recusa do 1c confere que a ref sai. `tests/test_fechar.py` local no head: 115 testes, OK (skipped=1).
 - **CI do head `432ac20d`:** as 10 partes da suíte (3.12 e 3.14), `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)`, os tetos de pulados, a instalação e a árvore provada estão verdes. `bateria (pareceres)` vermelha só pelos pareceres reprovados de review, QA e segurança; `bateria` só agrega essa (`pareceres: failure`, o resto `success`). A `catraca` vermelha tem duas causas: os pareceres e a remoção de dois testes que já estava em `1bf95225` (`test_1c_no_dry_run_sem_a_branch_local_nao_roda` e `test_dry_run_sem_branch_local_marca_o_sha_como_nao_lido`, R-CONFORMIDADE), que pede o rótulo `afrouxa-regra` do dono e o destaque no título do PR; não é falha do código do item, e o review não a decide. Nenhuma falha nova contra a `develop`.
 - ci: 432ac20dda60577b3ff69c649deb5d44a89931fc verde
+- suíte: 432ac20dda60577b3ff69c649deb5d44a89931fc rc=0 módulos=test_fechar
 
 ## Pendências para o merge
 - Rótulo `afrouxa-regra` do dono e destaque no título do #898 para os dois testes removidos (motivo: comportamento invertido por E14.32, coberto pelos testes e mutantes da spec do item); sem ele a `catraca` segue vermelha.
