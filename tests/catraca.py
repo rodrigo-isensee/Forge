@@ -726,7 +726,7 @@ def _assercoes(corpo, ajudantes, fundo):
                 a, _, e = ajudantes["corpo"](alvo, fundo - 1)
                 if a:
                     asserts += a
-                    esperados += e + _constantes(*n.args, *(k.value for k in n.keywords if k.arg != "msg"))
+                    esperados += e + _constantes(*n.args, *(k.value for k in n.keywords))
                     esperados[f"ajudante {nome}"] += 1
             pulos += nome in PULOS
     return asserts, pulos, esperados
