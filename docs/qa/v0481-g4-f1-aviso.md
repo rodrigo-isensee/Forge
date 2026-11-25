@@ -18,7 +18,7 @@ data: 2026-11-25
 
 ## Achados
 - A2 (recomendado) hooks/conformidade.py:4203 · `GuardaDaProva.barrar` chama `super().barrar` e segue; latente com grupo em `avisar`. Segue aberto, fora deste delta, vira cartão.
-- A3 (recomendado) hooks/conformidade.py:4366 · mutante M40 de `tests/mutantes/v0479-conformidade-sessao-forge-6.json` sobrevive no head (a linha e a spec não são deste delta; vêm do #742): `le_o_here_string = nome in SHELLS` sem `or palavra in FONTES` não derruba `HookSessaoDoForge.test_travas_do_conformidade`. Problema antigo: vira cartão, não segura o item (ordem do dono de 25/11).
+- A3 (recomendado) hooks/conformidade.py:4366 · mutante M40 de `tests/mutantes/v0479-conformidade-sessao-forge-6.json` sobrevive: `le_o_here_string = nome in SHELLS` sem `or palavra in FONTES` passa no teste. Linha e spec são do #742, fora do delta: cartão.
 
 ## Delta lido
 `git diff 3682aeba..eb747918` pelos primeiros pais (as três voltas da develop trazem o resto): `perfil_iniciante` em `hooks/conformidade.py` (A2 da segurança: perfil só do disco, `O_NONBLOCK|O_NOFOLLOW`, só `S_ISREG`, 64 bytes; `PrazoVencido` na escolha do texto cai no texto técnico), `hooks/_comum.py` (`diretorio_comum` sem `git`; FIFO em `.git` da worktree), classe `RecusaComFifoNoPerfil` com 7 testes, e specs de mutante realinhadas (M1 v0478, M15 v0479, M16 G4 F1, M2/M5/M7 perfil-fifo).
