@@ -3,33 +3,31 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-fechar-dryrun-branch
-commit: 1bf95225578a79532bae4ee99f3875af3a8bc007
-parecer: reprovado
+commit: 432ac20dda60577b3ff69c649deb5d44a89931fc
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-25
 ---
-# Review: v0481 (E14.40, code review do #898)
+# Review: v0481 (E14.53, code review por delta do #898)
 
-Escopo: `bin/forge-fechar` (o `--dry-run` sem a branch local e o `--limpar --dry-run`), `docs/fechamento-integrador.md`, `tests/test_fechar.py`, `tests/mutantes/v0481-fechar-dryrun-branch.json` e o fragmento do changelog, de `b224ee09e` a `1bf95225`. Clone de review pelo `bin/forge-copia` em `/root/.forge-contrib/wt/v0481-fechar-dryrun-branch-rev`, no head do remoto (`git ls-remote` = `1bf95225`).
+Escopo: revalidação por delta, de `1bf95225` a `432ac20d` (volta única E14.45), lido em `forge-check parecer delta docs/reviews/v0481-fechar-dryrun-branch.md`: `bin/forge-fechar`, `docs/fechamento-integrador.md`, `tests/test_fechar.py`, as specs `tests/mutantes/mp1311-fechar-cartao.json`, `tests/mutantes/v0478-fechar-lote-2.json` e `tests/mutantes/v0481-fechar-dryrun-branch.json` e o fragmento do changelog. Clone de review em `/root/.forge-contrib/wt/v0481-fechar-dryrun-branch-rev`, avançado com `--ff-only` até o head do remoto (`432ac20d`).
 
-## Achados
-- A1 (bloqueante) bin/forge-fechar:1674 · o --dry-run cria a branch local na origin/<b> do clone e a deixa; o passo real seguinte usa essa branch, não o servidor, e com o remoto adiante para no passo 2 (envie a branch); sem o dry-run passa (S1, S2). Apague-a na saída (branch_criada) ou leia a origin/<b> sem criar ref.
-- A2 (bloqueante) tests/mutantes/mp1311-fechar-cartao.json:29 · CI vermelho (suíte parte 4/5, py 3.12 e 3.14): test_toda_spec_do_forge_confere_com_a_fonte acusa o `de` fora da fonte em mp1311 M3 e M5 e v0478-fechar-lote-2 FL-M11 e FL-M12 (linhas do ref_dry removidas); retire ou alinhe as quatro no mesmo commit.
-- A3 (recomendado) bin/forge-fechar:1667 · o cabeçalho ainda diz que nada será executado além do 1c, que só lê; o dry-run agora pode criar a branch local (se ela ficar, depois do A1).
-
-## Sondas
-- S1 · sonda /root/.forge-contrib/wt/_tl146-v0481-sonda.py, sem branch local e remoto adiante, só o passo real · espera: rc 0 · obtido: rc 0
-- S2 · a mesma, --dry-run e depois o passo real · espera: rc 0 (como S1) · obtido: dry-run conferiu 7015db1d (velho, não 0cc0c1b2) e o real saiu com 1: parou no passo 2: o head local (7015db1d) difere do remoto (0cc0c1b2); envie a branch
+## Rodada anterior (E14.40)
+Sem achado novo no delta. Os achados de `1bf95225` estão resolvidos:
+- A1 (bloqueante, resolvido) bin/forge-fechar:1676 · `branch_criada="$sha_dry"` faz o `fim()` (linha 447) apagar a ref criada pelo `--dry-run`, só se ainda está no sha criado (`git update-ref -d <ref> <sha>`), também na recusa do 1c e em qualquer `die` depois da criação. A sonda S2 da rodada anterior, rerrodada no head: dry-run com rc 0, branch local ausente depois, passo real seguinte com rc 0 (antes, parava no passo 2).
+- A2 (bloqueante, resolvido) tests/mutantes/mp1311-fechar-cartao.json:39 · `bin/forge-mutante --conferir --todas` não acusa nenhuma spec de fechar; cada `de` realinhado aparece uma vez na fonte (M5 na 1679, FL-M11 na 1683, M5 do item na 1676). Classe AR-12 (spec desatualizada pelo commit que muda a linha); a contagem fica para quem grava o AR, porque o brief limita este commit ao parecer.
+- A3 (recomendado, resolvido) bin/forge-fechar:1667 · o cabeçalho do `--dry-run` diz que a branch nasce só para o 1c e sai no fim.
 
 ## Parecer
-Reprovado.
+Aprovado.
 
 O que o brief pede conferir:
-- **Teste removido** (`test_dry_run_sem_branch_local_marca_o_sha_como_nao_lido`): fixava o marcador "sha não lido", que deixou de existir; o caminho que ele cobria (sem a branch local e sem a `origin/<b>`) agora para com 1 e tem teste próprio (`..._nem_a_origin_para_com_1_e_diz_como_destravar`). Não tira guarda. O ajuste de `test_dry_run_avisa_quando_nao_consegue_ler_o_diff` (sem a base local) preserva o ramo do aviso.
-- **Remoto e outras branches:** `git branch --no-track` só cria `refs/heads/<b>` local, sem rastreio e sem busca; nada vai ao servidor nem toca outra branch. Mas a ref local persiste e muda o passo real seguinte (A1): o modo só remota (FECHAR-BRANCH-LOCAL) lê o servidor e apaga a branch que criou se parar antes do passo 3; a branch deixada pelo dry-run desliga esse modo e o 1c do dry-run confere a árvore da `origin/<b>` velha. Com o remoto igual (S3 da sonda) o real passa e a limpeza apaga a branch.
-- **Nada que barra deixa de barrar:** o dry-run só ficou mais estrito (o 1c que não roda passou de 0 a 1); o `--limpar --dry-run` continua sem executar nada (`chamadas()` vazia). A regressão é no outro sentido: um passo real que passava passa a parar (A1).
-- **Mutantes:** `bin/forge-mutante` na spec do item, 1 processo: M1 a M4 morreram (linhas 1660, 1671, 1673, 1674); um por linha de guarda mudada, e cada um tem teste do ramo de falha.
-- **Módulo tocado:** `tests/test_fechar.py` local, 114 testes, OK (skipped=1).
-- **CI do head `1bf95225`:** vermelho na suíte parte 4/5 nas duas versões (A2, lido nas anotações do check run); `bateria (pareceres)` e `catraca` vermelhos esperam os pareceres. Sem `- ci:` neste parecer.
+- **Mutantes realinhados mantêm a guarda:** mp1311 M5 passou do `ref_dry="refs/heads/$ref"` (removido) ao `passo 1 ... --ref refs/heads/$ref`, a mesma guarda (FECHAR-REF-POR-NOME: o dry-run mostra a ref completa, não o nome curto), com o mesmo teste; FL-M11 passou do `if` sobre `ref_dry` ao `conferir_1c "$sha_dry"`, a mesma guarda (o `--dry-run` roda o 1c de verdade), com os mesmos dois testes. Saem mp1311 M3 (o marcador "sha não lido" deixou de existir em E14.32) e FL-M12 (a guarda "sem a branch local não roda o 1c" foi invertida de propósito por E14.32; o caminho sem a branch e sem a `origin/<b>` para com 1 e tem teste e mutante próprios na spec do item). `bin/forge-mutante --processos 1`: mp1311 M5 morreu (1679), FL-M11 morreu (1683), M5 do item morreu (1676).
+- **Nada que barra deixa de barrar:** o delta de código é só a atribuição `branch_criada` e dois textos; nenhuma linha de guarda (`if`, `||`, `die`) mudou. A remoção da ref passa pelo `fim()` existente (FECHAR-CRIA-BRANCH), com o valor antigo no `update-ref -d`: uma branch que outro processo moveu não é apagada. O dry-run continua sem chamar o servidor nem o `gh`.
+- **Testes:** `test_dry_run_sem_a_branch_local_nao_prende_o_passo_real_na_origin_velha` reproduz o A1 (servidor adiante, `origin/<b>` velha) e confere que o passo real usa o sha do servidor; a recusa do 1c confere que a ref sai. `tests/test_fechar.py` local no head: 115 testes, OK (skipped=1).
+- **CI do head `432ac20d`:** as 10 partes da suíte (3.12 e 3.14), `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)`, os tetos de pulados, a instalação e a árvore provada estão verdes. `bateria (pareceres)` vermelha só pelos pareceres reprovados de review, QA e segurança; `bateria` só agrega essa (`pareceres: failure`, o resto `success`). A `catraca` vermelha tem duas causas: os pareceres e a remoção de dois testes que já estava em `1bf95225` (`test_1c_no_dry_run_sem_a_branch_local_nao_roda` e `test_dry_run_sem_branch_local_marca_o_sha_como_nao_lido`, R-CONFORMIDADE), que pede o rótulo `afrouxa-regra` do dono e o destaque no título do PR; não é falha do código do item, e o review não a decide. Nenhuma falha nova contra a `develop`.
+- ci: 432ac20dda60577b3ff69c649deb5d44a89931fc verde
 
-Sugestão para A1: no ramo que cria a branch, `branch_criada="$sha_dry"` faz o `fim()` apagá-la (como no FECHAR-CRIA-BRANCH do passo real), com um teste que roda o dry-run, avança o remoto e confere que a branch local não ficou; o texto da doc e o A3 acompanham.
+## Pendências para o merge
+- Rótulo `afrouxa-regra` do dono e destaque no título do #898 para os dois testes removidos (motivo: comportamento invertido por E14.32, coberto pelos testes e mutantes da spec do item); sem ele a `catraca` segue vermelha.
+- Pareceres de QA e segurança no head `432ac20d`.
