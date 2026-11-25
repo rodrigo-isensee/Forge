@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "G4 F1: o aviso grava teria_barrado, não barrado",
       "arquivo": "hooks/conformidade.py",
-      "de": "        registrar_recusa(self.h, \"teria_barrado\" if avisar else \"barrado\", rid, grupo, alvo)",
-      "para": "        registrar_recusa(self.h, \"teria_barrado\" if not avisar else \"barrado\", rid, grupo, alvo)",
+      "de": "            registrar_recusa(self.h, \"teria_barrado\", rid, grupo, alvo)",
+      "para": "            registrar_recusa(self.h, \"barrado\", rid, grupo, alvo)",
       "testes": [
         "tests.test_hooks.ModoPorGrupo.test_grupo_em_avisar_deixa_passar_imprime_a_forma_certa_e_registra_teria_barrado"
       ]
@@ -36,8 +36,8 @@
       "id": "M4",
       "guarda": "G4 F1: grupo em avisar deixa passar",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if avisar:\n            print(",
-      "para": "        if False:\n            print(",
+      "de": "        if avisar:\n            registrar_recusa(",
+      "para": "        if False:\n            registrar_recusa(",
       "testes": [
         "tests.test_hooks.ModoPorGrupo.test_grupo_em_avisar_deixa_passar_imprime_a_forma_certa_e_registra_teria_barrado"
       ]
@@ -46,8 +46,8 @@
       "id": "M5",
       "guarda": "G4 F1: o registro vai à pasta run já resolvida pelo hook",
       "arquivo": "hooks/conformidade.py",
-      "de": "        run = hook._run or hook.copia_principal() / \".forge\" / \"run\"",
-      "para": "        run = hook.copia_principal() / \".forge\" / \"run\"",
+      "de": "        run = hook._run\n",
+      "para": "        run = None\n",
       "testes": [
         "tests.test_hooks.ModoPorGrupo.test_registro_vai_a_pasta_run_do_hook_ou_a_do_clone_e_nunca_cria_pasta"
       ]
@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "G4 F1: sem .forge/run, o registro vai ao diretório comum do clone",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if not run.is_dir():\n            run = diretorio_comum(hook.raiz)",
-      "para": "        if False:\n            run = diretorio_comum(hook.raiz)",
+      "de": "            if not run.is_dir():\n                run = comum / \"forge\" / \"run\"",
+      "para": "            if False:\n                run = comum / \"forge\" / \"run\"",
       "testes": [
         "tests.test_hooks.ModoPorGrupo.test_registro_vai_a_pasta_run_do_hook_ou_a_do_clone_e_nunca_cria_pasta"
       ]

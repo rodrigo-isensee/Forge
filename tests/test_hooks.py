@@ -52,6 +52,7 @@ import re
 import shlex
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -4269,6 +4270,105 @@ class ModoPorGrupo(unittest.TestCase):  # G4-TRAVA-REAL-BP8, F1 (v0481 E7.7): o 
                                      self.pol, "tech-lead")
         guarda.h.iniciante.return_value = False
         self.barra(guarda)
+
+    def sem_travar(self, funcao, segundos=2):
+        """Roda `funcao` sob um alarme próprio: se ela travar (o `open` de um FIFO sem leitor), `Travou` (BaseException,
+        que nenhum `except` do hook engole) derruba o teste em vez de prender a suíte."""
+        def vencer(*_):
+            raise Travou()
+        anterior = signal.signal(signal.SIGALRM, vencer)
+        signal.setitimer(signal.ITIMER_REAL, segundos)
+        try:
+            return funcao()
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, anterior)
+
+    @unittest.skipUnless(hasattr(os, "mkfifo") and hasattr(signal, "setitimer"), "sem FIFO ou alarme")
+    def test_registro_nao_espera_fifo_nem_grava_nele(self):  # A1 do #885: o FIFO prendia a recusa até o prazo
+        fifo = self.run_ / "comandos.jsonl"
+        os.mkfifo(fifo)
+        self.sem_travar(lambda: self.barra(self.guarda({})))  # sem leitor: o open não espera
+        leitor = os.open(fifo, os.O_RDONLY | os.O_NONBLOCK)
+        self.addCleanup(os.close, leitor)
+        self.sem_travar(lambda: self.barra(self.guarda({})))  # com leitor: abre, mas não é arquivo regular
+        try:
+            lido = os.read(leitor, 4096)
+        except BlockingIOError:
+            lido = b""
+        self.assertEqual(lido, b"", "nada é gravado em FIFO")
+        self.assertTrue(stat.S_ISFIFO(os.lstat(fifo).st_mode))
+
+    def test_prazo_vencido_no_registro_nao_troca_a_recusa(self):
+        _comum, conformidade, _ = modulos_dos_hooks()
+        with mock.patch.object(conformidade, "registrar_recusa", side_effect=_comum.PrazoVencido()):
+            self.barra(self.guarda({}))
+
+    def test_registro_acha_a_pasta_pelo_disco_sem_git(self):  # A2 do review: nada de `git` no caminho da recusa
+        _comum, _, _ = modulos_dos_hooks()
+        with mock.patch.object(_comum.Hook, "copia_principal", side_effect=AssertionError("git no caminho da recusa")):
+            self.barra(self.guarda({}, run=False))  # fora de git: a pasta `run` da raiz
+            self.assertEqual(len(self.linhas()), 1)
+            principal, wt = self.tmp / "principal", self.tmp / "wt"
+            principal.mkdir()
+            git("init", "-q", "-b", "develop", cwd=principal)
+            git("-c", "user.email=t@example.com", "-c", "user.name=Teste", "commit", "-q", "--allow-empty", "-m", "base",
+                cwd=principal)
+            git("worktree", "add", "-q", "--detach", str(wt), cwd=principal)
+            (principal / ".forge" / "run").mkdir(parents=True)
+            guarda = self.guarda({}, run=False)
+            guarda.h.raiz = wt
+            self.barra(guarda)
+        self.assertEqual(len(self.linhas(principal / ".forge" / "run")), 1, "a worktree grava na cópia principal")
+
+    def test_iniciante_recebe_o_texto_simples(self):
+        guarda = self.guarda({})
+        (self.tmp / ".forge" / "perfil").write_text("iniciante\n", encoding="utf-8")
+        _, conformidade, _ = modulos_dos_hooks()
+        with contextlib.redirect_stderr(io.StringIO()) as erro, self.assertRaises(SystemExit) as saida:
+            guarda.barrar("R-VERIFY", "git push --force", "corrija a causa", "forca")
+        self.assertEqual((saida.exception.code, erro.getvalue()), (2, f"R-VERIFY: {conformidade.SIMPLES['forca']}\n"))
+        self.assertEqual(self.linhas()[0]["barrado"], "R-VERIFY")
+
+
+class Travou(BaseException):
+    """O alarme de `ModoPorGrupo.sem_travar` venceu."""
+
+
+@unittest.skipUnless(hasattr(os, "mkfifo"), "sem FIFO")
+class RecusaComFifoNoRegistro(unittest.TestCase):  # S1 a S3 do review do #885, pelo hook de verdade, nas duas sessões
+    """Com um FIFO no lugar do `comandos.jsonl`, a recusa sai com a regra dela, sem passar pelo prazo vencido: na sessão
+    do Forge (raiz e pasta corrente no clone, não vigiada) o prazo vencido liberava; no projeto, trocava a regra."""
+    COMANDOS = (("git push origin feature/x:main", "R-MAIN"), ("git push --force origin feature/x", "R-VERIFY"),
+                ("git commit --no-verify -m x", "R-VERIFY"))
+
+    def montar(self, forge):
+        raiz = Path(tempfile.mkdtemp(prefix="forge-fifo-"))
+        self.addCleanup(shutil.rmtree, raiz, True)
+        git("init", "-q", "-b", "feature/x", cwd=raiz)
+        if forge:
+            (raiz / ".claude-plugin").mkdir()
+            (raiz / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}\n', encoding="utf-8")
+        else:
+            (raiz / ".forge").mkdir()
+            (raiz / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        (raiz / ".forge" / "run").mkdir(parents=True, exist_ok=True)
+        os.mkfifo(raiz / ".forge" / "run" / "comandos.jsonl")
+        return raiz
+
+    def test_recusa_com_a_regra_dela_e_sem_prazo_vencido(self):
+        for forge in (True, False):
+            raiz = self.montar(forge)
+            for comando, regra in self.COMANDOS:
+                with self.subTest(sessao="forge" if forge else "projeto", comando=comando):
+                    entrada = {"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": str(raiz),
+                               "agent_type": "forge:tech-lead", "hook_event_name": "PreToolUse", "session_id": "s1"}
+                    inicio = time.monotonic()
+                    r = rodar("conformidade", entrada, raiz, extra={"CLAUDE_PROJECT_DIR": str(raiz)}, producao=True)
+                    gasto = time.monotonic() - inicio
+                    self.assertEqual(r.returncode, 2, f"liberado em {gasto:.1f} s: {r.stderr[:200]}")
+                    self.assertTrue(r.stderr.startswith(f"{regra}: "), r.stderr[:200])
+                    self.assertNotIn("não decidiu", r.stderr)
 
 
 if __name__ == "__main__":

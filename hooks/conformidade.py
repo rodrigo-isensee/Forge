@@ -34,7 +34,7 @@ from pathlib import Path
 import parecer
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TETO, CORPO_DE_LACO, INTEGRACAO,
                     GIT_GRAVA_ARQUIVO, LancadorDemais, OPACO, TextoAbertoComLeituras, TextoDivididoAberto,
-                    LIMITE_MENSAGEM, PLUGIN, PROFUNDIDADE, bloquear, comentarios,
+                    LIMITE_MENSAGEM, PLUGIN, PrazoVencido, PROFUNDIDADE, bloquear, comentarios,
                     construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, formas_que_o_shell_le, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, expandir_home, fora_da_gramatica_com_heredoc,
                     expandir_heredoc, fora_da_gramatica_de_leitura, FORMA_DO_HEREDOC, heredocs, motivo_da_reavaliacao,
@@ -1510,17 +1510,26 @@ def caminho_com_curinga_no_texto(caminho, texto):
 def registrar_recusa(hook, chave, rid, grupo, alvo):
     """G4 F1: a recusa (`barrado`) ou o aviso (`teria_barrado`) numa linha do `comandos.jsonl`, com `fonte`, `grupo` e
     `alvo` (None é a recusa só pelo texto da linha: a recusa falsa a medir). Só na pasta `run` que já existe (não cria
-    estado fora do projeto), sem seguir link; a falha de gravação não muda a decisão."""
+    estado fora do projeto), achada só pelo disco (sem `git`: nada lento no caminho da recusa), sem seguir link nem
+    esperar FIFO (`O_NONBLOCK`, e só grava em arquivo regular, como `anexar_ao_log`); a falha de gravação não muda a
+    decisão."""
     try:
-        run = hook._run or hook.copia_principal() / ".forge" / "run"
-        if not run.is_dir():
-            run = diretorio_comum(hook.raiz) / "forge" / "run"
+        run = hook._run
+        if run is None:
+            comum = diretorio_comum(hook.raiz)
+            run = (comum.parent if comum is not None and comum.name == ".git" else hook.raiz) / ".forge" / "run"
+            if not run.is_dir():
+                run = comum / "forge" / "run"
         linha = {"hora": time.strftime("%Y-%m-%dT%H:%M:%S"), "sessao": hook.campo("session_id"),
                  "agente": hook.campo("agent_type"), "fonte": "conformidade", chave: rid, "grupo": grupo,
                  "alvo": None if alvo is None else str(alvo)[:300]}
-        fd = os.open(run / "comandos.jsonl", os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o666)
-        with os.fdopen(fd, "a", encoding="utf-8") as saida:
-            saida.write(json.dumps(linha, ensure_ascii=False) + "\n")
+        fd = os.open(run / "comandos.jsonl",
+                     os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o666)
+        try:
+            if stat.S_ISREG(os.fstat(fd).st_mode):
+                os.write(fd, (json.dumps(linha, ensure_ascii=False) + "\n").encode("utf-8"))
+        finally:
+            os.close(fd)
     except Exception:  # noqa: BLE001 - o registro é medida: sem pasta `run`, link ou erro, a decisão segue a mesma
         return
 
@@ -1569,13 +1578,16 @@ class Guarda:
         grupo = grupo or rid
         modos = self.pol.get("modo_por_grupo")
         avisar = isinstance(modos, dict) and modos.get(grupo) == "avisar"
-        registrar_recusa(self.h, "teria_barrado" if avisar else "barrado", rid, grupo, alvo)
         if avisar:
+            registrar_recusa(self.h, "teria_barrado", rid, grupo, alvo)
             print(mensagem(rid, f"aviso: teria barrado: {o_que}. Corrigir: {corrigir}"), file=sys.stderr)
             return
-        if simples and self.h.iniciante():
-            bloquear(rid, SIMPLES[simples])
-        bloquear(rid, com_trecho(rid, o_que, corrigir, self.trecho))
+        texto = SIMPLES[simples] if simples and self.h.iniciante() else com_trecho(rid, o_que, corrigir, self.trecho)
+        try:  # a recusa já está decidida: o registro grava depois dela, e o prazo vencido nele não a troca
+            registrar_recusa(self.h, "barrado", rid, grupo, alvo)
+        except PrazoVencido:
+            pass
+        bloquear(rid, texto)
 
     def perguntar(self, texto):
         """Só no perfil iniciante: o ato é legítimo mas arriscado; a pessoa confirma na janela de permissão, com a

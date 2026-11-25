@@ -6,8 +6,8 @@
       "id": "M9",
       "guarda": "G4 F1: o registro não segue link plantado em comandos.jsonl",
       "arquivo": "hooks/conformidade.py",
-      "de": "os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o666)",
-      "para": "os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o666)",
+      "de": "os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o666)",
+      "para": "os.O_CREAT | os.O_NONBLOCK, 0o666)",
       "testes": [
         "tests.test_hooks.ModoPorGrupo.test_registro_nao_segue_link_e_erro_dele_nao_muda_a_decisao"
       ]
@@ -20,6 +20,66 @@
       "para": "    \"R-VERIFY\": \"avisar\"",
       "testes": [
         "tests.test_hooks.ModoPorGrupo.test_a_politica_entregue_tem_todo_grupo_em_barrar"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "A1 do #885: o registro não espera FIFO sem leitor (O_NONBLOCK)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o666)",
+      "para": "os.O_CREAT | os.O_NOFOLLOW, 0o666)",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_registro_nao_espera_fifo_nem_grava_nele"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "A1 do #885: só grava em arquivo regular (FIFO com leitor não recebe a linha)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if stat.S_ISREG(os.fstat(fd).st_mode):\n                os.write(fd,",
+      "para": "            if True:\n                os.write(fd,",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_registro_nao_espera_fifo_nem_grava_nele"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "A1 do #885: o prazo vencido no registro não troca a recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        except PrazoVencido:\n            pass\n        bloquear(rid, texto)",
+      "para": "        except ZeroDivisionError:\n            pass\n        bloquear(rid, texto)",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_prazo_vencido_no_registro_nao_troca_a_recusa"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "A2 do review: sem pasta run resolvida, acha a pasta pelo disco",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if run is None:\n            comum = diretorio_comum(hook.raiz)",
+      "para": "        if False:\n            comum = diretorio_comum(hook.raiz)",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_registro_acha_a_pasta_pelo_disco_sem_git"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "A2 do review: a worktree grava na cópia principal; fora de git, na raiz",
+      "arquivo": "hooks/conformidade.py",
+      "de": "comum.parent if comum is not None and comum.name == \".git\" else hook.raiz",
+      "para": "comum.parent if True else hook.raiz",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_registro_acha_a_pasta_pelo_disco_sem_git"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "G4 F1: no perfil iniciante a recusa usa o texto simples",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        texto = SIMPLES[simples] if simples and self.h.iniciante() else",
+      "para": "        texto = SIMPLES[simples] if False else",
+      "testes": [
+        "tests.test_hooks.ModoPorGrupo.test_iniciante_recebe_o_texto_simples"
       ]
     }
   ]
