@@ -288,7 +288,8 @@ class Entrega(Repositorio):
         rc, saida = self.conferir()
         self.assertEqual(rc, 0, saida)
         for linha in ('escopo: ok (declarado no brief: bin/app) "bin/app"', "prova: PQ-1 (cmd): ok", "prova: PQ-2 (arquivo): ok",
-                      "prova: PQ-3 (cmd): ok (é esta conferência)", "commits: 1 em", "resultado: cumpriu"):
+                      "prova: PQ-3 (cmd): ok (é esta conferência)", "commits: 1 em", "resultado: cumpriu",
+                      "pronto: não rodado aqui (--so-leitura, sem worktree ou fora do Forge)"):  # D2-NO-BRIEF: projeto sem forge-testes
             self.assertIn(linha, saida)
         self.assertEqual(fc.entregas_conferidas(self.pedido()), [head])
         rc, saida = self.conferir()
@@ -419,6 +420,24 @@ class Entrega(Repositorio):
         self.assertIn('escopo: fora do declarado no brief "bin/outro"', saida)
         self.assertIn('escopo: fora do declarado no brief "fora.txt"', saida)
         self.assertNotIn("outro-1.md", saida)
+
+    def test_d2_vermelho_na_copia_do_forge_nao_cumpre(self):
+        """D2-NO-BRIEF (v0481 E14.51): na cópia com bin/forge-testes (aqui ignorado pelo git, a worktree segue limpa), a conferência
+        roda o `forge-check pronto`; o rc fora de 0 reprova com a última linha dele e a entrega não é gravada."""
+        self.selado()
+        self.entregar()
+        (self.proj / ".git" / "info" / "exclude").write_text("bin/forge-testes\n", encoding="utf-8")
+        self.gravar("bin/forge-testes", "import sys\nsys.exit(1)\n")
+        falsos = self.tmp / "falsos"
+        falsos.mkdir()
+        (falsos / "gh").write_text("#!/bin/sh\necho 'no pull requests found for branch' >&2\nexit 1\n", encoding="utf-8")
+        (falsos / "gh").chmod(0o755)
+        self.env["PATH"] = f"{falsos}{os.pathsep}{self.env.get('PATH', '')}"
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("pendente: D2 vermelho: forge-check pronto rc 1: pronto: reprovado em registros", saida)
+        self.assertIn("resultado: não cumpriu", saida)
+        self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
 
     def test_prova_que_falha_nao_cumpre(self):
         self.selado(pq_extra="- PQ-4 (cmd): `git rev-parse HEAD` · espera: igual 'nada'\n")

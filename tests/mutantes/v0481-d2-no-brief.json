@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-d2-no-brief",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "tamanho_e_corpo: o título com o cabeçalho do brief reprova",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "    if titulo and TITULO_DO_BRIEF.search(titulo):",
+      "para": "    if titulo and not TITULO_DO_BRIEF.search(titulo):",
+      "testes": [
+        "tests.test_forge_pronto.TituloDoPr"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "versao_em: o git que falha não dá versão",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "    return None if rc else next(iter(VERSAO.findall(saida)), None)",
+      "para": "    return None if not rc else next(iter(VERSAO.findall(saida)), None)",
+      "testes": [
+        "tests.test_forge_pronto.BaseVelha.test_marca_depois_do_nascimento_manda_trazer_a_base_sem_rodar_as_checagens"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "base_velha: a origin/<ramo> é buscada antes de comparar",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "    if remoto == \"origin\" and RAMO_BUSCAVEL.fullmatch(ramo)",
+      "para": "    if remoto == \"nenhum\" and RAMO_BUSCAVEL.fullmatch(ramo)",
+      "testes": [
+        "tests.test_forge_pronto.BaseVelha.test_marca_depois_do_nascimento_manda_trazer_a_base_sem_rodar_as_checagens"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "base_velha: só a versão diferente da do nascimento é base velha",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "    if agora and nascimento and agora != nascimento:",
+      "para": "    if agora and nascimento and agora == nascimento:",
+      "testes": [
+        "tests.test_forge_pronto.BaseVelha"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "cmd_pronto: a base velha reprova antes das checagens",
+      "arquivo": "bin/forge-check",
+      "de": "    if velha := pronto.base_velha(raiz, base, ancora):",
+      "para": "    if (velha := pronto.base_velha(raiz, base, ancora)) and False:",
+      "testes": [
+        "tests.test_forge_pronto.BaseVelha.test_marca_depois_do_nascimento_manda_trazer_a_base_sem_rodar_as_checagens"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "cmd_pronto: o título do PR aberto chega ao portão",
+      "arquivo": "bin/forge-check",
+      "de": "        titulo = pr.get(\"title\") if corpo is not None else None",
+      "para": "        titulo = pr.get(\"title\") if corpo is None else None",
+      "testes": [
+        "tests.test_forge_pronto.TituloNoCmdPronto"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "pr_da_branch: com o corpo, o título lido do gh chega ao pronto",
+      "arquivo": "bin/forge-check",
+      "de": "\"title\": str(dados.get(\"title\", \"\"))} if corpo",
+      "para": "\"title\": \"\"} if corpo",
+      "testes": [
+        "tests.test_forge_pronto.TituloNoCmdPronto"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "brief gerar: só o brief de código do Forge manda rodar o D2",
+      "arquivo": "bin/forge-check",
+      "de": "            if e_o_forge(Path(raiz)):  # D2-NO-BRIEF",
+      "para": "            if not e_o_forge(Path(raiz)):  # D2-NO-BRIEF",
+      "testes": [
+        "tests.test_pre_envio_brief.Gerar.test_codigo_do_forge_manda_rodar_o_d2_e_fora_do_forge_nao"
+      ]
+    }
+  ]
+}
