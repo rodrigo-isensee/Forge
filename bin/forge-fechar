@@ -1664,15 +1664,17 @@ if [ "$seco" = 1 ] && [ "$limpar" = 1 ]; then  # o --limpar roda só o passo 7 (
   exit 0
 fi
 if [ "$seco" = 1 ]; then
-  echo "forge-fechar --dry-run: nada será executado além do 1c, que só lê."
+  echo "forge-fechar --dry-run: nada será executado além do 1c, que só lê (sem a branch local, ela nasce da origin/$ref só para o 1c e sai no fim)."
   # Só leitura local: o passo 1 real passa o nome da branch local (FECHAR-REF-POR-NOME), o número do PR só existe depois do passo 3 (o --dry-run não chama gh nem o servidor).
   # FECHAR-DRYRUN-SEM-BRANCH (v0481 E14.32): sem a branch local (clone separado), cria-a sem rastreio na origin/<branch> deste clone
-  # (sem busca) e o 1c roda; sem a origin/<branch>, para com 1: o 1c que não roda nunca sai com 0.
+  # (sem busca) e o 1c roda; sem a origin/<branch>, para com 1: o 1c que não roda nunca sai com 0. A ref criada sai no fim()
+  # (branch_criada, FECHAR-CRIA-BRANCH): deixada, o passo real seguinte usaria a origin/<branch> velha em vez do servidor.
   if ! sha_dry="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)"; then
     sha_dry="$(git rev-parse --verify -q "refs/remotes/origin/$ref^{commit}" 2>/dev/null)" \
       || die "parou no --dry-run: sem a branch local $ref e sem a origin/$ref neste clone, o 1c não roda (o --dry-run não busca no servidor); rode git fetch origin $ref e repita"
     git branch --no-track "$ref" "$sha_dry" >/dev/null 2>&1 || die "parou no --dry-run: não consegui criar a branch local $ref na origin/$ref (${sha_dry:0:12}); o 1c não rodou"
-    echo "registro: criei a branch local $ref na origin/$ref (${sha_dry:0:12}, sem rastreio)"
+    branch_criada="$sha_dry"
+    echo "registro: criei a branch local $ref na origin/$ref (${sha_dry:0:12}, sem rastreio); ela sai no fim do --dry-run e o passo real lê o servidor (para conferir um head mais novo, git fetch origin $ref e repita)"
   fi
   passo 1 "$check pr $pedido --ref refs/heads/$ref --base $base"
   passo "1c" "python3 -I $promover --conferir-ref $sha_dry (a árvore que entra na $alvo é promovível; rc diferente de 0, prazo de 300 s ou script ausente param; o passo real antes busca a origin/homolog)"

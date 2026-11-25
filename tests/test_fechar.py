@@ -374,17 +374,37 @@ class Fechar(unittest.TestCase):
         self.git("branch", "-q", "-D", "melhoria/x")
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
-        self.assertIn(f"registro: criei a branch local melhoria/x na origin/melhoria/x ({sha[:12]}, sem rastreio)", r.stdout)
-        self.assertEqual(self.git("rev-parse", "refs/heads/melhoria/x"), sha)
+        self.assertIn(f"registro: criei a branch local melhoria/x na origin/melhoria/x ({sha[:12]}, sem rastreio); ela sai no fim "
+                      "do --dry-run e o passo real lê o servidor (para conferir um head mais novo, git fetch origin melhoria/x e repita)",
+                      r.stdout)
+        self.assertIn("sem a branch local, ela nasce da origin/melhoria/x só para o 1c e sai no fim", r.stdout)
         rastreio = subprocess.run(["git", "config", "--get", "branch.melhoria/x.merge"], cwd=self.proj, env=self.env, capture_output=True)
         self.assertEqual(rastreio.returncode, 1, rastreio.stdout)  # sem rastreio: a chave não existe
         self.assertEqual((self.estado / "promover").read_text(), f"--conferir-ref {sha}\n")
         self.assertIn("pr p1 --ref refs/heads/melhoria/x --base", r.stdout)
         self.assertNotIn("não rodou", r.stdout)
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")  # a ref do 1c sai no fim()
+        self.assertIn("registro: apaguei a branch local melhoria/x", r.stderr)
+
+    def test_dry_run_sem_a_branch_local_nao_prende_o_passo_real_na_origin_velha(self):
+        velho = self.git("rev-parse", "melhoria/x")
+        novo = self.git("commit-tree", "melhoria/x^{tree}", "-p", velho, "-m", "feat: outro agente")
+        self.git("push", "-q", "origin", f"{novo}:refs/heads/melhoria/x")  # o servidor anda
+        self.git("update-ref", "refs/remotes/origin/melhoria/x", velho)  # a origin/<b> deste clone fica velha
+        self.git("branch", "-q", "-D", "melhoria/x")
+        seco = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertEqual(seco.returncode, 0, seco.stderr + seco.stdout)
+        self.assertEqual((self.estado / "promover").read_text(), f"--conferir-ref {velho}\n")
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
+        real = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertIn(real.returncode, (0, 3), real.stderr + real.stdout)
+        self.assertNotIn("envie a branch", real.stderr)
+        self.assertIn(f"forge-check pr p1 --ref {novo} --base origin/develop", self.chamadas())
 
     def test_1c_no_dry_run_sem_a_branch_local_que_recusa_para_com_1(self):
         self.git("branch", "-q", "-D", "melhoria/x")
         self.assert_parou_no_1c(self.fechar("p1", "--ref", "melhoria/x", "--dry-run", PROMOVER_RC="1"))
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")  # a recusa também apaga a ref criada
 
     def test_1c_no_dry_run_sem_a_branch_local_nem_a_origin_para_com_1_e_diz_como_destravar(self):
         self.git("branch", "-q", "-D", "melhoria/x")

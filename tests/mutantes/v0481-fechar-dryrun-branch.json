@@ -41,6 +41,17 @@
       "testes": [
         "tests.test_fechar.Fechar.test_1c_no_dry_run_que_nao_cria_a_branch_para_com_1"
       ]
+    },
+    {
+      "id": "M5",
+      "guarda": "FECHAR-DRYRUN-SEM-BRANCH: a branch que o --dry-run cria sai no fim (branch_criada), o passo real le o servidor",
+      "arquivo": "bin/forge-fechar",
+      "de": "    branch_criada=\"$sha_dry\"",
+      "para": "    : branch_criada=\"$sha_dry\"",
+      "testes": [
+        "tests.test_fechar.Fechar.test_1c_no_dry_run_sem_a_branch_local_cria_da_origin_sem_rastreio_e_roda",
+        "tests.test_fechar.Fechar.test_dry_run_sem_a_branch_local_nao_prende_o_passo_real_na_origin_velha"
+      ]
     }
   ]
 }
