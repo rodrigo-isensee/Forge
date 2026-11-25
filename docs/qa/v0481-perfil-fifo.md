@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-perfil-fifo
-commit: 517f80fd166ae8230ef6dd5af7991324975ead0e
+commit: dba51ddfb97745dfcab0f74df93471e376aaf8fc
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -49,3 +49,16 @@ Classe C, correção sem especificação de UX nova (sem plano antecipado). Obri
 - Mutação: `bin/forge-mutante tests/mutantes/v0481-perfil-fifo.json tests/mutantes/v0481-perfil-fifo-2.json --processos 2` -> M1 a M9 `morreu` (M8 `_comum.py:156`, M9 `_comum.py:158`), rc 0. `--cobertura --base 5fb8e328`: `_comum.py:158` e as 5 linhas de `conformidade.py` `coberta`; nenhuma `não coberta`. A linha 156 (`os.open`) não é condição Python, e M8 a cobre.
 - Sonda (`sonda_fifo.py`, FIFO em `.forge/perfil`, árvore do head): push na main, `--force` e `--no-verify` recusam com a regra certa em 0,1 a 0,2 s nas duas sessões; igual à rodada anterior, o resíduo A1 (`Hook.iniciante`: `reset --hard` no projeto e `Write` no perfil, 3,1 s) segue, sem mudança.
 - Catraca: `catraca.forca_dos_testes` por AST, (asserções, pulos, vazios): base `5fb8e328` (17169, 38, 0); `8dfe968f` (17178, 39, 0); `517f80fd` (17183, 38, 0). Os pulos voltaram a 38 e nenhum teste perdeu asserção. No CI do sha `517f80fd` o check `catraca` está `failure` (check-run 138979586409); não li o log (cache do `gh` somente leitura), então não atribuo a causa; quem mescla confere o log. `bateria (pareceres)` também falha, esperado até os pareceres desta etapa entrarem. As suítes 3.12 e 3.14 estavam em andamento na leitura.
+
+## Delta E7.34 (de afa98e1a a dba51ddf)
+`git diff afa98e1a..dba51ddf`: um arquivo, `tests/mutantes/v0475-mp1-mp7.json`, só o `de` e o `para` da M3. `hooks/` e `tests/test_*.py` não mudaram; os testes da M3 são os mesmos dois (`test_ativos_em_link_fifo_grande_ou_com_nomes_demais_nao_mede`, `test_ativos_em_fifo_com_escritor_e_json_valido_nao_vale`) e a guarda é a mesma (`hooks/_comum.py:123`, `if not stat.S_ISREG(os.fstat(fd).st_mode):` seguido de `return None`). Obrigação: a M3 aplica (trecho único) e morre, sem mexer em guarda (A2 da segurança).
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| O par `if ... S_ISREG ...:` mais `return None` aparece uma vez em `_comum.py` | contagem do par no head: 1 (o `if` sozinho aparece 2) | trecho único do `de` | passou |
+| A M3 morre | `bin/forge-mutante tests/mutantes/v0475-mp1-mp7.json --ids M3` | só arquivo regular é lido | `M3 · morreu · hooks/_comum.py:123`, rc 0 |
+| `--conferir --todas` não piora | `bin/forge-mutante --conferir --todas` no head, na base `5fb8e328` e em `afa98e1a` | spec com trecho no lugar | head igual à base `5fb8e328` (diff vazio); contra `afa98e1a` só some a linha da M3 ("aparece 2 vezes") |
+
+- As demais linhas que o `--conferir --todas` lista (v0451-n1n3 A5, v0457-escopo-ponto-3 M17 e M20, z075-prepush-relogio M1 e M2) são as mesmas da base e de outros pedidos.
+- ci: head `dba51ddf`, check-runs: suíte 3.12 e 3.14 (partes 1 a 5) success (a parte 4/5, que caía por A2, passa), teto de pulados 3.12 e 3.14 success, bateria (python 3.14) success, bateria (verificações longas) success. Falham `bateria (pareceres)` (esperado até este parecer entrar), `catraca` (log lido: só o rótulo `afrouxa-regra` do dono para `hooks/_comum.py` e `hooks/conformidade.py`, ADR 0008; decisão do dono, não defeito) e o agregado `bateria`, que depende deles. As partes que contam para o meu domínio estão verdes.
+- Sem achado novo. O A1 do parecer anterior (`Hook.iniciante`) segue recomendado, para cartão depois do merge.
