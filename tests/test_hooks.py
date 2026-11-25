@@ -4313,7 +4313,7 @@ class SalvarAoParar(unittest.TestCase):
         git("init", "-q", "--bare", "-b", "develop", str(self.remoto), cwd=self.tmp)
         remoto_sem_manutencao(self.remoto)
         repositorio_vazio(self.raiz, "develop")
-        for rel, texto in ((".forge/versao", "0.5.0\n"), (".gitignore", ".forge/run/\n.forge/wt/\ndocs/briefs/\n"), ("README.md", "r\n"),
+        for rel, texto in ((".forge/versao", "0.5.0\n"), (".gitignore", ".forge/run/\n.forge/wt/\ndocs/briefs/\n"), ("notas.txt", "r\n"),
                            ("hooks/x.py", "x = 0\n"), ("docs/a.md", "a0\n"), ("docs/a.md2", "b0\n")):  # a.md2 rastreado: M8/M9
             (self.raiz / rel).parent.mkdir(parents=True, exist_ok=True)
             (self.raiz / rel).write_text(texto, encoding="utf-8")
@@ -4393,13 +4393,13 @@ class SalvarAoParar(unittest.TestCase):
     def test_salva_so_o_escopo_na_copia(self):
         self.brief()
         self.gravar({"hooks/x.py": "x = 1\n", "docs/a.md": "a\n", "docs/a.md2": "fora\n", "docs/b.md": "fora\n",
-                     "README.md": "mudado fora\n"})
+                     "notas.txt": "mudado fora\n"})
         self.parar()
         self.assertIsNone(self.no_remoto(), "o salvar só grava na cópia: nada vai ao remoto")
         self.assertEqual(git("show", "--name-only", "--format=", "HEAD", cwd=self.copia).stdout.split(), ["docs/a.md", "hooks/x.py"])
-        self.assertEqual((self.salvo(), self.salvo("docs/a.md"), self.salvo("README.md")), ("x = 1\n", "a\n", "r\n"))
+        self.assertEqual((self.salvo(), self.salvo("docs/a.md"), self.salvo("notas.txt")), ("x = 1\n", "a\n", "r\n"))
         self.assertEqual(git("status", "--porcelain", cwd=self.copia).stdout.splitlines(),
-                         [" M README.md", " M docs/a.md2", "?? docs/b.md"], "arquivo exato do escopo não vale como prefixo")
+                         [" M docs/a.md2", " M notas.txt", "?? docs/b.md"], "arquivo exato do escopo não vale como prefixo")
         self.assertIn("melhoria/x", self.log())
         self.assertIn("2 arquivo(s) salvo(s) na cópia, sem envio", self.log())
 
