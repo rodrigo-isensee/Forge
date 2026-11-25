@@ -3,39 +3,35 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-g2-1-publicar
-commit: 841c14dcdc209c0cb1375caba6b11bcc0d4b155f
-parecer: reprovado
+commit: dc6bc47efb98f0f017510992325e629f64e29214
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-25
 ---
-# Review de segurança: v0481 (E6.24, #878, G2.1 `forge-check parecer publicar`), volta por delta
+# Review de segurança: v0481 (E6.28, #878, G2.1 `forge-check parecer publicar`), volta por delta
 
-Revalidação por delta da rodada aprovada em c78bfe22 (E6.20; texto no git). Delta lido: `forge-check parecer delta` deste arquivo até 841c14dc e `git diff c78bfe22..841c14dc` (no domínio: `hooks/conformidade.py`, `tests/test_hooks.py` e as 3 fixtures novas `contrib-publicar-*`; fora: changelog e `tests/mutantes/v0481-g2-1-publicar-6.json`, lido também). Veredito: o A1 do review E6.18 está fechado (a última `--raiz` vale, como no argparse), mas a troca da primeira pela última `--raiz` abre um caso que barrava em c78bfe22 e hoje libera (A1 abaixo). Não é "só aperta ou neutro".
+Revalidação por delta da rodada reprovada em 841c14dc (E6.24; texto no git). Delta lido: `forge-check parecer delta` deste arquivo até dc6bc47e e `git diff 841c14dc..dc6bc47e`. O que é da branch (fora o que veio da develop pelos 3 merges, conferido pela comparação do diff próprio `merge-base..841c14dc` com `6cc4cd5a..dc6bc47e`): o `break` no `--` em `ultima_raiz`, 1 fixture nova, o mínimo de fixtures do lote de 8 para 9, o mutante M37 (e o ajuste dele em dc6bc47e), o ambiente do git em `tests/test_forge_pareceres.py`, a linha do índice e a união de `FORGE_CHECK` em `bin/forge-testes` na resolução do conflito (entra `test_forge_pronto` da develop e fica `test_forge_pareceres`). O resto do diff do intervalo veio da develop e já passou pelos portões dela.
 
 Gatilhos: controles-do-forge, autorizacao, ci-cd.
 
-## Achados
-- A1 (bloqueante) hooks/conformidade.py:1386 · ultima_raiz lê também as palavras depois de `--`, que o argparse trata como o posicional `arquivo`: `forge-check --raiz <clone do Forge> parecer publicar -- --raiz=x/.forge/pareceres/v1/review.md` barrava em c78bfe22 e libera em 841c14dc (S1). Correção: parar o laço em `--`.
+O que aperta, o que é neutro, o que afrouxa:
+- Aperta: `hooks/conformidade.py:1388` (`--` encerra a leitura da `--raiz`; a S1 da rodada anterior volta a barrar) e `tests/test_hooks.py:3126` (o mínimo do lote sobe de 8 para 9).
+- Neutro: `tests/test_forge_pareceres.py:78` e `:336` (o git do teste com `sem_manutencao`, só junta chaves de manutenção; AR-4), `docs/indice-forge.md`, o M37 de dc6bc47e (só mantém o comentário na troca; AR-12) e a união em `bin/forge-testes`.
+- Afrouxa: nada. Nenhuma fixture saiu, nenhuma asserção sumiu e nenhum mutante foi retirado.
 
-### A1, detalhe
-- Evidência: `hooks/conformidade.py:1383-1391` (`ultima_raiz`) varre todas as palavras; `:2577` usa o resultado como alvo. No `forge-check` real (`bin/forge-check:10729-10735`), depois de `--` a palavra `--raiz=...` é o `arquivo`, e a raiz continua a do Forge: rodei `python3 bin/forge-check --raiz <cópia> parecer publicar -- --raiz=x/.forge/pareceres/v1/review.md` e a recusa cita `--raiz=x/.forge/pareceres/v1/review.md` como o arquivo (rc 1 só porque o arquivo não existe).
-- Caminho de ataque: agente na sessão de projeto quer publicar no PR do Forge (R-CONTRIB). Põe o parecer em `<clone do Forge>/--raiz=x/.forge/pareceres/<pedido>/<tipo>.md` (o regex `(?:^|/)\.forge/pareceres/...` de `bin/forge-check:3752` casa) e roda a linha acima; o hook resolve a raiz `x/...` na pasta do projeto e libera. Exige o arquivo no clone do Forge e o registro de autoria; probabilidade baixa, impacto: a trava R-CONTRIB do publicar volta a ser contornável num caso que c78bfe22 barrava. Severidade média; bloqueia por ser regressão de controle provada, pedida no brief ("nada que barra hoje deixa de barrar").
-- Correção mínima (dono: o autor do item, E6.21): em `ultima_raiz`, `if a == "--": break` antes dos dois testes, e uma fixture V0481-PUBLICAR com a linha da S1 esperando código 2 `R-CONTRIB`, mais o mutante do `break`. Conferi aqui, numa cópia por `git archive`: com o `break`, a S1 barra e as 8 fixtures V0481-PUBLICAR passam.
-- O mesmo `--` também enganava a `parecer.opcao` de c78bfe22 quando não havia `--raiz` antes (`forge-check parecer publicar -- --raiz=...` na pasta do Forge); o `break` fecha os dois.
+## Achados
 
 ## Sondas
-- S1 · fixture conformidade, sessão de projeto, `forge-check --raiz ~/.forge-contrib/proj parecer publicar -- --raiz=x/.forge/pareceres/v1/review.md` · espera: código 2 R-CONTRIB · obtido: 841c14dc código 0; c78bfe22 código 2
 
-## Achados anteriores e A1 do review E6.18
-- A1 do review E6.18 (duas `--raiz`, vale a última): fechado. Sonda S2 (`--raiz .` antes e `--raiz=<clone do Forge>` depois do subcomando): c78bfe22 código 0, 841c14dc código 2. As fixtures novas (`-duas-raiz-a-ultima-no-forge-bloqueia`, `-raiz-depois-do-subcomando-no-forge-bloqueia`, `-duas-raiz-a-ultima-no-projeto-libera`) cobrem S1 e S2 do review e o caso inverso.
-- Sem abreviação de `--raiz` que contorne: todo prefixo dela é prefixo de `--raiz-pedidos` (ambíguo no argparse), como na rodada anterior. `--raiz` sem valor no fim é pulada e vale a anterior, como no argparse (que recusa a linha).
-- A1 e A2 da E6.16: seguem corrigido e resolvido (nada no delta toca `bin/forge_pareceres.py` nem `bin/forge-check`).
-
-## Mutantes
-M34, M35 e M36 mortos aqui contra `tests.test_hooks.Hooks.test_fixtures_do_publicar` (3, 1 e 2 falhas); a fixture da S1 não existe e o `break` proposto ainda não tem mutante.
+## Achados anteriores
+- A1 da E6.24 (`ultima_raiz` lia depois do `--`): fechado em `hooks/conformidade.py:1388`. A S1 virou a fixture `tests/hooks/conformidade/contrib-publicar-raiz-depois-do-separador-no-forge-bloqueia.json` (código 2, `R-CONTRIB`), que passa no head. A correção é a mínima proposta, sem enfraquecer teste.
+- M37: morto aqui numa cópia por `git archive` com a troca de dc6bc47e (`if False:` mantendo o comentário). `test_fixtures_do_publicar` falha só na fixture do separador.
+- Caso vizinho do `break` conferido: um `--` usado como valor de outra opção antes de uma `--raiz=` (`--x -- --raiz=y`) não engana o hook, porque o argparse do Python 3.12 recusa a linha (rc 2, "expected one argument" ou "unrecognized arguments"). O hook para no `--` e a linha nem roda. Falha fechada.
+- A1 do review E6.18 e A1/A2 da E6.16: seguem fechados (o delta próprio não toca `bin/forge-check` nem `bin/forge_pareceres.py`).
 
 ## Suíte e CI
-Sem CI no head 841c14dc: o #878 está `CONFLICTING` (a develop andou 29 commits) e nenhum run do `pull_request` saiu para esse sha; o último run é de 3f42827f. Sem `- ci:` por isso. Rodei aqui `test_fixtures_do_publicar` (OK no head, 8 fixtures), os mutantes e as sondas; a suíte inteira fica para o CI depois do rebase.
+Rodei aqui os módulos tocados: `tests.test_hooks.Hooks.test_fixtures_do_publicar` e `tests.test_forge_pareceres` (36 testes, OK). A bateria inteira fica com o CI. Run 45695317127 (CI) no head dc6bc47e: `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)`, as 10 partes da suíte (3.12 e 3.14), os dois `teto de pulados`, `instalação (python 3.14)` e `árvore já provada na develop` deram `success`. Falham só os jobs que esperam parecer. `bateria (pareceres)` falha porque os pareceres de review, QA e segurança da branch não aprovam no head (R-REVIEW, R-QA, R-SEGURANCA no log), e `bateria` é o agregador que cai por causa dela. A catraca (run 45695317364) falha com R-CONFORMIDADE porque a branch muda `bin/forge-check` e `hooks/conformidade.py`, que são controles, e isso só passa com o rótulo `afrouxa-regra` do dono, aplicado depois do último push. Não é falha de teste. O PR está `MERGEABLE`.
+- ci: dc6bc47efb98f0f017510992325e629f64e29214 verde
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. `gitleaks`, `semgrep`, `zizmor`, `actionlint` e `osv-scanner` ausentes do PATH: lacuna registrada, nada instalado (`R-CUSTO`). Revisão estática; nenhuma chamada de escrita à API.
+Nenhum risco aceito. `gitleaks`, `semgrep`, `zizmor`, `actionlint` e `osv-scanner` não estão no PATH. A lacuna fica registrada e nada foi instalado (`R-CUSTO`). A revisão foi estática, sem nenhuma chamada de escrita à API.
