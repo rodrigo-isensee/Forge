@@ -1553,7 +1553,7 @@ anexar_na_marca() {
   fi
   git worktree remove "$tmp/marca" || echo "aviso: não removi a cópia $tmp/marca do anexar; rode: git worktree remove $tmp/marca" >&2
   "$gh" pr edit "$ramo" --body "$(corpo_da_marca "$v" "$3" "$tmp/nova-medida")" >/dev/null \
-    || die "parou no passo V5: o fragmento entrou em $ramo, mas o corpo do PR não foi refeito; rode o mesmo comando ou ajuste a linha de teto à mão"
+    || die "parou no passo V5: o fragmento entrou em $ramo, mas o corpo do PR não foi refeito (o mesmo comando não o refaz); ajuste o corpo à mão com a medida em $tmp/nova-medida"
   echo "corte: fragmento novo anexado à marca da $v em $ramo; os pareceres revalidam o head novo (forge-check parecer delta)."
 }
 # rotulo_da_promocao <versão> <url do PR da main> (v0481 E13.15): a promoção que levou o rótulo afrouxa-regra (nome exato) faz o PR da main

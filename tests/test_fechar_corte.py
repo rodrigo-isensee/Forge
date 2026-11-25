@@ -409,6 +409,23 @@ class Corte(unittest.TestCase):
         r = self.fechar("--corte")
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn(f"parou no passo V5: o fragmento entrou em {MARCA}, mas o corpo do PR não foi refeito", r.stderr)
+        self.assertIn("ajuste o corpo à mão com a medida em ", r.stderr)
+
+    def test_leitura_do_origin_que_falha_nao_anexa(self):  # v0481 E13.19 (review A2): ls-remote em erro sai em 0, sem tocar o ramo
+        self.fragmentos(2)
+        self.assertEqual(self.fechar("--corte").returncode, 0)
+        self.novo_fragmento()
+        antes = self.no_origin(MARCA)
+        self.registro.write_text("")
+        (self.estado / "falha_marca_ls-remote").write_text("")
+        r = self.fechar("--corte")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn(f"corte: {MARCA} já existe no origin (ou a leitura falhou)", r.stdout)
+        self.assertNotIn("aviso: a develop recebeu fragmento", r.stderr)
+        (self.estado / "falha_marca_ls-remote").unlink()  # o falso vale para o git do teste também
+        self.assertEqual(self.no_origin(MARCA), antes)
+        self.assertEqual(self.gh("gh pr edit"), [])
+        self.assertEqual(self.gh("gh pr create"), [])
 
     def test_dry_run_so_avisa_o_fragmento_novo(self):
         self.fragmentos(2)
