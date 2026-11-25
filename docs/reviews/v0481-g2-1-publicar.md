@@ -3,37 +3,36 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-g2-1-publicar
-commit: 841c14dcdc209c0cb1375caba6b11bcc0d4b155f
-parecer: reprovado
+commit: dc6bc47efb98f0f017510992325e629f64e29214
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-25
 ---
-# Review: v0481 (E6.22, #878, G2.1: forge-check parecer publicar; classe C), 2ª volta por delta
+# Review: v0481 (E6.26, #878, G2.1: forge-check parecer publicar; classe C), 3ª volta por delta
 
-Revalidação por delta da rodada que reprovou em c78bfe22 (E6.18; texto no git). Delta lido: `forge-check parecer delta` deste arquivo (7 arquivos no domínio: `hooks/conformidade.py`, 3 fixtures `contrib-publicar-*`, a spec `-6`, `tests/test_hooks.py` e o fragmento do changelog) e `git diff c78bfe22..841c14dc`.
+Revalidação por delta da rodada que reprovou em 841c14dc (E6.22; texto no git). Delta lido: `forge-check parecer delta` deste arquivo e os 4 commits do autor em `git diff 841c14dc..dc6bc47e` (a370aec9, d109dad5, 0a23ae11, dc6bc47e); o resto do intervalo veio da `develop` (55ee8a5b, 30174222, 0c68c880) e fica fora do domínio.
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:1386 · `ultima_raiz` lê `--raiz=` também depois do `--`, onde o argparse já o toma como o arquivo: `--raiz <forge> parecer publicar -- --raiz=./.forge/pareceres/v1/review.md` passa no hook (S4), barrava no c78bfe22 e o forge-check usa a raiz do Forge (S5). Pare no `--`, com fixture e mutante.
 - A2 (recomendado) hooks/conformidade.py:113 · Forma opaca (`python3 $(command -v forge-check)`) do A2 do E6.18, sem mudança neste delta: segue como cartão depois do merge.
 
 ## Sondas
-- S4 · sessão de projeto, `forge-check --raiz ~/.forge-contrib/proj parecer publicar -- --raiz=./.forge/pareceres/v1/review.md` · espera: código 2, R-CONTRIB (como no c78bfe22, que barra) · obtido: código 0, sem saída
-- S5 · o mesmo comando com `--raiz <tmp>/forge` e o arquivo em `<tmp>/forge/--raiz=./...` · espera: o arquivo lido sob a raiz do Forge · obtido: lido lá (passa caminho, `pedido:` e `tipo:`; recusa só no contrato, autoria e `commit:`), rc 1
 
 ## Achados anteriores
-- A1 (bloqueante): corrigido para as formas S1 e S2. `ultima_raiz` dá a última `--raiz`, antes ou depois do subcomando, com e sem `=`; as fixtures `contrib-publicar-duas-raiz-a-ultima-no-forge-bloqueia` (S1) e `contrib-publicar-raiz-depois-do-subcomando-no-forge-bloqueia` (S2) barram, e o inverso (`-a-ultima-no-projeto-libera`) libera, como o argparse. Abreviação de `--raiz` não abre contorno: todo prefixo de `--raiz` também é prefixo de `--raiz-pedidos`, e o argparse recusa por ambiguidade. A forma com `--` (A1 acima) é a lacuna nova.
+- A1 (bloqueante): corrigido. `ultima_raiz` para no `--` (hooks/conformidade.py:1387), como o argparse, que toma o resto como posicional. A fixture `contrib-publicar-raiz-depois-do-separador-no-forge-bloqueia` é a S4 do E6.22 e barra com R-CONTRIB; as fixtures das formas S1 e S2 seguem barrando e o inverso segue liberando.
 - A2 (recomendado): segue como cartão (A2 acima).
 
 ## Leitura do delta
-- **O que deixou de barrar:** com uma `--raiz` só, a leitura é a mesma do `parecer.opcao`. Com duas, a primeira no Forge e a última no projeto, o c78bfe22 barrava e o 841c14dc libera: é o certo, porque o forge-check usa a do projeto (fixture do inverso). Fora disso, só a forma com `--` (A1), sonda rodada nos dois SHAs pela máquina de fixtures (`Fixture`, `executar_fixture`) sobre o `git archive` de cada um.
-- **Testes:** `test_fixtures_do_publicar` sobe o mínimo para 8 e mantém os dois lados (item 11 do checklist).
-- **Mutantes:** M34 a M36, um por linha de guarda de `ultima_raiz`; a troca do M36 (`raiz or`) é a que reproduz a leitura antiga da primeira.
-- **Tamanho (H1):** 11 linhas de código no delta.
-- **Commit:** Conventional Commits em português, com o pedido e a etapa.
+- **O que deixou de barrar:** nada. A guarda nova só encerra a leitura no `--`; antes dele a leitura é a mesma do 841c14dc.
+- **Testes sem enfraquecer:** `test_fixtures_do_publicar` sobe o mínimo de 8 para 9 e mantém os dois lados (item 11 do checklist). `tests/test_forge_pareceres.py` passa o `env` do git pelo `sem_manutencao` (ponto único do ambiente, AR-4), sem tirar asserção.
+- **Mutantes:** M37, um para a linha de guarda nova; o dc6bc47e troca só a condição e mantém o comentário, e a spec confere no lugar (AR-12).
+- **Índice:** a linha do `forge_pareceres.py` em `docs/indice-forge.md`.
+- **Tamanho (H1):** 2 linhas de código no delta.
+- **Commits:** Conventional Commits em português, com o pedido e a etapa.
 
 ## Verificações
-- Rodados aqui no 841c14dc: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures_do_publicar` (OK); `bin/forge-mutante --processos 1 --ids M34,M35,M36` na spec `-6` (os 3 morreram); `bin/forge-mutante --cobertura --base c78bfe22` (linhas 1387 e 1389 cobertas por M34 e M35; nenhuma sem mutante).
-- CI: nenhum check registrado no 841c14dc (`gh pr checks 878` e `check-runs` do commit vazios; o PR está em rascunho). Sem linha `ci:`. A suíte inteira não foi rerrodada aqui.
+- Rodados aqui no dc6bc47e: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures_do_publicar tests.test_forge_pareceres` (36 testes, OK); `bin/forge-mutante --processos 1 --ids M37` na spec `-6` (morreu, hooks/conformidade.py:1388); `bin/forge-mutante --conferir --base 841c14dc` (trechos no lugar); `--cobertura --base 841c14dc`: nenhuma guarda do item sem mutante (o único `não coberto` é `tests/pesos-d4.json`, vindo da develop).
+- CI do dc6bc47e: suíte 3.12 e 3.14 (partes 1 a 5), teto de pulados, bateria (passos), bateria (verificações longas), bateria (python 3.14), instalação e árvore já provada na develop verdes. Falham só os que esperam parecer ou rótulo: `bateria (pareceres)` (R-REVIEW e R-QA sem parecer aprovado no head), `bateria` (agregado: pareceres failure) e `catraca` (log: R-CONFORMIDADE pela mudança em `bin/forge-check` e `hooks/conformidade.py`, controles que pedem o rótulo do dono depois do último push, ADR 0008).
+- ci: dc6bc47efb98f0f017510992325e629f64e29214 verde
 
 ## Parecer
-Reprovado por A1: o critério desta volta é que nada que barra hoje deixe de barrar, e a forma com `--` barrava no c78bfe22 e passa no 841c14dc. A correção cabe em uma linha (`ultima_raiz` para no `--`), com uma fixture da S4 e um mutante dessa guarda. O resto do delta fecha o A1 do E6.18.
+Aprovado. O delta fecha o A1 do E6.22 com uma guarda, uma fixture e um mutante que morre, e não enfraquece teste. O A2 segue recomendado, como cartão depois do merge. A catraca espera o rótulo do dono.
