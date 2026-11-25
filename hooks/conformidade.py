@@ -39,7 +39,8 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TET
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, expandir_home, fora_da_gramatica_com_heredoc,
                     expandir_heredoc, fora_da_gramatica_de_leitura, FORMA_DO_HEREDOC, heredocs, motivo_da_reavaliacao,
                     forge_check, git, leituras, mensagem, nome_da_branch, nome_do_caminho, raiz_declarada, raiz_do_projeto, reavaliacao,
-                    ANTES_DO_PROGRAMA, palavras_do_texto, sem_atribuicoes, separar_lancadores, SHELLS, subcomando_do_git, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
+                    ANTES_DO_PROGRAMA, palavras_do_texto, sem_atribuicoes, separar_lancadores, SHELLS, subcomando_do_git, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs,
+                    PrazoVencido)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
 # custo de uma conferência cresce com o tamanho do texto, então o número delas não basta (A1 do review): conta também os
 # caracteres somados e o tempo, com folga para o timeout do hooks.json (10 s), que o Claude Code trata como liberado.
@@ -1534,6 +1535,28 @@ def registrar_recusa(hook, chave, rid, grupo, alvo):
         return
 
 
+def perfil_iniciante(raiz):
+    """`Hook.iniciante` no caminho da recusa (A2 da segurança no #885): a cópia principal sai só do disco
+    (`diretorio_comum`, sem `git`) e o `.forge/perfil` abre sem esperar FIFO nem seguir link (`O_NONBLOCK`,
+    `O_NOFOLLOW`); só arquivo regular vale, até 64 bytes. Ausente, especial ou ilegível: a próxima cópia, e no fim
+    experiente. Só escolhe o texto: a recusa já está decidida."""
+    comum = diretorio_comum(raiz)
+    principal = comum.parent if comum is not None and comum.name == ".git" else Path(raiz)
+    for base in dict.fromkeys((Path(raiz), principal)):
+        try:
+            fd = os.open(base / ".forge" / "perfil", os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW)
+        except OSError:
+            continue
+        try:
+            if stat.S_ISREG(os.fstat(fd).st_mode):
+                return os.read(fd, 64).decode("utf-8").strip().lower() == "iniciante"
+        except (OSError, ValueError):
+            pass
+        finally:
+            os.close(fd)
+    return False
+
+
 class Guarda:
     def __init__(self, hook, politica, papel):
         self.h, self.pol, self.papel = hook, politica, papel
@@ -1582,7 +1605,13 @@ class Guarda:
             registrar_recusa(self.h, "teria_barrado", rid, grupo, alvo)
             print(mensagem(rid, f"aviso: teria barrado: {o_que}. Corrigir: {corrigir}"), file=sys.stderr)
             return
-        texto = SIMPLES[simples] if simples and self.h.iniciante() else com_trecho(rid, o_que, corrigir, self.trecho)
+        texto = None
+        try:  # a recusa já está decidida: o prazo vencido na escolha do texto cai no texto técnico, nunca no `prazo_vencido`
+            if simples and perfil_iniciante(self.h.raiz):
+                texto = SIMPLES[simples]
+        except PrazoVencido:
+            pass
+        texto = texto or com_trecho(rid, o_que, corrigir, self.trecho)
         try:  # a recusa já está decidida: o registro grava depois dela, e o prazo vencido nele não a troca
             registrar_recusa(self.h, "barrado", rid, grupo, alvo)
         except PrazoVencido:

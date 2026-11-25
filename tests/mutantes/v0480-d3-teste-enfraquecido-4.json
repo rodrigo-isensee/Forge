@@ -16,8 +16,8 @@
       "id": "D3D2",
       "guarda": "renomeado exige a mesma quantidade de asserções",
       "arquivo": "tests/catraca.py",
-      "de": "return depois[0] == antes[0] and",
-      "para": "return depois[0] >= antes[0] and",
+      "de": "and depois[0] == antes[0] and",
+      "para": "and depois[0] >= antes[0] and",
       "testes": [
         "tests.test_catraca.TestesAfrouxados.test_teste_apagado_renomeado_afrouxado_ou_modulo_ilegivel_barra"
       ]

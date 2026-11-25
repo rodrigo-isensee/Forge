@@ -1,0 +1,87 @@
+{
+  "pedido": "v0481-corte-completo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "CORTE-MARCA-PRONTA: a medida da marca le o diff estrito; o git que falha para o V5 (estrito=False vira 0 linhas e segue)",
+      "arquivo": "bin/forge-fechar",
+      "de": "\"HEAD\", tres_pontos=True, estrito=True)",
+      "para": "\"HEAD\", tres_pontos=True, estrito=False)",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_marca_que_nao_mede_nao_envia"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "CORTE-MARCA-PRONTA: a linha de teto so acima do teto (aviso_de_linhas), nunca no teto",
+      "arquivo": "bin/forge-fechar",
+      "de": "if tamanho.aviso_de_linhas(total) else \"\")",
+      "para": "if total > 0 else \"\")",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_marca_no_teto_sai_sem_a_linha_de_teto"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "CORTE-MARCA-PRONTA: a marca que nao mede nao e enviada (a medida antes do push)",
+      "arquivo": "bin/forge-fechar",
+      "de": "&& medir_a_marca > \"$tmp/medida\" && git push",
+      "para": "&& { medir_a_marca > \"$tmp/medida\" || true; } && git push",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_marca_que_nao_mede_nao_envia"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "CORTE-MARCA-PRONTA: a data da secao e o dia local, nao o UTC",
+      "arquivo": "bin/forge-fechar",
+      "de": "release \"$v\" \"$(date +%F)\"",
+      "para": "release \"$v\" \"$(date -u +%F)\"",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_data_da_secao_e_o_dia_local"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "CORTE-ANEXAR: o ramo da marca ja no origin nao e gravado de novo",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -n \"$r\" ]; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_ramo_da_marca_ja_no_origin_nada_faz"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "CORTE-ANEXAR: com o ramo no origin (leitura que nao falhou), o fragmento novo e anexado",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$r\" != erro ]; then anexar_na_marca",
+      "para": "if false; then anexar_na_marca",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_fragmento_depois_do_corte_entra_na_secao_da_versao"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "CORTE-ANEXAR: sem fragmento novo, nada se faz no ramo da marca",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -n \"$novos\" ] || return 0",
+      "para": "true || return 0",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_ramo_da_marca_ja_no_origin_nada_faz",
+        "tests.test_fechar_corte.Corte.test_fragmento_depois_do_corte_entra_na_secao_da_versao"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "CORTE-ANEXAR: o --dry-run so avisa, nao envia",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$seco\" = 1 ]; then echo \"  rodaria: merge da origin/develop",
+      "para": "if [ \"$seco\" = 9 ]; then echo \"  rodaria: merge da origin/develop",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_dry_run_so_avisa_o_fragmento_novo"
+      ]
+    }
+  ]
+}
