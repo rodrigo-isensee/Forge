@@ -3,39 +3,38 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-ae2-quadro-anda
-commit: cbf24de557ea23a5bf6a5c7e43942a239b3f8aba
-parecer: reprovado
+commit: 8087e23dbec99aefc234a9735132c8c5721d164d
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-24
 ---
-# Review de segurança: v0481 (AE2, #875, E10.4)
+# Review de segurança: v0481 (AE2, #875, E10.8), volta por delta
 
-Escopo: diff `bbbe2d88..cbf24de5` (`bin/forge-check` movimento e `linha_movida`/`mover_no_quadro`, `bin/forge-fechar` `cartoes_do_corpo`, testes, docs). Classe C.
+Delta lido: `forge-check parecer delta` de `cbf24de5..8087e23d`; no domínio, `bin/forge-check` (`celulas_de_cartao`, `_ler_regular(estrito)`, `linhas_de_cartao`, `montar_quadro`, `linha_movida`, mensagem de `erro_dos_atributos`), `bin/forge-fechar` (`cartoes_do_corpo`), `tests/test_fechar_move_cartao.py`, `docs/fechamento-integrador.md` e `skills/kanban-scrum/SKILL.md`. Também li `tests/test_sobreposicao_quadro.py`, que fica fora do domínio. A rodada anterior (reprovada em `cbf24de5`) está no git. Classe C.
 
-## Gatilhos
-Gatilhos: controle do Forge que analisa entrada (corpo do PR no fechamento), escrita de arquivo de estado (KANBAN.md) por ferramenta, fechamento pós-merge.
+Gatilhos: controle do Forge que analisa entrada (corpo do PR no fechamento), escrita do KANBAN.md por ferramenta, fechamento depois do merge.
 
-## Resumo
-- **`·` no `--titulo` (o caso `a · b` saiu de `tests/test_sobreposicao_quadro.py:398`): neutro.** A troca `·` por `-` (`bin/forge-check:5224`) acontece antes de `erro_dos_atributos`, que continua recusando `·` em todos os atributos; o valor gravado nunca leva `·`, então o título não forja a marca ` · atributos: ` nem um segmento do leitor (C-4, C-7). `--pedido` e `--responsavel` seguem recusando `·` (regex e forma). O teste novo prova o valor gravado (`titulo=AE2 - quadro`). Não afrouxa: a recusa vira normalização com a mesma garantia.
-- **Merge confirmado antes de mover: aprovado.** `cartoes_do_corpo` roda em `bin/forge-fechar:1923`, depois das guardas do passo 6 (MERGED, head igual ao conferido, base igual ao alvo, commit de merge presente); com o PR já mesclado por outra via (`ja_mesclado=1`) o corpo não é lido. O ID do corpo passa pela forma `[A-Za-z0-9][A-Za-z0-9._-]{0,79}` e vai como argumento, sem expansão. O teste confere a ordem merge antes do movimento.
-- **Escrita do quadro:** trava (C-10), leitura sem seguir link (C-1) e troca atômica (C-2) estão certas e testadas (link, trava que não abre). **Mas o movimento corrompe o quadro** quando o nome do cartão casa a linha de cabeçalho ou de separador da tabela (A1, provado), e o nome `ID` passa pela forma do `forge-fechar`, então uma linha `Cartão: ID` no corpo do PR basta.
+## Resumo: aperta ou neutro
+- **`celulas_de_cartao` (bin/forge-check:5073): aperta.** O filtro passa a ser o mesmo no quadro gerado, no aviso de edição à mão e no movimento. Ele exclui o cabeçalho (`c == COLUNAS`), o separador (todas as células casam `SEPARADOR`, também o alinhado `:--`) e as linhas de outra largura. Em `montar_quadro` e em `linhas_de_cartao` o resultado é o mesmo de antes; em `linha_movida`, o filtro aperta (antes só se exigiam `|` e 7 células).
+- **Cartão em duas seções (bin/forge-check:5286): aperta.** Todas as linhas do cartão saem e a última anda.
+- **UTF-8 estrito só no movimento (bin/forge-check:5304): aperta.** Com byte inválido, o movimento devolve aviso, o quadro fica intacto e o histórico é gravado. O `kanban --gerar` mantém `replace` e refaz o quadro inteiro, o que é neutro.
+- **Aviso do ID fora da forma sem `[:cntrl:]` (bin/forge-fechar:954): aperta.** O ESC do corpo do PR não chega ao terminal. Os caracteres de formato Unicode (bidi) passam, mas o efeito é só visual num aviso de stderr e não há caminho de ataque: fica neutro.
+- **Cartão do corpo sem coluna só avisa (bin/forge-fechar:957): aperta, com uma brecha (A5).** `coluna_do_cartao` ainda lê o KANBAN.md por um awk próprio, que não usa o filtro único. A primeira célula do cabeçalho (`ID`) conta como cartão em `Em andamento`, então `Cartão: ID` no corpo do PR passa pela guarda e cria um cartão fantasma `ID` em Pronto, com linha no histórico. Isso não corrompe o quadro (o cabeçalho fica intacto, S1; a coluna errada, S2).
+- **Mensagem do `--titulo` sem `·`: neutro.** A regex de recusa é a mesma; só o texto mudou.
+
+Achados anteriores: A1 (bloqueante) resolvido (S1, teste `test_cartao_com_nome_de_cabecalho_ou_separador_nao_casa_a_moldura`); A2 (recomendado) resolvido em parte, o resto está em A5; A3 resolvido (teste `test_cartao_em_duas_secoes_sai_das_duas` e a sonda da duplicata); A4 resolvido (teste `test_quadro_com_utf8_invalido_nao_e_reescrito` e a sonda do byte `\xff`, com os bytes preservados).
 
 ## Achados
-- A1 (bloqueante) bin/forge-check:5265 · linha_movida casa como linha de cartão o cabeçalho (`| ID | Cartão |...`) e o separador (`|---|...`): cartão `ID` (qualquer caixa) ou `---` tira o cabeçalho ou o separador da última tabela e grava a linha no lugar; o quadro fica sem cabeçalho. `Cartão: ID` no corpo do PR chega aqui.
-- A2 (recomendado) bin/forge-fechar:950 · Cartão: do corpo que não existe no quadro (erro de digitação, placeholder, linha dentro de bloco de código) nasce como linha nova em Pronto com `—`: o fechamento deveria mover só cartão que já tem coluna (coluna_do_cartao diferente de `—`) e só avisar o resto.
-- A3 (recomendado) bin/forge-check:5275 · Com o cartão duplicado em duas seções, só a última linha sai; a outra fica na coluna velha e o quadro segue dizendo que o cartão está nos dois lugares. Tirar todas as linhas do cartão antes de inserir a nova.
-- A4 (recomendado) bin/forge-check:5135 · KANBAN.md com byte UTF-8 inválido é reescrito com U+FFFD no lugar do byte, mudando linhas que o movimento não tocou; recusar com aviso (quadro intacto) quando a decodificação estrita falha.
+- A5 (recomendado) bin/forge-fechar:939 · coluna_do_cartao lê o KANBAN.md sem o filtro único: a célula ID do cabeçalho dá coluna, e `Cartão: ID` no corpo do PR passa pela guarda nova e cria o cartão fantasma ID em Pronto. Pular cabeçalho e separador no awk (ou perguntar ao forge-check) e testar `Cartão: ID`.
 
 ## Sondas
-- S1 · movimento ID --de — --para Pronto (quadro com 3 tabelas) · espera: cabeçalho de Pronto intacto e linha nova do cartão ID · obtido: rc 0, Pronto começa por `|---|` e a linha `| ID | Cartão | Pedido | Responsável | Entrou | <hora> | custo total: lacuna |`
-- S2 · movimento --de — --para Pronto -- --- · espera: separador de Pronto intacto · obtido: rc 0, separador de Pronto vira `| --- | --- | --- | --- | --- | <hora> | custo total: lacuna |`
+- S1 · movimento com cartão `ID`, `id`, `---` e `:--` (`--de — --para Pronto --`, quadro com separador `|:--|` em Pronto) · espera: cabeçalhos e separadores intactos e uma linha nova do cartão · obtido: rc 0, cabeçalhos=2 e separadores=2 nos quatro casos, e a linha nova do cartão no fim de Pronto
+- S2 · `coluna_do_cartao ID` (função extraída de bin/forge-fechar, quadro sem o cartão ID) · espera: `—` · obtido: `Em andamento` (A5); `id`, `K-9` e `Cartão` devolvem `—`
 
-## Detalhe dos achados
-**A1.** Evidência: `bin/forge-check:5265` (o laço só exige `|` no início, 7 células e `chave_do_cartao(c[0])` igual); `bin/forge-check:5275` apaga a linha achada. Caminho: o autor do PR (ou quem roda `movimento` à mão) cita `Cartão: ID`; `cartoes_do_corpo` aceita (forma alfanumérica), `coluna_do_cartao` devolve uma seção e o `movimento` move o cabeçalho da última tabela; o quadro perde o cabeçalho, sem aviso e com rc 0 (o histórico grava o movimento de um cartão inexistente). Severidade baixa (integridade do quadro, reparável com `kanban --gerar`), mas é defeito provado no ponto que o brief pede ("não pode corromper o quadro"). Correção mínima: no laço, ignorar a linha que é o cabeçalho (`c == COLUNAS`, comparação sem caixa) e a que é separador (todas as células casam `SEPARADOR`), ou só contar linhas depois do separador da tabela; e um teste com os cartões `ID`, `id` e `---`. Esforço P. Dono: autor do #875 (tech-lead).
-**A2.** Caminho: texto colado no corpo (um exemplo em bloco de código, um placeholder) move ou cria cartão; afeta métricas, não acesso. Correção: em `cartoes_do_corpo`, avisar e não somar o ID cuja `coluna_do_cartao` é `—`. Esforço P. Dono: tech-lead.
-**A3 e A4.** Integridade do quadro em estados já degradados; correção P, dono tech-lead.
+## Detalhe
+**A5.** Evidência: `bin/forge-fechar:939` (o awk compara `c[2] == id` em toda linha que começa com `|`) e `bin/forge-fechar:957` (a guarda confia nessa coluna). Caminho: o autor do PR põe `Cartão: ID` no corpo, como exemplo ou por engano. O ID passa pela forma, `coluna_do_cartao` devolve a seção da primeira tabela e o `movimento ID --de "Em andamento" --para Pronto` cria a linha `ID` em Pronto e grava o histórico. O impacto fica nas métricas e na integridade do quadro, sem acesso. Severidade baixa. Como o A2 era recomendado, este resto continua recomendado. Correção mínima: no awk do KANBAN.md, ignorar a linha cujo `c[2]` é `ID` e `c[3]` é `Cartão`, e as linhas cujas células são todas separador; ou fazer a coluna sair do `forge-check`, pelo mesmo `celulas_de_cartao`. Somar `Cartão: ID` ao teste `test_cartao_do_corpo_sem_coluna_avisa_e_nao_nasce_em_pronto`. Esforço P. Dono: autor do #875 (tech-lead).
 
-Suíte: CI do head `cbf24de5` com a suíte ainda pendente na leitura (bateria de pareceres e catraca vermelhas pela falta dos pareceres); rodei `tests.test_fechar_move_cartao` e `tests.test_sobreposicao_quadro` no head: 90 testes, OK. Sondas em script local (biblioteca padrão), quadro em pasta temporária.
+Suíte: no CI do head `8087e23d`, a catraca está vermelha e as baterias pendentes, porque faltam os pareceres desta rodada. Rodei `tests.test_fechar_move_cartao` e `tests.test_sobreposicao_quadro` no head: 96 testes, OK. As sondas foram scripts locais (biblioteca padrão e bash), com o quadro em pasta temporária.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, testes do repositório e sondas locais; varredura de segredos não se aplica ao delta (sem credencial nem configuração nova).
+Nenhum risco aceito. Ferramentas: leitura do delta, testes do repositório e sondas locais. A varredura de segredos não se aplica ao delta, que não traz credencial nem configuração nova.
