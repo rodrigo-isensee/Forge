@@ -1,0 +1,66 @@
+{
+  "pedido": "v0481-copia-mensagem",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "FORGE-COPIA-MENSAGEM: base com origin/ não ganha outro origin/",
+      "arquivo": "bin/forge-copia",
+      "de": "    return (base,) if base.startswith(\"origin/\") else",
+      "para": "    return (base,) if False else",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_mensagem_sem_ponto_cita_as_refs_tentadas_sem_origin_duplicado"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "COPIA-REVISAO: o clone de revisão não cai na base",
+      "arquivo": "bin/forge-copia",
+      "de": "    if revisao:\n        return None",
+      "para": "    if False:\n        return None",
+      "testes": [
+        "tests.test_forge_copia.Revisao.test_branch_fora_do_remoto_nao_cai_na_base"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "FORGE-COPIA-MENSAGEM: o switch que falha cita a ref de partida",
+      "arquivo": "bin/forge-copia",
+      "de": "    if ponto:\n        return f\"o git switch",
+      "para": "    if False:\n        return f\"o git switch",
+      "testes": [
+        "tests.test_forge_copia.Cria.test_switch_que_falha_apaga_a_copia"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "FORGE-COPIA-MENSAGEM: na revisão, a mensagem não cita a base",
+      "arquivo": "bin/forge-copia",
+      "de": "*([] if revisao else candidatas(base))",
+      "para": "*([] if False else candidatas(base))",
+      "testes": [
+        "tests.test_forge_copia.Revisao.test_branch_fora_do_remoto_nao_cai_na_base"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "COPIA-REVISAO: --revisao só no clone",
+      "arquivo": "bin/forge-copia",
+      "de": "    if a.revisao and a.modo != \"clone\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_copia.Revisao.test_worktree_de_revisao_e_recusada"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "COPIA-REVISAO: o main passa o modo de revisão adiante",
+      "arquivo": "bin/forge-copia",
+      "de": "ponto_de_partida(real, a.branch, a.base, a.revisao)",
+      "para": "ponto_de_partida(real, a.branch, a.base, False)",
+      "testes": [
+        "tests.test_forge_copia.Revisao.test_branch_fora_do_remoto_nao_cai_na_base"
+      ]
+    }
+  ]
+}

@@ -545,6 +545,365 @@ class TestesEnfraquecidos(Base):
         self.assertFalse(any("asserções" in v for v in self.repo.violacoes()))
 
 
+class TestesAfrouxados(Base):
+    """D3 (decisão do dono de 24/11): cada `def test_*` da base comparado com ele mesmo no head; só o rótulo do dono libera."""
+
+    Y = textwrap.dedent("""\
+        import unittest
+        class T(unittest.TestCase):
+            def test_a(self):
+                self.assertEqual(soma(1, 2), 3, msg="m")
+                assert dobro(2) == 4
+            def test_b(self):
+                self.assertTrue(f())
+            def test_c(self):
+                "Sem asserção: só chama."
+                f()
+            def ajuda(self):
+                return 1
+        """)
+
+    def setUp(self):
+        super().setUp()
+        self.repo.escreve("tests/test_y.py", self.Y)
+        self.repo.escreve("scripts/test_z.py", "def test_z():\n    assert 1\n")
+        self.repo.escreve("tests/catraca.py", "def test_q():\n    assert 'só da catraca'\n")
+        self.repo.commit()
+        self.repo.git("tag", "-f", "base")
+
+    def afrouxados(self, novo, arq="tests/test_y.py"):
+        self.repo.escreve(arq, novo)
+        self.repo.commit()
+        return [v for v in self.repo.violacoes() if v.startswith("R-CONFORMIDADE: o teste ")]
+
+    def test_assercao_levada_a_outro_teste_barra_com_a_soma_igual(self):
+        novo = self.Y.replace("        self.assertTrue(f())\n", "        f()\n").replace("        f()\n    def ajuda", "        self.assertTrue(f())\n    def ajuda")
+        achadas = self.afrouxados(novo)
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn("tests/test_y.py::T.test_b perdeu asserção.", achadas[0])
+        self.assertFalse(any("asserções em tests/ caíram" in v for v in self.repo.violacoes()))
+
+    def test_valor_esperado_trocado_na_primeira_entrega_nao_barra_e_fica_listado(self):
+        """Decisão do dono de 24/11: na primeira entrega, o valor trocado não para o item; a catraca o lista para o revisor."""
+        for de, para in (("), 3,", "), 4,"), ("== 4", "== 5"), ("soma(1, 2)", "soma(1, 3)"),
+                         ("assertEqual(soma(1, 2), 3,", "assertTrue(soma(1, 2),")):
+            with self.subTest(de):
+                self.repo.git("reset", "-q", "--hard", "base")
+                self.assertEqual(self.afrouxados(self.Y.replace(de, para)), [])
+                self.assertEqual(catraca.valores_para_conferir(self.repo.dir, "base"), ["tests/test_y.py::T.test_a"])
+
+    def test_valor_trocado_com_outra_perda_barra_pela_outra_e_nao_fica_listado(self):
+        achadas = self.afrouxados(self.Y.replace("        assert dobro(2) == 4\n", ""))
+        self.assertEqual([a.split(". Por quê")[0] for a in achadas], ["R-CONFORMIDADE: o teste tests/test_y.py::T.test_a perdeu asserção"])
+        self.assertEqual(catraca.valores_para_conferir(self.repo.dir, "base"), [])
+
+    def test_lista_dos_valores_sai_na_catraca_e_no_resumo_sem_mudar_o_codigo_de_saida(self):
+        self.repo.escreve("eventos.json", "[]")
+        resumo = self.repo.dir / "resumo.md"
+        argv = ["--raiz", str(self.repo.dir), "--base", "base", "--eventos", str(self.repo.dir / "eventos.json")]
+        for texto, esperado in ((self.Y, ""), (self.Y.replace("== 4", "== 5"), "tests/test_y.py::T.test_a")):
+            with self.subTest(esperado or "sem troca"):
+                self.afrouxados(texto)
+                resumo.write_text("", encoding="utf-8")
+                with mock.patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": str(resumo)}), contextlib.redirect_stdout(io.StringIO()) as saida:
+                    rc = catraca.main(argv)
+                self.assertEqual(rc, 0, saida.getvalue())
+                linhas = [l for l in saida.getvalue().splitlines() if "confira no parecer" in l]
+                self.assertEqual(linhas, [f"catraca: confira no parecer (valor esperado trocado; não barra na primeira entrega): {esperado}"] if esperado else [])
+                self.assertEqual("valores esperados trocados" in resumo.read_text(encoding="utf-8"), bool(esperado))
+
+    def test_lista_dos_valores_com_git_falho_fica_calada(self):
+        with mock.patch.object(catraca, "valores_para_conferir", side_effect=catraca.ErroDeGit("x")), \
+                contextlib.redirect_stdout(io.StringIO()) as saida:
+            self.assertIsNone(catraca.listar_valores_para_conferir(self.repo.dir, "base", "HEAD"))
+        self.assertEqual(saida.getvalue(), "")
+
+    def aprova(self, commit, tipo="review", pasta="docs/reviews", parecer="aprovado", nome="v.md"):
+        self.repo.escreve(f"{pasta}/{nome}", f"---\ntipo: {tipo}\ncontrato: 1\npedido: v\nbranch: pr\ncommit: {commit}\n"
+                                             f"parecer: {parecer}\nrevisor: r\ndata: 2026-11-24\n---\n# Parecer\n")
+        self.repo.commit()
+
+    def head(self):
+        return self.repo.git("rev-parse", "HEAD").strip()
+
+    def test_valor_trocado_na_volta_contra_a_versao_aprovada_barra(self):
+        self.assertEqual(self.afrouxados(self.Y.replace("), 3,", "), 4,")), [])
+        aprovado = self.head()
+        self.aprova(aprovado)
+        self.assertEqual(self.afrouxados(self.Y.replace("), 3,", "), 4,")), [])
+        achadas = self.afrouxados(self.Y.replace("), 3,", "), 4,").replace("== 4", "== 5"))
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn(f"::T.test_a trocou ou tirou valor esperado depois da versão aprovada {aprovado[:12]}.", achadas[0])
+
+    def test_valor_que_a_base_trocou_e_entrou_por_merge_depois_da_aprovacao_nao_barra(self):
+        """A1 do review e da segurança (S1): a develop troca o valor depois da aprovação, a branch a traz por merge."""
+        self.afrouxados(self.Y.replace("        f()\n    def ajuda", "        self.assertTrue(f())\n    def ajuda"))
+        self.aprova(self.head())
+        self.repo.git("checkout", "-q", "-B", "develop", "base")
+        self.afrouxados(self.Y.replace("== 4", "== 5"))
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("merge", "-q", "--no-edit", "develop")
+        self.assertIsNotNone(catraca.commit_aprovado(self.repo.dir, "develop", "HEAD"))
+        self.assertEqual([v for v in catraca.violacoes_das_regras(self.repo.dir, "develop", "HEAD") if " o teste " in v], [])
+
+    def test_volta_que_restaura_o_valor_da_base_barra_so_pela_perda_dura(self):
+        self.afrouxados(self.Y.replace("== 4", "== 5"))
+        self.aprova(self.head())
+        achadas = self.afrouxados(self.Y.replace("    def test_a", "    @unittest.skip('x')\n    def test_a"))
+        self.assertEqual([a.split(". Por quê")[0] for a in achadas], ["R-CONFORMIDADE: o teste tests/test_y.py::T.test_a ganhou skip/skipIf/skipUnless/expectedFailure/skipTest"])
+
+    def test_assercao_so_de_constantes_nao_conta(self):
+        """A2 do review (S2) e da segurança (S3): `assert True` no lugar da asserção, ou teste trocado por um vácuo de mesmas constantes."""
+        casos = {"assert True": (self.Y.replace("dobro(2) == 4", "True"), "::T.test_a perdeu asserção"),
+                 "assertTrue(1)": (self.Y.replace("self.assertTrue(f())", "self.assertTrue(1)"), "::T.test_b perdeu asserção"),
+                 "vácuo renomeado": (self.Y.replace("    def test_a(self):\n", "    def test_novo(self):\n")
+                                     .replace("soma(1, 2), 3", "1 + 2, 3").replace("dobro(2) == 4", "(2 and 4)"), "::T.test_a foi apagado ou renomeado")}
+        for nome, (novo, esperado) in casos.items():
+            with self.subTest(nome):
+                self.repo.git("reset", "-q", "--hard", "base")
+                achadas = self.afrouxados(novo)
+                self.assertEqual(len(achadas), 1, achadas)
+                self.assertIn(esperado, achadas[0])
+        self.assertEqual(catraca._perfil_do_teste(ast.parse("def test_a(self):\n    self.assertTrue()\n    assert x\n").body[0], 0)[0], 2)
+
+    def test_na_volta_vale_a_versao_aprovada_mais_nova_de_qualquer_revisor(self):
+        self.afrouxados(self.Y.replace("), 3,", "), 4,"))
+        self.aprova(self.head())
+        self.afrouxados(self.Y.replace("), 3,", "), 4,").replace("== 4", "== 5"))
+        self.aprova(self.head()[:12], tipo="qa", pasta="docs/qa")
+        self.assertEqual(catraca.commit_aprovado(self.repo.dir, "base", "HEAD"), self.repo.git("rev-parse", "HEAD~1").strip())
+        self.assertEqual([v for v in self.repo.violacoes() if v.startswith("R-CONFORMIDADE: o teste ")], [])
+
+    def test_parecer_que_nao_e_aprovacao_da_branch_nao_vale_como_volta(self):
+        outro = self.repo.git("commit-tree", "-p", "base", "-m", "fora", "base^{tree}").strip()
+        base = self.repo.git("rev-parse", "base").strip()
+        casos = {"reprovado": dict(parecer="reprovado"), "tipo de outra pasta": dict(tipo="qa"),
+                 "commit sem forma de SHA": dict(commit="HEAD"), "SHA inexistente": dict(commit="deadbeef"),
+                 "commit da base": dict(commit=base), "commit fora da branch": dict(commit=outro),
+                 "fora de docs/": dict(pasta="notas"), "não é .md": dict(nome="v.txt")}
+        for nome, campos in casos.items():
+            with self.subTest(nome):
+                self.repo.git("reset", "-q", "--hard", "base")
+                self.afrouxados(self.Y.replace("), 3,", "), 4,"))
+                self.aprova(**{"commit": self.head(), **campos})
+                self.assertEqual(self.afrouxados(self.Y.replace("), 3,", "), 4,").replace("== 4", "== 5")), [])
+                self.assertIsNone(catraca.commit_aprovado(self.repo.dir, "base", "HEAD"))
+
+    def test_parecer_apagado_pela_branch_nao_quebra_a_busca_da_aprovacao(self):
+        self.repo.git("reset", "-q", "--hard", "base")
+        self.repo.escreve("docs/reviews/velho.md", "x\n")
+        self.repo.commit()
+        self.repo.git("tag", "-f", "base")
+        (self.repo.dir / "docs/reviews/velho.md").unlink()
+        self.afrouxados(self.Y.replace("), 3,", "), 4,"))
+        self.aprova(self.head())
+        self.assertEqual(catraca.commit_aprovado(self.repo.dir, "base", "HEAD"), self.repo.git("rev-parse", "HEAD~1").strip())
+
+    def test_so_a_mensagem_da_assercao_trocada_passa(self):
+        self.assertEqual(self.afrouxados(self.Y.replace('msg="m"', 'msg="outra"')), [])
+        self.assertEqual(catraca.valores_para_conferir(self.repo.dir, "base"), [])
+
+    def test_skip_no_teste_na_classe_ou_skiptest_barra(self):
+        casos = {"decorador": ("    def test_b", "    @unittest.skip('x')\n    def test_b", ["T.test_b"]),
+                 "classe": ("class T(", "@unittest.skip('x')\nclass T(", ["T.test_a", "T.test_b", "T.test_c"]),
+                 "skipTest": ("        f()\n    def ajuda", "        self.skipTest('x')\n        f()\n    def ajuda", ["T.test_c"])}
+        for nome, (de, para, testes) in casos.items():
+            with self.subTest(nome):
+                self.repo.git("reset", "-q", "--hard", "base")
+                achadas = self.afrouxados(self.Y.replace(de, para))
+                self.assertEqual(len(achadas), len(testes), achadas)
+                for t, a in zip(testes, achadas):
+                    self.assertIn(f"::{t} ganhou skip", a)
+
+    def test_teste_sem_assercao_esvaziado_barra(self):
+        achadas = self.afrouxados(self.Y.replace("        f()\n    def ajuda", "        pass\n    def ajuda"))
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn("::T.test_c ficou vazio", achadas[0])
+
+    def test_teste_apagado_renomeado_afrouxado_ou_modulo_ilegivel_barra(self):
+        for nome, novo, quantos in (("apagado", self.Y.replace("    def test_b(self):\n        self.assertTrue(f())\n", ""), 1),
+                                    ("renomeado com asserção a mais", self.Y.replace("def test_b(self):\n", "def test_b2(self):\n        assert g\n"), 1),
+                                    ("renomeado com valor esperado novo", self.Y.replace("def test_b", "def test_b2").replace("f())", "f(1))"), 1),
+                                    ("renomeado e pulado", self.Y.replace("    def test_b", "    @unittest.skip('x')\n    def test_b2"), 1),
+                                    ("ilegível", self.Y + ")\n", 3)):
+            with self.subTest(nome):
+                self.repo.git("reset", "-q", "--hard", "base")
+                achadas = self.afrouxados(novo)
+                self.assertEqual(len(achadas), quantos, achadas)
+                self.assertIn("::T.test_b foi apagado ou renomeado", "".join(achadas))
+
+    def test_teste_renomeado_com_as_mesmas_assercoes_passa(self):
+        self.assertEqual(self.afrouxados(self.Y.replace("def test_b", "def test_b2")), [])
+        self.repo.git("reset", "-q", "--hard", "base")
+        self.assertEqual(self.afrouxados(self.Y.replace("def test_b", "def test_b2").replace("self.assertTrue(f())", "self.assertTrue(g())")), [])
+
+    def test_teste_novo_serve_de_renomeado_a_um_teste_so(self):
+        self.repo.escreve("tests/test_y.py", self.Y + "    def test_e(self):\n        self.assertTrue(h())\n")
+        self.repo.commit()
+        self.repo.git("tag", "-f", "base")
+        sem_os_dois = self.Y.replace("    def test_b(self):\n        self.assertTrue(f())\n", "")
+        achadas = self.afrouxados(sem_os_dois + "    def test_novo(self):\n        self.assertTrue(f())\n")
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn("::T.test_e foi apagado ou renomeado", achadas[0])
+
+    def test_teste_de_nome_da_base_nao_serve_de_renomeado(self):
+        """O teste que já existia na base com o nome dele não é o novo nome de outro apagado."""
+        achadas = self.afrouxados(self.Y.replace("    def test_b(self):\n        self.assertTrue(f())\n", "")
+                                  .replace("        f()\n    def ajuda", "        self.assertTrue(f())\n    def ajuda"))
+        self.assertIn("::T.test_b foi apagado ou renomeado", "".join(achadas))
+
+    def test_teste_movido_de_modulo_passa_e_afrouxado_na_mudanca_barra(self):
+        self.repo.escreve("tests/test_y.py", "")
+        self.assertEqual(self.afrouxados(self.Y, "tests/test_w.py"), [])
+        self.repo.git("reset", "-q", "--hard", "base")
+        self.repo.escreve("tests/test_y.py", "")
+        achadas = self.afrouxados(self.Y.replace("        assert dobro(2) == 4\n", ""), "tests/test_w.py")
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn("tests/test_y.py::T.test_a perdeu asserção", achadas[0])
+
+    def test_entre_copias_vale_a_que_so_trocou_valor(self):
+        """Duas cópias movidas com uma perda cada: a que só trocou o valor ganha da pulada (o critério conta as perdas que barram)."""
+        self.repo.escreve("tests/test_y.py", "")
+        self.repo.escreve("tests/test_v.py", self.Y.replace("    def test_a", "    @unittest.skip('x')\n    def test_a"))
+        self.assertEqual(self.afrouxados(self.Y.replace("== 4", "== 5"), "tests/test_w.py"), [])
+
+    def test_copia_forte_em_outro_modulo_nao_libera_o_afrouxado_no_proprio(self):
+        self.repo.escreve("tests/test_w.py", self.Y)
+        achadas = self.afrouxados(self.Y.replace("        assert dobro(2) == 4\n", ""))
+        self.assertEqual(len(achadas), 1, achadas)
+
+    def test_acrescimos_ajudante_e_arquivo_fora_de_tests_passam(self):
+        novo = (self.Y.replace("        f()\n    def ajuda", "        self.assertIsNone(f(), 7)\n    def ajuda")
+                .replace("    def ajuda(self):\n        return 1\n", "") + "    def test_d(self):\n        assert self\n")
+        self.assertEqual(self.afrouxados(novo), [])
+        self.assertEqual(self.afrouxados("", "scripts/test_z.py"), [])
+        self.assertEqual(self.afrouxados("", "tests/catraca.py"), [])
+
+
+class AssercaoNoAjudante(Base):
+    """E14.14 (v0481, visto no #890): a asserção feita num ajudante da classe, da base no módulo ou do módulo conta no teste."""
+
+    A = textwrap.dedent("""\
+        import unittest
+        def confere(x):
+            assert x == 1
+        class Mae(unittest.TestCase):
+            def herdado(self, x):
+                self.assertIn(x, "ab")
+        class T(Mae):
+            def fica(self, x):
+                self.assertTrue(existe(x))
+            def sai(self, x):
+                self.assertFalse(existe(x))
+            def volta(self, n):
+                if n:
+                    self.volta(n - 1)
+                self.assertGreaterEqual(n, 0)
+            def nada(self):
+                return 1
+            def test_guarda(self):
+                self.fica("a")
+            def test_modulo(self):
+                confere(g())
+            def test_herdado(self):
+                self.herdado(h())
+            def test_recursivo(self):
+                self.volta(3)
+            def test_so_chama(self):
+                self.nada()
+                f()
+        """)
+
+    def setUp(self):
+        super().setUp()
+        self.repo.escreve("tests/test_a.py", self.A)
+        self.repo.commit()
+        self.repo.git("tag", "-f", "base")
+
+    def afrouxados(self, novo):
+        self.repo.escreve("tests/test_a.py", novo)
+        self.repo.commit()
+        return [v.split(". Por quê")[0] for v in self.repo.violacoes() if v.startswith("R-CONFORMIDADE: o teste ")]
+
+    def test_ajudante_com_assercao_conta_e_o_sem_assercao_nao(self):
+        perfis = catraca.testes_da_arvore(ast.parse(self.A))
+        contagem = {nome.split(".")[-1]: p[0] for nome, p in perfis.items()}
+        self.assertEqual(contagem, {"test_guarda": 1, "test_modulo": 1, "test_herdado": 1,
+                                    "test_recursivo": 8, "test_so_chama": 0})
+        self.assertEqual(perfis["T.test_so_chama"][3], catraca.Counter())
+        laco = catraca.testes_da_arvore(ast.parse("class A(B):\n    def test_x(self):\n        self.h()\nclass B(A):\n    def h(self):\n        assert y\n"))
+        self.assertEqual({n: p[0] for n, p in laco.items()}, {"A.test_x": 1})
+        self.assertEqual(catraca._perfil_do_teste(ast.parse("def test_a(self):\n    self.fica()\n").body[0], 0)[0], 0)
+
+    def test_chamada_ao_ajudante_tirada_ou_ajudante_sem_assercao_barra(self):
+        casos = {"chamada tirada": ('        self.fica("a")\n', '        existe("a")\n'),
+                 "corpo do ajudante": ("        self.assertTrue(existe(x))\n", "        existe(x)\n"),
+                 "módulo": ("        confere(g())\n", "        g()\n"), "herdado": ("        self.herdado(h())\n", "        h()\n")}
+        alvo = {"módulo": ("test_modulo", "confere"), "herdado": ("test_herdado", "herdado")}
+        for nome, (de, para) in casos.items():
+            with self.subTest(nome):
+                self.repo.git("reset", "-q", "--hard", "base")
+                teste, ajudante = alvo.get(nome, ("test_guarda", "fica"))
+                self.assertEqual(self.afrouxados(self.A.replace(de, para)),
+                                 [f"R-CONFORMIDADE: o teste tests/test_a.py::T.{teste} perdeu asserção (estava no ajudante {ajudante})"])
+
+    def test_ajudante_invertido_fica_listado_para_o_revisor(self):
+        invertido = self.A.replace('        self.fica("a")\n', '        self.sai("a")\n')
+        self.assertEqual(self.afrouxados(invertido), [])
+        self.assertEqual(catraca.valores_para_conferir(self.repo.dir, "base"), ["tests/test_a.py::T.test_guarda"])
+
+    def test_renomeado_sem_assercao_barra_e_com_ajudante_passa(self):
+        self.assertEqual(self.afrouxados(self.A.replace("def test_so_chama", "def test_so_chama2")),
+                         ["R-CONFORMIDADE: o teste tests/test_a.py::T.test_so_chama foi apagado ou renomeado"])
+        self.repo.git("reset", "-q", "--hard", "base")
+        self.assertEqual(self.afrouxados(self.A.replace("def test_guarda", "def test_guarda2")), [])
+        self.assertFalse(catraca.mesmas_assercoes((0, 0, False, catraca.Counter()), (0, 0, False, catraca.Counter())))
+
+    CONSTANTES = 'class T:\n    def h(self, x, y=0):\n        assert x == 1\n    def test_x(self):\n        self.h("p", y="a")\n'
+
+    @staticmethod
+    def perfil_x(fonte, **teto):
+        return catraca.testes_da_arvore(ast.parse(fonte), **teto)["T.test_x"]
+
+    def test_argumentos_constantes_e_o_corpo_do_ajudante_contam_como_valor_esperado(self):
+        antes = self.perfil_x(self.CONSTANTES)
+        for nome, (de, para) in {"posicional": ('"p"', '"q"'), "nomeado": ('y="a"', 'y="b"'), "corpo": ("x == 1", "x == 2")}.items():
+            with self.subTest(nome):
+                self.assertEqual(catraca.afrouxamentos(antes, self.perfil_x(self.CONSTANTES.replace(de, para))), [catraca.VALOR_TROCADO])
+
+    def test_ajudante_em_cadeia_conta_ate_o_fim(self):
+        cadeia = "class T:\n    def test_x(self):\n        self.um()\n    def um(self):\n        self.dois()\n" \
+                 "    def dois(self):\n        tres()\ndef tres():\n    assert y\n"
+        self.assertEqual(self.perfil_x(cadeia)[0], 1)
+        self.assertEqual(catraca.afrouxamentos(self.perfil_x(cadeia), self.perfil_x(cadeia.replace("assert y", "y"))),
+                         ["perdeu asserção (estava no ajudante dois, tres, um)", catraca.VALOR_TROCADO])
+
+    def test_modulo_que_estoura_o_teto_conta_so_as_diretas_e_barra_quem_perde_as_dos_ajudantes(self):
+        linhas = ["class T:", "    def test_x(self):", "        assert z", "        self.h0()"]
+        for i in range(100):  # leque: cada ajudante chama outros 100 (a entrada da sonda S9 da segurança)
+            linhas += [f"    def h{i}(self):", f"        assert self.v == {i}"] + [f"        self.h{(i + j + 1) % 100}()" for j in range(100)]
+        inicio = time.monotonic()
+        caro = self.perfil_x("\n".join(linhas) + "\n")
+        self.assertLess(time.monotonic() - inicio, 10)
+        self.assertEqual(caro[0], 1)
+        self.assertEqual(self.perfil_x(self.CONSTANTES, teto=10)[0], 0)
+        self.assertEqual(self.perfil_x(self.CONSTANTES, teto=100)[0], 1)
+        self.assertEqual(catraca.afrouxamentos(self.perfil_x(self.CONSTANTES), self.perfil_x(self.CONSTANTES, teto=10)),
+                         ["perdeu asserção (estava no ajudante h)", catraca.VALOR_TROCADO])
+
+    def test_teto_estourado_avisa_o_modulo_e_o_que_contou(self):
+        """CATRACA-TETO-AVISO: o estouro diz qual módulo, em qual ref, e que contou só as diretas; sem estouro, nada."""
+        with contextlib.redirect_stdout(io.StringIO()) as saida:
+            self.perfil_x(self.CONSTANTES, teto=100)
+        self.assertEqual(saida.getvalue(), "")
+        padroes = (catraca.FUNDO_DOS_AJUDANTES, 10, "o módulo")
+        with mock.patch.object(catraca.testes_da_arvore, "__defaults__", padroes), contextlib.redirect_stdout(io.StringIO()) as saida:
+            perfis = catraca._testes_por_modulo(self.repo.dir, "base", ["tests/test_a.py"])
+        self.assertEqual(perfis["tests/test_a.py"]["T.test_recursivo"][0], 0)  # só as diretas: com o teto padrão, 8
+        self.assertEqual(saida.getvalue(), "catraca: tests/test_a.py em base estourou o teto de 10 expansões dos ajudantes; "
+                                           "contou só as asserções diretas.\n")
+
+
 class ControlesEnfraquecidos(Base):
     """MAQ-I7a: a força conta por módulo de controle; ilegível, grande demais ou renomeado conta zero."""
     HOOKS_PY = "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        self.assertTrue(1)\n        assert 2\n"
@@ -824,7 +1183,8 @@ class TestesNoCi(Base):
         funcoes = {n.name: n for n in ast.parse((AQUI / "catraca.py").read_text(encoding="utf-8")).body if isinstance(n, ast.FunctionDef)}
         proibidos = {"importlib", "__import__", "exec", "eval", "compile", "runpy", "TestLoader", "discover", "SourceFileLoader",
                      "import_module", "system", "popen", "execv", "execvp", "spawnv", "run_path", "run_module", "loadTestsFromName"}
-        pendentes, vistas = ["regra_controles_enfraquecidos", "regra_testes_no_ci", "deficits_do_ci"], set()
+        pendentes, vistas = ["regra_controles_enfraquecidos", "regra_testes_afrouxados", "regra_testes_no_ci", "deficits_do_ci"], set()
+        self.assertLessEqual(set(pendentes), set(funcoes), "raiz do I7 ou da T4 ausente em catraca.py")
         while pendentes:
             nome = pendentes.pop()
             vistas.add(nome)
@@ -2118,6 +2478,17 @@ class LinhaDeComando(Base):
 
     def test_rotulo_do_dono_da_base_depois_do_push_sai_0(self):
         self.assertEqual(self.roda([self.evento("dona")]).returncode, 0)
+
+    def test_liberada_pelo_rotulo_nomeia_cada_violacao(self):
+        """CATRACA-NOMEIA-LIBERADA: a linha da contagem vem com uma linha por violação liberada, o texto inteiro dela."""
+        r = self.roda([self.evento("dona")])
+        viol = self.repo.violacoes()
+        self.assertTrue(viol)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        linhas = r.stdout.splitlines()
+        self.assertIn(f"catraca: {len(viol)} violação(ões) liberada(s) pelo rótulo `{catraca.ROTULO}` do dono "
+                      "(aplicado depois do último push).", linhas)
+        self.assertEqual([l for l in linhas if l.startswith("catraca: liberada: ")], [f"catraca: liberada: {v}" for v in viol])
 
     def test_rotulo_do_novo_dono_da_pr_nao_vale(self):
         self.assertEqual(self.roda([self.evento("outra")]).returncode, 1)
