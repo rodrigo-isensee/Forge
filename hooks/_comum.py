@@ -150,6 +150,18 @@ def raiz_declarada():
     return Path(raiz) if raiz and Path(raiz).is_absolute() else None
 
 
+def ler_marca_do_git(caminho):
+    """Texto do `.git`, `gitdir` ou `commondir` de uma worktree, sem esperar FIFO (A1 da segurança no #886): só arquivo
+    regular, até 4096 bytes; especial levanta `OSError`."""
+    fd = os.open(caminho, os.O_RDONLY | os.O_NONBLOCK)
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise OSError(f"{caminho} não é arquivo regular")
+        return os.read(fd, 4096).decode("utf-8").strip()
+    finally:
+        os.close(fd)
+
+
 def diretorio_comum(topo):
     """Diretório comum de git de uma cópia de trabalho, lido só do disco (sem git e sem seguir o que o git resolveria).
     Cópia principal: o próprio `.git`, que nunca tem `commondir` (se tem, alguém o escreveu para desviar a busca). Worktree
@@ -162,10 +174,10 @@ def diretorio_comum(topo):
     if marca.is_dir():
         return None if os.path.lexists(marca / "commondir") else Path(os.path.realpath(marca))
     try:
-        apontado = marca.read_text(encoding="utf-8").strip()
+        apontado = ler_marca_do_git(marca)
         pasta = Path(os.path.realpath(Path(topo) / apontado[len("gitdir:"):].strip()))
-        volta = (pasta / "gitdir").read_text(encoding="utf-8").strip()
-        desvio = (pasta / "commondir").read_text(encoding="utf-8").strip()
+        volta = ler_marca_do_git(pasta / "gitdir")
+        desvio = ler_marca_do_git(pasta / "commondir")
     except (OSError, ValueError):
         return None
     if not apontado.startswith("gitdir:") or pasta.parent.name != "worktrees":

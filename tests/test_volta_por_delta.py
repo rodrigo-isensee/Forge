@@ -1393,11 +1393,11 @@ class BriefDeVolta(Repositorio):
         self.assertEqual(rc, 1)
         self.assertIn("achados: parecer reprovado sem achado bloqueante em ## Achados (R-REVIEW)", saida)
         (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=self.ACHADOS), encoding="utf-8")
-        self.assertEqual(self.check("docs"), (0, ""))
+        self.assertEqual(self.check("docs"), (0, "docs: ok\n"))
         for corpo in ("## Achados\n1. achado em texto livre, formato antigo\n", "sem bloco\n"):  # transição: pareceres antigos seguem válidos
             self.commitar({"docs/reviews/p1.md": self.REVIEW.format(c="abc1234", p="reprovado", corpo=corpo)}, "parecer antigo")
             git("update-ref", "refs/remotes/origin/develop", self.head(), cwd=self.repo)  # antigo: fora do delta (B12)
-            self.assertEqual(self.check("docs"), (0, ""), corpo)
+            self.assertEqual(self.check("docs"), (0, "docs: ok\n"), corpo)
         (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=self.ACHADOS + "achado em prosa\n"), encoding="utf-8")
         self.assertIn("fora do formato", self.check("docs")[1])
 
@@ -1498,7 +1498,7 @@ class Sondas(Repositorio):
     def test_linha_boa_passa_e_parecer_sem_bloco_nao_muda(self):
         for sondas in (self.BOA + "- S2 · {\"a\": 1} · espera: x · obtido: y\n", "", None):
             with self.subTest(sondas):
-                self.assertEqual(self.docs(sondas), (0, ""))
+                self.assertEqual(self.docs(sondas), (0, "docs: ok\n"))
         sondas, erros, tem = carregar_forge_check().sondas_do_parecer("# P\n## Sondas\n" + self.BOA)
         self.assertEqual((sondas[0]["entrada"], sondas[0]["espera"], sondas[0]["obtido"], erros, tem),
                          ("printf 'a\\tb' | bin/x", "rc 1 e `bloqueado`", "rc 0", [], True))
@@ -1684,9 +1684,9 @@ class ProvaDaSuite(Repositorio):
                  "nome parecido": "## Suíte\nforge-suite-1000.verdes, forge-suite-verdes e forge-suite/x.verde não são o carimbo\n"}
         for nome, corpo in casos.items():
             with self.subTest(nome):
-                self.assertEqual(self.docs(corpo), (0, ""))
+                self.assertEqual(self.docs(corpo), (0, "docs: ok\n"))
         with self.subTest("parecer de review não é de QA"):
-            self.assertEqual(self.docs("## Suíte\n" + self.VERDE, "reviews", BriefDeVolta.REVIEW), (0, ""))
+            self.assertEqual(self.docs("## Suíte\n" + self.VERDE, "reviews", BriefDeVolta.REVIEW), (0, "docs: ok\n"))
 
 
 for _nome in dir(BriefDeVolta):  # só os testes desta classe; os herdados já rodam em BriefDeVolta
@@ -1724,13 +1724,13 @@ class DocsEstritoNoDelta(Repositorio):
         self.commitar({"docs/reviews/p1.md": self.LONGO}, "parecer antigo")
         self.com_origem(self.head())
         self.commitar({"src/app.txt": "v2\n"}, "mudança da branch")
-        self.assertEqual(self.docs(), (0, "", ""))
+        self.assertEqual(self.docs(), (0, "docs: ok\n", ""))
 
     def test_sem_origin_develop_avisa_e_segue_o_modo_de_hoje(self):
         (self.repo / "docs" / "reviews").mkdir(parents=True)
         (self.repo / "docs" / "reviews" / "p1.md").write_text(self.LONGO, encoding="utf-8")
         rc, saida, erro = self.docs()
-        self.assertEqual((rc, saida), (0, ""))
+        self.assertEqual((rc, saida), (0, "docs: ok\n"))
         self.assertIn(self.AVISO, erro)
 
     def test_base_do_fluxo_confere_so_o_diff_no_estrito_e_sem_diff_reprova(self):  # FC-DOCS-CAMINHO (v0478 E91.1)
