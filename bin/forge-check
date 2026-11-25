@@ -8124,17 +8124,17 @@ def arquivar_etapas_fechadas(raiz, caminho, protegidas=frozenset()):
             return 0, arquivo
         with os.fdopen(fd, "a", encoding="utf-8") as a:
             if not os.fstat(fd).st_size:
-                a.write(f"# Arquivo do pedido {caminho.stem}\n\nEtapas fechadas que o `brief gerar` tirou de docs/pedidos/{caminho.name} "
+                a.write(f"# Arquivo do pedido {caminho_impresso(caminho.stem)}\n\nEtapas fechadas que o `brief gerar` tirou de docs/pedidos/{caminho_impresso(caminho.name)} "
                         "(PEDIDO-ARQUIVA-SOZINHO); o `## Histórico` fica no pedido.\n\n## Etapas\n")
             a.write("".join(linhas[i] + "\n" for i in movidas))
         ids = [f"{m.group(1)} ({m.group(2).split(',')[0].strip()})" for m in (ETAPA_DE_UMA_LINHA.match(linhas[i]) for i in movidas)]
         saem = set(movidas)
         resto = [l for i, l in enumerate(linhas) if i not in saem]
-        novas = [f"- {', '.join(ids[i:i + IDS_POR_LINHA_DO_FORA])}" for i in range(0, len(ids), IDS_POR_LINHA_DO_FORA)]
+        novas = [f"- {', '.join(ids[j:j + IDS_POR_LINHA_DO_FORA])}" for j in range(0, len(ids), IDS_POR_LINHA_DO_FORA)]
         onde = fim_da_secao(resto, ETAPAS_ARQUIVADAS)
         if onde is None:
             onde = next(i for i in range(inicio + 1, len(resto) + 1) if i == len(resto) or resto[i].startswith("#"))
-            novas = [f"## {ETAPAS_ARQUIVADAS}", f"Fechadas, com o texto em docs/pedidos/{PASTA_DO_ARQUIVO}/{caminho.name}.", *novas, ""]
+            novas = [f"## {ETAPAS_ARQUIVADAS}", f"Fechadas, com o texto em docs/pedidos/{PASTA_DO_ARQUIVO}/{caminho_impresso(caminho.name)}.", *novas, ""]
         resto[onde:onde] = novas
         f.seek(0)
         f.write("\n".join(resto))
