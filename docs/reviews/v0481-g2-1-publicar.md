@@ -3,37 +3,48 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-g2-1-publicar
-commit: 0048e0c4160e62e66f5a166b068911e58c9ce848
+commit: c78bfe22110b57436b64bcc2866af1c03542938e
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-24
 ---
-# Review: v0481 (E6.14, #878, G2.1: forge-check parecer publicar; classe C)
+# Review: v0481 (E6.18, #878, G2.1: forge-check parecer publicar; classe C), volta por delta
 
-Diff revisado: `30dde218..0048e0c4` (12 arquivos; código: `bin/forge_pareceres.py` novo, `bin/forge-check` +47, `hooks/conformidade.json` +4, `tests/catraca.py` +1, `bin/forge-testes`). Conferido contra a ADR 0019 (seções 1.2, 2, 3 e 8) e o modelo de ameaças `docs/security/ameacas/g2-parecer-status.md` (#876, na `develop` d49accf8).
+Revalidação por delta da rodada que reprovou em 0048e0c4 (E6.14; texto no git). Delta lido: `forge-check parecer delta` deste arquivo (16 arquivos no domínio) e `git diff 0048e0c4..c78bfe22` (código: `bin/forge_pareceres.py`, `bin/forge-check`, `bin/forge-testes`, `hooks/conformidade.py`; testes, 5 fixtures `contrib-publicar-*` e as specs `-4` a `-6`).
 
 ## Achados
-- A1 (bloqueante) bin/forge_pareceres.py:49 · R-QA: a catraca do CI (run 45520012052) e `forge-mutante --cobertura --base 30dde218` acusam 7 guardas sem mutante declarado: forge-check:3751, 3754 (2) e forge_pareceres.py:38, 49, 58, 69. Declare um mutante por linha com teste do ramo de falha.
-- A2 (recomendado) bin/forge_pareceres.py:1 · O modelo de ameaças põe M1.4, M4.1, M4.2, M9.2, M9.3, M10.1 e M18.1 no G2.1; o corte só está no PR. Registre etapa ou cartão e a condição "o G2.2 não entra sem eles", e a emenda da coluna Item no modelo pela segurança.
-- A3 (recomendado) bin/forge-check:3783 · Se o agregado falha depois do `gravar_status` do papel (forge_pareceres.py:91), o comando imprime só "recusado" e sai 1, com o status do papel já gravado. Diga o que ficou gravado, para quem roda não supor "nada gravado".
-- A4 (recomendado) bin/forge-testes:153 · Falta o espaço depois da vírgula em `"test_forge_pareceres","test_conferida_por_branch"`; ajuste de formato.
-
-## Leitura
-- **ADR 0019, seção 2:** contextos fechados e sem barra (`CONTEXTOS`), estados `success`/`failure` como a tabela, descrição `<veredito> · sha256 <64> · <n> bloqueantes · <n> recomendados` com o sha256 inteiro e falha fechada acima de 140 antes de gravar qualquer coisa (M7.1); a troca de 12 por 64 hex segue a ADR, que prevalece sobre o desenho e o brief. Agregado sobre `exigidos_do_pr` (M13.1), lendo todas as páginas (`--paginate --slurp`, M19.1), com o filtro de conta antes do mais novo (M1.2).
-- **ADR 0019, seção 3:** o `publicar` confere `validar_documento` estrito, `fora_do_delta` (G1.2), autoria do papel com o sha256 do texto e recusa sem `autoria.jsonl` (M9.1, sem a folga do `pr`), aceite do dono no `riscos-aceitos` (M14.1), o `commit:` como head do único PR aberto da `branch:` por nome exato (o falso do `gh` filtra pelo nome exato, item 12 do checklist), e o corpo relido pela API antes do status (M5.3), com o `html_url` preso ao PR. Toda recusa da conferência local sai antes da primeira chamada ao `gh` (os testes afirmam zero chamadas).
-- **Autoria pelo sha256 sem o caminho:** o hook `autoria` grava o hash com a mesma normalização (`strip`, `hooks/conformidade.py:3965`); casar pelo hash e pelo papel, sem o caminho, prova que o mesmo papel escreveu o mesmo texto: mesma força de hoje. Até o M9.2, o arquivo em `.forge/pareceres/` sozinho não gera registro, e o `publicar` recusa: falha fechada.
-- **Entrar agora é seguro (pergunta do brief):** o G2.1 só escreve; nenhum leitor (`pr`, hook `parecer`, `forge-fechar`, `entrega`) lê status de parecer até o G2.2, e o job `pareceres` e o parecer commitado seguem decidindo. Um status forjado, publicado pela cópia da branch (M10.1) ou com outra conta (M1.4), não libera nada hoje. Sem a permissão do token (D3 b), o `gh` falha e o comando recusa (`test_c17_gh_com_erro_ou_ausente`). O corte é aceitável desde que o G2.2 não entre sem as mitigações cortadas (A2).
-- **Nada que barra hoje deixa de barrar:** `bin/forge-check` ganha só um subcomando; `PROTEGIDOS` só ganha `bin/forge_pareceres.py`; as 4 entradas de `conformidade.json` têm `quem` com papel: em `caminho_barrado` a entrada que casa com o papel só faz `continue` e não libera o que outra regra barra, e `.forge/pareceres/` não colide com `.forge/run/`. O `casa` com `*` cobre o caminho (`test_caminho_por_papel_em_forge_pareceres`). Limite igual ao das pastas `docs/`: a regra com papel casa só relativa à raiz da sessão, e não aos clones em `~/.forge-contrib/wt/`.
-- **Segurança (leitura; parecer próprio do `security-engineer`, E6.16):** sem shell, argv em lista; corpo em JSON por `--input -`; sha validado em 40 hex antes de entrar no caminho da API; `id` do comentário em `int`. Sem segredo nem custo (R-CUSTO: só `gh` da sessão; testes com `gh` falso, sem rede).
-- **Tamanho (H1):** 149 linhas de código, um comportamento (a escrita).
-- **Testes:** os testes de subprocesso limpam o ambiente e chamam o Python com `-I`; `test_nenhum_workflow_usa_secrets` afirma pelo menos 3 workflows (item 11 do checklist).
-
-## Verificações
-- Teste novo, rodado aqui no 0048e0c4: `python3 -m unittest tests.test_forge_pareceres`: 29 testes, OK.
-- Mutantes declarados, rodados aqui (`bin/forge-mutante --processos 1` nas 4 specs): M1 a M23 morreram (M21 por erro do teste sob o mutante).
-- CI do PR no 0048e0c4: `catraca` vermelha por R-QA (A1) e pelo rótulo do dono (`bin/forge-check` e `tests/catraca.py` em `PROTEGIDOS`, esperado); `bateria (pareceres)` vermelha por falta de pareceres (esperado); suíte em andamento na leitura. Não rerrodei a suíte.
+- A1 (bloqueante) hooks/conformidade.py:2566 · A trava R-CONTRIB lê a primeira `--raiz` (`parecer.opcao`), e o argparse do forge-check usa a última: com duas `--raiz`, a última no clone do Forge, o publicar libera na sessão de projeto (S1, S2). Use a última `--raiz`, com fixture das duas formas.
+- A2 (recomendado) hooks/conformidade.py:113 · Com o programa opaco (`python3 $(command -v forge-check)`), `args_do_forge_check` só reconhece o `anotar` e o `--gravar`, e o publicar com `GH_REPO=<forge>` libera na sessão de projeto (S3). Fora do delta (G1.2): vira cartão; inclua `parecer publicar` na forma opaca.
 
 ## Sondas
+- S1 · sessão de projeto, `forge-check --raiz=. --raiz ~/.forge-contrib/proj parecer publicar .forge/pareceres/v1/review.md` · espera: código 2, R-CONTRIB · obtido: código 0, sem saída
+- S2 · sessão de projeto, `forge-check --raiz . parecer publicar --raiz ~/.forge-contrib/proj .forge/pareceres/v1/review.md` · espera: código 2, R-CONTRIB · obtido: código 0, sem saída
+- S3 · sessão de projeto, `GH_REPO=<forge> python3 $(command -v forge-check) parecer publicar .forge/pareceres/v1/review.md` · espera: código 2, R-CONTRIB · obtido: código 0, sem saída
+
+## Achados anteriores
+- A1 (bloqueante): corrigido. `bin/forge-mutante --cobertura --base 30dde218` no c78bfe22 não aponta nenhuma condição sem mutante (só `hooks/conformidade.json` e `tests/pesos-d4.json`, que não são código de guarda). As 7 guardas do A1 têm M24 a M28; o M21 foi refeito para o `""`.
+- A2 (recomendado): segue como cartão, sem mudança neste delta. O parecer de segurança E6.20 repete a condição de que o G2.2 não entra sem M1.4, M4.1, M4.2, M9.2, M9.3, M10.1 e M18.1.
+- A3 (recomendado): corrigido. A recusa depois do PR diz o que já ficou gravado (`já gravado: ...`, `bin/forge_pareceres.py:102`, M30) e o comando a imprime (`bin/forge-check:3784`).
+- A4 (recomendado): corrigido (`bin/forge-testes:153`).
+
+## Leitura do delta
+- **Como as sondas rodaram:** pela máquina de fixtures de `tests/test_hooks.py` (`Fixture` e `executar_em_lote`), com o `gh` ausente e sem chamada ao GitHub. Que o forge-check usa a última `--raiz` nas duas formas, provei com o mesmo par de parsers de `bin/forge-check:10727-10735` (`parents=[comum]`, `default=SUPPRESS`): `parse_args` dá a última nos dois casos. Barram, como deviam (código 2, R-CONTRIB): `cd ~/.forge-contrib/proj && forge-check parecer publicar`, `export GH_REPO=<forge>; forge-check parecer publicar`, `env GH_REPO=<forge> forge-check parecer publicar` e `forge-check parecer publicar --raiz=~/.forge-contrib/proj`.
+- **Agregado em `pending` antes do papel** (`bin/forge_pareceres.py:78-103`): o agregado vai a `pending` antes do status do papel, que só é gravado depois, e o agregado é recalculado no fim. Uma falha em qualquer ponto deixa o mais novo do `pareceres` em `pending` e nunca um `success` velho: falha fechada. Os testes `test_falha_entre_o_papel_e_o_agregado_nao_deixa_success` e `test_falha_antes_do_status_diz_o_que_ficou` usam o `gh` falso com `falha_em` por argumento exato. O `except` só troca o tipo do erro e o relança como `Recusa`, sem engolir nada. O `pending` do agregado sai sem `target_url`, e o teste confere isso (M26).
+- **`recusa_do_publicar`** (`bin/forge-check:3751-3754`): a troca de `Path(arquivo) if is_absolute() else raiz / arquivo` por `raiz / arquivo` é equivalente, porque o pathlib descarta a raiz quando `arquivo` é absoluto, e o comentário da linha diz isso. A mudança de `None` para `""` faz o arquivo ausente e o arquivo sem frontmatter caírem na mesma recusa pelo caminho (M21, M28).
+- **Trava do hook** (`hooks/conformidade.py:2465`, `2560-2568`): usa a mesma `alvo_do_forge` do `gh_contrib`, com `GH_REPO` da linha ou do `export`, e não afrouxa nada. O defeito está na leitura da `--raiz` (A1); a forma opaca (A2) é anterior ao delta. Do resto, as 5 fixtures e `test_fixtures_do_publicar` (mínimo de 5 e os dois lados, item 11 do checklist) estão corretos.
+- **Tamanho (H1):** `teto: excedido, 169 linhas` está declarado no corpo do PR, com o motivo. Aceito: cortar mais deixa um portão vermelho. A correção de A1 e A2 cabe em poucas linhas.
+- **Mensagens dos commits:** Conventional Commits em português, com o pedido e a etapa.
+
+## Verificações
+- Rodados aqui no c78bfe22: `python3 -m unittest tests.test_forge_pareceres` (35 testes, OK) e `tests.test_hooks.Hooks.test_fixtures_do_publicar` (OK).
+- Mutantes: `bin/forge-mutante --processos 1` nas specs `-4`, `-5` e `-6`. M21 a M33 morreram. M21, M24, M25, M27 e M28 morreram por erro do teste sob o mutante, que passa sem ele.
+- CI do #878 em andamento na leitura (`catraca` pendente). A suíte inteira não foi rerrodada aqui.
 
 ## Parecer
-Reprovado só pelo A1: a catraca do CI está vermelha por R-QA além do rótulo do dono. Para a volta: declarar os 7 mutantes, com teste do ramo de falha onde faltar, e rodar `forge-mutante --cobertura --base 30dde218` sem nenhum `sem mutante`. No mérito, o publicar segue a ADR 0019 e o modelo nas mitigações que traz, falha fechado sem a permissão do token (D3 b) e não tira nenhuma barreira de hoje, porque nada lê status de parecer antes do G2.2. A2 a A4 são recomendados.
+Reprovado por A1: a trava R-CONTRIB que esta volta acrescentou tem um contorno provado, com um só comando na sessão de projeto. Para a volta:
+- ler a última `--raiz` da linha;
+- uma fixture para S1 e S2 e um mutante por linha de guarda mudada.
+
+O A2 (forma opaca) é anterior ao delta e vira cartão depois do merge.
+
+O resto do delta fecha os achados anteriores e falha fechado.
