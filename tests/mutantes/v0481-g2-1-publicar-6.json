@@ -67,7 +67,7 @@
       "guarda": "hook: a --raiz depois do -- é o arquivo do argparse e não conta para o alvo do publicar (A1 do E6.22)",
       "arquivo": "hooks/conformidade.py",
       "de": "if a == \"--\":  # o argparse toma o resto como posicional, nunca como --raiz (A1 do E6.22)",
-      "para": "if False:",
+      "para": "if False:  # o argparse toma o resto como posicional, nunca como --raiz (A1 do E6.22)",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_publicar"
       ]
