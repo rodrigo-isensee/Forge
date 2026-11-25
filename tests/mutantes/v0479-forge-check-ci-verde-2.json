@@ -48,8 +48,8 @@
       "id": "M13",
       "guarda": "suite_do_parecer: só no Forge",
       "arquivo": "bin/forge-check",
-      "de": "    if not e_o_forge(Path(raiz)) or (falta := falta_na_prova(",
-      "para": "    if (falta := falta_na_prova(",
+      "de": "    if not e_o_forge(Path(raiz)):\n        return []\n    sem_ci = ",
+      "para": "    if False:\n        return []\n    sem_ci = ",
       "testes": [
         "tests.test_forge_check_pr.SuiteNoCmdPr.test_fora_do_forge_nada_muda"
       ]
@@ -80,8 +80,8 @@
       "id": "M16",
       "guarda": "suite_do_parecer: o CI é o do head da ref",
       "arquivo": "bin/forge-check",
-      "de": "sha_do_commit(raiz, ref or \"HEAD\"))\n    return [] if ci",
-      "para": "sha_do_commit(raiz, ref))\n    return [] if ci",
+      "de": "sha_do_commit(raiz, ref or \"HEAD\"))\n    return sem_ci + ([] if ci",
+      "para": "sha_do_commit(raiz, ref))\n    return sem_ci + ([] if ci",
       "testes": [
         "tests.test_forge_check_pr.SuiteNoCmdPr.test_sem_prova_e_sem_ci_verde_reprova"
       ]

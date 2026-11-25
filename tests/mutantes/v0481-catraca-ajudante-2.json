@@ -1,0 +1,46 @@
+{
+  "pedido": "v0481-catraca-ajudante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CA9",
+      "guarda": "E14.14: todo def test_ do módulo e da classe tem perfil",
+      "arquivo": "tests/catraca.py",
+      "de": "elif isinstance(filho, FUNCOES) and filho.name.startswith(\"test_\"):",
+      "para": "elif isinstance(filho, ast.AsyncFunctionDef) and filho.name.startswith(\"test_\"):",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_ajudante_com_assercao_conta_e_o_sem_assercao_nao"]
+    },
+    {
+      "id": "CA10",
+      "guarda": "E14.14: o def comum da classe é método",
+      "arquivo": "tests/catraca.py",
+      "de": "metodos.update({f.name: f for f in classe.body if isinstance(f, FUNCOES)})",
+      "para": "metodos.update({f.name: f for f in classe.body if isinstance(f, ast.AsyncFunctionDef)})",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_ajudante_com_assercao_conta_e_o_sem_assercao_nao"]
+    },
+    {
+      "id": "CA11",
+      "guarda": "E14.14: só o nome solto é função do módulo",
+      "arquivo": "tests/catraca.py",
+      "de": "if isinstance(func, ast.Name) else None",
+      "para": "if isinstance(func, ast.Attribute) else None",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_ajudante_com_assercao_conta_e_o_sem_assercao_nao"]
+    },
+    {
+      "id": "CA12",
+      "guarda": "E14.14: as classes do módulo entram como bases",
+      "arquivo": "tests/catraca.py",
+      "de": "classes = {c.name: c for c in ast.walk(arvore) if isinstance(c, ast.ClassDef)}",
+      "para": "classes = {c.name: c for c in ast.walk(arvore) if isinstance(c, ast.FunctionDef)}",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_ajudante_com_assercao_conta_e_o_sem_assercao_nao"]
+    },
+    {
+      "id": "CA13",
+      "guarda": "E14.14: o def comum do módulo é ajudante",
+      "arquivo": "tests/catraca.py",
+      "de": "funcoes = {f.name: f for f in arvore.body if isinstance(f, FUNCOES)}",
+      "para": "funcoes = {f.name: f for f in arvore.body if isinstance(f, ast.AsyncFunctionDef)}",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_ajudante_com_assercao_conta_e_o_sem_assercao_nao"]
+    }
+  ]
+}
