@@ -3,16 +3,16 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-perfil-fifo
-commit: 8dfe968f7cfc0c8240a62136b6af02a49bc6d3df
+commit: 517f80fd166ae8230ef6dd5af7991324975ead0e
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-25
 ---
-# QA: v0481 (E7.17), #886: texto da recusa sem FIFO no perfil nem git
+# QA: v0481 (E7.17 e E7.21), #886: texto da recusa sem FIFO no perfil nem git
 
 Classe C, correção sem especificação de UX nova (sem plano antecipado). Obrigações: `R-VERIFY`, `R-MAIN`, ADR 0003 (fixtures), A2 e S3 da segurança no #885: com FIFO em `.forge/perfil`, a recusa sai com a regra certa, sem esperar, e o prazo vencido na escolha do texto não vira liberação.
 
@@ -35,3 +35,17 @@ Classe C, correção sem especificação de UX nova (sem plano antecipado). Obri
 - Sonda extra (arquivo `sonda_fifo.py` no scratchpad, contra a árvore do PR), FIFO em `.forge/perfil`: push na main (R-MAIN), `--force` e `--no-verify` (R-VERIFY) recusam com a regra certa, 0,2 a 0,3 s, nas duas sessões. Controle com perfil regular `experiente` e `iniciante`: mesmas decisões de antes, `git reset --hard` pergunta só no projeto iniciante.
 - Resíduo (A1): ainda com FIFO, `git reset --hard` no projeto recusa em 3,2 s por "não decidiu" (perfil experiente liberaria; falha fechada) e `Write` em `.forge/perfil` leva 3,2 s (Forge: libera; projeto: recusa por prazo). Nenhuma recusa que existia deixou de existir; o resíduo é o `Hook.iniciante` que o item deixou de fora, então não bloqueia este PR. Resposta ao brief: não precisa entrar neste item, mas pede cartão próprio (trocar `Hook.iniciante` pela mesma leitura sem espera e decidir o prazo vencido nesses dois pontos).
 - CI do sha 8dfe968f: `bateria (python 3.14)` success (check-run 138975314335), suítes 3.12 e 3.14 verdes, tetos de pulados verdes. `bateria (pareceres)` e `catraca` falham no mesmo run do sha: não li o log (cache de `gh` somente leitura); `bateria (pareceres)` é o esperado antes dos pareceres desta etapa. Quem mescla confere os dois depois dos pareceres.
+
+## Delta E7.21 (de 8dfe968f a 517f80fd)
+`git diff 8dfe968f..517f80fd`: `hooks/_comum.py` ganha `ler_marca_do_git` (O_NONBLOCK, só arquivo regular, até 4096 bytes), usada por `diretorio_comum` no `.git`, `gitdir` e `commondir`; `tests/test_hooks.py` tira o `skipUnless` da classe e ganha dois testes; `tests/mutantes/v0481-perfil-fifo-2.json` (M8, M9); fragmento do changelog. Obrigação nova: FIFO em `.git`, `gitdir` ou `commondir` da worktree não espera e não vale (A1 da segurança no #886). As obrigações acima seguem.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| `.git` da worktree que é FIFO não trava | `test_fifo_no_ponto_git_da_worktree_nao_espera` | FIFO em `.git` | passou |
+| FIFO com conteúdo certo no `gitdir` não vale | `test_fifo_com_conteudo_no_gitdir_nao_vale` | só arquivo regular | passou |
+
+- Classe: `python3 -m unittest tests.test_hooks.RecusaComFifoNoPerfil` -> `Ran 7 tests ... OK` (1,5 s).
+- Vermelho (à mão, cópia em `$TMPDIR` do head com `hooks/_comum.py` de `8dfe968f`): os dois testes novos -> `Ran 2 tests ... FAILED (failures=2)`, "a leitura do perfil esperou o FIFO" (10 s).
+- Mutação: `bin/forge-mutante tests/mutantes/v0481-perfil-fifo.json tests/mutantes/v0481-perfil-fifo-2.json --processos 2` -> M1 a M9 `morreu` (M8 `_comum.py:156`, M9 `_comum.py:158`), rc 0. `--cobertura --base 5fb8e328`: `_comum.py:158` e as 5 linhas de `conformidade.py` `coberta`; nenhuma `não coberta`. A linha 156 (`os.open`) não é condição Python, e M8 a cobre.
+- Sonda (`sonda_fifo.py`, FIFO em `.forge/perfil`, árvore do head): push na main, `--force` e `--no-verify` recusam com a regra certa em 0,1 a 0,2 s nas duas sessões; igual à rodada anterior, o resíduo A1 (`Hook.iniciante`: `reset --hard` no projeto e `Write` no perfil, 3,1 s) segue, sem mudança.
+- Catraca: `catraca.forca_dos_testes` por AST, (asserções, pulos, vazios): base `5fb8e328` (17169, 38, 0); `8dfe968f` (17178, 39, 0); `517f80fd` (17183, 38, 0). Os pulos voltaram a 38 e nenhum teste perdeu asserção. No CI do sha `517f80fd` o check `catraca` está `failure` (check-run 138979586409); não li o log (cache do `gh` somente leitura), então não atribuo a causa; quem mescla confere o log. `bateria (pareceres)` também falha, esperado até os pareceres desta etapa entrarem. As suítes 3.12 e 3.14 estavam em andamento na leitura.
