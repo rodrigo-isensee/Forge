@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-corte-completo
-commit: 036a78a16d09a3abf29ae94c02d4e6665e2b5227
+commit: 8e814a7337637b561c53fe9b66ba4fd54966b1ec
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -41,3 +41,18 @@ Classe C. Diff lido contra a base `5fb8e328667e`: `bin/forge-fechar` (+105), `te
 
 ## Notas sem bloqueio
 - O clone `/root/.forge-contrib/wt/v0481-corte-completo-qa` foi feito com `git clone --shared` porque `git worktree add` falha no sandbox (`.git/worktrees` somente leitura).
+
+## Revalidação por delta (E13.21): 036a78a1 a 8e814a73
+`forge-check parecer delta` lista no domínio: `bin/forge-fechar`, `docs/fechamento-integrador.md`, `tests/mutantes/v0481-corte-completo-3.json`, `tests/test_fechar_corte.py`, `tests/test_reval_delta.py`. Li o diff dos cinco.
+
+| Mudança do delta | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| Mensagem do V5 diz que o mesmo comando não refaz o corpo e aponta a medida em `$tmp/nova-medida` (o `tmp` não é removido no caminho de `die`) | `test_corpo_que_nao_refaz_para` (asserção nova `ajuste o corpo à mão com a medida em `) | edição do PR que falha | passou; cai na base, prova |
+| Leitura do `ls-remote` do origin em erro sai em 0, sem buscar, enviar nem refazer o corpo | `test_leitura_do_origin_que_falha_nao_anexa` (ramo no origin igual ao de antes; nenhuma edição nem criação de PR) | leitura do origin que falha | passou; M17 morre |
+| Contagem de citações de `README.md` em `test_fechar_corte.py` de 2 para 3 | `test_reval_delta` (módulo inteiro, 10 testes) | citação nova do nome sintético | passou |
+| Limite do `--laco` e mensagem de erro no manual | leitura: o texto confere com o código (anexo só quando um `--corte` roda entre o fragmento e o merge da marca) | n/a | confere |
+
+- Módulos: `test_fechar_corte` → `Ran 29 tests ... OK`; `test_reval_delta` → `Ran 10 tests ... OK`.
+- Vermelho: `bin/forge-testes --vermelho 036a78a16d09 --modulos test_fechar_corte,test_reval_delta` → rc 0; `contagem: não prova (passa na base)=38; prova (asserção)=1` (`test_corpo_que_nao_refaz_para`). O teste de M17 passa na base de propósito: guarda comportamento que já existia (o ramo de erro do `ls-remote`); a prova dele é o mutante, não o vermelho.
+- Mutantes: `bin/forge-mutante` nas três specs (`v0481-corte-completo.json`, `-2`, `-3`) com `--processos 3` → `rev=8e814a733763`, M1 a M17 todos `morreu`, nenhum sobrevivente.
+- CI do head `8e814a73` (PR #887, run 45554026272), lido na hora do parecer: parte 3/5 do python 3.14 `pass`; a do 3.12 ainda `pending`; partes 2/5 e 5/5 do 3.12 e 5/5 do 3.14 `pass`; `bateria (passos)`, `bateria (verificações longas)`, `catraca` e `instalação` `pass`. `bateria (pareceres)` está `fail` porque os pareceres ainda apontam o sha anterior: é o que esta regravação conserta. O check-run `bateria` final do sha decide o merge; não rodei a suíte local.
