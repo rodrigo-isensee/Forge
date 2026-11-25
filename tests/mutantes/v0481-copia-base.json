@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "COPIA-BASE: a base sem origin/ vale como origin/<base>",
       "arquivo": "bin/forge-copia",
-      "de": "    for ref in (base, f\"origin/{base}\"):",
-      "para": "    for ref in (base,):",
+      "de": "    return (base,) if base.startswith(\"origin/\") else",
+      "para": "    return (base,) if True else",
       "testes": [
         "tests.test_forge_copia.Cria.test_clone_que_nasce_na_main_aceita_base_sem_origin"
       ]
