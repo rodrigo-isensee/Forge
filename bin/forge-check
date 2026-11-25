@@ -10447,8 +10447,9 @@ PRAZO_DO_PRONTO_S = 3600  # D2-NO-BRIEF: o pronto roda os testes afetados e pode
 def prova_do_pronto(pasta, base, so_leitura, rodar=subprocess.run):
     """D2-NO-BRIEF (v0481 E14.51): [(linha, reprova)] do `forge-check pronto` deste forge-check com `--raiz` na worktree da branch, na
     etapa codigo da conferência; fora do rc 0 reprova, com a última linha do pronto (o que falhou). Com `so_leitura` (quem confere não
-    roda código da branch), sem worktree ou fora do Forge (sem bin/forge-testes) não roda: vale a última linha no relatório do autor."""
-    if so_leitura or pasta is None or not (Path(pasta) / "bin" / "forge-testes").is_file():
+    roda código da branch), sem worktree ou fora do Forge (sem .claude-plugin/plugin.json) não roda: vale a última linha no relatório
+    do autor."""
+    if so_leitura or pasta is None or not (Path(pasta) / ".claude-plugin" / "plugin.json").is_file():
         return [("pronto: não rodado aqui (--so-leitura, sem worktree ou fora do Forge); confira a última linha do `forge-check pronto` "
                  "no relatório do autor (D2-NO-BRIEF)", False)]
     argv = [sys.executable, str(Path(__file__).resolve()), "--raiz", str(pasta), "pronto", "--base", f"origin/{base.removeprefix('origin/')}"]

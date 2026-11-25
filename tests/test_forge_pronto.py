@@ -276,8 +276,8 @@ class ProvaDoPronto(unittest.TestCase):
     def setUp(self):
         self.pasta = Path(tempfile.mkdtemp(dir=os.environ.get("TMPDIR")))
         self.addCleanup(subprocess.run, ["rm", "-rf", str(self.pasta)])
-        (self.pasta / "bin").mkdir()
-        (self.pasta / "bin" / "forge-testes").write_text("", encoding="utf-8")
+        (self.pasta / ".claude-plugin").mkdir()
+        (self.pasta / ".claude-plugin" / "plugin.json").write_text("{}\n", encoding="utf-8")
 
     def prova(self, resultado=None, so_leitura=False, pasta="padrão", erro=None):
         rodar = mock.Mock(return_value=resultado, side_effect=erro)

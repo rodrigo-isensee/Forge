@@ -6,8 +6,8 @@
       "id": "M9",
       "guarda": "prova_do_pronto: o conferente --so-leitura não roda código da branch",
       "arquivo": "bin/forge-check",
-      "de": "    if so_leitura or pasta is None or not (Path(pasta) / \"bin\" / \"forge-testes\").is_file():",
-      "para": "    if pasta is None or not (Path(pasta) / \"bin\" / \"forge-testes\").is_file():",
+      "de": "    if so_leitura or pasta is None or not (Path(pasta) / \".claude-plugin\" / \"plugin.json\").is_file():",
+      "para": "    if pasta is None or not (Path(pasta) / \".claude-plugin\" / \"plugin.json\").is_file():",
       "testes": [
         "tests.test_forge_pronto.ProvaDoPronto.test_so_leitura_sem_worktree_e_fora_do_forge_nao_rodam"
       ]
