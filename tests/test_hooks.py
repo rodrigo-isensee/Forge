@@ -3607,7 +3607,6 @@ class TravouNoPerfil(BaseException):
     """O alarme de `RecusaComFifoNoPerfil.sem_travar` venceu."""
 
 
-@unittest.skipUnless(hasattr(os, "mkfifo"), "sem FIFO")
 class RecusaComFifoNoPerfil(unittest.TestCase):  # A2 e S3 da segurança no #885 (v0481 E7.15), nas duas sessões
     """Com um FIFO em `.forge/perfil`, a escolha do texto da recusa não espera nem chama `git`, e o prazo vencido nela não
     troca a recusa: na sessão do Forge (não vigiada) o prazo vencido liberava push na main e `--force`."""
@@ -3678,8 +3677,8 @@ class RecusaComFifoNoPerfil(unittest.TestCase):  # A2 e S3 da segurança no #885
         (raiz / ".forge" / "perfil").write_text("Iniciante\n", encoding="utf-8")
         self.assertTrue(conformidade.perfil_iniciante(raiz))
 
-    def test_worktree_com_fifo_le_o_perfil_da_copia_principal(self):
-        _, conformidade, _ = modulos_dos_hooks()
+    def worktree(self):
+        """Cópia principal com perfil `iniciante` e uma worktree dela sem perfil próprio."""
         principal = self.montar(True, fifo=False)
         (principal / ".forge" / "perfil").write_text("iniciante\n", encoding="utf-8")
         git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x", cwd=principal)
@@ -3687,8 +3686,35 @@ class RecusaComFifoNoPerfil(unittest.TestCase):  # A2 e S3 da segurança no #885
         self.addCleanup(shutil.rmtree, copia, True)
         git("worktree", "add", "-q", "--detach", str(copia), cwd=principal)
         (copia / ".forge").mkdir()
+        return principal, copia
+
+    def test_worktree_com_fifo_le_o_perfil_da_copia_principal(self):
+        _, conformidade, _ = modulos_dos_hooks()
+        _, copia = self.worktree()
         os.mkfifo(copia / ".forge" / "perfil")
         self.assertTrue(self.sem_travar(conformidade.perfil_iniciante, copia))
+
+    def test_fifo_no_ponto_git_da_worktree_nao_espera(self):  # A1 da segurança no #886
+        _, conformidade, _ = modulos_dos_hooks()
+        _, copia = self.worktree()
+        (copia / ".git").unlink()
+        os.mkfifo(copia / ".git")
+        self.assertIsNone(self.sem_travar(conformidade.diretorio_comum, copia))
+        self.assertFalse(self.sem_travar(conformidade.perfil_iniciante, copia))
+
+    def test_fifo_com_conteudo_no_gitdir_nao_vale(self):  # A1 da segurança no #886: só arquivo regular
+        _, conformidade, _ = modulos_dos_hooks()
+        principal, copia = self.worktree()
+        volta = principal / ".git" / "worktrees" / copia.name / "gitdir"
+        conteudo = volta.read_bytes()
+        self.assertTrue(conformidade.perfil_iniciante(copia))
+        volta.unlink()
+        os.mkfifo(volta)
+        escrita = os.open(volta, os.O_RDWR | os.O_NONBLOCK)  # o FIFO já traz o conteúdo certo na leitura
+        self.addCleanup(os.close, escrita)
+        os.write(escrita, conteudo)
+        self.assertIsNone(self.sem_travar(conformidade.diretorio_comum, copia))
+        self.assertFalse(self.sem_travar(conformidade.perfil_iniciante, copia))
 
 
 class PoolDosFixtures(unittest.TestCase):
