@@ -1,0 +1,70 @@
+{
+  "pedido": "v0481-catraca-ajudante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CA1",
+      "guarda": "E14.14: só a base presente no módulo entra nos métodos",
+      "arquivo": "tests/catraca.py",
+      "de": "if (b := classes.get(_nome(base))) is not None and b.name not in vistas:",
+      "para": "if (b := classes.get(_nome(base))) is None and b.name not in vistas:",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_ajudante_com_assercao_conta_e_o_sem_assercao_nao"]
+    },
+    {
+      "id": "CA2",
+      "guarda": "E14.14: base em laço não recursa sem fim",
+      "arquivo": "tests/catraca.py",
+      "de": "if (b := classes.get(_nome(base))) is not None and b.name not in vistas:",
+      "para": "if (b := classes.get(_nome(base))) is not None:",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_ajudante_com_assercao_conta_e_o_sem_assercao_nao"]
+    },
+    {
+      "id": "CA3",
+      "guarda": "E14.14: self.x() acha o método da classe",
+      "arquivo": "tests/catraca.py",
+      "de": "func.value.id in (\"self\", \"cls\"):",
+      "para": "func.value.id in (\"cls\",):",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_ajudante_com_assercao_conta_e_o_sem_assercao_nao"]
+    },
+    {
+      "id": "CA4",
+      "guarda": "E14.14: x() acha a função do módulo",
+      "arquivo": "tests/catraca.py",
+      "de": "return ajudantes[\"modulo\"].get(func.id) if isinstance(func, ast.Name) else None",
+      "para": "return None",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_ajudante_com_assercao_conta_e_o_sem_assercao_nao"]
+    },
+    {
+      "id": "CA5",
+      "guarda": "E14.14: o fundo limita a recursão do ajudante",
+      "arquivo": "tests/catraca.py",
+      "de": "elif fundo and (alvo := _alvo(n.func, ajudantes)) is not None:",
+      "para": "elif (alvo := _alvo(n.func, ajudantes)) is not None:",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_ajudante_com_assercao_conta_e_o_sem_assercao_nao"]
+    },
+    {
+      "id": "CA6",
+      "guarda": "E14.14: ajudante sem asserção não vira valor esperado",
+      "arquivo": "tests/catraca.py",
+      "de": "                if a:\n                    asserts += a",
+      "para": "                if True:\n                    asserts += a",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_ajudante_com_assercao_conta_e_o_sem_assercao_nao"]
+    },
+    {
+      "id": "CA7",
+      "guarda": "E14.14: teste chamado sem ajudantes usa os vazios",
+      "arquivo": "tests/catraca.py",
+      "de": "ajudantes or _ajudantes({}, {}), FUNDO_DOS_AJUDANTES)",
+      "para": "ajudantes, FUNDO_DOS_AJUDANTES)",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_ajudante_com_assercao_conta_e_o_sem_assercao_nao"]
+    },
+    {
+      "id": "CA8",
+      "guarda": "E14.14: teste sem asserção não pareia como renomeado",
+      "arquivo": "tests/catraca.py",
+      "de": "return antes[0] > 0 and depois[0] == antes[0]",
+      "para": "return depois[0] == antes[0]",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_renomeado_sem_assercao_barra_e_com_ajudante_passa"]
+    }
+  ]
+}

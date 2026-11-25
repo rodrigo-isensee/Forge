@@ -1,0 +1,14 @@
+{
+  "pedido": "v0481-catraca-ajudante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CA9",
+      "guarda": "E14.14: todo def test_ do módulo e da classe tem perfil",
+      "arquivo": "tests/catraca.py",
+      "de": "elif isinstance(filho, FUNCOES) and filho.name.startswith(\"test_\"):",
+      "para": "elif isinstance(filho, ast.AsyncFunctionDef) and filho.name.startswith(\"test_\"):",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_ajudante_com_assercao_conta_e_o_sem_assercao_nao"]
+    }
+  ]
+}

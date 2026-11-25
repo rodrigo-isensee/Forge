@@ -780,6 +780,85 @@ class TestesAfrouxados(Base):
         self.assertEqual(self.afrouxados("", "tests/catraca.py"), [])
 
 
+class AssercaoNoAjudante(Base):
+    """E14.14 (v0481, visto no #890): a asserção feita num ajudante da classe, da base no módulo ou do módulo conta no teste."""
+
+    A = textwrap.dedent("""\
+        import unittest
+        def confere(x):
+            assert x == 1
+        class Mae(unittest.TestCase):
+            def herdado(self, x):
+                self.assertIn(x, "ab")
+        class T(Mae):
+            def fica(self, x):
+                self.assertTrue(existe(x))
+            def sai(self, x):
+                self.assertFalse(existe(x))
+            def volta(self, n):
+                if n:
+                    self.volta(n - 1)
+                self.assertGreaterEqual(n, 0)
+            def nada(self):
+                return 1
+            def test_guarda(self):
+                self.fica("a")
+            def test_modulo(self):
+                confere(g())
+            def test_herdado(self):
+                self.herdado(h())
+            def test_recursivo(self):
+                self.volta(3)
+            def test_so_chama(self):
+                self.nada()
+                f()
+        """)
+
+    def setUp(self):
+        super().setUp()
+        self.repo.escreve("tests/test_a.py", self.A)
+        self.repo.commit()
+        self.repo.git("tag", "-f", "base")
+
+    def afrouxados(self, novo):
+        self.repo.escreve("tests/test_a.py", novo)
+        self.repo.commit()
+        return [v.split(". Por quê")[0] for v in self.repo.violacoes() if v.startswith("R-CONFORMIDADE: o teste ")]
+
+    def test_ajudante_com_assercao_conta_e_o_sem_assercao_nao(self):
+        perfis = catraca.testes_da_arvore(ast.parse(self.A))
+        contagem = {nome.split(".")[-1]: p[0] for nome, p in perfis.items()}
+        self.assertEqual(contagem, {"test_guarda": 1, "test_modulo": 1, "test_herdado": 1,
+                                    "test_recursivo": catraca.FUNDO_DOS_AJUDANTES, "test_so_chama": 0})
+        self.assertEqual(perfis["T.test_so_chama"][3], catraca.Counter())
+        laco = catraca.testes_da_arvore(ast.parse("class A(B):\n    def test_x(self):\n        self.h()\nclass B(A):\n    def h(self):\n        assert y\n"))
+        self.assertEqual({n: p[0] for n, p in laco.items()}, {"A.test_x": 1})
+        self.assertEqual(catraca._perfil_do_teste(ast.parse("def test_a(self):\n    self.fica()\n").body[0], 0)[0], 0)
+
+    def test_chamada_ao_ajudante_tirada_ou_ajudante_sem_assercao_barra(self):
+        casos = {"chamada tirada": ('        self.fica("a")\n', '        existe("a")\n'),
+                 "corpo do ajudante": ("        self.assertTrue(existe(x))\n", "        existe(x)\n"),
+                 "módulo": ("        confere(g())\n", "        g()\n"), "herdado": ("        self.herdado(h())\n", "        h()\n")}
+        alvo = {"módulo": "test_modulo", "herdado": "test_herdado"}
+        for nome, (de, para) in casos.items():
+            with self.subTest(nome):
+                self.repo.git("reset", "-q", "--hard", "base")
+                self.assertEqual(self.afrouxados(self.A.replace(de, para)),
+                                 [f"R-CONFORMIDADE: o teste tests/test_a.py::T.{alvo.get(nome, 'test_guarda')} perdeu asserção"])
+
+    def test_ajudante_invertido_fica_listado_para_o_revisor(self):
+        invertido = self.A.replace('        self.fica("a")\n', '        self.sai("a")\n')
+        self.assertEqual(self.afrouxados(invertido), [])
+        self.assertEqual(catraca.valores_para_conferir(self.repo.dir, "base"), ["tests/test_a.py::T.test_guarda"])
+
+    def test_renomeado_sem_assercao_barra_e_com_ajudante_passa(self):
+        self.assertEqual(self.afrouxados(self.A.replace("def test_so_chama", "def test_so_chama2")),
+                         ["R-CONFORMIDADE: o teste tests/test_a.py::T.test_so_chama foi apagado ou renomeado"])
+        self.repo.git("reset", "-q", "--hard", "base")
+        self.assertEqual(self.afrouxados(self.A.replace("def test_guarda", "def test_guarda2")), [])
+        self.assertFalse(catraca.mesmas_assercoes((0, 0, False, catraca.Counter()), (0, 0, False, catraca.Counter())))
+
+
 class ControlesEnfraquecidos(Base):
     """MAQ-I7a: a força conta por módulo de controle; ilegível, grande demais ou renomeado conta zero."""
     HOOKS_PY = "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        self.assertTrue(1)\n        assert 2\n"
