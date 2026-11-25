@@ -3,26 +3,27 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-docs-ok
-commit: 9fa5f83278cfea50921a8fbd156766067450d354
+commit: 6d71827e0a25324caf731a6d17949b158ce7e348
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-25
 ---
-# Review de segurança: v0481 (E14.21, #892, classe C)
+# Review de segurança: v0481 (E14.26, #892, classe C, volta por delta)
 
-Gatilhos: controle do Forge (saída do `forge-check docs`, portão dos pareceres), texto do brief dos portões (cópia do revisor).
+Gatilhos: controle do Forge (saída do `forge-check docs`, portão dos pareceres), texto do brief dos portões (cópia do revisor), specs de mutante das guardas.
 
-## Conferência
-Diff lido inteiro (`220ba3fa..9fa5f83`, 7 arquivos). Veredito por mudança: só aperta ou neutro.
+## Delta lido
+`forge-check parecer delta` de `9fa5f83..6d71827e` (E14.22): no domínio só `bin/forge-check`; fora, `tests/mutantes/v0478-clone-nome-unico.json` (lido mesmo assim, é a spec da guarda). Os commits de parecer do intervalo (review, QA, o meu anterior) não tocam código. Já lido na rodada anterior: o resto do diff `220ba3fa..9fa5f83` (ela fica no git). Achados anteriores: nenhum bloqueante; a observação de estilo `gravar =not` foi corrigida neste delta.
 
-- **`bin/forge-check:11239-11240` (neutro):** `docs: ok` sai só com `a.cmd == "docs" and not violacoes`, depois de imprimir as violações; o rc segue `1 if violacoes else 0` (`:11247`), intocado. Toda reprovação do `docs` (frontmatter, achados, sondas, pedido, diff ilegível com `--base`, `:11234` via `cmd_docs`) chega como item de `violacoes`, então nunca imprime o ok; a guarda de versão (`:11055-11057`) e uma exceção saem antes do print. Nada que barra hoje deixa de barrar.
-- **Chamadores que leem a saída:** nenhum. Procurei `forge-check ... docs` e `"docs"` em listas de argv em `.githooks/` (pre-push, commit-msg), `templates/projeto/.githooks/`, `.github/workflows/ci.yml` e o do modelo, `hooks/` (o `conformidade.json:117` só lista o comando como permitido ao papel), `bin/forge-fechar` (só roda `pr`), `bin/forge_pronto.py`, a catraca e `scripts/`: nenhum decide por saída vazia; todos os usos são por rc ou por humano. Os testes que comparavam stdout vazio foram atualizados; os demais que chamam `docs` só usam stderr, `assertIn` ou a igualdade script×rápido (`tests/test_forge.py:3857`), que não muda.
-- **`bin/forge-check:9731-9734` (aperta):** com etapa em `ETAPAS_DE_PARECER` (review, seguranca, qa), o brief manda criar o clone com `--revisao` (head remoto da branch, sem cair na base); o caminho passa pelo mesmo `valor_de_shell_seguro` de antes e a `branch` entra como já entrava no ramo antigo. Etapa de código mantém o texto antigo (teste `test_brief_de_parecer_cria_o_clone_de_revisao`, com o negativo da etapa `codigo`).
-- **`skills/checagem-do-brief/por-tema.md:5` (aperta):** só texto, a mesma regra.
+- **`bin/forge-check:11241` (neutro):** só o espaço em `gravar = not`; a expressão é a mesma. O M12 de `tests/mutantes/v046-pr-hook-prazo-2.json` volta a casar uma vez e morre (`forge-mutante ... --ids M12`: `M12 · morreu · bin/forge-check:11241`).
+- **`tests/mutantes/v0478-clone-nome-unico.json` M6 (aperta):** o `de` passa ao ramo `elif copia and valor_de_shell_seguro("raiz", copia):` (`bin/forge-check:9735`), casa uma vez e morre (`M6 · morreu · bin/forge-check:9735`). Mutantes do pedido (`tests/mutantes/v0481-docs-ok.json`, M1 a M4): todos morrem no `6d71827e`.
+- **`forge-mutante --conferir --todas`:** saída do `6d71827e` igual à da base `220ba3fa` (mesmas 26 linhas, rc 1 nas duas, todas de specs antigas fora deste pedido: v0457 M20 e z075 M1/M2 entre elas); nenhuma de v0478 nem de v046. Só aperta ou neutro.
 
-Testes rodados no `9fa5f83` (os do diff e os que tiram dúvida): `tests.test_volta_por_delta`, `tests.test_parecer_fora_do_delta`, `tests.test_forge_copia.BriefSugereACopia`, `tests.test_forge.DocsPareceresPedidoECaminho` (166 OK) e `tests.test_forge -k test_docs -k test_qa_medio` (7 OK). A suíte inteira é do CI do #892 (em andamento neste parecer; o merge depende dele verde).
+## Achados
+- A1 (recomendado) bin/forge-check:9731 · o ramo de revisão (COPIA-REVISAO) tem a guarda valor_de_shell_seguro do caminho, mas nenhum teste a mata: tirá-la sobrevive à classe BriefSugereACopia. Antes do split o M6 cobria todas as etapas; agora só o elif. Falta teste e mutante para etapa de parecer.
 
-Observação fora do meu domínio (estilo, ao `tech-lead`): `bin/forge-check:11241` perdeu o espaço em `gravar =not`.
+## Detalhe dos achados
+**A1.** Evidência: `bin/forge-check:9731`; sonda local com uma spec em arquivo (troca `if copia and valor_de_shell_seguro("raiz", copia) and etapa in ETAPAS_DE_PARECER:` por `if copia and etapa in ETAPAS_DE_PARECER:`, testes `tests.test_forge_copia.BriefSugereACopia`): `S1 · sobreviveu · bin/forge-check:9731`. Caminho de ataque: hoje nenhum, a guarda está no código; o risco é a regressão silenciosa, quem editar esse ramo pode tirá-la sem teste falhar, e um caminho de cópia fora da forma de shell iria cru ao comando `forge-copia clone ... --revisao` que o revisor copia do brief. Severidade baixa. Correção mínima: o caso de `test_brief_sem_a_linha_com_caminho_fora_da_forma` repetido com etapa de parecer (review, seguranca ou qa), e um mutante M5 em `tests/mutantes/v0481-docs-ok.json` com o `de` da linha 9731 e o `para` acima. Esforço P. Dono: o autor do #892 (`bin/forge-check` e testes).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, grep dos chamadores e os testes acima. O clone deste parecer nasceu com o `forge-copia --revisao` da própria branch: o `forge-copia` do plugin instalado (0.47.15) ainda recusa `--revisao` (falha fechada, rc 2, sem criar cópia), o que vale até a release levar esta mudança.
+Nenhum risco aceito. Ferramentas: `forge-check parecer delta`, `forge-mutante` (M6, M12, a spec do pedido, `--conferir --todas` no head e numa cópia da base) e a sonda S1. A suíte inteira é do CI do #892 no `6d71827e`; o merge depende dele verde.
