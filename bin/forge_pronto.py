@@ -53,7 +53,7 @@ def conferir(raiz, base, ancora, total, corpo, lista=None):
     reprovadas = []
     for nome, argv in passos(base) if lista is None else lista:
         rc, saida = rodar(raiz, argv)
-        print(f"pronto: {nome}: {'ok' if rc == 0 else f'reprovado (saída {rc})'}")
+        print(f"pronto: {nome}: {'ok' if rc == 0 else f'reprovado (saída {rc})'}", flush=True)
         if rc:
             print("\n".join(saida.rstrip().splitlines()[-LINHAS_DA_SAIDA:]), file=sys.stderr)
             reprovadas.append(nome)

@@ -18,6 +18,9 @@ RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ / "bin"))
 import forge_pronto  # noqa: E402
 
+sys.path.insert(0, str(RAIZ / "tests"))
+from ambiente_git import sem_manutencao  # noqa: E402
+
 PY = sys.executable
 OK, FALHA = (PY, "-I", "-c", "pass"), (PY, "-I", "-c", "import sys; print('saida da falha'); sys.exit(3)")
 CORPO_COM_MOTIVO = "teto: excedido, 151 linhas, cortar mais quebra a suíte\n"
@@ -25,7 +28,7 @@ CORPO_COM_MOTIVO = "teto: excedido, 151 linhas, cortar mais quebra a suíte\n"
 GH = '#!/bin/sh\n[ "$1 $2 $3" = "pr view develop" ] || exit 3\n'
 SEM_PR = GH + 'echo "no pull requests found for branch" >&2\nexit 1\n'
 COM_PR = GH + 'echo \'{"number": 7, "state": "%s", "headRefOid": "x", "body": "corpo do pr"}\'\n'
-AMBIENTE = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "GH_", "GITHUB_"))}
+AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "GH_", "GITHUB_"))})
 
 
 def conferir(lista, falhas=()):

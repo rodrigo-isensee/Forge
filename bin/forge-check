@@ -1225,8 +1225,8 @@ def cmd_pronto(raiz, base, corpo_arquivo=None):
     """D2-PORTAO-ENTREGA-AUTOR (v0481 E11.1): o portão de entrega do autor (bin/forge_pronto.py) na branch do HEAD contra a base comum
     com `base`. O corpo vem do `--corpo` (o arquivo do --body-file) ou do PR aberto da branch. Saída 0 ou 1; 2 sem base comum ou diff."""
     cod, ancora = git(raiz, "merge-base", base, "HEAD")
-    contagens = None if cod else contagens_do_intervalo(raiz, ancora, "HEAD", estrito=True)
-    if contagens is None:
+    numstat = None if cod else contagens_do_intervalo(raiz, ancora, "HEAD", estrito=True)
+    if numstat is None:
         print(f"pronto: {NAO_VERIFICAVEL}: o git não leu a base comum de HEAD com {base} nem o diff", file=sys.stderr)
         return 2
     if corpo_arquivo:
@@ -1240,7 +1240,7 @@ def cmd_pronto(raiz, base, corpo_arquivo=None):
         pr, _ = pr_da_branch(raiz, branch, corpo=True) if branch else (None, None)
         corpo = pr["body"] if pr and pr.get("state") == "OPEN" else None
     pronto = modulo_do_bin("forge_pronto")
-    return pronto.conferir(raiz, base, ancora, modulo_do_bin("forge_tamanho").linhas_de_codigo(contagens, e_codigo), corpo)
+    return pronto.conferir(raiz, base, ancora, modulo_do_bin("forge_tamanho").linhas_de_codigo(numstat, e_codigo), corpo)
 
 
 def cmd_classe(raiz, base=None, head=None, como_json=False):

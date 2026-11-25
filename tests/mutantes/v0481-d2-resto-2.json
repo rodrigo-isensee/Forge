@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "cmd_pronto: merge-base que falha não lê o diff",
       "arquivo": "bin/forge-check",
-      "de": "    contagens = None if cod else contagens_do_intervalo(raiz, ancora",
-      "para": "    contagens = None if False else contagens_do_intervalo(raiz, ancora",
+      "de": "    numstat = None if cod else contagens_do_intervalo(raiz, ancora",
+      "para": "    numstat = None if False else contagens_do_intervalo(raiz, ancora",
       "testes": [
         "tests.test_forge_pronto.CmdPronto.test_base_ausente_sai_2"
       ]

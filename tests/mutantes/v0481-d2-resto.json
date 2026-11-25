@@ -76,8 +76,8 @@
       "id": "M8",
       "guarda": "cmd_pronto: base comum ou diff ilegível sai 2",
       "arquivo": "bin/forge-check",
-      "de": "    if contagens is None:\n        print(f\"pronto: {NAO_VERIFICAVEL}",
-      "para": "    if contagens is False:\n        print(f\"pronto: {NAO_VERIFICAVEL}",
+      "de": "    if numstat is None:\n        print(f\"pronto: {NAO_VERIFICAVEL}",
+      "para": "    if numstat is False:\n        print(f\"pronto: {NAO_VERIFICAVEL}",
       "testes": [
         "tests.test_forge_pronto.CmdPronto.test_base_ausente_sai_2"
       ]
