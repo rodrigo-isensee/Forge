@@ -49,7 +49,8 @@
       "de": "if not ids or \".md=\" in linha:",
       "para": "if not ids:",
       "testes": [
-        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida"
+        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida",
+        "tests.test_brief_tamanho.ArquivaSozinho.test_parecer_ponto_e_virgula_e_segunda_etapa_cortam_o_entregue"
       ]
     },
     {
@@ -69,7 +70,8 @@
       "de": "len(linha)].split(\";\")[0]",
       "para": "len(linha)]",
       "testes": [
-        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida"
+        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida",
+        "tests.test_brief_tamanho.ArquivaSozinho.test_parecer_ponto_e_virgula_e_segunda_etapa_cortam_o_entregue"
       ]
     },
     {
@@ -79,7 +81,8 @@
       "de": "ids[1].start() if len(ids) > 1 else len(linha)",
       "para": "len(linha)",
       "testes": [
-        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida"
+        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida",
+        "tests.test_brief_tamanho.ArquivaSozinho.test_parecer_ponto_e_virgula_e_segunda_etapa_cortam_o_entregue"
       ]
     }
   ]

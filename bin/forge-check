@@ -8058,7 +8058,7 @@ ID_DE_ETAPA_ARQUIVADA = r"(?<![\w.])E\d+\.\d+[a-z]?(?![\w.])"
 ETAPA_ARQUIVADA = re.compile(rf"({ID_DE_ETAPA_ARQUIVADA})(?:\s*\(([^()]*)\))?")  # `E1.1 (tech-lead)` em `## Etapas arquivadas`
 ETAPA_DE_UMA_LINHA = re.compile(r"^- (E\d+\.\d+[a-z]?) \(([^)]*)\)")
 APROVADO_DA_ETAPA = re.compile(rf"=aprovado(?: por delta)? \(({ID_DE_ETAPA_ARQUIVADA})")  # o id logo depois do parêntese do parecer
-ENTREGUE_DA_ETAPA = re.compile(r"\)?\s*(?:\([^()]*\)\s*)?entregue(?![\w?])", re.I)  # só `E1.1 entregue`, `(E1.1) entregue`, `E1.1 (papel) entregue`
+ENTREGUE_DA_ETAPA = re.compile(r"\)?\s*(?:\([^()]*\)\s*)?entregue(?![\w?-])", re.I)  # só `E1.1 entregue`, `(E1.1) entregue`, `E1.1 (papel) entregue`
 
 
 def etapa_entregue_na_linha(linha):

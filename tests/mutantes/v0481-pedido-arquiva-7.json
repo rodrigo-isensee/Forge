@@ -6,10 +6,20 @@
       "id": "M48",
       "guarda": "PEDIDO-ARQUIVA-SOZINHO: `volta entregue` não fecha",
       "arquivo": "bin/forge-check",
-      "de": "entregue(?![\\w?])",
-      "para": "(?:reprovada, volta )?entregue(?![\\w?])",
+      "de": "entregue(?![\\w?-])",
+      "para": "(?:reprovada, volta )?entregue(?![\\w?-])",
       "testes": [
         "tests.test_brief_tamanho.ArquivaSozinho.test_negacao_futuro_e_texto_livre_de_entregue_nao_fecham"
+      ]
+    },
+    {
+      "id": "M49",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: `entregue-se` não fecha (o hífen colado é outra palavra; A2 do QA E9.11)",
+      "arquivo": "bin/forge-check",
+      "de": "entregue(?![\\w?-])",
+      "para": "entregue(?![\\w?])",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_entregue_com_hifen_nao_fecha"
       ]
     }
   ]

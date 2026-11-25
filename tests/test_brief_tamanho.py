@@ -265,6 +265,21 @@ class ArquivaSozinho(ComRepositorio):
             with self.subTest(linha=linha):
                 self.assertIsNone(fcs.etapa_entregue_na_linha(linha))
 
+    # Volta E9.13 do #874 (A1 do QA E9.11): cada corte do trecho tem caso que só ele barra.
+    def test_parecer_ponto_e_virgula_e_segunda_etapa_cortam_o_entregue(self):
+        for linha in ("docs/qa/x.md=reprovado (E1.1) entregue com A1",  # linha de parecer (`.md=`)
+                      "E1.1 (review; volta) entregue",  # `entregue` depois do `;`
+                      "E1.1 (E1.2) entregue"):  # `entregue` depois da 2ª etapa, com só duas na linha
+            with self.subTest(linha=linha):
+                self.assertIsNone(fcs.etapa_entregue_na_linha(linha))
+
+    # A2 do QA E9.11: o hífen colado em `entregue` é outra palavra.
+    def test_entregue_com_hifen_nao_fecha(self):
+        for linha in ("E1.1 entregue-se amanhã", "(E1.1) Entregue-a ao dev"):
+            with self.subTest(linha=linha):
+                self.assertIsNone(fcs.etapa_entregue_na_linha(linha))
+        self.assertEqual(fcs.etapa_entregue_na_linha("E1.1 entregue - falta o PR"), "E1.1")
+
     # A2 do QA e S2 da segurança: o --cobre e as etapas citadas no Entregar nunca saem do pedido, mesmo entregues.
     def test_cobre_entregue_fica_no_pedido_e_o_brief_sai(self):
         historico, _ = self.fechamentos()
