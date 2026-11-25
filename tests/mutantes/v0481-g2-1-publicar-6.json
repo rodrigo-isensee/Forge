@@ -31,6 +31,36 @@
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_publicar"
       ]
+    },
+    {
+      "id": "M34",
+      "guarda": "hook: a --raiz com o valor na palavra seguinte conta para o alvo do publicar (S2 do review E6.18)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if a == \"--raiz\" and i + 1 < len(args):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_publicar"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "hook: a --raiz=valor conta para o alvo do publicar, e a última vale",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif a.startswith(\"--raiz=\"):",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_publicar"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "hook: vale a última --raiz da linha, como no argparse do forge-check, não a primeira (S1 e S2 do review E6.18)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "raiz = args[i + 1]",
+      "para": "raiz = raiz or args[i + 1]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_publicar"
+      ]
     }
   ]
 }

@@ -1380,6 +1380,17 @@ def livres_do_forge_check(args):
     return livres
 
 
+def ultima_raiz(args):
+    """A `--raiz` que o argparse do `forge-check` usa: a última da linha, antes ou depois do subcomando (review A1 do E6.18)."""
+    raiz = None
+    for i, a in enumerate(args):
+        if a == "--raiz" and i + 1 < len(args):
+            raiz = args[i + 1]
+        elif a.startswith("--raiz="):
+            raiz = a.split("=", 1)[1]
+    return raiz
+
+
 def entrega_pela_forma_nova(livres, args):
     """`entrega --pedido`: o argparse aceita abreviação, então `--p`/`--ped` contam como `--pedido` (na dúvida, é a forma nova)."""
     return next(iter(livres), "") == "entrega" and any(a.startswith("--p") and "--pedido".startswith(a.split("=", 1)[0]) for a in args)
@@ -2563,7 +2574,7 @@ class Guarda:
         do comando), barra como o `gh pr comment`; a sessão do Forge não passa (`alvo_do_forge`)."""
         if livres_do_forge_check(args)[:2] != ["parecer", "publicar"]:
             return
-        raiz = parecer.opcao(args, "--raiz", "--raiz")
+        raiz = ultima_raiz(args)
         if self.alvo_do_forge(self.caminho(pasta, raiz) if raiz else pasta, repo_env):
             self.barrar("R-CONTRIB", f"forge-check parecer publicar: {NO_FORGE}", SO_SUGERE)
 

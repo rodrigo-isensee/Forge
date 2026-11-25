@@ -3123,7 +3123,7 @@ class Hooks(unittest.TestCase):
     def test_fixtures_do_publicar(self):  # V0481-PUBLICAR (segurança A1 do #878): para a mutação
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith("V0481-PUBLICAR")]
-        self.assertGreaterEqual(len(lote), 5, "as fixtures do item")
+        self.assertGreaterEqual(len(lote), 8, "as fixtures do item (E6.21: mais 3, duas --raiz e vale a última)")
         self.assertEqual({f.dados["esperado"]["codigo"] for _, f in lote}, {0, 2}, "o lote tem os dois lados")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
