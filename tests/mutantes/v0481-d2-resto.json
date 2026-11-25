@@ -67,7 +67,7 @@
       "guarda": "forge_pronto: reprovada sai 1",
       "arquivo": "bin/forge_pronto.py",
       "de": "    return 1 if reprovadas else 0",
-      "para": "    return 0",
+      "para": "    return 1 if not reprovadas else 0",
       "testes": [
         "tests.test_forge_pronto.Agregador.test_uma_checagem_reprovada_sai_1_e_mostra_a_saida"
       ]

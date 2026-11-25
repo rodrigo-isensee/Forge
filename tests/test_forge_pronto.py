@@ -31,6 +31,7 @@ AMBIENTE = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FO
 def conferir(lista, falhas=()):
     saida, erro = io.StringIO(), io.StringIO()
     with mock.patch.object(forge_pronto, "tamanho_e_corpo", return_value=list(falhas)), \
+            mock.patch.object(forge_pronto, "passos", return_value=[("dos passos", FALHA)]), \
             contextlib.redirect_stdout(saida), contextlib.redirect_stderr(erro):
         rc = forge_pronto.conferir(".", "origin/develop", "abc", 10, "", lista)
     return rc, saida.getvalue(), erro.getvalue()
@@ -54,6 +55,7 @@ class Agregador(unittest.TestCase):
         rc, saida, erro = conferir([("a", OK)], ["falha do corpo"])
         self.assertEqual(rc, 1)
         self.assertIn("reprovado em tamanho e corpo do PR", saida)
+        self.assertIn("pronto: tamanho e corpo do PR (10 linhas de código): reprovado", saida)
         self.assertIn("pronto: falha do corpo", erro)
 
     def test_comando_que_nao_abre_sai_2(self):

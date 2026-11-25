@@ -1,5 +1,5 @@
 {
-  "pedido": "v0481-d2-resto-2",
+  "pedido": "v0481-d2-resto",
   "executor": "unittest",
   "mutantes": [
     {
@@ -50,6 +50,36 @@
       "para": "if pr and pr.get(\"state\") in (\"OPEN\", \"CLOSED\") else None",
       "testes": [
         "tests.test_forge_pronto.CmdPronto.test_pr_aberto_da_o_corpo_e_fechado_nao"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "forge-check: o subcomando pronto chega ao cmd_pronto",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"pronto\":\n        return cmd_pronto",
+      "para": "    if a.cmd == \"pronto-x\":\n        return cmd_pronto",
+      "testes": [
+        "tests.test_forge_pronto.CmdPronto.test_base_ausente_sai_2"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "forge_pronto: sem lista, os passos do cartão",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "passos(base) if lista is None else lista",
+      "para": "passos(base) if lista is not None else lista",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_tudo_passa_sai_0"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "forge_pronto: checagem verde sai ok",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "{'ok' if rc == 0 else",
+      "para": "{'ok' if rc != 0 else",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_tudo_passa_sai_0"
       ]
     }
   ]

@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481-d2-resto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "forge_pronto: a linha do teto e do corpo diz reprovado",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "{'reprovado' if falhas else 'ok'}",
+      "para": "{'reprovado' if not falhas else 'ok'}",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_teto_ou_corpo_reprovado_sai_1"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "forge_pronto: a linha final diz o que reprovou",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "corrija antes de pedir as revisões\" if reprovadas",
+      "para": "corrija antes de pedir as revisões\" if not reprovadas",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_tudo_passa_sai_0"
+      ]
+    }
+  ]
+}
