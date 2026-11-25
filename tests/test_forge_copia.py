@@ -793,6 +793,16 @@ class BriefSugereACopia(unittest.TestCase):
         self.assertEqual(rc, 0, erros)
         self.assertNotIn("CLONE-NOME-UNICO", saida)
 
+    def test_brief_de_parecer_sem_a_linha_com_caminho_fora_da_forma(self):
+        """COPIA-REVISAO (A1 da segurança do #892): o ramo de revisão também recusa o caminho fora da forma de shell."""
+        os.environ["HOME"] = str(self.tmp / "com espaço")
+        for etapa in ("review", "seguranca", "qa"):
+            with self.subTest(etapa):
+                saida, rc, erros = self.gerar(etapa=etapa)
+                self.assertEqual(rc, 0, erros)
+                self.assertNotIn("CLONE-NOME-UNICO", saida)
+                self.assertNotIn("--revisao", saida)
+
     def test_brief_sem_branch_nao_sugere_copia(self):
         saida, rc, erros = self.gerar(branch=None)
         self.assertEqual(rc, 0, erros)

@@ -41,6 +41,16 @@
       "testes": [
         "tests.test_forge_copia.BriefSugereACopia.test_brief_gerado_traz_a_copia_sugerida"
       ]
+    },
+    {
+      "id": "M5",
+      "guarda": "COPIA-REVISAO: o brief de parecer recusa a cópia fora da forma de shell",
+      "arquivo": "bin/forge-check",
+      "de": "        if copia and valor_de_shell_seguro(\"raiz\", copia) and etapa in ETAPAS_DE_PARECER:",
+      "para": "        if copia and etapa in ETAPAS_DE_PARECER:",
+      "testes": [
+        "tests.test_forge_copia.BriefSugereACopia.test_brief_de_parecer_sem_a_linha_com_caminho_fora_da_forma"
+      ]
     }
   ]
 }
