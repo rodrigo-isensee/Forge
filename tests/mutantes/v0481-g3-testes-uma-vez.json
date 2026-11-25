@@ -47,7 +47,7 @@
       "id": "M5",
       "guarda": "suite_do_parecer: sem a linha `- ci:`, a violação PARECER-LE-O-CI",
       "arquivo": "bin/forge-check",
-      "de": "sem_ci = [] if leu_o_ci(campos, texto) else [",
+      "de": "sem_ci = [] if leu_o_ci(campos, texto) or not cobra_a_linha_do_ci(raiz, campos) else [",
       "para": "sem_ci = [] if True else [",
       "testes": [
         "tests.test_forge_check_pr.LeOCiNoCmdPr.test_sem_a_linha_recusa_com_ci_verde_ou_com_a_prova"

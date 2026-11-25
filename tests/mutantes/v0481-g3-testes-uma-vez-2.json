@@ -62,6 +62,26 @@
         "tests.test_forge_check_pr.LeOCiNoCmdPr.test_a_linha_nao_dispensa_o_ci_verde_do_head",
         "tests.test_forge_check_pr.LeOCiNoCmdPr.test_sem_a_linha_e_sem_ci_verde_saem_as_duas"
       ]
+    },
+    {
+      "id": "M15",
+      "guarda": "suite_do_parecer: o parecer de commit anterior à regra não é cobrado da linha `- ci:` (transição, A3 do #893)",
+      "arquivo": "bin/forge-check",
+      "de": "if leu_o_ci(campos, texto) or not cobra_a_linha_do_ci(raiz, campos) else [",
+      "para": "if leu_o_ci(campos, texto) else [",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_commit_anterior_a_regra_nao_cobra_a_linha"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "cobra_a_linha_do_ci: só o \"não achou\" do git grep (rc 1) isenta; erro do git cobra",
+      "arquivo": "bin/forge-check",
+      "de": "commit, \"--\", \"bin/forge-check\")[0] != 1",
+      "para": "commit, \"--\", \"bin/forge-check\")[0] == 0",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_cobra_a_linha_com_commit_fora_da_forma_ou_erro_do_git"
+      ]
     }
   ]
 }
