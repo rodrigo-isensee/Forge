@@ -26,21 +26,11 @@
       "id": "FL-M11",
       "guarda": "o --dry-run roda o --conferir-ref de verdade (FECHAR-DRY-RUN-1C)",
       "arquivo": "bin/forge-fechar",
-      "de": "  if [ \"$ref_dry\" = \"refs/heads/$ref\" ]; then\n    homolog_dry=",
-      "para": "  if false; then\n    homolog_dry=",
+      "de": "  conferir_1c \"$sha_dry\" \"",
+      "para": "  : conferir_1c \"$sha_dry\" \"",
       "testes": [
         "tests.test_fechar.Fechar.test_1c_no_dry_run_que_recusa_para_com_1_e_diz_a_homolog_lida",
         "tests.test_fechar.Fechar.test_1c_no_dry_run_roda_o_conferir_ref_contra_a_homolog_local_sem_busca"
-      ]
-    },
-    {
-      "id": "FL-M12",
-      "guarda": "o --dry-run sem a branch local não roda o 1c",
-      "arquivo": "bin/forge-fechar",
-      "de": "  if [ \"$ref_dry\" = \"refs/heads/$ref\" ]; then\n    homolog_dry=",
-      "para": "  if true; then\n    homolog_dry=",
-      "testes": [
-        "tests.test_fechar.Fechar.test_1c_no_dry_run_sem_a_branch_local_nao_roda"
       ]
     },
     {
