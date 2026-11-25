@@ -35,7 +35,7 @@
 # espera o check `catraca` vermelho conta como pendente (é ele que pede o rótulo); qualquer outro check vermelho para. O head do PR
 # mudar durante a espera para. Prazo esgotado para como sem a opção. O script nunca aplica rótulo nem marca item do checklist.
 # Sem a branch local, --ref vale com a branch só no origin (FECHAR-BRANCH-LOCAL): o sha conferido vem do servidor (ls-remote), o commit
-# tem de existir aqui (senão pede git fetch origin <branch>).
+# que falta aqui é buscado só por leitura e a branch local nasce nesse sha (FECHAR-CRIA-BRANCH).
 # Antes do merge (6a), a base é relida: se andou durante os checks, para só com conflito real; sem ele segue (E8). Base local velha:
 # busca a base uma vez (só leitura) e confere o merge com a nova (FECHAR-6A-DEVELOP-ANDOU); a busca que falha para.
 # Idempotente: head já mesclado na base ou PR já MERGED com este head não abre PR nem mescla de novo (vai direto à limpeza).
@@ -60,7 +60,7 @@
 # estourado ou negado, a limpeza diz que a remota continua viva e sai com código 3. Rodar da raiz com --ref evita o aviso de sair da worktree.
 # FECHAR-ESPERA-CI-DEVELOP: um item por vez. Antes do merge (6b), o CI do push no topo da develop tem de estar verde (pendente espera,
 # vermelho ou cancelado para); depois do merge e da limpeza (8), o script acompanha o CI do push no commit de merge até o fim
-# (--espera-ci, padrão 3600, 0 a 7200). Não verde sai com código 5 (develop vermelha é prioridade máxima) e, se vermelho, o comando de reversão.
+# (--espera-ci, padrão 3600, 0 a 7200); cancelado porque a develop andou, decide o CI do topo que contém o merge (FECHAR-CI-TOPO). Não verde sai com código 5 (develop vermelha é prioridade máxima) e, se vermelho, o comando de reversão.
 # --lote <pedido>:<branch> ... (INTEGRACAO-EM-LOTE, diretriz 26): 2 ou 3 itens sem arquivo em comum (diff de cada um contra a base), com o
 # CI da develop verde antes; cada item roda este script com --item-de-lote (sem as duas esperas do CI), em ordem; depois, um só CI, o do
 # topo da develop no servidor depois do último item, é acompanhado até o fim (sem a leitura, o do último merge). Vermelho imprime a reversão do
@@ -1226,11 +1226,20 @@ ci_antes_do_merge() {
   echo "CI do push na $alvo verde no ${topo:0:7}."
 }
 # ci_no_merge <sha esperado> <merges do item ou do lote...>: acompanha o CI do push até o fim; não verde avisa (vermelho, com a reversão) e liga ci_falhou.
+# FECHAR-CI-TOPO (v0481 E13.1): o CI do merge cancelado (a $alvo andou) não prova nada; decide o do topo do servidor, se ele contém o merge
+# (compare com status ahead ou identical), com o que resta do prazo; topo igual, ilegível ou que não contém o merge fica cancelado (código 5).
 ci_no_merge() {
+  local sha_ci="$1" t0=$SECONDS topo st resta
   passo 8 "CI do push na $alvo no ${1:0:7} (até ${espera_ci}s)"
-  esperar_ci "$alvo" "$1" "$espera_ci"
-  if [ "$ci_st" = verde ]; then echo "CI do push na $alvo verde no ${1:0:7}."; return 0; fi
-  echo "aviso: $(msg_ci "$alvo" "$1")" >&2
+  esperar_ci "$alvo" "$sha_ci" "$espera_ci"
+  while [ "$ci_st" = cancelado ] && topo="$(remoto_exato "$alvo")" && [ -n "$topo" ] && [ "$topo" != "$sha_ci" ] \
+    && st="$(ler "$gh" api "repos/{owner}/{repo}/compare/$1...$topo" --jq .status)" && { [ "$st" = ahead ] || [ "$st" = identical ]; }; do
+    echo "registro: o CI do push no ${sha_ci:0:7} foi cancelado (a $alvo andou); decide o CI do topo ${topo:0:7}, que contém o merge"
+    sha_ci="$topo" resta=$((espera_ci - (SECONDS - t0)))
+    esperar_ci "$alvo" "$sha_ci" "$((resta > 0 ? resta : 0))"
+  done
+  if [ "$ci_st" = verde ]; then echo "CI do push na $alvo verde no ${sha_ci:0:7}."; return 0; fi
+  echo "aviso: $(msg_ci "$alvo" "$sha_ci")" >&2
   shift
   [ "$ci_st" != vermelho ] || echo "para reverter: $(reversao "$@")" >&2
   ci_falhou=1
@@ -1643,9 +1652,18 @@ if sha_conferido="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/
   so_remota=1
   sha_conferido="$(remoto_exato "$ref")" || die "parou no passo 1: sem a branch local $ref e sem leitura dela no origin (nada foi aberto)"
   [ -n "$sha_conferido" ] || die "parou no passo 1: a branch $ref não existe aqui nem no origin"
-  git cat-file -e "$sha_conferido^{commit}" 2>/dev/null || die "parou no passo 1: sem a branch local e sem o commit $sha_conferido; rode git fetch origin $ref, e rode de novo"
-  echo "aviso: sem a branch local $ref; confiro o head do servidor ($sha_conferido)." >&2
-  ref_check="$sha_conferido"
+  if git cat-file -e "$sha_conferido^{commit}" 2>/dev/null; then
+    echo "aviso: sem a branch local $ref; confiro o head do servidor ($sha_conferido)." >&2
+    ref_check="$sha_conferido"
+  else
+    # FECHAR-CRIA-BRANCH (v0481 E13.1): rodado de um clone da develop, o head não está aqui; busca só esse commit (sem ref nova) e cria a
+    # branch local nele, o sha lido do servidor; o passo 1 confere a entrega nesse sha e o 2 relê o servidor, como com a branch local.
+    buscar_de origin "$sha_conferido"
+    git cat-file -e "$sha_conferido^{commit}" 2>/dev/null || die "parou no passo 1: sem a branch local e sem o commit $sha_conferido; rode git fetch origin $ref, e rode de novo"
+    git branch --no-track "$ref" "$sha_conferido" >/dev/null 2>&1 || die "parou no passo 1: não consegui criar a branch local $ref no $sha_conferido (nada foi aberto)"
+    echo "registro: criei a branch local $ref no head do servidor ($sha_conferido)"
+    so_remota=0 ref_check="refs/heads/$ref"
+  fi
 fi
 # head_atual: o head de $ref onde ele vale (a branch local; no modo só remota, o servidor). Falha de leitura sai com rc 1.
 head_atual() {
@@ -1663,6 +1681,11 @@ if [ -n "$arvore_lock" ] && [ -d "$arvore_lock" ]; then  # pasta já apagada (re
     idade_lock="desconhecida"
     [[ "$mtime_lock" =~ ^[0-9]+$ ]] && idade_lock="$(( ($(date +%s) - mtime_lock) / 60 )) min"
     die "parou antes do passo 1: há um lock do git na worktree de $ref: $pasta_git/index.lock (idade: $idade_lock). Nada foi apagado. Confira que nenhum git está rodando nela e, só então, rode: rm $(printf '%q' "$pasta_git/index.lock")"
+  fi
+  # FECHAR-COPIA-CERTA (v0481 E13.1): a árvore de $ref é a cópia principal deste repositório (o clone da própria branch); o passo 7 não sairia
+  # dela e terminaria com código 3 e um --limpar de outra cópia. Diz antes do passo 1 de onde rodar; de outra cópia, o limpar_clones a apaga.
+  if [ "$(cd "$arvore_lock" && pwd -P)/.git" = "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)" ]; then
+    die "parou antes do passo 1: a cópia $arvore_lock está na branch $ref e daqui a limpeza ficaria pendente (código 3). Rode o mesmo comando de outra cópia do Forge que não seja worktree desta (a principal ou um clone da develop: bin/forge-copia clone <pasta> --base origin/develop); de lá o passo 1 lê a branch do servidor e o passo 7 apaga este clone, se limpo e mesclado. Nada foi feito."
   fi
 fi
 

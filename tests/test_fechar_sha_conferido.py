@@ -98,16 +98,42 @@ class SoBranchRemota(unittest.TestCase):
         self.assertIn(r.returncode, (0, 3), r.stderr + r.stdout)
         self.assertEqual(self.chamadas()[0], f"forge-check pr p1 --ref {self.sha} --base origin/develop")
 
-    def test_commit_que_falta_aqui_pede_o_fetch(self):
+    def commit_so_no_servidor(self):
+        """Outro clone põe um commit novo no melhoria/x do servidor: este clone (o da develop) não tem o head."""
         outra = self.tmp / "outra"
         self.git("clone", "-q", str(self.remoto), str(outra), cwd=self.tmp)
         self.git("-C", str(outra), "fetch", "-q", "origin", "melhoria/x")
-        r0 = self.git("-C", str(outra), "rev-parse", "FETCH_HEAD")
-        self.assertEqual(r0, self.sha)
+        self.assertEqual(self.git("-C", str(outra), "rev-parse", "FETCH_HEAD"), self.sha)
         base.subprocess.run(["bash", "-c", self.envia_outro_commit(outra)], env=self.env, check=True, capture_output=True)
+        novo = self.git("ls-remote", "origin", "refs/heads/melhoria/x").split()[0]
+        self.assertNotEqual(base.subprocess.run(["git", "cat-file", "-e", novo], cwd=self.proj, env=self.env).returncode, 0)
+        return novo
+
+    def test_commit_que_falta_aqui_cria_a_branch_local_no_sha_do_servidor(self):
+        # FECHAR-CRIA-BRANCH (v0481 E13.1): de um clone da develop, sem segunda rodada nem branch criada à mão
+        novo = self.commit_so_no_servidor()
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn(f"registro: criei a branch local melhoria/x no head do servidor ({novo})", r.stdout)
+        self.assertEqual(self.chamadas()[0], "forge-check pr p1 --ref refs/heads/melhoria/x --base origin/develop")
+        self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {novo}", self.chamadas())
+        self.assertEqual(self.git("rev-parse", "refs/heads/melhoria/x"), novo)
+
+    def test_commit_que_a_busca_nao_traz_pede_o_fetch(self):
+        self.commit_so_no_servidor()
+        (self.estado / "falha_fetch").write_text("")
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("rode git fetch origin melhoria/x", r.stderr)
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
+        self.assertEqual(self.chamadas(), [])
+
+    def test_branch_local_que_nao_se_cria_para_antes_do_passo_1(self):
+        novo = self.commit_so_no_servidor()
+        self.git("branch", "melhoria", "develop")  # refs/heads/melhoria impede refs/heads/melhoria/x (conflito de pasta)
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn(f"parou no passo 1: não consegui criar a branch local melhoria/x no {novo}", r.stderr)
         self.assertEqual(self.chamadas(), [])
 
     def test_base_que_andou_com_conflito_para_sem_envio_nem_branch_local(self):  # E8: o fechamento não traz a base
