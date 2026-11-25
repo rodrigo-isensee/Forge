@@ -3,35 +3,34 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-fechar-ci-topo
-commit: dd2fcada2719cafad4eee2d8e31f3aaec2e8d5c3
-parecer: reprovado
+commit: 58852bf22fd6dcd4912d14b65813f701995cb38e
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-24
 ---
-# Review de segurança: v0481 (E13.9, #880, forge-fechar: CI do topo, branch criada do servidor, cópia certa)
+# Review de segurança por delta: v0481 (E13.13, #880, forge-fechar: CI do topo, branch criada do servidor, cópia certa)
 
 ## Gatilhos
 Gatilhos: controle do fluxo de merge (portões do `forge-fechar`, R-FLUXO), CI da develop, guardas de mutação e catraca (R-CONFORMIDADE).
 
-## Achados
-- A1 (bloqueante) tests/mutantes/v047-integracao-em-lote-3.json:46 · O CI do Revisar-sha está vermelho: o `de` de IL-M21 (guarda "CI do merge não verde liga a falha", a do passo 8 que o item muda) e o de M2 (mp1311-fechar-cartao.json:16, FECHAR-REF-POR-NOME) não casam mais com bin/forge-fechar:1241 e :1657.
-- A2 (bloqueante) tests/test_fechar_sha_conferido.py:122 · A catraca do Revisar-sha está vermelha: `test_commit_que_falta_aqui_pede_o_fetch` sumiu (renomeado). A garantia dele (commit ausente: rc 1, pede o fetch, nada chamado) segue neste teste; devolva-lhe o nome antigo em vez de pedir o rótulo.
+## Delta lido
+`git diff dd2fcada..58852bf2` (volta única E13.10): `bin/forge-fechar` (+13/-2), as specs `mp1311-fechar-cartao.json`, `v047-integracao-em-lote-3.json`, `v0481-fechar-ci-topo.json` e a nova `v0481-fechar-ci-topo-2.json` (M9 a M12), `tests/test_fechar_ci_topo.py`, `tests/test_fechar_sha_conferido.py`, `docs/fechamento-integrador.md` e o fragmento do changelog. Já lido e não relido: o resto do #880 em dd2fcada (parecer anterior, no git).
+
+## Achados anteriores
+- A1 (bloqueante, resolvido): IL-M21 e M2 alinhados à fonte; os dois mutantes morrem (S2) e o `ConferirTodas` que o CI roda passa (S1).
+- A2 (bloqueante, resolvido): o nome `test_commit_que_falta_aqui_pede_o_fetch` voltou (tests/test_fechar_sha_conferido.py:122) e a spec M5 o cita; catraca local limpa (S3) e a do CI verde no head (run 45530565279).
 
 ## Sondas
-- S1 · python3 -m unittest tests.test_forge_mutante.ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes · espera: OK · obtido: FAILED, mp1311-fechar-cartao.json: M2 e v047-integracao-em-lote-3.json: IL-M21 (igual à parte 4/5 do CI 45527336208)
-- S2 · python3 -I tests/catraca.py --modo regras --base d49accf8 --head HEAD --ramo melhoria/v0481-fechar-ci-topo (eventos e execuções vazios) · espera: sem recusa · obtido: R-CONFORMIDADE, teste test_commit_que_falta_aqui_pede_o_fetch apagado ou renomeado
+- S1 · bin/forge-mutante --conferir --todas, aqui e na árvore da base d49accf8 · espera: nada de forge-fechar nem das specs do item · obtido: rc 1 com 26 linhas de outras specs, idênticas às da base; ConferirTodas OK
+- S2 · bin/forge-mutante nas specs v0481-fechar-ci-topo-2.json, v0481-fechar-ci-topo.json, mp1311-fechar-cartao.json e v047-integracao-em-lote-3.json · espera: todos morrem · obtido: rc 0 nas quatro (M9 a M12, M2 e IL-M21 incluídos)
+- S3 · python3 -I tests/catraca.py --modo regras --base d49accf8 --head HEAD --ramo melhoria/v0481-fechar-ci-topo · espera: sem recusa · obtido: rc 0
+- S4 · python3 -m unittest tests.test_fechar_ci_topo tests.test_fechar_sha_conferido tests.test_fechar_ref_por_nome · espera: OK · obtido: 26 testes, OK
 
-## Detalhe dos achados
-O que o brief pede conferir, no Revisar-sha (código; os dois achados são de guarda e CI, não do comportamento):
-- **Nenhum caminho mescla sem os checks verdes do head.** O FECHAR-CI-TOPO (bin/forge-fechar:1231-1246) só roda no passo 8, depois do merge; o 6, o 6b (`ci_antes_do_merge`, :1220) e o `--match-head-commit` não mudam. O 0 que agora sai com o topo verde deixa o lote e o laço seguirem, mas cada merge seguinte passa de novo pelo 6b. O FECHAR-CRIA-BRANCH (:1655-1666) cria a branch no sha lido do servidor (`remoto_exato`, só hex de 40 ou 64) e volta ao caminho da branch local (`so_remota=0`, `ref_check=refs/heads/<ref>`): o `forge-check pr` confere esse sha, o passo 2 relê o local e o servidor (:1739-1747). A busca (`buscar_de`, :635) é só por sha, sem ref nova nem FETCH_HEAD; `git branch --no-track` sem `-f` falha se a branch aparecer no meio (para no passo 1). O nome já passou por `check-ref-format --branch` (:214), que recusa `-x`, `-f` e `--force` (sondado à parte: nada de opção injetada no `git branch`).
-- **O CI do topo só vale quando contém o merge.** A comparação é sempre `compare/<merge>...<topo>` com `$1` fixo, aceita só `ahead` ou `identical`; topo vazio, ilegível, igual ao sha já lido, `behind` ou `diverged` saem do laço como `cancelado` (código 5). Cada volta exige um topo novo e o prazo restante cai até 0: o laço termina. `pr_merge` vem do GitHub sem checagem de hex, mas o erro de leitura falha fechado (cancelado).
-- **Nada que barra hoje deixa de barrar.** Vermelho, pendente e ilegível seguem 5; busca que não traz o commit para no passo 1 com a mesma mensagem; o FECHAR-COPIA-CERTA (:1685-1689) só acrescenta parada e não pega worktree ligada. No código, só aperta ou neutro. Nos controles em volta, não: A1 e A2 deixam vermelhos o CI e a catraca do head.
-
-A1. Evidência: tests/mutantes/v047-integracao-em-lote-3.json:46 (`de` com `${1:0:7}`; a linha virou bin/forge-fechar:1241 com `${sha_ci:0:7}`) e tests/mutantes/mp1311-fechar-cartao.json:16 (`de` `  ref_check="$sha_conferido"\nfi`; agora :1657 tem 4 espaços e `else` depois). Caminho: a spec que não casa deixa a guarda do passo 8 e a do FECHAR-REF-POR-NOME sem prova de mutação, e o CI vermelho barra o merge. Severidade: média (perda de prova de guarda, falha fechada). Correção mínima: no mesmo commit, alinhar o `de` e o `para` dos dois mutantes à fonte atual: IL-M21 com `${sha_ci:0:7}`; M2 com `    ref_check="$sha_conferido"\n  else` e o `para` com `$ref` no lugar. Rodar `bin/forge-mutante` nas duas specs (os mutantes têm de morrer). Esforço P. Dono: autor da entrega.
-
-A2. Evidência: tests/test_fechar_sha_conferido.py:122; a catraca (run 45527336207) reprova em "Regras que somem ou afrouxam, testes que somem". Caminho: sem correção, o merge depende do rótulo `afrouxa-regra` do dono para uma mudança que não afrouxa nada. Severidade: baixa (processo; falha fechada). Correção mínima: renomear `test_commit_que_a_busca_nao_traz_pede_o_fetch` para `test_commit_que_falta_aqui_pede_o_fetch` (o corpo fica como está) e conferir a catraca local (S2) limpa. Esforço P. Dono: autor da entrega.
-
-Os recomendados A1 a A3 do code review (docs/reviews/v0481-fechar-ci-topo.md) ficam com o tech-lead; nenhum deles abre caminho de merge sem os checks.
+## Detalhe (só aperta ou neutro)
+- **Branch criada desfeita (bin/forge-fechar:444-445, :1670, :1755).** Aperta. O `fim` apaga `refs/heads/$ref` só por `git update-ref -d <ref> <sha criado>`: o valor antigo é exigido, então a branch que andou (outro agente, o 2b) não sai; `$ref` já passou por `check-ref-format --branch`; `branch_criada` nasce vazio (não herda do ambiente) e zera logo depois do passo 2, antes do PR e do merge, então nada depois do passo 3 apaga a branch que o merge e a limpeza usam. A parada antes do passo 3 deixa o servidor como única fonte na rodada seguinte: some o sha velho local e nenhum portão muda. Os itens do lote rodam em processo próprio (`--item-de-lote`), sem `ref` trocado sob o mesmo `branch_criada`.
+- **Aviso do vermelho do topo (:1246-1247).** Neutro: só uma linha em stderr; o `ci_st`, o código 5 e a reversão impressa não mudam (M11 e o teste do vermelho do próprio merge provam os dois lados).
+- **`--sem-limpar` na cópia principal (:1693).** Neutro em relação à base: a parada FECHAR-COPIA-CERTA nasceu neste mesmo item (dd2fcada) e só protegia o passo 7, que o `--sem-limpar` não roda; o fechamento segue pelos mesmos portões (1, 1c, 2, 2b, 6, 6b, `--match-head-commit`) e termina com código 3, como na develop. `--sem-limpar` é flag explícita, recusada junto com `--limpar` (:204) e nos modos lote, laço e promoção.
+- **Specs e testes.** Só realinham o `de`/`para` à fonte e acrescentam mutantes e testes; nenhuma guarda sai. No código e nos controles em volta, só aperta ou neutro.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Rodados por mim no Revisar-sha: `tests.test_fechar_ci_topo` e `tests.test_fechar_sha_conferido` (18 testes, OK), S1 e S2. CI do Revisar-sha (run 45527336208): parte 4/5 em 3.14 com 1 falha (a de A1), o resto cancelado pelo envio do parecer de review. gitleaks, zizmor, actionlint, semgrep e shellcheck ausentes no PATH (lacuna; o diff não toca workflow nem segredo).
+Nenhum risco aceito. CI: catraca verde no Revisar-sha (45530565279). A suíte rodou na árvore de código do Revisar-sha em duas execuções que os envios de pareceres (só docs) cancelaram: 45530565296 (58852bf2) e 45531353905 (5624fc6a); juntas, 8 das 10 partes verdes e nenhuma vermelha (faltam 3.12 parte 1 e 3.14 parte 3), mais `bateria (pareceres)` vermelha pelos pareceres presos a commits velhos, que este renova. O CI completo vale no commit deste parecer, que não toca código. gitleaks, zizmor, actionlint, semgrep e shellcheck ausentes no PATH (lacuna; o delta não toca workflow nem segredo).
