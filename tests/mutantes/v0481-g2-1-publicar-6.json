@@ -1,0 +1,36 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M31",
+      "guarda": "hook: só o parecer publicar passa pela trava R-CONTRIB do forge-check",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if livres_do_forge_check(args)[:2] != [\"parecer\", \"publicar\"]:",
+      "para": "if True:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_publicar"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "hook: publicar com alvo no Forge na sessão de projeto barra por R-CONTRIB (segurança A1 do #878)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if self.alvo_do_forge(self.caminho(pasta, raiz) if raiz else pasta, repo_env):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_publicar"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "hook: o alvo do publicar vem do --raiz quando ele vem na linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self.caminho(pasta, raiz) if raiz else pasta",
+      "para": "self.caminho(pasta, raiz) if False else pasta",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_publicar"
+      ]
+    }
+  ]
+}

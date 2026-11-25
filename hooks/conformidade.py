@@ -2462,6 +2462,7 @@ class Guarda:
         argumentos_do_forge_check = args_do_forge_check(prog, args)
         if argumentos_do_forge_check is not None:
             self.forge_check_grava(argumentos_do_forge_check, pasta)
+            self.forge_check_publica(argumentos_do_forge_check, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"))
         if prog in SHELLS:
             for i, a in enumerate(args):
                 if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 1 < len(args):
@@ -2555,6 +2556,16 @@ class Guarda:
     def forge_check_grava_no_pedido(self, args):
         """True se a linha do `forge-check` grava no pedido pela forma nova (`grava_no_pedido`)."""
         return grava_no_pedido(livres_do_forge_check(args), args)
+
+    def forge_check_publica(self, args, pasta, repo_env):
+        """R-CONTRIB (diretriz 36; segurança A1 do v0481): o `parecer publicar` comenta e grava status pelo `gh` de dentro do
+        processo, que o hook não vê. Na sessão de outro projeto, com alvo no Forge (`GH_REPO` ou a pasta de `--raiz`, senão a
+        do comando), barra como o `gh pr comment`; a sessão do Forge não passa (`alvo_do_forge`)."""
+        if livres_do_forge_check(args)[:2] != ["parecer", "publicar"]:
+            return
+        raiz = parecer.opcao(args, "--raiz", "--raiz")
+        if self.alvo_do_forge(self.caminho(pasta, raiz) if raiz else pasta, repo_env):
+            self.barrar("R-CONTRIB", f"forge-check parecer publicar: {NO_FORGE}", SO_SUGERE)
 
     def forge_check_grava(self, args, pasta):
         """A4: o que o `forge-check` grava passa pela política de caminhos do papel, como o Write no mesmo destino (o `anotar`
