@@ -57,6 +57,48 @@ class Cria(Base):
     def test_clone_com_base_que_nao_existe_falha_com_1(self):
         r = self.copia("clone", str(self.pasta / "c3"), "--branch", "melhoria/x", "--origem", str(self.origem), "--base", "origin/nada")
         self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertFalse((self.pasta / "c3").exists(), "COPIA-BASE: a cópia sem base não fica na branch padrão")
+        self.assertIn("apaguei a cópia", r.stderr)
+
+    def commit_em(self, branch):
+        """Commit novo na origem, na branch dada (criada se falta); devolve o sha."""
+        self.git(self.origem, "switch", "-q", "-C", branch)
+        self.git(self.origem, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", branch)
+        return self.git(self.origem, "rev-parse", "HEAD").stdout.strip()
+
+    def test_clone_que_nasce_na_main_aceita_base_sem_origin(self):
+        dev = self.git(self.origem, "rev-parse", "develop").stdout.strip()
+        main = self.commit_em("main")  # a origem fica na main: o clone nasce nela e `develop` local não existe
+        d = self.pasta / "c4"
+        r = self.copia("clone", str(d), "--branch", "melhoria/x", "--origem", str(self.origem), "--base", "develop")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.branch_de(d), "melhoria/x")
+        head = self.git(d, "rev-parse", "HEAD").stdout.strip()
+        self.assertEqual(head, dev)
+        self.assertNotEqual(head, main)
+
+    def test_branch_que_ja_existe_no_remoto_parte_do_head_dela(self):
+        remoto = self.commit_em("melhoria/x")
+        self.git(self.origem, "switch", "-q", "develop")
+        d = self.pasta / "c5"
+        r = self.copia("clone", str(d), "--branch", "melhoria/x", "--origem", str(self.origem))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.branch_de(d), "melhoria/x")
+        self.assertEqual(self.git(d, "rev-parse", "HEAD").stdout.strip(), remoto)
+        self.assertIn("já existe no remoto", r.stderr)
+        cfg = subprocess.run(["git", "config", "--get", "branch.melhoria/x.remote"], cwd=d, env=self.env, capture_output=True)
+        self.assertNotEqual(cfg.returncode, 0)  # --no-track: sem upstream
+
+    def test_clone_que_falha_sai_1_antes_de_procurar_a_base(self):
+        r = self.copia("clone", str(self.pasta / "c7"), "--branch", "melhoria/x", "--origem", str(self.fora / "nada"))
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertNotIn("não criei", r.stderr)
+
+    def test_switch_que_falha_apaga_a_copia(self):
+        d = self.pasta / "c6"
+        r = self.copia("clone", str(d), "--branch", "develop", "--origem", str(self.origem))  # `develop` já existe no clone
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertFalse(d.exists())
 
     def test_worktree_dentro_cria_a_branch(self):
         d = self.pasta / "wt" / "w1"
@@ -293,7 +335,8 @@ class Disco(unittest.TestCase):
         self.mod = SourceFileLoader("forge_copia_teste", str(BIN)).load_module()
         self.gits = []
         for alvo in (mock.patch.dict(os.environ, {"HOME": str(self.home)}),
-                     mock.patch.object(self.mod, "git", lambda *a, cwd=None: self.gits.append(a) or 0)):
+                     mock.patch.object(self.mod, "git", lambda *a, cwd=None: self.gits.append(a) or 0),
+                     mock.patch.object(self.mod, "ponto_de_partida", lambda *a: "origin/develop")):  # o clone falso não tem refs
             alvo.start()
             self.addCleanup(alvo.stop)
 
