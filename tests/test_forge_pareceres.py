@@ -245,6 +245,12 @@ class Comando(GhFalso):
         self.assertIn(f"parecer publicado: parecer-review aprovado {self.sha[:7]} https://github.com/dono/repo/pull/7#issuecomment-501", saida)
         self.assertIn("agregado pareceres", saida)
 
+    def test_contagem_de_achados_na_descricao(self):
+        achados = "## Achados\n- A1 (recomendado) bin/x:1 · um\n- A2 (recomendado) bin/x:2 · dois\n\n"
+        rc, saida = self.roda(self.grava(parecer(self.sha, achados=achados)))
+        self.assertEqual(rc, 0, saida)
+        self.assertTrue(self.estado()["statuses"][1]["description"].endswith(" · 0 bloqueantes · 2 recomendados"))
+
     def test_cli_recusa_sem_arquivo(self):
         r = subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-check"), "parecer", "publicar", "docs/x.md"],
                            cwd=self.repo, env=dict(os.environ), capture_output=True, text=True, timeout=120)

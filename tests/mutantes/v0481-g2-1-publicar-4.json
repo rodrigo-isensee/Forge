@@ -1,0 +1,31 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M21",
+      "guarda": "parecer publicar: arquivo ausente recusa sem ler",
+      "arquivo": "bin/forge-check",
+      "de": "    texto = p.read_text(encoding=\"utf-8\") if m and p.is_file() else None",
+      "para": "    texto = p.read_text(encoding=\"utf-8\") if m else None",
+      "testes": ["tests.test_forge_pareceres.Comando.test_arquivo_ausente"]
+    },
+    {
+      "id": "M22",
+      "guarda": "parecer publicar: a contagem de bloqueantes e recomendados vem da gravidade de cada achado",
+      "arquivo": "bin/forge-check",
+      "de": "    contagem = [sum(a[\"gravidade\"] == g for a in",
+      "para": "    contagem = [sum(a[\"gravidade\"] != g for a in",
+      "testes": ["tests.test_forge_pareceres.Comando.test_contagem_de_achados_na_descricao"]
+    },
+    {
+      "id": "M23",
+      "guarda": "agregado: com exigido faltando, pending",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    return (\"pending\", f\"faltam: {', '.join(faltam)}\"[:TETO_DA_DESCRICAO]) if faltam else",
+      "para": "    return (\"pending\", f\"faltam: {', '.join(faltam)}\"[:TETO_DA_DESCRICAO]) if False else",
+      "testes": ["tests.test_forge_pareceres.Publicar.test_reprovado_grava_failure_e_agregado_pending",
+                 "tests.test_forge_pareceres.Agregado.test_agregado_pending_com_exigido_invalido"]
+    }
+  ]
+}
