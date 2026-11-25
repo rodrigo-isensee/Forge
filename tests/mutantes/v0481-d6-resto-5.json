@@ -36,40 +36,20 @@
       "id": "M34",
       "guarda": "A1 do #877: config global e de sistema de fora do HOME do dono (XDG_CONFIG_HOME) não vale",
       "arquivo": "hooks/salvar.py",
-      "de": "fora = (\"XDG_CONFIG_HOME\", \"BASH_ENV\", \"ENV\")",
-      "para": "fora = (\"BASH_ENV\", \"ENV\")",
+      "de": "fora = (\"XDG_CONFIG_HOME\",)",
+      "para": "fora = ()",
       "testes": [
         "tests.test_hooks.SalvarAoParar.test_config_global_de_fora_nao_roda"
       ]
     },
     {
       "id": "M35",
-      "guarda": "A2 do #877: arquivo não rastreado não vai ao commit nem ao remoto",
+      "guarda": "A2 do #877: arquivo não rastreado não vai ao commit WIP",
       "arquivo": "hooks/salvar.py",
       "de": "\"--untracked-files=no\"",
       "para": "\"--untracked-files=all\"",
       "testes": [
         "tests.test_hooks.SalvarAoParar.test_nao_rastreado_fica_de_fora"
-      ]
-    },
-    {
-      "id": "M36",
-      "guarda": "A2 do #877: achado da varredura de segredo deixa o commit na cópia, sem envio",
-      "arquivo": "hooks/salvar.py",
-      "de": "    if rc:\n        return f\"{branch} {sha}",
-      "para": "    if False:\n        return f\"{branch} {sha}",
-      "testes": [
-        "tests.test_hooks.SalvarAoParar.test_segredo_no_escopo_fica_na_copia"
-      ]
-    },
-    {
-      "id": "M37",
-      "guarda": "A2 do #877: com a branch no remoto, a varredura cobre todo o delta enviado",
-      "arquivo": "hooks/salvar.py",
-      "de": "if rc == 0 else \"HEAD^\"",
-      "para": "if rc == 99 else \"HEAD^\"",
-      "testes": [
-        "tests.test_hooks.SalvarAoParar.test_varredura_vai_da_origin_da_branch"
       ]
     },
     {

@@ -1528,7 +1528,7 @@ class Hooks(unittest.TestCase):
             codigos = {f.dados["esperado"]["codigo"] for f in self.fixtures if f.hook == hook}
             nomes = {f.caminho.stem for f in self.fixtures if f.hook == hook}
             with self.subTest(hook=hook):
-                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente", "ordens", "decisao", "salvar") else {0, 2})  # o vigia, o doutor, o ambiente, o ordens (emenda "ordens em vigor" da ADR 0003) e o decisao (R-DECISAO, fatia L28a) avisam, nunca bloqueiam; o salvar (D6 a) só grava e envia
+                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente", "ordens", "decisao", "salvar") else {0, 2})  # o vigia, o doutor, o ambiente, o ordens (emenda "ordens em vigor" da ADR 0003) e o decisao (R-DECISAO, fatia L28a) avisam, nunca bloqueiam; o salvar (D6 a) só grava na cópia
                 self.assertIn("sem-forge-versao", nomes)
                 self.assertIn("erro-interno", nomes)
                 if hook == "ordens":  # a emenda pede também os casos do teto e do arquivo ausente
@@ -1557,7 +1557,7 @@ class Hooks(unittest.TestCase):
                     with self.subTest(evento=evento, matcher=g.get("matcher")):
                         self.assertEqual(h["command"], "python3", "forma exec, sem shell")
                         # 0.44.2: o pesado espera a vez no PreToolUse (orkastery 5, teto 240 s) e o meta roda as checagens no Stop (S4)
-                        # D6 (a), v0481 E11.2: o salvar envia a branch no SubagentStop (o envio tem 40 s)
+                        # D6 (a), v0481 E11.2: o salvar faz o commit na cópia no SubagentStop (prazo total de 50 s)
                         espera = {("PreToolUse", "pesado.py"): 300, ("Stop", "meta.py"): 300, ("SubagentStop", "salvar.py"): 60}.get(
                             (evento, h["args"][-1].rsplit("/", 1)[-1]), 10)
                         self.assertEqual(h.get("timeout"), espera, "sem timeout, o padrão do Claude Code é 600 s")
@@ -4187,8 +4187,9 @@ class OrdensEmVigor(unittest.TestCase):
 
 class SalvarAoParar(unittest.TestCase):
     """D6-SESSAO-NAO-PERDE (a), v0481 E11.2: no SubagentStop, o hook `salvar` faz o commit WIP só dos arquivos do escopo do brief
-    na cópia citada por ele e o envia à branch do brief; nunca em branch de integração, nunca com cópia em outra branch, brief de
-    parecer, operação do git em andamento, e sem rodar os hooks do git da cópia. Mutantes: tests/mutantes/v0481-d6-resto*.json."""
+    na cópia citada por ele, sem envio nem rede (decisão do dono de 25/11, E11.18); nunca em branch de integração, nunca com cópia
+    em outra branch, brief de parecer, operação do git em andamento, e sem rodar os hooks do git da cópia. O remoto do setUp só
+    prova que nada sai da cópia. Mutantes: tests/mutantes/v0481-d6-resto*.json."""
     _pasta_temporaria = Hooks._pasta_temporaria
 
     def setUp(self):
@@ -4197,7 +4198,7 @@ class SalvarAoParar(unittest.TestCase):
         git("init", "-q", "--bare", "-b", "develop", str(self.remoto), cwd=self.tmp)
         repositorio_vazio(self.raiz, "develop")
         for rel, texto in ((".forge/versao", "0.5.0\n"), (".gitignore", ".forge/run/\n.forge/wt/\ndocs/briefs/\n"), ("README.md", "r\n"),
-                           ("hooks/x.py", "x = 0\n"), ("docs/a.md", "a0\n")):
+                           ("hooks/x.py", "x = 0\n"), ("docs/a.md", "a0\n"), ("docs/a.md2", "b0\n")):  # a.md2 rastreado: M8/M9
             (self.raiz / rel).parent.mkdir(parents=True, exist_ok=True)
             (self.raiz / rel).write_text(texto, encoding="utf-8")
         git("add", "-A", cwd=self.raiz)
@@ -4265,24 +4266,26 @@ class SalvarAoParar(unittest.TestCase):
         self.assertIsNone(self.no_remoto())
         self.assertEqual((self.log(), self.commits()), ("", "1"))
 
-    def enviado(self, caminho="hooks/x.py", branch="melhoria/x"):
-        """O conteúdo de `caminho` na branch do remoto, ou None (branch ou arquivo ausente)."""
-        r = subprocess.run(["git", "-C", str(self.remoto), "show", f"{branch}:{caminho}"], env=ambiente_limpo(),
-                           capture_output=True, text=True)
+    def salvo(self, caminho="hooks/x.py", copia=None):
+        """O conteúdo de `caminho` no commit WIP do HEAD da cópia, ou None (o HEAD não é o WIP, ou o arquivo não está nele)."""
+        copia = copia or self.copia
+        if not git("log", "-1", "--format=%s", cwd=copia).stdout.startswith("chore(wip):"):
+            return None
+        r = subprocess.run(["git", "-C", str(copia), "show", f"HEAD:{caminho}"], env=ambiente_limpo(), capture_output=True, text=True)
         return r.stdout if r.returncode == 0 else None
 
-    def test_salva_e_envia_so_o_escopo(self):
+    def test_salva_so_o_escopo_na_copia(self):
         self.brief()
         self.gravar({"hooks/x.py": "x = 1\n", "docs/a.md": "a\n", "docs/a.md2": "fora\n", "docs/b.md": "fora\n",
                      "README.md": "mudado fora\n"})
         self.parar()
-        self.assertEqual(sorted(self.no_remoto() or []), [".forge/versao", ".gitignore", "README.md", "docs/a.md", "hooks/x.py"])
-        self.assertEqual((self.enviado(), self.enviado("docs/a.md")), ("x = 1\n", "a\n"))
-        self.assertEqual(git("show", "HEAD:README.md", cwd=self.copia).stdout, "r\n", "o README mudado fica fora do commit")
+        self.assertIsNone(self.no_remoto(), "o salvar só grava na cópia: nada vai ao remoto")
+        self.assertEqual(git("show", "--name-only", "--format=", "HEAD", cwd=self.copia).stdout.split(), ["docs/a.md", "hooks/x.py"])
+        self.assertEqual((self.salvo(), self.salvo("docs/a.md"), self.salvo("README.md")), ("x = 1\n", "a\n", "r\n"))
         self.assertEqual(git("status", "--porcelain", cwd=self.copia).stdout.splitlines(),
-                         [" M README.md", "?? docs/a.md2", "?? docs/b.md"], "arquivo exato do escopo não vale como prefixo")
+                         [" M README.md", " M docs/a.md2", "?? docs/b.md"], "arquivo exato do escopo não vale como prefixo")
         self.assertIn("melhoria/x", self.log())
-        self.assertIn("2 arquivo(s) enviado", self.log())
+        self.assertIn("2 arquivo(s) salvo(s) na cópia, sem envio", self.log())
 
     def test_nada_no_escopo_nao_faz_commit(self):
         self.brief()
@@ -4315,7 +4318,7 @@ class SalvarAoParar(unittest.TestCase):
         self.citar("nao-existe.md", "p-tech-lead-1.md")
         self.gravar({"hooks/x.py": "x = 1\n"})
         self.parar()
-        self.assertIn("hooks/x.py", self.no_remoto() or [])
+        self.assertEqual(self.salvo(), "x = 1\n")
 
     def test_dois_briefs_de_escrita_nao_grava(self):
         self.brief(nome="p-tech-lead-2.md")
@@ -4330,8 +4333,7 @@ class SalvarAoParar(unittest.TestCase):
         self.brief(branch="develop")
         self.gravar({"hooks/x.py": "x = 1\n"})
         self.parar()
-        self.assertEqual(self.enviado(branch="develop"), "x = 0\n")
-        self.assertEqual(self.commits(), "1")
+        self.assertEqual((self.commits(), self.log()), ("1", ""))
 
     def test_copia_em_outra_branch_nao_grava(self):
         self.brief(branch="melhoria/y")
@@ -4395,13 +4397,14 @@ class SalvarAoParar(unittest.TestCase):
         self.gravar({"hooks/x.py": "x = 1\n"})
         self.parar()
         self.assertFalse((self.tmp / "rodou").exists(), "o hook do git da cópia rodaria fora do sandbox")
-        self.assertIn("hooks/x.py", self.no_remoto() or [])
+        self.assertEqual(self.salvo(), "x = 1\n")
 
     def test_git_herdado_nao_desvia_a_copia(self):
         self.brief()
         self.gravar({"hooks/x.py": "x = 1\n"})
         self.parar(extra={"GIT_DIR": str(self.raiz / ".git"), "GIT_WORK_TREE": str(self.raiz)})
-        self.assertIn("hooks/x.py", self.no_remoto() or [])
+        self.assertEqual(self.salvo(), "x = 1\n")
+        self.assertEqual(git("rev-list", "--count", "HEAD", cwd=self.raiz).stdout.strip(), "1", "a cópia principal fica intacta")
 
     def test_status_que_falha_vai_ao_erros_log(self):
         self.brief()
@@ -4411,7 +4414,7 @@ class SalvarAoParar(unittest.TestCase):
         self.assertIsNone(self.no_remoto())
         self.assertEqual(self.log(), "")
 
-    def test_add_que_falha_nao_faz_commit_nem_envia(self):
+    def test_add_que_falha_nao_faz_commit(self):
         self.brief()
         self.gravar({"hooks/x.py": "x = 1\n"})
         (self.copia / ".git" / "index.lock").write_text("", encoding="utf-8")
@@ -4427,7 +4430,7 @@ class SalvarAoParar(unittest.TestCase):
                    outros_blocos=[{"type": "tool_result", "text": "docs/briefs/p-tech-lead-3.md"}, "solto"])
         self.gravar({"hooks/x.py": "x = 1\n"})
         self.parar()
-        self.assertIn("hooks/x.py", self.no_remoto() or [], "o brief citado fora do texto do prompt não conta")
+        self.assertEqual(self.salvo(), "x = 1\n", "o brief citado fora do texto do prompt não conta")
 
     def test_registro_user_sem_mensagem_objeto_nao_age(self):
         self.brief()
@@ -4455,19 +4458,19 @@ class SalvarAoParar(unittest.TestCase):
         self.citar("~/.forge-contrib/docs/briefs/p-tech-lead-1.md")
         self.gravar({"hooks/x.py": "x = 1\n"})
         self.parar()
-        self.assertIn("hooks/x.py", self.no_remoto() or [])
-        self.assertIn("1 arquivo(s) enviado", self.log())
+        self.assertEqual(self.salvo(), "x = 1\n")
+        self.assertIn("1 arquivo(s) salvo(s) na cópia", self.log())
 
-    def test_envio_recusado_sem_force_fica_no_log(self):
+    def test_branch_ja_no_remoto_fica_como_esta(self):
+        """Decisão do dono de 25/11 (E11.18): sem rede no hook; com a branch no remoto, nem o envio que passaria acontece."""
+        git("push", "-q", "origin", "melhoria/x", cwd=self.copia)
+        antes = git("rev-parse", "melhoria/x", cwd=self.remoto).stdout
         self.brief()
-        (self.raiz / "README.md").write_text("outro\n", encoding="utf-8")
-        git("commit", "-q", "-am", "remoto andou", cwd=self.raiz)
-        git("push", "-q", str(self.remoto), "develop:refs/heads/melhoria/x", cwd=self.raiz)
         self.gravar({"hooks/x.py": "x = 1\n"})
         self.parar()
-        self.assertEqual(self.enviado(), "x = 0\n", "sem --force: o remoto que andou não é sobrescrito")
-        self.assertIn("envio falhou", self.log())
-        self.assertEqual(git("show", "--name-only", "--format=", "HEAD", cwd=self.copia).stdout.split(), ["hooks/x.py"])
+        self.assertEqual(self.salvo(), "x = 1\n")
+        self.assertEqual(git("rev-parse", "melhoria/x", cwd=self.remoto).stdout, antes, "o salvar não envia")
+        self.assertEqual(git("rev-parse", "origin/melhoria/x", cwd=self.copia).stdout, antes, "nem busca o remoto")
 
     # Volta do #877 (review, QA e segurança A1): a config local da cópia é do agente e o git do hook roda fora do sandbox.
     CONFIG_DO_AGENTE = (("filter.x.clean", "sh -c 'touch {marca}; cat'"), ("filter.x.process", "sh -c 'touch {marca}'"),
@@ -4523,39 +4526,16 @@ class SalvarAoParar(unittest.TestCase):
         self.parar(extra={"XDG_CONFIG_HOME": str(xdg), "GIT_CONFIG_GLOBAL": str(xdg / "git" / "config"),
                           "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "filter.x.clean", "GIT_CONFIG_VALUE_0": filtro})
         self.assertFalse((self.tmp / "marca").exists(), "config de fora do HOME do dono rodou")
-        self.assertEqual(self.enviado(), "x = 1\n")
+        self.assertEqual(self.salvo(), "x = 1\n")
 
     def test_nao_rastreado_fica_de_fora(self):
-        """A2 da segurança: arquivo que o agente não rastreou não vai ao commit nem ao remoto, mesmo no escopo."""
+        """A2 da segurança: arquivo que o agente não rastreou não vai ao commit, mesmo no escopo."""
         self.brief()
         self.gravar({"hooks/x.py": "x = 1\n", "hooks/rascunho.txt": "anotação\n"})
         self.parar()
-        self.assertEqual(self.enviado(), "x = 1\n")
-        self.assertIsNone(self.enviado("hooks/rascunho.txt"))
-        self.assertIn("1 arquivo(s) enviado", self.log())
-
-    SEGREDO = "token = " + "gh" + "p_" + "A1b2C3d4" * 4 + "\n"  # montado: a fonte não traz o formato que a varredura recusa
-
-    def test_segredo_no_escopo_fica_na_copia(self):
-        """A2 da segurança: a varredura de segredo do pre-push roda antes do envio; com achado, o commit fica e nada é enviado."""
-        self.brief()
-        self.gravar({"hooks/x.py": self.SEGREDO})
-        self.parar()
-        self.assertIsNone(self.no_remoto())
-        self.assertEqual(self.commits(), "2")
-        self.assertIn("não enviado: varredura de segredo (rc=1)", self.log())
-
-    def test_varredura_vai_da_origin_da_branch(self):
-        """Com a branch já no remoto, a varredura cobre todo o delta enviado, não só o commit WIP."""
-        git("push", "-q", "origin", "melhoria/x", cwd=self.copia)
-        self.gravar({"docs/b.md": self.SEGREDO})
-        git("add", "docs/b.md", cwd=self.copia)
-        git("commit", "-q", "-m", "fora do escopo", cwd=self.copia)
-        self.brief()
-        self.gravar({"hooks/x.py": "x = 1\n"})
-        self.parar()
-        self.assertEqual((self.enviado(), self.enviado("docs/b.md")), ("x = 0\n", None))
-        self.assertIn("não enviado: varredura de segredo", self.log())
+        self.assertEqual(self.salvo(), "x = 1\n")
+        self.assertIsNone(self.salvo("hooks/rascunho.txt"))
+        self.assertIn("1 arquivo(s) salvo(s) na cópia", self.log())
 
     def test_prazo_total_dividido_entre_os_comandos(self):
         """A3: um prazo só para todos os comandos, abaixo dos 60 s do hook; esgotado, o comando seguinte nem espera."""

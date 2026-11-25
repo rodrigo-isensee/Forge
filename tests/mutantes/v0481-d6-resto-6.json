@@ -9,7 +9,7 @@
       "de": "for item in saida.split(b\"\\0\") if item]",
       "para": "for item in saida.split(b\"\\0\") if True]",
       "testes": [
-        "tests.test_hooks.SalvarAoParar.test_salva_e_envia_so_o_escopo"
+        "tests.test_hooks.SalvarAoParar.test_salva_so_o_escopo_na_copia"
       ]
     }
   ]

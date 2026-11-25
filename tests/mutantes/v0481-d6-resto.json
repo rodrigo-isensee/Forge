@@ -79,7 +79,7 @@
       "de": "if item.endswith(\"/\") else",
       "para": "if item.endswith(\"/\") or True else",
       "testes": [
-        "tests.test_hooks.SalvarAoParar.test_salva_e_envia_so_o_escopo"
+        "tests.test_hooks.SalvarAoParar.test_salva_so_o_escopo_na_copia"
       ]
     }
   ]

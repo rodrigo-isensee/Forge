@@ -4,22 +4,12 @@
   "mutantes": [
     {
       "id": "M25",
-      "guarda": "D6 (a): add ou commit que falha para antes do envio",
+      "guarda": "D6 (a): add ou commit que falha para e vai ao erros.log",
       "arquivo": "hooks/salvar.py",
       "de": "        if rc:\n            raise RuntimeError(f\"git {args[0]}",
       "para": "        if False:\n            raise RuntimeError(f\"git {args[0]}",
       "testes": [
-        "tests.test_hooks.SalvarAoParar.test_add_que_falha_nao_faz_commit_nem_envia"
-      ]
-    },
-    {
-      "id": "M26",
-      "guarda": "D6 (a): envio recusado (sem --force) fica no salvar.log como falha",
-      "arquivo": "hooks/salvar.py",
-      "de": "(\"enviado\" if rc == 0 else",
-      "para": "(\"enviado\" if True else",
-      "testes": [
-        "tests.test_hooks.SalvarAoParar.test_envio_recusado_sem_force_fica_no_log"
+        "tests.test_hooks.SalvarAoParar.test_add_que_falha_nao_faz_commit"
       ]
     },
     {

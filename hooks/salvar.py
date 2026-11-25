@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Forge: salvar (D6-SESSAO-NAO-PERDE, parte a; v0481 E11.2) - ao parar, o agente grava e envia o trabalho em andamento.
+"""Forge: salvar (D6-SESSAO-NAO-PERDE, parte a; v0481 E11.2) - ao parar, o trabalho em andamento do agente vira commit na cópia.
 
 SubagentStop: o prompt do agente (primeiro registro `user` do `agent_transcript_path`) cita um só brief de escrita
 (`de_escrita` e `ler_brief` do `agentes`). Dele saem a `Branch:`, o escopo (`- arquivos:`: caminho exato ou pasta com `/`) e
 a cópia citada (em `~/.forge-contrib/wt/` no Forge, `<projeto>/.forge/wt/` no projeto), que precisa estar nessa branch. A
-mudança fora de commit dentro do escopo vira um commit WIP só dela (`--only`), enviado por `git push origin <branch>`, sem
-`--force` e nunca em branch de integração. Não age com conflito ou operação do git em andamento, nem com cópia ou brief
-ambíguo. O git roda fora do sandbox: sem os hooks do git da cópia (o agente escreve o código deles) nem `core.fsmonitor`,
+mudança fora de commit dentro do escopo vira um commit WIP só dela (`--only`), só na cópia local, nunca em branch de integração:
+sem envio nem rede (ADR 0003 item 2); o envio, com o pre-push, fica com o fechamento. Não age com conflito ou operação do git em
+andamento, nem com cópia ou brief ambíguo. O git roda fora do sandbox: sem os hooks do git da cópia (o agente escreve o código deles) nem `core.fsmonitor`,
 sem as GIT_* herdadas e sem pedir senha; a config local da cópia (que o agente grava) só com as chaves de PERMITIDAS e a
-origin da cópia principal. Arquivo não rastreado fica de fora; antes do envio, a varredura de segredo do pre-push, pelo
-script do plugin (fora da cópia). Todos os comandos dividem um prazo só, abaixo dos 60 s do hook. A guarda da branch é a
+origin da cópia principal. Arquivo não rastreado fica de fora. Todos os comandos dividem um prazo só, abaixo dos 60 s do hook. A guarda da branch é a
 deste arquivo. Resultado em `.forge/run/salvar.log`; nunca bloqueia nem escreve no stdout; erro interno: silêncio e uma
 linha no erros.log (o `executar`). Só biblioteca padrão."""
 import json
@@ -17,7 +16,6 @@ import os
 import re
 import subprocess
 import time
-from pathlib import Path
 
 from _comum import INTEGRACAO, contrib, e_clone_do_forge, executar, expandir_home, forge_check
 from agentes import caminhos_de_brief, de_escrita, ler_brief
@@ -32,13 +30,12 @@ COPIA_CITADA = re.compile(r"(?:~|/)[^\s`'\"(),;]*/wt/[A-Za-z0-9._-]+")
 EM_ANDAMENTO = ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply")
 PERMITIDAS = re.compile(r"core\.(?:repositoryformatversion|filemode|bare|logallrefupdates|ignorecase|precomposeunicode|symlinks)"
                         r"|extensions\.objectformat|remote\.origin\.(?:url|fetch)|branch\..+\.(?:remote|merge)|user\.(?:name|email)")
-VARREDURA = Path(__file__).resolve().parent.parent / "scripts" / "verificar-contribuicao.sh"  # a do plugin, nunca a da cópia
 
 
 def ambiente():
     """Sem as GIT_* herdadas (GIT_CONFIG_GLOBAL, GIT_CONFIG_COUNT...) nem XDG_CONFIG_HOME: a config global é a do HOME do
-    dono e a de sistema, a da máquina; sem BASH_ENV/ENV para o bash da varredura; sem pedir senha."""
-    fora = ("XDG_CONFIG_HOME", "BASH_ENV", "ENV")
+    dono e a de sistema, a da máquina; sem pedir senha."""
+    fora = ("XDG_CONFIG_HOME",)
     return {**{k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k not in fora}, "GIT_TERMINAL_PROMPT": "0"}
 
 
@@ -134,20 +131,14 @@ def arquivos_a_salvar(copia, escopo):
 
 
 def salvar(copia, branch, arquivos):
-    """Commit WIP só de `arquivos` e envio da branch; devolve a linha do salvar.log."""
+    """Commit WIP só de `arquivos`, na cópia, sem envio; devolve a linha do salvar.log."""
     for args in (("add", "-A", "--", *arquivos),
                  ("commit", "-q", "--only", "-m", "chore(wip): trabalho em andamento salvo ao parar o agente", "--", *arquivos)):
         rc, _ = git_da_copia(copia, *args)
         if rc:
             raise RuntimeError(f"git {args[0]} saiu com {rc}")
     sha = git_da_copia(copia, "rev-parse", "--short", "HEAD")[1].decode().strip()
-    rc, _ = git_da_copia(copia, "rev-parse", "--verify", "-q", f"refs/remotes/origin/{branch}^{{commit}}")
-    base = f"refs/remotes/origin/{branch}" if rc == 0 else "HEAD^"  # branch nova: só o commit WIP
-    rc, _ = rodar(["bash", "--noprofile", "--norc", str(VARREDURA), base, "HEAD"], cwd=copia)
-    if rc:
-        return f"{branch} {sha} {len(arquivos)} arquivo(s) não enviado: varredura de segredo (rc={rc})"
-    rc, _ = git_da_copia(copia, "push", "origin", f"refs/heads/{branch}:refs/heads/{branch}")
-    return f"{branch} {sha} {len(arquivos)} arquivo(s) " + ("enviado" if rc == 0 else f"envio falhou (rc={rc})")
+    return f"{branch} {sha} {len(arquivos)} arquivo(s) salvo(s) na cópia, sem envio"
 
 
 def principal(hook):

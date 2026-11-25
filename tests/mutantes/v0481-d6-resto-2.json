@@ -9,7 +9,7 @@
       "de": "else caminho == item",
       "para": "else caminho.startswith(item)",
       "testes": [
-        "tests.test_hooks.SalvarAoParar.test_salva_e_envia_so_o_escopo"
+        "tests.test_hooks.SalvarAoParar.test_salva_so_o_escopo_na_copia"
       ]
     },
     {
@@ -39,7 +39,7 @@
       "de": "            if isinstance(conteudo, list):\n",
       "para": "            if False:\n",
       "testes": [
-        "tests.test_hooks.SalvarAoParar.test_salva_e_envia_so_o_escopo"
+        "tests.test_hooks.SalvarAoParar.test_salva_so_o_escopo_na_copia"
       ]
     },
     {
@@ -69,7 +69,7 @@
       "de": "if e_clone_do_forge(raiz) else",
       "para": "if not e_clone_do_forge(raiz) else",
       "testes": [
-        "tests.test_hooks.SalvarAoParar.test_salva_e_envia_so_o_escopo",
+        "tests.test_hooks.SalvarAoParar.test_salva_so_o_escopo_na_copia",
         "tests.test_hooks.SalvarAoParar.test_clone_do_forge_usa_a_pasta_do_contrib"
       ]
     },
@@ -80,7 +80,7 @@
       "de": "if no_escopo(caminho, escopo)]",
       "para": "if True]",
       "testes": [
-        "tests.test_hooks.SalvarAoParar.test_salva_e_envia_so_o_escopo"
+        "tests.test_hooks.SalvarAoParar.test_salva_so_o_escopo_na_copia"
       ]
     }
   ]
