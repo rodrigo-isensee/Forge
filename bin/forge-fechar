@@ -1583,8 +1583,13 @@ corte_diario() {
   hoje="${relogio% *}" hora="${relogio#* }"
   [ "$1" -ge 1 ] || { echo "corte: nenhum item na develop para o corte diário." >&2; return 1; }
   [ "$((10#$hora))" -ge 600 ] || { echo "corte: o corte diário só sai a partir das 06:00 locais (agora $hora)." >&2; return 1; }
-  ultima="$(git show refs/remotes/origin/develop:CHANGELOG.md)" && ultima="$(sed -n '/^## \[[0-9]/{s/^## \[[^]]*\] - \([0-9-]*\).*/\1/p;q;}' <<<"$ultima")" || ultima=erro
-  [ "$ultima" != "$hoje" ] && [ "$ultima" != erro ] || { echo "corte: a develop já tem versão de hoje ($hoje) ou o CHANGELOG.md não foi lido; um corte diário por dia." >&2; return 1; }
+  if ! ultima="$(git show refs/remotes/origin/develop:CHANGELOG.md)" \
+    || ! ultima="$(sed -n '/^## \[[0-9]/{s/^## \[[^]]*\] - \([0-9-]*\).*/\1/p;q;}' <<<"$ultima")"; then
+    ultima=erro
+  fi
+  if [ "$ultima" = "$hoje" ] || [ "$ultima" = erro ]; then
+    echo "corte: a develop já tem versão de hoje ($hoje) ou o CHANGELOG.md não foi lido; um corte diário por dia." >&2; return 1
+  fi
   saida="$("$check" autorizacao corte)" || { echo "corte: ${saida:-a leitura da autorização falhou}" >&2; return 1; }
   [[ "$saida" =~ ^autorizacao:\ (A-[0-9]+\ sha256\ [0-9a-f]{64}\ ·\ corte-diario\ ·\ fixo)$ ]] || { echo "corte: autorização corte-diario fora da forma." >&2; return 1; }
   printf '%s\n' "${BASH_REMATCH[1]}"

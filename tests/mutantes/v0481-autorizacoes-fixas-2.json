@@ -66,8 +66,8 @@
       "id": "M15",
       "guarda": "AUTORIZACOES-FIXAS F3: CHANGELOG.md da develop ilegível não corta",
       "arquivo": "bin/forge-fechar",
-      "de": "<<<\"$ultima\")\" || ultima=erro",
-      "para": "<<<\"$ultima\")\" || ultima=\"\"",
+      "de": "    ultima=erro\n",
+      "para": "    ultima=\"\"\n",
       "testes": [
         "tests.test_fechar_corte.CorteDiario.test_changelog_ilegivel_na_develop_nao_corta"
       ]
@@ -76,8 +76,8 @@
       "id": "M16",
       "guarda": "AUTORIZACOES-FIXAS F3: um corte diário por dia",
       "arquivo": "bin/forge-fechar",
-      "de": "  [ \"$ultima\" != \"$hoje\" ] && [ \"$ultima\" != erro ] ||",
-      "para": "  true ||",
+      "de": "  if [ \"$ultima\" = \"$hoje\" ] || [ \"$ultima\" = erro ]; then",
+      "para": "  if false; then",
       "testes": [
         "tests.test_fechar_corte.CorteDiario.test_antes_das_06h_relogio_ilegivel_ou_versao_de_hoje_nao_corta"
       ]
