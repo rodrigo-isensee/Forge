@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-pedido-arquiva",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M40",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: `Entregue? não` não fecha (a interrogação depois de `entregue`)",
+      "arquivo": "bin/forge-check",
+      "de": "entregue(?![\\w?-])",
+      "para": "entregue(?![\\w-])",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_entregue_com_interrogacao_nao_fecha"
+      ]
+    },
+    {
+      "id": "M41",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: `E1.1 não foi entregue` não fecha",
+      "arquivo": "bin/forge-check",
+      "de": "entregue(?![\\w?-])",
+      "para": "(?:não foi )?entregue(?![\\w?-])",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_negacao_futuro_e_texto_livre_de_entregue_nao_fecham"
+      ]
+    },
+    {
+      "id": "M42",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: `E1.1 nunca entregue` não fecha",
+      "arquivo": "bin/forge-check",
+      "de": "entregue(?![\\w?-])",
+      "para": "(?:nunca )?entregue(?![\\w?-])",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_negacao_futuro_e_texto_livre_de_entregue_nao_fecham"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: `E1.1 a ser entregue` não fecha",
+      "arquivo": "bin/forge-check",
+      "de": "entregue(?![\\w?-])",
+      "para": "(?:a ser )?entregue(?![\\w?-])",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_negacao_futuro_e_texto_livre_de_entregue_nao_fecham"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: `E1.1 será entregue` não fecha",
+      "arquivo": "bin/forge-check",
+      "de": "entregue(?![\\w?-])",
+      "para": "(?:será )?entregue(?![\\w?-])",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_negacao_futuro_e_texto_livre_de_entregue_nao_fecham"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: `E1.1 não-entregue` não fecha",
+      "arquivo": "bin/forge-check",
+      "de": "entregue(?![\\w?-])",
+      "para": "(?:não-)?entregue(?![\\w?-])",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_negacao_futuro_e_texto_livre_de_entregue_nao_fecham"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: `E1.1 sem ser entregue` não fecha",
+      "arquivo": "bin/forge-check",
+      "de": "entregue(?![\\w?-])",
+      "para": "(?:sem ser )?entregue(?![\\w?-])",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_negacao_futuro_e_texto_livre_de_entregue_nao_fecham"
+      ]
+    },
+    {
+      "id": "M47",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: `o que foi entregue no #5` não fecha",
+      "arquivo": "bin/forge-check",
+      "de": "entregue(?![\\w?-])",
+      "para": "(?:despachada para corrigir o que foi )?entregue(?![\\w?-])",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_negacao_futuro_e_texto_livre_de_entregue_nao_fecham"
+      ]
+    }
+  ]
+}
