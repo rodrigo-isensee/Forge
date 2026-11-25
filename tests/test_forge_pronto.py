@@ -23,6 +23,7 @@ from ambiente_git import sem_manutencao  # noqa: E402
 
 PY = sys.executable
 OK, FALHA = (PY, "-I", "-c", "pass"), (PY, "-I", "-c", "import sys; print('saida da falha'); sys.exit(3)")
+SAI_2 = (PY, "-I", "-c", "import sys; sys.exit(2)")  # o passo sem veredito (o --afetados que não decide, o comando que não abre)
 CORPO_COM_MOTIVO = "teto: excedido, 151 linhas, cortar mais quebra a suíte\n"
 # gh falso: só o `gh pr view develop --json ...` com o nome exato da branch (checklist 12); outra chamada sai 3.
 GH = '#!/bin/sh\n[ "$1 $2 $3" = "pr view develop" ] || exit 3\n'
@@ -31,35 +32,60 @@ COM_PR = GH + 'echo \'{"number": 7, "state": "%s", "headRefOid": "x", "body": "c
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "GH_", "GITHUB_"))})
 
 
-def conferir(lista, falhas=()):
+def conferir(lista, falhas=(), corpo="", sem_corpo=None):
     saida, erro = io.StringIO(), io.StringIO()
-    with mock.patch.object(forge_pronto, "tamanho_e_corpo", return_value=list(falhas)), \
+    with mock.patch.object(forge_pronto, "tamanho_e_corpo", return_value=list(falhas)) as teto, \
             mock.patch.object(forge_pronto, "passos", return_value=[("dos passos", FALHA)]), \
             contextlib.redirect_stdout(saida), contextlib.redirect_stderr(erro):
-        rc = forge_pronto.conferir(".", "origin/develop", "abc", 10, "", lista)
-    return rc, saida.getvalue(), erro.getvalue()
+        rc = forge_pronto.conferir(".", "origin/develop", "abc", 10, corpo, lista, sem_corpo=sem_corpo)
+    return rc, saida.getvalue(), erro.getvalue(), teto
 
 
 class Agregador(unittest.TestCase):
     def test_tudo_passa_sai_0(self):
-        rc, saida, _ = conferir([("a", OK), ("b", OK)])
+        rc, saida, _, _ = conferir([("a", OK), ("b", OK)])
         self.assertEqual(rc, 0)
         self.assertIn("pronto: a: ok", saida)
+        self.assertIn("pronto: tamanho e corpo do PR (10 linhas de código): ok", saida)
         self.assertIn("tudo passou", saida)
 
     def test_uma_checagem_reprovada_sai_1_e_mostra_a_saida(self):
-        rc, saida, erro = conferir([("a", OK), ("b", FALHA)])
+        rc, saida, erro, _ = conferir([("a", OK), ("b", FALHA)])
         self.assertEqual(rc, 1)
         self.assertIn("pronto: b: reprovado (saída 3)", saida)
         self.assertIn("reprovado em b;", saida)
         self.assertIn("saida da falha", erro)
 
     def test_teto_ou_corpo_reprovado_sai_1(self):
-        rc, saida, erro = conferir([("a", OK)], ["falha do corpo"])
+        rc, saida, erro, _ = conferir([("a", OK)], ["falha do corpo"])
         self.assertEqual(rc, 1)
         self.assertIn("reprovado em tamanho e corpo do PR", saida)
         self.assertIn("pronto: tamanho e corpo do PR (10 linhas de código): reprovado", saida)
         self.assertIn("pronto: falha do corpo", erro)
+
+    def test_passo_que_sai_2_fica_nao_verificavel_e_sai_2(self):
+        rc, saida, _, _ = conferir([("a", OK), ("b", SAI_2)])
+        self.assertEqual(rc, 2)
+        self.assertIn("pronto: b: não verificável (saída 2)", saida)
+        self.assertIn("pronto: não verificável em b;", saida)
+        self.assertNotIn("tudo passou", saida)
+
+    def test_reprovada_vence_o_nao_verificavel(self):
+        rc, saida, _, _ = conferir([("a", SAI_2), ("b", FALHA)])
+        self.assertEqual(rc, 1)
+        self.assertIn("reprovado em b;", saida)
+
+    def test_gh_em_erro_sem_corpo_sai_2_com_o_motivo(self):
+        rc, saida, _, teto = conferir([("a", OK)], corpo=None, sem_corpo="gh sem rede ou sem acesso")
+        self.assertEqual(rc, 2)
+        self.assertIn("tamanho e corpo do PR: não verificável (gh sem rede ou sem acesso)", saida)
+        self.assertIn("não verificável em tamanho e corpo do PR", saida)
+        teto.assert_not_called()
+
+    def test_motivo_com_corpo_dado_confere_o_corpo(self):
+        rc, _, _, teto = conferir([("a", OK)], ["falha do corpo"], corpo="o corpo", sem_corpo="gh sem rede")
+        self.assertEqual(rc, 1)
+        teto.assert_called_once()
 
     def test_comando_que_nao_abre_sai_2(self):
         self.assertEqual(forge_pronto.rodar(".", ["/nao/existe/comando"])[0], 2)
@@ -142,3 +168,9 @@ class CmdPronto(unittest.TestCase):
         self.assertIn("pronto: tamanho e corpo do PR (0 linhas de código)", r.stdout, r.stderr)
         r = self.pronto("--base", "develop", gh=COM_PR % "CLOSED")
         self.assertIn("corpo do PR não conferido", r.stderr)
+
+    def test_gh_em_erro_deixa_o_corpo_nao_verificavel(self):
+        r = self.pronto("--base", "develop", gh=GH + 'echo "erro de rede" >&2\nexit 1\n')
+        self.assertNotEqual(r.returncode, 0, r.stderr)  # os passos reprovam no repositório descartável; o rc 2 do corpo: Agregador
+        self.assertIn("tamanho e corpo do PR: não verificável (gh sem rede ou sem acesso)", r.stdout)
+        self.assertNotIn("corpo do PR não conferido", r.stderr)

@@ -4,8 +4,9 @@ O autor roda na raiz da cópia antes de entregar; as revisões só começam depo
 existem soltas, sem regra nova: os registros (`forge-testes --registros`: índice do Forge, fragmento de changelog, specs de mutante,
 pesos), a neutralidade com os dois detectores (as classes Neutralidade e NeutralidadeDoNucleo de tests/test_forge.py), os tetos de
 texto (`forge-testes --texto`), os testes afetados (`forge-testes --afetados`), o teto H1 (forge_tamanho) e as seções do corpo do PR
-(o passo pr-texto da catraca, o mesmo do CI). Saída 0: tudo passou; 1: alguma checagem reprovou. Só biblioteca padrão; não usa nada
-do forge-check (quem chama passa a base comum, o tamanho e o corpo).
+(o passo pr-texto da catraca, o mesmo do CI). Saída 0: tudo passou; 1: alguma checagem reprovou; 2: nenhuma reprovou, mas alguma
+ficou não verificável (o passo que saiu 2 ou o corpo que o gh não leu), nunca passa. Só biblioteca padrão; não usa nada do forge-check
+(quem chama passa a base comum, o tamanho e o corpo).
 """
 import os
 import subprocess
@@ -48,21 +49,28 @@ def tamanho_e_corpo(raiz, ancora, total, corpo):
     return falhas
 
 
-def conferir(raiz, base, ancora, total, corpo, lista=None):
-    """Roda os `passos` (ou a `lista` dada) e o teto com o corpo; uma linha `pronto:` por checagem. Devolve 0 ou 1."""
-    reprovadas = []
+def conferir(raiz, base, ancora, total, corpo, lista=None, sem_corpo=None):
+    """Roda os `passos` (ou a `lista` dada) e o teto com o corpo; uma linha `pronto:` por checagem. Devolve 0, 1 ou 2: o passo que sai 2
+    e o corpo ausente com `sem_corpo` (o motivo do gh em erro) ficam não verificáveis; reprovada vence, e nenhum dos dois vira 0."""
+    reprovadas, nao_verificaveis = [], []
     for nome, argv in passos(base) if lista is None else lista:
         rc, saida = rodar(raiz, argv)
-        print(f"pronto: {nome}: {'ok' if rc == 0 else f'reprovado (saída {rc})'}", flush=True)
+        estado = "ok" if rc == 0 else "não verificável (saída 2)" if rc == 2 else f"reprovado (saída {rc})"
+        print(f"pronto: {nome}: {estado}", flush=True)
         if rc:
             print("\n".join(saida.rstrip().splitlines()[-LINHAS_DA_SAIDA:]), file=sys.stderr)
-            reprovadas.append(nome)
-    falhas = tamanho_e_corpo(raiz, ancora, total, corpo)
-    print(f"pronto: tamanho e corpo do PR ({total} linhas de código): {'reprovado' if falhas else 'ok'}")
-    for falha in falhas:
-        print(f"pronto: {falha}", file=sys.stderr)
+            (nao_verificaveis if rc == 2 else reprovadas).append(nome)
+    falhas = None if corpo is None and sem_corpo else tamanho_e_corpo(raiz, ancora, total, corpo)
+    if falhas is None:  # o gh em erro sem --corpo: o corpo fica não verificável, nunca passa
+        print(f"pronto: tamanho e corpo do PR: não verificável ({sem_corpo}); passe --corpo <o arquivo do --body-file>")
+        nao_verificaveis.append("tamanho e corpo do PR")
+    else:
+        print(f"pronto: tamanho e corpo do PR ({total} linhas de código): {'reprovado' if falhas else 'ok'}")
+        for falha in falhas:
+            print(f"pronto: {falha}", file=sys.stderr)
     if falhas:
         reprovadas.append("tamanho e corpo do PR")
     print(f"pronto: reprovado em {', '.join(reprovadas)}; corrija antes de pedir as revisões" if reprovadas
+          else f"pronto: não verificável em {', '.join(nao_verificaveis)}; nada passou por isso" if nao_verificaveis
           else "pronto: tudo passou; a entrega pode ir às revisões")
-    return 1 if reprovadas else 0
+    return 1 if reprovadas else 2 if nao_verificaveis else 0

@@ -3,7 +3,7 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M1",
+      "id": "M9",
       "guarda": "cmd_pronto: merge-base que falha não lê o diff",
       "arquivo": "bin/forge-check",
       "de": "    numstat = None if cod else contagens_do_intervalo(raiz, ancora",
@@ -13,7 +13,7 @@
       ]
     },
     {
-      "id": "M2",
+      "id": "M10",
       "guarda": "cmd_pronto: --corpo ilegível sai 2",
       "arquivo": "bin/forge-check",
       "de": "ilegível ({type(erro).__name__})\", file=sys.stderr)\n            return 2",
@@ -23,7 +23,7 @@
       ]
     },
     {
-      "id": "M3",
+      "id": "M11",
       "guarda": "cmd_pronto: --corpo dado é lido do arquivo",
       "arquivo": "bin/forge-check",
       "de": "    if corpo_arquivo:\n        try:\n            corpo = Path(corpo_arquivo)",
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "id": "M4",
+      "id": "M12",
       "guarda": "cmd_pronto: sem branch não consulta o gh",
       "arquivo": "bin/forge-check",
       "de": "corpo=True) if branch else (None, None)",
@@ -43,7 +43,7 @@
       ]
     },
     {
-      "id": "M5",
+      "id": "M13",
       "guarda": "cmd_pronto: só o PR aberto dá o corpo",
       "arquivo": "bin/forge-check",
       "de": "if pr and pr.get(\"state\") == \"OPEN\" else None",
@@ -53,7 +53,7 @@
       ]
     },
     {
-      "id": "M6",
+      "id": "M14",
       "guarda": "forge-check: o subcomando pronto chega ao cmd_pronto",
       "arquivo": "bin/forge-check",
       "de": "    if a.cmd == \"pronto\":\n        return cmd_pronto",
@@ -63,7 +63,7 @@
       ]
     },
     {
-      "id": "M7",
+      "id": "M15",
       "guarda": "forge_pronto: sem lista, os passos do cartão",
       "arquivo": "bin/forge_pronto.py",
       "de": "passos(base) if lista is None else lista",
@@ -73,11 +73,11 @@
       ]
     },
     {
-      "id": "M8",
+      "id": "M16",
       "guarda": "forge_pronto: checagem verde sai ok",
       "arquivo": "bin/forge_pronto.py",
-      "de": "{'ok' if rc == 0 else",
-      "para": "{'ok' if rc != 0 else",
+      "de": "estado = \"ok\" if rc == 0 else \"não verificável",
+      "para": "estado = \"ok\" if rc != 0 else \"não verificável",
       "testes": [
         "tests.test_forge_pronto.Agregador.test_tudo_passa_sai_0"
       ]

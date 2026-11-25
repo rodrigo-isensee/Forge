@@ -54,22 +54,22 @@
     },
     {
       "id": "M6",
-      "guarda": "forge_pronto: falha do teto ou do corpo entra na lista",
+      "guarda": "forge_pronto: o passo que sai 2 fica não verificável, não reprovado",
       "arquivo": "bin/forge_pronto.py",
-      "de": "    if falhas:\n        reprovadas.append",
-      "para": "    if not falhas:\n        reprovadas.append",
+      "de": "(nao_verificaveis if rc == 2 else reprovadas).append(nome)",
+      "para": "(nao_verificaveis if rc == 3 else reprovadas).append(nome)",
       "testes": [
-        "tests.test_forge_pronto.Agregador.test_teto_ou_corpo_reprovado_sai_1"
+        "tests.test_forge_pronto.Agregador.test_passo_que_sai_2_fica_nao_verificavel_e_sai_2"
       ]
     },
     {
       "id": "M7",
-      "guarda": "forge_pronto: reprovada sai 1",
+      "guarda": "forge_pronto: não verificável sai 2, não 0",
       "arquivo": "bin/forge_pronto.py",
-      "de": "    return 1 if reprovadas else 0",
-      "para": "    return 1 if not reprovadas else 0",
+      "de": "else 2 if nao_verificaveis else 0",
+      "para": "else 2 if False else 0",
       "testes": [
-        "tests.test_forge_pronto.Agregador.test_uma_checagem_reprovada_sai_1_e_mostra_a_saida"
+        "tests.test_forge_pronto.Agregador.test_passo_que_sai_2_fica_nao_verificavel_e_sai_2"
       ]
     },
     {
