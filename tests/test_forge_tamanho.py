@@ -63,8 +63,9 @@ class Funcoes(unittest.TestCase):
         self.assertIn("o pedido tem 51 etapas", tam().aviso_de_etapas(51))
 
     def test_borda_dos_caracteres(self):
-        self.assertIsNone(tam().aviso_de_caracteres(8999, 10000))
-        self.assertIn("o brief tem 9000 caracteres, perto do teto de 10000", tam().aviso_de_caracteres(9000, 10000))
+        self.assertIsNone(tam().aviso_de_caracteres(7999, 10000))
+        self.assertIsNotNone(tam().aviso_de_caracteres(8000, 10000))  # a base (90%) falha aqui por asserção, não por erro (QA A3)
+        self.assertIn("o brief tem 8000 caracteres, perto do teto de 10000", tam().aviso_de_caracteres(8000, 10000))
         self.assertIn("pedido de continuação", tam().aviso_de_caracteres(10500, 10000))
 
 
@@ -230,13 +231,13 @@ class NoBriefGerar(ComRepositorio):
         self.gravar("docs/pedidos/exemplo.md", pedido_com(["texto longo " * 900]))  # E3.48: a coberta vai inteira ao Entregar
         rc, saida, erro = self.gerar()
         self.assertEqual(rc, 0, erro)
-        self.assertGreaterEqual(len(saida), 9000)
+        self.assertGreaterEqual(len(saida), 8000)
         self.assertIn(f"brief gerar: aviso: o brief tem {len(saida)} caracteres, perto do teto de 10000", erro)
 
     def test_brief_curto_nao_avisa(self):
         rc, saida, erro = self.gerar()
         self.assertEqual(rc, 0, erro)
-        self.assertLess(len(saida), 9000)
+        self.assertLess(len(saida), 8000)
         self.assertNotIn("caracteres, perto", erro)
 
     def test_brief_da_branch_acima_do_teto_avisa(self):
