@@ -33,7 +33,7 @@ class FecharComOForgeCheckReal(unittest.TestCase):
             (self.proj / "docs" / pasta).mkdir(parents=True)
             (self.proj / "docs" / pasta / "x.md").write_text(
                 f"---\ntipo: {tipo}\ncontrato: 1\npedido: x\nbranch: melhoria/x\ncommit: {self.entrega}\nparecer: aprovado\n{extra}"
-                "data: 2026-11-04\n---\n# parecer\n", encoding="utf-8")
+                f"data: 2026-11-04\n---\n# parecer\n\n- ci: {self.entrega} verde\n", encoding="utf-8")  # PARECER-LE-O-CI
         self.git("add", "docs")
         self.git("commit", "-q", "-m", "docs: pareceres")
         self.git("push", "-q", "origin", "melhoria/x")

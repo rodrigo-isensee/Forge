@@ -46,8 +46,8 @@
       "id": "D3C5",
       "guarda": "skipTest no corpo conta como pulo",
       "arquivo": "tests/catraca.py",
-      "de": "            pulos += nome in PULOS\n    corpo = [c for c in fn.body",
-      "para": "            pulos += nome in ()\n    corpo = [c for c in fn.body",
+      "de": "            pulos += nome in PULOS\n    return asserts, pulos, esperados",
+      "para": "            pulos += nome in ()\n    return asserts, pulos, esperados",
       "testes": [
         "tests.test_catraca.TestesAfrouxados.test_skip_no_teste_na_classe_ou_skiptest_barra"
       ]
