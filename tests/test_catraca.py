@@ -891,6 +891,18 @@ class AssercaoNoAjudante(Base):
         self.assertEqual(catraca.afrouxamentos(self.perfil_x(self.CONSTANTES), self.perfil_x(self.CONSTANTES, teto=10)),
                          ["perdeu asserção (estava no ajudante h)", catraca.VALOR_TROCADO])
 
+    def test_teto_estourado_avisa_o_modulo_e_o_que_contou(self):
+        """CATRACA-TETO-AVISO: o estouro diz qual módulo, em qual ref, e que contou só as diretas; sem estouro, nada."""
+        with contextlib.redirect_stdout(io.StringIO()) as saida:
+            self.perfil_x(self.CONSTANTES, teto=100)
+        self.assertEqual(saida.getvalue(), "")
+        padroes = (catraca.FUNDO_DOS_AJUDANTES, 10, "o módulo")
+        with mock.patch.object(catraca.testes_da_arvore, "__defaults__", padroes), contextlib.redirect_stdout(io.StringIO()) as saida:
+            perfis = catraca._testes_por_modulo(self.repo.dir, "base", ["tests/test_a.py"])
+        self.assertEqual(perfis["tests/test_a.py"]["T.test_recursivo"][0], 0)  # só as diretas: com o teto padrão, 8
+        self.assertEqual(saida.getvalue(), "catraca: tests/test_a.py em base estourou o teto de 10 expansões dos ajudantes; "
+                                           "contou só as asserções diretas.\n")
+
 
 class ControlesEnfraquecidos(Base):
     """MAQ-I7a: a força conta por módulo de controle; ilegível, grande demais ou renomeado conta zero."""
@@ -2466,6 +2478,17 @@ class LinhaDeComando(Base):
 
     def test_rotulo_do_dono_da_base_depois_do_push_sai_0(self):
         self.assertEqual(self.roda([self.evento("dona")]).returncode, 0)
+
+    def test_liberada_pelo_rotulo_nomeia_cada_violacao(self):
+        """CATRACA-NOMEIA-LIBERADA: a linha da contagem vem com uma linha por violação liberada, o texto inteiro dela."""
+        r = self.roda([self.evento("dona")])
+        viol = self.repo.violacoes()
+        self.assertTrue(viol)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        linhas = r.stdout.splitlines()
+        self.assertIn(f"catraca: {len(viol)} violação(ões) liberada(s) pelo rótulo `{catraca.ROTULO}` do dono "
+                      "(aplicado depois do último push).", linhas)
+        self.assertEqual([l for l in linhas if l.startswith("catraca: liberada: ")], [f"catraca: liberada: {v}" for v in viol])
 
     def test_rotulo_do_novo_dono_da_pr_nao_vale(self):
         self.assertEqual(self.roda([self.evento("outra")]).returncode, 1)
