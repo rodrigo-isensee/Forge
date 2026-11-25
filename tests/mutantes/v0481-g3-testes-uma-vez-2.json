@@ -17,7 +17,7 @@
       "guarda": "linha_do_ci_do_parecer: review e QA recebem a linha que manda ler o CI",
       "arquivo": "bin/forge-check",
       "de": "extra = [LINHA_LE_O_CI] if le_o_ci else []",
-      "para": "extra = []",
+      "para": "extra = [LINHA_LE_O_CI] if False else []",
       "testes": [
         "tests.test_pre_envio_brief.LeOCiNoBrief.test_review_e_qa_leem_o_ci_com_e_sem_gh"
       ]
@@ -40,6 +40,27 @@
       "para": "saida += linha_do_ci_do_parecer(raiz, branch)",
       "testes": [
         "tests.test_pre_envio_brief.LeOCiNoBrief.test_review_e_qa_leem_o_ci_com_e_sem_gh"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "leu_o_ci: o parecer sem `commit:` não casa a linha `- ci:` (nem quebra)",
+      "arquivo": "bin/forge-check",
+      "de": "    commit = campos.get(\"commit\") or \"\"\n    return bool(COMMIT.match(commit)) and any(",
+      "para": "    commit = campos.get(\"commit\")\n    return bool(COMMIT.match(commit)) and any(",
+      "testes": [
+        "tests.test_forge_check_pr.LeuOCi.test_sem_linha_outro_sha_outro_estado_ou_commit_invalido_nao_vale"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "suite_do_parecer: só a prova que vale encerra antes de ler o CI do head",
+      "arquivo": "bin/forge-check",
+      "de": "falta_na_prova(raiz, base, campos, texto)) is None:\n        return sem_ci",
+      "para": "falta_na_prova(raiz, base, campos, texto)) is not None:\n        return sem_ci",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_a_linha_nao_dispensa_o_ci_verde_do_head",
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_sem_a_linha_e_sem_ci_verde_saem_as_duas"
       ]
     }
   ]
