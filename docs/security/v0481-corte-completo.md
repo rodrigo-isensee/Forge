@@ -20,8 +20,8 @@ Gatilhos: controle do fluxo de merge e de release (`forge-fechar --corte`, R-FLU
 - A1 (bloqueante) tests/test_fechar_corte.py:369 · CI vermelho no Revisar-sha: test_reval_delta.Guarda acusa README.md citado 3 vezes em tests/test_fechar_corte.py e a lista CITACOES_CONHECIDAS (tests/test_reval_delta.py:124) diz 2; sem CI verde não atesto o head. Correção: atualizar a contagem (ou reaproveitar a citação). Dono: autor.
 
 ## Sondas
-- S1 · sonda em arquivo (subclasse de tests.test_fechar_corte.Corte): marca cortada, `changelog.d/item-0.md` editado na develop e `changelog.d/novo.md` novo, `forge-fechar --corte` · espera: para no V5 sem enviar nem `pr edit` · obtido: rc 1, "parou no passo V5: o fragmento novo não entrou na marca da 0.9.1", ramo no origin igual, nenhum `pr edit`
-- S2 · mesma sonda: marca 0.9.1 mesclada na develop, homolog e main, ramo `melhoria/marca-0.9.1` deixado no origin, fragmento novo, `--corte` · espera: o ramo velho não recebe fragmento da versão seguinte · obtido: rc 0, "contador: 0.9.2: 1 de 2", ramo 0.9.1 intocado, nenhum `pr edit`
+- S1 · sonda (subclasse de Corte): marca cortada, item-0.md editado e novo.md na develop, --corte · espera: para no V5 sem enviar · obtido: rc 1, "parou no passo V5", ramo igual, sem pr edit
+- S2 · sonda: marca 0.9.1 mesclada, ramo deixado no origin, fragmento novo, --corte · espera: ramo velho intocado · obtido: rc 0, "contador: 0.9.2: 1 de 2", ramo 0.9.1 igual, sem pr edit
 
 ## Detalhe (só aperta ou neutro, por escrito)
 - **Nenhum merge sem checks verdes.** O diff não acrescenta `gh pr merge` nem `--auto`; o único merge novo é o `git merge` local da `origin/develop` na cópia temporária do ramo `melhoria/marca-<v>` (bin/forge-fechar:1549-1551), enviado só por avanço (`git push origin HEAD:refs/heads/$ramo`, sem `--force`). O PR da marca segue pelo `--laco`, que exige pareceres no head e checks verdes; o head novo invalida os pareceres anteriores (aperta). O `test_fechar_corte.sem_merge` cobre os caminhos do corte.
