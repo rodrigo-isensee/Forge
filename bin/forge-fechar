@@ -648,7 +648,7 @@ buscar_de() {
 }
 # limpar_clones (MP6): as cópias que são clones (o `.git` delas é pasta, não arquivo de worktree) em ~/.forge-contrib/wt, na branch $ref e com o
 # mesmo origin, saem só limpas (sem mudança, arquivo novo nem stash), sem worktree ligada (o rm levaria o repositório dela), sem commit fora das
-# refs do origin (`--all`: branch, tag, stash, nota) e com o sha mesclado ou um ancestral dele; as outras ficam pendentes, com leitura no lugar de
+# refs do origin (`--all` sem `refs/tags/arquivo/*`: branch, tag, stash, nota) e com o sha mesclado ou um ancestral dele; as outras ficam pendentes, com leitura no lugar de
 # comando que apaga. LIMPAR-CLONE-NAO-LISTADO (v0478 E132.6): o commit que as refs remotas do clone não cobrem (elas podem estar velhas, E128.2)
 # vale como "na origem" se as pontas lidas agora da origin (ls-remote) o alcançam; a busca é desta cópia, só por leitura (buscar_de), e o clone
 # não roda fetch (o .git/config dele poria comando no fetch). A ref remota de uma branch já apagada no origin ainda conta como "na origem". O git
@@ -688,10 +688,13 @@ git -C $(printf '%q' "$d") remote -v"
     fi
     sha_dela="$("${g[@]}" rev-parse -q --verify HEAD || true)"
     [ "$lida" = 1 ] || { origem_atual; lida=1; }
-    fora="$("${g[@]}" rev-list --all --not --remotes 2>/dev/null || echo erro)"
-    # o que as pontas de agora não alcançam; commit que esta cópia não lê (só do clone) faz o rev-list falhar: fica
+    # LIMPAR-CLONE-PARECER (v0481 E14.1): só as tags arquivo/* (da origin, apagadas lá) ficam fora da conta; outra tag local, o stash e a nota
+    # contam (a tag que a origin ainda tem já sai pelas pontas)
+    fora="$("${g[@]}" rev-list --exclude='refs/tags/arquivo/*' --all --not --remotes 2>/dev/null || echo erro)"
+    # o que as pontas de agora e os heads mesclados não alcançam (o commit da branch já mesclada por squash, com a ref remota dela apagada,
+    # é ancestral do head mesclado); commit que esta cópia não lê (só do clone) faz o rev-list falhar: fica
     # shellcheck disable=SC2086  # uma ponta por palavra
-    [ -z "$fora" ] || [ "$fora" = erro ] || fora="$({ printf '%s\n' $fora; printf '^%s\n' $pontas; } | git rev-list --stdin 2>/dev/null || echo erro)"
+    [ -z "$fora" ] || [ "$fora" = erro ] || fora="$({ printf '%s\n' $fora; printf '^%s\n' $pontas $merged_heads; } | git rev-list --stdin 2>/dev/null || echo erro)"
     ancestral=1
     for h in $merged_heads; do git merge-base --is-ancestor "$sha_dela" "$h" 2>/dev/null && ancestral=0; done
     if [ "$("${g[@]}" worktree list --porcelain 2>/dev/null | grep -c '^worktree ' || true)" != 1 ] \

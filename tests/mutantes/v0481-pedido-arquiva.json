@@ -1,0 +1,87 @@
+{
+  "pedido": "v0481-pedido-arquiva",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: as etapas arquivadas contam como etapas do pedido nas citações e no apontador",
+      "arquivo": "bin/forge-check",
+      "de": "return set(pedido[\"etapas\"]) | set(pedido.get(\"arquivadas\", {}))",
+      "para": "return set(pedido[\"etapas\"])",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_brief_antigo_cita_a_etapa_arquivada_e_o_corte_aceita_o_item_arquivado"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: item de escopo só com etapas arquivadas passa no corte",
+      "arquivo": "bin/forge-check",
+      "de": "if not filhas and chave not in citados and",
+      "para": "if False and not filhas and chave not in citados and",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_brief_antigo_cita_a_etapa_arquivada_e_o_corte_aceita_o_item_arquivado"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: a etapa fechada pela própria linha do Histórico conta como fechada",
+      "arquivo": "bin/forge-check",
+      "de": "estado in FECHADAS or e in pela_linha",
+      "para": "estado in FECHADAS",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: o --cobre e as citadas do brief em geração nunca são arquivadas (A2 do QA)",
+      "arquivo": "bin/forge-check",
+      "de": "if estado in FECHADAS or e in pela_linha} - set(protegidas)",
+      "para": "if estado in FECHADAS or e in pela_linha}",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_cobre_entregue_fica_no_pedido_e_o_brief_sai"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: sem `## Etapas` de nível 2 nada muda",
+      "arquivo": "bin/forge-check",
+      "de": "        if inicio is None:\n            return 0, arquivo",
+      "para": "        if False:\n            return 0, arquivo",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_cabecalho_de_outro_nivel_nao_arquiva"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: etapa de várias linhas fica no pedido",
+      "arquivo": "bin/forge-check",
+      "de": "and (i + 1 == fim or not linhas[i + 1].strip() or linhas[i + 1].startswith(\"- \"))",
+      "para": "and True",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_etapa_de_varias_linhas_fica_no_pedido",
+        "tests.test_brief_tamanho.ArquivaSozinho.test_so_fechada_de_varias_linhas_nao_cria_o_arquivo"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: sem linha a mover, o arquivo nem é criado",
+      "arquivo": "bin/forge-check",
+      "de": "if not movidas or (fd := abrir_o_arquivo(arquivo)) is None:",
+      "para": "if (fd := abrir_o_arquivo(arquivo)) is None:",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_so_fechada_de_varias_linhas_nao_cria_o_arquivo"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: o cabeçalho do arquivo só na primeira rodada",
+      "arquivo": "bin/forge-check",
+      "de": "if not os.fstat(fd).st_size:",
+      "para": "if True:",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_segunda_rodada_acrescenta_ao_arquivo_e_a_secao"
+      ]
+    }
+  ]
+}
