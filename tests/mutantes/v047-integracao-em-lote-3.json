@@ -46,8 +46,8 @@
       "id": "IL-M21",
       "guarda": "CI do merge não verde liga a falha",
       "arquivo": "bin/forge-fechar",
-      "de": "if [ \"$ci_st\" = verde ]; then echo \"CI do push na $alvo verde no ${1:0:7}.\"; return 0; fi",
-      "para": "if true; then echo \"CI do push na $alvo verde no ${1:0:7}.\"; return 0; fi",
+      "de": "if [ \"$ci_st\" = verde ]; then echo \"CI do push na $alvo verde no ${sha_ci:0:7}.\"; return 0; fi",
+      "para": "if true; then echo \"CI do push na $alvo verde no ${sha_ci:0:7}.\"; return 0; fi",
       "testes": [
         "tests.test_fechar_lote.EsperaCiDevelop.test_ci_vermelho_no_merge_sai_com_5_e_imprime_a_reversao"
       ]

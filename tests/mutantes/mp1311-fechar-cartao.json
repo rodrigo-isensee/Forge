@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "FECHAR-REF-POR-NOME: sem a branch local o forge-check segue pelo sha do servidor",
       "arquivo": "bin/forge-fechar",
-      "de": "  ref_check=\"$sha_conferido\"\nfi",
-      "para": "  ref_check=\"$ref\"\nfi",
+      "de": "    ref_check=\"$sha_conferido\"\n  else",
+      "para": "    ref_check=\"$ref\"\n  else",
       "testes": [
         "tests.test_fechar_ref_por_nome.FecharRefPorNome.test_sem_branch_local_segue_pelo_sha_do_servidor"
       ]
