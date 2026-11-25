@@ -3,31 +3,26 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-pedido-arquiva
-commit: 8b3124465d4c1a3c0b31e100731a5b9935d8a223
+commit: 2c61be46e408759ced4ab72cbe2509bd3643a048
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-24
+data: 2026-11-25
 ---
-# Review: v0481 (E9.10, #874, pedido que se arquiva sozinho antes do teto, por delta)
+# Review: v0481 (E9.14, #874, pedido que se arquiva sozinho antes do teto, por delta)
 
-Delta lido: `git diff ec38cbc4..8b312446`, domínio código e testes: `bin/forge-check` (comentário de `ETAPA_ARQUIVADA`, `ENTREGUE_DA_ETAPA` e `etapa_entregue_na_linha`), `tests/test_brief_tamanho.py` (3 testes novos), `tests/mutantes/v0481-pedido-arquiva-3.json` (M22 refeito), `-6.json` e `-7.json` (M40 a M48) e o fragmento do changelog. O parecer anterior (ec38cbc4, E9.6) reprovou com A1 bloqueante (neutralidade) e A2 recomendado; ele ficou só no clone de review e é regravado aqui por cima.
-
-## Achados
-- A1 (recomendado) bin/forge-check:8061 · `ENTREGUE_DA_ETAPA` aceita `entregue` seguido de hífen: "E1.1 entregue-parcial" fecha a E1.1 (S2). Sem ocorrência no Histórico real e o --cobre fica protegido; vale incluir `-` no lookahead (`(?![\w?-])`) com um mutante.
-
-## Sondas
-- S1 · etapa_entregue_na_linha nas formas recusadas pelo A2 anterior ("não foi entregue", "a ser entregue", "será entregue", "Entregue? não", "volta entregue", "(papel) não entregue", "E1.1: entregue", "(E1.1, E1.2) entregue") no head 8b312446 · espera: None · obtido: None em todas
-- S2 · etapa_entregue_na_linha("E1.1 entregue-parcial") · espera: None · obtido: E1.1
-- S3 · linhas do `## Histórico` do pedido v0481 real, antes (ec38cbc4) e depois (8b312446) · espera: a forma estrita só tira fechamento, nunca acrescenta · obtido: antes E2.5, E3.5, E6.3, E7.1, E7.4, E9.1, E9.5, E10.1; depois as mesmas sem a E2.5 ("volta E2.5 do D3 entregue", que fica aberta: falha segura)
+Delta lido: `git diff 8b312446..2c61be46` (volta E9.13), e `forge-check parecer delta` deste parecer: "revalida: sim (bin/forge-check mudou depois do parecer)". Domínio código e testes: `bin/forge-check` (4 linhas), `tests/test_brief_tamanho.py` (2 testes novos), as specs `v0481-pedido-arquiva-3/-5/-6/-7.json` e as de outros pedidos realinhadas (`est-m12-gerar` M3, `v0474-h1-ferramenta-3` M16, `v0479-ae4-ordens` M5 e `-2` M16), e o fragmento do changelog. Os pareceres de QA e segurança e este arquivo no delta são da rodada anterior, não do item.
 
 ## Parecer
-Aprovado. Os dois achados do parecer anterior fecham:
+Aprovado. Nada que barrava no 8b312446 deixa de barrar no 2c61be46:
 
-- A1 anterior (bloqueante, R-NEUTRO): o comentário de `ETAPA_ARQUIVADA` (bin/forge-check:8058) passou a citar `E1.1 (tech-lead)`, papel neutro; a reprova "stack no núcleo" do pre-push saiu, e o envio deste parecer passa pelas checagens baratas.
-- A2 anterior (recomendado, tratado na volta): `etapa_entregue_na_linha` só fecha com `ENTREGUE_DA_ETAPA.match` no trecho logo após o primeiro id (parêntese de fecho, papel opcional entre parênteses e `entregue` sem letra nem `?` depois). Negação, futuro, texto livre e interrogação não fecham (S1); a forma real `volta (E1.1) entregue no <sha>` segue fechando (`test_forma_estrita_de_entregue_fecha`).
+- `ENTREGUE_DA_ETAPA` (bin/forge-check:8061) só aperta: o lookahead passa a `(?![\w?-])`, e `entregue-se`/`Entregue-a` não fecham mais; `entregue - falta o PR` (hífen com espaço) segue fechando, com teste. Fecha o A1 recomendado do parecer anterior. Nenhuma linha `entregue-` nos pedidos da develop, então nenhum fechamento real some.
+- O arquivo e a linha de `## Etapas arquivadas` (bin/forge-check:8127 e 8137) passam o nome do pedido por `caminho_impresso` (= `sem_controle`): só tira caractere de controle; para nome comum o texto é igual. O `i` → `j` na compreensão (8133) é só nome, sem efeito.
+- Teste novo `test_parecer_ponto_e_virgula_e_segunda_etapa_cortam_o_entregue`: um caso por corte (`.md=`, `;`, 2ª etapa), e `test_entregue_com_hifen_nao_fecha` com o caso positivo do hífen solto. Os dois comportamentais, sobre `etapa_entregue_na_linha`.
+- Mutantes realinhados de outros pedidos mantêm a mesma guarda: o `de` ficou mais longo só para voltar a ser único, e cada um aponta a linha original (M3 em 5128 `_ler_regular`, e não a cópia nova em 8098; M16 em 9861, o `# PEDIDO-TETO-BRIEF`, e não a cópia em 9852; ordens M5 em 5322 e M16 em 8357, com o texto que a branch trocou para `ids_de_etapa`). O `para` de cada um troca o mesmo pedaço de antes.
+- M40 a M48 só acompanham o texto novo da regex; M49 é o mutante novo do hífen.
 
-O A1 acima é novo e fora do que o parecer anterior apontou (G1.2): vira cartão depois do merge.
+Ferramentas (rodadas aqui no 2c61be46): `tests.test_brief_tamanho` e `tests.test_forge_tamanho`, 49 testes, OK; `bin/forge-mutante --processos 1`: M21, M23, M24 (-3), M38 (-5) e M40 a M49 (-6, -7) morreram todos; `tests.test_forge_mutante -k ConferirTodas` (4) e `tests.test_forge -k SaidaSanitizada` (10), OK. O `forge-mutante --conferir --todas` ainda lista 26 trechos repetidos, todos de specs de outros pedidos que já repetem na base 8d7914bc e na develop; nenhum é deste item.
 
-Ferramentas: `tests/test_brief_tamanho.py` e `tests/test_forge_tamanho.py` (47 testes) rodados aqui no 8b312446 (rebase do clone sobre o remoto), OK. Mutantes: rodei os do delta, `bin/forge-mutante --processos 1` nas specs -6 e -7 (M40 a M48) e `--ids M22` na -3: os 10 morreram. M41 a M48 mutam a mesma linha de guarda (8061) com prefixos diferentes, um por forma recusada; aceito. CI do #874: catraca pendente na leitura; a suíte inteira fica com o CI, não rerrodei.
+- ci: #874 no 2c61be46, as 10 partes da suíte (3.12 e 3.14), passos, verificações longas, instalação, teto de pulados e árvore já provada na develop estão verdes. Vermelhos que não são do código: `bateria (pareceres)` (pareceres ainda no head antigo) e `catraca` (R-CONFORMIDADE: muda `bin/forge-check`, pede o rótulo `afrouxa-regra` do dono depois do último push; os 3 avisos de valor esperado trocado em `tests/test_forge_tamanho.py` são a troca de 90% para 80% do pedido, já revisada).
 
-Medida do item: `bin/` da branch desde a base com 127 inserções e 14 remoções, abaixo do teto de 150, um comportamento.
+Medida do item: o delta tem 4 linhas em `bin/`; a branch segue abaixo do teto de 150, um comportamento.
