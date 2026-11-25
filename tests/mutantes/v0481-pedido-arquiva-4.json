@@ -1,0 +1,87 @@
+{
+  "pedido": "v0481-pedido-arquiva",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: a linha que dá a etapa como entregue a fecha",
+      "arquivo": "bin/forge-check",
+      "de": "pela_linha |= {etapa_entregue_na_linha(linha) for linha in historico}",
+      "para": "pela_linha |= set()",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: o corte conhece o papel das arquivadas (A2)",
+      "arquivo": "bin/forge-check",
+      "de": "return {**pedido.get(\"arquivadas\", {}), **{e: papel",
+      "para": "return {**{e: papel",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_corte_barra_igual_antes_e_depois_do_arquivo"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: pedido só com arquivadas segue verificável no corte",
+      "arquivo": "bin/forge-check",
+      "de": "if not pedido[\"escopo\"] and not ids_de_etapa(pedido):",
+      "para": "if not pedido[\"escopo\"] and not pedido[\"etapas\"]:",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_corte_de_pedido_so_com_arquivadas_ainda_barra"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: a contradição com o Fora do escopo do pedido vale para a arquivada (A2)",
+      "arquivo": "bin/forge-check",
+      "de": "existentes = {f\"E{n}\" for n in pedido[\"escopo\"]} | ids_de_etapa(pedido)",
+      "para": "existentes = {f\"E{n}\" for n in pedido[\"escopo\"]} | set(pedido[\"etapas\"])",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_corte_barra_igual_antes_e_depois_do_arquivo"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: papel errado vale para a arquivada (A2)",
+      "arquivo": "bin/forge-check",
+      "de": "papel = papeis[etapa]",
+      "para": "papel = papeis[etapa] if etapa in pedido[\"etapas\"] else papel_destino",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_corte_barra_igual_antes_e_depois_do_arquivo"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: junta delegações conta a arquivada (A2)",
+      "arquivo": "bin/forge-check",
+      "de": "etapas_citadas = sorted((e for e in papeis if e in citados)",
+      "para": "etapas_citadas = sorted((e for e in pedido[\"etapas\"] if e in citados)",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_corte_barra_igual_antes_e_depois_do_arquivo"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: o papel da arquivada é lido da seção",
+      "arquivo": "bin/forge-check",
+      "de": "arquivadas = {m.group(1): nome_do_papel(m.group(2)) for m",
+      "para": "arquivadas = {m.group(1): None for m",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_corte_barra_igual_antes_e_depois_do_arquivo"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: o papel vai com o id em `## Etapas arquivadas`",
+      "arquivo": "bin/forge-check",
+      "de": "({m.group(2).split(',')[0].strip()})",
+      "para": "()",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida",
+        "tests.test_brief_tamanho.ArquivaSozinho.test_corte_barra_igual_antes_e_depois_do_arquivo"
+      ]
+    }
+  ]
+}

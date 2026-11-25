@@ -1,0 +1,1 @@
+Resposta automática do bench (igual em toda rodada): o dono não está disponível. As decisões do pedido valem; para o que não está no pedido, siga a opção recomendada, registre a escolha no PR e continue até o PR para a develop.

@@ -25,6 +25,7 @@ Formato (modelo em `_modelo.md`): contexto, decisão, alternativas, consequênci
 | [0016](0016-checagem-do-brief.md) | Checagem do brief: skill neutra e lista local do projeto (proposta; vale quando o PR da `melhoria/checagem-do-brief` entrar na `develop`) |
 | [0017](0017-forge-sempre-atual.md) | Forge sempre atual: atualização na abertura, com checagem e volta (emenda a 0005) (proposta; vale quando o PR da `melhoria/v047-forge-sempre-atual` entrar na `develop`) |
 | [0018](0018-autorizacao-do-dono-gravada.md) | Autorização do dono gravada: escopo, palavras exatas e validade; rótulo `afrouxa-regra` e merge na `main` só com autorização ativa (aceita; D1, D2 e D4 decididas pelo dono, D3 é ação do dono) |
+| [0019](0019-parecer-como-status.md) | Parecer como status do commit, fora da branch (emenda a 0004 e a seção 3 da 0008) (proposta; cada ponto vale a partir do item do corte G2.1 a G2.9; D3 do desenho com o dono) |
 
 ## Substituídas
 Nenhuma.

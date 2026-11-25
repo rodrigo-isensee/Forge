@@ -1,2 +1,0 @@
-### Alterado
-- Vigia de prazo também no `agentes` e no `pesado` (VIGIA-AGENTES-PESADO, decisão do dono de 24/11): o disparo de agente e a tarefa pesada cuja decisão passa do prazo (8 s no `agentes`, abaixo do timeout de 10 s; 290 s no `pesado`, a espera na fila mais a folga, abaixo dos 300 s) recusam com R-TETO no PreToolUse, no projeto e no clone do Forge, em vez de o timeout liberá-los; nos outros eventos (SubagentStop, PostToolUseFailure) o prazo vencido só vai ao `erros.log`. Só aperta: antes, os dois hooks não tinham vigia e o timeout liberava.

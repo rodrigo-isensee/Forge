@@ -1,0 +1,16 @@
+{
+  "pedido": "v0481-corte-completo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "CORTE-ANEXAR: a leitura do ramo da marca no origin em erro nao anexa (sai em 0 sem buscar, enviar nem refazer o corpo)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$r\" != erro ]; then anexar_na_marca",
+      "para": "if true; then anexar_na_marca",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_leitura_do_origin_que_falha_nao_anexa"
+      ]
+    }
+  ]
+}

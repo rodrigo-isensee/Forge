@@ -1,0 +1,46 @@
+{
+  "pedido": "v0481-d2-resto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "forge_pronto: a linha do teto e do corpo diz reprovado",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "{'reprovado' if falhas else 'ok'}",
+      "para": "{'reprovado' if not falhas else 'ok'}",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_teto_ou_corpo_reprovado_sai_1"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "forge_pronto: a linha final diz o que reprovou",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "corrija antes de pedir as revisões\" if reprovadas",
+      "para": "corrija antes de pedir as revisões\" if not reprovadas",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_tudo_passa_sai_0"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "forge_pronto: falha do teto ou do corpo entra na lista",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "    if falhas:\n        reprovadas.append",
+      "para": "    if not falhas:\n        reprovadas.append",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_teto_ou_corpo_reprovado_sai_1"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "forge_pronto: reprovada sai 1",
+      "arquivo": "bin/forge_pronto.py",
+      "de": "    return 1 if reprovadas else",
+      "para": "    return 1 if not reprovadas else",
+      "testes": [
+        "tests.test_forge_pronto.Agregador.test_uma_checagem_reprovada_sai_1_e_mostra_a_saida"
+      ]
+    }
+  ]
+}
