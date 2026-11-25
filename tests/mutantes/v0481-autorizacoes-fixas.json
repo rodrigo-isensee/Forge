@@ -1,0 +1,87 @@
+{
+  "pedido": "v0481-autorizacoes-fixas",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "AUTORIZACOES-FIXAS F1: validade fixa só nos atos fixos, e eles só com ela (senão, adulterada)",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if fixo != (campos[\"Validade\"] == \"fixa\") or fixo != (campos[\"Validade-utc\"] == \"fixa\"):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.AtosFixos.test_alvo_fixo_e_validade_fixa_so_nos_atos_fixos_e_eles_so_com_eles"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "AUTORIZACOES-FIXAS F1: a validade fixa não vence",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "return datetime.datetime.max.replace(tzinfo=UTC)",
+      "para": "return instante(campos[\"Hora-da-fala\"])",
+      "testes": [
+        "tests.test_autorizacao.AtosFixos.test_fixa_nao_vence_e_para_so_pela_retirada"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "AUTORIZACOES-FIXAS F1: alvo fixo só nos atos fixos, e eles só com ele",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "((campos[\"Ato\"] in FIXOS) != (campos[\"Alvos\"] == \"fixo\"), \"alvo fixo",
+      "para": "(False, \"alvo fixo",
+      "testes": [
+        "tests.test_autorizacao.AtosFixos.test_alvo_fixo_e_validade_fixa_so_nos_atos_fixos_e_eles_so_com_eles",
+        "tests.test_autorizacao_gravar.AtosFixos.test_alvo_que_nao_e_fixo_no_ato_fixo_ou_fixo_no_ato_de_antes_recusa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "AUTORIZACOES-FIXAS F2: no ato fixo o texto não traz alvo marcado",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(do_texto != (set() if fixo else {normal(a)",
+      "para": "(do_texto != ({normal(a)",
+      "testes": [
+        "tests.test_autorizacao_gravar.AtosFixos.test_texto_limpo_grava_fixa_e_ativa_sem_vencer"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "AUTORIZACOES-FIXAS F2: termo de validade em ato fixo nasce pendente",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "(fixo and bool(termos), \"termo de validade em ato fixo\")",
+      "para": "(False, \"termo de validade em ato fixo\")",
+      "testes": [
+        "tests.test_autorizacao_gravar.AtosFixos.test_alvo_validade_ressalva_ou_outro_ato_nascem_pendentes"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "AUTORIZACOES-FIXAS F2: o vocabulário novo vale só para os atos fixos",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "VOCABULARIO_FIXO if fixo else VOCABULARIO)",
+      "para": "VOCABULARIO_FIXO)",
+      "testes": [
+        "tests.test_autorizacao_gravar.AtosFixos.test_vocabulario_novo_so_nos_atos_fixos_e_sem_marca"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "AUTORIZACOES-FIXAS F3: sem corte-diario ativa, o corte sai com 1",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if not ativas:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.AtosFixos.test_corte_diz_a_corte_diario_ativa_mais_nova_e_sem_ela_rc_1"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "AUTORIZACOES-FIXAS F3: só a concessão ativa autoriza o corte",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if est == \"ativa\" and campos[\"Ato\"] == \"corte-diario\"]",
+      "para": "if campos[\"Ato\"] == \"corte-diario\"]",
+      "testes": [
+        "tests.test_autorizacao.AtosFixos.test_corte_diz_a_corte_diario_ativa_mais_nova_e_sem_ela_rc_1"
+      ]
+    }
+  ]
+}

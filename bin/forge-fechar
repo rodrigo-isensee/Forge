@@ -1579,7 +1579,7 @@ rotulo_da_promocao() {
 # o motivo no stderr e código 1. Saída do forge-check fora da forma positiva não autoriza.
 corte_diario() {
   local hoje hora ultima saida
-  hoje="$(date ${agora_teste:+-d "@$agora_teste"} +%F)" && hora="$(date ${agora_teste:+-d "@$agora_teste"} +%H%M)" || return 1
+  hoje="$(date ${agora_teste:+-d "@$agora_teste"} +%F)" && hora="$(date ${agora_teste:+-d "@$agora_teste"} +%H%M)" || { echo "corte: relógio ilegível." >&2; return 1; }
   [ "$1" -ge 1 ] || { echo "corte: nenhum item na develop para o corte diário." >&2; return 1; }
   [ "$((10#$hora))" -ge 600 ] || { echo "corte: o corte diário só sai a partir das 06:00 locais (agora $hora)." >&2; return 1; }
   ultima="$(git show refs/remotes/origin/develop:CHANGELOG.md)" && ultima="$(sed -n '/^## \[[0-9]/{s/^## \[[^]]*\] - \([0-9-]*\).*/\1/p;q;}' <<<"$ultima")" || ultima=erro

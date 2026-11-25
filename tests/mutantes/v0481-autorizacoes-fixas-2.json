@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-autorizacoes-fixas",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "AUTORIZACOES-FIXAS F3: o forge-check autorizacao corte vai ao cmd_corte",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if a.acao == \"corte\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.AtosFixos.test_forge_check_autorizacao_corte"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "AUTORIZACOES-FIXAS F3: só abaixo do teto o corte pede a autorização",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ \"${BASH_REMATCH[2]}\" -lt \"${BASH_REMATCH[3]}\" ]; then",
+      "para": "  if false; then",
+      "testes": [
+        "tests.test_fechar_corte.CorteDiario.test_sem_item_nao_corta"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "AUTORIZACOES-FIXAS F3: sem a autorização, abaixo do teto nada se corta",
+      "arquivo": "bin/forge-fechar",
+      "de": "    aut=\"$(corte_diario \"${BASH_REMATCH[2]}\")\" ||",
+      "para": "    aut=\"$(corte_diario \"${BASH_REMATCH[2]}\")\" || true ||",
+      "testes": [
+        "tests.test_fechar_corte.CorteDiario.test_sem_item_nao_corta"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "AUTORIZACOES-FIXAS F3: relógio ilegível não corta",
+      "arquivo": "bin/forge-fechar",
+      "de": "+%H%M)\" || { echo \"corte: relógio ilegível.\" >&2; return 1; }",
+      "para": "+%H%M)\" || true",
+      "testes": [
+        "tests.test_fechar_corte.CorteDiario.test_antes_das_06h_relogio_ilegivel_ou_versao_de_hoje_nao_corta"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "AUTORIZACOES-FIXAS F3: sem item, o corte diário não sai",
+      "arquivo": "bin/forge-fechar",
+      "de": "  [ \"$1\" -ge 1 ] || { echo \"corte: nenhum item",
+      "para": "  true || { echo \"corte: nenhum item",
+      "testes": [
+        "tests.test_fechar_corte.CorteDiario.test_sem_item_nao_corta"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "AUTORIZACOES-FIXAS F3: o corte diário só a partir das 06:00 locais",
+      "arquivo": "bin/forge-fechar",
+      "de": "  [ \"$((10#$hora))\" -ge 600 ] ||",
+      "para": "  true ||",
+      "testes": [
+        "tests.test_fechar_corte.CorteDiario.test_antes_das_06h_relogio_ilegivel_ou_versao_de_hoje_nao_corta"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "AUTORIZACOES-FIXAS F3: CHANGELOG.md da develop ilegível não corta",
+      "arquivo": "bin/forge-fechar",
+      "de": "<<<\"$ultima\")\" || ultima=erro",
+      "para": "<<<\"$ultima\")\" || ultima=\"\"",
+      "testes": [
+        "tests.test_fechar_corte.CorteDiario.test_changelog_ilegivel_na_develop_nao_corta"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "AUTORIZACOES-FIXAS F3: um corte diário por dia",
+      "arquivo": "bin/forge-fechar",
+      "de": "  [ \"$ultima\" != \"$hoje\" ] && [ \"$ultima\" != erro ] ||",
+      "para": "  true ||",
+      "testes": [
+        "tests.test_fechar_corte.CorteDiario.test_antes_das_06h_relogio_ilegivel_ou_versao_de_hoje_nao_corta"
+      ]
+    }
+  ]
+}
