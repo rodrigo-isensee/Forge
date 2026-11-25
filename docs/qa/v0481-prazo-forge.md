@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-prazo-forge
-commit: 21a96c1ab06722ed0e7b9cc7c3276912ea841b49
+commit: 1d6692f507ac6bf65faf1b5be6cff0de3403c9dc
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -12,31 +12,27 @@ bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-25
 ---
-# QA: v0481 prazo-forge (#888, classe C), delta a4d12870..21a96c1a (E7.29)
+# QA: v0481 prazo-forge (#888, classe C), delta 21a96c1a..1d6692f5 (E7.38)
 
-Escopo: `git diff a4d12870..21a96c1a` lido: `hooks/_comum.py` (`registrar_sob_vigia`, a sessão decidida antes do registro, erro interno pelo mesmo caminho), `hooks/conformidade.py:130` (`mkfifo|mknod` em `ESCRITA_NO_TEXTO`), fixture `fifo-python-mkfifo-git-projeto-bloqueia`, 2 testes novos, 3 contagens de armados ajustadas, `tests/mutantes/v0481-prazo-forge-2.json` (M9 a M12) e 4 specs antigas realinhadas. Parecer anterior (commit a4d12870, aprovado, A1 a A3) lido. Clone: `/root/.forge-contrib/wt/v0481-prazo-forge-qa`.
-
-## Achados
-- A1 (recomendado) hooks/conformidade.py:130 · Na sessão do Forge, `python3 -c` com `os.mkfifo`/`os.mknod` no `.git` libera (rc 0), como já liberava `os.remove` no `.git` (paridade com a base); só o projeto recusa. O FIFO no `.git` por interpretador segue só no corte de prazo. Cartão.
-- A2 (recomendado) hooks/conformidade.py:1776 · `mkfifo $TMPDIR/p` (alvo opaco) recusa nas duas sessões: fricção legítima, pelo desenho. Vale nota na mensagem ou no doc. Cartão (vem do A3 anterior).
-
-## Situação dos achados anteriores
-- A1 anterior (registro lento recusava sem marcador): fechado. Sonda de carga em arquivo, 16 combinações (Forge e projeto, sessão vigiada ou não, marcado ou não, registro de 0 s e de 0,8 s): o rc é igual com e sem atraso; o registro lento custa 0,50 s (o vigia) e nunca muda a decisão. Sem marcador e sessão não vigiada, libera (rc 0); marcado no Forge, 2.
-- A2 anterior: fechado só para o projeto (fixture nova); a sessão do Forge virou o A1 acima.
+Escopo: `git diff 21a96c1a..1d6692f5` lido: `PRAZO_DO_MERGE_S` de 8 para 7,5 em `hooks/_comum.py:2826` (A5 da segurança, opção (a)), teste novo `SondaS1ComRelogioFalso.test_recusa_do_prazo_longo_presa_deixa_folga` com `FOLGA_DE_PAREDE_S = 1.5`, a S1 do prazo longo derivada da constante, 3 fixtures de merge com git lento de 4 para 3,5 s, fixture de 9 s com a mensagem "7.5 s", spec P1 de `v0455-prazo.json`, M13 em `v0481-prazo-forge-2.json`, tabela de `prova_de_carga.py`, changelog. Parecer anterior (21a96c1a, aprovado) lido. Clone: `/root/.forge-contrib/wt/v0481-prazo-forge-qa`, no head do remoto (`git ls-remote` = 1d6692f5).
 
 ## Critério → teste → resultado
 | Obrigação | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| Registro lento ou que falha não muda a decisão (E7.27) | `test_registro_que_nao_termina_nao_muda_a_decisao` | lento (5 s) e `OSError`, marcado e não, sessão não vigiada, menos de 4 s | passou |
-| Erro interno: registro sob vigia, sem esperar o corte de 10 s | `test_erro_interno_com_registro_lento_nao_espera_o_corte` | registro de 5 s, rc 0, menos de 4 s | passou |
-| FIFO no commondir e no gitdir, nas duas sessões | `test_fifo_no_commondir_e_no_gitdir_recusa_nas_duas_sessoes` (16 casos) | `commondir`/`gitdir` como FIFO | passou |
-| mkfifo/mknod no .git recusam (7 fixtures, mínimo 7 afirmado) | `test_fixtures_fifo` | .git, curinga, opaco, `cd .git`, python no projeto | passou |
-| Prazo vencido na sessão do Forge (E7.23, regressão) | `test_sessao_do_forge_recusa_so_a_linha_marcada`, `test_sessao_que_nao_se_decide_recusa` | marcado True/None/False, PostToolUse | passou |
+| A5 (E7.32): prazo longo + sessão + registro presos saem com 1,5 s de folga antes do `timeout` do hooks.json | `test_recusa_do_prazo_longo_presa_deixa_folga` | soma dos vigias (8,5 s) <= timeout 10 menos folga | passou; M13 (7,5 para 8,0) morre |
+| S1 do prazo longo: recusa na fronteira, libera dentro, derivada da constante | `test_s1_recusa_no_prazo_longo_libera_dentro_e_recusa_na_fronteira` | prazo exato, 0,01 s e 0,4 s abaixo | passou |
+| S1 real recusa o git de 15,5 s (sem passar por carga) | `test_liberar_ou_provar_a_carga_recusa_a_sonda_s1` | git acima do prazo | cabe ao CI (suíte inteira) |
+| Merge com git lento de 3,5 s libera; de 9 s recusa em 7,5 s | `test_prazo_do_merge` | prazo longo vs 3 s | ver "Carga" abaixo |
 
 ## Cenários e resultado real
-- Rodado só o item: `python3 -m unittest tests.test_hooks.PrazoVencidoNaSessaoDoForge tests.test_hooks.SondaS1ComRelogioFalso tests.test_hooks_volta_propriedades.VigiaAgentesPesado`: `Ran 11 tests in 16.490s OK`. A suíte inteira roda no CI do PR; não cito o `.verde` local.
-- Vermelho antes do verde (cópia em `$TMPDIR`, `hooks/_comum.py` e `hooks/conformidade.py` da base, testes do head): os 3 testes novos caem (lento: FAIL; falha do registro: ERROR; erro interno: FAIL; 6 fixtures fifo: FAIL, incluindo a nova). O `forge-testes --vermelho` não foi usado; vale a cópia manual.
-- Mutantes: `bin/forge-mutante tests/mutantes/v0481-prazo-forge.json tests/mutantes/v0481-prazo-forge-2.json --processos 2`: M1 a M12 `morreu` (M4 e M9 por erro do teste declarado, que passa sem o mutante); nenhum sobrevivente. `forge-mutante --base a4d128703 tests/mutantes/v0481-prazo-forge.json`: `base=5fb8e328... mb=5fb8e328... rev=21a96c1a...`, M6 a M8 mortos. `--cobertura --base 5fb8e328...`: rc 0, as linhas de guarda mudadas (`_comum.py` 2860, 2887, 2890, 2894; `conformidade.py` 1776, 2511) têm mutante; `registrar_sob_vigia` (M9, M11) e o regex (M12) cobertos pela spec 2.
-- Specs realinhadas (`heredoc-donos`, `lote-unico-032-l31`, `v0480-vigia-agentes-pesado`, `v0480-vigia-trava-critica`): `--conferir --todas` no head e na base 5fb8e328 dão a mesma saída (26 linhas, `diff` vazio: igual à base; as 26 são trechos duplicados de specs não tocadas, dívida anterior). Mutantes rodados: lote, agentes-pesado e trava-critica, todos mortos (rc 0). `heredoc-donos` D15: `controle vermelho` (rc 2) idêntico na base 5fb8e328 (`--ids D15`): preexistente, fora do delta (o `test_fixtures` do controle cai neste sandbox); não bloqueia e não é do #888.
-- Hook real (sondas em arquivo, 18 linhas, forge:dev e forge:tech-lead, só o rc): `mkfifo`/`mknod` com .git, curinga, `cd .git`, `command`, `env`, `--mode`, `--` e opaco: 2 nas duas sessões; push na main, `--force`, `--no-verify`: 2; `mkfifo /tmp/x`, `mkfifo build/pipe`, `ls`: 0. Python com `os.mkfifo`/`os.mknod` no `.git`: projeto 2, Forge 0 (A1); `node` com `execSync('mkfifo .git/f')`: projeto 2, Forge 0.
+- Rodado só o item: `python3 -m unittest tests.test_hooks.SondaS1ComRelogioFalso tests.test_hooks.PrazoVencidoNaSessaoDoForge tests.test_hooks_volta_propriedades.VigiaAgentesPesado`: `Ran 12 tests in 32.304s OK`. Suíte inteira: só no CI do PR; não cito `.verde` local.
+- Vermelho antes do verde: o M13 é o vermelho do teste novo (com `PRAZO_DO_MERGE_S = 8.0` ele cai, morreu).
+- Mutantes: `bin/forge-mutante tests/mutantes/v0481-prazo-forge.json tests/mutantes/v0481-prazo-forge-2.json --processos 2`, cabeçalho `rev=1d6692f507ac`: M1 a M13 `morreu` (M4 e M9 por erro do teste declarado, que passa sem o mutante; `M13 · morreu · hooks/_comum.py:2827`). Nenhum sobrevivente. A guarda mudada do diff (uma linha, 2826) tem mutante (M13).
+- **A5 fecha.** Sonda em arquivo, hook `parecer.py` real (`python3 -s -E`, corte de 10 s), comando `gh pr merge` por branch com `--squash`, FIFO no `commondir` da worktree, 48 laços de CPU sobre a máquina já carregada (load 58 a 60). Sessão do Forge: 7 de 7 com rc 2, em 8,67 a 9,31 s. Projeto: 5 de 5 com rc 2 (erro interno do parecer, que recusa), em 7,3 a 9,0 s. Nenhuma das 12 rodadas passou do corte (0 liberou). Sem os laços extras, Forge 7 de 7 rc 2 em 8,2 a 8,5 s. Na medição da segurança, o head com 8 s liberou 1 de 7 sob carga parecida.
+- **Nada que barra hoje deixa de barrar:** a mudança só encurta o prazo (8 para 7,5 s); o que vencia antes continua vencendo (recusa), e a margem de decisão dos fixtures de merge é a mesma (7,5 menos 3,5 = 8 menos 4 = 4 s). O prazo menor só pode recusar mais, nunca liberar.
+- **Carga (falhas que o autor relatou em `Hooks.test_prazo_do_merge`):** reproduzidas aqui, e só sob carga. Com a máquina a 58 a 140 de load, 2 a 3 dos 3 fixtures de merge que liberam recusam com "não decidiu em 7.5 s" (o hook gasta mais de 4 s de relógio fora do `sleep` do git). É a classe DEFEITO-TESTES-DE-PRAZO-SOB-CARGA, com a margem de 4 s inalterada pelo diff; não é regressão do delta. Quem decide é o CI.
+- `forge-mutante tests/mutantes/v0455-prazo.json`: os controles de P1 a P6 e P9 a P13 saem `controle vermelho` aqui pelo mesmo motivo (o teste de controle `test_prazo_do_merge` cai sob carga); P7 e P8 morrem. É sem veredito neste sandbox, não sobrevivente; o P1 realinhado (`7.5` para `3.0`) é coerente com a constante.
 - Sem acessibilidade nem E2E (hook de linha de comando).
+
+## CI do PR
+O head `1d6692f5` não tinha nenhuma execução do CI no PR #888 na hora da leitura (as últimas, do head `f17ee6f4`, com a suíte 3.12 e 3.14 das 5 partes verdes e `bateria (pareceres)` vermelha por falta de pareceres). Sem run no head, não gravo a linha `- ci:`. Quem mescla confere no check-run do sha final que as partes de `test_hooks` (fixtures de merge e `mesma-sessao-libera`) ficam verdes; vermelhas, bloqueiam.
