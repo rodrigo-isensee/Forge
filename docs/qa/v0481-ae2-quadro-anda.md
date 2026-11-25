@@ -3,48 +3,43 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-ae2-quadro-anda
-commit: 8087e23dbec99aefc234a9735132c8c5721d164d
+commit: f45bf805616768db672757c4896fd112fee05534
 parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-24
+data: 2026-11-25
 ---
-# QA: v0481 E10.7 (AE2: o quadro anda sozinho com o merge; PR #875, classe C), delta cbf24de..8087e23
+# QA: v0481 E10.12 (AE2: o quadro anda sozinho com o merge; PR #875, classe C), delta 8087e23..f45bf805
 
-Escopo: volta E10.5 sobre o meu parecer anterior (cbf24de, reprovado por A1 a A3). Lido `git diff cbf24de5..8087e23d` (bin/forge-check, bin/forge-fechar, testes, specs de mutante 3 e 4, doc e skill). Sem UI: acessibilidade e E2E de navegador não se aplicam.
+Escopo: 3ª volta (E10.10) sobre o meu parecer anterior (8087e23, reprovado por A1 e A2). Lido o delta próprio do pedido: `tests/test_fechar_move_cartao.py`, `tests/test_sobreposicao_quadro.py`, as specs `tests/mutantes/v0481-ae2-quadro-anda*.json`, `skills/kanban-scrum/movimento.md` e o fragmento do changelog; o resto do diff é a develop trazida (merges 1799f9d e 8b71e90). Sem UI: acessibilidade e E2E de navegador não se aplicam.
 
 ## Achados
-- A1 (bloqueante) tests/test_fechar_move_cartao.py:145 · AE13 sobreviveu: sem `^[[:space:]]*` em `cartoes_do_corpo` (bin/forge-fechar:951) o teste de "só a linha inteira" segue verde. O guarda novo (cartão sem coluna) engole K-1, K-2 e K-3 antes de o teste ver o movimento. Dar histórico a K-1..K-3 nesse teste.
-- A2 (bloqueante) tests/mutantes/v0481-ae2-quadro-anda.json:AE3 · AE3, AE5, AE7 e AE14 saíram `inválido` (trecho 0 vezes: o código mudou). As guardas casamento por ID, atributos da linha achada, remoção da origem e ID fora da forma ficam sem mutante declarado. Reescrever os 4 trechos.
+- A1 (bloqueante) tests/mutantes/v0481-ae2-quadro-anda-5.json:AE33 · os ids AE33 e AE34 existem em `-4.json` (E10.9) e voltam em `-5.json`: passadas juntas, `forge-mutante` sai 1 com "spec inválida; nada foi executado · id de mutante repetido entre as specs: AE33, AE34". O conjunto declarado do pedido não roda numa só rodada (id único no conjunto, skill qa-testing). Renomear os de `-5.json` para AE40..AE46; guardas e `testes` seguem iguais.
 
 ## Fechamento dos achados do parecer anterior
 | Anterior | Estado | Prova |
 |---|---|---|
-| A1 cabeçalho corrompido por ID legal | resolvido | `celulas_de_cartao` único; `test_cartao_com_nome_de_cabecalho_ou_separador_nao_casa_a_moldura` (ID, id, ---); AE19, AE20, AE26, AE27 e AE28 morreram |
-| A2 mensagem do `--titulo` | resolvido | `test_recusa_do_titulo_nao_lista_o_ponto_e_a_dos_outros_lista`; AE23 e AE30 morreram |
-| A3 ID em duas seções | resolvido | `test_cartao_em_duas_secoes_sai_das_duas`; AE31 e AE32 morreram; a última linha achada é a que anda |
+| A1 AE13 sobrevivia (âncora `^` da linha `Cartão:`) | resolvido | `test_titulo_e_texto_que_so_cita_cartao_nao_movem` agora dá histórico a K-2 e K-3; AE13 morreu |
+| A2 AE3, AE5, AE7, AE14 inválidos | resolvido | trechos reescritos; os quatro saíram `morreu` (bin/forge-check:5339, 5344, 5348 e bin/forge-fechar:966) |
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| Cabeçalho, separador (inclusive alinhado `:--`) e outra largura não são cartão | `test_cartao_com_nome_de_cabecalho_ou_separador_nao_casa_a_moldura`, `test_separador_alinhado_nao_conta_como_cartao_editado` | nome `ID`/`---` | passou |
-| Cartão repetido em duas seções sai de todas | `test_cartao_em_duas_secoes_sai_das_duas` | duplicata | passou |
-| UTF-8 inválido só avisa, quadro intacto byte a byte | `test_quadro_com_utf8_invalido_nao_e_reescrito` | byte `\xff` | passou |
-| `Cartão:` fora do quadro só avisa e não nasce em Pronto | `test_cartao_do_corpo_sem_coluna_avisa_e_nao_nasce_em_pronto` | ID desconhecido | passou |
-| Aviso sem caractere de controle | `test_cartao_do_corpo_fora_da_forma_avisa_e_fecha` (ESC) | `\x1b` | passou; Q7 morreu |
-| Só a linha inteira `Cartão: ID` do corpo move | `test_titulo_e_texto_que_so_cita_cartao_nao_movem` | título, item de lista, texto antes | prova fraca (A1): Q5 e AE13 sobrevivem |
-| Mensagem de recusa do `--titulo` sem `·` | `test_recusa_do_titulo_nao_lista_o_ponto_e_a_dos_outros_lista` | `--pedido` mantém `·` | passou |
+| Só a linha inteira `Cartão: ID` do corpo move | `test_titulo_e_texto_que_so_cita_cartao_nao_movem` | título, item de lista, texto antes | passou; AE13 morreu |
+| Cabeçalho e linha de outra largura não dão coluna ao cartão do corpo | `test_cabecalho_e_linha_de_outra_largura_nao_dao_coluna_ao_cartao_do_corpo` | ID `ID`, linha de 6 células | passou; AE33/AE34 (-4) morreram |
+| Aviso de falha ao gravar diz caminho e causa, sem `[Errno n]` | `test_trava_que_nao_abre_avisa_sem_derrubar` (asserção nova) | OSError | passou; AE38 e AE39 morreram |
+| Troca de seção, destino e fim da tabela | `test_linha_sai_da_origem_e_entra_no_fim_da_tabela_do_destino`, `test_atributo_dado_troca_a_celula_e_o_resto_fica` | seção `##` e linha de tabela | passou; AE33 a AE37 (-5) morreram |
+| Casos de borda do movimento em `movimento.md` | n/a (texto; testes de teto verdes no CI) | n/a | n/a |
 
 ## Provas
-- Local no head 8087e23: `test_fechar_move_cartao` 19 testes OK; `test_sobreposicao_quadro` 77 testes OK.
-- Vermelho: `bin/forge-testes --vermelho bbbe2d8871c0ecb4a07c4c065361f14adbe0e1b2 --modulos test_fechar_move_cartao,test_sobreposicao_quadro`: saída 0 (árvore limpa; a 1ª rodada, com o parecer ainda sem commit, saiu 2 e não vale). Cabeçalho `vermelho: base=bbbe2d8871c0 head=69dbfb40fa60` (o head é este commit do parecer sobre 8087e23); `contagem: não prova (passa na base)=81; prova (asserção)=15`, todos H=ok e B=falha, nenhum cai no HEAD. Os 15 incluem os testes novos da volta (cabeçalho/separador, duas seções, UTF-8, recusa do `--titulo`, cartão sem coluna).
-- Mutantes do autor (4 specs, `--processos 2`): AE1 a AE32. Morreram todos exceto AE13 (`sobreviveu`) e AE3, AE5, AE7, AE14 (`inválido`, trecho 0 vezes). AE19 a AE32 morreram, como diz a volta.
-- Mutantes meus, spec fora da árvore, sobre o código novo: Q1 casamento por ID (forge-check:5277), Q2 atributos da linha achada (5282), Q3 remoção da origem (5286), Q4 ID fora da forma (forge-fechar:953), Q6 UTF-8 estrito (5304) e Q7 tira controle (forge-fechar:954) morreram; Q5 (tira a âncora `^` da linha `Cartão:`, forge-fechar:951) sobreviveu, o mesmo mutante do AE13.
-- `forge-mutante --cobertura --base bbbe2d8`: sem mutante só 5288 a 5290 (busca da seção de destino, comportamento não mudou na volta) e 5322 (mensagem de erro); `bin/forge-fechar` sai `não coberto` (shell; AE13 a AE18, AE24 e AE25 o cobrem à mão).
-- CI: o `CI` do head 8087e23 foi cancelado (supersedido) e a `Catraca` falhou; o PR já tem commits mais novos (4c690aa, d398aff). Não há check-run `bateria` concluído para 8087e23, então não cito verde para ele. `bateria (pareceres)` falha enquanto faltam os pareceres do pedido.
+- Vermelho: `bin/forge-testes --vermelho bbbe2d8871c0ecb4a07c4c065361f14adbe0e1b2 --modulos test_fechar_move_cartao,test_sobreposicao_quadro`: rc=0, árvore limpa. Cabeçalho `vermelho: base=bbbe2d8871c0 head=f45bf8056167`; `contagem: não prova (passa na base)=81; prova (asserção)=16`; nenhum teste cai no HEAD.
+- Mutantes, uma spec por vez (`--processos 3`, rc=0 em cada): `v0481-ae2-quadro-anda.json` (AE1 a AE8), `-2` (AE12 a AE18), `-3` (AE20 a AE26), `-4` (AE28 a AE34), `-5` (AE33 a AE39); 41 mortos, nenhum sobrevivente, inválido ou sem veredito. Juntas as cinco specs não rodam (A1).
+- Local só os módulos tocados, via o vermelho acima (head verde nos dois módulos); a bateria inteira não foi rodada aqui (G3).
+- ci: f45bf805616768db672757c4896fd112fee05534 verde
+- Detalhe do CI do mesmo sha (`gh pr checks 875`, com `XDG_CACHE_HOME` gravável): suíte python 3.12 e 3.14 (partes 1 a 5), bateria (passos), (python 3.14), (verificações longas), instalação, teto de pulados e árvore já provada: pass. Fora do que conta: `bateria (pareceres)` e `bateria` esperam este parecer; `catraca` falha por R-CONFORMIDADE ("mudança em bin/forge-check ... só passa com o rótulo `afrouxa-regra` do dono, aplicado depois do último push", log do run 45652484421), decisão do dono, não defeito de teste.
 
 ## Revalidação
-Voltam ao autor os dois achados. Depois deles o delta é o teste `test_titulo_e_texto_que_so_cita_cartao_nao_movem` e a spec `v0481-ae2-quadro-anda.json` (AE3, AE5, AE7, AE14); eu rodo `forge-mutante --base <novo head>` e o Q5.
+Volta ao autor só o A1 (renomear ids de `-5.json`). Depois dele o delta é a spec; eu rodo `forge-mutante` das cinco specs numa rodada só.
