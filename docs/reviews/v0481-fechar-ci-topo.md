@@ -3,33 +3,33 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-fechar-ci-topo
-commit: dd2fcada2719cafad4eee2d8e31f3aaec2e8d5c3
+commit: 58852bf22fd6dcd4912d14b65813f701995cb38e
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-24
 ---
 # Review: v0481
 
-## Achados
-- A1 (recomendado) bin/forge-fechar:1663 · A branch criada fica se o passo 1 para; com o autor reenviando, a rodada seguinte lê o sha velho dela e para no passo 2 com "envie a branch" (bin/forge-fechar:1747), conselho errado (o local está atrás). Sugestão: apagar a branch criada ao parar, ou recriá-la no sha do servidor.
-- A2 (recomendado) bin/forge-fechar:1244 · Com o topo vermelho, a reversão impressa é a deste merge, mas o vermelho pode vir de um commit posterior que o topo contém. Sugestão: dizer na mensagem que o vermelho é do topo e conferir o culpado antes de reverter.
-- A3 (recomendado) bin/forge-fechar:1687 · A parada da cópia principal na branch vale também com --sem-limpar, em que o passo 7 não roda e o motivo (código 3) não se aplica. Sugestão: pular a parada com --sem-limpar ou dizer no manual que ela vale sempre.
-
 ## Sondas
 
 ## Parecer
-Aprovado. Diff de código: 31 linhas a mais e 8 a menos em `bin/forge-fechar` (dentro do teto H1); três comportamentos pequenos do mesmo fechamento, sem cortar.
+Aprovado, por delta de dd2fcada a 58852bf2 (E13.11). O `forge-check parecer delta` deu "revalida: sim" (bin/forge-fechar mudou depois do parecer anterior). Li só o delta: 10 linhas a mais e 3 a menos em `bin/forge-fechar`; o item inteiro segue dentro do teto H1.
 
-O que o brief pede conferir:
-- Nenhum caminho mescla sem os checks verdes do head: o FECHAR-CI-TOPO mexe só no passo 8, depois do merge e da limpeza; o 6 e o 6b ficam iguais. O FECHAR-CRIA-BRANCH cria a branch no sha lido do servidor e passa a `so_remota=0` e `ref_check=refs/heads/<ref>`, o caminho já usado com a branch local: o `forge-check pr` confere esse sha, o passo 2 relê o local e o servidor (1739-1747) e o merge sai com `--match-head-commit` nele (teste `test_commit_que_falta_aqui_cria_a_branch_local_no_sha_do_servidor`). O `--dry-run` e o `--limpar` saem antes (bloco anterior a 1643), então não criam branch.
-- O CI do topo só vale quando contém o merge: a comparação é sempre contra `$1` (o merge), com `ahead` ou `identical`; topo ilegível, vazio, igual ao sha já lido ou `diverged`/`behind` sai do laço e fica `cancelado`, código 5 (testes `test_topo_que_nao_contem_o_merge_fica_cancelado`, `test_topo_que_nao_andou_fica_cancelado`). O laço termina: cada volta exige um topo novo, e o prazo restante cai a 0 (uma leitura).
-- Nada que barra hoje deixa de barrar: vermelho, pendente e ilegível seguem 5; a busca que não traz o commit para no passo 1 como antes (mesma mensagem), e branch que não se cria também para. O FECHAR-COPIA-CERTA só acrescenta parada; a worktree ligada na branch segue como antes (teste `test_worktree_ligada_na_branch_nao_e_a_copia_principal`).
-- `buscar_de` busca por sha, sem ref nova nem FETCH_HEAD; `git branch --no-track` não escreve no `.git/config`.
+Os três recomendados do parecer anterior estão resolvidos:
+- A1 (branch criada que fica velha): `fim()` (bin/forge-fechar:443-445) apaga a branch com `git update-ref -d refs/heads/<ref> <sha criado>`, de modo que só a apaga se ela ainda está no sha criado. `branch_criada` se esvazia logo depois do passo 2 (1755), então o merge e a limpeza continuam usando a branch. Nas saídas antes do passo 3 (die no 1, 1c e 2) a branch sai, e entre a criação e o passo 3 não há `exit` de sucesso.
+- A2 (vermelho do topo): o aviso só aparece quando o vermelho é de um topo diferente do merge (1245-1246). A reversão impressa continua sendo a do merge, e o aviso manda conferir o culpado.
+- A3 (`--sem-limpar`): a parada da cópia principal só vale com `sem_limpar=0` (1693). Manual e fragmento descrevem os três como o código faz.
 
-Falsos dos testes (item 12 do checklist): o `gh api .../compare/` falso aceita só dois sha40 e o `--jq .status` exatos (exit 64 fora disso); o `fetch` falso falha por inteiro com `falha_fetch`. Nenhum é mais frouxo que o script.
+Alinhamento das specs: IL-M21 (`v047-integracao-em-lote-3.json`) e M2 (`mp1311-fechar-cartao.json`) voltaram a casar com a fonte, e o M8 aponta para o nome devolvido `test_commit_que_falta_aqui_pede_o_fetch`. `bin/forge-mutante --conferir --todas` no head sai com rc 1 e 26 linhas, mas são as mesmas 26 da base d49accf8 (diff vazio, conferido numa cópia exportada da base) e nenhuma é de `bin/forge-fechar` nem das specs do item. O item não traz desalinhamento novo.
 
-Verificadores, rodados por mim no Revisar-sha: `tests.test_fechar_ci_topo` e `tests.test_fechar_sha_conferido`, 18 testes, OK. `bin/forge-mutante --processos 1 tests/mutantes/v0481-fechar-ci-topo.json`: M1 a M8 morreram (1235, 1236, 1241, 1687, 1688, 1655, 1662, 1663). `--cobertura --base d49accf8`: `bin/forge-fechar` sai "não coberto" por ser shell; conferi à mão as guardas mudadas (o `while` de 1235-1236, o `if` de 1241, o `if`/`die` de 1655, 1662, 1663, 1687, 1688): uma por linha, cada uma com mutante e teste do ramo de falha. Suíte inteira: fica com o CI do #880 (no head dd2fcada, partes ainda em andamento; `bateria (pareceres)` e `catraca` vermelhas esperam os pareceres e o rótulo).
+Verificadores que rodei no Revisar-sha:
+- `tests.test_fechar_ci_topo` e `tests.test_fechar_sha_conferido`: 21 testes, OK.
+- `bin/forge-mutante --processos 1 tests/mutantes/v0481-fechar-ci-topo-2.json`: M9 (444), M10 (1755), M11 (1246) e M12 (1693) morreram.
+- `--ids` IL-M21 (1244), M2 (1662) e M8 (1668): morreram.
 
-A1 foi reproduzido por sonda (só recomendado, fora do bloco Sondas): branch só no servidor com commit ausente, primeira rodada com o `forge-check` reprovando (rc 1, a branch local `melhoria/x` fica), novo commit no servidor, segunda rodada: rc 1, "parou no passo 2: o head local (160d77a…) difere do remoto (fa0a675…); envie a branch". Falha fechada, sem merge; o custo é uma rodada a mais, a medida que o item quer baixar.
+As guardas mudadas no delta são 444, 1246, 1693 e 1755. Cada uma tem um mutante e um teste do ramo de falha; a linha 1670 só atribui, não é guarda. Não há `shellcheck` neste ambiente, então ele fica com o CI do #880. A suíte inteira também fica com o CI do #880: no head 58852bf2 há partes pendentes, e `bateria (pareceres)` está vermelha à espera dos pareceres.
 
-Manual (`docs/fechamento-integrador.md`) e fragmento do changelog descrevem os três comportamentos como o código faz. A1, A2 e A3 viram cartão depois do merge.
+Sondas (nenhuma prova bloqueante, por isso ficam fora do bloco), todas com o harness de `SoBranchRemota`:
+- S1: o cenário do A1 de ponta a ponta. A primeira rodada para no passo 1, o autor reenvia, e a segunda rodada fecha com rc 3 (`--sem-limpar`) e `--match-head-commit` no sha novo; não aparece mais o "envie a branch".
+- S2: outro processo move a branch criada durante o passo 1. O passo 1 para com rc 1 ("mudou"), a branch fica no sha novo e não aparece "apaguei".
+- S3: uma branch local que já existia e o passo 1 parando. A branch fica, sem "apaguei".
