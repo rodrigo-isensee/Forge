@@ -400,7 +400,7 @@ class AtosFixos(unittest.TestCase):
                 self.estados("2026-11-18 07:00", **eventos)
                 self.assertEqual(self.corte(), nenhuma)
 
-    def test_forge_check_autorizacao_corte(self):  # ler --ato corte-diario: sem mudar o forge-check (controle, R-CONFORMIDADE)
+    def test_forge_check_autorizacao_corte(self):  # ler --ato corte-diario, sem mudar o forge-check (R-CONFORMIDADE)
         (self.pasta / "A-1").write_text(concessao(**FIXA, Ato="corte-diario"), encoding="utf-8")
         env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "PYTHON"))}
         env["GIT_CEILING_DIRECTORIES"] = str(self.raiz.parent)
