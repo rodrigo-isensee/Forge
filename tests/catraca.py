@@ -683,6 +683,11 @@ def _vacua(n):
 
 FUNCOES = (ast.FunctionDef, ast.AsyncFunctionDef)
 FUNDO_DOS_AJUDANTES = 8  # ajudante que chama ajudante: além disso não segue (a recursão conta até aqui, sempre igual)
+TETO_DAS_EXPANSOES = 2_000_000  # nós lidos e chaves somadas por módulo; acima, o módulo conta só as asserções diretas
+
+
+class AjudantesDemais(Exception):
+    """O módulo estourou `TETO_DAS_EXPANSOES` (ajudantes que se chamam em leque crescem perto do quadrado do tamanho)."""
 
 
 def _metodos(classe, classes, vistas=frozenset()):
@@ -702,18 +707,27 @@ def _alvo(func, ajudantes):
     return ajudantes["modulo"].get(func.id) if isinstance(func, ast.Name) else None
 
 
-def _ajudantes(metodos, funcoes):
-    """Onde `_assercoes` acha os ajudantes, com o corpo de cada um contado uma vez por fundo (a classe tem o seu: `self.x` muda)."""
-    ajudantes = {"self": metodos, "modulo": funcoes}
+def _ajudantes(metodos, funcoes, orcamento):
+    """Onde `_assercoes` acha os ajudantes, com o corpo de cada um contado uma vez por fundo (a classe tem o seu: `self.x` muda).
+    `orcamento` é `[resta]`, um só para o módulo inteiro."""
+    ajudantes = {"self": metodos, "modulo": funcoes, "orcamento": orcamento}
     ajudantes["corpo"] = functools.cache(lambda alvo, fundo: _assercoes(alvo.body, ajudantes, fundo))
     return ajudantes
+
+
+def _gasta(ajudantes, n):
+    ajudantes["orcamento"][0] -= n
+    if ajudantes["orcamento"][0] < 0:
+        raise AjudantesDemais
 
 
 def _assercoes(corpo, ajudantes, fundo):
     """(asserções, pulos, valores esperados) do corpo. A chamada a ajudante da classe ou do módulo que faz asserção soma as
     dele, e o nome e os argumentos constantes dela viram valor esperado (trocar `self.fica` por `self.sai` aparece)."""
     asserts, pulos, esperados = 0, 0, Counter()
-    for n in (n for c in corpo for n in ast.walk(c) if not _vacua(n)):
+    nos = [n for c in corpo for n in ast.walk(c) if not _vacua(n)]
+    _gasta(ajudantes, len(nos))
+    for n in nos:
         if isinstance(n, ast.Assert):
             asserts += 1
             esperados += _constantes(n.test)
@@ -725,6 +739,7 @@ def _assercoes(corpo, ajudantes, fundo):
             elif fundo and (alvo := _alvo(n.func, ajudantes)) is not None:
                 a, _, e = ajudantes["corpo"](alvo, fundo - 1)
                 if a:
+                    _gasta(ajudantes, len(e))
                     asserts += a
                     esperados += e + _constantes(*n.args, *(k.value for k in n.keywords))
                     esperados[f"ajudante {nome}"] += 1
@@ -732,27 +747,32 @@ def _assercoes(corpo, ajudantes, fundo):
     return asserts, pulos, esperados
 
 
-def _perfil_do_teste(fn, pulos_da_classe, ajudantes=None):
+def _perfil_do_teste(fn, pulos_da_classe, ajudantes=None, fundo=FUNDO_DOS_AJUDANTES):
     """(asserções, pulos, vazio, valores esperados) de um `def test_*`; o `msg=` da asserção não é valor esperado."""
-    asserts, pulos, esperados = _assercoes(fn.body, ajudantes or _ajudantes({}, {}), FUNDO_DOS_AJUDANTES)
+    asserts, pulos, esperados = _assercoes(fn.body, ajudantes or _ajudantes({}, {}, [math.inf]), fundo)
     corpo = [c for c in fn.body if not (isinstance(c, ast.Expr) and isinstance(c.value, ast.Constant))]
     return asserts, pulos_da_classe + _pulos_dos_decoradores(fn) + pulos, all(isinstance(c, ast.Pass) for c in corpo), esperados
 
 
-def testes_da_arvore(arvore):
-    """{`Classe.test_x` ou `test_x`: perfil} dos testes no corpo do módulo e das classes (aninhadas inclusive)."""
-    testes = {}
+def testes_da_arvore(arvore, fundo=FUNDO_DOS_AJUDANTES, teto=TETO_DAS_EXPANSOES):
+    """{`Classe.test_x` ou `test_x`: perfil} dos testes no corpo do módulo e das classes (aninhadas inclusive). O módulo que
+    estoura o teto conta só as asserções diretas, como antes dos ajudantes: nada do que barrava deixa de barrar, e o lado que
+    perde as dos ajudantes barra como "perdeu asserção" (falha fechada; tratá-lo como ilegível soltaria os testes da base)."""
+    testes, orcamento = {}, [teto]
     classes = {c.name: c for c in ast.walk(arvore) if isinstance(c, ast.ClassDef)}
     funcoes = {f.name: f for f in arvore.body if isinstance(f, FUNCOES)}
 
     def visita(no, prefixo, pulos_da_classe, metodos):
-        ajudantes = _ajudantes(metodos, funcoes)
+        ajudantes = _ajudantes(metodos, funcoes, orcamento)
         for filho in ast.iter_child_nodes(no):
             if isinstance(filho, ast.ClassDef):
                 visita(filho, prefixo + filho.name + ".", pulos_da_classe + _pulos_dos_decoradores(filho), _metodos(filho, classes))
             elif isinstance(filho, FUNCOES) and filho.name.startswith("test_"):
-                testes[prefixo + filho.name] = _perfil_do_teste(filho, pulos_da_classe, ajudantes)
-    visita(arvore, "", 0, {})
+                testes[prefixo + filho.name] = _perfil_do_teste(filho, pulos_da_classe, ajudantes, fundo)
+    try:
+        visita(arvore, "", 0, {})
+    except AjudantesDemais:
+        return testes_da_arvore(arvore, 0, math.inf)
     return testes
 
 
@@ -763,7 +783,8 @@ def afrouxamentos(antes, depois):
     """O que o teste perdeu de `antes` para `depois` (perfis); vazio se não afrouxou."""
     perdas = []
     if depois[0] < antes[0]:
-        perdas.append("perdeu asserção")
+        sumiu = sorted(k.removeprefix("ajudante ") for k in antes[3] - depois[3] if k.startswith("ajudante "))
+        perdas.append("perdeu asserção" + (f" (estava no ajudante {', '.join(sumiu)})" if sumiu else ""))
     if depois[1] > antes[1]:
         perdas.append("ganhou skip/skipIf/skipUnless/expectedFailure/skipTest")
     if depois[2] and not antes[2]:

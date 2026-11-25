@@ -46,16 +46,16 @@
       "id": "CA6",
       "guarda": "E14.14: ajudante sem asserção não vira valor esperado",
       "arquivo": "tests/catraca.py",
-      "de": "                if a:\n                    asserts += a",
-      "para": "                if True:\n                    asserts += a",
+      "de": "                if a:\n                    _gasta(ajudantes, len(e))",
+      "para": "                if True:\n                    _gasta(ajudantes, len(e))",
       "testes": ["tests.test_catraca.AssercaoNoAjudante.test_ajudante_com_assercao_conta_e_o_sem_assercao_nao"]
     },
     {
       "id": "CA7",
       "guarda": "E14.14: teste chamado sem ajudantes usa os vazios",
       "arquivo": "tests/catraca.py",
-      "de": "ajudantes or _ajudantes({}, {}), FUNDO_DOS_AJUDANTES)",
-      "para": "ajudantes, FUNDO_DOS_AJUDANTES)",
+      "de": "ajudantes or _ajudantes({}, {}, [math.inf]), fundo)",
+      "para": "ajudantes, fundo)",
       "testes": ["tests.test_catraca.AssercaoNoAjudante.test_ajudante_com_assercao_conta_e_o_sem_assercao_nao"]
     },
     {
