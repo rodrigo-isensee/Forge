@@ -1,0 +1,16 @@
+{
+  "pedido": "v0481-ci-descendente-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "leu_o_ci_via: o parecer sem `commit:` não casa a linha via (nem quebra)",
+      "arquivo": "bin/forge-check",
+      "de": "    commit = campos.get(\"commit\") or \"\"\n    vias = ",
+      "para": "    commit = campos.get(\"commit\")\n    vias = ",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiVia.test_outro_sha_outro_estado_ou_commit_invalido_nao_vale"
+      ]
+    }
+  ]
+}
