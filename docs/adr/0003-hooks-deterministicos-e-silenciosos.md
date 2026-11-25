@@ -122,7 +122,7 @@ O hook `salvar`, só no `SubagentStop`: ao parar, o trabalho em andamento do age
 - O `R-FLUXO` manda o agente commitar e enviar, mas a regra em texto não cobre a parada fora do roteiro. Evidência: o estudo determinístico de 24/11 (D6) registra retomadas manuais e trabalho refeito depois de sessão que caiu com mudança só na cópia.
 
 ### Afrouxa: sim, R-VERIFY e dois invariantes de teste; o item 2 não
-O item 2 ("sem rede", decisão só pelo estado em disco e pelo git local) segue sem exceção. O `R-VERIFY` ("não desative nem troque o caminho dos hooks") ganha a exceção escrita em `docs/regras/R-LIMITES.md`, só para este hook e só para o commit na cópia, pela regra 4; o título do PR traz o destaque. Mudam junto, no PR do hook, com o rótulo `afrouxa-regra`:
+O item 2 ("sem rede", decisão só pelo estado em disco e pelo git local) segue sem exceção. O `R-VERIFY` ("não desative nem troque o caminho dos hooks") ganha a exceção escrita aqui, na regra 4, só para este hook e só para o commit na cópia; o `docs/regras/R-LIMITES.md` não muda, porque o núcleo do Jarvis (decisão 11 do dono, `docs/regras/orcamento.json`) não tem folga para ela. O título do PR traz o destaque. Mudam junto, no PR do hook, com o rótulo `afrouxa-regra`:
 - `tests/test_hooks.py`, `test_cada_hook_tem_caso_que_passa_e_que_bloqueia`: `salvar` entra no grupo que nunca bloqueia (códigos `{0}`), com os casos `sem-forge-versao` e `erro-interno`.
 - `tests/test_hooks.py`, `test_hooks_json`: o `salvar.py` no `SubagentStop` tem `timeout` 60 (os outros seguem com 10, menos os 300 do `pesado` e do `meta`).
 Nenhum trecho de `invariantes` em `tests/config.json` sai.
