@@ -423,6 +423,82 @@ class EsqueletoComAProva(unittest.TestCase):
             with self.subTest(tipo=tipo):
                 texto = fc.esqueleto_do_parecer(tipo, "p1", "melhoria/x", "a" * 40, "aprovado", "2026-01-01")
                 self.assertIn(f"- suíte: {fc.PREENCHER} rc=0 módulos={fc.PREENCHER}\n", texto)
+                self.assertIn(f"- ci: {fc.PREENCHER} verde\n", texto)  # PARECER-LE-O-CI
+
+
+# ---- PARECER-LE-O-CI (G3, v0481 E8.1) -------------------------------------------------------------------------------------------------
+# No Forge, o review e o QA aprovados trazem `- ci: <sha40 do commit:> verde` (o portão leu o CI do head em vez de rodar a bateria);
+# sem ela, o `forge-check pr` recusa, também no `--previo` e no passo 1 do `forge-fechar` (o `adiar`), com o CI verde ou a prova.
+CI_LIDO = "- ci: {h} verde\n"
+PROVA_COMPLETA = "- suíte: {h} rc=0 módulos=test_forge_x,evals.test_y\n"
+
+
+class LeuOCi(unittest.TestCase):
+    H = "c" * 40
+
+    def test_linha_do_sha_do_commit_vale(self):
+        self.assertTrue(fc.leu_o_ci({"commit": self.H}, f"x\n- ci: {self.H} verde\n"))
+        self.assertTrue(fc.leu_o_ci({"commit": self.H[:12]}, f"- ci: {self.H} verde \n"))  # `commit:` curto casa o prefixo
+
+    def test_sem_linha_outro_sha_outro_estado_ou_commit_invalido_nao_vale(self):
+        self.assertFalse(fc.leu_o_ci({"commit": self.H}, ""))
+        self.assertFalse(fc.leu_o_ci({"commit": self.H}, f"- ci: {'d' * 40} verde\n"))  # CI de outro sha
+        self.assertFalse(fc.leu_o_ci({"commit": self.H}, f"- ci: {self.H} vermelho\n"))
+        self.assertFalse(fc.leu_o_ci({"commit": self.H}, f"- ci: {self.H} verde, falta o e2e\n"))
+        self.assertFalse(fc.leu_o_ci({"commit": self.H}, f"texto - ci: {self.H} verde\n"))  # só no começo da linha
+        self.assertFalse(fc.leu_o_ci({"commit": ""}, f"- ci: {self.H} verde\n"))  # `commit:` vazio é prefixo de tudo
+        self.assertFalse(fc.leu_o_ci({}, f"- ci: {self.H} verde\n"))
+        self.assertFalse(fc.leu_o_ci({"commit": "zz"}, "- ci: zz verde\n"))  # `commit:` fora da forma de sha
+
+
+class LeOCiNoCmdPr(ProvaDaSuiteBase):
+    def violacoes(self, prova, suite=False, verde=True, forge=True, marca="PARECER-LE-O-CI"):
+        head = self.entregar()
+        if not forge:
+            git("rm", "-q", ".claude-plugin/plugin.json", cwd=self.tmp)
+            git("commit", "-q", "-m", "sem forge", cwd=self.tmp)
+            head = git("rev-parse", "HEAD", cwd=self.tmp)
+        self.commitar({"docs/reviews/p1.md": REVIEW.format(c=head, prova=prova.format(h=head, b=self.base))}, "review")
+        with mock.patch.object(fc, "ci_verde_no_head", return_value=verde), contextlib.redirect_stderr(io.StringIO()):
+            linhas = fc.cmd_pr(self.tmp, "p1", None, self.base, "melhoria/x", suite=suite)
+        return [l for l in linhas if marca in l]
+
+    def test_sem_a_linha_recusa_com_ci_verde_ou_com_a_prova(self):
+        for prova in ("", PROVA_COMPLETA):
+            with self.subTest(prova=prova):
+                self.setUp()
+                linhas = self.violacoes(prova)
+                self.assertEqual(len(linhas), 1, linhas)
+                self.assertTrue(linhas[0].startswith("docs/reviews/p1.md: ci: o parecer aprovado traz a linha `- ci:"), linhas)
+
+    def test_sem_a_linha_recusa_tambem_no_adiar(self):
+        for prova in ("", PROVA_COMPLETA):
+            with self.subTest(prova=prova):
+                self.setUp()
+                self.assertEqual(len(self.violacoes(prova, suite=True)), 1)
+
+    def test_linha_de_outro_sha_ou_vermelha_recusa(self):
+        for linha in ("- ci: {b} verde\n", "- ci: {h} vermelho\n"):
+            with self.subTest(linha=linha):
+                self.setUp()
+                self.assertEqual(len(self.violacoes(linha + PROVA_COMPLETA)), 1)
+
+    def test_com_a_linha_e_ci_verde_passa(self):
+        for prova in (CI_LIDO, CI_LIDO + PROVA_COMPLETA):
+            with self.subTest(prova=prova):
+                self.setUp()
+                self.assertEqual(self.violacoes(prova, marca="(PARECER-"), [])  # nem a linha do CI nem a da suíte
+
+    def test_a_linha_nao_dispensa_o_ci_verde_do_head(self):
+        self.assertEqual(len(self.violacoes(CI_LIDO, verde=False, marca="PARECER-SO-COM-CI-VERDE")), 1)
+
+    def test_sem_a_linha_e_sem_ci_verde_saem_as_duas(self):
+        self.assertEqual(len(self.violacoes("", verde=False, marca="(PARECER-")), 2)
+
+    def test_catraca_e_fora_do_forge_nada_muda(self):
+        self.assertEqual(self.violacoes("", suite=None), [])  # a catraca: o próprio CI
+        self.setUp()
+        self.assertEqual(self.violacoes("", forge=False), [])
 
 
 if __name__ == "__main__":

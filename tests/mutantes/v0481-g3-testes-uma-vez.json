@@ -1,0 +1,88 @@
+{
+  "pedido": "v0481-g3-testes-uma-vez",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "leu_o_ci: o `commit:` vazio ou fora da forma de sha não casa a linha `- ci:`",
+      "arquivo": "bin/forge-check",
+      "de": "return bool(COMMIT.match(commit)) and any(m.group(1).startswith(commit) for m in PROVA_DO_CI",
+      "para": "return any(m.group(1).startswith(commit) for m in PROVA_DO_CI",
+      "testes": [
+        "tests.test_forge_check_pr.LeuOCi.test_sem_linha_outro_sha_outro_estado_ou_commit_invalido_nao_vale"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "leu_o_ci: a linha `- ci:` de outro sha não vale",
+      "arquivo": "bin/forge-check",
+      "de": "any(m.group(1).startswith(commit) for m in PROVA_DO_CI.finditer(texto))",
+      "para": "any(True for m in PROVA_DO_CI.finditer(texto))",
+      "testes": [
+        "tests.test_forge_check_pr.LeuOCi.test_sem_linha_outro_sha_outro_estado_ou_commit_invalido_nao_vale",
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_linha_de_outro_sha_ou_vermelha_recusa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "PROVA_DO_CI: só `verde` fecha a linha (vermelho ou ressalva não vale)",
+      "arquivo": "bin/forge-check",
+      "de": "PROVA_DO_CI = re.compile(r\"^- ci: ([0-9a-f]{40}) verde[ \\t]*$\", re.M)",
+      "para": "PROVA_DO_CI = re.compile(r\"^- ci: ([0-9a-f]{40}) \\w+\", re.M)",
+      "testes": [
+        "tests.test_forge_check_pr.LeuOCi.test_sem_linha_outro_sha_outro_estado_ou_commit_invalido_nao_vale"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "suite_do_parecer: fora do Forge, nem a linha `- ci:` se cobra",
+      "arquivo": "bin/forge-check",
+      "de": "    if not e_o_forge(Path(raiz)):\n        return []\n    sem_ci = ",
+      "para": "    if False:\n        return []\n    sem_ci = ",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_catraca_e_fora_do_forge_nada_muda"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "suite_do_parecer: sem a linha `- ci:`, a violação PARECER-LE-O-CI",
+      "arquivo": "bin/forge-check",
+      "de": "sem_ci = [] if leu_o_ci(campos, texto) else [",
+      "para": "sem_ci = [] if True else [",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_sem_a_linha_recusa_com_ci_verde_ou_com_a_prova"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "suite_do_parecer: a prova da suíte não dispensa a linha `- ci:`",
+      "arquivo": "bin/forge-check",
+      "de": "falta_na_prova(raiz, base, campos, texto)) is None:\n        return sem_ci",
+      "para": "falta_na_prova(raiz, base, campos, texto)) is None:\n        return []",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_sem_a_linha_recusa_com_ci_verde_ou_com_a_prova"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "suite_do_parecer: o `adiar` (previo e passo 1 do fechar) não dispensa a linha `- ci:`",
+      "arquivo": "bin/forge-check",
+      "de": "o CI do head fica para os passos seguintes\", file=sys.stderr)\n        return sem_ci",
+      "para": "o CI do head fica para os passos seguintes\", file=sys.stderr)\n        return []",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_sem_a_linha_recusa_tambem_no_adiar"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "suite_do_parecer: o CI verde do head não dispensa a linha `- ci:`",
+      "arquivo": "bin/forge-check",
+      "de": "return sem_ci + ([] if ci[\"verde\"] else [linha])",
+      "para": "return [] if ci[\"verde\"] else [linha]",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_sem_a_linha_recusa_com_ci_verde_ou_com_a_prova",
+        "tests.test_forge_check_pr.LeOCiNoCmdPr.test_sem_a_linha_e_sem_ci_verde_saem_as_duas"
+      ]
+    }
+  ]
+}
