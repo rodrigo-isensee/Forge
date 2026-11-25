@@ -36,8 +36,8 @@
       "id": "M12",
       "guarda": "AUTORIZACOES-FIXAS F3: relógio ilegível não corta",
       "arquivo": "bin/forge-fechar",
-      "de": "+%H%M)\" || { echo \"corte: relógio ilegível.\" >&2; return 1; }",
-      "para": "+%H%M)\" || true",
+      "de": "'+%F %H%M')\" || { echo \"corte: relógio ilegível.\" >&2; return 1; }",
+      "para": "'+%F %H%M')\" || true",
       "testes": [
         "tests.test_fechar_corte.CorteDiario.test_antes_das_06h_relogio_ilegivel_ou_versao_de_hoje_nao_corta"
       ]
