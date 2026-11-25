@@ -5070,6 +5070,15 @@ def ler_marca(motivo):
     return motivo[:m.start()], (marca if valida else None), (None if valida else "marca de atributos fora da forma, ignorada")
 
 
+def celulas_de_cartao(linha):
+    """As células de uma linha de cartão de tabela do KANBAN.md, ou None (cabeçalho, separador, outra largura, fora de tabela): o único
+    filtro de linha de cartão do quadro gerado, do aviso de edição à mão e do movimento (AE2 A1: cartão `ID` ou `---` não casa a moldura)."""
+    c = [x.strip() for x in linha.strip().strip("|").split("|")]
+    if not linha.startswith("|") or len(c) != len(COLUNAS) or c == COLUNAS or all(SEPARADOR.fullmatch(x) for x in c):
+        return None
+    return c
+
+
 def montar_quadro(texto_kanban, linhas_do_historico, agora):
     """EST-M12, sem IO: (KANBAN.md refeito do histórico ou None, {seção: [células]}, avisos). Coluna = `Para` da última linha válida na
     ordem do arquivo (C-3); atributos da marca mais recente, senão da linha do quadro (ponte, C-4); estado sem seção (C-5)."""
@@ -5078,7 +5087,7 @@ def montar_quadro(texto_kanban, linhas_do_historico, agora):
         secao, c = nome_da_secao(linha[3:]) if linha.startswith("## ") else secao, [x.strip() for x in linha.strip().strip("|").split("|")]
         if secao and linha.startswith("|") and c == COLUNAS:
             secoes.setdefault(secao, [])
-        elif secao in secoes and linha.startswith("|") and len(c) == len(COLUNAS) and not all(SEPARADOR.fullmatch(x) for x in c):
+        elif secao in secoes and celulas_de_cartao(linha):
             avisos += [] if ID_RESP.fullmatch(c[3]) else [f"cartão {c[0]}: responsável da linha do quadro fora da forma; vira —"]
             ponte[chave_do_cartao(c[0])] = (secao, c if ID_RESP.fullmatch(c[3]) else [*c[:3], "—", *c[4:]])
     for c in linhas_do_historico:
@@ -5119,8 +5128,9 @@ def montar_quadro(texto_kanban, linhas_do_historico, agora):
     return "\n".join(saida), secoes, avisos
 
 
-def _ler_regular(arq):
-    """(texto, erro): sem seguir link (O_NOFOLLOW), só arquivo regular conferido antes de ler (fifo não trava), até TETO_DA_TABELA (C-1)."""
+def _ler_regular(arq, estrito=False):
+    """(texto, erro): sem seguir link (O_NOFOLLOW), só arquivo regular conferido antes de ler (fifo não trava), até TETO_DA_TABELA (C-1).
+    `estrito` (o movimento, A4 da segurança do AE2): byte UTF-8 inválido é erro, não U+FFFD gravado de volta em linhas não tocadas."""
     try:
         fd = os.open(arq, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except OSError as e:
@@ -5132,7 +5142,10 @@ def _ler_regular(arq):
         dados = f.read(TETO_DA_TABELA + 1)
     if len(dados) > TETO_DA_TABELA:
         return None, f"passa de {TETO_DA_TABELA} bytes"
-    return dados.decode("utf-8", errors="replace"), None
+    try:
+        return dados.decode("utf-8", errors="strict" if estrito else "replace"), None
+    except UnicodeDecodeError:
+        return None, "não é UTF-8 válido"
 
 
 def travar_o_quadro(raiz):
@@ -5153,8 +5166,8 @@ def linhas_de_cartao(texto):
     """{ID: (seção, células)} das linhas de cartão do quadro: o aviso de edição à mão compara as do quadro atual com as geradas (C-15)."""
     cartoes, secao = {}, None
     for linha in texto.split("\n"):
-        secao, c = nome_da_secao(linha[3:]) if linha.startswith("## ") else secao, [x.strip() for x in linha.strip().strip("|").split("|")]
-        if secao and linha.startswith("|") and len(c) == len(COLUNAS) and c != COLUNAS and not all(SEPARADOR.fullmatch(x) for x in c):
+        secao = nome_da_secao(linha[3:]) if linha.startswith("## ") else secao
+        if secao and (c := celulas_de_cartao(linha)):
             cartoes[c[0]] = (secao, c)
     return cartoes
 
@@ -5201,7 +5214,7 @@ def erro_dos_atributos(motivo, atributos):
         return f"--motivo acima de {TETOS_DO_MOVIMENTO['motivo']} caracteres"
     for chave, valor in atributos.items():
         if (not valor.strip() or re.search(r"[;=·|\x00-\x1f\x7f]", valor) or any(unicodedata.category(c) == "Cf" for c in valor)):
-            return f"--{chave} vazio ou com `;`, `=`, `·`, `|`, controle ou caractere invisível"
+            return f"--{chave} vazio ou com `;`, `=`, {'' if chave == 'titulo' else '`·`, '}`|`, controle ou caractere invisível"
     if len(" ".join((atributos.get("titulo") or "").split())) > TETOS_DO_MOVIMENTO["titulo"]:
         return f"--titulo acima de {TETOS_DO_MOVIMENTO['titulo']} caracteres"
     if "responsavel" in atributos and not ID_RESP.fullmatch(atributos["responsavel"]):
@@ -5254,25 +5267,24 @@ def secao_de_destino(secoes, para):
 
 
 def linha_movida(texto, cartao, para, hora, obs, atributos):
-    """AE2, sem IO: (KANBAN.md com a linha do cartão tirada de onde está e posta no fim da tabela da seção de destino, ou None; aviso).
+    """AE2, sem IO: (KANBAN.md com as linhas do cartão tiradas de onde estão e a última posta no fim da tabela da seção de destino, ou None; aviso).
     Cartão sem linha nasce com `—` nos atributos não dados; seção sem tabela ganha a tabela. Entrou fica; Na coluna desde e Obs. mudam."""
-    linhas, secoes, secao, achada = texto.split("\n"), set(), None, None
+    linhas, secoes, secao, achadas = texto.split("\n"), set(), None, []
     for i, l in enumerate(linhas):
         secao = nome_da_secao(l[3:]) if l.startswith("## ") else secao
-        c = [x.strip() for x in l.strip().strip("|").split("|")]
         if l.startswith("## "):
             secoes.add(secao)
-        elif secao and l.startswith("|") and len(c) == len(COLUNAS) and chave_do_cartao(c[0]) == chave_do_cartao(cartao):
-            achada = (i, c)
+        elif secao and (c := celulas_de_cartao(l)) and chave_do_cartao(c[0]) == chave_do_cartao(cartao):
+            achadas.append((i, c))
     destino = secao_de_destino(secoes, para)
     if destino is None:
         return None, f"{nome_seguro(para)} sem seção no KANBAN.md e o quadro sem \"Bloqueado\"; a linha do cartão fica onde está"
-    c = achada[1] if achada else [cartao, "—", "—", "—", hora[:10]]
+    c = achadas[-1][1] if achadas else [cartao, "—", "—", "—", hora[:10]]
     for n, chave in ((1, "titulo"), (2, "pedido"), (3, "responsavel")):
         c[n] = atributos.get(chave) or c[n]
     nova = "| " + " | ".join([*c[:5], hora, obs]) + " |"
-    if achada:
-        del linhas[achada[0]]
+    for i, _ in reversed(achadas):  # o cartão repetido em duas seções sai de todas (A2 do review)
+        del linhas[i]
     inicio = next(i for i, l in enumerate(linhas) if l.startswith("## ") and nome_da_secao(l[3:]) == destino)
     fim = next((i for i in range(inicio + 1, len(linhas)) if linhas[i].startswith("## ")), len(linhas))
     tabela = [i for i in range(inicio + 1, fim) if linhas[i].startswith("|")]
@@ -5289,7 +5301,7 @@ def mover_no_quadro(raiz, cartao, para, hora, obs, atributos):
     try:
         fd = travar_o_quadro(raiz)
         try:
-            atual, erro = _ler_regular(raiz / "KANBAN.md")
+            atual, erro = _ler_regular(raiz / "KANBAN.md", estrito=True)
             if erro:
                 return f"KANBAN.md {erro}; quadro intacto"
             texto, aviso = linha_movida(atual, cartao, para, hora, obs, atributos)

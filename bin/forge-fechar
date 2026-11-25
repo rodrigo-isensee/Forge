@@ -943,14 +943,18 @@ coluna_do_cartao() {
 # mover_cartoes: só depois do merge provado; cada --cartao vai a Pronto pelo `forge-check movimento` (a hora real, o custo e a forma do
 # histórico ficam com ele). Já em Pronto não grava de novo (repetir não duplica). Falha não desfaz nada: vira `cartao_pend=1` e o comando.
 # cartoes_do_corpo <texto> (AE2): soma aos --cartao, sem repetir, os IDs das linhas `Cartão: <ID>` do corpo (o texto sem a 1ª linha,
-# o título). Fora da forma ou sem KANBAN.md no quadro: aviso, sem parar (o merge já está feito ou a caminho).
+# o título). Fora da forma (aviso sem caractere de controle), sem KANBAN.md no quadro ou cartão sem coluna (`—`: digitação, exemplo
+# colado; só o --cartao dado cria cartão): aviso, sem parar (o merge já está feito ou a caminho).
 cartoes_do_corpo() {
   local linha id c
   while IFS= read -r linha; do
     [[ "$linha" =~ ^[[:space:]]*Cartão:[[:space:]]*([^[:space:]]+)[[:space:]]*$ ]] || continue
     id="${BASH_REMATCH[1]}"
-    if ! [[ "$id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]]; then echo "aviso: Cartão do corpo fora da forma, ignorado: ${id:0:80}" >&2; continue; fi
+    if ! [[ "$id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]]; then
+      echo "aviso: Cartão do corpo fora da forma, ignorado: $(printf '%s' "${id:0:80}" | tr -d '[:cntrl:]')" >&2; continue
+    fi
     if [ ! -f "$quadro/KANBAN.md" ]; then echo "aviso: o corpo cita o cartão $id, mas não há KANBAN.md em $quadro; não movo" >&2; continue; fi
+    if [ "$(coluna_do_cartao "$id")" = — ]; then echo "aviso: o corpo cita o cartão $id, que não está no quadro nem no histórico; não movo" >&2; continue; fi
     for c in "${cartoes[@]}"; do [ "$c" != "$id" ] || continue 2; done
     cartoes+=("$id")
   done < <(printf '%s\n' "$1" | tail -n +2)

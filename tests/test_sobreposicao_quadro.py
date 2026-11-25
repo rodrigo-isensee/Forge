@@ -498,6 +498,40 @@ class MovimentoMoveALinha(unittest.TestCase):  # AE2 (v0481 E10.1): gravado o hi
         self.assertIn("quadro intacto; o histórico foi gravado", saida)
         self.assertEqual(self.quadro.read_text(encoding="utf-8"), antes)
 
+    def test_cartao_com_nome_de_cabecalho_ou_separador_nao_casa_a_moldura(self):  # A1 dos três pareceres do #875
+        for cartao in ("ID", "id", "---"):
+            with self.subTest(cartao=cartao):
+                self.setUp()
+                antes = self.quadro.read_text(encoding="utf-8")
+                rc, saida = self.mover("--de", "—", "--para", "Code review", "--", cartao)  # `--`: o `---` chega ao subcomando
+                self.assertEqual(rc, 0, saida)
+                depois = self.quadro.read_text(encoding="utf-8")
+                self.assertEqual(depois.count(CAB), antes.count(CAB))  # cabeçalho e separador de toda tabela intactos
+                self.assertEqual(depois.replace(CAB, "").count("| K-"), 3)
+                self.assertRegex(self.secoes()["Code review (WIP 2)"].split("\n")[4], rf"^\| {re.escape(cartao)} \| — \| — \| — \| ")
+
+    def test_cartao_em_duas_secoes_sai_das_duas(self):  # A2 do review, A3 do QA e da segurança
+        self.quadro.write_text(self.quadro.read_text(encoding="utf-8").replace("| K-3 | três |", "| K-1 | três |"), encoding="utf-8")
+        rc, saida = self.mover("K-1", "--de", "Code review", "--para", "Pronto")
+        self.assertEqual(rc, 0, saida)
+        secoes = self.secoes()
+        self.assertNotIn("| K-1 |", secoes["Em andamento (WIP 1 por agente)"] + secoes["Code review (WIP 2)"])
+        self.assertEqual(secoes["Pronto"].count("| K-1 | três |"), 1)  # a última linha achada é a que anda
+
+    def test_quadro_com_utf8_invalido_nao_e_reescrito(self):  # A4 da segurança
+        dados = self.quadro.read_bytes().replace(b"nota da se", b"nota \xff da se")
+        self.quadro.write_bytes(dados)
+        rc, saida = self.mover("K-1", "--de", "Em andamento", "--para", "Code review")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("movimento: aviso: KANBAN.md não é UTF-8 válido; quadro intacto", saida)
+        self.assertEqual(self.quadro.read_bytes(), dados)
+
+    def test_recusa_do_titulo_nao_lista_o_ponto_e_a_dos_outros_lista(self):  # A2 do QA: no --titulo o `·` vira `-`
+        rc, saida = self.mover("K-1", "--de", "Em andamento", "--para", "Code review", "--titulo", "a;b")
+        self.assertIn("movimento: --titulo vazio ou com `;`, `=`, `|`, controle", saida)
+        rc, saida = self.mover("K-1", "--de", "Em andamento", "--para", "Code review", "--pedido", "a·b")
+        self.assertIn("movimento: --pedido vazio ou com `;`, `=`, `·`, `|`, controle", saida)
+
 
 class RegrasEmTexto(unittest.TestCase):
     def texto(self, rel):
@@ -881,6 +915,13 @@ class KanbanGerar(unittest.TestCase):
         with open(trava, "w") as f, mock.patch.object(fc, "ESPERA_DA_TRAVA_S", 0.3):
             fcntl.flock(f, fcntl.LOCK_EX)
             self.recusa("trava do quadro ocupada")
+
+    def test_separador_alinhado_nao_conta_como_cartao_editado(self):  # AE2 (v0481 E10.5): o aviso usa o predicado único de cartão
+        self.kanban.write_text(self.kanban.read_text(encoding="utf-8").replace("|---|---|---|---|---|---|---|", "|:--|:--|:--|:--|:--|:--|:--|"),
+                               encoding="utf-8")
+        linhas, rc = fc.cmd_kanban_gerar(self.raiz)
+        self.assertEqual(rc, 0, linhas)
+        self.assertIn("kanban --gerar: aviso: quadro editado fora do movimento: K-1, N-1", linhas)  # só os cartões, sem `---` nem `ID`
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,66 @@
+{
+  "pedido": "v0481-ae2-quadro-anda",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE27",
+      "guarda": "AE2 (v0481 E10.5): o aviso de edição à mão usa o predicado: cabeçalho e separador não contam",
+      "arquivo": "bin/forge-check",
+      "de": "if secao and (c := celulas_de_cartao(linha)):",
+      "para": "if secao and (c := [x.strip() for x in linha.strip().strip(\"|\").split(\"|\")]):",
+      "testes": [
+        "tests.test_sobreposicao_quadro.KanbanGerar"
+      ]
+    },
+    {
+      "id": "AE28",
+      "guarda": "AE2 (v0481 E10.5): o movimento usa o predicado: cabeçalho não é cartão",
+      "arquivo": "bin/forge-check",
+      "de": "elif secao and (c := celulas_de_cartao(l)) and",
+      "para": "elif secao and (c := [x.strip() for x in l.strip().strip(\"|\").split(\"|\")]) and",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_cartao_com_nome_de_cabecalho_ou_separador_nao_casa_a_moldura"
+      ]
+    },
+    {
+      "id": "AE29",
+      "guarda": "AE2 (v0481 E10.5): a leitura estrita recusa UTF-8 inválido",
+      "arquivo": "bin/forge-check",
+      "de": "errors=\"strict\" if estrito else \"replace\"",
+      "para": "errors=\"strict\" if False else \"replace\"",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_quadro_com_utf8_invalido_nao_e_reescrito"
+      ]
+    },
+    {
+      "id": "AE30",
+      "guarda": "AE2 (v0481 E10.5): só o --titulo deixa de listar o ·",
+      "arquivo": "bin/forge-check",
+      "de": "{'' if chave == 'titulo' else",
+      "para": "{'' if False else",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_recusa_do_titulo_nao_lista_o_ponto_e_a_dos_outros_lista"
+      ]
+    },
+    {
+      "id": "AE31",
+      "guarda": "AE2 (v0481 E10.5): a última linha achada do cartão é a que anda",
+      "arquivo": "bin/forge-check",
+      "de": "c = achadas[-1][1] if achadas else",
+      "para": "c = achadas[0][1] if achadas else",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_cartao_em_duas_secoes_sai_das_duas"
+      ]
+    },
+    {
+      "id": "AE32",
+      "guarda": "AE2 (v0481 E10.5): cartão achado guarda título, pedido, responsável e Entrou",
+      "arquivo": "bin/forge-check",
+      "de": "c = achadas[-1][1] if achadas else",
+      "para": "c = achadas[-1][1] if False else",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_linha_sai_da_origem_e_entra_no_fim_da_tabela_do_destino"
+      ]
+    }
+  ]
+}
