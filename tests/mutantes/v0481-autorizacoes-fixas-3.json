@@ -21,6 +21,46 @@
       "testes": [
         "tests.test_fechar_corte.CorteDiario.test_sem_corte_diario_ativa_ou_saida_fora_da_forma_nao_corta"
       ]
+    },
+    {
+      "id": "M19",
+      "guarda": "AUTORIZACOES-FIXAS F1: o limite reconhece o ato fixo",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    fixo = campos[\"Ato\"] in FIXOS",
+      "para": "    fixo = False",
+      "testes": [
+        "tests.test_autorizacao.AtosFixos.test_fixa_nao_vence_e_para_so_pela_retirada"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "AUTORIZACOES-FIXAS F1: o ato fixo não cai na conta do teto da D1",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if fixo:\n        return datetime.datetime.max",
+      "para": "    if False:\n        return datetime.datetime.max",
+      "testes": [
+        "tests.test_autorizacao.AtosFixos.test_fixa_nao_vence_e_para_so_pela_retirada"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "AUTORIZACOES-FIXAS F2: a leitura do texto reconhece o ato fixo",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    fixo = ato in FIXOS",
+      "para": "    fixo = False",
+      "testes": [
+        "tests.test_autorizacao_gravar.AtosFixos.test_texto_limpo_grava_fixa_e_ativa_sem_vencer"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "AUTORIZACOES-FIXAS F1: o ato fixo grava a validade fixa",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "\"Origem-da-validade\": \"sem prazo\"} if fixo else",
+      "para": "\"Origem-da-validade\": \"sem prazo\"} if False else",
+      "testes": [
+        "tests.test_autorizacao_gravar.AtosFixos.test_texto_limpo_grava_fixa_e_ativa_sem_vencer"
+      ]
     }
   ]
 }

@@ -440,10 +440,10 @@ def cmd_gravar(raiz, a, ctx, agora=None):
     return 0
 
 
-def cmd_corte(raiz, ctx, agora=None):
+def cmd_corte(raiz, ctx, agora):
     """Emenda AUTORIZACOES-FIXAS (F3): a `corte-diario` ativa mais nova, que o `forge-fechar --corte` grava no PR da marca; rc 1
     sem ela (erro de leitura na pasta deixa todas inativas: falha fechada)."""
-    lista, _ = concessoes(raiz, ctx["gravador"], agora or datetime.datetime.now(UTC))
+    lista, _ = concessoes(raiz, ctx["gravador"], agora)
     ativas = [(nome, campos) for nome, campos, _, est, _ in lista if est == "ativa" and campos["Ato"] == "corte-diario"]
     if not ativas:
         print("autorizacao: nenhuma corte-diario ativa")
@@ -455,5 +455,5 @@ def cmd_corte(raiz, ctx, agora=None):
 
 def executar(a, raiz, ctx):
     if a.acao == "corte":
-        return cmd_corte(raiz, ctx)
+        return cmd_corte(raiz, ctx, datetime.datetime.now(UTC))
     return cmd_gravar(raiz, a, ctx) if a.acao == "gravar" else cmd_ler(raiz, ctx)

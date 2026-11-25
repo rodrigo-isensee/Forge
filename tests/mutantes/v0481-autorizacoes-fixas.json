@@ -58,7 +58,7 @@
       "guarda": "AUTORIZACOES-FIXAS F2: o vocabulário novo vale só para os atos fixos",
       "arquivo": "bin/forge_autorizacao.py",
       "de": "VOCABULARIO_FIXO if fixo else VOCABULARIO)",
-      "para": "VOCABULARIO_FIXO)",
+      "para": "VOCABULARIO_FIXO if True else VOCABULARIO)",
       "testes": [
         "tests.test_autorizacao_gravar.AtosFixos.test_vocabulario_novo_so_nos_atos_fixos_e_sem_marca"
       ]
