@@ -89,6 +89,30 @@ class Cria(Base):
         cfg = subprocess.run(["git", "config", "--get", "branch.melhoria/x.remote"], cwd=d, env=self.env, capture_output=True)
         self.assertNotEqual(cfg.returncode, 0)  # --no-track: sem upstream
 
+    def test_branch_do_remoto_com_base_curta_nasce_no_head_dela_e_diz_o_sha(self):
+        """v0481 E14.33: origem na main, --base develop e a branch já no remoto: nasce no head remoto e diz o sha."""
+        remoto = self.commit_em("melhoria/y")
+        self.commit_em("main")
+        d = self.pasta / "c8"
+        r = self.copia("clone", str(d), "--branch", "melhoria/y", "--origem", str(self.origem), "--base", "develop")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.git(d, "rev-parse", "HEAD").stdout.strip(), remoto)
+        self.assertIn(f"criei melhoria/y em {remoto} (de origin/melhoria/y)", r.stderr)
+
+    def test_clone_pela_base_diz_o_sha_dela(self):
+        dev = self.git(self.origem, "rev-parse", "develop").stdout.strip()
+        self.commit_em("main")  # o clone nasce na main: `develop` só existe como origin/develop
+        r = self.copia("clone", str(self.pasta / "c9"), "--branch", "melhoria/z", "--origem", str(self.origem), "--base", "develop")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(f"criei melhoria/z em {dev} (de origin/develop)", r.stderr)
+
+    def test_base_curta_que_nao_resolve_falha_fechado_sem_clone(self):
+        d = self.pasta / "c10"
+        r = self.copia("clone", str(d), "--branch", "melhoria/x", "--origem", str(self.origem), "--base", "nada")
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertFalse(d.exists(), "base que não resolve: o clone não fica")
+        self.assertNotIn("forge-copia: criei", r.stderr)
+
     def test_clone_que_falha_sai_1_antes_de_procurar_a_base(self):
         r = self.copia("clone", str(self.pasta / "c7"), "--branch", "melhoria/x", "--origem", str(self.fora / "nada"))
         self.assertEqual(r.returncode, 1, r.stderr)
@@ -731,14 +755,14 @@ class BriefSugereACopia(unittest.TestCase):
         with mock.patch.object(self.fc, "e_o_forge", return_value=forge):
             return self.fc.copia_sugerida(raiz or self.raiz, branch, papel)
 
-    def gerar(self, id_="p", branch="melhoria/x"):
+    def gerar(self, id_="p", branch="melhoria/x", etapa="codigo"):
         (self.raiz / "docs" / "pedidos" / "p.md").write_text(PEDIDO_DO_BRIEF.format(id=id_), encoding="utf-8")
         fc = self.fc
         with mock.patch.object(fc, "e_o_forge", return_value=True), mock.patch.object(fc, "pareceres_da_etapa", return_value=[]), \
                 mock.patch.object(fc, "estado_da_branch", return_value=([], [])), mock.patch.object(fc, "pr_da_branch", return_value=({}, None)), \
                 mock.patch.object(fc, "portao_na_branch", return_value=(None, None)), \
                 mock.patch.object(fc, "base_sha_real", return_value="b" * 40), redirect_stderr(io.StringIO()):
-            return fc.montar_brief(self.raiz, "p", "forge:dev-exemplo", branch, "develop", etapa="codigo", cobre="E1.1")
+            return fc.montar_brief(self.raiz, "p", "forge:dev-exemplo", branch, "develop", etapa=etapa, cobre="E1.1")
 
     def test_no_forge_o_nome_leva_branch_e_papel_na_pasta_das_copias(self):
         self.assertEqual(self.sugerida(True), str(self.home / ".forge-contrib" / "wt" / "x-tech-lead"))
@@ -774,11 +798,34 @@ class BriefSugereACopia(unittest.TestCase):
         self.assertIn(f"- cópia só sua (novo) (CLONE-NOME-UNICO): `{copia}`, criada com `forge-copia clone {copia} --branch melhoria/x "
                       "--papel dev-exemplo` e o --origem do repositório (no Forge, worktree no lugar de clone); nunca a cópia de outro agente", saida.split("## Ler", 1)[1].split("\n## ", 1)[0])
 
+    def test_brief_de_parecer_cria_o_clone_de_revisao(self):
+        """COPIA-REVISAO (A1 do review do #889): o portão parte do head remoto da branch, pelo `--revisao`, sem git clone à mão."""
+        copia = self.home / ".forge-contrib" / "wt" / "x-dev-exemplo"
+        for etapa in ("review", "seguranca", "qa"):
+            with self.subTest(etapa):
+                saida, rc, erros = self.gerar(etapa=etapa)
+                self.assertEqual(rc, 0, erros)
+                ler = saida.split("## Ler", 1)[1].split("\n## ", 1)[0]
+                self.assertIn(f"`forge-copia clone {copia} --branch melhoria/x --papel dev-exemplo --revisao` e o --origem do repositório "
+                              "(o head remoto da branch, nunca git clone à mão)", ler)
+                self.assertNotIn("worktree no lugar de clone", ler)
+        self.assertNotIn("--revisao", self.gerar(etapa="codigo")[0])
+
     def test_brief_sem_a_linha_com_caminho_fora_da_forma(self):
         os.environ["HOME"] = str(self.tmp / "com espaço")
         saida, rc, erros = self.gerar()
         self.assertEqual(rc, 0, erros)
         self.assertNotIn("CLONE-NOME-UNICO", saida)
+
+    def test_brief_de_parecer_sem_a_linha_com_caminho_fora_da_forma(self):
+        """COPIA-REVISAO (A1 da segurança do #892): o ramo de revisão também recusa o caminho fora da forma de shell."""
+        os.environ["HOME"] = str(self.tmp / "com espaço")
+        for etapa in ("review", "seguranca", "qa"):
+            with self.subTest(etapa):
+                saida, rc, erros = self.gerar(etapa=etapa)
+                self.assertEqual(rc, 0, erros)
+                self.assertNotIn("CLONE-NOME-UNICO", saida)
+                self.assertNotIn("--revisao", saida)
 
     def test_brief_sem_branch_nao_sugere_copia(self):
         saida, rc, erros = self.gerar(branch=None)
