@@ -15,6 +15,9 @@ from importlib.machinery import SourceFileLoader
 from pathlib import Path
 from unittest import mock
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parent.parent
 BRANCH, PEDIDO = "melhoria/v9-publicar", "v9"
 
@@ -72,7 +75,7 @@ class GhFalso(unittest.TestCase):
         self.addCleanup(subprocess.run, ["rm", "-rf", str(self.tmp)])
         self.repo, self.bin = self.tmp / "repo", self.tmp / "bin"
         self.repo.mkdir(), self.bin.mkdir()
-        env = {"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"}
+        env = sem_manutencao({"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"})
         for args in (["init", "-q", "-b", "develop"], ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
                                                        "--allow-empty", "-m", "base"]):
             subprocess.run(["git", *args], cwd=self.repo, env=env, check=True)
@@ -330,7 +333,7 @@ class Comando(GhFalso):
         aceite = self.repo / "docs" / "security" / "aceites" / f"{PEDIDO}.md"
         aceite.parent.mkdir(parents=True)
         aceite.write_text(f"---\npedido: {PEDIDO}\naceite: sim\ncommit: {self.sha}\n---\n", encoding="utf-8")
-        env = {"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"}
+        env = sem_manutencao({"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"})
         for args in (["add", "-A"], ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "aceite"]):
             subprocess.run(["git", *args], cwd=self.repo, env=env, check=True)
         novo = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, env=env, capture_output=True, text=True).stdout.strip()
