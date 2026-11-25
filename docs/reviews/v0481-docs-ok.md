@@ -3,24 +3,20 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-docs-ok
-commit: 9fa5f83278cfea50921a8fbd156766067450d354
+commit: 6d71827e0a25324caf731a6d17949b158ce7e348
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-25
 ---
-# Review: v0481 (E14.19, code review do #892)
+# Review: v0481 (E14.24, code review por delta do #892)
 
-Diff `220ba3fa..9fa5f832`: +8 e -2 em `bin/forge-check` (dentro do teto H1, um comportamento por parte), testes em `tests/test_forge.py`, `tests/test_forge_copia.py` e `tests/test_volta_por_delta.py`, skill `checagem-do-brief/por-tema.md`, fragmento `changelog.d/v0481-docs-ok.md` e a spec `tests/mutantes/v0481-docs-ok.json`. Clone de revisão criado com `forge-copia clone ... --revisao` (a cópia da própria branch), em `9fa5f832`.
-
-## Achados
-- A1 (recomendado) bin/forge-check:11241 · a linha do `gravar` mudou só no espaço e ficou `gravar =not ...` (falta o espaço depois do `=`); volte ao `gravar = not`, que tira a linha do diff sem mudar o comportamento.
+Revalidação por delta, de `9fa5f832` (parecer anterior, aprovado, E14.19) a `6d71827e` (volta única E14.22). `forge-check parecer delta docs/reviews/v0481-docs-ok.md`: `revalida: sim` (`bin/forge-check` mudou depois do parecer). Delta lido: `git diff 9fa5f832..6d71827e`, com uma linha de código em `bin/forge-check`, o `de`/`para` do M6 em `tests/mutantes/v0478-clone-nome-unico.json` e os pareceres de QA e de segurança (docs, fora do meu domínio). O resto do diff da branch não mudou e segue o parecer anterior.
 
 ## Parecer
 **Aprovado.**
 
-- **`docs: ok`:** em `executar`, a linha sai só com `a.cmd == "docs"` e a lista de violações vazia, depois das violações; o `return 1 if violacoes else 0` não mudou, então o rc é o mesmo e nada que barra hoje deixa de barrar. O `cmd_docs` não imprime violação por fora da lista (os prints dele vão ao stderr, avisos). Sonda: `forge-check docs nao-existe.md` dá a violação e rc=1, sem o `ok`; `forge-check docs` na branch dá `docs: ok` e rc=0.
-- **Chamadores:** nenhum código lê o stdout do `docs`. O hook `conformidade` só lista `forge-check docs` como comando permitido; `forge-fechar`, a catraca e o pre-push chamam o `pr`, não o `docs`; o PQ gerado no brief do portão espera só `rc=0`. Nenhum doc ou agente diz que o `docs` aprovado é silencioso.
-- **Catraca, valor esperado trocado:** conferi os 10 testes que ela lista (`DocsPareceresPedidoECaminho.test_linha_de_comando_com_arquivo`, `ForgeCheck.test_docs_validos_e_ignorados`, `test_qa_medio_com_aceite_vale`, `test_qa_medio_sem_aceite_vale`, `ForgeUpgrade.test_migra_e_segunda_vez_nao_muda_nada`, `BriefDeVolta.test_docs_cobra_o_bloco_de_quem_adotou_o_formato`, `DocsEstritoNoDelta` (2), `ProvaDaSuite.test_bateria_metodo_e_outro_tipo_passam`, `Sondas.test_linha_boa_passa_e_parecer_sem_bloco_nao_muda`): todos trocam `(0, "")` por `(0, "docs: ok\n")`, a igualdade exata segue (nenhum vira `assertIn` nem perde asserção), e o caso de reprovação ganhou `assertNotIn("docs: ok", ...)`. Troca legítima.
-- **Brief do portão:** o novo ramo entra só com `etapa in ETAPAS_DE_PARECER` (review, segurança, QA) e manda `forge-copia clone ... --revisao`; o `elif` mantém a linha de hoje para as outras etapas. O teste novo cobre as três etapas e o `codigo` sem `--revisao`. A skill `por-tema.md` diz o mesmo.
-- **Mutantes:** `bin/forge-mutante --processos 1 tests/mutantes/v0481-docs-ok.json`: M1 a M4 morreram (`forge-check:11239`, `9731`, `9735`); `--cobertura --base 220ba3fa`: as guardas mudadas cobertas pela spec. Testes tocados rodados no clone: 56, OK.
-- **Ferramentas (citadas, não refeitas):** suíte no CI do PR #892, ainda em andamento no head `9fa5f832`; a "catraca" e a "bateria (pareceres)" estão vermelhas porque faltam os pareceres e porque `bin/forge-check` é controle (R-CONFORMIDADE): o rótulo é do dono, depois do último push.
+- **`bin/forge-check:11241`:** `gravar =not` volta a `gravar = not`, só o espaço, sem mudar o comportamento; a linha sai do diff contra a base, o que fecha o A1 (recomendado) do parecer anterior e o A1 do QA. A spec `tests/mutantes/v046-pr-hook-prazo-2.json` M12 volta a achar o trecho uma vez.
+- **`tests/mutantes/v0478-clone-nome-unico.json` M6:** `de` e `para` passam de `if` a `elif`, alinhados ao ramo `elif copia and valor_de_shell_seguro("raiz", copia):` de `bin/forge-check:9735`, que o diff da branch criou; a guarda e o teste declarado (`test_brief_sem_a_linha_com_caminho_fora_da_forma`) são os mesmos. Fecha o A2 do QA. O `if` da linha 9731 (com `etapa in ETAPAS_DE_PARECER`) segue coberto pelo M3 de `tests/mutantes/v0481-docs-ok.json`.
+- **Mutantes, rodados no head `6d71827e`:** `forge-mutante --processos 1 --ids M6 tests/mutantes/v0478-clone-nome-unico.json`: `M6 · morreu · bin/forge-check:9735`. `--ids M12 tests/mutantes/v046-pr-hook-prazo-2.json`: `M12 · morreu · bin/forge-check:11241`. `--cobertura --base 220ba3fa`: `spec editada` (v0478-clone-nome-unico), `:9731` coberta por M3 e `:11239` por M1 e M2.
+- **`--conferir --todas` igual à base:** a saída no head `6d71827e` e num checkout de `220ba3fa` tem as mesmas 26 linhas (`diff` vazio, rc 1 nos dois); nenhuma é do M6 nem do M12. O que resta são specs antigas com trecho repetido ou ausente, já presentes na base, fora deste pedido.
+- **Ferramentas (citadas, não refeitas):** CI do #892 no head `6d71827e` em andamento na hora deste parecer; `suíte` partes 2/5 e 5/5, `bateria (passos)`, `bateria (verificações longas)` e `instalação` verdes; `bateria (pareceres)` e `catraca` vermelhas por faltarem os pareceres neste head e o rótulo do dono (`bin/forge-check` é controle, R-CONFORMIDADE). O merge depende do CI verde.
