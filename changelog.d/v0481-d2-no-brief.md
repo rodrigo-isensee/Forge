@@ -1,0 +1,3 @@
+### Adicionado
+- D2-NO-BRIEF (v0481 E14.51): o brief de código do Forge manda rodar o `forge-check pronto --base origin/develop` e entregar só com rc 0; a conferência da entrega (`forge-check entrega --pedido`, etapa codigo) roda o pronto na worktree da branch e não cumpre com ele fora do rc 0; o pronto reprova título de PR com o cabeçalho do brief (PR-TITULO-DO-BRIEF) e, na branch nascida antes da última marca, diz numa linha que a base está velha e manda trazê-la.
+- D2-NO-BRIEF, volta (v0481 E14.81): sem worktree da branch e com o head do Forge, a conferência da etapa codigo não cumpre e pede `--worktree <cópia>`; a PQ do D2 manda rodar o forge-check de um clone da develop com `--raiz`; a base velha vira exceção do `R-FLUXO`, com medida em `ritmo-e-corte.md`.

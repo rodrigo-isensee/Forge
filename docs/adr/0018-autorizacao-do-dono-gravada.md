@@ -1,6 +1,6 @@
 # 0018 - Autorização do dono gravada: escopo, palavras exatas e validade
 
-Estado: aceita (revalidação do `security-engineer` aprovada no head f42850b5, `docs/security/v047-sieg-g1-autorizacao.md`, depois do parecer do head a87f0a6f (A1 bloqueante; A2 a A7 incorporados; A8 virou D4); D1, D2 e D4 decididas pelo dono; D3 é ação do dono; o número segue a 0017, da `melhoria/v047-forge-sempre-atual`, e é tomado na integração, em ordem). Data: 2026-11-16. Emendada em 2026-11-20 pela "Emenda PR-VERDE" (fim do arquivo): OK do dono preso ao commit, num arquivo da branch lido pela catraca; vale item a item, a partir do PR de cada item.
+Estado: aceita (revalidação do `security-engineer` aprovada no head f42850b5, `docs/security/v047-sieg-g1-autorizacao.md`, depois do parecer do head a87f0a6f (A1 bloqueante; A2 a A7 incorporados; A8 virou D4); D1, D2 e D4 decididas pelo dono; D3 é ação do dono; o número segue a 0017, da `melhoria/v047-forge-sempre-atual`, e é tomado na integração, em ordem). Data: 2026-11-16. Emendada em 2026-11-20 pela "Emenda PR-VERDE" (fim do arquivo): OK do dono preso ao commit, num arquivo da branch lido pela catraca; vale item a item, a partir do PR de cada item. Emendada em 2026-11-25 pela "Emenda AUTORIZACOES-FIXAS" (fim do arquivo): os atos fixos `corte-diario` e `so-aperta-com-seguranca`, sem prazo.
 Propósito: definir o registro das autorizações do dono e a conferência dele pelas ferramentas antes do rótulo `afrouxa-regra` e do merge na `main` (cartão G1 do pedido v047, E2.483; correção E2.488). Público: quem mantém o Forge, o `tech-lead`, o `security-engineer` e o `devops-engineer`. Revisão: 2026-11-17.
 
 ## Contexto
@@ -171,3 +171,30 @@ Um caso de catraca verde por arquivo de autorização cujo conteúdo vigiado dif
 | Data | Medida | Veredito (manter, ajustar, reverter) |
 |---|---|---|
 | AAAA-MM-DD | casos de verde com conteúdo diferente do `Commit` (meta 0); arquivos gravados por agente aceitos (meta 0); fatia da catraca nos vermelhos da 1.ª execução (M1) | pendente |
+
+## Emenda AUTORIZACOES-FIXAS: corte diário e só aperta, sem prazo
+Estado da emenda: proposta pelo `tech-lead` (pedido v0481, E14.52) por ordem do dono; vale a partir do merge na `develop`. Data: 2026-11-25.
+
+### Contexto
+Ordem do dono (25/11 07:52): "Autorizações fixas, sem prazo, gravadas pela ferramenta de autorização: corte da versão às 06:00 com o que estiver verde na develop, todo dia, mesmo abaixo de 20 itens; o que só aperta, com a segurança confirmando por escrito, o time decide e registra." Hoje `ATOS` tem só `rotulo-afrouxa-regra` e `merge-main`, toda concessão vence (teto da D1: 48 h ou 7 dias) e o vocabulário só cresce por ADR; a ordem ficou só no arquivo de ordens em vigor, sem ferramenta que a leia.
+
+### Decisão
+- **F1. Dois atos fixos.** `corte-diario` (termo de ato `corte`) e `so-aperta-com-seguranca` (termo `aperta`). O alvo deles é só `fixo`, e `fixo` só serve a eles. A validade deles é só `fixa` (`Validade: fixa`, `Validade-utc: fixa`, `Origem-da-validade: sem prazo`), e `fixa` só serve a eles: o teto da D1 não vale para os dois, por ordem do dono; param pela retirada `R-<Id>` (item 8) ou leem `adulterada`.
+- **F2. Leitura do texto (item 5, igual).** Nasce `ativa` só com um único ato, nenhum alvo marcado (PR, versão, item), nenhum termo de validade, nenhuma marca de negação ou condição e toda palavra no vocabulário. O vocabulário cresce só para os atos fixos: `corte diario todo dia fixo fixa aperta seguranca escrito time decide registra`; nenhuma marca de negação ou condição entra (teste). Frases que nascem ativas: "autorizo o corte diario fixo" e "autorizo aperta com seguranca por escrito, fixo". O resto nasce pendente, como hoje.
+- **F3. O corte lê a autorização.** No `bin/forge-fechar --corte`, com o contador abaixo do teto, a marca sai só quando tudo vale: ao menos 1 item no contador; hora local (TZ do ambiente) 06:00 ou mais; a última seção de versão do `CHANGELOG.md` da `develop` não é de hoje (um corte por dia); e `forge-check autorizacao ler --ato corte-diario` acha uma `corte-diario` ativa. O corpo do PR da marca ganha `## Autorização usada` com `<Id> sha256 <64> · corte-diario · fixo`. Faltando qualquer um, nada muda ("ainda não fecha"). A marca segue em rascunho para a `develop`, com os pareceres e o `--laco` de sempre; o PR da `main` segue só aberto, e o merge nela é do dono (`R-MAIN`).
+- **F4. `so-aperta-com-seguranca`.** Esta emenda só a grava e a lê; nenhuma ferramenta a consome. Quem decidir por ela registra no pedido o `Id` e o parecer de segurança que diz "só aperta" por escrito. Não libera rótulo, merge na `main` nem `R-CUSTO`.
+- **F5. Limite declarado.** O `Gravado-por` é o sha256 do `forge-check` que gravou: a atualização do plugin muda o sha, a concessão lê `adulterada` e o corte volta ao contador até o dono gravar de novo (falha fechada).
+
+### Afrouxa?
+Nada que barra hoje deixa de barrar: `rotulo-afrouxa-regra` e `merge-main` ficam com alvos, validade e teto de antes (alvo `fixo` ou validade `fixa` neles lê `adulterada`); os termos de ato novos só fazem mais mensagens nascerem pendentes (mais de um ato); o vocabulário novo só vale para os atos fixos. O que muda é o corte abaixo do teto, que é a ordem do dono.
+
+### Por que o existente não basta
+`ATOS` é fechado em dois atos com prazo (`bin/forge_autorizacao.py`, `ATOS` e `limite`), e o `--corte` só corta no teto do contador (V4). A ordem de 25/11 ficou só no arquivo de ordens em vigor (pedido v0481, 07:55): nenhuma ferramenta a lia.
+
+### Critério de reversão da emenda
+Um corte sem concessão `corte-diario` ativa, dois cortes diários no mesmo dia ou uma concessão fixa ativa de mensagem com ressalva: o F3 sai e o corte volta só ao contador. O dono retira a qualquer hora com `R-<Id>`.
+
+### Leituras (emenda)
+| Data | Medida | Veredito (manter, ajustar, reverter) |
+|---|---|---|
+| AAAA-MM-DD | cortes sem concessão ativa (meta 0); cortes diários no mesmo dia (meta 0); tempo do item verde na develop até o PR da main | pendente |

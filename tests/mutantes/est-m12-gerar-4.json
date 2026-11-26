@@ -6,8 +6,8 @@
       "id": "M18",
       "guarda": "o aviso de edicao a mao le as linhas de cartao das secoes do quadro (C-15)",
       "arquivo": "bin/forge-check",
-      "de": "        if secao and linha.startswith(\"|\") and len(c) == len(COLUNAS) and c != COLUNAS",
-      "para": "        if secao and linha.startswith(\"## \") and len(c) == len(COLUNAS) and c != COLUNAS",
+      "de": "if not linha.startswith(\"|\") or len(c) != len(COLUNAS)",
+      "para": "if not linha.startswith(\"## \") or len(c) != len(COLUNAS)",
       "testes": [
         "tests.test_sobreposicao_quadro.KanbanGerar.test_gera_do_historico_duas_vezes_igual_e_avisa_a_edicao_a_mao"
       ]

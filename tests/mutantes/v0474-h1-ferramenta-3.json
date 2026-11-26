@@ -26,8 +26,8 @@
       "id": "M18",
       "guarda": "o pr pede o corpo ao gh",
       "arquivo": "bin/forge-check",
-      "de": "(\",body\" if corpo else \"\")",
-      "para": "(\",body\" if False else \"\")",
+      "de": "(\",body,title\" if corpo else \"\")",
+      "para": "(\",body,title\" if False else \"\")",
       "testes": [
         "tests.test_forge_tamanho.NoPr.test_pr_aberto_sem_motivo_reprova"
       ]
@@ -36,8 +36,8 @@
       "id": "M19",
       "guarda": "o corpo lido do gh chega ao pr",
       "arquivo": "bin/forge-check",
-      "de": "**({\"body\": str(dados.get(\"body\") or \"\")} if corpo else {})",
-      "para": "**({\"body\": str(dados.get(\"body\") or \"\")} if False else {})",
+      "de": "\"title\": str(dados.get(\"title\", \"\"))} if corpo else {})",
+      "para": "\"title\": str(dados.get(\"title\", \"\"))} if False else {})",
       "testes": [
         "tests.test_forge_tamanho.NoPr.test_pr_aberto_com_motivo_so_avisa"
       ]

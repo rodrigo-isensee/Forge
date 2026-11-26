@@ -136,8 +136,8 @@
       "id": "M14",
       "guarda": "linha separadora nao vira ponte",
       "arquivo": "bin/forge-check",
-      "de": "len(c) == len(COLUNAS) and not all(SEPARADOR.fullmatch(x) for x in c):",
-      "para": "len(c) == len(COLUNAS) and all(SEPARADOR.fullmatch(x) for x in c):",
+      "de": "or all(SEPARADOR.fullmatch(x) for x in c):\n        return None\n    return c",
+      "para": "or not all(SEPARADOR.fullmatch(x) for x in c):\n        return None\n    return c",
       "testes": [
         "tests.test_sobreposicao_quadro.QuadroGerado.test_coluna_e_a_do_ultimo_movimento_na_ordem_do_arquivo_nunca_por_hora"
       ]

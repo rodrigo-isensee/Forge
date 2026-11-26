@@ -1,0 +1,16 @@
+{
+  "pedido": "v0481-d2-no-brief",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "conferência da entrega: o manifesto e o .forge/versao lidos do head pelo git (E14.81)",
+      "arquivo": "bin/forge-check",
+      "de": "git(raiz, \"cat-file\", \"-e\", f\"{head}:{nome}\")[0] == 0 for nome in",
+      "para": "git(raiz, \"cat-file\", \"-e\", f\"{head}:{nome}\")[0] != 0 for nome in",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_sem_worktree_com_o_head_no_forge_nao_cumpre"
+      ]
+    }
+  ]
+}

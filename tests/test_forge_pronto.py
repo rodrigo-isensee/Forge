@@ -5,6 +5,8 @@ falsos, o teto e o corpo com o pr-texto falso, e o `cmd_pronto` de verdade num r
 corpo nenhum).
 """
 import contextlib
+import importlib.machinery
+import importlib.util
 import io
 import os
 import subprocess
@@ -174,3 +176,155 @@ class CmdPronto(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0, r.stderr)  # os passos reprovam no repositório descartável; o rc 2 do corpo: Agregador
         self.assertIn("tamanho e corpo do PR: não verificável (gh sem rede ou sem acesso)", r.stdout)
         self.assertNotIn("corpo do PR não conferido", r.stderr)
+
+
+# --- D2-NO-BRIEF e PR-TITULO-DO-BRIEF (v0481 E14.51) ---------------------------------------------------------------------
+carregador = importlib.machinery.SourceFileLoader("forge_check_pronto_d2", str(RAIZ / "bin" / "forge-check"))
+fc = importlib.util.module_from_spec(importlib.util.spec_from_loader(carregador.name, carregador))
+carregador.exec_module(fc)
+TITULO_DO_BRIEF = "E14.51 (tech-lead): [branch melhoria/x] D2-NO-BRIEF: o brief manda rodar o pronto"
+TITULO_BOM = "feat(pronto): o brief manda rodar o D2 (v0481 E14.51)"
+COM_TITULO = GH + 'case "$*" in *,title*) ;; *) exit 4 ;; esac\necho \'{"number": 7, "state": "OPEN", "headRefOid": "x", "body": "corpo", "title": "%s"}\'\n'
+
+
+class TituloDoPr(unittest.TestCase):
+    def falhas(self, titulo):
+        with mock.patch.object(forge_pronto, "rodar", return_value=(0, "")):
+            return forge_pronto.tamanho_e_corpo(".", "abc", 10, "corpo", titulo)
+
+    def test_titulo_com_o_cabecalho_do_brief_reprova(self):
+        for titulo in (TITULO_DO_BRIEF, "[branch melhoria/x] D2-NO-BRIEF", "  E3 (qa): o aceite"):
+            with self.subTest(titulo=titulo):
+                falhas = self.falhas(titulo)
+                self.assertEqual(len(falhas), 1)
+                self.assertIn("PR-TITULO-DO-BRIEF", falhas[0])
+
+    def test_titulo_de_conventional_commits_e_sem_titulo_passam(self):
+        for titulo in (TITULO_BOM, "fix(fechar): E3 (qa) citado no meio", None, ""):
+            with self.subTest(titulo=titulo):
+                self.assertEqual(self.falhas(titulo), [])
+
+
+class TituloNoCmdPronto(unittest.TestCase):
+    """O `cmd_pronto` lê o título do PR aberto pelo gh e o passa ao portão (sem herdar os testes do `CmdPronto`)."""
+    setUp, pronto = CmdPronto.setUp, CmdPronto.pronto
+
+    def test_pr_aberto_com_o_titulo_do_brief_reprova(self):
+        r = self.pronto("--base", "develop", gh=COM_TITULO % TITULO_DO_BRIEF)
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("título do PR é a linha da etapa do brief", r.stderr)
+        r = self.pronto("--base", "develop", gh=COM_TITULO % TITULO_BOM)
+        self.assertNotIn("PR-TITULO-DO-BRIEF", r.stderr)
+
+
+class BaseVelha(unittest.TestCase):
+    """PRONTO-BASE-VELHA: a branch nascida antes da última marca de versão da base recebe uma linha que manda trazer a base, em vez
+    das checagens que listariam os fragmentos dos outros itens; a `origin/<ramo>` é buscada antes de comparar."""
+    pronto = CmdPronto.pronto
+
+    def git(self, pasta, *args):
+        return subprocess.run(["git", "-C", str(pasta), *args], check=True, env=AMBIENTE, capture_output=True, text=True).stdout
+
+    def versao(self, pasta, numero):
+        (pasta / ".claude-plugin").mkdir(exist_ok=True)
+        (pasta / ".claude-plugin" / "plugin.json").write_text('{"name": "forge", "version": "%s"}\n' % numero, encoding="utf-8")
+        self.git(pasta, "add", ".claude-plugin")
+        self.git(pasta, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", f"marca {numero}")
+
+    def setUp(self):
+        raiz = Path(tempfile.mkdtemp(dir=os.environ.get("TMPDIR")))
+        self.addCleanup(subprocess.run, ["rm", "-rf", str(raiz)])
+        self.origem, self.dir = raiz / "origem", raiz / "copia"
+        self.git(raiz, "init", "-q", "-b", "develop", str(self.origem))
+        self.versao(self.origem, "1.0.0")
+        self.git(raiz, "clone", "-q", str(self.origem), str(self.dir))
+        self.git(self.dir, "switch", "-q", "-c", "melhoria/x")
+        self.versao(self.origem, "1.0.1")  # a marca entra na base depois que a branch nasceu; a cópia ainda não a buscou
+
+    def test_marca_depois_do_nascimento_manda_trazer_a_base_sem_rodar_as_checagens(self):
+        r = self.pronto("--base", "origin/develop")
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("pronto: reprovado em base velha: a origin/develop tem a marca da 1.0.1 e a branch nasceu na 1.0.0; traga a base",
+                      r.stdout)
+        self.assertNotIn("pronto: registros", r.stdout)
+
+    def test_com_a_base_trazida_nao_ha_linha_de_base_velha(self):
+        self.git(self.dir, "fetch", "-q", "origin")
+        self.git(self.dir, "merge", "-q", "--ff-only", "origin/develop")
+        r = self.pronto("--base", "origin/develop")
+        self.assertNotIn("base velha", r.stdout + r.stderr)
+        self.assertIn("pronto: registros", r.stdout)
+
+    def test_sem_versao_no_nascimento_nao_compara(self):  # fora do Forge, ou base que ganhou o manifesto depois: nada a dizer
+        self.git(self.dir, "switch", "-q", "--orphan", "nascimento")
+        self.git(self.dir, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "sem manifesto")
+        self.git(self.dir, "switch", "-q", "-c", "com-manifesto")
+        self.versao(self.dir, "1.0.0")
+        self.git(self.dir, "switch", "-q", "nascimento")
+        r = self.pronto("--base", "com-manifesto")
+        self.assertNotIn("base velha", r.stdout)
+        self.assertIn("pronto: registros", r.stdout)
+
+
+class Resultado:
+    def __init__(self, rc, saida="", erro=""):
+        self.returncode, self.stdout, self.stderr = rc, saida, erro
+
+
+class ProvaDoPronto(unittest.TestCase):
+    """D2-NO-BRIEF: a conferência da entrega roda o pronto deste forge-check com `--raiz` na worktree; fora do rc 0 não cumpre."""
+    def setUp(self):
+        self.pasta = Path(tempfile.mkdtemp(dir=os.environ.get("TMPDIR")))
+        self.addCleanup(subprocess.run, ["rm", "-rf", str(self.pasta)])
+        (self.pasta / ".claude-plugin").mkdir()
+        (self.pasta / ".claude-plugin" / "plugin.json").write_text("{}\n", encoding="utf-8")
+
+    def prova(self, resultado=None, so_leitura=False, pasta="padrão", erro=None, forge_no_head=False):
+        rodar = mock.Mock(return_value=resultado, side_effect=erro)
+        linhas = fc.prova_do_pronto(self.pasta if pasta == "padrão" else pasta, "develop", so_leitura, rodar, forge_no_head=forge_no_head)
+        return linhas, rodar
+
+    def test_rc_0_e_prova_sem_reprovar_com_o_pronto_da_worktree(self):
+        linhas, rodar = self.prova(Resultado(0))
+        self.assertEqual(linhas, [("prova: forge-check pronto rc 0 na worktree (D2)", False)])
+        argv = rodar.call_args.args[0]
+        self.assertEqual(argv[2:], ["--raiz", str(self.pasta), "pronto", "--base", "origin/develop"])
+        self.assertEqual(rodar.call_args.kwargs["cwd"], self.pasta)
+
+    def test_rc_1_e_rc_2_reprovam_com_a_ultima_linha(self):
+        linhas, _ = self.prova(Resultado(1, "pronto: registros: reprovado (saída 1)\npronto: reprovado em registros; corrija\n",
+                                         "o fim da saída do passo, no stderr\n"))
+        self.assertEqual(linhas, [("pendente: D2 vermelho: forge-check pronto rc 1: pronto: reprovado em registros; corrija "
+                                   "(D2-NO-BRIEF)", True)])
+        linhas, _ = self.prova(Resultado(2, "", "pronto: não verificável: sem base\n"))
+        self.assertTrue(linhas[0][1])
+        self.assertIn("rc 2: pronto: não verificável: sem base", linhas[0][0])
+
+    def test_pronto_que_nao_termina_reprova(self):
+        linhas, _ = self.prova(erro=subprocess.TimeoutExpired("x", 1))
+        self.assertTrue(linhas[0][1])
+        self.assertIn("não terminou (TimeoutExpired)", linhas[0][0])
+
+    def test_sem_worktree_com_o_head_no_forge_reprova_pedindo_worktree(self):
+        """E14.81, sondas da revisão de segurança fe150b0 (a cópia do autor é clone, sem worktree no repositório de quem confere):
+        S1 `python3 -I _sec75-v0481-d2nb-sonda.py <clone> (prova_do_pronto(None, "develop", False))`, espera reprovar;
+        S2 `git -C /workspaces/Forge worktree list --porcelain, procurando melhoria/v0481-d2-no-brief`, sem a worktree da branch;
+        S3 `comando_permitido(["bin/forge-check","pronto","--base","origin/develop"]) do scripts/reexecutar-provas.py`, fora da lista:
+        a PQ do D2 não é cobrada por outra via, por isso a falta de worktree reprova aqui."""
+        linhas, rodar = self.prova(Resultado(0), pasta=None, forge_no_head=True)
+        rodar.assert_not_called()
+        self.assertEqual(linhas, [("pendente: D2 sem worktree da branch para rodar o forge-check pronto (passe --worktree <cópia do "
+                                   "autor>) (D2-NO-BRIEF)", True)])
+        linhas, rodar = self.prova(Resultado(0), pasta=None, forge_no_head=True, so_leitura=True)
+        rodar.assert_not_called()
+        self.assertFalse(linhas[0][1])
+
+    def test_so_leitura_sem_worktree_fora_do_forge_e_fora_do_forge_nao_rodam(self):
+        (self.pasta / "fora").mkdir()
+        for kw in ({"so_leitura": True}, {"so_leitura": True, "forge_no_head": True}, {"pasta": None},
+                   {"pasta": self.pasta / "fora"}):
+            with self.subTest(**{k: str(v) for k, v in kw.items()}):
+                linhas, rodar = self.prova(Resultado(1), **kw)
+                rodar.assert_not_called()
+                self.assertFalse(linhas[0][1])
+                self.assertIn("última linha do `forge-check pronto` no relatório do autor", linhas[0][0])

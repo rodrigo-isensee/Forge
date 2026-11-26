@@ -1,0 +1,46 @@
+{
+  "pedido": "v0481-entrega-desde-revisar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "ED9",
+      "guarda": "E16.1: o revisado é ancestral do head",
+      "arquivo": "bin/forge-check",
+      "de": "if not e_ancestral(raiz, revisado, head):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_selo_e_entrega.CicloDo878.test_revisado_fora_do_head_nao_e_desde"
+      ]
+    },
+    {
+      "id": "ED10",
+      "guarda": "E16.1: o revisado não está na base",
+      "arquivo": "bin/forge-check",
+      "de": "if ja_na_base(raiz, revisado, base_sha, base_ref):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_selo_e_entrega.CicloDo878.test_revisado_na_base_nao_e_desde"
+      ]
+    },
+    {
+      "id": "ED11",
+      "guarda": "E16.1: depois do revisado, só o que não desatualiza (commit_vale)",
+      "arquivo": "bin/forge-check",
+      "de": "commit_vale(raiz, revisado, head, base_ref, livres) is None",
+      "para": "True",
+      "testes": [
+        "tests.test_selo_e_entrega.CicloDo878.test_codigo_depois_dos_pareceres_mantem_o_desde_da_conferida"
+      ]
+    },
+    {
+      "id": "ED12",
+      "guarda": "E16.1: sem o Desde do parecer, o da conferida",
+      "arquivo": "bin/forge-check",
+      "de": "valido = desde_do_parecer_aprovado(raiz, caminho, texto, branch, head, base_sha, base_ref, valido) or valido",
+      "para": "valido = None or valido",
+      "testes": [
+        "tests.test_selo_e_entrega.CicloDo878.test_ciclo_do_878_o_desde_e_o_revisar_sha_e_a_conferencia_cobre_o_head"
+      ]
+    }
+  ]
+}
