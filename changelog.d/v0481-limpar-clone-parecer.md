@@ -1,2 +1,0 @@
-### Corrigido
-- `forge-fechar --limpar`: o clone de parecer (`-qa`, `-rev`) limpo e já mesclado sai. Só a tag `arquivo/*` (da origin, apagada lá) deixa de contar como trabalho fora da origem; outra tag local nunca enviada continua prendendo o clone. O commit do clone que é ancestral do head do PR MERGED vale como mesclado mesmo com a ref remota da branch apagada; stash, branch local, tag local e commit depois do head mesclado seguem pendentes (v0481 E14.1).
