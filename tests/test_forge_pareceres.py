@@ -41,12 +41,14 @@ url = estado["prs"][0]["url"] if estado["prs"] else ""
 if alvo.endswith("/comments") and "POST" in a:
     estado["comentario"] = corpo["body"] + estado.get("sujar", "")
     sai({"id": 501, "html_url": url + "#issuecomment-501"})
+if "/issues/comments/" in alvo and alvo.rsplit("/", 1)[1] in estado.get("comentarios", {}):
+    sai(estado["comentarios"][alvo.rsplit("/", 1)[1]])
 if alvo.endswith("/issues/comments/501"):
     sai({"id": 501, "body": estado["comentario"], "html_url": estado.get("url_lida", url + "#issuecomment-501")})
 if "/statuses/" in alvo and "POST" in a:
     estado["statuses"].insert(0, corpo | {"creator": {"login": estado["login"]}}); sai(corpo)
 if alvo.endswith("/statuses") and "--slurp" in a:
-    sai([estado["statuses"]])
+    sai(estado["paginas"] if "paginas" in estado else [estado["statuses"]])
 sys.exit(1)
 '''
 
@@ -282,6 +284,127 @@ class Agregado(GhFalso):
         self.estado(statuses={"x": 1})
         with self.assertRaises(fp().Recusa):
             fp().agregado(str(self.repo), self.sha, ["review"])
+
+
+class Ler(GhFalso):
+    """G2.2, a leitura (E29.1, F1 do estudo de atrito): o status vale só com o comentário íntegro do PR do head e das contas."""
+    URL = "https://github.com/dono/repo/pull/7#issuecomment-{}"
+
+    def publicado(self, id_=601, texto=None, state="success", login="conta", descricao=None, url=None, autor="conta",
+                  html=None, veredito="aprovado", contexto="parecer-review"):
+        texto = parecer(self.sha, veredito) if texto is None else texto
+        comentario = {"id": id_, "body": texto, "user": {"login": autor}, "html_url": html or self.URL.format(id_)}
+        self.estado(comentarios=self.estado().get("comentarios", {}) | {str(id_): comentario})
+        sha256 = hashlib.sha256(fp().normalizar(texto).encode()).hexdigest()
+        return {"context": contexto, "state": state, "creator": {"login": login}, "target_url": url or self.URL.format(id_),
+                "description": descricao or f"{veredito} · sha256 {sha256} · 0 bloqueantes · 0 recomendados"}
+
+    def ler(self, *statuses, contas=("conta",)):
+        self.estado(statuses=list(statuses))
+        return fp().ler(str(self.repo), BRANCH, self.sha, PEDIDO, set(contas))
+
+    def invalido(self, *statuses):
+        veredito, motivo = self.ler(*statuses)["review"]
+        self.assertIsNone(veredito, motivo)
+        return motivo
+
+    def test_aprovado_com_comentario_integro(self):
+        self.assertEqual(self.ler(self.publicado()), {"review": ("aprovado", self.URL.format(601))})
+
+    def test_reprovado_vale_como_reprovado(self):
+        self.assertEqual(self.ler(self.publicado(state="failure", veredito="reprovado"))["review"][0], "reprovado")
+
+    def test_c1_status_do_bot_ignorado(self):
+        self.assertEqual(self.ler(self.publicado(login="github-actions[bot]")), {})
+
+    def test_c19_conta_fora_da_lista_ignorada(self):
+        self.assertEqual(self.ler(self.publicado(login="outra")), {})
+        self.assertEqual(self.ler(self.publicado(login="outra"), contas=("outra",))["review"][0], None)  # comentário da conta
+
+    def test_c2_bot_mais_novo_nao_esconde_failure_da_conta(self):
+        lido = self.ler(self.publicado(602, login="github-actions[bot]"), self.publicado(601, state="failure", veredito="reprovado"))
+        self.assertEqual(lido["review"][0], "reprovado")
+
+    def test_mais_novo_da_conta_vale(self):
+        lido = self.ler(self.publicado(602, state="failure", veredito="reprovado"), self.publicado(601))
+        self.assertEqual(lido["review"][0], "reprovado")
+
+    def test_c3_contexto_parecido(self):
+        for contexto in ("Parecer-review", "parecer-review ", "parecer/review", "ci/parecer-review"):
+            with self.subTest(contexto):
+                self.assertEqual(self.ler(self.publicado(contexto=contexto)), {})
+
+    def test_c6_comentario_editado(self):
+        status = self.publicado()
+        self.publicado(texto=parecer(self.sha) + "\nAdendo.\n")  # mesmo id, corpo novo
+        self.assertIn("M5.1", self.invalido(status))
+
+    def test_c6_comentario_apagado(self):
+        status = self.publicado()
+        self.estado(comentarios={})
+        with self.assertRaises(fp().Recusa):
+            self.ler(status)
+
+    def test_c7_comentario_de_outra_conta(self):
+        self.assertIn("M5.2", self.invalido(self.publicado(autor="outra")))
+
+    def test_comentario_de_outro_pr_pelo_mesmo_id(self):
+        self.assertIn("M6.1", self.invalido(self.publicado(html="https://github.com/dono/repo/pull/5#issuecomment-601")))
+
+    def test_c8_target_url_fora_do_formato(self):
+        for url in ("https://gist.github.com/dono/1", "https://github.com/dono/repo/pull/5#issuecomment-601",
+                    "https://github.com/outro/repo/pull/7#issuecomment-601", "https://exemplo.com/dono/repo/pull/7#issuecomment-601",
+                    "http://github.com/dono/repo/pull/7#issuecomment-601", self.URL.format(601) + "x"):
+            with self.subTest(url):
+                self.assertIn("M6.1", self.invalido(self.publicado(url=url)))
+        self.assertFalse([c for c in self.chamadas() if any("/issues/comments/" in x for x in c)], "seguiu o target_url")
+
+    def test_c9_descricao_fora_da_forma(self):
+        for descricao in ("aprovado · sha256 abc · 0 bloqueantes · 0 recomendados", "ok", "aprovado · sha256 " + "a" * 64):
+            with self.subTest(descricao):
+                self.assertIn("M7.1", self.invalido(self.publicado(descricao=descricao)))
+        inteira = self.publicado()["description"]
+        self.assertIn("M7.1", self.invalido(self.publicado(descricao=inteira + " x")))  # casa inteira, não pelo começo
+
+    def test_c10_commit_do_texto_diferente_do_sha(self):
+        self.assertIn("M8.1", self.invalido(self.publicado(texto=parecer("b" * 40))))
+
+    def test_c10_pedido_ou_tipo_do_texto_diferente(self):
+        for texto in (parecer(self.sha, pedido="v8"), parecer(self.sha, tipo="qa")):
+            with self.subTest(texto[:40]):
+                self.assertIn("M8.1", self.invalido(self.publicado(texto=texto)))
+
+    def test_c10_veredito_diferente_do_estado(self):
+        self.assertIn("M8.1", self.invalido(self.publicado(state="failure")))  # descrição aprovado, estado failure
+        self.assertIn("M8.1", self.invalido(self.publicado(texto=parecer(self.sha, "reprovado"))))  # texto reprovado
+
+    def test_sem_frontmatter(self):
+        self.assertIn("M8.1", self.invalido(self.publicado(texto="# Review\nsem cabeçalho\n")))
+
+    def test_frontmatter_sem_a_linha_de_abertura(self):
+        self.assertIn("M8.1", self.invalido(self.publicado(texto="x" + parecer(self.sha)[3:])))
+
+    def test_c17_api_com_erro(self):
+        status = self.publicado()
+        self.estado(falha_em=f"repos/dono/repo/commits/{self.sha}/statuses")  # o PR lido, os statuses com erro
+        with self.assertRaises(fp().Recusa):
+            self.ler(status)
+
+    def test_c17_pagina_2_lida(self):
+        self.estado(paginas=[[self.publicado(602, login="outra")], [self.publicado(601)]])
+        self.assertEqual(fp().ler(str(self.repo), BRANCH, self.sha, PEDIDO, {"conta"})["review"][0], "aprovado")
+
+    def test_c17_paginas_ilegiveis(self):
+        for paginas in ({"x": 1}, [{"context": "parecer-review"}]):
+            with self.subTest(paginas):
+                self.estado(paginas=paginas)
+                with self.assertRaises(fp().Recusa):
+                    fp().ler(str(self.repo), BRANCH, self.sha, PEDIDO, {"conta"})
+
+    def test_sha_que_nao_e_head_do_pr(self):
+        self.estado(prs=[self.estado()["prs"][0] | {"headRefOid": "c" * 40}])
+        with self.assertRaises(fp().Recusa):
+            self.ler(self.publicado())
 
 
 class Descricao(unittest.TestCase):
