@@ -3,49 +3,47 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-d2-no-brief
-commit: 7cacc94c8fe74c3fba5cd9368d5c388d1007b910
-parecer: reprovado
+commit: 6c2bbf42d868a13c8a6344c440789aa562ed5022
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-26
 ---
-# Review de segurança: v0481 (E14.71, #903, D2-NO-BRIEF, 1ª rodada completa)
+# Review de segurança: v0481 (E14.85, #903, D2-NO-BRIEF, volta por delta)
 
 ## Gatilhos
-Gatilhos: controle (bin/forge-check: conferência da entrega e brief, R-CONFORMIDADE), guarda que analisa entrada (título do PR, base velha), execução de código da branch na sessão de quem confere.
+Gatilhos: controle (bin/forge-check: conferência da entrega e PQ do D2 no brief, R-CONFORMIDADE), regra com ID (docs/regras/R-FLUXO.md).
 
 ## Lido
-`git diff 34ab6714..7cacc94c` (merge-base com a develop; o merge 7cacc94c traz o #885 sem conflito): bin/forge-check (+50/-8), bin/forge_pronto.py (+41/-4), testes de forge_pronto, pre_envio_brief e selo_e_entrega, as specs de mutante e o fragmento do changelog.
+`forge-check parecer delta` de 7cacc94c a 6c2bbf42 (revalida: sim). No domínio: bin/forge-check, agents/jarvis.md, docs/regras/R-FLUXO.md, skills/briefs-e-conferencia (SKILL.md e conferencia-da-entrega.md, novo), skills/trabalho-em-paralelo/ritmo-e-corte.md. Fora: changelog.d, testes e specs de mutante (lidos só para conferir a correção).
 
-## Achados
-- A1 (bloqueante) bin/forge-check:10452 · Sem worktree (pasta None) o D2 não roda e não reprova: a entrega cumpre com D2 vermelho no fluxo real (cópia do autor é clone, sem git worktree; jarvis.md:30 não passa --worktree). O PQ cmd sem worktree reprova (:10499).
+## Achados anteriores
+- A1 (bloqueante, 7cacc94c) resolvido. bin/forge-check:10626 lê `.claude-plugin/plugin.json` e `.forge/versao` do head pelo `git cat-file -e` (o head é sha40, sem injeção de opção), e bin/forge-check:10453, sem worktree, fora do `--so-leitura` e com o head no Forge, reprova pedindo `--worktree`. A forma documentada passa `--worktree` (agents/jarvis.md:30, skills/briefs-e-conferencia/SKILL.md:19). Prova: test_sem_worktree_com_o_head_no_forge_nao_cumpre (rc 1, nada gravado; projeto com `.forge/versao` só informa) e test_sem_worktree_com_o_head_no_forge_reprova_pedindo_worktree, que cobre as sondas S1 a S3 da rodada anterior; mutantes M14 a M17 e M9 morrem.
 
-## Sondas
-- S1 · python3 -I _sec75-v0481-d2nb-sonda.py <clone> (prova_do_pronto(None, "develop", False)) · espera: reprova (True) pedindo --worktree · obtido: [("pronto: não rodado aqui (--so-leitura, sem worktree ou fora do Forge)...", False)]
-- S2 · git -C /workspaces/Forge worktree list --porcelain, procurando melhoria/v0481-d2-no-brief · espera: a worktree da branch · obtido: nenhuma (rc 1 no grep); a cópia do autor é clone próprio em wt/v0481-d2-no-brief
-- S3 · comando_permitido(["bin/forge-check","pronto","--base","origin/develop"]) do scripts/reexecutar-provas.py · espera: a PQ do D2 cobrada por outra via · obtido: "comando fora da lista permitida" (não reexecutada, não reprova)
-
-## Detalhe dos achados
-**A1 (média; dono: tech-lead; esforço P).** A ordem do dono (25/11 07:52, cartão D2-NO-BRIEF) é "entrega com o D2 vermelho volta sem passar pelas revisões", e o changelog promete que a conferência "não cumpre com ele fora do rc 0". Em `prova_do_pronto` (bin/forge-check:10452), `pasta is None` cai no mesmo ramo do `--so-leitura` e de "fora do Forge": linha informativa, `reprova=False`. A pasta vem de `estado_da_worktree` (:10520), que sem `--worktree` só acha a branch por `git worktree list` do repositório de quem confere; no Forge, o autor trabalha num clone próprio (o sandbox deixa `.git/worktrees` só leitura; S2), e a forma documentada da conferência (agents/jarvis.md:30) não passa `--worktree`. A PQ do D2 que o brief ganha (:9718) também não segura: está fora da lista do reexecutar-provas (S3) e vira "fica com o relatório do autor". Caminho: um autor (agente) entrega com o pronto vermelho e relata outra coisa; a conferência grava `entrega conferida` e a entrega vai às revisões, exatamente o que a ordem proíbe. Mitigação parcial: o CI e as revisões seguem; por isso média, e bloqueante por ser o requisito do item num controle com gatilho.
-Correção mínima: em `prova_do_pronto`, sem `so_leitura` e com `pasta is None`, reprovar quando o head da branch é do Forge (o `.claude-plugin/plugin.json` lido do git no `head`, não da worktree que não há), com o texto do :10499 ("sem worktree da branch para rodar (passe --worktree)"); fora do Forge segue a linha informativa. E a forma da conferência no agents/jarvis.md:30 e na skill briefs-e-conferencia passa `--worktree <cópia do autor>` na etapa codigo. Teste: a conferência da etapa codigo, numa cópia do Forge, sem worktree, sai 1 e não grava.
+## Mudanças extras (ESCOPO+ E14.82): ficam ou saem
+- `--worktree` em agents/jarvis.md:30 e na skill (com conferencia-da-entrega.md): **fica**. É a outra metade da correção mínima do A1. As opções `--sem-gravar` e `--so-leitura` foram movidas para o arquivo novo, sem mudar de sentido.
+- PQ do D2 com o forge-check de um clone da develop (bin/forge-check:9718): **fica**. Aperta: o forge-check da branch deixa de certificar o próprio portão.
+- Exceção "base velha" no R-FLUXO (docs/regras/R-FLUXO.md:26) com a medida em ritmo-e-corte.md:21: **fica**. Para a segurança é neutra. Como regra, afrouxa: ver abaixo.
+- Cortes de palavras ("numa passada", "por volta ou conflito", "padrão"): **ficam**. São neutros, e nenhum é trecho de `invariantes` (tests/config.json); o invariante "Atualize a branch com a integração só na hora do merge" continua.
 
 ## O que aperta, o que é neutro, o que afrouxa
 **Aperta:**
-- Brief de código do Forge ganha a PQ do D2 (bin/forge-check:9718, :9943; só com `e_o_forge`); test_pre_envio_brief cobre dentro e fora do Forge.
-- Conferência da etapa codigo roda o pronto quando há worktree (:10622) e reprova fora do rc 0 e no prazo estourado (:10459, :10463); a última linha do pronto passa por `sem_controle` (saída lida por modelo, sem imitar outra linha). test_d2_vermelho_na_copia_do_forge_nao_cumpre prova rc 1 e nada gravado.
-- PRONTO-BASE-VELHA (bin/forge_pronto.py:50; forge-check:1236): só reprova. O `git fetch` usa `--end-of-options`, ramo por lista de caracteres, sem `-` inicial nem `..`; `versao_em` usa `ref:caminho` (base do pronto, que já passou pelo merge-base antes; na conferência sempre `origin/<base>`), sem injeção de opção alcançável.
-- PR-TITULO-DO-BRIEF (forge_pronto.py:20, :73): regex linear (sem quantificador aninhado ambíguo), só reprova.
+- Sem worktree, a conferência da etapa codigo no Forge não cumpre e pede `--worktree` (bin/forge-check:10453). Antes, ela cumpria com o D2 sem rodar.
+- O jarvis.md e a skill mandam passar `--worktree <cópia>`, então o D2 roda de fato na cópia do autor.
+- A PQ do D2 usa o forge-check do clone da develop (bin/forge-check:9718), e não o da branch.
 
 **Neutro:**
-- Executar código da branch na sessão de quem confere: já havia (PQ cmd na worktree, D4); o `--so-leitura` continua sem rodar nada (:10452). O pronto roda o forge-check de quem confere (`Path(__file__)`), mas os passos chamam `bin/forge-testes` e os testes da branch, cujo rc a branch controla: o portão de verdade segue o CI.
-- O pronto só roda com `.claude-plugin/plugin.json` na worktree: a branch que o apaga pula o D2, mas quebra a validação do plugin no CI e aparece no diff.
-- `pr_da_branch` pede também `title` ao gh (mesmo teto de 10 s, sem custo, R-CUSTO); M18 e M19 da spec v0474-h1-ferramenta-3 acompanham a fonte.
-- Prazo de 3600 s (:10444): espera longa de quem confere, sem efeito de segurança.
+- Um head com `.forge/versao` é tratado como projeto e, sem worktree, só informa. Uma branch do Forge que o crie pula o D2 nesse caminho, mas o arquivo aparece no diff. Com `--worktree`, o critério continua sendo o manifesto na cópia. É análogo ao manifesto apagado, que já era neutro na rodada anterior.
+- O `--worktree` aponta para a cópia do autor, que precisa estar no head e limpa (estado_da_worktree, sem mudança). Rodar ali código da branch já acontecia com as PQ cmd.
+- O arquivo novo da skill e os cortes de palavras não mudam nenhum sentido.
+- A segunda linha que reprova quando a worktree está fora do head ou suja é só redundância e não muda o resultado.
 
-**Afrouxa:** nada. Nenhuma recusa anterior some; os novos ramos só reprovam ou informam. A1 é falta de aperto no caminho sem worktree, não afrouxamento do que existia.
+**Afrouxa:**
+- R-FLUXO (docs/regras/R-FLUXO.md:26): "salvo conflito ou dependência" passou a "salvo conflito, dependência ou base velha". Isso amplia os casos em que a branch traz a integração antes do merge, então é um afrouxamento de texto de regra com ID. Não tem efeito de segurança: trazer a base pelo merge de sempre não pula hook nem portão, merge sem conflito não invalida parecer, e o conflito invalida por domínio (R-REVIEW, mesmo parágrafo). É também a consequência do aperto do próprio item (o pronto recusa base velha, bin/forge_pronto.py:51): sem a exceção, regra e ferramenta se contradizem. Por ser afrouxamento de regra, a decisão é do dono (R-DECISAO, R-CONFORMIDADE). O PR já depende do rótulo `afrouxa-regra` dele pelo bin/forge-check (Catraca 45763465454), e o título ou o corpo do PR deve citar também essa exceção e o motivo. O critério de revisão está em ritmo-e-corte.md:21 (mais de 1 volta por item leva ao dono a troca por conferir a marca só no merge).
 
 ## CI e testes
-- ci: run 45751592922 no head 7cacc94c: suíte 3.12 e 3.14 (partes 1 a 5), bateria (passos), verificações longas, instalação 3.14, teto de pulados e árvore provada verdes; bateria (pareceres) vermelha pela falta destes pareceres (R-REVIEW, log do job) e a bateria agregada só por ela; catraca (run 45751632012) vermelha por R-CONFORMIDADE: bin/forge-check pede o rótulo afrouxa-regra do dono, não defeito
-- Local, no clone em 7cacc94c: `python3 -m unittest tests.test_forge_pronto tests.test_pre_envio_brief tests.test_selo_e_entrega`: 235 testes, OK (os novos do D2-NO-BRIEF incluídos)
+- ci: 6c2bbf42d868a13c8a6344c440789aa562ed5022 verde
+- Run 45763465510: suíte 3.12 e 3.14 (partes 1 a 5), bateria (passos), verificações longas, instalação 3.14, teto de pulados e árvore provada verdes. Vermelhos: bateria (pareceres), pela falta dos pareceres deste head (R-REVIEW, R-QA, log do job), e a agregada só por ela. A Catraca (45763465454) está vermelha porque o bin/forge-check exige o rótulo `afrouxa-regra` do dono, não por defeito.
+- Local, no clone em 6c2bbf42: `python3 -m unittest tests.test_forge_pronto tests.test_pre_envio_brief tests.test_selo_e_entrega` rodou 237 testes, OK; `bin/forge-mutante tests/mutantes/v0481-d2-no-brief-3.json tests/mutantes/v0481-d2-no-brief-2.json` matou M9 a M17.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, sondas em arquivo (S1 a S3), módulos tocados; gitleaks e varredor de workflows não se aplicam (sem segredo nem workflow no diff).
+Nenhum risco aceito. Ferramentas usadas: o delta do parecer, os módulos tocados e os mutantes das duas specs tocadas. gitleaks e o varredor de workflows não se aplicam, porque o delta não tem segredo nem workflow.
