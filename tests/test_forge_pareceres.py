@@ -401,6 +401,20 @@ class Ler(GhFalso):
                 with self.assertRaises(fp().Recusa):
                     fp().ler(str(self.repo), BRANCH, self.sha, PEDIDO, {"conta"})
 
+    def test_status_sem_descricao_ou_sem_target_url(self):
+        sem_descricao, sem_url = self.publicado(), self.publicado()
+        del sem_descricao["description"], sem_url["target_url"]
+        self.assertIn("M7.1", self.invalido(sem_descricao))
+        self.assertIn("M6.1", self.invalido(sem_url))
+
+    def test_linha_do_frontmatter_sem_chave_valor_fica_de_fora(self):
+        texto = parecer(self.sha).replace("contrato: 1\n", "contrato: 1\nnota\n", 1)
+        self.assertEqual(self.ler(self.publicado(texto=texto))["review"][0], "aprovado")
+
+    def test_item_da_pagina_que_nao_e_objeto_fica_de_fora(self):
+        self.estado(paginas=[[5, "x", self.publicado(601)]])
+        self.assertEqual(fp().ler(str(self.repo), BRANCH, self.sha, PEDIDO, {"conta"})["review"][0], "aprovado")
+
     def test_sha_que_nao_e_head_do_pr(self):
         self.estado(prs=[self.estado()["prs"][0] | {"headRefOid": "c" * 40}])
         with self.assertRaises(fp().Recusa):
