@@ -30,8 +30,8 @@
       "id": "M4",
       "guarda": "erro do compare cancela (falha fechada)",
       "arquivo": ".github/workflows/obsoletas.yml",
-      "de": "--jq '.files[].filename') &&",
-      "para": "--jq '.files[].filename') || true &&",
+      "de": "--jq '.files[].filename')",
+      "para": "--jq '.files[].filename' || true)",
       "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasRoda.test_falha_fechada_cancela_quando_nao_prova"]
     },
     {
