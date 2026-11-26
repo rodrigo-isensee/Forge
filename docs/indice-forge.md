@@ -41,6 +41,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `forge_disco.py` | o uso do disco e o limiar único da cópia de trabalho (MP6, v0474 E3.251). |
 | `forge_dono.py` | a conversa com o dono e entre sessões, gravada no disco (0.44.1). Só biblioteca padrão. |
 | `forge_dora.py` | DORA e vazão (0.45.7, TM-16): `forge-check dora`, só leitura, sem rede, só biblioteca padrão. |
+| `forge_estado.py` | `forge-check status` (S1a, v0481 E20.1): o estado da fábrica lido na hora, para o Jarvis nunca afirmar estado de memória. |
 | `forge_fontes.py` | `forge-check fontes` (FILA-31 F6, 0.45.7 E5.1): compara o commit mais recente de cada fonte do registro local |
 | `forge_governanca.py` | as medidas de governança do processo (0.43.1, frente H): `forge-check metricas` e `forge-check regras`. |
 | `forge_medidas.py` | `forge-check medida` (D12, E3a e E3b) e `forge-check escape registrar\|resumo` (M14b) (FILA-31 F6, 0.45.7 E5.5): a medida de um |

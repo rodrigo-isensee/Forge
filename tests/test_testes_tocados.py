@@ -1816,8 +1816,8 @@ class TravaDoForgeTestes(unittest.TestCase):
 
 
 class Registros(unittest.TestCase):
-    """PR-VERDE B1 (v0478 E57.2): `--registros` roda os testes do CI dos registros, o changelog e o peso do módulo novo, só
-    lendo. Repositório de brinquedo com um teste que passa para cada nome de `REGISTROS`; ambiente limpo e `python3 -I`."""
+    """PR-VERDE B1 (v0478 E57.2): `--registros` roda os testes do CI dos registros e o changelog, só lendo; o módulo novo
+    sem peso não reprova (E19.1). Repositório de brinquedo com um teste que passa para cada nome de `REGISTROS`; ambiente limpo e `python3 -I`."""
 
     @classmethod
     def setUpClass(cls):
@@ -1873,7 +1873,7 @@ class Registros(unittest.TestCase):
         r = self.rodar()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("forge-testes: registros rc=0 em ", r.stdout)
-        self.assertIn(f"({len(self.f.REGISTROS) + 1} conferências e o peso dos módulos de teste novos)", r.stdout)
+        self.assertIn(f"({len(self.f.REGISTROS) + 1} conferências)", r.stdout)
         self.assertEqual(self.git("status", "--porcelain", "--ignored"), "")  # nem bytecode, nem log em .forge/run
 
     def test_grupo_do_ci_vermelho_sai_1_com_o_nome_do_registro(self):
@@ -1893,17 +1893,15 @@ class Registros(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("forge-testes: registro desatualizado: changelog (rc=1)", r.stderr)
 
-    def test_modulo_de_teste_novo_sem_peso_sai_1_e_com_peso_sai_0(self):
+    def test_modulo_de_teste_novo_sem_peso_sai_0(self):
+        """E19.1: o módulo novo vale a mediana até a marca de versão regerar os pesos; o PR não edita os pesos."""
         (self.dir / "tests" / "test_novo.py").write_text("import unittest\n", encoding="utf-8")
         r = self.rodar()  # não versionado
-        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
-        self.assertIn("registro desatualizado: test_novo sem peso em tests/pesos-d4.json; meça com "
-                      "python3 scripts/suite-paralela.py --medir test_novo", r.stderr)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("sem peso", r.stderr)
         self.git("add", "-A")
         self.git("commit", "-qm", "novo")
-        self.assertEqual(self.rodar().returncode, 1)  # commitado na branch
-        self.pesos({**{m: 1.0 for m in self.modulos}, "test_novo": 0.1})
-        r = self.rodar()
+        r = self.rodar()  # commitado na branch
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_modulo_antigo_sem_peso_nao_e_do_pr(self):
@@ -1912,14 +1910,7 @@ class Registros(unittest.TestCase):
         r = self.rodar()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
-    def test_pesos_ilegiveis_ou_base_que_nao_resolve_saem_2(self):
-        for texto in ("[]", "{"):
-            with self.subTest(pesos=texto):
-                (self.dir / "tests" / "pesos-d4.json").write_text(texto, encoding="utf-8")
-                r = self.rodar()
-                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
-                self.assertIn("forge-testes: registros sem veredito", r.stderr)
-        self.pesos({m: 1.0 for m in self.modulos})
+    def test_base_que_nao_resolve_sai_2(self):
         r = self.rodar(base="nao-existe")
         self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
         self.assertIn("registros sem veredito (git merge-base", r.stderr)
@@ -2013,7 +2004,7 @@ MEDIDOR_FALSO = ("import json, os, pathlib, sys\n"
 
 class Regerar(unittest.TestCase):
     """PR-VERDE B2 (v0478 E57.38): `--regerar` chama o gerador só do derivado cuja fonte o diff tocou, na lista fechada
-    (índice do Forge, peso de módulo de teste novo); não segue link e sai 2 se algo fora da lista mudou."""
+    (o índice do Forge; os pesos da suíte ficam fora, E19.1); não segue link e sai 2 se algo fora da lista mudou."""
 
     @classmethod
     def setUpClass(cls):
@@ -2080,33 +2071,52 @@ class Regerar(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(self.ler("docs/indice-forge.md"), "antigo\n")
 
-    def test_modulo_novo_sem_peso_e_medido_e_o_indice_fica(self):
+    def test_modulo_novo_sem_peso_nao_e_medido(self):
+        """E19.1: o medidor não roda e os pesos ficam como na base; só a marca de versão os regera."""
         self.escrever("tests/test_novo.py", "import unittest\n")
         r = self.rodar()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn("forge-testes: regerar rc=0 (peso de test_novo)", r.stdout)
-        self.assertEqual(json.loads(self.ler("tests/pesos-d4.json")), {"test_a": 1.0, "test_novo": 0.5})
-        self.assertEqual(self.ler("docs/indice-forge.md"), "antigo\n")
+        self.assertIn("forge-testes: regerar rc=0 (nada a regerar)", r.stdout)
+        self.assertEqual(json.loads(self.ler("tests/pesos-d4.json")), {"test_a": 1.0})
+
+    def test_dois_prs_paralelos_com_modulo_novo_se_juntam_sem_conflito(self):
+        """E19.1: duas branches da mesma base, cada uma com um módulo de teste novo e o `--regerar` commitado, entram na
+        develop uma depois da outra sem conflito, e os pesos seguem os da base (antes, cada uma gravava a sua linha)."""
+        for ramo in ("melhoria/a", "melhoria/b"):
+            self.git("switch", "-q", "-c", ramo, "develop")
+            self.escrever(f"tests/test_novo_{ramo[-1]}.py", "import unittest\n")
+            r = self.rodar()
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.git("add", "-A")
+            self.git("commit", "-qm", ramo)
+        self.git("switch", "-q", "develop")
+        for ramo in ("melhoria/a", "melhoria/b"):
+            junta = subprocess.run(["git", "merge", "-q", "--no-edit", ramo], cwd=self.dir, env=self.env,
+                                   capture_output=True, text=True)
+            self.assertEqual(junta.returncode, 0, junta.stdout + junta.stderr)
+        self.assertEqual(json.loads(self.ler("tests/pesos-d4.json")), {"test_a": 1.0})
+        self.assertTrue((self.dir / "tests" / "test_novo_a.py").is_file())
+        self.assertTrue((self.dir / "tests" / "test_novo_b.py").is_file())
 
     def test_gerador_vermelho_sai_1(self):
-        self.escrever("tests/test_novo.py", "import unittest\n")
-        self.escrever("scripts/suite-paralela.py", "import sys\nsys.exit(1)\n")
+        self.escrever("bin/forge-x", "#!/bin/sh\n")
+        self.escrever("scripts/indice-forge.py", "import sys\nsys.exit(1)\n")
         r = self.rodar()
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
-        self.assertIn("forge-testes: gerador vermelho: peso de test_novo", r.stderr)
+        self.assertIn("forge-testes: gerador vermelho: índice do Forge", r.stderr)
         self.assertIn("forge-testes: regerar rc=1", r.stdout)
 
     def test_escrita_fora_da_lista_fechada_sai_2(self):
         """Arquivo de controle limpo, ou arquivo já alterado na árvore que o gerador muda de novo: os dois saem 2."""
         self.escrever("bin/forge-x", "#!/bin/sh\n")
-        for alvo in ("tests/config.json", "docs/regras/r.md", "bin/forge-x"):
+        for alvo in ("tests/config.json", "docs/regras/r.md", "bin/forge-x", "tests/pesos-d4.json"):
             with self.subTest(alvo=alvo):
                 self.escrever("scripts/indice-forge.py", INDICE_FALSO + f"pathlib.Path({alvo!r}).write_text('mexido')\n")
                 r = self.rodar()
                 self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
                 self.assertIn(f"forge-testes: regerar escreveu fora da lista fechada ({alvo}", r.stderr)
                 self.assertNotIn("regerar rc=", r.stdout)
-                self.git("checkout", "-q", "--", "tests/config.json", "docs/regras/r.md")
+                self.git("checkout", "-q", "--", "tests/config.json", "docs/regras/r.md", "tests/pesos-d4.json")
                 self.escrever("bin/forge-x", "#!/bin/sh\n")
 
     def test_escrita_em_caminho_ignorado_sai_2_e_o_bytecode_nao(self):
@@ -2154,10 +2164,6 @@ class Regerar(unittest.TestCase):
         self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
         self.assertIn("forge-testes: aviso: não busquei origin/develop (", r.stderr)
         self.assertIn("forge-testes: regerar sem veredito (git merge-base", r.stderr)
-        self.escrever("tests/pesos-d4.json", "[]")
-        r = self.rodar()
-        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
-        self.assertIn("forge-testes: regerar sem veredito (tests/pesos-d4.json não é um objeto JSON)", r.stderr)
 
     def test_git_ilegivel_depois_do_gerador_sai_2(self):
         self.escrever("bin/forge-x", "#!/bin/sh\n")
@@ -2176,12 +2182,11 @@ class Regerar(unittest.TestCase):
                 self.assertIn("--regerar só combina com --base", r.stderr)
 
     def test_lista_fechada_sem_arquivo_de_controle_e_geradores_que_existem(self):
-        self.assertEqual([str(d) for d in self.f.DERIVADOS], ["docs/indice-forge.md", "tests/pesos-d4.json"])
+        self.assertEqual([str(d) for d in self.f.DERIVADOS], ["docs/indice-forge.md"])  # E19.1: os pesos, só na marca
         for derivado in self.f.DERIVADOS:
             self.assertNotEqual(str(derivado), "tests/config.json")
             self.assertFalse(str(derivado).startswith(("docs/regras/", "hooks/", ".githooks/", ".github/")))
-        for gerador in (self.f.GERA_O_INDICE[0], self.f.MEDE_O_PESO[0]):
-            self.assertTrue((RAIZ / gerador).is_file(), gerador)
+        self.assertTrue((RAIZ / self.f.GERA_O_INDICE[0]).is_file())
 
 
 class Versoes(unittest.TestCase):

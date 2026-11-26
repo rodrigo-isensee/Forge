@@ -1,0 +1,58 @@
+{
+  "pedido": "v0481-pesos-gerados",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "PG1",
+      "guarda": "E19.1: a base que não resolve deixa o --registros sem veredito (saída 2)",
+      "arquivo": "bin/forge-testes",
+      "de": "    except RuntimeError as erro:\n        print(f\"forge-testes: registros sem veredito ({erro})\"",
+      "para": "    except OSError as erro:\n        print(f\"forge-testes: registros sem veredito ({erro})\"",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_base_que_nao_resolve_sai_2"
+      ]
+    },
+    {
+      "id": "PG2",
+      "guarda": "E19.1: registro vermelho segue saindo 1 sem a conta dos módulos sem peso",
+      "arquivo": "bin/forge-testes",
+      "de": "codigo = 1 if falhas else 0",
+      "para": "codigo = 1 if False else 0",
+      "testes": [
+        "tests.test_testes_tocados.Registros.test_changelog_reprovado_sai_1"
+      ]
+    },
+    {
+      "id": "PG3",
+      "guarda": "E19.1: os pesos da suíte ficam fora da lista fechada do --regerar",
+      "arquivo": "bin/forge-testes",
+      "de": "DERIVADOS = (INDICE_DO_FORGE,)",
+      "para": "DERIVADOS = (INDICE_DO_FORGE, Path(\"tests/pesos-d4.json\"))",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_escrita_fora_da_lista_fechada_sai_2"
+      ]
+    },
+    {
+      "id": "PG4",
+      "guarda": "E19.1: git ilegível no --regerar é sem veredito (saída 2)",
+      "arquivo": "bin/forge-testes",
+      "de": "    except (OSError, RuntimeError) as erro:\n        print(f\"forge-testes: regerar sem veredito ({erro})\"",
+      "para": "    except OSError as erro:\n        print(f\"forge-testes: regerar sem veredito ({erro})\"",
+      "testes": [
+        "tests.test_testes_tocados.Regerar.test_sem_veredito_sai_2_e_a_busca_que_falha_avisa"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-testes",
+      "trecho": "not isinstance(pesos, dict)",
+      "motivo": "código removido: a leitura do tests/pesos-d4.json para achar módulo novo sem peso saiu com a função; módulo sem entrada vale a mediana (E19.1)"
+    },
+    {
+      "arquivo": "bin/forge-testes",
+      "trecho": "a and a.group(1) not in pesos",
+      "motivo": "código removido: o filtro de módulo novo sem peso saiu com a função; o --registros não reprova mais por falta de peso (E19.1)"
+    }
+  ]
+}

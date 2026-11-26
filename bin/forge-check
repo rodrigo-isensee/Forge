@@ -11195,6 +11195,10 @@ def main():
     on = sub.add_parser("onde", parents=[comum], help="onde está uma versão, um PR, um commit, uma branch ou um cartão em develop, homolog "
                         "e main, lido do git e do gh; lido rc 0, não existe rc 1, inválido ou não verificável rc 2; só leitura (AE1.1)")
     on.add_argument("alvo", help="vX.Y.Z, #N ou pr:N, sha, branch:<nome> (ou nome com /) ou ID de cartão")
+    es = sub.add_parser("status", parents=[comum], help="o estado da fábrica numa tela curta (S1a): último merge na develop, PRs abertos, "
+                        "contador da versão, decisões do dono abertas, última versão publicada e plugin da sessão; leitura que falha "
+                        "vira `não verificável`; só leitura, rc 0 (bin/forge_estado.py)")
+    es.add_argument("--agora", help="a hora de referência, ISO 8601 com fuso (o relógio é argumento; padrão: agora)")
     ajuda_comparar = "'só aperta' medido nos hooks sobre tests/comparar/corpus.jsonl: mede o veredito dos hooks de hooks/hooks.json da raiz, só numa árvore que cumpre a lista positiva de forma F1 a F7 nos dois lados (F1 só blob 100644/100755; F2 nenhum .gitattributes nem .gitmodules; F3 nenhum .mcp.json, .lsp.json, settings.json, monitors nem workflows na raiz; F4 plugin.json só com chaves da lista; F5 marketplace.json com chaves da lista, metadata sem pluginRoot, um plugin só, source . ou ./; F6 cabeçalho de .md em forma simples, com toda quebra de linha (também o CR sozinho), sem hooks nem allowed-tools; F7 matcher simples); rc 0 nada liberado a mais, 1 aceite novo ou caso removido, 2 nao-verificavel com o item que falhou (também ref fora do repositório e corpus ilegível); limites declarados: liberação que não passa por hook (bin/, scripts/, instrução de agente, permissão) e o que o Claude Code passar a ler depois da versão sondada, no docstring de bin/forge_comparar.py; executa os hooks da base e do head (só head deste repositório, sob o sandbox); quem consome exige a linha `so-aperta: medido base=<sha> head=<sha>`, não só o rc (AE7.1)"
     cm = sub.add_parser("comparar", parents=[comum], help=ajuda_comparar, description=ajuda_comparar)
     cm.add_argument("base", help="commit ou branch da base")
@@ -11536,6 +11540,12 @@ def executar(a, raiz):
         return cmd_juncao(raiz, a.pedido, a.ref, a.base)
     if a.cmd == "onde":  # AE1.1: em bin/forge_onde.py
         return modulo_do_bin("forge_onde").executar(a, raiz, {"git": git, "gh_json": gh_json, "seguro": sem_controle})
+    if a.cmd == "status":  # S1a (v0481 E20.1): em bin/forge_estado.py
+        pedidos = Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else next(
+            (r for r in raizes_de_pedidos(raiz) if (Path(r) / "docs" / "pedidos").is_dir()), raiz)
+        ctx = {"gh_json": gh_json, "seguro": sem_controle, "versao": versao_da_propria_copia, "plugin": PLUGIN, "pedidos": pedidos,
+               "abertas": modulo_do_bin("forge_dono").cmd_abertas}
+        return modulo_do_bin("forge_estado").executar(a, raiz, ctx)
     if a.cmd == "comparar":  # AE7.1: em bin/forge_comparar.py
         return modulo_do_bin("forge_comparar").executar(a, raiz, {"git": git, "seguro": sem_controle})
     if a.cmd == "vazio":
