@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481-g3-entrega-ci",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "prova_do_ci: check vermelho ou pendente reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    if ruins or not lidos:",
+      "para": "    if not lidos:",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_vermelho_e_pendente_reprovam_com_o_check"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "conferência da entrega: no Forge o D2 local não roda, a prova é o CI",
+      "arquivo": "bin/forge-check",
+      "de": "prova_do_ci(raiz, branch, head) if forge else prova_do_pronto(",
+      "para": "prova_do_ci(raiz, branch, head) if False else prova_do_pronto(",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_sem_worktree_com_o_head_no_forge_nao_cumpre"
+      ]
+    }
+  ]
+}

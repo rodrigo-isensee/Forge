@@ -1575,17 +1575,21 @@ def checks_do_head(raiz, ref, branch, previo=False):
             "não aprovado para merge (E3.45)"]
 
 
-def checks_ruins(raiz, pr):
+def checks_ruins(raiz, pr, fora=()):
     """(checks lidos, os fora de pass ou skipping mais os exigidos do destino ausentes ou fora de pass) do PR `pr` (o dict do
-    `gh pr view`); (None, None) se o `gh pr checks` não os lê. Uma fonte do `checks_do_head` e do `ci_verde_no_head`."""
+    `gh pr view`); (None, None) se o `gh pr checks` não os lê. Uma fonte do `checks_do_head`, do `ci_verde_no_head` e da
+    `prova_do_ci`, que passa em `fora` os nomes de check que não contam (lidos ou exigidos)."""
     lidos, erro = gh_json(raiz, "pr", "checks", str(pr.get("number")), "--json", "name,bucket,workflow")
     if lidos is None and "no checks reported" in erro:
         lidos = []
     if not isinstance(lidos, list) or not all(isinstance(c, dict) for c in lidos):
         return None, None
+    lidos = [c for c in lidos if c.get("name") not in fora]
     ruins = [f"{c.get('workflow')}/{c.get('name')} ({c.get('bucket')})" for c in lidos if c.get("bucket") not in ("pass", "skipping")]
     for par in checks_exigidos(raiz, str(pr.get("baseRefName") or "")):
         wf, nome = par.split("/", 1)
+        if nome in fora:
+            continue
         dele = [c for c in lidos if c.get("name") == nome and wf in ("*", c.get("workflow"))]
         if not dele or any(c.get("bucket") != "pass" for c in dele):
             ruins.append(f"{par} (exigido, {'ausente' if not dele else 'fora de pass'})")
@@ -10706,6 +10710,34 @@ def prova_do_pronto(pasta, base, so_leitura, rodar=subprocess.run, forge_no_head
     return [(f"pendente: D2 vermelho: forge-check pronto rc {r.returncode}: {sem_controle(ultima)} (D2-NO-BRIEF)", True)]
 
 
+# G3-ENTREGA-PELO-CI (v0481 E28.1, ordem do dono 26/11 18:5x): no Forge, a conferência da entrega (etapa codigo) aceita o CI do PR
+# concluído e verde no head entregue como prova de pronto, no lugar do D2 local (50 a 85 min por item e falsos vermelhos do sandbox);
+# os `CHECKS_FORA_DA_LINHA_DO_CI` não contam, como no parecer. Sem PR no head, sem check, pendente, vermelho ou sem rede: não cumpre.
+def prova_do_ci(raiz, branch, head):
+    """[(linha, reprova)] do CI do PR da `branch` no `head` exato: a prova, ou o check que falta, o pendente e o vermelho. O head do
+    PR é lido antes e depois dos checks (o `gh pr checks` lê o head do momento); gh sem rede ou ilegível: não verificável, reprova."""
+    def no_pr():
+        pr, erro = gh_json(raiz, "pr", "view", branch, "--json", "number,headRefOid,baseRefName")
+        return (pr, "") if isinstance(pr, dict) else (None, sem_controle(erro.strip())[:120] or "saída vazia")
+    pr, erro = no_pr()
+    if pr is None:
+        return [(f"pendente: CI do GitHub não verificável (gh pr view: {erro}); a entrega só cumpre com o CI do PR verde no head "
+                 "(G3-ENTREGA-PELO-CI)", True)]
+    numero, lido = sem_controle(str(pr.get("number"))), sem_controle(str(pr.get("headRefOid") or "?"))
+    if lido != head:
+        return [(f"pendente: o PR #{numero} está em {lido[:12]}, não no head entregue {head[:12]}; envie o head e espere o CI "
+                 "(G3-ENTREGA-PELO-CI)", True)]
+    lidos, ruins = checks_ruins(raiz, pr, fora=CHECKS_FORA_DA_LINHA_DO_CI)
+    if lidos is None or (no_pr()[0] or {}).get("headRefOid") != head:
+        return [(f"pendente: checks do PR #{numero} no head {head[:12]} não lidos (gh pr checks ou head mudado); CI do GitHub não "
+                 "verificável (G3-ENTREGA-PELO-CI)", True)]
+    if ruins or not lidos:
+        falta = sem_controle(", ".join(ruins)) or "nenhum check"
+        return [(f"pendente: CI do PR #{numero} no head {head[:12]} não concluído e verde: {falta} (G3-ENTREGA-PELO-CI)", True)]
+    return [(f"prova: CI do PR #{numero} concluído e verde no head {head[:12]} ({len(lidos)} checks, {FORA_DA_LINHA_DO_CI}); "
+             "a bateria local não roda (G3-ENTREGA-PELO-CI)", False)]
+
+
 def conferir_provas(raiz, texto, branch, head, pasta, so_leitura=False):
     """P2 (0.43.1): (linha, reprova) por PQ do brief selado. `cmd` da lista do reexecutar-provas roda na worktree; o `forge-check entrega`
     é esta conferência; `cmd` fora da lista e `pr`/`merge`/`run` (GitHub) não são reexecutados e não reprovam (ficam com o relatório
@@ -10866,7 +10898,8 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
     linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio, head)  # R-QA: a 3ª volta (só o brief com `(volta N)`)
     if etapa == "codigo":  # D2-NO-BRIEF: a entrega com o D2 vermelho volta sem passar pelas revisões
         no_head = [git(raiz, "cat-file", "-e", f"{head}:{nome}")[0] == 0 for nome in (".claude-plugin/plugin.json", ".forge/versao")]
-        linhas += prova_do_pronto(pasta, base, so_leitura, forge_no_head=no_head == [True, False])
+        forge = no_head == [True, False]  # G3-ENTREGA-PELO-CI: o head do Forge prova pelo CI do PR; o D2 local não roda
+        linhas += prova_do_ci(raiz, branch, head) if forge else prova_do_pronto(pasta, base, so_leitura)
     if etapa == "codigo" and not cod:  # T1: código sem teste no intervalo da delegação, sinalizado sem reprovar (a classe T isenta)
         aviso = aviso_de_codigo_sem_teste(raiz, f"{inicio}..{head}", nomes_do_intervalo(raiz, inicio, head),
                                           classe_para_o_t1(raiz, head, base))

@@ -328,3 +328,71 @@ class ProvaDoPronto(unittest.TestCase):
                 rodar.assert_not_called()
                 self.assertFalse(linhas[0][1])
                 self.assertIn("última linha do `forge-check pronto` no relatório do autor", linhas[0][0])
+
+
+HEAD = "a" * 40
+VERDES = [{"name": "bateria (python 3.14)", "bucket": "pass", "workflow": "CI"}, {"name": "shellcheck", "bucket": "skipping", "workflow": "CI"},
+          {"name": "bateria", "bucket": "pending", "workflow": "CI"}, {"name": "bateria (pareceres)", "bucket": "fail", "workflow": "CI"},
+          {"name": "catraca", "bucket": "fail", "workflow": "Catraca"}]
+
+
+class ProvaDoCi(unittest.TestCase):
+    """G3-ENTREGA-PELO-CI (v0481 E28.1): no Forge, a entrega prova o pronto pelo CI do PR concluído e verde no head exato, fora os
+    CHECKS_FORA_DA_LINHA_DO_CI; o gh falso responde só ao `pr view <branch exata>` e ao `pr checks <número>` (checklist 12)."""
+    def prova(self, heads=(HEAD, HEAD), checks=VERDES, exigidos=("CI/bateria (python 3.14)", "Catraca/catraca", "CI/bateria")):
+        heads, chamadas = list(heads), []
+
+        def gh_json(raiz, *args):
+            chamadas.append(args)
+            if args[:3] == ("pr", "view", "melhoria/x"):
+                h = heads.pop(0)
+                return ({"number": 9, "headRefOid": h, "baseRefName": "develop"}, "") if h else (None, "sem resposta em 10 s")
+            if args[:3] == ("pr", "checks", "9"):
+                return (checks, "") if checks is not None else (None, "erro de rede")
+            return None, "chamada inesperada"
+        with mock.patch.object(fc, "gh_json", gh_json), mock.patch.object(fc, "checks_exigidos", lambda raiz, destino: list(exigidos)):
+            return fc.prova_do_ci(Path("."), "melhoria/x", HEAD), chamadas
+
+    def test_ci_verde_no_head_prova_sem_os_checks_fora_da_linha(self):
+        linhas, chamadas = self.prova()
+        self.assertEqual(len(linhas), 1)
+        self.assertFalse(linhas[0][1])
+        self.assertTrue(linhas[0][0].startswith(f"prova: CI do PR #9 concluído e verde no head {HEAD[:12]} (2 checks, fora "), linhas)
+        self.assertEqual([c[:2] for c in chamadas], [("pr", "view"), ("pr", "checks"), ("pr", "view")])
+
+    def test_vermelho_e_pendente_reprovam_com_o_check(self):
+        for bucket in ("fail", "pending"):
+            with self.subTest(bucket=bucket):
+                linhas, _ = self.prova(checks=[{"name": "bateria (python 3.14)", "bucket": bucket, "workflow": "CI"}], exigidos=())
+                self.assertEqual(linhas, [(f"pendente: CI do PR #9 no head {HEAD[:12]} não concluído e verde: CI/bateria (python 3.14) "
+                                           f"({bucket}) (G3-ENTREGA-PELO-CI)", True)])
+
+    def test_exigido_ausente_e_nenhum_check_reprovam(self):
+        linhas, _ = self.prova(checks=[{"name": "shellcheck", "bucket": "pass", "workflow": "CI"}])
+        self.assertTrue(linhas[0][1])
+        self.assertIn("CI/bateria (python 3.14) (exigido, ausente)", linhas[0][0])
+        self.assertNotIn("Catraca/catraca", linhas[0][0])
+        linhas, _ = self.prova(checks=[{"name": "catraca", "bucket": "pass", "workflow": "Catraca"}], exigidos=())
+        self.assertEqual(linhas, [(f"pendente: CI do PR #9 no head {HEAD[:12]} não concluído e verde: nenhum check (G3-ENTREGA-PELO-CI)",
+                                   True)])
+
+    def test_head_diferente_reprova_sem_ler_os_checks(self):
+        linhas, chamadas = self.prova(heads=("b" * 40,))
+        self.assertEqual(linhas, [(f"pendente: o PR #9 está em bbbbbbbbbbbb, não no head entregue {HEAD[:12]}; envie o head e espere o "
+                                   "CI (G3-ENTREGA-PELO-CI)", True)])
+        self.assertEqual(len(chamadas), 1)
+
+    def test_head_mudado_entre_as_leituras_reprova(self):
+        for depois in ("b" * 40, None):
+            with self.subTest(depois=depois):
+                linhas, _ = self.prova(heads=(HEAD, depois))
+                self.assertTrue(linhas[0][1])
+                self.assertIn("não lidos (gh pr checks ou head mudado)", linhas[0][0])
+
+    def test_sem_rede_nao_verificavel_reprova(self):
+        linhas, _ = self.prova(heads=(None,))
+        self.assertEqual(linhas, [("pendente: CI do GitHub não verificável (gh pr view: sem resposta em 10 s); a entrega só cumpre com o "
+                                   "CI do PR verde no head (G3-ENTREGA-PELO-CI)", True)])
+        linhas, _ = self.prova(checks=None)
+        self.assertTrue(linhas[0][1])
+        self.assertIn("checks do PR #9 no head", linhas[0][0])
