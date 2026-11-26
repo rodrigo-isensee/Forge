@@ -75,6 +75,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `hooks.json` | — |
 | `meta.py` | objetivo armado no Stop (S4) e medida da mensagem ao dono (S6), 0.44.2. Só biblioteca padrão. |
 | `ordens.py` | ordens (ORDENS-EM-VIGOR, v0478 E123.1; emenda "ordens em vigor" da ADR 0003) - reinjeta as ordens do dono. |
+| `ordens_teto.py` | ordens_teto (RECIBO-CONTADOR-PELO-HOOK, item 4; v0481 E20.11) - recusa gravar as ordens em vigor acima do teto. |
 | `parecer.py` | parecer de review e de QA antes de PR e de merge (ADR 0003, R-REVIEW, R-QA). |
 | `pesado.py` | tarefa pesada uma de cada vez (ADR 0003, R-TETO). |
 | `quadro.py` | quadro válido após edição (ADR 0003, R-WIP). |

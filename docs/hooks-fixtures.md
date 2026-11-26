@@ -196,6 +196,15 @@ O corpus de `tests/hooks/<hook>/<caso>.json` roda em `tests/test_hooks.py` (ADR 
 - `teto-*`
 - `vazio-*`
 
+## `ordens_teto`
+
+- `bloqueia-*`
+- `dentro-*`
+- `erro-*`
+- `outra-*`
+- `outro-*`
+- `sem-*`
+
 ## `parecer`
 
 - `api-*`

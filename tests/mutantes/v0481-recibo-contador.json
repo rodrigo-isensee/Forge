@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-recibo-contador",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o caminho fora da forma não é alvo",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "    if not isinstance(caminho, str) or not caminho:",
+      "para": "    if not caminho:",
+      "testes": [
+        "tests.test_hook_ordens_teto.Write.test_sem_caminho_ou_conteudo_fora_da_forma_passa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "só o arquivo de ordens do `fontes` é contado",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "        if os.path.realpath(arquivo) == pedido:",
+      "para": "        if os.path.realpath(arquivo) != pedido:",
+      "testes": [
+        "tests.test_hook_ordens_teto.Write.test_16_linhas_recusa_com_as_contagens_e_15_passa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "trecho ausente não conta: a ferramenta falha sozinha",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "or not velho or velho not in texto:",
+      "para": "or not velho:",
+      "testes": [
+        "tests.test_hook_ordens_teto.Edit.test_trecho_ausente_ou_vazio_ou_arquivo_ausente_passa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "replace_all troca todas as ocorrências",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "if edicao.get(\"replace_all\") is True else",
+      "para": "if False else",
+      "testes": [
+        "tests.test_hook_ordens_teto.Edit.test_replace_all_troca_todas_e_sem_ele_so_a_primeira"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o Write conta o conteúdo, não o arquivo",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "    if hook.campo(\"tool_name\") == \"Write\":",
+      "para": "    if hook.campo(\"tool_name\") != \"Write\":",
+      "testes": [
+        "tests.test_hook_ordens_teto.Write.test_16_linhas_recusa_com_as_contagens_e_15_passa"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "conteúdo do Write fora da forma não conta",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "        return conteudo if isinstance(conteudo, str) else None",
+      "para": "        return conteudo if True else None",
+      "testes": [
+        "tests.test_hook_ordens_teto.Write.test_sem_caminho_ou_conteudo_fora_da_forma_passa"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "só o MultiEdit lê a lista de trocas",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "if hook.campo(\"tool_name\") == \"MultiEdit\" else [entrada]",
+      "para": "if hook.campo(\"tool_name\") != \"MultiEdit\" else [entrada]",
+      "testes": [
+        "tests.test_hook_ordens_teto.Edit.test_troca_que_passa_do_teto_recusa_e_a_que_cabe_passa"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "arquivo ausente no Edit não conta",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "    if texto is None or not isinstance(edicoes, list):",
+      "para": "    if not isinstance(edicoes, list):",
+      "testes": [
+        "tests.test_hook_ordens_teto.Edit.test_trecho_ausente_ou_vazio_ou_arquivo_ausente_passa"
+      ]
+    }
+  ]
+}
