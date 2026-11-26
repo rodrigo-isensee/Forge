@@ -24,6 +24,15 @@ def ordens(n):
 
 
 class Base(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # A1 do review a1b62ca: o erros.log é a única prova dos ramos de entrada fora da forma, e o registro carrega o
+        # `bin/forge-check` (`_comum.git`); com o bytecode frio (cópia limpa, checkout do CI) ele passa dos 0,5 s do vigia
+        # e a linha some. Aquecido aqui, com o mesmo Python e as mesmas opções do hook; `ErroInterno` prova que a linha sai.
+        subprocess.run([sys.executable, "-s", "-E", "-c", "import _comum; _comum.forge_check()"], cwd=RAIZ / "hooks",
+                       env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LANG": "C.UTF-8"}, check=True,
+                       capture_output=True, timeout=60)
+
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="forge-ordens-teto-"))
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
@@ -109,6 +118,35 @@ class Edit(Base):
         self.arquivo.write_text("a\n" * 8, encoding="utf-8")
         self.passa(self.edit("a", "x" * 300))
         self.recusa(self.edit("a", "x" * 300, replace_all=True), "8 linhas e 2407 caracteres")
+
+
+class ErroInterno(Base):
+    def test_erro_interno_libera_e_deixa_a_linha_no_erros_log(self):
+        self.arquivo.mkdir()  # `ler_ordens` levanta ao abrir a pasta
+        r = self.edit("ordem 1", "x")
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+        self.assertIn("ordens_teto IsADirectoryError", (self.projeto / ".forge" / "run" / "erros.log").read_text(encoding="utf-8"))
+
+
+class NoForge(Base):
+    """A4 da segurança a1b62ca: no clone do Forge, a fonte é ~/.forge-contrib/docs/ordens/ (casa temporária)."""
+
+    def setUp(self):
+        super().setUp()
+        self.projeto = self.tmp / "forge"
+        (self.projeto / ".claude-plugin").mkdir(parents=True)
+        (self.projeto / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}\n', encoding="utf-8")
+        subprocess.run(["git", "init", "-q", str(self.projeto)], env=sem_manutencao(self.ambiente()), check=True,
+                       capture_output=True, timeout=60)
+        self.arquivo = self.tmp / ".forge-contrib" / "docs" / "ordens" / "ordens-em-vigor.md"
+        self.arquivo.parent.mkdir(parents=True)
+
+    def test_16_linhas_recusa_e_15_passa(self):
+        self.recusa(self.write(ordens(16)), "ordens-em-vigor.md ficaria com 16 linhas")
+        self.passa(self.write(ordens(15)))
+
+    def test_o_arquivo_de_projeto_no_clone_nao_e_fonte(self):
+        self.passa(self.write(ordens(16), self.projeto / ORDENS))
 
 
 class MultiEdit(Base):

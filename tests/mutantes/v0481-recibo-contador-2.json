@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_hook_ordens_teto.Write.test_2001_caracteres_recusa_e_2000_passa"
       ]
+    },
+    {
+      "id": "M16",
+      "guarda": "o hook só roda como programa",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "\nif __name__ == \"__main__\":",
+      "para": "\nif False:",
+      "testes": [
+        "tests.test_hook_ordens_teto.Write.test_16_linhas_recusa_com_as_contagens_e_15_passa"
+      ]
     }
   ]
 }
