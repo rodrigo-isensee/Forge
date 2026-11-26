@@ -14,10 +14,10 @@
     },
     {
       "id": "M10",
-      "guarda": "ROTULO-PELO-TIME: plugin sem repositório legível não faz de nenhuma raiz o Forge",
+      "guarda": "ROTULO-PELO-TIME: manifesto do plugin que não é objeto não diz o repositório",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "    forge = slug(str(meu.get(\"repository\", \"\"))) if isinstance(meu, dict) else \"\"",
-      "para": "    forge = slug(str(meu.get(\"repository\", \"\"))) if isinstance(meu, dict) else \"\"\n    forge = forge or slug(git(raiz, \"config\", \"--get\", \"remote.origin.url\") or \"\")",
+      "de": "if isinstance(meu, dict) else",
+      "para": "if True else",
       "testes": [
         "tests.test_autorizacao.RotuloPeloTime.test_plugin_sem_repositorio_nao_faz_o_forge"
       ]
