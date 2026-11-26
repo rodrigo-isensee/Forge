@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-d6-resto
-commit: 200d8b378582bfee881c55ef6e2574bd7f9e9ce3
+commit: 1f127ddd1ac05ae80a9306dda56802dec43ee50d
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -44,7 +44,16 @@ Delta lido (volta E11.24): `git diff 50a40e28..200d8b37`; no domínio do QA só 
 - Vermelho, à mão (cópia em pasta descartável, testes do head com o `hooks/salvar.py` do 1afd54b5, que ainda envia): `python3 -m unittest tests.test_hooks.SalvarAoParar`: `Ran 29 tests`, `FAILED (failures=4)`; os testes do E11.18 caem sem a correção.
 - Mutantes: `bin/forge-mutante --processos 4` das 6 specs `tests/mutantes/v0481-d6-resto*.json`, `rev=50a40e288444`: 35 `morreu` (incluindo M8, M9, M10, M11 e M39), nenhum `sobreviveu`, nenhum sem veredito; M29 `equivalente` (aceito, mas ver A5). Rodei as 6 specs inteiras, sem `--base`.
 - CI do head (`gh pr checks 877`, headRefOid 200d8b37): verdes `suíte (python 3.12 e 3.14, partes 1 a 5)`, `teto de pulados`, `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)`, `instalação (python 3.14)`, `árvore já provada na develop` e `catraca`. Fora, só `bateria (pareceres)` e `bateria`, que esperam este parecer.
-- ci: 200d8b378582bfee881c55ef6e2574bd7f9e9ce3 verde
+
+## Volta E11.28 (delta `e66e30a2..1f127ddd`, só a resolução do conflito com a develop e o #895)
+- Lógica do item: `git diff e66e30a2..1f127ddd -- hooks/salvar.py tests/mutantes/v0481-d6-resto*.json docs/adr docs/regras` vazio; o hook, as specs e as regras do #877 não mudaram.
+- `tests/test_hooks.py`: o delta só acrescenta (`import stat`, `ModoPorGrupo`, `Travou` e o teste de FIFO da develop); nenhuma linha removida. `SalvarAoParar` segue inteira e as quatro classes (`SalvarAoParar`, `ModoPorGrupo`, `Travou`, `RecusaComFifoNoRegistro`) estão no arquivo; nenhum teste perdido.
+- `docs/hooks-fixtures.md`: `python3 scripts/indice-fixtures.py --conferir` sai `em dia`.
+- `python3 -m unittest tests.test_hooks.SalvarAoParar tests.test_hooks.ModoPorGrupo tests.test_hooks.RecusaComFifoNoRegistro`: 40 testes, OK.
+- `bin/forge-mutante tests/mutantes/v0481-d6-resto-7.json`, `rev=1f127ddd1ac0`: `M40 · morreu · hooks/salvar.py:127`, `M41 · morreu · hooks/salvar.py:156`.
+- CI (run 45737895249, headSha 1f127ddd, `gh pr checks 877`): verdes as suítes 3.12 e 3.14 (partes 1 a 5), `teto de pulados`, `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)`, `instalação (python 3.14)`, `árvore já provada na develop` e `catraca`; só `bateria (pareceres)` e `bateria` aguardam os pareceres.
+- ci: 1f127ddd1ac05ae80a9306dda56802dec43ee50d verde
+- Afrouxa do #877 aprovado pelo dono em 25/11 17:37. **Aprovado** no head 1f127ddd.
 
 ## Melhoria vista
 Classe AR-1 (lista de mutantes incompleta) voltou no E11.20 e foi corrigida pelo M40 e M41; o autor deveria rodar `bin/forge-mutante --cobertura --base <Base-sha>` antes do push.
