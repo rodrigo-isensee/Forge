@@ -1,0 +1,2 @@
+### Alterado
+- G3 parte 1 (v0481 E28.1): a conferência da entrega (forge-check entrega --pedido, etapa codigo) no Forge aceita o CI do PR concluído e verde no head exato como prova de pronto, fora bateria (pareceres), bateria e catraca, no lugar do D2 local (forge-check pronto, de 50 a 85 min por item); sem CI verde no head, não cumpre com o check que falta ou está pendente; sem rede, não verificável.

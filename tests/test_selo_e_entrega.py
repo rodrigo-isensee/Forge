@@ -439,18 +439,46 @@ class Entrega(Repositorio):
         self.assertIn("resultado: não cumpriu", saida)
         self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
 
+    def gh_falso(self, head, checks):
+        """O gh do PR #7 da `melhoria/x` (nome exato, como o `gh pr view <branch>`) no `head`, com os `checks` do `gh pr checks 7`."""
+        falsos = self.tmp / "falsos"
+        falsos.mkdir(exist_ok=True)
+        (falsos / "checks.json").write_text(json.dumps(checks), encoding="utf-8")
+        pr = json.dumps({"number": 7, "headRefOid": head, "baseRefName": "develop"})
+        (falsos / "gh").write_text(
+            "#!/bin/sh\n"
+            f"if [ \"$1 $2 $3\" = 'pr view melhoria/x' ]; then echo '{pr}'; exit 0; fi\n"
+            f"if [ \"$1 $2 $3\" = 'pr checks 7' ]; then cat '{falsos}/checks.json'; exit 0; fi\n"
+            "echo 'no pull requests found for branch' >&2; exit 1\n", encoding="utf-8")
+        (falsos / "gh").chmod(0o755)
+        self.env["PATH"] = f"{falsos}{os.pathsep}{self.env.get('PATH', '')}"
+
     def test_sem_worktree_com_o_head_no_forge_nao_cumpre(self):
-        """E14.81 (QA e segurança fe150b0 A1): o head traz o manifesto do Forge e a branch não tem worktree no repositório de quem
-        confere (a cópia do autor é clone); sem --worktree o D2 não roda, e a entrega não cumpre nem é gravada."""
+        """E14.81 e G3-ENTREGA-PELO-CI (v0481 E28.1): o head traz o manifesto do Forge e a branch não tem worktree no repositório de
+        quem confere (a cópia do autor é clone); o D2 local não roda: com o PR em outro head, ou o CI vermelho no head, a entrega não
+        cumpre nem é gravada; com o CI concluído e verde no head (a `catraca`, fora da linha do CI, vermelha), cumpre."""
         self.selado(arquivos="bin/app, docs/notas/, .claude-plugin/")
         self.gravar(".claude-plugin/plugin.json", "{}\n")
-        self.entregar(".claude-plugin")
+        head = self.entregar(".claude-plugin")
         self.git("switch", "-q", "--detach")
+        self.gh_falso("0" * 40, [])
         rc, saida = self.conferir()
         self.assertEqual(rc, 1, saida)
-        self.assertIn("pendente: D2 sem worktree da branch para rodar o forge-check pronto (passe --worktree", saida)
+        self.assertIn(f"pendente: o PR #7 está em 000000000000, não no head entregue {head[:12]}", saida)
+        self.assertNotIn("D2 sem worktree", saida)
+        self.gh_falso(head, [{"name": "bateria", "bucket": "pass", "workflow": "CI"},
+                             {"name": "bateria (python 3.14)", "bucket": "fail", "workflow": "CI"}])
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f"pendente: CI do PR #7 no head {head[:12]} não concluído e verde: CI/bateria (python 3.14) (fail)", saida)
         self.assertIn("resultado: não cumpriu", saida)
         self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
+        self.gh_falso(head, [{"name": "bateria (python 3.14)", "bucket": "pass", "workflow": "CI"},
+                             {"name": "catraca", "bucket": "fail", "workflow": "Catraca"}])
+        rc, saida = self.conferir("--worktree", str(self.proj))  # a cópia no head, para os PQ cmd do brief
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"prova: CI do PR #7 concluído e verde no head {head[:12]} (1 checks", saida)
+        self.assertEqual(fc.entregas_conferidas(self.pedido()), [head])
         self.gravar(".forge/versao", "0.1.0\n")  # um projeto com o manifesto não é o Forge: a linha só informa
         self.git("add", ".forge")
         self.git("switch", "-q", "melhoria/x")
