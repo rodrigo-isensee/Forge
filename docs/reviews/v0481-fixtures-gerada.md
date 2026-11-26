@@ -13,7 +13,7 @@ data: 2026-11-26
 1ª rodada completa. Diff lido contra o merge-base `cfd83b72`: `scripts/indice-fixtures.py`, `docs/hooks-fixtures.md` (regerado), `tests/test_indice_fixtures.py`, `tests/mutantes/v0481-fixtures-gerada.json` e o fragmento `changelog.d/v0481-fixtures-gerada.md`.
 
 ## Verificação
-- ci: de272439995c2476b465f8978cc9430d9c4e2a78 verde (suíte 3.12 e 3.14 partes 1 a 5, bateria passos e verificações longas, instalação e árvore provada em `pass`; `catraca` e `bateria (pareceres)` esperam os pareceres)
+- ci: de272439995c2476b465f8978cc9430d9c4e2a78 verde via 7a98a5136a2817e852cae8ce94a705e4d2da2432
 - `python3 -m unittest tests.test_indice_fixtures`: 10 testes, OK.
 - `python3 -I scripts/indice-fixtures.py --conferir`: `docs/hooks-fixtures.md: em dia`; `--detalhe` imprime `# Detalhe das fixtures dos hooks (3603 fixtures)` e não grava.
 - `bin/forge-mutante tests/mutantes/v0481-fixtures-gerada.json --base cfd83b72…`: M1 morreu (`scripts/indice-fixtures.py:119`). A spec antiga `v0454-indice.json` segue com os 13 mutantes mortos depois que o código foi para `detalhe()`.
