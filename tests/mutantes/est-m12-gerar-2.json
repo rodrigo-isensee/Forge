@@ -6,8 +6,8 @@
       "id": "M7",
       "guarda": "temporario exclusivo de mkstemp, nunca nome fixo (C-2, caso 4)",
       "arquivo": "bin/forge-check",
-      "de": "tmp_fd, tmp = tempfile.mkstemp(dir=raiz, prefix=\".KANBAN.\")",
-      "para": "tmp_fd, tmp = os.open(raiz / \".KANBAN.tmp\", os.O_WRONLY | os.O_CREAT | os.O_TRUNC), str(raiz / \".KANBAN.tmp\")",
+      "de": "if editados else []\n            tmp_fd, tmp = tempfile.mkstemp(dir=raiz, prefix=\".KANBAN.\")",
+      "para": "if editados else []\n            tmp_fd, tmp = os.open(raiz / \".KANBAN.tmp\", os.O_WRONLY | os.O_CREAT | os.O_TRUNC), str(raiz / \".KANBAN.tmp\")",
       "testes": [
         "tests.test_sobreposicao_quadro.KanbanGerar.test_temporario_exclusivo_e_apagado_em_erro"
       ]
@@ -16,8 +16,8 @@
       "id": "M8",
       "guarda": "temporario apagado em erro (C-2)",
       "arquivo": "bin/forge-check",
-      "de": "            except BaseException:\n                os.unlink(tmp)\n                raise",
-      "para": "            except BaseException:\n                pass\n                raise",
+      "de": "            except BaseException:\n                os.unlink(tmp)\n                raise\n        finally:\n            os.close(fd)\n    except OSError as e:\n        return [f\"kanban --gerar:",
+      "para": "            except BaseException:\n                pass\n                raise\n        finally:\n            os.close(fd)\n    except OSError as e:\n        return [f\"kanban --gerar:",
       "testes": [
         "tests.test_sobreposicao_quadro.KanbanGerar.test_temporario_exclusivo_e_apagado_em_erro"
       ]
@@ -26,8 +26,8 @@
       "id": "M9",
       "guarda": "erro na escrita propaga e o comando falha (C-2)",
       "arquivo": "bin/forge-check",
-      "de": "            except BaseException:\n                os.unlink(tmp)\n                raise",
-      "para": "            except BaseException:\n                os.unlink(tmp)",
+      "de": "            except BaseException:\n                os.unlink(tmp)\n                raise\n        finally:\n            os.close(fd)\n    except OSError as e:\n        return [f\"kanban --gerar:",
+      "para": "            except BaseException:\n                os.unlink(tmp)\n        finally:\n            os.close(fd)\n    except OSError as e:\n        return [f\"kanban --gerar:",
       "testes": [
         "tests.test_sobreposicao_quadro.KanbanGerar.test_temporario_exclusivo_e_apagado_em_erro"
       ]

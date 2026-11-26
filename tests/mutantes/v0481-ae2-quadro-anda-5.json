@@ -1,0 +1,76 @@
+{
+  "pedido": "v0481-ae2-quadro-anda",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE35",
+      "guarda": "AE2 (v0481 E10.10): a linha que abre seção (## ) muda a seção corrente",
+      "arquivo": "bin/forge-check",
+      "de": "secao = nome_da_secao(l[3:]) if l.startswith(\"## \") else secao",
+      "para": "secao = nome_da_secao(l[3:]) if l.startswith(\"##  \") else secao",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_linha_sai_da_origem_e_entra_no_fim_da_tabela_do_destino"
+      ]
+    },
+    {
+      "id": "AE36",
+      "guarda": "AE2 (v0481 E10.10): toda seção do quadro entra no conjunto de destinos",
+      "arquivo": "bin/forge-check",
+      "de": "        if l.startswith(\"## \"):\n            secoes.add(secao)",
+      "para": "        if l.startswith(\"##  \"):\n            secoes.add(secao)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_linha_sai_da_origem_e_entra_no_fim_da_tabela_do_destino"
+      ]
+    },
+    {
+      "id": "AE37",
+      "guarda": "AE2 (v0481 E10.10): a inserção começa na seção de destino",
+      "arquivo": "bin/forge-check",
+      "de": "if l.startswith(\"## \") and nome_da_secao(l[3:]) == destino)",
+      "para": "if l.startswith(\"## \") and nome_da_secao(l[3:]) != destino)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_linha_sai_da_origem_e_entra_no_fim_da_tabela_do_destino"
+      ]
+    },
+    {
+      "id": "AE38",
+      "guarda": "AE2 (v0481 E10.10): a seção de destino acaba na próxima seção",
+      "arquivo": "bin/forge-check",
+      "de": "fim = next((i for i in range(inicio + 1, len(linhas)) if linhas[i].startswith(\"## \")), len(linhas))\n    tabela = ",
+      "para": "fim = next((i for i in range(inicio + 1, len(linhas)) if linhas[i].startswith(\"##  \")), len(linhas))\n    tabela = ",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_atributo_dado_troca_a_celula_e_o_resto_fica"
+      ]
+    },
+    {
+      "id": "AE39",
+      "guarda": "AE2 (v0481 E10.10): a linha nova entra depois da última linha da tabela da seção",
+      "arquivo": "bin/forge-check",
+      "de": "range(inicio + 1, fim) if linhas[i].startswith(\"|\")]",
+      "para": "range(inicio + 1, fim) if linhas[i].startswith(\"||\")]",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_linha_sai_da_origem_e_entra_no_fim_da_tabela_do_destino"
+      ]
+    },
+    {
+      "id": "AE40",
+      "guarda": "AE2 (v0481 E10.10): o aviso do OSError no movimento diz o caminho que falhou",
+      "arquivo": "bin/forge-check",
+      "de": "return f\"{caminho_impresso(e.filename or 'KANBAN.md')}: {sem_controle(e.strerror or str(e))}; quadro intacto\"",
+      "para": "return f\"{caminho_impresso(e.filename and 'KANBAN.md')}: {sem_controle(e.strerror or str(e))}; quadro intacto\"",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_trava_que_nao_abre_avisa_sem_derrubar"
+      ]
+    },
+    {
+      "id": "AE41",
+      "guarda": "AE2 (v0481 E10.10): o aviso do OSError no movimento diz a causa, sem o número do erro",
+      "arquivo": "bin/forge-check",
+      "de": "return f\"{caminho_impresso(e.filename or 'KANBAN.md')}: {sem_controle(e.strerror or str(e))}; quadro intacto\"",
+      "para": "return f\"{caminho_impresso(e.filename or 'KANBAN.md')}: {sem_controle(e.strerror and str(e))}; quadro intacto\"",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_trava_que_nao_abre_avisa_sem_derrubar"
+      ]
+    }
+  ]
+}
