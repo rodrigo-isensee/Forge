@@ -3,27 +3,31 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-pesos-gerados
-commit: cb924113ca811f1c5172f7aad569e2b22b7a4595
-parecer: reprovado
-escopo: completo
+commit: f9fa7be39c883bc3da77a43669223e8e50813f32
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-26
 ---
-# QA: v0481 E19.4, PESOS-GERADOS (#909), 1.ª rodada completa
+# QA: v0481 E19.8, PESOS-GERADOS (#909), volta por delta
 
-Diff lido: `git diff 8ae4d6c6..cb924113` (merge-base com a develop), 8 arquivos. Pedido de controle (`bin/forge-testes`) e sem gatilho de segurança.
+Delta lido: `git diff cb924113..f9fa7be3` (só `tests/mutantes/v0481-pesos-gerados.json`, +12 linhas, e os pareceres). Fecha o A1 da 1.ª rodada: as duas guardas apagadas (bin/forge-testes 965 e 967 da base) entraram em `isentas` com motivo "código removido". Os recomendados A2 e A3 da 1.ª rodada seguem como cartão (Melhoria vista), fora desta volta.
 
-- ci: cb924113ca811f1c5172f7aad569e2b22b7a4595 verde
+- ci: f9fa7be39c883bc3da77a43669223e8e50813f32 verde
 
-`gh pr checks 909` no `commit:`: suíte 3.12 e 3.14 (partes 1 a 5), bateria (passos), bateria (verificações longas), instalação, teto de pulados e árvore já provada verdes. Vermelhos esperados: `bateria (pareceres)` e `bateria` (esperam os pareceres) e `catraca` (log do run 45825156644: asserções 17845 para 17843, cinco testes de controle apagados ou afrouxados, que pedem o rótulo `afrouxa-regra` do dono, e R-QA com duas guardas apagadas sem mutante).
+`gh pr checks 909` no `Revisar-sha`: suíte 3.12 e 3.14 (partes 1 a 5), bateria (passos), bateria (verificações longas) e instalação verdes. Vermelhos fora da conta: `bateria (pareceres)` e `bateria` (esperam os pareceres) e `catraca`, lida no log do run 45832767176: só R-CONFORMIDADE (asserções 17860 para 17858 e cinco testes de controle apagados ou afrouxados), o afrouxamento de PR-VERDE C1 que o dono aceitou em 26/11 10:4x e que pede o rótulo `afrouxa-regra`. Nenhuma linha R-QA: a falha de guardas sem mutante sumiu.
 
-## Achados
-- A1 (bloqueante) tests/mutantes/v0481-pesos-gerados.json:1 · R-QA: `--cobertura --base 8ae4d6c6` lista `apagada` em bin/forge-testes:967 e :965 da base e a catraca barra. Declare as duas em `isentas` com motivo (código removido); sem isso o rótulo do dono cobriria também esta falha.
-- A2 (recomendado) tests/test_testes_tocados.py:1907 · `test_modulo_antigo_sem_peso_nao_e_do_pr` passa a falhar pelo mesmo motivo que `test_modulo_de_teste_novo_sem_peso_sai_0` (sem peso, rc 0): fundir ou apagar um deles.
-- A3 (recomendado) scripts/suite-paralela.py:143 · `ler_pesos` devolve `{}` em silêncio se o JSON está corrompido; a única guarda é o `PesosDaSuite` (erro de JSON), sem teste que o prove. Um teste com pesos `{` e `[]` o fixaria.
+Provas desta volta:
+```
+bin/forge-mutante --cobertura --base 8ae4d6c63c27aed480d822c66f361f53d8d4594d   (rc 0)
+coberta · bin/forge-testes:979 · tests/mutantes/v0481-pesos-gerados.json:PG2 · declarado, não provado
+isenta · bin/forge-testes:967(base) · código removido: o filtro de módulo novo sem peso saiu com a função; ...
+isenta · bin/forge-testes:965(base) · código removido: a leitura do tests/pesos-d4.json ...
+```
+Mutantes PG1 a PG4: sem mudança no delta (a spec só ganhou `isentas`) e código de produção intocado; o resultado da 1.ª rodada vale.
 
 ## Critério → teste → resultado
 Pedido sem `docs/ux`; as obrigações vêm do brief e do PR (E19.1).
