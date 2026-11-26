@@ -3,34 +3,33 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-s5-cabecalho
-commit: e216aa71cd0e5e720ce00da880a6e4adfd8464fd
-parecer: reprovado
+commit: c8c2e1384d3811c4380f295b0a72f72d191c3951
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-26
 ---
-# Review: v0481 E25.2 (S5, #917), 1ª rodada completa
+# Review: v0481 E25.6 (S5, #917), volta 1 por delta
 
-Diff lido: `3c833f3f..e216aa71` (merge-base com a `develop`), 4 arquivos: `bin/forge_autorizacao.py` (9 linhas de código, dentro do H1, um comportamento), `tests/test_autorizacao.py`, `tests/mutantes/v0481-s5-cabecalho.json` e `changelog.d/v0481-s5-cabecalho.md`.
+Delta lido (`forge-check parecer delta`): `e216aa71..c8c2e138`, no domínio `bin/forge_autorizacao.py`, `tests/mutantes/v0479-pv-a2-concessao-3.json`, `tests/mutantes/v0479-pv-a2-concessao-4.json`, `tests/mutantes/v0481-s5-cabecalho.json` e `tests/test_autorizacao.py` (o código novo vem do `c8c2e138`; o resto do intervalo são pareceres). Código: 2 linhas, dentro do H1.
 
 ## Verificação
-- CI no `e216aa71` (run 45856837729, tentativa 2, depois da queda de infraestrutura do actionlint na 1.ª): sem linha `ci: verde`. `suíte (python 3.12, parte 4/5)` e `suíte (python 3.14, parte 4/5)` vermelhas pelo diff: anotação `tests/test_forge_mutante.py:1564 ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes`, specs `v0479-pv-a2-concessao-3.json: M18` e `v0479-pv-a2-concessao-4.json: M27` com o `de` fora da fonte (A2); `bateria` e `bateria (python 3.14)` vermelhas por consequência; `bateria (pareceres)` espera o parecer. Catraca (run 45856837897) vermelha pela guarda apagada (A1). O run do `ebc6690e` (parecer do QA) foi cancelado no checkout.
-- Local, `python3 -m unittest tests.test_forge_mutante.ConferirTodas`: falha no head com as mesmas duas specs; OK na base `3c833f3f`.
-- `python3 -m unittest tests.test_autorizacao`: OK.
-- `bin/forge-mutante tests/mutantes/v0481-s5-cabecalho.json --processos 1`: M1 a M4 mortos (M4 por erro).
-- `bin/forge-mutante --cobertura --base 3c833f3f`: L232, L235, L236 cobertas; `apagada · bin/forge_autorizacao.py:230(base) · texto.startswith('---\n')` sem mutante (A1). Sem shell tocado.
+- ci: c8c2e1384d3811c4380f295b0a72f72d191c3951 verde
+- CI do `c8c2e138` (run 45885735709; catraca run 45885857531): suíte 3.12 e 3.14 partes 1 a 5, instalação, bateria (passos), bateria (verificações longas), árvore já provada e catraca verdes; `bateria` e `bateria (pareceres)` esperam o parecer.
+- Local: `python3 -m unittest tests.test_autorizacao tests.test_forge_mutante.ConferirTodas`: 30 testes, OK (ConferirTodas era o vermelho do A2).
+- `bin/forge-mutante tests/mutantes/v0481-s5-cabecalho.json --processos 1`: M1 a M5 mortos (M4 por erro). M18 (concessao-3) e M27 (concessao-4) mortos (M27 por erro).
+- `bin/forge-mutante --cobertura --base 3c833f3f`: L219 (M5), L234 (M1, M18), L237 (M2), L238 (M4, M27) cobertas; `isenta · bin/forge_autorizacao.py:230(base)` com motivo. Sem shell tocado.
 
-## Leitura
-- Comportamento: `frente` abre só com a 1.ª linha `---`, fecha na 1.ª linha com `strip() == "---"` e, sem fecho, devolve `{}`. Os chamadores (`fora_do_revisado`, linhas 214 e 218, e a 387) só ficam mais fechados.
-- O `strip` no fecho em vez da comparação exata do brief: aceito. É o fecho do `ler_frontmatter` (`bin/forge-check:265`, validador da ADR 0004); com a comparação exata, um fecho `--- ` que o `forge-check docs` aceita deixaria o `parecer:` do corpo valer, o defeito que o item tira.
-- Testes: os 4 novos leem comportamento, nenhum lê a fonte; o de `ItemPresoAoCommit` passa pelo git real nos dois sentidos.
-- Commit: um só, Conventional Commits em português, fragmento em `changelog.d/`.
+## Leitura do delta
+- A1 resolvido: a guarda apagada `texto.startswith("---\n")` ganhou isenta; a regra segue em `linhas[0] != "---"` (L234), morta por M1 e M18. Aceito: mesma condição, com mutante nas duas specs.
+- A2 resolvido: M18 e M27 miram o texto da `frente` nova e morrem; ConferirTodas verde local e no CI parte 4/5.
+- A5 resolvido: `FIXA = {` restaurado.
+- A3 da segurança (L219): achado do grep com `frente` vazia barra com "Parecer sem cabeçalho legível", falha fechada; o teste novo passa pelo git real e prova o ramo de falha. Vem antes do teste de tipo e pasta, ordem certa.
+- O comentário de sondas antes de `class Frente` é documentação do teste; não muda comportamento.
 
 ## Achados
-- A1 (bloqueante) bin/forge_autorizacao.py:232 · R-QA: a guarda apagada `texto.startswith('---\n')` (base:230) não tem mutante nem isenção na spec; a catraca reprova e o `--cobertura` confirma. Mesmo achado do A1 do QA.
-- A2 (bloqueante) tests/mutantes/v0479-pv-a2-concessao-3.json:16 · M18 (`if texto.startswith(...) else ""`) e M27 de v0479-pv-a2-concessao-4.json:26 (`if ": " in linha)`) têm o `de` fora da fonte nova: ConferirTodas vermelho no CI parte 4/5 e local, verde na base. Alinhe as duas specs no mesmo commit.
-- A3 (recomendado) bin/forge_autorizacao.py:232 · A abertura segue exata (`linhas[0] != "---"`) e o `ler_frontmatter` usa `strip()` no topo: `--- ` no topo dá `{}` aqui e campos lá; falha fechada, já existia na base.
-- A4 (recomendado) bin/forge-fechar:1347 · O `awk` de `pedido_da_branch` fecha o cabeçalho só em `$0 == "---"`; com o fecho `--- ` que o `ler_frontmatter` aceita, lê o corpo; mesmo par de leitores do S5, fora do corte deste item.
-- A5 (recomendado) tests/test_autorizacao.py:374 · `FIXA ={` perdeu o espaço antes do `{`; restaurar `FIXA = {`.
+- A3 (recomendado) bin/forge_autorizacao.py:234 · Mantido da 1.ª rodada: abertura exata (`linhas[0] != "---"`) contra o `strip()` do `ler_frontmatter`; `--- ` no topo dá `{}` aqui e campos lá. Falha fechada; vira cartão.
+- A4 (recomendado) bin/forge-fechar:1347 · Mantido da 1.ª rodada: o `awk` de `pedido_da_branch` fecha só em `$0 == "---"`; fora do corte deste item; vira cartão.
+- A6 (recomendado) bin/forge_autorizacao.py:219 · A guarda nova vale para todo arquivo do grep em docs/reviews, qa, security e devops; há 50 sem frontmatter (docs/qa/bugs/). Relato que cite `branch: <ramo>` trava a concessão do ramo. Falha fechada, sem gatilho hoje; restringir aos pareceres num cartão.
 
 ## Parecer
-Reprovado. A lógica faz o que o E25.1 pede e o `strip` no fecho confere com o validador da ADR 0004, mas o diff deixa a suíte vermelha (A2: duas specs antigas apontam para o texto removido) e a catraca reprova a guarda apagada sem mutante (A1). Correção volta ao autor; o A1 e o A2 se resolvem juntos alinhando M18 e M27 (ou declarando a isenção) no mesmo commit.
+Aprovado. O delta fecha os bloqueantes A1 e A2 do review e o A3 da segurança, com mutante declarado e morto em cada guarda nova ou mudada e o CI do head verde fora dos checks que esperam o parecer. A3, A4 e A6 viram cartões depois do merge.
