@@ -16,7 +16,7 @@ Texto do Jarvis (L51); a forma é da ferramenta.
 O `forge:conferente` é opcional: chame-o só com dúvida de conteúdo que a ferramenta não decide, com a mensagem de `forge-check brief mensagem --arquivo <brief> --pedido <p>`.
 
 ## Ao receber a entrega (`R-PROVA`)
-- `forge-check entrega --pedido <p> --branch <b> --etapa <etapa>`: confere o estado real, roda os PQ que sabe conferir e grava a linha `entrega conferida <sha40>` no `## Histórico`. Nunca escreva essa linha à mão; `--sem-gravar` só confere (o PQ do autor), `--so-leitura` sem PQ `cmd` (o conferente).
+- `forge-check entrega --pedido <p> --branch <b> --etapa <etapa> --worktree <cópia>`: confere o estado real, roda os PQ que sabe conferir e grava a linha `entrega conferida <sha40>` no `## Histórico`. Nunca escreva essa linha à mão. Opções e D2: `conferencia-da-entrega.md` nesta skill.
 - Compare a saída com o bloco `Provas:` do relatório; divergência volta ao autor.
 - Depois, `forge-check classe` e os portões da classe numa passada, em paralelo, no mesmo head (`R-REVIEW`).
 

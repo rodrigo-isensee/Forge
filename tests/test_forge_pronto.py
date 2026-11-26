@@ -279,9 +279,9 @@ class ProvaDoPronto(unittest.TestCase):
         (self.pasta / ".claude-plugin").mkdir()
         (self.pasta / ".claude-plugin" / "plugin.json").write_text("{}\n", encoding="utf-8")
 
-    def prova(self, resultado=None, so_leitura=False, pasta="padrão", erro=None):
+    def prova(self, resultado=None, so_leitura=False, pasta="padrão", erro=None, forge_no_head=False):
         rodar = mock.Mock(return_value=resultado, side_effect=erro)
-        linhas = fc.prova_do_pronto(self.pasta if pasta == "padrão" else pasta, "develop", so_leitura, rodar)
+        linhas = fc.prova_do_pronto(self.pasta if pasta == "padrão" else pasta, "develop", so_leitura, rodar, forge_no_head=forge_no_head)
         return linhas, rodar
 
     def test_rc_0_e_prova_sem_reprovar_com_o_pronto_da_worktree(self):
@@ -305,9 +305,24 @@ class ProvaDoPronto(unittest.TestCase):
         self.assertTrue(linhas[0][1])
         self.assertIn("não terminou (TimeoutExpired)", linhas[0][0])
 
-    def test_so_leitura_sem_worktree_e_fora_do_forge_nao_rodam(self):
+    def test_sem_worktree_com_o_head_no_forge_reprova_pedindo_worktree(self):
+        """E14.81, sondas da revisão de segurança fe150b0 (a cópia do autor é clone, sem worktree no repositório de quem confere):
+        S1 `python3 -I _sec75-v0481-d2nb-sonda.py <clone> (prova_do_pronto(None, "develop", False))`, espera reprovar;
+        S2 `git -C /workspaces/Forge worktree list --porcelain, procurando melhoria/v0481-d2-no-brief`, sem a worktree da branch;
+        S3 `comando_permitido(["bin/forge-check","pronto","--base","origin/develop"]) do scripts/reexecutar-provas.py`, fora da lista:
+        a PQ do D2 não é cobrada por outra via, por isso a falta de worktree reprova aqui."""
+        linhas, rodar = self.prova(Resultado(0), pasta=None, forge_no_head=True)
+        rodar.assert_not_called()
+        self.assertEqual(linhas, [("pendente: D2 sem worktree da branch para rodar o forge-check pronto (passe --worktree <cópia do "
+                                   "autor>) (D2-NO-BRIEF)", True)])
+        linhas, rodar = self.prova(Resultado(0), pasta=None, forge_no_head=True, so_leitura=True)
+        rodar.assert_not_called()
+        self.assertFalse(linhas[0][1])
+
+    def test_so_leitura_sem_worktree_fora_do_forge_e_fora_do_forge_nao_rodam(self):
         (self.pasta / "fora").mkdir()
-        for kw in ({"so_leitura": True}, {"pasta": None}, {"pasta": self.pasta / "fora"}):
+        for kw in ({"so_leitura": True}, {"so_leitura": True, "forge_no_head": True}, {"pasta": None},
+                   {"pasta": self.pasta / "fora"}):
             with self.subTest(**{k: str(v) for k, v in kw.items()}):
                 linhas, rodar = self.prova(Resultado(1), **kw)
                 rodar.assert_not_called()

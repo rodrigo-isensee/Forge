@@ -439,6 +439,25 @@ class Entrega(Repositorio):
         self.assertIn("resultado: não cumpriu", saida)
         self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
 
+    def test_sem_worktree_com_o_head_no_forge_nao_cumpre(self):
+        """E14.81 (QA e segurança fe150b0 A1): o head traz o manifesto do Forge e a branch não tem worktree no repositório de quem
+        confere (a cópia do autor é clone); sem --worktree o D2 não roda, e a entrega não cumpre nem é gravada."""
+        self.selado(arquivos="bin/app, docs/notas/, .claude-plugin/")
+        self.gravar(".claude-plugin/plugin.json", "{}\n")
+        self.entregar(".claude-plugin")
+        self.git("switch", "-q", "--detach")
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("pendente: D2 sem worktree da branch para rodar o forge-check pronto (passe --worktree", saida)
+        self.assertIn("resultado: não cumpriu", saida)
+        self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
+        self.gravar(".forge/versao", "0.1.0\n")  # um projeto com o manifesto não é o Forge: a linha só informa
+        self.git("add", ".forge")
+        self.git("switch", "-q", "melhoria/x")
+        self.commit("chore: versão do projeto")
+        self.git("switch", "-q", "--detach")
+        self.assertIn("pronto: não rodado aqui", self.conferir()[1])
+
     def test_prova_que_falha_nao_cumpre(self):
         self.selado(pq_extra="- PQ-4 (cmd): `git rev-parse HEAD` · espera: igual 'nada'\n")
         self.entregar()

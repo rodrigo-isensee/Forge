@@ -20,8 +20,8 @@ Medida: 61 branches e 8 grupos de pareceres da união na versao-043 (estudo 0.43
 - **Depois do merge, limpe tudo**: com os heads remoto e local iguais ao `headRefOid` do PR mesclado, quem mesclou apaga branch remota, worktree e branch local sem nova confirmação (só branch de trabalho: `melhoria/*`; no projeto `feature/`, `fix/`, `docs/`, `chore/`, `refactor/`). Fora disso, confirme. **Nunca** apague `develop`, `homolog` nem `main`, nem a integração do `CLAUDE.md`. Sandbox impediu: o dono roda `git worktree prune`.
 
 ## No projeto
-- Branch de trabalho a partir da integração (padrão `develop` ou a do `CLAUDE.md`); a integração chega à `main` por PR do usuário (`R-MAIN`). Mesma fila, conserto e limpeza do Forge.
+- Branch de trabalho a partir da integração (`develop` ou a do `CLAUDE.md`); ela chega à `main` por PR do usuário (`R-MAIN`). Mesma fila, conserto e limpeza do Forge.
 
 ## No Forge e no projeto
-- **Atualize a branch com a integração só na hora do merge**, salvo conflito ou dependência: antes, o `forge-check pr` confere o merge simulado.
+- **Atualize a branch com a integração só na hora do merge**, salvo conflito, dependência ou base velha: antes, o `forge-check pr` confere o merge simulado.
 - Merge sem conflito não invalida parecer; o conflito resolvido que muda o patch invalida os pareceres dos arquivos que ela tocou, cada um no seu domínio. Quem resolveu o conflito não decide o alcance: a ferramenta aponta e quem deu o parecer revalida pelo delta (`R-REVIEW`).

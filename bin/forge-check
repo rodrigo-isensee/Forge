@@ -9715,9 +9715,10 @@ TESTES_DE_TEXTO = ("tests.test_testes_tocados", "tests.test_forge.Orcamento", "t
 TESTE_DOS_ACHADOS = "tests.test_forge_mutante.ConferirTodas"  # H3 (a): o AR-12 de docs/engineering/achados-recorrentes.md, conferido pelo autor
 
 
-PQ_DO_D2 = ("- PQ-N (cmd, do autor): `bin/forge-check pronto --base origin/{base}` · espera: rc=0 · D2 (D2-NO-BRIEF): na raiz da sua "
-            "cópia, com o PR em rascunho aberto, em segundo plano com log até `rc=` (esperar-estado); entregue só com rc 0 e a última "
-            "linha dele no relatório; com rc 1, corrija o que ele aponta (a conferência da entrega recusa o D2 vermelho)")
+PQ_DO_D2 = ("- PQ-N (cmd, do autor): `bin/forge-check --raiz <sua cópia> pronto --base origin/{base}` · espera: rc=0 · D2 (D2-NO-BRIEF): "
+            "o forge-check de um clone da develop (`bin/forge-copia clone --base origin/develop`, sufixo -d2), nunca o da branch, que "
+            "não certifica o próprio portão; com o PR em rascunho aberto, em segundo plano com log até `rc=` (esperar-estado); "
+            "entregue só com rc 0 e a última linha dele no relatório; com rc 1, corrija o que ele aponta (a conferência da entrega recusa o D2 vermelho)")
 
 
 def pqs_de_pre_envio(raiz, etapa, entregar):
@@ -10444,11 +10445,13 @@ def rodar_prova(script, argv, espera, pasta):
 PRAZO_DO_PRONTO_S = 3600  # D2-NO-BRIEF: o pronto roda os testes afetados e pode passar de 10 min
 
 
-def prova_do_pronto(pasta, base, so_leitura, rodar=subprocess.run):
+def prova_do_pronto(pasta, base, so_leitura, rodar=subprocess.run, forge_no_head=False):
     """D2-NO-BRIEF (v0481 E14.51): [(linha, reprova)] do `forge-check pronto` deste forge-check com `--raiz` na worktree da branch, na
-    etapa codigo da conferência; fora do rc 0 reprova, com a última linha do pronto (o que falhou). Com `so_leitura` (quem confere não
-    roda código da branch), sem worktree ou fora do Forge (sem .claude-plugin/plugin.json) não roda: vale a última linha no relatório
-    do autor."""
+    etapa codigo da conferência; fora do rc 0 reprova, com a última linha do pronto (o que falhou). Sem worktree e com o head da branch
+    no Forge (`forge_no_head`), reprova pedindo --worktree (E14.81: a cópia do autor é clone). Com `so_leitura` (quem confere não roda
+    código da branch), ou fora do Forge (sem .claude-plugin/plugin.json), não roda: vale a última linha no relatório do autor."""
+    if pasta is None and forge_no_head and not so_leitura:
+        return [("pendente: D2 sem worktree da branch para rodar o forge-check pronto (passe --worktree <cópia do autor>) (D2-NO-BRIEF)", True)]
     if so_leitura or pasta is None or not (Path(pasta) / ".claude-plugin" / "plugin.json").is_file():
         return [("pronto: não rodado aqui (--so-leitura, sem worktree ou fora do Forge); confira a última linha do `forge-check pronto` "
                  "no relatório do autor (D2-NO-BRIEF)", False)]
@@ -10620,7 +10623,8 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
     linhas.append((f"commits: {contagem if not cod else '?'} em {inicio[:12]}..{head[:12]}", bool(cod)))
     linhas += conferir_provas(raiz, brief, branch, head, pasta, so_leitura)
     if etapa == "codigo":  # D2-NO-BRIEF: a entrega com o D2 vermelho volta sem passar pelas revisões
-        linhas += prova_do_pronto(pasta, base, so_leitura)
+        no_head = [git(raiz, "cat-file", "-e", f"{head}:{nome}")[0] == 0 for nome in (".claude-plugin/plugin.json", ".forge/versao")]
+        linhas += prova_do_pronto(pasta, base, so_leitura, forge_no_head=no_head == [True, False])
     if etapa == "codigo" and not cod:  # T1: código sem teste no intervalo da delegação, sinalizado sem reprovar (a classe T isenta)
         aviso = aviso_de_codigo_sem_teste(raiz, f"{inicio}..{head}", nomes_do_intervalo(raiz, inicio, head),
                                           classe_para_o_t1(raiz, head, base))

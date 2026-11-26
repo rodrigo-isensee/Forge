@@ -94,10 +94,11 @@ class Gerar(unittest.TestCase):
             self.assertNotIn(trecho, saida)
 
     def test_codigo_do_forge_manda_rodar_o_d2_e_fora_do_forge_nao(self):  # D2-NO-BRIEF (v0481 E14.51)
-        d2 = "`bin/forge-check pronto --base origin/develop` · espera: rc=0 · D2 (D2-NO-BRIEF)"
+        d2 = "`bin/forge-check --raiz <sua cópia> pronto --base origin/develop` · espera: rc=0 · D2 (D2-NO-BRIEF)"
         saida = self.gerar("codigo", "E1.1")
         self.assertIn(d2, saida)
         self.assertIn("última linha dele no relatório", saida)
+        self.assertIn("nunca o da branch", saida)  # review fe150b0 A2: a branch não certifica o próprio portão
         self.assertNotIn(d2, self.gerar("codigo", "E1.1", forge=False))
 
     def test_parecer_nao_leva_o_pre_envio_do_autor(self):
