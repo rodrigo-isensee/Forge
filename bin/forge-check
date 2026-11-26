@@ -2182,6 +2182,30 @@ def leu_o_ci(campos, texto):
     return bool(COMMIT.match(commit)) and any(m.group(1).startswith(commit) for m in PROVA_DO_CI.finditer(texto))
 
 
+# PARECER-LE-O-CI, G3.7 (v0481 E8.10): o envio de um parecer cancela o run do `Revisar-sha` (cancel-in-progress) e o portão seguinte não
+# acha run completo nele; vale então `- ci: <sha40 do commit:> verde via <sha40 do descendente>`, o run verde de um descendente cujo
+# diff desde o `commit:` só toca as pastas dos pareceres. O merge segue exigindo todos os checks do head.
+PROVA_DO_CI_VIA = re.compile(r"^- ci: ([0-9a-f]{40}) verde via ([0-9a-f]{40})[ \t]*$", re.M)
+PASTAS_DOS_PARECERES = ("docs/reviews/", "docs/qa/", "docs/security/")
+
+
+def so_pareceres_ate(raiz, sha, via):
+    """True se `via` descende de `sha` e o diff entre eles (sem detectar renomeação, que esconderia a origem) só toca
+    `PASTAS_DOS_PARECERES`; erro do git ou outro caminho: False (falha fechada). Saída em bytes (o `strip` cortaria o branco
+    inicial do 1º caminho) e gitlink sempre listado (`diff.ignoreSubmodules` da configuração o esconderia)."""
+    if git(raiz, "merge-base", "--is-ancestor", sha, via)[0] != 0:
+        return False
+    rc, saida = git(raiz, "diff", "--name-only", "--no-renames", "--ignore-submodules=none", "-z", sha, via, "--", bruto=True)
+    return rc == 0 and all(c.startswith(PASTAS_DOS_PARECERES) for c in nomes_z(saida))
+
+
+def leu_o_ci_via(raiz, campos, texto):
+    """True se o `texto` traz a linha `- ci: ... verde via ...` do sha do `commit:` com um descendente só de pareceres."""
+    commit = campos.get("commit") or ""
+    vias = [m for m in PROVA_DO_CI_VIA.finditer(texto) if m.group(1).startswith(commit)]
+    return bool(COMMIT.match(commit)) and any(so_pareceres_ate(raiz, m.group(1), m.group(2)) for m in vias)
+
+
 def cobra_a_linha_do_ci(raiz, campos):
     """PARECER-LE-O-CI, transição (A3 do #893): a linha só é cobrada do parecer cujo `commit:` já traz a regra no `bin/forge-check`,
     pois o brief dele a pediu; o de commit anterior segue com a PARECER-SO-COM-CI-VERDE inteira. `commit:` fora da forma ou erro do
@@ -2199,7 +2223,9 @@ def suite_do_parecer(raiz, ref, base, branch, rel, campos, texto, rid, adiar, ci
         return []
     sem_ci = [] if leu_o_ci(campos, texto) or not cobra_a_linha_do_ci(raiz, campos) else [
         f"{caminho_impresso(rel)}: ci: o parecer aprovado traz a linha `- ci: <sha40 do commit:> verde`, lida em `gh pr checks` no "
-        f"sha revisado, os checks concluídos e verdes {FORA_DA_LINHA_DO_CI}; sem CI verde, não aprove (PARECER-LE-O-CI, {rid})"]
+        f"sha revisado, os checks concluídos e verdes {FORA_DA_LINHA_DO_CI}, ou `- ci: <sha40> verde via <sha40 do descendente>` "
+        f"com o diff só em {', '.join(PASTAS_DOS_PARECERES)}; sem CI verde, não aprove (PARECER-LE-O-CI, {rid})"]
+    sem_ci = [] if leu_o_ci_via(raiz, campos, texto) else sem_ci
     if (falta := falta_na_prova(raiz, base, campos, texto)) is None:
         return sem_ci
     linha = (f"{caminho_impresso(rel)}: suíte: o parecer aprovado só conta com o CI verde no head ou com a prova da suíte dos "
@@ -3728,7 +3754,8 @@ TIPO_DO_PARECER_NOVO = {"review": ("review", "forge:tech-lead", "Review"), "qa":
 
 PROVA_NO_ESQUELETO = "- suíte: {0} rc=0 módulos={0}"  # PARECER-SO-COM-CI-VERDE: sem o CI verde no head, o sha40 do `commit:` e os módulos
 CI_NO_ESQUELETO = "- ci: {0} verde"  # PARECER-LE-O-CI: o sha40 do `commit:`, com o `gh pr checks` dele verde fora os da nota abaixo
-NOTA_NO_ESQUELETO = f"{{0}}: a linha `- ci:` vale com os checks do `commit:` concluídos e verdes {FORA_DA_LINHA_DO_CI}"
+NOTA_NO_ESQUELETO = (f"{{0}}: a linha `- ci:` vale com os checks do `commit:` concluídos e verdes {FORA_DA_LINHA_DO_CI}; run do "
+                     "`commit:` cancelado: `- ci: <sha40 do commit:> verde via <sha40 do descendente só de pareceres>` (G3.7)")
 
 
 def secoes_do_parecer_novo(tipo, marca):
@@ -9835,7 +9862,9 @@ def portao_na_branch(raiz, pedido_id, etapa, branch, base):
 # PARECER-LE-O-CI (G3, v0481 E8.1): o review e o QA leem o CI do head em vez de rodar a bateria, e só eles (o `pr` confere a linha)
 PORTOES_QUE_LEEM_O_CI = ("review", "qa")
 LINHA_LE_O_CI = ("- G3 (PARECER-LE-O-CI): não rode a suíte inteira; leia `gh pr checks` do PR, concluídos e verdes no `Revisar-sha` "
-                 f"{FORA_DA_LINHA_DO_CI}, e grave no parecer `- ci: <sha40 do Revisar-sha> verde` (sem ela, o `forge-check pr` recusa o aprovado); à mão, só os "
+                 f"{FORA_DA_LINHA_DO_CI}, e grave no parecer `- ci: <sha40 do Revisar-sha> verde` (sem ela, o `forge-check pr` recusa o aprovado); run do "
+                 "`Revisar-sha` cancelado pelo envio de outro parecer: `- ci: <sha40 do Revisar-sha> verde via <sha40 do descendente>`, "
+                 f"com o diff dele só em {', '.join(PASTAS_DOS_PARECERES)} (G3.7); à mão, só os "
                  "testes que o diff toca e os mutantes declarados")
 SEM_PR_NO_PORTAO = "- sem PR para a branch: o CI só roda no PR; review e QA não aprovam sem o CI do head verde: peça ao autor o PR em rascunho"
 
