@@ -3,48 +3,30 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-prazo-forge
-commit: 4ab16b74a90aa0d9214d1a6c32764dfac9e7fe89
+commit: ecb13af6dac68a1f57c173c7000e03bbb5a71054
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-25
 ---
-# Review de segurança: v0481 (E7.47, #888, revalidação por delta, 3ª volta)
+# Review de segurança: v0481 (E7.52, #888, revalidação por delta, 4ª volta)
 
-Gatilhos: hook de bloqueio (`hooks/_comum.py`: `executar`, `prazo_vencido`, `registrar_sob_vigia`), R-REVIEW, R-CONFORMIDADE.
+Gatilhos: hook de bloqueio (`hooks/_comum.py`: `prazo_vencido`), R-REVIEW, R-CONFORMIDADE, R-QA (mutantes).
 
 ## Resumo
-- Delta lido: `forge-check parecer delta` de `1d6692f5` a `4ab16b74`, sem o que veio da develop. No domínio: `hooks/_comum.py:2879-2992`, `hooks/conformidade.py:1800-1804`, a fixture renomeada (100%, sem mudança), `tests/test_hooks.py`, `tests/test_hooks_volta_corpus.py` e `tests/test_hooks_volta_propriedades.py`. Fora do domínio, lidos também: o changelog e as specs `v0481-prazo-forge-2.json` (M22), `v0481-prazo-forge-3.json`, `lote-unico-032-l31.json` e `v0478-bp1-relogio.json`. O merge `5f99d144` só resolveu conflito em `docs/hooks-fixtures.md` (`git show --remerge-diff`). A rodada E7.39 fica no git.
-- **O que aperta:**
-  - o prazo do vigia passa a contar da partida do processo (`idade_do_processo`, `/proc/self/stat` campo 22 contra `CLOCK_BOOTTIME`, `:2879`, `:2969`), e não de depois do Python e dos imports. O vigia arma o que resta (`:2978`) e o prazo longo rearma do mesmo `inicio`;
-  - a sessão e o registro depois do prazo vencido cabem no que resta do teto prazo + 0,5 + 0,5 (`prazo_da_etapa`, `:2892`). Sem tempo, a sessão não é lida e a linha recusa (`:2927`), e o registro não roda (`:2902`). Isso fecha o A6 (o A1 do review, o hook morto aos 10 s sob carga com o merge liberando pelo FIFO).
-- **O que é neutro:**
-  - a docstring de `especial_no_git` agora registra as formas livres na sessão do Forge. Isso fecha o A3;
-  - a idade que falha (sem `/proc`, ilegível, sem `CLOCK_BOOTTIME`, `argv[0]` de outro script) dá 0, o comportamento de antes. O `UnicodeDecodeError` é `ValueError` e também cai aí. A idade é medida pelo kernel, e o agente não a controla;
-  - o teste de parede passa do FIFO no `commondir` para o FIFO no `HEAD`. Desde o #886, o `commondir` recusa logo sem esperar. O `HEAD` mantém a prova da espera, então o teste não ficou mais fraco. A asserção segue `returncode 2` e `R-REVIEW: o hook não decidiu em 7.5 s`;
-  - o `LANCADOR_MEDIDO` (`test_hooks_volta_propriedades.py:37`) troca `idade_do_processo` só no teste que mede a parede de dentro do lançador. A partida real sob atraso tem prova própria (`test_hooks.py:4189`, `sleep 3` antes do `exec` do `parecer.py` de produção).
-- **O que afrouxa:** só na margem. Com o prazo contado mais cedo, mais linhas chegam ao prazo vencido sob carga. Onde o prazo vencido libera por desenho, isso vale para a linha sem marcador crítico na sessão não vigiada (VIGIA-AGENTES-PESADO, `agentes` e `pesado`), que agora pode ser liberada até uma "partida" antes. Essa linha antes seria decidida por inteiro. A linha com ação crítica continua recusando. Não há caminho de ataque que libere crítica: o efeito limita a guarda de recurso, não a trava de comandos. Vai como cartão, não como achado.
-- **Achados anteriores:**
-  - **A6 resolvido.** Prova: os 61 testes rodados, entre eles `test_partida_lenta_recusa_o_merge_antes_do_corte` na parede real com carga de 42 a 50 em 12 núcleos, e os mutantes M14-M22 mortos.
-  - **A3 resolvido** (`hooks/conformidade.py:1802-1804`).
-  - **A7 resolvido.** A develop foi trazida, e o CI rodou em `4ab16b74`.
-- **CI** (run 45692259103, `pull_request`, no head exato): verdes as 10 partes da suíte (3.12 e 3.14), `bateria (passos)`, `bateria (verificações longas)`, `instalação`, `teto de pulados` e `árvore já provada na develop`. `bateria (pareceres)` falhou porque falta o parecer de review aprovado em `docs/reviews/v0481-prazo-forge.md`, e o agregador `bateria` falhou por consequência. A `catraca` (run 45695828717) falhou, pelo log, por três motivos:
-  1. R-CONFORMIDADE: a mudança em `hooks/_comum.py` e `hooks/conformidade.py` espera o parecer ou o rótulo;
-  2. "confira no parecer": o valor esperado trocado em `test_carga_explica_a_recusa_so_pelo_vigia_do_prazo_longo`, de 4,0 para 3,5, que só segue a fixture da 2ª volta. É neutro;
-  3. R-QA: a guarda apagada `critico is None and evento != "PreToolUse"` (`hooks/_comum.py:2875` da base) está sem mutante declarado numa spec do diff. Ela vem de `a4d12870` (E7.23), fora deste delta, e foi reescrita na forma equivalente `recusa = evento != "PostToolUse" and (...)`, que tem mutantes (`v0480-vigia-agentes-pesado` M1, `v0481-prazo-forge` M2). O parecer não a libera: pede uma isenção com motivo na spec ou o rótulo. Vai como cartão.
-- Rodados aqui:
-  - `python3 -m unittest tests.test_hooks.SondaS1ComRelogioFalso tests.test_hooks.PrazoVencidoNaSessaoDoForge tests.test_hooks_volta_corpus tests.test_hooks_volta_propriedades`: 61 testes, OK, em 817 s sob carga;
-  - `bin/forge-mutante tests/mutantes/v0481-prazo-forge-3.json` (M14-M21) e `--ids M22`: todos morreram;
-  - `bin/forge-mutante --cobertura --base origin/develop` confirma o item 3 da catraca.
+- Delta lido: `git diff 4ab16b74..ecb13af6` e `forge-check parecer delta`. São dois commits próprios:
+  - o merge `43937681` da develop (`34ab6714`, com o #885). Recalculei o merge automático com `git merge-tree --write-tree` (árvore `e1f01622`). Ele só difere do merge gravado em `docs/hooks-fixtures.md`, o único conflito, resolvido pelo índice regenerado. `tests.test_indice_fixtures` passou (7 testes), com 3590 fixtures em `tests/hooks/`. Os arquivos `hooks/_comum.py`, `hooks/conformidade.py` e `tests/test_hooks.py`, que o `parecer delta` lista no domínio, vêm inteiros de um dos pais: da develop, já revisada no PR de origem, ou do conteúdo da branch aprovado em `4ab16b74`. Nenhuma linha de controle foi escrita no merge;
+  - `ecb13af6`: só `tests/mutantes/v0481-prazo-forge.json`, com a isenção de `hooks/_comum.py:2875(base)`.
+- Conferi a isenção, e o motivo é verdadeiro. A guarda antiga (`34ab6714:hooks/_comum.py:2873-2876`) libera no `PostToolUse` e libera quando `critico is None and evento != "PreToolUse"`. Logo, ela recusa exatamente quando `evento != "PostToolUse" and (critico is not None or evento == "PreToolUse")`, que é a linha `hooks/_comum.py:2924` (De Morgan). A guarda foi reescrita, não removida. `bin/forge-mutante --cobertura --base 34ab6714 --rev ecb13af6` sai com rc 0: a `:2924` está coberta por `v0481-prazo-forge` M2 e também por `v0480-vigia-agentes-pesado` M1/M2 e `v0480-vigia-trava-critica` M1/M3/M4, e a isenção casa só a linha da base. Rodei `bin/forge-mutante tests/mutantes/v0481-prazo-forge.json --ids M2 --rev ecb13af6` e o resultado foi `M2 · morreu · hooks/_comum.py:2924`. O `--cobertura` resolve o item 3 da catraca da rodada anterior.
+- **O que aperta:** nada novo neste delta.
+- **O que é neutro:** tudo o que o delta mudou. A isenção só registra uma equivalência provada e não tira teste nem mutante. O índice de fixtures é gerado. O merge não escreve código.
+- **O que afrouxa:** nada novo neste delta. O afrouxamento na margem da rodada anterior continua como estava: o prazo contado desde a partida do processo faz as travas de recurso (VIGIA-AGENTES-PESADO, a linha sem marcador crítico) desistirem mais cedo sob carga, e as travas de segurança continuam recusando. O dono aceitou esse afrouxamento em 25/11 às 21:15. Ele não vira risco aceito, porque não há caminho de ataque que libere uma linha crítica.
+- **Achados anteriores:** A3, A6 e A7 resolvidos em `4ab16b74`, sem mudança. O cartão da isenção de `:2875(base)` está atendido por `ecb13af6`.
+- **CI** (run 45737446078, `pull_request`, no head exato): estão verdes as 10 partes da suíte (3.12 e 3.14), `bateria (passos)`, `bateria (verificações longas)`, `instalação (python 3.14)`, `teto de pulados` e `árvore já provada na develop`. Ficaram vermelhos `bateria (pareceres)` e o agregador `bateria`. O motivo é o parecer de review desatualizado pela regeneração de `docs/hooks-fixtures.md`, e os pareceres desta volta resolvem isso. A `catraca` (run 45737445624) falhou só por R-CONFORMIDADE, que pede o rótulo `afrouxa-regra` do dono em `hooks/_comum.py` e `hooks/conformidade.py`. A catraca não acusa mais a guarda apagada.
 
 ## Parecer
-- ci: 4ab16b74a90aa0d9214d1a6c32764dfac9e7fe89 verde
+- ci: ecb13af6dac68a1f57c173c7000e03bbb5a71054 verde
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito.
 
-Ferramentas:
-- `forge-check parecer delta`, `git diff`, `git show --remerge-diff` e `bin/forge-mutante` (mutantes e `--cobertura`);
-- `gh pr view`, `gh run list`, `gh run view --log-failed`;
-- unittest dos módulos tocados.
-
-Nada externo. Varredor de segredos, SAST e auditor de dependências: o delta não traz dependência nem segredo.
+Ferramentas: `forge-check parecer delta`, `git diff`, `git merge-tree --write-tree`, `bin/forge-mutante` (`--cobertura` e `--ids M2`), `gh run view --log-failed` e o unittest `tests.test_indice_fixtures`. Não usei nada externo. O delta não traz dependência nem segredo.
