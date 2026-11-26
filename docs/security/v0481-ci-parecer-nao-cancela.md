@@ -3,47 +3,42 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-ci-parecer-nao-cancela
-commit: b04f02200f86582e114a45fe233dbb900a184083
+commit: 8e9f5704f52b32e0419ab0b7bbc066f17e6f013a
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-11-26
 ---
-# Review de segurança: v0481 (E22.5, PR #913, 1.ª rodada completa)
+# Review de segurança: v0481 (E22.9, PR #913, volta por delta)
 
-Lido: `git diff b4ae1755..b04f0220` inteiro (`.github/workflows/ci.yml`, `tests/test_ci_nao_cancela_parecer.py`, `tests/pesos-d4.json`, o fragmento do changelog).
+Delta lido: `forge-check parecer delta` de b04f0220..8e9f5704. No domínio: `.github/workflows/ci.yml`, `.github/workflows/obsoletas.yml` (novo) e `tests/test_catraca.py`. Fora do domínio, lidos só como prova: `tests/test_ci_nao_cancela_parecer.py` e `tests/mutantes/v0481-ci-parecer-nao-cancela.json`. A rodada anterior está no git (41f6b91a).
 
-CI do head b04f0220 (run 45843502262) vermelho; a causa foi lida nas anotações de cada job e reproduzida localmente. `bateria` e `bateria (python 3.14)` reprovam porque 6 partes da suíte estão vermelhas (A1, A2, A3). `bateria (pareceres)` espera os pareceres (esperado nesta etapa). `catraca` reprova no passo de regras porque a mudança em workflow pede o rótulo `afrouxa-regra` do dono (R-CONFORMIDADE; reproduzido com `tests/catraca.py --base b4ae1755`): é decisão do usuário, não achado.
+CI do head 8e9f5704 vermelho, e a causa é o próprio delta (A4). O workflow Obsoletas (run 45847608652) cancelou o run do CI do mesmo head (run 45847608038). Por isso `bateria` e `bateria (python 3.14)` falham nos agregadores, com as partes canceladas. Também falha `catraca` (run 45847608023), porque a mudança em `ci.yml` e em `obsoletas.yml` pede o rótulo `afrouxa-regra` (R-CONFORMIDADE). Esse rótulo é decisão do usuário, não achado.
 
-## Gatilhos
-Gatilhos: workflow de CI (permissão `actions: write` nova), uso de entradas do evento `pull_request`, checks exigidos.
+Gatilhos: workflow de CI (`actions: write` em workflow novo disparado por `pull_request`), entradas do evento, checks exigidos.
 
 ## Achados
-- A1 (bloqueante) tests/test_falhas_no_resumo.py:241 · a guarda "nenhuma permissão de escrita no ci.yml" reprova com o actions: write novo (ci.yml:45). Correção mínima: o job num workflow próprio (ex.: obsoletas.yml), com o mesmo if e timeout, sem tocar a guarda; afrouxá-la só com decisão do dono
-- A2 (bloqueante) tests/test_catraca.py:4253 · a lista de timeouts do ci.yml não prevê o 3 do job novo (ci.yml:43); com A1 por workflow próprio a lista volta a bater, e o arquivo novo cai na regra de um timeout por job (test_catraca.py:4241)
-- A3 (bloqueante) scripts/ci-local:274 · o simulador do CI não conhece o contexto github.event.pull_request.head.repo.full_name do if do job novo (ci.yml:41) e 3 testes de tests/test_ci_local.py dão ValueError; some com A1 por workflow próprio, ou o simulador aprende o contexto
+- A1 (bloqueante) tests/test_falhas_no_resumo.py:241 · resolvido: o job foi para obsoletas.yml, a guarda sem escrita no ci.yml ficou intacta e passa (Fiacao OK)
+- A2 (bloqueante) tests/test_catraca.py:4238 · resolvido: obsoletas.yml entrou na regra de um timeout por job, e a lista do ci.yml voltou a bater
+- A3 (bloqueante) scripts/ci-local:274 · resolvido: o if com head.repo.full_name saiu do ci.yml, e tests.test_ci_local passa
+- A4 (bloqueante) .github/workflows/obsoletas.yml:52 · o RUN_ID é o id do run do Obsoletas, não do CI, e o CI do mesmo push tem id menor, então é cancelado (S1). Correção mínima: cancelar só run com head_sha diferente de HEAD_SHA, mantendo id < RUN_ID e a origem; o teste passa a listar um run do CI com o head atual
 
 ## Sondas
-- S1 · python3 -m unittest tests.test_falhas_no_resumo.Fiacao.test_leitor_nao_muda_permissoes_nem_afrouxa_o_ci · espera: OK · obtido: FAIL, 'write' unexpectedly found
-- S2 · python3 -m unittest tests.test_catraca.Workflows.test_ci_em_poucos_jobs_com_timeout_e_gate_sem_paths_ignore · espera: OK · obtido: FAIL, lista de timeouts com um 3 a mais
-- S3 · python3 -m unittest tests.test_ci_local.MatrizNeedsEAgregadorTest · espera: OK · obtido: 3 ERROR, condição sem suporte (contexto desconhecido)
+- S1 · `gh api "repos/{owner}/{repo}/actions/runs?head_sha=8e9f5704f52b32e0419ab0b7bbc066f17e6f013a" --jq '.workflow_runs[] | "\(.id) \(.name) \(.conclusion)"'` · espera: CI do head não cancelado · obtido: `45847608038 CI cancelled` (log do Obsoletas 45847608652: cancel 45847608038)
 
 ## Detalhe dos achados
-A1 é o achado de segurança. A guarda de `tests/test_falhas_no_resumo.py:241` existe para que nenhum job do `ci.yml` ganhe escrita, e o PR a quebra sem marcar a mudança. Caminho de ataque: hoje nenhum direto, porque o job está bem contido (ver abaixo). Mas trocar a guarda deixa a próxima escrita no `ci.yml` passar sem leitura. Severidade baixa; esforço P; dono: o autor do E22.1 (`devops-engineer`). A correção preferida (workflow próprio) mantém a guarda e resolve A2 e A3 juntos. Ela também separa o token `actions: write` do arquivo que roda a suíte. A2 e A3 são defeitos provados (CI vermelho), esforço P, mesmo dono.
+A4 é um defeito provado, não uma vulnerabilidade. Os checks exigidos falham fechados: o run cancelado deixa `bateria` vermelha e não verde, então nenhum portão é contornado. Mas o workflow faz o oposto do objetivo: cancela a suíte do head que acabou de chegar, em todo envio com código. Num envio só de parecer, o script sai antes de cancelar, e por isso o run 45848951417 do head 58912106 seguiu. Os ids de run são únicos no repositório e crescem com a criação. O Obsoletas e o CI do mesmo evento nascem juntos, em ordem que não se pode garantir, então comparar com `github.run_id` de outro workflow não separa "anterior" de "atual". O teste `tests/test_ci_nao_cancela_parecer.py:22` e o mutante M12 assumem que o próprio RUN_ID aparece na lista do `ci.yml`, o que não acontece. Correção mínima (dono: `devops-engineer`, esforço P): o `--jq` passa a emitir também `.head_sha`, e só cai o run com `head_sha != HEAD_SHA`, origem igual a `REPO` e `id < RUN_ID`. A condição de id fica para que o Obsoletas de um envio antigo, se atrasar, não cancele o CI de um envio mais novo. O gh falso lista um run do CI com o head atual e id menor que o RUN_ID, e esse run não pode cair; um mutante para essa condição.
 
-O resto do desenho está correto, com a evidência:
-
-- **Permissão `actions: write`:** só no job `obsoletas` (`.github/workflows/ci.yml:44-46`). O topo segue `contents: read` e o padrão do repositório é `read`. O job roda só em PR do próprio repositório (`ci.yml:41`), sem checkout, sem ação de terceiros e com `timeout-minutes: 3` (`ci.yml:43`). Fork não recebe o job nem token de escrita. Quem abre PR do próprio repositório já pode mudar o `ci.yml` no PR, e com ele as permissões dos jobs; o ganho de um atacante com esse token é marginal.
-- **Entradas do evento sem injeção:** `head_ref`, `head.sha`, `before`, `action`, `run_id` e `repository` chegam ao script só por `env:` (`ci.yml:49-56`) e são usados entre aspas (`ci.yml:61`, `ci.yml:72`). O próprio teste confere que o script não tem `${{` (`tests/test_ci_nao_cancela_parecer.py:44`). O `id` vem da API e só vai a `[ -lt ]` e ao `gh run cancel`, entre aspas (`ci.yml:75`). O script passa no shellcheck sem aviso.
-- **Falha fechada:** a decisão "só parecer" exige `synchronize`, `before` não vazio, o compare sem erro, lista não vazia e menos de 300 arquivos (`ci.yml:60-62`); qualquer falha cai no cancelamento de hoje. O compare corta a lista em 300 arquivos, e com 300 o job cancela; se a paginação repetisse a lista, a contagem subiria e também cancelaria. O casamento é por prefixo com a barra (`docs/reviews/*`), e `docs/reviews-x/` não passa (teste `test_outros_docs_e_o_devops_nao_contam_como_parecer`).
-- **Checks exigidos:** a regra da `develop` exige `bateria`, `bateria (python 3.14)` e `catraca` (lido pela API de rulesets). O job novo não entra no `needs` do agregador (`ci.yml:899`, inalterado) e não é exigido. Cada run de PR tem grupo próprio (`ci.yml:35`), então a suíte do head novo roda inteira sempre. Nenhum check exigido deixa de rodar.
-- **Envio que se diz parecer:** quem envia só `docs/security/` (inclusive `aceites/` ou `ameacas/`) apenas evita o cancelamento do run anterior. O run do head novo roda inteiro e os portões continuam lendo o head novo. Com force-push, o compare de três pontos pode listar só docs; o efeito é o mesmo (um run antigo a mais), sem portão afetado.
-
-Fora da segurança, para o `tech-lead` (sem caminho de ataque): `gh run list --branch` casa pelo nome do ramo, então um PR do repositório pode cancelar o run de um PR de fork com o mesmo nome de ramo. E runs em `waiting`, `pending` ou `requested` não são cancelados (só custo de minutos, e o repositório é público).
+O resto do delta está correto:
+- **`actions: write` isolado:** só em `obsoletas.yml:22`, no job, com o topo em `contents: read` (`obsoletas.yml:12-13`) e `timeout-minutes: 3`. Não há checkout nem ação de terceiros. O `ci.yml` volta a não ter escrita (A1).
+- **Filtro de origem:** o job só roda em PR do próprio repositório (`obsoletas.yml:18`). O cancelamento exige `head_repository.full_name == REPO` (`obsoletas.yml:50-52`), então o run de um fork com o mesmo nome de ramo não cai (M11 morto). Se `head_repository` vier nulo (fork apagado), o jq imprime `null`, que difere de `REPO`, e o run não é cancelado (falha fechada).
+- **Entradas do evento:** seguem só por `env:` e entre aspas. O script extraído passa no `shellcheck` sem aviso. Um id não numérico faz o `[ -lt ]` falhar dentro do `if`, e nada é cancelado.
+- **Guarda redundante removida (A6 do review):** sem `[ -n "$arquivos" ]`, uma lista vazia vira uma linha vazia no `<<<`. Essa linha não casa com as pastas de parecer, então `so_parecer=false` e o job cancela. A falha continua fechada (teste `rodar("")`).
+- **Guarda do ci.yml:** a guarda `test_falhas_no_resumo.py:241` não foi tocada. O teste novo também confere que só há um `actions: write`, no `obsoletas.yml`, e nenhuma escrita no `ci.yml`.
 
 ### Aperta, neutro, afrouxa
-- **Aperta:** o cancelamento em PR passa a ser um job explícito, com permissão própria e mínima, falha fechada e teste com `gh` falso, em vez de efeito colateral do grupo de concorrência.
-- **Neutro:** checks exigidos e agregadores; push em `develop`, `homolog` e `main` e o `workflow_dispatch` seguem cancelando (`ci.yml:36`); nenhuma entrada do evento interpolada no script.
-- **Afrouxa:** como está, quebra a guarda de escrita do `ci.yml` (A1). Um job disparado por PR passa a ter `actions: write` (antes, nenhum job do `ci.yml` tinha); fica mitigado pelo filtro de mesmo repositório, sem checkout e sem ação de terceiros. E o envio só de parecer deixa o run anterior seguir (mais minutos de runner, sem custo em repositório público). A mudança em workflow exige o rótulo `afrouxa-regra` do dono na catraca (R-CONFORMIDADE), que é decisão do usuário (R-DECISAO).
+- **Aperta:** o token `actions: write` sai do arquivo que roda a suíte, e a guarda sem escrita no `ci.yml` volta a valer sem afrouxamento. O cancelamento agora filtra a origem do run, e o fork com o mesmo ramo não cai. Os 14 mutantes morreram.
+- **Neutro:** checks exigidos e agregadores (o Obsoletas não é exigido); push nas branches de integração segue cancelando (`ci.yml:36`, M14); a injeção pelo evento segue fechada; a remoção da guarda redundante.
+- **Afrouxa:** passa a existir um segundo workflow disparado por `pull_request` com escrita em `actions`. Fica restrito a PR do próprio repositório, sem checkout, e quem abre esse PR já pode editar workflows. Por A4, ele hoje cancela a suíte do próprio head (efeito de disponibilidade, não de portão). O rótulo `afrouxa-regra` é decisão do usuário (R-DECISAO).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Usados: leitura do diff, `shellcheck` sobre o script extraído do job, o teste novo (`python3 -m unittest tests.test_ci_nao_cancela_parecer`: 5 testes OK), os módulos vermelhos do CI (S1 a S3), a API de rulesets e de check runs. Ausentes no ambiente: `zizmor`, `actionlint`, `gitleaks` (lacuna registrada; sem segredo no diff, lido à mão).
+Nenhum risco aceito. Usados: o diff do delta; `python3 -m unittest tests.test_ci_nao_cancela_parecer tests.test_falhas_no_resumo.Fiacao tests.test_catraca.Workflows tests.test_ci_local` (89 testes, OK); `bin/forge-mutante tests/mutantes/v0481-ci-parecer-nao-cancela.json` (M1 a M14 morreram); `shellcheck` sobre o script extraído; a API de runs e de check runs e os logs dos runs 45847608652 e 45847608023. Não estavam no ambiente: `zizmor`, `actionlint` e `gitleaks`. É lacuna; o diff foi lido à mão e não tem segredo.
