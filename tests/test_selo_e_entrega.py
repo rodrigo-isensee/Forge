@@ -2186,5 +2186,217 @@ class MergeDeParecerAninhado(Repositorio):
                          [(f'escopo: fora (o merge {m[:7]} traz "docs/qa/x.md" fora dos pareceres conferidos)', True)])
 
 
+FORA_DO_878 = 'escopo: fora do declarado no brief "docs/indice.md"'
+
+
+class CicloDo878(Conferencia):
+    """E16.1 (v0481, ENTREGA-DESDE-REVISAR-SHA): o ciclo do #878. O autor entrega na volta um commit revisado pelos três portões (o
+    `Revisar-sha:` dos briefs selados deles) sem a `entrega conferida` dele; os pareceres aprovados entram na branch e a develop é
+    trazida por merge. Com o Desde na última conferida, o que os portões revisaram e o brief não declara sai `fora do declarado`, e a
+    conferência do head nunca é gravada (o merge espera por ela). Com o conserto, o Desde é o `commit:` dos pareceres aprovados no head;
+    cada condição que falta devolve o Desde de sempre. Sem rede: o `origin` é um repositório nu local."""
+
+    ETAPA, PAPEL = ParecerDoPortao.ETAPA, ParecerDoPortao.PAPEL
+    selar_portao, commitar_parecer = ParecerDoPortao.selar_portao, ParecerDoPortao.commitar_parecer
+    develop_anda, mesclar_develop = MergeDaBaseDepoisDoBrief.develop_anda, MergeDaBaseDepoisDoBrief.mesclar_develop
+
+    def volta_revisada(self):
+        """A 1.a entrega conferida e a volta do autor (com um arquivo que o brief não declara), sem conferida: o commit revisado."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        conferida = self.entregar()
+        self.historico(f"entrega conferida {conferida}")
+        self.gravar("bin/app", "x\ny\nz\n")
+        self.gravar("docs/indice.md", "linha nova\n")
+        self.git("add", "bin/app", "docs/indice.md")
+        return self.commit("fix: volta")
+
+    def historico(self, linha):
+        pedido = self.proj / "docs/pedidos/exemplo.md"
+        pedido.write_text(self.pedido() + f"- 2026-01-01 12:00: {linha}\n", encoding="utf-8")
+
+    def portoes(self, revisado, seguranca="aprovado", selar=True):
+        for pasta, tipo, parecer in (("reviews", "review", "aprovado"), ("qa", "qa", "aprovado"),
+                                     ("security", "revisao-seguranca", seguranca)):
+            self.commitar_parecer(pasta, tipo, revisado=revisado, parecer=parecer, selar=selar)
+
+    def ciclo(self, **kw):
+        revisado = self.volta_revisada()
+        self.portoes(revisado, **kw)
+        self.develop_anda("a\n")
+        self.mesclar_develop()
+        return revisado
+
+    def test_ciclo_do_878_o_desde_e_o_revisar_sha_e_a_conferencia_cobre_o_head(self):
+        revisado = self.ciclo()
+        rc, saida = self.rodar("entrega", "--pedido", "exemplo", "--branch", "melhoria/x", "--etapa", "codigo")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"intervalo: {revisado}..", saida)
+        self.assertNotIn("docs/indice.md", saida)
+        head = self.git("rev-parse", "HEAD")
+        self.assertIn(f"entrega conferida {head}", self.pedido())
+        self.assertEqual(fc.conferencia_do_head(self.proj, "x", ref="melhoria/x", base="origin/develop", branch="melhoria/x"), [])
+
+    def assert_desde_de_sempre(self):
+        rc, saida = self.conferir()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(FORA_DO_878, saida)
+
+    def test_parecer_nao_aprovado_mantem_o_desde_da_conferida(self):
+        self.ciclo(seguranca="reprovado")
+        self.assert_desde_de_sempre()
+
+    def reprovado_tirado(self, *passo, selar=True):
+        """E16.6 (review A1 S1, segurança A1 S2 a S4): o ciclo do 878 com o parecer de segurança `reprovado` sobre o revisado e, depois
+        do merge da develop, o `passo` git que o tira da conta do head (apagado, renomeado para `_x.md`); sem `passo`, regravado com
+        `contrato: 0`. O reprovado segue no histórico da branch: o Desde é o de sempre e o que a volta não declara sai fora."""
+        self.ciclo(seguranca="reprovado") if selar else self.ciclo_sem_selo_da_seguranca()
+        rel = "docs/security/x.md"
+        if passo:
+            self.git(*passo)
+        else:
+            self.gravar(rel, (self.proj / rel).read_text(encoding="utf-8").replace("contrato: 1", "contrato: 0"))
+            self.git("add", rel)
+        self.commit("docs(security): o reprovado sai da conta")
+        self.assert_desde_de_sempre()
+
+    def ciclo_sem_selo_da_seguranca(self):
+        revisado = self.volta_revisada()
+        self.commitar_parecer("reviews", "review", revisado=revisado)
+        self.commitar_parecer("qa", "qa", revisado=revisado)
+        self.commitar_parecer("security", "revisao-seguranca", revisado=revisado, parecer="reprovado", selar=False)
+        self.develop_anda("a\n")
+        self.mesclar_develop()
+
+    def test_reprovado_apagado_depois_mantem_o_desde_da_conferida(self):
+        self.reprovado_tirado("rm", "-q", "docs/security/x.md")
+
+    def test_reprovado_renomeado_para_sublinhado_mantem_o_desde_da_conferida(self):
+        self.reprovado_tirado("mv", "docs/security/x.md", "docs/security/_x.md")
+
+    def test_reprovado_com_contrato_zero_mantem_o_desde_da_conferida(self):
+        self.reprovado_tirado()
+
+    def test_reprovado_sem_brief_selado_apagado_mantem_o_desde_da_conferida(self):
+        """Os portões selados (review e QA) aprovam e o reprovado de segurança, sem brief selado, sai do head: só o histórico o vê."""
+        self.reprovado_tirado("rm", "-q", "docs/security/x.md", selar=False)
+
+    def test_portao_selado_sem_parecer_mantem_o_desde_da_conferida(self):
+        """O brief de segurança selou o revisado e o parecer dela não está no head: os aprovados de review e QA não bastam."""
+        revisado = self.volta_revisada()
+        self.commitar_parecer("reviews", "review", revisado=revisado)
+        self.commitar_parecer("qa", "qa", revisado=revisado)
+        self.selar_portao(self.ETAPA["security"], revisado, papel=self.PAPEL["security"])
+        self.develop_anda("a\n")
+        self.mesclar_develop()
+        self.assert_desde_de_sempre()
+
+    def test_sem_conferida_pela_entrega_o_intervalo_parte_do_base_sha(self):
+        """E16.6 (review A2): sem conferida, o Desde do parecer não entra e a `entrega --pedido` confere desde o Base-sha."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.entregar()
+        self.portoes(self.commit_da_volta())
+        rc, saida = self.conferir()
+        self.assertIn(f"intervalo: {self.base}..", saida)
+
+    def test_sem_brief_selado_do_portao_mantem_o_desde_da_conferida(self):
+        self.ciclo(selar=False)
+        self.assert_desde_de_sempre()
+        self.assertIsNone(self.chamar(valido=self.git("rev-parse", "HEAD~5")))  # antes do merge, dos três pareceres e da volta
+
+    def test_codigo_depois_dos_pareceres_mantem_o_desde_da_conferida(self):
+        self.ciclo()
+        self.gravar("bin/app", "x\ny\nz\nw\n")
+        self.git("add", "bin/app")
+        self.commit("fix: depois do review")
+        self.assert_desde_de_sempre()
+
+    def test_sem_review_mantem_o_desde_da_conferida(self):
+        revisado = self.volta_revisada()
+        self.commitar_parecer("qa", "qa", revisado=revisado)
+        self.assert_desde_de_sempre()
+
+    def test_pareceres_com_commits_diferentes_mantem_o_desde_da_conferida(self):
+        revisado = self.volta_revisada()
+        self.commitar_parecer("reviews", "review", revisado=revisado)
+        self.commitar_parecer("qa", "qa")  # o `commit:` do QA é o head de agora, não o revisado
+        self.assert_desde_de_sempre()
+
+    def test_dois_commits_revisados_selados_nao_dao_desde(self):
+        """Review e QA com `commit:` diferentes, cada um selado nos dois portões e cada um valendo sozinho: nenhum é o Desde."""
+        revisado = self.volta_revisada()
+        conferida = self.git("rev-parse", "HEAD~1")
+        self.commitar_parecer("reviews", "review", revisado=revisado)
+        outro = self.git("rev-parse", "HEAD")
+        self.selar_portao("review", outro, papel="tech-lead")
+        self.selar_portao("qa", revisado, papel="qa-engineer")
+        self.commitar_parecer("qa", "qa", revisado=outro)
+        self.assertIsNone(self.chamar(valido=conferida))
+
+    def test_sem_conferida_anterior_nao_ha_desde_do_parecer(self):
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.entregar()
+        revisado = self.commit_da_volta()
+        self.portoes(revisado)
+        caminho = self.proj / "docs/pedidos/exemplo.md"
+        head = self.git("rev-parse", "HEAD")
+        self.assertIsNone(fc.desde_do_parecer_aprovado(self.proj, caminho, self.pedido(), "melhoria/x", head, self.base, None, None))
+
+    def commit_da_volta(self):
+        self.gravar("bin/app", "x\ny\nz\n")
+        self.git("add", "bin/app")
+        return self.commit("fix: volta")
+
+    def chamar(self, base_sha=None, valido=None):
+        """A função direto no HEAD, com o pedido do disco (o HEAD~4 de `volta_revisada` mais os três pareceres é a conferida)."""
+        caminho = self.proj / "docs/pedidos/exemplo.md"
+        return fc.desde_do_parecer_aprovado(self.proj, caminho, self.pedido(), "melhoria/x", self.git("rev-parse", "HEAD"),
+                                            base_sha or self.base, self.git("rev-parse", "refs/remotes/origin/develop"), valido)
+
+    def test_conferida_adiante_do_revisado_fica(self):
+        """A conferida gravada depois do commit revisado (o fluxo certo) segue sendo o Desde."""
+        revisado = self.volta_revisada()
+        self.portoes(revisado)
+        self.assertEqual(self.chamar(valido=self.git("rev-parse", "HEAD~4")), revisado)
+        self.assertIsNone(self.chamar(valido=self.git("rev-parse", "HEAD")))
+
+    def test_revisado_na_base_nao_e_desde(self):
+        revisado = self.volta_revisada()
+        self.portoes(revisado)
+        self.assertIsNone(self.chamar(base_sha=revisado, valido=self.git("rev-parse", "HEAD~4")))
+
+    def test_revisado_fora_do_head_nao_e_desde(self):
+        """Os pareceres citam um commit de outra branch, adiante da conferida e selado como Revisar-sha: não é Desde."""
+        self.volta_revisada()
+        conferida = self.git("rev-parse", "HEAD~1")
+        self.git("switch", "-q", "-c", "lado", conferida)
+        self.gravar("bin/app", "x\ny\nz\n")  # a mesma árvore da volta: só a ancestralidade separa os dois
+        self.gravar("docs/indice.md", "linha nova\n")
+        self.git("add", "bin/app", "docs/indice.md")
+        lado = self.commit("fix: lado")
+        self.git("switch", "-q", "melhoria/x")
+        self.portoes(lado)
+        self.assertIsNone(self.chamar(valido=conferida))
+
+    def test_parecer_de_outra_branch_ou_pedido_vindo_da_develop_nao_conta(self):
+        """O parecer de outro item (outra branch, outro pedido), trazido pela develop, não entra na conta dos `commit:`."""
+        revisado = self.volta_revisada()
+        self.portoes(revisado)
+        conferida = self.git("rev-parse", "HEAD~4")
+        self.git("switch", "-q", "develop")
+        for nome, branch, pedido in (("y", "melhoria/y", "exemplo"), ("z", "melhoria/x", "outro")):
+            self.gravar(f"docs/reviews/{nome}.md", f"---\ntipo: review\ncontrato: 1\npedido: {pedido}\nbranch: {branch}\n"
+                                                    f"commit: {self.base}\nparecer: reprovado\n---\n# outro item\n")
+            self.git("add", f"docs/reviews/{nome}.md")
+        self.commit("docs(reviews): parecer de outro item")
+        self.git("push", "-q", "origin", "develop")
+        self.git("switch", "-q", "melhoria/x")
+        self.git("fetch", "-q", "origin")
+        self.mesclar_develop()
+        self.assertEqual(self.chamar(valido=conferida), revisado)
+
+
 if __name__ == "__main__":
     unittest.main()
