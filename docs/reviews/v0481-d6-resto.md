@@ -3,24 +3,28 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-d6-resto
-commit: 200d8b378582bfee881c55ef6e2574bd7f9e9ce3
+commit: 1f127ddd1ac05ae80a9306dda56802dec43ee50d
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-25
 ---
-# Code review: hook salvar só grava na cópia local, volta E11.22 (D6 parte a; v0481 E11.23, PR #877)
+# Code review: resolução do conflito com a develop, volta E11.26 (D6 parte a; v0481 E11.27, PR #877)
 
-Revisado por delta: `50a40e28..200d8b37`, lido pelo `forge-check parecer delta` (escopo: sem o que veio da develop). No domínio do review, só `tests/mutantes/v0481-d6-resto-7.json` (commit `200d8b378`). O merge `a50975e89` traz a develop (#898 e afins), já revisada no PR de origem. Parecer anterior: aprovado no `50a40e28`.
+Revisado por delta: `e66e30a2..1f127ddd`, lido pelo `forge-check parecer delta` (o apontamento foi `docs/hooks-fixtures.md`, do domínio do review). O delta é o merge `1f127ddd`, que traz a develop até o `8f0a7313` (#885 e #895), já revisada nos PRs de origem. Parecer anterior: aprovado no `200d8b37`.
 
-- ci: 200d8b378582bfee881c55ef6e2574bd7f9e9ce3 verde
+- ci: 1f127ddd1ac05ae80a9306dda56802dec43ee50d verde
 
 ## Parecer
-**Aprovado.** A volta fecha a falha da catraca que o parecer anterior registrou: as guardas de `hooks/salvar.py` sem mutante que as provasse.
+**Aprovado.** A resolução só junta os dois lados e não muda a lógica do item. Também não perde teste.
 
-**M40 (`hooks/salvar.py:127`, `if e` para `if not e`).** O trecho `de` existe uma vez, na linha 127. Com o filtro invertido, a lista a salvar só tem a entrada vazia do fim da saída `-z`, e o arquivo do escopo não vai para o commit. `test_salva_so_o_escopo_na_copia` exige esse commit, então o mutante morre. Não é equivalente, ao contrário do M29, que ficou como estava.
+**Resolução (`git show --remerge-diff 1f127ddd`).** Só dois arquivos diferem do merge automático:
+- Em `tests/test_hooks.py`, a resolução tira os marcadores e põe as duas linhas em branco entre `SalvarAoParar` (do item) e `ModoPorGrupo` (da develop). `RecusaComFifoNoRegistro` vem logo depois, sem nenhuma linha mudada.
+- Em `docs/hooks-fixtures.md`, só muda a contagem: 3584 do item e 3583 da develop dão 3587 no head. `scripts/indice-fixtures.py --conferir` responde "em dia", e o corpus tem 3587 casos.
 
-**M41 (`hooks/salvar.py:156`, `__main__` para `if False:`).** Sem o bloco principal, o hook chamado como script não faz nada, e o mesmo teste, que roda o hook por subprocesso, não acha o commit. O mutante morre.
+Nenhum arquivo de produção do item (`hooks/salvar.py` e afins) aparece no delta.
 
-**CI e catraca.** No head `200d8b37` (runs 45708486380 e 45708592802, `headSha` conferido), estão verdes as 10 partes da suíte, `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)`, `instalação`, `teto de pulados`, `árvore já provada` e agora também a `catraca`. Vermelhos só `bateria (pareceres)`, que espera este parecer, e `bateria`, que a agrega.
+**Nenhum teste perdido.** Contei os métodos `test_` de `tests/test_hooks.py`: 213 na base comum, 242 no item (29 a mais) e 224 na develop (11 a mais). O head tem 253, que é 213 + 29 + 11.
 
-**Verificadores.** Rodei `bin/forge-mutante --processos 1 tests/mutantes/v0481-d6-resto-7.json` no `200d8b37` com ambiente limpo: `M40 · morreu · hooks/salvar.py:127` e `M41 · morreu · hooks/salvar.py:156`. A suíte inteira é a do CI citado, e não rerrodei o SHA. **Teto:** o delta não muda código de produção, então o excedido já aceito não cresce.
+**Verificadores.** Rodei, no head, `python3 -m unittest` com as classes `SalvarAoParar`, `ModoPorGrupo`, `RecusaComFifoNoRegistro` e `OrdensEmVigor` (a vizinha do conflito): 63 testes OK. Os mutantes que vieram da develop foram provados no PR de origem, e o delta não tem mutante novo do item.
+
+**CI.** Nos runs 45737895249 e 45737895074, com o `headSha` conferido como `1f127ddd`, deram 17 verdes e 7 pulados (só os de push na develop). Estão verdes as 10 partes da suíte, `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)`, `instalação`, `teto de pulados`, `árvore já provada` e `catraca`. Ficam vermelhos só `bateria (pareceres)`, que espera este parecer, e `bateria`, que a agrega. Não rerrodei o SHA.
