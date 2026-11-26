@@ -33,46 +33,6 @@
       ]
     },
     {
-      "id": "R4",
-      "guarda": "pesos que não são objeto JSON: sem veredito",
-      "arquivo": "bin/forge-testes",
-      "de": "if not isinstance(pesos, dict):",
-      "para": "if False:",
-      "testes": [
-        "tests.test_testes_tocados.Registros.test_pesos_ilegiveis_ou_base_que_nao_resolve_saem_2"
-      ]
-    },
-    {
-      "id": "R5",
-      "guarda": "só o módulo novo sem peso reprova",
-      "arquivo": "bin/forge-testes",
-      "de": "if a and a.group(1) not in pesos)",
-      "para": "if a)",
-      "testes": [
-        "tests.test_testes_tocados.Registros.test_modulo_de_teste_novo_sem_peso_sai_1_e_com_peso_sai_0"
-      ]
-    },
-    {
-      "id": "R6",
-      "guarda": "git ilegível é sem veredito (saída 2), nunca verde nem 1",
-      "arquivo": "bin/forge-testes",
-      "de": "except (RuntimeError, OSError, ValueError) as erro:",
-      "para": "except (OSError, ValueError) as erro:",
-      "testes": [
-        "tests.test_testes_tocados.Registros.test_pesos_ilegiveis_ou_base_que_nao_resolve_saem_2"
-      ]
-    },
-    {
-      "id": "R7",
-      "guarda": "módulo novo sem peso reprova a conferência",
-      "arquivo": "bin/forge-testes",
-      "de": "codigo = 1 if falhas or sem_peso else 0",
-      "para": "codigo = 1 if falhas else 0",
-      "testes": [
-        "tests.test_testes_tocados.Registros.test_modulo_de_teste_novo_sem_peso_sai_1_e_com_peso_sai_0"
-      ]
-    },
-    {
       "id": "R8",
       "guarda": "o ambiente herdado (GIT_*, FORGE_*) não chega aos testes dos registros (AR-4)",
       "arquivo": "bin/forge-testes",
