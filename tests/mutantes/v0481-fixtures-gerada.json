@@ -1,0 +1,16 @@
+{
+  "pedido": "v0481-fixtures-gerada",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "HOOKS-FIXTURES-GERADA: o --detalhe imprime as contagens e não grava o arquivo versionado",
+      "arquivo": "scripts/indice-fixtures.py",
+      "de": "    if argv == [\"--detalhe\"]:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_indice_fixtures.IndiceDasFixtures.test_detalhe_imprime_sem_gravar"
+      ]
+    }
+  ]
+}
