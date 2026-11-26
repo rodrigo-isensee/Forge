@@ -1,2 +1,0 @@
-### Adicionado
-- portões: a linha `- ci:` do parecer de review e de QA aceita `- ci: <sha40 do commit:> verde via <sha40 do descendente>`, quando o envio de outro parecer cancelou o run do `Revisar-sha`; o `forge-check pr` confere que o descendente descende do `commit:` e que o diff entre eles só toca `docs/reviews/`, `docs/qa/` e `docs/security/` (falha fechada se o git falhar). O brief, o esqueleto do parecer e as skills `engineering-practices` e `qa-testing` citam a forma nova; o merge segue exigindo todos os checks do head (v0481 E8.10)

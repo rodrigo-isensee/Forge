@@ -1,0 +1,20 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA: erro ao achar o brief do agente: o salvar sai 0, sem stdout, e a linha vai ao erros.log.",
+  "forcar": {
+    "onde": "brief_do_agente",
+    "como": "erro"
+  },
+  "entrada": {
+    "hook_event_name": "SubagentStop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "agent_id": "a1",
+    "agent_type": "forge:tech-lead",
+    "agent_transcript_path": "{tmp}/agente.jsonl",
+    "stop_hook_active": false
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "salvar RuntimeError"
+  }
+}

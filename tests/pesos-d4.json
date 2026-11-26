@@ -261,6 +261,7 @@
   "test_sandbox_controle": 2.0,
   "test_selo_e_entrega": 0.0,
   "test_selo_e_entrega.BugDoQaNaVolta": 14.0,
+  "test_selo_e_entrega.CicloDo878": 46.0,
   "test_selo_e_entrega.Entrega": 15.5,
   "test_selo_e_entrega.Gerar": 0.9,
   "test_selo_e_entrega.Hook": 10.6,
