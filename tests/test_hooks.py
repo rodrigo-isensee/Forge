@@ -52,6 +52,7 @@ import re
 import shlex
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -4295,6 +4296,193 @@ class OrdensEmVigor(unittest.TestCase):
         donos = {c["caminho"]: c["quem"] for c in politica["caminhos"]}
         for caminho in (".forge/ordens/", "~/.forge-contrib/docs/ordens/"):
             self.assertEqual(donos.get(caminho), ["jarvis"], caminho)
+
+
+class ModoPorGrupo(unittest.TestCase):  # G4-TRAVA-REAL-BP8, F1 (v0481 E7.7): o modo aviso por grupo, todos em barrar
+    """O `barrar` consulta `modo_por_grupo`; só `avisar` deixa passar. Nos dois modos, `comandos.jsonl` ganha grupo e alvo."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.run_ = self.tmp / ".forge" / "run"
+        self.run_.mkdir(parents=True)
+        _, self.conformidade, _ = modulos_dos_hooks()
+        self.pol = self.conformidade.politica()
+
+    def guarda(self, modos, run=True):
+        _comum, conformidade, _ = modulos_dos_hooks()
+        hook = _comum.Hook("conformidade")
+        hook.raiz, hook._run = self.tmp, (self.run_ if run else None)
+        hook.entrada = {"session_id": "s1", "agent_type": "forge:tech-lead", "hook_event_name": "PreToolUse"}
+        return conformidade.Guarda(hook, {**self.pol, "modo_por_grupo": modos}, "tech-lead")
+
+    def linhas(self, run=None):
+        arquivo = (run or self.run_) / "comandos.jsonl"
+        return [json.loads(l) for l in arquivo.read_text(encoding="utf-8").splitlines()] if arquivo.exists() else []
+
+    def barra(self, guarda, *args, **kw):
+        with contextlib.redirect_stderr(io.StringIO()) as erro, self.assertRaises(SystemExit) as saida:
+            guarda.barrar("R-VERIFY", "git commit --no-verify", "corrija a causa", *args, **kw)
+        self.assertEqual(saida.exception.code, 2)
+        self.assertRegex(erro.getvalue(), r"^R-VERIFY: git commit --no-verify")
+
+    def test_a_politica_entregue_tem_todo_grupo_em_barrar(self):
+        modos = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))["modo_por_grupo"]
+        self.assertEqual(set(modos.values()), {"barrar"}, "nenhum grupo passa a aviso na F1 (afrouxaria)")
+        self.assertLessEqual({"R-CONFORMIDADE", "R-CONTRIB", "R-FLUXO", "R-MAIN", "R-REVIEW", "R-VERIFY"}, set(modos))
+
+    def test_grupo_em_avisar_deixa_passar_imprime_a_forma_certa_e_registra_teria_barrado(self):
+        guarda = self.guarda({"R-VERIFY": "avisar"})
+        with contextlib.redirect_stderr(io.StringIO()) as erro:
+            self.assertIsNone(guarda.barrar("R-VERIFY", "git commit --no-verify", "corrija a causa"))
+        self.assertEqual(erro.getvalue(), "R-VERIFY: aviso: teria barrado: git commit --no-verify. Corrigir: corrija a causa\n")
+        [linha] = self.linhas()
+        self.assertEqual({k: linha[k] for k in ("sessao", "agente", "fonte", "teria_barrado", "grupo", "alvo")},
+                         {"sessao": "s1", "agente": "forge:tech-lead", "fonte": "conformidade", "teria_barrado": "R-VERIFY",
+                          "grupo": "R-VERIFY", "alvo": None})
+        self.assertNotIn("barrado", linha)
+
+    def test_grupo_dado_vale_sobre_o_id_da_regra(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertIsNone(self.guarda({"tag-mover": "avisar"}).barrar("R-FLUXO", "x", "y", grupo="tag-mover", alvo="v1"))
+        self.barra(self.guarda({"R-VERIFY": "avisar"}), grupo="tag-mover")
+        self.assertEqual([(l.get("teria_barrado"), l.get("barrado"), l["grupo"], l["alvo"]) for l in self.linhas()],
+                         [("R-FLUXO", None, "tag-mover", "v1"), (None, "R-VERIFY", "tag-mover", None)])
+
+    def test_grupo_fora_do_mapa_mapa_ilegivel_ou_valor_desconhecido_barra_e_registra(self):
+        casos = ({"R-MAIN": "avisar"}, "avisar", None, ["R-VERIFY"], {"R-VERIFY": "Avisar"}, {"R-VERIFY": "aviso"},
+                 {"R-VERIFY": True}, {"R-VERIFY": "barrar"})
+        for modos in casos:
+            with self.subTest(modos=modos):
+                self.barra(self.guarda(modos), alvo=Path("/x/.claude/settings.json"))
+        self.assertEqual([(l["barrado"], l["grupo"], l["alvo"]) for l in self.linhas()],
+                         [("R-VERIFY", "R-VERIFY", "/x/.claude/settings.json")] * len(casos))
+
+    def test_registro_vai_a_pasta_run_do_hook_ou_a_do_clone_e_nunca_cria_pasta(self):
+        outra = self.tmp / "outra"
+        outra.mkdir()
+        guarda = self.guarda({})
+        guarda.h._run = outra
+        self.barra(guarda)
+        self.assertEqual((len(self.linhas(outra)), self.linhas()), (1, []), "a pasta `run` já resolvida pelo hook")
+        shutil.rmtree(self.tmp / ".forge")
+        self.barra(self.guarda({}, run=False))
+        self.assertEqual(os.listdir(self.tmp), ["outra"], "sem pasta `run`, nada é criado")
+        clone = self.tmp / ".git" / "forge" / "run"
+        clone.mkdir(parents=True)
+        self.barra(self.guarda({}, run=False))
+        self.assertEqual(len(self.linhas(clone)), 1, "no clone do Forge sem `.forge/`, a pasta do diretório comum")
+
+    def test_registro_nao_segue_link_e_erro_dele_nao_muda_a_decisao(self):
+        fora = self.tmp / "fora.txt"
+        fora.write_text("", encoding="utf-8")
+        (self.run_ / "comandos.jsonl").symlink_to(fora)
+        self.barra(self.guarda({}))
+        self.assertEqual(fora.read_text(encoding="utf-8"), "")
+        _, conformidade, _ = modulos_dos_hooks()
+        guarda = conformidade.Guarda(mock.Mock(raiz=self.tmp, _run=self.tmp, campo=mock.Mock(side_effect=TypeError)),
+                                     self.pol, "tech-lead")
+        guarda.h.iniciante.return_value = False
+        self.barra(guarda)
+
+    def sem_travar(self, funcao, segundos=2):
+        """Roda `funcao` sob um alarme próprio: se ela travar (o `open` de um FIFO sem leitor), `Travou` (BaseException,
+        que nenhum `except` do hook engole) derruba o teste em vez de prender a suíte."""
+        def vencer(*_):
+            raise Travou()
+        anterior = signal.signal(signal.SIGALRM, vencer)
+        signal.setitimer(signal.ITIMER_REAL, segundos)
+        try:
+            return funcao()
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, anterior)
+
+    @unittest.skipUnless(hasattr(os, "mkfifo") and hasattr(signal, "setitimer"), "sem FIFO ou alarme")
+    def test_registro_nao_espera_fifo_nem_grava_nele(self):  # A1 do #885: o FIFO prendia a recusa até o prazo
+        fifo = self.run_ / "comandos.jsonl"
+        os.mkfifo(fifo)
+        self.sem_travar(lambda: self.barra(self.guarda({})))  # sem leitor: o open não espera
+        leitor = os.open(fifo, os.O_RDONLY | os.O_NONBLOCK)
+        self.addCleanup(os.close, leitor)
+        self.sem_travar(lambda: self.barra(self.guarda({})))  # com leitor: abre, mas não é arquivo regular
+        try:
+            lido = os.read(leitor, 4096)
+        except BlockingIOError:
+            lido = b""
+        self.assertEqual(lido, b"", "nada é gravado em FIFO")
+        self.assertTrue(stat.S_ISFIFO(os.lstat(fifo).st_mode))
+
+    def test_prazo_vencido_no_registro_nao_troca_a_recusa(self):
+        _comum, conformidade, _ = modulos_dos_hooks()
+        with mock.patch.object(conformidade, "registrar_recusa", side_effect=_comum.PrazoVencido()):
+            self.barra(self.guarda({}))
+
+    def test_registro_acha_a_pasta_pelo_disco_sem_git(self):  # A2 do review: nada de `git` no caminho da recusa
+        _comum, _, _ = modulos_dos_hooks()
+        with mock.patch.object(_comum.Hook, "copia_principal", side_effect=AssertionError("git no caminho da recusa")):
+            self.barra(self.guarda({}, run=False))  # fora de git: a pasta `run` da raiz
+            self.assertEqual(len(self.linhas()), 1)
+            principal, wt = self.tmp / "principal", self.tmp / "wt"
+            principal.mkdir()
+            git("init", "-q", "-b", "develop", cwd=principal)
+            git("-c", "user.email=t@example.com", "-c", "user.name=Teste", "commit", "-q", "--allow-empty", "-m", "base",
+                cwd=principal)
+            git("worktree", "add", "-q", "--detach", str(wt), cwd=principal)
+            (principal / ".forge" / "run").mkdir(parents=True)
+            guarda = self.guarda({}, run=False)
+            guarda.h.raiz = wt
+            self.barra(guarda)
+        self.assertEqual(len(self.linhas(principal / ".forge" / "run")), 1, "a worktree grava na cópia principal")
+
+    def test_iniciante_recebe_o_texto_simples(self):
+        guarda = self.guarda({})
+        (self.tmp / ".forge" / "perfil").write_text("iniciante\n", encoding="utf-8")
+        _, conformidade, _ = modulos_dos_hooks()
+        with contextlib.redirect_stderr(io.StringIO()) as erro, self.assertRaises(SystemExit) as saida:
+            guarda.barrar("R-VERIFY", "git push --force", "corrija a causa", "forca")
+        self.assertEqual((saida.exception.code, erro.getvalue()), (2, f"R-VERIFY: {conformidade.SIMPLES['forca']}\n"))
+        self.assertEqual(self.linhas()[0]["barrado"], "R-VERIFY")
+
+
+class Travou(BaseException):
+    """O alarme de `ModoPorGrupo.sem_travar` venceu."""
+
+
+@unittest.skipUnless(hasattr(os, "mkfifo"), "sem FIFO")
+class RecusaComFifoNoRegistro(unittest.TestCase):  # S1 a S3 do review do #885, pelo hook de verdade, nas duas sessões
+    """Com um FIFO no lugar do `comandos.jsonl`, a recusa sai com a regra dela, sem passar pelo prazo vencido: na sessão
+    do Forge (raiz e pasta corrente no clone, não vigiada) o prazo vencido liberava; no projeto, trocava a regra."""
+    COMANDOS = (("git push origin feature/x:main", "R-MAIN"), ("git push --force origin feature/x", "R-VERIFY"),
+                ("git commit --no-verify -m x", "R-VERIFY"))
+
+    def montar(self, forge):
+        raiz = Path(tempfile.mkdtemp(prefix="forge-fifo-"))
+        self.addCleanup(shutil.rmtree, raiz, True)
+        git("init", "-q", "-b", "feature/x", cwd=raiz)
+        if forge:
+            (raiz / ".claude-plugin").mkdir()
+            (raiz / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}\n', encoding="utf-8")
+        else:
+            (raiz / ".forge").mkdir()
+            (raiz / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        (raiz / ".forge" / "run").mkdir(parents=True, exist_ok=True)
+        os.mkfifo(raiz / ".forge" / "run" / "comandos.jsonl")
+        return raiz
+
+    def test_recusa_com_a_regra_dela_e_sem_prazo_vencido(self):
+        for forge in (True, False):
+            raiz = self.montar(forge)
+            for comando, regra in self.COMANDOS:
+                with self.subTest(sessao="forge" if forge else "projeto", comando=comando):
+                    entrada = {"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": str(raiz),
+                               "agent_type": "forge:tech-lead", "hook_event_name": "PreToolUse", "session_id": "s1"}
+                    inicio = time.monotonic()
+                    r = rodar("conformidade", entrada, raiz, extra={"CLAUDE_PROJECT_DIR": str(raiz)}, producao=True)
+                    gasto = time.monotonic() - inicio
+                    self.assertEqual(r.returncode, 2, f"liberado em {gasto:.1f} s: {r.stderr[:200]}")
+                    self.assertTrue(r.stderr.startswith(f"{regra}: "), r.stderr[:200])
+                    self.assertNotIn("não decidiu", r.stderr)
 
 
 if __name__ == "__main__":
