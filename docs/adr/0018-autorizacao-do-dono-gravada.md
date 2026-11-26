@@ -1,6 +1,6 @@
 # 0018 - Autorização do dono gravada: escopo, palavras exatas e validade
 
-Estado: aceita (revalidação do `security-engineer` aprovada no head f42850b5, `docs/security/v047-sieg-g1-autorizacao.md`, depois do parecer do head a87f0a6f (A1 bloqueante; A2 a A7 incorporados; A8 virou D4); D1, D2 e D4 decididas pelo dono; D3 é ação do dono; o número segue a 0017, da `melhoria/v047-forge-sempre-atual`, e é tomado na integração, em ordem). Data: 2026-11-16. Emendada em 2026-11-20 pela "Emenda PR-VERDE" (fim do arquivo): OK do dono preso ao commit, num arquivo da branch lido pela catraca; vale item a item, a partir do PR de cada item. Emendada em 2026-11-25 pela "Emenda AUTORIZACOES-FIXAS" (fim do arquivo): os atos fixos `corte-diario` e `so-aperta-com-seguranca`, sem prazo.
+Estado: aceita (revalidação do `security-engineer` aprovada no head f42850b5, `docs/security/v047-sieg-g1-autorizacao.md`, depois do parecer do head a87f0a6f (A1 bloqueante; A2 a A7 incorporados; A8 virou D4); D1, D2 e D4 decididas pelo dono; D3 é ação do dono; o número segue a 0017, da `melhoria/v047-forge-sempre-atual`, e é tomado na integração, em ordem). Data: 2026-11-16. Emendada em 2026-11-20 pela "Emenda PR-VERDE" (fim do arquivo): OK do dono preso ao commit, num arquivo da branch lido pela catraca; vale item a item, a partir do PR de cada item. Emendada em 2026-11-25 pela "Emenda AUTORIZACOES-FIXAS" (fim do arquivo): os atos fixos `corte-diario` e `so-aperta-com-seguranca`, sem prazo. Emendada em 2026-11-26 pela "Emenda ROTULO-PELO-TIME" (fim do arquivo): o ato `rotulo-pelo-time`, sem prazo, só no repositório do Forge.
 Propósito: definir o registro das autorizações do dono e a conferência dele pelas ferramentas antes do rótulo `afrouxa-regra` e do merge na `main` (cartão G1 do pedido v047, E2.483; correção E2.488). Público: quem mantém o Forge, o `tech-lead`, o `security-engineer` e o `devops-engineer`. Revisão: 2026-11-17.
 
 ## Contexto
@@ -198,3 +198,28 @@ Um corte sem concessão `corte-diario` ativa, dois cortes diários no mesmo dia 
 | Data | Medida | Veredito (manter, ajustar, reverter) |
 |---|---|---|
 | AAAA-MM-DD | cortes sem concessão ativa (meta 0); cortes diários no mesmo dia (meta 0); tempo do item verde na develop até o PR da main | pendente |
+
+## Emenda ROTULO-PELO-TIME: o time põe o rótulo no Forge até a homologação
+Estado da emenda: proposta pelo `tech-lead` (pedido v0481, E24.1) por ordem do dono; R1 só produz efeito (o time põe o rótulo `afrouxa-regra`) depois do merge de R3 na `develop`: até lá, a concessão `rotulo-pelo-time` pode estar gravada e ativa, mas o rótulo segue com o dono, item a item. R3 vem no PR seguinte. Data: 2026-11-26.
+
+### Contexto
+Ordem do dono (26/11 12:57): "no desenvolvimento do próprio Forge, o time toca tudo sozinho até a homologação, incluindo o rótulo de regra nos dois casos (só aperta e afrouxa). Para mim fica só o merge na main. Condição: o pedido da main lista toda regra afrouxada na versão, com o motivo e o pedido de origem [...]. Nos outros projetos, nada muda. Grave na ferramenta [...] e abra o cartão para a ferramenta aceitar isso." Hoje `ATOS` não tem ato que diga isso, e o rótulo pronto espera o dono item a item.
+
+### Decisão
+- **R1. Ato `rotulo-pelo-time`, sem prazo.** Termo de ato `homologacao` (o `rotulo` já é do ato com prazo: as duas palavras juntas nascem pendentes, "mais de um ato"). Alvo só `fixo`, validade só `fixa`, como os atos de F1; o vocabulário de F2 ganha só `homologacao`. Frase que nasce ativa: "autorizo o time ate a homologacao, fixo". `forge-check autorizacao ler --ato rotulo-pelo-time` diz a concessão ativa (rc 0) ou nenhuma (rc 1), como o `--ato corte-diario` de F3.
+- **R2. Só no repositório do próprio Forge.** A concessão lê `inativa` quando a raiz é projeto (`.forge/versao`) ou quando o `origin` dela não é o `repository` do `plugin.json` do plugin que lê (o manifesto da raiz não decide, porque daria poder). Nos projetos, nada muda.
+- **R3. A lista da `main` (PR seguinte, um depois do outro).** O corpo do PR `homolog` → `main` lista cada PR da versão com o rótulo `afrouxa-regra`, com o número, o motivo e o pedido de origem, e a catraca do PR da `main` confere a lista.
+
+### Afrouxa?
+Sim, por ordem do dono: o rótulo `afrouxa-regra` no Forge deixa de esperar o dono item a item até a `homologacao`. O merge na `main` segue só do dono (`R-MAIN`). Nada muda nos outros atos nem nos projetos; a concessão fixa para pela retirada `R-<Id>` (item 8).
+
+### Por que o existente não basta
+`ATOS` só tem `rotulo-afrouxa-regra` com alvo `pr:`/`item:` e teto de 48 h ou 7 dias (D1), e os fixos de F1 não falam de rótulo (F4: `so-aperta-com-seguranca` não libera rótulo). A trava que sai: item pronto parado esperando o rótulo do dono.
+
+### Critério de reversão da emenda
+Um PR da `main` mesclado com regra afrouxada fora da lista de R3, ou uma concessão `rotulo-pelo-time` ativa fora do repositório do Forge: R1 sai e o rótulo volta ao dono. O dono retira a qualquer hora com `R-<Id>`.
+
+### Leituras (emenda ROTULO-PELO-TIME)
+| Data | Medida | Veredito (manter, ajustar, reverter) |
+|---|---|---|
+| AAAA-MM-DD | tempo do item pronto até o merge na `develop`, antes e depois (horas); regras afrouxadas fora da lista da `main` (meta 0) | pendente |
