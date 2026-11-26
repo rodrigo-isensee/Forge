@@ -75,13 +75,12 @@ class GhFalso(unittest.TestCase):
         self.addCleanup(subprocess.run, ["rm", "-rf", str(self.tmp)])
         self.repo, self.bin = self.tmp / "repo", self.tmp / "bin"
         self.repo.mkdir(), self.bin.mkdir()
-        env = sem_manutencao({"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"})
+        self.env = sem_manutencao({"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"})
         for args in (["init", "-q", "-b", "develop"], ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
                                                        "--allow-empty", "-m", "base"],
                      ["remote", "add", "origin", "https://github.com/dono/repo.git"]):  # M18.1: o remoto do PR
-            subprocess.run(["git", *args], cwd=self.repo, env=env, check=True)
-        self.git_env = env
-        self.sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, env=env, capture_output=True, text=True).stdout.strip()
+            subprocess.run(["git", *args], cwd=self.repo, env=self.env, check=True)
+        self.sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, env=self.env, capture_output=True, text=True).stdout.strip()
         gh = self.bin / "gh"
         gh.write_text(f"#!{sys.executable} -I\n{GH_FALSO}", encoding="utf-8")
         gh.chmod(0o755)
@@ -206,7 +205,7 @@ class RemotoDoPr(GhFalso):
     publicar = Publicar.publicar
 
     def origin(self, url):
-        subprocess.run(["git", "remote", "set-url", "origin", url], cwd=self.repo, env=self.git_env, check=True)
+        subprocess.run(["git", "remote", "set-url", "origin", url], cwd=self.repo, env=self.env, check=True)
 
     def recusa(self, trecho):
         with self.assertRaises(Exception) as erro:  # outra exceção (o `m.groups()` de None) é falha, não erro do teste
@@ -232,9 +231,9 @@ class RemotoDoPr(GhFalso):
                 self.recusa("vem de outro repositório")
 
     def test_c23_sem_origin_ou_origin_fora_das_formas(self):
-        subprocess.run(["git", "remote", "remove", "origin"], cwd=self.repo, env=self.git_env, check=True)
+        subprocess.run(["git", "remote", "remove", "origin"], cwd=self.repo, env=self.env, check=True)
         self.recusa("o `origin` da cópia não é um repositório lido")
-        subprocess.run(["git", "remote", "add", "origin", "x"], cwd=self.repo, env=self.git_env, check=True)
+        subprocess.run(["git", "remote", "add", "origin", "x"], cwd=self.repo, env=self.env, check=True)
         for url in ("/workspaces/repo", "file:///tmp/x@github.com:dono/repo", "https://github.com/dono/repo/extra"):
             with self.subTest(url=url):
                 self.origin(url)
