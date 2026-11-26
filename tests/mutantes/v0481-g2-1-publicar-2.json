@@ -1,0 +1,70 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "agregado: a descrição do publicar, com sha256 inteiro",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": " or not DESCRICAO_APROVADA.match(dela[0].get(\"description\") or \"\"):",
+      "para": ":",
+      "testes": ["tests.test_forge_pareceres.Agregado.test_agregado_pending_com_exigido_invalido"]
+    },
+    {
+      "id": "M10",
+      "guarda": "publicar: tipo, veredito e commit de 40 hex na lista (M2.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    if tipo not in CONTEXTOS or veredito not in ESTADOS or not re.fullmatch(r\"[0-9a-f]{40}\", sha or \"\"):",
+      "para": "    if False:",
+      "testes": ["tests.test_forge_pareceres.Publicar.test_c3_tipo_ou_veredito_fora_da_lista"]
+    },
+    {
+      "id": "M11",
+      "guarda": "publicar: o corpo devolvido pela API igual ao local antes do status (M5.3)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    if normalizar(str(lido.get(\"body\"))) != normalizar(texto):",
+      "para": "    if False:",
+      "testes": ["tests.test_forge_pareceres.Publicar.test_c20_corpo_devolvido_difere_do_local"]
+    },
+    {
+      "id": "M12",
+      "guarda": "publicar: o comentário é do PR do head",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    if (url := lido.get(\"html_url\")) != f\"{pr['url']}#issuecomment-{int(criado['id'])}\":",
+      "para": "    if (url := lido.get(\"html_url\")) is None:",
+      "testes": ["tests.test_forge_pareceres.Publicar.test_comentario_de_outro_pr"]
+    },
+    {
+      "id": "M13",
+      "guarda": "parecer publicar: caminho .forge/pareceres/<pedido>/<tipo>.md com o pedido igual ao frontmatter",
+      "arquivo": "bin/forge-check",
+      "de": "    if not m or campos.get(\"pedido\") != m.group(1) or ",
+      "para": "    if not m or ",
+      "testes": ["tests.test_forge_pareceres.Comando.test_pedido_ou_tipo_diferente_do_caminho"]
+    },
+    {
+      "id": "M14",
+      "guarda": "parecer publicar: tipo do caminho igual ao frontmatter",
+      "arquivo": "bin/forge-check",
+      "de": " or campos.get(\"tipo\") != m.group(2) or m.group(2) not in PAPEL_DO_PARECER:",
+      "para": " or m.group(2) not in PAPEL_DO_PARECER:",
+      "testes": ["tests.test_forge_pareceres.Comando.test_pedido_ou_tipo_diferente_do_caminho"]
+    },
+    {
+      "id": "M15",
+      "guarda": "parecer publicar: o commit resolve na cópia",
+      "arquivo": "bin/forge-check",
+      "de": "    if not sha:\n        saida.append(f\"{nome}: commit:",
+      "para": "    if False:\n        saida.append(f\"{nome}: commit:",
+      "testes": ["tests.test_forge_pareceres.Comando.test_commit_que_nao_existe"]
+    },
+    {
+      "id": "M16",
+      "guarda": "parecer publicar: riscos-aceitos só com o aceite do dono (M14.1)",
+      "arquivo": "bin/forge-check",
+      "de": "    if campos.get(\"parecer\") == \"riscos-aceitos\" and not aceite_do_usuario(raiz, campos[\"pedido\"], campos.get(\"commit\"), sha):",
+      "para": "    if False:",
+      "testes": ["tests.test_forge_pareceres.Comando.test_c15_riscos_aceitos_sem_aceite"]
+    }
+  ]
+}

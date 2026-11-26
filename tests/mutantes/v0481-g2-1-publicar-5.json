@@ -1,0 +1,78 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M24",
+      "guarda": "gh: o corpo vai em JSON na entrada só quando há corpo",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "input=\"\" if corpo is None else json.dumps(corpo)",
+      "para": "input=\"\" if True else json.dumps(corpo)",
+      "testes": [
+        "tests.test_forge_pareceres.Publicar.test_publica_comentario_status_e_agregado"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "pr_aberto: a lista de PRs ilegível vale como nenhum PR",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if isinstance(prs, list) else []",
+      "para": "if True else []",
+      "testes": [
+        "tests.test_forge_pareceres.Publicar.test_lista_de_prs_ilegivel"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "gravar_status: o target_url só com url (o agregado não aponta para comentário)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "({\"target_url\": url} if url else {})",
+      "para": "({\"target_url\": url} if True else {})",
+      "testes": [
+        "tests.test_forge_pareceres.Publicar.test_publica_comentario_status_e_agregado"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "agregado: item da página que não é objeto fica de fora",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "for s in p if isinstance(s, dict)]",
+      "para": "for s in p if True]",
+      "testes": [
+        "tests.test_forge_pareceres.Agregado.test_item_que_nao_e_objeto_fica_de_fora"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "parecer publicar: arquivo sem frontmatter recusa pelo caminho, sem quebrar",
+      "arquivo": "bin/forge-check",
+      "de": "if m and p.is_file() else \"\"\n    campos = ler_frontmatter(texto)[0] or {}",
+      "para": "if m and p.is_file() else \"\"\n    campos = ler_frontmatter(texto)[0]",
+      "testes": [
+        "tests.test_forge_pareceres.Comando.test_sem_frontmatter"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "publicar: o agregado sai de success antes do status do papel (QA A1 do #878)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "        gravar_status(raiz, sha, AGREGADO, \"pending\",",
+      "para": "        (raiz, sha, AGREGADO, \"pending\",",
+      "testes": [
+        "tests.test_forge_pareceres.Publicar.test_falha_entre_o_papel_e_o_agregado_nao_deixa_success",
+        "tests.test_forge_pareceres.Publicar.test_publica_comentario_status_e_agregado"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "publicar: a recusa depois do PR diz o que já ficou gravado (review A3 do #878)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "raise Recusa(f\"{e}; já gravado: {gravado}\") from None",
+      "para": "raise Recusa(f\"{e}\") from None",
+      "testes": [
+        "tests.test_forge_pareceres.Publicar.test_falha_entre_o_papel_e_o_agregado_nao_deixa_success",
+        "tests.test_forge_pareceres.Publicar.test_falha_antes_do_status_diz_o_que_ficou"
+      ]
+    }
+  ]
+}

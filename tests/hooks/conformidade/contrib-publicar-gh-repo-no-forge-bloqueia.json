@@ -1,0 +1,22 @@
+{
+  "descricao": "V0481-PUBLICAR: sessão de projeto, GH_REPO=<forge> forge-check parecer publicar: o gh de dentro do processo comentaria e gravaria status no Forge (segurança A1, S2).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "GH_REPO=rodrigo-isensee/Forge forge-check parecer publicar .forge/pareceres/v1/review.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: forge-check parecer publicar"
+  }
+}

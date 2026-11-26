@@ -1,0 +1,22 @@
+{
+  "descricao": "V0481-PUBLICAR: sessão de projeto, duas --raiz antes do subcomando, a última no clone do Forge: o forge-check usa a última (S1 do review E6.18).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "forge-check --raiz=. --raiz ~/.forge-contrib/proj parecer publicar .forge/pareceres/v1/review.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: forge-check parecer publicar"
+  }
+}
