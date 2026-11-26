@@ -11,6 +11,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / "hooks" / "ordens_teto.py"
 ORDENS = ".forge/ordens/ordens-em-vigor.md"
@@ -27,7 +30,7 @@ class Base(unittest.TestCase):
         self.projeto = self.tmp / "projeto"
         (self.projeto / ".forge" / "ordens").mkdir(parents=True)
         (self.projeto / ".forge" / "versao").write_text("0.1.0\n", encoding="utf-8")
-        subprocess.run(["git", "init", "-q", str(self.projeto)], env=self.ambiente(), check=True, capture_output=True,
+        subprocess.run(["git", "init", "-q", str(self.projeto)], env=sem_manutencao(self.ambiente()), check=True, capture_output=True,
                        timeout=60)
         self.arquivo = self.projeto / ORDENS
 
