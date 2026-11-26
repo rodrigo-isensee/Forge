@@ -1,0 +1,36 @@
+{
+  "pedido": "v0481-ci-descendente-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "leu_o_ci_via: o parecer sem `commit:` não casa a linha via (nem quebra)",
+      "arquivo": "bin/forge-check",
+      "de": "    commit = campos.get(\"commit\") or \"\"\n    vias = ",
+      "para": "    commit = campos.get(\"commit\")\n    vias = ",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiVia.test_outro_sha_outro_estado_ou_commit_invalido_nao_vale"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "so_pareceres_ate: o branco inicial do 1º caminho não some (saída em bytes, sem strip)",
+      "arquivo": "bin/forge-check",
+      "de": "\"-z\", sha, via, \"--\", bruto=True)\n    return rc == 0 and all(c.startswith(PASTAS_DOS_PARECERES) for c in nomes_z(saida))",
+      "para": "\"-z\", sha, via, \"--\")\n    return rc == 0 and all(c.startswith(PASTAS_DOS_PARECERES) for c in saida.split(\"\\0\") if c)",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiVia.test_branco_no_inicio_do_caminho_nao_vale"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "so_pareceres_ate: diff.ignoreSubmodules da configuração não esconde gitlink",
+      "arquivo": "bin/forge-check",
+      "de": "\"--no-renames\", \"--ignore-submodules=none\", \"-z\"",
+      "para": "\"--no-renames\", \"-z\"",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiVia.test_gitlink_fora_das_pastas_nao_some"
+      ]
+    }
+  ]
+}
