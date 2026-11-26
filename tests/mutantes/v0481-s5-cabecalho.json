@@ -1,0 +1,46 @@
+{
+  "pedido": "v0481-s5-cabecalho",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "S5: frente sem o `---` exato no topo devolve vazio",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if linhas[0] != \"---\":\n        return {}\n    for fecho",
+      "para": "    if False:\n        return {}\n    for fecho",
+      "testes": [
+        "tests.test_autorizacao.Frente.test_sem_fecho_ou_sem_tracos_no_topo_e_vazio"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "S5: só a linha que é `---` fecha o cabeçalho; `---` no começo de outra linha não",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "        if linha.strip() == \"---\":\n            return dict(campo",
+      "para": "        if linha.startswith(\"---\"):\n            return dict(campo",
+      "testes": [
+        "tests.test_autorizacao.Frente.test_tracos_dentro_de_um_valor_ou_no_comeco_de_outra_linha_nao_fecham"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "S5: sem o fecho, vazio (o corpo não vale como cabeçalho)",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    return {}\n\n\ndef confirmada(",
+      "para": "    return dict(campo.split(\": \", 1) for campo in linhas[1:] if \": \" in campo)\n\n\ndef confirmada(",
+      "testes": [
+        "tests.test_autorizacao.Frente.test_sem_fecho_ou_sem_tracos_no_topo_e_vazio"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "S5: só a linha `chave: valor` do cabeçalho vira campo; `---x` ou `----` dentro dele não quebra a leitura",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "for campo in linhas[1:fecho] if \": \" in campo)",
+      "para": "for campo in linhas[1:fecho] if True)",
+      "testes": [
+        "tests.test_autorizacao.Frente.test_tracos_dentro_de_um_valor_ou_no_comeco_de_outra_linha_nao_fecham"
+      ]
+    }
+  ]
+}

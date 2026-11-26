@@ -347,8 +347,31 @@ class ItemPresoAoCommit(unittest.TestCase):
         self.commitar("docs/devops/sem-tipo.md", f"---\nbranch: {RAMO}\ncommit: {self.revisado}\nparecer: aprovado\n---\n")
         self.assertEqual(self.estado(), ("inativa", "Parecer com tipo fora da sua pasta"))  # tipo ausente não tem pasta
 
+    def test_linha_que_comeca_com_tracos_no_cabecalho_nao_recusa_o_parecer_e_o_corpo_nao_aprova(self):  # S5 (v0481 E25.1)
+        cabeca = f"---\ntipo: qa\npedido: v0\nbranch: {RAMO}\ncommit: {self.revisado}\nescopo: a --- b\n"
+        self.commitar("docs/qa/pv-a2.md", f"{cabeca}---8<--- recorte\nparecer: aprovado\n---\n# parecer\n")
+        self.assertEqual(self.estado(), ("ativa", ""))  # antes: o `---8<---` fechava o cabeçalho e o `parecer:` sumia
+        self.commitar("docs/qa/pv-a2.md", f"{cabeca}parecer: reprovado\n ---\n# parecer\nparecer: aprovado\n")
+        self.assertEqual(self.estado(), ("inativa", "Commit sem os pareceres aprovados nele"))  # o fecho do ler_frontmatter
 
-FIXA = {"Validade": "fixa", "Validade-utc": "fixa", "Origem-da-validade": "sem prazo", "Alvos": "fixo"}
+
+class Frente(unittest.TestCase):
+    """S5 (v0481 E25.1): `frente` fecha o cabeçalho só na linha que é `---` (a do `ler_frontmatter` do forge-check)."""
+
+    def test_tracos_dentro_de_um_valor_ou_no_comeco_de_outra_linha_nao_fecham(self):
+        texto = "---\ntipo: review\nescopo: a --- b\n----\n---x\nparecer: aprovado\n---\nparecer: reprovado\n"
+        self.assertEqual(fa.frente(texto), {"tipo": "review", "escopo": "a --- b", "parecer": "aprovado"})
+
+    def test_fecho_com_espaco_vale_e_o_corpo_nao_entra(self):
+        self.assertEqual(fa.frente("---\nparecer: reprovado\n\t--- \nparecer: aprovado\n"), {"parecer": "reprovado"})
+
+    def test_sem_fecho_ou_sem_tracos_no_topo_e_vazio(self):
+        for texto in ("---\nparecer: aprovado\n", "# parecer\n---\nparecer: aprovado\n---\n", " ---\nparecer: aprovado\n---\n", ""):
+            with self.subTest(texto=texto):
+                self.assertEqual(fa.frente(texto), {})
+
+
+FIXA ={"Validade": "fixa", "Validade-utc": "fixa", "Origem-da-validade": "sem prazo", "Alvos": "fixo"}
 UNICO = {"Validade": "uso-unico", "Validade-utc": "uso-unico"}
 
 

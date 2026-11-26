@@ -226,9 +226,15 @@ def fora_do_revisado(raiz, campos):
 
 
 def frente(texto):
-    """{campo: valor} do frontmatter de um parecer (ADR 0004)."""
-    cabeca = texto.split("\n---", 1)[0] if texto.startswith("---\n") else ""
-    return dict(linha.split(": ", 1) for linha in cabeca.split("\n")[1:] if ": " in linha)
+    """{campo: valor} do frontmatter de um parecer (ADR 0004): do `---` do topo até a primeira linha só `---`, o fecho do
+    `ler_frontmatter` do forge-check (S5); `---` no começo de outra linha não fecha e, sem o fecho, vazio (o corpo não vale)."""
+    linhas = texto.split("\n")
+    if linhas[0] != "---":
+        return {}
+    for fecho, linha in enumerate(linhas[1:], 1):
+        if linha.strip() == "---":
+            return dict(campo.split(": ", 1) for campo in linhas[1:fecho] if ": " in campo)
+    return {}
 
 
 def confirmada(nome, campos, lidos, gravador):
