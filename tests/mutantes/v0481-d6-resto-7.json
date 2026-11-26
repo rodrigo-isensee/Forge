@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481-d6-resto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M40",
+      "guarda": "D6 (a): as entradas da saída -z do git status viram a lista a salvar (o filtro guarda as não vazias, não as tira)",
+      "arquivo": "hooks/salvar.py",
+      "de": "for e in saida.split(b\"\\0\") if e]",
+      "para": "for e in saida.split(b\"\\0\") if not e]",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_salva_so_o_escopo_na_copia"
+      ]
+    },
+    {
+      "id": "M41",
+      "guarda": "D6 (a): o hook roda o principal quando o Claude Code o chama como script",
+      "arquivo": "hooks/salvar.py",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.SalvarAoParar.test_salva_so_o_escopo_na_copia"
+      ]
+    }
+  ]
+}
