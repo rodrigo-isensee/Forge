@@ -21,14 +21,15 @@ Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO .
                 (`TESTES_DE_TEXTO`), num `unittest` só, com o código de saída dele e uma linha de resumo; não combina com nada
   --registros  a conferência de registros (PR-VERDE B1), só leitura e em segundos: roda, em paralelo, os mesmos testes do CI
                 para o teto dos agentes, o índice do Forge, as specs de mutante (AR-12), o mapa deste script e os pesos da
-                suíte (`REGISTROS`), mais o `forge-changelog conferir --base REF` e o peso de todo módulo de teste novo em
-                tests/pesos-d4.json. Busca a `origin/<ramo>` de REF antes (sem rede, aviso: o CI confere). Saída 0 = em dia,
-                1 = algum registro desatualizado (uma linha `registro desatualizado:` por item), 2 = sem veredito (git ou
-                pesos ilegíveis); não combina com nada além de --base
+                suíte (`REGISTROS`), mais o `forge-changelog conferir --base REF`. Módulo de teste novo sem peso em
+                tests/pesos-d4.json não reprova: vale a mediana até a marca de versão regerar os pesos (E19.1). Busca a
+                `origin/<ramo>` de REF antes (sem rede, aviso: o CI confere). Saída 0 = em dia, 1 = algum registro
+                desatualizado (uma linha `registro desatualizado:` por item), 2 = sem veredito (git); não combina com
+                nada além de --base
   --regerar    o regerador (PR-VERDE B2), rodado pelo autor antes da entrega: busca a base como o --registros e chama os
                 geradores que já existem só para o derivado cuja fonte o diff tocou, numa lista fechada (`DERIVADOS`): o
-                índice do Forge (`scripts/indice-forge.py`, quando bin/, hooks/ ou scripts/ mudou) e o peso de todo módulo de
-                teste novo (`scripts/suite-paralela.py --medir`). Não segue link e nunca escreve arquivo de controle (a
+                índice do Forge (`scripts/indice-forge.py`, quando bin/, hooks/ ou scripts/ mudou); os pesos da suíte
+                ficam fora (só a marca de versão os regera; escrevê-los aqui sai 2). Não segue link e nunca escreve arquivo de controle (a
                 escrita fora da lista, versionada, nova ou ignorada pelo git, sai 2; só o __pycache__ fica de fora); mostra
                 o diff para o autor commitar. Saída 0 = regerado ou nada a regerar, 1 = gerador vermelho, 2 = sem veredito,
                 link no derivado ou escrita fora da lista; não combina com nada além de --base
@@ -127,7 +128,6 @@ REGISTROS = (
     ("pesos da suíte", ("tests.test_forge.PesosDaSuite",)),
 )
 CHANGELOG = ("bin/forge-changelog", "conferir", "--base")
-PESOS = Path("tests/pesos-d4.json")
 PROCESSOS_DOS_REGISTROS = 4
 RAMO_BUSCAVEL = re.compile(r"[A-Za-z0-9._/-]+")  # o ramo de `--base` que vai ao `git fetch` (nunca opção nem refspec)
 # O que o `--vermelho` mantém no HEAD nas duas cópias: módulos de teste e dados de teste. Falha fechada: todo o
@@ -955,18 +955,6 @@ def buscar_base(base):
     return None
 
 
-def modulos_sem_peso(base):
-    """Módulo de teste novo (adicionado desde o ancestral comum com `base`, ou não versionado) sem peso em `PESOS`.
-    Levanta RuntimeError (git), OSError ou ValueError (pesos ilegíveis): sem veredito, nunca verde."""
-    ancora = git("merge-base", base, "HEAD").strip()
-    novos = set(git("diff", "--name-only", "--no-renames", "--diff-filter=A", ancora).splitlines())
-    novos |= set(git("ls-files", "--others", "--exclude-standard").splitlines())
-    pesos = json.loads(PESOS.read_text(encoding="utf-8"))
-    if not isinstance(pesos, dict):
-        raise ValueError(f"{PESOS} não é um objeto JSON")
-    return sorted(a.group(1) for a in map(MODULO_DE_TESTE.fullmatch, novos) if a and a.group(1) not in pesos)
-
-
 def registros(base):
     """`--registros`: 0 em dia, 1 registro desatualizado, 2 sem veredito."""
     inicio = time.monotonic()
@@ -974,8 +962,8 @@ def registros(base):
     if aviso:
         print(f"forge-testes: aviso: {aviso}", file=sys.stderr)
     try:
-        sem_peso = modulos_sem_peso(base)
-    except (RuntimeError, OSError, ValueError) as erro:
+        git("merge-base", base, "HEAD")  # a base que não resolve não dá veredito
+    except RuntimeError as erro:
         print(f"forge-testes: registros sem veredito ({erro})", file=sys.stderr)
         return 2
     env = ambiente_da_copia()
@@ -988,22 +976,17 @@ def registros(base):
     for nome, r in falhas:
         print(f"forge-testes: registro desatualizado: {nome} (rc={r.returncode})", file=sys.stderr)
         print("\n".join((r.stdout + r.stderr).strip().splitlines()[-15:]), file=sys.stderr)
-    for modulo in sem_peso:
-        print(f"forge-testes: registro desatualizado: {modulo} sem peso em {PESOS}; meça com "
-              f"python3 scripts/suite-paralela.py --medir {modulo}", file=sys.stderr)
-    codigo = 1 if falhas or sem_peso else 0
-    print(f"forge-testes: registros rc={codigo} em {time.monotonic() - inicio:.0f} s "
-          f"({len(comandos)} conferências e o peso dos módulos de teste novos)")
+    codigo = 1 if falhas else 0
+    print(f"forge-testes: registros rc={codigo} em {time.monotonic() - inicio:.0f} s ({len(comandos)} conferências)")
     return codigo
 
 
 # --- `--regerar` (PR-VERDE B2): chama os geradores que já existem só para o derivado cuja fonte o diff tocou. Lista fechada:
-# o índice do Forge (fonte: bin/, hooks/, scripts/) e o peso de módulo de teste novo; nunca arquivo de controle
-# (tests/config.json, docs/regras/). O mapa deste script é código, sem gerador: o `--registros` o confere.
+# o índice do Forge (fonte: bin/, hooks/, scripts/); nunca arquivo de controle (tests/config.json, docs/regras/) nem os
+# pesos da suíte, que só a marca de versão regera (E19.1: o PR comum não edita tests/pesos-d4.json, sem conflito). O mapa deste script é código, sem gerador: o `--registros` o confere.
 INDICE_DO_FORGE = Path("docs/indice-forge.md")
 GERA_O_INDICE = ("scripts/indice-forge.py",)
-MEDE_O_PESO = ("scripts/suite-paralela.py", "--medir")
-DERIVADOS = (INDICE_DO_FORGE, PESOS)
+DERIVADOS = (INDICE_DO_FORGE,)
 LIMPO = "limpo"  # o caminho fora do `git status`
 SEM_BYTECODE = ":(exclude,glob)**/__pycache__/**"  # pathspec: o bytecode não entra na fotografia
 
@@ -1031,12 +1014,11 @@ def regerar(base):
     if falha_da_busca:
         print(f"forge-testes: aviso: {falha_da_busca}", file=sys.stderr)
     try:
-        alterados, sem_peso, antes = caminhos_alterados(base), modulos_sem_peso(base), fotografia()
-    except (OSError, RuntimeError, ValueError) as erro:  # outra ordem: o `de` do R6 do B1 segue único (AR-12)
+        alterados, antes = caminhos_alterados(base), fotografia()
+    except (OSError, RuntimeError) as erro:
         print(f"forge-testes: regerar sem veredito ({erro})", file=sys.stderr)
         return 2
     tarefas = [("índice do Forge", INDICE_DO_FORGE, GERA_O_INDICE)] if any(map(INDICE_DAS_PASTAS.fullmatch, alterados)) else []
-    tarefas += [(f"peso de {modulo}", PESOS, (*MEDE_O_PESO, modulo)) for modulo in sem_peso]
     links = sorted({str(link) for _, destino, _ in tarefas if (link := link_no_caminho(destino))})
     if links:
         print(f"forge-testes: regerar recusado: link simbólico em {', '.join(links)} (não sigo link)", file=sys.stderr)

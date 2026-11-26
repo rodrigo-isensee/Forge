@@ -7276,13 +7276,11 @@ def modulos_de_teste(caminhos):
     return nomes
 
 
-def violacoes_de_peso(modulos_base, pesos_base, modulos_head, pesos_head):
-    """PR-VERDE C1 (D4): a regra é por PR. Devolve (novos sem peso, os que perderam o peso): módulo que o PR cria
-    precisa do peso medido; módulo da base que tinha peso não o perde. O sem peso que já vinha da base passa: a marca
-    de versão regera os pesos pelo CI (`scripts/pesos-do-ci.py`)."""
-    novos = sorted(m for m in modulos_head - modulos_base if m not in pesos_head)
-    perdidos = sorted(m for m in modulos_head & modulos_base if m in pesos_base and m not in pesos_head)
-    return novos, perdidos
+def perdas_de_peso(modulos_base, pesos_base, modulos_head, pesos_head):
+    """PR-VERDE C1 (D4), com a E19.1: os módulos da base que tinham peso e o perderam. O módulo novo sem peso passa (vale
+    a mediana): o PR comum não edita os pesos e não conflita; a marca de versão os regera pelo CI
+    (`scripts/pesos-do-ci.py`)."""
+    return sorted(m for m in modulos_head & modulos_base if m in pesos_base and m not in pesos_head)
 
 
 def base_do_pr():
@@ -7293,8 +7291,8 @@ def base_do_pr():
 
 
 class PesosDaSuite(unittest.TestCase):
-    """PR-VERDE C1 (D4 do desenho v0479-pr-verde-de-primeira): o peso só equilibra a divisão; a regra global de 20% sem
-    peso vira regra por PR: o PR não aumenta os módulos sem peso além dos que já vinham da base."""
+    """PR-VERDE C1 (D4 do desenho v0479-pr-verde-de-primeira): o peso só equilibra a divisão. E19.1 (ordem do dono
+    26/11): o módulo novo sem peso vale a mediana e não reprova; só o módulo da base não perde o peso."""
 
     def test_pr_nao_aumenta_os_modulos_sem_peso(self):
         base = base_do_pr()
@@ -7310,23 +7308,22 @@ class PesosDaSuite(unittest.TestCase):
         head = modulos_de_teste(p.relative_to(RAIZ).as_posix() for p in arquivos)
         minimo(head, 100, "módulos de teste")
         pesos = json.loads((RAIZ / "tests" / "pesos-d4.json").read_text(encoding="utf-8"))
-        novos, perdidos = violacoes_de_peso(modulos_de_teste(arvore), pesos_base, head, pesos)
-        self.assertEqual(novos, [], f"módulo de teste novo sem peso em tests/pesos-d4.json; meça cada um com {MEDIR_PESO}")
+        perdidos = perdas_de_peso(modulos_de_teste(arvore), pesos_base, head, pesos)
         self.assertEqual(perdidos, [], "módulo que tinha peso na base o perdeu em tests/pesos-d4.json; devolva o peso "
                                        f"ou meça de novo com {MEDIR_PESO}")
 
     def test_regra_por_pr(self):
         base, pesos_base = {"test_a", "test_b"}, {"test_a": 1.0}
         casos = (
-            ({"test_a", "test_b"}, {"test_a": 1.0}, [], []),  # o sem peso da base passa
-            ({"test_a", "test_b", "test_c"}, {"test_a": 1.0}, ["test_c"], []),  # novo sem medida reprova
-            ({"test_a", "test_b", "test_c"}, {"test_a": 1.0, "test_c": 0.4}, [], []),  # novo medido passa
-            ({"test_a", "test_b"}, {}, [], ["test_a"]),  # tirar o peso de módulo existente reprova
-            ({"test_b"}, {}, [], []),  # módulo apagado com o peso dele passa
+            ({"test_a", "test_b"}, {"test_a": 1.0}, []),  # o sem peso da base passa
+            ({"test_a", "test_b", "test_c"}, {"test_a": 1.0}, []),  # E19.1: novo sem medida passa (vale a mediana)
+            ({"test_a", "test_b", "test_c"}, {"test_a": 1.0, "test_c": 0.4}, []),  # novo medido passa
+            ({"test_a", "test_b"}, {}, ["test_a"]),  # tirar o peso de módulo existente reprova
+            ({"test_b"}, {}, []),  # módulo apagado com o peso dele passa
         )
-        for head, pesos, novos, perdidos in casos:
+        for head, pesos, perdidos in casos:
             with self.subTest(head=sorted(head), pesos=pesos):
-                self.assertEqual(violacoes_de_peso(base, pesos_base, head, pesos), (novos, perdidos))
+                self.assertEqual(perdas_de_peso(base, pesos_base, head, pesos), perdidos)
 
     def test_modulos_de_pacote_e_da_raiz(self):
         caminhos = ["tests/test_a.py", "tests/apoio.py", "tests/p/__init__.py", "tests/p/test_b.py",
