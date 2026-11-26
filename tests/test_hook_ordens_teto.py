@@ -29,6 +29,9 @@ class Base(unittest.TestCase):
         # A1 do review a1b62ca: o erros.log é a única prova dos ramos de entrada fora da forma, e o registro carrega o
         # `bin/forge-check` (`_comum.git`); com o bytecode frio (cópia limpa, checkout do CI) ele passa dos 0,5 s do vigia
         # e a linha some. Aquecido aqui, com o mesmo Python e as mesmas opções do hook; `ErroInterno` prova que a linha sai.
+        # Sondas do review a1b62ca, agora com M1, M6 e M10 mortos e a linha `ordens_teto TypeError` no erros.log:
+        # S1: `bin/forge-mutante --processos 1 --ids M1,M6,M10 tests/mutantes/v0481-recibo-contador.json tests/mutantes/v0481-recibo-contador-2.json` no bc9b1d1f
+        # S2: cópia limpa no bc9b1d1f com o M1, Write com `file_path` 5
         subprocess.run([sys.executable, "-s", "-E", "-c", "import _comum; _comum.forge_check()"], cwd=RAIZ / "hooks",
                        env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LANG": "C.UTF-8"}, check=True,
                        capture_output=True, timeout=60)
