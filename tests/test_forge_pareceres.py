@@ -75,15 +75,16 @@ class GhFalso(unittest.TestCase):
         self.addCleanup(subprocess.run, ["rm", "-rf", str(self.tmp)])
         self.repo, self.bin = self.tmp / "repo", self.tmp / "bin"
         self.repo.mkdir(), self.bin.mkdir()
-        env = sem_manutencao({"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"})
+        self.env = sem_manutencao({"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"})
         for args in (["init", "-q", "-b", "develop"], ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
-                                                       "--allow-empty", "-m", "base"]):
-            subprocess.run(["git", *args], cwd=self.repo, env=env, check=True)
-        self.sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, env=env, capture_output=True, text=True).stdout.strip()
+                                                       "--allow-empty", "-m", "base"],
+                     ["remote", "add", "origin", "https://github.com/dono/repo.git"]):  # M18.1: o remoto do PR
+            subprocess.run(["git", *args], cwd=self.repo, env=self.env, check=True)
+        self.sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, env=self.env, capture_output=True, text=True).stdout.strip()
         gh = self.bin / "gh"
         gh.write_text(f"#!{sys.executable} -I\n{GH_FALSO}", encoding="utf-8")
         gh.chmod(0o755)
-        self.estado({"prs": [{"number": 7, "headRefName": BRANCH, "headRefOid": self.sha,
+        self.estado({"prs": [{"number": 7, "headRefName": BRANCH, "headRefOid": self.sha, "isCrossRepository": False,
                               "url": "https://github.com/dono/repo/pull/7"}], "login": "conta", "statuses": []})
         ambiente = {"PATH": f"{self.bin}:/usr/bin:/bin", "GH_FALSO": str(self.tmp), "HOME": str(self.tmp)}
         p = mock.patch.dict(os.environ, ambiente, clear=True)
@@ -197,6 +198,58 @@ class Publicar(GhFalso):
             self.publicar()
 
 
+class RemotoDoPr(GhFalso):
+    """M18.1 (T18, C23): o PR em que se publica é do repositório do `origin` da cópia e a branch é dele; `GH_REPO` apontado para
+    outro repositório, remoto de outro projeto ou PR de fork recusam antes de qualquer gravação."""
+
+    publicar = Publicar.publicar
+
+    def origin(self, url):
+        subprocess.run(["git", "remote", "set-url", "origin", url], cwd=self.repo, env=self.env, check=True)
+
+    def recusa(self, trecho):
+        with self.assertRaises(Exception) as erro:  # outra exceção (o `m.groups()` de None) é falha, não erro do teste
+            self.publicar()
+        self.assertIsInstance(erro.exception, fp().Recusa, repr(erro.exception))
+        self.assertRegex(str(erro.exception), trecho)
+        self.assertFalse([c for c in self.chamadas() if "POST" in c], "nada gravado")
+
+    def test_c23_remoto_diferente_do_pr(self):
+        """Sessão de projeto com `GH_REPO` no Forge: o `gh` acha o PR do Forge, o `origin` da cópia é o do projeto."""
+        self.origin("https://github.com/outro/projeto.git")
+        self.recusa(r"PR #7 \(https://github.com/dono/repo/pull/7\) não é do repositório do `origin` da cópia \(M18.1\)")
+
+    def test_c23_pr_de_outro_repositorio_com_o_mesmo_dono(self):
+        self.estado(prs=[self.estado()["prs"][0] | {"url": "https://github.com/dono/repo-2/pull/7"}])
+        self.recusa("não é do repositório do `origin`")
+
+    def test_c23_pr_de_fork_com_a_mesma_branch(self):
+        for cruzado in ({"isCrossRepository": True}, {"isCrossRepository": None}, {}):
+            with self.subTest(cruzado=cruzado):
+                pr = {k: v for k, v in self.estado()["prs"][0].items() if k != "isCrossRepository"}
+                self.estado(prs=[pr | cruzado])
+                self.recusa("vem de outro repositório")
+
+    def test_c23_sem_origin_ou_origin_fora_das_formas(self):
+        subprocess.run(["git", "remote", "remove", "origin"], cwd=self.repo, env=self.env, check=True)
+        self.recusa("o `origin` da cópia não é um repositório lido")
+        subprocess.run(["git", "remote", "add", "origin", "x"], cwd=self.repo, env=self.env, check=True)
+        for url in ("/workspaces/repo", "file:///tmp/x@github.com:dono/repo", "https://github.com/dono/repo/extra"):
+            with self.subTest(url=url):
+                self.origin(url)
+                self.recusa("o `origin` da cópia não é um repositório lido")
+
+    def test_formas_do_remoto_que_valem(self):
+        for url in ("https://github.com/dono/repo", "https://github.com/Dono/Repo.git/", "git@github.com:dono/repo.git",
+                    "ssh://git@github.com/dono/repo.git", "https://x-access-token:abc@github.com/dono/repo.git"):
+            with self.subTest(url=url):
+                self.origin(url)
+                self.assertEqual(fp().repositorio_do_remoto(str(self.repo)), ("github.com", "dono", "repo"))
+        self.origin("https://github.com/dono/repo.git")
+        self.estado(prs=[self.estado()["prs"][0] | {"url": "https://github.com/DONO/Repo/pull/7"}])
+        self.assertEqual(self.publicar()[1], ("success", "todos os exigidos"))
+
+
 class Agregado(GhFalso):
     def status(self, contexto, estado="success", login="conta", descricao=None):
         return {"context": contexto, "state": estado, "creator": {"login": login},
@@ -250,7 +303,7 @@ class Comando(GhFalso):
         run = self.repo / ".forge" / "run"
         run.mkdir(parents=True, exist_ok=True)
         if autoria:
-            registro = {"caminho": "x", "sha256": hashlib.sha256(texto.strip().encode()).hexdigest(), "papel": papel}
+            registro = {"caminho": f".forge/pareceres/{pedido}/{tipo}.md", "sha256": hashlib.sha256(texto.strip().encode()).hexdigest(), "papel": papel}
             with open(run / "autoria.jsonl", "a", encoding="utf-8") as f:
                 f.write(json.dumps(registro) + "\n")
         return arq

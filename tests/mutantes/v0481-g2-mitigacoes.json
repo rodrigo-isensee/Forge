@@ -1,0 +1,46 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M50",
+      "guarda": "parecer publicar: PR de fork ou sem isCrossRepository legível recusa (M18.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if prs[0].get(\"isCrossRepository\") is not False:",
+      "para": "if prs[0].get(\"isCrossRepository\") is True:",
+      "testes": [
+        "tests.test_forge_pareceres.RemotoDoPr.test_c23_pr_de_fork_com_a_mesma_branch"
+      ]
+    },
+    {
+      "id": "M51",
+      "guarda": "parecer publicar: PR de outro repositório que o do origin da cópia recusa (M18.1, C23)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if not m or tuple(x.lower() for x in m.groups()) != repositorio_do_remoto(raiz):",
+      "para": "if not m:",
+      "testes": [
+        "tests.test_forge_pareceres.RemotoDoPr.test_c23_remoto_diferente_do_pr"
+      ]
+    },
+    {
+      "id": "M52",
+      "guarda": "parecer publicar: sem origin ou origin fora das formas https e ssh, recusa (M18.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if m is None:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_pareceres.RemotoDoPr.test_c23_sem_origin_ou_origin_fora_das_formas"
+      ]
+    },
+    {
+      "id": "M53",
+      "guarda": "parecer publicar: a URL do origin casa inteira, não por trecho (M18.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "m = REMOTO.fullmatch(url.strip())",
+      "para": "m = REMOTO.search(url.strip())",
+      "testes": [
+        "tests.test_forge_pareceres.RemotoDoPr.test_c23_sem_origin_ou_origin_fora_das_formas"
+      ]
+    }
+  ]
+}

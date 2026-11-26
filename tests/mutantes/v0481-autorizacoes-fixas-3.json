@@ -26,7 +26,7 @@
       "id": "M19",
       "guarda": "AUTORIZACOES-FIXAS F1: o limite reconhece o ato fixo",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "    fixo = campos[\"Ato\"] in FIXOS",
+      "de": "    fixo = campos[\"Ato\"] in SEM_PRAZO",
       "para": "    fixo = False",
       "testes": [
         "tests.test_autorizacao.AtosFixos.test_fixa_nao_vence_e_para_so_pela_retirada"
@@ -46,7 +46,7 @@
       "id": "M21",
       "guarda": "AUTORIZACOES-FIXAS F2: a leitura do texto reconhece o ato fixo",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "    fixo = ato in FIXOS",
+      "de": "    fixo = ato in SEM_PRAZO",
       "para": "    fixo = False",
       "testes": [
         "tests.test_autorizacao_gravar.AtosFixos.test_texto_limpo_grava_fixa_e_ativa_sem_vencer"

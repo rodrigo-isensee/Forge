@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481-rotulo-pelo-time",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "ROTULO-PELO-TIME: o ler --ato diz só a concessão ativa do ato pedido",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if est == \"ativa\" and campos[\"Ato\"] == ato]",
+      "para": "if est == \"ativa\" and campos[\"Ato\"] in SEM_PRAZO]",
+      "testes": [
+        "tests.test_autorizacao.AtosFixos.test_corte_diz_a_corte_diario_ativa_mais_nova_e_sem_ela_rc_1"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "ROTULO-PELO-TIME: manifesto do plugin que não é objeto não diz o repositório",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "if isinstance(meu, dict) else",
+      "para": "if True else",
+      "testes": [
+        "tests.test_autorizacao.RotuloPeloTime.test_plugin_sem_repositorio_nao_faz_o_forge"
+      ]
+    }
+  ]
+}
