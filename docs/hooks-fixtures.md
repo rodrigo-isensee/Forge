@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3587 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3590 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,7 +10,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3587 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 133 | 72 | 61 | 31 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2713 | 2010 | 703 | 103 |
+| `conformidade` | 2716 | 2013 | 703 | 104 |
 | `decisao` | 4 | 0 | 4 | 4 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 33 | 13 | 20 | 15 |
@@ -139,6 +139,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3587 fixtures) roda em `tests/test
 | `b8-*` | 3 | 3 | 0 | `R-CONFORMIDADE` | — | B8 do review: `gawk -E inplace.awk` carrega a extensão `inplace`, confere os arquivos-alvo e dá bloqueio. |
 | `brief-*` | 3 | 2 | 1 | — | `VV-2` | VV-2, A1: o autor não grava em ~/.forge-contrib/docs/briefs/. |
 | `env-*` | 3 | 2 | 1 | — | — | cat .env expõe segredo. |
+| `grupo-*` | 3 | 3 | 0 | `R-CONFORMIDADE`, `R-MAIN`, `R-VERIFY` | `G4-TRAVA-REAL-BP8` | G4-TRAVA-REAL-BP8 (F1, R-CONFORMIDADE): grupo em barrar recusa como antes, e o comandos.jsonl ganha grupo e alvo (o caminho de controle). |
 | `n-*` | 3 | 3 | 0 | `R-CONFORMIDADE` | — | N da segurança (B9 do review): interpretador dono do heredoc entre aspas (`"perl" <<'X'`, `'python3' <<'X'`) tem o texto conferido e dá bloq… |
 | `projeto-*` | 3 | 0 | 3 | — | — | Projeto comum com tests/hooks/ próprio: não é o Forge, nada protegido. |
 | `aceite-*` | 2 | 2 | 0 | — | — | Seguranca nao grava o aceite de risco (docs/security/aceites/): so o usuario. |

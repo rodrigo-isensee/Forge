@@ -1,0 +1,89 @@
+{
+  "pedido": "v0481-pedido-arquiva",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: a linha arquivada sai do pedido",
+      "arquivo": "bin/forge-check",
+      "de": "resto = [l for i, l in enumerate(linhas) if i not in saem]",
+      "para": "resto = [l for i, l in enumerate(linhas) if True]",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_arquiva_as_fechadas_e_o_brief_fica_abaixo_do_teto"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: a seção nova fica logo depois do ## Etapas",
+      "arquivo": "bin/forge-check",
+      "de": "if i == len(resto) or resto[i].startswith(\"#\"))",
+      "para": "if i == len(resto))",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_arquiva_as_fechadas_e_o_brief_fica_abaixo_do_teto"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: a menção `entregue` em qualquer linha que cita o id não fecha a etapa (A1)",
+      "arquivo": "bin/forge-check",
+      "de": "etapas_do_proximo(texto, [], etapas_conferidas(",
+      "para": "etapas_do_proximo(texto, historico, etapas_conferidas(",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: o brief gerar protege o --cobre e o Entregar (A2 do QA)",
+      "arquivo": "bin/forge-check",
+      "de": "protegidas = ids_do_texto(\" \".join([str(cobre), *secoes_por(texto, CABECALHO_BRIEF).get(\"Entregar\", [])]))",
+      "para": "protegidas = set()",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_cobre_entregue_fica_no_pedido_e_o_brief_sai"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: linha de parecer não entrega etapa",
+      "arquivo": "bin/forge-check",
+      "de": "if not ids or \".md=\" in linha:",
+      "para": "if not ids:",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida",
+        "tests.test_brief_tamanho.ArquivaSozinho.test_parecer_ponto_e_virgula_e_segunda_etapa_cortam_o_entregue"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: `entregue` só fecha logo depois do id, nunca no meio do texto livre (2ª volta do #874)",
+      "arquivo": "bin/forge-check",
+      "de": "ENTREGUE_DA_ETAPA.match(trecho)",
+      "para": "ENTREGUE_DA_ETAPA.search(trecho)",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_negacao_futuro_e_texto_livre_de_entregue_nao_fecham"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: `entregue` depois do `;` é de outra oração",
+      "arquivo": "bin/forge-check",
+      "de": "len(linha)].split(\";\")[0]",
+      "para": "len(linha)]",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida",
+        "tests.test_brief_tamanho.ArquivaSozinho.test_parecer_ponto_e_virgula_e_segunda_etapa_cortam_o_entregue"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: `entregue` depois de outra etapa é dela, não da primeira",
+      "arquivo": "bin/forge-check",
+      "de": "ids[1].start() if len(ids) > 1 else len(linha)",
+      "para": "len(linha)",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida",
+        "tests.test_brief_tamanho.ArquivaSozinho.test_parecer_ponto_e_virgula_e_segunda_etapa_cortam_o_entregue"
+      ]
+    }
+  ]
+}

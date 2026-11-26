@@ -23,6 +23,7 @@ import stat
 import tempfile
 import shlex
 import subprocess
+import sys
 import time
 import types
 import unicodedata
@@ -33,7 +34,7 @@ from pathlib import Path
 import parecer
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TETO, CORPO_DE_LACO, INTEGRACAO,
                     GIT_GRAVA_ARQUIVO, LancadorDemais, OPACO, TextoAbertoComLeituras, TextoDivididoAberto,
-                    LIMITE_MENSAGEM, PLUGIN, PROFUNDIDADE, bloquear, comentarios,
+                    LIMITE_MENSAGEM, PLUGIN, PrazoVencido, PROFUNDIDADE, bloquear, comentarios,
                     construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, formas_que_o_shell_le, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, expandir_home, fora_da_gramatica_com_heredoc,
                     expandir_heredoc, fora_da_gramatica_de_leitura, FORMA_DO_HEREDOC, heredocs, motivo_da_reavaliacao,
@@ -1508,6 +1509,33 @@ def caminho_com_curinga_no_texto(caminho, texto):
     return None
 
 
+def registrar_recusa(hook, chave, rid, grupo, alvo):
+    """G4 F1: a recusa (`barrado`) ou o aviso (`teria_barrado`) numa linha do `comandos.jsonl`, com `fonte`, `grupo` e
+    `alvo` (None é a recusa só pelo texto da linha: a recusa falsa a medir). Só na pasta `run` que já existe (não cria
+    estado fora do projeto), achada só pelo disco (sem `git`: nada lento no caminho da recusa), sem seguir link nem
+    esperar FIFO (`O_NONBLOCK`, e só grava em arquivo regular, como `anexar_ao_log`); a falha de gravação não muda a
+    decisão."""
+    try:
+        run = hook._run
+        if run is None:
+            comum = diretorio_comum(hook.raiz)
+            run = (comum.parent if comum is not None and comum.name == ".git" else hook.raiz) / ".forge" / "run"
+            if not run.is_dir():
+                run = comum / "forge" / "run"
+        linha = {"hora": time.strftime("%Y-%m-%dT%H:%M:%S"), "sessao": hook.campo("session_id"),
+                 "agente": hook.campo("agent_type"), "fonte": "conformidade", chave: rid, "grupo": grupo,
+                 "alvo": None if alvo is None else str(alvo)[:300]}
+        fd = os.open(run / "comandos.jsonl",
+                     os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o666)
+        try:
+            if stat.S_ISREG(os.fstat(fd).st_mode):
+                os.write(fd, (json.dumps(linha, ensure_ascii=False) + "\n").encode("utf-8"))
+        finally:
+            os.close(fd)
+    except Exception:  # noqa: BLE001 - o registro é medida: sem pasta `run`, link ou erro, a decisão segue a mesma
+        return
+
+
 def perfil_iniciante(raiz):
     """`Hook.iniciante` no caminho da recusa (A2 da segurança no #885): a cópia principal sai só do disco
     (`diretorio_comum`, sem `git`) e o `.forge/perfil` abre sem esperar FIFO nem seguir link (`O_NONBLOCK`,
@@ -1566,16 +1594,30 @@ class Guarda:
     def pode(self, acao):
         return self.papel in self.pol["acoes"].get(acao, [])
 
-    def barrar(self, rid, o_que, corrigir, simples=None, trava=None):
+    def barrar(self, rid, o_que, corrigir, simples=None, trava=None, alvo=None, grupo=None):
         """Recusa (saída 2). No perfil iniciante, `simples` (SIMPLES) troca o texto técnico pela consequência. `trava`
-        (`TRAVA`, `TRAVA_OPACA`) só pesa na `GuardaDaProva` (`trava_da_sessao_do_forge`)."""
+        (`TRAVA`, `TRAVA_OPACA`) só pesa na `GuardaDaProva` (`trava_da_sessao_do_forge`). G4 F1: o `grupo` (o ID da regra,
+        se não vier) dá o modo em `modo_por_grupo`; só `avisar` deixa passar, com a forma certa no stderr. Nos dois modos,
+        o `comandos.jsonl` ganha o grupo e o `alvo` (caminho, ref protegida ou destino opaco; None: só o texto da linha)."""
+        grupo = grupo or rid
+        modos = self.pol.get("modo_por_grupo")
+        avisar = isinstance(modos, dict) and modos.get(grupo) == "avisar"
+        if avisar:
+            registrar_recusa(self.h, "teria_barrado", rid, grupo, alvo)
+            print(mensagem(rid, f"aviso: teria barrado: {o_que}. Corrigir: {corrigir}"), file=sys.stderr)
+            return
         texto = None
         try:  # a recusa já está decidida: o prazo vencido na escolha do texto cai no texto técnico, nunca no `prazo_vencido`
             if simples and perfil_iniciante(self.h.raiz):
                 texto = SIMPLES[simples]
         except PrazoVencido:
             pass
-        bloquear(rid, texto or com_trecho(rid, o_que, corrigir, self.trecho))
+        texto = texto or com_trecho(rid, o_que, corrigir, self.trecho)
+        try:  # a recusa já está decidida: o registro grava depois dela, e o prazo vencido nele não a troca
+            registrar_recusa(self.h, "barrado", rid, grupo, alvo)
+        except PrazoVencido:
+            pass
+        bloquear(rid, texto)
 
     def perguntar(self, texto):
         """Só no perfil iniciante: o ato é legítimo mas arriscado; a pessoa confirma na janela de permissão, com a
@@ -1821,7 +1863,7 @@ class Guarda:
                 achado = (achado[0], f"valor de $(…), crase ou variável que o hook não sabe, lido como .git (use o caminho "
                                      f"literal se não for): {achado[1]}", *achado[2:])
             if achado:
-                self.barrar(*achado)
+                self.barrar(*achado, alvo=alvo)
         self.destino_opaco(caminho, pasta)  # A9: depois das regras do caminho, que falam primeiro
         for alvo in alvos:  # o Bash recusa no fim da linha (`parecer_pelo_bash`), depois das regras específicas dela
             if parecer_conta and e_parecer(alvo):
@@ -1882,7 +1924,7 @@ class Guarda:
         else:
             return self.valor_calculado(self.expandir(caminho, pasta))
         self.barrar("R-CONFORMIDADE", f"destino de $(…), crase ou variável sem nada depois: {motivo}",
-                    "escreva o caminho literal do destino")
+                    "escreva o caminho literal do destino", alvo=caminho)
 
     def resto_colado(self, caminho, pasta):
         """A2 (volta da E1.232): o resto colado sem barra (`"$(echo .g)it/config"`, `"${X:-.g}it"`) vale pelo U4; o U1
@@ -2099,7 +2141,7 @@ class Guarda:
                 if alvo != dentro and dentro in alvo.parents and alvo in Path(os.path.realpath(protegido)).parents:
                     self.barrar("R-CONFORMIDADE", f"{ato} {alvo.name}/ {'apaga' if ato == 'apagar' else 'alcança'} {c}: "
                                 f"{e['motivo']}",
-                                f"só o usuário altera; proponha o diff (R-DECISAO); {SUGESTAO}", "instalacao")
+                                f"só o usuário altera; proponha o diff (R-DECISAO); {SUGESTAO}", "instalacao", alvo=alvo)
 
     def checar_texto(self, texto):
         """Escrita em caminho protegido com o caminho em literal dentro de `python -c`, `node -e`, script."""
@@ -2774,7 +2816,8 @@ class Guarda:
             atual = self.ramo_em(pasta_git, ramos)
             if atual in INTEGRACAO and not all(b == atual for b, _ in parte[2]):
                 if atual in ("main", "master"):
-                    self.barrar("R-MAIN", f"merge na {atual} é do usuário", "abra o PR e peça ao usuário que o mescle")
+                    self.barrar("R-MAIN", f"merge na {atual} é do usuário", "abra o PR e peça ao usuário que o mescle",
+                                alvo=atual)
                 achada = opcao_de_merge_que_muda_o_resultado(args)
                 if achada:  # A3: todo papel; a estratégia, o squash e o no-commit descartam ou mudam o que o review leu
                     self.barrar("R-REVIEW", f"git {sub} {achada} na {atual} muda o que o review leu",
@@ -3178,10 +3221,10 @@ class Guarda:
             destinos.append(nome_da_branch(re.sub(r"^heads/", "refs/heads/", destino)))
         for d in destinos:
             if d in ("main", "master"):
-                self.barrar("R-MAIN", f"{PUSH_DIRETO} {d}", "abra um PR; a main é do usuário", "main")
+                self.barrar("R-MAIN", f"{PUSH_DIRETO} {d}", "abra um PR; a main é do usuário", "main", alvo=d)
             if d in INTEGRACAO:
                 self.barrar("R-CONFORMIDADE", f"{PUSH_DIRETO} {d}", "abra um PR a partir de uma branch de trabalho",
-                            "main", trava=TRAVA)
+                            "main", trava=TRAVA, alvo=d)
         # o remoto nomeado (a URL dele, resolvida no repositório da pasta), a URL dada ou, sem remoto, a pasta
         if self.alvo_do_forge(pasta, remoto=remoto) or (remoto and self.alvo_do_forge(pasta, remoto)) or (
                 remoto and self.caminho_do_forge(pasta, remoto)):
@@ -3809,7 +3852,7 @@ class Guarda:
             base = parecer.base_do_pr(raiz, branch)
             if base in ("main", "master"):
                 self.barrar("R-MAIN", f"gh pr merge de `{branch}` (base {base}) é do usuário",
-                            "deixe o PR aberto e peça ao usuário")
+                            "deixe o PR aberto e peça ao usuário", alvo=base)
             if not self.pode("pr_merge_integracao"):
                 self.barrar("R-CONFORMIDADE", f"gh pr merge {self.so_de('pr_merge_integracao')} "
                                               f"(papel: {self.papel})", "peça ao tech-lead")
@@ -4214,15 +4257,15 @@ class GuardaDaProva(Guarda):
                     f"peça a {'/'.join(e['quem'])}")
         return None
 
-    def barrar(self, rid, o_que, corrigir, simples=None, trava=None):
+    def barrar(self, rid, o_que, corrigir, simples=None, trava=None, alvo=None, grupo=None):
         if (rid, o_que, corrigir) == PROVA_DA_SUITE:
-            super().barrar(rid, o_que, corrigir)
+            super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)
         if (rid, o_que, corrigir) == PROFUNDIDADE_EXCEDIDA:
-            super().barrar(rid, o_que, corrigir)
+            super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)
         if self.recusa_do_estado(o_que):
-            super().barrar(rid, o_que, corrigir)
+            super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)
         if self.travas and trava_da_sessao_do_forge(rid, trava, self.h.campo("tool_input").get("command")):
-            super().barrar(rid, o_que, corrigir, simples)
+            super().barrar(rid, o_que, corrigir, simples, alvo=alvo, grupo=grupo)
         if self.sem_leitura:
             raise ForaDaProva(rid)
 

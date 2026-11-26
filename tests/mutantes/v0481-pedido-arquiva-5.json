@@ -1,0 +1,77 @@
+{
+  "pedido": "v0481-pedido-arquiva",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M33",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: a pasta do arquivo é criada quando falta",
+      "arquivo": "bin/forge-check",
+      "de": "if not os.path.lexists(arquivo.parent):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_arquiva_as_fechadas_e_o_brief_fica_abaixo_do_teto"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: pasta do arquivo que é link não recebe nada (A3 da segurança)",
+      "arquivo": "bin/forge-check",
+      "de": "if not stat.S_ISDIR(os.lstat(arquivo.parent).st_mode):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_pasta_do_arquivo_que_e_link_nao_recebe_nada"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: arquivo que é link não é seguido (A3 da segurança)",
+      "arquivo": "bin/forge-check",
+      "de": "os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK",
+      "para": "os.O_CREAT | os.O_NONBLOCK",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_arquivo_que_e_link_nao_recebe_nada"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: arquivo que não é regular não recebe nada (A3 da segurança)",
+      "arquivo": "bin/forge-check",
+      "de": "if not stat.S_ISREG(os.fstat(fd).st_mode):\n        os.close(fd)",
+      "para": "if False:\n        os.close(fd)",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_arquivo_que_e_fifo_nao_recebe_nada"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: arquivo que não abre não arquiva (A3 da segurança)",
+      "arquivo": "bin/forge-check",
+      "de": "        fd = os.open(arquivo, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o644)\n    except OSError:",
+      "para": "        fd = os.open(arquivo, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o644)\n    except ValueError:",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_arquivo_que_e_link_nao_recebe_nada"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: com duas etapas na linha, o trecho para na segunda",
+      "arquivo": "bin/forge-check",
+      "de": "if len(ids) > 1 else len(linha)",
+      "para": "if len(ids) > 2 else len(linha)",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_linha_que_cita_outra_etapa_so_fecha_a_atribuida",
+        "tests.test_brief_tamanho.ArquivaSozinho.test_parecer_ponto_e_virgula_e_segunda_etapa_cortam_o_entregue"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "PEDIDO-ARQUIVA-SOZINHO: arquivada sem papel reprova com o papel vazio na mensagem",
+      "arquivo": "bin/forge-check",
+      "de": "sem_controle(papel or '')",
+      "para": "sem_controle(papel or '?')",
+      "testes": [
+        "tests.test_brief_tamanho.ArquivaSozinho.test_corte_de_pedido_so_com_arquivadas_ainda_barra"
+      ]
+    }
+  ]
+}
