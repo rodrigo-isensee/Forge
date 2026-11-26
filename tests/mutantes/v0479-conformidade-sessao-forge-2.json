@@ -66,8 +66,8 @@
       "id": "M15",
       "guarda": "E51.6: a recusa do push direto para develop e homolog é marcada TRAVA",
       "arquivo": "hooks/conformidade.py",
-      "de": "                            \"main\", trava=TRAVA)",
-      "para": "                            \"main\")",
+      "de": "                            \"main\", trava=TRAVA, alvo=d)",
+      "para": "                            \"main\", alvo=d)",
       "testes": [
         "tests.test_hooks.HookSessaoDoForge.test_travas_do_conformidade"
       ]
