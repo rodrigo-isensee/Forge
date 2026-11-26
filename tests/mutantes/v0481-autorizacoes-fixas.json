@@ -26,7 +26,7 @@
       "id": "M3",
       "guarda": "AUTORIZACOES-FIXAS F1: alvo fixo só nos atos fixos, e eles só com ele",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "((campos[\"Ato\"] in FIXOS) != (campos[\"Alvos\"] == \"fixo\"), \"alvo fixo",
+      "de": "((campos[\"Ato\"] in SEM_PRAZO) != (campos[\"Alvos\"] == \"fixo\"), \"alvo fixo",
       "para": "(False, \"alvo fixo",
       "testes": [
         "tests.test_autorizacao.AtosFixos.test_alvo_fixo_e_validade_fixa_so_nos_atos_fixos_e_eles_so_com_eles",
@@ -77,8 +77,8 @@
       "id": "M8",
       "guarda": "AUTORIZACOES-FIXAS F3: só a concessão ativa autoriza o corte",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "if est == \"ativa\" and campos[\"Ato\"] == \"corte-diario\"]",
-      "para": "if campos[\"Ato\"] == \"corte-diario\"]",
+      "de": "if est == \"ativa\" and campos[\"Ato\"] == ato]",
+      "para": "if campos[\"Ato\"] == ato]",
       "testes": [
         "tests.test_autorizacao.AtosFixos.test_corte_diz_a_corte_diario_ativa_mais_nova_e_sem_ela_rc_1"
       ]

@@ -1,6 +1,6 @@
-"""Testes do núcleo do FORGE-SEMPRE-ATUAL (v047, E6.4): o que o oráculo do QA (`test_oraculo_sempre_atual`) não cobre e o que ele só
-cobre com um `/proc` de verdade. A rodada roda dentro do processo do teste (`Rodada.executar`) com HOME, PATH e TMPDIR de um mundo
-temporário (os dublês do oráculo) e com `processos_de_interesse` trocado por um dublê: assim a ocupação se prova também onde o
+"""Testes do núcleo do FORGE-SEMPRE-ATUAL (v047, E6.4): o que o oráculo do QA (`test_oraculo_sempre_atual`) não cobre e o que ele não
+exercita sobre um `/proc` de verdade (o oráculo lê a árvore do teste; `ProcReal` cobre o `/proc` da máquina). A rodada roda
+dentro do processo do teste (`Rodada.executar`) com HOME, PATH e TMPDIR de um mundo temporário (os dublês do oráculo) e com `processos_de_interesse` trocado por um dublê: assim a ocupação se prova também onde o
 `/proc` é de outro namespace de pid (o sandbox do Bash), sem processo `claude` de verdade.
 Rodar: python3 -m unittest tests.test_sempre_atual
 """
@@ -78,6 +78,33 @@ class Funcoes(unittest.TestCase):
         """dentro: /a/b não contém /a/bc"""
         self.assertTrue(fsa.dentro("/tmp/a/b/c", "/tmp/a/b"))
         self.assertFalse(fsa.dentro("/tmp/a/bc", "/tmp/a/b"))
+
+
+class ProcReal(unittest.TestCase):
+    """A leitura de produção sobre o `/proc` da máquina, sem dublê (a guarda que os testes herméticos do oráculo não exercem)."""
+
+    def test_proc_real_e_coerente_so_no_nosso_namespace_e_enxerga_um_claude_vivo(self):
+        """RD-PROC · `/proc` do nosso namespace: coerente e o `claude` vivo é achado; de outro namespace (sandbox do Bash): dúvida"""
+        try:
+            nosso = os.readlink("/proc/self") == str(os.getpid())  # a verdade, lida à parte da PROC de produção
+        except OSError:
+            nosso = False
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        (tmp / "claude").symlink_to(sys.executable)  # o `comm` de quem executa o link é o nome do link
+        p = subprocess.Popen([str(tmp / "claude"), "-c", "import time; time.sleep(60)"], cwd=tmp, stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.addCleanup(lambda: (p.kill(), p.wait()))
+        for _ in range(100):  # o `comm` só vira `claude` depois do exec
+            achados = fsa.processos_de_interesse()
+            if achados["duvida"] or str(tmp.resolve()) in achados["claude"]:
+                break
+            time.sleep(0.05)
+        self.assertEqual(fsa.proc_coerente(), nosso)
+        if nosso:
+            self.assertEqual((achados["duvida"], str(tmp.resolve()) in achados["claude"]), (False, True))
+        else:
+            self.assertTrue(achados["duvida"])
 
 
 class ProcFalso(unittest.TestCase):
