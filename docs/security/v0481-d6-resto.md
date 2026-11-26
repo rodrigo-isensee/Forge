@@ -3,32 +3,36 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-d6-resto
-commit: 200d8b378582bfee881c55ef6e2574bd7f9e9ce3
+commit: 1f127ddd1ac05ae80a9306dda56802dec43ee50d
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-25
 ---
-# Review de segurança: v0481 E11.25 (#877, D6 parte a: hook `salvar`, volta E11.22 por delta)
+# Review de segurança: v0481 E11.29 (#877, D6 parte a: hook `salvar`, volta E11.26 por delta)
 
 ## Gatilhos
-Gatilhos: hook novo fora do sandbox, controle do git (R-VERIFY core.hooksPath, R-MAIN); sem rede no hook desde o parecer anterior (opção b do dono, 25/11 07:37).
+Gatilhos: hook novo fora do sandbox, controle do git (R-VERIFY core.hooksPath, R-MAIN); sem rede no hook (opção b do dono, 25/11 07:37).
 
-Delta lido (`forge-check parecer delta`, `50a40e28..200d8b37`): na primeira linha da branch, os commits são pareceres (`c51826d0`, `060c3ed5`, `c5ec9f94`, `a20d5389`), o merge da develop `a50975e8` (traz o #885: `bin/forge-fechar`, `docs/fechamento-integrador.md`, `tests/test_fechar.py`, specs de mutante e fragmento do changelog, com parecer próprio em `docs/security/v0481-fechar-dryrun-branch.md`, fora deste portão pela ordem do dono de 25/11) e `200d8b37`, que só cria `tests/mutantes/v0481-d6-resto-7.json`. `hooks/`, `.githooks/`, `.github/` e `scripts/` não mudam no intervalo (diff vazio). `hooks/salvar.py` está igual ao revisado em `50a40e28`.
+Delta lido (`forge-check parecer delta`, `e66e30a2..1f127ddd`): um único commit, o merge `1f127ddd` (pais `e66e30a2` e `8f0a7313`, a develop com o #895 e o #885). `git show --remerge-diff 1f127ddd` mostra que a resolução só toca dois arquivos:
+- `tests/test_hooks.py`: tira os três marcadores de conflito e põe as duas linhas em branco entre `SalvarAoParar` (do item) e `ModoPorGrupo` (da develop). Nenhuma linha de teste muda. Os conjuntos de classes e `def test_` batem com a união exata da base `6cc4cd5a` mais os acréscimos dos dois lados (30 do item, 14 da develop), e nenhum lado perde teste.
+- `docs/hooks-fixtures.md`: só a contagem passa a 3587, que é o número de `tests/hooks/*/*.json` no head. `scripts/indice-fixtures.py --conferir` diz "em dia".
 
-Testes no clone em `200d8b37`:
-- `bin/forge-mutante tests/mutantes/v0481-d6-resto-7.json`: M40 (`hooks/salvar.py:127`, `if e` para `if not e`) morreu e M41 (`:156`, `__main__` para `if False:`) morreu. Os dois são não equivalentes: M40 esvazia a lista a salvar e M41 desliga o hook, e `test_salva_so_o_escopo_na_copia` vê o commit sumir nos dois casos.
-- `python3 -m unittest tests.test_hooks.SalvarAoParar`: 29 OK.
+`hooks/salvar.py`, `hooks/salvar.json` e `hooks/hooks.json` estão iguais aos de `e66e30a2` (o lado aprovado em `200d8b37`). `hooks/conformidade.py`, `hooks/conformidade.json`, `bin/forge-check` e as skills estão iguais aos de `8f0a7313` (a develop, já revisada no PR de origem).
 
-CI do PR no head exato: verdes `catraca` (a causa do vermelho anterior, R-QA sem mutante em `:127` e `:156`, resolvida pelo M40 e M41), as suítes 3.12 e 3.14 (partes 1 a 5), `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)`, `instalação`, os tetos de pulados e `árvore já provada na develop`. Vermelhos só `bateria (pareceres)`, que espera os pareceres no head novo, e `bateria`, que herda dele. Nenhum dos dois é do código.
+Testes no clone em `1f127ddd`:
+- `python3 -m unittest tests.test_hooks.SalvarAoParar tests.test_hooks.ModoPorGrupo tests.test_hooks.RecusaComFifoNoRegistro`: 40 testes OK. `Travou` é a exceção auxiliar e não é classe de teste.
+- `bin/forge-mutante tests/mutantes/v0481-d6-resto-7.json`: M40 (`hooks/salvar.py:127`) e M41 (`:156`) morreram.
 
-- ci: 200d8b378582bfee881c55ef6e2574bd7f9e9ce3 verde
+CI do PR no head exato (run 45737895249): verdes as suítes 3.12 e 3.14 (partes 1 a 5), `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)`, `instalação`, os tetos de pulados, `árvore já provada na develop` e `Catraca`. Vermelhos só `bateria (pareceres)` (R-REVIEW e R-SEGURANCA: pareceres em `200d8b37`, desatualizados pelo merge), que este parecer resolve, e `bateria`, que herda dele. Nenhum dos dois é do código.
 
-Estado dos achados anteriores (parecer em `50a40e28`): sem achado aberto. A4 resolvido e A5 superado ficam como estavam; o delta não toca o hook.
+- ci: 1f127ddd1ac05ae80a9306dda56802dec43ee50d verde
+
+Estado dos achados anteriores (parecer em `200d8b37`): nenhum achado aberto. O merge não toca o hook.
 
 ## O que aperta, o que é neutro e o que afrouxa
-- **Aperta:** a guarda `:127` (o filtro das entradas do `git status -z`) e o ponto de entrada `:156` passam a ter mutante que morre. Um hook mudado que deixe de salvar ou de rodar agora cai na catraca.
-- **Neutro:** o código do hook, o `hooks.json`, a ADR 0003 e o `R-LIMITES.md` não mudam. O que veio da develop (#885) já passou por parecer no PR de origem.
-- **Afrouxa:** nada novo neste delta. O afrouxamento já declarado (commit WIP com `core.hooksPath=/dev/null`, pulando o `pre-commit` da cópia, coberto pelo `pre-push` e pelo CI) foi aprovado pelo dono em 25/11 17:37, e o PR tem o rótulo `afrouxa-regra`.
+- **Aperta:** nada neste delta. A resolução não acrescenta controle.
+- **Neutro:** toda a resolução. Os marcadores saem, as classes dos dois lados ficam inteiras e a contagem do índice gerado foi atualizada. A lógica do item (`hooks/salvar.py`, `hooks.json`) não muda. O que veio da develop (#885 com o modo por grupo, #895 com a forma `via` da linha do CI) chega idêntico ao do PR de origem, que já tem parecer e afrouxamento declarado.
+- **Afrouxa:** nada novo neste delta. O afrouxamento do item continua o já aprovado pelo dono em 25/11 17:37: o commit WIP é só local, com `core.hooksPath=/dev/null`, e não confere cada gravação. O rótulo `afrouxa-regra` está no PR.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: `gitleaks`, Semgrep, `zizmor`, `actionlint` e `osv-scanner` não estão no PATH (lacuna). A revisão foi manual, com o diff do intervalo, os mutantes da spec nova e a classe `SalvarAoParar` rodada localmente.
+Nenhum risco aceito. Ferramentas: `gitleaks`, Semgrep, `zizmor`, `actionlint` e `osv-scanner` não estão no PATH (lacuna). A revisão foi manual: remerge-diff do merge, a comparação dos conjuntos de testes, as classes tocadas rodadas localmente e a spec de mutantes do item.
