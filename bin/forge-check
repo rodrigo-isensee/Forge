@@ -8,6 +8,8 @@ H1 (v0474 E2.13): o `pr` avisa no stderr do item acima de 150 linhas de código 
 
 D2-PORTAO-ENTREGA-AUTOR (v0481 E11.1): `pronto [--base REF] [--corpo ARQUIVO]` é o portão de entrega do autor, rodado antes das
 revisões: registros, neutralidade com os dois detectores, tetos de texto, testes afetados, teto H1 e corpo do PR (bin/forge_pronto.py).
+D2-NO-BRIEF (v0481 E14.51): o brief de código do Forge o cobra, a conferência da entrega (etapa codigo) o roda na worktree e não cumpre
+fora do rc 0; o pronto recusa título de PR com o cabeçalho do brief e a branch nascida antes da última marca de versão da base.
 
 E3.45 (v0474): com o PR da branch aberto e fora do rascunho no head, o `pr` só aprova com cada check do head concluído e verde e cada
 exigido do destino (ruleset e proteção; no Forge, também os pares do `forge-fechar`) em pass; pendente ou vermelho reprova, com a lista.
@@ -1230,7 +1232,11 @@ def cmd_pronto(raiz, base, corpo_arquivo=None):
     if numstat is None:
         print(f"pronto: {NAO_VERIFICAVEL}: o git não leu a base comum de HEAD com {base} nem o diff", file=sys.stderr)
         return 2
-    motivo = None  # o motivo do gh em erro: sem --corpo, o corpo fica não verificável em vez de reprovado
+    pronto = modulo_do_bin("forge_pronto")
+    if velha := pronto.base_velha(raiz, base, ancora):  # PRONTO-BASE-VELHA: uma linha, em vez dos fragmentos dos outros itens
+        print(f"pronto: reprovado em {velha}")
+        return 1
+    motivo = titulo = None  # o motivo do gh em erro: sem --corpo, o corpo fica não verificável em vez de reprovado
     if corpo_arquivo:
         try:
             corpo = Path(corpo_arquivo).read_text(encoding="utf-8")
@@ -1241,8 +1247,9 @@ def cmd_pronto(raiz, base, corpo_arquivo=None):
         _, branch = git(raiz, "branch", "--show-current")
         pr, motivo = pr_da_branch(raiz, branch, corpo=True) if branch else (None, None)
         corpo = pr["body"] if pr and pr.get("state") == "OPEN" else None
-    pronto = modulo_do_bin("forge_pronto")
-    return pronto.conferir(raiz, base, ancora, modulo_do_bin("forge_tamanho").linhas_de_codigo(numstat, e_codigo), corpo, sem_corpo=motivo)
+        titulo = pr.get("title") if corpo is not None else None  # PR-TITULO-DO-BRIEF: o título do PR aberto
+    total = modulo_do_bin("forge_tamanho").linhas_de_codigo(numstat, e_codigo)
+    return pronto.conferir(raiz, base, ancora, total, titulo=titulo, corpo=corpo, sem_corpo=motivo)
 
 
 def cmd_classe(raiz, base=None, head=None, como_json=False):
@@ -9683,9 +9690,9 @@ TETO_DO_GH_S = 10  # o `gerar` nunca espera mais que isto pela rede (P5)
 def pr_da_branch(raiz, branch, corpo=False):
     """(dados do PR, None) por `gh pr view <branch> --json number,state,headRefOid` (grátis, R-CUSTO; teto de 10 s), ({}, None) sem PR,
     ou (None, motivo) sem `gh`, sem rede ou com erro: a linha sai `não verificável` e o brief não é barrado por isso. Com `corpo`
-    (H1, v0474 E2.13), o `body` do PR vai junto, em `body`."""
+    (H1, v0474 E2.13), o `body` do PR vai junto, em `body`, e o título em `title` (PR-TITULO-DO-BRIEF, v0481 E14.51)."""
     try:
-        r = subprocess.run(["gh", "pr", "view", branch, "--json", "number,state,headRefOid" + (",body" if corpo else "")], cwd=raiz, capture_output=True,
+        r = subprocess.run(["gh", "pr", "view", branch, "--json", "number,state,headRefOid" + (",body,title" if corpo else "")], cwd=raiz, capture_output=True,
                            text=True, timeout=TETO_DO_GH_S, stdin=subprocess.DEVNULL)
     except FileNotFoundError:
         return None, "sem gh"
@@ -9696,7 +9703,7 @@ def pr_da_branch(raiz, branch, corpo=False):
     try:
         dados = json.loads(r.stdout)
         return {"number": int(dados["number"]), "state": str(dados["state"]), "head": str(dados.get("headRefOid", "")),
-                **({"body": str(dados.get("body") or "")} if corpo else {})}, None
+                **({"body": str(dados.get("body") or ""), "title": str(dados.get("title", ""))} if corpo else {})}, None
     except (ValueError, KeyError, TypeError):
         return None, "resposta do gh ilegível"
 
@@ -9812,6 +9819,12 @@ CAMINHO_DE_CODIGO = re.compile(r"(?<![\w./-])(?:bin|hooks|scripts|tests)/[\w.*-]
 TESTES_DE_TEXTO = ("tests.test_testes_tocados", "tests.test_forge.Orcamento", "tests.test_jarvis_nucleo",
                    "tests.test_metricas_texto", "tests.test_orcamento_instrucao")
 TESTE_DOS_ACHADOS = "tests.test_forge_mutante.ConferirTodas"  # H3 (a): o AR-12 de docs/engineering/achados-recorrentes.md, conferido pelo autor
+
+
+PQ_DO_D2 = ("- PQ-N (cmd, do autor): `bin/forge-check --raiz <sua cópia> pronto --base origin/{base}` · espera: rc=0 · D2 (D2-NO-BRIEF): "
+            "o forge-check de um clone da develop (`bin/forge-copia clone --base origin/develop`, sufixo -d2), nunca o da branch, que "
+            "não certifica o próprio portão; com o PR em rascunho aberto, em segundo plano com log até `rc=` (esperar-estado); "
+            "entregue só com rc 0 e a última linha dele no relatório; com rc 1, corrija o que ele aponta (a conferência da entrega recusa o D2 vermelho)")
 
 
 def pqs_de_pre_envio(raiz, etapa, entregar):
@@ -10036,6 +10049,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
         if interpolacao_segura(pedido=pedido_id, branch=branch, base=base, sha=sha_base, **({"raiz": pasta} if pasta else {})):
             saida.append(f"- PQ-N (cmd, do autor): `forge-check entrega {caminho_impresso(pedido_id)}{f' --raiz-pedidos {caminho_impresso(pasta)}' if pasta else ''} "
                          f"--branch {branch} --base {base} --base-sha {sha_base}{PROVAS_DO_PQ} --etapa codigo` · espera: rc=0")
+            if e_o_forge(Path(raiz)):  # D2-NO-BRIEF (v0481 E14.51): o pronto da própria cópia, antes de entregar
+                saida.append(PQ_DO_D2.format(base=base.removeprefix("origin/")))
     if etapa in ("review", "seguranca", "qa"):  # o bloco ## Achados e o teto em caracteres saem do `forge-check docs` (P3)
         nome = base.removeprefix("origin/")  # FC-DOCS-CAMINHO: no fluxo de entrega, só os documentos do diff da branch
         saida.append(f"- PQ-N (cmd): `forge-check docs{f' --base {nome}' if nome in BASES_DO_FLUXO else ''}` · espera: rc=0")
@@ -10535,6 +10550,30 @@ def rodar_prova(script, argv, espera, pasta):
     return (f"diverge de '{divergiu}' (rc={r.returncode})", True) if divergiu else ("ok", False)
 
 
+PRAZO_DO_PRONTO_S = 3600  # D2-NO-BRIEF: o pronto roda os testes afetados e pode passar de 10 min
+
+
+def prova_do_pronto(pasta, base, so_leitura, rodar=subprocess.run, forge_no_head=False):
+    """D2-NO-BRIEF (v0481 E14.51): [(linha, reprova)] do `forge-check pronto` deste forge-check com `--raiz` na worktree da branch, na
+    etapa codigo da conferência; fora do rc 0 reprova, com a última linha do pronto (o que falhou). Sem worktree e com o head da branch
+    no Forge (`forge_no_head`), reprova pedindo --worktree (E14.81: a cópia do autor é clone). Com `so_leitura` (quem confere não roda
+    código da branch), ou fora do Forge (sem .claude-plugin/plugin.json), não roda: vale a última linha no relatório do autor."""
+    if pasta is None and forge_no_head and not so_leitura:
+        return [("pendente: D2 sem worktree da branch para rodar o forge-check pronto (passe --worktree <cópia do autor>) (D2-NO-BRIEF)", True)]
+    if so_leitura or pasta is None or not (Path(pasta) / ".claude-plugin" / "plugin.json").is_file():
+        return [("pronto: não rodado aqui (--so-leitura, sem worktree ou fora do Forge); confira a última linha do `forge-check pronto` "
+                 "no relatório do autor (D2-NO-BRIEF)", False)]
+    argv = [sys.executable, str(Path(__file__).resolve()), "--raiz", str(pasta), "pronto", "--base", f"origin/{base.removeprefix('origin/')}"]
+    try:
+        r = rodar(argv, cwd=pasta, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=PRAZO_DO_PRONTO_S)
+    except (OSError, subprocess.TimeoutExpired) as erro:
+        return [(f"pendente: o forge-check pronto não terminou ({type(erro).__name__}); a entrega vai só com o D2 em rc 0 (D2-NO-BRIEF)", True)]
+    if r.returncode == 0:
+        return [("prova: forge-check pronto rc 0 na worktree (D2)", False)]
+    ultima = (r.stdout.strip().splitlines() or r.stderr.strip().splitlines() or ["sem saída"])[-1]
+    return [(f"pendente: D2 vermelho: forge-check pronto rc {r.returncode}: {sem_controle(ultima)} (D2-NO-BRIEF)", True)]
+
+
 def conferir_provas(raiz, texto, branch, head, pasta, so_leitura=False):
     """P2 (0.43.1): (linha, reprova) por PQ do brief selado. `cmd` da lista do reexecutar-provas roda na worktree; o `forge-check entrega`
     é esta conferência; `cmd` fora da lista e `pr`/`merge`/`run` (GitHub) não são reexecutados e não reprovam (ficam com o relatório
@@ -10691,6 +10730,9 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
     cod, contagem = git(raiz, "rev-list", "--count", f"{inicio}..{head}")
     linhas.append((f"commits: {contagem if not cod else '?'} em {inicio[:12]}..{head[:12]}", bool(cod)))
     linhas += conferir_provas(raiz, brief, branch, head, pasta, so_leitura)
+    if etapa == "codigo":  # D2-NO-BRIEF: a entrega com o D2 vermelho volta sem passar pelas revisões
+        no_head = [git(raiz, "cat-file", "-e", f"{head}:{nome}")[0] == 0 for nome in (".claude-plugin/plugin.json", ".forge/versao")]
+        linhas += prova_do_pronto(pasta, base, so_leitura, forge_no_head=no_head == [True, False])
     if etapa == "codigo" and not cod:  # T1: código sem teste no intervalo da delegação, sinalizado sem reprovar (a classe T isenta)
         aviso = aviso_de_codigo_sem_teste(raiz, f"{inicio}..{head}", nomes_do_intervalo(raiz, inicio, head),
                                           classe_para_o_t1(raiz, head, base))
