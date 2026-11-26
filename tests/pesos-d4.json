@@ -49,6 +49,7 @@
   "test_conferir_release": 2.8,
   "test_conferir_reversao": 12.3,
   "test_conformidade_opaco": 16.4,
+  "test_conformidade_pareceres": 1.7,
   "test_conformidade_verde": 113.3,
   "test_conformidade_vscode_container": 5.6,
   "test_cota_ci": 1.9,

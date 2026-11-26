@@ -4063,19 +4063,25 @@ def e_parecer(p):
     return p.suffix == ".md" and any(par == ("docs", pasta) for par in zip(p.parts, p.parts[1:]) for pasta in PASTAS_DE_PARECER)
 
 
+# M9.2 do G2 (docs/security/ameacas/g2-parecer-status.md, T9): o parecer a publicar (`.forge/pareceres/<pedido>/<tipo>.md`,
+# ADR 0019, 1.2) também tem a autoria registrada; sem ela o `forge-check parecer publicar` recusa sempre (M9.1).
+PASTAS_DE_AUTORIA = (("docs", "reviews"), ("docs", "qa"), ("docs", "devops"), ("docs", "security"), (".forge", "pareceres"))
+PARECER_A_PUBLICAR = re.compile(r"\.forge/pareceres/[A-Za-z0-9][A-Za-z0-9._-]*/[a-z-]+\.md")
+
+
 def autoria(hook, guarda, alvos):
     """PostToolUse: grava quem escreveu cada parecer (caminho, hash do texto sem espaços nas pontas, agente, papel,
-    hora) em autoria.jsonl; o `forge-check pr` confere (ADR 0009, 6.4). Vale também para parecer gravado em outra
-    worktree do repositório: o caminho é relativo a ela e o registro vai para o `.forge/run/` comum."""
+    hora) em autoria.jsonl; o `forge-check pr` e o `parecer publicar` conferem (ADR 0009, 6.4; M9.2 do G2). Vale também
+    para parecer gravado em outra worktree do repositório: o caminho é relativo a ela e o registro vai para o `.forge/run/`
+    comum."""
     for alvo in alvos:
         p = guarda.resolver(alvo, hook.cwd())
-        if p.suffix != ".md" or not any(par == ("docs", pasta) for par in zip(p.parts, p.parts[1:])
-                                        for pasta in ("reviews", "qa", "devops", "security")) or not p.is_file():
+        if p.suffix != ".md" or not any(par in PASTAS_DE_AUTORIA for par in zip(p.parts, p.parts[1:])) or not p.is_file():
             continue  # só caminho de parecer dispara leitura
         sha = hashlib.sha256(p.read_text(encoding="utf-8").strip().encode()).hexdigest()  # antes de qualquer outra leitura
         raiz = raiz_do_parecer(hook, p)
         rel = p.relative_to(raiz).as_posix() if raiz else ""
-        if rel.startswith(("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/")):
+        if rel.startswith(("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/")) or PARECER_A_PUBLICAR.fullmatch(rel):
             registro = {"caminho": rel, "sha256": sha,
                         "agente": hook.entrada.get("agent_type") or "", "papel": guarda.papel,
                         "quando": time.strftime("%Y-%m-%dT%H:%M:%S")}
