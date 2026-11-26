@@ -1,12 +1,8 @@
-"""Forge: `forge-check status` (S1a, v0481 E20.1): o estado da fábrica numa tela curta, lido da ferramenta na hora, para o Jarvis
-nunca afirmar estado de memória. Só leitura, sem `git fetch`; só biblioteca padrão.
-
-Seis linhas `status: ...`: o último merge na develop e a idade (`gh api .../commits/develop`); os PRs abertos em esperando
-revisão, esperando rótulo do dono (título com `afrouxa-regra` sem o rótulo), em conflito e quebrados (check reprovado); o contador
-da versão (a 1.ª linha do `bin/forge-contador`); as decisões do dono abertas e a idade da mais antiga (o leitor do
-`forge_dono.cmd_abertas`); a última versão publicada (`gh release view`); a versão do plugin da sessão (o plugin.json ao lado deste
-forge-check). Leitura que falha (sem rede, sem gh, saída fora da forma) vira `<item>: não verificável (<motivo>)`, nunca erro: rc 0.
-"""
+"""Forge: `forge-check status` (S1a, v0481 E20.1): o estado da fábrica lido na hora, para o Jarvis nunca afirmar estado de memória.
+Só leitura, sem `git fetch`. Seis linhas `status:`: último merge na develop (`gh api .../commits/develop`); PRs abertos por grupo
+(rótulo do dono: título com `afrouxa-regra` sem o rótulo; quebrado: check reprovado); 1.ª linha do `bin/forge-contador`; decisões do
+dono abertas (`forge_dono.cmd_abertas`); `gh release view`; o plugin.json deste forge-check. Leitura que falha vira `não verificável
+(<motivo>)`, nunca erro: rc 0."""
 import datetime as dt
 import subprocess
 import sys
