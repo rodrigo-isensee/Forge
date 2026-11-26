@@ -3,26 +3,19 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-ci-descendente-parecer
-commit: aa26249f6f12bb20aa2b8d3023bd820293eaad48
-parecer: reprovado
+commit: 523b0065035b3e0ce068d94360966ce20ed1c4d4
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-25
 ---
-# Review: v0481 E8.15 (G3.7, delta 2364a43b..aa26249f do #895)
-
-## Achados
-- A1 (bloqueante) skills/engineering-practices/SKILL.md:54 · `test_metricas_texto` cai: engineering-practices 7113 caracteres, teto 6982 (+131); qa-testing 11774, teto 11761 (+13) em `tests/fixtures/metricas-texto.json`. Suíte parte 1/5 vermelha (py3.12 e 3.14) no aa26249f; base eeb81062 passa. Encurte mais.
-
-## Sondas
-- S1 · `python3 -m unittest tests.test_metricas_texto` no aa26249f e no eeb81062 · espera: OK nos dois · obtido: FAILED no aa26249f (2 estouros acima), OK no eeb81062
+# Review: v0481 E8.19 (2ª volta, delta aa26249f..523b0065 do #895)
 
 ## Parecer
-Reprovado por um bloqueante (A1). O A1 anterior (branco inicial do 1º caminho) está corrigido; o encurtamento das skills ficou dentro do teto do agente, mas não do teto por arquivo.
+Aprovado. O A1 do parecer anterior (no aa26249f) está fechado sem enfraquecer teste.
 
-- **Delta lido:** `forge-check parecer delta` deu `revalida: sim` (este parecer barrou). Li `git diff 2364a43b..aa26249f`: `so_pareceres_ate` em `bin/forge-check`, as duas skills, as duas specs de mutante e `LeOCiVia`.
-- **A1 anterior, corrigido:** `so_pareceres_ate` lê o diff com `bruto=True` e `nomes_z`, como o resto do arquivo, e passa `--ignore-submodules=none` (o A2 recomendado do QA). `test_branco_no_inicio_do_caminho_nao_vale` recusa espaço, tab e quebra de linha iniciais (` docs/reviews/x.py`, `\tdocs/security/x.py`, `\ndocs/qa/x.py`), e `test_gitlink_fora_das_pastas_nao_some` recusa o gitlink com `diff.ignoreSubmodules=all`. O falso do git em `test_erro_do_git_diff_falha_fechado` devolve bytes, como o git real com `bruto=True`.
-- **Skills:** nenhum trecho de `invariantes` (`tests/config.json`) presente nas duas skills da base sumiu (59 conferidos), e nenhum ID de regra saiu. O que saiu do QA ("a suíte inteira roda no CI do PR" e "a ele e à segurança") segue em `agents/qa-engineer.md:15`. `test_orcamento_instrucao` passa. O que falha é `test_metricas_texto` (A1), uma métrica por arquivo diferente do teto por agente; o QA e a segurança não a citaram, e ela já é a mesma família do A2 da segurança.
-- **Mutantes:** `bin/forge-mutante --processos 1` nas duas specs deu M1 a M11 mortos (M9 por erro, que é o ramo que ele guarda: sem `commit:`, não quebra). `--cobertura --base 2364a43b` deu a linha 2199 coberta (M4, M5); M3, M10 e M11 cobrem a 2198. `--conferir --base eeb81062`: trechos no lugar. `--conferir --todas` no head deu a mesma saída da base, byte a byte (26 linhas, specs antigas de outros pedidos).
-- **Testes:** `tests.test_forge_check_pr` passou, 71 testes OK; `LeOCiVia` com `test_orcamento_instrucao`, 18 OK.
-- **CI do #895 no aa26249f:** `suíte (python 3.12, parte 1/5)` e `suíte (python 3.14, parte 1/5)` vermelhas pelo A1. `bateria` e `bateria (python 3.14)` também estão vermelhas, e `bateria (pareceres)` e `catraca` estão vermelhas por construção. Sem CI verde, a linha `- ci:` não se aplica.
-- **Na volta:** encurte as frases G3.7 das duas skills até `test_metricas_texto` e `test_orcamento_instrucao` passarem juntos, sem mexer em teto. Rode os dois antes do push.
+- **Delta lido:** `forge-check parecer delta` deu `revalida: sim` (este parecer barrou) e, no domínio, `bin/forge-check` e as duas skills. Li `git diff aa26249f..523b0065`. O único commit do autor é f8839529, que toca as duas skills. Os dois merges da develop (fc029f85, 523b0065) não têm trecho de resolução no `git show --cc`. O patch da branch sobre a base (`git diff 6cc4cd5a 523b0065`) é linha a linha igual ao do aa26249f sobre a eeb81062 em `bin/forge-check`, nos testes, nas duas specs de mutante e no fragmento do changelog. O `bin/forge-check` do delta é só o que veio da develop (#874).
+- **A1 anterior, fechado:** `tests.test_metricas_texto` e `tests.test_orcamento_instrucao` passam juntos no 523b0065 (10 testes OK). `tests/fixtures/metricas-texto.json` e `tests/config.json` não mudam na branch (`git diff 6cc4cd5a 523b0065 --stat` vazio para os dois), então nenhum teto subiu.
+- **Skills:** as duas frases G3.7 seguem dizendo o mesmo: `- ci: <sha40> verde` com o `gh pr checks` do `commit:` verde fora `bateria (pareceres)`, `bateria` e `catraca`, PARECER-LE-O-CI, a forma `verde via <sha40 do descendente>` (G3.7), "sem CI verde, não aprova" e "não rerroda o SHA". Saíram "o merge exige todos" (engineering-practices) e "classes" e "os" (qa-testing), sem trecho de `invariantes` nem ID de regra. A forma 'via' foi aceita pelo dono (decisão de 25/11 07:27). `tests.test_forge` (RegrasInviolaveis, Skills, Neutralidade, NeutralidadeDoNucleo, RegrasComId, Referencias, AntiDuplicacao, Orcamento): 22 OK. `test_aq1_texto`, `test_comando_pronto`, `test_pre_envio_brief`, `test_medidas_m14b`, `test_jarvis_nucleo` e `test_modelos_projeto`: 181 OK.
+- **Mutantes:** `bin/forge-mutante --conferir --base 6cc4cd5a` dá "o trecho de cada spec do diff está no lugar" depois dos merges. A guarda não mudou no delta, então a mutação não foi rodada de novo.
+- **CI do #895 no 523b0065 (run 45696404571):** as 10 partes da suíte (3.12 e 3.14), `teto de pulados` (3.12 e 3.14), `bateria (python 3.14)`, `bateria (passos)`, `bateria (verificações longas)`, `instalação (python 3.14)` e `árvore já provada na develop` estão verdes. `bateria (pareceres)` cai por R-REVIEW e R-QA, porque os pareceres desse momento não aprovam. `bateria` cai só pelo agregado `pareceres: failure`. A `catraca` (run 45696404450) cai por R-CONFORMIDADE, "mudança em bin/forge-check": ela pede o rótulo `afrouxa-regra` do dono depois do último push.
+- ci: 523b0065035b3e0ce068d94360966ce20ed1c4d4 verde
