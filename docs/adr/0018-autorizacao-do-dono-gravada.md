@@ -200,7 +200,7 @@ Um corte sem concessão `corte-diario` ativa, dois cortes diários no mesmo dia 
 | AAAA-MM-DD | cortes sem concessão ativa (meta 0); cortes diários no mesmo dia (meta 0); tempo do item verde na develop até o PR da main | pendente |
 
 ## Emenda ROTULO-PELO-TIME: o time põe o rótulo no Forge até a homologação
-Estado da emenda: proposta pelo `tech-lead` (pedido v0481, E24.1) por ordem do dono; R1 vale a partir do merge na `develop`; R3 vem no PR seguinte. Data: 2026-11-26.
+Estado da emenda: proposta pelo `tech-lead` (pedido v0481, E24.1) por ordem do dono; R1 só produz efeito (o time põe o rótulo `afrouxa-regra`) depois do merge de R3 na `develop`: até lá, a concessão `rotulo-pelo-time` pode estar gravada e ativa, mas o rótulo segue com o dono, item a item. R3 vem no PR seguinte. Data: 2026-11-26.
 
 ### Contexto
 Ordem do dono (26/11 12:57): "no desenvolvimento do próprio Forge, o time toca tudo sozinho até a homologação, incluindo o rótulo de regra nos dois casos (só aperta e afrouxa). Para mim fica só o merge na main. Condição: o pedido da main lista toda regra afrouxada na versão, com o motivo e o pedido de origem [...]. Nos outros projetos, nada muda. Grave na ferramenta [...] e abra o cartão para a ferramenta aceitar isso." Hoje `ATOS` não tem ato que diga isso, e o rótulo pronto espera o dono item a item.

@@ -464,6 +464,31 @@ class RotuloPeloTime(unittest.TestCase):
             with self.subTest(troca=troca):
                 self.assertEqual(self.estados("2026-11-18 07:00", A_1=concessao(**{**self.TIME, **troca})), ["adulterada"])
 
+    def sonda(self, origem, versao):
+        """`fora_do_forge` numa raiz temporária própria da sonda (id v0481-e245 no nome), com o `origin` dado e, se `versao`, o
+        arquivo de versão de projeto do Forge criado só dentro dela."""
+        raiz = Path(tempfile.mkdtemp(prefix="v0481-e245-"))
+        self.addCleanup(shutil.rmtree, raiz)
+        no_repositorio(raiz, origem)
+        if versao:
+            (raiz / ".forge").mkdir()
+            (raiz / ".forge" / "versao").write_text("0.47.18\n", encoding="utf-8")
+        return fa.fora_do_forge(raiz)
+
+    def test_sonda_s1_qualquer_host_antes_de_github_com_vale(self):
+        """Sonda S1 da segurança (469fa04), neutra no parecer (quem escreve o origin já grava a URL exata do Forge):
+        script em arquivo: repositório temporário de projeto ausente (sem o arquivo de versão do Forge) com origin `https://<outro-host>/github.com/<slug>` e depois `file:///tmp/v0481-sonda-e245/github.com/<slug>.git`; `fora_do_forge`"""
+        nome = fa.slug(FORGE)
+        for origem in (f"https://outro-host.example/github.com/{nome}", f"file:///tmp/v0481-sonda-e245/github.com/{nome}.git"):
+            with self.subTest(origem=origem):
+                self.assertEqual(self.sonda(origem, versao=False), "")
+
+    def test_sonda_s2_projeto_com_o_origin_do_forge_fica_inativo(self):
+        """Sonda S2 da segurança (469fa04): o arquivo de versão de projeto vence o origin do Forge.
+        script em arquivo: raiz temporária de projeto (com o arquivo de versão do Forge, criado só no $TMPDIR da sonda) e origin igual ao `repository` do plugin; `fora_do_forge`"""
+        self.assertEqual(self.sonda(FORGE, versao=True), "só vale no repositório do Forge: a raiz é projeto ou o plugin não diz o repositório")
+        self.assertEqual(self.sonda(FORGE, versao=False), "")  # controle: sem o arquivo, o mesmo origin é o Forge
+
     def test_ler_ato_diz_a_ativa_e_sem_ela_rc_1(self):
         (self.pasta / "A-1").write_text(concessao(**self.TIME), encoding="utf-8")
         a = argparse.Namespace(acao="ler", ato="rotulo-pelo-time")
