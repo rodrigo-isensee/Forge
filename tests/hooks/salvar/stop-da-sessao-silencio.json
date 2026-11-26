@@ -1,0 +1,13 @@
+{
+  "descricao": "D6 (a), v0481 E11.2: o Stop da sessão principal não é a parada de um agente: o salvar não age nem cria .forge/run/.",
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "stop_hook_active": false
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

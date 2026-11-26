@@ -8,6 +8,8 @@ H1 (v0474 E2.13): o `pr` avisa no stderr do item acima de 150 linhas de código 
 
 D2-PORTAO-ENTREGA-AUTOR (v0481 E11.1): `pronto [--base REF] [--corpo ARQUIVO]` é o portão de entrega do autor, rodado antes das
 revisões: registros, neutralidade com os dois detectores, tetos de texto, testes afetados, teto H1 e corpo do PR (bin/forge_pronto.py).
+D2-NO-BRIEF (v0481 E14.51): o brief de código do Forge o cobra, a conferência da entrega (etapa codigo) o roda na worktree e não cumpre
+fora do rc 0; o pronto recusa título de PR com o cabeçalho do brief e a branch nascida antes da última marca de versão da base.
 
 E3.45 (v0474): com o PR da branch aberto e fora do rascunho no head, o `pr` só aprova com cada check do head concluído e verde e cada
 exigido do destino (ruleset e proteção; no Forge, também os pares do `forge-fechar`) em pass; pendente ou vermelho reprova, com a lista.
@@ -109,7 +111,11 @@ branch) que é ancestral do head e não é ancestral do Base-sha, e se nenhum co
 reprova (`escopo: --desde sem conferência anterior`, `--desde gravado na própria entrega`) e volta ao Base-sha, e nas etapas
 `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele vale igual (C1; sem `--desde`, a branch inteira). Vale também o commit do autor
 que um portão revisou (o `Revisar-sha:` de brief selado de portão da mesma branch e pedido, ancestral do head e fora do Base-sha; saída
-`base: commit do autor revisado pelo portão`, MP1311). Sem linha `conferida` no
+`base: commit do autor revisado pelo portão`, MP1311). Na forma `entrega --pedido`, com conferida anterior, o Desde é esse commit
+quando os pareceres da branch e do pedido no head têm o mesmo `commit:`, o review entre eles, cada portão que o selou como
+`Revisar-sha:` tem o seu ali, nenhuma versão de parecer da branch sobre ele desde o Base-sha diz outra coisa que `aprovado` (o apagado,
+o `_*.md` e o `contrato: 0` contam; E16.6), o commit está adiante da conferida e, depois dele, só pareceres, quadro, fragmento e merge
+limpo da base (E16.1, ENTREGA-DESDE-REVISAR-SHA). Sem linha `conferida` no
 `## Histórico` ou com a última fora do head (branch nova depois de um squash), o `--desde` igual ao Base-sha, ancestral do head,
 vale como a branch inteira (`base: Base-sha do brief`, P-N1; `brief mensagem --entrega` emite esse `Desde:`). Intervalo vazio:
 `pendente:` na etapa `codigo`, `escopo: sem commit (nada a conferir)` nas outras. Parecer do papel certo e com autoria:
@@ -1231,7 +1237,11 @@ def cmd_pronto(raiz, base, corpo_arquivo=None):
     if numstat is None:
         print(f"pronto: {NAO_VERIFICAVEL}: o git não leu a base comum de HEAD com {base} nem o diff", file=sys.stderr)
         return 2
-    motivo = None  # o motivo do gh em erro: sem --corpo, o corpo fica não verificável em vez de reprovado
+    pronto = modulo_do_bin("forge_pronto")
+    if velha := pronto.base_velha(raiz, base, ancora):  # PRONTO-BASE-VELHA: uma linha, em vez dos fragmentos dos outros itens
+        print(f"pronto: reprovado em {velha}")
+        return 1
+    motivo = titulo = None  # o motivo do gh em erro: sem --corpo, o corpo fica não verificável em vez de reprovado
     if corpo_arquivo:
         try:
             corpo = Path(corpo_arquivo).read_text(encoding="utf-8")
@@ -1242,8 +1252,9 @@ def cmd_pronto(raiz, base, corpo_arquivo=None):
         _, branch = git(raiz, "branch", "--show-current")
         pr, motivo = pr_da_branch(raiz, branch, corpo=True) if branch else (None, None)
         corpo = pr["body"] if pr and pr.get("state") == "OPEN" else None
-    pronto = modulo_do_bin("forge_pronto")
-    return pronto.conferir(raiz, base, ancora, modulo_do_bin("forge_tamanho").linhas_de_codigo(numstat, e_codigo), corpo, sem_corpo=motivo)
+        titulo = pr.get("title") if corpo is not None else None  # PR-TITULO-DO-BRIEF: o título do PR aberto
+    total = modulo_do_bin("forge_tamanho").linhas_de_codigo(numstat, e_codigo)
+    return pronto.conferir(raiz, base, ancora, total, titulo=titulo, corpo=corpo, sem_corpo=motivo)
 
 
 def cmd_classe(raiz, base=None, head=None, como_json=False):
@@ -2183,6 +2194,30 @@ def leu_o_ci(campos, texto):
     return bool(COMMIT.match(commit)) and any(m.group(1).startswith(commit) for m in PROVA_DO_CI.finditer(texto))
 
 
+# PARECER-LE-O-CI, G3.7 (v0481 E8.10): o envio de um parecer cancela o run do `Revisar-sha` (cancel-in-progress) e o portão seguinte não
+# acha run completo nele; vale então `- ci: <sha40 do commit:> verde via <sha40 do descendente>`, o run verde de um descendente cujo
+# diff desde o `commit:` só toca as pastas dos pareceres. O merge segue exigindo todos os checks do head.
+PROVA_DO_CI_VIA = re.compile(r"^- ci: ([0-9a-f]{40}) verde via ([0-9a-f]{40})[ \t]*$", re.M)
+PASTAS_DOS_PARECERES = ("docs/reviews/", "docs/qa/", "docs/security/")
+
+
+def so_pareceres_ate(raiz, sha, via):
+    """True se `via` descende de `sha` e o diff entre eles (sem detectar renomeação, que esconderia a origem) só toca
+    `PASTAS_DOS_PARECERES`; erro do git ou outro caminho: False (falha fechada). Saída em bytes (o `strip` cortaria o branco
+    inicial do 1º caminho) e gitlink sempre listado (`diff.ignoreSubmodules` da configuração o esconderia)."""
+    if git(raiz, "merge-base", "--is-ancestor", sha, via)[0] != 0:
+        return False
+    rc, saida = git(raiz, "diff", "--name-only", "--no-renames", "--ignore-submodules=none", "-z", sha, via, "--", bruto=True)
+    return rc == 0 and all(c.startswith(PASTAS_DOS_PARECERES) for c in nomes_z(saida))
+
+
+def leu_o_ci_via(raiz, campos, texto):
+    """True se o `texto` traz a linha `- ci: ... verde via ...` do sha do `commit:` com um descendente só de pareceres."""
+    commit = campos.get("commit") or ""
+    vias = [m for m in PROVA_DO_CI_VIA.finditer(texto) if m.group(1).startswith(commit)]
+    return bool(COMMIT.match(commit)) and any(so_pareceres_ate(raiz, m.group(1), m.group(2)) for m in vias)
+
+
 def cobra_a_linha_do_ci(raiz, campos):
     """PARECER-LE-O-CI, transição (A3 do #893): a linha só é cobrada do parecer cujo `commit:` já traz a regra no `bin/forge-check`,
     pois o brief dele a pediu; o de commit anterior segue com a PARECER-SO-COM-CI-VERDE inteira. `commit:` fora da forma ou erro do
@@ -2200,7 +2235,9 @@ def suite_do_parecer(raiz, ref, base, branch, rel, campos, texto, rid, adiar, ci
         return []
     sem_ci = [] if leu_o_ci(campos, texto) or not cobra_a_linha_do_ci(raiz, campos) else [
         f"{caminho_impresso(rel)}: ci: o parecer aprovado traz a linha `- ci: <sha40 do commit:> verde`, lida em `gh pr checks` no "
-        f"sha revisado, os checks concluídos e verdes {FORA_DA_LINHA_DO_CI}; sem CI verde, não aprove (PARECER-LE-O-CI, {rid})"]
+        f"sha revisado, os checks concluídos e verdes {FORA_DA_LINHA_DO_CI}, ou `- ci: <sha40> verde via <sha40 do descendente>` "
+        f"com o diff só em {', '.join(PASTAS_DOS_PARECERES)}; sem CI verde, não aprove (PARECER-LE-O-CI, {rid})"]
+    sem_ci = [] if leu_o_ci_via(raiz, campos, texto) else sem_ci
     if (falta := falta_na_prova(raiz, base, campos, texto)) is None:
         return sem_ci
     linha = (f"{caminho_impresso(rel)}: suíte: o parecer aprovado só conta com o CI verde no head ou com a prova da suíte dos "
@@ -2716,6 +2753,40 @@ def revisados_do_autor(raiz, caminho, texto, branch):
     """MP1311: os commits do autor que os portões revisaram: os `Revisar-sha:` dos briefs selados de portão desta branch e pedido."""
     pedido_id = id_do_pedido_no_texto(texto, caminho)
     return set().union(*(revisados_selados(raiz, caminho, texto, branch, pedido_id, t) for t in PAPEL_DO_BRIEF_DO_PARECER))
+
+
+def desde_do_parecer_aprovado(raiz, caminho, texto, branch, head, base_sha, base_ref, valido):
+    """E16.1 (ENTREGA-DESDE-REVISAR-SHA): o `commit:` X dos pareceres aprovados no head vira o Desde da conferência quando os
+    pareceres da branch e do pedido no head têm o mesmo X, o review entre eles; os portões com X selado como `Revisar-sha:` (o registro
+    do Jarvis) são exatamente os dos pareceres do head; nenhuma versão de parecer da branch sobre X, em nenhuma pasta de portão, desde o
+    Base-sha, diz outra coisa que `aprovado` (E16.6, `veredito_trocado`: o reprovado apagado, renomeado para `_*.md` ou com
+    `contrato: 0` segue contando); X é commit da branch adiante da conferida `valido` e, depois dele, só pareceres, quadro, o
+    fragmento do changelog e o merge limpo da base (`commit_vale`). Sem conferida anterior, ou faltando uma condição, None (o Desde
+    de sempre)."""
+    if not valido:
+        return None
+    pedido_id, slug = id_do_pedido_no_texto(texto, caminho), branch_da_convencao(raiz, branch)
+    pareceres = [(tipo, campos) for tipo in PASTA_E_REGRA for rel, doc in documentos(raiz, tipo, head)
+                 if (campos := validar_documento(rel, doc)[0]) and campos.get("branch") == branch
+                 and campos.get("pedido") in (pedido_id, slug)]
+    commits = {campos.get("commit") for _, campos in pareceres}
+    if len(commits) != 1:
+        return None
+    if "review" not in {t for t, _ in pareceres}:
+        return None
+    revisado = commits.pop()
+    if {t for t, _ in pareceres} != {t for t in PASTA_E_REGRA if revisado in revisados_selados(raiz, caminho, texto, branch, pedido_id, t)}:
+        return None
+    if any(veredito_trocado(raiz, base_sha, head, None, revisado, "aprovado", branch, t) for t in PASTA_E_REGRA):
+        return None
+    if not e_ancestral(raiz, valido, revisado):
+        return None
+    if not e_ancestral(raiz, revisado, head):
+        return None
+    if ja_na_base(raiz, revisado, base_sha, base_ref):
+        return None
+    livres = LIVRES + ANEXOS_DO_PORTAO + (f"changelog.d/{branch.removeprefix('melhoria/')}.md",)
+    return revisado if commit_vale(raiz, revisado, head, base_ref, livres) is None else None
 
 
 def pedido_na_entrega(raiz, desde, head, base_ref):
@@ -3729,7 +3800,8 @@ TIPO_DO_PARECER_NOVO = {"review": ("review", "forge:tech-lead", "Review"), "qa":
 
 PROVA_NO_ESQUELETO = "- suíte: {0} rc=0 módulos={0}"  # PARECER-SO-COM-CI-VERDE: sem o CI verde no head, o sha40 do `commit:` e os módulos
 CI_NO_ESQUELETO = "- ci: {0} verde"  # PARECER-LE-O-CI: o sha40 do `commit:`, com o `gh pr checks` dele verde fora os da nota abaixo
-NOTA_NO_ESQUELETO = f"{{0}}: a linha `- ci:` vale com os checks do `commit:` concluídos e verdes {FORA_DA_LINHA_DO_CI}"
+NOTA_NO_ESQUELETO = (f"{{0}}: a linha `- ci:` vale com os checks do `commit:` concluídos e verdes {FORA_DA_LINHA_DO_CI}; run do "
+                     "`commit:` cancelado: `- ci: <sha40 do commit:> verde via <sha40 do descendente só de pareceres>` (G3.7)")
 
 
 def secoes_do_parecer_novo(tipo, marca):
@@ -5170,6 +5242,15 @@ def ler_marca(motivo):
     return motivo[:m.start()], (marca if valida else None), (None if valida else "marca de atributos fora da forma, ignorada")
 
 
+def celulas_de_cartao(linha):
+    """As células de uma linha de cartão de tabela do KANBAN.md, ou None (cabeçalho, separador, outra largura, fora de tabela): o único
+    filtro de linha de cartão do quadro gerado, do aviso de edição à mão e do movimento (AE2 A1: cartão `ID` ou `---` não casa a moldura)."""
+    c = [x.strip() for x in linha.strip().strip("|").split("|")]
+    if not linha.startswith("|") or len(c) != len(COLUNAS) or c == COLUNAS or all(SEPARADOR.fullmatch(x) for x in c):
+        return None
+    return c
+
+
 def montar_quadro(texto_kanban, linhas_do_historico, agora):
     """EST-M12, sem IO: (KANBAN.md refeito do histórico ou None, {seção: [células]}, avisos). Coluna = `Para` da última linha válida na
     ordem do arquivo (C-3); atributos da marca mais recente, senão da linha do quadro (ponte, C-4); estado sem seção (C-5)."""
@@ -5178,7 +5259,7 @@ def montar_quadro(texto_kanban, linhas_do_historico, agora):
         secao, c = nome_da_secao(linha[3:]) if linha.startswith("## ") else secao, [x.strip() for x in linha.strip().strip("|").split("|")]
         if secao and linha.startswith("|") and c == COLUNAS:
             secoes.setdefault(secao, [])
-        elif secao in secoes and linha.startswith("|") and len(c) == len(COLUNAS) and not all(SEPARADOR.fullmatch(x) for x in c):
+        elif secao in secoes and celulas_de_cartao(linha):
             avisos += [] if ID_RESP.fullmatch(c[3]) else [f"cartão {c[0]}: responsável da linha do quadro fora da forma; vira —"]
             ponte[chave_do_cartao(c[0])] = (secao, c if ID_RESP.fullmatch(c[3]) else [*c[:3], "—", *c[4:]])
     for c in linhas_do_historico:
@@ -5219,8 +5300,9 @@ def montar_quadro(texto_kanban, linhas_do_historico, agora):
     return "\n".join(saida), secoes, avisos
 
 
-def _ler_regular(arq):
-    """(texto, erro): sem seguir link (O_NOFOLLOW), só arquivo regular conferido antes de ler (fifo não trava), até TETO_DA_TABELA (C-1)."""
+def _ler_regular(arq, estrito=False):
+    """(texto, erro): sem seguir link (O_NOFOLLOW), só arquivo regular conferido antes de ler (fifo não trava), até TETO_DA_TABELA (C-1).
+    `estrito` (o movimento, A4 da segurança do AE2): byte UTF-8 inválido é erro, não U+FFFD gravado de volta em linhas não tocadas."""
     try:
         fd = os.open(arq, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except OSError as e:
@@ -5232,7 +5314,10 @@ def _ler_regular(arq):
         dados = f.read(TETO_DA_TABELA + 1)
     if len(dados) > TETO_DA_TABELA:
         return None, f"passa de {TETO_DA_TABELA} bytes"
-    return dados.decode("utf-8", errors="replace"), None
+    try:
+        return dados.decode("utf-8", errors="strict" if estrito else "replace"), None
+    except UnicodeDecodeError:
+        return None, "não é UTF-8 válido"
 
 
 def travar_o_quadro(raiz):
@@ -5253,8 +5338,8 @@ def linhas_de_cartao(texto):
     """{ID: (seção, células)} das linhas de cartão do quadro: o aviso de edição à mão compara as do quadro atual com as geradas (C-15)."""
     cartoes, secao = {}, None
     for linha in texto.split("\n"):
-        secao, c = nome_da_secao(linha[3:]) if linha.startswith("## ") else secao, [x.strip() for x in linha.strip().strip("|").split("|")]
-        if secao and linha.startswith("|") and len(c) == len(COLUNAS) and c != COLUNAS and not all(SEPARADOR.fullmatch(x) for x in c):
+        secao = nome_da_secao(linha[3:]) if linha.startswith("## ") else secao
+        if secao and (c := celulas_de_cartao(linha)):
             cartoes[c[0]] = (secao, c)
     return cartoes
 
@@ -5301,7 +5386,7 @@ def erro_dos_atributos(motivo, atributos):
         return f"--motivo acima de {TETOS_DO_MOVIMENTO['motivo']} caracteres"
     for chave, valor in atributos.items():
         if (not valor.strip() or re.search(r"[;=·|\x00-\x1f\x7f]", valor) or any(unicodedata.category(c) == "Cf" for c in valor)):
-            return f"--{chave} vazio ou com `;`, `=`, `·`, `|`, controle ou caractere invisível"
+            return f"--{chave} vazio ou com `;`, `=`, {'' if chave == 'titulo' else '`·`, '}`|`, controle ou caractere invisível"
     if len(" ".join((atributos.get("titulo") or "").split())) > TETOS_DO_MOVIMENTO["titulo"]:
         return f"--titulo acima de {TETOS_DO_MOVIMENTO['titulo']} caracteres"
     if "responsavel" in atributos and not ID_RESP.fullmatch(atributos["responsavel"]):
@@ -5314,13 +5399,14 @@ def erro_dos_atributos(motivo, atributos):
 def cmd_movimento(raiz, cartao, de, para, motivo, atributos):
     """Anota um movimento do quadro em docs/kanban/historico.md (PA-9): hora real ISO 8601 com fuso, cartão,
     coluna de origem e de destino. Só acrescenta; cria o arquivo com o cabeçalho se não existir. Ao parar o cartão (EXT-3), o motivo leva
-    `custo do trecho: N tokens` (ou `lacuna`); no Pronto, `custo total`. Os atributos (EST-M12) vão por último, na marca `· atributos:`."""
+    `custo do trecho: N tokens` (ou `lacuna`); no Pronto, `custo total`. Os atributos (EST-M12) vão por último, na marca `· atributos:`;
+    o `·` do --titulo vira `-` (o `·` separa a marca). AE2: gravado o histórico, a linha do cartão muda de seção no KANBAN.md."""
     def limpo(t):
         return re.sub(r"[\x00-\x1f\x7f]", "", re.sub(r"\s+", " ", t.replace("|", "/"))).strip()
     campos = [limpo(x) for x in (cartao, de, para)]
     if not all(campos):
         return ["movimento: cartão, --de e --para não podem ser vazios"]
-    atributos = {k: v for k, v in atributos.items() if v is not None}
+    atributos = {k: (v.replace("·", "-") if k == "titulo" else v) for k, v in atributos.items() if v is not None}
     if erro := erro_dos_atributos(limpo(motivo), atributos):
         return [f"movimento: {erro}; nada gravado"]
     if not (raiz / "KANBAN.md").is_file():
@@ -5341,7 +5427,72 @@ def cmd_movimento(raiz, cartao, de, para, motivo, atributos):
         MARCA_DE_ATRIBUTOS + "; ".join(f"{k}={limpo(v)}" for k, v in atributos.items()) if atributos else "")  # a marca sempre por último
     linha = f"| {hora} | {campos[0]} | {campos[1]} | {campos[2]} | {motivo} |\n"
     acrescentar_ao_arquivo(arq, linha, "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n")
-    return [linha.rstrip("\n")]
+    obs = motivo.partition(MARCA_DE_ATRIBUTOS)[0]
+    aviso = mover_no_quadro(raiz, campos[0], campos[2], hora, obs, {k: limpo(v) for k, v in atributos.items()})
+    return [linha.rstrip("\n")] + ([f"movimento: aviso: {aviso}; o histórico foi gravado (kanban --gerar refaz o quadro)"] if aviso else [])
+
+
+def secao_de_destino(secoes, para):
+    """AE2: a seção do KANBAN.md que recebe a linha (como o `montar_quadro`, C-5): a de mesmo nome, senão a do estado, senão Bloqueado."""
+    canonicas = {_sem_acento(s): s for s in secoes}
+    return canonicas.get(_sem_acento(para)) or canonicas.get(_sem_acento(COLUNA_DO_ESTADO.get(_sem_acento(para), "Bloqueado")))
+
+
+def linha_movida(texto, cartao, para, hora, obs, atributos):
+    """AE2, sem IO: (KANBAN.md com as linhas do cartão tiradas de onde estão e a última posta no fim da tabela da seção de destino, ou None; aviso).
+    Cartão sem linha nasce com `—` nos atributos não dados; seção sem tabela ganha a tabela. Entrou fica; Na coluna desde e Obs. mudam."""
+    linhas, secoes, secao, achadas = texto.split("\n"), set(), None, []
+    for i, l in enumerate(linhas):
+        secao = nome_da_secao(l[3:]) if l.startswith("## ") else secao
+        if l.startswith("## "):
+            secoes.add(secao)
+        elif secao and (c := celulas_de_cartao(l)) and chave_do_cartao(c[0]) == chave_do_cartao(cartao):
+            achadas.append((i, c))
+    destino = secao_de_destino(secoes, para)
+    if destino is None:
+        return None, f"{nome_seguro(para)} sem seção no KANBAN.md e o quadro sem \"Bloqueado\"; a linha do cartão fica onde está"
+    c = achadas[-1][1] if achadas else [cartao, "—", "—", "—", hora[:10]]
+    for n, chave in ((1, "titulo"), (2, "pedido"), (3, "responsavel")):
+        c[n] = atributos.get(chave) or c[n]
+    nova = "| " + " | ".join([*c[:5], hora, obs]) + " |"
+    for i, _ in reversed(achadas):  # o cartão repetido em duas seções sai de todas (A2 do review)
+        del linhas[i]
+    inicio = next(i for i, l in enumerate(linhas) if l.startswith("## ") and nome_da_secao(l[3:]) == destino)
+    fim = next((i for i in range(inicio + 1, len(linhas)) if linhas[i].startswith("## ")), len(linhas))
+    tabela = [i for i in range(inicio + 1, fim) if linhas[i].startswith("|")]
+    if tabela:
+        linhas.insert(tabela[-1] + 1, nova)
+    else:
+        linhas[inicio + 1:inicio + 1] = ["| " + " | ".join(COLUNAS) + " |", "|" + "---|" * len(COLUNAS), nova]
+    return "\n".join(linhas), None
+
+
+def mover_no_quadro(raiz, cartao, para, hora, obs, atributos):
+    """AE2: move a linha do cartão no KANBAN.md sob a trava do quadro (C-10), lendo sem seguir link (C-1) e trocando por temporário e
+    `os.replace` (C-2), como o `kanban --gerar`. Devolve o aviso (o quadro fica intacto) ou None."""
+    try:
+        fd = travar_o_quadro(raiz)
+        try:
+            atual, erro = _ler_regular(raiz / "KANBAN.md", estrito=True)
+            if erro:
+                return f"KANBAN.md {erro}; quadro intacto"
+            texto, aviso = linha_movida(atual, cartao, para, hora, obs, atributos)
+            if texto is None:
+                return aviso
+            tmp_fd, tmp = tempfile.mkstemp(dir=raiz, prefix=".KANBAN.")
+            try:
+                with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+                    f.write(texto)
+                os.chmod(tmp, 0o644)
+                os.replace(tmp, raiz / "KANBAN.md")
+            except BaseException:
+                os.unlink(tmp)
+                raise
+        finally:
+            os.close(fd)
+    except OSError as e:
+        return f"{caminho_impresso(e.filename or 'KANBAN.md')}: {sem_controle(e.strerror or str(e))}; quadro intacto"
+    return None
 
 
 FRASES_DO_ANOTAR = {"decisao": "DECISÃO DO DONO", "pergunta": "PERGUNTA AO DONO", "ordem": "ORDEM DO DONO"}
@@ -9619,9 +9770,9 @@ TETO_DO_GH_S = 10  # o `gerar` nunca espera mais que isto pela rede (P5)
 def pr_da_branch(raiz, branch, corpo=False):
     """(dados do PR, None) por `gh pr view <branch> --json number,state,headRefOid` (grátis, R-CUSTO; teto de 10 s), ({}, None) sem PR,
     ou (None, motivo) sem `gh`, sem rede ou com erro: a linha sai `não verificável` e o brief não é barrado por isso. Com `corpo`
-    (H1, v0474 E2.13), o `body` do PR vai junto, em `body`."""
+    (H1, v0474 E2.13), o `body` do PR vai junto, em `body`, e o título em `title` (PR-TITULO-DO-BRIEF, v0481 E14.51)."""
     try:
-        r = subprocess.run(["gh", "pr", "view", branch, "--json", "number,state,headRefOid" + (",body" if corpo else "")], cwd=raiz, capture_output=True,
+        r = subprocess.run(["gh", "pr", "view", branch, "--json", "number,state,headRefOid" + (",body,title" if corpo else "")], cwd=raiz, capture_output=True,
                            text=True, timeout=TETO_DO_GH_S, stdin=subprocess.DEVNULL)
     except FileNotFoundError:
         return None, "sem gh"
@@ -9632,7 +9783,7 @@ def pr_da_branch(raiz, branch, corpo=False):
     try:
         dados = json.loads(r.stdout)
         return {"number": int(dados["number"]), "state": str(dados["state"]), "head": str(dados.get("headRefOid", "")),
-                **({"body": str(dados.get("body") or "")} if corpo else {})}, None
+                **({"body": str(dados.get("body") or ""), "title": str(dados.get("title", ""))} if corpo else {})}, None
     except (ValueError, KeyError, TypeError):
         return None, "resposta do gh ilegível"
 
@@ -9750,6 +9901,12 @@ TESTES_DE_TEXTO = ("tests.test_testes_tocados", "tests.test_forge.Orcamento", "t
 TESTE_DOS_ACHADOS = "tests.test_forge_mutante.ConferirTodas"  # H3 (a): o AR-12 de docs/engineering/achados-recorrentes.md, conferido pelo autor
 
 
+PQ_DO_D2 = ("- PQ-N (cmd, do autor): `bin/forge-check --raiz <sua cópia> pronto --base origin/{base}` · espera: rc=0 · D2 (D2-NO-BRIEF): "
+            "o forge-check de um clone da develop (`bin/forge-copia clone --base origin/develop`, sufixo -d2), nunca o da branch, que "
+            "não certifica o próprio portão; com o PR em rascunho aberto, em segundo plano com log até `rc=` (esperar-estado); "
+            "entregue só com rc 0 e a última linha dele no relatório; com rc 1, corrija o que ele aponta (a conferência da entrega recusa o D2 vermelho)")
+
+
 def pqs_de_pre_envio(raiz, etapa, entregar):
     """PRE-ENVIO-RAPIDO (mp1311, diretriz 23, parte a): as PQs que o autor roda antes do push, no Forge, nos briefs de autor (`codigo`
     e `pr`): a descrição do PR pela catraca e os `TESTES_DE_TEXTO` sempre; os testes afetados só no `codigo` cujo Entregar declara
@@ -9798,7 +9955,9 @@ def portao_na_branch(raiz, pedido_id, etapa, branch, base):
 # PARECER-LE-O-CI (G3, v0481 E8.1): o review e o QA leem o CI do head em vez de rodar a bateria, e só eles (o `pr` confere a linha)
 PORTOES_QUE_LEEM_O_CI = ("review", "qa")
 LINHA_LE_O_CI = ("- G3 (PARECER-LE-O-CI): não rode a suíte inteira; leia `gh pr checks` do PR, concluídos e verdes no `Revisar-sha` "
-                 f"{FORA_DA_LINHA_DO_CI}, e grave no parecer `- ci: <sha40 do Revisar-sha> verde` (sem ela, o `forge-check pr` recusa o aprovado); à mão, só os "
+                 f"{FORA_DA_LINHA_DO_CI}, e grave no parecer `- ci: <sha40 do Revisar-sha> verde` (sem ela, o `forge-check pr` recusa o aprovado); run do "
+                 "`Revisar-sha` cancelado pelo envio de outro parecer: `- ci: <sha40 do Revisar-sha> verde via <sha40 do descendente>`, "
+                 f"com o diff dele só em {', '.join(PASTAS_DOS_PARECERES)} (G3.7); à mão, só os "
                  "testes que o diff toca e os mutantes declarados")
 SEM_PR_NO_PORTAO = "- sem PR para a branch: o CI só roda no PR; review e QA não aprovam sem o CI do head verde: peça ao autor o PR em rascunho"
 
@@ -9970,6 +10129,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
         if interpolacao_segura(pedido=pedido_id, branch=branch, base=base, sha=sha_base, **({"raiz": pasta} if pasta else {})):
             saida.append(f"- PQ-N (cmd, do autor): `forge-check entrega {caminho_impresso(pedido_id)}{f' --raiz-pedidos {caminho_impresso(pasta)}' if pasta else ''} "
                          f"--branch {branch} --base {base} --base-sha {sha_base}{PROVAS_DO_PQ} --etapa codigo` · espera: rc=0")
+            if e_o_forge(Path(raiz)):  # D2-NO-BRIEF (v0481 E14.51): o pronto da própria cópia, antes de entregar
+                saida.append(PQ_DO_D2.format(base=base.removeprefix("origin/")))
     if etapa in ("review", "seguranca", "qa"):  # o bloco ## Achados e o teto em caracteres saem do `forge-check docs` (P3)
         nome = base.removeprefix("origin/")  # FC-DOCS-CAMINHO: no fluxo de entrega, só os documentos do diff da branch
         saida.append(f"- PQ-N (cmd): `forge-check docs{f' --base {nome}' if nome in BASES_DO_FLUXO else ''}` · espera: rc=0")
@@ -10469,6 +10630,30 @@ def rodar_prova(script, argv, espera, pasta):
     return (f"diverge de '{divergiu}' (rc={r.returncode})", True) if divergiu else ("ok", False)
 
 
+PRAZO_DO_PRONTO_S = 3600  # D2-NO-BRIEF: o pronto roda os testes afetados e pode passar de 10 min
+
+
+def prova_do_pronto(pasta, base, so_leitura, rodar=subprocess.run, forge_no_head=False):
+    """D2-NO-BRIEF (v0481 E14.51): [(linha, reprova)] do `forge-check pronto` deste forge-check com `--raiz` na worktree da branch, na
+    etapa codigo da conferência; fora do rc 0 reprova, com a última linha do pronto (o que falhou). Sem worktree e com o head da branch
+    no Forge (`forge_no_head`), reprova pedindo --worktree (E14.81: a cópia do autor é clone). Com `so_leitura` (quem confere não roda
+    código da branch), ou fora do Forge (sem .claude-plugin/plugin.json), não roda: vale a última linha no relatório do autor."""
+    if pasta is None and forge_no_head and not so_leitura:
+        return [("pendente: D2 sem worktree da branch para rodar o forge-check pronto (passe --worktree <cópia do autor>) (D2-NO-BRIEF)", True)]
+    if so_leitura or pasta is None or not (Path(pasta) / ".claude-plugin" / "plugin.json").is_file():
+        return [("pronto: não rodado aqui (--so-leitura, sem worktree ou fora do Forge); confira a última linha do `forge-check pronto` "
+                 "no relatório do autor (D2-NO-BRIEF)", False)]
+    argv = [sys.executable, str(Path(__file__).resolve()), "--raiz", str(pasta), "pronto", "--base", f"origin/{base.removeprefix('origin/')}"]
+    try:
+        r = rodar(argv, cwd=pasta, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=PRAZO_DO_PRONTO_S)
+    except (OSError, subprocess.TimeoutExpired) as erro:
+        return [(f"pendente: o forge-check pronto não terminou ({type(erro).__name__}); a entrega vai só com o D2 em rc 0 (D2-NO-BRIEF)", True)]
+    if r.returncode == 0:
+        return [("prova: forge-check pronto rc 0 na worktree (D2)", False)]
+    ultima = (r.stdout.strip().splitlines() or r.stderr.strip().splitlines() or ["sem saída"])[-1]
+    return [(f"pendente: D2 vermelho: forge-check pronto rc {r.returncode}: {sem_controle(ultima)} (D2-NO-BRIEF)", True)]
+
+
 def conferir_provas(raiz, texto, branch, head, pasta, so_leitura=False):
     """P2 (0.43.1): (linha, reprova) por PQ do brief selado. `cmd` da lista do reexecutar-provas roda na worktree; o `forge-check entrega`
     é esta conferência; `cmd` fora da lista e `pr`/`merge`/`run` (GitHub) não são reexecutados e não reprovam (ficam com o relatório
@@ -10608,6 +10793,7 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
         base_sha = ponto  # E23.36 (e): o que veio da base pelo merge não é escopo, e conferida de outra branch que veio com ela não é Desde
     base_ref = ref_da_base(raiz, base)  # CONFERIDA-POR-BRANCH: a conferida de outro item já na base não é o Desde desta branch
     valido = desde_valido(raiz, texto, head, base_sha, base_ref)[0]
+    valido = desde_do_parecer_aprovado(raiz, caminho, texto, branch, head, base_sha, base_ref, valido) or valido  # E16.1
     desde = valido or (base_sha if base_sha_como_desde(raiz, texto, base_sha, head, base_ref) else None)
     declarado = escopo_declarado(brief, branch)
     if etapa == "codigo":  # E23.17 (b): a volta na mesma branch herda o escopo dos briefs de codigo anteriores do pedido
@@ -10626,6 +10812,9 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
     linhas.append((f"commits: {contagem if not cod else '?'} em {inicio[:12]}..{head[:12]}", bool(cod)))
     linhas += conferir_provas(raiz, brief, branch, head, pasta, so_leitura)
     linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio, head)  # R-QA: a 3ª volta (só o brief com `(volta N)`)
+    if etapa == "codigo":  # D2-NO-BRIEF: a entrega com o D2 vermelho volta sem passar pelas revisões
+        no_head = [git(raiz, "cat-file", "-e", f"{head}:{nome}")[0] == 0 for nome in (".claude-plugin/plugin.json", ".forge/versao")]
+        linhas += prova_do_pronto(pasta, base, so_leitura, forge_no_head=no_head == [True, False])
     if etapa == "codigo" and not cod:  # T1: código sem teste no intervalo da delegação, sinalizado sem reprovar (a classe T isenta)
         aviso = aviso_de_codigo_sem_teste(raiz, f"{inicio}..{head}", nomes_do_intervalo(raiz, inicio, head),
                                           classe_para_o_t1(raiz, head, base))
@@ -11112,7 +11301,7 @@ def main():
     rg.add_argument("--estrito", action="store_true", help="reprova (rc 1) se alguma regra tem aviso")
     rg.add_argument("--hoje", help="AAAA-MM-DD (padrão: hoje; serve para reproduzir)")
     rg.add_argument("--json", action="store_true", help="saída em JSON")
-    mv = sub.add_parser("movimento", parents=[comum], help="anota um movimento do quadro em docs/kanban/historico.md, com a hora real")
+    mv = sub.add_parser("movimento", parents=[comum], help="anota um movimento do quadro em docs/kanban/historico.md, com a hora real, e move a linha do cartão no KANBAN.md")
     mv.add_argument("cartao")
     mv.add_argument("--de", required=True, help="coluna de origem (Bloqueado exige a linha de entrada do cartão em Bloqueado; sem ela, rc 2: K170)")
     mv.add_argument("--para", required=True, help="coluna de destino")
