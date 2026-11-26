@@ -3178,6 +3178,15 @@ class RotuloSobreviveAoConteudo(Base):
                 r = self.roda(ramo="melhoria/ped", so_diff=True)
                 self.assertEqual(r.returncode, 1, r.stdout)
 
+    def test_aceites_da_catraca_igual_ao_aceites_do_usuario_do_forge_check(self):
+        """v0481 E17.5 (A1 da segurança): ACEITES da catraca é cópia do ACEITES_DO_USUARIO do forge-check; se este mudar sem
+        aquele, a pasta nova de aceite sairia da comparação do rótulo."""
+        arvore = ast.parse((AQUI.parent / "bin" / "forge-check").read_text(encoding="utf-8"))
+        valores = [ast.literal_eval(n.value) for n in arvore.body if isinstance(n, ast.Assign)
+                   and any(isinstance(a, ast.Name) and a.id == "ACEITES_DO_USUARIO" for a in n.targets)]
+        self.assertEqual(len(valores), 1, "ACEITES_DO_USUARIO sumiu do forge-check ou tem mais de uma atribuição")
+        self.assertEqual(catraca.ACEITES, valores[0])
+
     def test_violacao_nova_vinda_da_base_invalida(self):
         """Review #65, desvio 2: a base passa a proteger um arquivo que o patch do PR já apagava."""
         self.repo.git("checkout", "-q", "develop")

@@ -21,6 +21,16 @@
       "testes": [
         "tests.test_catraca.RotuloSobreviveAoConteudo.test_parecer_de_seguranca_do_pedido_e_merge_da_base_mantem_o_rotulo"
       ]
+    },
+    {
+      "id": "RB3",
+      "guarda": "v0481 E17.5: ACEITES da catraca é igual ao ACEITES_DO_USUARIO do forge-check",
+      "arquivo": "tests/catraca.py",
+      "de": "ACEITES = (\"docs/security/aceites/\",)",
+      "para": "ACEITES = (\"docs/security/aceite/\",)",
+      "testes": [
+        "tests.test_catraca.RotuloSobreviveAoConteudo.test_aceites_da_catraca_igual_ao_aceites_do_usuario_do_forge_check"
+      ]
     }
   ]
 }
