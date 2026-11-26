@@ -47,3 +47,4 @@ O desenho deixa o rótulo como ato do dono. A F4 diz que `so-aperta-com-seguranc
 
 ## Resultado
 Aprovado no head 39b5b066 (delta correto e equivalente; o resto vale da 1ª rodada, 4c88ca81), sem bug aberto: F1 a F5 e o ESCOPO+ cobertos, vermelho visto, 22 mutantes mortos, módulos tocados verdes e CI verde nas partes que contam.
+- ci: 39b5b066122f8f6c1883aef2bd692b147d05d8a1 verde
