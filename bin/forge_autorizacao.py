@@ -148,7 +148,7 @@ def problemas(campos, corpo, gravador):
         (campos["Gravado-por"] != gravador, "Gravado-por não é o forge-check carregado"),
         (campos["Ato"] not in ATOS, "Ato fora da lista"),
         (not ALVOS.fullmatch(campos["Alvos"]), "Alvos fora da forma"),
-        ((campos["Ato"] in SEM_PRAZO) !=(campos["Alvos"] == "fixo"), "alvo fixo só nos atos fixos, e eles só com ele"),
+        ((campos["Ato"] in SEM_PRAZO) != (campos["Alvos"] == "fixo"), "alvo fixo só nos atos fixos, e eles só com ele"),
         (campos["Estado-inicial"] not in ESTADOS_INICIAIS, "Estado-inicial fora da lista"),
         (not re.fullmatch(PEDIDO, campos["Pedido"]), "Pedido fora da forma"),
         (campos["Autoriza"] != AUTORIZA, "Autoriza fora do texto fixo")) if falha]

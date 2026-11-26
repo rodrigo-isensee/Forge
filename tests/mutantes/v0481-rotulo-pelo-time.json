@@ -27,7 +27,7 @@
       "guarda": "ROTULO-PELO-TIME: a conferência do repositório roda para o ato novo",
       "arquivo": "bin/forge_autorizacao.py",
       "de": "    fora = fora_do_forge(raiz) if campos[\"Ato\"] in SO_NO_FORGE else \"\"",
-      "para": "    fora = \"\"",
+      "para": "    fora = fora_do_forge(raiz) if False else \"\"",
       "testes": [
         "tests.test_autorizacao.RotuloPeloTime.test_outro_origin_ou_projeto_deixa_inativo"
       ]
