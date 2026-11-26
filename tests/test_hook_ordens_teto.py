@@ -120,6 +120,48 @@ class Edit(Base):
         self.recusa(self.edit("a", "x" * 300, replace_all=True), "8 linhas e 2407 caracteres")
 
 
+class Criacao(Base):
+    """A2 da segurança a1b62ca: o Edit com old_string vazio em arquivo ausente ou vazio cria o arquivo com o new_string."""
+
+    def test_arquivo_ausente_conta_o_new_string(self):
+        self.recusa(self.edit("", ordens(16)), "16 linhas")
+        self.passa(self.edit("", ordens(15)))
+
+    def test_arquivo_vazio_conta_o_new_string(self):
+        self.arquivo.write_text("", encoding="utf-8")
+        self.recusa(self.edit("", ordens(16)), "16 linhas")
+        self.passa(self.edit("", ordens(15)))
+
+    def test_multiedit_que_cria_soma_as_trocas_seguintes(self):
+        criar = {"old_string": "", "new_string": ordens(14)}
+        mais = {"old_string": "ordem 14\n", "new_string": "ordem 14\nordem 15\nordem 16\n"}
+        self.recusa(self.rodar("MultiEdit", {"file_path": str(self.arquivo), "edits": [criar, mais]}), "16 linhas")
+        self.passa(self.rodar("MultiEdit", {"file_path": str(self.arquivo), "edits": [criar]}))
+
+
+class AcimaDoTeto(Base):
+    """A3 da segurança a1b62ca: arquivo já acima do teto (gravado fora das ferramentas); a gravação que não cresce passa."""
+
+    def setUp(self):
+        super().setUp()
+        self.arquivo.write_text(ordens(20), encoding="utf-8")
+
+    def test_edit_que_encurta_passa_e_o_que_cresce_recusa(self):
+        self.passa(self.edit("ordem 20\n", ""))
+        self.recusa(self.edit("ordem 20\n", "ordem 20\nordem 21\n"), "21 linhas")
+
+    def test_mesmas_linhas_com_mais_caracteres_recusa_e_menos_passa(self):
+        self.recusa(self.edit("ordem 20", "ordem 20 longa"), "20 linhas")
+        self.passa(self.edit("ordem 20", "o 20"))
+
+    def test_mais_linhas_com_menos_caracteres_recusa(self):
+        self.recusa(self.edit("ordem 19\nordem 20", "a\nb\nc"), "21 linhas")
+
+    def test_write_que_encurta_passa(self):
+        self.passa(self.write(ordens(19)))
+        self.recusa(self.write(ordens(21)), "21 linhas")
+
+
 class ErroInterno(Base):
     def test_erro_interno_libera_e_deixa_a_linha_no_erros_log(self):
         self.arquivo.mkdir()  # `ler_ordens` levanta ao abrir a pasta

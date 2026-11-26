@@ -26,10 +26,10 @@
       "id": "M3",
       "guarda": "trecho ausente não conta: a ferramenta falha sozinha",
       "arquivo": "hooks/ordens_teto.py",
-      "de": "or not velho or velho not in texto:",
-      "para": "or not velho:",
+      "de": "    if velho not in texto:",
+      "para": "    if False:",
       "testes": [
-        "tests.test_hook_ordens_teto.Edit.test_trecho_ausente_ou_vazio_ou_arquivo_ausente_passa"
+        "tests.test_hook_ordens_teto.MultiEdit.test_troca_que_falha_ou_fora_da_forma_passa"
       ]
     },
     {

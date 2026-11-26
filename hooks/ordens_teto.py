@@ -6,7 +6,8 @@ PreToolUse de Write, Edit e MultiEdit: quando o alvo é o arquivo de ordens em v
 `~/.forge-contrib/docs/ordens/ordens-em-vigor.md`), monta o texto que ficaria gravado e o conta como o `ordens` conta
 (`escapadas` e `no_teto`, fonte única). Acima de 15 linhas ou 2000 caracteres: saída 2, com as contagens, em vez de o
 `ordens` cortar o fim depois. Outro arquivo, outra ferramenta, fora de projeto do Forge, Edit cujo trecho não está no
-arquivo (a ferramenta falha sozinha): silêncio e saída 0. Erro interno: silêncio, saída 0 e uma linha no erros.log
+arquivo (a ferramenta falha sozinha) e a gravação que não cresce um arquivo já acima do teto (a correção aos poucos):
+silêncio e saída 0. Erro interno: silêncio, saída 0 e uma linha no erros.log
 (ADR 0003, item 4). Não cobre a gravação pelo Bash (o `conformidade` já a reserva ao Jarvis). Só biblioteca padrão."""
 import os
 from pathlib import Path
@@ -32,9 +33,14 @@ def alvo(hook):
 
 
 def trocar(texto, edicao):
-    """O texto depois de uma edição (old_string, new_string, replace_all), ou None se o trecho não está nele."""
+    """O texto depois de uma edição (old_string, new_string, replace_all), ou None se o trecho não está nele. O trecho
+    vazio sobre o texto vazio (arquivo ausente ou vazio) cria o arquivo com o new_string, como a ferramenta."""
     velho, novo = edicao.get("old_string"), edicao.get("new_string")
-    if not isinstance(velho, str) or not isinstance(novo, str) or not velho or velho not in texto:
+    if not isinstance(velho, str) or not isinstance(novo, str):
+        return None
+    if not velho:
+        return novo if not texto else None
+    if velho not in texto:
         return None
     return texto.replace(velho, novo) if edicao.get("replace_all") is True else texto.replace(velho, novo, 1)
 
@@ -45,7 +51,7 @@ def depois(hook, arquivo, base):
     if hook.campo("tool_name") == "Write":
         conteudo = entrada.get("content")
         return conteudo if isinstance(conteudo, str) else None
-    texto = ler_ordens(arquivo, base)
+    texto = ler_ordens(arquivo, base) if os.path.lexists(arquivo) else ""
     edicoes = entrada.get("edits") if hook.campo("tool_name") == "MultiEdit" else [entrada]
     if texto is None or not isinstance(edicoes, list):
         return None
@@ -54,6 +60,20 @@ def depois(hook, arquivo, base):
         if texto is None:
             return None
     return texto
+
+
+def tamanho(linhas):
+    return len("\n".join(linhas))
+
+
+def nao_cresce(linhas, arquivo, base):
+    """O arquivo já passa do teto (gravado fora das ferramentas) e o novo texto não tem mais linhas nem mais caracteres:
+    a correção aos poucos passa; o `ordens` segue cortando com o aviso até caber."""
+    antes = ler_ordens(arquivo, base)
+    if antes is None:
+        return False
+    anteriores = escapadas(antes)
+    return len(linhas) <= len(anteriores) and tamanho(linhas) <= tamanho(anteriores)
 
 
 def principal(hook):
@@ -66,10 +86,10 @@ def principal(hook):
     if texto is None:
         return
     linhas = escapadas(texto)
-    if no_teto(linhas)[1] is None:
+    if no_teto(linhas)[1] is None or nao_cresce(linhas, *achado):
         return
     bloquear("R-CONFORMIDADE", RECUSA.format(nome=Path(achado[0]).name, linhas=len(linhas),
-                                             caracteres=len("\n".join(linhas)), teto_linhas=TETO_LINHAS,
+                                             caracteres=tamanho(linhas), teto_linhas=TETO_LINHAS,
                                              teto_caracteres=TETO_CARACTERES))
 
 

@@ -66,8 +66,8 @@
       "id": "M15",
       "guarda": "dentro do teto passa; acima recusa",
       "arquivo": "hooks/ordens_teto.py",
-      "de": "    if no_teto(linhas)[1] is None:",
-      "para": "    if no_teto(linhas)[1] is not None:",
+      "de": "    if no_teto(linhas)[1] is None or",
+      "para": "    if no_teto(linhas)[1] is not None or",
       "testes": [
         "tests.test_hook_ordens_teto.Write.test_2001_caracteres_recusa_e_2000_passa"
       ]
