@@ -1,0 +1,58 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "VA-M16",
+      "guarda": "o módulo de teste apagado no head conta sem testes: os dele sumiram",
+      "arquivo": "bin/forge-check",
+      "de": "arvore = ast.parse(catraca.ler(raiz, ref, arq) or \"\")",
+      "para": "arvore = ast.parse(catraca.ler(raiz, ref, arq) or \"def test_m():\\n    assert g() == 1\\n\")",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_mede_por_teste_na_classe_e_no_modulo_apagado"
+      ]
+    },
+    {
+      "id": "VA-M17",
+      "guarda": "os testes das classes também são medidos",
+      "arquivo": "bin/forge-check",
+      "de": "for c in ast.walk(arvore) if isinstance(c, ast.ClassDef)]",
+      "para": "for c in ast.walk(arvore) if False]",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_mede_por_teste_na_classe_e_no_modulo_apagado"
+      ]
+    },
+    {
+      "id": "VA-M18",
+      "guarda": "as funções síncronas de teste são medidas",
+      "arquivo": "bin/forge-check",
+      "de": "if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name.startswith(\"test_\")",
+      "para": "if isinstance(n, ast.AsyncFunctionDef) and n.name.startswith(\"test_\")",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_mede_por_teste_na_classe_e_no_modulo_apagado",
+        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_recusa_teste_removido_ou_enfraquecido"
+      ]
+    },
+    {
+      "id": "VA-M19",
+      "guarda": "só os módulos Python de tests/ do diff da volta são medidos por teste",
+      "arquivo": "bin/forge-check",
+      "de": "if a.startswith(\"tests/\") and a.endswith(\".py\")]",
+      "para": "if a.startswith(\"tests/\") and a.endswith(\".txt\")]",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_mede_por_teste_na_classe_e_no_modulo_apagado",
+        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_recusa_teste_removido_ou_enfraquecido"
+      ]
+    },
+    {
+      "id": "VA-M20",
+      "guarda": "o teste que some se diz sumido, e o enfraquecido se diz enfraquecido",
+      "arquivo": "bin/forge-check",
+      "de": "(\"sumiu\" if (arq, nome) not in depois else",
+      "para": "(\"sumiu\" if (arq, nome) in antes else",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_recusa_teste_removido_ou_enfraquecido"
+      ]
+    }
+  ]
+}

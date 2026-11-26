@@ -1176,6 +1176,21 @@ class BriefDeVolta(Repositorio):
         self.assertEqual([r for _, r in linhas], [True], linhas)
         self.assertIn("não carreguei tests/catraca.py", linhas[0][0])
 
+    def test_terceira_volta_mede_por_teste_na_classe_e_no_modulo_apagado(self):  # R-QA (segurança A3): a medida por teste
+        modulo = carregar_forge_check()
+        de = self.commitar({"tests/test_k.py": "class K:\n    def test_k(self):\n        self.assertEqual(f(), 1)\n",
+                            "tests/test_m.py": "def test_m():\n    assert g() == 1\n"}, "testes")
+        fraco = self.commitar({"tests/test_k.py": "class K:\n    def test_k(self):\n        f()\n\n    def test_j(self):\n        self.assertTrue(1)\n"},
+                              "o test_k perde a asserção e o test_j novo compensa a soma")
+        linhas = [l for l, r in modulo.testes_enfraquecidos_da_volta(self.repo, "## Entregar (volta 3)\n", de, fraco) if r]
+        self.assertEqual(len(linhas), 1, linhas)
+        self.assertTrue(linhas[0].endswith("o teste tests/test_k.py::K.test_k enfraqueceu: (asserções, pulos, vazios) de (1, 0, 0) para (0, 0, 0)"), linhas)
+        git("reset", "-q", "--hard", de, cwd=self.repo)
+        git("rm", "-q", "tests/test_m.py", cwd=self.repo)
+        git("commit", "-q", "-m", "apaga o módulo", cwd=self.repo)
+        linhas = [l for l, r in modulo.testes_enfraquecidos_da_volta(self.repo, "## Entregar (volta 3)\n", de, self.head()) if r]
+        self.assertIn("o teste tests/test_m.py::test_m sumiu", " ".join(linhas))
+
     def test_conferencia_sem_branch_no_anterior_recusa(self):  # QA A1: a conferência com o anterior sem `Branch:`
         rc, saida = self.gerar()
         sem_branch = "".join(l for l in saida.splitlines(keepends=True) if not l.startswith("Branch:"))
