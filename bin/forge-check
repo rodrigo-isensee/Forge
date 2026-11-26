@@ -4748,7 +4748,7 @@ def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=N
     real = max(n, n_anterior + 1, voltas + 1)  # R-QA: a contagem do item, mesmo com a numeração contornada
     for desde, texto_da_volta in ((VOLTA_SO_DO_APONTADO, RESTRICAO_DA_VOLTA), (VOLTA_EM_DUPLA, TRABALHO_EM_DUPLA)):
         if real >= desde and texto_da_volta not in "".join(novos.get("Entregar", [])):
-            saida.append((f"volta: Entregar (volta {real} do item) sem \"{texto_da_volta}\" (R-QA); Corrigir: gere com `forge-check brief gerar --volta`", True))
+            saida.append((f"volta: Entregar (volta {sem_controle(real)} do item) sem \"{sem_controle(texto_da_volta)}\" (R-QA); Corrigir: gere com `forge-check brief gerar --volta`", True))
     for linha in [l for l in antigos.get("Fora do escopo", []) if MARCA_DE_CORTE in l]:  # o corte do dono não some na volta
         if linha.rstrip("\n") not in [l.rstrip("\n") for l in novos.get("Fora do escopo", [])]:
             saida.append((f"volta: bloco \"Fora do escopo\" perdeu o corte \"{normalizar_espacos(sem_controle(linha))[:60]}\"", True))
