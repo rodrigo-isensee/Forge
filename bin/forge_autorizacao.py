@@ -218,6 +218,8 @@ def fora_do_revisado(raiz, campos):
         return "Commit não é o head: o Ramo muda depois dele"
     achados = git(raiz, "grep", "-l", "-F", "-e", f"branch: {ramo}", ponta, "--", *PARECERES) or ""
     lidos = [(a.split(":", 1)[-1], frente(git(raiz, "show", a) or "")) for a in achados.splitlines()]
+    if any(not p for _, p in lidos):  # S5: achado sem cabeçalho legível (sem fecho, CRLF) barra em vez de sumir
+        return "Parecer sem cabeçalho legível"
     if any(p.get("branch") == ramo and not caminho.startswith(PASTA_DO_TIPO.get(p.get("tipo"), "?")) for caminho, p in lidos):
         return "Parecer com tipo fora da sua pasta"
     pareceres = [p for _, p in lidos if p.get("branch") == ramo]
@@ -248,9 +250,15 @@ def fora_do_forge(raiz):
 
 
 def frente(texto):
-    """{campo: valor} do frontmatter de um parecer (ADR 0004)."""
-    cabeca = texto.split("\n---", 1)[0] if texto.startswith("---\n") else ""
-    return dict(linha.split(": ", 1) for linha in cabeca.split("\n")[1:] if ": " in linha)
+    """{campo: valor} do frontmatter de um parecer (ADR 0004): do `---` do topo até a primeira linha só `---`, o fecho do
+    `ler_frontmatter` do forge-check (S5); `---` no começo de outra linha não fecha e, sem o fecho, vazio (o corpo não vale)."""
+    linhas = texto.split("\n")
+    if linhas[0] != "---":
+        return {}
+    for fecho, linha in enumerate(linhas[1:], 1):
+        if linha.strip() == "---":
+            return dict(campo.split(": ", 1) for campo in linhas[1:fecho] if ": " in campo)
+    return {}
 
 
 def confirmada(nome, campos, lidos, gravador):
