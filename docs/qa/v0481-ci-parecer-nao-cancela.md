@@ -3,37 +3,35 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-ci-parecer-nao-cancela
-commit: b04f02200f86582e114a45fe233dbb900a184083
+commit: 8e9f5704f52b32e0419ab0b7bbc066f17e6f013a
 parecer: reprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
-bugs_altos: 0
+bugs_altos: 1
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-26
 ---
-# QA: v0481 (CI-NAO-CANCELA-ENVIO-SO-DE-PARECER, E22.1)
+# QA: v0481 (CI-NAO-CANCELA-ENVIO-SO-DE-PARECER, E22.8, delta b04f0220..8e9f5704)
 
 ## Achados
-- A1 (bloqueante) tests/test_ci_nao_cancela_parecer.py:20 · mutante `"$id" -lt "$RUN_ID"` para `-le` sobrevive: o gh falso lista 5 6 99 e nunca o RUN_ID (10); o job cancelaria o próprio run e nenhum teste cai. Pôr `10` na lista e esperar ["5","6"].
+- A1 (bloqueante) .github/workflows/obsoletas.yml:52 · o job cancela o ci.yml do próprio head: RUN_ID é do obsoletas (id maior que o do ci irmão), então `-lt` o derruba. Provado: ci run 45847608038 (8e9f5704) cancelled pelo bot. Filtrar por head_sha != HEAD_SHA e testar run do mesmo sha com id menor.
 
 ## Critério → teste → resultado
-O pedido não tem `CA-n` de UX; as obrigações vêm do brief (E22.1) e da regra de controle de CI.
+Sem `CA-n` de UX; obrigações do brief (E22.1/E22.8).
 
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
 | Envio só de parecer não cancela | test_envio_so_de_parecer_nao_cancela_nada | docs/reviews, docs/qa, docs/security | passou |
-| Envio com código cancela só runs mais antigos | test_envio_com_codigo_cancela_so_os_runs_mais_antigos | id < RUN_ID (99 fica) | passou; mutante `-le` sobrevive (A1) |
-| Outros docs não contam | test_outros_docs_e_o_devops_nao_contam_como_parecer | prefixo `docs/reviews-x/` | passou |
-| Falha fechada (sem before, outra ação, vazio, erro da API, 300 arquivos) | test_falha_fechada_cancela_quando_nao_prova | 299/300 arquivos, API falha | passou |
-| Permissão mínima, sem injeção, fork excluído | test_concorrencia_so_cancela_fora_de_pr_e_o_job_tem_permissao_minima | `actions: write` só no job; sem `${{` no script | passou |
-| Checks exigidos sem mudança | leitura do diff: nenhum job existente alterado, `obsoletas` sem `needs` de ninguém; só o bloco `concurrency` mudou | n/a | ok |
-| Push em develop/homolog/main segue cancelando | mutante M8 (`cancel-in-progress: true`) morreu | evento != pull_request | passou |
+| Código cancela só runs mais antigos | test_envio_com_codigo_cancela_so_os_runs_mais_antigos | id < RUN_ID | passou (ver A1: o RUN_ID do fake não reproduz o do obsoletas.yml) |
+| Nunca cancela o próprio run nem run de fork | test_nunca_cancela_o_proprio_run_nem_run_de_outro_repositorio | RUN_ID, head_repository | passou; não cobre run irmão do mesmo sha (A1) |
+| Falha fechada (299/300 arquivos, API falha, vazio) | test_falha_fechada_cancela_quando_nao_prova | 299/300 | passou |
+| actions: write só em obsoletas.yml; ci.yml sem escrita; fork excluído | ObsoletasEstatico e Workflows (test_catraca) | 1 ocorrência de `actions: write` | passou |
+| ci.yml: concurrency por run em PR, push segue cancelando | mutante M14 | evento != pull_request | morreu |
 
 ## Cenários e resultado real
-- `python3 -I tests/test_ci_nao_cancela_parecer.py`: 5 testes, OK.
-- Revisão do job: entradas do evento (head_ref, sha, before, action) passam por `env:`, nunca interpoladas no script; `actions: write` só no job `obsoletas`, `contents: read` no resto; `if` exclui PR de fork; timeout 3 min; `gh api` em condição do `if` (falha cai no ramo que cancela); diff vazio vira nome vazio e cai em `so_parecer=false`.
-- Mutantes à mão (cópia descartável, script em scratchpad): M1 `-lt 300`→`-le`, M3 glob `docs/*`, M5 ação, M6 before, M7 `*)`, M8 cancel-in-progress, M9 `if` do fork, M10 `actions: read`, M11 `-gt`: todos morreram. M2 (tirar `[ -n "$arquivos" ]`): equivalente, a linha vazia já vira `so_parecer=false` no laço. M4 (`-le`): sobrevive (A1).
-- Vermelho antes do verde: o teste é novo e o `ci.yml` anterior não tem o job `obsoletas` (o `re.search` falha na base); não rodei `forge-testes --vermelho`, só as trocas manuais acima.
-- Observação do cancelamento: o envio deste parecer (só `docs/qa/`) é o caso que o job deve deixar passar; o resultado está no relatório do QA.
-- ci: não gravado. No momento da leitura, as 10 partes da suíte do head b04f0220 estavam `pending` (fila); `bateria (pareceres)` e `catraca` vermelhos são os que esperam parecer ou rótulo.
+- `python3 -I tests/test_ci_nao_cancela_parecer.py`: 6 testes, OK; `tests/test_catraca.py Workflows`: 6 testes, OK.
+- `bin/forge-mutante tests/mutantes/v0481-ci-parecer-nao-cancela.json`: M1 a M14 todos `morreu` (rev=8e9f5704f52b). Os mutantes não pegam A1: a classe "run irmão do mesmo sha" não está na lista.
+- Vermelho antes do verde: não rodei `forge-testes --vermelho`; o teste novo depende de `obsoletas.yml`, que a base não tem (falha de carga na base).
+- Observação do cancelamento (pedida no brief): envio só de parecer não foi observado neste head; observou-se o oposto, o ci.yml do próprio head cancelado pelo job (A1). O run obsoletas terminou success e o ci.yml inteiro aparece em fail por `cancelled`, não por teste.
+- ci: não gravado. Os checks do head 8e9f5704 estão vermelhos por cancelamento (causa em A1; o log não abre no sandbox, a causa vem da anotação "The run was canceled by @github-actions[bot]"). Reenviar o mesmo sha não resolve sem corrigir A1.
