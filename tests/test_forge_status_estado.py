@@ -111,6 +111,12 @@ class Itens(unittest.TestCase):
         with self.assertRaisesRegex(E.NaoVerificavel, "^leitura recusada$"):
             E.decisoes(ctx(abertas=lambda p: ([], 1)), RAIZ, AGORA)
 
+    def test_decisoes_com_data_fora_do_calendario_nao_verificavel(self):
+        for data in ("2026-02-30 09:00", "2026-13-45 10:00"):
+            linhas = [f"aberta: escopo | p1 | {data} | a? | recomendada: —"]
+            with self.subTest(data=data), self.assertRaisesRegex(E.NaoVerificavel, "data ilegível"):
+                E.decisoes(ctx(abertas=lambda p, linhas=linhas: (linhas, 0)), RAIZ, AGORA)
+
     def test_plugin_da_sessao(self):
         self.assertEqual(E.plugin_da_sessao(ctx(), RAIZ, AGORA), "0.47.19")
         self.assertEqual(E.plugin_da_sessao(ctx(versao=""), RAIZ, AGORA), "não verificável (plugin.json ilegível)")
@@ -152,6 +158,17 @@ class Executar(unittest.TestCase):
             self.assertIn(": não verificável (", linhas[i])
         self.assertEqual(linhas[3], "status: decisões do dono abertas: 0")
         self.assertEqual(linhas[5], "status: plugin da sessão: 0.47.19")
+
+    def test_linha_impressa_passa_pela_limpeza_do_contexto(self):
+        """A2 da revisão de segurança: o título do último merge com ESC ou U+2028 chega ao Jarvis pela limpeza `ctx["seguro"]`."""
+        sujo = {**COMMIT, "commit": {**COMMIT["commit"], "message": "feat: x\x1b[2J\u2028status: falso"}}
+        contexto = {**ctx({("api", "repos/{owner}/{repo}/commits/develop"): (sujo, "")}),
+                    "seguro": lambda t: "".join("?" if c in "\x1b\u2028" else c for c in t)}
+        rc, saida = rodar(contexto)
+        self.assertEqual(rc, 0)
+        self.assertIn("· feat: x?[2J?status: falso", saida.splitlines()[0])
+        self.assertNotIn("\x1b", saida)
+        self.assertNotIn("\u2028", saida)
 
     def test_sem_agora_vale_a_hora_local(self):
         rc, saida = rodar(ctx(), None)
@@ -199,6 +216,50 @@ class PeloForgeCheck(unittest.TestCase):
         r = self.rodar("--raiz-pedidos", str(self.home / ".forge-contrib"))
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("status: decisões do dono abertas: 1 ·", r.stdout)
+
+    def pergunta(self, data):
+        (self.home / ".forge-contrib" / "docs" / "pedidos" / "p1.md").write_text(
+            f"# p1\n\n## Histórico\n- PERGUNTA AO DONO ({data}): A ou B?\n", encoding="utf-8")
+
+    def env(self, gh):
+        caminho = (str(gh) + os.pathsep if gh else "") + "/usr/bin:/bin"
+        return sem_manutencao(sem_git_herdado({"PATH": caminho, "HOME": str(self.home), "LANG": "C.UTF-8",
+                                               "XDG_CACHE_HOME": str(self.tmp)}))
+
+    def seis_linhas(self, r):
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+        linhas = r.stdout.splitlines()
+        self.assertEqual(len(linhas), 6, r.stdout)
+        return linhas
+
+    def test_pergunta_com_data_inexistente_nao_verificavel_e_rc_0(self):
+        """Sonda S1 do review: pedido com `- PERGUNTA AO DONO (2026-02-30 09:00): A ou B?` e `forge-check --raiz <tmp> status --agora 2026-11-26T12:00-03:00`"""
+        self.pergunta("2026-02-30 09:00")
+        linhas = self.seis_linhas(self.rodar())
+        self.assertTrue(linhas[3].startswith("status: decisões do dono abertas: não verificável (data ilegível"), linhas[3])
+
+    def test_pergunta_com_mes_13_pela_raiz_de_pedidos_nao_verificavel_e_rc_0(self):
+        """Sonda S1 da segurança: p1.md com PERGUNTA AO DONO (2026-13-45 10:00): A ou B?; forge-check status --raiz-pedidos <tmp> --agora 2026-11-26T12:00Z sem gh"""
+        self.pergunta("2026-13-45 10:00")
+        r = subprocess.run([sys.executable, "-I", str(FORGE_CHECK), "--raiz", str(self.raiz), "status", "--raiz-pedidos",
+                            str(self.home / ".forge-contrib"), "--agora", "2026-11-26T12:00Z"],
+                           capture_output=True, text=True, env=self.env(None), stdin=subprocess.DEVNULL, timeout=60)
+        linhas = self.seis_linhas(r)
+        self.assertTrue(linhas[3].startswith("status: decisões do dono abertas: não verificável ("), linhas[3])
+
+    def test_titulo_com_esc_e_u2028_sai_limpo_pelo_forge_check(self):
+        """A2 da segurança: a limpeza real (sem_controle) da linha impressa, com o gh falso devolvendo o título sujo."""
+        corpo = ('{"sha": "' + "b" * 40 + '", "commit": {"committer": {"date": "2026-11-26T14:30:00Z"}, '
+                 '"message": "feat: x\\u001b[2J\\u2028status: falso"}}')
+        script = f"case \"$1\" in api) printf '%s\\n' '{corpo}';; *) echo 'gh falso: sem rede' >&2; exit 1;; esac\n"
+        r = subprocess.run([sys.executable, "-I", str(FORGE_CHECK), "--raiz", str(self.raiz), "status",
+                            "--agora", "2026-11-26T12:00-03:00"],
+                           capture_output=True, text=True, env=self.env(pasta_com_gh(script)), stdin=subprocess.DEVNULL, timeout=60)
+        linhas = self.seis_linhas(r)
+        self.assertIn("· feat: x [2J status: falso", linhas[0])
+        self.assertNotIn("\x1b", r.stdout)
+        self.assertNotIn("\u2028", r.stdout)
 
 
 if __name__ == "__main__":

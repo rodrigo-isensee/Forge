@@ -97,7 +97,7 @@ def decisoes(ctx, raiz, agora):
     horas = sorted(c[2] for c in abertas if len(c) > 2 and c[2] != "—")
     if not horas:
         return f"{len(abertas)} · idade não verificável (sem data)"
-    antes = dt.datetime.fromisoformat(horas[0]).replace(tzinfo=agora.tzinfo)
+    antes = instante(horas[0]).replace(tzinfo=agora.tzinfo)  # data fora do calendário (2026-02-30): NaoVerificavel
     return f"{len(abertas)} · a mais antiga {idade(antes, agora)} ({horas[0]})"
 
 
