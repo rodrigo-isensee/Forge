@@ -14,12 +14,13 @@
     },
     {
       "id": "VA-M10",
-      "guarda": "a conferência do brief da 3ª volta sem a restrição reprova",
+      "guarda": "a conferência do brief cobra a restrição da 3ª e a dupla da 4ª pela contagem do item",
       "arquivo": "bin/forge-check",
-      "de": "    if n >= VOLTA_SO_DO_APONTADO and RESTRICAO_DA_VOLTA not in",
-      "para": "    if False and RESTRICAO_DA_VOLTA not in",
+      "de": "        if real >= desde and texto_da_volta not in",
+      "para": "        if False and texto_da_volta not in",
       "testes": [
-        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_traz_a_restricao_e_a_conferencia_a_cobra"
+        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_traz_a_restricao_e_a_conferencia_a_cobra",
+        "tests.test_volta_por_delta.BriefDeVolta.test_conferencia_da_quarta_volta_cobra_o_trabalho_em_dupla_sem_decisao"
       ]
     },
     {
@@ -40,6 +41,36 @@
       "para": "    ponta = sha_do_commit(raiz, f\"origin/{branch}\")",
       "testes": [
         "tests.test_volta_por_delta.BriefDeVolta.test_brief_de_codigo_na_branch_com_parecer_reprovado_e_volta"
+      ]
+    },
+    {
+      "id": "VA-M13",
+      "guarda": "teste que perde asserção não se compensa com outra noutro teste (segurança A3, S4)",
+      "arquivo": "bin/forge-check",
+      "de": "if (arq, nome) not in depois or any(catraca._piora(forca, depois[arq, nome]))]",
+      "para": "if (arq, nome) not in depois or False]",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_recusa_teste_removido_ou_enfraquecido"
+      ]
+    },
+    {
+      "id": "VA-M14",
+      "guarda": "o brief gerado da 4ª volta em diante traz o trabalho em dupla",
+      "arquivo": "bin/forge-check",
+      "de": "    if n >= VOLTA_EM_DUPLA:  # R-QA (17:07)",
+      "para": "    if False:  # R-QA (17:07)",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_quatro_sai_sem_o_dono_com_o_trabalho_em_dupla"
+      ]
+    },
+    {
+      "id": "VA-M15",
+      "guarda": "a restrição escrita no brief vale mesmo sem o número da volta",
+      "arquivo": "bin/forge-check",
+      "de": "< VOLTA_SO_DO_APONTADO and RESTRICAO_DA_VOLTA not in brief:",
+      "para": "< VOLTA_SO_DO_APONTADO:",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_recusa_teste_removido_ou_enfraquecido"
       ]
     }
   ]

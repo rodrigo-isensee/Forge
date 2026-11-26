@@ -4,13 +4,12 @@
   "mutantes": [
     {
       "id": "VA-M1",
-      "guarda": "o teto sem o dono é 3 voltas por item (R-QA, ORDEM DO DONO 25/11 07:31)",
+      "guarda": "da 4ª volta em diante, o brief junta o tech-lead e o revisor que reprovou (R-QA, DECISÃO DO DONO 25/11 17:07)",
       "arquivo": "bin/forge-check",
-      "de": "VOLTAS_SEM_O_DONO = 3  # R-QA",
-      "para": "VOLTAS_SEM_O_DONO = 2  # R-QA",
+      "de": "VOLTA_EM_DUPLA = 4  # R-QA",
+      "para": "VOLTA_EM_DUPLA = 5  # R-QA",
       "testes": [
-        "tests.test_volta_por_delta.BriefDeVolta.test_sem_branch_nenhuma_decisao_autoriza",
-        "tests.test_volta_por_delta.BriefDeVolta.test_volta_quatro_so_com_decisao_do_dono_que_cita_a_branch"
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_quatro_sai_sem_o_dono_com_o_trabalho_em_dupla"
       ]
     },
     {
@@ -45,10 +44,10 @@
     },
     {
       "id": "VA-M5",
-      "guarda": "só o brief de código numa branch com parecer reprovado é recusado sem Volta-de",
+      "guarda": "brief que não é de portão numa branch com parecer reprovado é recusado sem Volta-de (segurança A2)",
       "arquivo": "bin/forge-check",
-      "de": "    elif tipo_do_brief(texto) == \"codigo\" and (reprovados := reprovados_da_branch(",
-      "para": "    elif tipo_do_brief(texto) != \"volta\" and (reprovados := reprovados_da_branch(",
+      "de": "    elif tipo_do_brief(texto) not in TIPOS_DE_PORTAO and (reprovados := reprovados_da_branch(",
+      "para": "    elif tipo_do_brief(texto) == \"codigo\" and (reprovados := reprovados_da_branch(",
       "testes": [
         "tests.test_volta_por_delta.BriefDeVolta.test_brief_de_codigo_na_branch_com_parecer_reprovado_e_volta"
       ]
@@ -57,7 +56,7 @@
       "id": "VA-M6",
       "guarda": "antes da 3ª volta, a conferência não mede os testes da volta",
       "arquivo": "bin/forge-check",
-      "de": "    if numero_da_volta(blocos_literais(brief)) < VOLTA_SO_DO_APONTADO:\n        return []",
+      "de": "    if numero_da_volta(blocos_literais(brief)) < VOLTA_SO_DO_APONTADO and RESTRICAO_DA_VOLTA not in brief:\n        return []",
       "para": "    if False:\n        return []",
       "testes": [
         "tests.test_volta_por_delta.BriefDeVolta.test_terceira_volta_recusa_teste_removido_ou_enfraquecido",
