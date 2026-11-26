@@ -27,54 +27,15 @@ on:
 permissions:
   contents: read
 
-# CI-NAO-CANCELA-ENVIO-SO-DE-PARECER (v0481 E22.1): em PR cada run tem o seu grupo (sem cancelamento automatico) e o job
-# "obsoletas" cancela os runs anteriores do mesmo ramo, exceto quando o envio novo so traz docs/reviews/, docs/qa/ ou
-# docs/security/ (o parecer do portao): a suite do head revisado termina e a linha ci chega ao revisor. Push nas branches de
-# integracao segue cancelando.
+# CI-NAO-CANCELA-ENVIO-SO-DE-PARECER (v0481 E22.1): em PR cada run tem o seu grupo (sem cancelamento automatico) e o workflow
+# obsoletas.yml (o unico com actions: write, fora deste arquivo) cancela os runs anteriores do mesmo ramo, exceto quando o envio
+# novo so traz docs/reviews/, docs/qa/ ou docs/security/ (o parecer do portao): a suite do head revisado termina e a linha ci
+# chega ao revisor. Push nas branches de integracao segue cancelando.
 concurrency:
   group: ci-${{ github.ref }}${{ github.event_name == 'pull_request' && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: ${{ github.event_name != 'pull_request' }}
 
 jobs:
-  obsoletas:
-    name: cancela runs obsoletos do PR
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-26.04
-    timeout-minutes: 3
-    permissions:
-      actions: write  # so gh run cancel dos runs do mesmo ramo
-      contents: read  # gh api compare
-    steps:
-      - name: Cancela os runs anteriores, salvo envio so de parecer
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          HEAD_REF: ${{ github.head_ref }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          BEFORE: ${{ github.event.before }}
-          ACAO: ${{ github.event.action }}
-          RUN_ID: ${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          so_parecer=false
-          if [ "$ACAO" = synchronize ] && [ -n "$BEFORE" ] &&
-             arquivos=$(gh api --paginate "repos/$REPO/compare/$BEFORE...$HEAD_SHA" --jq '.files[].filename') &&
-             [ -n "$arquivos" ] && [ "$(printf '%s\n' "$arquivos" | wc -l)" -lt 300 ]; then
-            so_parecer=true
-            while IFS= read -r f; do
-              case "$f" in docs/reviews/*|docs/qa/*|docs/security/*) ;; *) so_parecer=false ;; esac
-            done <<< "$arquivos"
-          fi
-          if [ "$so_parecer" = true ]; then
-            echo "envio so de parecer: os runs anteriores seguem"
-            exit 0
-          fi
-          gh run list --repo "$REPO" --workflow ci.yml --branch "$HEAD_REF" --event pull_request --limit 30 \
-            --json databaseId,status --jq '.[] | select(.status == "in_progress" or .status == "queued") | .databaseId' |
-          while IFS= read -r id; do
-            if [ "$id" -lt "$RUN_ID" ]; then gh run cancel --repo "$REPO" "$id" || echo "run $id ja terminou"; fi
-          done
-
   rapida-partes-doze:
     name: suíte (push na develop, python 3.12, parte ${{ matrix.parte }}/5)
     # CI-RAPIDO (v047): um quinto da suíte inteira por job (LPT por unidade sobre tests/pesos-d4.json, a mesma divisão do PR). O

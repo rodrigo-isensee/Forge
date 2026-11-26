@@ -1,0 +1,53 @@
+name: Obsoletas
+
+# CI-NAO-CANCELA-ENVIO-SO-DE-PARECER (v0481 E22.1): em PR o ci.yml nao cancela por concorrencia (cada run tem o seu grupo); este
+# workflow cancela os runs anteriores do ci.yml no mesmo ramo, exceto quando o envio novo so traz docs/reviews/, docs/qa/ ou
+# docs/security/ (o parecer do portao), para a suite do head revisado terminar e a linha ci chegar ao revisor. Fica fora do
+# ci.yml de proposito: o actions: write nao divide arquivo com a suite (a guarda sem escrita no ci.yml segue valendo). Nao
+# e check exigido nem entra em agregador.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  obsoletas:
+    name: cancela runs obsoletos do PR
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-26.04
+    timeout-minutes: 3
+    permissions:
+      actions: write  # so gh run cancel dos runs do mesmo ramo
+      contents: read  # gh api compare
+    steps:
+      - name: Cancela os runs anteriores, salvo envio so de parecer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          ACAO: ${{ github.event.action }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          so_parecer=false
+          if [ "$ACAO" = synchronize ] && [ -n "$BEFORE" ] &&
+             arquivos=$(gh api --paginate "repos/$REPO/compare/$BEFORE...$HEAD_SHA" --jq '.files[].filename') &&
+             [ "$(printf '%s\n' "$arquivos" | wc -l)" -lt 300 ]; then
+            so_parecer=true
+            while IFS= read -r f; do
+              case "$f" in docs/reviews/*|docs/qa/*|docs/security/*) ;; *) so_parecer=false ;; esac
+            done <<< "$arquivos"
+          fi
+          if [ "$so_parecer" = true ]; then
+            echo "envio so de parecer: os runs anteriores seguem"
+            exit 0
+          fi
+          gh api -X GET "repos/$REPO/actions/workflows/ci.yml/runs" -f branch="$HEAD_REF" -f event=pull_request -f per_page=30 \
+            --jq '.workflow_runs[] | select(.status == "in_progress" or .status == "queued") | "\(.id) \(.head_repository.full_name)"' |
+          while read -r id origem; do
+            if [ "$origem" = "$REPO" ] && [ "$id" -lt "$RUN_ID" ]; then gh run cancel --repo "$REPO" "$id" || echo "run $id ja terminou"; fi
+          done

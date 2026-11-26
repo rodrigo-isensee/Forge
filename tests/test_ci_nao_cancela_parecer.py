@@ -1,4 +1,4 @@
-"""CI-NAO-CANCELA-ENVIO-SO-DE-PARECER (v0481 E22.1): o job `obsoletas` do ci.yml cancela os runs anteriores do PR, menos quando o
+"""CI-NAO-CANCELA-ENVIO-SO-DE-PARECER (v0481 E22.1): o job `obsoletas` do obsoletas.yml cancela os runs anteriores do PR, menos quando o
 envio novo so traz docs/reviews, docs/qa ou docs/security. O script do job roda de verdade com um `gh` falso no PATH."""
 import os
 import re
@@ -12,12 +12,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
-CI = (Path(__file__).resolve().parent.parent / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+WF = Path(__file__).resolve().parent.parent / ".github" / "workflows"
+CI = (WF / "ci.yml").read_text(encoding="utf-8")
+OBS = (WF / "obsoletas.yml").read_text(encoding="utf-8")
 GH_FALSO = """#!/bin/sh
 case "$1" in
-  api) printf '%s' "$FALSO_ARQUIVOS"; [ "${FALSO_API_FALHA:-0}" = 0 ] ;;
+  api) case "$*" in
+         *compare*) printf '%s' "$FALSO_ARQUIVOS"; [ "${FALSO_API_FALHA:-0}" = 0 ] ;;
+         *) printf '%s\\n' "5 o/r" "6 o/r" "99 o/r" "10 o/r" "7 fork/r" ;;
+       esac ;;
   run) case "$2" in
-         list) printf '%s\\n' 5 6 99 ;;
          cancel) for a; do u=$a; done; echo "$u" >> "$FALSO_CANCELADOS" ;;
        esac ;;
 esac
@@ -25,8 +29,7 @@ esac
 
 
 def bloco_obsoletas():
-    m = re.search(r"(?ms)^  obsoletas:\n(.*?)^  [a-z0-9-]+:\n", CI)
-    return m.group(1)
+    return re.search(r"(?ms)^  obsoletas:\n(.*)\Z", OBS).group(1)
 
 
 def script():
@@ -43,7 +46,9 @@ class ObsoletasEstatico(unittest.TestCase):
         self.assertIn("timeout-minutes:", b)
         self.assertNotIn("${{", script())  # entrada nao confiavel so por env
         self.assertNotIn("continue-on-error", b)
-        self.assertIn("head.repo.full_name == github.repository", b)  # fork nao tem token de escrita
+        self.assertIn("    if: github.event.pull_request.head.repo.full_name == github.repository\n", b)  # fork nao tem token de escrita
+        self.assertNotIn("write", re.sub(r"(?m)^\s*#.*$", "", CI).replace("writes", ""))  # o ci.yml segue sem escrita
+        self.assertEqual(re.sub(r"(?m)^\s*#.*$", "", OBS).count("actions: write"), 1)
 
 
 class ObsoletasRoda(unittest.TestCase):
@@ -65,6 +70,10 @@ class ObsoletasRoda(unittest.TestCase):
     def test_envio_com_codigo_cancela_so_os_runs_mais_antigos(self):
         self.assertEqual(self.rodar("docs/reviews/a.md\ntests/x.py\n"), ["5", "6"])
 
+    def test_nunca_cancela_o_proprio_run_nem_run_de_outro_repositorio(self):
+        # o gh falso lista o RUN_ID (10) e um run do fork (7, mais antigo que o RUN_ID): nenhum dos dois cai
+        self.assertEqual(self.rodar("tests/x.py\n"), ["5", "6"])
+
     def test_outros_docs_e_o_devops_nao_contam_como_parecer(self):
         self.assertEqual(self.rodar("docs/devops/a.md\n"), ["5", "6"])
         self.assertEqual(self.rodar("docs/reviews-x/a.md\n"), ["5", "6"])
@@ -74,6 +83,8 @@ class ObsoletasRoda(unittest.TestCase):
         self.assertEqual(self.rodar("docs/reviews/a.md\n", acao="opened"), ["5", "6"])
         self.assertEqual(self.rodar("", ), ["5", "6"])  # diff vazio nao prova
         self.assertEqual(self.rodar("docs/reviews/a.md\n", api_falha=True), ["5", "6"])  # compare falhou
+        quase = "".join(f"docs/reviews/{i}.md\n" for i in range(299))
+        self.assertEqual(self.rodar(quase), [])  # 299 arquivos de parecer ainda provam
         grande = "".join(f"docs/reviews/{i}.md\n" for i in range(300))
         self.assertEqual(self.rodar(grande), ["5", "6"])  # compare corta em 300 arquivos
 
