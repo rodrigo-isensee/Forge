@@ -1,0 +1,19 @@
+{
+  "descricao": "Pasta sem .forge/versao nem manifesto do Forge: o ordens_teto não conta nada e não cria .forge/run/.",
+  "forge": false,
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/.forge/ordens/ordens-em-vigor.md",
+      "content": "ordem 1\nordem 2\nordem 3\nordem 4\nordem 5\nordem 6\nordem 7\nordem 8\nordem 9\nordem 10\nordem 11\nordem 12\nordem 13\nordem 14\nordem 15\nordem 16\nordem 17\nordem 18\nordem 19\nordem 20\n"
+    },
+    "tool_use_id": "toolu_1"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}
