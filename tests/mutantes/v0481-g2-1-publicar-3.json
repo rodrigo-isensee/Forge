@@ -6,16 +6,16 @@
       "id": "M17",
       "guarda": "parecer publicar: autoria do papel do tipo (M9.1)",
       "arquivo": "bin/forge-check",
-      "de": "    if not any(r.get(\"sha256\") == hash_atual and r.get(\"papel\") == papel for r in autorias(raiz) or []):",
-      "para": "    if not any(r.get(\"sha256\") == hash_atual for r in autorias(raiz) or []):",
+      "de": "or ultimo[0].get(\"papel\") != papel:",
+      "para": "or False:",
       "testes": ["tests.test_forge_pareceres.Comando.test_c11_papel_autor_publica"]
     },
     {
       "id": "M18",
       "guarda": "parecer publicar: autoria com o sha256 do texto publicado",
       "arquivo": "bin/forge-check",
-      "de": "    if not any(r.get(\"sha256\") == hash_atual and r.get(\"papel\") == papel for r in autorias(raiz) or []):",
-      "para": "    if not any(r.get(\"papel\") == papel for r in autorias(raiz) or []):",
+      "de": "or ultimo[0].get(\"sha256\") != hash_atual or ",
+      "para": "or ",
       "testes": ["tests.test_forge_pareceres.Comando.test_texto_mudado_depois_da_autoria"]
     },
     {
