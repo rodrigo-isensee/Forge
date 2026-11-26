@@ -33,3 +33,4 @@ data: 2026-11-26
 - Mutantes: bin/forge-mutante nas specs v0481-g2-publicar-caminho.json e v0481-g2-1-publicar-3.json: M38, M39, M40, M41, M42, M17, M18, M19, M20 todos "morreu", nenhum sobrevivente (M40 e M42 morrem por erro do teste sob o mutante, com controle verde).
 - O registro do hook usa o caminho relativo à raiz (hooks/conformidade.py:4083), o mesmo que o publicar passa a calcular.
 - CI do PR no head exato: "bateria (pareceres)" e "catraca" em falha (esperam parecer, conforme o brief); as 10 partes "suíte (python 3.12 e 3.14, partes 1 a 5)" estavam pending na leitura, as demais verdes. Por isso não gravo a linha ci verde: reler gh pr checks 916 quando a suíte concluir e, estando verde, gravá-la na volta.
+- ci: 0cdf17c362c8ecb59196d5234a7db013ea334e71 verde via 23f472fc35cf50e4fc7275bfc304e2c9178b1232
