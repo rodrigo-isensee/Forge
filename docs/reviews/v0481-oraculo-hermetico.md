@@ -3,40 +3,33 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-oraculo-hermetico
-commit: 2affeefe68cc7006f370800400b22276ee9f64c7
-parecer: reprovado
+commit: 7b2c4cbde05813f9b68efa53cbf39631870b5cc9
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-26
 ---
-# Review: v0481 (E27.2, testes herméticos do oráculo do sempre-atual)
+# Review: v0481 (E27.6, testes herméticos do oráculo do sempre-atual, volta 1)
 
-1ª rodada completa no 2affeefe, diff contra a develop 707fea56 (4 arquivos, +41 -25, só testes e fragmento de changelog).
-
-## Achados
-
-- A1 (bloqueante) tests/sem_claude_ancestral.py:67 · Com --proc o oráculo troca PROC e proc_coerente por dublê em todos os casos; nenhum teste lê mais o /proc real. Mutante PROC="/proc-nao-existe" (produção adiaria tudo) passa no oráculo (59 OK) e no test_sempre_atual (142 OK); na base o oráculo no CI o mata (S1)
-- A2 (recomendado) tests/test_oraculo_sempre_atual.py:24 · O "Limite conhecido" (a ocupação olha o /proc inteiro) e o cabeçalho de tests/test_sempre_atual.py:2 (o oráculo cobre com /proc de verdade) ficaram falsos com a árvore do teste
-- A3 (recomendado) tests/sem_claude_ancestral.py:49 · A mensagem de uso não cita [--proc]; --proc sem valor ou sem script depois cai em IndexError (linha 52) em vez da mensagem de uso
-
-## Sondas
-
-- S1 · 2affeefe com bin/forge_sempre_atual.py:33 PROC = "/proc-nao-existe"; unittest tests.test_oraculo_sempre_atual e tests.test_sempre_atual · espera: ao menos uma falha (adiaria tudo por duvida:proc) · obtido: 59 OK e 142 OK
+Revalidação por delta (H3, R-REVIEW) do 7b2c4cbd, volta 1 do autor (E27.5) sobre o parecer reprovado do 2affeefe (E27.2).
 
 ## Parecer
 
-Reprovado, por um bloqueante (A1).
+Aprovado. Os três achados da 1ª rodada (A1 bloqueante, A2 e A3 recomendados) estão resolvidos, e o delta não traz achado novo.
 
-O que está certo:
-- Nenhum teste apagado, pulado nem renomeado. A única asserção removida é a de preparo em `vivo()` (comm lido do /proc real), trocada pela montagem determinística da árvore. Cada caso continua afirmando o mesmo comportamento: adia com `claude` ou `forge-fechar` vivo no escopo, e o processo de verdade segue vivo.
-- Código de produção intocado (`git diff 707fea56...2affeefe -- bin` vazio). A costura é só do lançador de teste, que nenhum script do Forge lê.
-- `ForgeCheck.test_raiz_depois_do_subcomando_e_git_isolado`: o `gh` falso de "sem PR" mantém as três afirmações (rc 0, veredito aprovado, stderr vazio) e tira a dependência de credencial.
-- Testes afetados rodados no sandbox do Bash, no meu clone, no 2affeefe: `tests.test_oraculo_sempre_atual` mais o caso do `test_forge`, 60 testes OK em 139 s (na base, segundo o pedido, falham 40).
-- Tamanho: zero linha de código de produção. As guardas mudadas (`if proc:`, `if resto[0] == "--proc"`) são do lançador de teste, não código de controle da classe C, então não pedem mutante declarado.
+- ci: 7b2c4cbde05813f9b68efa53cbf39631870b5cc9 verde
 
-A1, a perda de cobertura: antes, o oráculo rodava no CI sobre o `/proc` da máquina. Era o único teste da suíte que provava, de ponta a ponta, que `PROC = "/proc"` e `proc_coerente()` dão "coerente" num `/proc` de verdade. O `test_sempre_atual` só usa árvore falsa (`mock.patch.object(fsa, "PROC", ...)`). Agora o lançador força `proc_coerente = lambda: True` e a pasta do teste sempre, e um defeito que fizesse a ferramenta adiar tudo em produção (S1) passa verde em toda a suíte. Isso fere o critério do brief: o que cada teste afirma continua afirmado. Sugestões, à escolha do autor:
-- (a) Um caso que rode no CI sobre o `/proc` real: a ferramenta pelo lançador sem `--proc`, com um `claude` falso vivo, afirmando o `adiado` com a pasta dele. No sandbox ele dá `duvida:proc` e precisa de tratamento explícito, sem pular em silêncio no CI.
-- (b) Um teste do núcleo que chame `fsa.proc_coerente()` e `fsa.processos_de_interesse()` sem dublê e afirme o resultado conforme o namespace, comparando `os.readlink("/proc/self")` com `os.getpid()`. Ele tem de matar o mutante da S1 no CI.
+Delta lido: `forge-check parecer delta` deu o intervalo `2affeefe..7b2c4cbd`, com o domínio em `tests/sem_claude_ancestral.py`, `tests/test_oraculo_sempre_atual.py` e `tests/test_sempre_atual.py` (+38 -6, commit 7b2c4cbd). Os commits de parecer do intervalo (c930e8a4 segurança, f4eded88 review) ficam fora do domínio. O restante da branch foi lido na 1ª rodada (2affeefe) e não mudou. Código de produção continua intocado (`bin/` sem diff contra a base 707fea56).
 
-A2 e A3 são recomendados e viram cartão depois do merge, salvo se o autor os resolver junto na volta.
+A1 (o `/proc` real sem cobertura) está resolvido pela sugestão (b). `ProcReal.test_proc_real_e_coerente_so_no_nosso_namespace_e_enxerga_um_claude_vivo` chama `fsa.proc_coerente()` e `fsa.processos_de_interesse()` sem dublê, com um `claude` vivo de verdade (link para o Python, cwd numa pasta temporária). A verdade vem à parte: `os.readlink("/proc/self") == str(os.getpid())`, lido no `/proc` literal e não na `PROC` de produção.
+- No CI o namespace é o nosso. O oráculo da base já provava isso: rodava `adiado` sobre o `/proc` real e matava o mutante (S1 da 1ª rodada). Com o mutante `PROC = "/proc-nao-existe"`, `proc_coerente()` devolve False contra `nosso` True, e a asserção de `tests/test_sempre_atual.py:103` falha. O mutante morre no CI pelo ProcReal. Isso é dedução do código e do namespace do CI: não houve run do mutante no CI, porque um run pago não se gasta para isso (R-CUSTO).
+- No sandbox do Bash (`/proc/self` → 10, pid 3) o teste toma o ramo da dúvida, sem skip. Rodei as sondas no meu clone. `PROC = "/proc-nao-existe"` passa no sandbox, o que é esperado: lá a produção também dá dúvida. `proc_coerente` trocado por `return True` falha (1 falha). Então o teste também não é vazio no sandbox.
+- No CI do head, `tests.test_sempre_atual` rodou na `suíte (python 3.12, parte 5/5)`, com 1387 testes OK, e também nas partes do 3.14, todas verdes.
+- A asserção de preparo de `vivo()` voltou em `tests/test_oraculo_sempre_atual.py:480`. Ela lê da árvore do teste o `comm`, o `cwd` e o processo vivo, e assim repõe a asserção que a 1ª rodada notou como a única removida.
 
-CI: a branch ainda não tem PR (E27.3), então não há run do 2affeefe e a linha `ci` não é gravada. A próxima rodada pede o PR em rascunho aberto e o CI do head verde.
+A2 está resolvido: o "Limite conhecido" do oráculo e o cabeçalho do `test_sempre_atual` agora descrevem a árvore do teste e apontam o `ProcReal`. A3 está resolvido: a mensagem de uso cita `[--proc <pasta>]`, e `--proc` sem pasta ou sem script sai com a mensagem de uso, rc 1, sem IndexError (sondado: `sem_claude_ancestral.py --ate 1 --proc x` → uso, rc=1).
+
+Testes afetados, no sandbox do Bash, no 7b2c4cbd: `python3 -m unittest tests.test_sempre_atual tests.test_oraculo_sempre_atual` → "Ran 202 tests in 339.990s OK". A suíte inteira ficou com o CI.
+
+Guardas mudadas: só `if len(resto) < 3` do lançador de teste, que não é código de controle da classe C (sem mutante declarado, como na 1ª rodada). O ramo de falha foi sondado acima.
+
+CI do PR #922 no 7b2c4cbd: todos os checks concluídos verdes (suíte 3.12 e 3.14 nas 5 partes, instalação, teto de pulados, bateria passos e verificações longas, catraca, árvore já provada), fora `bateria` e `bateria (pareceres)`, que esperam o parecer.
