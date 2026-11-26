@@ -46,6 +46,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `forge_medidas.py` | `forge-check medida` (D12, E3a e E3b) e `forge-check escape registrar\|resumo` (M14b) (FILA-31 F6, 0.45.7 E5.5): a medida de um |
 | `forge_meta.py` | arma o objetivo que o hook de Stop (hooks/meta.py) confere (S4, 0.44.2). Só biblioteca padrão. |
 | `forge_onde.py` | `forge-check onde <alvo>` (AE1.1, v0478 E58.1): onde está uma versão, um PR, um commit, uma branch ou um cartão, lido |
+| `forge_pareceres.py` | G2.1 (pedido v0481, ADR 0019): só a escrita do parecer de portão como comentário do PR e status do commit, pelo `gh` da sessão |
 | `forge_pronto.py` | `forge-check pronto`, o portão de entrega do autor (D2-PORTAO-ENTREGA-AUTOR, v0481 E11.1; estudo determinístico de 24/11). |
 | `forge_provas.py` | o arquivo de provas da branch, gerado do brief pela lista do script que o CI roda (M15 E5a1; FILA-31 F6, 0.45.5). |
 | `forge_quarentena.py` | a quarentena de teste instável (BP1 Q1, pedido v0478). Só biblioteca padrão; só leitura. |
@@ -76,6 +77,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `parecer.py` | parecer de review e de QA antes de PR e de merge (ADR 0003, R-REVIEW, R-QA). |
 | `pesado.py` | tarefa pesada uma de cada vez (ADR 0003, R-TETO). |
 | `quadro.py` | quadro válido após edição (ADR 0003, R-WIP). |
+| `salvar.py` | salvar (D6-SESSAO-NAO-PERDE, parte a; v0481 E11.2) - ao parar, o trabalho em andamento do agente vira commit na cópia. |
 | `vigia.py` | vigia (ADR 0009, seção 8) - detecta o que escapou dos bloqueios e avisa o USUÁRIO, não o modelo. |
 
 ## `scripts/`

@@ -1,0 +1,22 @@
+{
+  "descricao": "V0481-PUBLICAR: sessão de projeto, forge-check --raiz no clone de contribuição do Forge: o gh usa o repositório da raiz.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "forge-check --raiz ~/.forge-contrib/proj parecer publicar .forge/pareceres/v1/review.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: forge-check parecer publicar"
+  }
+}

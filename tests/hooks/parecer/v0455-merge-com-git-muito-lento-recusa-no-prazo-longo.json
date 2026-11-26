@@ -69,8 +69,8 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "R-REVIEW: o hook não decidiu em 8 s",
-    "erros_log": "prazo de 8 s da decisão vencido"
+    "stderr": "R-REVIEW: o hook não decidiu em 7.5 s",
+    "erros_log": "prazo de 7.5 s da decisão vencido"
   },
   "executaveis": [
     "lento/git"

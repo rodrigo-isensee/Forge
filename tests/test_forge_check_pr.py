@@ -521,5 +521,96 @@ class LeOCiNoCmdPr(ProvaDaSuiteBase):
         self.assertTrue(fc.cobra_a_linha_do_ci(self.tmp, {}))
 
 
+# ---- G3.7 (v0481 E8.10): `- ci: <sha40 do commit:> verde via <sha40 do descendente>` ----------------------------------------------
+# O envio de um parecer cancela o run do `Revisar-sha`; vale o run verde de um descendente cujo diff só toca as pastas dos pareceres.
+PARECERES_SO = {"docs/reviews/p0.md": "r\n", "docs/qa/p0.md": "q\n", "docs/security/p0.md": "s\n"}
+
+
+class LeOCiVia(ProvaDaSuiteBase):
+    def preparar(self, depois=None):
+        """O `commit:` revisado (com a regra) e um descendente que soma `depois` (por padrão, só pareceres)."""
+        self.entregar()
+        self.head = self.commitar({"bin/forge-check": "# PARECER-LE-O-CI\n"}, "regra")
+        self.desc = self.commitar(PARECERES_SO if depois is None else depois, "pareceres")
+
+    def vale(self, linha, commit=None):
+        return fc.leu_o_ci_via(self.tmp, {"commit": self.head if commit is None else commit}, linha)
+
+    def test_descendente_so_de_pareceres_vale(self):
+        self.preparar()
+        self.assertTrue(self.vale(f"x\n- ci: {self.head} verde via {self.desc}\n"))
+        self.assertTrue(self.vale(f"- ci: {self.head} verde via {self.desc} \n", commit=self.head[:12]))  # `commit:` curto
+        self.assertTrue(fc.so_pareceres_ate(self.tmp, self.head, self.head))  # o próprio sha: diff vazio
+
+    def test_outro_caminho_no_diff_nao_vale(self):
+        self.preparar({"docs/reviews/p0.md": "r\n", "bin/forge-x": "print(2)\n"})
+        self.assertFalse(self.vale(f"- ci: {self.head} verde via {self.desc}\n"))
+
+    def test_branco_no_inicio_do_caminho_nao_vale(self):
+        # A1 do #895: o 1º caminho do `-z` não perde o espaço, o tab nem a quebra de linha iniciais (pasta fora das três)
+        self.preparar()
+        for nome in (" docs/reviews/x.py", "\tdocs/security/x.py", "\ndocs/qa/x.py"):
+            with self.subTest(nome=nome):
+                git("reset", "-q", "--hard", self.head, cwd=self.tmp)  # um caminho por vez, sobre o `commit:`
+                desc = self.commitar({nome: "print(1)\n"}, "branco")
+                self.assertFalse(fc.so_pareceres_ate(self.tmp, self.head, desc))
+
+    def test_gitlink_fora_das_pastas_nao_some(self):
+        # recomendado do QA no #895: `diff.ignoreSubmodules=all` na configuração não esconde o gitlink
+        self.preparar()
+        git("config", "diff.ignoreSubmodules", "all", cwd=self.tmp)
+        git("update-index", "--add", "--cacheinfo", f"160000,{self.base},bin/sub", cwd=self.tmp)
+        git("commit", "-q", "-m", "gitlink", cwd=self.tmp)
+        self.assertFalse(fc.so_pareceres_ate(self.tmp, self.head, git("rev-parse", "HEAD", cwd=self.tmp)))
+
+    def test_renomeacao_para_a_pasta_do_parecer_nao_vale(self):
+        self.preparar()
+        git("mv", "bin/forge-x", "docs/reviews/forge-x", cwd=self.tmp)
+        git("commit", "-q", "-m", "mv", cwd=self.tmp)
+        desc = git("rev-parse", "HEAD", cwd=self.tmp)
+        self.assertFalse(self.vale(f"- ci: {self.head} verde via {desc}\n"))
+
+    def test_nao_descendente_ou_sha_inexistente_nao_vale(self):
+        self.preparar()
+        # a mesma árvore do descendente sobre a base: o diff só toca pareceres, mas não descende do `commit:`
+        irmao = git("commit-tree", f"{self.desc}^{{tree}}", "-p", self.base, "-m", "irmao", cwd=self.tmp)
+        for via in (irmao, self.base, "f" * 40):
+            with self.subTest(via=via):
+                self.assertFalse(self.vale(f"- ci: {self.head} verde via {via}\n"))
+
+    def test_outro_sha_outro_estado_ou_commit_invalido_nao_vale(self):
+        self.preparar()
+        self.assertFalse(self.vale(f"- ci: {self.desc} verde via {self.desc}\n"))  # o primeiro sha não é o `commit:`
+        self.assertFalse(self.vale(f"- ci: {self.head} vermelho via {self.desc}\n"))
+        self.assertFalse(self.vale(f"- ci: {self.head} verde via {self.desc}, falta o e2e\n"))
+        self.assertFalse(self.vale(f"- ci: {self.head} verde via {self.desc}\n", commit=""))  # vazio é prefixo de tudo
+        self.assertFalse(self.vale(f"- ci: {self.head} verde via {self.desc}\n", commit="zz"))
+        self.assertFalse(fc.leu_o_ci_via(self.tmp, {}, f"- ci: {self.head} verde via {self.desc}\n"))  # parecer sem `commit:`
+
+    def test_erro_do_git_diff_falha_fechado(self):
+        self.preparar()
+        real = fc.git
+
+        def git_falso(raiz, *args, **kw):
+            return (128, b"") if args[0] == "diff" else real(raiz, *args, **kw)
+        with mock.patch.object(fc, "git", git_falso):
+            self.assertFalse(fc.so_pareceres_ate(self.tmp, self.head, self.desc))
+
+    def pr(self, linha):
+        self.commitar({"docs/reviews/p1.md": REVIEW.format(c=self.head, prova=linha)}, "review")
+        with mock.patch.object(fc, "ci_verde_no_head", return_value=True), contextlib.redirect_stderr(io.StringIO()):
+            return [l for l in fc.cmd_pr(self.tmp, "p1", None, self.base, "melhoria/x", suite=False) if "PARECER-LE-O-CI" in l]
+
+    def test_cmd_pr_aceita_o_via_so_de_pareceres(self):
+        self.preparar()
+        self.assertEqual(self.pr(f"- ci: {self.head} verde via {self.desc}\n"), [])
+
+    def test_cmd_pr_recusa_o_via_que_nao_descende(self):
+        self.preparar()  # código depois do `commit:` já deixa o parecer desatualizado; aqui, o `via` é a base (ancestral)
+        linhas = self.pr(f"- ci: {self.head} verde via {self.base}\n")
+        self.assertEqual(len(linhas), 1, linhas)
+        self.assertIn("verde via", linhas[0])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,19 @@
+{
+  "descricao": "D6 (a), v0481 E11.2: SubagentStop sem o transcrito do agente (sem prompt, sem brief): o salvar não faz commit nem cria .forge/run/.",
+  "arquivos": {
+    "hooks/x.py": "x = 1\n"
+  },
+  "entrada": {
+    "hook_event_name": "SubagentStop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "agent_id": "a1",
+    "agent_type": "forge:tech-lead",
+    "agent_transcript_path": "{tmp}/nao-existe.jsonl",
+    "stop_hook_active": false
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

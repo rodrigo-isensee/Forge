@@ -9,12 +9,18 @@ ficou não verificável (o passo que saiu 2 ou o corpo que o gh não leu), nunca
 (quem chama passa a base comum, o tamanho e o corpo).
 """
 import os
+import re
 import subprocess
 import sys
 
 import forge_tamanho
 
 LINHAS_DA_SAIDA = 40  # o fim da saída da checagem reprovada, no stderr
+# PR-TITULO-DO-BRIEF (v0481 E14.51): a linha da etapa do brief (`E<n>.<m> (papel): [branch ...] ...`) não é título de PR
+TITULO_DO_BRIEF = re.compile(r"^\s*E\d+(?:\.\d+)*\s*\([^)]*\)\s*:|\[branch\s")
+VERSAO = re.compile(r'"version"\s*:\s*"([^"]+)"')
+RAMO_BUSCAVEL = re.compile(r"[A-Za-z0-9._/-]+")  # o ramo da `origin/<ramo>` que vai ao `git fetch` (como o forge-testes --registros)
+PRAZO_DA_BUSCA_S = 60
 
 
 def passos(base):
@@ -35,11 +41,38 @@ def rodar(raiz, argv, env=None):
     return r.returncode, r.stdout + r.stderr
 
 
-def tamanho_e_corpo(raiz, ancora, total, corpo):
-    """Falhas do teto H1 e do pr-texto da catraca sobre o `corpo` do PR; `corpo` None (sem --corpo e sem PR aberto) reprova."""
+def versao_em(raiz, ref):
+    """A `version` do .claude-plugin/plugin.json em `ref`, ou None (sem o arquivo, fora do Forge, ou ref que o git não lê)."""
+    rc, saida = rodar(raiz, ["git", "show", f"{ref}:.claude-plugin/plugin.json"])
+    return None if rc else next(iter(VERSAO.findall(saida)), None)
+
+
+def base_velha(raiz, base, ancora):
+    """PRONTO-BASE-VELHA (v0481 E14.51): o texto que manda trazer a base quando ela ganhou uma marca de versão depois que a branch
+    nasceu (a versão na `base` difere da do ponto comum `ancora`); senão None. Busca a `origin/<ramo>` antes; sem rede, a base local."""
+    remoto, _, ramo = base.partition("/")
+    if remoto == "origin" and RAMO_BUSCAVEL.fullmatch(ramo) and not ramo.startswith("-") and ".." not in ramo:
+        try:
+            subprocess.run(["git", "fetch", "-q", "--end-of-options", "origin", ramo], cwd=raiz, capture_output=True,
+                           stdin=subprocess.DEVNULL, timeout=PRAZO_DA_BUSCA_S)
+        except (OSError, subprocess.TimeoutExpired):
+            pass  # sem rede: compara com a base local, como o --registros
+    agora, nascimento = versao_em(raiz, base), versao_em(raiz, ancora)
+    if agora and nascimento and agora != nascimento:
+        return (f"base velha: a {base} tem a marca da {agora} e a branch nasceu na {nascimento}; traga a base (git merge {base}) "
+                "e rode o pronto de novo")
+    return None
+
+
+def tamanho_e_corpo(raiz, ancora, total, corpo, titulo=None):
+    """Falhas do teto H1, do título (PR-TITULO-DO-BRIEF) e do pr-texto da catraca sobre o `corpo` do PR; `corpo` None (sem --corpo
+    e sem PR aberto) reprova."""
     if corpo is None:
         return ["corpo do PR não conferido: passe --corpo <o arquivo do --body-file> ou abra o PR em rascunho antes"]
     falhas = []
+    if titulo and TITULO_DO_BRIEF.search(titulo):
+        falhas.append(f"título do PR é a linha da etapa do brief ({titulo.strip()[:80]}); use o título do Entregar, em Conventional "
+                      "Commits (PR-TITULO-DO-BRIEF)")
     if not forge_tamanho.tem_motivo(corpo, total) and (aviso := forge_tamanho.aviso_de_linhas(total)):
         falhas.append(aviso)
     rc, saida = rodar(raiz, [sys.executable, "-I", "tests/catraca.py", "--modo", "pr-texto", "--base", ancora],
@@ -49,7 +82,7 @@ def tamanho_e_corpo(raiz, ancora, total, corpo):
     return falhas
 
 
-def conferir(raiz, base, ancora, total, corpo, lista=None, sem_corpo=None):
+def conferir(raiz, base, ancora, total, corpo, lista=None, sem_corpo=None, titulo=None):
     """Roda os `passos` (ou a `lista` dada) e o teto com o corpo; uma linha `pronto:` por checagem. Devolve 0, 1 ou 2: o passo que sai 2
     e o corpo ausente com `sem_corpo` (o motivo do gh em erro) ficam não verificáveis; reprovada vence, e nenhum dos dois vira 0."""
     reprovadas, nao_verificaveis = [], []
@@ -60,7 +93,7 @@ def conferir(raiz, base, ancora, total, corpo, lista=None, sem_corpo=None):
         if rc:
             print("\n".join(saida.rstrip().splitlines()[-LINHAS_DA_SAIDA:]), file=sys.stderr)
             (nao_verificaveis if rc == 2 else reprovadas).append(nome)
-    falhas = None if corpo is None and sem_corpo else tamanho_e_corpo(raiz, ancora, total, corpo)
+    falhas = None if corpo is None and sem_corpo else tamanho_e_corpo(raiz, ancora, total, corpo, titulo)
     if falhas is None:  # o gh em erro sem --corpo: o corpo fica não verificável, nunca passa
         print(f"pronto: tamanho e corpo do PR: não verificável ({sem_corpo}); passe --corpo <o arquivo do --body-file>")
         nao_verificaveis.append("tamanho e corpo do PR")

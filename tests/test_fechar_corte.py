@@ -5,6 +5,7 @@ rascunho. O --laco que termina com 0 roda o --corte no fim.
 Reaproveita o ambiente de `test_fechar.Fechar` (repositório temporário com remoto bare e `git` falso) com `gh` e item falsos próprios; o
 `forge-contador` e o `forge-changelog` são os de verdade, ao lado do script.
 """
+import hashlib
 import json
 import subprocess
 import sys
@@ -454,6 +455,90 @@ class Corte(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertIn("aviso: não li os rótulos da promoção da 0.9.1; confira se o PR da main pede afrouxa-regra.", r.stderr)
         self.assertIn("[V4]", r.stdout)
+
+
+# AUTORIZACOES-FIXAS (v0481 E14.52): a corte-diario gravada como o forge-check a grava, lida pelo forge-check de verdade.
+FALA_FIXA = "autorizo o corte diario fixo"
+GRAVADOR = hashlib.sha256((base.RAIZ / "bin" / "forge-check").read_bytes()).hexdigest()
+CHECK_REAL = f'#!/usr/bin/env bash\nexec python3 -I "{base.RAIZ / "bin" / "forge-check"}" "$@"\n'
+AS_06, AS_0559, AS_07_DO_DIA_DA_0_9_0 = "1795586400", "1795586340", "1767250800"  # 25/11 06:00 e 05:59, 01/01 07:00 (UTC)
+
+
+def corte_diario(**troca):
+    campos = {"Id": "A-1", "Ato": "corte-diario", "Alvos": "fixo", "Validade": "fixa", "Validade-utc": "fixa", "Fuso": "UTC",
+              "Origem-da-validade": "sem prazo", "Estado-inicial": "ativa", "Motivo-da-pendencia": "nenhum", "Mensagem": "u-1",
+              "Hora-da-fala": "2026-11-18T00:00:00Z", "Sessao": "s-1", "Pedido": "v0481",
+              "Sha256": hashlib.sha256(FALA_FIXA.encode()).hexdigest(), "Gravado-por": GRAVADOR,
+              "Autoriza": "só o ato e os alvos acima, até a validade; não amplia outra regra (R-DECISAO)", **troca}
+    return "".join(f"{k}: {v}\n" for k, v in campos.items()) + "\n" + FALA_FIXA
+
+
+class CorteDiario(unittest.TestCase):
+    """F3 da emenda AUTORIZACOES-FIXAS: abaixo do teto, o --corte corta a partir das 06:00 locais, uma vez por dia, com item e só com
+    a corte-diario ativa, gravada no corpo do PR da marca; faltando qualquer um, nada muda."""
+    tearDown, git, fechar, chamadas = base.Fechar.tearDown, base.Fechar.git, base.Fechar.fechar, base.Fechar.chamadas
+    versao, fragmentos, gh, no_origin, sem_merge = Corte.versao, Corte.fragmentos, Corte.gh, Corte.no_origin, Corte.sem_merge
+
+    def setUp(self):
+        Corte.setUp(self)
+        (self.tmp / "check_real").write_text(CHECK_REAL, encoding="utf-8")
+        (self.tmp / "check_real").chmod(0o755)
+        (self.proj / ".forge" / "autorizacoes").mkdir(mode=0o700)
+        (self.proj / ".forge" / "autorizacoes" / "A-1").write_text(corte_diario(), encoding="utf-8")
+
+    def cortar(self, agora=AS_06, check=None):
+        return self.fechar("--corte", FORGE_FECHAR_AGORA=agora, TZ="UTC", FORGE_CHECK=check or str(self.tmp / "check_real"))
+
+    def nao_corta(self, r, motivo):
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("corte: a 0.9.1 ainda não fecha.", r.stdout)
+        self.assertIn(motivo, r.stderr)
+        self.assertEqual(self.gh("gh pr create"), [])
+        self.assertEqual(self.no_origin(MARCA), "")
+
+    def test_abaixo_do_teto_as_06h_corta_e_grava_a_autorizacao_no_corpo(self):
+        self.fragmentos(1)
+        r = self.cortar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        usada = f"A-1 sha256 {hashlib.sha256(FALA_FIXA.encode()).hexdigest()} · corte-diario · fixo"
+        self.assertIn(f"corte diário abaixo do teto, pela autorização {usada}", r.stdout)
+        self.assertEqual(len(self.gh("gh pr create --draft --base develop --head melhoria/marca-0.9.1 ")), 1)
+        self.assertIn(f"## Autorização usada (corte diário abaixo do teto, emenda AUTORIZACOES-FIXAS da ADR 0018)\n{usada}\n",
+                      self.registro.read_text())
+        self.assertNotEqual(self.no_origin(MARCA), "")
+        self.sem_merge()
+
+    def test_no_teto_o_corpo_nao_cita_autorizacao(self):
+        self.fragmentos(2)
+        r = self.cortar(check=str(self.tmp / "check"))  # o falso anota a chamada: no teto, o forge-check nem é lido
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertNotIn("## Autorização usada", self.registro.read_text())
+        self.assertEqual([c for c in self.chamadas() if c.startswith("forge-check")], [])
+
+    def test_sem_item_nao_corta(self):
+        self.nao_corta(self.cortar(), "corte: nenhum item na develop para o corte diário.")
+
+    def test_antes_das_06h_relogio_ilegivel_ou_versao_de_hoje_nao_corta(self):
+        self.fragmentos(1)
+        for agora, motivo in ((AS_0559, "só sai a partir das 06:00 locais (agora 0559)"), ("x", "corte: relógio ilegível."),
+                              (AS_07_DO_DIA_DA_0_9_0, "a develop já tem versão de hoje (2026-01-01)")):
+            with self.subTest(agora=agora):
+                self.nao_corta(self.cortar(agora), motivo)
+
+    def test_sem_corte_diario_ativa_ou_saida_fora_da_forma_nao_corta(self):
+        self.fragmentos(1)
+        self.nao_corta(self.cortar(check=str(self.tmp / "check")), "corte: autorização corte-diario fora da forma.")
+        (self.proj / ".forge" / "autorizacoes" / "A-1").write_text(corte_diario(Ato="merge-main"), encoding="utf-8")
+        self.nao_corta(self.cortar(), "corte: autorizacao: nenhuma corte-diario ativa")
+        (self.proj / ".forge" / "autorizacoes" / "A-1").unlink()
+        self.nao_corta(self.cortar(), "corte: autorizacao: nenhuma corte-diario ativa")
+
+    def test_changelog_ilegivel_na_develop_nao_corta(self):
+        self.fragmentos(1)
+        self.git("rm", "-q", "CHANGELOG.md")
+        self.git("commit", "-q", "-m", "sem changelog")
+        self.git("push", "-q", "origin", "develop")
+        self.nao_corta(self.cortar(), "ou o CHANGELOG.md não foi lido")
 
 
 if __name__ == "__main__":

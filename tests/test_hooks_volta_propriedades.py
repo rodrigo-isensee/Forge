@@ -29,10 +29,13 @@ import test_hooks  # noqa: E402
 
 # TESTE-T-VIGIA-PAREDE (L31): o teste do vigia mede a parede só do hook (de dentro do lançador, depois de subir o
 # interpretador e importar o `_comum`) e a CPU do processo (`MedidaDeCpu`); o teto segue o de sempre, e a fila da
-# máquina carregada não o estoura.
+# máquina carregada não o estoura. Desde o E7.40 o prazo do hook conta da partida do processo (`idade_do_processo`);
+# aqui ele conta do mesmo ponto da medida, e a partida real sob atraso tem a prova de parede própria
+# (`PrazoVencidoNaSessaoDoForge.test_partida_lenta_recusa_o_merge_antes_do_corte`).
 LANCADOR_MEDIDO = test_hooks.LANCADOR.replace(
     'runpy.run_path(sys.argv[0], run_name="__main__")',
-    "inicio_do_hook = time.monotonic()\ntry:\n    runpy.run_path(sys.argv[0], run_name='__main__')\n"
+    "inicio_do_hook = time.monotonic()\n_comum.idade_do_processo = lambda nome: time.monotonic() - inicio_do_hook\n"
+    "try:\n    runpy.run_path(sys.argv[0], run_name='__main__')\n"
     "finally:\n    open(os.environ['FORGE_MEDIDA_DO_HOOK'], 'w').write(repr(time.monotonic() - inicio_do_hook))").replace(
     "import runpy, sys, time", "import os, runpy, sys, time")
 
@@ -327,7 +330,8 @@ class VigiaAgentesPesado(unittest.TestCase):
                         _comum.executar(modulo.__name__, lambda hook, s=passo: relogio.dormir(s), clone_do_forge=True,
                                         regra_do_prazo="R-TETO", prazo_do_hook=prazo, relogio=relogio, armar=relogio.armar)
                     self.assertEqual(saida.exception.code, codigo, erro.getvalue())
-                    self.assertEqual(relogio.armados, [prazo, 0])
+                    sessao = [_comum.PRAZO_DA_SESSAO_S, 0] * 2 if codigo else []  # E7.23: a sessão e o registro (E7.27)
+                    self.assertEqual(relogio.armados, [prazo, 0, *sessao])
                     if codigo:
                         self.assertRegex(erro.getvalue(), f"^R-TETO: o hook não decidiu em {prazo:g} s ")
 

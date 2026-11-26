@@ -494,5 +494,49 @@ class ConcessaoSolta(Base):
         self.nada_gravado(*self.gravar(alvos="item:PV-A2", ramo="-c"))
 
 
+class AtosFixos(Base):
+    """Emenda AUTORIZACOES-FIXAS da ADR 0018 (F1 e F2): o texto limpo grava `fixa` e `ativa`; alvo marcado, termo de validade,
+    ressalva ou outro ato no texto nascem pendentes; o vocabulário novo vale só para os atos fixos."""
+
+    def lida(self, i, texto, ato, alvos="fixo"):
+        uuid = f"{i:08d}-5555-4000-8000-000000000000"
+        self.falar(registro(texto, uuid=uuid))
+        rc, saida = self.gravar(ato=ato, alvos=alvos, uuid=uuid)
+        self.assertEqual(rc, 0, saida)
+        return self.lidas("2036-11-18 00:01")[-1]
+
+    def test_texto_limpo_grava_fixa_e_ativa_sem_vencer(self):
+        for i, (texto, ato) in enumerate((("Autorizo o corte diário fixo.", "corte-diario"),
+                                          ("autorizo aperta com segurança por escrito, fixo", "so-aperta-com-seguranca"))):
+            with self.subTest(ato=ato):
+                _, campos, corpo, est, motivo = self.lida(i, texto, ato)
+                self.assertEqual((corpo, est, motivo, campos["Ato"], campos["Alvos"]), (texto, "ativa", "", ato, "fixo"))
+                self.assertEqual((campos["Validade"], campos["Validade-utc"], campos["Origem-da-validade"]), ("fixa", "fixa", "sem prazo"))
+
+    def test_alvo_validade_ressalva_ou_outro_ato_nascem_pendentes(self):
+        casos = (("autorizo o corte diario ate amanha", "termo de validade em ato fixo"),
+                 ("autorizo o corte diario da versao 0.47.3", "alvos do texto"), ("autorizo o corte diario as 06:00", "fora do mapa"),
+                 ("autorizo o corte diario e o rotulo", "mais de um ato"), *((f"autorizo o corte diario {m}", "fora do vocabul")
+                                                                            for m in MARCAS))
+        for i, (texto, motivo) in enumerate(casos):
+            with self.subTest(texto=texto):
+                _, campos, _, est, lido = self.lida(i, texto, "corte-diario")
+                self.assertEqual((campos["Estado-inicial"], est, campos["Validade"]), ("pendente-confirmacao", "pendente", "fixa"))
+                self.assertIn(motivo, lido)
+
+    def test_vocabulario_novo_so_nos_atos_fixos_e_sem_marca(self):
+        self.assertFalse(set(MARCAS) & fa.VOCABULARIO_FIXO)
+        _, campos, _, _, _ = self.lida(0, "pode mesclar a main 0.47.3 todo dia", "merge-main", "versao:0.47.3")
+        self.assertEqual((campos["Estado-inicial"], campos["Validade"]), ("pendente-confirmacao", "ate:2026-11-20 00:00"))
+        self.assertEqual(campos["Motivo-da-pendencia"], "palavra fora do vocabulário: dia, todo")
+        _, campos, _, _, _ = self.lida(1, "pode mesclar a main 0.47.3 e o corte", "merge-main", "versao:0.47.3")
+        self.assertIn("mais de um ato", campos["Motivo-da-pendencia"])
+
+    def test_alvo_que_nao_e_fixo_no_ato_fixo_ou_fixo_no_ato_de_antes_recusa(self):
+        self.nada_gravado(*self.gravar("autorizo o corte diario no pr 5", ato="corte-diario", alvos="pr:5"))
+        self.nada_gravado(*self.gravar("pode aplicar o rotulo", alvos="fixo", uuid="22222222-2222-4222-8222-222222222222"))
+        self.nada_gravado(*self.gravar("autorizo o corte diario", ato="merge-main", alvos="fixo", uuid="33333333-3333-4333-8333-333333333333"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,21 @@
+{
+  "descricao": "V0481-PUBLICAR: sessão de projeto, GH_REPO=<forge> com outro subcomando do forge-check (só leitura): libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "GH_REPO=rodrigo-isensee/Forge forge-check parecer delta docs/reviews/v1.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

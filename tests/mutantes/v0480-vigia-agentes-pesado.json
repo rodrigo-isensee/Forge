@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "VIGIA-AGENTES-PESADO (E172.3): hook sem marcador (critico None) volta a liberar no prazo vencido",
       "arquivo": "hooks/_comum.py",
-      "de": "    if evento == \"PostToolUse\" or not sessao_vigiada(hook, clone_do_forge):\n        return\n",
-      "para": "    if critico is None or evento == \"PostToolUse\" or not sessao_vigiada(hook, clone_do_forge):\n        return\n",
+      "de": "    recusa = evento != \"PostToolUse\" and (critico is not None or evento == \"PreToolUse\")",
+      "para": "    recusa = critico is not None and evento != \"PostToolUse\" and (critico is not None or evento == \"PreToolUse\")",
       "testes": [
         "tests.test_hooks_volta_propriedades.VigiaAgentesPesado.test_fixtures_do_vigia_agentes_pesado"
       ]
@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "VIGIA-AGENTES-PESADO: sem marcador, o prazo vencido fora do PreToolUse (SubagentStop, PostToolUseFailure) não recusa",
       "arquivo": "hooks/_comum.py",
-      "de": "    if critico is None and evento != \"PreToolUse\":",
-      "para": "    if False and critico is None and evento != \"PreToolUse\":",
+      "de": "critico is not None or evento == \"PreToolUse\"",
+      "para": "True or evento == \"PreToolUse\"",
       "testes": [
         "tests.test_hooks_volta_propriedades.VigiaAgentesPesado.test_fixtures_do_vigia_agentes_pesado"
       ]

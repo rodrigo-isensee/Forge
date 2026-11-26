@@ -9,27 +9,7 @@
       "de": "return int(grupo(VOLTA_NO_ENTREGAR, (blocos.get(\"Entregar\") or [\"\"])[0]) or 0)",
       "para": "return int(grupo(VOLTA_NO_ENTREGAR, (blocos.get(\"Entregar\") or [\"\"])[0]) or 1)",
       "testes": [
-        "tests.test_volta_por_delta.BriefDeVolta.test_sem_branch_nenhuma_decisao_autoriza"
-      ]
-    },
-    {
-      "id": "M9",
-      "guarda": "sem branch lida, a recusa nomeia o marcador, nunca some",
-      "arquivo": "bin/forge-check",
-      "de": "recusada para {nome_seguro(sem_controle(branch or '<branch>'))}",
-      "para": "recusada para {nome_seguro(sem_controle(branch or ''))}",
-      "testes": [
-        "tests.test_volta_por_delta.BriefDeVolta.test_sem_branch_nenhuma_decisao_autoriza"
-      ]
-    },
-    {
-      "id": "M10",
-      "guarda": "a mesma linha em duas fontes vale uma volta",
-      "arquivo": "bin/forge-check",
-      "de": "1 + len({linha for _, linhas in cobradas[\"fontes\"] for _, linha in linhas if canonica.match(linha)})",
-      "para": "1 + len([linha for _, linhas in cobradas[\"fontes\"] for _, linha in linhas if canonica.match(linha)])",
-      "testes": [
-        "tests.test_volta_por_delta.BriefDeVolta.test_so_a_forma_canonica_autoriza_e_uma_linha_vale_uma_volta"
+        "tests.test_volta_por_delta.BriefDeVolta.test_numero_da_volta_sem_a_marca_e_zero"
       ]
     },
     {
@@ -66,8 +46,8 @@
       "id": "M15",
       "guarda": "a conferência conta as voltas do item, não só a cadeia",
       "arquivo": "bin/forge-check",
-      "de": "recusa_da_volta(max(n_anterior, voltas) + 1,",
-      "para": "recusa_da_volta(n_anterior + 1,",
+      "de": "real = max(n, n_anterior + 1, voltas + 1)",
+      "para": "real = max(n, n_anterior + 1)",
       "testes": [
         "tests.test_volta_por_delta.BriefDeVolta.test_volta_conta_o_item_e_nao_a_cadeia"
       ]

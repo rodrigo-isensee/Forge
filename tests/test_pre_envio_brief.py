@@ -93,6 +93,14 @@ class Gerar(unittest.TestCase):
         for trecho in (CATRACA, TEXTO, AFETADOS):
             self.assertNotIn(trecho, saida)
 
+    def test_codigo_do_forge_manda_rodar_o_d2_e_fora_do_forge_nao(self):  # D2-NO-BRIEF (v0481 E14.51)
+        d2 = "`bin/forge-check --raiz <sua cópia> pronto --base origin/develop` · espera: rc=0 · D2 (D2-NO-BRIEF)"
+        saida = self.gerar("codigo", "E1.1")
+        self.assertIn(d2, saida)
+        self.assertIn("última linha dele no relatório", saida)
+        self.assertIn("nunca o da branch", saida)  # review fe150b0 A2: a branch não certifica o próprio portão
+        self.assertNotIn(d2, self.gerar("codigo", "E1.1", forge=False))
+
     def test_parecer_nao_leva_o_pre_envio_do_autor(self):
         saida = self.gerar("review", "E1.4", destino="forge:revisor-exemplo")
         self.assertNotIn(TEXTO, saida)
@@ -170,6 +178,15 @@ class ChecksForaDaLinhaDoCi(unittest.TestCase):
             linhas = [l for l in (RAIZ / "skills" / skill / "SKILL.md").read_text(encoding="utf-8").splitlines() if "PARECER-LE-O-CI" in l]
             self.assertEqual(len(linhas), 1, skill)
             self.citados(linhas[0], skill)
+
+    def test_brief_esqueleto_e_skills_citam_a_forma_via(self):
+        """G3.7 (v0481 E8.10): o run do `Revisar-sha` cancelado pelo envio de outro parecer; vale o do descendente só de pareceres."""
+        textos = {"brief": fc.LINHA_LE_O_CI, "esqueleto": fc.NOTA_NO_ESQUELETO}
+        textos.update({s: [l for l in (RAIZ / "skills" / s / "SKILL.md").read_text(encoding="utf-8").splitlines()
+                           if "PARECER-LE-O-CI" in l][0] for s in ("engineering-practices", "qa-testing")})
+        for onde, texto in textos.items():
+            with self.subTest(onde=onde):
+                self.assertIn("verde via <sha40 do descendente", texto)
 
     def test_cada_check_e_um_job_dos_workflows(self):
         nomes = set()
