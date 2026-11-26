@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_hook_estado.Injeta.test_rc_diferente_de_zero_manda_rodar_o_comando"
       ]
+    },
+    {
+      "id": "M16",
+      "guarda": "o hook roda quando chamado como script",
+      "arquivo": "hooks/estado.py",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hook_estado.Injeta.test_pergunta_do_estado_injeta_a_linha_fixa_e_so_as_linhas_status"
+      ]
     }
   ]
 }
