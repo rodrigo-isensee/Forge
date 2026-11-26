@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-rotulo-base-alheia
-commit: 48034214f4654bf7d00788ea68f0c0790d79783e
+commit: 5c21b249e8612ceda94e015fd436cba2156ce757
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -16,9 +16,9 @@ data: 2026-11-26
 
 Diff lido contra o merge-base `22ceb2c83cbe` com a develop: `tests/catraca.py` (+6/-3), `tests/test_catraca.py` (+23), `tests/mutantes/v0481-rotulo-base-alheia.json`, fragmento do changelog. `bin/forge-fechar` sem mudança, conferido.
 
-- ci: 48034214f4654bf7d00788ea68f0c0790d79783e verde
+- ci: 5c21b249e8612ceda94e015fd436cba2156ce757 verde
 
-Check-runs do `commit:` (API de check-runs): as 14 `suíte (python 3.12/3.14, parte n/5)`, `bateria (python 3.14)`, `bateria (passos)`, `bateria (verificações longas)`, `instalação`, `árvore já provada`, `teto de pulados` x2: concluídos com sucesso. Fora da conta, como manda a regra: `bateria`, `bateria (pareceres)` e `catraca`, que esperam o parecer e o rótulo.
+Check-runs do `commit:` (`gh pr checks 906`): as 10 `suíte (python 3.12/3.14, parte n/5)`, `bateria (passos)`, `bateria (verificações longas)`, `instalação`, `árvore já provada`: concluídos com sucesso. Fora da conta, como manda a regra: `bateria`, `bateria (pareceres)` e `catraca`, que esperam o parecer e o rótulo.
 
 ## Achados
 
@@ -31,7 +31,18 @@ Pedido de correção sem especificação de UX; as obrigações são as da decis
 | Aceite do usuário nunca sai da comparação | `test_aceite_do_usuario_ou_parecer_de_seguranca_alheio_depois_do_rotulo_invalida` (subteste `docs/security/aceites/ped.md`) | aceite tocado antes do rótulo e alterado depois (o caso em que o "já tocado" o liberaria) | passou; mutante RB1 morre |
 | Parecer de segurança de outro pedido continua invalidando | mesmo teste, subteste `docs/security/outro.md` | nome diferente do da branch | passou |
 
-## Cenários e resultado real
+## Revalidação incremental (delta 48034214..5c21b249)
+`forge-check parecer delta` lista no domínio do QA só `tests/test_catraca.py` (+9) e a spec dos mutantes (+RB3); `tests/catraca.py` e `bin/` sem mudança.
+
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| A1 da segurança: `ACEITES` da catraca igual a `ACEITES_DO_USUARIO` do forge-check (o aceite nunca sai da comparação do rótulo) | `test_aceites_da_catraca_igual_ao_aceites_do_usuario_do_forge_check` (lê o literal por ast; exige 1 atribuição) | deriva entre as duas listas; constante sumida | passou; mutante RB3 morre |
+
+- Módulo: `python3 -m unittest tests.test_catraca.RotuloSobreviveAoConteudo`: 24 testes, OK.
+- Mutantes (`bin/forge-mutante tests/mutantes/v0481-rotulo-base-alheia.json --base 48034214f4654bf7d00788ea68f0c0790d79783e`, rev=5c21b249e861): `RB1 · morreu · tests/catraca.py:1394`, `RB2 · morreu · tests/catraca.py:44`, `RB3 · morreu · tests/catraca.py:45`. O teste novo é guarda de deriva e passa na base por desenho; o RB3 é a prova de que cai quando a lista diverge.
+- Fora da conta no CI: `bateria`, `bateria (pareceres)` e `catraca` (esperam parecer e rótulo do dono).
+
+## Cenários e resultado real (1ª rodada, 48034214)
 - Módulo tocado: `python3 -m unittest tests.test_catraca.RotuloSobreviveAoConteudo`: 23 testes, OK.
 - Leitura do código: `PARECERES` só é lido em `pareceres_do_pedido` (linhas 1394 e 1397, grep em `tests/`, `bin/`, `hooks/`); alargá-lo não afeta outra regra. `ACEITES` filtra os dois caminhos que alimentam `livres` (o já tocado no head rotulado e o de nome igual ao da branch), então o aceite não entra em `livres` por nenhuma via. O padrão fica alinhado a `ACEITES_DO_USUARIO` do `forge-check`. Arquivos de controle (`PROTEGIDOS`, `VIGIADOS_DO_ROTULO`) seguem na checagem `protegidos_como_no_rotulo`, que não usa `PARECERES`: nenhum sai da comparação.
 - Observação, sem achado: o que o PR já tocava em `docs/security/` (fora de `aceites/`) antes do rótulo passa a ser livre depois dele, como já era em `docs/reviews/` e `docs/qa/` e como `PASTAS_DOS_PARECERES` do `forge-check` já trata a pasta.
