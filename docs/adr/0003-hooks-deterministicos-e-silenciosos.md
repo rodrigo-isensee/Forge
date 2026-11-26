@@ -105,3 +105,31 @@ Critério de reversão da emenda: um caso em que texto que não veio do dono che
 |---|---|---|
 | Ordens perdidas depois de compactar (linhas do Histórico com "ordem esquecida" ou reclamação do dono) | 2 versões depois do PR do hook | `tech-lead` |
 | Tempo do hook e entradas do `ordens` em `erros.log` | no PR do hook e no fechamento de cada versão | `devops-engineer` |
+
+## Emenda: salvar ao parar (D6-SESSAO-NAO-PERDE, parte a; v0481 E11.2, ORDEM DO DONO 24/11)
+Estado da emenda: **vigente a partir do PR que traz o hook `salvar`**, com fixtures, mutantes e o parecer do `security-engineer`. O item 2 segue valendo sem exceção (DECISÃO DO DONO de 25/11, opção b do #877): o hook só usa o git local, sem rede.
+
+O hook `salvar`, só no `SubagentStop`: ao parar, o trabalho em andamento do agente é gravado num commit WIP na cópia local dele, na branch do brief, sem envio; o envio, com o `pre-push` e a varredura de segredo dele, fica com o fechamento (`bin/forge-fechar`) ou com o próximo envio do autor. Regras:
+1. **Só o que o brief diz:** o prompt do agente (primeiro registro `user` do transcrito dele) cita exatamente um brief de escrita em `docs/briefs/` (os de review, segurança e QA não escrevem a branch); dele saem a `Branch:`, o escopo (linha `- arquivos:`, caminho exato ou pasta com `/`) e a cópia citada, dentro da pasta das cópias (`~/.forge-contrib/wt/` no Forge, `<projeto>/.forge/wt/` no projeto) e nessa branch. Qualquer falta ou ambiguidade: nada acontece.
+2. **Só o escopo:** o commit leva só os arquivos rastreados mudados fora de commit dentro do escopo (`git commit --only`); arquivo não rastreado fica de fora (o agente não o escolheu), e o resto da cópia fica como está. Sem nada no escopo, nem commit.
+3. **Sem rede:** nem `push`, nem `fetch`, nem `ls-remote`; o commit fica só na cópia, nunca em `main`, `master`, `develop` ou `homolog` (`R-MAIN`, `R-FLUXO`). Como nada sai da cópia, nenhum run de CI é gasto (`R-CUSTO`) e o segredo que o agente tenha gravado é barrado pelo `pre-push` no envio de sempre. Prazo total de 50 s para todos os comandos, descontado a cada chamada, dentro dos 60 s do hook no `hooks.json`; esgotado, o comando para e a linha vai ao `erros.log`.
+4. **Sem código do agente fora do sandbox:** o hook roda fora do sandbox, e os hooks do git da cópia (o `.git/hooks/` e o `.githooks/` versionado) são código que o agente escreve; o git do `salvar` roda com `core.hooksPath` vazio, sem `core.fsmonitor`, com `--literal-pathspecs`, sem as `GIT_*` herdadas (nem `GIT_CONFIG_*`) nem `XDG_CONFIG_HOME`, e sem pedir senha: a config global e a de sistema são as do dono. O `.git/config` da cópia também é do agente (o sandbox o deixa gravar nas cópias): antes de qualquer outro git nela, o hook lê a config local sem includes (ler não executa nada) e não age se houver chave fora da lista positiva (`core.repositoryformatversion`, `core.filemode`, `core.bare`, `core.logallrefupdates`, `core.ignorecase`, `core.precomposeunicode`, `core.symlinks`, `extensions.objectformat`, `remote.origin.url`, `remote.origin.fetch`, `branch.<nome>.remote`, `branch.<nome>.merge`, `user.name`, `user.email`) ou `remote.origin.url` diferente da cópia principal; assim filtro, `core.sshCommand`, `gpg.program`, `credential.helper`, `remote.origin.receivepack`, `pushurl`, `insteadOf` e `include` não chegam ao git deste hook. A guarda das branches de integração está no próprio hook (regra 3); o `pre-push` roda inteiro no envio, fora deste hook, e o CI do PR continua o portão. Não é o `--no-verify` de um agente: o agente não escolhe nada disso; o `pre-commit` do projeto (lint, por exemplo) não roda no commit WIP, e o `pre-push` e o CI o cobrem.
+5. **Não mexe em operação pela metade:** conflito no índice, mesclagem, rebase, cherry-pick ou revert em andamento: nada acontece.
+6. **Nunca bloqueia nem escreve no stdout:** sai sempre com 0; o resultado vai a `.forge/run/salvar.log` (branch, commit, arquivos salvos na cópia); erro interno, à linha do `erros.log` (item 4).
+
+### Por que o existente não basta
+- O `forge salvar` (`bin/forge-salvar`) é do terminal do dono: grava tudo o que mudou, não sabe o escopo do brief e só roda se alguém o chamar; o agente que cai (sessão encerrada, teto, compactação) não o chama.
+- O `R-FLUXO` manda o agente commitar e enviar, mas a regra em texto não cobre a parada fora do roteiro. Evidência: o estudo determinístico de 24/11 (D6) registra retomadas manuais e trabalho refeito depois de sessão que caiu com mudança só na cópia.
+
+### Afrouxa: sim, R-VERIFY e dois invariantes de teste; o item 2 não
+O item 2 ("sem rede", decisão só pelo estado em disco e pelo git local) segue sem exceção. O `R-VERIFY` ("não desative nem troque o caminho dos hooks") ganha a exceção escrita aqui, na regra 4, só para este hook e só para o commit na cópia; o `docs/regras/R-LIMITES.md` não muda, porque o núcleo do Jarvis (decisão 11 do dono, `docs/regras/orcamento.json`) não tem folga para ela. O título do PR traz o destaque. Mudam junto, no PR do hook, com o rótulo `afrouxa-regra`:
+- `tests/test_hooks.py`, `test_cada_hook_tem_caso_que_passa_e_que_bloqueia`: `salvar` entra no grupo que nunca bloqueia (códigos `{0}`), com os casos `sem-forge-versao` e `erro-interno`.
+- `tests/test_hooks.py`, `test_hooks_json`: o `salvar.py` no `SubagentStop` tem `timeout` 60 (os outros seguem com 10, menos os 300 do `pesado` e do `meta`).
+Nenhum trecho de `invariantes` em `tests/config.json` sai.
+
+Critério de reversão da emenda: um commit do `salvar` fora da branch do brief ou com arquivo fora do escopo, um commit WIP que leve marca de conflito, um comando vindo da config da cópia rodando no hook, qualquer chamada de rede dele, ou o hook passar dos 60 s no `erros.log`; também, se em 2 versões o `salvar.log` não registrar nenhum trabalho salvo que evitou retomada manual (a medida não se move, o hook sai).
+
+| Leitura | Quando | Quem |
+|---|---|---|
+| Linhas do `salvar.log` (trabalho salvo na cópia) e voltas por trabalho perdido no Histórico dos pedidos | 2 versões depois do PR do hook | `tech-lead` |
+| Tempo do hook e entradas do `salvar` em `erros.log` | no PR do hook e no fechamento de cada versão | `devops-engineer` |

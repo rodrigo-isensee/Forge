@@ -179,6 +179,15 @@ class ChecksForaDaLinhaDoCi(unittest.TestCase):
             self.assertEqual(len(linhas), 1, skill)
             self.citados(linhas[0], skill)
 
+    def test_brief_esqueleto_e_skills_citam_a_forma_via(self):
+        """G3.7 (v0481 E8.10): o run do `Revisar-sha` cancelado pelo envio de outro parecer; vale o do descendente só de pareceres."""
+        textos = {"brief": fc.LINHA_LE_O_CI, "esqueleto": fc.NOTA_NO_ESQUELETO}
+        textos.update({s: [l for l in (RAIZ / "skills" / s / "SKILL.md").read_text(encoding="utf-8").splitlines()
+                           if "PARECER-LE-O-CI" in l][0] for s in ("engineering-practices", "qa-testing")})
+        for onde, texto in textos.items():
+            with self.subTest(onde=onde):
+                self.assertIn("verde via <sha40 do descendente", texto)
+
     def test_cada_check_e_um_job_dos_workflows(self):
         nomes = set()
         for yml in (RAIZ / ".github" / "workflows").glob("*.yml"):
