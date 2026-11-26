@@ -671,7 +671,7 @@ limpar_clones() {
   local -a g
   copia_st=""
   url_aqui="$(git remote get-url origin 2>/dev/null || true)"
-  comum="$(cd "$(git rev-parse --git-common-dir)" && pwd -P || true)"
+  comum="$(if cd "$(git rev-parse --git-common-dir)"; then pwd -P || true; else :; fi)"
   for d in "${HOME:-}/.forge-contrib/wt"/*/; do
     d="${d%/}"
     [ -d "$d/.git" ] || continue
