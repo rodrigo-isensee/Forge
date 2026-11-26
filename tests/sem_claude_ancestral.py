@@ -46,10 +46,12 @@ def descende_de(pid, ate, pai_e_nome):
 
 def main():
     if len(sys.argv) < 4 or sys.argv[1] != "--ate":
-        sys.exit("uso: sem_claude_ancestral.py --ate <pid> <script> [argumentos...]")
+        sys.exit("uso: sem_claude_ancestral.py --ate <pid> [--proc <pasta>] <script> [argumentos...]")
     ate, resto = int(sys.argv[2]), sys.argv[3:]
     proc = None
     if resto[0] == "--proc":
+        if len(resto) < 3:
+            sys.exit("uso: sem_claude_ancestral.py --ate <pid> [--proc <pasta>] <script> [argumentos...]")
         proc, resto = str(Path(resto[1]).resolve()), resto[2:]
     script = Path(resto[0]).resolve()
     pasta = script.parent

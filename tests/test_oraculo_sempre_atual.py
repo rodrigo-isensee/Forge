@@ -21,8 +21,9 @@ Interface que o oráculo assume (o núcleo da E6.4 e as entradas da E6.5 a cumpr
   - Aviso pendente: `estado.json` -> `aviso.texto`; o doutor o mostra uma vez no Stop.
 Não coberto aqui, por exigir clone vigente e rede de verdade: o `jarvis-forge` (volta da vigente, `ocupacao()` movida, forge-dev),
 o `forge atualizar` sem `marketplace remove` (E6.5) e a reconciliação do catálogo na partida da sessão (sem prova sem modelo).
-Limite conhecido: a ocupação (S2) olha o `/proc` inteiro; rodado dentro de uma sessão do Claude com agentes vigentes na
-mesma raiz de um escopo de usuário, o escopo pode sair adiado. Por isso os testes de "atualiza" usam escopo de projeto.
+Os processos vivos vêm da árvore do teste (`self.proc`, entregue pelo lançador com `--proc`), não do `/proc` da máquina: a
+ocupação (S2) não vê o `claude` de uma sessão em volta. A leitura do `/proc` real, a que roda em produção, é provada em
+`tests.test_sempre_atual.ProcReal` (um `claude` vivo de verdade, no CI e no sandbox).
 
 Rodar uma classe: python3 -m unittest tests.test_oraculo_sempre_atual.Ocupacao
 """
@@ -476,6 +477,8 @@ class Mundo(unittest.TestCase):
         (entrada / "comm").write_text(nome + "\n")
         (entrada / "cmdline").write_bytes(f"{nome}\0--dormir\0".encode())
         (entrada / "cwd").symlink_to(Path(cwd).resolve())
+        self.assertEqual(((entrada / "comm").read_text().strip(), (entrada / "cwd").resolve(), p.poll()),
+                         (nome, Path(cwd).resolve(), None), "preparo do oráculo: a árvore do teste tem o processo vivo, com comm e cwd")
         return p
 
     def env(self, **extra):
