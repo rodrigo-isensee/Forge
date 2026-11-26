@@ -3,31 +3,31 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-s1-status
-commit: 0b412b4a210a147c26fb53074f698f6b50b39ab5
-parecer: reprovado
+commit: 154a36f1283ebb81be649cf08e1235f4636ba6a6
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-26
 ---
-# Review: v0481 S1a, `forge-check status` (PR #910, E20.3, 1.ª rodada)
+# Review: v0481 S1a, `forge-check status` (PR #910, E20.7, revalidação)
 
-Escopo: `8ae4d6c6..0b412b4a` (merge-base com a `develop`): `bin/forge_estado.py` (novo, 135 linhas), `bin/forge-check` (subcomando `status`, 10 linhas), `bin/forge-testes` (ESCOPO+ E20.2: módulo no FORGE_CHECK e mapa do `forge-contador`), `tests/pesos-d4.json`, `tests/test_forge_status_estado.py` (19 testes), 4 specs de mutantes (32) e o fragmento `changelog.d/v0481-s1-status.md`. Tamanho: 148 linhas de código, dentro do teto H1.
+Escopo: só o delta `0b412b4a..154a36f1`, lido por `forge-check parecer delta` (domínio do review: `bin/forge_estado.py`, `docs/indice-forge.md`, `tests/mutantes/v0481-s1-status-5.json`, `tests/test_forge_status_estado.py`). Os pareceres de QA e segurança do delta ficam com os seus papéis.
+
+## Delta lido
+- A1 da 1.ª rodada resolvido: `docs/indice-forge.md:44` ganhou a linha do `forge_estado.py`; `test_indice_forge` verde no CI (partes 3/5 em 3.12 e 3.14).
+- A2 resolvido: `bin/forge_estado.py:100` passa a usar `instante()`, que converte o `ValueError` em `NaoVerificavel("data ilegível: ...")`. O `executar` já tratava esse caso e devolvia `não verificável (...)` com rc 0. É uma linha só, e não traz guarda nova fora da M33.
+- Testes do ramo: `Itens.test_decisoes_com_data_fora_do_calendario_nao_verificavel` (02-30 e 13-45) e, pelo forge-check real com `-I`, ambiente limpo e HOME temporário, a sonda S1 deste review e a S1 da segurança (seis linhas, rc 0, sem traceback). A limpeza `ctx["seguro"]` é testada com uma limpeza falsa e também com a `sem_controle` real (gh falso com ESC e U+2028).
+- Mutantes M33 (`instante` → `fromisoformat`) e M34 (sem `ctx["seguro"]`): os dois morreram, e cada um tem dois testes de comportamento, nenhum que leia a fonte.
 
 ## Como foi verificado
-- `python3 -m unittest tests.test_forge_status_estado` no head: 19 testes, OK.
-- `bin/forge-mutante --processos 1 tests/mutantes/v0481-s1-status*.json`: 32 de 32 mortos. `--cobertura --base 8ae4d6c6`: toda guarda coberta; só `tests/pesos-d4.json` fora (dado, sem guarda).
-- Só leitura e sem rede além de leitura: o status chama `gh api .../commits/develop` (GET), `gh pr list`, `gh release view`, o `forge-contador` (só `git` de leitura) e `forge_dono.cmd_abertas` (só leitura, recusa link). Nada grava. A saída passa pelo `seguro` do forge-check.
-- Os testes usam gh falso: `ctx()` injeta `gh_json` falso, e o `PeloForgeCheck` põe `pasta_com_gh()` no PATH, com HOME temporário, ambiente limpo e `-I`.
-- CI do head lido em `gh pr checks 910`: parte 3/5 vermelha em 3.12 e 3.14; causa no log abaixo (A1).
+- `python3 -m unittest tests.test_forge_status_estado` no head: 24 testes, OK.
+- `bin/forge-mutante --processos 1 tests/mutantes/v0481-s1-status-5.json`: M33 morreu (`bin/forge_estado.py:100`) e M34 morreu (`bin/forge_estado.py:134`).
+- `bin/forge-mutante --cobertura --base 0b412b4a`: nenhuma guarda do delta sem mutante.
+- CI do head lido em `gh pr checks 910`: as 10 partes da suíte (3.12 e 3.14), `teto de pulados`, `instalação`, `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)` e `árvore já provada na develop` estão verdes. Ficaram vermelhos só `bateria (pareceres)`, `bateria` e `catraca`, que esperam este parecer e o rótulo.
 
 ## Achados
-- A1 (bloqueante) docs/indice-forge.md:42 · bin/forge_estado.py novo sem linha no índice: suíte parte 3/5 (3.12 e 3.14) vermelha, 3 falhas em test_indice_forge ("desatualizado; rode scripts/indice-forge.py", job 139933654051). Rode scripts/indice-forge.py e commite o índice.
-- A2 (bloqueante) bin/forge_estado.py:100 · fromisoformat sem guarda: pergunta ao dono com data inválida (2026-02-30) derruba o status com ValueError, rc 1, sem as linhas 5 e 6 (S1). O requisito pede `não verificável` e rc 0. Converter o ValueError em NaoVerificavel, com mutante e teste do ramo.
-- A3 (recomendado) bin/forge_estado.py:100 · a hora da pergunta, sem fuso, recebe o fuso de `agora`; sem `--agora` vale o fuso da máquina, e a idade muda conforme o fuso do container. Declarar o fuso do registro e convertê-lo.
-
-## Sondas
-- S1 · pedido com `- PERGUNTA AO DONO (2026-02-30 09:00): A ou B?` e `forge-check --raiz <tmp> status --agora 2026-11-26T12:00-03:00` · espera: rc 0, seis linhas, decisões `não verificável (...)` · obtido: rc 1, três linhas e traceback `ValueError: day is out of range for month` em forge_estado.py:100
+- A3 (recomendado) bin/forge_estado.py:100 · continua aberto desde a 1.ª rodada: a hora da pergunta, sem fuso, herda o fuso de `agora`, e sem `--agora` a idade depende do fuso do container. Vira cartão depois do merge.
 
 ## Parecer
-Reprovado. O desenho está bom: módulo pequeno, uma função por linha, a falha de leitura vira `não verificável`, o relógio entra por argumento e os testes cobrem cada guarda com o ramo de falha. Os dois bloqueantes têm prova. A1 deixa o CI vermelho por causa do índice gerado, que não foi atualizado. A2 é uma linha sem guarda que viola o "nunca erro: rc 0" do próprio contrato. Quando os dois forem corrigidos, a revalidação lê só o delta.
+Aprovado. Os dois bloqueantes da 1.ª rodada foram corrigidos e cada correção tem teste do ramo de falha e mutante morto. O delta não traz bloqueante novo.
 
-- ci: 0b412b4a210a147c26fb53074f698f6b50b39ab5 vermelho (suíte parte 3/5 em 3.12 e 3.14: test_indice_forge, A1; partes 1/5 e 4/5 ainda pendentes na leitura; `bateria (pareceres)` e `catraca` esperam o parecer e o rótulo)
+- ci: 154a36f1283ebb81be649cf08e1235f4636ba6a6 verde
