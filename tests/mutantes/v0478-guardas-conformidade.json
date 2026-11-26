@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "no clone, a recusa do estado vale na GuardaDaProva",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if self.recusa_do_estado(o_que):\n            super().barrar(rid, o_que, corrigir)",
-      "para": "        if False:\n            super().barrar(rid, o_que, corrigir)",
+      "de": "        if self.recusa_do_estado(o_que):\n            super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)",
+      "para": "        if False:\n            super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)",
       "testes": [
         "tests.test_conformidade_verde.EstadoDoAgentesNoClone.test_escrita_remocao_e_link_no_estado_recusam_para_todo_papel"
       ]
