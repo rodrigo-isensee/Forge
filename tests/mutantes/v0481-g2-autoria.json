@@ -43,6 +43,16 @@
         "tests.test_conformidade_pareceres.AutoriaDoPublicar.test_caminho_por_papel_em_forge_pareceres",
         "tests.test_conformidade_pareceres.AutoriaDoPublicar.test_ponta_a_ponta_recusa_autoria_de_outro_papel"
       ]
+    },
+    {
+      "id": "M5",
+      "guarda": "M9.2 do G2: o filtro da pasta lê todas as pastas de autoria, .forge/pareceres também",
+      "arquivo": "hooks/conformidade.py",
+      "de": "not any(par in PASTAS_DE_AUTORIA for par",
+      "para": "not any(par in PASTAS_DE_AUTORIA[:4] for par",
+      "testes": [
+        "tests.test_conformidade_pareceres.AutoriaDoPublicar.test_autoria_registra_forge_pareceres"
+      ]
     }
   ]
 }
