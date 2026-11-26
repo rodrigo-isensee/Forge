@@ -348,5 +348,66 @@ class ItemPresoAoCommit(unittest.TestCase):
         self.assertEqual(self.estado(), ("inativa", "Parecer com tipo fora da sua pasta"))  # tipo ausente não tem pasta
 
 
+FIXA = {"Validade": "fixa", "Validade-utc": "fixa", "Origem-da-validade": "sem prazo", "Alvos": "fixo"}
+UNICO = {"Validade": "uso-unico", "Validade-utc": "uso-unico"}
+
+
+class AtosFixos(unittest.TestCase):
+    """Emenda AUTORIZACOES-FIXAS da ADR 0018 (F1 e F3): `corte-diario` e `so-aperta-com-seguranca` só com alvo `fixo` e validade
+    `fixa`, sem o teto da D1; os atos de antes não aceitam nenhum dos dois."""
+    setUp = Ler.setUp
+    estados = Ler.estados
+
+    def corte(self, agora="2026-11-18 07:00"):
+        saida = io.StringIO()
+        with contextlib.redirect_stdout(saida):
+            rc = fa.cmd_corte(self.raiz, {"gravador": GRAVADOR, "seguro": str}, em(agora))
+        return rc, saida.getvalue()
+
+    def test_fixa_nao_vence_e_para_so_pela_retirada(self):
+        for ato in fa.FIXOS:
+            with self.subTest(ato=ato):
+                fixa = concessao(**FIXA, Ato=ato)
+                self.assertEqual(self.estados("2036-11-18 07:00", A_1=fixa), ["ativa"])
+                self.assertEqual(self.estados("2036-11-18 07:00", A_1=fixa, R_1=evento("", {"Retira": "A-1"})), ["retirada"])
+
+    def test_alvo_fixo_e_validade_fixa_so_nos_atos_fixos_e_eles_so_com_eles(self):
+        casos = [({**FIXA, "Ato": "rotulo-afrouxa-regra"}, "validade fixa"), ({**FIXA, "Ato": "merge-main"}, "validade fixa"),
+                 ({"Alvos": "fixo"}, "alvo fixo"), ({"Validade": "fixa", "Validade-utc": "fixa"}, "validade fixa"),
+                 ({**FIXA, "Ato": "corte-diario", **UNICO}, "validade fixa"),
+                 ({**FIXA, "Ato": "corte-diario", "Validade-utc": "2026-11-18 11:00"}, "validade fixa"),
+                 ({**FIXA, "Ato": "corte-diario", "Validade": "ate:2026-11-18 08:00"}, "validade fixa"),
+                 ({**FIXA, "Ato": "so-aperta-com-seguranca", "Alvos": "pr:5"}, "alvo fixo")]
+        for troca, motivo in casos:
+            with self.subTest(troca=troca):
+                self.assertEqual(self.estados("2026-11-18 07:00", A_1=concessao(**troca)), ["adulterada"])
+                self.assertIn(motivo, fa.concessoes(self.raiz, GRAVADOR, em("2026-11-18 07:00"))[0][0][4])
+
+    def test_corte_diz_a_corte_diario_ativa_mais_nova_e_sem_ela_rc_1(self):
+        linha = "autorizacao: A-{} sha256 " + fa.sha(CORPO) + " · corte-diario · fixo\n"
+        nenhuma = (1, "autorizacao: nenhuma corte-diario ativa\n")
+        (self.pasta / "A-1").write_text(concessao(**FIXA, Ato="corte-diario"), encoding="utf-8")
+        (self.pasta / "A-2").write_text(concessao(**FIXA, Ato="corte-diario", Id="A-2"), encoding="utf-8")
+        self.assertEqual(self.corte(), (0, linha.format(2)))
+        (self.pasta / "R-1").write_text(evento("", {"Retira": "A-2"}), encoding="utf-8")
+        self.assertEqual(self.corte(), (0, linha.format(1)))
+        (self.pasta / "lixo").write_text("", encoding="utf-8")  # evento ilegível: nenhuma fica ativa
+        self.assertEqual(self.corte(), nenhuma)
+        for eventos in ({"A_1": concessao(**FIXA, Ato="so-aperta-com-seguranca")},
+                        {"A_1": concessao(**FIXA, Ato="corte-diario", Sha256="0" * 64)},
+                        {"A_1": concessao(**FIXA, Ato="corte-diario", **{"Estado-inicial": "pendente-confirmacao"})}):
+            with self.subTest(eventos=eventos):
+                self.estados("2026-11-18 07:00", **eventos)
+                self.assertEqual(self.corte(), nenhuma)
+
+    def test_forge_check_autorizacao_corte(self):  # ler --ato corte-diario, sem mudar o forge-check (R-CONFORMIDADE)
+        (self.pasta / "A-1").write_text(concessao(**FIXA, Ato="corte-diario"), encoding="utf-8")
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "PYTHON"))}
+        env["GIT_CEILING_DIRECTORIES"] = str(self.raiz.parent)
+        r = subprocess.run([sys.executable, "-I", str(BIN / "forge-check"), "--raiz", str(self.raiz), "autorizacao", "ler", "--ato", "corte-diario"],
+                           capture_output=True, text=True, env=env, timeout=60)
+        self.assertEqual((r.returncode, r.stdout), (0, f"autorizacao: A-1 sha256 {fa.sha(CORPO)} · corte-diario · fixo\n"), r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

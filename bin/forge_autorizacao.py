@@ -21,9 +21,10 @@ PASTA = Path(".forge") / "autorizacoes"
 CAMPOS = ("Id", "Ato", "Alvos", "Validade", "Validade-utc", "Fuso", "Origem-da-validade", "Estado-inicial", "Motivo-da-pendencia",
           "Mensagem", "Hora-da-fala", "Sessao", "Pedido", "Sha256", "Gravado-por", "Autoriza")
 AUTORIZA = "só o ato e os alvos acima, até a validade; não amplia outra regra (R-DECISAO)"
-ATOS = ("rotulo-afrouxa-regra", "merge-main")
+FIXOS = ("corte-diario", "so-aperta-com-seguranca")  # Emenda AUTORIZACOES-FIXAS: só alvo `fixo` e validade `fixa`, sem o teto da D1
+ATOS = ("rotulo-afrouxa-regra", "merge-main", *FIXOS)
 CARTAO = r"[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*"
-ALVOS = re.compile(rf"pr:[1-9]\d*(, pr:[1-9]\d*)*|versao:\d+\.\d+\.\d+|item:{CARTAO}")
+ALVOS = re.compile(rf"pr:[1-9]\d*(, pr:[1-9]\d*)*|versao:\d+\.\d+\.\d+|item:{CARTAO}|fixo")
 SHA40 = re.compile(r"[0-9a-f]{40}")
 RAMO = re.compile(r"[A-Za-z0-9_]+(?:[./-][A-Za-z0-9_]+)*")  # sem `-` no início (opção do git) nem `..`
 FRASE = re.compile(r"[;!?\n]|\.(?=\s|$)")  # o ponto dentro do cartão (`E57.57`) não separa frase
@@ -35,6 +36,7 @@ VOCABULARIO = frozenset((
     "pode podem autorizo autorizado autorizada liberado liberada libero aplicar aplique aplica mesclar mescle "  # permissão
     "o a os as um uma de do da dos das no na nos nas em para pra pelo pela ao aos com "  # artigos e preposições
     "por favor obrigado obrigada ok sim").split())  # cortesia
+VOCABULARIO_FIXO = VOCABULARIO | frozenset("corte diario todo dia fixo fixa aperta seguranca escrito time decide registra".split())
 DATA_OU_HORA = re.compile(r"\b\d{1,2}(?:/\d{1,2}(?:/\d{2,4})?|:\d{2}|h\d{0,2})\b")  # "18/11", "12:00", "18h" (item 6)
 EXIGIDOS = ("review", "qa", "revisao-seguranca")  # o rótulo afrouxa-regra só cabe em mudança de controle: classe C (P5)
 PARECERES = tuple(f"docs/{p}/" for p in ("reviews", "qa", "security", "devops"))
@@ -114,7 +116,13 @@ def instante(texto):
 
 def limite(campos):
     """Instante (UTC) em que a concessão para: a `Validade-utc` ou o teto da D1, o que vier antes (48 h desde a fala sem prazo
-    escrito e no uso único; 7 dias com prazo). A `Validade` no `Fuso` tem de dar o mesmo instante (A6); senão, ValueError."""
+    escrito e no uso único; 7 dias com prazo). A `Validade` no `Fuso` tem de dar o mesmo instante (A6); senão, ValueError. Ato fixo
+    (Emenda AUTORIZACOES-FIXAS, F1): só com validade `fixa`, que só ele tem, e sem fim."""
+    fixo = campos["Ato"] in FIXOS
+    if fixo != (campos["Validade"] == "fixa") or fixo != (campos["Validade-utc"] == "fixa"):
+        raise ValueError("validade fixa só nos atos fixos, e eles só com ela")
+    if fixo:
+        return datetime.datetime.max.replace(tzinfo=UTC)
     curto = campos["Validade"] == "uso-unico" or normal(campos["Origem-da-validade"]) in SEM_PRAZO_ESCRITO
     teto = instante(campos["Hora-da-fala"]) + datetime.timedelta(hours=48 if curto else 7 * 24)
     if campos["Validade"] == campos["Validade-utc"] == "uso-unico":
@@ -138,6 +146,7 @@ def problemas(campos, corpo, gravador):
         (campos["Gravado-por"] != gravador, "Gravado-por não é o forge-check carregado"),
         (campos["Ato"] not in ATOS, "Ato fora da lista"),
         (not ALVOS.fullmatch(campos["Alvos"]), "Alvos fora da forma"),
+        ((campos["Ato"] in FIXOS) != (campos["Alvos"] == "fixo"), "alvo fixo só nos atos fixos, e eles só com ele"),
         (campos["Estado-inicial"] not in ESTADOS_INICIAIS, "Estado-inicial fora da lista"),
         (not re.fullmatch(PEDIDO, campos["Pedido"]), "Pedido fora da forma"),
         (campos["Autoriza"] != AUTORIZA, "Autoriza fora do texto fixo")) if falha]
@@ -150,11 +159,11 @@ def problemas(campos, corpo, gravador):
     return achados
 
 
-def fora_do_vocabulario(texto, alvo=None):
-    """Palavras do texto normalizado fora do VOCABULARIO (item 5 da ADR 0018), sem o trecho do `alvo` (regex do alvo com
+def fora_do_vocabulario(texto, alvo=None, vocabulario=VOCABULARIO):
+    """Palavras do texto normalizado fora do `vocabulario` (item 5 da ADR 0018), sem o trecho do `alvo` (regex do alvo com
     marcador) nem data ou hora; [] se toda palavra pertence a ele. Uma regra só para o leitor e o `gravar` da G1.2."""
     limpo = DATA_OU_HORA.sub(" ", alvo.sub(" ", normal(texto)) if alvo else normal(texto))
-    return sorted(set(re.findall(r"[a-z0-9]+|[^a-z0-9\s.,;:!?#/()\"'-]", limpo)) - VOCABULARIO)  # emoji e outra escrita contam (A5)
+    return sorted(set(re.findall(r"[a-z0-9]+|[^a-z0-9\s.,;:!?#/()\"'-]", limpo)) - vocabulario)  # emoji e outra escrita contam (A5)
 
 
 def do_item(campos, corpo):
@@ -270,7 +279,8 @@ def concessoes(raiz, gravador, agora):
 
 
 # G1.2: o `gravar` (itens 1 a 6 e E1 da ADR 0018). O corpo é só a mensagem lida da transcrição: nenhum texto vem do comando.
-ATO_DO_TERMO = {"rotulo": "rotulo-afrouxa-regra", "afrouxa": "rotulo-afrouxa-regra", "main": "merge-main"}
+ATO_DO_TERMO = {"rotulo": "rotulo-afrouxa-regra", "afrouxa": "rotulo-afrouxa-regra", "main": "merge-main",
+                "corte": "corte-diario", "aperta": "so-aperta-com-seguranca"}
 DIAS = ("segunda", "terca", "quarta", "quinta", "sexta", "sabado", "domingo")
 TETO_DA_MENSAGEM = 64 * 1024
 
@@ -330,18 +340,22 @@ def leitura(texto, ato, alvos, fala):
     termos = [re.sub(r"ate a |-feira| feira", lambda m: "ate " if m[0] == "ate a " else "", t) for t in termo.findall(norm)]
     resto = termo.sub(" ", norm)
     fins = [fim_do_termo(t, fala) for t in termos or ["sem termo"]]
+    fixo = ato in FIXOS  # Emenda AUTORIZACOES-FIXAS (F2): sem alvo marcado nem termo de validade no texto; vocabulário próprio
+    fora = fora_do_vocabulario(texto, marcado, VOCABULARIO_FIXO if fixo else VOCABULARIO)
     motivos = [m for falha, m in (
-        (len(atos) > 1, "mais de um ato"), (do_texto != {normal(a) for a in alvos.split(", ")}, "alvos do texto diferentes dos declarados"),
+        (len(atos) > 1, "mais de um ato"),
+        (do_texto != (set() if fixo else {normal(a) for a in alvos.split(", ")}), "alvos do texto diferentes dos declarados"),
         (fora_do_ato, "alvo fora da frase do ato"), (len(termos) > 1, "mais de um termo de validade"),
-        (None in fins, "prazo local sem fuso nesta etapa"),
+        (fixo and bool(termos), "termo de validade em ato fixo"), (None in fins, "prazo local sem fuso nesta etapa"),
         (bool(DATA_OU_HORA.search(resto) or {"amanha", "noite", "fim", *DIAS} & set(re.findall(r"[a-z]+", resto))),
          "termo de validade fora do mapa"),
-        (bool(fora_do_vocabulario(texto, marcado)), f"palavra fora do vocabulário: {', '.join(fora_do_vocabulario(texto, marcado))}"))
+        (bool(fora), f"palavra fora do vocabulário: {', '.join(fora)}"))
         if falha]
     fim = "" if None in fins or "termo de validade fora do mapa" in motivos else min(fins).strftime(DATA)
-    return {"Validade": f"ate:{fim}" if fim else "uso-unico", "Validade-utc": fim or "uso-unico", "Fuso": "UTC",
-            "Origem-da-validade": "; ".join(termos) or "sem termo",
-            "Estado-inicial": "pendente-confirmacao" if motivos else "ativa", "Motivo-da-pendencia": "; ".join(motivos) or "nenhum"}
+    validade = ({"Validade": "fixa", "Validade-utc": "fixa", "Fuso": "UTC", "Origem-da-validade": "sem prazo"} if fixo else
+                {"Validade": f"ate:{fim}" if fim else "uso-unico", "Validade-utc": fim or "uso-unico", "Fuso": "UTC",
+                 "Origem-da-validade": "; ".join(termos) or "sem termo"})
+    return {**validade, "Estado-inicial": "pendente-confirmacao" if motivos else "ativa", "Motivo-da-pendencia": "; ".join(motivos) or "nenhum"}
 
 
 def cmd_ler(raiz, ctx, agora=None):
@@ -426,5 +440,20 @@ def cmd_gravar(raiz, a, ctx, agora=None):
     return 0
 
 
+def cmd_corte(raiz, ctx, agora):
+    """Emenda AUTORIZACOES-FIXAS (F3), pelo `ler --ato corte-diario`: a `corte-diario` ativa mais nova, que o `forge-fechar
+    --corte` grava no PR da marca; rc 1 sem ela (erro de leitura na pasta deixa todas inativas: falha fechada)."""
+    lista, _ = concessoes(raiz, ctx["gravador"], agora)
+    ativas = [(nome, campos) for nome, campos, _, est, _ in lista if est == "ativa" and campos["Ato"] == "corte-diario"]
+    if not ativas:
+        print("autorizacao: nenhuma corte-diario ativa")
+        return 1
+    nome, campos = ativas[-1]
+    print(f"autorizacao: {nome} sha256 {campos['Sha256']} · corte-diario · {campos['Alvos']}")
+    return 0
+
+
 def executar(a, raiz, ctx):
+    if a.acao == "ler" and a.ato == "corte-diario":  # o forge-check autorizacao ler --ato corte-diario (F3)
+        return cmd_corte(raiz, ctx, datetime.datetime.now(UTC))
     return cmd_gravar(raiz, a, ctx) if a.acao == "gravar" else cmd_ler(raiz, ctx)

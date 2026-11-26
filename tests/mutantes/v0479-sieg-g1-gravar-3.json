@@ -16,8 +16,8 @@
       "id": "M18",
       "guarda": "G1.2 e PV-A2 (item 5): palavra fora do vocabulário (negação, condição, ressalva) nasce pendente",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "(bool(fora_do_vocabulario(texto, marcado)),",
-      "para": "(False,",
+      "de": "(bool(fora), f\"palavra fora do vocabulário",
+      "para": "(False, f\"palavra fora do vocabulário",
       "testes": [
         "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_toda_marca_de_negacao_ou_condicao_manda_a_pendencia"
       ]
