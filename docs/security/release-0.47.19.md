@@ -2,20 +2,26 @@
 tipo: revisao-seguranca
 contrato: 1
 pedido: release-0.47.19
-branch: melhoria/v0481-release-04719-anexo
-commit: 0157977e02dc38058c1b762b01d301985f85573f
+branch: melhoria/v0481-release-04719-anexo-2
+commit: 17395e4d905fdbf24bbe21451050873b77261ba6
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-26
 ---
-# Review de segurança: release 0.47.19 (versão inteira, 18 itens), revalidada no anexo 0157977e
+# Review de segurança: release 0.47.19 (versão inteira, 19 itens), renovada no segundo anexo 17395e4d
 
-Etapa E12.34 do pedido v0481, volta por delta de `da7b59be..0157977e`. O delta de código é só `CHANGELOG.md:24`, +1 −1, a linha do anexo (E12.31); o resto são os pareceres da rodada E12.28 a E12.30. O delta é neutro: é só texto e não toca nenhum controle. A rodada E12.30, aprovada em `da7b59be`, fica no git. Ela vem do parecer da marca (E12.25, aprovado em `9487d956`, commit `cfc7bd6d` da branch `melhoria/marca-0.47.19`, que não entrou na develop) e o estende para a versão inteira:
-- os **10 itens da marca** (#874, #877, #885, #886, #890, #892, #895, #896, #897, #898), lidos na rodada anterior, com a conclusão abaixo;
-- os **8 itens do anexo** (#875, #901, #903, #904, entre o corte `cc4376fe` e a squash da marca `020e4af7`; #878, #902, #888, #906, depois dela);
-- a **marca** (`020e4af7`, #905) e o **anexo** (`docs/security/v0481-release-04719-anexo.md`, só metadado de versão).
+Etapa E12.43 do pedido v0481. Esta rodada renova o parecer para o head do #911. A rodada E12.34 (aprovada em `0157977e`, com 18 itens) fica no git.
 
-Gatilhos: hooks (`hooks/salvar.py` novo, fora do sandbox; `hooks/conformidade.py`, `hooks/_comum.py`, `hooks/conformidade.json`, `hooks/hooks.json`), controles do Forge (`bin/forge-check`, `bin/forge-fechar`, `bin/forge_autorizacao.py`, `bin/forge_pareceres.py`, `bin/forge_pronto.py`, `tests/catraca.py`), regras com ID e ADRs (`docs/regras/R-FLUXO.md`, `docs/regras/R-QA.md`, ADR 0003, ADR 0018), release usada por todos os projetos.
+Delta lido desde ela, fora dos pareceres:
+- o #908 (squash `d1ffc325`, mesclado pela conta do dono às 10:24): `scripts/indice-fixtures.py`, `docs/hooks-fixtures.md`, `tests/test_indice_fixtures.py` e `tests/mutantes/v0481-fixtures-gerada.json`;
+- o segundo anexo (`17395e4d`): `CHANGELOG.md`, 2 linhas novas e 1 trocada, e o fragmento do #908 apagado.
+
+A versão fica assim:
+- os **10 itens da marca** (#874, #877, #885, #886, #890, #892, #895, #896, #897, #898);
+- os **9 itens dos anexos** (#875, #901, #903, #904, entre o corte `cc4376fe` e a squash da marca `020e4af7`; #878, #902, #888, #906, #908, depois dela);
+- a **marca** (`020e4af7`, #905), o **1º anexo** (`53e879cf`, #907) e o **2º anexo** (#911, `docs/security/v0481-release-04719-anexo-2.md`), todos só metadado de versão.
+
+Gatilhos: hooks (`hooks/salvar.py` novo, fora do sandbox; `hooks/conformidade.py`, `hooks/_comum.py`, `hooks/conformidade.json`, `hooks/hooks.json`), controles do Forge (`bin/forge-check`, `bin/forge-fechar`, `bin/forge_autorizacao.py`, `bin/forge_pareceres.py`, `bin/forge_pronto.py`, `tests/catraca.py`, `scripts/indice-fixtures.py` na bateria), regras com ID e ADRs (`docs/regras/R-FLUXO.md`, `docs/regras/R-QA.md`, ADR 0003, ADR 0018), release usada por todos os projetos.
 
 ## Junção: cada item com o parecer próprio
 **10 itens da marca** (rodada anterior, sem mudança):
@@ -24,10 +30,10 @@ Gatilhos: hooks (`hooks/salvar.py` novo, fora do sandbox; `hooks/conformidade.py
 - Exceções, só de teste e cobertas pelo review e pelo QA: #886 (`dba51ddf`, M3 realinhado) e #892 (`2259b235`, teste e M5).
 - Ficou com o QA: o #896 entrou sem `docs/qa/v0481-copia-base-fechada.md` na develop.
 
-**8 itens do anexo** (esta rodada). Busquei `refs/pull/<n>/head` para `FETCH_HEAD`, sem ref nova, e conferi três pontos:
-- a árvore do merge do pai da squash com o head do PR é igual à squash nos caminhos de código (`bin`, `hooks`, `scripts`, `.githooks`, `.github`, `tests`, `agents`, `skills`, `docs/regras`, `docs/adr`, `templates`, `patches`, `stacks`, `dev`, `.claude-plugin`): 0 arquivos de diferença nos 8;
+**9 itens dos anexos.** Os 8 do 1º anexo vêm da rodada anterior, sem mudança; o #908 é desta rodada. Busquei `refs/pull/<n>/head` para `FETCH_HEAD`, sem ref nova, e conferi três pontos:
+- a árvore do merge do pai da squash com o head do PR é igual à squash nos caminhos de código (`bin`, `hooks`, `scripts`, `.githooks`, `.github`, `tests`, `agents`, `skills`, `docs/regras`, `docs/adr`, `templates`, `patches`, `stacks`, `dev`, `.claude-plugin`): 0 arquivos de diferença nos 9;
 - o `commit:` do parecer de segurança de cada item é ancestral do head;
-- a contribuição de código no `commit:` do parecer, refeita sobre o mesmo pai, é igual à squash: 0 arquivos de diferença nos 8.
+- a contribuição de código no `commit:` do parecer, refeita sobre o mesmo pai, é igual à squash: 0 arquivos de diferença nos 9.
 
 | PR | head | squash | parecer de segurança (`commit:`) |
 |---|---|---|---|
@@ -39,30 +45,34 @@ Gatilhos: hooks (`hooks/salvar.py` novo, fora do sandbox; `hooks/conformidade.py
 | #902 | `be41a1e8` | `604f3069` | `v0481-voltas-alinhada` (`6c709157`) |
 | #888 | `1d085aaa` | `cfd83b72` | `v0481-prazo-forge` (`07a1bf5c`) |
 | #906 | `e3f7ba5c` | `8ae4d6c6` | `v0481-rotulo-base-alheia` (`5c21b249`) |
+| #908 | `90b57d7d` | `d1ffc325` | `v0481-fixtures-gerada` (`de272439`) |
 
-Os 8 pareceres estão `aprovado`, com `pedido: v0481`.
+Os 9 pareceres estão `aprovado`, com `pedido: v0481`. No #908, o pai da squash é `8ae4d6c6` (o #906), e não a base do PR (`cfd83b72`). A junção com esse pai dá 0 arquivos de diferença também no repositório inteiro. De `de272439` a `90b57d7d`, os commits só tocam os três pareceres do #908, e review e QA do #908 estão `aprovado` no mesmo `de272439`.
 
 ## Marca, anexo e versão
 - **Marca:** `cc4376fe..9487d956` toca só os dois `plugin.json`, o `CHANGELOG.md` e os 10 fragmentos apagados, e é idêntica à saída de `forge-changelog release 0.47.19 2026-11-26`.
-- **Anexo:** 15 linhas novas (de `8ae4d6c6` a `0157977e`) na seção `[0.47.19]`. São as 14 dos 8 fragmentos apagados, idênticas, mais a linha do anexo. Nenhuma linha da marca sai.
+- **Anexos:**
+  - o 1º anexo acrescentou 15 linhas à seção `[0.47.19]`: as 14 dos 8 fragmentos apagados, idênticas, e a linha do anexo;
+  - o 2º anexo (`53e879cf..17395e4d`) acrescenta a linha do #908 (`CHANGELOG.md:26`), idêntica ao fragmento apagado, e troca a linha do anexo (`CHANGELOG.md:24`), que agora diz "os 9 itens" e cita o #908 e o E12.40;
+  - nenhuma linha da marca sai.
 - **Texto, sem efeito de segurança:**
-  - a linha do anexo (`CHANGELOG.md:24`) agora diz "os 8 itens" e cita o #906 e o E12.27 (A1 do review, resolvido em `0157977e`);
   - a linha do #877 ainda diz "à espera do dono", embora o dono já tenha aprovado.
-- **Versão:** `0.47.19` em `.claude-plugin/plugin.json:3` e em `dev/.claude-plugin/plugin.json:3`, igual a `CHANGELOG.md:7`. A `origin/main` está em `0.47.18` (`52dc3dcd`). `bin/forge-changelog conferir-release` dá `ok`, e `tests.test_changelog` roda 91 testes, OK.
-- **Segredos:** nas linhas acrescentadas, a única ocorrência dos padrões de token e chave é o texto de fixture da rodada anterior (`ghp_` seguido de `A`s), sem segredo real. O anexo dá 0.
+- **Versão:** `0.47.19` em `.claude-plugin/plugin.json:3` e em `dev/.claude-plugin/plugin.json:3`, igual a `CHANGELOG.md:7`. A `origin/main` está em `0.47.18` (`52dc3dcd`). `bin/forge-changelog conferir-release` dá `ok`, e `tests.test_changelog` com `tests.test_indice_fixtures` roda 101 testes, OK.
+- **Segredos:** nas linhas acrescentadas, a única ocorrência dos padrões de token e chave é o texto de fixture da rodada anterior (`ghp_` seguido de `A`s), sem segredo real. Os dois anexos dão 0.
 
-## Superfície protegida de v0.47.18 a 0157977e
+## Superfície protegida de v0.47.18 a 17395e4d
 - **Arquivos tocados:**
   - `agents/jarvis.md` (#902);
   - `docs/adr/0003` (#877) e `docs/adr/0018` (#901);
   - `docs/regras/R-FLUXO.md` (#903) e `docs/regras/R-QA.md` (#902);
   - `hooks/_comum.py`, `hooks/conformidade.json`, `hooks/conformidade.py`, `hooks/hooks.json` e `hooks/salvar.py`;
+  - `scripts/indice-fixtures.py` (#908);
   - `tests/catraca.py`.
-- **Fora do diff:** nada em `.github/`, `.devcontainer/`, `.githooks/`, `scripts/`, `docs/security/aceites/`, `templates/` ou `stacks/`. `tests/config.json` também não está no diff, então nenhuma invariante sai.
-- **Medida dos hooks:** `bin/forge-check comparar v0.47.18 0157977e` dá `so-aperta: medido base=52dc3dcd... head=0157977e... casos=239 aceites-novos=0` (famílias merge-pr, push-forcado e sem-verificar, com 8 casos cada). A medida cobre só a decisão dos hooks que recusam.
+- **Fora do diff:** nada em `.github/`, `.devcontainer/`, `.githooks/`, `docs/security/aceites/`, `templates/` ou `stacks/`. `tests/config.json` também não está no diff, então nenhuma invariante sai.
+- **Medida dos hooks:** `bin/forge-check comparar v0.47.18 17395e4d` dá `so-aperta: medido base=52dc3dcd... head=17395e4d... casos=239 aceites-novos=0` (famílias merge-pr, push-forcado e sem-verificar, com 8 casos cada). A medida cobre só a decisão dos hooks que recusam.
 
 ## O que aperta, o neutro e o que afrouxa (para o rótulo afrouxa-regra da promoção)
-Nos controles que recusam, a versão só aperta ou é neutra frente à 0.47.18: a medida dá `so-aperta`, e nenhum item faz passar uma entrada que antes era recusada. Na norma, porém, a versão **não é só aperta**. Dez dos 18 itens afrouxam regra escrita e entram por decisão do dono, não por esta confirmação.
+Nos controles que recusam, a versão só aperta ou é neutra frente à 0.47.18: a medida dá `so-aperta`, e nenhum item faz passar uma entrada que antes era recusada. Na norma, porém, a versão **não é só aperta**. Onze dos 19 itens afrouxam regra escrita ou teste e entram por decisão do dono, não por esta confirmação.
 
 **Aperta:**
 - **#885 e #886:** o texto da recusa e o `diretorio_comum` leem `.forge/perfil`, `.git`, `gitdir` e `commondir` sem esperar FIFO e só se forem arquivo regular. Antes, um FIFO liberava push na main e `--force` pelo prazo.
@@ -75,13 +85,15 @@ Nos controles que recusam, a versão só aperta ou é neutra frente à 0.47.18: 
 - **#875:** o quadro não move mais o cabeçalho nem o separador, e um UTF-8 inválido não reescreve o quadro.
 - **#898:** o `--dry-run` sem `origin/<branch>` sai com código 1.
 - **#874:** o aviso de tamanho sai a 80%, e o arquivo não segue link.
+- **#908:** o índice versionado deixa de carregar descrições e listas de regras e cartões das fixtures, então há menos texto livre no núcleo (`R-NEUTRO`). O teste novo da junção roda o `git` isolado da configuração da estação. `--detalhe --conferir` juntos são recusados com rc 2 (mutante M1 morto, `scripts/indice-fixtures.py:119`).
 
 **Neutro:**
 - #885: `modo_por_grupo` com todos os grupos em `barrar`, falhando fechado;
 - #897: só mensagem;
 - #892: só a linha `docs: ok`;
 - #896: só a linha do sha;
-- #875 (o movimento do cartão) e a marca e o anexo, que são só metadado.
+- #908: o `--detalhe` só lê e imprime;
+- #875 (o movimento do cartão), a marca e os dois anexos, que são só metadado.
 
 **Afrouxa, com o aceite do dono:**
 
@@ -97,12 +109,13 @@ Nos controles que recusam, a versão só aperta ou é neutra frente à 0.47.18: 
 | #906 | o rótulo `afrouxa-regra` continua valendo depois de trazer a base sem mudar o diff, e o parecer de segurança da branch sai da comparação (`aceites/` continua dentro) | decisão do dono de 24/11, repetida na DECISÃO 26/11 07:50 | 26/11 12:47 |
 | #875 | rótulo só por tocar `bin/forge-check` (a segurança disse que só aperta) | DECISÃO 25/11 21:52 | 26/11 00:29 e 10:38 |
 | #878 | rótulo por tocar controles (`bin/forge-check`, `hooks/conformidade.py`, `PROTEGIDOS`); só acrescenta | DECISÃO 25/11 21:52 | 26/11 00:25, 10:38 e 11:26 |
+| #908 | o teste `test_conta_todo_caso_do_corpus` é renomeado e perde a asserção do total de fixtures (é por isso que a catraca pede o rótulo); o índice não confere mais a contagem, que é documentação e não controle; o corpus segue rodando inteiro em `tests/test_hooks.py` | DECISÃO 26/11 08:44 (tabela gerada, sem edição à mão) e 09:45 (fila) | 26/11 12:47 |
 
-O dono mesclou os 8 itens do anexo na develop em 26/11, entre 07:50 e 09:50 locais (`mergedBy` conferido pela API).
+O dono mesclou os 9 itens dos anexos na develop em 26/11, entre 07:50 e 10:24 locais (`mergedBy` conferido pela API). No #908, o rótulo é de 09:47 locais, antes dos três pareceres. Os envios seguintes só trouxeram pareceres, e o diff do item não mudou.
 
 **Afrouxa, por desenho, sem regra com ID:** #890. O `--limpar` remove o clone de parecer já mesclado, e só a tag `arquivo/*` deixa de prender o clone. Não há caminho de ataque realista.
 
-Nenhum teste foi apagado sem guarda mais estrita no lugar e nenhuma invariante saiu. O PR da promoção pede o rótulo `afrouxa-regra` do dono, e o aviso de marco precisa listar os 10 itens acima como itens que afrouxam.
+Nenhuma invariante saiu, e nenhum teste foi apagado sem outra guarda no lugar. No #908, a asserção da contagem dá lugar às asserções da lista exata de prefixos por hook e da ausência de contagem. O PR da promoção pede o rótulo `afrouxa-regra` do dono, e o aviso de marco precisa listar os 11 itens acima como itens que afrouxam.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito novo nem pendente de aceite: o diff não toca `docs/security/aceites/`, e a medida dá `aceites-novos=0`.
@@ -110,15 +123,19 @@ Nenhum risco aceito novo nem pendente de aceite: o diff não toca `docs/security
 **Para o dono, no merge da main (`R-MAIN`, `R-DECISAO`), sem bloquear este parecer:**
 - **O #906 entra na 0.47.19 contra a DECISÃO de 26/11 09:37** ("O #906 fica para a 0.47.20"). O dono mesclou o #906 na develop às 09:50, depois dessa decisão, então o código já está no commit que será promovido. Anexá-lo às notas é o correto para a segurança: um afrouxamento que entra calado seria pior.
 - **A inclusão nas notas não tem a palavra do dono.** Ela tem só "sem objeção" a uma recomendação do Jarvis (Histórico, 09:53), e silêncio não é aceite. A confirmação cabe ao dono, no merge da main.
-- **A autorização de main é anterior ao anexo.** A autorização de 25/11 21:32 ("autorizo mesclar main versao 0.47.19 ate amanha") foi dada quando a versão tinha 10 itens.
+- **O #908 também entra na 0.47.19 sem decisão expressa.** O dono o mesclou às 10:24, antes do 1º anexo e da promoção. Sem ele nas notas, `scripts/promover-homolog.py --conferir-ref` recusa a promoção pelo fragmento pendente. O código já está no commit que será promovido, então anexá-lo é o correto, pelo mesmo motivo do #906.
+- **A autorização de main é anterior aos anexos.** A autorização de 25/11 21:32 ("autorizo mesclar main versao 0.47.19 ate amanha") foi dada quando a versão tinha 10 itens; agora são 19.
 
 Cartão em aberto da rodada anterior: CATRACA-SALVAR-PROTEGIDO. `hooks/salvar.py` continua fora de `PROTEGIDOS` (`tests/catraca.py:48`). A severidade é baixa, e o dono do cartão é o `devops-engineer`.
 
-Rodei localmente só o seguinte:
-- `comparar`, `conferir-release` e `tests.test_changelog` (91 testes, OK);
-- a junção por `merge-tree`;
-- a leitura dos rótulos e dos merges pela API (só leitura).
+Rodei localmente, neste head, só o seguinte:
+- `comparar`, `conferir-release`, `tests.test_changelog` e `tests.test_indice_fixtures` (101 testes, OK), e `scripts/indice-fixtures.py --conferir` (`em dia`);
+- `bin/forge-mutante tests/mutantes/v0481-fixtures-gerada.json`: `M1 · morreu`;
+- a junção do #908 por `merge-tree`;
+- a leitura do rótulo e do merge do #908 pela API (só leitura).
 
-A suíte inteira vale pelo CI. Lacuna: `gitleaks`, `osv-scanner`, `semgrep`, `zizmor`, `actionlint` e `trivy` estão fora do PATH. O diff não toca workflow nem dependência, e a busca de segredos foi feita por padrões.
+A suíte inteira vale pelo CI. Lacuna: `gitleaks`, `osv-scanner`, `semgrep`, `zizmor`, `actionlint` e `trivy` estão fora do PATH. O diff da versão não toca workflow nem dependência, e a busca de segredos foi feita por padrões.
 
-CI no head `0157977e` (run 45826880513): a `bateria (pareceres)` está vermelha porque os pareceres de review e de QA estão `reprovado` em `da7b59be`. Reproduzi com `tests/catraca.py --modo pareceres`. As voltas desses pareceres correm em paralelo a esta, e por isso esta rodada não grava a linha `- ci:`.
+- ci: 17395e4d905fdbf24bbe21451050873b77261ba6 verde
+
+CI no head `17395e4d` (runs 45834666619 e 45834666443): as 10 partes da suíte (3.12 e 3.14), `bateria`, `bateria (pareceres)`, `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)`, os dois `teto de pulados`, `instalação`, `árvore já provada` e a `catraca` estão verdes, sem vermelho.
