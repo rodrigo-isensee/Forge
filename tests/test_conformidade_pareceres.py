@@ -80,6 +80,42 @@ class AutoriaDoPublicar(GhFalso):
         self.assertEqual(rc, 1, saida)
         self.assertIn("papel `tech-lead`", saida)
 
+    def test_s1_texto_de_docs_reviews_publicado_de_fora_do_projeto(self):
+        """S1 da segurança do #914: o texto gravado em docs/reviews/ e copiado fora do projeto (sem hook) não publica."""
+        texto = parecer(self.sha)
+        self.hook(self.grava(texto, f"docs/reviews/{PEDIDO}.md"))
+        fora = self.tmp / "fora" / ".forge" / "pareceres" / PEDIDO / "review.md"
+        fora.parent.mkdir(parents=True)
+        fora.write_text(texto, encoding="utf-8")
+        rc, saida = self.publicar(fora)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("use .forge/pareceres/", saida)
+        self.assertEqual(self.chamadas(), [], "recusado antes de chamar o gh")
+
+    def test_s1_texto_de_docs_reviews_copiado_para_o_parecer_a_publicar(self):
+        """S1 dentro do projeto: o registro de docs/reviews/ com o mesmo sha256 e papel não vale para .forge/pareceres/."""
+        texto = parecer(self.sha)
+        self.hook(self.grava(texto, f"docs/reviews/{PEDIDO}.md"))
+        rc, saida = self.publicar(self.grava(texto))
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f"como o último de `.forge/pareceres/{PEDIDO}/review.md`", saida)
+        self.assertEqual(self.chamadas(), [], "recusado antes de chamar o gh")
+
+    def test_s2_veredito_superado_nao_volta_a_publicar(self):
+        """S2 da segurança do #914: aprovado, depois reprovado no mesmo caminho; o aprovado reposto sem hook não publica."""
+        aprovado = parecer(self.sha)
+        arq = self.grava(aprovado)
+        self.hook(arq)
+        self.hook(self.grava(parecer(self.sha, "reprovado", achados="## Achados\n- A1 (bloqueante) x.py:1 · defeito\n\n")))
+        arq.write_text(aprovado, encoding="utf-8")
+        rc, saida = self.publicar(arq)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("como o último de", saida)
+        self.assertEqual(self.chamadas(), [], "recusado antes de chamar o gh")
+        self.hook(arq)  # o aprovado regravado pelo papel volta a ser o último registro e publica
+        rc, saida = self.publicar(arq)
+        self.assertEqual(rc, 0, saida)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -3880,11 +3880,19 @@ def cmd_parecer_novo(raiz, a):
     return 0
 
 
+PARECER_A_PUBLICAR = re.compile(r"\.forge/pareceres/([A-Za-z0-9][A-Za-z0-9._-]*)/([a-z-]+)\.md")  # ADR 0019, 1.2; a do hook `conformidade`
+
+
 def recusa_do_publicar(raiz, arquivo):
     """G2.1: (campos, texto, sha, violações) do `.forge/pareceres/<pedido>/<tipo>.md` igual ao frontmatter: contrato estrito e G1.2,
-    aceite do dono (M14.1), autoria do papel com o sha256 do texto (sem registro, recusa: M9.1) e o `commit:` resolvido na cópia."""
+    aceite do dono (M14.1), autoria do papel com o sha256 do texto no último registro do mesmo caminho (sem registro, de outro
+    caminho ou superado, recusa: M9.1, PUBLICAR-CONFERE-CAMINHO-E-ULTIMO) e o `commit:` resolvido na cópia."""
     p, nome = raiz / arquivo, caminho_impresso(arquivo)  # caminho absoluto em `arquivo` troca a raiz (pathlib)
-    m = re.search(r"(?:^|/)\.forge/pareceres/([A-Za-z0-9][A-Za-z0-9._-]*)/([a-z-]+)\.md$", p.as_posix())  # ADR 0019, 1.2
+    try:  # o caminho relativo à raiz, como o hook o registra; fora da raiz, nenhum
+        rel_arq = Path(os.path.realpath(p)).relative_to(os.path.realpath(raiz)).as_posix()
+    except ValueError:
+        rel_arq = ""
+    m = PARECER_A_PUBLICAR.fullmatch(rel_arq)
     texto = p.read_text(encoding="utf-8") if m and p.is_file() else ""
     campos = ler_frontmatter(texto)[0] or {}
     if not m or campos.get("pedido") != m.group(1) or campos.get("tipo") != m.group(2) or m.group(2) not in PAPEL_DO_PARECER:
@@ -3897,8 +3905,9 @@ def recusa_do_publicar(raiz, arquivo):
     if campos.get("parecer") == "riscos-aceitos" and not aceite_do_usuario(raiz, campos["pedido"], campos.get("commit"), sha):
         saida.append(f"{nome}: parecer: `riscos-aceitos` sem o aceite do dono no head com o mesmo `commit:` (M14.1, R-SEGURANCA)")
     hash_atual, papel = hashlib.sha256(texto.strip().encode()).hexdigest(), PAPEL_DO_PARECER[campos["tipo"]]
-    if not any(r.get("sha256") == hash_atual and r.get("papel") == papel for r in autorias(raiz) or []):
-        saida.append(f"{nome}: autoria: sem registro de que o papel `{papel}` gravou este texto (M9.1)")
+    ultimo = [r for r in autorias(raiz) or [] if r.get("caminho") == rel_arq][-1:]  # o texto superado não volta a valer
+    if not ultimo or ultimo[0].get("sha256") != hash_atual or ultimo[0].get("papel") != papel:
+        saida.append(f"{nome}: autoria: sem registro de que o papel `{papel}` gravou este texto (M9.1) como o último de `{rel_arq}`")
     return campos, texto, sha, saida
 
 

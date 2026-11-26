@@ -250,7 +250,7 @@ class Comando(GhFalso):
         run = self.repo / ".forge" / "run"
         run.mkdir(parents=True, exist_ok=True)
         if autoria:
-            registro = {"caminho": "x", "sha256": hashlib.sha256(texto.strip().encode()).hexdigest(), "papel": papel}
+            registro = {"caminho": f".forge/pareceres/{pedido}/{tipo}.md", "sha256": hashlib.sha256(texto.strip().encode()).hexdigest(), "papel": papel}
             with open(run / "autoria.jsonl", "a", encoding="utf-8") as f:
                 f.write(json.dumps(registro) + "\n")
         return arq
