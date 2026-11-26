@@ -1,2 +1,0 @@
-### Alterado
-- R-QA: voltas sem teto e sem o dono, até o item passar (DECISÃO DO DONO 25/11 17:07); da 3ª em diante, a volta só corrige o que o portão apontou (ORDEM DO DONO 25/11 07:31): o brief gerar --volta traz a restrição, a conferência do brief a cobra e a da entrega recusa teste removido ou enfraquecido no diff da volta, também por teste; da 4ª, o brief junta o tech-lead e o revisor que reprovou; brief que não é de portão numa branch com parecer reprovado é volta e sai por --volta (v0481 E14.44, E14.63).

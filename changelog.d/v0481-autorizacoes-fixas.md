@@ -1,2 +1,0 @@
-### Adicionado
-- Autorizações fixas do dono (emenda AUTORIZACOES-FIXAS da ADR 0018): os atos `corte-diario` e `so-aperta-com-seguranca`, sem prazo, com alvo `fixo`, gravados e lidos pelo `forge-check autorizacao`; o `forge-fechar --corte` corta a versão abaixo do teto do contador a partir das 06:00 locais, uma vez por dia, só com uma `corte-diario` ativa, e grava no corpo do PR da marca a autorização usada. Os atos de rótulo e da `main` não mudam.
