@@ -1,2 +1,0 @@
-### Alterado
-- Índice das fixtures dos hooks (`docs/hooks-fixtures.md`) sem contagem: uma linha por prefixo, em ordem alfabética, por hook; caso novo num prefixo que já existe não toca o arquivo e PRs paralelos de hooks se juntam sem conflito nele (HOOKS-FIXTURES-GERADA). Contagens, regras, cartões e exemplo por grupo saem de `scripts/indice-fixtures.py --detalhe`, sem gravar; o CI segue conferindo o arquivo em dia.
