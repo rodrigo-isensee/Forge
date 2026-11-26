@@ -1,0 +1,70 @@
+{
+  "pedido": "v0481-s1-status",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "S1a: data ilegível do GitHub vira não verificável, não exceção",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    except ValueError:\n        raise NaoVerificavel(f\"data ilegível",
+      "para": "    except TypeError:\n        raise NaoVerificavel(f\"data ilegível",
+      "testes": ["tests.test_forge_status_estado.Itens.test_ultimo_merge_fora_da_forma_e_data_ilegivel_nao_verificaveis"]
+    },
+    {
+      "id": "M2",
+      "guarda": "S1a: abaixo de 60 min a idade sai em minutos",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    if minutos < 60:",
+      "para": "    if minutos <= 60:",
+      "testes": ["tests.test_forge_status_estado.Idade.test_minutos_horas_e_dias_e_futuro"]
+    },
+    {
+      "id": "M3",
+      "guarda": "S1a: a partir de 48 h a idade sai em dias",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if minutos < 48 * 60 else",
+      "para": "if minutos <= 48 * 60 else",
+      "testes": ["tests.test_forge_status_estado.Idade.test_minutos_horas_e_dias_e_futuro"]
+    },
+    {
+      "id": "M4",
+      "guarda": "S1a: data no futuro vale há 0 min, nunca negativa",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    minutos = max(0, int((agora - antes).total_seconds() // 60))",
+      "para": "    minutos = int((agora - antes).total_seconds() // 60)",
+      "testes": ["tests.test_forge_status_estado.Idade.test_minutos_horas_e_dias_e_futuro"]
+    },
+    {
+      "id": "M5",
+      "guarda": "S1a: gh sem saída (sem rede) vira não verificável com o stderr do gh",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    if dados is None:\n        raise NaoVerificavel(\" \".join(str(erro",
+      "para": "    if False:\n        raise NaoVerificavel(\" \".join(str(erro",
+      "testes": ["tests.test_forge_status_estado.PeloForgeCheck.test_sem_rede_rc_0_e_decisoes_da_raiz_com_docs_pedidos"]
+    },
+    {
+      "id": "M6",
+      "guarda": "S1a: commit da develop sem a chave esperada vira não verificável",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    except (KeyError, TypeError, AttributeError):",
+      "para": "    except (TypeError, AttributeError):",
+      "testes": ["tests.test_forge_status_estado.Itens.test_ultimo_merge_fora_da_forma_e_data_ilegivel_nao_verificaveis"]
+    },
+    {
+      "id": "M7",
+      "guarda": "S1a: PR com conflito vai a em conflito, antes dos outros grupos",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    if pr.get(\"mergeable\") == \"CONFLICTING\":",
+      "para": "    if pr.get(\"mergeable\") == \"CONFLICTED\":",
+      "testes": ["tests.test_forge_status_estado.Itens.test_prs_nos_quatro_grupos"]
+    },
+    {
+      "id": "M8",
+      "guarda": "S1a: só espera rótulo do dono o PR com afrouxa-regra no título e sem o rótulo",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    if ROTULO_DO_DONO in (pr.get(\"title\") or \"\") and ROTULO_DO_DONO not in rotulos:",
+      "para": "    if ROTULO_DO_DONO in (pr.get(\"title\") or \"\"):",
+      "testes": ["tests.test_forge_status_estado.Itens.test_prs_nos_quatro_grupos"]
+    }
+  ]
+}
