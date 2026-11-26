@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-s1-status",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "S1a: gh sem saída e sem stderr diz gh sem saída",
+      "arquivo": "bin/forge_estado.py",
+      "de": "str(erro or \"gh sem saída\")",
+      "para": "str(erro)",
+      "testes": [
+        "tests.test_forge_status_estado.Itens.test_gh_sem_saida_e_sem_stderr_diz_gh_sem_saida"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "S1a: PR com labels nulo não derruba a leitura",
+      "arquivo": "bin/forge_estado.py",
+      "de": "for r in pr.get(\"labels\") or []}",
+      "para": "for r in pr.get(\"labels\")}",
+      "testes": [
+        "tests.test_forge_status_estado.Itens.test_pr_sem_rotulos_nem_checks_espera_revisao"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "S1a: PR com checks nulo não derruba a leitura",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    checks = pr.get(\"statusCheckRollup\") or []",
+      "para": "    checks = pr.get(\"statusCheckRollup\")",
+      "testes": [
+        "tests.test_forge_status_estado.Itens.test_pr_sem_rotulos_nem_checks_espera_revisao"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "S1a: grupo vazio sai sem a lista vazia",
+      "arquivo": "bin/forge_estado.py",
+      "de": "(f\" ({' '.join(g)})\" if g else \"\")",
+      "para": "(f\" ({' '.join(g)})\" if True else \"\")",
+      "testes": [
+        "tests.test_forge_status_estado.Itens.test_prs_lista_vazia_e_fora_da_forma"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "S1a: forge-contador mudo e sem stderr diz sem saída",
+      "arquivo": "bin/forge_estado.py",
+      "de": "(r.stderr or \"forge-contador sem saída\")",
+      "para": "(r.stderr)",
+      "testes": [
+        "tests.test_forge_status_estado.Contador.test_contador_que_falha_ou_cala_nao_verificavel"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "S1a: leitura recusada sem linha diz leitura recusada",
+      "arquivo": "bin/forge_estado.py",
+      "de": "linhas[0] if linhas else \"leitura recusada\"",
+      "para": "linhas[0] if True else \"leitura recusada\"",
+      "testes": [
+        "tests.test_forge_status_estado.Itens.test_decisoes_leitura_recusada_nao_verificavel"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "S1a: só as linhas aberta: contam (o total e o aviso ficam fora)",
+      "arquivo": "bin/forge_estado.py",
+      "de": "for linha in linhas if linha.startswith(\"aberta:\")]",
+      "para": "for linha in linhas if True]",
+      "testes": [
+        "tests.test_forge_status_estado.Itens.test_decisoes_abertas_e_a_mais_antiga"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "S1a: sem --agora vale a hora local",
+      "arquivo": "bin/forge_estado.py",
+      "de": "instante(a.agora) if a.agora else dt.datetime.now()",
+      "para": "instante(a.agora) if True else dt.datetime.now()",
+      "testes": [
+        "tests.test_forge_status_estado.Executar.test_sem_agora_vale_a_hora_local"
+      ]
+    }
+  ]
+}
