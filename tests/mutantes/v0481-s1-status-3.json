@@ -8,7 +8,9 @@
       "arquivo": "bin/forge_estado.py",
       "de": "    if not isinstance(dados, dict) or not dados.get(\"tagName\"):",
       "para": "    if not dados.get(\"tagName\"):",
-      "testes": ["tests.test_forge_status_estado.Itens.test_ultima_versao_publicada"]
+      "testes": [
+        "tests.test_forge_status_estado.Itens.test_ultima_versao_publicada"
+      ]
     },
     {
       "id": "M18",
@@ -16,7 +18,9 @@
       "arquivo": "bin/forge_estado.py",
       "de": "    return ctx[\"versao\"]() or \"não verificável (plugin.json ilegível)\"",
       "para": "    return ctx[\"versao\"]()",
-      "testes": ["tests.test_forge_status_estado.Itens.test_plugin_da_sessao"]
+      "testes": [
+        "tests.test_forge_status_estado.Itens.test_plugin_da_sessao"
+      ]
     },
     {
       "id": "M19",
@@ -24,7 +28,9 @@
       "arquivo": "bin/forge_estado.py",
       "de": "    except NaoVerificavel:\n        agora = None",
       "para": "    except ValueError:\n        agora = None",
-      "testes": ["tests.test_forge_status_estado.Executar.test_agora_sem_fuso_ou_ilegivel_sai_com_2"]
+      "testes": [
+        "tests.test_forge_status_estado.Executar.test_agora_sem_fuso_ou_ilegivel_sai_com_2"
+      ]
     },
     {
       "id": "M20",
@@ -32,7 +38,9 @@
       "arquivo": "bin/forge_estado.py",
       "de": "    if agora is None or agora.tzinfo is None:",
       "para": "    if agora is None:",
-      "testes": ["tests.test_forge_status_estado.Executar.test_agora_sem_fuso_ou_ilegivel_sai_com_2"]
+      "testes": [
+        "tests.test_forge_status_estado.Executar.test_agora_sem_fuso_ou_ilegivel_sai_com_2"
+      ]
     },
     {
       "id": "M21",
@@ -40,7 +48,9 @@
       "arquivo": "bin/forge_estado.py",
       "de": "        except NaoVerificavel as erro:",
       "para": "        except ValueError as erro:",
-      "testes": ["tests.test_forge_status_estado.Executar.test_sem_rede_as_linhas_do_gh_sao_nao_verificaveis_e_rc_0"]
+      "testes": [
+        "tests.test_forge_status_estado.Executar.test_sem_rede_as_linhas_do_gh_sao_nao_verificaveis_e_rc_0"
+      ]
     },
     {
       "id": "M22",
@@ -48,7 +58,9 @@
       "arquivo": "bin/forge-check",
       "de": "        pedidos = Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else next(",
       "para": "        pedidos = Path(a.raiz_pedidos).resolve() if False else next(",
-      "testes": ["tests.test_forge_status_estado.PeloForgeCheck.test_raiz_pedidos_explicita_vence_a_da_raiz"]
+      "testes": [
+        "tests.test_forge_status_estado.PeloForgeCheck.test_raiz_pedidos_explicita_vence_a_da_raiz"
+      ]
     },
     {
       "id": "M23",
@@ -56,7 +68,19 @@
       "arquivo": "bin/forge-check",
       "de": "            (r for r in raizes_de_pedidos(raiz) if (Path(r) / \"docs\" / \"pedidos\").is_dir()), raiz)",
       "para": "            (r for r in raizes_de_pedidos(raiz) if True), raiz)",
-      "testes": ["tests.test_forge_status_estado.PeloForgeCheck.test_sem_rede_rc_0_e_decisoes_da_raiz_com_docs_pedidos"]
+      "testes": [
+        "tests.test_forge_status_estado.PeloForgeCheck.test_sem_rede_rc_0_e_decisoes_da_raiz_com_docs_pedidos"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "S1a: o subcomando status despacha para bin/forge_estado.py",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.cmd == \"status\":  # S1a",
+      "para": "    if a.cmd == \"statu\":  # S1a",
+      "testes": [
+        "tests.test_forge_status_estado.PeloForgeCheck.test_sem_rede_rc_0_e_decisoes_da_raiz_com_docs_pedidos"
+      ]
     }
   ]
 }

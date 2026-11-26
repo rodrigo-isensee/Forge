@@ -67,6 +67,15 @@ class Itens(unittest.TestCase):
             with self.subTest(dados=dados), self.assertRaises(E.NaoVerificavel):
                 E.ultimo_merge(ctx({("api", "repos/{owner}/{repo}/commits/develop"): (dados, "")}), RAIZ, AGORA)
 
+    def test_gh_sem_saida_e_sem_stderr_diz_gh_sem_saida(self):
+        with self.assertRaisesRegex(E.NaoVerificavel, "^gh sem saída$"):
+            E.ultimo_merge(ctx({("api", "repos/{owner}/{repo}/commits/develop"): (None, "")}), RAIZ, AGORA)
+
+    def test_pr_sem_rotulos_nem_checks_espera_revisao(self):
+        sem_listas = {"number": 8, "title": "feat: x [afrouxa-regra: y]", "labels": None, "statusCheckRollup": None}
+        self.assertEqual(E.grupo_do_pr(sem_listas), 1)
+        self.assertEqual(E.grupo_do_pr({**sem_listas, "title": "feat: x"}), 0)
+
     def test_prs_nos_quatro_grupos(self):
         prs = [pr(1), pr(2, "fix: y [afrouxa-regra: z]"), pr(3, "fix: y [afrouxa-regra: z]", rotulos=["afrouxa-regra"]),
                pr(4, mergeable="CONFLICTING", checks=[{"conclusion": "FAILURE"}]), pr(5, checks=[{"conclusion": "FAILURE"}]),
@@ -99,6 +108,8 @@ class Itens(unittest.TestCase):
     def test_decisoes_leitura_recusada_nao_verificavel(self):
         with self.assertRaisesRegex(E.NaoVerificavel, "link simbólico"):
             E.decisoes(ctx(abertas=lambda p: (["abertas: erro: docs é link simbólico; recusado"], 1)), RAIZ, AGORA)
+        with self.assertRaisesRegex(E.NaoVerificavel, "^leitura recusada$"):
+            E.decisoes(ctx(abertas=lambda p: ([], 1)), RAIZ, AGORA)
 
     def test_plugin_da_sessao(self):
         self.assertEqual(E.plugin_da_sessao(ctx(), RAIZ, AGORA), "0.47.19")
@@ -141,6 +152,11 @@ class Executar(unittest.TestCase):
             self.assertIn(": não verificável (", linhas[i])
         self.assertEqual(linhas[3], "status: decisões do dono abertas: 0")
         self.assertEqual(linhas[5], "status: plugin da sessão: 0.47.19")
+
+    def test_sem_agora_vale_a_hora_local(self):
+        rc, saida = rodar(ctx(), None)
+        self.assertEqual(rc, 0)
+        self.assertIn("status: plugin da sessão: 0.47.19", saida)
 
     def test_agora_sem_fuso_ou_ilegivel_sai_com_2(self):
         for agora in ("2026-11-26T12:00", "ontem"):
