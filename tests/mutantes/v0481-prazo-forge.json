@@ -82,5 +82,12 @@
         "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_fixtures_fifo"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/_comum.py",
+      "trecho": "critico is None and evento != \"PreToolUse\"",
+      "motivo": "guarda reescrita, não apagada: a mesma condição (De Morgan) virou `recusa = evento != \"PostToolUse\" and (critico is not None or evento == \"PreToolUse\")` em prazo_vencido, coberta pelo M2 desta spec, que morre"
+    }
   ]
 }
