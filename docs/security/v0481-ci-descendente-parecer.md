@@ -3,42 +3,38 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-ci-descendente-parecer
-commit: aa26249f6f12bb20aa2b8d3023bd820293eaad48
-parecer: reprovado
+commit: 523b0065035b3e0ce068d94360966ce20ed1c4d4
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-25
 ---
-# Review de segurança: v0481 E8.17 (volta do #895 por delta, de 2364a43b a aa26249f)
+# Review de segurança: v0481 E8.21 (2ª volta do #895 por delta, de aa26249f a 523b0065)
 
 ## Gatilhos
 Gatilhos: controle do Forge (portão `forge-check pr`, PARECER-LE-O-CI), analisador de caminhos do diff
 
+- ci: 523b0065035b3e0ce068d94360966ce20ed1c4d4 verde
+
 ## Achados
-- A3 (bloqueante) skills/engineering-practices/SKILL.md:54 · tests/test_metricas_texto.py:88 falha no aa26249f: engineering-practices 7113 caracteres > teto 6982 e qa-testing (skills/qa-testing/SKILL.md:46) 11774 > 11761; suíte parte 1/5 vermelha no CI nas duas versões (S3). Encurte; subir o teto é afrouxar.
-
-## Delta lido
-`git diff 2364a43b..aa26249f` (commit `aa26249f`, E8.14): `bin/forge-check:2192-2199`, `skills/engineering-practices/SKILL.md:54`, `skills/qa-testing/SKILL.md:46`, `tests/test_forge_check_pr.py:549-564` e `:595`, `tests/mutantes/v0481-ci-descendente-parecer.json` (M3, M5) e `-2.json` (M10, M11). Os outros três arquivos do intervalo são os pareceres da rodada anterior. O resto da mudança foi lido na rodada de `2364a43b` (no git) e não mudou.
-
-## Achados anteriores
-- A1 (bloqueante): **corrigido.** `bin/forge-check:2198` lê o diff com `bruto=True` e `nomes_z`, sem o `strip`. O caso está em `tests/test_forge_check_pr.py:549`, com espaço, tab e quebra de linha, e o mutante M10 o mata.
-- A2 (bloqueante): **corrigido.** `python3 -m unittest tests.test_orcamento_instrucao` deu 8 OK no `aa26249f` (S2).
 
 ## Sondas
-- S1 · sonda_s1.py (repos descartáveis): commit c1 sobre c0 que só cria ' docs/reviews/x.py', '\tdocs/security/x.py', '\ndocs/qa/x.py' ou '\rdocs/qa/x.py'; so_pareceres_ate(c0, c1) · espera: False · obtido: False nos quatro (no 2364a43b: True nos quatro)
-- S2 · python3 -m unittest tests.test_orcamento_instrucao no aa26249f · espera: OK · obtido: OK (8 testes)
-- S3 · python3 -m unittest tests.test_metricas_texto no aa26249f (no eeb81062: OK) · espera: OK · obtido: FAILED (engineering-practices caracteres 7113 > teto 6982; qa-testing caracteres 11774 > teto 11761)
+
+## Delta lido
+`git diff aa26249f..523b0065`: o commit `f8839529` (E8.18) muda uma linha em `skills/engineering-practices/SKILL.md:54` e uma em `skills/qa-testing/SKILL.md:46`. Os merges `fc029f85` e `523b0065` trazem a develop até `6cc4cd5a`, sem resolução de conflito (`git show --remerge-diff` vazio nos dois). O `forge-check parecer delta` lista `bin/forge-check`, mas essa mudança vem da develop (#874). A parte da branch em `bin/forge-check`, `tests/test_forge_check_pr.py`, `tests/test_pre_envio_brief.py`, `tests/mutantes/` e no fragmento do changelog é igual, linha a linha, à que foi revisada no `aa26249f` (diff `eeb81062..aa26249f` contra `6cc4cd5a..523b0065`). Entre `aa26249f` e `523b0065`, `tests/config.json`, `tests/fixtures/metricas-texto.json`, `tests/test_metricas_texto.py` e `tests/test_orcamento_instrucao.py` não mudam.
+
+## Achados anteriores
+- A1 (bloqueante): corrigido no `aa26249f` e sem mudança desde então.
+- A2 (bloqueante): corrigido no `aa26249f` e sem mudança desde então.
+- A3 (bloqueante): **corrigido.** `python3 -m unittest tests.test_metricas_texto tests.test_orcamento_instrucao` deu 10 OK no `523b0065`. No CI do head, a suíte parte 1/5 passa em 3.12 e em 3.14. Nenhum teto foi mexido: os arquivos de tetos e os testes são os mesmos do `aa26249f`.
 
 ## Detalhe dos achados
-**A3.** A evidência está no CI do #895 no `aa26249f` (run 45589057763). `suíte (python 3.12, parte 1/5)` (job 139118556970) e `suíte (python 3.14, parte 1/5)` (job 139118557306) falham em `test_metricas_texto.MetricasDoTexto.test_nenhuma_metrica_passa_do_teto`, contra os tetos de `tests/fixtures/metricas-texto.json`. As outras partes da suíte, as baterias de passos e de verificações longas e a instalação estão verdes. O defeito já existia no `2364a43b`, com 7167 caracteres em engineering-practices e, em qa-testing, 11947 caracteres e frase média 194 acima de 192. Lá, a parte 1/5 estava cancelada pelo envio do parecer de review, e por isso a rodada anterior não o viu. O encurtamento da E8.14 cumpriu o orçamento de instrução, mas não o de métricas do texto. Isso não é achado de segurança. É defeito provado, e deixa o CI do sha revisado vermelho: sem CI verde, nenhum portão aprova (PARECER-LE-O-CI). Correção mínima: cortar pelo menos 131 caracteres da frase G3.7 em `skills/engineering-practices/SKILL.md:54` e 13 em `skills/qa-testing/SKILL.md:46`, sem tirar os invariantes das duas skills. Depois, conferir juntos `tests.test_metricas_texto` e `tests.test_orcamento_instrucao`, sem mexer em teto. O comando que tira a dúvida é `python3 -m unittest tests.test_metricas_texto tests.test_orcamento_instrucao`. Esforço P. Dono: autor da E8.14.
+Sem achado novo.
 
-## Parecer
-Reprovado só por A3. A parte de segurança do delta está correta e fecha A1.
-
-- **O que aperta:** `so_pareceres_ate` (`bin/forge-check:2198`) não perde mais o branco inicial do 1º caminho (S1). Com `--ignore-submodules=none`, um gitlink fora das pastas aparece mesmo com `diff.ignoreSubmodules=all` na configuração (a sonda deu False; no `2364a43b`, True). Um nome que não é UTF-8 fora das pastas também mudou: antes, `UnicodeDecodeError` subia de `git()` em modo texto; agora o `surrogateescape` do `nomes_z` devolve False, falha fechada. O separador continua sendo só o NUL (`-z`).
-- **O que é neutro:** o critério das três pastas, o `--no-renames`, o `merge-base --is-ancestor` e `leu_o_ci_via` estão iguais byte a byte. O falso de `test_erro_do_git_diff_falha_fechado` (`tests/test_forge_check_pr.py:595`) agora devolve `b""`, como o `git()` real com `bruto`. Ele não é mais frouxo que o script. No encurtamento das skills, os trechos de `invariantes` (`tests/config.json`) das duas casam no `2364a43b` e no `aa26249f`: 12 de 12 em `skills/qa-testing/SKILL.md` e 10 de 10 em `skills/engineering-practices/SKILL.md`. As frases que saíram do QA ("A suíte inteira roda no CI do PR" e "a ele e à segurança") seguem em `agents/qa-engineer.md:15`, onde "suíte inteira roda só no CI" é invariante com `R-QA`. A lista das três pastas saiu do texto ("cujo diff toca apenas pareceres"), mas a regra segue no código (`PASTAS_DOS_PARECERES`, `bin/forge-check:2190`) e no teste. Nenhum teto foi mexido.
-- **O que afrouxa:** nada além do que a rodada anterior já descreveu, ou seja, o run cancelado do `commit:` vale pelo run de um descendente que mexe só em pareceres. Com A1 fechado, esse descendente não pode trazer código diferente.
-- **Testes e mutantes:** `python3 -m unittest tests.test_orcamento_instrucao tests.test_forge_check_pr.LeOCiVia tests.test_forge_check_pr.LeOCiNoCmdPr` deu 28 OK. Com `bin/forge-mutante` nas duas specs, M1 a M11 morreram (M9 pelo erro do teste declarado, porque a guarda é "nem quebra"). A saída de `bin/forge-mutante --conferir --todas` no `aa26249f` é igual à da base `eeb81062` (diff vazio; rc 1 nas duas, com as mesmas 26 linhas de specs antigas).
-- **CI do #895 no `aa26249f`:** a suíte parte 1/5 está vermelha (A3), e por isso `bateria` e `bateria (python 3.14)` também. `bateria (pareceres)` e `catraca` estão vermelhos por construção. O resto está verde. Sem a linha `- ci:`, o parecer não aprova.
+- **O que aperta:** nada novo neste delta.
+- **O que é neutro:** o texto das duas skills. Os trechos de `invariantes` (`tests/config.json`) casam por regex no `aa26249f` e no `523b0065`, 10 de 10 em engineering-practices e 12 de 12 em qa-testing. Saíram de engineering-practices "o review lê o CI do head", "o merge exige todos" e "cujo diff toca apenas pareceres". A forma da linha e as três checagens de fora continuam no texto. A exigência do merge segue no `forge-check` (`bin/forge-check:2176`) e na proteção da branch, e a regra das três pastas segue no código (`PASTAS_DOS_PARECERES`, `bin/forge-check:2189-2199`) e no teste. O texto da skill não decide nada: quem barra é o portão.
+- **O que afrouxa:** nada além do `via` já descrito nas rodadas anteriores e aceito pelo dono em 25/11 07:27.
+- **CI do #895 no `523b0065`** (runs 45696404571 e 45696404450, `headSha` conferido): passam as dez partes da suíte (3.12 e 3.14), `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)`, a instalação, o teto de pulados e a árvore provada. Três checagens falham, todas por espera. `bateria (pareceres)` falha por R-REVIEW e R-QA, porque os pareceres ainda não são aprovados no head. `bateria` falha só porque `pareceres: failure` (as outras partes estão em `success`). A `catraca` falha por R-CONFORMIDADE ("mudança em bin/forge-check"), porque o rótulo `afrouxa-regra` tem de ser aplicado pelo dono depois do último push.
+- **PA-7:** nenhum dos AR-1 a AR-12 se aplica a uma mudança só de texto de skill. Para o AR-9, o texto novo não cita limite numérico.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Usei git, a biblioteca padrão e o `gh` (só leitura de checks, anotações e runs). Não usei gitleaks nem osv-scanner, porque o delta não traz segredo nem dependência.
+Nenhum risco aceito. Usei git, a biblioteca padrão e o `gh`, só para ler checks e logs. Não usei gitleaks nem osv-scanner, porque o delta não traz segredo nem dependência.
