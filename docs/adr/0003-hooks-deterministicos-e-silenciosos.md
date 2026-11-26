@@ -145,7 +145,7 @@ Estado da emenda: **vigente a partir do PR que traz o hook `estado`**, com fixtu
 5. **Nunca bloqueia:** sai sempre com 0; fora de projeto do Forge (item 3), hook desligado na config ou erro interno: silêncio, e o erro vai a `.forge/run/erros.log` (item 4). O `estado` entra no grupo que só avisa (códigos `{0}`).
 
 ### Por que o existente não basta
-- O `forge-check status` (S1a, #910) só vale se o Jarvis o rodar; a regra em texto não segura. Evidência: o estudo siegard2 (`docs/anexos/estudo-siegard-2511.md`, S1): em 24 e 25/11 o Jarvis afirmou estado de memória e errou (20 itens contados quando eram 17, sessão parada achada viva, o merge da 0.47.18 não visto).
+- O `forge-check status` (S1a, #910) só vale se o Jarvis o rodar; a regra em texto não segura. Evidência: o estudo de campo de um projeto que usa o Forge (S1, ordem do dono de 25/11): em 24 e 25/11 o Jarvis afirmou estado de memória e errou (20 itens contados quando eram 17, sessão parada achada viva, o merge da 0.47.18 não visto).
 - O `ordens` injeta as ordens do dono, não o estado, e é só leitura de arquivo.
 
 ### Afrouxa: sim, ADR 0003 itens 1 e 2 e três invariantes de teste

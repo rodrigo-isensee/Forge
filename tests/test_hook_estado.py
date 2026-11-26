@@ -13,6 +13,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parent.parent
 HOOKS = RAIZ / "hooks"
 STATUS = ("status: último merge na develop: abc123 há 5 min\nstatus: PRs abertos: 0\n"
@@ -39,8 +42,8 @@ class Base(unittest.TestCase):
         self.projeto = self.tmp / "projeto"
         (self.projeto / ".forge").mkdir(parents=True)
         (self.projeto / ".forge" / "versao").write_text("0.1.0\n", encoding="utf-8")
-        subprocess.run(["git", "init", "-q", str(self.projeto)], env=self.ambiente(), check=True, capture_output=True,
-                       timeout=60)
+        subprocess.run(["git", "init", "-q", str(self.projeto)], env=sem_manutencao(self.ambiente()), check=True,
+                       capture_output=True, timeout=60)
 
     def ambiente(self):
         return {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(self.tmp), "LANG": "C.UTF-8",
