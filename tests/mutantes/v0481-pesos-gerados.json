@@ -42,5 +42,17 @@
         "tests.test_testes_tocados.Regerar.test_sem_veredito_sai_2_e_a_busca_que_falha_avisa"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-testes",
+      "trecho": "not isinstance(pesos, dict)",
+      "motivo": "código removido: a leitura do tests/pesos-d4.json para achar módulo novo sem peso saiu com a função; módulo sem entrada vale a mediana (E19.1)"
+    },
+    {
+      "arquivo": "bin/forge-testes",
+      "trecho": "a and a.group(1) not in pesos",
+      "motivo": "código removido: o filtro de módulo novo sem peso saiu com a função; o --registros não reprova mais por falta de peso (E19.1)"
+    }
   ]
 }
