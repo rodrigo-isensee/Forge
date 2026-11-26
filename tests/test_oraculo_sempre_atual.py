@@ -266,7 +266,8 @@ class Mundo(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
         self.home, self.fake, self.neutro = self.tmp / "home", self.tmp / "fake", self.tmp / "neutro"
         self.fbin, self.temp = self.fake / "bin", self.tmp / "t"
-        for p in (self.home, self.fake, self.fbin, self.neutro, self.temp, self.fake / "publicadas"):
+        self.proc = self.fake / "proc"  # os processos vivos do mundo do teste (a ferramenta lê daqui, não do /proc da máquina)
+        for p in (self.home, self.fake, self.fbin, self.neutro, self.temp, self.fake / "publicadas", self.proc):
             p.mkdir(parents=True)
         self.plug = self.home / ".claude" / "plugins"
         self.cache = self.plug / "cache" / "forge" / "forge"
@@ -464,21 +465,17 @@ class Mundo(unittest.TestCase):
         return [l.split()[1] for l in f.read_text().splitlines()] if f.is_file() else []
 
     def vivo(self, nome, cwd):
-        """Processo vivo de nome `claude` ou `forge-fechar`, com a pasta dada (o que a ferramenta enxerga no /proc)."""
+        """Processo vivo de nome `claude` ou `forge-fechar`, com a pasta dada (o que a ferramenta enxerga na árvore `self.proc`)."""
         p = subprocess.Popen([str(self.fbin / nome), "--dormir"], cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                              stderr=subprocess.DEVNULL, start_new_session=True)
         self.addCleanup(lambda: (p.kill(), p.wait()))
-        comm = ""
-        for _ in range(100):
-            try:
-                comm = Path(f"/proc/{p.pid}/comm").read_text().strip()
-            except OSError:
-                comm = ""
-            if comm == nome:
-                break
-            time.sleep(0.05)
-        self.assertEqual(comm, nome, f"preparo do oráculo: /proc/<pid>/comm do processo falso deveria ser {nome}. No sandbox do Bash o "
-                                     "/proc é de outro namespace de pid: este teste só roda no CI ou fora do sandbox")
+        # O /proc da máquina não serve de fonte: no sandbox do Bash ele é de outro namespace de pid. O processo vivo (real, para
+        # o teste provar que ninguém o derruba) entra na árvore do mundo do teste, que o lançador entrega à ferramenta.
+        entrada = self.proc / str(p.pid)
+        entrada.mkdir()
+        (entrada / "comm").write_text(nome + "\n")
+        (entrada / "cmdline").write_bytes(f"{nome}\0--dormir\0".encode())
+        (entrada / "cwd").symlink_to(Path(cwd).resolve())
         return p
 
     def env(self, **extra):
@@ -499,7 +496,7 @@ class Mundo(unittest.TestCase):
             args += ["--projeto", str(projeto)]
         if orcamento is not None:
             args += ["--orcamento", str(orcamento)]
-        cmd = [sys.executable, str(FERRAMENTA), *args] if direto else comando(FERRAMENTA, *args, ate=os.getpid())
+        cmd = [sys.executable, str(FERRAMENTA), *args] if direto else comando(FERRAMENTA, *args, ate=os.getpid(), proc=self.proc)
         try:
             return subprocess.run(cmd, cwd=projeto or self.neutro, env=env or self.env(), stdin=stdin, capture_output=True,
                                   text=True, timeout=timeout)
@@ -623,7 +620,8 @@ class Abertura(Mundo):
         """RD1 · roda sem tty e com a entrada aberta e muda: não pergunta, não lê, não trava"""
         p = self.cenario_atualiza()
         self.assertTrue(FERRAMENTA.is_file(), f"falta bin/forge-sempre-atual (E6.4); este oráculo exige: {self.exige()}")
-        proc = subprocess.Popen(comando(FERRAMENTA, "--gatilho", "atalho", "--projeto", p, ate=os.getpid()), cwd=p, env=self.env(),
+        cmd = comando(FERRAMENTA, "--gatilho", "atalho", "--projeto", p, ate=os.getpid(), proc=self.proc)
+        proc = subprocess.Popen(cmd, cwd=p, env=self.env(),
                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         self.addCleanup(lambda: (proc.kill(), proc.wait()))
         try:
