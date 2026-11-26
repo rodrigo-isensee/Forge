@@ -43,16 +43,6 @@
       ]
     },
     {
-      "id": "M21",
-      "guarda": "sem as decisões do chamador, a conferência lê as do pedido",
-      "arquivo": "bin/forge-check",
-      "de": "cobradas or {\"fontes\": [(\"\", linhas_de_decisao(pedido_txt))]}, do_item)",
-      "para": "cobradas or {\"fontes\": []}, do_item)",
-      "testes": [
-        "tests.test_volta_por_delta.BriefDeVolta.test_conferencia_sem_cobradas_le_as_decisoes_do_pedido"
-      ]
-    },
-    {
       "id": "M22",
       "guarda": "só o brief que aponta para o anterior é sucessor dele",
       "arquivo": "bin/forge-check",
@@ -60,16 +50,6 @@
       "para": "sucessores += Path(pasta, Path(m.group(1)).name).resolve() != Path(anterior).resolve()",
       "testes": [
         "tests.test_volta_por_delta.BriefDeVolta.test_volta_de_outro_item_nao_conta"
-      ]
-    },
-    {
-      "id": "M23",
-      "guarda": "a forma canônica vale até o fim da linha (review A4)",
-      "arquivo": "bin/forge-check",
-      "de": "`?{}`?\\.?\\s*$\"",
-      "para": "`?{}`?\\.?(?=\\s|$)\"",
-      "testes": [
-        "tests.test_volta_por_delta.BriefDeVolta.test_so_a_forma_canonica_autoriza_e_uma_linha_vale_uma_volta"
       ]
     }
   ]
