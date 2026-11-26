@@ -3,14 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: release-0.47.19
 branch: melhoria/v0481-release-04719-anexo
-commit: da7b59be13063ef51235c1e82f53bfda493cc25f
+commit: 0157977e02dc38058c1b762b01d301985f85573f
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-26
 ---
-# Review de segurança: release 0.47.19 (versão inteira, 18 itens), revalidada no anexo da7b59be
+# Review de segurança: release 0.47.19 (versão inteira, 18 itens), revalidada no anexo 0157977e
 
-Etapa E12.30 do pedido v0481. Esta rodada vem do parecer da marca (E12.25, aprovado em `9487d956`, commit `cfc7bd6d` da branch `melhoria/marca-0.47.19`, que não entrou na develop) e o estende para a versão inteira:
+Etapa E12.34 do pedido v0481, volta por delta de `da7b59be..0157977e`. O delta de código é só `CHANGELOG.md:24`, +1 −1, a linha do anexo (E12.31); o resto são os pareceres da rodada E12.28 a E12.30. O delta é neutro: é só texto e não toca nenhum controle. A rodada E12.30, aprovada em `da7b59be`, fica no git. Ela vem do parecer da marca (E12.25, aprovado em `9487d956`, commit `cfc7bd6d` da branch `melhoria/marca-0.47.19`, que não entrou na develop) e o estende para a versão inteira:
 - os **10 itens da marca** (#874, #877, #885, #886, #890, #892, #895, #896, #897, #898), lidos na rodada anterior, com a conclusão abaixo;
 - os **8 itens do anexo** (#875, #901, #903, #904, entre o corte `cc4376fe` e a squash da marca `020e4af7`; #878, #902, #888, #906, depois dela);
 - a **marca** (`020e4af7`, #905) e o **anexo** (`docs/security/v0481-release-04719-anexo.md`, só metadado de versão).
@@ -44,14 +44,14 @@ Os 8 pareceres estão `aprovado`, com `pedido: v0481`.
 
 ## Marca, anexo e versão
 - **Marca:** `cc4376fe..9487d956` toca só os dois `plugin.json`, o `CHANGELOG.md` e os 10 fragmentos apagados, e é idêntica à saída de `forge-changelog release 0.47.19 2026-11-26`.
-- **Anexo:** 15 linhas novas na seção `[0.47.19]`. São as 14 dos 8 fragmentos apagados, idênticas, mais a linha do anexo. Nenhuma linha da marca sai.
+- **Anexo:** 15 linhas novas (de `8ae4d6c6` a `0157977e`) na seção `[0.47.19]`. São as 14 dos 8 fragmentos apagados, idênticas, mais a linha do anexo. Nenhuma linha da marca sai.
 - **Texto, sem efeito de segurança:**
-  - a linha do anexo (`CHANGELOG.md:24`) diz "7 itens", sem o #906 (é o A1 do review);
+  - a linha do anexo (`CHANGELOG.md:24`) agora diz "os 8 itens" e cita o #906 e o E12.27 (A1 do review, resolvido em `0157977e`);
   - a linha do #877 ainda diz "à espera do dono", embora o dono já tenha aprovado.
 - **Versão:** `0.47.19` em `.claude-plugin/plugin.json:3` e em `dev/.claude-plugin/plugin.json:3`, igual a `CHANGELOG.md:7`. A `origin/main` está em `0.47.18` (`52dc3dcd`). `bin/forge-changelog conferir-release` dá `ok`, e `tests.test_changelog` roda 91 testes, OK.
 - **Segredos:** nas linhas acrescentadas, a única ocorrência dos padrões de token e chave é o texto de fixture da rodada anterior (`ghp_` seguido de `A`s), sem segredo real. O anexo dá 0.
 
-## Superfície protegida de v0.47.18 a da7b59be
+## Superfície protegida de v0.47.18 a 0157977e
 - **Arquivos tocados:**
   - `agents/jarvis.md` (#902);
   - `docs/adr/0003` (#877) e `docs/adr/0018` (#901);
@@ -59,7 +59,7 @@ Os 8 pareceres estão `aprovado`, com `pedido: v0481`.
   - `hooks/_comum.py`, `hooks/conformidade.json`, `hooks/conformidade.py`, `hooks/hooks.json` e `hooks/salvar.py`;
   - `tests/catraca.py`.
 - **Fora do diff:** nada em `.github/`, `.devcontainer/`, `.githooks/`, `scripts/`, `docs/security/aceites/`, `templates/` ou `stacks/`. `tests/config.json` também não está no diff, então nenhuma invariante sai.
-- **Medida dos hooks:** `bin/forge-check comparar v0.47.18 da7b59be` dá `so-aperta: medido base=52dc3dcd... head=da7b59be... casos=239 aceites-novos=0` (famílias merge-pr, push-forcado e sem-verificar, com 8 casos cada). A medida cobre só a decisão dos hooks que recusam.
+- **Medida dos hooks:** `bin/forge-check comparar v0.47.18 0157977e` dá `so-aperta: medido base=52dc3dcd... head=0157977e... casos=239 aceites-novos=0` (famílias merge-pr, push-forcado e sem-verificar, com 8 casos cada). A medida cobre só a decisão dos hooks que recusam.
 
 ## O que aperta, o neutro e o que afrouxa (para o rótulo afrouxa-regra da promoção)
 Nos controles que recusam, a versão só aperta ou é neutra frente à 0.47.18: a medida dá `so-aperta`, e nenhum item faz passar uma entrada que antes era recusada. Na norma, porém, a versão **não é só aperta**. Dez dos 18 itens afrouxam regra escrita e entram por decisão do dono, não por esta confirmação.
@@ -120,3 +120,5 @@ Rodei localmente só o seguinte:
 - a leitura dos rótulos e dos merges pela API (só leitura).
 
 A suíte inteira vale pelo CI. Lacuna: `gitleaks`, `osv-scanner`, `semgrep`, `zizmor`, `actionlint` e `trivy` estão fora do PATH. O diff não toca workflow nem dependência, e a busca de segredos foi feita por padrões.
+
+CI no head `0157977e` (run 45826880513): a `bateria (pareceres)` está vermelha porque os pareceres de review e de QA estão `reprovado` em `da7b59be`. Reproduzi com `tests/catraca.py --modo pareceres`. As voltas desses pareceres correm em paralelo a esta, e por isso esta rodada não grava a linha `- ci:`.
