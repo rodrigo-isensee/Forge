@@ -3155,6 +3155,38 @@ class RotuloSobreviveAoConteudo(Base):
         self.repo.escreve("docs/reviews/outro.md", "reescrito\n")
         self.assertEqual(self.roda(so_diff=True).returncode, 1)
 
+    def test_parecer_de_seguranca_do_pedido_e_merge_da_base_mantem_o_rotulo(self):
+        """v0481 E17.1 (#875): o parecer de segurança da branch commitado depois do rótulo, e o merge da base do passo 2b do
+        forge-fechar por cima, não mudam o diff do item; antes, o rótulo caía."""
+        self.repo.escreve("docs/security/ped.md", "parecer de segurança\n")
+        self.repo.commit()
+        self.mescla_base()
+        r = self.roda(ramo="melhoria/ped", so_diff=True)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("liberada", r.stdout)
+
+    def test_aceite_do_usuario_ou_parecer_de_seguranca_alheio_depois_do_rotulo_invalida(self):
+        """O aceite do usuário nunca fica fora da comparação, nem o que o PR já tocava no head rotulado; nem o parecer de
+        segurança de outro pedido."""
+        self.repo.escreve("docs/security/aceites/ped.md", "aceite: não\n")
+        self.repo.commit()
+        self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
+        for rel in ("docs/security/aceites/ped.md", "docs/security/outro.md"):
+            with self.subTest(rel=rel):
+                self.repo.git("reset", "-q", "--hard", self.rotulado)
+                self.repo.escreve(rel, "aceite: sim\n")
+                r = self.roda(ramo="melhoria/ped", so_diff=True)
+                self.assertEqual(r.returncode, 1, r.stdout)
+
+    def test_aceites_da_catraca_igual_ao_aceites_do_usuario_do_forge_check(self):
+        """v0481 E17.5 (A1 da segurança): ACEITES da catraca é cópia do ACEITES_DO_USUARIO do forge-check; se este mudar sem
+        aquele, a pasta nova de aceite sairia da comparação do rótulo."""
+        arvore = ast.parse((AQUI.parent / "bin" / "forge-check").read_text(encoding="utf-8"))
+        valores = [ast.literal_eval(n.value) for n in arvore.body if isinstance(n, ast.Assign)
+                   and any(isinstance(a, ast.Name) and a.id == "ACEITES_DO_USUARIO" for a in n.targets)]
+        self.assertEqual(len(valores), 1, "ACEITES_DO_USUARIO sumiu do forge-check ou tem mais de uma atribuição")
+        self.assertEqual(catraca.ACEITES, valores[0])
+
     def test_violacao_nova_vinda_da_base_invalida(self):
         """Review #65, desvio 2: a base passa a proteger um arquivo que o patch do PR já apagava."""
         self.repo.git("checkout", "-q", "develop")
