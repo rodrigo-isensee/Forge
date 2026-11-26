@@ -9,7 +9,8 @@
       "de": "    if not valido:\n        return None\n    pedido_id, slug",
       "para": "    if False:\n        return None\n    pedido_id, slug",
       "testes": [
-        "tests.test_selo_e_entrega.CicloDo878.test_sem_conferida_anterior_nao_ha_desde_do_parecer"
+        "tests.test_selo_e_entrega.CicloDo878.test_sem_conferida_anterior_nao_ha_desde_do_parecer",
+        "tests.test_selo_e_entrega.CicloDo878.test_sem_conferida_pela_entrega_o_intervalo_parte_do_base_sha"
       ]
     },
     {
@@ -54,21 +55,23 @@
     },
     {
       "id": "ED6",
-      "guarda": "E16.1: todos os pareceres aprovados",
+      "guarda": "E16.6: nenhuma versão de parecer da branch sobre o revisado diz outro veredito desde o Base-sha (veredito_trocado)",
       "arquivo": "bin/forge-check",
-      "de": "if any(c.get(\"parecer\") != \"aprovado\" for _, c in pareceres):",
+      "de": "if any(veredito_trocado(raiz, base_sha, head, None, revisado, \"aprovado\", branch, t) for t in PASTA_E_REGRA):",
       "para": "if False:",
       "testes": [
+        "tests.test_selo_e_entrega.CicloDo878.test_reprovado_sem_brief_selado_apagado_mantem_o_desde_da_conferida",
         "tests.test_selo_e_entrega.CicloDo878.test_parecer_nao_aprovado_mantem_o_desde_da_conferida"
       ]
     },
     {
       "id": "ED7",
-      "guarda": "E16.1: o commit: é Revisar-sha de brief selado de cada portão",
+      "guarda": "E16.6: os portões com o revisado selado são exatamente os dos pareceres do head",
       "arquivo": "bin/forge-check",
-      "de": "if any(revisado not in revisados_selados(",
-      "para": "if False and any(revisado not in revisados_selados(",
+      "de": "if {t for t, _ in pareceres} != {t for t in PASTA_E_REGRA if revisado in revisados_selados(",
+      "para": "if False and {t for t, _ in pareceres} != {t for t in PASTA_E_REGRA if revisado in revisados_selados(",
       "testes": [
+        "tests.test_selo_e_entrega.CicloDo878.test_portao_selado_sem_parecer_mantem_o_desde_da_conferida",
         "tests.test_selo_e_entrega.CicloDo878.test_sem_brief_selado_do_portao_mantem_o_desde_da_conferida"
       ]
     },

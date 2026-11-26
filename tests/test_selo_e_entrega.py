@@ -2208,6 +2208,60 @@ class CicloDo878(Conferencia):
         self.ciclo(seguranca="reprovado")
         self.assert_desde_de_sempre()
 
+    def reprovado_tirado(self, *passo, selar=True):
+        """E16.6 (review A1 S1, segurança A1 S2 a S4): o ciclo do 878 com o parecer de segurança `reprovado` sobre o revisado e, depois
+        do merge da develop, o `passo` git que o tira da conta do head (apagado, renomeado para `_x.md`); sem `passo`, regravado com
+        `contrato: 0`. O reprovado segue no histórico da branch: o Desde é o de sempre e o que a volta não declara sai fora."""
+        self.ciclo(seguranca="reprovado") if selar else self.ciclo_sem_selo_da_seguranca()
+        rel = "docs/security/x.md"
+        if passo:
+            self.git(*passo)
+        else:
+            self.gravar(rel, (self.proj / rel).read_text(encoding="utf-8").replace("contrato: 1", "contrato: 0"))
+            self.git("add", rel)
+        self.commit("docs(security): o reprovado sai da conta")
+        self.assert_desde_de_sempre()
+
+    def ciclo_sem_selo_da_seguranca(self):
+        revisado = self.volta_revisada()
+        self.commitar_parecer("reviews", "review", revisado=revisado)
+        self.commitar_parecer("qa", "qa", revisado=revisado)
+        self.commitar_parecer("security", "revisao-seguranca", revisado=revisado, parecer="reprovado", selar=False)
+        self.develop_anda("a\n")
+        self.mesclar_develop()
+
+    def test_reprovado_apagado_depois_mantem_o_desde_da_conferida(self):
+        self.reprovado_tirado("rm", "-q", "docs/security/x.md")
+
+    def test_reprovado_renomeado_para_sublinhado_mantem_o_desde_da_conferida(self):
+        self.reprovado_tirado("mv", "docs/security/x.md", "docs/security/_x.md")
+
+    def test_reprovado_com_contrato_zero_mantem_o_desde_da_conferida(self):
+        self.reprovado_tirado()
+
+    def test_reprovado_sem_brief_selado_apagado_mantem_o_desde_da_conferida(self):
+        """Os portões selados (review e QA) aprovam e o reprovado de segurança, sem brief selado, sai do head: só o histórico o vê."""
+        self.reprovado_tirado("rm", "-q", "docs/security/x.md", selar=False)
+
+    def test_portao_selado_sem_parecer_mantem_o_desde_da_conferida(self):
+        """O brief de segurança selou o revisado e o parecer dela não está no head: os aprovados de review e QA não bastam."""
+        revisado = self.volta_revisada()
+        self.commitar_parecer("reviews", "review", revisado=revisado)
+        self.commitar_parecer("qa", "qa", revisado=revisado)
+        self.selar_portao(self.ETAPA["security"], revisado, papel=self.PAPEL["security"])
+        self.develop_anda("a\n")
+        self.mesclar_develop()
+        self.assert_desde_de_sempre()
+
+    def test_sem_conferida_pela_entrega_o_intervalo_parte_do_base_sha(self):
+        """E16.6 (review A2): sem conferida, o Desde do parecer não entra e a `entrega --pedido` confere desde o Base-sha."""
+        self.brief()
+        self.assertEqual(self.selar()[0], 0)
+        self.entregar()
+        self.portoes(self.commit_da_volta())
+        rc, saida = self.conferir()
+        self.assertIn(f"intervalo: {self.base}..", saida)
+
     def test_sem_brief_selado_do_portao_mantem_o_desde_da_conferida(self):
         self.ciclo(selar=False)
         self.assert_desde_de_sempre()

@@ -110,9 +110,10 @@ reprova (`escopo: --desde sem conferência anterior`, `--desde gravado na própr
 `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele vale igual (C1; sem `--desde`, a branch inteira). Vale também o commit do autor
 que um portão revisou (o `Revisar-sha:` de brief selado de portão da mesma branch e pedido, ancestral do head e fora do Base-sha; saída
 `base: commit do autor revisado pelo portão`, MP1311). Na forma `entrega --pedido`, com conferida anterior, o Desde é esse commit
-quando todos os pareceres da branch e do pedido no head são `aprovado` com o mesmo `commit:`, o review entre eles, selado como
-`Revisar-sha:` de cada portão, adiante da conferida e, depois dele, só pareceres, quadro, fragmento e merge limpo da base (E16.1,
-ENTREGA-DESDE-REVISAR-SHA). Sem linha `conferida` no
+quando os pareceres da branch e do pedido no head têm o mesmo `commit:`, o review entre eles, cada portão que o selou como
+`Revisar-sha:` tem o seu ali, nenhuma versão de parecer da branch sobre ele desde o Base-sha diz outra coisa que `aprovado` (o apagado,
+o `_*.md` e o `contrato: 0` contam; E16.6), o commit está adiante da conferida e, depois dele, só pareceres, quadro, fragmento e merge
+limpo da base (E16.1, ENTREGA-DESDE-REVISAR-SHA). Sem linha `conferida` no
 `## Histórico` ou com a última fora do head (branch nova depois de um squash), o `--desde` igual ao Base-sha, ancestral do head,
 vale como a branch inteira (`base: Base-sha do brief`, P-N1; `brief mensagem --entrega` emite esse `Desde:`). Intervalo vazio:
 `pendente:` na etapa `codigo`, `escopo: sem commit (nada a conferir)` nas outras. Parecer do papel certo e com autoria:
@@ -2721,9 +2722,11 @@ def revisados_do_autor(raiz, caminho, texto, branch):
 
 
 def desde_do_parecer_aprovado(raiz, caminho, texto, branch, head, base_sha, base_ref, valido):
-    """E16.1 (ENTREGA-DESDE-REVISAR-SHA): o `commit:` X dos pareceres aprovados no head vira o Desde da conferência quando todos os
-    pareceres da branch e do pedido no head são `aprovado` com o mesmo X, o review entre eles; X é `Revisar-sha:` de brief selado do
-    portão de cada um (o registro do Jarvis), commit da branch adiante da conferida `valido` e, depois dele, só pareceres, quadro, o
+    """E16.1 (ENTREGA-DESDE-REVISAR-SHA): o `commit:` X dos pareceres aprovados no head vira o Desde da conferência quando os
+    pareceres da branch e do pedido no head têm o mesmo X, o review entre eles; os portões com X selado como `Revisar-sha:` (o registro
+    do Jarvis) são exatamente os dos pareceres do head; nenhuma versão de parecer da branch sobre X, em nenhuma pasta de portão, desde o
+    Base-sha, diz outra coisa que `aprovado` (E16.6, `veredito_trocado`: o reprovado apagado, renomeado para `_*.md` ou com
+    `contrato: 0` segue contando); X é commit da branch adiante da conferida `valido` e, depois dele, só pareceres, quadro, o
     fragmento do changelog e o merge limpo da base (`commit_vale`). Sem conferida anterior, ou faltando uma condição, None (o Desde
     de sempre)."""
     if not valido:
@@ -2737,10 +2740,10 @@ def desde_do_parecer_aprovado(raiz, caminho, texto, branch, head, base_sha, base
         return None
     if "review" not in {t for t, _ in pareceres}:
         return None
-    if any(c.get("parecer") != "aprovado" for _, c in pareceres):
-        return None
     revisado = commits.pop()
-    if any(revisado not in revisados_selados(raiz, caminho, texto, branch, pedido_id, t) for t, _ in pareceres):
+    if {t for t, _ in pareceres} != {t for t in PASTA_E_REGRA if revisado in revisados_selados(raiz, caminho, texto, branch, pedido_id, t)}:
+        return None
+    if any(veredito_trocado(raiz, base_sha, head, None, revisado, "aprovado", branch, t) for t in PASTA_E_REGRA):
         return None
     if not e_ancestral(raiz, valido, revisado):
         return None
