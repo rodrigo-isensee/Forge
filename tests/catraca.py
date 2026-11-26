@@ -41,7 +41,8 @@ from neutralidade import normalizar  # noqa: E402
 
 ROTULO = "afrouxa-regra"
 ADR = "docs/adr/0008-governanca-de-contribuicoes.md"
-PARECERES = ("docs/reviews/", "docs/qa/")  # mudar só o parecer do pedido não muda o conteúdo que o dono viu (o modo `pareceres` o confere)
+PARECERES = ("docs/reviews/", "docs/qa/", "docs/security/")  # mudar só o parecer do pedido não muda o conteúdo que o dono viu (o modo `pareceres` o confere)
+ACEITES = ("docs/security/aceites/",)  # o aceite do usuário (ACEITES_DO_USUARIO do forge-check) nunca é parecer livre (v0481 E17.1)
 CURINGA = re.compile(r"[*?\[\]\\]")  # pathspec do git casa curinga: caminho com eles nunca é ignorado
 REESCRITA = ("head_ref_force_pushed", "head_ref_deleted", "head_ref_restored")
 PROTEGIDOS = (".github/workflows/", ".github/rulesets/", ".github/CODEOWNERS", ".github/dependabot.yml", ".githooks/", "tests/catraca.py",
@@ -1386,9 +1387,11 @@ def commit_do_rotulo(eventos, execucoes, numero, dono):
 
 def pareceres_do_pedido(raiz, base, rotulado, head, ramo):
     """Pareceres que podem mudar depois do rótulo: os que o PR já tocava no head rotulado e os de nome igual ao último
-    segmento da branch (`melhoria/x` -> `docs/reviews/x.md`, `docs/qa/x.md`). Caminho com curinga fica de fora (falha fechada)."""
+    segmento da branch (`melhoria/x` -> `docs/reviews/x.md`, `docs/qa/x.md`, `docs/security/x.md`; v0481 E17.1: o de segurança,
+    commitado depois do rótulo, derrubava o rótulo no merge da base do passo 2b do forge-fechar). O aceite do usuário
+    (`docs/security/aceites/`) nunca. Caminho com curinga fica de fora (falha fechada)."""
     def tocados(ref):
-        return {a for a in alterados(raiz, base_efetiva(raiz, base, ref), ref) if a.startswith(PARECERES)}
+        return {a for a in alterados(raiz, base_efetiva(raiz, base, ref), ref) if a.startswith(PARECERES) and not a.startswith(ACEITES)}
     nome = ramo.rsplit("/", 1)[-1]
     antes = tocados(rotulado)
     livres = antes | {a for a in tocados(head) if nome and Path(a).stem == nome and Path(a).parent.as_posix() + "/" in PARECERES}
