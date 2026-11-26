@@ -354,7 +354,19 @@ class ItemPresoAoCommit(unittest.TestCase):
         self.commitar("docs/qa/pv-a2.md", f"{cabeca}parecer: reprovado\n ---\n# parecer\nparecer: aprovado\n")
         self.assertEqual(self.estado(), ("inativa", "Commit sem os pareceres aprovados nele"))  # o fecho do ler_frontmatter
 
+    def test_parecer_sem_fecho_anterior_ao_commit_barra_em_vez_de_sumir(self):  # A3 da segurança (v0481 E25.5)
+        git(self.raiz, "reset", "-q", "--hard", self.revisado)
+        self.commitar("docs/reviews/velho.md", f"---\ntipo: review\nbranch: {RAMO}\nparecer: reprovado\n# sem fecho\n")
+        self.revisado = self.commitar("codigo.txt", "item 2")
+        for pasta in TIPOS:
+            self.parecer(self.revisado, tipo=pasta)
+        self.assertEqual(self.estado(), ("inativa", "Parecer sem cabeçalho legível"))
 
+
+# Sondas da segurança no e0d6367 (PAR-P1), refeitas no CI. S1 (M18 e M27 das specs PV-A2 miram a `frente` nova):
+# python3 -m unittest tests.test_forge_mutante.ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes
+# S2 (a guarda apagada tem isenta e a nova, M5, em tests/mutantes/v0481-s5-cabecalho.json):
+# catraca do CI no head e216aa71 (run 45856837897)
 class Frente(unittest.TestCase):
     """S5 (v0481 E25.1): `frente` fecha o cabeçalho só na linha que é `---` (a do `ler_frontmatter` do forge-check)."""
 
@@ -371,7 +383,7 @@ class Frente(unittest.TestCase):
                 self.assertEqual(fa.frente(texto), {})
 
 
-FIXA ={"Validade": "fixa", "Validade-utc": "fixa", "Origem-da-validade": "sem prazo", "Alvos": "fixo"}
+FIXA = {"Validade": "fixa", "Validade-utc": "fixa", "Origem-da-validade": "sem prazo", "Alvos": "fixo"}
 UNICO = {"Validade": "uso-unico", "Validade-utc": "uso-unico"}
 
 

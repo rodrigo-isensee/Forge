@@ -216,6 +216,8 @@ def fora_do_revisado(raiz, campos):
         return "Commit não é o head: o Ramo muda depois dele"
     achados = git(raiz, "grep", "-l", "-F", "-e", f"branch: {ramo}", ponta, "--", *PARECERES) or ""
     lidos = [(a.split(":", 1)[-1], frente(git(raiz, "show", a) or "")) for a in achados.splitlines()]
+    if any(not p for _, p in lidos):  # S5: achado sem cabeçalho legível (sem fecho, CRLF) barra em vez de sumir
+        return "Parecer sem cabeçalho legível"
     if any(p.get("branch") == ramo and not caminho.startswith(PASTA_DO_TIPO.get(p.get("tipo"), "?")) for caminho, p in lidos):
         return "Parecer com tipo fora da sua pasta"
     pareceres = [p for _, p in lidos if p.get("branch") == ramo]

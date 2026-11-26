@@ -41,6 +41,23 @@
       "testes": [
         "tests.test_autorizacao.Frente.test_tracos_dentro_de_um_valor_ou_no_comeco_de_outra_linha_nao_fecham"
       ]
+    },
+    {
+      "id": "M5",
+      "guarda": "S5 (A3 da segurança): parecer achado pelo grep sem cabeçalho legível barra a concessão",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if any(not p for _, p in lidos):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.ItemPresoAoCommit.test_parecer_sem_fecho_anterior_ao_commit_barra_em_vez_de_sumir"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge_autorizacao.py",
+      "trecho": "texto.startswith(\"---\\n\")",
+      "motivo": "a abertura do cabeçalho virou `linhas[0] != \"---\"` (mesma regra: a 1.ª linha é `---`), coberta por M1 desta spec e por M18 de v0479-pv-a2-concessao-3.json"
     }
   ]
 }
