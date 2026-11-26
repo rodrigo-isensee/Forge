@@ -3,30 +3,33 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-prazo-forge
-commit: ecb13af6dac68a1f57c173c7000e03bbb5a71054
+commit: 22a57afc418542f52f1e306f0ddc4e51ed213f57
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-25
+data: 2026-11-26
 ---
-# Review de segurança: v0481 (E7.52, #888, revalidação por delta, 4ª volta)
+# Review de segurança: v0481 (E7.57, #888, revalidação por delta, 5ª volta)
 
 Gatilhos: hook de bloqueio (`hooks/_comum.py`: `prazo_vencido`), R-REVIEW, R-CONFORMIDADE, R-QA (mutantes).
 
 ## Resumo
-- Delta lido: `git diff 4ab16b74..ecb13af6` e `forge-check parecer delta`. São dois commits próprios:
-  - o merge `43937681` da develop (`34ab6714`, com o #885). Recalculei o merge automático com `git merge-tree --write-tree` (árvore `e1f01622`). Ele só difere do merge gravado em `docs/hooks-fixtures.md`, o único conflito, resolvido pelo índice regenerado. `tests.test_indice_fixtures` passou (7 testes), com 3590 fixtures em `tests/hooks/`. Os arquivos `hooks/_comum.py`, `hooks/conformidade.py` e `tests/test_hooks.py`, que o `parecer delta` lista no domínio, vêm inteiros de um dos pais: da develop, já revisada no PR de origem, ou do conteúdo da branch aprovado em `4ab16b74`. Nenhuma linha de controle foi escrita no merge;
-  - `ecb13af6`: só `tests/mutantes/v0481-prazo-forge.json`, com a isenção de `hooks/_comum.py:2875(base)`.
-- Conferi a isenção, e o motivo é verdadeiro. A guarda antiga (`34ab6714:hooks/_comum.py:2873-2876`) libera no `PostToolUse` e libera quando `critico is None and evento != "PreToolUse"`. Logo, ela recusa exatamente quando `evento != "PostToolUse" and (critico is not None or evento == "PreToolUse")`, que é a linha `hooks/_comum.py:2924` (De Morgan). A guarda foi reescrita, não removida. `bin/forge-mutante --cobertura --base 34ab6714 --rev ecb13af6` sai com rc 0: a `:2924` está coberta por `v0481-prazo-forge` M2 e também por `v0480-vigia-agentes-pesado` M1/M2 e `v0480-vigia-trava-critica` M1/M3/M4, e a isenção casa só a linha da base. Rodei `bin/forge-mutante tests/mutantes/v0481-prazo-forge.json --ids M2 --rev ecb13af6` e o resultado foi `M2 · morreu · hooks/_comum.py:2924`. O `--cobertura` resolve o item 3 da catraca da rodada anterior.
-- **O que aperta:** nada novo neste delta.
-- **O que é neutro:** tudo o que o delta mudou. A isenção só registra uma equivalência provada e não tira teste nem mutante. O índice de fixtures é gerado. O merge não escreve código.
-- **O que afrouxa:** nada novo neste delta. O afrouxamento na margem da rodada anterior continua como estava: o prazo contado desde a partida do processo faz as travas de recurso (VIGIA-AGENTES-PESADO, a linha sem marcador crítico) desistirem mais cedo sob carga, e as travas de segurança continuam recusando. O dono aceitou esse afrouxamento em 25/11 às 21:15. Ele não vira risco aceito, porque não há caminho de ataque que libere uma linha crítica.
-- **Achados anteriores:** A3, A6 e A7 resolvidos em `4ab16b74`, sem mudança. O cartão da isenção de `:2875(base)` está atendido por `ecb13af6`.
-- **CI** (run 45737446078, `pull_request`, no head exato): estão verdes as 10 partes da suíte (3.12 e 3.14), `bateria (passos)`, `bateria (verificações longas)`, `instalação (python 3.14)`, `teto de pulados` e `árvore já provada na develop`. Ficaram vermelhos `bateria (pareceres)` e o agregador `bateria`. O motivo é o parecer de review desatualizado pela regeneração de `docs/hooks-fixtures.md`, e os pareceres desta volta resolvem isso. A `catraca` (run 45737445624) falhou só por R-CONFORMIDADE, que pede o rótulo `afrouxa-regra` do dono em `hooks/_comum.py` e `hooks/conformidade.py`. A catraca não acusa mais a guarda apagada.
+- Delta lido: `git diff ecb13af6..22a57afc` e `forge-check parecer delta`, que dá "revalida: não" (sem o que veio da develop, o domínio não mudou). O delta tem dois merges da develop e os três pareceres da rodada anterior:
+  - `ad212884` (develop `8f0a7313`): `git show --remerge-diff` vazio, ou seja, merge limpo e sem resolução manual;
+  - `22a57afc` (develop `020e4af7`): `--remerge-diff` mostra só o conflito em `docs/hooks-fixtures.md`, resolvido pela linha gerada com 3594 fixtures. `scripts/indice-fixtures.py --conferir` responde "em dia". `tests/hooks/*/*.json` conta 3594 arquivos. `tests.test_indice_fixtures` passou (7 testes).
+- A develop entrou igual. Os arquivos fora do item são idênticos aos de `020e4af7`, porque não aparecem em `git diff 020e4af7 22a57afc`. A lista de arquivos de `git diff 020e4af7 22a57afc` é a mesma de `git diff 34ab6714 14161c3c`, que é o item revisado sobre a base anterior. Comparei as linhas `+`/`-` arquivo a arquivo e todas são iguais, inclusive em `hooks/_comum.py`, `hooks/conformidade.py` e `tests/test_hooks.py`. A única diferença está em `docs/hooks-fixtures.md`, que é o índice gerado. Nenhuma linha de controle foi escrita na resolução.
+- **O que aperta:** nada neste delta.
+- **O que é neutro:** o delta inteiro. O índice é gerado, os merges não escrevem código e o conteúdo da develop já foi revisado nos PRs de origem. As duas falhas locais por prazo de 120 s (`pesado`/`mesma-sessao-libera`, sob carga, que passam isoladas) não vêm do delta, porque o código do item é idêntico ao já aprovado.
+- **O que afrouxa:** nada novo. O afrouxamento na margem, já aceito pelo dono em 25/11 às 21:15, segue como estava em `ecb13af6`: as travas de recurso desistem mais cedo sob carga, e as travas de segurança continuam recusando.
+- **Achados anteriores:** A3, A6 e A7 continuam resolvidos (`4ab16b74`). A isenção de `:2875(base)` continua atendida (`ecb13af6`), sem mudança.
+- **CI** no head `22a57afc` (run 45809714839, `pull_request`):
+  - verdes: `bateria (passos)`, `bateria (verificações longas)`, `instalação (python 3.14)` e `árvore já provada na develop`;
+  - vermelho `bateria (pareceres)`: o log diz R-REVIEW, porque o parecer de review ficou desatualizado pela regeneração de `docs/hooks-fixtures.md`. Os pareceres desta volta resolvem isso;
+  - vermelho `catraca` (run 45809714849): o log diz R-CONFORMIDADE em `hooks/_comum.py` e `hooks/conformidade.py`, que pedem o rótulo `afrouxa-regra` do dono depois do último push. É um passo do dono, não um defeito;
+  - suíte: as 10 partes não terminaram no head revisado. O push do parecer de QA (`bdc4fdce`) cancelou a parte 3.12 5/5, e as outras seguiam em andamento.
 
-## Parecer
-- ci: ecb13af6dac68a1f57c173c7000e03bbb5a71054 verde
+  Por isso este parecer não grava a linha `ci:`. A suíte vale pelo CI do head final da branch.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito.
 
-Ferramentas: `forge-check parecer delta`, `git diff`, `git merge-tree --write-tree`, `bin/forge-mutante` (`--cobertura` e `--ids M2`), `gh run view --log-failed` e o unittest `tests.test_indice_fixtures`. Não usei nada externo. O delta não traz dependência nem segredo.
+Ferramentas: `forge-check parecer delta`, `git show --remerge-diff`, `git diff` arquivo a arquivo (md5 das linhas `+`/`-`), `scripts/indice-fixtures.py --conferir`, o unittest `tests.test_indice_fixtures` e `gh api` (check-runs e logs dos jobs). Não usei nada externo. O delta não traz dependência nem segredo.
