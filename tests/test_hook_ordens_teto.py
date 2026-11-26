@@ -119,6 +119,10 @@ class Edit(Base):
         self.passa(self.edit("a", "x" * 300))
         self.recusa(self.edit("a", "x" * 300, replace_all=True), "8 linhas e 2407 caracteres")
 
+    def test_arquivo_que_nao_se_le_passa(self):
+        self.arquivo.write_text("ordem 1\n" + "x" * 65536, encoding="utf-8")  # acima do TETO_BYTES: `ler_ordens` dá None
+        self.passa(self.edit("ordem 1", "ordem 2"))
+
 
 class Criacao(Base):
     """A2 da segurança a1b62ca: o Edit com old_string vazio em arquivo ausente ou vazio cria o arquivo com o new_string."""

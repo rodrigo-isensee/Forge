@@ -74,12 +74,12 @@
     },
     {
       "id": "M8",
-      "guarda": "arquivo ausente no Edit não conta",
+      "guarda": "arquivo que não se lê no Edit não conta",
       "arquivo": "hooks/ordens_teto.py",
       "de": "    if texto is None or not isinstance(edicoes, list):",
       "para": "    if not isinstance(edicoes, list):",
       "testes": [
-        "tests.test_hook_ordens_teto.Edit.test_trecho_ausente_ou_vazio_ou_arquivo_ausente_passa"
+        "tests.test_hook_ordens_teto.Edit.test_arquivo_que_nao_se_le_passa"
       ]
     }
   ]
