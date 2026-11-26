@@ -113,6 +113,14 @@
       "de": "cancel-in-progress: ${{ github.event_name != 'pull_request' }}",
       "para": "cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
       "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasEstatico.test_concorrencia_so_cancela_fora_de_pr_e_o_job_tem_permissao_minima"]
+    },
+    {
+      "id": "M15",
+      "guarda": "o CI do proprio head (head_sha igual) nao se cancela, mesmo com id menor que o RUN_ID",
+      "arquivo": ".github/workflows/obsoletas.yml",
+      "de": "[ \"$sha\" != \"$HEAD_SHA\" ]",
+      "para": "[ \"$sha\" = \"$HEAD_SHA\" ]",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasRoda.test_nunca_cancela_o_ci_do_proprio_head_mesmo_com_id_menor_que_o_run_id"]
     }
   ]
 }

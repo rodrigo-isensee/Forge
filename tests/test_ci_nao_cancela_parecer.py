@@ -19,7 +19,7 @@ GH_FALSO = """#!/bin/sh
 case "$1" in
   api) case "$*" in
          *compare*) printf '%s' "$FALSO_ARQUIVOS"; [ "${FALSO_API_FALHA:-0}" = 0 ] ;;
-         *) printf '%s\\n' "5 o/r" "6 o/r" "99 o/r" "10 o/r" "7 fork/r" ;;
+         *) printf '%s\\n' "5 o/r old" "6 o/r old" "99 o/r old" "10 o/r old" "7 fork/r old" "4 o/r def" "8 o/r def" ;;
        esac ;;
   run) case "$2" in
          cancel) for a; do u=$a; done; echo "$u" >> "$FALSO_CANCELADOS" ;;
@@ -73,6 +73,12 @@ class ObsoletasRoda(unittest.TestCase):
     def test_nunca_cancela_o_proprio_run_nem_run_de_outro_repositorio(self):
         # o gh falso lista o RUN_ID (10) e um run do fork (7, mais antigo que o RUN_ID): nenhum dos dois cai
         self.assertEqual(self.rodar("tests/x.py\n"), ["5", "6"])
+
+    def test_nunca_cancela_o_ci_do_proprio_head_mesmo_com_id_menor_que_o_run_id(self):
+        # o CI do push nasce antes do Obsoletas: ids 4 e 8 (< RUN_ID 10) com o head_sha atual (def) seguem
+        cancelados = self.rodar("tests/x.py\n")
+        self.assertNotIn("4", cancelados)
+        self.assertNotIn("8", cancelados)
 
     def test_outros_docs_e_o_devops_nao_contam_como_parecer(self):
         self.assertEqual(self.rodar("docs/devops/a.md\n"), ["5", "6"])

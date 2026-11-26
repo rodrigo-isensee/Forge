@@ -47,7 +47,8 @@ jobs:
             exit 0
           fi
           gh api -X GET "repos/$REPO/actions/workflows/ci.yml/runs" -f branch="$HEAD_REF" -f event=pull_request -f per_page=30 \
-            --jq '.workflow_runs[] | select(.status == "in_progress" or .status == "queued") | "\(.id) \(.head_repository.full_name)"' |
-          while read -r id origem; do
-            if [ "$origem" = "$REPO" ] && [ "$id" -lt "$RUN_ID" ]; then gh run cancel --repo "$REPO" "$id" || echo "run $id ja terminou"; fi
+            --jq '.workflow_runs[] | select(.status == "in_progress" or .status == "queued") | "\(.id) \(.head_repository.full_name) \(.head_sha)"' |
+          while read -r id origem sha; do
+            # RUN_ID e o do Obsoletas, criado depois do CI do mesmo push: o id sozinho derrubaria o CI do head atual
+            if [ "$origem" = "$REPO" ] && [ "$sha" != "$HEAD_SHA" ] && [ "$id" -lt "$RUN_ID" ]; then gh run cancel --repo "$REPO" "$id" || echo "run $id ja terminou"; fi
           done
