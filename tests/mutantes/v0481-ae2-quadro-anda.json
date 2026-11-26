@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-ae2-quadro-anda",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE1",
+      "guarda": "AE2 (v0481 E10.1): o aviso do quadro sai na saída do movimento",
+      "arquivo": "bin/forge-check",
+      "de": "(kanban --gerar refaz o quadro)\"] if aviso else [])",
+      "para": "(kanban --gerar refaz o quadro)\"] if False else [])",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_sem_secao_nem_bloqueado_avisa_e_o_quadro_fica"
+      ]
+    },
+    {
+      "id": "AE2",
+      "guarda": "AE2 (v0481 E10.1): estado sem seção vai à seção do estado (C-5)",
+      "arquivo": "bin/forge-check",
+      "de": "return canonicas.get(_sem_acento(para)) or canonicas.get(",
+      "para": "return canonicas.get(_sem_acento(para)) or None and canonicas.get(",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_estado_fora_do_quadro_vai_a_secao_do_estado"
+      ]
+    },
+    {
+      "id": "AE3",
+      "guarda": "AE2 (v0481 E10.1): só a linha do próprio cartão é a achada",
+      "arquivo": "bin/forge-check",
+      "de": "and chave_do_cartao(c[0]) == chave_do_cartao(cartao):\n            achadas.append((i, c))",
+      "para": ":\n            achadas.append((i, c))",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_linha_sai_da_origem_e_entra_no_fim_da_tabela_do_destino"
+      ]
+    },
+    {
+      "id": "AE4",
+      "guarda": "AE2 (v0481 E10.1): sem seção de destino nem Bloqueado, a linha fica e avisa",
+      "arquivo": "bin/forge-check",
+      "de": "    if destino is None:\n        return None, f\"{nome_seguro(para)} sem seção",
+      "para": "    if False:\n        return None, f\"{nome_seguro(para)} sem seção",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_sem_secao_nem_bloqueado_avisa_e_o_quadro_fica"
+      ]
+    },
+    {
+      "id": "AE5",
+      "guarda": "AE2 (v0481 E10.1): a linha achada guarda título, pedido, responsável e Entrou",
+      "arquivo": "bin/forge-check",
+      "de": "c = achadas[-1][1] if achadas else [cartao,",
+      "para": "c = [cartao, \"—\", \"—\", \"—\", hora[:10]] if achadas else [cartao,",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_linha_sai_da_origem_e_entra_no_fim_da_tabela_do_destino"
+      ]
+    },
+    {
+      "id": "AE6",
+      "guarda": "AE2 (v0481 E10.1): o atributo dado troca a célula",
+      "arquivo": "bin/forge-check",
+      "de": "c[n] = atributos.get(chave) or c[n]",
+      "para": "c[n] = c[n]",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_atributo_dado_troca_a_celula_e_o_resto_fica"
+      ]
+    },
+    {
+      "id": "AE7",
+      "guarda": "AE2 (v0481 E10.1): a linha sai da origem (sem duplicar)",
+      "arquivo": "bin/forge-check",
+      "de": "    for i, _ in reversed(achadas):  # o cartão repetido",
+      "para": "    for i, _ in reversed(achadas[:0]):  # o cartão repetido",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_atributo_dado_troca_a_celula_e_o_resto_fica"
+      ]
+    },
+    {
+      "id": "AE8",
+      "guarda": "AE2 (v0481 E10.1): seção com tabela recebe a linha no fim dela",
+      "arquivo": "bin/forge-check",
+      "de": "    if tabela:\n        linhas.insert(",
+      "para": "    if False:\n        linhas.insert(",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_linha_sai_da_origem_e_entra_no_fim_da_tabela_do_destino"
+      ]
+    }
+  ]
+}

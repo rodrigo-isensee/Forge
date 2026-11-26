@@ -891,6 +891,18 @@ class AssercaoNoAjudante(Base):
         self.assertEqual(catraca.afrouxamentos(self.perfil_x(self.CONSTANTES), self.perfil_x(self.CONSTANTES, teto=10)),
                          ["perdeu asserção (estava no ajudante h)", catraca.VALOR_TROCADO])
 
+    def test_teto_estourado_avisa_o_modulo_e_o_que_contou(self):
+        """CATRACA-TETO-AVISO: o estouro diz qual módulo, em qual ref, e que contou só as diretas; sem estouro, nada."""
+        with contextlib.redirect_stdout(io.StringIO()) as saida:
+            self.perfil_x(self.CONSTANTES, teto=100)
+        self.assertEqual(saida.getvalue(), "")
+        padroes = (catraca.FUNDO_DOS_AJUDANTES, 10, "o módulo")
+        with mock.patch.object(catraca.testes_da_arvore, "__defaults__", padroes), contextlib.redirect_stdout(io.StringIO()) as saida:
+            perfis = catraca._testes_por_modulo(self.repo.dir, "base", ["tests/test_a.py"])
+        self.assertEqual(perfis["tests/test_a.py"]["T.test_recursivo"][0], 0)  # só as diretas: com o teto padrão, 8
+        self.assertEqual(saida.getvalue(), "catraca: tests/test_a.py em base estourou o teto de 10 expansões dos ajudantes; "
+                                           "contou só as asserções diretas.\n")
+
 
 class ControlesEnfraquecidos(Base):
     """MAQ-I7a: a força conta por módulo de controle; ilegível, grande demais ou renomeado conta zero."""
@@ -2467,6 +2479,17 @@ class LinhaDeComando(Base):
     def test_rotulo_do_dono_da_base_depois_do_push_sai_0(self):
         self.assertEqual(self.roda([self.evento("dona")]).returncode, 0)
 
+    def test_liberada_pelo_rotulo_nomeia_cada_violacao(self):
+        """CATRACA-NOMEIA-LIBERADA: a linha da contagem vem com uma linha por violação liberada, o texto inteiro dela."""
+        r = self.roda([self.evento("dona")])
+        viol = self.repo.violacoes()
+        self.assertTrue(viol)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        linhas = r.stdout.splitlines()
+        self.assertIn(f"catraca: {len(viol)} violação(ões) liberada(s) pelo rótulo `{catraca.ROTULO}` do dono "
+                      "(aplicado depois do último push).", linhas)
+        self.assertEqual([l for l in linhas if l.startswith("catraca: liberada: ")], [f"catraca: liberada: {v}" for v in viol])
+
     def test_rotulo_do_novo_dono_da_pr_nao_vale(self):
         self.assertEqual(self.roda([self.evento("outra")]).returncode, 1)
 
@@ -3131,6 +3154,38 @@ class RotuloSobreviveAoConteudo(Base):
         self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
         self.repo.escreve("docs/reviews/outro.md", "reescrito\n")
         self.assertEqual(self.roda(so_diff=True).returncode, 1)
+
+    def test_parecer_de_seguranca_do_pedido_e_merge_da_base_mantem_o_rotulo(self):
+        """v0481 E17.1 (#875): o parecer de segurança da branch commitado depois do rótulo, e o merge da base do passo 2b do
+        forge-fechar por cima, não mudam o diff do item; antes, o rótulo caía."""
+        self.repo.escreve("docs/security/ped.md", "parecer de segurança\n")
+        self.repo.commit()
+        self.mescla_base()
+        r = self.roda(ramo="melhoria/ped", so_diff=True)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("liberada", r.stdout)
+
+    def test_aceite_do_usuario_ou_parecer_de_seguranca_alheio_depois_do_rotulo_invalida(self):
+        """O aceite do usuário nunca fica fora da comparação, nem o que o PR já tocava no head rotulado; nem o parecer de
+        segurança de outro pedido."""
+        self.repo.escreve("docs/security/aceites/ped.md", "aceite: não\n")
+        self.repo.commit()
+        self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
+        for rel in ("docs/security/aceites/ped.md", "docs/security/outro.md"):
+            with self.subTest(rel=rel):
+                self.repo.git("reset", "-q", "--hard", self.rotulado)
+                self.repo.escreve(rel, "aceite: sim\n")
+                r = self.roda(ramo="melhoria/ped", so_diff=True)
+                self.assertEqual(r.returncode, 1, r.stdout)
+
+    def test_aceites_da_catraca_igual_ao_aceites_do_usuario_do_forge_check(self):
+        """v0481 E17.5 (A1 da segurança): ACEITES da catraca é cópia do ACEITES_DO_USUARIO do forge-check; se este mudar sem
+        aquele, a pasta nova de aceite sairia da comparação do rótulo."""
+        arvore = ast.parse((AQUI.parent / "bin" / "forge-check").read_text(encoding="utf-8"))
+        valores = [ast.literal_eval(n.value) for n in arvore.body if isinstance(n, ast.Assign)
+                   and any(isinstance(a, ast.Name) and a.id == "ACEITES_DO_USUARIO" for a in n.targets)]
+        self.assertEqual(len(valores), 1, "ACEITES_DO_USUARIO sumiu do forge-check ou tem mais de uma atribuição")
+        self.assertEqual(catraca.ACEITES, valores[0])
 
     def test_violacao_nova_vinda_da_base_invalida(self):
         """Review #65, desvio 2: a base passa a proteger um arquivo que o patch do PR já apagava."""

@@ -9,7 +9,7 @@ import re
 
 TETO_DE_LINHAS_DE_CODIGO = 150
 TETO_DE_ETAPAS = 50
-MARGEM_DO_BRIEF = 0.9  # avisa a partir de 90% do teto de caracteres, antes de o selar recusar
+MARGEM_DO_BRIEF = 0.8  # avisa (e o `brief gerar` arquiva as etapas fechadas) a partir de 80% do teto, antes de o selar recusar
 LINHA_DE_MOTIVO = re.compile(r"^[ \t]*(?:[-*][ \t]+)?teto: excedido, (\d+) linhas, [ \t]*\S", re.M)
 ORIGEM = "H1, decisão do dono 17/11 11:15"
 
@@ -56,8 +56,9 @@ def aviso_de_etapas(quantas):
 
 
 def aviso_de_caracteres(quantos, teto):
-    """O aviso do `brief gerar` para o brief com 90% ou mais do `teto` de caracteres, ou None (PEDIDO-TETO-BRIEF)."""
+    """O aviso do `brief gerar` para o brief com 80% ou mais do `teto` de caracteres, ou None (PEDIDO-TETO-BRIEF; o
+    `brief gerar` arquiva as etapas fechadas nessa margem e só avisa se o brief segue nela, PEDIDO-ARQUIVA-SOZINHO)."""
     if quantos < int(teto * MARGEM_DO_BRIEF):
         return None
-    return (f"o brief tem {quantos} caracteres, perto do teto de {teto} (o selar recusa acima dele): abra o pedido de continuação "
-            "com as etapas abertas, que encurta o Fora do escopo, ou compacte as faixas de etapas fechadas (PEDIDO-TETO-BRIEF)")
+    return (f"o brief tem {quantos} caracteres, perto do teto de {teto} (o selar recusa acima dele) mesmo sem as etapas fechadas: "
+            "abra o pedido de continuação com as etapas abertas, que encurta o Fora do escopo (PEDIDO-TETO-BRIEF)")

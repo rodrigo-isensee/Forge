@@ -56,7 +56,7 @@
       "id": "M14",
       "guarda": "G1.2 (item 5, A2): alvos do texto diferentes dos declarados nascem pendentes",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "(do_texto != {normal(a) for a in alvos.split(\", \")},",
+      "de": "(do_texto != (set() if fixo else {normal(a) for a in alvos.split(\", \")}),",
       "para": "(False,",
       "testes": [
         "tests.test_autorizacao_gravar.EscopoPeloTextoTodo.test_recorte_ou_ressalva_nasce_pendente_com_o_motivo"

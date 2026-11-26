@@ -1,0 +1,39 @@
+{
+  "descricao": "G4-TRAVA-REAL-BP8 (F1, R-VERIFY): o disparo só pelo texto da linha (--no-verify) recusa como antes e registra o alvo nulo, a recusa falsa a medir.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "estado": {
+    "comandos.jsonl": ""
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git commit --no-verify -m x"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-VERIFY: ",
+    "estado": {
+      "comandos.jsonl": {
+        "contem": [
+          "\"barrado\": \"R-VERIFY\"",
+          "\"grupo\": \"R-VERIFY\"",
+          "\"alvo\": null"
+        ],
+        "ausente": [
+          "teria_barrado"
+        ]
+      }
+    }
+  }
+}

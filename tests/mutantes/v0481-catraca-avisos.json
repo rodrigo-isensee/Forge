@@ -1,0 +1,30 @@
+{
+  "pedido": "v0481-catraca-avisos",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CAV1",
+      "guarda": "E14.31: o estouro do teto das expansões imprime o aviso",
+      "arquivo": "tests/catraca.py",
+      "de": "print(f\"catraca: {onde} estourou o teto de {teto} expansões dos ajudantes; contou só as asserções diretas.\")",
+      "para": "pass",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_teto_estourado_avisa_o_modulo_e_o_que_contou"]
+    },
+    {
+      "id": "CAV2",
+      "guarda": "E14.31: o aviso do teto nomeia o módulo e a ref",
+      "arquivo": "tests/catraca.py",
+      "de": "testes_da_arvore(a, onde=f\"{arq} em {ref}\")",
+      "para": "testes_da_arvore(a)",
+      "testes": ["tests.test_catraca.AssercaoNoAjudante.test_teto_estourado_avisa_o_modulo_e_o_que_contou"]
+    },
+    {
+      "id": "CAV3",
+      "guarda": "E14.31: cada violação liberada pelo rótulo é nomeada",
+      "arquivo": "tests/catraca.py",
+      "de": "print(f\"catraca: liberada: {v}\")",
+      "para": "pass",
+      "testes": ["tests.test_catraca.LinhaDeComando.test_liberada_pelo_rotulo_nomeia_cada_violacao"]
+    }
+  ]
+}

@@ -6,10 +6,10 @@ import os
 import subprocess
 import sys
 
-# DEFEITO-TESTES-DE-PRAZO-SOB-CARGA (v0478): o fixture de merge que libera com o git lento (4 s) cabe no prazo longo
-# (`PRAZO_DO_MERGE_S`, 8 s) só se o resto do hook roda em menos de 4 s de relógio; com a máquina em carga acima de 20, a vez na
+# DEFEITO-TESTES-DE-PRAZO-SOB-CARGA (v0478): o fixture de merge que libera com o git lento (3,5 s) cabe no prazo longo
+# (`PRAZO_DO_MERGE_S`, 7,5 s) só se o resto do hook roda em menos de 4 s de relógio; com a máquina em carga acima de 20, a vez na
 # CPU passa disso e o vigia recusa sem o hook ter erro. A recusa só vale como carga quando a mensagem e o relógio são os do prazo
-# longo (o defeito de cair nos 3 s recusa com "em 3 s", antes dos 8), a CPU do hook somada ao `sleep` do git lento cabe no prazo
+# longo (o defeito de cair nos 3 s recusa com "em 3 s", antes dos 7,5), a CPU do hook somada ao `sleep` do git lento cabe no prazo
 # com a folga e a disputa pela CPU está provada no mesmo intervalo: um processo irmão que só gasta CPU (`referencia_da_cpu`)
 # conseguiu no máximo `PARCELA_DE_DISPUTA` do relógio, e o hook usou na CPU ao menos `APROVEITAMENTO_MINIMO` da parcela da
 # referência no tempo fora do sono (quem espera na fila da CPU gasta CPU no ritmo que a fila deixa; quem dorme, trava ou espera

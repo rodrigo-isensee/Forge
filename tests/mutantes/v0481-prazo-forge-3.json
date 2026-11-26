@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-prazo-forge",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M14",
+      "guarda": "E7.40 (A6 da segurança e A1 do review no #888): no processo do hook, o prazo conta da partida do processo, e a partida lenta recusa antes do corte de 10 s",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if not sys.argv or Path(sys.argv[0]).name != f\"{nome}.py\":",
+      "para": "    if True:",
+      "testes": [
+        "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_partida_lenta_recusa_o_merge_antes_do_corte"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "E7.40: sem /proc legível ou sem CLOCK_BOOTTIME, a idade é 0 e o hook não quebra",
+      "arquivo": "hooks/_comum.py",
+      "de": "    except (OSError, ValueError, IndexError, AttributeError):\n        return 0.0",
+      "para": "    except ZeroDivisionError:\n        return 0.0",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_idade_do_processo_so_no_processo_do_hook_e_zero_sem_proc"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "E7.40 (A6 da segurança no #888): o vigia da sessão e o do registro cabem no que resta do teto",
+      "arquivo": "hooks/_comum.py",
+      "de": "    return PRAZO_DA_SESSAO_S if resta is None else min(PRAZO_DA_SESSAO_S, max(resta(), 0.0))",
+      "para": "    return PRAZO_DA_SESSAO_S if True else min(PRAZO_DA_SESSAO_S, max(resta(), 0.0))",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_alarme_atrasado_encurta_a_sessao_e_pula_o_registro"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "E7.40: sem tempo no teto, o registro não roda",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if segundos <= 0:\n        return\n",
+      "para": "    if False:\n        return\n",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_alarme_atrasado_encurta_a_sessao_e_pula_o_registro"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "E7.40: sem tempo no teto, a sessão não é lida e a linha crítica recusa",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if segundos <= 0:\n            raise PrazoVencido()",
+      "para": "        if False:\n            raise PrazoVencido()",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_alarme_que_passa_do_teto_recusa_sem_ler_a_sessao"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "E7.40: o vigia da decisão arma o prazo menos a idade do processo",
+      "arquivo": "hooks/_comum.py",
+      "de": "vigia_de_prazo(hook.prazo_s and max(hook.prazo_s - (relogio() - inicio), 0.001), armar)",
+      "para": "vigia_de_prazo(hook.prazo_s, armar)",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_prazo_conta_da_partida_do_processo"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "E7.40: a idade dada pelo teste em processo vale no lugar da do processo",
+      "arquivo": "hooks/_comum.py",
+      "de": "(idade_do_processo(nome) if idade is None else idade)",
+      "para": "(idade_do_processo(nome) if True else idade)",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_prazo_conta_da_partida_do_processo"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "E7.40: o teto só vale para o hook com vigia; o erro interno sem prazo registra mesmo tarde",
+      "arquivo": "hooks/_comum.py",
+      "de": "prazo_da_etapa(resta if hook.prazo_s else None)",
+      "para": "prazo_da_etapa(resta if True else None)",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_erro_interno_sem_vigia_registra_mesmo_tarde"
+      ]
+    }
+  ]
+}

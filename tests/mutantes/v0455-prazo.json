@@ -6,7 +6,7 @@
       "id": "P1",
       "guarda": "o prazo do merge é maior que o comum",
       "arquivo": "hooks/_comum.py",
-      "de": "PRAZO_DO_MERGE_S = 8.0",
+      "de": "PRAZO_DO_MERGE_S = 7.5",
       "para": "PRAZO_DO_MERGE_S = 3.0",
       "testes": [
         "tests.test_hooks.Hooks.test_prazo_do_merge",

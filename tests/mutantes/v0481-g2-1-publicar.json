@@ -1,0 +1,71 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "publicar: descrição acima de 140 caracteres recusa (M7.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    if len(d) > TETO_DA_DESCRICAO:",
+      "para": "    if False:",
+      "testes": ["tests.test_forge_pareceres.Descricao.test_c9_sha256_inteiro_e_teto_de_140"]
+    },
+    {
+      "id": "M2",
+      "guarda": "gh: código de saída diferente de zero recusa",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "        if r.returncode:",
+      "para": "        if False:",
+      "testes": ["tests.test_forge_pareceres.Publicar.test_c17_gh_com_erro_ou_ausente"]
+    },
+    {
+      "id": "M3",
+      "guarda": "pr_aberto: nome exato da branch, nunca prefixo",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "p.get(\"headRefName\") == branch]",
+      "para": "str(p.get(\"headRefName\")).startswith(branch)]",
+      "testes": ["tests.test_forge_pareceres.Publicar.test_branch_de_nome_parecido_nao_casa"]
+    },
+    {
+      "id": "M4",
+      "guarda": "pr_aberto: um PR aberto só",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    if len(prs) != 1:",
+      "para": "    if not prs:",
+      "testes": ["tests.test_forge_pareceres.Publicar.test_dois_prs_da_branch"]
+    },
+    {
+      "id": "M5",
+      "guarda": "pr_aberto: o commit é o head do PR",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    if prs[0].get(\"headRefOid\") != sha:",
+      "para": "    if False:",
+      "testes": ["tests.test_forge_pareceres.Publicar.test_commit_que_nao_e_head_do_pr"]
+    },
+    {
+      "id": "M6",
+      "guarda": "agregado: statuses ou conta ilegíveis recusam (M19.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    if not login or not isinstance(paginas, list) or not all(isinstance(p, list) for p in paginas):",
+      "para": "    if False:",
+      "testes": ["tests.test_forge_pareceres.Agregado.test_statuses_ilegiveis_recusam"]
+    },
+    {
+      "id": "M7",
+      "guarda": "agregado: só status da conta da sessão, filtrado antes do mais novo (M1.1, M1.2)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "                and (s.get(\"creator\") or {}).get(\"login\") == login]",
+      "para": "                and True]",
+      "testes": ["tests.test_forge_pareceres.Agregado.test_agregado_pending_com_exigido_invalido"]
+    },
+    {
+      "id": "M8",
+      "guarda": "agregado: o mais novo da conta em success",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if not dela or dela[0].get(\"state\") != \"success\" or",
+      "para": "if not dela or",
+      "testes": ["tests.test_forge_pareceres.Agregado.test_agregado_pending_com_exigido_invalido",
+                 "tests.test_forge_pareceres.Publicar.test_reprovado_grava_failure_e_agregado_pending"]
+    }
+  ]
+}

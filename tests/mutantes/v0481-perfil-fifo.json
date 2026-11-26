@@ -1,0 +1,77 @@
+{
+  "pedido": "v0481-perfil-fifo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "PERFIL-FIFO: o perfil abre sem esperar FIFO (O_NONBLOCK)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "fd = os.open(base / \".forge\" / \"perfil\", os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW)",
+      "para": "fd = os.open(base / \".forge\" / \"perfil\", os.O_RDONLY | os.O_NOFOLLOW)",
+      "testes": [
+        "tests.test_hooks.RecusaComFifoNoPerfil.test_fifo_no_perfil_nao_espera_e_vale_experiente",
+        "tests.test_hooks.RecusaComFifoNoPerfil.test_worktree_com_fifo_le_o_perfil_da_copia_principal"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "PERFIL-FIFO: só arquivo regular dá o perfil; o especial passa à cópia principal",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if stat.S_ISREG(os.fstat(fd).st_mode):\n                return os.read(fd, 64)",
+      "para": "            if True:\n                return os.read(fd, 64)",
+      "testes": [
+        "tests.test_hooks.RecusaComFifoNoPerfil.test_worktree_com_fifo_le_o_perfil_da_copia_principal"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "PERFIL-FIFO: a cópia principal sai do diretório comum lido do disco",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    principal = comum.parent if comum is not None and comum.name == \".git\" else Path(raiz)",
+      "para": "    principal = comum.parent if False else Path(raiz)",
+      "testes": [
+        "tests.test_hooks.RecusaComFifoNoPerfil.test_worktree_com_fifo_le_o_perfil_da_copia_principal"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "PERFIL-FIFO: o perfil iniciante só troca o texto da recusa com `simples`",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if simples and perfil_iniciante(self.h.raiz):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hooks.RecusaComFifoNoPerfil.test_perfil_iniciante_recebe_o_texto_simples"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "PERFIL-FIFO: o prazo vencido na escolha do texto cai no texto técnico e a recusa segue",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                texto = SIMPLES[simples]\n        except PrazoVencido:",
+      "para": "                texto = SIMPLES[simples]\n        except ZeroDivisionError:",
+      "testes": [
+        "tests.test_hooks.RecusaComFifoNoPerfil.test_prazo_vencido_na_escolha_do_texto_recusa_com_o_texto_tecnico"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "PERFIL-FIFO: só o valor `iniciante` (sem caixa nem espaço) é o perfil iniciante",
+      "arquivo": "hooks/conformidade.py",
+      "de": ".decode(\"utf-8\").strip().lower() == \"iniciante\"",
+      "para": ".decode(\"utf-8\").strip().lower() != \"iniciante\"",
+      "testes": [
+        "tests.test_hooks.RecusaComFifoNoPerfil.test_fifo_no_perfil_nao_espera_e_vale_experiente"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "PERFIL-FIFO: o texto simples escolhido é o que a recusa leva",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        texto = texto or com_trecho(rid, o_que, corrigir, self.trecho)",
+      "para": "        texto = com_trecho(rid, o_que, corrigir, self.trecho)",
+      "testes": [
+        "tests.test_hooks.RecusaComFifoNoPerfil.test_perfil_iniciante_recebe_o_texto_simples"
+      ]
+    }
+  ]
+}

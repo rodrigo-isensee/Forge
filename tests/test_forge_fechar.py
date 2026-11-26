@@ -157,6 +157,17 @@ class LimparClones(unittest.TestCase):
         self.git("switch", "-q", "melhoria/x", cwd=d)
         self.fica(d, self.limpar())
 
+    def test_commit_so_em_tag_arquivo_nao_prende_o_clone(self):  # LIMPAR-CLONE-PARECER (v0481 E14.1): a tag arquivo/* é da origin (apagada lá)
+        d = self.clone()
+        self.git("switch", "-q", "--detach", cwd=d)
+        self.git("commit", "-q", "--allow-empty", "-m", "so na tag", cwd=d)
+        self.git("tag", "arquivo/t-local", cwd=d)
+        self.git("switch", "-q", "melhoria/x", cwd=d)
+        r = self.limpar()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok clone=ok"])
+        self.assertFalse(d.exists())
+
     def test_fsmonitor_do_clone_nao_roda(self):
         d = self.clone()
         marca = self.tmp / "marca-fsmonitor"

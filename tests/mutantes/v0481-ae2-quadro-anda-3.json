@@ -1,0 +1,87 @@
+{
+  "pedido": "v0481-ae2-quadro-anda",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE19",
+      "guarda": "AE2 (v0481 E10.5): a linha de cabeçalho não é linha de cartão (cartão ID ou id)",
+      "arquivo": "bin/forge-check",
+      "de": "len(c) != len(COLUNAS) or c == COLUNAS or all(",
+      "para": "len(c) != len(COLUNAS) or all(",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_cartao_com_nome_de_cabecalho_ou_separador_nao_casa_a_moldura"
+      ]
+    },
+    {
+      "id": "AE20",
+      "guarda": "AE2 (v0481 E10.5): a linha de separador não é linha de cartão (cartão ---)",
+      "arquivo": "bin/forge-check",
+      "de": "c == COLUNAS or all(SEPARADOR.fullmatch(x) for x in c):\n        return None",
+      "para": "c == COLUNAS:\n        return None",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_cartao_com_nome_de_cabecalho_ou_separador_nao_casa_a_moldura"
+      ]
+    },
+    {
+      "id": "AE21",
+      "guarda": "AE2 (v0481 E10.5): o cartão em duas seções sai das duas",
+      "arquivo": "bin/forge-check",
+      "de": "for i, _ in reversed(achadas):",
+      "para": "for i, _ in achadas[-1:]:",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_cartao_em_duas_secoes_sai_das_duas"
+      ]
+    },
+    {
+      "id": "AE22",
+      "guarda": "AE2 (v0481 E10.5): quadro com UTF-8 inválido não é reescrito",
+      "arquivo": "bin/forge-check",
+      "de": "_ler_regular(raiz / \"KANBAN.md\", estrito=True)",
+      "para": "_ler_regular(raiz / \"KANBAN.md\", estrito=False)",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_quadro_com_utf8_invalido_nao_e_reescrito"
+      ]
+    },
+    {
+      "id": "AE23",
+      "guarda": "AE2 (v0481 E10.5): a recusa do --titulo não lista o ·",
+      "arquivo": "bin/forge-check",
+      "de": "{'' if chave == 'titulo' else '`·`, '}",
+      "para": "{'`·`, '}",
+      "testes": [
+        "tests.test_sobreposicao_quadro.MovimentoMoveALinha.test_recusa_do_titulo_nao_lista_o_ponto_e_a_dos_outros_lista"
+      ]
+    },
+    {
+      "id": "AE24",
+      "guarda": "AE2 (v0481 E10.5): o aviso do ID fora da forma tira caractere de controle",
+      "arquivo": "bin/forge-fechar",
+      "de": "\"${id:0:80}\" | tr -d '[:cntrl:]')",
+      "para": "\"${id:0:80}\")",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_cartao_do_corpo_fora_da_forma_avisa_e_fecha"
+      ]
+    },
+    {
+      "id": "AE25",
+      "guarda": "AE2 (v0481 E10.5): cartão do corpo sem coluna só avisa, não nasce em Pronto",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$(coluna_do_cartao \"$id\")\" = — ]; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_fechar_move_cartao.Teste.test_cartao_do_corpo_sem_coluna_avisa_e_nao_nasce_em_pronto"
+      ]
+    },
+    {
+      "id": "AE26",
+      "guarda": "AE2 (v0481 E10.5): o quadro gerado usa o predicado: separador não vira cartão da ponte",
+      "arquivo": "bin/forge-check",
+      "de": "elif secao in secoes and celulas_de_cartao(linha):",
+      "para": "elif secao in secoes and linha.startswith(\"|\") and len(c) == len(COLUNAS):",
+      "testes": [
+        "tests.test_sobreposicao_quadro.QuadroGerado",
+        "tests.test_sobreposicao_quadro.KanbanGerar"
+      ]
+    }
+  ]
+}
