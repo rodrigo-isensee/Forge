@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-ci-descendente-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "PROVA_DO_CI_VIA: só `verde` fecha a linha via (vermelho ou ressalva não vale)",
+      "arquivo": "bin/forge-check",
+      "de": "PROVA_DO_CI_VIA = re.compile(r\"^- ci: ([0-9a-f]{40}) verde via ([0-9a-f]{40})[ \\t]*$\", re.M)",
+      "para": "PROVA_DO_CI_VIA = re.compile(r\"^- ci: ([0-9a-f]{40}) \\w+ via ([0-9a-f]{40})\", re.M)",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiVia.test_outro_sha_outro_estado_ou_commit_invalido_nao_vale"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "so_pareceres_ate: o `via` que não descende do `commit:` não vale",
+      "arquivo": "bin/forge-check",
+      "de": "    if git(raiz, \"merge-base\", \"--is-ancestor\", sha, via)[0] != 0:\n        return False",
+      "para": "    if False:\n        return False",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiVia.test_nao_descendente_ou_sha_inexistente_nao_vale"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "so_pareceres_ate: a renomeação para a pasta do parecer não esconde a origem",
+      "arquivo": "bin/forge-check",
+      "de": "\"diff\", \"--name-only\", \"--no-renames\", \"--ignore-submodules=none\"",
+      "para": "\"diff\", \"--name-only\", \"-M\", \"--ignore-submodules=none\"",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiVia.test_renomeacao_para_a_pasta_do_parecer_nao_vale"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "so_pareceres_ate: erro do git diff falha fechado",
+      "arquivo": "bin/forge-check",
+      "de": "return rc == 0 and all(c.startswith(PASTAS_DOS_PARECERES)",
+      "para": "return all(c.startswith(PASTAS_DOS_PARECERES)",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiVia.test_erro_do_git_diff_falha_fechado"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "so_pareceres_ate: caminho fora das pastas dos pareceres não vale",
+      "arquivo": "bin/forge-check",
+      "de": "all(c.startswith(PASTAS_DOS_PARECERES) for c in nomes_z(saida))",
+      "para": "all(True for c in nomes_z(saida))",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiVia.test_outro_caminho_no_diff_nao_vale"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "leu_o_ci_via: o `commit:` vazio ou fora da forma de sha não casa",
+      "arquivo": "bin/forge-check",
+      "de": "return bool(COMMIT.match(commit)) and any(so_pareceres_ate(raiz, m.group(1), m.group(2)) for m in vias)",
+      "para": "return any(so_pareceres_ate(raiz, m.group(1), m.group(2)) for m in vias)",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiVia.test_outro_sha_outro_estado_ou_commit_invalido_nao_vale"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "leu_o_ci_via: o primeiro sha da linha é o do `commit:`",
+      "arquivo": "bin/forge-check",
+      "de": "for m in PROVA_DO_CI_VIA.finditer(texto) if m.group(1).startswith(commit)]",
+      "para": "for m in PROVA_DO_CI_VIA.finditer(texto) if True]",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiVia.test_outro_sha_outro_estado_ou_commit_invalido_nao_vale"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "suite_do_parecer: a linha via que não vale mantém a violação PARECER-LE-O-CI",
+      "arquivo": "bin/forge-check",
+      "de": "sem_ci = [] if leu_o_ci_via(raiz, campos, texto) else sem_ci",
+      "para": "sem_ci = [] if True else sem_ci",
+      "testes": [
+        "tests.test_forge_check_pr.LeOCiVia.test_cmd_pr_recusa_o_via_que_nao_descende"
+      ]
+    }
+  ]
+}
