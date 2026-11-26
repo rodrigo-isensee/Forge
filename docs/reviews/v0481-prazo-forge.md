@@ -3,24 +3,25 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-prazo-forge
-commit: 22a57afc418542f52f1e306f0ddc4e51ed213f57
+commit: 07a1bf5c6420ea060b517927cf06cb8090e7bb6f
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-26
 ---
 # Review: v0481
 
-Review por delta (E7.55, volta E7.54) de ecb13af6 a 22a57afc. Li o delta pelo `forge-check parecer delta docs/reviews/v0481-prazo-forge.md` (intervalo ecb13af6..22a57afc; base 8f0a731 → 020e4af, escopo sem o que veio da develop; no domínio, `docs/hooks-fixtures.md` e `tests/test_hooks.py`). Do autor: só o merge 22a57afc da develop 020e4af7, que traz o #875, o #877, o #895, o #901, o #903, o #904 e a marca da 0.47.19, já revisados nos PRs de origem (ordem do dono de 26/11 07:54).
+Review por delta (E7.59, conflito do E7.58) de 22a57afc a 07a1bf5c. Li o delta pelo `forge-check parecer delta docs/reviews/v0481-prazo-forge.md` (intervalo 22a57afc..07a1bf5c, escopo sem o que veio da develop; no domínio, `docs/hooks-fixtures.md`, `hooks/conformidade.py` e `tests/test_hooks.py`). Do autor: o merge 39d6f4f4 da develop 22ceb2c8 (traz o #878, revisado no PR de origem; ordem do dono de 26/11 07:54) e o merge 07a1bf5c, que só junta o parecer ec272bb6 (`git diff --stat 39d6f4f4 07a1bf5c`: só `docs/reviews/v0481-prazo-forge.md`).
 
 ## Parecer
-Aprovado: a resolução do conflito não muda o patch do item.
+Aprovado: a resolução do conflito não muda o patch do item e o que veio da develop entrou igual.
 
-- **Patch do item igual.** As linhas `+`/`-` de `git diff 34ab6714 ecb13af6` (base antiga → head aprovado) e de `git diff 020e4af7 22a57afc` (base nova → head), fora pareceres e o índice gerado, são idênticas (960 linhas, `diff` vazio). O `tests/test_hooks.py` mesclou sem conflito e entra igual dos dois lados.
-- **Conflito.** `git diff-tree --cc 22a57afc` mostra a mão do autor só em `docs/hooks-fixtures.md`: a contagem passa a 3594 e entra a seção `salvar` (do #877). `python3 -I scripts/indice-fixtures.py --conferir`: "em dia"; `ls tests/hooks/*/*.json | wc -l`: 3594.
-- **Nenhuma linha de código nem de spec de mutante** do item mudou no delta: não há mutante novo a rodar nem módulo de teste tocado pelo autor. As duas falhas locais por prazo de 120 s em `pesado/mesma-sessao-libera` sob carga ficam com o autor e o QA; não reproduzi.
+- **Conflito.** `git show --remerge-diff 39d6f4f4` mostra a mão do autor só em `docs/hooks-fixtures.md`: 3603 fixtures (3594 do item mais 9 do #878) e `conformidade` 2725. `python3 -I scripts/indice-fixtures.py --conferir`: "em dia"; `ls tests/hooks/*/*.json | wc -l`: 3603; `ls tests/hooks/conformidade/*.json | wc -l`: 2725.
+- **O que veio da develop entrou igual.** `hooks/conformidade.py` e `tests/test_hooks.py` mesclaram sem conflito: as linhas `+`/`-` de `git diff 020e4af7 22ceb2c8` (o #878 sobre a base anterior) e de `git diff 22a57afc 07a1bf5c` nesses dois arquivos são idênticas (`diff` vazio): `ultima_raiz`, `forge_check_publica` e a chamada em `Guarda`, e `test_fixtures_do_publicar`. Os mutantes `tests/mutantes/v0481-g2-1-publicar*.json` vêm do #878, sem mudança.
+- **Teste apontado pela catraca** (`test_carga_explica_a_recusa_so_pelo_vigia_do_prazo_longo_com_disputa_provada`, valor esperado 4.0 → 3.5 em `sono_do_git_lento`): é mudança do item, não da junção. Vem do 1d6692f5 (E7.32, prazo do merge em 7,5 s), que baixou o `sleep` da fixture `parecer/v0455-merge-com-git-lento-decide-no-prazo-longo.json` de 4 para 3,5 s; o corpo do teste é o mesmo no 22a57afc e no 07a1bf5c (md5 igual) e já foi revisado nas voltas anteriores. O aviso não barra.
+- Rodei os testes tocados: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures_do_publicar tests.test_hooks.Hooks.test_carga_explica_a_recusa_so_pelo_vigia_do_prazo_longo_com_disputa_provada`: "Ran 2 tests ... OK". Nenhuma spec de mutante do item mudou no delta.
 
-CI:
-- No 22a57afc, as 10 partes da suíte e os tetos de pulados foram cancelados pelo push dos pareceres do QA e da segurança (concorrência do workflow); por isso `bateria (python 3.14)` e `bateria` caem ("partes: cancelled; pulados: cancelled"). `bateria (passos)`, `bateria (verificações longas)`, a instalação e a `árvore já provada` estão verdes. `bateria (pareceres)` espera este parecer e a `catraca` o rótulo do dono (R-CONFORMIDADE em `hooks/_comum.py` e `hooks/conformidade.py`, mais o aviso de valor esperado trocado, que não barra).
-- O e922db75 descende do 22a57afc só por pareceres (`git diff --stat 22a57afc e922db75`: `docs/qa/` e `docs/security/`); a suíte dele vale pelo head revisado (forma via, G3.7, aceita pelo dono em 25/11 07:27). Check-runs do e922db75: as 10 partes da suíte, os 2 tetos de pulados, `bateria (python 3.14)`, `bateria (passos)`, `bateria (verificações longas)`, a instalação e a `árvore já provada` verdes; vermelhos só `bateria (pareceres)`, `bateria` e `catraca`, que não contam para o G3.
+CI (runs 45815173541 e 45815173436, headSha 07a1bf5c):
+- Verdes: as 10 partes da suíte (3.12 e 3.14), os 2 tetos de pulados, `bateria (python 3.14)`, `bateria (passos)`, `bateria (verificações longas)`, `instalação (python 3.14)` e `árvore já provada na develop`.
+- Vermelhos que não contam para o G3: `bateria (pareceres)` ("commit: desatualizado: docs/hooks-fixtures.md mudou depois do parecer", espera este parecer), `catraca` (R-CONFORMIDADE em `hooks/_comum.py` e `hooks/conformidade.py`, espera o rótulo `afrouxa-regra` do dono; mais o aviso de valor esperado trocado acima) e `bateria`, que os agrega.
 
-- ci: 22a57afc418542f52f1e306f0ddc4e51ed213f57 verde via e922db75e67bc04890d966a5fa6c2473787140ed
+- ci: 07a1bf5c6420ea060b517927cf06cb8090e7bb6f verde
