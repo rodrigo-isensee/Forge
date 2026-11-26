@@ -3584,7 +3584,9 @@ class ForgeCheck(unittest.TestCase):
         self.commitar()
         casa = self.tmp / "casa"
         gravar_conferida(casa, self.tmp, "p1")
-        env = dict(ambiente_limpo(), GIT_DIR=str(self.tmp / "nao-existe"), HOME=str(casa))  # GIT_* herdadas não valem
+        # GIT_* herdadas não valem; o gh é o falso de "sem PR" (a máquina do teste pode não ter credencial nem git para o gh real)
+        env = com_gh_falso(dict(ambiente_limpo(), GIT_DIR=str(self.tmp / "nao-existe"), HOME=str(casa)),
+                           script="echo 'no pull requests found for branch' >&2\nexit 1\n")
         r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "pr", "p1", "--raiz", str(self.tmp)],
                            env=env, capture_output=True, text=True)
         self.assertEqual((r.returncode, r.stdout.split(" · ")[0], r.stderr), (0, "pr: veredito: aprovado", ""))  # LOTE E1
