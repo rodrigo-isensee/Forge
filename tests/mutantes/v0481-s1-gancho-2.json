@@ -1,0 +1,36 @@
+{
+  "pedido": "v0481-s1-gancho",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "rc diferente de 0 não injeta a saída",
+      "arquivo": "hooks/estado.py",
+      "de": "if r.returncode != 0 or not linhas:",
+      "para": "if not linhas:",
+      "testes": [
+        "tests.test_hook_estado.Injeta.test_rc_diferente_de_zero_manda_rodar_o_comando"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "sem linha status: não injeta a saída",
+      "arquivo": "hooks/estado.py",
+      "de": "if r.returncode != 0 or not linhas:",
+      "para": "if r.returncode != 0:",
+      "testes": [
+        "tests.test_hook_estado.Injeta.test_sem_linha_status_manda_rodar_o_comando"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "só as linhas status: entram no contexto",
+      "arquivo": "hooks/estado.py",
+      "de": "if linha.startswith(\"status: \")]",
+      "para": "if True]",
+      "testes": [
+        "tests.test_hook_estado.Injeta.test_pergunta_do_estado_injeta_a_linha_fixa_e_so_as_linhas_status"
+      ]
+    }
+  ]
+}

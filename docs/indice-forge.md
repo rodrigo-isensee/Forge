@@ -72,6 +72,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `conformidade.py` | conformidade dos agentes por papel (ADR 0009, seções 2, 3, 6 e 7; R-CONFORMIDADE). |
 | `decisao.py` | decisao (ANTI-ALUC-F4-HOOK-DECISAO, fatia L28a; v0478 E172.6) - avisa a mensagem ao dono com mais de uma decisão. |
 | `doutor.py` | doutor (primeiro uso, F3) - roda as conferências rápidas do `forge doutor` ao abrir a sessão e uma vez por dia. |
+| `estado.py` | estado (S1 segunda parte, v0481 E20.11; emenda "estado na pergunta do dono" da ADR 0003) - o estado pela ferramenta. |
 | `hooks.json` | — |
 | `meta.py` | objetivo armado no Stop (S4) e medida da mensagem ao dono (S6), 0.44.2. Só biblioteca padrão. |
 | `ordens.py` | ordens (ORDENS-EM-VIGOR, v0478 E123.1; emenda "ordens em vigor" da ADR 0003) - reinjeta as ordens do dono. |

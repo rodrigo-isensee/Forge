@@ -969,6 +969,7 @@ class MapaDoForgeCheck(unittest.TestCase):
                 textos[modulo] += "\n" + apoios.get(apoio, "")
         usam = {m for m, t in textos.items() if self.CITA.search(t)}
         usam.discard("test_doutor")  # só grava um `bin/forge-check` falso na semente; não executa o real
+        usam.discard("test_hook_estado")  # só grava um `bin/forge-check` falso na cópia do plugin; não executa o real
         usam.add("test_catraca")  # carrega o script por `catraca.forge_check()`, sem citar o caminho
         mudou = True
         while mudou:  # quem importa um módulo que usa o script também o executa

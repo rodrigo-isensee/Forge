@@ -1,0 +1,18 @@
+{
+  "descricao": "Pasta sem .forge/versao nem manifesto do Forge: o estado não roda o forge-check status, não escreve no contexto e não cria .forge/run/.",
+  "forge": false,
+  "forcar": {
+    "onde": "status",
+    "como": "erro"
+  },
+  "entrada": {
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "prompt": "Como está?"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

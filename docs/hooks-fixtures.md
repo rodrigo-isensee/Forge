@@ -164,6 +164,13 @@ O corpus de `tests/hooks/<hook>/<caso>.json` roda em `tests/test_hooks.py` (ADR 
 - `erro-*`
 - `sem-*`
 
+## `estado`
+
+- `erro-*`
+- `outra-*`
+- `outro-*`
+- `sem-*`
+
 ## `meta`
 
 - `ainda-*`
