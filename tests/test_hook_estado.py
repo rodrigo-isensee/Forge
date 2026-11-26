@@ -135,7 +135,7 @@ class Prazo(unittest.TestCase):
 class Termos(unittest.TestCase):
     PERGUNTAS = ("Como está o Jarvis?", "COMO ESTÃO os PRs", "e agora?", "E agora", "o que falta?", "qual o estado?",
                  "status", "e o andamento?", "onde estamos", "como anda a versão?", "como andam os itens")
-    OUTRAS = ("siga", "grave o reestado e o estadual", "estados", "agora siga", "falta pouco", "como faço isso?",
+    OUTRAS = ("siga", "grave o reestado e o estadual", "estados", "agora siga", "falta pouco", "como faço isso?", "como estátua",
               "", "como está? " + "x" * 200)
 
     def test_perguntas_do_estado(self):

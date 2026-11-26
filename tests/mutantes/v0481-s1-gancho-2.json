@@ -39,7 +39,7 @@
       "de": "if not unicodedata.combining(c))",
       "para": "if True)",
       "testes": [
-        "tests.test_hook_estado.Termos.test_perguntas_do_estado"
+        "tests.test_hook_estado.Termos.test_outras_mensagens"
       ]
     },
     {
