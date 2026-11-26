@@ -3,43 +3,28 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-s5-cabecalho
-commit: e216aa71cd0e5e720ce00da880a6e4adfd8464fd
-parecer: reprovado
+commit: c8c2e1384d3811c4380f295b0a72f72d191c3951
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-26
 ---
-# Review de segurança: v0481 E25.4 (S5, cabeçalho dos pareceres na autorização)
+# Review de segurança: v0481 E25.7 (S5, cabeçalho dos pareceres na autorização), volta 1
 
-Rodada 1, completa. Diff lido: `3c833f3f..e216aa71` (merge-base com a develop): `bin/forge_autorizacao.py` (`frente`), `tests/test_autorizacao.py` (4 testes), `tests/mutantes/v0481-s5-cabecalho.json` (M1 a M4), fragmento do changelog. CI do head (runs 45856837729 e 45856837897) vermelho; causas lidas no log em A1 e A2. Sem linha `ci:`.
+Revalidação por delta (`R-REVIEW`). Delta lido: `e0d63675..c8c2e138` (um commit, `c8c2e138`). Do `forge-check parecer delta` (`e216aa71..c8c2e138`), no domínio só `bin/forge_autorizacao.py` (+2 linhas, `:219-220`); as specs de mutante e o `tests/test_autorizacao.py` ficam fora do domínio e foram lidos só para fechar A1 e A2, que eram meus. A rodada anterior está no git (`e0d63675`).
 
-## Gatilhos
-Gatilhos: autenticação ou autorização (`frente` é o leitor do veredito dos pareceres em `fora_do_revisado` e `commit_do_ramo`, `bin/forge_autorizacao.py:214`, `:218`, `:387`).
+Gatilhos: autenticação ou autorização (`frente` e `fora_do_revisado`, leitor do veredito dos pareceres na concessão).
 
-## Achados
-- A1 (bloqueante) tests/mutantes/v0479-pv-a2-concessao-3.json:16 · Suíte parte 4/5 vermelha no CI (3.12 e 3.14): M18 desta spec e M27 de v0479-pv-a2-concessao-4.json:26 têm o `de` fora da fonte; as guardas PV-A2 da autorização ficam sem mutante. Alinhar as duas specs no mesmo commit.
-- A2 (bloqueante) bin/forge_autorizacao.py:232 · Catraca vermelha no head (mesmo achado A1 do QA): a guarda da base `texto.startswith('---\n')` (base:230) sai sem mutante declarado que a cubra; declare-o (ou a isenção da spec) como a catraca pede.
-- A3 (recomendado) bin/forge_autorizacao.py:221 · Parecer sem fecho agora some da lista em vez de contar: um parecer reprovado velho, anterior ao Commit e sem o `---` final, deixa de barrar (base: inativa; head: ativa). Falhar fechado quando o arquivo achado pelo grep não tem cabeçalho legível.
+## Achados anteriores
+- A1 (bloqueante): resolvido. M18 (`tests/mutantes/v0479-pv-a2-concessao-3.json:19`) mira `if linhas[0] != "---":` e M27 (`v0479-pv-a2-concessao-4.json:29`) mira `if ": " in campo)`. `test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes` OK local; CI: suíte parte 4/5 verde em 3.12 e 3.14.
+- A2 (bloqueante): resolvido. A guarda apagada `texto.startswith("---\n")` ganhou isenção em `tests/mutantes/v0481-s5-cabecalho.json` com motivo que confere (a mesma regra é `linhas[0] != "---"`, coberta por M1 e M18). Catraca verde no head (run 45885857531).
+- A3 (recomendado): resolvido. `bin/forge_autorizacao.py:219`: arquivo achado pelo grep com `frente(...) == {}` devolve "Parecer sem cabeçalho legível" (falha fechada). O teste `ItemPresoAoCommit.test_parecer_sem_fecho_anterior_ao_commit_barra_em_vez_de_sumir` reproduz a minha sonda da rodada 1 (parecer reprovado velho, sem fecho, anterior ao Commit) e espera `inativa`; o M5 (`if False:`) morre nele.
 
-## Sondas
-- S1 · python3 -m unittest tests.test_forge_mutante.ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes · espera: OK · obtido: FAIL, v0479-pv-a2-concessao-3.json: M18 e v0479-pv-a2-concessao-4.json: M27 com o `de` fora da fonte
-- S2 · catraca do CI no head e216aa71 (run 45856837897) · espera: verde · obtido: R-QA guarda de bin/forge_autorizacao.py mudada sem mutante declarado, apagada, base:230 texto.startswith('---\n')
+## Aperta, neutro e afrouxa (o delta)
+- Aperta: `:219`. Parecer sem fecho, com CRLF no topo, sem `---` na 1.ª linha ou sem nenhum campo `chave: valor` agora barra a concessão em vez de sumir da lista. Fecha também o CRLF, que a base já ignorava.
+- Neutro: a checagem vem antes da pasta do tipo e do veredito; só muda a mensagem quando há mais de um motivo, o estado é `inativa` nos dois. As specs e a isenção não mudam comportamento.
+- Afrouxa: nada. Efeito colateral de disponibilidade, só para o lado fechado: o grep é `-F "branch: <ramo>"` em todo `docs/{reviews,qa,security,devops}/`, inclusive `ameacas/`, `bugs/` e `aceites/`, e casa por substring (ramo prefixo de outro). Um texto sem frontmatter que cite `branch: <ramo>` em prosa barra a concessão desse ramo. Varri o head: 2 arquivos sem cabeçalho citam `branch: ` (`docs/qa/bugs/SBX-03-denywrite-sem-pareceres-e-claude-md.md`, `docs/security/ameacas/g2-parecer-status.md`), ambos seguidos de crase, que nenhum ramo tem; nenhum barra hoje. Sem ganho para um atacante (só nega a concessão, nunca a concede); fica registrado para quem receber "Parecer sem cabeçalho legível" sem parecer quebrado.
 
-## Detalhe dos achados
-**A1** · evidência: `tests/mutantes/v0479-pv-a2-concessao-3.json:16` (M18, `de` = `if texto.startswith("---\n") else ""`) e `tests/mutantes/v0479-pv-a2-concessao-4.json:26` (M27, `de` = `if ": " in linha)`); as duas linhas sumiram de `frente`. Caminho: não é ataque; as guardas "parecer sem frontmatter não conta" e "campo vazio não derruba a leitura" da autorização ficam sem prova de que um teste as segura, e o CI barra o merge. Severidade: média (controle de autorização sem a rede de mutantes). Correção mínima: no mesmo commit, M18 passa a mirar `if linhas[0] != "---":` e M27 `if ": " in campo)` (ou remover os dois, já cobertos por M1 e M4 da spec nova, com a pendência registrada como o teste aceita). Esforço P. Dono: o autor (E25.1).
-
-**A2** · evidência: log da catraca no head; a condição nova é coberta por M1, mas a catraca casa o texto da base. Correção mínima e dono: os do A1 do QA; não repito.
-
-**A3** · evidência: `bin/forge_autorizacao.py:221` filtra `p.get("branch") == ramo`, e `frente` sem fecho agora devolve `{}` (`:237`). Sonda local (arquivo no scratchpad, biblioteca padrão, fixture do `ItemPresoAoCommit`): `docs/devops/velho.md` com `tipo: revisao-devops`, `branch: <ramo>`, `parecer: reprovado`, sem o `---` final, commitado antes do Commit revisado; head: `ativa`, base: `inativa`. O mesmo vale para um segundo parecer de um tipo exigido. Caminho de ataque: fraco, porque apagar o arquivo dá o mesmo efeito na base e a escrita em `docs/` é por pasta (hook `conformidade`); o parecer escrito depois do Commit já falha fechado em `:214`, e o `forge-check docs` acusa "frontmatter sem fechamento". Fica como perda de falha fechada por engano: um parecer quebrado deixa de barrar e ninguém é avisado. Severidade: baixa. Correção mínima: em `fora_do_revisado`, arquivo achado pelo grep em `PARECERES` com `frente(...) == {}` devolve um motivo ("Parecer sem cabeçalho legível"); cobre também o CRLF no topo, que a base já ignorava. Esforço P. Dono: o autor.
-
-**Aperta, neutro e afrouxa (o pedido do brief):**
-- Aperta: sem fecho, o corpo não vale como cabeçalho (`:237`): na base, `parecer: aprovado` no corpo sobrescrevia o `reprovado` do topo (teste `Frente.test_sem_fecho_ou_sem_tracos_no_topo_e_vazio`, M3). Linha ` ---` ou `\t--- ` fecha (`:235`); na base não fechava e o corpo entrava (teste `Frente.test_fecho_com_espaco_vale_e_o_corpo_nao_entra` e o `ItemPresoAoCommit` novo).
-- Strip no fecho em vez da comparação exata: confere, é o mais estrito. Com a exata, ` ---` não fecharia, o corpo voltaria a contar até o próximo `---` e mais pareceres cairiam no "sem fecho" do A3. É o fecho do `ler_frontmatter` (`bin/forge-check:265`), então autorização e validador concordam onde o cabeçalho acaba.
-- Neutro: o topo exige `---` exato (`:232`), como a base (`startswith("---\n")`); o validador aceita `---` com espaço (A3 do QA): só disponibilidade, nunca aprovação a mais. CRLF, valor com espaço no fim, `chave:valor` sem espaço, chave repetida (a última vale): iguais na base e no head.
-- Afrouxa: o pretendido, `---8<---`, `----`, `---x` não cortam mais o cabeçalho (o defeito de disponibilidade do S5); quem escreve isso é o dono do parecer, que já decide o veredito, e o `forge-check docs` recusa a linha. O não pretendido é o A3.
-
-Provas locais: `tests.test_autorizacao` 25 OK no head; na base (`3c833f3f` com o teste do head), os 4 testes novos falham. `bin/forge-mutante tests/mutantes/v0481-s5-cabecalho.json`: M1 a M4 morrem (M4 por erro do teste sob o mutante). CI do head: suíte parte 4/5 (A1), catraca (A2), `bateria (pareceres)` à espera do parecer de review (processual, não é defeito); o resto verde.
-
-Fora do domínio: `tests/test_autorizacao.py:374` `FIXA ={` (estilo; A2 do QA, tech-lead).
+Provas locais (clone próprio no head): `tests.test_autorizacao` e a conferência de specs, 27 testes OK; `bin/forge-mutante tests/mutantes/v0481-s5-cabecalho.json`, M1 a M5 morrem (M4 por erro do teste sob o mutante, como na rodada 1). CI do head `c8c2e138` (run 45885735709 e a catraca 45885857531): as 10 partes da suíte, catraca, instalação, passos, verificações longas, teto de pulados e árvore provada verdes; `bateria (pareceres)` e o agregado `bateria` vermelhos só por `pareceres: failure` (review, QA e este ainda não aprovavam; processual).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, o módulo tocado, o executor de mutantes do Forge, os logs do CI e uma sonda comparativa local (biblioteca padrão). Sem varredura de segredo ou dependência: o diff não traz dependência, configuração nem segredo.
+Nenhum risco aceito. Ferramentas: o diff do delta, o executor de mutantes do Forge, os testes tocados, os logs do CI e uma varredura local (biblioteca padrão) dos arquivos sem cabeçalho que o grep da concessão alcança. Sem segredo, dependência nem configuração no delta.
