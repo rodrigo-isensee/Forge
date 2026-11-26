@@ -1,0 +1,66 @@
+{
+  "pedido": "v0481-prazo-forge",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "E7.27 (A1 da segurança no #888): o registro que não termina no seu vigia, ou falha, não muda a decisão nem sai do prazo_vencido",
+      "arquivo": "hooks/_comum.py",
+      "de": "    except (PrazoVencido, Exception):  # noqa: BLE001 - sem a linha no erros.log, a decisão segue a mesma",
+      "para": "    except ZeroDivisionError:",
+      "testes": [
+        "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_registro_que_nao_termina_nao_muda_a_decisao"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "E7.27 (A1 da segurança no #888): a sessão se decide antes do registro, fora do vigia dela",
+      "arquivo": "hooks/_comum.py",
+      "de": "            recusa = recusa and recusa_no_prazo(hook, critico, clone_do_forge)",
+      "para": "            hook.registrar_erro(Aviso(\"registro no vigia da sessão\"))\n            recusa = recusa and recusa_no_prazo(hook, critico, clone_do_forge)",
+      "testes": [
+        "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_registro_que_nao_termina_nao_muda_a_decisao"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "E7.27 (A4 da segurança no #888): no erro interno, o registro roda sob o vigia próprio e não leva ao corte de 10 s",
+      "arquivo": "hooks/_comum.py",
+      "de": "        registrar_sob_vigia(hook, erro, armar, prazo_da_etapa(resta if hook.prazo_s else None))",
+      "para": "        hook.registrar_erro(erro)",
+      "testes": [
+        "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_erro_interno_com_registro_lento_nao_espera_o_corte"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "E7.27 (A2 do review no #888): mkfifo e mknod no texto do interpretador contam como escrita (FIFO no .git por python3 -c)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "|system\\(|mkfifo|mknod\", re.I)",
+      "para": "|system\\(\", re.I)",
+      "testes": [
+        "tests.test_hooks.PrazoVencidoNaSessaoDoForge.test_fixtures_fifo"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "E7.32 (A5 da segurança no #888): o prazo longo mais a sessão e o registro presos deixam a folga de parede antes do corte de 10 s",
+      "arquivo": "hooks/_comum.py",
+      "de": "PRAZO_DO_MERGE_S = 7.5",
+      "para": "PRAZO_DO_MERGE_S = 8.0",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_recusa_do_prazo_longo_presa_deixa_folga"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "E7.40: o prazo vencido sem prazo do hook (forçado, sem regra_do_prazo) conta o teto pelo prazo comum, sem quebrar",
+      "arquivo": "hooks/_comum.py",
+      "de": "        return (hook.prazo_s or PRAZO_DA_DECISAO_S) + 2 * PRAZO_DA_SESSAO_S",
+      "para": "        return (hook.prazo_s) + 2 * PRAZO_DA_SESSAO_S",
+      "testes": [
+        "tests.test_hooks.SondaS1ComRelogioFalso.test_prazo_vencido_sem_prazo_do_hook_registra"
+      ]
+    }
+  ]
+}

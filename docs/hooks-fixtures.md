@@ -2,7 +2,7 @@
 
 <!-- Gerado por scripts/indice-fixtures.py; não edite à mão. Rode o script depois de mudar o corpus. -->
 
-O corpus de `tests/hooks/<hook>/<caso>.json` (3596 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
+O corpus de `tests/hooks/<hook>/<caso>.json` (3603 fixtures) roda em `tests/test_hooks.py` (ADR 0003): cada caso dá a entrada de uma chamada ao hook e o código e a saída que ele tem de dar. O índice agrupa por hook e pelo prefixo do nome do caso (até o primeiro `-`); nenhum caso muda de nome nem de lugar. "Recusa" é `esperado.codigo` 2; "libera", 0. As regras são as `R-*` do `stderr` esperado; os cartões, o identificador que abre a `descricao`.
 
 ## Por hook
 
@@ -10,7 +10,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3596 fixtures) roda em `tests/test
 | --- | ---: | ---: | ---: | ---: |
 | `agentes` | 133 | 72 | 61 | 31 |
 | `ambiente` | 3 | 0 | 3 | 3 |
-| `conformidade` | 2718 | 2012 | 706 | 103 |
+| `conformidade` | 2725 | 2018 | 707 | 104 |
 | `decisao` | 4 | 0 | 4 | 4 |
 | `doutor` | 3 | 0 | 3 | 3 |
 | `meta` | 33 | 13 | 20 | 15 |
@@ -123,6 +123,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3596 fixtures) roda em `tests/test
 | `m1-*` | 10 | 7 | 3 | — | — | M1 (review da 0.43.2): a linha de selo ou de conferência é da ferramenta; `cd docs/pedidos && cat >> p1.md <<'FIM'` com a conferência no cor… |
 | `crase-*` | 9 | 7 | 2 | `R-CONFORMIDADE` | `CRASE-ASPA-HOOK`, `CRASE-SESSAO-PROJETO` | Orçamento: 60 cd e 60 crases aninhadas terminando em push com --no-verify: o hook recusa sem estourar o timeout (a base recusava em 0,34 s). |
 | `erro-*` | 7 | 5 | 2 | — | — | Config corrompida e comando sem marcador: libera e registra. |
+| `fifo-*` | 7 | 6 | 1 | `R-CONFORMIDADE` | `E7.23`, `E7.27` | E7.23: sessão do Forge, `cd .git` e depois o mkfifo relativo: o alvo resolvido fica sob o .git e é trava. |
 | `estadoclone-*` | 6 | 4 | 2 | — | `AGENTES-JSON-SEM-GUARDA`, `CONFIG-TETO-SEM-GUARDA` | AGENTES-JSON-SEM-GUARDA: no clone do Forge, ler o agentes.json segue livre. |
 | `pedido-*` | 6 | 4 | 2 | — | `VV-2` | VV-2, A1: o dev não grava no pedido. |
 | `push-*` | 6 | 4 | 2 | `R-CONFORMIDADE`, `R-MAIN`, `R-VERIFY` | `AGENTE-NAO-EMENDA-ENVIADO` | git push -u origin <branch de trabalho>: livre. |
@@ -246,7 +247,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` (3596 fixtures) roda em `tests/test
 | `merge-*` | 6 | 3 | 3 | — | `FURO-HOOK-A` | git merge --abort não mescla nada. |
 | `api-*` | 5 | 3 | 2 | `R-CONTRIB` | — | gh api só lendo o PR: libera. |
 | `checkout-*` | 5 | 2 | 3 | — | — | `git checkout develop --` sem caminho é troca de branch; o merge na develop sem parecer bloqueia. |
-| `v0456-*` | 5 | 3 | 2 | `R-REVIEW` | — | gh pr merge depois de `env VAR=1` (as palavras gh pr merge fora do início do comando) com o git lento de 4 s: segue com o prazo longo de 8 s… |
+| `v0456-*` | 5 | 3 | 2 | `R-REVIEW` | — | gh pr merge depois de `env VAR=1` (as palavras gh pr merge fora do início do comando) com o git lento de 3,5 s: segue com o prazo longo de 7… |
 | `v0455-*` | 4 | 3 | 1 | `R-REVIEW` | — | gh pr create (sem gh pr merge na linha) com o mesmo git lento de 4 s: segue o prazo de 3 s e recusa por prazo. |
 | `v0480-*` | 4 | 4 | 0 | `R-CONFORMIDADE` | `CONFORMIDADE-REPO-CREATE-PUBLICO` | CONFORMIDADE-REPO-CREATE-PUBLICO (GRAPHQL-CONSULTA-EM-VARIAVEL, E168.13, A7 da segurança do #854): no parecer, `gh -R {o/r,api} graphql` (o… |
 | `gh-*` | 3 | 3 | 0 | `R-CONTRIB`, `R-REVIEW` | `GH-MERGE-ADMIN` | GH-MERGE-ADMIN: o -R do Forge entre pr e o subcomando também é o repositório do Forge |

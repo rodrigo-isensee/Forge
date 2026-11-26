@@ -129,8 +129,9 @@ SED_ESCREVE = re.compile(r"(?=[wW]\s*(\S+))")  # lookahead: acha também o `w` d
 ESCRITA_NO_TEXTO = re.compile(  # só escrita de arquivo: `.replace(` de texto e `list.append(` não contam
     r"\.write\w*\(|writeFile|appendFile|unlink|\bos\.(remove|rename|replace)|shutil\.|rmtree|truncate|symlink|"
     r"rmSync|rmdir|copyFile|renameSync|cpSync|chmod|WriteStream|\w*open\w*\([^)]*[\"'][wa][bt+]?[\"']|>|"
-    r"file_put_contents|\bf(write|puts)\b|File\.(delete|rename)|FileUtils|inplace|system\(", re.I)
+    r"file_put_contents|\bf(write|puts)\b|File\.(delete|rename)|FileUtils|inplace|system\(|mkfifo|mknod", re.I)
 TODOS_OS_ARGUMENTOS = {"rm", "mv", "tee", "truncate", "shred", "unlink", "rmdir", "touch"}
+ARQUIVO_ESPECIAL = {"mkfifo", "mknod"}  # E7.23: o FIFO ou o nó no .git prende o git e os hooks (`especial_no_git`)
 SO_DESTINO = {"cp", "ln", "install", "rsync"}
 LEITORES = {"cat", "head", "tail", "less", "more", "bat", "nl", "tac", "source", ".", "grep", "egrep", "rg", "xxd",
             "od", "strings", "base64"}
@@ -1850,6 +1851,17 @@ class Guarda:
         p = Path(expandir_home(caminho))
         return Path(realpath_pela_pasta(str(p if p.is_absolute() else pasta / p)))
 
+    def especial_no_git(self, caminho, pasta):
+        """E7.23 (segurança no #885 e no #886): o FIFO ou o nó no `.git` ou sob ele (`commondir`, `gitdir`) prende o `git`
+        do hook e a leitura do disco até o prazo vencer. Trava nas duas sessões: o `mkfifo` ou `mknod` com alvo opaco, o
+        que cita o `.git` (palavra, componente, curinga) e o resolvido com `.git` no caminho. Na sessão do Forge seguem
+        livres (o prazo vencido é quem recusa a linha crítica): o FIFO por interpretador (`python3 -c`, `perl -e`), o
+        alvo por `xargs` de pipe ou here-string, e o FIFO criado fora e levado ao `.git` por `mv`, `ln` ou `cp -a`."""
+        if (ALVO_OPACO.search(caminho) or cita_o_dir_do_git(caminho)
+                or ".git" in (p.lower() for p in self.resolver(self.expandir(caminho, pasta), pasta).parts)):
+            self.barrar("R-CONFORMIDADE", f"FIFO ou nó (mkfifo, mknod) no .git ou sob ele, ou alvo opaco: {caminho}",
+                        "não crie arquivo especial no .git: ele prende o git e os hooks", trava=TRAVA)
+
     def checar_escrita(self, caminho, pasta, parecer_conta=True):
         """Na dúvida, recusa: o que vem depois de uma substituição (`$(git rev-parse --show-toplevel)/docs/reviews/x`) é
         conferido também a partir da raiz do projeto. Pelo Bash, o parecer recusa depois da regra do caminho (0.45.3);
@@ -2581,6 +2593,10 @@ class Guarda:
                     self.checar_escrita(a, pasta, parecer_conta=prog == "mv" or prog not in REMOCAO)
                     if prog in REMOCAO:
                         self.checar_remocao(a, pasta)
+        elif prog in ARQUIVO_ESPECIAL:  # toda palavra conta como alvo (a opção que cita o .git também recusa)
+            for a in args:
+                self.especial_no_git(a, pasta)
+                self.checar_escrita(a, pasta)
         elif prog in SO_DESTINO:
             if prog == "ln" or any(re.fullmatch(r"-[^-]*[ls]\w*|--(link|symbolic-link)", a) for a in args):  # S8 (C-3)
                 for a in args:  # o link aponta a prova: a origem também conta, pelo nome literal e pelo resolvido
@@ -4550,7 +4566,8 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, travas=Fa
 # HOOK-ERRO-LIBERA (C2, C3): a linha que escreve, para o marcador da falha fechada. Lê a mais de propósito: só pesa em erro
 # interno ou prazo vencido, e aí a dúvida recusa. Os verbos do git que gravam arquivo vêm das listas da guarda normal (A1).
 ESCRITORES = (TODOS_OS_ARGUMENTOS | SO_DESTINO | REMOCAO | CAMINHOS_NO_GIT | GIT_GRAVA_ARQUIVO
-              | {"ln", "chmod", "truncate", "touch", "unlink", "shred", "rmdir", "find", "tar"} | MUDA_ATRIBUTO)
+              | {"ln", "chmod", "truncate", "touch", "unlink", "shred", "rmdir", "find", "tar"} | MUDA_ATRIBUTO
+              | ARQUIVO_ESPECIAL)
 ESCREVE_NA_LINHA = re.compile(ESCRITA_NA_LINHA.pattern + r"|\b(?:" + "|".join(sorted(map(re.escape, ESCRITORES))) + r")\b")
 ALVO_OPACO = re.compile(r"[$`]|<\(")  # C3: substituição, crase, variável ou `<(`: o hook não sabe o destino
 # A2: a troca da pasta de base (`cd`, `pushd`, `popd`, `-C`, `--chdir`, `--git-dir`, `--work-tree`, `GIT_DIR`,

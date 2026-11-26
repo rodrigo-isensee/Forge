@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "o início do prazo vem do relógio injetado",
       "arquivo": "hooks/_comum.py",
-      "de": "        inicio = relogio()\n",
-      "para": "        inicio = time.monotonic()\n",
+      "de": "    inicio = relogio() - (idade_do_processo",
+      "para": "    inicio = time.monotonic() - (idade_do_processo",
       "testes": [
         "tests.test_hooks.SondaS1ComRelogioFalso.test_s1_recusa_no_prazo_longo_libera_dentro_e_recusa_na_fronteira"
       ]
