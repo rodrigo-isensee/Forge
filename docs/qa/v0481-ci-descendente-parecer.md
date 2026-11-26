@@ -20,8 +20,7 @@ Clone `/root/.forge-contrib/wt/v0481-ci-descendente-parecer-qa`, head `523b0065`
 
 `gh pr checks 895` no head exato: todas as partes verdes (suítes 3.12 e 3.14 de 1/5 a 5/5, `bateria (python 3.14)`, `bateria (passos)`, `bateria (verificações longas)`, teto de pulados, instalação, árvore já provada); fora da linha, como manda PARECER-LE-O-CI: `bateria (pareceres)` (espera o parecer do head novo; o `PARECERES: failure` do log é o parecer antigo de `aa26249f`), `bateria` (agrega a anterior) e `catraca`. Causa da `catraca` (log do run 45696404450): `R-CONFORMIDADE: mudança em bin/forge-check ... só passa com o rótulo afrouxa-regra do dono, aplicado depois do último push (ADR 0008)`; não é defeito de código, é o rótulo do dono, já decidido em 25/11 07:27 ("aceitar a forma 'via' do #895").
 
-## Achados
-Nenhum. O A1 do parecer anterior está fechado (provas abaixo).
+Sem achados novos: o A1 do parecer anterior está fechado (provas abaixo).
 
 ## Critério -> teste -> resultado
 | Critério | Teste | Fronteira protegida | Resultado |
