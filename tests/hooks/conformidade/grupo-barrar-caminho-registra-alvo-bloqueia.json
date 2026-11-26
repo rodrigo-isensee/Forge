@@ -1,0 +1,39 @@
+{
+  "descricao": "G4-TRAVA-REAL-BP8 (F1, R-CONFORMIDADE): grupo em barrar recusa como antes, e o comandos.jsonl ganha grupo e alvo (o caminho de controle).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "estado": {
+    "comandos.jsonl": ""
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/.claude/settings.json",
+      "content": "x\n"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "session_id": "s-f1"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: ",
+    "estado": {
+      "comandos.jsonl": {
+        "contem": [
+          "\"fonte\": \"conformidade\"",
+          "\"barrado\": \"R-CONFORMIDADE\"",
+          "\"grupo\": \"R-CONFORMIDADE\"",
+          "/.claude/settings.json\"}",
+          "\"sessao\": \"s-f1\""
+        ],
+        "ausente": [
+          "teria_barrado",
+          "\"alvo\": null"
+        ]
+      }
+    }
+  }
+}
