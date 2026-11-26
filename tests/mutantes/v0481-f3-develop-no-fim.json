@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481-f3-develop-no-fim",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "F3-1",
+      "guarda": "F3 (v0481 E30.1): a base velha só avisa no pronto",
+      "arquivo": "bin/forge-check",
+      "de": "    if velha := pronto.base_velha(raiz, base, ancora):  # PRONTO-BASE-VELHA, F3",
+      "para": "    if False:  # PRONTO-BASE-VELHA, F3",
+      "testes": [
+        "tests.test_forge_pronto.BaseVelha.test_marca_depois_do_nascimento_so_avisa_e_confere_contra_o_ponto_de_partida"
+      ]
+    },
+    {
+      "id": "F3-2",
+      "guarda": "F3 (v0481 E30.1): com a base velha, as checagens rodam contra o ponto de partida da branch",
+      "arquivo": "bin/forge-check",
+      "de": "        base = ancora  # contra a base nova",
+      "para": "        base = base  # contra a base nova",
+      "testes": [
+        "tests.test_forge_pronto.BaseVelha.test_marca_depois_do_nascimento_so_avisa_e_confere_contra_o_ponto_de_partida"
+      ]
+    }
+  ]
+}

@@ -1238,9 +1238,10 @@ def cmd_pronto(raiz, base, corpo_arquivo=None):
         print(f"pronto: {NAO_VERIFICAVEL}: o git não leu a base comum de HEAD com {base} nem o diff", file=sys.stderr)
         return 2
     pronto = modulo_do_bin("forge_pronto")
-    if velha := pronto.base_velha(raiz, base, ancora):  # PRONTO-BASE-VELHA: uma linha, em vez dos fragmentos dos outros itens
-        print(f"pronto: reprovado em {velha}")
-        return 1
+    if velha := pronto.base_velha(raiz, base, ancora):  # PRONTO-BASE-VELHA, F3 (v0481 E30.1): só avisa; a base entra no forge-fechar (2b)
+        print(f"pronto: aviso: {velha.partition('; ')[0]}; confiro contra o ponto de partida {ancora[:12]}, sem trazer a base: "
+              "ela entra só no fechamento (forge-fechar, passo 2b)", file=sys.stderr)
+        base = ancora  # contra a base nova, as checagens listariam os fragmentos dos outros itens (forge-changelog conferir)
     motivo = titulo = None  # o motivo do gh em erro: sem --corpo, o corpo fica não verificável em vez de reprovado
     if corpo_arquivo:
         try:

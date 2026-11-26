@@ -8,6 +8,7 @@
 # (2b) se a base andou desde o ponto de partida: com conflito real (`git merge-tree --write-tree`) ou falha de leitura, para e devolve ao agente; sem
 # conflito, em melhoria/* traz a base sozinho (H4: commit de merge com a árvore do merge-tree, `git push origin` de sempre, sem forçar nem pular o
 # pre-push) e recomeça a cadeia no head novo, uma vez por cadeia; fora de melhoria/* ou na cadeia recomeçada, avisa e segue sem trazer (E8);
+# F3 (v0481 E30.1): o 2b é o único lugar em que a base entra sem conflito; o parecer aprovado no head revisado vale no head com a base.
 # (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido
 # (logo antes dele, a execução mais recente de cada check-run obrigatório do head, catraca incluída, tem de estar em completed/success:
 # falha terminada para; pendente ou ausente espera até --espera e relê; FECHAR-CHECKS-ANTES-DO-MERGE); (7) limpeza.
