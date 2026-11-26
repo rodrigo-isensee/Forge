@@ -109,7 +109,10 @@ branch) que é ancestral do head e não é ancestral do Base-sha, e se nenhum co
 reprova (`escopo: --desde sem conferência anterior`, `--desde gravado na própria entrega`) e volta ao Base-sha, e nas etapas
 `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele vale igual (C1; sem `--desde`, a branch inteira). Vale também o commit do autor
 que um portão revisou (o `Revisar-sha:` de brief selado de portão da mesma branch e pedido, ancestral do head e fora do Base-sha; saída
-`base: commit do autor revisado pelo portão`, MP1311). Sem linha `conferida` no
+`base: commit do autor revisado pelo portão`, MP1311). Na forma `entrega --pedido`, com conferida anterior, o Desde é esse commit
+quando todos os pareceres da branch e do pedido no head são `aprovado` com o mesmo `commit:`, o review entre eles, selado como
+`Revisar-sha:` de cada portão, adiante da conferida e, depois dele, só pareceres, quadro, fragmento e merge limpo da base (E16.1,
+ENTREGA-DESDE-REVISAR-SHA). Sem linha `conferida` no
 `## Histórico` ou com a última fora do head (branch nova depois de um squash), o `--desde` igual ao Base-sha, ancestral do head,
 vale como a branch inteira (`base: Base-sha do brief`, P-N1; `brief mensagem --entrega` emite esse `Desde:`). Intervalo vazio:
 `pendente:` na etapa `codigo`, `escopo: sem commit (nada a conferir)` nas outras. Parecer do papel certo e com autoria:
@@ -2715,6 +2718,38 @@ def revisados_do_autor(raiz, caminho, texto, branch):
     """MP1311: os commits do autor que os portões revisaram: os `Revisar-sha:` dos briefs selados de portão desta branch e pedido."""
     pedido_id = id_do_pedido_no_texto(texto, caminho)
     return set().union(*(revisados_selados(raiz, caminho, texto, branch, pedido_id, t) for t in PAPEL_DO_BRIEF_DO_PARECER))
+
+
+def desde_do_parecer_aprovado(raiz, caminho, texto, branch, head, base_sha, base_ref, valido):
+    """E16.1 (ENTREGA-DESDE-REVISAR-SHA): o `commit:` X dos pareceres aprovados no head vira o Desde da conferência quando todos os
+    pareceres da branch e do pedido no head são `aprovado` com o mesmo X, o review entre eles; X é `Revisar-sha:` de brief selado do
+    portão de cada um (o registro do Jarvis), commit da branch adiante da conferida `valido` e, depois dele, só pareceres, quadro, o
+    fragmento do changelog e o merge limpo da base (`commit_vale`). Sem conferida anterior, ou faltando uma condição, None (o Desde
+    de sempre)."""
+    if not valido:
+        return None
+    pedido_id, slug = id_do_pedido_no_texto(texto, caminho), branch_da_convencao(raiz, branch)
+    pareceres = [(tipo, campos) for tipo in PASTA_E_REGRA for rel, doc in documentos(raiz, tipo, head)
+                 if (campos := validar_documento(rel, doc)[0]) and campos.get("branch") == branch
+                 and campos.get("pedido") in (pedido_id, slug)]
+    commits = {campos.get("commit") for _, campos in pareceres}
+    if len(commits) != 1:
+        return None
+    if "review" not in {t for t, _ in pareceres}:
+        return None
+    if any(c.get("parecer") != "aprovado" for _, c in pareceres):
+        return None
+    revisado = commits.pop()
+    if any(revisado not in revisados_selados(raiz, caminho, texto, branch, pedido_id, t) for t, _ in pareceres):
+        return None
+    if not e_ancestral(raiz, valido, revisado):
+        return None
+    if not e_ancestral(raiz, revisado, head):
+        return None
+    if ja_na_base(raiz, revisado, base_sha, base_ref):
+        return None
+    livres = LIVRES + ANEXOS_DO_PORTAO + (f"changelog.d/{branch.removeprefix('melhoria/')}.md",)
+    return revisado if commit_vale(raiz, revisado, head, base_ref, livres) is None else None
 
 
 def pedido_na_entrega(raiz, desde, head, base_ref):
@@ -10566,6 +10601,7 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
         base_sha = ponto  # E23.36 (e): o que veio da base pelo merge não é escopo, e conferida de outra branch que veio com ela não é Desde
     base_ref = ref_da_base(raiz, base)  # CONFERIDA-POR-BRANCH: a conferida de outro item já na base não é o Desde desta branch
     valido = desde_valido(raiz, texto, head, base_sha, base_ref)[0]
+    valido = desde_do_parecer_aprovado(raiz, caminho, texto, branch, head, base_sha, base_ref, valido) or valido  # E16.1
     desde = valido or (base_sha if base_sha_como_desde(raiz, texto, base_sha, head, base_ref) else None)
     declarado = escopo_declarado(brief, branch)
     if etapa == "codigo":  # E23.17 (b): a volta na mesma branch herda o escopo dos briefs de codigo anteriores do pedido

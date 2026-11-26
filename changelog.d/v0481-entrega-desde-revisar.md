@@ -1,0 +1,2 @@
+### Corrigido
+- forge-check entrega --pedido: o Desde da conferência parte do commit: dos pareceres aprovados no head (Revisar-sha de brief selado de cada portão, adiante da última conferida, só pareceres, quadro, fragmento e merge limpo da base depois dele), e o ciclo em que código e pareceres se reprovavam por escopo depois da develop trazida acaba; faltando uma condição, o Desde de sempre (v0481 E16.1, ENTREGA-DESDE-REVISAR-SHA).

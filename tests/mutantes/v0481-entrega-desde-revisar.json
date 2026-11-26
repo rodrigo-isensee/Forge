@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-entrega-desde-revisar",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "ED1",
+      "guarda": "E16.1: sem conferida anterior, nenhum Desde do parecer",
+      "arquivo": "bin/forge-check",
+      "de": "    if not valido:\n        return None\n    pedido_id, slug",
+      "para": "    if False:\n        return None\n    pedido_id, slug",
+      "testes": [
+        "tests.test_selo_e_entrega.CicloDo878.test_sem_conferida_anterior_nao_ha_desde_do_parecer"
+      ]
+    },
+    {
+      "id": "ED2",
+      "guarda": "E16.1: só os pareceres da própria branch contam",
+      "arquivo": "bin/forge-check",
+      "de": "if (campos := validar_documento(rel, doc)[0]) and campos.get(\"branch\") == branch",
+      "para": "if (campos := validar_documento(rel, doc)[0]) and True",
+      "testes": [
+        "tests.test_selo_e_entrega.CicloDo878.test_parecer_de_outra_branch_ou_pedido_vindo_da_develop_nao_conta"
+      ]
+    },
+    {
+      "id": "ED3",
+      "guarda": "E16.1: só os pareceres do pedido contam",
+      "arquivo": "bin/forge-check",
+      "de": "and campos.get(\"pedido\") in (pedido_id, slug)]",
+      "para": "and True]",
+      "testes": [
+        "tests.test_selo_e_entrega.CicloDo878.test_parecer_de_outra_branch_ou_pedido_vindo_da_develop_nao_conta"
+      ]
+    },
+    {
+      "id": "ED4",
+      "guarda": "E16.1: um só commit: em todos os pareceres",
+      "arquivo": "bin/forge-check",
+      "de": "if len(commits) != 1:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_selo_e_entrega.CicloDo878.test_dois_commits_revisados_selados_nao_dao_desde"
+      ]
+    },
+    {
+      "id": "ED5",
+      "guarda": "E16.1: o review está entre os pareceres",
+      "arquivo": "bin/forge-check",
+      "de": "if \"review\" not in {t for t, _ in pareceres}:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_selo_e_entrega.CicloDo878.test_sem_review_mantem_o_desde_da_conferida"
+      ]
+    },
+    {
+      "id": "ED6",
+      "guarda": "E16.1: todos os pareceres aprovados",
+      "arquivo": "bin/forge-check",
+      "de": "if any(c.get(\"parecer\") != \"aprovado\" for _, c in pareceres):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_selo_e_entrega.CicloDo878.test_parecer_nao_aprovado_mantem_o_desde_da_conferida"
+      ]
+    },
+    {
+      "id": "ED7",
+      "guarda": "E16.1: o commit: é Revisar-sha de brief selado de cada portão",
+      "arquivo": "bin/forge-check",
+      "de": "if any(revisado not in revisados_selados(",
+      "para": "if False and any(revisado not in revisados_selados(",
+      "testes": [
+        "tests.test_selo_e_entrega.CicloDo878.test_sem_brief_selado_do_portao_mantem_o_desde_da_conferida"
+      ]
+    },
+    {
+      "id": "ED8",
+      "guarda": "E16.1: o revisado está adiante da conferida",
+      "arquivo": "bin/forge-check",
+      "de": "if not e_ancestral(raiz, valido, revisado):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_selo_e_entrega.CicloDo878.test_conferida_adiante_do_revisado_fica"
+      ]
+    }
+  ]
+}
