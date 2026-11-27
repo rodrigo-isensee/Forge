@@ -6,8 +6,8 @@
       "id": "M17",
       "guarda": "lista nova não chama o gh",
       "arquivo": "bin/forge_estado.py",
-      "de": "if caminho is None or time.time() - os.stat(caminho).st_mtime <= modulo.PRAZO_DA_LISTA_S:",
-      "para": "if caminho is None:",
+      "de": "if caminho is None or not caminho.parent.is_dir() or time.time() - os.stat(caminho).st_mtime <= modulo.PRAZO_DA_LISTA_S:",
+      "para": "if caminho is None or not caminho.parent.is_dir():",
       "testes": [
         "tests.test_hook_vigia_f4.GravacaoDaLista.test_proximo_renova_so_a_lista_vencida_ou_ausente"
       ]
@@ -16,14 +16,24 @@
       "id": "M18",
       "guarda": "sem caminho não chama o gh",
       "arquivo": "bin/forge_estado.py",
-      "de": "if caminho is None or time.time() - os.stat(caminho).st_mtime <= modulo.PRAZO_DA_LISTA_S:",
-      "para": "if time.time() - os.stat(caminho).st_mtime <= modulo.PRAZO_DA_LISTA_S:",
+      "de": "if caminho is None or not caminho.parent.is_dir() or time.time() - os.stat(caminho).st_mtime <= modulo.PRAZO_DA_LISTA_S:",
+      "para": "if not caminho.parent.is_dir() or time.time() - os.stat(caminho).st_mtime <= modulo.PRAZO_DA_LISTA_S:",
       "testes": [
         "tests.test_hook_vigia_f4.GravacaoDaLista.test_proximo_com_gh_falho_nao_grava"
       ]
     },
     {
       "id": "M19",
+      "guarda": "sem a pasta de estado não chama o gh",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if caminho is None or not caminho.parent.is_dir() or time.time() - os.stat(caminho).st_mtime <= modulo.PRAZO_DA_LISTA_S:",
+      "para": "if caminho is None or time.time() - os.stat(caminho).st_mtime <= modulo.PRAZO_DA_LISTA_S:",
+      "testes": [
+        "tests.test_hook_vigia_f4.GravacaoDaLista.test_proximo_com_gh_falho_nao_grava"
+      ]
+    },
+    {
+      "id": "M20",
       "guarda": "resposta do gh fora de lista não grava",
       "arquivo": "bin/forge_estado.py",
       "de": "if isinstance(prs, list) and all(isinstance(p, dict) and isinstance(p.get(\"number\"), int) for p in prs):\n        gravar_prs_abertos(caminho",
@@ -33,7 +43,7 @@
       ]
     },
     {
-      "id": "M20",
+      "id": "M21",
       "guarda": "item do gh fora da forma não grava",
       "arquivo": "bin/forge_estado.py",
       "de": "if isinstance(prs, list) and all(isinstance(p, dict) and isinstance(p.get(\"number\"), int) for p in prs):\n        gravar_prs_abertos(caminho",
@@ -43,17 +53,17 @@
       ]
     },
     {
-      "id": "M21",
+      "id": "M22",
       "guarda": "proximo renova a lista do vigia",
       "arquivo": "bin/forge-check",
       "de": "if a.cmd == \"proximo\":  # F4",
       "para": "if False:  # F4",
       "testes": [
-        "tests.test_hook_vigia_f4.ProximoPeloForgeCheck.test_proximo_grava_a_lista_vencida_pelo_gh"
+        "tests.test_proximo.ProximoRenovaAListaDoVigia.test_proximo_grava_a_lista_vencida_pelo_gh"
       ]
     },
     {
-      "id": "M22",
+      "id": "M23",
       "guarda": "sem registro de agentes, sem lista",
       "arquivo": "hooks/vigia.py",
       "de": "return None if estado is None else estado.parent / NOME_DA_LISTA",
@@ -63,23 +73,13 @@
       ]
     },
     {
-      "id": "M23",
+      "id": "M24",
       "guarda": "sem caminho, nada a ler",
       "arquivo": "hooks/vigia.py",
       "de": "texto = None if caminho is None else ler_quadro(caminho)",
       "para": "texto = None if False else ler_quadro(caminho)",
       "testes": [
         "tests.test_hook_vigia_f4.ListaEmDisco.test_sem_pasta_de_estado_cala"
-      ]
-    },
-    {
-      "id": "M24",
-      "guarda": "lista acima do limite cala",
-      "arquivo": "hooks/vigia.py",
-      "de": "if texto and len(texto) <= LIMITE_DA_LISTA else {}",
-      "para": "if texto else {}",
-      "testes": [
-        "tests.test_hook_vigia_f4.ListaEmDisco.test_maior_que_o_limite_cala"
       ]
     }
   ]

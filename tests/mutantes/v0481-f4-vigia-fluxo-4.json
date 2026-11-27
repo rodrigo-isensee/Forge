@@ -4,6 +4,16 @@
   "mutantes": [
     {
       "id": "M25",
+      "guarda": "lista acima do limite cala",
+      "arquivo": "hooks/vigia.py",
+      "de": "if texto and len(texto) <= LIMITE_DA_LISTA else {}",
+      "para": "if texto else {}",
+      "testes": [
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_maior_que_o_limite_cala"
+      ]
+    },
+    {
+      "id": "M26",
       "guarda": "lista ausente cala",
       "arquivo": "hooks/vigia.py",
       "de": "if texto and len(texto) <= LIMITE_DA_LISTA else {}",
@@ -13,7 +23,7 @@
       ]
     },
     {
-      "id": "M26",
+      "id": "M27",
       "guarda": "lista fora de objeto cala",
       "arquivo": "hooks/vigia.py",
       "de": "gravado = dados.get(\"gravado_em\") if isinstance(dados, dict) else None",
@@ -23,7 +33,7 @@
       ]
     },
     {
-      "id": "M27",
+      "id": "M28",
       "guarda": "gravado_em fora de inteiro cala",
       "arquivo": "hooks/vigia.py",
       "de": "if type(gravado) is not int or not -60 <= agora - gravado <= PRAZO_DA_LISTA_S:",
@@ -33,7 +43,7 @@
       ]
     },
     {
-      "id": "M28",
+      "id": "M29",
       "guarda": "lista vencida cala",
       "arquivo": "hooks/vigia.py",
       "de": "if type(gravado) is not int or not -60 <= agora - gravado <= PRAZO_DA_LISTA_S:",
@@ -43,7 +53,7 @@
       ]
     },
     {
-      "id": "M29",
+      "id": "M30",
       "guarda": "lista no futuro cala",
       "arquivo": "hooks/vigia.py",
       "de": "if type(gravado) is not int or not -60 <= agora - gravado <= PRAZO_DA_LISTA_S:",
@@ -53,7 +63,7 @@
       ]
     },
     {
-      "id": "M30",
+      "id": "M31",
       "guarda": "prs fora de lista calam",
       "arquivo": "hooks/vigia.py",
       "de": "prs = dados.get(\"prs\") if isinstance(dados.get(\"prs\"), list) else []",
@@ -63,21 +73,11 @@
       ]
     },
     {
-      "id": "M31",
+      "id": "M32",
       "guarda": "item fora de objeto é ignorado",
       "arquivo": "hooks/vigia.py",
       "de": "for p in prs[:100] if isinstance(p, dict)\n",
       "para": "for p in prs[:100] if True\n",
-      "testes": [
-        "tests.test_hook_vigia_f4.ListaEmDisco.test_item_fora_da_forma_e_ignorado"
-      ]
-    },
-    {
-      "id": "M32",
-      "guarda": "número fora de inteiro é ignorado",
-      "arquivo": "hooks/vigia.py",
-      "de": "and type(p.get(\"number\")) is int and 1 <= p[\"number\"] <= 9999999",
-      "para": "and 1 <= p[\"number\"] <= 9999999",
       "testes": [
         "tests.test_hook_vigia_f4.ListaEmDisco.test_item_fora_da_forma_e_ignorado"
       ]

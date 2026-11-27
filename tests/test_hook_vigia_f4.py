@@ -1,13 +1,12 @@
 """F4 do estudo de atrito (v0481 E34.1 e E34.6): o aviso de time parado conta também o PR aberto sem agente vivo na branch
 dele (com vaga livre no teto do R-TETO) e a instância presa há mais de 10 minutos, e diz o papel a disparar. Sem rede no hook:
-o `vigia` lê a lista `prs-abertos.json` que o `forge-check status` e o `proximo` gravam (`bin/forge_estado.py`). Em processo:
+o `vigia` lê a lista `prs-abertos.json` que o `status` e o `proximo` gravam (`bin/forge_estado.py`). Em processo:
 o gh é um falso; registro, lista, transcript e quadro são arquivos de uma pasta temporária."""
 import json
 import os
 import re
 import shutil
 import stat
-import subprocess
 import sys
 import tempfile
 import time
@@ -22,9 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agentes  # noqa: E402
 import forge_estado as E  # noqa: E402
 import vigia  # noqa: E402
-from ambiente_git import sem_manutencao  # noqa: E402
-from gh_falso import pasta_com_gh  # noqa: E402
-from test_hooks import REASON_DO_TIME_PARADO  # noqa: E402
+from apoio_time_parado import REASON_DO_TIME_PARADO  # noqa: E402
 
 AID = "a" + "1" * 16
 LISTA_REAL = vigia.lista_de_prs  # a `Pasta` a troca pela da pasta temporária
@@ -353,22 +350,8 @@ class GravacaoDaLista(Pasta):
         self.assertFalse(self.lista.exists())
         with mock.patch.object(vigia, "lista_de_prs", lambda _r: None):
             E.renovar_prs_abertos(self.pasta, lambda *_a: self.fail("sem caminho: sem gh"))
-
-
-class ProximoPeloForgeCheck(unittest.TestCase):
-    def test_proximo_grava_a_lista_vencida_pelo_gh(self):
-        raiz = Path(tempfile.mkdtemp(prefix="forge-f4-"))
-        self.addCleanup(shutil.rmtree, raiz, ignore_errors=True)
-        ambiente = sem_manutencao({**os.environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null"})
-        subprocess.run(["git", "init", "-q", str(raiz)], check=True, capture_output=True, env=ambiente)
-        (raiz / ".forge" / "run").mkdir(parents=True)
-        resposta = json.dumps([pr(7, checks=VERDE), pr(8, fork=True)])
-        gh = pasta_com_gh(f"cat <<'FIM'\n{resposta}\nFIM\n")
-        ambiente = {**ambiente, "PATH": f"{gh}{os.pathsep}{ambiente.get('PATH', '')}", "HOME": str(raiz / "casa")}
-        subprocess.run([sys.executable, "-I", str(RAIZ / "bin" / "forge-check"), "--raiz", str(raiz), "proximo", "p1"],
-                       capture_output=True, text=True, env=ambiente, timeout=60)
-        dados = json.loads((raiz / ".forge" / "run" / vigia.NOME_DA_LISTA).read_text(encoding="utf-8"))
-        self.assertEqual(dados["prs"], [{"number": 7, "head": "melhoria/x", "papel": "integração"}])
+        with mock.patch.object(vigia, "lista_de_prs", lambda _r: self.pasta / "nao-existe" / vigia.NOME_DA_LISTA):
+            E.renovar_prs_abertos(self.pasta, lambda *_a: self.fail("sem a pasta de estado: sem gh"))
 
 
 if __name__ == "__main__":

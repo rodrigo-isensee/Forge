@@ -70,14 +70,9 @@ from modelo_git import copiar_modelo  # noqa: E402
 from prova_de_carga import (APROVEITAMENTO_MINIMO, FOLGA_DA_CPU_NO_PRAZO_S, PARCELA_DE_DISPUTA,  # noqa: E402
                             aproveitamento_da_cpu, carga_explica_a_recusa, referencia_da_cpu)
 from apoio_sandbox import exigir, sinais_de_ci  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
+from apoio_time_parado import REASON_DO_TIME_PARADO, TETO_DO_REASON  # noqa: E402  (emenda da ADR 0003, item 7; F4)
 
 HOOKS = RAIZ / "hooks"
-# o `reason` do time parado (emenda da ADR 0003, item 7; F4, v0481 E34.6): cartões, PR sem agente e preso, nesta ordem
-_PARTES_DO_TIME_PARADO = (r"\d+ cartões disponíveis(, primeiro [A-Za-z0-9.-]{1,16})?",
-                          r"PR sem agente: #\d+ [A-Za-zçã/]+(, #\d+ [A-Za-zçã/]+){0,2}( e mais \d+)?",
-                          r"preso há mais de 10 min: [a-z][a-z0-9:-]{0,23} a[0-9a-f]{16} há \d+ min( e mais \d+)?")
-_C, _P, _R = (f"({p})" for p in _PARTES_DO_TIME_PARADO)
-REASON_DO_TIME_PARADO = f"time parado: ({_C}(; {_P})?(; {_R})?|{_P}(; {_R})?|{_R}); retome sem esperar o dono"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
 # Erro de caminho igual em toda versão do Python (a 3.14 engole o OSError de Path.exists): ver o módulo da pasta.
 PATHLIB_312 = Path(__file__).resolve().parent / "apoio_pathlib_312"
@@ -875,7 +870,7 @@ class Hooks(unittest.TestCase):
                 self.assertIsNot(entrada.get("stop_hook_active"), True, "o Stop que segue o bloqueio não bloqueia")
                 self.assertEqual(saida["decision"], "block")
                 self.assertIsNotNone(re.fullmatch(REASON_DO_TIME_PARADO, saida["reason"]), saida["reason"])
-                self.assertLessEqual(len(saida["reason"]), 280, "teto do item 7 da emenda da ADR 0003 (F4)")
+                self.assertLessEqual(len(saida["reason"]), TETO_DO_REASON, "teto do item 7 da emenda da ADR 0003 (F4)")
                 self.assertEqual(saida["reason"], esperado["reason"])
             if "saida" in esperado:
                 self.assertNotIn("\n", saida["systemMessage"], "uma linha só")

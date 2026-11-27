@@ -120,11 +120,11 @@ def gravar_prs_abertos(caminho, prs, agora_s):
 
 
 def renovar_prs_abertos(raiz, gh_json):
-    """`forge-check proximo`: com a lista ausente ou vencida, uma leitura do `gh` e a gravação; falha não muda nada."""
+    """`forge-check proximo`: com a pasta de estado e a lista ausente ou vencida, uma leitura do `gh` e a gravação; falha não muda nada."""
     modulo = vigia()
     caminho = modulo.lista_de_prs(raiz)
     try:
-        if caminho is None or time.time() - os.stat(caminho).st_mtime <= modulo.PRAZO_DA_LISTA_S:
+        if caminho is None or not caminho.parent.is_dir() or time.time() - os.stat(caminho).st_mtime <= modulo.PRAZO_DA_LISTA_S:
             return
     except FileNotFoundError:
         pass

@@ -1,0 +1,16 @@
+{
+  "pedido": "v0481-f4-vigia-fluxo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M49",
+      "guarda": "falha de uma parte cala só ela e registra",
+      "arquivo": "hooks/vigia.py",
+      "de": "except Exception as erro:  # noqa: BLE001 - dúvida não bloqueia\n        hook.registrar_erro(erro)\n        return []",
+      "para": "except ZeroDivisionError as erro:  # noqa: BLE001 - dúvida não bloqueia\n        hook.registrar_erro(erro)\n        return []",
+      "testes": [
+        "tests.test_hook_vigia_f4.AvisoComPrsEPresos.test_lista_ilegivel_cala_so_a_parte_dela_e_registra"
+      ]
+    }
+  ]
+}
