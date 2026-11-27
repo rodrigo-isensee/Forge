@@ -2164,7 +2164,7 @@ class PrepararEstacao(unittest.TestCase):
             self.assertEqual((home / ".forge-contrib" / "dado.txt").read_text(), "não perder")
 
     def test_container_simulado_nao_roda_a_conferencia_final(self):
-        """E35.6 (M9): --simular não instala nada, então não pode acusar o que ficou por instalar (rc 0, sem erro:)."""
+        """E35.6 (M12): --simular não instala nada, então não pode acusar o que ficou por instalar (rc 0, sem erro:)."""
         with tempfile.TemporaryDirectory() as tmp:
             r, _, _, _ = self._container(tmp, "--container", "--simular", essencial=True, sem_gh=True, sem_tmux=True)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)

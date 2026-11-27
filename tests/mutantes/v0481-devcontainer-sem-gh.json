@@ -84,12 +84,12 @@
     },
     {
       "id": "M9",
-      "guarda": "preparo do container: a simulação não roda a conferência final (não instala nada, não pode acusar falta)",
+      "guarda": "preparo do container: a conferência final roda fora da simulação",
       "arquivo": "scripts/preparar-estacao.sh",
       "de": "[ \"$simular\" = 1 ] || container_essenciais",
       "para": "true || container_essenciais",
       "testes": [
-        "tests.test_forge.PrepararEstacao.test_container_simulado_nao_roda_a_conferencia_final"
+        "tests.test_forge.PrepararEstacao.test_container_sem_gh_sai_1_com_linha_de_erro_clara"
       ]
     },
     {
@@ -110,6 +110,16 @@
       "para": "true ||",
       "testes": [
         "tests.test_forge.PrepararEstacao.test_poststart_do_forge_sai_1_com_aviso_quando_o_preparo_falha"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "preparo do container: a simulação não roda a conferência final (não instala nada, não pode acusar falta)",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "[ \"$simular\" = 1 ] || container_essenciais",
+      "para": "false || container_essenciais",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_container_simulado_nao_roda_a_conferencia_final"
       ]
     }
   ]
