@@ -1488,6 +1488,8 @@ def tamanho_do_pr(raiz, ref, base, branch, previo=False):
     if not aviso:
         return []
     print(f"pr: {aviso}", file=sys.stderr)
+    if corte := corte_do_intervalo(raiz, b, ref or "HEAD", numstat):  # F5 (v0481 E38.2): o aviso traz onde cortar
+        print(f"pr: tamanho: {tamanho.texto_do_corte(corte)}", file=sys.stderr)
     if previo or not branch or branch in BASES_DO_FLUXO:
         return []
     pr, motivo = pr_da_branch(raiz, branch, corpo=True)
@@ -1498,6 +1500,34 @@ def tamanho_do_pr(raiz, ref, base, branch, previo=False):
         return []
     falta = tamanho.falta_de_motivo(total, pr.get("body"), pr.get("number"))
     return [falta] if falta else []
+
+
+def corte_do_intervalo(raiz, base, head, numstat):
+    """F5 (v0481 E38.2): o `corte_sugerido` do diff `base...head` com o `numstat` dele: cada arquivo de código até o teto é uma unidade;
+    o maior, uma por função tocada (cabeçalho `@@` do `-U0`). [] sem código; None se o git falha (a recusa sai sem o corte)."""
+    tamanho = modulo_do_bin("forge_tamanho")
+    unidades = []
+    for nome, contagem in sorted(numstat.items()):
+        linhas = tamanho.linhas_de_codigo({nome: contagem}, e_codigo)
+        if linhas <= tamanho.TETO_DE_LINHAS_DE_CODIGO:
+            unidades += [(nome, linhas)] if linhas else []
+            continue
+        cod, diff = git(raiz, "diff", "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames", f"{base}...{head}", "--", nome)
+        if cod:
+            return None
+        unidades += [(f"{nome}:{funcao}", n) for funcao, n in tamanho.linhas_por_funcao(diff).items()]
+    return tamanho.corte_sugerido(unidades)
+
+
+def tamanho_na_abertura(raiz, base, head, corpo):
+    """F5 (v0481 E38.2): a recusa da abertura do PR `base...head` com mais linhas de código que o teto do H1 e sem a exceção no `corpo`,
+    com o corte sugerido, ou None. O git que não lê o diff recusa (falha fechada, ADR 0009 seção 7)."""
+    numstat = contagens_do_intervalo(raiz, base, head, tres_pontos=True, estrito=True)
+    if numstat is None:
+        return f"R-REVIEW: tamanho não conferido: o git não leu o diff {base}...{head}; rode git fetch origin develop"
+    tamanho = modulo_do_bin("forge_tamanho")
+    total = tamanho.linhas_de_codigo(numstat, e_codigo)
+    return tamanho.recusa_de_abertura(total, corte_do_intervalo(raiz, base, head, numstat), corpo)
 
 
 # E3.45 (v0474): o merge só com os checks do head concluídos e verdes; num projeto, um PR mesclado com o CI rodando deixou a integração

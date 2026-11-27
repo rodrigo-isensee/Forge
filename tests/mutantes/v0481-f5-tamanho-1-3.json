@@ -1,0 +1,36 @@
+{
+  "pedido": "v0481-f5-tamanho-1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M15",
+      "guarda": "F5.1: trecho sem a contagem (`-3`) vale 1 linha",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "int(menos or 1)",
+      "para": "int(menos or 0)",
+      "testes": [
+        "tests.test_forge_tamanho.CorteSugerido.test_linhas_por_funcao_do_cabecalho"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "F5.1: trecho sem a contagem (`+3`) vale 1 linha",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "int(mais or 1)",
+      "para": "int(mais or 0)",
+      "testes": [
+        "tests.test_forge_tamanho.CorteSugerido.test_linhas_por_funcao_do_cabecalho"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "F5.1: a unidade que não cabe em nenhum PR abre PR novo",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "        if pr is None:\n            pr = [0, []]",
+      "para": "        if False:\n            pr = [0, []]",
+      "testes": [
+        "tests.test_forge_tamanho.CorteSugerido.test_agrupa_o_maior_primeiro_no_primeiro_pr_em_que_cabe"
+      ]
+    }
+  ]
+}

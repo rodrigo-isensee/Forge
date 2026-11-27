@@ -12,6 +12,9 @@ TETO_DE_ETAPAS = 50
 MARGEM_DO_BRIEF = 0.8  # avisa (e o `brief gerar` arquiva as etapas fechadas) a partir de 80% do teto, antes de o selar recusar
 LINHA_DE_MOTIVO = re.compile(r"^[ \t]*(?:[-*][ \t]+)?teto: excedido, (\d+) linhas, [ \t]*\S", re.M)
 ORIGEM = "H1, decisão do dono 17/11 11:15"
+CORTE_A_MAO = "cortar à mão (uma classe de comportamento por PR em hooks/, H1)"
+PRS_NO_TEXTO = 6
+CABECALHO_DO_TRECHO = re.compile(r"^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@ ?(.*)$", re.M)
 
 
 def linhas_de_codigo(contagens, e_codigo):
@@ -45,6 +48,49 @@ def falta_de_motivo(total, corpo, numero):
         return None
     return (f"pr: tamanho: {total} linhas de código acima do teto de {TETO_DE_LINHAS_DE_CODIGO} sem a linha "
             f"`teto: excedido, {total} linhas, <motivo>` no corpo do PR #{numero} ({ORIGEM})")
+
+
+def linhas_por_funcao(diff):
+    """{contexto: linhas} do `git diff -U0` de um arquivo (F5, v0481 E38.2): o contexto é o do cabeçalho `@@ -a,b +c,d @@ <contexto>`
+    (a linha `def`/`class` de cima mais próxima, sem os argumentos); as linhas, `b + d` dos trechos dele; sem contexto, `topo`."""
+    funcoes = {}
+    for menos, mais, contexto in CABECALHO_DO_TRECHO.findall(diff):
+        nome = contexto.split("(")[0].strip() or "topo"
+        funcoes[nome] = funcoes.get(nome, 0) + int(menos or 1) + int(mais or 1)
+    return funcoes
+
+
+def corte_sugerido(unidades, teto=TETO_DE_LINHAS_DE_CODIGO):
+    """O corte do item em PRs de até `teto` linhas (F5): `unidades` [(nome, linhas)], da maior para a menor (empate pelo nome), cada uma
+    no primeiro PR em que cabe; a que sozinha passa do teto vira PR próprio marcado `CORTE_A_MAO`. Devolve [(total, [(nome, linhas)])]."""
+    prs = []
+    for nome, linhas in sorted(unidades, key=lambda u: (-u[1], u[0])):
+        pr = next((p for p in prs if p[0] + linhas <= teto), None)
+        if pr is None:
+            pr = [0, []]
+            prs.append(pr)
+            nome = f"{nome}: {CORTE_A_MAO}" if linhas > teto else nome
+        pr[0] += linhas
+        pr[1].append((nome, linhas))
+    return [(total, partes) for total, partes in prs]
+
+
+def texto_do_corte(corte, maximo=PRS_NO_TEXTO):
+    """A linha `corte sugerido: PR 1 (148): bin/a 90, ...` com até `maximo` PRs e `e mais N` no resto."""
+    prs = "; ".join(f"PR {i} ({total}): " + ", ".join(f"{nome} {linhas}" for nome, linhas in partes)
+                    for i, (total, partes) in enumerate(corte[:maximo], 1))
+    resto = f"; e mais {len(corte) - maximo}" if len(corte) > maximo else ""
+    return f"corte sugerido: {prs}{resto} (os testes de cada parte vão junto dela)"
+
+
+def recusa_de_abertura(total, corte, corpo):
+    """A recusa da abertura do PR com `total` linhas de código acima do teto sem a exceção do H1 no `corpo`, com os dois primeiros PRs
+    do `corte` (None: o cálculo falhou, a recusa sai sem ele), ou None (F5)."""
+    if tem_motivo(corpo, total) or total <= TETO_DE_LINHAS_DE_CODIGO:
+        return None
+    sugestao = f"; {texto_do_corte(corte, 2)}; o corte inteiro: forge-check pr <pedido> --previo" if corte else ""
+    return (f"R-REVIEW: {total} linhas de código acima do teto de {TETO_DE_LINHAS_DE_CODIGO} por item ({ORIGEM}){sugestao}; ou "
+            f"`teto: excedido, {total} linhas, <motivo>` no corpo do PR")
 
 
 def aviso_de_etapas(quantas):
