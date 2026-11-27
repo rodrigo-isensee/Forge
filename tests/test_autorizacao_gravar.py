@@ -526,9 +526,9 @@ class AtosFixos(Base):
 
     def test_vocabulario_novo_so_nos_atos_fixos_e_sem_marca(self):
         self.assertFalse(set(MARCAS) & fa.VOCABULARIO_FIXO)
-        _, campos, _, _, _ = self.lida(0, "pode mesclar a main 0.47.3 todo dia", "merge-main", "versao:0.47.3")
+        _, campos, _, _, _ = self.lida(0, "pode mesclar a main 0.47.3, o time decide", "merge-main", "versao:0.47.3")
         self.assertEqual((campos["Estado-inicial"], campos["Validade"]), ("pendente-confirmacao", "ate:2026-11-20 00:00"))
-        self.assertEqual(campos["Motivo-da-pendencia"], "palavra fora do vocabulário: dia, todo")
+        self.assertEqual(campos["Motivo-da-pendencia"], "palavra fora do vocabulário: decide, time")
         _, campos, _, _, _ = self.lida(1, "pode mesclar a main 0.47.3 e o aperta", "merge-main", "versao:0.47.3")
         self.assertIn("mais de um ato", campos["Motivo-da-pendencia"])
 
