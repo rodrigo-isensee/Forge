@@ -6,8 +6,8 @@
       "id": "M25",
       "guarda": "CORTE-PELO-CONTADOR (E174.4): o corte é no teto, não acima dele",
       "arquivo": "bin/forge-fechar",
-      "de": "[ \"${BASH_REMATCH[2]}\" -lt \"${BASH_REMATCH[3]}\" ]",
-      "para": "[ \"${BASH_REMATCH[2]}\" -le \"${BASH_REMATCH[3]}\" ]",
+      "de": "[ \"${BASH_REMATCH[2]}\" -ge \"${BASH_REMATCH[3]}\" ]",
+      "para": "[ \"${BASH_REMATCH[2]}\" -gt \"${BASH_REMATCH[3]}\" ]",
       "testes": [
         "tests.test_fechar_corte.Corte.test_no_teto_grava_a_marca_e_abre_o_pr_em_rascunho"
       ]
