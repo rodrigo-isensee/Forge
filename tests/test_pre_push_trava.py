@@ -21,6 +21,9 @@ HOOK = RAIZ / ".githooks" / "pre-push"
 # FORGE_SUITE_* (processos, medição, trava) da suíte que roda estes testes não vazam para a suíte de brinquedo.
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_"))})
 
+# E40.1: idioma que toda máquina tem; um LANG ausente (en_US.UTF-8 no sandbox) põe o aviso setlocale do bash
+# na saída de erro, e as medidas de tamanho do texto da trava passam a contar o ambiente, não o hook.
+AMBIENTE.update(LANG="C.UTF-8", LC_ALL="C.UTF-8")
 AMBIENTE["FORGE_PREPUSH_SUITE"] = "afetados"  # ENVIO-LEVE: o padrão do hook não roda teste; estes testes exercitam o plano dos afetados
 SUITE_RAPIDA = '''import unittest, pathlib
 class T(unittest.TestCase):
