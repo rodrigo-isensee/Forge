@@ -984,11 +984,12 @@ class PrPeloStatus(GhFalso):
         self.assertEqual(linhas, [f"docs/reviews: review: sem parecer para o pedido `{PEDIDO}` (R-REVIEW)"])
 
     def test_forge_check_pr_le_o_status(self):
-        """O `pr_da_cli` (o `forge-check pr` e o `forge-fechar`) liga o status, sem e com `--base`."""
-        for base in (None, "develop"):
-            with self.subTest(base=base):
-                self.assertEqual(self.pr(self.b, frozenset({7}), self.em(self.a, 1), chamar=lambda: fc().pr_da_cli(
-                    self.repo, PEDIDO, self.b, base, BRANCH, conferir=False)), [])
+        """O `pr_da_cli` (o `forge-check pr` e o `forge-fechar`) liga o status nos dois caminhos: o diff literal (o head a já
+        está na develop, sem base) e a base da develop (o head b fora dela, sem e com `--base`)."""
+        for head, base in ((self.a, None), (self.b, None), (self.b, "develop")):
+            with self.subTest(head=head, base=base):
+                self.assertEqual(self.pr(head, frozenset({7}), self.em(self.a, 1), chamar=lambda: fc().pr_da_cli(
+                    self.repo, PEDIDO, head, base, BRANCH, conferir=False)), [])
 
     def test_leitura_recusada_reprova(self):
         self.estado(falha=True)
