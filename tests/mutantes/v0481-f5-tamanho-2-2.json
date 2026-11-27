@@ -6,8 +6,8 @@
       "id": "M9",
       "guarda": "F5.2: a promoção entre branches de integração não confere o tamanho",
       "arquivo": "hooks/parecer.py",
-      "de": "    if branch in INTEGRACAO:\n        return  # promoção entre branches de integração\n    ref = next(",
-      "para": "    if False:\n        return  # promoção entre branches de integração\n    ref = next(",
+      "de": "    if branch in INTEGRACAO:\n        return  # promoção entre branches de integração\n    ref = next((r for r in (head, f\"origin/{branch}\")",
+      "para": "    if False:\n        return  # promoção entre branches de integração\n    ref = next((r for r in (head, f\"origin/{branch}\")",
       "testes": [
         "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_fora_da_develop_e_no_projeto_nao_confere_e_git_que_falha_recusa"
       ]
