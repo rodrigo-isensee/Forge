@@ -27,7 +27,7 @@
       "guarda": "F5.2: o valor de outra opção (`--body -Fc.md`) não é o `--body-file`",
       "arquivo": "hooks/parecer.py",
       "de": "        j += 2 if a in CREATE_COM_VALOR else 1\n    return caminho",
-      "para": "        j += 1\n    return caminho",
+      "para": "        j += 2 if False else 1\n    return caminho",
       "testes": [
         "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_excecao_so_no_body_file_comum_da_copia_com_o_total"
       ]
