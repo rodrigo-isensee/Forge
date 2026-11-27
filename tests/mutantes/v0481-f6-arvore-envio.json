@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE-M1",
+      "guarda": "a base do run do PR tem de ser ancestral do head",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "f\"repos/{repo}/compare/{base}...{cabeca}\"), \"status\", str) not in (\"ahead\", \"identical\"):",
+      "para": "f\"repos/{repo}/compare/{base}...{cabeca}\"), \"status\", str) not in (\"ahead\", \"identical\", \"diverged\"):",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_casos_de_abuso_do_parecer_de_seguranca_a1"
+      ]
+    },
+    {
+      "id": "AE-M2",
+      "guarda": "o run do PR tem de ser contra a develop",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "if campo(p, \"number\", int) == numero and campo(p, \"base.ref\", str) == \"develop\"]",
+      "para": "if campo(p, \"number\", int) == numero]",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_casos_de_abuso_do_parecer_de_seguranca_a1"
+      ]
+    },
+    {
+      "id": "AE-M3",
+      "guarda": "o run tem de estar ligado ao mesmo número de PR",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "if campo(p, \"number\", int) == numero and campo(p, \"base.ref\", str) == \"develop\"]",
+      "para": "if campo(p, \"base.ref\", str) == \"develop\"]",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_casos_de_abuso_do_parecer_de_seguranca_a1"
+      ]
+    },
+    {
+      "id": "AE-M4",
+      "guarda": "só o run do ci.yml prova",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "\"event\": \"pull_request\", \"head_sha\": cabeca, \"path\": WORKFLOW_DE_PROVA, \"repository.full_name\": repo,",
+      "para": "\"event\": \"pull_request\", \"head_sha\": cabeca, \"repository.full_name\": repo,",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_casos_de_abuso_do_parecer_de_seguranca_a1"
+      ]
+    },
+    {
+      "id": "AE-M5",
+      "guarda": "o run mais recente decide",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "run_id, tentativa, base = max(validas)",
+      "para": "run_id, tentativa, base = min(validas)",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_casos_de_abuso_do_parecer_de_seguranca_a1"
+      ]
+    },
+    {
+      "id": "AE-M6",
+      "guarda": "o job bateria tem de ser da tentativa mais recente",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "\"head_sha\": cabeca, \"run_id\": run_id, \"run_attempt\": tentativa}\n    if len(com_nome)",
+      "para": "\"head_sha\": cabeca, \"run_id\": run_id}\n    if len(com_nome)",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_casos_de_abuso_do_parecer_de_seguranca_a1"
+      ]
+    },
+    {
+      "id": "AE-M7",
+      "guarda": "run em andamento não prova",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "\"head_repository.full_name\": repo, \"status\": \"completed\"}\n    validas",
+      "para": "\"head_repository.full_name\": repo}\n    validas",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_casos_de_abuso_do_parecer_de_seguranca_a1"
+      ]
+    },
+    {
+      "id": "AE-M8",
+      "guarda": "run do PR de fork não prova",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "\"head_repository.full_name\": repo, \"status\": \"completed\"}\n    validas",
+      "para": "\"status\": \"completed\"}\n    validas",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_casos_de_abuso_do_parecer_de_seguranca_a1"
+      ]
+    }
+  ]
+}

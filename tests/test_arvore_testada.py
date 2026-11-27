@@ -84,8 +84,6 @@ class ProvaValida(unittest.TestCase):
 
     def test_prova_completa_sai_verdadeiro_com_run_e_job(self):
         self.assertEqual(self.prova(), (True, "develop aaaaaaa, run 7, job checagem rápida (push na develop)"))
-        nome = "checagem rápida (push na develop, python 3.14)"
-        self.assertTrue(self.prova(jobs={7: [job(), job(name=nome)]}, python="3.14")[0])
 
     def test_execucao_que_nao_prova_sai_falso(self):  # casos 1 a 4 e 6 (status)
         for muda in ({"event": "workflow_dispatch"}, {"event": "pull_request"}, {"path": ".github/workflows/outro.yml"},
@@ -128,8 +126,7 @@ def ler_falso(execucoes, jobs, chamadas=None):
 
 class NomesDaProva(unittest.TestCase):
     def test_jobs_de_prova_sao_os_nomes_das_rapidas_do_ci(self):  # test_suite_partes confere o lado do ci.yml
-        self.assertEqual(at.JOBS_DE_PROVA, {"3.12": "checagem rápida (push na develop)",
-                                            "3.14": "checagem rápida (push na develop, python 3.14)"})
+        self.assertEqual(at.JOBS_DE_PROVA, {"3.12": "checagem rápida (push na develop)"})
 
 
 class Candidatos(unittest.TestCase):
@@ -167,8 +164,6 @@ class Provar(unittest.TestCase):
     def test_job_vermelho_ou_de_outro_python_nao_prova(self):
         self.assertFalse(self.provar(jobs={7: [job(conclusion="failure")]})[0])
         self.assertFalse(self.provar(python="3.14")[0])
-        nome = "checagem rápida (push na develop, python 3.14)"
-        self.assertTrue(self.provar(jobs={7: [job(), job(name=nome)]}, python="3.14")[0])
 
     def test_evento_fora_da_lista_nao_le_a_api(self):
         chamadas = []
@@ -179,7 +174,7 @@ class Provar(unittest.TestCase):
 
     def test_check_bateria_do_pr_nao_e_prova_e_o_script_nao_le_check_runs(self):
         """Sonda S1 da segurança (c5368db): a API falsa tem o check `bateria` em success no run do PR #77 contra a base
-        melhoria/x (base.sha fora do head). O corte A5 tirou `prova_do_pr`: a prova é só a do push na develop (`event=push`)."""
+        melhoria/x (base.sha fora do head). `provar` (promoção) segue só com o push na develop (`event=push`); `prova_do_pr` lê o run do PR, nunca o check solto."""
         chamadas = []
 
         def ler(caminho):
@@ -192,7 +187,6 @@ class Provar(unittest.TestCase):
                 ok, motivo = chamar(at.provar, e, "3.12", ARVORE, f"{D} {ARVORE}\n", ler)
                 self.assertFalse(ok, motivo)
         self.assertFalse([c for c in chamadas if "check-runs" in c or "pull_request" in c])
-        self.assertFalse(hasattr(at, "prova_do_pr"))
         self.assertNotIn("check-runs", SCRIPT.read_text(encoding="utf-8"))
 
     def test_execucao_de_outro_workflow_nao_tem_jobs_lidos(self):
@@ -204,6 +198,133 @@ class Provar(unittest.TestCase):
         for resposta in (None, [], {"workflow_runs": None}, {"workflow_runs": [None]}, {"workflow_runs": "x"}):
             with self.subTest(resposta=resposta):
                 self.assertFalse(chamar(at.provar, env(), "3.12", ARVORE, f"{D} {ARVORE}\n", lambda c, r=resposta: r)[0])
+
+
+class ProvaDoPr(unittest.TestCase):
+    """F6 (v0481 E32.9): o push na develop reaproveita o PR mesclado quando a árvore do head é a do commit, a develop anterior
+    é ancestral do head e o run do ci.yml do PR (pull_request, mesmo número, base develop) tem o job `bateria` em success na
+    tentativa mais recente; qualquer falta da prova roda a suíte inteira (A1 do parecer de segurança do #929)."""
+
+    ARV, ANT, CAB, PR, BASE, RUN = "1" * 40, "2" * 40, "3" * 40, 77, "4" * 40, 555
+    WF = f"{REPO}/.github/workflows/ci.yml@refs/heads/develop"
+
+    def ambiente(self, **mudar):
+        e = {"REPO": REPO, "EVENTO": "push", "REF": "refs/heads/develop", "SHA": D, "GITHUB_WORKFLOW_REF": self.WF}
+        e.update(mudar)
+        return e
+
+    def rodada(self, **mudar):
+        base = {"id": self.RUN, "run_attempt": 1, "event": "pull_request", "head_sha": self.CAB, "path": ".github/workflows/ci.yml",
+                "repository": {"full_name": REPO}, "head_repository": {"full_name": REPO}, "status": "completed",
+                "pull_requests": [{"number": self.PR, "base": {"ref": "develop", "sha": self.BASE}}]}
+        base.update(mudar)
+        return base
+
+    def job(self, **mudar):
+        base = {"name": "bateria", "conclusion": "success", "head_sha": self.CAB, "run_id": self.RUN, "run_attempt": 1}
+        base.update(mudar)
+        return base
+
+    def api(self, arvore_do_head=None, status="ahead", status_da_base="ahead", runs=None, jobs=None, base="develop",
+            repo_do_head=REPO, merge=None, merged="2026-11-26T10:00:00Z", pr=None, chamadas=None):
+        pull = pr if pr is not None else {
+            "number": self.PR, "head": {"sha": self.CAB, "repo": {"full_name": repo_do_head}}, "base": {"ref": base},
+            "merge_commit_sha": merge or D, "merged_at": merged}
+        execucoes = [self.rodada()] if runs is None else runs
+        respostas = {
+            f"repos/{REPO}/commits/{D}": {"commit": {"tree": {"sha": self.ARV}}, "parents": [{"sha": self.ANT}]},
+            f"repos/{REPO}/commits/{D}/pulls?per_page=10": [pull],
+            f"repos/{REPO}/git/commits/{self.CAB}": {"tree": {"sha": arvore_do_head or self.ARV}},
+            f"repos/{REPO}/compare/{self.ANT}...{self.CAB}": {"status": status},
+            f"repos/{REPO}/compare/{self.BASE}...{self.CAB}": {"status": status_da_base},
+            f"repos/{REPO}/actions/runs?head_sha={self.CAB}&event=pull_request&per_page=100": {"workflow_runs": execucoes}}
+        for numero in {r.get("id") for r in execucoes} | {self.RUN}:
+            lista = jobs.get(numero) if isinstance(jobs, dict) else jobs
+            respostas[f"repos/{REPO}/actions/runs/{numero}/jobs?per_page=100"] = {
+                "jobs": [self.job(run_id=numero)] if lista is None else lista}
+
+        def ler(caminho):
+            if chamadas is not None:
+                chamadas.append(caminho)
+            return respostas[caminho]
+        return ler
+
+    def prova(self, **api):
+        return chamar(at.prova_do_pr, self.ambiente(), self.api(**api))
+
+    def test_pr_mesclado_com_a_mesma_arvore_e_o_run_do_pr_verde_prova(self):
+        ok, motivo = self.prova()
+        self.assertTrue(ok, motivo)
+        self.assertIn(f"PR #{self.PR}", motivo)
+        self.assertIn(f"run {self.RUN}", motivo)
+
+    def test_casos_de_abuso_do_parecer_de_seguranca_a1(self):
+        """1: run com outra base ou base fora do head; 2: check sem run do ci.yml (criado pela API); 3: workflow_dispatch ou outro
+        path com o job bateria; 4: tentativa mais recente vermelha com a anterior verde."""
+        recente = self.RUN + 1
+        casos = {
+            "1 run do PR contra outra base": dict(runs=[self.rodada(pull_requests=[{"number": self.PR, "base": {"ref": "melhoria/x", "sha": self.BASE}}])]),
+            "1 run de outro PR": dict(runs=[self.rodada(pull_requests=[{"number": 1, "base": {"ref": "develop", "sha": self.BASE}}])]),
+            "1 run sem PR ligado": dict(runs=[self.rodada(pull_requests=[])]),
+            "1 base do run fora do head": dict(status_da_base="diverged"),
+            "1 base do run sem sha": dict(runs=[self.rodada(pull_requests=[{"number": self.PR, "base": {"ref": "develop"}}])]),
+            "2 check de API sem run do ci.yml": dict(runs=[]),
+            "3 workflow_dispatch": dict(runs=[self.rodada(event="workflow_dispatch")]),
+            "3 push": dict(runs=[self.rodada(event="push")]),
+            "3 outro path": dict(runs=[self.rodada(path=".github/workflows/outro.yml")]),
+            "3 run de fork": dict(runs=[self.rodada(head_repository={"full_name": "fork/forge"})]),
+            "3 run de outro repositório": dict(runs=[self.rodada(repository={"full_name": "fork/forge"})]),
+            "3 run em andamento": dict(runs=[self.rodada(status="in_progress")]),
+            "3 run de outro head": dict(runs=[self.rodada(head_sha="8" * 40)]),
+            "4 tentativa mais recente vermelha": dict(jobs=[self.job(conclusion="failure")]),
+            "4 job de tentativa anterior": dict(runs=[self.rodada(run_attempt=2)], jobs=[self.job(run_attempt=1)]),
+            "4 run mais recente vermelho, o anterior verde": dict(
+                runs=[self.rodada(), self.rodada(id=recente)],
+                jobs={self.RUN: [self.job()], recente: [self.job(run_id=recente, conclusion="failure")]})}
+        for nome, mudanca in casos.items():
+            with self.subTest(nome):
+                self.assertFalse(self.prova(**mudanca)[0], nome)
+
+    def test_o_run_mais_recente_verde_prova_apesar_de_um_anterior_vermelho(self):
+        velho = self.RUN - 1
+        ok, motivo = self.prova(runs=[self.rodada(id=velho), self.rodada()],
+                                jobs={velho: [self.job(run_id=velho, conclusion="failure")], self.RUN: [self.job()]})
+        self.assertTrue(ok, motivo)
+
+    def test_qualquer_falta_da_prova_roda_a_suite_inteira(self):
+        casos = {"árvore do head diferente": dict(arvore_do_head="9" * 40),
+                 "develop anterior fora do head": dict(status="diverged"),
+                 "sem o job bateria": dict(jobs=[self.job(name="bateria (pareceres)")]),
+                 "dois jobs bateria": dict(jobs=[self.job(), self.job()]),
+                 "job de outro sha": dict(jobs=[self.job(head_sha="8" * 40)]),
+                 "job de outro run": dict(jobs=[self.job(run_id=1)]),
+                 "job sem conclusão": dict(jobs=[{k: v for k, v in self.job().items() if k != "conclusion"}]),
+                 "job pulado": dict(jobs=[self.job(conclusion="skipped")]),
+                 "PR para outra base": dict(base="homolog"),
+                 "head de fork": dict(repo_do_head="fork/forge"),
+                 "PR mesclado em outro commit": dict(merge="7" * 40),
+                 "PR não mesclado": dict(merged=None),
+                 "PR sem número": dict(pr={"head": {"sha": "3" * 40, "repo": {"full_name": REPO}}, "base": {"ref": "develop"},
+                                           "merge_commit_sha": D, "merged_at": "x"}),
+                 "sem PR": dict(pr={})}
+        for nome, mudanca in casos.items():
+            with self.subTest(nome):
+                self.assertFalse(self.prova(**mudanca)[0], nome)
+
+    def test_fora_do_push_na_develop_do_proprio_ci_nao_le_a_api(self):
+        for mudanca in (dict(EVENTO="pull_request"), dict(REF="refs/heads/homolog"), dict(SHA="xyz"), dict(REPO="sem-barra"),
+                        dict(GITHUB_WORKFLOW_REF=f"{REPO}/.github/workflows/outro.yml@refs/heads/develop")):
+            with self.subTest(mudanca):
+                chamadas = []
+                self.assertFalse(chamar(at.prova_do_pr, self.ambiente(**mudanca), self.api(chamadas=chamadas))[0])
+                self.assertEqual(chamadas, [])
+
+    def test_erro_da_api_sai_1_sem_detalhe(self):
+        ambiente = {"PATH": os.environ["PATH"], **self.ambiente(GITHUB_API_URL="http://127.0.0.1:9", GH_TOKEN="segredo")}
+        saida = subprocess.run([sys.executable, "-I", str(SCRIPT), "--do-pr"], env=ambiente, capture_output=True, text=True, check=False)
+        self.assertEqual(saida.returncode, 1)
+        self.assertNotIn("segredo", saida.stdout + saida.stderr)
+        self.assertIn("a suíte do push roda inteira", saida.stdout)
 
 
 class ServidorFalso(http.server.BaseHTTPRequestHandler):

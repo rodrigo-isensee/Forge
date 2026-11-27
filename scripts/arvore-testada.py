@@ -14,6 +14,10 @@ GITHUB_API_URL (padrão https://api.github.com), mais o `env:` do passo; nunca i
       `jobs` é {id da execução: [jobs]}. Campo ausente ou de tipo errado não prova.
   candidatos(arvore, log): os commits do `git log --format='%H %T'` com a mesma árvore do HEAD (a prova é da árvore).
   provar(env, python, arvore, log, ler): junta as três, com `ler(caminho)` da API injetado (sem rede nos testes).
+  prova_do_pr(env, ler): F6 (v0481), `--do-pr`, só no push na develop: o commit é o merge de um PR do próprio repositório
+      cujo head tem a MESMA árvore, descende da develop anterior e que tem o run do ci.yml de `pull_request` desse PR (base
+      develop, base do run ancestral do head), concluído, com o job "bateria" em `success` na tentativa mais recente (A1 do
+      parecer de segurança do #929); sem tudo isso, a suíte do push roda inteira.
 """
 import argparse
 import importlib.util
@@ -28,7 +32,8 @@ from pathlib import Path
 
 WORKFLOW_DE_PROVA = ".github/workflows/ci.yml"
 PUSHES = {WORKFLOW_DE_PROVA: {"refs/heads/homolog", "refs/heads/main"}, ".github/workflows/release.yml": {"refs/heads/main"}}
-JOBS_DE_PROVA = {"3.12": "checagem rápida (push na develop)", "3.14": "checagem rápida (push na develop, python 3.14)"}
+NOME_DA_BATERIA = "bateria"  # o check exigido do PR (agregador do ci.yml)
+JOBS_DE_PROVA = {"3.12": "checagem rápida (push na develop)"}
 SHA = re.compile(r"[0-9a-f]{40}")
 PYTHON = re.compile(r"3\.\d{1,2}")
 LIMITE_DO_LOG = 200  # commits do HEAD lidos atrás da mesma árvore (a promoção traz a develop a 1 ou 2 merges de distância)
@@ -131,6 +136,71 @@ def provar(env, python, arvore, log, ler):
     return False, f"nenhum dos {len(lista)} commits com a árvore {arvore[:7]} tem a prova do Python {python} na develop"
 
 
+def prova_do_pr(env, ler):
+    """(True, motivo) só com o push na develop do ci.yml do próprio repositório, um PR mesclado neste commit (base develop, head do
+    mesmo repositório), árvore do head igual à do commit, develop anterior e base do run ancestrais do head e, ligado a esse PR, o
+    run do ci.yml de `pull_request` do próprio repositório, concluído, com o job `bateria` em success na tentativa mais recente
+    (A1 do parecer de segurança do #929: padrão C-3 do `prova_valida`; check solto de outro app, de outra base ou de outro
+    workflow não prova); senão (False, motivo). `ler(caminho)` devolve o JSON da API (pode lançar: falha fechada)."""
+    repo, evento, ref, sha = (campo(env, k, str) or "" for k in ("REPO", "EVENTO", "REF", "SHA"))
+    origem, _, _ = (campo(env, "GITHUB_WORKFLOW_REF", str) or "").partition("@")
+    if not (REPOSITORIO.fullmatch(repo) and SHA.fullmatch(sha) and origem == f"{repo}/{WORKFLOW_DE_PROVA}"
+            and evento == "push" and ref == "refs/heads/develop"):
+        return False, "só o push na develop do ci.yml do próprio repositório"
+    commit = ler(f"repos/{repo}/commits/{sha}")
+    arvore = campo(commit, "commit.tree.sha", str)
+    pais = campo(commit, "parents", list) or []
+    anterior = campo(pais[0], "sha", str) if pais else None
+    if not (arvore and anterior and SHA.fullmatch(arvore) and SHA.fullmatch(anterior)):
+        return False, "commit sem árvore ou sem pai no formato"
+    prs = ler(f"repos/{repo}/commits/{sha}/pulls?per_page=10")
+    for pr in (prs if type(prs) is list else [])[:LIMITE_DE_CANDIDATOS]:
+        cabeca, numero = campo(pr, "head.sha", str), campo(pr, "number", int)
+        if not (cabeca and SHA.fullmatch(cabeca) and numero is not None and campo(pr, "base.ref", str) == "develop"
+                and campo(pr, "head.repo.full_name", str) == repo and campo(pr, "merge_commit_sha", str) == sha
+                and campo(pr, "merged_at", str)):
+            continue
+        if campo(ler(f"repos/{repo}/git/commits/{cabeca}"), "tree.sha", str) != arvore:
+            continue
+        if campo(ler(f"repos/{repo}/compare/{anterior}...{cabeca}"), "status", str) not in ("ahead", "identical"):
+            continue
+        achou, motivo = bateria_do_run_do_pr(repo, cabeca, numero, ler)
+        if achou:
+            return True, f"árvore {arvore[:7]} igual à do head {cabeca[:7]} do PR #{numero}, {motivo}"
+    return False, f"nenhum PR mesclado em {sha[:7]} tem head de mesma árvore, descendente da develop e com a bateria verde no run do PR"
+
+
+def bateria_do_run_do_pr(repo, cabeca, numero, ler):
+    """(True, 'run <id>, job bateria') só com o run mais recente do ci.yml do evento pull_request, do próprio repositório, concluído,
+    no head e ligado ao PR `numero` contra a develop, cuja base (sha do run) é ancestral do head, e com um único job `bateria` em
+    success na tentativa mais recente do run; senão (False, motivo)."""
+    consulta = urllib.parse.urlencode({"head_sha": cabeca, "event": "pull_request", "per_page": 100})
+    execucoes = campo(ler(f"repos/{repo}/actions/runs?{consulta}"), "workflow_runs", list) or []
+    da_execucao = {"event": "pull_request", "head_sha": cabeca, "path": WORKFLOW_DE_PROVA, "repository.full_name": repo,
+                   "head_repository.full_name": repo, "status": "completed"}
+    validas = []
+    for execucao in execucoes:
+        run_id, tentativa = campo(execucao, "id", int), campo(execucao, "run_attempt", int)
+        if None in (run_id, tentativa) or any(campo(execucao, k, str) != v for k, v in da_execucao.items()):
+            continue
+        ligadas = [p for p in (campo(execucao, "pull_requests", list) or [])
+                   if campo(p, "number", int) == numero and campo(p, "base.ref", str) == "develop"]
+        base = campo(ligadas[0], "base.sha", str) if ligadas else None
+        if base and SHA.fullmatch(base):
+            validas.append((run_id, tentativa, base))
+    if not validas:
+        return False, "nenhum run do ci.yml do PR no head"
+    run_id, tentativa, base = max(validas)  # o mais recente decide: um run vermelho depois de um verde reprova
+    if campo(ler(f"repos/{repo}/compare/{base}...{cabeca}"), "status", str) not in ("ahead", "identical"):
+        return False, "base do run fora do head"
+    lista = campo(ler(f"repos/{repo}/actions/runs/{run_id}/jobs?per_page=100"), "jobs", list) or []
+    com_nome = [j for j in lista if campo(j, "name", str) == NOME_DA_BATERIA]
+    do_job = {"conclusion": "success", "head_sha": cabeca, "run_id": run_id, "run_attempt": tentativa}
+    if len(com_nome) == 1 and all(campo(com_nome[0], k, type(v)) == v for k, v in do_job.items()):
+        return True, f"run {run_id}, job {NOME_DA_BATERIA}"
+    return False, f"o job {NOME_DA_BATERIA} do run {run_id} não está em success na tentativa mais recente"
+
+
 def leitor_da_api(env):
     """`ler(caminho)`: GET autenticado na API do GitHub (GITHUB_API_URL, padrão https://api.github.com), JSON, com prazo."""
     base = (env.get("GITHUB_API_URL") or "https://api.github.com").rstrip("/")
@@ -153,7 +223,15 @@ def main(argv=None, env=None):
     p = argparse.ArgumentParser(prog="arvore-testada", description="rc 0: a árvore do HEAD já passou na suíte da develop")
     p.add_argument("--python", default=f"{sys.version_info.major}.{sys.version_info.minor}",
                    help="versão do job de prova (padrão: a deste interpretador)")
+    p.add_argument("--do-pr", action="store_true", help="F6: o push na develop reaproveita a prova do PR mesclado")
     a = p.parse_args(argv)
+    if a.do_pr:
+        try:
+            ok, motivo = prova_do_pr(env, leitor_da_api(env))
+        except Exception as erro:  # rede, HTTP, JSON: falha fechada, sem detalhe que possa trazer o token
+            ok, motivo = False, f"erro ao ler a prova ({type(erro).__name__})"
+        print(f"arvore-testada: {'provada: ' + motivo + '; a suíte do push não roda de novo' if ok else 'sem prova (' + motivo + '); a suíte do push roda inteira'}")
+        return 0 if ok else 1
     if not PYTHON.fullmatch(a.python):
         print("arvore-testada: --python fora do formato X.Y; sem prova, a suíte roda inteira", file=sys.stderr)
         return 1

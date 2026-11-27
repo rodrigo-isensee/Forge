@@ -28,6 +28,8 @@ Os nomes são os `name:` dos jobs em `.github/workflows/ci.yml` e `.github/workf
 
 F6 (v0481): a suíte do PR roda uma vez, no Python 3.12; o agregador `bateria (python 3.14)` agora só junta a instalação e a fumaça. Os dois checks exigidos acima não mudam de nome. O `.github/workflows/diario.yml` (suíte no 3.14, e2e no 3.12 e mutantes, uma vez por dia na `develop`) não é check exigido: se quebra, abre uma issue.
 
+F6, corte do envio (v0481 E32.9): no push na `develop`, o job `arvore-envio` (`scripts/arvore-testada.py --do-pr`) pula a suíte quando o commit é o merge de um PR do próprio repositório com a mesma árvore do head e o run do `ci.yml` desse PR (evento `pull_request`, mesmo número, base `develop`, base do run ancestral do head) tem o job `bateria` em success na tentativa mais recente; o agregador `checagem rápida (push na develop)` aceita as pernas puladas só com esse job em success. Sem a prova, erro ou falha do job, a suíte roda inteira. O check `bateria` solto (de outra base, outro workflow ou criado pela API) não prova.
+
 ## Ruleset `main-do-dono`
 1. New branch ruleset, Name: `main-do-dono`, Enforcement status: **Active**.
 2. Target branches: só `main`.
