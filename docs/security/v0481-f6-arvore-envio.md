@@ -3,33 +3,32 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-f6-arvore-envio
-commit: dcd4003c3bbb728d86c2e16a9df0aefad46a2036
+commit: 023b0d68c5f67c64236363d17e5d17f2fdaea770
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-11-27
 ---
-# Review de segurança: v0481 (PR #932, corte do envio do F6, volta 1, E32.35)
+# Review de segurança: v0481 (PR #932, corte do envio do F6, volta 2, E32.39)
 
-Volta por delta: `forge-check parecer delta` de `1567d509..dcd4003c`; no domínio, `scripts/arvore-testada.py` e `docs/protecao-de-branch.md` (relidos inteiros: `prova_do_pr` e `bateria_do_run_do_pr`, e o agregador `rapida` do `.github/workflows/ci.yml:174-199`, não tocado). Fora do domínio: specs de mutante -4 a -6 e `tests/test_arvore_testada.py`. Rodada anterior: aprovado, sem achados (fica no git).
+Volta por delta: `forge-check parecer delta` de `dcd4003c..023b0d68`; no domínio, só `scripts/arvore-testada.py` (`prova_do_pr` passa o `numero`; `bateria_do_run_do_pr:190-192` descarta o run cujo `pull_requests` traga outro número, outra base ou tipo que não seja lista). Fora do domínio: specs de mutante -5 e -7 e `tests/test_arvore_testada.py`. Rodada anterior (79bdb8de, reprovado) fica no git.
 
 Gatilhos: pipeline de CI (portão do push na develop), token do workflow, controle que afrouxa regra (R-FLUXO).
 
 ## Achados
-- A1 (bloqueante) scripts/arvore-testada.py:181 · O run liga ao PR só por head_sha e head_branch: o run de OUTRO PR do mesmo ramo (base melhoria/y; testou o merge com outra base) prova o merge na develop, mesmo com o run do PR da develop vermelho. A doc (protecao-de-branch.md:31) promete base develop; o código não confere.
+- A1 (bloqueante) scripts/arvore-testada.py:190 · Parcial: o run de outro PR do mesmo ramo para outra base é recusado só enquanto esse PR está aberto. Mesclado ou fechado, a API esvazia o pull_requests, o run passa e, sendo o mais novo, prova o merge na develop com o run do PR da develop vermelho (S2). Falta a parte (2) da correção.
 
 ## Sondas
-- S1 · python3 sonda_s1.py <cópia> (fixture do teste: run 555 do PR #77 com bateria failure; run 565 com pull_requests=[{number 999, base melhoria/y}] e bateria success) · espera: (False, ...) · obtido: (True, "árvore 1111111 igual à do head 3333333 do PR #77, run 565, job bateria")
+- S1 · python3 sonda_s1.py <cópia> (run 565 com pull_requests=[{number 999, base melhoria/y}] e bateria success; run 555 do PR #77 com bateria failure) · espera: (False, ...) · obtido: (False, "nenhum PR mesclado em aaaaaaa tem head de mesma árvore, ...")
+- S2 · python3 sonda_s2.py <cópia> (o mesmo, com o PR empilhado já mesclado: run 565 com pull_requests=[] e bateria success; run 555 com bateria failure) · espera: (False, ...) · obtido: (True, "árvore 1111111 igual à do head 3333333 do PR #77, run 565, job bateria")
 
 ## Detalhe dos achados
-**A1.** Evidência: `scripts/arvore-testada.py:181-191` filtra os runs por evento, head_sha, path, repositório, status e `head_branch` e escolhe o maior `run_id`; nada liga o run à base do PR mesclado. O `ci.yml` roda em `pull_request` para qualquer base, e o passo "Nada pula degrau" só barra as bases `homolog` e `main` (`.github/workflows/ci.yml:519-523`): um PR `melhoria/x -> melhoria/y` roda a bateria inteira e pode ficar verde. O `compare base.sha...head` (`:192`) usa a base do PR da develop, não a do run, e não fecha o furo.
+**A1 (estado: parcialmente corrigido; continua bloqueante).** A parte (1) da correção mínima da rodada anterior entrou e fecha o caso do PR empilhado aberto (S1 agora dá False). A parte (2) não entrou: a lista vazia segue valendo para qualquer run do mesmo head e ramo (`:190-192`), e ela é exatamente o estado do run de um PR já mesclado ou fechado, de qualquer base. O próprio código registra isso na docstring (`:178`: "vazia só depois do merge").
 
-Caminho: quem tem escrita (agente ou colaborador) abre um segundo PR do mesmo ramo para um ramo com commits a mais (por exemplo, a correção que faz a bateria passar); o run desse PR, mais novo, fica verde sobre `merge(head, melhoria/y)`, árvore diferente da do head; o PR da develop é mesclado e o push na develop pula a suíte sem nunca ter testado a árvore mesclada. Ganho: a árvore não testada entra na develop com a `checagem rápida` verde, sem o vermelho do push que hoje a apanha depois. A S1 reproduz o caso, inclusive com o `pull_requests` do run dizendo que ele é de outro PR e de outra base (o PR empilhado segue aberto, então a API o lista), sinal que o código ignora.
+Caminho: quem tem escrita abre `melhoria/x -> melhoria/y` no mesmo head do PR da develop; o run desse PR fica verde sobre `merge(head, melhoria/y)`; fecha ou mescla esse PR (o `pull_requests` do run some); o PR da develop é mesclado e o `arvore-envio` pega o run mais novo, verde, de outra base, e corta a suíte do push sem nunca ter testado a árvore mesclada na develop. A ordem é a natural de um PR empilhado, não exige forja.
 
-As demais forjas pedidas fecham: fork (`head_repository.full_name` e `head.repo.full_name`), tentativa antiga (`run_attempt` do job), base velha (`compare` da develop anterior e da `base.sha` com o head, `behind` e `diverged` recusados), outro ramo no mesmo sha (`head_branch`).
+Correção mínima (P, dono `devops-engineer`; teste `qa-engineer`): listar os PRs do ramo, `repos/<repo>/pulls?head=<dono>:<ramo>&state=all&per_page=100`, e não provar se algum, aberto ou fechado, tiver `base.ref` diferente de `develop` (ou tiver número diferente do `numero` com o mesmo `head.sha`); falha fechada se a listagem falhar ou vier sem `base.ref`. Caso de abuso para o teste: o da S2 (run mais novo verde com `pull_requests=[]` de PR do mesmo ramo para `melhoria/y`, já fechado; run do PR da develop vermelho), espera `(False, ...)`.
 
-Severidade: média (afrouxa o portão R-FLUXO pelo qual o rótulo `afrouxa-regra` foi aceito; a proteção da develop também lê o check `bateria` no mesmo sha, mas o corte tira a rede que pegaria o erro depois do merge). Correção mínima, as duas: (1) recusar o run cujo `pull_requests` não esteja vazio e não seja só o próprio PR (mesmo número e `base.ref` `develop`); (2) listar os PRs do ramo, `repos/<repo>/pulls?head=<dono>:<ramo>&state=all&per_page=100`, e não provar se algum, aberto ou fechado, tiver `base.ref` diferente de `develop` (cobre o PR empilhado já fechado, que some do `pull_requests`). Caso de abuso para o teste: run mais novo de PR do mesmo ramo com outra base, verde, e run do PR da develop vermelho, espera `(False, ...)`; e o mesmo com o PR empilhado fechado. Esforço: P. Dono: `devops-engineer` (script), `qa-engineer` (teste).
-
-Doc: `docs/protecao-de-branch.md:31` está correta quanto à falha do próprio `arvore-envio` (o agregador sai vermelho, `ci.yml:194`); a frase "base `develop`" do run só passa a valer com a correção do A1.
+Verificado sem achado no delta: tipo errado no `pull_requests` (não lista) recusa; item sem `number` ou `base.ref` recusa (`campo` devolve None); o `numero` vem do PR lido pela API, não do run.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Sonda S1 fora do repositório (usa a fixture de `tests/test_arvore_testada.py`, sem rede). Teste afetado rodado: `tests.test_arvore_testada` (31 testes, OK). CI do head `dcd4003c`: partes 1 a 5 da suíte, passos, verificações longas, instalação e `bateria (python 3.14)` verdes; `bateria`, `bateria (pareceres)` e `catraca` vermelhas pelo que falta da integração. `zizmor` e `actionlint` fora do PATH: lacuna.
+Nenhum risco aceito. Sondas S1 e S2 fora do repositório (fixture de `tests/test_arvore_testada.py`, sem rede). Teste afetado rodado: `tests.test_arvore_testada` (32 testes, OK). CI do head `023b0d68`: suíte partes 1 a 5, passos, verificações longas, instalação, `bateria (python 3.14)` e `árvore já provada na develop` verdes; `bateria`, `bateria (pareceres)` e `catraca` vermelhas pelo que falta da integração (pareceres). `zizmor` e `actionlint` fora do PATH: lacuna.
