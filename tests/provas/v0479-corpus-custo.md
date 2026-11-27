@@ -168,3 +168,18 @@ segurança), a base e o 0f4facab por `git archive`:
 - +0 sobre o 0f4facab: a regex nova é texto compilado só no uso, e a `GuardaDaProva.bash` e o `sem_copia_de_wt` não rodam
   no corpus; os absolutos daqui diferem dos de antes (233 variáveis), a diferença não: +5478 sobre a base, 0,093% sobre
   5897219 (5478 / 5897219) e sobre 5887957; abaixo de 0,1%, e `MEDIDA_DO_CORPUS` segue a mesma
+
+## C1b-3 (v0481 E45.13 e E45.19, pasta de controle do Forge com quem vazio)
+
+A entrada nova da pasta de controle em `hooks/conformidade.json` e a linha em `CAMINHOS_DO_CONTROLE` do
+`hooks/conformidade.py` (PR #940, head 0bad4b32, base develop 50e5b609):
+- CI do #940 (run 46028204382, suíte Python 3.12, parte 4/5): `test_corpus_nos_dois_hooks` reprovou com o
+  `interpretador` 865 passos acima do teto de 5902697 (0,015%); subprocessos e execuções dentro do teto
+- máquina do autor, outra que a das medidas acima (Python 3.12.3, tmp `/tmp/claude-0` a 2 níveis, 237 variáveis, 4508
+  subprocessos; absolutos não comparáveis ao teto), cada árvore por `git archive`, o teste instrumentado só para
+  imprimir a contagem: base 50e5b609 `{'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 5894127, 'ambiente': 237}`;
+  head 0bad4b32 `{'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 5905764, 'ambiente': 237}`
+- medida nova: 5903562 (5902697 + 865, a do CI), ruído 0; total sobre 5897219: +6343 passos (0,108%), acima de 0,1%
+- autorização (v0481 E45.19): o dono autorizou o custo a mais da proteção em 27/11 às 14:11 (+865 passos, acumulado
+  +0,108%; DECISÃO DO DONO no pedido v0481), só para este item e não precedente; a prova do teto novo é o CI do PR no
+  head, com a parte 4/5 verde

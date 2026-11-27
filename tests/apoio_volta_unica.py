@@ -201,8 +201,11 @@ if _pasta:
 # parecer da etapa (brief v0478-tech-lead-481); prova em tests/provas/v0479-corpus-custo.md, "E63.1".
 # E63.5 (volta única dos portões da trilha): 5902634 -> 5902697 (+63; total sobre 5897219: +5478 passos, 0,093%; os
 # subprocessos seguem 4631); prova em tests/provas/v0479-corpus-custo.md, "E63.5".
+# C1b-3 (v0481 E45.19, pasta de controle do Forge com quem vazio): 5902697 -> 5903562 (+865, medidos no CI do #940;
+# total sobre 5897219: +6343 passos, 0,108%). Acima de 0,1%: autorizado pelo dono em 27/11 às 14:11 só para este item
+# (DECISÃO DO DONO no pedido v0481), não precedente; prova em tests/provas/v0479-corpus-custo.md, "C1b-3".
 MEDIDA_DO_CORPUS = {"python": "3.12", "profundidade_do_tmp": 2, "variaveis_do_ambiente": 234,
-                    "execucoes": 557, "subprocessos": 4631, "interpretador": 5902697}
+                    "execucoes": 557, "subprocessos": 4631, "interpretador": 5903562}
 PASSOS_POR_NIVEL_DO_TMP = 460
 PASSOS_POR_VARIAVEL_POR_SUBPROCESSO = 2
 RUIDO_DO_CORPUS = {"subprocessos": 0, "interpretador": 0}
