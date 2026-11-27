@@ -29,9 +29,13 @@ on:
 permissions:
   contents: read
 
+# CI-NAO-CANCELA-ENVIO-SO-DE-PARECER (v0481 E22.1): em PR cada run tem o seu grupo (sem cancelamento automatico) e o workflow
+# obsoletas.yml (o unico com actions: write, fora deste arquivo) cancela os runs anteriores do mesmo ramo, exceto quando o envio
+# novo so traz docs/reviews/, docs/qa/ ou docs/security/ (o parecer do portao): a suite do head revisado termina e a linha ci
+# chega ao revisor. Push nas branches de integracao segue cancelando.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.ref }}${{ github.event_name == 'pull_request' && format('-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ github.event_name != 'pull_request' }}
 
 jobs:
   arvore-envio:

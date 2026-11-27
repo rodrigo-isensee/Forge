@@ -1,0 +1,126 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "so PR do proprio repositorio recebe o job com actions: write",
+      "arquivo": ".github/workflows/obsoletas.yml",
+      "de": "github.event.pull_request.head.repo.full_name == github.repository",
+      "para": "github.event.pull_request.head.repo.full_name != github.repository",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasEstatico.test_concorrencia_so_cancela_fora_de_pr_e_o_job_tem_permissao_minima"]
+    },
+    {
+      "id": "M2",
+      "guarda": "so o synchronize prova envio so de parecer",
+      "arquivo": ".github/workflows/obsoletas.yml",
+      "de": "[ \"$ACAO\" = synchronize ]",
+      "para": "[ \"$ACAO\" != synchronize ]",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasRoda.test_falha_fechada_cancela_quando_nao_prova"]
+    },
+    {
+      "id": "M3",
+      "guarda": "sem sha anterior nao ha prova",
+      "arquivo": ".github/workflows/obsoletas.yml",
+      "de": "[ -n \"$BEFORE\" ]",
+      "para": "[ -z \"$BEFORE\" ]",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasRoda.test_falha_fechada_cancela_quando_nao_prova"]
+    },
+    {
+      "id": "M4",
+      "guarda": "erro do compare cancela (falha fechada)",
+      "arquivo": ".github/workflows/obsoletas.yml",
+      "de": "--jq '.files[].filename')",
+      "para": "--jq '.files[].filename' || true)",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasRoda.test_falha_fechada_cancela_quando_nao_prova"]
+    },
+    {
+      "id": "M5",
+      "guarda": "300 arquivos (corte do compare) nao prova",
+      "arquivo": ".github/workflows/obsoletas.yml",
+      "de": "wc -l)\" -lt 300 ]",
+      "para": "wc -l)\" -le 300 ]",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasRoda.test_falha_fechada_cancela_quando_nao_prova"]
+    },
+    {
+      "id": "M6",
+      "guarda": "299 arquivos de parecer ainda provam",
+      "arquivo": ".github/workflows/obsoletas.yml",
+      "de": "wc -l)\" -lt 300 ]",
+      "para": "wc -l)\" -lt 299 ]",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasRoda.test_falha_fechada_cancela_quando_nao_prova"]
+    },
+    {
+      "id": "M7",
+      "guarda": "docs/qa/ conta como parecer",
+      "arquivo": ".github/workflows/obsoletas.yml",
+      "de": "docs/reviews/*|docs/qa/*|docs/security/*)",
+      "para": "docs/reviews/*|docs/security/*)",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasRoda.test_envio_so_de_parecer_nao_cancela_nada"]
+    },
+    {
+      "id": "M8",
+      "guarda": "prefixo com a barra: docs/reviews-x/ nao e parecer",
+      "arquivo": ".github/workflows/obsoletas.yml",
+      "de": "docs/reviews/*|",
+      "para": "docs/reviews*|",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasRoda.test_outros_docs_e_o_devops_nao_contam_como_parecer"]
+    },
+    {
+      "id": "M9",
+      "guarda": "arquivo fora das pastas de parecer desfaz a prova",
+      "arquivo": ".github/workflows/obsoletas.yml",
+      "de": "*) so_parecer=false ;; esac",
+      "para": "*) ;; esac",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasRoda.test_envio_com_codigo_cancela_so_os_runs_mais_antigos"]
+    },
+    {
+      "id": "M10",
+      "guarda": "so de parecer sai sem cancelar",
+      "arquivo": ".github/workflows/obsoletas.yml",
+      "de": "if [ \"$so_parecer\" = true ]; then",
+      "para": "if [ \"$so_parecer\" = false ]; then",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasRoda.test_envio_so_de_parecer_nao_cancela_nada"]
+    },
+    {
+      "id": "M11",
+      "guarda": "run de outro repositorio (fork com o mesmo nome de ramo) nao e cancelado",
+      "arquivo": ".github/workflows/obsoletas.yml",
+      "de": "[ \"$origem\" = \"$REPO\" ]",
+      "para": "[ \"$origem\" != \"$REPO\" ]",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasRoda.test_nunca_cancela_o_proprio_run_nem_run_de_outro_repositorio"]
+    },
+    {
+      "id": "M12",
+      "guarda": "o proprio run (RUN_ID) nao se cancela",
+      "arquivo": ".github/workflows/obsoletas.yml",
+      "de": "[ \"$id\" -lt \"$RUN_ID\" ]",
+      "para": "[ \"$id\" -le \"$RUN_ID\" ]",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasRoda.test_nunca_cancela_o_proprio_run_nem_run_de_outro_repositorio"]
+    },
+    {
+      "id": "M13",
+      "guarda": "so run mais antigo cai (o mais novo segue)",
+      "arquivo": ".github/workflows/obsoletas.yml",
+      "de": "[ \"$id\" -lt \"$RUN_ID\" ]",
+      "para": "[ \"$id\" -gt \"$RUN_ID\" ]",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasRoda.test_envio_com_codigo_cancela_so_os_runs_mais_antigos"]
+    },
+    {
+      "id": "M14",
+      "guarda": "push nas branches de integracao segue cancelando",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "cancel-in-progress: ${{ github.event_name != 'pull_request' }}",
+      "para": "cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasEstatico.test_concorrencia_so_cancela_fora_de_pr_e_o_job_tem_permissao_minima"]
+    },
+    {
+      "id": "M15",
+      "guarda": "o CI do proprio head (head_sha igual) nao se cancela, mesmo com id menor que o RUN_ID",
+      "arquivo": ".github/workflows/obsoletas.yml",
+      "de": "[ \"$sha\" != \"$HEAD_SHA\" ]",
+      "para": "[ \"$sha\" = \"$HEAD_SHA\" ]",
+      "testes": ["tests.test_ci_nao_cancela_parecer.ObsoletasRoda.test_nunca_cancela_o_ci_do_proprio_head_mesmo_com_id_menor_que_o_run_id"]
+    }
+  ]
+}

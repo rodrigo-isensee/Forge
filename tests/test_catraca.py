@@ -4235,7 +4235,7 @@ class Workflows(unittest.TestCase):
 
     def test_ci_em_poucos_jobs_com_timeout_e_gate_sem_paths_ignore(self):
         """Economia de minutos: passos da bateria num job, push na develop só com a checagem rápida, timeout em todo job."""
-        for nome in ("ci.yml", "catraca.yml", "release.yml"):
+        for nome in ("ci.yml", "catraca.yml", "release.yml", "obsoletas.yml"):
             texto = self.texto(nome)
             jobs = len(re.findall(r"(?m)^  [a-z-]+:\n    (?:name|if|runs-on):", texto))
             self.assertEqual(texto.count("timeout-minutes:"), jobs, nome)
