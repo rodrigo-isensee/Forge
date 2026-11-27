@@ -1,0 +1,76 @@
+{
+  "pedido": "v0481-f5-tamanho-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "F5.2: a promoção entre branches de integração não confere o tamanho",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if branch in INTEGRACAO:\n        return  # promoção entre branches de integração\n    ref = next(",
+      "para": "    if False:\n        return  # promoção entre branches de integração\n    ref = next(",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_fora_da_develop_e_no_projeto_nao_confere_e_git_que_falha_recusa"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "F5.2: acima do teto, o corpo lido decide a exceção do H1",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if texto:  # o corpo só é lido acima do teto",
+      "para": "    if False:  # o corpo só é lido acima do teto",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_excecao_so_no_body_file_comum_da_copia_com_o_total"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "F5.2: acima do teto sem a exceção, recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if recusa:\n        bloquear(\"R-REVIEW\", recusa.removeprefix(",
+      "para": "    if False:\n        bloquear(\"R-REVIEW\", recusa.removeprefix(",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_rascunho_e_pr_normal_acima_do_teto_recusam_e_no_teto_passam"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "F5.2: só a base develop confere o tamanho",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if forge and base and nome_da_branch(base) == \"develop\":",
+      "para": "    if forge and base and nome_da_branch(base) != \"develop\":",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_rascunho_e_pr_normal_acima_do_teto_recusam_e_no_teto_passam"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "F5.2: só o clone do Forge confere o tamanho (o projeto não)",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if forge and base and nome_da_branch(base) == \"develop\":",
+      "para": "    if base and nome_da_branch(base) == \"develop\":",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_fora_da_develop_e_no_projeto_nao_confere_e_git_que_falha_recusa"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "F5.2: o rascunho passa pela conferência do tamanho antes de sair",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if forge and base and nome_da_branch(base) == \"develop\":\n        tamanho_da_abertura(raiz, head, corpo)\n    if forge and rascunho:\n        return",
+      "para": "    if forge and rascunho:\n        return\n    if forge and base and nome_da_branch(base) == \"develop\":\n        tamanho_da_abertura(raiz, head, corpo)",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_rascunho_e_pr_normal_acima_do_teto_recusam_e_no_teto_passam"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "F5.2: o --head que não existe localmente recusa (falha fechada) com o nome da branch",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if ref is None:\n        bloquear(\"R-REVIEW\", f\"branch `{branch}` não existe localmente, sem tamanho",
+      "para": "    if False:\n        bloquear(\"R-REVIEW\", f\"branch `{branch}` não existe localmente, sem tamanho",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_fora_da_develop_e_no_projeto_nao_confere_e_git_que_falha_recusa"
+      ]
+    }
+  ]
+}

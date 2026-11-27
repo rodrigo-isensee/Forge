@@ -1,0 +1,32 @@
+{
+  "descricao": "F5.2 (v0481 E38.4): no clone do Forge, gh pr create --draft para a develop com 151 linhas de código e a exceção do H1 (`teto: excedido, 151 linhas, <motivo>`) no --body-file, arquivo comum na cópia, passa.",
+  "arquivos": {
+    "src/app.py": "v1\n",
+    "corpo.md": "## Resumo\n\nteto: excedido, 151 linhas, cortar mais deixa a suíte vermelha\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.py": ["l"],
+        "src/b.py": ["x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x"]
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh pr create --draft --base develop --title 'feat: app' --body-file corpo.md"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

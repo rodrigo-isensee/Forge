@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-f5-tamanho-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "F5.2: `--body-file <caminho>` e `-F <caminho>` dão o caminho do corpo",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if a in (\"--body-file\", \"-F\"):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_excecao_so_no_body_file_comum_da_copia_com_o_total"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "F5.2: `--body-file=<caminho>` e `-F<caminho>` dão o caminho do corpo",
+      "arquivo": "hooks/parecer.py",
+      "de": "        elif a.startswith((\"--body-file=\", \"-F\")):",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_excecao_so_no_body_file_comum_da_copia_com_o_total"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "F5.2: vale o último `--body-file`, como no gh",
+      "arquivo": "hooks/parecer.py",
+      "de": "            caminho = args[j + 1] if j + 1 < len(args) else None",
+      "para": "            caminho = caminho or (args[j + 1] if j + 1 < len(args) else None)",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_excecao_so_no_body_file_comum_da_copia_com_o_total"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "F5.2: `-F -` (stdin) não lê o arquivo `-` da cópia",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if not caminho or caminho == \"-\" or re.search(",
+      "para": "    if not caminho or False or re.search(",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_excecao_so_no_body_file_comum_da_copia_com_o_total"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "F5.2: caminho com expansão do shell não é lido",
+      "arquivo": "hooks/parecer.py",
+      "de": "or re.search(r\"[$`~*?\\[{]\", caminho) or pasta is None",
+      "para": "or False or pasta is None",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_excecao_so_no_body_file_comum_da_copia_com_o_total"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "F5.2: o `--body-file` que é link simbólico não é lido",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if alvo.is_symlink() or not real.is_relative_to(",
+      "para": "    if False or not real.is_relative_to(",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_excecao_so_no_body_file_comum_da_copia_com_o_total"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "F5.2: o `--body-file` fora da cópia não é lido",
+      "arquivo": "hooks/parecer.py",
+      "de": "or not real.is_relative_to(Path(raiz).resolve()):",
+      "para": "or False:",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_excecao_so_no_body_file_comum_da_copia_com_o_total"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "F5.2: o `--body-file` acima de 64 KiB não é lido",
+      "arquivo": "hooks/parecer.py",
+      "de": "if len(dados) <= TETO_DO_CORPO else \"\"",
+      "para": "if True else \"\"",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_excecao_so_no_body_file_comum_da_copia_com_o_total"
+      ]
+    }
+  ]
+}

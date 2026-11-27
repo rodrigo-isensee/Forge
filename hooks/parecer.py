@@ -146,6 +146,7 @@ BASES = ("develop", "origin/develop", "main", "origin/main", "master", "origin/m
 # PR-HOOK-PRAZO: o prazo vencido do `gh pr create`, `gh pr ready` ou `gh pr merge` sem o resultado gravado diz o comando que o
 # grava (cabe nos 200 caracteres)
 CONTORNO_DO_PRAZO = "rode antes forge-check pr"
+TETO_DO_CORPO = 64 * 1024  # F5.2 (v0481 E38.4): bytes do `--body-file` lidos para a exceção do H1
 # `gravado` do `verificar`: o `gh pr create` exige o resultado gravado; `gh pr ready` e `gh pr merge` o usam como atalho (E2.117)
 EXIGE, ATALHO = "exige", "atalho"
 
@@ -350,6 +351,20 @@ def bandeira(args, com_valor, nomes):
     return ligada
 
 
+def corpo_pedido(args):
+    """F5.2: o caminho do último `--body-file`/`-F` do `gh pr create` (o gh vale o último), pulando os valores das outras opções;
+    None sem ele."""
+    caminho, j = None, 0
+    while j < len(args):
+        a = args[j]
+        if a in ("--body-file", "-F"):
+            caminho = args[j + 1] if j + 1 < len(args) else None
+        elif a.startswith(("--body-file=", "-F")):
+            caminho = a.removeprefix("--body-file=").removeprefix("-F").removeprefix("=")
+        j += 2 if a in CREATE_COM_VALOR else 1
+    return caminho
+
+
 def troca_de_branch(args):
     """Branch depois de `git checkout`/`git switch` ("" se HEAD solto ou desconhecida); None se não troca."""
     if "--" in args:
@@ -444,7 +459,7 @@ def ordem_do_gh(toks):
 
 
 def analisar(toks):
-    """('cd', dir) | ('pr', None, base, head, rascunho, repo) | ('prmerge', repo, alvo) | ('prready', alvo, desfaz, repo)
+    """('cd', dir) | ('pr', None, base, head, rascunho, repo, body_file) | ('prmerge', repo, alvo) | ('prready', alvo, desfaz, repo)
     | ('api', args)
     | ('merge', dir, [(branch, [refs candidatas])]) | ('branch', dir, nome) | None."""
     sem = sem_atribuicoes(toks)
@@ -473,7 +488,7 @@ def analisar(toks):
                                                                if a.startswith("GH_REPO=")), None)
         if toks[j: j + 1] == ["create"]:
             return ("pr", None, opcao(args, "--base", "-B"), opcao(args, "--head", "-H"),
-                    bandeira(args, CREATE_COM_VALOR, {"--draft", "-d"}), repo)
+                    bandeira(args, CREATE_COM_VALOR, {"--draft", "-d"}), repo, corpo_pedido(args))
         if toks[j: j + 1] == ["ready"]:
             alvo = (posicionais(args, READY_COM_VALOR) or [None])[0]
             return ("prready", alvo, bandeira(args, READY_COM_VALOR, {"--undo"}), repo or repo_da_url(alvo))
@@ -870,11 +885,51 @@ def verificar(hook, raiz, branch, ref, base, dica="", gravado=None):
         bloquear("R-REVIEW", f"{dica}{motivo}")
 
 
-def pull_request(hook, pasta, base, head, rascunho):
+def corpo_do_pr(raiz, pasta, caminho):
+    """F5.2: o texto do `--body-file` (lido só acima do teto): caminho literal, arquivo comum que não é link, dentro da cópia, até
+    TETO_DO_CORPO bytes; `-`, expansão, relativo com a pasta do gh desconhecida e o que não se lê como arquivo (pasta; FIFO, vazio) dão ""
+    (sem a exceção do H1)."""
+    if not caminho or caminho == "-" or re.search(r"[$`~*?\[{]", caminho) or pasta is None and not os.path.isabs(caminho):
+        return ""
+    alvo = Path(pasta or "/", caminho)
+    real = Path(os.path.realpath(alvo))
+    if alvo.is_symlink() or not real.is_relative_to(Path(raiz).resolve()):
+        return ""
+    try:
+        with open(os.open(real, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as arquivo:
+            dados = arquivo.read(TETO_DO_CORPO + 1)
+        return dados.decode("utf-8") if len(dados) <= TETO_DO_CORPO else ""
+    except (OSError, UnicodeDecodeError):
+        return ""
+
+
+def tamanho_da_abertura(raiz, head, corpo):
+    """F5.2 (v0481 E38.4): o `gh pr create` para a develop no clone do Forge, com ou sem rascunho, acima do teto do H1 e sem a
+    exceção no `--body-file` recusa com o corte sugerido (`tamanho_na_abertura`); o git que não lê o diff recusa (ADR 0009, seção 7)."""
+    fc = forge_check()
+    branch = nome_da_branch(head) if head else git(raiz, "branch", "--show-current")[1]
+    if branch in INTEGRACAO:
+        return  # promoção entre branches de integração
+    ref = next((r for r in (head, f"origin/{branch}") if existe(raiz, r)), None) if head else "HEAD"
+    if ref is None:
+        bloquear("R-REVIEW", f"branch `{branch}` não existe localmente, sem tamanho a conferir. Corrigir: git fetch origin {branch}")
+    base =fc.base_da_entrega(raiz, "develop", so_a_pedida=True) or "origin/develop"
+    recusa = fc.tamanho_na_abertura(raiz, base, ref, "")
+    texto = recusa and corpo_do_pr(raiz, *corpo)
+    if texto:  # o corpo só é lido acima do teto
+        recusa = fc.tamanho_na_abertura(raiz, base, ref, texto)
+    if recusa:
+        bloquear("R-REVIEW", recusa.removeprefix("R-REVIEW: "))
+
+
+def pull_request(hook, pasta, base, head, rascunho, corpo=(None, None)):
+    """`corpo`: (pasta do gh ou None, caminho do `--body-file` ou None)."""
     raiz = hook.projeto(pasta, clone_do_forge=True)
     if not raiz:
         return
     forge = e_clone_do_forge(raiz)
+    if forge and base and nome_da_branch(base) == "develop":
+        tamanho_da_abertura(raiz, head, corpo)
     if forge and rascunho:
         return  # no Forge, o PR nasce em rascunho e só sai dele com o parecer (`gh pr ready`)
     atual = git(raiz, "branch", "--show-current")[1]
@@ -1384,7 +1439,8 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE, acompanhado=F
         elif parte[0] == "cd":
             pasta = (depois_do_cd(pasta, sem[1:], mexidas) if sem[1:] else resolver("~", mexidas, pasta)) if solto else None
         elif parte[0] == "pr":
-            pull_request(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[5], mexidas), *gh_na), parte[2], parte[3], parte[4])
+            pull_request(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[5], mexidas), *gh_na), parte[2], parte[3], parte[4],
+                         (pasta, parte[6]))
         elif parte[0] == "prready":
             pronto_de_pr(hook, pasta_do_gh(hook, raiz_gh, repo_indicado(parte[3], mexidas), *gh_na), parte[1], parte[2])
         elif parte[0] == "prmerge":
