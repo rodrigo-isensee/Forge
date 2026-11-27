@@ -1,0 +1,76 @@
+{
+  "pedido": "v0481-gerador-unico",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "uso errado sai 2",
+      "arquivo": "scripts/gerar-derivados.py",
+      "de": "if argv not in ([], [\"--conferir\"]):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_gerar_derivados.GerarDerivados.test_uso_errado_sai_2_sem_rodar_gerador"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "gerador ausente pulado",
+      "arquivo": "scripts/gerar-derivados.py",
+      "de": "if not (RAIZ / gerador).is_file():",
+      "para": "if False:",
+      "testes": [
+        "tests.test_gerar_derivados.GerarDerivados.test_gerador_ausente_e_pulado_e_os_outros_rodam"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "conferir com rc 1 e desatualizado",
+      "arquivo": "scripts/gerar-derivados.py",
+      "de": "if conferir and rc == 1:",
+      "para": "if conferir and rc == 9:",
+      "testes": [
+        "tests.test_gerar_derivados.GerarDerivados.test_conferir_nao_grava_e_sai_1_com_derivado_desatualizado"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "gerador vermelho sai 1",
+      "arquivo": "scripts/gerar-derivados.py",
+      "de": "elif rc != 0:",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_gerar_derivados.GerarDerivados.test_gerador_vermelho_sai_1_nos_dois_modos"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "conferir em dia",
+      "arquivo": "scripts/gerar-derivados.py",
+      "de": "elif conferir:",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_gerar_derivados.GerarDerivados.test_conferir_sai_0_com_tudo_em_dia"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "diz se o derivado mudou",
+      "arquivo": "scripts/gerar-derivados.py",
+      "de": "!= antes else",
+      "para": "== antes else",
+      "testes": [
+        "tests.test_gerar_derivados.GerarDerivados.test_grava_e_diz_o_que_mudou"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "gerador sem GIT_*",
+      "arquivo": "scripts/gerar-derivados.py",
+      "de": "if not k.startswith(\"GIT_\")",
+      "para": "if True",
+      "testes": [
+        "tests.test_gerar_derivados.GerarDerivados.test_gerador_roda_sem_o_git_dir_de_quem_chamou"
+      ]
+    }
+  ]
+}
