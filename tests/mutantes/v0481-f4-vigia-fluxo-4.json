@@ -1,0 +1,16 @@
+{
+  "pedido": "v0481-f4-vigia-fluxo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "sem nenhuma parte, nada a avisar",
+      "arquivo": "hooks/vigia.py",
+      "de": "if not partes:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hook_vigia_f4.AvisoComPrsEPresos.test_so_pr_do_dono_cala"
+      ]
+    }
+  ]
+}

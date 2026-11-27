@@ -33,6 +33,10 @@ registro do R-TETO (`agentes.json`, lido como o `agentes.py` o lê) e cartão na
 `usuário`, a saída leva também `{"decision": "block", "reason": "time parado: ..."}`, texto fixo de uma linha: o Jarvis
 retoma sem encerrar a vez. Uma vez por vez: com `stop_hook_active` (o Stop que segue o bloqueio) deixa encerrar. Registro
 ou quadro ilegível (link, FIFO, não regular) cala e vai ao erros.log (dúvida não bloqueia).
+F4 (v0481 E34.1, estudo de atrito de 26/11): o mesmo aviso conta, com agente rodando ou não, (a) os PRs abertos (`gh pr list`)
+sem registro vigente na branch deles, só com vaga livre no teto do R-TETO, e diz o papel a disparar em cada um (`papel_do_pr`:
+autor, review, QA, segurança ou integração); o PR que espera só o dono (base `main`, rótulo) ou o CI não conta; (b) os agentes
+da sessão cujo transcript (`subagents/agent-<id>.jsonl`) não muda há mais de 10 minutos. Cada parte que falha cala sozinha.
 O aviso de agente terminado chega ao Jarvis como turno, que acaba neste mesmo `Stop`; o `SubagentStop` não bloqueia (prenderia o agente).
 """
 import hashlib
@@ -41,6 +45,7 @@ import os
 import re
 import shlex
 import stat
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -603,7 +608,95 @@ def agentes_rodando(hook, raiz):
     """Registros vigentes do R-TETO (reserva ou agente iniciado), pela mesma leitura do `agentes.py`; ilegível levanta."""
     import agentes  # só no Stop: o módulo é grande
     estado = agentes.ler_estado(agentes.arquivo_de_estado(raiz))  # sem diretório comum (None), o TypeError é a dúvida
-    return len(agentes.vigentes(estado["agentes"], time.time(), hook.expira_s()))
+    return agentes.vigentes(estado["agentes"], time.time(), hook.expira_s())
+
+
+# F4 (v0481 E34.1): PR aberto sem agente e instância presa -----------------------------------------
+PRESO_S = 600  # sem escrita no transcript do agente há mais de 10 minutos
+PRAZO_DO_GH_S = 5  # o vigia tem 10 s no hooks.json
+CAMPOS_DO_PR = "number,headRefName,baseRefName,mergeable,title,labels,statusCheckRollup,files"
+QUEBRADO = {"FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE"}  # o de forge_estado
+PENDENTE = {"QUEUED", "IN_PROGRESS", "PENDING", "WAITING", "REQUESTED", "EXPECTED"}
+CHECK_DE_PARECER, CHECKS_DE_PORTAO = "bateria (pareceres)", {"bateria (pareceres)", "bateria", "catraca"}
+PORTOES = (("docs/reviews/", "review"), ("docs/qa/", "QA"), ("docs/security/", "segurança"))
+ROTULO_DO_DONO = "afrouxa-regra"
+_TIPO = re.compile(r"[a-z][a-z0-9:-]{0,39}")  # o tipo do agente vai ao modelo: lista positiva, como o ID do cartão
+
+
+def papel_do_pr(pr):
+    """O papel a disparar no PR aberto, ou None quando ele espera só o dono (base `main`, rótulo) ou o CI."""
+    if pr.get("baseRefName") == "main":
+        return None
+    if pr.get("mergeable") == "CONFLICTING":
+        return "autor"
+    checks = [c for c in pr.get("statusCheckRollup") or [] if isinstance(c, dict)]
+    falhos = {c.get("name") for c in checks if (c.get("conclusion") or c.get("state")) in QUEBRADO}
+    if falhos - CHECKS_DE_PORTAO:
+        return "autor"
+    if any((c.get("status") or c.get("state")) in PENDENTE for c in checks):
+        return None
+    if CHECK_DE_PARECER in falhos:
+        arquivos = [f.get("path") or "" for f in pr.get("files") or [] if isinstance(f, dict)]
+        faltam = [papel for pasta, papel in PORTOES if not any(a.startswith(pasta) for a in arquivos)]
+        return "/".join(faltam) or "autor"
+    rotulos = {r.get("name") for r in pr.get("labels") or [] if isinstance(r, dict)}
+    if ROTULO_DO_DONO in (pr.get("title") or "") and ROTULO_DO_DONO not in rotulos:
+        return None
+    return "autor" if falhos else "integração"
+
+
+def prs_parados(hook, raiz, vivos):
+    """`#<n> <papel>` de cada PR aberto sem registro vigente na branch dele, com vaga livre no teto do R-TETO."""
+    import agentes
+    if not (Path(raiz) / ".git").exists():
+        return []
+    if len(vivos) >= agentes.calcular_teto(agentes.ler_config(hook), ritmo=agentes.ritmo_do_projeto(raiz))[0]:
+        return []
+    ocupadas = {b for a in vivos for b in agentes.textos(a.get("branches")) + agentes.textos(a.get("escrita"))}
+    try:
+        r = subprocess.run(["gh", "pr", "list", "--state", "open", "--limit", "50", "--json", CAMPOS_DO_PR], cwd=raiz,
+                           capture_output=True, text=True, timeout=PRAZO_DO_GH_S, stdin=subprocess.DEVNULL,
+                           env={**os.environ, "GH_PROMPT_DISABLED": "1"})
+    except FileNotFoundError:
+        return []  # sem gh na máquina: nada a contar
+    if r.returncode != 0:
+        return []  # repositório fora do GitHub ou sem credencial: nada a contar, sem encher o erros.log a cada Stop
+    parados = []
+    for pr in json.loads(r.stdout):
+        if isinstance(pr, dict) and isinstance(pr.get("number"), int) and pr.get("headRefName") not in ocupadas:
+            papel = papel_do_pr(pr)
+            parados += [f"#{pr['number']} {papel}"] if papel else []
+    return parados
+
+
+def instancias_presas(hook, vivos, agora):
+    """`<tipo> <id> há <n> min` de cada agente da sessão cujo transcript não muda há mais de PRESO_S."""
+    import agentes
+    real = agentes.transcript_da_sessao(hook)
+    if real is None:
+        return []
+    presos = []
+    for a in vivos:
+        aid = a.get("id")
+        if not (isinstance(aid, str) and agentes.ID_DE_AGENTE.fullmatch(aid)):
+            continue
+        try:
+            parado = agora - os.lstat(real.with_suffix("") / "subagents" / f"agent-{aid}.jsonl").st_mtime
+        except OSError:
+            continue
+        if parado > PRESO_S:
+            tipo = a.get("tipo") if isinstance(a.get("tipo"), str) and _TIPO.fullmatch(a["tipo"]) else "agente"
+            presos.append(f"{tipo} {aid} há {int(parado // 60)} min")
+    return presos
+
+
+def calado(hook, funcao, *args):
+    """A parte do aviso que falha cala sozinha e vai ao erros.log; as outras seguem."""
+    try:
+        return funcao(*args)
+    except Exception as erro:  # noqa: BLE001 - dúvida não bloqueia
+        hook.registrar_erro(erro)
+        return []
 
 
 def aviso_time_parado(hook, raiz):
@@ -615,16 +708,22 @@ def aviso_time_parado(hook, raiz):
     try:
         if not sessao_do_jarvis(hook):
             return None
-        if agentes_rodando(hook, raiz) != 0:
-            return None
-        livres = cartoes_livres(ler_quadro(quadro_do(raiz)) or "")
+        vivos = [a for a in agentes_rodando(hook, raiz) if isinstance(a, dict)]
+        livres = [] if vivos else cartoes_livres(ler_quadro(quadro_do(raiz)) or "")
     except Exception as erro:  # noqa: BLE001 - nunca falha a sessão; dúvida não bloqueia o encerramento
         hook.registrar_erro(erro)
         return None
-    if not livres:
+    partes = []
+    if livres:
+        primeiro = f", primeiro {livres[0]}" if _ID_DO_CARTAO.fullmatch(livres[0]) else ""
+        partes.append(f"{len(livres)} cartões disponíveis{primeiro}")
+    prs = calado(hook, prs_parados, hook, raiz, vivos)
+    partes += [f"PR sem agente: {', '.join(prs)}"] if prs else []
+    presos = calado(hook, instancias_presas, hook, vivos, time.time())
+    partes += [f"preso há mais de 10 min: {', '.join(presos)}"] if presos else []
+    if not partes:
         return None
-    primeiro = f", primeiro {livres[0]}" if _ID_DO_CARTAO.fullmatch(livres[0]) else ""
-    return f"time parado: {len(livres)} cartões disponíveis{primeiro}; retome sem esperar o dono"
+    return f"time parado: {'; '.join(partes)}; retome sem esperar o dono"
 
 
 def principal(hook):

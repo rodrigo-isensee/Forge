@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-f4-vigia-fluxo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "id fora do formato não conta preso",
+      "arquivo": "hooks/vigia.py",
+      "de": "if not (isinstance(aid, str) and agentes.ID_DE_AGENTE.fullmatch(aid)):",
+      "para": "if not isinstance(aid, str):",
+      "testes": [
+        "tests.test_hook_vigia_f4.InstanciasPresas.test_reserva_sem_id_e_id_fora_do_formato_nao_contam"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "transcript do agente ausente não conta",
+      "arquivo": "hooks/vigia.py",
+      "de": "except OSError:\n            continue",
+      "para": "except ZeroDivisionError:\n            continue",
+      "testes": [
+        "tests.test_hook_vigia_f4.InstanciasPresas.test_sem_transcript_do_agente_nao_conta"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "só acima de 10 minutos conta preso",
+      "arquivo": "hooks/vigia.py",
+      "de": "if parado > PRESO_S:",
+      "para": "if True:",
+      "testes": [
+        "tests.test_hook_vigia_f4.InstanciasPresas.test_transcript_recente_nao_conta"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "tipo fora do formato não vai ao modelo",
+      "arquivo": "hooks/vigia.py",
+      "de": "if isinstance(a.get(\"tipo\"), str) and _TIPO.fullmatch(a[\"tipo\"]) else \"agente\"",
+      "para": "if isinstance(a.get(\"tipo\"), str) else \"agente\"",
+      "testes": [
+        "tests.test_hook_vigia_f4.InstanciasPresas.test_tipo_fora_do_formato_vira_agente"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "a parte que falha cala sozinha e registra",
+      "arquivo": "hooks/vigia.py",
+      "de": "except Exception as erro:  # noqa: BLE001 - dúvida não bloqueia\n        hook.registrar_erro(erro)\n        return []",
+      "para": "except ZeroDivisionError as erro:  # noqa: BLE001 - dúvida não bloqueia\n        hook.registrar_erro(erro)\n        return []",
+      "testes": [
+        "tests.test_hook_vigia_f4.AvisoComPrsEPresos.test_falha_do_gh_cala_so_a_parte_dele_e_registra"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "com agente rodando, os cartões livres não contam",
+      "arquivo": "hooks/vigia.py",
+      "de": "livres = [] if vivos else cartoes_livres(",
+      "para": "livres = cartoes_livres(",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_agente_rodando_cala"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "sem PR parado, nada de PR no aviso",
+      "arquivo": "hooks/vigia.py",
+      "de": "partes += [f\"PR sem agente: {', '.join(prs)}\"] if prs else []",
+      "para": "partes += [f\"PR sem agente: {', '.join(prs)}\"]",
+      "testes": [
+        "tests.test_hook_vigia_f4.AvisoComPrsEPresos.test_so_pr_do_dono_cala"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "sem preso, nada de preso no aviso",
+      "arquivo": "hooks/vigia.py",
+      "de": "partes += [f\"preso há mais de 10 min: {', '.join(presos)}\"] if presos else []",
+      "para": "partes += [f\"preso há mais de 10 min: {', '.join(presos)}\"]",
+      "testes": [
+        "tests.test_hook_vigia_f4.AvisoComPrsEPresos.test_so_pr_do_dono_cala"
+      ]
+    }
+  ]
+}

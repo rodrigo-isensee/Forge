@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-f4-vigia-fluxo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "PR com base main espera só o dono",
+      "arquivo": "hooks/vigia.py",
+      "de": "if pr.get(\"baseRefName\") == \"main\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hook_vigia_f4.PapelDoPr.test_base_main_espera_so_o_dono"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "conflito pede o autor",
+      "arquivo": "hooks/vigia.py",
+      "de": "if pr.get(\"mergeable\") == \"CONFLICTING\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hook_vigia_f4.PapelDoPr.test_conflito_pede_o_autor"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "check fora dos portões reprovado pede o autor",
+      "arquivo": "hooks/vigia.py",
+      "de": "if falhos - CHECKS_DE_PORTAO:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hook_vigia_f4.PapelDoPr.test_check_que_nao_e_portao_reprovado_pede_o_autor"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "check pendente espera o CI",
+      "arquivo": "hooks/vigia.py",
+      "de": "if any((c.get(\"status\") or c.get(\"state\")) in PENDENTE for c in checks):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hook_vigia_f4.PapelDoPr.test_check_pendente_espera_o_ci"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "parecer ausente aponta os portões que faltam",
+      "arquivo": "hooks/vigia.py",
+      "de": "if CHECK_DE_PARECER in falhos:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hook_vigia_f4.PapelDoPr.test_parecer_ausente_pede_os_portoes_que_faltam"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "com os três pareceres presentes, o reprovado volta ao autor",
+      "arquivo": "hooks/vigia.py",
+      "de": "return \"/\".join(faltam) or \"autor\"",
+      "para": "return \"/\".join(faltam)",
+      "testes": [
+        "tests.test_hook_vigia_f4.PapelDoPr.test_parecer_reprovado_com_os_tres_presentes_pede_o_autor"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "afrouxa-regra sem rótulo espera o dono",
+      "arquivo": "hooks/vigia.py",
+      "de": "if ROTULO_DO_DONO in (pr.get(\"title\") or \"\") and ROTULO_DO_DONO not in rotulos:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hook_vigia_f4.PapelDoPr.test_afrouxa_regra_sem_rotulo_espera_o_dono"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "bateria ou catraca reprovada pede o autor",
+      "arquivo": "hooks/vigia.py",
+      "de": "return \"autor\" if falhos else \"integração\"",
+      "para": "return \"integração\"",
+      "testes": [
+        "tests.test_hook_vigia_f4.PapelDoPr.test_catraca_reprovada_pede_o_autor"
+      ]
+    }
+  ]
+}

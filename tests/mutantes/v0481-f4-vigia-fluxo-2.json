@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-f4-vigia-fluxo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "fora de repositório git não chama o gh",
+      "arquivo": "hooks/vigia.py",
+      "de": "if not (Path(raiz) / \".git\").exists():",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hook_vigia_f4.PrsParados.test_fora_de_repositorio_git_nao_chama_o_gh"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "sem vaga no teto não conta PR",
+      "arquivo": "hooks/vigia.py",
+      "de": "if len(vivos) >= agentes.calcular_teto(",
+      "para": "if False and len(vivos) >= agentes.calcular_teto(",
+      "testes": [
+        "tests.test_hook_vigia_f4.PrsParados.test_sem_vaga_no_teto_nao_conta"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "gh com erro não conta",
+      "arquivo": "hooks/vigia.py",
+      "de": "if r.returncode != 0:\n        return []  # repositório fora do GitHub",
+      "para": "if False:\n        return []  # repositório fora do GitHub",
+      "testes": [
+        "tests.test_hook_vigia_f4.PrsParados.test_gh_com_erro_nao_conta"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "PR com agente vivo na branch não conta",
+      "arquivo": "hooks/vigia.py",
+      "de": " and pr.get(\"headRefName\") not in ocupadas:",
+      "para": ":",
+      "testes": [
+        "tests.test_hook_vigia_f4.PrsParados.test_pr_com_agente_vivo_na_branch_nao_conta"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "número do PR fora da forma é ignorado",
+      "arquivo": "hooks/vigia.py",
+      "de": "if isinstance(pr, dict) and isinstance(pr.get(\"number\"), int) and",
+      "para": "if isinstance(pr, dict) and",
+      "testes": [
+        "tests.test_hook_vigia_f4.PrsParados.test_item_fora_da_forma_e_ignorado"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "PR que espera o dono ou o CI não entra na lista",
+      "arquivo": "hooks/vigia.py",
+      "de": "parados += [f\"#{pr['number']} {papel}\"] if papel else []",
+      "para": "parados += [f\"#{pr['number']} {papel}\"]",
+      "testes": [
+        "tests.test_hook_vigia_f4.PrsParados.test_pr_sem_agente_aparece_com_o_papel"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "sem gh na máquina não conta",
+      "arquivo": "hooks/vigia.py",
+      "de": "except FileNotFoundError:\n        return []  # sem gh",
+      "para": "except ZeroDivisionError:\n        return []  # sem gh",
+      "testes": [
+        "tests.test_hook_vigia_f4.PrsParados.test_sem_gh_na_maquina_nao_conta"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "sem transcript da sessão não conta preso",
+      "arquivo": "hooks/vigia.py",
+      "de": "if real is None:\n        return []\n    presos",
+      "para": "if False:\n        return []\n    presos",
+      "testes": [
+        "tests.test_hook_vigia_f4.InstanciasPresas.test_sem_transcript_da_sessao_nao_conta"
+      ]
+    }
+  ]
+}

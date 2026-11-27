@@ -1,0 +1,30 @@
+{
+  "descricao": "F4 (v0481 E34.1): Stop do Jarvis, zero agentes, nenhum cartão livre e só o PR homolog -> main aberto (espera o dono): o vigia não conta o PR, silêncio e saída 0.",
+  "arquivos": {
+    "KANBAN.md": "# Quadro\n\n## Pronto\n| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n",
+    "bin/gh": "#!/bin/sh\ncat <<'FIM'\n[{\"number\": 5, \"headRefName\": \"homolog\", \"baseRefName\": \"main\", \"mergeable\": \"MERGEABLE\", \"title\": \"release\", \"labels\": [], \"files\": [], \"statusCheckRollup\": []}]\nFIM\n"
+  },
+  "executaveis": [
+    "bin/gh"
+  ],
+  "env": {
+    "PATH": "{tmp}/proj/bin:/usr/bin:/bin"
+  },
+  "passos": [
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1"
+      }
+    }
+  ],
+  "entrada": {
+    "session_id": "s1",
+    "hook_event_name": "Stop",
+    "agent_type": "forge:jarvis"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
