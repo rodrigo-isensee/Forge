@@ -36,8 +36,8 @@
       "id": "C1B2-M20",
       "guarda": "M20.1: o `_modelo.md` não é parecer de item",
       "arquivo": "hooks/conformidade.py",
-      "de": " or caminho.name == \"_modelo.md\"\n",
-      "para": "\n",
+      "de": " or caminho.name == \"_modelo.md\" or len(",
+      "para": " or len(",
       "testes": [
         "tests.test_conformidade_pareceres.ParecerDeItem.test_acorda_com_a_lista"
       ]
@@ -74,12 +74,12 @@
     },
     {
       "id": "C1B2-M24",
-      "guarda": "M20.1: sem a lista no ref local, o `ls-remote` confere a develop do origin",
+      "guarda": "M20.1: o caminho com menos de quatro partes (`/x.md`) não é item e não chega ao `parts[-3]`",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if git(topo, \"cat-file\", \"-e\", f\"{refs[0]}:{LISTA_FECHADA}\")[0]:",
-      "para": "            if False:",
+      "de": "_modelo.md\" or len(caminho.parts) < 4",
+      "para": "_modelo.md\" or False",
       "testes": [
-        "tests.test_conformidade_pareceres.ParecerDeItem.test_ref_local_recuado_nao_esconde_a_lista"
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_caminho_curto_sem_erro_interno"
       ]
     }
   ]

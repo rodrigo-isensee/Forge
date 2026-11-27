@@ -4,12 +4,12 @@
   "mutantes": [
     {
       "id": "C1B2-M25",
-      "guarda": "M20.1: do `ls-remote`, só a linha de `refs/heads/develop` (o padrão casa o fim do nome)",
+      "guarda": "M20.1: a lista no `HEAD` (branch aberta depois da virada) acorda a guarda",
       "arquivo": "hooks/conformidade.py",
-      "de": " for x in saida.splitlines() if x.endswith(\"\\trefs/heads/develop\")]",
-      "para": " for x in saida.splitlines() if True]",
+      "de": "refs = (\"refs/remotes/origin/develop\", \"HEAD\")",
+      "para": "refs = (\"refs/remotes/origin/develop\",)",
       "testes": [
-        "tests.test_conformidade_pareceres.ParecerDeItem.test_lista_em_ref_que_so_termina_em_develop_dorme"
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_lista_so_no_head_acorda"
       ]
     },
     {
@@ -20,6 +20,16 @@
       "para": "{r}:{LISTA_FECHADA}\")[0] != 0 for r in refs)",
       "testes": [
         "tests.test_conformidade_pareceres.ParecerDeItem.test_dorme_sem_a_lista"
+      ]
+    },
+    {
+      "id": "C1B2-M27",
+      "guarda": "M20.1: a lista na `origin/develop` local acorda a guarda, com o `HEAD` sem ela",
+      "arquivo": "hooks/conformidade.py",
+      "de": "refs = (\"refs/remotes/origin/develop\", \"HEAD\")",
+      "para": "refs = (\"HEAD\",)",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_lista_so_na_origin_develop_acorda"
       ]
     }
   ]
