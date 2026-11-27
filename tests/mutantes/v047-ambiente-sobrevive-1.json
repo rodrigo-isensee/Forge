@@ -3,33 +3,13 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M1",
-      "guarda": "o postStart do Forge só roda a main que traz a guarda FORGE_PREPARO_ESSENCIAL",
-      "arquivo": ".devcontainer/devcontainer.json",
-      "de": " && grep -q 'FORGE_PREPARO_ESSENCIAL:-0' \\\"$d/r/scripts/preparar-estacao.sh\\\"",
-      "para": "",
-      "testes": [
-        "tests.test_forge.PrepararEstacao.test_poststart_do_forge_exige_a_guarda_no_script_da_main"
-      ]
-    },
-    {
-      "id": "M2",
-      "guarda": "o postStart do Forge clona do remoto, não do work tree (ref local forjável)",
-      "arquivo": ".devcontainer/devcontainer.json",
-      "de": "-- \\\"$u\\\" \\\"$d/r\\\"",
-      "para": "-- /workspaces/Forge \\\"$d/r\\\"",
-      "testes": [
-        "tests.test_forge.PrepararEstacao.test_poststart_roda_so_a_main_do_remoto_nunca_o_ref_local_forjado"
-      ]
-    },
-    {
       "id": "M3",
       "guarda": "o postStart do modelo clona do remoto, não do work tree (ref local forjável)",
       "arquivo": "templates/projeto/.devcontainer/devcontainer.json",
       "de": "-- \\\"$u\\\" \\\"$d/r\\\"",
       "para": "-- \\\"${containerWorkspaceFolder}\\\" \\\"$d/r\\\"",
       "testes": [
-        "tests.test_forge.PrepararEstacao.test_poststart_roda_so_a_main_do_remoto_nunca_o_ref_local_forjado"
+        "tests.test_forge.PrepararEstacao.test_poststart_do_modelo_roda_so_a_main_do_remoto_nunca_o_ref_local_forjado"
       ]
     },
     {
@@ -39,7 +19,7 @@
       "de": "  \"mounts\": [",
       "para": "  \"remoteEnv\": {\"GH_TOKEN\": \"${localEnv:GH_TOKEN}\"},\n  \"mounts\": [",
       "testes": [
-        "tests.test_forge.PrepararEstacao.test_devcontainer_prepara_sozinho_sem_rodar_o_work_tree"
+        "tests.test_forge.PrepararEstacao.test_devcontainer_do_forge_roda_o_preparo_da_copia_presente_sem_gh_e_sem_engolir_erro"
       ]
     },
     {
@@ -49,7 +29,7 @@
       "de": "  \"mounts\": [",
       "para": "  \"remoteEnv\": {\"GH_TOKEN\": \"${localEnv:GH_TOKEN}\"},\n  \"mounts\": [",
       "testes": [
-        "tests.test_forge.PrepararEstacao.test_devcontainer_prepara_sozinho_sem_rodar_o_work_tree"
+        "tests.test_forge.PrepararEstacao.test_devcontainer_do_modelo_segue_com_clone_raso_da_main"
       ]
     },
     {
