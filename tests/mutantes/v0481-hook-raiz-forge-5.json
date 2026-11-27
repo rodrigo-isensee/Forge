@@ -41,6 +41,16 @@
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
       ]
+    },
+    {
+      "id": "RD16",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.21, volta 5, A15 da segurança e A2 do review): o nome que a linha não escreve inteiro ($ds de $d\"s\") não conta como referência (S14)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return re.search(rf\"\\$(?:{nome}|\\{{[#!]?{nome})(?!\\w)\", linha) is not None",
+      "para": "    return True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
     }
   ]
 }
