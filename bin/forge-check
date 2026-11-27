@@ -11641,7 +11641,8 @@ def executar(a, raiz):
         pedidos = Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else next(
             (r for r in raizes_de_pedidos(raiz) if (Path(r) / "docs" / "pedidos").is_dir()), raiz)
         ctx = {"gh_json": gh_json, "seguro": sem_controle, "versao": versao_da_propria_copia, "plugin": PLUGIN, "pedidos": pedidos,
-               "abertas": modulo_do_bin("forge_dono").cmd_abertas}
+               "abertas": modulo_do_bin("forge_dono").cmd_abertas,
+               "lista_de_prs": modulo_do_bin("forge_estado").vigia().lista_de_prs(raiz)}  # F4: a lista que o vigia lê
         return modulo_do_bin("forge_estado").executar(a, raiz, ctx)
     if a.cmd == "comparar":  # AE7.1: em bin/forge_comparar.py
         return modulo_do_bin("forge_comparar").executar(a, raiz, {"git": git, "seguro": sem_controle})
@@ -11700,6 +11701,8 @@ def executar(a, raiz):
         linhas, codigo = cmd_proximo(raiz, a.pedido, a.item, a.etapa) if a.cmd == "proximo" else cmd_criterios(raiz, a.pedido)
         for linha in linhas:
             print(linha)
+        if a.cmd == "proximo":  # F4 (v0481 E34.6): renova a lista do vigia vencida, uma leitura do gh, depois da saída
+            modulo_do_bin("forge_estado").renovar_prs_abertos(raiz, gh_json)
         return codigo
     if a.cmd in ("rodar", "meta"):
         return modulo_do_bin({"rodar": "forge_run", "meta": "forge_meta"}[a.cmd]).executar(a, raiz)

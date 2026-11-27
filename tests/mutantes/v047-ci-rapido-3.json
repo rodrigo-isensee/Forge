@@ -16,8 +16,8 @@
       "id": "M27",
       "guarda": "o agregador da develop (3.12) exige o teto de pulados",
       "arquivo": ".github/workflows/ci.yml",
-      "de": "    needs: [rapida-partes-doze, rapida-pulados-doze]",
-      "para": "    needs: [rapida-partes-doze]",
+      "de": "    needs: [arvore-envio, rapida-partes-doze, rapida-pulados-doze]",
+      "para": "    needs: [arvore-envio, rapida-partes-doze]",
       "testes": [
         "tests.test_suite_partes.FiacaoDoCI",
         "tests.test_ci_local.MatrizNeedsEAgregadorTest.test_leitor_entende_matriz_e_needs_do_ci_real"
@@ -27,8 +27,8 @@
       "id": "M29",
       "guarda": "o agregador da develop (3.12) exige as partes em success",
       "arquivo": ".github/workflows/ci.yml",
-      "de": "          PULADOS: ${{ needs.rapida-pulados-doze.result }}\n        run: |\n          echo \"partes: $PARTES; pulados: $PULADOS\"\n          [ \"$PARTES\" = success ] && [ \"$PULADOS\" = success ]",
-      "para": "          PULADOS: ${{ needs.rapida-pulados-doze.result }}\n        run: |\n          echo \"partes: $PARTES; pulados: $PULADOS\"\n          [ \"$PULADOS\" = success ]",
+      "de": "            [ \"$PARTES\" = success ] && [ \"$PULADOS\" = success ]",
+      "para": "            [ \"$PULADOS\" = success ]",
       "testes": [
         "tests.test_suite_partes.FiacaoDoCI"
       ]
@@ -47,8 +47,8 @@
       "id": "M32",
       "guarda": "a perna da develop (3.12) nao ganha permissao alem de contents: read (S4)",
       "arquivo": ".github/workflows/ci.yml",
-      "de": "    # agregador \"checagem rápida (push na develop)\" (a prova que scripts/arvore-testada.py lê) exige as 5 pernas e o teto de pulados.\n    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'\n    permissions:\n      contents: read\n",
-      "para": "    # agregador \"checagem rápida (push na develop)\" (a prova que scripts/arvore-testada.py lê) exige as 5 pernas e o teto de pulados.\n    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'\n    permissions:\n      contents: read\n      actions: read\n",
+      "de": "    needs: [arvore-envio]\n    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && needs.arvore-envio.outputs.provada != 'true'\n    permissions:\n      contents: read\n",
+      "para": "    needs: [arvore-envio]\n    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && needs.arvore-envio.outputs.provada != 'true'\n    permissions:\n      contents: read\n      actions: read\n",
       "testes": [
         "tests.test_suite_partes.FiacaoDoCI"
       ]
