@@ -3,34 +3,44 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-hook-raiz-forge
-commit: aa3472135b21f0539c3047d1e31fe6718a17bced
-parecer: aprovado
+commit: 1644a83f0b3c4ed16e9fd5c8b49b71d4c6288980
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-27
 ---
-# Review: v0481 (E37.15, HOOK-NAO-PROTEGE-RAIZ-DO-FORGE, PR #930, volta 3)
+# Review: v0481 (E37.19, HOOK-NAO-PROTEGE-RAIZ-DO-FORGE, PR #930, volta 4)
 
-Revalidação por delta (H3) do head `aa347213`, sobre o parecer reprovado de `e4998443` (A2 bloqueante, A3 recomendado). O critério é o mesmo das rodadas anteriores, sem `critério mudou:`.
+Esta é a revalidação por delta (H3) do head `1644a83f`, sobre o parecer aprovado de `aa347213`. O critério é o mesmo das rodadas anteriores, sem `critério mudou:`.
 
 ## Achados
 - A1 (recomendado) hooks/conformidade.py:4317 · vem da 1ª rodada e fica fora do delta: `rm -rf .` na raiz passa (rc 0), como no projeto. Não é regressão; vira cartão para os dois.
+- A2 (bloqueante) hooks/conformidade.py:4357 · o teste novo `"*" in palavra_juntada(caminho).split("/")[0]` recusa qualquer variável colada sem valor calculado, inclusive em linhas que não citam nenhuma entrada (S1 a S4), também na cópia de wt/. A docs diz que essa cópia segue livre. Isso é regressão do delta.
+
+## Sondas
+- S1 · `for f in a b; do printf x > $f.log; done`, cwd numa cópia `wt/x` · espera: rc 0 (é livre em `aa347213`) · obtido: rc 2, "variável sem valor calculado numa linha que cita o que roda fora do sandbox"
+- S2 · a mesma linha com cwd na raiz da sessão · espera: rc 0 (a linha não cita entrada) · obtido: rc 2, a mesma mensagem
+- S3 · `printf x > ${TMPDIR}x/y`, cwd em `wt/x` · espera: rc 0 · obtido: rc 2
+- S4 · `for n in 1 2; do printf x > saida-$n.txt; done`, cwd em `wt/x` · espera: rc 0 · obtido: rc 2
 
 ## Parecer
-**Aprovado.** O A2 e o A3 estão fechados. O A1 segue recomendado e vira cartão depois do merge.
+**Reprovado pelo A2.** O resto do delta está correto.
 
-- **Delta lido** (`forge-check parecer delta docs/reviews/v0481-hook-raiz-forge.md`, intervalo `e4998443..aa347213`):
-  - `hooks/conformidade.py:4355`: o ramo com resto e sem valor calculado passa de `textos_do_valor(caminho)[0]` para `[1]`, os textos largos, como o ramo do `.git`. A docstring foi atualizada.
-  - As 4 fixtures novas: `raiz-forge-variavel-de-for-githooks-bloqueia`, `raiz-forge-variavel-de-read-githooks-bloqueia` (são as minhas S1 e S2 da volta 2), `raiz-forge-variavel-de-for-scripts-libera` e `raiz-forge-variavel-de-read-scripts-libera` (fora de entrada em vigor, livres).
-  - `tests/mutantes/v0481-hook-raiz-forge-4.json`: o RD7 e o RD8 foram reancorados no texto novo, e o RD9 (`[1]` volta a `[0]`) é novo.
-  - `tests/test_hooks.py:2930`: os mínimos passam a 21 e 34.
-  - `docs/hooks.md:69`: diz que a variável de `for` e `read` conta a linha inteira, e que a falha fechada vale também na cópia de `wt/`.
-  - Os pareceres de QA e segurança da volta 2.
-- **A2 (fechado):** é exatamente a troca pedida. As duas sondas viraram fixtures `-bloqueia`, e o mutante RD9 as prova. A fixture `raiz-forge-variavel-com-resto-cita-githooks-libera` (`$TMPDIR`) segue verde, como a docs promete.
-- **A3 (fechado):** o lote tem 55 fixtures, 21 que liberam e 34 que recusam (contei os JSON com a descrição `HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (`). Os mínimos batem com o lote exato.
-- **Tamanho (H1):** o delta tem 1 linha de código, e o item fica dentro do teto.
-- **Guardas e mutantes (item 7):** a única linha de guarda mudada (4355) tem três mutantes.
-  - Rodei `bin/forge-mutante --processos 1 tests/mutantes/v0481-hook-raiz-forge-4.json` em `aa347213`, sob `trava-teste-a.lock`: RD7, RD8 e RD9 morreram (rc 0).
-  - Rodei `tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge` sob a mesma trava: OK.
-- **Commits (item 9):** `aa347213` (fix) segue Conventional Commits em português, com o cartão e a etapa.
-- **CI (check-runs do `aa347213`):** verdes a suíte 3.12 (partes 1 a 5), `teto de pulados (python 3.12)`, `instalação (python 3.14)`, `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)` e `árvore já provada na develop`. Ficam de fora `bateria`, `bateria (pareceres)` e `catraca`. Os heads depois dele (`5a13627b`, `0d3a1bd7`) só mexem em `docs/security/` e `docs/qa/`.
-- ci: aa3472135b21f0539c3047d1e31fe6718a17bced verde
+- **Delta lido** (`forge-check parecer delta docs/reviews/v0481-hook-raiz-forge.md`, intervalo `aa347213..1644a83f`):
+  - `hooks/conformidade.py:4357-4358` e a docstring.
+  - As fixtures S10, S11 e S12.
+  - Os mutantes: o RD4 foi reancorado, e o RD10 e o RD11 são novos.
+  - O piso de recusas passa a 37 em `tests/test_hooks.py:2931`.
+  - `docs/hooks.md:69`.
+- **A2, como foi provado:**
+  - Gravei as quatro sondas como fixtures `-libera` temporárias (removidas, nada commitado) e rodei `tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge` sob `trava-teste-a.lock`.
+  - Em `1644a83f`, as quatro recusam. Com o `hooks/conformidade.py` de `aa347213`, as quatro passam (só S10, S11 e S12 falham, como se espera).
+  - A mensagem também mente: diz "numa linha que cita o que roda fora do sandbox", e a linha não cita nada.
+  - `docs/hooks.md:69` não descreve esse alcance. O texto diz "a variável colada no primeiro componente (`${d}s/pre-push`) recusa" sem dizer que é toda variável colada, e a mesma página diz "A cópia de `~/.forge-contrib/wt/` segue livre".
+  - O `$f.log` dentro de um laço é comum no trabalho dos agentes nas cópias de `wt/`.
+- **Sugestão ao autor:** recusar só quando o primeiro componente lido como curinga puder casar uma entrada em vigor (`glob_casa(componente, nome)` para `.githooks`, `.git`, `.devcontainer`, `.devcontainer.json` e `.claude-plugin`, como o `nome_da_c18` faz). Assim `*s` (S12) recusa, e `*.log`, `saida-*.txt` e `*x` passam. As quatro sondas acima entram como fixtures `-libera` (o piso de liberam sobe para 25), com um mutante que troca o casamento por `True`.
+- **O que está certo no delta:** o `palavra_juntada(t)` sobre os textos largos fecha S10 e S11 sem falso positivo, porque só conta quando o texto cita a entrada.
+- **Mutantes:** rodei `bin/forge-mutante` em `1644a83f`, sob a trava: RD10 morreu em :4357, RD11 em :4358 e RD4 em :4357.
+- **Tamanho (H1):** o delta tem 3 linhas de código.
+- **Commits (item 9):** `aa064b86` (fix) e `1644a83f` (test) seguem Conventional Commits em português, com a etapa.
+- **CI (`gh pr checks 930` no `1644a83f`):** verdes a suíte 3.12 (partes 1 a 5), `teto de pulados (python 3.12)`, `instalação (python 3.14)`, `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)` e `árvore já provada na develop`. Ficam de fora `bateria`, `bateria (pareceres)` e `catraca`.
+- ci: 1644a83f0b3c4ed16e9fd5c8b49b71d4c6288980 verde
