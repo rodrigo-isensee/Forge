@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "login: status sem creator fica fora, sem erro",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "nome = (objeto or {}).get(\"login\")",
+      "para": "nome = (objeto or {\"login\": \"dono\"}).get(\"login\")",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_status_e_comentario_sem_login_de_texto_ficam_fora"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "pasta de controle: só o par .forge/wt marca o clone de projeto (M4.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "real.parts[i:i + 2] == (\".forge\", \"wt\")",
+      "para": "real.parts[i + 1] == \"wt\"",
+      "testes": [
+        "tests.test_forge_pareceres.PastaDeControle.test_copia_principal_fora_de_forge_wt_usa_a_propria"
+      ]
+    }
+  ]
+}

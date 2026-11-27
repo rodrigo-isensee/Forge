@@ -535,6 +535,9 @@ class Ler(GhFalso):
             with self.subTest(login):
                 self.assertEqual(self.ler(self.publicado(login=login)), {})
                 self.assertIn("M5.2", self.invalido(self.publicado(autor=login)))
+        sem_creator = self.publicado()
+        del sem_creator["creator"]
+        self.assertEqual(self.ler(sem_creator), {})
 
     def fora_do_contrato(self, status):
         with self.assertRaisesRegex(fp().Recusa, "fora do contrato"):
@@ -574,6 +577,13 @@ class PastaDeControle(unittest.TestCase):
         self.pastas("proj/.forge/run", "proj/.forge/wt/c/.forge/run")
         self.assertEqual(fp().pasta_de_controle(str(self.tmp / "proj/.forge/wt/c")), self.tmp / "proj/.forge/run")
         self.assertEqual(fp().pasta_de_controle(str(self.tmp / "proj")), self.tmp / "proj/.forge/run")
+
+    def test_copia_principal_fora_de_forge_wt_usa_a_propria(self):
+        """Só o par `.forge/wt` marca o clone de projeto: uma pasta `wt` ou `.forge` solta no caminho não muda a cópia."""
+        for rel in ("a/wt/proj", "b/.forge/proj"):
+            with self.subTest(rel):
+                self.pastas(f"{rel}/.forge/run")
+                self.assertEqual(fp().pasta_de_controle(str(self.tmp / rel)), self.tmp / rel / ".forge/run")
 
     def test_copia_principal_do_forge_usa_a_forge_contrib(self):
         self.pastas("casa/.forge-contrib/.forge/run", "forge/.claude-plugin", "forge/.forge/run")

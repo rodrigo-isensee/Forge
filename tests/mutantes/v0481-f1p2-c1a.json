@@ -59,7 +59,7 @@
       "guarda": "pasta de controle: clone de projeto usa a cópia que contém .forge/wt (M4.1)",
       "arquivo": "bin/forge_pareceres.py",
       "de": "base = Path(*real.parts[:wt[0]]) if wt else real",
-      "para": "base = real",
+      "para": "base = Path(*real.parts[:wt[0]]) if True else real",
       "testes": [
         "tests.test_forge_pareceres.PastaDeControle.test_clone_de_projeto_usa_a_copia_que_contem_wt"
       ]
