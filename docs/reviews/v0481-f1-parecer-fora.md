@@ -3,33 +3,27 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-f1-parecer-fora
-commit: e26310c229a8fae6bcbc2168d9a2db3d16875f2a
-parecer: reprovado
+commit: edaf7bc08b371efafbd4eeb58dcab39bcb0143eb
+parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-26
+data: 2026-11-27
 ---
-# Review: v0481 (E29.2, #925, F1 corte 1: leitura do parecer no status)
-
-## Achados
-- A1 (bloqueante) bin/forge_pareceres.py:139 · a linha nova repete `for s in p if isinstance(s, dict)]` da linha 93, e o `de` do M27 de tests/mutantes/v0481-g2-1-publicar-5.json deixa de ser único: CI vermelho em test_forge_mutante.ConferirTodas (suíte 3.12 e 3.14, parte 4/5). Torne o `de` do M27 único (incluir `faltam`).
-- A2 (bloqueante) docs/indice-forge.md:1 · o índice não foi regerado com `ler`, `conferir` e `frontmatter`: CI vermelho em test_indice_forge (test_indice_esta_em_dia e test_conferir_da_rc_0_em_dia, parte 2/5); `scripts/indice-forge.py --conferir` local: desatualizado. Rode `scripts/indice-forge.py` e commite.
-- A3 (recomendado) bin/forge_pareceres.py:141 · `login in contas` casa por substring se `contas` vier como str (sonda S1); o 1º chamador (corte 7) deve passar conjunto, ou `ler` recusa o que não é set/frozenset.
-- A4 (recomendado) bin/forge_pareceres.py:117 · `pr["number"]` e `(c.get("user") or {}).get` (120, 141) soltam KeyError ou AttributeError, não Recusa, com resposta malformada do `gh`; o M19.1 pede Recusa. Falha fechada mesmo assim; alinhe ao `publicar`, que converte essas exceções.
-
-## Sondas
-- S1 · `contas="minhaconta-admin"`, creator `conta`, filtro da linha 141 · espera: fora · obtido: aceito (substring) (/root/.forge-contrib/v0481-tl324-sonda.py)
+# Review: v0481 (E29.5, #925, F1 corte 1, volta 1 por delta)
 
 ## Parecer
-Reprovado por A1 e A2: o código da leitura está correto e só aperta, mas o head deixa a suíte vermelha em duas partes por efeito do diff, sem relação com a espera de parecer.
+Aprovado: os dois bloqueantes da 1.ª rodada (A1, A2) estão resolvidos e os dois recomendados (A3, A4) foram atendidos na mesma volta, com teste de comportamento e mutante por guarda.
 
-- Escopo: faz o que o E29.1 pede para o 1º corte, a leitura sem chamador; plano de 11 cortes no corpo do PR, com comportamento, arquivos, estimativa e dependências. Fora do F1 (G3, F3) declarado. Bom.
-- Tamanho (H1): 50 linhas de código em `bin/forge_pareceres.py`, um comportamento só, dentro do teto. Os dois consertos não mudam isso.
-- Lógica: filtro pelas contas antes do mais novo de cada contexto (C1, C2), contexto por igualdade exata (C3), `fullmatch` na descrição e no `target_url`, sem seguir a URL (só o id vai à API do repositório do `origin`), `html_url` igual, sha256 do corpo normalizado igual ao do `publicar`, frontmatter com commit, branch, pedido, tipo e veredito iguais ao head e ao status. Os campos casam com os modelos de review, qa e segurança. Status mais novo inválido mascara o válido mais velho: falha fechada, correto.
-- Testes: classe `Ler` com 25 testes de comportamento; o falso de `gh` roteia pelo caminho exato do comentário (checklist 12). Base vermelha: as funções `ler`, `conferir` e `frontmatter` não existem em ee05ee84 (0 ocorrências), log do autor `FAILED (errors=33)`.
-- Mutantes M1 a M17: todos morrem; M13 a M17 por erro, aceitável aqui (o ramo removido quebra o fluxo).
-- Commits: 2, Conventional Commits em português, escopo e etapa.
+- Delta lido (H3): `forge-check parecer delta` de e26310c2..edaf7bc0, só no domínio: `bin/forge_pareceres.py`, `docs/indice-forge.md`, `tests/mutantes/v0481-f1-parecer-fora-3.json`, `tests/mutantes/v0481-g2-1-publicar-5.json`, `tests/test_forge_pareceres.py`. Nada fora dele foi relido.
+- A1 resolvido: o `de` do M27 passa a `faltam = [s for p in paginas for s in p if isinstance(s, dict)]`, único no arquivo; o M17 acompanha a nova indentação dentro do `try`. Suíte 3.12 e 3.14 parte 4/5 verde no CI.
+- A2 resolvido: `scripts/indice-forge.py --conferir` em dia; a linha do `forge_pareceres.py` deixa de dizer "só a escrita". Parte 2/5 verde no CI.
+- A3 atendido: `ler` recusa, antes de qualquer chamada ao `gh`, `contas` que não seja set/frozenset de str não vazias (a sonda S1 da 1.ª rodada vira subteste); o teste confere que o `gh` não foi chamado. M18 e M19 morrem.
+- A4 atendido: `KeyError`, `TypeError`, `AttributeError` e `ValueError` do laço de `conferir` viram Recusa, como no `publicar`; a `Recusa` vinda do `gh` passa intacta (não está na tupla). Os três casos do teste (creator str, user str, PR sem `number`) chegam por caminhos distintos ao `except`. M20 morre.
+- Tamanho (H1): +9 linhas de código no delta, um comportamento (a leitura falha fechada), dentro do teto.
+- Commits: 2 no delta, Conventional Commits em português, escopo e etapa.
 
 ## Provas
-- `python3 -m unittest tests.test_forge_pareceres` no e26310c2: Ran 65 tests, OK (/root/.forge-contrib/v0481-tl324-afetados.log).
-- `bin/forge-mutante --processos 1 --base ee05ee84… <3 specs>`: M1 a M17 morreu; `--cobertura`: toda condição coberta (/root/.forge-contrib/v0481-tl324-mutantes.log, /root/.forge-contrib/v0481-tl324-cobertura.log).
-- CI no e26310c2 (run 45912046492): suíte partes 1, 3 e 5 verdes nas duas versões, bateria (passos), verificações longas, instalação e árvore verdes; partes 2/5 e 4/5 vermelhas por A2 e A1 (logs dos jobs 140229170410 e 140229170407); `bateria (pareceres)` espera parecer.
+- ci: edaf7bc08b371efafbd4eeb58dcab39bcb0143eb verde
+- suíte: edaf7bc08b371efafbd4eeb58dcab39bcb0143eb rc=0 módulos=test_forge_pareceres,test_indice_forge
+- check-runs do sha: suíte 3.12 e 3.14 partes 1 a 5, teto de pulados, bateria (passos), bateria (python 3.14), bateria (verificações longas), instalação (python 3.14) e árvore já provada na develop em success; fora `bateria`, `bateria (pareceres)` e `catraca`, que esperam parecer ou rótulo.
+- `python3 -m unittest tests.test_forge_pareceres tests.test_indice_forge` no edaf7bc0, com ambiente limpo e flock na trava-teste-b: Ran 88 tests, OK; `scripts/indice-forge.py --conferir`: em dia (/root/.forge-contrib/v0481-tl347-afetados.log).
+- `bin/forge-mutante --processos 1 --base e26310c2 <2 specs>`: M17 a M20 e M24 a M30 morreram, rc=0 (/root/.forge-contrib/v0481-tl347-mutantes.log).
