@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1B-M1",
+      "guarda": "M10.1: só o `parecer publicar` é conferido; outro subcomando pelo `bin/` passa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        publica = livres_do_forge_check(args)[:2] == [\"parecer\", \"publicar\"]",
+      "para": "        publica = True",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c12_publicar_pela_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M2",
+      "guarda": "M10.1 (segurança A6): o PATH trocado na linha do publicar barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if publica and path_na_linha is not None:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c12_publicar_pela_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M3",
+      "guarda": "M10.1: o forge-check pelo nome (o do plugin, no PATH) passa; só o caminho com barra é conferido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not publica or \"/\" not in programa:",
+      "para": "        if not publica:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c12_publicar_pela_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M4",
+      "guarda": "M10.1 (segurança A2): o link de arquivo fora da cópia é resolvido até o bin/ da cópia",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        real = Path(os.path.realpath(self.caminho(pasta, programa)))",
+      "para": "        real = self.caminho(pasta, programa)",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c12_publicar_pela_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M5",
+      "guarda": "M10.1: o caminho dentro de uma cópia de trabalho barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if re.search(r\"[$`]\", programa) or self.raiz_git(real.parent) is not None:",
+      "para": "        if re.search(r\"[$`]\", programa):",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c12_publicar_pela_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M6",
+      "guarda": "M10.1: o caminho com expansão barra (o hook não o resolve)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if re.search(r\"[$`]\", programa) or self.raiz_git(real.parent) is not None:",
+      "para": "        if self.raiz_git(real.parent) is not None:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c12_publicar_pela_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M7",
+      "guarda": "M4.2 e M10.1: a recusa é trava, vale na sessão do Forge",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        self.barrar(\"R-REVIEW\", o_que, corrigir, trava=TRAVA)",
+      "para": "        self.barrar(\"R-REVIEW\", o_que, corrigir)",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminalNoForge.test_c21_gh_api_statuses_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M8",
+      "guarda": "M4.2: só o gh api que muda algo é conferido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not parecer.metodo_mutante(args):\n            return\n        bruto",
+      "para": "        if True:\n            return\n        bruto",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_api_statuses_barrado"
+      ]
+    }
+  ]
+}
