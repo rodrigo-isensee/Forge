@@ -165,17 +165,19 @@ def prova_do_pr(env, ler):
             continue
         if campo(ler(f"repos/{repo}/compare/{anterior}...{cabeca}"), "status", str) not in ("ahead", "identical"):
             continue
-        achou, motivo = bateria_do_run_do_pr(repo, cabeca, ramo, base, ler)
+        achou, motivo = bateria_do_run_do_pr(repo, cabeca, ramo, base, numero, ler)
         if achou:
             return True, f"árvore {arvore[:7]} igual à do head {cabeca[:7]} do PR #{numero}, {motivo}"
     return False, f"nenhum PR mesclado em {sha[:7]} tem head de mesma árvore, descendente da develop e com a bateria verde no run do PR"
 
 
-def bateria_do_run_do_pr(repo, cabeca, ramo, base, ler):
+def bateria_do_run_do_pr(repo, cabeca, ramo, base, numero, ler):
     """(True, 'run <id>, job bateria') só com o run mais recente do ci.yml do evento pull_request, do próprio repositório, concluído,
     no head e no ramo do PR (head_sha e head_branch: a lista `pull_requests` do run some depois do merge, então não liga), com a
     base do PR (`base`, contra a develop) ancestral do head, e com um único job `bateria` em success na tentativa mais recente
-    do run; senão (False, motivo)."""
+    do run; senão (False, motivo). Run cuja lista `pull_requests` (vazia só depois do merge) traga PR que não seja o `numero`
+    contra a develop é de outro PR do mesmo ramo e head (outra base): não liga, nem pode ser o mais recente que reprova ou prova (A4 do
+    review e A1 da segurança da volta 1 do #932)."""
     consulta = urllib.parse.urlencode({"head_sha": cabeca, "event": "pull_request", "per_page": 100})
     execucoes = campo(ler(f"repos/{repo}/actions/runs?{consulta}"), "workflow_runs", list) or []
     da_execucao = {"event": "pull_request", "head_sha": cabeca, "path": WORKFLOW_DE_PROVA, "repository.full_name": repo,
@@ -184,6 +186,9 @@ def bateria_do_run_do_pr(repo, cabeca, ramo, base, ler):
     for execucao in execucoes:
         run_id, tentativa = campo(execucao, "id", int), campo(execucao, "run_attempt", int)
         if None in (run_id, tentativa) or any(campo(execucao, k, str) != v for k, v in da_execucao.items()):
+            continue
+        ligados = execucao.get("pull_requests", [])
+        if type(ligados) is not list or any(campo(p, "number", int) != numero or campo(p, "base.ref", str) != "develop" for p in ligados):
             continue
         validas.append((run_id, tentativa))
     if not validas:

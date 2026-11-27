@@ -295,6 +295,20 @@ class ProvaDoPr(unittest.TestCase):
             with self.subTest(nome):
                 self.assertFalse(self.prova(**mudanca)[0], nome)
 
+    def test_run_de_outro_pr_do_mesmo_ramo_e_head_nao_liga_ao_pr_da_develop(self):
+        """S3 do review e S1 da segurança (volta 1 do #932): run mais recente de outro PR aberto (outra base) não prova nem reprova."""
+        mais_novo = self.RUN + 1
+        outro = {"number": 999, "base": {"ref": "melhoria/y"}}
+        proprio = {"number": self.PR, "base": {"ref": "develop"}}
+        for nome, ligados in {"outra base": [outro], "outra base, mesmo número": [{"number": self.PR, "base": {"ref": "homolog"}}],
+                              "o próprio e outro": [proprio, outro], "lista de tipo errado": "x"}.items():
+            with self.subTest(nome):
+                ok, motivo = self.prova(runs=[self.rodada(), self.rodada(id=mais_novo, pull_requests=ligados)],
+                                        jobs={self.RUN: [self.job(conclusion="failure")], mais_novo: [self.job(run_id=mais_novo)]})
+                self.assertFalse(ok, motivo)
+        ok, motivo = self.prova(runs=[self.rodada(pull_requests=[proprio])])
+        self.assertTrue(ok, motivo)
+
     def test_o_run_mais_recente_verde_prova_apesar_de_um_anterior_vermelho(self):
         velho = self.RUN - 1
         ok, motivo = self.prova(runs=[self.rodada(id=velho), self.rodada()],
