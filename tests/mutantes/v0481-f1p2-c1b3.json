@@ -1,0 +1,46 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "tirar a entrada ~/.forge-contrib/.forge/run/ da política (as c1b3-*-bloqueia voltam a rc 0)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "{\"caminho\": \"~/.forge-contrib/.forge/run/\", \"quem\": []",
+      "para": "{\"caminho\": \"~/.forge-contrib/.forge/run-x/\", \"quem\": []",
+      "testes": [
+        "tests.test_conformidade_pareceres.PastaDeControleDoForge.test_fixtures_c1b3"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o jarvis no quem da pasta de controle do Forge (c1b3-run-forge-jarvis-write-bloqueia volta a rc 0)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "{\"caminho\": \"~/.forge-contrib/.forge/run/\", \"quem\": []",
+      "para": "{\"caminho\": \"~/.forge-contrib/.forge/run/\", \"quem\": [\"jarvis\"]",
+      "testes": [
+        "tests.test_conformidade_pareceres.PastaDeControleDoForge.test_fixtures_c1b3"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a entrada depois da .forge/run/ relativa, que casa primeiro e a sessão do Forge não aplica (as c1b3-*-bloqueia voltam a rc 0)",
+      "arquivo": "hooks/conformidade.json",
+      "de": "{\"caminho\": \"~/.forge-contrib/.forge/run/\", \"quem\": []",
+      "para": "{\"caminho\": \".forge/run/\", \"quem\": [], \"motivo\": \"estado dos hooks (.forge/run/)\"},\n    {\"caminho\": \"~/.forge-contrib/.forge/run/\", \"quem\": []",
+      "testes": [
+        "tests.test_conformidade_pareceres.PastaDeControleDoForge.test_fixtures_c1b3"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a pasta fora de CAMINHOS_DO_CONTROLE: a GuardaDaProva da sessão do Forge descarta a recusa (as c1b3-*-bloqueia voltam a rc 0)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"~/.forge-contrib/.forge/run/\")  # C1b-3",
+      "para": "\"~/.forge-contrib/.forge/run-x/\")  # C1b-3",
+      "testes": [
+        "tests.test_conformidade_pareceres.PastaDeControleDoForge.test_fixtures_c1b3"
+      ]
+    }
+  ]
+}

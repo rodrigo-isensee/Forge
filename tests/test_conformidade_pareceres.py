@@ -11,6 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge_pareceres import PEDIDO, GhFalso, fc, parecer  # noqa: E402
+import test_hooks  # noqa: E402
 from test_hooks import rodar  # noqa: E402
 
 
@@ -115,6 +116,26 @@ class AutoriaDoPublicar(GhFalso):
         self.hook(arq)  # o aprovado regravado pelo papel volta a ser o último registro e publica
         rc, saida = self.publicar(arq)
         self.assertEqual(rc, 0, saida)
+
+
+class PastaDeControleDoForge(unittest.TestCase):
+    """C1b-3 (v0481 E45.13; A4 da segurança e A2 do review do #938, A1 da segurança do #937): o registro M4.1
+    (`~/.forge-contrib/.forge/run/pareceres-publicados.jsonl`) fica fora do alcance de todo papel no `conformidade`. Só as
+    fixtures `c1b3-*`, pela máquina do `Hooks` (o módulo importado inteiro, para não recolher os testes dele aqui), para os
+    mutantes de `tests/mutantes/v0481-f1p2-c1b3.json` rodarem rápido."""
+    executar_em_lote = test_hooks.Hooks.executar_em_lote
+    executar_fixture = test_hooks.Hooks.executar_fixture
+    _pasta_temporaria = test_hooks.Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(test_hooks.Hooks.depende_de_pid_ou_trava)
+
+    def test_fixtures_c1b3(self):
+        pasta = test_hooks.FIXTURES / "conformidade"
+        fixtures = test_hooks.minimo([test_hooks.Fixture(p) for p in sorted(pasta.glob("c1b3-*.json"))], 6, "c1b3-*")
+        codigos = [f.dados["esperado"]["codigo"] for f in fixtures]
+        self.assertEqual(sorted(set(codigos)), [0, 2], "o corpus tem os dois lados")
+        self.assertGreaterEqual(codigos.count(2), 5, "escrita e acréscimo barrados por papel")
+        casos = [(f"conformidade/{f.caminho.stem}", f) for f in fixtures]
+        self.assertEqual(self.executar_em_lote(casos), len(fixtures), "toda fixture é verificada")
 
 
 if __name__ == "__main__":

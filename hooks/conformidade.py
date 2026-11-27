@@ -4193,7 +4193,8 @@ PARECER_NO_TEXTO = re.compile(r"(?<![\w.-])docs/(?:reviews|qa|devops|security)(?
 PELA_COPIA_PRINCIPAL = (".forge/ordens/",)  # A4 da segurança E123.12: a pasta, que o curinga no nome não escapa
 CAMINHOS_DO_CONTROLE = ("~/.forge-contrib/docs/pedidos/", "~/.forge-contrib/*/docs/pedidos/",
                         "~/.forge-contrib/docs/briefs/", "~/.forge-contrib/*/docs/briefs/",
-                        "~/.forge-contrib/docs/ordens/")  # A1 da segurança E123.8: a pasta das ordens, como pasta
+                        "~/.forge-contrib/docs/ordens/",  # A1 da segurança E123.8: a pasta das ordens, como pasta
+                        "~/.forge-contrib/.forge/run/")  # C1b-3 (v0481 E45.13): o registro M4.1 de publicações
 # A1 da E63.3: a pasta mãe numa variável (`d=~/.forge-contrib; echo x > $d/docs/pedidos/v1.md`) separa os dois nomes;
 # basta a linha citar os dois, em qualquer ordem e posição. Com a pasta corrente no controle, basta `pedidos` ou `briefs`.
 CONTROLE_NO_TEXTO = re.compile(r"forge-contrib[\s\S]*(?:pedidos|briefs|ordens)|(?:pedidos|briefs|ordens)"
