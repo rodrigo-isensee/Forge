@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-g3-parte2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "A1 da segurança do #923: os jobs do agregador entram nos exigidos",
+      "arquivo": "bin/forge-check",
+      "de": "for par in dict.fromkeys([*checks_exigidos(raiz, str(pr.get(\"baseRefName\") or \"\")), *mais]):",
+      "para": "for par in dict.fromkeys([*checks_exigidos(raiz, str(pr.get(\"baseRefName\") or \"\"))]):",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_job_do_agregador_ausente_ou_pulado_reprova"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "A1 da segurança do #923: a prova_do_ci passa os jobs do agregador",
+      "arquivo": "bin/forge-check",
+      "de": "fora=CHECKS_FORA_DA_LINHA_DO_CI, mais=JOBS_DO_AGREGADOR)",
+      "para": "fora=CHECKS_FORA_DA_LINHA_DO_CI)",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_job_do_agregador_ausente_ou_pulado_reprova"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "PR-TITULO-DO-BRIEF no caminho do CI: o título do brief reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    if modulo_do_bin(\"forge_pronto\").TITULO_DO_BRIEF.search(titulo):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_titulo_do_brief_reprova_e_o_de_conventional_commits_passa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "PR-TITULO-DO-BRIEF: título fora de str não quebra a prova",
+      "arquivo": "bin/forge-check",
+      "de": "isinstance(pr.get(\"title\"), str)",
+      "para": "True",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_titulo_do_brief_reprova_e_o_de_conventional_commits_passa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "G3 parte 3: só o --previo transforma a conferência que falta em aviso",
+      "arquivo": "bin/forge-check",
+      "de": "    if previo and linhas:",
+      "para": "    if linhas:",
+      "testes": [
+        "tests.test_pre_envio_brief.QaLeOCiSemEsperarAConferencia.test_fora_do_previo_a_conferencia_que_falta_reprova"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "G3 parte 3: no --previo a conferência que falta só avisa",
+      "arquivo": "bin/forge-check",
+      "de": "    if previo and linhas:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_pre_envio_brief.QaLeOCiSemEsperarAConferencia.test_no_previo_a_conferencia_que_falta_so_avisa"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "G3 parte 3: o pr sem --base passa o previo à conferência",
+      "arquivo": "bin/forge-check",
+      "de": "(conferencia_do_head(raiz, pedido, ref, None, branch, previo)",
+      "para": "(conferencia_do_head(raiz, pedido, ref, None, branch)",
+      "testes": [
+        "tests.test_pre_envio_brief.QaLeOCiSemEsperarAConferencia.test_o_pr_passa_o_previo_a_conferencia_com_e_sem_base"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "G3 parte 3: o pr com --base passa o previo à conferência",
+      "arquivo": "bin/forge-check",
+      "de": "(conferencia_do_head(raiz, pedido, ref, resolvida, branch, previo)",
+      "para": "(conferencia_do_head(raiz, pedido, ref, resolvida, branch)",
+      "testes": [
+        "tests.test_pre_envio_brief.QaLeOCiSemEsperarAConferencia.test_o_pr_passa_o_previo_a_conferencia_com_e_sem_base"
+      ]
+    }
+  ]
+}
