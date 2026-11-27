@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-f6-arvore-envio
-commit: dcd4003c3bbb728d86c2e16a9df0aefad46a2036
+commit: 023b0d68c5f67c64236363d17e5d17f2fdaea770
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -14,7 +14,7 @@ data: 2026-11-27
 ---
 # QA: v0481 (E32.30, #932, F6: o envio na develop pula a suíte com a árvore provada no PR)
 
-- ci: dcd4003c3bbb728d86c2e16a9df0aefad46a2036 verde
+- ci: 023b0d68c5f67c64236363d17e5d17f2fdaea770 verde
 
 Volta 1 (delta 1567d509..dcd4003c). `gh pr checks 932` no head: verdes `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, suíte 3.12 partes 1 a 5, teto de pulados e `árvore já provada na develop`; fora `bateria`, `bateria (pareceres)` e `catraca` (esperam parecer ou rótulo). Os jobs do push na develop saem `skipping`.
 
@@ -45,3 +45,11 @@ O pedido não traz `CA-n` para o corte do envio; a obrigação é a decisão do 
 - `python3 -I tests/test_arvore_testada.py`: 31 testes, OK.
 - `bin/forge-mutante --processos 4` nas specs -1, -4, -5, -6: AE-M1 a M8 e M14 a M35 todos `morreu`, rc=0 (a spec -5 inteira e o AE-M1 rodados aqui). Specs -2 e -3 (AE-M9 a M13): `morreu`, rc=0. Total 35 de 35, nenhum sobrevivente.
 - `forge-mutante --cobertura --base 11fc1867`: sem `sem mutante` em guarda Python; `docs/protecao-de-branch.md` conferido contra o código (head_sha e head_branch, base do PR, fork não prova).
+
+## Revalidação (volta 2, delta dcd4003c..023b0d68)
+`forge-check parecer delta` lista no domínio: `scripts/arvore-testada.py`, specs -5 e -7, `tests/test_arvore_testada.py`. `gh pr checks 932` no head: verdes `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, suíte 3.12 partes 1 a 5, teto de pulados, `árvore já provada na develop`; fora `bateria`, `bateria (pareceres)` e `catraca`.
+- Código: `bateria_do_run_do_pr` recebe `numero`; descarta o run cuja `pull_requests` não seja lista ou traga PR de outro número ou de base diferente de develop; lista vazia segue valendo (pós-merge). Leitura sem defeito.
+- Vermelho: `bin/forge-testes --vermelho dcd4003c --modulos test_arvore_testada` rc=0; `vermelho: base=dcd4003c3bbb head=023b0d68c5f6 módulos=test_arvore_testada (restrito por --modulos)`; `test_run_de_outro_pr_do_mesmo_ramo_e_head_nao_liga_ao_pr_da_develop · H=ok · B=falha · prova (asserção)`; nenhum teste cai no HEAD.
+- Módulo: `python3 -m unittest tests.test_arvore_testada`: 32 testes, OK.
+- Mutantes: `bin/forge-mutante` specs -5 e -7 `--base dcd4003c`: AE-M21 a M27 e AE-M36 a M38 todos `morreu` (10 de 10); AE-M23 realinhado à linha `ligados` morre; sem sobrevivente.
+- Fronteiras do teste novo: outra base, mesmo número com base homolog, o próprio mais outro e tipo errado (`"x"`) não ligam; o próprio com base develop prova.
