@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481-gerador-unico-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "--conferir liga o modo que não grava",
+      "arquivo": "scripts/gerar-derivados.py",
+      "de": "conferir, codigo = argv == [\"--conferir\"], 0",
+      "para": "conferir, codigo = argv == [\"--outro\"], 0",
+      "testes": [
+        "tests.test_gerar_derivados.GerarDerivados.test_conferir_nao_grava_e_sai_1_com_derivado_desatualizado"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "só o modo que grava pede o commit dos derivados",
+      "arquivo": "scripts/gerar-derivados.py",
+      "de": "(\"\" if conferir else",
+      "para": "(\"\" if False else",
+      "testes": [
+        "tests.test_gerar_derivados.GerarDerivados.test_conferir_nao_grava_e_sai_1_com_derivado_desatualizado"
+      ]
+    }
+  ]
+}

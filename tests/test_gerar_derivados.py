@@ -53,7 +53,7 @@ class GerarDerivados(unittest.TestCase):
         self.assertEqual(self.derivado(), "novo")
         self.assertIn("docs/indice-forge.md: mudou", r.stdout)
         self.assertIn("docs/hooks-fixtures.md: sem mudança", r.stdout)
-        self.assertIn("rc=0", r.stdout)
+        self.assertIn("rc=0; confira com `git diff` e commite os derivados", r.stdout)
 
     def test_conferir_nao_grava_e_sai_1_com_derivado_desatualizado(self):
         (self.raiz / "docs" / "hooks-fixtures.md").write_text("novo", encoding="utf-8")
@@ -62,6 +62,7 @@ class GerarDerivados(unittest.TestCase):
         self.assertEqual(self.derivado(), "velho")
         self.assertIn("docs/indice-forge.md: desatualizado", r.stdout)
         self.assertIn("docs/hooks-fixtures.md: em dia", r.stdout)
+        self.assertNotIn("commite", r.stdout)
 
     def test_conferir_sai_0_com_tudo_em_dia(self):
         self.assertEqual(self.rodar().returncode, 0)
