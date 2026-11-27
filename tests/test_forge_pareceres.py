@@ -698,8 +698,14 @@ class Vigentes(GhFalso):
     def test_pr_nao_numerico_sai_recusa(self):
         """C2A-RECOMENDADOS A2: o número do PR fora da forma é Recusa, nunca ValueError solto."""
         for pr in ("abc", None, "7a"):
-            with self.subTest(pr), self.assertRaisesRegex(fp().Recusa, "fora do contrato"):
-                self.vigentes(self.em(self.a, 1), pr=pr)
+            with self.subTest(pr):
+                try:
+                    self.vigentes(self.em(self.a, 1), pr=pr)
+                    erro = None
+                except Exception as e:  # na base, o ValueError solto cai na asserção abaixo, não em erro do teste
+                    erro = e
+                self.assertIsInstance(erro, fp().Recusa, f"{type(erro).__name__}: {erro}")
+                self.assertIn("fora do contrato", str(erro))
 
     def test_status_sem_created_at_fora_do_contrato(self):
         sha, status = self.em(self.a, 1)
