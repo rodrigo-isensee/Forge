@@ -1,0 +1,27 @@
+{
+  "pedido": "v0481-versao-com-20",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "VERSAO-COM-20: abaixo do teto o --corte nada corta (sem corte diário)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  [ \"${BASH_REMATCH[2]}\" -ge \"${BASH_REMATCH[3]}\" ] ||",
+      "para": "  true ||",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_abaixo_do_teto_nada_faz",
+        "tests.test_fechar_corte.Corte.test_abaixo_do_teto_nao_ha_corte_diario"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "VERSAO-COM-20: no teto (N de N) a marca sai",
+      "arquivo": "bin/forge-fechar",
+      "de": "  [ \"${BASH_REMATCH[2]}\" -ge \"${BASH_REMATCH[3]}\" ] ||",
+      "para": "  [ \"${BASH_REMATCH[2]}\" -gt \"${BASH_REMATCH[3]}\" ] ||",
+      "testes": [
+        "tests.test_fechar_corte.Corte.test_no_teto_grava_a_marca_e_abre_o_pr_em_rascunho"
+      ]
+    }
+  ]
+}

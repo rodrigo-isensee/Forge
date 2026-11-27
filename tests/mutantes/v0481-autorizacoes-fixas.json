@@ -70,7 +70,7 @@
       "de": "    if not ativas:",
       "para": "    if False:",
       "testes": [
-        "tests.test_autorizacao.AtosFixos.test_corte_diz_a_corte_diario_ativa_mais_nova_e_sem_ela_rc_1"
+        "tests.test_autorizacao.AtosFixos.test_ler_ato_fixo_diz_a_ativa_mais_nova_e_sem_ela_rc_1"
       ]
     },
     {
@@ -80,7 +80,7 @@
       "de": "if est == \"ativa\" and campos[\"Ato\"] == ato]",
       "para": "if campos[\"Ato\"] == ato]",
       "testes": [
-        "tests.test_autorizacao.AtosFixos.test_corte_diz_a_corte_diario_ativa_mais_nova_e_sem_ela_rc_1"
+        "tests.test_autorizacao.AtosFixos.test_ler_ato_fixo_diz_a_ativa_mais_nova_e_sem_ela_rc_1"
       ]
     }
   ]

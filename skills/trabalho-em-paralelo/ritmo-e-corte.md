@@ -5,7 +5,7 @@ Detalhe da skill `trabalho-em-paralelo` (diretriz 25: o Jarvis traz o resumo e m
 ## Ritmo diário (diretriz 32 do dono)
 - O time desenvolve o máximo em paralelo, dia e noite, e junta cada item na `develop` assim que fica verde, em lotes de até 3 PRs sem arquivo em comum (`docs/fechamento-integrador.md`, diretriz 26).
 - Nunca junta sem os testes verdes nem pela exceção do GitHub (bypass do ruleset).
-- A versão sai quando a `develop` tem um conjunto verde que valha uma versão, não uma vez só de manhã (diretriz 34, abaixo). O que entra depois da marca vai para a versão seguinte.
+- A versão fecha com 20 itens integrados na `develop`, sem corte diário (diretriz 34, abaixo). O que entra depois da marca vai para a versão seguinte.
 - À noite o Jarvis não escreve ao dono, salvo algo grave que mude prazo ou risco. A mensagem da manhã traz a tabela pedido × entregue, o que precisa do dono e o `resumo:` do placar.
 - Não é um PR só de desenvolvimento: cada item segue com revisão e testes próprios.
 
@@ -44,8 +44,8 @@ Em projeto privado, cada push e cada `gh run rerun` custa um run de CI (num proj
 - Instância extra de um papel, uma por item independente, trabalha numa cópia própria, um clone: `forge-copia clone --instalar`, em `~/.forge-contrib/wt/<item>` no Forge e `.forge/wt/<item>` no projeto (o sandbox não libera `.git/worktrees`).
 - Fim do item (PR mesclado, PR fechado sem merge ou `vazio: sim`), no Forge e nos projetos: o tech-lead apaga a cópia com `forge-copia limpar <cópia>`, que confere o fim e só apaga a cópia limpa, sem stash e com tudo na origem; a branch fica. No Forge, o `forge-fechar <pedido> --ref <branch> --limpar` já passa as cópias a ele (LIMPEZA-AO-FIM-DO-ITEM).
 
-## Versão quando ficar pronta (diretriz 34 do dono)
-- O tech-lead marca uma versão sempre que a `develop` tem um conjunto verde que valha uma versão: até 2 por dia, ou mais se couber (diretrizes 21 e 27).
+## Versão com 20 itens (diretriz 34 do dono)
+- A versão fecha com 20 itens integrados na `develop` (`forge-contador`: `<versão>: N de 20`): o tech-lead marca, promove à `homolog` e abre o PR `homolog` → `main` (`forge-fechar --corte`); sem versão por dia nem versão parcial (ordem do dono de 26/11).
 - O PR `homolog` → `main` continua mesclado pelo dono (`R-MAIN`); o Jarvis avisa o dono numa linha quando ele fica verde.
 - O time usa o teto de agentes cheio, com os cartões em lotes por arquivo (diretriz 33).
 - No Forge, antes do `bin/forge-changelog release <versão> <data>`, o tech-lead roda `scripts/placar-mutacao.py --desde <tag anterior> --versao <versão>` e o bench (BENCH-POR-RELEASE), medidas, não portão, e `forge-check decisoes --sem-cartao`, e leva tudo ao Jarvis; na mesma marca, regera `tests/pesos-d4.json` com `python3 -I scripts/pesos-do-ci.py --repo <dono/repo> --saida tests/pesos-d4.json` e o commita (PR-VERDE C1).

@@ -390,15 +390,16 @@ UNICO = {"Validade": "uso-unico", "Validade-utc": "uso-unico"}
 
 
 class AtosFixos(unittest.TestCase):
-    """Emenda AUTORIZACOES-FIXAS da ADR 0018 (F1 e F3): `corte-diario` e `so-aperta-com-seguranca` só com alvo `fixo` e validade
-    `fixa`, sem o teto da D1; os atos de antes não aceitam nenhum dos dois."""
+    """Emenda AUTORIZACOES-FIXAS da ADR 0018 (F1 e F3): `so-aperta-com-seguranca` só com alvo `fixo` e validade `fixa`, sem o teto
+    da D1; os atos de antes não o aceitam. A `corte-diario` saiu (VERSAO-COM-20): a gravada lê adulterada."""
+    ATO = "so-aperta-com-seguranca"
     setUp = Ler.setUp
     estados = Ler.estados
 
     def corte(self, agora="2026-11-18 07:00"):
         saida = io.StringIO()
         with contextlib.redirect_stdout(saida):
-            rc = fa.cmd_corte(self.raiz, {"gravador": GRAVADOR, "seguro": str}, em(agora))
+            rc = fa.cmd_corte(self.raiz, {"gravador": GRAVADOR, "seguro": str}, em(agora), self.ATO)
         return rc, saida.getvalue()
 
     def test_fixa_nao_vence_e_para_so_pela_retirada(self):
@@ -411,39 +412,40 @@ class AtosFixos(unittest.TestCase):
     def test_alvo_fixo_e_validade_fixa_so_nos_atos_fixos_e_eles_so_com_eles(self):
         casos = [({**FIXA, "Ato": "rotulo-afrouxa-regra"}, "validade fixa"), ({**FIXA, "Ato": "merge-main"}, "validade fixa"),
                  ({"Alvos": "fixo"}, "alvo fixo"), ({"Validade": "fixa", "Validade-utc": "fixa"}, "validade fixa"),
-                 ({**FIXA, "Ato": "corte-diario", **UNICO}, "validade fixa"),
-                 ({**FIXA, "Ato": "corte-diario", "Validade-utc": "2026-11-18 11:00"}, "validade fixa"),
-                 ({**FIXA, "Ato": "corte-diario", "Validade": "ate:2026-11-18 08:00"}, "validade fixa"),
+                 ({**FIXA, "Ato": "so-aperta-com-seguranca", **UNICO}, "validade fixa"),
+                 ({**FIXA, "Ato": "so-aperta-com-seguranca", "Validade-utc": "2026-11-18 11:00"}, "validade fixa"),
+                 ({**FIXA, "Ato": "so-aperta-com-seguranca", "Validade": "ate:2026-11-18 08:00"}, "validade fixa"),
+                 ({**FIXA, "Ato": "corte-diario"}, "Ato fora da lista"),  # VERSAO-COM-20: o ato saiu
                  ({**FIXA, "Ato": "so-aperta-com-seguranca", "Alvos": "pr:5"}, "alvo fixo")]
         for troca, motivo in casos:
             with self.subTest(troca=troca):
                 self.assertEqual(self.estados("2026-11-18 07:00", A_1=concessao(**troca)), ["adulterada"])
                 self.assertIn(motivo, fa.concessoes(self.raiz, GRAVADOR, em("2026-11-18 07:00"))[0][0][4])
 
-    def test_corte_diz_a_corte_diario_ativa_mais_nova_e_sem_ela_rc_1(self):
-        linha = "autorizacao: A-{} sha256 " + fa.sha(CORPO) + " · corte-diario · fixo\n"
-        nenhuma = (1, "autorizacao: nenhuma corte-diario ativa\n")
-        (self.pasta / "A-1").write_text(concessao(**FIXA, Ato="corte-diario"), encoding="utf-8")
-        (self.pasta / "A-2").write_text(concessao(**FIXA, Ato="corte-diario", Id="A-2"), encoding="utf-8")
+    def test_ler_ato_fixo_diz_a_ativa_mais_nova_e_sem_ela_rc_1(self):
+        linha = "autorizacao: A-{} sha256 " + fa.sha(CORPO) + " · so-aperta-com-seguranca · fixo\n"
+        nenhuma = (1, "autorizacao: nenhuma so-aperta-com-seguranca ativa\n")
+        (self.pasta / "A-1").write_text(concessao(**FIXA, Ato=self.ATO), encoding="utf-8")
+        (self.pasta / "A-2").write_text(concessao(**FIXA, Ato=self.ATO, Id="A-2"), encoding="utf-8")
         self.assertEqual(self.corte(), (0, linha.format(2)))
         (self.pasta / "R-1").write_text(evento("", {"Retira": "A-2"}), encoding="utf-8")
         self.assertEqual(self.corte(), (0, linha.format(1)))
         (self.pasta / "lixo").write_text("", encoding="utf-8")  # evento ilegível: nenhuma fica ativa
         self.assertEqual(self.corte(), nenhuma)
-        for eventos in ({"A_1": concessao(**FIXA, Ato="so-aperta-com-seguranca")},
-                        {"A_1": concessao(**FIXA, Ato="corte-diario", Sha256="0" * 64)},
-                        {"A_1": concessao(**FIXA, Ato="corte-diario", **{"Estado-inicial": "pendente-confirmacao"})}):
+        for eventos in ({"A_1": concessao(**FIXA, Ato="rotulo-pelo-time")},
+                        {"A_1": concessao(**FIXA, Ato=self.ATO, Sha256="0" * 64)},
+                        {"A_1": concessao(**FIXA, Ato=self.ATO, **{"Estado-inicial": "pendente-confirmacao"})}):
             with self.subTest(eventos=eventos):
                 self.estados("2026-11-18 07:00", **eventos)
                 self.assertEqual(self.corte(), nenhuma)
 
-    def test_forge_check_autorizacao_corte(self):  # ler --ato corte-diario, sem mudar o forge-check (R-CONFORMIDADE)
-        (self.pasta / "A-1").write_text(concessao(**FIXA, Ato="corte-diario"), encoding="utf-8")
+    def test_forge_check_autorizacao_corte(self):  # ler --ato <ato fixo>, sem mudar o forge-check (R-CONFORMIDADE)
+        (self.pasta / "A-1").write_text(concessao(**FIXA, Ato=self.ATO), encoding="utf-8")
         env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "PYTHON"))}
         env["GIT_CEILING_DIRECTORIES"] = str(self.raiz.parent)
-        r = subprocess.run([sys.executable, "-I", str(BIN / "forge-check"), "--raiz", str(self.raiz), "autorizacao", "ler", "--ato", "corte-diario"],
+        r = subprocess.run([sys.executable, "-I", str(BIN / "forge-check"), "--raiz", str(self.raiz), "autorizacao", "ler", "--ato", self.ATO],
                            capture_output=True, text=True, env=env, timeout=60)
-        self.assertEqual((r.returncode, r.stdout), (0, f"autorizacao: A-1 sha256 {fa.sha(CORPO)} · corte-diario · fixo\n"), r.stderr)
+        self.assertEqual((r.returncode, r.stdout), (0, f"autorizacao: A-1 sha256 {fa.sha(CORPO)} · {self.ATO} · fixo\n"), r.stderr)
 
 
 def no_repositorio(raiz, origem):
@@ -481,7 +483,7 @@ class RotuloPeloTime(unittest.TestCase):
         no_repositorio(self.raiz, FORGE)
         (self.raiz / ".forge" / "versao").write_text("0.47.18\n", encoding="utf-8")  # projeto com o origin do Forge
         self.assertEqual(self.motivo(), ("inativa", "só vale no repositório do Forge: a raiz é projeto ou o plugin não diz o repositório"))
-        self.assertEqual(self.estados("2036-11-18 07:00", A_1=concessao(**FIXA, Ato="corte-diario")), ["ativa"])  # os outros fixos não mudam
+        self.assertEqual(self.estados("2036-11-18 07:00", A_1=concessao(**FIXA, Ato="so-aperta-com-seguranca")), ["ativa"])  # os outros fixos não mudam
 
     def test_plugin_sem_repositorio_nao_faz_o_forge(self):
         self.estados("2036-11-18 07:00", A_1=concessao(**self.TIME))

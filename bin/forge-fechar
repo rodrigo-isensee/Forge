@@ -90,8 +90,7 @@
 # CORTE-MARCA-PRONTA (v0481 E13.15): a seção sai com o dia local; o corpo do PR da marca traz a linha de teto que o 1c cobra e os pareceres
 # release-<versão>, e a tela, a classe; com o ramo já no origin, o fragmento novo da develop entra na seção (--anexar) antes do merge da
 # marca; o V3 imprime o pedido do rótulo afrouxa-regra ao dono quando a promoção o levou.
-# AUTORIZACOES-FIXAS (v0481 E14.52, emenda da ADR 0018): abaixo do teto, o V4 corta uma vez por dia a partir das 06:00 locais, com ao
-# menos 1 item, só com uma corte-diario ativa (forge-check autorizacao ler --ato corte-diario), gravada no corpo do PR da marca (corte_diario).
+# VERSAO-COM-20 (v0481 E36.1, ordem do dono de 26/11): a versão fecha só com o contador no teto (20 itens); abaixo dele, nada corta.
 # Aceita só --base, --espera, --espera-ci e --dry-run (lê e imprime o que faria). O --laco que termina com 0 roda o --corte no fim.
 # FORGE_FECHAR_PAUSA (segundos, padrão 3) é a espera entre as tentativas de leitura repetida.
 # Faixas (recusadas antes do passo 1, com a faixa na mensagem): FORGE_FECHAR_PAUSA 1 a 30; FORGE_FECHAR_INTERVALO 5 a 120 (o piso cai
@@ -1538,8 +1537,8 @@ print(fc.classe_da_entrega(raiz, "HEAD", "develop")[0])
 print(f"teto: excedido, {total} linhas, marca de versão" if tamanho.aviso_de_linhas(total) else "")
 PY
 }
-# corpo_da_marca <versão> <linha do contador> <arquivo da medida> [autorização]: o corpo do PR da marca, já com a linha de teto e os pareceres
-# release-<versão> que a promoção exige (o 1c roda forge-check pr release-<versão> --base main) e, no corte diário, a autorização usada.
+# corpo_da_marca <versão> <linha do contador> <arquivo da medida>: o corpo do PR da marca, já com a linha de teto e os pareceres
+# release-<versão> que a promoção exige (o 1c roda forge-check pr release-<versão> --base main).
 corpo_da_marca() {
   local classe="" teto=""
   { read -r classe; read -r teto; } < "$3"
@@ -1550,9 +1549,6 @@ Forge (corte da versão $1 pelo contador, forge-fechar --corte, D4 do estudo det
 forge-changelog release $1: os fragmentos de changelog.d/ juntados no CHANGELOG.md e a versão nos plugin.json ($2). Classe do PR: $classe.
 ${teto:+
 $teto
-}${4:+
-## Autorização usada (corte diário abaixo do teto, emenda AUTORIZACOES-FIXAS da ADR 0018)
-$4
 }
 ## Pareceres que a promoção exige (pedido release-$1, contra a main)
 - docs/reviews/release-$1.md (review)
@@ -1563,7 +1559,7 @@ $4
 Tempo do 20º item na develop até o PR da main aberto."
 }
 fragmentos_em() { git ls-tree --name-only "$1" changelog.d/ | grep -v -i '/readme\.md$' | grep '\.md$' | LC_ALL=C sort; }
-# anexar_na_marca <versão> <ramo> <linha do contador> [autorização] (CORTE-ANEXAR, v0481 E13.15): o fragmento que a develop recebeu depois do corte
+# anexar_na_marca <versão> <ramo> <linha do contador> (CORTE-ANEXAR, v0481 E13.15): o fragmento que a develop recebeu depois do corte
 # (ausente da base comum dela com o ramo da marca) entra na seção da versão antes do merge da marca: merge da origin/develop no ramo,
 # forge-changelog release --anexar, envio (só avanço) e o corpo do PR com o teto medido de novo; o head novo pede revalidar os pareceres.
 anexar_na_marca() {
@@ -1583,7 +1579,7 @@ anexar_na_marca() {
     die "parou no passo V5: o fragmento novo não entrou na marca da $v; a cópia fica em $tmp/marca para conferir"
   fi
   git worktree remove "$tmp/marca" || echo "aviso: não removi a cópia $tmp/marca do anexar; rode: git worktree remove $tmp/marca" >&2
-  "$gh" pr edit "$ramo" --body "$(corpo_da_marca "$v" "$3" "$tmp/nova-medida" "${4:-}")" >/dev/null \
+  "$gh" pr edit "$ramo" --body "$(corpo_da_marca "$v" "$3" "$tmp/nova-medida")" >/dev/null \
     || die "parou no passo V5: o fragmento entrou em $ramo, mas o corpo do PR não foi refeito (o mesmo comando não o refaz); ajuste o corpo à mão com a medida em $tmp/nova-medida"
   echo "corte: fragmento novo anexado à marca da $v em $ramo; os pareceres revalidam o head novo (forge-check parecer delta)."
 }
@@ -1597,29 +1593,9 @@ rotulo_da_promocao() {
   grep -qxF afrouxa-regra <<<"$nomes" || return 0
   echo "rótulo: a promoção da $1 levou afrouxa-regra; o PR da main vai pedir o mesmo rótulo ao dono, que o aplica no PR: gh pr view $2 --web"
 }
-# corte_diario <itens> (AUTORIZACOES-FIXAS, F3 da emenda da ADR 0018): abaixo do teto, imprime a corte-diario ativa (Id, sha256, ato,
-# alvo) só com item na develop, 06:00 locais ou mais e a última versão do CHANGELOG.md da develop de outro dia (um corte por dia); senão,
-# o motivo no stderr e código 1. Saída do forge-check fora da forma positiva não autoriza.
-corte_diario() {
-  local relogio hoje hora ultima saida
-  relogio="$(date ${agora_teste:+-d "@$agora_teste"} '+%F %H%M')" || { echo "corte: relógio ilegível." >&2; return 1; }
-  hoje="${relogio% *}" hora="${relogio#* }"
-  [ "$1" -ge 1 ] || { echo "corte: nenhum item na develop para o corte diário." >&2; return 1; }
-  [ "$((10#$hora))" -ge 600 ] || { echo "corte: o corte diário só sai a partir das 06:00 locais (agora $hora)." >&2; return 1; }
-  if ! ultima="$(git show refs/remotes/origin/develop:CHANGELOG.md)" \
-    || ! ultima="$(sed -n '/^## \[[0-9]/{s/^## \[[^]]*\] - \([0-9-]*\).*/\1/p;q;}' <<<"$ultima")"; then
-    ultima=erro
-  fi
-  if [ "$ultima" = "$hoje" ] || [ "$ultima" = erro ]; then
-    echo "corte: a develop já tem versão de hoje ($hoje) ou o CHANGELOG.md não foi lido; um corte diário por dia." >&2; return 1
-  fi
-  saida="$("$check" autorizacao ler --ato corte-diario)" || { echo "corte: ${saida:-a leitura da autorização falhou}" >&2; return 1; }
-  [[ "$saida" =~ ^autorizacao:\ (A-[0-9]+\ sha256\ [0-9a-f]{64}\ ·\ corte-diario\ ·\ fixo)$ ]] || { echo "corte: autorização corte-diario fora da forma." >&2; return 1; }
-  printf '%s\n' "${BASH_REMATCH[1]}"
-}
 # corte_da_versao (CORTE-PELO-CONTADOR, D4 do estudo determinístico): ver o cabeçalho. Volta com 0; o que para sai pelo die ou pelo código do --promover.
 corte_da_versao() {
-  local v_dev v_hom v_main pr_main marca linha v rc=0 tmp url ramo r aut=""
+  local v_dev v_hom v_main pr_main marca linha v rc=0 tmp url ramo r
   passo V1 "versões da develop, da homolog e da main no servidor e o PR homolog -> main aberto"
   git fetch -q --no-tags origin "+refs/heads/develop:refs/remotes/origin/develop" "+refs/heads/homolog:refs/remotes/origin/homolog" \
     "+refs/heads/main:refs/remotes/origin/main" || die "parou no passo V1: não busquei develop, homolog e main do origin (nada foi feito)"
@@ -1657,16 +1633,13 @@ corte_da_versao() {
   echo "contador: $linha"
   [[ "$linha" =~ ^([0-9]+\.[0-9]+\.[0-9]+):\ ([0-9]+)\ de\ ([0-9]+)$ ]] || { echo "corte: sem contagem legível; nada a cortar."; return 0; }
   v="${BASH_REMATCH[1]}"
-  if [ "${BASH_REMATCH[2]}" -lt "${BASH_REMATCH[3]}" ]; then
-    aut="$(corte_diario "${BASH_REMATCH[2]}")" || { echo "corte: a $v ainda não fecha."; return 0; }
-    echo "corte diário abaixo do teto, pela autorização $aut"
-  fi
+  [ "${BASH_REMATCH[2]}" -ge "${BASH_REMATCH[3]}" ] || { echo "corte: a $v ainda não fecha."; return 0; }  # VERSAO-COM-20: sem corte diário
   ramo="melhoria/marca-$v"
   passo V5 "PR da marca da $v em rascunho ($ramo, forge-changelog release)"
   r="$(remoto_exato "$ramo" || echo erro)"
   if [ -n "$r" ]; then
     echo "corte: $ramo já existe no origin (ou a leitura falhou); o PR da marca segue o fluxo de sempre (pareceres e o --laco)."
-    if [ "$r" != erro ]; then anexar_na_marca "$v" "$ramo" "$linha" "$aut"; fi
+    if [ "$r" != erro ]; then anexar_na_marca "$v" "$ramo" "$linha"; fi
     return 0
   fi
   if [ "$seco" = 1 ]; then echo "  rodaria: forge-changelog release $v <hoje> sobre a origin/develop, commit, git push origin HEAD:refs/heads/$ramo e $gh pr create --draft"; return 0; fi
@@ -1680,7 +1653,7 @@ corte_da_versao() {
   fi
   git worktree remove "$tmp/marca" || echo "aviso: não removi a cópia $tmp/marca; rode: git worktree remove $tmp/marca" >&2
   echo "classe do PR da marca: $(head -n 1 "$tmp/medida"); a promoção exige os pareceres release-$v (review, QA e segurança)."
-  url="$("$gh" pr create --draft --base develop --head "$ramo" --title "chore(release): marca da $v na develop" --body "$(corpo_da_marca "$v" "$linha" "$tmp/medida" "$aut")")" \
+  url="$("$gh" pr create --draft --base develop --head "$ramo" --title "chore(release): marca da $v na develop" --body "$(corpo_da_marca "$v" "$linha" "$tmp/medida")")" \
     || die "parou no passo V5: $ramo foi enviado, mas o PR não foi aberto; abra-o com $gh pr create --draft --base develop --head $ramo"
   echo "PR da marca em rascunho: $url; segue o fluxo de sempre (pareceres da classe e o --laco)."
 }
