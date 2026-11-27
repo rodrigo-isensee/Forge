@@ -432,11 +432,12 @@ class AtosFixos(unittest.TestCase):
         self.assertEqual(self.corte(), (0, linha.format(1)))
         (self.pasta / "lixo").write_text("", encoding="utf-8")  # evento ilegível: nenhuma fica ativa
         self.assertEqual(self.corte(), nenhuma)
-        for eventos in ({"A_1": concessao(**FIXA, Ato="rotulo-pelo-time")},
-                        {"A_1": concessao(**FIXA, Ato=self.ATO, Sha256="0" * 64)},
-                        {"A_1": concessao(**FIXA, Ato=self.ATO, **{"Estado-inicial": "pendente-confirmacao"})}):
+        no_repositorio(self.raiz, FORGE)  # o outro ato sem prazo (rotulo-pelo-time) ativo, para o filtro pelo ato pedido valer
+        for eventos, lido in (({"A_1": concessao(**FIXA, Ato="rotulo-pelo-time")}, ["ativa"]),
+                              ({"A_1": concessao(**FIXA, Ato=self.ATO, Sha256="0" * 64)}, ["adulterada"]),
+                              ({"A_1": concessao(**FIXA, Ato=self.ATO, **{"Estado-inicial": "pendente-confirmacao"})}, ["pendente"])):
             with self.subTest(eventos=eventos):
-                self.estados("2026-11-18 07:00", **eventos)
+                self.assertEqual(self.estados("2026-11-18 07:00", **eventos), lido)
                 self.assertEqual(self.corte(), nenhuma)
 
     def test_forge_check_autorizacao_corte(self):  # ler --ato <ato fixo>, sem mudar o forge-check (R-CONFORMIDADE)
