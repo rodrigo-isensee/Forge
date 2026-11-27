@@ -51,6 +51,36 @@
       "testes": [
         "tests.test_forge_pareceres.ListaFechada.test_git_herdado_nao_desvia_a_leitura"
       ]
+    },
+    {
+      "id": "C2B-M22",
+      "guarda": "o hook `parecer` e a catraca não leem o status (CORPUS-CUSTO-CONTADOR)",
+      "arquivo": "bin/forge-check",
+      "de": "    publicados = pareceres_publicados(raiz, pedido, branch, ref) if de_trabalho and pelo_status else None",
+      "para": "    publicados = pareceres_publicados(raiz, pedido, branch, ref) if de_trabalho else None",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_hook_e_catraca_seguem_o_arquivo"
+      ]
+    },
+    {
+      "id": "C2B-M23",
+      "guarda": "o `forge-check pr` sem --base lê o status",
+      "arquivo": "bin/forge-check",
+      "de": "        return cmd_pr(raiz, pedido, ref, None, branch, previo, suite, True) + (",
+      "para": "        return cmd_pr(raiz, pedido, ref, None, branch, previo, suite) + (",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_forge_check_pr_le_o_status"
+      ]
+    },
+    {
+      "id": "C2B-M24",
+      "guarda": "o `forge-check pr` com --base lê o status",
+      "arquivo": "bin/forge-check",
+      "de": "    return cmd_pr(raiz, pedido, ref, resolvida, branch, previo, suite, True) + (",
+      "para": "    return cmd_pr(raiz, pedido, ref, resolvida, branch, previo, suite) + (",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_forge_check_pr_le_o_status"
+      ]
     }
   ],
   "isentas": [

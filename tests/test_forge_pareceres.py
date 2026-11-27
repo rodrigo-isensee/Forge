@@ -914,8 +914,9 @@ class PrPeloStatus(GhFalso):
             subprocess.run(["git", *args], cwd=self.repo, env=self.env, check=True)
         self.d = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, env=self.env, capture_output=True, text=True).stdout.strip()
 
-    def pr(self, head, lista, *publicados, previo=False, branch=BRANCH, topo=None):
-        """As linhas do review do `cmd_pr` no `head` do PR #7 (commits a e head), com `lista_fechada` devolvendo `lista`."""
+    def pr(self, head, lista, *publicados, previo=False, branch=BRANCH, topo=None, chamar=None):
+        """As linhas do review do `cmd_pr` (do `forge-check pr`, `pelo_status`) no `head` do PR #7 (commits a e head), com
+        `lista_fechada` devolvendo `lista`; `chamar` troca a chamada."""
         por_commit = {}
         for sha, s in sorted(publicados, key=lambda x: -x[1]["id"]):
             por_commit.setdefault(sha, [[]])[0].append(s)
@@ -924,7 +925,7 @@ class PrPeloStatus(GhFalso):
                              "commits": [{"oid": self.a}, {"oid": topo or head}]})
         with mock.patch.object(fc().modulo_do_bin("forge_pareceres"), "lista_fechada", return_value=lista):
             with contextlib.redirect_stderr(io.StringIO()):  # o aviso do `--previo`
-                saida = fc().cmd_pr(self.repo, PEDIDO, head, None, branch, previo=previo)
+                saida = (chamar or (lambda: fc().cmd_pr(self.repo, PEDIDO, head, None, branch, previo=previo, pelo_status=True)))()
         return [x for x in saida if x.startswith("docs/reviews")]
 
     def test_sem_a_lista_nada_muda(self):
@@ -973,6 +974,21 @@ class PrPeloStatus(GhFalso):
         """Na promoção (branch de integração) o status não entra: o caminho de arquivo de hoje."""
         self.assertEqual(self.pr(self.b, frozenset({7}), self.em(self.a, 1), branch="develop"),
                          [f"docs/reviews: review: sem parecer para o pedido `{PEDIDO}` (R-REVIEW)"])
+
+    def test_hook_e_catraca_seguem_o_arquivo(self):
+        """O `cmd_pr` sem `pelo_status` (o hook `parecer` e a catraca) não lê a lista nem o `gh` (CORPUS-CUSTO-CONTADOR)."""
+        mod = fc().modulo_do_bin("forge_pareceres")
+        with mock.patch.object(mod, "lista_fechada", side_effect=AssertionError("lida")):
+            linhas = self.pr(self.b, frozenset({7}), self.em(self.a, 1),
+                             chamar=lambda: fc().cmd_pr(self.repo, PEDIDO, self.b, None, BRANCH))
+        self.assertEqual(linhas, [f"docs/reviews: review: sem parecer para o pedido `{PEDIDO}` (R-REVIEW)"])
+
+    def test_forge_check_pr_le_o_status(self):
+        """O `pr_da_cli` (o `forge-check pr` e o `forge-fechar`) liga o status, sem e com `--base`."""
+        for base in (None, "develop"):
+            with self.subTest(base=base):
+                self.assertEqual(self.pr(self.b, frozenset({7}), self.em(self.a, 1), chamar=lambda: fc().pr_da_cli(
+                    self.repo, PEDIDO, self.b, base, BRANCH, conferir=False)), [])
 
     def test_leitura_recusada_reprova(self):
         self.estado(falha=True)

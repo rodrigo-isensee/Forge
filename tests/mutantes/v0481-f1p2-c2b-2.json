@@ -6,8 +6,8 @@
       "id": "C2B-M9",
       "guarda": "status só numa branch de trabalho; sem lista, o caminho de arquivo",
       "arquivo": "bin/forge-check",
-      "de": "    publicados = pareceres_publicados(raiz, pedido, branch, ref) if de_trabalho else None",
-      "para": "    publicados = pareceres_publicados(raiz, pedido, branch, ref) if True else None",
+      "de": "    publicados = pareceres_publicados(raiz, pedido, branch, ref) if de_trabalho and pelo_status else None",
+      "para": "    publicados = pareceres_publicados(raiz, pedido, branch, ref) if pelo_status else None",
       "testes": [
         "tests.test_forge_pareceres.PrPeloStatus.test_branch_de_integracao_segue_o_arquivo"
       ]

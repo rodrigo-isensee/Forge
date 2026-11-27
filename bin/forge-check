@@ -1700,7 +1700,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
                   file=sys.stderr)
         avisar_classe(raiz, ref, None)
         branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
-        return cmd_pr(raiz, pedido, ref, None, branch, previo, suite) + (conferencia_do_head(raiz, pedido, ref, None, branch, previo)
+        return cmd_pr(raiz, pedido, ref, None, branch, previo, suite, True) + (conferencia_do_head(raiz, pedido, ref, None, branch, previo)
                                                                   + tamanho_do_pr(raiz, ref, None, branch, previo)
                                                                   + checks_do_head(raiz, ref, branch, previo_dos_checks) if conferir else [])
     nome = base.removeprefix("origin/")
@@ -1718,7 +1718,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
         avisar_rebase_merge(raiz)
         return cmd_pr(raiz, pedido, ref, resolvida, branch, previo)  # na leva da promoção valem os pareceres de todos os itens
     branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
-    return cmd_pr(raiz, pedido, ref, resolvida, branch, previo, suite) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch, previo)
+    return cmd_pr(raiz, pedido, ref, resolvida, branch, previo, suite, True) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch, previo)
                                                                    + tamanho_do_pr(raiz, ref, nome, branch, previo)
                                                                    + checks_do_head(raiz, ref, branch, previo_dos_checks) if conferir else [])
 
@@ -2095,13 +2095,15 @@ def commit_junto_do_parecer(raiz, rel, ate, livres):
     return (sha, fora[0]) if fora else None
 
 
-def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False, suite=None):
+def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False, suite=None, pelo_status=False):
     """`branch`: a branch do parecer quando a ref é um sha (o `headRefName` do PR mesclado, `--pr`, E10); sem ela, `branch_da_ref`.
     Numa branch de trabalho (fora de BASES_DO_FLUXO), só contam os pareceres com `branch:` igual a ela: o de outro item do mesmo pedido,
     trazido pelo merge da base, não vale nem reprova; sem nenhum da branch, reprova (falha fechada). Sem branch (o sha da catraca do CI)
     ou numa branch de integração (a promoção), vale o mais recente do pedido, como antes. `previo` (FC-6, PP-5/C-2): só as duas linhas
     de parecer ausente saem como `aviso:` no stderr; desatualizado, reprovado, autoria, aceite, forma e blob seguem violação.
-    `suite` (só do `pr_da_cli`; a catraca é o próprio CI): None, ou o `adiar` do `suite_do_parecer` (PARECER-SO-COM-CI-VERDE)."""
+    `suite` (só do `pr_da_cli`; a catraca é o próprio CI): None, ou o `adiar` do `suite_do_parecer` (PARECER-SO-COM-CI-VERDE).
+    `pelo_status` (só do `pr_da_cli`, C2b): o parecer publicado como status (`pareceres_publicados`); o hook `parecer` decide pelo
+    resultado gravado do `pr` e a catraca segue o arquivo até o C5a, sem o `git ls-remote` a mais (CORPUS-CUSTO-CONTADOR)."""
     saida, ci = [], {}
 
     def ausente(linha):
@@ -2114,7 +2116,7 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False, suite=N
     registros = autorias(raiz)
     exigidos, gatilhos_de_seguranca = exigidos_do_pr(raiz, pedido, ref, base)
     conferidos, ilegiveis = pareceres_conferidos(raiz, pedido, branch, ref or "HEAD") if de_trabalho else ({}, [])
-    publicados = pareceres_publicados(raiz, pedido, branch, ref) if de_trabalho else None  # C2b: None, dormente
+    publicados = pareceres_publicados(raiz, pedido, branch, ref) if de_trabalho and pelo_status else None  # C2b: None, dormente
     saida += [f"docs/pedidos: parecer conferido {p[:7]}: o git não lê o commit nem o pai dele; rode git fetch (VOLTAS-REVISOR-WT)"
               for p in ilegiveis]
     for tipo in exigidos:
