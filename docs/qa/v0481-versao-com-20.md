@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-versao-com-20
-commit: b19c7f53a1a564059901a406a0e7ddf74ae63b24
+commit: 2e6da2d5b9a7cf5d9a7a35bb7319b4b23a28b894
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -12,33 +12,19 @@ bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-27
 ---
-# QA: v0481 versão com 20 itens (#928, E36.8; volta 1 por delta, 6e77f72a..b19c7f53)
+# QA: v0481 versão com 20 itens (#928, E36.12; volta 2 por delta, b19c7f53..2e6da2d5)
 
-Delta lido por `forge-check parecer delta`: tech-lead.md, nao-trava.md, templates/projeto/CLAUDE.md, tests/config.json, ADR 0018, `cmd_corte` renomeada `cmd_ler_ato`, specs de mutantes e três testes. Nenhum `cmd_corte` resta em bin/ ou tests/.
+Delta lido por `forge-check parecer delta`: uma linha em `tests/config.json:849`. A chave de `invariantes_motivo_trecho` de `templates/projeto/CLAUDE.md` passa ao texto do invariante novo (linha 656, "a versão fecha quando a branch de integração soma 20 itens integrados, sem versão por dia") com o porquê novo (A2 da segurança). `grep`: a chave é idêntica ao invariante e ao texto de `templates/projeto/CLAUDE.md`; "até 2 por dia" não resta em `tests/config.json`.
 
-- ci: b19c7f53a1a564059901a406a0e7ddf74ae63b24 verde
+- ci: 2e6da2d5b9a7cf5d9a7a35bb7319b4b23a28b894 verde (`gh pr checks 928`, head conferido por `gh pr view`: suíte 3.12 e 3.14 partes 1 a 5, passos, verificações longas, instalação e teto de pulados verdes; só `bateria`, `bateria (pareceres)` e `catraca` esperam os pareceres)
 
-## Achados
-- A3 (recomendado) tests/config.json:849 · a chave de `invariantes_motivo_trecho` de templates/projeto/CLAUDE.md ainda traz o texto antigo ("até 2 por dia"); o invariante novo ("soma 20 itens") ficou sem motivo próprio. Atualizar a chave no próximo toque; vira cartão.
-
-## Revalidação dos achados da 1ª rodada
-- A1: resolvido. O teste usa "pode mesclar a main 0.47.3, o time decide" e afirma o conjunto fora do vocabulário nos dois vocabulários; M6 morre.
-- A2: resolvido. Os três textos dizem "20 itens, sem versão por dia" e o invariante do modelo de projeto foi trocado; a busca por "2 por dia" não acha mais nada nos textos do time.
+## Revalidação do achado anterior
+- A3 (recomendado, volta 1): resolvido. O invariante novo tem motivo próprio; a chave velha saiu.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| Abaixo do teto o --corte nada corta, nem às 06:00 | `test_fechar_corte.Corte.test_abaixo_do_teto_nao_ha_corte_diario`; mutante M1 (v0481-versao-com-20.json) | 1 item, 06:00, sem leitura de autorização | passou (vermelho na base; M1 morreu) |
-| Ato `corte-diario` não grava nem lê | `test_autorizacao_gravar.AtosFixos.test_corte_diario_saiu_e_nao_grava`; `test_autorizacao.AtosFixos.test_alvo_fixo_e_validade_fixa_so_nos_atos_fixos_e_eles_so_com_eles` | ato e palavras `corte diario` fora do vocabulário | passou (vermelho na base) |
-| No teto a marca continua saindo, sem linha de autorização no corpo | `test_fechar_corte.Corte.test_no_teto_grava_a_marca_e_abre_o_pr_em_rascunho` e demais da classe | contador 20 de 20 | passou |
-| Textos do time e invariantes dizem "20 itens" | `tests/config.json` (invariantes novos); jarvis.md, fluxo-do-pedido, ritmo-e-corte | texto removido ou antigo | passou em todos, tech-lead.md, nao-trava.md e modelo de projeto inclusos |
-| Specs antigas seguem válidas após a edição | `forge-mutante` das três specs editadas | mutante de teste adaptado | passou na volta: M6 morreu |
+| Invariante do modelo de projeto tem motivo com a chave do texto atual | `tests.test_forge -k invarian -k motivo` (4 testes, sob flock da trava) | chave sem trecho correspondente | passou |
+| Demais critérios das voltas anteriores | sem mudança no delta | n/a | mantidos |
 
-## Cenários e resultado real
-Mutantes do delta, sob flock da trava:
-```
-base=6e77f72a3a6a38e3dbdcc12b43e0525f5cb26113 rev=b19c7f53a1a564059901a406a0e7ddf74ae63b24
-forge-mutante: pedido=v0481-autorizacoes-fixas rev=b19c7f53a1a5
-M1 a M9 · morreu (M6 · bin/forge_autorizacao.py:378; M7 · erro do teste sob o mutante, morreu)
-```
-Vermelho antes do verde: o teste alterado só troca a frase de M6, que sobrevivia no head anterior; a prova é o M6 morto agora. Não rerrodei a suíte: CI do head lido (G3).
+Não rerrodei a suíte: CI do head lido (G3). Linha só de metadado de teste: sem mutante aplicável.
