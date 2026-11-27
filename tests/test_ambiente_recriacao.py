@@ -177,7 +177,10 @@ class ConfiguracaoDoContainer(unittest.TestCase):
                 cmd = cfg["postStartCommand"]
                 self.assertIn("clone -q --depth 1 --branch main", cmd)
                 self.assertIn(chamada, cmd)
-                self.assertTrue(cmd.rstrip().endswith("true"), "falha do preparo nunca impede o container de subir")
+                if caminho.startswith("templates"):
+                    self.assertTrue(cmd.rstrip().endswith("true"), "falha do preparo nunca impede o container de subir")
+                else:
+                    self.assertNotRegex(cmd, r";\s*true\s*$", "DEVCONTAINER-SEM-GH: a falha aparece, não é engolida")
                 self.assertEqual(cfg["shutdownAction"], "none")
                 self.assertIn("target=/root/.claude", " ".join(cfg["mounts"]))
                 for chave in ("remoteEnv", "containerEnv", "onCreateCommand", "postCreateCommand"):
