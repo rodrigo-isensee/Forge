@@ -4,82 +4,82 @@
   "mutantes": [
     {
       "id": "M17",
-      "guarda": "número do PR fora da forma é ignorado",
-      "arquivo": "hooks/vigia.py",
-      "de": "if isinstance(pr, dict) and isinstance(pr.get(\"number\"), int) and",
-      "para": "if isinstance(pr, dict) and",
+      "guarda": "lista nova não chama o gh",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if caminho is None or time.time() - os.stat(caminho).st_mtime <= modulo.PRAZO_DA_LISTA_S:",
+      "para": "if caminho is None:",
       "testes": [
-        "tests.test_hook_vigia_f4.PrsParados.test_item_fora_da_forma_e_ignorado"
+        "tests.test_hook_vigia_f4.GravacaoDaLista.test_proximo_renova_so_a_lista_vencida_ou_ausente"
       ]
     },
     {
       "id": "M18",
-      "guarda": "PR que espera o dono ou o CI não entra na lista",
-      "arquivo": "hooks/vigia.py",
-      "de": "parados += [f\"#{pr['number']} {papel}\"] if papel else []",
-      "para": "parados += [f\"#{pr['number']} {papel}\"] if True else []",
+      "guarda": "sem caminho não chama o gh",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if caminho is None or time.time() - os.stat(caminho).st_mtime <= modulo.PRAZO_DA_LISTA_S:",
+      "para": "if time.time() - os.stat(caminho).st_mtime <= modulo.PRAZO_DA_LISTA_S:",
       "testes": [
-        "tests.test_hook_vigia_f4.PrsParados.test_pr_sem_agente_aparece_com_o_papel"
+        "tests.test_hook_vigia_f4.GravacaoDaLista.test_proximo_com_gh_falho_nao_grava"
       ]
     },
     {
       "id": "M19",
-      "guarda": "sem gh na máquina não conta",
-      "arquivo": "hooks/vigia.py",
-      "de": "except FileNotFoundError:\n        return []  # sem gh",
-      "para": "except ZeroDivisionError:\n        return []  # sem gh",
+      "guarda": "resposta do gh fora de lista não grava",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if isinstance(prs, list) and all(isinstance(p, dict) and isinstance(p.get(\"number\"), int) for p in prs):\n        gravar_prs_abertos(caminho",
+      "para": "if True:\n        gravar_prs_abertos(caminho",
       "testes": [
-        "tests.test_hook_vigia_f4.PrsParados.test_sem_gh_na_maquina_nao_conta"
+        "tests.test_hook_vigia_f4.GravacaoDaLista.test_proximo_com_gh_falho_nao_grava"
       ]
     },
     {
       "id": "M20",
-      "guarda": "sem transcript da sessão não conta preso",
-      "arquivo": "hooks/vigia.py",
-      "de": "if real is None:\n        return []\n    presos",
-      "para": "if False:\n        return []\n    presos",
+      "guarda": "item do gh fora da forma não grava",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if isinstance(prs, list) and all(isinstance(p, dict) and isinstance(p.get(\"number\"), int) for p in prs):\n        gravar_prs_abertos(caminho",
+      "para": "if isinstance(prs, list):\n        gravar_prs_abertos(caminho",
       "testes": [
-        "tests.test_hook_vigia_f4.InstanciasPresas.test_sem_transcript_da_sessao_nao_conta"
+        "tests.test_hook_vigia_f4.GravacaoDaLista.test_proximo_com_gh_falho_nao_grava"
       ]
     },
     {
       "id": "M21",
-      "guarda": "id fora do formato não conta preso",
-      "arquivo": "hooks/vigia.py",
-      "de": "if not (isinstance(aid, str) and agentes.ID_DE_AGENTE.fullmatch(aid)):",
-      "para": "if not isinstance(aid, str):",
+      "guarda": "proximo renova a lista do vigia",
+      "arquivo": "bin/forge-check",
+      "de": "if a.cmd == \"proximo\":  # F4",
+      "para": "if False:  # F4",
       "testes": [
-        "tests.test_hook_vigia_f4.InstanciasPresas.test_reserva_sem_id_e_id_fora_do_formato_nao_contam"
+        "tests.test_hook_vigia_f4.ProximoPeloForgeCheck.test_proximo_grava_a_lista_vencida_pelo_gh"
       ]
     },
     {
       "id": "M22",
-      "guarda": "transcript do agente ausente não conta",
+      "guarda": "sem registro de agentes, sem lista",
       "arquivo": "hooks/vigia.py",
-      "de": "except OSError:\n            continue",
-      "para": "except ZeroDivisionError:\n            continue",
+      "de": "return None if estado is None else estado.parent / NOME_DA_LISTA",
+      "para": "return estado.parent / NOME_DA_LISTA",
       "testes": [
-        "tests.test_hook_vigia_f4.InstanciasPresas.test_sem_transcript_do_agente_nao_conta"
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_lista_ao_lado_do_registro_e_sem_registro_none"
       ]
     },
     {
       "id": "M23",
-      "guarda": "só acima de 10 minutos conta preso",
+      "guarda": "sem caminho, nada a ler",
       "arquivo": "hooks/vigia.py",
-      "de": "if parado > PRESO_S:",
-      "para": "if True:",
+      "de": "texto = None if caminho is None else ler_quadro(caminho)",
+      "para": "texto = ler_quadro(caminho)",
       "testes": [
-        "tests.test_hook_vigia_f4.InstanciasPresas.test_transcript_recente_nao_conta"
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_sem_pasta_de_estado_cala"
       ]
     },
     {
       "id": "M24",
-      "guarda": "tipo fora do formato não vai ao modelo",
+      "guarda": "lista acima do limite cala",
       "arquivo": "hooks/vigia.py",
-      "de": "if isinstance(a.get(\"tipo\"), str) and _TIPO.fullmatch(a[\"tipo\"]) else \"agente\"",
-      "para": "if isinstance(a.get(\"tipo\"), str) else \"agente\"",
+      "de": "if texto and len(texto) <= LIMITE_DA_LISTA else {}",
+      "para": "if texto else {}",
       "testes": [
-        "tests.test_hook_vigia_f4.InstanciasPresas.test_tipo_fora_do_formato_vira_agente"
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_maior_que_o_limite_cala"
       ]
     }
   ]

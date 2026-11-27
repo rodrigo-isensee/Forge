@@ -2,14 +2,21 @@
 Só leitura, sem `git fetch`. Seis linhas `status:`: último merge na develop (`gh api .../commits/develop`); PRs abertos por grupo
 (rótulo do dono: título com `afrouxa-regra` sem o rótulo; quebrado: check reprovado); 1.ª linha do `bin/forge-contador`; decisões do
 dono abertas (`forge_dono.cmd_abertas`); `gh release view`; o plugin.json deste forge-check. Leitura que falha vira `não verificável
-(<motivo>)`, nunca erro: rc 0."""
+(<motivo>)`, nunca erro: rc 0. A única escrita (F4, v0481 E34.6): a lista `prs-abertos.json` que o hook `vigia` lê sem rede,
+com o papel a disparar em cada PR (`papel_do_pr`); o PR de fork, o que espera só o dono e o que espera o CI ficam fora."""
 import datetime as dt
+import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 QUEBRADO = {"FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE"}
+PENDENTE = {"QUEUED", "IN_PROGRESS", "PENDING", "WAITING", "REQUESTED", "EXPECTED"}
+CHECK_DE_PARECER, CHECKS_DE_PORTAO = "bateria (pareceres)", {"bateria (pareceres)", "bateria", "catraca"}
+PORTOES = (("docs/reviews/", "review"), ("docs/qa/", "QA"), ("docs/security/", "segurança"))
 ROTULO_DO_DONO = "afrouxa-regra"
+CAMPOS_DO_PR = "number,title,mergeable,labels,statusCheckRollup,headRefName,baseRefName,isCrossRepository,files"
 GRUPOS = ("esperando revisão", "esperando rótulo do dono", "em conflito", "quebrados")
 TETO_DO_CONTADOR_S = 20
 
@@ -64,11 +71,73 @@ def grupo_do_pr(pr):
     return 0
 
 
+def _objetos(valor):
+    """Os objetos de uma lista lida do `gh`; o resto, e o que não é lista, fica de fora."""
+    return [v for v in valor if isinstance(v, dict)] if isinstance(valor, list) else []
+
+
+def papel_do_pr(pr):
+    """O papel a disparar no PR aberto, ou None quando ele é de fork (`isCrossRepository` verdadeiro ou ausente: a dúvida
+    cala) ou espera só o dono (base `main`, rótulo) ou o CI."""
+    if pr.get("isCrossRepository") is not False or pr.get("baseRefName") == "main":
+        return None
+    if pr.get("mergeable") == "CONFLICTING":
+        return "autor"
+    checks = _objetos(pr.get("statusCheckRollup"))
+    falhos = {c.get("name") for c in checks if (c.get("conclusion") or c.get("state")) in QUEBRADO}
+    if falhos - CHECKS_DE_PORTAO:
+        return "autor"
+    if any((c.get("status") or c.get("state")) in PENDENTE for c in checks):
+        return None
+    if CHECK_DE_PARECER in falhos:
+        arquivos = [str(f.get("path")) for f in _objetos(pr.get("files"))]
+        faltam = [papel for pasta, papel in PORTOES if not any(a.startswith(pasta) for a in arquivos)]
+        return "/".join(faltam) or "autor"
+    rotulos = {r.get("name") for r in _objetos(pr.get("labels"))}
+    if ROTULO_DO_DONO in (pr.get("title") or "") and ROTULO_DO_DONO not in rotulos:
+        return None
+    return "autor" if falhos else "integração"
+
+
+def vigia():
+    """O hook `vigia` (dono do nome, do prazo e da leitura da lista), importado de hooks/ com o `agentes`, que ele importa na hora."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "hooks"))
+    try:
+        import agentes  # noqa: F401 - fica em sys.modules para o `import agentes` tardio do vigia
+        import vigia as modulo
+    finally:
+        sys.path.remove(str(Path(__file__).resolve().parent.parent / "hooks"))
+    return modulo
+
+
+def gravar_prs_abertos(caminho, prs, agora_s):
+    """Grava a lista do vigia, só com o PR que tem papel, de forma atômica e modo 0600; sem a pasta de estado, nada."""
+    if caminho is None or not caminho.parent.is_dir():
+        return
+    itens = [{"number": p["number"], "head": p.get("headRefName"), "papel": papel} for p in prs if (papel := papel_do_pr(p))]
+    vigia().gravar_json(caminho, {"versao": 1, "gravado_em": int(agora_s), "prs": itens[:100]})
+    os.chmod(caminho, 0o600)
+
+
+def renovar_prs_abertos(raiz, gh_json):
+    """`forge-check proximo`: com a lista ausente ou vencida, uma leitura do `gh` e a gravação; falha não muda nada."""
+    modulo = vigia()
+    caminho = modulo.lista_de_prs(raiz)
+    try:
+        if caminho is None or time.time() - os.stat(caminho).st_mtime <= modulo.PRAZO_DA_LISTA_S:
+            return
+    except FileNotFoundError:
+        pass
+    prs = gh_json(raiz, "pr", "list", "--state", "open", "--limit", "100", "--json", CAMPOS_DO_PR)[0]
+    if isinstance(prs, list) and all(isinstance(p, dict) and isinstance(p.get("number"), int) for p in prs):
+        gravar_prs_abertos(caminho, prs, time.time())
+
+
 def prs_abertos(ctx, raiz, agora):
-    prs = lido(ctx, raiz, "pr", "list", "--state", "open", "--limit", "100",
-               "--json", "number,title,mergeable,labels,statusCheckRollup")
+    prs = lido(ctx, raiz, "pr", "list", "--state", "open", "--limit", "100", "--json", CAMPOS_DO_PR)
     if not isinstance(prs, list) or not all(isinstance(p, dict) and isinstance(p.get("number"), int) for p in prs):
         raise NaoVerificavel("resposta fora da forma")
+    gravar_prs_abertos(ctx.get("lista_de_prs"), prs, agora.timestamp())
     grupos = [[] for _ in GRUPOS]
     for pr in prs:
         grupos[grupo_do_pr(pr)].append(f"#{pr['number']}")

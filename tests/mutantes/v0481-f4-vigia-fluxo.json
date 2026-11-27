@@ -4,28 +4,38 @@
   "mutantes": [
     {
       "id": "M1",
+      "guarda": "PR de fork fica fora",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if pr.get(\"isCrossRepository\") is not False or pr.get(\"baseRefName\") == \"main\":",
+      "para": "if pr.get(\"baseRefName\") == \"main\":",
+      "testes": [
+        "tests.test_hook_vigia_f4.PapelDoPr.test_pr_de_fork_ou_sem_o_campo_fica_fora"
+      ]
+    },
+    {
+      "id": "M2",
       "guarda": "PR com base main espera só o dono",
-      "arquivo": "hooks/vigia.py",
-      "de": "if pr.get(\"baseRefName\") == \"main\":",
-      "para": "if False:",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if pr.get(\"isCrossRepository\") is not False or pr.get(\"baseRefName\") == \"main\":",
+      "para": "if pr.get(\"isCrossRepository\") is not False:",
       "testes": [
         "tests.test_hook_vigia_f4.PapelDoPr.test_base_main_espera_so_o_dono"
       ]
     },
     {
-      "id": "M2",
+      "id": "M3",
       "guarda": "conflito pede o autor",
-      "arquivo": "hooks/vigia.py",
-      "de": "if pr.get(\"mergeable\") == \"CONFLICTING\":",
-      "para": "if False:",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if pr.get(\"mergeable\") == \"CONFLICTING\":\n        return \"autor\"",
+      "para": "if False:\n        return \"autor\"",
       "testes": [
         "tests.test_hook_vigia_f4.PapelDoPr.test_conflito_pede_o_autor"
       ]
     },
     {
-      "id": "M3",
+      "id": "M4",
       "guarda": "check fora dos portões reprovado pede o autor",
-      "arquivo": "hooks/vigia.py",
+      "arquivo": "bin/forge_estado.py",
       "de": "if falhos - CHECKS_DE_PORTAO:",
       "para": "if False:",
       "testes": [
@@ -33,9 +43,9 @@
       ]
     },
     {
-      "id": "M4",
+      "id": "M5",
       "guarda": "check pendente espera o CI",
-      "arquivo": "hooks/vigia.py",
+      "arquivo": "bin/forge_estado.py",
       "de": "if any((c.get(\"status\") or c.get(\"state\")) in PENDENTE for c in checks):",
       "para": "if False:",
       "testes": [
@@ -43,9 +53,9 @@
       ]
     },
     {
-      "id": "M5",
-      "guarda": "parecer ausente aponta os portões que faltam",
-      "arquivo": "hooks/vigia.py",
+      "id": "M6",
+      "guarda": "parecer ausente pede os portões",
+      "arquivo": "bin/forge_estado.py",
       "de": "if CHECK_DE_PARECER in falhos:",
       "para": "if False:",
       "testes": [
@@ -53,9 +63,9 @@
       ]
     },
     {
-      "id": "M6",
-      "guarda": "com os três pareceres presentes, o reprovado volta ao autor",
-      "arquivo": "hooks/vigia.py",
+      "id": "M7",
+      "guarda": "os três pareceres presentes pedem o autor",
+      "arquivo": "bin/forge_estado.py",
       "de": "return \"/\".join(faltam) or \"autor\"",
       "para": "return \"/\".join(faltam)",
       "testes": [
@@ -63,24 +73,21 @@
       ]
     },
     {
-      "id": "M7",
+      "id": "M8",
       "guarda": "afrouxa-regra sem rótulo espera o dono",
-      "arquivo": "hooks/vigia.py",
-      "de": "if ROTULO_DO_DONO in (pr.get(\"title\") or \"\") and ROTULO_DO_DONO not in rotulos:",
-      "para": "if False:",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if ROTULO_DO_DONO in (pr.get(\"title\") or \"\") and ROTULO_DO_DONO not in rotulos:\n        return None",
+      "para": "if False:\n        return None",
       "testes": [
         "tests.test_hook_vigia_f4.PapelDoPr.test_afrouxa_regra_sem_rotulo_espera_o_dono"
       ]
-    },
+    }
+  ],
+  "isentas": [
     {
-      "id": "M8",
-      "guarda": "bateria ou catraca reprovada pede o autor",
       "arquivo": "hooks/vigia.py",
-      "de": "return \"autor\" if falhos else \"integração\"",
-      "para": "return \"autor\" if False else \"integração\"",
-      "testes": [
-        "tests.test_hook_vigia_f4.PapelDoPr.test_catraca_reprovada_pede_o_autor"
-      ]
+      "trecho": "agentes_rodando(hook, raiz) != 0",
+      "motivo": "a guarda virou `livres = [] if vivos else cartoes_livres(...)`: com agente vigente só a parte dos cartões cala (o F4 conta PR e preso com agente rodando); o M3 de v0480-vigia-time-parado.json cobre a linha nova"
     }
   ]
 }

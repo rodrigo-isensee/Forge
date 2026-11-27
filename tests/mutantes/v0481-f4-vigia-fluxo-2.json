@@ -4,28 +4,38 @@
   "mutantes": [
     {
       "id": "M9",
-      "guarda": "item da lista do gh que não é objeto fica de fora",
-      "arquivo": "hooks/vigia.py",
-      "de": "return [v for v in valor if isinstance(v, dict)] if",
-      "para": "return [v for v in valor if True] if",
+      "guarda": "catraca reprovada pede o autor",
+      "arquivo": "bin/forge_estado.py",
+      "de": "return \"autor\" if falhos else \"integração\"",
+      "para": "return \"autor\" if False else \"integração\"",
       "testes": [
-        "tests.test_hook_vigia_f4.PapelDoPr.test_lista_fora_da_forma_do_gh_e_ignorada"
+        "tests.test_hook_vigia_f4.PapelDoPr.test_catraca_reprovada_pede_o_autor"
       ]
     },
     {
       "id": "M10",
-      "guarda": "campo do gh que não é lista fica de fora",
-      "arquivo": "hooks/vigia.py",
-      "de": "if isinstance(valor, list) else []",
-      "para": "if True else []",
+      "guarda": "item da lista do gh fora de objeto é ignorado",
+      "arquivo": "bin/forge_estado.py",
+      "de": "[v for v in valor if isinstance(v, dict)] if isinstance(valor, list)",
+      "para": "[v for v in valor if True] if isinstance(valor, list)",
       "testes": [
         "tests.test_hook_vigia_f4.PapelDoPr.test_lista_fora_da_forma_do_gh_e_ignorada"
       ]
     },
     {
       "id": "M11",
-      "guarda": "só o check reprovado entra nos falhos",
-      "arquivo": "hooks/vigia.py",
+      "guarda": "lista do gh que não é lista é ignorada",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if isinstance(v, dict)] if isinstance(valor, list) else []",
+      "para": "if isinstance(v, dict)] if True else []",
+      "testes": [
+        "tests.test_hook_vigia_f4.PapelDoPr.test_lista_fora_da_forma_do_gh_e_ignorada"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "check verde não conta como falho",
+      "arquivo": "bin/forge_estado.py",
       "de": "if (c.get(\"conclusion\") or c.get(\"state\")) in QUEBRADO}",
       "para": "if True}",
       "testes": [
@@ -33,9 +43,9 @@
       ]
     },
     {
-      "id": "M12",
-      "guarda": "só o portão sem parecer no PR é apontado",
-      "arquivo": "hooks/vigia.py",
+      "id": "M13",
+      "guarda": "portão com parecer não falta",
+      "arquivo": "bin/forge_estado.py",
       "de": "if not any(a.startswith(pasta) for a in arquivos)]",
       "para": "if True]",
       "testes": [
@@ -43,43 +53,33 @@
       ]
     },
     {
-      "id": "M13",
-      "guarda": "fora de repositório git não chama o gh",
-      "arquivo": "hooks/vigia.py",
-      "de": "if not (Path(raiz) / \".git\").exists():",
-      "para": "if False:",
-      "testes": [
-        "tests.test_hook_vigia_f4.PrsParados.test_fora_de_repositorio_git_nao_chama_o_gh"
-      ]
-    },
-    {
       "id": "M14",
-      "guarda": "sem vaga no teto não conta PR",
-      "arquivo": "hooks/vigia.py",
-      "de": "if len(vivos) >= agentes.calcular_teto(",
-      "para": "if False and len(vivos) >= agentes.calcular_teto(",
+      "guarda": "sem a pasta de estado não grava",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if caminho is None or not caminho.parent.is_dir():",
+      "para": "if caminho is None:",
       "testes": [
-        "tests.test_hook_vigia_f4.PrsParados.test_sem_vaga_no_teto_nao_conta"
+        "tests.test_hook_vigia_f4.GravacaoDaLista.test_sem_pasta_ou_sem_caminho_nao_grava"
       ]
     },
     {
       "id": "M15",
-      "guarda": "gh com erro não conta",
-      "arquivo": "hooks/vigia.py",
-      "de": "if r.returncode != 0:\n        return []  # repositório fora do GitHub",
-      "para": "if False:\n        return []  # repositório fora do GitHub",
+      "guarda": "sem caminho não grava",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if caminho is None or not caminho.parent.is_dir():",
+      "para": "if not caminho.parent.is_dir():",
       "testes": [
-        "tests.test_hook_vigia_f4.PrsParados.test_gh_com_erro_nao_conta"
+        "tests.test_hook_vigia_f4.GravacaoDaLista.test_sem_pasta_ou_sem_caminho_nao_grava"
       ]
     },
     {
       "id": "M16",
-      "guarda": "PR com agente vivo na branch não conta",
-      "arquivo": "hooks/vigia.py",
-      "de": " and pr.get(\"headRefName\") not in ocupadas:",
-      "para": ":",
+      "guarda": "só o PR com papel entra na lista",
+      "arquivo": "bin/forge_estado.py",
+      "de": "for p in prs if (papel := papel_do_pr(p))]",
+      "para": "for p in prs if (papel := papel_do_pr(p)) or True]",
       "testes": [
-        "tests.test_hook_vigia_f4.PrsParados.test_pr_com_agente_vivo_na_branch_nao_conta"
+        "tests.test_hook_vigia_f4.GravacaoDaLista.test_grava_so_o_pr_com_papel_fora_o_fork_e_em_0600"
       ]
     }
   ]

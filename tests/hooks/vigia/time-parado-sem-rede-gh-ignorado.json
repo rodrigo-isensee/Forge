@@ -1,8 +1,8 @@
 {
-  "descricao": "F4 (v0481 E34.1): Stop do Jarvis, zero agentes, nenhum cartão livre e só o PR homolog -> main aberto (espera o dono): o vigia não conta o PR, silêncio e saída 0.",
+  "descricao": "F4 (v0481 E34.6): Stop do Jarvis, zero agentes, nenhum cartão livre e um gh falso que listaria um PR verde para a develop: o vigia não chama o gh (sem rede, item 2 da ADR 0003) e, sem a lista prs-abertos.json, cala com saída 0.",
   "arquivos": {
     "KANBAN.md": "# Quadro\n\n## Pronto\n| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n",
-    "bin/gh": "#!/bin/sh\ncat <<'FIM'\n[{\"number\": 5, \"headRefName\": \"homolog\", \"baseRefName\": \"main\", \"mergeable\": \"MERGEABLE\", \"title\": \"release\", \"labels\": [], \"files\": [], \"statusCheckRollup\": []}]\nFIM\n"
+    "bin/gh": "#!/bin/sh\ncat <<'FIM'\n[{\"number\": 5, \"headRefName\": \"melhoria/x\", \"baseRefName\": \"develop\", \"isCrossRepository\": false, \"mergeable\": \"MERGEABLE\", \"title\": \"feat: x\", \"labels\": [], \"files\": [], \"statusCheckRollup\": []}]\nFIM\n"
   },
   "executaveis": [
     "bin/gh"
