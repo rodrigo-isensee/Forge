@@ -327,8 +327,8 @@ class ModuloPelaCopiaNoForge(ModuloPelaCopia):
 
 class ParecerDeItem(NoTerminal):
     """C1b-2 (M20.1, seção 7 do desenho): depois da virada, o parecer de item em `docs/{reviews,qa,security,devops}/` barra,
-    pelo caminho resolvido (Write e Bash); antes, dorme. A virada é a lista fechada na develop do `origin`, conferida pelo
-    `git ls-remote` (o ref local recuado não a esconde)."""
+    pelo caminho resolvido (Write e Bash); antes, dorme. A virada é a lista fechada na `origin/develop` local ou no `HEAD`,
+    só por refs locais: sem rede nem configuração da cópia no hook (A1 da segurança, b2e8765)."""
 
     LISTA = ".github/pareceres-lista-fechada.json"
     ITENS = [("docs/reviews/v1.md", "forge:tech-lead"), ("docs/qa/v1.md", "forge:qa-engineer"),
@@ -384,6 +384,7 @@ class ParecerDeItem(NoTerminal):
 
     def test_lista_fora_da_develop_dorme(self):
         self.lista("outra")
+        self.git("reset", "-q", "--hard", "HEAD~1")
         self.libera_write(self.ITENS)
 
     def test_acorda_com_a_lista(self):
@@ -397,20 +398,40 @@ class ParecerDeItem(NoTerminal):
                           so_o_item=True)
         self.libera_write([("docs/security/aceites/v1.md", "forge:security-engineer")], so_o_item=True)
 
-    def test_lista_em_ref_que_so_termina_em_develop_dorme(self):
-        """O `ls-remote` casa o fim do nome (`refs/sobra/refs/heads/develop`): só a linha da develop conta."""
-        self.lista("x")
-        self.git("push", "-q", "origin", "HEAD:refs/sobra/refs/heads/develop")
-        self.git("update-ref", "-d", "refs/remotes/origin/develop")
-        self.libera_write(self.ITENS[:1])
-
-    def test_ref_local_recuado_nao_esconde_a_lista(self):
-        base = self.git("rev-parse", "HEAD")
+    def test_lista_so_na_origin_develop_acorda(self):
         self.lista()
-        self.git("update-ref", "refs/remotes/origin/develop", base)
+        self.git("reset", "-q", "--hard", "HEAD~1")
         self.barra_write(self.ITENS[:1])
-        self.git("update-ref", "-d", "refs/remotes/origin/develop")
+
+    def test_lista_so_no_head_acorda(self):
+        """A branch aberta depois da virada traz a lista, com o ref do `origin` ainda velho."""
+        self.lista("outra")
         self.barra_write(self.ITENS[:1])
+
+    def armar(self, comando):
+        """Sondas S1 e S2 da segurança (b2e8765): o `uploadpack` da cópia, armável pelo agente, rodaria no `ls-remote`."""
+        self.git("config", "remote.origin.uploadpack", f"{comando}; git-upload-pack")
+
+    def test_uploadpack_da_copia_nao_roda(self):
+        marca = self.tmp / "MARCA"
+        self.armar(f"touch {marca}")
+        self.libera_write(self.ITENS[:1])
+        self.assertFalse(marca.exists(), "o hook rodou a configuração da cópia")
+
+    def test_remoto_lento_nao_recusa_o_parecer_dormente(self):
+        self.armar("sleep 4")
+        entrada = {"tool_name": "Write", "tool_input": {"file_path": str(self.repo / "docs/security/v1.md"), "content": "x\n"},
+                   "hook_event_name": "PreToolUse", "tool_use_id": "toolu_8", "agent_type": "forge:security-engineer"}
+        r = rodar("conformidade", entrada, self.repo, producao=True,
+                  extra={"HOME": str(self.casa), "CLAUDE_PROJECT_DIR": str(self.repo)})
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_caminho_curto_sem_erro_interno(self):
+        """A1 do review e S3 da segurança (b2e8765): `/x.md` e o `..` além da raiz têm menos de quatro partes."""
+        self.lista()
+        self.libera_write([("/x.md", "forge:tech-lead"), ("../" * 12 + "a.md", "forge:tech-lead")], so_o_item=True)
+        erros = [p for p in (self.repo / ".forge", self.casa) if p.exists() for p in p.rglob("erros.log")]
+        self.assertEqual([p.read_text(encoding="utf-8") for p in erros], [])
 
 
 class ParecerDeItemNoForge(ParecerDeItem):

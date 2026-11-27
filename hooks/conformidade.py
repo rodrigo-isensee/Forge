@@ -2767,8 +2767,8 @@ class Guarda:
     def parecer_de_item(self, caminho):
         """C1b-2 (M20.1): o `.md` direto em `docs/<reviews|qa|security|devops>/` da raiz de uma cópia, fora o `_modelo.md`
         (as subpastas, `ameacas/`, `aceites/` e `bugs/`, não são parecer de item), depois da virada: a tupla da recusa,
-        trava de todo papel; sem a lista fechada na `develop` do `origin`, dorme (None)."""
-        if (caminho.suffix != ".md" or caminho.name == "_modelo.md"
+        trava de todo papel; sem a lista fechada na `develop` do `origin`, dorme (None). O caminho curto (`/x.md`) não é item."""
+        if (caminho.suffix != ".md" or caminho.name == "_modelo.md" or len(caminho.parts) < 4
                 or caminho.parts[-3] != "docs" or caminho.parts[-2] not in PASTAS_DE_ITEM):
             return None
         topo = self.raiz_git(caminho.parent)
@@ -2778,13 +2778,11 @@ class Guarda:
                 "grave em `.forge/pareceres/<pedido>/<tipo>.md` e rode `forge-check parecer publicar`", None, TRAVA)
 
     def lista_fechada(self, topo):
-        """A lista existe na `origin/develop` da cópia ou no commit da develop que o `git ls-remote` lê (o ref local
-        recuado não a esconde); sem rede, vale o ref local; commit remoto que a cópia não tem não conta."""
+        """A lista existe na `origin/develop` local da cópia ou no `HEAD` (a branch aberta depois da virada a traz). Só refs
+        locais: sem rede no hook (ADR 0003 item 2) e sem rodar a configuração da cópia (`remote.origin.uploadpack`). O ref
+        recuado à mão esconde a lista: aceito, quem decide é o servidor (C5a)."""
         if topo not in self._listas:
-            refs = ["refs/remotes/origin/develop"]
-            if git(topo, "cat-file", "-e", f"{refs[0]}:{LISTA_FECHADA}")[0]:
-                saida = git(topo, "ls-remote", "origin", "refs/heads/develop")[1]  # o padrão casa o fim do nome
-                refs = [x.split("\t")[0] for x in saida.splitlines() if x.endswith("\trefs/heads/develop")]
+            refs = ("refs/remotes/origin/develop", "HEAD")
             self._listas[topo] = any(git(topo, "cat-file", "-e", f"{r}:{LISTA_FECHADA}")[0] == 0 for r in refs)
         return self._listas[topo]
 
