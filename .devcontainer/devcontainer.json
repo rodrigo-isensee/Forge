@@ -11,6 +11,8 @@
 // `bash /workspaces/Forge/scripts/preparar-estacao.sh --container`); a guarda do grep recusa uma main antiga, sem essa marca.
 // O preparo cria ~/.config/gh, instala gh e tmux e refaz o link ~/.forge-contrib; cada passo é idempotente. Faltou algo, ou o
 // clone falhou (sem rede, main antiga): o comando avisa em ERRO e sai com 1, sem "; true" engolindo; o container sobe do mesmo jeito.
+// DEVCONTAINER-POSTSTART-PARA (v0481 E39.1): o mktemp abre a cadeia com && (pasta que não nasce para tudo, com ERRO e exit 1) e o comando
+// manual da mensagem de ERRO baixa e roda o script da main pela mesma URL fixa, nunca o de /workspaces/Forge (a cópia que o agente grava).
 // A garantia real é esta (nada de arquivo gravável pelo agente rodando como root), não o hook: na sessão do Forge o hook libera a
 // escrita deste arquivo, e uma troca dele aparece como mudança em vigor, revisada em PR, e só vale ao recriar o container.
 // Nenhum segredo aqui, e o GH_TOKEN da máquina do dono NÃO entra no container (remoteEnv o repassaria, com o escopo
@@ -27,5 +29,5 @@
   "mounts": [
     "source=forge-claude,target=/root/.claude,type=volume"
   ],
-  "postStartCommand": "d=$(mktemp -d); GIT_TERMINAL_PROMPT=0 git -c credential.helper= clone -q --depth 1 --branch main --single-branch -- https://github.com/rodrigo-isensee/Forge.git \"$d/r\" && grep -q 'FORGE_PREPARO_ESSENCIAL:-0' \"$d/r/scripts/preparar-estacao.sh\" && FORGE_PREPARO_ESSENCIAL=1 bash \"$d/r/scripts/preparar-estacao.sh\" --container < /dev/null; rc=$?; rm -rf \"$d\"; [ $rc = 0 ] || { echo 'ERRO: o preparo do container falhou (veja as linhas erro: acima ou o clone da main); rode bash /workspaces/Forge/scripts/preparar-estacao.sh --container' >&2; exit 1; }"
+  "postStartCommand": "d=$(mktemp -d) && GIT_TERMINAL_PROMPT=0 git -c credential.helper= clone -q --depth 1 --branch main --single-branch -- https://github.com/rodrigo-isensee/Forge.git \"$d/r\" && grep -q 'FORGE_PREPARO_ESSENCIAL:-0' \"$d/r/scripts/preparar-estacao.sh\" && FORGE_PREPARO_ESSENCIAL=1 bash \"$d/r/scripts/preparar-estacao.sh\" --container < /dev/null; rc=$?; rm -rf \"$d\"; [ $rc = 0 ] || { echo 'ERRO: o preparo do container falhou (veja as linhas erro: acima ou o clone da main); rode como root, a partir da main (nunca da cópia de trabalho): d=$(mktemp -d) && git -c credential.helper= clone -q --depth 1 --branch main --single-branch -- https://github.com/rodrigo-isensee/Forge.git \"$d/r\" && bash \"$d/r/scripts/preparar-estacao.sh\" --container' >&2; exit 1; }"
 }

@@ -192,7 +192,9 @@ container_pacotes() {
 claude_ok() { [ -x "$HOME/.local/bin/claude" ]; }
 garantir_path_local() {
   [ "$simular" = 0 ] || return 0
-  command grep -qE '^[[:space:]]*export PATH=.*\.local/bin' "$HOME/.bashrc" 2>/dev/null && return 0
+  # DEVCONTAINER-CLAUDE-NO-PATH (v0481 E39.1): só conta a linha que PÕE ~/.local/bin na frente; no fim do PATH (ou depois do
+  # /usr/local/bin da imagem) o claude 2.1.224 antigo continua primeiro.
+  command grep -qE '^[[:space:]]*export PATH="?(\$HOME|\$\{HOME\}|/root)/\.local/bin:' "$HOME/.bashrc" 2>/dev/null && return 0
   # shellcheck disable=SC2016 # $HOME e $PATH devem ir literais para o .bashrc
   printf '\n# claude e atalhos pessoais\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.bashrc"
   fez "$HOME/.local/bin entrou na frente do PATH do bash"
@@ -482,7 +484,7 @@ verificar_container() {
   if tem gh && ! gh auth status >/dev/null 2>&1; then
     f+=("gh sem login (o login mora em ~/.claude/gh e sobrevive à recriação; falta fazê-lo uma vez): gh auth login -s repo,workflow --web e depois $preparo")
   fi
-  claude_ok || f+=("Claude Code atual ausente em $HOME/.local/bin/claude (o do PATH pode ser antigo): rode $preparo")
+  claude_ok || f+=("Claude Code atual ausente em $HOME/.local/bin/claude (o do PATH pode ser antigo; abra o Jarvis com $HOME/.local/bin/claude): rode $preparo")
   if [ ! -d "$real" ] || [ "$(readlink -f "$HOME/.forge-contrib")" != "$(readlink -f "$real")" ]; then
     f+=("link $HOME/.forge-contrib -> $real ausente ou sem destino: rode $preparo")
   fi
@@ -658,7 +660,7 @@ fi
 
 passo "O que falta fazer à mão"
 cat <<'FIM'
-1. Abra um terminal novo (para carregar PATH e nvm), rode `claude --permission-mode auto` e faça `/login`.
+1. Abra um terminal novo (para carregar PATH e nvm), rode `~/.local/bin/claude --permission-mode auto` (no container, /root/.local/bin/claude: o `claude` de /usr/local/bin pode ser antigo) e faça `/login`.
 2. Para abrir o Jarvis: `jarvis-forge` (no Forge) ou `jarvis <projeto>`; roda no tmux, em `--permission-mode auto`, e aparece em claude.ai/code. Quem abrir o `claude` à mão usa `--permission-mode auto`.
 3. Opcional, plugin do Telegram: lembre que o bot só aceita UMA sessão por vez, em todas as máquinas.
 4. Credenciais (gh, claude, Telegram) não são copiadas entre máquinas: cada estação faz o próprio login.

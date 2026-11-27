@@ -1,0 +1,87 @@
+{
+  "pedido": "v0481-ambiente-claude-path",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "postStart: o mktemp abre a cadeia com && (pasta que falha para tudo)",
+      "arquivo": ".devcontainer/devcontainer.json",
+      "de": "\"d=$(mktemp -d) && GIT_TERMINAL_PROMPT=0",
+      "para": "\"d=$(mktemp -d); GIT_TERMINAL_PROMPT=0",
+      "testes": [
+        "tests.test_ambiente_claude_path.PostStartDoContainer.test_pasta_temporaria_que_falha_para_com_erro_e_nada_roda"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "postStart: a falha vira exit 1 com ERRO",
+      "arquivo": ".devcontainer/devcontainer.json",
+      "de": "exit 1; }",
+      "para": "exit 0; }",
+      "testes": [
+        "tests.test_ambiente_claude_path.PostStartDoContainer.test_pasta_temporaria_que_falha_para_com_erro_e_nada_roda"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "comando manual: parte da main (clone), não da cópia de trabalho",
+      "arquivo": ".devcontainer/devcontainer.json",
+      "de": "rode como root, a partir da main (nunca da cópia de trabalho): d=$(mktemp -d) && git -c credential.helper= clone -q --depth 1 --branch main --single-branch -- https://github.com/rodrigo-isensee/Forge.git \\\"$d/r\\\" && bash \\\"$d/r/scripts/preparar-estacao.sh\\\" --container'",
+      "para": "rode como root, a partir da main (nunca da cópia de trabalho): bash /workspaces/Forge/scripts/preparar-estacao.sh --container'",
+      "testes": [
+        "tests.test_ambiente_claude_path.PostStartDoContainer.test_comando_manual_da_mensagem_de_erro_parte_da_main_e_nao_da_copia_de_trabalho"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "comando manual: o branch é a main",
+      "arquivo": ".devcontainer/devcontainer.json",
+      "de": "clone -q --depth 1 --branch main --single-branch -- https://github.com/rodrigo-isensee/Forge.git \\\"$d/r\\\" && bash",
+      "para": "clone -q --depth 1 --branch develop --single-branch -- https://github.com/rodrigo-isensee/Forge.git \\\"$d/r\\\" && bash",
+      "testes": [
+        "tests.test_ambiente_claude_path.PostStartDoContainer.test_comando_manual_da_mensagem_de_erro_parte_da_main_e_nao_da_copia_de_trabalho"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "PATH: só conta a linha que põe .local/bin na frente (exige o : depois)",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "\\.local/bin:' \"$HOME/.bashrc\"",
+      "para": "\\.local/bin' \"$HOME/.bashrc\"",
+      "testes": [
+        "tests.test_ambiente_claude_path.ClaudeNovoPrimeiroNoPath.test_bashrc_com_local_bin_no_fim_do_path_ainda_ganha_a_linha_da_frente",
+        "tests.test_ambiente_claude_path.ClaudeNovoPrimeiroNoPath.test_na_sessao_nova_o_claude_do_local_bin_vence_o_antigo_do_usr_local_bin"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "PATH: a linha que já põe na frente não se repete",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "(\\$HOME|\\$\\{HOME\\}|/root)/\\.local/bin:",
+      "para": "(\\$HOME)/\\.local/bin:",
+      "testes": [
+        "tests.test_ambiente_claude_path.ClaudeNovoPrimeiroNoPath.test_linha_que_ja_poe_local_bin_na_frente_nao_se_repete"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "aviso do verificar manda abrir o Jarvis pelo binário novo",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "abra o Jarvis com $HOME/.local/bin/claude",
+      "para": "abra o Jarvis",
+      "testes": [
+        "tests.test_ambiente_claude_path.ClaudeNovoPrimeiroNoPath.test_readme_e_avisos_mandam_abrir_o_jarvis_pelo_binario_novo"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "README: comando de abrir o Jarvis usa /root/.local/bin/claude",
+      "arquivo": "README.md",
+      "de": "`/root/.local/bin/claude --agent forge:jarvis --permission-mode auto`",
+      "para": "`claude --agent forge:jarvis --permission-mode auto`",
+      "testes": [
+        "tests.test_ambiente_claude_path.ClaudeNovoPrimeiroNoPath.test_readme_e_avisos_mandam_abrir_o_jarvis_pelo_binario_novo"
+      ]
+    }
+  ]
+}
