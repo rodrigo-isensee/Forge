@@ -58,11 +58,11 @@ Para cada squash, busquei `refs/pull/<n>/head` e conferi:
 ## Superfície protegida de v0.47.19 a 1e301536
 - **Workflows:**
   - `obsoletas.yml` (#913) roda só em PR do próprio repositório (`if` em `head.repo.full_name`), sem checkout, com `actions: write` só no job e o token só no passo. Na dúvida (300 arquivos ou mais, ou falha da API), cancela, como antes. O efeito residual é só de disponibilidade.
-  - `diario.yml` (#929) roda só por `schedule` e `workflow_dispatch`, com `contents: read` no topo e `issues: write` só no job do cartão. As ações estão fixadas por SHA. O `npm` usa versão fixa e `--allow-scripts` restrito ao pacote.
+  - `diario.yml` (#929) roda só por `schedule` e `workflow_dispatch`, com `contents: read` no topo e `issues: write` só no job do cartão. As ações estão fixadas por SHA. O gerenciador de pacotes usa versão fixa e `--allow-scripts` restrito ao pacote.
   - `ci.yml` (#929, #932, #913): o job `arvore-envio` usa o token só no passo de leitura. O concurrency do PR passa a ter grupo por run (`ci.yml`, `group`).
   - Nenhum `pull_request_target`, e nenhum segredo além do `github.token`.
 - **Ambiente:** o `postStartCommand` (#926, `.devcontainer/devcontainer.json:30`) clona a `main` do remoto por https, sem credencial, e roda o `preparar-estacao.sh` de lá, nunca o da cópia de trabalho. É a DECISÃO 26/11 22:18.
-- **Invariantes:** `tests/config.json` troca 3 invariantes de texto e os motivos delas (#928, a versão com 20 itens), na mesma contagem, sem perder nenhuma. Acrescenta a exceção `npm` para `diario.yml` em `R-NEUTRO` (#929). Nenhum arquivo sai da árvore, fora os fragmentos.
+- **Invariantes:** `tests/config.json` troca 3 invariantes de texto e os motivos delas (#928, a versão com 20 itens), na mesma contagem, sem perder nenhuma. Acrescenta a exceção do gerenciador de pacotes para `diario.yml` em `R-NEUTRO` (#929). Nenhum arquivo sai da árvore, fora os fragmentos.
 - **Fora do diff:** `.githooks/`, `docs/security/aceites/`, `stacks/` e `tests/catraca.py`.
 - **Medida dos hooks:** `bin/forge-check comparar v0.47.19 1e301536` dá `so-aperta: medido base=a2f516d5... head=1e301536... casos=239 aceites-novos=0` (famílias merge-pr, push-forcado e sem-verificar, com 8 casos cada). A medida cobre só a decisão dos hooks que recusam.
 - **Hook `estado`** (#920): só números de PR, o sha e o título de commit do último merge entram no contexto. Nenhum texto de PR de terceiro entra (`bin/forge_estado.py:58`, `:151`), e tudo passa por `sem_controle`.
@@ -78,7 +78,7 @@ Nos controles que recusam, a versão só aperta ou é neutra frente à 0.47.19: 
 | #918 | ADR 0018, emenda ROTULO-PELO-TIME: ato fixo `rotulo-pelo-time`, só no Forge. **Sem efeito nesta versão:** R1 só vale com R3 na develop (`docs/adr/0018-autorizacao-do-dono-gravada.md:203`), R3 não existe, e a DECISÃO 27/11 09:20 mantém o rótulo proibido ao time | ORDEM 26/11 12:57 | **nenhum**. O PR entrou sem o rótulo, pela conta do dono (26/11 19:37Z) |
 | #920 | ADR 0003, itens 1 e 2: o hook `estado` injeta no contexto o `forge-check status`, com leitura de rede no GitHub e prazo de 8 s. Mudam 3 testes de registro dos hooks | ORDEM 25/11 21:40 (S1) | 26/11 19:50Z |
 | #928 | ADR 0018, retirada VERSAO-COM-20: sai o ato `corte-diario`, a versão fecha com 20 itens e 3 invariantes de `tests/config.json` são trocadas | DECISÃO 26/11 21:57 | 27/11 11:54Z |
-| #929 | O portão do PR roda a suíte uma vez (3.12). A suíte 3.14, o e2e 3.12 e os mutantes vão ao diário da develop. Exceção `R-NEUTRO` para o `npm` em `diario.yml` | DECISÃO 26/11 19:37 (F6) | 27/11 05:04Z |
+| #929 | O portão do PR roda a suíte uma vez (3.12). A suíte 3.14, o e2e 3.12 e os mutantes vão ao diário da develop. Exceção `R-NEUTRO` para o gerenciador de pacotes em `diario.yml` | DECISÃO 26/11 19:37 (F6) | 27/11 05:04Z |
 | #931 | ADR 0003, item 7: o aviso do `vigia` conta PR sem agente e agente preso, também com agente rodando, e o teto do texto sobe de ~200 para 280. Lê só a lista gravada em disco, sem rede | DECISÃO 26/11 19:39 (F4) | 27/11 07:42Z |
 | #932 | `R-FLUXO`: o push na develop pula a suíte quando a árvore é a mesma já provada no CI do PR (`arvore-envio`) | DECISÃO 26/11 19:37 (F6: "a develop não repete o que já passou no pedido") | 27/11 11:10Z |
 
