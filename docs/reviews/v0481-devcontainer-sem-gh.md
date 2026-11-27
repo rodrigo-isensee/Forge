@@ -13,7 +13,8 @@ data: 2026-11-26
 Delta lido: `forge-check parecer delta docs/reviews/v0481-devcontainer-sem-gh.md`, intervalo `046cd9a1..a5f6c0f1`. O código do brief (`e1c3ba7c..a5f6c0f1`) é o mesmo: `e1c3ba7c` e `a56b218b` só mexem em pareceres. No domínio estão `.devcontainer/devcontainer.json`, `changelog.d/v0481-devcontainer-sem-gh.md`, `scripts/preparar-estacao.sh` (só o cabeçalho), `tests/mutantes/v0481-devcontainer-sem-gh.json`, `tests/test_ambiente_recriacao.py` e `tests/test_forge.py`. Commits: `84e2ca81` e `a5f6c0f1`. O código mudou 1 linha de comando e o comentário, dentro do H1.
 
 ## Verificação
-- ci: a5f6c0f1343dbad87df1f227b647e9c0e8460515 verde (runs 45924918762 e 45924918779 do head; vermelhos só `bateria` e `bateria (pareceres)`, que esperam os pareceres; instalação, suítes 3.12 e 3.14, passos, verificações longas, teto de pulados e catraca verdes)
+- ci: a5f6c0f1343dbad87df1f227b647e9c0e8460515 verde
+- CI lido: runs 45924918762 e 45924918779 do head; vermelhos só `bateria` e `bateria (pareceres)`, que esperam os pareceres; instalação, suítes 3.12 e 3.14, passos, verificações longas, teto de pulados e catraca verdes.
 - Local (flock trava-teste-a): `python3 -m unittest tests.test_forge.PrepararEstacao tests.test_ambiente_recriacao.ConfiguracaoDoContainer`: 37 testes, OK.
 - `bin/forge-mutante --processos 1 tests/mutantes/v0481-devcontainer-sem-gh.json`: M1 a M12 morreram. `--conferir --base ee05ee84`: os trechos estão no lugar.
 - A1 da 1.ª rodada resolvido: M6 (L467, tmux), M7 (L468, `~/.config/gh`) e M8 (L469, link) morrem por testes que rodam o preparo e afirmam rc 1 e a linha `erro:`. São eles: `sem_tmux`, `~/.config` como arquivo e o `~/.forge-contrib` com dados, que continuam no lugar. A guarda de L457 ganhou os dois ramos (M9 fora da simulação, M12 dentro dela).
