@@ -84,10 +84,10 @@
     },
     {
       "id": "M9",
-      "guarda": "o diário abre o cartão se algo quebrou",
+      "guarda": "o cartão abre com qualquer job do diário vermelho, pulado ou cancelado (always)",
       "arquivo": ".github/workflows/diario.yml",
-      "de": "if: always() && (needs.suite-quatorze.result != 'success'",
-      "para": "if: always() && (needs.suite-quatorze.result == 'never'",
+      "de": "    if: always() && (needs.suite-quatorze",
+      "para": "    if: (needs.suite-quatorze",
       "testes": [
         "tests.test_suite_partes.FiacaoDoCI.test_f6_diario_roda_o_que_saiu_do_pr_na_develop_e_abre_o_cartao"
       ]
