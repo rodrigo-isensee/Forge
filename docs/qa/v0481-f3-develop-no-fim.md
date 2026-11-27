@@ -14,7 +14,9 @@ data: 2026-11-27
 ---
 # QA: v0481 (E30.7, F3 develop só no fim, #924)
 
-- ci: 7de82a022ae4c7b51479a7fdc87646b580153e03 verde (`gh pr checks 924`: tudo `pass` ou `skipping` no head, fora `bateria (pareceres)`, `bateria` e `catraca`, que esperam parecer ou rótulo; os runs 45938144589 e 45938223566 são do mesmo sha; suíte 3.12 e 3.14, partes 1 a 5, verdes)
+- ci: 7de82a022ae4c7b51479a7fdc87646b580153e03 verde
+
+Leitura do `gh pr checks 924`: tudo `pass` ou `skipping` no head, fora `bateria (pareceres)`, `bateria` e `catraca`, que esperam parecer ou rótulo (runs 45938144589 e 45938223566, mesmo sha); suíte 3.12 e 3.14, partes 1 a 5, verdes.
 
 ## Escopo
 Critérios (do E30.1 e da volta E30.4, sem especificação de UX): CA-1 o `forge-check pronto` com base velha só avisa e confere contra o ponto de partida; CA-2 o merge que descarta a base (`-s ours`, conflito resolvido com a branch) desatualiza o parecer; CA-3 merge simulado que falha não vale (falha fechada); CA-4 a 3ª volta compara os testes com o início com a base trazida; CA-5 texto (`R-FLUXO`, fechamento, ritmo-e-corte) alinhado; CA-6 o D2 (`v0481-d2-no-brief`) segue valendo com o teste renomeado. Fora: a suíte inteira (vem do CI, `R-QA`).
