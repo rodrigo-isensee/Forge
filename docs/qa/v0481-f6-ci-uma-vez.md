@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-f6-ci-uma-vez
-commit: ac8202d0e2644d015f1c13be3fd7f040101db06f
+commit: e89985279c7a86b5a2f3831838d99dd0bf11e76d
 parecer: reprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -14,11 +14,18 @@ data: 2026-11-27
 ---
 # QA: v0481 (E32.7, #929, F6: o CI do PR roda a suíte uma vez)
 
-- ci: ac8202d0e2644d015f1c13be3fd7f040101db06f verde
+- ci: e89985279c7a86b5a2f3831838d99dd0bf11e76d vermelho (suíte 3.12 parte 4/5 reprova; os demais, fora os que esperam parecer, verdes)
 
 ## Achados
-- A1 (bloqueante) .github/workflows/diario.yml:128 · Guarda do diário sem teste: sem o `ruim=1` os mutantes vivos nunca reprovam o job (a issue não abre); a matriz de 5 para 3 partes passa; tirar `ref: develop` da suíte (l.32) passa (o teste só faz assertIn do texto). Falta mutante ou teste por job (R-QA).
-- A2 (recomendado) .github/workflows/ci.yml:317 · Sem teste que falhe: trocar o `run` da fumaça do 3.14 por `true` passa; o `if [ -n "$aberta" ]` do cartão (diario.yml:153, comentar em vez de abrir outra issue) também. Um teste por passo evita regressão silenciosa.
+- A3 (bloqueante) tests/test_forge_mutante.py:1573 · `assertLessEqual(len(proprios), 8)` (V2) falha: a spec tests/mutantes/v0481-f6-ci-uma-vez.json tem 15 mutantes (CI-M1 a CI-M15). Abrir `-2.json` (mesmo pedido, ids únicos) e passar as specs juntas.
+
+Fechados na volta 4: A1 (CI-M9 a CI-M13 e testes de comportamento do diário) e A2 (CI-M14, CI-M15 e testes do cartão e da fumaça do 3.14).
+
+## Delta da volta 4 (ac8202d0..e8998527)
+Só tests/mutantes/v0481-f6-ci-uma-vez.json e tests/test_suite_partes.py: 4 testes novos que executam o passo real do diário no bash com forge-mutante e gh falsos, e leem jobs e fumaça.
+- `bin/forge-mutante tests/mutantes/v0481-f6-ci-uma-vez.json --base ac8202d0e2644d015f1c13be3fd7f040101db06f --processos 2` (trava obtida): linha `base=ac8202d0... rev=e89985279c7a`, CI-M1 a CI-M15 todos `morreu` (15 de 15; M9 a M15 cobrem os sobreviventes X5, X2, X6, X8 e X1 do parecer anterior).
+- CI do PR #929 no head (`gh pr checks 929`): `suíte (python 3.12, parte 4/5)` fail, pelo A3; verdes `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, partes 1, 2, 3 e 5, árvore; vermelhos de espera `bateria`, `bateria (pareceres)`, `catraca`.
+- Nenhum outro defeito no delta.
 
 ## Critério → teste → resultado
 O pedido não tem `docs/ux/` com CA-n para esta etapa; os critérios vêm do objetivo do brief.
@@ -26,12 +33,12 @@ O pedido não tem `docs/ux/` com CA-n para esta etapa; os critérios vêm do obj
 |---|---|---|---|
 | Suíte do PR roda uma vez (3.12), sem job da suíte no 3.14 | `test_suite_partes.FiacaoDoCI.test_f6_o_pr_roda_a_suite_uma_vez` + os da matriz e agregadores | 5 partes; nenhum job `*-quatorze` fora instalação e agregador | passou; vermelho na base (falha) |
 | 3.14 só instalação e fumaça; `bateria (python 3.14)` junta só a instalação | `MatrizNeedsEAgregadorTest` (needs, estado com perna vermelha), CI-M1, X3, X4 | needs e `always()` do agregador | passou; X3 e X4 morreram |
-| Fumaça do 3.14 de fato roda | nenhum | passo da fumaça | descoberto (A2, X1 sobreviveu) |
+| Fumaça do 3.14 de fato roda | `test_f6_fumaca_do_python_3_14_roda_de_fato`, CI-M15 | passo da fumaça | passou; M15 morreu |
 | Verificações longas e mutantes saem do PR | `test_f6_o_pr_roda_a_suite_uma_vez` (sem `forge-mutante` no ci.yml, e2e só em `instalacao-quatorze`) | texto do ci.yml | passou; CI-M1 morreu |
 | diario.yml diário, só leitura, escreve só issue | `test_f6_diario_roda_o_que_saiu_do_pr_na_develop_e_abre_o_cartao`, CI-M2, CI-M3 | `issues: write` único, `always()` do cartão | passou; M2 e M3 morreram |
 | Fatia do dia, uma spec por chamada, pendentes de fora | `test_f6_diario_roda_uma_spec_por_chamada_sem_os_pendentes_conhecidos` (executa o programa da fatia), CI-M4 a M8 | dia % 30, pendentes, `--ids`, spec sem mutante | passou; M4 a M8 morreram |
-| Jobs do diário usam a develop, 5 partes, mutante vivo reprova | só assertIn global | `ref: develop` por job, matriz, `ruim=1` | descoberto (A1; X2, X5 e X6 sobreviveram) |
-| Issue só para quebra nova | dedupe do cartão (`gh issue list`) | issue aberta recebe comentário | sem teste (A2; X8 sobreviveu) |
+| Jobs do diário usam a develop, 5 partes, mutante vivo reprova | `test_f6_diario_cada_job_le_a_develop_*`, `test_f6_diario_mutante_vivo_reprova_*`, CI-M9 a M13 | `ref: develop` por job, matriz, `ruim=1` | passou; M9 a M13 morreram |
+| Issue só para quebra nova | `test_f6_diario_cartao_comenta_na_issue_aberta_*`, CI-M14 | issue aberta recebe comentário | passou; M14 morreu |
 | Push na develop roda a suíte no 3.12 | `test_agregador_da_develop_exige_as_cinco_pernas_e_o_teto_sem_rodar_codigo`, `test_pernas_da_develop_*` | agregador `rapida` | passou |
 | Nomes dos checks exigidos não mudam | `Workflows` em test_catraca (timeouts, always), `test_agregadores_*` | `bateria`, `bateria (python 3.14)` | passou |
 | YAML válido (`name:` com dois pontos entre aspas) | `test_f6_todo_workflow_tem_name_de_passo_entre_aspas_quando_tem_dois_pontos` | todos os workflows | passou |
