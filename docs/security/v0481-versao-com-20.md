@@ -3,37 +3,36 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-versao-com-20
-commit: 6e77f72a3a6a38e3dbdcc12b43e0525f5cb26113
-parecer: reprovado
+commit: b19c7f53a1a564059901a406a0e7ddf74ae63b24
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-27
 ---
-# Review de segurança: v0481 E36.3, #928 (VERSAO-COM-20), 1ª rodada completa
+# Review de segurança: v0481 E36.7, #928 (VERSAO-COM-20), volta 1 por delta
 
-Diff lido: `346a7860..6e77f72a` inteiro (19 arquivos). CI do head 6e77f72a verde fora os pareceres (histórico do pedido, 26/11 22:54 e 23:53); no run do 108b8095 (só o parecer de QA a mais), as 10 partes da suíte, a catraca e a instalação passaram, e o `bateria (pareceres)` falha só pelos pareceres (QA reprovado, review e segurança ausentes).
+Delta lido (`forge-check parecer delta`): `6e77f72a..b19c7f53`. No domínio: `agents/tech-lead.md`, `bin/forge_autorizacao.py`, `docs/adr/0018-autorizacao-do-dono-gravada.md`, `skills/falar-com-o-dono/nao-trava.md`, `templates/projeto/CLAUDE.md`, `tests/config.json`, `tests/test_fechar_corte.py`. Lidos também, por serem a correção do A1 e a guarda dos mutantes: `tests/test_autorizacao_gravar.py`, `tests/test_autorizacao.py`, `tests/mutantes/v0481-autorizacoes-fixas.json` e `-2.json`. A 1ª rodada fica no git (`b4cd2755`).
+
+CI do head b19c7f53 (run 45939103472): as 10 partes da suíte, instalação, verificações longas, passos e teto de pulados verdes; `bateria`, `bateria (pareceres)` e `catraca` falham só por pareceres e pelo rótulo. A catraca acusa o que o corpo do PR lista em "Afrouxa": a troca dos invariantes (inclusive o do modelo de projeto), os 6 testes de `CorteDiario`, o renomeado `test_corte_diz_a_corte_diario_ativa_mais_nova_e_sem_ela_rc_1` e o valor esperado trocado em `test_vocabulario_novo_so_nos_atos_fixos_e_sem_marca` (este aperta: mata o M6). Nada afrouxado fora da lista.
 
 ## Gatilhos
-Gatilhos: autorização do dono gravada (ADR 0018, `bin/forge_autorizacao.py`), ferramenta de corte de versão a caminho da `main` (`bin/forge-fechar --corte`), invariantes trocados em `tests/config.json`.
+Gatilhos: autorização do dono gravada (ADR 0018, `bin/forge_autorizacao.py`), invariantes trocados em `tests/config.json`.
 
-## O que aperta, o neutro e o que afrouxa
-- **Aperta.** Sai o único caminho que fechava versão abaixo do teto do contador: `bin/forge-fechar:1636` volta a cortar só com `N >= teto`, sem ler autorização (S2: nenhuma chamada ao forge-check; M1 de `v0481-versao-com-20.json` e M25 ajustado guardam a linha). `corte-diario` sai de `FIXOS` (`bin/forge_autorizacao.py:24`) e o termo `corte` sai de `ATO_DO_TERMO` (`:316`); as palavras `corte diario todo dia` saem do `VOCABULARIO_FIXO` (`:41`), então mensagem com elas nasce pendente. Concessão `corte-diario` já gravada lê `adulterada` ("Ato fora da lista") e nunca ativa (S3); `ler --ato corte-diario` cai na listagem com rc 1, sem a linha positiva que o forge-fechar antigo exigia: falha fechada.
-- **Neutro.** Os textos do time e o fragmento de changelog; a troca dos invariantes `diretriz 34` e da seção do `ritmo-e-corte.md` em `tests/config.json` e `tests/fixtures/diretrizes-do-dono.json` (ordem do dono de 26/11 21:57, PR com o rótulo `afrouxa-regra` e o título que o destaca); a saída dos testes `CorteDiario` e dos mutantes M10 a M18, que guardavam só o código removido; `cmd_corte` agora exige o ato (`:477`); `test_fechar_corte` sai da tupla `FORGE_CHECK` de `bin/forge-testes:153` (seleção local; o CI roda tudo).
-- **Os outros atos fixos seguem intactos.** `so-aperta-com-seguranca` ativa e lida por `ler` e `ler --ato` com uma `corte-diario` adulterada na mesma pasta (S3: a adulterada não derruba a vizinha; só erro de leitura deixa todas inativas); `rotulo-pelo-time` e o filtro pelo ato pedido cobertos por `test_ler_ato_fixo_diz_a_ativa_mais_nova_e_sem_ela_rc_1`; `merge-main` e `rotulo-afrouxa-regra` sem mudança de código. Na raiz do Forge, `.forge/autorizacoes` não tem `corte-diario` gravada.
-- **Afrouxa (sem ordem do dono).** A guarda que separa o vocabulário dos atos fixos do vocabulário dos atos com prazo (`bin/forge_autorizacao.py:378`, M6) perdeu o único teste que a matava: A1.
+## Estado dos achados anteriores
+- A1 (bloqueante, 1ª rodada): resolvido. `tests/test_autorizacao_gravar.py:531` usa "pode mesclar a main 0.47.3, o time decide" e afirma o motivo "decide, time"; as asserções em `:532` e `:533` provam que `decide` e `time` ficam fora do `VOCABULARIO` e dentro do `VOCABULARIO_FIXO`. `bin/forge-mutante --rev b19c7f53` nas specs `v0481-autorizacoes-fixas.json` e `-2.json`: M1 a M9 morrem, M6 em `bin/forge_autorizacao.py:378` (log em `/root/.forge-contrib/wt/_sec131-v0481-mut.log`).
+
+## O que o delta muda
+- `cmd_corte` vira `cmd_ler_ato` (`bin/forge_autorizacao.py:477`, chamada em `:492`): só renome; a falha fechada (rc 1 sem concessão ativa do ato; só `ativa` conta) segue igual, M7 a M9 mortos.
+- ADR 0018 R1 (`:209`) passa a comparar com `--ato so-aperta-com-seguranca`: texto, sem mudança de controle.
+- `agents/tech-lead.md:44`, `skills/falar-com-o-dono/nao-trava.md:19` e `templates/projeto/CLAUDE.md:15`: a versão fecha com 20 itens, sem versão por dia (A2 de QA); o invariante do modelo em `tests/config.json:656` segue o texto novo.
+- `tests/test_fechar_corte.py:105` e `tests/test_autorizacao.py:395`: só comentários com as sondas.
 
 ## Achados
-- A1 (bloqueante) tests/test_autorizacao_gravar.py:529 · o teste do M6 usa "todo dia", que o diff tirou do VOCABULARIO_FIXO; o M6 (VOCABULARIO_FIXO para todo ato) sobrevive e um merge-main com "o time decide" nasceria ativo sem que a suíte veja (S1, S4). Trocar o texto por palavra que só o fixo tem.
+- A2 (recomendado) tests/config.json:849 · o motivo do invariante do modelo ficou na chave com o texto velho ("até 2 por dia"); o novo (:656) fica sem motivo próprio e o checador, que só conta trechos, não vê. Renomear a chave para o texto novo, com o porque da versão com 20 itens.
 
 ## Sondas
-- S1 · bin/forge-mutante --rev 6e77f72a --ids M6 tests/mutantes/v0481-autorizacoes-fixas.json · espera: M6 morto · obtido: M6 sobreviveu em bin/forge_autorizacao.py:378
-- S2 · forge-fechar --corte com 1 item abaixo do teto às 06:00 (test_abaixo_do_teto_nao_ha_corte_diario, CI do 6e77f72a) · espera: ainda não fecha, sem chamada ao forge-check · obtido: ainda não fecha, nenhuma chamada
-- S3 · python3 -I _sec122-v0481-v20-sonda2.py (A-1 corte-diario e A-2 so-aperta gravadas; forge-check autorizacao ler e ler --ato) · espera: A-1 adulterada, A-2 ativa · obtido: A-1 adulterada (Ato fora da lista), A-2 ativa, ler --ato so-aperta rc 0
-- S4 · fora_do_vocabulario("pode mesclar a main 0.47.3, o time decide") com VOCABULARIO e com VOCABULARIO_FIXO · espera: decide e time fora nos dois · obtido: fora só com VOCABULARIO; com o do M6, nenhuma palavra fora
 
 ## Detalhe dos achados
-**A1.** Evidência: `tests/test_autorizacao_gravar.py:529` e `:531` (texto "pode mesclar a main 0.47.3 todo dia", motivo esperado "dia, todo"); guarda em `bin/forge_autorizacao.py:378`; o diff tirou `corte diario todo dia` do `VOCABULARIO_FIXO` em `:41`, e o texto do teste ficou fora dos dois vocabulários, com ou sem a guarda. Caminho de ataque: não há exploração hoje (o código está certo); o risco é de regressão sem alarme numa guarda de consentimento: uma troca que passe o `VOCABULARIO_FIXO` aos atos com prazo faz uma mensagem de `merge-main` ou `rotulo-afrouxa-regra` com ressalva ou delegação ("o time decide", "registra", "por escrito") nascer `ativa` em vez de pendente, e a suíte segue verde (S1, S4). É uma guarda de segurança da ADR 0018 (item 5, F2) que este diff deixou sem teste, sem ordem do dono para isso. Severidade: média. Correção mínima: no `test_vocabulario_novo_so_nos_atos_fixos_e_sem_marca`, trocar o texto por um com palavras que só o `VOCABULARIO_FIXO` tem, por exemplo "pode mesclar a main 0.47.3, o time decide", com o motivo esperado "palavra fora do vocabulário: decide, time"; conferir com o S1 (M6 morto). Esforço: P. Dono: `tech-lead` (autor do #928). Converge com o A1 do parecer de QA.
-
-Fora do meu bloqueio: o A2 de QA (texto "até 2 por dia" em `agents/tech-lead.md:44`, `skills/falar-com-o-dono/nao-trava.md:19`, `templates/projeto/CLAUDE.md:15`) é de fluxo, não de segurança. O corpo da ADR 0018 (`docs/adr/0018-autorizacao-do-dono-gravada.md:182` e `:184`) ainda descreve F1 com dois atos e o F3; a retirada no fim (`:227`) o supera e a ferramenta recusa o ato, então fica sem achado.
+**A2.** Evidência: `tests/config.json:656` (invariante novo de `templates/projeto/CLAUDE.md`) e `:849` (`invariantes_motivo_trecho`, chave com o texto que saiu, porque "segura a versão para uma vez só de manhã"). `problemas_de_motivo` (`tests/test_forge.py:570`) compara só quantidades por arquivo, sem casar a chave com um trecho de `invariantes`, por isso a suíte fica verde. Caminho de ataque: nenhum exploratório; é metadado de proteção de regra (L35) apontando para um trecho que não existe mais, e quem mexer no invariante novo não lê o porquê dele. Severidade: baixa. Correção mínima: em `tests/config.json:849`, trocar a chave por `a versão fecha quando a branch de integração soma 20 itens integrados, sem versão por dia` e o porque por um que diga o efeito da falta (o projeto novo não recebe o fechamento com 20 itens, diretriz 34). Esforço: P. Dono: `tech-lead` (autor do #928). O checador não casar a chave com o trecho é anterior a este delta: vai como cartão, não como achado.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, `forge-mutante` (S1), as sondas S3 e S4 em `/root/.forge-contrib/wt/_sec122-v0481-v20-sonda.py` e `_sec122-v0481-v20-sonda2.py` (forge-check real, pasta temporária). Ausentes no ambiente (lacuna, não instaladas): gitleaks, semgrep, osv-scanner, zizmor; o diff não toca workflow, dependência nem configuração com segredo.
+Nenhum risco aceito. Ferramentas: leitura do delta, `forge-mutante` (M1 a M9 no head), `gh pr checks`. Ausentes no ambiente (lacuna, não instaladas): gitleaks, semgrep, osv-scanner, zizmor; o delta não toca workflow, dependência nem configuração com segredo.
