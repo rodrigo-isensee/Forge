@@ -6,6 +6,7 @@ de cerca de 50 etapas e o brief perto do teto de caracteres só avisam. Só bibl
 passa a classificação de código, `e_codigo`).
 """
 import re
+import unicodedata
 
 TETO_DE_LINHAS_DE_CODIGO = 150
 TETO_DE_ETAPAS = 50
@@ -15,6 +16,7 @@ ORIGEM = "H1, decisão do dono 17/11 11:15"
 CORTE_A_MAO = "cortar à mão (uma classe de comportamento por PR em hooks/, H1)"
 PRS_NO_TEXTO = 6
 CABECALHO_DO_TRECHO = re.compile(r"^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@ ?(.*)$", re.M)
+IDENTIFICADOR_DO_CONTEXTO = re.compile(r"[ \t]*(?:(?:async|def|class)[ \t]+)*([\w.]+)")  # A1 da segurança (E38.11): só o nome
 
 
 def linhas_de_codigo(contagens, e_codigo):
@@ -51,11 +53,15 @@ def falta_de_motivo(total, corpo, numero):
 
 
 def linhas_por_funcao(diff):
-    """{contexto: linhas} do `git diff -U0` de um arquivo (F5, v0481 E38.2): o contexto é o do cabeçalho `@@ -a,b +c,d @@ <contexto>`
-    (a linha `def`/`class` de cima mais próxima, sem os argumentos); as linhas, `b + d` dos trechos dele; sem contexto, `topo`."""
+    """{contexto: linhas} do `git diff -U0` de um arquivo (F5, v0481 E38.2): o contexto é o do cabeçalho `@@ -a,b +c,d @@ <contexto>`,
+    a linha que o git atribui ao trecho; sem `.gitattributes`, a linha sem recuo mais próxima acima (o método cai na classe, a função
+    nova no bloco de cima e uma constante também vale). Dela fica só o identificador (letras, dígitos, `_` e `.`, sem `async`, `def`
+    e `class`; A1 da segurança, E38.11): o resto é texto do autor e não vai ao stderr. As linhas, `b + d` dos trechos; sem
+    identificador, `topo`."""
     funcoes = {}
     for menos, mais, contexto in CABECALHO_DO_TRECHO.findall(diff):
-        nome = contexto.split("(")[0].strip() or "topo"
+        identificador = IDENTIFICADOR_DO_CONTEXTO.match(contexto)
+        nome = identificador.group(1) if identificador else "topo"
         funcoes[nome] = funcoes.get(nome, 0) + int(menos or 1) + int(mais or 1)
     return funcoes
 
@@ -75,9 +81,15 @@ def corte_sugerido(unidades, teto=TETO_DE_LINHAS_DE_CODIGO):
     return [(total, partes) for total, partes in prs]
 
 
+def sem_controle(nome):
+    """O `nome` com cada caractere de controle ou de formato (categoria Unicode C*: escape de terminal, bidi) trocado por `?`, antes do
+    stderr (A1 da segurança, E38.11)."""
+    return "".join("?" if unicodedata.category(c).startswith("C") else c for c in nome)
+
+
 def texto_do_corte(corte, maximo=PRS_NO_TEXTO):
-    """A linha `corte sugerido: PR 1 (148): bin/a 90, ...` com até `maximo` PRs e `e mais N` no resto."""
-    prs = "; ".join(f"PR {i} ({total}): " + ", ".join(f"{nome} {linhas}" for nome, linhas in partes)
+    """A linha `corte sugerido: PR 1 (148): bin/a 90, ...` com até `maximo` PRs e `e mais N` no resto; os nomes, `sem_controle`."""
+    prs = "; ".join(f"PR {i} ({total}): " + ", ".join(f"{sem_controle(nome)} {linhas}" for nome, linhas in partes)
                     for i, (total, partes) in enumerate(corte[:maximo], 1))
     resto = f"; e mais {len(corte) - maximo}" if len(corte) > maximo else ""
     return f"corte sugerido: {prs}{resto} (os testes de cada parte vão junto dela)"

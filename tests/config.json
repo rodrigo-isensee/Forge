@@ -196,7 +196,7 @@
       "skills/briefs-e-conferencia/autor-ate-o-merge\\.md",
       "Não trava \\(diretriz 34\\): decisão pendente é perguntada uma vez",
       "skills/falar-com-o-dono/nao-trava\\.md",
-      "a versão sai quando ficar pronta \\(diretriz 34\\)",
+      "a versão fecha com 20 itens integrados \\(diretriz 34\\)",
       "o pedido só fecha com ela gravada",
       "Teto do time \\(H6\\): até 20 agentes e 12 branches abertas",
       "agente livre termina o que está aberto",
@@ -622,8 +622,8 @@
       "no máximo 12 branches com trabalho aberto",
       "Até 20 agentes ao mesmo tempo",
       "Agente livre termina o que está aberto",
-      "## Versão quando ficar pronta \\(diretriz 34 do dono\\)",
-      "até 2 por dia, ou mais se couber",
+      "## Versão com 20 itens \\(diretriz 34 do dono\\)",
+      "A versão fecha com 20 itens integrados na `develop`",
       "o Jarvis avisa o dono numa linha quando ele fica verde"
     ],
     "skills/falar-com-o-dono/nao-trava.md": [
@@ -656,7 +656,7 @@
       "\\*\\*Ritmo diário:\\*\\*",
       "\\*\\*Corte por arquivo:\\*\\*",
       "\\*\\*Teto do time:\\*\\*",
-      "a versão sai quando a branch de integração tem um conjunto verde que valha uma versão, até 2 por dia",
+      "a versão fecha quando a branch de integração soma 20 itens integrados, sem versão por dia",
       "`R-VERIFY`",
       "`R-COPIA`"
     ],
@@ -849,7 +849,7 @@
     },
     "templates/projeto/CLAUDE.md": {
       "\\*\\*Ritmo diário:\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo não recebe o ritmo diário: junção contínua e a versão para a main (diretriz 32)"},
-      "a versão sai quando a branch de integração tem um conjunto verde que valha uma versão, até 2 por dia": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo segura a versão para uma vez só de manhã e o que está verde espera (diretriz 34)"},
+      "a versão fecha quando a branch de integração soma 20 itens integrados, sem versão por dia": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo não recebe o fechamento da versão com 20 itens integrados e volta a fechar versão por dia (diretriz 34, ordem do dono de 26/11)"},
       "\\*\\*Corte por arquivo:\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo divide o mesmo arquivo entre agentes em paralelo e colhe conflito no fim (diretriz 33)"},
       "\\*\\*Teto do time:\\*\\*": {"regra": "R-TETO", "porque": "sem o texto, o projeto novo não recebe o teto de 20 agentes e 12 branches abertas do H6"}
     },
@@ -888,7 +888,7 @@
       "skills/briefs-e-conferencia/autor-ate-o-merge\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o Jarvis perde o detalhe do H2 (quando o autor travou, o aviso do hook e a volta única), movido pelo teto de caracteres (diretriz 25)"},
       "Não trava \\(diretriz 34\\): decisão pendente é perguntada uma vez": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis segura o time por uma decisão pendente e repete a pergunta ao dono (diretriz 34)"},
       "skills/falar-com-o-dono/nao-trava\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o Jarvis perde o detalhe de não travar e do comando exato no bloqueio de ambiente (diretriz 34)"},
-      "a versão sai quando ficar pronta \\(diretriz 34\\)": {"regra": "R-FLUXO", "porque": "sem o texto, a versão volta a esperar a manhã e o que está verde na develop fica parado (diretriz 34)"},
+      "a versão fecha com 20 itens integrados \\(diretriz 34\\)": {"regra": "R-FLUXO", "porque": "sem o texto, a versão volta a sair por dia ou parcial, fora dos 20 itens combinados com o dono (diretriz 34)"},
       "Teto do time \\(H6\\): até 20 agentes e 12 branches abertas": {"regra": "R-TETO", "porque": "sem o texto, o Jarvis abre branch nova acima de 12 e as branches abertas se acumulam sem terminar (decisão do dono no H6)"},
       "agente livre termina o que está aberto": {"regra": "R-TETO", "porque": "sem o texto, o agente livre abre item novo e a revisão, o conserto e o teste vermelho das branches abertas ficam parados (H6)"},
       "skills/trabalho-em-paralelo/ritmo-e-corte\\.md": {"regra": "R-FLUXO", "porque": "sem o apontamento, o Jarvis perde o detalhe do ritmo diário e do corte por arquivo (diretrizes 32 e 33 do dono)"},

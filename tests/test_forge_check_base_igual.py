@@ -173,6 +173,55 @@ class JuncaoSemBase(unittest.TestCase):
         self.assertIn("desatualizado: .github/workflows/ci.yml mudou", self.desatualizados())
 
 
+class MergeQueDescartaABase(unittest.TestCase):
+    """F3 (v0481 E30.4, segurança A2 de ae38993): o merge da base que a descarta (`-s ours`, conflito resolvido com o lado da branch)
+    deixa o head igual ao do parecer nos arquivos da base; sem o merge simulado, o parecer seguia valendo e o PR desfaria a base."""
+    setUp, git, escreve, commit = BaseIgual.setUp, BaseIgual.git, BaseIgual.escreve, BaseIgual.commit
+    DOMINIOS = ("review", "revisao-seguranca")
+
+    def motivos(self):
+        return [fc.commit_vale(self.dir, self.parecer, "HEAD", "develop", dominio=d) for d in self.DOMINIOS]
+
+    def test_merge_limpo_segue_valendo(self):  # o controle: a base trazida pelo merge de sempre
+        self.git("merge", "-q", "--no-edit", "develop")
+        self.assertEqual(self.motivos(), [None, None])
+
+    def test_byte_a_mao_em_codigo_desatualiza_e_em_texto_nao(self):
+        # sonda revisao-seguranca S1: sonda_merge_a_mao.py: merge da develop com byte à mão em bin/, README.md, tests/, docs/guia.md e com hooks/h voltado ao texto antigo · espera: código à mão desatualiza
+        self.git("merge", "-q", "--no-commit", "develop")
+        self.escreve("README.md", "texto à mão no merge\n")
+        self.commit("merge com texto à mão")
+        self.assertEqual(self.motivos(), [None, None])  # README.md é texto (EST-M4): não desatualiza
+        self.escreve("bin/a", "a da branch e mais\n")
+        self.commit("byte à mão em código")
+        for motivo in self.motivos():
+            self.assertIn("desatualizado: bin/a mudou depois do parecer", motivo or "")
+
+    def test_merge_s_ours_desatualiza_review_e_seguranca(self):
+        # sonda revisao-seguranca S2: base muda só hooks/h; autor faz `git merge -s ours develop` depois do parecer; commit_vale(base=develop) · espera: desatualizado (review e segurança)
+        self.git("merge", "-q", "-s", "ours", "--no-edit", "develop")
+        self.assertEqual(self.git("rev-parse", "HEAD^{tree}"), self.git("rev-parse", f"{self.parecer}^{{tree}}"))
+        for motivo in self.motivos():
+            self.assertIn("desatualizado: bin/f mudou depois do parecer", motivo or "")
+
+    def test_conflito_resolvido_com_o_lado_da_branch_desatualiza(self):
+        # sonda revisao-seguranca S3: branch e base mudam hooks/h (conflito) e a base muda c; conflito resolvido com `checkout --ours` · espera: desatualizado nos dois
+        self.git("switch", "-q", "develop")
+        self.escreve("bin/a", "a da develop\n")
+        self.escreve("c", "c da develop\n")
+        self.commit("develop muda bin/a (conflito) e c")
+        self.git("switch", "-q", "ramo")
+        self.git("merge", "-q", "-s", "recursive", "-X", "ours", "--no-edit", "develop")  # o conflito fica com o lado da branch
+        self.assertEqual(self.git("show", "HEAD:bin/a"), "a da branch")
+        for motivo in self.motivos():
+            self.assertIn("desatualizado: bin/a mudou depois do parecer", motivo or "")
+
+    def test_merge_simulado_que_falha_desatualiza(self):  # base ilegível: sem o merge simulado, nada se afirma
+        self.assertTrue(fc.trouxe_a_base(self.dir, "nao-existe", self.parecer, self.parecer))
+        self.assertIn("desatualizado: não comparei", fc.commit_vale(self.dir, self.parecer, self.parecer, "nao-existe") or "")
+        self.assertIsNone(fc.commit_vale(self.dir, self.parecer, self.parecer, "develop"))  # sem trazer a base, igual vale
+
+
 class NomeUnicoNoModulo(unittest.TestCase):
     """QA A2 da v0479-entrega-merges: uma 2.a definição de mesmo nome no `bin/forge-check` (o `vindos_da_base` do ENTREGA-MERGE-DA-DEVELOP)
     sobrepôs a do E7 e desligou o `commit_vale` e o `parecer delta` sem que nenhum mutante do conjunto a pegasse."""

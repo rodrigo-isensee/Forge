@@ -21,7 +21,7 @@ PASTA = Path(".forge") / "autorizacoes"
 CAMPOS = ("Id", "Ato", "Alvos", "Validade", "Validade-utc", "Fuso", "Origem-da-validade", "Estado-inicial", "Motivo-da-pendencia",
           "Mensagem", "Hora-da-fala", "Sessao", "Pedido", "Sha256", "Gravado-por", "Autoriza")
 AUTORIZA = "só o ato e os alvos acima, até a validade; não amplia outra regra (R-DECISAO)"
-FIXOS = ("corte-diario", "so-aperta-com-seguranca")  # Emenda AUTORIZACOES-FIXAS: só alvo `fixo` e validade `fixa`, sem o teto da D1
+FIXOS = ("so-aperta-com-seguranca",)  # Emenda AUTORIZACOES-FIXAS: só alvo `fixo` e validade `fixa`, sem o teto da D1 (corte-diario saiu: VERSAO-COM-20)
 SO_NO_FORGE = ("rotulo-pelo-time",)  # Emenda ROTULO-PELO-TIME: fixo como os dois, e só ativo no repositório do próprio Forge
 SEM_PRAZO = (*FIXOS, *SO_NO_FORGE)
 ATOS = ("rotulo-afrouxa-regra", "merge-main", *SEM_PRAZO)
@@ -38,7 +38,7 @@ VOCABULARIO = frozenset((
     "pode podem autorizo autorizado autorizada liberado liberada libero aplicar aplique aplica mesclar mescle "  # permissão
     "o a os as um uma de do da dos das no na nos nas em para pra pelo pela ao aos com "  # artigos e preposições
     "por favor obrigado obrigada ok sim").split())  # cortesia
-VOCABULARIO_FIXO = VOCABULARIO | frozenset("corte diario todo dia fixo fixa aperta seguranca escrito time decide registra homologacao".split())
+VOCABULARIO_FIXO = VOCABULARIO | frozenset("fixo fixa aperta seguranca escrito time decide registra homologacao".split())
 DATA_OU_HORA = re.compile(r"\b\d{1,2}(?:/\d{1,2}(?:/\d{2,4})?|:\d{2}|h\d{0,2})\b")  # "18/11", "12:00", "18h" (item 6)
 EXIGIDOS = ("review", "qa", "revisao-seguranca")  # o rótulo afrouxa-regra só cabe em mudança de controle: classe C (P5)
 PARECERES = tuple(f"docs/{p}/" for p in ("reviews", "qa", "security", "devops"))
@@ -313,7 +313,7 @@ def concessoes(raiz, gravador, agora):
 
 # G1.2: o `gravar` (itens 1 a 6 e E1 da ADR 0018). O corpo é só a mensagem lida da transcrição: nenhum texto vem do comando.
 ATO_DO_TERMO = {"rotulo": "rotulo-afrouxa-regra", "afrouxa": "rotulo-afrouxa-regra", "main": "merge-main",
-                "corte": "corte-diario", "aperta": "so-aperta-com-seguranca",
+                "aperta": "so-aperta-com-seguranca",
                 "homologacao": "rotulo-pelo-time"}
 DIAS = ("segunda", "terca", "quarta", "quinta", "sexta", "sabado", "domingo")
 TETO_DA_MENSAGEM = 64 * 1024
@@ -474,9 +474,9 @@ def cmd_gravar(raiz, a, ctx, agora=None):
     return 0
 
 
-def cmd_corte(raiz, ctx, agora, ato="corte-diario"):
-    """Emenda AUTORIZACOES-FIXAS (F3), pelo `ler --ato <ato sem prazo>`: a concessão ativa mais nova do ato (a `corte-diario`, o
-    `forge-fechar --corte` grava no PR da marca); rc 1 sem ela (erro de leitura na pasta deixa todas inativas: falha fechada)."""
+def cmd_ler_ato(raiz, ctx, agora, ato):
+    """Emenda AUTORIZACOES-FIXAS (F3), pelo `ler --ato <ato sem prazo>`: a concessão ativa mais nova do ato; rc 1 sem ela (erro de
+    leitura na pasta deixa todas inativas: falha fechada)."""
     lista, _ = concessoes(raiz, ctx["gravador"], agora)
     ativas = [(nome, campos) for nome, campos, _, est, _ in lista if est == "ativa" and campos["Ato"] == ato]
     if not ativas:
@@ -489,5 +489,5 @@ def cmd_corte(raiz, ctx, agora, ato="corte-diario"):
 
 def executar(a, raiz, ctx):
     if a.acao == "ler" and a.ato in SEM_PRAZO:  # o forge-check autorizacao ler --ato <ato sem prazo> (F3; ROTULO-PELO-TIME)
-        return cmd_corte(raiz, ctx, datetime.datetime.now(UTC), a.ato)
+        return cmd_ler_ato(raiz, ctx, datetime.datetime.now(UTC), a.ato)
     return cmd_gravar(raiz, a, ctx) if a.acao == "gravar" else cmd_ler(raiz, ctx)

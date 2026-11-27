@@ -1,0 +1,36 @@
+{
+  "pedido": "v0481-hook-raiz-forge",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "RX1",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.26, volta 6, A16): o erro interno no Write cujo caminho cita a entrada recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if guarda.no_clone and not entrada.get(\"command\") and isinstance(alvo, str) and EM_VIGOR_NO_TEXTO.search(alvo):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RX2",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.26, volta 6, A16): o erro interno no Write sem a entrada segue livre",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if guarda.no_clone and not entrada.get(\"command\") and isinstance(alvo, str) and EM_VIGOR_NO_TEXTO.search(alvo):",
+      "para": "        if guarda.no_clone and not entrada.get(\"command\") and isinstance(alvo, str):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RX3",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.26, volta 6, A16): o erro interno do Bash que cita a entrada segue livre (sandbox do SO)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if guarda.no_clone and not entrada.get(\"command\") and isinstance(alvo, str) and EM_VIGOR_NO_TEXTO.search(alvo):",
+      "para": "        if guarda.no_clone and isinstance(alvo, str) and EM_VIGOR_NO_TEXTO.search(alvo):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    }
+  ]
+}

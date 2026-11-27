@@ -121,7 +121,8 @@ _NOME = {"bin/forge-check": 1, "scripts/suite-paralela.py": 1, "bin/forge-novo-p
          "tests/test_classe_risco.py": 1, "tests/test_modelo_ci.py": 4, "tests/test_parecer_conteudo.py": 2,
          "tests/test_t1_codigo_sem_teste.py": 1,
          "tests/test_forge_contador.py": 2,  # 0.43.1 G e F: nome de arquivo sintético
-         "tests/test_fechar_corte.py": 3}  # v0478 E174.26 e v0481 E13.15: o README.md sintético da changelog.d/ do projeto de teste
+         "tests/test_fechar_corte.py": 3,  # v0478 E174.26 e v0481 E13.15: o README.md sintético da changelog.d/ do projeto de teste
+         "tests/test_forge_check_base_igual.py": 3}  # v0481 E30.4: o README.md sintético (texto à mão no merge) e a sonda S1
 CITACOES_CONHECIDAS = {**{(a, "README.md"): (n, "nome") for a, n in _NOME.items()},
                        ("hooks/conformidade.json", "docs/propostas/"): (1, "destino"),
                        ("agents/agile-coach.md", "docs/retrospectivas/"): (2, "destino"),

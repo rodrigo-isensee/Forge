@@ -5,8 +5,10 @@ name: CI
 # scripts/suite-paralela.py), os demais passos da bateria num job (bateria (passos)) e um job agregador por versão com o nome do
 # check exigido: "bateria" junta as partes e os passos; "bateria (python 3.14)" junta a instalação e a fumaça no 3.14 (SUITE-NO-CI,
 # decisão do dono de 2026-11-08: a suíte inteira roda uma vez, no CI; a suíte no 3.14 e os mutantes rodam por dia, no diario.yml).
-# Push na develop: a mesma suíte inteira em 5 partes no 3.12 (jobs "suíte (push na develop, python 3.12, parte K/5)", um teto de
-# pulados em job próprio e o agregador "rapida", de nome fixo, que só passa com as 5 partes e o teto; o mecanismo é o do
+# Push na develop: o job "arvore-envio" (F6) pergunta a scripts/arvore-testada.py --do-pr se o PR mesclado já provou a árvore
+# (run do ci.yml do PR com o job "bateria" verde, A1 da segurança do #929); sem prova, a mesma suíte inteira em 5 partes no 3.12
+# (jobs "suíte (push na develop, python 3.12, parte K/5)", um teto de pulados em job próprio e o agregador "rapida", de nome
+# fixo, que só passa com a prova do PR (partes e teto pulados) ou com as 5 partes e o teto verdes; o mecanismo é o do
 # scripts/suite-paralela.py, com o mesmo preparo do PR) e é a prova da develop. Cada parte verde grava o
 # tempo por unidade em anotação do check run, que scripts/pesos-do-ci.py lê pela API para refazer os pesos. Promoção (PR develop -> homolog e homolog -> main, push
 # na homolog e na main): o job prévio único "árvore" roda scripts/arvore-testada.py (SP4, EST-M7, M2) e as partes pulam a suíte
@@ -27,16 +29,59 @@ on:
 permissions:
   contents: read
 
+# CI-NAO-CANCELA-ENVIO-SO-DE-PARECER (v0481 E22.1): em PR cada run tem o seu grupo (sem cancelamento automatico) e o workflow
+# obsoletas.yml (o unico com actions: write, fora deste arquivo) cancela os runs anteriores do mesmo ramo, exceto quando o envio
+# novo so traz docs/reviews/, docs/qa/ ou docs/security/ (o parecer do portao): a suite do head revisado termina e a linha ci
+# chega ao revisor. Push nas branches de integracao segue cancelando.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.ref }}${{ github.event_name == 'pull_request' && format('-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ github.event_name != 'pull_request' }}
 
 jobs:
+  arvore-envio:
+    name: árvore do PR já provada (push na develop)
+    # F6 (v0481): o envio na develop não repete a suíte que o PR já rodou: `scripts/arvore-testada.py --do-pr` só dá rc 0 quando o
+    # commit é o merge de um PR do próprio repositório com a MESMA árvore do head e o run do ci.yml do PR (pull_request, mesmo número,
+    # base develop) tem o job "bateria" em success (A1 do parecer de segurança do #929). Falha fechada: sem prova, erro de rede ou
+    # de API, `provada=false` e as 5 partes rodam a suíte inteira. Só lê a API; o código que roda é o da develop já mesclada.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    permissions:
+      contents: read
+      actions: read  # lê as execuções e os jobs do PR
+      pull-requests: read  # lê o PR mesclado no commit
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      provada: ${{ steps.prova.outputs.provada }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Árvore do PR já provada (F6; sem prova, a suíte do push roda inteira)
+        # o token só neste passo, nunca no da suíte.
+        id: prova
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENTO: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+        run: |
+          provada=false
+          if saida=$(python3 -I scripts/arvore-testada.py --do-pr); then provada=true; fi
+          echo "$saida" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "provada=$provada" >> "$GITHUB_OUTPUT"
+
   rapida-partes-doze:
     name: suíte (push na develop, python 3.12, parte ${{ matrix.parte }}/5)
     # CI-RAPIDO (v047): um quinto da suíte inteira por job (LPT por unidade sobre tests/pesos-d4.json, a mesma divisão do PR). O
     # agregador "checagem rápida (push na develop)" (a prova que scripts/arvore-testada.py lê) exige as 5 pernas e o teto de pulados.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: [arvore-envio]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && needs.arvore-envio.outputs.provada != 'true'
     permissions:
       contents: read
     runs-on: ubuntu-26.04
@@ -108,8 +153,8 @@ jobs:
     name: teto de pulados (push na develop, python 3.12)
     # T3 e A1 do parecer de segurança: a soma dos pulados das 5 pernas contra teto_pulados de tests/config.json, em job próprio,
     # fora do agregador, que não roda código da branch. O download é só do run corrente (sem run-id nem token).
-    needs: [rapida-partes-doze]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: [arvore-envio, rapida-partes-doze]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && needs.arvore-envio.outputs.provada != 'true'
     permissions:
       contents: read
     runs-on: ubuntu-26.04
@@ -135,7 +180,7 @@ jobs:
     # Prova da develop que o scripts/arvore-testada.py lê (o nome é o JOBS_DE_PROVA dele): só passa com as 5 pernas da suíte e o
     # teto de pulados em success. always(): perna vermelha, pulada ou cancelada reprova este (um job pulado contaria como verde).
     # Não roda código da branch (A1): só lê `needs.*.result`.
-    needs: [rapida-partes-doze, rapida-pulados-doze]
+    needs: [arvore-envio, rapida-partes-doze, rapida-pulados-doze]
     if: always() && github.event_name == 'push' && github.ref == 'refs/heads/develop'
     permissions:
       contents: read
@@ -144,11 +189,18 @@ jobs:
     steps:
       - name: Partes e teto de pulados verdes
         env:
+          ARVORE: ${{ needs.arvore-envio.result }}
+          PROVADA: ${{ needs.arvore-envio.outputs.provada }}
           PARTES: ${{ needs.rapida-partes-doze.result }}
           PULADOS: ${{ needs.rapida-pulados-doze.result }}
         run: |
-          echo "partes: $PARTES; pulados: $PULADOS"
-          [ "$PARTES" = success ] && [ "$PULADOS" = success ]
+          echo "árvore do PR: $ARVORE (provada: $PROVADA); partes: $PARTES; pulados: $PULADOS"
+          [ "$ARVORE" = success ] || exit 1
+          if [ "$PROVADA" = true ]; then  # F6: o PR provou a árvore; a suíte do push não rodou (as duas ficam puladas)
+            [ "$PARTES" = skipped ] && [ "$PULADOS" = skipped ]
+          else
+            [ "$PARTES" = success ] && [ "$PULADOS" = success ]
+          fi
 
   cobertura:
     name: cobertura (informativa)

@@ -1,0 +1,40 @@
+{
+  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.21, volta 5; R-CONFORMIDADE): sonda S3 do review (A2): ${TMPDIR}x, lido como *x, não casa entrada em vigor e segue livre na cópia de wt/.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    ".githooks/pre-push": "#!/bin/sh\n",
+    ".githooks/commit-msg": "#!/bin/sh\n",
+    ".devcontainer/devcontainer.json": "{}\n",
+    "scripts/x.sh": "#!/bin/sh\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "printf x > ${TMPDIR}x/y"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x",
+    "agent_type": "forge:devops-engineer"
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "repos": {
+    "home/.forge-contrib/wt/x": {
+      "arquivos": {
+        "a.txt": "v\n",
+        ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+        ".githooks/pre-push": "#!/bin/sh\n",
+        ".devcontainer/devcontainer.json": "{}\n"
+      },
+      "branch": "melhoria/x"
+    }
+  }
+}

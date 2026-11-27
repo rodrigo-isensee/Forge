@@ -27,7 +27,7 @@
       "id": "VA-M11",
       "guarda": "a conferência da entrega mede os testes da volta",
       "arquivo": "bin/forge-check",
-      "de": "    linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio, head)  # R-QA",
+      "de": "    linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio_da_volta(raiz, base, inicio, head), head)  # R-QA",
       "para": "    linhas += []  # R-QA",
       "testes": [
         "tests.test_volta_alinhada.TerceiraVoltaNaConferencia.test_terceira_volta_que_remove_teste_nao_cumpre"

@@ -31,6 +31,37 @@
       "testes": [
         "tests.test_forge_tamanho.CorteSugerido.test_agrupa_o_maior_primeiro_no_primeiro_pr_em_que_cabe"
       ]
+    },
+    {
+      "id": "M18",
+      "guarda": "E38.11 (A1 da segurança): do contexto fica o identificador, sem async/def/class",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "(?:(?:async|def|class)[ \\t]+)*([\\w.]+)",
+      "para": "([\\w.]+)",
+      "testes": [
+        "tests.test_forge_tamanho.CorteSugerido.test_linhas_por_funcao_do_cabecalho",
+        "tests.test_forge_tamanho.CorteSugerido.test_contexto_vira_identificador_e_o_resto_vira_topo"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "E38.11 (A1 da segurança): caractere de controle e de formato (bidi) do nome vira ?",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "unicodedata.category(c).startswith(\"C\")",
+      "para": "unicodedata.category(c).startswith(\"Cc\")",
+      "testes": [
+        "tests.test_forge_tamanho.CorteSugerido.test_nome_com_controle_sai_com_interrogacao"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "E38.11 (A2 da segurança): o nome vai ao git diff do corte como caminho literal",
+      "arquivo": "bin/forge-check",
+      "de": "git(raiz, \"--literal-pathspecs\", \"diff\", \"-U0\", \"--no-color\", \"--no-ext-diff\", \"--no-textconv\", \"--no-renames\",",
+      "para": "git(raiz, \"diff\", \"-U0\", \"--no-color\", \"--no-ext-diff\", \"--no-textconv\", \"--no-renames\",",
+      "testes": [
+        "tests.test_forge_tamanho.NaAbertura.test_nome_com_curinga_nao_casa_outro_arquivo"
+      ]
     }
   ]
 }
