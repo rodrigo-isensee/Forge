@@ -4,16 +4,56 @@
   "mutantes": [
     {
       "id": "C1B2-M9",
-      "guarda": "M10.1: o script do python é conferido pelo caminho resolvido",
+      "guarda": "M20.1: o parecer de item é conferido antes da política, em todo caminho gravado",
       "arquivo": "hooks/conformidade.py",
-      "de": "            alvos += [script] if script else []",
-      "para": "            alvos += []",
+      "de": "        if achado := self.parecer_de_item(caminho):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_acorda_com_a_lista"
+      ]
+    },
+    {
+      "id": "C1B2-M10",
+      "guarda": "M10.1: o PYTHONPATH do `export` vale para o python seguinte da linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"XDG_CONFIG_HOME\", \"PYTHONPATH\", *PATHSPECS_NO_AMBIENTE}",
+      "para": "\"XDG_CONFIG_HOME\", *PATHSPECS_NO_AMBIENTE}",
       "testes": [
         "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
       ]
     },
     {
-      "id": "C1B2-M10",
+      "id": "C1B2-M11",
+      "guarda": "M10.1: todo python (`python3`, `python3.12`) é conferido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if prog.startswith(\"python\"):",
+      "para": "        if prog == \"python\":",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M12",
+      "guarda": "M10.1: sem script (`-c`, `-m`, `-`), a pasta corrente está no caminho do python",
+      "arquivo": "hooks/conformidade.py",
+      "de": "+ ([] if script else [\".\"])",
+      "para": "+ ([] if True else [\".\"])",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M13",
+      "guarda": "M10.1: o script do python é conferido pelo caminho resolvido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            alvos += [script] if script else []",
+      "para": "            alvos += [script] if False else []",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M14",
       "guarda": "M10.1: o caminho do módulo com expansão barra (na dúvida, recusa)",
       "arquivo": "hooks/conformidade.py",
       "de": "            if opaco or real.name",
@@ -23,7 +63,7 @@
       ]
     },
     {
-      "id": "C1B2-M11",
+      "id": "C1B2-M15",
       "guarda": "M10.1: a expansão só barra no caminho com o nome do módulo (`python3 $S` passa)",
       "arquivo": "hooks/conformidade.py",
       "de": " and nome_do_caminho(alvo) == MODULO_DE_PARECER\n",
@@ -33,53 +73,13 @@
       ]
     },
     {
-      "id": "C1B2-M12",
+      "id": "C1B2-M16",
       "guarda": "M10.1: o módulo fora de cópia de trabalho (a extração da base) passa",
       "arquivo": "hooks/conformidade.py",
       "de": " and real.is_file() and self.raiz_git(real.parent) is not None:",
       "para": " and real.is_file():",
       "testes": [
         "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
-      ]
-    },
-    {
-      "id": "C1B2-M13",
-      "guarda": "M20.1: o `_modelo.md` não é parecer de item",
-      "arquivo": "hooks/conformidade.py",
-      "de": " or caminho.name == \"_modelo.md\"\n",
-      "para": "\n",
-      "testes": [
-        "tests.test_conformidade_pareceres.ParecerDeItem.test_acorda_com_a_lista"
-      ]
-    },
-    {
-      "id": "C1B2-M14",
-      "guarda": "M20.1: só a pasta `docs/` conta (`outros/reviews/` não é parecer)",
-      "arquivo": "hooks/conformidade.py",
-      "de": "                or caminho.parts[-3] != \"docs\" or",
-      "para": "                or",
-      "testes": [
-        "tests.test_conformidade_pareceres.ParecerDeItem.test_acorda_com_a_lista"
-      ]
-    },
-    {
-      "id": "C1B2-M15",
-      "guarda": "M20.1: só o `docs/` da raiz da cópia (o modelo de projeto passa)",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        if topo != caminho.parents[2] or not self.lista_fechada(topo):",
-      "para": "        if not self.lista_fechada(topo):",
-      "testes": [
-        "tests.test_conformidade_pareceres.ParecerDeItem.test_acorda_com_a_lista"
-      ]
-    },
-    {
-      "id": "C1B2-M16",
-      "guarda": "M20.1: a conferência da lista roda uma vez por cópia e grava o resultado",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        if topo not in self._listas:",
-      "para": "        if False:",
-      "testes": [
-        "tests.test_conformidade_pareceres.ParecerDeItem.test_acorda_com_a_lista"
       ]
     }
   ]
