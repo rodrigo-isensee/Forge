@@ -45,10 +45,10 @@
     },
     {
       "id": "M19",
-      "guarda": "E38.11 (A1 da segurança): caractere de controle do nome vira ?",
+      "guarda": "E38.11 (A1 da segurança): caractere de controle e de formato (bidi) do nome vira ?",
       "arquivo": "bin/forge_tamanho.py",
-      "de": "\"?\" if unicodedata.category(c).startswith(\"C\") else c for c in nome",
-      "para": "c for c in nome",
+      "de": "unicodedata.category(c).startswith(\"C\")",
+      "para": "unicodedata.category(c).startswith(\"Cc\")",
       "testes": [
         "tests.test_forge_tamanho.CorteSugerido.test_nome_com_controle_sai_com_interrogacao"
       ]

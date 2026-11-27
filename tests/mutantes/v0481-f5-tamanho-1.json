@@ -79,7 +79,7 @@
       "guarda": "F5.1: contexto vazio vira topo, não some; trecho sem contagem vale 1",
       "arquivo": "bin/forge_tamanho.py",
       "de": "nome = identificador.group(1) if identificador else \"topo\"",
-      "para": "nome = identificador.group(1) if identificador else \"\"",
+      "para": "nome = identificador.group(1) if True else \"topo\"",
       "testes": [
         "tests.test_forge_tamanho.CorteSugerido.test_linhas_por_funcao_do_cabecalho",
         "tests.test_forge_tamanho.NaAbertura.test_arquivo_grande_sem_contexto_vira_topo_para_cortar_a_mao"
