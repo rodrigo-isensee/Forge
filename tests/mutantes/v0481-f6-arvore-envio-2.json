@@ -1,0 +1,46 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE-M9",
+      "guarda": "o job da prova do PR vermelho reprova o agregador",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "[ \"$ARVORE\" = success ] || exit 1",
+      "para": "true",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_agregador_da_develop_exige_as_cinco_pernas_e_o_teto_sem_rodar_codigo"
+      ]
+    },
+    {
+      "id": "AE-M10",
+      "guarda": "com a prova do PR as pernas ficam puladas, sem ela rodam",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "    needs: [arvore-envio]\n    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && needs.arvore-envio.outputs.provada != 'true'\n",
+      "para": "    needs: [arvore-envio]\n    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'\n",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_f6_arvore_envio_so_le_a_prova_do_pr_e_as_pernas_da_develop_pulam_com_ela"
+      ]
+    },
+    {
+      "id": "AE-M11",
+      "guarda": "o job da prova do PR só lê",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "      actions: read  # lê as execuções e os jobs do PR\n      pull-requests: read  # lê o PR mesclado no commit\n",
+      "para": "      actions: read  # lê as execuções e os jobs do PR\n      pull-requests: write\n",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_f6_arvore_envio_so_le_a_prova_do_pr_e_as_pernas_da_develop_pulam_com_ela"
+      ]
+    },
+    {
+      "id": "AE-M12",
+      "guarda": "o script da prova roda isolado",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "python3 -I scripts/arvore-testada.py --do-pr",
+      "para": "python3 scripts/arvore-testada.py --do-pr",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_f6_arvore_envio_so_le_a_prova_do_pr_e_as_pernas_da_develop_pulam_com_ela"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE-M28",
+      "guarda": "o ambiente sem GITHUB_WORKFLOW_REF nao lanca",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "    origem, _, _ = (campo(env, \"GITHUB_WORKFLOW_REF\", str) or \"\").partition(\"@\")\n    if not (REPOSITORIO",
+      "para": "    origem, _, _ = (campo(env, \"GITHUB_WORKFLOW_REF\", str) and \"\").partition(\"@\")\n    if not (REPOSITORIO",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_ambiente_sem_campo_ou_com_tipo_errado_nao_prova_e_nao_lanca"
+      ]
+    },
+    {
+      "id": "AE-M29",
+      "guarda": "commit sem pai nao prova",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "campo(pais[0], \"sha\", str) if pais else None",
+      "para": "campo(pais[0], \"sha\", str) if not pais else None",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_commit_sem_pai_ou_com_pai_fora_do_formato_nao_prova"
+      ]
+    },
+    {
+      "id": "AE-M30",
+      "guarda": "commit sem lista de pais nao prova",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "campo(commit, \"parents\", list) or []",
+      "para": "campo(commit, \"parents\", list) or [{\"sha\": \"5\" * 40}]",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_commit_sem_pai_ou_com_pai_fora_do_formato_nao_prova"
+      ]
+    },
+    {
+      "id": "AE-M31",
+      "guarda": "o pai tem de estar no formato de sha",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "SHA.fullmatch(arvore) and SHA.fullmatch(anterior)",
+      "para": "SHA.fullmatch(arvore)",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_commit_sem_pai_ou_com_pai_fora_do_formato_nao_prova"
+      ]
+    },
+    {
+      "id": "AE-M32",
+      "guarda": "um unico job bateria",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "\n    if len(com_nome) == 1 and all(",
+      "para": "\n    if len(com_nome) >= 1 and all(",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_qualquer_falta_da_prova_roda_a_suite_inteira"
+      ]
+    },
+    {
+      "id": "AE-M33",
+      "guarda": "o modo --do-pr da linha de comando",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "    if a.do_pr:\n",
+      "para": "    if not a.do_pr:\n",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_erro_da_api_sai_1_sem_detalhe"
+      ]
+    },
+    {
+      "id": "AE-M34",
+      "guarda": "a mensagem do --do-pr diz se roda a suite",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "'; a suíte do push não roda de novo' if ok else",
+      "para": "'; a suíte do push não roda de novo' if not ok else",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_erro_da_api_sai_1_sem_detalhe"
+      ]
+    },
+    {
+      "id": "AE-M35",
+      "guarda": "o --do-pr sem prova sai 1",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "        return 0 if ok else 1\n",
+      "para": "        return 0 if not ok else 1\n",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_erro_da_api_sai_1_sem_detalhe"
+      ]
+    }
+  ]
+}
