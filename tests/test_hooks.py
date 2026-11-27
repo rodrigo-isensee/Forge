@@ -653,8 +653,10 @@ def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_co
 # carregada passa disso e o teste falharia sem o hook ter erro algum. Os testes rodam o hook pelo mesmo script, só com
 # o prazo do git largo: o prazo de produção segue em bin/forge-check e é conferido à parte (test_timeout_de_rede...).
 # O vigia de prazo (3 s, `_comum.PRAZO_DA_DECISAO_S`) segue o mesmo caminho: largo nos testes, de produção só onde o
-# teste mede o prazo (`producao=True`). `lento` injeta num passo da decisão um `sleep` de 60 s, uma vez só (monkeypatch
-# do processo do teste, sem tocar os hooks): o segundo `Hook.campo`, o primeiro que o hook lê depois do marcador.
+# teste mede o prazo (`producao=True`); o vigia do registro no erros.log (0,5 s, `_comum.PRAZO_DA_SESSAO_S`) também,
+# senão o `git` do `Hook.run` sob a carga do CI passa dele e a linha some (E44.1, v0481). `lento` injeta num passo da
+# decisão um `sleep` de 60 s, uma vez só (monkeypatch do processo do teste, sem tocar os hooks): o segundo
+# `Hook.campo`, o primeiro que o hook lê depois do marcador.
 PRAZO_GIT_NOS_TESTES = 120
 PRAZO_DA_DECISAO_NOS_TESTES = 120
 def trabalhadores_do_pool(nucleos):
@@ -671,7 +673,7 @@ sys.path.insert(0, sys.argv[1])
 import _comum
 _comum.forge_check().GIT_TIMEOUT_S = int(sys.argv[3])
 if sys.argv[4] != "producao":
-    _comum.PRAZO_DA_DECISAO_S = float(sys.argv[4])
+    _comum.PRAZO_DA_DECISAO_S = _comum.PRAZO_DA_SESSAO_S = float(sys.argv[4])
 if sys.argv[5] == "lento":
     campo, chamadas = _comum.Hook.campo, []
     def lento(self, *chaves):
