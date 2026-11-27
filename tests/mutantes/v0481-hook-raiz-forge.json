@@ -6,8 +6,8 @@
       "id": "RF1",
       "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1): na sessão do Forge, a recusa do que roda fora do sandbox na raiz vale pelo alvo resolvido",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if self.na_raiz_em_vigor(alvo) or MOTIVO_EM_VIGOR in o_que:",
-      "para": "        if MOTIVO_EM_VIGOR in o_que:",
+      "de": "        if self.na_raiz_em_vigor(alvo):",
+      "para": "        if False:",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
       ]
@@ -38,16 +38,6 @@
       "arquivo": "hooks/conformidade.py",
       "de": "        rels = [relativo_ao_pai(posix, Path(os.path.realpath(self.h.raiz))), *self.relativos_a_copia_principal(posix)]",
       "para": "        rels = [relativo_ao_pai(posix, Path(os.path.realpath(self.h.raiz)))]",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
-      ]
-    },
-    {
-      "id": "RF5",
-      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A2): a recusa própria sem alvo (o destino que o hook não calcula numa linha que cita a entrada)",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        if self.na_raiz_em_vigor(alvo) or MOTIVO_EM_VIGOR in o_que:",
-      "para": "        if self.na_raiz_em_vigor(alvo):",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
       ]
