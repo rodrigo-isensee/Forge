@@ -368,8 +368,8 @@ class Ler(GhFalso):
     def test_c1_status_do_bot_ignorado(self):
         self.assertEqual(self.ler(self.publicado(login="github-actions[bot]")), {})
 
-    def test_c19_login_fora_da_lista_da_base(self):
-        """M1.4: com o `GH_TOKEN` de outra conta no ambiente (`gh api user` = `outra`), o status dela segue fora: a conta aceita é
+    def test_c19_conta_fora_da_lista_ignorada(self):
+        """M1.4 (C19, `test_c19_login_fora_da_lista_da_base` do modelo): com o `GH_TOKEN` de outra conta no ambiente (`gh api user` = `outra`), o status dela segue fora: a conta aceita é
         a dona do `origin`, nunca a da sessão."""
         self.estado(login="outra")
         self.assertEqual(self.ler(self.publicado(login="outra", autor="outra")), {})
@@ -529,6 +529,23 @@ class Ler(GhFalso):
         self.estado(paginas=[[5, "x", self.publicado(601)]])
         self.assertEqual(fp().ler(str(self.repo), BRANCH, self.sha, PEDIDO)["review"][0], "aprovado")
 
+    def test_contas_que_nao_sao_conjunto_recusadas(self):
+        """M1.1 e M1.4: o chamador não passa mais a lista de contas (nem a alarga); ela é o conjunto fechado da dona do `origin`."""
+        self.estado(statuses=[self.publicado(login="outra", autor="outra")])
+        for contas in ({"outra"}, frozenset({"outra"}), ["outra"], "outra"):
+            with self.subTest(contas), self.assertRaises(TypeError):
+                fp().ler(str(self.repo), BRANCH, self.sha, PEDIDO, contas)
+        self.assertEqual(fp().contas_aceitas(str(self.repo)), frozenset({"dono"}))
+
+    def test_contas_com_login_vazio_recusadas(self):
+        """Login vazio no status, no comentário ou na sessão nunca é a dona."""
+        self.assertEqual(self.ler(self.publicado(login="")), {})
+        self.assertIn("M5.2", self.invalido(self.publicado(autor="")))
+
+    def test_contas_frozenset_vale(self):
+        self.assertIsInstance(fp().contas_aceitas(str(self.repo)), frozenset)
+        self.assertEqual(self.ler(self.publicado())["review"][0], "aprovado")
+
     def test_status_e_comentario_sem_login_de_texto_ficam_fora(self):
         """Sonda S1 do review 2d3e3f3, refeita para a conta da base: login que não é texto nunca casa com a dona."""
         for login in (None, 5, ["dono"]):
@@ -546,8 +563,8 @@ class Ler(GhFalso):
     def test_resposta_fora_do_contrato_vira_recusa(self):
         """Sondas S3 a S5 da segurança 2d3e3f3: `creator` do status, `user` do comentário e PR sem `number`."""
         status = self.publicado()
-        self.fora_do_contrato(status | {"creator": "dono"})
-        self.estado(comentarios={"601": self.estado()["comentarios"]["601"] | {"user": "dono"}})
+        self.fora_do_contrato(status | {"creator": "conta"})
+        self.estado(comentarios={"601": self.estado()["comentarios"]["601"] | {"user": "conta"}})
         self.fora_do_contrato(status)
         self.publicado()  # o comentário íntegro de volta
         self.estado(prs=[{k: v for k, v in self.estado()["prs"][0].items() if k != "number"}])

@@ -22,5 +22,12 @@
         "tests.test_forge_pareceres.PastaDeControle.test_copia_principal_fora_de_forge_wt_usa_a_propria"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge_pareceres.py",
+      "trecho": "isinstance(contas, (set, frozenset))",
+      "motivo": "a guarda do parâmetro `contas` sai com o parâmetro: a lista vem de `contas_aceitas` (M1.4), conjunto fechado da dona do origin; Ler.test_contas_que_nao_sao_conjunto_recusadas prova que o chamador não a passa"
+    }
   ]
 }
