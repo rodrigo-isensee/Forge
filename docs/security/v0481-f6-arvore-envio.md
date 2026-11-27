@@ -3,32 +3,29 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-f6-arvore-envio
-commit: 023b0d68c5f67c64236363d17e5d17f2fdaea770
-parecer: reprovado
+commit: d0f41115599f182b8e57b6b7dcd78f529bdad70f
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-27
 ---
-# Review de segurança: v0481 (PR #932, corte do envio do F6, volta 2, E32.39)
+# Review de segurança: v0481 (PR #932, corte do envio do F6, volta 3, E32.43)
 
-Volta por delta: `forge-check parecer delta` de `dcd4003c..023b0d68`; no domínio, só `scripts/arvore-testada.py` (`prova_do_pr` passa o `numero`; `bateria_do_run_do_pr:190-192` descarta o run cujo `pull_requests` traga outro número, outra base ou tipo que não seja lista). Fora do domínio: specs de mutante -5 e -7 e `tests/test_arvore_testada.py`. Rodada anterior (79bdb8de, reprovado) fica no git.
+Volta por delta: `forge-check parecer delta` de `023b0d68..d0f41115`; no domínio, só `scripts/arvore-testada.py` (`prs_do_ramo_so_para_develop` em `:177-189`, chamada em `prova_do_pr:169`, e `LIMITE_DE_PAGINAS`). Fora do domínio: spec de mutante -8 e `tests/test_arvore_testada.py`. Rodada anterior (023b0d68, reprovado) fica no git.
 
 Gatilhos: pipeline de CI (portão do push na develop), token do workflow, controle que afrouxa regra (R-FLUXO).
 
-## Achados
-- A1 (bloqueante) scripts/arvore-testada.py:190 · Parcial: o run de outro PR do mesmo ramo para outra base é recusado só enquanto esse PR está aberto. Mesclado ou fechado, a API esvazia o pull_requests, o run passa e, sendo o mais novo, prova o merge na develop com o run do PR da develop vermelho (S2). Falta a parte (2) da correção.
-
 ## Sondas
-- S1 · python3 sonda_s1.py <cópia> (run 565 com pull_requests=[{number 999, base melhoria/y}] e bateria success; run 555 do PR #77 com bateria failure) · espera: (False, ...) · obtido: (False, "nenhum PR mesclado em aaaaaaa tem head de mesma árvore, ...")
-- S2 · python3 sonda_s2.py <cópia> (o mesmo, com o PR empilhado já mesclado: run 565 com pull_requests=[] e bateria success; run 555 com bateria failure) · espera: (False, ...) · obtido: (True, "árvore 1111111 igual à do head 3333333 do PR #77, run 565, job bateria")
+- S2 · python3 sonda_s2_lista.py <cópia> (do_ramo com o #77 para develop e o #999 fechado para melhoria/y; run 565 vazio e verde; run 555 do #77 vermelho) · espera: (False, ...) · obtido: (False, "nenhum PR mesclado em aaaaaaa ...")
 
-## Detalhe dos achados
-**A1 (estado: parcialmente corrigido; continua bloqueante).** A parte (1) da correção mínima da rodada anterior entrou e fecha o caso do PR empilhado aberto (S1 agora dá False). A parte (2) não entrou: a lista vazia segue valendo para qualquer run do mesmo head e ramo (`:190-192`), e ela é exatamente o estado do run de um PR já mesclado ou fechado, de qualquer base. O próprio código registra isso na docstring (`:178`: "vazia só depois do merge").
+## Detalhe
+**A1 da volta 2 (estado: corrigido).** A correção mínima pedida entrou: `prs_do_ramo_so_para_develop` lista `pulls?head=<dono>:<ramo>&state=all` em até 10 páginas e não prova se algum PR, aberto ou fechado, tiver `base.ref` diferente de `develop`. A S2 anterior dava True porque o fixture dela não montava a lista do ramo (o padrão é só o PR da develop, o estado legítimo); refeita com o PR empilhado na lista, dá False, também com ele na primeira posição.
 
-Caminho: quem tem escrita abre `melhoria/x -> melhoria/y` no mesmo head do PR da develop; o run desse PR fica verde sobre `merge(head, melhoria/y)`; fecha ou mescla esse PR (o `pull_requests` do run some); o PR da develop é mesclado e o `arvore-envio` pega o run mais novo, verde, de outra base, e corta a suíte do push sem nunca ter testado a árvore mesclada na develop. A ordem é a natural de um PR empilhado, não exige forja.
-
-Correção mínima (P, dono `devops-engineer`; teste `qa-engineer`): listar os PRs do ramo, `repos/<repo>/pulls?head=<dono>:<ramo>&state=all&per_page=100`, e não provar se algum, aberto ou fechado, tiver `base.ref` diferente de `develop` (ou tiver número diferente do `numero` com o mesmo `head.sha`); falha fechada se a listagem falhar ou vier sem `base.ref`. Caso de abuso para o teste: o da S2 (run mais novo verde com `pull_requests=[]` de PR do mesmo ramo para `melhoria/y`, já fechado; run do PR da develop vermelho), espera `(False, ...)`.
-
-Verificado sem achado no delta: tipo errado no `pull_requests` (não lista) recusa; item sem `number` ou `base.ref` recusa (`campo` devolve None); o `numero` vem do PR lido pela API, não do run.
+Verificado sem achado no delta:
+- Saída da guarda `type(p) is not dict`: redundante; `campo` devolve None para item que não é dict, e None diferente de "develop" recusa. Sondas com item `None`, item lista, `base.ref` inteiro e `"develop "` dão False.
+- Exceção na listagem (TimeoutError na sonda) propaga até `main:252`, que a trata como falta de prova (rc 1), sem detalhe que traga o token.
+- Ramo apagado depois do merge: a API real segue listando o PR fechado pelo filtro `head` (conferido no PR #851, ramo já apagado: um item, base develop, state closed).
+- PR de fork com o mesmo nome de ramo fica fora do filtro `dono:ramo`, mas o run dele já é recusado por `head_repository.full_name`.
+- Mais de 10 páginas cheias não prova. Página vazia na primeira chamada prova por vácuo, mas a lista real sempre traz o próprio PR mesclado (head do mesmo repositório, conferido em `prova_do_pr`): sem caminho de ataque, sem achado.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Sondas S1 e S2 fora do repositório (fixture de `tests/test_arvore_testada.py`, sem rede). Teste afetado rodado: `tests.test_arvore_testada` (32 testes, OK). CI do head `023b0d68`: suíte partes 1 a 5, passos, verificações longas, instalação, `bateria (python 3.14)` e `árvore já provada na develop` verdes; `bateria`, `bateria (pareceres)` e `catraca` vermelhas pelo que falta da integração (pareceres). `zizmor` e `actionlint` fora do PATH: lacuna.
+Nenhum risco aceito. Sonda fora do repositório (fixture de `tests/test_arvore_testada.py`, sem rede). Teste afetado rodado: `tests.test_arvore_testada` (33 testes, OK). CI do head `d0f41115`: suíte partes 1 a 5, passos, verificações longas, instalação, `bateria (python 3.14)`, teto de pulados e `árvore já provada na develop` verdes; `bateria`, `bateria (pareceres)` e `catraca` vermelhas, à espera dos pareceres desta volta. `zizmor` e `actionlint` fora do PATH: lacuna.
