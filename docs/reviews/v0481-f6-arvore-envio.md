@@ -25,4 +25,6 @@ Cito sem refazer: o parecer de segurança da volta 2 (2477d634) reprova pelo A1,
 
 Verificadores: `python3 -m unittest tests.test_arvore_testada` no head: 32 testes, OK. `bin/forge-mutante --processos 1` com as specs 5 e 7: AE-M21 a AE-M27 e AE-M36 a AE-M38, todos morreram.
 
-- ci: 023b0d68c5f67c64236363d17e5d17f2fdaea770 verde (check-runs do commit: partes 1 a 5, passos, verificações longas, python 3.14, instalação, árvore já provada e teto em success; `bateria`, `bateria (pareceres)` e `catraca` esperam os pareceres)
+CI lido nos check-runs do commit: partes 1 a 5, passos, verificações longas, python 3.14, instalação, árvore já provada e teto em success; `bateria`, `bateria (pareceres)` e `catraca` esperam os pareceres.
+
+- ci: 023b0d68c5f67c64236363d17e5d17f2fdaea770 verde
