@@ -166,6 +166,13 @@ API_ADMIN = re.compile(r"/(git/refs|contents/|rulesets|branches/[^/]+/protection
                        r"|hooks|keys|transfer)")
 GRAPHQL_PERIGOSO = re.compile(r"mergePullRequest|enablePullRequestAutoMerge|updateRef|createRef|deleteRef|"
                               r"createCommitOnBranch", re.I)
+# M4.2 e M10.1 da F1 (ADR 0019): parecer de portão só pelo `publicar` do plugin; os tipos são os contextos dele
+# (`CONTEXTOS` de `bin/forge_pareceres.py`, conferido por teste); o marcador é a linha `tipo:` do frontmatter do texto.
+TIPOS_DE_PARECER = ("review", "qa", "revisao-seguranca", "revisao-devops")
+MARCADOR_DE_PARECER = re.compile(r"^tipo:[ \t]*[\"']?(%s)[\"']?[ \t]*\r?$" % "|".join(TIPOS_DE_PARECER), re.M)
+GRAVA_PARECER_POR_API = re.compile(r"(^|/)(statuses/[^/]+|issues/[^/]+/comments|issues/comments/[^/]+)$", re.I)
+GRAVA_PARECER_NO_GRAPHQL = re.compile(r"addComment|updateIssueComment|deleteIssueComment")
+CORRIGIR_PUBLICAR = "rode `forge-check parecer publicar <.forge/pareceres/<pedido>/<tipo>.md>`, o do plugin, pelo nome"
 # R-CONTRIB (diretriz 36): a sessão de outro projeto não mexe no Forge (nem o próprio PR), pela API REST e pelo GraphQL.
 # Na sessão de projeto, o `gh` no Forge só lê: todo subcomando fora desta lista mexe e é recusado (falha fechado).
 GH_SO_LE = {"view", "list", "status", "diff", "checks", "download", "watch", "browse"}
@@ -2558,6 +2565,8 @@ class Guarda:
         if argumentos_do_forge_check is not None:
             self.forge_check_grava(argumentos_do_forge_check, pasta)
             self.forge_check_publica(argumentos_do_forge_check, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"))
+            self.publicar_pela_copia(palavras[len(palavras) - len(argumentos_do_forge_check) - 1], argumentos_do_forge_check,
+                                     pasta)
         if prog in SHELLS:
             for i, a in enumerate(args):
                 if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 1 < len(args):
@@ -2665,6 +2674,20 @@ class Guarda:
         raiz = ultima_raiz(args)
         if self.alvo_do_forge(self.caminho(pasta, raiz) if raiz else pasta, repo_env):
             self.barrar("R-CONTRIB", f"forge-check parecer publicar: {NO_FORGE}", SO_SUGERE)
+
+    def publicar_pela_copia(self, programa, args, pasta):
+        """M10.1: o `parecer publicar` roda o `forge-check` do PATH (o do plugin) ou uma extração fora de cópia de trabalho;
+        pelo caminho de uma cópia (`bin/forge-check`, `python3 ./bin/forge-check`), o código da branch publicaria. O caminho
+        com expansão (`$X/bin/forge-check`) o hook não resolve: barra (na dúvida, recusa)."""
+        if livres_do_forge_check(args)[:2] != ["parecer", "publicar"] or "/" not in programa:
+            return
+        if re.search(r"[$`]", programa) or self.raiz_git(self.caminho(pasta, programa).parent) is not None:
+            self.barrar_parecer(f"forge-check parecer publicar pelo `bin/` de uma cópia ({programa}) roda o código da branch "
+                                "(M10.1)")
+
+    def barrar_parecer(self, o_que, corrigir=CORRIGIR_PUBLICAR):
+        """M4.2 e M10.1: trava (`TRAVA`), então vale também na sessão do Forge, para todo papel."""
+        self.barrar("R-REVIEW", o_que, corrigir, trava=TRAVA)
 
     def forge_check_grava(self, args, pasta):
         """A4: o que o `forge-check` grava passa pela política de caminhos do papel, como o Write no mesmo destino (o `anotar`
@@ -3794,6 +3817,38 @@ class Guarda:
         if parte and parte[0] == "prmerge" and parecer.usa_admin(palavras[1:]):
             self.barrar("R-MAIN", "gh pr merge com --admin desvia a proteção da branch", self.CORRIGIR_DO_MERGE)
 
+    def parecer_pelo_terminal(self, palavras, parte, pasta):
+        """M4.2: status e comentário de parecer só pelo `publicar`, que registra a publicação (M4.1). Barra o `gh api` que grava
+        em `statuses/<sha>`, `issues/<n>/comments` ou `issues/comments/<id>` (PATCH, DELETE), a mutação de comentário do
+        GraphQL, e o `gh pr|issue comment` com o marcador de parecer no corpo ou com o corpo que o hook não lê."""
+        endpoint = endpoint_normalizado(parecer.endpoint_da_api(parte[1])) if parte and parte[0] == "api" else ""
+        if endpoint and parecer.metodo_mutante(parte[1]) and (GRAVA_PARECER_POR_API.search(endpoint) or e_graphql(
+                endpoint) and any(GRAVA_PARECER_NO_GRAPHQL.search(t) for t in self.textos_da_api(parte[1], pasta)[0])):
+            self.barrar_parecer("gh api que grava status ou comentário no PR pelo terminal (M4.2)",
+                                f"parecer: {CORRIGIR_PUBLICAR}; outro comentário: `gh pr comment`")
+        pos = parecer.posicionais(palavras[1:], GH_COM_VALOR)
+        if pos[:2] not in (["pr", "comment"], ["issue", "comment"]):
+            return
+        corpo, ilegivel = self.corpo_do_comentario(palavras[1:], pasta)
+        if ilegivel:
+            self.barrar_parecer(f"gh {pos[0]} comment: comentário cujo corpo o hook não lê (M4.2)",
+                                f"parecer: {CORRIGIR_PUBLICAR}; outro texto: `--body` literal ou `--body-file`")
+        if MARCADOR_DE_PARECER.search(corpo):
+            self.barrar_parecer(f"gh {pos[0]} comment: comentário com o marcador de parecer (`tipo:`) pelo terminal (M4.2)")
+
+    def corpo_do_comentario(self, args, pasta):
+        """(texto, ilegivel) do `--body` e do `--body-file`: o heredoc do K3 é texto; `-`, arquivo que não é regular ou não
+        se lê, e valor com expansão marcam `ilegivel`."""
+        texto, arquivo = parecer.opcao(args, "--body", "-b") or "", parecer.opcao(args, "--body-file", "-F")
+        if re.fullmatch(r"\$\(cat\s*\)", texto):  # o K3 chega sem o corpo (`tirar_heredocs`): os corpos da linha
+            texto = "\n".join(corpo for _, corpo in tirar_heredocs(self.linha)[1])
+        if re.search(r"[$`]", texto) or arquivo is not None and (arquivo == "-" or re.search(r"[$`]", arquivo)):
+            return texto, True
+        if arquivo is None:
+            return texto, False
+        lidos, ilegivel = self.textos_da_api(["--input", str(self.caminho(pasta, arquivo))], pasta)
+        return texto + "\n".join(lidos), ilegivel
+
     def gh_api_de_merge(self, args, pasta):
         """GH-MERGE-ADMIN (R-MAIN): o `gh api` mutante de merge (REST ou GraphQL, inline ou em arquivo) também desvia a
         proteção. O GraphQL que não dá para ler (`--input -`, arquivo ausente) falha fechado."""
@@ -3864,6 +3919,7 @@ class Guarda:
             self.gh_rotulo(palavras, pasta, por_xargs)
         self.gh_admin(palavras, parte)  # antes de toda saída antecipada: não depende de branch, base nem raiz
         self.gh_alias(palavras)
+        self.parecer_pelo_terminal(palavras, parte, pasta)
         if not parte:
             return
         if parte[0] == "pr" and not self.pode("pr_criar"):

@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1B-M1",
+      "guarda": "M10.1: o forge-check pelo nome (o do plugin, no PATH) passa; só o caminho com barra é conferido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if livres_do_forge_check(args)[:2] != [\"parecer\", \"publicar\"] or \"/\" not in programa:\n            return",
+      "para": "        if livres_do_forge_check(args)[:2] != [\"parecer\", \"publicar\"]:\n            return",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c12_publicar_pela_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M2",
+      "guarda": "M10.1: o caminho do forge-check com expansão o hook não resolve e barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if re.search(r\"[$`]\", programa) or self.raiz_git(self.caminho(pasta, programa).parent) is not None:",
+      "para": "        if self.raiz_git(self.caminho(pasta, programa).parent) is not None:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c12_publicar_pela_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M3",
+      "guarda": "M10.1: o forge-check por caminho dentro de uma cópia de trabalho barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if re.search(r\"[$`]\", programa) or self.raiz_git(self.caminho(pasta, programa).parent) is not None:",
+      "para": "        if re.search(r\"[$`]\", programa):",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c12_publicar_pela_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M4",
+      "guarda": "M4.2 e M10.1 são travas: valem na sessão do Forge, onde o papel sem lista só passa pelas travas",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        self.barrar(\"R-REVIEW\", o_que, corrigir, trava=TRAVA)",
+      "para": "        self.barrar(\"R-REVIEW\", o_que, corrigir)",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminalNoForge.test_c21_gh_api_statuses_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M5",
+      "guarda": "M4.2: o gh api que muda statuses ou comentários pelo endpoint REST barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if endpoint and parecer.metodo_mutante(parte[1]) and (GRAVA_PARECER_POR_API.search(endpoint) or e_graphql(",
+      "para": "        if endpoint and parecer.metodo_mutante(parte[1]) and (False or e_graphql(",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_api_statuses_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M6",
+      "guarda": "M4.2: a mutação de comentário do GraphQL barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                endpoint) and any(GRAVA_PARECER_NO_GRAPHQL.search(t) for t in self.textos_da_api(parte[1], pasta)[0])):",
+      "para": "                endpoint) and False):",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminalNoForge.test_c21_graphql_de_comentario_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M7",
+      "guarda": "M4.2: o gh issue comment também é conferido (o PR é uma issue)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if pos[:2] not in ([\"pr\", \"comment\"], [\"issue\", \"comment\"]):",
+      "para": "        if pos[:2] != [\"pr\", \"comment\"]:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M8",
+      "guarda": "M4.2: o comentário cujo corpo o hook não lê barra (falha fechada)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if ilegivel:\n            self.barrar_parecer(",
+      "para": "        if False:\n            self.barrar_parecer(",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    }
+  ]
+}

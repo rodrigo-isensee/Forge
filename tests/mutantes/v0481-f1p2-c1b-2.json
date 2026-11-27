@@ -1,0 +1,66 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1B-M9",
+      "guarda": "M4.2: o comentário com o marcador de parecer barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if MARCADOR_DE_PARECER.search(corpo):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M10",
+      "guarda": "M4.2: o corpo do heredoc do K3 é lido como texto (sem ele, todo heredoc seria ilegível e o marcador não se veria)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if re.fullmatch(r\"\\$\\(cat\\s*\\)\", texto):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M11",
+      "guarda": "M4.2: o --body com expansão é ilegível",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if re.search(r\"[$`]\", texto) or arquivo is not None and (arquivo == \"-\" or re.search(r\"[$`]\", arquivo)):",
+      "para": "        if arquivo is not None and (arquivo == \"-\" or re.search(r\"[$`]\", arquivo)):",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M12",
+      "guarda": "M4.2: o --body-file - lê a entrada padrão, nunca o arquivo `-` da pasta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if re.search(r\"[$`]\", texto) or arquivo is not None and (arquivo == \"-\" or re.search(r\"[$`]\", arquivo)):",
+      "para": "        if re.search(r\"[$`]\", texto) or arquivo is not None and (re.search(r\"[$`]\", arquivo)):",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M13",
+      "guarda": "M4.2: o --body-file com expansão é ilegível",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if re.search(r\"[$`]\", texto) or arquivo is not None and (arquivo == \"-\" or re.search(r\"[$`]\", arquivo)):",
+      "para": "        if re.search(r\"[$`]\", texto) or arquivo is not None and (arquivo == \"-\"):",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M14",
+      "guarda": "M4.2: sem --body-file, o corpo é o --body; nada se lê do disco",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if arquivo is None:\n            return texto, False",
+      "para": "        if False:\n            return texto, False",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    }
+  ]
+}
