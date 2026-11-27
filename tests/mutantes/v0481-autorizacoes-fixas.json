@@ -65,7 +65,7 @@
     },
     {
       "id": "M7",
-      "guarda": "AUTORIZACOES-FIXAS F3: sem corte-diario ativa, o corte sai com 1",
+      "guarda": "AUTORIZACOES-FIXAS F3: sem concessão ativa do ato sem prazo, o ler --ato sai com 1",
       "arquivo": "bin/forge_autorizacao.py",
       "de": "    if not ativas:",
       "para": "    if False:",
@@ -75,7 +75,7 @@
     },
     {
       "id": "M8",
-      "guarda": "AUTORIZACOES-FIXAS F3: só a concessão ativa autoriza o corte",
+      "guarda": "AUTORIZACOES-FIXAS F3: só a concessão ativa do ato sem prazo conta no ler --ato",
       "arquivo": "bin/forge_autorizacao.py",
       "de": "if est == \"ativa\" and campos[\"Ato\"] == ato]",
       "para": "if campos[\"Ato\"] == ato]",

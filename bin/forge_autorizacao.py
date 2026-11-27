@@ -474,7 +474,7 @@ def cmd_gravar(raiz, a, ctx, agora=None):
     return 0
 
 
-def cmd_corte(raiz, ctx, agora, ato):
+def cmd_ler_ato(raiz, ctx, agora, ato):
     """Emenda AUTORIZACOES-FIXAS (F3), pelo `ler --ato <ato sem prazo>`: a concessão ativa mais nova do ato; rc 1 sem ela (erro de
     leitura na pasta deixa todas inativas: falha fechada)."""
     lista, _ = concessoes(raiz, ctx["gravador"], agora)
@@ -489,5 +489,5 @@ def cmd_corte(raiz, ctx, agora, ato):
 
 def executar(a, raiz, ctx):
     if a.acao == "ler" and a.ato in SEM_PRAZO:  # o forge-check autorizacao ler --ato <ato sem prazo> (F3; ROTULO-PELO-TIME)
-        return cmd_corte(raiz, ctx, datetime.datetime.now(UTC), a.ato)
+        return cmd_ler_ato(raiz, ctx, datetime.datetime.now(UTC), a.ato)
     return cmd_gravar(raiz, a, ctx) if a.acao == "gravar" else cmd_ler(raiz, ctx)

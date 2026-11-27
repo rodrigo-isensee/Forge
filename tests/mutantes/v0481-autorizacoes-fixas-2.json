@@ -4,7 +4,7 @@
   "mutantes": [
     {
       "id": "M9",
-      "guarda": "AUTORIZACOES-FIXAS F3: o forge-check autorizacao ler --ato <ato sem prazo> vai ao cmd_corte",
+      "guarda": "AUTORIZACOES-FIXAS F3: o forge-check autorizacao ler --ato <ato sem prazo> vai ao cmd_ler_ato",
       "arquivo": "bin/forge_autorizacao.py",
       "de": "    if a.acao == \"ler\" and a.ato in SEM_PRAZO:",
       "para": "    if False:",

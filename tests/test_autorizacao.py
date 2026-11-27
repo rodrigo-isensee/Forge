@@ -399,7 +399,7 @@ class AtosFixos(unittest.TestCase):
     def corte(self, agora="2026-11-18 07:00"):
         saida = io.StringIO()
         with contextlib.redirect_stdout(saida):
-            rc = fa.cmd_corte(self.raiz, {"gravador": GRAVADOR, "seguro": str}, em(agora), self.ATO)
+            rc = fa.cmd_ler_ato(self.raiz, {"gravador": GRAVADOR, "seguro": str}, em(agora), self.ATO)
         return rc, saida.getvalue()
 
     def test_fixa_nao_vence_e_para_so_pela_retirada(self):
