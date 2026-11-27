@@ -6,17 +6,17 @@
       "id": "RD1",
       "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A2): o valor calculado do destino conta só no clone do Forge",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if not self.no_clone or not self.opaco_sem_resto(caminho, pasta):",
-      "para": "        if not self.opaco_sem_resto(caminho, pasta):",
+      "de": "        if not self.no_clone or not self.fim_do_opaco(caminho, pasta):",
+      "para": "        if not self.fim_do_opaco(caminho, pasta):",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
       ]
     },
     {
       "id": "RD2",
-      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A2): só o destino opaco sem resto",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.9, volta 2, A9): só o destino opaco (com ou sem resto)",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if not self.no_clone or not self.opaco_sem_resto(caminho, pasta):",
+      "de": "        if not self.no_clone or not self.fim_do_opaco(caminho, pasta):",
       "para": "        if not self.no_clone:",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
@@ -36,7 +36,7 @@
       "id": "RD4",
       "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A2): sem valor calculado, recusa só a linha que cita a entrada",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if EM_VIGOR_NO_TEXTO.search(self.texto_da_linha):",
+      "de": "            if any(EM_VIGOR_NO_TEXTO.search(t) for t in textos):",
       "para": "            if True:",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"

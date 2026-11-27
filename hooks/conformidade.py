@@ -4342,14 +4342,17 @@ class GuardaDaProva(Guarda):
     def destino_opaco(self, caminho, pasta):
         """A2 da segurança (volta 1): no clone, o destino opaco sem resto (`F=.githooks/pre-push; printf x > $F`) vale
         pelo valor que o hook calcula, resolvido como o literal; sem valor calculado, recusa se a linha cita uma entrada
-        de `EM_VIGOR_NA_RAIZ`. A linha que só lê (`grep … .githooks/pre-push; echo $X`) segue livre (ADR 0009, seção 6)."""
+        de `EM_VIGOR_NA_RAIZ`. A linha que só lê (`grep … .githooks/pre-push; echo $X`) segue livre (ADR 0009, seção 6).
+        A9 da segurança (volta 2): o destino com resto (`D=.githooks; printf x > $D/pre-push`) vale igual; sem valor
+        calculado, só o texto preciso do valor conta (`printf x > $TMPDIR/y; cat .githooks/pre-push` segue livre)."""
         super().destino_opaco(caminho, pasta)
-        if not self.no_clone or not self.opaco_sem_resto(caminho, pasta):
+        if not self.no_clone or not self.fim_do_opaco(caminho, pasta):
             return
         valores = None if self.corpo_desconhecido else valores_da_palavra(  # A12 (E1.328): o heredoc que atribui
             self.expandir(caminho, pasta), linha_juntada(self.texto_da_linha))
         if valores is None or any(SEM_VALOR in v for v in valores):
-            if EM_VIGOR_NO_TEXTO.search(self.texto_da_linha):
+            textos = [self.texto_da_linha] if self.opaco_sem_resto(caminho, pasta) else self.textos_do_valor(caminho)[0]
+            if any(EM_VIGOR_NO_TEXTO.search(t) for t in textos):
                 self.barrar("R-CONFORMIDADE", f"destino de $(…), crase ou variável sem valor calculado numa linha que cita "
                             f"o que {MOTIVO_EM_VIGOR}", "escreva o caminho literal do destino")
             return

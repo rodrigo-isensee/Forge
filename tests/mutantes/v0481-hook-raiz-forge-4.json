@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481-hook-raiz-forge",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "RD7",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.9, volta 2, A9): com resto e sem valor calculado, só o texto preciso do valor conta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            textos = [self.texto_da_linha] if self.opaco_sem_resto(caminho, pasta) else self.textos_do_valor(caminho)[0]",
+      "para": "            textos = [self.texto_da_linha]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RD8",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.9, volta 2, A9): sem resto e sem valor calculado, a linha inteira conta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            textos = [self.texto_da_linha] if self.opaco_sem_resto(caminho, pasta) else self.textos_do_valor(caminho)[0]",
+      "para": "            textos = self.textos_do_valor(caminho)[0]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    }
+  ]
+}
