@@ -21,6 +21,8 @@ orientação do M14 (150 linhas de código e teste, sem trava por volume).
   e, no arquivo maior que o teto, por função tocada; é sugestão, quem corta é o tech-lead.
 - **Passar do teto:** só se cortar mais deixa a suíte vermelha (um pedaço não fica verde sozinho). O tech-lead explica o
   motivo no corpo do PR, com `teto: excedido, <n> linhas, <motivo>`.
+  No clone do Forge, o hook `parecer` recusa o `gh pr create` para a `develop` (com ou sem `--draft`) acima do teto, com o
+  corte sugerido; a linha só vale no `--body-file` (arquivo comum da cópia, até 64 KiB), com `<n>` igual ao total ou maior.
 
 ## Caminho curto para o pequeno (H8)
 - **A classe decide** (`forge-check classe`, `R-REVIEW`): na T (só documentação comum, só testes, ou até 20 linhas fora dos
