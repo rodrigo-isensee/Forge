@@ -2,29 +2,34 @@
 tipo: review
 contrato: 1
 pedido: release-0.47.20
-branch: melhoria/v0481-release-0-47-20
-commit: 1e301536467df853dae1e7229952b930078c979d
-parecer: aprovado
+branch: melhoria/v0481-release-0-47-20-pareceres
+commit: 779356dcee5f1c840e328dc6efbd3fa9275e8d77
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-27
 ---
 # Review: release-0.47.20
 
-Code review da versão 0.47.20 inteira contra a main (`v0.47.19`, a2f516d5), no head 1e301536 do PR #935 (branch melhoria/v0481-release-0-47-20, base `develop` 8855671d), v0481 E43.2. Conteúdo: `git log origin/main..1e301536` com 23 itens já mesclados na `develop` com os próprios portões, a marca (3bf1456e), o merge da `develop` 8855671d (df12c5f5) e o anexo do #933 e do #934 (1e301536). Aqui se confere a junção, a marca e o anexo; o mérito de cada item ficou nos pareceres de cada PR.
+Revalidação por delta (H3, release-0.47.20 E1.8) da versão 0.47.20 contra a main, no head 779356dc da `develop`. A 1.ª rodada (aprovada no head 1e301536 do PR #935, hoje a marca 447b4ad2 na `develop`) conferiu os 23 itens, a marca e o anexo do #933 e do #934; este parecer lê só o que entrou depois.
 
-## Conferência
-- Itens: #909, #910, #913, #914, #916, #917, #918, #919, #920, #921, #922, #923, #924, #925, #926, #927, #928, #929, #930, #931, #932, #933, #934, todos `MERGED` com base `develop`. Contador acima do teto (23 de 20) pela ordem do dono de 27/11 09:20 e 10:08 (promover a 0.47.20 com o #933 e o #934).
-- Junção: `git diff 8855671d 1e301536` toca só `.claude-plugin/plugin.json`, `dev/.claude-plugin/plugin.json` (0.47.19 → 0.47.20), `CHANGELOG.md` (+29) e os 23 fragmentos apagados; o merge df12c5f5 não traz resolução que mude código.
-- Seção `[0.47.20]`: 24 linhas `- ` (7 Adicionado, 9 Alterado, 8 Corrigido; o #924 tem duas); as 24 linhas dos fragmentos apagados estão, iguais, no `CHANGELOG.md` (conferido linha a linha com `grep -xF`).
-- Regras afrouxadas: os 7 itens com a marca no título (#909, #918, #920, #928, #929, #931, #932) citam no título a ordem, a ADR ou a regra do aceite; a conferência de cada aceite contra as decisões do pedido é do parecer de segurança da release. O rótulo `afrouxa-regra` está em 20 dos 23 PRs; o #918 tem a marca no título sem o rótulo, e #917 e #934 não têm nenhum dos dois.
-- Pareceres por item na `develop`: review e segurança aprovados em 22 itens; QA ausente em 6 itens de classe C (A2); o #934, juntado pelo dono, sem parecer (só testes: `tests/test_hooks.py` alarga também `PRAZO_DA_SESSAO_S` fora do modo produção; lido, correto).
-- Ferramentas no head 1e301536: `bin/forge-changelog conferir --base origin/develop`: "PR de release (versão mudou): o changelog fechado é conferido na promoção para a main." (rc 0); `bin/forge-changelog conferir-release`: "ok: changelog.d/ sem fragmentos pendentes" (rc 0); `git diff --check 8855671d 1e301536`: limpo; `python3 -m unittest tests.test_changelog`: 91 testes, OK.
+## Delta lido
+- `forge-check parecer delta docs/reviews/release-0.47.20.md`: "commit 1e301536… não existe" (o #935 entrou por squash como 447b4ad2); o delta lido é o do brief, `git log 8855671d..779356dc`: #937 (eba76f80), #936 (50e5b609), a marca #935 (447b4ad2) e o anexo #939 (779356dc).
+- #937: squash igual ao head a2ef1548 (`git diff a2ef1548 eba76f80` vazio); os três pareceres (`docs/reviews|qa|security/v0481-f1p2-c1a.md`) aprovados em c31462e6, que difere do head só nesses três arquivos.
+- #936: o patch do squash (`git diff eba76f80 50e5b609`) tem o mesmo `patch-id` do head d4f1f0f1 sobre 8855671d (1fcdd456); os três pareceres (`v0481-encolhe-930.md`) aprovados em 27641d2a, que difere do head só nos três pareceres.
+- Anexo #939: `git diff 447b4ad2 779356dc` toca só `CHANGELOG.md` (+2) e apaga `changelog.d/v0481-encolhe-930.md` e `changelog.d/v0481-f1p2-c1a.md`; as duas linhas são iguais às dos fragmentos (CHANGELOG.md:16 e :36).
+- CI: o head do #939 (f61936bf) tem a mesma árvore de 779356dc (`git diff` vazio) e todos os checks verdes, a suíte (5 partes) e a instalação incluídas; o run do push na `develop` em 779356dc (46029535472) passou em "árvore do PR já provada" e na checagem rápida.
+- Ferramentas no head 779356dc: `bin/forge-changelog conferir-release`: "ok: changelog.d/ sem fragmentos pendentes" (rc 0); `git diff --check 447b4ad2 779356dc`: limpo; `python3 -m unittest tests.test_changelog`: 91 testes, OK; as duas `plugin.json` em 0.47.20; seção `[0.47.20]` com 26 linhas `- `.
+
+## Regras afrouxadas (tabela do PR da main)
+- #936 entra na tabela: afrouxa `R-CONFORMIDADE` (HOOK-NAO-PROTEGE-RAIZ-DO-FORGE), marca no título e rótulo; motivo: a grafia do Bash na raiz do Forge fica com o `denyWrite` do sandbox do SO, Write e Edit seguem barrados; pedido de origem v0481 E46.1. O rótulo pelo time vale pela ordem do dono de 26/11 12:57.
+- #937 não afrouxa: rótulo só por arquivo protegido (`bin/forge_pareceres.py`, ADR 0008), a conta aceita fica mais estreita e o registro é exigência nova. Liste-o à parte ("rótulo sem afrouxar"), para a tabela fechar com os rótulos da versão. Não tira trava antiga, então não abre o intervalo que a ordem de 27/11 12:37 proíbe (o A1 da segurança do item fica para o C1b).
 
 ## Achados
-- A1 (recomendado) CHANGELOG.md:7 · A ordem do dono de 27/11 10:08 pede listar toda regra afrouxada no PR da versão oficial; o corpo fixo do `forge-fechar --corte` (bin/forge-fechar:1627) não a lista e o #935 também não. O PR homolog → main deve citar os 7 (#909, #918, #920, #928, #929, #931, #932) com o aceite de cada um.
-- A2 (recomendado) CHANGELOG.md:21 · Segue o A2 da 0.47.19: 6 itens de classe C sem `docs/qa/` na `develop` (#919, #921, #922, #923, #926, #927; CHANGELOG.md:21, 11, 32, 22, 28, 23) e o #934 (CHANGELOG.md:34) sem nenhum parecer. O parecer de QA da release cobre a leva; vira cartão.
+- A1 (recomendado) CHANGELOG.md:7 · Atualiza o A1 da 1.ª rodada: o PR homolog → main lista 8 regras afrouxadas com motivo e pedido de origem (#909, #918, #920, #928, #929, #931, #932 e agora #936) e cita o #937 como rótulo sem afrouxar.
+- A2 (recomendado) CHANGELOG.md:21 · Segue o A2 da 1.ª rodada: 6 itens de classe C sem `docs/qa/` na `develop` e o #934 sem parecer; o parecer de QA da release cobre a leva; vira cartão.
+- A3 (bloqueante) CHANGELOG.md:32 · A linha do #930 diz que a raiz do Forge barra a escrita pelo Bash por variável e por texto de interpretador; o #936 tirou isso na mesma versão, e o fragmento dele (CHANGELOG.md:36) era "a entrada do #930 corrigida" (corpo do #936). O anexo somou em vez de trocar. Apagar a linha 32.
 
 ## Parecer
-Aprovado. A junção é só a marca e o anexo sobre a `develop` 8855671d, a seção `[0.47.20]` traz os 23 itens sem fragmento pendente, as duas versões batem e o CI do head está todo verde, a instalação de ponta a ponta incluída.
+Reprovado pelo A3: o código do delta é o que os três portões de cada item aprovaram, e o anexo traz os dois fragmentos iguais, mas a seção `[0.47.20]` afirma uma guarda que a própria versão removeu. Conserto: um anexo que apague CHANGELOG.md:32; na volta, só essa linha é relida.
 
-- ci: 1e301536467df853dae1e7229952b930078c979d verde
+- ci: 779356dcee5f1c840e328dc6efbd3fa9275e8d77 verde
