@@ -270,7 +270,7 @@ class NaAbertura(ComRepositorio):
         self.assertIsNone(self.abertura("teto: excedido, 151 linhas, a suíte quebra"))
 
     def test_so_testes_md_e_mutantes_nao_contam_e_o_modulo_do_portao_conta(self):
-        for rel in ("tests/test_x.py", "docs/x.md", "README.md", "tests/mutantes/x.json", "changelog.d/x.md"):
+        for rel in ("tests/test_x.py", "docs/x.md", "notas.md", "tests/mutantes/x.json", "changelog.d/x.md"):
             self.gravar(rel, "".join(f"l{i}\n" for i in range(500)))
         self.git("add", ".")
         self.commit("docs: muito texto")
