@@ -14,10 +14,10 @@
     },
     {
       "id": "RD8",
-      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.9, volta 2, A9): sem resto e sem valor calculado, a linha inteira conta",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.9, volta 2, A9): sem valor calculado, a linha inteira conta só sem resto",
       "arquivo": "hooks/conformidade.py",
       "de": "            textos = [self.texto_da_linha] if self.opaco_sem_resto(caminho, pasta) else self.textos_do_valor(caminho)[0]",
-      "para": "            textos = self.textos_do_valor(caminho)[0]",
+      "para": "            textos = [self.texto_da_linha] if not self.opaco_sem_resto(caminho, pasta) else self.textos_do_valor(caminho)[0]",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
       ]
