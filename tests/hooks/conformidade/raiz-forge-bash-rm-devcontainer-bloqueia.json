@@ -25,6 +25,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "apaga .devcontainer/devcontainer.json"
+    "stderr": "na raiz do Forge"
   }
 }

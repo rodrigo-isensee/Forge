@@ -4167,8 +4167,14 @@ CONFIG_DA_RAIZ = ".forge/config.json"
 ESTADO_DOS_HOOKS = (".git/forge/", CONFIG_DA_RAIZ)
 # HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1): na sessão do Forge, o que roda fora do sandbox (o pre-push, o postStart
 # do container como root) recusa como num projeto quando o alvo está na raiz da sessão ou na cópia principal; a cópia de
-# `wt/` segue livre, e a mudança legítima vai por ela, por branch e PR.
-EM_VIGOR_NA_RAIZ = (".githooks/", ".git/hooks/", ".devcontainer/devcontainer.json")
+# `wt/` segue livre, e a mudança legítima vai por ela, por branch e PR. Volta 1 (A3 e A5 da segurança): a pasta do
+# manifesto, que decide se a sessão é do Forge (`tem_manifesto_do_forge`), e toda configuração que o editor oferece ao
+# abrir o container (`.devcontainer/` inteira e `.devcontainer.json`).
+EM_VIGOR_NA_RAIZ = (".githooks/", ".git/hooks/", ".devcontainer/", ".devcontainer.json", ".claude-plugin/")
+MOTIVO_EM_VIGOR = "roda fora do sandbox ou decide as travas na raiz do Forge"  # a recusa própria, sem entrada na política
+# A2 da segurança (volta 1): a linha que cita uma entrada de `EM_VIGOR_NA_RAIZ`, para o destino que o hook não calcula,
+# a linha sem leitura e o erro interno (o padrão de `ESTADO_NO_TEXTO`).
+EM_VIGOR_NO_TEXTO = re.compile(r"\.githooks|\.git/hooks|devcontainer|\.claude-plugin", re.I)
 # `.git/forge` só como nome inteiro: `.git/forge-suite-verde` é a prova da suíte, com a recusa própria (R-VERIFY).
 ESTADO_NO_TEXTO = re.compile(r"\.git/forge(?![\w.-])|forge/run|agentes\.json|\.forge/config\.json")  # C10: linha que o hook não lê e cita o estado
 # PARECER-PELO-PAPEL (v0478 E50.7, A3 de docs/security/v0479-entrega-parecer-mesclado.md): no clone do Forge, as recusas
@@ -4277,7 +4283,24 @@ class GuardaDaProva(Guarda):
         if achado and self.motivo_do_config and self.motivo_do_config in achado[1] and (
                 caminho != Path(os.path.realpath(self.h.raiz)) / CONFIG_DA_RAIZ):
             return None
-        return achado or self.parecer_no_topo(caminho)
+        achado = achado or self.parecer_no_topo(caminho)
+        if achado is None and self.na_raiz_em_vigor(caminho):  # A3 e A5: a entrada com dono ou fora da política
+            return ("R-CONFORMIDADE", f"{MOTIVO_EM_VIGOR}: {caminho.name}", "só o usuário altera na raiz",
+                    "instalacao")
+        return achado
+
+    def checar_texto(self, texto):
+        """A1 da segurança (volta 1): o texto de interpretador que escreve e cita uma entrada de `EM_VIGOR_NA_RAIZ`
+        recusa pelo alvo na raiz da sessão, como no projeto; a pasta que o interpretador usa o hook não sabe, então a
+        cópia de `wt/` também recusa por esse caminho (lá, Write ou Edit)."""
+        super().checar_texto(texto)
+        if not self.no_clone or not ESCRITA_NO_TEXTO.search(texto):
+            return
+        raiz = Path(os.path.realpath(self.h.raiz))
+        for c in EM_VIGOR_NA_RAIZ:
+            if c.rstrip("/") in texto:  # no clone, o alvo na raiz sempre tem recusa (`caminho_barrado`)
+                alvo = self.resolver(c, raiz)
+                self.barrar(*self.caminho_barrado(alvo), alvo=alvo)
 
     def parecer_no_topo(self, caminho):
         """PARECER-PELO-PAPEL: a recusa da pasta de parecer pela forma relativa ao topo da cópia do Forge que contém o alvo
@@ -4299,7 +4322,7 @@ class GuardaDaProva(Guarda):
             super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)
         if self.recusa_do_estado(o_que):
             super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)
-        if self.na_raiz_em_vigor(alvo):
+        if self.na_raiz_em_vigor(alvo) or MOTIVO_EM_VIGOR in o_que:
             super().barrar(rid, o_que, f"mude numa cópia de wt/ (forge-copia), por branch e PR; {corrigir}", alvo=alvo,
                            grupo=grupo)
         if self.travas and trava_da_sessao_do_forge(rid, trava, self.h.campo("tool_input").get("command")):
@@ -4315,6 +4338,24 @@ class GuardaDaProva(Guarda):
         posix = os.path.realpath(alvo)
         rels = [relativo_ao_pai(posix, Path(os.path.realpath(self.h.raiz))), *self.relativos_a_copia_principal(posix)]
         return any(r is not None and (casa(r, c) or c.startswith(r + "/")) for r in rels for c in EM_VIGOR_NA_RAIZ)
+
+    def destino_opaco(self, caminho, pasta):
+        """A2 da segurança (volta 1): no clone, o destino opaco sem resto (`F=.githooks/pre-push; printf x > $F`) vale
+        pelo valor que o hook calcula, resolvido como o literal; sem valor calculado, recusa se a linha cita uma entrada
+        de `EM_VIGOR_NA_RAIZ`. A linha que só lê (`grep … .githooks/pre-push; echo $X`) segue livre (ADR 0009, seção 6)."""
+        super().destino_opaco(caminho, pasta)
+        if not self.no_clone or not self.opaco_sem_resto(caminho, pasta):
+            return
+        valores = None if self.corpo_desconhecido else valores_da_palavra(  # A12 (E1.328): o heredoc que atribui
+            self.expandir(caminho, pasta), linha_juntada(self.texto_da_linha))
+        if valores is None or any(SEM_VALOR in v for v in valores):
+            if EM_VIGOR_NO_TEXTO.search(self.texto_da_linha):
+                self.barrar("R-CONFORMIDADE", f"destino de $(…), crase ou variável sem valor calculado numa linha que cita "
+                            f"o que {MOTIVO_EM_VIGOR}", "escreva o caminho literal do destino")
+            return
+        for alvo in (self.resolver(v, pasta) for v in valores):
+            if self.na_raiz_em_vigor(alvo):  # só a entrada em vigor: a outra recusa fala na ordem dela (`checar_escrita`)
+                self.barrar(*self.caminho_barrado(alvo), alvo=alvo)
 
     def recusa_do_estado(self, o_que):
         """No clone: a recusa cita o motivo de uma entrada do estado, ou é a da construção que o hook não modela (`$d`,
@@ -4566,6 +4607,11 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, travas=Fa
             hook.registrar_erro(erro)
             Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita o estado dos "
                           "hooks (.git/forge/, forge/run, agentes.json, .forge/config.json)", f"só o usuário altera; {SUGESTAO}")
+        if guarda.no_clone and isinstance(alvo, str) and EM_VIGOR_NO_TEXTO.search(juntar_continuacoes(alvo)):
+            hook.registrar_erro(erro)  # A2 da segurança (volta 1), como o estado dos hooks acima
+            Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita o que roda fora "
+                          "do sandbox na raiz (.githooks, .git/hooks, devcontainer, .claude-plugin)",
+                          f"só o usuário altera; {SUGESTAO}")
         if guarda.no_clone and isinstance(alvo, str) and guarda.parecer_no_texto(alvo):  # A5 e A6 da segurança
             erro_interno = not isinstance(erro, ForaDaProva)  # a linha sem leitura é a recusa; só o erro interno vai ao registro
             if erro_interno:

@@ -1,5 +1,5 @@
 {
-  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1; R-CONFORMIDADE): outro arquivo de .devcontainer/ segue fora, como no projeto.",
+  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1; R-CONFORMIDADE): o corpo do heredoc do python3 grava .git/hooks/ da raiz.",
   "arquivos": {
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
@@ -14,10 +14,9 @@
     "CLAUDE_PROJECT_DIR": "{tmp}/proj"
   },
   "entrada": {
-    "tool_name": "Write",
+    "tool_name": "Bash",
     "tool_input": {
-      "file_path": "{tmp}/proj/.devcontainer/outro.json",
-      "content": "x\n"
+      "command": "python3 - <<'EOF'\nopen('.git/hooks/pre-commit','w').write('x')\nEOF"
     },
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9",
@@ -25,6 +24,7 @@
     "agent_type": "forge:devops-engineer"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "hooks do git (.git/hooks/)"
   }
 }
