@@ -290,7 +290,7 @@ def vigentes(raiz, pr, head, pedido):
                         if ancestral(raiz, origem, head) else (None, "origem do status fora da história do head (C0-2)"))
                 lidos[tipo] = (*lido, origem)
     except (KeyError, TypeError, AttributeError, ValueError) as e:
-        raise Recusa(f"resposta do gh fora do contrato ({type(e).__name__}) (M19.1)") from None
+        raise Recusa(f"leitura do PR: resposta do gh fora do contrato ({type(e).__name__}) (M19.1)") from None
     return lidos
 
 

@@ -47,8 +47,8 @@
       "id": "M13",
       "guarda": "resposta fora do contrato vira Recusa",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "    except (KeyError, TypeError, AttributeError, ValueError) as e:\n        raise Recusa(f\"resposta do gh fora do contrato",
-      "para": "    except (KeyError,) as e:\n        raise Recusa(f\"resposta do gh fora do contrato",
+      "de": "    except (KeyError, TypeError, AttributeError, ValueError) as e:\n        raise Recusa(f\"leitura do PR: resposta do gh fora do contrato",
+      "para": "    except (KeyError,) as e:\n        raise Recusa(f\"leitura do PR: resposta do gh fora do contrato",
       "testes": [
         "tests.test_forge_pareceres.Vigentes.test_status_sem_created_at_fora_do_contrato"
       ]
