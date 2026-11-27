@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-f6-arvore-envio
-commit: 023b0d68c5f67c64236363d17e5d17f2fdaea770
+commit: d0f41115599f182b8e57b6b7dcd78f529bdad70f
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -14,7 +14,7 @@ data: 2026-11-27
 ---
 # QA: v0481 (E32.30, #932, F6: o envio na develop pula a suíte com a árvore provada no PR)
 
-- ci: 023b0d68c5f67c64236363d17e5d17f2fdaea770 verde
+- ci: d0f41115599f182b8e57b6b7dcd78f529bdad70f verde
 
 Volta 1 (delta 1567d509..dcd4003c). `gh pr checks 932` no head: verdes `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, suíte 3.12 partes 1 a 5, teto de pulados e `árvore já provada na develop`; fora `bateria`, `bateria (pareceres)` e `catraca` (esperam parecer ou rótulo). Os jobs do push na develop saem `skipping`.
 
@@ -53,3 +53,11 @@ O pedido não traz `CA-n` para o corte do envio; a obrigação é a decisão do 
 - Módulo: `python3 -m unittest tests.test_arvore_testada`: 32 testes, OK.
 - Mutantes: `bin/forge-mutante` specs -5 e -7 `--base dcd4003c`: AE-M21 a M27 e AE-M36 a M38 todos `morreu` (10 de 10); AE-M23 realinhado à linha `ligados` morre; sem sobrevivente.
 - Fronteiras do teste novo: outra base, mesmo número com base homolog, o próprio mais outro e tipo errado (`"x"`) não ligam; o próprio com base develop prova.
+
+## Revalidação (volta 3, delta 023b0d68..d0f41115)
+`forge-check parecer delta` lista no domínio: `scripts/arvore-testada.py`, spec -8, `tests/test_arvore_testada.py`. `gh pr checks 932` no head: verdes `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, suíte 3.12 partes 1 a 5, teto de pulados e `árvore já provada na develop`; fora `bateria`, `bateria (pareceres)` e `catraca`.
+- Código: `prs_do_ramo_so_para_develop` lista os PRs do ramo (`state=all`, `per_page=100`, até 10 páginas); lista fora do formato, base diferente de develop ou teto estourado não prova; a chamada fica antes de `bateria_do_run_do_pr`. Leitura sem defeito; a guarda `type(p) is not dict` saiu e `campo` cobre o item que não é objeto.
+- Módulo: `python3 -m unittest tests.test_arvore_testada`: 33 testes, OK.
+- Vermelho: `bin/forge-testes --vermelho 023b0d68 --modulos test_arvore_testada` rc=0; `vermelho: base=023b0d68c5f6 head=d0f41115599f`; `test_pr_empilhado_do_mesmo_ramo_ja_mesclado_ou_fechado_nao_prova · H=ok · B=erro · prova (API ausente)`; nenhum teste cai no HEAD.
+- Mutantes: `bin/forge-mutante` specs -7 e -8: AE-M36 a M38 e AE-M39, M40, M42 a M45 todos `morreu` (9 de 9), sem sobrevivente; AE-M37 realinhado morre.
+- Fronteiras: outra base na lista, lista fora do formato, exceção da listagem e passar de 10 páginas não provam; PR só com base develop prova.
