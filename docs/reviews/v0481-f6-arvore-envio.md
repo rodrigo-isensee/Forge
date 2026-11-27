@@ -3,25 +3,32 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-f6-arvore-envio
-commit: 1567d509452159c268e52384f694a7bf3881bdda
+commit: dcd4003c3bbb728d86c2e16a9df0aefad46a2036
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-27
 ---
-# Review: v0481 (E32.28, F6 corte do envio, PR #932, 1.ª rodada)
+# Review: v0481 (E32.34, F6 corte do envio, PR #932, volta 1)
+
+Delta lido: `forge-check parecer delta docs/reviews/v0481-f6-arvore-envio.md`, intervalo 1567d509..dcd4003c (docs/protecao-de-branch.md, scripts/arvore-testada.py, tests/test_arvore_testada.py, specs de mutantes 1, 4, 5 e 6).
 
 ## Achados
-- A1 (bloqueante) scripts/arvore-testada.py:186 · liga run e PR por `pull_requests`, que a API só preenche com PR aberto; no push da develop o PR já foi mesclado e a lista vem vazia: `prova_do_pr` nunca prova (S1, S2) e a suíte roda sempre. Ligue sem esse campo (head_sha e head_branch do PR), mantendo o A1 do #929.
-- A2 (bloqueante) tests/test_arvore_testada.py:230 · o falso da API põe `pull_requests` preenchido no run de um PR já mesclado, mais frouxo que a API real (item 12 do checklist): a suíte fica verde com o A1 presente. O caso positivo precisa do formato real (lista vazia após o merge) e provar mesmo assim.
-- A3 (recomendado) docs/protecao-de-branch.md:31 · "erro ou falha do job, a suíte roda inteira": com o job `arvore-envio` em falha (checkout, setup), as partes ficam puladas pelo `needs` e o agregador sai vermelho; a suíte não roda. Corrija o texto (vermelho, não suíte inteira) ou o `if` das partes.
+- A4 (bloqueante) scripts/arvore-testada.py:182 · nada liga mais o run ao PR da develop: run mais recente de outro PR aberto, mesmo ramo e head, contra outra base prova com o run da develop vermelho (S3). Recuse o run cuja lista pull_requests, quando não vazia, traga PR que não seja o número contra a develop.
 
 ## Sondas
-- S1 · prova_do_pr na API real, SHA=11fc1867 (merge do #931, árvore igual à do head do PR, bateria success no run 45959949382) · espera: (True, ...) · obtido: (False, 'nenhum PR mesclado em 11fc186 tem head de mesma árvore, ...'); mesmo resultado em 2bdf1a2 (#929)
-- S2 · gh api repos/<repo>/actions/runs/45959949382 --jq '.pull_requests|length' e os ci.yml dos 12 últimos PRs mesclados na develop (#917 a #931) · espera: PR ligado ao run · obtido: 0 em todos; o run aberto do #932 traz 932:develop:11fc186
+- S3 · falso do teste: runs=[rodada() com job bateria failure, rodada(id=556, pull_requests=[#99 base homolog]) com bateria success] · espera: (False, ...) · obtido: (True, 'árvore 1111111 igual à do head 3333333 do PR #77, run 556, job bateria')
 
 ## Parecer
-Reprovado. A estrutura está certa: job `arvore-envio` só com leitura, token só no passo da prova, falha fechada no script (exceção vira rc 1 sem detalhe), agregador que exige `arvore-envio` em success e as pernas puladas só com `provada=true`, e a cadeia do A1 do #929 (mesmo repositório, base develop, árvore do head igual à do commit, develop anterior e base do run ancestrais do head, job `bateria` único na tentativa mais recente). Tamanho pela ferramenta: 144 linhas de código, dentro do H1.
+Reprovado, só pelo A4. Os achados da 1.ª rodada estão resolvidos:
+- A1 resolvido: S1 de novo na API real (prova_do_pr com o `gh api`) nos 14 últimos merges da develop: prova em 6, entre eles 11fc1867 (#931, run 45959949382) e 2bdf1a2e (#929); os 8 que não provam têm a árvore do merge diferente da do head do PR (conferido um a um), recusa correta.
+- S2 de novo: o run 45959949382 do #931 segue com `pull_requests` de tamanho 0 após o merge; a ligação por `head_sha` e `head_branch` não depende dele.
+- A2 resolvido: o falso põe `pull_requests: []` no run do caso positivo, no formato real, e prova.
+- A3 resolvido: docs/protecao-de-branch.md:31 diz que o `arvore-envio` em falha deixa as partes puladas e o agregador vermelho.
 
-O defeito (A1) é de requisito: o objetivo do item é o envio pular a suíte com a árvore provada no PR, e a prova depende de um campo que a API do GitHub esvazia quando o PR fecha. Provado na API real (S1, S2): no merge do #931, cada passo passa (PR #931 mesclado em 11fc186, árvore igual, bateria success na tentativa 1) e só a ligação run→PR falha. É falha fechada, sem risco de segurança, mas o mecanismo nunca dispara. O falso dos testes (A2) é o que deixou isso verde. Sugestão: ligar pelo `head_branch` do run igual a `head.ref` do PR e `head_sha` igual ao head, e tirar a base do PR (`base.sha` da API do PR ou o compare com a develop anterior já feito), com caso de teste no formato real e mutante da guarda nova.
+A4 (regressão do A1 do parecer de segurança do #929, que o próprio docs/protecao-de-branch.md:31 promete: "de outra base não prova"): o filtro do run agora é head_sha, head_branch, evento, path, repositório e status; nada liga o run ao PR da develop. O `max(validas)` escolhe o run mais recente, e um PR do mesmo ramo contra a homolog (ou outra base) testa a mescla com outra base, não a árvore do head. Os casos "run do PR contra outra base" e "run de outro PR" saíram do teste sem substituto. A API real deixa a lista vazia só depois do merge do PR; o PR aberto contra outra base aparece nela, então a guarda "lista não vazia só com o número contra a develop" fecha o caso sem quebrar o S1. Volte com o caso no teste e o mutante da guarda.
 
-Suíte: testes afetados rodados à mão no head (`tests.test_arvore_testada`, `test_suite_partes`, `test_catraca`, `test_ci_local`): 583 testes, OK. CI do head 1567d509: partes, passos, instalação e árvore verdes; `bateria`, `bateria (pareceres)` e `catraca` vermelhos à espera dos pareceres e do rótulo. Mutantes declarados (14 em três specs) não rodados nesta rodada: a correção do A1 muda as guardas que eles cobrem.
+Resto do delta: base pela `base.sha` do PR com compare ahead/identical, fork pelo `head_repository` e pelo `head.repo` do PR, caso behind (AE-M19) e commit sem pai cobertos; as specs 4 a 6 batem com as guardas.
+
+Verificadores: `python3 -m unittest tests.test_arvore_testada` no head: 31 testes, OK. `bin/forge-mutante --processos 1` com as 6 specs do item: AE-M1 a AE-M35, todos morreram.
+
+- ci: dcd4003c3bbb728d86c2e16a9df0aefad46a2036 verde (`gh pr checks 932`: partes 1 a 5, passos, verificações longas, python 3.14, instalação, árvore e teto em pass; `bateria`, `bateria (pareceres)` e `catraca` esperam os pareceres)
