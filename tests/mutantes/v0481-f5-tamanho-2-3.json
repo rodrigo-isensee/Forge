@@ -1,0 +1,76 @@
+{
+  "pedido": "v0481-f5-tamanho-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "F5.2: a leitura do `--body-file` para no fim dos argumentos",
+      "arquivo": "hooks/parecer.py",
+      "de": "    while j < len(args):\n        a = args[j]\n        if a in (\"--body-file\", \"-F\"):",
+      "para": "    while j <= len(args):\n        a = args[j]\n        if a in (\"--body-file\", \"-F\"):",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_excecao_so_no_body_file_comum_da_copia_com_o_total"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "F5.2: `-F` sem valor no fim não dá caminho",
+      "arquivo": "hooks/parecer.py",
+      "de": "            caminho = args[j + 1] if j + 1 < len(args) else None",
+      "para": "            caminho = args[j + 1] if True else None",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_excecao_so_no_body_file_comum_da_copia_com_o_total"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "F5.2: o valor de outra opção (`--body -Fc.md`) não é o `--body-file`",
+      "arquivo": "hooks/parecer.py",
+      "de": "        j += 2 if a in CREATE_COM_VALOR else 1\n    return caminho",
+      "para": "        j += 1\n    return caminho",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_excecao_so_no_body_file_comum_da_copia_com_o_total"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "F5.2: com a pasta do gh desconhecida, o caminho absoluto ainda é lido",
+      "arquivo": "hooks/parecer.py",
+      "de": "    alvo = Path(pasta or \"/\", caminho)",
+      "para": "    alvo = Path(pasta, caminho)",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_excecao_so_no_body_file_comum_da_copia_com_o_total"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "F5.2: sem --head, a branch é a atual",
+      "arquivo": "hooks/parecer.py",
+      "de": "    branch = nome_da_branch(head) if head else git(raiz, \"branch\", \"--show-current\")[1]\n    if branch in INTEGRACAO:\n        return  # promoção",
+      "para": "    branch = nome_da_branch(head) if True else git(raiz, \"branch\", \"--show-current\")[1]\n    if branch in INTEGRACAO:\n        return  # promoção",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_rascunho_e_pr_normal_acima_do_teto_recusam_e_no_teto_passam"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "F5.2: o --head só vale se existe no git local (ou a origin/<branch>)",
+      "arquivo": "hooks/parecer.py",
+      "de": "if existe(raiz, r)), None) if head else \"HEAD\"",
+      "para": "if True), None) if head else \"HEAD\"",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_fora_da_develop_e_no_projeto_nao_confere_e_git_que_falha_recusa"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "F5.2: sem --head, o diff é o do HEAD",
+      "arquivo": "hooks/parecer.py",
+      "de": "if existe(raiz, r)), None) if head else \"HEAD\"",
+      "para": "if existe(raiz, r)), None) if True else \"HEAD\"",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_rascunho_e_pr_normal_acima_do_teto_recusam_e_no_teto_passam"
+      ]
+    }
+  ]
+}

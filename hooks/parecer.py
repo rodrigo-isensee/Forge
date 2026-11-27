@@ -913,11 +913,10 @@ def tamanho_da_abertura(raiz, head, corpo):
     ref = next((r for r in (head, f"origin/{branch}") if existe(raiz, r)), None) if head else "HEAD"
     if ref is None:
         bloquear("R-REVIEW", f"branch `{branch}` não existe localmente, sem tamanho a conferir. Corrigir: git fetch origin {branch}")
-    base =fc.base_da_entrega(raiz, "develop", so_a_pedida=True) or "origin/develop"
+    base = fc.base_da_entrega(raiz, "develop", so_a_pedida=True) or "origin/develop"
     recusa = fc.tamanho_na_abertura(raiz, base, ref, "")
-    texto = recusa and corpo_do_pr(raiz, *corpo)
-    if texto:  # o corpo só é lido acima do teto
-        recusa = fc.tamanho_na_abertura(raiz, base, ref, texto)
+    if recusa:  # o corpo só é lido acima do teto
+        recusa = fc.tamanho_na_abertura(raiz, base, ref, corpo_do_pr(raiz, *corpo))
     if recusa:
         bloquear("R-REVIEW", recusa.removeprefix("R-REVIEW: "))
 

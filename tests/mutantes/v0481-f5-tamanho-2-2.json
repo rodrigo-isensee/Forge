@@ -16,7 +16,7 @@
       "id": "M10",
       "guarda": "F5.2: acima do teto, o corpo lido decide a exceção do H1",
       "arquivo": "hooks/parecer.py",
-      "de": "    if texto:  # o corpo só é lido acima do teto",
+      "de": "    if recusa:  # o corpo só é lido acima do teto",
       "para": "    if False:  # o corpo só é lido acima do teto",
       "testes": [
         "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_excecao_so_no_body_file_comum_da_copia_com_o_total"
@@ -68,6 +68,16 @@
       "arquivo": "hooks/parecer.py",
       "de": "    if ref is None:\n        bloquear(\"R-REVIEW\", f\"branch `{branch}` não existe localmente, sem tamanho",
       "para": "    if False:\n        bloquear(\"R-REVIEW\", f\"branch `{branch}` não existe localmente, sem tamanho",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_fora_da_develop_e_no_projeto_nao_confere_e_git_que_falha_recusa"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "F5.2: sem a develop local nem a remota, a base é origin/develop e o git que falha recusa com ela",
+      "arquivo": "hooks/parecer.py",
+      "de": "so_a_pedida=True) or \"origin/develop\"",
+      "para": "so_a_pedida=True)",
       "testes": [
         "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_fora_da_develop_e_no_projeto_nao_confere_e_git_que_falha_recusa"
       ]

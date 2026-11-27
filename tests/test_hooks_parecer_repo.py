@@ -61,11 +61,11 @@ class TamanhoNaAbertura(unittest.TestCase):
     EXCECAO = "teto: excedido, 151 linhas, cortar mais deixa a suíte vermelha\n"
     RECUSA = "R-REVIEW: 151 linhas de código acima do teto de 150 por item"
 
-    def caso(self, nome, opcoes, codigo, stderr=None, arquivos=None, linhas=151, sem=None, **extra):
+    def caso(self, nome, opcoes, codigo, stderr=None, arquivos=None, linhas=151, sem=None, entrada_antes="", **extra):
         dados = json.loads(self.MODELO.read_text(encoding="utf-8"))
         dados["arquivos"].update(arquivos or {})
         dados["git"][1]["arquivos"]["src/b.py"] = ["x"] * (linhas - 2)  # mais as 2 do src/app.py
-        dados["entrada"]["tool_input"]["command"] = f"gh pr create --title t {opcoes}"
+        dados["entrada"]["tool_input"]["command"] = f"{entrada_antes}gh pr create --title t {opcoes}"
         dados["esperado"] = {"codigo": codigo, **({"stderr": stderr} if stderr else {}), **({"stderr_sem": sem} if sem else {})}
         dados.update(extra)
         return (f"parecer/tamanho-{nome}", Fixture(FIXTURES / "parecer" / f"tamanho-{nome}.json", dados))
@@ -102,6 +102,13 @@ class TamanhoNaAbertura(unittest.TestCase):
             self.caso("fora-da-copia", "--draft --base develop -F {tmp}/fora.md", 2, self.RECUSA,
                       passos=[{"gravar": {"{tmp}/fora.md": self.EXCECAO}}]),
             self.caso("pasta", "--draft --base develop -F c.md", 2, self.RECUSA, arquivos={"c.md/x": self.EXCECAO}),
+            self.caso("f-sem-valor", "--draft --base develop --body x -F", 2, self.RECUSA),
+            self.caso("valor-de-outra-opcao", "--draft --base develop --body -Fc.md", 2, self.RECUSA,
+                      arquivos={"c.md": self.EXCECAO}),  # `-Fc.md` é o texto do --body, não o arquivo
+            self.caso("cd-incerto-absoluto", "--draft --base develop -F {raiz}/c.md", 0, arquivos={"c.md": self.EXCECAO},
+                      entrada_antes='cd "$NADA"; '),
+            self.caso("cd-incerto-relativo", "--draft --base develop -F c.md", 2, self.RECUSA, arquivos={"c.md": self.EXCECAO},
+                      entrada_antes='cd "$NADA"; '),
         ])
 
     def test_fora_da_develop_e_no_projeto_nao_confere_e_git_que_falha_recusa(self):
@@ -112,7 +119,8 @@ class TamanhoNaAbertura(unittest.TestCase):
             self.caso("projeto", "--draft --base develop --body x", 2, "nenhum parecer", sem=["acima do teto"], forge=True),
             self.caso("head-ausente", "--draft --base develop --head feature/nada --body x", 2,
                       "R-REVIEW: branch `feature/nada` não existe localmente, sem tamanho a conferir"),
-            self.caso("sem-develop", "--draft --base develop --body x", 2, "R-REVIEW: tamanho não conferido: o git não leu o diff",
+            self.caso("sem-develop", "--draft --base develop --body x", 2,
+                      "R-REVIEW: tamanho não conferido: o git não leu o diff origin/develop...HEAD",
                       passos=[{"git": ["branch", "-D", "develop"]}]),
         ])
 
