@@ -436,9 +436,9 @@ preparar_container() {
   origem="${FORGE_ORIGEM:-$persistente/Forge}"
   FORGE_CONTRIB_REPO="${FORGE_CONTRIB_REPO:-rodrigo-isensee/forge-contrib}"
   dados="${XDG_DATA_HOME:-$HOME/.local/share}"
+  persistir "$HOME/.config/gh" "$HOME/.claude/gh" "configuração do gh" 1 || true  # primeiro: sem ela o sandbox do Bash não abre
   container_pacotes
   container_claude
-  persistir "$HOME/.config/gh" "$HOME/.claude/gh" "configuração do gh" 1 || true
   container_forge
   container_login
   container_area
@@ -454,7 +454,22 @@ preparar_container() {
   for l in "${faltas[@]}"; do printf 'falta: %s\n' "$l"; done
   for l in "${conflitos[@]}"; do printf 'conflito: %s\n' "$l" >&2; done
   [ "$simular" = 1 ] && echo "(simulação: nada foi alterado)"
-  [ ${#conflitos[@]} -eq 0 ]
+  [ "$simular" = 1 ] || container_essenciais
+  [ ${#conflitos[@]} -eq 0 ] && [ ${#ausentes[@]} -eq 0 ]
+}
+
+# DEVCONTAINER-SEM-GH: o que o container recriado precisa para o time trabalhar (gh, tmux, ~/.config/gh e o link
+# ~/.forge-contrib). Faltou, sai com rc 1 e uma linha "erro:" na saída de erro: o postStartCommand não engole mais a falha.
+ausentes=()
+container_essenciais() {
+  local l real="$persistente/.forge-contrib"
+  tem gh || ausentes+=("gh não instalado")
+  tem tmux || ausentes+=("tmux não instalado")
+  [ -d "$HOME/.config/gh" ] || ausentes+=("$HOME/.config/gh ausente (o sandbox do Bash não abre sem ele)")
+  if [ -d "$real" ] && [ "$(readlink -f "$HOME/.forge-contrib")" != "$(readlink -f "$real")" ]; then
+    ausentes+=("link $HOME/.forge-contrib -> $real ausente")
+  fi
+  for l in "${ausentes[@]}"; do printf 'erro: %s; rode bash %s/scripts/preparar-estacao.sh --container\n' "$l" "$origem" >&2; done
 }
 
 # E2.54: só confere; cada falta traz o comando exato. Sai com 1 se faltar algo.

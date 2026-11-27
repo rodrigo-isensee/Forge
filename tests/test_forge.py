@@ -1996,27 +1996,38 @@ class PrepararEstacao(unittest.TestCase):
         texto = (RAIZ / caminho).read_text(encoding="utf-8")
         return texto, json.loads(re.sub(r"(?m)^\s*//.*$", "", texto))
 
-    def test_devcontainer_prepara_sozinho_sem_rodar_o_work_tree(self):
-        """E2.54: o postStartCommand refaz o essencial sem o dono; B2 (0.43.1): como root, só roda clone raso novo da main (nunca
-        o work tree nem ref local), sem remoteEnv (o GH_TOKEN do dono não entra), sem segredo e sem travar o container."""
-        for caminho in (".devcontainer/devcontainer.json", "templates/projeto/.devcontainer/devcontainer.json"):
-            with self.subTest(caminho=caminho):
-                texto, cfg = self._cfg_devcontainer(caminho)
-                for chave in ("initializeCommand", "onCreateCommand", "updateContentCommand", "postCreateCommand", "postAttachCommand",
-                              "remoteEnv", "containerEnv", "build"):
-                    self.assertNotIn(chave, cfg)
-                cmd = cfg["postStartCommand"]
-                self.assertIsInstance(cmd, str)
-                self.assertIn("mktemp -d", cmd)
-                self.assertIn("clone -q --depth 1 --branch main --single-branch", cmd)
-                self.assertNotRegex(cmd, r"refs/remotes|origin/main|\bshow\b")  # nada de ref local
-                self.assertTrue(cmd.rstrip().endswith("; true"), "falha do preparo não pode impedir o container de subir")
-                self.assertNotRegex(texto, r"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|localEnv")
-                self.assertEqual(cfg.get("shutdownAction"), "none", "D2 da BP3: fechar o VS Code não para o container")
-        self.assertIn("FORGE_PREPARO_ESSENCIAL=1", self._cfg_devcontainer(".devcontainer/devcontainer.json")[1]["postStartCommand"])
+    def test_devcontainer_do_forge_roda_o_preparo_da_copia_presente_sem_gh_e_sem_engolir_erro(self):
+        """DEVCONTAINER-SEM-GH (v0481 E35.1): o postStartCommand do Forge roda o script de /workspaces/Forge (sem clonar a main, sem
+        depender do gh), com a guarda do essencial, e a falha aparece (rc 1 e aviso), sem remoteEnv nem segredo."""
+        texto, cfg = self._cfg_devcontainer(".devcontainer/devcontainer.json")
+        for chave in ("initializeCommand", "onCreateCommand", "updateContentCommand", "postCreateCommand", "postAttachCommand",
+                      "remoteEnv", "containerEnv", "build"):
+            self.assertNotIn(chave, cfg)
+        cmd = cfg["postStartCommand"]
+        self.assertIsInstance(cmd, str)
+        self.assertIn("FORGE_PREPARO_ESSENCIAL=1 bash /workspaces/Forge/scripts/preparar-estacao.sh --container", cmd)
+        self.assertNotRegex(cmd, r"\bclone\b|\bgh\b|mktemp|refs/remotes|origin/main")
+        self.assertNotRegex(cmd, r";\s*true\s*$")
+        self.assertIn("exit 1", cmd)
+        self.assertNotRegex(texto, r"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|localEnv")
+        self.assertEqual(cfg.get("shutdownAction"), "none", "D2 da BP3: fechar o VS Code não para o container")
+
+    def test_devcontainer_do_modelo_segue_com_clone_raso_da_main(self):
+        """B2 (0.43.1) no modelo de projeto: como root, só clone raso novo da main (nunca o work tree nem ref local) e sem travar o container."""
+        texto, cfg = self._cfg_devcontainer("templates/projeto/.devcontainer/devcontainer.json")
+        for chave in ("initializeCommand", "onCreateCommand", "updateContentCommand", "postCreateCommand", "postAttachCommand",
+                      "remoteEnv", "containerEnv", "build"):
+            self.assertNotIn(chave, cfg)
+        cmd = cfg["postStartCommand"]
+        self.assertIn("mktemp -d", cmd)
+        self.assertIn("clone -q --depth 1 --branch main --single-branch", cmd)
+        self.assertNotRegex(cmd, r"refs/remotes|origin/main|\bshow\b")
+        self.assertTrue(cmd.rstrip().endswith("; true"), "falha do preparo não pode impedir o container de subir")
+        self.assertNotRegex(texto, r"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|localEnv")
+        self.assertEqual(cfg.get("shutdownAction"), "none")
 
     def _poststart(self, tmp, caminho, script, main_script, local_script):
-        """Roda o postStartCommand literal. Remoto nu com `main_script` na main; o clone de trabalho tem o ref `origin/main` e a
+        """Roda o postStartCommand literal do modelo. Remoto nu com `main_script` na main; o clone de trabalho tem o ref `origin/main` e a
         `main` local FORJADOS para `local_script` (o agente grava .git/refs no sandbox). Devolve (processo, marcas executadas)."""
         tmp = Path(tmp)
         remoto, trab, marcas = tmp / "remoto.git", tmp / "trab", tmp / "marcas"
@@ -2040,28 +2051,35 @@ class PrepararEstacao(unittest.TestCase):
                            stdin=subprocess.DEVNULL, timeout=60)
         return r, sorted(p.name for p in marcas.iterdir())
 
-    def test_poststart_roda_so_a_main_do_remoto_nunca_o_ref_local_forjado(self):
+    def test_poststart_do_modelo_roda_so_a_main_do_remoto_nunca_o_ref_local_forjado(self):
         """A2 do review e A1 da segurança: forjar refs/remotes/origin/main (e a main local) não faz o root rodar o script do agente."""
-        casos = ((".devcontainer/devcontainer.json", "scripts/preparar-estacao.sh", "# FORGE_PREPARO_ESSENCIAL:-0\n"),
-                 ("templates/projeto/.devcontainer/devcontainer.json", ".devcontainer/preparar-ambiente.sh", ""))
-        for caminho, script, guarda in casos:
-            with self.subTest(caminho=caminho), tempfile.TemporaryDirectory() as tmp:
-                bom = f'#!/bin/bash\n{guarda}echo x > "{tmp}/marcas/bom"\n'
-                ruim = f'#!/bin/bash\n{guarda}echo x > "{tmp}/marcas/forjado"\n'
-                r, marcas = self._poststart(tmp, caminho, script, bom, ruim)
-                self.assertEqual((r.returncode, marcas), (0, ["bom"]), r.stdout + r.stderr)
-
-    def test_poststart_do_forge_exige_a_guarda_no_script_da_main(self):
-        """A1 do devops: a main antiga (sem FORGE_PREPARO_ESSENCIAL) rodaria o --container inteiro como root; sem a marca, pula."""
         with tempfile.TemporaryDirectory() as tmp:
-            antigo = f'#!/bin/bash\necho x > "{tmp}/marcas/antigo"\n'
-            r, marcas = self._poststart(tmp, ".devcontainer/devcontainer.json", "scripts/preparar-estacao.sh", antigo, antigo + "#\n")
-            self.assertEqual((r.returncode, marcas), (0, []), r.stdout + r.stderr)
+            r, marcas = self._poststart(tmp, "templates/projeto/.devcontainer/devcontainer.json", ".devcontainer/preparar-ambiente.sh",
+                                        f'#!/bin/bash\necho x > "{tmp}/marcas/bom"\n', f'#!/bin/bash\necho x > "{tmp}/marcas/forjado"\n')
+            self.assertEqual((r.returncode, marcas), (0, ["bom"]), r.stdout + r.stderr)
 
     def test_poststart_sem_o_script_na_main_nao_derruba_o_container(self):
         with tempfile.TemporaryDirectory() as tmp:
             r, marcas = self._poststart(tmp, "templates/projeto/.devcontainer/devcontainer.json", "outro.txt", "x\n", "y\n")
             self.assertEqual((r.returncode, marcas), (0, []), r.stdout + r.stderr)
+
+    def test_container_cria_config_do_gh_e_sai_0_com_o_essencial_no_lugar(self):
+        """DEVCONTAINER-SEM-GH: recriado o container, o preparo deixa ~/.config/gh e o link ~/.forge-contrib e sai com 0."""
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "persist" / ".forge-contrib").mkdir(parents=True)
+            r, home, persist, _ = self._container(tmp, logado=True, essencial=True)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertTrue((home / ".config/gh").is_dir())
+            self.assertEqual((home / ".forge-contrib").resolve(), (persist / ".forge-contrib").resolve())
+            self.assertNotIn("erro:", r.stderr)
+
+    def test_container_sem_gh_sai_1_com_linha_de_erro_clara(self):
+        """DEVCONTAINER-SEM-GH: faltou o gh (apt falho): rc 1 e uma linha `erro:` na saída de erro, sem engolir; ~/.config/gh sai antes."""
+        with tempfile.TemporaryDirectory() as tmp:
+            r, home, _, _ = self._container(tmp, essencial=True, sem_gh=True)
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("erro: gh não instalado", r.stderr)
+            self.assertTrue((home / ".config/gh").is_dir())
 
     def test_container_essencial_nao_roda_vigente_nem_marketplace(self):
         with tempfile.TemporaryDirectory() as tmp:

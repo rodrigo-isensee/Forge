@@ -3,12 +3,12 @@
 // refaz sozinho, sem o dono, o essencial: gh (apt oficial), o link ~/.forge-contrib para /workspaces/.forge-contrib e o
 // core.hooksPath. O login do gh sobrevive em ~/.claude/gh (link ~/.config/gh); sem ele, o Jarvis dá o comando ao abrir.
 // O script é idempotente e nunca apaga dados.
-// B2 do review de segurança da 0.43.1: o comando roda como root, fora do sandbox, então NÃO executa o script do work
-// tree nem lê ref local (refs/remotes/origin/main é gravável pelo agente no sandbox): faz um clone raso novo da main,
-// num diretório temporário, com a URL do .git/config (protegido), e só roda o script de lá se ele traz a guarda
-// FORGE_PREPARO_ESSENCIAL (sem ela, uma main antiga executaria a cópia vigente e o dev-marketplace do work tree como root).
-// A cópia vigente e o dev-marketplace ficam no comando manual `bash /workspaces/Forge/scripts/preparar-estacao.sh --container`.
-// Falha do preparo (inclusive sem rede) nunca impede o container de subir; o Jarvis confere ao abrir (hooks/ambiente.py).
+// DEVCONTAINER-SEM-GH (v0481 E35.1): o comando roda o script de preparo da cópia já presente em /workspaces/Forge, sem clonar
+// a main e sem depender do gh, que o próprio script instala. Decisão do dono, que troca o clone raso da main do B2 da 0.43.1:
+// o script roda como root, fora do sandbox, mas só com FORGE_PREPARO_ESSENCIAL=1 (sem a cópia vigente nem o dev-marketplace, que
+// ficam no comando manual `bash /workspaces/Forge/scripts/preparar-estacao.sh --container`) e este arquivo é protegido pelo hook.
+// O preparo cria ~/.config/gh, instala gh e tmux e refaz o link ~/.forge-contrib; cada passo é idempotente. Faltou algo: o script
+// sai com rc 1 e uma linha "erro:", e o comando repete o aviso e sai com 1 (sem "; true" engolindo); o container sobe do mesmo jeito.
 // Nenhum segredo aqui, e o GH_TOKEN da máquina do dono NÃO entra no container (remoteEnv o repassaria, com o escopo
 // workflow, a todo processo, inclusive a sessão do agente). Login do dono: gh auth login -s repo,workflow --web (escopo
 // mínimo repo e workflow, que o push de .github/ pede); o token do bot (ADR 0009) não leva workflow.
@@ -23,5 +23,5 @@
   "mounts": [
     "source=forge-claude,target=/root/.claude,type=volume"
   ],
-  "postStartCommand": "d=$(mktemp -d) && u=$(git -c safe.directory='*' -C /workspaces/Forge config --get remote.origin.url) && GH_CONFIG_DIR=/root/.claude/gh git -c 'credential.helper=!gh auth git-credential' clone -q --depth 1 --branch main --single-branch -- \"$u\" \"$d/r\" && grep -q 'FORGE_PREPARO_ESSENCIAL:-0' \"$d/r/scripts/preparar-estacao.sh\" && FORGE_PREPARO_ESSENCIAL=1 bash \"$d/r/scripts/preparar-estacao.sh\" --container < /dev/null; rm -rf \"$d\"; true"
+  "postStartCommand": "FORGE_PREPARO_ESSENCIAL=1 bash /workspaces/Forge/scripts/preparar-estacao.sh --container < /dev/null || { echo 'ERRO: o preparo do container falhou (veja as linhas erro: acima); rode bash /workspaces/Forge/scripts/preparar-estacao.sh --container' >&2; exit 1; }"
 }

@@ -168,16 +168,20 @@ class ConfiguracaoDoContainer(unittest.TestCase):
     def _cfg(caminho):
         return json.loads(re.sub(r"(?m)^\s*//.*$", "", (RAIZ / caminho).read_text(encoding="utf-8")))
 
-    def test_postStart_roda_o_preparo_de_um_clone_novo_da_main_e_o_home_perdido_volta(self):
-        casos = {".devcontainer/devcontainer.json": "preparar-estacao.sh\" --container",
+    def test_postStart_do_forge_roda_a_copia_presente_e_o_do_modelo_um_clone_novo_da_main(self):
+        casos = {".devcontainer/devcontainer.json": "/workspaces/Forge/scripts/preparar-estacao.sh --container",
                  "templates/projeto/.devcontainer/devcontainer.json": "preparar-ambiente.sh"}
         for caminho, chamada in casos.items():
             with self.subTest(caminho=caminho):
                 cfg = self._cfg(caminho)
                 cmd = cfg["postStartCommand"]
-                self.assertIn("clone -q --depth 1 --branch main", cmd)
                 self.assertIn(chamada, cmd)
-                self.assertTrue(cmd.rstrip().endswith("true"), "falha do preparo nunca impede o container de subir")
+                if caminho.startswith("templates"):
+                    self.assertIn("clone -q --depth 1 --branch main", cmd)
+                    self.assertTrue(cmd.rstrip().endswith("true"), "falha do preparo nunca impede o container de subir")
+                else:
+                    self.assertNotIn("clone", cmd, "o preparo da cópia presente não depende do gh para clonar a main")
+                    self.assertNotRegex(cmd, r";\s*true\s*$", "DEVCONTAINER-SEM-GH: a falha aparece, não é engolida")
                 self.assertEqual(cfg["shutdownAction"], "none")
                 self.assertIn("target=/root/.claude", " ".join(cfg["mounts"]))
                 for chave in ("remoteEnv", "containerEnv", "onCreateCommand", "postCreateCommand"):
