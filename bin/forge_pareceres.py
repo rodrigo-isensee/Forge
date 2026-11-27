@@ -1,6 +1,6 @@
 """G2.1 (pedido v0481, ADR 0019): a escrita do parecer de portão como comentário do PR e status do commit, pelo `gh` da sessão
-(grátis; R-CUSTO), e a leitura do G2.2 (`ler`), que nada chama ainda (o C2 da F1 parte 2 a liga). A conta aceita é a dona do
-`origin` (M1.4), e cada publicação fica registrada na pasta de controle da máquina (M4.1). Erro, saída ilegível ou sem `gh`:
+(grátis; R-CUSTO), a leitura do G2.2 (`ler`, no head) e a do C2a (`vigentes`, nos commits do PR), que nada chama ainda (o C2b
+liga). A conta aceita é a dona do `origin` (M1.4), e cada publicação fica registrada na pasta de controle da máquina (M4.1). Erro, saída ilegível ou sem `gh`:
 `Recusa`, nada a mais se grava (falha fechada)."""
 import hashlib
 import json
@@ -220,6 +220,76 @@ def ler(raiz, branch, sha, pedido):
             if dela:
                 lidos[tipo] = conferir(raiz, repo, pr, pedido, tipo, dela[0], contas, registro)
     except (KeyError, TypeError, AttributeError, ValueError) as e:  # como o `publicar`
+        raise Recusa(f"resposta do gh fora do contrato ({type(e).__name__}) (M19.1)") from None
+    return lidos
+
+
+def statuses_de(raiz, repo, sha):
+    """Os statuses do `sha`, todas as páginas, o mais novo primeiro; resposta ilegível: Recusa (M19.1)."""
+    paginas = gh(raiz, ["api", "--hostname", repo[0], "--paginate", "--slurp", f"repos/{repo[1]}/{repo[2]}/commits/{sha}/statuses"])
+    if not isinstance(paginas, list) or not all(isinstance(p, list) for p in paginas):
+        raise Recusa(f"statuses de {sha[:7]} ilegíveis (M19.1)")
+    return [s for p in paginas for s in p if isinstance(s, dict)]
+
+
+def quando(status):
+    """(created_at, id) do status: a ordem entre os commits do PR; sem os dois, fora do contrato."""
+    if not isinstance(status["created_at"], str) or type(status["id"]) is not int:
+        raise TypeError("status sem created_at ou id")
+    return status["created_at"], status["id"]
+
+
+def ancestral(raiz, origem, head):
+    """`origem` é ancestral de `head` na cópia (C0-2); commit ausente ou `git` sem resposta: Recusa."""
+    try:
+        rc = subprocess.run(["git", "merge-base", "--is-ancestor", origem, head], cwd=raiz, capture_output=True,
+                            timeout=30).returncode
+    except (OSError, subprocess.TimeoutExpired):
+        rc = 128
+    if rc not in (0, 1):
+        raise Recusa(f"o commit {origem[:7]} ou {head[:7]} não está na cópia; a origem não se confere (C0-2)")
+    return rc == 0
+
+
+def tem_status(registrada, statuses):
+    """A linha (sha, contexto, sha256, comentário) do registro tem o status do `publicar` entre os `statuses` do commit dela."""
+    _, contexto, sha256, comentario = registrada
+    for s in statuses:
+        d = DESCRICAO.fullmatch(s.get("description") or "")
+        u = URL_DO_COMENTARIO.fullmatch(s.get("target_url") or "")
+        if s.get("context") == contexto and d and d[2] == sha256 and u and int(u[5]) == comentario:
+            return True
+    return False
+
+
+def vigentes(raiz, pr, head, pedido):
+    """C2a (herança na leitura, ADR 0019 emendada): {tipo: (veredito, url, origem) ou (None, motivo, origem)} do status mais
+    novo de cada contexto, das contas aceitas, entre os commits do PR aberto `pr` cujo head é `head`. C0-1: o índice é o status;
+    o `failure` mais novo barra; comentário sumido ou que não confere não volta a um anterior. C0-2: a origem é ancestral do
+    head e está entre os commits do PR; o domínio da origem ao head fica com quem lê (C2b). Linha do registro (M4.1) de um
+    commit do PR sem o status correspondente: Recusa (CONTROLE-RUN-GRAFIA). Erro ou resposta fora do contrato: Recusa."""
+    contas, registro, repo = contas_aceitas(raiz), publicados(raiz), repositorio_do_remoto(raiz)
+    p = gh(raiz, ["pr", "view", str(int(pr)), "--json", "number,headRefName,url,commits"])
+    try:
+        aberto = pr_aberto(raiz, p["headRefName"], head)
+        if (aberto["number"], aberto["url"]) != (p["number"], p["url"]):
+            raise Recusa(f"o PR #{pr} não é o PR aberto da branch {p['headRefName']} com o head {head[:7]}")
+        commits = [c["oid"] for c in p["commits"]]
+        if not all(re.fullmatch(r"[0-9a-f]{40}", c) for c in commits) or head not in commits:
+            raise ValueError("commits do PR fora da forma ou sem o head")
+        do_pr = {c: [s for s in statuses_de(raiz, repo, c) if login(s.get("creator")) in contas] for c in commits}
+        for linha in registro:
+            if linha[0] in do_pr and linha[1] in CONTEXTOS.values() and not tem_status(linha, do_pr[linha[0]]):
+                raise Recusa(f"registro de {linha[0][:7]} {linha[1]} sem o status no GitHub (CONTROLE-RUN-GRAFIA)")
+        lidos = {}
+        for tipo, contexto in CONTEXTOS.items():
+            dela = [(quando(s), c, s) for c, lista in do_pr.items() for s in lista if s.get("context") == contexto]
+            if dela:
+                _, origem, s = max(dela, key=lambda x: x[0])
+                lido = (conferir(raiz, repo, aberto | {"headRefOid": origem}, pedido, tipo, s, contas, registro)
+                        if ancestral(raiz, origem, head) else (None, "origem do status fora da história do head (C0-2)"))
+                lidos[tipo] = (*lido, origem)
+    except (KeyError, TypeError, AttributeError, ValueError) as e:
         raise Recusa(f"resposta do gh fora do contrato ({type(e).__name__}) (M19.1)") from None
     return lidos
 

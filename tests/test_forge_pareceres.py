@@ -48,6 +48,10 @@ if alvo.endswith("/issues/comments/501"):
          "user": {"login": estado["login"]}})
 if "/statuses/" in alvo and "POST" in a:
     estado["statuses"].insert(0, corpo | {"creator": {"login": estado["login"]}}); sai(corpo)
+if a[:2] == ["pr", "view"]:
+    sai(estado["pr_view"])
+if alvo.endswith("/statuses") and "--slurp" in a and "por_commit" in estado:
+    sai(estado["por_commit"].get(alvo.split("/")[-2], [[]]))
 if alvo.endswith("/statuses") and "--slurp" in a:
     sai(estado["paginas"] if "paginas" in estado else [estado["statuses"]])
 sys.exit(1)
@@ -335,13 +339,14 @@ class Ler(GhFalso):
     URL = "https://github.com/dono/repo/pull/7#issuecomment-{}"
 
     def publicado(self, id_=601, texto=None, state="success", login="dono", descricao=None, url=None, autor="dono",
-                  html=None, veredito="aprovado", contexto="parecer-review", registro=None):
-        texto = parecer(self.sha, veredito) if texto is None else texto
+                  html=None, veredito="aprovado", contexto="parecer-review", registro=None, sha=None):
+        sha = sha or self.sha
+        texto = parecer(sha, veredito) if texto is None else texto
         comentario = {"id": id_, "body": texto, "user": {"login": autor}, "html_url": html or self.URL.format(id_)}
         self.estado(comentarios=self.estado().get("comentarios", {}) | {str(id_): comentario})
         sha256 = hashlib.sha256(fp().normalizar(texto).encode()).hexdigest()
         if registro is not False:  # M4.1: o que o `publicar` grava na pasta de controle
-            self.registrar(registro or self.controle, sha=self.sha, contexto=contexto, sha256=sha256, comentario=id_)
+            self.registrar(registro or self.controle, sha=sha, contexto=contexto, sha256=sha256, comentario=id_)
         return {"context": contexto, "state": state, "creator": {"login": login}, "target_url": url or self.URL.format(id_),
                 "description": descricao or f"{veredito} · sha256 {sha256} · 0 bloqueantes · 0 recomendados"}
 
@@ -580,6 +585,132 @@ class Ler(GhFalso):
         self.estado(prs=[self.estado()["prs"][0] | {"headRefOid": "c" * 40}])
         with self.assertRaises(fp().Recusa):
             self.ler(self.publicado())
+
+
+class Vigentes(GhFalso):
+    """C2a (F1 parte 2; ADR 0019 emendada, C0-1 e C0-2): por tipo, o status mais novo entre os commits do PR, com a origem
+    ancestral do head; casos C13, C14 e C24 do modelo de ameaças e a falha fechada do registro (CONTROLE-RUN-GRAFIA)."""
+    URL, publicado, registrar = Ler.URL, Ler.publicado, Ler.registrar
+
+    def setUp(self):
+        super().setUp()
+        self.a = self.sha
+        self.b, self.c = (self.commit(nome) for nome in ("b", "c"))  # b e c filhos de a: c fora da história do head b
+        self.estado(prs=[self.estado()["prs"][0] | {"headRefOid": self.b}], pr_view={
+            "number": 7, "headRefName": BRANCH, "url": "https://github.com/dono/repo/pull/7",
+            "commits": [{"oid": self.a}, {"oid": self.b}]})
+
+    def commit(self, nome):
+        arvore = subprocess.run(["git", "rev-parse", "HEAD^{tree}"], cwd=self.repo, env=self.env, capture_output=True,
+                                text=True).stdout.strip()
+        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", arvore, "-p", self.a, "-m", nome],
+                              cwd=self.repo, env=self.env, capture_output=True, text=True, check=True).stdout.strip()
+
+    def em(self, sha, segundo, **kw):
+        """O status publicado em `sha`, criado no segundo `segundo` (o id cresce junto)."""
+        return sha, self.publicado(id_=600 + segundo, sha=sha, **kw) | {"created_at": f"2026-11-27T10:00:{segundo:02d}Z",
+                                                                         "id": segundo}
+
+    def vigentes(self, *publicados, pr=7):
+        por_commit = {}
+        for sha, s in sorted(publicados, key=lambda x: -x[1]["id"]):
+            por_commit.setdefault(sha, [[]])[0].append(s)
+        self.estado(por_commit=por_commit)
+        return fp().vigentes(str(self.repo), pr, self.b, PEDIDO)
+
+    def test_c14_aprovado_herdado_traz_a_origem(self):
+        """A origem é o commit do status, não o head nem um intermediário: o domínio se mede dela (C2b)."""
+        lido = self.vigentes(self.em(self.a, 1))
+        self.assertEqual(lido, {"review": ("aprovado", self.URL.format(601), self.a)})
+
+    def test_c13_failure_mais_novo_barra_success_antigo(self):
+        lido = self.vigentes(self.em(self.a, 1), self.em(self.b, 2, state="failure", veredito="reprovado"))
+        self.assertEqual(lido["review"][:1] + lido["review"][2:], ("reprovado", self.b))
+
+    def test_mais_novo_pelo_tempo_nao_pelo_commit(self):
+        lido = self.vigentes(self.em(self.b, 1, state="failure", veredito="reprovado"), self.em(self.a, 2))
+        self.assertEqual(lido["review"][0], "aprovado")
+
+    def test_c24_comentario_do_mais_novo_apagado_nao_recua(self):
+        """T21: o `reprovado` mais novo tem o comentário apagado; a leitura não volta ao `aprovado` de antes."""
+        antigo, novo = self.em(self.a, 1), self.em(self.b, 2, state="failure", veredito="reprovado")
+        self.estado(comentarios={"601": self.estado()["comentarios"]["601"]})
+        try:
+            veredito = self.vigentes(antigo, novo)["review"][0]
+        except fp().Recusa:
+            veredito = None
+        self.assertIsNone(veredito)
+
+    def test_c24_comentario_do_mais_novo_editado_invalida_o_tipo(self):
+        antigo, novo = self.em(self.a, 1), self.em(self.b, 2, state="failure", veredito="reprovado")
+        self.publicado(id_=602, sha=self.b, texto=parecer(self.b) + "\nAdendo.\n", registro=False)
+        self.assertIn("M5.1", self.vigentes(antigo, novo)["review"][1])
+
+    def test_c13_origem_fora_da_historia_do_head(self):
+        self.estado(pr_view=self.estado()["pr_view"] | {"commits": [{"oid": self.a}, {"oid": self.c}, {"oid": self.b}]})
+        lido = self.vigentes(self.em(self.c, 1))
+        self.assertEqual(lido["review"][1:], ("origem do status fora da história do head (C0-2)", self.c))
+
+    def test_c0_2_origem_ausente_na_copia_falha_fechada(self):
+        fora = "d" * 40
+        self.estado(pr_view=self.estado()["pr_view"] | {"commits": [{"oid": fora}, {"oid": self.b}]})
+        with self.assertRaisesRegex(fp().Recusa, "C0-2"):
+            self.vigentes(self.em(fora, 1))
+
+    def test_c0_2_commit_fora_do_pr_nao_conta(self):
+        """Status de um commit que não é do PR (a `develop` trazida) não entra na leitura."""
+        self.assertEqual(self.vigentes(self.em(self.c, 1)), {})
+
+    def test_c13_status_forjado_nao_vale(self):
+        self.assertEqual(self.vigentes(self.em(self.a, 1, login="github-actions[bot]", registro=False)), {})
+        self.assertIn("M4.1", self.vigentes(self.em(self.a, 2, registro=False))["review"][1])
+
+    def test_registro_sem_status_falha_fechada(self):
+        """CONTROLE-RUN-GRAFIA: linha do registro de um commit do PR sem o status correspondente recusa a leitura."""
+        status = self.em(self.a, 1)
+        sha256 = status[1]["description"].split(" ")[3]
+        self.registrar(self.controle, sha="e" * 40, contexto="parecer-qa", sha256=sha256, comentario=601)  # fora do PR
+        self.registrar(self.controle, sha=self.b, contexto="outro", sha256=sha256, comentario=601)  # fora da lista
+        self.assertEqual(self.vigentes(status)["review"][0], "aprovado")
+        for linha in ({"contexto": "parecer-qa", "sha256": sha256, "comentario": 601},
+                      {"contexto": "parecer-review", "sha256": "c" * 64, "comentario": 601},
+                      {"contexto": "parecer-review", "sha256": sha256, "comentario": 602}):
+            with self.subTest(linha):
+                self.registrar(self.controle, sha=self.a, **linha)
+                with self.assertRaisesRegex(fp().Recusa, "CONTROLE-RUN-GRAFIA"):
+                    self.vigentes(status)
+                (self.controle / "pareceres-publicados.jsonl").write_text("", encoding="utf-8")
+                status = self.em(self.a, 1)
+
+    def test_registro_com_status_de_outra_conta_falha_fechada(self):
+        with self.assertRaisesRegex(fp().Recusa, "CONTROLE-RUN-GRAFIA"):
+            self.vigentes(self.em(self.a, 1, login="outra"))
+
+    def test_pr_de_outro_numero_ou_sem_o_head(self):
+        original = self.estado()["pr_view"]
+        for mudar in ({"number": 8}, {"url": "https://github.com/dono/repo/pull/8"}, {"commits": [{"oid": self.a}]},
+                      {"commits": [{"oid": "HEAD"}, {"oid": self.b}]}):
+            with self.subTest(mudar):
+                self.estado(pr_view=original | mudar)
+                with self.assertRaises(fp().Recusa):
+                    self.vigentes(self.em(self.a, 1))
+
+    def test_status_sem_created_at_fora_do_contrato(self):
+        sha, status = self.em(self.a, 1)
+        with self.assertRaisesRegex(fp().Recusa, "fora do contrato"):
+            self.vigentes((sha, status | {"created_at": None}))
+
+    def test_statuses_ilegiveis_de_um_commit_recusam(self):
+        for paginas in ({"x": 1}, [{"x": 1}]):
+            with self.subTest(paginas):
+                self.estado(por_commit={self.a: paginas})
+                with self.assertRaisesRegex(fp().Recusa, "ilegíveis"):
+                    fp().vigentes(str(self.repo), 7, self.b, PEDIDO)
+
+    def test_todas_as_paginas_de_cada_commit(self):
+        sha, status = self.em(self.a, 1)
+        self.estado(por_commit={sha: [[], [status]]})
+        self.assertEqual(fp().vigentes(str(self.repo), 7, self.b, PEDIDO)["review"][0], "aprovado")
 
 
 class PastaDeControle(unittest.TestCase):
