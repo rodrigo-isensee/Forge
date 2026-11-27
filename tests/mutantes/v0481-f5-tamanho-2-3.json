@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_hooks_parecer_repo.TamanhoNaAbertura.test_rascunho_e_pr_normal_acima_do_teto_recusam_e_no_teto_passam"
       ]
+    },
+    {
+      "id": "M24",
+      "guarda": "nota da segurança do F5.1: o git que passa do prazo no tamanho recusa a abertura",
+      "arquivo": "hooks/parecer.py",
+      "de": "    except subprocess.TimeoutExpired:  # nota da segurança do F5.1",
+      "para": "    except ValueError:  # nota da segurança do F5.1",
+      "testes": [
+        "tests.test_hooks_parecer_repo.TamanhoComGitLento.test_git_que_passa_do_prazo_recusa"
+      ]
     }
   ]
 }

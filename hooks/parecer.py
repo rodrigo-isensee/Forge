@@ -31,6 +31,7 @@ import functools
 import json
 import os
 import re
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -914,9 +915,12 @@ def tamanho_da_abertura(raiz, head, corpo):
     if ref is None:
         bloquear("R-REVIEW", f"branch `{branch}` não existe localmente, sem tamanho a conferir. Corrigir: git fetch origin {branch}")
     base = fc.base_da_entrega(raiz, "develop", so_a_pedida=True) or "origin/develop"
-    recusa = fc.tamanho_na_abertura(raiz, base, ref, "")
-    if recusa:  # o corpo só é lido acima do teto
-        recusa = fc.tamanho_na_abertura(raiz, base, ref, corpo_do_pr(raiz, *corpo))
+    try:
+        recusa = fc.tamanho_na_abertura(raiz, base, ref, "")
+        if recusa:  # o corpo só é lido acima do teto
+            recusa = fc.tamanho_na_abertura(raiz, base, ref, corpo_do_pr(raiz, *corpo))
+    except subprocess.TimeoutExpired:  # nota da segurança do F5.1: o git que passa do prazo recusa (ADR 0009, seção 7)
+        bloquear("R-REVIEW", f"tamanho não conferido: o git passou do prazo no diff {base}...{ref}; tente de novo")
     if recusa:
         bloquear("R-REVIEW", recusa.removeprefix("R-REVIEW: "))
 

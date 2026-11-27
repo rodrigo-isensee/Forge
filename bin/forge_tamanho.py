@@ -82,9 +82,10 @@ def corte_sugerido(unidades, teto=TETO_DE_LINHAS_DE_CODIGO):
 
 
 def sem_controle(nome):
-    """O `nome` com cada caractere de controle ou de formato (categoria Unicode C*: escape de terminal, bidi) trocado por `?`, antes do
-    stderr (A1 da segurança, E38.11)."""
-    return "".join("?" if unicodedata.category(c).startswith("C") else c for c in nome)
+    """O `nome` com cada caractere de controle ou de formato (categoria Unicode C*: escape de terminal, bidi) e cada separador de linha
+    ou de parágrafo (Zl e Zp: U+2028 e U+2029, que um leitor lê como quebra) trocado por `?`, antes do stderr (A1 da segurança, E38.11;
+    nota da segurança do F5.1 para o F5.2)."""
+    return "".join("?" if unicodedata.category(c).startswith("C") or unicodedata.category(c) in ("Zl", "Zp") else c for c in nome)
 
 
 def texto_do_corte(corte, maximo=PRS_NO_TEXTO):

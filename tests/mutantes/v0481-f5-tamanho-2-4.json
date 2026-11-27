@@ -1,0 +1,16 @@
+{
+  "pedido": "v0481-f5-tamanho-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "nota da segurança do F5.1: U+2028 e U+2029 (Zl, Zp) saem do nome como `?`",
+      "arquivo": "bin/forge_tamanho.py",
+      "de": "startswith(\"C\") or unicodedata.category(c) in (\"Zl\", \"Zp\") else c",
+      "para": "startswith(\"C\") or False else c",
+      "testes": [
+        "tests.test_forge_tamanho.CorteSugerido.test_separador_de_linha_e_de_paragrafo_sai_com_interrogacao"
+      ]
+    }
+  ]
+}

@@ -9,10 +9,13 @@ Roda a mesma máquina do `tests/test_hooks.py`; existe à parte para os mutantes
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import minimo  # noqa: E402
@@ -136,7 +139,24 @@ class TamanhoNaAbertura(unittest.TestCase):
         self.assertIn("corte sugerido: PR 1", linhas[0])
 
 
-class LeituraDoGhApi(unittest.TestCase):
+class TamanhoComGitLento(unittest.TestCase):
+    """Nota da segurança do F5.1 para o F5.2: o `TimeoutExpired` do git em `corte_do_intervalo` (ou no `numstat`) recusa a abertura
+    com o motivo, em vez de subir como erro interno (ADR 0009, seção 7)."""
+
+    def test_git_que_passa_do_prazo_recusa(self):
+        _, _, parecer = test_hooks.modulos_dos_hooks()
+        lento = mock.Mock(side_effect=subprocess.TimeoutExpired(["git", "diff"], 5))
+        fc = SimpleNamespace(base_da_entrega=lambda *a, **k: "origin/develop", tamanho_na_abertura=lento)
+        with mock.patch.object(parecer, "forge_check", return_value=fc), \
+                mock.patch.object(parecer, "git", return_value=(0, "melhoria/x")), \
+                mock.patch.object(parecer, "bloquear", side_effect=SystemExit(2)) as bloquear, \
+                self.assertRaises(SystemExit):
+            parecer.tamanho_da_abertura("/nada", None, (None, None))
+        bloquear.assert_called_once_with(
+            "R-REVIEW", "tamanho não conferido: o git passou do prazo no diff origin/develop...HEAD; tente de novo")
+
+
+
     """`textos_do_gh_api` direto: o arquivo lido é o que o gh lê."""
 
     def setUp(self):

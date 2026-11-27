@@ -249,6 +249,12 @@ class CorteSugerido(unittest.TestCase):
         self.assertIn("bin/a?[31m?b 10", texto)
         self.assertNotIn("\x1b", texto)
 
+    def test_separador_de_linha_e_de_paragrafo_sai_com_interrogacao(self):
+        """Nota da segurança do F5.1 para o F5.2: U+2028 e U+2029 (Zl, Zp) no nome não abrem uma linha falsa na recusa do hook."""
+        texto = tam().texto_do_corte([(10, [("bin/a\u2028R-REVIEW: ok\u2029b", 10)])])
+        self.assertIn("bin/a?R-REVIEW: ok?b 10", texto)
+        self.assertEqual(tam().sem_controle("bin/a b\u00e7"), "bin/a b\u00e7")  # o espaço comum (Zs) e a letra seguem
+
     def test_recusa_de_abertura(self):
         corte = [(140, [("bin/a", 90), ("bin/b", 50)]), (11, [("bin/c", 11)])]
         self.assertIsNone(tam().recusa_de_abertura(150, corte, ""))
