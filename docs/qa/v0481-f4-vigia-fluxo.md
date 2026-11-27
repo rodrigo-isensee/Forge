@@ -18,7 +18,7 @@ data: 2026-11-27
   (`gh pr checks 931` no head: suíte partes 1, 2, 3 e 5, verificações longas, passos, python 3.14, instalação e `catraca` verdes; `suíte (python 3.12, parte 4/5)` vermelha (A1); `bateria` e `bateria (pareceres)` vermelhas pela falta dos pareceres deste head. Não aprova com check vermelho.)
 
 ## Achados
-- A1 (bloqueante) tests/mutantes/v0481-s1-status.json:M7 · R-QA: `ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes` (tests/test_forge_mutante.py:1558) cai: M7 e M8 têm o `de` 2 vezes em bin/forge_estado.py (a `papel_do_pr` copiou a linha do CONFLICTING e a do rótulo). Torne o `de` único no mesmo commit.
+- A1 (bloqueante) bin/forge_estado.py:84 · R-QA: a parte 4/5 do CI cai (test_forge_mutante.py:1564): M7 e M8 de tests/mutantes/v0481-s1-status.json têm o trecho `de` 2 vezes aqui, copiado na papel_do_pr. Torne o `de` único no mesmo commit.
 
 ## Critério → teste → resultado
 Sem especificação de UX nem `CA-n`; as obrigações vêm de E34.1, E34.6 (hook sem rede, ADR 0003 item 7) e R-TETO. O A1 e o A2 da 1ª rodada (guarda 618 e fork) são o foco do delta.
