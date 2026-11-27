@@ -70,6 +70,7 @@ from modelo_git import copiar_modelo  # noqa: E402
 from prova_de_carga import (APROVEITAMENTO_MINIMO, FOLGA_DA_CPU_NO_PRAZO_S, PARCELA_DE_DISPUTA,  # noqa: E402
                             aproveitamento_da_cpu, carga_explica_a_recusa, referencia_da_cpu)
 from apoio_sandbox import exigir, sinais_de_ci  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
+from apoio_time_parado import REASON_DO_TIME_PARADO, TETO_DO_REASON  # noqa: E402  (emenda da ADR 0003, item 7; F4)
 
 HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
@@ -868,9 +869,8 @@ class Hooks(unittest.TestCase):
                 self.assertEqual(entrada.get("hook_event_name"), "Stop")
                 self.assertIsNot(entrada.get("stop_hook_active"), True, "o Stop que segue o bloqueio não bloqueia")
                 self.assertEqual(saida["decision"], "block")
-                self.assertIsNotNone(re.fullmatch(
-                    r"time parado: \d+ cartões disponíveis(, primeiro [A-Za-z0-9.-]{1,16})?; retome sem esperar o dono",
-                    saida["reason"]), saida["reason"])
+                self.assertIsNotNone(re.fullmatch(REASON_DO_TIME_PARADO, saida["reason"]), saida["reason"])
+                self.assertLessEqual(len(saida["reason"]), TETO_DO_REASON, "teto do item 7 da emenda da ADR 0003 (F4)")
                 self.assertEqual(saida["reason"], esperado["reason"])
             if "saida" in esperado:
                 self.assertNotIn("\n", saida["systemMessage"], "uma linha só")
