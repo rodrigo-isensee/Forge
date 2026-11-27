@@ -16,7 +16,9 @@ data: 2026-11-27
 
 Delta lido por `forge-check parecer delta`: uma linha em `tests/config.json:849`. A chave de `invariantes_motivo_trecho` de `templates/projeto/CLAUDE.md` passa ao texto do invariante novo (linha 656, "a versão fecha quando a branch de integração soma 20 itens integrados, sem versão por dia") com o porquê novo (A2 da segurança). `grep`: a chave é idêntica ao invariante e ao texto de `templates/projeto/CLAUDE.md`; "até 2 por dia" não resta em `tests/config.json`.
 
-- ci: 2e6da2d5b9a7cf5d9a7a35bb7319b4b23a28b894 verde (`gh pr checks 928`, head conferido por `gh pr view`: suíte 3.12 e 3.14 partes 1 a 5, passos, verificações longas, instalação e teto de pulados verdes; só `bateria`, `bateria (pareceres)` e `catraca` esperam os pareceres)
+- ci: 2e6da2d5b9a7cf5d9a7a35bb7319b4b23a28b894 verde
+
+CI lido em `gh pr checks 928`, head conferido por `gh pr view`: suíte 3.12 e 3.14 partes 1 a 5, passos, verificações longas, instalação e teto de pulados verdes; só `bateria`, `bateria (pareceres)` e `catraca` esperam os pareceres.
 
 ## Revalidação do achado anterior
 - A3 (recomendado, volta 1): resolvido. O invariante novo tem motivo próprio; a chave velha saiu.
