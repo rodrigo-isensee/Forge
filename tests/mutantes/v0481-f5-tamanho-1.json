@@ -85,5 +85,13 @@
         "tests.test_forge_tamanho.NaAbertura.test_arquivo_grande_sem_contexto_vira_topo_para_cortar_a_mao"
       ]
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge_tamanho.py",
+      "trecho": "contexto.split(\"(\")[0].strip() or \"topo\"",
+      "motivo": "guarda da base trocada pela do identificador (A1 da segurança, E38.11): `if identificador else \"topo\"`, provada pelo M8",
+      "linha_base": 58
+    }
   ]
 }
