@@ -51,6 +51,26 @@
       "testes": [
         "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
       ]
+    },
+    {
+      "id": "C1B-M30",
+      "guarda": "M4.2 (segurança A7, S7): o $(cat) sem o seu heredoc, com heredoc de outro comando na linha, é ilegível",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                ilegivel |= cat_sem_heredoc(self.linha, achados)",
+      "para": "                ilegivel |= False",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_volta2_cat_sem_o_seu_heredoc_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M31",
+      "guarda": "M4.2 (segurança A7): o $(cat) citado no corpo do heredoc não é o $(cat) que lê a entrada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        inicio = max(inicio, h.fim)",
+      "para": "        inicio = inicio",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_volta2_cat_sem_o_seu_heredoc_barrado"
+      ]
     }
   ]
 }

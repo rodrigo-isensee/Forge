@@ -200,6 +200,18 @@ class PeloTerminal(GhFalso):
         self.libera(["gh pr comment 7 --body \"$(cat <<EOF\nrevisado, sem achados\nEOF\n)\"",
                      "gh pr comment 7 -b ok -F nota.md"])
 
+    def test_c21_volta2_cat_sem_o_seu_heredoc_barrado(self):
+        """Volta 2 (segurança A7, sonda S7): o `$(cat)` só vale como corpo quando o heredoc nasce dentro dele; o heredoc
+        de outro comando da linha não é o corpo, e o `$(cat)` sem o seu lê a entrada (o pipe)."""
+        (self.repo / "parecer.md").write_text(parecer(self.sha), encoding="utf-8")
+        self.barra(["cat parecer.md | gh pr comment 7 --body \"$(cat)\"; cat <<'X'\nnada\nX",
+                    "cat <<'X'\nnada\nX\ncat parecer.md | gh pr comment 7 --body \"$(cat)\"",
+                    "cat parecer.md | gh pr comment 7 --body \"$(cat)\" && wc -l <<'X'\nnada\nX",
+                    "cat parecer.md | gh pr comment 7 --body \"$(cat <<'EOF'\nok\nEOF\n)\" --body \"$(cat)\""],
+                   "comment: comentário cujo corpo o hook não lê")
+        self.libera(["gh pr comment 7 --body \"$(cat <<'EOF'\nok\nEOF\n)\"; cat <<'X'\nnada\nX",
+                     "gh pr comment 7 --body \"$(cat <<'EOF'\ncita $(cat) no texto\nEOF\n)\""])
+
     def test_c21_tipos_do_marcador_sao_os_contextos_do_publicar(self):
         """O marcador do hook e a lista fechada do `publicar` (M2.1) andam juntos: tipo novo no `publicar` entra no hook."""
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "hooks"))

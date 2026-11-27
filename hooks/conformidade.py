@@ -190,6 +190,16 @@ def valores_da_opcao(args, longa, curta):
             saida.append(a[len(curta):].removeprefix("="))
         i += 1
     return saida
+
+
+def cat_sem_heredoc(linha, achados):
+    """M4.2 (segurança A7): há `$(cat)` fora dos corpos dos heredocs, sem um heredoc nascido dentro dele; esse lê a
+    entrada (o pipe), e o heredoc de outro comando da linha não é o seu corpo."""
+    partes, inicio = [], 0
+    for h in sorted(achados, key=lambda h: h.corpo[0]):
+        partes.append(linha[inicio:h.corpo[0]])
+        inicio = max(inicio, h.fim)
+    return bool(re.search(r"\$\(\s*cat\s*\)", "".join(partes) + linha[inicio:]))
 # R-CONTRIB (diretriz 36): a sessão de outro projeto não mexe no Forge (nem o próprio PR), pela API REST e pelo GraphQL.
 # Na sessão de projeto, o `gh` no Forge só lê: todo subcomando fora desta lista mexe e é recusado (falha fechado).
 GH_SO_LE = {"view", "list", "status", "diff", "checks", "download", "watch", "browse"}
@@ -3881,6 +3891,7 @@ class Guarda:
                 corpos = [(self.linha[h.corpo[0]:h.corpo[1]], h.literal) for h in achados]
                 textos += [corpo for corpo, _ in corpos]
                 ilegivel |= not achados or any(not literal and re.search(r"[$`]", corpo) for corpo, literal in corpos)
+                ilegivel |= cat_sem_heredoc(self.linha, achados)  # A7: o heredoc de outro comando não é o corpo
             else:
                 textos.append(texto)
                 ilegivel |= bool(re.search(r"[$`]", texto)) and nivel.get(texto, 2) > 0
