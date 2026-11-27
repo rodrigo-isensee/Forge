@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-f5-tamanho-1
-commit: 473004fedf0cbbd2a4618452b28ba6fc6802daa0
+commit: 38acdc433fe6b3662693255bbf4b0cd3aace2062
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -55,3 +55,13 @@ Os dois mortos com `(erro)` morrem por erro do teste declarado sob o mutante, co
 - Suíte: não rerrodei; `gh pr checks 933` no head 473004fe: verdes `suíte` 1/5 a 5/5, `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação`, `teto de pulados`, `árvore já provada`; `bateria`, `bateria (pareceres)` e `catraca` falham e esperam os pareceres (isentos por G3).
 - Código sem chamador: `tamanho_na_abertura` só é usada pelos testes neste PR (o F5.2 e o F5.3 a consomem, conforme o desenho); não é achado.
 - Nada de bug aberto; sem acessibilidade nem E2E de stack (ferramenta de linha de comando).
+
+
+## Volta 2 (delta 473004fe..38acdc43, E38.14)
+- ci: 38acdc433fe6b3662693255bbf4b0cd3aace2062 verde
+- gh pr checks 933: tudo verde (suíte 1 a 5/5, python 3.14, instalação, passos, verificações longas, teto de pulados, árvore provada) fora bateria, bateria (pareceres) e catraca, que esperam o parecer.
+- Delta lido: A1 da segurança (contexto do @@ reduzido a identificador, controle vira ?), A2 da segurança (--literal-pathspecs), A1 do review (texto fiel ao git).
+- python3 -I tests/test_forge_tamanho.py: 41 testes, OK.
+- Vermelho: bin/forge-testes --vermelho 473004fe --modulos test_forge_tamanho abre com base=473004fedf0c head=38acdc433fe6; 6 testes provam por asserção, entre eles test_contexto_vira_identificador_e_o_resto_vira_topo, test_linhas_por_funcao_do_cabecalho e test_nome_com_controle_sai_com_interrogacao; nenhum cai no HEAD.
+- Mutantes (specs v0481-f5-tamanho-1, -2, -3, rodados por mim): M1 a M20 todos morreu, incluindo M8 (forge_tamanho.py:64) e M19 (:87); nenhum sobrevivente; rc=0.
+- Veredito: aprovado, sem bug novo.
