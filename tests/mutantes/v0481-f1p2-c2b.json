@@ -1,0 +1,87 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C2B-M1",
+      "guarda": "sem PR aberto da branch, o `pr` vê nenhum publicado (ausente), não Recusa",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    if nenhum and not prs:\n        return None",
+      "para": "    if False:\n        return None",
+      "testes": [
+        "tests.test_forge_pareceres.PrPeloStatus.test_sem_pr_aberto_fica_ausente"
+      ]
+    },
+    {
+      "id": "C2B-M2",
+      "guarda": "só a linha exata da develop do ls-remote vale",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if x.endswith(\"\\trefs/heads/develop\")] if cod == 0 else []",
+      "para": "if x.endswith(\"develop\")] if cod == 0 else []",
+      "testes": [
+        "tests.test_forge_pareceres.ListaFechada.test_so_a_linha_exata_da_develop"
+      ]
+    },
+    {
+      "id": "C2B-M3",
+      "guarda": "a develop remota fora da cópia não é lida",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "na_copia = remoto and git_lido(raiz, \"cat-file\", \"-e\", f\"{remoto[0]}^{{commit}}\")[0] == 0",
+      "para": "na_copia = bool(remoto)",
+      "testes": [
+        "tests.test_forge_pareceres.ListaFechada.test_develop_remota_fora_da_copia_com_lista_local_recusa"
+      ]
+    },
+    {
+      "id": "C2B-M4",
+      "guarda": "sem o arquivo da lista, dormente (None)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    if cod:\n        return None\n    if remoto and not na_copia:",
+      "para": "    if False:\n        return None\n    if remoto and not na_copia:",
+      "testes": [
+        "tests.test_forge_pareceres.ListaFechada.test_sem_o_arquivo_dormente",
+        "tests.test_forge_pareceres.PrPeloStatus.test_sem_a_lista_nada_muda"
+      ]
+    },
+    {
+      "id": "C2B-M5",
+      "guarda": "lista só no ref local com a develop remota fora da cópia: Recusa (M10.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    if remoto and not na_copia:\n        raise",
+      "para": "    if False:\n        raise",
+      "testes": [
+        "tests.test_forge_pareceres.ListaFechada.test_develop_remota_fora_da_copia_com_lista_local_recusa"
+      ]
+    },
+    {
+      "id": "C2B-M6",
+      "guarda": "a lista é uma lista JSON de inteiros",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "not all(type(n) is int for n in numeros)",
+      "para": "False",
+      "testes": [
+        "tests.test_forge_pareceres.ListaFechada.test_fora_da_forma_recusa"
+      ]
+    },
+    {
+      "id": "C2B-M7",
+      "guarda": "A2: número do PR fora da forma é Recusa",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    try:\n        p = gh(raiz, [\"pr\", \"view\", str(int(pr)), \"--json\", \"number,headRefName,url,commits\"])\n",
+      "para": "    p = gh(raiz, [\"pr\", \"view\", str(int(pr)), \"--json\", \"number,headRefName,url,commits\"])\n    try:\n",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_pr_nao_numerico_sai_recusa"
+      ]
+    },
+    {
+      "id": "C2B-M8",
+      "guarda": "a lista lida da develop do origin, nunca do head",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "{remoto[0] if na_copia else 'refs/remotes/origin/develop'}:{LISTA_FECHADA}",
+      "para": "HEAD:{LISTA_FECHADA}",
+      "testes": [
+        "tests.test_forge_pareceres.ListaFechada.test_lista_so_no_head_nao_vale"
+      ]
+    }
+  ]
+}

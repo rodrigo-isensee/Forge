@@ -2114,10 +2114,14 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False, suite=N
     registros = autorias(raiz)
     exigidos, gatilhos_de_seguranca = exigidos_do_pr(raiz, pedido, ref, base)
     conferidos, ilegiveis = pareceres_conferidos(raiz, pedido, branch, ref or "HEAD") if de_trabalho else ({}, [])
+    publicados = pareceres_publicados(raiz, pedido, branch, ref) if de_trabalho else None  # C2b: None, dormente
     saida += [f"docs/pedidos: parecer conferido {p[:7]}: o git não lê o commit nem o pai dele; rode git fetch (VOLTAS-REVISOR-WT)"
               for p in ilegiveis]
     for tipo in exigidos:
         pasta, rid = PASTA_E_REGRA[tipo]
+        if publicados is not None and (not publicados[0] or tipo in publicados[1]):  # o status vale; fora da lista, só ele
+            saida += publicado_no_pr(raiz, pedido, tipo, publicados, ref, base, branch, ausente)
+            continue
         dos_conferidos = {n: p for n, p in conferidos.items()
                           if n.startswith(f"{pasta}/") and (frontmatter_do_parecer(raiz, p, n) or {}).get("branch") == branch}
         for nome, p in dos_conferidos.items():  # M1 e M8: só o último P de cada arquivo da branch
@@ -2177,6 +2181,38 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False, suite=N
             if motivo:
                 saida.append(f"{caminho_impresso(rel)}: commit: {motivo} ({rid})")
     return saida + nao_exigidos_que_nao_aprovam(raiz, pedido, ref, branch if de_trabalho else None, exigidos)
+
+
+def pareceres_publicados(raiz, pedido, branch, ref):
+    """C2b (F1 parte 2, M20.1): None sem a lista fechada na develop do `origin` (dormente: o caminho de arquivo de hoje); senão
+    (o PR aberto da branch está na lista, {tipo: (veredito, url, origem)} de `vigentes` nele, ou o motivo da recusa da leitura)."""
+    pareceres = modulo_do_bin("forge_pareceres")
+    try:
+        if (lista := pareceres.lista_fechada(raiz)) is None:
+            return None
+        head = sha_do_commit(raiz, ref or "HEAD") or ""
+        pr = pareceres.pr_aberto(raiz, branch, head, nenhum=True)
+        return pr is not None and pr["number"] in lista, {} if pr is None else pareceres.vigentes(raiz, pr["number"], head, pedido)
+    except pareceres.Recusa as e:
+        return False, f"{e}"
+
+
+def publicado_no_pr(raiz, pedido, tipo, publicados, ref, base, branch, ausente):
+    """C2b: o status vigente do tipo vale como o parecer em arquivo de hoje: aprova, e o domínio do tipo da origem do status ao
+    head está intacto (M11.1; M12.1: medido sempre da origem, sem cadeia). Leitura recusada: reprova (falha fechada)."""
+    pasta, rid = PASTA_E_REGRA[tipo]
+    contexto = modulo_do_bin("forge_pareceres").CONTEXTOS[tipo]
+    if isinstance(publicados[1], str):
+        return [f"{pasta}: {tipo}: leitura do status {contexto} recusada: {publicados[1]} ({rid})"]
+    if tipo not in publicados[1]:
+        ausente(f"{pasta}: {tipo}: sem o status {contexto} no PR da branch {nome_seguro(branch)} para o pedido `{pedido}`; "
+                f"fora da lista fechada, o parecer em arquivo não vale (M20.1) ({rid})")
+        return []
+    veredito, url, origem = publicados[1][tipo]
+    if veredito is None:
+        return [f"{pasta}: {tipo}: status {contexto} de {origem[:7]} não vale: {url} ({rid})"]
+    campo, motivo = veredito_do_parecer(raiz, pedido, {"parecer": veredito, "commit": origem}, tipo, ref, base, ()) or (None, None)
+    return [f"{pasta}: {tipo}: status {contexto} de {origem[:7]} ({url}): {campo}: {motivo} ({rid})"] if motivo else []
 
 
 def parecer_que_aprova(campos):

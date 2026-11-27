@@ -1,6 +1,6 @@
 """G2.1 (pedido v0481, ADR 0019): a escrita do parecer de portão como comentário do PR e status do commit, pelo `gh` da sessão
-(grátis; R-CUSTO), a leitura do G2.2 (`ler`, no head) e a do C2a (`vigentes`, nos commits do PR), que nada chama ainda (o C2b
-liga). A conta aceita é a dona do `origin` (M1.4), e cada publicação fica registrada na pasta de controle da máquina (M4.1). Erro, saída ilegível ou sem `gh`:
+(grátis; R-CUSTO), a leitura do G2.2 (`ler`, no head) e a do C2a (`vigentes`, nos commits do PR), que o `forge-check pr` chama
+só com a lista fechada da transição na develop do `origin` (C2b, `lista_fechada`). A conta aceita é a dona do `origin` (M1.4), e cada publicação fica registrada na pasta de controle da máquina (M4.1). Erro, saída ilegível ou sem `gh`:
 `Recusa`, nada a mais se grava (falha fechada)."""
 import hashlib
 import json
@@ -20,6 +20,7 @@ URL_DO_PR = re.compile(r"https://([^/]+)/([^/]+)/([^/]+)/pull/[0-9]+")
 URL_DO_COMENTARIO = re.compile(r"https://([^/]+)/([^/]+)/([^/]+)/pull/([0-9]+)#issuecomment-([0-9]+)")  # M6.1
 DESCRICAO = re.compile(r"(aprovado|riscos-aceitos|reprovado) · sha256 ([0-9a-f]{64}) · [0-9]+ bloqueantes · [0-9]+ recomendados")
 REGISTRO = "pareceres-publicados.jsonl"  # M4.1, na pasta de controle
+LISTA_FECHADA = ".github/pareceres-lista-fechada.json"  # M20.1, gravada no C5a; o mesmo nome do hook `conformidade` (C1b-2)
 
 
 class Recusa(Exception):
@@ -133,12 +134,15 @@ def repositorio_do_remoto(raiz):
     return tuple(x.lower() for x in m.groups())
 
 
-def pr_aberto(raiz, branch, sha):
+def pr_aberto(raiz, branch, sha, nenhum=False):
     """O PR aberto da `branch` (nome exato) cujo head é `sha`, no repositório do `origin` da cópia e com a branch nele (M18.1:
-    `GH_REPO` ou outro remoto não desviam o publicar); outro head, outro repositório, nenhum ou mais de um: Recusa."""
+    `GH_REPO` ou outro remoto não desviam o publicar); outro head, outro repositório, nenhum ou mais de um: Recusa. Com
+    `nenhum`, a branch sem PR aberto devolve None (o `pr` antes do PR: nenhum parecer publicado)."""
     prs = gh(raiz, ["pr", "list", "--head", branch, "--state", "open", "--json",
                     "number,headRefName,headRefOid,url,isCrossRepository"])
     prs = [p for p in prs if isinstance(p, dict) and p.get("headRefName") == branch] if isinstance(prs, list) else []
+    if nenhum and not prs:
+        return None
     if len(prs) != 1:
         raise Recusa(f"{len(prs)} PR aberto(s) da branch {branch}; publicar pede um só")
     if prs[0].get("headRefOid") != sha:
@@ -210,10 +214,7 @@ def ler(raiz, branch, sha, pedido):
     ilegível ou fora do contrato: Recusa (M19.1)."""
     contas, registro = contas_aceitas(raiz), publicados(raiz)
     repo, pr = repositorio_do_remoto(raiz), pr_aberto(raiz, branch, sha)
-    paginas = gh(raiz, ["api", "--hostname", repo[0], "--paginate", "--slurp", f"repos/{repo[1]}/{repo[2]}/commits/{sha}/statuses"])
-    if not isinstance(paginas, list) or not all(isinstance(p, list) for p in paginas):
-        raise Recusa("statuses ilegíveis (M19.1)")
-    lista, lidos = [s for p in paginas for s in p if isinstance(s, dict)], {}
+    lista, lidos = statuses_de(raiz, repo, sha), {}
     try:
         for tipo, contexto in CONTEXTOS.items():
             dela = [s for s in lista if s.get("context") == contexto and login(s.get("creator")) in contas]
@@ -269,8 +270,8 @@ def vigentes(raiz, pr, head, pedido):
     head e está entre os commits do PR; o domínio da origem ao head fica com quem lê (C2b). Linha do registro (M4.1) de um
     commit do PR sem o status correspondente: Recusa (CONTROLE-RUN-GRAFIA). Erro ou resposta fora do contrato: Recusa."""
     contas, registro, repo = contas_aceitas(raiz), publicados(raiz), repositorio_do_remoto(raiz)
-    p = gh(raiz, ["pr", "view", str(int(pr)), "--json", "number,headRefName,url,commits"])
     try:
+        p = gh(raiz, ["pr", "view", str(int(pr)), "--json", "number,headRefName,url,commits"])
         aberto = pr_aberto(raiz, p["headRefName"], head)
         if (aberto["number"], aberto["url"]) != (p["number"], p["url"]):
             raise Recusa(f"o PR #{pr} não é o PR aberto da branch {p['headRefName']} com o head {head[:7]}")
@@ -292,6 +293,39 @@ def vigentes(raiz, pr, head, pedido):
     except (KeyError, TypeError, AttributeError, ValueError) as e:
         raise Recusa(f"leitura do PR: resposta do gh fora do contrato ({type(e).__name__}) (M19.1)") from None
     return lidos
+
+
+def git_lido(raiz, *args):
+    """(código, stdout) do `git` na cópia, sem as variáveis GIT_* herdadas; sem `git` ou sem resposta: (128, "")."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    try:
+        r = subprocess.run(["git", *args], cwd=raiz, capture_output=True, text=True, timeout=30, env=env)
+    except (OSError, subprocess.TimeoutExpired):
+        return 128, ""
+    return r.returncode, r.stdout
+
+
+def lista_fechada(raiz):
+    """C2b (M20.1, transição por lista fechada): os números dos PRs que ainda valem pelo parecer em arquivo, lidos de
+    `LISTA_FECHADA` (uma lista JSON de inteiros) na develop do `origin`, no commit que o `git ls-remote` lê (M10.1), nunca no head;
+    sem rede, no ref local. Sem o arquivo: None (dormente, o caminho de arquivo segue). Com o arquivo só no ref local e o commit
+    remoto fora da cópia, ou conteúdo fora da forma: Recusa (falha fechada)."""
+    cod, saida = git_lido(raiz, "ls-remote", "origin", "refs/heads/develop")  # o padrão casa o fim do nome: só a linha exata
+    remoto = [x.split("\t")[0] for x in saida.splitlines() if x.endswith("\trefs/heads/develop")] if cod == 0 else []
+    na_copia = remoto and git_lido(raiz, "cat-file", "-e", f"{remoto[0]}^{{commit}}")[0] == 0
+    cod, texto = git_lido(raiz, "cat-file", "blob", f"{remoto[0] if na_copia else 'refs/remotes/origin/develop'}:{LISTA_FECHADA}")
+    if cod:
+        return None
+    if remoto and not na_copia:
+        raise Recusa(f"a lista fechada está na origin/develop local e o commit {remoto[0][:7]} da develop remota falta na cópia; "
+                     "rode git fetch origin develop (M10.1)")
+    try:
+        numeros = json.loads(texto)
+    except ValueError:
+        numeros = None
+    if not isinstance(numeros, list) or not all(type(n) is int for n in numeros):
+        raise Recusa(f"{LISTA_FECHADA} fora da forma (uma lista JSON de números de PR) (M20.1)")
+    return frozenset(numeros)
 
 
 def publicar(raiz, tipo, veredito, texto, sha, branch, bloqueantes, recomendados, exigidos):

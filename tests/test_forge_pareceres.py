@@ -16,7 +16,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from ambiente_git import sem_manutencao  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 BRANCH, PEDIDO = "melhoria/v9-publicar", "v9"
@@ -695,6 +695,12 @@ class Vigentes(GhFalso):
                 with self.assertRaises(fp().Recusa):
                     self.vigentes(self.em(self.a, 1))
 
+    def test_pr_nao_numerico_sai_recusa(self):
+        """C2A-RECOMENDADOS A2: o número do PR fora da forma é Recusa, nunca ValueError solto."""
+        for pr in ("abc", None, "7a"):
+            with self.subTest(pr), self.assertRaisesRegex(fp().Recusa, "fora do contrato"):
+                self.vigentes(self.em(self.a, 1), pr=pr)
+
     def test_status_sem_created_at_fora_do_contrato(self):
         sha, status = self.em(self.a, 1)
         with self.assertRaisesRegex(fp().Recusa, "fora do contrato"):
@@ -891,6 +897,163 @@ class Politica(unittest.TestCase):
         for arq in workflows:
             texto = arq.read_text(encoding="utf-8").replace("secrets.GITHUB_TOKEN", "")
             self.assertNotIn("secrets", texto, arq.name)
+
+
+class PrPeloStatus(GhFalso):
+    """C2b (F1 parte 2): o `forge-check pr` lê o parecer pelo status vigente (C2a) só com a lista fechada na develop do `origin`;
+    sem ela, o caminho de arquivo de hoje, sem chamar o `gh`. O domínio do tipo se mede da origem do status ao head (M11.1, M12.1)."""
+    URL, publicado, registrar, em, commit = Ler.URL, Ler.publicado, Ler.registrar, Vigentes.em, Vigentes.commit
+
+    def setUp(self):
+        super().setUp()
+        self.a = self.sha
+        self.b = self.commit("b")  # b: filho de a sem mudança
+        (self.repo / "bin").mkdir()
+        (self.repo / "bin" / "x.py").write_text("print(1)\n", encoding="utf-8")
+        for args in (["add", "bin/x.py"], ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "código"]):
+            subprocess.run(["git", *args], cwd=self.repo, env=self.env, check=True)
+        self.d = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, env=self.env, capture_output=True, text=True).stdout.strip()
+
+    def pr(self, head, lista, *publicados, previo=False, branch=BRANCH):
+        """As linhas do review do `cmd_pr` no `head` do PR #7 (commits a e head), com `lista_fechada` devolvendo `lista`."""
+        por_commit = {}
+        for sha, s in sorted(publicados, key=lambda x: -x[1]["id"]):
+            por_commit.setdefault(sha, [[]])[0].append(s)
+        self.estado(por_commit=por_commit, prs=[self.estado()["prs"][0] | {"headRefOid": head}] if self.estado()["prs"] else [],
+                    pr_view={"number": 7, "headRefName": BRANCH, "url": "https://github.com/dono/repo/pull/7",
+                             "commits": [{"oid": self.a}, {"oid": head}]})
+        with mock.patch.object(fc().modulo_do_bin("forge_pareceres"), "lista_fechada", return_value=lista):
+            with contextlib.redirect_stderr(io.StringIO()):  # o aviso do `--previo`
+                saida = fc().cmd_pr(self.repo, PEDIDO, head, None, branch, previo=previo)
+        return [x for x in saida if x.startswith("docs/reviews")]
+
+    def test_sem_a_lista_nada_muda(self):
+        """Dormente: o status aprovado não conta, o arquivo segue exigido e o `gh` nem é chamado."""
+        self.assertEqual(self.pr(self.b, None, self.em(self.a, 1)), [f"docs/reviews: review: sem parecer para o pedido `{PEDIDO}` (R-REVIEW)"])
+        self.assertEqual(self.chamadas(), [])
+
+    def test_pr_da_lista_com_status_aprovado_e_dominio_intacto_passa(self):
+        self.assertEqual(self.pr(self.b, frozenset({7}), self.em(self.a, 1)), [])
+
+    def test_dominio_mexido_depois_da_origem_recusa(self):
+        """M12.1: a origem a, não o head, é o ponto de partida: bin/x.py mudou em d depois do status de a."""
+        linhas = self.pr(self.d, frozenset({7}), self.em(self.a, 1))
+        self.assertEqual(len(linhas), 1, linhas)
+        self.assertIn(f"status parecer-review de {self.a[:7]}", linhas[0])
+        self.assertIn("commit: desatualizado: bin/x.py mudou depois do parecer", linhas[0])
+
+    def test_reprovado_vigente_barra(self):
+        linhas = self.pr(self.b, frozenset({7}), self.em(self.a, 1, state="failure", veredito="reprovado"))
+        self.assertIn("parecer: o último parecer não é aprovado", linhas[0])
+
+    def test_status_que_nao_vale_reprova(self):
+        linhas = self.pr(self.b, frozenset(), self.em(self.a, 1, registro=False))
+        self.assertIn(f"docs/reviews: review: status parecer-review de {self.a[:7]} não vale: status sem registro", linhas[0])
+
+    def test_fora_da_lista_so_o_status(self):
+        """M20.1: fora da lista, sem status o tipo falta (o arquivo não é lido); na lista, sem status, o caminho de arquivo."""
+        self.assertIn("fora da lista fechada, o parecer em arquivo não vale (M20.1)", self.pr(self.b, frozenset({8}))[0])
+        self.assertEqual(self.pr(self.b, frozenset({7})), [f"docs/reviews: review: sem parecer para o pedido `{PEDIDO}` (R-REVIEW)"])
+
+    def test_sem_pr_aberto_fica_ausente(self):
+        """Antes do PR (o pré-voo do envio), nenhum publicado: ausente, que o `--previo` só avisa."""
+        self.estado(prs=[])
+        self.assertEqual(self.pr(self.b, frozenset(), previo=True), [])
+        self.assertIn("sem o status parecer-review", self.pr(self.b, frozenset())[0])
+
+    def test_branch_de_integracao_segue_o_arquivo(self):
+        """Na promoção (branch de integração) o status não entra: o caminho de arquivo de hoje."""
+        self.assertEqual(self.pr(self.b, frozenset({7}), self.em(self.a, 1), branch="develop"),
+                         [f"docs/reviews: review: sem parecer para o pedido `{PEDIDO}` (R-REVIEW)"])
+
+    def test_leitura_recusada_reprova(self):
+        self.estado(falha=True)
+        self.assertIn("leitura do status parecer-review recusada: gh pr list saiu com 1", self.pr(self.b, frozenset({7}))[0])
+
+
+class ListaFechada(unittest.TestCase):
+    """C2b (M20.1, M10.1): a lista fechada sai da develop do `origin` pelo commit do `git ls-remote`, nunca do head nem de um ref
+    local recuado ou forjado; sem rede, do ref local; fora da forma ou só no ref local com a develop remota fora da cópia: Recusa."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(subprocess.run, ["rm", "-rf", str(self.tmp)])
+        self.remoto, self.repo = self.tmp / "remoto.git", self.tmp / "repo"
+        self.env = sem_manutencao({"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"})
+        p = mock.patch.dict(os.environ, {"PATH": "/usr/bin:/bin", "HOME": str(self.tmp)}, clear=True)
+        p.start()
+        self.addCleanup(p.stop)
+        self.git(self.tmp, "init", "-q", "--bare", "-b", "develop", str(self.remoto))
+        remoto_sem_manutencao(self.remoto)
+        self.git(self.tmp, "init", "-q", "-b", "develop", str(self.repo))
+        self.git(self.repo, "remote", "add", "origin", str(self.remoto))
+        self.vazio = self.commitar(None)
+
+    def git(self, cwd, *args):
+        return subprocess.run(["git", *args], cwd=cwd, env=self.env, check=True, capture_output=True, text=True).stdout.strip()
+
+    def commitar(self, lista, enviar=True):
+        arq = self.repo / fp().LISTA_FECHADA
+        if lista is None:
+            arq.unlink(missing_ok=True)
+        else:
+            arq.parent.mkdir(exist_ok=True)
+            arq.write_text(lista, encoding="utf-8")
+        self.git(self.repo, "add", "-A")
+        self.git(self.repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x")
+        if enviar:
+            self.git(self.repo, "push", "-q", "origin", "develop")
+            self.git(self.repo, "fetch", "-q", "origin")
+        return self.git(self.repo, "rev-parse", "HEAD")
+
+    def lista(self):
+        return fp().lista_fechada(str(self.repo))
+
+    def test_sem_o_arquivo_dormente(self):
+        self.assertIsNone(self.lista())
+
+    def test_lista_da_develop_remota(self):
+        self.commitar("[7, 12]")
+        self.assertEqual(self.lista(), frozenset({7, 12}))
+
+    def test_lista_so_no_head_nao_vale(self):
+        self.git(self.repo, "switch", "-q", "-c", "melhoria/x")
+        self.commitar("[7]", enviar=False)
+        self.assertIsNone(self.lista())
+
+    def test_ref_local_forjado_perde_para_o_remoto(self):
+        com = self.commitar("[7]")
+        self.commitar(None)
+        self.git(self.repo, "update-ref", "refs/remotes/origin/develop", com)
+        self.assertIsNone(self.lista())
+
+    def test_develop_remota_fora_da_copia_com_lista_local_recusa(self):
+        self.commitar("[7]")
+        outro = self.tmp / "outro"
+        self.git(self.tmp, "clone", "-q", str(self.remoto), str(outro))
+        self.git(outro, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "y")
+        self.git(outro, "push", "-q", "origin", "develop")  # a develop remota anda; a cópia não a tem
+        with self.assertRaisesRegex(fp().Recusa, "git fetch origin develop"):
+            self.lista()
+
+    def test_so_a_linha_exata_da_develop(self):
+        """O padrão do `ls-remote` casa o fim do nome: `a/refs/heads/develop` com a lista não vale pela develop."""
+        com = self.commitar("[7]", enviar=False)
+        self.git(self.repo, "push", "-q", "origin", f"{com}:refs/heads/a/refs/heads/develop")
+        self.git(self.repo, "reset", "-q", "--hard", self.vazio)
+        self.assertIsNone(self.lista())
+
+    def test_sem_rede_vale_o_ref_local(self):
+        self.commitar("[7]")
+        self.git(self.repo, "remote", "set-url", "origin", str(self.tmp / "nao-existe.git"))
+        self.assertEqual(self.lista(), frozenset({7}))
+
+    def test_fora_da_forma_recusa(self):
+        for texto in ('{"prs": [7]}', '[7, "8"]', "[true]", "[7,", ""):
+            with self.subTest(texto):
+                self.commitar(texto)
+                with self.assertRaisesRegex(fp().Recusa, "fora da forma"):
+                    self.lista()
 
 
 if __name__ == "__main__":
