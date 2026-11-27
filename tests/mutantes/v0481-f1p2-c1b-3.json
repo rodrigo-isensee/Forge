@@ -6,8 +6,8 @@
       "id": "C1B-M17",
       "guarda": "M4.2 (review A1): o heredoc sem aspas com $ ou crase no corpo é ilegível",
       "arquivo": "hooks/conformidade.py",
-      "de": "                ilegivel |= not achados or any(not literal and re.search(r\"[$`]\", corpo) for corpo, literal in corpos)",
-      "para": "                ilegivel |= not achados",
+      "de": "                ilegivel |= any(not literal and re.search(r\"[$`]\", corpo) for corpo, literal in corpos)",
+      "para": "                ilegivel |= False",
       "testes": [
         "tests.test_conformidade_pareceres.PeloTerminal.test_c21_volta1_corpo_repetido_ou_com_expansao_barrado"
       ]
@@ -16,8 +16,8 @@
       "id": "C1B-M18",
       "guarda": "M4.2: o heredoc com delimitador entre aspas é texto ($ e crase não expandem)",
       "arquivo": "hooks/conformidade.py",
-      "de": "                ilegivel |= not achados or any(not literal and re.search(r\"[$`]\", corpo) for corpo, literal in corpos)",
-      "para": "                ilegivel |= not achados or any(re.search(r\"[$`]\", corpo) for corpo, literal in corpos)",
+      "de": "                ilegivel |= any(not literal and re.search(r\"[$`]\", corpo) for corpo, literal in corpos)",
+      "para": "                ilegivel |= any(re.search(r\"[$`]\", corpo) for corpo, literal in corpos)",
       "testes": [
         "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
       ]
