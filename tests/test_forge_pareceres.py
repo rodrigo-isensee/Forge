@@ -1052,14 +1052,56 @@ class ListaFechada(unittest.TestCase):
         self.git(self.repo, "update-ref", "refs/remotes/origin/develop", com)
         self.assertIsNone(self.lista())
 
-    def test_develop_remota_fora_da_copia_com_lista_local_recusa(self):
-        self.commitar("[7]")
+    def outro_envia(self, lista=None):
+        """Outra cópia avança a develop do `origin` (com a lista, se dada) depois do clone; esta cópia não busca."""
         outro = self.tmp / "outro"
-        self.git(self.tmp, "clone", "-q", str(self.remoto), str(outro))
+        if not outro.exists():
+            self.git(self.tmp, "clone", "-q", str(self.remoto), str(outro))
+        if lista is not None:
+            (outro / ".github").mkdir(exist_ok=True)
+            (outro / fp().LISTA_FECHADA).write_text(lista, encoding="utf-8")
+            self.git(outro, "add", "-A")
         self.git(outro, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "y")
-        self.git(outro, "push", "-q", "origin", "develop")  # a develop remota anda; a cópia não a tem
-        with self.assertRaisesRegex(fp().Recusa, "git fetch origin develop"):
-            self.lista()
+        self.git(outro, "push", "-q", "origin", "develop")
+        return self.git(outro, "rev-parse", "HEAD")
+
+    def test_develop_remota_fora_da_copia_busca_uma_vez(self):
+        """M10.1: com o commit da develop remota fora da cópia, um `git fetch origin develop` e a leitura nele."""
+        self.commitar("[7]")
+        novo = self.outro_envia("[7, 9]")
+        self.assertEqual(self.lista(), frozenset({7, 9}))
+        self.assertEqual(self.git(self.repo, "cat-file", "-t", novo), "commit")
+
+    def test_sonda_s1_lista_so_na_develop_remota_nao_fica_dormente(self):
+        """Sonda S1 da segurança (b816015), falha aberta antes do E45.48: antes, None (dormente, o arquivo valia para todo PR);
+        agora o fetch traz a lista e ela vale (a falha do fetch é a Recusa, no teste seguinte)."""
+        # S1: sonda_lista.sh: origin bare, develop ganha .github/pareceres-lista-fechada.json `[947]` depois do clone, cópia sem fetch, `lista_fechada(cópia)`
+        self.outro_envia("[947]")
+        self.assertEqual(self.lista(), frozenset({947}))
+
+    def test_fetch_que_nao_traz_o_commit_recusa(self):
+        """M10.1, falha fechada: o fetch falha (rede, permissão) e o commit remoto segue fora da cópia: Recusa, nunca o ref local."""
+        self.outro_envia("[947]")
+        original, chamadas = fp().git_lido, []
+        modulo = fp()
+
+        def sem_fetch(raiz, *args):
+            chamadas.append(args[0])
+            return (128, "") if args[0] == "fetch" else original(raiz, *args)
+
+        with mock.patch.object(modulo, "git_lido", sem_fetch):
+            with self.assertRaisesRegex(modulo.Recusa, "depois do git fetch origin develop"):
+                modulo.lista_fechada(str(self.repo))
+        self.assertEqual(chamadas.count("fetch"), 1)
+
+    def test_sonda_s2_ref_local_recuado_sem_rede_fica_dormente_ate_o_c5a(self):
+        """Sonda S2 da segurança (b816015; A2, cartão C5A-PENDENCIAS-DO-STATUS, fora do E45.48). Hoje dormente (None): sem lista
+        em vigor não há status a ler; o C5a troca a espera para Recusa e este teste muda com ele."""
+        # S2: mesma cópia, `git update-ref refs/remotes/origin/develop <raiz sem a lista>` e origin inalcançável, `lista_fechada(cópia)`
+        self.commitar("[947]")
+        self.git(self.repo, "update-ref", "refs/remotes/origin/develop", self.vazio)
+        self.git(self.repo, "remote", "set-url", "origin", str(self.tmp / "nao-existe.git"))
+        self.assertIsNone(self.lista())
 
     def test_so_a_linha_exata_da_develop(self):
         """O padrão do `ls-remote` casa o fim do nome: `a/refs/heads/develop` com a lista não vale pela develop."""

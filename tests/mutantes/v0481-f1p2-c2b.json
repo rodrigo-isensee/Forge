@@ -24,20 +24,21 @@
     },
     {
       "id": "C2B-M3",
-      "guarda": "a develop remota fora da cópia não é lida",
+      "guarda": "o commit da develop remota só conta presente na cópia (M10.1)",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "na_copia = remoto and git_lido(raiz, \"cat-file\", \"-e\", f\"{remoto[0]}^{{commit}}\")[0] == 0",
-      "para": "na_copia = bool(remoto)",
+      "de": "    return git_lido(raiz, \"cat-file\", \"-e\", f\"{sha}^{{commit}}\")[0] == 0",
+      "para": "    return True",
       "testes": [
-        "tests.test_forge_pareceres.ListaFechada.test_develop_remota_fora_da_copia_com_lista_local_recusa"
+        "tests.test_forge_pareceres.ListaFechada.test_develop_remota_fora_da_copia_busca_uma_vez",
+        "tests.test_forge_pareceres.ListaFechada.test_sonda_s1_lista_so_na_develop_remota_nao_fica_dormente"
       ]
     },
     {
       "id": "C2B-M4",
       "guarda": "sem o arquivo da lista, dormente (None)",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "    if cod:\n        return None\n    if remoto and not na_copia:",
-      "para": "    if False:\n        return None\n    if remoto and not na_copia:",
+      "de": "    if cod:\n        return None\n    try:",
+      "para": "    if False:\n        return None\n    try:",
       "testes": [
         "tests.test_forge_pareceres.ListaFechada.test_sem_o_arquivo_dormente",
         "tests.test_forge_pareceres.PrPeloStatus.test_sem_a_lista_nada_muda"
@@ -45,12 +46,13 @@
     },
     {
       "id": "C2B-M5",
-      "guarda": "lista só no ref local com a develop remota fora da cópia: Recusa (M10.1)",
+      "guarda": "commit da develop remota fora da cópia: um git fetch origin develop (M10.1)",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "    if remoto and not na_copia:\n        raise",
-      "para": "    if False:\n        raise",
+      "de": "    if remoto and not tem_commit(raiz, remoto[0]):\n        git_lido(raiz, \"fetch\"",
+      "para": "    if False:\n        git_lido(raiz, \"fetch\"",
       "testes": [
-        "tests.test_forge_pareceres.ListaFechada.test_develop_remota_fora_da_copia_com_lista_local_recusa"
+        "tests.test_forge_pareceres.ListaFechada.test_develop_remota_fora_da_copia_busca_uma_vez",
+        "tests.test_forge_pareceres.ListaFechada.test_sonda_s1_lista_so_na_develop_remota_nao_fica_dormente"
       ]
     },
     {
@@ -75,12 +77,12 @@
     },
     {
       "id": "C2B-M8",
-      "guarda": "a develop remota só se lê com o commit dela na cópia; senão, o ref local (e a recusa se ele tem a lista)",
+      "guarda": "a lista se lê no commit da develop remota; o ref local só sem rede",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "{remoto[0] if na_copia else 'refs/remotes/origin/develop'}:{LISTA_FECHADA}",
-      "para": "{remoto[0] if remoto else 'refs/remotes/origin/develop'}:{LISTA_FECHADA}",
+      "de": "{remoto[0] if remoto else 'refs/remotes/origin/develop'}:{LISTA_FECHADA}",
+      "para": "{'refs/remotes/origin/develop'}:{LISTA_FECHADA}",
       "testes": [
-        "tests.test_forge_pareceres.ListaFechada.test_develop_remota_fora_da_copia_com_lista_local_recusa"
+        "tests.test_forge_pareceres.ListaFechada.test_ref_local_forjado_perde_para_o_remoto"
       ]
     }
   ]

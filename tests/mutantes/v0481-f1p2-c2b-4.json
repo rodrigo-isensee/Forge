@@ -1,0 +1,16 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C2B-M25",
+      "guarda": "o fetch que não traz o commit remoto: Recusa, nunca o ref local (M10.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "        if not tem_commit(raiz, remoto[0]):\n            raise Recusa(",
+      "para": "        if False:\n            raise Recusa(",
+      "testes": [
+        "tests.test_forge_pareceres.ListaFechada.test_fetch_que_nao_traz_o_commit_recusa"
+      ]
+    }
+  ]
+}

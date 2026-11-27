@@ -305,20 +305,26 @@ def git_lido(raiz, *args):
     return r.returncode, r.stdout
 
 
+def tem_commit(raiz, sha):
+    """O commit `sha` está na cópia."""
+    return git_lido(raiz, "cat-file", "-e", f"{sha}^{{commit}}")[0] == 0
+
+
 def lista_fechada(raiz):
     """C2b (M20.1, transição por lista fechada): os números dos PRs que ainda valem pelo parecer em arquivo, lidos de
     `LISTA_FECHADA` (uma lista JSON de inteiros) na develop do `origin`, no commit que o `git ls-remote` lê (M10.1), nunca no head;
-    sem rede, no ref local. Sem o arquivo: None (dormente, o caminho de arquivo segue). Com o arquivo só no ref local e o commit
-    remoto fora da cópia, ou conteúdo fora da forma: Recusa (falha fechada)."""
+    sem rede, no ref local. Sem o arquivo: None (dormente, o caminho de arquivo segue). Commit remoto fora da cópia: um
+    `git fetch origin develop`; se segue fora, Recusa (falha fechada, M10.1). Conteúdo fora da forma: Recusa."""
     saida = git_lido(raiz, "ls-remote", "origin", "refs/heads/develop")[1]  # sem rede, vazia; o padrão casa o fim do nome
     remoto = [x.split("\t")[0] for x in saida.splitlines() if x.endswith("\trefs/heads/develop")]
-    na_copia = remoto and git_lido(raiz, "cat-file", "-e", f"{remoto[0]}^{{commit}}")[0] == 0
-    cod, texto = git_lido(raiz, "cat-file", "blob", f"{remoto[0] if na_copia else 'refs/remotes/origin/develop'}:{LISTA_FECHADA}")
+    if remoto and not tem_commit(raiz, remoto[0]):
+        git_lido(raiz, "fetch", "-q", "origin", "develop")  # uma vez; o resultado vale pelo commit, não pelo código
+        if not tem_commit(raiz, remoto[0]):
+            raise Recusa(f"o commit {remoto[0][:7]} da develop remota falta na cópia mesmo depois do git fetch origin develop; "
+                         "a lista fechada não se lê (M10.1)")
+    cod, texto = git_lido(raiz, "cat-file", "blob", f"{remoto[0] if remoto else 'refs/remotes/origin/develop'}:{LISTA_FECHADA}")
     if cod:
         return None
-    if remoto and not na_copia:
-        raise Recusa(f"a lista fechada está na origin/develop local e o commit {remoto[0][:7]} da develop remota falta na cópia; "
-                     "rode git fetch origin develop (M10.1)")
     try:
         numeros = json.loads(texto)
     except ValueError:
