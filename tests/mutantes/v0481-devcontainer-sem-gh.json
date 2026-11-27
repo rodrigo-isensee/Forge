@@ -24,22 +24,22 @@
     },
     {
       "id": "M3",
-      "guarda": "postStartCommand: a falha do preparo sai com 1, não com 0",
+      "guarda": "postStartCommand: a falha do preparo sai com 1, não com 0, provado rodando o comando literal",
       "arquivo": ".devcontainer/devcontainer.json",
       "de": "exit 1; }\"",
       "para": "exit 0; }\"",
       "testes": [
-        "tests.test_forge.PrepararEstacao.test_devcontainer_do_forge_roda_o_preparo_da_copia_presente_sem_gh_e_sem_engolir_erro"
+        "tests.test_forge.PrepararEstacao.test_poststart_do_forge_sai_1_com_aviso_quando_o_preparo_falha"
       ]
     },
     {
       "id": "M4",
-      "guarda": "postStartCommand: roda só o essencial (sem cópia vigente nem dev-marketplace como root)",
+      "guarda": "postStartCommand: roda só o essencial (sem cópia vigente nem dev-marketplace como root), provado rodando o comando literal",
       "arquivo": ".devcontainer/devcontainer.json",
-      "de": "\"FORGE_PREPARO_ESSENCIAL=1 bash /workspaces/Forge",
-      "para": "\"bash /workspaces/Forge",
+      "de": "&& FORGE_PREPARO_ESSENCIAL=1 bash ",
+      "para": "&& bash ",
       "testes": [
-        "tests.test_forge.PrepararEstacao.test_devcontainer_do_forge_roda_o_preparo_da_copia_presente_sem_gh_e_sem_engolir_erro"
+        "tests.test_forge.PrepararEstacao.test_poststart_roda_so_a_main_do_remoto_nunca_o_ref_local_forjado"
       ]
     },
     {
@@ -50,6 +50,66 @@
       "para": "  true  # primeiro",
       "testes": [
         "tests.test_forge.PrepararEstacao.test_container_cria_config_do_gh_e_sai_0_com_o_essencial_no_lugar"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "preparo do container: sem o tmux instalado o script acusa o erro",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "  tem tmux || ausentes+=(\"tmux não instalado\")",
+      "para": "  tem tmux || true",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_container_sem_tmux_sai_1_com_linha_de_erro_clara"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "preparo do container: sem ~/.config/gh o script acusa o erro (o sandbox do Bash não abre sem ele)",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "  [ -d \"$HOME/.config/gh\" ] || ausentes+=(",
+      "para": "  true || ausentes+=(",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_container_sem_a_config_do_gh_sai_1_com_linha_de_erro_clara"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "preparo do container: sem o link ~/.forge-contrib o script acusa o erro",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "  if [ -d \"$real\" ] && [ \"$(readlink",
+      "para": "  if false && [ \"$(readlink",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_container_com_o_link_da_area_ausente_sai_1_com_linha_de_erro_clara"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "preparo do container: a simulação não roda a conferência final (não instala nada, não pode acusar falta)",
+      "arquivo": "scripts/preparar-estacao.sh",
+      "de": "[ \"$simular\" = 1 ] || container_essenciais",
+      "para": "true || container_essenciais",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_container_simulado_nao_roda_a_conferencia_final"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "postStartCommand: a guarda do grep recusa uma main antiga, sem FORGE_PREPARO_ESSENCIAL",
+      "arquivo": ".devcontainer/devcontainer.json",
+      "de": "grep -q 'FORGE_PREPARO_ESSENCIAL:-0'",
+      "para": "true",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_poststart_do_forge_exige_a_guarda_no_script_da_main"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "postStartCommand: o rc do preparo decide o aviso e o exit 1",
+      "arquivo": ".devcontainer/devcontainer.json",
+      "de": "[ $rc = 0 ] ||",
+      "para": "true ||",
+      "testes": [
+        "tests.test_forge.PrepararEstacao.test_poststart_do_forge_sai_1_com_aviso_quando_o_preparo_falha"
       ]
     }
   ]

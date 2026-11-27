@@ -3,12 +3,16 @@
 // refaz sozinho, sem o dono, o essencial: gh (apt oficial), o link ~/.forge-contrib para /workspaces/.forge-contrib e o
 // core.hooksPath. O login do gh sobrevive em ~/.claude/gh (link ~/.config/gh); sem ele, o Jarvis dá o comando ao abrir.
 // O script é idempotente e nunca apaga dados.
-// DEVCONTAINER-SEM-GH (v0481 E35.1): o comando roda o script de preparo da cópia já presente em /workspaces/Forge, sem clonar
-// a main e sem depender do gh, que o próprio script instala. Decisão do dono, que troca o clone raso da main do B2 da 0.43.1:
-// o script roda como root, fora do sandbox, mas só com FORGE_PREPARO_ESSENCIAL=1 (sem a cópia vigente nem o dev-marketplace, que
-// ficam no comando manual `bash /workspaces/Forge/scripts/preparar-estacao.sh --container`) e este arquivo é protegido pelo hook.
-// O preparo cria ~/.config/gh, instala gh e tmux e refaz o link ~/.forge-contrib; cada passo é idempotente. Faltou algo: o script
-// sai com rc 1 e uma linha "erro:", e o comando repete o aviso e sai com 1 (sem "; true" engolindo); o container sobe do mesmo jeito.
+// DEVCONTAINER-SEM-GH (v0481 E35.6, opção 1 do dono): o comando baixa o script de preparo da main pelo GitHub, sem o gh (que o
+// próprio script instala): clone raso e público com credential.helper vazio e GIT_TERMINAL_PROMPT=0, e a URL fixa neste arquivo
+// (não vem da cópia de trabalho). Nada que roda como root vem de /workspaces/Forge, que o agente grava no sandbox: como root, só
+// roda o que está na main do remoto, que passa por PR e pelo merge do dono (a defesa B2 da 0.43.1). O script roda com
+// FORGE_PREPARO_ESSENCIAL=1 (sem a cópia vigente nem o dev-marketplace, que ficam no comando manual
+// `bash /workspaces/Forge/scripts/preparar-estacao.sh --container`); a guarda do grep recusa uma main antiga, sem essa marca.
+// O preparo cria ~/.config/gh, instala gh e tmux e refaz o link ~/.forge-contrib; cada passo é idempotente. Faltou algo, ou o
+// clone falhou (sem rede, main antiga): o comando avisa em ERRO e sai com 1, sem "; true" engolindo; o container sobe do mesmo jeito.
+// A garantia real é esta (nada de arquivo gravável pelo agente rodando como root), não o hook: na sessão do Forge o hook libera a
+// escrita deste arquivo, e uma troca dele aparece como mudança em vigor, revisada em PR, e só vale ao recriar o container.
 // Nenhum segredo aqui, e o GH_TOKEN da máquina do dono NÃO entra no container (remoteEnv o repassaria, com o escopo
 // workflow, a todo processo, inclusive a sessão do agente). Login do dono: gh auth login -s repo,workflow --web (escopo
 // mínimo repo e workflow, que o push de .github/ pede); o token do bot (ADR 0009) não leva workflow.
@@ -23,5 +27,5 @@
   "mounts": [
     "source=forge-claude,target=/root/.claude,type=volume"
   ],
-  "postStartCommand": "FORGE_PREPARO_ESSENCIAL=1 bash /workspaces/Forge/scripts/preparar-estacao.sh --container < /dev/null || { echo 'ERRO: o preparo do container falhou (veja as linhas erro: acima); rode bash /workspaces/Forge/scripts/preparar-estacao.sh --container' >&2; exit 1; }"
+  "postStartCommand": "d=$(mktemp -d); GIT_TERMINAL_PROMPT=0 git -c credential.helper= clone -q --depth 1 --branch main --single-branch -- https://github.com/rodrigo-isensee/Forge.git \"$d/r\" && grep -q 'FORGE_PREPARO_ESSENCIAL:-0' \"$d/r/scripts/preparar-estacao.sh\" && FORGE_PREPARO_ESSENCIAL=1 bash \"$d/r/scripts/preparar-estacao.sh\" --container < /dev/null; rc=$?; rm -rf \"$d\"; [ $rc = 0 ] || { echo 'ERRO: o preparo do container falhou (veja as linhas erro: acima ou o clone da main); rode bash /workspaces/Forge/scripts/preparar-estacao.sh --container' >&2; exit 1; }"
 }

@@ -5,7 +5,7 @@
 #                ~/Forge, a área ~/.forge-contrib, o login do gh, core.hooksPath, a cópia vigente e o dev-marketplace);
 #                o .devcontainer/devcontainer.json o roda a cada início (E2.54), sem o dono, com FORGE_PREPARO_ESSENCIAL=1
 #                (só gh, link, login, clone da área e hooksPath; sem a cópia vigente nem o dev-marketplace, que executam
-#                código do work tree; o comando é um clone raso novo da main, nunca ref local). Saída: linhas "fez:", "falta:" e "conflito:".
+#                código do work tree; o comando baixa a main pelo GitHub sem o gh, nunca a cópia de trabalho). Saída: linhas "fez:", "falta:" e "conflito:".
 #   --ferramentas  só instala as ferramentas dos portões (PORTAO-DEVOPS-FERRAMENTAS, abaixo), pelo dono; o preparo completo
 #                da estação também as instala, o --container não (o postStart não baixa binário sem o dono).
 #   --verificar  só confere (nada é alterado) gh, login, link ~/.forge-contrib e core.hooksPath; imprime "ambiente: ok"
