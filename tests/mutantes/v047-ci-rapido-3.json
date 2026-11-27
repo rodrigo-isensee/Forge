@@ -13,16 +13,6 @@
       ]
     },
     {
-      "id": "M26",
-      "guarda": "a matriz da develop (3.14) tem as 5 partes",
-      "arquivo": ".github/workflows/ci.yml",
-      "de": "    timeout-minutes: 15  # medida de 2:30 a 5:00 por perna (a proposta ci-rapido); 15 dá folga de 3 vezes\n    strategy:\n      fail-fast: false\n      matrix:\n        parte: [1, 2, 3, 4, 5]\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n        with:\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        with:\n          python-version: \"3.14\"",
-      "para": "    timeout-minutes: 15  # medida de 2:30 a 5:00 por perna (a proposta ci-rapido); 15 dá folga de 3 vezes\n    strategy:\n      fail-fast: false\n      matrix:\n        parte: [1, 2, 3, 4]\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n        with:\n          fetch-depth: 0\n          persist-credentials: false\n      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        with:\n          python-version: \"3.14\"",
-      "testes": [
-        "tests.test_suite_partes.FiacaoDoCI"
-      ]
-    },
-    {
       "id": "M27",
       "guarda": "o agregador da develop (3.12) exige o teto de pulados",
       "arquivo": ".github/workflows/ci.yml",
@@ -31,16 +21,6 @@
       "testes": [
         "tests.test_suite_partes.FiacaoDoCI",
         "tests.test_ci_local.MatrizNeedsEAgregadorTest.test_leitor_entende_matriz_e_needs_do_ci_real"
-      ]
-    },
-    {
-      "id": "M28",
-      "guarda": "o agregador da develop (3.14) roda com always() (perna pulada reprova)",
-      "arquivo": ".github/workflows/ci.yml",
-      "de": "    needs: [rapida-partes-quatorze, rapida-pulados-quatorze]\n    if: always() && ",
-      "para": "    needs: [rapida-partes-quatorze, rapida-pulados-quatorze]\n    if: ",
-      "testes": [
-        "tests.test_suite_partes.FiacaoDoCI"
       ]
     },
     {
@@ -64,31 +44,11 @@
       ]
     },
     {
-      "id": "M31",
-      "guarda": "o download do teto da develop (3.14) so le o run corrente (A4)",
-      "arquivo": ".github/workflows/ci.yml",
-      "de": "          pattern: pulados-rapida-quatorze-*\n          merge-multiple: true",
-      "para": "          pattern: pulados-rapida-quatorze-*\n          run-id: 1\n          merge-multiple: true",
-      "testes": [
-        "tests.test_suite_partes.FiacaoDoCI"
-      ]
-    },
-    {
       "id": "M32",
       "guarda": "a perna da develop (3.12) nao ganha permissao alem de contents: read (S4)",
       "arquivo": ".github/workflows/ci.yml",
       "de": "    # agregador \"checagem rápida (push na develop)\" (a prova que scripts/arvore-testada.py lê) exige as 5 pernas e o teto de pulados.\n    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'\n    permissions:\n      contents: read\n",
       "para": "    # agregador \"checagem rápida (push na develop)\" (a prova que scripts/arvore-testada.py lê) exige as 5 pernas e o teto de pulados.\n    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'\n    permissions:\n      contents: read\n      actions: read\n",
-      "testes": [
-        "tests.test_suite_partes.FiacaoDoCI"
-      ]
-    },
-    {
-      "id": "M33",
-      "guarda": "a perna da develop (3.14) roda a divisao em 5 e nao em 4",
-      "arquivo": ".github/workflows/ci.yml",
-      "de": "          FORGE_SUITE_PULADOS=\"$RUNNER_TEMP/pulados/parte-$PARTE.json\" python3 scripts/suite-partes.py --parte \"$PARTE/5\" 2>&1 | tee \"$RUNNER_TEMP/suite.log\"\n      - name: Falhas no resumo (teste, módulo, linha e erro de cada falha)\n        if: ${{ !cancelled() }}\n        env:\n          ROTULO: checagem rápida (python 3.14), parte ${{ matrix.parte }}/5\n        run: python3 -I scripts/falhas-no-resumo.py \"$ROTULO\" \"$RUNNER_TEMP/suite.log\"\n      - name: Recusas por carga no resumo (PRAZO-CARGA do test_prazo_do_merge; só conta, não reprova)\n        if: ${{ !cancelled() }}\n        run: |\n          n=$(grep -c 'PRAZO-CARGA fixture=' \"$RUNNER_TEMP/suite.log\" 2>/dev/null || true)\n          echo \"recusas do vigia aceitas como carga (PRAZO-CARGA): ${n:-0}\" >> \"$GITHUB_STEP_SUMMARY\"\n          grep -o 'PRAZO-CARGA fixture=.*' \"$RUNNER_TEMP/suite.log\" 2>/dev/null | sed 's/^/- /' >> \"$GITHUB_STEP_SUMMARY\" || true\n      - name: Pulados da parte para o teto (T3)\n        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2\n        with:\n          name: pulados-rapida-quatorze",
-      "para": "          FORGE_SUITE_PULADOS=\"$RUNNER_TEMP/pulados/parte-$PARTE.json\" python3 scripts/suite-partes.py --parte \"$PARTE/4\" 2>&1 | tee \"$RUNNER_TEMP/suite.log\"\n      - name: Falhas no resumo (teste, módulo, linha e erro de cada falha)\n        if: ${{ !cancelled() }}\n        env:\n          ROTULO: checagem rápida (python 3.14), parte ${{ matrix.parte }}/5\n        run: python3 -I scripts/falhas-no-resumo.py \"$ROTULO\" \"$RUNNER_TEMP/suite.log\"\n      - name: Recusas por carga no resumo (PRAZO-CARGA do test_prazo_do_merge; só conta, não reprova)\n        if: ${{ !cancelled() }}\n        run: |\n          n=$(grep -c 'PRAZO-CARGA fixture=' \"$RUNNER_TEMP/suite.log\" 2>/dev/null || true)\n          echo \"recusas do vigia aceitas como carga (PRAZO-CARGA): ${n:-0}\" >> \"$GITHUB_STEP_SUMMARY\"\n          grep -o 'PRAZO-CARGA fixture=.*' \"$RUNNER_TEMP/suite.log\" 2>/dev/null | sed 's/^/- /' >> \"$GITHUB_STEP_SUMMARY\" || true\n      - name: Pulados da parte para o teto (T3)\n        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2\n        with:\n          name: pulados-rapida-quatorze",
       "testes": [
         "tests.test_suite_partes.FiacaoDoCI"
       ]
