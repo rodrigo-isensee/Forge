@@ -183,3 +183,14 @@ A entrada nova da pasta de controle em `hooks/conformidade.json` e a linha em `C
 - autorização (v0481 E45.19): o dono autorizou o custo a mais da proteção em 27/11 às 14:11 (+865 passos, acumulado
   +0,108%; DECISÃO DO DONO no pedido v0481), só para este item e não precedente; a prova do teto novo é o CI do PR no
   head, com a parte 4/5 verde
+
+## C1b-3 com o #938 (v0481 E45.30)
+
+Com a develop (o #938, 319a968d) mesclada no #940 (head 4f6fd019, E45.29):
+- CI do #940 (run 46049072145, suíte Python 3.12, parte 4/5): `test_corpus_nos_dois_hooks` reprovou com
+  `{'execucoes': 557, 'subprocessos': 4508, 'sono': 0, 'interpretador': 4971301, 'ambiente': 133}` contra o teto de
+  4968560 (+2741 passos); subprocessos e execuções dentro do teto
+- medida nova: 5906303 (5903562 + 2741, a do CI), ruído 0; total sobre 5897219: +9084 passos (0,154%)
+- autorização (v0481 E45.30): o dono autorizou o total de 0,154% em 27/11 às 15:39 (DECISÃO DO DONO no pedido v0481)
+  e deu ao time a decisão até 0,5% no total sobre 5897219, registrando cada aumento aqui; acima disso, pergunta ao dono.
+  Cartão para reduzir o custo do hook depois do F1. A prova do teto novo é o CI do PR no head, com a parte 4/5 verde
