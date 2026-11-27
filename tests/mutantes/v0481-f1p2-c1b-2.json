@@ -61,6 +61,27 @@
       "testes": [
         "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
       ]
+    },
+    {
+      "id": "C1B-M15",
+      "guarda": "M4.2: o endpoint só se lê no gh api; nos outros subcomandos do gh, nada de endpoint",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if parte and parte[0] == \"api\" else \"\"",
+      "para": "if parte else \"\"",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_api_statuses_barrado",
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M16",
+      "guarda": "M4.2: sem --body, o corpo é vazio (o comentário só com --body-file ainda se lê)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "parecer.opcao(args, \"--body\", \"-b\") or \"\",",
+      "para": "parecer.opcao(args, \"--body\", \"-b\"),",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
     }
   ]
 }
