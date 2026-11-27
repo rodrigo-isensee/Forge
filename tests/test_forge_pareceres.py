@@ -1075,7 +1075,11 @@ class ListaFechada(unittest.TestCase):
         """M10.1: com o commit da develop remota fora da cópia, um `git fetch origin develop` e a leitura nele."""
         self.commitar("[7]")
         novo = self.outro_envia("[7, 9]")
-        self.assertEqual(self.lista(), frozenset({7, 9}))
+        try:
+            lida = self.lista()
+        except fp().Recusa as e:  # antes do E45.48, a recusa sem buscar: falha por asserção, não erro do teste
+            lida = e
+        self.assertEqual(lida, frozenset({7, 9}))
         self.assertEqual(self.git(self.repo, "cat-file", "-t", novo), "commit")
 
     def test_sonda_s1_lista_so_na_develop_remota_nao_fica_dormente(self):
