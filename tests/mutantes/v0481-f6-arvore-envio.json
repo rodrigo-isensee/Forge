@@ -16,8 +16,8 @@
       "id": "AE-M2",
       "guarda": "o run do PR tem de ser do ramo do PR (head_branch)",
       "arquivo": "scripts/arvore-testada.py",
-      "de": "\"head_repository.full_name\": repo, \"status\": \"completed\", \"head_branch\": ramo}",
-      "para": "\"head_repository.full_name\": repo, \"status\": \"completed\"}",
+      "de": "\"head_branch\": ramo}\n    validas",
+      "para": "}\n    validas",
       "testes": [
         "tests.test_arvore_testada.ProvaDoPr.test_casos_de_abuso_do_parecer_de_seguranca_a1"
       ]
@@ -46,8 +46,8 @@
       "id": "AE-M5",
       "guarda": "o run mais recente decide",
       "arquivo": "scripts/arvore-testada.py",
-      "de": "run_id, tentativa, base = max(validas)",
-      "para": "run_id, tentativa, base = min(validas)",
+      "de": "run_id, tentativa = max(validas)",
+      "para": "run_id, tentativa = min(validas)",
       "testes": [
         "tests.test_arvore_testada.ProvaDoPr.test_casos_de_abuso_do_parecer_de_seguranca_a1"
       ]
@@ -66,8 +66,8 @@
       "id": "AE-M7",
       "guarda": "run em andamento não prova",
       "arquivo": "scripts/arvore-testada.py",
-      "de": "\"head_repository.full_name\": repo, \"status\": \"completed\"}\n    validas",
-      "para": "\"head_repository.full_name\": repo}\n    validas",
+      "de": "\"head_repository.full_name\": repo, \"status\": \"completed\", \"head_branch\": ramo}",
+      "para": "\"head_repository.full_name\": repo, \"head_branch\": ramo}",
       "testes": [
         "tests.test_arvore_testada.ProvaDoPr.test_casos_de_abuso_do_parecer_de_seguranca_a1"
       ]
@@ -76,8 +76,8 @@
       "id": "AE-M8",
       "guarda": "run do PR de fork não prova",
       "arquivo": "scripts/arvore-testada.py",
-      "de": "\"head_repository.full_name\": repo, \"status\": \"completed\"}\n    validas",
-      "para": "\"status\": \"completed\"}\n    validas",
+      "de": "\"head_repository.full_name\": repo, \"status\": \"completed\", \"head_branch\": ramo}",
+      "para": "\"status\": \"completed\", \"head_branch\": ramo}",
       "testes": [
         "tests.test_arvore_testada.ProvaDoPr.test_casos_de_abuso_do_parecer_de_seguranca_a1"
       ]

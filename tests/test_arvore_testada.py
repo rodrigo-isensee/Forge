@@ -319,6 +319,8 @@ class ProvaDoPr(unittest.TestCase):
                                            "base": {"ref": "develop", "sha": "4" * 40}, "merge_commit_sha": D, "merged_at": "x"}),
                  "base do PR sem sha": dict(pr={"number": 7, "head": {"sha": "3" * 40, "ref": "melhoria/x", "repo": {"full_name": REPO}},
                                                 "base": {"ref": "develop"}, "merge_commit_sha": D, "merged_at": "x"}),
+                 "base do PR fora do formato de sha": dict(pr={"number": 7, "head": {"sha": "3" * 40, "ref": "melhoria/x", "repo": {"full_name": REPO}},
+                                                              "base": {"ref": "develop", "sha": "nao-e-sha"}, "merge_commit_sha": D, "merged_at": "x"}),
                  "head do PR sem ramo": dict(pr={"number": 7, "head": {"sha": "3" * 40, "repo": {"full_name": REPO}},
                                                   "base": {"ref": "develop", "sha": "4" * 40}, "merge_commit_sha": D, "merged_at": "x"}),
                  "sem PR": dict(pr={})}

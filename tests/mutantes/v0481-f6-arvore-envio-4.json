@@ -47,7 +47,7 @@
       "guarda": "a árvore do head do PR tem de ser a do commit",
       "arquivo": "scripts/arvore-testada.py",
       "de": "campo(ler(f\"repos/{repo}/git/commits/{cabeca}\"), \"tree.sha\", str) != arvore",
-      "para": "campo(ler(f\"repos/{repo}/git/commits/{cabeca}\"), \"tree.sha\", str) != \"\"",
+      "para": "campo(ler(f\"repos/{repo}/git/commits/{cabeca}\"), \"tree.sha\", str) is None",
       "testes": [
         "tests.test_arvore_testada.ProvaDoPr.test_qualquer_falta_da_prova_roda_a_suite_inteira"
       ]
