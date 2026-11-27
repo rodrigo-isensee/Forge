@@ -106,6 +106,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` roda em `tests/test_hooks.py` (ADR 
 - `lancador-*`
 - `leitura-*`
 - `m1-*`
+- `m42-*`
 - `merge-*`
 - `mit-*`
 - `n-*`

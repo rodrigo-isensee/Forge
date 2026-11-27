@@ -174,6 +174,8 @@ class PeloTerminal(GhFalso):
                    "gh pr comment: comentário cujo corpo o hook não lê")
         self.libera(["gh pr comment 7 --body 'revisado: tipo: review fica no texto, não no começo da linha'",
                      "gh pr comment 7 --body \"$(cat <<'EOF'\nrevisado, sem achados\nEOF\n)\"",
+                     "gh pr comment 7 --body \"$(cat <<'EOF'\ncusto em $HOME e `crase` no texto\nEOF\n)\"",
+                     "gh issue comment 70 --body 'cite `afrouxa-regra` e $HOME, entre aspas simples'",
                      "gh pr comment 7 -F nota.md", "gh pr view 7 --comments"])
 
     def test_c21_tipos_do_marcador_sao_os_contextos_do_publicar(self):

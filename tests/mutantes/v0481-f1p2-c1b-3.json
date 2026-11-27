@@ -1,0 +1,36 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1B-M17",
+      "guarda": "M4.2: o --body entre aspas simples é texto ($ e crase não expandem); fora delas, ilegível",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if re.search(r\"[$`]\", texto) and not literal or arquivo is not None and (",
+      "para": "        if re.search(r\"[$`]\", texto) or arquivo is not None and (",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M18",
+      "guarda": "M4.2: o --body entre aspas simples é reconhecido na linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        literal = f\"'{texto}'\" in self.linha",
+      "para": "        literal = False",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M19",
+      "guarda": "M4.2: o corpo do heredoc do K3 é texto ($ e crase não expandem com o delimitador entre aspas)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "tirar_heredocs(self.linha)[1]), True",
+      "para": "tirar_heredocs(self.linha)[1]), literal",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    }
+  ]
+}

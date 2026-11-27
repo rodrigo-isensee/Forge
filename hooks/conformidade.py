@@ -3838,11 +3838,13 @@ class Guarda:
 
     def corpo_do_comentario(self, args, pasta):
         """(texto, ilegivel) do `--body` e do `--body-file`: o heredoc do K3 é texto; `-`, arquivo que não é regular ou não
-        se lê, e valor com expansão marcam `ilegivel`."""
+        se lê, e valor com expansão fora de aspas simples marcam `ilegivel`."""
         texto, arquivo = parecer.opcao(args, "--body", "-b") or "", parecer.opcao(args, "--body-file", "-F")
+        literal = f"'{texto}'" in self.linha  # entre aspas simples, `$` e crase são texto
         if re.fullmatch(r"\$\(cat\s*\)", texto):  # o K3 chega sem o corpo (`tirar_heredocs`): os corpos da linha
-            texto = "\n".join(corpo for _, corpo in tirar_heredocs(self.linha)[1])
-        if re.search(r"[$`]", texto) or arquivo is not None and (arquivo == "-" or re.search(r"[$`]", arquivo)):
+            texto, literal = "\n".join(corpo for _, corpo in tirar_heredocs(self.linha)[1]), True
+        if re.search(r"[$`]", texto) and not literal or arquivo is not None and (
+                arquivo == "-" or re.search(r"[$`]", arquivo)):
             return texto, True
         if arquivo is None:
             return texto, False
