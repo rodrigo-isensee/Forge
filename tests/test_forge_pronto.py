@@ -218,9 +218,14 @@ class TituloNoCmdPronto(unittest.TestCase):
 
 
 class BaseVelha(unittest.TestCase):
-    """PRONTO-BASE-VELHA: a branch nascida antes da última marca de versão da base recebe uma linha que manda trazer a base, em vez
-    das checagens que listariam os fragmentos dos outros itens; a `origin/<ramo>` é buscada antes de comparar."""
+    """PRONTO-BASE-VELHA, F3 (v0481 E30.1): a branch nascida antes da última marca de versão da base só recebe um aviso, e as
+    checagens rodam contra o ponto de partida (a base entra no forge-fechar, passo 2b); a `origin/<ramo>` é buscada antes de comparar.
+    O `bin/forge-testes` falso da cópia grava a `--base` que cada checagem recebeu."""
     pronto = CmdPronto.pronto
+
+    def bases_das_checagens(self):
+        arquivo = self.dir / "bases.txt"
+        return arquivo.read_text(encoding="utf-8").split() if arquivo.exists() else []
 
     def git(self, pasta, *args):
         return subprocess.run(["git", "-C", str(pasta), *args], check=True, env=AMBIENTE, capture_output=True, text=True).stdout
@@ -240,13 +245,19 @@ class BaseVelha(unittest.TestCase):
         self.git(raiz, "clone", "-q", str(self.origem), str(self.dir))
         self.git(self.dir, "switch", "-q", "-c", "melhoria/x")
         self.versao(self.origem, "1.0.1")  # a marca entra na base depois que a branch nasceu; a cópia ainda não a buscou
+        (self.dir / "bin").mkdir()
+        (self.dir / "bin" / "forge-testes").write_text(  # fora do índice: não entra no diff nem na contagem
+            "import sys\nwith open('bases.txt', 'a') as f:\n    f.write(sys.argv[sys.argv.index('--base') + 1] + '\\n')\n",
+            encoding="utf-8")
 
-    def test_marca_depois_do_nascimento_manda_trazer_a_base_sem_rodar_as_checagens(self):
+    def test_marca_depois_do_nascimento_so_avisa_e_confere_contra_o_ponto_de_partida(self):
+        nascimento = self.git(self.dir, "rev-parse", "HEAD").strip()
         r = self.pronto("--base", "origin/develop")
-        self.assertEqual(r.returncode, 1, r.stderr)
-        self.assertIn("pronto: reprovado em base velha: a origin/develop tem a marca da 1.0.1 e a branch nasceu na 1.0.0; traga a base",
-                      r.stdout)
-        self.assertNotIn("pronto: registros", r.stdout)
+        self.assertNotIn("reprovado em base velha", r.stdout)
+        self.assertIn("pronto: aviso: base velha: a origin/develop tem a marca da 1.0.1 e a branch nasceu na 1.0.0; confiro contra o "
+                      f"ponto de partida {nascimento[:12]}, sem trazer a base: ela entra só no fechamento (forge-fechar, passo 2b)", r.stderr)
+        self.assertIn("pronto: registros: ok", r.stdout)
+        self.assertEqual(self.bases_das_checagens(), [nascimento, nascimento], "registros e afetados contra o ponto de partida")
 
     def test_com_a_base_trazida_nao_ha_linha_de_base_velha(self):
         self.git(self.dir, "fetch", "-q", "origin")
@@ -254,6 +265,7 @@ class BaseVelha(unittest.TestCase):
         r = self.pronto("--base", "origin/develop")
         self.assertNotIn("base velha", r.stdout + r.stderr)
         self.assertIn("pronto: registros", r.stdout)
+        self.assertEqual(self.bases_das_checagens(), ["origin/develop", "origin/develop"], "sem base velha, a base pedida")
 
     def test_sem_versao_no_nascimento_nao_compara(self):  # fora do Forge, ou base que ganhou o manifesto depois: nada a dizer
         self.git(self.dir, "switch", "-q", "--orphan", "nascimento")

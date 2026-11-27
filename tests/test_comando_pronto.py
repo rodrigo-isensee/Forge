@@ -103,6 +103,7 @@ def arquivos_tocados():
 
 class TestComandoPronto(unittest.TestCase):
     def test_skills_tocadas_citam_comando_pronto(self):
+        # sonda review S1 (v0481 F3): `python3 -m unittest tests.test_comando_pronto` no fe299c72 · espera: OK
         achados, total, excecoes_usadas = [], 0, set()
         for arq in arquivos_tocados():
             rel = arq.relative_to(RAIZ).as_posix()

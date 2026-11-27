@@ -911,6 +911,15 @@ def vindos_da_base(raiz, base, commit, ate, nomes):
     return {n for n in nomes if no_ate.get(n) == na_ponta.get(n) and no_commit.get(n) == no_mb.get(n)}
 
 
+def trouxe_a_base(raiz, base, commit, ate):
+    """F3 (v0481 E30.4, segurança A2): True se `ate` trouxe a `base` depois do `commit` do parecer (o merge-base dela com `ate` não é o
+    com o `commit`). Aí o `ate` igual ao parecer não basta: o merge que descartou a base (`-s ours`, conflito resolvido com o lado da
+    branch) só aparece no merge simulado. Git que falha: True (falha fechada)."""
+    cod_c, mb_commit = git(raiz, "merge-base", base, commit)
+    cod_a, mb_ate = git(raiz, "merge-base", base, ate)
+    return bool(cod_c or cod_a or not mb_ate or mb_commit != mb_ate)
+
+
 def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES, estritos=(), dominio=None, mais=(), dispensados=()):
     """None se o parecer vale para `ate` (padrão: o HEAD); senão o motivo.
 
@@ -938,13 +947,15 @@ def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES, estritos=(),
     removidos = removidos_do_intervalo(raiz, commit, ate) if classes else set()  # AV4(b): fragmento apagado (release) é leve
     leves = {f for f, c in classes.items() if c != "codigo" and (not livre(f, estritos) or f in removidos)}  # EST-M4: só `codigo` desatualiza
     fora = [f for f in fora if f not in leves]
-    if not fora:
+    if not fora and not (base and trouxe_a_base(raiz, base, commit, ate)):  # F3 (E30.4): o merge que descarta a base vai ao simulado
         return None
     div = arquivos_divergentes(raiz, base, commit, ate, livres, leves | alheios) if base else None
     if div is not None:
         div = [n for n in div if no(n) and n not in dispensados]
     if div == []:
         return None
+    if not div and not fora:
+        return f"desatualizado: não comparei {ate} com o merge simulado da base; peça novo parecer"
     alvo = div[0] if div else fora[0]
     sha_da_base = sha_do_commit(raiz, base) if base else None
     qual = f" (base {caminho_impresso(base).removeprefix('refs/remotes/').removeprefix('refs/heads/')} {sha_da_base[:7]})" if sha_da_base else ""
@@ -1238,9 +1249,10 @@ def cmd_pronto(raiz, base, corpo_arquivo=None):
         print(f"pronto: {NAO_VERIFICAVEL}: o git não leu a base comum de HEAD com {base} nem o diff", file=sys.stderr)
         return 2
     pronto = modulo_do_bin("forge_pronto")
-    if velha := pronto.base_velha(raiz, base, ancora):  # PRONTO-BASE-VELHA: uma linha, em vez dos fragmentos dos outros itens
-        print(f"pronto: reprovado em {velha}")
-        return 1
+    if velha := pronto.base_velha(raiz, base, ancora):  # PRONTO-BASE-VELHA, F3 (v0481 E30.1): só avisa; a base entra no forge-fechar (2b)
+        print(f"pronto: aviso: {velha.partition('; ')[0]}; confiro contra o ponto de partida {ancora[:12]}, sem trazer a base: "
+              "ela entra só no fechamento (forge-fechar, passo 2b)", file=sys.stderr)
+        base = ancora  # contra a base nova, as checagens listariam os fragmentos dos outros itens (forge-changelog conferir)
     motivo = titulo = None  # o motivo do gh em erro: sem --corpo, o corpo fica não verificável em vez de reprovado
     if corpo_arquivo:
         try:
@@ -4625,6 +4637,20 @@ def testes_enfraquecidos_da_volta(raiz, brief, de, head):
                   f"de {forca} para {depois[arq, nome]}") for (arq, nome), forca in sorted(antes.items())
                   if (arq, nome) not in depois or any(catraca._piora(forca, depois[arq, nome]))]
     return [(f"volta: a volta {VOLTA_SO_DO_APONTADO} em diante {RESTRICAO_DA_VOLTA} (R-QA): {sem_controle(v)[:200]}", True) for v in violacoes]
+
+
+def inicio_da_volta(raiz, base, inicio, head):
+    """R-QA com a base trazida (v0481 E30.4): o ponto de comparação dos testes da volta. Se a branch trouxe a base por merge depois do
+    `inicio` (o merge-base atual com a `origin/<base>` não está no `inicio` nem na linha de primeiro pai da branch), a árvore do
+    `inicio` com essa base (`git merge-tree`): o teste que a base tirou não sumiu na volta. Sem isso, com conflito ou git que falha,
+    o próprio `inicio` (nada se afrouxa). A ref local é forjável; a garantia é a catraca do CI, com a base do servidor."""
+    base_ref = ref_da_base(raiz, base) or ""  # sem a base, o merge-base falha e fica o `inicio`
+    cod, ponto = git(raiz, "merge-base", base_ref, head)
+    linha = git(raiz, "rev-list", "--first-parent", f"{inicio}..{head}")[1].split()
+    if cod or ponto in linha:  # a ref apontada para um commit da própria branch não esconde o teste tirado
+        return inicio
+    cod, saida = git(raiz, "merge-tree", "--write-tree", inicio, ponto)
+    return saida.split("\n")[0].strip() if cod == 0 and saida else inicio
 
 
 def voltas_da_branch(pasta, branch, anterior, proprio=None):
@@ -10920,7 +10946,7 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
     cod, contagem = git(raiz, "rev-list", "--count", f"{inicio}..{head}")
     linhas.append((f"commits: {contagem if not cod else '?'} em {inicio[:12]}..{head[:12]}", bool(cod)))
     linhas += conferir_provas(raiz, brief, branch, head, pasta, so_leitura)
-    linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio, head)  # R-QA: a 3ª volta (só o brief com `(volta N)`)
+    linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio_da_volta(raiz, base, inicio, head), head)  # R-QA: a 3ª volta
     if etapa == "codigo":  # D2-NO-BRIEF: a entrega com o D2 vermelho volta sem passar pelas revisões
         no_head = [git(raiz, "cat-file", "-e", f"{head}:{nome}")[0] == 0 for nome in (".claude-plugin/plugin.json", ".forge/versao")]
         forge = no_head == [True, False]  # G3-ENTREGA-PELO-CI: o head do Forge prova pelo CI do PR; o D2 local não roda

@@ -1,0 +1,16 @@
+{
+  "pedido": "v0481-f3-develop-no-fim",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "F3-9",
+      "guarda": "inicio_da_volta: sem a base, o merge-base falha e fica o início",
+      "arquivo": "bin/forge-check",
+      "de": "    base_ref = ref_da_base(raiz, base) or \"\"",
+      "para": "    base_ref = ref_da_base(raiz, base)",
+      "testes": [
+        "tests.test_volta_alinhada.TerceiraVoltaComABaseTrazida.test_sem_a_base_compara_com_o_inicio"
+      ]
+    }
+  ]
+}
