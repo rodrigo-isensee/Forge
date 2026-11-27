@@ -7,7 +7,7 @@
       "guarda": "só statuses das contas aceitas entram na leitura (M1.4)",
       "arquivo": "bin/forge_pareceres.py",
       "de": "for s in statuses_de(raiz, repo, c) if login(s.get(\"creator\")) in contas]",
-      "para": "for s in statuses_de(raiz, repo, c)]",
+      "para": "for s in statuses_de(raiz, repo, c) if True]",
       "testes": [
         "tests.test_forge_pareceres.Vigentes.test_c13_status_forjado_nao_vale"
       ]
@@ -51,6 +51,36 @@
       "para": "    except (KeyError,) as e:\n        raise Recusa(f\"resposta do gh fora do contrato",
       "testes": [
         "tests.test_forge_pareceres.Vigentes.test_status_sem_created_at_fora_do_contrato"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "item da página que não é objeto fica de fora",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "return [s for p in paginas for s in p if isinstance(s, dict)]",
+      "para": "return [s for p in paginas for s in p if True]",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_item_que_nao_e_objeto_e_status_sem_descricao_ficam_de_fora"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "origem não ancestral: rc 1 dá falso (C0-2)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    return rc == 0",
+      "para": "    return True",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_c13_origem_fora_da_historia_do_head"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "registro: status sem descrição não derruba a conferência",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "        d = DESCRICAO.fullmatch(s.get(\"description\") or \"\")",
+      "para": "        d = DESCRICAO.fullmatch(s.get(\"description\"))",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_item_que_nao_e_objeto_e_status_sem_descricao_ficam_de_fora"
       ]
     }
   ]

@@ -712,6 +712,16 @@ class Vigentes(GhFalso):
         self.estado(por_commit={sha: [[], [status]]})
         self.assertEqual(fp().vigentes(str(self.repo), 7, self.b, PEDIDO)["review"][0], "aprovado")
 
+    def test_item_que_nao_e_objeto_e_status_sem_descricao_ficam_de_fora(self):
+        """Na mesma página do status válido: o item que não é objeto sai, e o de outro contexto sem descrição nem target_url não
+        derruba a conferência do registro; ele mesmo não vale."""
+        sha, status = self.em(self.a, 2)
+        vazio = {"context": "parecer-qa", "state": "success", "creator": {"login": "dono"}, "created_at": "2026-11-27T10:00:03Z",
+                 "id": 3}
+        self.estado(por_commit={sha: [["x", vazio, status]]})
+        lido = fp().vigentes(str(self.repo), 7, self.b, PEDIDO)
+        self.assertEqual((lido["review"][0], lido["qa"][0]), ("aprovado", None))
+
 
 class PastaDeControle(unittest.TestCase):
     """M4.1: uma pasta por máquina para todos os clones; no projeto, a da cópia que contém `.forge/wt/`."""

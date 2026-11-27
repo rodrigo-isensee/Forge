@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "statuses ilegíveis de um commit do PR recusam (M19.1)",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "        raise Recusa(f\"statuses de {sha[:7]} ilegíveis (M19.1)\")",
-      "para": "        pass",
+      "de": "if not isinstance(paginas, list) or not all(isinstance(p, list) for p in paginas):\n        raise Recusa(f\"statuses de",
+      "para": "if False:\n        raise Recusa(f\"statuses de",
       "testes": [
         "tests.test_forge_pareceres.Vigentes.test_statuses_ilegiveis_de_um_commit_recusam"
       ]
