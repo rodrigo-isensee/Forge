@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "VIGIA-TIME-PARADO: agente vigente cala",
       "arquivo": "hooks/vigia.py",
-      "de": "if agentes_rodando(hook, raiz) != 0:",
-      "para": "if False:",
+      "de": "livres = [] if vivos else cartoes_livres(",
+      "para": "livres = [] if False else cartoes_livres(",
       "testes": [
         "tests.test_vigia_parado.TimeParado.test_agente_rodando_cala"
       ]
@@ -76,7 +76,7 @@
       "id": "M8",
       "guarda": "VIGIA-TIME-PARADO: sem cartão livre cala",
       "arquivo": "hooks/vigia.py",
-      "de": "    if not livres:\n        return None",
+      "de": "    if not partes:\n        return None",
       "para": "    if False:\n        return None",
       "testes": [
         "tests.test_vigia_parado.TimeParado.test_cartao_de_outra_coluna_nao_conta"
