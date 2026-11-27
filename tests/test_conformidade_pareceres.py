@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge_pareceres import PEDIDO, GhFalso, fc, fp, parecer  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 from test_hooks import rodar  # noqa: E402
 
 
@@ -334,13 +335,15 @@ class ParecerDeItem(NoTerminal):
              ("docs/security/v1.md", "forge:security-engineer"), ("docs/devops/v1.md", "forge:devops-engineer")]
 
     def git(self, *args):
-        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=self.repo, env=self.env,
+        env = sem_manutencao({"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"})
+        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=self.repo, env=env,
                               check=True, capture_output=True, text=True).stdout.strip()
 
     def setUp(self):
         super().setUp()
         self.origem = self.tmp / "origem.git"
-        subprocess.run(["git", "init", "-q", "--bare", str(self.origem)], env=self.env, check=True)
+        self.git("init", "-q", "--bare", str(self.origem))
+        remoto_sem_manutencao(self.origem)
         self.git("remote", "set-url", "origin", str(self.origem))
         self.git("push", "-q", "origin", "HEAD:refs/heads/develop")
         self.git("fetch", "-q", "origin")

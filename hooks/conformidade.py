@@ -2749,8 +2749,11 @@ class Guarda:
         """M10.1 (C1b-2): o `forge_pareceres.py` de uma cópia publica pelo código da branch, rodado como programa ou script
         do python, ou achado pelo python do `-c`, do `-m` ou da entrada na pasta corrente ou no `PYTHONPATH` da linha.
         Decide o caminho resolvido; o caminho com expansão barra (na dúvida, recusa)."""
-        alvos = [palavras[0]]
-        if prog.startswith("python"):
+        python = prog.startswith("python")
+        if not python and "/" not in palavras[0]:  # o programa pelo nome vem do PATH (o da linha: `publicar_pela_copia`)
+            return
+        alvos = [palavras[0]] if "/" in palavras[0] else []
+        if python:
             script = script_do_python(args)
             pastas = (pythonpath.split(":") if pythonpath else []) + ([] if script else ["."])  # o vazio é a corrente
             alvos += [script] if script else []
@@ -2759,7 +2762,7 @@ class Guarda:
             real = Path(os.path.realpath(self.caminho(pasta, alvo)))  # o link de outro nome conta pelo arquivo
             opaco = re.search(r"[$`]", os.path.expandvars(alvo)) and nome_do_caminho(alvo) == MODULO_DE_PARECER
             if opaco or real.name == MODULO_DE_PARECER and real.is_file() and self.raiz_git(real.parent) is not None:
-                self.barrar_parecer(f"{MODULO_DE_PARECER} de uma cópia ({alvo}) roda o código da branch (M10.1)")
+                self.barrar_parecer(f"{MODULO_DE_PARECER} de uma cópia de trabalho roda o código da branch (M10.1)")
 
     def parecer_de_item(self, caminho):
         """C1b-2 (M20.1): o `.md` direto em `docs/<reviews|qa|security|devops>/` da raiz de uma cópia, fora o `_modelo.md`
