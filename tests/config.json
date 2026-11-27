@@ -78,6 +78,9 @@
       ".github/workflows/ci.yml": [
         "\\bnpm\\b"
       ],
+      ".github/workflows/diario.yml": [
+        "\\bnpm\\b"
+      ],
       "scripts/preparar-estacao.sh": [
         "\\bNode(\\.js)?\\b",
         "\\bpnpm\\b"
