@@ -3,35 +3,30 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-ci-parecer-nao-cancela
-commit: 8e9f5704f52b32e0419ab0b7bbc066f17e6f013a
-parecer: reprovado
+commit: bb551ad698124bebf2dcb2511719913434d668a3
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-26
+data: 2026-11-27
 ---
-# QA: v0481 (CI-NAO-CANCELA-ENVIO-SO-DE-PARECER, E22.8, delta b04f0220..8e9f5704)
+# QA: v0481 (CI-NAO-CANCELA-ENVIO-SO-DE-PARECER, E22.15, delta 8e9f5704..bb551ad6)
 
-## Achados
-- A1 (bloqueante) .github/workflows/obsoletas.yml:52 · o job cancela o ci.yml do próprio head: RUN_ID é do obsoletas (id maior que o do ci irmão), então `-lt` o derruba. Provado: ci run 45847608038 (8e9f5704) cancelled pelo bot. Filtrar por head_sha != HEAD_SHA e testar run do mesmo sha com id menor.
+- ci: bb551ad698124bebf2dcb2511719913434d668a3 verde
+
+## Revalidação
+A1 (anterior) corrigido em 7bf55772: `obsoletas.yml:53` agora exige `sha != HEAD_SHA` além de `id < RUN_ID` e origem igual a REPO. Teste novo `test_nunca_cancela_o_ci_do_proprio_head_mesmo_com_id_menor_que_o_run_id` (o gh falso devolve runs 4 e 8 do head atual com id menor que o RUN_ID 10; nenhum cai). O bb551ad6 é só o merge da develop.
 
 ## Critério → teste → resultado
-Sem `CA-n` de UX; obrigações do brief (E22.1/E22.8).
-
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| Envio só de parecer não cancela | test_envio_so_de_parecer_nao_cancela_nada | docs/reviews, docs/qa, docs/security | passou |
-| Código cancela só runs mais antigos | test_envio_com_codigo_cancela_so_os_runs_mais_antigos | id < RUN_ID | passou (ver A1: o RUN_ID do fake não reproduz o do obsoletas.yml) |
-| Nunca cancela o próprio run nem run de fork | test_nunca_cancela_o_proprio_run_nem_run_de_outro_repositorio | RUN_ID, head_repository | passou; não cobre run irmão do mesmo sha (A1) |
-| Falha fechada (299/300 arquivos, API falha, vazio) | test_falha_fechada_cancela_quando_nao_prova | 299/300 | passou |
-| actions: write só em obsoletas.yml; ci.yml sem escrita; fork excluído | ObsoletasEstatico e Workflows (test_catraca) | 1 ocorrência de `actions: write` | passou |
-| ci.yml: concurrency por run em PR, push segue cancelando | mutante M14 | evento != pull_request | morreu |
+| CI do próprio head nunca é cancelado pelo job | test_nunca_cancela_o_ci_do_proprio_head_mesmo_com_id_menor_que_o_run_id | run irmão do mesmo sha com id < RUN_ID | passou |
+| Demais (envio só de parecer, código cancela só runs antigos, falha fechada, actions: write único) | os 6 testes anteriores | docs/reviews, docs/qa, docs/security; 299/300 arquivos | passaram |
 
 ## Cenários e resultado real
-- `python3 -I tests/test_ci_nao_cancela_parecer.py`: 6 testes, OK; `tests/test_catraca.py Workflows`: 6 testes, OK.
-- `bin/forge-mutante tests/mutantes/v0481-ci-parecer-nao-cancela.json`: M1 a M14 todos `morreu` (rev=8e9f5704f52b). Os mutantes não pegam A1: a classe "run irmão do mesmo sha" não está na lista.
-- Vermelho antes do verde: não rodei `forge-testes --vermelho`; o teste novo depende de `obsoletas.yml`, que a base não tem (falha de carga na base).
-- Observação do cancelamento (pedida no brief): envio só de parecer não foi observado neste head; observou-se o oposto, o ci.yml do próprio head cancelado pelo job (A1). O run obsoletas terminou success e o ci.yml inteiro aparece em fail por `cancelled`, não por teste.
-- ci: não gravado. Os checks do head 8e9f5704 estão vermelhos por cancelamento (causa em A1; o log não abre no sandbox, a causa vem da anotação "The run was canceled by @github-actions[bot]"). Reenviar o mesmo sha não resolve sem corrigir A1.
+- `python3 -I tests/test_ci_nao_cancela_parecer.py`: 7 testes, OK.
+- `bin/forge-mutante tests/mutantes/v0481-ci-parecer-nao-cancela.json --base f1e4f478`: M1 a M15 todos `morreu` (base=f1e4f478e4ac mb=f1e4f478e4ac rev=bb551ad69812); M15 cobre a guarda nova da linha 53.
+- Vermelho antes do verde: o M15 (guarda removida) derruba o teste novo; `forge-testes --vermelho` não se aplica, pois a base não tem `obsoletas.yml` (falha de carga).
+- CI do head (`gh pr checks 913`): tudo verde, e2e incluso, no run 45900693971; falham só `bateria` e `bateria (pareceres)`, que esperam o parecer. O job "cancela runs obsoletos do PR" passou e o ci.yml do head não foi cancelado.
