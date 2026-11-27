@@ -7,7 +7,7 @@
       "guarda": "o ambiente sem GITHUB_WORKFLOW_REF nao lanca",
       "arquivo": "scripts/arvore-testada.py",
       "de": "    origem, _, _ = (campo(env, \"GITHUB_WORKFLOW_REF\", str) or \"\").partition(\"@\")\n    if not (REPOSITORIO",
-      "para": "    origem, _, _ = campo(env, \"GITHUB_WORKFLOW_REF\", str).partition(\"@\")\n    if not (REPOSITORIO",
+      "para": "    origem, _, _ = (campo(env, \"GITHUB_WORKFLOW_REF\", str) and \"\").partition(\"@\")\n    if not (REPOSITORIO",
       "testes": [
         "tests.test_arvore_testada.ProvaDoPr.test_ambiente_sem_campo_ou_com_tipo_errado_nao_prova_e_nao_lanca"
       ]
@@ -17,7 +17,7 @@
       "guarda": "commit sem pai nao prova",
       "arquivo": "scripts/arvore-testada.py",
       "de": "campo(pais[0], \"sha\", str) if pais else None",
-      "para": "campo(pais[0], \"sha\", str)",
+      "para": "campo(pais[0], \"sha\", str) if not pais else None",
       "testes": [
         "tests.test_arvore_testada.ProvaDoPr.test_commit_sem_pai_ou_com_pai_fora_do_formato_nao_prova"
       ]
@@ -77,7 +77,7 @@
       "guarda": "o --do-pr sem prova sai 1",
       "arquivo": "scripts/arvore-testada.py",
       "de": "        return 0 if ok else 1\n",
-      "para": "        return 0\n",
+      "para": "        return 0 if not ok else 1\n",
       "testes": [
         "tests.test_arvore_testada.ProvaDoPr.test_erro_da_api_sai_1_sem_detalhe"
       ]
