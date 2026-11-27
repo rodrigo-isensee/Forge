@@ -6,8 +6,8 @@
       "id": "C1B-M1",
       "guarda": "M10.1: só o `parecer publicar` é conferido; outro subcomando pelo `bin/` passa",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if livres_do_forge_check(args)[:2] != [\"parecer\", \"publicar\"]:\n            return\n        if path_na_linha",
-      "para": "        if False:\n            return\n        if path_na_linha",
+      "de": "        publica = livres_do_forge_check(args)[:2] == [\"parecer\", \"publicar\"]",
+      "para": "        publica = True",
       "testes": [
         "tests.test_conformidade_pareceres.PeloTerminal.test_c12_publicar_pela_copia_barrado"
       ]
@@ -16,7 +16,7 @@
       "id": "C1B-M2",
       "guarda": "M10.1 (segurança A6): o PATH trocado na linha do publicar barra",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if path_na_linha is not None:",
+      "de": "        if publica and path_na_linha is not None:",
       "para": "        if False:",
       "testes": [
         "tests.test_conformidade_pareceres.PeloTerminal.test_c12_publicar_pela_copia_barrado"
@@ -26,8 +26,8 @@
       "id": "C1B-M3",
       "guarda": "M10.1: o forge-check pelo nome (o do plugin, no PATH) passa; só o caminho com barra é conferido",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if \"/\" not in programa:\n            return",
-      "para": "        if False:\n            return",
+      "de": "        if not publica or \"/\" not in programa:",
+      "para": "        if not publica:",
       "testes": [
         "tests.test_conformidade_pareceres.PeloTerminal.test_c12_publicar_pela_copia_barrado"
       ]

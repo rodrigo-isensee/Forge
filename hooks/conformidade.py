@@ -2699,11 +2699,10 @@ class Guarda:
         """M10.1: o `parecer publicar` roda o `forge-check` do PATH (o do plugin) ou uma extração fora de cópia de trabalho;
         pelo caminho de uma cópia (`bin/forge-check`, `python3 ./bin/forge-check`), o código da branch publicaria. O caminho
         com expansão (`$X/bin/forge-check`) o hook não resolve: barra (na dúvida, recusa)."""
-        if livres_do_forge_check(args)[:2] != ["parecer", "publicar"]:
-            return
-        if path_na_linha is not None:  # `PATH=<cópia>/bin:$PATH forge-check`: o nome acha o `bin/` que a linha pôs
+        publica = livres_do_forge_check(args)[:2] == ["parecer", "publicar"]
+        if publica and path_na_linha is not None:  # `PATH=<cópia>/bin:$PATH forge-check`: o nome acha o `bin/` da linha
             self.barrar_parecer("forge-check parecer publicar com o `PATH` trocado na linha (M10.1)")
-        if "/" not in programa:
+        if not publica or "/" not in programa:
             return
         real = Path(os.path.realpath(self.caminho(pasta, programa)))  # o link de arquivo fora da cópia roda o da cópia
         if re.search(r"[$`]", programa) or self.raiz_git(real.parent) is not None:
