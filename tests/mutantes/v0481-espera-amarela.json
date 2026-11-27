@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-espera-amarela",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "E47.1: só parecer ausente ou desatualizado marca a espera; reprovado segue defeito",
+      "arquivo": "tests/catraca.py",
+      "de": "    if all(LINHA_DE_ESPERA.search(l) for l in achados):",
+      "para": "    if True:",
+      "testes": [
+        "tests.test_catraca.EsperaNaoEVermelho.test_parecer_reprovado_e_defeito_sai_1"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "E47.1: a regra só espera o rótulo com o título que declara o afrouxamento",
+      "arquivo": "tests/catraca.py",
+      "de": "eventos is not None and TITULO_AFROUXA.search(os.environ.get(\"PR_TITULO\", \"\")):",
+      "para": "eventos is not None:",
+      "testes": [
+        "tests.test_catraca.EsperaNaoEVermelho.test_regra_sem_titulo_afrouxa_e_defeito_sai_1"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "E47.1: sem os eventos da API, a regra fica vermelha mesmo com o título",
+      "arquivo": "tests/catraca.py",
+      "de": "if not custo and not liberado and eventos is not None and TITULO_AFROUXA",
+      "para": "if not custo and not liberado and TITULO_AFROUXA",
+      "testes": [
+        "tests.test_catraca.EsperaNaoEVermelho.test_sem_eventos_da_api_e_vermelho_mesmo_com_o_titulo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "E47.1: o modo pareceres só sai 3 com todas as violações de espera",
+      "arquivo": "tests/catraca.py",
+      "de": "    if a.modo == \"pareceres\" and viol and all(SO_ESPERA_PARECER in v for v in viol):",
+      "para": "    if a.modo == \"pareceres\" and viol:",
+      "testes": [
+        "tests.test_catraca.EsperaNaoEVermelho.test_parecer_reprovado_e_defeito_sai_1"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "E47.1: no ci.yml, rc diferente de 3 sai com o próprio rc",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "          [ \"$rc\" = 3 ] || exit \"$rc\"",
+      "para": "          [ \"$rc\" = 3 ] || exit 0",
+      "testes": [
+        "tests.test_ci_local.EsperaAmarelaNosWorkflows.test_espera_grava_o_sufixo_e_defeito_ou_verde_velho_fica_vermelho"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "E47.1: no ci.yml, a API que falha deixa vermelho (falha fechada)",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "check bateria do head; vermelho (falha fechada)\"; exit 1; }",
+      "para": "check bateria do head; vermelho (falha fechada)\"; exit 0; }",
+      "testes": [
+        "tests.test_ci_local.EsperaAmarelaNosWorkflows.test_espera_grava_o_sufixo_e_defeito_ou_verde_velho_fica_vermelho"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "E47.1: no ci.yml, bateria já verde no head vira vermelho em vez de esperar",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "          [ \"$ultimo\" != success ] || { echo \"espera: o head já tem bateria verde",
+      "para": "          [ \"$ultimo\" != xsuccess ] || { echo \"espera: o head já tem bateria verde",
+      "testes": [
+        "tests.test_ci_local.EsperaAmarelaNosWorkflows.test_espera_grava_o_sufixo_e_defeito_ou_verde_velho_fica_vermelho"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "E47.1: o agregador da catraca só passa com a conferência em success",
+      "arquivo": ".github/workflows/catraca.yml",
+      "de": "          [ \"$CONFERENCIA\" = success ]",
+      "para": "          [ \"$CONFERENCIA\" != failure ]",
+      "testes": [
+        "tests.test_ci_local.EsperaAmarelaNosWorkflows.test_check_exigido_tem_o_sufixo_da_saida_e_o_da_catraca_exige_a_conferencia"
+      ]
+    }
+  ]
+}

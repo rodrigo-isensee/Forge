@@ -573,12 +573,20 @@ jobs:
     # CI-PARECERES-SEM-NEEDS (v047 E1.75): sem `needs` de propósito. Com `needs: [bateria]` um vermelho barato pularia este job e o
     # autor só veria o parecer faltando na rodada seguinte; o job custa menos de um minuto e roda em paralelo, então o ganho de
     # esperar é nulo. O pulo não abriria o merge (o agregador reprova `skipped` em PR), mas a rodada extra é o custo que se evita.
-    # Só PR (nas promoções o script não lê parecer, ADR 0008, seção 3); sem token (só contents: read).
+    # Só PR (nas promoções o script não lê parecer, ADR 0008, seção 3); o script roda sem token.
+    # F1-ESPERA-NAO-E-VERMELHO (v0481 E47.1): rc 3 do script é só espera (falta o parecer, nenhum defeito). O job sai verde e a
+    # saída `espera` renomeia o agregador para "bateria (espera parecer)": o check exigido `bateria` fica pendente (amarelo) e
+    # segue barrando a junção. Sem a saída (rc 0, ou o passo morreu), o nome é `bateria` e o agregador exige este job em success,
+    # que só sai com rc 0 ou com rc 3 e a saída gravada. Com `bateria` verde já no head (mesmo sha, outra base), vermelho: o
+    # nome trocado deixaria o verde velho valer.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read
+      checks: read
+    outputs:
+      espera: ${{ steps.pareceres.outputs.espera }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -589,7 +597,9 @@ jobs:
           python-version: "3.12"
       - name: Parecer de review (e de QA para a homolog) quando o PR toca código que governa os agentes
         # Roda o script da base (a introdução usa o do PR); promoções ficam fora do job (ADR 0008, seção 3).
+        id: pareceres
         env:
+          TOKEN_DE_LEITURA: ${{ github.token }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.head_ref }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
@@ -603,7 +613,12 @@ jobs:
             git worktree add --detach "$RUNNER_TEMP/base" "$BASE"
             script="$RUNNER_TEMP/base/tests/catraca.py"
           fi
-          python3 "$script" --modo pareceres --base "$BASE" --head "$HEAD_SHA" --ramo="$HEAD_REF" --base-ref "$BASE_REF"
+          rc=0
+          env -u TOKEN_DE_LEITURA python3 "$script" --modo pareceres --base "$BASE" --head "$HEAD_SHA" --ramo="$HEAD_REF" --base-ref "$BASE_REF" || rc=$?
+          [ "$rc" = 3 ] || exit "$rc"
+          ultimo=$(GH_TOKEN="$TOKEN_DE_LEITURA" gh api "repos/$BASE_REPO/commits/$HEAD_SHA/check-runs?check_name=bateria&per_page=100" --jq '[.check_runs[] | select(.app.slug == "github-actions")] | sort_by(.started_at) | last | if . == null then "nenhum" else .conclusion end') || { echo "espera: a API não leu o check bateria do head; vermelho (falha fechada)"; exit 1; }
+          [ "$ultimo" != success ] || { echo "espera: o head já tem bateria verde de outro run; vermelho para o verde velho não valer"; exit 1; }
+          echo "espera= (espera parecer)" >> "$GITHUB_OUTPUT"
 
   verificacoes:
     name: bateria (verificações longas)
@@ -663,7 +678,8 @@ jobs:
           shellcheck -- "${lista[@]}"
 
   agregador:
-    name: bateria
+    name: bateria${{ needs.pareceres.outputs.espera }}
+    # E47.1: o sufixo " (espera parecer)" deixa o check exigido `bateria` pendente (amarelo), ainda barrando a junção.
     # Agregador do check exigido: só passa com os passos, as 5 partes da suíte no 3.12 e o teto de pulados em success.
     # always(): falha,
     # cancelamento ou pulo de um job necessário reprova este (um job pulado contaria como verde para a regra de proteção).

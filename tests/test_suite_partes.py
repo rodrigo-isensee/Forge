@@ -593,7 +593,8 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertIn("fail-fast: false", bloco)
 
     def test_agregadores_tem_o_nome_exigido_e_exigem_todas_as_partes(self):
-        casos = {"agregador": ("bateria", {"bateria", "pareceres", "verificacoes", "partes-doze", "pulados-doze"}),
+        # E47.1: o agregador leva o sufixo da espera do parecer (vazio sem espera), que deixa o check exigido `bateria` pendente
+        casos = {"agregador": ("bateria${{ needs.pareceres.outputs.espera }}", {"bateria", "pareceres", "verificacoes", "partes-doze", "pulados-doze"}),
                  "bateria-python-tres-quatorze": ("bateria (python 3.14)", {"instalacao-quatorze"})}
         for job, (nome, necessarios) in casos.items():
             with self.subTest(job):
@@ -608,7 +609,8 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertEqual(bloco.count("= success ]"), len(necessarios))
                 self.assertNotIn("uses:", bloco)  # o agregador não roda código da branch
         nomes = [self.nome(j) for j in self.jobs]
-        self.assertEqual(nomes.count("bateria"), 1)
+        self.assertEqual(nomes.count("bateria${{ needs.pareceres.outputs.espera }}"), 1)
+        self.assertNotIn("bateria", nomes)
         self.assertEqual(nomes.count("bateria (python 3.14)"), 1)
 
     def test_cada_parte_publica_os_pulados_e_um_job_soma_contra_o_teto(self):  # T3

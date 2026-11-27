@@ -149,6 +149,12 @@ class ErroDeDiff(ErroDeGit):
 
 SEM_LISTA = "não consegui listar os arquivos alterados"
 NAO_LIBERAVEL = "o rótulo não libera esta violação"  # marca comum das violações de falha do git (a guarda do rótulo a procura)
+# F1-ESPERA-NAO-E-VERMELHO (v0481 E47.1): rc 3 = só falta parecer ou rótulo; o workflow deixa o check exigido pendente
+# (amarelo, ainda barrando a junção). Defeito (teste, conflito, regra quebrada, parecer que reprova) segue no rc 1.
+ESPERA = 3
+SO_ESPERA_PARECER = "espera: só falta o parecer"  # marca da violação que é só espera (o _main a procura)
+LINHA_DE_ESPERA = re.compile(r": [a-z-]+: sem parecer (?:para o pedido|da branch) |: commit: desatualizado")
+TITULO_AFROUXA = re.compile(r"\[afrouxa-regra\b")
 
 
 def msg_falha_git(detalhe):
@@ -2128,6 +2134,8 @@ def _violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
         return nao_aprovam
     exige = "review e QA" if base_ref == "homolog" else "review"
     detalhe = f" ({'; '.join(achados[:2])})" if achados else ""
+    if all(LINHA_DE_ESPERA.search(l) for l in achados):  # ausente ou de commit anterior; o resto (reprova, forjado, autoria) é defeito
+        detalhe += f" ({SO_ESPERA_PARECER})"
     sem_parecer = [msg("R-REVIEW", f"PR toca {tocados[0]} (e outros {len(tocados) - 1}) sem parecer aprovado de {exige}{detalhe}",
                        "código que muda o comportamento dos agentes precisa de revisão antes de entrar",
                        f"peça o parecer e confira com `bin/forge-check pr <pedido>` (parecer com `branch: {ramo}`)",
@@ -2261,16 +2269,29 @@ def _main(a):
                 prs = liberado_por_pr_mesclado_ou_none(raiz, a.base, a.head, viol, fonte, dono)
                 if prs:
                     liberado = f"mesmo conteúdo já rotulado no PR mesclado {', '.join('#' + n for n in prs)}"
+            if not custo and not liberado and eventos is not None and TITULO_AFROUXA.search(os.environ.get("PR_TITULO", "")):
+                return espera(f"o título declara `[{ROTULO}` e falta o rótulo do dono", viol)
             if liberado:
                 resumo(titulo, [f"liberado pelo rótulo `{ROTULO}` do dono ({liberado}): {len(viol)} violação(ões) aceita(s)"] + viol)
                 print(f"catraca: {len(viol)} violação(ões) liberada(s) pelo rótulo `{ROTULO}` do dono ({liberado}).")
                 for v in viol:
                     print(f"catraca: liberada: {v}")
                 return 0
+    if a.modo == "pareceres" and viol and all(SO_ESPERA_PARECER in v for v in viol):
+        return espera("falta o parecer aprovado", viol)
     for v in viol:
         print(v)
     resumo(titulo, viol)
     return 1 if viol else 0
+
+
+def espera(motivo, viol):
+    """Só espera (parecer ou rótulo), sem defeito: rc ESPERA, que o workflow mostra pendente, nunca verde."""
+    print(f"catraca: espera ({motivo}); o check exigido fica pendente, sem vermelho")
+    for v in viol:
+        print(v)
+    resumo(f"espera: {motivo}", viol)
+    return ESPERA
 
 
 if __name__ == "__main__":

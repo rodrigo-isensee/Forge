@@ -5,6 +5,7 @@ import importlib.util
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -347,7 +348,8 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         # A4 (segurança): o modo pareceres roda em exatamente um job, que tem só contents: read e teto de 5 min (J3, J5, J9)
         self.assertEqual(sum("--modo pareceres" in p["run"] for j in jobs.values() for p in j["passos"]), 1)
         bloco = re.search(r"(?ms)^  pareceres:\n(.*?)(?=^  \S+:\n)", texto).group(1)
-        self.assertEqual(permissoes_e_env_do_job(bloco), ({"contents": "read"}, set()))  # CI-GUARDA-PERMISSOES-ENV: sem env: no job
+        # CI-GUARDA-PERMISSOES-ENV: sem env: no job; E47.1: checks: read só para ler o último `bateria` do head na espera
+        self.assertEqual(permissoes_e_env_do_job(bloco), ({"contents": "read", "checks": "read"}, set()))
         self.assertEqual(token_sem_permissao(texto), [])
         self.assertIn("\n    timeout-minutes: 5\n", bloco)
 
@@ -357,11 +359,11 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         bloco = re.search(r"(?ms)^  pareceres:\n(.*?)(?=^  \S+:\n)", texto).group(1)
         com_env = bloco.replace("    steps:", "    env:\n      GH_TOKEN: ${{ github.token }}\n    steps:", 1)
         antiga = re.findall(r"(?m)^      (\S+): (\S+)$", com_env.split("    steps:")[0])
-        self.assertEqual(antiga, [("contents", "read")], "a guarda antiga deixava passar o env do job")
-        self.assertEqual(permissoes_e_env_do_job(com_env), ({"contents": "read"}, {"GH_TOKEN"}))
-        sem_permissao = com_env.replace("    permissions:\n      contents: read\n", "")
+        self.assertEqual(antiga, [("contents", "read"), ("checks", "read")], "a guarda antiga deixava passar o env do job")
+        self.assertEqual(permissoes_e_env_do_job(com_env), ({"contents": "read", "checks": "read"}, {"GH_TOKEN"}))
+        sem_permissao = com_env.replace("    permissions:\n      contents: read\n      checks: read\n", "")
         self.assertEqual(token_sem_permissao("\njobs:\n  pareceres:\n" + sem_permissao), ["pareceres"])
-        no_passo = bloco.replace("    permissions:\n      contents: read\n", "").replace(
+        no_passo = bloco.replace("    permissions:\n      contents: read\n      checks: read\n", "").replace(
             "          HEAD_SHA:", "          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          HEAD_SHA:", 1)
         self.assertEqual(token_sem_permissao("\njobs:\n  pareceres:\n" + no_passo), ["pareceres"])
         self.assertEqual(token_sem_permissao("\njobs:\n  pareceres:\n" + com_env), [])  # permissions declarada: não acusa
@@ -398,7 +400,7 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         """CI-ATALHO-COMMIT-SO-PARECER (A2 da E1.4): sem defeito, o gate segue no agregador `bateria`; o motivo fica no ci.yml."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         jobs = {j["id"]: j for j in ci.ler_jobs(texto)}
-        self.assertEqual(jobs["agregador"]["nome"], "bateria")
+        self.assertEqual(ci.expandir(jobs["agregador"]["nome"], {}), "bateria")
         (gate,) = [p for p in jobs["bateria"]["passos"] if p["id"] == "gate"]
         self.assertIn('select(.name == "bateria" and .app.slug == "github-actions")', gate["run"])
         self.assertIn("CI-ATALHO-COMMIT-SO-PARECER", texto)
@@ -993,7 +995,8 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         self.assertEqual(upload["com"]["name"], "pulados-doze-${{ matrix.parte }}")
         (download,) = [p for p in jobs["pulados-doze"]["passos"] if p["uses"].startswith("actions/download-artifact@")]
         self.assertEqual(download["com"]["pattern"], "pulados-doze-*")
-        self.assertEqual((jobs["agregador"]["nome"], jobs["bateria-python-tres-quatorze"]["nome"]), ("bateria", "bateria (python 3.14)"))
+        self.assertEqual((jobs["agregador"]["nome"], jobs["bateria-python-tres-quatorze"]["nome"]),
+                         ("bateria${{ needs.pareceres.outputs.espera }}", "bateria (python 3.14)"))  # E47.1: sufixo só na espera
 
     def test_artefato_da_perna_vai_ao_job_que_baixa_mesmo_reaproveitada(self):  # T3
         passos_parte = ("    strategy:\n      matrix:\n        parte: [1, 2]\n    steps:\n"
@@ -1117,6 +1120,62 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
                                capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(r.stdout.strip(), "BASE=" + nova)
+
+
+class EsperaAmarelaNosWorkflows(unittest.TestCase):
+    """F1-ESPERA-NAO-E-VERMELHO (v0481 E47.1): rc 3 do script grava o sufixo que renomeia o check exigido (pendente); rc 1,
+    API fora do ar ou o check exigido já verde no head ficam vermelhos; o agregador da catraca só passa com a conferência verde."""
+
+    CASOS = {"ci.yml": ("pareceres", "bateria", " (espera parecer)"), "catraca.yml": ("conferencia", "catraca", " (espera rótulo)")}
+
+    def jobs(self, arquivo):
+        return {j["id"]: j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / arquivo).read_text(encoding="utf-8"))}
+
+    def fim_do_passo(self, arquivo):
+        job, _, _ = self.CASOS[arquivo]
+        (passo,) = [p for p in self.jobs(arquivo)[job]["passos"] if "rc=0\n" in p["run"]]
+        return "rc=0\n" + passo["run"].split("rc=0\n", 1)[1]
+
+    def roda(self, arquivo, rc, gh):
+        """O fim do passo com python3 e gh falsos (subprocesso com ambiente limpo): (rc, saída GITHUB_OUTPUT, args do gh)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            pasta = Path(tmp)
+            (pasta / "python3").write_text(f"#!/bin/sh\nexit {rc}\n")
+            (pasta / "gh").write_text(f"#!/bin/sh\necho \"$@\" > {pasta}/gh.args\n{gh}\n")
+            for nome in ("python3", "gh"):
+                (pasta / nome).chmod(0o755)
+            saida = pasta / "saida"
+            saida.write_text("")
+            env = {"PATH": f"{pasta}:/usr/bin:/bin", "GITHUB_OUTPUT": str(saida), "HEAD_SHA": "a" * 40}
+            p = subprocess.run(["bash", "--noprofile", "--norc", "-e", "-c", self.fim_do_passo(arquivo)],
+                               env=env, capture_output=True, text=True, timeout=30)
+            args = (pasta / "gh.args").read_text() if (pasta / "gh.args").exists() else ""
+            return p.returncode, saida.read_text(), args
+
+    def test_espera_grava_o_sufixo_e_defeito_ou_verde_velho_fica_vermelho(self):
+        for arquivo, (_, check, sufixo) in self.CASOS.items():
+            with self.subTest(arquivo):
+                self.assertEqual(self.roda(arquivo, 0, "exit 9")[:2], (0, ""))
+                self.assertEqual(self.roda(arquivo, 1, "exit 9")[:2], (1, ""))
+                rc, saida, args = self.roda(arquivo, 3, "echo nenhum")
+                self.assertEqual((rc, saida), (0, f"espera={sufixo}\n"))
+                self.assertIn(f"check_name={check}&", args)
+                self.assertEqual(self.roda(arquivo, 3, "echo failure")[:2], (0, f"espera={sufixo}\n"))
+                self.assertEqual(self.roda(arquivo, 3, "echo success")[:2], (1, ""))
+                self.assertEqual(self.roda(arquivo, 3, "exit 1")[:2], (1, ""))
+
+    def test_check_exigido_tem_o_sufixo_da_saida_e_o_da_catraca_exige_a_conferencia(self):
+        for arquivo, (job, check, _) in self.CASOS.items():
+            with self.subTest(arquivo):
+                (agregador,) = [j for j in self.jobs(arquivo).values() if job in j["needs"] and j["nome"].startswith(check + "$")]
+                self.assertEqual(agregador["nome"], f"{check}${{{{ needs.{job}.outputs.espera }}}}")
+                self.assertIn("always()", agregador["se"])
+        (passo,) = self.jobs("catraca.yml")["catraca"]["passos"]
+        for resultado, esperado in (("success", 0), ("failure", 1), ("cancelled", 1), ("skipped", 1), ("", 1)):
+            with self.subTest(resultado=resultado):
+                p = subprocess.run(["bash", "--noprofile", "--norc", "-e", "-c", passo["run"]],
+                                   env={"PATH": "/usr/bin:/bin", "CONFERENCIA": resultado}, capture_output=True, text=True, timeout=30)
+                self.assertEqual(bool(p.returncode), bool(esperado))
 
 
 if __name__ == "__main__":

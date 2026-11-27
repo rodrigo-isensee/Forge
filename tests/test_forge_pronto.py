@@ -446,7 +446,8 @@ class ProvaDoCi(unittest.TestCase):
                 jobs[atual]["name"] = linha.split("name:", 1)[1].strip()
             elif atual and linha.startswith("    needs: ["):
                 jobs[atual]["needs"] = [n.strip() for n in linha.split("[", 1)[1].split("]")[0].split(",")]
-        agregador = next(j for j in jobs.values() if j.get("name") == "bateria")
+        # E47.1: o nome do agregador leva o sufixo da espera (`${{ needs.pareceres.outputs.espera }}`), vazio sem espera
+        agregador = next(j for j in jobs.values() if j.get("name") == "bateria${{ needs.pareceres.outputs.espera }}")
         esperados = set()
         for job in agregador["needs"]:
             nome = jobs[job]["name"]

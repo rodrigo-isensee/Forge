@@ -4116,7 +4116,7 @@ class PrazoTotalDaApi(Base):
     def test_o_prazo_total_cabe_na_metade_do_timeout_do_job(self):
         """Se o N-CI baixar o `timeout-minutes` do job `catraca`, a suíte acusa."""
         yml = (AQUI.parent / ".github" / "workflows" / "catraca.yml").read_text(encoding="utf-8")
-        job = re.search(r"^  catraca:\n(.*?)(?=^  \S|\Z)", yml, re.M | re.S).group(1)
+        job = re.search(r"^  conferencia:\n(.*?)(?=^  \S|\Z)", yml, re.M | re.S).group(1)  # E47.1: a API é lida na conferência
         minutos = int(re.search(r"^    timeout-minutes: (\d+)\s*$", job, re.M).group(1))
         self.assertLessEqual(catraca.PRAZO_TOTAL_DA_API, minutos * 60 / 2)
         self.assertGreater(catraca.PRAZO_TOTAL_DA_API, 0)
@@ -4268,13 +4268,17 @@ class Workflows(unittest.TestCase):
         jobs = re.split(r"(?m)^(?=  [a-z-]+:\n)", ci.split("\njobs:\n", 1)[1])
         com_always = [j for j in jobs if "    if: always()" in j]
         self.assertEqual(len(com_always), 3)
-        for job in com_always:
+        # E47.1: na catraca.yml, always() só no agregador `catraca` (o check exigido), com as mesmas restrições dos do ci.yml
+        cat = self.texto("catraca.yml")
+        dela = [j for j in re.split(r"(?m)^(?=  [a-z-]+:\n)", cat.split("\njobs:\n", 1)[1]) if "    if: always()" in j]
+        self.assertEqual((len(dela), cat.count("always()")), (1, cat.count("    if: always()\n") + cat.count("always():")))
+        self.assertTrue(dela[0].startswith("  catraca:\n"))
+        for job in com_always + dela:
             with self.subTest(job.split(":", 1)[0].strip()):
                 self.assertNotIn("uses:", job)  # sem checkout nem ação: não roda código da branch
                 self.assertRegex(job, r"(?m)^    needs: \[")
                 passos = job.split("    steps:\n", 1)[1]
                 self.assertNotRegex(passos, r"python|bash|\./|scripts/|bin/|tests/|\$\{\{ *(github\.event\.|inputs)")  # só lê needs.*.result
-        self.assertNotIn("always()", self.texto("catraca.yml"))
         self.assertIn("!cancelled()", ci)
         self.assertIn('[ "$BASE_REF" = develop ]', ci)  # promoção para a homolog roda a bateria completa (R-FLUXO)
         self.assertIn('.app.slug == "github-actions"', ci)
@@ -4621,3 +4625,62 @@ class RotuladosDaLeva(Base):
         self.assertIn("rotulados: incompleta (RuntimeError)", saida)
         self.assertNotIn("tok-s3", saida + resumo)
         self.assertEqual((rede.call_args.args[0].get_method(), rede.call_args.args[0].full_url), ("GET", "https://api.github.com/repos/o/r/pulls/7"))
+
+
+class EsperaNaoEVermelho(Base):
+    """F1-ESPERA-NAO-E-VERMELHO (v0481 E47.1): só falta parecer ou rótulo, rc 3 (o workflow deixa o check pendente); defeito, rc 1."""
+
+    PASTAS, parecer = ParecerReprovadoBarraSempre.PASTAS, ParecerReprovadoBarraSempre.parecer
+
+    def cli(self, *args, titulo="", eventos=None):
+        self.repo.commit()
+        argv = ["python3", "-I", str(AQUI / "catraca.py"), "--raiz", str(self.repo.dir), "--base", "base", *args]
+        if eventos is not None:
+            arq = self.repo.dir.parent / (self.repo.dir.name + "-eventos.json")
+            arq.write_text(json.dumps(eventos), encoding="utf-8")
+            self.addCleanup(arq.unlink, missing_ok=True)
+            argv += ["--eventos", str(arq), "--ultimo-push", "2026-01-02T09:00:00Z"]
+        fora = ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "GITHUB_ACTIONS", "PR_TITULO", "PR_NUMBER", "HEAD_REPO", "BASE_REPO")
+        env = {**{k: v for k, v in os.environ.items() if k not in fora}, **ambiente_de_git(), "PR_TITULO": titulo}
+        return subprocess.run(argv, capture_output=True, text=True, env=env, timeout=120)
+
+    def pareceres(self):
+        return self.cli("--modo", "pareceres", "--ramo", "pr", "--base-ref", "develop")
+
+    def test_so_falta_o_parecer_sai_3_e_diz_espera(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        r = self.pareceres()
+        self.assertEqual(r.returncode, catraca.ESPERA, r.stdout + r.stderr)
+        self.assertIn("catraca: espera (falta o parecer aprovado)", r.stdout)
+        self.assertIn(catraca.SO_ESPERA_PARECER, r.stdout)
+
+    def test_parecer_reprovado_e_defeito_sai_1(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review", "reprovado")
+        r = self.pareceres()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertNotIn("catraca: espera", r.stdout)
+
+    def test_linha_de_espera_so_casa_ausente_e_desatualizado(self):
+        self.assertTrue(catraca.LINHA_DE_ESPERA.search("docs/reviews: review: sem parecer para o pedido `p` (R-REVIEW)"))
+        self.assertTrue(catraca.LINHA_DE_ESPERA.search("docs/reviews/p.md: commit: desatualizado: x (R-REVIEW)"))
+        self.assertFalse(catraca.LINHA_DE_ESPERA.search("docs/reviews/p.md: parecer: o último parecer não é aprovado (R-REVIEW)"))
+        self.assertFalse(catraca.LINHA_DE_ESPERA.search("docs/reviews/p.md: autoria: sem registro (R-REVIEW)"))
+
+    def test_regra_com_titulo_afrouxa_sem_rotulo_sai_3(self):
+        self.repo.config(dono="outra")
+        r = self.cli(titulo="feat(x): y [afrouxa-regra: ADR 0003]", eventos=[])
+        self.assertEqual(r.returncode, catraca.ESPERA, r.stdout + r.stderr)
+        self.assertIn("falta o rótulo do dono", r.stdout)
+
+    def test_regra_sem_titulo_afrouxa_e_defeito_sai_1(self):
+        self.repo.config(dono="outra")
+        self.assertEqual(self.cli(titulo="feat(x): y", eventos=[]).returncode, 1)
+
+    def test_sem_eventos_da_api_e_vermelho_mesmo_com_o_titulo(self):
+        self.repo.config(dono="outra")
+        self.assertEqual(self.cli(titulo="feat(x): y [afrouxa-regra]").returncode, 1)
+
+    def test_custo_e_defeito_mesmo_com_o_titulo(self):
+        self.repo.escreve("scripts/x.sh", "export ANTHROPIC_API_KEY=1\n")
+        self.assertEqual(self.cli(titulo="feat(x): y [afrouxa-regra]", eventos=[]).returncode, 1)
