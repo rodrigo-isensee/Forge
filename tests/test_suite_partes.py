@@ -763,18 +763,6 @@ class FiacaoDoCI(unittest.TestCase):
         self.assertNotIn("por_pedido", diario)
         self.assertIn("python3 bin/forge-mutante $linha --processos 2", diario)
 
-    def test_f6_os_ids_da_spec_do_f6_nao_repetem_os_de_outra_spec_do_pedido(self):
-        """S1 do review (7cb7879): `forge-mutante <spec do F6> <outra spec do v0481>` recusava `id de mutante repetido`."""
-        ids = {}
-        for spec in sorted((RAIZ / "tests" / "mutantes").glob("v0481-*.json")):
-            dados = json.loads(spec.read_text(encoding="utf-8"))
-            ids[spec.name] = {m["id"] for m in dados["mutantes"]}
-        proprios = ids.pop("v0481-f6-ci-uma-vez.json")
-        self.assertLessEqual(len(proprios), 8)
-        for nome, outros in ids.items():
-            with self.subTest(nome):
-                self.assertEqual(sorted(proprios & outros), [])
-
     def test_partes_pulam_a_suite_so_com_a_arvore_provada(self):
         """SP4 e M2: um job prévio único tira a prova (F6: só a do Python 3.12); as 5 partes dependem dele e o
         preparo e a suíte só rodam sem a prova (falha fechada). A prova no passo de cada perna dava o `outputs` da última perna."""

@@ -1564,6 +1564,17 @@ class ConferirTodas(unittest.TestCase):
         self.assertEqual(sorted(achados - pendentes), [], "spec com o `de` fora da fonte atual: alinhe-a no mesmo commit que muda a linha")
         self.assertEqual(sorted(pendentes - achados), [], "a spec já confere: tire-a de tests/fixtures/mutantes-pendentes.txt")
 
+    def test_os_ids_da_spec_do_f6_nao_repetem_os_de_outra_spec_do_pedido(self):  # S1 do review 7cb7879 (v0481 E32.1)
+        """`forge-mutante <spec do F6> <outra spec do v0481>` recusava `id de mutante repetido entre as specs` (rc 2)."""
+        ids = {}
+        for spec in sorted((RAIZ / "tests" / "mutantes").glob("v0481-*.json")):
+            ids[spec.name] = {m["id"] for m in json.loads(spec.read_text(encoding="utf-8"))["mutantes"]}
+        proprios = ids.pop("v0481-f6-ci-uma-vez.json")
+        self.assertLessEqual(len(proprios), 8)  # V2: acima de 8, abre um -2.json
+        for nome, outros in ids.items():
+            with self.subTest(nome):
+                self.assertEqual(sorted(proprios & outros), [])
+
 
 PLACAR = RAIZ / "scripts" / "placar-mutacao.py"
 # `forge-mutante` falso: anota a chamada, recusa sem `--` e pedido misto (como o de verdade) e imprime uma linha por classe.
