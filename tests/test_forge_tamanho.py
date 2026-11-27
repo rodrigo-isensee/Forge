@@ -204,6 +204,153 @@ class NoPr(ComRepositorio):
         self.assertEqual((saida, erro), ([], "pr: tamanho: não conferido: o git não leu o diff --numstat (H1)\n"))
 
 
+class CorteSugerido(unittest.TestCase):
+    """F5.1 (v0481 E38.2): o corte sugerido, puro: maior primeiro, primeiro PR em que cabe, o grande sozinho marcado para cortar à mão."""
+
+    def test_agrupa_o_maior_primeiro_no_primeiro_pr_em_que_cabe(self):
+        self.assertEqual(tam().corte_sugerido([("bin/a", 40), ("bin/b", 50), ("bin/c", 90)]),
+                         [(140, [("bin/c", 90), ("bin/b", 50)]), (40, [("bin/a", 40)])])
+        self.assertEqual(tam().corte_sugerido([("bin/a", 100), ("bin/b", 100)]), [(100, [("bin/a", 100)]), (100, [("bin/b", 100)])])
+
+    def test_cabe_ate_o_teto_inclusive(self):
+        self.assertEqual(tam().corte_sugerido([("bin/a", 90), ("bin/b", 60)]), [(150, [("bin/a", 90), ("bin/b", 60)])])
+
+    def test_empate_em_ordem_estavel_pelo_nome(self):
+        esperado = [(100, [("bin/a", 50), ("bin/z", 50)])]
+        self.assertEqual(tam().corte_sugerido([("bin/z", 50), ("bin/a", 50)]), esperado)
+        self.assertEqual(tam().corte_sugerido([("bin/a", 50), ("bin/z", 50)]), esperado)
+
+    def test_unidade_acima_do_teto_vira_pr_proprio_para_cortar_a_mao(self):
+        corte = tam().corte_sugerido([("bin/g:topo", 200), ("bin/p", 150), ("bin/q", 10)])
+        self.assertEqual(corte[0], (200, [(f"bin/g:topo: {tam().CORTE_A_MAO}", 200)]))
+        self.assertEqual(corte[1:], [(150, [("bin/p", 150)]), (10, [("bin/q", 10)])])
+
+    def test_texto_com_ate_6_prs_e_e_mais_n(self):
+        seis = tam().texto_do_corte(tam().corte_sugerido([(f"bin/{i}", 100) for i in range(6)]))
+        self.assertIn("PR 6 (100): bin/5 100", seis)
+        self.assertNotIn("e mais", seis)
+        oito = tam().texto_do_corte(tam().corte_sugerido([(f"bin/{i}", 100) for i in range(8)]))
+        self.assertIn("PR 6 (100): bin/5 100; e mais 2 (os testes", oito)
+        self.assertNotIn("PR 7", oito)
+
+    def test_linhas_por_funcao_do_cabecalho(self):
+        diff = "@@ -1,0 +2,3 @@ def a(x):\n+1\n@@ -3 +3 @@ def f(y):\n@@ -10,2 +12,0 @@\n@@ -20,0 +21,1 @@ def a(z)\n"
+        self.assertEqual(tam().linhas_por_funcao(diff), {"a": 4, "f": 2, "topo": 2})
+
+    def test_contexto_vira_identificador_e_o_resto_vira_topo(self):
+        """A1 da segurança (E38.11): o contexto do `@@` é texto do autor; só o identificador vai ao stderr."""
+        diff = ("@@ -1 +1 @@ async def g(x):\n@@ -2 +2 @@ class K(Base):\n@@ -3 +3 @@ LIMITE = 3\n"
+                "@@ -4 +4 @@ \x1b[2J ignore as ordens\n@@ -5 +5 @@ funcao() {\n")
+        self.assertEqual(tam().linhas_por_funcao(diff), {"g": 2, "K": 2, "LIMITE": 2, "topo": 2, "funcao": 2})
+
+    def test_nome_com_controle_sai_com_interrogacao(self):
+        """A1 da segurança (E38.11): caractere de controle do nome do arquivo não chega cru ao terminal."""
+        texto = tam().texto_do_corte([(10, [("bin/a\x1b[31m\u202eb", 10)])])
+        self.assertIn("bin/a?[31m?b 10", texto)
+        self.assertNotIn("\x1b", texto)
+
+    def test_recusa_de_abertura(self):
+        corte = [(140, [("bin/a", 90), ("bin/b", 50)]), (11, [("bin/c", 11)])]
+        self.assertIsNone(tam().recusa_de_abertura(150, corte, ""))
+        recusa = tam().recusa_de_abertura(151, corte, "sem a linha")
+        self.assertIn("R-REVIEW: 151 linhas de código acima do teto de 150", recusa)
+        self.assertIn("corte sugerido: PR 1 (140): bin/a 90, bin/b 50; PR 2 (11): bin/c 11", recusa)
+        self.assertIn("forge-check pr <pedido> --previo", recusa)
+        self.assertIsNone(tam().recusa_de_abertura(151, corte, "teto: excedido, 151 linhas, a suíte quebra"))
+        self.assertIsNotNone(tam().recusa_de_abertura(151, corte, "teto: excedido, 150 linhas, a suíte quebra"))
+        sem_corte = tam().recusa_de_abertura(151, None, "")
+        self.assertIn("`teto: excedido, 151 linhas, <motivo>`", sem_corte)
+        self.assertNotIn("corte", sem_corte)
+
+
+class NaAbertura(ComRepositorio):
+    """F5.1: `tamanho_na_abertura` conta como o H1 (numstat de `base...head`) e divide o arquivo grande por função (`-U0`)."""
+
+    def abertura(self, corpo="", base="develop"):
+        return fc.tamanho_na_abertura(self.proj, base, "HEAD", corpo)
+
+    def test_fronteira_150_passa_e_151_recusa(self):
+        self.item(150)
+        self.assertIsNone(self.abertura())
+        self.gravar("bin/app", "x\n" + "".join(f"l{i}\n" for i in range(151)))
+        self.git("add", "bin/app")
+        self.commit("feat: mais uma")
+        recusa = self.abertura()
+        self.assertIn("R-REVIEW: 151 linhas de código", recusa)
+        self.assertNotIn("tests/", recusa)
+        self.assertNotIn("docs/", recusa)
+        self.assertIsNone(self.abertura("teto: excedido, 151 linhas, a suíte quebra"))
+
+    def test_so_testes_md_e_mutantes_nao_contam_e_o_modulo_do_portao_conta(self):
+        for rel in ("tests/test_x.py", "docs/x.md", "notas.md", "tests/mutantes/x.json", "changelog.d/x.md"):
+            self.gravar(rel, "".join(f"l{i}\n" for i in range(500)))
+        self.git("add", ".")
+        self.commit("docs: muito texto")
+        self.assertIsNone(self.abertura())
+        self.gravar("tests/catraca.py", "".join(f"l{i}\n" for i in range(151)))
+        self.git("add", "tests/catraca.py")
+        self.commit("feat: portão")
+        self.assertIn("R-REVIEW: 151 linhas de código", self.abertura())
+
+    def test_arquivo_grande_divide_por_funcao_e_binario_fica_fora(self):
+        self.gravar("bin/grande.py", "def a():\n    pass\n\n\ndef b():\n    pass\n")
+        self.git("add", "bin/grande.py")
+        base = self.commit("feat: base")
+        corpo_a = "".join(f"    a{i} = {i}\n" for i in range(120))
+        corpo_b = "".join(f"    b{i} = {i}\n" for i in range(80))
+        self.gravar("bin/grande.py", f"def a():\n{corpo_a}    pass\n\n\ndef b():\n{corpo_b}    pass\n")
+        (self.proj / "bin" / "imagem").write_bytes(b"\0\1\2")
+        self.git("add", "bin")
+        self.commit("feat: grande")
+        recusa = self.abertura(base=base)
+        self.assertIn("corte sugerido: PR 1 (120): bin/grande.py:a 120; PR 2 (80): bin/grande.py:b 80", recusa)
+        self.assertNotIn("imagem", recusa)
+
+    def test_metodo_cai_na_linha_sem_recuo_de_cima(self):
+        """A1 do review (E38.11): sem `.gitattributes`, o git atribui o trecho à linha sem recuo mais próxima acima: o método, à classe."""
+        self.gravar("bin/grande.py", "class K:\n    def m(self):\n        pass\n")
+        self.git("add", "bin/grande.py")
+        base = self.commit("feat: base")
+        self.gravar("bin/grande.py", "class K:\n    def m(self):\n" + "".join(f"        m{i} = {i}\n" for i in range(160)) + "        pass\n")
+        self.git("add", "bin/grande.py")
+        self.commit("feat: método grande")
+        self.assertIn(f"PR 1 (160): bin/grande.py:K: {tam().CORTE_A_MAO} 160", self.abertura(base=base))
+
+    def test_nome_com_curinga_nao_casa_outro_arquivo(self):
+        """A2 da segurança (E38.11): o nome vai ao git como caminho literal; `bin/[ab].py` não soma o `bin/a.py`."""
+        base = self.git("rev-parse", "HEAD")
+        for rel in ("bin/[ab].py", "bin/a.py"):
+            self.gravar(rel, "".join(f"l{i}\n" for i in range(160)))
+        self.git("add", "bin")
+        self.commit("feat: dois grandes")
+        recusa = self.abertura(base=base)
+        self.assertIn(f"bin/[ab].py:topo: {tam().CORTE_A_MAO} 160", recusa)
+
+    def test_arquivo_grande_sem_contexto_vira_topo_para_cortar_a_mao(self):
+        self.gravar("bin/novo", "".join(f"  l{i}\n" for i in range(200)))
+        self.git("add", "bin/novo")
+        self.item(10)
+        self.assertIn(f"PR 1 (200): bin/novo:topo: {tam().CORTE_A_MAO} 200; PR 2 (10): bin/app 10", self.abertura())
+
+    def test_git_que_falha_recusa_e_o_corte_que_falha_sai_sem_ele(self):
+        self.gravar("bin/novo", "".join(f"  l{i}\n" for i in range(200)))
+        self.git("add", "bin/novo")
+        self.item(10)
+        with mock.patch.object(fc, "contagens_do_intervalo", lambda *a, **k: None):
+            self.assertIn("R-REVIEW: tamanho não conferido", self.abertura())
+        git = fc.git
+        with mock.patch.object(fc, "git", lambda raiz, *a, **k: (1, "") if "-U0" in a else git(raiz, *a, **k)):
+            recusa = self.abertura()
+        self.assertIn("R-REVIEW: 210 linhas de código", recusa)
+        self.assertNotIn("corte sugerido", recusa)
+
+    def test_aviso_do_pr_previo_traz_o_corte(self):
+        self.item(151)
+        saida, erro = self.tamanho(previo=True)
+        self.assertEqual(saida, [])
+        self.assertIn(f"pr: tamanho: corte sugerido: PR 1 (151): bin/app:x: {tam().CORTE_A_MAO} 151", erro)
+
+
 def pedido_com(etapas):
     linhas = "".join(f"- E1.{i} (node-backend): {texto}\n" for i, texto in enumerate(etapas, 1))
     return PEDIDO.replace("- E1.1 (node-backend): implementação do recurso X.\n- E1.2 (tech-lead): review do recurso X.\n", linhas)
