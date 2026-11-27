@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1B2-M17",
+      "guarda": "M20.1: sem a lista no ref local, o `ls-remote` confere a develop do origin",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if git(topo, \"cat-file\", \"-e\", f\"{refs[0]}:{LISTA_FECHADA}\")[0]:",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_ref_local_recuado_nao_esconde_a_lista"
+      ]
+    },
+    {
+      "id": "C1B2-M18",
+      "guarda": "M20.1: do `ls-remote`, só a linha de `refs/heads/develop` (o padrão casa o fim do nome)",
+      "arquivo": "hooks/conformidade.py",
+      "de": " for x in saida.splitlines() if x.endswith(\"\\trefs/heads/develop\")]",
+      "para": " for x in saida.splitlines()]",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_lista_em_ref_que_so_termina_em_develop_dorme"
+      ]
+    }
+  ]
+}

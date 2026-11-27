@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1B2-M1",
+      "guarda": "M10.1: o `-` (entrada) não é script; a pasta corrente entra no caminho do python",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if a == \"-\" or not a.startswith(\"-\"):",
+      "para": "        if not a.startswith(\"-\"):",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M2",
+      "guarda": "M10.1: o `-` devolve sem script",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            return None if a == \"-\" else a",
+      "para": "            return a",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M3",
+      "guarda": "M10.1: o `-m` não tem script; a pasta corrente entra no caminho",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if letra in \"cm\":",
+      "para": "            if letra in \"c\":",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M4",
+      "guarda": "M10.1: o `-X` leva valor, que não é o script",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if letra in \"XW\":",
+      "para": "            if letra in \"W\":",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M5",
+      "guarda": "M20.1: o parecer de item é conferido antes da política, em todo caminho gravado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if achado := self.parecer_de_item(caminho):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_acorda_com_a_lista"
+      ]
+    },
+    {
+      "id": "C1B2-M6",
+      "guarda": "M10.1: o PYTHONPATH do `export` vale para o python seguinte da linha",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"XDG_CONFIG_HOME\", \"PYTHONPATH\", *PATHSPECS_NO_AMBIENTE}",
+      "para": "\"XDG_CONFIG_HOME\", *PATHSPECS_NO_AMBIENTE}",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M7",
+      "guarda": "M10.1: todo python (`python3`, `python3.12`) é conferido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if prog.startswith(\"python\"):",
+      "para": "        if prog == \"python\":",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M8",
+      "guarda": "M10.1: sem script (`-c`, `-m`, `-`), a pasta corrente está no caminho do python",
+      "arquivo": "hooks/conformidade.py",
+      "de": "+ ([] if script else [\".\"])",
+      "para": "+ []",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    }
+  ]
+}
