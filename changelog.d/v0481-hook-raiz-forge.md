@@ -1,0 +1,2 @@
+### Corrigido
+- hook conformidade: na sessão do próprio Forge, Write, Edit, MultiEdit e escrita pelo Bash na pasta de hooks do git e no `.devcontainer/devcontainer.json` da raiz (que rodam fora do sandbox: pre-push, postStart como root) passam a ser barrados como num projeto; a cópia de `wt/` segue livre, e a mudança legítima vai por ela, por branch e PR (v0481 E37.1, HOOK-NAO-PROTEGE-RAIZ-DO-FORGE)

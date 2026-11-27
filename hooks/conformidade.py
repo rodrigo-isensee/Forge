@@ -8,7 +8,8 @@ flags proibidas (`--no-verify`, `--force`, `core.hooksPath`). Write/Edit decidem
 PostToolUse registra a autoria dos pareceres em `.forge/run/autoria.jsonl`.
 Falha fechado nas ações críticas (seção 7); `FORGE_GUARDA_ABERTA=1` no ambiente do processo abre a guarda.
 Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB). Na
-sessão do Forge, fora de projeto, valem as travas (R-MAIN, R-VERIFY, push para a integração, tag v*) para todo papel.
+sessão do Forge, fora de projeto, valem as travas (R-MAIN, R-VERIFY, push para a integração, tag v*) para todo papel,
+e a escrita no que roda fora do sandbox na raiz (`EM_VIGOR_NA_RAIZ`).
 """
 import collections
 import contextlib
@@ -4164,6 +4165,10 @@ class ForaDaProva(Exception):
 # CONFIG-TETO-SEM-GUARDA (v0478, parte do hook): o `.forge/config.json` da raiz da sessão, onde o hook `agentes` lê o teto.
 CONFIG_DA_RAIZ = ".forge/config.json"
 ESTADO_DOS_HOOKS = (".git/forge/", CONFIG_DA_RAIZ)
+# HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1): na sessão do Forge, o que roda fora do sandbox (o pre-push, o postStart
+# do container como root) recusa como num projeto quando o alvo está na raiz da sessão ou na cópia principal; a cópia de
+# `wt/` segue livre, e a mudança legítima vai por ela, por branch e PR.
+EM_VIGOR_NA_RAIZ = (".githooks/", ".git/hooks/", ".devcontainer/devcontainer.json")
 # `.git/forge` só como nome inteiro: `.git/forge-suite-verde` é a prova da suíte, com a recusa própria (R-VERIFY).
 ESTADO_NO_TEXTO = re.compile(r"\.git/forge(?![\w.-])|forge/run|agentes\.json|\.forge/config\.json")  # C10: linha que o hook não lê e cita o estado
 # PARECER-PELO-PAPEL (v0478 E50.7, A3 de docs/security/v0479-entrega-parecer-mesclado.md): no clone do Forge, as recusas
@@ -4294,10 +4299,22 @@ class GuardaDaProva(Guarda):
             super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)
         if self.recusa_do_estado(o_que):
             super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)
+        if self.na_raiz_em_vigor(alvo):
+            super().barrar(rid, o_que, f"mude numa cópia de wt/ (forge-copia), por branch e PR; {corrigir}", alvo=alvo,
+                           grupo=grupo)
         if self.travas and trava_da_sessao_do_forge(rid, trava, self.h.campo("tool_input").get("command")):
             super().barrar(rid, o_que, corrigir, simples, alvo=alvo, grupo=grupo)
         if self.sem_leitura:
             raise ForaDaProva(rid)
+
+    def na_raiz_em_vigor(self, alvo):
+        """HOOK-NAO-PROTEGE-RAIZ-DO-FORGE: no clone, o alvo resolvido é (ou contém) uma entrada de `EM_VIGOR_NA_RAIZ`
+        relativa à raiz da sessão ou à cópia principal; a pasta corrente (`wt/` incluída) não conta."""
+        if not self.no_clone or not isinstance(alvo, Path):
+            return False
+        posix = os.path.realpath(alvo)
+        rels = [relativo_ao_pai(posix, Path(os.path.realpath(self.h.raiz))), *self.relativos_a_copia_principal(posix)]
+        return any(r is not None and (casa(r, c) or c.startswith(r + "/")) for r in rels for c in EM_VIGOR_NA_RAIZ)
 
     def recusa_do_estado(self, o_que):
         """No clone: a recusa cita o motivo de uma entrada do estado, ou é a da construção que o hook não modela (`$d`,

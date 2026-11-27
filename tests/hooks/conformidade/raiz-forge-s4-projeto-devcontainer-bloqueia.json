@@ -1,0 +1,27 @@
+{
+  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1; R-CONFORMIDADE): sonda s4: num projeto (.forge/versao) o devcontainer.json segue barrado.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".devcontainer/devcontainer.json": "{}\n"
+  },
+  "forge": true,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/proj/.devcontainer/devcontainer.json",
+      "content": "x\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:devops-engineer"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "arquivo em vigor (.devcontainer/devcontainer.json)"
+  }
+}
