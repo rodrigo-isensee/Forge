@@ -653,7 +653,7 @@
       "\\*\\*Ritmo diário:\\*\\*",
       "\\*\\*Corte por arquivo:\\*\\*",
       "\\*\\*Teto do time:\\*\\*",
-      "a versão sai quando a branch de integração tem um conjunto verde que valha uma versão, até 2 por dia",
+      "a versão fecha quando a branch de integração soma 20 itens integrados, sem versão por dia",
       "`R-VERIFY`",
       "`R-COPIA`"
     ],
