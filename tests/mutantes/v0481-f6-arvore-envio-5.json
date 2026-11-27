@@ -26,8 +26,8 @@
       "id": "AE-M23",
       "guarda": "o run tem de casar todos os campos do filtro",
       "arquivo": "scripts/arvore-testada.py",
-      "de": "if None in (run_id, tentativa) or any(campo(execucao, k, str) != v for k, v in da_execucao.items()):",
-      "para": "if None in (run_id, tentativa) or all(campo(execucao, k, str) != v for k, v in da_execucao.items()):",
+      "de": "or any(campo(execucao, k, str) != v for k, v in da_execucao.items()):\n            continue\n        validas",
+      "para": "or all(campo(execucao, k, str) != v for k, v in da_execucao.items()):\n            continue\n        validas",
       "testes": [
         "tests.test_arvore_testada.ProvaDoPr.test_casos_de_abuso_do_parecer_de_seguranca_a1"
       ]
