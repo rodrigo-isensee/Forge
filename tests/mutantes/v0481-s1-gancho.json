@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-s1-gancho",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "só o UserPromptSubmit age",
+      "arquivo": "hooks/estado.py",
+      "de": "if hook.campo(\"hook_event_name\") != \"UserPromptSubmit\" or not pergunta_o_estado(hook.campo(\"prompt\")):",
+      "para": "if not pergunta_o_estado(hook.campo(\"prompt\")):",
+      "testes": [
+        "tests.test_hook_estado.Injeta.test_outra_mensagem_e_outro_evento_silencio"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "só a pergunta do estado roda o comando",
+      "arquivo": "hooks/estado.py",
+      "de": "if hook.campo(\"hook_event_name\") != \"UserPromptSubmit\" or not pergunta_o_estado(hook.campo(\"prompt\")):",
+      "para": "if hook.campo(\"hook_event_name\") != \"UserPromptSubmit\":",
+      "testes": [
+        "tests.test_hook_estado.Injeta.test_outra_mensagem_e_outro_evento_silencio"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "mensagem acima do teto não é pergunta (limite)",
+      "arquivo": "hooks/estado.py",
+      "de": "if not isinstance(prompt, str) or len(prompt) > TETO_DA_PERGUNTA:",
+      "para": "if not isinstance(prompt, str) or len(prompt) > TETO_DA_PERGUNTA + 1:",
+      "testes": [
+        "tests.test_hook_estado.Termos.test_teto_da_pergunta_no_limite"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "prompt que não é texto não é pergunta",
+      "arquivo": "hooks/estado.py",
+      "de": "if not isinstance(prompt, str) or len(prompt) > TETO_DA_PERGUNTA:",
+      "para": "if len(prompt) > TETO_DA_PERGUNTA:",
+      "testes": [
+        "tests.test_hook_estado.Termos.test_outras_mensagens"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "termo vale como palavra inteira",
+      "arquivo": "hooks/estado.py",
+      "de": "return any(f\" {termo} \" in texto for termo in TERMOS)",
+      "para": "return any(termo in texto for termo in TERMOS)",
+      "testes": [
+        "tests.test_hook_estado.Termos.test_outras_mensagens"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "fora de projeto do Forge, silêncio",
+      "arquivo": "hooks/estado.py",
+      "de": "    if raiz is None:\n        return",
+      "para": "    if False:\n        return",
+      "testes": [
+        "tests.test_hook_estado.Injeta.test_fora_de_projeto_do_forge_silencio"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "prazo vencido vira a linha de rodar o comando",
+      "arquivo": "hooks/estado.py",
+      "de": "except subprocess.TimeoutExpired:",
+      "para": "except ValueError:",
+      "testes": [
+        "tests.test_hook_estado.Prazo.test_prazo_vencido_manda_rodar_o_comando"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "erro de sistema vira a linha de rodar o comando",
+      "arquivo": "hooks/estado.py",
+      "de": "except OSError as erro:",
+      "para": "except ValueError as erro:",
+      "testes": [
+        "tests.test_hook_estado.Prazo.test_erro_de_sistema_ao_rodar_manda_rodar_o_comando"
+      ]
+    }
+  ]
+}

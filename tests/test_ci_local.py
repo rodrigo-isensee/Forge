@@ -301,9 +301,12 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         (bateria,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
                       if j["id"] == "bateria"]
         (longas,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
-                     if j["id"] == "verificacoes"]  # A18: Provas, shellcheck e e2e moram no job que espera os passos baratos
-        comandos = "\n".join(p["run"] for p in bateria["passos"] + longas["passos"])
-        nomes_dos_passos = "\n".join(p["nome"] for p in bateria["passos"] + longas["passos"])
+                     if j["id"] == "verificacoes"]  # A18: Provas e shellcheck moram no job que espera os passos baratos
+        (instalacao,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+                         if j["id"] == "instalacao-quatorze"]  # F6: o e2e roda uma vez, aqui (era também nas verificações)
+        passos = bateria["passos"] + longas["passos"] + instalacao["passos"]
+        comandos = "\n".join(p["run"] for p in passos)
+        nomes_dos_passos = "\n".join(p["nome"] for p in passos)
         for trecho in ("shellcheck", "actionlint", "zizmor", "claude plugin validate", "e2e-instalacao",
                        "scripts/conferir-release.py", "Nada pula degrau", "verificar-contribuicao"):
             self.assertIn(trecho, comandos + nomes_dos_passos)
@@ -314,7 +317,7 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         jobs = {j["id"]: j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))}
         # SUITE-NO-CI e CI-RAPIDO: no PR e na develop a suíte roda em 5 partes por versão (scripts/suite-partes.py, o mecanismo do
         # suite-paralela); o agregador da develop não roda a suíte.
-        for nome in ("partes-doze", "partes-quatorze", "rapida-partes-doze", "rapida-partes-quatorze"):
+        for nome in ("partes-doze", "rapida-partes-doze"):  # F6: a suíte inteira só no 3.12
             with self.subTest(job=nome):
                 (passo,) = [p for p in jobs[nome]["passos"] if p["nome"] == "Testes do Forge (parte)"]
                 self.assertIn('python3 scripts/suite-partes.py --parte "$PARTE/5"', passo["run"])
@@ -431,7 +434,7 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertIn("npm install", passo)
         self.assertNotIn("continue-on-error", texto)
         self.assertNotIn("skip ci", texto)
-        for job in ("partes-doze", "partes-quatorze", "rapida-partes-doze", "rapida-partes-quatorze"):
+        for job in ("partes-doze", "rapida-partes-doze"):
             testes = [p for j in ci.ler_jobs(texto) if j["id"] == job for p in j["passos"] if p["nome"] == "Testes do Forge (parte)"]
             self.assertEqual(len(testes), 1, f"o job {job} não tem um passo 'Testes do Forge (parte)'")
             (teste,) = testes
@@ -578,7 +581,8 @@ class InstalacaoDoCliTest(unittest.TestCase):
     def test_toda_instalacao_global_do_cli_roda_o_instalador_do_binario_em_seguida(self):
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         linhas = [l.strip() for l in texto.splitlines() if "npm install -g" in l and "@anthropic-ai/claude-code@" in l]
-        self.assertEqual(len(linhas), 3, "as três instalações do CLI (e2e, validação do plugin, portão das provas)")
+        # F6: o e2e roda uma vez (instalacao-quatorze); a outra instalação é a da validação do plugin
+        self.assertEqual(len(linhas), 2, "as duas instalações do CLI (e2e no 3.14, validação do plugin)")
         for linha in linhas:
             instalar, _, resto = linha.partition("npm install -g")
             self.assertIn("&& node \"$(npm root -g)/@anthropic-ai/claude-code/install.cjs\"", resto, linha)
@@ -976,14 +980,15 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
 
     def test_leitor_entende_matriz_e_needs_do_ci_real(self):
         jobs = {j["id"]: j for j in self.jobs_reais()}
-        for job in ("partes-doze", "partes-quatorze", "rapida-partes-doze", "rapida-partes-quatorze"):
+        for job in ("partes-doze", "rapida-partes-doze"):
             self.assertEqual(jobs[job]["matriz"], {"parte": ["1", "2", "3", "4", "5"]})
-        self.assertEqual(jobs["rapida"]["needs"], ["rapida-partes-doze", "rapida-pulados-doze"])
-        self.assertEqual(jobs["rapida-quatorze"]["needs"], ["rapida-partes-quatorze", "rapida-pulados-quatorze"])
+        self.assertEqual(jobs["rapida"]["needs"], ["arvore-envio", "rapida-partes-doze", "rapida-pulados-doze"])
+        self.assertNotIn("rapida-quatorze", jobs)  # F6
+        self.assertNotIn("partes-quatorze", jobs)
         self.assertEqual(jobs["agregador"]["needs"], ["bateria", "pareceres", "verificacoes", "partes-doze", "pulados-doze"])
         self.assertEqual(jobs["verificacoes"]["needs"], ["bateria"])  # A18: Provas, shellcheck e e2e esperam os passos baratos
         self.assertEqual(jobs["bateria-python-tres-quatorze"]["needs"],
-                         ["partes-quatorze", "pulados-quatorze", "instalacao-quatorze"])
+                         ["instalacao-quatorze"])
         (upload,) = [p for p in jobs["partes-doze"]["passos"] if p["uses"].startswith("actions/upload-artifact@")]
         self.assertEqual(upload["com"]["name"], "pulados-doze-${{ matrix.parte }}")
         (download,) = [p for p in jobs["pulados-doze"]["passos"] if p["uses"].startswith("actions/download-artifact@")]
@@ -1019,8 +1024,7 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         partes = [c for c in chamados if c[1]]
         self.assertEqual(partes, [(f"suíte (python 3.12, parte {k}/5)", str(k)) for k in (1, 2, 3, 4, 5)])
         por_nome = {r["nome"]: r for r in resultados}
-        for k in (1, 2, 3, 4, 5):
-            self.assertIn("reaproveitado", por_nome[f"suíte (python 3.14, parte {k}/5)"]["motivo"])
+        self.assertFalse([n for n in por_nome if "python 3.14, parte" in n])  # F6: no 3.14 só a instalação e a fumaça
         self.assertEqual(ci.status(resultados)[0], "success")
         self.assertIn("resumo de bateria: success, pareceres: success, verificacoes: success, partes-doze: success", por_nome["bateria"]["motivo"])
         self.assertEqual(por_nome["bateria (python 3.14)"]["estado"], ci.OK)
@@ -1029,23 +1033,25 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
     def test_agregador_reprova_com_uma_perna_vermelha(self):
         resultados, _ = self.rodar_com(self.jobs_reais(), falha="suíte (python 3.12, parte 2/5)")
         por_nome = {r["nome"]: r for r in resultados}
-        self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.FALHOU))
+        # F6: a perna vermelha é do 3.12 e reprova só o agregador dele; o "bateria (python 3.14)" junta a instalação e a fumaça
+        self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.OK))
         self.assertEqual(por_nome["bateria (passos)"]["estado"], ci.OK)
         self.assertEqual(ci.status(resultados)[0], "failure")
 
     def test_passo_barato_vermelho_pula_a_suite_e_reprova_os_agregadores(self):
         """A18: as partes esperam o job de passos (lint, degrau, validação, changelog, neutralidade); vermelho nele, nenhuma
-        parte roda e os dois agregadores reprovam sem esperar a suíte."""
+        parte roda e o agregador `bateria` reprova sem esperar a suíte."""
         resultados, chamados = self.rodar_com(self.jobs_reais(), falha="bateria (passos)")
         self.assertEqual([c for c in chamados if c[1]], [])
         por_nome = {r["nome"]: r for r in resultados}
-        for versao in ("3.12", "3.14"):
+        for versao in ("3.12",):
             for k in (1, 2, 3, 4, 5):
                 nome = f"suíte (python {versao}, parte {k}/5)"
                 self.assertIn(nome, por_nome)
                 self.assertEqual(por_nome[nome]["estado"], ci.PULADO)
         self.assertEqual(por_nome["bateria (verificações longas)"]["estado"], ci.PULADO)  # A1: o vermelho barato pula o job longo
-        self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.FALHOU))
+        # F6: o agregador do 3.14 só junta a instalação e a fumaça, que não esperam os passos baratos
+        self.assertEqual((por_nome["bateria"]["estado"], por_nome["bateria (python 3.14)"]["estado"]), (ci.FALHOU, ci.OK))
         self.assertEqual(ci.status(resultados)[0], "failure")
 
     def test_need_sem_job_reprova_e_job_sem_always_e_pulado(self):

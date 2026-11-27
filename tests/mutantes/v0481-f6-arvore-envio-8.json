@@ -1,0 +1,66 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE-M39",
+      "guarda": "PR do ramo com outra base (aberto ou fechado) nao prova",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "campo(p, \"base.ref\", str) != \"develop\" for p in lista",
+      "para": "campo(p, \"base.ref\", str) == \"develop\" for p in lista",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_pr_empilhado_do_mesmo_ramo_ja_mesclado_ou_fechado_nao_prova"
+      ]
+    },
+    {
+      "id": "AE-M40",
+      "guarda": "lista de PRs do ramo de tipo errado nao prova",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "if type(lista) is not list or any(campo(p",
+      "para": "if type(lista) is list and any(campo(p",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_pr_empilhado_do_mesmo_ramo_ja_mesclado_ou_fechado_nao_prova"
+      ]
+    },
+    {
+      "id": "AE-M42",
+      "guarda": "le todas as paginas da lista de PRs do ramo",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "        if len(lista) < 100:\n            return True\n    return False",
+      "para": "        return True\n    return False",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_pr_empilhado_do_mesmo_ramo_ja_mesclado_ou_fechado_nao_prova"
+      ]
+    },
+    {
+      "id": "AE-M43",
+      "guarda": "passou do limite de paginas nao prova",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "            return True\n    return False\n\n\ndef bateria_do_run_do_pr",
+      "para": "            return True\n    return True\n\n\ndef bateria_do_run_do_pr",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_pr_empilhado_do_mesmo_ramo_ja_mesclado_ou_fechado_nao_prova"
+      ]
+    },
+    {
+      "id": "AE-M44",
+      "guarda": "a prova consulta a lista de PRs do ramo",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "        if not prs_do_ramo_so_para_develop(repo, ramo, ler):\n            continue",
+      "para": "        if False:\n            continue",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_pr_empilhado_do_mesmo_ramo_ja_mesclado_ou_fechado_nao_prova"
+      ]
+    },
+    {
+      "id": "AE-M45",
+      "guarda": "a lista inclui os PRs fechados (state=all)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "\"state\": \"all\", \"per_page\": 100, \"page\": pagina",
+      "para": "\"state\": \"open\", \"per_page\": 100, \"page\": pagina",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_pr_empilhado_do_mesmo_ramo_ja_mesclado_ou_fechado_nao_prova"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1; R-CONFORMIDADE): sondas s1 e s3: scripts/ da raiz segue fora (não roda sozinho fora do sandbox).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    ".githooks/pre-push": "#!/bin/sh\n",
+    ".githooks/commit-msg": "#!/bin/sh\n",
+    ".devcontainer/devcontainer.json": "{}\n",
+    "scripts/x.sh": "#!/bin/sh\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/proj/scripts/x.sh",
+      "content": "x\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:devops-engineer"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

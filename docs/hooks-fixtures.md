@@ -133,6 +133,7 @@ O corpus de `tests/hooks/<hook>/<caso>.json` roda em `tests/test_hooks.py` (ADR 
 - `push-*`
 - `r10-*`
 - `r7-*`
+- `raiz-*`
 - `regra-*`
 - `rm-*`
 - `rotulo-*`
@@ -162,6 +163,13 @@ O corpus de `tests/hooks/<hook>/<caso>.json` roda em `tests/test_hooks.py` (ADR 
 
 - `abrir-*`
 - `erro-*`
+- `sem-*`
+
+## `estado`
+
+- `erro-*`
+- `outra-*`
+- `outro-*`
 - `sem-*`
 
 ## `meta`
@@ -195,6 +203,15 @@ O corpus de `tests/hooks/<hook>/<caso>.json` roda em `tests/test_hooks.py` (ADR 
 - `sessionstart-*`
 - `teto-*`
 - `vazio-*`
+
+## `ordens_teto`
+
+- `bloqueia-*`
+- `dentro-*`
+- `erro-*`
+- `outra-*`
+- `outro-*`
+- `sem-*`
 
 ## `parecer`
 

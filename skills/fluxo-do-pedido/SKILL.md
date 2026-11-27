@@ -44,7 +44,7 @@ O Jarvis pergunta o que é da pessoa (produto, escopo, custo, risco), sem jargã
 **Ritmo:** `forge ritmo`; regra 12 de `docs/economia-de-tokens.md`.
 
 ## Versão
-**Versão marcada a cada dia (diretriz 21):** a versão é só a marca; uma vez por dia o `tech-lead` marca na `develop` o que entrou, leva à `homolog` e entrega ao dono o PR para a `main`, sem esperar o pedido inteiro.
+**Versão com 20 itens (diretriz 34):** a versão é só a marca. Com 20 itens integrados na `develop`, o `tech-lead` marca, promove à `homolog` e abre o PR para a `main`; o Jarvis avisa o dono numa linha.
 
 ## Fábrica × projeto
 Toda melhoria do time vale para o Forge e para todos os projetos que o usam, salvo ordem do dono: vai ao Forge o que muda **como o time desenvolve**; fica no projeto o que é do sistema. Melhoria de fábrica vista **em qualquer projeto** → skill `contribuir-com-o-forge`. **Todos os projetos usam só a `main` do Forge.** **Autonomia para melhorar o Forge e os projetos (concedida pelo usuário):** melhoria que passa na entrada direta (`R-DECISAO`) vira cartão no repositório certo; uma mudança que tenha as duas partes vira **dois PRs**.

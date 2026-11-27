@@ -1,0 +1,87 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "CI-M1",
+      "guarda": "o e2e de instalação roda uma vez, no job da instalação do 3.14",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "      - name: Instala o Forge num projeto vazio e inicializa (Python 3.14)\n        run: bash tests/e2e-instalacao.sh",
+      "para": "      - name: Instala o Forge num projeto vazio e inicializa (Python 3.14)\n        run: true",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_f6_o_pr_roda_a_suite_uma_vez"
+      ]
+    },
+    {
+      "id": "CI-M2",
+      "guarda": "o cartão abre com qualquer job do diário vermelho, pulado ou cancelado (always)",
+      "arquivo": ".github/workflows/diario.yml",
+      "de": "    if: always() && (needs.suite-quatorze",
+      "para": "    if: (needs.suite-quatorze",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_f6_diario_roda_o_que_saiu_do_pr_na_develop_e_abre_o_cartao"
+      ]
+    },
+    {
+      "id": "CI-M3",
+      "guarda": "o diário só escreve em issues",
+      "arquivo": ".github/workflows/diario.yml",
+      "de": "      issues: write  # só gh issue create e comment",
+      "para": "      issues: write  # só gh issue create e comment\n      contents: write",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_f6_diario_roda_o_que_saiu_do_pr_na_develop_e_abre_o_cartao"
+      ]
+    },
+    {
+      "id": "CI-M4",
+      "guarda": "a fatia só lê como pendente a linha que não é comentário",
+      "arquivo": ".github/workflows/diario.yml",
+      "de": "and not linha.startswith(\"#\"):",
+      "para": "and linha.startswith(\"#\"):",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_f6_diario_roda_uma_spec_por_chamada_sem_os_pendentes_conhecidos"
+      ]
+    },
+    {
+      "id": "CI-M5",
+      "guarda": "a fatia pega só a spec do dia (índice dia % 30)",
+      "arquivo": ".github/workflows/diario.yml",
+      "de": "if i % 30 != dia % 30:",
+      "para": "if i % 30 == dia % 30:",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_f6_diario_roda_uma_spec_por_chamada_sem_os_pendentes_conhecidos"
+      ]
+    },
+    {
+      "id": "CI-M6",
+      "guarda": "os mutantes pendentes saem da fatia",
+      "arquivo": ".github/workflows/diario.yml",
+      "de": "if m[\"id\"] not in fora]",
+      "para": "if m[\"id\"] in fora]",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_f6_diario_roda_uma_spec_por_chamada_sem_os_pendentes_conhecidos"
+      ]
+    },
+    {
+      "id": "CI-M7",
+      "guarda": "spec sem mutante a rodar não vai à fatia",
+      "arquivo": ".github/workflows/diario.yml",
+      "de": "              if ids:\n",
+      "para": "              if not ids:\n",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_f6_diario_roda_uma_spec_por_chamada_sem_os_pendentes_conhecidos"
+      ]
+    },
+    {
+      "id": "CI-M8",
+      "guarda": "--ids só aparece quando há pendente da spec",
+      "arquivo": ".github/workflows/diario.yml",
+      "de": "if fora else \"\"",
+      "para": "if not fora else \"\"",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_f6_diario_roda_uma_spec_por_chamada_sem_os_pendentes_conhecidos"
+      ]
+    }
+  ],
+  "isentas": []
+}

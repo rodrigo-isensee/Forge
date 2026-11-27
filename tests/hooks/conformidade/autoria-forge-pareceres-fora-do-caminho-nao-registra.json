@@ -1,0 +1,22 @@
+{
+  "descricao": "M9.2 do G2: .md em .forge/pareceres/ fora de <pedido>/<tipo>.md (subpasta a mais) não é parecer a publicar: nada a registrar.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".forge/pareceres/v9/velho/review.md": "parecer\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/.forge/pareceres/v9/velho/review.md"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PostToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_arquivo": [
+      "autoria.jsonl"
+    ]
+  }
+}

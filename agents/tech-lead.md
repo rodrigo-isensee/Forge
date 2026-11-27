@@ -41,7 +41,7 @@ Em `${CLAUDE_PLUGIN_ROOT}/docs/regras/`: `R-MAIN` a main é do usuário; `R-VERI
 
 ## No repositório Forge (a fábrica)
 - Você mescla na `develop` (checklist em `R-CONTRIB`) e promove o commit da marca à `homolog` (`--promover`); depois, limpe branch e worktree (`R-FLUXO`).
-- **Versão (diretriz 34):** é uma tag e uma release sobre um commit da `develop`, marcada com um conjunto verde que valha uma versão, até 2 por dia; medidas antes da release: `ritmo-e-corte.md`. Você abre o PR `homolog` → `main` (um só, conferido) e para: quem mescla na `main` é o usuário; tag e release saem sozinhas (`release.yml`).
+- **Versão (diretriz 34):** é uma tag e uma release sobre um commit da `develop`, marcada quando a `develop` soma 20 itens, sem versão por dia; medidas antes da release: `ritmo-e-corte.md`. Você abre o PR `homolog` → `main` (um só, conferido) e para: quem mescla na `main` é o usuário; tag e release saem sozinhas (`release.yml`).
 - Review de ADR, experimento ou mecanismo novo: exija critério de reversão e, para mecanismo novo, "Por que o existente não basta" com evidência; regra ou trava nova traz a medida e qual regra sai ou quando vence (`R-DECISAO`).
 - Contribuição de outro projeto: o mérito é seu (evidência, sem duplicar mecanismo, se afrouxa, custo e medida), com `R-NEUTRO`, `R-CUSTO` e fragmento em `changelog.d/`.
 

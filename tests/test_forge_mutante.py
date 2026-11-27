@@ -1564,6 +1564,17 @@ class ConferirTodas(unittest.TestCase):
         self.assertEqual(sorted(achados - pendentes), [], "spec com o `de` fora da fonte atual: alinhe-a no mesmo commit que muda a linha")
         self.assertEqual(sorted(pendentes - achados), [], "a spec já confere: tire-a de tests/fixtures/mutantes-pendentes.txt")
 
+    def test_os_ids_da_spec_do_f6_nao_repetem_os_de_outra_spec_do_pedido(self):  # S1 do review 7cb7879 (v0481 E32.1)
+        """`forge-mutante <spec do F6> <outra spec do v0481>` recusava `id de mutante repetido entre as specs` (rc 2)."""
+        ids = {}
+        for spec in sorted((RAIZ / "tests" / "mutantes").glob("v0481-*.json")):
+            ids[spec.name] = {m["id"] for m in json.loads(spec.read_text(encoding="utf-8"))["mutantes"]}
+        proprios = ids.pop("v0481-f6-ci-uma-vez.json")
+        self.assertLessEqual(len(proprios), 8)  # V2: acima de 8, abre um -2.json
+        for nome, outros in ids.items():
+            with self.subTest(nome):
+                self.assertEqual(sorted(proprios & outros), [])
+
 
 PLACAR = RAIZ / "scripts" / "placar-mutacao.py"
 # `forge-mutante` falso: anota a chamada, recusa sem `--` e pedido misto (como o de verdade) e imprime uma linha por classe.
@@ -1948,6 +1959,29 @@ class LimiteDosModulos(unittest.TestCase):
                     mock.patch("sys.stderr", new_callable=io.StringIO) as saida:
                 self.assertEqual(f.modulos_listados(["bin/forge-lib"]), set())
                 self.assertIn("forge-testes --listar falhou", saida.getvalue())
+
+
+class CoberturaDoPedidoInteiro(unittest.TestCase):
+    """Sonda S1 da segurança (v0481, 5da1505, A1): `python3 tests/catraca.py --base 3c833f3f1ba1e9770b8e5b10e7a1b0ed588d161f`
+    dava rc 1 pela guarda `__main__` do hook novo sem mutante. A análise da regra das guardas da catraca
+    (`analisar_com_textos`) sobre cada arquivo das specs do pedido, inteiro como novo: toda condição coberta, sem git."""
+
+    def test_toda_condicao_dos_arquivos_das_specs_v0481_s1_gancho_coberta(self):
+        fm = carregar()
+        mutantes, isentas = [], []
+        for spec in sorted((RAIZ / "tests" / "mutantes").glob("v0481-s1-gancho*.json")):
+            dados = json.loads(spec.read_text(encoding="utf-8"))
+            mutantes += [(spec.name, m) for m in dados["mutantes"]]
+            isentas += dados.get("isentas", [])
+        arquivos = sorted({m["arquivo"] for _spec, m in mutantes})
+        self.assertGreaterEqual(len(mutantes), 16)
+        for arquivo in arquivos:
+            texto = (RAIZ / arquivo).read_text(encoding="utf-8")
+            hunks = [(range(0, 0), range(1, texto.count("\n") + 2))]
+            saida, _textos = fm.analisar_com_textos(arquivo, hunks, "", texto, mutantes, isentas, set())
+            with self.subTest(arquivo=arquivo):
+                self.assertGreaterEqual(len(saida), 11)
+                self.assertEqual([x for x in saida if not x.startswith("coberta · ")], [])
 
 
 if __name__ == "__main__":

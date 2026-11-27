@@ -41,12 +41,13 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `forge_disco.py` | o uso do disco e o limiar único da cópia de trabalho (MP6, v0474 E3.251). |
 | `forge_dono.py` | a conversa com o dono e entre sessões, gravada no disco (0.44.1). Só biblioteca padrão. |
 | `forge_dora.py` | DORA e vazão (0.45.7, TM-16): `forge-check dora`, só leitura, sem rede, só biblioteca padrão. |
+| `forge_estado.py` | `forge-check status` (S1a, v0481 E20.1): o estado da fábrica lido na hora, para o Jarvis nunca afirmar estado de memória. |
 | `forge_fontes.py` | `forge-check fontes` (FILA-31 F6, 0.45.7 E5.1): compara o commit mais recente de cada fonte do registro local |
 | `forge_governanca.py` | as medidas de governança do processo (0.43.1, frente H): `forge-check metricas` e `forge-check regras`. |
 | `forge_medidas.py` | `forge-check medida` (D12, E3a e E3b) e `forge-check escape registrar\|resumo` (M14b) (FILA-31 F6, 0.45.7 E5.5): a medida de um |
 | `forge_meta.py` | arma o objetivo que o hook de Stop (hooks/meta.py) confere (S4, 0.44.2). Só biblioteca padrão. |
 | `forge_onde.py` | `forge-check onde <alvo>` (AE1.1, v0478 E58.1): onde está uma versão, um PR, um commit, uma branch ou um cartão, lido |
-| `forge_pareceres.py` | G2.1 (pedido v0481, ADR 0019): só a escrita do parecer de portão como comentário do PR e status do commit, pelo `gh` da sessão |
+| `forge_pareceres.py` | G2.1 (pedido v0481, ADR 0019): a escrita do parecer de portão como comentário do PR e status do commit, pelo `gh` da sessão |
 | `forge_pronto.py` | `forge-check pronto`, o portão de entrega do autor (D2-PORTAO-ENTREGA-AUTOR, v0481 E11.1; estudo determinístico de 24/11). |
 | `forge_provas.py` | o arquivo de provas da branch, gerado do brief pela lista do script que o CI roda (M15 E5a1; FILA-31 F6, 0.45.5). |
 | `forge_quarentena.py` | a quarentena de teste instável (BP1 Q1, pedido v0478). Só biblioteca padrão; só leitura. |
@@ -71,9 +72,11 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `conformidade.py` | conformidade dos agentes por papel (ADR 0009, seções 2, 3, 6 e 7; R-CONFORMIDADE). |
 | `decisao.py` | decisao (ANTI-ALUC-F4-HOOK-DECISAO, fatia L28a; v0478 E172.6) - avisa a mensagem ao dono com mais de uma decisão. |
 | `doutor.py` | doutor (primeiro uso, F3) - roda as conferências rápidas do `forge doutor` ao abrir a sessão e uma vez por dia. |
+| `estado.py` | estado (S1 segunda parte, v0481 E20.11; emenda "estado na pergunta do dono" da ADR 0003) - o estado pela ferramenta. |
 | `hooks.json` | — |
 | `meta.py` | objetivo armado no Stop (S4) e medida da mensagem ao dono (S6), 0.44.2. Só biblioteca padrão. |
 | `ordens.py` | ordens (ORDENS-EM-VIGOR, v0478 E123.1; emenda "ordens em vigor" da ADR 0003) - reinjeta as ordens do dono. |
+| `ordens_teto.py` | ordens_teto (RECIBO-CONTADOR-PELO-HOOK, item 4; v0481 E20.11) - recusa gravar as ordens em vigor acima do teto. |
 | `parecer.py` | parecer de review e de QA antes de PR e de merge (ADR 0003, R-REVIEW, R-QA). |
 | `pesado.py` | tarefa pesada uma de cada vez (ADR 0003, R-TETO). |
 | `quadro.py` | quadro válido após edição (ADR 0003, R-WIP). |

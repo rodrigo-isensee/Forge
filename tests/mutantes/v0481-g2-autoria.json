@@ -1,0 +1,58 @@
+{
+  "pedido": "v0481-g2-autoria",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "M9.2 do G2: a pasta .forge/pareceres dispara a leitura da autoria",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(\"docs\", \"security\"), (\".forge\", \"pareceres\"))",
+      "para": "(\"docs\", \"security\"))",
+      "testes": [
+        "tests.test_conformidade_pareceres.AutoriaDoPublicar.test_autoria_registra_forge_pareceres",
+        "tests.test_conformidade_pareceres.AutoriaDoPublicar.test_ponta_a_ponta_publica_com_autoria_do_hook"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "M9.2 do G2: só .forge/pareceres/<pedido>/<tipo>.md é registrado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or PARECER_A_PUBLICAR.fullmatch(rel):",
+      "para": "or True:",
+      "testes": [
+        "tests.test_conformidade_pareceres.AutoriaDoPublicar.test_fora_de_pedido_e_tipo_nao_registra"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "M9.2 do G2: o tipo é um nome só, sem subpasta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "[A-Za-z0-9][A-Za-z0-9._-]*/[a-z-]+\\.md\")",
+      "para": "[A-Za-z0-9][A-Za-z0-9._-]*/.+\\.md\")",
+      "testes": [
+        "tests.test_conformidade_pareceres.AutoriaDoPublicar.test_fora_de_pedido_e_tipo_nao_registra"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "M9.2 do G2: o registro leva o papel de quem gravou",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"agente\": hook.entrada.get(\"agent_type\") or \"\", \"papel\": guarda.papel,",
+      "para": "\"agente\": hook.entrada.get(\"agent_type\") or \"\", \"papel\": \"tech-lead\",",
+      "testes": [
+        "tests.test_conformidade_pareceres.AutoriaDoPublicar.test_caminho_por_papel_em_forge_pareceres",
+        "tests.test_conformidade_pareceres.AutoriaDoPublicar.test_ponta_a_ponta_recusa_autoria_de_outro_papel"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "M9.2 do G2: o filtro da pasta lê todas as pastas de autoria, .forge/pareceres também",
+      "arquivo": "hooks/conformidade.py",
+      "de": "not any(par in PASTAS_DE_AUTORIA for par",
+      "para": "not any(par in PASTAS_DE_AUTORIA[:4] for par",
+      "testes": [
+        "tests.test_conformidade_pareceres.AutoriaDoPublicar.test_autoria_registra_forge_pareceres"
+      ]
+    }
+  ]
+}

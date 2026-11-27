@@ -1,0 +1,66 @@
+{
+  "pedido": "v0481-f5-tamanho-1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "F5.1: arquivo acima do teto é dividido por função",
+      "arquivo": "bin/forge-check",
+      "de": "        if linhas <= tamanho.TETO_DE_LINHAS_DE_CODIGO:\n            unidades +=",
+      "para": "        if True:\n            unidades +=",
+      "testes": [
+        "tests.test_forge_tamanho.NaAbertura.test_arquivo_grande_divide_por_funcao_e_binario_fica_fora"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "F5.1: só código entra no corte (e_codigo na soma de cada arquivo)",
+      "arquivo": "bin/forge-check",
+      "de": "linhas_de_codigo({nome: contagem}, e_codigo)",
+      "para": "linhas_de_codigo({nome: contagem}, lambda _: True)",
+      "testes": [
+        "tests.test_forge_tamanho.NaAbertura.test_fronteira_150_passa_e_151_recusa"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "F5.1: binário (sem linhas) não entra no corte",
+      "arquivo": "bin/forge-check",
+      "de": "unidades += [(nome, linhas)] if linhas else []",
+      "para": "unidades += [(nome, linhas)] if True else []",
+      "testes": [
+        "tests.test_forge_tamanho.NaAbertura.test_arquivo_grande_divide_por_funcao_e_binario_fica_fora"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "F5.1: o -U0 que falha tira o corte (a recusa sai sem ele)",
+      "arquivo": "bin/forge-check",
+      "de": "--\", nome)\n        if cod:\n            return None",
+      "para": "--\", nome)\n        if False:\n            return None",
+      "testes": [
+        "tests.test_forge_tamanho.NaAbertura.test_git_que_falha_recusa_e_o_corte_que_falha_sai_sem_ele"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "F5.1: o git que não lê o numstat recusa (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "    if numstat is None:\n        return f\"R-REVIEW: tamanho não conferido",
+      "para": "    if numstat is None and False:\n        return f\"R-REVIEW: tamanho não conferido",
+      "testes": [
+        "tests.test_forge_tamanho.NaAbertura.test_git_que_falha_recusa_e_o_corte_que_falha_sai_sem_ele"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "F5.1: o aviso do pr --previo traz o corte",
+      "arquivo": "bin/forge-check",
+      "de": "    if corte := corte_do_intervalo(raiz, b, ref or \"HEAD\", numstat):",
+      "para": "    if False and (corte := corte_do_intervalo(raiz, b, ref or \"HEAD\", numstat)):",
+      "testes": [
+        "tests.test_forge_tamanho.NaAbertura.test_aviso_do_pr_previo_traz_o_corte"
+      ]
+    }
+  ]
+}

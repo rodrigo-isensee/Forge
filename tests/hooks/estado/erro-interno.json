@@ -1,0 +1,17 @@
+{
+  "descricao": "HOOK-ERRO-LIBERA: erro ao rodar o forge-check status: sai 0, sem contexto, e a linha vai ao erros.log.",
+  "forcar": {
+    "onde": "status",
+    "como": "erro"
+  },
+  "entrada": {
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "prompt": "qual o estado?"
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "estado RuntimeError"
+  }
+}

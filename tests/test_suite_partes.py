@@ -583,8 +583,8 @@ class FiacaoDoCI(unittest.TestCase):
         return self.casar(r"(?m)^    name: (.*)$", self.job(job)).group(1)
 
     def test_partes_por_versao_rodam_o_script_em_cinco(self):  # CI-RAPIDO: 5 partes por unidade (eram 3 por módulo)
-        for job, versao in (("partes-doze", "3.12"), ("partes-quatorze", "3.14"),
-                            ("rapida-partes-doze", "3.12"), ("rapida-partes-quatorze", "3.14")):
+        # F6 (v0481 E32.1): a suíte inteira roda uma vez, no 3.12; o 3.14 só tem instalação e fumaça no PR (diario.yml roda o resto)
+        for job, versao in (("partes-doze", "3.12"), ("rapida-partes-doze", "3.12")):
             with self.subTest(job):
                 bloco = self.job(job)
                 self.assertIn("parte: [1, 2, 3, 4, 5]", bloco)
@@ -594,8 +594,7 @@ class FiacaoDoCI(unittest.TestCase):
 
     def test_agregadores_tem_o_nome_exigido_e_exigem_todas_as_partes(self):
         casos = {"agregador": ("bateria", {"bateria", "pareceres", "verificacoes", "partes-doze", "pulados-doze"}),
-                 "bateria-python-tres-quatorze": ("bateria (python 3.14)",
-                                                  {"partes-quatorze", "pulados-quatorze", "instalacao-quatorze"})}
+                 "bateria-python-tres-quatorze": ("bateria (python 3.14)", {"instalacao-quatorze"})}
         for job, (nome, necessarios) in casos.items():
             with self.subTest(job):
                 bloco = self.job(job)
@@ -613,7 +612,7 @@ class FiacaoDoCI(unittest.TestCase):
         self.assertEqual(nomes.count("bateria (python 3.14)"), 1)
 
     def test_cada_parte_publica_os_pulados_e_um_job_soma_contra_o_teto(self):  # T3
-        for versao in ("doze", "quatorze"):
+        for versao in ("doze",):
             with self.subTest(versao):
                 parte = self.job(f"partes-{versao}")
                 self.assertIn('FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json"', parte)
@@ -631,15 +630,13 @@ class FiacaoDoCI(unittest.TestCase):
             with self.subTest(job):
                 self.assertNotIn("run: python3 scripts/suite-paralela.py", bloco)
                 tem = "scripts/suite-partes.py --parte" in bloco
-                self.assertEqual(tem, job in ("partes-doze", "partes-quatorze", "rapida-partes-doze",
-                                              "rapida-partes-quatorze"))
+                self.assertEqual(tem, job in ("partes-doze", "rapida-partes-doze"))
 
     def test_rapidas_sao_a_prova_que_a_arvore_testada_le_com_o_preparo_das_partes(self):
         """SP4: o nome de cada agregador da develop é o JOBS_DE_PROVA de scripts/arvore-testada.py (test_arvore_testada
         confere o lado de lá); as pernas que ele exige rodam o mesmo preparo (env -a, histórico) das partes do PR."""
-        nomes = {"3.12": "checagem rápida (push na develop)", "3.14": "checagem rápida (push na develop, python 3.14)"}
-        for job, perna, teto, versao in (("rapida", "rapida-partes-doze", "rapida-pulados-doze", "3.12"),
-                                         ("rapida-quatorze", "rapida-partes-quatorze", "rapida-pulados-quatorze", "3.14")):
+        nomes = {"3.12": "checagem rápida (push na develop)"}
+        for job, perna, teto, versao in (("rapida", "rapida-partes-doze", "rapida-pulados-doze", "3.12"),):
             with self.subTest(job):
                 self.assertEqual(self.nome(job), nomes[versao])
                 bloco = self.job(perna)
@@ -654,26 +651,51 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertIn("parte ${{ matrix.parte }}/5", self.nome(perna))
 
     def test_agregador_da_develop_exige_as_cinco_pernas_e_o_teto_sem_rodar_codigo(self):  # CI-RAPIDO, S1 e A1
-        for job, perna, teto in (("rapida", "rapida-partes-doze", "rapida-pulados-doze"),
-                                 ("rapida-quatorze", "rapida-partes-quatorze", "rapida-pulados-quatorze")):
+        for job, perna, teto in (("rapida", "rapida-partes-doze", "rapida-pulados-doze"),):
             with self.subTest(job):
                 bloco = self.job(job)
                 needs = self.casar(r"(?m)^    needs: \[(.*)\]$", bloco).group(1)
-                self.assertEqual({n.strip() for n in needs.split(",")}, {perna, teto})
+                self.assertEqual({n.strip() for n in needs.split(",")}, {"arvore-envio", perna, teto})
                 self.assertRegex(bloco, r"(?m)^    if: always\(\) && github.event_name == 'push' && "
                                         r"github.ref == 'refs/heads/develop'$")
-                self.assertEqual(bloco.count("= success ]"), 2)
-                for necessario in (perna, teto):
+                # F6: sem a prova do PR, as duas pernas em success; com a prova (e o job dela em success), as duas puladas
+                self.assertEqual(bloco.count("= success ]"), 3)
+                self.assertIn('[ "$ARVORE" = success ] || exit 1', bloco)
+                self.assertIn('[ "$PARTES" = skipped ] && [ "$PULADOS" = skipped ]', bloco)
+                for necessario in ("arvore-envio", perna, teto):
                     self.assertIn(f"${{{{ needs.{necessario}.result }}}}", bloco)
+                self.assertIn("${{ needs.arvore-envio.outputs.provada }}", bloco)
                 self.assertNotIn("uses:", bloco)  # A1: o agregador só lê needs.*.result
                 self.assertNotIn("scripts/", "\n".join(l for l in bloco.splitlines() if not l.lstrip().startswith("#")))
                 self.assertIn("permissions:\n      contents: read", bloco)
-                self.assertRegex(self.job(teto), rf"(?m)^    needs: \[{perna}\]$")  # o teto só roda com as 5 pernas verdes
+                self.assertRegex(self.job(teto), rf"(?m)^    needs: \[arvore-envio, {perna}\]$")  # o teto só roda com as 5 pernas verdes
                 self.assertIn('python3 scripts/suite-partes.py --somar-pulados 5 "$RUNNER_TEMP/pulados"', self.job(teto))
                 self.assertIn("pattern: pulados-rapida-", self.job(teto))
 
+    def test_f6_arvore_envio_so_le_a_prova_do_pr_e_as_pernas_da_develop_pulam_com_ela(self):
+        """F6 (v0481 E32.9): o job da prova do PR roda só no push na develop, só com leitura, com o token num passo só e o script
+        da develop (python -I); com `provada=true`, as 5 pernas e o teto de pulados ficam pulados (o job inteiro, sem gastar
+        runner), e o agregador `rapida` (outro teste) aceita essa combinação; sem a prova, erro ou falha do job, elas rodam."""
+        bloco = self.job("arvore-envio")
+        self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/develop'\n", bloco)
+        self.assertIn("permissions:\n      contents: read\n      actions: read", bloco)
+        self.assertEqual(re.findall(r"(?m)^      (\w[\w-]*): (\w+)", bloco.split("    permissions:\n", 1)[1].split("    runs-on", 1)[0]),
+                         [("contents", "read"), ("actions", "read"), ("pull-requests", "read")])
+        self.assertEqual(bloco.count("GH_TOKEN: ${{ github.token }}"), 1)
+        self.assertIn("persist-credentials: false", bloco)
+        self.assertIn("python3 -I scripts/arvore-testada.py --do-pr", bloco)
+        self.assertIn("provada: ${{ steps.prova.outputs.provada }}", bloco)
+        self.assertIn("timeout-minutes: 5", bloco)
+        for perna in ("rapida-partes-doze", "rapida-pulados-doze"):
+            with self.subTest(perna):
+                self.assertRegex(self.job(perna), r"(?m)^    needs: \[arvore-envio(, rapida-partes-doze)?\]$")
+                self.assertIn("&& needs.arvore-envio.outputs.provada != 'true'\n", self.job(perna))
+        self.assertNotIn("arvore-envio", self.job("partes-doze"))  # no PR a prova da develop é a do job `arvore`, outra
+        efetivo = "\n".join(l for l in self.texto.replace(bloco, "").splitlines() if not l.lstrip().startswith("#"))
+        self.assertNotIn("--do-pr", efetivo)  # só o arvore-envio chama o modo do PR
+
     def test_pernas_da_develop_publicam_os_pulados_e_o_download_so_le_o_run_corrente(self):  # S5, A4
-        for versao in ("doze", "quatorze"):
+        for versao in ("doze",):
             with self.subTest(versao):
                 perna, teto = self.job(f"rapida-partes-{versao}"), self.job(f"rapida-pulados-{versao}")
                 self.assertIn('FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json"', perna)
@@ -687,7 +709,7 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertIn("persist-credentials: false", teto)
 
     def test_o_n_das_matrizes_e_o_mesmo_nos_tres_lugares(self):  # S2 e A3: 4 matrizes, --parte K/N e --somar-pulados N
-        for versao in ("doze", "quatorze"):
+        for versao in ("doze",):
             for matriz, soma in ((f"partes-{versao}", f"pulados-{versao}"),
                                  (f"rapida-partes-{versao}", f"rapida-pulados-{versao}")):
                 with self.subTest(matriz):
@@ -699,17 +721,175 @@ class FiacaoDoCI(unittest.TestCase):
                     self.assertIn(f"/{n})", self.nome(matriz))
                     self.assertEqual(n, 5)
 
+    def test_f6_o_pr_roda_a_suite_uma_vez(self):
+        """F6 (v0481 E32.1): sem job da suíte no 3.14 (nem no PR nem no envio); o e2e de instalação roda uma vez, no job da
+        instalação do 3.14; os mutantes rodam no diario.yml, não no PR."""
+        for job in self.jobs:
+            self.assertNotIn("quatorze", job.replace("instalacao-quatorze", "").replace("bateria-python-tres-quatorze", ""))
+        self.assertNotIn('python-version: "3.14"', "\n".join(b for j, b in self.jobs.items() if j != "instalacao-quatorze"))
+        verificacoes = self.job("verificacoes")
+        self.assertNotIn("e2e-instalacao", verificacoes)  # roda uma vez, no instalacao-quatorze
+        self.assertIn("bash tests/e2e-instalacao.sh", self.job("instalacao-quatorze"))
+        self.assertNotIn("forge-mutante", self.texto)  # os mutantes rodam no diario.yml, não no PR
+
+    def test_f6_todo_workflow_tem_name_de_passo_entre_aspas_quando_tem_dois_pontos(self):
+        """A1 do review e do devops (7cb7879): `name:` com `: ` num escalar simples invalida o YAML e o GitHub não cria o CI."""
+        for arquivo in sorted((RAIZ / ".github" / "workflows").glob("*.yml")):
+            for n, linha in enumerate(arquivo.read_text(encoding="utf-8").splitlines(), 1):
+                valor = re.match(r"^\s*(?:- )?name:\s+(\S.*?)\s*$", linha)
+                if valor and not valor.group(1).startswith(('"', "'")):
+                    self.assertNotRegex(re.sub(r"\s#.*$", "", valor.group(1)), r": |:$", f"{arquivo.name}:{n}: {linha.strip()}")
+
+    def test_f6_diario_roda_o_que_saiu_do_pr_na_develop_e_abre_o_cartao(self):
+        """F6: o que saiu do PR (suíte no 3.14, e2e no 3.12, mutantes) roda uma vez por dia na develop, sem escrever no código;
+        só o job `cartao` escreve, e só em issues."""
+        diario = (RAIZ / ".github" / "workflows" / "diario.yml").read_text(encoding="utf-8")
+        self.assertIn('cron: "17 5 * * *"', diario)
+        self.assertNotIn("pull_request", diario)
+        self.assertNotIn("continue-on-error", diario)
+        self.assertIn("ref: develop", diario)
+        self.assertEqual(diario.count("persist-credentials: false"), diario.count("actions/checkout@"))
+        self.assertIn('python-version: "3.14"', diario)
+        self.assertIn("bash tests/e2e-instalacao.sh", diario)
+        self.assertIn("forge-mutante", diario)
+        self.assertEqual(re.findall(r"(?m)^      (\w+): write", diario), ["issues"])
+        cartao = diario[diario.index("\n  cartao:"):]
+        self.assertIn("needs: [suite-quatorze, instalacao-doze, mutantes]", cartao)
+        self.assertIn("if: always() && ", cartao)
+        self.assertIn("gh issue create", cartao)
+        self.assertNotIn("actions/checkout", cartao)
+
+    def fatia_do_dia(self, pendentes, dia):
+        """Roda, numa árvore descartável com 30 specs, o programa que o diario.yml usa para escolher a fatia do dia; devolve
+        as linhas que ele imprime (a spec de índice dia%30 e, se houver pendentes dela, `--ids` com o resto)."""
+        diario = (RAIZ / ".github" / "workflows" / "diario.yml").read_text(encoding="utf-8")
+        inicio = diario.index("""<<'PY' > "$RUNNER_TEMP/fatia.txt"\n""") + len("""<<'PY' > "$RUNNER_TEMP/fatia.txt"\n""")
+        programa = "\n".join(l[10:] for l in diario[inicio:diario.index("\n          PY\n")].splitlines())
+        # o dia vai fixo ao programa (A16): ler date.today() aqui e no subprocesso discordaria na virada da meia-noite
+        self.assertIn("datetime.date.today()", programa)
+        programa = programa.replace("datetime.date.today()", f"datetime.date.fromordinal(datetime.date(2026, 1, 1).toordinal() + {dia - 1})")
+        with tempfile.TemporaryDirectory() as tmp:
+            raiz = Path(tmp)
+            (raiz / "tests" / "mutantes").mkdir(parents=True)
+            (raiz / "tests" / "fixtures").mkdir()
+            for n in range(30):
+                (raiz / "tests" / "mutantes" / f"s{n:02d}.json").write_text(json.dumps(
+                    {"pedido": "x", "mutantes": [{"id": "M1"}, {"id": "M2"}]}), encoding="utf-8")
+            (raiz / "tests" / "fixtures" / "mutantes-pendentes.txt").write_text(pendentes, encoding="utf-8")
+            r = subprocess.run([sys.executable, "-I", "-c", programa], cwd=raiz, capture_output=True, text=True, timeout=60, check=False)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout.splitlines()
+
+    def test_f6_diario_roda_uma_spec_por_chamada_sem_os_pendentes_conhecidos(self):
+        """A3 e A4 do review (7cb7879): o forge-mutante recusa (rc 2) id repetido entre as specs de uma chamada, então a fatia vai
+        uma spec por vez; os mutantes pendentes (a catraca de ConferirTodas) saem por --ids, e a issue avisa só quebra nova."""
+        dia = 331  # 2026-11-27 (o dia do ano; 331 % 30 = 1)
+        sobre = f"tests/mutantes/s{dia % 30:02d}.json"
+        self.assertEqual(self.fatia_do_dia("", dia), [sobre])
+        self.assertEqual(self.fatia_do_dia(f"# nota\n{sobre}: M1\ntests/mutantes/outra.json: M2\n", dia), [f"{sobre} --ids M2"])
+        self.assertEqual(self.fatia_do_dia(f"{sobre}: M1\n{sobre}: M2\n", dia), [])
+        diario = (RAIZ / ".github" / "workflows" / "diario.yml").read_text(encoding="utf-8")
+        self.assertNotIn("por_pedido", diario)
+        self.assertIn("python3 bin/forge-mutante $linha --processos 2", diario)
+
+    @staticmethod
+    def passo_do_diario(nome):
+        """O `run` do passo `nome` do diario.yml (sem o recuo do YAML), como o GitHub o entrega ao bash."""
+        diario = (RAIZ / ".github" / "workflows" / "diario.yml").read_text(encoding="utf-8")
+        i = diario.index(f"      - name: {nome}")
+        i = diario.index("        run: |\n", i) + len("        run: |\n")
+        linhas = []
+        for linha in diario[i:].splitlines():
+            if linha.strip() and not linha.startswith("          "):
+                break
+            linhas.append(linha[10:])
+        return "\n".join(linhas) + "\n"
+
+    @staticmethod
+    def jobs_do_diario():
+        diario = (RAIZ / ".github" / "workflows" / "diario.yml").read_text(encoding="utf-8")
+        blocos = re.split(r"(?m)^(?=  [a-z-]+:\n)", diario.split("\njobs:\n", 1)[1])
+        return {re.match(r"  ([a-z-]+):\n", b).group(1): b for b in blocos if re.match(r"  ([a-z-]+):\n", b)}
+
+    def rodar_passo(self, script, tmp, ambiente, caminho):
+        """Roda o `run` de um passo no bash como o GitHub (`-e -o pipefail`), com PATH e RUNNER_TEMP controlados."""
+        (tmp / "passo.sh").write_text(script, encoding="utf-8")
+        (tmp / "rt").mkdir(exist_ok=True)
+        env = {"PATH": f"{caminho}:/usr/bin:/bin", "HOME": str(tmp), "RUNNER_TEMP": str(tmp / "rt"),
+               "GITHUB_STEP_SUMMARY": str(tmp / "resumo.md"), **ambiente}
+        return subprocess.run(["bash", "--noprofile", "--norc", "-e", "-o", "pipefail", str(tmp / "passo.sh")], cwd=tmp, env=env,
+                              capture_output=True, text=True, timeout=60, check=False)
+
+    def test_f6_diario_mutante_vivo_reprova_o_job_e_so_ele(self):
+        """A1 do QA (cc91bc3): roda o passo dos mutantes com um `forge-mutante` falso; sem o `ruim=1` o job passaria com mutante
+        vivo e a issue nunca abriria. Fatia com spec que passa: rc 0; spec que falha: rc 1."""
+        for falha, rc in (("", 0), ("sim", 1)):
+            with self.subTest(falha=falha), tempfile.TemporaryDirectory() as tmp:
+                tmp = Path(tmp)
+                (tmp / "bin").mkdir()
+                (tmp / "bin" / "forge-mutante").write_text(
+                    "import os, sys\nsys.exit(1 if os.environ.get('FALHA') else 0)\n", encoding="utf-8")
+                (tmp / "tests" / "mutantes").mkdir(parents=True)
+                for n in range(30):
+                    (tmp / "tests" / "mutantes" / f"s{n:02d}.json").write_text(json.dumps(
+                        {"pedido": "x", "mutantes": [{"id": "M1"}]}), encoding="utf-8")
+                (tmp / "py").mkdir()
+                (tmp / "py" / "python3").symlink_to(sys.executable)
+                r = self.rodar_passo(self.passo_do_diario("Mutantes da fatia"), tmp, {"FALHA": falha}, str(tmp / "py"))
+                self.assertEqual(r.returncode, rc, r.stdout + r.stderr)
+                if falha:
+                    self.assertIn("mutante vivo ou inválido em: tests/mutantes/s", r.stdout)
+
+    def test_f6_diario_cada_job_le_a_develop_e_a_suite_tem_cinco_partes(self):
+        """A1 do QA: `ref: develop` em cada checkout (sem ele o diário testaria a branch padrão), matriz de 5 partes casando com o
+        `--parte "$PARTE/5"` e o rótulo `/5`, e cada job com `timeout-minutes`."""
+        jobs = self.jobs_do_diario()
+        self.assertEqual(sorted(jobs), ["cartao", "instalacao-doze", "mutantes", "suite-quatorze"])
+        for nome in ("suite-quatorze", "instalacao-doze", "mutantes"):
+            with self.subTest(nome):
+                self.assertRegex(jobs[nome], r"actions/checkout@\S+ # \S+\n        with:\n          ref: develop\n")
+                self.assertEqual(jobs[nome].count("ref: develop"), jobs[nome].count("actions/checkout@"))
+        for nome, bloco in jobs.items():
+            self.assertRegex(bloco, r"(?m)^    timeout-minutes: \d+$", nome)
+        suite = jobs["suite-quatorze"]
+        self.assertEqual(self.casar(r"(?m)^        parte: \[(.*)\]$", suite).group(1), "1, 2, 3, 4, 5")
+        self.assertEqual(re.findall(r'--parte "\$PARTE/(\d+)"', suite), ["5"])
+        self.assertIn("/5)", self.casar(r"(?m)^    name: (.*)$", suite).group(1))
+
+    def test_f6_diario_cartao_comenta_na_issue_aberta_e_so_abre_se_nao_ha(self):
+        """A2 do QA: roda o passo do cartão com um `gh` falso. Com issue aberta, comenta nela e não cria outra; sem, cria."""
+        for aberta, esperado in (("42", ["issue list", "issue comment 42"]), ("", ["issue list", "issue create"])):
+            with self.subTest(aberta=aberta), tempfile.TemporaryDirectory() as tmp:
+                tmp = Path(tmp)
+                (tmp / "fake").mkdir()
+                gh = tmp / "fake" / "gh"
+                gh.write_text('#!/bin/sh\necho "$1 $2 $3" >> "$LOG"\n[ "$2" = list ] && printf %s "$ABERTA"\nexit 0\n', encoding="utf-8")
+                gh.chmod(0o755)
+                amb = {"LOG": str(tmp / "log"), "ABERTA": aberta, "GH_TOKEN": "x", "REPO": "o/r", "RUN_URL": "u",
+                       "SUITE": "failure", "INSTALACAO": "success", "MUTANTES": "success"}
+                r = self.rodar_passo(self.passo_do_diario("Abre a issue"), tmp, amb, str(tmp / "fake"))
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                chamadas = [l.strip() for l in (tmp / "log").read_text(encoding="utf-8").splitlines()]
+                self.assertEqual([" ".join(c.split()[:3]) if c.startswith("issue comment") else " ".join(c.split()[:2])
+                                  for c in chamadas], esperado)
+
+    def test_f6_fumaca_do_python_3_14_roda_de_fato(self):
+        """A2 do QA: o passo da fumaça do job `instalacao-quatorze` roda os dois testes, e nada de `run: true` no lugar."""
+        bloco = self.job("instalacao-quatorze")
+        i = bloco.index('      - name: "Fumaça no Python 3.14')
+        passo = bloco[i:bloco.index("      - name:", i + 10)]
+        self.assertIn("        run: python3 -m unittest tests.test_forge.Neutralidade tests.test_forge.Referencias -v\n", passo)
+
     def test_partes_pulam_a_suite_so_com_a_arvore_provada(self):
-        """SP4 e M2: um job prévio único tira a prova (só com a dos dois Pythons); as 5 partes de cada versão dependem dele e o
+        """SP4 e M2: um job prévio único tira a prova (F6: só a do Python 3.12); as 5 partes dependem dele e o
         preparo e a suíte só rodam sem a prova (falha fechada). A prova no passo de cada perna dava o `outputs` da última perna."""
         arvore = self.job("arvore")
         passo = arvore[arvore.index("        id: arvore\n"):]
-        self.assertIn("          provada=false\n          if python3 scripts/arvore-testada.py --python 3.12 && "
-                      "python3 scripts/arvore-testada.py --python 3.14; then provada=true; fi\n", passo)
+        self.assertIn("          provada=false\n          if python3 scripts/arvore-testada.py --python 3.12; then provada=true; fi\n", passo)
         self.assertIn("      provada: ${{ steps.arvore.outputs.provada }}", arvore)
         self.assertIn("      actions: read", arvore)
         self.assertEqual(arvore.count("GH_TOKEN"), 1)
-        for job in ("partes-doze", "partes-quatorze"):
+        for job in ("partes-doze",):
             with self.subTest(job):
                 bloco = self.job(job)
                 self.assertRegex(bloco, r"(?m)^    needs: \[arvore, bateria\]$")  # A18: os passos baratos antes da suíte

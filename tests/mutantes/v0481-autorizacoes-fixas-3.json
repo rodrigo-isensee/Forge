@@ -3,30 +3,10 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M17",
-      "guarda": "AUTORIZACOES-FIXAS F3: o forge-check que falha não autoriza (e diz por quê)",
-      "arquivo": "bin/forge-fechar",
-      "de": "  saida=\"$(\"$check\" autorizacao ler --ato corte-diario)\" ||",
-      "para": "  saida=\"$(\"$check\" autorizacao ler --ato corte-diario)\" || true ||",
-      "testes": [
-        "tests.test_fechar_corte.CorteDiario.test_sem_corte_diario_ativa_ou_saida_fora_da_forma_nao_corta"
-      ]
-    },
-    {
-      "id": "M18",
-      "guarda": "AUTORIZACOES-FIXAS F3: saída do forge-check fora da forma positiva não autoriza",
-      "arquivo": "bin/forge-fechar",
-      "de": "  [[ \"$saida\" =~ ^autorizacao:",
-      "para": "  true || [[ \"$saida\" =~ ^autorizacao:",
-      "testes": [
-        "tests.test_fechar_corte.CorteDiario.test_sem_corte_diario_ativa_ou_saida_fora_da_forma_nao_corta"
-      ]
-    },
-    {
       "id": "M19",
       "guarda": "AUTORIZACOES-FIXAS F1: o limite reconhece o ato fixo",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "    fixo = campos[\"Ato\"] in FIXOS",
+      "de": "    fixo = campos[\"Ato\"] in SEM_PRAZO",
       "para": "    fixo = False",
       "testes": [
         "tests.test_autorizacao.AtosFixos.test_fixa_nao_vence_e_para_so_pela_retirada"
@@ -46,7 +26,7 @@
       "id": "M21",
       "guarda": "AUTORIZACOES-FIXAS F2: a leitura do texto reconhece o ato fixo",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "    fixo = ato in FIXOS",
+      "de": "    fixo = ato in SEM_PRAZO",
       "para": "    fixo = False",
       "testes": [
         "tests.test_autorizacao_gravar.AtosFixos.test_texto_limpo_grava_fixa_e_ativa_sem_vencer"
