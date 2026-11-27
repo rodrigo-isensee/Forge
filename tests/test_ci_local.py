@@ -581,7 +581,7 @@ class InstalacaoDoCliTest(unittest.TestCase):
     def test_toda_instalacao_global_do_cli_roda_o_instalador_do_binario_em_seguida(self):
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         linhas = [l.strip() for l in texto.splitlines() if "npm install -g" in l and "@anthropic-ai/claude-code@" in l]
-        # F6: o e2e roda uma vez (instalacao-quatorze); as outras: validação do plugin e portão das provas
+        # F6: o e2e roda uma vez (instalacao-quatorze); a outra instalação é a da validação do plugin
         self.assertEqual(len(linhas), 2, "as duas instalações do CLI (e2e no 3.14, validação do plugin)")
         for linha in linhas:
             instalar, _, resto = linha.partition("npm install -g")

@@ -1,13 +1,13 @@
 name: CI
 
-# Pull request: a suíte inteira em 5 partes paralelas por versão de Python, divididas por unidade de teste e não por módulo
-# (CI-RAPIDO, v047; jobs "suíte (python X, parte K/5)", pelo
-# scripts/suite-partes.py, o mecanismo do scripts/suite-paralela.py), os demais passos da bateria num job (bateria (passos))
-# e um job agregador por versão com o nome do check exigido ("bateria" e "bateria (python 3.14)"), que só passa com todas
-# as partes e passos verdes (SUITE-NO-CI, decisão do dono de 2026-11-08: a suíte inteira roda uma vez, no CI). Push na
-# develop: a mesma suíte inteira em 5 partes por Python (jobs "suíte (push na develop, python X, parte K/5)", um teto de pulados
-# por Python em job próprio e os agregadores "rapida" e "rapida-quatorze", de nome fixo, que só passam com as 5 partes e o teto; o
-# mecanismo é o do scripts/suite-paralela.py, com o mesmo preparo do PR) e são a prova da develop. Cada parte verde grava o
+# Pull request: a suíte inteira roda uma vez, no Python 3.12, em 5 partes paralelas divididas por unidade de teste e não por módulo
+# (F6 v0481, CI-RAPIDO v047; jobs "suíte (python 3.12, parte K/5)", pelo scripts/suite-partes.py, o mecanismo do
+# scripts/suite-paralela.py), os demais passos da bateria num job (bateria (passos)) e um job agregador por versão com o nome do
+# check exigido: "bateria" junta as partes e os passos; "bateria (python 3.14)" junta a instalação e a fumaça no 3.14 (SUITE-NO-CI,
+# decisão do dono de 2026-11-08: a suíte inteira roda uma vez, no CI; a suíte no 3.14 e os mutantes rodam por dia, no diario.yml).
+# Push na develop: a mesma suíte inteira em 5 partes no 3.12 (jobs "suíte (push na develop, python 3.12, parte K/5)", um teto de
+# pulados em job próprio e o agregador "rapida", de nome fixo, que só passa com as 5 partes e o teto; o mecanismo é o do
+# scripts/suite-paralela.py, com o mesmo preparo do PR) e é a prova da develop. Cada parte verde grava o
 # tempo por unidade em anotação do check run, que scripts/pesos-do-ci.py lê pela API para refazer os pesos. Promoção (PR develop -> homolog e homolog -> main, push
 # na homolog e na main): o job prévio único "árvore" roda scripts/arvore-testada.py (SP4, EST-M7, M2) e as partes pulam a suíte
 # só com a prova de verdade: um commit do HEAD com a MESMA árvore (tree-sha) e o job "checagem rápida" daquele commit em success na develop;
@@ -32,48 +32,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  arvore-envio:
-    name: árvore já provada no PR (push na develop)
-    # F6 (v0481 E32.1): o envio na develop não repete a suíte de um head que já passou no PR. scripts/arvore-testada.py --do-pr
-    # só dá rc 0 com o PR mesclado neste commit, a mesma árvore do head, o head descendente da develop anterior (o merge testado
-    # no PR tinha a árvore do head) e o check "bateria" do head em success. Sem prova, a suíte roda inteira (falha fechada).
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-    permissions:
-      contents: read
-      actions: read
-      checks: read  # o check "bateria" do head do PR
-      pull-requests: read  # os PRs ligados ao commit
-    runs-on: ubuntu-26.04
-    timeout-minutes: 5
-    outputs:
-      provada: ${{ steps.arvore.outputs.provada }}
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.12"
-      - name: Árvore já provada no PR (o token só neste passo)
-        id: arvore
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          EVENTO: ${{ github.event_name }}
-          REF: ${{ github.ref }}
-          SHA: ${{ github.sha }}
-        run: |
-          provada=false
-          if python3 -I scripts/arvore-testada.py --do-pr; then provada=true; fi
-          echo "provada=$provada" >> "$GITHUB_OUTPUT"
-          echo "árvore provada no PR: $provada" >> "$GITHUB_STEP_SUMMARY"
-
   rapida-partes-doze:
     name: suíte (push na develop, python 3.12, parte ${{ matrix.parte }}/5)
     # CI-RAPIDO (v047): um quinto da suíte inteira por job (LPT por unidade sobre tests/pesos-d4.json, a mesma divisão do PR). O
     # agregador "checagem rápida (push na develop)" (a prova que scripts/arvore-testada.py lê) exige as 5 pernas e o teto de pulados.
-    # F6: com a árvore já provada no PR a suíte não roda de novo
-    needs: [arvore-envio]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     permissions:
       contents: read
@@ -92,7 +54,6 @@ jobs:
         with:
           python-version: "3.12"
       - name: env com -a (uutils-coreutils do apt; prova viva de 20 formas do lançador)
-        if: needs.arvore-envio.outputs.provada != 'true'
         run: |
           # uutils-coreutils do apt do runner (universe, sem custo): o env do runner pode recusar `-a`/`--argv0` (era o GNU env 9.4
           # do ubuntu-24.04; o README da imagem 26.04 lista coreutils 9.5-1ubuntu2+0.0.0~ubuntu25, o pacote de transição para o
@@ -118,7 +79,6 @@ jobs:
           [ "$("$gnu" --s 'echo a  b')" = "a b" ] || { echo "o $gnu não divide --s como o GNU"; exit 1; }
           env --version | head -1
       - name: Testes do Forge (parte)
-        if: needs.arvore-envio.outputs.provada != 'true'
         env:
           PARTE: ${{ matrix.parte }}
         run: |
@@ -126,18 +86,17 @@ jobs:
           python3 --version
           FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json" python3 scripts/suite-partes.py --parte "$PARTE/5" 2>&1 | tee "$RUNNER_TEMP/suite.log"
       - name: Falhas no resumo (teste, módulo, linha e erro de cada falha)
-        if: ${{ !cancelled() && needs.arvore-envio.outputs.provada != 'true' }}
+        if: ${{ !cancelled() }}
         env:
           ROTULO: checagem rápida (python 3.12), parte ${{ matrix.parte }}/5
         run: python3 -I scripts/falhas-no-resumo.py "$ROTULO" "$RUNNER_TEMP/suite.log"
       - name: Recusas por carga no resumo (PRAZO-CARGA do test_prazo_do_merge; só conta, não reprova)
-        if: ${{ !cancelled() && needs.arvore-envio.outputs.provada != 'true' }}
+        if: ${{ !cancelled() }}
         run: |
           n=$(grep -c 'PRAZO-CARGA fixture=' "$RUNNER_TEMP/suite.log" 2>/dev/null || true)
           echo "recusas do vigia aceitas como carga (PRAZO-CARGA): ${n:-0}" >> "$GITHUB_STEP_SUMMARY"
           grep -o 'PRAZO-CARGA fixture=.*' "$RUNNER_TEMP/suite.log" 2>/dev/null | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY" || true
       - name: Pulados da parte para o teto (T3)
-        if: needs.arvore-envio.outputs.provada != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pulados-rapida-doze-${{ matrix.parte }}
@@ -149,7 +108,7 @@ jobs:
     name: teto de pulados (push na develop, python 3.12)
     # T3 e A1 do parecer de segurança: a soma dos pulados das 5 pernas contra teto_pulados de tests/config.json, em job próprio,
     # fora do agregador, que não roda código da branch. O download é só do run corrente (sem run-id nem token).
-    needs: [rapida-partes-doze, arvore-envio]
+    needs: [rapida-partes-doze]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     permissions:
       contents: read
@@ -163,14 +122,12 @@ jobs:
         with:
           python-version: "3.12"
       - name: Pulados das 5 partes (T3)
-        if: needs.arvore-envio.outputs.provada != 'true'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: pulados-rapida-doze-*
           merge-multiple: true
           path: ${{ runner.temp }}/pulados
       - name: Teto de pulados na soma das partes (T3)
-        if: needs.arvore-envio.outputs.provada != 'true'
         run: python3 scripts/suite-partes.py --somar-pulados 5 "$RUNNER_TEMP/pulados"
 
   rapida:
@@ -357,7 +314,7 @@ jobs:
           instalar() { npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296 && node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"; }
           instalar || { echo "instalação falhou (rede); uma segunda tentativa"; sleep 5; instalar; }
           claude --version
-      - name: Fumaça no Python 3.14 (F6: a suíte inteira roda no 3.12; aqui, a instalação e estes testes)
+      - name: "Fumaça no Python 3.14 (F6: a suíte inteira roda no 3.12; aqui, a instalação e estes testes)"
         run: python3 -m unittest tests.test_forge.Neutralidade tests.test_forge.Referencias -v
       - name: Instala o Forge num projeto vazio e inicializa (Python 3.14)
         run: bash tests/e2e-instalacao.sh
