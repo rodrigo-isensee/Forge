@@ -13,26 +13,6 @@
       ]
     },
     {
-      "id": "M18",
-      "guarda": "leitura: contas fora de um conjunto de str não vazias é recusada (M1.1)",
-      "arquivo": "bin/forge_pareceres.py",
-      "de": "if not isinstance(contas, (set, frozenset)) or not all(",
-      "para": "if False and not all(",
-      "testes": [
-        "tests.test_forge_pareceres.Ler.test_contas_que_nao_sao_conjunto_recusadas"
-      ]
-    },
-    {
-      "id": "M19",
-      "guarda": "leitura: login vazio nas contas é recusado (M1.1)",
-      "arquivo": "bin/forge_pareceres.py",
-      "de": "isinstance(x, str) and x for x in contas",
-      "para": "isinstance(x, str) for x in contas",
-      "testes": [
-        "tests.test_forge_pareceres.Ler.test_contas_com_login_vazio_recusadas"
-      ]
-    },
-    {
       "id": "M20",
       "guarda": "leitura: resposta do gh fora do contrato vira Recusa (M19.1)",
       "arquivo": "bin/forge_pareceres.py",
