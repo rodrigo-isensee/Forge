@@ -521,8 +521,8 @@ def saidas_do_passo(passo, arquivo):
 def pernas(job):
     """[(job, contexto da perna)]: uma por combinação de `strategy.matrix`, com `matrix.<chave>` no nome; sem matriz, uma."""
     matriz = job.get("matriz") or {}
-    if not matriz:  # o sufixo `${{ needs.<id>.outputs.* }}` do nome (E47.1, espera) some aqui: o nome é o do check exigido
-        return [({**job, "nome": expandir(job["nome"], {})}, {})]
+    if not matriz:  # o sufixo `${{ ... needs.<id>.outputs.espera ... }}` do nome (E47.1, E47.6) some aqui: o nome é o do check exigido
+        return [({**job, "nome": re.sub(r"\$\{\{.*?\}\}", "", job["nome"])}, {})]
     chaves = sorted(matriz)
     saida = []
     for combinacao in itertools.product(*(matriz[c] for c in chaves)):

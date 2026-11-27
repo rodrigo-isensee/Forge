@@ -57,7 +57,7 @@ jobs:
           python3 "$script" --base "$BASE" || rc=$?
           [ "$rc" = 3 ] || exit "$rc"
           ultimo=$(GH_TOKEN="$GITHUB_TOKEN" gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA/check-runs?check_name=catraca&per_page=100" --jq '[.check_runs[] | select(.app.slug == "github-actions")] | sort_by(.started_at) | last | if . == null then "nenhum" else .conclusion end') || { echo "espera: a API não leu o check catraca do head; vermelho (falha fechada)"; exit 1; }
-          [ "$ultimo" != success ] || { echo "espera: o head já tem catraca verde de outro run; vermelho para o verde velho não valer"; exit 1; }
+          case "$ultimo" in nenhum|failure|cancelled|timed_out|action_required|stale) ;; *) echo "espera: o último catraca do head está '$ultimo' (verde, pulado, neutro ou em andamento); vermelho para ele não valer"; exit 1;; esac
           echo "espera= (espera rótulo)" >> "$GITHUB_OUTPUT"
       - name: Texto do PR ("Projeto de origem", "Como medir") e código sem teste (T1)
         # Também o script da base (e o bin/forge-check ao lado dele), como o passo de regras: o PR não muda o próprio T1.
@@ -67,7 +67,8 @@ jobs:
         run: python3 "${CATRACA_DA_BASE:-tests/catraca.py}" --modo pr-texto --base "$(git rev-parse HEAD^1)"
 
   catraca:
-    name: catraca${{ needs.conferencia.outputs.espera }}
+    name: catraca${{ (needs.conferencia.result == 'success') && needs.conferencia.outputs.espera || '' }}
+    # E47.6: o sufixo só com a conferência em success; o T1 vermelho com o rótulo faltando fica vermelho no nome exato.
     # O check exigido. always(): conferência vermelha, cancelada ou pulada reprova este (pulado contaria como verde).
     needs: [conferencia]
     if: always()

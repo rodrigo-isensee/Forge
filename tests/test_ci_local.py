@@ -400,7 +400,7 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         """CI-ATALHO-COMMIT-SO-PARECER (A2 da E1.4): sem defeito, o gate segue no agregador `bateria`; o motivo fica no ci.yml."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         jobs = {j["id"]: j for j in ci.ler_jobs(texto)}
-        self.assertEqual(ci.expandir(jobs["agregador"]["nome"], {}), "bateria")
+        self.assertEqual(ci.pernas(jobs["agregador"])[0][0]["nome"], "bateria")  # E47.6: o sufixo da espera some no check local
         (gate,) = [p for p in jobs["bateria"]["passos"] if p["id"] == "gate"]
         self.assertIn('select(.name == "bateria" and .app.slug == "github-actions")', gate["run"])
         self.assertIn("CI-ATALHO-COMMIT-SO-PARECER", texto)
@@ -995,8 +995,8 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         self.assertEqual(upload["com"]["name"], "pulados-doze-${{ matrix.parte }}")
         (download,) = [p for p in jobs["pulados-doze"]["passos"] if p["uses"].startswith("actions/download-artifact@")]
         self.assertEqual(download["com"]["pattern"], "pulados-doze-*")
-        self.assertEqual((jobs["agregador"]["nome"], jobs["bateria-python-tres-quatorze"]["nome"]),
-                         ("bateria${{ needs.pareceres.outputs.espera }}", "bateria (python 3.14)"))  # E47.1: sufixo só na espera
+        self.assertEqual((ci.pernas(jobs["agregador"])[0][0]["nome"], jobs["bateria-python-tres-quatorze"]["nome"]),
+                         ("bateria", "bateria (python 3.14)"))  # E47.1: sufixo só na espera, que some no check local
 
     def test_artefato_da_perna_vai_ao_job_que_baixa_mesmo_reaproveitada(self):  # T3
         passos_parte = ("    strategy:\n      matrix:\n        parte: [1, 2]\n    steps:\n"
@@ -1160,15 +1160,21 @@ class EsperaAmarelaNosWorkflows(unittest.TestCase):
                 rc, saida, args = self.roda(arquivo, 3, "echo nenhum")
                 self.assertEqual((rc, saida), (0, f"espera={sufixo}\n"))
                 self.assertIn(f"check_name={check}&", args)
-                self.assertEqual(self.roda(arquivo, 3, "echo failure")[:2], (0, f"espera={sufixo}\n"))
-                self.assertEqual(self.roda(arquivo, 3, "echo success")[:2], (1, ""))
+                # E47.6 (A4 da segurança): só uma lista fechada de estados do último check do head vale como espera
+                for estado in ("failure", "cancelled", "timed_out", "action_required", "stale"):
+                    with self.subTest(arquivo=arquivo, estado=estado):
+                        self.assertEqual(self.roda(arquivo, 3, f"echo {estado}")[:2], (0, f"espera={sufixo}\n"))
+                for estado in ("success", "null", "skipped", "neutral", "", "in_progress"):
+                    with self.subTest(arquivo=arquivo, estado=estado):
+                        self.assertEqual(self.roda(arquivo, 3, f"echo {estado}")[:2], (1, ""))
                 self.assertEqual(self.roda(arquivo, 3, "exit 1")[:2], (1, ""))
 
     def test_check_exigido_tem_o_sufixo_da_saida_e_o_da_catraca_exige_a_conferencia(self):
         for arquivo, (job, check, _) in self.CASOS.items():
             with self.subTest(arquivo):
                 (agregador,) = [j for j in self.jobs(arquivo).values() if job in j["needs"] and j["nome"].startswith(check + "$")]
-                self.assertEqual(agregador["nome"], f"{check}${{{{ needs.{job}.outputs.espera }}}}")
+                self.assertTrue(agregador["nome"].endswith(f"&& needs.{job}.outputs.espera || '' }}}}"), agregador["nome"])
+                self.assertEqual(ci.pernas(agregador)[0][0]["nome"], check)
                 self.assertIn("always()", agregador["se"])
         (passo,) = self.jobs("catraca.yml")["catraca"]["passos"]
         for resultado, esperado in (("success", 0), ("failure", 1), ("cancelled", 1), ("skipped", 1), ("", 1)):
@@ -1176,6 +1182,20 @@ class EsperaAmarelaNosWorkflows(unittest.TestCase):
                 p = subprocess.run(["bash", "--noprofile", "--norc", "-e", "-c", passo["run"]],
                                    env={"PATH": "/usr/bin:/bin", "CONFERENCIA": resultado}, capture_output=True, text=True, timeout=30)
                 self.assertEqual(bool(p.returncode), bool(esperado))
+
+    def test_sufixo_so_com_todos_os_needs_verdes(self):
+        """E47.6 (A1 da segurança): com um `needs` do agregador fora de success, o nome é o exato (o defeito fica vermelho nele);
+        a condição do sufixo é avaliada pelo avaliador do ci-local, com cada `needs` reprovado de cada vez."""
+        for arquivo, (job, check, _) in self.CASOS.items():
+            (agregador,) = [j for j in self.jobs(arquivo).values() if job in j["needs"] and j["nome"].startswith(check + "$")]
+            m = re.fullmatch(rf"{check}\$\{{\{{ \((.+)\) && needs\.{job}\.outputs\.espera \|\| '' \}}\}}", agregador["nome"])
+            self.assertIsNotNone(m, agregador["nome"])
+            verdes = {f"needs.{n}.result": "success" for n in agregador["needs"]}
+            self.assertTrue(ci.avaliar_se(m.group(1), verdes))
+            for n in agregador["needs"]:
+                for resultado in ("failure", "cancelled", "skipped"):
+                    with self.subTest(arquivo=arquivo, need=n, resultado=resultado):
+                        self.assertFalse(ci.avaliar_se(m.group(1), {**verdes, f"needs.{n}.result": resultado}))
 
 
 if __name__ == "__main__":

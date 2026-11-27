@@ -4,10 +4,10 @@
   "mutantes": [
     {
       "id": "M1",
-      "guarda": "E47.1: só parecer ausente ou desatualizado marca a espera; reprovado segue defeito",
+      "guarda": "E47.6: só espera com cada linha do cmd_pr de parecer ausente ou desatualizado; reprovado é defeito",
       "arquivo": "tests/catraca.py",
-      "de": "    if all(LINHA_DE_ESPERA.search(l) for l in achados):",
-      "para": "    if True:",
+      "de": "    so_espera = all(linha_de_espera(l, caminhos) for l in achados)",
+      "para": "    so_espera = True",
       "testes": [
         "tests.test_catraca.EsperaNaoEVermelho.test_parecer_reprovado_e_defeito_sai_1"
       ]
@@ -29,14 +29,14 @@
       "de": "if not custo and not liberado and eventos is not None and TITULO_AFROUXA",
       "para": "if not custo and not liberado and TITULO_AFROUXA",
       "testes": [
-        "tests.test_catraca.EsperaNaoEVermelho.test_sem_eventos_da_api_e_vermelho_mesmo_com_o_titulo"
+        "tests.test_catraca.EsperaDoRotuloSoComAApiRespondendo.test_sem_eventos_sai_1_com_o_resto_respondendo"
       ]
     },
     {
       "id": "M4",
-      "guarda": "E47.1: o modo pareceres só sai 3 com todas as violações de espera",
+      "guarda": "E47.6: o modo pareceres só sai 3 com o booleano da espera (dado, não texto)",
       "arquivo": "tests/catraca.py",
-      "de": "    if a.modo == \"pareceres\" and viol and all(SO_ESPERA_PARECER in v for v in viol):",
+      "de": "    if a.modo == \"pareceres\" and viol and so_espera:",
       "para": "    if a.modo == \"pareceres\" and viol:",
       "testes": [
         "tests.test_catraca.EsperaNaoEVermelho.test_parecer_reprovado_e_defeito_sai_1"
@@ -64,10 +64,10 @@
     },
     {
       "id": "M7",
-      "guarda": "E47.1: no ci.yml, bateria já verde no head vira vermelho em vez de esperar",
+      "guarda": "E47.6: no ci.yml, só a lista fechada de estados do último bateria do head vale como espera",
       "arquivo": ".github/workflows/ci.yml",
-      "de": "          [ \"$ultimo\" != success ] || { echo \"espera: o head já tem bateria verde",
-      "para": "          [ \"$ultimo\" != xsuccess ] || { echo \"espera: o head já tem bateria verde",
+      "de": "stale) ;; *) echo \"espera: o último bateria do head",
+      "para": "stale|null|skipped|neutral) ;; *) echo \"espera: o último bateria do head",
       "testes": [
         "tests.test_ci_local.EsperaAmarelaNosWorkflows.test_espera_grava_o_sufixo_e_defeito_ou_verde_velho_fica_vermelho"
       ]

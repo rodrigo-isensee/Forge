@@ -152,8 +152,8 @@ NAO_LIBERAVEL = "o rótulo não libera esta violação"  # marca comum das viola
 # F1-ESPERA-NAO-E-VERMELHO (v0481 E47.1): rc 3 = só falta parecer ou rótulo; o workflow deixa o check exigido pendente
 # (amarelo, ainda barrando a junção). Defeito (teste, conflito, regra quebrada, parecer que reprova) segue no rc 1.
 ESPERA = 3
-SO_ESPERA_PARECER = "espera: só falta o parecer"  # marca da violação que é só espera (o _main a procura)
-LINHA_DE_ESPERA = re.compile(r": [a-z-]+: sem parecer (?:para o pedido|da branch) |: commit: desatualizado")
+SO_ESPERA_PARECER = "espera: só falta o parecer"  # texto para quem lê; a decisão é o booleano de pareceres_e_espera (E47.6)
+LINHA_DE_ESPERA = re.compile(r"^(?:(docs/[a-z]+): [a-z-]+: sem parecer (?:para o pedido|da branch) |(docs/[a-z]+/[^:\s]+\.md): commit: desatualizado)")
 TITULO_AFROUXA = re.compile(r"\[afrouxa-regra\b")
 
 
@@ -1916,7 +1916,7 @@ def liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono, motivos=None):
     return sem(motivos, f"sem PR rotulado com o mesmo arquivo (blob e modo) e a mesma violação para: {', '.join(sorted(pendentes))}")
 
 
-def liberado_por_pr_mesclado_ou_none(raiz, base, head, viol, fonte, dono):
+def liberado_por_pr_mesclado_ou_none(raiz, base, head, viol, fonte, dono, falhas=None):
     """`liberado_por_pr_mesclado`, mas git que estoura o prazo ou não executa vale como sem rótulo (M5), com mensagem; na promoção
     que não libera, imprime o motivo de cada PR candidato (antes a conferência voltava calada)."""
     motivos = []
@@ -1924,6 +1924,8 @@ def liberado_por_pr_mesclado_ou_none(raiz, base, head, viol, fonte, dono):
         prs = liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono, motivos)
     except FALHAS_DO_GIT as e:
         aviso(f"o git não terminou ({type(e).__name__})")
+        if falhas is not None:  # E47.6: o git que não terminou não vale como "falta o rótulo"
+            falhas.append("o git")
         return None
     if not prs and motivos:
         aviso(f"a conferência do PR mesclado não liberou ({' | '.join(motivos)})")
@@ -2081,12 +2083,30 @@ def violacao_de_fork(repo_head, repo_base):
 
 
 def violacoes_de_pareceres(raiz, base, head, ramo, base_ref, repo_head="", repo_base=""):
+    return pareceres_e_espera(raiz, base, head, ramo, base_ref, repo_head, repo_base)[0]
+
+
+def pareceres_e_espera(raiz, base, head, ramo, base_ref, repo_head="", repo_base=""):
+    """(violações, só espera): o booleano é True só com cada linha do `cmd_pr` de parecer ausente ou desatualizado (E47.6)."""
     if violacao_de_fork(repo_head, repo_base):
-        return violacao_de_fork(repo_head, repo_base)
+        return violacao_de_fork(repo_head, repo_base), False
     try:
-        return _violacoes_de_pareceres(raiz, base, head, ramo, base_ref)
+        return _pareceres_e_espera(raiz, base, head, ramo, base_ref)
     except FALHAS_DO_GIT as e:
-        return [violacao_de_git(e)]
+        return [violacao_de_git(e)], False
+
+
+def linha_de_espera(linha, caminhos):
+    """A linha do `cmd_pr` é só espera: o padrão ancorado no início casa e o caminho que ele separa é o mais longo dos `caminhos`
+    conhecidos (pastas e pareceres) que abre a linha. Um nome de arquivo com `: commit: desatualizado` dentro não forja a espera."""
+    m = LINHA_DE_ESPERA.match(linha)
+    dono = max((c for c in caminhos if linha.startswith(c + ": ")), key=len, default=None)
+    return bool(m) and dono == (m.group(1) or m.group(2))
+
+
+def caminhos_de_pareceres(fc, raiz, head):
+    pastas = {pasta for pasta, _ in fc.PASTA_E_REGRA.values()}
+    return pastas | {fc.caminho_impresso(rel) for tipo in fc.PASTA_E_REGRA for rel, _ in fc.documentos(Path(raiz), tipo, head)}
 
 
 def pareceres_que_nao_aprovam(raiz, fc, pedidos, head, ramo=None):
@@ -2115,15 +2135,19 @@ def pareceres_que_nao_aprovam(raiz, fc, pedidos, head, ramo=None):
 
 
 def _violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
+    return _pareceres_e_espera(raiz, base, head, ramo, base_ref)[0]
+
+
+def _pareceres_e_espera(raiz, base, head, ramo, base_ref):
     if promocao_aceita(raiz, ramo, base_ref, head):
-        return []
+        return [], False
     b = base_efetiva(raiz, base, head)
     tocados = [a for a in alterados(raiz, b, head) if a.startswith(SENSIVEIS)]
     fc = forge_check()
     pedidos = fc.pedidos_da_branch(Path(raiz), ramo, head)
     nao_aprovam = pareceres_que_nao_aprovam(raiz, fc, pedidos, head, ramo)
     if not tocados:
-        return nao_aprovam
+        return nao_aprovam, False
     achados = []
     for ped in pedidos:  # todos os pedidos da branch passam: um aprovado não cobre o reprovado de outro
         linhas = [l for l in fc.cmd_pr(Path(raiz), ped, head, base, ramo) if l.strip()]  # E11: o parecer é o da branch do PR
@@ -2131,10 +2155,12 @@ def _violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
             linhas = [l for l in linhas if not l.startswith("docs/qa") and "(R-QA)" not in l]
         achados += linhas
     if pedidos and not achados:
-        return nao_aprovam
+        return nao_aprovam, False
     exige = "review e QA" if base_ref == "homolog" else "review"
     detalhe = f" ({'; '.join(achados[:2])})" if achados else ""
-    if all(LINHA_DE_ESPERA.search(l) for l in achados):  # ausente ou de commit anterior; o resto (reprova, forjado, autoria) é defeito
+    caminhos = caminhos_de_pareceres(fc, raiz, head) if achados else set()
+    so_espera = all(linha_de_espera(l, caminhos) for l in achados)  # ausente ou de commit anterior; o resto é defeito
+    if so_espera:
         detalhe += f" ({SO_ESPERA_PARECER})"
     sem_parecer = [msg("R-REVIEW", f"PR toca {tocados[0]} (e outros {len(tocados) - 1}) sem parecer aprovado de {exige}{detalhe}",
                        "código que muda o comportamento dos agentes precisa de revisão antes de entrar",
@@ -2142,7 +2168,8 @@ def _violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
                        "docs/regras/R-REVIEW.md")]
     # o parecer de tipo exigido que não aprova já está dito no `detalhe`: só entra o que o `cmd_pr` não lê (tipo não exigido, QA na develop)
     ja_ditos = [l.split(": parecer:", 1)[0] for l in achados if ": parecer: o último" in l]
-    return sem_parecer + [v for v in nao_aprovam if not any(caminho in v for caminho in ja_ditos)]
+    outros = [v for v in nao_aprovam if not any(caminho in v for caminho in ja_ditos)]
+    return sem_parecer + outros, so_espera and not outros
 
 
 def resumo(titulo, linhas):
@@ -2241,8 +2268,8 @@ def _main(a):
     elif a.modo == "degrau":
         viol, titulo = violacoes_do_degrau(raiz, a.ramo, a.base_ref, a.head, os.environ.get("HEAD_REPO", ""), os.environ.get("BASE_REPO", "")), "degrau"
     elif a.modo == "pareceres":
-        viol, titulo = violacoes_de_pareceres(raiz, a.base, a.head, a.ramo, a.base_ref,
-                                          os.environ.get("HEAD_REPO", ""), os.environ.get("BASE_REPO", "")), "pareceres"
+        (viol, so_espera), titulo = pareceres_e_espera(raiz, a.base, a.head, a.ramo, a.base_ref,
+                                                       os.environ.get("HEAD_REPO", ""), os.environ.get("BASE_REPO", "")), "pareceres"
     else:
         viol, titulo = violacoes_das_regras(raiz, a.base, a.head), "catraca"
         listar_valores_para_conferir(raiz, a.base, a.head)
@@ -2254,30 +2281,36 @@ def _main(a):
             cfg = json_de(raiz, base_efetiva(raiz, a.base, a.head), "tests/config.json")  # só a base: o head é do autor
             cfg = cfg if isinstance(cfg, dict) else {}
             custo = [x for x in viol if x.startswith("R-CUSTO:") or NAO_LIBERAVEL in x]  # só `custo_permitido` abre exceção de custo; o rótulo não vale nem com o git falho
-            dono, liberado = cfg.get("dono"), None
+            dono, liberado, falhas = cfg.get("dono"), None, []  # E47.6: consulta sem resposta tira a espera do rótulo
             if not custo and eventos is not None:
                 if push and rotulo_liberado(eventos, dono, push):
                     liberado = "aplicado depois do último push"
                 else:
                     execucoes = json_raso(Path(a.execucoes).read_text(encoding="utf-8")) if a.execucoes else ([] if a.eventos else execucoes_do_pr())
                     ramo = a.ramo or ("" if a.eventos else ramo_do_pr())
-                    if execucoes is not None and rotulo_vale_pelo_conteudo(raiz, a.base, a.head, eventos, execucoes, a.pr, dono, ramo, viol):
+                    if execucoes is None:
+                        falhas.append("as execuções do PR")
+                    elif rotulo_vale_pelo_conteudo(raiz, a.base, a.head, eventos, execucoes, a.pr, dono, ramo, viol):
                         liberado = "arquivos protegidos ou diff efetivo iguais aos do instante do rótulo"
             if not custo and not liberado:
                 fonte = FonteJson(json_raso(Path(a.mesclados).read_text(encoding="utf-8"))) if a.mesclados else (
                     None if a.eventos else fonte_do_github())
-                prs = liberado_por_pr_mesclado_ou_none(raiz, a.base, a.head, viol, fonte, dono)
+                prs = liberado_por_pr_mesclado_ou_none(raiz, a.base, a.head, viol, fonte, dono, falhas)
                 if prs:
                     liberado = f"mesmo conteúdo já rotulado no PR mesclado {', '.join('#' + n for n in prs)}"
             if not custo and not liberado and eventos is not None and TITULO_AFROUXA.search(os.environ.get("PR_TITULO", "")):
-                return espera(f"o título declara `[{ROTULO}` e falta o rótulo do dono", viol)
+                if fonte is None or fonte.pr_atual() is None:
+                    falhas.append("o PR")
+                if not falhas:
+                    return espera(f"o título declara `[{ROTULO}` e falta o rótulo do dono", viol)
+                print(f"catraca: o título declara `[{ROTULO}`, mas {', '.join(falhas)} não respondeu: vermelho, não espera")
             if liberado:
                 resumo(titulo, [f"liberado pelo rótulo `{ROTULO}` do dono ({liberado}): {len(viol)} violação(ões) aceita(s)"] + viol)
                 print(f"catraca: {len(viol)} violação(ões) liberada(s) pelo rótulo `{ROTULO}` do dono ({liberado}).")
                 for v in viol:
                     print(f"catraca: liberada: {v}")
                 return 0
-    if a.modo == "pareceres" and viol and all(SO_ESPERA_PARECER in v for v in viol):
+    if a.modo == "pareceres" and viol and so_espera:
         return espera("falta o parecer aprovado", viol)
     for v in viol:
         print(v)

@@ -4639,7 +4639,10 @@ class EsperaNaoEVermelho(Base):
             arq = self.repo.dir.parent / (self.repo.dir.name + "-eventos.json")
             arq.write_text(json.dumps(eventos), encoding="utf-8")
             self.addCleanup(arq.unlink, missing_ok=True)
-            argv += ["--eventos", str(arq), "--ultimo-push", "2026-01-02T09:00:00Z"]
+            mesclados = self.repo.dir.parent / (self.repo.dir.name + "-mesclados.json")
+            mesclados.write_text(json.dumps({"pr": {}}), encoding="utf-8")  # E47.6: o PR respondeu
+            self.addCleanup(mesclados.unlink, missing_ok=True)
+            argv += ["--eventos", str(arq), "--ultimo-push", "2026-01-02T09:00:00Z", "--mesclados", str(mesclados)]
         fora = ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "GITHUB_ACTIONS", "PR_TITULO", "PR_NUMBER", "HEAD_REPO", "BASE_REPO")
         env = {**{k: v for k, v in os.environ.items() if k not in fora}, **ambiente_de_git(), "PR_TITULO": titulo}
         return subprocess.run(argv, capture_output=True, text=True, env=env, timeout=120)
@@ -4660,6 +4663,15 @@ class EsperaNaoEVermelho(Base):
         r = self.pareceres()
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertNotIn("catraca: espera", r.stdout)
+        self.assertNotIn(catraca.SO_ESPERA_PARECER, r.stdout)
+
+    def test_review_ausente_com_outro_parecer_reprovado_sai_1(self):
+        """E47.6: o parecer de QA reprovado (não exigido na develop, fora do `cmd_pr`) é defeito mesmo com o review só ausente."""
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("qa", "reprovado")
+        r = self.pareceres()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("ped.md (parecer: reprovado)", r.stdout)
 
     def test_linha_de_espera_so_casa_ausente_e_desatualizado(self):
         self.assertTrue(catraca.LINHA_DE_ESPERA.search("docs/reviews: review: sem parecer para o pedido `p` (R-REVIEW)"))
@@ -4684,3 +4696,80 @@ class EsperaNaoEVermelho(Base):
     def test_custo_e_defeito_mesmo_com_o_titulo(self):
         self.repo.escreve("scripts/x.sh", "export ANTHROPIC_API_KEY=1\n")
         self.assertEqual(self.cli(titulo="feat(x): y [afrouxa-regra]", eventos=[]).returncode, 1)
+
+    # E47.6 (volta 1 do #948, A2 da segurança): a espera dos pareceres se decide por dado, não por texto
+    def test_desatualizado_segue_espera(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.repo.escreve("hooks/novo.py", "x = 2\n")
+        r = self.pareceres()
+        self.assertEqual(r.returncode, catraca.ESPERA, r.stdout + r.stderr)
+        self.assertIn("commit: desatualizado", r.stdout)
+
+    def test_sonda_s1_arquivo_com_a_marca_e_parecer_reprovado_sai_1(self):
+        self.repo.escreve(f"hooks/{catraca.SO_ESPERA_PARECER}", "x = 1\n")
+        self.parecer("review", "reprovado")
+        r = self.pareceres()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertNotIn("catraca: espera", r.stdout)
+
+    def test_caminho_da_espera_e_o_conhecido_seguido_de_dois_pontos(self):
+        linha = "docs/reviews/p.md: commit: desatualizado: x (R-REVIEW)"
+        self.assertTrue(catraca.linha_de_espera(linha, {"docs/reviews", "docs/reviews/p.md", "docs/reviews/p.md: commit: desat"}))
+        self.assertFalse(catraca.linha_de_espera(linha, {"docs/reviews", "docs/reviews/p.md: commit"}))  # nome estranho: vermelho
+        self.assertFalse(catraca.linha_de_espera(linha, {"docs/reviews"}))  # caminho desconhecido: vermelho
+
+    def test_sonda_s2_parecer_com_nome_de_desatualizado_sai_1(self):
+        self.assertIsNone(catraca.LINHA_DE_ESPERA.search(
+            "docs/reviews/a: commit: desatualizado.md: parecer: o último parecer não é aprovado (R-REVIEW)"))
+        for arquivo in ("a: commit: desatualizado", "x.md: commit: desatualizado-y"):  # o 2.º casa o padrão: vale o caminho inteiro
+            with self.subTest(arquivo):
+                self.setUp()
+                self.repo.escreve("hooks/novo.py", "x = 1\n")
+                self.parecer("review", "reprovado", arquivo=arquivo)
+                r = self.pareceres()
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn("não é aprovado", r.stdout)
+
+
+class EsperaDoRotuloSoComAApiRespondendo(Base):
+    """E47.6 (volta 1 do #948, A3 da segurança, sonda S3): com `[afrouxa-regra` no título, a API das execuções ou do PR que falha,
+    ou o git que estoura o prazo, deixam a regra vermelha (rc 1), não espera; com tudo respondendo, espera (rc 3)."""
+
+    def roda(self, execucoes=(), fonte="ok", git_estoura=False, eventos=True):
+        self.repo.config(dono="outra")
+        self.repo.commit()
+        rotulo = {"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": "dona"}, "created_at": "2026-01-02T08:00:00Z"}
+        fonte_ = SimpleNamespace(repo="o/r", pr_atual=lambda: None if fonte == "pr falha" else {}) if fonte else None
+        mesclado = mock.Mock(side_effect=subprocess.TimeoutExpired("git", 1)) if git_estoura else mock.Mock(return_value=None)
+        with mock.patch.dict(os.environ, {"PR_TITULO": "feat(x): y [afrouxa-regra: ADR 0003]"}), \
+                mock.patch.object(catraca, "eventos_do_github", lambda: ([rotulo], "2026-01-02T09:00:00Z") if eventos else (None, None)), \
+                mock.patch.object(catraca, "execucoes_do_pr", lambda: None if execucoes is None else list(execucoes)), \
+                mock.patch.object(catraca, "fonte_do_github", lambda: fonte_), \
+                mock.patch.object(catraca, "liberado_por_pr_mesclado", mesclado), \
+                contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(["--modo", "regras", "--raiz", str(self.repo.dir), "--base", "base", "--head", "HEAD", "--ramo", "pr"])
+        return rc, saida.getvalue()
+
+    def test_com_tudo_respondendo_sai_3(self):
+        rc, saida = self.roda()
+        self.assertEqual(rc, catraca.ESPERA, saida)
+
+    def test_sonda_s3_execucoes_e_fonte_em_none_sai_1(self):
+        rc, saida = self.roda(execucoes=None, fonte=None)
+        self.assertEqual(rc, 1, saida)
+        self.assertNotIn("catraca: espera", saida)
+
+    def test_sem_eventos_sai_1_com_o_resto_respondendo(self):
+        rc, saida = self.roda(eventos=False)
+        self.assertEqual(rc, 1, saida)
+        self.assertNotIn("catraca: espera", saida)
+
+    def test_cada_consulta_que_falha_sai_1(self):
+        for caso, kw in (("execuções", {"execucoes": None}), ("fonte", {"fonte": None}), ("pr", {"fonte": "pr falha"}),
+                         ("git", {"git_estoura": True})):
+            with self.subTest(caso):
+                self.setUp()
+                rc, saida = self.roda(**kw)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn("não respondeu", saida)

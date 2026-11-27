@@ -42,7 +42,7 @@ class TestPassoAPassoDaProtecao(unittest.TestCase):
         for wf in sorted((RAIZ / ".github/workflows").glob("*.yml")):
             achados = re.findall(r"^\s+name:\s*([^\s#][^#\n]*?)\s*(?:#.*)?$", wf.read_text(encoding="utf-8"), re.M)
             # E47.1: o sufixo da espera (vazio sem espera) não faz parte do check exigido
-            nomes.update(re.sub(r"\$\{\{ needs\.[a-z-]+\.outputs\.espera \}\}$", "", n) for n in achados)
+            nomes.update(re.sub(r"\$\{\{[^}]*outputs\.espera[^}]*\}\}$", "", n) for n in achados)
         citados = re.findall(r"^- Check exigido: `([^`]+)`", ler(FORGE), re.M)
         self.assertGreaterEqual(len(citados), 2)
         for check in citados:

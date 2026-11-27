@@ -29,7 +29,10 @@ SCRIPT = RAIZ / "scripts" / "suite-partes.py"
 CI = RAIZ / ".github" / "workflows" / "ci.yml"
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items()
                            if not k.startswith(("GIT_", "FORGE_SUITE_", "GITHUB_")) and k != "CI"})
+ESPERA = re.compile(r"\$\{\{[^}]*outputs\.espera[^}]*\}\}$")  # E47.1/E47.6: sufixo da espera no nome do agregador
+
 MODULO = '''import os, pathlib, unittest
+
 class T(unittest.TestCase):
     def test_{nome}(self):
         (pathlib.Path(os.environ["MARCAS"]) / "{nome}").write_text("x")
@@ -594,12 +597,12 @@ class FiacaoDoCI(unittest.TestCase):
 
     def test_agregadores_tem_o_nome_exigido_e_exigem_todas_as_partes(self):
         # E47.1: o agregador leva o sufixo da espera do parecer (vazio sem espera), que deixa o check exigido `bateria` pendente
-        casos = {"agregador": ("bateria${{ needs.pareceres.outputs.espera }}", {"bateria", "pareceres", "verificacoes", "partes-doze", "pulados-doze"}),
+        casos = {"agregador": ("bateria", {"bateria", "pareceres", "verificacoes", "partes-doze", "pulados-doze"}),
                  "bateria-python-tres-quatorze": ("bateria (python 3.14)", {"instalacao-quatorze"})}
         for job, (nome, necessarios) in casos.items():
             with self.subTest(job):
                 bloco = self.job(job)
-                self.assertEqual(self.nome(job), nome)
+                self.assertEqual(ESPERA.sub("", self.nome(job)), nome)  # E47.6: o sufixo condicional da espera
                 needs = self.casar(r"(?m)^    needs: \[(.*)\]$", bloco).group(1)
                 self.assertEqual({n.strip() for n in needs.split(",")}, necessarios)
                 # always(): necessário cancelado, pulado ou vermelho reprova o agregador (um pulado contaria como verde)
@@ -609,8 +612,9 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertEqual(bloco.count("= success ]"), len(necessarios))
                 self.assertNotIn("uses:", bloco)  # o agregador não roda código da branch
         nomes = [self.nome(j) for j in self.jobs]
-        self.assertEqual(nomes.count("bateria${{ needs.pareceres.outputs.espera }}"), 1)
+        self.assertEqual([ESPERA.sub("", n) for n in nomes].count("bateria"), 1)
         self.assertNotIn("bateria", nomes)
+        self.assertTrue(self.nome("agregador").endswith("&& needs.pareceres.outputs.espera || '' }}"))
         self.assertEqual(nomes.count("bateria (python 3.14)"), 1)
 
     def test_cada_parte_publica_os_pulados_e_um_job_soma_contra_o_teto(self):  # T3

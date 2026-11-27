@@ -617,7 +617,7 @@ jobs:
           env -u TOKEN_DE_LEITURA python3 "$script" --modo pareceres --base "$BASE" --head "$HEAD_SHA" --ramo="$HEAD_REF" --base-ref "$BASE_REF" || rc=$?
           [ "$rc" = 3 ] || exit "$rc"
           ultimo=$(GH_TOKEN="$TOKEN_DE_LEITURA" gh api "repos/$BASE_REPO/commits/$HEAD_SHA/check-runs?check_name=bateria&per_page=100" --jq '[.check_runs[] | select(.app.slug == "github-actions")] | sort_by(.started_at) | last | if . == null then "nenhum" else .conclusion end') || { echo "espera: a API não leu o check bateria do head; vermelho (falha fechada)"; exit 1; }
-          [ "$ultimo" != success ] || { echo "espera: o head já tem bateria verde de outro run; vermelho para o verde velho não valer"; exit 1; }
+          case "$ultimo" in nenhum|failure|cancelled|timed_out|action_required|stale) ;; *) echo "espera: o último bateria do head está '$ultimo' (verde, pulado, neutro ou em andamento); vermelho para ele não valer"; exit 1;; esac
           echo "espera= (espera parecer)" >> "$GITHUB_OUTPUT"
 
   verificacoes:
@@ -678,8 +678,9 @@ jobs:
           shellcheck -- "${lista[@]}"
 
   agregador:
-    name: bateria${{ needs.pareceres.outputs.espera }}
+    name: bateria${{ (needs.bateria.result == 'success' && needs.pareceres.result == 'success' && needs.verificacoes.result == 'success' && needs.partes-doze.result == 'success' && needs.pulados-doze.result == 'success') && needs.pareceres.outputs.espera || '' }}
     # E47.1: o sufixo " (espera parecer)" deixa o check exigido `bateria` pendente (amarelo), ainda barrando a junção.
+    # E47.6: só com todos os needs em success; com teste vermelho e parecer faltando, o vermelho fica no nome exato.
     # Agregador do check exigido: só passa com os passos, as 5 partes da suíte no 3.12 e o teto de pulados em success.
     # always(): falha,
     # cancelamento ou pulo de um job necessário reprova este (um job pulado contaria como verde para a regra de proteção).

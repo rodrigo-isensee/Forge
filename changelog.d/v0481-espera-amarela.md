@@ -1,2 +1,3 @@
 ### Alterado
 - as verificações bateria e catraca ficam pendentes (amarelas) no GitHub quando só falta o parecer aprovado ou, com [afrouxa-regra no título, o rótulo do dono: o tests/catraca.py sai com 3, o agregador muda de nome e o check exigido fica esperando, ainda barrando a junção; defeito segue vermelho, e o check exigido já verde no head vira vermelho em vez de esperar (F1-ESPERA-NAO-E-VERMELHO, v0481 E47.1)
+- a espera só renomeia o check com os outros jobs verdes, a dos pareceres se decide pelo caminho do parecer e não pelo texto, a do rótulo exige a API e o git respondendo, e só uma lista fechada de estados do check do head vale como espera (v0481 E47.6)
