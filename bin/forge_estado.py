@@ -111,12 +111,20 @@ def vigia():
 
 
 def gravar_prs_abertos(caminho, prs, agora_s):
-    """Grava a lista do vigia, só com o PR que tem papel, de forma atômica e modo 0600; sem a pasta de estado, nada."""
+    """Grava a lista do vigia, só com o PR que tem papel, de forma atômica e modo 0600; sem a pasta de estado, nada.
+    Erro de escrita (pasta sem escrita, disco cheio, diretório no caminho) não sobe: o `status` sai com rc 0 e, no
+    `proximo`, a falha não muda nada; o vigia segue com a lista que já havia."""
     if caminho is None or not caminho.parent.is_dir():
         return
     itens = [{"number": p["number"], "head": p.get("headRefName"), "papel": papel} for p in prs if (papel := papel_do_pr(p))]
-    vigia().gravar_json(caminho, {"versao": 1, "gravado_em": int(agora_s), "prs": itens[:100]})
-    os.chmod(caminho, 0o600)
+    try:
+        vigia().gravar_json(caminho, {"versao": 1, "gravado_em": int(agora_s), "prs": itens[:100]})
+        os.chmod(caminho, 0o600)
+    except OSError:  # a lista é só apoio do aviso: a gravação falha calada, sem deixar o temporário do gravar_json
+        try:
+            caminho.with_name(f"{caminho.name}.{os.getpid()}.tmp").unlink(missing_ok=True)
+        except OSError:
+            pass  # pasta sem escrita: o temporário nem chegou a existir
 
 
 def renovar_prs_abertos(raiz, gh_json):

@@ -322,6 +322,43 @@ class GravacaoDaLista(Pasta):
         E.gravar_prs_abertos(None, [pr(7, checks=VERDE)], 1)
         self.assertFalse((self.pasta / "nao-existe").exists())
 
+    def test_diretorio_no_caminho_nao_sobe_nem_deixa_temporario(self):
+        """S2 da segurança (bc22ffa): o `os.replace` sobre um diretório falha; nada sobe e a pasta fica como estava."""
+        self.lista.mkdir()
+        E.gravar_prs_abertos(self.lista, [pr(7, checks=VERDE)], 1)
+        self.assertTrue(self.lista.is_dir())
+        self.assertEqual(sorted(p.name for p in self.pasta.iterdir()), [vigia.NOME_DA_LISTA])
+
+    def test_disco_cheio_mantem_a_lista_anterior_e_tira_o_temporario(self):
+        """S1 do review (bc22ffa): a escrita falha no meio; a lista que havia fica e o temporário sai."""
+        self.gravar([item(9)])
+        antes = self.lista.read_text(encoding="utf-8")
+
+        def cheio(caminho, _dados):
+            caminho.with_name(f"{caminho.name}.{os.getpid()}.tmp").write_text("{", encoding="utf-8")
+            raise OSError(28, "No space left on device")
+
+        with mock.patch.object(vigia, "gravar_json", cheio):
+            E.gravar_prs_abertos(self.lista, [pr(7, checks=VERDE)], 1)
+        self.assertEqual(self.lista.read_text(encoding="utf-8"), antes)
+        self.assertEqual(sorted(p.name for p in self.pasta.iterdir()), [vigia.NOME_DA_LISTA])
+
+    def test_temporario_que_nao_sai_tambem_nao_sobe(self):
+        with mock.patch.object(vigia, "gravar_json", mock.Mock(side_effect=PermissionError(13, "sem escrita"))), \
+                mock.patch.object(Path, "unlink", mock.Mock(side_effect=PermissionError(13, "sem escrita"))):
+            E.gravar_prs_abertos(self.lista, [pr(7, checks=VERDE)], 1)
+        self.assertFalse(self.lista.exists())
+
+    def test_status_e_proximo_seguem_com_a_gravacao_falha(self):
+        self.lista.mkdir()
+        ctx = {"gh_json": lambda _r, *a: ([pr(7, checks=VERDE)], ""), "lista_de_prs": self.lista}
+        linha = E.prs_abertos(ctx, self.pasta, E.dt.datetime.fromtimestamp(self.agora, E.dt.timezone.utc))
+        self.assertTrue(linha.startswith("1 · "))
+        self.lista.rmdir()
+        with mock.patch.object(vigia, "gravar_json", mock.Mock(side_effect=OSError(30, "Read-only file system"))):
+            E.renovar_prs_abertos(self.pasta, lambda _r, *_a: ([pr(7, checks=VERDE)], ""))
+        self.assertFalse(self.lista.exists())
+
     def test_status_grava_a_lista_do_contexto(self):
         ctx = {"gh_json": lambda _r, *a: ([pr(7, checks=VERDE)], ""), "lista_de_prs": self.lista}
         E.prs_abertos(ctx, self.pasta, E.dt.datetime.fromtimestamp(self.agora, E.dt.timezone.utc))

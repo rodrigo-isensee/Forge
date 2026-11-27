@@ -11,6 +11,37 @@
       "testes": [
         "tests.test_hook_vigia_f4.AvisoComPrsEPresos.test_lista_ilegivel_cala_so_a_parte_dela_e_registra"
       ]
+    },
+    {
+      "id": "M50",
+      "guarda": "erro de escrita da lista não sobe ao status nem ao proximo (A8 do review bc22ffa)",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    except OSError:  # a lista é só apoio do aviso",
+      "para": "    except ValueError:  # a lista é só apoio do aviso",
+      "testes": [
+        "tests.test_hook_vigia_f4.GravacaoDaLista.test_diretorio_no_caminho_nao_sobe_nem_deixa_temporario",
+        "tests.test_hook_vigia_f4.GravacaoDaLista.test_status_e_proximo_seguem_com_a_gravacao_falha"
+      ]
+    },
+    {
+      "id": "M51",
+      "guarda": "a gravação falha tira o temporário",
+      "arquivo": "bin/forge_estado.py",
+      "de": "            caminho.with_name(f\"{caminho.name}.{os.getpid()}.tmp\").unlink(missing_ok=True)",
+      "para": "            pass",
+      "testes": [
+        "tests.test_hook_vigia_f4.GravacaoDaLista.test_disco_cheio_mantem_a_lista_anterior_e_tira_o_temporario"
+      ]
+    },
+    {
+      "id": "M52",
+      "guarda": "o temporário que não sai também não sobe",
+      "arquivo": "bin/forge_estado.py",
+      "de": "        except OSError:\n            pass  # pasta sem escrita",
+      "para": "        except ValueError:\n            pass  # pasta sem escrita",
+      "testes": [
+        "tests.test_hook_vigia_f4.GravacaoDaLista.test_temporario_que_nao_sai_tambem_nao_sobe"
+      ]
     }
   ]
 }
