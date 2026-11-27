@@ -473,11 +473,12 @@ class Entrega(Repositorio):
         self.assertIn(f"pendente: CI do PR #7 no head {head[:12]} não concluído e verde: CI/bateria (python 3.14) (fail)", saida)
         self.assertIn("resultado: não cumpriu", saida)
         self.assertEqual(fc.entregas_conferidas(self.pedido()), [])
-        self.gh_falso(head, [{"name": "bateria (python 3.14)", "bucket": "pass", "workflow": "CI"},
-                             {"name": "catraca", "bucket": "fail", "workflow": "Catraca"}])
+        agregados = [{"name": par.split("/", 1)[1], "bucket": "pass", "workflow": "CI"} for par in fc.JOBS_DO_AGREGADOR]
+        self.gh_falso(head, agregados + [{"name": "bateria (python 3.14)", "bucket": "pass", "workflow": "CI"},
+                                         {"name": "catraca", "bucket": "fail", "workflow": "Catraca"}])
         rc, saida = self.conferir("--worktree", str(self.proj))  # a cópia no head, para os PQ cmd do brief
         self.assertEqual(rc, 0, saida)
-        self.assertIn(f"prova: CI do PR #7 concluído e verde no head {head[:12]} (1 checks", saida)
+        self.assertIn(f"prova: CI do PR #7 concluído e verde no head {head[:12]} ({len(agregados) + 1} checks", saida)
         self.assertEqual(fc.entregas_conferidas(self.pedido()), [head])
         self.gravar(".forge/versao", "0.1.0\n")  # um projeto com o manifesto não é o Forge: a linha só informa
         self.git("add", ".forge")
