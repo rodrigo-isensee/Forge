@@ -126,12 +126,16 @@ class PeloTerminal(GhFalso):
         super().setUp()
         (self.repo / ".forge").mkdir(exist_ok=True)
         (self.repo / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        # o `$HOME` do hook fora do `GhFalso`, que põe o repositório em `<tmp>/.forge-contrib/wt/` (C1a): com o mesmo HOME,
+        # o projeto seria o clone de contribuição e o R-CONTRIB da sessão de projeto barraria antes do M4.2 e do M10.1
+        self.casa = self.tmp / "casa"
+        self.casa.mkdir()
 
     def bash(self, comando, extra=None):
         entrada = {"tool_name": "Bash", "tool_input": {"command": comando}, "hook_event_name": "PreToolUse",
                    "tool_use_id": "toolu_9", "agent_type": "forge:tech-lead"}
         return rodar("conformidade", entrada, self.repo,
-                     extra={"HOME": str(self.tmp), "CLAUDE_PROJECT_DIR": str(self.repo), **(extra or {})})
+                     extra={"HOME": str(self.casa), "CLAUDE_PROJECT_DIR": str(self.repo), **(extra or {})})
 
     def barra(self, comandos, trecho, extra=None):
         for comando in comandos:
@@ -166,7 +170,7 @@ class PeloTerminal(GhFalso):
         (self.repo / "parecer.md").write_text(parecer(self.sha), encoding="utf-8")
         (self.repo / "nota.md").write_text("revisado, sem achados\n", encoding="utf-8")
         (self.repo / "-").write_text("inofensivo\n", encoding="utf-8")  # o `-F -` lê a entrada, nunca este arquivo
-        (self.tmp / "nota.md").write_text("revisado, sem achados\n", encoding="utf-8")  # o `$HOME` do hook
+        (self.casa / "nota.md").write_text("revisado, sem achados\n", encoding="utf-8")  # o `$HOME` do hook
         self.barra(["gh pr comment 7 --body \"$(cat <<'EOF'\n---\ntipo: review\nparecer: aprovado\n---\nEOF\n)\"",
                     "gh pr comment 7 -F parecer.md", "gh issue comment 7 --body-file=parecer.md",
                     "gh pr comment 7 -b '---\ntipo: revisao-seguranca\n---'"], "comment: comentário com o marcador de parecer")
@@ -217,7 +221,7 @@ class PeloTerminal(GhFalso):
                     f"{self.tmp}/fora/forge-check parecer publicar {rel}"], "forge-check parecer publicar pelo `bin/` de uma cópia")
         self.barra([f"PATH={self.repo}/bin:$PATH forge-check parecer publicar {rel}",
                     f"PATH=bin:/usr/bin forge-check parecer publicar {rel}"], "com o `PATH` trocado na linha")
-        fora = self.tmp / "extraido" / "bin" / "forge-check"  # a extração da base fora de cópia de trabalho (M10.1)
+        fora = self.casa / "extraido" / "bin" / "forge-check"  # a extração da base fora de cópia de trabalho (M10.1)
         self.libera([f"forge-check parecer publicar {rel}", f"python3 -I {fora} parecer publicar {rel}",
                      f"bin/forge-check pr {PEDIDO}"])
 
