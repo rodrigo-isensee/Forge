@@ -22,7 +22,8 @@ Revalidação por delta (H3) sobre `7de82a02`: li só `forge-check parecer delta
 - VA-M11 realinhado à linha nova (tests/mutantes/v0481-voltas-alinhada-2.json:30).
 
 ## Conferência
-- ci: 7de82a022ae4c7b51479a7fdc87646b580153e03 verde (run 45938144589: suíte 3.12 e 3.14 partes 1 a 5, instalação, passos, verificações longas, teto de pulados, árvore já provada e `bateria (python 3.14)` em pass; fora `bateria`, `bateria (pareceres)` e `catraca`, que esperam parecer ou rótulo).
+- ci: 7de82a022ae4c7b51479a7fdc87646b580153e03 verde
+- Checks do run 45938144589: suíte 3.12 e 3.14 partes 1 a 5, instalação, passos, verificações longas, teto de pulados, árvore já provada e `bateria (python 3.14)` em pass; fora `bateria`, `bateria (pareceres)` e `catraca`, que esperam parecer ou rótulo.
 - Testes do delta, locais com a trava: `tests.test_comando_pronto`, `tests.test_volta_alinhada`, `tests.test_forge_check_base_igual.MergeQueDescartaABase`, `tests.test_fechar_forge_check_real.DevelopSoNoFim`, `tests.test_reval_delta`, `tests.test_forge_pronto.BaseVelha`: 33 testes OK.
 - Mutantes declarados (`bin/forge-mutante`): F3-1 a F3-8 (tests/mutantes/v0481-f3-develop-no-fim.json) e F3-9 (-2.json) morreram; F3-5 e F3-9 por erro do teste declarado sob o mutante (a guarda evita a exceção), o que conta como morto. Cada guarda mudada tem um mutante e teste do ramo de falha.
 
