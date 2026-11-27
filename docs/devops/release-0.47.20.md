@@ -11,8 +11,8 @@ data: 2026-11-27
 # Review de devops: release 0.47.20 (PR #935, main..1e301536)
 
 ## Achados
-- A1 (recomendado) PR #935:corpo · o corpo do PR da main não lista as 7 regras afrouxadas (#909, #918, #920, #928, #929, #931, #932) nem traz a saída de `tests/catraca.py --modo rotulados`; o tech-lead edita o corpo antes do merge do dono (R-FLUXO).
-- A2 (recomendado) scripts/preparar-estacao.sh:1 · `actionlint` e `zizmor` ausentes nesta estação; não rodei os dois sobre `ci.yml`, `diario.yml` e `obsoletas.yml` (só `shellcheck` existe). Quem instala é o preparar-estacao.
+- A1 (recomendado) CHANGELOG.md:1 · o corpo do PR #935 da main não lista as 7 regras afrouxadas (#909, #918, #920, #928, #929, #931, #932) nem traz a saída de `tests/catraca.py --modo rotulados`; o tech-lead edita o corpo antes do merge do dono (R-FLUXO).
+- A2 (recomendado) .github/workflows/ci.yml:1 · `actionlint` e `zizmor` ausentes nesta estação; não rodei os dois sobre `ci.yml`, `diario.yml` e `obsoletas.yml` (só `shellcheck` existe). Quem instala é o preparar-estacao.
 
 ## Detalhes
 - ci: 1e301536467df853dae1e7229952b930078c979d verde
