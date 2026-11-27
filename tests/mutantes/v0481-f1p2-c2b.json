@@ -80,7 +80,7 @@
       "guarda": "a lista se lê no commit da develop remota; o ref local só sem rede",
       "arquivo": "bin/forge_pareceres.py",
       "de": "{remoto[0] if remoto else 'refs/remotes/origin/develop'}:{LISTA_FECHADA}",
-      "para": "{'refs/remotes/origin/develop'}:{LISTA_FECHADA}",
+      "para": "{remoto[0] if False else 'refs/remotes/origin/develop'}:{LISTA_FECHADA}",
       "testes": [
         "tests.test_forge_pareceres.ListaFechada.test_ref_local_forjado_perde_para_o_remoto"
       ]
