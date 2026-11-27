@@ -3882,15 +3882,16 @@ class Guarda:
 
     def corpo_do_comentario(self, args, pasta):
         """(texto, ilegivel) de todo `--body` e `--body-file` (o gh usa o último; o hook lê todos). Marcam `ilegivel`: a
-        palavra com `$` ou crase que o parser não lê entre aspas simples (`expansao_por_palavra`), o `$(cat)` sem heredoc,
-        o heredoc com delimitador sem aspas e `$` ou crase no corpo, o `-` e o arquivo que não é regular ou não se lê."""
+        palavra com `$` ou crase que o parser não lê entre aspas simples (`expansao_por_palavra`), o `$(cat)` sem o seu
+        heredoc (`cat_sem_heredoc`), o heredoc com delimitador sem aspas e `$` ou crase no corpo, o `-` e o arquivo que
+        não é regular ou não se lê."""
         textos, ilegivel, nivel = [], False, expansao_por_palavra(self.linha)
         for texto in valores_da_opcao(args, "--body", "-b"):
             if re.fullmatch(r"\$\(cat\s*\)", texto):  # o K3 chega sem o corpo (`tirar_heredocs`): os corpos da linha
                 achados = heredocs(self.linha)[0]
                 corpos = [(self.linha[h.corpo[0]:h.corpo[1]], h.literal) for h in achados]
                 textos += [corpo for corpo, _ in corpos]
-                ilegivel |= not achados or any(not literal and re.search(r"[$`]", corpo) for corpo, literal in corpos)
+                ilegivel |= any(not literal and re.search(r"[$`]", corpo) for corpo, literal in corpos)
                 ilegivel |= cat_sem_heredoc(self.linha, achados)  # A7: o heredoc de outro comando não é o corpo
             else:
                 textos.append(texto)

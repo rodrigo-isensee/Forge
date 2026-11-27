@@ -76,8 +76,8 @@
       "id": "C1B-M16",
       "guarda": "M4.2: o $(cat) sem heredoc lê a entrada: ilegível",
       "arquivo": "hooks/conformidade.py",
-      "de": "                ilegivel |= not achados or any(",
-      "para": "                ilegivel |= any(",
+      "de": "    return bool(re.search(r\"\\$\\(\\s*cat\\s*\\)\", \"\".join(partes) + linha[inicio:]))",
+      "para": "    return bool(re.search(r\"\\$\\(\\s*cat\\s+\\)\", \"\".join(partes) + linha[inicio:]))",
       "testes": [
         "tests.test_conformidade_pareceres.PeloTerminal.test_c21_volta1_corpo_repetido_ou_com_expansao_barrado"
       ]
