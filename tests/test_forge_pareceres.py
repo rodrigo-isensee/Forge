@@ -541,6 +541,12 @@ class Ler(GhFalso):
         """Login vazio no status, no comentário ou na sessão nunca é a dona."""
         self.assertEqual(self.ler(self.publicado(login="")), {})
         self.assertIn("M5.2", self.invalido(self.publicado(autor="")))
+        self.estado(login="")
+        with self.assertRaisesRegex(fp().Recusa, "M1.4"):
+            fp().publicar(str(self.repo), "review", "aprovado", parecer(self.sha), self.sha, BRANCH, 0, 0, ["review"])
+        self.assertFalse([c for c in self.chamadas() if "POST" in c], "gravou")
+        self.estado(statuses=[self.publicado(login="")])
+        self.assertEqual(fp().agregado(str(self.repo), self.sha, ["review"])[0], "pending")
 
     def test_contas_frozenset_vale(self):
         self.assertIsInstance(fp().contas_aceitas(str(self.repo)), frozenset)
