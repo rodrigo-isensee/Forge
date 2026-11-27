@@ -51,26 +51,6 @@
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
       ]
-    },
-    {
-      "id": "RT1",
-      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A1): o texto de interpretador que só lê segue livre",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        if not self.no_clone or not ESCRITA_NO_TEXTO.search(texto):",
-      "para": "        if not self.no_clone:",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
-      ]
-    },
-    {
-      "id": "RT2",
-      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A1): o texto de interpretador recusa só se cita a entrada",
-      "arquivo": "hooks/conformidade.py",
-      "de": "            if c.rstrip(\"/\") in texto:",
-      "para": "            if True:",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
-      ]
     }
   ]
 }

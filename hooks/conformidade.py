@@ -4169,32 +4169,13 @@ ESTADO_DOS_HOOKS = (".git/forge/", CONFIG_DA_RAIZ)
 # do container como root) recusa como num projeto quando o alvo está na raiz da sessão ou na cópia principal; a cópia de
 # `wt/` segue livre, e a mudança legítima vai por ela, por branch e PR. Volta 1 (A3 e A5 da segurança): a pasta do
 # manifesto, que decide se a sessão é do Forge (`tem_manifesto_do_forge`), e toda configuração que o editor oferece ao
-# abrir o container (`.devcontainer/` inteira e `.devcontainer.json`).
+# abrir o container (`.devcontainer/` inteira e `.devcontainer.json`). Volta 6 (A16 da segurança, E37.26): o Bash da
+# raiz fica com o sandbox do SO, que nega a escrita nessas entradas por qualquer grafia (S21-S25); sai a leitura da
+# grafia do Bash (variável, colagem, texto de interpretador) e fica o caminho literal (Write, Edit, MultiEdit).
 EM_VIGOR_NA_RAIZ = (".githooks/", ".git/hooks/", ".devcontainer/", ".devcontainer.json", ".claude-plugin/")
 MOTIVO_EM_VIGOR = "roda fora do sandbox ou decide as travas na raiz do Forge"  # a recusa própria, sem entrada na política
-# A2 da segurança (volta 1): a linha que cita uma entrada de `EM_VIGOR_NA_RAIZ`, para o destino que o hook não calcula,
-# a linha sem leitura e o erro interno (o padrão de `ESTADO_NO_TEXTO`).
+# O erro interno no Write e no Edit cujo caminho cita uma entrada de `EM_VIGOR_NA_RAIZ` (o padrão de `ESTADO_NO_TEXTO`).
 EM_VIGOR_NO_TEXTO = re.compile(r"\.githooks|\.git/hooks|devcontainer|\.claude-plugin", re.I)
-NOMES_EM_VIGOR = tuple(dict.fromkeys(c.split("/")[0] for c in EM_VIGOR_NA_RAIZ))
-
-
-def ref_inteira(nome, linha):
-    """A linha crua escreve `$nome` ou `${nome…}` como referência inteira (sem colagem por aspas ou barra)."""
-    return re.search(rf"\$(?:{nome}|\{{[#!]?{nome})(?!\w)", linha) is not None
-
-
-def colada_em_vigor(componente, linha):
-    """A2 do review e A15 da segurança (v0481 E37.21): o primeiro componente do destino sem valor calculado, lido como
-    curinga, casa uma entrada de `EM_VIGOR_NA_RAIZ` (`*s` casa `.githooks`; `*.log`, `saida-*.txt` e `*x` não). A
-    variável colada por aspas ou barra (`$d"s"`, `"$d"s`, `$d\\s`) chega como `$ds`: o nome que a linha não escreve
-    inteiro vira `*` mais o resto depois do nome que ela escreve (`*s`), ou `*` se nenhum."""
-    m = re.fullmatch(r"\$\{?(\w+)\}?", componente)
-    if m and not ref_inteira(m[1], linha):
-        n = m[1]
-        padroes = ["*" + n[k:] for k in range(1, len(n)) if ref_inteira(n[:k], linha)] or ["*"]
-    else:
-        padroes = [componente]
-    return any("*" in p and glob_casa(p, nome) for p in padroes for nome in NOMES_EM_VIGOR)
 
 
 # `.git/forge` só como nome inteiro: `.git/forge-suite-verde` é a prova da suíte, com a recusa própria (R-VERIFY).
@@ -4311,19 +4292,6 @@ class GuardaDaProva(Guarda):
                     "instalacao")
         return achado
 
-    def checar_texto(self, texto):
-        """A1 da segurança (volta 1): o texto de interpretador que escreve e cita uma entrada de `EM_VIGOR_NA_RAIZ`
-        recusa pelo alvo na raiz da sessão, como no projeto; a pasta que o interpretador usa o hook não sabe, então a
-        cópia de `wt/` também recusa por esse caminho (lá, Write ou Edit)."""
-        super().checar_texto(texto)
-        if not self.no_clone or not ESCRITA_NO_TEXTO.search(texto):
-            return
-        raiz = Path(os.path.realpath(self.h.raiz))
-        for c in EM_VIGOR_NA_RAIZ:
-            if c.rstrip("/") in texto:  # no clone, o alvo na raiz sempre tem recusa (`caminho_barrado`)
-                alvo = self.resolver(c, raiz)
-                self.barrar(*self.caminho_barrado(alvo), alvo=alvo)
-
     def parecer_no_topo(self, caminho):
         """PARECER-PELO-PAPEL: a recusa da pasta de parecer pela forma relativa ao topo da cópia do Forge que contém o alvo
         (a forma da raiz da sessão já vem da `Guarda`); fora de uma cópia do Forge, None. Só vale no clone
@@ -4344,7 +4312,7 @@ class GuardaDaProva(Guarda):
             super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)
         if self.recusa_do_estado(o_que):
             super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)
-        if self.na_raiz_em_vigor(alvo) or MOTIVO_EM_VIGOR in o_que:
+        if self.na_raiz_em_vigor(alvo):
             super().barrar(rid, o_que, f"mude numa cópia de wt/ (forge-copia), por branch e PR; {corrigir}", alvo=alvo,
                            grupo=grupo)
         if self.travas and trava_da_sessao_do_forge(rid, trava, self.h.campo("tool_input").get("command")):
@@ -4360,33 +4328,6 @@ class GuardaDaProva(Guarda):
         posix = os.path.realpath(alvo)
         rels = [relativo_ao_pai(posix, Path(os.path.realpath(self.h.raiz))), *self.relativos_a_copia_principal(posix)]
         return any(r is not None and (casa(r, c) or c.startswith(r + "/")) for r in rels for c in EM_VIGOR_NA_RAIZ)
-
-    def destino_opaco(self, caminho, pasta):
-        """A2 da segurança (volta 1): no clone, o destino opaco sem resto (`F=.githooks/pre-push; printf x > $F`) vale
-        pelo valor que o hook calcula, resolvido como o literal; sem valor calculado, recusa se a linha cita uma entrada
-        de `EM_VIGOR_NA_RAIZ`. A linha que só lê (`grep … .githooks/pre-push; echo $X`) segue livre (ADR 0009, seção 6).
-        A9 da segurança (volta 2): o destino com resto (`D=.githooks; printf x > $D/pre-push`) vale igual; sem valor
-        calculado, conta o texto largo do valor, como no ramo do .git: a variável de `for` e `read` recusa
-        (A12, volta 3), também com o texto lido sem aspas (`for d in .git''hooks`), e a variável colada no primeiro
-        componente (`${d}s/…`) recusa (A13, volta 4) quando casa uma entrada, também colada por aspas ou barra e com o
-        valor lido sem barra invertida (`colada_em_vigor`, A15 e A2 do review, volta 5); `printf x > $TMPDIR/y; cat
-        .githooks/pre-push` e `printf x > $f.log` seguem livres."""
-        super().destino_opaco(caminho, pasta)
-        if not self.no_clone or not self.fim_do_opaco(caminho, pasta):
-            return
-        valores = None if self.corpo_desconhecido else valores_da_palavra(  # A12 (E1.328): o heredoc que atribui
-            self.expandir(caminho, pasta), linha_juntada(self.texto_da_linha))
-        if valores is None or any(SEM_VALOR in v for v in valores):
-            textos = [self.texto_da_linha] if self.opaco_sem_resto(caminho, pasta) else self.textos_do_valor(caminho)[1]
-            if colada_em_vigor(palavra_juntada(caminho).split("/")[0], self.texto_da_linha) or any(
-                    EM_VIGOR_NO_TEXTO.search(t) or EM_VIGOR_NO_TEXTO.search(re.sub(r"\\(.)", r"\1", palavra_juntada(t)))
-                    for t in textos):
-                self.barrar("R-CONFORMIDADE", f"destino de $(…), crase ou variável sem valor calculado numa linha que cita "
-                            f"o que {MOTIVO_EM_VIGOR}", "escreva o caminho literal do destino")
-            return
-        for alvo in (self.resolver(v, pasta) for v in valores):
-            if self.na_raiz_em_vigor(alvo):  # só a entrada em vigor: a outra recusa fala na ordem dela (`checar_escrita`)
-                self.barrar(*self.caminho_barrado(alvo), alvo=alvo)
 
     def recusa_do_estado(self, o_que):
         """No clone: a recusa cita o motivo de uma entrada do estado, ou é a da construção que o hook não modela (`$d`,
@@ -4638,9 +4579,9 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, travas=Fa
             hook.registrar_erro(erro)
             Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita o estado dos "
                           "hooks (.git/forge/, forge/run, agentes.json, .forge/config.json)", f"só o usuário altera; {SUGESTAO}")
-        if guarda.no_clone and isinstance(alvo, str) and EM_VIGOR_NO_TEXTO.search(juntar_continuacoes(alvo)):
-            hook.registrar_erro(erro)  # A2 da segurança (volta 1), como o estado dos hooks acima
-            Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita o que roda fora "
+        if guarda.no_clone and not entrada.get("command") and isinstance(alvo, str) and EM_VIGOR_NO_TEXTO.search(alvo):
+            hook.registrar_erro(erro)  # volta 6: só Write e Edit; o Bash fica com o sandbox do SO (A16)
+            Guarda.barrar(guarda, "R-CONFORMIDADE", "erro interno, e o caminho cita o que roda fora "
                           "do sandbox na raiz (.githooks, .git/hooks, devcontainer, .claude-plugin)",
                           f"só o usuário altera; {SUGESTAO}")
         if guarda.no_clone and isinstance(alvo, str) and guarda.parecer_no_texto(alvo):  # A5 e A6 da segurança
