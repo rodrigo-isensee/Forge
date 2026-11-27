@@ -73,7 +73,7 @@ CRITICO = re.compile(
 # Variáveis definidas antes na linha que os comandos seguintes herdam; as `GIT_*_PATHSPECS` são as opções `--*-pathspecs`.
 PATHSPECS_NO_AMBIENTE = {"GIT_GLOB_PATHSPECS": "--glob-pathspecs", "GIT_NOGLOB_PATHSPECS": "--noglob-pathspecs",
                          "GIT_LITERAL_PATHSPECS": "--literal-pathspecs", "GIT_ICASE_PATHSPECS": "--icase-pathspecs"}
-VARIAVEIS_DA_LINHA = {"GH_REPO", "GIT_DIR", "GH_CONFIG_DIR", "XDG_CONFIG_HOME", *PATHSPECS_NO_AMBIENTE}
+VARIAVEIS_DA_LINHA = {"GH_REPO", "GIT_DIR", "GH_CONFIG_DIR", "XDG_CONFIG_HOME", "PYTHONPATH", *PATHSPECS_NO_AMBIENTE}
 MANIFESTO = ".claude-plugin/"  # no projeto, só a sessão do Forge escreve (R-CONTRIB): a identidade não vem dele
 # Nome do interpretador, com versão ou plataforma depois do nome (`perl5.34.0`, `perl5.34-x86_64-linux-gnu`, `ruby3.2`,
 # `python3.12`): fonte única para as três conferências (`-e`, edição no lugar, heredoc).
@@ -174,6 +174,28 @@ GRAVA_PARECER_POR_API = re.compile(r"(^|/)(statuses/[^/]+|issues/[^/]+/comments|
 GRAVA_PARECER_NO_GRAPHQL = re.compile(r"addComment|updateIssueComment|deleteIssueComment")
 COMENTARIO_DO_GH = re.compile(r"(?<![\w./-])gh\s.*?\b(pr|issue)\s+comment\b", re.S)  # na linha que o hook não modela
 CORRIGIR_PUBLICAR = "rode `forge-check parecer publicar <.forge/pareceres/<pedido>/<tipo>.md>`, o do plugin, pelo nome"
+# C1b-2 da F1 parte 2: o módulo do `publicar` (M10.1) e a lista fechada dos PRs da transição (M20.1, gravada no C5a), que
+# acorda a recusa do parecer de item nas pastas de parecer quando existe na `develop` do `origin`.
+MODULO_DE_PARECER = "forge_pareceres.py"
+LISTA_FECHADA = ".github/pareceres-lista-fechada.json"
+PASTAS_DE_ITEM = ("reviews", "qa", "security", "devops")
+
+
+def script_do_python(args):
+    """O arquivo que o python roda: a 1.ª palavra fora das opções (`-X` e `-W` levam valor); com `-c`, `-m` ou `-`, None."""
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "-" or not a.startswith("-"):
+            return None if a == "-" else a
+        for k, letra in enumerate(a[1:]):  # a longa com `c` ou `m` (`--check-hash-based-pycs`) para: na dúvida, sem script
+            if letra in "cm":
+                return None
+            if letra in "XW":
+                i += not a[k + 2:]
+                break
+        i += 1
+    return None
 
 
 def valores_da_opcao(args, longa, curta):
@@ -1618,6 +1640,7 @@ class Guarda:
         self.em_curso = set()  # textos em conferência num nível de dentro (PROFUNDIDADE-BASH-C)
         self.releituras = 0    # palavras com crase relidas na pilha: somam ao `nivel`, não à profundidade do shell
         self._repos = {}     # (raiz git, remoto) -> é o Forge
+        self._listas = {}    # raiz git -> a lista fechada da transição está na develop (C1b-2)
         self._regras = None  # `regras_do_forge`, lido uma vez por decisão (a raiz e o `externo` não mudam nela)
         self._raiz_home = None  # (realpath da raiz, realpath do home), uma vez por decisão
         self.linha = ""      # a linha de comando inteira, como veio (nível 0)
@@ -1789,6 +1812,8 @@ class Guarda:
         """(rid, o quê, como corrigir) se o `caminho` (já resolvido) é protegido para o papel; senão None."""
         if MARCA_DA_SUITE.fullmatch(caminho.name):  # S8 (C-1, C-2): antes de política, papel e sessão; nome resolvido
             return PROVA_DA_SUITE
+        if achado := self.parecer_de_item(caminho):  # C1b-2: trava de todo papel, antes da política
+            return achado
         if self._raiz_home is None:
             self._raiz_home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
         raiz, home = self._raiz_home
@@ -2597,6 +2622,7 @@ class Guarda:
             self.forge_check_publica(argumentos_do_forge_check, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"))
             self.publicar_pela_copia(palavras[len(palavras) - len(argumentos_do_forge_check) - 1], argumentos_do_forge_check,
                                      pasta, self.da_atribuicao(atribuicoes, "PATH"))
+        self.pareceres_pela_copia(palavras, prog, args, pasta, self.da_atribuicao(atribuicoes, "PYTHONPATH"))
         if prog in SHELLS:
             for i, a in enumerate(args):
                 if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 1 < len(args):
@@ -2718,6 +2744,46 @@ class Guarda:
         if re.search(r"[$`]", programa) or self.raiz_git(real.parent) is not None:
             self.barrar_parecer(f"forge-check parecer publicar pelo `bin/` de uma cópia ({programa}) roda o código da branch "
                                 "(M10.1)")
+
+    def pareceres_pela_copia(self, palavras, prog, args, pasta, pythonpath):
+        """M10.1 (C1b-2): o `forge_pareceres.py` de uma cópia publica pelo código da branch, rodado como programa ou script
+        do python, ou achado pelo python do `-c`, do `-m` ou da entrada na pasta corrente ou no `PYTHONPATH` da linha.
+        Decide o caminho resolvido; o caminho com expansão barra (na dúvida, recusa)."""
+        alvos = [palavras[0]]
+        if prog.startswith("python"):
+            script = script_do_python(args)
+            pastas = (pythonpath.split(":") if pythonpath is not None else []) + ([] if script else ["."])
+            alvos += [script] if script else []
+            alvos += [f"{p or '.'}/{MODULO_DE_PARECER}" for p in pastas]
+        for alvo in alvos:
+            real = Path(os.path.realpath(self.caminho(pasta, alvo)))  # o link de outro nome conta pelo arquivo
+            opaco = re.search(r"[$`]", os.path.expandvars(alvo)) and nome_do_caminho(alvo) == MODULO_DE_PARECER
+            if opaco or real.name == MODULO_DE_PARECER and real.is_file() and self.raiz_git(real.parent) is not None:
+                self.barrar_parecer(f"{MODULO_DE_PARECER} de uma cópia ({alvo}) roda o código da branch (M10.1)")
+
+    def parecer_de_item(self, caminho):
+        """C1b-2 (M20.1): o `.md` direto em `docs/<reviews|qa|security|devops>/` da raiz de uma cópia, fora o `_modelo.md`
+        (as subpastas, `ameacas/`, `aceites/` e `bugs/`, não são parecer de item), depois da virada: a tupla da recusa,
+        trava de todo papel; sem a lista fechada na `develop` do `origin`, dorme (None)."""
+        if (caminho.suffix != ".md" or caminho.name == "_modelo.md"
+                or caminho.parts[-3] != "docs" or caminho.parts[-2] not in PASTAS_DE_ITEM):
+            return None
+        topo = self.raiz_git(caminho.parent)
+        if topo != caminho.parents[2] or not self.lista_fechada(topo):
+            return None
+        return ("R-REVIEW", f"parecer de item em docs/{caminho.parts[-2]}/ depois da virada (lista fechada na develop)",
+                "grave em `.forge/pareceres/<pedido>/<tipo>.md` e rode `forge-check parecer publicar`", None, TRAVA)
+
+    def lista_fechada(self, topo):
+        """A lista existe na `origin/develop` da cópia ou no commit da develop que o `git ls-remote` lê (o ref local
+        recuado não a esconde); sem rede, vale o ref local; commit remoto que a cópia não tem não conta."""
+        if topo not in self._listas:
+            refs = ["refs/remotes/origin/develop"]
+            if git(topo, "cat-file", "-e", f"{refs[0]}:{LISTA_FECHADA}")[0]:
+                saida = git(topo, "ls-remote", "origin", "refs/heads/develop")[1]  # o padrão casa o fim do nome
+                refs = [x.split("\t")[0] for x in saida.splitlines() if x.endswith("\trefs/heads/develop")]
+            self._listas[topo] = any(git(topo, "cat-file", "-e", f"{r}:{LISTA_FECHADA}")[0] == 0 for r in refs)
+        return self._listas[topo]
 
     def barrar_parecer(self, o_que, corrigir=CORRIGIR_PUBLICAR):
         """M4.2 e M10.1: trava (`TRAVA`), então vale também na sessão do Forge, para todo papel."""

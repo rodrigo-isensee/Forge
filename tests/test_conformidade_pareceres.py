@@ -5,6 +5,7 @@ gravado pelo papel do tipo e recusa sem o registro. De ponta a ponta: o hook de 
 import contextlib
 import io
 import json
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -117,10 +118,8 @@ class AutoriaDoPublicar(GhFalso):
         self.assertEqual(rc, 0, saida)
 
 
-class PeloTerminal(GhFalso):
-    """C1b da F1 parte 2 (M4.2 e M10.1; casos C21 e C12 de `docs/security/ameacas/g2-parecer-status.md`): o hook barra o
-    status e o comentário de parecer gravados pelo `gh` do terminal e o `publicar` pelo `bin/` de uma cópia; o `Corrigir`
-    aponta o `forge-check parecer publicar` do plugin. Aqui na sessão de projeto; `PeloTerminalNoForge`, no clone do Forge."""
+class NoTerminal(GhFalso):
+    """A sessão de projeto com o hook de verdade e o `gh` falso, sem casos: a base de `PeloTerminal` e do C1b-2."""
 
     def setUp(self):
         super().setUp()
@@ -151,6 +150,12 @@ class PeloTerminal(GhFalso):
             with self.subTest(comando=comando):
                 r = self.bash(comando)
                 self.assertEqual(r.returncode, 0, r.stderr)
+
+
+class PeloTerminal(NoTerminal):
+    """C1b da F1 parte 2 (M4.2 e M10.1; casos C21 e C12 de `docs/security/ameacas/g2-parecer-status.md`): o hook barra o
+    status e o comentário de parecer gravados pelo `gh` do terminal e o `publicar` pelo `bin/` de uma cópia; o `Corrigir`
+    aponta o `forge-check parecer publicar` do plugin. Aqui na sessão de projeto; `PeloTerminalNoForge`, no clone do Forge."""
 
     def test_c21_gh_api_statuses_barrado(self):
         self.barra([f"gh api -X POST repos/dono/repo/statuses/{self.sha} -f state=success -f context=parecer-review",
@@ -278,6 +283,140 @@ class PeloTerminalNoForge(PeloTerminal):
                     "echo repos/o/r/statuses/abc | xargs gh api -f state=success"],
                    "gh api que muda algo com endpoint que o hook não lê")
         self.libera(["echo repos/o/r/issues/comments/9 | xargs gh api"])
+
+
+class ModuloPelaCopia(NoTerminal):
+    """C1b-2 (M10.1, caso C12): o `bin/forge_pareceres.py` de uma cópia, rodado ou importado pelo python, publica pelo
+    código da branch; o hook decide pelo caminho resolvido (programa, script, pasta corrente e `PYTHONPATH` da linha)."""
+
+    def setUp(self):
+        super().setUp()
+        (self.repo / "bin").mkdir()
+        (self.repo / "bin" / "forge_pareceres.py").write_text("CONTEXTOS = {}\n", encoding="utf-8")
+        self.fora = self.casa / "extraido"  # a extração da base fora de cópia de trabalho
+        self.fora.mkdir()
+        (self.fora / "forge_pareceres.py").write_text("CONTEXTOS = {}\n", encoding="utf-8")
+        (self.tmp / "link.py").symlink_to(self.repo / "bin" / "forge_pareceres.py")
+
+    def test_c12_modulo_da_copia_barrado(self):
+        self.barra(["python3 bin/forge_pareceres.py", "python3 -I -X utf8 ./bin/forge_pareceres.py",
+                    "bin/forge_pareceres.py", f"python3 {self.tmp}/link.py",
+                    "cd bin && python3 -c 'import forge_pareceres'", "cd bin && python3 -m forge_pareceres",
+                    "PYTHONPATH=bin python3 -c 'import forge_pareceres'",
+                    f"PYTHONPATH=/usr/lib:{self.repo}/bin python3 -I s.py",
+                    "export PYTHONPATH=bin; python3 -c 'import forge_pareceres'",
+                    "python3 $D/forge_pareceres.py", "cd bin && python3 - argumento < /dev/null"],
+                   "forge_pareceres.py de uma cópia")
+        self.libera([f"python3 {self.fora}/forge_pareceres.py", f"PYTHONPATH={self.fora} python3 -c 'import forge_pareceres'",
+                     "python3 -c 'print(1)'", "cat bin/forge_pareceres.py", "grep CONTEXTOS bin/forge_pareceres.py",
+                     "python3 -m unittest tests.test_forge_pareceres", "PYTHONPATH=tests python3 -c 'print(1)'",
+                     "python3 $S", "python3 -W ignore bin/outro.py"])
+
+
+class ModuloPelaCopiaNoForge(ModuloPelaCopia):
+    """O M10.1 do módulo é trava: vale também na sessão do Forge."""
+
+    def setUp(self):
+        super().setUp()
+        (self.repo / ".forge" / "versao").unlink()
+        (self.repo / ".claude-plugin").mkdir()
+        (self.repo / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
+
+
+class ParecerDeItem(NoTerminal):
+    """C1b-2 (M20.1, seção 7 do desenho): depois da virada, o parecer de item em `docs/{reviews,qa,security,devops}/` barra,
+    pelo caminho resolvido (Write e Bash); antes, dorme. A virada é a lista fechada na develop do `origin`, conferida pelo
+    `git ls-remote` (o ref local recuado não a esconde)."""
+
+    LISTA = ".github/pareceres-lista-fechada.json"
+    ITENS = [("docs/reviews/v1.md", "forge:tech-lead"), ("docs/qa/v1.md", "forge:qa-engineer"),
+             ("docs/security/v1.md", "forge:security-engineer"), ("docs/devops/v1.md", "forge:devops-engineer")]
+
+    def git(self, *args):
+        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=self.repo, env=self.env,
+                              check=True, capture_output=True, text=True).stdout.strip()
+
+    def setUp(self):
+        super().setUp()
+        self.origem = self.tmp / "origem.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(self.origem)], env=self.env, check=True)
+        self.git("remote", "set-url", "origin", str(self.origem))
+        self.git("push", "-q", "origin", "HEAD:refs/heads/develop")
+        self.git("fetch", "-q", "origin")
+
+    def lista(self, ref="develop"):
+        """O C5a: a lista fechada entra na `ref` do `origin`."""
+        (self.repo / ".github").mkdir()
+        (self.repo / self.LISTA).write_text('{"prs": [7]}\n', encoding="utf-8")
+        self.git("add", self.LISTA)
+        self.git("commit", "-q", "-m", "lista")
+        self.git("push", "-q", "origin", f"HEAD:refs/heads/{ref}")
+        self.git("fetch", "-q", "origin")
+
+    def write(self, rel, papel="forge:tech-lead"):
+        entrada = {"tool_name": "Write", "tool_input": {"file_path": str(self.repo / rel), "content": "x\n"},
+                   "hook_event_name": "PreToolUse", "tool_use_id": "toolu_8", "agent_type": papel}
+        return rodar("conformidade", entrada, self.repo, extra={"HOME": str(self.casa), "CLAUDE_PROJECT_DIR": str(self.repo)})
+
+    def barra_write(self, casos):
+        for rel, papel in casos:
+            with self.subTest(rel=rel, papel=papel):
+                r = self.write(rel, papel)
+                self.assertEqual(r.returncode, 2, r.stderr)
+                self.assertTrue(r.stderr.startswith("R-REVIEW: parecer de item em docs/"), r.stderr)
+                self.assertIn("forge-check parecer publicar", r.stderr)
+
+    def libera_write(self, casos, so_o_item=False):
+        """Sem a recusa do item; `so_o_item`: a política pode recusar por outro motivo (o aceite é do usuário)."""
+        for rel, papel in casos:
+            with self.subTest(rel=rel, papel=papel):
+                r = self.write(rel, papel)
+                self.assertNotIn("parecer de item", r.stderr)
+                if not so_o_item:
+                    self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_dorme_sem_a_lista(self):
+        self.libera_write(self.ITENS)
+
+    def test_lista_fora_da_develop_dorme(self):
+        self.lista("outra")
+        self.libera_write(self.ITENS)
+
+    def test_acorda_com_a_lista(self):
+        self.lista()
+        self.barra_write(self.ITENS)
+        self.barra(["echo x > docs/reviews/v1.md", "cd docs && tee qa/v1.md < /dev/null"], "parecer de item em docs/")
+        self.libera_write([("docs/reviews/_modelo.md", "forge:tech-lead"), ("docs/security/ameacas/g2.md", "forge:security-engineer"),
+                           ("docs/qa/bugs/b1.md", "forge:qa-engineer"), ("docs/reviews/v1.txt", "forge:tech-lead"),
+                           ("templates/projeto/docs/reviews/v1.md", "forge:tech-lead")])
+        self.libera_write([("docs/adr/0100-x.md", "forge:software-architect"), ("outros/reviews/v1.md", "forge:tech-lead")],
+                          so_o_item=True)
+        self.libera_write([("docs/security/aceites/v1.md", "forge:security-engineer")], so_o_item=True)
+
+    def test_lista_em_ref_que_so_termina_em_develop_dorme(self):
+        """O `ls-remote` casa o fim do nome (`refs/sobra/refs/heads/develop`): só a linha da develop conta."""
+        self.lista("x")
+        self.git("push", "-q", "origin", "HEAD:refs/sobra/refs/heads/develop")
+        self.git("update-ref", "-d", "refs/remotes/origin/develop")
+        self.libera_write(self.ITENS[:1])
+
+    def test_ref_local_recuado_nao_esconde_a_lista(self):
+        base = self.git("rev-parse", "HEAD")
+        self.lista()
+        self.git("update-ref", "refs/remotes/origin/develop", base)
+        self.barra_write(self.ITENS[:1])
+        self.git("update-ref", "-d", "refs/remotes/origin/develop")
+        self.barra_write(self.ITENS[:1])
+
+
+class ParecerDeItemNoForge(ParecerDeItem):
+    """A recusa é trava: vale também na sessão do Forge, para todo papel."""
+
+    def setUp(self):
+        super().setUp()
+        (self.repo / ".forge" / "versao").unlink()
+        (self.repo / ".claude-plugin").mkdir()
+        (self.repo / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
 
 
 if __name__ == "__main__":
