@@ -158,7 +158,8 @@ class PeloTerminal(GhFalso):
         self.libera([f"gh api repos/dono/repo/commits/{self.sha}/statuses",
                      "gh api repos/{owner}/{repo}/issues/7/comments --paginate",
                      "gh api repos/dono/repo/issues/comments/99",
-                     "gh api graphql -f query='query { viewer { login } }'"])
+                     "gh api graphql -f query='query { viewer { login } }'",
+                     "gh pr create --draft --base develop --title t --body b"])  # outro subcomando: sem endpoint
 
     def test_c21_gh_pr_comment_com_marcador_barrado(self):
         (self.repo / "parecer.md").write_text(parecer(self.sha), encoding="utf-8")
