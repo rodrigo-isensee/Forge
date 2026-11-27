@@ -1,10 +1,12 @@
 """ADR 0018, G1.1: formato, integridade e estado das autorizações gravadas (`bin/forge_autorizacao.py`, `bin/forge-check autorizacao ler`)."""
+import argparse
 import contextlib
 import datetime
 import errno
 import hashlib
 import importlib.util
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -347,6 +349,41 @@ class ItemPresoAoCommit(unittest.TestCase):
         self.commitar("docs/devops/sem-tipo.md", f"---\nbranch: {RAMO}\ncommit: {self.revisado}\nparecer: aprovado\n---\n")
         self.assertEqual(self.estado(), ("inativa", "Parecer com tipo fora da sua pasta"))  # tipo ausente não tem pasta
 
+    def test_linha_que_comeca_com_tracos_no_cabecalho_nao_recusa_o_parecer_e_o_corpo_nao_aprova(self):  # S5 (v0481 E25.1)
+        cabeca = f"---\ntipo: qa\npedido: v0\nbranch: {RAMO}\ncommit: {self.revisado}\nescopo: a --- b\n"
+        self.commitar("docs/qa/pv-a2.md", f"{cabeca}---8<--- recorte\nparecer: aprovado\n---\n# parecer\n")
+        self.assertEqual(self.estado(), ("ativa", ""))  # antes: o `---8<---` fechava o cabeçalho e o `parecer:` sumia
+        self.commitar("docs/qa/pv-a2.md", f"{cabeca}parecer: reprovado\n ---\n# parecer\nparecer: aprovado\n")
+        self.assertEqual(self.estado(), ("inativa", "Commit sem os pareceres aprovados nele"))  # o fecho do ler_frontmatter
+
+    def test_parecer_sem_fecho_anterior_ao_commit_barra_em_vez_de_sumir(self):  # A3 da segurança (v0481 E25.5)
+        git(self.raiz, "reset", "-q", "--hard", self.revisado)
+        self.commitar("docs/reviews/velho.md", f"---\ntipo: review\nbranch: {RAMO}\nparecer: reprovado\n# sem fecho\n")
+        self.revisado = self.commitar("codigo.txt", "item 2")
+        for pasta in TIPOS:
+            self.parecer(self.revisado, tipo=pasta)
+        self.assertEqual(self.estado(), ("inativa", "Parecer sem cabeçalho legível"))
+
+
+# Sondas da segurança no e0d6367 (PAR-P1), refeitas no CI. S1 (M18 e M27 das specs PV-A2 miram a `frente` nova):
+# python3 -m unittest tests.test_forge_mutante.ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes
+# S2 (a guarda apagada tem isenta e a nova, M5, em tests/mutantes/v0481-s5-cabecalho.json):
+# catraca do CI no head e216aa71 (run 45856837897)
+class Frente(unittest.TestCase):
+    """S5 (v0481 E25.1): `frente` fecha o cabeçalho só na linha que é `---` (a do `ler_frontmatter` do forge-check)."""
+
+    def test_tracos_dentro_de_um_valor_ou_no_comeco_de_outra_linha_nao_fecham(self):
+        texto = "---\ntipo: review\nescopo: a --- b\n----\n---x\nparecer: aprovado\n---\nparecer: reprovado\n"
+        self.assertEqual(fa.frente(texto), {"tipo": "review", "escopo": "a --- b", "parecer": "aprovado"})
+
+    def test_fecho_com_espaco_vale_e_o_corpo_nao_entra(self):
+        self.assertEqual(fa.frente("---\nparecer: reprovado\n\t--- \nparecer: aprovado\n"), {"parecer": "reprovado"})
+
+    def test_sem_fecho_ou_sem_tracos_no_topo_e_vazio(self):
+        for texto in ("---\nparecer: aprovado\n", "# parecer\n---\nparecer: aprovado\n---\n", " ---\nparecer: aprovado\n---\n", ""):
+            with self.subTest(texto=texto):
+                self.assertEqual(fa.frente(texto), {})
+
 
 FIXA = {"Validade": "fixa", "Validade-utc": "fixa", "Origem-da-validade": "sem prazo", "Alvos": "fixo"}
 UNICO = {"Validade": "uso-unico", "Validade-utc": "uso-unico"}
@@ -407,6 +444,98 @@ class AtosFixos(unittest.TestCase):
         r = subprocess.run([sys.executable, "-I", str(BIN / "forge-check"), "--raiz", str(self.raiz), "autorizacao", "ler", "--ato", "corte-diario"],
                            capture_output=True, text=True, env=env, timeout=60)
         self.assertEqual((r.returncode, r.stdout), (0, f"autorizacao: A-1 sha256 {fa.sha(CORPO)} · corte-diario · fixo\n"), r.stderr)
+
+
+def no_repositorio(raiz, origem):
+    """`raiz` vira repositório git com o `origin` dado (sem config do sistema nem global; o teto do git na pasta-mãe)."""
+    env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_", "PYTHON"))})
+    env.update(GIT_CEILING_DIRECTORIES=str(Path(raiz).parent), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+    for args in (("init", "-q"), ("remote", "add", "origin", origem)):
+        subprocess.run(["git", "-C", str(raiz), *args], check=True, capture_output=True, env=env, timeout=60)
+
+
+FORGE = json.loads((BIN.parent / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["repository"]
+
+
+class RotuloPeloTime(unittest.TestCase):
+    """Emenda ROTULO-PELO-TIME da ADR 0018: o ato `rotulo-pelo-time` é sem prazo, como os fixos, e só fica ativo no repositório do
+    próprio Forge: `origin` igual ao `repository` do plugin.json e raiz que não é projeto. Nos outros projetos nada muda."""
+    setUp = Ler.setUp
+    estados = Ler.estados
+    TIME = {**FIXA, "Ato": "rotulo-pelo-time"}
+
+    def motivo(self):
+        return fa.concessoes(self.raiz, GRAVADOR, em("2036-11-18 07:00"))[0][0][3:]
+
+    def test_ativo_so_com_o_origin_do_forge_e_sem_vencer(self):
+        self.assertEqual(self.estados("2036-11-18 07:00", A_1=concessao(**self.TIME)), ["inativa"])  # sem git: sem origin
+        no_repositorio(self.raiz, FORGE.upper() + ".git")  # o GitHub não diferencia maiúsculas; `.git` final vale
+        self.assertEqual(self.motivo(), ("ativa", ""))
+        self.assertEqual(self.estados("2036-11-18 07:00", A_1=concessao(**self.TIME), R_1=evento("", {"Retira": "A-1"})), ["retirada"])
+
+    def test_outro_origin_ou_projeto_deixa_inativo(self):
+        self.estados("2036-11-18 07:00", A_1=concessao(**self.TIME))
+        no_repositorio(self.raiz, FORGE + "-site")
+        self.assertEqual(self.motivo(), ("inativa", "só vale no repositório do Forge: o origin é outro"))
+        shutil.rmtree(self.raiz / ".git")
+        no_repositorio(self.raiz, FORGE)
+        (self.raiz / ".forge" / "versao").write_text("0.47.18\n", encoding="utf-8")  # projeto com o origin do Forge
+        self.assertEqual(self.motivo(), ("inativa", "só vale no repositório do Forge: a raiz é projeto ou o plugin não diz o repositório"))
+        self.assertEqual(self.estados("2036-11-18 07:00", A_1=concessao(**FIXA, Ato="corte-diario")), ["ativa"])  # os outros fixos não mudam
+
+    def test_plugin_sem_repositorio_nao_faz_o_forge(self):
+        self.estados("2036-11-18 07:00", A_1=concessao(**self.TIME))
+        no_repositorio(self.raiz, FORGE)
+        plugin = self.raiz / "plugin"
+        (plugin / ".claude-plugin").mkdir(parents=True)
+        for manifesto in ('{"name": "forge"}', "[]", "{"):
+            with self.subTest(manifesto=manifesto), unittest.mock.patch.object(fa, "__file__", str(plugin / "bin" / "x.py")):
+                (plugin / ".claude-plugin" / "plugin.json").write_text(manifesto, encoding="utf-8")
+                self.assertEqual(self.motivo(), ("inativa", "só vale no repositório do Forge: a raiz é projeto ou o plugin não diz o repositório"))
+
+    def test_so_com_alvo_fixo_e_validade_fixa(self):
+        no_repositorio(self.raiz, FORGE)
+        for troca in ({"Alvos": "pr:5"}, UNICO, {"Validade-utc": "2026-11-18 11:00"}):
+            with self.subTest(troca=troca):
+                self.assertEqual(self.estados("2026-11-18 07:00", A_1=concessao(**{**self.TIME, **troca})), ["adulterada"])
+
+    def sonda(self, origem, versao):
+        """`fora_do_forge` numa raiz temporária própria da sonda (id v0481-e245 no nome), com o `origin` dado e, se `versao`, o
+        arquivo de versão de projeto do Forge criado só dentro dela."""
+        raiz = Path(tempfile.mkdtemp(prefix="v0481-e245-"))
+        self.addCleanup(shutil.rmtree, raiz)
+        no_repositorio(raiz, origem)
+        if versao:
+            (raiz / ".forge").mkdir()
+            (raiz / ".forge" / "versao").write_text("0.47.18\n", encoding="utf-8")
+        return fa.fora_do_forge(raiz)
+
+    def test_sonda_s1_qualquer_host_antes_de_github_com_vale(self):
+        """Sonda S1 da segurança (469fa04), neutra no parecer (quem escreve o origin já grava a URL exata do Forge):
+        script em arquivo: repositório temporário de projeto ausente (sem o arquivo de versão do Forge) com origin `https://<outro-host>/github.com/<slug>` e depois `file:///tmp/v0481-sonda-e245/github.com/<slug>.git`; `fora_do_forge`"""
+        nome = fa.slug(FORGE)
+        for origem in (f"https://outro-host.example/github.com/{nome}", f"file:///tmp/v0481-sonda-e245/github.com/{nome}.git"):
+            with self.subTest(origem=origem):
+                self.assertEqual(self.sonda(origem, versao=False), "")
+
+    def test_sonda_s2_projeto_com_o_origin_do_forge_fica_inativo(self):
+        """Sonda S2 da segurança (469fa04): o arquivo de versão de projeto vence o origin do Forge.
+        script em arquivo: raiz temporária de projeto (com o arquivo de versão do Forge, criado só no $TMPDIR da sonda) e origin igual ao `repository` do plugin; `fora_do_forge`"""
+        self.assertEqual(self.sonda(FORGE, versao=True), "só vale no repositório do Forge: a raiz é projeto ou o plugin não diz o repositório")
+        self.assertEqual(self.sonda(FORGE, versao=False), "")  # controle: sem o arquivo, o mesmo origin é o Forge
+
+    def test_ler_ato_diz_a_ativa_e_sem_ela_rc_1(self):
+        (self.pasta / "A-1").write_text(concessao(**self.TIME), encoding="utf-8")
+        a = argparse.Namespace(acao="ler", ato="rotulo-pelo-time")
+        for origem, esperado in ((FORGE + "-site", (1, "autorizacao: nenhuma rotulo-pelo-time ativa\n")),
+                                 (FORGE, (0, f"autorizacao: A-1 sha256 {fa.sha(CORPO)} · rotulo-pelo-time · fixo\n"))):
+            with self.subTest(origem=origem):
+                shutil.rmtree(self.raiz / ".git", ignore_errors=True)
+                no_repositorio(self.raiz, origem)
+                saida = io.StringIO()
+                with contextlib.redirect_stdout(saida):
+                    rc = fa.executar(a, self.raiz, {"gravador": GRAVADOR, "seguro": str})
+                self.assertEqual((rc, saida.getvalue()), esperado)
 
 
 if __name__ == "__main__":

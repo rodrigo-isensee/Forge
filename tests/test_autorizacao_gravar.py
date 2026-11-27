@@ -537,6 +537,17 @@ class AtosFixos(Base):
         self.nada_gravado(*self.gravar("pode aplicar o rotulo", alvos="fixo", uuid="22222222-2222-4222-8222-222222222222"))
         self.nada_gravado(*self.gravar("autorizo o corte diario", ato="merge-main", alvos="fixo", uuid="33333333-3333-4333-8333-333333333333"))
 
+    def test_rotulo_pelo_time_grava_fixa_e_so_ativa_no_repositorio_do_forge(self):  # Emenda ROTULO-PELO-TIME
+        texto = "autorizo o time ate a homologacao, fixo"
+        _, campos, corpo, est, motivo = self.lida(0, texto, "rotulo-pelo-time")
+        self.assertEqual((corpo, campos["Estado-inicial"], campos["Validade"], campos["Alvos"]), (texto, "ativa", "fixa", "fixo"))
+        self.assertEqual((est, motivo), ("inativa", "só vale no repositório do Forge: o origin é outro"))
+        git(self.raiz, "init", "-q")
+        git(self.raiz, "remote", "add", "origin", json.loads((BIN.parent / ".claude-plugin" / "plugin.json").read_text())["repository"])
+        self.assertEqual(self.lidas("2036-11-18 00:01")[-1][3:], ("ativa", ""))
+        _, campos, _, _, _ = self.lida(1, "autorizo o rotulo pelo time ate a homologacao, fixo", "rotulo-pelo-time")
+        self.assertIn("mais de um ato", campos["Motivo-da-pendencia"])  # o termo `rotulo` é do ato com prazo
+
 
 if __name__ == "__main__":
     unittest.main()

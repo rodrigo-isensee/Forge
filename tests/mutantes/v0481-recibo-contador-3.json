@@ -1,0 +1,76 @@
+{
+  "pedido": "v0481-recibo-contador",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "new_string fora da forma não conta",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "    if not isinstance(velho, str) or not isinstance(novo, str):",
+      "para": "    if not isinstance(velho, str):",
+      "testes": [
+        "tests.test_hook_ordens_teto.Edit.test_trecho_ausente_ou_vazio_ou_arquivo_ausente_passa"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "trecho vazio só cria sobre o texto vazio",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "    if not velho:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_hook_ordens_teto.Edit.test_trecho_ausente_ou_vazio_ou_arquivo_ausente_passa"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "trecho vazio sobre texto não vazio: a ferramenta falha",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "        return novo if not texto else None",
+      "para": "        return novo if True else None",
+      "testes": [
+        "tests.test_hook_ordens_teto.Edit.test_trecho_ausente_ou_vazio_ou_arquivo_ausente_passa"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "arquivo ausente é o texto vazio que o Edit cria",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "if os.path.lexists(arquivo) else \"\"",
+      "para": "if True else \"\"",
+      "testes": [
+        "tests.test_hook_ordens_teto.Criacao.test_arquivo_ausente_conta_o_new_string"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "sem o texto atual, não há o que comparar",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "    if antes is None:\n        return False",
+      "para": "    if False:\n        return False",
+      "testes": [
+        "tests.test_hook_ordens_teto.Write.test_16_linhas_recusa_com_as_contagens_e_15_passa"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "não cresce: nem linhas nem caracteres",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": "len(anteriores) and tamanho(linhas)",
+      "para": "len(anteriores) or tamanho(linhas)",
+      "testes": [
+        "tests.test_hook_ordens_teto.AcimaDoTeto.test_mais_linhas_com_menos_caracteres_recusa"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "acima do teto, a gravação que não cresce passa",
+      "arquivo": "hooks/ordens_teto.py",
+      "de": " or nao_cresce(linhas, *achado):",
+      "para": " or False:",
+      "testes": [
+        "tests.test_hook_ordens_teto.AcimaDoTeto.test_edit_que_encurta_passa_e_o_que_cresce_recusa"
+      ]
+    }
+  ]
+}

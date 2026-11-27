@@ -11,6 +11,8 @@ AGREGADO = "pareceres"
 ESTADOS = {"aprovado": "success", "riscos-aceitos": "success", "reprovado": "failure"}
 TETO_DA_DESCRICAO = 140  # limite do GitHub; acima, recusa (M7.1)
 DESCRICAO_APROVADA = re.compile(r"^(aprovado|riscos-aceitos) · sha256 [0-9a-f]{64} · ")
+REMOTO = re.compile(r"(?:(?:https?|ssh)://(?:[^@/]+@)?|[^@/:]+@)([^/:@]+)[:/]([^/]+)/([^/]+?)(?:\.git)?/?")  # M18.1
+URL_DO_PR = re.compile(r"https://([^/]+)/([^/]+)/([^/]+)/pull/[0-9]+")
 
 
 class Recusa(Exception):
@@ -43,14 +45,33 @@ def gh(raiz, args, corpo=None):
         raise Recusa(f"gh {' '.join(args[:2])} sem resposta legível ({type(e).__name__})") from None
 
 
+def repositorio_do_remoto(raiz):
+    """(host, dono, repo) do `origin` da cópia, em minúsculas; sem `origin` ou URL fora das formas https e ssh: Recusa (M18.1)."""
+    try:
+        url = subprocess.run(["git", "remote", "get-url", "origin"], cwd=raiz, capture_output=True, text=True, timeout=30).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        url = ""  # sem `git` ou sem resposta; sem `origin`, a saída também vem vazia e não casa
+    m = REMOTO.fullmatch(url.strip())
+    if m is None:
+        raise Recusa("o `origin` da cópia não é um repositório lido (https ou ssh); publicar pede o remoto do PR (M18.1)")
+    return tuple(x.lower() for x in m.groups())
+
+
 def pr_aberto(raiz, branch, sha):
-    """O PR aberto da `branch` (nome exato) cujo head é `sha`; outro head, nenhum ou mais de um: Recusa."""
-    prs = gh(raiz, ["pr", "list", "--head", branch, "--state", "open", "--json", "number,headRefName,headRefOid,url"])
+    """O PR aberto da `branch` (nome exato) cujo head é `sha`, no repositório do `origin` da cópia e com a branch nele (M18.1:
+    `GH_REPO` ou outro remoto não desviam o publicar); outro head, outro repositório, nenhum ou mais de um: Recusa."""
+    prs = gh(raiz, ["pr", "list", "--head", branch, "--state", "open", "--json",
+                    "number,headRefName,headRefOid,url,isCrossRepository"])
     prs = [p for p in prs if isinstance(p, dict) and p.get("headRefName") == branch] if isinstance(prs, list) else []
     if len(prs) != 1:
         raise Recusa(f"{len(prs)} PR aberto(s) da branch {branch}; publicar pede um só")
     if prs[0].get("headRefOid") != sha:
         raise Recusa(f"o commit {sha[:7]} não é o head do PR #{prs[0].get('number')} ({str(prs[0].get('headRefOid'))[:7]})")
+    if prs[0].get("isCrossRepository") is not False:
+        raise Recusa(f"o PR #{prs[0].get('number')} vem de outro repositório; publicar pede a branch no repositório do PR (M18.1)")
+    m = URL_DO_PR.fullmatch(str(prs[0].get("url")))
+    if not m or tuple(x.lower() for x in m.groups()) != repositorio_do_remoto(raiz):
+        raise Recusa(f"o PR #{prs[0].get('number')} ({prs[0].get('url')}) não é do repositório do `origin` da cópia (M18.1)")
     return prs[0]
 
 

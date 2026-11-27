@@ -1,0 +1,56 @@
+{
+  "pedido": "v0481-g3-entrega-ci",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "prova_do_ci: check vermelho ou pendente reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    if ruins or not lidos:",
+      "para": "    if not lidos:",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_vermelho_e_pendente_reprovam_com_o_check"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "conferência da entrega: no Forge o D2 local não roda, a prova é o CI",
+      "arquivo": "bin/forge-check",
+      "de": "prova_do_ci(raiz, branch, head) if forge else prova_do_pronto(",
+      "para": "prova_do_ci(raiz, branch, head) if False else prova_do_pronto(",
+      "testes": [
+        "tests.test_selo_e_entrega.Entrega.test_sem_worktree_com_o_head_no_forge_nao_cumpre"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "prova_do_ci: o motivo do gh em erro vai na linha; só o vazio vira 'saída vazia'",
+      "arquivo": "bin/forge-check",
+      "de": "sem_controle(erro.strip())[:120] or \"saída vazia\")",
+      "para": "sem_controle(erro.strip())[:120] and \"saída vazia\")",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_sem_rede_nao_verificavel_reprova"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "prova_do_ci: o head lido do PR é o do gh; só o ausente vira '?'",
+      "arquivo": "bin/forge-check",
+      "de": "str(pr.get(\"headRefOid\") or \"?\")",
+      "para": "str(pr.get(\"headRefOid\") and \"?\")",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_ci_verde_no_head_prova_sem_os_checks_fora_da_linha"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "prova_do_ci: a linha nomeia o check que falta; só a lista vazia vira 'nenhum check'",
+      "arquivo": "bin/forge-check",
+      "de": "sem_controle(\", \".join(ruins)) or \"nenhum check\"",
+      "para": "sem_controle(\", \".join(ruins)) and \"nenhum check\"",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_vermelho_e_pendente_reprovam_com_o_check"
+      ]
+    }
+  ]
+}

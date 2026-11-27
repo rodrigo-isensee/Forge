@@ -22,7 +22,9 @@ CAMPOS = ("Id", "Ato", "Alvos", "Validade", "Validade-utc", "Fuso", "Origem-da-v
           "Mensagem", "Hora-da-fala", "Sessao", "Pedido", "Sha256", "Gravado-por", "Autoriza")
 AUTORIZA = "só o ato e os alvos acima, até a validade; não amplia outra regra (R-DECISAO)"
 FIXOS = ("corte-diario", "so-aperta-com-seguranca")  # Emenda AUTORIZACOES-FIXAS: só alvo `fixo` e validade `fixa`, sem o teto da D1
-ATOS = ("rotulo-afrouxa-regra", "merge-main", *FIXOS)
+SO_NO_FORGE = ("rotulo-pelo-time",)  # Emenda ROTULO-PELO-TIME: fixo como os dois, e só ativo no repositório do próprio Forge
+SEM_PRAZO = (*FIXOS, *SO_NO_FORGE)
+ATOS = ("rotulo-afrouxa-regra", "merge-main", *SEM_PRAZO)
 CARTAO = r"[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*"
 ALVOS = re.compile(rf"pr:[1-9]\d*(, pr:[1-9]\d*)*|versao:\d+\.\d+\.\d+|item:{CARTAO}|fixo")
 SHA40 = re.compile(r"[0-9a-f]{40}")
@@ -36,7 +38,7 @@ VOCABULARIO = frozenset((
     "pode podem autorizo autorizado autorizada liberado liberada libero aplicar aplique aplica mesclar mescle "  # permissão
     "o a os as um uma de do da dos das no na nos nas em para pra pelo pela ao aos com "  # artigos e preposições
     "por favor obrigado obrigada ok sim").split())  # cortesia
-VOCABULARIO_FIXO = VOCABULARIO | frozenset("corte diario todo dia fixo fixa aperta seguranca escrito time decide registra".split())
+VOCABULARIO_FIXO = VOCABULARIO | frozenset("corte diario todo dia fixo fixa aperta seguranca escrito time decide registra homologacao".split())
 DATA_OU_HORA = re.compile(r"\b\d{1,2}(?:/\d{1,2}(?:/\d{2,4})?|:\d{2}|h\d{0,2})\b")  # "18/11", "12:00", "18h" (item 6)
 EXIGIDOS = ("review", "qa", "revisao-seguranca")  # o rótulo afrouxa-regra só cabe em mudança de controle: classe C (P5)
 PARECERES = tuple(f"docs/{p}/" for p in ("reviews", "qa", "security", "devops"))
@@ -118,7 +120,7 @@ def limite(campos):
     """Instante (UTC) em que a concessão para: a `Validade-utc` ou o teto da D1, o que vier antes (48 h desde a fala sem prazo
     escrito e no uso único; 7 dias com prazo). A `Validade` no `Fuso` tem de dar o mesmo instante (A6); senão, ValueError. Ato fixo
     (Emenda AUTORIZACOES-FIXAS, F1): só com validade `fixa`, que só ele tem, e sem fim."""
-    fixo = campos["Ato"] in FIXOS
+    fixo = campos["Ato"] in SEM_PRAZO
     if fixo != (campos["Validade"] == "fixa") or fixo != (campos["Validade-utc"] == "fixa"):
         raise ValueError("validade fixa só nos atos fixos, e eles só com ela")
     if fixo:
@@ -146,7 +148,7 @@ def problemas(campos, corpo, gravador):
         (campos["Gravado-por"] != gravador, "Gravado-por não é o forge-check carregado"),
         (campos["Ato"] not in ATOS, "Ato fora da lista"),
         (not ALVOS.fullmatch(campos["Alvos"]), "Alvos fora da forma"),
-        ((campos["Ato"] in FIXOS) != (campos["Alvos"] == "fixo"), "alvo fixo só nos atos fixos, e eles só com ele"),
+        ((campos["Ato"] in SEM_PRAZO) != (campos["Alvos"] == "fixo"), "alvo fixo só nos atos fixos, e eles só com ele"),
         (campos["Estado-inicial"] not in ESTADOS_INICIAIS, "Estado-inicial fora da lista"),
         (not re.fullmatch(PEDIDO, campos["Pedido"]), "Pedido fora da forma"),
         (campos["Autoriza"] != AUTORIZA, "Autoriza fora do texto fixo")) if falha]
@@ -216,6 +218,8 @@ def fora_do_revisado(raiz, campos):
         return "Commit não é o head: o Ramo muda depois dele"
     achados = git(raiz, "grep", "-l", "-F", "-e", f"branch: {ramo}", ponta, "--", *PARECERES) or ""
     lidos = [(a.split(":", 1)[-1], frente(git(raiz, "show", a) or "")) for a in achados.splitlines()]
+    if any(not p for _, p in lidos):  # S5: achado sem cabeçalho legível (sem fecho, CRLF) barra em vez de sumir
+        return "Parecer sem cabeçalho legível"
     if any(p.get("branch") == ramo and not caminho.startswith(PASTA_DO_TIPO.get(p.get("tipo"), "?")) for caminho, p in lidos):
         return "Parecer com tipo fora da sua pasta"
     pareceres = [p for _, p in lidos if p.get("branch") == ramo]
@@ -225,10 +229,36 @@ def fora_do_revisado(raiz, campos):
     return ""
 
 
+def slug(url):
+    """`dono/repo` minúsculo de uma URL do GitHub (https ou ssh, com ou sem `.git`)."""
+    return re.sub(r"^.*github\.com[/:]", "", url.strip().lower()).removesuffix(".git").strip("/")
+
+
+def fora_do_forge(raiz):
+    """Por que `raiz` não é o repositório do próprio Forge (Emenda ROTULO-PELO-TIME); "" se é. Projeto (`.forge/versao`) nunca
+    é; o `origin` da raiz tem de ser o `repository` do plugin.json ao lado deste módulo (o manifesto da raiz não decide)."""
+    try:
+        meu = json.loads((Path(__file__).resolve().parent.parent / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        meu = None
+    forge = slug(str(meu.get("repository", ""))) if isinstance(meu, dict) else ""
+    if not forge or (Path(raiz) / ".forge" / "versao").exists():
+        return "só vale no repositório do Forge: a raiz é projeto ou o plugin não diz o repositório"
+    if slug(git(raiz, "config", "--get", "remote.origin.url") or "") != forge:
+        return "só vale no repositório do Forge: o origin é outro"
+    return ""
+
+
 def frente(texto):
-    """{campo: valor} do frontmatter de um parecer (ADR 0004)."""
-    cabeca = texto.split("\n---", 1)[0] if texto.startswith("---\n") else ""
-    return dict(linha.split(": ", 1) for linha in cabeca.split("\n")[1:] if ": " in linha)
+    """{campo: valor} do frontmatter de um parecer (ADR 0004): do `---` do topo até a primeira linha só `---`, o fecho do
+    `ler_frontmatter` do forge-check (S5); `---` no começo de outra linha não fecha e, sem o fecho, vazio (o corpo não vale)."""
+    linhas = texto.split("\n")
+    if linhas[0] != "---":
+        return {}
+    for fecho, linha in enumerate(linhas[1:], 1):
+        if linha.strip() == "---":
+            return dict(campo.split(": ", 1) for campo in linhas[1:fecho] if ": " in campo)
+    return {}
 
 
 def confirmada(nome, campos, lidos, gravador):
@@ -258,6 +288,9 @@ def estado(nome, nomes, lidos, gravador, agora, raiz):
         return "vencida", ""
     if "pedido" in normal(campos["Origem-da-validade"]) and f"F-{campos['Pedido']}" in nomes:
         return "vencida", "pedido fechado"
+    fora = fora_do_forge(raiz) if campos["Ato"] in SO_NO_FORGE else ""
+    if fora:
+        return "inativa", fora
     revisado = fora_do_revisado(raiz, campos) if campos["Alvos"].startswith("item:") else ""
     if revisado:
         return "inativa", revisado
@@ -280,7 +313,8 @@ def concessoes(raiz, gravador, agora):
 
 # G1.2: o `gravar` (itens 1 a 6 e E1 da ADR 0018). O corpo é só a mensagem lida da transcrição: nenhum texto vem do comando.
 ATO_DO_TERMO = {"rotulo": "rotulo-afrouxa-regra", "afrouxa": "rotulo-afrouxa-regra", "main": "merge-main",
-                "corte": "corte-diario", "aperta": "so-aperta-com-seguranca"}
+                "corte": "corte-diario", "aperta": "so-aperta-com-seguranca",
+                "homologacao": "rotulo-pelo-time"}
 DIAS = ("segunda", "terca", "quarta", "quinta", "sexta", "sabado", "domingo")
 TETO_DA_MENSAGEM = 64 * 1024
 
@@ -340,7 +374,7 @@ def leitura(texto, ato, alvos, fala):
     termos = [re.sub(r"ate a |-feira| feira", lambda m: "ate " if m[0] == "ate a " else "", t) for t in termo.findall(norm)]
     resto = termo.sub(" ", norm)
     fins = [fim_do_termo(t, fala) for t in termos or ["sem termo"]]
-    fixo = ato in FIXOS  # Emenda AUTORIZACOES-FIXAS (F2): sem alvo marcado nem termo de validade no texto; vocabulário próprio
+    fixo = ato in SEM_PRAZO  # Emenda AUTORIZACOES-FIXAS (F2): sem alvo marcado nem termo de validade no texto; vocabulário próprio
     fora = fora_do_vocabulario(texto, marcado, VOCABULARIO_FIXO if fixo else VOCABULARIO)
     motivos = [m for falha, m in (
         (len(atos) > 1, "mais de um ato"),
@@ -440,20 +474,20 @@ def cmd_gravar(raiz, a, ctx, agora=None):
     return 0
 
 
-def cmd_corte(raiz, ctx, agora):
-    """Emenda AUTORIZACOES-FIXAS (F3), pelo `ler --ato corte-diario`: a `corte-diario` ativa mais nova, que o `forge-fechar
-    --corte` grava no PR da marca; rc 1 sem ela (erro de leitura na pasta deixa todas inativas: falha fechada)."""
+def cmd_corte(raiz, ctx, agora, ato="corte-diario"):
+    """Emenda AUTORIZACOES-FIXAS (F3), pelo `ler --ato <ato sem prazo>`: a concessão ativa mais nova do ato (a `corte-diario`, o
+    `forge-fechar --corte` grava no PR da marca); rc 1 sem ela (erro de leitura na pasta deixa todas inativas: falha fechada)."""
     lista, _ = concessoes(raiz, ctx["gravador"], agora)
-    ativas = [(nome, campos) for nome, campos, _, est, _ in lista if est == "ativa" and campos["Ato"] == "corte-diario"]
+    ativas = [(nome, campos) for nome, campos, _, est, _ in lista if est == "ativa" and campos["Ato"] == ato]
     if not ativas:
-        print("autorizacao: nenhuma corte-diario ativa")
+        print(f"autorizacao: nenhuma {ato} ativa")
         return 1
     nome, campos = ativas[-1]
-    print(f"autorizacao: {nome} sha256 {campos['Sha256']} · corte-diario · {campos['Alvos']}")
+    print(f"autorizacao: {nome} sha256 {campos['Sha256']} · {ato} · {campos['Alvos']}")
     return 0
 
 
 def executar(a, raiz, ctx):
-    if a.acao == "ler" and a.ato == "corte-diario":  # o forge-check autorizacao ler --ato corte-diario (F3)
-        return cmd_corte(raiz, ctx, datetime.datetime.now(UTC))
+    if a.acao == "ler" and a.ato in SEM_PRAZO:  # o forge-check autorizacao ler --ato <ato sem prazo> (F3; ROTULO-PELO-TIME)
+        return cmd_corte(raiz, ctx, datetime.datetime.now(UTC), a.ato)
     return cmd_gravar(raiz, a, ctx) if a.acao == "gravar" else cmd_ler(raiz, ctx)

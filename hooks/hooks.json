@@ -1,5 +1,5 @@
 {
-  "description": "Forge: regras de processo garantidas por código, silenciosas (ADR 0003): teto de agentes e relançamento duplicado (R-TETO), parecer antes de PR e merge (R-REVIEW, R-QA), tarefa pesada uma por vez (R-TETO), quadro válido após edição (R-WIP), conformidade por papel: merge, push, caminhos protegidos e flags proibidas (R-CONFORMIDADE, R-MAIN, R-VERIFY; ADR 0009), e o vigia, que avisa o usuário do que escapou dos bloqueios (ADR 0009, seção 8); e o doutor, que confere o projeto ao abrir e uma vez por dia e só avisa o usuário (primeiro uso, F3); e o ordens, que reinjeta as ordens em vigor do dono no SessionStart e a cada mensagem dele (emenda da ADR 0003); e o decisao, que no Stop do Jarvis só avisa o usuário da mensagem com mais de um grupo de opções ou grupo sem recomendação (R-DECISAO); e o salvar, que no SubagentStop grava num commit na cópia local, sem envio, o trabalho em andamento do escopo do brief (D6); e o estado, que injeta o forge-check status quando o dono pergunta o estado, sem bloquear (S1, emenda da ADR 0003).",
+  "description": "Forge: regras de processo garantidas por código, silenciosas (ADR 0003): teto de agentes e relançamento duplicado (R-TETO), parecer antes de PR e merge (R-REVIEW, R-QA), tarefa pesada uma por vez (R-TETO), quadro válido após edição (R-WIP), conformidade por papel: merge, push, caminhos protegidos e flags proibidas (R-CONFORMIDADE, R-MAIN, R-VERIFY; ADR 0009), e o vigia, que avisa o usuário do que escapou dos bloqueios (ADR 0009, seção 8); e o doutor, que confere o projeto ao abrir e uma vez por dia e só avisa o usuário (primeiro uso, F3); e o ordens, que reinjeta as ordens em vigor do dono no SessionStart e a cada mensagem dele (emenda da ADR 0003); e o decisao, que no Stop do Jarvis só avisa o usuário da mensagem com mais de um grupo de opções ou grupo sem recomendação (R-DECISAO); e o salvar, que no SubagentStop grava num commit na cópia local, sem envio, o trabalho em andamento do escopo do brief (D6); e o ordens_teto, que recusa gravar as ordens em vigor acima do teto do ordens; e o estado, que injeta o forge-check status quando o dono pergunta o estado, sem bloquear (S1, emenda da ADR 0003).",
   "hooks": {
     "PreToolUse": [
       {
@@ -42,6 +42,21 @@
               "-s",
               "-E",
               "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"
+            ],
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "-s",
+              "-E",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/ordens_teto.py"
             ],
             "timeout": 10
           }

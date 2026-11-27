@@ -16,8 +16,8 @@
       "id": "M18",
       "guarda": "PV-A2 (ADR 0004): parecer sem frontmatter não conta",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "if texto.startswith(\"---\\n\") else \"\"",
-      "para": "if True else \"\"",
+      "de": "    if linhas[0] != \"---\":\n        return {}",
+      "para": "    if False:\n        return {}",
       "testes": [
         "tests.test_autorizacao.ItemPresoAoCommit.test_ramo_sem_parecer_dele_fica_inativo_e_a_ref_do_origin_vale_antes_da_local"
       ]

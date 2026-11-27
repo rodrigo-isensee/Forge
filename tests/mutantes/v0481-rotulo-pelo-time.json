@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-rotulo-pelo-time",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "ROTULO-PELO-TIME: o limite lê o ato novo como sem prazo",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    fixo = campos[\"Ato\"] in SEM_PRAZO",
+      "para": "    fixo = campos[\"Ato\"] in FIXOS",
+      "testes": [
+        "tests.test_autorizacao.RotuloPeloTime.test_ativo_so_com_o_origin_do_forge_e_sem_vencer"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "ROTULO-PELO-TIME: alvo fixo só nos atos sem prazo, e o ato novo só com ele",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "((campos[\"Ato\"] in SEM_PRAZO) != (campos[\"Alvos\"] == \"fixo\"), \"alvo fixo",
+      "para": "((campos[\"Ato\"] in FIXOS) != (campos[\"Alvos\"] == \"fixo\"), \"alvo fixo",
+      "testes": [
+        "tests.test_autorizacao.RotuloPeloTime.test_ativo_so_com_o_origin_do_forge_e_sem_vencer"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "ROTULO-PELO-TIME: a conferência do repositório roda para o ato novo",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    fora = fora_do_forge(raiz) if campos[\"Ato\"] in SO_NO_FORGE else \"\"",
+      "para": "    fora = fora_do_forge(raiz) if False else \"\"",
+      "testes": [
+        "tests.test_autorizacao.RotuloPeloTime.test_outro_origin_ou_projeto_deixa_inativo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "ROTULO-PELO-TIME: fora do repositório do Forge o ato fica inativo",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if fora:\n        return \"inativa\", fora",
+      "para": "    if False:\n        return \"inativa\", fora",
+      "testes": [
+        "tests.test_autorizacao.RotuloPeloTime.test_outro_origin_ou_projeto_deixa_inativo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "ROTULO-PELO-TIME: projeto (.forge/versao) nunca é o Forge, mesmo com o origin dele",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if not forge or (Path(raiz) / \".forge\" / \"versao\").exists():",
+      "para": "    if not forge:",
+      "testes": [
+        "tests.test_autorizacao.RotuloPeloTime.test_outro_origin_ou_projeto_deixa_inativo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "ROTULO-PELO-TIME: o origin tem de ser o repositório do plugin",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if slug(git(raiz, \"config\", \"--get\", \"remote.origin.url\") or \"\") != forge:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_autorizacao.RotuloPeloTime.test_outro_origin_ou_projeto_deixa_inativo"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "ROTULO-PELO-TIME: a leitura do texto trata o ato novo como sem prazo",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    fixo = ato in SEM_PRAZO",
+      "para": "    fixo = ato in FIXOS",
+      "testes": [
+        "tests.test_autorizacao_gravar.AtosFixos.test_rotulo_pelo_time_grava_fixa_e_so_ativa_no_repositorio_do_forge"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "ROTULO-PELO-TIME: o ler --ato do ato novo diz a ativa (rc 0) ou nenhuma (rc 1)",
+      "arquivo": "bin/forge_autorizacao.py",
+      "de": "    if a.acao == \"ler\" and a.ato in SEM_PRAZO:",
+      "para": "    if a.acao == \"ler\" and a.ato in FIXOS:",
+      "testes": [
+        "tests.test_autorizacao.RotuloPeloTime.test_ler_ato_diz_a_ativa_e_sem_ela_rc_1"
+      ]
+    }
+  ]
+}
