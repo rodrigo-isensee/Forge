@@ -44,17 +44,17 @@
     },
     {
       "id": "M6",
-      "guarda": "agregado: statuses ou conta ilegíveis recusam (M19.1)",
+      "guarda": "agregado: statuses ilegíveis recusam (M19.1)",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "    if not login or not isinstance(paginas, list) or not all(isinstance(p, list) for p in paginas):",
-      "para": "    if False:",
+      "de": "    if not isinstance(paginas, list) or not all(isinstance(p, list) for p in paginas):\n        raise Recusa(\"statuses ilegíveis\")",
+      "para": "    if False:\n        raise Recusa(\"statuses ilegíveis\")",
       "testes": ["tests.test_forge_pareceres.Agregado.test_statuses_ilegiveis_recusam"]
     },
     {
       "id": "M7",
-      "guarda": "agregado: só status da conta da sessão, filtrado antes do mais novo (M1.1, M1.2)",
+      "guarda": "agregado: só status da conta aceita, filtrado antes do mais novo (M1.1, M1.2, M1.4)",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "                and (s.get(\"creator\") or {}).get(\"login\") == login]",
+      "de": "                and login(s.get(\"creator\")) in contas]",
       "para": "                and True]",
       "testes": ["tests.test_forge_pareceres.Agregado.test_agregado_pending_com_exigido_invalido"]
     },

@@ -1,0 +1,88 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "login: caixa diferente é a mesma conta (M1.4)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "return nome.lower() if isinstance(nome, str) else None",
+      "para": "return nome if isinstance(nome, str) else None",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_conta_dona_em_outra_caixa_vale",
+        "tests.test_forge_pareceres.Publicar.test_conta_da_sessao_em_outra_caixa_publica"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "login: login que não é texto fica fora, sem erro (M1.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "return nome.lower() if isinstance(nome, str) else None",
+      "para": "return nome.lower() if nome else None",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_status_e_comentario_sem_login_de_texto_ficam_fora"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "pasta de controle: manifesto ilegível não faz a cópia virar o Forge",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    except (OSError, ValueError):\n        return False\n",
+      "para": "    except (OSError, ValueError):\n        return True\n",
+      "testes": [
+        "tests.test_forge_pareceres.PastaDeControle.test_copia_principal_do_forge_usa_a_forge_contrib",
+        "tests.test_forge_pareceres.PastaDeControle.test_clone_de_projeto_usa_a_copia_que_contem_wt"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "pasta de controle: projeto com o manifesto do Forge não é o Forge",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": " and not (pasta / \".forge\" / \"versao\").exists()",
+      "para": "",
+      "testes": [
+        "tests.test_forge_pareceres.PastaDeControle.test_copia_principal_do_forge_usa_a_forge_contrib"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "pasta de controle: clone do Forge usa a ~/.forge-contrib, nunca o .forge/run do clone (M4.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if real.is_relative_to(os.path.realpath(contrib)) or e_o_forge(real):",
+      "para": "if e_o_forge(real):",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c5_registro_so_no_run_do_clone_nao_vale"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "pasta de controle: clone de projeto usa a cópia que contém .forge/wt (M4.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "base = Path(*real.parts[:wt[0]]) if wt else real",
+      "para": "base = Path(*real.parts[:wt[0]]) if True else real",
+      "testes": [
+        "tests.test_forge_pareceres.PastaDeControle.test_clone_de_projeto_usa_a_copia_que_contem_wt"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "pasta de controle: .forge por link falha fechada (M4.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if (base / \".forge\").is_symlink() or run.is_symlink() or not run.is_dir():",
+      "para": "if run.is_symlink() or not run.is_dir():",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c5_pasta_de_controle_por_link_falha_fechada"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "pasta de controle: run por link falha fechada (M4.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if (base / \".forge\").is_symlink() or run.is_symlink() or not run.is_dir():",
+      "para": "if (base / \".forge\").is_symlink() or not run.is_dir():",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c5_pasta_de_controle_por_link_falha_fechada"
+      ]
+    }
+  ]
+}

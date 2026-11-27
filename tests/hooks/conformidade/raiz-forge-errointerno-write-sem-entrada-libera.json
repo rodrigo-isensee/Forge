@@ -1,5 +1,5 @@
 {
-  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1; R-CONFORMIDADE): sonda S3 da segurança: python3 -c grava o devcontainer.json da raiz.",
+  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 6; R-CONFORMIDADE): erro interno no Write cujo caminho não cita o que roda fora do sandbox segue livre, com o erro no erros.log.",
   "arquivos": {
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
@@ -14,9 +14,10 @@
     "CLAUDE_PROJECT_DIR": "{tmp}/proj"
   },
   "entrada": {
-    "tool_name": "Bash",
+    "tool_name": "Write",
     "tool_input": {
-      "command": "python3 -c \"open('.devcontainer/devcontainer.json','w').write('x')\""
+      "file_path": "{tmp}/proj/src/y.js",
+      "content": "x\n"
     },
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9",
@@ -24,7 +25,11 @@
     "agent_type": "forge:devops-engineer"
   },
   "esperado": {
-    "codigo": 2,
-    "stderr": "na raiz do Forge"
+    "codigo": 0,
+    "erros_log": "erro forcado"
+  },
+  "forcar": {
+    "onde": "Guarda.arquivo",
+    "como": "erro"
   }
 }

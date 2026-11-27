@@ -1,2 +1,0 @@
-### Alterado
-- Pesos da suíte sem conflito entre PRs paralelos (v0481 E19.1): o módulo de teste novo sem peso em tests/pesos-d4.json vale a mediana e não reprova (PesosDaSuite, bin/forge-testes --registros); o --regerar deixa de medir pesos e recusa escrevê-los (saída 2); o PR comum não edita mais o arquivo, que só a marca de versão regera (scripts/pesos-do-ci.py). Trava que tira: conflito de merge nos pesos.

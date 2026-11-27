@@ -3,70 +3,10 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "RD1",
-      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A2): o valor calculado do destino conta só no clone do Forge",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        if not self.no_clone or not self.fim_do_opaco(caminho, pasta):",
-      "para": "        if not self.fim_do_opaco(caminho, pasta):",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
-      ]
-    },
-    {
-      "id": "RD2",
-      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.9, volta 2, A9): só o destino opaco (com ou sem resto)",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        if not self.no_clone or not self.fim_do_opaco(caminho, pasta):",
-      "para": "        if not self.no_clone:",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
-      ]
-    },
-    {
-      "id": "RD3",
-      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A2): o valor com parte que o hook não sabe é sem valor calculado",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        if valores is None or any(SEM_VALOR in v for v in valores):",
-      "para": "        if valores is None:",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
-      ]
-    },
-    {
-      "id": "RD4",
-      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A2): sem valor calculado, recusa só a linha que cita a entrada",
-      "arquivo": "hooks/conformidade.py",
-      "de": "            if colada_em_vigor(palavra_juntada(caminho).split(\"/\")[0], self.texto_da_linha) or any(",
-      "para": "            if True or any(",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
-      ]
-    },
-    {
-      "id": "RD5",
-      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A2): o valor calculado recusa só na entrada em vigor",
-      "arquivo": "hooks/conformidade.py",
-      "de": "            if self.na_raiz_em_vigor(alvo):  # só a entrada em vigor",
-      "para": "            if True:  # só a entrada em vigor",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
-      ]
-    },
-    {
-      "id": "RD6",
-      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A2): o heredoc sem aspas que atribui deixa o destino sem valor calculado",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        valores = None if self.corpo_desconhecido else valores_da_palavra(",
-      "para": "        valores = None if False else valores_da_palavra(",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
-      ]
-    },
-    {
       "id": "RX1",
-      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A2): a linha sem leitura ou com erro interno que cita a entrada recusa",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.26, volta 6, A16): o erro interno no Write cujo caminho cita a entrada recusa",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if guarda.no_clone and isinstance(alvo, str) and EM_VIGOR_NO_TEXTO.search(juntar_continuacoes(alvo)):",
+      "de": "        if guarda.no_clone and not entrada.get(\"command\") and isinstance(alvo, str) and EM_VIGOR_NO_TEXTO.search(alvo):",
       "para": "        if False:",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
@@ -74,10 +14,20 @@
     },
     {
       "id": "RX2",
-      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A2): a linha sem leitura ou com erro interno sem a entrada segue livre",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.26, volta 6, A16): o erro interno no Write sem a entrada segue livre",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if guarda.no_clone and isinstance(alvo, str) and EM_VIGOR_NO_TEXTO.search(juntar_continuacoes(alvo)):",
-      "para": "        if guarda.no_clone and isinstance(alvo, str):",
+      "de": "        if guarda.no_clone and not entrada.get(\"command\") and isinstance(alvo, str) and EM_VIGOR_NO_TEXTO.search(alvo):",
+      "para": "        if guarda.no_clone and not entrada.get(\"command\") and isinstance(alvo, str):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RX3",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.26, volta 6, A16): o erro interno do Bash que cita a entrada segue livre (sandbox do SO)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if guarda.no_clone and not entrada.get(\"command\") and isinstance(alvo, str) and EM_VIGOR_NO_TEXTO.search(alvo):",
+      "para": "        if guarda.no_clone and isinstance(alvo, str) and EM_VIGOR_NO_TEXTO.search(alvo):",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
       ]

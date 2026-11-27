@@ -1,0 +1,89 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "pasta de controle: ausente falha fechada (M4.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if (base / \".forge\").is_symlink() or run.is_symlink() or not run.is_dir():",
+      "para": "if (base / \".forge\").is_symlink() or run.is_symlink():",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c5_sem_pasta_de_controle_falha_fechada",
+        "tests.test_forge_pareceres.Publicar.test_m4_1_sem_pasta_de_controle_nada_se_grava"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "registro: leitura não segue link (M4.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "os.O_RDONLY | os.O_NOFOLLOW",
+      "para": "os.O_RDONLY",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c5_pasta_de_controle_por_link_falha_fechada"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "registro: sem o arquivo, nenhum status vale e a leitura segue",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    except FileNotFoundError:\n        return set()",
+      "para": "    except FileNotFoundError:\n        raise Recusa(\"x\")",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c5_status_sem_registro_de_publicar"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "registro: linha ilegível fica de fora",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "        except (ValueError, KeyError, TypeError):\n            continue",
+      "para": "        except (ValueError, KeyError, TypeError):\n            raise Recusa(\"x\")",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c5_linha_ilegivel_do_registro_fica_de_fora"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "registro: gravação não segue link (M4.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "os.O_CREAT | os.O_NOFOLLOW, 0o644",
+      "para": "os.O_CREAT, 0o644",
+      "testes": [
+        "tests.test_forge_pareceres.Publicar.test_m4_1_registro_por_link_nao_grava_status"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "leitura: status sem registro do publicar não vale (M4.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if (pr[\"headRefOid\"], CONTEXTOS[tipo], d[2], int(u[5])) not in registro:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c5_status_sem_registro_de_publicar",
+        "tests.test_forge_pareceres.Ler.test_c5_registro_de_outra_publicacao_nao_vale"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "publicar: conta da sessão fora da dona do origin recusa (M1.4)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if login(gh(raiz, [\"api\", \"user\"])) not in contas_aceitas(raiz):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_pareceres.Publicar.test_c19_conta_da_sessao_fora_da_lista_recusa"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "publicar: cada publicação vai ao registro da pasta de controle (M4.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "        registrar(controle, sha, CONTEXTOS[tipo]",
+      "para": "        (controle, sha, CONTEXTOS[tipo]",
+      "testes": [
+        "tests.test_forge_pareceres.Publicar.test_m4_1_registra_cada_publicacao_na_pasta_de_controle",
+        "tests.test_forge_pareceres.Ler.test_c5_publicado_num_clone_lido_noutro"
+      ]
+    }
+  ]
+}

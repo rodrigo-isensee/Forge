@@ -1,5 +1,5 @@
 {
-  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1; R-CONFORMIDADE): o corpo do heredoc do python3 grava .git/hooks/ da raiz.",
+  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 6; R-CONFORMIDADE): A16 da segurança: erro interno numa linha do Bash que cita .githooks segue livre; o sandbox do SO nega a escrita na raiz.",
   "arquivos": {
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
@@ -16,7 +16,7 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "python3 - <<'EOF'\nopen('.git/hooks/pre-commit','w').write('x')\nEOF"
+      "command": "printf x > .githooks/pre-push"
     },
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9",
@@ -24,7 +24,11 @@
     "agent_type": "forge:devops-engineer"
   },
   "esperado": {
-    "codigo": 2,
-    "stderr": "hooks do git (.git/hooks/)"
+    "codigo": 0,
+    "erros_log": "erro forcado"
+  },
+  "forcar": {
+    "onde": "Guarda.bash",
+    "como": "erro"
   }
 }

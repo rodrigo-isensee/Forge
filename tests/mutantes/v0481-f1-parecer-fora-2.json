@@ -26,7 +26,7 @@
       "id": "M11",
       "guarda": "leitura: comentário de conta fora da lista não vale (M5.2)",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "if not isinstance(c, dict) or c.get(\"html_url\") != u[0] or (c.get(\"user\") or {}).get(\"login\") not in contas:",
+      "de": "if not isinstance(c, dict) or c.get(\"html_url\") != u[0] or login(c.get(\"user\")) not in contas:",
       "para": "if not isinstance(c, dict) or c.get(\"html_url\") != u[0]:",
       "testes": [
         "tests.test_forge_pareceres.Ler.test_c7_comentario_de_outra_conta"
@@ -36,8 +36,8 @@
       "id": "M12",
       "guarda": "leitura: contexto fora da lista fechada, por igualdade exata, fica de fora (M2.1)",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "dela = [s for s in lista if s.get(\"context\") == contexto and (s.get(\"creator\") or {}).get(\"login\") in contas]",
-      "para": "dela = [s for s in lista if contexto in str(s.get(\"context\")).lower() and (s.get(\"creator\") or {}).get(\"login\") in contas]",
+      "de": "dela = [s for s in lista if s.get(\"context\") == contexto and login(s.get(\"creator\")) in contas]",
+      "para": "dela = [s for s in lista if contexto in str(s.get(\"context\")).lower() and login(s.get(\"creator\")) in contas]",
       "testes": [
         "tests.test_forge_pareceres.Ler.test_c3_contexto_parecido"
       ]
