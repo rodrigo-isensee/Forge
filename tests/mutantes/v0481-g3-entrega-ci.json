@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-g3-entrega-ci",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "checks_ruins: os checks lidos fora da linha do CI não contam",
+      "arquivo": "bin/forge-check",
+      "de": "    lidos = [c for c in lidos if c.get(\"name\") not in fora]",
+      "para": "    lidos = [c for c in lidos if c.get(\"name\") not in ()]",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_ci_verde_no_head_prova_sem_os_checks_fora_da_linha"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "checks_ruins: o exigido fora da linha do CI não é cobrado",
+      "arquivo": "bin/forge-check",
+      "de": "        if nome in fora:\n            continue",
+      "para": "        if nome in ():\n            continue",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_exigido_ausente_e_nenhum_check_reprovam"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "prova_do_ci: o gh pr view sem dict não vale como PR (falha fechada, com o motivo)",
+      "arquivo": "bin/forge-check",
+      "de": "        return (pr, \"\") if isinstance(pr, dict) else (None,",
+      "para": "        return (pr, \"\") if True else (None,",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_sem_rede_nao_verificavel_reprova"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "prova_do_ci: sem PR lido (sem rede), não verificável reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    pr, erro = no_pr()\n    if pr is None:",
+      "para": "    pr, erro = no_pr()\n    if pr is None and False:",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_sem_rede_nao_verificavel_reprova"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "prova_do_ci: o PR em outro head não prova o head entregue",
+      "arquivo": "bin/forge-check",
+      "de": "    if lido != head:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_head_diferente_reprova_sem_ler_os_checks"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "prova_do_ci: checks não lidos reprovam",
+      "arquivo": "bin/forge-check",
+      "de": "    if lidos is None or (no_pr()[0]",
+      "para": "    if False or (no_pr()[0]",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_sem_rede_nao_verificavel_reprova"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "prova_do_ci: o head mudado entre as leituras reprova",
+      "arquivo": "bin/forge-check",
+      "de": "(no_pr()[0] or {}).get(\"headRefOid\") != head:",
+      "para": "False:",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_head_mudado_entre_as_leituras_reprova"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "prova_do_ci: nenhum check concluído não prova",
+      "arquivo": "bin/forge-check",
+      "de": "    if ruins or not lidos:",
+      "para": "    if ruins:",
+      "testes": [
+        "tests.test_forge_pronto.ProvaDoCi.test_exigido_ausente_e_nenhum_check_reprovam"
+      ]
+    }
+  ]
+}

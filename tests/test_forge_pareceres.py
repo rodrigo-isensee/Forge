@@ -41,12 +41,15 @@ url = estado["prs"][0]["url"] if estado["prs"] else ""
 if alvo.endswith("/comments") and "POST" in a:
     estado["comentario"] = corpo["body"] + estado.get("sujar", "")
     sai({"id": 501, "html_url": url + "#issuecomment-501"})
+if "/issues/comments/" in alvo and alvo.rsplit("/", 1)[1] in estado.get("comentarios", {}):
+    sai(estado["comentarios"][alvo.rsplit("/", 1)[1]])
 if alvo.endswith("/issues/comments/501"):
-    sai({"id": 501, "body": estado["comentario"], "html_url": estado.get("url_lida", url + "#issuecomment-501")})
+    sai({"id": 501, "body": estado["comentario"], "html_url": estado.get("url_lida", url + "#issuecomment-501"),
+         "user": {"login": estado["login"]}})
 if "/statuses/" in alvo and "POST" in a:
     estado["statuses"].insert(0, corpo | {"creator": {"login": estado["login"]}}); sai(corpo)
 if alvo.endswith("/statuses") and "--slurp" in a:
-    sai([estado["statuses"]])
+    sai(estado["paginas"] if "paginas" in estado else [estado["statuses"]])
 sys.exit(1)
 '''
 
@@ -68,23 +71,26 @@ def parecer(commit, veredito="aprovado", tipo="review", achados="", pedido=PEDID
 
 
 class GhFalso(unittest.TestCase):
-    """Um repositório git com um commit e o `gh` falso no PATH; o ambiente herdado não chega ao `gh`."""
+    """Um clone do Forge em `~/.forge-contrib/wt/` com um commit, a pasta de controle da máquina (M4.1) e o `gh` falso no PATH; o
+    ambiente herdado não chega ao `gh`. A conta aceita é a dona do `origin` (`dono`, M1.4)."""
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.addCleanup(subprocess.run, ["rm", "-rf", str(self.tmp)])
-        self.repo, self.bin = self.tmp / "repo", self.tmp / "bin"
-        self.repo.mkdir(), self.bin.mkdir()
-        env = sem_manutencao({"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"})
+        self.repo, self.bin = self.tmp / ".forge-contrib" / "wt" / "repo", self.tmp / "bin"
+        self.controle = self.tmp / ".forge-contrib" / ".forge" / "run"
+        self.repo.mkdir(parents=True), self.bin.mkdir(), self.controle.mkdir(parents=True)
+        self.env = sem_manutencao({"PATH": "/usr/bin:/bin", "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"})
         for args in (["init", "-q", "-b", "develop"], ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
-                                                       "--allow-empty", "-m", "base"]):
-            subprocess.run(["git", *args], cwd=self.repo, env=env, check=True)
-        self.sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, env=env, capture_output=True, text=True).stdout.strip()
+                                                       "--allow-empty", "-m", "base"],
+                     ["remote", "add", "origin", "https://github.com/dono/repo.git"]):  # M18.1: o remoto do PR
+            subprocess.run(["git", *args], cwd=self.repo, env=self.env, check=True)
+        self.sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, env=self.env, capture_output=True, text=True).stdout.strip()
         gh = self.bin / "gh"
         gh.write_text(f"#!{sys.executable} -I\n{GH_FALSO}", encoding="utf-8")
         gh.chmod(0o755)
-        self.estado({"prs": [{"number": 7, "headRefName": BRANCH, "headRefOid": self.sha,
-                              "url": "https://github.com/dono/repo/pull/7"}], "login": "conta", "statuses": []})
+        self.estado({"prs": [{"number": 7, "headRefName": BRANCH, "headRefOid": self.sha, "isCrossRepository": False,
+                              "url": "https://github.com/dono/repo/pull/7"}], "login": "dono", "statuses": []})
         ambiente = {"PATH": f"{self.bin}:/usr/bin:/bin", "GH_FALSO": str(self.tmp), "HOME": str(self.tmp)}
         p = mock.patch.dict(os.environ, ambiente, clear=True)
         p.start()
@@ -123,7 +129,7 @@ class Publicar(GhFalso):
 
     def test_falha_entre_o_papel_e_o_agregado_nao_deixa_success(self):
         """QA A1 do #878 (sonda S2): o `pareceres` velho em `success`, a API cai depois do status do papel `reprovado`."""
-        self.estado(statuses=[{"context": "pareceres", "state": "success", "creator": {"login": "conta"}}], falha_em="user")
+        self.estado(statuses=[{"context": "pareceres", "state": "success", "creator": {"login": "dono"}}], falha_em="--slurp")
         with self.assertRaisesRegex(fp().Recusa, "já gravado: o comentário no PR #7, pareceres pending, parecer-review failure"):
             self.publicar(veredito="reprovado")
         agregados = [s for s in self.estado()["statuses"] if s["context"] == "pareceres"]
@@ -188,6 +194,40 @@ class Publicar(GhFalso):
             fp().publicar(str(self.repo), "review", "aprovado", parecer(self.sha), self.sha[:12], BRANCH, 0, 0, ["review"])
         self.assertEqual(self.chamadas(), [])
 
+    def test_c19_conta_da_sessao_fora_da_lista_recusa(self):
+        """M1.4: `GH_TOKEN` de outra conta no ambiente; o `publicar` recusa antes de gravar qualquer coisa."""
+        for login in ("outra", None, ""):
+            with self.subTest(login):
+                self.estado(login=login)
+                with self.assertRaisesRegex(fp().Recusa, "M1.4"):
+                    self.publicar()
+                self.assertFalse([c for c in self.chamadas() if "POST" in c], "gravou")
+
+    def test_conta_da_sessao_em_outra_caixa_publica(self):
+        self.estado(login="Dono")
+        self.assertEqual(self.publicar()[1], ("success", "todos os exigidos"))
+
+    def test_m4_1_registra_cada_publicacao_na_pasta_de_controle(self):
+        self.publicar()
+        linhas = (self.controle / "pareceres-publicados.jsonl").read_text(encoding="utf-8").splitlines()
+        sha256 = hashlib.sha256(parecer(self.sha).strip().encode()).hexdigest()
+        self.assertEqual([json.loads(x) for x in linhas],
+                         [{"sha": self.sha, "contexto": "parecer-review", "sha256": sha256, "comentario": 501}])
+
+    def test_m4_1_sem_pasta_de_controle_nada_se_grava(self):
+        subprocess.run(["rm", "-rf", str(self.controle)], check=True)
+        with self.assertRaisesRegex(fp().Recusa, "M4.1"):
+            self.publicar()
+        self.assertFalse([c for c in self.chamadas() if "POST" in c], "gravou")
+
+    def test_m4_1_registro_por_link_nao_grava_status(self):
+        alvo = self.tmp / "fora.jsonl"
+        (self.controle / "pareceres-publicados.jsonl").symlink_to(alvo)
+        with self.assertRaisesRegex(fp().Recusa, "M4.1"):
+            self.publicar()
+        self.assertFalse(alvo.exists(), "seguiu o link")
+        self.assertEqual(self.gravou_status(), [])
+
     def test_c17_gh_com_erro_ou_ausente(self):
         self.estado(falha=True)
         with self.assertRaisesRegex(fp().Recusa, "saiu com 1"):
@@ -197,8 +237,60 @@ class Publicar(GhFalso):
             self.publicar()
 
 
+class RemotoDoPr(GhFalso):
+    """M18.1 (T18, C23): o PR em que se publica é do repositório do `origin` da cópia e a branch é dele; `GH_REPO` apontado para
+    outro repositório, remoto de outro projeto ou PR de fork recusam antes de qualquer gravação."""
+
+    publicar = Publicar.publicar
+
+    def origin(self, url):
+        subprocess.run(["git", "remote", "set-url", "origin", url], cwd=self.repo, env=self.env, check=True)
+
+    def recusa(self, trecho):
+        with self.assertRaises(Exception) as erro:  # outra exceção (o `m.groups()` de None) é falha, não erro do teste
+            self.publicar()
+        self.assertIsInstance(erro.exception, fp().Recusa, repr(erro.exception))
+        self.assertRegex(str(erro.exception), trecho)
+        self.assertFalse([c for c in self.chamadas() if "POST" in c], "nada gravado")
+
+    def test_c23_remoto_diferente_do_pr(self):
+        """Sessão de projeto com `GH_REPO` no Forge: o `gh` acha o PR do Forge, o `origin` da cópia é o do projeto."""
+        self.origin("https://github.com/outro/projeto.git")
+        self.recusa(r"PR #7 \(https://github.com/dono/repo/pull/7\) não é do repositório do `origin` da cópia \(M18.1\)")
+
+    def test_c23_pr_de_outro_repositorio_com_o_mesmo_dono(self):
+        self.estado(prs=[self.estado()["prs"][0] | {"url": "https://github.com/dono/repo-2/pull/7"}])
+        self.recusa("não é do repositório do `origin`")
+
+    def test_c23_pr_de_fork_com_a_mesma_branch(self):
+        for cruzado in ({"isCrossRepository": True}, {"isCrossRepository": None}, {}):
+            with self.subTest(cruzado=cruzado):
+                pr = {k: v for k, v in self.estado()["prs"][0].items() if k != "isCrossRepository"}
+                self.estado(prs=[pr | cruzado])
+                self.recusa("vem de outro repositório")
+
+    def test_c23_sem_origin_ou_origin_fora_das_formas(self):
+        subprocess.run(["git", "remote", "remove", "origin"], cwd=self.repo, env=self.env, check=True)
+        self.recusa("o `origin` da cópia não é um repositório lido")
+        subprocess.run(["git", "remote", "add", "origin", "x"], cwd=self.repo, env=self.env, check=True)
+        for url in ("/workspaces/repo", "file:///tmp/x@github.com:dono/repo", "https://github.com/dono/repo/extra"):
+            with self.subTest(url=url):
+                self.origin(url)
+                self.recusa("o `origin` da cópia não é um repositório lido")
+
+    def test_formas_do_remoto_que_valem(self):
+        for url in ("https://github.com/dono/repo", "https://github.com/Dono/Repo.git/", "git@github.com:dono/repo.git",
+                    "ssh://git@github.com/dono/repo.git", "https://x-access-token:abc@github.com/dono/repo.git"):
+            with self.subTest(url=url):
+                self.origin(url)
+                self.assertEqual(fp().repositorio_do_remoto(str(self.repo)), ("github.com", "dono", "repo"))
+        self.origin("https://github.com/dono/repo.git")
+        self.estado(prs=[self.estado()["prs"][0] | {"url": "https://github.com/DONO/Repo/pull/7"}])
+        self.assertEqual(self.publicar()[1], ("success", "todos os exigidos"))
+
+
 class Agregado(GhFalso):
-    def status(self, contexto, estado="success", login="conta", descricao=None):
+    def status(self, contexto, estado="success", login="dono", descricao=None):
         return {"context": contexto, "state": estado, "creator": {"login": login},
                 "description": descricao or f"aprovado · sha256 {'a' * 64} · 0 bloqueantes · 0 recomendados"}
 
@@ -222,6 +314,13 @@ class Agregado(GhFalso):
             with self.subTest(nome):
                 self.assertEqual(self.agregado(*statuses), ("pending", "faltam: parecer-qa"))
 
+    def test_c19_agregado_pela_conta_da_base(self):
+        """M1.4: o agregado conta só a dona do `origin`, mesmo com a sessão em outra conta; caixa diferente vale."""
+        self.estado(login="outra")
+        self.assertEqual(self.agregado(self.status("parecer-review", login="outra"), exigidos=("review",))[0], "pending")
+        self.assertEqual(self.agregado(self.status("parecer-review", login="DONO"), exigidos=("review",))[0], "success")
+        self.assertNotIn(["api", "user"], self.chamadas())
+
     def test_item_que_nao_e_objeto_fica_de_fora(self):
         self.assertEqual(self.agregado(5, "x", self.status("parecer-review"), exigidos=("review",)), ("success", "todos os exigidos"))
 
@@ -229,6 +328,297 @@ class Agregado(GhFalso):
         self.estado(statuses={"x": 1})
         with self.assertRaises(fp().Recusa):
             fp().agregado(str(self.repo), self.sha, ["review"])
+
+
+class Ler(GhFalso):
+    """G2.2, a leitura (E29.1, F1 do estudo de atrito): o status vale só com o comentário íntegro do PR do head e das contas."""
+    URL = "https://github.com/dono/repo/pull/7#issuecomment-{}"
+
+    def publicado(self, id_=601, texto=None, state="success", login="dono", descricao=None, url=None, autor="dono",
+                  html=None, veredito="aprovado", contexto="parecer-review", registro=None):
+        texto = parecer(self.sha, veredito) if texto is None else texto
+        comentario = {"id": id_, "body": texto, "user": {"login": autor}, "html_url": html or self.URL.format(id_)}
+        self.estado(comentarios=self.estado().get("comentarios", {}) | {str(id_): comentario})
+        sha256 = hashlib.sha256(fp().normalizar(texto).encode()).hexdigest()
+        if registro is not False:  # M4.1: o que o `publicar` grava na pasta de controle
+            self.registrar(registro or self.controle, sha=self.sha, contexto=contexto, sha256=sha256, comentario=id_)
+        return {"context": contexto, "state": state, "creator": {"login": login}, "target_url": url or self.URL.format(id_),
+                "description": descricao or f"{veredito} · sha256 {sha256} · 0 bloqueantes · 0 recomendados"}
+
+    def registrar(self, pasta, **linha):
+        pasta.mkdir(parents=True, exist_ok=True)
+        with open(pasta / "pareceres-publicados.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps(linha) + "\n")
+
+    def ler(self, *statuses):
+        self.estado(statuses=list(statuses))
+        return fp().ler(str(self.repo), BRANCH, self.sha, PEDIDO)
+
+    def invalido(self, *statuses):
+        veredito, motivo = self.ler(*statuses)["review"]
+        self.assertIsNone(veredito, motivo)
+        return motivo
+
+    def test_aprovado_com_comentario_integro(self):
+        self.assertEqual(self.ler(self.publicado()), {"review": ("aprovado", self.URL.format(601))})
+
+    def test_reprovado_vale_como_reprovado(self):
+        self.assertEqual(self.ler(self.publicado(state="failure", veredito="reprovado"))["review"][0], "reprovado")
+
+    def test_c1_status_do_bot_ignorado(self):
+        self.assertEqual(self.ler(self.publicado(login="github-actions[bot]")), {})
+
+    def test_c19_conta_fora_da_lista_ignorada(self):
+        """M1.4 (C19, `test_c19_login_fora_da_lista_da_base` do modelo): com o `GH_TOKEN` de outra conta no ambiente (`gh api user` = `outra`), o status dela segue fora: a conta aceita é
+        a dona do `origin`, nunca a da sessão."""
+        self.estado(login="outra")
+        self.assertEqual(self.ler(self.publicado(login="outra", autor="outra")), {})
+        self.assertNotIn(["api", "user"], self.chamadas(), "a leitura perguntou a conta da sessão")
+        self.assertIn("M5.2", self.invalido(self.publicado(autor="outra")))  # comentário de fora da lista
+
+    def test_conta_dona_em_outra_caixa_vale(self):
+        """O GitHub não distingue caixa no login: `Dono` no `creator` é a dona do `origin` `dono`."""
+        self.assertEqual(self.ler(self.publicado(login="Dono", autor="DONO"))["review"][0], "aprovado")
+
+    def test_c5_status_sem_registro_de_publicar(self):
+        """M4.1 (T4): status e comentário íntegros gravados pelo Bash, sem o `publicar`, não valem."""
+        self.assertIn("M4.1", self.invalido(self.publicado(registro=False)))
+        self.assertFalse([c for c in self.chamadas() if any("/issues/comments/" in x for x in c)], "leu o comentário")
+
+    def test_c5_registro_de_outra_publicacao_nao_vale(self):
+        status = self.publicado(registro=False)
+        sha256 = status["description"].split(" ")[3]
+        for linha in ({"sha": "b" * 40, "contexto": "parecer-review", "sha256": sha256, "comentario": 601},
+                      {"sha": self.sha, "contexto": "parecer-qa", "sha256": sha256, "comentario": 601},
+                      {"sha": self.sha, "contexto": "parecer-review", "sha256": "c" * 64, "comentario": 601},
+                      {"sha": self.sha, "contexto": "parecer-review", "sha256": sha256, "comentario": 602}):
+            with self.subTest(linha):
+                self.registrar(self.controle, **linha)
+                self.assertIn("M4.1", self.invalido(status))
+
+    def test_c5_registro_so_no_run_do_clone_nao_vale(self):
+        """O `.forge/run/` do clone não é a pasta de controle: o portão publica num clone e o `forge-fechar` lê noutro."""
+        self.assertIn("M4.1", self.invalido(self.publicado(registro=self.repo / ".forge" / "run")))
+
+    def test_c5_linha_ilegivel_do_registro_fica_de_fora(self):
+        (self.controle / "pareceres-publicados.jsonl").write_text('x\n[1]\n{"sha": 1}\n{"sha": []}\n', encoding="utf-8")
+        self.assertEqual(self.ler(self.publicado())["review"][0], "aprovado")
+
+    def test_c5_pasta_de_controle_por_link_falha_fechada(self):
+        status = self.publicado(registro=self.repo / ".forge" / "run")
+        reais = {"run": self.controle, ".forge": self.controle.parent}
+        for nome, pasta in reais.items():
+            with self.subTest(nome):
+                guardada = pasta.with_name(pasta.name + "-real")
+                pasta.rename(guardada)
+                pasta.symlink_to(self.repo / ".forge" / ("run" if nome == "run" else ""))
+                with self.assertRaisesRegex(fp().Recusa, "M4.1"):
+                    self.ler(status)
+                pasta.unlink(), guardada.rename(pasta)
+        with self.subTest("registro por link"):
+            (self.controle / "pareceres-publicados.jsonl").symlink_to(self.repo / ".forge" / "run" / "pareceres-publicados.jsonl")
+            with self.assertRaisesRegex(fp().Recusa, "M4.1"):
+                self.ler(status)
+
+    def test_c5_sem_pasta_de_controle_falha_fechada(self):
+        status = self.publicado()
+        subprocess.run(["rm", "-rf", str(self.controle)], check=True)
+        with self.assertRaisesRegex(fp().Recusa, "M4.1"):
+            self.ler(status)
+
+    def test_c5_publicado_num_clone_lido_noutro(self):
+        """O portão publica no clone dele; quem lê roda noutro clone da mesma máquina e acha o registro na pasta de controle."""
+        url, _ = fp().publicar(str(self.repo), "review", "aprovado", parecer(self.sha), self.sha, BRANCH, 0, 0, ["review"])
+        outro = self.repo.with_name("outro")
+        subprocess.run(["git", "clone", "-q", str(self.repo), str(outro)], env=self.env, check=True)
+        subprocess.run(["git", "remote", "set-url", "origin", "https://github.com/dono/repo.git"], cwd=outro, env=self.env, check=True)
+        self.assertEqual(fp().ler(str(outro), BRANCH, self.sha, PEDIDO), {"review": ("aprovado", url)})
+        self.assertFalse((self.repo / ".forge" / "run" / "pareceres-publicados.jsonl").exists(), "gravou no clone")
+
+    def test_c2_bot_mais_novo_nao_esconde_failure_da_conta(self):
+        lido = self.ler(self.publicado(602, login="github-actions[bot]"), self.publicado(601, state="failure", veredito="reprovado"))
+        self.assertEqual(lido["review"][0], "reprovado")
+
+    def test_mais_novo_da_conta_vale(self):
+        lido = self.ler(self.publicado(602, state="failure", veredito="reprovado"), self.publicado(601))
+        self.assertEqual(lido["review"][0], "reprovado")
+
+    def test_c3_contexto_parecido(self):
+        for contexto in ("Parecer-review", "parecer-review ", "parecer/review", "ci/parecer-review"):
+            with self.subTest(contexto):
+                self.assertEqual(self.ler(self.publicado(contexto=contexto)), {})
+
+    def test_c6_comentario_editado(self):
+        status = self.publicado()
+        self.publicado(texto=parecer(self.sha) + "\nAdendo.\n")  # mesmo id, corpo novo
+        self.assertIn("M5.1", self.invalido(status))
+
+    def test_c6_comentario_apagado(self):
+        status = self.publicado()
+        self.estado(comentarios={})
+        with self.assertRaises(fp().Recusa):
+            self.ler(status)
+
+    def test_c7_comentario_de_outra_conta(self):
+        self.assertIn("M5.2", self.invalido(self.publicado(autor="outra")))
+
+    def test_comentario_de_outro_pr_pelo_mesmo_id(self):
+        self.assertIn("M6.1", self.invalido(self.publicado(html="https://github.com/dono/repo/pull/5#issuecomment-601")))
+
+    def test_c8_target_url_fora_do_formato(self):
+        for url in ("https://gist.github.com/dono/1", "https://github.com/dono/repo/pull/5#issuecomment-601",
+                    "https://github.com/outro/repo/pull/7#issuecomment-601", "https://exemplo.com/dono/repo/pull/7#issuecomment-601",
+                    "http://github.com/dono/repo/pull/7#issuecomment-601", self.URL.format(601) + "x"):
+            with self.subTest(url):
+                self.assertIn("M6.1", self.invalido(self.publicado(url=url)))
+        self.assertFalse([c for c in self.chamadas() if any("/issues/comments/" in x for x in c)], "seguiu o target_url")
+
+    def test_c9_descricao_fora_da_forma(self):
+        for descricao in ("aprovado · sha256 abc · 0 bloqueantes · 0 recomendados", "ok", "aprovado · sha256 " + "a" * 64):
+            with self.subTest(descricao):
+                self.assertIn("M7.1", self.invalido(self.publicado(descricao=descricao)))
+        inteira = self.publicado()["description"]
+        self.assertIn("M7.1", self.invalido(self.publicado(descricao=inteira + " x")))  # casa inteira, não pelo começo
+
+    def test_c10_commit_do_texto_diferente_do_sha(self):
+        self.assertIn("M8.1", self.invalido(self.publicado(texto=parecer("b" * 40))))
+
+    def test_c10_pedido_ou_tipo_do_texto_diferente(self):
+        for texto in (parecer(self.sha, pedido="v8"), parecer(self.sha, tipo="qa")):
+            with self.subTest(texto[:40]):
+                self.assertIn("M8.1", self.invalido(self.publicado(texto=texto)))
+
+    def test_c10_veredito_diferente_do_estado(self):
+        self.assertIn("M8.1", self.invalido(self.publicado(state="failure")))  # descrição aprovado, estado failure
+        self.assertIn("M8.1", self.invalido(self.publicado(texto=parecer(self.sha, "reprovado"))))  # texto reprovado
+
+    def test_sem_frontmatter(self):
+        self.assertIn("M8.1", self.invalido(self.publicado(texto="# Review\nsem cabeçalho\n")))
+
+    def test_frontmatter_sem_a_linha_de_abertura(self):
+        self.assertIn("M8.1", self.invalido(self.publicado(texto="x" + parecer(self.sha)[3:])))
+
+    def test_c17_api_com_erro(self):
+        status = self.publicado()
+        self.estado(falha_em=f"repos/dono/repo/commits/{self.sha}/statuses")  # o PR lido, os statuses com erro
+        with self.assertRaises(fp().Recusa):
+            self.ler(status)
+
+    def test_c17_pagina_2_lida(self):
+        self.estado(paginas=[[self.publicado(602, login="outra")], [self.publicado(601)]])
+        self.assertEqual(fp().ler(str(self.repo), BRANCH, self.sha, PEDIDO)["review"][0], "aprovado")
+
+    def test_c17_paginas_ilegiveis(self):
+        for paginas in ({"x": 1}, [{"context": "parecer-review"}]):
+            with self.subTest(paginas):
+                self.estado(paginas=paginas)
+                with self.assertRaises(fp().Recusa):
+                    fp().ler(str(self.repo), BRANCH, self.sha, PEDIDO)
+
+    def test_status_sem_descricao_ou_sem_target_url(self):
+        sem_descricao, sem_url = self.publicado(), self.publicado()
+        del sem_descricao["description"], sem_url["target_url"]
+        self.assertIn("M7.1", self.invalido(sem_descricao))
+        self.assertIn("M6.1", self.invalido(sem_url))
+
+    def test_linha_do_frontmatter_sem_chave_valor_fica_de_fora(self):
+        texto = parecer(self.sha).replace("contrato: 1\n", "contrato: 1\nnota\n", 1)
+        self.assertEqual(self.ler(self.publicado(texto=texto))["review"][0], "aprovado")
+
+    def test_item_da_pagina_que_nao_e_objeto_fica_de_fora(self):
+        self.estado(paginas=[[5, "x", self.publicado(601)]])
+        self.assertEqual(fp().ler(str(self.repo), BRANCH, self.sha, PEDIDO)["review"][0], "aprovado")
+
+    def test_contas_que_nao_sao_conjunto_recusadas(self):
+        """M1.1 e M1.4: o chamador não passa mais a lista de contas (nem a alarga); ela é o conjunto fechado da dona do `origin`."""
+        self.estado(statuses=[self.publicado(login="outra", autor="outra")])
+        for contas in ({"outra"}, frozenset({"outra"}), ["outra"], "outra"):
+            with self.subTest(contas), self.assertRaises(TypeError):
+                fp().ler(str(self.repo), BRANCH, self.sha, PEDIDO, contas)
+        self.assertEqual(fp().contas_aceitas(str(self.repo)), frozenset({"dono"}))
+
+    def test_contas_com_login_vazio_recusadas(self):
+        """Login vazio no status, no comentário ou na sessão nunca é a dona."""
+        self.assertEqual(self.ler(self.publicado(login="")), {})
+        self.assertIn("M5.2", self.invalido(self.publicado(autor="")))
+        self.estado(login="")
+        with self.assertRaisesRegex(fp().Recusa, "M1.4"):
+            fp().publicar(str(self.repo), "review", "aprovado", parecer(self.sha), self.sha, BRANCH, 0, 0, ["review"])
+        self.assertFalse([c for c in self.chamadas() if "POST" in c], "gravou")
+        self.estado(statuses=[self.publicado(login="")])
+        self.assertEqual(fp().agregado(str(self.repo), self.sha, ["review"])[0], "pending")
+
+    def test_contas_frozenset_vale(self):
+        self.assertIsInstance(fp().contas_aceitas(str(self.repo)), frozenset)
+        self.assertEqual(self.ler(self.publicado())["review"][0], "aprovado")
+
+    def test_status_e_comentario_sem_login_de_texto_ficam_fora(self):
+        """Sonda S1 do review 2d3e3f3, refeita para a conta da base: login que não é texto nunca casa com a dona."""
+        for login in (None, 5, ["dono"]):
+            with self.subTest(login):
+                self.assertEqual(self.ler(self.publicado(login=login)), {})
+                self.assertIn("M5.2", self.invalido(self.publicado(autor=login)))
+        sem_creator = self.publicado()
+        del sem_creator["creator"]
+        self.assertEqual(self.ler(sem_creator), {})
+
+    def fora_do_contrato(self, status):
+        with self.assertRaisesRegex(fp().Recusa, "fora do contrato"):
+            self.ler(status)
+
+    def test_resposta_fora_do_contrato_vira_recusa(self):
+        """Sondas S3 a S5 da segurança 2d3e3f3: `creator` do status, `user` do comentário e PR sem `number`."""
+        status = self.publicado()
+        self.fora_do_contrato(status | {"creator": "conta"})
+        self.estado(comentarios={"601": self.estado()["comentarios"]["601"] | {"user": "conta"}})
+        self.fora_do_contrato(status)
+        self.publicado()  # o comentário íntegro de volta
+        self.estado(prs=[{k: v for k, v in self.estado()["prs"][0].items() if k != "number"}])
+        self.fora_do_contrato(status)
+
+    def test_sha_que_nao_e_head_do_pr(self):
+        self.estado(prs=[self.estado()["prs"][0] | {"headRefOid": "c" * 40}])
+        with self.assertRaises(fp().Recusa):
+            self.ler(self.publicado())
+
+
+class PastaDeControle(unittest.TestCase):
+    """M4.1: uma pasta por máquina para todos os clones; no projeto, a da cópia que contém `.forge/wt/`."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(subprocess.run, ["rm", "-rf", str(self.tmp)])
+        p = mock.patch.dict(os.environ, {"HOME": str(self.tmp / "casa")})
+        p.start()
+        self.addCleanup(p.stop)
+
+    def pastas(self, *rels):
+        for rel in rels:
+            (self.tmp / rel).mkdir(parents=True, exist_ok=True)
+
+    def test_clone_de_projeto_usa_a_copia_que_contem_wt(self):
+        self.pastas("proj/.forge/run", "proj/.forge/wt/c/.forge/run")
+        self.assertEqual(fp().pasta_de_controle(str(self.tmp / "proj/.forge/wt/c")), self.tmp / "proj/.forge/run")
+        self.assertEqual(fp().pasta_de_controle(str(self.tmp / "proj")), self.tmp / "proj/.forge/run")
+
+    def test_copia_principal_fora_de_forge_wt_usa_a_propria(self):
+        """Só o par `.forge/wt` marca o clone de projeto: uma pasta `wt` ou `.forge` solta no caminho não muda a cópia."""
+        for rel in ("a/wt/proj", "b/.forge/proj"):
+            with self.subTest(rel):
+                self.pastas(f"{rel}/.forge/run")
+                self.assertEqual(fp().pasta_de_controle(str(self.tmp / rel)), self.tmp / rel / ".forge/run")
+
+    def test_copia_principal_do_forge_usa_a_forge_contrib(self):
+        self.pastas("casa/.forge-contrib/.forge/run", "forge/.claude-plugin", "forge/.forge/run")
+        (self.tmp / "forge/.claude-plugin/plugin.json").write_text('{"name": "forge"}', encoding="utf-8")
+        self.assertEqual(fp().pasta_de_controle(str(self.tmp / "forge")), self.tmp / "casa/.forge-contrib/.forge/run")
+        (self.tmp / "forge/.forge/versao").write_text("0.1.0\n", encoding="utf-8")  # projeto com o manifesto não é o Forge
+        self.assertEqual(fp().pasta_de_controle(str(self.tmp / "forge")), self.tmp / "forge/.forge/run")
+        for ilegivel in ("{", "[]", '{"name": "outro"}'):
+            with self.subTest(ilegivel):
+                (self.tmp / "forge/.forge/versao").unlink(missing_ok=True)
+                (self.tmp / "forge/.claude-plugin/plugin.json").write_text(ilegivel, encoding="utf-8")
+                self.assertEqual(fp().pasta_de_controle(str(self.tmp / "forge")), self.tmp / "forge/.forge/run")
 
 
 class Descricao(unittest.TestCase):
@@ -250,7 +640,7 @@ class Comando(GhFalso):
         run = self.repo / ".forge" / "run"
         run.mkdir(parents=True, exist_ok=True)
         if autoria:
-            registro = {"caminho": "x", "sha256": hashlib.sha256(texto.strip().encode()).hexdigest(), "papel": papel}
+            registro = {"caminho": f".forge/pareceres/{pedido}/{tipo}.md", "sha256": hashlib.sha256(texto.strip().encode()).hexdigest(), "papel": papel}
             with open(run / "autoria.jsonl", "a", encoding="utf-8") as f:
                 f.write(json.dumps(registro) + "\n")
         return arq

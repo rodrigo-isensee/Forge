@@ -1,0 +1,29 @@
+{
+  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.13, volta 3; R-CONFORMIDADE): na raiz, a variável que nasce de for sem valor calculado, numa linha que não cita entrada em vigor, segue livre: o texto largo só conta pela entrada.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    ".githooks/pre-push": "#!/bin/sh\n",
+    ".githooks/commit-msg": "#!/bin/sh\n",
+    ".devcontainer/devcontainer.json": "{}\n",
+    "scripts/x.sh": "#!/bin/sh\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "for d in scripts; do printf x > $d/x.sh; done"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:devops-engineer"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

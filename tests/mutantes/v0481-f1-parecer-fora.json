@@ -1,0 +1,88 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "leitura: texto sem a linha --- de abertura não tem frontmatter (M8.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if linhas[0] != \"---\" or \"---\" not in linhas[1:]:",
+      "para": "if \"---\" not in linhas[1:]:",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_frontmatter_sem_a_linha_de_abertura"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "leitura: veredito da descrição diferente do estado do status não vale (M8.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if not d or ESTADOS[d[1]] != status.get(\"state\"):",
+      "para": "if not d:",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c10_veredito_diferente_do_estado"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "leitura: target_url fora de um comentário do PR do head no repositório conferido não vale e não é seguido (M6.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if not u or tuple(x.lower() for x in u.groups()[:3]) != repo or int(u[4]) != pr[\"number\"]:",
+      "para": "if not u:",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c8_target_url_fora_do_formato"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "leitura: comentário cujo html_url é de outro PR não vale (M6.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if not isinstance(c, dict) or c.get(\"html_url\") != u[0] or login(c.get(\"user\")) not in contas:",
+      "para": "if not isinstance(c, dict) or login(c.get(\"user\")) not in contas:",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_comentario_de_outro_pr_pelo_mesmo_id"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "leitura: comentário editado depois do status (sha256 diferente da descrição) não vale (M5.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if hashlib.sha256(normalizar(str(c.get(\"body\"))).encode()).hexdigest() != d[2]:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c6_comentario_editado"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "leitura: commit, branch, pedido, tipo ou veredito do texto diferente do status não vale (M8.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if (f.get(\"commit\"), f.get(\"branch\"), f.get(\"pedido\"), f.get(\"tipo\"), f.get(\"parecer\")) != (",
+      "para": "if False and (f.get(\"commit\"), f.get(\"branch\"), f.get(\"pedido\"), f.get(\"tipo\"), f.get(\"parecer\")) != (",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c10_commit_do_texto_diferente_do_sha",
+        "tests.test_forge_pareceres.Ler.test_c10_pedido_ou_tipo_do_texto_diferente"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "leitura: páginas de statuses ilegíveis recusam (M19.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if not isinstance(paginas, list) or not all(isinstance(p, list) for p in paginas):\n        raise Recusa(\"statuses ilegíveis (M19.1)\")",
+      "para": "if not isinstance(paginas, list):\n        raise Recusa(\"statuses ilegíveis (M19.1)\")",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c17_paginas_ilegiveis"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "leitura: só status das contas da lista, filtrado antes do mais novo (M1.1, M1.2)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "dela = [s for s in lista if s.get(\"context\") == contexto and login(s.get(\"creator\")) in contas]",
+      "para": "dela = [s for s in lista if s.get(\"context\") == contexto]",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c1_status_do_bot_ignorado",
+        "tests.test_forge_pareceres.Ler.test_c2_bot_mais_novo_nao_esconde_failure_da_conta"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "leitura: contexto sem status das contas fica de fora do resultado",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if dela:\n                lidos[tipo] = conferir(",
+      "para": "if True:\n                lidos[tipo] = conferir(",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c1_status_do_bot_ignorado"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "leitura: resposta do gh fora do contrato vira Recusa (M19.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "raise Recusa(f\"resposta do gh fora do contrato",
+      "para": "raise RuntimeError(f\"resposta do gh fora do contrato",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_resposta_fora_do_contrato_vira_recusa"
+      ]
+    }
+  ]
+}

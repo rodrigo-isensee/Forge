@@ -911,6 +911,15 @@ def vindos_da_base(raiz, base, commit, ate, nomes):
     return {n for n in nomes if no_ate.get(n) == na_ponta.get(n) and no_commit.get(n) == no_mb.get(n)}
 
 
+def trouxe_a_base(raiz, base, commit, ate):
+    """F3 (v0481 E30.4, segurança A2): True se `ate` trouxe a `base` depois do `commit` do parecer (o merge-base dela com `ate` não é o
+    com o `commit`). Aí o `ate` igual ao parecer não basta: o merge que descartou a base (`-s ours`, conflito resolvido com o lado da
+    branch) só aparece no merge simulado. Git que falha: True (falha fechada)."""
+    cod_c, mb_commit = git(raiz, "merge-base", base, commit)
+    cod_a, mb_ate = git(raiz, "merge-base", base, ate)
+    return bool(cod_c or cod_a or not mb_ate or mb_commit != mb_ate)
+
+
 def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES, estritos=(), dominio=None, mais=(), dispensados=()):
     """None se o parecer vale para `ate` (padrão: o HEAD); senão o motivo.
 
@@ -938,13 +947,15 @@ def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES, estritos=(),
     removidos = removidos_do_intervalo(raiz, commit, ate) if classes else set()  # AV4(b): fragmento apagado (release) é leve
     leves = {f for f, c in classes.items() if c != "codigo" and (not livre(f, estritos) or f in removidos)}  # EST-M4: só `codigo` desatualiza
     fora = [f for f in fora if f not in leves]
-    if not fora:
+    if not fora and not (base and trouxe_a_base(raiz, base, commit, ate)):  # F3 (E30.4): o merge que descarta a base vai ao simulado
         return None
     div = arquivos_divergentes(raiz, base, commit, ate, livres, leves | alheios) if base else None
     if div is not None:
         div = [n for n in div if no(n) and n not in dispensados]
     if div == []:
         return None
+    if not div and not fora:
+        return f"desatualizado: não comparei {ate} com o merge simulado da base; peça novo parecer"
     alvo = div[0] if div else fora[0]
     sha_da_base = sha_do_commit(raiz, base) if base else None
     qual = f" (base {caminho_impresso(base).removeprefix('refs/remotes/').removeprefix('refs/heads/')} {sha_da_base[:7]})" if sha_da_base else ""
@@ -1238,9 +1249,10 @@ def cmd_pronto(raiz, base, corpo_arquivo=None):
         print(f"pronto: {NAO_VERIFICAVEL}: o git não leu a base comum de HEAD com {base} nem o diff", file=sys.stderr)
         return 2
     pronto = modulo_do_bin("forge_pronto")
-    if velha := pronto.base_velha(raiz, base, ancora):  # PRONTO-BASE-VELHA: uma linha, em vez dos fragmentos dos outros itens
-        print(f"pronto: reprovado em {velha}")
-        return 1
+    if velha := pronto.base_velha(raiz, base, ancora):  # PRONTO-BASE-VELHA, F3 (v0481 E30.1): só avisa; a base entra no forge-fechar (2b)
+        print(f"pronto: aviso: {velha.partition('; ')[0]}; confiro contra o ponto de partida {ancora[:12]}, sem trazer a base: "
+              "ela entra só no fechamento (forge-fechar, passo 2b)", file=sys.stderr)
+        base = ancora  # contra a base nova, as checagens listariam os fragmentos dos outros itens (forge-changelog conferir)
     motivo = titulo = None  # o motivo do gh em erro: sem --corpo, o corpo fica não verificável em vez de reprovado
     if corpo_arquivo:
         try:
@@ -1488,6 +1500,8 @@ def tamanho_do_pr(raiz, ref, base, branch, previo=False):
     if not aviso:
         return []
     print(f"pr: {aviso}", file=sys.stderr)
+    if corte := corte_do_intervalo(raiz, b, ref or "HEAD", numstat):  # F5 (v0481 E38.2): o aviso traz onde cortar
+        print(f"pr: tamanho: {tamanho.texto_do_corte(corte)}", file=sys.stderr)
     if previo or not branch or branch in BASES_DO_FLUXO:
         return []
     pr, motivo = pr_da_branch(raiz, branch, corpo=True)
@@ -1498,6 +1512,36 @@ def tamanho_do_pr(raiz, ref, base, branch, previo=False):
         return []
     falta = tamanho.falta_de_motivo(total, pr.get("body"), pr.get("number"))
     return [falta] if falta else []
+
+
+def corte_do_intervalo(raiz, base, head, numstat):
+    """F5 (v0481 E38.2): o `corte_sugerido` do diff `base...head` com o `numstat` dele: cada arquivo de código até o teto é uma unidade;
+    o maior, uma por função tocada (cabeçalho `@@` do `-U0`; o nome vai como caminho literal, `bin/[ab].py` não casa `bin/a.py`, A2 da
+    segurança, E38.11). [] sem código; None se o git falha (a recusa sai sem o corte)."""
+    tamanho = modulo_do_bin("forge_tamanho")
+    unidades = []
+    for nome, contagem in sorted(numstat.items()):
+        linhas = tamanho.linhas_de_codigo({nome: contagem}, e_codigo)
+        if linhas <= tamanho.TETO_DE_LINHAS_DE_CODIGO:
+            unidades += [(nome, linhas)] if linhas else []
+            continue
+        cod, diff = git(raiz, "--literal-pathspecs", "diff", "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames",
+                        f"{base}...{head}", "--", nome)
+        if cod:
+            return None
+        unidades += [(f"{nome}:{funcao}", n) for funcao, n in tamanho.linhas_por_funcao(diff).items()]
+    return tamanho.corte_sugerido(unidades)
+
+
+def tamanho_na_abertura(raiz, base, head, corpo):
+    """F5 (v0481 E38.2): a recusa da abertura do PR `base...head` com mais linhas de código que o teto do H1 e sem a exceção no `corpo`,
+    com o corte sugerido, ou None. O git que não lê o diff recusa (falha fechada, ADR 0009 seção 7)."""
+    numstat = contagens_do_intervalo(raiz, base, head, tres_pontos=True, estrito=True)
+    if numstat is None:
+        return f"R-REVIEW: tamanho não conferido: o git não leu o diff {base}...{head}; rode git fetch origin develop"
+    tamanho = modulo_do_bin("forge_tamanho")
+    total = tamanho.linhas_de_codigo(numstat, e_codigo)
+    return tamanho.recusa_de_abertura(total, corte_do_intervalo(raiz, base, head, numstat), corpo)
 
 
 # E3.45 (v0474): o merge só com os checks do head concluídos e verdes; num projeto, um PR mesclado com o CI rodando deixou a integração
@@ -1575,17 +1619,22 @@ def checks_do_head(raiz, ref, branch, previo=False):
             "não aprovado para merge (E3.45)"]
 
 
-def checks_ruins(raiz, pr):
+def checks_ruins(raiz, pr, fora=(), mais=()):
     """(checks lidos, os fora de pass ou skipping mais os exigidos do destino ausentes ou fora de pass) do PR `pr` (o dict do
-    `gh pr view`); (None, None) se o `gh pr checks` não os lê. Uma fonte do `checks_do_head` e do `ci_verde_no_head`."""
+    `gh pr view`); (None, None) se o `gh pr checks` não os lê. Uma fonte do `checks_do_head`, do `ci_verde_no_head` e da
+    `prova_do_ci`, que passa em `fora` os nomes de check que não contam (lidos ou exigidos) e em `mais` os pares exigidos além dos
+    do destino (os `JOBS_DO_AGREGADOR`)."""
     lidos, erro = gh_json(raiz, "pr", "checks", str(pr.get("number")), "--json", "name,bucket,workflow")
     if lidos is None and "no checks reported" in erro:
         lidos = []
     if not isinstance(lidos, list) or not all(isinstance(c, dict) for c in lidos):
         return None, None
+    lidos = [c for c in lidos if c.get("name") not in fora]
     ruins = [f"{c.get('workflow')}/{c.get('name')} ({c.get('bucket')})" for c in lidos if c.get("bucket") not in ("pass", "skipping")]
-    for par in checks_exigidos(raiz, str(pr.get("baseRefName") or "")):
+    for par in dict.fromkeys([*checks_exigidos(raiz, str(pr.get("baseRefName") or "")), *mais]):
         wf, nome = par.split("/", 1)
+        if nome in fora:
+            continue
         dele = [c for c in lidos if c.get("name") == nome and wf in ("*", c.get("workflow"))]
         if not dele or any(c.get("bucket") != "pass" for c in dele):
             ruins.append(f"{par} (exigido, {'ausente' if not dele else 'fora de pass'})")
@@ -1651,7 +1700,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
                   file=sys.stderr)
         avisar_classe(raiz, ref, None)
         branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
-        return cmd_pr(raiz, pedido, ref, None, branch, previo, suite) + (conferencia_do_head(raiz, pedido, ref, None, branch)
+        return cmd_pr(raiz, pedido, ref, None, branch, previo, suite) + (conferencia_do_head(raiz, pedido, ref, None, branch, previo)
                                                                   + tamanho_do_pr(raiz, ref, None, branch, previo)
                                                                   + checks_do_head(raiz, ref, branch, previo_dos_checks) if conferir else [])
     nome = base.removeprefix("origin/")
@@ -1669,7 +1718,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
         avisar_rebase_merge(raiz)
         return cmd_pr(raiz, pedido, ref, resolvida, branch, previo)  # na leva da promoção valem os pareceres de todos os itens
     branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
-    return cmd_pr(raiz, pedido, ref, resolvida, branch, previo, suite) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch)
+    return cmd_pr(raiz, pedido, ref, resolvida, branch, previo, suite) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch, previo)
                                                                    + tamanho_do_pr(raiz, ref, nome, branch, previo)
                                                                    + checks_do_head(raiz, ref, branch, previo_dos_checks) if conferir else [])
 
@@ -1790,7 +1839,19 @@ def branch_do_sha(raiz, sha):
     return nomes.pop() if len(nomes) == 1 else None
 
 
-def conferencia_do_head(raiz, pedido, ref=None, base=None, branch=None):
+def conferencia_do_head(raiz, pedido, ref=None, base=None, branch=None, previo=False):
+    """G3-ENTREGA-PELO-CI (v0481 E28.6): no `--previo` (o pré-voo do parecer de review e de QA, que leem o CI do head), a conferência
+    que falta vira aviso no stderr: o portão não espera a conferência da entrega; o `pr` sem `--previo`, o hook e o `forge-fechar`
+    seguem exigindo-a."""
+    linhas = linhas_da_conferencia(raiz, pedido, ref, base, branch)
+    if previo and linhas:
+        for linha in linhas:
+            print(f"aviso: {linha}; o pré-voo segue (--previo, G3-ENTREGA-PELO-CI)", file=sys.stderr)
+        return []
+    return linhas
+
+
+def linhas_da_conferencia(raiz, pedido, ref=None, base=None, branch=None):
     """E7 (TEMPO-B2, D07 = A): a conferência de entrega corre junto com os portões, presa ao head. Vale só se o pedido é achado
     (`docs/pedidos/<pedido>.md`, ou o `Pedido:` dos briefs da branch: a da ref, a do `--pr` ou a única branch cujo head é o sha da ref),
     tem `## Histórico` e uma linha `- <data> <hora>: entrega conferida <sha40>` cobre o head: o commit existe, é ancestral do head e,
@@ -1800,7 +1861,7 @@ def conferencia_do_head(raiz, pedido, ref=None, base=None, branch=None):
     head = sha_do_commit(raiz, ref or "HEAD")
     branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, head)
     caminho, texto, problema = pedido_da_conferencia(raiz, pedido, branch)
-    regra = "o QA e o merge esperam a conferência de entrega do mesmo head (R-PROVA, TEMPO-B2)"
+    regra = "o merge espera a conferência de entrega do mesmo head (R-PROVA, TEMPO-B2); o QA lê o CI do head (G3-ENTREGA-PELO-CI)"
     if problema:
         return [f"pr: conferência: {problema}; {regra}"]
     if texto is None:
@@ -3880,11 +3941,19 @@ def cmd_parecer_novo(raiz, a):
     return 0
 
 
+PARECER_A_PUBLICAR = re.compile(r"\.forge/pareceres/([A-Za-z0-9][A-Za-z0-9._-]*)/([a-z-]+)\.md")  # ADR 0019, 1.2; a do hook `conformidade`
+
+
 def recusa_do_publicar(raiz, arquivo):
     """G2.1: (campos, texto, sha, violações) do `.forge/pareceres/<pedido>/<tipo>.md` igual ao frontmatter: contrato estrito e G1.2,
-    aceite do dono (M14.1), autoria do papel com o sha256 do texto (sem registro, recusa: M9.1) e o `commit:` resolvido na cópia."""
+    aceite do dono (M14.1), autoria do papel com o sha256 do texto no último registro do mesmo caminho (sem registro, de outro
+    caminho ou superado, recusa: M9.1, PUBLICAR-CONFERE-CAMINHO-E-ULTIMO) e o `commit:` resolvido na cópia."""
     p, nome = raiz / arquivo, caminho_impresso(arquivo)  # caminho absoluto em `arquivo` troca a raiz (pathlib)
-    m = re.search(r"(?:^|/)\.forge/pareceres/([A-Za-z0-9][A-Za-z0-9._-]*)/([a-z-]+)\.md$", p.as_posix())  # ADR 0019, 1.2
+    try:  # o caminho relativo à raiz, como o hook o registra; fora da raiz, nenhum
+        rel_arq = Path(os.path.realpath(p)).relative_to(os.path.realpath(raiz)).as_posix()
+    except ValueError:
+        rel_arq = ""
+    m = PARECER_A_PUBLICAR.fullmatch(rel_arq)
     texto = p.read_text(encoding="utf-8") if m and p.is_file() else ""
     campos = ler_frontmatter(texto)[0] or {}
     if not m or campos.get("pedido") != m.group(1) or campos.get("tipo") != m.group(2) or m.group(2) not in PAPEL_DO_PARECER:
@@ -3897,8 +3966,9 @@ def recusa_do_publicar(raiz, arquivo):
     if campos.get("parecer") == "riscos-aceitos" and not aceite_do_usuario(raiz, campos["pedido"], campos.get("commit"), sha):
         saida.append(f"{nome}: parecer: `riscos-aceitos` sem o aceite do dono no head com o mesmo `commit:` (M14.1, R-SEGURANCA)")
     hash_atual, papel = hashlib.sha256(texto.strip().encode()).hexdigest(), PAPEL_DO_PARECER[campos["tipo"]]
-    if not any(r.get("sha256") == hash_atual and r.get("papel") == papel for r in autorias(raiz) or []):
-        saida.append(f"{nome}: autoria: sem registro de que o papel `{papel}` gravou este texto (M9.1)")
+    ultimo = [r for r in autorias(raiz) or [] if r.get("caminho") == rel_arq][-1:]  # o texto superado não volta a valer
+    if not ultimo or ultimo[0].get("sha256") != hash_atual or ultimo[0].get("papel") != papel:
+        saida.append(f"{nome}: autoria: sem registro de que o papel `{papel}` gravou este texto (M9.1) como o último de `{rel_arq}`")
     return campos, texto, sha, saida
 
 
@@ -4599,6 +4669,20 @@ def testes_enfraquecidos_da_volta(raiz, brief, de, head):
                   f"de {forca} para {depois[arq, nome]}") for (arq, nome), forca in sorted(antes.items())
                   if (arq, nome) not in depois or any(catraca._piora(forca, depois[arq, nome]))]
     return [(f"volta: a volta {VOLTA_SO_DO_APONTADO} em diante {RESTRICAO_DA_VOLTA} (R-QA): {sem_controle(v)[:200]}", True) for v in violacoes]
+
+
+def inicio_da_volta(raiz, base, inicio, head):
+    """R-QA com a base trazida (v0481 E30.4): o ponto de comparação dos testes da volta. Se a branch trouxe a base por merge depois do
+    `inicio` (o merge-base atual com a `origin/<base>` não está no `inicio` nem na linha de primeiro pai da branch), a árvore do
+    `inicio` com essa base (`git merge-tree`): o teste que a base tirou não sumiu na volta. Sem isso, com conflito ou git que falha,
+    o próprio `inicio` (nada se afrouxa). A ref local é forjável; a garantia é a catraca do CI, com a base do servidor."""
+    base_ref = ref_da_base(raiz, base) or ""  # sem a base, o merge-base falha e fica o `inicio`
+    cod, ponto = git(raiz, "merge-base", base_ref, head)
+    linha = git(raiz, "rev-list", "--first-parent", f"{inicio}..{head}")[1].split()
+    if cod or ponto in linha:  # a ref apontada para um commit da própria branch não esconde o teste tirado
+        return inicio
+    cod, saida = git(raiz, "merge-tree", "--write-tree", inicio, ponto)
+    return saida.split("\n")[0].strip() if cod == 0 and saida else inicio
 
 
 def voltas_da_branch(pasta, branch, anterior, proprio=None):
@@ -9944,10 +10028,11 @@ TESTES_DE_TEXTO = ("tests.test_testes_tocados", "tests.test_forge.Orcamento", "t
 TESTE_DOS_ACHADOS = "tests.test_forge_mutante.ConferirTodas"  # H3 (a): o AR-12 de docs/engineering/achados-recorrentes.md, conferido pelo autor
 
 
-PQ_DO_D2 = ("- PQ-N (cmd, do autor): `bin/forge-check --raiz <sua cópia> pronto --base origin/{base}` · espera: rc=0 · D2 (D2-NO-BRIEF): "
-            "o forge-check de um clone da develop (`bin/forge-copia clone --base origin/develop`, sufixo -d2), nunca o da branch, que "
-            "não certifica o próprio portão; com o PR em rascunho aberto, em segundo plano com log até `rc=` (esperar-estado); "
-            "entregue só com rc 0 e a última linha dele no relatório; com rc 1, corrija o que ele aponta (a conferência da entrega recusa o D2 vermelho)")
+# G3-ENTREGA-PELO-CI (v0481 E28.6, F2 partes 2 e 3): no Forge, a prova do pronto é o CI do PR no head entregue, que a conferência da
+# entrega lê (`prova_do_ci`); o brief de código não pede o D2 nem a bateria local ao autor, só os testes afetados para se guiar.
+PQ_DO_CI = ("- PQ-N (pr, do autor): `gh pr checks <n>` no head entregue · espera: concluídos e verdes "
+            f"{FORA_DA_LINHA_DO_CI} · a prova do pronto é o CI do PR no head, que a conferência da entrega lê "
+            "(G3-ENTREGA-PELO-CI); o D2 e a bateria local não rodam: rode só os testes afetados para se guiar")
 
 
 def pqs_de_pre_envio(raiz, etapa, entregar):
@@ -9960,8 +10045,8 @@ def pqs_de_pre_envio(raiz, etapa, entregar):
               f"{PREENCHER}: o corpo do `gh pr create --body-file`",
               f"- PQ-N (cmd, do autor): `python3 -m unittest {' '.join(TESTES_DE_TEXTO)}` · espera: rc=0 · tamanho de texto"]
     if (etapa or "codigo") == "codigo" and CAMINHO_DE_CODIGO.search(entregar):
-        linhas.append("- PQ-N (cmd, do autor): `FORGE_PREPUSH_SUITE=afetados .githooks/pre-push` · espera: rc=0 · refs no stdin, em "
-                      "segundo plano, log até `rc=` (esperar-estado)")
+        linhas.append("- PQ-N (cmd, do autor): `FORGE_PREPUSH_SUITE=afetados .githooks/pre-push` · espera: rc=0 · rode só os testes "
+                      "afetados para se guiar; a prova é o CI do PR no head · refs no stdin, em segundo plano, log até `rc=` (esperar-estado)")
         linhas.append(f"- PQ-N (cmd, do autor): `python3 -m unittest {TESTE_DOS_ACHADOS}` · espera: rc=0 · achados recorrentes (AR-12, H3)")
     return linhas
 
@@ -10001,7 +10086,7 @@ LINHA_LE_O_CI = ("- G3 (PARECER-LE-O-CI): não rode a suíte inteira; leia `gh p
                  f"{FORA_DA_LINHA_DO_CI}, e grave no parecer `- ci: <sha40 do Revisar-sha> verde` (sem ela, o `forge-check pr` recusa o aprovado); run do "
                  "`Revisar-sha` cancelado pelo envio de outro parecer: `- ci: <sha40 do Revisar-sha> verde via <sha40 do descendente>`, "
                  f"com o diff dele só em {', '.join(PASTAS_DOS_PARECERES)} (G3.7); à mão, só os "
-                 "testes que o diff toca e os mutantes declarados")
+                 "testes que o diff toca e os mutantes declarados; o CI do head basta, sem esperar a conferência da entrega (G3-ENTREGA-PELO-CI)")
 SEM_PR_NO_PORTAO = "- sem PR para a branch: o CI só roda no PR; review e QA não aprovam sem o CI do head verde: peça ao autor o PR em rascunho"
 
 
@@ -10172,8 +10257,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
         if interpolacao_segura(pedido=pedido_id, branch=branch, base=base, sha=sha_base, **({"raiz": pasta} if pasta else {})):
             saida.append(f"- PQ-N (cmd, do autor): `forge-check entrega {caminho_impresso(pedido_id)}{f' --raiz-pedidos {caminho_impresso(pasta)}' if pasta else ''} "
                          f"--branch {branch} --base {base} --base-sha {sha_base}{PROVAS_DO_PQ} --etapa codigo` · espera: rc=0")
-            if e_o_forge(Path(raiz)):  # D2-NO-BRIEF (v0481 E14.51): o pronto da própria cópia, antes de entregar
-                saida.append(PQ_DO_D2.format(base=base.removeprefix("origin/")))
+            if e_o_forge(Path(raiz)):  # G3-ENTREGA-PELO-CI (v0481 E28.6): no lugar do D2 (D2-NO-BRIEF), o CI do PR no head
+                saida.append(PQ_DO_CI)
     if etapa in ("review", "seguranca", "qa"):  # o bloco ## Achados e o teto em caracteres saem do `forge-check docs` (P3)
         nome = base.removeprefix("origin/")  # FC-DOCS-CAMINHO: no fluxo de entrega, só os documentos do diff da branch
         saida.append(f"- PQ-N (cmd): `forge-check docs{f' --base {nome}' if nome in BASES_DO_FLUXO else ''}` · espera: rc=0")
@@ -10697,6 +10782,45 @@ def prova_do_pronto(pasta, base, so_leitura, rodar=subprocess.run, forge_no_head
     return [(f"pendente: D2 vermelho: forge-check pronto rc {r.returncode}: {sem_controle(ultima)} (D2-NO-BRIEF)", True)]
 
 
+# G3-ENTREGA-PELO-CI (v0481 E28.1, ordem do dono 26/11 18:5x): no Forge, a conferência da entrega (etapa codigo) aceita o CI do PR
+# concluído e verde no head entregue como prova de pronto, no lugar do D2 local (50 a 85 min por item e falsos vermelhos do sandbox);
+# os `CHECKS_FORA_DA_LINHA_DO_CI` não contam, como no parecer. Sem PR no head, sem check, pendente, vermelho ou sem rede: não cumpre.
+# A1 da segurança do #923 (v0481 E28.6): com o agregador `bateria` fora, os jobs que só ele junta (needs do job `agregador` do
+# .github/workflows/ci.yml; tests/test_forge_pronto.py confere que batem) são exigidos em pass, um a um: ausente ou pulado não prova.
+JOBS_DO_AGREGADOR = ("CI/bateria (passos)", "CI/bateria (verificações longas)", "CI/teto de pulados (python 3.12)",
+                     *(f"CI/suíte (python 3.12, parte {n}/5)" for n in range(1, 6)))
+
+
+def prova_do_ci(raiz, branch, head):
+    """[(linha, reprova)] do CI do PR da `branch` no `head` exato: a prova, ou o check que falta, o pendente e o vermelho, e o título
+    do PR que é a linha da etapa do brief (PR-TITULO-DO-BRIEF, que o D2 conferia). O head do PR é lido antes e depois dos checks (o
+    `gh pr checks` lê o head do momento); gh sem rede ou ilegível: não verificável, reprova."""
+    def no_pr():
+        pr, erro = gh_json(raiz, "pr", "view", branch, "--json", "number,headRefOid,baseRefName,title")
+        return (pr, "") if isinstance(pr, dict) else (None, sem_controle(erro.strip())[:120] or "saída vazia")
+    pr, erro = no_pr()
+    if pr is None:
+        return [(f"pendente: CI do GitHub não verificável (gh pr view: {erro}); a entrega só cumpre com o CI do PR verde no head "
+                 "(G3-ENTREGA-PELO-CI)", True)]
+    numero, lido = sem_controle(str(pr.get("number"))), sem_controle(str(pr.get("headRefOid") or "?"))
+    if lido != head:
+        return [(f"pendente: o PR #{numero} está em {lido[:12]}, não no head entregue {head[:12]}; envie o head e espere o CI "
+                 "(G3-ENTREGA-PELO-CI)", True)]
+    titulo = pr.get("title") if isinstance(pr.get("title"), str) else ""
+    if modulo_do_bin("forge_pronto").TITULO_DO_BRIEF.search(titulo):
+        return [(f"pendente: o título do PR #{numero} é a linha da etapa do brief ({sem_controle(titulo.strip())[:80]}); use o título "
+                 "do Entregar, em Conventional Commits (PR-TITULO-DO-BRIEF)", True)]
+    lidos, ruins = checks_ruins(raiz, pr, fora=CHECKS_FORA_DA_LINHA_DO_CI, mais=JOBS_DO_AGREGADOR)
+    if lidos is None or (no_pr()[0] or {}).get("headRefOid") != head:
+        return [(f"pendente: checks do PR #{numero} no head {head[:12]} não lidos (gh pr checks ou head mudado); CI do GitHub não "
+                 "verificável (G3-ENTREGA-PELO-CI)", True)]
+    if ruins or not lidos:
+        falta = sem_controle(", ".join(ruins)) or "nenhum check"
+        return [(f"pendente: CI do PR #{numero} no head {head[:12]} não concluído e verde: {falta} (G3-ENTREGA-PELO-CI)", True)]
+    return [(f"prova: CI do PR #{numero} concluído e verde no head {head[:12]} ({len(lidos)} checks, {FORA_DA_LINHA_DO_CI}); "
+             "a bateria local não roda (G3-ENTREGA-PELO-CI)", False)]
+
+
 def conferir_provas(raiz, texto, branch, head, pasta, so_leitura=False):
     """P2 (0.43.1): (linha, reprova) por PQ do brief selado. `cmd` da lista do reexecutar-provas roda na worktree; o `forge-check entrega`
     é esta conferência; `cmd` fora da lista e `pr`/`merge`/`run` (GitHub) não são reexecutados e não reprovam (ficam com o relatório
@@ -10854,10 +10978,11 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
     cod, contagem = git(raiz, "rev-list", "--count", f"{inicio}..{head}")
     linhas.append((f"commits: {contagem if not cod else '?'} em {inicio[:12]}..{head[:12]}", bool(cod)))
     linhas += conferir_provas(raiz, brief, branch, head, pasta, so_leitura)
-    linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio, head)  # R-QA: a 3ª volta (só o brief com `(volta N)`)
+    linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio_da_volta(raiz, base, inicio, head), head)  # R-QA: a 3ª volta
     if etapa == "codigo":  # D2-NO-BRIEF: a entrega com o D2 vermelho volta sem passar pelas revisões
         no_head = [git(raiz, "cat-file", "-e", f"{head}:{nome}")[0] == 0 for nome in (".claude-plugin/plugin.json", ".forge/versao")]
-        linhas += prova_do_pronto(pasta, base, so_leitura, forge_no_head=no_head == [True, False])
+        forge = no_head == [True, False]  # G3-ENTREGA-PELO-CI: o head do Forge prova pelo CI do PR; o D2 local não roda
+        linhas += prova_do_ci(raiz, branch, head) if forge else prova_do_pronto(pasta, base, so_leitura)
     if etapa == "codigo" and not cod:  # T1: código sem teste no intervalo da delegação, sinalizado sem reprovar (a classe T isenta)
         aviso = aviso_de_codigo_sem_teste(raiz, f"{inicio}..{head}", nomes_do_intervalo(raiz, inicio, head),
                                           classe_para_o_t1(raiz, head, base))
@@ -11195,6 +11320,10 @@ def main():
     on = sub.add_parser("onde", parents=[comum], help="onde está uma versão, um PR, um commit, uma branch ou um cartão em develop, homolog "
                         "e main, lido do git e do gh; lido rc 0, não existe rc 1, inválido ou não verificável rc 2; só leitura (AE1.1)")
     on.add_argument("alvo", help="vX.Y.Z, #N ou pr:N, sha, branch:<nome> (ou nome com /) ou ID de cartão")
+    es = sub.add_parser("status", parents=[comum], help="o estado da fábrica numa tela curta (S1a): último merge na develop, PRs abertos, "
+                        "contador da versão, decisões do dono abertas, última versão publicada e plugin da sessão; leitura que falha "
+                        "vira `não verificável`; só leitura, rc 0 (bin/forge_estado.py)")
+    es.add_argument("--agora", help="a hora de referência, ISO 8601 com fuso (o relógio é argumento; padrão: agora)")
     ajuda_comparar = "'só aperta' medido nos hooks sobre tests/comparar/corpus.jsonl: mede o veredito dos hooks de hooks/hooks.json da raiz, só numa árvore que cumpre a lista positiva de forma F1 a F7 nos dois lados (F1 só blob 100644/100755; F2 nenhum .gitattributes nem .gitmodules; F3 nenhum .mcp.json, .lsp.json, settings.json, monitors nem workflows na raiz; F4 plugin.json só com chaves da lista; F5 marketplace.json com chaves da lista, metadata sem pluginRoot, um plugin só, source . ou ./; F6 cabeçalho de .md em forma simples, com toda quebra de linha (também o CR sozinho), sem hooks nem allowed-tools; F7 matcher simples); rc 0 nada liberado a mais, 1 aceite novo ou caso removido, 2 nao-verificavel com o item que falhou (também ref fora do repositório e corpus ilegível); limites declarados: liberação que não passa por hook (bin/, scripts/, instrução de agente, permissão) e o que o Claude Code passar a ler depois da versão sondada, no docstring de bin/forge_comparar.py; executa os hooks da base e do head (só head deste repositório, sob o sandbox); quem consome exige a linha `so-aperta: medido base=<sha> head=<sha>`, não só o rc (AE7.1)"
     cm = sub.add_parser("comparar", parents=[comum], help=ajuda_comparar, description=ajuda_comparar)
     cm.add_argument("base", help="commit ou branch da base")
@@ -11536,6 +11665,13 @@ def executar(a, raiz):
         return cmd_juncao(raiz, a.pedido, a.ref, a.base)
     if a.cmd == "onde":  # AE1.1: em bin/forge_onde.py
         return modulo_do_bin("forge_onde").executar(a, raiz, {"git": git, "gh_json": gh_json, "seguro": sem_controle})
+    if a.cmd == "status":  # S1a (v0481 E20.1): em bin/forge_estado.py
+        pedidos = Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else next(
+            (r for r in raizes_de_pedidos(raiz) if (Path(r) / "docs" / "pedidos").is_dir()), raiz)
+        ctx = {"gh_json": gh_json, "seguro": sem_controle, "versao": versao_da_propria_copia, "plugin": PLUGIN, "pedidos": pedidos,
+               "abertas": modulo_do_bin("forge_dono").cmd_abertas,
+               "lista_de_prs": modulo_do_bin("forge_estado").vigia().lista_de_prs(raiz)}  # F4: a lista que o vigia lê
+        return modulo_do_bin("forge_estado").executar(a, raiz, ctx)
     if a.cmd == "comparar":  # AE7.1: em bin/forge_comparar.py
         return modulo_do_bin("forge_comparar").executar(a, raiz, {"git": git, "seguro": sem_controle})
     if a.cmd == "vazio":
@@ -11593,6 +11729,8 @@ def executar(a, raiz):
         linhas, codigo = cmd_proximo(raiz, a.pedido, a.item, a.etapa) if a.cmd == "proximo" else cmd_criterios(raiz, a.pedido)
         for linha in linhas:
             print(linha)
+        if a.cmd == "proximo":  # F4 (v0481 E34.6): renova a lista do vigia vencida, uma leitura do gh, depois da saída
+            modulo_do_bin("forge_estado").renovar_prs_abertos(raiz, gh_json)
         return codigo
     if a.cmd in ("rodar", "meta"):
         return modulo_do_bin({"rodar": "forge_run", "meta": "forge_meta"}[a.cmd]).executar(a, raiz)

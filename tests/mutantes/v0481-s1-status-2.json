@@ -1,0 +1,70 @@
+{
+  "pedido": "v0481-s1-status",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "S1a: check reprovado de qualquer forma (FAILURE, ERROR...) marca o PR como quebrado",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    if any((c.get(\"conclusion\") or c.get(\"state\")) in QUEBRADO for c in checks):",
+      "para": "    if any((c.get(\"conclusion\") or c.get(\"state\")) == \"FAILURE\" for c in checks):",
+      "testes": ["tests.test_forge_status_estado.Itens.test_prs_nos_quatro_grupos"]
+    },
+    {
+      "id": "M10",
+      "guarda": "S1a: lista de PRs fora da forma (número que não é inteiro) vira não verificável",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    if not isinstance(prs, list) or not all(isinstance(p, dict) and isinstance(p.get(\"number\"), int) for p in prs):",
+      "para": "    if not isinstance(prs, list):",
+      "testes": ["tests.test_forge_status_estado.Itens.test_prs_lista_vazia_e_fora_da_forma"]
+    },
+    {
+      "id": "M11",
+      "guarda": "S1a: forge-contador lento passa do teto e vira não verificável",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    except (OSError, subprocess.TimeoutExpired) as erro:",
+      "para": "    except OSError as erro:",
+      "testes": ["tests.test_forge_status_estado.Contador.test_contador_lento_nao_verificavel"]
+    },
+    {
+      "id": "M12",
+      "guarda": "S1a: forge-contador que sai com erro não vale, mesmo com saída",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    if r.returncode != 0 or not r.stdout.strip():",
+      "para": "    if not r.stdout.strip():",
+      "testes": ["tests.test_forge_status_estado.Contador.test_contador_que_falha_ou_cala_nao_verificavel"]
+    },
+    {
+      "id": "M13",
+      "guarda": "S1a: leitura das decisões recusada (pasta por link) vira não verificável, não 0",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    if codigo:",
+      "para": "    if False:",
+      "testes": ["tests.test_forge_status_estado.Itens.test_decisoes_leitura_recusada_nao_verificavel"]
+    },
+    {
+      "id": "M14",
+      "guarda": "S1a: sem decisão aberta, a linha diz 0",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    if not abertas:\n        return \"0\"",
+      "para": "    if False:\n        return \"0\"",
+      "testes": ["tests.test_forge_status_estado.Itens.test_decisoes_abertas_e_a_mais_antiga"]
+    },
+    {
+      "id": "M15",
+      "guarda": "S1a: decisões sem data dão a contagem e a idade não verificável",
+      "arquivo": "bin/forge_estado.py",
+      "de": "    if not horas:",
+      "para": "    if False:",
+      "testes": ["tests.test_forge_status_estado.Itens.test_decisoes_abertas_e_a_mais_antiga"]
+    },
+    {
+      "id": "M16",
+      "guarda": "S1a: a hora — (sem data) fica fora do cálculo da mais antiga",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if len(c) > 2 and c[2] != \"—\")",
+      "para": "if len(c) > 2)",
+      "testes": ["tests.test_forge_status_estado.Itens.test_decisoes_abertas_e_a_mais_antiga"]
+    }
+  ]
+}

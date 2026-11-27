@@ -76,8 +76,8 @@
       "id": "M16",
       "guarda": "conferência da entrega: o head é do Forge com o manifesto e sem .forge/versao (E14.81)",
       "arquivo": "bin/forge-check",
-      "de": "forge_no_head=no_head == [True, False])",
-      "para": "forge_no_head=no_head[0])",
+      "de": "        forge = no_head == [True, False]",
+      "para": "        forge = no_head[0]",
       "testes": [
         "tests.test_selo_e_entrega.Entrega.test_sem_worktree_com_o_head_no_forge_nao_cumpre"
       ]

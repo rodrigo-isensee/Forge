@@ -26,7 +26,7 @@
       "id": "M27",
       "guarda": "PV-A2 (ADR 0004): campo vazio no frontmatter não derruba a leitura",
       "arquivo": "bin/forge_autorizacao.py",
-      "de": "if \": \" in linha)",
+      "de": "if \": \" in campo)",
       "para": "if True)",
       "testes": [
         "tests.test_autorizacao.ItemPresoAoCommit.test_head_com_os_pareceres_aprovados_fica_ativa_e_o_parecer_pode_citar_o_sha_curto"

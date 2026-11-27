@@ -6,8 +6,8 @@
       "id": "M19",
       "guarda": "a GuardaDaProva confere a pasta de parecer pelo topo da cópia do Forge (E50.7, A3)",
       "arquivo": "hooks/conformidade.py",
-      "de": "        return achado or self.parecer_no_topo(caminho)\n",
-      "para": "        return achado\n",
+      "de": "        achado = achado or self.parecer_no_topo(caminho)\n",
+      "para": "        achado = achado\n",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_parecer_pelo_papel"
       ]

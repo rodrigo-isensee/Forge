@@ -1,0 +1,17 @@
+{
+  "descricao": "Termo só dentro de outra palavra (reestado, estadual): vale a palavra inteira, silêncio.",
+  "forcar": {
+    "onde": "status",
+    "como": "erro"
+  },
+  "entrada": {
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "prompt": "grave o reestado e o estadual"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

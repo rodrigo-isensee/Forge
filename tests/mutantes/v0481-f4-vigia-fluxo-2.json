@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-f4-vigia-fluxo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "catraca reprovada pede o autor",
+      "arquivo": "bin/forge_estado.py",
+      "de": "return \"autor\" if falhos else \"integração\"",
+      "para": "return \"autor\" if False else \"integração\"",
+      "testes": [
+        "tests.test_hook_vigia_f4.PapelDoPr.test_catraca_reprovada_pede_o_autor"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "item da lista do gh fora de objeto é ignorado",
+      "arquivo": "bin/forge_estado.py",
+      "de": "[v for v in valor if isinstance(v, dict)] if isinstance(valor, list)",
+      "para": "[v for v in valor if True] if isinstance(valor, list)",
+      "testes": [
+        "tests.test_hook_vigia_f4.PapelDoPr.test_lista_fora_da_forma_do_gh_e_ignorada"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "lista do gh que não é lista é ignorada",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if isinstance(v, dict)] if isinstance(valor, list) else []",
+      "para": "if isinstance(v, dict)] if True else []",
+      "testes": [
+        "tests.test_hook_vigia_f4.PapelDoPr.test_lista_fora_da_forma_do_gh_e_ignorada"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "check verde não conta como falho",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if (c.get(\"conclusion\") or c.get(\"state\")) in QUEBRADO}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_hook_vigia_f4.PapelDoPr.test_tudo_verde_pede_integracao"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "portão com parecer não falta",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if not any(a.startswith(pasta) for a in arquivos)]",
+      "para": "if True]",
+      "testes": [
+        "tests.test_hook_vigia_f4.PapelDoPr.test_parecer_ausente_pede_os_portoes_que_faltam"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "sem a pasta de estado não grava",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if caminho is None or not caminho.parent.is_dir():",
+      "para": "if caminho is None:",
+      "testes": [
+        "tests.test_hook_vigia_f4.GravacaoDaLista.test_sem_pasta_ou_sem_caminho_nao_grava"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "sem caminho não grava",
+      "arquivo": "bin/forge_estado.py",
+      "de": "if caminho is None or not caminho.parent.is_dir():",
+      "para": "if not caminho.parent.is_dir():",
+      "testes": [
+        "tests.test_hook_vigia_f4.GravacaoDaLista.test_sem_pasta_ou_sem_caminho_nao_grava"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "só o PR com papel entra na lista",
+      "arquivo": "bin/forge_estado.py",
+      "de": "for p in prs if (papel := papel_do_pr(p))]",
+      "para": "for p in prs if (papel := papel_do_pr(p) or \"autor\")]",
+      "testes": [
+        "tests.test_hook_vigia_f4.GravacaoDaLista.test_grava_so_o_pr_com_papel_fora_o_fork_e_em_0600"
+      ]
+    }
+  ]
+}

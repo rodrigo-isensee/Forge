@@ -70,6 +70,7 @@ from modelo_git import copiar_modelo  # noqa: E402
 from prova_de_carga import (APROVEITAMENTO_MINIMO, FOLGA_DA_CPU_NO_PRAZO_S, PARCELA_DE_DISPUTA,  # noqa: E402
                             aproveitamento_da_cpu, carga_explica_a_recusa, referencia_da_cpu)
 from apoio_sandbox import exigir, sinais_de_ci  # noqa: E402  (ENVIO-DO-SANDBOX: pula só no sandbox fora do CI)
+from apoio_time_parado import REASON_DO_TIME_PARADO, TETO_DO_REASON  # noqa: E402  (emenda da ADR 0003, item 7; F4)
 
 HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
@@ -652,8 +653,10 @@ def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_co
 # carregada passa disso e o teste falharia sem o hook ter erro algum. Os testes rodam o hook pelo mesmo script, só com
 # o prazo do git largo: o prazo de produção segue em bin/forge-check e é conferido à parte (test_timeout_de_rede...).
 # O vigia de prazo (3 s, `_comum.PRAZO_DA_DECISAO_S`) segue o mesmo caminho: largo nos testes, de produção só onde o
-# teste mede o prazo (`producao=True`). `lento` injeta num passo da decisão um `sleep` de 60 s, uma vez só (monkeypatch
-# do processo do teste, sem tocar os hooks): o segundo `Hook.campo`, o primeiro que o hook lê depois do marcador.
+# teste mede o prazo (`producao=True`); o vigia do registro no erros.log (0,5 s, `_comum.PRAZO_DA_SESSAO_S`) também,
+# senão o `git` do `Hook.run` sob a carga do CI passa dele e a linha some (E44.1, v0481). `lento` injeta num passo da
+# decisão um `sleep` de 60 s, uma vez só (monkeypatch do processo do teste, sem tocar os hooks): o segundo
+# `Hook.campo`, o primeiro que o hook lê depois do marcador.
 PRAZO_GIT_NOS_TESTES = 120
 PRAZO_DA_DECISAO_NOS_TESTES = 120
 def trabalhadores_do_pool(nucleos):
@@ -670,7 +673,7 @@ sys.path.insert(0, sys.argv[1])
 import _comum
 _comum.forge_check().GIT_TIMEOUT_S = int(sys.argv[3])
 if sys.argv[4] != "producao":
-    _comum.PRAZO_DA_DECISAO_S = float(sys.argv[4])
+    _comum.PRAZO_DA_DECISAO_S = _comum.PRAZO_DA_SESSAO_S = float(sys.argv[4])
 if sys.argv[5] == "lento":
     campo, chamadas = _comum.Hook.campo, []
     def lento(self, *chaves):
@@ -868,9 +871,8 @@ class Hooks(unittest.TestCase):
                 self.assertEqual(entrada.get("hook_event_name"), "Stop")
                 self.assertIsNot(entrada.get("stop_hook_active"), True, "o Stop que segue o bloqueio não bloqueia")
                 self.assertEqual(saida["decision"], "block")
-                self.assertIsNotNone(re.fullmatch(
-                    r"time parado: \d+ cartões disponíveis(, primeiro [A-Za-z0-9.-]{1,16})?; retome sem esperar o dono",
-                    saida["reason"]), saida["reason"])
+                self.assertIsNotNone(re.fullmatch(REASON_DO_TIME_PARADO, saida["reason"]), saida["reason"])
+                self.assertLessEqual(len(saida["reason"]), TETO_DO_REASON, "teto do item 7 da emenda da ADR 0003 (F4)")
                 self.assertEqual(saida["reason"], esperado["reason"])
             if "saida" in esperado:
                 self.assertNotIn("\n", saida["systemMessage"], "uma linha só")
@@ -1532,7 +1534,7 @@ class Hooks(unittest.TestCase):
             codigos = {f.dados["esperado"]["codigo"] for f in self.fixtures if f.hook == hook}
             nomes = {f.caminho.stem for f in self.fixtures if f.hook == hook}
             with self.subTest(hook=hook):
-                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente", "ordens", "decisao", "salvar") else {0, 2})  # o vigia, o doutor, o ambiente, o ordens (emenda "ordens em vigor" da ADR 0003) e o decisao (R-DECISAO, fatia L28a) avisam, nunca bloqueiam; o salvar (D6 a) só grava na cópia
+                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente", "ordens", "decisao", "salvar", "estado") else {0, 2})  # o vigia, o doutor, o ambiente, o ordens (emenda "ordens em vigor" da ADR 0003), o estado (emenda "estado na pergunta do dono") e o decisao (R-DECISAO, fatia L28a) avisam, nunca bloqueiam; o salvar (D6 a) só grava na cópia
                 self.assertIn("sem-forge-versao", nomes)
                 self.assertIn("erro-interno", nomes)
                 if hook == "ordens":  # a emenda pede também os casos do teto e do arquivo ausente
@@ -1542,7 +1544,8 @@ class Hooks(unittest.TestCase):
     def test_hooks_json(self):
         d = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))
         no_prompt = {h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"].get("UserPromptSubmit", []) for h in g["hooks"]}
-        self.assertEqual(no_prompt, {"ordens.py"}, "no UserPromptSubmit só o ordens injeta contexto (emenda \"ordens em vigor\" da ADR 0003)")
+        self.assertEqual(no_prompt, {"ordens.py", "estado.py"},
+                         "no UserPromptSubmit só o ordens e o estado injetam contexto (emendas \"ordens em vigor\" e \"estado na pergunta do dono\" da ADR 0003)")
         self.assertNotIn("additionalContext", (HOOKS / "vigia.py").read_text(encoding="utf-8").replace(
             "nunca `additionalContext`", ""), "o vigia só avisa o usuário (systemMessage)")
         for evento in ("SessionStart", "Stop"):  # SessionStart: o stdout vira contexto do modelo (ADR 0003, item 1)
@@ -2920,6 +2923,14 @@ class Hooks(unittest.TestCase):
         liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
         self.assertGreaterEqual(len(liberam), 13, "o papel dono, o vizinho, outra regra e o repositório que não é do Forge")
         self.assertGreaterEqual(len(lote) - len(liberam), 25, "papel × pasta × forma, no clone e em wt/*; a variável no alvo e a linha sem leitura, dono incluído (A5, A6)")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_da_raiz_do_forge(self):  # HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1): o que roda fora do sandbox
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 29, "o erro interno do Bash e o do Write sem a entrada (volta 6), a cópia de wt/, scripts/ (também pela variável de for e read), a leitura, o valor calculado fora, a linha sem a entrada, o repositório fora do Forge e a variável colada que não casa entrada (S1-S4 do review, $TMPDIR inteiro e $f colado a x)")
+        self.assertGreaterEqual(len(lote) - len(liberam), 19, "Write, Edit e MultiEdit (o erro interno incluído), o caminho literal do Bash; wt/ e a cópia principal (volta 6: a grafia do Bash fica com o sandbox do SO, A16)")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
     def test_fixtures_do_controle_so_jarvis(self):  # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.1): pedido e brief da pasta de controle

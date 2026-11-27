@@ -843,7 +843,7 @@ class T(unittest.TestCase):
         codigo, saida, erro, resumo = self.resumo_do_ci()
         self.assertEqual(codigo, 0, saida + erro)
         self.assertIn("- sem peso em tests/pesos-d4.json: test_b, test_c\n", resumo)
-        self.assertIn("meça com `python3 scripts/suite-paralela.py --medir <módulo>`", resumo)  # PR-VERDE C1: o comando
+        self.assertIn("vale a mediana; o PR não edita os pesos", resumo)  # E19.1: sem pedir medida no PR
 
     def test_resumo_limita_as_unidades_sem_peso(self):  # AB-6, C-11
         for i in range(27):

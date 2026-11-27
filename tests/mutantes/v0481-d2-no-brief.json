@@ -19,7 +19,7 @@
       "de": "    return None if rc else next(iter(VERSAO.findall(saida)), None)",
       "para": "    return None if not rc else next(iter(VERSAO.findall(saida)), None)",
       "testes": [
-        "tests.test_forge_pronto.BaseVelha.test_marca_depois_do_nascimento_manda_trazer_a_base_sem_rodar_as_checagens"
+        "tests.test_forge_pronto.BaseVelha.test_marca_depois_do_nascimento_so_avisa_e_confere_contra_o_ponto_de_partida"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "de": "    if remoto == \"origin\" and RAMO_BUSCAVEL.fullmatch(ramo)",
       "para": "    if remoto == \"nenhum\" and RAMO_BUSCAVEL.fullmatch(ramo)",
       "testes": [
-        "tests.test_forge_pronto.BaseVelha.test_marca_depois_do_nascimento_manda_trazer_a_base_sem_rodar_as_checagens"
+        "tests.test_forge_pronto.BaseVelha.test_marca_depois_do_nascimento_so_avisa_e_confere_contra_o_ponto_de_partida"
       ]
     },
     {
@@ -44,12 +44,12 @@
     },
     {
       "id": "M5",
-      "guarda": "cmd_pronto: a base velha reprova antes das checagens",
+      "guarda": "cmd_pronto: a base velha só avisa (F3) e as checagens rodam contra o ponto de partida",
       "arquivo": "bin/forge-check",
       "de": "    if velha := pronto.base_velha(raiz, base, ancora):",
       "para": "    if (velha := pronto.base_velha(raiz, base, ancora)) and False:",
       "testes": [
-        "tests.test_forge_pronto.BaseVelha.test_marca_depois_do_nascimento_manda_trazer_a_base_sem_rodar_as_checagens"
+        "tests.test_forge_pronto.BaseVelha.test_marca_depois_do_nascimento_so_avisa_e_confere_contra_o_ponto_de_partida"
       ]
     },
     {
@@ -74,12 +74,12 @@
     },
     {
       "id": "M8",
-      "guarda": "brief gerar: só o brief de código do Forge manda rodar o D2",
+      "guarda": "brief gerar: só o brief de código do Forge leva a prova pelo CI (G3-ENTREGA-PELO-CI, no lugar do D2)",
       "arquivo": "bin/forge-check",
-      "de": "            if e_o_forge(Path(raiz)):  # D2-NO-BRIEF",
-      "para": "            if not e_o_forge(Path(raiz)):  # D2-NO-BRIEF",
+      "de": "            if e_o_forge(Path(raiz)):  # G3-ENTREGA-PELO-CI",
+      "para": "            if not e_o_forge(Path(raiz)):  # G3-ENTREGA-PELO-CI",
       "testes": [
-        "tests.test_pre_envio_brief.Gerar.test_codigo_do_forge_manda_rodar_o_d2_e_fora_do_forge_nao"
+        "tests.test_pre_envio_brief.Gerar.test_codigo_do_forge_prova_pelo_ci_sem_o_d2_e_fora_do_forge_nao"
       ]
     }
   ]

@@ -93,13 +93,15 @@ class Gerar(unittest.TestCase):
         for trecho in (CATRACA, TEXTO, AFETADOS):
             self.assertNotIn(trecho, saida)
 
-    def test_codigo_do_forge_manda_rodar_o_d2_e_fora_do_forge_nao(self):  # D2-NO-BRIEF (v0481 E14.51)
-        d2 = "`bin/forge-check --raiz <sua cópia> pronto --base origin/develop` · espera: rc=0 · D2 (D2-NO-BRIEF)"
+    def test_codigo_do_forge_prova_pelo_ci_sem_o_d2_e_fora_do_forge_nao(self):  # G3-ENTREGA-PELO-CI (v0481 E28.6)
         saida = self.gerar("codigo", "E1.1")
-        self.assertIn(d2, saida)
-        self.assertIn("última linha dele no relatório", saida)
-        self.assertIn("nunca o da branch", saida)  # review fe150b0 A2: a branch não certifica o próprio portão
-        self.assertNotIn(d2, self.gerar("codigo", "E1.1", forge=False))
+        self.assertIn(fc.PQ_DO_CI, saida)
+        self.assertIn("a prova do pronto é o CI do PR no head", saida)
+        for d2 in ("pronto --base origin/develop", "D2 (D2-NO-BRIEF)", "-d2"):
+            self.assertNotIn(d2, saida)
+        afetados = next(l for l in saida.splitlines() if AFETADOS in l)
+        self.assertIn("rode só os testes afetados para se guiar; a prova é o CI do PR no head", afetados)
+        self.assertNotIn(fc.PQ_DO_CI, self.gerar("codigo", "E1.1", forge=False))
 
     def test_parecer_nao_leva_o_pre_envio_do_autor(self):
         saida = self.gerar("review", "E1.4", destino="forge:revisor-exemplo")
@@ -145,6 +147,43 @@ class LeOCiNoBrief(unittest.TestCase):
         self.assertNotIn(fc.LINHA_LE_O_CI, self.gerar("seguranca", "E1.4", destino="forge:revisor-exemplo", pr=self.COM_PR))
         self.assertNotIn(fc.LINHA_LE_O_CI, self.gerar("codigo", "E1.1", pr=self.COM_PR))
         self.assertNotIn(fc.SEM_PR_NO_PORTAO, self.gerar("seguranca", "E1.4", destino="forge:revisor-exemplo"))
+
+
+class QaLeOCiSemEsperarAConferencia(unittest.TestCase):
+    """G3-ENTREGA-PELO-CI (v0481 E28.6, F2 parte 3): o brief do QA manda ler o CI do head sem esperar a conferência da entrega, e o
+    pré-voo do portão (`pr --previo`) avisa a conferência que falta em vez de reprovar; o `pr` sem `--previo` segue exigindo-a."""
+    FALTA = "docs/pedidos/p.md: conferência: nenhuma linha cobre o head"
+    setUp, gerar = Gerar.setUp, Gerar.gerar
+
+    def test_o_brief_do_qa_nao_espera_a_conferencia(self):
+        saida = self.gerar("qa", "E1.4", destino="forge:revisor-exemplo", pr=LeOCiNoBrief.COM_PR)
+        self.assertIn("o CI do head basta, sem esperar a conferência da entrega (G3-ENTREGA-PELO-CI)", saida)
+
+    def conferencia(self, previo, linhas):
+        erro = io.StringIO()
+        with mock.patch.object(fc, "linhas_da_conferencia", return_value=linhas), redirect_stderr(erro):
+            return fc.conferencia_do_head(self.tmp, "p", ref="melhoria/x", branch="melhoria/x", previo=previo), erro.getvalue()
+
+    def test_no_previo_a_conferencia_que_falta_so_avisa(self):
+        saida, erro = self.conferencia(True, [self.FALTA])
+        self.assertEqual(saida, [])
+        self.assertIn(f"aviso: {self.FALTA}; o pré-voo segue (--previo, G3-ENTREGA-PELO-CI)", erro)
+
+    def test_fora_do_previo_a_conferencia_que_falta_reprova(self):
+        self.assertEqual(self.conferencia(False, [self.FALTA]), ([self.FALTA], ""))
+        self.assertEqual(self.conferencia(True, []), ([], ""))
+
+    def test_o_pr_passa_o_previo_a_conferencia_com_e_sem_base(self):
+        vazio = mock.Mock(return_value=[])
+        for base in (None, "develop"):
+            for previo in (False, True):
+                with self.subTest(base=base, previo=previo), mock.patch.multiple(
+                        fc, cmd_pr=vazio, tamanho_do_pr=vazio, checks_do_head=vazio, aviso_t1_do_pr=vazio, avisar_classe=vazio,
+                        isencoes_da_entrega=mock.Mock(return_value=False), promocao=mock.Mock(return_value=False),
+                        base_sem_flag_do_pr=mock.Mock(return_value=None), base_do_delta=mock.Mock(return_value=("origin/develop", None)),
+                        linhas_da_conferencia=mock.Mock(return_value=[self.FALTA])), redirect_stderr(io.StringIO()):
+                    saida = fc.pr_da_cli(self.tmp, "p", ref="melhoria/x", base=base, branch="melhoria/x", previo=previo)
+                    self.assertEqual(saida, [] if previo else [self.FALTA])
 
 
 class ChecksForaDaLinhaDoCi(unittest.TestCase):
