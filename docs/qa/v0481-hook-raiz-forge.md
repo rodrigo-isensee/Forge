@@ -32,7 +32,8 @@ Sem docs/ux nem contrato de API (conserto de trava); os critérios vêm da etapa
 | CA-9 (volta 1) texto de interpretador, destino em variável, linha ilegível e as entradas .devcontainer/, .devcontainer.json, .claude-plugin/ barram na raiz | fixtures raiz-forge-s1 a s6, raiz-forge-variavel-*, raiz-forge-errointerno-*, raiz-forge-python-c-*-libera | leitura e escrita fora da entrada seguem livres | passou |
 
 ## Cenários e resultado real (volta 1)
-- ci: 10c1b834b6fb062bfb2f9b7d9020dbbcbe828abf verde (`gh pr checks 930`: tudo pass, fora `bateria (pareceres)`, `bateria` e `catraca`, que esperam parecer ou rótulo; suítes 3.12 e 3.14, partes 1 a 5, passaram).
+- ci: 10c1b834b6fb062bfb2f9b7d9020dbbcbe828abf verde
+- Leitura do CI (`gh pr checks 930`: tudo pass, fora `bateria (pareceres)`, `bateria` e `catraca`, que esperam parecer ou rótulo; suítes 3.12 e 3.14, partes 1 a 5, passaram).
 - Local, sob o flock da trava A: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge tests.test_indice_fixtures` deu `Ran 11 tests ... OK`.
 - A3 resolvido: `bin/forge-mutante` das 3 specs (22 mutantes: RF1 a RF5, RF7, RF8, RE1 a RE5 (uma entrada da tupla cada), RT1, RT2, RD1 a RD6, RX1, RX2) saiu rc=0, todos `morreu`, sem sobrevivente nem equivalente (`forge-mutante: pedido=v0481-hook-raiz-forge rev=10c1b834b6fb`). `--cobertura --base baffa052` não lista condição sem mutante; as linhas mudadas saem "declarado, não provado", e a rodada acima as provou.
 - Vermelho antes do verde: `bin/forge-testes --vermelho baffa052 --modulos test_hooks` estourou o prazo (rc=124, sem veredito) no limite local de 10 min; não vale como vermelho. A prova de que as fixtures falham sem a implementação são os 22 mutantes mortos por elas e pelos testes.
