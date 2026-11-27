@@ -1,0 +1,87 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "status sem created_at ou id: fora do contrato",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if not isinstance(status[\"created_at\"], str) or type(status[\"id\"]) is not int:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_status_sem_created_at_fora_do_contrato"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "origem ausente na cópia: falha fechada (C0-2)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "    if rc not in (0, 1):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_c0_2_origem_ausente_na_copia_falha_fechada"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "statuses ilegíveis de um commit do PR recusam (M19.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if not isinstance(paginas, list) or not all(isinstance(p, list) for p in paginas):\n        raise Recusa(f\"statuses de",
+      "para": "if False:\n        raise Recusa(f\"statuses de",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_statuses_ilegiveis_de_um_commit_recusam"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "registro: o sha256 da linha confere com o do status",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "and d and d[2] == sha256 and u",
+      "para": "and d and u",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_registro_sem_status_falha_fechada"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o PR pedido é o PR aberto da branch com o head",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if (aberto[\"number\"], aberto[\"url\"]) != (p[\"number\"], p[\"url\"]):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_pr_de_outro_numero_ou_sem_o_head"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o head está entre os commits do PR",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": ") or head not in commits:",
+      "para": "):",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_pr_de_outro_numero_ou_sem_o_head"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "linha do registro sem status: falha fechada (CONTROLE-RUN-GRAFIA)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if linha[0] in do_pr and linha[1] in CONTEXTOS.values() and not tem_status(linha, do_pr[linha[0]]):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_registro_sem_status_falha_fechada",
+        "tests.test_forge_pareceres.Vigentes.test_registro_com_status_de_outra_conta_falha_fechada"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "origem fora da história do head não vale (C0-2)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if ancestral(raiz, origem, head) else",
+      "para": "if True else",
+      "testes": [
+        "tests.test_forge_pareceres.Vigentes.test_c13_origem_fora_da_historia_do_head"
+      ]
+    }
+  ]
+}
