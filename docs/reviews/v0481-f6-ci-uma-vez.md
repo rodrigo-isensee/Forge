@@ -3,54 +3,47 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-f6-ci-uma-vez
-commit: e8368a4cdd98951a1a3b96d18eb539e648d299ca
+commit: e85793a8317bf410d3b98cc7f45ad46ffed285e8
 parecer: reprovado
 revisor: forge:tech-lead
-data: 2026-11-26
+data: 2026-11-27
 ---
-# Review: v0481 (E32.4, #929, F6 no CI: cada teste roda uma vez), 1ª rodada completa
+# Review: v0481 (E32.10, #929, F6 no CI), volta 1 por delta
 
-Diff lido: `6edd59d2..e8368a4c` (3 commits: `4108333a` ci, `6b21cbae` M9, `e8368a4c` teste do diário). O Base-sha do brief (`ee05ee84`) fica atrás: a branch já trouxe #920 e #923, que estão na `develop`, e eles ficam fora da leitura. Código pelo H1: 500 linhas (`ci.yml` +56/-251, `diario.yml` +148, `scripts/arvore-testada.py` +45), 4 arquivos fora dos testes.
+Delta lido (H3): `forge-check parecer delta` de `e8368a4c..e85793a8`, sem o que veio da develop (o merge `2b68d805` fica fora). São 12 arquivos no domínio: `ci.yml`, `diario.yml`, o changelog, `scripts/arvore-testada.py`, 4 specs de mutantes e 4 arquivos de teste. Nada fora do delta foi relido.
 
 ## Achados
-- A1 (bloqueante) .github/workflows/ci.yml:360 · O `name:` sem aspas tem `: ` dentro (`F6: a suíte...`) e o YAML fica inválido. O GitHub não cria o CI do PR: o run 45924102244 falhou por "workflow file issue", sem jobs, e `gh pr checks 929` só lista `catraca`. É o A1 do parecer de devops. Ponha aspas no nome.
-- A2 (bloqueante) scripts/arvore-testada.py:141 · O diff deixa 11 mutantes velhos (est-m7-verificador-decisao M3 e M4, v047-ci-rapido-3 M26 a M33, v047-ci-binario-cli M1 e M3, v047-ci-falhas-no-resumo F14). O teste ConferirTodas (tests/test_forge_mutante.py:1564) falha no head (AR-12). Alinhe as specs no mesmo commit.
-- A3 (bloqueante) .github/workflows/diario.yml:107 · A fatia junta as specs pelo campo `pedido`. Specs de itens diferentes do mesmo pedido repetem ids, e o forge-mutante recusa o conjunto inteiro com rc 2, sem rodar nada (S1). Isso vale para 13 dos 420 grupos, entre eles v047, v0478 e v0481. Agrupe pelo nome da spec sem o sufixo `-<n>`.
-- A4 (bloqueante) .github/workflows/diario.yml:118 · As 26 entradas de tests/fixtures/mutantes-pendentes.txt (o `de` fora da fonte, já conhecido) saem como inválidas e deixam o diário vermelho em 14 de 30 fatias. O cartão passa a avisar dívida conhecida, não quebra. Pule os ids da lista de pendentes (`--ids`) ou rode `--conferir --todas` antes.
-- A5 (bloqueante) .github/workflows/ci.yml:35 · H1: são 500 linhas de código e três comportamentos. Corte: `arvore-envio` e `--do-pr` (o envio reaproveita o PR) saem para uma branch própria, depois deste. O #929 fica com a mudança "do PR para o diário", com `teto: excedido, <n> linhas, <motivo>` no corpo (detalhe no Parecer).
-- A6 (recomendado) tests/test_ci_local.py:584 · O comentário cita "validação do plugin e portão das provas", mas a instalação do portão das provas saiu. As duas que ficam são a do e2e no 3.14 e a da validação do plugin.
-- A7 (recomendado) scripts/arvore-testada.py:34 · A entrada "3.14" de JOBS_DE_PROVA fica morta: nenhum job da develop tem mais esse nome, e ninguém chama `--python 3.14`. Tire a entrada junto com o teste que a cita.
-- A8 (recomendado) tests/test_arvore_testada.py:267 · O teste com subprocesso chama o Python sem `-I` (V2: o subprocesso roda com o ambiente limpo e `-I`).
-- A9 (recomendado) tests/mutantes/v0481-f6-ci-uma-vez.json:1 · A spec tem 10 mutantes. Acima de 8, abra um `-2.json` (V2).
-- A10 (recomendado) .github/workflows/diario.yml:91 · As fatias vão de 128 a 957 mutantes por dia (v047 tem 640 sozinho), com `--processos 2` e teto de 60 min. Meça a primeira execução por `workflow_dispatch` antes de confiar no teto.
-
-## Sondas
-- S1 · `bin/forge-mutante tests/mutantes/v0481-f6-ci-uma-vez.json tests/mutantes/v0481-fechar-dryrun-branch.json --processos 2` (par da fatia) · espera: os mutantes rodam · obtido: `spec inválida; nada foi executado. id de mutante repetido entre as specs: M1, M2, M3, M4, M5`, rc=2
-- S2 · `python3 -m unittest tests.test_forge_mutante.ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes` no head · espera: ok · obtido: FAILED, `First list contains 11 additional elements` (est-m7-verificador-decisao.json: M3...)
-- S3 · `python3 bin/forge-mutante --conferir --todas` no head e na base 6edd59d2 · espera: só as pendentes · obtido: 37 no head e 26 na base, 11 novas
+- A11 (recomendado) tests/test_catraca.py:4267 · O CI do head reprova: a develop ficou com um agregador `always()` só (o `rapida-quatorze` saiu na 1ª rodada), e o teste ainda espera (2, 2) e 4 jobs com always(). Ajuste para (2, 1) e 3, com o comentário. Sem isso o CI não fica verde e o G3 barra.
+- A12 (bloqueante) .github/workflows/ci.yml:35 · O CI do head reprova em tests/test_catraca.py:4253: a lista de `timeout-minutes` ainda tem o job `arvore-envio`, que o delta tirou, e as pernas do 3.14. O head tem 13 valores. Alinhe a lista e o comentário de cima dela ao ci.yml novo.
+- A13 (recomendado) .github/workflows/diario.yml:82 · O CI do head reprova em tests/test_forge.py:511 (NeutralidadeDoNucleo): `npm` no diario.yml. Registre a exceção de `\bnpm\b` para o diario.yml em tests/config.json, como a do ci.yml (tests/config.json:78). Sem isso o CI não fica verde e o G3 barra.
+- A14 (bloqueante) .github/workflows/diario.yml:111 · V2: as 5 linhas de guarda novas da fatia (111, 116, 119, 120 e 121) não têm mutante declarado. A spec do F6 só tem CI-M1 a CI-M3. Declare um mutante por linha; o teste test_suite_partes.py:754 já mata os de 116, 120 e 121.
+- A15 (bloqueante) .github/workflows/ci.yml:35 · `pendente:` o corte A5 entrou no código, mas o corpo do #929 ainda descreve o `arvore-envio` e o `--do-pr` e não traz a linha `teto: excedido, <n> linhas, <motivo>` (H1). Atualize o corpo do PR, sem push.
+- A16 (recomendado) tests/test_suite_partes.py:758 · O teste lê `date.today()` e o subprocesso lê de novo. Na virada da meia-noite os dois discordam e o teste falha. Passe o dia ao programa (variável de ambiente) ou compare só a forma da saída.
+- A7 (recomendado) scripts/arvore-testada.py:31 · A entrada "3.14" de JOBS_DE_PROVA continua morta. Isto já estava na 1ª rodada; vira cartão.
+- A10 (recomendado) .github/workflows/diario.yml:91 · Com uma spec por chamada, a fatia passa a ter cerca de 39 chamadas por dia (1164 specs / 30), cada uma com o seu preparo, sob teto de 60 min. Meça o primeiro `workflow_dispatch`.
 
 ## Parecer
-**Reprovado.** O desenho está certo, mas há quatro defeitos provados e um corte pelo H1.
+**Reprovado.** Os bloqueantes da 1ª rodada saíram. Ficam os três defeitos que o CI do head provou (A11 a A13), os mutantes das guardas novas (A14) e o corpo do PR (A15). O A11 e o A13 vêm de linhas da 1ª rodada, fora do delta, e por isso ficam como recomendados (G1.2). Mesmo assim, entram na volta 2: sem eles o CI fica vermelho, e sem CI verde não há aprovação (G3).
 
-**CI (G3):** não há linha `ci:`. O head não tem run do `ci.yml` (A1): `gh pr checks 929` traz só `catraca pass`. Sem `bateria` e `bateria (python 3.14)`, não dá para aprovar, nem para medir a meta de 8 min. A `catraca` passou no run 45925050166, com dois "confira no parecer" de valor esperado trocado:
-- `test_toda_instalacao_global_do_cli...`: 3 para 2. Confere, o e2e saiu das verificações; só o comentário está errado (A6).
-- `test_cada_perna_roda_uma_vez_e_a_igual_reaproveita`: as pernas do 3.14 sumiram. Confere com o pedido.
+**CI (G3):** não há linha `ci:`. `gh pr checks 929` no head `e85793a8` (run 45930295535):
+- Em vermelho: `suíte (python 3.12, parte 2/5)` (A11 e A12), `suíte (python 3.12, parte 3/5)` (A13) e o agregador `bateria`.
+- Em verde: as partes 1, 4 e 5, `bateria (passos)`, `bateria (verificações longas)`, `instalação (python 3.14)` e `bateria (python 3.14)`.
 
-O rótulo `afrouxa-regra` está no PR. A decisão do dono de 2026-11-26 19:37 manda tirar do PR a suíte do 3.14.
+A `catraca` (run 45930295435) espera o rótulo `afrouxa-regra` depois do último push, porque o diff mexe no ci.yml e no diario.yml. Isso fica com o dono. Os seis "confira no parecer" de valor esperado trocado (test_ci_local, test_falhas_no_resumo e test_suite_partes) foram lidos. Todos acompanham a saída das pernas do 3.14 e do `arvore-envio`: conferem com o pedido.
 
-**O que confere na leitura:**
-- `prova_do_pr` está correta e fecha na dúvida. O head descende da develop anterior, então o merge testado no PR tem a árvore do head. O merge por rebase cai em `diverged` e a suíte roda inteira.
-- O token fica só no passo.
-- Os nomes dos checks exigidos não mudam.
-- Os 12 casos de `ProvaDoPr` cobrem cada condição.
-- Os `needs` batem com as referências de cada job; a conferência foi por script.
+**Situação dos achados da 1ª rodada (o delta):**
+- **A1:** resolvido. O `name:` está entre aspas e o GitHub criou o CI. O teste novo varre os `name:` de todos os workflows atrás de `: ` sem aspas.
+- **A2:** resolvido. As specs v047-ci-binario-cli, v047-ci-rapido-3 e v047-ci-falhas-no-resumo estão alinhadas. O `bin/forge-mutante --conferir --todas` no head só acusa as pendentes conhecidas, e ConferirTodas passa local.
+- **A3:** resolvido. A fatia vai uma spec por chamada, e o teste roda o próprio programa do diario.yml numa árvore descartável. Os ids da spec do F6 viraram CI-M1 a CI-M3, com teste contra repetição no pedido.
+- **A4:** resolvido. Os pendentes saem por `--ids`, e a spec toda pendente não roda.
+- **A5:** o código foi cortado: `arvore-envio`, `--do-pr`, `ProvaDoPr` e os mutantes M1 a M7 saíram. Falta o corpo do PR (A15).
+- **A6:** resolvido.
+- **A8:** resolvido, porque o teste saiu com o `ProvaDoPr`.
+- **A9:** resolvido, com 3 mutantes.
+- **A7 e A10:** seguem como recomendados.
 
-**Corte (A5, decidido aqui):**
-- O `arvore-envio` e o `--do-pr` são separáveis: cerca de 100 linhas, com teste e mutantes próprios. Vão para outra branch, aberta quando o teto de PRs der vaga. O mesmo autor faz as duas partes em sequência (diretriz 33).
-- Fica no #929 a troca do 3.14 junto com o `diario.yml`. Separar as duas tira a suíte do 3.14 de todo lugar. A remoção das pernas também não cabe num pedaço menor: um `needs` órfão invalida o workflow, a mesma falha do A1.
-- Registre no corpo do PR `teto: excedido, <n> linhas, a troca do 3.14 e o diário não se separam sem deixar o 3.14 sem suíte nem o workflow sem needs válidos`.
-- Com o `arvore-envio` fora, o A2 encolhe: as specs da est-m7 deixam de envelhecer. As do `ci.yml` continuam a ser alinhadas aqui.
+**Verificado local** (com o flock da trava a):
+- `tests.test_suite_partes.FiacaoDoCI`, `tests.test_forge_mutante.ConferirTodas`, `tests.test_arvore_testada` e `tests.test_ci_local.InstalacaoDoCliTest`: 41 testes, OK.
+- `bin/forge-mutante tests/mutantes/v0481-f6-ci-uma-vez.json --processos 1`: CI-M1, CI-M2 e CI-M3 morreram.
 
-**Volta:** corrija o A1 primeiro, porque sem ele nenhum check roda. Antes do envio, rode `bin/forge-mutante --conferir --todas` e o teste da S2. A próxima rodada lê o delta e o CI verde no head novo.
-
-**AR-12:** a classe volta neste pedido (A2). A linha `AR-12` de docs/engineering/achados-recorrentes.md sobe para 6, mas o brief limita o commit ao parecer. Fica para quem fecha a volta.
+**Volta 2:** A11 a A14 num commit só, com a mutação `--base e85793a8` e o teste do A13 rodados antes do push. Depois, o corpo do PR (A15). A próxima rodada lê o delta e exige o CI verde no head novo.
