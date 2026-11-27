@@ -17,11 +17,10 @@ data: 2026-11-27
 - ci: e89985279c7a86b5a2f3831838d99dd0bf11e76d vermelho (suíte 3.12 parte 4/5 reprova; os demais, fora os que esperam parecer, verdes)
 
 ## Achados
-- A3 (bloqueante) tests/test_forge_mutante.py:1573 · `assertLessEqual(len(proprios), 8)` (V2) falha: a spec tests/mutantes/v0481-f6-ci-uma-vez.json tem 15 mutantes (CI-M1 a CI-M15). Abrir `-2.json` (mesmo pedido, ids únicos) e passar as specs juntas.
-
-Fechados na volta 4: A1 (CI-M9 a CI-M13 e testes de comportamento do diário) e A2 (CI-M14, CI-M15 e testes do cartão e da fumaça do 3.14).
+- A3 (bloqueante) tests/mutantes/v0481-f6-ci-uma-vez.json:86 · A spec passou a 15 mutantes (CI-M1 a M15); o V2 (test_forge_mutante.py:1573, assertLessEqual 8) reprova a parte 4/5 do CI. Abrir um -2.json (mesmo pedido, ids únicos) e passar as specs juntas.
 
 ## Delta da volta 4 (ac8202d0..e8998527)
+A1 e A2 da volta anterior estão fechados (CI-M9 a CI-M15 e os 4 testes de comportamento).
 Só tests/mutantes/v0481-f6-ci-uma-vez.json e tests/test_suite_partes.py: 4 testes novos que executam o passo real do diário no bash com forge-mutante e gh falsos, e leem jobs e fumaça.
 - `bin/forge-mutante tests/mutantes/v0481-f6-ci-uma-vez.json --base ac8202d0e2644d015f1c13be3fd7f040101db06f --processos 2` (trava obtida): linha `base=ac8202d0... rev=e89985279c7a`, CI-M1 a CI-M15 todos `morreu` (15 de 15; M9 a M15 cobrem os sobreviventes X5, X2, X6, X8 e X1 do parecer anterior).
 - CI do PR #929 no head (`gh pr checks 929`): `suíte (python 3.12, parte 4/5)` fail, pelo A3; verdes `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, partes 1, 2, 3 e 5, árvore; vermelhos de espera `bateria`, `bateria (pareceres)`, `catraca`.
