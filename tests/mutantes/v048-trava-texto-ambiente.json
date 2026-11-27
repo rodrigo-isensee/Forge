@@ -1,0 +1,36 @@
+{
+  "pedido": "v048-trava-texto-ambiente",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "TRAVA-TEXTO-LIMITE-AMBIENTE: o texto da trava sai sem caracteres de controle",
+      "arquivo": ".githooks/pre-push",
+      "de": "  head -c 200 -- \"$trava\" 2>/dev/null | LC_ALL=C tr -cd '[:print:]' || true",
+      "para": "  head -c 200 -- \"$trava\" 2>/dev/null || true",
+      "testes": [
+        "tests.test_pre_push_trava.PrePushTrava.test_texto_da_trava_sai_limitado_e_sem_controle"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "TRAVA-TEXTO-LIMITE-AMBIENTE: o texto da trava sai com até 200 bytes",
+      "arquivo": ".githooks/pre-push",
+      "de": "  head -c 200 -- \"$trava\" 2>/dev/null | LC_ALL=C tr -cd '[:print:]' || true",
+      "para": "  head -c 2000000 -- \"$trava\" 2>/dev/null | LC_ALL=C tr -cd '[:print:]' || true",
+      "testes": [
+        "tests.test_pre_push_trava.PrePushTrava.test_texto_da_trava_sai_limitado_e_sem_controle"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "TRAVA-TEXTO-LIMITE-AMBIENTE: a linha da fila corta o pid lido da trava (mede o stderr sem o aviso de locale)",
+      "arquivo": ".githooks/pre-push",
+      "de": "trava com pid ${pid:0:12} ns",
+      "para": "trava com pid ${pid} ns",
+      "testes": [
+        "tests.test_pre_push_trava.PrePushTrava.test_texto_da_trava_sai_limitado_e_sem_controle"
+      ]
+    }
+  ]
+}
