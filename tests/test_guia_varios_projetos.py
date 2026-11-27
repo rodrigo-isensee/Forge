@@ -26,6 +26,11 @@ class GuiaVariosProjetos(unittest.TestCase):
             with self.subTest(parte=parte):
                 self.assertIn(parte.lower(), trecho.lower())
 
+    def test_readme_manda_abrir_o_jarvis_do_container_pelo_claude_novo(self):
+        """E39.1: o `claude` de /usr/local/bin pode ser o antigo; o README cita o binário novo para abrir o Jarvis."""
+        trecho = secao((RAIZ / "README.md").read_text(encoding="utf-8"), TITULO)
+        self.assertIn("`/root/.local/bin/claude --agent forge:jarvis --permission-mode auto`", trecho)
+
     def test_modelo_de_projeto_traz_o_resumo_e_aponta_o_guia(self):
         modelo = (RAIZ / "templates" / "projeto" / "CLAUDE.md").read_text(encoding="utf-8")
         trecho = secao(modelo, "## Sessão")
