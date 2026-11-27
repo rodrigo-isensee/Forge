@@ -328,8 +328,22 @@ class ProvaDoPr(unittest.TestCase):
             with self.subTest(nome):
                 self.assertFalse(self.prova(**mudanca)[0], nome)
 
+    def test_commit_sem_pai_ou_com_pai_fora_do_formato_nao_prova(self):
+        for nome, pais in {"sem pai": [], "sem lista de pais": None, "pai fora do formato": [{"sha": "nao-e-sha"}]}.items():
+            with self.subTest(nome):
+                lida = self.api()
+                commit = {"commit": {"tree": {"sha": self.ARV}}}
+                if pais is not None:
+                    commit["parents"] = pais
+
+                def ler(caminho, lida=lida, commit=commit):
+                    return commit if caminho == f"repos/{REPO}/commits/{D}" else lida(caminho)
+                ok, motivo = chamar(at.prova_do_pr, self.ambiente(), ler)
+                self.assertIs(ok, False, motivo)
+                self.assertEqual(motivo, "commit sem árvore ou sem pai no formato")
+
     def test_ambiente_sem_campo_ou_com_tipo_errado_nao_prova_e_nao_lanca(self):  # o contrato é não lançar (C-7)
-        for k in ("REPO", "EVENTO", "REF", "SHA"):
+        for k in ("REPO", "EVENTO", "REF", "SHA", "GITHUB_WORKFLOW_REF"):
             for valor in (None, 3):
                 with self.subTest(k=k, valor=valor):
                     chamadas = []
