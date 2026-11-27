@@ -16,8 +16,8 @@ No primeiro comando da sessão o Jarvis confere o sandbox do Bash com um comando
 para reabrir a sessão (`jarvis` ou `claude --agent forge:jarvis --permission-mode auto`). O dono nunca aprova comando a
 comando nem escolhe "sempre permitir".
 
-**Versão quando ficar pronta:** a versão sai sempre que a `develop` tem um conjunto verde que valha uma versão, até 2 por dia
-ou mais se couber; o Jarvis avisa o dono numa linha quando o PR da `main` fica verde (detalhe em
+**Versão quando ficar pronta:** a versão fecha quando a `develop` soma 20 itens integrados, sem versão
+por dia; o Jarvis avisa o dono numa linha quando o PR da `main` fica verde (detalhe em
 `skills/trabalho-em-paralelo/ritmo-e-corte.md`).
 
 Motivo (dono, 17/11): na manhã de 17/11 o time ficou parado por bloqueio de ambiente e por decisões; na noite de 16 para 17
