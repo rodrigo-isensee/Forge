@@ -4,6 +4,56 @@
   "mutantes": [
     {
       "id": "M41",
+      "guarda": "sem transcript da sessão não conta",
+      "arquivo": "hooks/vigia.py",
+      "de": "if real is None:\n        return []\n    presos",
+      "para": "if False:\n        return []\n    presos",
+      "testes": [
+        "tests.test_hook_vigia_f4.InstanciasPresas.test_sem_transcript_da_sessao_nao_conta"
+      ]
+    },
+    {
+      "id": "M42",
+      "guarda": "id fora do formato não conta",
+      "arquivo": "hooks/vigia.py",
+      "de": "if not (isinstance(aid, str) and agentes.ID_DE_AGENTE.fullmatch(aid)):",
+      "para": "if not isinstance(aid, str):",
+      "testes": [
+        "tests.test_hook_vigia_f4.InstanciasPresas.test_reserva_sem_id_e_id_fora_do_formato_nao_contam"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "transcript recente não conta",
+      "arquivo": "hooks/vigia.py",
+      "de": "if parado > PRESO_S:",
+      "para": "if True:",
+      "testes": [
+        "tests.test_hook_vigia_f4.InstanciasPresas.test_transcript_recente_nao_conta"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "tipo fora do formato vira agente",
+      "arquivo": "hooks/vigia.py",
+      "de": "if isinstance(a.get(\"tipo\"), str) and _TIPO.fullmatch(a[\"tipo\"]) else \"agente\"",
+      "para": "if isinstance(a.get(\"tipo\"), str) else \"agente\"",
+      "testes": [
+        "tests.test_hook_vigia_f4.InstanciasPresas.test_tipo_fora_do_formato_vira_agente"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "sem transcript do agente não conta",
+      "arquivo": "hooks/vigia.py",
+      "de": "except OSError:\n            continue",
+      "para": "except ZeroDivisionError:\n            continue",
+      "testes": [
+        "tests.test_hook_vigia_f4.InstanciasPresas.test_sem_transcript_do_agente_nao_conta"
+      ]
+    },
+    {
+      "id": "M46",
       "guarda": "acima do teto a última parte sai",
       "arquivo": "hooks/vigia.py",
       "de": "while len(partes) > 1 and len(f\"time parado:",
@@ -13,7 +63,7 @@
       ]
     },
     {
-      "id": "M42",
+      "id": "M47",
       "guarda": "cartões só com cartão livre",
       "arquivo": "hooks/vigia.py",
       "de": "    if livres:\n        primeiro",
@@ -23,7 +73,7 @@
       ]
     },
     {
-      "id": "M43",
+      "id": "M48",
       "guarda": "falha de uma parte cala só ela e registra",
       "arquivo": "hooks/vigia.py",
       "de": "except Exception as erro:  # noqa: BLE001 - dúvida não bloqueia\n        hook.registrar_erro(erro)\n        return []",

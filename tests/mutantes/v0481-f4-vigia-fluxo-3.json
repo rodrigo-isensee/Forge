@@ -57,7 +57,7 @@
       "guarda": "sem registro de agentes, sem lista",
       "arquivo": "hooks/vigia.py",
       "de": "return None if estado is None else estado.parent / NOME_DA_LISTA",
-      "para": "return estado.parent / NOME_DA_LISTA",
+      "para": "return None if False else estado.parent / NOME_DA_LISTA",
       "testes": [
         "tests.test_hook_vigia_f4.ListaEmDisco.test_lista_ao_lado_do_registro_e_sem_registro_none"
       ]
@@ -67,7 +67,7 @@
       "guarda": "sem caminho, nada a ler",
       "arquivo": "hooks/vigia.py",
       "de": "texto = None if caminho is None else ler_quadro(caminho)",
-      "para": "texto = ler_quadro(caminho)",
+      "para": "texto = None if False else ler_quadro(caminho)",
       "testes": [
         "tests.test_hook_vigia_f4.ListaEmDisco.test_sem_pasta_de_estado_cala"
       ]

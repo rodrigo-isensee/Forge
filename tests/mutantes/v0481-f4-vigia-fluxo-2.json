@@ -77,7 +77,7 @@
       "guarda": "só o PR com papel entra na lista",
       "arquivo": "bin/forge_estado.py",
       "de": "for p in prs if (papel := papel_do_pr(p))]",
-      "para": "for p in prs if (papel := papel_do_pr(p)) or True]",
+      "para": "for p in prs if (papel := papel_do_pr(p) or \"autor\")]",
       "testes": [
         "tests.test_hook_vigia_f4.GravacaoDaLista.test_grava_so_o_pr_com_papel_fora_o_fork_e_em_0600"
       ]
