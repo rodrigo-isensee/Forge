@@ -89,7 +89,8 @@
       "de": "+ (conferencia_do_head(raiz, pedido, ref, None, branch, previo)\n",
       "para": "+ ([]\n",
       "testes": [
-        "tests.test_forge.ConferenciaPresaAoHead.test_sem_conferida_que_cubra_o_head_reprova"
+        "tests.test_forge.ConferenciaPresaAoHead.test_sem_conferida_que_cubra_o_head_reprova",
+        "tests.test_pre_envio_brief.QaLeOCiSemEsperarAConferencia.test_o_pr_passa_o_previo_a_conferencia_com_e_sem_base"
       ]
     },
     {
@@ -99,7 +100,8 @@
       "de": "+ (conferencia_do_head(raiz, pedido, ref, resolvida, branch, previo)\n",
       "para": "+ ([]\n",
       "testes": [
-        "tests.test_forge.ConferenciaPresaAoHead.test_sem_conferida_que_cubra_o_head_reprova"
+        "tests.test_forge.ConferenciaPresaAoHead.test_sem_conferida_que_cubra_o_head_reprova",
+        "tests.test_pre_envio_brief.QaLeOCiSemEsperarAConferencia.test_o_pr_passa_o_previo_a_conferencia_com_e_sem_base"
       ]
     },
     {

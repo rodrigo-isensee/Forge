@@ -36,8 +36,8 @@
       "id": "M4",
       "guarda": "PR-TITULO-DO-BRIEF: título fora de str não quebra a prova",
       "arquivo": "bin/forge-check",
-      "de": "titulo = pr.get(\"title\") if isinstance(pr.get(\"title\"), str) else \"\"",
-      "para": "titulo = pr.get(\"title\") or \"\"",
+      "de": "isinstance(pr.get(\"title\"), str)",
+      "para": "True",
       "testes": [
         "tests.test_forge_pronto.ProvaDoCi.test_titulo_do_brief_reprova_e_o_de_conventional_commits_passa"
       ]
