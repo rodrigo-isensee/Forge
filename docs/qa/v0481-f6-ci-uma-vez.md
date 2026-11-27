@@ -14,7 +14,9 @@ data: 2026-11-27
 ---
 # QA: v0481 (E32.22, #929, F6: o CI do PR roda a suíte uma vez), delta da volta 5
 
-- ci: 700a2fc497a0ea79e47961794a0fb76f0c3d655d verde (gh pr checks 929: verdes `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, suíte 3.12 partes 1 a 5 (a 4/5 em 7m51s), árvore, teto de pulados; fora os que esperam parecer: `bateria`, `bateria (pareceres)`, `catraca`)
+- ci: 700a2fc497a0ea79e47961794a0fb76f0c3d655d verde
+
+Detalhe lido em gh pr checks 929 no sha revisado: verdes `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, suíte 3.12 partes 1 a 5, árvore e teto de pulados; fora os que esperam parecer: `bateria`, `bateria (pareceres)` e `catraca`.
 
 ## Delta da volta 5 (e8998527..700a2fc4)
 O A3 da volta anterior está fechado: a spec foi dividida em `v0481-f6-ci-uma-vez.json` (CI-M1 a M8) e `-2.json` (CI-M9 a M15), 8 + 7, mesmo `pedido`, ids únicos. A concatenação das duas é idêntica, mutante a mutante, à spec de 15 do head e8998527 (comparada em JSON: igual). O V2 (`test_os_ids_da_spec_do_f6_nao_repetem_os_de_outra_spec_do_pedido`, no máximo 8 por spec) passa, e a parte 4/5 do CI ficou verde.
