@@ -16,7 +16,7 @@ data: 2026-11-27
 
 Delta lido por `forge-check parecer delta`: tech-lead.md, nao-trava.md, templates/projeto/CLAUDE.md, tests/config.json, ADR 0018, `cmd_corte` renomeada `cmd_ler_ato`, specs de mutantes e três testes. Nenhum `cmd_corte` resta em bin/ ou tests/.
 
-- ci: b19c7f53a1a564059901a406a0e7ddf74ae63b24 verde (`gh pr checks 928`: suíte 3.12 e 3.14 partes 1 a 5, passos, verificações longas, instalação e teto de pulados verdes; só `bateria`, `bateria (pareceres)` e `catraca` vermelhos, que esperam parecer ou rótulo)
+- ci: b19c7f53a1a564059901a406a0e7ddf74ae63b24 verde
 
 ## Achados
 - A3 (recomendado) tests/config.json:849 · a chave de `invariantes_motivo_trecho` de templates/projeto/CLAUDE.md ainda traz o texto antigo ("até 2 por dia"); o invariante novo ("soma 20 itens") ficou sem motivo próprio. Atualizar a chave no próximo toque; vira cartão.
