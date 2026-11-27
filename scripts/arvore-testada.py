@@ -182,7 +182,7 @@ def prs_do_ramo_so_para_develop(repo, ramo, ler):
     for pagina in range(1, LIMITE_DE_PAGINAS + 1):
         consulta = urllib.parse.urlencode({"head": f"{dono}:{ramo}", "state": "all", "per_page": 100, "page": pagina})
         lista = ler(f"repos/{repo}/pulls?{consulta}")
-        if type(lista) is not list or any(type(p) is not dict or campo(p, "base.ref", str) != "develop" for p in lista):
+        if type(lista) is not list or any(campo(p, "base.ref", str) != "develop" for p in lista):
             return False
         if len(lista) < 100:
             return True

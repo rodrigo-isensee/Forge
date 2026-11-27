@@ -16,18 +16,8 @@
       "id": "AE-M40",
       "guarda": "lista de PRs do ramo de tipo errado nao prova",
       "arquivo": "scripts/arvore-testada.py",
-      "de": "if type(lista) is not list or any(type(p) is not dict",
-      "para": "if type(lista) is list and any(type(p) is not dict",
-      "testes": [
-        "tests.test_arvore_testada.ProvaDoPr.test_pr_empilhado_do_mesmo_ramo_ja_mesclado_ou_fechado_nao_prova"
-      ]
-    },
-    {
-      "id": "AE-M41",
-      "guarda": "item da lista fora do formato nao prova",
-      "arquivo": "scripts/arvore-testada.py",
-      "de": "any(type(p) is not dict or campo(p, \"base.ref\"",
-      "para": "any(campo(p, \"base.ref\"",
+      "de": "if type(lista) is not list or any(campo(p",
+      "para": "if type(lista) is list and any(campo(p",
       "testes": [
         "tests.test_arvore_testada.ProvaDoPr.test_pr_empilhado_do_mesmo_ramo_ja_mesclado_ou_fechado_nao_prova"
       ]
