@@ -74,12 +74,12 @@
     },
     {
       "id": "M8",
-      "guarda": "brief gerar: só o brief de código do Forge manda rodar o D2",
+      "guarda": "brief gerar: só o brief de código do Forge leva a prova pelo CI (G3-ENTREGA-PELO-CI, no lugar do D2)",
       "arquivo": "bin/forge-check",
-      "de": "            if e_o_forge(Path(raiz)):  # D2-NO-BRIEF",
-      "para": "            if not e_o_forge(Path(raiz)):  # D2-NO-BRIEF",
+      "de": "            if e_o_forge(Path(raiz)):  # G3-ENTREGA-PELO-CI",
+      "para": "            if not e_o_forge(Path(raiz)):  # G3-ENTREGA-PELO-CI",
       "testes": [
-        "tests.test_pre_envio_brief.Gerar.test_codigo_do_forge_manda_rodar_o_d2_e_fora_do_forge_nao"
+        "tests.test_pre_envio_brief.Gerar.test_codigo_do_forge_prova_pelo_ci_sem_o_d2_e_fora_do_forge_nao"
       ]
     }
   ]

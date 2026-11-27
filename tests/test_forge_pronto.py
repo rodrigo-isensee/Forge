@@ -331,7 +331,8 @@ class ProvaDoPronto(unittest.TestCase):
 
 
 HEAD = "a" * 40
-VERDES = [{"name": "bateria (python 3.14)", "bucket": "pass", "workflow": "CI"}, {"name": "shellcheck", "bucket": "skipping", "workflow": "CI"},
+AGREGADOS = [{"name": par.split("/", 1)[1], "bucket": "pass", "workflow": "CI"} for par in fc.JOBS_DO_AGREGADOR]
+VERDES = AGREGADOS + [{"name": "bateria (python 3.14)", "bucket": "pass", "workflow": "CI"}, {"name": "shellcheck", "bucket": "skipping", "workflow": "CI"},
           {"name": "bateria", "bucket": "pending", "workflow": "CI"}, {"name": "bateria (pareceres)", "bucket": "fail", "workflow": "CI"},
           {"name": "catraca", "bucket": "fail", "workflow": "Catraca"}]
 
@@ -339,14 +340,15 @@ VERDES = [{"name": "bateria (python 3.14)", "bucket": "pass", "workflow": "CI"},
 class ProvaDoCi(unittest.TestCase):
     """G3-ENTREGA-PELO-CI (v0481 E28.1): no Forge, a entrega prova o pronto pelo CI do PR concluído e verde no head exato, fora os
     CHECKS_FORA_DA_LINHA_DO_CI; o gh falso responde só ao `pr view <branch exata>` e ao `pr checks <número>` (checklist 12)."""
-    def prova(self, heads=(HEAD, HEAD), checks=VERDES, exigidos=("CI/bateria (python 3.14)", "Catraca/catraca", "CI/bateria")):
+    def prova(self, heads=(HEAD, HEAD), checks=VERDES, exigidos=("CI/bateria (python 3.14)", "Catraca/catraca", "CI/bateria"),
+              titulo="feat(entrega): a prova pelo CI (v0481 E28.6)"):
         heads, chamadas = list(heads), []
 
         def gh_json(raiz, *args):
             chamadas.append(args)
             if args[:3] == ("pr", "view", "melhoria/x"):
                 h = heads.pop(0)
-                return ({"number": 9, "headRefOid": h, "baseRefName": "develop"}, "") if h else (None, "sem resposta em 10 s")
+                return ({"number": 9, "headRefOid": h, "baseRefName": "develop", "title": titulo}, "") if h else (None, "sem resposta em 10 s")
             if args[:3] == ("pr", "checks", "9"):
                 return (checks, "") if checks is not None else (None, "erro de rede")
             return None, "chamada inesperada"
@@ -357,13 +359,14 @@ class ProvaDoCi(unittest.TestCase):
         linhas, chamadas = self.prova()
         self.assertEqual(len(linhas), 1)
         self.assertFalse(linhas[0][1])
-        self.assertTrue(linhas[0][0].startswith(f"prova: CI do PR #9 concluído e verde no head {HEAD[:12]} (2 checks, fora "), linhas)
+        self.assertTrue(linhas[0][0].startswith(f"prova: CI do PR #9 concluído e verde no head {HEAD[:12]} ({len(AGREGADOS) + 2} checks, "
+                                                "fora "), linhas)
         self.assertEqual([c[:2] for c in chamadas], [("pr", "view"), ("pr", "checks"), ("pr", "view")])
 
     def test_vermelho_e_pendente_reprovam_com_o_check(self):
         for bucket in ("fail", "pending"):
             with self.subTest(bucket=bucket):
-                linhas, _ = self.prova(checks=[{"name": "bateria (python 3.14)", "bucket": bucket, "workflow": "CI"}], exigidos=())
+                linhas, _ = self.prova(checks=AGREGADOS + [{"name": "bateria (python 3.14)", "bucket": bucket, "workflow": "CI"}], exigidos=())
                 self.assertEqual(linhas, [(f"pendente: CI do PR #9 no head {HEAD[:12]} não concluído e verde: CI/bateria (python 3.14) "
                                            f"({bucket}) (G3-ENTREGA-PELO-CI)", True)])
 
@@ -372,7 +375,8 @@ class ProvaDoCi(unittest.TestCase):
         self.assertTrue(linhas[0][1])
         self.assertIn("CI/bateria (python 3.14) (exigido, ausente)", linhas[0][0])
         self.assertNotIn("Catraca/catraca", linhas[0][0])
-        linhas, _ = self.prova(checks=[{"name": "catraca", "bucket": "pass", "workflow": "Catraca"}], exigidos=())
+        with mock.patch.object(fc, "JOBS_DO_AGREGADOR", ()):
+            linhas, _ = self.prova(checks=[{"name": "catraca", "bucket": "pass", "workflow": "Catraca"}], exigidos=())
         self.assertEqual(linhas, [(f"pendente: CI do PR #9 no head {HEAD[:12]} não concluído e verde: nenhum check (G3-ENTREGA-PELO-CI)",
                                    True)])
 
@@ -396,3 +400,46 @@ class ProvaDoCi(unittest.TestCase):
         linhas, _ = self.prova(checks=None)
         self.assertTrue(linhas[0][1])
         self.assertIn("checks do PR #9 no head", linhas[0][0])
+
+    def test_job_do_agregador_ausente_ou_pulado_reprova(self):  # A1 da segurança do #923 (v0481 E28.6)
+        for job in fc.JOBS_DO_AGREGADOR:
+            nome = job.split("/", 1)[1]
+            for bucket in (None, "skipping"):
+                with self.subTest(job=job, bucket=bucket):
+                    outros = [c for c in VERDES if c["name"] != nome]
+                    linhas, _ = self.prova(checks=outros + ([{"name": nome, "bucket": bucket, "workflow": "CI"}] if bucket else []))
+                    self.assertTrue(linhas[0][1], linhas)
+                    self.assertIn(f"{job} (exigido, {'ausente' if bucket is None else 'fora de pass'})", linhas[0][0])
+
+    def test_titulo_do_brief_reprova_e_o_de_conventional_commits_passa(self):  # PR-TITULO-DO-BRIEF no caminho do CI (E28.6)
+        linhas, chamadas = self.prova(titulo=TITULO_DO_BRIEF)
+        self.assertTrue(linhas[0][1], linhas)
+        self.assertIn("título do PR #9 é a linha da etapa do brief", linhas[0][0])
+        self.assertIn("PR-TITULO-DO-BRIEF", linhas[0][0])
+        self.assertIn("title", chamadas[0][-1].split(","))
+        for titulo in (TITULO_BOM, None, 7):
+            with self.subTest(titulo=titulo):
+                self.assertFalse(self.prova(titulo=titulo)[0][0][1])
+
+    def test_os_jobs_do_agregador_sao_os_needs_do_job_bateria_do_ci(self):
+        """A lista não diverge do .github/workflows/ci.yml: cada job no `needs` do agregador `bateria`, fora o `pareceres` (fora da
+        linha do CI), tem o nome (com a matriz das partes) na lista, e nada sobra nela."""
+        linhas = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8").splitlines()
+        jobs, atual = {}, None
+        for linha in linhas:
+            if linha.startswith("  ") and not linha.startswith("   ") and linha.rstrip().endswith(":"):
+                atual = linha.strip()[:-1]
+                jobs[atual] = {}
+            elif atual and linha.startswith("    name: "):
+                jobs[atual]["name"] = linha.split("name:", 1)[1].strip()
+            elif atual and linha.startswith("    needs: ["):
+                jobs[atual]["needs"] = [n.strip() for n in linha.split("[", 1)[1].split("]")[0].split(",")]
+        agregador = next(j for j in jobs.values() if j.get("name") == "bateria")
+        esperados = set()
+        for job in agregador["needs"]:
+            nome = jobs[job]["name"]
+            if nome in fc.CHECKS_FORA_DA_LINHA_DO_CI:
+                continue
+            esperados |= {f"CI/{nome.replace('${{ matrix.parte }}', str(n))}" for n in range(1, 6)} if "matrix.parte" in nome else {f"CI/{nome}"}
+        self.assertGreaterEqual(len(esperados), 8)
+        self.assertEqual(set(fc.JOBS_DO_AGREGADOR), esperados)
