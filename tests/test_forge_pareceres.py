@@ -914,14 +914,14 @@ class PrPeloStatus(GhFalso):
             subprocess.run(["git", *args], cwd=self.repo, env=self.env, check=True)
         self.d = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repo, env=self.env, capture_output=True, text=True).stdout.strip()
 
-    def pr(self, head, lista, *publicados, previo=False, branch=BRANCH):
+    def pr(self, head, lista, *publicados, previo=False, branch=BRANCH, topo=None):
         """As linhas do review do `cmd_pr` no `head` do PR #7 (commits a e head), com `lista_fechada` devolvendo `lista`."""
         por_commit = {}
         for sha, s in sorted(publicados, key=lambda x: -x[1]["id"]):
             por_commit.setdefault(sha, [[]])[0].append(s)
-        self.estado(por_commit=por_commit, prs=[self.estado()["prs"][0] | {"headRefOid": head}] if self.estado()["prs"] else [],
+        self.estado(por_commit=por_commit, prs=[self.estado()["prs"][0] | {"headRefOid": topo or head}] if self.estado()["prs"] else [],
                     pr_view={"number": 7, "headRefName": BRANCH, "url": "https://github.com/dono/repo/pull/7",
-                             "commits": [{"oid": self.a}, {"oid": head}]})
+                             "commits": [{"oid": self.a}, {"oid": topo or head}]})
         with mock.patch.object(fc().modulo_do_bin("forge_pareceres"), "lista_fechada", return_value=lista):
             with contextlib.redirect_stderr(io.StringIO()):  # o aviso do `--previo`
                 saida = fc().cmd_pr(self.repo, PEDIDO, head, None, branch, previo=previo)
@@ -941,6 +941,14 @@ class PrPeloStatus(GhFalso):
         self.assertEqual(len(linhas), 1, linhas)
         self.assertIn(f"status parecer-review de {self.a[:7]}", linhas[0])
         self.assertIn("commit: desatualizado: bin/x.py mudou depois do parecer", linhas[0])
+
+    def test_sem_ref_le_o_head(self):
+        """Sem `--ref`, o head é o HEAD da cópia (d, com bin/x.py depois do status de a)."""
+        self.assertIn("commit: desatualizado: bin/x.py", self.pr(None, frozenset({7}), self.em(self.a, 1), topo=self.d)[0])
+
+    def test_ref_que_nao_resolve_reprova(self):
+        self.assertIn("leitura do status parecer-review recusada: o commit  não é o head",
+                      self.pr("f" * 40, frozenset({7}), self.em(self.a, 1))[0])
 
     def test_reprovado_vigente_barra(self):
         linhas = self.pr(self.b, frozenset({7}), self.em(self.a, 1, state="failure", veredito="reprovado"))
@@ -1047,6 +1055,14 @@ class ListaFechada(unittest.TestCase):
         self.commitar("[7]")
         self.git(self.repo, "remote", "set-url", "origin", str(self.tmp / "nao-existe.git"))
         self.assertEqual(self.lista(), frozenset({7}))
+
+    def test_git_herdado_nao_desvia_a_leitura(self):
+        """`GIT_DIR` no ambiente não troca a cópia lida: a lista de outra cópia não vale nesta."""
+        self.commitar("[7]")
+        limpo = self.tmp / "limpo"
+        self.git(self.tmp, "init", "-q", "-b", "develop", str(limpo))
+        with mock.patch.dict(os.environ, {"GIT_DIR": str(self.repo / ".git")}):
+            self.assertIsNone(fp().lista_fechada(str(limpo)))
 
     def test_fora_da_forma_recusa(self):
         for texto in ('{"prs": [7]}', '[7, "8"]', "[true]", "[7,", ""):

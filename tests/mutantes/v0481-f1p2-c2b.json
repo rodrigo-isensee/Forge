@@ -16,8 +16,8 @@
       "id": "C2B-M2",
       "guarda": "só a linha exata da develop do ls-remote vale",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "if x.endswith(\"\\trefs/heads/develop\")] if cod == 0 else []",
-      "para": "if x.endswith(\"develop\")] if cod == 0 else []",
+      "de": "if x.endswith(\"\\trefs/heads/develop\")]",
+      "para": "if x.endswith(\"develop\")]",
       "testes": [
         "tests.test_forge_pareceres.ListaFechada.test_so_a_linha_exata_da_develop"
       ]
@@ -75,12 +75,12 @@
     },
     {
       "id": "C2B-M8",
-      "guarda": "a lista lida da develop do origin, nunca do head",
+      "guarda": "a develop remota só se lê com o commit dela na cópia; senão, o ref local (e a recusa se ele tem a lista)",
       "arquivo": "bin/forge_pareceres.py",
       "de": "{remoto[0] if na_copia else 'refs/remotes/origin/develop'}:{LISTA_FECHADA}",
-      "para": "HEAD:{LISTA_FECHADA}",
+      "para": "{remoto[0] if remoto else 'refs/remotes/origin/develop'}:{LISTA_FECHADA}",
       "testes": [
-        "tests.test_forge_pareceres.ListaFechada.test_lista_so_no_head_nao_vale"
+        "tests.test_forge_pareceres.ListaFechada.test_develop_remota_fora_da_copia_com_lista_local_recusa"
       ]
     }
   ]

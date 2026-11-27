@@ -310,8 +310,8 @@ def lista_fechada(raiz):
     `LISTA_FECHADA` (uma lista JSON de inteiros) na develop do `origin`, no commit que o `git ls-remote` lê (M10.1), nunca no head;
     sem rede, no ref local. Sem o arquivo: None (dormente, o caminho de arquivo segue). Com o arquivo só no ref local e o commit
     remoto fora da cópia, ou conteúdo fora da forma: Recusa (falha fechada)."""
-    cod, saida = git_lido(raiz, "ls-remote", "origin", "refs/heads/develop")  # o padrão casa o fim do nome: só a linha exata
-    remoto = [x.split("\t")[0] for x in saida.splitlines() if x.endswith("\trefs/heads/develop")] if cod == 0 else []
+    saida = git_lido(raiz, "ls-remote", "origin", "refs/heads/develop")[1]  # sem rede, vazia; o padrão casa o fim do nome
+    remoto = [x.split("\t")[0] for x in saida.splitlines() if x.endswith("\trefs/heads/develop")]
     na_copia = remoto and git_lido(raiz, "cat-file", "-e", f"{remoto[0]}^{{commit}}")[0] == 0
     cod, texto = git_lido(raiz, "cat-file", "blob", f"{remoto[0] if na_copia else 'refs/remotes/origin/develop'}:{LISTA_FECHADA}")
     if cod:

@@ -7,7 +7,7 @@
       "guarda": "status só numa branch de trabalho; sem lista, o caminho de arquivo",
       "arquivo": "bin/forge-check",
       "de": "    publicados = pareceres_publicados(raiz, pedido, branch, ref) if de_trabalho else None",
-      "para": "    publicados = pareceres_publicados(raiz, pedido, branch, ref)",
+      "para": "    publicados = pareceres_publicados(raiz, pedido, branch, ref) if True else None",
       "testes": [
         "tests.test_forge_pareceres.PrPeloStatus.test_branch_de_integracao_segue_o_arquivo"
       ]
@@ -27,7 +27,7 @@
       "guarda": "sem a lista, nenhum PR usa status (dormente)",
       "arquivo": "bin/forge-check",
       "de": "        if (lista := pareceres.lista_fechada(raiz)) is None:\n            return None",
-      "para": "        if (lista := pareceres.lista_fechada(raiz)) is None:\n            lista = frozenset()",
+      "para": "        if (lista := pareceres.lista_fechada(raiz)) is None and False:\n            return None",
       "testes": [
         "tests.test_forge_pareceres.PrPeloStatus.test_sem_a_lista_nada_muda"
       ]
