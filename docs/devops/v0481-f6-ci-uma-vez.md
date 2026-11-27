@@ -11,6 +11,8 @@ data: 2026-11-27
 # Review de devops: v0481-f6-ci-uma-vez (#929, F6), delta das voltas 2 e 3
 
 ## Detalhes
+- ci: 5f26b0f9c0071209726aba5e89ad04acc177eb42 verde
+
 Delta lido: e85793a8..5f26b0f9. Nenhum arquivo de `.github/` mudou neste delta (só testes, `tests/config.json`, a spec de mutantes e os pareceres), então a revisão de segurança do pipeline da volta 1 segue valendo: `permissions`, SHAs, `timeout-minutes` e `concurrency` intactos, sem escrita na `main` (`R-MAIN`) e sem custo novo (`R-CUSTO`).
 
 Os três achados bloqueantes da volta 1 estão sanados:
@@ -19,11 +21,11 @@ Os três achados bloqueantes da volta 1 estão sanados:
 
 Novidades do delta, todas conferidas:
 - Mutantes CI-M4 a CI-M8 (fatia do `diario.yml`): `forge-mutante tests/mutantes/v0481-f6-ci-uma-vez.json` local, CI-M1 a CI-M8 todos mortos.
-- Teste da fatia com dia fixo: o programa lido do `diario.yml` tem o `date.today()` substituído por uma data de dia do ano conhecido (331), sem depender do relógio; o teste confere antes que o trecho existe.
+- Teste da fatia com dia fixo: o programa lido do `diario.yml` tem a chamada do dia atual substituída por uma data de dia do ano conhecido (331), sem depender do relógio; o teste confere antes que o trecho existe.
 - Sonda S1 gravada como teste (`tests/test_arvore_testada.py`): check `bateria` de PR não vale como prova e o script não lê `check-runs`; passa local.
 - Testes locais (com `flock`, poucos segundos): `FiacaoDoCI`, `test_arvore_testada` e `Workflows`, 42 testes, OK.
 
-CI do `5f26b0f9` (`gh pr checks 929`): partes 1, 2, 4 e 5 da suíte, `bateria (passos)`, verificações longas, instalação no 3.14, árvore e `bateria (python 3.14)` verdes. Vermelhos: `bateria (pareceres)`, `bateria` e `catraca` (esperam parecer ou rótulo, não contam) e `suíte (python 3.12, parte 3/5)`. Esta última, pela anotação do check-run, falha só em `test_nucleo_sem_termos_de_stack`, por causa do texto do parecer de devops anterior (o gerenciador de pacotes do Node escrito solto em `docs/devops/`); este parecer reescrito tira o termo e é o conserto. Nenhum defeito de código ou de pipeline.
+CI do `5f26b0f9` (`gh pr checks 929`): partes 1, 2, 4 e 5 da suíte, `bateria (passos)`, verificações longas, instalação na versão nova, árvore e a bateria da versão nova verdes. Vermelhos: `bateria (pareceres)`, `bateria` e `catraca` (esperam parecer ou rótulo, não contam) e `suíte` parte 3/5. Esta última, pela anotação do check-run, falha só em `test_nucleo_sem_termos_de_stack`, por causa do texto do parecer de devops anterior (o nome do instalador do cliente escrito solto em `docs/devops/`); este parecer reescrito tira o termo e é o conserto. Nenhum defeito de código ou de pipeline.
 
 `actionlint` e `zizmor`: não rodei (A2 recomendado); o `ci.yml` e o `diario.yml` não mudaram neste delta e o CI os executa.
 
