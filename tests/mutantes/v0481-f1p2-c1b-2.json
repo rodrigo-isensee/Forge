@@ -4,7 +4,57 @@
   "mutantes": [
     {
       "id": "C1B-M9",
-      "guarda": "M4.2: o comentário com o marcador de parecer barra",
+      "guarda": "M4.2 (segurança A3): o gh api que muda algo sem endpoint legível na linha barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not endpoint or re.search(r\"[$`]\", bruto):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminalNoForge.test_c21_endpoint_ilegivel_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M10",
+      "guarda": "M4.2: o gh api em statuses e comentários barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if GRAVA_PARECER_POR_API.search(endpoint) or e_graphql(endpoint) and any(",
+      "para": "        if e_graphql(endpoint) and any(",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_api_statuses_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M11",
+      "guarda": "M4.2: a mutação de comentário do GraphQL barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if GRAVA_PARECER_POR_API.search(endpoint) or e_graphql(endpoint) and any(",
+      "para": "        if GRAVA_PARECER_POR_API.search(endpoint) or False and any(",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminalNoForge.test_c21_graphql_de_comentario_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M12",
+      "guarda": "M4.2: só o gh pr|issue comment tem o corpo conferido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if pos[:2] not in ([\"pr\", \"comment\"], [\"issue\", \"comment\"]):",
+      "para": "        if True:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M13",
+      "guarda": "M4.2: o corpo que o hook não lê barra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if ilegivel:\n            self.barrar_parecer(",
+      "para": "        if False:\n            self.barrar_parecer(",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M14",
+      "guarda": "M4.2: o marcador de parecer no corpo barra",
       "arquivo": "hooks/conformidade.py",
       "de": "        if MARCADOR_DE_PARECER.search(corpo):",
       "para": "        if False:",
@@ -13,74 +63,23 @@
       ]
     },
     {
-      "id": "C1B-M10",
-      "guarda": "M4.2: o corpo do heredoc do K3 é lido como texto (sem ele, todo heredoc seria ilegível e o marcador não se veria)",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        if re.fullmatch(r\"\\$\\(cat\\s*\\)\", texto):",
-      "para": "        if False:",
-      "testes": [
-        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
-      ]
-    },
-    {
-      "id": "C1B-M11",
-      "guarda": "M4.2: o --body com expansão é ilegível",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        if re.search(r\"[$`]\", texto) and not literal or arquivo is not None and (",
-      "para": "        if False and not literal or arquivo is not None and (",
-      "testes": [
-        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
-      ]
-    },
-    {
-      "id": "C1B-M12",
-      "guarda": "M4.2: o --body-file - lê a entrada padrão, nunca o arquivo `-` da pasta",
-      "arquivo": "hooks/conformidade.py",
-      "de": "                arquivo == \"-\" or re.search(r\"[$`]\", arquivo)):",
-      "para": "                False or re.search(r\"[$`]\", arquivo)):",
-      "testes": [
-        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
-      ]
-    },
-    {
-      "id": "C1B-M13",
-      "guarda": "M4.2: o --body-file com expansão é ilegível",
-      "arquivo": "hooks/conformidade.py",
-      "de": "                arquivo == \"-\" or re.search(r\"[$`]\", arquivo)):",
-      "para": "                arquivo == \"-\" or False):",
-      "testes": [
-        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
-      ]
-    },
-    {
-      "id": "C1B-M14",
-      "guarda": "M4.2: sem --body-file, o corpo é o --body; nada se lê do disco",
-      "arquivo": "hooks/conformidade.py",
-      "de": "        if arquivo is None:\n            return texto, False",
-      "para": "        if False:\n            return texto, False",
-      "testes": [
-        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
-      ]
-    },
-    {
       "id": "C1B-M15",
-      "guarda": "M4.2: o endpoint só se lê no gh api; nos outros subcomandos do gh, nada de endpoint",
+      "guarda": "M4.2: o K3 traz o corpo dos heredocs da linha",
       "arquivo": "hooks/conformidade.py",
-      "de": "if parte and parte[0] == \"api\" else \"\"",
-      "para": "if parte else \"\"",
+      "de": "            if re.fullmatch(r\"\\$\\(cat\\s*\\)\", texto):",
+      "para": "            if False:",
       "testes": [
-        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_api_statuses_barrado",
         "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
       ]
     },
     {
       "id": "C1B-M16",
-      "guarda": "M4.2: sem --body, o corpo é vazio (o comentário só com --body-file ainda se lê)",
+      "guarda": "M4.2: o $(cat) sem heredoc lê a entrada: ilegível",
       "arquivo": "hooks/conformidade.py",
-      "de": "parecer.opcao(args, \"--body\", \"-b\") or \"\",",
-      "para": "parecer.opcao(args, \"--body\", \"-b\"),",
+      "de": "                ilegivel |= not achados or any(",
+      "para": "                ilegivel |= any(",
       "testes": [
-        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_volta1_corpo_repetido_ou_com_expansao_barrado"
       ]
     }
   ]

@@ -127,15 +127,16 @@ class PeloTerminal(GhFalso):
         (self.repo / ".forge").mkdir(exist_ok=True)
         (self.repo / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
 
-    def bash(self, comando):
+    def bash(self, comando, extra=None):
         entrada = {"tool_name": "Bash", "tool_input": {"command": comando}, "hook_event_name": "PreToolUse",
                    "tool_use_id": "toolu_9", "agent_type": "forge:tech-lead"}
-        return rodar("conformidade", entrada, self.repo, extra={"HOME": str(self.tmp), "CLAUDE_PROJECT_DIR": str(self.repo)})
+        return rodar("conformidade", entrada, self.repo,
+                     extra={"HOME": str(self.tmp), "CLAUDE_PROJECT_DIR": str(self.repo), **(extra or {})})
 
-    def barra(self, comandos, trecho):
+    def barra(self, comandos, trecho, extra=None):
         for comando in comandos:
             with self.subTest(comando=comando):
-                r = self.bash(comando)
+                r = self.bash(comando, extra)
                 self.assertEqual(r.returncode, 2, r.stderr)
                 self.assertTrue(r.stderr.startswith("R-REVIEW: "), r.stderr)
                 self.assertIn(trecho, r.stderr)
@@ -178,6 +179,23 @@ class PeloTerminal(GhFalso):
                      "gh issue comment 70 --body 'cite `afrouxa-regra` e $HOME, entre aspas simples'",
                      "gh pr comment 7 -F nota.md", "gh pr view 7 --comments"])
 
+    def test_c21_volta1_corpo_repetido_ou_com_expansao_barrado(self):
+        """Volta 1 (review A1, segurança A1; sondas S1 e S2 do review, S1 a S4 da segurança): o hook lê todo `--body` e
+        `--body-file` (o gh usa o último), o literal pela palavra do parser e o heredoc sem aspas como expansão."""
+        (self.repo / "parecer.md").write_text(parecer(self.sha), encoding="utf-8")
+        (self.repo / "nota.md").write_text("revisado, sem achados\n", encoding="utf-8")
+        self.barra(["gh pr comment 7 -F nota.md -F parecer.md", "gh pr comment 7 -F nota.md -Fparecer.md", "gh pr comment 7 -b ok -b '---\ntipo: review\n---'",
+                    "gh pr comment 7 --body ok --body=\"$(cat <<'EOF'\n---\ntipo: qa\n---\nEOF\n)\""],
+                   "comment: comentário com o marcador de parecer")
+        self.barra(["gh pr comment 7 --body \"$B\" # '$B'", "gh pr comment 7 --body \"$CORPO\" # '$CORPO'",
+                    "echo '$CORPO'; gh pr comment 7 --body \"$CORPO\"",
+                    "gh pr comment 7 --body \"$(cat <<EOF\n$B\nEOF\n)\"",
+                    "gh pr comment 7 --body \"$(cat <<EOF\n$(cat parecer.md)\nEOF\n)\"",
+                    "gh pr comment 7 --body ok -F -", "gh pr comment 7 --body \"$(cat)\" < parecer.md"],
+                   "comment: comentário cujo corpo o hook não lê")
+        self.libera(["gh pr comment 7 --body \"$(cat <<EOF\nrevisado, sem achados\nEOF\n)\"",
+                     "gh pr comment 7 -b ok -F nota.md"])
+
     def test_c21_tipos_do_marcador_sao_os_contextos_do_publicar(self):
         """O marcador do hook e a lista fechada do `publicar` (M2.1) andam juntos: tipo novo no `publicar` entra no hook."""
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "hooks"))
@@ -191,9 +209,23 @@ class PeloTerminal(GhFalso):
                     f"python3 -I {self.repo}/bin/forge-check parecer publicar {rel}",
                     f"cd bin && ./forge-check parecer publicar ../{rel}", f"$HOME/extraido/bin/forge-check parecer publicar {rel}"],
                    "forge-check parecer publicar pelo `bin/` de uma cópia")
+        (self.repo / "bin").mkdir()
+        (self.repo / "bin" / "forge-check").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+        (self.tmp / "fora").mkdir()
+        (self.tmp / "fora" / "forge-check").symlink_to(self.repo / "bin" / "forge-check")  # S5: link de arquivo
+        self.barra([f"python3 -I {self.tmp}/fora/forge-check parecer publicar {rel}",
+                    f"{self.tmp}/fora/forge-check parecer publicar {rel}"], "forge-check parecer publicar pelo `bin/` de uma cópia")
+        self.barra([f"PATH={self.repo}/bin:$PATH forge-check parecer publicar {rel}",
+                    f"PATH=bin:/usr/bin forge-check parecer publicar {rel}"], "com o `PATH` trocado na linha")
         fora = self.tmp / "extraido" / "bin" / "forge-check"  # a extração da base fora de cópia de trabalho (M10.1)
         self.libera([f"forge-check parecer publicar {rel}", f"python3 -I {fora} parecer publicar {rel}",
                      f"bin/forge-check pr {PEDIDO}"])
+
+
+def parecer_hook():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "hooks"))
+    import parecer as modulo
+    return modulo
 
 
 class PeloTerminalNoForge(PeloTerminal):
@@ -212,8 +244,24 @@ class PeloTerminalNoForge(PeloTerminal):
                     "gh api graphql -f query='mutation { updateIssueComment(input: {id: \"x\", body: \"y\"}) { clientMutationId } }'",
                     "gh api graphql -f query='mutation { deleteIssueComment(input: {id: \"x\"}) { clientMutationId } }'"],
                    "gh api que grava status ou comentário")
+        dono = self.tmp / "gh-do-dono"  # segurança A5: na conta do dono, o R-CONTRIB do rótulo não barra antes
+        dono.mkdir()
+        (dono / "gh").write_text(f"#!/bin/sh\necho {parecer_hook().slug_do_forge().split('/')[0]}\n", encoding="utf-8")
+        (dono / "gh").chmod(0o755)
+        for comando in ("gh api graphql --input ausente.json", "gh api graphql -X POST -F query=@ausente.graphql"):
+            with self.subTest(comando=comando):  # o GraphQL mutante ilegível já recusa pelo GH-MERGE-ADMIN, trava
+                r = self.bash(comando, {"PATH": f"{dono}:/usr/bin:/bin"})
+                self.assertEqual((r.returncode, r.stderr[:10]), (2, "R-MAIN: gh"), r.stderr)
         self.libera(["gh api graphql -f query='query { viewer { login } }'",
                      "gh api graphql -f query='mutation { addReaction(input: {subjectId: \"x\", content: HOORAY}) { clientMutationId } }'"])
+
+
+    def test_c21_endpoint_ilegivel_barrado(self):
+        """Segurança A3 (S6): o `gh api` que muda algo sem o endpoint na linha (pela entrada do `xargs`) falha fechado."""
+        self.barra(["echo repos/o/r/issues/comments/9 | xargs gh api -X DELETE",
+                    "echo repos/o/r/statuses/abc | xargs gh api -f state=success"],
+                   "gh api que muda algo com endpoint que o hook não lê")
+        self.libera(["echo repos/o/r/issues/comments/9 | xargs gh api"])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,56 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1B-M25",
+      "guarda": "M4.2: a opção longa com = é lida",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif a.startswith(longa + \"=\"):",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M26",
+      "guarda": "M4.2: a opção curta com o valor colado é lida",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        elif a.startswith(curta) and len(a) > len(curta):",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_volta1_corpo_repetido_ou_com_expansao_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M27",
+      "guarda": "M4.2 (segurança A1, S4): o gh pr|issue comment numa linha que o hook não modela barra também na sessão do Forge",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if COMENTARIO_DO_GH.search(original):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminalNoForge.test_c21_volta1_corpo_repetido_ou_com_expansao_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M28",
+      "guarda": "M4.2: a última opção da linha também é lida",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    saida, i = [], 0\n    while i < len(args):",
+      "para": "    saida, i = [], 0\n    while i < len(args) - 1:",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_volta1_corpo_repetido_ou_com_expansao_barrado"
+      ]
+    },
+    {
+      "id": "C1B-M29",
+      "guarda": "M4.2: o arquivo do --body-file que não se lê é ilegível",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            textos, ilegivel = textos + lidos, ilegivel or falhou",
+      "para": "            textos, ilegivel = textos + lidos, ilegivel",
+      "testes": [
+        "tests.test_conformidade_pareceres.PeloTerminal.test_c21_gh_pr_comment_com_marcador_barrado"
+      ]
+    }
+  ]
+}

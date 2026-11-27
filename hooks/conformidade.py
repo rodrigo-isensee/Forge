@@ -172,7 +172,24 @@ TIPOS_DE_PARECER = ("review", "qa", "revisao-seguranca", "revisao-devops")
 MARCADOR_DE_PARECER = re.compile(r"^tipo:[ \t]*[\"']?(%s)[\"']?[ \t]*\r?$" % "|".join(TIPOS_DE_PARECER), re.M)
 GRAVA_PARECER_POR_API = re.compile(r"(^|/)(statuses/[^/]+|issues/[^/]+/comments|issues/comments/[^/]+)$", re.I)
 GRAVA_PARECER_NO_GRAPHQL = re.compile(r"addComment|updateIssueComment|deleteIssueComment")
+COMENTARIO_DO_GH = re.compile(r"(?<![\w./-])gh\s.*?\b(pr|issue)\s+comment\b", re.S)  # na linha que o hook não modela
 CORRIGIR_PUBLICAR = "rode `forge-check parecer publicar <.forge/pareceres/<pedido>/<tipo>.md>`, o do plugin, pelo nome"
+
+
+def valores_da_opcao(args, longa, curta):
+    """Todos os valores de `longa` e da `curta` de uma letra, na ordem (`parecer.opcao` lê só o 1.º; o gh fica com o último)."""
+    saida, i = [], 0
+    while i < len(args):
+        a = args[i]
+        if a in (longa, curta) and i + 1 < len(args):
+            saida.append(args[i + 1])
+            i += 1
+        elif a.startswith(longa + "="):
+            saida.append(a.split("=", 1)[1])
+        elif a.startswith(curta) and len(a) > len(curta):
+            saida.append(a[len(curta):].removeprefix("="))
+        i += 1
+    return saida
 # R-CONTRIB (diretriz 36): a sessão de outro projeto não mexe no Forge (nem o próprio PR), pela API REST e pelo GraphQL.
 # Na sessão de projeto, o `gh` no Forge só lê: todo subcomando fora desta lista mexe e é recusado (falha fechado).
 GH_SO_LE = {"view", "list", "status", "diff", "checks", "download", "watch", "browse"}
@@ -2298,6 +2315,9 @@ class Guarda:
             # bash pode rodar, e o `return` pularia todas as checagens dela: fora do papel só de leitura, recusa sempre,
             # com ou sem marcador crítico. O papel só de leitura fica como estava (a gramática dele, no nível 0, já
             # recusa aspas sem par e `#`).
+            if COMENTARIO_DO_GH.search(original):  # M4.2 (S4 da segurança): na sessão do Forge só a trava recusa a linha
+                self.barrar_parecer("gh pr|issue comment: comentário cujo corpo o hook não lê, numa linha que ele não "
+                                    "modela (M4.2)", f"parecer: {CORRIGIR_PUBLICAR}; outro texto: `--body` literal ou `--body-file`")
             if not self.leitura and isinstance(corpo_de_heredoc, str):  # M2: só o programa do texto o roda
                 self.barrar("R-CONFORMIDADE", f"o texto roda `{corpo_de_heredoc}`, fora da lista dos que não rodam o "
                                               "arquivo gravado, e o corpo do heredoc tem aspa sem par",
@@ -2566,7 +2586,7 @@ class Guarda:
             self.forge_check_grava(argumentos_do_forge_check, pasta)
             self.forge_check_publica(argumentos_do_forge_check, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"))
             self.publicar_pela_copia(palavras[len(palavras) - len(argumentos_do_forge_check) - 1], argumentos_do_forge_check,
-                                     pasta)
+                                     pasta, self.da_atribuicao(atribuicoes, "PATH"))
         if prog in SHELLS:
             for i, a in enumerate(args):
                 if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 1 < len(args):
@@ -2675,13 +2695,18 @@ class Guarda:
         if self.alvo_do_forge(self.caminho(pasta, raiz) if raiz else pasta, repo_env):
             self.barrar("R-CONTRIB", f"forge-check parecer publicar: {NO_FORGE}", SO_SUGERE)
 
-    def publicar_pela_copia(self, programa, args, pasta):
+    def publicar_pela_copia(self, programa, args, pasta, path_na_linha):
         """M10.1: o `parecer publicar` roda o `forge-check` do PATH (o do plugin) ou uma extração fora de cópia de trabalho;
         pelo caminho de uma cópia (`bin/forge-check`, `python3 ./bin/forge-check`), o código da branch publicaria. O caminho
         com expansão (`$X/bin/forge-check`) o hook não resolve: barra (na dúvida, recusa)."""
-        if livres_do_forge_check(args)[:2] != ["parecer", "publicar"] or "/" not in programa:
+        if livres_do_forge_check(args)[:2] != ["parecer", "publicar"]:
             return
-        if re.search(r"[$`]", programa) or self.raiz_git(self.caminho(pasta, programa).parent) is not None:
+        if path_na_linha is not None:  # `PATH=<cópia>/bin:$PATH forge-check`: o nome acha o `bin/` que a linha pôs
+            self.barrar_parecer("forge-check parecer publicar com o `PATH` trocado na linha (M10.1)")
+        if "/" not in programa:
+            return
+        real = Path(os.path.realpath(self.caminho(pasta, programa)))  # o link de arquivo fora da cópia roda o da cópia
+        if re.search(r"[$`]", programa) or self.raiz_git(real.parent) is not None:
             self.barrar_parecer(f"forge-check parecer publicar pelo `bin/` de uma cópia ({programa}) roda o código da branch "
                                 "(M10.1)")
 
@@ -3817,15 +3842,25 @@ class Guarda:
         if parte and parte[0] == "prmerge" and parecer.usa_admin(palavras[1:]):
             self.barrar("R-MAIN", "gh pr merge com --admin desvia a proteção da branch", self.CORRIGIR_DO_MERGE)
 
-    def parecer_pelo_terminal(self, palavras, parte, pasta):
-        """M4.2: status e comentário de parecer só pelo `publicar`, que registra a publicação (M4.1). Barra o `gh api` que grava
-        em `statuses/<sha>`, `issues/<n>/comments` ou `issues/comments/<id>` (PATCH, DELETE), a mutação de comentário do
-        GraphQL, e o `gh pr|issue comment` com o marcador de parecer no corpo ou com o corpo que o hook não lê."""
-        endpoint = endpoint_normalizado(parecer.endpoint_da_api(parte[1])) if parte and parte[0] == "api" else ""
-        if endpoint and parecer.metodo_mutante(parte[1]) and (GRAVA_PARECER_POR_API.search(endpoint) or e_graphql(
-                endpoint) and any(GRAVA_PARECER_NO_GRAPHQL.search(t) for t in self.textos_da_api(parte[1], pasta)[0])):
+    def parecer_pela_api(self, args, pasta):
+        """M4.2: status e comentário de parecer só pelo `publicar`, que registra a publicação (M4.1). Barra o `gh api` que
+        muda algo em `statuses/<sha>`, `issues/<n>/comments` ou `issues/comments/<id>`, a mutação de comentário do GraphQL
+        e o endpoint que o hook não lê (vazio, pela entrada do `xargs`, ou com expansão). Roda depois das outras guardas do
+        `gh api`: o GraphQL ilegível já recusa antes, pelo GH-MERGE-ADMIN (R-MAIN, trava)."""
+        if not parecer.metodo_mutante(args):
+            return
+        bruto = parecer.endpoint_da_api(args)
+        endpoint = endpoint_normalizado(bruto)
+        if not endpoint or re.search(r"[$`]", bruto):  # `xargs gh api -X DELETE`: o endpoint vem da entrada
+            self.barrar_parecer("gh api que muda algo com endpoint que o hook não lê (M4.2)",
+                                f"parecer: {CORRIGIR_PUBLICAR}; outra chamada: o endpoint literal na linha")
+        if GRAVA_PARECER_POR_API.search(endpoint) or e_graphql(endpoint) and any(
+                GRAVA_PARECER_NO_GRAPHQL.search(t) for t in self.textos_da_api(args, pasta)[0]):
             self.barrar_parecer("gh api que grava status ou comentário no PR pelo terminal (M4.2)",
                                 f"parecer: {CORRIGIR_PUBLICAR}; outro comentário: `gh pr comment`")
+
+    def parecer_pelo_terminal(self, palavras, pasta):
+        """M4.2: o `gh pr|issue comment` com o marcador de parecer no corpo ou com o corpo que o hook não lê."""
         pos = parecer.posicionais(palavras[1:], GH_COM_VALOR)
         if pos[:2] not in (["pr", "comment"], ["issue", "comment"]):
             return
@@ -3837,19 +3872,24 @@ class Guarda:
             self.barrar_parecer(f"gh {pos[0]} comment: comentário com o marcador de parecer (`tipo:`) pelo terminal (M4.2)")
 
     def corpo_do_comentario(self, args, pasta):
-        """(texto, ilegivel) do `--body` e do `--body-file`: o heredoc do K3 é texto; `-`, arquivo que não é regular ou não
-        se lê, e valor com expansão fora de aspas simples marcam `ilegivel`."""
-        texto, arquivo = parecer.opcao(args, "--body", "-b") or "", parecer.opcao(args, "--body-file", "-F")
-        literal = f"'{texto}'" in self.linha  # entre aspas simples, `$` e crase são texto
-        if re.fullmatch(r"\$\(cat\s*\)", texto):  # o K3 chega sem o corpo (`tirar_heredocs`): os corpos da linha
-            texto, literal = "\n".join(corpo for _, corpo in tirar_heredocs(self.linha)[1]), True
-        if re.search(r"[$`]", texto) and not literal or arquivo is not None and (
-                arquivo == "-" or re.search(r"[$`]", arquivo)):
-            return texto, True
-        if arquivo is None:
-            return texto, False
-        lidos, ilegivel = self.textos_da_api(["--input", str(self.caminho(pasta, arquivo))], pasta)
-        return texto + "\n".join(lidos), ilegivel
+        """(texto, ilegivel) de todo `--body` e `--body-file` (o gh usa o último; o hook lê todos). Marcam `ilegivel`: a
+        palavra com `$` ou crase que o parser não lê entre aspas simples (`expansao_por_palavra`), o `$(cat)` sem heredoc,
+        o heredoc com delimitador sem aspas e `$` ou crase no corpo, o `-` e o arquivo que não é regular ou não se lê."""
+        textos, ilegivel, nivel = [], False, expansao_por_palavra(self.linha)
+        for texto in valores_da_opcao(args, "--body", "-b"):
+            if re.fullmatch(r"\$\(cat\s*\)", texto):  # o K3 chega sem o corpo (`tirar_heredocs`): os corpos da linha
+                achados = heredocs(self.linha)[0]
+                corpos = [(self.linha[h.corpo[0]:h.corpo[1]], h.literal) for h in achados]
+                textos += [corpo for corpo, _ in corpos]
+                ilegivel |= not achados or any(not literal and re.search(r"[$`]", corpo) for corpo, literal in corpos)
+            else:
+                textos.append(texto)
+                ilegivel |= bool(re.search(r"[$`]", texto)) and nivel.get(texto, 2) > 0
+        for arquivo in valores_da_opcao(args, "--body-file", "-F"):
+            lidos, falhou = ([], True) if arquivo == "-" or re.search(r"[$`]", arquivo) else self.textos_da_api(
+                ["--input", str(self.caminho(pasta, arquivo))], pasta)
+            textos, ilegivel = textos + lidos, ilegivel or falhou
+        return "\n".join(textos), ilegivel
 
     def gh_api_de_merge(self, args, pasta):
         """GH-MERGE-ADMIN (R-MAIN): o `gh api` mutante de merge (REST ou GraphQL, inline ou em arquivo) também desvia a
@@ -3921,7 +3961,7 @@ class Guarda:
             self.gh_rotulo(palavras, pasta, por_xargs)
         self.gh_admin(palavras, parte)  # antes de toda saída antecipada: não depende de branch, base nem raiz
         self.gh_alias(palavras)
-        self.parecer_pelo_terminal(palavras, parte, pasta)
+        self.parecer_pelo_terminal(palavras, pasta)
         if not parte:
             return
         if parte[0] == "pr" and not self.pode("pr_criar"):
@@ -3953,6 +3993,7 @@ class Guarda:
             # aspas esconde o `-f` que o bash remonta)
             if (parecer.metodo_mutante(args) or e_graphql(parecer.endpoint_da_api(args))) and self.consulta_ilegivel(args):
                 self.barrar(*GRAPHQL_ILEGIVEL, trava=TRAVA)  # também na sessão do Forge: a consulta pode ser um merge
+            self.parecer_pela_api(args, pasta)
 
     # Pacotes ----------------------------------------------------------------------------------------
     @staticmethod
