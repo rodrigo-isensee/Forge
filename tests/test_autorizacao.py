@@ -391,7 +391,8 @@ UNICO = {"Validade": "uso-unico", "Validade-utc": "uso-unico"}
 
 class AtosFixos(unittest.TestCase):
     """Emenda AUTORIZACOES-FIXAS da ADR 0018 (F1 e F3): `so-aperta-com-seguranca` só com alvo `fixo` e validade `fixa`, sem o teto
-    da D1; os atos de antes não o aceitam. A `corte-diario` saiu (VERSAO-COM-20): a gravada lê adulterada."""
+    da D1; os atos de antes não o aceitam. A `corte-diario` saiu (VERSAO-COM-20): a gravada lê adulterada.
+    Sonda S3 da segurança: python3 -I _sec122-v0481-v20-sonda2.py (A-1 corte-diario e A-2 so-aperta gravadas; forge-check autorizacao ler e ler --ato)"""
     ATO = "so-aperta-com-seguranca"
     setUp = Ler.setUp
     estados = Ler.estados

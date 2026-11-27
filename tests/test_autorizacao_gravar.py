@@ -525,7 +525,12 @@ class AtosFixos(Base):
                 self.assertIn(motivo, lido)
 
     def test_vocabulario_novo_so_nos_atos_fixos_e_sem_marca(self):
+        # sonda S1 da segurança (M6 morto): bin/forge-mutante --rev 6e77f72a --ids M6 tests/mutantes/v0481-autorizacoes-fixas.json
+        # sonda S4 da segurança: fora_do_vocabulario("pode mesclar a main 0.47.3, o time decide") com VOCABULARIO e com VOCABULARIO_FIXO
         self.assertFalse(set(MARCAS) & fa.VOCABULARIO_FIXO)
+        texto = "pode mesclar a main 0.47.3, o time decide"  # sem o regex do alvo, a versão conta: só decide e time importam
+        self.assertEqual(set(fa.fora_do_vocabulario(texto, vocabulario=fa.VOCABULARIO)) - {"0", "3", "47"}, {"decide", "time"})
+        self.assertEqual(fa.fora_do_vocabulario(texto, vocabulario=fa.VOCABULARIO_FIXO), ["0", "3", "47"])
         _, campos, _, _, _ = self.lida(0, "pode mesclar a main 0.47.3, o time decide", "merge-main", "versao:0.47.3")
         self.assertEqual((campos["Estado-inicial"], campos["Validade"]), ("pendente-confirmacao", "ate:2026-11-20 00:00"))
         self.assertEqual(campos["Motivo-da-pendencia"], "palavra fora do vocabulário: decide, time")

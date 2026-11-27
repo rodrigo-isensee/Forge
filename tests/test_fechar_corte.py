@@ -102,6 +102,7 @@ class Corte(unittest.TestCase):
         self.assertEqual(self.no_origin(MARCA), "")
 
     def test_abaixo_do_teto_nao_ha_corte_diario(self):  # VERSAO-COM-20 (ordem do dono de 26/11): a versão fecha só com o teto
+        # sonda S2 da segurança: forge-fechar --corte com 1 item abaixo do teto às 06:00 (test_abaixo_do_teto_nao_ha_corte_diario, CI do 6e77f72a)
         self.fragmentos(1)
         r = self.fechar("--corte", FORGE_FECHAR_AGORA="1795586400", TZ="UTC")  # 25/11 06:00, a hora do corte diário que saiu
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
