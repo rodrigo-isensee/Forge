@@ -67,8 +67,8 @@
       "id": "M7",
       "guarda": "leitura: páginas de statuses ilegíveis recusam (M19.1)",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "if not isinstance(paginas, list) or not all(isinstance(p, list) for p in paginas):",
-      "para": "if not isinstance(paginas, list):",
+      "de": "if not isinstance(paginas, list) or not all(isinstance(p, list) for p in paginas):\n        raise Recusa(\"statuses ilegíveis (M19.1)\")",
+      "para": "if not isinstance(paginas, list):\n        raise Recusa(\"statuses ilegíveis (M19.1)\")",
       "testes": [
         "tests.test_forge_pareceres.Ler.test_c17_paginas_ilegiveis"
       ]
