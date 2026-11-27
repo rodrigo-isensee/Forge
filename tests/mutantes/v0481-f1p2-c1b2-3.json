@@ -4,6 +4,36 @@
   "mutantes": [
     {
       "id": "C1B2-M17",
+      "guarda": "M10.1: o caminho do módulo com expansão barra (na dúvida, recusa)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if opaco or real.name",
+      "para": "            if real.name",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M18",
+      "guarda": "M10.1: a expansão só barra no caminho com o nome do módulo (`python3 $S` passa)",
+      "arquivo": "hooks/conformidade.py",
+      "de": " and nome_do_caminho(alvo) == MODULO_DE_PARECER\n",
+      "para": "\n",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M19",
+      "guarda": "M10.1: o módulo fora de cópia de trabalho (a extração da base) passa",
+      "arquivo": "hooks/conformidade.py",
+      "de": " and real.is_file() and self.raiz_git(real.parent) is not None:",
+      "para": " and real.is_file():",
+      "testes": [
+        "tests.test_conformidade_pareceres.ModuloPelaCopia.test_c12_modulo_da_copia_barrado"
+      ]
+    },
+    {
+      "id": "C1B2-M20",
       "guarda": "M20.1: o `_modelo.md` não é parecer de item",
       "arquivo": "hooks/conformidade.py",
       "de": " or caminho.name == \"_modelo.md\"\n",
@@ -13,7 +43,7 @@
       ]
     },
     {
-      "id": "C1B2-M18",
+      "id": "C1B2-M21",
       "guarda": "M20.1: só a pasta `docs/` conta (`outros/reviews/` não é parecer)",
       "arquivo": "hooks/conformidade.py",
       "de": "                or caminho.parts[-3] != \"docs\" or",
@@ -23,7 +53,7 @@
       ]
     },
     {
-      "id": "C1B2-M19",
+      "id": "C1B2-M22",
       "guarda": "M20.1: só o `docs/` da raiz da cópia (o modelo de projeto passa)",
       "arquivo": "hooks/conformidade.py",
       "de": "        if topo != caminho.parents[2] or not self.lista_fechada(topo):",
@@ -33,7 +63,7 @@
       ]
     },
     {
-      "id": "C1B2-M20",
+      "id": "C1B2-M23",
       "guarda": "M20.1: a conferência da lista roda uma vez por cópia e grava o resultado",
       "arquivo": "hooks/conformidade.py",
       "de": "        if topo not in self._listas:",
@@ -43,33 +73,13 @@
       ]
     },
     {
-      "id": "C1B2-M21",
+      "id": "C1B2-M24",
       "guarda": "M20.1: sem a lista no ref local, o `ls-remote` confere a develop do origin",
       "arquivo": "hooks/conformidade.py",
       "de": "            if git(topo, \"cat-file\", \"-e\", f\"{refs[0]}:{LISTA_FECHADA}\")[0]:",
       "para": "            if False:",
       "testes": [
         "tests.test_conformidade_pareceres.ParecerDeItem.test_ref_local_recuado_nao_esconde_a_lista"
-      ]
-    },
-    {
-      "id": "C1B2-M22",
-      "guarda": "M20.1: do `ls-remote`, só a linha de `refs/heads/develop` (o padrão casa o fim do nome)",
-      "arquivo": "hooks/conformidade.py",
-      "de": " for x in saida.splitlines() if x.endswith(\"\\trefs/heads/develop\")]",
-      "para": " for x in saida.splitlines() if True]",
-      "testes": [
-        "tests.test_conformidade_pareceres.ParecerDeItem.test_lista_em_ref_que_so_termina_em_develop_dorme"
-      ]
-    },
-    {
-      "id": "C1B2-M23",
-      "guarda": "M20.1: a lista só acorda a guarda quando existe no commit",
-      "arquivo": "hooks/conformidade.py",
-      "de": "{r}:{LISTA_FECHADA}\")[0] == 0 for r in refs)",
-      "para": "{r}:{LISTA_FECHADA}\")[0] != 0 for r in refs)",
-      "testes": [
-        "tests.test_conformidade_pareceres.ParecerDeItem.test_dorme_sem_a_lista"
       ]
     }
   ]

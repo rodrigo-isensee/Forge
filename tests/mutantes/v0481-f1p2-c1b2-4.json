@@ -1,0 +1,26 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1B2-M25",
+      "guarda": "M20.1: do `ls-remote`, só a linha de `refs/heads/develop` (o padrão casa o fim do nome)",
+      "arquivo": "hooks/conformidade.py",
+      "de": " for x in saida.splitlines() if x.endswith(\"\\trefs/heads/develop\")]",
+      "para": " for x in saida.splitlines() if True]",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_lista_em_ref_que_so_termina_em_develop_dorme"
+      ]
+    },
+    {
+      "id": "C1B2-M26",
+      "guarda": "M20.1: a lista só acorda a guarda quando existe no commit",
+      "arquivo": "hooks/conformidade.py",
+      "de": "{r}:{LISTA_FECHADA}\")[0] == 0 for r in refs)",
+      "para": "{r}:{LISTA_FECHADA}\")[0] != 0 for r in refs)",
+      "testes": [
+        "tests.test_conformidade_pareceres.ParecerDeItem.test_dorme_sem_a_lista"
+      ]
+    }
+  ]
+}
