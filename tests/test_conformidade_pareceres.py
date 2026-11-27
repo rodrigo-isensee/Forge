@@ -305,7 +305,8 @@ class ModuloPelaCopia(NoTerminal):
                     "PYTHONPATH=bin python3 -c 'import forge_pareceres'",
                     f"PYTHONPATH=/usr/lib:{self.repo}/bin python3 -I s.py",
                     "export PYTHONPATH=bin; python3 -c 'import forge_pareceres'",
-                    "python3 $D/forge_pareceres.py", "cd bin && python3 - argumento < /dev/null"],
+                    "python3 $D/forge_pareceres.py", "cd bin && python3 - argumento < /dev/null",
+                    "python3 -Xutf8 bin/forge_pareceres.py", "cd bin && PYTHONPATH=/usr/lib: python3 s.py"],
                    "forge_pareceres.py de uma cópia")
         self.libera([f"python3 {self.fora}/forge_pareceres.py", f"PYTHONPATH={self.fora} python3 -c 'import forge_pareceres'",
                      "python3 -c 'print(1)'", "cat bin/forge_pareceres.py", "grep CONTEXTOS bin/forge_pareceres.py",

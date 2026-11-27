@@ -2752,7 +2752,7 @@ class Guarda:
         alvos = [palavras[0]]
         if prog.startswith("python"):
             script = script_do_python(args)
-            pastas = (pythonpath.split(":") if pythonpath is not None else []) + ([] if script else ["."])
+            pastas = (pythonpath.split(":") if pythonpath else []) + ([] if script else ["."])  # o vazio é a corrente
             alvos += [script] if script else []
             alvos += [f"{p or '.'}/{MODULO_DE_PARECER}" for p in pastas]
         for alvo in alvos:
