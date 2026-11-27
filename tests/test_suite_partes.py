@@ -715,7 +715,7 @@ class FiacaoDoCI(unittest.TestCase):
         verificacoes = self.job("verificacoes")
         self.assertNotIn("e2e-instalacao", verificacoes)  # roda uma vez, no instalacao-quatorze
         self.assertIn("bash tests/e2e-instalacao.sh", self.job("instalacao-quatorze"))
-        self.assertNotIn("bin/forge-mutante", self.texto)  # os mutantes rodam no diario.yml, não no PR
+        self.assertNotIn("forge-mutante", self.texto)  # os mutantes rodam no diario.yml, não no PR
 
     def test_f6_diario_roda_o_que_saiu_do_pr_na_develop_e_abre_o_cartao(self):
         """F6: o que saiu do PR (suíte no 3.14, e2e no 3.12, mutantes) roda uma vez por dia na develop, sem escrever no código;
@@ -728,7 +728,7 @@ class FiacaoDoCI(unittest.TestCase):
         self.assertEqual(diario.count("persist-credentials: false"), diario.count("actions/checkout@"))
         self.assertIn('python-version: "3.14"', diario)
         self.assertIn("bash tests/e2e-instalacao.sh", diario)
-        self.assertIn("bin/forge-mutante", diario)
+        self.assertIn("forge-mutante", diario)
         self.assertEqual(re.findall(r"(?m)^      (\w+): write", diario), ["issues"])
         cartao = diario[diario.index("\n  cartao:"):]
         self.assertIn("needs: [suite-quatorze, instalacao-doze, mutantes]", cartao)
