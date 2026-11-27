@@ -6,8 +6,8 @@
       "id": "AE-M39",
       "guarda": "PR do ramo com outra base (aberto ou fechado) nao prova",
       "arquivo": "scripts/arvore-testada.py",
-      "de": "or campo(p, \"base.ref\", str) != \"develop\" for p in lista",
-      "para": "or campo(p, \"base.ref\", str) == \"develop\" for p in lista",
+      "de": "campo(p, \"base.ref\", str) != \"develop\" for p in lista",
+      "para": "campo(p, \"base.ref\", str) == \"develop\" for p in lista",
       "testes": [
         "tests.test_arvore_testada.ProvaDoPr.test_pr_empilhado_do_mesmo_ramo_ja_mesclado_ou_fechado_nao_prova"
       ]
