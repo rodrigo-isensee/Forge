@@ -38,6 +38,7 @@ SHA = re.compile(r"[0-9a-f]{40}")
 PYTHON = re.compile(r"3\.\d{1,2}")
 LIMITE_DO_LOG = 200  # commits do HEAD lidos atrás da mesma árvore (a promoção traz a develop a 1 ou 2 merges de distância)
 LIMITE_DE_CANDIDATOS = 5  # commits com a mesma árvore consultados na API
+LIMITE_DE_PAGINAS = 10  # páginas (de 100) da lista de PRs do ramo; passou disso, não prova
 LIMITE_DE_EXECUCOES = 10  # execuções do ci.yml por commit cujos jobs são lidos
 PRAZO_DA_API_S = 20
 REPOSITORIO = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
@@ -165,10 +166,27 @@ def prova_do_pr(env, ler):
             continue
         if campo(ler(f"repos/{repo}/compare/{anterior}...{cabeca}"), "status", str) not in ("ahead", "identical"):
             continue
+        if not prs_do_ramo_so_para_develop(repo, ramo, ler):
+            continue
         achou, motivo = bateria_do_run_do_pr(repo, cabeca, ramo, base, numero, ler)
         if achou:
             return True, f"árvore {arvore[:7]} igual à do head {cabeca[:7]} do PR #{numero}, {motivo}"
     return False, f"nenhum PR mesclado em {sha[:7]} tem head de mesma árvore, descendente da develop e com a bateria verde no run do PR"
+
+
+def prs_do_ramo_so_para_develop(repo, ramo, ler):
+    """True só se todos os PRs do ramo (abertos e fechados, todas as páginas) têm base `develop`: depois do merge ou do fechamento a
+    API esvazia o `pull_requests` do run de um PR empilhado do mesmo ramo e head, que não se distingue pelo run (A1 do review e S2 da
+    segurança da volta 2 do #932). Lista que falha, vem fora do formato ou passa de LIMITE_DE_PAGINAS não prova."""
+    dono = repo.partition("/")[0]
+    for pagina in range(1, LIMITE_DE_PAGINAS + 1):
+        consulta = urllib.parse.urlencode({"head": f"{dono}:{ramo}", "state": "all", "per_page": 100, "page": pagina})
+        lista = ler(f"repos/{repo}/pulls?{consulta}")
+        if type(lista) is not list or any(type(p) is not dict or campo(p, "base.ref", str) != "develop" for p in lista):
+            return False
+        if len(lista) < 100:
+            return True
+    return False
 
 
 def bateria_do_run_do_pr(repo, cabeca, ramo, base, numero, ler):

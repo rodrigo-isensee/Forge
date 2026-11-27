@@ -11,6 +11,7 @@ import sys
 import tempfile
 import threading
 import unittest
+import urllib.parse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
@@ -238,7 +239,7 @@ class ProvaDoPr(unittest.TestCase):
         return base
 
     def api(self, arvore_do_head=None, status="ahead", status_da_base="ahead", runs=None, jobs=None, base="develop",
-            repo_do_head=REPO, merge=None, merged="2026-11-26T10:00:00Z", pr=None, chamadas=None):
+            repo_do_head=REPO, merge=None, merged="2026-11-26T10:00:00Z", pr=None, chamadas=None, do_ramo=None):
         pull = pr if pr is not None else {
             "number": self.PR, "head": {"sha": self.CAB, "ref": self.RAMO, "repo": {"full_name": repo_do_head}},
             "base": {"ref": base, "sha": self.BASE},
@@ -251,6 +252,10 @@ class ProvaDoPr(unittest.TestCase):
             f"repos/{REPO}/compare/{self.ANT}...{self.CAB}": {"status": status},
             f"repos/{REPO}/compare/{self.BASE}...{self.CAB}": {"status": status_da_base},
             f"repos/{REPO}/actions/runs?head_sha={self.CAB}&event=pull_request&per_page=100": {"workflow_runs": execucoes}}
+        paginas = [[{"number": self.PR, "base": {"ref": "develop"}}]] if do_ramo is None else do_ramo
+        for pagina, conteudo in enumerate(paginas, 1):
+            consulta = urllib.parse.urlencode({"head": f"dono:{self.RAMO}", "state": "all", "per_page": 100, "page": pagina})
+            respostas[f"repos/{REPO}/pulls?{consulta}"] = conteudo
         for numero in {r.get("id") for r in execucoes} | {self.RUN}:
             lista = jobs.get(numero) if isinstance(jobs, dict) else jobs
             respostas[f"repos/{REPO}/actions/runs/{numero}/jobs?per_page=100"] = {
@@ -308,6 +313,33 @@ class ProvaDoPr(unittest.TestCase):
                 self.assertFalse(ok, motivo)
         ok, motivo = self.prova(runs=[self.rodada(pull_requests=[proprio])])
         self.assertTrue(ok, motivo)
+
+    def test_pr_empilhado_do_mesmo_ramo_ja_mesclado_ou_fechado_nao_prova(self):
+        """S2 da segurança (volta 2 do #932): a API esvazia o pull_requests do run do PR empilhado depois do merge ou do fechamento;
+        a lista de PRs do ramo (state=all, todas as páginas) com base fora da develop, falha ou formato errado não prova."""
+        mais_novo = self.RUN + 1
+        proprio = {"number": self.PR, "base": {"ref": "develop"}}
+        empilhado = {"number": 999, "base": {"ref": "melhoria/y"}}
+        cheia = [{"number": n, "base": {"ref": "develop"}} for n in range(1000, 1100)]
+        runs = [self.rodada(), self.rodada(id=mais_novo, pull_requests=[])]
+        jobs = {self.RUN: [self.job(conclusion="failure")], mais_novo: [self.job(run_id=mais_novo)]}
+        casos = {"empilhado na primeira página": [[proprio, empilhado]], "empilhado na segunda página": [cheia, [empilhado]],
+                 "lista de tipo errado": ["x"], "item fora do formato": [[proprio, "x"]], "item sem base": [[proprio, {"number": 5}]],
+                 "passou do limite de páginas": [cheia] * at.LIMITE_DE_PAGINAS}
+        for nome, paginas in casos.items():
+            with self.subTest(nome):
+                ok, motivo = self.prova(runs=runs, jobs=jobs, do_ramo=paginas)
+                self.assertFalse(ok, motivo)
+        ok, motivo = self.prova(do_ramo=[cheia, [proprio]])  # todas as páginas contra a develop: o merge real segue provando
+        self.assertTrue(ok, motivo)
+        lida = self.api()
+
+        def falha(caminho):
+            if "/pulls?head=" in caminho:
+                raise OSError("rede")
+            return lida(caminho)
+        with self.assertRaises(OSError):  # a listagem que falha não prova: main trata como falta de prova (rc 1)
+            at.prova_do_pr(self.ambiente(), falha)
 
     def test_o_run_mais_recente_verde_prova_apesar_de_um_anterior_vermelho(self):
         velho = self.RUN - 1
