@@ -4,6 +4,56 @@
   "mutantes": [
     {
       "id": "M25",
+      "guarda": "a parte que falha cala sozinha e registra",
+      "arquivo": "hooks/vigia.py",
+      "de": "except Exception as erro:  # noqa: BLE001 - dúvida não bloqueia\n        hook.registrar_erro(erro)\n        return []",
+      "para": "except ZeroDivisionError as erro:  # noqa: BLE001 - dúvida não bloqueia\n        hook.registrar_erro(erro)\n        return []",
+      "testes": [
+        "tests.test_hook_vigia_f4.AvisoComPrsEPresos.test_falha_do_gh_cala_so_a_parte_dele_e_registra"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "com agente rodando, os cartões livres não contam",
+      "arquivo": "hooks/vigia.py",
+      "de": "livres = [] if vivos else cartoes_livres(",
+      "para": "livres = [] if False else cartoes_livres(",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_agente_rodando_cala"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "sem cartão livre, nada de cartão no aviso",
+      "arquivo": "hooks/vigia.py",
+      "de": "if livres:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_vigia_parado.TimeParado.test_zero_agentes_e_cartao_livre_avisa"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "sem PR parado, nada de PR no aviso",
+      "arquivo": "hooks/vigia.py",
+      "de": "partes += [f\"PR sem agente: {', '.join(prs)}\"] if prs else []",
+      "para": "partes += [f\"PR sem agente: {', '.join(prs)}\"] if True else []",
+      "testes": [
+        "tests.test_hook_vigia_f4.AvisoComPrsEPresos.test_so_pr_do_dono_cala"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "sem preso, nada de preso no aviso",
+      "arquivo": "hooks/vigia.py",
+      "de": "partes += [f\"preso há mais de 10 min: {', '.join(presos)}\"] if presos else []",
+      "para": "partes += [f\"preso há mais de 10 min: {', '.join(presos)}\"] if True else []",
+      "testes": [
+        "tests.test_hook_vigia_f4.AvisoComPrsEPresos.test_so_pr_do_dono_cala"
+      ]
+    },
+    {
+      "id": "M30",
       "guarda": "sem nenhuma parte, nada a avisar",
       "arquivo": "hooks/vigia.py",
       "de": "if not partes:",

@@ -623,23 +623,28 @@ ROTULO_DO_DONO = "afrouxa-regra"
 _TIPO = re.compile(r"[a-z][a-z0-9:-]{0,39}")  # o tipo do agente vai ao modelo: lista positiva, como o ID do cartão
 
 
+def _objetos(valor):
+    """Os objetos de uma lista lida do `gh`; o resto, e o que não é lista, fica de fora."""
+    return [v for v in valor if isinstance(v, dict)] if isinstance(valor, list) else []
+
+
 def papel_do_pr(pr):
     """O papel a disparar no PR aberto, ou None quando ele espera só o dono (base `main`, rótulo) ou o CI."""
     if pr.get("baseRefName") == "main":
         return None
     if pr.get("mergeable") == "CONFLICTING":
         return "autor"
-    checks = [c for c in pr.get("statusCheckRollup") or [] if isinstance(c, dict)]
+    checks = _objetos(pr.get("statusCheckRollup"))
     falhos = {c.get("name") for c in checks if (c.get("conclusion") or c.get("state")) in QUEBRADO}
     if falhos - CHECKS_DE_PORTAO:
         return "autor"
     if any((c.get("status") or c.get("state")) in PENDENTE for c in checks):
         return None
     if CHECK_DE_PARECER in falhos:
-        arquivos = [f.get("path") or "" for f in pr.get("files") or [] if isinstance(f, dict)]
+        arquivos = [str(f.get("path")) for f in _objetos(pr.get("files"))]
         faltam = [papel for pasta, papel in PORTOES if not any(a.startswith(pasta) for a in arquivos)]
         return "/".join(faltam) or "autor"
-    rotulos = {r.get("name") for r in pr.get("labels") or [] if isinstance(r, dict)}
+    rotulos = {r.get("name") for r in _objetos(pr.get("labels"))}
     if ROTULO_DO_DONO in (pr.get("title") or "") and ROTULO_DO_DONO not in rotulos:
         return None
     return "autor" if falhos else "integração"
@@ -708,7 +713,7 @@ def aviso_time_parado(hook, raiz):
     try:
         if not sessao_do_jarvis(hook):
             return None
-        vivos = [a for a in agentes_rodando(hook, raiz) if isinstance(a, dict)]
+        vivos = agentes_rodando(hook, raiz)  # só objetos: `agentes.dentro_do_prazo` exige dict
         livres = [] if vivos else cartoes_livres(ler_quadro(quadro_do(raiz)) or "")
     except Exception as erro:  # noqa: BLE001 - nunca falha a sessão; dúvida não bloqueia o encerramento
         hook.registrar_erro(erro)

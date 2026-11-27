@@ -4,6 +4,46 @@
   "mutantes": [
     {
       "id": "M17",
+      "guarda": "número do PR fora da forma é ignorado",
+      "arquivo": "hooks/vigia.py",
+      "de": "if isinstance(pr, dict) and isinstance(pr.get(\"number\"), int) and",
+      "para": "if isinstance(pr, dict) and",
+      "testes": [
+        "tests.test_hook_vigia_f4.PrsParados.test_item_fora_da_forma_e_ignorado"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "PR que espera o dono ou o CI não entra na lista",
+      "arquivo": "hooks/vigia.py",
+      "de": "parados += [f\"#{pr['number']} {papel}\"] if papel else []",
+      "para": "parados += [f\"#{pr['number']} {papel}\"] if True else []",
+      "testes": [
+        "tests.test_hook_vigia_f4.PrsParados.test_pr_sem_agente_aparece_com_o_papel"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "sem gh na máquina não conta",
+      "arquivo": "hooks/vigia.py",
+      "de": "except FileNotFoundError:\n        return []  # sem gh",
+      "para": "except ZeroDivisionError:\n        return []  # sem gh",
+      "testes": [
+        "tests.test_hook_vigia_f4.PrsParados.test_sem_gh_na_maquina_nao_conta"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "sem transcript da sessão não conta preso",
+      "arquivo": "hooks/vigia.py",
+      "de": "if real is None:\n        return []\n    presos",
+      "para": "if False:\n        return []\n    presos",
+      "testes": [
+        "tests.test_hook_vigia_f4.InstanciasPresas.test_sem_transcript_da_sessao_nao_conta"
+      ]
+    },
+    {
+      "id": "M21",
       "guarda": "id fora do formato não conta preso",
       "arquivo": "hooks/vigia.py",
       "de": "if not (isinstance(aid, str) and agentes.ID_DE_AGENTE.fullmatch(aid)):",
@@ -13,7 +53,7 @@
       ]
     },
     {
-      "id": "M18",
+      "id": "M22",
       "guarda": "transcript do agente ausente não conta",
       "arquivo": "hooks/vigia.py",
       "de": "except OSError:\n            continue",
@@ -23,7 +63,7 @@
       ]
     },
     {
-      "id": "M19",
+      "id": "M23",
       "guarda": "só acima de 10 minutos conta preso",
       "arquivo": "hooks/vigia.py",
       "de": "if parado > PRESO_S:",
@@ -33,53 +73,13 @@
       ]
     },
     {
-      "id": "M20",
+      "id": "M24",
       "guarda": "tipo fora do formato não vai ao modelo",
       "arquivo": "hooks/vigia.py",
       "de": "if isinstance(a.get(\"tipo\"), str) and _TIPO.fullmatch(a[\"tipo\"]) else \"agente\"",
       "para": "if isinstance(a.get(\"tipo\"), str) else \"agente\"",
       "testes": [
         "tests.test_hook_vigia_f4.InstanciasPresas.test_tipo_fora_do_formato_vira_agente"
-      ]
-    },
-    {
-      "id": "M21",
-      "guarda": "a parte que falha cala sozinha e registra",
-      "arquivo": "hooks/vigia.py",
-      "de": "except Exception as erro:  # noqa: BLE001 - dúvida não bloqueia\n        hook.registrar_erro(erro)\n        return []",
-      "para": "except ZeroDivisionError as erro:  # noqa: BLE001 - dúvida não bloqueia\n        hook.registrar_erro(erro)\n        return []",
-      "testes": [
-        "tests.test_hook_vigia_f4.AvisoComPrsEPresos.test_falha_do_gh_cala_so_a_parte_dele_e_registra"
-      ]
-    },
-    {
-      "id": "M22",
-      "guarda": "com agente rodando, os cartões livres não contam",
-      "arquivo": "hooks/vigia.py",
-      "de": "livres = [] if vivos else cartoes_livres(",
-      "para": "livres = cartoes_livres(",
-      "testes": [
-        "tests.test_vigia_parado.TimeParado.test_agente_rodando_cala"
-      ]
-    },
-    {
-      "id": "M23",
-      "guarda": "sem PR parado, nada de PR no aviso",
-      "arquivo": "hooks/vigia.py",
-      "de": "partes += [f\"PR sem agente: {', '.join(prs)}\"] if prs else []",
-      "para": "partes += [f\"PR sem agente: {', '.join(prs)}\"]",
-      "testes": [
-        "tests.test_hook_vigia_f4.AvisoComPrsEPresos.test_so_pr_do_dono_cala"
-      ]
-    },
-    {
-      "id": "M24",
-      "guarda": "sem preso, nada de preso no aviso",
-      "arquivo": "hooks/vigia.py",
-      "de": "partes += [f\"preso há mais de 10 min: {', '.join(presos)}\"] if presos else []",
-      "para": "partes += [f\"preso há mais de 10 min: {', '.join(presos)}\"]",
-      "testes": [
-        "tests.test_hook_vigia_f4.AvisoComPrsEPresos.test_so_pr_do_dono_cala"
       ]
     }
   ]

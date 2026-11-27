@@ -77,7 +77,7 @@
       "guarda": "bateria ou catraca reprovada pede o autor",
       "arquivo": "hooks/vigia.py",
       "de": "return \"autor\" if falhos else \"integração\"",
-      "para": "return \"integração\"",
+      "para": "return \"autor\" if False else \"integração\"",
       "testes": [
         "tests.test_hook_vigia_f4.PapelDoPr.test_catraca_reprovada_pede_o_autor"
       ]

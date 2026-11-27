@@ -79,6 +79,13 @@ class PapelDoPr(unittest.TestCase):
         self.assertIsNone(vigia.papel_do_pr(pr(checks=VERDE, titulo=titulo)))
         self.assertEqual(vigia.papel_do_pr(pr(checks=VERDE, titulo=titulo, rotulos=("afrouxa-regra",))), "integração")
 
+    def test_lista_fora_da_forma_do_gh_e_ignorada(self):
+        self.assertEqual(vigia.papel_do_pr({**pr(), "statusCheckRollup": None, "labels": "x"}), "integração")
+        falho = pr(checks=(("bateria (pareceres)", "FAILURE"),), arquivos=("docs/qa/p.md",))
+        falho["statusCheckRollup"].append("lixo")
+        falho["files"].append("docs/reviews/lixo.md")
+        self.assertEqual(vigia.papel_do_pr(falho), "review/segurança")
+
     def test_catraca_reprovada_pede_o_autor(self):
         self.assertEqual(vigia.papel_do_pr(pr(checks=(("catraca", "FAILURE"),))), "autor")
 
