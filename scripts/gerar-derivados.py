@@ -22,7 +22,7 @@ GERADORES = (  # (nome, gerador, derivado)
 )
 FORA = (
     ("pesos da suíte (tests/pesos-d4.json)", "só a marca de versão os regera (E19.1), pela API do GitHub"),
-    ("mapa de testes (bin/forge-testes)", "é código, sem gerador; `bin/forge-testes --registros` o confere"),
+    ("mapa de testes", "é código, sem gerador; a conferência de registros do envio o confere"),
 )
 
 
