@@ -36,7 +36,7 @@
       "id": "RD10",
       "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.17, volta 4, A13 da segurança, S12): sem valor calculado, a variável colada no primeiro componente (${d}s) recusa",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if \"*\" in palavra_juntada(caminho).split(\"/\")[0] or any(",
+      "de": "            if colada_em_vigor(palavra_juntada(caminho).split(\"/\")[0], self.texto_da_linha) or any(",
       "para": "            if False or any(",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
@@ -46,8 +46,8 @@
       "id": "RD11",
       "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.17, volta 4, A13 da segurança, S10 e S11): sem valor calculado, o texto do valor conta também sem aspas",
       "arquivo": "hooks/conformidade.py",
-      "de": "                    EM_VIGOR_NO_TEXTO.search(t) or EM_VIGOR_NO_TEXTO.search(palavra_juntada(t)) for t in textos):",
-      "para": "                    EM_VIGOR_NO_TEXTO.search(t) for t in textos):",
+      "de": "                    EM_VIGOR_NO_TEXTO.search(t) or EM_VIGOR_NO_TEXTO.search(re.sub(r\"\\\\(.)\", r\"\\1\", palavra_juntada(t)))",
+      "para": "                    EM_VIGOR_NO_TEXTO.search(t)",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
       ]

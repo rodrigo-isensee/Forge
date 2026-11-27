@@ -4175,6 +4175,28 @@ MOTIVO_EM_VIGOR = "roda fora do sandbox ou decide as travas na raiz do Forge"  #
 # A2 da segurança (volta 1): a linha que cita uma entrada de `EM_VIGOR_NA_RAIZ`, para o destino que o hook não calcula,
 # a linha sem leitura e o erro interno (o padrão de `ESTADO_NO_TEXTO`).
 EM_VIGOR_NO_TEXTO = re.compile(r"\.githooks|\.git/hooks|devcontainer|\.claude-plugin", re.I)
+NOMES_EM_VIGOR = tuple(dict.fromkeys(c.split("/")[0] for c in EM_VIGOR_NA_RAIZ))
+
+
+def ref_inteira(nome, linha):
+    """A linha crua escreve `$nome` ou `${nome…}` como referência inteira (sem colagem por aspas ou barra)."""
+    return re.search(rf"\$(?:{nome}|\{{[#!]?{nome})(?!\w)", linha) is not None
+
+
+def colada_em_vigor(componente, linha):
+    """A2 do review e A15 da segurança (v0481 E37.21): o primeiro componente do destino sem valor calculado, lido como
+    curinga, casa uma entrada de `EM_VIGOR_NA_RAIZ` (`*s` casa `.githooks`; `*.log`, `saida-*.txt` e `*x` não). A
+    variável colada por aspas ou barra (`$d"s"`, `"$d"s`, `$d\\s`) chega como `$ds`: o nome que a linha não escreve
+    inteiro vira `*` mais o resto depois do nome que ela escreve (`*s`), ou `*` se nenhum."""
+    m = re.fullmatch(r"\$\{?(\w+)\}?", componente)
+    if m and not ref_inteira(m[1], linha):
+        n = m[1]
+        padroes = ["*" + n[k:] for k in range(1, len(n)) if ref_inteira(n[:k], linha)] or ["*"]
+    else:
+        padroes = [componente]
+    return any("*" in p and glob_casa(p, nome) for p in padroes for nome in NOMES_EM_VIGOR)
+
+
 # `.git/forge` só como nome inteiro: `.git/forge-suite-verde` é a prova da suíte, com a recusa própria (R-VERIFY).
 ESTADO_NO_TEXTO = re.compile(r"\.git/forge(?![\w.-])|forge/run|agentes\.json|\.forge/config\.json")  # C10: linha que o hook não lê e cita o estado
 # PARECER-PELO-PAPEL (v0478 E50.7, A3 de docs/security/v0479-entrega-parecer-mesclado.md): no clone do Forge, as recusas
@@ -4346,7 +4368,9 @@ class GuardaDaProva(Guarda):
         A9 da segurança (volta 2): o destino com resto (`D=.githooks; printf x > $D/pre-push`) vale igual; sem valor
         calculado, conta o texto largo do valor, como no ramo do .git: a variável de `for` e `read` recusa
         (A12, volta 3), também com o texto lido sem aspas (`for d in .git''hooks`), e a variável colada no primeiro
-        componente (`${d}s/…`) recusa (A13, volta 4); `printf x > $TMPDIR/y; cat .githooks/pre-push` segue livre."""
+        componente (`${d}s/…`) recusa (A13, volta 4) quando casa uma entrada, também colada por aspas ou barra e com o
+        valor lido sem barra invertida (`colada_em_vigor`, A15 e A2 do review, volta 5); `printf x > $TMPDIR/y; cat
+        .githooks/pre-push` e `printf x > $f.log` seguem livres."""
         super().destino_opaco(caminho, pasta)
         if not self.no_clone or not self.fim_do_opaco(caminho, pasta):
             return
@@ -4354,8 +4378,9 @@ class GuardaDaProva(Guarda):
             self.expandir(caminho, pasta), linha_juntada(self.texto_da_linha))
         if valores is None or any(SEM_VALOR in v for v in valores):
             textos = [self.texto_da_linha] if self.opaco_sem_resto(caminho, pasta) else self.textos_do_valor(caminho)[1]
-            if "*" in palavra_juntada(caminho).split("/")[0] or any(
-                    EM_VIGOR_NO_TEXTO.search(t) or EM_VIGOR_NO_TEXTO.search(palavra_juntada(t)) for t in textos):
+            if colada_em_vigor(palavra_juntada(caminho).split("/")[0], self.texto_da_linha) or any(
+                    EM_VIGOR_NO_TEXTO.search(t) or EM_VIGOR_NO_TEXTO.search(re.sub(r"\\(.)", r"\1", palavra_juntada(t)))
+                    for t in textos):
                 self.barrar("R-CONFORMIDADE", f"destino de $(…), crase ou variável sem valor calculado numa linha que cita "
                             f"o que {MOTIVO_EM_VIGOR}", "escreva o caminho literal do destino")
             return

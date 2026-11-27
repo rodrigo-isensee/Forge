@@ -1,0 +1,46 @@
+{
+  "pedido": "v0481-hook-raiz-forge",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "RD12",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.21, volta 5, A15 da segurança e A2 do review): a variável que a linha não escreve inteira ($d\"s\" chega como $ds) é lida como colada (S14, S15)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if m and not ref_inteira(m[1], linha):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RD13",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.21, volta 5, A15 da segurança e A2 do review): a colada vira * mais o resto depois do nome escrito (*x), não * sozinho, que casa tudo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        padroes = [\"*\" + n[k:] for k in range(1, len(n)) if ref_inteira(n[:k], linha)] or [\"*\"]",
+      "para": "        padroes = [\"*\"]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RD14",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.21, volta 5, A15 da segurança e A2 do review): o componente lido como curinga recusa só se casar uma entrada em vigor (S1 a S4 do review liberam)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    return any(\"*\" in p and glob_casa(p, nome) for p in padroes for nome in NOMES_EM_VIGOR)",
+      "para": "    return any(\"*\" in p for p in padroes for nome in NOMES_EM_VIGOR)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RD15",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.21, volta 5, A15 da segurança e A2 do review): o texto do valor conta também sem a barra invertida (.git\\hooks, S13)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    EM_VIGOR_NO_TEXTO.search(t) or EM_VIGOR_NO_TEXTO.search(re.sub(r\"\\\\(.)\", r\"\\1\", palavra_juntada(t)))",
+      "para": "                    EM_VIGOR_NO_TEXTO.search(t) or EM_VIGOR_NO_TEXTO.search(palavra_juntada(t))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    }
+  ]
+}
