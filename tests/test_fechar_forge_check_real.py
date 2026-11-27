@@ -78,9 +78,9 @@ class DevelopSoNoFim(unittest.TestCase):
     def mesclado_no(self):
         return [c.split()[-1] for c in self.chamadas() if c.startswith("gh pr merge melhoria/x --squash --match-head-commit")]
 
-    def autor_mescla_a_develop(self, mao=None):
+    def autor_mescla_a_develop(self, mao=None, estrategia=()):
         self.git("switch", "-q", "melhoria/x")
-        self.git("merge", "-q", "--no-commit", "develop")
+        self.git("merge", "-q", "--no-commit", *estrategia, "develop")
         if mao:
             (self.proj / "b").write_text(mao)
             self.git("add", "b")
@@ -113,6 +113,17 @@ class DevelopSoNoFim(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("parou no passo 1", r.stderr)
         self.assertIn("desatualizado: b mudou depois do parecer", r.stdout + r.stderr)
+        self.assertEqual(self.mesclado_no(), [])
+
+    def test_merge_que_descarta_a_base_desatualiza_o_parecer(self):
+        # sonda revisao-seguranca S4: fixture DevelopSoNoFim com `git merge -s ours develop` do autor e o forge-fechar real · espera: para no passo 1
+        self.autor_mescla_a_develop(estrategia=("-s", "ours"))
+        self.git("merge-base", "--is-ancestor", "develop", "melhoria/x")  # a develop entrou como pai...
+        self.assertEqual(self.git("ls-tree", "--name-only", "melhoria/x", "c"), "")  # ...sem o c dela
+        r = self.fechar("x", "--ref", "melhoria/x")
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("parou no passo 1", r.stderr)
+        self.assertIn("desatualizado: c mudou depois do parecer", r.stdout + r.stderr)
         self.assertEqual(self.mesclado_no(), [])
 
 
