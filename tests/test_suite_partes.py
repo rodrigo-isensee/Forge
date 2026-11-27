@@ -766,6 +766,94 @@ class FiacaoDoCI(unittest.TestCase):
         self.assertNotIn("por_pedido", diario)
         self.assertIn("python3 bin/forge-mutante $linha --processos 2", diario)
 
+    @staticmethod
+    def passo_do_diario(nome):
+        """O `run` do passo `nome` do diario.yml (sem o recuo do YAML), como o GitHub o entrega ao bash."""
+        diario = (RAIZ / ".github" / "workflows" / "diario.yml").read_text(encoding="utf-8")
+        i = diario.index(f"      - name: {nome}")
+        i = diario.index("        run: |\n", i) + len("        run: |\n")
+        linhas = []
+        for linha in diario[i:].splitlines():
+            if linha.strip() and not linha.startswith("          "):
+                break
+            linhas.append(linha[10:])
+        return "\n".join(linhas) + "\n"
+
+    @staticmethod
+    def jobs_do_diario():
+        diario = (RAIZ / ".github" / "workflows" / "diario.yml").read_text(encoding="utf-8")
+        blocos = re.split(r"(?m)^(?=  [a-z-]+:\n)", diario.split("\njobs:\n", 1)[1])
+        return {re.match(r"  ([a-z-]+):\n", b).group(1): b for b in blocos if re.match(r"  ([a-z-]+):\n", b)}
+
+    def rodar_passo(self, script, tmp, ambiente, caminho):
+        """Roda o `run` de um passo no bash como o GitHub (`-e -o pipefail`), com PATH e RUNNER_TEMP controlados."""
+        (tmp / "passo.sh").write_text(script, encoding="utf-8")
+        (tmp / "rt").mkdir(exist_ok=True)
+        env = {"PATH": f"{caminho}:/usr/bin:/bin", "HOME": str(tmp), "RUNNER_TEMP": str(tmp / "rt"),
+               "GITHUB_STEP_SUMMARY": str(tmp / "resumo.md"), **ambiente}
+        return subprocess.run(["bash", "--noprofile", "--norc", "-e", "-o", "pipefail", str(tmp / "passo.sh")], cwd=tmp, env=env,
+                              capture_output=True, text=True, timeout=60, check=False)
+
+    def test_f6_diario_mutante_vivo_reprova_o_job_e_so_ele(self):
+        """A1 do QA (cc91bc3): roda o passo dos mutantes com um `forge-mutante` falso; sem o `ruim=1` o job passaria com mutante
+        vivo e a issue nunca abriria. Fatia com spec que passa: rc 0; spec que falha: rc 1."""
+        for falha, rc in (("", 0), ("sim", 1)):
+            with self.subTest(falha=falha), tempfile.TemporaryDirectory() as tmp:
+                tmp = Path(tmp)
+                (tmp / "bin").mkdir()
+                (tmp / "bin" / "forge-mutante").write_text(
+                    "import os, sys\nsys.exit(1 if os.environ.get('FALHA') else 0)\n", encoding="utf-8")
+                (tmp / "tests" / "mutantes").mkdir(parents=True)
+                for n in range(30):
+                    (tmp / "tests" / "mutantes" / f"s{n:02d}.json").write_text(json.dumps(
+                        {"pedido": "x", "mutantes": [{"id": "M1"}]}), encoding="utf-8")
+                (tmp / "py").mkdir()
+                (tmp / "py" / "python3").symlink_to(sys.executable)
+                r = self.rodar_passo(self.passo_do_diario("Mutantes da fatia"), tmp, {"FALHA": falha}, str(tmp / "py"))
+                self.assertEqual(r.returncode, rc, r.stdout + r.stderr)
+                if falha:
+                    self.assertIn("mutante vivo ou inválido em: tests/mutantes/s", r.stdout)
+
+    def test_f6_diario_cada_job_le_a_develop_e_a_suite_tem_cinco_partes(self):
+        """A1 do QA: `ref: develop` em cada checkout (sem ele o diário testaria a branch padrão), matriz de 5 partes casando com o
+        `--parte "$PARTE/5"` e o rótulo `/5`, e cada job com `timeout-minutes`."""
+        jobs = self.jobs_do_diario()
+        self.assertEqual(sorted(jobs), ["cartao", "instalacao-doze", "mutantes", "suite-quatorze"])
+        for nome in ("suite-quatorze", "instalacao-doze", "mutantes"):
+            with self.subTest(nome):
+                self.assertRegex(jobs[nome], r"actions/checkout@\S+ # \S+\n        with:\n          ref: develop\n")
+                self.assertEqual(jobs[nome].count("ref: develop"), jobs[nome].count("actions/checkout@"))
+        for nome, bloco in jobs.items():
+            self.assertRegex(bloco, r"(?m)^    timeout-minutes: \d+$", nome)
+        suite = jobs["suite-quatorze"]
+        self.assertEqual(self.casar(r"(?m)^        parte: \[(.*)\]$", suite).group(1), "1, 2, 3, 4, 5")
+        self.assertEqual(re.findall(r'--parte "\$PARTE/(\d+)"', suite), ["5"])
+        self.assertIn("/5)", self.casar(r"(?m)^    name: (.*)$", suite).group(1))
+
+    def test_f6_diario_cartao_comenta_na_issue_aberta_e_so_abre_se_nao_ha(self):
+        """A2 do QA: roda o passo do cartão com um `gh` falso. Com issue aberta, comenta nela e não cria outra; sem, cria."""
+        for aberta, esperado in (("42", ["issue list", "issue comment 42"]), ("", ["issue list", "issue create"])):
+            with self.subTest(aberta=aberta), tempfile.TemporaryDirectory() as tmp:
+                tmp = Path(tmp)
+                (tmp / "fake").mkdir()
+                gh = tmp / "fake" / "gh"
+                gh.write_text('#!/bin/sh\necho "$1 $2 $3" >> "$LOG"\n[ "$2" = list ] && printf %s "$ABERTA"\nexit 0\n', encoding="utf-8")
+                gh.chmod(0o755)
+                amb = {"LOG": str(tmp / "log"), "ABERTA": aberta, "GH_TOKEN": "x", "REPO": "o/r", "RUN_URL": "u",
+                       "SUITE": "failure", "INSTALACAO": "success", "MUTANTES": "success"}
+                r = self.rodar_passo(self.passo_do_diario("Abre a issue"), tmp, amb, str(tmp / "fake"))
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                chamadas = [l.strip() for l in (tmp / "log").read_text(encoding="utf-8").splitlines()]
+                self.assertEqual([" ".join(c.split()[:3]) if c.startswith("issue comment") else " ".join(c.split()[:2])
+                                  for c in chamadas], esperado)
+
+    def test_f6_fumaca_do_python_3_14_roda_de_fato(self):
+        """A2 do QA: o passo da fumaça do job `instalacao-quatorze` roda os dois testes, e nada de `run: true` no lugar."""
+        bloco = self.job("instalacao-quatorze")
+        i = bloco.index('      - name: "Fumaça no Python 3.14')
+        passo = bloco[i:bloco.index("      - name:", i + 10)]
+        self.assertIn("        run: python3 -m unittest tests.test_forge.Neutralidade tests.test_forge.Referencias -v\n", passo)
+
     def test_partes_pulam_a_suite_so_com_a_arvore_provada(self):
         """SP4 e M2: um job prévio único tira a prova (F6: só a do Python 3.12); as 5 partes dependem dele e o
         preparo e a suíte só rodam sem a prova (falha fechada). A prova no passo de cada perna dava o `outputs` da última perna."""
