@@ -2923,6 +2923,14 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(lote) - len(liberam), 25, "papel × pasta × forma, no clone e em wt/*; a variável no alvo e a linha sem leitura, dono incluído (A5, A6)")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
 
+    def test_fixtures_da_raiz_do_forge(self):  # HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1): o que roda fora do sandbox
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith("HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (")]
+        liberam = [n for n, f in lote if f.dados["esperado"]["codigo"] == 0]
+        self.assertGreaterEqual(len(liberam), 27, "a cópia de wt/, scripts/ (também pela variável de for e read), a leitura, o valor calculado fora, a linha sem a entrada, o repositório fora do Forge e a variável colada que não casa entrada (S1-S4 do review, $TMPDIR inteiro e $f colado a x)")
+        self.assertGreaterEqual(len(lote) - len(liberam), 40, "sondas s0-s6, S1-S15 e a variável de for e read; Write, Edit, MultiEdit, Bash e interpretador; wt/ e a cópia principal")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
     def test_fixtures_do_controle_so_jarvis(self):  # CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (v0478 E63.1): pedido e brief da pasta de controle
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
                 if f.dados.get("descricao", "").startswith("CONTROLE-PEDIDOS-E-BRIEFS-SO-JARVIS (")]

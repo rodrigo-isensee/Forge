@@ -1,0 +1,76 @@
+{
+  "pedido": "v0481-hook-raiz-forge",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "RE1",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A3 do QA): a entrada .githooks/ de EM_VIGOR_NA_RAIZ conta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "EM_VIGOR_NA_RAIZ = (\".githooks/\", \".git/hooks/\", \".devcontainer/\", \".devcontainer.json\", \".claude-plugin/\")",
+      "para": "EM_VIGOR_NA_RAIZ = (\".git/hooks/\", \".devcontainer/\", \".devcontainer.json\", \".claude-plugin/\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RE2",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A3 do QA): a entrada .git/hooks/ de EM_VIGOR_NA_RAIZ conta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "EM_VIGOR_NA_RAIZ = (\".githooks/\", \".git/hooks/\", \".devcontainer/\", \".devcontainer.json\", \".claude-plugin/\")",
+      "para": "EM_VIGOR_NA_RAIZ = (\".githooks/\", \".devcontainer/\", \".devcontainer.json\", \".claude-plugin/\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RE3",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A3 do QA): a entrada .devcontainer/ de EM_VIGOR_NA_RAIZ conta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "EM_VIGOR_NA_RAIZ = (\".githooks/\", \".git/hooks/\", \".devcontainer/\", \".devcontainer.json\", \".claude-plugin/\")",
+      "para": "EM_VIGOR_NA_RAIZ = (\".githooks/\", \".git/hooks/\", \".devcontainer.json\", \".claude-plugin/\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RE4",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A3 do QA): a entrada .devcontainer.json de EM_VIGOR_NA_RAIZ conta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "EM_VIGOR_NA_RAIZ = (\".githooks/\", \".git/hooks/\", \".devcontainer/\", \".devcontainer.json\", \".claude-plugin/\")",
+      "para": "EM_VIGOR_NA_RAIZ = (\".githooks/\", \".git/hooks/\", \".devcontainer/\", \".claude-plugin/\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RE5",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A3 do QA): a entrada .claude-plugin/ de EM_VIGOR_NA_RAIZ conta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "EM_VIGOR_NA_RAIZ = (\".githooks/\", \".git/hooks/\", \".devcontainer/\", \".devcontainer.json\", \".claude-plugin/\")",
+      "para": "EM_VIGOR_NA_RAIZ = (\".githooks/\", \".git/hooks/\", \".devcontainer/\", \".devcontainer.json\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RT1",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A1): o texto de interpretador que só lê segue livre",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if not self.no_clone or not ESCRITA_NO_TEXTO.search(texto):",
+      "para": "        if not self.no_clone:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RT2",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A1): o texto de interpretador recusa só se cita a entrada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if c.rstrip(\"/\") in texto:",
+      "para": "            if True:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    }
+  ]
+}

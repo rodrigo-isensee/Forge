@@ -1,0 +1,56 @@
+{
+  "pedido": "v0481-hook-raiz-forge",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "RD7",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.9, volta 2, A9): com resto e sem valor calculado, só o texto preciso do valor conta",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            textos = [self.texto_da_linha] if self.opaco_sem_resto(caminho, pasta) else self.textos_do_valor(caminho)[1]",
+      "para": "            textos = [self.texto_da_linha]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RD8",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.9, volta 2, A9): sem valor calculado, a linha inteira conta só sem resto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            textos = [self.texto_da_linha] if self.opaco_sem_resto(caminho, pasta) else self.textos_do_valor(caminho)[1]",
+      "para": "            textos = [self.texto_da_linha] if not self.opaco_sem_resto(caminho, pasta) else self.textos_do_valor(caminho)[1]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RD9",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.13, volta 3, A12 da segurança e A2 do review): com resto e sem valor calculado, conta o texto largo do valor (a variável de for e read)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            textos = [self.texto_da_linha] if self.opaco_sem_resto(caminho, pasta) else self.textos_do_valor(caminho)[1]",
+      "para": "            textos = [self.texto_da_linha] if self.opaco_sem_resto(caminho, pasta) else self.textos_do_valor(caminho)[0]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RD10",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.17, volta 4, A13 da segurança, S12): sem valor calculado, a variável colada no primeiro componente (${d}s) recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            if colada_em_vigor(palavra_juntada(caminho).split(\"/\")[0], self.texto_da_linha) or any(",
+      "para": "            if False or any(",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    },
+    {
+      "id": "RD11",
+      "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.17, volta 4, A13 da segurança, S10 e S11): sem valor calculado, o texto do valor conta também sem aspas",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                    EM_VIGOR_NO_TEXTO.search(t) or EM_VIGOR_NO_TEXTO.search(re.sub(r\"\\\\(.)\", r\"\\1\", palavra_juntada(t)))",
+      "para": "                    EM_VIGOR_NO_TEXTO.search(t)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.9, volta 2; R-CONFORMIDADE): sonda S7 da segurança (A9): o destino por variável com resto (D=.githooks; > $D/pre-push) vale pelo valor calculado, como no projeto.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    ".githooks/pre-push": "#!/bin/sh\n",
+    ".githooks/commit-msg": "#!/bin/sh\n",
+    ".devcontainer/devcontainer.json": "{}\n",
+    "scripts/x.sh": "#!/bin/sh\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "D=.githooks; printf x > $D/pre-push"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:devops-engineer"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "arquivo em vigor (.githooks/)"
+  }
+}
