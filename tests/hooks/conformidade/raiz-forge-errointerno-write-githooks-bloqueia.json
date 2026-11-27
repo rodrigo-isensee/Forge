@@ -1,5 +1,5 @@
 {
-  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.21, volta 5; R-CONFORMIDADE): sonda S15 da segurança (A15): a variável entre aspas colada a n (\"$d\"n, lida como *n) casa .claude-plugin e recusa na raiz.",
+  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 6; R-CONFORMIDADE): erro interno no Write cujo caminho cita .githooks recusa (a falha fecha; o Write não passa pelo sandbox do SO).",
   "arquivos": {
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
@@ -14,9 +14,10 @@
     "CLAUDE_PROJECT_DIR": "{tmp}/proj"
   },
   "entrada": {
-    "tool_name": "Bash",
+    "tool_name": "Write",
     "tool_input": {
-      "command": "for d in .claude-plugi; do printf x > \"$d\"n/plugin.json; done"
+      "file_path": "{tmp}/proj/.githooks/pre-push",
+      "content": "x\n"
     },
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9",
@@ -25,6 +26,11 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "variável sem valor calculado"
+    "stderr": "cita o que roda fora do sandbox na raiz",
+    "erros_log": "erro forcado"
+  },
+  "forcar": {
+    "onde": "Guarda.arquivo",
+    "como": "erro"
   }
 }
