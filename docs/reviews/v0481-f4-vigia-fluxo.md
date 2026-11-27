@@ -18,7 +18,8 @@ Achados da volta 1 (`04b508f6`):
 - A5 segue como cartão depois do merge.
 
 ## Verificações
-- ci: dd25e4a821e0e284215c2916f78147edbd285e7e verde (`gh pr checks 931`: suíte 1/5 a 5/5, passos, python 3.14, verificações longas, instalação, árvore já provada, teto de pulados e `catraca` verdes; `bateria` e `bateria (pareceres)` esperam os pareceres).
+- ci: dd25e4a821e0e284215c2916f78147edbd285e7e verde
+- CI lido em `gh pr checks 931`: suíte 1/5 a 5/5, passos, python 3.14, verificações longas, instalação, árvore já provada, teto de pulados e `catraca` verdes; `bateria` e `bateria (pareceres)` esperam os pareceres.
 - Testes afetados, à mão: `python3 -m unittest tests.test_hook_vigia_f4 tests.test_forge_status_estado`, 70 testes OK.
 - Mutantes: `bin/forge-mutante` em `v0481-f4-vigia-fluxo-7.json` (M49 a M52) e `v0481-s1-status.json` (M5 a M8), todos mortos; `--cobertura --base 04b508f6`, rc 0.
 - Leitura dos testes novos de `GravacaoDaLista`: o caminho da lista vem do `lista_de_prs` remendado no `setUp`, então o `renovar_prs_abertos` do teste do `proximo` chega de fato à gravação; o teste do disco cheio confere a lista anterior intacta e a pasta só com ela.
