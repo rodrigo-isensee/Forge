@@ -16,8 +16,8 @@
       "id": "M13",
       "guarda": "toda chave da execução tem de casar",
       "arquivo": "scripts/arvore-testada.py",
-      "de": "or any(campo(execucao, k, str) != v",
-      "para": "or all(campo(execucao, k, str) != v",
+      "de": "or any(campo(execucao, k, str) != v for k, v in da_execucao.items()):\n            continue\n        do_job = {\"name\"",
+      "para": "or all(campo(execucao, k, str) != v for k, v in da_execucao.items()):\n            continue\n        do_job = {\"name\"",
       "testes": [
         "tests.test_arvore_testada.ProvaValida.test_execucao_que_nao_prova_sai_falso"
       ]
@@ -56,8 +56,8 @@
       "id": "M17",
       "guarda": "exatamente um job com o nome, todos os campos iguais",
       "arquivo": "scripts/arvore-testada.py",
-      "de": "if len(com_nome) == 1 and all(",
-      "para": "if len(com_nome) >= 1 and all(",
+      "de": "if len(com_nome) == 1 and all(campo(com_nome[0], k, type(v)) == v for k, v in do_job.items()):\n            return True, f\"develop",
+      "para": "if len(com_nome) >= 1 and all(campo(com_nome[0], k, type(v)) == v for k, v in do_job.items()):\n            return True, f\"develop",
       "testes": [
         "tests.test_arvore_testada.ProvaValida.test_job_que_nao_prova_sai_falso"
       ]
