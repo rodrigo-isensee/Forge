@@ -1,7 +1,7 @@
 ---
 tipo: revisao-devops
 contrato: 1
-pedido: v0481
+pedido: release-0.47.20
 branch: melhoria/v0481-release-0-47-20
 commit: 1e301536467df853dae1e7229952b930078c979d
 parecer: aprovado
