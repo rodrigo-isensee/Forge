@@ -1,0 +1,158 @@
+name: Diário
+
+# F6 (v0481 E32.1): o que saiu do CI do PR roda uma vez por dia na develop: a suíte inteira no Python 3.14, o e2e de instalação no
+# 3.12 e uma fatia dos mutantes declarados (tests/mutantes/, uma spec por chamada; o dia do ano escolhe a fatia: todas passam em 30 dias). Quebrou:
+# o job `cartao` abre (ou comenta, se já houver) uma issue. Só leitura do código; o único job com escrita é o `cartao`, e só em
+# issues. Não é check exigido nem entra em agregador. O `schedule` só roda a partir do arquivo na branch padrão; o
+# `workflow_dispatch` é para rodar à mão.
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diario
+  cancel-in-progress: false
+
+jobs:
+  suite-quatorze:
+    name: diário suíte (python 3.14, parte ${{ matrix.parte }}/5)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        parte: [1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: develop
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: env com -a (uutils-coreutils do apt; mesmo preparo da suíte do PR, CI-ENV-ARGV0)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends rust-coreutils gnu-coreutils
+          alvo=/usr/lib/cargo/bin/coreutils/env
+          [ -x "$alvo" ] || { echo "faltou $alvo depois da instalação"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/env-argv0"
+          ln -sf "$alvo" "$RUNNER_TEMP/env-argv0/env"
+          echo "$RUNNER_TEMP/env-argv0" >> "$GITHUB_PATH"
+          export PATH="$RUNNER_TEMP/env-argv0:$PATH"
+          env -a x true || { echo "o env $alvo não aceita -a"; exit 1; }
+          gnu=$(command -v gnuenv) || { echo "faltou gnuenv depois da instalação"; exit 1; }
+          [ "$("$gnu" --s 'echo a  b')" = "a b" ] || { echo "o $gnu não divide --s como o GNU"; exit 1; }
+      - name: Testes do Forge (parte)
+        env:
+          PARTE: ${{ matrix.parte }}
+        run: |
+          set -o pipefail
+          python3 --version
+          FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json" python3 scripts/suite-partes.py --parte "$PARTE/5" 2>&1 | tee "$RUNNER_TEMP/suite.log"
+      - name: Falhas no resumo (teste, módulo, linha e erro de cada falha)
+        if: ${{ !cancelled() }}
+        env:
+          ROTULO: diário suíte (python 3.14), parte ${{ matrix.parte }}/5
+        run: python3 -I scripts/falhas-no-resumo.py "$ROTULO" "$RUNNER_TEMP/suite.log"
+
+  instalacao-doze:
+    name: diário instalação (python 3.12)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: develop
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+      - name: Claude Code CLI (nova tentativa só na instalação, por falha de rede; confere a versão)
+        run: |
+          instalar() { npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296 && node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"; }
+          instalar || { echo "instalação falhou (rede); uma segunda tentativa"; sleep 5; instalar; }
+          claude --version
+      - name: Instala o Forge num projeto vazio e inicializa (Python 3.12)
+        run: bash tests/e2e-instalacao.sh
+
+  mutantes:
+    name: diário mutantes (fatia do dia)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: develop
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Mutantes da fatia (uma spec por chamada; os pendentes conhecidos ficam de fora)
+        run: |
+          # Uma spec por chamada: o forge-mutante recusa (rc 2) id repetido entre as specs de uma chamada, e as specs de pedidos
+          # antigos e de pedidos divididos repetem M1, M2... Os mutantes de tests/fixtures/mutantes-pendentes.txt (a catraca que
+          # só encolhe, ConferirTodas) têm o `de` fora da fonte e saem da fatia por --ids: a issue avisa só quebra nova.
+          python3 -I - <<'PY' > "$RUNNER_TEMP/fatia.txt"
+          import datetime, json, pathlib
+          pendentes = {}
+          arquivo = pathlib.Path("tests/fixtures/mutantes-pendentes.txt")
+          for linha in (arquivo.read_text(encoding="utf-8").splitlines() if arquivo.is_file() else []):
+              if linha.strip() and not linha.startswith("#"):
+                  spec, _, id_ = linha.strip().rpartition(": ")
+                  pendentes.setdefault(spec, set()).add(id_)
+          dia = datetime.date.today().timetuple().tm_yday
+          for i, spec in enumerate(sorted(pathlib.Path("tests/mutantes").glob("*.json"))):
+              if i % 30 != dia % 30:
+                  continue
+              fora = pendentes.get(spec.as_posix(), set())
+              ids = [m["id"] for m in json.loads(spec.read_text(encoding="utf-8"))["mutantes"] if m["id"] not in fora]
+              if ids:
+                  print(spec.as_posix() + (" --ids " + ",".join(ids) if fora else ""))
+          PY
+          echo "specs da fatia: $(wc -l < "$RUNNER_TEMP/fatia.txt")" >> "$GITHUB_STEP_SUMMARY"
+          ruim=0
+          while IFS= read -r linha; do
+            [ -n "$linha" ] || continue
+            # shellcheck disable=SC2086
+            python3 bin/forge-mutante $linha --processos 2 || { echo "mutante vivo ou inválido em: $linha"; ruim=1; }
+          done < "$RUNNER_TEMP/fatia.txt"
+          exit "$ruim"
+
+  cartao:
+    name: diário abre o cartão se algo quebrou
+    needs: [suite-quatorze, instalacao-doze, mutantes]
+    if: always() && (needs.suite-quatorze.result != 'success' || needs.instalacao-doze.result != 'success' || needs.mutantes.result != 'success')
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write  # só gh issue create e comment
+    steps:
+      - name: Abre a issue (ou comenta na aberta)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SUITE: ${{ needs.suite-quatorze.result }}
+          INSTALACAO: ${{ needs.instalacao-doze.result }}
+          MUTANTES: ${{ needs.mutantes.result }}
+        run: |
+          titulo="CI diário quebrou na develop"
+          corpo="Suíte 3.14: $SUITE; instalação 3.12: $INSTALACAO; mutantes: $MUTANTES. Execução: $RUN_URL"
+          aberta=$(gh issue list --repo "$REPO" --state open --search "\"$titulo\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$aberta" ]; then
+            gh issue comment "$aberta" --repo "$REPO" --body "$corpo"
+          else
+            gh issue create --repo "$REPO" --title "$titulo" --body "$corpo"
+          fi

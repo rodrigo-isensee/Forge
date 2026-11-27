@@ -1,0 +1,46 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "leitura: contexto sem status das contas fica de fora do resultado",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if dela:\n                lidos[tipo] = conferir(",
+      "para": "if True:\n                lidos[tipo] = conferir(",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c1_status_do_bot_ignorado"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "leitura: contas fora de um conjunto de str não vazias é recusada (M1.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if not isinstance(contas, (set, frozenset)) or not all(",
+      "para": "if False and not all(",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_contas_que_nao_sao_conjunto_recusadas"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "leitura: login vazio nas contas é recusado (M1.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "isinstance(x, str) and x for x in contas",
+      "para": "isinstance(x, str) for x in contas",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_contas_com_login_vazio_recusadas"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "leitura: resposta do gh fora do contrato vira Recusa (M19.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "raise Recusa(f\"resposta do gh fora do contrato",
+      "para": "raise RuntimeError(f\"resposta do gh fora do contrato",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_resposta_fora_do_contrato_vira_recusa"
+      ]
+    }
+  ]
+}

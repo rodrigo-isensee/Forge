@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "leitura: a descrição casa inteira, não pelo começo (M7.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "d = DESCRICAO.fullmatch(status.get(\"description\") or \"\")",
+      "para": "d = DESCRICAO.match(status.get(\"description\") or \"\")",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c9_descricao_fora_da_forma"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "leitura: o target_url casa inteiro, não por trecho (M6.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "u = URL_DO_COMENTARIO.fullmatch(status.get(\"target_url\") or \"\")",
+      "para": "u = URL_DO_COMENTARIO.search(status.get(\"target_url\") or \"\")",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c8_target_url_fora_do_formato"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "leitura: comentário de conta fora da lista não vale (M5.2)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "if not isinstance(c, dict) or c.get(\"html_url\") != u[0] or (c.get(\"user\") or {}).get(\"login\") not in contas:",
+      "para": "if not isinstance(c, dict) or c.get(\"html_url\") != u[0]:",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c7_comentario_de_outra_conta"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "leitura: contexto fora da lista fechada, por igualdade exata, fica de fora (M2.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "dela = [s for s in lista if s.get(\"context\") == contexto and (s.get(\"creator\") or {}).get(\"login\") in contas]",
+      "para": "dela = [s for s in lista if contexto in str(s.get(\"context\")).lower() and (s.get(\"creator\") or {}).get(\"login\") in contas]",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_c3_contexto_parecido"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "leitura: linha do frontmatter sem `chave: valor` fica de fora (M8.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "return dict(x.split(\": \", 1) for x in linhas[1:linhas.index(\"---\", 1)] if \": \" in x)",
+      "para": "return dict(x.split(\": \", 1) for x in linhas[1:linhas.index(\"---\", 1)] if x)",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_linha_do_frontmatter_sem_chave_valor_fica_de_fora"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "leitura: status sem descrição não vale, sem quebrar (M7.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "status.get(\"description\") or \"\")",
+      "para": "status.get(\"description\"))",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_status_sem_descricao_ou_sem_target_url"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "leitura: status sem target_url não vale, sem quebrar (M6.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "status.get(\"target_url\") or \"\")",
+      "para": "status.get(\"target_url\"))",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_status_sem_descricao_ou_sem_target_url"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "leitura: item da página que não é objeto fica de fora (M19.1)",
+      "arquivo": "bin/forge_pareceres.py",
+      "de": "lista, lidos = [s for p in paginas for s in p if isinstance(s, dict)], {}",
+      "para": "lista, lidos = [s for p in paginas for s in p if isinstance(s, object)], {}",
+      "testes": [
+        "tests.test_forge_pareceres.Ler.test_item_da_pagina_que_nao_e_objeto_fica_de_fora"
+      ]
+    }
+  ]
+}

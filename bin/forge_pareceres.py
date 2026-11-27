@@ -1,5 +1,6 @@
-"""G2.1 (pedido v0481, ADR 0019): só a escrita do parecer de portão como comentário do PR e status do commit, pelo `gh` da sessão
-(grátis; R-CUSTO); a leitura que decide é o G2.2. Erro, saída ilegível ou sem `gh`: `Recusa`, nada a mais se grava (falha fechada)."""
+"""G2.1 (pedido v0481, ADR 0019): a escrita do parecer de portão como comentário do PR e status do commit, pelo `gh` da sessão
+(grátis; R-CUSTO), e a leitura do G2.2 (`ler`), que nada chama ainda: o `pr` passa a lê-la depois das mitigações cortadas do G2.1.
+Erro, saída ilegível ou sem `gh`: `Recusa`, nada a mais se grava (falha fechada)."""
 import hashlib
 import json
 import re
@@ -13,6 +14,8 @@ TETO_DA_DESCRICAO = 140  # limite do GitHub; acima, recusa (M7.1)
 DESCRICAO_APROVADA = re.compile(r"^(aprovado|riscos-aceitos) · sha256 [0-9a-f]{64} · ")
 REMOTO = re.compile(r"(?:(?:https?|ssh)://(?:[^@/]+@)?|[^@/:]+@)([^/:@]+)[:/]([^/]+)/([^/]+?)(?:\.git)?/?")  # M18.1
 URL_DO_PR = re.compile(r"https://([^/]+)/([^/]+)/([^/]+)/pull/[0-9]+")
+URL_DO_COMENTARIO = re.compile(r"https://([^/]+)/([^/]+)/([^/]+)/pull/([0-9]+)#issuecomment-([0-9]+)")  # M6.1
+DESCRICAO = re.compile(r"(aprovado|riscos-aceitos|reprovado) · sha256 ([0-9a-f]{64}) · [0-9]+ bloqueantes · [0-9]+ recomendados")
 
 
 class Recusa(Exception):
@@ -94,6 +97,56 @@ def agregado(raiz, sha, exigidos):
         if not dela or dela[0].get("state") != "success" or not DESCRICAO_APROVADA.match(dela[0].get("description") or ""):
             faltam.append(CONTEXTOS[tipo])
     return ("pending", f"faltam: {', '.join(faltam)}"[:TETO_DA_DESCRICAO]) if faltam else ("success", "todos os exigidos")
+
+
+def frontmatter(texto):
+    """Os campos `chave: valor` do bloco entre a primeira linha `---` e a seguinte; sem o bloco, {}."""
+    linhas = normalizar(texto).split("\n")
+    if linhas[0] != "---" or "---" not in linhas[1:]:
+        return {}
+    return dict(x.split(": ", 1) for x in linhas[1:linhas.index("---", 1)] if ": " in x)
+
+
+def conferir(raiz, repo, pr, pedido, tipo, status, contas):
+    """(veredito, url) do status cujo comentário está íntegro no PR do head; (None, motivo) se não vale. Nunca segue o
+    `target_url`: só o id dele vai à API do repositório conferido (M6.1). Erro do `gh`: Recusa (M19.1)."""
+    d = DESCRICAO.fullmatch(status.get("description") or "")
+    u = URL_DO_COMENTARIO.fullmatch(status.get("target_url") or "")
+    if not d or ESTADOS[d[1]] != status.get("state"):
+        return None, "descrição fora da forma do publicar ou veredito diferente do estado (M7.1, M8.1)"
+    if not u or tuple(x.lower() for x in u.groups()[:3]) != repo or int(u[4]) != pr["number"]:
+        return None, "target_url fora de um comentário do PR do head (M6.1)"
+    c = gh(raiz, ["api", "--hostname", repo[0], f"repos/{repo[1]}/{repo[2]}/issues/comments/{u[5]}"])
+    if not isinstance(c, dict) or c.get("html_url") != u[0] or (c.get("user") or {}).get("login") not in contas:
+        return None, "comentário de outro PR ou de conta fora da lista (M5.2, M6.1)"
+    if hashlib.sha256(normalizar(str(c.get("body"))).encode()).hexdigest() != d[2]:
+        return None, "comentário editado depois do status (M5.1)"
+    f = frontmatter(str(c.get("body")))
+    if (f.get("commit"), f.get("branch"), f.get("pedido"), f.get("tipo"), f.get("parecer")) != (
+            pr["headRefOid"], pr["headRefName"], pedido, tipo, d[1]):
+        return None, "commit, branch, pedido, tipo ou veredito do texto diferente do status (M8.1)"
+    return d[1], u[0]
+
+
+def ler(raiz, branch, sha, pedido, contas):
+    """G2.2, a leitura (ADR 0019, seção 3): {tipo: (veredito, url) ou (None, motivo)} do status mais novo de cada contexto da
+    lista, entre os das `contas` (o filtro vem antes do mais novo; M1.1, M1.2, M2.1), no `sha` head do PR aberto da `branch`.
+    Contexto sem status das contas fica de fora. Todas as páginas; resposta ilegível ou fora do contrato: Recusa (M19.1)."""
+    if not isinstance(contas, (set, frozenset)) or not all(isinstance(x, str) and x for x in contas):
+        raise Recusa("contas fora de um conjunto de logins não vazios; o filtro é igualdade exata (M1.1)")
+    repo, pr = repositorio_do_remoto(raiz), pr_aberto(raiz, branch, sha)
+    paginas = gh(raiz, ["api", "--hostname", repo[0], "--paginate", "--slurp", f"repos/{repo[1]}/{repo[2]}/commits/{sha}/statuses"])
+    if not isinstance(paginas, list) or not all(isinstance(p, list) for p in paginas):
+        raise Recusa("statuses ilegíveis (M19.1)")
+    lista, lidos = [s for p in paginas for s in p if isinstance(s, dict)], {}
+    try:
+        for tipo, contexto in CONTEXTOS.items():
+            dela = [s for s in lista if s.get("context") == contexto and (s.get("creator") or {}).get("login") in contas]
+            if dela:
+                lidos[tipo] = conferir(raiz, repo, pr, pedido, tipo, dela[0], contas)
+    except (KeyError, TypeError, AttributeError, ValueError) as e:  # como o `publicar`
+        raise Recusa(f"resposta do gh fora do contrato ({type(e).__name__}) (M19.1)") from None
+    return lidos
 
 
 def publicar(raiz, tipo, veredito, texto, sha, branch, bloqueantes, recomendados, exigidos):

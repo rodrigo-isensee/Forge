@@ -36,8 +36,8 @@
       "id": "M27",
       "guarda": "agregado: item da página que não é objeto fica de fora",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "for s in p if isinstance(s, dict)]",
-      "para": "for s in p if True]",
+      "de": "faltam = [s for p in paginas for s in p if isinstance(s, dict)]",
+      "para": "faltam = [s for p in paginas for s in p if True]",
       "testes": [
         "tests.test_forge_pareceres.Agregado.test_item_que_nao_e_objeto_fica_de_fora"
       ]

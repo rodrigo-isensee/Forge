@@ -41,8 +41,8 @@
     {"id": "F13", "guarda": "E2.270: o erro é a exceção, não a linha seguinte da mensagem", "arquivo": "scripts/falhas-no-resumo.py",
      "de": "if not recuada and antes_recuada and not linha.startswith", "para": "if not recuada and not linha.startswith",
      "testes": ["tests.test_falhas_no_resumo.Leitor.test_primeira_linha_do_erro_e_a_da_excecao_nunca_o_diff"]},
-    {"id": "F14", "guarda": "E2.270: a rápida do 3.14 chama o leitor sem -I (python isolado)", "arquivo": ".github/workflows/ci.yml",
-     "de": "ROTULO: checagem rápida (python 3.14), parte ${{ matrix.parte }}/5\n        run: python3 -I scripts/falhas-no-resumo.py", "para": "ROTULO: checagem rápida (python 3.14), parte ${{ matrix.parte }}/5\n        run: python3 scripts/falhas-no-resumo.py",
+    {"id": "F14", "guarda": "E2.270: a rápida do 3.12 chama o leitor sem -I (python isolado)", "arquivo": ".github/workflows/ci.yml",
+     "de": "ROTULO: checagem rápida (python 3.12), parte ${{ matrix.parte }}/5\n        run: python3 -I scripts/falhas-no-resumo.py", "para": "ROTULO: checagem rápida (python 3.12), parte ${{ matrix.parte }}/5\n        run: python3 scripts/falhas-no-resumo.py",
      "testes": ["tests.test_falhas_no_resumo.Fiacao.test_jobs_que_rodam_a_suite_chamam_o_leitor_depois_do_teste"]}
   ]
 }
