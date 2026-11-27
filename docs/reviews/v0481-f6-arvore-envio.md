@@ -16,7 +16,7 @@ data: 2026-11-27
 - A3 (recomendado) docs/protecao-de-branch.md:31 · "erro ou falha do job, a suíte roda inteira": com o job `arvore-envio` em falha (checkout, setup), as partes ficam puladas pelo `needs` e o agregador sai vermelho; a suíte não roda. Corrija o texto (vermelho, não suíte inteira) ou o `if` das partes.
 
 ## Sondas
-- S1 · prova_do_pr na API real, SHA=11fc1867 (merge do #931, árvore 13aadd8 igual à do head d2c4831, bateria success no run 45959949382) · espera: (True, ...) · obtido: (False, 'nenhum PR mesclado em 11fc186 tem head de mesma árvore, ...'); mesmo resultado em 2bdf1a2 (#929)
+- S1 · prova_do_pr na API real, SHA=11fc1867 (merge do #931, árvore igual à do head do PR, bateria success no run 45959949382) · espera: (True, ...) · obtido: (False, 'nenhum PR mesclado em 11fc186 tem head de mesma árvore, ...'); mesmo resultado em 2bdf1a2 (#929)
 - S2 · gh api repos/<repo>/actions/runs/45959949382 --jq '.pull_requests|length' e os ci.yml dos 12 últimos PRs mesclados na develop (#917 a #931) · espera: PR ligado ao run · obtido: 0 em todos; o run aberto do #932 traz 932:develop:11fc186
 
 ## Parecer
