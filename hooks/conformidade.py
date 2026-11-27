@@ -4345,7 +4345,8 @@ class GuardaDaProva(Guarda):
         de `EM_VIGOR_NA_RAIZ`. A linha que só lê (`grep … .githooks/pre-push; echo $X`) segue livre (ADR 0009, seção 6).
         A9 da segurança (volta 2): o destino com resto (`D=.githooks; printf x > $D/pre-push`) vale igual; sem valor
         calculado, conta o texto largo do valor, como no ramo do .git: a variável de `for` e `read` recusa
-        (A12, volta 3); `printf x > $TMPDIR/y; cat .githooks/pre-push` segue livre."""
+        (A12, volta 3), também com o texto lido sem aspas (`for d in .git''hooks`), e a variável colada no primeiro
+        componente (`${d}s/…`) recusa (A13, volta 4); `printf x > $TMPDIR/y; cat .githooks/pre-push` segue livre."""
         super().destino_opaco(caminho, pasta)
         if not self.no_clone or not self.fim_do_opaco(caminho, pasta):
             return
@@ -4353,7 +4354,8 @@ class GuardaDaProva(Guarda):
             self.expandir(caminho, pasta), linha_juntada(self.texto_da_linha))
         if valores is None or any(SEM_VALOR in v for v in valores):
             textos = [self.texto_da_linha] if self.opaco_sem_resto(caminho, pasta) else self.textos_do_valor(caminho)[1]
-            if any(EM_VIGOR_NO_TEXTO.search(t) for t in textos):
+            if "*" in palavra_juntada(caminho).split("/")[0] or any(
+                    EM_VIGOR_NO_TEXTO.search(t) or EM_VIGOR_NO_TEXTO.search(palavra_juntada(t)) for t in textos):
                 self.barrar("R-CONFORMIDADE", f"destino de $(…), crase ou variável sem valor calculado numa linha que cita "
                             f"o que {MOTIVO_EM_VIGOR}", "escreva o caminho literal do destino")
             return

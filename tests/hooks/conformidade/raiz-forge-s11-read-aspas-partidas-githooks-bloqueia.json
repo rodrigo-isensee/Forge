@@ -1,0 +1,30 @@
+{
+  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.17, volta 4; R-CONFORMIDADE): sonda S11 da segurança (A13): o here-string do read partido por aspas (.git''hooks) sem valor calculado recusa na raiz pelo texto largo sem aspas, como no projeto.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    ".githooks/pre-push": "#!/bin/sh\n",
+    ".githooks/commit-msg": "#!/bin/sh\n",
+    ".devcontainer/devcontainer.json": "{}\n",
+    "scripts/x.sh": "#!/bin/sh\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "read d <<< .git''hooks; printf x > $d/pre-push"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "forge:devops-engineer"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "variável sem valor calculado"
+  }
+}
