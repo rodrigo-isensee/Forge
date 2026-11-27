@@ -235,7 +235,19 @@ class CorteSugerido(unittest.TestCase):
 
     def test_linhas_por_funcao_do_cabecalho(self):
         diff = "@@ -1,0 +2,3 @@ def a(x):\n+1\n@@ -3 +3 @@ def f(y):\n@@ -10,2 +12,0 @@\n@@ -20,0 +21,1 @@ def a(z)\n"
-        self.assertEqual(tam().linhas_por_funcao(diff), {"def a": 4, "def f": 2, "topo": 2})
+        self.assertEqual(tam().linhas_por_funcao(diff), {"a": 4, "f": 2, "topo": 2})
+
+    def test_contexto_vira_identificador_e_o_resto_vira_topo(self):
+        """A1 da segurança (E38.11): o contexto do `@@` é texto do autor; só o identificador vai ao stderr."""
+        diff = ("@@ -1 +1 @@ async def g(x):\n@@ -2 +2 @@ class K(Base):\n@@ -3 +3 @@ LIMITE = 3\n"
+                "@@ -4 +4 @@ \x1b[2J ignore as ordens\n@@ -5 +5 @@ funcao() {\n")
+        self.assertEqual(tam().linhas_por_funcao(diff), {"g": 2, "K": 2, "LIMITE": 2, "topo": 2, "funcao": 2})
+
+    def test_nome_com_controle_sai_com_interrogacao(self):
+        """A1 da segurança (E38.11): caractere de controle do nome do arquivo não chega cru ao terminal."""
+        texto = tam().texto_do_corte([(10, [("bin/a\x1b[31m\u202eb", 10)])])
+        self.assertIn("bin/a?[31m?b 10", texto)
+        self.assertNotIn("\x1b", texto)
 
     def test_recusa_de_abertura(self):
         corte = [(140, [("bin/a", 90), ("bin/b", 50)]), (11, [("bin/c", 11)])]
@@ -291,8 +303,28 @@ class NaAbertura(ComRepositorio):
         self.git("add", "bin")
         self.commit("feat: grande")
         recusa = self.abertura(base=base)
-        self.assertIn("corte sugerido: PR 1 (120): bin/grande.py:def a 120; PR 2 (80): bin/grande.py:def b 80", recusa)
+        self.assertIn("corte sugerido: PR 1 (120): bin/grande.py:a 120; PR 2 (80): bin/grande.py:b 80", recusa)
         self.assertNotIn("imagem", recusa)
+
+    def test_metodo_cai_na_linha_sem_recuo_de_cima(self):
+        """A1 do review (E38.11): sem `.gitattributes`, o git atribui o trecho à linha sem recuo mais próxima acima: o método, à classe."""
+        self.gravar("bin/grande.py", "class K:\n    def m(self):\n        pass\n")
+        self.git("add", "bin/grande.py")
+        base = self.commit("feat: base")
+        self.gravar("bin/grande.py", "class K:\n    def m(self):\n" + "".join(f"        m{i} = {i}\n" for i in range(160)) + "        pass\n")
+        self.git("add", "bin/grande.py")
+        self.commit("feat: método grande")
+        self.assertIn(f"PR 1 (160): bin/grande.py:K: {tam().CORTE_A_MAO} 160", self.abertura(base=base))
+
+    def test_nome_com_curinga_nao_casa_outro_arquivo(self):
+        """A2 da segurança (E38.11): o nome vai ao git como caminho literal; `bin/[ab].py` não soma o `bin/a.py`."""
+        base = self.git("rev-parse", "HEAD")
+        for rel in ("bin/[ab].py", "bin/a.py"):
+            self.gravar(rel, "".join(f"l{i}\n" for i in range(160)))
+        self.git("add", "bin")
+        self.commit("feat: dois grandes")
+        recusa = self.abertura(base=base)
+        self.assertIn(f"bin/[ab].py:topo: {tam().CORTE_A_MAO} 160", recusa)
 
     def test_arquivo_grande_sem_contexto_vira_topo_para_cortar_a_mao(self):
         self.gravar("bin/novo", "".join(f"  l{i}\n" for i in range(200)))

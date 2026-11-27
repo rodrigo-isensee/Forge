@@ -1504,7 +1504,8 @@ def tamanho_do_pr(raiz, ref, base, branch, previo=False):
 
 def corte_do_intervalo(raiz, base, head, numstat):
     """F5 (v0481 E38.2): o `corte_sugerido` do diff `base...head` com o `numstat` dele: cada arquivo de código até o teto é uma unidade;
-    o maior, uma por função tocada (cabeçalho `@@` do `-U0`). [] sem código; None se o git falha (a recusa sai sem o corte)."""
+    o maior, uma por função tocada (cabeçalho `@@` do `-U0`; o nome vai como caminho literal, `bin/[ab].py` não casa `bin/a.py`, A2 da
+    segurança, E38.11). [] sem código; None se o git falha (a recusa sai sem o corte)."""
     tamanho = modulo_do_bin("forge_tamanho")
     unidades = []
     for nome, contagem in sorted(numstat.items()):
@@ -1512,7 +1513,8 @@ def corte_do_intervalo(raiz, base, head, numstat):
         if linhas <= tamanho.TETO_DE_LINHAS_DE_CODIGO:
             unidades += [(nome, linhas)] if linhas else []
             continue
-        cod, diff = git(raiz, "diff", "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames", f"{base}...{head}", "--", nome)
+        cod, diff = git(raiz, "--literal-pathspecs", "diff", "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames",
+                        f"{base}...{head}", "--", nome)
         if cod:
             return None
         unidades += [(f"{nome}:{funcao}", n) for funcao, n in tamanho.linhas_por_funcao(diff).items()]

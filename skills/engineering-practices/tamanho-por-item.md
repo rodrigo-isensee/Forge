@@ -18,7 +18,8 @@ orientação do M14 (150 linhas de código e teste, sem trava por volume).
 - **Antes de começar:** item acima do teto é cortado pelo tech-lead em partes que ficam verdes sozinhas; partes que mexem
   nos mesmos arquivos seguem no mesmo agente, uma depois da outra (diretriz 33).
   O aviso de tamanho do `forge-check pr` (e do `pr --previo`) traz o corte sugerido: os PRs de até o teto por arquivo
-  e, no arquivo maior que o teto, por função tocada; é sugestão, quem corta é o tech-lead.
+  e, no arquivo maior que o teto, pelo contexto que o git dá ao trecho (sem `.gitattributes`, a linha sem recuo mais
+  próxima acima: o método cai na classe), só o identificador; é sugestão, quem corta é o tech-lead.
 - **Passar do teto:** só se cortar mais deixa a suíte vermelha (um pedaço não fica verde sozinho). O tech-lead explica o
   motivo no corpo do PR, com `teto: excedido, <n> linhas, <motivo>`.
 
