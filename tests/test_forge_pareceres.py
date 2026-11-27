@@ -415,6 +415,40 @@ class Ler(GhFalso):
         self.estado(paginas=[[5, "x", self.publicado(601)]])
         self.assertEqual(fp().ler(str(self.repo), BRANCH, self.sha, PEDIDO, {"conta"})["review"][0], "aprovado")
 
+    def recusa_contas(self, contas):
+        self.estado(statuses=[self.publicado()])
+        with self.assertRaisesRegex(fp().Recusa, "M1.1"):
+            fp().ler(str(self.repo), BRANCH, self.sha, PEDIDO, contas)
+        self.assertEqual(self.chamadas(), [], "chamou o gh antes de recusar as contas")
+
+    def test_contas_que_nao_sao_conjunto_recusadas(self):
+        # sonda S1 do review 2d3e3f3: `contas="minhaconta-admin"`, creator `conta`, filtro da linha 141 · espera: fora
+        for contas in ("minhaconta-admin", "conta", ["conta"], ("conta",), {"conta": 1}, None, {"conta", 5}):
+            with self.subTest(contas):
+                self.recusa_contas(contas)
+
+    def test_contas_com_login_vazio_recusadas(self):
+        self.recusa_contas({"conta", ""})
+        self.recusa_contas(frozenset({""}))
+
+    def test_contas_frozenset_vale(self):
+        self.estado(statuses=[self.publicado()])
+        self.assertEqual(fp().ler(str(self.repo), BRANCH, self.sha, PEDIDO, frozenset({"conta"}))["review"][0], "aprovado")
+
+    def fora_do_contrato(self, status):
+        with self.assertRaisesRegex(fp().Recusa, "fora do contrato"):
+            self.ler(status)
+
+    def test_resposta_fora_do_contrato_vira_recusa(self):
+        """Sondas S3 a S5 da segurança 2d3e3f3: `creator` do status, `user` do comentário e PR sem `number`."""
+        status = self.publicado()
+        self.fora_do_contrato(status | {"creator": "conta"})
+        self.estado(comentarios={"601": self.estado()["comentarios"]["601"] | {"user": "conta"}})
+        self.fora_do_contrato(status)
+        self.publicado()  # o comentário íntegro de volta
+        self.estado(prs=[{k: v for k, v in self.estado()["prs"][0].items() if k != "number"}])
+        self.fora_do_contrato(status)
+
     def test_sha_que_nao_e_head_do_pr(self):
         self.estado(prs=[self.estado()["prs"][0] | {"headRefOid": "c" * 40}])
         with self.assertRaises(fp().Recusa):

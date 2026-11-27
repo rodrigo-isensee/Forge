@@ -131,16 +131,21 @@ def conferir(raiz, repo, pr, pedido, tipo, status, contas):
 def ler(raiz, branch, sha, pedido, contas):
     """G2.2, a leitura (ADR 0019, seção 3): {tipo: (veredito, url) ou (None, motivo)} do status mais novo de cada contexto da
     lista, entre os das `contas` (o filtro vem antes do mais novo; M1.1, M1.2, M2.1), no `sha` head do PR aberto da `branch`.
-    Contexto sem status das contas fica de fora. Todas as páginas; resposta ilegível: Recusa (M19.1)."""
+    Contexto sem status das contas fica de fora. Todas as páginas; resposta ilegível ou fora do contrato: Recusa (M19.1)."""
+    if not isinstance(contas, (set, frozenset)) or not all(isinstance(x, str) and x for x in contas):
+        raise Recusa("contas fora de um conjunto de logins não vazios; o filtro é igualdade exata (M1.1)")
     repo, pr = repositorio_do_remoto(raiz), pr_aberto(raiz, branch, sha)
     paginas = gh(raiz, ["api", "--hostname", repo[0], "--paginate", "--slurp", f"repos/{repo[1]}/{repo[2]}/commits/{sha}/statuses"])
     if not isinstance(paginas, list) or not all(isinstance(p, list) for p in paginas):
         raise Recusa("statuses ilegíveis (M19.1)")
     lista, lidos = [s for p in paginas for s in p if isinstance(s, dict)], {}
-    for tipo, contexto in CONTEXTOS.items():
-        dela = [s for s in lista if s.get("context") == contexto and (s.get("creator") or {}).get("login") in contas]
-        if dela:
-            lidos[tipo] = conferir(raiz, repo, pr, pedido, tipo, dela[0], contas)
+    try:
+        for tipo, contexto in CONTEXTOS.items():
+            dela = [s for s in lista if s.get("context") == contexto and (s.get("creator") or {}).get("login") in contas]
+            if dela:
+                lidos[tipo] = conferir(raiz, repo, pr, pedido, tipo, dela[0], contas)
+    except (KeyError, TypeError, AttributeError, ValueError) as e:  # como o `publicar`
+        raise Recusa(f"resposta do gh fora do contrato ({type(e).__name__}) (M19.1)") from None
     return lidos
 
 
