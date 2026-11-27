@@ -133,3 +133,31 @@ Critério de reversão da emenda: um commit do `salvar` fora da branch do brief 
 |---|---|---|
 | Linhas do `salvar.log` (trabalho salvo na cópia) e voltas por trabalho perdido no Histórico dos pedidos | 2 versões depois do PR do hook | `tech-lead` |
 | Tempo do hook e entradas do `salvar` em `erros.log` | no PR do hook e no fechamento de cada versão | `devops-engineer` |
+
+## Emenda: estado na pergunta do dono (S1-ESTADO-PELA-FERRAMENTA, 2ª parte; v0481 E20.11, ORDEM DO DONO 25/11 21:40)
+Estado da emenda: **vigente a partir do PR que traz o hook `estado`**, com fixtures, mutantes e o parecer do `security-engineer`. Até esse PR, os itens 1 e 2 seguem como estão escritos.
+
+**Exceção aos itens 1 e 2**, além das emendas anteriores: o hook `estado`, só no `UserPromptSubmit`, quando a mensagem do dono pergunta o estado, roda o `forge-check status` (S1a, `bin/forge_estado.py`) e imprime a saída dele no contexto. Regras:
+1. **Só a pergunta do estado:** um dos termos da lista fixa `TERMOS` de `hooks/estado.py` (estado, status, andamento, como está, como estão, como anda, como andam, o que falta, e agora, onde estamos), palavra inteira, sem acento e sem caixa, numa mensagem de até 200 caracteres (mensagem longa é ordem). Outra mensagem: silêncio, sem rodar nada, custo zero.
+2. **Comando fixo do plugin:** `python3 -I <plugin>/bin/forge-check status --raiz <raiz>`, da cópia instalada (o agente não a grava), nunca do work tree; nada da mensagem vai ao comando.
+3. **Rede só de leitura, com prazo (exceção ao item 2):** o `forge-check status` lê o GitHub pelo `gh` (último merge, PRs abertos, última release), como o `gh auth status` da emenda do ambiente; prazo de 8 s, abaixo dos 10 s do hook no `hooks.json`. Sem IA, sem escrita, sem custo (`R-CUSTO`: a API do GitHub de leitura não é cobrada).
+4. **Texto puro no stdout:** uma linha fixa gerada pelo script e só as linhas `status:` do comando, até 10 linhas de até 300 caracteres, com os caracteres de controle trocados por espaço (`sem_controle`). Sem resposta no prazo, rc diferente de 0 ou nenhuma linha `status:`: uma linha fixa manda rodar o comando antes de responder, nunca estado de memória.
+5. **Nunca bloqueia:** sai sempre com 0; fora de projeto do Forge (item 3), hook desligado na config ou erro interno: silêncio, e o erro vai a `.forge/run/erros.log` (item 4). O `estado` entra no grupo que só avisa (códigos `{0}`).
+
+### Por que o existente não basta
+- O `forge-check status` (S1a, #910) só vale se o Jarvis o rodar; a regra em texto não segura. Evidência: o estudo de campo de um projeto que usa o Forge (S1, ordem do dono de 25/11): em 24 e 25/11 o Jarvis afirmou estado de memória e errou (20 itens contados quando eram 17, sessão parada achada viva, o merge da 0.47.18 não visto).
+- O `ordens` injeta as ordens do dono, não o estado, e é só leitura de arquivo.
+
+### Afrouxa: sim, ADR 0003 itens 1 e 2 e três invariantes de teste
+Mudam junto, no PR do hook, com o rótulo `afrouxa-regra`:
+- `tests/test_hooks.py`, `test_hooks_json`: o `UserPromptSubmit` aceita o `ordens.py` e o `estado.py`.
+- `tests/test_hooks.py`, `test_cada_hook_tem_caso_que_passa_e_que_bloqueia`: `estado` entra no grupo que nunca bloqueia (códigos `{0}`), com os casos `sem-forge-versao` e `erro-interno`.
+- `tests/test_doutor.py`, `test_hooks_json_registra_o_doutor_so_em_sessionstart_e_stop`: os comandos do `UserPromptSubmit` são o `ordens.py` e o `estado.py`.
+Nenhum trecho de `invariantes` em `tests/config.json` sai.
+
+Critério de reversão da emenda: o hook passar dos 10 s ou aparecer mais de 5 vezes por versão no `erros.log`; texto que não veio do `forge-check status` entrar no contexto; ou, em 2 versões, o Histórico registrar afirmação de estado errada do Jarvis depois de o hook injetar o estado (a medida não se move, o hook sai).
+
+| Leitura | Quando | Quem |
+|---|---|---|
+| Afirmações de estado erradas no Histórico dos pedidos (a medida do E20) | 2 versões depois do PR do hook | `tech-lead` |
+| Tempo do hook e entradas do `estado` em `erros.log` | no PR do hook e no fechamento de cada versão | `devops-engineer` |

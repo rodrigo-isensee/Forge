@@ -1532,7 +1532,7 @@ class Hooks(unittest.TestCase):
             codigos = {f.dados["esperado"]["codigo"] for f in self.fixtures if f.hook == hook}
             nomes = {f.caminho.stem for f in self.fixtures if f.hook == hook}
             with self.subTest(hook=hook):
-                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente", "ordens", "decisao", "salvar") else {0, 2})  # o vigia, o doutor, o ambiente, o ordens (emenda "ordens em vigor" da ADR 0003) e o decisao (R-DECISAO, fatia L28a) avisam, nunca bloqueiam; o salvar (D6 a) só grava na cópia
+                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor", "ambiente", "ordens", "decisao", "salvar", "estado") else {0, 2})  # o vigia, o doutor, o ambiente, o ordens (emenda "ordens em vigor" da ADR 0003), o estado (emenda "estado na pergunta do dono") e o decisao (R-DECISAO, fatia L28a) avisam, nunca bloqueiam; o salvar (D6 a) só grava na cópia
                 self.assertIn("sem-forge-versao", nomes)
                 self.assertIn("erro-interno", nomes)
                 if hook == "ordens":  # a emenda pede também os casos do teto e do arquivo ausente
@@ -1542,7 +1542,8 @@ class Hooks(unittest.TestCase):
     def test_hooks_json(self):
         d = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))
         no_prompt = {h["args"][-1].rsplit("/", 1)[-1] for g in d["hooks"].get("UserPromptSubmit", []) for h in g["hooks"]}
-        self.assertEqual(no_prompt, {"ordens.py"}, "no UserPromptSubmit só o ordens injeta contexto (emenda \"ordens em vigor\" da ADR 0003)")
+        self.assertEqual(no_prompt, {"ordens.py", "estado.py"},
+                         "no UserPromptSubmit só o ordens e o estado injetam contexto (emendas \"ordens em vigor\" e \"estado na pergunta do dono\" da ADR 0003)")
         self.assertNotIn("additionalContext", (HOOKS / "vigia.py").read_text(encoding="utf-8").replace(
             "nunca `additionalContext`", ""), "o vigia só avisa o usuário (systemMessage)")
         for evento in ("SessionStart", "Stop"):  # SessionStart: o stdout vira contexto do modelo (ADR 0003, item 1)

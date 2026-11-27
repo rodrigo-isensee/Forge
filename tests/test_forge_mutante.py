@@ -1950,5 +1950,28 @@ class LimiteDosModulos(unittest.TestCase):
                 self.assertIn("forge-testes --listar falhou", saida.getvalue())
 
 
+class CoberturaDoPedidoInteiro(unittest.TestCase):
+    """Sonda S1 da segurança (v0481, 5da1505, A1): `python3 tests/catraca.py --base 3c833f3f1ba1e9770b8e5b10e7a1b0ed588d161f`
+    dava rc 1 pela guarda `__main__` do hook novo sem mutante. A análise da regra das guardas da catraca
+    (`analisar_com_textos`) sobre cada arquivo das specs do pedido, inteiro como novo: toda condição coberta, sem git."""
+
+    def test_toda_condicao_dos_arquivos_das_specs_v0481_s1_gancho_coberta(self):
+        fm = carregar()
+        mutantes, isentas = [], []
+        for spec in sorted((RAIZ / "tests" / "mutantes").glob("v0481-s1-gancho*.json")):
+            dados = json.loads(spec.read_text(encoding="utf-8"))
+            mutantes += [(spec.name, m) for m in dados["mutantes"]]
+            isentas += dados.get("isentas", [])
+        arquivos = sorted({m["arquivo"] for _spec, m in mutantes})
+        self.assertGreaterEqual(len(mutantes), 16)
+        for arquivo in arquivos:
+            texto = (RAIZ / arquivo).read_text(encoding="utf-8")
+            hunks = [(range(0, 0), range(1, texto.count("\n") + 2))]
+            saida, _textos = fm.analisar_com_textos(arquivo, hunks, "", texto, mutantes, isentas, set())
+            with self.subTest(arquivo=arquivo):
+                self.assertGreaterEqual(len(saida), 11)
+                self.assertEqual([x for x in saida if not x.startswith("coberta · ")], [])
+
+
 if __name__ == "__main__":
     unittest.main()
