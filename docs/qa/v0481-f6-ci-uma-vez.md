@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-f6-ci-uma-vez
-commit: e89985279c7a86b5a2f3831838d99dd0bf11e76d
-parecer: reprovado
+commit: 700a2fc497a0ea79e47961794a0fb76f0c3d655d
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
@@ -12,43 +12,33 @@ bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-27
 ---
-# QA: v0481 (E32.7, #929, F6: o CI do PR roda a suíte uma vez)
+# QA: v0481 (E32.22, #929, F6: o CI do PR roda a suíte uma vez), delta da volta 5
 
-- ci: e89985279c7a86b5a2f3831838d99dd0bf11e76d vermelho (suíte 3.12 parte 4/5 reprova; os demais, fora os que esperam parecer, verdes)
+- ci: 700a2fc497a0ea79e47961794a0fb76f0c3d655d verde (gh pr checks 929: verdes `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, suíte 3.12 partes 1 a 5 (a 4/5 em 7m51s), árvore, teto de pulados; fora os que esperam parecer: `bateria`, `bateria (pareceres)`, `catraca`)
 
-## Achados
-- A3 (bloqueante) tests/mutantes/v0481-f6-ci-uma-vez.json:86 · A spec passou a 15 mutantes (CI-M1 a M15); o V2 (test_forge_mutante.py:1573, assertLessEqual 8) reprova a parte 4/5 do CI. Abrir um -2.json (mesmo pedido, ids únicos) e passar as specs juntas.
-
-## Delta da volta 4 (ac8202d0..e8998527)
-A1 e A2 da volta anterior estão fechados (CI-M9 a CI-M15 e os 4 testes de comportamento).
-Só tests/mutantes/v0481-f6-ci-uma-vez.json e tests/test_suite_partes.py: 4 testes novos que executam o passo real do diário no bash com forge-mutante e gh falsos, e leem jobs e fumaça.
-- `bin/forge-mutante tests/mutantes/v0481-f6-ci-uma-vez.json --base ac8202d0e2644d015f1c13be3fd7f040101db06f --processos 2` (trava obtida): linha `base=ac8202d0... rev=e89985279c7a`, CI-M1 a CI-M15 todos `morreu` (15 de 15; M9 a M15 cobrem os sobreviventes X5, X2, X6, X8 e X1 do parecer anterior).
-- CI do PR #929 no head (`gh pr checks 929`): `suíte (python 3.12, parte 4/5)` fail, pelo A3; verdes `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, partes 1, 2, 3 e 5, árvore; vermelhos de espera `bateria`, `bateria (pareceres)`, `catraca`.
+## Delta da volta 5 (e8998527..700a2fc4)
+O A3 da volta anterior está fechado: a spec foi dividida em `v0481-f6-ci-uma-vez.json` (CI-M1 a M8) e `-2.json` (CI-M9 a M15), 8 + 7, mesmo `pedido`, ids únicos. A concatenação das duas é idêntica, mutante a mutante, à spec de 15 do head e8998527 (comparada em JSON: igual). O V2 (`test_os_ids_da_spec_do_f6_nao_repetem_os_de_outra_spec_do_pedido`, no máximo 8 por spec) passa, e a parte 4/5 do CI ficou verde.
+- `bin/forge-mutante tests/mutantes/v0481-f6-ci-uma-vez.json tests/mutantes/v0481-f6-ci-uma-vez-2.json --base e8998527 --processos 2` (trava obtida; rc=0): linha `base=e89985279c7a... mb=e89985279c7a... rev=700a2fc497a0`; CI-M1 a CI-M15 todos `morreu` (15 de 15).
+- `python3 -m unittest tests.test_suite_partes.FiacaoDoCI` no head: Ran 17, OK (inclui os 4 testes de comportamento do diário e da fumaça do 3.14).
+- Vermelho antes do verde: os 4 testes de comportamento foram vistos falhando sem a implementação na volta 4 (cópia com o ci.yml da base e sem diario.yml); a prova de mutação do delta (M9 a M15 mortos no head) cobre a regressão. Esta volta não mudou comportamento de CI, só a divisão da spec.
 - Nenhum outro defeito no delta.
 
 ## Critério → teste → resultado
-O pedido não tem `docs/ux/` com CA-n para esta etapa; os critérios vêm do objetivo do brief.
+O pedido não tem docs/ux com CA-n para esta etapa; os critérios vêm do objetivo do brief.
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| Suíte do PR roda uma vez (3.12), sem job da suíte no 3.14 | `test_suite_partes.FiacaoDoCI.test_f6_o_pr_roda_a_suite_uma_vez` + os da matriz e agregadores | 5 partes; nenhum job `*-quatorze` fora instalação e agregador | passou; vermelho na base (falha) |
-| 3.14 só instalação e fumaça; `bateria (python 3.14)` junta só a instalação | `MatrizNeedsEAgregadorTest` (needs, estado com perna vermelha), CI-M1, X3, X4 | needs e `always()` do agregador | passou; X3 e X4 morreram |
+| Suíte do PR roda uma vez (3.12), sem job da suíte no 3.14 | `FiacaoDoCI.test_f6_o_pr_roda_a_suite_uma_vez` + os da matriz e agregadores | 5 partes; nenhum job `*-quatorze` fora instalação e agregador | passou; vermelho na base |
+| 3.14 só instalação e fumaça | `MatrizNeedsEAgregadorTest`, CI-M1, X3, X4 | needs e `always()` do agregador | passou; mutantes mortos |
 | Fumaça do 3.14 de fato roda | `test_f6_fumaca_do_python_3_14_roda_de_fato`, CI-M15 | passo da fumaça | passou; M15 morreu |
-| Verificações longas e mutantes saem do PR | `test_f6_o_pr_roda_a_suite_uma_vez` (sem `forge-mutante` no ci.yml, e2e só em `instalacao-quatorze`) | texto do ci.yml | passou; CI-M1 morreu |
+| Verificações longas e mutantes saem do PR | `test_f6_o_pr_roda_a_suite_uma_vez`, CI-M1 | texto do ci.yml | passou; M1 morreu |
 | diario.yml diário, só leitura, escreve só issue | `test_f6_diario_roda_o_que_saiu_do_pr_na_develop_e_abre_o_cartao`, CI-M2, CI-M3 | `issues: write` único, `always()` do cartão | passou; M2 e M3 morreram |
-| Fatia do dia, uma spec por chamada, pendentes de fora | `test_f6_diario_roda_uma_spec_por_chamada_sem_os_pendentes_conhecidos` (executa o programa da fatia), CI-M4 a M8 | dia % 30, pendentes, `--ids`, spec sem mutante | passou; M4 a M8 morreram |
-| Jobs do diário usam a develop, 5 partes, mutante vivo reprova | `test_f6_diario_cada_job_le_a_develop_*`, `test_f6_diario_mutante_vivo_reprova_*`, CI-M9 a M13 | `ref: develop` por job, matriz, `ruim=1` | passou; M9 a M13 morreram |
+| Fatia do dia, uma spec por chamada, pendentes de fora | `test_f6_diario_roda_uma_spec_por_chamada_sem_os_pendentes_conhecidos`, CI-M4 a M8 | dia % 30, pendentes, spec sem mutante | passou; M4 a M8 morreram |
+| Jobs do diário usam a develop, 5 partes, mutante vivo reprova | `test_f6_diario_cada_job_le_a_develop_*`, `test_f6_diario_mutante_vivo_reprova_*`, CI-M9 a M13 | `ref: develop` por job, matriz, falha do job | passou; M9 a M13 morreram |
 | Issue só para quebra nova | `test_f6_diario_cartao_comenta_na_issue_aberta_*`, CI-M14 | issue aberta recebe comentário | passou; M14 morreu |
-| Push na develop roda a suíte no 3.12 | `test_agregador_da_develop_exige_as_cinco_pernas_e_o_teto_sem_rodar_codigo`, `test_pernas_da_develop_*` | agregador `rapida` | passou |
-| Nomes dos checks exigidos não mudam | `Workflows` em test_catraca (timeouts, always), `test_agregadores_*` | `bateria`, `bateria (python 3.14)` | passou |
-| YAML válido (`name:` com dois pontos entre aspas) | `test_f6_todo_workflow_tem_name_de_passo_entre_aspas_quando_tem_dois_pontos` | todos os workflows | passou |
-| Check `bateria` do PR não vale como prova da árvore | `test_arvore_testada.Provar.test_check_bateria_do_pr_nao_e_prova_*` | base fora do head | passou |
+| Push na develop roda a suíte no 3.12 | `test_agregador_da_develop_exige_as_cinco_pernas_e_o_teto_sem_rodar_codigo` | agregador `rapida` | passou |
+| Nomes dos checks exigidos não mudam | `Workflows` em test_catraca, `test_agregadores_*` | `bateria`, `bateria (python 3.14)` | passou |
+| Spec de mutantes dentro do teto de 8 | V2 em test_forge_mutante | 8 por spec | passou |
 
-## Cenários e resultado real
-- Trava: `flock -n /root/.forge-contrib/trava-teste-a.lock` negado (ocupada). Por isso não rodei `bin/forge-testes --vermelho` nem `bin/forge-mutante`; rodei só os testes afetados mais curtos (texto puro, 0,3 s) e, em cópias descartáveis em `$TMPDIR`, um script meu que aplica o `de`/`para` da spec e roda os testes dela.
-- Verde no head: `FiacaoDoCI` mais o teste novo de `ConferirTodas` e o novo de `Provar`: Ran 15, OK.
-- Vermelho (cópia do head com o `ci.yml` da base b31f01fd e sem `diario.yml`): `FiacaoDoCI` Ran 13, failures=5, errors=2; `test_f6_o_pr_roda_a_suite_uma_vez` falha e os dois testes do diário dão erro. Não é a saída oficial do `forge-testes --vermelho` (sem veredito oficial; fica para quem tiver a trava).
-- Mutantes declarados (8, CI-M1 a CI-M8) conferidos contra o diff: todos morreram. Não é a saída oficial do `forge-mutante` (rc não obtido).
-- Mutantes extras do QA (8): X3 (needs do agregador 3.14 vazio), X4 (sem `always()`) e X7 (e2e do diário vazio) morreram; sobreviveram X1 (fumaça `true`), X2 (suíte do diário sem `ref: develop`), X5 (mutante vivo sem reprovar), X6 (diário com 3 partes) e X8 (cartão sem dedupe).
-- CI do PR #929 no head ac8202d0 (`gh pr checks 929`): verdes `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, suíte 3.12 partes 1 a 5, teto de pulados, árvore; `skipping` os de push na develop e cobertura (esperado). Vermelhos esperados: `bateria`, `bateria (pareceres)`, `catraca` (esperam parecer ou rótulo).
-- Observação: o `schedule` do diario.yml só dispara com o arquivo na branch padrão (diz o próprio comentário), então o diário só começa a rodar depois do `homolog` → `main`; até lá, só `workflow_dispatch`.
+## Observações
+- O `schedule` do diario.yml só dispara com o arquivo na branch padrão; o diário só começa a rodar depois de homolog para main. Até lá, só `workflow_dispatch`.
 - Acessibilidade e E2E de interface: não se aplicam (mudança só de workflow e testes).
