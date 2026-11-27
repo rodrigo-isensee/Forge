@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-hook-raiz-forge
-commit: e4998443f6eea0ef08c43dbbb9b35627f13582b0
+commit: aa3472135b21f0539c3047d1e31fe6718a17bced
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -12,26 +12,28 @@ bugs_medios: 0
 bugs_baixos: 0
 data: 2026-11-27
 ---
-# QA: v0481 hook-raiz-forge (E37.12, PR #930, volta 2)
+# QA: v0481 hook-raiz-forge (E37.16, PR #930, volta 3)
 
-Delta 10c1b834..e4998443. O A9 da segurança (destino por variável com resto na raiz do Forge vale pelo valor calculado; sem valor, só o texto preciso do valor conta) está coberto. Os pareceres anteriores (volta 0 e 1) seguem valendo para o resto.
+Delta e4998443..aa347213. O A12 da segurança e o A2 do review (variável nascida de `for` ou `read`, com resto e sem valor calculado, vale pelos textos largos na raiz do Forge) estão cobertos. Os pareceres anteriores seguem valendo para o resto.
 
 ## Critério → teste → resultado
-Sem docs/ux nem contrato de API; critérios da etapa E37.1 e do A9.
+Sem docs/ux nem contrato de API; critérios da etapa E37.1, do A9 e do A12.
 
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| CA-1 a CA-9 da volta 1 | fixtures `raiz-forge-*` (sem mudança no delta) | ver parecer da volta 1 | passou (CI do head) |
-| CA-10 (A9) destino por variável ou substituição com resto (`D=.githooks; printf x > $D/pre-push`) recusa na raiz | raiz-forge-s7-variavel-com-resto-githooks-bloqueia, raiz-forge-s8-variavel-com-resto-manifesto-bloqueia, raiz-forge-substituicao-com-resto-githooks-bloqueia | resto depois da variável; manifesto `.claude-plugin/` | passou |
-| CA-11 (A9) sem valor calculado e com resto, recusa só se o texto do valor cita a entrada | raiz-forge-variavel-sem-valor-com-resto-githooks-bloqueia; mutantes RD7 e RD8 | `$TMPDIR/y; cat .githooks/pre-push` fora do valor passa | passou |
-| CA-12 (A9) na cópia de wt/ o destino com resto segue livre | raiz-forge-wt-s7-variavel-com-resto-da-copia-libera, raiz-forge-wt-s8-variavel-com-resto-da-copia-libera | cópia x raiz | passou |
-| CA-13 docs/hooks.md e changelog descrevem o comportamento | leitura do diff | n/a | coerente com o código |
+| CA-1 a CA-13 das voltas 1 e 2 | fixtures `raiz-forge-*` (sem mudança no delta) | ver pareceres anteriores | passou (CI do head) |
+| CA-14 (A12) `for d in .githooks; do printf x > $d/pre-push; done` recusa na raiz | raiz-forge-variavel-de-for-githooks-bloqueia; mutante RD9 | variável de `for` com resto, entrada em vigor | passou |
+| CA-15 (A2) `read d <<< .githooks; printf x > $d/pre-push` recusa na raiz | raiz-forge-variavel-de-read-githooks-bloqueia; mutante RD9 | variável de `read` com resto, entrada em vigor | passou |
+| CA-16 `for` e `read` com valor fora das entradas (`scripts`) seguem livres | raiz-forge-variavel-de-for-scripts-libera, raiz-forge-variavel-de-read-scripts-libera | texto largo só conta se cita a entrada | passou |
+| CA-17 `printf x > $TMPDIR/y; cat .githooks/pre-push` segue livre | fixture da volta 2 (sem mudança) | leitura que cita a entrada fora do valor | passou |
+| CA-18 mínimos de `test_fixtures_da_raiz_do_forge` em 21/34 | tests/test_hooks.py:2930-2931 | suíte vazia: 21 liberam, 34 bloqueiam | passou |
+| CA-19 docs/hooks.md descreve o texto largo e a falha fechada também em `wt/` | leitura do diff | n/a | coerente com o código (conformidade.py:4355) |
 
-## Cenários e resultado real (volta 2)
-- ci: e4998443f6eea0ef08c43dbbb9b35627f13582b0 verde
-- Leitura do CI (`gh pr checks 930`, head e4998443 conferido por `gh pr view`): tudo pass fora `bateria (pareceres)`, `bateria` e `catraca`, que esperam parecer ou rótulo; suítes 3.12 e 3.14 (partes 1 a 5) passaram.
+## Cenários e resultado real (volta 3)
+- ci: aa3472135b21f0539c3047d1e31fe6718a17bced verde
+- Leitura do CI (`gh pr checks 930`; head aa347213 conferido por `gh pr view`): tudo pass fora `bateria (pareceres)`, `bateria` e `catraca`, que esperam parecer ou rótulo; suítes 3.12 (partes 1 a 5), 3.14, instalação e teto de pulados passaram.
 - Local sob o flock da trava A: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge tests.test_indice_fixtures` deu `Ran 11 tests ... OK`.
-- Mutantes (`bin/forge-mutante` das specs -3 e -4, `--base 10c1b834`, `base=10c1b834b6fb062bfb2f9b7d9020dbbcbe828abf`): RD1 a RD6, RX1, RX2, RD7, RD8 todos `morreu`, rc=0, sem sobrevivente nem equivalente. RD1 e RD2 realinhadas a `fim_do_opaco`; RD7 e RD8 novas cobrem a linha `textos = ...`.
-- `--cobertura --base 10c1b834`: as condições mudadas (4349, 4354, 4355) têm mutante declarado, e a rodada acima as provou.
-- Vermelho antes do verde: as 6 fixtures novas são provadas pelos mutantes RD1, RD2, RD7 e RD8 mortos por elas (sem a lógica nova a fixture falha). `forge-testes --vermelho` não rodado (estourou o prazo de 10 min na volta 1, sem veredito).
+- Mutantes (`bin/forge-mutante` das specs -3 e -4, `--base e4998443f6eea0ef08c43dbbb9b35627f13582b0 --processos 2`, saída `base=e4998443f6eea0ef08c43dbbb9b35627f13582b0 mb=e4998443f6eea0ef08c43dbbb9b35627f13582b0 rev=aa3472135b21`): RD1 a RD6, RX1, RX2, RD7, RD8 e RD9 todos `morreu`, sem sobrevivente nem equivalente. RD9 troca `[1]` por `[0]` na linha 4355 (a mudada) e a fixture de `for` e `read` a mata.
+- `--cobertura --base e4998443`: rc=0; a condição mudada (4355) tem mutante (RD9); RD7 e RD8 reancoradas (`spec editada`) e ainda morrem.
+- Vermelho antes do verde: as fixtures novas são provadas pelo mutante RD9 (sem o texto largo, elas caem) e por RD7 e RD8. `forge-testes --vermelho` do módulo inteiro passou do limite local de 10 min sem veredito; não vale como vermelho.
 - Acessibilidade e E2E: n/a (hook sem interface).
