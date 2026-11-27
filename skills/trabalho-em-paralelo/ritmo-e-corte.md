@@ -45,7 +45,7 @@ Em projeto privado, cada push e cada `gh run rerun` custa um run de CI (num proj
 - Fim do item (PR mesclado, PR fechado sem merge ou `vazio: sim`), no Forge e nos projetos: o tech-lead apaga a cópia com `forge-copia limpar <cópia>`, que confere o fim e só apaga a cópia limpa, sem stash e com tudo na origem; a branch fica. No Forge, o `forge-fechar <pedido> --ref <branch> --limpar` já passa as cópias a ele (LIMPEZA-AO-FIM-DO-ITEM).
 
 ## Versão com 20 itens (diretriz 34 do dono)
-- A versão fecha com 20 itens integrados na `develop` (`forge-contador`: `<versão>: N de 20`): o tech-lead marca, promove à `homolog` e abre o PR `homolog` → `main` (`forge-fechar --corte`); sem versão por dia nem versão parcial (ordem do dono de 26/11).
+- A versão fecha com 20 itens integrados na `develop` (`forge-contador`: `<versão>: N de 20`): o tech-lead marca, promove à `homolog` e abre o PR `homolog` → `main`; sem versão por dia nem versão parcial (ordem do dono de 26/11).
 - O PR `homolog` → `main` continua mesclado pelo dono (`R-MAIN`); o Jarvis avisa o dono numa linha quando ele fica verde.
 - O time usa o teto de agentes cheio, com os cartões em lotes por arquivo (diretriz 33).
 - No Forge, antes do `bin/forge-changelog release <versão> <data>`, o tech-lead roda `scripts/placar-mutacao.py --desde <tag anterior> --versao <versão>` e o bench (BENCH-POR-RELEASE), medidas, não portão, e `forge-check decisoes --sem-cartao`, e leva tudo ao Jarvis; na mesma marca, regera `tests/pesos-d4.json` com `python3 -I scripts/pesos-do-ci.py --repo <dono/repo> --saida tests/pesos-d4.json` e o commita (PR-VERDE C1).
