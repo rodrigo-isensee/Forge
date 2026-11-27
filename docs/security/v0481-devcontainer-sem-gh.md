@@ -3,48 +3,34 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-devcontainer-sem-gh
-commit: 046cd9a1b142deccbcf9717b566154cca9f1933d
-parecer: reprovado
+commit: a5f6c0f1343dbad87df1f227b647e9c0e8460515
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-26
 ---
-# Review de segurança: v0481 (E35.4, #926, DEVCONTAINER-SEM-GH)
+# Review de segurança: v0481 (E35.8, #926, DEVCONTAINER-SEM-GH), volta 2
 
-1ª rodada completa sobre o head 046cd9a1 (base ee05ee84): `.devcontainer/devcontainer.json`, `scripts/preparar-estacao.sh`, testes e mutantes do diff.
+Revalidação por delta (e1c3ba7c..a5f6c0f1, `forge-check parecer delta`): no domínio só `.devcontainer/devcontainer.json` e `scripts/preparar-estacao.sh` (comentário). A rodada anterior (reprovado, commit 046cd9a1) fica no git.
 
-Resposta direta ao brief: **sim, o caminho permite ao agente rodar código como root, fora do sandbox, no próximo início do container**, sem recriar o container, sem ofuscação e sem passar pelo hook (S1, S2). A guarda `FORGE_PREPARO_ESSENCIAL=1` é uma variável lida pelo próprio script que o agente controla; contra esse ataque ela vale zero. A segunda limitação citada ("devcontainer.json protegido pelo hook") não vale na sessão do Forge, que é onde este arquivo vale (S3).
+Gatilhos: comando executado como root fora do sandbox (postStartCommand), arquivo em vigor (.devcontainer/devcontainer.json), credencial do dono (login do gh no volume ~/.claude), defesa B2 da 0.43.1
 
-## Gatilhos
-Gatilhos: comando executado como root fora do sandbox (postStartCommand), arquivo em vigor (.devcontainer/devcontainer.json), credencial do dono (login do gh no volume ~/.claude), retirada de defesa anterior (B2 da 0.43.1)
+## Achados anteriores
+- A1 (bloqueante): fechado. `.devcontainer/devcontainer.json:30` clona a `main` de URL fixa no próprio arquivo para `mktemp -d` do root e roda o script de lá; nada de `/workspaces/Forge` é executado. O caso de abuso voltou para o Forge (`tests/test_forge.py`, `PrepararEstacao.test_poststart_roda_so_a_main_do_remoto_nunca_o_ref_local_forjado`: script forjado no work tree e no ref local não roda); rodei esse, `test_poststart_do_forge_exige_a_guarda_no_script_da_main` e `test_devcontainer_prepara_sozinho_sem_rodar_o_work_tree`: 3 OK.
+- A2 (recomendado): fechado. `.devcontainer/devcontainer.json:14-15` troca "protegido pelo hook" pela garantia real e diz que o hook libera a escrita deste arquivo na sessão do Forge.
+- A3 (recomendado): fechado. `scripts/preparar-estacao.sh:8` alinhado ao desenho (baixa a main pelo GitHub, nunca a cópia de trabalho).
 
-## Achados
-- A1 (bloqueante) .devcontainer/devcontainer.json:26 · o root roda, a cada início do container e fora do sandbox, scripts/preparar-estacao.sh do work tree /workspaces/Forge, que o agente grava no sandbox (S1) e o hook não protege (S2): escape do sandbox para root com o token do gh do dono; FORGE_PREPARO_ESSENCIAL não limita script forjado
-- A2 (recomendado) .devcontainer/devcontainer.json:9 · o comentário dá "este arquivo é protegido pelo hook" como limite do risco, mas na sessão do Forge o hook libera a escrita dele (S3); tirar a afirmação ou trocá-la pela garantia real
-- A3 (recomendado) scripts/preparar-estacao.sh:8 · o cabeçalho ainda diz que o postStart é "um clone raso novo da main, nunca ref local", o contrário do que o devcontainer.json passa a fazer; alinhar ao desenho que ficar
+## Caminhos restantes de código do agente para o root (conferidos)
+- O `git clone` roda com cwd em `/workspaces/Forge`, mas não lê a configuração do repositório do cwd: sonda local com `core.fsmonitor` e `alias.clone` no repositório do cwd não executou nada (git 2.43.0). A configuração global do root (`/root/.gitconfig`, `/root/.config/git`) não é gravável no sandbox.
+- `-c credential.helper=` vem por último e limpa a lista inteira, inclusive o helper por URL que o `gh auth setup-git` grava; com `GIT_TERMINAL_PROMPT=0` não há prompt. O root não usa o token do dono no postStart.
+- O script da `main` (essencial) só faz `git -C /workspaces/Forge config` (lê `.git/config`, protegido no sandbox; `config` não executa hook nem fsmonitor) e roda `instalar-atalho.sh` e `forge-sempre-atual` do installPath do plugin, que `plugin_ativo` restringe a `~/.claude/plugins/cache` (negado à escrita no sandbox). `container_vigente`, que roda `scripts/jarvis-forge` do work tree, fica fora com `FORGE_PREPARO_ESSENCIAL=1`.
+- `mktemp -d` do root fica em `/tmp`, fora da escrita do sandbox; sem corrida explorável.
+- A `main` remota tem a marca da guarda (`FORGE_PREPARO_ESSENCIAL:-0`), então o postStart não falha por main antiga.
 
-## Sondas
-- S1 · test -w /workspaces/Forge/scripts/preparar-estacao.sh, no sandbox do agente (sessão do Forge) · espera: não gravável (o que o root executa não pode ser gravado pelo agente) · obtido: gravável
-- S2 · hook conformidade do head 046cd9a1 com ~/.forge-contrib/sondas/v0481-e354/s1-write-script.json (Write, devops) e s3-write-script-dev.json (Edit, dev) no script, via rodar.sh · espera: rc=2 · obtido: rc=0 nas duas
-- S3 · mesmo hook com ~/.forge-contrib/sondas/v0481-e354/s2-write-devcontainer.json (Write em /workspaces/Forge/.devcontainer/devcontainer.json, sessão do Forge) · espera: rc=2 · obtido: rc=0 (controle s4, projeto com .forge/versao: rc=2)
+O que aperta: o root volta a rodar só o que passou por PR e pelo merge do dono (B2), agora sem credencial nenhuma na rede; falha de clone, guarda ou preparo aparece (ERRO e rc 1) em vez de ser engolida; o caso de abuso do B2 volta a cobrir o Forge.
+O que fica neutro: `FORGE_PREPARO_ESSENCIAL=1`; a execução do cache do plugin; o vetor pelo próprio `devcontainer.json` (já existia, cartão da rodada anterior ao `tech-lead`, ainda aberto); a dependência de rede no início, que é disponibilidade, não segurança.
+O que afrouxa: nada no delta.
 
-## Detalhe dos achados
-**A1.** Evidência: `.devcontainer/devcontainer.json:26` (postStartCommand roda `bash /workspaces/Forge/scripts/preparar-estacao.sh` como root); `scripts/preparar-estacao.sh:434` em diante; S1 e S2. O hook declara de si mesmo que o sandbox é a garantia (`hooks/conformidade.py:6`), e o sandbox deixa o agente gravar a raiz `/workspaces/Forge` inteira, salvo `.git/config` e o que está em `denyWrite`.
-Caminho de ataque: um agente da sessão do Forge, com mau comportamento ou sob injeção de instrução vinda de conteúdo lido (PR, issue, página, saída de ferramenta), acrescenta uma linha ao script com o Edit ou qualquer Bash. Sem malícia o efeito é o mesmo: uma branch não revisada com o script quebrado, posta em `/workspaces/Forge`, também roda como root. No próximo início do container (o container caiu duas vezes em 26/11; reiniciar basta, recriar não é preciso), o root fora do sandbox executa a linha. Com isso lê `/root/.claude/gh` (o login do dono, com escopo `repo` e `workflow`, negado à leitura no sandbox) e grava `~/.claude/settings.json` (desliga o sandbox) e o cache do plugin (os hooks da ADR 0009 deixam de valer). Com o escopo `workflow`, também altera o CI e a `main`. A gravação persiste em `/workspaces`.
-Severidade: alta (local, depende de agente desviado e de um reinício, que é rotina; o impacto é total sobre a máquina e a credencial).
-O que aperta: o root deixa de acessar a rede com o credential helper do gh no postStart, e a falha aparece (rc 1 e linha `erro:`) em vez de ser engolida.
-O que fica neutro: `FORGE_PREPARO_ESSENCIAL=1` (limita só um script honesto e desatualizado), `container_essenciais`, a criação de `~/.config/gh` primeiro, e o modelo de projeto, que continua com o B2 (`tests/test_forge.py`, `test_poststart_do_modelo_roda_so_a_main_do_remoto_nunca_o_ref_local_forjado`).
-O que afrouxa: a defesa B2 (o agente não escolhe o que o root executa) sai do Forge, e o caso de abuso que a provava (ref forjado não roda como root) foi apagado para o Forge sem substituto.
-Ressalva honesta: o vetor pelo próprio `devcontainer.json` já existia antes (S3). Mas a troca de configuração aparece como mudança no arquivo em vigor e, em regra, só pega ao recriar o container. O vetor novo pega em todo reinício e mora num script que o time edita no dia a dia.
-Correção mínima (dono: `devops-engineer`; esforço P). A ordem do dono no cartão diz "usar o script da cópia já presente", então a escolha entre as opções é dele (`R-DECISAO`), levada pelo Jarvis:
-1. Recomendada: manter o clone raso novo da `main` (B2), só que sem o gh. Tirar `GH_CONFIG_DIR=/root/.claude/gh` e `-c 'credential.helper=!gh auth git-credential'`, pôr `-c credential.helper=` com `GIT_TERMINAL_PROMPT=0`, manter o `grep` da guarda e trocar o `; rm -rf "$d"; true` do fim pelo aviso com `exit 1` desta branch (limpando `$d` antes). O pedido sai cumprido (sem gh, falha visível) e o B2 continua. Nesta máquina a leitura anônima da `main` funcionou (`git -c credential.helper= ls-remote` da URL do origin, rc 0). Sem rede, a falha aparece e o dono roda o comando manual. Caso de abuso a recolocar: o script forjado no work tree e no ref local não roda; só o da `main` remota roda.
-2. Alternativa sem rede: pôr os passos do essencial (criar `/root/.config/gh`, o link `~/.forge-contrib`, instalar o gh e o tmux) direto no postStartCommand, sem executar arquivo gravável pelo agente. É maior e repete a lógica do script.
-3. Aceitar o risco como está: só o dono, com `docs/security/aceites/v0481-devcontainer-sem-gh.md` (`pedido: v0481`, `commit: 046cd9a1b142deccbcf9717b566154cca9f1933d`, `aceite: sim`), escrito à mão. Aí o parecer vira `riscos-aceitos`.
-
-**A2.** Evidência: `.devcontainer/devcontainer.json:9` e S3. Na sessão do Forge, o hook só aplica as travas de envio e flags (`hooks/conformidade.py:10`); os caminhos protegidos de `hooks/conformidade.json:35` valem só em projeto. Correção: o comentário passa a citar a defesa que de fato vale. Esforço P. Dono: `devops-engineer`.
-
-**A3.** Evidência: `scripts/preparar-estacao.sh:8`. Comentário que contradiz o código engana o próximo revisor sobre a garantia. Correção: alinhar ao desenho escolhido em A1. Esforço P. Dono: `devops-engineer`.
-
-Cartão (fora do delta, `tech-lead`, dono do hook): na sessão do Forge, o hook conformidade libera Write em `.devcontainer/devcontainer.json` e em `.githooks/` da raiz `/workspaces/Forge` (S3 e o controle s0, rc 0). Os dois são arquivos que rodam fora do sandbox. Propor a proteção desses caminhos também na sessão do Forge, ou, ao dono, `denyWrite` deles no sandbox, sabendo que isso barra o git do Jarvis quando atualiza esses arquivos na raiz.
+Cartão (fora do delta, `devops-engineer`, recomendação): a mensagem de ERRO manda o dono rodar `bash /workspaces/Forge/scripts/preparar-estacao.sh --container`, o script do work tree, completo (com `jarvis-forge` do work tree), como root. É ação deliberada do dono e já existia; vale o comando manual também partir do clone da `main` ou avisar que roda a branch que estiver na raiz.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito nesta rodada. CI do head 046cd9a1 incompleto na hora do parecer: suítes pendentes e "bateria (pareceres)" vermelha, como esperado sem pareceres. O reprovado não depende do CI: é defeito de desenho, provado por S1 a S3. Ferramentas: só leitura do diff, `test -w` e o hook do próprio head sobre entradas simuladas; nenhum teste da suíte rodado localmente (teto do dono de duas rodadas).
+Nenhum risco aceito. CI do head a5f6c0f1: as 10 partes da suíte (3.12 e 3.14), instalação, catraca, passos, verificações longas e teto de pulados verdes; vermelhos só `bateria (pareceres)` e o agregado `bateria`, que esperam os pareceres desta volta. Ferramentas: leitura do diff, a sonda local do clone e os 3 testes de abuso acima; o resto da suíte só no CI.
