@@ -3,34 +3,30 @@ tipo: review
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-f6-ci-uma-vez
-commit: ac8202d0e2644d015f1c13be3fd7f040101db06f
+commit: 700a2fc497a0ea79e47961794a0fb76f0c3d655d
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-27
 ---
-# Review: v0481 (E32.16, #929, F6 no CI), voltas 2 e 3 por delta
+# Review: v0481 (E32.23, #929, F6 no CI), voltas 4 e 5 por delta
 
-Delta lido (H3): `forge-check parecer delta` de `e85793a8..ac8202d0`. No domínio há 5 arquivos: `tests/config.json`, `tests/mutantes/v0481-f6-ci-uma-vez.json`, `tests/test_arvore_testada.py`, `tests/test_catraca.py` e `tests/test_suite_partes.py`. De `5f26b0f9` a `ac8202d0` só mudou `docs/devops/`. Nada fora do delta foi relido.
+Delta lido (H3): `forge-check parecer delta` de `ac8202d0..700a2fc4`. No domínio há 2 arquivos: `tests/test_suite_partes.py` e `tests/mutantes/v0481-f6-ci-uma-vez-2.json`; o resto do intervalo é parecer (`docs/qa/`, `docs/reviews/`, `docs/security/`). Nada fora do delta foi relido.
 
-- ci: ac8202d0e2644d015f1c13be3fd7f040101db06f verde
+- ci: 700a2fc497a0ea79e47961794a0fb76f0c3d655d verde
 
 ## Parecer
-**Aprovado.** Todos os bloqueantes da volta 1 foram resolvidos.
+**Aprovado.** A volta 4 (`e8998527`) e a volta 5 (`700a2fc4`) não trazem bloqueante novo.
 
-**CI (G3):** o sha revisado é o `ac8202d0`, com código igual ao `5f26b0f9`. `gh pr checks 929` lido no run 45935698348 (pull_request, head `ac8202d0`). Estão verdes as 5 partes da suíte 3.12, `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)`, `instalação (python 3.14)`, `teto de pulados (python 3.12)` e `árvore já provada na develop`. Ficam fora da conta `bateria`, `bateria (pareceres)` e `catraca`, que esperam o parecer e o rótulo `afrouxa-regra` do dono.
+**CI (G3):** `gh pr checks 929` lido no run 45941299117, com head `700a2fc4`. Estão verdes as 5 partes da suíte 3.12, `bateria (passos)`, `bateria (verificações longas)`, `bateria (python 3.14)`, `instalação (python 3.14)`, `teto de pulados (python 3.12)` e `árvore já provada na develop`. Ficam fora da conta `bateria`, `bateria (pareceres)` e `catraca`, que esperam os pareceres e o rótulo.
 
-O run do `5f26b0f9` (45933270128) reprovou só na parte 3/5. A causa foi `NeutralidadeDoNucleo` em `docs/devops/v0481-f6-ci-uma-vez.md` (`npm`), um parecer e não código. O `ac8202d0` corrige isso e o diff dele toca só `docs/devops/`, por isso o CI vale lido no próprio `ac8202d0`.
+**O delta:**
+- **Testes de comportamento do diário (A1 e A2 do QA):** `rodar_passo` roda o `run` real do passo no bash com `-e -o pipefail`, com ambiente limpo (PATH, HOME, RUNNER_TEMP e GITHUB_STEP_SUMMARY montados no teste), como o GitHub faz.
+  - Passo dos mutantes: as 30 specs falsas fazem cair na fatia exatamente uma, seja qual for o dia, e o teste fica determinístico. O `forge-mutante` falso decide o rc, e o teste confere rc 0 e rc 1 e a linha do aviso.
+  - Cartão: o `gh` falso registra as chamadas e o teste confere o número exato da issue (`issue comment 42`), não um prefixo. Isso atende o item 12 do checklist.
+- **Jobs do diário:** o teste afirma o conjunto exato dos 4 jobs, `ref: develop` em cada checkout, a matriz `1, 2, 3, 4, 5` casando com `--parte "$PARTE/5"` e com o rótulo, e `timeout-minutes` em todo job.
+- **Fumaça do 3.14:** o teste lê o texto do `run`. A linha é uma linha de execução, não uma guarda (`if`, `||`, `exit`), e o mutante CI-M15 (`run: true`) morre.
+- **Spec dividida (V2):** `v0481-f6-ci-uma-vez.json` ficou com CI-M1 a CI-M8, e o diff dela em `ac8202d0..700a2fc4` é vazio. `-2.json` tem CI-M9 a CI-M15, os mesmos que o `e8998527` declarou, só mudados de arquivo.
 
-**Situação dos achados da volta 1 (o delta):**
-- **A11:** resolvido. O teste agora espera `(2, 1)` e 3 jobs com `always()`, e o comentário foi alinhado.
-- **A12:** resolvido. A lista tem os 13 `timeout-minutes` na ordem do ci.yml, sem o `arvore-envio` e sem as pernas do 3.14. O ci.yml tem 13 ocorrências.
-- **A13:** resolvido. Há exceção de `\bnpm\b` só para o `diario.yml` em `tests/config.json`, e o título e a seção "Regras afrouxadas" do PR a destacam.
-- **A14:** resolvido. CI-M4 a CI-M8 cobrem as linhas 111, 116, 119, 120 e 121 do diario.yml, uma por linha, e os cinco morreram.
-- **A15:** resolvido. O corpo do #929 não cita mais o `arvore-envio` nem o `--do-pr` e traz a linha `teto: excedido` com o motivo. O número estava errado (176), e o `forge-check pr --previo` conta 432, adições mais remoções do código (`tamanho-por-item.md`). Como o texto do PR é do tech-lead, troquei o número no corpo, sem push e sem mexer no código.
-- **A16:** resolvido. O dia vai fixo ao programa (`dia = 331`, 2026-11-27), e o teste confere que o `date.today()` que ele troca existe.
-- **Sonda S1 como teste:** `test_check_bateria_do_pr_nao_e_prova_e_o_script_nao_le_check_runs` mostra pelo comportamento que o check `bateria` do PR não serve de prova e que não há leitura de check-runs.
-- **A7 e A10:** seguem como recomendados da volta 1 e viram cartão depois do merge, sem bloquear.
-
-**Verificado local** (com o flock da trava a):
-- `tests.test_suite_partes.FiacaoDoCI`, `tests.test_arvore_testada`, `tests.test_catraca.Workflows` e `tests.test_forge.NeutralidadeDoNucleo`: 45 testes, OK.
-- `bin/forge-mutante tests/mutantes/v0481-f6-ci-uma-vez.json --processos 1` em `ac8202d0`: CI-M1 a CI-M8 morreram.
+**Verificado local** (com o flock da trava b):
+- `tests.test_suite_partes.FiacaoDoCI`: 17 testes, OK.
+- `bin/forge-mutante tests/mutantes/v0481-f6-ci-uma-vez-2.json --processos 1` em `700a2fc4`: morreram os 7 (CI-M9 a CI-M15). São eles diario.yml:128, :32, :72, :95, :28 e :154, e ci.yml:318.
