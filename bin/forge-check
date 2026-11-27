@@ -1797,8 +1797,8 @@ def branch_do_sha(raiz, sha):
 
 def conferencia_do_head(raiz, pedido, ref=None, base=None, branch=None, previo=False):
     """G3-ENTREGA-PELO-CI (v0481 E28.6): no `--previo` (o pré-voo do parecer de review e de QA, que leem o CI do head), a conferência
-    que falta vira aviso no stderr: o portão não espera a conferência da entrega; o `pr` sem `--previo`, o hook e o `forge-fechar`
-    seguem exigindo-a."""
+    que falta vira aviso no stderr: o portão não espera a conferência da entrega; o `pr` sem `--previo` e o `forge-fechar` seguem
+    exigindo-a. O hook `parecer` só a vê pelo resultado gravado: sem ele, `gh pr ready`/`gh pr merge` rodam só o `cmd_pr`, sem ela."""
     linhas = linhas_da_conferencia(raiz, pedido, ref, base, branch)
     if previo and linhas:
         for linha in linhas:
