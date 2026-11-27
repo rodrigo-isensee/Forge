@@ -1,2 +1,0 @@
-### Alterado
-- No Forge, o brief de código deixa de pedir o D2 e a bateria local ao autor (só os testes afetados, para se guiar; a prova é o CI do PR no head); o brief do QA e o pré-voo do portão (`forge-check pr --previo`) leem o CI do head sem esperar a conferência da entrega; a prova pelo CI exige em pass os jobs que o agregador `bateria` junta e reprova o título do PR que é a linha da etapa do brief (PR-TITULO-DO-BRIEF) (v0481 E28.6).
