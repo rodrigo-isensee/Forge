@@ -36,8 +36,8 @@
       "id": "RD4",
       "guarda": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1, volta 1, A2): sem valor calculado, recusa só a linha que cita a entrada",
       "arquivo": "hooks/conformidade.py",
-      "de": "            if any(EM_VIGOR_NO_TEXTO.search(t) for t in textos):",
-      "para": "            if True:",
+      "de": "            if \"*\" in palavra_juntada(caminho).split(\"/\")[0] or any(",
+      "para": "            if True or any(",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_raiz_do_forge"
       ]
