@@ -55,6 +55,12 @@ class GerarDerivados(unittest.TestCase):
         self.assertIn("docs/hooks-fixtures.md: sem mudança", r.stdout)
         self.assertIn("rc=0; confira com `git diff` e commite os derivados", r.stdout)
 
+    def test_derivado_que_nao_existia_conta_como_mudou(self):
+        (self.raiz / "docs" / "indice-forge.md").unlink()
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("docs/indice-forge.md: mudou", r.stdout)
+
     def test_conferir_nao_grava_e_sai_1_com_derivado_desatualizado(self):
         (self.raiz / "docs" / "hooks-fixtures.md").write_text("novo", encoding="utf-8")
         r = self.rodar("--conferir")

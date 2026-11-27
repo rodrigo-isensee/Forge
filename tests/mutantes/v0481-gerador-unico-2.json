@@ -1,5 +1,5 @@
 {
-  "pedido": "v0481-gerador-unico-2",
+  "pedido": "v0481-gerador-unico",
   "executor": "unittest",
   "mutantes": [
     {
@@ -20,6 +20,36 @@
       "para": "(\"\" if False else",
       "testes": [
         "tests.test_gerar_derivados.GerarDerivados.test_conferir_nao_grava_e_sai_1_com_derivado_desatualizado"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "derivado ausente antes do gerador não quebra a leitura",
+      "arquivo": "scripts/gerar-derivados.py",
+      "de": "if caminho.is_file() else None",
+      "para": "if True else None",
+      "testes": [
+        "tests.test_gerar_derivados.GerarDerivados.test_derivado_que_nao_existia_conta_como_mudou"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o --conferir chega ao gerador",
+      "arquivo": "scripts/gerar-derivados.py",
+      "de": "([\"--conferir\"] if conferir else [])",
+      "para": "([] if conferir else [])",
+      "testes": [
+        "tests.test_gerar_derivados.GerarDerivados.test_conferir_nao_grava_e_sai_1_com_derivado_desatualizado"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o script roda como programa",
+      "arquivo": "scripts/gerar-derivados.py",
+      "de": "if __name__ == \"__main__\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_gerar_derivados.GerarDerivados.test_grava_e_diz_o_que_mudou"
       ]
     }
   ]
