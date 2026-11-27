@@ -36,8 +36,8 @@
       "id": "M4",
       "guarda": "a pasta fora de CAMINHOS_DO_CONTROLE: a GuardaDaProva da sessão do Forge descarta a recusa (as c1b3-*-bloqueia voltam a rc 0)",
       "arquivo": "hooks/conformidade.py",
-      "de": "\"~/.forge-contrib/.forge/run/\")  # C1b-3",
-      "para": "\"~/.forge-contrib/.forge/run-x/\")  # C1b-3",
+      "de": "CAMINHOS_DO_CONTROLE += (\"~/.forge-contrib/.forge/run/\",)",
+      "para": "CAMINHOS_DO_CONTROLE += (\"~/.forge-contrib/.forge/run-x/\",)",
       "testes": [
         "tests.test_conformidade_pareceres.PastaDeControleDoForge.test_fixtures_c1b3"
       ]
