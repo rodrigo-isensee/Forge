@@ -733,12 +733,15 @@ class FiacaoDoCI(unittest.TestCase):
         self.assertIn("gh issue create", cartao)
         self.assertNotIn("actions/checkout", cartao)
 
-    def fatia_do_dia(self, pendentes):
+    def fatia_do_dia(self, pendentes, dia):
         """Roda, numa árvore descartável com 30 specs, o programa que o diario.yml usa para escolher a fatia do dia; devolve
         as linhas que ele imprime (a spec de índice dia%30 e, se houver pendentes dela, `--ids` com o resto)."""
         diario = (RAIZ / ".github" / "workflows" / "diario.yml").read_text(encoding="utf-8")
         inicio = diario.index("""<<'PY' > "$RUNNER_TEMP/fatia.txt"\n""") + len("""<<'PY' > "$RUNNER_TEMP/fatia.txt"\n""")
         programa = "\n".join(l[10:] for l in diario[inicio:diario.index("\n          PY\n")].splitlines())
+        # o dia vai fixo ao programa (A16): ler date.today() aqui e no subprocesso discordaria na virada da meia-noite
+        self.assertIn("datetime.date.today()", programa)
+        programa = programa.replace("datetime.date.today()", f"datetime.date.fromordinal(datetime.date(2026, 1, 1).toordinal() + {dia - 1})")
         with tempfile.TemporaryDirectory() as tmp:
             raiz = Path(tmp)
             (raiz / "tests" / "mutantes").mkdir(parents=True)
@@ -754,11 +757,11 @@ class FiacaoDoCI(unittest.TestCase):
     def test_f6_diario_roda_uma_spec_por_chamada_sem_os_pendentes_conhecidos(self):
         """A3 e A4 do review (7cb7879): o forge-mutante recusa (rc 2) id repetido entre as specs de uma chamada, então a fatia vai
         uma spec por vez; os mutantes pendentes (a catraca de ConferirTodas) saem por --ids, e a issue avisa só quebra nova."""
-        import datetime
-        sobre = f"tests/mutantes/s{datetime.date.today().timetuple().tm_yday % 30:02d}.json"
-        self.assertEqual(self.fatia_do_dia(""), [sobre])
-        self.assertEqual(self.fatia_do_dia(f"# nota\n{sobre}: M1\ntests/mutantes/outra.json: M2\n"), [f"{sobre} --ids M2"])
-        self.assertEqual(self.fatia_do_dia(f"{sobre}: M1\n{sobre}: M2\n"), [])
+        dia = 331  # 2026-11-27 (o dia do ano; 331 % 30 = 1)
+        sobre = f"tests/mutantes/s{dia % 30:02d}.json"
+        self.assertEqual(self.fatia_do_dia("", dia), [sobre])
+        self.assertEqual(self.fatia_do_dia(f"# nota\n{sobre}: M1\ntests/mutantes/outra.json: M2\n", dia), [f"{sobre} --ids M2"])
+        self.assertEqual(self.fatia_do_dia(f"{sobre}: M1\n{sobre}: M2\n", dia), [])
         diario = (RAIZ / ".github" / "workflows" / "diario.yml").read_text(encoding="utf-8")
         self.assertNotIn("por_pedido", diario)
         self.assertIn("python3 bin/forge-mutante $linha --processos 2", diario)

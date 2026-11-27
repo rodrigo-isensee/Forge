@@ -177,6 +177,24 @@ class Provar(unittest.TestCase):
         self.assertTrue(motivo.endswith("fora da lista"))
         self.assertEqual(chamadas, [])
 
+    def test_check_bateria_do_pr_nao_e_prova_e_o_script_nao_le_check_runs(self):
+        """Sonda S1 da segurança (c5368db): a API falsa tem o check `bateria` em success no run do PR #77 contra a base
+        melhoria/x (base.sha fora do head). O corte A5 tirou `prova_do_pr`: a prova é só a do push na develop (`event=push`)."""
+        chamadas = []
+
+        def ler(caminho):
+            chamadas.append(caminho)
+            if "check-runs" in caminho:
+                return {"check_runs": [{"name": "bateria", "conclusion": "success", "app": {"slug": "github-actions"}}]}
+            return {"workflow_runs": []}  # nenhum run de push na develop
+        for e in (env(base="melhoria/x", head="develop"), env(base="homolog", head="develop")):
+            with self.subTest(base=e["BASE_REF"]):
+                ok, motivo = chamar(at.provar, e, "3.12", ARVORE, f"{D} {ARVORE}\n", ler)
+                self.assertFalse(ok, motivo)
+        self.assertFalse([c for c in chamadas if "check-runs" in c or "pull_request" in c])
+        self.assertFalse(hasattr(at, "prova_do_pr"))
+        self.assertNotIn("check-runs", SCRIPT.read_text(encoding="utf-8"))
+
     def test_execucao_de_outro_workflow_nao_tem_jobs_lidos(self):
         chamadas = []
         self.assertFalse(self.provar(execucoes=[execucao(path=".github/workflows/catraca.yml")], chamadas=chamadas)[0])

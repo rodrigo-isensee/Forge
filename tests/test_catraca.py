@@ -4245,29 +4245,28 @@ class Workflows(unittest.TestCase):
         self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/develop'", ci)
         self.assertRegex(ci, r"(?m)^  bateria:")
         self.assertIn("docs/(reviews|qa|security|devops|ux)/", ci)
-        # Teto de tempo (ci-suite-no-teto; SUITE-NO-CI; CI-RAPIDO, v047): no push na develop, por versão (3.12 e 3.14), cada uma das 5
-        # partes 15 min (medida de 2:30 a 5:00, a proposta ci-rapido), o teto de pulados 5 min e o agregador de prova
-        # ("checagem rápida", SP4) 5 min; no PR, cada parte da suíte (3.12 e 3.14) 20 min; cobertura 45 min;
-        # instalação no 3.14 15 min; o teto de pulados de cada versão (T3, 0.43.2) 5 min; passos da bateria 20 min; verificações longas (shellcheck, Provas, e2e; #493) 20 min; os dois agregadores 5 min;
-        # o job de pareceres (v047 E1.18, J9) 5 min; o job prévio da árvore (M2, 0.43.4), antes das partes, 5 min.
-        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["15", "5", "5", "15", "5", "5", "45", "5", "20", "20", "15", "5", "5", "5",
-                                                                     "20", "5", "20", "5"])
+        # Teto de tempo (ci-suite-no-teto; SUITE-NO-CI; CI-RAPIDO, v047; F6, v0481), na ordem do ci.yml: no push na develop (3.12), cada uma
+        # das 5 partes 15 min (medida de 2:30 a 5:00, a proposta ci-rapido), o teto de pulados 5 min e o agregador de prova
+        # ("checagem rápida", SP4) 5 min; no PR: cobertura 45 min; o job prévio da árvore (M2) 5 min; cada parte da suíte (3.12) 20 min;
+        # instalação no 3.14 15 min; o teto de pulados (T3, 0.43.2) 5 min; o agregador da bateria 5 min; passos da bateria 20 min;
+        # pareceres (v047 E1.18, J9) 5 min; verificações longas (shellcheck, Provas, e2e; #493) 20 min; o agregador do PR 5 min.
+        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["15", "5", "5", "45", "5", "20", "15", "5", "5", "20", "5", "20", "5"])
 
     def test_gate_do_ci_nao_deixa_codigo_escapar_nem_forjar_o_verde(self):
         """Review independente: renomeação, testes de pareceres, check forjado, cancelamento e promoção."""
         ci = self.texto("ci.yml")
         self.assertIn("git diff --name-only --no-renames", ci)  # renomear código para docs/reviews não pode esconder a origem
         # Execução cancelada não gasta os minutos que o gate poupa: always() só no if dos agregadores, os dois do PR (SUITE-NO-CI)
-        # e os dois de prova do push na develop (CI-RAPIDO, v047), que não fazem checkout nem rodam código da branch: só
+        # e o de prova do push na develop (CI-RAPIDO, v047; F6 tirou o segundo), que não fazem checkout nem rodam código da branch: só
         # conferem o resultado dos jobs necessários (cancelado ou pulado reprova).
         agregadores = "    if: always() && (github.event_name != 'push' || github.ref != 'refs/heads/develop')\n"
         da_develop = "    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/develop'\n"
         self.assertEqual(ci.count("always()"), ci.count(agregadores) + ci.count(da_develop) + ci.count("always():"),
                          "always() fora do if de agregador")
-        self.assertEqual((ci.count(agregadores), ci.count(da_develop)), (2, 2))
+        self.assertEqual((ci.count(agregadores), ci.count(da_develop)), (2, 1))
         jobs = re.split(r"(?m)^(?=  [a-z-]+:\n)", ci.split("\njobs:\n", 1)[1])
         com_always = [j for j in jobs if "    if: always()" in j]
-        self.assertEqual(len(com_always), 4)
+        self.assertEqual(len(com_always), 3)
         for job in com_always:
             with self.subTest(job.split(":", 1)[0].strip()):
                 self.assertNotIn("uses:", job)  # sem checkout nem ação: não roda código da branch
