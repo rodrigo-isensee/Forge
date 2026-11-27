@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: v0481
 branch: melhoria/v0481-f6-arvore-envio
-commit: 1567d509452159c268e52384f694a7bf3881bdda
-parecer: reprovado
+commit: dcd4003c3bbb728d86c2e16a9df0aefad46a2036
+parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
@@ -14,13 +14,11 @@ data: 2026-11-27
 ---
 # QA: v0481 (E32.30, #932, F6: o envio na develop pula a suíte com a árvore provada no PR)
 
-- ci: 1567d509452159c268e52384f694a7bf3881bdda verde
+- ci: dcd4003c3bbb728d86c2e16a9df0aefad46a2036 verde
 
-Lido em `gh pr checks 932` no sha revisado: verdes `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, suíte 3.12 partes 1 a 5, teto de pulados e `árvore já provada na develop`; fora os que esperam parecer ou rótulo: `bateria`, `bateria (pareceres)` e `catraca` (failure no sha, sem saída de log; os três são os exigidos que o brief manda excluir). Os jobs do push na develop saem `skipping`, como no PR.
+Volta 1 (delta 1567d509..dcd4003c). `gh pr checks 932` no head: verdes `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `instalação (python 3.14)`, suíte 3.12 partes 1 a 5, teto de pulados e `árvore já provada na develop`; fora `bateria`, `bateria (pareceres)` e `catraca` (esperam parecer ou rótulo). Os jobs do push na develop saem `skipping`.
 
-## Achados
-- A1 (bloqueante) tests/mutantes/v0481-f6-arvore-envio.json:1 · `forge-mutante --cobertura --base` lista guarda mudada em arvore-testada.py sem mutante: L147 (workflow ref), L148, L159 (head do repo, merge_commit, merged_at, base develop), L163 (mesma árvore), L165 (develop anterior). QA os provou (Q1 a Q9 morreram); falta declarar na spec.
-- A2 (bloqueante) scripts/arvore-testada.py:165 · mutante Q10 sobreviveu: aceitar `behind` além de `ahead/identical` no compare anterior...head não derruba teste algum. Falta caso com status `behind` em `test_qualquer_falta_da_prova_roda_a_suite_inteira`. A árvore igual continua a prova; é a defesa em profundidade que está sem teste.
+A1 resolvido: a cobertura lista as linhas L145 a L232 de `arvore-testada.py` como `coberta` (specs -3 a -6); só `não coberto: .github/workflows/ci.yml` (YAML, coberto pelas AE-M9 a M12). A2 resolvido: AE-M19 (`behind`) morre; o falso da API usa `pull_requests: []` como a API real (teste `ProvaDoPr`, linha 231).
 
 ## Critério → teste → resultado
 O pedido não traz `CA-n` para o corte do envio; a obrigação é a decisão do dono do F6 e o A1 da segurança do #929 (prova do run do ci.yml do próprio PR, base develop, compare, job `bateria` na última tentativa).
@@ -43,5 +41,7 @@ O pedido não traz `CA-n` para o corte do envio; a obrigação é a decisão do 
 - Leitura do diff (ci.yml): `arvore-envio` com `actions: read` e `pull-requests: read`, token só no passo da prova, `python3 -I`, falha fechada em erro de API; agregador exige `ARVORE=success` e, sem prova, partes e pulados `success`. Sem defeito achado.
 - Acessibilidade e E2E de produto: n/a (CI e script).
 
-## Para fechar
-Declarar na spec os mutantes das linhas do A1 (Q1 a Q9 servem de modelo, dividindo a spec se passar de 8 por arquivo) e cobrir o `behind` (A2); na volta, `forge-mutante ... --base 1567d509` e `forge-check parecer delta`.
+## Revalidação (volta 1)
+- `python3 -I tests/test_arvore_testada.py`: 31 testes, OK.
+- `bin/forge-mutante --processos 4` nas specs -1, -4, -5, -6: AE-M1 a M8 e M14 a M35 todos `morreu`, rc=0 (a spec -5 inteira e o AE-M1 rodados aqui). Specs -2 e -3 (AE-M9 a M13): `morreu`, rc=0. Total 35 de 35, nenhum sobrevivente.
+- `forge-mutante --cobertura --base 11fc1867`: sem `sem mutante` em guarda Python; `docs/protecao-de-branch.md` conferido contra o código (head_sha e head_branch, base do PR, fork não prova).
