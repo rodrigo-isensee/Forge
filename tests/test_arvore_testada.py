@@ -213,10 +213,11 @@ class Provar(unittest.TestCase):
 
 class ProvaDoPr(unittest.TestCase):
     """F6 (v0481 E32.9): o push na develop reaproveita o PR mesclado quando a árvore do head é a do commit, a develop anterior
-    é ancestral do head e o run do ci.yml do PR (pull_request, mesmo número, base develop) tem o job `bateria` em success na
+    é ancestral do head e o run do ci.yml do PR (pull_request, mesmo head_sha e ramo, base develop) tem o job `bateria` em success na
     tentativa mais recente; qualquer falta da prova roda a suíte inteira (A1 do parecer de segurança do #929)."""
 
     ARV, ANT, CAB, PR, BASE, RUN = "1" * 40, "2" * 40, "3" * 40, 77, "4" * 40, 555
+    RAMO = "melhoria/x"
     WF = f"{REPO}/.github/workflows/ci.yml@refs/heads/develop"
 
     def ambiente(self, **mudar):
@@ -227,7 +228,7 @@ class ProvaDoPr(unittest.TestCase):
     def rodada(self, **mudar):
         base = {"id": self.RUN, "run_attempt": 1, "event": "pull_request", "head_sha": self.CAB, "path": ".github/workflows/ci.yml",
                 "repository": {"full_name": REPO}, "head_repository": {"full_name": REPO}, "status": "completed",
-                "pull_requests": [{"number": self.PR, "base": {"ref": "develop", "sha": self.BASE}}]}
+                "head_branch": self.RAMO, "pull_requests": []}  # a API real esvazia pull_requests depois do merge
         base.update(mudar)
         return base
 
@@ -239,7 +240,8 @@ class ProvaDoPr(unittest.TestCase):
     def api(self, arvore_do_head=None, status="ahead", status_da_base="ahead", runs=None, jobs=None, base="develop",
             repo_do_head=REPO, merge=None, merged="2026-11-26T10:00:00Z", pr=None, chamadas=None):
         pull = pr if pr is not None else {
-            "number": self.PR, "head": {"sha": self.CAB, "repo": {"full_name": repo_do_head}}, "base": {"ref": base},
+            "number": self.PR, "head": {"sha": self.CAB, "ref": self.RAMO, "repo": {"full_name": repo_do_head}},
+            "base": {"ref": base, "sha": self.BASE},
             "merge_commit_sha": merge or D, "merged_at": merged}
         execucoes = [self.rodada()] if runs is None else runs
         respostas = {
@@ -274,11 +276,8 @@ class ProvaDoPr(unittest.TestCase):
         path com o job bateria; 4: tentativa mais recente vermelha com a anterior verde."""
         recente = self.RUN + 1
         casos = {
-            "1 run do PR contra outra base": dict(runs=[self.rodada(pull_requests=[{"number": self.PR, "base": {"ref": "melhoria/x", "sha": self.BASE}}])]),
-            "1 run de outro PR": dict(runs=[self.rodada(pull_requests=[{"number": 1, "base": {"ref": "develop", "sha": self.BASE}}])]),
-            "1 run sem PR ligado": dict(runs=[self.rodada(pull_requests=[])]),
-            "1 base do run fora do head": dict(status_da_base="diverged"),
-            "1 base do run sem sha": dict(runs=[self.rodada(pull_requests=[{"number": self.PR, "base": {"ref": "develop"}}])]),
+            "1 run de outro ramo do mesmo head": dict(runs=[self.rodada(head_branch="melhoria/y")]),
+            "1 base do PR fora do head": dict(status_da_base="diverged"),
             "2 check de API sem run do ci.yml": dict(runs=[]),
             "3 workflow_dispatch": dict(runs=[self.rodada(event="workflow_dispatch")]),
             "3 push": dict(runs=[self.rodada(event="push")]),
@@ -305,6 +304,7 @@ class ProvaDoPr(unittest.TestCase):
     def test_qualquer_falta_da_prova_roda_a_suite_inteira(self):
         casos = {"árvore do head diferente": dict(arvore_do_head="9" * 40),
                  "develop anterior fora do head": dict(status="diverged"),
+                 "develop anterior atrás do head": dict(status="behind"),
                  "sem o job bateria": dict(jobs=[self.job(name="bateria (pareceres)")]),
                  "dois jobs bateria": dict(jobs=[self.job(), self.job()]),
                  "job de outro sha": dict(jobs=[self.job(head_sha="8" * 40)]),
@@ -315,8 +315,12 @@ class ProvaDoPr(unittest.TestCase):
                  "head de fork": dict(repo_do_head="fork/forge"),
                  "PR mesclado em outro commit": dict(merge="7" * 40),
                  "PR não mesclado": dict(merged=None),
-                 "PR sem número": dict(pr={"head": {"sha": "3" * 40, "repo": {"full_name": REPO}}, "base": {"ref": "develop"},
-                                           "merge_commit_sha": D, "merged_at": "x"}),
+                 "PR sem número": dict(pr={"head": {"sha": "3" * 40, "ref": "melhoria/x", "repo": {"full_name": REPO}},
+                                           "base": {"ref": "develop", "sha": "4" * 40}, "merge_commit_sha": D, "merged_at": "x"}),
+                 "base do PR sem sha": dict(pr={"number": 7, "head": {"sha": "3" * 40, "ref": "melhoria/x", "repo": {"full_name": REPO}},
+                                                "base": {"ref": "develop"}, "merge_commit_sha": D, "merged_at": "x"}),
+                 "head do PR sem ramo": dict(pr={"number": 7, "head": {"sha": "3" * 40, "repo": {"full_name": REPO}},
+                                                  "base": {"ref": "develop", "sha": "4" * 40}, "merge_commit_sha": D, "merged_at": "x"}),
                  "sem PR": dict(pr={})}
         for nome, mudanca in casos.items():
             with self.subTest(nome):

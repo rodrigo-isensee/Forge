@@ -138,8 +138,8 @@ def provar(env, python, arvore, log, ler):
 
 def prova_do_pr(env, ler):
     """(True, motivo) só com o push na develop do ci.yml do próprio repositório, um PR mesclado neste commit (base develop, head do
-    mesmo repositório), árvore do head igual à do commit, develop anterior e base do run ancestrais do head e, ligado a esse PR, o
-    run do ci.yml de `pull_request` do próprio repositório, concluído, com o job `bateria` em success na tentativa mais recente
+    mesmo repositório), árvore do head igual à do commit, develop anterior e base do PR ancestrais do head e, no head e no ramo desse
+    PR (a lista `pull_requests` do run some após o merge), o run do ci.yml de `pull_request` do próprio repositório, concluído, com o job `bateria` em success na tentativa mais recente
     (A1 do parecer de segurança do #929: padrão C-3 do `prova_valida`; check solto de outro app, de outra base ou de outro
     workflow não prova); senão (False, motivo). `ler(caminho)` devolve o JSON da API (pode lançar: falha fechada)."""
     repo, evento, ref, sha = (campo(env, k, str) or "" for k in ("REPO", "EVENTO", "REF", "SHA"))
@@ -156,43 +156,41 @@ def prova_do_pr(env, ler):
     prs = ler(f"repos/{repo}/commits/{sha}/pulls?per_page=10")
     for pr in (prs if type(prs) is list else [])[:LIMITE_DE_CANDIDATOS]:
         cabeca, numero = campo(pr, "head.sha", str), campo(pr, "number", int)
-        if not (cabeca and SHA.fullmatch(cabeca) and numero is not None and campo(pr, "base.ref", str) == "develop"
-                and campo(pr, "head.repo.full_name", str) == repo and campo(pr, "merge_commit_sha", str) == sha
-                and campo(pr, "merged_at", str)):
+        ramo, base = campo(pr, "head.ref", str), campo(pr, "base.sha", str)
+        if not (cabeca and SHA.fullmatch(cabeca) and numero is not None and ramo and base and SHA.fullmatch(base)
+                and campo(pr, "base.ref", str) == "develop" and campo(pr, "head.repo.full_name", str) == repo
+                and campo(pr, "merge_commit_sha", str) == sha and campo(pr, "merged_at", str)):
             continue
         if campo(ler(f"repos/{repo}/git/commits/{cabeca}"), "tree.sha", str) != arvore:
             continue
         if campo(ler(f"repos/{repo}/compare/{anterior}...{cabeca}"), "status", str) not in ("ahead", "identical"):
             continue
-        achou, motivo = bateria_do_run_do_pr(repo, cabeca, numero, ler)
+        achou, motivo = bateria_do_run_do_pr(repo, cabeca, ramo, base, ler)
         if achou:
             return True, f"árvore {arvore[:7]} igual à do head {cabeca[:7]} do PR #{numero}, {motivo}"
     return False, f"nenhum PR mesclado em {sha[:7]} tem head de mesma árvore, descendente da develop e com a bateria verde no run do PR"
 
 
-def bateria_do_run_do_pr(repo, cabeca, numero, ler):
+def bateria_do_run_do_pr(repo, cabeca, ramo, base, ler):
     """(True, 'run <id>, job bateria') só com o run mais recente do ci.yml do evento pull_request, do próprio repositório, concluído,
-    no head e ligado ao PR `numero` contra a develop, cuja base (sha do run) é ancestral do head, e com um único job `bateria` em
-    success na tentativa mais recente do run; senão (False, motivo)."""
+    no head e no ramo do PR (head_sha e head_branch: a lista `pull_requests` do run some depois do merge, então não liga), com a
+    base do PR (`base`, contra a develop) ancestral do head, e com um único job `bateria` em success na tentativa mais recente
+    do run; senão (False, motivo)."""
     consulta = urllib.parse.urlencode({"head_sha": cabeca, "event": "pull_request", "per_page": 100})
     execucoes = campo(ler(f"repos/{repo}/actions/runs?{consulta}"), "workflow_runs", list) or []
     da_execucao = {"event": "pull_request", "head_sha": cabeca, "path": WORKFLOW_DE_PROVA, "repository.full_name": repo,
-                   "head_repository.full_name": repo, "status": "completed"}
+                   "head_repository.full_name": repo, "status": "completed", "head_branch": ramo}
     validas = []
     for execucao in execucoes:
         run_id, tentativa = campo(execucao, "id", int), campo(execucao, "run_attempt", int)
         if None in (run_id, tentativa) or any(campo(execucao, k, str) != v for k, v in da_execucao.items()):
             continue
-        ligadas = [p for p in (campo(execucao, "pull_requests", list) or [])
-                   if campo(p, "number", int) == numero and campo(p, "base.ref", str) == "develop"]
-        base = campo(ligadas[0], "base.sha", str) if ligadas else None
-        if base and SHA.fullmatch(base):
-            validas.append((run_id, tentativa, base))
+        validas.append((run_id, tentativa))
     if not validas:
         return False, "nenhum run do ci.yml do PR no head"
-    run_id, tentativa, base = max(validas)  # o mais recente decide: um run vermelho depois de um verde reprova
+    run_id, tentativa = max(validas)  # o mais recente decide: um run vermelho depois de um verde reprova
     if campo(ler(f"repos/{repo}/compare/{base}...{cabeca}"), "status", str) not in ("ahead", "identical"):
-        return False, "base do run fora do head"
+        return False, "base do PR fora do head"
     lista = campo(ler(f"repos/{repo}/actions/runs/{run_id}/jobs?per_page=100"), "jobs", list) or []
     com_nome = [j for j in lista if campo(j, "name", str) == NOME_DA_BATERIA]
     do_job = {"conclusion": "success", "head_sha": cabeca, "run_id": run_id, "run_attempt": tentativa}
