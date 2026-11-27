@@ -846,7 +846,7 @@
     },
     "templates/projeto/CLAUDE.md": {
       "\\*\\*Ritmo diário:\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo não recebe o ritmo diário: junção contínua e a versão para a main (diretriz 32)"},
-      "a versão sai quando a branch de integração tem um conjunto verde que valha uma versão, até 2 por dia": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo segura a versão para uma vez só de manhã e o que está verde espera (diretriz 34)"},
+      "a versão fecha quando a branch de integração soma 20 itens integrados, sem versão por dia": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo não recebe o fechamento da versão com 20 itens integrados e volta a fechar versão por dia (diretriz 34, ordem do dono de 26/11)"},
       "\\*\\*Corte por arquivo:\\*\\*": {"regra": "R-FLUXO", "porque": "sem o texto, o projeto novo divide o mesmo arquivo entre agentes em paralelo e colhe conflito no fim (diretriz 33)"},
       "\\*\\*Teto do time:\\*\\*": {"regra": "R-TETO", "porque": "sem o texto, o projeto novo não recebe o teto de 20 agentes e 12 branches abertas do H6"}
     },
