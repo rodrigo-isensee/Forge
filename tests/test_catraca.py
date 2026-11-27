@@ -2666,6 +2666,70 @@ class T1NoTextoDoPr(Base):
             self.assertEqual("(T1)" in saida.getvalue(), rc == 1, saida.getvalue())
 
 
+class TamanhoNoTextoDoPr(Base):
+    """F5.3 (v0481 E38.5): o `pr-texto` barra o PR acima do teto do H1 sem `teto: excedido, <n> linhas, <motivo>` válida."""
+    ORIGEM = T1NoTextoDoPr.ORIGEM
+    MOTIVO = "## Sem teste\nbin/app.py: só gera linhas para medir o teto de tamanho\n"
+    EXCECAO = "- teto: excedido, 151 linhas, cortar mais deixa a suíte vermelha\n"
+
+    def codigo(self, linhas, caminho="bin/app.py"):
+        self.repo.escreve(caminho, "".join(f"x{i} = {i}\n" for i in range(linhas)))
+        self.repo.commit()
+
+    def tamanho(self, corpo="", base="base"):
+        with contextlib.redirect_stdout(io.StringIO()) as saida:
+            achadas = catraca.violacoes_do_tamanho(self.repo.dir, base, "HEAD", corpo)
+        return achadas, saida.getvalue()
+
+    def test_151_sem_a_linha_barra_e_150_passa(self):
+        self.codigo(151)
+        achadas, _ = self.tamanho()
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertRegex(achadas[0], r"^R-REVIEW: 151 linhas de código acima do teto de 150 por item")
+        self.setUp()
+        self.codigo(150)
+        self.assertEqual(self.tamanho(), ([], ""))
+
+    def test_linha_valida_passa_e_imprime_a_excecao(self):
+        self.codigo(151)
+        achadas, saida = self.tamanho("## Origem\nx\n" + self.EXCECAO)
+        self.assertEqual(achadas, [])
+        self.assertIn("exceção do H1 usada (151 linhas de código): - teto: excedido, 151 linhas, cortar mais deixa a suíte vermelha", saida)
+
+    def test_imprime_a_linha_que_cobre_o_medido_e_nao_a_menor(self):
+        self.codigo(151)
+        achadas, saida = self.tamanho("teto: excedido, 120 linhas, versão antiga do item\n" + self.EXCECAO)
+        self.assertEqual(achadas, [])
+        self.assertIn(": - teto: excedido, 151 linhas,", saida)
+        self.assertNotIn("120 linhas", saida)
+
+    def test_linha_com_numero_menor_que_o_medido_barra(self):
+        self.codigo(151)
+        achadas, saida = self.tamanho("teto: excedido, 150 linhas, item que cresceu nas voltas\n")
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertEqual(saida, "")
+
+    def test_so_testes_passa(self):
+        self.codigo(500, "tests/test_grande.py")
+        self.assertEqual(self.tamanho(), ([], ""))
+
+    def test_git_que_falha_vira_erro_de_git(self):
+        self.codigo(151)
+        with self.assertRaises(catraca.ErroDeGit) as erro:
+            self.tamanho(base="nao-existe")
+        self.assertIn("(H1)", str(erro.exception))
+
+    def test_modo_pr_texto_soma_o_tamanho_com_o_corpo_do_pr(self):
+        self.codigo(151)
+        argv = ["--modo", "pr-texto", "--base", "base", "--raiz", str(self.repo.dir)]
+        for corpo, rc in ((self.ORIGEM + self.MOTIVO, 1), (self.ORIGEM + self.MOTIVO + self.EXCECAO, 0)):
+            with self.subTest(rc=rc), mock.patch.dict(os.environ, {"PR_BODY": corpo}), \
+                    contextlib.redirect_stdout(io.StringIO()) as saida:
+                self.assertEqual(catraca.main(argv), rc)
+            self.assertEqual("151 linhas de código acima do teto" in saida.getvalue(), rc == 1, saida.getvalue())
+            self.assertEqual("exceção do H1 usada" in saida.getvalue(), rc == 0, saida.getvalue())
+
+
 class Pareceres(Base):
     def parecer(self, tipo, ramo="pr", parecer="aprovado", pedido="ped", commit=None):
         self.repo.commit()

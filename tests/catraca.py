@@ -1978,6 +1978,26 @@ def violacoes_do_t1(raiz, base, head, corpo):
                 "docs/engineering/praticas.md")]
 
 
+def violacoes_do_tamanho(raiz, base, head, corpo):
+    """F5.3 (v0481 E38.5): o PR acima do teto do H1 sem `teto: excedido, <n> linhas, <motivo>` válida no corpo barra o `pr-texto`, pela
+    conta da abertura (`tamanho_na_abertura` do forge-check); com a linha, passa e a imprime. O git que falha barra (falha fechada)."""
+    fc = forge_check()
+    b = base_efetiva(raiz, base, head)
+    numstat = fc.contagens_do_intervalo(raiz, b, head, tres_pontos=True, estrito=True)
+    if numstat is None:
+        raise ErroDeGit(msg_falha_git(f"o `git diff --numstat` de {b}...{head} falhou (H1)"))
+    tamanho = fc.modulo_do_bin("forge_tamanho")
+    total = tamanho.linhas_de_codigo(numstat, fc.e_codigo)
+    if total <= tamanho.TETO_DE_LINHAS_DE_CODIGO:
+        return []
+    recusa = fc.tamanho_na_abertura(raiz, b, head, corpo)
+    if recusa:
+        return [recusa]
+    linha = next(corpo[m.start():].split("\n", 1)[0] for m in tamanho.LINHA_DE_MOTIVO.finditer(corpo) if int(m.group(1)) >= total)
+    print(f"pr-texto: exceção do H1 usada ({total} linhas de código): {linha.strip()}")
+    return []
+
+
 def com_motivo(caminho, achados, texto):
     """True se uma linha do texto cita `caminho` e traz MINIMO_SECAO caracteres além dos caminhos por arquivo que cita: o motivo
     vale por arquivo, e um texto genérico não cobre N arquivos (segurança A2 da cobertura C1)."""
@@ -2229,7 +2249,8 @@ def _main(a):
         return 0
     if a.modo == "pr-texto":
         corpo = os.environ.get("PR_BODY", "")
-        viol, titulo = violacoes_do_texto(corpo) + violacoes_do_t1(raiz, a.base, a.head, corpo), "pr-texto"
+        viol = violacoes_do_texto(corpo) + violacoes_do_t1(raiz, a.base, a.head, corpo)
+        viol, titulo = viol + violacoes_do_tamanho(raiz, a.base, a.head, corpo), "pr-texto"
     elif a.modo == "degrau":
         viol, titulo = violacoes_do_degrau(raiz, a.ramo, a.base_ref, a.head, os.environ.get("HEAD_REPO", ""), os.environ.get("BASE_REPO", "")), "degrau"
     elif a.modo == "pareceres":

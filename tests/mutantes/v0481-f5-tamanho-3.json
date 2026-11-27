@@ -1,0 +1,66 @@
+{
+  "pedido": "v0481-f5-tamanho-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "F5.3: violacoes_do_tamanho entra na soma do pr-texto",
+      "arquivo": "tests/catraca.py",
+      "de": "        viol, titulo = viol + violacoes_do_tamanho(raiz, a.base, a.head, corpo), \"pr-texto\"",
+      "para": "        viol, titulo = viol, \"pr-texto\"",
+      "testes": [
+        "tests.test_catraca.TamanhoNoTextoDoPr.test_modo_pr_texto_soma_o_tamanho_com_o_corpo_do_pr"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "F5.3: o tamanho lê o corpo do PR ($PR_BODY), não um corpo vazio",
+      "arquivo": "tests/catraca.py",
+      "de": "        viol, titulo = viol + violacoes_do_tamanho(raiz, a.base, a.head, corpo), \"pr-texto\"",
+      "para": "        viol, titulo = viol + violacoes_do_tamanho(raiz, a.base, a.head, \"\"), \"pr-texto\"",
+      "testes": [
+        "tests.test_catraca.TamanhoNoTextoDoPr.test_modo_pr_texto_soma_o_tamanho_com_o_corpo_do_pr"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "F5.3: o git que não lê o numstat levanta ErroDeGit",
+      "arquivo": "tests/catraca.py",
+      "de": "    if numstat is None:\n        raise ErroDeGit(msg_falha_git(f\"o `git diff --numstat` de {b}...{head} falhou (H1)\"))",
+      "para": "    if False:\n        raise ErroDeGit(msg_falha_git(f\"o `git diff --numstat` de {b}...{head} falhou (H1)\"))",
+      "testes": [
+        "tests.test_catraca.TamanhoNoTextoDoPr.test_git_que_falha_vira_erro_de_git"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "F5.3: no teto (150) passa sem exceção",
+      "arquivo": "tests/catraca.py",
+      "de": "    if total <= tamanho.TETO_DE_LINHAS_DE_CODIGO:\n        return []\n    recusa = fc.tamanho_na_abertura",
+      "para": "    if total < tamanho.TETO_DE_LINHAS_DE_CODIGO:\n        return []\n    recusa = fc.tamanho_na_abertura",
+      "testes": [
+        "tests.test_catraca.TamanhoNoTextoDoPr.test_151_sem_a_linha_barra_e_150_passa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "F5.3: a recusa da conta da abertura barra",
+      "arquivo": "tests/catraca.py",
+      "de": "    if recusa:\n        return [recusa]",
+      "para": "    if False:\n        return [recusa]",
+      "testes": [
+        "tests.test_catraca.TamanhoNoTextoDoPr.test_151_sem_a_linha_barra_e_150_passa"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "F5.3: a exceção impressa é a linha que cobre o total medido",
+      "arquivo": "tests/catraca.py",
+      "de": "if int(m.group(1)) >= total)",
+      "para": "if int(m.group(1)) >= 0)",
+      "testes": [
+        "tests.test_catraca.TamanhoNoTextoDoPr.test_imprime_a_linha_que_cobre_o_medido_e_nao_a_menor"
+      ]
+    }
+  ]
+}
