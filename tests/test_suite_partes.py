@@ -583,8 +583,8 @@ class FiacaoDoCI(unittest.TestCase):
         return self.casar(r"(?m)^    name: (.*)$", self.job(job)).group(1)
 
     def test_partes_por_versao_rodam_o_script_em_cinco(self):  # CI-RAPIDO: 5 partes por unidade (eram 3 por módulo)
-        for job, versao in (("partes-doze", "3.12"), ("partes-quatorze", "3.14"),
-                            ("rapida-partes-doze", "3.12"), ("rapida-partes-quatorze", "3.14")):
+        # F6 (v0481 E32.1): a suíte inteira roda uma vez, no 3.12; o 3.14 só tem instalação e fumaça no PR (diario.yml roda o resto)
+        for job, versao in (("partes-doze", "3.12"), ("rapida-partes-doze", "3.12")):
             with self.subTest(job):
                 bloco = self.job(job)
                 self.assertIn("parte: [1, 2, 3, 4, 5]", bloco)
@@ -594,8 +594,7 @@ class FiacaoDoCI(unittest.TestCase):
 
     def test_agregadores_tem_o_nome_exigido_e_exigem_todas_as_partes(self):
         casos = {"agregador": ("bateria", {"bateria", "pareceres", "verificacoes", "partes-doze", "pulados-doze"}),
-                 "bateria-python-tres-quatorze": ("bateria (python 3.14)",
-                                                  {"partes-quatorze", "pulados-quatorze", "instalacao-quatorze"})}
+                 "bateria-python-tres-quatorze": ("bateria (python 3.14)", {"instalacao-quatorze"})}
         for job, (nome, necessarios) in casos.items():
             with self.subTest(job):
                 bloco = self.job(job)
@@ -613,7 +612,7 @@ class FiacaoDoCI(unittest.TestCase):
         self.assertEqual(nomes.count("bateria (python 3.14)"), 1)
 
     def test_cada_parte_publica_os_pulados_e_um_job_soma_contra_o_teto(self):  # T3
-        for versao in ("doze", "quatorze"):
+        for versao in ("doze",):
             with self.subTest(versao):
                 parte = self.job(f"partes-{versao}")
                 self.assertIn('FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json"', parte)
@@ -631,15 +630,13 @@ class FiacaoDoCI(unittest.TestCase):
             with self.subTest(job):
                 self.assertNotIn("run: python3 scripts/suite-paralela.py", bloco)
                 tem = "scripts/suite-partes.py --parte" in bloco
-                self.assertEqual(tem, job in ("partes-doze", "partes-quatorze", "rapida-partes-doze",
-                                              "rapida-partes-quatorze"))
+                self.assertEqual(tem, job in ("partes-doze", "rapida-partes-doze"))
 
     def test_rapidas_sao_a_prova_que_a_arvore_testada_le_com_o_preparo_das_partes(self):
         """SP4: o nome de cada agregador da develop é o JOBS_DE_PROVA de scripts/arvore-testada.py (test_arvore_testada
         confere o lado de lá); as pernas que ele exige rodam o mesmo preparo (env -a, histórico) das partes do PR."""
-        nomes = {"3.12": "checagem rápida (push na develop)", "3.14": "checagem rápida (push na develop, python 3.14)"}
-        for job, perna, teto, versao in (("rapida", "rapida-partes-doze", "rapida-pulados-doze", "3.12"),
-                                         ("rapida-quatorze", "rapida-partes-quatorze", "rapida-pulados-quatorze", "3.14")):
+        nomes = {"3.12": "checagem rápida (push na develop)"}
+        for job, perna, teto, versao in (("rapida", "rapida-partes-doze", "rapida-pulados-doze", "3.12"),):
             with self.subTest(job):
                 self.assertEqual(self.nome(job), nomes[versao])
                 bloco = self.job(perna)
@@ -654,8 +651,7 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertIn("parte ${{ matrix.parte }}/5", self.nome(perna))
 
     def test_agregador_da_develop_exige_as_cinco_pernas_e_o_teto_sem_rodar_codigo(self):  # CI-RAPIDO, S1 e A1
-        for job, perna, teto in (("rapida", "rapida-partes-doze", "rapida-pulados-doze"),
-                                 ("rapida-quatorze", "rapida-partes-quatorze", "rapida-pulados-quatorze")):
+        for job, perna, teto in (("rapida", "rapida-partes-doze", "rapida-pulados-doze"),):
             with self.subTest(job):
                 bloco = self.job(job)
                 needs = self.casar(r"(?m)^    needs: \[(.*)\]$", bloco).group(1)
@@ -668,12 +664,13 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertNotIn("uses:", bloco)  # A1: o agregador só lê needs.*.result
                 self.assertNotIn("scripts/", "\n".join(l for l in bloco.splitlines() if not l.lstrip().startswith("#")))
                 self.assertIn("permissions:\n      contents: read", bloco)
-                self.assertRegex(self.job(teto), rf"(?m)^    needs: \[{perna}\]$")  # o teto só roda com as 5 pernas verdes
+                # o teto só roda com as 5 pernas verdes (e depois da prova do PR, F6)
+                self.assertRegex(self.job(teto), rf"(?m)^    needs: \[{perna}, arvore-envio\]$")
                 self.assertIn('python3 scripts/suite-partes.py --somar-pulados 5 "$RUNNER_TEMP/pulados"', self.job(teto))
                 self.assertIn("pattern: pulados-rapida-", self.job(teto))
 
     def test_pernas_da_develop_publicam_os_pulados_e_o_download_so_le_o_run_corrente(self):  # S5, A4
-        for versao in ("doze", "quatorze"):
+        for versao in ("doze",):
             with self.subTest(versao):
                 perna, teto = self.job(f"rapida-partes-{versao}"), self.job(f"rapida-pulados-{versao}")
                 self.assertIn('FORGE_SUITE_PULADOS="$RUNNER_TEMP/pulados/parte-$PARTE.json"', perna)
@@ -687,7 +684,7 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertIn("persist-credentials: false", teto)
 
     def test_o_n_das_matrizes_e_o_mesmo_nos_tres_lugares(self):  # S2 e A3: 4 matrizes, --parte K/N e --somar-pulados N
-        for versao in ("doze", "quatorze"):
+        for versao in ("doze",):
             for matriz, soma in ((f"partes-{versao}", f"pulados-{versao}"),
                                  (f"rapida-partes-{versao}", f"rapida-pulados-{versao}")):
                 with self.subTest(matriz):
@@ -699,17 +696,56 @@ class FiacaoDoCI(unittest.TestCase):
                     self.assertIn(f"/{n})", self.nome(matriz))
                     self.assertEqual(n, 5)
 
+    def test_f6_o_pr_roda_a_suite_uma_vez_e_o_envio_reaproveita_a_prova_do_pr(self):
+        """F6 (v0481 E32.1): sem job da suíte no 3.14 (nem no PR nem no envio); o envio na develop só roda a suíte quando o
+        `arvore-envio` (scripts/arvore-testada.py --do-pr) não prova a árvore; o token fica só no passo dele."""
+        for job in self.jobs:
+            self.assertNotIn("quatorze", job.replace("instalacao-quatorze", "").replace("bateria-python-tres-quatorze", ""))
+        self.assertNotIn('python-version: "3.14"', "\n".join(b for j, b in self.jobs.items() if j != "instalacao-quatorze"))
+        envio = self.job("arvore-envio")
+        self.assertIn("python3 -I scripts/arvore-testada.py --do-pr", envio)
+        self.assertEqual(envio.count("GH_TOKEN"), 1)
+        self.assertIn("      provada: ${{ steps.arvore.outputs.provada }}", envio)
+        for job in ("rapida-partes-doze", "rapida-pulados-doze"):
+            self.assertRegex(self.job(job), r"(?m)^    needs: \[.*arvore-envio\]$")
+        perna = self.job("rapida-partes-doze")
+        for nome in ("      - name: env com -a", "      - name: Testes do Forge (parte)\n"):
+            i = perna.index(nome)
+            self.assertEqual(perna[i:].split("\n")[1], "        if: needs.arvore-envio.outputs.provada != 'true'")
+        verificacoes = self.job("verificacoes")
+        self.assertNotIn("e2e-instalacao", verificacoes)  # roda uma vez, no instalacao-quatorze
+        self.assertIn("bash tests/e2e-instalacao.sh", self.job("instalacao-quatorze"))
+        self.assertNotIn("bin/forge-mutante", self.texto)  # os mutantes rodam no diario.yml, não no PR
+
+    def test_f6_diario_roda_o_que_saiu_do_pr_na_develop_e_abre_o_cartao(self):
+        """F6: o que saiu do PR (suíte no 3.14, e2e no 3.12, mutantes) roda uma vez por dia na develop, sem escrever no código;
+        só o job `cartao` escreve, e só em issues."""
+        diario = (RAIZ / ".github" / "workflows" / "diario.yml").read_text(encoding="utf-8")
+        self.assertIn('cron: "17 5 * * *"', diario)
+        self.assertNotIn("pull_request", diario)
+        self.assertNotIn("continue-on-error", diario)
+        self.assertIn("ref: develop", diario)
+        self.assertEqual(diario.count("persist-credentials: false"), diario.count("actions/checkout@"))
+        self.assertIn('python-version: "3.14"', diario)
+        self.assertIn("bash tests/e2e-instalacao.sh", diario)
+        self.assertIn("bin/forge-mutante", diario)
+        self.assertEqual(re.findall(r"(?m)^      (\w+): write", diario), ["issues"])
+        cartao = diario[diario.index("\n  cartao:"):]
+        self.assertIn("needs: [suite-quatorze, instalacao-doze, mutantes]", cartao)
+        self.assertIn("if: always() && ", cartao)
+        self.assertIn("gh issue create", cartao)
+        self.assertNotIn("actions/checkout", cartao)
+
     def test_partes_pulam_a_suite_so_com_a_arvore_provada(self):
-        """SP4 e M2: um job prévio único tira a prova (só com a dos dois Pythons); as 5 partes de cada versão dependem dele e o
+        """SP4 e M2: um job prévio único tira a prova (F6: só a do Python 3.12); as 5 partes dependem dele e o
         preparo e a suíte só rodam sem a prova (falha fechada). A prova no passo de cada perna dava o `outputs` da última perna."""
         arvore = self.job("arvore")
         passo = arvore[arvore.index("        id: arvore\n"):]
-        self.assertIn("          provada=false\n          if python3 scripts/arvore-testada.py --python 3.12 && "
-                      "python3 scripts/arvore-testada.py --python 3.14; then provada=true; fi\n", passo)
+        self.assertIn("          provada=false\n          if python3 scripts/arvore-testada.py --python 3.12; then provada=true; fi\n", passo)
         self.assertIn("      provada: ${{ steps.arvore.outputs.provada }}", arvore)
         self.assertIn("      actions: read", arvore)
         self.assertEqual(arvore.count("GH_TOKEN"), 1)
-        for job in ("partes-doze", "partes-quatorze"):
+        for job in ("partes-doze",):
             with self.subTest(job):
                 bloco = self.job(job)
                 self.assertRegex(bloco, r"(?m)^    needs: \[arvore, bateria\]$")  # A18: os passos baratos antes da suíte

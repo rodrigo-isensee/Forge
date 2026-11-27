@@ -26,6 +26,8 @@ Repositório > Settings > Rules > Rulesets > New ruleset > New branch ruleset. U
 
 Os nomes são os `name:` dos jobs em `.github/workflows/ci.yml` e `.github/workflows/catraca.yml`; um teste confere que continuam existindo.
 
+F6 (v0481): a suíte do PR roda uma vez, no Python 3.12; o agregador `bateria (python 3.14)` agora só junta a instalação e a fumaça. Os dois checks exigidos acima não mudam de nome. O `.github/workflows/diario.yml` (suíte no 3.14, e2e no 3.12 e mutantes, uma vez por dia na `develop`) não é check exigido: se quebra, abre uma issue.
+
 ## Ruleset `main-do-dono`
 1. New branch ruleset, Name: `main-do-dono`, Enforcement status: **Active**.
 2. Target branches: só `main`.

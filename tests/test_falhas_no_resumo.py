@@ -217,8 +217,7 @@ class Fiacao(unittest.TestCase):
 
     def test_jobs_que_rodam_a_suite_chamam_o_leitor_depois_do_teste(self):
         # CI-RAPIDO (#576): na develop e no PR a suíte roda em 5 partes por versão; os agregadores não rodam a suíte
-        casos = {j: "Testes do Forge (parte)" for j in ("rapida-partes-doze", "rapida-partes-quatorze", "partes-doze",
-                                                         "partes-quatorze")}
+        casos = {j: "Testes do Forge (parte)" for j in ("rapida-partes-doze", "partes-doze")}  # F6: a suíte só no 3.12
         for job, passo in casos.items():
             with self.subTest(job):
                 bloco = self.jobs[job]
@@ -232,7 +231,7 @@ class Fiacao(unittest.TestCase):
                 self.assertRegex(seguinte, r"(?m)^        if: \$\{\{ !cancelled\(\)")
 
     def test_leitor_nao_muda_permissoes_nem_afrouxa_o_ci(self):
-        self.assertEqual(self.texto.count("scripts/falhas-no-resumo.py"), 4)
+        self.assertEqual(self.texto.count("scripts/falhas-no-resumo.py"), 2)  # F6: as duas suítes do PR e da develop, só no 3.12
         for passo in re.findall(r"(?ms)^      - name: Falhas no resumo.*?(?=^      - |^  [a-z]|\Z)", self.texto):
             self.assertNotIn("GH_TOKEN", passo)
             self.assertNotIn("secrets.", passo)

@@ -1,0 +1,107 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o head do PR precisa ter a mesma árvore do commit na develop",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "tree.sha\", str) != arvore:\n            continue",
+      "para": "tree.sha\", str) != arvore and False:\n            continue",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_qualquer_falta_da_prova_roda_a_suite_inteira"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a develop anterior tem de ser ancestral do head (senão o merge testado não tinha a árvore do head)",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "\"status\", str) not in (\"ahead\", \"identical\"):",
+      "para": "\"status\", str) not in (\"ahead\", \"identical\", \"diverged\"):",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_qualquer_falta_da_prova_roda_a_suite_inteira"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "só a conclusão success da bateria prova",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "campo(max(da_bateria, key=lambda c: c[\"started_at\"]), \"conclusion\", str) == \"success\"",
+      "para": "campo(max(da_bateria, key=lambda c: c[\"started_at\"]), \"conclusion\", str) is not None",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_qualquer_falta_da_prova_roda_a_suite_inteira"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a bateria mais recente decide, não a primeira da lista",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "max(da_bateria, key=lambda c: c[\"started_at\"])",
+      "para": "min(da_bateria, key=lambda c: c[\"started_at\"])",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_a_bateria_mais_recente_decide"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "head de fork nunca prova",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "campo(pr, \"head.repo.full_name\", str) == repo and ",
+      "para": "",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_qualquer_falta_da_prova_roda_a_suite_inteira"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "a prova do PR só vale no push na develop do próprio ci.yml",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "and evento == \"push\" and ref == \"refs/heads/develop\"):\n        return False, \"só o push na develop do ci.yml do próprio repositório\"",
+      "para": "and evento == \"push\"):\n        return False, \"só o push na develop do ci.yml do próprio repositório\"",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_fora_do_push_na_develop_do_proprio_ci_nao_le_a_api"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "o envio na develop só roda a suíte sem a prova do PR",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "      - name: Testes do Forge (parte)\n        if: needs.arvore-envio.outputs.provada != 'true'",
+      "para": "      - name: Testes do Forge (parte)\n        if: needs.arvore-envio.outputs.provada != 'false'",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_f6_o_pr_roda_a_suite_uma_vez_e_o_envio_reaproveita_a_prova_do_pr"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o e2e de instalação roda uma vez, no job da instalação do 3.14",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "      - name: Instala o Forge num projeto vazio e inicializa (Python 3.14)\n        run: bash tests/e2e-instalacao.sh",
+      "para": "      - name: Instala o Forge num projeto vazio e inicializa (Python 3.14)\n        run: true",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_f6_o_pr_roda_a_suite_uma_vez_e_o_envio_reaproveita_a_prova_do_pr"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o diário abre o cartão se algo quebrou",
+      "arquivo": ".github/workflows/diario.yml",
+      "de": "if: always() && (needs.suite-quatorze.result != 'success'",
+      "para": "if: always() && (needs.suite-quatorze.result == 'never'",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_f6_diario_roda_o_que_saiu_do_pr_na_develop_e_abre_o_cartao"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o diário só escreve em issues",
+      "arquivo": ".github/workflows/diario.yml",
+      "de": "      issues: write  # só gh issue create e comment",
+      "para": "      issues: write  # só gh issue create e comment\n      contents: write",
+      "testes": [
+        "tests.test_suite_partes.FiacaoDoCI.test_f6_diario_roda_o_que_saiu_do_pr_na_develop_e_abre_o_cartao"
+      ]
+    }
+  ],
+  "isentas": []
+}
