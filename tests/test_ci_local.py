@@ -982,7 +982,7 @@ class MatrizNeedsEAgregadorTest(unittest.TestCase):
         jobs = {j["id"]: j for j in self.jobs_reais()}
         for job in ("partes-doze", "rapida-partes-doze"):
             self.assertEqual(jobs[job]["matriz"], {"parte": ["1", "2", "3", "4", "5"]})
-        self.assertEqual(jobs["rapida"]["needs"], ["rapida-partes-doze", "rapida-pulados-doze"])
+        self.assertEqual(jobs["rapida"]["needs"], ["arvore-envio", "rapida-partes-doze", "rapida-pulados-doze"])
         self.assertNotIn("rapida-quatorze", jobs)  # F6
         self.assertNotIn("partes-quatorze", jobs)
         self.assertEqual(jobs["agregador"]["needs"], ["bateria", "pareceres", "verificacoes", "partes-doze", "pulados-doze"])

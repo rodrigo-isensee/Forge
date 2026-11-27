@@ -84,6 +84,9 @@ class ProvaValida(unittest.TestCase):
 
     def test_prova_completa_sai_verdadeiro_com_run_e_job(self):
         self.assertEqual(self.prova(), (True, "develop aaaaaaa, run 7, job checagem rápida (push na develop)"))
+        nome = "checagem rápida (push na develop, python 3.14)"  # F6: só o 3.12 tem job de prova; o nome do 3.14 não prova nada
+        self.assertIsNone(at.JOBS_DE_PROVA.get("3.14"))
+        self.assertFalse(self.prova(jobs={7: [job(), job(name=nome)]}, python="3.14")[0])
 
     def test_execucao_que_nao_prova_sai_falso(self):  # casos 1 a 4 e 6 (status)
         for muda in ({"event": "workflow_dispatch"}, {"event": "pull_request"}, {"path": ".github/workflows/outro.yml"},
@@ -164,6 +167,9 @@ class Provar(unittest.TestCase):
     def test_job_vermelho_ou_de_outro_python_nao_prova(self):
         self.assertFalse(self.provar(jobs={7: [job(conclusion="failure")]})[0])
         self.assertFalse(self.provar(python="3.14")[0])
+        nome = "checagem rápida (push na develop, python 3.14)"  # F6: o job do 3.14 não existe mais; mesmo com o nome, não prova
+        self.assertFalse(self.provar(jobs={7: [job(), job(name=nome)]}, python="3.14")[0])
+        self.assertTrue(self.provar(jobs={7: [job(), job(name=nome)]})[0])  # o do 3.12 continua provando
 
     def test_evento_fora_da_lista_nao_le_a_api(self):
         chamadas = []
@@ -187,6 +193,11 @@ class Provar(unittest.TestCase):
                 ok, motivo = chamar(at.provar, e, "3.12", ARVORE, f"{D} {ARVORE}\n", ler)
                 self.assertFalse(ok, motivo)
         self.assertFalse([c for c in chamadas if "check-runs" in c or "pull_request" in c])
+        self.assertTrue(callable(at.prova_do_pr))  # F6 a trouxe de volta: ela lê o run do PR, nunca o check solto
+        chamadas.clear()
+        chamar(at.prova_do_pr, {"REPO": REPO, "EVENTO": "push", "REF": "refs/heads/develop", "SHA": D,
+                                "GITHUB_WORKFLOW_REF": f"{REPO}/.github/workflows/ci.yml@refs/heads/develop"}, ler)
+        self.assertFalse([c for c in chamadas if "check-runs" in c])
         self.assertNotIn("check-runs", SCRIPT.read_text(encoding="utf-8"))
 
     def test_execucao_de_outro_workflow_nao_tem_jobs_lidos(self):
@@ -310,6 +321,17 @@ class ProvaDoPr(unittest.TestCase):
         for nome, mudanca in casos.items():
             with self.subTest(nome):
                 self.assertFalse(self.prova(**mudanca)[0], nome)
+
+    def test_ambiente_sem_campo_ou_com_tipo_errado_nao_prova_e_nao_lanca(self):  # o contrato é não lançar (C-7)
+        for k in ("REPO", "EVENTO", "REF", "SHA"):
+            for valor in (None, 3):
+                with self.subTest(k=k, valor=valor):
+                    chamadas = []
+                    ok, motivo = chamar(at.prova_do_pr, self.ambiente(**{k: valor}), self.api(chamadas=chamadas))
+                    self.assertIs(ok, False, motivo)
+                    self.assertEqual(motivo, "só o push na develop do ci.yml do próprio repositório")
+                    self.assertEqual(chamadas, [])
+        self.assertEqual(chamar(at.prova_do_pr, {}, self.api()), (False, "só o push na develop do ci.yml do próprio repositório"))
 
     def test_fora_do_push_na_develop_do_proprio_ci_nao_le_a_api(self):
         for mudanca in (dict(EVENTO="pull_request"), dict(REF="refs/heads/homolog"), dict(SHA="xyz"), dict(REPO="sem-barra"),
