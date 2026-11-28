@@ -31,6 +31,7 @@
   "test_catraca_promocao": 0.9,
   "test_changelog": 13.8,
   "test_ci_local": 3.3,
+  "test_ci_nao_cancela_parecer": 0.3,
   "test_ci_rapido_guardas": 0.2,
   "test_citacao": 11.7,
   "test_citacao_p2": 16.0,

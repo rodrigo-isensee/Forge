@@ -597,14 +597,14 @@ GIT_REDE = frozenset({"ls-remote", "fetch"})
 GIT_CONFIG_DO_AMBIENTE = re.compile(r"GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_[0-9]+|VALUE_[0-9]+)")
 
 
-def git(raiz, *args, bruto=False, entrada=None):
+def git(raiz, *args, bruto=False, entrada=None, ambiente=None):
     """Único ponto que roda git (aqui e nos hooks): sem as variáveis GIT_* herdadas (nos comandos de `GIT_REDE`, menos
-    as de `GIT_CONFIG_DO_AMBIENTE`) e com limite de tempo
+    as de `GIT_CONFIG_DO_AMBIENTE`; `ambiente` entra depois do filtro, só nessa chamada) e com limite de tempo
     (subprocess.TimeoutExpired sobe; nos hooks vira erro interno: libera, ou bloqueia se o comando tem marcador crítico, ADR 0009, seção 7). Devolve (código, stdout); com `bruto`, o stdout sai em bytes e sem `strip`.
     `entrada`: o stdin do git (bytes com `bruto`), como o `cat-file --batch` de `textos_da_arvore`."""
     rede = bool(args) and args[0] in GIT_REDE
     env = {k: v for k, v in os.environ.items()
-           if not k.startswith("GIT_") or (rede and GIT_CONFIG_DO_AMBIENTE.fullmatch(k))}
+           if not k.startswith("GIT_") or (rede and GIT_CONFIG_DO_AMBIENTE.fullmatch(k))} | (ambiente or {})
     r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=not bruto, env=env,
                        timeout=GIT_TIMEOUT_S, input=entrada)
     return r.returncode, (r.stdout if bruto else r.stdout.strip())
@@ -911,6 +911,15 @@ def vindos_da_base(raiz, base, commit, ate, nomes):
     return {n for n in nomes if no_ate.get(n) == na_ponta.get(n) and no_commit.get(n) == no_mb.get(n)}
 
 
+def trouxe_a_base(raiz, base, commit, ate):
+    """F3 (v0481 E30.4, segurança A2): True se `ate` trouxe a `base` depois do `commit` do parecer (o merge-base dela com `ate` não é o
+    com o `commit`). Aí o `ate` igual ao parecer não basta: o merge que descartou a base (`-s ours`, conflito resolvido com o lado da
+    branch) só aparece no merge simulado. Git que falha: True (falha fechada)."""
+    cod_c, mb_commit = git(raiz, "merge-base", base, commit)
+    cod_a, mb_ate = git(raiz, "merge-base", base, ate)
+    return bool(cod_c or cod_a or not mb_ate or mb_commit != mb_ate)
+
+
 def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES, estritos=(), dominio=None, mais=(), dispensados=()):
     """None se o parecer vale para `ate` (padrão: o HEAD); senão o motivo.
 
@@ -938,13 +947,15 @@ def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES, estritos=(),
     removidos = removidos_do_intervalo(raiz, commit, ate) if classes else set()  # AV4(b): fragmento apagado (release) é leve
     leves = {f for f, c in classes.items() if c != "codigo" and (not livre(f, estritos) or f in removidos)}  # EST-M4: só `codigo` desatualiza
     fora = [f for f in fora if f not in leves]
-    if not fora:
+    if not fora and not (base and trouxe_a_base(raiz, base, commit, ate)):  # F3 (E30.4): o merge que descarta a base vai ao simulado
         return None
     div = arquivos_divergentes(raiz, base, commit, ate, livres, leves | alheios) if base else None
     if div is not None:
         div = [n for n in div if no(n) and n not in dispensados]
     if div == []:
         return None
+    if not div and not fora:
+        return f"desatualizado: não comparei {ate} com o merge simulado da base; peça novo parecer"
     alvo = div[0] if div else fora[0]
     sha_da_base = sha_do_commit(raiz, base) if base else None
     qual = f" (base {caminho_impresso(base).removeprefix('refs/remotes/').removeprefix('refs/heads/')} {sha_da_base[:7]})" if sha_da_base else ""
@@ -1238,9 +1249,10 @@ def cmd_pronto(raiz, base, corpo_arquivo=None):
         print(f"pronto: {NAO_VERIFICAVEL}: o git não leu a base comum de HEAD com {base} nem o diff", file=sys.stderr)
         return 2
     pronto = modulo_do_bin("forge_pronto")
-    if velha := pronto.base_velha(raiz, base, ancora):  # PRONTO-BASE-VELHA: uma linha, em vez dos fragmentos dos outros itens
-        print(f"pronto: reprovado em {velha}")
-        return 1
+    if velha := pronto.base_velha(raiz, base, ancora):  # PRONTO-BASE-VELHA, F3 (v0481 E30.1): só avisa; a base entra no forge-fechar (2b)
+        print(f"pronto: aviso: {velha.partition('; ')[0]}; confiro contra o ponto de partida {ancora[:12]}, sem trazer a base: "
+              "ela entra só no fechamento (forge-fechar, passo 2b)", file=sys.stderr)
+        base = ancora  # contra a base nova, as checagens listariam os fragmentos dos outros itens (forge-changelog conferir)
     motivo = titulo = None  # o motivo do gh em erro: sem --corpo, o corpo fica não verificável em vez de reprovado
     if corpo_arquivo:
         try:
@@ -1488,6 +1500,8 @@ def tamanho_do_pr(raiz, ref, base, branch, previo=False):
     if not aviso:
         return []
     print(f"pr: {aviso}", file=sys.stderr)
+    if corte := corte_do_intervalo(raiz, b, ref or "HEAD", numstat):  # F5 (v0481 E38.2): o aviso traz onde cortar
+        print(f"pr: tamanho: {tamanho.texto_do_corte(corte)}", file=sys.stderr)
     if previo or not branch or branch in BASES_DO_FLUXO:
         return []
     pr, motivo = pr_da_branch(raiz, branch, corpo=True)
@@ -1498,6 +1512,36 @@ def tamanho_do_pr(raiz, ref, base, branch, previo=False):
         return []
     falta = tamanho.falta_de_motivo(total, pr.get("body"), pr.get("number"))
     return [falta] if falta else []
+
+
+def corte_do_intervalo(raiz, base, head, numstat):
+    """F5 (v0481 E38.2): o `corte_sugerido` do diff `base...head` com o `numstat` dele: cada arquivo de código até o teto é uma unidade;
+    o maior, uma por função tocada (cabeçalho `@@` do `-U0`; o nome vai como caminho literal, `bin/[ab].py` não casa `bin/a.py`, A2 da
+    segurança, E38.11). [] sem código; None se o git falha (a recusa sai sem o corte)."""
+    tamanho = modulo_do_bin("forge_tamanho")
+    unidades = []
+    for nome, contagem in sorted(numstat.items()):
+        linhas = tamanho.linhas_de_codigo({nome: contagem}, e_codigo)
+        if linhas <= tamanho.TETO_DE_LINHAS_DE_CODIGO:
+            unidades += [(nome, linhas)] if linhas else []
+            continue
+        cod, diff = git(raiz, "--literal-pathspecs", "diff", "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames",
+                        f"{base}...{head}", "--", nome)
+        if cod:
+            return None
+        unidades += [(f"{nome}:{funcao}", n) for funcao, n in tamanho.linhas_por_funcao(diff).items()]
+    return tamanho.corte_sugerido(unidades)
+
+
+def tamanho_na_abertura(raiz, base, head, corpo):
+    """F5 (v0481 E38.2): a recusa da abertura do PR `base...head` com mais linhas de código que o teto do H1 e sem a exceção no `corpo`,
+    com o corte sugerido, ou None. O git que não lê o diff recusa (falha fechada, ADR 0009 seção 7)."""
+    numstat = contagens_do_intervalo(raiz, base, head, tres_pontos=True, estrito=True)
+    if numstat is None:
+        return f"R-REVIEW: tamanho não conferido: o git não leu o diff {base}...{head}; rode git fetch origin develop"
+    tamanho = modulo_do_bin("forge_tamanho")
+    total = tamanho.linhas_de_codigo(numstat, e_codigo)
+    return tamanho.recusa_de_abertura(total, corte_do_intervalo(raiz, base, head, numstat), corpo)
 
 
 # E3.45 (v0474): o merge só com os checks do head concluídos e verdes; num projeto, um PR mesclado com o CI rodando deixou a integração
@@ -1656,7 +1700,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
                   file=sys.stderr)
         avisar_classe(raiz, ref, None)
         branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
-        return cmd_pr(raiz, pedido, ref, None, branch, previo, suite) + (conferencia_do_head(raiz, pedido, ref, None, branch, previo)
+        return cmd_pr(raiz, pedido, ref, None, branch, previo, suite, True) + (conferencia_do_head(raiz, pedido, ref, None, branch, previo)
                                                                   + tamanho_do_pr(raiz, ref, None, branch, previo)
                                                                   + checks_do_head(raiz, ref, branch, previo_dos_checks) if conferir else [])
     nome = base.removeprefix("origin/")
@@ -1674,7 +1718,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True, pre
         avisar_rebase_merge(raiz)
         return cmd_pr(raiz, pedido, ref, resolvida, branch, previo)  # na leva da promoção valem os pareceres de todos os itens
     branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
-    return cmd_pr(raiz, pedido, ref, resolvida, branch, previo, suite) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch, previo)
+    return cmd_pr(raiz, pedido, ref, resolvida, branch, previo, suite, True) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch, previo)
                                                                    + tamanho_do_pr(raiz, ref, nome, branch, previo)
                                                                    + checks_do_head(raiz, ref, branch, previo_dos_checks) if conferir else [])
 
@@ -2051,13 +2095,15 @@ def commit_junto_do_parecer(raiz, rel, ate, livres):
     return (sha, fora[0]) if fora else None
 
 
-def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False, suite=None):
+def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False, suite=None, pelo_status=False):
     """`branch`: a branch do parecer quando a ref é um sha (o `headRefName` do PR mesclado, `--pr`, E10); sem ela, `branch_da_ref`.
     Numa branch de trabalho (fora de BASES_DO_FLUXO), só contam os pareceres com `branch:` igual a ela: o de outro item do mesmo pedido,
     trazido pelo merge da base, não vale nem reprova; sem nenhum da branch, reprova (falha fechada). Sem branch (o sha da catraca do CI)
     ou numa branch de integração (a promoção), vale o mais recente do pedido, como antes. `previo` (FC-6, PP-5/C-2): só as duas linhas
     de parecer ausente saem como `aviso:` no stderr; desatualizado, reprovado, autoria, aceite, forma e blob seguem violação.
-    `suite` (só do `pr_da_cli`; a catraca é o próprio CI): None, ou o `adiar` do `suite_do_parecer` (PARECER-SO-COM-CI-VERDE)."""
+    `suite` (só do `pr_da_cli`; a catraca é o próprio CI): None, ou o `adiar` do `suite_do_parecer` (PARECER-SO-COM-CI-VERDE).
+    `pelo_status` (só do `pr_da_cli`, C2b): o parecer publicado como status (`pareceres_publicados`); o hook `parecer` decide pelo
+    resultado gravado do `pr` e a catraca segue o arquivo até o C5a, sem o `git ls-remote` a mais (CORPUS-CUSTO-CONTADOR)."""
     saida, ci = [], {}
 
     def ausente(linha):
@@ -2070,10 +2116,14 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False, suite=N
     registros = autorias(raiz)
     exigidos, gatilhos_de_seguranca = exigidos_do_pr(raiz, pedido, ref, base)
     conferidos, ilegiveis = pareceres_conferidos(raiz, pedido, branch, ref or "HEAD") if de_trabalho else ({}, [])
+    publicados = pareceres_publicados(raiz, pedido, branch, ref) if de_trabalho and pelo_status else None  # C2b: None, dormente
     saida += [f"docs/pedidos: parecer conferido {p[:7]}: o git não lê o commit nem o pai dele; rode git fetch (VOLTAS-REVISOR-WT)"
               for p in ilegiveis]
     for tipo in exigidos:
         pasta, rid = PASTA_E_REGRA[tipo]
+        if publicados is not None and (not publicados[0] or tipo in publicados[1]):  # o status vale; fora da lista, só ele
+            saida += publicado_no_pr(raiz, pedido, tipo, publicados, ref, base, branch, ausente)
+            continue
         dos_conferidos = {n: p for n, p in conferidos.items()
                           if n.startswith(f"{pasta}/") and (frontmatter_do_parecer(raiz, p, n) or {}).get("branch") == branch}
         for nome, p in dos_conferidos.items():  # M1 e M8: só o último P de cada arquivo da branch
@@ -2133,6 +2183,38 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None, previo=False, suite=N
             if motivo:
                 saida.append(f"{caminho_impresso(rel)}: commit: {motivo} ({rid})")
     return saida + nao_exigidos_que_nao_aprovam(raiz, pedido, ref, branch if de_trabalho else None, exigidos)
+
+
+def pareceres_publicados(raiz, pedido, branch, ref):
+    """C2b (F1 parte 2, M20.1): None sem a lista fechada na develop do `origin` (dormente: o caminho de arquivo de hoje); senão
+    (o PR aberto da branch está na lista, {tipo: (veredito, url, origem)} de `vigentes` nele, ou o motivo da recusa da leitura)."""
+    pareceres = modulo_do_bin("forge_pareceres")
+    try:
+        if (lista := pareceres.lista_fechada(raiz)) is None:
+            return None
+        head = sha_do_commit(raiz, ref or "HEAD") or ""
+        pr = pareceres.pr_aberto(raiz, branch, head, nenhum=True)
+        return pr is not None and pr["number"] in lista, {} if pr is None else pareceres.vigentes(raiz, pr["number"], head, pedido)
+    except pareceres.Recusa as e:
+        return False, f"{e}"
+
+
+def publicado_no_pr(raiz, pedido, tipo, publicados, ref, base, branch, ausente):
+    """C2b: o status vigente do tipo vale como o parecer em arquivo de hoje: aprova, e o domínio do tipo da origem do status ao
+    head está intacto (M11.1; M12.1: medido sempre da origem, sem cadeia). Leitura recusada: reprova (falha fechada)."""
+    pasta, rid = PASTA_E_REGRA[tipo]
+    contexto = modulo_do_bin("forge_pareceres").CONTEXTOS[tipo]
+    if isinstance(publicados[1], str):
+        return [f"{pasta}: {tipo}: leitura do status {contexto} recusada: {publicados[1]} ({rid})"]
+    if tipo not in publicados[1]:
+        ausente(f"{pasta}: {tipo}: sem o status {contexto} no PR da branch {nome_seguro(branch)} para o pedido `{pedido}`; "
+                f"fora da lista fechada, o parecer em arquivo não vale (M20.1) ({rid})")
+        return []
+    veredito, url, origem = publicados[1][tipo]
+    if veredito is None:
+        return [f"{pasta}: {tipo}: status {contexto} de {origem[:7]} não vale: {url} ({rid})"]
+    campo, motivo = veredito_do_parecer(raiz, pedido, {"parecer": veredito, "commit": origem}, tipo, ref, base, ()) or (None, None)
+    return [f"{pasta}: {tipo}: status {contexto} de {origem[:7]} ({url}): {campo}: {motivo} ({rid})"] if motivo else []
 
 
 def parecer_que_aprova(campos):
@@ -4627,6 +4709,20 @@ def testes_enfraquecidos_da_volta(raiz, brief, de, head):
     return [(f"volta: a volta {VOLTA_SO_DO_APONTADO} em diante {RESTRICAO_DA_VOLTA} (R-QA): {sem_controle(v)[:200]}", True) for v in violacoes]
 
 
+def inicio_da_volta(raiz, base, inicio, head):
+    """R-QA com a base trazida (v0481 E30.4): o ponto de comparação dos testes da volta. Se a branch trouxe a base por merge depois do
+    `inicio` (o merge-base atual com a `origin/<base>` não está no `inicio` nem na linha de primeiro pai da branch), a árvore do
+    `inicio` com essa base (`git merge-tree`): o teste que a base tirou não sumiu na volta. Sem isso, com conflito ou git que falha,
+    o próprio `inicio` (nada se afrouxa). A ref local é forjável; a garantia é a catraca do CI, com a base do servidor."""
+    base_ref = ref_da_base(raiz, base) or ""  # sem a base, o merge-base falha e fica o `inicio`
+    cod, ponto = git(raiz, "merge-base", base_ref, head)
+    linha = git(raiz, "rev-list", "--first-parent", f"{inicio}..{head}")[1].split()
+    if cod or ponto in linha:  # a ref apontada para um commit da própria branch não esconde o teste tirado
+        return inicio
+    cod, saida = git(raiz, "merge-tree", "--write-tree", inicio, ponto)
+    return saida.split("\n")[0].strip() if cod == 0 and saida else inicio
+
+
 def voltas_da_branch(pasta, branch, anterior, proprio=None):
     """G1.1: (voltas do item, sucessores do anterior) pelos briefs de `pasta` com `Volta-de:`: as voltas contam os da mesma `Branch:`
     (o item, não a cadeia escolhida), os sucessores os que já apontam para o `anterior`; o `proprio` (o brief conferido) fica fora."""
@@ -4784,6 +4880,30 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     return "".join(saida), 0, []
 
 
+def pareceres_da_ref(raiz, texto, pedido_txt, pedido_id, ref, sha_ref, arquivos):
+    """(pareceres, fora, erro) da volta na `sha_ref`: os de `--parecer` ou os do pedido, com o P da branch da volta (E6b-1)."""
+    branch = grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(texto)) or ref  # E6b-1: o P da branch da volta, como no gerar
+    fora, erro = conferidos_fora_da_ref(raiz, pedido_txt, sha_ref, branch)
+    pareceres, erro = (None, erro) if erro else pareceres_da_volta(raiz, pedido_id, sha_ref, arquivos, fora)
+    return pareceres, fora, erro
+
+
+def sondas_do_pedido(pareceres, pedido_id):
+    """BRIEF-SONDA-ESCRITA: (tipo, id, entrada) das sondas dos pareceres deste pedido e sem problema; o `--parecer` de outro pedido
+    não entra (revisao-seguranca A1)."""
+    return {(p["tipo"], s["id"], s["entrada"]) for p in pareceres if p["campos"].get("pedido") == pedido_id and not p["problemas"] for s in p["sondas"]}
+
+
+def sondas_conferidas(raiz, texto, pedido_txt, pedido_id, ref, arquivos):
+    """BRIEF-SONDA-ESCRITA: as sondas que a `conferir_volta` relê da --ref para o brief de volta; sem --ref, sem `Volta-de:` ou com
+    erro de leitura, nenhuma (a entrada segue na barreira de escrita)."""
+    sha_ref = sha_do_commit(raiz, ref) if VOLTA_DE.search(texto) else None
+    if not sha_ref:
+        return set()
+    pareceres, _, erro = pareceres_da_ref(raiz, texto, pedido_txt, pedido_id, ref, sha_ref, arquivos)
+    return set() if erro else sondas_do_pedido(pareceres, pedido_id)
+
+
 def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=None, proprio=None):
     """Linhas `volta:` de um brief com `Volta-de:` (M7): o anterior pelo sha256, os blocos copiados, as decisões do dono e todo achado
     bloqueante dos pareceres no Entregar ou cortado com a marca. Lista de (linha, reprova)."""
@@ -4840,9 +4960,7 @@ def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=N
         return saida + [(f"volta: --ref {nome_seguro(ref)} não é um commit", True)]
     if not sha_ref:
         return saida + [("volta: pareceres não verificáveis (rode com --ref <branch da entrega>)", False)]
-    branch = grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(texto)) or ref  # E6b-1: o P da branch da volta, como no gerar
-    fora, erro = conferidos_fora_da_ref(raiz, pedido_txt, sha_ref, branch)
-    pareceres, erro = (None, erro) if erro else pareceres_da_volta(raiz, pedido_id, sha_ref, arquivos, fora)
+    pareceres, fora, erro = pareceres_da_ref(raiz, texto, pedido_txt, pedido_id, ref, sha_ref, arquivos)
     if erro:
         return saida + [(f"volta: {erro}", True)]
     entregar = " ".join(novos.get("Entregar", []))
@@ -4860,6 +4978,10 @@ def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=N
                 saida.append((f"volta: falta sonda \"{sonda['id']}\" de {caminho_impresso(p['rel'])}", True))
             elif sonda["entrada"] not in entradas:
                 saida.append((f"volta: sonda {sonda['id']} difere do parecer {caminho_impresso(p['rel'])}", True))
+    lidas = sondas_do_pedido(pareceres, pedido_id)  # BRIEF-SONDA-ESCRITA: cada cópia, igual ao parecer deste pedido
+    for tipo, _, ident, entrada in (m.groups() for m in map(SONDA_NO_ENTREGAR.match, novos.get("Entregar", [])) if m):
+        if (tipo, ident, entrada) not in lidas:
+            saida.append((f"volta: sonda {ident} de {tipo} não está nos pareceres lidos", True))
     for linha in novos.get("Entregar", []):  # a recomendação incluída é relida da ref (ou do P): o texto ao lado da marca é o do parecer
         marca = INCLUIDO.search(linha)
         if not marca:
@@ -8990,24 +9112,32 @@ SEM_VERIFICACAO = re.compile(r"[$*?\[<]")  # VV-3: variável, curinga ou `<...>`
 TETO_DE_CAMINHOS = 64  # VV-3 (C-8): caminhos do Entregar conferidos por brief; o excedente reprova
 
 
-def caminhos_do_entregar(secoes):
+def sem_entrada_de_sonda(linha, sondas):
+    """BRIEF-SONDA-ESCRITA: a linha `(sonda ...)` cuja (tipo, id, entrada) está em `sondas` (relidas do parecer deste pedido na
+    --ref) sem a entrada (o caminho citado nela é da cópia de teste da sonda, que vai ao corpus de testes, não arquivo a gravar); a
+    marca e o `espera:` seguem conferidos. Outra linha, intacta."""
+    m = SONDA_NO_ENTREGAR.match(linha)
+    return linha[:m.start(4)] + linha[m.end(4):] if m and (m.group(1), m.group(3), m.group(4)) in sondas else linha
+
+
+def caminhos_do_entregar(secoes, sondas=frozenset()):
     """VV-3: cada palavra com `/` dentro de crases no `## Entregar` e cada item da linha `- arquivos:` (0.43.1), na ordem e sem
-    repetir."""
+    repetir. Fora a entrada das linhas de sonda em `sondas` (`sondas_conferidas`, brief de volta conferido contra a --ref)."""
     entregar = secoes.get("Entregar", [])
-    texto = "\n".join(entregar)
+    texto = "\n".join(sem_entrada_de_sonda(linha, sondas) for linha in entregar)
     crases = [p for t in re.findall(r"`([^`\n]+)`", texto) for p in t.split() if "/" in p]
     declarados = [item_do_entregar(t) for linha in entregar if (m := LINHA_DE_ARQUIVOS.match(linha)) for t in re.split(r"[,\s]+", m.group(1))]
     return list(dict.fromkeys(crases + [t for t in declarados if "/" in t and PREENCHER not in t]))
 
 
-def conferir_escrita(secoes, destino, raiz, ramo):
+def conferir_escrita(secoes, destino, raiz, ramo, sondas=frozenset()):
     """VV-3: uma linha `escrita: ok|barrada|não conferida|não verificável` por caminho do Entregar, pela resposta do hook
     `conformidade` (`escrita_barrada`, sem copiar regra) para o destino, na raiz do pedido e no `ramo`. `barrada` e `não conferida`
     reprovam (hook ilegível ou erro nunca vira `ok`); a linha nunca é `aviso:`. Caractere de `conformidade.INVISIVEIS` no caminho
     dá `barrada`; com `$ * ? [ <`, a pasta fixa antes da marca, se já barrada, dá `barrada`; os `não verificável` saem contados numa
     linha; acima de `TETO_DE_CAMINHOS`, o excedente não é conferido e reprova. O brief que manda escrever onde o hook do papel destino
     barra sai reprovado antes do trabalho (o `brief selar` não sela)."""
-    caminhos = caminhos_do_entregar(secoes)
+    caminhos = caminhos_do_entregar(secoes, sondas)
     if not caminhos:
         return []
     sys.path.insert(0, str(PLUGIN / "hooks"))
@@ -9043,7 +9173,7 @@ def conferir_escrita(secoes, destino, raiz, ramo):
 
 
 def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_id="", conteudo=b"", caminho=None, anterior=None, cobradas=None,
-                   raiz=None):
+                   raiz=None, sondas=frozenset()):
     """Linhas de saída do `forge-check brief`: lista de (linha, reprova). Mesmo texto, mesma saída."""
     secoes = secoes_por(texto, CABECALHO_BRIEF)
     pedido = ler_pedido_brief(pedido_txt)
@@ -9069,7 +9199,7 @@ def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_i
     saida += conferir_corte(secoes, pedido, destino, grupo(r"\bCobre:\s*(\S+)", cabecalho_do_brief(texto)))
     saida += conferir_pedido_contraditorio(secoes, pedido)
     if destino:  # VV-3: o Entregar contra a fronteira de escrita do destino, no ramo do `Branch:` (sem ele, ramo vazio; nunca o do disco)
-        saida += conferir_escrita(secoes, destino, raiz, grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(texto)) or "")
+        saida += conferir_escrita(secoes, destino, raiz, grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(texto)) or "", sondas)
     if cobradas is not None:
         referencia = referencia_do_brief(secoes)  # P4 (0.43.1): a referência ao bloco substitui a cópia; o brief antigo segue cobrado
         cabecalho = cabecalho_do_brief(texto)
@@ -9351,7 +9481,7 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     pedido_id = m.group(1) if m else caminho_pedido.stem
     cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt, brief, pedido_id)
     linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, caminho if destino else None, bytes_anterior, cobradas,
-                            raiz=raiz)
+                            raiz=raiz, sondas=sondas_conferidas(raiz, texto, pedido_txt, pedido_id, ref, pareceres) if destino else set())
     linhas += [(o, False) for o in (linha_de_origem(caminho_pedido), linha_de_origem(brief)) if o]
     linhas += aviso_de_base_sha(raiz, texto)
     linhas += caminhos_ausentes_do_pq(raiz, texto, secoes_por(texto, CABECALHO_BRIEF))
@@ -10920,7 +11050,7 @@ def cmd_entrega_conferir(raiz, pedido, branch, etapa, worktree=None, gravar=True
     cod, contagem = git(raiz, "rev-list", "--count", f"{inicio}..{head}")
     linhas.append((f"commits: {contagem if not cod else '?'} em {inicio[:12]}..{head[:12]}", bool(cod)))
     linhas += conferir_provas(raiz, brief, branch, head, pasta, so_leitura)
-    linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio, head)  # R-QA: a 3ª volta (só o brief com `(volta N)`)
+    linhas += testes_enfraquecidos_da_volta(raiz, brief, inicio_da_volta(raiz, base, inicio, head), head)  # R-QA: a 3ª volta
     if etapa == "codigo":  # D2-NO-BRIEF: a entrega com o D2 vermelho volta sem passar pelas revisões
         no_head = [git(raiz, "cat-file", "-e", f"{head}:{nome}")[0] == 0 for nome in (".claude-plugin/plugin.json", ".forge/versao")]
         forge = no_head == [True, False]  # G3-ENTREGA-PELO-CI: o head do Forge prova pelo CI do PR; o D2 local não roda
@@ -11611,7 +11741,8 @@ def executar(a, raiz):
         pedidos = Path(a.raiz_pedidos).resolve() if a.raiz_pedidos else next(
             (r for r in raizes_de_pedidos(raiz) if (Path(r) / "docs" / "pedidos").is_dir()), raiz)
         ctx = {"gh_json": gh_json, "seguro": sem_controle, "versao": versao_da_propria_copia, "plugin": PLUGIN, "pedidos": pedidos,
-               "abertas": modulo_do_bin("forge_dono").cmd_abertas}
+               "abertas": modulo_do_bin("forge_dono").cmd_abertas,
+               "lista_de_prs": modulo_do_bin("forge_estado").vigia().lista_de_prs(raiz)}  # F4: a lista que o vigia lê
         return modulo_do_bin("forge_estado").executar(a, raiz, ctx)
     if a.cmd == "comparar":  # AE7.1: em bin/forge_comparar.py
         return modulo_do_bin("forge_comparar").executar(a, raiz, {"git": git, "seguro": sem_controle})
@@ -11670,6 +11801,8 @@ def executar(a, raiz):
         linhas, codigo = cmd_proximo(raiz, a.pedido, a.item, a.etapa) if a.cmd == "proximo" else cmd_criterios(raiz, a.pedido)
         for linha in linhas:
             print(linha)
+        if a.cmd == "proximo":  # F4 (v0481 E34.6): renova a lista do vigia vencida, uma leitura do gh, depois da saída
+            modulo_do_bin("forge_estado").renovar_prs_abertos(raiz, gh_json)
         return codigo
     if a.cmd in ("rodar", "meta"):
         return modulo_do_bin({"rodar": "forge_run", "meta": "forge_meta"}[a.cmd]).executar(a, raiz)

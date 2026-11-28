@@ -5,8 +5,10 @@ name: CI
 # scripts/suite-paralela.py), os demais passos da bateria num job (bateria (passos)) e um job agregador por versão com o nome do
 # check exigido: "bateria" junta as partes e os passos; "bateria (python 3.14)" junta a instalação e a fumaça no 3.14 (SUITE-NO-CI,
 # decisão do dono de 2026-11-08: a suíte inteira roda uma vez, no CI; a suíte no 3.14 e os mutantes rodam por dia, no diario.yml).
-# Push na develop: a mesma suíte inteira em 5 partes no 3.12 (jobs "suíte (push na develop, python 3.12, parte K/5)", um teto de
-# pulados em job próprio e o agregador "rapida", de nome fixo, que só passa com as 5 partes e o teto; o mecanismo é o do
+# Push na develop: o job "arvore-envio" (F6) pergunta a scripts/arvore-testada.py --do-pr se o PR mesclado já provou a árvore
+# (run do ci.yml do PR com o job "bateria" verde, A1 da segurança do #929); sem prova, a mesma suíte inteira em 5 partes no 3.12
+# (jobs "suíte (push na develop, python 3.12, parte K/5)", um teto de pulados em job próprio e o agregador "rapida", de nome
+# fixo, que só passa com a prova do PR (partes e teto pulados) ou com as 5 partes e o teto verdes; o mecanismo é o do
 # scripts/suite-paralela.py, com o mesmo preparo do PR) e é a prova da develop. Cada parte verde grava o
 # tempo por unidade em anotação do check run, que scripts/pesos-do-ci.py lê pela API para refazer os pesos. Promoção (PR develop -> homolog e homolog -> main, push
 # na homolog e na main): o job prévio único "árvore" roda scripts/arvore-testada.py (SP4, EST-M7, M2) e as partes pulam a suíte
@@ -27,16 +29,59 @@ on:
 permissions:
   contents: read
 
+# CI-NAO-CANCELA-ENVIO-SO-DE-PARECER (v0481 E22.1): em PR cada run tem o seu grupo (sem cancelamento automatico) e o workflow
+# obsoletas.yml (o unico com actions: write, fora deste arquivo) cancela os runs anteriores do mesmo ramo, exceto quando o envio
+# novo so traz docs/reviews/, docs/qa/ ou docs/security/ (o parecer do portao): a suite do head revisado termina e a linha ci
+# chega ao revisor. Push nas branches de integracao segue cancelando.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.ref }}${{ github.event_name == 'pull_request' && format('-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ github.event_name != 'pull_request' }}
 
 jobs:
+  arvore-envio:
+    name: árvore do PR já provada (push na develop)
+    # F6 (v0481): o envio na develop não repete a suíte que o PR já rodou: `scripts/arvore-testada.py --do-pr` só dá rc 0 quando o
+    # commit é o merge de um PR do próprio repositório com a MESMA árvore do head e o run do ci.yml do PR (pull_request, mesmo número,
+    # base develop) tem o job "bateria" em success (A1 do parecer de segurança do #929). Falha fechada: sem prova, erro de rede ou
+    # de API, `provada=false` e as 5 partes rodam a suíte inteira. Só lê a API; o código que roda é o da develop já mesclada.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    permissions:
+      contents: read
+      actions: read  # lê as execuções e os jobs do PR
+      pull-requests: read  # lê o PR mesclado no commit
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      provada: ${{ steps.prova.outputs.provada }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Árvore do PR já provada (F6; sem prova, a suíte do push roda inteira)
+        # o token só neste passo, nunca no da suíte.
+        id: prova
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENTO: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+        run: |
+          provada=false
+          if saida=$(python3 -I scripts/arvore-testada.py --do-pr); then provada=true; fi
+          echo "$saida" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "provada=$provada" >> "$GITHUB_OUTPUT"
+
   rapida-partes-doze:
     name: suíte (push na develop, python 3.12, parte ${{ matrix.parte }}/5)
     # CI-RAPIDO (v047): um quinto da suíte inteira por job (LPT por unidade sobre tests/pesos-d4.json, a mesma divisão do PR). O
     # agregador "checagem rápida (push na develop)" (a prova que scripts/arvore-testada.py lê) exige as 5 pernas e o teto de pulados.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: [arvore-envio]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && needs.arvore-envio.outputs.provada != 'true'
     permissions:
       contents: read
     runs-on: ubuntu-26.04
@@ -108,8 +153,8 @@ jobs:
     name: teto de pulados (push na develop, python 3.12)
     # T3 e A1 do parecer de segurança: a soma dos pulados das 5 pernas contra teto_pulados de tests/config.json, em job próprio,
     # fora do agregador, que não roda código da branch. O download é só do run corrente (sem run-id nem token).
-    needs: [rapida-partes-doze]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: [arvore-envio, rapida-partes-doze]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && needs.arvore-envio.outputs.provada != 'true'
     permissions:
       contents: read
     runs-on: ubuntu-26.04
@@ -135,7 +180,7 @@ jobs:
     # Prova da develop que o scripts/arvore-testada.py lê (o nome é o JOBS_DE_PROVA dele): só passa com as 5 pernas da suíte e o
     # teto de pulados em success. always(): perna vermelha, pulada ou cancelada reprova este (um job pulado contaria como verde).
     # Não roda código da branch (A1): só lê `needs.*.result`.
-    needs: [rapida-partes-doze, rapida-pulados-doze]
+    needs: [arvore-envio, rapida-partes-doze, rapida-pulados-doze]
     if: always() && github.event_name == 'push' && github.ref == 'refs/heads/develop'
     permissions:
       contents: read
@@ -144,11 +189,18 @@ jobs:
     steps:
       - name: Partes e teto de pulados verdes
         env:
+          ARVORE: ${{ needs.arvore-envio.result }}
+          PROVADA: ${{ needs.arvore-envio.outputs.provada }}
           PARTES: ${{ needs.rapida-partes-doze.result }}
           PULADOS: ${{ needs.rapida-pulados-doze.result }}
         run: |
-          echo "partes: $PARTES; pulados: $PULADOS"
-          [ "$PARTES" = success ] && [ "$PULADOS" = success ]
+          echo "árvore do PR: $ARVORE (provada: $PROVADA); partes: $PARTES; pulados: $PULADOS"
+          [ "$ARVORE" = success ] || exit 1
+          if [ "$PROVADA" = true ]; then  # F6: o PR provou a árvore; a suíte do push não rodou (as duas ficam puladas)
+            [ "$PARTES" = skipped ] && [ "$PULADOS" = skipped ]
+          else
+            [ "$PARTES" = success ] && [ "$PULADOS" = success ]
+          fi
 
   cobertura:
     name: cobertura (informativa)
@@ -521,12 +573,20 @@ jobs:
     # CI-PARECERES-SEM-NEEDS (v047 E1.75): sem `needs` de propósito. Com `needs: [bateria]` um vermelho barato pularia este job e o
     # autor só veria o parecer faltando na rodada seguinte; o job custa menos de um minuto e roda em paralelo, então o ganho de
     # esperar é nulo. O pulo não abriria o merge (o agregador reprova `skipped` em PR), mas a rodada extra é o custo que se evita.
-    # Só PR (nas promoções o script não lê parecer, ADR 0008, seção 3); sem token (só contents: read).
+    # Só PR (nas promoções o script não lê parecer, ADR 0008, seção 3); o script roda sem token.
+    # F1-ESPERA-NAO-E-VERMELHO (v0481 E47.1): rc 3 do script é só espera (falta o parecer, nenhum defeito). O job sai verde e a
+    # saída `espera` renomeia o agregador para "bateria (espera parecer)": o check exigido `bateria` fica pendente (amarelo) e
+    # segue barrando a junção. Sem a saída (rc 0, ou o passo morreu), o nome é `bateria` e o agregador exige este job em success,
+    # que só sai com rc 0 ou com rc 3 e a saída gravada. Com `bateria` verde já no head (mesmo sha, outra base), vermelho: o
+    # nome trocado deixaria o verde velho valer.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: read
+      checks: read
+    outputs:
+      espera: ${{ steps.pareceres.outputs.espera }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -537,7 +597,9 @@ jobs:
           python-version: "3.12"
       - name: Parecer de review (e de QA para a homolog) quando o PR toca código que governa os agentes
         # Roda o script da base (a introdução usa o do PR); promoções ficam fora do job (ADR 0008, seção 3).
+        id: pareceres
         env:
+          TOKEN_DE_LEITURA: ${{ github.token }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.head_ref }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
@@ -551,7 +613,12 @@ jobs:
             git worktree add --detach "$RUNNER_TEMP/base" "$BASE"
             script="$RUNNER_TEMP/base/tests/catraca.py"
           fi
-          python3 "$script" --modo pareceres --base "$BASE" --head "$HEAD_SHA" --ramo="$HEAD_REF" --base-ref "$BASE_REF"
+          rc=0
+          env -u TOKEN_DE_LEITURA python3 "$script" --modo pareceres --base "$BASE" --head "$HEAD_SHA" --ramo="$HEAD_REF" --base-ref "$BASE_REF" || rc=$?
+          [ "$rc" = 3 ] || exit "$rc"
+          ultimo=$(GH_TOKEN="$TOKEN_DE_LEITURA" gh api "repos/$BASE_REPO/commits/$HEAD_SHA/check-runs?check_name=bateria&per_page=100" --jq '[.check_runs[] | select(.app.slug == "github-actions")] | sort_by(.started_at) | last | if . == null then "nenhum" else .conclusion end') || { echo "espera: a API não leu o check bateria do head; vermelho (falha fechada)"; exit 1; }
+          case "$ultimo" in nenhum|failure|cancelled|timed_out|action_required|stale) ;; *) echo "espera: o último bateria do head está '$ultimo' (verde, pulado, neutro ou em andamento); vermelho para ele não valer"; exit 1;; esac
+          echo "espera= (espera parecer)" >> "$GITHUB_OUTPUT"
 
   verificacoes:
     name: bateria (verificações longas)
@@ -611,7 +678,9 @@ jobs:
           shellcheck -- "${lista[@]}"
 
   agregador:
-    name: bateria
+    name: bateria${{ (needs.bateria.result == 'success' && needs.pareceres.result == 'success' && needs.verificacoes.result == 'success' && needs.partes-doze.result == 'success' && needs.pulados-doze.result == 'success') && needs.pareceres.outputs.espera || '' }}
+    # E47.1: o sufixo " (espera parecer)" deixa o check exigido `bateria` pendente (amarelo), ainda barrando a junção.
+    # E47.6: só com todos os needs em success; com teste vermelho e parecer faltando, o vermelho fica no nome exato.
     # Agregador do check exigido: só passa com os passos, as 5 partes da suíte no 3.12 e o teto de pulados em success.
     # always(): falha,
     # cancelamento ou pulo de um job necessário reprova este (um job pulado contaria como verde para a regra de proteção).

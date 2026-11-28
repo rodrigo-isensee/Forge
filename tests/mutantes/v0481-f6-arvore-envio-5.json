@@ -1,0 +1,76 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE-M21",
+      "guarda": "sem run valido do PR nao prova",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "    if not validas:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_casos_de_abuso_do_parecer_de_seguranca_a1"
+      ]
+    },
+    {
+      "id": "AE-M22",
+      "guarda": "so o job de nome bateria conta",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "if campo(j, \"name\", str) == NOME_DA_BATERIA]",
+      "para": "if campo(j, \"name\", str) != NOME_DA_BATERIA]",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_pr_mesclado_com_a_mesma_arvore_e_o_run_do_pr_verde_prova"
+      ]
+    },
+    {
+      "id": "AE-M23",
+      "guarda": "o run tem de casar todos os campos do filtro",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "or any(campo(execucao, k, str) != v for k, v in da_execucao.items()):\n            continue\n        ligados",
+      "para": "or all(campo(execucao, k, str) != v for k, v in da_execucao.items()):\n            continue\n        ligados",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_casos_de_abuso_do_parecer_de_seguranca_a1"
+      ]
+    },
+    {
+      "id": "AE-M24",
+      "guarda": "os runs do PR vem da lista workflow_runs",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "\"workflow_runs\", list) or []\n    da_execucao",
+      "para": "\"runs\", list) or []\n    da_execucao",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_pr_mesclado_com_a_mesma_arvore_e_o_run_do_pr_verde_prova"
+      ]
+    },
+    {
+      "id": "AE-M25",
+      "guarda": "os jobs do run vem da lista jobs",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "{run_id}/jobs?per_page=100\"), \"jobs\", list) or []\n    com_nome",
+      "para": "{run_id}/jobs?per_page=100\"), \"jobs\", dict) or []\n    com_nome",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_pr_mesclado_com_a_mesma_arvore_e_o_run_do_pr_verde_prova"
+      ]
+    },
+    {
+      "id": "AE-M26",
+      "guarda": "a resposta de PRs tem de ser uma lista",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "(prs if type(prs) is list else [])",
+      "para": "(prs if type(prs) is not list else [])",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_pr_mesclado_com_a_mesma_arvore_e_o_run_do_pr_verde_prova"
+      ]
+    },
+    {
+      "id": "AE-M27",
+      "guarda": "achar a bateria prova",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "        if achou:\n",
+      "para": "        if not achou:\n",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_pr_mesclado_com_a_mesma_arvore_e_o_run_do_pr_verde_prova"
+      ]
+    }
+  ]
+}

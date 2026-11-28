@@ -29,7 +29,10 @@ SCRIPT = RAIZ / "scripts" / "suite-partes.py"
 CI = RAIZ / ".github" / "workflows" / "ci.yml"
 AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items()
                            if not k.startswith(("GIT_", "FORGE_SUITE_", "GITHUB_")) and k != "CI"})
+ESPERA = re.compile(r"\$\{\{[^}]*outputs\.espera[^}]*\}\}$")  # E47.1/E47.6: sufixo da espera no nome do agregador
+
 MODULO = '''import os, pathlib, unittest
+
 class T(unittest.TestCase):
     def test_{nome}(self):
         (pathlib.Path(os.environ["MARCAS"]) / "{nome}").write_text("x")
@@ -593,12 +596,13 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertIn("fail-fast: false", bloco)
 
     def test_agregadores_tem_o_nome_exigido_e_exigem_todas_as_partes(self):
+        # E47.1: o agregador leva o sufixo da espera do parecer (vazio sem espera), que deixa o check exigido `bateria` pendente
         casos = {"agregador": ("bateria", {"bateria", "pareceres", "verificacoes", "partes-doze", "pulados-doze"}),
                  "bateria-python-tres-quatorze": ("bateria (python 3.14)", {"instalacao-quatorze"})}
         for job, (nome, necessarios) in casos.items():
             with self.subTest(job):
                 bloco = self.job(job)
-                self.assertEqual(self.nome(job), nome)
+                self.assertEqual(ESPERA.sub("", self.nome(job)), nome)  # E47.6: o sufixo condicional da espera
                 needs = self.casar(r"(?m)^    needs: \[(.*)\]$", bloco).group(1)
                 self.assertEqual({n.strip() for n in needs.split(",")}, necessarios)
                 # always(): necessário cancelado, pulado ou vermelho reprova o agregador (um pulado contaria como verde)
@@ -608,7 +612,9 @@ class FiacaoDoCI(unittest.TestCase):
                 self.assertEqual(bloco.count("= success ]"), len(necessarios))
                 self.assertNotIn("uses:", bloco)  # o agregador não roda código da branch
         nomes = [self.nome(j) for j in self.jobs]
-        self.assertEqual(nomes.count("bateria"), 1)
+        self.assertEqual([ESPERA.sub("", n) for n in nomes].count("bateria"), 1)
+        self.assertNotIn("bateria", nomes)
+        self.assertTrue(self.nome("agregador").endswith("&& needs.pareceres.outputs.espera || '' }}"))
         self.assertEqual(nomes.count("bateria (python 3.14)"), 1)
 
     def test_cada_parte_publica_os_pulados_e_um_job_soma_contra_o_teto(self):  # T3
@@ -655,18 +661,44 @@ class FiacaoDoCI(unittest.TestCase):
             with self.subTest(job):
                 bloco = self.job(job)
                 needs = self.casar(r"(?m)^    needs: \[(.*)\]$", bloco).group(1)
-                self.assertEqual({n.strip() for n in needs.split(",")}, {perna, teto})
+                self.assertEqual({n.strip() for n in needs.split(",")}, {"arvore-envio", perna, teto})
                 self.assertRegex(bloco, r"(?m)^    if: always\(\) && github.event_name == 'push' && "
                                         r"github.ref == 'refs/heads/develop'$")
-                self.assertEqual(bloco.count("= success ]"), 2)
-                for necessario in (perna, teto):
+                # F6: sem a prova do PR, as duas pernas em success; com a prova (e o job dela em success), as duas puladas
+                self.assertEqual(bloco.count("= success ]"), 3)
+                self.assertIn('[ "$ARVORE" = success ] || exit 1', bloco)
+                self.assertIn('[ "$PARTES" = skipped ] && [ "$PULADOS" = skipped ]', bloco)
+                for necessario in ("arvore-envio", perna, teto):
                     self.assertIn(f"${{{{ needs.{necessario}.result }}}}", bloco)
+                self.assertIn("${{ needs.arvore-envio.outputs.provada }}", bloco)
                 self.assertNotIn("uses:", bloco)  # A1: o agregador só lê needs.*.result
                 self.assertNotIn("scripts/", "\n".join(l for l in bloco.splitlines() if not l.lstrip().startswith("#")))
                 self.assertIn("permissions:\n      contents: read", bloco)
-                self.assertRegex(self.job(teto), rf"(?m)^    needs: \[{perna}\]$")  # o teto só roda com as 5 pernas verdes
+                self.assertRegex(self.job(teto), rf"(?m)^    needs: \[arvore-envio, {perna}\]$")  # o teto só roda com as 5 pernas verdes
                 self.assertIn('python3 scripts/suite-partes.py --somar-pulados 5 "$RUNNER_TEMP/pulados"', self.job(teto))
                 self.assertIn("pattern: pulados-rapida-", self.job(teto))
+
+    def test_f6_arvore_envio_so_le_a_prova_do_pr_e_as_pernas_da_develop_pulam_com_ela(self):
+        """F6 (v0481 E32.9): o job da prova do PR roda só no push na develop, só com leitura, com o token num passo só e o script
+        da develop (python -I); com `provada=true`, as 5 pernas e o teto de pulados ficam pulados (o job inteiro, sem gastar
+        runner), e o agregador `rapida` (outro teste) aceita essa combinação; sem a prova, erro ou falha do job, elas rodam."""
+        bloco = self.job("arvore-envio")
+        self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/develop'\n", bloco)
+        self.assertIn("permissions:\n      contents: read\n      actions: read", bloco)
+        self.assertEqual(re.findall(r"(?m)^      (\w[\w-]*): (\w+)", bloco.split("    permissions:\n", 1)[1].split("    runs-on", 1)[0]),
+                         [("contents", "read"), ("actions", "read"), ("pull-requests", "read")])
+        self.assertEqual(bloco.count("GH_TOKEN: ${{ github.token }}"), 1)
+        self.assertIn("persist-credentials: false", bloco)
+        self.assertIn("python3 -I scripts/arvore-testada.py --do-pr", bloco)
+        self.assertIn("provada: ${{ steps.prova.outputs.provada }}", bloco)
+        self.assertIn("timeout-minutes: 5", bloco)
+        for perna in ("rapida-partes-doze", "rapida-pulados-doze"):
+            with self.subTest(perna):
+                self.assertRegex(self.job(perna), r"(?m)^    needs: \[arvore-envio(, rapida-partes-doze)?\]$")
+                self.assertIn("&& needs.arvore-envio.outputs.provada != 'true'\n", self.job(perna))
+        self.assertNotIn("arvore-envio", self.job("partes-doze"))  # no PR a prova da develop é a do job `arvore`, outra
+        efetivo = "\n".join(l for l in self.texto.replace(bloco, "").splitlines() if not l.lstrip().startswith("#"))
+        self.assertNotIn("--do-pr", efetivo)  # só o arvore-envio chama o modo do PR
 
     def test_pernas_da_develop_publicam_os_pulados_e_o_download_so_le_o_run_corrente(self):  # S5, A4
         for versao in ("doze",):

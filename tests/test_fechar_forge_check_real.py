@@ -60,6 +60,73 @@ class FecharComOForgeCheckReal(unittest.TestCase):
         self.assertTrue([c for c in self.chamadas() if c.startswith("gh pr merge melhoria/x --squash")])
 
 
+class DevelopSoNoFim(unittest.TestCase):
+    """F3 (v0481 E30.1): a develop entra uma vez, no passo 2b; com o merge limpo (a árvore do `git merge-tree`), o parecer aprovado no
+    head revisado segue valendo no head com a base, sem parecer novo; qualquer byte à mão no merge o desatualiza."""
+
+    git, fechar, chamadas, tearDown = base.Fechar.git, base.Fechar.fechar, base.Fechar.chamadas, base.Fechar.tearDown
+
+    def setUp(self):
+        FecharComOForgeCheckReal.setUp(self)
+        self.pedido.write_text(f"# real\n\n## Histórico\n- 2026-11-04 09:00: entrega conferida {self.entrega} (E1.2)\n", encoding="utf-8")
+        (self.proj / "c").write_text("3\n")  # a develop anda depois do parecer, sem arquivo em comum
+        self.git("add", "c")
+        self.git("commit", "-q", "-m", "feat: c na develop")
+        self.git("push", "-q", "origin", "develop")
+        self.develop = self.git("rev-parse", "develop")
+
+    def mesclado_no(self):
+        return [c.split()[-1] for c in self.chamadas() if c.startswith("gh pr merge melhoria/x --squash --match-head-commit")]
+
+    def autor_mescla_a_develop(self, mao=None, estrategia=()):
+        self.git("switch", "-q", "melhoria/x")
+        self.git("merge", "-q", "--no-commit", *estrategia, "develop")
+        if mao:
+            (self.proj / "b").write_text(mao)
+            self.git("add", "b")
+        self.git("commit", "-q", "--no-edit")
+        self.git("push", "-q", "origin", "melhoria/x")
+        self.git("switch", "-q", "develop")
+
+    def test_o_2b_traz_a_base_uma_vez_e_o_parecer_do_head_revisado_vale(self):
+        revisado = self.git("rev-parse", "melhoria/x")
+        r = self.fechar("x", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(r.stdout.count("trago a base por merge (H4)"), 1, r.stdout)
+        self.assertEqual(len([c for c in self.chamadas() if c.startswith("forge-check pr x")]), 2,
+                         "o passo 1 roda no head revisado e no head com a base, com o mesmo parecer")
+        (novo,) = self.mesclado_no()
+        self.assertEqual(self.git("rev-parse", f"{novo}^1", f"{novo}^2").split(), [revisado, self.develop])
+        self.assertEqual(self.git("rev-parse", f"{novo}^{{tree}}"),
+                         self.git("merge-tree", "--write-tree", revisado, self.develop).splitlines()[0])
+
+    def test_merge_da_base_pelo_autor_sem_resolucao_nao_reabre_o_parecer(self):
+        self.autor_mescla_a_develop()
+        r = self.fechar("x", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("trago a base", r.stdout)
+        self.assertEqual(len(self.mesclado_no()), 1)
+
+    def test_merge_da_base_com_mudanca_a_mao_desatualiza_o_parecer(self):
+        self.autor_mescla_a_develop(mao="2 e mais\n")  # um byte da branch a mais no commit de merge
+        r = self.fechar("x", "--ref", "melhoria/x")
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("parou no passo 1", r.stderr)
+        self.assertIn("desatualizado: b mudou depois do parecer", r.stdout + r.stderr)
+        self.assertEqual(self.mesclado_no(), [])
+
+    def test_merge_que_descarta_a_base_desatualiza_o_parecer(self):
+        # sonda revisao-seguranca S4: fixture DevelopSoNoFim com `git merge -s ours develop` do autor e o forge-fechar real · espera: para no passo 1
+        self.autor_mescla_a_develop(estrategia=("-s", "ours"))
+        self.git("merge-base", "--is-ancestor", "develop", "melhoria/x")  # a develop entrou como pai...
+        self.assertEqual(self.git("ls-tree", "--name-only", "melhoria/x", "c"), "")  # ...sem o c dela
+        r = self.fechar("x", "--ref", "melhoria/x")
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("parou no passo 1", r.stderr)
+        self.assertIn("desatualizado: c mudou depois do parecer", r.stdout + r.stderr)
+        self.assertEqual(self.mesclado_no(), [])
+
+
 # O `gh` que o forge-check real acha no PATH (o fechar usa o FORGE_GH): PR pronto no head da branch e o CI ainda rodando.
 GH_DO_CHECK = '''#!/usr/bin/env bash
 echo "gh-do-check $*" >> "$REGISTRO"

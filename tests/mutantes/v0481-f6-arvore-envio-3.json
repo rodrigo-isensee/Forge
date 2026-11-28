@@ -1,0 +1,16 @@
+{
+  "pedido": "v0481",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "AE-M13",
+      "guarda": "ambiente sem campo ou com tipo errado nao lanca em prova_do_pr: vira texto vazio e a prova nao vale",
+      "arquivo": "scripts/arvore-testada.py",
+      "de": "repo, evento, ref, sha = (campo(env, k, str) or \"\" for k in (\"REPO\", \"EVENTO\", \"REF\", \"SHA\"))",
+      "para": "repo, evento, ref, sha = (campo(env, k, str) for k in (\"REPO\", \"EVENTO\", \"REF\", \"SHA\"))",
+      "testes": [
+        "tests.test_arvore_testada.ProvaDoPr.test_ambiente_sem_campo_ou_com_tipo_errado_nao_prova_e_nao_lanca"
+      ]
+    }
+  ]
+}

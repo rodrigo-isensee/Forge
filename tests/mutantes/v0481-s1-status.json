@@ -54,16 +54,16 @@
       "id": "M7",
       "guarda": "S1a: PR com conflito vai a em conflito, antes dos outros grupos",
       "arquivo": "bin/forge_estado.py",
-      "de": "    if pr.get(\"mergeable\") == \"CONFLICTING\":",
-      "para": "    if pr.get(\"mergeable\") == \"CONFLICTED\":",
+      "de": "    if pr.get(\"mergeable\") == \"CONFLICTING\":\n        return 2",
+      "para": "    if pr.get(\"mergeable\") == \"CONFLICTED\":\n        return 2",
       "testes": ["tests.test_forge_status_estado.Itens.test_prs_nos_quatro_grupos"]
     },
     {
       "id": "M8",
       "guarda": "S1a: só espera rótulo do dono o PR com afrouxa-regra no título e sem o rótulo",
       "arquivo": "bin/forge_estado.py",
-      "de": "    if ROTULO_DO_DONO in (pr.get(\"title\") or \"\") and ROTULO_DO_DONO not in rotulos:",
-      "para": "    if ROTULO_DO_DONO in (pr.get(\"title\") or \"\"):",
+      "de": "    if ROTULO_DO_DONO in (pr.get(\"title\") or \"\") and ROTULO_DO_DONO not in rotulos:\n        return 1",
+      "para": "    if ROTULO_DO_DONO in (pr.get(\"title\") or \"\"):\n        return 1",
       "testes": ["tests.test_forge_status_estado.Itens.test_prs_nos_quatro_grupos"]
     }
   ]

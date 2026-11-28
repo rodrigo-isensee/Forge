@@ -1,0 +1,27 @@
+{
+  "descricao": "C1b-2 (M20.1): sem a lista fechada na develop do origin, a guarda dorme e o dono da pasta grava o parecer",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "ref": "refs/remotes/origin/develop"
+    },
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "docs/reviews/p1.md",
+      "content": "parecer\n"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

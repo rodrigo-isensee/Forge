@@ -43,6 +43,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `forge_dora.py` | DORA e vazão (0.45.7, TM-16): `forge-check dora`, só leitura, sem rede, só biblioteca padrão. |
 | `forge_estado.py` | `forge-check status` (S1a, v0481 E20.1): o estado da fábrica lido na hora, para o Jarvis nunca afirmar estado de memória. |
 | `forge_fontes.py` | `forge-check fontes` (FILA-31 F6, 0.45.7 E5.1): compara o commit mais recente de cada fonte do registro local |
+| `forge_git.py` | ponto único do git de controle (GIT-CONTROLE-CONFIG-DA-COPIA, anexo E3.1, 3.1). Só biblioteca padrão. |
 | `forge_governanca.py` | as medidas de governança do processo (0.43.1, frente H): `forge-check metricas` e `forge-check regras`. |
 | `forge_medidas.py` | `forge-check medida` (D12, E3a e E3b) e `forge-check escape registrar\|resumo` (M14b) (FILA-31 F6, 0.45.7 E5.5): a medida de um |
 | `forge_meta.py` | arma o objetivo que o hook de Stop (hooks/meta.py) confere (S4, 0.44.2). Só biblioteca padrão. |
@@ -95,6 +96,7 @@ Os arquivos versionados de `bin/`, `hooks/` e `scripts/` e o que cada um faz (a 
 | `conferir-reversao.py` | confere, antes do review, se cada commit da branch se reverte sozinho (M10). Só biblioteca padrão. |
 | `configurar-ambiente-local.sh` | Grava (ou mescla) a chave "env" em .claude/settings.local.json, que o git ignora. |
 | `falhas-no-resumo.py` | as falhas de uma parte da suíte no resumo do GitHub e em anotações (v047 E2.270). |
+| `gerar-derivados.py` | gerador único dos derivados versionados, rodado pelo autor antes do envio (proposta 1 da auditoria dos testes). |
 | `indice-fixtures.py` | índice do corpus de fixtures dos hooks (`tests/hooks/<hook>/<caso>.json`, ADR 0003). Só biblioteca padrão. |
 | `indice-forge.py` | índice do Forge (arquivo e o que faz), para o brief citar em vez de colar trechos (H7). |
 | `instalar-atalho.sh` | instala os comandos `jarvis`, `jarvis-forge` e `forge` em ~/.local/bin e garante esse diretório no PATH do bash. |

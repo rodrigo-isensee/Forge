@@ -36,8 +36,8 @@
       "id": "M4",
       "guarda": "leitura: comentário cujo html_url é de outro PR não vale (M6.1)",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "if not isinstance(c, dict) or c.get(\"html_url\") != u[0] or (c.get(\"user\") or {}).get(\"login\") not in contas:",
-      "para": "if not isinstance(c, dict) or (c.get(\"user\") or {}).get(\"login\") not in contas:",
+      "de": "if not isinstance(c, dict) or c.get(\"html_url\") != u[0] or login(c.get(\"user\")) not in contas:",
+      "para": "if not isinstance(c, dict) or login(c.get(\"user\")) not in contas:",
       "testes": [
         "tests.test_forge_pareceres.Ler.test_comentario_de_outro_pr_pelo_mesmo_id"
       ]
@@ -67,8 +67,8 @@
       "id": "M7",
       "guarda": "leitura: páginas de statuses ilegíveis recusam (M19.1)",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "if not isinstance(paginas, list) or not all(isinstance(p, list) for p in paginas):",
-      "para": "if not isinstance(paginas, list):",
+      "de": "if not isinstance(paginas, list) or not all(isinstance(p, list) for p in paginas):\n        raise Recusa(f\"statuses de {sha[:7]} ilegíveis (M19.1)\")",
+      "para": "if not isinstance(paginas, list):\n        raise Recusa(f\"statuses de {sha[:7]} ilegíveis (M19.1)\")",
       "testes": [
         "tests.test_forge_pareceres.Ler.test_c17_paginas_ilegiveis"
       ]
@@ -77,7 +77,7 @@
       "id": "M8",
       "guarda": "leitura: só status das contas da lista, filtrado antes do mais novo (M1.1, M1.2)",
       "arquivo": "bin/forge_pareceres.py",
-      "de": "dela = [s for s in lista if s.get(\"context\") == contexto and (s.get(\"creator\") or {}).get(\"login\") in contas]",
+      "de": "dela = [s for s in lista if s.get(\"context\") == contexto and login(s.get(\"creator\")) in contas]",
       "para": "dela = [s for s in lista if s.get(\"context\") == contexto]",
       "testes": [
         "tests.test_forge_pareceres.Ler.test_c1_status_do_bot_ignorado",

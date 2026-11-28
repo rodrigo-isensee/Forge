@@ -8,7 +8,8 @@ flags proibidas (`--no-verify`, `--force`, `core.hooksPath`). Write/Edit decidem
 PostToolUse registra a autoria dos pareceres em `.forge/run/autoria.jsonl`.
 Falha fechado nas ações críticas (seção 7); `FORGE_GUARDA_ABERTA=1` no ambiente do processo abre a guarda.
 Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB). Na
-sessão do Forge, fora de projeto, valem as travas (R-MAIN, R-VERIFY, push para a integração, tag v*) para todo papel.
+sessão do Forge, fora de projeto, valem as travas (R-MAIN, R-VERIFY, push para a integração, tag v*) para todo papel,
+e a escrita no que roda fora do sandbox na raiz (`EM_VIGOR_NA_RAIZ`).
 """
 import collections
 import contextlib
@@ -72,7 +73,7 @@ CRITICO = re.compile(
 # Variáveis definidas antes na linha que os comandos seguintes herdam; as `GIT_*_PATHSPECS` são as opções `--*-pathspecs`.
 PATHSPECS_NO_AMBIENTE = {"GIT_GLOB_PATHSPECS": "--glob-pathspecs", "GIT_NOGLOB_PATHSPECS": "--noglob-pathspecs",
                          "GIT_LITERAL_PATHSPECS": "--literal-pathspecs", "GIT_ICASE_PATHSPECS": "--icase-pathspecs"}
-VARIAVEIS_DA_LINHA = {"GH_REPO", "GIT_DIR", "GH_CONFIG_DIR", "XDG_CONFIG_HOME", *PATHSPECS_NO_AMBIENTE}
+VARIAVEIS_DA_LINHA = {"GH_REPO", "GIT_DIR", "GH_CONFIG_DIR", "XDG_CONFIG_HOME", "PYTHONPATH", *PATHSPECS_NO_AMBIENTE}
 MANIFESTO = ".claude-plugin/"  # no projeto, só a sessão do Forge escreve (R-CONTRIB): a identidade não vem dele
 # Nome do interpretador, com versão ou plataforma depois do nome (`perl5.34.0`, `perl5.34-x86_64-linux-gnu`, `ruby3.2`,
 # `python3.12`): fonte única para as três conferências (`-e`, edição no lugar, heredoc).
@@ -165,6 +166,62 @@ API_ADMIN = re.compile(r"/(git/refs|contents/|rulesets|branches/[^/]+/protection
                        r"|hooks|keys|transfer)")
 GRAPHQL_PERIGOSO = re.compile(r"mergePullRequest|enablePullRequestAutoMerge|updateRef|createRef|deleteRef|"
                               r"createCommitOnBranch", re.I)
+# M4.2 e M10.1 da F1 (ADR 0019): parecer de portão só pelo `publicar` do plugin; os tipos são os contextos dele
+# (`CONTEXTOS` de `bin/forge_pareceres.py`, conferido por teste); o marcador é a linha `tipo:` do frontmatter do texto.
+TIPOS_DE_PARECER = ("review", "qa", "revisao-seguranca", "revisao-devops")
+MARCADOR_DE_PARECER = re.compile(r"^tipo:[ \t]*[\"']?(%s)[\"']?[ \t]*\r?$" % "|".join(TIPOS_DE_PARECER), re.M)
+GRAVA_PARECER_POR_API = re.compile(r"(^|/)(statuses/[^/]+|issues/[^/]+/comments|issues/comments/[^/]+)$", re.I)
+GRAVA_PARECER_NO_GRAPHQL = re.compile(r"addComment|updateIssueComment|deleteIssueComment")
+COMENTARIO_DO_GH = re.compile(r"(?<![\w./-])gh\s.*?\b(pr|issue)\s+comment\b", re.S)  # na linha que o hook não modela
+CORRIGIR_PUBLICAR = "rode `forge-check parecer publicar <.forge/pareceres/<pedido>/<tipo>.md>`, o do plugin, pelo nome"
+# C1b-2 da F1 parte 2: o módulo do `publicar` (M10.1) e a lista fechada dos PRs da transição (M20.1, gravada no C5a), que
+# acorda a recusa do parecer de item nas pastas de parecer quando existe na `develop` do `origin`.
+MODULO_DE_PARECER = "forge_pareceres.py"
+LISTA_FECHADA = ".github/pareceres-lista-fechada.json"
+PASTAS_DE_ITEM = ("reviews", "qa", "security", "devops")
+
+
+def script_do_python(args):
+    """O arquivo que o python roda: a 1.ª palavra fora das opções (`-X` e `-W` levam valor); com `-c`, `-m` ou `-`, None."""
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "-" or not a.startswith("-"):
+            return None if a == "-" else a
+        for k, letra in enumerate(a[1:]):  # a longa com `c` ou `m` (`--check-hash-based-pycs`) para: na dúvida, sem script
+            if letra in "cm":
+                return None
+            if letra in "XW":
+                i += not a[k + 2:]
+                break
+        i += 1
+    return None
+
+
+def valores_da_opcao(args, longa, curta):
+    """Todos os valores de `longa` e da `curta` de uma letra, na ordem (`parecer.opcao` lê só o 1.º; o gh fica com o último)."""
+    saida, i = [], 0
+    while i < len(args):
+        a = args[i]
+        if a in (longa, curta) and i + 1 < len(args):
+            saida.append(args[i + 1])
+            i += 1
+        elif a.startswith(longa + "="):
+            saida.append(a.split("=", 1)[1])
+        elif a.startswith(curta) and len(a) > len(curta):
+            saida.append(a[len(curta):].removeprefix("="))
+        i += 1
+    return saida
+
+
+def cat_sem_heredoc(linha, achados):
+    """M4.2 (segurança A7): há `$(cat)` fora dos corpos dos heredocs, sem um heredoc nascido dentro dele; esse lê a
+    entrada (o pipe), e o heredoc de outro comando da linha não é o seu corpo."""
+    partes, inicio = [], 0
+    for h in sorted(achados, key=lambda h: h.corpo[0]):
+        partes.append(linha[inicio:h.corpo[0]])
+        inicio = max(inicio, h.fim)
+    return bool(re.search(r"\$\(\s*cat\s*\)", "".join(partes) + linha[inicio:]))
 # R-CONTRIB (diretriz 36): a sessão de outro projeto não mexe no Forge (nem o próprio PR), pela API REST e pelo GraphQL.
 # Na sessão de projeto, o `gh` no Forge só lê: todo subcomando fora desta lista mexe e é recusado (falha fechado).
 GH_SO_LE = {"view", "list", "status", "diff", "checks", "download", "watch", "browse"}
@@ -240,6 +297,19 @@ switch symbolic-ref tag unpack-objects update-index update-ref upload-pack var v
 version whatchanged worktree write-tree""".split())
 ALIAS_QUE_MESCLA = {"merge", "pull"}
 PROFUNDIDADE_DO_ALIAS = 8
+# A3 da segurança (0ad43a8): o `cat-file` do objeto ausente no clone parcial busca do promisor pelo transporte, que roda a
+# configuração da cópia (`remote.origin.uploadpack`, `core.sshCommand`); a chave por protocolo vence a geral, então todas:
+# os embutidos (`file`, `git`, `ssh`) e todo helper que o git instala (`git-remote-ext`, `-fd`, `-ftp`, `-ftps`, `-http`,
+# `-https`; A4 da segurança, 29c1bea). Literal: o corpus conta os passos do interpretador de cada execução do hook
+# (CORPUS-CUSTO-CONTADOR).
+SEM_TRANSPORTE = ("-c", "protocol.allow=never", "-c", "protocol.file.allow=never", "-c", "protocol.ext.allow=never",
+                  "-c", "protocol.git.allow=never", "-c", "protocol.ssh.allow=never", "-c", "protocol.http.allow=never",
+                  "-c", "protocol.https.allow=never", "-c", "protocol.ftp.allow=never", "-c", "protocol.ftps.allow=never",
+                  "-c", "protocol.fd.allow=never")
+# A5 da segurança (0c74349): o nome do transporte é livre (`remote.<nome>.vcs`, `<nome>::`) e a chave
+# `protocol.<nome>.allow` da cópia vence a geral, então nenhuma lista de recusa fecha; a lista de permissão vazia do
+# ambiente vence toda chave `protocol.*` (S10). A `SEM_TRANSPORTE` fica como segunda camada.
+SEM_PROTOCOLO = {"GIT_ALLOW_PROTOCOL": "none"}
 CONFIG_NO_AMBIENTE = re.compile(r"^GIT_CONFIG_(COUNT|KEY_\d+|VALUE_\d+|PARAMETERS)$")
 REFSPEC_NA_CONFIG = re.compile(r"remote\..+\.(fetch|push)", re.I)
 # IMPL-FURO-HOOK-N, N5 (L22, C-22-1): na branch de integração a única entrada é o `git merge` com parecer; o que grava
@@ -1583,6 +1653,7 @@ class Guarda:
         self.em_curso = set()  # textos em conferência num nível de dentro (PROFUNDIDADE-BASH-C)
         self.releituras = 0    # palavras com crase relidas na pilha: somam ao `nivel`, não à profundidade do shell
         self._repos = {}     # (raiz git, remoto) -> é o Forge
+        self._listas = {}    # raiz git -> a lista fechada da transição está na develop (C1b-2)
         self._regras = None  # `regras_do_forge`, lido uma vez por decisão (a raiz e o `externo` não mudam nela)
         self._raiz_home = None  # (realpath da raiz, realpath do home), uma vez por decisão
         self.linha = ""      # a linha de comando inteira, como veio (nível 0)
@@ -1754,6 +1825,8 @@ class Guarda:
         """(rid, o quê, como corrigir) se o `caminho` (já resolvido) é protegido para o papel; senão None."""
         if MARCA_DA_SUITE.fullmatch(caminho.name):  # S8 (C-1, C-2): antes de política, papel e sessão; nome resolvido
             return PROVA_DA_SUITE
+        if achado := self.parecer_de_item(caminho):  # C1b-2: trava de todo papel, antes da política
+            return achado
         if self._raiz_home is None:
             self._raiz_home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
         raiz, home = self._raiz_home
@@ -2290,6 +2363,9 @@ class Guarda:
             # bash pode rodar, e o `return` pularia todas as checagens dela: fora do papel só de leitura, recusa sempre,
             # com ou sem marcador crítico. O papel só de leitura fica como estava (a gramática dele, no nível 0, já
             # recusa aspas sem par e `#`).
+            if COMENTARIO_DO_GH.search(original):  # M4.2 (S4 da segurança): na sessão do Forge só a trava recusa a linha
+                self.barrar_parecer("gh pr|issue comment: comentário cujo corpo o hook não lê, numa linha que ele não "
+                                    "modela (M4.2)", f"parecer: {CORRIGIR_PUBLICAR}; outro texto: `--body` literal ou `--body-file`")
             if not self.leitura and isinstance(corpo_de_heredoc, str):  # M2: só o programa do texto o roda
                 self.barrar("R-CONFORMIDADE", f"o texto roda `{corpo_de_heredoc}`, fora da lista dos que não rodam o "
                                               "arquivo gravado, e o corpo do heredoc tem aspa sem par",
@@ -2557,6 +2633,9 @@ class Guarda:
         if argumentos_do_forge_check is not None:
             self.forge_check_grava(argumentos_do_forge_check, pasta)
             self.forge_check_publica(argumentos_do_forge_check, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"))
+            self.publicar_pela_copia(palavras[len(palavras) - len(argumentos_do_forge_check) - 1], argumentos_do_forge_check,
+                                     pasta, self.da_atribuicao(atribuicoes, "PATH"))
+        self.pareceres_pela_copia(palavras, prog, args, pasta, self.da_atribuicao(atribuicoes, "PYTHONPATH"))
         if prog in SHELLS:
             for i, a in enumerate(args):
                 if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 1 < len(args):
@@ -2664,6 +2743,67 @@ class Guarda:
         raiz = ultima_raiz(args)
         if self.alvo_do_forge(self.caminho(pasta, raiz) if raiz else pasta, repo_env):
             self.barrar("R-CONTRIB", f"forge-check parecer publicar: {NO_FORGE}", SO_SUGERE)
+
+    def publicar_pela_copia(self, programa, args, pasta, path_na_linha):
+        """M10.1: o `parecer publicar` roda o `forge-check` do PATH (o do plugin) ou uma extração fora de cópia de trabalho;
+        pelo caminho de uma cópia (`bin/forge-check`, `python3 ./bin/forge-check`), o código da branch publicaria. O caminho
+        com expansão (`$X/bin/forge-check`) o hook não resolve: barra (na dúvida, recusa)."""
+        publica = livres_do_forge_check(args)[:2] == ["parecer", "publicar"]
+        if publica and path_na_linha is not None:  # `PATH=<cópia>/bin:$PATH forge-check`: o nome acha o `bin/` da linha
+            self.barrar_parecer("forge-check parecer publicar com o `PATH` trocado na linha (M10.1)")
+        if not publica or "/" not in programa:
+            return
+        real = Path(os.path.realpath(self.caminho(pasta, programa)))  # o link de arquivo fora da cópia roda o da cópia
+        if re.search(r"[$`]", programa) or self.raiz_git(real.parent) is not None:
+            self.barrar_parecer(f"forge-check parecer publicar pelo `bin/` de uma cópia ({programa}) roda o código da branch "
+                                "(M10.1)")
+
+    def pareceres_pela_copia(self, palavras, prog, args, pasta, pythonpath):
+        """M10.1 (C1b-2): o `forge_pareceres.py` de uma cópia publica pelo código da branch, rodado como programa ou script
+        do python, ou achado pelo python do `-c`, do `-m` ou da entrada na pasta corrente ou no `PYTHONPATH` da linha.
+        Decide o caminho resolvido; o caminho com expansão barra (na dúvida, recusa)."""
+        python = prog.startswith("python")
+        if not python and "/" not in palavras[0]:  # o programa pelo nome vem do PATH (o da linha: `publicar_pela_copia`)
+            return
+        alvos = [palavras[0]] if "/" in palavras[0] else []
+        if python:
+            script = script_do_python(args)
+            pastas = (pythonpath.split(":") if pythonpath else []) + ([] if script else ["."])  # o vazio é a corrente
+            alvos += [script] if script else []
+            alvos += [f"{p or '.'}/{MODULO_DE_PARECER}" for p in pastas]
+        for alvo in alvos:
+            real = Path(os.path.realpath(self.caminho(pasta, alvo)))  # o link de outro nome conta pelo arquivo
+            opaco = re.search(r"[$`]", os.path.expandvars(alvo)) and nome_do_caminho(alvo) == MODULO_DE_PARECER
+            if opaco or real.name == MODULO_DE_PARECER and real.is_file() and self.raiz_git(real.parent) is not None:
+                self.barrar_parecer(f"{MODULO_DE_PARECER} de uma cópia de trabalho roda o código da branch (M10.1)")
+
+    def parecer_de_item(self, caminho):
+        """C1b-2 (M20.1): o `.md` direto em `docs/<reviews|qa|security|devops>/` da raiz de uma cópia, fora o `_modelo.md`
+        (as subpastas, `ameacas/`, `aceites/` e `bugs/`, não são parecer de item), depois da virada: a tupla da recusa,
+        trava de todo papel; sem a lista fechada na `develop` do `origin`, dorme (None). O caminho curto (`/x.md`) não é item."""
+        if (caminho.suffix != ".md" or caminho.name == "_modelo.md" or len(caminho.parts) < 4
+                or caminho.parts[-3] != "docs" or caminho.parts[-2] not in PASTAS_DE_ITEM):
+            return None
+        topo = self.raiz_git(caminho.parent)
+        if topo != caminho.parents[2] or not self.lista_fechada(topo):
+            return None
+        return ("R-REVIEW", f"parecer de item em docs/{caminho.parts[-2]}/ depois da virada (lista fechada na develop)",
+                "grave em `.forge/pareceres/<pedido>/<tipo>.md` e rode `forge-check parecer publicar`", None, TRAVA)
+
+    def lista_fechada(self, topo):
+        """A lista existe na `origin/develop` local da cópia ou no `HEAD` (a branch aberta depois da virada a traz). Só refs
+        locais e sem transporte (`SEM_PROTOCOLO` e `SEM_TRANSPORTE`): sem rede no hook (ADR 0003 item 2) e sem rodar a configuração da cópia
+        (`remote.origin.uploadpack`), nem pela busca preguiçosa do clone parcial. O ref
+        recuado à mão esconde a lista: aceito, quem decide é o servidor (C5a)."""
+        if topo not in self._listas:
+            refs = ("refs/remotes/origin/develop", "HEAD")
+            self._listas[topo] = any(git(topo, *SEM_TRANSPORTE, "cat-file", "-e", f"{r}:{LISTA_FECHADA}",
+                                          ambiente=SEM_PROTOCOLO)[0] == 0 for r in refs)
+        return self._listas[topo]
+
+    def barrar_parecer(self, o_que, corrigir=CORRIGIR_PUBLICAR):
+        """M4.2 e M10.1: trava (`TRAVA`), então vale também na sessão do Forge, para todo papel."""
+        self.barrar("R-REVIEW", o_que, corrigir, trava=TRAVA)
 
     def forge_check_grava(self, args, pasta):
         """A4: o que o `forge-check` grava passa pela política de caminhos do papel, como o Write no mesmo destino (o `anotar`
@@ -3793,6 +3933,57 @@ class Guarda:
         if parte and parte[0] == "prmerge" and parecer.usa_admin(palavras[1:]):
             self.barrar("R-MAIN", "gh pr merge com --admin desvia a proteção da branch", self.CORRIGIR_DO_MERGE)
 
+    def parecer_pela_api(self, args, pasta):
+        """M4.2: status e comentário de parecer só pelo `publicar`, que registra a publicação (M4.1). Barra o `gh api` que
+        muda algo em `statuses/<sha>`, `issues/<n>/comments` ou `issues/comments/<id>`, a mutação de comentário do GraphQL
+        e o endpoint que o hook não lê (vazio, pela entrada do `xargs`, ou com expansão). Roda depois das outras guardas do
+        `gh api`: o GraphQL ilegível já recusa antes, pelo GH-MERGE-ADMIN (R-MAIN, trava)."""
+        if not parecer.metodo_mutante(args):
+            return
+        bruto = parecer.endpoint_da_api(args)
+        endpoint = endpoint_normalizado(bruto)
+        if not endpoint or re.search(r"[$`]", bruto):  # `xargs gh api -X DELETE`: o endpoint vem da entrada
+            self.barrar_parecer("gh api que muda algo com endpoint que o hook não lê (M4.2)",
+                                f"parecer: {CORRIGIR_PUBLICAR}; outra chamada: o endpoint literal na linha")
+        if GRAVA_PARECER_POR_API.search(endpoint) or e_graphql(endpoint) and any(
+                GRAVA_PARECER_NO_GRAPHQL.search(t) for t in self.textos_da_api(args, pasta)[0]):
+            self.barrar_parecer("gh api que grava status ou comentário no PR pelo terminal (M4.2)",
+                                f"parecer: {CORRIGIR_PUBLICAR}; outro comentário: `gh pr comment`")
+
+    def parecer_pelo_terminal(self, palavras, pasta):
+        """M4.2: o `gh pr|issue comment` com o marcador de parecer no corpo ou com o corpo que o hook não lê."""
+        pos = parecer.posicionais(palavras[1:], GH_COM_VALOR)
+        if pos[:2] not in (["pr", "comment"], ["issue", "comment"]):
+            return
+        corpo, ilegivel = self.corpo_do_comentario(palavras[1:], pasta)
+        if ilegivel:
+            self.barrar_parecer(f"gh {pos[0]} comment: comentário cujo corpo o hook não lê (M4.2)",
+                                f"parecer: {CORRIGIR_PUBLICAR}; outro texto: `--body` literal ou `--body-file`")
+        if MARCADOR_DE_PARECER.search(corpo):
+            self.barrar_parecer(f"gh {pos[0]} comment: comentário com o marcador de parecer (`tipo:`) pelo terminal (M4.2)")
+
+    def corpo_do_comentario(self, args, pasta):
+        """(texto, ilegivel) de todo `--body` e `--body-file` (o gh usa o último; o hook lê todos). Marcam `ilegivel`: a
+        palavra com `$` ou crase que o parser não lê entre aspas simples (`expansao_por_palavra`), o `$(cat)` sem o seu
+        heredoc (`cat_sem_heredoc`), o heredoc com delimitador sem aspas e `$` ou crase no corpo, o `-` e o arquivo que
+        não é regular ou não se lê."""
+        textos, ilegivel, nivel = [], False, expansao_por_palavra(self.linha)
+        for texto in valores_da_opcao(args, "--body", "-b"):
+            if re.fullmatch(r"\$\(cat\s*\)", texto):  # o K3 chega sem o corpo (`tirar_heredocs`): os corpos da linha
+                achados = heredocs(self.linha)[0]
+                corpos = [(self.linha[h.corpo[0]:h.corpo[1]], h.literal) for h in achados]
+                textos += [corpo for corpo, _ in corpos]
+                ilegivel |= any(not literal and re.search(r"[$`]", corpo) for corpo, literal in corpos)
+                ilegivel |= cat_sem_heredoc(self.linha, achados)  # A7: o heredoc de outro comando não é o corpo
+            else:
+                textos.append(texto)
+                ilegivel |= bool(re.search(r"[$`]", texto)) and nivel.get(texto, 2) > 0
+        for arquivo in valores_da_opcao(args, "--body-file", "-F"):
+            lidos, falhou = ([], True) if arquivo == "-" or re.search(r"[$`]", arquivo) else self.textos_da_api(
+                ["--input", str(self.caminho(pasta, arquivo))], pasta)
+            textos, ilegivel = textos + lidos, ilegivel or falhou
+        return "\n".join(textos), ilegivel
+
     def gh_api_de_merge(self, args, pasta):
         """GH-MERGE-ADMIN (R-MAIN): o `gh api` mutante de merge (REST ou GraphQL, inline ou em arquivo) também desvia a
         proteção. O GraphQL que não dá para ler (`--input -`, arquivo ausente) falha fechado."""
@@ -3863,6 +4054,7 @@ class Guarda:
             self.gh_rotulo(palavras, pasta, por_xargs)
         self.gh_admin(palavras, parte)  # antes de toda saída antecipada: não depende de branch, base nem raiz
         self.gh_alias(palavras)
+        self.parecer_pelo_terminal(palavras, pasta)
         if not parte:
             return
         if parte[0] == "pr" and not self.pode("pr_criar"):
@@ -3894,6 +4086,7 @@ class Guarda:
             # aspas esconde o `-f` que o bash remonta)
             if (parecer.metodo_mutante(args) or e_graphql(parecer.endpoint_da_api(args))) and self.consulta_ilegivel(args):
                 self.barrar(*GRAPHQL_ILEGIVEL, trava=TRAVA)  # também na sessão do Forge: a consulta pode ser um merge
+            self.parecer_pela_api(args, pasta)
 
     # Pacotes ----------------------------------------------------------------------------------------
     @staticmethod
@@ -4164,6 +4357,19 @@ class ForaDaProva(Exception):
 # CONFIG-TETO-SEM-GUARDA (v0478, parte do hook): o `.forge/config.json` da raiz da sessão, onde o hook `agentes` lê o teto.
 CONFIG_DA_RAIZ = ".forge/config.json"
 ESTADO_DOS_HOOKS = (".git/forge/", CONFIG_DA_RAIZ)
+# HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1): na sessão do Forge, o que roda fora do sandbox (o pre-push, o postStart
+# do container como root) recusa como num projeto quando o alvo está na raiz da sessão ou na cópia principal; a cópia de
+# `wt/` segue livre, e a mudança legítima vai por ela, por branch e PR. Volta 1 (A3 e A5 da segurança): a pasta do
+# manifesto, que decide se a sessão é do Forge (`tem_manifesto_do_forge`), e toda configuração que o editor oferece ao
+# abrir o container (`.devcontainer/` inteira e `.devcontainer.json`). Volta 6 (A16 da segurança, E37.26): o Bash da
+# raiz fica com o sandbox do SO, que nega a escrita nessas entradas por qualquer grafia (S21-S25); sai a leitura da
+# grafia do Bash (variável, colagem, texto de interpretador) e fica o caminho literal (Write, Edit, MultiEdit).
+EM_VIGOR_NA_RAIZ = (".githooks/", ".git/hooks/", ".devcontainer/", ".devcontainer.json", ".claude-plugin/")
+MOTIVO_EM_VIGOR = "roda fora do sandbox ou decide as travas na raiz do Forge"  # a recusa própria, sem entrada na política
+# O erro interno no Write e no Edit cujo caminho cita uma entrada de `EM_VIGOR_NA_RAIZ` (o padrão de `ESTADO_NO_TEXTO`).
+EM_VIGOR_NO_TEXTO = re.compile(r"\.githooks|\.git/hooks|devcontainer|\.claude-plugin", re.I)
+
+
 # `.git/forge` só como nome inteiro: `.git/forge-suite-verde` é a prova da suíte, com a recusa própria (R-VERIFY).
 ESTADO_NO_TEXTO = re.compile(r"\.git/forge(?![\w.-])|forge/run|agentes\.json|\.forge/config\.json")  # C10: linha que o hook não lê e cita o estado
 # PARECER-PELO-PAPEL (v0478 E50.7, A3 de docs/security/v0479-entrega-parecer-mesclado.md): no clone do Forge, as recusas
@@ -4180,6 +4386,7 @@ PELA_COPIA_PRINCIPAL = (".forge/ordens/",)  # A4 da segurança E123.12: a pasta,
 CAMINHOS_DO_CONTROLE = ("~/.forge-contrib/docs/pedidos/", "~/.forge-contrib/*/docs/pedidos/",
                         "~/.forge-contrib/docs/briefs/", "~/.forge-contrib/*/docs/briefs/",
                         "~/.forge-contrib/docs/ordens/")  # A1 da segurança E123.8: a pasta das ordens, como pasta
+CAMINHOS_DO_CONTROLE += ("~/.forge-contrib/.forge/run/",)  # C1b-3 (v0481 E45.13): o registro M4.1 de publicações
 # A1 da E63.3: a pasta mãe numa variável (`d=~/.forge-contrib; echo x > $d/docs/pedidos/v1.md`) separa os dois nomes;
 # basta a linha citar os dois, em qualquer ordem e posição. Com a pasta corrente no controle, basta `pedidos` ou `briefs`.
 CONTROLE_NO_TEXTO = re.compile(r"forge-contrib[\s\S]*(?:pedidos|briefs|ordens)|(?:pedidos|briefs|ordens)"
@@ -4272,7 +4479,11 @@ class GuardaDaProva(Guarda):
         if achado and self.motivo_do_config and self.motivo_do_config in achado[1] and (
                 caminho != Path(os.path.realpath(self.h.raiz)) / CONFIG_DA_RAIZ):
             return None
-        return achado or self.parecer_no_topo(caminho)
+        achado = achado or self.parecer_no_topo(caminho)
+        if achado is None and self.na_raiz_em_vigor(caminho):  # A3 e A5: a entrada com dono ou fora da política
+            return ("R-CONFORMIDADE", f"{MOTIVO_EM_VIGOR}: {caminho.name}", "só o usuário altera na raiz",
+                    "instalacao")
+        return achado
 
     def parecer_no_topo(self, caminho):
         """PARECER-PELO-PAPEL: a recusa da pasta de parecer pela forma relativa ao topo da cópia do Forge que contém o alvo
@@ -4294,10 +4505,22 @@ class GuardaDaProva(Guarda):
             super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)
         if self.recusa_do_estado(o_que):
             super().barrar(rid, o_que, corrigir, alvo=alvo, grupo=grupo)
+        if self.na_raiz_em_vigor(alvo):
+            super().barrar(rid, o_que, f"mude numa cópia de wt/ (forge-copia), por branch e PR; {corrigir}", alvo=alvo,
+                           grupo=grupo)
         if self.travas and trava_da_sessao_do_forge(rid, trava, self.h.campo("tool_input").get("command")):
             super().barrar(rid, o_que, corrigir, simples, alvo=alvo, grupo=grupo)
         if self.sem_leitura:
             raise ForaDaProva(rid)
+
+    def na_raiz_em_vigor(self, alvo):
+        """HOOK-NAO-PROTEGE-RAIZ-DO-FORGE: no clone, o alvo resolvido é (ou contém) uma entrada de `EM_VIGOR_NA_RAIZ`
+        relativa à raiz da sessão ou à cópia principal; a pasta corrente (`wt/` incluída) não conta."""
+        if not self.no_clone or not isinstance(alvo, Path):
+            return False
+        posix = os.path.realpath(alvo)
+        rels = [relativo_ao_pai(posix, Path(os.path.realpath(self.h.raiz))), *self.relativos_a_copia_principal(posix)]
+        return any(r is not None and (casa(r, c) or c.startswith(r + "/")) for r in rels for c in EM_VIGOR_NA_RAIZ)
 
     def recusa_do_estado(self, o_que):
         """No clone: a recusa cita o motivo de uma entrada do estado, ou é a da construção que o hook não modela (`$d`,
@@ -4549,6 +4772,11 @@ def prova_fora_de_projeto(hook, pol, papel, ferramenta, entrada, raiz, travas=Fa
             hook.registrar_erro(erro)
             Guarda.barrar(guarda, "R-CONFORMIDADE", "linha que o hook não lê ou erro interno, e ela cita o estado dos "
                           "hooks (.git/forge/, forge/run, agentes.json, .forge/config.json)", f"só o usuário altera; {SUGESTAO}")
+        if guarda.no_clone and not entrada.get("command") and isinstance(alvo, str) and EM_VIGOR_NO_TEXTO.search(alvo):
+            hook.registrar_erro(erro)  # volta 6: só Write e Edit; o Bash fica com o sandbox do SO (A16)
+            Guarda.barrar(guarda, "R-CONFORMIDADE", "erro interno, e o caminho cita o que roda fora "
+                          "do sandbox na raiz (.githooks, .git/hooks, devcontainer, .claude-plugin)",
+                          f"só o usuário altera; {SUGESTAO}")
         if guarda.no_clone and isinstance(alvo, str) and guarda.parecer_no_texto(alvo):  # A5 e A6 da segurança
             erro_interno = not isinstance(erro, ForaDaProva)  # a linha sem leitura é a recusa; só o erro interno vai ao registro
             if erro_interno:

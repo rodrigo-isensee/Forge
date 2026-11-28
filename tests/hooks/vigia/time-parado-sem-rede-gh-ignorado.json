@@ -1,0 +1,30 @@
+{
+  "descricao": "F4 (v0481 E34.6): Stop do Jarvis, zero agentes, nenhum cartão livre e um gh falso que listaria um PR verde para a develop: o vigia não chama o gh (sem rede, item 2 da ADR 0003) e, sem a lista prs-abertos.json, cala com saída 0.",
+  "arquivos": {
+    "KANBAN.md": "# Quadro\n\n## Pronto\n| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n",
+    "bin/gh": "#!/bin/sh\ncat <<'FIM'\n[{\"number\": 5, \"headRefName\": \"melhoria/x\", \"baseRefName\": \"develop\", \"isCrossRepository\": false, \"mergeable\": \"MERGEABLE\", \"title\": \"feat: x\", \"labels\": [], \"files\": [], \"statusCheckRollup\": []}]\nFIM\n"
+  },
+  "executaveis": [
+    "bin/gh"
+  ],
+  "env": {
+    "PATH": "{tmp}/proj/bin:/usr/bin:/bin"
+  },
+  "passos": [
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1"
+      }
+    }
+  ],
+  "entrada": {
+    "session_id": "s1",
+    "hook_event_name": "Stop",
+    "agent_type": "forge:jarvis"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

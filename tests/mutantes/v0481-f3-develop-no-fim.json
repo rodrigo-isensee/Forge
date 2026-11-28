@@ -1,0 +1,88 @@
+{
+  "pedido": "v0481-f3-develop-no-fim",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "F3-1",
+      "guarda": "F3 (v0481 E30.1): a base velha só avisa no pronto",
+      "arquivo": "bin/forge-check",
+      "de": "    if velha := pronto.base_velha(raiz, base, ancora):  # PRONTO-BASE-VELHA, F3",
+      "para": "    if False:  # PRONTO-BASE-VELHA, F3",
+      "testes": [
+        "tests.test_forge_pronto.BaseVelha.test_marca_depois_do_nascimento_so_avisa_e_confere_contra_o_ponto_de_partida"
+      ]
+    },
+    {
+      "id": "F3-2",
+      "guarda": "F3 (v0481 E30.1): com a base velha, as checagens rodam contra o ponto de partida da branch",
+      "arquivo": "bin/forge-check",
+      "de": "        base = ancora  # contra a base nova",
+      "para": "        base = base  # contra a base nova",
+      "testes": [
+        "tests.test_forge_pronto.BaseVelha.test_marca_depois_do_nascimento_so_avisa_e_confere_contra_o_ponto_de_partida"
+      ]
+    },
+    {
+      "id": "F3-3",
+      "guarda": "F3 (E30.4, segurança A2): com a base trazida, o head igual ao parecer vai ao merge simulado",
+      "arquivo": "bin/forge-check",
+      "de": "    if not fora and not (base and trouxe_a_base(raiz, base, commit, ate)):",
+      "para": "    if not fora:",
+      "testes": [
+        "tests.test_forge_check_base_igual.MergeQueDescartaABase.test_merge_s_ours_desatualiza_review_e_seguranca",
+        "tests.test_forge_check_base_igual.MergeQueDescartaABase.test_conflito_resolvido_com_o_lado_da_branch_desatualiza",
+        "tests.test_fechar_forge_check_real.DevelopSoNoFim.test_merge_que_descarta_a_base_desatualiza_o_parecer"
+      ]
+    },
+    {
+      "id": "F3-4",
+      "guarda": "trouxe_a_base: o git que falha conta como base trazida (falha fechada)",
+      "arquivo": "bin/forge-check",
+      "de": "    return bool(cod_c or cod_a or not mb_ate or mb_commit != mb_ate)",
+      "para": "    return bool(mb_commit != mb_ate)",
+      "testes": [
+        "tests.test_forge_check_base_igual.MergeQueDescartaABase.test_merge_simulado_que_falha_desatualiza"
+      ]
+    },
+    {
+      "id": "F3-5",
+      "guarda": "commit_vale: sem o merge simulado e sem arquivo mudado, o parecer não vale",
+      "arquivo": "bin/forge-check",
+      "de": "    if not div and not fora:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_check_base_igual.MergeQueDescartaABase.test_merge_simulado_que_falha_desatualiza"
+      ]
+    },
+    {
+      "id": "F3-6",
+      "guarda": "inicio_da_volta: a ref da base num commit da própria branch não esconde o teste tirado",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod or ponto in linha:",
+      "para": "    if cod:",
+      "testes": [
+        "tests.test_volta_alinhada.TerceiraVoltaComABaseTrazida.test_ref_da_base_num_commit_da_branch_nao_esconde_o_teste_tirado"
+      ]
+    },
+    {
+      "id": "F3-7",
+      "guarda": "inicio_da_volta: conflito com a base compara com o início",
+      "arquivo": "bin/forge-check",
+      "de": "    return saida.split(\"\\n\")[0].strip() if cod == 0 and saida else inicio",
+      "para": "    return saida.split(\"\\n\")[0].strip() if cod in (0, 1) and saida else inicio",
+      "testes": [
+        "tests.test_volta_alinhada.TerceiraVoltaComABaseTrazida.test_conflito_com_a_base_compara_com_o_inicio"
+      ]
+    },
+    {
+      "id": "F3-8",
+      "guarda": "R-QA da volta: com a base trazida, compara com o início mais a base",
+      "arquivo": "bin/forge-check",
+      "de": "testes_enfraquecidos_da_volta(raiz, brief, inicio_da_volta(raiz, base, inicio, head), head)",
+      "para": "testes_enfraquecidos_da_volta(raiz, brief, inicio, head)",
+      "testes": [
+        "tests.test_volta_alinhada.TerceiraVoltaComABaseTrazida.test_terceira_volta_com_a_base_que_tirou_um_teste_cumpre"
+      ]
+    }
+  ]
+}

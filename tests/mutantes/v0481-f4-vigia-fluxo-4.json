@@ -1,0 +1,86 @@
+{
+  "pedido": "v0481-f4-vigia-fluxo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "lista acima do limite cala",
+      "arquivo": "hooks/vigia.py",
+      "de": "if texto and len(texto) <= LIMITE_DA_LISTA else {}",
+      "para": "if texto else {}",
+      "testes": [
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_maior_que_o_limite_cala"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "lista ausente cala",
+      "arquivo": "hooks/vigia.py",
+      "de": "if texto and len(texto) <= LIMITE_DA_LISTA else {}",
+      "para": "if len(texto) <= LIMITE_DA_LISTA else {}",
+      "testes": [
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_vencida_ausente_e_no_futuro_calam"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "lista fora de objeto cala",
+      "arquivo": "hooks/vigia.py",
+      "de": "gravado = dados.get(\"gravado_em\") if isinstance(dados, dict) else None",
+      "para": "gravado = dados.get(\"gravado_em\") if True else None",
+      "testes": [
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_prs_fora_de_lista_e_dados_fora_de_objeto_calam"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "gravado_em fora de inteiro cala",
+      "arquivo": "hooks/vigia.py",
+      "de": "if type(gravado) is not int or not -60 <= agora - gravado <= PRAZO_DA_LISTA_S:",
+      "para": "if not -60 <= agora - gravado <= PRAZO_DA_LISTA_S:",
+      "testes": [
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_vencida_ausente_e_no_futuro_calam"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "lista vencida cala",
+      "arquivo": "hooks/vigia.py",
+      "de": "if type(gravado) is not int or not -60 <= agora - gravado <= PRAZO_DA_LISTA_S:",
+      "para": "if type(gravado) is not int or not -60 <= agora - gravado:",
+      "testes": [
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_vencida_ausente_e_no_futuro_calam"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "lista no futuro cala",
+      "arquivo": "hooks/vigia.py",
+      "de": "if type(gravado) is not int or not -60 <= agora - gravado <= PRAZO_DA_LISTA_S:",
+      "para": "if type(gravado) is not int or not agora - gravado <= PRAZO_DA_LISTA_S:",
+      "testes": [
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_vencida_ausente_e_no_futuro_calam"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "prs fora de lista calam",
+      "arquivo": "hooks/vigia.py",
+      "de": "prs = dados.get(\"prs\") if isinstance(dados.get(\"prs\"), list) else []",
+      "para": "prs = dados.get(\"prs\") if True else []",
+      "testes": [
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_prs_fora_de_lista_e_dados_fora_de_objeto_calam"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "item fora de objeto é ignorado",
+      "arquivo": "hooks/vigia.py",
+      "de": "for p in prs[:100] if isinstance(p, dict)\n",
+      "para": "for p in prs[:100] if True\n",
+      "testes": [
+        "tests.test_hook_vigia_f4.ListaEmDisco.test_item_fora_da_forma_e_ignorado"
+      ]
+    }
+  ]
+}

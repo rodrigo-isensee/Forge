@@ -1,0 +1,32 @@
+{
+  "descricao": "HOOK-NAO-PROTEGE-RAIZ-DO-FORGE (v0481 E37.1; R-CONFORMIDADE): o jarvis também: Edit no devcontainer.json da raiz.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n",
+    ".githooks/pre-push": "#!/bin/sh\n",
+    ".githooks/commit-msg": "#!/bin/sh\n",
+    ".devcontainer/devcontainer.json": "{}\n",
+    "scripts/x.sh": "#!/bin/sh\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "{tmp}/proj/.devcontainer/devcontainer.json",
+      "old_string": "{}",
+      "new_string": "{\"x\": 1}"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/proj",
+    "agent_type": "jarvis"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "arquivo em vigor (.devcontainer/devcontainer.json)"
+  }
+}

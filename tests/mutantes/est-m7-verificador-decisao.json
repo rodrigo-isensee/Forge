@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "REPO, EVENTO e REF ausentes viram vazio",
       "arquivo": "scripts/arvore-testada.py",
-      "de": "campo(env, k, str) or \"\"",
-      "para": "campo(env, k, str) or \"pull_request\"",
+      "de": "repo, evento, ref = (campo(env, k, str) or \"\" for k in (\"REPO\", \"EVENTO\", \"REF\"))",
+      "para": "repo, evento, ref = (campo(env, k, str) or \"pull_request\" for k in (\"REPO\", \"EVENTO\", \"REF\"))",
       "testes": [
         "tests.test_arvore_testada.EventoElegivel.test_fora_da_lista_sai_falso"
       ]
@@ -36,8 +36,8 @@
       "id": "M4",
       "guarda": "GITHUB_WORKFLOW_REF ausente vira vazio",
       "arquivo": "scripts/arvore-testada.py",
-      "de": "(campo(env, \"GITHUB_WORKFLOW_REF\", str) or \"\")",
-      "para": "(campo(env, \"GITHUB_WORKFLOW_REF\", str) or \"dono/forge/.github/workflows/ci.yml@x\")",
+      "de": "(campo(env, \"GITHUB_WORKFLOW_REF\", str) or \"\").partition(\"@\")\n    workflow",
+      "para": "(campo(env, \"GITHUB_WORKFLOW_REF\", str) or \"dono/forge/.github/workflows/ci.yml@x\").partition(\"@\")\n    workflow",
       "testes": [
         "tests.test_arvore_testada.EventoElegivel.test_fora_da_lista_sai_falso"
       ]

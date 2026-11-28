@@ -1,0 +1,40 @@
+{
+  "descricao": "C1b-2, S4 da segurança (29c1bea), pelo HEAD: no clone parcial com o HEAD para objeto ausente, nem com protocol.allow=always e protocol.file.allow=always na cópia o cat-file da lista fechada roda o remote.origin.uploadpack",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "config": {
+        "remote.origin.url": ".",
+        "remote.origin.uploadpack": "touch MARCA; git-upload-pack",
+        "remote.origin.promisor": "true",
+        "extensions.partialClone": "origin",
+        "protocol.allow": "always",
+        "protocol.file.allow": "always"
+      }
+    },
+    {
+      "arquivos": {
+        ".git/refs/heads/ausente": "1111111111111111111111111111111111111111\n",
+        ".git/HEAD": "ref: refs/heads/ausente\n"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/docs/reviews/v1.md",
+      "content": "parecer\n"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_caminho": [
+      "{raiz}/MARCA"
+    ]
+  }
+}

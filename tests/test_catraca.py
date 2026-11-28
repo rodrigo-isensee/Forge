@@ -4116,7 +4116,7 @@ class PrazoTotalDaApi(Base):
     def test_o_prazo_total_cabe_na_metade_do_timeout_do_job(self):
         """Se o N-CI baixar o `timeout-minutes` do job `catraca`, a suíte acusa."""
         yml = (AQUI.parent / ".github" / "workflows" / "catraca.yml").read_text(encoding="utf-8")
-        job = re.search(r"^  catraca:\n(.*?)(?=^  \S|\Z)", yml, re.M | re.S).group(1)
+        job = re.search(r"^  conferencia:\n(.*?)(?=^  \S|\Z)", yml, re.M | re.S).group(1)  # E47.1: a API é lida na conferência
         minutos = int(re.search(r"^    timeout-minutes: (\d+)\s*$", job, re.M).group(1))
         self.assertLessEqual(catraca.PRAZO_TOTAL_DA_API, minutos * 60 / 2)
         self.assertGreater(catraca.PRAZO_TOTAL_DA_API, 0)
@@ -4235,7 +4235,7 @@ class Workflows(unittest.TestCase):
 
     def test_ci_em_poucos_jobs_com_timeout_e_gate_sem_paths_ignore(self):
         """Economia de minutos: passos da bateria num job, push na develop só com a checagem rápida, timeout em todo job."""
-        for nome in ("ci.yml", "catraca.yml", "release.yml"):
+        for nome in ("ci.yml", "catraca.yml", "release.yml", "obsoletas.yml"):
             texto = self.texto(nome)
             jobs = len(re.findall(r"(?m)^  [a-z-]+:\n    (?:name|if|runs-on):", texto))
             self.assertEqual(texto.count("timeout-minutes:"), jobs, nome)
@@ -4245,12 +4245,13 @@ class Workflows(unittest.TestCase):
         self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/develop'", ci)
         self.assertRegex(ci, r"(?m)^  bateria:")
         self.assertIn("docs/(reviews|qa|security|devops|ux)/", ci)
-        # Teto de tempo (ci-suite-no-teto; SUITE-NO-CI; CI-RAPIDO, v047; F6, v0481), na ordem do ci.yml: no push na develop (3.12), cada uma
+        # Teto de tempo (ci-suite-no-teto; SUITE-NO-CI; CI-RAPIDO, v047; F6, v0481), na ordem do ci.yml: no push na develop (3.12), o job da
+        # prova do PR (arvore-envio) 5 min, cada uma
         # das 5 partes 15 min (medida de 2:30 a 5:00, a proposta ci-rapido), o teto de pulados 5 min e o agregador de prova
         # ("checagem rápida", SP4) 5 min; no PR: cobertura 45 min; o job prévio da árvore (M2) 5 min; cada parte da suíte (3.12) 20 min;
         # instalação no 3.14 15 min; o teto de pulados (T3, 0.43.2) 5 min; o agregador da bateria 5 min; passos da bateria 20 min;
         # pareceres (v047 E1.18, J9) 5 min; verificações longas (shellcheck, Provas, e2e; #493) 20 min; o agregador do PR 5 min.
-        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["15", "5", "5", "45", "5", "20", "15", "5", "5", "20", "5", "20", "5"])
+        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["5", "15", "5", "5", "45", "5", "20", "15", "5", "5", "20", "5", "20", "5"])
 
     def test_gate_do_ci_nao_deixa_codigo_escapar_nem_forjar_o_verde(self):
         """Review independente: renomeação, testes de pareceres, check forjado, cancelamento e promoção."""
@@ -4267,13 +4268,17 @@ class Workflows(unittest.TestCase):
         jobs = re.split(r"(?m)^(?=  [a-z-]+:\n)", ci.split("\njobs:\n", 1)[1])
         com_always = [j for j in jobs if "    if: always()" in j]
         self.assertEqual(len(com_always), 3)
-        for job in com_always:
+        # E47.1: na catraca.yml, always() só no agregador `catraca` (o check exigido), com as mesmas restrições dos do ci.yml
+        cat = self.texto("catraca.yml")
+        dela = [j for j in re.split(r"(?m)^(?=  [a-z-]+:\n)", cat.split("\njobs:\n", 1)[1]) if "    if: always()" in j]
+        self.assertEqual((len(dela), cat.count("always()")), (1, cat.count("    if: always()\n") + cat.count("always():")))
+        self.assertTrue(dela[0].startswith("  catraca:\n"))
+        for job in com_always + dela:
             with self.subTest(job.split(":", 1)[0].strip()):
                 self.assertNotIn("uses:", job)  # sem checkout nem ação: não roda código da branch
                 self.assertRegex(job, r"(?m)^    needs: \[")
                 passos = job.split("    steps:\n", 1)[1]
                 self.assertNotRegex(passos, r"python|bash|\./|scripts/|bin/|tests/|\$\{\{ *(github\.event\.|inputs)")  # só lê needs.*.result
-        self.assertNotIn("always()", self.texto("catraca.yml"))
         self.assertIn("!cancelled()", ci)
         self.assertIn('[ "$BASE_REF" = develop ]', ci)  # promoção para a homolog roda a bateria completa (R-FLUXO)
         self.assertIn('.app.slug == "github-actions"', ci)
@@ -4620,3 +4625,187 @@ class RotuladosDaLeva(Base):
         self.assertIn("rotulados: incompleta (RuntimeError)", saida)
         self.assertNotIn("tok-s3", saida + resumo)
         self.assertEqual((rede.call_args.args[0].get_method(), rede.call_args.args[0].full_url), ("GET", "https://api.github.com/repos/o/r/pulls/7"))
+
+
+class EsperaNaoEVermelho(Base):
+    """F1-ESPERA-NAO-E-VERMELHO (v0481 E47.1): só falta parecer ou rótulo, rc 3 (o workflow deixa o check pendente); defeito, rc 1."""
+
+    PASTAS, parecer = ParecerReprovadoBarraSempre.PASTAS, ParecerReprovadoBarraSempre.parecer
+
+    def cli(self, *args, titulo="", eventos=None):
+        self.repo.commit()
+        argv = ["python3", "-I", str(AQUI / "catraca.py"), "--raiz", str(self.repo.dir), "--base", "base", *args]
+        if eventos is not None:
+            arq = self.repo.dir.parent / (self.repo.dir.name + "-eventos.json")
+            arq.write_text(json.dumps(eventos), encoding="utf-8")
+            self.addCleanup(arq.unlink, missing_ok=True)
+            mesclados = self.repo.dir.parent / (self.repo.dir.name + "-mesclados.json")
+            mesclados.write_text(json.dumps({"pr": {}}), encoding="utf-8")  # E47.6: o PR respondeu
+            self.addCleanup(mesclados.unlink, missing_ok=True)
+            argv += ["--eventos", str(arq), "--ultimo-push", "2026-01-02T09:00:00Z", "--mesclados", str(mesclados)]
+        fora = ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "GITHUB_ACTIONS", "PR_TITULO", "PR_NUMBER", "HEAD_REPO", "BASE_REPO")
+        env = {**{k: v for k, v in os.environ.items() if k not in fora}, **ambiente_de_git(), "PR_TITULO": titulo}
+        return subprocess.run(argv, capture_output=True, text=True, env=env, timeout=120)
+
+    def pareceres(self):
+        return self.cli("--modo", "pareceres", "--ramo", "pr", "--base-ref", "develop")
+
+    def test_so_falta_o_parecer_sai_3_e_diz_espera(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        r = self.pareceres()
+        self.assertEqual(r.returncode, catraca.ESPERA, r.stdout + r.stderr)
+        self.assertIn("catraca: espera (falta o parecer aprovado)", r.stdout)
+        self.assertIn(catraca.SO_ESPERA_PARECER, r.stdout)
+
+    def test_parecer_reprovado_e_defeito_sai_1(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review", "reprovado")
+        r = self.pareceres()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertNotIn("catraca: espera", r.stdout)
+        self.assertNotIn(catraca.SO_ESPERA_PARECER, r.stdout)
+
+    def test_review_ausente_com_outro_parecer_reprovado_sai_1(self):
+        """E47.6: o parecer de QA reprovado (não exigido na develop, fora do `cmd_pr`) é defeito mesmo com o review só ausente."""
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("qa", "reprovado")
+        r = self.pareceres()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("ped.md (parecer: reprovado)", r.stdout)
+
+    # volta 2 do #948 (A1 do QA, mutantes Q1 e Q2): parecer que reprova é defeito no CLI, com ou sem arquivo sensível
+    def test_reprovado_sem_arquivo_sensivel_sai_1(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review", "reprovado")
+        r = self.pareceres()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("ped.md (parecer: reprovado)", r.stdout)
+        self.assertNotIn("catraca: espera", r.stdout)
+
+    def test_qa_reprovado_com_review_aprovado_e_arquivo_sensivel_sai_1(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.parecer("revisao-seguranca", commita=False)  # hooks/ é classe C: com review e segurança aprovados, o cmd_pr não acha nada
+        self.parecer("qa", "reprovado", commita=False)
+        r = self.pareceres()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertNotIn("R-REVIEW", r.stdout)  # chegou ao ramo do cmd_pr sem achado (M27)
+        self.assertRegex(r.stdout, r"qa/ped\.md \(parecer: reprovado\)")
+        self.assertNotIn("catraca: espera", r.stdout)
+
+    # volta 2 do #948 (A2 do QA, mutante Q3): o parecer só de outra branch é espera; o vizinho que casa só o começo, não
+    def test_so_parecer_de_outra_branch_sai_3(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review", ramo="outra")
+        self.parecer("qa", commita=False)  # o pedido é da branch `pr` pelo QA; o review só da `outra`
+        r = self.pareceres()
+        self.assertEqual(r.returncode, catraca.ESPERA, r.stdout + r.stderr)
+        self.assertIn("sem parecer da branch", r.stdout)
+
+    def test_linha_sem_parecer_da_branch_e_o_vizinho(self):
+        self.assertTrue(catraca.LINHA_DE_ESPERA.search("docs/reviews: review: sem parecer da branch pr para o pedido `p` (R-REVIEW)"))
+        for vizinho in ("docs/reviews: review: sem parecer da branchx pr (R-REVIEW)", "docs/reviews: review: sem parecer  pr (R-REVIEW)",
+                        "docs/reviews: review: sem parecer conferido (R-REVIEW)"):
+            with self.subTest(vizinho):
+                self.assertIsNone(catraca.LINHA_DE_ESPERA.search(vizinho))
+
+    def test_linha_de_espera_so_casa_ausente_e_desatualizado(self):
+        self.assertTrue(catraca.LINHA_DE_ESPERA.search("docs/reviews: review: sem parecer para o pedido `p` (R-REVIEW)"))
+        self.assertTrue(catraca.LINHA_DE_ESPERA.search("docs/reviews/p.md: commit: desatualizado: x (R-REVIEW)"))
+        self.assertFalse(catraca.LINHA_DE_ESPERA.search("docs/reviews/p.md: parecer: o último parecer não é aprovado (R-REVIEW)"))
+        self.assertFalse(catraca.LINHA_DE_ESPERA.search("docs/reviews/p.md: autoria: sem registro (R-REVIEW)"))
+
+    def test_regra_com_titulo_afrouxa_sem_rotulo_sai_3(self):
+        self.repo.config(dono="outra")
+        r = self.cli(titulo="feat(x): y [afrouxa-regra: ADR 0003]", eventos=[])
+        self.assertEqual(r.returncode, catraca.ESPERA, r.stdout + r.stderr)
+        self.assertIn("falta o rótulo do dono", r.stdout)
+
+    def test_regra_sem_titulo_afrouxa_e_defeito_sai_1(self):
+        self.repo.config(dono="outra")
+        self.assertEqual(self.cli(titulo="feat(x): y", eventos=[]).returncode, 1)
+
+    def test_sem_eventos_da_api_e_vermelho_mesmo_com_o_titulo(self):
+        self.repo.config(dono="outra")
+        self.assertEqual(self.cli(titulo="feat(x): y [afrouxa-regra]").returncode, 1)
+
+    def test_custo_e_defeito_mesmo_com_o_titulo(self):
+        self.repo.escreve("scripts/x.sh", "export ANTHROPIC_API_KEY=1\n")
+        self.assertEqual(self.cli(titulo="feat(x): y [afrouxa-regra]", eventos=[]).returncode, 1)
+
+    # E47.6 (volta 1 do #948, A2 da segurança): a espera dos pareceres se decide por dado, não por texto
+    def test_desatualizado_segue_espera(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.repo.escreve("hooks/novo.py", "x = 2\n")
+        r = self.pareceres()
+        self.assertEqual(r.returncode, catraca.ESPERA, r.stdout + r.stderr)
+        self.assertIn("commit: desatualizado", r.stdout)
+
+    def test_sonda_s1_arquivo_com_a_marca_e_parecer_reprovado_sai_1(self):
+        self.repo.escreve(f"hooks/{catraca.SO_ESPERA_PARECER}", "x = 1\n")
+        self.parecer("review", "reprovado")
+        r = self.pareceres()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertNotIn("catraca: espera", r.stdout)
+
+    def test_caminho_da_espera_e_o_conhecido_seguido_de_dois_pontos(self):
+        linha = "docs/reviews/p.md: commit: desatualizado: x (R-REVIEW)"
+        self.assertTrue(catraca.linha_de_espera(linha, {"docs/reviews", "docs/reviews/p.md", "docs/reviews/p.md: commit: desat"}))
+        self.assertFalse(catraca.linha_de_espera(linha, {"docs/reviews", "docs/reviews/p.md: commit"}))  # nome estranho: vermelho
+        self.assertFalse(catraca.linha_de_espera(linha, {"docs/reviews"}))  # caminho desconhecido: vermelho
+
+    def test_sonda_s2_parecer_com_nome_de_desatualizado_sai_1(self):
+        self.assertIsNone(catraca.LINHA_DE_ESPERA.search(
+            "docs/reviews/a: commit: desatualizado.md: parecer: o último parecer não é aprovado (R-REVIEW)"))
+        for arquivo in ("a: commit: desatualizado", "x.md: commit: desatualizado-y"):  # o 2.º casa o padrão: vale o caminho inteiro
+            with self.subTest(arquivo):
+                self.setUp()
+                self.repo.escreve("hooks/novo.py", "x = 1\n")
+                self.parecer("review", "reprovado", arquivo=arquivo)
+                r = self.pareceres()
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn("não é aprovado", r.stdout)
+
+
+class EsperaDoRotuloSoComAApiRespondendo(Base):
+    """E47.6 (volta 1 do #948, A3 da segurança, sonda S3): com `[afrouxa-regra` no título, a API das execuções ou do PR que falha,
+    ou o git que estoura o prazo, deixam a regra vermelha (rc 1), não espera; com tudo respondendo, espera (rc 3)."""
+
+    def roda(self, execucoes=(), fonte="ok", git_estoura=False, eventos=True):
+        self.repo.config(dono="outra")
+        self.repo.commit()
+        rotulo = {"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": "dona"}, "created_at": "2026-01-02T08:00:00Z"}
+        fonte_ = SimpleNamespace(repo="o/r", pr_atual=lambda: None if fonte == "pr falha" else {}) if fonte else None
+        mesclado = mock.Mock(side_effect=subprocess.TimeoutExpired("git", 1)) if git_estoura else mock.Mock(return_value=None)
+        with mock.patch.dict(os.environ, {"PR_TITULO": "feat(x): y [afrouxa-regra: ADR 0003]"}), \
+                mock.patch.object(catraca, "eventos_do_github", lambda: ([rotulo], "2026-01-02T09:00:00Z") if eventos else (None, None)), \
+                mock.patch.object(catraca, "execucoes_do_pr", lambda: None if execucoes is None else list(execucoes)), \
+                mock.patch.object(catraca, "fonte_do_github", lambda: fonte_), \
+                mock.patch.object(catraca, "liberado_por_pr_mesclado", mesclado), \
+                contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(["--modo", "regras", "--raiz", str(self.repo.dir), "--base", "base", "--head", "HEAD", "--ramo", "pr"])
+        return rc, saida.getvalue()
+
+    def test_com_tudo_respondendo_sai_3(self):
+        rc, saida = self.roda()
+        self.assertEqual(rc, catraca.ESPERA, saida)
+
+    def test_sonda_s3_execucoes_e_fonte_em_none_sai_1(self):
+        rc, saida = self.roda(execucoes=None, fonte=None)
+        self.assertEqual(rc, 1, saida)
+        self.assertNotIn("catraca: espera", saida)
+
+    def test_sem_eventos_sai_1_com_o_resto_respondendo(self):
+        rc, saida = self.roda(eventos=False)
+        self.assertEqual(rc, 1, saida)
+        self.assertNotIn("catraca: espera", saida)
+
+    def test_cada_consulta_que_falha_sai_1(self):
+        for caso, kw in (("execuções", {"execucoes": None}), ("fonte", {"fonte": None}), ("pr", {"fonte": "pr falha"}),
+                         ("git", {"git_estoura": True})):
+            with self.subTest(caso):
+                self.setUp()
+                rc, saida = self.roda(**kw)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn("não respondeu", saida)
