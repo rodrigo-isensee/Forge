@@ -1,40 +1,37 @@
 ---
 tipo: qa
 contrato: 1
-pedido: v0478
+pedido: v048
 branch: melhoria/v0479-vermelho-evals
-commit: bdc7eb53e6388924e889f249e55b728ec221412b
-parecer: aprovado
+commit: 05ee66764cc0008dfd77dd7481e9bec525ae0a19
+parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
-bugs_altos: 0
+bugs_altos: 1
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-20
+data: 2026-11-28
 ---
-# QA: v0478 E48.4 (VERMELHO-TESTS-EVALS)
+# QA: v048 E13.41 (VERMELHO-TESTS-EVALS, retomada E13.32), delta do merge da develop 9479650b
 
-Escopo: `bin/forge-testes --vermelho` aceita módulo de pacote de `tests/` (`evals.test_x`) e caminho de arquivo (`tests/evals/test_x.py`); a suíte do `--vermelho` inclui os módulos de pacote.
+## Achados
+- A1 (bloqueante) tests/mutantes/forge-testes-modulos-nome.json:1 · M1 e M2 têm o `de` na linha antiga de `modulos_pedidos` (bin/forge-testes:1287 mudou); test_toda_spec_do_forge_confere_com_a_fonte falha no CI (parte 4/5) e local. Alinhe a spec no mesmo commit.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| Módulo de pacote sem `--modulos` entra no diff | `test_vermelho_sem_modulos_roda_o_modulo_de_pacote_do_diff` | pacote aninhado | prova (asserção); mutantes M4, M6 morrem |
-| `evals.test_x`, `tests.evals.test_x` e caminho dão o mesmo veredito | `test_vermelho_aceita_modulo_de_pacote_e_caminho_com_o_mesmo_veredito` | três grafias | prova (asserção); M1, M3, M5 morrem |
-| Herdada da base em módulo de pacote | `test_vermelho_de_modulo_de_pacote_marca_herdada...` | chave do setUpClass | prova (asserção); M8, M9 morrem |
-| Grafia torta e módulo sem arquivo recusados | `test_vermelho_recusa_modulo_de_pacote_sem_arquivo_e_grafia_torta` | `tests.tests.`, `Evals.`, `evals/` | prova (asserção); M1, M2 morrem |
-| Caminho de teste da raiz | `test_vermelho_aceita_o_caminho_de_teste_da_raiz` | `tests/test_x.py` | prova (asserção); M3 morre |
+| Merge não perde o lado da branch | diff de `bin/forge-testes` e `tests/test_testes_tocados.py`: delta do merge contra o 1.º pai igual ao da develop (004ce869..9479650b), 392 e 474 linhas | n/a | passou, idênticos |
+| Merge não perde o lado da develop (#960) | diff do merge contra 9479650b em `bin/forge-testes`: só as 23 linhas do patch | n/a | passou |
+| Módulo de pacote, caminho e prefixo `tests.` no `--vermelho` | testes do E48.4 em `tests/test_testes_tocados.py` (5 provas por asserção) | pacote aninhado, grafia torta | passou; ver M1-M11 |
+| Specs de mutantes conferem com a fonte | `test_forge_mutante.ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes` | linha de guarda movida | FALHOU (A1) |
 
 ## Cenários e resultado real
-- Módulo tocado, local (TMPDIR): `python3 -I -m unittest discover -s tests -p test_testes_tocados.py -k Vermelho` → `Ran 48 tests ... OK`.
-- Cobertura: `forge-mutante --cobertura --base 004ce869…` lista as 4 condições mudadas como `coberta` (M3, M8, M10, M11) e duas `isenta` com motivo, sem `isenta velha` nem `não coberto`. Linhas de guarda do diff têm mutante.
-- `forge-mutante --processos 2 tests/mutantes/vermelho-tests-evals.json`: M1 a M11 todos `morreu` (M3 e M11 com `(erro)` sob mutante, controle verde); sem sobrevivente.
-- `forge-testes --vermelho 004ce869d641ca62394d705c4453d8a014002f15 --modulos test_testes_tocados --prazo 900` (rc=0, 155 s): `vermelho: base=004ce869d641 head=bdc7eb53e638 módulos=test_testes_tocados (restrito por --modulos)`; `mantidos no HEAD: tests/mutantes/vermelho-tests-evals.json, tests/test_testes_tocados.py`; `contagem: não prova (passa na base)=163; prova (asserção)=5; pulado=1`, sem sem-veredito nem falha no HEAD. Os cinco testes novos, incluindo os dois do A1, saem `H=ok · B=falha · prova (asserção)`.
-- Delta: `forge-check parecer delta` lista só `tests/test_testes_tocados.py` (aviso de merge 7adf831 fora da origin/develop local, sem rede de fetch aqui). Mutantes M1 a M11 da rodada anterior seguem válidos: o delta não toca `bin/` nem a spec.
-- Suíte inteira: não rodada (máquina carregada, ordem do brief); vale o check-run `bateria` do CI do PR.
+- `bin/forge-mutante tests/mutantes/vermelho-tests-evals.json` no head: `rev=05ee66764cc0`; M1 a M11 todos `morreu` (M1/M2 :144, M3 :1287, M4 :942, M5 :142, M6/M10 :940, M7 :872, M8 :903, M9 :900, M11 :942); sem sobrevivente.
+- `forge-testes --vermelho 004ce869d641 --modulos evals.test_placar` (módulo de pacote real, rc=0): `vermelho: base=004ce869d641 head=05ee66764cc0 módulos=evals.test_placar (restrito por --modulos)`; `tests.evals.test_placar.CiPrimeira.test_cancelada_nao_conta_como_verde_nem_vermelha · H=ok · B=falha · prova (asserção)` e demais da classe iguais.
+- `--modulos evals.test_regressao_forma`: roda 31 testes nas duas cópias; `não prova (passa na base)=31`, rc=1 (esperado: módulo não mudado no diff).
+- Comportamento igual ao aprovado em 20/11: o delta do merge não altera a lógica do patch.
+- A1 reproduzido local: `python3 -I -m unittest discover -s tests -p test_forge_mutante.py -k test_toda_spec_do_forge_confere` dá `FAILED (failures=1)`, listando `forge-testes-modulos-nome.json: M1` e `M2`.
+- O teste que cai já existia; o patch muda a linha que a spec antiga (v0432) cita e a spec não foi alinhada.
 
-## Revalidação
-A1 da rodada anterior (rc=2, dois testes sem veredito) fechado no delta `8b5d4a5f..bdc7eb53` (só `tests/test_testes_tocados.py`): `modulos_do_vermelho` afirma a linha do plano e `returncode` antes de ler; o teste de revertidos afirma a linha única. Na base a falha agora é de asserção.
-
-## Achados fora do domínio
-Nenhum.
+## CI
+- ci: 05ee66764cc0008dfd77dd7481e9bec525ae0a19 NÃO verde. PR #970, `gh pr checks`: `suíte (python 3.12, parte 4/5)` fail e `bateria` fail (consequência); partes 1, 2, 3 e 5, `bateria (pareceres)`, `bateria (passos)`, `bateria (python 3.14)`, `bateria (verificações longas)`, `catraca`, `catraca (conferência)` e instalação passam.
