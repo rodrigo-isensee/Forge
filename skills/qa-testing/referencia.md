@@ -42,9 +42,9 @@ Leia ao declarar um mutante equivalente ou ao ler a saída do `--cobertura`.
   `equivalente: <id> · <justificativa>`, sem rodar; com `testes`, roda, e o que eles matam é inválido; o equivalente não
   prova: a spec só de equivalentes sem `testes` sai 2 e, no `--cobertura`, a condição coberta só por ele sai
   `só equivalente`, rc 1.
-- **Saídas do `bin/forge-mutante --cobertura --base <Base-sha>`:** a condição Python mudada sem mutante declarado sai
-  "declarado, não provado"; shell e outros saem `não coberto: <arquivo>`; as `isentas` da spec, até 8, saem
-  `isenta · arq:L · motivo`, e a que não cruza, `isenta velha`, rc 1.
+- **Saídas do `bin/forge-mutante --cobertura --base <Base-sha>`:** lista a condição Python mudada sem mutante declarado
+  ("declarado, não provado"; shell e outros saem `não coberto: <arquivo>`; as `isentas` da spec, até 8, saem
+  `isenta · arq:L · motivo`, e a que não cruza, `isenta velha`, rc 1).
 
 ## Modelo do relatório de bug (`docs/qa/bugs/<id>-<titulo>.md`)
 Leia ao abrir o relatório.

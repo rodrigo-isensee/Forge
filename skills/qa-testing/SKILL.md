@@ -32,7 +32,7 @@ Para cada critério de aceite da especificação, pelo menos um cenário. A tabe
 
 ## Teste-oráculo do portão (EXT-1, no Forge)
 - **Quando:** pedido de guarda ou controle, o que toca hook, `.githooks/`, portão do forge-check, catraca ou CI. Na 1ª rodada, antes da construção, o portão escreve o oráculo: a segurança com gatilho de segurança, o QA sem ele.
-- **Onde e como** (nome do arquivo, commit próprio, hook que barra o autor, autocontido, entrega por `git fetch` local) e **o review do oráculo**: `referencia.md` nesta skill, ao escrever o oráculo.
+- **Onde e como** (nome do arquivo, commit próprio, hook que barra o autor, autocontido, entrega por `git fetch` local) e **o review do oráculo**: `referencia.md` nesta skill, ao escrever o oráculo ou ao revisar um.
 - **Prova de não edição (o hook não basta):** o portão grava no parecer `oraculo: <caminho> commit <sha40> blob <sha40>`. O parecer final confere as três, e falhar em uma reprova: `git merge-base --is-ancestor <sha-do-oráculo> HEAD`; `git rev-parse HEAD:<oráculo>` igual ao blob gravado; `git log --format=%H <sha>..HEAD -- <oráculo>` vazio. Depois de um rebase limpo vale o blob igual, e o log do trecho novo só pode mostrar o commit reescrito do próprio oráculo. Registre quantos testes do oráculo rodaram; zero reprova.
 
 ## E2E
