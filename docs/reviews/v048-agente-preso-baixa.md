@@ -3,12 +3,20 @@ tipo: review
 contrato: 1
 pedido: v048
 branch: melhoria/v048-agente-preso-baixa
-commit: 2a310c7c3f20f9d34118eff8602c6829819eaf01
-parecer: reprovado
+commit: af5dde244f771d0bf2f1b45e1ddc9c41128e685f
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-28
 ---
 # Review: v048 (E12.9, PR #963, AGENTE-PRESO-SEM-BAIXA, E12.2)
+
+## Rodada 2 (delta, head af5dde24; E12.13)
+Delta lido (`forge-check parecer delta`): `2a310c7c..af5dde24`, só `tests/mutantes/trava-agente-morto.json` (M6) e um comentário em `tests/test_agente_preso_baixa.py`, fora os pareceres. Cópia própria `wt/v048-agente-preso-baixa-tech-lead-3` por `forge-copia clone ... --revisao`, no af5dde24.
+- ci: af5dde244f771d0bf2f1b45e1ddc9c41128e685f verde
+- CI lido no run 46162734439: suíte partes 1 a 5, teto de pulados, instalação, bateria passos, python 3.14 e verificações longas, catraca e catraca (conferência) verdes; `bateria (pareceres)` e `bateria` esperam os pareceres
+- A1 resolvido: o `de` do M6 agora é `entrada.get("promptSource") == "system":`, que aparece uma vez só em `hooks/agentes.py` (linha 492); `para` `True:`. O M6 foi realinhado, não retirado.
+- S2 refeita no af5dde24: `test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes` OK; `bin/forge-mutante --processos 1 --ids M6 tests/mutantes/trava-agente-morto.json`: `M6 · morreu · hooks/agentes.py:492`.
+- Comentário da S9 no teste: só comentário, cita a sonda e o comando de reprodução; sem efeito no comportamento. O delta não toca código de `hooks/` nem shell; H1 sem mudança.
 
 ## Rodada 1 (completa, head 2a310c7c)
 Diff lido: `d056c2ca..2a310c7c` (commits abbbbd37 e 2a310c7c): `hooks/agentes.py`, `hooks/vigia.py`, `tests/test_agente_preso_baixa.py`, `tests/mutantes/v048-agente-preso-baixa.json`, `-2.json` e `changelog.d/v048-agente-preso-baixa.md`. Cópia própria `wt/v048-agente-preso-baixa-tech-lead-2` por `forge-copia clone ... --revisao --origem <URL do GitHub>`, no 2a310c7c.
@@ -27,13 +35,16 @@ Diff lido: `d056c2ca..2a310c7c` (commits abbbbd37 e 2a310c7c): `hooks/agentes.py
 - **docs/hooks.md:** precisa citar o `--limpar` e a forma nova; é recomendação (A2).
 
 ## Achados
-- A1 (bloqueante) tests/mutantes/trava-agente-morto.json:49 · o `de` do M6 (C1, promptSource system) termina em `and ` e a linha nova em `agentes.py:492` termina em `:`; a spec não casa mais e a parte 4/5 da suíte do Revisar-sha fica vermelha. Ajustar `de`/`para` do M6 à linha nova ou retirá-lo (o M11 da v048-2 cobre a guarda).
 - A2 (recomendado) docs/hooks.md:101 · o texto diz "só o `transcript_path` da sessão atual" e "Não há liberação manual"; falta citar o `agentes.py --limpar` (as mesmas provas, sob demanda, transcript achado pela sessão do registro) e a forma `queued_command` do aviso.
 - A3 (recomendado) hooks/agentes.py:468 · o C3 diz que o transcript sai "nunca de campo do registro", e o `--limpar` (linha 1518) o acha pela `sessao` do registro; registrar a exceção no docstring (o registro é protegido e o caminho é revalidado), para o C3 não parecer violado.
 - A4 (recomendado) hooks/agentes.py:1510 · o ramo do clone (`fixar_estado_do_clone` falso) não tem teste próprio (M6 troca a condição inteira e o teste cobre só `raiz None`), e erro de gravação ou de config sai com traceback; teste do ramo e mensagem curta com onde rodar (terminal do dono).
 
 ## Sondas
-- S1 · python3 -m unittest tests.test_forge_mutante.ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes (no 2a310c7c) · espera: OK · obtido: AssertionError ['tests/mutantes/trava-agente-morto.json: M6'] != [], igual ao CI run 46160762619
+- S1 · python3 -m unittest tests.test_forge_mutante.ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes (no 2a310c7c) · espera: OK · obtido: AssertionError ['tests/mutantes/trava-agente-morto.json: M6'] != [], igual ao CI run 46160762619 (o A1 da rodada 1, resolvido na rodada 2)
+- S2 · python3 -m unittest tests.test_forge_mutante.ConferirTodas.test_toda_spec_do_forge_confere_com_a_fonte_fora_as_pendentes (no af5dde24) · espera: OK · obtido: OK; M6 · morreu · hooks/agentes.py:492
 
 ## Parecer
+Rodada 2: aprovado. O único bloqueante (A1, spec do M6 fora da fonte) está corrigido: o M6 casa com a guarda nova, morre sob o teste declarado e o CI do af5dde24 está verde. A2 a A4 seguem recomendados e viram cartão depois do merge (R-REVIEW).
+
+Rodada 1:
 Reprovado por um só motivo: o CI do Revisar-sha está vermelho (A1), pela spec velha do M6 da TRAVA-AGENTE-MORTO, que o diff deixou sem casar com a fonte. É defeito provado (S1) e o brief só aprova com o CI verde; a correção fica em `tests/mutantes/` e não toca o código. O mérito está bom: a baixa nova exige os mesmos campos de prova da antiga e mais os da forma do anexo, conferida contra transcripts reais; o `--limpar` reaproveita o caminho do hook sem atalho; registro ilegível e transcript ambíguo mantêm o registro. Na volta leio só o delta (`forge-check parecer delta`) e o CI do head novo. A2 a A4 são recomendados e viram cartão depois do merge (R-REVIEW).
