@@ -16,7 +16,10 @@ Uso: forge-testes [--base REF] [--listar] [--completa | --afetados] [-k PADRAO .
   --listar      mostra o plano (modo e módulos) e não roda nada
   --completa    roda a suíte inteira, sem consultar o mapa, pela trava e pela fila do `.githooks/pre-push --suite`
   --afetados    o plano do pre-push: os testes afetados (mapa, mais todo teste que cita o caminho, mais os que exercitam
-                os arquivos de controle), nunca a suíte completa; o que nenhum teste lê fica para o CI, com aviso
+                os arquivos de controle), nunca a suíte completa; o que nenhum teste lê fica para o CI, com aviso.
+                Todo plano dirigido cujo diff toca hooks/, bin/ ou um protegido da catraca (PROTEGIDOS de
+                tests/catraca.py) leva também o teste de custo (test_hooks_volta_corpus) e a catraca no modo do diff
+                (`tests/catraca.py --base REF`, depois dos módulos; a saída do comando é a primeira vermelha) (E9.1)
   --texto      o pré-envio de texto (PRE-ENVIO-RAPIDO, mp1311): o mapa de testes e os testes de tamanho de texto
                 (`TESTES_DE_TEXTO`), num `unittest` só, com o código de saída dele e uma linha de resumo; não combina com nada
   --registros  a conferência de registros (PR-VERDE B1), só leitura e em segundos: roda, em paralelo, os mesmos testes do CI
